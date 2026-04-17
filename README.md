@@ -26,7 +26,3 @@ AI数字生命项目 - 现代化AI编程软件实现规划
 - Vite + electron-builder
 - Zustand (状态管理)
 - pnpm (包管理)
-
-## 许可证
-
-MIT License
