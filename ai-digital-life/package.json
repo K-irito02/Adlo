@@ -9,6 +9,7 @@
     "workers/*"
   ],
   "scripts": {
+    "dev": "npm run dev -w @ai-digital-life/desktop",
     "build": "npm run build -w @ai-digital-life/kernel && npm run build -w @ai-digital-life/config && npm run build -w @ai-digital-life/storage && npm run build -w @ai-digital-life/logger && npm run build -w @ai-digital-life/workspace && npm run build -w @ai-digital-life/retrieval-worker && npm run build -w @ai-digital-life/desktop",
     "start": "npm run start -w @ai-digital-life/desktop",
     "test": "vitest run",

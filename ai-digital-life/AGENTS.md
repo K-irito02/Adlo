@@ -23,3 +23,5 @@
 - [CONTRIBUTING.md](/E:/Programs/Obsidian/notes/ai-digital-life/CONTRIBUTING.md)
 - [docs/architecture/system-overview.md](/E:/Programs/Obsidian/notes/ai-digital-life/docs/architecture/system-overview.md)
 - [docs/architecture/tech-stack-alignment.md](/E:/Programs/Obsidian/notes/ai-digital-life/docs/architecture/tech-stack-alignment.md)
+- [docs/architecture/internationalization.md](/E:/Programs/Obsidian/notes/ai-digital-life/docs/architecture/internationalization.md)
+- [docs/architecture/theming.md](/E:/Programs/Obsidian/notes/ai-digital-life/docs/architecture/theming.md)

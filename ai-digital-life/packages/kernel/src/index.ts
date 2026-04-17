@@ -91,6 +91,11 @@ export type ResolvedTheme = "light" | "dark";
 export type LanguageCode = "zh-CN" | "en-US";
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
+export interface AppPreferencePatch {
+  language?: LanguageCode;
+  themeMode?: ThemeMode;
+}
+
 export interface ConfigSnapshot {
   language: LanguageCode;
   themeMode: ThemeMode;
@@ -185,6 +190,52 @@ export interface AppInfo {
   config: ConfigSnapshot;
   currentWorkspace?: WorkspaceMeta;
   recentLogs: LogEntrySummary[];
+}
+
+export type TaskStatus =
+  | "pending"
+  | "waiting-approval"
+  | "approved"
+  | "running"
+  | "completed"
+  | "failed"
+  | "rejected"
+  | "rolled-back";
+
+export type RiskLevel = "low" | "medium" | "high";
+
+export interface TaskSummary {
+  id: string;
+  title: string;
+  description: string;
+  status: TaskStatus;
+  riskLevel: RiskLevel;
+  updatedAt: number;
+  detail: string;
+}
+
+export interface ApprovalRequestSummary {
+  id: string;
+  taskId: string;
+  title: string;
+  description: string;
+  riskLevel: RiskLevel;
+  impact: string[];
+  reversible: boolean;
+  createdAt: number;
+  expiresAt?: number;
+}
+
+export interface ApprovalPolicySummary {
+  mode: "manual";
+  summary: string;
+  highRiskRules: string[];
+}
+
+export interface TaskCenterSnapshot {
+  tasks: TaskSummary[];
+  pendingApprovals: ApprovalRequestSummary[];
+  policy: ApprovalPolicySummary;
 }
 
 export function defaultWindowState(): WindowState {

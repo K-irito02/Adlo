@@ -1,17 +1,21 @@
 import path from "node:path";
 import { Worker } from "node:worker_threads";
 import { app, BrowserWindow, ipcMain, nativeTheme } from "electron";
-import { loadConfig } from "@ai-digital-life/config";
+import { applyConfigPatch, loadConfig, saveConfig } from "@ai-digital-life/config";
 import {
   APP_NAME,
   APP_VERSION,
   ERROR_CODES,
   type AppInfo,
+  type AppPreferencePatch,
   type ConfigSnapshot,
   type HealthSnapshot,
   type IpcResult,
   type LogEntrySummary,
   type RetrievalSnapshot,
+  type RiskLevel,
+  type TaskCenterSnapshot,
+  type TaskStatus,
   ok,
   err,
   toUserMessage
@@ -21,6 +25,7 @@ import { StateRepository } from "@ai-digital-life/storage";
 import { WorkspaceService } from "@ai-digital-life/workspace";
 
 type Runtime = {
+  configDir: string;
   config: ConfigSnapshot;
   logger: Logger;
   stateRepository: StateRepository;
@@ -177,6 +182,7 @@ async function createRuntime(): Promise<Runtime> {
   logger.info("Runtime initialized.");
 
   return {
+    configDir,
     config,
     logger,
     stateRepository,
@@ -200,6 +206,85 @@ function createAppInfo(): AppInfo {
   };
 }
 
+function mapRetrievalStatusToTaskStatus(status: RetrievalSnapshot["status"]): TaskStatus {
+  switch (status) {
+    case "running":
+      return "running";
+    case "completed":
+      return "completed";
+    case "failed":
+      return "failed";
+    default:
+      return "pending";
+  }
+}
+
+function mapRetrievalStatusToRiskLevel(status: RetrievalSnapshot["status"]): RiskLevel {
+  return status === "failed" ? "medium" : "low";
+}
+
+async function createTaskCenterSnapshot(): Promise<TaskCenterSnapshot> {
+  if (!runtime) {
+    throw new Error("Runtime not initialized.");
+  }
+
+  const currentWorkspace = runtime.workspaceService.getCurrentWorkspace();
+  const retrieval = currentWorkspace
+    ? await runtime.retrieval.getSnapshot(runtime.stateRepository, currentWorkspace.id)
+    : undefined;
+  const now = Date.now();
+  const tasks = currentWorkspace
+    ? [
+        {
+          id: `workspace-${currentWorkspace.id}`,
+          title: "workspace.restore",
+          description: "Restore the last workspace session into the desktop shell.",
+          status: "completed" as const,
+          riskLevel: "low" as const,
+          updatedAt: currentWorkspace.lastOpenedAt,
+          detail: `Workspace ${currentWorkspace.name} is attached and ready.`
+        },
+        {
+          id: `retrieval-${currentWorkspace.id}`,
+          title: "retrieval.index",
+          description: "Maintain the local repository map and retrieval snapshot.",
+          status: retrieval ? mapRetrievalStatusToTaskStatus(retrieval.status) : "pending",
+          riskLevel: retrieval ? mapRetrievalStatusToRiskLevel(retrieval.status) : "low",
+          updatedAt: retrieval?.updatedAt ?? now,
+          detail: retrieval
+            ? retrieval.status === "failed"
+              ? retrieval.lastError ?? "Retrieval worker reported a failure."
+              : `Scanned ${retrieval.scannedFiles} files and indexed ${retrieval.indexedTextFiles} text files.`
+            : "Waiting for the first indexing run after workspace selection."
+        }
+      ]
+    : [
+        {
+          id: "workspace-onboarding",
+          title: "workspace.open",
+          description: "Select a workspace to initialize recovery, retrieval, and governance views.",
+          status: "pending" as const,
+          riskLevel: "low" as const,
+          updatedAt: now,
+          detail: "No active workspace is attached yet."
+        }
+      ];
+
+  return {
+    tasks,
+    pendingApprovals: [],
+    policy: {
+      mode: "manual",
+      summary: "High-risk actions stay approval-bound in Phase 0 and are not exposed directly in the renderer.",
+      highRiskRules: [
+        "Destructive file changes require explicit approval.",
+        "Force Git actions and command execution stay blocked behind future governance flows.",
+        "Renderer only shows approval state and never receives raw system privileges."
+      ]
+    }
+  };
+}
+
 function registerIpcHandlers(): void {
   ipcMain.handle("app:getInfo", async (): Promise<IpcResult<AppInfo>> => {
     try {
@@ -215,6 +300,24 @@ function registerIpcHandlers(): void {
       return err(ERROR_CODES.internal, "Runtime not initialized.");
     }
     return ok(runtime.retrieval.snapshot());
+  });
+
+  ipcMain.handle("app:updatePreferences", async (_event, patch: AppPreferencePatch): Promise<IpcResult<AppInfo>> => {
+    try {
+      if (!runtime) {
+        return err(ERROR_CODES.internal, "Runtime not initialized.");
+      }
+
+      runtime.config = applyConfigPatch(runtime.config, patch, nativeTheme.shouldUseDarkColors);
+      await saveConfig(runtime.configDir, runtime.config);
+      runtime.logger.info(
+        `Preferences updated: language=${runtime.config.language}, themeMode=${runtime.config.themeMode}`
+      );
+      return ok(createAppInfo());
+    } catch (error) {
+      const failure = toUserMessage(error);
+      return err(failure.code, failure.message);
+    }
   });
 
   ipcMain.handle("workspace:listRecent", async () => {
@@ -254,6 +357,15 @@ function registerIpcHandlers(): void {
       const workspaceId = runtime.workspaceService.getCurrentWorkspaceId();
       const snapshot = await runtime.retrieval.getSnapshot(runtime.stateRepository, workspaceId);
       return ok(snapshot);
+    } catch (error) {
+      const failure = toUserMessage(error);
+      return err(failure.code, failure.message);
+    }
+  });
+
+  ipcMain.handle("task:getSnapshot", async (): Promise<IpcResult<TaskCenterSnapshot>> => {
+    try {
+      return ok(await createTaskCenterSnapshot());
     } catch (error) {
       const failure = toUserMessage(error);
       return err(failure.code, failure.message);

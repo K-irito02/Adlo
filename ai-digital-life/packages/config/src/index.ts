@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import {
+  type AppPreferencePatch,
   type ConfigSnapshot,
   type LanguageCode,
   type LogLevel,
@@ -71,4 +72,34 @@ export async function loadConfig(configDir: string, prefersDark = false): Promis
       resolvedTheme: resolveThemeMode(DEFAULT_CONFIG.themeMode, prefersDark)
     };
   }
+}
+
+function toStoredConfigFile(snapshot: ConfigSnapshot): StoredConfigFile {
+  return {
+    language: snapshot.language,
+    themeMode: snapshot.themeMode,
+    logLevel: snapshot.logLevel,
+    maxRecentWorkspaces: snapshot.maxRecentWorkspaces
+  };
+}
+
+export function applyConfigPatch(
+  currentConfig: ConfigSnapshot,
+  patch: AppPreferencePatch,
+  prefersDark = false
+): ConfigSnapshot {
+  const nextThemeMode = patch.themeMode ?? currentConfig.themeMode;
+
+  return {
+    ...currentConfig,
+    language: patch.language ?? currentConfig.language,
+    themeMode: nextThemeMode,
+    resolvedTheme: resolveThemeMode(nextThemeMode, prefersDark)
+  };
+}
+
+export async function saveConfig(configDir: string, snapshot: ConfigSnapshot): Promise<void> {
+  const configFilePath = path.join(configDir, "config.json");
+  await fs.mkdir(configDir, { recursive: true });
+  await fs.writeFile(configFilePath, `${JSON.stringify(toStoredConfigFile(snapshot), null, 2)}\n`, "utf8");
 }

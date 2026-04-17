@@ -4,7 +4,8 @@ import type { DigitalLifeBridge } from "../shared/ipc";
 const api: DigitalLifeBridge = {
   app: {
     getInfo: () => ipcRenderer.invoke("app:getInfo"),
-    getHealth: () => ipcRenderer.invoke("app:getHealth")
+    getHealth: () => ipcRenderer.invoke("app:getHealth"),
+    updatePreferences: (patch) => ipcRenderer.invoke("app:updatePreferences", patch)
   },
   workspace: {
     listRecent: () => ipcRenderer.invoke("workspace:listRecent"),
@@ -12,6 +13,9 @@ const api: DigitalLifeBridge = {
   },
   retrieval: {
     getStatus: () => ipcRenderer.invoke("retrieval:getStatus")
+  },
+  task: {
+    getSnapshot: () => ipcRenderer.invoke("task:getSnapshot")
   }
 };
 
