@@ -1,0 +1,16 @@
+id: failure-recovery-review
+event: post-failure
+severity: medium
+mode: warn
+condition:
+  any:
+    - task_failed: true
+    - verification_failed: true
+    - hook_blocked_high_risk_path: true
+action:
+  type: recovery-review
+  required_agents: [code-reviewer]
+  message: |
+    当前任务失败或被治理规则拦截。请记录失败上下文、恢复建议、是否需要回滚，以及是否应触发 code-reviewer 复查。
+timeout: 2000
+fallback: warn

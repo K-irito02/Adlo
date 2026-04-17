@@ -1,0 +1,61 @@
+version: 1
+default_fallback: warn
+hooks:
+  - id: phase-boundary-guard
+    event: pre-task
+    file: .agents/hooks/pre-task/phase-boundary-guard.yaml
+    severity: medium
+    mode: block
+    timeout: 3000
+    fallback: warn
+  - id: sensitive-surface-guard
+    event: pre-edit
+    file: .agents/hooks/pre-edit/sensitive-surface-guard.yaml
+    severity: high
+    mode: block
+    timeout: 3000
+    fallback: warn
+  - id: architecture-consistency-guard
+    event: pre-edit
+    file: .agents/hooks/pre-edit/architecture-consistency-guard.yaml
+    severity: medium
+    mode: block
+    timeout: 3000
+    fallback: warn
+  - id: dangerous-action-approval
+    event: pre-dangerous-action
+    file: .agents/hooks/pre-dangerous-action/dangerous-action-approval.yaml
+    severity: high
+    mode: approval
+    timeout: 3000
+    fallback: block
+  - id: test-requirement-guard
+    event: pre-commit
+    file: .agents/hooks/pre-commit/test-requirement-guard.yaml
+    severity: medium
+    mode: block
+    timeout: 3000
+    fallback: warn
+  - id: doc-sync-guard
+    event: pre-commit
+    file: .agents/hooks/pre-commit/doc-sync-guard.yaml
+    severity: medium
+    mode: block
+    timeout: 3000
+    fallback: warn
+  - id: task-summary-reminder
+    event: post-task
+    file: .agents/hooks/post-task/task-summary-reminder.yaml
+    severity: low
+    mode: warn
+    timeout: 2000
+    fallback: warn
+  - id: failure-recovery-review
+    event: post-failure
+    file: .agents/hooks/post-failure/failure-recovery-review.yaml
+    severity: medium
+    mode: warn
+    timeout: 2000
+    fallback: warn
+shared:
+  policy_file: .agents/hooks/shared/policy.yaml

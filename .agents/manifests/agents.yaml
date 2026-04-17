@@ -1,0 +1,112 @@
+version: 1
+default_topology: tree
+default_max_parallel_implementers: 3
+agents:
+  - id: product-spec
+    role: product-spec
+    file: .agents/roles/product-spec.md
+    responsibility: 需求澄清、范围边界、阶段拆分、验收标准
+    allowed_tools: [read, search, summarize, edit-docs]
+    default_skills: [docs-phase-governance]
+    escalation_policy: escalate_on_scope_change
+    review_required: false
+    handoff_targets: [architect, docs-maintainer]
+  - id: architect
+    role: architect
+    file: .agents/roles/architect.md
+    responsibility: 系统分层、包边界、接口设计、依赖约束、迁移策略
+    allowed_tools: [read, search, edit-docs, edit-code, shell-readonly]
+    default_skills: [project-architecture, docs-phase-governance]
+    escalation_policy: escalate_on_cross_boundary_change
+    review_required: true
+    handoff_targets: [desktop-shell, infra-foundation, retrieval-engineer, task-governance]
+  - id: desktop-shell
+    role: desktop-shell
+    file: .agents/roles/desktop-shell.md
+    responsibility: Electron壳层、IPC、Main/Preload/Renderer/Worker、安全边界与恢复
+    allowed_tools: [read, search, edit-code, shell-readonly, run-tests]
+    default_skills: [project-architecture, desktop-electron-security]
+    escalation_policy: escalate_on_renderer_privilege_expansion
+    review_required: true
+    handoff_targets: [app-security, test-engineer, code-reviewer]
+  - id: infra-foundation
+    role: infra-foundation
+    file: .agents/roles/infra-foundation.md
+    responsibility: 配置、日志、错误、持久化、迁移与健康基线
+    allowed_tools: [read, search, edit-code, shell-readonly, run-tests]
+    default_skills: [project-architecture, testing-quality-gates]
+    escalation_policy: escalate_on_state_or_schema_change
+    review_required: true
+    handoff_targets: [architect, test-engineer, code-reviewer]
+  - id: retrieval-engineer
+    role: retrieval-engineer
+    file: .agents/roles/retrieval-engineer.md
+    responsibility: 工作区识别、索引、搜索、增量更新、仓库地图与后台worker
+    allowed_tools: [read, search, edit-code, shell-readonly, run-tests]
+    default_skills: [workspace-retrieval, project-architecture]
+    escalation_policy: escalate_on_index_model_or_worker_boundary_change
+    review_required: true
+    handoff_targets: [desktop-shell, test-engineer, code-reviewer]
+  - id: task-governance
+    role: task-governance
+    file: .agents/roles/task-governance.md
+    responsibility: 任务状态机、审批、审计、checkpoint 与风险分级
+    allowed_tools: [read, search, edit-code, edit-docs, shell-readonly, run-tests]
+    default_skills: [task-approval-audit, project-architecture]
+    escalation_policy: escalate_on_new_high_risk_flow
+    review_required: true
+    handoff_targets: [app-security, test-engineer, code-reviewer]
+  - id: app-security
+    role: app-security
+    file: .agents/roles/app-security.md
+    responsibility: 权限边界、秘密管理、危险动作限制、审计要求
+    allowed_tools: [read, search, edit-code, edit-docs, shell-readonly, run-tests]
+    default_skills: [desktop-electron-security, task-approval-audit]
+    escalation_policy: escalate_on_sensitive_surface_change
+    review_required: true
+    handoff_targets: [desktop-shell, task-governance, code-reviewer]
+  - id: test-engineer
+    role: test-engineer
+    file: .agents/roles/test-engineer.md
+    responsibility: 单测、集成、E2E、验收矩阵和回归分析
+    allowed_tools: [read, search, edit-code, shell-readonly, run-tests]
+    default_skills: [testing-quality-gates]
+    escalation_policy: escalate_on_missing_testability
+    review_required: false
+    handoff_targets: [code-reviewer, docs-maintainer]
+  - id: code-reviewer
+    role: code-reviewer
+    file: .agents/roles/code-reviewer.md
+    responsibility: 静态审查、设计一致性、边界回归、测试缺口识别
+    allowed_tools: [read, search, shell-readonly, edit-docs]
+    default_skills: [testing-quality-gates, project-architecture]
+    escalation_policy: escalate_on_release_blocker
+    review_required: false
+    handoff_targets: [docs-maintainer, repo-librarian]
+  - id: docs-maintainer
+    role: docs-maintainer
+    file: .agents/roles/docs-maintainer.md
+    responsibility: 开发文档、设计文档、阶段文档、运行手册和变更说明
+    allowed_tools: [read, search, edit-docs]
+    default_skills: [docs-phase-governance]
+    escalation_policy: escalate_on_doc_drift
+    review_required: false
+    handoff_targets: [repo-librarian]
+  - id: release-integrator
+    role: release-integrator
+    file: .agents/roles/release-integrator.md
+    responsibility: 构建、打包、版本、迁移、发布前检查
+    allowed_tools: [read, search, edit-docs, shell-readonly, run-tests]
+    default_skills: [release-readiness, testing-quality-gates]
+    escalation_policy: escalate_on_release_risk
+    review_required: true
+    handoff_targets: [test-engineer, docs-maintainer, code-reviewer]
+  - id: repo-librarian
+    role: repo-librarian
+    file: .agents/roles/repo-librarian.md
+    responsibility: 维护 AGENTS、skills、hooks、manifests 与开发文档的一致性
+    allowed_tools: [read, search, edit-docs, edit-code, shell-readonly]
+    default_skills: [docs-phase-governance]
+    escalation_policy: escalate_on_rule_drift
+    review_required: false
+    handoff_targets: [docs-maintainer, architect]

@@ -18,6 +18,8 @@ AI数字生命项目 - 现代化AI编程软件实现规划
 ## 目录结构
 
 - `digitalLife/aiFunction/expectedFunctionality/` - 功能规格文档
+- `.agents/` - 项目级开发 Agent、skills、hooks 与 manifests
+- `docs/development/` - 开发协作体系说明文档
 
 ## 技术栈
 
@@ -25,4 +27,13 @@ AI数字生命项目 - 现代化AI编程软件实现规划
 - Electron 28+
 - Vite + electron-builder
 - Zustand (状态管理)
-- pnpm (包管理)
+- Bun、pnpm (包管理)
+
+## 开发协作体系
+
+仓库根已引入项目级 `AGENTS.md` 与 `.agents/` 体系，用于约束 `AI数字生命` 项目的开发协作：
+
+- 子Agent 分工
+- 项目级 skills
+- 分级治理 hooks
+- 路由与文档收口规则

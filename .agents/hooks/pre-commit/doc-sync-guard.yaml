@@ -1,0 +1,17 @@
+id: doc-sync-guard
+event: pre-commit
+severity: medium
+mode: block
+condition:
+  any:
+    - architecture_changed_without_doc_update: true
+    - agent_or_skill_manifest_changed_without_docs: true
+    - hook_policy_changed_without_docs: true
+    - phase_boundary_changed_without_stage_docs: true
+action:
+  type: documentation-sync-required
+  required_agents: [docs-maintainer, repo-librarian]
+  message: |
+    当前改动会影响项目规则或实现依据，但文档尚未同步。先更新相关 docs、AGENTS 或 manifests。
+timeout: 3000
+fallback: warn
