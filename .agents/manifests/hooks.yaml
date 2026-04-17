@@ -22,6 +22,20 @@ hooks:
     mode: block
     timeout: 3000
     fallback: warn
+  - id: ui-foundation-guard
+    event: pre-edit
+    file: .agents/hooks/pre-edit/ui-foundation-guard.yaml
+    severity: medium
+    mode: block
+    timeout: 3000
+    fallback: warn
+  - id: state-persistence-guard
+    event: pre-edit
+    file: .agents/hooks/pre-edit/state-persistence-guard.yaml
+    severity: high
+    mode: block
+    timeout: 3000
+    fallback: warn
   - id: dangerous-action-approval
     event: pre-dangerous-action
     file: .agents/hooks/pre-dangerous-action/dangerous-action-approval.yaml

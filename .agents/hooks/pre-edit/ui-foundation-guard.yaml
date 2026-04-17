@@ -1,0 +1,18 @@
+id: ui-foundation-guard
+event: pre-edit
+severity: medium
+mode: block
+condition:
+  any:
+    - adds_user_visible_copy_without_i18n_resource: true
+    - introduces_theme_literals_without_tokens: true
+    - breaks_system_theme_follow_behavior: true
+    - introduces_accessibility_regression_in_core_flow: true
+action:
+  type: ui-foundation-review-required
+  required_agents: [architect, docs-maintainer]
+  message: |
+    当前修改触及国际化、主题或可访问性基座。必须显式说明文案资源、主题令牌、
+    system 主题跟随与关键交互可达性是否仍然成立，再继续修改。
+timeout: 3000
+fallback: warn

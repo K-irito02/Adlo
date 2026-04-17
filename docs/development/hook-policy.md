@@ -46,6 +46,16 @@
 - 事件：`pre-edit`
 - 作用：检查低层依赖高层、Renderer 越权、多事件总线等问题
 
+### `ui-foundation-guard`
+
+- 事件：`pre-edit`
+- 作用：检查国际化资源、主题令牌、system 主题跟随和核心可访问性回归
+
+### `state-persistence-guard`
+
+- 事件：`pre-edit`
+- 作用：检查配置分层、持久化 schema、迁移计划和恢复路径缺失
+
 ### `dangerous-action-approval`
 
 - 事件：`pre-dangerous-action`

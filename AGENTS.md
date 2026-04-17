@@ -83,6 +83,8 @@
 - `phase-boundary-guard`
 - `sensitive-surface-guard`
 - `architecture-consistency-guard`
+- `ui-foundation-guard`
+- `state-persistence-guard`
 - `test-requirement-guard`
 - `doc-sync-guard`
 - `dangerous-action-approval`
@@ -113,12 +115,17 @@
 - Hook 规则变化
 - 安全基线变化
 - 测试门禁变化
+- 国际化策略变化
+- 主题系统规则变化
+- 配置、持久化或恢复策略变化
 
 详细说明见：
 
 - [agent-topology.md](/E:/Programs/Obsidian/notes/docs/development/agent-topology.md)
 - [agent-routing.md](/E:/Programs/Obsidian/notes/docs/development/agent-routing.md)
 - [hook-policy.md](/E:/Programs/Obsidian/notes/docs/development/hook-policy.md)
+- [project-engineering-constraints.md](/E:/Programs/Obsidian/notes/docs/development/project-engineering-constraints.md)
+- [future-codebase-governance-checklist.md](/E:/Programs/Obsidian/notes/docs/development/future-codebase-governance-checklist.md)
 
 ## 当前仓库的特殊约束
 
