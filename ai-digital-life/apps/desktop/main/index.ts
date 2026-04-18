@@ -1159,6 +1159,8 @@ function registerIpcHandlers(): void {
   );
 }
 
+const isDev = !app.isPackaged && process.env.ELECTRON_DEV !== "false";
+
 async function createWindow(): Promise<void> {
   if (!runtime) {
     throw new Error("Runtime not initialized.");
@@ -1184,6 +1186,10 @@ async function createWindow(): Promise<void> {
     mainWindow?.show();
   });
 
+  if (isDev) {
+    mainWindow.webContents.openDevTools();
+  }
+
   mainWindow.on("close", () => {
     if (!runtime || !mainWindow) {
       return;
@@ -1198,7 +1204,11 @@ async function createWindow(): Promise<void> {
     });
   });
 
-  await mainWindow.loadFile(path.join(__dirname, "../renderer/index.html"));
+  if (isDev) {
+    await mainWindow.loadURL("http://localhost:5173");
+  } else {
+    await mainWindow.loadFile(path.join(__dirname, "../renderer/index.html"));
+  }
 }
 
 async function bootstrap(): Promise<void> {

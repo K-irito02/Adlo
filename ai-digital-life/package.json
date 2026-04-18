@@ -16,6 +16,7 @@
     "typecheck": "npm run typecheck -w @ai-digital-life/kernel && npm run typecheck -w @ai-digital-life/config && npm run typecheck -w @ai-digital-life/errors && npm run typecheck -w @ai-digital-life/events && npm run typecheck -w @ai-digital-life/storage && npm run typecheck -w @ai-digital-life/task && npm run typecheck -w @ai-digital-life/migration && npm run typecheck -w @ai-digital-life/logger && npm run typecheck -w @ai-digital-life/workspace && npm run typecheck -w @ai-digital-life/retrieval-worker && npm run typecheck -w @ai-digital-life/desktop"
   },
   "devDependencies": {
+    "@electron/rebuild": "^4.0.3",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.13.11",
     "electron": "^35.0.0",
