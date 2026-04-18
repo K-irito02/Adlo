@@ -20,5 +20,5 @@ Retrieval remains worker-owned and continues to store only externally visible st
 ## Present Limits
 
 - No file-watch driven incremental updates yet.
-- No checkpoint storage yet.
+- Checkpoint storage currently records metadata and inferred file lists, not restorable payloads.
 - Git snapshot currently focuses on branch and dirty-state summary, not full history context.

@@ -197,12 +197,18 @@ export interface LogEntrySummary {
   level: LogLevel;
   scope: string;
   message: string;
+  context?: Record<string, unknown>;
+  durationMs?: number;
+  error?: {
+    name: string;
+    message: string;
+  };
 }
 
 export type HealthStatus = "healthy" | "degraded" | "unavailable";
 
 export interface HealthComponent {
-  name: "main" | "worker" | "storage";
+  name: "main" | "worker" | "storage" | "recovery" | "migration";
   status: HealthStatus;
   detail: string;
   updatedAt: number;
@@ -211,6 +217,42 @@ export interface HealthComponent {
 export interface HealthSnapshot {
   timestamp: number;
   components: HealthComponent[];
+}
+
+export interface RuntimeLifecycleSnapshot {
+  currentStartedAt: number;
+  lastShutdownAt?: number;
+  lastShutdownWasClean: boolean;
+  recoveredFromCrash: boolean;
+}
+
+export interface MigrationDiagnostics {
+  change: "none" | "upgrade";
+  fromVersion?: string;
+  toVersion: string;
+  backupPath?: string;
+  executedScripts: Array<{
+    scriptId: string;
+    status: "pending" | "running" | "completed" | "failed" | "rolled-back";
+    error?: string;
+  }>;
+}
+
+export interface EventDiagnostics {
+  emitted: number;
+  byType: Record<string, number>;
+}
+
+export interface RuntimeDiagnosticsSnapshot {
+  lifecycle: RuntimeLifecycleSnapshot;
+  migration: MigrationDiagnostics;
+  events: EventDiagnostics;
+  recentErrors: Array<{
+    id: string;
+    timestamp: number;
+    name: string;
+    message: string;
+  }>;
 }
 
 export type RetrievalStatus = "idle" | "running" | "completed" | "failed";
@@ -331,6 +373,32 @@ export interface AuditRecord {
   createdAt: number;
 }
 
+export interface CheckpointRecord {
+  id: string;
+  sessionId: string;
+  workspaceId: string;
+  type: "approval-anchor" | "workspace-open" | "retrieval-anchor";
+  description: string;
+  manifest: Record<string, unknown>;
+  createdAt: number;
+}
+
+export interface CheckpointPayloadAsset {
+  path: string;
+  kind: "file" | "directory";
+  status: "captured" | "missing";
+  size?: number;
+  snapshotPath?: string;
+}
+
+export interface CheckpointPayloadPreview {
+  checkpointId: string;
+  manifestPath: string;
+  rootPath?: string;
+  assetCount: number;
+  assets: CheckpointPayloadAsset[];
+}
+
 export interface ApprovalPolicySummary {
   mode: "manual";
   summary: string;
@@ -341,6 +409,8 @@ export interface TaskCenterSnapshot {
   tasks: TaskSummary[];
   pendingApprovals: ApprovalRequestSummary[];
   policy: ApprovalPolicySummary;
+  currentSession?: SessionMeta;
+  latestCheckpoint?: CheckpointRecord;
 }
 
 export interface BaseEvent<TType extends string = string, TPayload = Record<string, unknown>> {
@@ -380,6 +450,38 @@ export function createWorkspaceId(workspacePath: string): string {
 
 export function createId(prefix?: string): string {
   return prefix ? `${prefix}_${crypto.randomUUID()}` : crypto.randomUUID();
+}
+
+export function sleep(delayMs: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, delayMs);
+  });
+}
+
+export function sanitizeSensitiveData<T>(value: T): T {
+  const sensitiveKeys = ["token", "apiKey", "password", "authorization", "secret"];
+
+  function walk(input: unknown): unknown {
+    if (Array.isArray(input)) {
+      return input.map((item) => walk(item));
+    }
+
+    if (input && typeof input === "object") {
+      return Object.fromEntries(
+        Object.entries(input as Record<string, unknown>).map(([key, childValue]) => {
+          if (sensitiveKeys.some((candidate) => key.toLowerCase().includes(candidate.toLowerCase()))) {
+            return [key, "[REDACTED]"];
+          }
+
+          return [key, walk(childValue)];
+        })
+      );
+    }
+
+    return input;
+  }
+
+  return walk(value) as T;
 }
 
 export function toUserMessage(error: unknown): IpcError {

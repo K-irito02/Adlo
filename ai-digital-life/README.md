@@ -8,6 +8,7 @@ This workspace contains the first runnable Phase 0 thin slice for `AI Digital Li
 - [CONTRIBUTING.md](/E:/Programs/Obsidian/notes/ai-digital-life/CONTRIBUTING.md)
 - [System Overview](/E:/Programs/Obsidian/notes/ai-digital-life/docs/architecture/system-overview.md)
 - [Tech Stack Alignment](/E:/Programs/Obsidian/notes/ai-digital-life/docs/architecture/tech-stack-alignment.md)
+- [StageOne Validation](/E:/Programs/Obsidian/notes/ai-digital-life/docs/architecture/stage-one-validation.md)
 
 ## Current Scope
 
@@ -22,6 +23,13 @@ This workspace contains the first runnable Phase 0 thin slice for `AI Digital Li
 - Persisted workspace/session/task/approval/audit metadata in SQLite
 - Basic Git dirty-worktree snapshot and approval trigger shell
 - Standalone `events` and `task` packages for Phase 0 governance primitives
+- Runtime event emission for app, workspace, retrieval, task, and approval flows
+- Approval decision write-back with checkpoint metadata anchors
+- Checkpoint payload bundles with captured file snapshots and restore preview metadata
+- Checkpoint restore execution from captured payload bundles
+- Startup recovery markers, migration evaluation, and diagnostics surfaced in the UI
+- Default registered migration scripts with backup path and execution status diagnostics
+- Standalone `migration` package with version detection, backup, and runner execution skeleton
 
 ## Out Of Scope For This Slice
 
@@ -32,22 +40,25 @@ This workspace contains the first runnable Phase 0 thin slice for `AI Digital Li
 
 ## StageOne Status
 
-This repository does **not** fully implement `digitalLife/aiFunction-Implementation/stageOne` yet.
+This repository now covers the `stageOne` runtime-facing Phase 0 baseline and has a concrete validation summary in `docs/architecture/stage-one-validation.md`.
 
-The current codebase now covers a broader Phase 0 home shell:
+The current codebase now covers the full Phase 0 desktop runtime path:
 
 - workspace open and recent restore
 - retrieval worker status
 - health and logs
 - preference controls
 - approval shell entry UI
+- startup recovery markers and recovery diagnostics
+- migration detection, backup preparation, and upgrade diagnostics
+- restore execution from the latest checkpoint payload
+- cross-module event emission through the shared event bus
+- checkpoint payload capture plus restore preview metadata
 
-Still missing for full `stageOne` completion:
+Still worth improving after `stageOne` baseline completion:
 
-- full cross-module event integration
-- checkpoint metadata and recovery anchors
-- schema migration and upgrade workflows
-- full packaging, E2E, and release-readiness layers
+- broader packaging and installer validation
+- richer migration and restore semantics
 
 ## Tech Stack Note
 

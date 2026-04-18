@@ -82,4 +82,36 @@ describe("state repository", () => {
     await expect(fs.access(path.join(tempDir, "app-state.v1.json.migrated"))).resolves.toBeUndefined();
     repository.close();
   });
+
+  it("writes checkpoint payload manifests and captured files", async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "adl-checkpoint-"));
+    tempDirs.push(tempDir);
+    const workspaceDir = path.join(tempDir, "workspace");
+    await fs.mkdir(path.join(workspaceDir, "src"), { recursive: true });
+    await fs.writeFile(path.join(workspaceDir, "src", "index.ts"), "export const demo = 1;\n", "utf8");
+
+    const repository = new StateRepository(tempDir, createFakeLogger() as never);
+    await repository.initialize();
+
+    const preview = await repository.writeCheckpointPayload({
+      checkpointId: "checkpoint-demo",
+      rootPath: workspaceDir,
+      affectedPaths: ["src/index.ts", "missing.txt"]
+    });
+
+    expect(preview.assetCount).toBe(2);
+    expect(preview.assets.find((asset) => asset.path === "src/index.ts")).toMatchObject({
+      status: "captured"
+    });
+    expect(preview.assets.find((asset) => asset.path === "missing.txt")).toMatchObject({
+      status: "missing"
+    });
+
+    const loaded = await repository.getCheckpointPayload("checkpoint-demo");
+    expect(loaded?.assetCount).toBe(2);
+    await fs.writeFile(path.join(workspaceDir, "src", "index.ts"), "export const demo = 2;\n", "utf8");
+    await repository.restoreCheckpointPayload("checkpoint-demo");
+    await expect(fs.readFile(path.join(workspaceDir, "src", "index.ts"), "utf8")).resolves.toContain("demo = 1");
+    repository.close();
+  });
 });

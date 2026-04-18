@@ -7,13 +7,15 @@ const rootDir = path.dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
   test: {
     environment: "node",
-    include: ["tests/unit/**/*.test.ts"]
+    include: ["tests/unit/**/*.test.ts", "tests/integration/**/*.test.ts"]
   },
   resolve: {
     alias: {
       "@ai-digital-life/kernel": path.resolve(rootDir, "packages/kernel/src"),
       "@ai-digital-life/config": path.resolve(rootDir, "packages/config/src"),
+      "@ai-digital-life/errors": path.resolve(rootDir, "packages/errors/src"),
       "@ai-digital-life/events": path.resolve(rootDir, "packages/events/src"),
+      "@ai-digital-life/migration": path.resolve(rootDir, "packages/migration/src"),
       "@ai-digital-life/storage": path.resolve(rootDir, "packages/storage/src"),
       "@ai-digital-life/task": path.resolve(rootDir, "packages/task/src"),
       "@ai-digital-life/logger": path.resolve(rootDir, "packages/logger/src"),

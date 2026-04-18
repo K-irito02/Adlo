@@ -2,11 +2,14 @@ import type { DigitalLifeBridge } from "../../shared/ipc";
 import type {
   AppInfo,
   ApprovalRequestSummary,
+  CheckpointRecord,
+  CheckpointPayloadPreview,
   HealthComponent,
   HealthSnapshot,
   LanguageCode,
   RecentWorkspaceEntry,
   RetrievalSnapshot,
+  RuntimeDiagnosticsSnapshot,
   TaskCenterSnapshot,
   TaskStatus,
   ThemeMode
@@ -38,9 +41,11 @@ type BannerState = {
 type DashboardSnapshot = {
   info: AppInfo;
   health?: HealthSnapshot;
+  diagnostics?: RuntimeDiagnosticsSnapshot;
   recentWorkspaces: RecentWorkspaceEntry[];
   retrieval?: RetrievalSnapshot;
   taskSnapshot?: TaskCenterSnapshot;
+  checkpointPreview?: CheckpointPayloadPreview;
 };
 
 const rootNode = getRootNode();
@@ -125,10 +130,11 @@ function riskLabel(messages: Messages, riskLevel: "low" | "medium" | "high"): st
 }
 
 async function bootstrap(): Promise<void> {
-  const [retrievalResult, infoResult, healthResult, recentResult, taskResult] = await Promise.all([
+  const [retrievalResult, infoResult, healthResult, diagnosticsResult, recentResult, taskResult] = await Promise.all([
     window.digitalLife.retrieval.getStatus(),
     window.digitalLife.app.getInfo(),
     window.digitalLife.app.getHealth(),
+    window.digitalLife.app.getDiagnostics(),
     window.digitalLife.workspace.listRecent(),
     window.digitalLife.task.getSnapshot()
   ]);
@@ -141,10 +147,19 @@ async function bootstrap(): Promise<void> {
   currentSnapshot = {
     info: infoResult.data,
     health: healthResult.ok ? healthResult.data : undefined,
+    diagnostics: diagnosticsResult.ok ? diagnosticsResult.data : undefined,
     recentWorkspaces: recentResult.ok ? recentResult.data : [],
     retrieval: retrievalResult.ok ? retrievalResult.data : undefined,
     taskSnapshot: taskResult.ok ? taskResult.data : undefined
   };
+
+  const latestCheckpointId = taskResult.ok ? taskResult.data.latestCheckpoint?.id : undefined;
+  if (latestCheckpointId) {
+    const checkpointPreviewResult = await window.digitalLife.task.getCheckpointPreview(latestCheckpointId);
+    if (checkpointPreviewResult.ok && currentSnapshot) {
+      currentSnapshot.checkpointPreview = checkpointPreviewResult.data;
+    }
+  }
 
   renderApp();
 }
@@ -165,11 +180,13 @@ function renderApp(): void {
     return;
   }
 
-  const { info, health, recentWorkspaces, retrieval, taskSnapshot } = currentSnapshot;
+  const { info, health, diagnostics, recentWorkspaces, retrieval, taskSnapshot, checkpointPreview } = currentSnapshot;
   const locale = info.config.language;
   const messages = locale === "en-US" ? enUS : zhCN;
   const pendingApprovals = taskSnapshot?.pendingApprovals ?? [];
   const selectedApproval = pendingApprovals[0];
+  const latestCheckpoint = taskSnapshot?.latestCheckpoint;
+  const currentSession = taskSnapshot?.currentSession;
 
   document.documentElement.lang = locale;
   document.documentElement.dataset.theme = info.config.resolvedTheme;
@@ -316,6 +333,19 @@ function renderApp(): void {
   const approvalDetailMarkup = selectedApproval
     ? renderApprovalDetail(selectedApproval, messages, locale)
     : `<div class="approval-detail-empty">${escapeHtml(messages.approvalDetailEmpty)}</div>`;
+  const sessionMarkup = currentSession
+    ? `
+      <div class="approval-detail-card">
+        <strong>${escapeHtml(currentSession.id)}</strong>
+        <div class="panel-subtitle">${escapeHtml(messages.sessionLastTask)}: ${escapeHtml(currentSession.summary.lastTaskId ?? "-")}</div>
+        <div class="panel-subtitle">${escapeHtml(messages.sessionLastCheckpoint)}: ${escapeHtml(currentSession.summary.lastCheckpointId ?? "-")}</div>
+      </div>
+    `
+    : `<div class="approval-detail-empty">${escapeHtml(messages.noSession)}</div>`;
+  const checkpointMarkup = latestCheckpoint
+    ? renderCheckpointDetail(latestCheckpoint, checkpointPreview, messages, locale)
+    : `<div class="approval-detail-empty">${escapeHtml(messages.noCheckpoint)}</div>`;
+  const diagnosticsMarkup = diagnostics ? renderDiagnosticsDetail(diagnostics, messages, locale) : "";
 
   rootNode.innerHTML = `
     <main class="shell">
@@ -413,6 +443,11 @@ function renderApp(): void {
         <section class="panel">
           <h2>${escapeHtml(messages.recoveryTitle)}</h2>
           <p>${escapeHtml(messages.recoverySummary)}</p>
+          ${diagnosticsMarkup}
+          <h3>${escapeHtml(messages.currentSessionTitle)}</h3>
+          ${sessionMarkup}
+          <h3>${escapeHtml(messages.latestCheckpoint)}</h3>
+          ${checkpointMarkup}
           <h3>${escapeHtml(messages.highRiskRules)}</h3>
           <ul class="rule-list">
             ${
@@ -452,9 +487,107 @@ function renderApprovalDetail(approval: ApprovalRequestSummary, messages: Messag
         <span class="risk-pill ${approval.riskLevel}">${escapeHtml(riskLabel(messages, approval.riskLevel))}</span>
         <span class="panel-subtitle">${escapeHtml(formatDate(approval.createdAt, locale))}</span>
       </div>
+      <label class="panel-subtitle" for="approval-reason">${escapeHtml(messages.approvalReasonPlaceholder)}</label>
+      <input id="approval-reason" class="approval-reason-input" placeholder="${escapeHtml(messages.approvalReasonPlaceholder)}" />
       <ul class="rule-list">
         ${approval.impact.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
       </ul>
+      <div class="approval-actions">
+        <button type="button" data-approval-decision="approved" data-approval-id="${escapeHtml(approval.id)}">${escapeHtml(messages.approvalApprove)}</button>
+        <button type="button" class="secondary-button" data-approval-decision="rejected" data-approval-id="${escapeHtml(approval.id)}">${escapeHtml(messages.approvalReject)}</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderCheckpointDetail(
+  checkpoint: CheckpointRecord,
+  preview: CheckpointPayloadPreview | undefined,
+  messages: Messages,
+  locale: string
+): string {
+  const assetsMarkup =
+    preview && preview.assets.length > 0
+      ? `
+        <div class="panel-subtitle">${escapeHtml(messages.checkpointAssets)}: ${escapeHtml(String(preview.assetCount))}</div>
+        <ul class="rule-list compact-list">
+          ${preview.assets
+            .slice(0, 6)
+            .map(
+              (asset) =>
+                `<li><span class="mono">${escapeHtml(asset.path)}</span> <span class="panel-subtitle">(${escapeHtml(
+                  asset.status
+                )})</span></li>`
+            )
+            .join("")}
+        </ul>
+      `
+      : `<div class="panel-subtitle">${escapeHtml(messages.noCheckpointAssets)}</div>`;
+
+  return `
+    <div class="approval-detail-card">
+      <strong>${escapeHtml(checkpoint.id)}</strong>
+      <div>${escapeHtml(checkpoint.description)}</div>
+      <div class="panel-subtitle">${escapeHtml(formatDate(checkpoint.createdAt, locale))}</div>
+      ${assetsMarkup}
+      <div class="approval-actions">
+        <button type="button" data-restore-checkpoint="${escapeHtml(checkpoint.id)}">${escapeHtml(messages.restoreCheckpoint)}</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderDiagnosticsDetail(diagnostics: RuntimeDiagnosticsSnapshot, messages: Messages, locale: string): string {
+  const eventSummary = Object.entries(diagnostics.events.byType)
+    .map(([type, count]) => `${type}: ${count}`)
+    .join(" | ");
+  const latestError = diagnostics.recentErrors[0];
+  const migrationScriptMarkup =
+    diagnostics.migration.executedScripts.length > 0
+      ? `<ul class="rule-list compact-list">${diagnostics.migration.executedScripts
+          .map(
+            (script) =>
+              `<li><span class="mono">${escapeHtml(script.scriptId)}</span> <span class="panel-subtitle">(${escapeHtml(
+                script.status
+              )})</span></li>`
+          )
+          .join("")}</ul>`
+      : `<div class="panel-subtitle">${escapeHtml(messages.noMigrationScripts)}</div>`;
+
+  return `
+    <div class="approval-detail-card">
+      <strong>${escapeHtml(messages.lifecycleTitle)}</strong>
+      <div class="panel-subtitle">${escapeHtml(messages.currentStartedAt)}: ${escapeHtml(
+        formatDate(diagnostics.lifecycle.currentStartedAt, locale)
+      )}</div>
+      <div class="panel-subtitle">${escapeHtml(messages.lastShutdownAt)}: ${escapeHtml(
+        diagnostics.lifecycle.lastShutdownAt ? formatDate(diagnostics.lifecycle.lastShutdownAt, locale) : "-"
+      )}</div>
+      <div class="panel-subtitle">${escapeHtml(messages.lastShutdownState)}: ${escapeHtml(
+        diagnostics.lifecycle.lastShutdownWasClean ? messages.cleanShutdown : messages.uncleanShutdown
+      )}</div>
+      <div class="panel-subtitle">${escapeHtml(messages.recoveryDetected)}: ${escapeHtml(
+        diagnostics.lifecycle.recoveredFromCrash ? messages.yes : messages.no
+      )}</div>
+      <strong>${escapeHtml(messages.migrationTitle)}</strong>
+      <div class="panel-subtitle">${escapeHtml(messages.migrationChange)}: ${escapeHtml(diagnostics.migration.change)}</div>
+      <div class="panel-subtitle">${escapeHtml(messages.migrationVersion)}: ${escapeHtml(
+        `${diagnostics.migration.fromVersion ?? "-"} -> ${diagnostics.migration.toVersion}`
+      )}</div>
+      <div class="panel-subtitle">${escapeHtml(messages.migrationScripts)}: ${escapeHtml(
+        String(diagnostics.migration.executedScripts.length)
+      )}</div>
+      <div class="panel-subtitle">${escapeHtml(messages.migrationBackupPath)}: ${escapeHtml(
+        diagnostics.migration.backupPath ?? "-"
+      )}</div>
+      ${migrationScriptMarkup}
+      <strong>${escapeHtml(messages.eventsTitle)}</strong>
+      <div class="panel-subtitle">${escapeHtml(messages.eventsEmitted)}: ${escapeHtml(String(diagnostics.events.emitted))}</div>
+      <div class="panel-subtitle mono">${escapeHtml(eventSummary || "-")}</div>
+      <strong>${escapeHtml(messages.latestError)}</strong>
+      <div class="panel-subtitle">${escapeHtml(
+        latestError ? `${latestError.name}: ${latestError.message}` : messages.noRecentErrors
+      )}</div>
     </div>
   `;
 }
@@ -465,6 +598,9 @@ function attachListeners(messages: Messages): void {
   const buttons = document.querySelectorAll<HTMLButtonElement>("[data-open-workspace]");
   const languageButtons = document.querySelectorAll<HTMLButtonElement>("[data-toggle-group='language']");
   const themeButtons = document.querySelectorAll<HTMLButtonElement>("[data-toggle-group='theme']");
+  const approvalButtons = document.querySelectorAll<HTMLButtonElement>("[data-approval-decision]");
+  const restoreButtons = document.querySelectorAll<HTMLButtonElement>("[data-restore-checkpoint]");
+  const approvalReasonInput = document.querySelector<HTMLInputElement>("#approval-reason");
 
   const updateBanner = (tone: BannerState["tone"], text: string): void => {
     currentBanner = {
@@ -501,6 +637,53 @@ function attachListeners(messages: Messages): void {
     updateBanner("neutral", messages.settingsSaved);
   };
 
+  const decideApproval = async (approvalId: string, decision: "approved" | "rejected"): Promise<void> => {
+    const result = await window.digitalLife.task.decideApproval({
+      approvalId,
+      decision,
+      reason: approvalReasonInput?.value.trim() || undefined
+    });
+
+    if (!result.ok) {
+      updateBanner("error", `${messages.approvalDecisionFailure} ${result.error.message}`);
+      return;
+    }
+
+    currentSnapshot = {
+      ...(currentSnapshot as DashboardSnapshot),
+      taskSnapshot: result.data
+    };
+    const latestCheckpointId = result.data.latestCheckpoint?.id;
+    if (latestCheckpointId) {
+      const checkpointPreviewResult = await window.digitalLife.task.getCheckpointPreview(latestCheckpointId);
+      if (checkpointPreviewResult.ok && currentSnapshot) {
+        currentSnapshot.checkpointPreview = checkpointPreviewResult.data;
+      }
+    }
+    updateBanner("neutral", messages.approvalDecisionSuccess);
+  };
+
+  const restoreCheckpoint = async (checkpointId: string): Promise<void> => {
+    const result = await window.digitalLife.task.restoreCheckpoint(checkpointId);
+    if (!result.ok) {
+      updateBanner("error", `${messages.restoreCheckpointFailed} ${result.error.message}`);
+      return;
+    }
+
+    currentSnapshot = {
+      ...(currentSnapshot as DashboardSnapshot),
+      taskSnapshot: result.data
+    };
+    const latestCheckpointId = result.data.latestCheckpoint?.id;
+    if (latestCheckpointId) {
+      const checkpointPreviewResult = await window.digitalLife.task.getCheckpointPreview(latestCheckpointId);
+      if (checkpointPreviewResult.ok && currentSnapshot) {
+        currentSnapshot.checkpointPreview = checkpointPreviewResult.data;
+      }
+    }
+    updateBanner("neutral", messages.restoreCheckpointSuccess);
+  };
+
   form?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const workspacePath = input?.value ?? "";
@@ -530,6 +713,25 @@ function attachListeners(messages: Messages): void {
       const themeMode = button.dataset.toggleValue as Exclude<ThemeMode, "system"> | undefined;
       if (themeMode) {
         await updatePreferences({ themeMode });
+      }
+    });
+  });
+
+  approvalButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      const approvalId = button.dataset.approvalId;
+      const decision = button.dataset.approvalDecision as "approved" | "rejected" | undefined;
+      if (approvalId && decision) {
+        await decideApproval(approvalId, decision);
+      }
+    });
+  });
+
+  restoreButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      const checkpointId = button.dataset.restoreCheckpoint;
+      if (checkpointId) {
+        await restoreCheckpoint(checkpointId);
       }
     });
   });

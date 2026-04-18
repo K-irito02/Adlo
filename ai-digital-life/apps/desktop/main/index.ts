@@ -1,21 +1,31 @@
+import fs from "node:fs/promises";
 import path from "node:path";
 import { Worker } from "node:worker_threads";
 import { app, BrowserWindow, ipcMain, nativeTheme } from "electron";
 import { applyConfigPatch, loadConfig, saveConfig } from "@ai-digital-life/config";
+import { ErrorBoundary, ErrorReporter } from "@ai-digital-life/errors";
+import { getGlobalEventBus, type EventBus } from "@ai-digital-life/events";
 import {
   APP_NAME,
   APP_VERSION,
   ERROR_CODES,
+  EVENT_NAMES,
   type AppInfo,
   type AppPreferencePatch,
   APPROVAL_POLICY_MODE,
   type ApprovalRecord,
   type ApprovalRequestSummary,
+  type BaseEvent,
+  type CheckpointRecord,
+  type CheckpointPayloadPreview,
   type ConfigSnapshot,
+  type EventDiagnostics,
   type HealthSnapshot,
   type IpcResult,
   type LogEntrySummary,
   type RetrievalSnapshot,
+  type RuntimeDiagnosticsSnapshot,
+  type RuntimeLifecycleSnapshot,
   type RiskLevel,
   type TaskOperation,
   type TaskRecord,
@@ -27,30 +37,51 @@ import {
   toUserMessage
 } from "@ai-digital-life/kernel";
 import { createLoggerFactory, type Logger } from "@ai-digital-life/logger";
+import {
+  BackupManager,
+  MigrationRegistry,
+  MigrationRunner,
+  registerDefaultMigrations,
+  VersionDetector,
+  parseVersion
+} from "@ai-digital-life/migration";
 import { StateRepository } from "@ai-digital-life/storage";
 import { WorkspaceService } from "@ai-digital-life/workspace";
 
 type Runtime = {
   configDir: string;
+  lifecycleFilePath: string;
   config: ConfigSnapshot;
   logger: Logger;
+  errorReporter: ErrorReporter;
+  eventBus: EventBus;
+  diagnostics: RuntimeDiagnosticsSnapshot;
   stateRepository: StateRepository;
   workspaceService: WorkspaceService;
   getRecentLogs: (limit?: number) => LogEntrySummary[];
   retrieval: RetrievalController;
 };
 
+type MigrationBootstrapResult = RuntimeDiagnosticsSnapshot["migration"];
+type RuntimeStatusFile = {
+  lastStartedAt: number;
+  lastShutdownAt?: number;
+  cleanShutdown: boolean;
+};
+
 class RetrievalController {
   private readonly logger: Logger;
   private readonly workerPath: string;
+  private readonly onSnapshot?: (snapshot: RetrievalSnapshot) => Promise<void> | void;
   private worker?: Worker;
   private lastHeartbeatAt = 0;
   private storageHealthy = false;
   private currentSnapshot?: RetrievalSnapshot;
 
-  constructor(workerPath: string, logger: Logger) {
+  constructor(workerPath: string, logger: Logger, onSnapshot?: (snapshot: RetrievalSnapshot) => Promise<void> | void) {
     this.workerPath = workerPath;
     this.logger = logger;
+    this.onSnapshot = onSnapshot;
   }
 
   async start(stateRepository: StateRepository): Promise<void> {
@@ -65,6 +96,7 @@ class RetrievalController {
         this.currentSnapshot = payload.snapshot;
         this.lastHeartbeatAt = Date.now();
         void stateRepository.saveRetrievalSnapshot(payload.snapshot);
+        void this.onSnapshot?.(payload.snapshot);
       }
     });
     this.worker.on("error", (error) => {
@@ -158,14 +190,206 @@ class RetrievalController {
 let mainWindow: BrowserWindow | null = null;
 let runtime: Runtime | null = null;
 
+async function readRuntimeStatus(statusFilePath: string): Promise<RuntimeStatusFile | undefined> {
+  try {
+    const raw = await fs.readFile(statusFilePath, "utf8");
+    return JSON.parse(raw) as RuntimeStatusFile;
+  } catch {
+    return undefined;
+  }
+}
+
+async function markRuntimeStarted(statusFilePath: string): Promise<RuntimeLifecycleSnapshot> {
+  const previous = await readRuntimeStatus(statusFilePath);
+  const currentStartedAt = Date.now();
+  const snapshot: RuntimeLifecycleSnapshot = {
+    currentStartedAt,
+    lastShutdownAt: previous?.lastShutdownAt,
+    lastShutdownWasClean: previous?.cleanShutdown ?? true,
+    recoveredFromCrash: previous ? !previous.cleanShutdown : false
+  };
+
+  await fs.mkdir(path.dirname(statusFilePath), { recursive: true });
+  await fs.writeFile(
+    statusFilePath,
+    JSON.stringify(
+      {
+        lastStartedAt: currentStartedAt,
+        lastShutdownAt: previous?.lastShutdownAt,
+        cleanShutdown: false
+      } satisfies RuntimeStatusFile,
+      null,
+      2
+    ),
+    "utf8"
+  );
+
+  return snapshot;
+}
+
+async function markRuntimeStopped(statusFilePath: string): Promise<void> {
+  const existing = await readRuntimeStatus(statusFilePath);
+  const now = Date.now();
+  await fs.mkdir(path.dirname(statusFilePath), { recursive: true });
+  await fs.writeFile(
+    statusFilePath,
+    JSON.stringify(
+      {
+        lastStartedAt: existing?.lastStartedAt ?? now,
+        lastShutdownAt: now,
+        cleanShutdown: true
+      } satisfies RuntimeStatusFile,
+      null,
+      2
+    ),
+    "utf8"
+  );
+}
+
+function createInitialDiagnostics(lifecycle: RuntimeLifecycleSnapshot): RuntimeDiagnosticsSnapshot {
+  return {
+    lifecycle,
+    migration: {
+      change: "none",
+      toVersion: APP_VERSION,
+      executedScripts: []
+    },
+    events: {
+      emitted: 0,
+      byType: {}
+    },
+    recentErrors: []
+  };
+}
+
+async function emitRuntimeEvent(eventBus: EventBus, diagnostics: RuntimeDiagnosticsSnapshot, event: BaseEvent): Promise<void> {
+  diagnostics.events.emitted += 1;
+  diagnostics.events.byType[event.type] = (diagnostics.events.byType[event.type] ?? 0) + 1;
+  await eventBus.emit(event);
+}
+
+async function recordRuntimeError(
+  errorReporter: ErrorReporter,
+  diagnostics: RuntimeDiagnosticsSnapshot,
+  logger: Logger,
+  error: unknown,
+  context: Record<string, unknown>
+): Promise<void> {
+  const resolved = error instanceof Error ? error : new Error(String(error));
+  logger.error(`Runtime error: ${resolved.message}`, resolved, context);
+  const report = await errorReporter.generateReport(resolved, context);
+  diagnostics.recentErrors.unshift({
+    id: report.id,
+    timestamp: report.timestamp,
+    name: report.error.name,
+    message: report.error.message
+  });
+  diagnostics.recentErrors = diagnostics.recentErrors.slice(0, 5);
+}
+
+function createHealthSnapshot(runtimeState: Runtime): HealthSnapshot {
+  const base = runtimeState.retrieval.snapshot();
+  const recoveryStatus = runtimeState.diagnostics.lifecycle.recoveredFromCrash ? "degraded" : "healthy";
+  const migrationFailed = runtimeState.diagnostics.migration.executedScripts.some((script) => script.status === "failed");
+
+  return {
+    timestamp: Date.now(),
+    components: [
+      ...base.components,
+      {
+        name: "recovery",
+        status: recoveryStatus,
+        detail: runtimeState.diagnostics.lifecycle.recoveredFromCrash
+          ? "Recovered from a previous unclean shutdown."
+          : "Previous shutdown completed cleanly.",
+        updatedAt: runtimeState.diagnostics.lifecycle.currentStartedAt
+      },
+      {
+        name: "migration",
+        status: migrationFailed ? "unavailable" : "healthy",
+        detail:
+          runtimeState.diagnostics.migration.change === "upgrade"
+            ? `Upgrade evaluated for ${runtimeState.diagnostics.migration.toVersion} with ${runtimeState.diagnostics.migration.executedScripts.length} scripts.`
+            : `No migration required for ${runtimeState.diagnostics.migration.toVersion}.`,
+        updatedAt: runtimeState.diagnostics.lifecycle.currentStartedAt
+      }
+    ]
+  };
+}
+
+async function initializeMigrations(userDataPath: string, logger: Logger): Promise<MigrationBootstrapResult> {
+  const detector = new VersionDetector(userDataPath, parseVersion(APP_VERSION));
+  const storedVersion = await detector.getStoredVersion();
+  const change = await detector.detectChange();
+
+  if (change === "none") {
+    return {
+      change,
+      fromVersion: storedVersion
+        ? `${storedVersion.major}.${storedVersion.minor}.${storedVersion.patch}`
+        : undefined,
+      toVersion: APP_VERSION,
+      executedScripts: []
+    };
+  }
+
+  const backupManager = new BackupManager(path.join(userDataPath, "backups"), userDataPath);
+  const registry = new MigrationRegistry();
+  registerDefaultMigrations(registry, userDataPath);
+  const runner = new MigrationRunner(registry);
+
+  if (storedVersion) {
+    const backup = await backupManager.createBackup(
+      `${storedVersion.major}.${storedVersion.minor}.${storedVersion.patch}`,
+      ["config", "state"]
+    );
+    logger.info(`Created upgrade backup at ${backup.path}`);
+    const records = await runner.run(storedVersion, parseVersion(APP_VERSION));
+    logger.info(`Migration bootstrap completed with ${records.length} registered scripts.`);
+    await detector.saveCurrentVersion();
+    return {
+      change,
+      fromVersion: `${storedVersion.major}.${storedVersion.minor}.${storedVersion.patch}`,
+      toVersion: APP_VERSION,
+      backupPath: backup.path,
+      executedScripts: records.map((record) => ({
+        scriptId: record.scriptId,
+        status: record.status,
+        error: record.error
+      }))
+    };
+  }
+
+  await detector.saveCurrentVersion();
+  return {
+    change,
+    toVersion: APP_VERSION,
+    executedScripts: []
+  };
+}
+
 async function createRuntime(): Promise<Runtime> {
   const userDataPath = app.getPath("userData");
   const configDir = path.join(userDataPath, "config");
   const stateDir = path.join(userDataPath, "state");
   const logDir = path.join(userDataPath, "logs");
+  const lifecycleFilePath = path.join(stateDir, "runtime-status.json");
+  const lifecycle = await markRuntimeStarted(lifecycleFilePath);
   const config = await loadConfig(configDir, nativeTheme.shouldUseDarkColors);
   const loggerFactory = await createLoggerFactory(logDir, config.logLevel);
   const logger = loggerFactory.createLogger("main");
+  const errorReporter = new ErrorReporter();
+  const eventBus = getGlobalEventBus();
+  const diagnostics = createInitialDiagnostics(lifecycle);
+  const migrationBoundary = new ErrorBoundary("migration-init", logger, async (error) => {
+    await recordRuntimeError(errorReporter, diagnostics, logger, error, { surface: "migration-init" });
+  });
+  const migrationResult = await migrationBoundary.wrap(async () =>
+    logger.measure("initialize migrations", () => initializeMigrations(userDataPath, logger))
+  );
+  if (migrationResult) {
+    diagnostics.migration = migrationResult;
+  }
   const stateRepository = new StateRepository(stateDir, loggerFactory.createLogger("storage"));
   await stateRepository.initialize();
   const initialState = await stateRepository.load();
@@ -177,7 +401,17 @@ async function createRuntime(): Promise<Runtime> {
   });
   const retrieval = new RetrievalController(
     require.resolve("@ai-digital-life/retrieval-worker"),
-    loggerFactory.createLogger("retrieval")
+    loggerFactory.createLogger("retrieval"),
+    async (snapshot) => {
+      await emitRuntimeEvent(eventBus, diagnostics, {
+        type: EVENT_NAMES.retrievalStatusChanged,
+        timestamp: Date.now(),
+        payload: {
+          workspaceId: snapshot.workspaceId,
+          status: snapshot.status
+        }
+      });
+    }
   );
   await retrieval.start(stateRepository);
   retrieval.markStorageHealthy();
@@ -188,10 +422,22 @@ async function createRuntime(): Promise<Runtime> {
   }
   logger.info("Runtime initialized.");
 
+  await emitRuntimeEvent(eventBus, diagnostics, {
+    type: EVENT_NAMES.appInitialized,
+    timestamp: Date.now(),
+    payload: {
+      version: APP_VERSION
+    }
+  });
+
   return {
     configDir,
+    lifecycleFilePath,
     config,
     logger,
+    errorReporter,
+    eventBus,
+    diagnostics,
     stateRepository,
     workspaceService,
     getRecentLogs: loggerFactory.getRecentEntries,
@@ -273,6 +519,15 @@ async function upsertSystemTask(input: {
     detail: `${nextTask.type}:${nextTask.status}`,
     createdAt: now
   });
+  await emitRuntimeEvent(runtime.eventBus, runtime.diagnostics, {
+    type: EVENT_NAMES.taskUpserted,
+    timestamp: now,
+    payload: {
+      workspaceId: input.workspaceId,
+      taskId: nextTask.id,
+      status: nextTask.status
+    }
+  });
 
   return nextTask;
 }
@@ -347,7 +602,8 @@ async function syncGovernanceState(): Promise<void> {
           "High-risk actions should wait until the worktree is stable."
         ],
         reversible: true,
-        createdAt: now
+        createdAt: now,
+        expiresAt: now + 15 * 60 * 1000
       };
       const approval: ApprovalRecord = {
         id: request.id,
@@ -355,7 +611,8 @@ async function syncGovernanceState(): Promise<void> {
         workspaceId: workspace.id,
         riskLevel: request.riskLevel,
         request,
-        createdAt: now
+        createdAt: now,
+        expiresAt: request.expiresAt
       };
       await runtime.stateRepository.upsertApproval(approval);
       await runtime.stateRepository.appendAuditRecord({
@@ -364,6 +621,15 @@ async function syncGovernanceState(): Promise<void> {
         action: "approval.requested",
         detail: approval.request.description,
         createdAt: now
+      });
+      await emitRuntimeEvent(runtime.eventBus, runtime.diagnostics, {
+        type: EVENT_NAMES.approvalRequested,
+        timestamp: now,
+        payload: {
+          workspaceId: workspace.id,
+          approvalId: approval.id,
+          taskId: approval.taskId
+        }
       });
     }
   }
@@ -403,6 +669,58 @@ async function syncGovernanceState(): Promise<void> {
   );
 }
 
+async function expirePendingApprovals(workspaceId: string): Promise<void> {
+  if (!runtime) {
+    return;
+  }
+
+  const approvals = await runtime.stateRepository.listPendingApprovals(workspaceId);
+  const expired = approvals.filter((approval) => approval.expiresAt && approval.expiresAt <= Date.now());
+  for (const approval of expired) {
+    await runtime.stateRepository.decideApproval({
+      approvalId: approval.id,
+      decision: "timeout",
+      reason: "Approval request timed out.",
+      approvedBy: "system-timeout"
+    });
+
+    const tasks = await runtime.stateRepository.listTasksByWorkspace(workspaceId);
+    const relatedTask = tasks.find((task) => task.id === approval.taskId);
+    if (relatedTask) {
+      await runtime.stateRepository.upsertTask({
+        ...relatedTask,
+        status: "rejected",
+        errorJson: "Approval request timed out.",
+        updatedAt: Date.now()
+      });
+      await runtime.stateRepository.appendAuditRecord({
+        entityType: "task",
+        entityId: relatedTask.id,
+        action: "task.rejected.timeout",
+        detail: "Approval request timed out.",
+        createdAt: Date.now()
+      });
+    }
+
+    await runtime.stateRepository.appendAuditRecord({
+      entityType: "approval",
+      entityId: approval.id,
+      action: "approval.timeout",
+      detail: "Approval request timed out.",
+      createdAt: Date.now()
+    });
+    await emitRuntimeEvent(runtime.eventBus, runtime.diagnostics, {
+      type: EVENT_NAMES.approvalDecided,
+      timestamp: Date.now(),
+      payload: {
+        approvalId: approval.id,
+        decision: "timeout",
+        workspaceId
+      }
+    });
+  }
+}
+
 async function createTaskCenterSnapshot(): Promise<TaskCenterSnapshot> {
   if (!runtime) {
     throw new Error("Runtime not initialized.");
@@ -411,6 +729,9 @@ async function createTaskCenterSnapshot(): Promise<TaskCenterSnapshot> {
   await syncGovernanceState();
 
   const currentWorkspace = runtime.workspaceService.getCurrentWorkspace();
+  if (currentWorkspace) {
+    await expirePendingApprovals(currentWorkspace.id);
+  }
   const now = Date.now();
   const tasks = currentWorkspace
     ? (await runtime.stateRepository.listTasksByWorkspace(currentWorkspace.id)).map((task) => ({
@@ -445,6 +766,8 @@ async function createTaskCenterSnapshot(): Promise<TaskCenterSnapshot> {
     pendingApprovals: currentWorkspace
       ? (await runtime.stateRepository.listPendingApprovals(currentWorkspace.id)).map((approval) => approval.request)
       : [],
+    currentSession: currentWorkspace ? await runtime.workspaceService.getCurrentSession() : undefined,
+    latestCheckpoint: currentWorkspace ? await runtime.stateRepository.getLatestCheckpoint(currentWorkspace.id) : undefined,
     policy: {
       mode: APPROVAL_POLICY_MODE,
       summary: "High-risk actions stay approval-bound in Phase 0 and are not exposed directly in the renderer.",
@@ -455,6 +778,204 @@ async function createTaskCenterSnapshot(): Promise<TaskCenterSnapshot> {
       ]
     }
   };
+}
+
+async function decideApproval(input: {
+  approvalId: string;
+  decision: "approved" | "rejected";
+  reason?: string;
+}): Promise<TaskCenterSnapshot> {
+  if (!runtime) {
+    throw new Error("Runtime not initialized.");
+  }
+
+  const approval = await runtime.stateRepository.decideApproval({
+    approvalId: input.approvalId,
+    decision: input.decision,
+    reason: input.reason,
+    approvedBy: "local-user"
+  });
+  const tasks = await runtime.stateRepository.listTasksByWorkspace(approval.workspaceId);
+  const relatedTask = tasks.find((task) => task.id === approval.taskId);
+
+  if (relatedTask) {
+    let checkpointId = relatedTask.checkpointId;
+    const workspace = runtime.workspaceService.getCurrentWorkspace();
+
+    if (input.decision === "approved") {
+      const affectedPaths =
+        workspace?.gitSnapshot
+          ? Array.from(
+              new Set([
+                ...workspace.gitSnapshot.conflicts,
+                ...workspace.gitSnapshot.staged,
+                ...workspace.gitSnapshot.unstaged,
+                ...workspace.gitSnapshot.untracked
+              ])
+            )
+          : [];
+      const payloadPreview =
+        workspace && affectedPaths.length > 0
+          ? await runtime.stateRepository.writeCheckpointPayload({
+              checkpointId: createId("checkpoint"),
+              rootPath: workspace.rootPath,
+              affectedPaths
+            })
+          : undefined;
+      const checkpoint: CheckpointRecord = {
+        id: payloadPreview?.checkpointId ?? createId("checkpoint"),
+        sessionId: relatedTask.sessionId,
+        workspaceId: approval.workspaceId,
+        type: "approval-anchor",
+        description: `Approval anchor for ${relatedTask.type}`,
+        manifest: {
+          approvalId: approval.id,
+          taskId: relatedTask.id,
+          decision: input.decision,
+          reason: input.reason ?? null,
+          rootPath: workspace?.rootPath,
+          affectedPaths,
+          git: workspace?.gitSnapshot
+            ? {
+                branch: workspace.gitSnapshot.branch,
+                conflicts: workspace.gitSnapshot.conflicts.length,
+                unstaged: workspace.gitSnapshot.unstaged.length,
+                untracked: workspace.gitSnapshot.untracked.length
+              }
+            : undefined,
+          payload: payloadPreview
+            ? {
+                manifestPath: payloadPreview.manifestPath,
+                assetCount: payloadPreview.assetCount,
+                assets: payloadPreview.assets.slice(0, 10)
+              }
+            : undefined
+        },
+        createdAt: Date.now()
+      };
+      await runtime.stateRepository.upsertCheckpoint(checkpoint);
+      checkpointId = checkpoint.id;
+    }
+
+    await runtime.stateRepository.upsertTask({
+      ...relatedTask,
+      status: input.decision === "approved" ? "approved" : "rejected",
+      checkpointId,
+      updatedAt: Date.now(),
+      resultJson:
+        input.decision === "approved"
+          ? `Approval accepted.${checkpointId ? ` Checkpoint ${checkpointId} created.` : ""}`
+          : undefined,
+      errorJson: input.decision === "rejected" ? input.reason ?? "Approval rejected." : undefined
+    });
+    await runtime.stateRepository.appendAuditRecord({
+      entityType: "task",
+      entityId: relatedTask.id,
+      action: input.decision === "approved" ? "task.approved" : "task.rejected",
+      detail: input.reason ?? approval.request.description,
+      createdAt: Date.now()
+    });
+
+    await runtime.workspaceService.updateSessionSummary(
+      approval.workspaceId,
+      {
+        lastTaskId: relatedTask.id,
+        lastCheckpointId: checkpointId
+      },
+      relatedTask.id
+    );
+  }
+
+  await runtime.stateRepository.appendAuditRecord({
+    entityType: "approval",
+    entityId: approval.id,
+    action: `approval.${input.decision}`,
+    detail: input.reason ?? approval.request.description,
+    createdAt: Date.now()
+  });
+  await emitRuntimeEvent(runtime.eventBus, runtime.diagnostics, {
+    type: EVENT_NAMES.approvalDecided,
+    timestamp: Date.now(),
+    payload: {
+      approvalId: approval.id,
+      decision: input.decision,
+      workspaceId: approval.workspaceId
+    }
+  });
+
+  return createTaskCenterSnapshot();
+}
+
+async function restoreCheckpoint(checkpointId: string): Promise<TaskCenterSnapshot> {
+  if (!runtime) {
+    throw new Error("Runtime not initialized.");
+  }
+
+  const currentWorkspace = runtime.workspaceService.getCurrentWorkspace();
+  if (!currentWorkspace) {
+    throw new Error("No active workspace.");
+  }
+
+  const checkpoint = await runtime.stateRepository.getLatestCheckpoint(currentWorkspace.id);
+  if (!checkpoint || checkpoint.id !== checkpointId) {
+    throw new Error("Checkpoint not found.");
+  }
+
+  const preview = await runtime.stateRepository.restoreCheckpointPayload(checkpointId);
+  const session = await runtime.workspaceService.ensureSession(currentWorkspace.id);
+  const now = Date.now();
+  const restoreTask: TaskRecord = {
+    id: createId("task"),
+    workspaceId: currentWorkspace.id,
+    sessionId: session.id,
+    type: "checkpoint.restore",
+    description: "Restore captured assets from the selected checkpoint.",
+    status: "rolled-back",
+    priority: "high",
+    operations: [
+      {
+        kind: "checkpoint.restore",
+        target: currentWorkspace.rootPath,
+        params: {
+          checkpointId
+        },
+        riskLevel: "medium",
+        reversible: true
+      }
+    ],
+    checkpointId,
+    resultJson: `Restored ${preview?.assets.filter((asset) => asset.status === "captured").length ?? 0} captured files from ${checkpointId}.`,
+    createdAt: now,
+    updatedAt: now,
+    completedAt: now
+  };
+  await runtime.stateRepository.upsertTask(restoreTask);
+  await runtime.stateRepository.appendAuditRecord({
+    entityType: "task",
+    entityId: restoreTask.id,
+    action: "task.rolled-back",
+    detail: restoreTask.resultJson ?? checkpointId,
+    createdAt: now
+  });
+  await runtime.workspaceService.updateSessionSummary(
+    currentWorkspace.id,
+    {
+      lastTaskId: restoreTask.id,
+      lastCheckpointId: checkpointId
+    },
+    restoreTask.id
+  );
+  await emitRuntimeEvent(runtime.eventBus, runtime.diagnostics, {
+    type: EVENT_NAMES.taskUpserted,
+    timestamp: now,
+    payload: {
+      workspaceId: currentWorkspace.id,
+      taskId: restoreTask.id,
+      status: restoreTask.status
+    }
+  });
+
+  return createTaskCenterSnapshot();
 }
 
 function registerIpcHandlers(): void {
@@ -471,7 +992,14 @@ function registerIpcHandlers(): void {
     if (!runtime) {
       return err(ERROR_CODES.internal, "Runtime not initialized.");
     }
-    return ok(runtime.retrieval.snapshot());
+    return ok(createHealthSnapshot(runtime));
+  });
+
+  ipcMain.handle("app:getDiagnostics", async (): Promise<IpcResult<RuntimeDiagnosticsSnapshot>> => {
+    if (!runtime) {
+      return err(ERROR_CODES.internal, "Runtime not initialized.");
+    }
+    return ok(runtime.diagnostics);
   });
 
   ipcMain.handle("app:updatePreferences", async (_event, patch: AppPreferencePatch): Promise<IpcResult<AppInfo>> => {
@@ -483,10 +1011,19 @@ function registerIpcHandlers(): void {
       runtime.config = applyConfigPatch(runtime.config, patch, nativeTheme.shouldUseDarkColors);
       await saveConfig(runtime.configDir, runtime.config);
       runtime.logger.info(
-        `Preferences updated: language=${runtime.config.language}, themeMode=${runtime.config.themeMode}`
+        `Preferences updated: language=${runtime.config.language}, themeMode=${runtime.config.themeMode}`,
+        {
+          language: runtime.config.language,
+          themeMode: runtime.config.themeMode
+        }
       );
       return ok(createAppInfo());
     } catch (error) {
+      if (runtime) {
+        void recordRuntimeError(runtime.errorReporter, runtime.diagnostics, runtime.logger, error, {
+          surface: "app:updatePreferences"
+        });
+      }
       const failure = toUserMessage(error);
       return err(failure.code, failure.message);
     }
@@ -512,9 +1049,22 @@ function registerIpcHandlers(): void {
       const workspace = await runtime.workspaceService.open(workspacePath);
       await runtime.retrieval.startIndexing(workspace.id, workspace.rootPath);
       runtime.logger.info(`Workspace open request succeeded for ${workspace.rootPath}`);
+      await emitRuntimeEvent(runtime.eventBus, runtime.diagnostics, {
+        type: EVENT_NAMES.workspaceOpened,
+        timestamp: Date.now(),
+        payload: {
+          workspaceId: workspace.id,
+          rootPath: workspace.rootPath
+        }
+      });
       return ok(workspace);
     } catch (error) {
-      runtime?.logger.error(`Workspace open request failed: ${String(error)}`);
+      if (runtime) {
+        void recordRuntimeError(runtime.errorReporter, runtime.diagnostics, runtime.logger, error, {
+          surface: "workspace:open",
+          workspacePath
+        });
+      }
       const failure = toUserMessage(error);
       return err(failure.code, failure.message);
     }
@@ -542,10 +1092,71 @@ function registerIpcHandlers(): void {
     try {
       return ok(await createTaskCenterSnapshot());
     } catch (error) {
+      void recordRuntimeError(runtime.errorReporter, runtime.diagnostics, runtime.logger, error, {
+        surface: "task:getSnapshot"
+      });
       const failure = toUserMessage(error);
       return err(failure.code, failure.message);
     }
   });
+
+  ipcMain.handle("task:getCheckpointPreview", async (_event, checkpointId: string): Promise<IpcResult<CheckpointPayloadPreview | undefined>> => {
+    if (!runtime) {
+      return err(ERROR_CODES.internal, "Runtime not initialized.");
+    }
+    try {
+      return ok(await runtime.stateRepository.getCheckpointPayload(checkpointId));
+    } catch (error) {
+      void recordRuntimeError(runtime.errorReporter, runtime.diagnostics, runtime.logger, error, {
+        surface: "task:getCheckpointPreview",
+        checkpointId
+      });
+      const failure = toUserMessage(error);
+      return err(failure.code, failure.message);
+    }
+  });
+
+  ipcMain.handle("task:restoreCheckpoint", async (_event, checkpointId: string): Promise<IpcResult<TaskCenterSnapshot>> => {
+    if (!runtime) {
+      return err(ERROR_CODES.internal, "Runtime not initialized.");
+    }
+    try {
+      return ok(await restoreCheckpoint(checkpointId));
+    } catch (error) {
+      void recordRuntimeError(runtime.errorReporter, runtime.diagnostics, runtime.logger, error, {
+        surface: "task:restoreCheckpoint",
+        checkpointId
+      });
+      const failure = toUserMessage(error);
+      return err(failure.code, failure.message);
+    }
+  });
+
+  ipcMain.handle(
+    "task:decideApproval",
+    async (
+      _event,
+      input: {
+        approvalId: string;
+        decision: "approved" | "rejected";
+        reason?: string;
+      }
+    ): Promise<IpcResult<TaskCenterSnapshot>> => {
+      if (!runtime) {
+        return err(ERROR_CODES.internal, "Runtime not initialized.");
+      }
+      try {
+        return ok(await decideApproval(input));
+      } catch (error) {
+        void recordRuntimeError(runtime.errorReporter, runtime.diagnostics, runtime.logger, error, {
+          surface: "task:decideApproval",
+          approvalId: input.approvalId
+        });
+        const failure = toUserMessage(error);
+        return err(failure.code, failure.message);
+      }
+    }
+  );
 }
 
 async function createWindow(): Promise<void> {
@@ -607,6 +1218,16 @@ app.on("window-all-closed", () => {
 });
 
 app.on("before-quit", () => {
+  if (runtime) {
+    void emitRuntimeEvent(runtime.eventBus, runtime.diagnostics, {
+      type: EVENT_NAMES.appShutdown,
+      timestamp: Date.now(),
+      payload: {
+        version: APP_VERSION
+      }
+    });
+    void markRuntimeStopped(runtime.lifecycleFilePath);
+  }
   void runtime?.retrieval.shutdown();
   runtime?.stateRepository.close();
 });

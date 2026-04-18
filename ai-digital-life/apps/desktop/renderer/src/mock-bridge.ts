@@ -3,9 +3,12 @@ import type {
   AppInfo,
   AppPreferencePatch,
   ApprovalRequestSummary,
+  CheckpointRecord,
+  CheckpointPayloadPreview,
   HealthSnapshot,
   RecentWorkspaceEntry,
   RetrievalSnapshot,
+  RuntimeDiagnosticsSnapshot,
   TaskCenterSnapshot,
   WorkspaceMeta
 } from "@ai-digital-life/kernel";
@@ -45,7 +48,40 @@ const mockHealthSnapshot: HealthSnapshot = {
   components: [
     { name: "main", status: "healthy", detail: "Main process running normally", updatedAt: now },
     { name: "worker", status: "healthy", detail: "Worker thread active", updatedAt: now },
-    { name: "storage", status: "healthy", detail: "Storage service ready", updatedAt: now }
+    { name: "storage", status: "healthy", detail: "Storage service ready", updatedAt: now },
+    { name: "recovery", status: "degraded", detail: "Recovered from a previous unclean shutdown.", updatedAt: now },
+    { name: "migration", status: "healthy", detail: "No migration required for 0.1.0.", updatedAt: now }
+  ]
+};
+
+const mockDiagnosticsSnapshot: RuntimeDiagnosticsSnapshot = {
+  lifecycle: {
+    currentStartedAt: now - 120000,
+    lastShutdownAt: now - 3600000,
+    lastShutdownWasClean: false,
+    recoveredFromCrash: true
+  },
+  migration: {
+    change: "none",
+    toVersion: "0.1.0",
+    executedScripts: []
+  },
+  events: {
+    emitted: 4,
+    byType: {
+      "app.initialized": 1,
+      "workspace.opened": 1,
+      "retrieval.status-changed": 1,
+      "approval.requested": 1
+    }
+  },
+  recentErrors: [
+    {
+      id: "err-mock-1",
+      timestamp: now - 240000,
+      name: "SystemError",
+      message: "Recovered after a simulated unclean shutdown."
+    }
   ]
 };
 
@@ -108,7 +144,21 @@ const mockRetrievalSnapshot: RetrievalSnapshot = {
   ]
 };
 
-const mockApprovalRequests: ApprovalRequestSummary[] = [];
+const mockApprovalRequests: ApprovalRequestSummary[] = [
+  {
+    id: "approval-1",
+    taskId: "task-git-guard",
+    title: "dirty-worktree.guard",
+    description: "Resolve the dirty worktree before high-risk actions continue.",
+    riskLevel: "high",
+    impact: ["Conflicted files may invalidate writes."],
+    reversible: true,
+    createdAt: now - 120000
+  }
+];
+
+let latestCheckpoint: CheckpointRecord | undefined;
+let latestCheckpointPreview: CheckpointPayloadPreview | undefined;
 
 const mockTaskSnapshot: TaskCenterSnapshot = {
   tasks: [
@@ -129,9 +179,31 @@ const mockTaskSnapshot: TaskCenterSnapshot = {
       riskLevel: "low",
       updatedAt: now,
       detail: "Initial repository scan finished and the repo map is ready."
+    },
+    {
+      id: "task-git-guard",
+      title: "workspace.git-snapshot",
+      description: "Capture dirty worktree state before future risky actions.",
+      status: "waiting-approval",
+      riskLevel: "high",
+      updatedAt: now,
+      detail: "Dirty worktree detected in mock preview."
     }
   ],
   pendingApprovals: mockApprovalRequests,
+  currentSession: {
+    id: "session-mock",
+    workspaceId: "mock-workspace-id",
+    status: "active",
+    approvalMode: "manual",
+    currentTaskId: "task-git-guard",
+    summary: {
+      lastTaskId: "task-git-guard"
+    },
+    createdAt: now - 600000,
+    updatedAt: now
+  },
+  latestCheckpoint,
   policy: {
     mode: "manual",
     summary: "High-risk actions require explicit approval before the shell can continue.",
@@ -158,6 +230,7 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
   app: {
     getInfo: async () => ({ ok: true, data: mockAppInfo }),
     getHealth: async () => ({ ok: true, data: mockHealthSnapshot }),
+    getDiagnostics: async () => ({ ok: true, data: mockDiagnosticsSnapshot }),
     updatePreferences: async (patch: AppPreferencePatch) => {
       applyPreferencePatch(patch);
       return { ok: true, data: mockAppInfo };
@@ -187,7 +260,84 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
     getStatus: async () => ({ ok: true, data: mockRetrievalSnapshot })
   },
   task: {
-    getSnapshot: async () => ({ ok: true, data: mockTaskSnapshot })
+    getSnapshot: async () => ({ ok: true, data: mockTaskSnapshot }),
+    getCheckpointPreview: async (checkpointId) => ({
+      ok: true,
+      data: latestCheckpointPreview && latestCheckpointPreview.checkpointId === checkpointId ? latestCheckpointPreview : undefined
+    }),
+    restoreCheckpoint: async (checkpointId) => {
+      if (mockTaskSnapshot.latestCheckpoint?.id === checkpointId) {
+        mockTaskSnapshot.tasks = [
+          {
+            id: `restore-${Date.now()}`,
+            title: "checkpoint.restore",
+            description: "Restore captured assets from the selected checkpoint.",
+            status: "rolled-back",
+            riskLevel: "medium",
+            updatedAt: Date.now(),
+            detail: "Mock checkpoint restore reapplied captured files to the workspace."
+          },
+          ...mockTaskSnapshot.tasks
+        ];
+      }
+      return { ok: true, data: mockTaskSnapshot };
+    },
+    decideApproval: async ({ approvalId, decision }) => {
+      mockTaskSnapshot.pendingApprovals = mockTaskSnapshot.pendingApprovals.filter((approval) => approval.id !== approvalId);
+      mockTaskSnapshot.tasks = mockTaskSnapshot.tasks.map((task) =>
+        task.id === "task-git-guard"
+          ? {
+              ...task,
+              status: decision === "approved" ? "approved" : "rejected",
+              detail: decision === "approved" ? "Approval accepted in mock preview." : "Approval rejected in mock preview.",
+              updatedAt: Date.now()
+            }
+          : task
+      );
+      if (decision === "approved") {
+        latestCheckpoint = {
+          id: `checkpoint-${Date.now()}`,
+          sessionId: "session-mock",
+          workspaceId: "mock-workspace-id",
+          type: "approval-anchor",
+          description: "Mock approval anchor",
+          manifest: {},
+          createdAt: Date.now()
+        };
+        mockTaskSnapshot.latestCheckpoint = latestCheckpoint;
+        latestCheckpointPreview = {
+          checkpointId: latestCheckpoint.id,
+          manifestPath: `/mock/checkpoints/${latestCheckpoint.id}/manifest.json`,
+          rootPath: "/Users/demo/projects/ai-digital-life",
+          assetCount: 3,
+          assets: [
+            {
+              path: "src/main.ts",
+              kind: "file",
+              status: "captured",
+              size: 2048,
+              snapshotPath: `/mock/checkpoints/${latestCheckpoint.id}/files/src/main.ts`
+            },
+            {
+              path: "package.json",
+              kind: "file",
+              status: "captured",
+              size: 512,
+              snapshotPath: `/mock/checkpoints/${latestCheckpoint.id}/files/package.json`
+            },
+            {
+              path: "docs/notes.md",
+              kind: "file",
+              status: "missing"
+            }
+          ]
+        };
+        if (mockTaskSnapshot.currentSession) {
+          mockTaskSnapshot.currentSession.summary.lastCheckpointId = latestCheckpoint.id;
+        }
+      }
+      return { ok: true, data: mockTaskSnapshot };
+    }
   }
 };
 

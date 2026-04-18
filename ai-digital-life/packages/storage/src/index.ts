@@ -6,6 +6,9 @@ import {
   APP_STATE_SCHEMA_VERSION,
   APPROVAL_POLICY_MODE,
   type AuditRecord,
+  type CheckpointRecord,
+  type CheckpointPayloadAsset,
+  type CheckpointPayloadPreview,
   ERROR_CODES,
   type AppStateV1,
   type SessionMeta,
@@ -24,17 +27,20 @@ import type { Logger } from "@ai-digital-life/logger";
 export class StateRepository {
   private readonly legacyStateFilePath: string;
   private readonly databaseFilePath: string;
+  private readonly checkpointRootPath: string;
   private readonly logger: Logger;
   private database?: Database.Database;
 
   constructor(stateDir: string, logger: Logger) {
     this.legacyStateFilePath = path.join(stateDir, "app-state.v1.json");
     this.databaseFilePath = path.join(stateDir, "app-state.db");
+    this.checkpointRootPath = path.join(stateDir, "checkpoints");
     this.logger = logger;
   }
 
   async initialize(): Promise<void> {
     await fs.mkdir(path.dirname(this.databaseFilePath), { recursive: true });
+    await fs.mkdir(this.checkpointRootPath, { recursive: true });
     this.database = new Database(this.databaseFilePath);
     this.database.pragma("foreign_keys = ON");
     this.database.pragma("journal_mode = WAL");
@@ -142,6 +148,16 @@ export class StateRepository {
         detail TEXT NOT NULL,
         created_at INTEGER NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS checkpoints (
+        id TEXT PRIMARY KEY,
+        session_id TEXT NOT NULL,
+        workspace_id TEXT NOT NULL,
+        type TEXT NOT NULL,
+        description TEXT NOT NULL,
+        manifest_json TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+      );
     `);
     this.database
       .prepare(
@@ -153,6 +169,11 @@ export class StateRepository {
         "INSERT OR IGNORE INTO schema_migrations(version, name, applied_at) VALUES (?, ?, ?)"
       )
       .run(2, "workspace_session_task_approval_tables", Date.now());
+    this.database
+      .prepare(
+        "INSERT OR IGNORE INTO schema_migrations(version, name, applied_at) VALUES (?, ?, ?)"
+      )
+      .run(3, "checkpoint_metadata_table", Date.now());
 
     await this.migrateLegacyFileIfNeeded();
   }
@@ -609,6 +630,231 @@ export class StateRepository {
       decidedAt: row.decided_at ?? undefined,
       expiresAt: row.expires_at ?? undefined
     }));
+  }
+
+  async getApproval(approvalId: string): Promise<ApprovalRecord | undefined> {
+    const database = this.getDatabase();
+    const row = database
+      .prepare(
+        `SELECT id, task_id, workspace_id, risk_level, decision, request_json, reason, approved_by, created_at, decided_at, expires_at
+         FROM approvals
+         WHERE id = ?`
+      )
+      .get(approvalId) as
+      | {
+          id: string;
+          task_id: string;
+          workspace_id: string;
+          risk_level: ApprovalRecord["riskLevel"];
+          decision: ApprovalRecord["decision"] | null;
+          request_json: string;
+          reason: string | null;
+          approved_by: string | null;
+          created_at: number;
+          decided_at: number | null;
+          expires_at: number | null;
+        }
+      | undefined;
+
+    if (!row) {
+      return undefined;
+    }
+
+    return {
+      id: row.id,
+      taskId: row.task_id,
+      workspaceId: row.workspace_id,
+      riskLevel: row.risk_level,
+      request: JSON.parse(row.request_json),
+      decision: row.decision ?? undefined,
+      reason: row.reason ?? undefined,
+      approvedBy: row.approved_by ?? undefined,
+      createdAt: row.created_at,
+      decidedAt: row.decided_at ?? undefined,
+      expiresAt: row.expires_at ?? undefined
+    };
+  }
+
+  async decideApproval(input: {
+    approvalId: string;
+    decision: NonNullable<ApprovalRecord["decision"]>;
+    reason?: string;
+    approvedBy?: string;
+  }): Promise<ApprovalRecord> {
+    const existing = await this.getApproval(input.approvalId);
+    if (!existing) {
+      throw new StateStoreError(ERROR_CODES.notFound, "Approval record not found.");
+    }
+
+    const nextApproval: ApprovalRecord = {
+      ...existing,
+      decision: input.decision,
+      reason: input.reason ?? existing.reason,
+      approvedBy: input.approvedBy ?? existing.approvedBy,
+      decidedAt: Date.now()
+    };
+    await this.upsertApproval(nextApproval);
+    return nextApproval;
+  }
+
+  async upsertCheckpoint(checkpoint: CheckpointRecord): Promise<void> {
+    const database = this.getDatabase();
+    try {
+      database
+        .prepare(
+          `INSERT OR REPLACE INTO checkpoints(
+            id, session_id, workspace_id, type, description, manifest_json, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?)`
+        )
+        .run(
+          checkpoint.id,
+          checkpoint.sessionId,
+          checkpoint.workspaceId,
+          checkpoint.type,
+          checkpoint.description,
+          JSON.stringify(checkpoint.manifest),
+          checkpoint.createdAt
+        );
+    } catch (error) {
+      throw new StateStoreError(ERROR_CODES.stateWriteFailed, "Failed to persist checkpoint metadata.", {
+        cause: error instanceof Error ? error : undefined
+      });
+    }
+  }
+
+  async getLatestCheckpoint(workspaceId: string): Promise<CheckpointRecord | undefined> {
+    const database = this.getDatabase();
+    const row = database
+      .prepare(
+        `SELECT id, session_id, workspace_id, type, description, manifest_json, created_at
+         FROM checkpoints
+         WHERE workspace_id = ?
+         ORDER BY created_at DESC
+         LIMIT 1`
+      )
+      .get(workspaceId) as
+      | {
+          id: string;
+          session_id: string;
+          workspace_id: string;
+          type: CheckpointRecord["type"];
+          description: string;
+          manifest_json: string;
+          created_at: number;
+        }
+      | undefined;
+
+    if (!row) {
+      return undefined;
+    }
+
+    return {
+      id: row.id,
+      sessionId: row.session_id,
+      workspaceId: row.workspace_id,
+      type: row.type,
+      description: row.description,
+      manifest: JSON.parse(row.manifest_json),
+      createdAt: row.created_at
+    };
+  }
+
+  async writeCheckpointPayload(input: {
+    checkpointId: string;
+    rootPath: string;
+    affectedPaths: string[];
+  }): Promise<CheckpointPayloadPreview> {
+    const checkpointDir = path.join(this.checkpointRootPath, input.checkpointId);
+    const filesDir = path.join(checkpointDir, "files");
+    await fs.mkdir(filesDir, { recursive: true });
+
+    const assets: CheckpointPayloadAsset[] = [];
+
+    for (const relativePath of Array.from(new Set(input.affectedPaths)).sort()) {
+      const normalizedRelativePath = path.normalize(relativePath);
+      const storedRelativePath = normalizedRelativePath.replaceAll("\\", "/");
+      if (path.isAbsolute(normalizedRelativePath) || normalizedRelativePath.startsWith("..")) {
+        continue;
+      }
+
+      const sourcePath = path.join(input.rootPath, normalizedRelativePath);
+      try {
+        const stats = await fs.stat(sourcePath);
+        if (stats.isDirectory()) {
+          assets.push({
+            path: storedRelativePath,
+            kind: "directory",
+            status: "captured",
+            size: 0
+          });
+          continue;
+        }
+
+        const targetPath = path.join(filesDir, normalizedRelativePath);
+        await fs.mkdir(path.dirname(targetPath), { recursive: true });
+        await fs.copyFile(sourcePath, targetPath);
+        assets.push({
+          path: storedRelativePath,
+          kind: "file",
+          status: "captured",
+          size: stats.size,
+          snapshotPath: targetPath
+        });
+      } catch {
+        assets.push({
+          path: storedRelativePath,
+          kind: "file",
+          status: "missing"
+        });
+      }
+    }
+
+    const manifestPath = path.join(checkpointDir, "manifest.json");
+    const preview: CheckpointPayloadPreview = {
+      checkpointId: input.checkpointId,
+      manifestPath,
+      rootPath: input.rootPath,
+      assetCount: assets.length,
+      assets
+    };
+    await fs.writeFile(`${manifestPath}`, `${JSON.stringify(preview, null, 2)}\n`, "utf8");
+    return preview;
+  }
+
+  async getCheckpointPayload(checkpointId: string): Promise<CheckpointPayloadPreview | undefined> {
+    const manifestPath = path.join(this.checkpointRootPath, checkpointId, "manifest.json");
+    try {
+      const raw = await fs.readFile(manifestPath, "utf8");
+      return JSON.parse(raw) as CheckpointPayloadPreview;
+    } catch {
+      return undefined;
+    }
+  }
+
+  async restoreCheckpointPayload(checkpointId: string): Promise<CheckpointPayloadPreview | undefined> {
+    const preview = await this.getCheckpointPayload(checkpointId);
+    if (!preview?.rootPath) {
+      return preview;
+    }
+
+    const checkpointDir = path.join(this.checkpointRootPath, checkpointId, "files");
+    for (const asset of preview.assets) {
+      if (asset.kind !== "file" || asset.status !== "captured") {
+        continue;
+      }
+
+      const normalizedRelativePath = path.normalize(asset.path);
+      if (path.isAbsolute(normalizedRelativePath) || normalizedRelativePath.startsWith("..")) {
+        continue;
+      }
+
+      const sourcePath = asset.snapshotPath ?? path.join(checkpointDir, normalizedRelativePath);
+      const targetPath = path.join(preview.rootPath, normalizedRelativePath);
+      await fs.mkdir(path.dirname(targetPath), { recursive: true });
+      await fs.copyFile(sourcePath, targetPath);
+    }
+
+    return preview;
   }
 
   async appendAuditRecord(record: Omit<AuditRecord, "id"> & { id?: string }): Promise<AuditRecord> {

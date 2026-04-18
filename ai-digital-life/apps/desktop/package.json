@@ -14,8 +14,11 @@
   },
   "dependencies": {
     "@ai-digital-life/config": "file:../../packages/config",
+    "@ai-digital-life/errors": "file:../../packages/errors",
+    "@ai-digital-life/events": "file:../../packages/events",
     "@ai-digital-life/kernel": "file:../../packages/kernel",
     "@ai-digital-life/logger": "file:../../packages/logger",
+    "@ai-digital-life/migration": "file:../../packages/migration",
     "@ai-digital-life/retrieval-worker": "file:../../workers/health",
     "@ai-digital-life/storage": "file:../../packages/storage",
     "@ai-digital-life/workspace": "file:../../packages/workspace"
