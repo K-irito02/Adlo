@@ -1,0 +1,175 @@
+/* ==========================================================================
+   Base
+   --------------------------------------------------------------------------
+   - CSS reset (modern, minimal)
+   - Body background recipes per theme
+   - Selection / scrollbar / focus-visible defaults
+   - Reduced motion + reduced data adjustments
+   ========================================================================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  color: var(--text-primary);
+  background: var(--bg);
+  background-attachment: fixed;
+  overflow-y: scroll;
+}
+
+/* Each theme provides a tailored radial backdrop. Avoid scroll-thrash by
+   enabling a fallback background colour first. */
+[data-theme="light"] body {
+  background:
+    radial-gradient(circle at top left, var(--accent-soft) 0%, transparent 28%),
+    radial-gradient(circle at top right, var(--info-soft) 0%, transparent 24%),
+    linear-gradient(160deg, var(--bg) 0%, var(--surface-sunken) 140%);
+}
+
+[data-theme="dark"] body {
+  background:
+    radial-gradient(circle at top left, var(--accent-soft) 0%, transparent 28%),
+    radial-gradient(circle at top right, var(--info-soft) 0%, transparent 24%),
+    linear-gradient(160deg, var(--bg) 0%, #000 200%);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: var(--font-semibold);
+  letter-spacing: var(--tracking-tight);
+  color: var(--text-primary);
+}
+
+p {
+  margin: 0;
+  line-height: var(--leading-relaxed);
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+  transition: var(--transition-colors);
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+ul,
+ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  background: none;
+  border: 0;
+  padding: 0;
+}
+
+::selection {
+  background: var(--accent-soft);
+  color: var(--text-primary);
+}
+
+::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
+}
+
+/* --- Focus visibility --- */
+:focus-visible {
+  outline: 0;
+  box-shadow: 0 0 0 var(--focus-ring-width) var(--focus-ring);
+  border-radius: inherit;
+}
+
+/* --- Scrollbar (WebKit + Firefox) --- */
+* {
+  scrollbar-color: var(--border-default) transparent;
+  scrollbar-width: thin;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+  border-radius: var(--radius-full);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-strong);
+  background-clip: padding-box;
+  border: 2px solid transparent;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* --- Reduced motion: keep transforms calm --- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* --- Reduced data: drop expensive backdrops --- */
+@media (prefers-reduced-data: reduce) {
+  body {
+    background: var(--bg);
+  }
+}

@@ -1,0 +1,18 @@
+/* ==========================================================================
+   AI Digital Life - Desktop Renderer Stylesheet
+   --------------------------------------------------------------------------
+   Single import surface. Order matters:
+     1. tokens     - design primitives (CSS custom properties)
+     2. themes     - color schemes × theme modes
+     3. base       - resets, body backdrop, focus, scrollbar
+     4. layout     - app shell, sidebar, page, grid presets
+     5. components - Button / Input / Card / Badge / Modal / Toast / etc.
+     6. utilities  - sr-only, focus helpers, spacing utilities
+   ========================================================================== */
+
+@import "./tokens.css";
+@import "./themes.css";
+@import "./base.css";
+@import "./layout.css";
+@import "./components.css";
+@import "./utilities.css";

@@ -1,9 +1,10 @@
 import type { DigitalLifeBridge } from "../../shared/ipc";
 import type {
   AppInfo,
+  AppPreferencePatch,
   ApprovalRequestSummary,
-  CheckpointRecord,
   CheckpointPayloadPreview,
+  CheckpointRecord,
   HealthComponent,
   HealthSnapshot,
   LanguageCode,
@@ -14,10 +15,33 @@ import type {
   TaskStatus,
   ThemeMode
 } from "@ai-digital-life/kernel";
+
+import {
+  ThemeController,
+  COLOR_SCHEME_META,
+  classNames,
+  escapeHtml,
+  formatBytes,
+  html,
+  raw,
+  renderBanner,
+  renderButton,
+  renderCard,
+  renderEmptyState,
+  renderHtml,
+  renderIcon,
+  renderNavItem,
+  renderPill,
+  renderSegmentedControl,
+  type ColorScheme,
+  type IconName,
+  type PillTone,
+  type Renderable
+} from "./design-system";
 import { enUS } from "./locales/en-US";
 import { zhCN } from "./locales/zh-CN";
 import { setupMockBridge } from "./mock-bridge";
-import "./styles.css";
+import "./styles/index.css";
 
 if (typeof window !== "undefined" && !window.digitalLife) {
   setupMockBridge();
@@ -29,16 +53,14 @@ declare global {
   }
 }
 
-type Messages = {
-  [Key in keyof typeof zhCN]: string;
-};
+type Messages = { readonly [K in keyof typeof zhCN]: string };
 
-type BannerState = {
-  tone: "neutral" | "error";
+interface BannerState {
+  tone: "neutral" | "success" | "warning" | "danger";
   text: string;
-};
+}
 
-type DashboardSnapshot = {
+interface DashboardSnapshot {
   info: AppInfo;
   health?: HealthSnapshot;
   diagnostics?: RuntimeDiagnosticsSnapshot;
@@ -46,9 +68,11 @@ type DashboardSnapshot = {
   retrieval?: RetrievalSnapshot;
   taskSnapshot?: TaskCenterSnapshot;
   checkpointPreview?: CheckpointPayloadPreview;
-};
+}
 
 const rootNode = getRootNode();
+const themeController = new ThemeController();
+
 let currentSnapshot: DashboardSnapshot | undefined;
 let currentBanner: BannerState | undefined;
 
@@ -57,17 +81,7 @@ function getRootNode(): HTMLDivElement {
   if (!node) {
     throw new Error("App root not found.");
   }
-
   return node;
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
 }
 
 function formatDate(timestamp: number, locale: string): string {
@@ -77,11 +91,20 @@ function formatDate(timestamp: number, locale: string): string {
   }).format(timestamp);
 }
 
-function statusClassName(status: HealthComponent["status"] | "pending"): string {
-  return `pill ${status}`;
+function healthTone(status: HealthComponent["status"] | "pending"): PillTone {
+  switch (status) {
+    case "healthy":
+      return "healthy";
+    case "degraded":
+      return "degraded";
+    case "unavailable":
+      return "unavailable";
+    default:
+      return "pending";
+  }
 }
 
-function taskStatusClassName(status: TaskStatus): string {
+function taskStatusTone(status: TaskStatus): PillTone {
   switch (status) {
     case "completed":
       return "healthy";
@@ -118,12 +141,23 @@ function taskStatusLabel(messages: Messages, status: TaskStatus): string {
   }
 }
 
-function riskLabel(messages: Messages, riskLevel: "low" | "medium" | "high"): string {
-  switch (riskLevel) {
+function riskTone(level: "low" | "medium" | "high"): PillTone {
+  switch (level) {
+    case "high":
+      return "danger";
     case "medium":
-      return messages.riskMedium;
+      return "warning";
+    default:
+      return "success";
+  }
+}
+
+function riskLabel(messages: Messages, level: "low" | "medium" | "high"): string {
+  switch (level) {
     case "high":
       return messages.riskHigh;
+    case "medium":
+      return messages.riskMedium;
     default:
       return messages.riskLow;
   }
@@ -165,20 +199,20 @@ async function bootstrap(): Promise<void> {
 }
 
 function renderFailure(message: string): void {
-  rootNode.innerHTML = `
-    <main class="shell">
-      <section class="panel">
-        <h1>Initialization failed</h1>
-        <p class="status-banner error">${escapeHtml(message)}</p>
+  rootNode.innerHTML = renderHtml(html`
+    <main class="app-shell" role="alert">
+      <section class="page">
+        <div class="card">
+          <h1 class="card__title">Initialization failed</h1>
+          ${renderBanner({ text: message, tone: "danger", live: "assertive" })}
+        </div>
       </section>
     </main>
-  `;
+  `);
 }
 
 function renderApp(): void {
-  if (!currentSnapshot) {
-    return;
-  }
+  if (!currentSnapshot) return;
 
   const { info, health, diagnostics, recentWorkspaces, retrieval, taskSnapshot, checkpointPreview } = currentSnapshot;
   const locale = info.config.language;
@@ -189,315 +223,489 @@ function renderApp(): void {
   const currentSession = taskSnapshot?.currentSession;
 
   document.documentElement.lang = locale;
-  document.documentElement.dataset.theme = info.config.resolvedTheme;
+  themeController.setTheme({
+    mode: info.config.themeMode,
+    resolvedTheme: info.config.resolvedTheme
+  });
+  themeController.hydrate();
 
-  const currentWorkspaceMarkup = info.currentWorkspace
-    ? `
-      <div class="current-workspace">
-        <strong>${escapeHtml(info.currentWorkspace.name)}</strong>
-        <span class="mono">${escapeHtml(info.currentWorkspace.rootPath)}</span>
+  rootNode.innerHTML = renderHtml(html`
+    <a class="skip-link" href="#main-content">${messages.skipToContent}</a>
+    <div class="app-shell">
+      ${renderTitlebar(messages, info)}
+      <div class="app-shell__body">
+        ${renderSidebar(messages)}
+        <main id="main-content" class="app-shell__main" tabindex="-1" aria-label="${messages.appShellMain}">
+          ${renderHero(messages, info)}
+          <section class="page" aria-label="${messages.appShellMain}">
+            ${renderBanner({
+              id: "status-banner",
+              tone: currentBanner?.tone ?? "neutral",
+              text: currentBanner?.text ?? "",
+              empty: !currentBanner?.text,
+              live: currentBanner?.tone === "danger" ? "assertive" : "polite"
+            })}
+            <section class="grid grid--dashboard">
+              ${renderWorkspaceCard(messages, info)}
+              ${renderRetrievalCard(messages, retrieval)}
+              ${renderGovernanceCard(messages, taskSnapshot, selectedApproval, locale)}
+            </section>
+            <section class="grid grid--cols-2">
+              ${renderRecentCard(messages, recentWorkspaces, locale)}
+              ${renderHealthCard(messages, health)}
+            </section>
+            <section class="grid grid--cols-2">
+              ${renderLogsCard(messages, info, locale)}
+              ${renderRecoveryCard(messages, currentSession, latestCheckpoint, checkpointPreview, diagnostics, taskSnapshot?.policy.highRiskRules ?? [], locale)}
+            </section>
+          </section>
+        </main>
       </div>
-    `
-    : `<p class="panel-subtitle">${escapeHtml(messages.noWorkspace)}</p>`;
-
-  const recentMarkup =
-    recentWorkspaces.length > 0
-      ? recentWorkspaces
-          .map(
-            (workspace) => `
-              <li class="workspace-item ${workspace.available ? "" : "is-disabled"}">
-                <div class="workspace-row">
-                  <div>
-                    <strong>${escapeHtml(workspace.name)}</strong>
-                    <div class="mono">${escapeHtml(workspace.rootPath)}</div>
-                    <div class="panel-subtitle">${escapeHtml(messages.lastOpenedAt)}: ${escapeHtml(formatDate(workspace.lastOpenedAt, locale))}</div>
-                  </div>
-                  ${
-                    workspace.available
-                      ? `<button data-open-workspace="${escapeHtml(workspace.path)}" type="button">${escapeHtml(messages.openWorkspace)}</button>`
-                      : `<span class="availability-badge">${escapeHtml(messages.unavailableWorkspace)}</span>`
-                  }
-                </div>
-              </li>
-            `
-          )
-          .join("")
-      : `<li class="workspace-item">${escapeHtml(messages.emptyRecent)}</li>`;
-
-  const healthMarkup = health
-    ? health.components
-        .map(
-          (component) => `
-            <div class="health-item">
-              <div class="${statusClassName(component.status)}">${escapeHtml(component.status)}</div>
-              <h3>${escapeHtml(messages[component.name])}</h3>
-              <p class="panel-subtitle">${escapeHtml(component.detail)}</p>
-            </div>
-          `
-        )
-        .join("")
-    : `<div class="health-item"><p class="panel-subtitle">Health data unavailable.</p></div>`;
-
-  const logsMarkup =
-    info.recentLogs.length > 0
-      ? info.recentLogs
-          .map(
-            (entry) => `
-              <li class="log-item">
-                <div class="log-row">
-                  <strong>${escapeHtml(entry.scope)}</strong>
-                  <span class="pill pending">${escapeHtml(entry.level)}</span>
-                </div>
-                <div>${escapeHtml(entry.message)}</div>
-                <div class="panel-subtitle">${escapeHtml(formatDate(entry.timestamp, locale))}</div>
-              </li>
-            `
-          )
-          .join("")
-      : `<li class="log-item">${escapeHtml(messages.logEmpty)}</li>`;
-
-  const retrievalMarkup = retrieval
-    ? `
-      <div class="retrieval-overview">
-        <div class="retrieval-stat">
-          <div class="${statusClassName(
-            retrieval.status === "failed" ? "unavailable" : retrieval.status === "running" ? "degraded" : "healthy"
-          )}">${escapeHtml(retrieval.status)}</div>
-          <p>${escapeHtml(messages.retrievalScanned)}: ${escapeHtml(String(retrieval.scannedFiles))}</p>
-          <p>${escapeHtml(messages.retrievalIndexed)}: ${escapeHtml(String(retrieval.indexedTextFiles))}</p>
-        </div>
-        <div class="retrieval-stat">
-          <strong>${escapeHtml(messages.retrievalTopExtensions)}</strong>
-          <ul class="retrieval-list compact">
-            ${
-              retrieval.topExtensions.length > 0
-                ? retrieval.topExtensions
-                    .map((item) => `<li>${escapeHtml(item.extension)}: ${escapeHtml(String(item.count))}</li>`)
-                    .join("")
-                : `<li>${escapeHtml(messages.retrievalIdle)}</li>`
-            }
-          </ul>
-        </div>
-      </div>
-      <p class="panel-subtitle">${escapeHtml(messages.repoMapPreview)}</p>
-      <ul class="retrieval-list compact">
-        ${retrieval.repoMap
-          .slice(0, 8)
-          .map((entry) => `<li>${entry.type === "directory" ? "[D]" : "[F]"} ${escapeHtml(entry.path)}</li>`)
-          .join("")}
-      </ul>
-    `
-    : `<p class="panel-subtitle">${escapeHtml(messages.retrievalIdle)}</p>`;
-
-  const taskMarkup =
-    taskSnapshot && taskSnapshot.tasks.length > 0
-      ? taskSnapshot.tasks
-          .map(
-            (task) => `
-              <li class="task-item">
-                <div class="task-row">
-                  <div>
-                    <strong>${escapeHtml(task.title)}</strong>
-                    <div class="panel-subtitle">${escapeHtml(task.description)}</div>
-                  </div>
-                  <div class="task-meta">
-                    <span class="${statusClassName(taskStatusClassName(task.status) as HealthComponent["status"] | "pending")}">${escapeHtml(
-                      taskStatusLabel(messages, task.status)
-                    )}</span>
-                    <span class="risk-pill ${task.riskLevel}">${escapeHtml(riskLabel(messages, task.riskLevel))}</span>
-                  </div>
-                </div>
-                <p>${escapeHtml(task.detail)}</p>
-                <div class="panel-subtitle">${escapeHtml(formatDate(task.updatedAt, locale))}</div>
-              </li>
-            `
-          )
-          .join("")
-      : `<li class="task-item">${escapeHtml(messages.emptyTasks)}</li>`;
-
-  const approvalMarkup =
-    pendingApprovals.length > 0
-      ? pendingApprovals
-          .map(
-            (approval) => `
-              <li class="approval-item">
-                <strong>${escapeHtml(approval.title)}</strong>
-                <div class="panel-subtitle">${escapeHtml(riskLabel(messages, approval.riskLevel))}</div>
-                <div>${escapeHtml(approval.description)}</div>
-              </li>
-            `
-          )
-          .join("")
-      : `<li class="approval-item empty">${escapeHtml(messages.noPendingApprovals)}</li>`;
-
-  const approvalDetailMarkup = selectedApproval
-    ? renderApprovalDetail(selectedApproval, messages, locale)
-    : `<div class="approval-detail-empty">${escapeHtml(messages.approvalDetailEmpty)}</div>`;
-  const sessionMarkup = currentSession
-    ? `
-      <div class="approval-detail-card">
-        <strong>${escapeHtml(currentSession.id)}</strong>
-        <div class="panel-subtitle">${escapeHtml(messages.sessionLastTask)}: ${escapeHtml(currentSession.summary.lastTaskId ?? "-")}</div>
-        <div class="panel-subtitle">${escapeHtml(messages.sessionLastCheckpoint)}: ${escapeHtml(currentSession.summary.lastCheckpointId ?? "-")}</div>
-      </div>
-    `
-    : `<div class="approval-detail-empty">${escapeHtml(messages.noSession)}</div>`;
-  const checkpointMarkup = latestCheckpoint
-    ? renderCheckpointDetail(latestCheckpoint, checkpointPreview, messages, locale)
-    : `<div class="approval-detail-empty">${escapeHtml(messages.noCheckpoint)}</div>`;
-  const diagnosticsMarkup = diagnostics ? renderDiagnosticsDetail(diagnostics, messages, locale) : "";
-
-  rootNode.innerHTML = `
-    <main class="shell">
-      <header class="hero panel">
-        <div class="hero-copy">
-          <div class="eyebrow">${escapeHtml(messages.phaseStatusTitle)}</div>
-          <h1>${escapeHtml(messages.title)}</h1>
-          <p>${escapeHtml(messages.subtitle)}</p>
-          <p class="panel-subtitle">${escapeHtml(messages.phaseStatusBody)}</p>
-        </div>
-        <div class="hero-actions">
-          <div class="preference-group">
-            <span>${escapeHtml(messages.language)}</span>
-            <div class="segmented-control">
-              ${renderToggleButton("language", "zh-CN", messages.languageZh, info.config.language === "zh-CN")}
-              ${renderToggleButton("language", "en-US", messages.languageEn, info.config.language === "en-US")}
-            </div>
-          </div>
-          <div class="preference-group">
-            <span>${escapeHtml(messages.theme)}</span>
-            <div class="segmented-control">
-              ${renderToggleButton("theme", "light", messages.themeLight, info.config.themeMode === "light")}
-              ${renderToggleButton("theme", "dark", messages.themeDark, info.config.themeMode === "dark")}
-            </div>
-          </div>
-          <div class="app-meta">
-            <strong>${escapeHtml(info.appName)}</strong>
-            <span class="panel-subtitle">v${escapeHtml(info.version)}</span>
-          </div>
-        </div>
-      </header>
-
-      <section class="grid dashboard-grid">
-        <section class="panel workspace-panel">
-          <h2>${escapeHtml(messages.currentWorkspace)}</h2>
-          ${currentWorkspaceMarkup}
-          <p class="panel-subtitle">${escapeHtml(messages.workspaceHint)}</p>
-          <form id="workspace-form">
-            <input id="workspace-path" name="workspacePath" placeholder="${escapeHtml(messages.workspacePlaceholder)}" />
-            <button type="submit">${escapeHtml(messages.submit)}</button>
-          </form>
-          <p id="status-banner" class="status-banner ${currentBanner?.tone === "error" ? "error" : ""}">${escapeHtml(
-            currentBanner?.text ?? ""
-          )}</p>
-        </section>
-
-        <section class="panel">
-          <h2>${escapeHtml(messages.retrieval)}</h2>
-          ${retrievalMarkup}
-        </section>
-
-        <section class="panel">
-          <h2>${escapeHtml(messages.governance)}</h2>
-          <div class="panel-stack">
-            <div>
-              <div class="meta-row">
-                <strong>${escapeHtml(messages.currentMode)}</strong>
-                <span class="pill pending">${escapeHtml(messages.manualMode)}</span>
-              </div>
-              <p class="panel-subtitle">${escapeHtml(taskSnapshot?.policy.summary ?? messages.approvalDetailEmpty)}</p>
-            </div>
-            <div>
-              <h3>${escapeHtml(messages.taskQueue)}</h3>
-              <ul class="task-list">${taskMarkup}</ul>
-            </div>
-            <div>
-              <h3>${escapeHtml(messages.pendingApprovals)}</h3>
-              <ul class="approval-list">${approvalMarkup}</ul>
-            </div>
-            <div>
-              <h3>${escapeHtml(messages.approvalDetail)}</h3>
-              ${approvalDetailMarkup}
-            </div>
-          </div>
-        </section>
-      </section>
-
-      <section class="grid secondary-grid">
-        <section class="panel">
-          <h2>${escapeHtml(messages.recentWorkspaces)}</h2>
-          <ul class="workspace-list">${recentMarkup}</ul>
-        </section>
-
-        <section class="panel">
-          <h2>${escapeHtml(messages.health)}</h2>
-          <div class="health-grid">${healthMarkup}</div>
-        </section>
-      </section>
-
-      <section class="grid secondary-grid">
-        <section class="panel">
-          <h2>${escapeHtml(messages.logs)}</h2>
-          <ul class="log-list">${logsMarkup}</ul>
-        </section>
-        <section class="panel">
-          <h2>${escapeHtml(messages.recoveryTitle)}</h2>
-          <p>${escapeHtml(messages.recoverySummary)}</p>
-          ${diagnosticsMarkup}
-          <h3>${escapeHtml(messages.currentSessionTitle)}</h3>
-          ${sessionMarkup}
-          <h3>${escapeHtml(messages.latestCheckpoint)}</h3>
-          ${checkpointMarkup}
-          <h3>${escapeHtml(messages.highRiskRules)}</h3>
-          <ul class="rule-list">
-            ${
-              taskSnapshot?.policy.highRiskRules
-                .map((rule) => `<li>${escapeHtml(rule)}</li>`)
-                .join("") ?? ""
-            }
-          </ul>
-        </section>
-      </section>
-    </main>
-  `;
+      ${renderStatusbar(messages, info, health)}
+    </div>
+  `);
 
   attachListeners(messages);
 }
 
-function renderToggleButton(group: "language" | "theme", value: LanguageCode | Exclude<ThemeMode, "system">, label: string, active: boolean): string {
-  return `
-    <button
-      class="toggle-button ${active ? "is-active" : ""}"
-      data-toggle-group="${group}"
-      data-toggle-value="${escapeHtml(value)}"
-      aria-pressed="${active ? "true" : "false"}"
-      type="button"
-    >
-      ${escapeHtml(label)}
-    </button>
+function renderTitlebar(messages: Messages, info: AppInfo): Renderable {
+  return html`
+    <header class="app-shell__titlebar" role="banner" aria-label="${messages.appShellTitlebar}">
+      <div class="app-shell__brand">
+        ${renderIcon("shield", { size: "sm", decorative: true })}
+        <span class="app-shell__brand-name">${info.appName}</span>
+        <span class="app-shell__brand-meta">v${info.version}</span>
+      </div>
+      <div class="app-shell__titlebar-spacer"></div>
+      ${renderColorSchemePicker(messages)}
+    </header>
   `;
 }
 
-function renderApprovalDetail(approval: ApprovalRequestSummary, messages: Messages, locale: string): string {
-  return `
-    <div class="approval-detail-card">
-      <strong>${escapeHtml(approval.title)}</strong>
-      <p>${escapeHtml(approval.description)}</p>
-      <div class="meta-row">
-        <span class="risk-pill ${approval.riskLevel}">${escapeHtml(riskLabel(messages, approval.riskLevel))}</span>
-        <span class="panel-subtitle">${escapeHtml(formatDate(approval.createdAt, locale))}</span>
+function renderColorSchemePicker(messages: Messages): Renderable {
+  const state = themeController.getState();
+  const labelMap: Record<ColorScheme, string> = {
+    "scheme-1": messages.colorScheme1,
+    "scheme-2": messages.colorScheme2,
+    "scheme-3": messages.colorScheme3,
+    "scheme-4": messages.colorScheme4,
+    "scheme-5": messages.colorScheme5
+  };
+
+  const buttons = COLOR_SCHEME_META.map((meta) => {
+    const isActive = meta.id === state.colorScheme;
+    const swatch = `<span class="color-scheme__swatch" style="background:${state.resolvedTheme === "dark" ? meta.accentDark : meta.accentLight}" aria-hidden="true"></span>`;
+    return `<button type="button" class="${classNames("color-scheme__btn", isActive && "color-scheme__btn--active")}" data-color-scheme-button="${meta.id}" aria-pressed="${isActive ? "true" : "false"}" aria-label="${escapeHtml(labelMap[meta.id])}" title="${escapeHtml(labelMap[meta.id])}">${swatch}</button>`;
+  }).join("");
+
+  return raw(`<div class="color-scheme" role="group" aria-label="${escapeHtml(messages.colorSchemeOpenLabel)}">${buttons}</div>`);
+}
+
+function renderSidebar(messages: Messages): Renderable {
+  const items: Array<{ icon: IconName; label: string; current?: boolean }> = [
+    { icon: "home", label: messages.navHome, current: true },
+    { icon: "folder", label: messages.navWorkspace },
+    { icon: "search", label: messages.navRetrieval },
+    { icon: "tasks", label: messages.navTasks },
+    { icon: "logs", label: messages.navLogs },
+    { icon: "settings", label: messages.navSettings }
+  ];
+
+  return html`
+    <aside class="app-shell__sidebar" aria-label="${messages.appShellSidebar}">
+      <nav class="nav" aria-label="${messages.appShellSidebar}">
+        ${items.map((item) =>
+          renderNavItem({
+            icon: item.icon,
+            label: item.label,
+            current: item.current,
+            ariaLabel: item.label
+          })
+        )}
+      </nav>
+    </aside>
+  `;
+}
+
+function renderHero(messages: Messages, info: AppInfo): Renderable {
+  const themeOptions = [
+    { value: "light" as const, label: messages.themeLight },
+    { value: "dark" as const, label: messages.themeDark },
+    { value: "system" as const, label: messages.themeSystem }
+  ];
+  const langOptions = [
+    { value: "zh-CN" as const, label: messages.languageZh },
+    { value: "en-US" as const, label: messages.languageEn }
+  ];
+
+  return html`
+    <section class="page" aria-labelledby="hero-title">
+      <div class="card">
+        <div class="card__header">
+          <div class="stack stack--sm">
+            <span class="eyebrow">${messages.phaseStatusTitle}</span>
+            <h1 id="hero-title" class="page__title">${messages.title}</h1>
+            <p class="card__subtitle">${messages.subtitle}</p>
+            <p class="text-muted text-sm">${messages.phaseStatusBody}</p>
+            <p class="text-muted text-sm">${messages.designSystemReady}</p>
+          </div>
+          <div class="stack">
+            <div class="stack stack--sm">
+              <span class="field__label">${messages.language}</span>
+              ${renderSegmentedControl({
+                name: "language",
+                ariaLabel: messages.language,
+                value: info.config.language,
+                options: langOptions
+              })}
+            </div>
+            <div class="stack stack--sm">
+              <span class="field__label">${messages.themeModeLabel}</span>
+              ${renderSegmentedControl({
+                name: "theme",
+                ariaLabel: messages.themeModeLabel,
+                value: info.config.themeMode,
+                options: themeOptions
+              })}
+              <p class="field__hint">${messages.themePickerHelp}</p>
+            </div>
+          </div>
+        </div>
       </div>
-      <label class="panel-subtitle" for="approval-reason">${escapeHtml(messages.approvalReasonPlaceholder)}</label>
-      <input id="approval-reason" class="approval-reason-input" placeholder="${escapeHtml(messages.approvalReasonPlaceholder)}" />
-      <ul class="rule-list">
-        ${approval.impact.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
+    </section>
+  `;
+}
+
+function renderWorkspaceCard(messages: Messages, info: AppInfo): Renderable {
+  const currentMarkup = info.currentWorkspace
+    ? html`
+        <div class="tile">
+          <strong class="tile__title">${info.currentWorkspace.name}</strong>
+          <code class="mono">${info.currentWorkspace.rootPath}</code>
+        </div>
+      `
+    : html`<p class="text-muted text-sm">${messages.noWorkspace}</p>`;
+
+  return renderCard({
+    title: messages.currentWorkspace,
+    ariaLabel: messages.currentWorkspace,
+    children: html`
+      ${currentMarkup}
+      <p class="text-muted text-sm">${messages.workspaceHint}</p>
+      <form id="workspace-form" class="form-row" novalidate>
+        <label class="sr-only" for="workspace-path">${messages.workspacePathLabel}</label>
+        <input
+          id="workspace-path"
+          name="workspacePath"
+          class="input input--mono"
+          autocomplete="off"
+          spellcheck="false"
+          inputmode="text"
+          placeholder="${messages.workspacePlaceholder}"
+        />
+        ${renderButton({
+          label: messages.submit,
+          type: "submit",
+          icon: "play",
+          ariaLabel: messages.submit
+        })}
+      </form>
+    `
+  });
+}
+
+function renderRetrievalCard(messages: Messages, retrieval: RetrievalSnapshot | undefined): Renderable {
+  if (!retrieval) {
+    return renderCard({
+      title: messages.retrieval,
+      ariaLabel: messages.retrieval,
+      children: renderEmptyState({ icon: "search", title: messages.retrievalIdle })
+    });
+  }
+
+  const statusTone: PillTone =
+    retrieval.status === "failed" ? "unavailable" : retrieval.status === "running" ? "degraded" : "healthy";
+
+  return renderCard({
+    title: messages.retrieval,
+    ariaLabel: messages.retrieval,
+    children: html`
+      <div class="grid grid--cols-2">
+        <div class="stat">
+          <span class="stat__label">${retrieval.status}</span>
+          ${renderPill({ label: retrieval.status, tone: statusTone })}
+          <p class="stat__detail">${messages.retrievalScanned}: ${String(retrieval.scannedFiles)}</p>
+          <p class="stat__detail">${messages.retrievalIndexed}: ${String(retrieval.indexedTextFiles)}</p>
+        </div>
+        <div class="stat">
+          <span class="stat__label">${messages.retrievalTopExtensions}</span>
+          ${
+            retrieval.topExtensions.length === 0
+              ? html`<p class="stat__detail">${messages.retrievalIdle}</p>`
+              : html`<ul class="stack stack--sm">
+                  ${retrieval.topExtensions
+                    .slice(0, 6)
+                    .map((item) => html`<li class="stat__detail mono">${item.extension}: ${String(item.count)}</li>`)}
+                </ul>`
+          }
+        </div>
+      </div>
+      <p class="text-muted text-sm">${messages.repoMapPreview}</p>
+      <ul class="stack stack--sm">
+        ${retrieval.repoMap
+          .slice(0, 8)
+          .map(
+            (entry) => html`<li class="mono">${entry.type === "directory" ? "[D]" : "[F]"} ${entry.path}</li>`
+          )}
       </ul>
-      <div class="approval-actions">
-        <button type="button" data-approval-decision="approved" data-approval-id="${escapeHtml(approval.id)}">${escapeHtml(messages.approvalApprove)}</button>
-        <button type="button" class="secondary-button" data-approval-decision="rejected" data-approval-id="${escapeHtml(approval.id)}">${escapeHtml(messages.approvalReject)}</button>
+    `
+  });
+}
+
+function renderGovernanceCard(
+  messages: Messages,
+  taskSnapshot: TaskCenterSnapshot | undefined,
+  selectedApproval: ApprovalRequestSummary | undefined,
+  locale: string
+): Renderable {
+  const tasks = taskSnapshot?.tasks ?? [];
+  const approvals = taskSnapshot?.pendingApprovals ?? [];
+
+  const taskList =
+    tasks.length === 0
+      ? renderEmptyState({ icon: "tasks", title: messages.emptyTasks })
+      : html`<ul class="stack stack--sm" aria-label="${messages.ariaTaskList}">
+          ${tasks.map(
+            (task) => html`
+              <li class="tile">
+                <div class="tile__row">
+                  <div>
+                    <p class="tile__title">${task.title}</p>
+                    <p class="tile__meta">${task.description}</p>
+                  </div>
+                  <div class="cluster">
+                    ${renderPill({ label: taskStatusLabel(messages, task.status), tone: taskStatusTone(task.status) })}
+                    ${renderPill({ label: riskLabel(messages, task.riskLevel), tone: riskTone(task.riskLevel) })}
+                  </div>
+                </div>
+                <p class="tile__detail">${task.detail}</p>
+                <p class="tile__meta">${formatDate(task.updatedAt, locale)}</p>
+              </li>
+            `
+          )}
+        </ul>`;
+
+  const approvalList =
+    approvals.length === 0
+      ? html`<p class="text-muted text-sm">${messages.noPendingApprovals}</p>`
+      : html`<ul class="stack stack--sm" aria-label="${messages.ariaPendingApprovals}">
+          ${approvals.map(
+            (approval) => html`
+              <li class="tile">
+                <p class="tile__title">${approval.title}</p>
+                <p class="tile__meta">${riskLabel(messages, approval.riskLevel)}</p>
+                <p class="tile__detail">${approval.description}</p>
+              </li>
+            `
+          )}
+        </ul>`;
+
+  const detail = selectedApproval ? renderApprovalDetail(selectedApproval, messages, locale) : html`<p class="text-muted text-sm">${messages.approvalDetailEmpty}</p>`;
+
+  return renderCard({
+    title: messages.governance,
+    ariaLabel: messages.governance,
+    children: html`
+      <div class="cluster">
+        <strong>${messages.currentMode}</strong>
+        ${renderPill({ label: messages.manualMode, tone: "info" })}
+      </div>
+      <p class="text-muted text-sm">${taskSnapshot?.policy.summary ?? messages.approvalDetailEmpty}</p>
+      <h3 class="card__subtitle">${messages.taskQueue}</h3>
+      ${taskList}
+      <h3 class="card__subtitle">${messages.pendingApprovals}</h3>
+      ${approvalList}
+      <h3 class="card__subtitle">${messages.approvalDetail}</h3>
+      ${detail}
+    `
+  });
+}
+
+function renderApprovalDetail(approval: ApprovalRequestSummary, messages: Messages, locale: string): Renderable {
+  return html`
+    <div class="tile" aria-label="${messages.approvalDetail}">
+      <p class="tile__title">${approval.title}</p>
+      <p class="tile__detail">${approval.description}</p>
+      <div class="cluster">
+        ${renderPill({ label: riskLabel(messages, approval.riskLevel), tone: riskTone(approval.riskLevel) })}
+        <span class="tile__meta">${formatDate(approval.createdAt, locale)}</span>
+      </div>
+      <ul class="stack stack--sm">
+        ${approval.impact.map((item) => html`<li class="tile__detail">• ${item}</li>`)}
+      </ul>
+      <div class="field">
+        <label class="field__label" for="approval-reason">${messages.approvalReasonLabel}</label>
+        <input
+          id="approval-reason"
+          class="input"
+          type="text"
+          autocomplete="off"
+          placeholder="${messages.approvalReasonPlaceholder}"
+        />
+      </div>
+      <div class="cluster">
+        ${renderButton({
+          label: messages.approvalApprove,
+          icon: "check",
+          data: { "approval-decision": "approved", "approval-id": approval.id }
+        })}
+        ${renderButton({
+          label: messages.approvalReject,
+          variant: "secondary",
+          icon: "close",
+          data: { "approval-decision": "rejected", "approval-id": approval.id }
+        })}
       </div>
     </div>
   `;
+}
+
+function renderRecentCard(messages: Messages, recent: RecentWorkspaceEntry[], locale: string): Renderable {
+  return renderCard({
+    title: messages.recentWorkspaces,
+    ariaLabel: messages.recentWorkspaces,
+    children:
+      recent.length === 0
+        ? renderEmptyState({ icon: "folder", title: messages.emptyRecent })
+        : html`<ul class="stack stack--sm" aria-label="${messages.ariaRecentList}">
+            ${recent.map(
+              (workspace) => html`
+                <li class="${classNames("tile", !workspace.available && "tile--disabled")}">
+                  <div class="tile__row">
+                    <div class="stack stack--sm">
+                      <strong class="tile__title">${workspace.name}</strong>
+                      <code class="mono">${workspace.rootPath}</code>
+                      <span class="tile__meta"
+                        >${messages.lastOpenedAt}: ${formatDate(workspace.lastOpenedAt, locale)}</span
+                      >
+                    </div>
+                    ${
+                      workspace.available
+                        ? renderButton({
+                            label: messages.openWorkspace,
+                            variant: "secondary",
+                            size: "sm",
+                            icon: "external-link",
+                            data: { "open-workspace": workspace.path }
+                          })
+                        : renderPill({ label: messages.unavailableWorkspace, tone: "danger" })
+                    }
+                  </div>
+                </li>
+              `
+            )}
+          </ul>`
+  });
+}
+
+function renderHealthCard(messages: Messages, health: HealthSnapshot | undefined): Renderable {
+  if (!health) {
+    return renderCard({
+      title: messages.health,
+      ariaLabel: messages.health,
+      children: renderEmptyState({ icon: "shield", title: "Health data unavailable." })
+    });
+  }
+
+  return renderCard({
+    title: messages.health,
+    ariaLabel: messages.health,
+    children: html`
+      <ul class="grid grid--cols-2" aria-label="${messages.ariaHealthList}">
+        ${health.components.map(
+          (component) => html`
+            <li class="stat">
+              <span class="stat__label">${messages[component.name]}</span>
+              ${renderPill({ label: component.status, tone: healthTone(component.status) })}
+              <p class="stat__detail">${component.detail}</p>
+            </li>
+          `
+        )}
+      </ul>
+    `
+  });
+}
+
+function renderLogsCard(messages: Messages, info: AppInfo, locale: string): Renderable {
+  if (info.recentLogs.length === 0) {
+    return renderCard({
+      title: messages.logs,
+      ariaLabel: messages.logs,
+      children: renderEmptyState({ icon: "logs", title: messages.logEmpty })
+    });
+  }
+
+  return renderCard({
+    title: messages.logs,
+    ariaLabel: messages.logs,
+    children: html`<ul class="stack stack--sm" aria-label="${messages.ariaLogList}">
+      ${info.recentLogs.map(
+        (entry) => html`
+          <li class="tile">
+            <div class="tile__row">
+              <strong class="tile__title">${entry.scope}</strong>
+              ${renderPill({ label: entry.level, tone: entry.level === "error" ? "danger" : entry.level === "warn" ? "warning" : "neutral" })}
+            </div>
+            <p class="tile__detail">${entry.message}</p>
+            <span class="tile__meta">${formatDate(entry.timestamp, locale)}</span>
+          </li>
+        `
+      )}
+    </ul>`
+  });
+}
+
+function renderRecoveryCard(
+  messages: Messages,
+  session: TaskCenterSnapshot["currentSession"] | undefined,
+  checkpoint: CheckpointRecord | undefined,
+  preview: CheckpointPayloadPreview | undefined,
+  diagnostics: RuntimeDiagnosticsSnapshot | undefined,
+  highRiskRules: string[],
+  locale: string
+): Renderable {
+  const sessionMarkup = session
+    ? html`
+        <div class="tile">
+          <strong class="tile__title">${session.id}</strong>
+          <span class="tile__meta">${messages.sessionLastTask}: ${session.summary.lastTaskId ?? "-"}</span>
+          <span class="tile__meta">${messages.sessionLastCheckpoint}: ${session.summary.lastCheckpointId ?? "-"}</span>
+        </div>
+      `
+    : html`<p class="text-muted text-sm">${messages.noSession}</p>`;
+
+  const checkpointMarkup = checkpoint
+    ? renderCheckpointDetail(checkpoint, preview, messages, locale)
+    : html`<p class="text-muted text-sm">${messages.noCheckpoint}</p>`;
+
+  const diagnosticsMarkup = diagnostics ? renderDiagnostics(diagnostics, messages, locale) : raw("");
+
+  return renderCard({
+    title: messages.recoveryTitle,
+    ariaLabel: messages.recoveryTitle,
+    children: html`
+      <p class="text-muted text-sm">${messages.recoverySummary}</p>
+      ${diagnosticsMarkup}
+      <h3 class="card__subtitle">${messages.currentSessionTitle}</h3>
+      ${sessionMarkup}
+      <h3 class="card__subtitle">${messages.latestCheckpoint}</h3>
+      ${checkpointMarkup}
+      <h3 class="card__subtitle">${messages.highRiskRules}</h3>
+      <ul class="stack stack--sm">
+        ${highRiskRules.map((rule) => html`<li class="tile__detail">• ${rule}</li>`)}
+      </ul>
+    `
+  });
 }
 
 function renderCheckpointDetail(
@@ -505,90 +713,114 @@ function renderCheckpointDetail(
   preview: CheckpointPayloadPreview | undefined,
   messages: Messages,
   locale: string
-): string {
+): Renderable {
   const assetsMarkup =
     preview && preview.assets.length > 0
-      ? `
-        <div class="panel-subtitle">${escapeHtml(messages.checkpointAssets)}: ${escapeHtml(String(preview.assetCount))}</div>
-        <ul class="rule-list compact-list">
-          ${preview.assets
-            .slice(0, 6)
-            .map(
-              (asset) =>
-                `<li><span class="mono">${escapeHtml(asset.path)}</span> <span class="panel-subtitle">(${escapeHtml(
-                  asset.status
-                )})</span></li>`
-            )
-            .join("")}
-        </ul>
-      `
-      : `<div class="panel-subtitle">${escapeHtml(messages.noCheckpointAssets)}</div>`;
+      ? html`
+          <p class="tile__meta">${messages.checkpointAssets}: ${String(preview.assetCount)}</p>
+          <ul class="stack stack--sm">
+            ${preview.assets.slice(0, 6).map(
+              (asset) => html`
+                <li class="tile__detail">
+                  <code class="mono">${asset.path}</code>
+                  <span class="tile__meta"> (${asset.status}${asset.size ? `, ${formatBytes(asset.size)}` : ""})</span>
+                </li>
+              `
+            )}
+          </ul>
+        `
+      : html`<p class="tile__meta">${messages.noCheckpointAssets}</p>`;
 
-  return `
-    <div class="approval-detail-card">
-      <strong>${escapeHtml(checkpoint.id)}</strong>
-      <div>${escapeHtml(checkpoint.description)}</div>
-      <div class="panel-subtitle">${escapeHtml(formatDate(checkpoint.createdAt, locale))}</div>
+  return html`
+    <div class="tile">
+      <strong class="tile__title">${checkpoint.id}</strong>
+      <p class="tile__detail">${checkpoint.description}</p>
+      <span class="tile__meta">${formatDate(checkpoint.createdAt, locale)}</span>
       ${assetsMarkup}
-      <div class="approval-actions">
-        <button type="button" data-restore-checkpoint="${escapeHtml(checkpoint.id)}">${escapeHtml(messages.restoreCheckpoint)}</button>
+      <div class="cluster">
+        ${renderButton({
+          label: messages.restoreCheckpoint,
+          icon: "refresh",
+          data: { "restore-checkpoint": checkpoint.id }
+        })}
       </div>
     </div>
   `;
 }
 
-function renderDiagnosticsDetail(diagnostics: RuntimeDiagnosticsSnapshot, messages: Messages, locale: string): string {
+function renderDiagnostics(diagnostics: RuntimeDiagnosticsSnapshot, messages: Messages, locale: string): Renderable {
   const eventSummary = Object.entries(diagnostics.events.byType)
     .map(([type, count]) => `${type}: ${count}`)
     .join(" | ");
   const latestError = diagnostics.recentErrors[0];
-  const migrationScriptMarkup =
-    diagnostics.migration.executedScripts.length > 0
-      ? `<ul class="rule-list compact-list">${diagnostics.migration.executedScripts
-          .map(
-            (script) =>
-              `<li><span class="mono">${escapeHtml(script.scriptId)}</span> <span class="panel-subtitle">(${escapeHtml(
-                script.status
-              )})</span></li>`
-          )
-          .join("")}</ul>`
-      : `<div class="panel-subtitle">${escapeHtml(messages.noMigrationScripts)}</div>`;
 
-  return `
-    <div class="approval-detail-card">
-      <strong>${escapeHtml(messages.lifecycleTitle)}</strong>
-      <div class="panel-subtitle">${escapeHtml(messages.currentStartedAt)}: ${escapeHtml(
-        formatDate(diagnostics.lifecycle.currentStartedAt, locale)
-      )}</div>
-      <div class="panel-subtitle">${escapeHtml(messages.lastShutdownAt)}: ${escapeHtml(
-        diagnostics.lifecycle.lastShutdownAt ? formatDate(diagnostics.lifecycle.lastShutdownAt, locale) : "-"
-      )}</div>
-      <div class="panel-subtitle">${escapeHtml(messages.lastShutdownState)}: ${escapeHtml(
-        diagnostics.lifecycle.lastShutdownWasClean ? messages.cleanShutdown : messages.uncleanShutdown
-      )}</div>
-      <div class="panel-subtitle">${escapeHtml(messages.recoveryDetected)}: ${escapeHtml(
-        diagnostics.lifecycle.recoveredFromCrash ? messages.yes : messages.no
-      )}</div>
-      <strong>${escapeHtml(messages.migrationTitle)}</strong>
-      <div class="panel-subtitle">${escapeHtml(messages.migrationChange)}: ${escapeHtml(diagnostics.migration.change)}</div>
-      <div class="panel-subtitle">${escapeHtml(messages.migrationVersion)}: ${escapeHtml(
-        `${diagnostics.migration.fromVersion ?? "-"} -> ${diagnostics.migration.toVersion}`
-      )}</div>
-      <div class="panel-subtitle">${escapeHtml(messages.migrationScripts)}: ${escapeHtml(
-        String(diagnostics.migration.executedScripts.length)
-      )}</div>
-      <div class="panel-subtitle">${escapeHtml(messages.migrationBackupPath)}: ${escapeHtml(
-        diagnostics.migration.backupPath ?? "-"
-      )}</div>
-      ${migrationScriptMarkup}
-      <strong>${escapeHtml(messages.eventsTitle)}</strong>
-      <div class="panel-subtitle">${escapeHtml(messages.eventsEmitted)}: ${escapeHtml(String(diagnostics.events.emitted))}</div>
-      <div class="panel-subtitle mono">${escapeHtml(eventSummary || "-")}</div>
-      <strong>${escapeHtml(messages.latestError)}</strong>
-      <div class="panel-subtitle">${escapeHtml(
-        latestError ? `${latestError.name}: ${latestError.message}` : messages.noRecentErrors
-      )}</div>
+  return html`
+    <div class="tile">
+      <strong class="tile__title">${messages.lifecycleTitle}</strong>
+      <span class="tile__meta">${messages.currentStartedAt}: ${formatDate(diagnostics.lifecycle.currentStartedAt, locale)}</span>
+      <span class="tile__meta"
+        >${messages.lastShutdownAt}: ${diagnostics.lifecycle.lastShutdownAt ? formatDate(diagnostics.lifecycle.lastShutdownAt, locale) : "-"}</span
+      >
+      <span class="tile__meta"
+        >${messages.lastShutdownState}:
+        ${diagnostics.lifecycle.lastShutdownWasClean ? messages.cleanShutdown : messages.uncleanShutdown}</span
+      >
+      <span class="tile__meta"
+        >${messages.recoveryDetected}: ${diagnostics.lifecycle.recoveredFromCrash ? messages.yes : messages.no}</span
+      >
+      <strong class="tile__title">${messages.migrationTitle}</strong>
+      <span class="tile__meta">${messages.migrationChange}: ${diagnostics.migration.change}</span>
+      <span class="tile__meta"
+        >${messages.migrationVersion}: ${diagnostics.migration.fromVersion ?? "-"} -> ${diagnostics.migration.toVersion}</span
+      >
+      <span class="tile__meta">${messages.migrationScripts}: ${String(diagnostics.migration.executedScripts.length)}</span>
+      <span class="tile__meta">${messages.migrationBackupPath}: ${diagnostics.migration.backupPath ?? "-"}</span>
+      ${
+        diagnostics.migration.executedScripts.length === 0
+          ? html`<span class="tile__meta">${messages.noMigrationScripts}</span>`
+          : html`<ul class="stack stack--sm">
+              ${diagnostics.migration.executedScripts.map(
+                (script) => html`
+                  <li class="tile__detail">
+                    <code class="mono">${script.scriptId}</code>
+                    <span class="tile__meta"> (${script.status})</span>
+                  </li>
+                `
+              )}
+            </ul>`
+      }
+      <strong class="tile__title">${messages.eventsTitle}</strong>
+      <span class="tile__meta">${messages.eventsEmitted}: ${String(diagnostics.events.emitted)}</span>
+      <span class="tile__meta mono">${eventSummary || "-"}</span>
+      <strong class="tile__title">${messages.latestError}</strong>
+      <span class="tile__meta">${latestError ? `${latestError.name}: ${latestError.message}` : messages.noRecentErrors}</span>
     </div>
+  `;
+}
+
+function renderStatusbar(messages: Messages, info: AppInfo, health: HealthSnapshot | undefined): Renderable {
+  const workspaceLabel = info.currentWorkspace?.name ?? messages.noWorkspace;
+  const branch = info.currentWorkspace?.gitSnapshot?.branch ?? "-";
+  const workerStatus = health?.components.find((component) => component.name === "worker");
+  const storageStatus = health?.components.find((component) => component.name === "storage");
+
+  return html`
+    <footer class="app-shell__statusbar" role="contentinfo" aria-label="${messages.appShellStatusbar}">
+      <span class="cluster">
+        ${renderIcon("folder", { size: "xs", decorative: true })}
+        <span>${workspaceLabel}</span>
+      </span>
+      <span class="cluster">
+        ${renderIcon("git-branch", { size: "xs", decorative: true })}
+        <span>${branch}</span>
+      </span>
+      <span class="cluster">
+        ${workerStatus ? renderPill({ label: workerStatus.status, tone: healthTone(workerStatus.status) }) : raw("")}
+        ${storageStatus ? renderPill({ label: storageStatus.status, tone: healthTone(storageStatus.status) }) : raw("")}
+      </span>
+      <span class="app-shell__titlebar-spacer"></span>
+      <span>v${info.version}</span>
+    </footer>
   `;
 }
 
@@ -596,17 +828,14 @@ function attachListeners(messages: Messages): void {
   const form = document.querySelector<HTMLFormElement>("#workspace-form");
   const input = document.querySelector<HTMLInputElement>("#workspace-path");
   const buttons = document.querySelectorAll<HTMLButtonElement>("[data-open-workspace]");
-  const languageButtons = document.querySelectorAll<HTMLButtonElement>("[data-toggle-group='language']");
-  const themeButtons = document.querySelectorAll<HTMLButtonElement>("[data-toggle-group='theme']");
+  const segmentedButtons = document.querySelectorAll<HTMLButtonElement>("[data-segmented-name]");
+  const colorSchemeButtons = document.querySelectorAll<HTMLButtonElement>("[data-color-scheme-button]");
   const approvalButtons = document.querySelectorAll<HTMLButtonElement>("[data-approval-decision]");
   const restoreButtons = document.querySelectorAll<HTMLButtonElement>("[data-restore-checkpoint]");
   const approvalReasonInput = document.querySelector<HTMLInputElement>("#approval-reason");
 
   const updateBanner = (tone: BannerState["tone"], text: string): void => {
-    currentBanner = {
-      tone,
-      text
-    };
+    currentBanner = { tone, text };
     renderApp();
   };
 
@@ -614,19 +843,19 @@ function attachListeners(messages: Messages): void {
     const result = await window.digitalLife.workspace.open(workspacePath);
 
     if (result.ok) {
-      updateBanner("neutral", `${messages.openSuccess} ${result.data.rootPath}`);
+      updateBanner("success", `${messages.openSuccess} ${result.data.rootPath}`);
       await bootstrap();
       return;
     }
 
-    updateBanner("error", `${messages.openFailure} ${result.error.message}`);
+    updateBanner("danger", `${messages.openFailure} ${result.error.message}`);
   };
 
-  const updatePreferences = async (patch: { language?: LanguageCode; themeMode?: Exclude<ThemeMode, "system"> }): Promise<void> => {
+  const updatePreferences = async (patch: AppPreferencePatch): Promise<void> => {
     const result = await window.digitalLife.app.updatePreferences(patch);
 
     if (!result.ok) {
-      updateBanner("error", `${messages.settingsSaveFailed} ${result.error.message}`);
+      updateBanner("danger", `${messages.settingsSaveFailed} ${result.error.message}`);
       return;
     }
 
@@ -634,7 +863,7 @@ function attachListeners(messages: Messages): void {
       ...(currentSnapshot as DashboardSnapshot),
       info: result.data
     };
-    updateBanner("neutral", messages.settingsSaved);
+    updateBanner("success", messages.settingsSaved);
   };
 
   const decideApproval = async (approvalId: string, decision: "approved" | "rejected"): Promise<void> => {
@@ -645,7 +874,7 @@ function attachListeners(messages: Messages): void {
     });
 
     if (!result.ok) {
-      updateBanner("error", `${messages.approvalDecisionFailure} ${result.error.message}`);
+      updateBanner("danger", `${messages.approvalDecisionFailure} ${result.error.message}`);
       return;
     }
 
@@ -660,13 +889,13 @@ function attachListeners(messages: Messages): void {
         currentSnapshot.checkpointPreview = checkpointPreviewResult.data;
       }
     }
-    updateBanner("neutral", messages.approvalDecisionSuccess);
+    updateBanner("success", messages.approvalDecisionSuccess);
   };
 
   const restoreCheckpoint = async (checkpointId: string): Promise<void> => {
     const result = await window.digitalLife.task.restoreCheckpoint(checkpointId);
     if (!result.ok) {
-      updateBanner("error", `${messages.restoreCheckpointFailed} ${result.error.message}`);
+      updateBanner("danger", `${messages.restoreCheckpointFailed} ${result.error.message}`);
       return;
     }
 
@@ -681,7 +910,7 @@ function attachListeners(messages: Messages): void {
         currentSnapshot.checkpointPreview = checkpointPreviewResult.data;
       }
     }
-    updateBanner("neutral", messages.restoreCheckpointSuccess);
+    updateBanner("success", messages.restoreCheckpointSuccess);
   };
 
   form?.addEventListener("submit", async (event) => {
@@ -693,27 +922,30 @@ function attachListeners(messages: Messages): void {
   buttons.forEach((button) => {
     button.addEventListener("click", async () => {
       const workspacePath = button.dataset.openWorkspace;
-      if (workspacePath) {
-        await openWorkspace(workspacePath);
+      if (workspacePath) await openWorkspace(workspacePath);
+    });
+  });
+
+  segmentedButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      const name = button.dataset.segmentedName;
+      const value = button.dataset.segmentedValue;
+      if (!name || !value) return;
+
+      if (name === "language") {
+        await updatePreferences({ language: value as LanguageCode });
+      } else if (name === "theme") {
+        await updatePreferences({ themeMode: value as ThemeMode });
       }
     });
   });
 
-  languageButtons.forEach((button) => {
-    button.addEventListener("click", async () => {
-      const language = button.dataset.toggleValue as LanguageCode | undefined;
-      if (language) {
-        await updatePreferences({ language });
-      }
-    });
-  });
-
-  themeButtons.forEach((button) => {
-    button.addEventListener("click", async () => {
-      const themeMode = button.dataset.toggleValue as Exclude<ThemeMode, "system"> | undefined;
-      if (themeMode) {
-        await updatePreferences({ themeMode });
-      }
+  colorSchemeButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const value = button.dataset.colorSchemeButton as ColorScheme | undefined;
+      if (!value) return;
+      themeController.setColorScheme(value);
+      renderApp();
     });
   });
 
@@ -721,18 +953,14 @@ function attachListeners(messages: Messages): void {
     button.addEventListener("click", async () => {
       const approvalId = button.dataset.approvalId;
       const decision = button.dataset.approvalDecision as "approved" | "rejected" | undefined;
-      if (approvalId && decision) {
-        await decideApproval(approvalId, decision);
-      }
+      if (approvalId && decision) await decideApproval(approvalId, decision);
     });
   });
 
   restoreButtons.forEach((button) => {
     button.addEventListener("click", async () => {
       const checkpointId = button.dataset.restoreCheckpoint;
-      if (checkpointId) {
-        await restoreCheckpoint(checkpointId);
-      }
+      if (checkpointId) await restoreCheckpoint(checkpointId);
     });
   });
 }
