@@ -4,7 +4,14 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { defaultAppState } from "@ai-digital-life/kernel";
 import { StateRepository } from "@ai-digital-life/storage";
-import { WorkspaceService, detectWorkspaceRoot, upsertRecentWorkspace, validateWorkspacePath } from "@ai-digital-life/workspace";
+import {
+  WorkspaceService,
+  captureGitSnapshot,
+  detectWorkspaceRoot,
+  detectWorkspaceType,
+  upsertRecentWorkspace,
+  validateWorkspacePath
+} from "@ai-digital-life/workspace";
 
 const tempDirs: string[] = [];
 
@@ -65,6 +72,18 @@ describe("workspace", () => {
 
     expect(recent).toHaveLength(1);
     expect(recent[0].lastOpenedAt).toBe(2);
+  });
+
+  it("detects workspace type and non-git snapshots", async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "adl-type-"));
+    tempDirs.push(tempDir);
+    await fs.writeFile(path.join(tempDir, "package.json"), "{}", "utf8");
+
+    expect(detectWorkspaceType(tempDir)).toBe("node");
+    expect(captureGitSnapshot(tempDir)).toMatchObject({
+      isRepo: false,
+      conflicts: []
+    });
   });
 
   it("opens a workspace and persists the recent list", async () => {

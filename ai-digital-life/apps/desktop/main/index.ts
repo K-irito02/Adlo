@@ -8,16 +8,22 @@ import {
   ERROR_CODES,
   type AppInfo,
   type AppPreferencePatch,
+  APPROVAL_POLICY_MODE,
+  type ApprovalRecord,
+  type ApprovalRequestSummary,
   type ConfigSnapshot,
   type HealthSnapshot,
   type IpcResult,
   type LogEntrySummary,
   type RetrievalSnapshot,
   type RiskLevel,
+  type TaskOperation,
+  type TaskRecord,
   type TaskCenterSnapshot,
   type TaskStatus,
   ok,
   err,
+  createId,
   toUserMessage
 } from "@ai-digital-life/kernel";
 import { createLoggerFactory, type Logger } from "@ai-digital-life/logger";
@@ -177,6 +183,7 @@ async function createRuntime(): Promise<Runtime> {
   retrieval.markStorageHealthy();
   const currentWorkspace = workspaceService.getCurrentWorkspace();
   if (currentWorkspace) {
+    await workspaceService.ensureSession(currentWorkspace.id);
     await retrieval.startIndexing(currentWorkspace.id, currentWorkspace.rootPath);
   }
   logger.info("Runtime initialized.");
@@ -223,41 +230,204 @@ function mapRetrievalStatusToRiskLevel(status: RetrievalSnapshot["status"]): Ris
   return status === "failed" ? "medium" : "low";
 }
 
+async function upsertSystemTask(input: {
+  workspaceId: string;
+  sessionId: string;
+  type: string;
+  description: string;
+  status: TaskStatus;
+  priority?: TaskRecord["priority"];
+  operations?: TaskOperation[];
+  approvalId?: string;
+  detail: string;
+}): Promise<TaskRecord> {
+  if (!runtime) {
+    throw new Error("Runtime not initialized.");
+  }
+
+  const existing = (await runtime.stateRepository.listTasksByWorkspace(input.workspaceId)).find((task) => task.type === input.type);
+  const now = Date.now();
+  const nextTask: TaskRecord = {
+    id: existing?.id ?? createId("task"),
+    workspaceId: input.workspaceId,
+    sessionId: input.sessionId,
+    type: input.type,
+    description: input.description,
+    status: input.status,
+    priority: input.priority ?? "medium",
+    operations: input.operations ?? [],
+    approvalId: input.approvalId,
+    resultJson: input.status === "completed" ? input.detail : existing?.resultJson,
+    errorJson: input.status === "failed" ? input.detail : undefined,
+    createdAt: existing?.createdAt ?? now,
+    updatedAt: now,
+    startedAt: input.status === "running" ? existing?.startedAt ?? now : existing?.startedAt,
+    completedAt: input.status === "completed" ? now : undefined
+  };
+
+  await runtime.stateRepository.upsertTask(nextTask);
+  await runtime.stateRepository.appendAuditRecord({
+    entityType: "task",
+    entityId: nextTask.id,
+    action: "task.upserted",
+    detail: `${nextTask.type}:${nextTask.status}`,
+    createdAt: now
+  });
+
+  return nextTask;
+}
+
+async function syncGovernanceState(): Promise<void> {
+  if (!runtime) {
+    return;
+  }
+
+  const workspace = runtime.workspaceService.getCurrentWorkspace();
+  if (!workspace) {
+    return;
+  }
+
+  const session = await runtime.workspaceService.ensureSession(workspace.id);
+  const retrieval = await runtime.retrieval.getSnapshot(runtime.stateRepository, workspace.id);
+
+  await upsertSystemTask({
+    workspaceId: workspace.id,
+    sessionId: session.id,
+    type: "workspace.restore",
+    description: "Restore the latest workspace session into the desktop shell.",
+    status: "completed",
+    priority: "medium",
+    detail: `Workspace ${workspace.name} is attached and ready.`
+  });
+
+  const gitRisk: RiskLevel =
+    workspace.gitSnapshot && (workspace.gitSnapshot.conflicts.length > 0 || workspace.gitSnapshot.unstaged.length > 20)
+      ? "high"
+      : workspace.gitSnapshot && workspace.gitSnapshot.untracked.length > 20
+        ? "medium"
+        : "low";
+  const gitStatus: TaskStatus = workspace.gitSnapshot?.conflicts.length ? "waiting-approval" : "completed";
+  const gitTask = await upsertSystemTask({
+    workspaceId: workspace.id,
+    sessionId: session.id,
+    type: "workspace.git-snapshot",
+    description: "Capture dirty worktree state before future risky actions.",
+    status: gitStatus,
+    priority: "high",
+    operations: [
+      {
+        kind: "workspace.git.inspect",
+        target: workspace.rootPath,
+        params: {
+          branch: workspace.gitSnapshot?.branch
+        },
+        riskLevel: gitRisk,
+        reversible: true
+      }
+    ],
+    detail: workspace.gitSnapshot?.isRepo
+      ? `branch=${workspace.gitSnapshot.branch ?? "detached"}, conflicts=${workspace.gitSnapshot.conflicts.length}, unstaged=${workspace.gitSnapshot.unstaged.length}, untracked=${workspace.gitSnapshot.untracked.length}`
+      : "Workspace is not a Git repository."
+  });
+
+  if (gitRisk === "high") {
+    const existingApprovals = await runtime.stateRepository.listPendingApprovals(workspace.id);
+    const existing = existingApprovals.find((approval) => approval.taskId === gitTask.id);
+
+    if (!existing) {
+      const now = Date.now();
+      const request: ApprovalRequestSummary = {
+        id: createId("approval"),
+        taskId: gitTask.id,
+        title: "dirty-worktree.guard",
+        description: "Resolve conflicts or large dirty changes before high-risk actions continue.",
+        riskLevel: "high",
+        impact: [
+          "Conflicted files can invalidate patch or write actions.",
+          "High-risk actions should wait until the worktree is stable."
+        ],
+        reversible: true,
+        createdAt: now
+      };
+      const approval: ApprovalRecord = {
+        id: request.id,
+        taskId: gitTask.id,
+        workspaceId: workspace.id,
+        riskLevel: request.riskLevel,
+        request,
+        createdAt: now
+      };
+      await runtime.stateRepository.upsertApproval(approval);
+      await runtime.stateRepository.appendAuditRecord({
+        entityType: "approval",
+        entityId: approval.id,
+        action: "approval.requested",
+        detail: approval.request.description,
+        createdAt: now
+      });
+    }
+  }
+
+  const retrievalStatus = retrieval ? mapRetrievalStatusToTaskStatus(retrieval.status) : "pending";
+  await upsertSystemTask({
+    workspaceId: workspace.id,
+    sessionId: session.id,
+    type: "retrieval.index",
+    description: "Maintain the local repository map and retrieval snapshot.",
+    status: retrievalStatus,
+    priority: "medium",
+    operations: [
+      {
+        kind: "retrieval.index",
+        target: workspace.rootPath,
+        params: {},
+        riskLevel: mapRetrievalStatusToRiskLevel(retrieval?.status ?? "idle"),
+        reversible: true
+      }
+    ],
+    detail: retrieval
+      ? retrieval.status === "failed"
+        ? retrieval.lastError ?? "Retrieval worker reported a failure."
+        : `Scanned ${retrieval.scannedFiles} files and indexed ${retrieval.indexedTextFiles} text files.`
+      : "Waiting for the first indexing run after workspace selection."
+  });
+
+  await runtime.workspaceService.updateSessionSummary(
+    workspace.id,
+    {
+      lastIndexVersion: retrieval ? String(retrieval.updatedAt) : undefined,
+      lastTaskId: gitTask.id,
+      notes: workspace.gitSnapshot?.conflicts.length ? ["Dirty worktree requires approval before high-risk actions."] : []
+    },
+    gitTask.id
+  );
+}
+
 async function createTaskCenterSnapshot(): Promise<TaskCenterSnapshot> {
   if (!runtime) {
     throw new Error("Runtime not initialized.");
   }
 
+  await syncGovernanceState();
+
   const currentWorkspace = runtime.workspaceService.getCurrentWorkspace();
-  const retrieval = currentWorkspace
-    ? await runtime.retrieval.getSnapshot(runtime.stateRepository, currentWorkspace.id)
-    : undefined;
   const now = Date.now();
   const tasks = currentWorkspace
-    ? [
-        {
-          id: `workspace-${currentWorkspace.id}`,
-          title: "workspace.restore",
-          description: "Restore the last workspace session into the desktop shell.",
-          status: "completed" as const,
-          riskLevel: "low" as const,
-          updatedAt: currentWorkspace.lastOpenedAt,
-          detail: `Workspace ${currentWorkspace.name} is attached and ready.`
-        },
-        {
-          id: `retrieval-${currentWorkspace.id}`,
-          title: "retrieval.index",
-          description: "Maintain the local repository map and retrieval snapshot.",
-          status: retrieval ? mapRetrievalStatusToTaskStatus(retrieval.status) : "pending",
-          riskLevel: retrieval ? mapRetrievalStatusToRiskLevel(retrieval.status) : "low",
-          updatedAt: retrieval?.updatedAt ?? now,
-          detail: retrieval
-            ? retrieval.status === "failed"
-              ? retrieval.lastError ?? "Retrieval worker reported a failure."
-              : `Scanned ${retrieval.scannedFiles} files and indexed ${retrieval.indexedTextFiles} text files.`
-            : "Waiting for the first indexing run after workspace selection."
-        }
-      ]
+    ? (await runtime.stateRepository.listTasksByWorkspace(currentWorkspace.id)).map((task) => ({
+        id: task.id,
+        title: task.type,
+        description: task.description,
+        status: task.status,
+        riskLevel:
+          task.operations.find((operation) => operation.riskLevel === "high")?.riskLevel ??
+          task.operations.find((operation) => operation.riskLevel === "medium")?.riskLevel ??
+          "low",
+        updatedAt: task.updatedAt,
+        detail:
+          task.status === "failed"
+            ? task.errorJson ?? `Task ${task.type} failed.`
+            : task.resultJson ?? `Task ${task.type} is currently ${task.status}.`
+      }))
     : [
         {
           id: "workspace-onboarding",
@@ -272,9 +442,11 @@ async function createTaskCenterSnapshot(): Promise<TaskCenterSnapshot> {
 
   return {
     tasks,
-    pendingApprovals: [],
+    pendingApprovals: currentWorkspace
+      ? (await runtime.stateRepository.listPendingApprovals(currentWorkspace.id)).map((approval) => approval.request)
+      : [],
     policy: {
-      mode: "manual",
+      mode: APPROVAL_POLICY_MODE,
       summary: "High-risk actions stay approval-bound in Phase 0 and are not exposed directly in the renderer.",
       highRiskRules: [
         "Destructive file changes require explicit approval.",
@@ -364,6 +536,9 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle("task:getSnapshot", async (): Promise<IpcResult<TaskCenterSnapshot>> => {
+    if (!runtime) {
+      return err(ERROR_CODES.internal, "Runtime not initialized.");
+    }
     try {
       return ok(await createTaskCenterSnapshot());
     } catch (error) {

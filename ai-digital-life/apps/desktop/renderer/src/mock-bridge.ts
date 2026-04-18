@@ -27,6 +27,9 @@ const mockAppInfo: AppInfo = {
     path: "/Users/demo/projects/ai-digital-life",
     rootPath: "/Users/demo/projects/ai-digital-life",
     name: "AI Digital Life",
+    type: "node",
+    createdAt: now,
+    updatedAt: now,
     lastOpenedAt: now,
     status: "ready"
   },
@@ -171,6 +174,9 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
           path: workspacePath,
           rootPath: workspacePath,
           name: workspaceName,
+          type: "unknown",
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
           lastOpenedAt: Date.now(),
           status: "ready"
         }

@@ -2,13 +2,21 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import Database from "better-sqlite3";
 import {
+  type ApprovalRecord,
   APP_STATE_SCHEMA_VERSION,
+  APPROVAL_POLICY_MODE,
+  type AuditRecord,
   ERROR_CODES,
   type AppStateV1,
+  type SessionMeta,
+  type SessionSummary,
+  type TaskRecord,
+  type WorkspaceMeta,
   type RepoMapEntry,
   type RetrievalFileTypeCount,
   type RetrievalSnapshot,
   defaultAppState,
+  createId,
   StateStoreError
 } from "@ai-digital-life/kernel";
 import type { Logger } from "@ai-digital-life/logger";
@@ -67,12 +75,84 @@ export class StateRepository {
         top_extensions_json TEXT NOT NULL,
         repo_map_json TEXT NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS workspaces (
+        id TEXT PRIMARY KEY,
+        path TEXT NOT NULL UNIQUE,
+        root_path TEXT NOT NULL,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL,
+        status TEXT NOT NULL,
+        git_snapshot_json TEXT,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        last_opened_at INTEGER NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS sessions (
+        id TEXT PRIMARY KEY,
+        workspace_id TEXT NOT NULL,
+        status TEXT NOT NULL,
+        approval_mode TEXT NOT NULL,
+        current_task_id TEXT,
+        summary_json TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        FOREIGN KEY (workspace_id) REFERENCES workspaces(id)
+      );
+
+      CREATE TABLE IF NOT EXISTS tasks (
+        id TEXT PRIMARY KEY,
+        workspace_id TEXT NOT NULL,
+        session_id TEXT NOT NULL,
+        type TEXT NOT NULL,
+        status TEXT NOT NULL,
+        priority TEXT NOT NULL,
+        description TEXT NOT NULL,
+        operations_json TEXT NOT NULL,
+        approval_id TEXT,
+        checkpoint_id TEXT,
+        result_json TEXT,
+        error_json TEXT,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        started_at INTEGER,
+        completed_at INTEGER
+      );
+
+      CREATE TABLE IF NOT EXISTS approvals (
+        id TEXT PRIMARY KEY,
+        task_id TEXT NOT NULL,
+        workspace_id TEXT NOT NULL,
+        risk_level TEXT NOT NULL,
+        decision TEXT,
+        request_json TEXT NOT NULL,
+        reason TEXT,
+        approved_by TEXT,
+        created_at INTEGER NOT NULL,
+        decided_at INTEGER,
+        expires_at INTEGER
+      );
+
+      CREATE TABLE IF NOT EXISTS audit_records (
+        id TEXT PRIMARY KEY,
+        entity_type TEXT NOT NULL,
+        entity_id TEXT NOT NULL,
+        action TEXT NOT NULL,
+        detail TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+      );
     `);
     this.database
       .prepare(
         "INSERT OR IGNORE INTO schema_migrations(version, name, applied_at) VALUES (?, ?, ?)"
       )
       .run(1, "initial_state_and_retrieval_tables", Date.now());
+    this.database
+      .prepare(
+        "INSERT OR IGNORE INTO schema_migrations(version, name, applied_at) VALUES (?, ?, ?)"
+      )
+      .run(2, "workspace_session_task_approval_tables", Date.now());
 
     await this.migrateLegacyFileIfNeeded();
   }
@@ -240,6 +320,348 @@ export class StateRepository {
       topExtensions: JSON.parse(row.top_extensions_json) as RetrievalFileTypeCount[],
       repoMap: JSON.parse(row.repo_map_json) as RepoMapEntry[]
     };
+  }
+
+  async upsertWorkspace(workspace: WorkspaceMeta): Promise<void> {
+    const database = this.getDatabase();
+
+    try {
+      database
+        .prepare(
+          `INSERT OR REPLACE INTO workspaces(
+            id, path, root_path, name, type, status, git_snapshot_json, created_at, updated_at, last_opened_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .run(
+          workspace.id,
+          workspace.path,
+          workspace.rootPath,
+          workspace.name,
+          workspace.type,
+          workspace.status,
+          workspace.gitSnapshot ? JSON.stringify(workspace.gitSnapshot) : null,
+          workspace.createdAt,
+          workspace.updatedAt,
+          workspace.lastOpenedAt
+        );
+    } catch (error) {
+      throw new StateStoreError(ERROR_CODES.stateWriteFailed, "Failed to persist workspace metadata.", {
+        cause: error instanceof Error ? error : undefined
+      });
+    }
+  }
+
+  async getWorkspace(workspaceId: string): Promise<WorkspaceMeta | undefined> {
+    const database = this.getDatabase();
+    const row = database
+      .prepare(
+        `SELECT id, path, root_path, name, type, status, git_snapshot_json, created_at, updated_at, last_opened_at
+         FROM workspaces
+         WHERE id = ?`
+      )
+      .get(workspaceId) as
+      | {
+          id: string;
+          path: string;
+          root_path: string;
+          name: string;
+          type: WorkspaceMeta["type"];
+          status: WorkspaceMeta["status"];
+          git_snapshot_json: string | null;
+          created_at: number;
+          updated_at: number;
+          last_opened_at: number;
+        }
+      | undefined;
+
+    if (!row) {
+      return undefined;
+    }
+
+    return {
+      id: row.id,
+      path: row.path,
+      rootPath: row.root_path,
+      name: row.name,
+      type: row.type,
+      status: row.status,
+      gitSnapshot: row.git_snapshot_json ? JSON.parse(row.git_snapshot_json) : undefined,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      lastOpenedAt: row.last_opened_at
+    };
+  }
+
+  async upsertSession(session: SessionMeta): Promise<void> {
+    const database = this.getDatabase();
+
+    try {
+      database
+        .prepare(
+          `INSERT OR REPLACE INTO sessions(
+            id, workspace_id, status, approval_mode, current_task_id, summary_json, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .run(
+          session.id,
+          session.workspaceId,
+          session.status,
+          session.approvalMode,
+          session.currentTaskId ?? null,
+          JSON.stringify(session.summary),
+          session.createdAt,
+          session.updatedAt
+        );
+    } catch (error) {
+      throw new StateStoreError(ERROR_CODES.stateWriteFailed, "Failed to persist session metadata.", {
+        cause: error instanceof Error ? error : undefined
+      });
+    }
+  }
+
+  async getLatestSession(workspaceId: string): Promise<SessionMeta | undefined> {
+    const database = this.getDatabase();
+    const row = database
+      .prepare(
+        `SELECT id, workspace_id, status, approval_mode, current_task_id, summary_json, created_at, updated_at
+         FROM sessions
+         WHERE workspace_id = ?
+         ORDER BY updated_at DESC
+         LIMIT 1`
+      )
+      .get(workspaceId) as
+      | {
+          id: string;
+          workspace_id: string;
+          status: SessionMeta["status"];
+          approval_mode: SessionMeta["approvalMode"];
+          current_task_id: string | null;
+          summary_json: string;
+          created_at: number;
+          updated_at: number;
+        }
+      | undefined;
+
+    if (!row) {
+      return undefined;
+    }
+
+    return {
+      id: row.id,
+      workspaceId: row.workspace_id,
+      status: row.status,
+      approvalMode: row.approval_mode,
+      currentTaskId: row.current_task_id ?? undefined,
+      summary: JSON.parse(row.summary_json) as SessionSummary,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    };
+  }
+
+  async upsertTask(task: TaskRecord): Promise<void> {
+    const database = this.getDatabase();
+
+    try {
+      database
+        .prepare(
+          `INSERT OR REPLACE INTO tasks(
+            id, workspace_id, session_id, type, status, priority, description, operations_json,
+            approval_id, checkpoint_id, result_json, error_json, created_at, updated_at, started_at, completed_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .run(
+          task.id,
+          task.workspaceId,
+          task.sessionId,
+          task.type,
+          task.status,
+          task.priority,
+          task.description,
+          JSON.stringify(task.operations),
+          task.approvalId ?? null,
+          task.checkpointId ?? null,
+          task.resultJson ?? null,
+          task.errorJson ?? null,
+          task.createdAt,
+          task.updatedAt,
+          task.startedAt ?? null,
+          task.completedAt ?? null
+        );
+    } catch (error) {
+      throw new StateStoreError(ERROR_CODES.stateWriteFailed, "Failed to persist task record.", {
+        cause: error instanceof Error ? error : undefined
+      });
+    }
+  }
+
+  async listTasksByWorkspace(workspaceId: string): Promise<TaskRecord[]> {
+    const database = this.getDatabase();
+    const rows = database
+      .prepare(
+        `SELECT id, workspace_id, session_id, type, status, priority, description, operations_json,
+                approval_id, checkpoint_id, result_json, error_json, created_at, updated_at, started_at, completed_at
+         FROM tasks
+         WHERE workspace_id = ?
+         ORDER BY updated_at DESC`
+      )
+      .all(workspaceId) as Array<{
+        id: string;
+        workspace_id: string;
+        session_id: string;
+        type: string;
+        status: TaskRecord["status"];
+        priority: TaskRecord["priority"];
+        description: string;
+        operations_json: string;
+        approval_id: string | null;
+        checkpoint_id: string | null;
+        result_json: string | null;
+        error_json: string | null;
+        created_at: number;
+        updated_at: number;
+        started_at: number | null;
+        completed_at: number | null;
+      }>;
+
+    return rows.map((row) => ({
+      id: row.id,
+      workspaceId: row.workspace_id,
+      sessionId: row.session_id,
+      type: row.type,
+      description: row.description,
+      status: row.status,
+      priority: row.priority,
+      operations: JSON.parse(row.operations_json),
+      approvalId: row.approval_id ?? undefined,
+      checkpointId: row.checkpoint_id ?? undefined,
+      resultJson: row.result_json ?? undefined,
+      errorJson: row.error_json ?? undefined,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      startedAt: row.started_at ?? undefined,
+      completedAt: row.completed_at ?? undefined
+    }));
+  }
+
+  async upsertApproval(approval: ApprovalRecord): Promise<void> {
+    const database = this.getDatabase();
+
+    try {
+      database
+        .prepare(
+          `INSERT OR REPLACE INTO approvals(
+            id, task_id, workspace_id, risk_level, decision, request_json, reason, approved_by, created_at, decided_at, expires_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .run(
+          approval.id,
+          approval.taskId,
+          approval.workspaceId,
+          approval.riskLevel,
+          approval.decision ?? null,
+          JSON.stringify(approval.request),
+          approval.reason ?? null,
+          approval.approvedBy ?? null,
+          approval.createdAt,
+          approval.decidedAt ?? null,
+          approval.expiresAt ?? null
+        );
+    } catch (error) {
+      throw new StateStoreError(ERROR_CODES.stateWriteFailed, "Failed to persist approval record.", {
+        cause: error instanceof Error ? error : undefined
+      });
+    }
+  }
+
+  async listPendingApprovals(workspaceId: string): Promise<ApprovalRecord[]> {
+    const database = this.getDatabase();
+    const rows = database
+      .prepare(
+        `SELECT id, task_id, workspace_id, risk_level, decision, request_json, reason, approved_by, created_at, decided_at, expires_at
+         FROM approvals
+         WHERE workspace_id = ? AND decision IS NULL
+         ORDER BY created_at DESC`
+      )
+      .all(workspaceId) as Array<{
+        id: string;
+        task_id: string;
+        workspace_id: string;
+        risk_level: ApprovalRecord["riskLevel"];
+        decision: ApprovalRecord["decision"] | null;
+        request_json: string;
+        reason: string | null;
+        approved_by: string | null;
+        created_at: number;
+        decided_at: number | null;
+        expires_at: number | null;
+      }>;
+
+    return rows.map((row) => ({
+      id: row.id,
+      taskId: row.task_id,
+      workspaceId: row.workspace_id,
+      riskLevel: row.risk_level,
+      request: JSON.parse(row.request_json),
+      decision: row.decision ?? undefined,
+      reason: row.reason ?? undefined,
+      approvedBy: row.approved_by ?? undefined,
+      createdAt: row.created_at,
+      decidedAt: row.decided_at ?? undefined,
+      expiresAt: row.expires_at ?? undefined
+    }));
+  }
+
+  async appendAuditRecord(record: Omit<AuditRecord, "id"> & { id?: string }): Promise<AuditRecord> {
+    const database = this.getDatabase();
+    const nextRecord: AuditRecord = {
+      id: record.id ?? createId("audit"),
+      entityType: record.entityType,
+      entityId: record.entityId,
+      action: record.action,
+      detail: record.detail,
+      createdAt: record.createdAt
+    };
+
+    try {
+      database
+        .prepare(
+          `INSERT INTO audit_records(id, entity_type, entity_id, action, detail, created_at)
+           VALUES (?, ?, ?, ?, ?, ?)`
+        )
+        .run(
+          nextRecord.id,
+          nextRecord.entityType,
+          nextRecord.entityId,
+          nextRecord.action,
+          nextRecord.detail,
+          nextRecord.createdAt
+        );
+      return nextRecord;
+    } catch (error) {
+      throw new StateStoreError(ERROR_CODES.stateWriteFailed, "Failed to append audit record.", {
+        cause: error instanceof Error ? error : undefined
+      });
+    }
+  }
+
+  async ensureSessionForWorkspace(workspaceId: string): Promise<SessionMeta> {
+    const existing = await this.getLatestSession(workspaceId);
+    if (existing) {
+      return existing;
+    }
+
+    const now = Date.now();
+    const session: SessionMeta = {
+      id: createId("session"),
+      workspaceId,
+      status: "active",
+      approvalMode: APPROVAL_POLICY_MODE,
+      summary: {},
+      createdAt: now,
+      updatedAt: now
+    };
+    await this.upsertSession(session);
+    return session;
   }
 
   close(): void {

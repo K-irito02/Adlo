@@ -19,6 +19,9 @@ This workspace contains the first runnable Phase 0 thin slice for `AI Digital Li
 - Manual approval shell with task queue and pending-approval placeholders
 - Runtime language switch (`zh-CN` / `en-US`)
 - Runtime theme switch (`light` / `dark`) persisted to config
+- Persisted workspace/session/task/approval/audit metadata in SQLite
+- Basic Git dirty-worktree snapshot and approval trigger shell
+- Standalone `events` and `task` packages for Phase 0 governance primitives
 
 ## Out Of Scope For This Slice
 
@@ -41,10 +44,8 @@ The current codebase now covers a broader Phase 0 home shell:
 
 Still missing for full `stageOne` completion:
 
-- formal event bus package
-- persistent task / approval storage and audit chain
-- session summary and checkpoint metadata
-- Git snapshot protection
+- full cross-module event integration
+- checkpoint metadata and recovery anchors
 - schema migration and upgrade workflows
 - full packaging, E2E, and release-readiness layers
 

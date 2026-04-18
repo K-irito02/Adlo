@@ -4,6 +4,20 @@ import path from "node:path";
 export const APP_NAME = "AI Digital Life";
 export const APP_VERSION = "0.1.0";
 export const APP_STATE_SCHEMA_VERSION = "1";
+export const APPROVAL_POLICY_MODE = "manual";
+
+export const EVENT_NAMES = {
+  appInitialized: "app.initialized",
+  appShutdown: "app.shutdown",
+  configChanged: "config.changed",
+  workspaceOpened: "workspace.opened",
+  workspaceClosed: "workspace.closed",
+  sessionRestored: "session.restored",
+  retrievalStatusChanged: "retrieval.status-changed",
+  taskUpserted: "task.upserted",
+  approvalRequested: "approval.requested",
+  approvalDecided: "approval.decided"
+} as const;
 
 export const ERROR_CODES = {
   invalidInput: "INVALID_INPUT",
@@ -121,13 +135,54 @@ export interface RecentWorkspaceEntry {
   available: boolean;
 }
 
+export type WorkspaceType = "node" | "python" | "java" | "go" | "rust" | "unknown";
+export type WorkspaceStatus = "initializing" | "ready" | "indexing" | "degraded" | "error" | "closed";
+
+export interface GitSnapshot {
+  isRepo: boolean;
+  branch?: string;
+  head?: string;
+  ahead?: number;
+  behind?: number;
+  staged: string[];
+  unstaged: string[];
+  untracked: string[];
+  conflicts: string[];
+  capturedAt: number;
+}
+
 export interface WorkspaceMeta {
   id: string;
   path: string;
   rootPath: string;
   name: string;
+  type: WorkspaceType;
+  status: WorkspaceStatus;
+  gitSnapshot?: GitSnapshot;
+  createdAt: number;
+  updatedAt: number;
   lastOpenedAt: number;
-  status: "ready";
+}
+
+export type SessionStatus = "active" | "paused" | "completed" | "archived";
+
+export interface SessionSummary {
+  lastUserIntent?: string;
+  lastIndexVersion?: string;
+  lastCheckpointId?: string;
+  lastTaskId?: string;
+  notes?: string[];
+}
+
+export interface SessionMeta {
+  id: string;
+  workspaceId: string;
+  status: SessionStatus;
+  approvalMode: typeof APPROVAL_POLICY_MODE;
+  currentTaskId?: string;
+  summary: SessionSummary;
+  createdAt: number;
+  updatedAt: number;
 }
 
 export interface AppStateV1 {
@@ -204,6 +259,33 @@ export type TaskStatus =
 
 export type RiskLevel = "low" | "medium" | "high";
 
+export interface TaskOperation {
+  kind: string;
+  target?: string;
+  params: Record<string, unknown>;
+  riskLevel: RiskLevel;
+  reversible: boolean;
+}
+
+export interface TaskRecord {
+  id: string;
+  workspaceId: string;
+  sessionId: string;
+  type: string;
+  description: string;
+  status: TaskStatus;
+  priority: "low" | "medium" | "high" | "critical";
+  operations: TaskOperation[];
+  approvalId?: string;
+  checkpointId?: string;
+  resultJson?: string;
+  errorJson?: string;
+  createdAt: number;
+  updatedAt: number;
+  startedAt?: number;
+  completedAt?: number;
+}
+
 export interface TaskSummary {
   id: string;
   title: string;
@@ -226,6 +308,29 @@ export interface ApprovalRequestSummary {
   expiresAt?: number;
 }
 
+export interface ApprovalRecord {
+  id: string;
+  taskId: string;
+  workspaceId: string;
+  riskLevel: RiskLevel;
+  request: ApprovalRequestSummary;
+  decision?: "approved" | "rejected" | "timeout";
+  reason?: string;
+  approvedBy?: string;
+  createdAt: number;
+  decidedAt?: number;
+  expiresAt?: number;
+}
+
+export interface AuditRecord {
+  id: string;
+  entityType: "task" | "approval" | "workspace" | "session";
+  entityId: string;
+  action: string;
+  detail: string;
+  createdAt: number;
+}
+
 export interface ApprovalPolicySummary {
   mode: "manual";
   summary: string;
@@ -236,6 +341,12 @@ export interface TaskCenterSnapshot {
   tasks: TaskSummary[];
   pendingApprovals: ApprovalRequestSummary[];
   policy: ApprovalPolicySummary;
+}
+
+export interface BaseEvent<TType extends string = string, TPayload = Record<string, unknown>> {
+  type: TType;
+  timestamp: number;
+  payload: TPayload;
 }
 
 export function defaultWindowState(): WindowState {
@@ -265,6 +376,10 @@ export function isChildPath(parentPath: string, childPath: string): boolean {
 
 export function createWorkspaceId(workspacePath: string): string {
   return crypto.createHash("sha1").update(normalizePath(workspacePath)).digest("hex");
+}
+
+export function createId(prefix?: string): string {
+  return prefix ? `${prefix}_${crypto.randomUUID()}` : crypto.randomUUID();
 }
 
 export function toUserMessage(error: unknown): IpcError {

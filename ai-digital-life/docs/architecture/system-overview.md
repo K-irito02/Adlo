@@ -11,6 +11,8 @@ This codebase implements the first runnable Phase 0 thin slice described in the 
 - retrieval worker indexing and status reporting
 - runtime language and theme preferences
 - task / approval shell entry surfaces in the renderer
+- persisted workspace, session, task, approval, and audit metadata
+- lightweight Git snapshot capture for workspace safety visibility
 
 ## Runtime Path
 
