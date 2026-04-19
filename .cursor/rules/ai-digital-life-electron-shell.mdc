@@ -1,0 +1,29 @@
+---
+description: Electron Main/Preload/Renderer boundaries, allowlisted IPC, and stream channels for ai-digital-life desktop
+globs: ai-digital-life/apps/desktop/**/*
+alwaysApply: false
+---
+
+# Electron 壳与 IPC
+
+## 安全基线（不可降级）
+
+- `BrowserWindow`：`contextIsolation: true`、`sandbox: true`、`nodeIntegration: false`。
+- **Renderer** 不得直接 `fs` / `child_process` / `sqlite` / 模型 `fetch`；一律经 `window.digitalLife`（preload 暴露的白名单）。
+
+## 契约真源
+
+- **类型与 API 形状**：`apps/desktop/shared/ipc.ts` 的 `DigitalLifeBridge`。
+- **实现**：`preload/index.ts` 与 `main/index.ts` 的 `ipcMain.handle` / `webContents.send` 必须同名、同载荷语义。
+
+## 订阅类通道（版本化载荷）
+
+- 模型流：`digitalLife:modelStream`（如 `DigitalLifeModelStreamEventV1`）。
+- 终端流：`digitalLife:terminalStream`（如 `DigitalLifeTerminalStreamEventV1`）。
+- 工作区文件变更：`workspace:fileChanged`。
+
+新增 `webContents.send` 通道时：**同步** `ipc.ts` + `preload` + 本规则一行摘要 +  Renderer mock（若有）。
+
+## 密钥与审计
+
+- API Key、模型请求体敏感部分：**仅 Main**；审计写 `storage`，不在 Renderer 记录密钥原文。

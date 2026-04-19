@@ -1,0 +1,26 @@
+---
+description: Tests, typecheck, and persistence migration expectations for ai-digital-life
+globs: ai-digital-life/tests/**,ai-digital-life/vitest.config.ts
+alwaysApply: false
+---
+
+# 质量门禁（合并前）
+
+## 命令（在 `ai-digital-life/` 目录执行）
+
+- **全量单测**：`npm test`（`vitest run`）。
+- **桌面类型检查**：`npm run typecheck -w @ai-digital-life/desktop`（Main + Preload + Renderer）。
+
+高风险改动（IPC、存储迁移、`kernel` 契约、`applyPatch` 路径）应**至少**覆盖相关 `tests/unit/*` 或 `tests/integration/*`。
+
+## SQLite / `storage`
+
+- Schema 变更：**必须**带迁移脚本与 `storage`/迁移相关单测；禁止仅改运行时字符串而不改版本与迁移注册。
+
+## Renderer 集成
+
+- 工作区壳与关键 IPC：`tests/integration/renderer-shell.test.ts`；桥接 API 变更时同步 mock（`renderer/src/mock-bridge.ts`）。
+
+## 文档
+
+- 跨层契约或阶段叙述变化：同步 `ai-digital-life/AGENTS.md` 与 `docs/architecture/` 中对应页（与根 `AGENTS.md`「文档归口」一致）。

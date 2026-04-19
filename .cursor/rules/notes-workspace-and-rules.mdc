@@ -1,0 +1,35 @@
+---
+description: Dual-root layout (Obsidian + ai-digital-life), Cursor rules index, and how to maintain or add rules
+alwaysApply: true
+---
+
+# 工作区总览与规则维护
+
+## 仓库结构（真源速览）
+
+- **根目录 `notes`**：Obsidian 笔记、产品/治理文档（如 `docs/development/`、`digitalLife/` 规划）、根 `AGENTS.md`。
+- **`ai-digital-life/`**：TypeScript monorepo，Electron 桌面实现（`apps/desktop`、`packages/*`、`workers/*`、`tests/`）。
+
+对话中若任务涉及**实现与 IPC**，默认在 `ai-digital-life/` 下检索；若涉及**阶段/路由/治理**，同时对照根目录 `AGENTS.md` 与 `docs/development/*`。
+
+## 本目录规则文件（职责单一）
+
+| 文件 | 职责 |
+|------|------|
+| `notes-workspace-and-rules.mdc` | 本文件：双根说明、规则索引、维护/扩展协议 |
+| `ai-digital-life-codebase-map.mdc` | 实现仓目录、包列表、常用命令入口 |
+| `ai-digital-life-electron-shell.mdc` | Main / Preload / Renderer 边界与 IPC 安全 |
+| `ai-digital-life-quality-gates.mdc` | 测试、类型检查、迁移与合并前检查 |
+
+## 新增一条规则时
+
+1. 在 `.cursor/rules/` 新增 `*.mdc`，填写 YAML：`description`（英文便于 Cursor 展示）、`alwaysApply` 或 `globs`。
+2. **必须**在上表增加一行，避免孤儿规则。
+3. 若涉及阶段边界、安全基线或 IPC 契约：同步根 `AGENTS.md`、`ai-digital-life/AGENTS.md` 或 `ai-digital-life/docs/architecture/*`（与现有「文档归口」一致）。
+
+## 随项目演进时（应主动改规则）
+
+- **新增或重命名 package**：更新 `ai-digital-life-codebase-map.mdc` 的包表与路径。
+- **IPC 通道 / Bridge 类型变更**：以 `ai-digital-life/apps/desktop/shared/ipc.ts` 与 `preload/index.ts` 为准，更新 `ai-digital-life-electron-shell.mdc` 中的通道名与约束摘要。
+- **测试命令或 vitest 配置变更**：更新 `ai-digital-life-quality-gates.mdc`。
+- **Phase 范围叙述变更**：根 `AGENTS.md` 与本文件「仓库结构」段各用一两句对齐，避免双真源矛盾。

@@ -1,0 +1,41 @@
+---
+description: ai-digital-life monorepo layout, packages, apps, workers, and common CLI entrypoints
+globs: ai-digital-life/**
+alwaysApply: false
+---
+
+# `ai-digital-life/` 代码地图
+
+## 顶层
+
+- `package.json`：workspace 根脚本（`npm test` → `vitest run`，`npm run typecheck` 串联各包，`npm run dev` 启动桌面）。
+- `vitest.config.ts`：单测/集成测入口。
+- `AGENTS.md`、`CONTRIBUTING.md`、`docs/architecture/`：实现侧治理与架构真源。
+
+## 应用与共享
+
+- `apps/desktop/`：`main/`（Node）、`preload/`（桥）、`renderer/`（React + Vite）、`shared/ipc.ts`（与 preload 对齐的契约类型）。
+
+## 包（`packages/`）
+
+| 区域 | 包名（按需深入） |
+|------|------------------|
+| 契约与常量 | `kernel` |
+| 持久化 | `storage`、`migration` |
+| 桌面支撑 | `config`、`logger`、`errors`、`events`、`workspace`、`fs-ops` |
+| 任务与审批 | `task` |
+| Phase 2 切片 | `model-gateway`、`agent-runtime`、`conversation`、`change-engine`、`context-engine`、`prompt-engine`、`terminal`、`editor`（按仓库现状为准） |
+
+## Worker
+
+- `workers/health/`：检索 worker（与 Main 线程隔离）。
+
+## 测试
+
+- `tests/unit/`、`tests/integration/`：与实现对齐；新增高风险模块时优先补邻近单测。
+
+## 索引策略（给 Agent）
+
+1. 改行为先定位 **Main vs Renderer vs 包**：业务默认在 `packages/*`，进程边界在 `apps/desktop/*`。
+2. 跨包类型以 **`@ai-digital-life/kernel` 导出** 为准。
+3. 架构段落引用 **`docs/architecture/system-overview.md`**，避免与代码漂移。
