@@ -25,6 +25,7 @@ export const zhCN = {
   storage: "状态仓库",
   recovery: "恢复",
   migration: "迁移",
+  models: "模型",
   retrievalIdle: "还没有检索任务。",
   retrievalScanned: "已扫描文件",
   retrievalIndexed: "已索引文本文件",

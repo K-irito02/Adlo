@@ -5,6 +5,9 @@ import {
   type ConfigSnapshot,
   type LanguageCode,
   type LogLevel,
+  type ModelPreferences,
+  type ModelProviderId,
+  type ModelProviderPreference,
   type ResolvedTheme,
   type ThemeMode
 } from "@ai-digital-life/kernel";
@@ -14,14 +17,33 @@ interface StoredConfigFile {
   themeMode?: string;
   logLevel?: string;
   maxRecentWorkspaces?: number;
+  modelPreferences?: {
+    providers?: Partial<Record<ModelProviderId, Partial<ModelProviderPreference>>>;
+  };
 }
+
+const DEFAULT_MODEL_PREFERENCES: ModelPreferences = {
+  providers: {
+    deepseek: {
+      enabled: true,
+      priority: 1,
+      modelId: "deepseek-chat"
+    },
+    minimax: {
+      enabled: true,
+      priority: 3,
+      modelId: "MiniMax-M2.5"
+    }
+  }
+};
 
 export const DEFAULT_CONFIG: ConfigSnapshot = {
   language: "zh-CN",
   themeMode: "system",
   resolvedTheme: "light",
   logLevel: "info",
-  maxRecentWorkspaces: 8
+  maxRecentWorkspaces: 8,
+  modelPreferences: DEFAULT_MODEL_PREFERENCES
 };
 
 export function resolveThemeMode(themeMode: ThemeMode, prefersDark: boolean): ResolvedTheme {
@@ -44,6 +66,34 @@ export function validateLogLevel(value: unknown): LogLevel {
   return value === "debug" || value === "info" || value === "warn" || value === "error" ? value : "info";
 }
 
+function validateProviderPreference(
+  value: unknown,
+  fallback: ModelProviderPreference
+): ModelProviderPreference {
+  const candidate = (value ?? {}) as Partial<ModelProviderPreference>;
+  const priority =
+    typeof candidate.priority === "number" && Number.isFinite(candidate.priority)
+      ? Math.max(1, Math.min(10, Math.floor(candidate.priority)))
+      : fallback.priority;
+  const modelId = typeof candidate.modelId === "string" && candidate.modelId.trim() ? candidate.modelId.trim() : fallback.modelId;
+
+  return {
+    enabled: typeof candidate.enabled === "boolean" ? candidate.enabled : fallback.enabled,
+    priority,
+    modelId
+  };
+}
+
+function validateModelPreferences(value: unknown): ModelPreferences {
+  const candidate = (value ?? {}) as StoredConfigFile["modelPreferences"];
+  return {
+    providers: {
+      deepseek: validateProviderPreference(candidate?.providers?.deepseek, DEFAULT_MODEL_PREFERENCES.providers.deepseek),
+      minimax: validateProviderPreference(candidate?.providers?.minimax, DEFAULT_MODEL_PREFERENCES.providers.minimax)
+    }
+  };
+}
+
 export function validateConfigFile(input: unknown, prefersDark = false): ConfigSnapshot {
   const candidate = (input ?? {}) as StoredConfigFile;
   const themeMode = validateThemeMode(candidate.themeMode);
@@ -56,7 +106,8 @@ export function validateConfigFile(input: unknown, prefersDark = false): ConfigS
     maxRecentWorkspaces:
       typeof candidate.maxRecentWorkspaces === "number" && candidate.maxRecentWorkspaces > 0
         ? Math.min(20, Math.floor(candidate.maxRecentWorkspaces))
-        : DEFAULT_CONFIG.maxRecentWorkspaces
+        : DEFAULT_CONFIG.maxRecentWorkspaces,
+    modelPreferences: validateModelPreferences(candidate.modelPreferences)
   };
 }
 
@@ -79,7 +130,8 @@ function toStoredConfigFile(snapshot: ConfigSnapshot): StoredConfigFile {
     language: snapshot.language,
     themeMode: snapshot.themeMode,
     logLevel: snapshot.logLevel,
-    maxRecentWorkspaces: snapshot.maxRecentWorkspaces
+    maxRecentWorkspaces: snapshot.maxRecentWorkspaces,
+    modelPreferences: snapshot.modelPreferences
   };
 }
 
@@ -94,7 +146,21 @@ export function applyConfigPatch(
     ...currentConfig,
     language: patch.language ?? currentConfig.language,
     themeMode: nextThemeMode,
-    resolvedTheme: resolveThemeMode(nextThemeMode, prefersDark)
+    resolvedTheme: resolveThemeMode(nextThemeMode, prefersDark),
+    modelPreferences: patch.modelPreferences
+      ? {
+          providers: {
+            deepseek: {
+              ...currentConfig.modelPreferences.providers.deepseek,
+              ...patch.modelPreferences.deepseek
+            },
+            minimax: {
+              ...currentConfig.modelPreferences.providers.minimax,
+              ...patch.modelPreferences.minimax
+            }
+          }
+        }
+      : currentConfig.modelPreferences
   };
 }
 

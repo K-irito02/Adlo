@@ -25,6 +25,7 @@ export const enUS = {
   storage: "Storage",
   recovery: "Recovery",
   migration: "Migration",
+  models: "Models",
   retrievalIdle: "No retrieval run yet.",
   retrievalScanned: "Scanned files",
   retrievalIndexed: "Indexed text files",

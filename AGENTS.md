@@ -40,20 +40,22 @@
 
 ## 子Agent路由表
 
-| 场景 | 默认路由 |
-|------|----------|
-| 新需求、规划、验收标准 | `product-spec` -> `architect` |
-| 跨模块边界、接口、重构 | `architect` |
-| Electron、IPC、Main/Preload/Renderer/Worker | `desktop-shell` |
-| config/logger/errors/storage/migration | `infra-foundation` |
-| workspace/retrieval/index/search/repo-map | `retrieval-engineer` |
-| task/approval/audit/checkpoint/风险分级 | `task-governance` |
-| 权限边界、密钥、危险写入、命令执行 | `app-security` |
-| 单测/集成/E2E/验收矩阵 | `test-engineer` |
-| 静态审查、设计一致性、测试缺口 | `code-reviewer` |
-| 文档、阶段文档、开发说明 | `docs-maintainer` |
-| 打包、版本、迁移、发布核查 | `release-integrator` |
-| Agent/skill/hook/manifests 一致性 | `repo-librarian` |
+
+| 场景                                        | 默认路由                          |
+| ----------------------------------------- | ----------------------------- |
+| 新需求、规划、验收标准                               | `product-spec` -> `architect` |
+| 跨模块边界、接口、重构                               | `architect`                   |
+| Electron、IPC、Main/Preload/Renderer/Worker | `desktop-shell`               |
+| config/logger/errors/storage/migration    | `infra-foundation`            |
+| workspace/retrieval/index/search/repo-map | `retrieval-engineer`          |
+| task/approval/audit/checkpoint/风险分级       | `task-governance`             |
+| 权限边界、密钥、危险写入、命令执行                         | `app-security`                |
+| 单测/集成/E2E/验收矩阵                            | `test-engineer`               |
+| 静态审查、设计一致性、测试缺口                           | `code-reviewer`               |
+| 文档、阶段文档、开发说明                              | `docs-maintainer`             |
+| 打包、版本、迁移、发布核查                             | `release-integrator`          |
+| Agent/skill/hook/manifests 一致性            | `repo-librarian`              |
+
 
 ## 协作限制
 

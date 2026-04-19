@@ -1,0 +1,241 @@
+.phase-two-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-height: 100vh;
+  padding: 1rem;
+}
+
+.phase-two-topbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.phase-two-columns {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr) 360px;
+  gap: 1rem;
+  min-height: calc(100vh - 180px);
+}
+
+.adl-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-height: 0;
+}
+
+.adl-panel-header,
+.adl-inline-form,
+.adl-inline-actions,
+.adl-toolbar,
+.adl-hunk-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.adl-panel-header {
+  justify-content: space-between;
+}
+
+.adl-toolbar label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+}
+
+.adl-session-list,
+.adl-search-results,
+.adl-outline-list,
+.adl-recent-list,
+.adl-approval-list,
+.adl-model-health-list,
+.adl-model-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.adl-session-list button,
+.adl-search-results button {
+  width: 100%;
+  text-align: left;
+  padding: 0.75rem;
+  border-radius: 12px;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
+  background: var(--surface-raised, rgba(255, 255, 255, 0.04));
+}
+
+.adl-session-list button.is-active {
+  border-color: var(--accent-strong, #122e8a);
+}
+
+.adl-run-card,
+.adl-patch-card,
+.adl-block,
+.adl-hunk,
+.adl-landing-card,
+.adl-approval-card,
+.adl-model-health-item,
+.adl-model-setting-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.adl-setting-row {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.adl-message-stream {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-height: 0;
+  overflow: auto;
+}
+
+.adl-message {
+  padding: 0.875rem;
+  border-radius: 14px;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
+  background: var(--surface-raised, rgba(255, 255, 255, 0.04));
+}
+
+.adl-message--assistant {
+  background: color-mix(in srgb, var(--accent-strong, #122e8a) 8%, transparent);
+}
+
+.adl-composer {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.75rem;
+}
+
+.adl-composer textarea,
+.adl-inline-form input,
+.adl-toolbar select,
+.adl-setting-row input {
+  width: 100%;
+  min-height: 44px;
+  border-radius: 12px;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
+  background: var(--surface-base, rgba(255, 255, 255, 0.03));
+  color: inherit;
+  padding: 0.75rem;
+}
+
+.adl-setting-row input[type="checkbox"] {
+  width: 18px;
+  min-height: 18px;
+  padding: 0;
+}
+
+.adl-file-preview,
+.adl-hunk pre {
+  margin: 0;
+  padding: 0.875rem;
+  border-radius: 12px;
+  overflow: auto;
+  background: rgba(7, 10, 20, 0.82);
+  color: #d7e1ff;
+}
+
+.adl-editor-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-height: 0;
+}
+
+.adl-editor-shell .monaco-editor,
+.adl-editor-shell .monaco-diff-editor {
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.adl-editor-tabs,
+.adl-diagnostic-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.adl-editor-tabs button,
+.adl-diagnostic-list button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  border-radius: 12px;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
+  background: var(--surface-raised, rgba(255, 255, 255, 0.04));
+  text-align: left;
+}
+
+.adl-editor-tabs button {
+  width: auto;
+}
+
+.adl-editor-tabs button.is-active {
+  border-color: var(--accent-strong, #122e8a);
+  background: color-mix(in srgb, var(--accent-strong, #122e8a) 12%, transparent);
+}
+
+.adl-diagnostics {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.adl-validation-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem;
+  border-radius: 12px;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
+  background: color-mix(in srgb, var(--surface-raised, rgba(255, 255, 255, 0.04)) 82%, transparent);
+}
+
+.adl-file-chip {
+  align-self: flex-start;
+}
+
+.adl-outline-list li {
+  display: grid;
+  grid-template-columns: 80px 1fr auto;
+  gap: 0.5rem;
+}
+
+.adl-status,
+.adl-file-path {
+  font-size: 0.85rem;
+  color: var(--text-muted, rgba(255, 255, 255, 0.66));
+}
+
+.adl-error {
+  border-color: rgba(255, 91, 91, 0.5);
+  color: #ffb4b4;
+}
+
+@media (max-width: 1200px) {
+  .phase-two-columns {
+    grid-template-columns: 1fr;
+  }
+}

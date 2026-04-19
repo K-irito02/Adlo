@@ -10,15 +10,19 @@
   ],
   "scripts": {
     "dev": "npm run dev -w @ai-digital-life/desktop",
-    "build": "npm run build -w @ai-digital-life/kernel && npm run build -w @ai-digital-life/config && npm run build -w @ai-digital-life/errors && npm run build -w @ai-digital-life/events && npm run build -w @ai-digital-life/storage && npm run build -w @ai-digital-life/task && npm run build -w @ai-digital-life/migration && npm run build -w @ai-digital-life/logger && npm run build -w @ai-digital-life/workspace && npm run build -w @ai-digital-life/retrieval-worker && npm run build -w @ai-digital-life/desktop",
+    "build": "npm run build -w @ai-digital-life/kernel && npm run build -w @ai-digital-life/config && npm run build -w @ai-digital-life/errors && npm run build -w @ai-digital-life/events && npm run build -w @ai-digital-life/storage && npm run build -w @ai-digital-life/task && npm run build -w @ai-digital-life/migration && npm run build -w @ai-digital-life/logger && npm run build -w @ai-digital-life/workspace && npm run build -w @ai-digital-life/model-gateway && npm run build -w @ai-digital-life/prompt-engine && npm run build -w @ai-digital-life/context-engine && npm run build -w @ai-digital-life/fs-ops && npm run build -w @ai-digital-life/change-engine && npm run build -w @ai-digital-life/conversation && npm run build -w @ai-digital-life/agent-runtime && npm run build -w @ai-digital-life/terminal && npm run build -w @ai-digital-life/editor && npm run build -w @ai-digital-life/retrieval-worker && npm run build -w @ai-digital-life/desktop",
     "start": "npm run start -w @ai-digital-life/desktop",
     "test": "vitest run",
-    "typecheck": "npm run typecheck -w @ai-digital-life/kernel && npm run typecheck -w @ai-digital-life/config && npm run typecheck -w @ai-digital-life/errors && npm run typecheck -w @ai-digital-life/events && npm run typecheck -w @ai-digital-life/storage && npm run typecheck -w @ai-digital-life/task && npm run typecheck -w @ai-digital-life/migration && npm run typecheck -w @ai-digital-life/logger && npm run typecheck -w @ai-digital-life/workspace && npm run typecheck -w @ai-digital-life/retrieval-worker && npm run typecheck -w @ai-digital-life/desktop"
+    "typecheck": "npm run typecheck -w @ai-digital-life/kernel && npm run typecheck -w @ai-digital-life/config && npm run typecheck -w @ai-digital-life/errors && npm run typecheck -w @ai-digital-life/events && npm run typecheck -w @ai-digital-life/storage && npm run typecheck -w @ai-digital-life/task && npm run typecheck -w @ai-digital-life/migration && npm run typecheck -w @ai-digital-life/logger && npm run typecheck -w @ai-digital-life/workspace && npm run typecheck -w @ai-digital-life/model-gateway && npm run typecheck -w @ai-digital-life/prompt-engine && npm run typecheck -w @ai-digital-life/context-engine && npm run typecheck -w @ai-digital-life/fs-ops && npm run typecheck -w @ai-digital-life/change-engine && npm run typecheck -w @ai-digital-life/conversation && npm run typecheck -w @ai-digital-life/agent-runtime && npm run typecheck -w @ai-digital-life/terminal && npm run typecheck -w @ai-digital-life/editor && npm run typecheck -w @ai-digital-life/retrieval-worker && npm run typecheck -w @ai-digital-life/desktop",
+    "test:e2e": "playwright test"
   },
   "devDependencies": {
+    "@playwright/test": "^1.52.0",
     "@electron/rebuild": "^4.0.3",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.13.11",
+    "@types/react": "^19.1.2",
+    "@types/react-dom": "^19.1.2",
     "electron": "^35.0.0",
     "jsdom": "^26.0.0",
     "typescript": "^5.8.3",

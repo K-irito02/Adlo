@@ -1,8 +1,13 @@
-# Phase 0 Thin Slice Overview
+# Phase 0 And Phase 2 Thin Slice Overview
 
 ## Purpose
 
-This codebase implements the first runnable Phase 0 thin slice described in the planning repository:
+This codebase now contains two layers of runnable scope:
+
+- Phase 0 foundation
+- Phase 2 single-agent thin slice
+
+The implemented surface currently covers:
 
 - secure Electron shell
 - controlled IPC
@@ -15,6 +20,19 @@ This codebase implements the first runnable Phase 0 thin slice described in the 
 - lightweight Git snapshot capture for workspace safety visibility
 - startup recovery markers and migration diagnostics
 - shared event-bus emission across workspace, retrieval, task, and approval flows
+- React + Zustand workspace shell for the Phase 2 working view
+- conversation sessions and persisted conversation messages
+- single-agent sequential planning state with stored run and step metadata
+- patch-set, file-patch, and hunk persistence in SQLite
+- structured workspace `readFile/search/outline` IPC surfaces
+- patch-first preview, explicit hunk decision, apply, and rollback flows
+- apply-after-validate loop with structured validation results and automatic rollback on failure
+- dual-provider routing for `DeepSeek -> MiniMax` with synthetic fallback only after both providers fail
+- persisted non-sensitive model provider preferences, including enable switch, priority, and default model id
+- real provider health snapshots exposed to the desktop shell
+- automatic repair preview generation after validation failure
+- chokidar-driven workspace file change notifications
+- Playwright-based acceptance coverage for the workspace shell
 
 ## Runtime Path
 
@@ -23,16 +41,22 @@ This codebase implements the first runnable Phase 0 thin slice described in the 
 3. `Main` starts a worker thread used for workspace retrieval scans and worker health visibility.
 4. `Main` creates a locked-down `BrowserWindow`.
 5. `Preload` exposes the `window.digitalLife` bridge and hides raw Electron primitives.
-6. `Renderer` reads bootstrap data, shows recent workspaces, retrieval status, health, logs, and runtime diagnostics, and can request `workspace.open(path)`.
-7. `Renderer` can update language and theme preferences through a typed IPC patch instead of direct file writes.
-8. The workspace service validates the path, detects the project root, updates recent entries, persists state to SQLite, and triggers retrieval indexing.
+6. `Renderer` now has two visible shells:
+   - the existing Phase 0 home shell
+   - the new Phase 2 workspace shell implemented with `React + Zustand`
+7. `Renderer` can open a workspace, create/list/get conversation sessions, send a structured single-agent request, inspect file content, inspect outline/search results, and review a patch preview.
+8. `Main` routes the single-agent request through prompt assembly, context selection, configurable `DeepSeek -> MiniMax` provider routing, patch-set persistence, and explicit patch application.
+9. Patch application creates a checkpoint payload bundle before files are written, runs validation, rolls back on failure, and can generate a repair preview for a second pass.
+10. When model preferences change, `Main` persists the new non-sensitive settings, rebuilds `ModelGateway` and `AgentRuntimeService`, and refreshes the provider health snapshot without expanding Renderer privilege.
+11. File changes are observed through `chokidar`, and the renderer receives structured conflict notifications instead of polling raw filesystem state.
 
 ## Validation Status
 
 The repository now includes:
 
 - unit coverage for the Phase 0 infrastructure packages
-- an integration renderer-shell test that exercises diagnostics, approval, checkpoint preview, and restore flows
+- an integration renderer-shell test that exercises the Phase 2 workspace shell and patch preview flow
+- a Playwright acceptance test covering the main workspace patch flow
 - passing `test`, `typecheck`, and `build` commands in the current environment
 
 ## Security Baseline
@@ -45,7 +69,7 @@ The repository now includes:
 
 ## Persistence
 
-This slice stores lightweight state in `state/app-state.db`:
+This slice stores persisted state in `state/app-state.db`:
 
 - schema version
 - current workspace path
@@ -53,6 +77,11 @@ This slice stores lightweight state in `state/app-state.db`:
 - last window bounds
 - retrieval state summary
 - sessions, tasks, approvals, audit records, and checkpoints
+- conversation sessions and conversation messages
+- agent runs, steps, and tool invocation metadata
+- patch sets, file patches, and hunk decisions
+- command execution and validation result placeholders for later tranches
+- model provider preferences and provider routing metadata
 
 If a legacy `app-state.v1.json` file exists, it is migrated into SQLite on first startup.
 
@@ -64,3 +93,6 @@ UI preferences are stored separately in `config/config.json` and currently inclu
 - theme mode
 - log level
 - max recent workspace count
+- model provider enable switch
+- model provider priority
+- model provider default model id

@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { APP_STATE_SCHEMA_VERSION, defaultAppState } from "@ai-digital-life/kernel";
+import { APP_STATE_SCHEMA_VERSION, createId, defaultAppState } from "@ai-digital-life/kernel";
 import { StateRepository } from "@ai-digital-life/storage";
 
 const tempDirs: string[] = [];
@@ -112,6 +112,87 @@ describe("state repository", () => {
     await fs.writeFile(path.join(workspaceDir, "src", "index.ts"), "export const demo = 2;\n", "utf8");
     await repository.restoreCheckpointPayload("checkpoint-demo");
     await expect(fs.readFile(path.join(workspaceDir, "src", "index.ts"), "utf8")).resolves.toContain("demo = 1");
+    repository.close();
+  });
+
+  it("lists persisted agent runs and patch sets by workspace", async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "adl-state-phase2-"));
+    tempDirs.push(tempDir);
+    const repository = new StateRepository(tempDir, createFakeLogger() as never);
+    await repository.initialize();
+
+    const workspaceId = "workspace-1";
+    const sessionId = "session-1";
+    const runId = createId("run");
+    const patchSetId = createId("patch");
+    const filePatchId = createId("file");
+    const hunkId = createId("hunk");
+    const now = Date.now();
+
+    await repository.upsertAgentRun({
+      id: runId,
+      workspaceId,
+      sessionId,
+      prompt: "update @src/index.ts",
+      scenario: "code-edit",
+      status: "verifying",
+      patchSetId,
+      createdAt: now,
+      updatedAt: now
+    });
+    await repository.upsertPatchSet({
+      id: patchSetId,
+      workspaceId,
+      sessionId,
+      runId,
+      title: "Update src/index.ts",
+      summary: "test patch",
+      status: "applying",
+      createdAt: now,
+      updatedAt: now,
+      filePatches: [
+        {
+          id: filePatchId,
+          patchSetId,
+          relativePath: "src/index.ts",
+          beforeContent: "export const a = 1;\n",
+          afterContent: "export const a = 2;\n",
+          hunks: [
+            {
+              id: hunkId,
+              filePatchId,
+              patchSetId,
+              relativePath: "src/index.ts",
+              oldStart: 1,
+              oldLines: 1,
+              newStart: 1,
+              newLines: 1,
+              preview: "-export const a = 1;\n+export const a = 2;",
+              beforeText: "export const a = 1;\n",
+              afterText: "export const a = 2;\n",
+              decision: "accepted"
+            }
+          ]
+        }
+      ]
+    });
+
+    await expect(repository.listAgentRunsByWorkspace(workspaceId)).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: runId,
+          status: "verifying"
+        })
+      ])
+    );
+    await expect(repository.listPatchSetsByWorkspace(workspaceId)).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: patchSetId,
+          status: "applying"
+        })
+      ])
+    );
     repository.close();
   });
 });

@@ -2,6 +2,9 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import Database from "better-sqlite3";
 import {
+  type AgentPlanStep,
+  type AgentRunDetail,
+  type AgentRunRecord,
   type ApprovalRecord,
   APP_STATE_SCHEMA_VERSION,
   APPROVAL_POLICY_MODE,
@@ -9,11 +12,21 @@ import {
   type CheckpointRecord,
   type CheckpointPayloadAsset,
   type CheckpointPayloadPreview,
+  type CommandRequest,
+  type ConversationDetail,
+  type ConversationMessageRecord,
+  type ConversationSessionRecord,
   ERROR_CODES,
   type AppStateV1,
+  type FilePatch,
+  type PatchHunk,
+  type PatchHunkDecision,
+  type PatchSet,
   type SessionMeta,
   type SessionSummary,
   type TaskRecord,
+  type ToolInvocationRecord,
+  type ValidationResult,
   type WorkspaceMeta,
   type RepoMapEntry,
   type RetrievalFileTypeCount,
@@ -158,6 +171,126 @@ export class StateRepository {
         manifest_json TEXT NOT NULL,
         created_at INTEGER NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS conversation_sessions (
+        id TEXT PRIMARY KEY,
+        workspace_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        status TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        last_message_at INTEGER NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS conversation_messages (
+        id TEXT PRIMARY KEY,
+        session_id TEXT NOT NULL,
+        role TEXT NOT NULL,
+        content TEXT NOT NULL,
+        blocks_json TEXT NOT NULL,
+        run_id TEXT,
+        created_at INTEGER NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS agent_runs (
+        id TEXT PRIMARY KEY,
+        workspace_id TEXT NOT NULL,
+        session_id TEXT NOT NULL,
+        prompt TEXT NOT NULL,
+        scenario TEXT NOT NULL,
+        status TEXT NOT NULL,
+        summary TEXT,
+        patch_set_id TEXT,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        completed_at INTEGER
+      );
+
+      CREATE TABLE IF NOT EXISTS agent_steps (
+        id TEXT PRIMARY KEY,
+        run_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        detail TEXT,
+        status TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS tool_invocations (
+        id TEXT PRIMARY KEY,
+        run_id TEXT NOT NULL,
+        tool_name TEXT NOT NULL,
+        summary TEXT NOT NULL,
+        status TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS patch_sets (
+        id TEXT PRIMARY KEY,
+        workspace_id TEXT NOT NULL,
+        session_id TEXT NOT NULL,
+        run_id TEXT,
+        title TEXT NOT NULL,
+        summary TEXT NOT NULL,
+        status TEXT NOT NULL,
+        checkpoint_id TEXT,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS file_patches (
+        id TEXT PRIMARY KEY,
+        patch_set_id TEXT NOT NULL,
+        relative_path TEXT NOT NULL,
+        language TEXT,
+        before_content TEXT NOT NULL,
+        after_content TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS patch_hunks (
+        id TEXT PRIMARY KEY,
+        file_patch_id TEXT NOT NULL,
+        patch_set_id TEXT NOT NULL,
+        relative_path TEXT NOT NULL,
+        old_start INTEGER NOT NULL,
+        old_lines INTEGER NOT NULL,
+        new_start INTEGER NOT NULL,
+        new_lines INTEGER NOT NULL,
+        preview TEXT NOT NULL,
+        before_text TEXT NOT NULL,
+        after_text TEXT NOT NULL,
+        decision TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS command_executions (
+        id TEXT PRIMARY KEY,
+        workspace_id TEXT NOT NULL,
+        run_id TEXT,
+        profile TEXT NOT NULL,
+        command TEXT NOT NULL,
+        args_json TEXT NOT NULL,
+        shell INTEGER NOT NULL,
+        risk_level TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS validation_results (
+        id TEXT PRIMARY KEY,
+        workspace_id TEXT NOT NULL,
+        run_id TEXT,
+        patch_set_id TEXT,
+        status TEXT NOT NULL,
+        summary TEXT NOT NULL,
+        diagnostics_json TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS provider_settings (
+        provider_id TEXT PRIMARY KEY,
+        metadata_json TEXT NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
     `);
     this.database
       .prepare(
@@ -174,6 +307,11 @@ export class StateRepository {
         "INSERT OR IGNORE INTO schema_migrations(version, name, applied_at) VALUES (?, ?, ?)"
       )
       .run(3, "checkpoint_metadata_table", Date.now());
+    this.database
+      .prepare(
+        "INSERT OR IGNORE INTO schema_migrations(version, name, applied_at) VALUES (?, ?, ?)"
+      )
+      .run(4, "phase_two_conversation_agent_patch_tables", Date.now());
 
     await this.migrateLegacyFileIfNeeded();
   }
@@ -564,6 +702,44 @@ export class StateRepository {
     }));
   }
 
+  async listAgentRunsByWorkspace(workspaceId: string): Promise<AgentRunRecord[]> {
+    const database = this.getDatabase();
+    const rows = database
+      .prepare(
+        `SELECT id, workspace_id, session_id, prompt, scenario, status, summary, patch_set_id, created_at, updated_at, completed_at
+         FROM agent_runs
+         WHERE workspace_id = ?
+         ORDER BY updated_at DESC`
+      )
+      .all(workspaceId) as Array<{
+      id: string;
+      workspace_id: string;
+      session_id: string;
+      prompt: string;
+      scenario: AgentRunRecord["scenario"];
+      status: AgentRunRecord["status"];
+      summary: string | null;
+      patch_set_id: string | null;
+      created_at: number;
+      updated_at: number;
+      completed_at: number | null;
+    }>;
+
+    return rows.map((row) => ({
+      id: row.id,
+      workspaceId: row.workspace_id,
+      sessionId: row.session_id,
+      prompt: row.prompt,
+      scenario: row.scenario,
+      status: row.status,
+      summary: row.summary ?? undefined,
+      patchSetId: row.patch_set_id ?? undefined,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      completedAt: row.completed_at ?? undefined
+    }));
+  }
+
   async upsertApproval(approval: ApprovalRecord): Promise<void> {
     const database = this.getDatabase();
 
@@ -908,6 +1084,546 @@ export class StateRepository {
     };
     await this.upsertSession(session);
     return session;
+  }
+
+  async upsertConversationSession(session: ConversationSessionRecord): Promise<void> {
+    const database = this.getDatabase();
+    database
+      .prepare(
+        `INSERT OR REPLACE INTO conversation_sessions(
+          id, workspace_id, title, status, created_at, updated_at, last_message_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        session.id,
+        session.workspaceId,
+        session.title,
+        session.status,
+        session.createdAt,
+        session.updatedAt,
+        session.lastMessageAt
+      );
+  }
+
+  async listConversationSessions(workspaceId: string): Promise<ConversationSessionRecord[]> {
+    const database = this.getDatabase();
+    const rows = database
+      .prepare(
+        `SELECT id, workspace_id, title, status, created_at, updated_at, last_message_at
+         FROM conversation_sessions
+         WHERE workspace_id = ?
+         ORDER BY last_message_at DESC`
+      )
+      .all(workspaceId) as Array<{
+      id: string;
+      workspace_id: string;
+      title: string;
+      status: ConversationSessionRecord["status"];
+      created_at: number;
+      updated_at: number;
+      last_message_at: number;
+    }>;
+
+    return rows.map((row) => ({
+      id: row.id,
+      workspaceId: row.workspace_id,
+      title: row.title,
+      status: row.status,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      lastMessageAt: row.last_message_at
+    }));
+  }
+
+  async insertConversationMessage(message: ConversationMessageRecord): Promise<void> {
+    const database = this.getDatabase();
+    database
+      .prepare(
+        `INSERT INTO conversation_messages(
+          id, session_id, role, content, blocks_json, run_id, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        message.id,
+        message.sessionId,
+        message.role,
+        message.content,
+        JSON.stringify(message.blocks),
+        message.runId ?? null,
+        message.createdAt
+      );
+    const session = database
+      .prepare("SELECT workspace_id, title, status, created_at FROM conversation_sessions WHERE id = ?")
+      .get(message.sessionId) as
+      | {
+          workspace_id: string;
+          title: string;
+          status: ConversationSessionRecord["status"];
+          created_at: number;
+        }
+      | undefined;
+    if (session) {
+      await this.upsertConversationSession({
+        id: message.sessionId,
+        workspaceId: session.workspace_id,
+        title: session.title,
+        status: session.status,
+        createdAt: session.created_at,
+        updatedAt: message.createdAt,
+        lastMessageAt: message.createdAt
+      });
+    }
+  }
+
+  async listConversationMessages(sessionId: string): Promise<ConversationMessageRecord[]> {
+    const database = this.getDatabase();
+    const rows = database
+      .prepare(
+        `SELECT id, session_id, role, content, blocks_json, run_id, created_at
+         FROM conversation_messages
+         WHERE session_id = ?
+         ORDER BY created_at ASC`
+      )
+      .all(sessionId) as Array<{
+      id: string;
+      session_id: string;
+      role: ConversationMessageRecord["role"];
+      content: string;
+      blocks_json: string;
+      run_id: string | null;
+      created_at: number;
+    }>;
+
+    return rows.map((row) => ({
+      id: row.id,
+      sessionId: row.session_id,
+      role: row.role,
+      content: row.content,
+      blocks: JSON.parse(row.blocks_json),
+      runId: row.run_id ?? undefined,
+      createdAt: row.created_at
+    }));
+  }
+
+  async getConversationDetail(sessionId: string): Promise<ConversationDetail | undefined> {
+    const database = this.getDatabase();
+    const row = database
+      .prepare(
+        `SELECT id, workspace_id, title, status, created_at, updated_at, last_message_at
+         FROM conversation_sessions
+         WHERE id = ?`
+      )
+      .get(sessionId) as
+      | {
+          id: string;
+          workspace_id: string;
+          title: string;
+          status: ConversationSessionRecord["status"];
+          created_at: number;
+          updated_at: number;
+          last_message_at: number;
+        }
+      | undefined;
+
+    if (!row) {
+      return undefined;
+    }
+
+    return {
+      session: {
+        id: row.id,
+        workspaceId: row.workspace_id,
+        title: row.title,
+        status: row.status,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        lastMessageAt: row.last_message_at
+      },
+      messages: await this.listConversationMessages(sessionId)
+    };
+  }
+
+  async upsertAgentRun(run: AgentRunRecord): Promise<void> {
+    const database = this.getDatabase();
+    database
+      .prepare(
+        `INSERT OR REPLACE INTO agent_runs(
+          id, workspace_id, session_id, prompt, scenario, status, summary, patch_set_id, created_at, updated_at, completed_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        run.id,
+        run.workspaceId,
+        run.sessionId,
+        run.prompt,
+        run.scenario,
+        run.status,
+        run.summary ?? null,
+        run.patchSetId ?? null,
+        run.createdAt,
+        run.updatedAt,
+        run.completedAt ?? null
+      );
+  }
+
+  async replaceAgentSteps(runId: string, steps: AgentPlanStep[]): Promise<void> {
+    const database = this.getDatabase();
+    const transaction = database.transaction((nextSteps: AgentPlanStep[]) => {
+      database.prepare("DELETE FROM agent_steps WHERE run_id = ?").run(runId);
+      const insertStep = database.prepare(
+        `INSERT INTO agent_steps(id, run_id, title, detail, status, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
+      );
+      for (const step of nextSteps) {
+        insertStep.run(step.id, step.runId, step.title, step.detail ?? null, step.status, step.createdAt, step.updatedAt);
+      }
+    });
+    transaction(steps);
+  }
+
+  async getAgentRunDetail(runId: string): Promise<AgentRunDetail | undefined> {
+    const database = this.getDatabase();
+    const row = database
+      .prepare(
+        `SELECT id, workspace_id, session_id, prompt, scenario, status, summary, patch_set_id, created_at, updated_at, completed_at
+         FROM agent_runs
+         WHERE id = ?`
+      )
+      .get(runId) as
+      | {
+          id: string;
+          workspace_id: string;
+          session_id: string;
+          prompt: string;
+          scenario: AgentRunRecord["scenario"];
+          status: AgentRunRecord["status"];
+          summary: string | null;
+          patch_set_id: string | null;
+          created_at: number;
+          updated_at: number;
+          completed_at: number | null;
+        }
+      | undefined;
+
+    if (!row) {
+      return undefined;
+    }
+
+    const steps = database
+      .prepare(
+        `SELECT id, run_id, title, detail, status, created_at, updated_at
+         FROM agent_steps
+         WHERE run_id = ?
+         ORDER BY created_at ASC`
+      )
+      .all(runId) as Array<{
+      id: string;
+      run_id: string;
+      title: string;
+      detail: string | null;
+      status: AgentPlanStep["status"];
+      created_at: number;
+      updated_at: number;
+    }>;
+
+    return {
+      run: {
+        id: row.id,
+        workspaceId: row.workspace_id,
+        sessionId: row.session_id,
+        prompt: row.prompt,
+        scenario: row.scenario,
+        status: row.status,
+        summary: row.summary ?? undefined,
+        patchSetId: row.patch_set_id ?? undefined,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        completedAt: row.completed_at ?? undefined
+      },
+      steps: steps.map((step) => ({
+        id: step.id,
+        runId: step.run_id,
+        title: step.title,
+        detail: step.detail ?? undefined,
+        status: step.status,
+        createdAt: step.created_at,
+        updatedAt: step.updated_at
+      }))
+    };
+  }
+
+  async upsertToolInvocation(invocation: ToolInvocationRecord): Promise<void> {
+    const database = this.getDatabase();
+    database
+      .prepare(
+        `INSERT OR REPLACE INTO tool_invocations(
+          id, run_id, tool_name, summary, status, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        invocation.id,
+        invocation.runId,
+        invocation.toolName,
+        invocation.summary,
+        invocation.status,
+        invocation.createdAt,
+        invocation.updatedAt
+      );
+  }
+
+  async upsertPatchSet(patchSet: PatchSet): Promise<void> {
+    const database = this.getDatabase();
+    const transaction = database.transaction((nextPatchSet: PatchSet) => {
+      database
+        .prepare(
+          `INSERT OR REPLACE INTO patch_sets(
+            id, workspace_id, session_id, run_id, title, summary, status, checkpoint_id, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .run(
+          nextPatchSet.id,
+          nextPatchSet.workspaceId,
+          nextPatchSet.sessionId,
+          nextPatchSet.runId ?? null,
+          nextPatchSet.title,
+          nextPatchSet.summary,
+          nextPatchSet.status,
+          nextPatchSet.checkpointId ?? null,
+          nextPatchSet.createdAt,
+          nextPatchSet.updatedAt
+        );
+      database.prepare("DELETE FROM patch_hunks WHERE patch_set_id = ?").run(nextPatchSet.id);
+      database.prepare("DELETE FROM file_patches WHERE patch_set_id = ?").run(nextPatchSet.id);
+
+      const insertFilePatch = database.prepare(
+        `INSERT INTO file_patches(
+          id, patch_set_id, relative_path, language, before_content, after_content
+        ) VALUES (?, ?, ?, ?, ?, ?)`
+      );
+      const insertHunk = database.prepare(
+        `INSERT INTO patch_hunks(
+          id, file_patch_id, patch_set_id, relative_path, old_start, old_lines, new_start, new_lines, preview, before_text, after_text, decision
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      );
+
+      for (const filePatch of nextPatchSet.filePatches) {
+        insertFilePatch.run(
+          filePatch.id,
+          filePatch.patchSetId,
+          filePatch.relativePath,
+          filePatch.language ?? null,
+          filePatch.beforeContent,
+          filePatch.afterContent
+        );
+        for (const hunk of filePatch.hunks) {
+          insertHunk.run(
+            hunk.id,
+            hunk.filePatchId,
+            hunk.patchSetId,
+            hunk.relativePath,
+            hunk.oldStart,
+            hunk.oldLines,
+            hunk.newStart,
+            hunk.newLines,
+            hunk.preview,
+            hunk.beforeText,
+            hunk.afterText,
+            hunk.decision
+          );
+        }
+      }
+    });
+
+    transaction(patchSet);
+  }
+
+  async getPatchSet(patchSetId: string): Promise<PatchSet | undefined> {
+    const database = this.getDatabase();
+    const row = database
+      .prepare(
+        `SELECT id, workspace_id, session_id, run_id, title, summary, status, checkpoint_id, created_at, updated_at
+         FROM patch_sets
+         WHERE id = ?`
+      )
+      .get(patchSetId) as
+      | {
+          id: string;
+          workspace_id: string;
+          session_id: string;
+          run_id: string | null;
+          title: string;
+          summary: string;
+          status: PatchSet["status"];
+          checkpoint_id: string | null;
+          created_at: number;
+          updated_at: number;
+        }
+      | undefined;
+
+    if (!row) {
+      return undefined;
+    }
+
+    const fileRows = database
+      .prepare(
+        `SELECT id, patch_set_id, relative_path, language, before_content, after_content
+         FROM file_patches
+         WHERE patch_set_id = ?
+         ORDER BY relative_path ASC`
+      )
+      .all(patchSetId) as Array<{
+      id: string;
+      patch_set_id: string;
+      relative_path: string;
+      language: string | null;
+      before_content: string;
+      after_content: string;
+    }>;
+
+    const hunkRows = database
+      .prepare(
+        `SELECT id, file_patch_id, patch_set_id, relative_path, old_start, old_lines, new_start, new_lines, preview, before_text, after_text, decision
+         FROM patch_hunks
+         WHERE patch_set_id = ?
+         ORDER BY relative_path ASC, new_start ASC`
+      )
+      .all(patchSetId) as Array<{
+      id: string;
+      file_patch_id: string;
+      patch_set_id: string;
+      relative_path: string;
+      old_start: number;
+      old_lines: number;
+      new_start: number;
+      new_lines: number;
+      preview: string;
+      before_text: string;
+      after_text: string;
+      decision: PatchHunkDecision;
+    }>;
+
+    const hunksByFilePatch = new Map<string, PatchHunk[]>();
+    for (const hunkRow of hunkRows) {
+      const patchHunk: PatchHunk = {
+        id: hunkRow.id,
+        filePatchId: hunkRow.file_patch_id,
+        patchSetId: hunkRow.patch_set_id,
+        relativePath: hunkRow.relative_path,
+        oldStart: hunkRow.old_start,
+        oldLines: hunkRow.old_lines,
+        newStart: hunkRow.new_start,
+        newLines: hunkRow.new_lines,
+        preview: hunkRow.preview,
+        beforeText: hunkRow.before_text,
+        afterText: hunkRow.after_text,
+        decision: hunkRow.decision
+      };
+      const bucket = hunksByFilePatch.get(patchHunk.filePatchId) ?? [];
+      bucket.push(patchHunk);
+      hunksByFilePatch.set(patchHunk.filePatchId, bucket);
+    }
+
+    const filePatches: FilePatch[] = fileRows.map((fileRow) => ({
+      id: fileRow.id,
+      patchSetId: fileRow.patch_set_id,
+      relativePath: fileRow.relative_path,
+      language: fileRow.language ?? undefined,
+      beforeContent: fileRow.before_content,
+      afterContent: fileRow.after_content,
+      hunks: hunksByFilePatch.get(fileRow.id) ?? []
+    }));
+
+    return {
+      id: row.id,
+      workspaceId: row.workspace_id,
+      sessionId: row.session_id,
+      runId: row.run_id ?? undefined,
+      title: row.title,
+      summary: row.summary,
+      status: row.status,
+      checkpointId: row.checkpoint_id ?? undefined,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      filePatches
+    };
+  }
+
+  async listPatchSetsByWorkspace(workspaceId: string): Promise<PatchSet[]> {
+    const database = this.getDatabase();
+    const rows = database
+      .prepare(
+        `SELECT id
+         FROM patch_sets
+         WHERE workspace_id = ?
+         ORDER BY updated_at DESC`
+      )
+      .all(workspaceId) as Array<{ id: string }>;
+
+    const patchSets = await Promise.all(rows.map((row) => this.getPatchSet(row.id)));
+    return patchSets.filter((patchSet): patchSet is PatchSet => Boolean(patchSet));
+  }
+
+  async setPatchHunkDecision(input: {
+    patchSetId: string;
+    hunkId: string;
+    decision: PatchHunkDecision;
+  }): Promise<PatchSet> {
+    const patchSet = await this.getPatchSet(input.patchSetId);
+    if (!patchSet) {
+      throw new StateStoreError(ERROR_CODES.notFound, "Patch set not found.");
+    }
+
+    const nextPatchSet: PatchSet = {
+      ...patchSet,
+      updatedAt: Date.now(),
+      filePatches: patchSet.filePatches.map((filePatch) => ({
+        ...filePatch,
+        hunks: filePatch.hunks.map((hunk) => (hunk.id === input.hunkId ? { ...hunk, decision: input.decision } : hunk))
+      }))
+    };
+    await this.upsertPatchSet(nextPatchSet);
+    return nextPatchSet;
+  }
+
+  async insertCommandExecution(command: CommandRequest): Promise<void> {
+    const database = this.getDatabase();
+    database
+      .prepare(
+        `INSERT OR REPLACE INTO command_executions(
+          id, workspace_id, run_id, profile, command, args_json, shell, risk_level, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        command.id,
+        command.workspaceId,
+        command.runId ?? null,
+        command.profile,
+        command.command,
+        JSON.stringify(command.args),
+        command.shell ? 1 : 0,
+        command.riskLevel,
+        command.createdAt
+      );
+  }
+
+  async insertValidationResult(result: ValidationResult): Promise<void> {
+    const database = this.getDatabase();
+    database
+      .prepare(
+        `INSERT OR REPLACE INTO validation_results(
+          id, workspace_id, run_id, patch_set_id, status, summary, diagnostics_json, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        result.id,
+        result.workspaceId,
+        result.runId ?? null,
+        result.patchSetId ?? null,
+        result.status,
+        result.summary,
+        JSON.stringify(result.diagnostics),
+        result.createdAt
+      );
   }
 
   close(): void {

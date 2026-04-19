@@ -55,3 +55,29 @@ This is sufficient for audit, restore preview, and basic restore execution for c
 - richer migration catalog beyond the bootstrap script
 - conflict-aware rollback semantics for deleted files and directory removals
 - validation and rollback reporting in the desktop UI
+# Recovery And Migration
+
+## Runtime Recovery
+
+The desktop runtime keeps a separate lifecycle marker under `state/runtime-status.json`.
+
+When the previous shutdown was unclean, the next startup now performs bounded recovery for the active workspace:
+
+- `running` and `approved` tasks are converted to `failed`
+- `waiting-approval` tasks remain approval-bound and are surfaced unchanged
+- patch sets stuck in `applying` are converted to `failed`
+- agent runs stuck in `planning`, `ready`, `executing`, `waiting-approval`, `applying`, or `verifying` are converted to `failed`
+- every recovered item emits an audit record
+
+This recovery step is intentionally conservative:
+
+- it does not silently replay commands
+- it does not silently re-apply patches
+- it does not expand renderer privileges
+
+The user must explicitly retry from the task center or conversation after recovery.
+
+## Migration
+
+SQLite remains the persisted source of truth for runtime state.
+Legacy file state is still migrated on first startup, and migration diagnostics continue to be exposed through the desktop health surface.

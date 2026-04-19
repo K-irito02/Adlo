@@ -122,7 +122,7 @@ Phase 0 的目标不是提前实现完整 AI 编程能力，而是建立后续�
 
 | 决策项 | 选型 | 理由 |
 |--------|------|------|
-| 包管理 | pnpm | 依赖隔离、Monorepo 友好 |
+| 包管理 | Bun、pnpm | Bun开发阶段使用迭代速度快-pnpm生产阶段使用依赖隔离、Monorepo 友好 |
 | Monorepo | pnpm workspace | 足够轻量，避免额外复杂度 |
 | 单元测试 | Vitest | 与 TypeScript / Vite 集成顺畅 |
 | E2E 测试 | Playwright | 可覆盖桌面壳层关键路径 |

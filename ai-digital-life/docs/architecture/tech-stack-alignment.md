@@ -2,41 +2,43 @@
 
 ## Summary
 
-当前实现**部分采用并严格受限于** `stageOne/README.md` 定义的技术栈。
+当前实现**已采用 Phase 0 基座和 Phase 2 单 Agent 薄切片所需的主栈**，其余仅保留为明确的后续项。
 
 已采用的主栈：
 
 - `TypeScript 5.x`
 - `Electron`
 - `Vite`
+- `React 19`
+- `Zustand`
 - `SQLite + better-sqlite3`
 - `Node.js`
 - `Vitest`
 
-尚未在当前薄切片正式落地的栈项：
+尚未完全落地的栈项：
 
 - `electron-builder`
-- `Zustand`
-- `pino`
-- `chokidar`
-- `Playwright`
 - `pnpm` 作为实际执行入口
 
 ## Why The Current Subset Is Acceptable
 
-当前薄切片的目标是验证：
+当前实现的目标已经扩展为：
 
 - 桌面壳层安全边界
 - SQLite 状态真相源
 - 工作区恢复
 - Retrieval Worker
+- React + Zustand 工作区主界面
+- DeepSeek / MiniMax 模型路由与健康检查
+- Patch 预览、应用、验证与回滚
+- 命令审批与恢复审计
 
 因此当前实现保留了 `stageOne` 核心主线的技术方向，但没有为了“名义对齐”提前引入未被当前 slice 使用的依赖。这样做的优点是：
 
 - 降低 Phase 0 首批切片的依赖复杂度
 - 避免提前引入未使用的运行时和打包层负担
 - 让安全边界、恢复链路、SQLite 和 Worker 先稳定
-- 把后续 `Zustand / Playwright / chokidar / electron-builder / pino` 的接入保持为明确的下一步，而不是隐性债务
+- 把 `electron-builder` 和 `pnpm` 作为仍待收口的明确后续项，而不是隐性债务
 
 ## Alignment Decision By Item
 
@@ -74,28 +76,30 @@
 
 ### Zustand
 
-未采用。
+已采用。
 
 原因：
 
-- 当前 Renderer 只有轻量页面状态，没有达到引入全局状态库的复杂度门槛
+- Phase 2 工作区主界面已经进入多面板、会话、补丁、文件预览共享状态
+- 引入 `Zustand` 后，Renderer 不再继续扩张手写 DOM 状态机
 
 ### pino
 
-未采用。
+已采用。
 
 原因：
 
-- 当前日志需求以启动链路、恢复链路和本地摘要为主，自定义轻量 logger 足够
-- 等到日志结构、传输和审计要求进一步扩大时，再切换到 `pino`
+- Main 和基础设施日志现在统一走 `pino`
+- 结构化日志与上层 `Logger` 调用面保持解耦
 
 ### chokidar
 
-未采用。
+已采用。
 
 原因：
 
-- 当前 retrieval worker 只做首次扫描和状态回传，尚未进入文件监听与增量更新阶段
+- 工作区文件变更检测已经切到事件驱动
+- 当前阶段已需要外部修改冲突提示与上下文失效触发
 
 ### electron-builder
 
@@ -107,12 +111,12 @@
 
 ### Playwright
 
-未采用。
+已采用。
 
 原因：
 
-- 当前已建立单测、构建和启动烟测证据
-- 等桌面交互路径再稳定一轮后，引入 Playwright 覆盖 E2E 更合适
+- 已补入阶段二工作区壳的浏览器级验收流
+- 当前自动化覆盖 `会话 -> 补丁预览 -> 应用 -> 验证` 主链路
 
 ### pnpm
 
@@ -128,8 +132,5 @@
 当以下条件出现时，应回到 `stageOne` 的完整推荐栈：
 
 - Renderer 出现跨页面共享状态：引入 `Zustand`
-- Retrieval 进入文件监听和增量更新：引入 `chokidar`
-- 日志进入结构化、传输、脱敏和审计强化：切换 `pino`
 - 需要正式打包和安装：引入 `electron-builder`
-- 需要可重复桌面回归验证：引入 `Playwright`
 - 本地工具链稳定后：切换到 `pnpm` 作为实际执行入口

@@ -1,0 +1,14 @@
+{
+  "name": "@ai-digital-life/fs-ops",
+  "version": "0.1.0",
+  "main": "dist/index.js",
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@ai-digital-life/kernel": "file:../kernel",
+    "chokidar": "^4.0.3"
+  }
+}

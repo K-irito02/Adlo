@@ -8,6 +8,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@ai-digital-life/kernel": "file:../kernel"
+    "@ai-digital-life/kernel": "file:../kernel",
+    "pino": "^9.7.0"
   }
 }

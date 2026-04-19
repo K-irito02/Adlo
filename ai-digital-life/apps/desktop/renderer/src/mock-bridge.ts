@@ -1,349 +1,645 @@
 import type { DigitalLifeBridge } from "../../shared/ipc";
 import type {
+  AgentRunDetail,
   AppInfo,
-  AppPreferencePatch,
-  ApprovalRequestSummary,
-  CheckpointRecord,
-  CheckpointPayloadPreview,
-  HealthSnapshot,
-  RecentWorkspaceEntry,
-  RetrievalSnapshot,
-  RuntimeDiagnosticsSnapshot,
-  TaskCenterSnapshot,
-  WorkspaceMeta
+  CommandRunResult,
+  ConversationDetail,
+  ConversationMessageRecord,
+  ConversationSendResult,
+  ConversationSessionRecord,
+  FileOutlineItem,
+  ModelGatewayHealthSnapshot,
+  PatchApplicationResult,
+  PatchSet,
+  WorkspaceMeta,
+  WorkspaceSearchHit
 } from "@ai-digital-life/kernel";
 
 const now = Date.now();
 
-const mockAppInfo: AppInfo = {
+const workspaceRoot = "E:/mock/ai-digital-life";
+
+const documents = new Map<string, string>([
+  [
+    "apps/desktop/renderer/src/main.tsx",
+    `export function App() {\n  return <main>Hello AI Digital Life</main>;\n}\n`
+  ],
+  [
+    "packages/kernel/src/index.ts",
+    `export interface ExampleType {\n  id: string;\n}\n`
+  ]
+]);
+
+let activePatchSet: PatchSet | undefined;
+let activeRun: AgentRunDetail | undefined;
+const fileVersions = new Map<string, number>(
+  Array.from(documents.keys()).map((filePath, index) => [filePath, now + index])
+);
+
+const sessions: ConversationSessionRecord[] = [
+  {
+    id: "conversation-mock-1",
+    workspaceId: "workspace-mock-1",
+    title: "Single Agent Session",
+    status: "active",
+    createdAt: now,
+    updatedAt: now,
+    lastMessageAt: now
+  }
+];
+
+const messagesBySession = new Map<string, ConversationMessageRecord[]>([
+  [
+    sessions[0].id,
+    [
+      {
+        id: "message-welcome",
+        sessionId: sessions[0].id,
+        role: "assistant",
+        content: "欢迎进入第二阶段工作区主界面。",
+        blocks: [
+          {
+            id: "block-welcome",
+            type: "final-summary",
+            summary: "这里展示单 Agent 的计划、补丁预览和文件理解流。"
+          }
+        ],
+        createdAt: now
+      }
+    ]
+  ]
+]);
+
+const appInfo: AppInfo = {
   appName: "AI Digital Life",
   version: "0.1.0",
   config: {
-    language: "zh-CN",
-    themeMode: "system",
-    resolvedTheme: "light",
-    logLevel: "info",
-    maxRecentWorkspaces: 10
+    language: "zh-CN" as const,
+    themeMode: "system" as const,
+    resolvedTheme: "light" as const,
+    logLevel: "info" as const,
+    maxRecentWorkspaces: 10,
+    modelPreferences: {
+      providers: {
+        deepseek: {
+          enabled: true,
+          priority: 1,
+          modelId: "deepseek-chat"
+        },
+        minimax: {
+          enabled: true,
+          priority: 3,
+          modelId: "MiniMax-M2.5"
+        }
+      }
+    }
   },
   currentWorkspace: {
-    id: "mock-workspace-id",
-    path: "/Users/demo/projects/ai-digital-life",
-    rootPath: "/Users/demo/projects/ai-digital-life",
-    name: "AI Digital Life",
-    type: "node",
+    id: "workspace-mock-1",
+    path: workspaceRoot,
+    rootPath: workspaceRoot,
+    name: "ai-digital-life",
+    type: "node" as const,
+    status: "ready" as const,
     createdAt: now,
     updatedAt: now,
-    lastOpenedAt: now,
-    status: "ready"
+    lastOpenedAt: now
   },
   recentLogs: [
-    { timestamp: now - 60000, level: "info", scope: "kernel", message: "Application started" },
-    { timestamp: now - 30000, level: "info", scope: "workspace", message: "Workspace opened: ai-digital-life" },
-    { timestamp: now - 10000, level: "debug", scope: "retrieval", message: "Indexing started" }
-  ]
-};
-
-const mockHealthSnapshot: HealthSnapshot = {
-  timestamp: now,
-  components: [
-    { name: "main", status: "healthy", detail: "Main process running normally", updatedAt: now },
-    { name: "worker", status: "healthy", detail: "Worker thread active", updatedAt: now },
-    { name: "storage", status: "healthy", detail: "Storage service ready", updatedAt: now },
-    { name: "recovery", status: "degraded", detail: "Recovered from a previous unclean shutdown.", updatedAt: now },
-    { name: "migration", status: "healthy", detail: "No migration required for 0.1.0.", updatedAt: now }
-  ]
-};
-
-const mockDiagnosticsSnapshot: RuntimeDiagnosticsSnapshot = {
-  lifecycle: {
-    currentStartedAt: now - 120000,
-    lastShutdownAt: now - 3600000,
-    lastShutdownWasClean: false,
-    recoveredFromCrash: true
-  },
-  migration: {
-    change: "none",
-    toVersion: "0.1.0",
-    executedScripts: []
-  },
-  events: {
-    emitted: 4,
-    byType: {
-      "app.initialized": 1,
-      "workspace.opened": 1,
-      "retrieval.status-changed": 1,
-      "approval.requested": 1
-    }
-  },
-  recentErrors: [
     {
-      id: "err-mock-1",
-      timestamp: now - 240000,
-      name: "SystemError",
-      message: "Recovered after a simulated unclean shutdown."
+      timestamp: now,
+      level: "info" as const,
+      scope: "main",
+      message: "Phase 2 mock shell booted"
     }
   ]
 };
 
-const mockRecentWorkspaces: RecentWorkspaceEntry[] = [
-  {
-    id: "ws-1",
-    path: "/Users/demo/projects/ai-digital-life",
-    rootPath: "/Users/demo/projects/ai-digital-life",
-    name: "AI Digital Life",
-    lastOpenedAt: now,
-    available: true
-  },
-  {
-    id: "ws-2",
-    path: "/Users/demo/projects/my-app",
-    rootPath: "/Users/demo/projects/my-app",
-    name: "My App",
-    lastOpenedAt: now - 86400000,
-    available: true
-  },
-  {
-    id: "ws-3",
-    path: "/Users/demo/projects/old-project",
-    rootPath: "/Users/demo/projects/old-project",
-    name: "Old Project",
-    lastOpenedAt: now - 172800000,
-    available: false
+const modelHealth: ModelGatewayHealthSnapshot = {
+  checkedAt: now,
+  providers: [
+    {
+      providerId: "deepseek",
+      healthy: true,
+      detail: "Provider responded successfully."
+    },
+    {
+      providerId: "minimax",
+      healthy: true,
+      detail: "Provider responded successfully."
+    }
+  ]
+};
+
+function ensureSession(sessionId: string): ConversationDetail {
+  const session = sessions.find((item) => item.id === sessionId);
+  if (!session) {
+    throw new Error("Session not found.");
   }
-];
+  return {
+    session,
+    messages: messagesBySession.get(sessionId) ?? []
+  };
+}
 
-const mockRetrievalSnapshot: RetrievalSnapshot = {
-  workspaceId: "mock-workspace-id",
-  rootPath: "/Users/demo/projects/ai-digital-life",
-  status: "completed",
-  scannedFiles: 156,
-  indexedTextFiles: 89,
-  startedAt: now - 300000,
-  updatedAt: now,
-  completedAt: now - 60000,
-  topExtensions: [
-    { extension: ".ts", count: 45 },
-    { extension: ".tsx", count: 23 },
-    { extension: ".json", count: 18 },
-    { extension: ".md", count: 12 },
-    { extension: ".css", count: 8 }
-  ],
-  repoMap: [
-    { path: "src", type: "directory" },
-    { path: "src/components", type: "directory" },
-    { path: "src/hooks", type: "directory" },
-    { path: "src/utils", type: "directory" },
-    { path: "src/main.ts", type: "file" },
-    { path: "src/App.tsx", type: "file" },
-    { path: "packages", type: "directory" },
-    { path: "packages/kernel", type: "directory" },
-    { path: "packages/storage", type: "directory" },
-    { path: "package.json", type: "file" },
-    { path: "README.md", type: "file" },
-    { path: "tsconfig.json", type: "file" }
-  ]
-};
-
-const mockApprovalRequests: ApprovalRequestSummary[] = [
-  {
-    id: "approval-1",
-    taskId: "task-git-guard",
-    title: "dirty-worktree.guard",
-    description: "Resolve the dirty worktree before high-risk actions continue.",
-    riskLevel: "high",
-    impact: ["Conflicted files may invalidate writes."],
-    reversible: true,
-    createdAt: now - 120000
-  }
-];
-
-let latestCheckpoint: CheckpointRecord | undefined;
-let latestCheckpointPreview: CheckpointPayloadPreview | undefined;
-
-const mockTaskSnapshot: TaskCenterSnapshot = {
-  tasks: [
-    {
-      id: "task-workspace-restore",
-      title: "workspace.restore",
-      description: "Restore the latest workspace session into the shell.",
-      status: "completed",
-      riskLevel: "low",
-      updatedAt: now,
-      detail: "Recovered the latest workspace pointer and hydrated home screen data."
-    },
-    {
-      id: "task-retrieval-index",
-      title: "retrieval.index",
-      description: "Maintain the local retrieval snapshot for the active workspace.",
-      status: "completed",
-      riskLevel: "low",
-      updatedAt: now,
-      detail: "Initial repository scan finished and the repo map is ready."
-    },
-    {
-      id: "task-git-guard",
-      title: "workspace.git-snapshot",
-      description: "Capture dirty worktree state before future risky actions.",
-      status: "waiting-approval",
-      riskLevel: "high",
-      updatedAt: now,
-      detail: "Dirty worktree detected in mock preview."
-    }
-  ],
-  pendingApprovals: mockApprovalRequests,
-  currentSession: {
-    id: "session-mock",
-    workspaceId: "mock-workspace-id",
-    status: "active",
-    approvalMode: "manual",
-    currentTaskId: "task-git-guard",
-    summary: {
-      lastTaskId: "task-git-guard"
-    },
-    createdAt: now - 600000,
-    updatedAt: now
-  },
-  latestCheckpoint,
-  policy: {
-    mode: "manual",
-    summary: "High-risk actions require explicit approval before the shell can continue.",
-    highRiskRules: [
-      "Destructive file changes require approval.",
-      "Force Git actions stay blocked behind governance.",
-      "Renderer only shows state and never receives system privileges."
+function createPatchSet(relativePath: string, prompt: string): PatchSet {
+  const beforeContent = documents.get(relativePath) ?? "";
+  const afterContent = `// AI Digital Life: ${prompt.trim()}\n${beforeContent}`;
+  const patchSet: PatchSet = {
+    id: `patchset-${Date.now()}`,
+    workspaceId: "workspace-mock-1",
+    sessionId: sessions[0].id,
+    runId: activeRun?.run.id,
+    title: `Update ${relativePath}`,
+    summary: `建议在 ${relativePath} 顶部加入任务说明注释。`,
+    status: "ready",
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    filePatches: [
+      {
+        id: `filepatch-${Date.now()}`,
+        patchSetId: `patchset-${Date.now()}`,
+        relativePath,
+        beforeContent,
+        afterContent,
+        hunks: [
+          {
+            id: `hunk-${Date.now()}`,
+            filePatchId: `filepatch-${Date.now()}`,
+            patchSetId: `patchset-${Date.now()}`,
+            relativePath,
+            oldStart: 1,
+            oldLines: beforeContent.split(/\r?\n/).length,
+            newStart: 1,
+            newLines: afterContent.split(/\r?\n/).length,
+            preview: `Add task note to ${relativePath}`,
+            beforeText: beforeContent,
+            afterText: afterContent,
+            decision: "accepted"
+          }
+        ]
+      }
     ]
-  }
-};
+  };
 
-function applyPreferencePatch(patch: AppPreferencePatch): void {
-  if (patch.language) {
-    mockAppInfo.config.language = patch.language;
-  }
+  patchSet.filePatches[0].patchSetId = patchSet.id;
+  patchSet.filePatches[0].hunks[0].patchSetId = patchSet.id;
+  patchSet.filePatches[0].hunks[0].filePatchId = patchSet.filePatches[0].id;
+  return patchSet;
+}
 
-  if (patch.themeMode) {
-    mockAppInfo.config.themeMode = patch.themeMode;
-    mockAppInfo.config.resolvedTheme = patch.themeMode === "dark" ? "dark" : "light";
-  }
+function createSendResult(sessionId: string, content: string): ConversationSendResult {
+  const userMessage: ConversationMessageRecord = {
+    id: `message-user-${Date.now()}`,
+    sessionId,
+    role: "user",
+    content,
+    blocks: [],
+    createdAt: Date.now()
+  };
+  const targetPath = content.match(/@([A-Za-z0-9_./-]+)/)?.[1];
+  const steps: AgentRunDetail["steps"] = [
+    {
+      id: `step-${Date.now()}-1`,
+      runId: `run-${Date.now()}`,
+      title: "理解需求",
+      detail: "识别目标文件与补丁边界。",
+      status: "completed",
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    },
+    {
+      id: `step-${Date.now()}-2`,
+      runId: `run-${Date.now()}`,
+      title: "生成补丁预览",
+      detail: "输出单文件单 hunk 预览。",
+      status: "completed",
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    },
+    {
+      id: `step-${Date.now()}-3`,
+      runId: `run-${Date.now()}`,
+      title: "等待应用",
+      detail: "保持 Patch First，等待显式应用。",
+      status: "pending",
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    }
+  ];
+  activeRun = {
+    run: {
+      id: `run-${Date.now()}`,
+      workspaceId: "workspace-mock-1",
+      sessionId,
+      prompt: content,
+      scenario: "code-edit",
+      status: "ready",
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    },
+    steps
+  };
+
+  activePatchSet = targetPath ? createPatchSet(targetPath, content) : undefined;
+
+  const assistantMessage: ConversationMessageRecord = {
+    id: `message-assistant-${Date.now()}`,
+    sessionId,
+    role: "assistant",
+    content: targetPath ? `已为 ${targetPath} 生成补丁预览。` : "已生成执行计划。",
+    blocks: [
+      {
+        id: `block-plan-${Date.now()}`,
+        type: "plan",
+        title: "单 Agent 执行计划",
+        items: steps.map((step) => ({
+          id: step.id,
+          title: step.title,
+          detail: step.detail,
+          status: step.status
+        }))
+      },
+      ...(activePatchSet
+        ? [
+            {
+              id: `block-patch-${Date.now()}`,
+              type: "patch-summary" as const,
+              patchSetId: activePatchSet.id,
+              summary: activePatchSet.summary,
+              fileCount: activePatchSet.filePatches.length,
+              hunkCount: activePatchSet.filePatches.reduce((total, filePatch) => total + filePatch.hunks.length, 0)
+            }
+          ]
+        : []),
+      {
+        id: `block-summary-${Date.now()}`,
+        type: "final-summary",
+        summary: "当前为浏览器预览 mock，真实桌面环境会走 Main/Preload/SQLite。"
+      }
+    ],
+    runId: activeRun.run.id,
+    createdAt: Date.now()
+  };
+
+  const sessionMessages = messagesBySession.get(sessionId) ?? [];
+  sessionMessages.push(userMessage, assistantMessage);
+  messagesBySession.set(sessionId, sessionMessages);
+
+  return {
+    session: ensureSession(sessionId).session,
+    userMessage,
+    assistantMessage,
+    runDetail: activeRun,
+    patchSet: activePatchSet
+  };
 }
 
 export const mockDigitalLifeBridge: DigitalLifeBridge = {
   app: {
-    getInfo: async () => ({ ok: true, data: mockAppInfo }),
-    getHealth: async () => ({ ok: true, data: mockHealthSnapshot }),
-    getDiagnostics: async () => ({ ok: true, data: mockDiagnosticsSnapshot }),
-    updatePreferences: async (patch: AppPreferencePatch) => {
-      applyPreferencePatch(patch);
-      return { ok: true, data: mockAppInfo };
+    getInfo: async () => ({ ok: true, data: appInfo }),
+    getHealth: async () => ({
+      ok: true,
+      data: {
+        timestamp: Date.now(),
+        components: [
+          { name: "main", status: "healthy", detail: "Main process ready", updatedAt: Date.now() },
+          { name: "worker", status: "healthy", detail: "Background worker ready", updatedAt: Date.now() },
+          { name: "storage", status: "healthy", detail: "SQLite state ready", updatedAt: Date.now() },
+          { name: "recovery", status: "healthy", detail: "No recovery required", updatedAt: Date.now() },
+          { name: "migration", status: "healthy", detail: "No migration pending", updatedAt: Date.now() }
+        ]
+      }
+    }),
+    getDiagnostics: async () => ({
+      ok: true,
+      data: {
+        lifecycle: {
+          currentStartedAt: Date.now() - 60_000,
+          lastShutdownWasClean: true,
+          recoveredFromCrash: false
+        },
+        migration: {
+          change: "none",
+          toVersion: "0.1.0",
+          executedScripts: []
+        },
+        events: {
+          emitted: 3,
+          byType: {
+            "app.initialized": 1,
+            "workspace.opened": 1,
+            "task.upserted": 1
+          }
+        },
+        recentErrors: []
+      }
+    }),
+    getModelHealth: async () => ({ ok: true, data: modelHealth }),
+    updatePreferences: async (patch) => {
+      if (patch.language) {
+        appInfo.config.language = patch.language;
+      }
+      if (patch.themeMode) {
+        appInfo.config.themeMode = patch.themeMode;
+        appInfo.config.resolvedTheme = patch.themeMode === "dark" ? "dark" : "light";
+      }
+      if (patch.modelPreferences) {
+        if (patch.modelPreferences.deepseek) {
+          appInfo.config.modelPreferences.providers.deepseek = {
+            ...appInfo.config.modelPreferences.providers.deepseek,
+            ...patch.modelPreferences.deepseek
+          };
+        }
+        if (patch.modelPreferences.minimax) {
+          appInfo.config.modelPreferences.providers.minimax = {
+            ...appInfo.config.modelPreferences.providers.minimax,
+            ...patch.modelPreferences.minimax
+          };
+        }
+      }
+      return { ok: true, data: appInfo };
     }
   },
   workspace: {
-    listRecent: async () => ({ ok: true, data: mockRecentWorkspaces }),
-    open: async (workspacePath: string): Promise<{ ok: true; data: WorkspaceMeta } | { ok: false; error: { code: string; message: string } }> => {
-      const workspaceName = workspacePath.split("/").pop() || workspacePath;
+    listRecent: async () => ({
+      ok: true,
+      data: [
+        {
+          id: "workspace-mock-1",
+          path: workspaceRoot,
+          rootPath: workspaceRoot,
+          name: "ai-digital-life",
+          lastOpenedAt: now,
+          available: true
+        }
+      ]
+    }),
+    open: async (workspacePath: string) => ({
+      ok: true,
+      data: {
+        ...(appInfo.currentWorkspace as WorkspaceMeta),
+        path: workspacePath,
+        rootPath: workspacePath,
+        name: workspacePath.split("/").pop() || workspacePath
+      }
+    }),
+    readFile: async (relativePath: string) => ({
+      ok: true,
+      data: {
+        path: relativePath,
+        content: documents.get(relativePath) ?? "",
+        lastModifiedAt: fileVersions.get(relativePath) ?? Date.now()
+      }
+    }),
+    search: async (query: string) => {
+      const hits: WorkspaceSearchHit[] = Array.from(documents.entries())
+        .flatMap(([filePath, content]) =>
+          content
+            .split(/\r?\n/)
+            .map((lineText, index) => ({ filePath, lineText, index }))
+            .filter((entry) => entry.lineText.toLowerCase().includes(query.toLowerCase()))
+            .map((entry) => ({
+              path: entry.filePath,
+              line: entry.index + 1,
+              preview: entry.lineText.trim()
+            }))
+        )
+        .slice(0, 10);
+      return { ok: true, data: hits };
+    },
+    outline: async (relativePath: string) => {
+      const content = documents.get(relativePath) ?? "";
+      const items: FileOutlineItem[] = content
+        .split(/\r?\n/)
+        .flatMap((lineText, index) => {
+          const trimmed = lineText.trim();
+          const match =
+            trimmed.match(/^(?:export\s+)?function\s+([A-Za-z0-9_]+)/) ??
+            trimmed.match(/^(?:export\s+)?interface\s+([A-Za-z0-9_]+)/) ??
+            trimmed.match(/^(?:export\s+)?const\s+([A-Za-z0-9_]+)/);
+          if (!match) {
+            return [];
+          }
+          return [
+            {
+              id: `${relativePath}:${index + 1}`,
+              label: match[1],
+              kind: trimmed.includes("interface") ? "interface" : trimmed.includes("function") ? "function" : "const",
+              line: index + 1
+            }
+          ];
+        });
+      return { ok: true, data: items };
+    },
+    onFileChanged: () => () => undefined
+  },
+  retrieval: {
+    getStatus: async () => ({ ok: true, data: undefined })
+  },
+  conversation: {
+    createSession: async (title?: string) => {
+      const session: ConversationSessionRecord = {
+        id: `conversation-${Date.now()}`,
+        workspaceId: "workspace-mock-1",
+        title: title || "Single Agent Session",
+        status: "active",
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        lastMessageAt: Date.now()
+      };
+      sessions.unshift(session);
+      messagesBySession.set(session.id, []);
+      return { ok: true, data: session };
+    },
+    listSessions: async () => ({ ok: true, data: sessions }),
+    getSession: async (sessionId: string) => ({ ok: true, data: ensureSession(sessionId) }),
+    sendMessage: async ({ sessionId, content }) => ({ ok: true, data: createSendResult(sessionId, content) }),
+    cancelMessage: async () => ({ ok: true, data: activeRun })
+  },
+  agent: {
+    startRun: async ({ sessionId, prompt }) => ({ ok: true, data: createSendResult(sessionId, prompt) }),
+    getRun: async () => ({ ok: true, data: activeRun }),
+    retryRun: async () => ({ ok: true, data: activeRun }),
+    abortRun: async () => ({ ok: true, data: activeRun })
+  },
+  patch: {
+    getPatchSet: async () => ({ ok: true, data: activePatchSet }),
+    setHunkDecision: async ({ hunkId, decision }) => {
+      if (activePatchSet) {
+        activePatchSet = {
+          ...activePatchSet,
+          updatedAt: Date.now(),
+          filePatches: activePatchSet.filePatches.map((filePatch) => ({
+            ...filePatch,
+            hunks: filePatch.hunks.map((hunk) => (hunk.id === hunkId ? { ...hunk, decision } : hunk))
+          }))
+        };
+      }
+      return { ok: true, data: activePatchSet as PatchSet };
+    },
+    applyPatchSet: async () => {
+      if (activePatchSet) {
+        const filePatch = activePatchSet.filePatches[0];
+        documents.set(filePatch.relativePath, filePatch.afterContent);
+        activePatchSet = {
+          ...activePatchSet,
+          status: "applied",
+          updatedAt: Date.now()
+        };
+        const sessionMessages = messagesBySession.get(sessions[0].id) ?? [];
+        sessionMessages.push({
+          id: `message-validation-${Date.now()}`,
+          sessionId: sessions[0].id,
+          role: "assistant",
+          content: "Patch applied and validation completed.",
+          blocks: [
+            {
+              id: `block-tool-${Date.now()}`,
+              type: "tool-call",
+              toolName: "terminal.run",
+              summary: "npm run test",
+              status: "completed"
+            },
+            {
+              id: `block-validation-${Date.now()}`,
+              type: "validation-result",
+              summary: "Validation command completed successfully.",
+              status: "passed",
+              diagnostics: []
+            },
+            {
+              id: `block-final-${Date.now()}`,
+              type: "final-summary",
+              summary: "补丁已应用并完成验证。"
+            }
+          ],
+          runId: activeRun?.run.id,
+          createdAt: Date.now()
+        });
+        messagesBySession.set(sessions[0].id, sessionMessages);
+      }
       return {
         ok: true,
         data: {
-          id: `ws-${Date.now()}`,
-          path: workspacePath,
-          rootPath: workspacePath,
-          name: workspaceName,
-          type: "unknown",
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-          lastOpenedAt: Date.now(),
-          status: "ready"
-        }
+          patchSet: activePatchSet as PatchSet,
+          validation: {
+            id: `validation-${Date.now()}`,
+            workspaceId: "workspace-mock-1",
+            runId: activeRun?.run.id,
+            patchSetId: activePatchSet?.id,
+            status: "passed",
+            summary: "Validation command completed successfully.",
+            diagnostics: [],
+            createdAt: Date.now()
+          },
+          commandResult: {
+            request: {
+              id: `command-${Date.now()}`,
+              workspaceId: "workspace-mock-1",
+              runId: activeRun?.run.id,
+              profile: "test",
+              command: "npm",
+              args: ["run", "test"],
+              shell: false,
+              riskLevel: "low",
+              createdAt: Date.now()
+            },
+            exitCode: 0,
+            stdout: "tests passed",
+            stderr: "",
+            summary: "tests passed",
+            success: true,
+            startedAt: Date.now() - 500,
+            completedAt: Date.now()
+          },
+          rolledBack: false
+        } satisfies PatchApplicationResult
       };
+    },
+    rollbackPatchSet: async () => {
+      if (activePatchSet) {
+        const filePatch = activePatchSet.filePatches[0];
+        documents.set(filePatch.relativePath, filePatch.beforeContent);
+        activePatchSet = {
+          ...activePatchSet,
+          status: "rolled-back",
+          updatedAt: Date.now()
+        };
+      }
+      return { ok: true, data: activePatchSet as PatchSet };
     }
-  },
-  retrieval: {
-    getStatus: async () => ({ ok: true, data: mockRetrievalSnapshot })
+    },
+  command: {
+    getProfiles: async () => ({
+      ok: true,
+      data: [
+        { id: "build", label: "Build" },
+        { id: "test", label: "Test" },
+        { id: "lint", label: "Lint" }
+      ]
+    }),
+    run: async (input) => ({
+      ok: true,
+      data: {
+        status: input.command.includes("install") ? "waiting-approval" : "completed",
+        taskId: `task-command-${Date.now()}`,
+        request: {
+          id: `command-${Date.now()}`,
+          workspaceId: "workspace-mock-1",
+          profile: input.command.includes("install") ? "install" : "custom",
+          command: input.command,
+          args: input.args,
+          shell: input.shell ?? false,
+          riskLevel: input.command.includes("install") ? "high" : "medium",
+          createdAt: Date.now()
+        }
+      } satisfies CommandRunResult
+    })
   },
   task: {
-    getSnapshot: async () => ({ ok: true, data: mockTaskSnapshot }),
-    getCheckpointPreview: async (checkpointId) => ({
+    getSnapshot: async () => ({
       ok: true,
-      data: latestCheckpointPreview && latestCheckpointPreview.checkpointId === checkpointId ? latestCheckpointPreview : undefined
-    }),
-    restoreCheckpoint: async (checkpointId) => {
-      if (mockTaskSnapshot.latestCheckpoint?.id === checkpointId) {
-        mockTaskSnapshot.tasks = [
-          {
-            id: `restore-${Date.now()}`,
-            title: "checkpoint.restore",
-            description: "Restore captured assets from the selected checkpoint.",
-            status: "rolled-back",
-            riskLevel: "medium",
-            updatedAt: Date.now(),
-            detail: "Mock checkpoint restore reapplied captured files to the workspace."
-          },
-          ...mockTaskSnapshot.tasks
-        ];
-      }
-      return { ok: true, data: mockTaskSnapshot };
-    },
-    decideApproval: async ({ approvalId, decision }) => {
-      mockTaskSnapshot.pendingApprovals = mockTaskSnapshot.pendingApprovals.filter((approval) => approval.id !== approvalId);
-      mockTaskSnapshot.tasks = mockTaskSnapshot.tasks.map((task) =>
-        task.id === "task-git-guard"
-          ? {
-              ...task,
-              status: decision === "approved" ? "approved" : "rejected",
-              detail: decision === "approved" ? "Approval accepted in mock preview." : "Approval rejected in mock preview.",
-              updatedAt: Date.now()
-            }
-          : task
-      );
-      if (decision === "approved") {
-        latestCheckpoint = {
-          id: `checkpoint-${Date.now()}`,
-          sessionId: "session-mock",
-          workspaceId: "mock-workspace-id",
-          type: "approval-anchor",
-          description: "Mock approval anchor",
-          manifest: {},
-          createdAt: Date.now()
-        };
-        mockTaskSnapshot.latestCheckpoint = latestCheckpoint;
-        latestCheckpointPreview = {
-          checkpointId: latestCheckpoint.id,
-          manifestPath: `/mock/checkpoints/${latestCheckpoint.id}/manifest.json`,
-          rootPath: "/Users/demo/projects/ai-digital-life",
-          assetCount: 3,
-          assets: [
-            {
-              path: "src/main.ts",
-              kind: "file",
-              status: "captured",
-              size: 2048,
-              snapshotPath: `/mock/checkpoints/${latestCheckpoint.id}/files/src/main.ts`
-            },
-            {
-              path: "package.json",
-              kind: "file",
-              status: "captured",
-              size: 512,
-              snapshotPath: `/mock/checkpoints/${latestCheckpoint.id}/files/package.json`
-            },
-            {
-              path: "docs/notes.md",
-              kind: "file",
-              status: "missing"
-            }
-          ]
-        };
-        if (mockTaskSnapshot.currentSession) {
-          mockTaskSnapshot.currentSession.summary.lastCheckpointId = latestCheckpoint.id;
+      data: {
+        tasks: [],
+        pendingApprovals: [],
+        policy: {
+          mode: "manual",
+          summary: "High-risk actions stay approval-bound.",
+          highRiskRules: ["Patch apply remains explicit."]
         }
       }
-      return { ok: true, data: mockTaskSnapshot };
-    }
+    }),
+    getCheckpointPreview: async () => ({ ok: true, data: undefined }),
+    restoreCheckpoint: async () => ({
+      ok: true,
+      data: {
+        tasks: [],
+        pendingApprovals: [],
+        policy: {
+          mode: "manual",
+          summary: "High-risk actions stay approval-bound.",
+          highRiskRules: ["Patch apply remains explicit."]
+        }
+      }
+    }),
+    decideApproval: async () => ({
+      ok: true,
+      data: {
+        tasks: [],
+        pendingApprovals: [],
+        policy: {
+          mode: "manual",
+          summary: "High-risk actions stay approval-bound.",
+          highRiskRules: ["Patch apply remains explicit."]
+        }
+      }
+    })
   }
 };
 
 export function setupMockBridge(): void {
   if (typeof window !== "undefined" && !window.digitalLife) {
     (window as unknown as { digitalLife: DigitalLifeBridge }).digitalLife = mockDigitalLifeBridge;
-    console.log("[Mock] DigitalLife bridge initialized for browser preview");
   }
 }

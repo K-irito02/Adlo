@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import pino from "pino";
 import { type LogEntrySummary, type LogLevel } from "@ai-digital-life/kernel";
 
 const LEVEL_WEIGHT: Record<LogLevel, number> = {
@@ -12,20 +13,20 @@ const LEVEL_WEIGHT: Record<LogLevel, number> = {
 export class Logger {
   private readonly scope: string;
   private readonly level: LogLevel;
-  private readonly logFilePath: string;
   private readonly recentEntries: LogEntrySummary[];
   private readonly sharedEntries: LogEntrySummary[];
+  private readonly writer: pino.Logger;
 
-  constructor(scope: string, level: LogLevel, logFilePath: string, sharedEntries: LogEntrySummary[]) {
+  constructor(scope: string, level: LogLevel, writer: pino.Logger, sharedEntries: LogEntrySummary[]) {
     this.scope = scope;
     this.level = level;
-    this.logFilePath = logFilePath;
     this.recentEntries = sharedEntries;
     this.sharedEntries = sharedEntries;
+    this.writer = writer.child({ scope });
   }
 
   child(scopeSuffix: string): Logger {
-    return new Logger(`${this.scope}:${scopeSuffix}`, this.level, this.logFilePath, this.sharedEntries);
+    return new Logger(`${this.scope}:${scopeSuffix}`, this.level, this.writer, this.sharedEntries);
   }
 
   debug(message: string, context?: Record<string, unknown>): void {
@@ -102,8 +103,30 @@ export class Logger {
       this.recentEntries.shift();
     }
 
-    const line = JSON.stringify(entry) + "\n";
-    void fs.appendFile(this.logFilePath, line, "utf8");
+    const payload = {
+      scope: this.scope,
+      durationMs,
+      context,
+      error: entry.error
+    };
+
+    switch (level) {
+      case "debug":
+        this.writer.debug(payload, message);
+        break;
+      case "info":
+        this.writer.info(payload, message);
+        break;
+      case "warn":
+        this.writer.warn(payload, message);
+        break;
+      case "error":
+        this.writer.error(payload, message);
+        break;
+      default:
+        this.writer.info(payload, message);
+        break;
+    }
   }
 }
 
@@ -116,9 +139,24 @@ export async function createLoggerFactory(logDir: string, level: LogLevel): Prom
   await fs.mkdir(logDir, { recursive: true });
   const logFilePath = path.join(logDir, "app.log");
   const sharedEntries: LogEntrySummary[] = [];
+  const destination = pino.destination({
+    dest: logFilePath,
+    mkdir: true,
+    sync: false
+  });
+  const baseLogger = pino(
+    {
+      level,
+      timestamp: () => `,"timestamp":${Date.now()}`,
+      formatters: {
+        bindings: () => ({})
+      }
+    },
+    destination
+  );
 
   return {
-    createLogger: (scope: string) => new Logger(scope, level, logFilePath, sharedEntries),
+    createLogger: (scope: string) => new Logger(scope, level, baseLogger, sharedEntries),
     getRecentEntries: (limit = 20) => sharedEntries.slice(-limit).reverse()
   };
 }

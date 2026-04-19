@@ -104,10 +104,22 @@ export type ThemeMode = "light" | "dark" | "system";
 export type ResolvedTheme = "light" | "dark";
 export type LanguageCode = "zh-CN" | "en-US";
 export type LogLevel = "debug" | "info" | "warn" | "error";
+export type ModelProviderId = "deepseek" | "minimax";
+
+export interface ModelProviderPreference {
+  enabled: boolean;
+  priority: number;
+  modelId: string;
+}
+
+export interface ModelPreferences {
+  providers: Record<ModelProviderId, ModelProviderPreference>;
+}
 
 export interface AppPreferencePatch {
   language?: LanguageCode;
   themeMode?: ThemeMode;
+  modelPreferences?: Partial<Record<ModelProviderId, Partial<ModelProviderPreference>>>;
 }
 
 export interface ConfigSnapshot {
@@ -116,6 +128,7 @@ export interface ConfigSnapshot {
   resolvedTheme: ResolvedTheme;
   logLevel: LogLevel;
   maxRecentWorkspaces: number;
+  modelPreferences: ModelPreferences;
 }
 
 export interface WindowState {
@@ -208,7 +221,7 @@ export interface LogEntrySummary {
 export type HealthStatus = "healthy" | "degraded" | "unavailable";
 
 export interface HealthComponent {
-  name: "main" | "worker" | "storage" | "recovery" | "migration";
+  name: "main" | "worker" | "storage" | "recovery" | "migration" | "models";
   status: HealthStatus;
   detail: string;
   updatedAt: number;
@@ -411,6 +424,342 @@ export interface TaskCenterSnapshot {
   policy: ApprovalPolicySummary;
   currentSession?: SessionMeta;
   latestCheckpoint?: CheckpointRecord;
+}
+
+export type ConversationRole = "system" | "user" | "assistant" | "tool";
+export type ConversationBlockType =
+  | "markdown"
+  | "plan"
+  | "tool-call"
+  | "approval"
+  | "patch-summary"
+  | "validation-result"
+  | "final-summary";
+
+export interface ConversationBlockBase {
+  id: string;
+  type: ConversationBlockType;
+}
+
+export interface MarkdownConversationBlock extends ConversationBlockBase {
+  type: "markdown";
+  text: string;
+}
+
+export interface PlanConversationBlock extends ConversationBlockBase {
+  type: "plan";
+  title: string;
+  items: Array<{
+    id: string;
+    title: string;
+    detail?: string;
+    status: "pending" | "running" | "completed" | "failed";
+  }>;
+}
+
+export interface ToolCallConversationBlock extends ConversationBlockBase {
+  type: "tool-call";
+  toolName: string;
+  summary: string;
+  status: "pending" | "running" | "completed" | "failed";
+}
+
+export interface ApprovalConversationBlock extends ConversationBlockBase {
+  type: "approval";
+  title: string;
+  riskLevel: RiskLevel;
+  summary: string;
+}
+
+export interface PatchSummaryConversationBlock extends ConversationBlockBase {
+  type: "patch-summary";
+  patchSetId: string;
+  summary: string;
+  fileCount: number;
+  hunkCount: number;
+}
+
+export interface ValidationResultConversationBlock extends ConversationBlockBase {
+  type: "validation-result";
+  summary: string;
+  status: "passed" | "failed" | "skipped";
+  diagnostics: DiagnosticSummary[];
+}
+
+export interface FinalSummaryConversationBlock extends ConversationBlockBase {
+  type: "final-summary";
+  summary: string;
+}
+
+export type ConversationBlock =
+  | MarkdownConversationBlock
+  | PlanConversationBlock
+  | ToolCallConversationBlock
+  | ApprovalConversationBlock
+  | PatchSummaryConversationBlock
+  | ValidationResultConversationBlock
+  | FinalSummaryConversationBlock;
+
+export interface ConversationSessionRecord {
+  id: string;
+  workspaceId: string;
+  title: string;
+  status: "active" | "archived";
+  createdAt: number;
+  updatedAt: number;
+  lastMessageAt: number;
+}
+
+export interface ConversationMessageRecord {
+  id: string;
+  sessionId: string;
+  role: ConversationRole;
+  content: string;
+  blocks: ConversationBlock[];
+  runId?: string;
+  createdAt: number;
+}
+
+export interface ConversationDetail {
+  session: ConversationSessionRecord;
+  messages: ConversationMessageRecord[];
+}
+
+export interface ConversationSendResult {
+  session: ConversationSessionRecord;
+  userMessage: ConversationMessageRecord;
+  assistantMessage: ConversationMessageRecord;
+  runDetail: AgentRunDetail;
+  patchSet?: PatchSet;
+}
+
+export type ConversationScenario = "chat" | "plan" | "code-edit";
+
+export interface ModelDescriptor {
+  providerId: ModelProviderId;
+  modelId: string;
+  displayName: string;
+  priority: number;
+  capabilities: Array<"chat" | "stream" | "code">;
+}
+
+export interface ModelChatMessage {
+  role: ConversationRole;
+  content: string;
+}
+
+export interface ModelResponse {
+  providerId: ModelProviderId;
+  modelId: string;
+  content: string;
+  synthetic: boolean;
+}
+
+export interface ProviderHealthStatus {
+  providerId: ModelProviderId;
+  healthy: boolean;
+  detail: string;
+}
+
+export interface ModelGatewayHealthSnapshot {
+  checkedAt: number;
+  providers: ProviderHealthStatus[];
+}
+
+export interface PromptRule {
+  id: string;
+  kind: "platform" | "project" | "session" | "workflow-phase" | "tool-contract" | "output-contract";
+  content: string;
+}
+
+export interface ContextEntry {
+  id: string;
+  type: "file" | "search-hit" | "outline" | "diagnostic" | "message";
+  label: string;
+  content: string;
+  tokenEstimate: number;
+  path?: string;
+}
+
+export type PatchHunkDecision = "pending" | "accepted" | "rejected";
+export type PatchSetStatus = "draft" | "ready" | "applying" | "applied" | "failed" | "rolled-back";
+
+export interface PatchHunk {
+  id: string;
+  filePatchId: string;
+  patchSetId: string;
+  relativePath: string;
+  oldStart: number;
+  oldLines: number;
+  newStart: number;
+  newLines: number;
+  preview: string;
+  beforeText: string;
+  afterText: string;
+  decision: PatchHunkDecision;
+}
+
+export interface FilePatch {
+  id: string;
+  patchSetId: string;
+  relativePath: string;
+  language?: string;
+  beforeContent: string;
+  afterContent: string;
+  hunks: PatchHunk[];
+}
+
+export interface PatchSet {
+  id: string;
+  workspaceId: string;
+  sessionId: string;
+  runId?: string;
+  title: string;
+  summary: string;
+  status: PatchSetStatus;
+  checkpointId?: string;
+  filePatches: FilePatch[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+export type AgentRunStatus =
+  | "draft"
+  | "planning"
+  | "ready"
+  | "executing"
+  | "waiting-approval"
+  | "applying"
+  | "verifying"
+  | "succeeded"
+  | "failed"
+  | "rolled-back"
+  | "aborted";
+
+export interface AgentPlanStep {
+  id: string;
+  runId: string;
+  title: string;
+  detail?: string;
+  status: "pending" | "running" | "completed" | "failed";
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface AgentRunRecord {
+  id: string;
+  workspaceId: string;
+  sessionId: string;
+  prompt: string;
+  scenario: ConversationScenario;
+  status: AgentRunStatus;
+  summary?: string;
+  patchSetId?: string;
+  createdAt: number;
+  updatedAt: number;
+  completedAt?: number;
+}
+
+export interface AgentRunDetail {
+  run: AgentRunRecord;
+  steps: AgentPlanStep[];
+}
+
+export type CommandProfile = "build" | "test" | "lint" | "install" | "custom";
+
+export interface CommandRequest {
+  id: string;
+  workspaceId: string;
+  runId?: string;
+  profile: CommandProfile;
+  command: string;
+  args: string[];
+  shell: boolean;
+  riskLevel: RiskLevel;
+  createdAt: number;
+}
+
+export interface CommandExecutionResult {
+  request: CommandRequest;
+  exitCode: number | null;
+  signal?: string;
+  stdout: string;
+  stderr: string;
+  summary: string;
+  success: boolean;
+  startedAt: number;
+  completedAt: number;
+}
+
+export interface CommandRunResult {
+  status: "completed" | "waiting-approval";
+  taskId: string;
+  request: CommandRequest;
+  result?: CommandExecutionResult;
+  approvalRequest?: ApprovalRequestSummary;
+}
+
+export interface DiagnosticSummary {
+  id: string;
+  source: "typescript" | "vite" | "eslint" | "vitest" | "jest" | "system";
+  severity: "info" | "warning" | "error";
+  message: string;
+  path?: string;
+  line?: number;
+  column?: number;
+}
+
+export interface ValidationResult {
+  id: string;
+  workspaceId: string;
+  runId?: string;
+  patchSetId?: string;
+  status: "passed" | "failed" | "skipped";
+  summary: string;
+  diagnostics: DiagnosticSummary[];
+  createdAt: number;
+}
+
+export interface PatchApplicationResult {
+  patchSet: PatchSet;
+  repairPatchSet?: PatchSet;
+  validation?: ValidationResult;
+  commandResult?: CommandExecutionResult;
+  rolledBack: boolean;
+}
+
+export interface WorkspaceSearchHit {
+  path: string;
+  line: number;
+  preview: string;
+}
+
+export interface WorkspaceFileDocument {
+  path: string;
+  content: string;
+  lastModifiedAt: number;
+}
+
+export interface WorkspaceFileChangedEvent {
+  path: string;
+  lastModifiedAt: number;
+}
+
+export interface FileOutlineItem {
+  id: string;
+  label: string;
+  kind: "function" | "class" | "interface" | "type" | "const" | "heading";
+  line: number;
+}
+
+export interface ToolInvocationRecord {
+  id: string;
+  runId: string;
+  toolName: string;
+  summary: string;
+  status: "pending" | "running" | "completed" | "failed";
+  createdAt: number;
+  updatedAt: number;
 }
 
 export interface BaseEvent<TType extends string = string, TPayload = Record<string, unknown>> {

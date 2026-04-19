@@ -8,6 +8,7 @@ const tempDirs: string[] = [];
 
 describe("logger", () => {
   afterEach(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 50));
     await Promise.all(
       tempDirs.splice(0).map(async (dirPath) => {
         await fs.rm(dirPath, { recursive: true, force: true });

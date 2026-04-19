@@ -2,14 +2,23 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { Worker } from "node:worker_threads";
 import { app, BrowserWindow, ipcMain, nativeTheme } from "electron";
+import { AgentRuntimeService } from "@ai-digital-life/agent-runtime";
+import { ChangeEngine } from "@ai-digital-life/change-engine";
 import { applyConfigPatch, loadConfig, saveConfig } from "@ai-digital-life/config";
+import { ConversationService } from "@ai-digital-life/conversation";
 import { ErrorBoundary, ErrorReporter } from "@ai-digital-life/errors";
 import { getGlobalEventBus, type EventBus } from "@ai-digital-life/events";
+import { WorkspaceFsService, WorkspaceWatcherService } from "@ai-digital-life/fs-ops";
+import { createApprovalRequest, shouldRequireApproval } from "@ai-digital-life/task";
 import {
   APP_NAME,
   APP_VERSION,
+  type CommandExecutionResult,
+  type CommandRunResult,
+  type CommandRequest,
   ERROR_CODES,
   EVENT_NAMES,
+  type AgentRunDetail,
   type AppInfo,
   type AppPreferencePatch,
   APPROVAL_POLICY_MODE,
@@ -19,10 +28,16 @@ import {
   type CheckpointRecord,
   type CheckpointPayloadPreview,
   type ConfigSnapshot,
+  type ConversationSendResult,
+  type ConversationSessionRecord,
   type EventDiagnostics,
+  type FileOutlineItem,
   type HealthSnapshot,
   type IpcResult,
   type LogEntrySummary,
+  type ModelGatewayHealthSnapshot,
+  type PatchApplicationResult,
+  type PatchSet,
   type RetrievalSnapshot,
   type RuntimeDiagnosticsSnapshot,
   type RuntimeLifecycleSnapshot,
@@ -31,12 +46,16 @@ import {
   type TaskRecord,
   type TaskCenterSnapshot,
   type TaskStatus,
+  type ValidationResult,
+  type WorkspaceFileDocument,
+  type WorkspaceSearchHit,
   ok,
   err,
   createId,
   toUserMessage
 } from "@ai-digital-life/kernel";
 import { createLoggerFactory, type Logger } from "@ai-digital-life/logger";
+import { ModelGateway } from "@ai-digital-life/model-gateway";
 import {
   BackupManager,
   MigrationRegistry,
@@ -46,6 +65,14 @@ import {
   parseVersion
 } from "@ai-digital-life/migration";
 import { StateRepository } from "@ai-digital-life/storage";
+import {
+  TerminalService,
+  analyzeRetryDisposition,
+  buildValidationResult,
+  classifyCommandProfile,
+  detectWorkspaceValidationCommand,
+  type RetryAttemptSummary
+} from "@ai-digital-life/terminal";
 import { WorkspaceService } from "@ai-digital-life/workspace";
 
 type Runtime = {
@@ -58,6 +85,14 @@ type Runtime = {
   diagnostics: RuntimeDiagnosticsSnapshot;
   stateRepository: StateRepository;
   workspaceService: WorkspaceService;
+  fsOps: WorkspaceFsService;
+  workspaceWatcher: WorkspaceWatcherService;
+  changeEngine: ChangeEngine;
+  conversationService: ConversationService;
+  agentRuntime: AgentRuntimeService;
+  modelGateway: ModelGateway;
+  modelHealthSnapshot?: ModelGatewayHealthSnapshot;
+  terminalService: TerminalService;
   getRecentLogs: (limit?: number) => LogEntrySummary[];
   retrieval: RetrievalController;
 };
@@ -190,6 +225,104 @@ class RetrievalController {
 let mainWindow: BrowserWindow | null = null;
 let runtime: Runtime | null = null;
 
+async function startWorkspaceWatcher(runtimeState: Runtime, rootPath: string): Promise<void> {
+  await runtimeState.workspaceWatcher.watch(rootPath, async (event) => {
+    mainWindow?.webContents.send("workspace:fileChanged", event);
+  });
+}
+
+async function recoverWorkspaceExecutionState(runtimeState: Runtime, workspaceId: string): Promise<void> {
+  if (!runtimeState.diagnostics.lifecycle.recoveredFromCrash) {
+    return;
+  }
+
+  const now = Date.now();
+  const interruptedTaskStatuses = new Set<TaskStatus>(["running", "approved"]);
+  const interruptedRunStatuses = new Set<AgentRunDetail["run"]["status"]>([
+    "planning",
+    "ready",
+    "executing",
+    "waiting-approval",
+    "applying",
+    "verifying"
+  ]);
+
+  const tasks = await runtimeState.stateRepository.listTasksByWorkspace(workspaceId);
+  for (const task of tasks) {
+    if (interruptedTaskStatuses.has(task.status)) {
+      await runtimeState.stateRepository.upsertTask({
+        ...task,
+        status: "failed",
+        updatedAt: now,
+        completedAt: now,
+        resultJson: undefined,
+        errorJson: "Recovered after a previous unclean shutdown. Retry this task to continue."
+      });
+      await runtimeState.stateRepository.appendAuditRecord({
+        entityType: "task",
+        entityId: task.id,
+        action: "task.recovered-interrupted",
+        detail: `Recovered ${task.type} from status ${task.status}.`,
+        createdAt: now
+      });
+      continue;
+    }
+
+    if (task.status === "waiting-approval") {
+      await runtimeState.stateRepository.appendAuditRecord({
+        entityType: "task",
+        entityId: task.id,
+        action: "task.recovered-waiting-approval",
+        detail: `Recovered ${task.type} still waiting for approval.`,
+        createdAt: now
+      });
+    }
+  }
+
+  const patchSets = await runtimeState.stateRepository.listPatchSetsByWorkspace(workspaceId);
+  for (const patchSet of patchSets) {
+    if (patchSet.status !== "applying") {
+      continue;
+    }
+
+    await runtimeState.stateRepository.upsertPatchSet({
+      ...patchSet,
+      status: "failed",
+      summary: `${patchSet.summary} Recovered after an interrupted apply/validate cycle.`,
+      updatedAt: now
+    });
+    await runtimeState.stateRepository.appendAuditRecord({
+      entityType: "session",
+      entityId: patchSet.sessionId,
+      action: "patch.recovered-interrupted",
+      detail: `Recovered patch set ${patchSet.id} from applying state.`,
+      createdAt: now
+    });
+  }
+
+  const agentRuns = await runtimeState.stateRepository.listAgentRunsByWorkspace(workspaceId);
+  for (const run of agentRuns) {
+    if (!interruptedRunStatuses.has(run.status)) {
+      continue;
+    }
+
+    await runtimeState.stateRepository.upsertAgentRun({
+      ...run,
+      status: "failed",
+      summary: "Recovered after a previous unclean shutdown. Retry from the conversation to continue.",
+      updatedAt: now,
+      completedAt: now
+    });
+    await runtimeState.stateRepository.appendAuditRecord({
+      entityType: "session",
+      entityId: run.sessionId,
+      action: "agent-run.recovered-interrupted",
+      detail: `Recovered run ${run.id} from status ${run.status}.`,
+      createdAt: now
+    });
+  }
+}
+
 async function readRuntimeStatus(statusFilePath: string): Promise<RuntimeStatusFile | undefined> {
   try {
     const raw = await fs.readFile(statusFilePath, "utf8");
@@ -291,6 +424,19 @@ function createHealthSnapshot(runtimeState: Runtime): HealthSnapshot {
   const base = runtimeState.retrieval.snapshot();
   const recoveryStatus = runtimeState.diagnostics.lifecycle.recoveredFromCrash ? "degraded" : "healthy";
   const migrationFailed = runtimeState.diagnostics.migration.executedScripts.some((script) => script.status === "failed");
+  const modelChecks = runtimeState.modelHealthSnapshot?.providers ?? [];
+  const modelStatus =
+    modelChecks.length === 0
+      ? "degraded"
+      : modelChecks.every((provider) => provider.healthy)
+        ? "healthy"
+        : modelChecks.some((provider) => provider.healthy)
+          ? "degraded"
+          : "unavailable";
+  const modelDetail =
+    modelChecks.length === 0
+      ? "Model providers have not been checked yet."
+      : modelChecks.map((provider) => `${provider.providerId}:${provider.healthy ? "ok" : "fail"}`).join(", ");
 
   return {
     timestamp: Date.now(),
@@ -312,9 +458,33 @@ function createHealthSnapshot(runtimeState: Runtime): HealthSnapshot {
             ? `Upgrade evaluated for ${runtimeState.diagnostics.migration.toVersion} with ${runtimeState.diagnostics.migration.executedScripts.length} scripts.`
             : `No migration required for ${runtimeState.diagnostics.migration.toVersion}.`,
         updatedAt: runtimeState.diagnostics.lifecycle.currentStartedAt
+      },
+      {
+        name: "models",
+        status: modelStatus,
+        detail: modelDetail,
+        updatedAt: runtimeState.modelHealthSnapshot?.checkedAt ?? runtimeState.diagnostics.lifecycle.currentStartedAt
       }
     ]
   };
+}
+
+function createModelGateway(config: ConfigSnapshot): ModelGateway {
+  return new ModelGateway({
+    providerPreferences: config.modelPreferences.providers
+  });
+}
+
+function createAgentRuntime(stateRepository: StateRepository, modelGateway: ModelGateway): AgentRuntimeService {
+  return new AgentRuntimeService(stateRepository, {
+    modelGateway
+  });
+}
+
+async function refreshModelHealthSnapshot(runtimeState: Runtime): Promise<ModelGatewayHealthSnapshot> {
+  const snapshot = await runtimeState.modelGateway.getHealthSnapshot();
+  runtimeState.modelHealthSnapshot = snapshot;
+  return snapshot;
 }
 
 async function initializeMigrations(userDataPath: string, logger: Logger): Promise<MigrationBootstrapResult> {
@@ -399,6 +569,13 @@ async function createRuntime(): Promise<Runtime> {
     maxRecentWorkspaces: config.maxRecentWorkspaces,
     initialState
   });
+  const fsOps = new WorkspaceFsService();
+  const workspaceWatcher = new WorkspaceWatcherService();
+  const changeEngine = new ChangeEngine(fsOps);
+  const conversationService = new ConversationService(stateRepository);
+  const modelGateway = createModelGateway(config);
+  const agentRuntime = createAgentRuntime(stateRepository, modelGateway);
+  const terminalService = new TerminalService(loggerFactory.createLogger("terminal"));
   const retrieval = new RetrievalController(
     require.resolve("@ai-digital-life/retrieval-worker"),
     loggerFactory.createLogger("retrieval"),
@@ -418,6 +595,28 @@ async function createRuntime(): Promise<Runtime> {
   const currentWorkspace = workspaceService.getCurrentWorkspace();
   if (currentWorkspace) {
     await workspaceService.ensureSession(currentWorkspace.id);
+    const bootstrapRuntime = {
+      configDir,
+      lifecycleFilePath,
+      config,
+      logger,
+      errorReporter,
+      eventBus,
+      diagnostics,
+      stateRepository,
+      workspaceService,
+      fsOps,
+      workspaceWatcher,
+      changeEngine,
+      conversationService,
+      agentRuntime,
+      modelGateway,
+      terminalService,
+      getRecentLogs: loggerFactory.getRecentEntries,
+      retrieval
+    } satisfies Runtime;
+    await startWorkspaceWatcher(bootstrapRuntime, currentWorkspace.rootPath);
+    await recoverWorkspaceExecutionState(bootstrapRuntime, currentWorkspace.id);
     await retrieval.startIndexing(currentWorkspace.id, currentWorkspace.rootPath);
   }
   logger.info("Runtime initialized.");
@@ -440,6 +639,13 @@ async function createRuntime(): Promise<Runtime> {
     diagnostics,
     stateRepository,
     workspaceService,
+    fsOps,
+    workspaceWatcher,
+    changeEngine,
+    conversationService,
+    agentRuntime,
+    modelGateway,
+    terminalService,
     getRecentLogs: loggerFactory.getRecentEntries,
     retrieval
   };
@@ -780,6 +986,543 @@ async function createTaskCenterSnapshot(): Promise<TaskCenterSnapshot> {
   };
 }
 
+function requireRuntime(): Runtime {
+  if (!runtime) {
+    throw new Error("Runtime not initialized.");
+  }
+  return runtime;
+}
+
+function requireCurrentWorkspaceState(): { workspaceId: string; workspaceRoot: string } {
+  const runtimeState = requireRuntime();
+  const workspace = runtimeState.workspaceService.getCurrentWorkspace();
+  if (!workspace) {
+    throw new Error("No active workspace.");
+  }
+
+  return {
+    workspaceId: workspace.id,
+    workspaceRoot: workspace.rootPath
+  };
+}
+
+async function getOrCreateConversationSession(title?: string): Promise<ConversationSessionRecord> {
+  const runtimeState = requireRuntime();
+  const { workspaceId } = requireCurrentWorkspaceState();
+  const existing = await runtimeState.stateRepository.listConversationSessions(workspaceId);
+  if (existing[0]) {
+    return existing[0];
+  }
+  return runtimeState.conversationService.createSession(workspaceId, title ? title.trim() : "Single Agent Session");
+}
+
+async function executeConversationRun(input: {
+  sessionId: string;
+  content: string;
+  scenario?: "chat" | "plan" | "code-edit";
+}): Promise<ConversationSendResult> {
+  const runtimeState = requireRuntime();
+  const { workspaceId, workspaceRoot } = requireCurrentWorkspaceState();
+  const userMessage = await runtimeState.conversationService.addMessage({
+    sessionId: input.sessionId,
+    role: "user",
+    content: input.content
+  });
+  const execution = await runtimeState.agentRuntime.startRun({
+    workspaceId,
+    sessionId: input.sessionId,
+    workspaceRoot,
+    prompt: input.content,
+    scenario: input.scenario
+  });
+  const assistantMessage = await runtimeState.conversationService.addMessage({
+    sessionId: input.sessionId,
+    role: "assistant",
+    content: execution.assistantContent,
+    blocks: execution.assistantBlocks,
+    runId: execution.runDetail.run.id
+  });
+  const detail = await runtimeState.stateRepository.getConversationDetail(input.sessionId);
+  if (!detail) {
+    throw new Error("Conversation session not found after execution.");
+  }
+
+  return {
+    session: detail.session,
+    userMessage,
+    assistantMessage,
+    runDetail: execution.runDetail,
+    patchSet: execution.patchSet
+  };
+}
+
+async function recordValidationConversationMessage(input: {
+  sessionId: string;
+  runId?: string;
+  patchSetId: string;
+  commandLabel?: string;
+  validation?: ValidationResult;
+  rolledBack: boolean;
+  repairPatchSet?: PatchSet;
+}): Promise<void> {
+  const runtimeState = requireRuntime();
+  const blocks: import("@ai-digital-life/kernel").ConversationBlock[] = [];
+
+  if (input.commandLabel) {
+    const toolStatus: "completed" | "failed" = input.validation?.status === "failed" ? "failed" : "completed";
+    blocks.push({
+      id: createId("block"),
+      type: "tool-call" as const,
+      toolName: "terminal.run",
+      summary: input.commandLabel,
+      status: toolStatus
+    });
+  }
+
+  if (input.validation) {
+    blocks.push({
+      id: createId("block"),
+      type: "validation-result" as const,
+      summary: input.validation.summary,
+      status: input.validation.status,
+      diagnostics: input.validation.diagnostics
+    });
+  }
+
+  blocks.push({
+    id: createId("block"),
+    type: "final-summary" as const,
+    summary: input.rolledBack
+      ? "补丁已应用，但验证失败并已自动回滚。"
+      : "补丁已应用并完成验证。"
+  });
+
+  if (input.repairPatchSet) {
+    blocks.push({
+      id: createId("block"),
+      type: "patch-summary" as const,
+      patchSetId: input.repairPatchSet.id,
+      summary: input.repairPatchSet.summary,
+      fileCount: input.repairPatchSet.filePatches.length,
+      hunkCount: input.repairPatchSet.filePatches.reduce((total, filePatch) => total + filePatch.hunks.length, 0)
+    });
+  }
+
+  await runtimeState.conversationService.addMessage({
+    sessionId: input.sessionId,
+    role: "assistant",
+    content: input.repairPatchSet
+      ? "Validation failed, the patch was rolled back, and a repair preview was prepared."
+      : input.rolledBack
+        ? "Validation failed and the patch was rolled back."
+        : "Patch applied and validation completed.",
+    blocks,
+    runId: input.runId
+  });
+}
+
+function stringifyRetryAttempts(attempts: RetryAttemptSummary[]): string {
+  return attempts
+    .map((attempt) => `#${attempt.attempt}:${attempt.success ? "ok" : "failed"}:${attempt.reason}`)
+    .join(" | ");
+}
+
+async function applyPatchAndValidate(patchSetId: string): Promise<PatchApplicationResult> {
+  const runtimeState = requireRuntime();
+  const { workspaceRoot } = requireCurrentWorkspaceState();
+  const workspace = runtimeState.workspaceService.getCurrentWorkspace();
+  if (!workspace) {
+    throw new Error("No active workspace.");
+  }
+
+  const patchSet = await runtimeState.stateRepository.getPatchSet(patchSetId);
+  if (!patchSet) {
+    throw new Error("Patch set not found.");
+  }
+
+  const affectedPaths = patchSet.filePatches.map((filePatch) => filePatch.relativePath);
+  const checkpointPreview = await runtimeState.stateRepository.writeCheckpointPayload({
+    checkpointId: createId("checkpoint"),
+    rootPath: workspaceRoot,
+    affectedPaths
+  });
+  const checkpoint: CheckpointRecord = {
+    id: checkpointPreview.checkpointId,
+    sessionId: patchSet.sessionId,
+    workspaceId: patchSet.workspaceId,
+    type: "approval-anchor",
+    description: `Patch apply checkpoint for ${patchSet.title}`,
+    manifest: {
+      patchSetId: patchSet.id,
+      rootPath: workspaceRoot,
+      affectedPaths
+    },
+    createdAt: Date.now()
+  };
+  await runtimeState.stateRepository.upsertCheckpoint(checkpoint);
+
+  const applyingPatchSet = {
+    ...patchSet,
+    checkpointId: checkpoint.id,
+    status: "applying" as const,
+    updatedAt: Date.now()
+  };
+  await runtimeState.stateRepository.upsertPatchSet(applyingPatchSet);
+
+  let runDetail = patchSet.runId ? await runtimeState.stateRepository.getAgentRunDetail(patchSet.runId) : undefined;
+  if (runDetail) {
+    await runtimeState.stateRepository.upsertAgentRun({
+      ...runDetail.run,
+      status: "applying",
+      updatedAt: Date.now()
+    });
+  }
+
+  const applied = await runtimeState.changeEngine.applyPatchSet(workspaceRoot, applyingPatchSet);
+  await runtimeState.stateRepository.upsertPatchSet(applied);
+
+  const validationCommand = detectWorkspaceValidationCommand(workspaceRoot, workspace.type);
+  if (!validationCommand) {
+    if (runDetail) {
+      await runtimeState.stateRepository.upsertAgentRun({
+        ...runDetail.run,
+        status: "succeeded",
+        updatedAt: Date.now(),
+        completedAt: Date.now()
+      });
+    }
+    await recordValidationConversationMessage({
+      sessionId: patchSet.sessionId,
+      runId: patchSet.runId,
+      patchSetId: patchSet.id,
+      rolledBack: false
+    });
+    return {
+      patchSet: applied,
+      rolledBack: false
+    };
+  }
+
+  const commandRequest: CommandRequest = {
+    id: createId("command"),
+    workspaceId: patchSet.workspaceId,
+    runId: patchSet.runId,
+    profile: validationCommand.profile,
+    command: validationCommand.command,
+    args: validationCommand.args,
+    shell: false,
+    riskLevel: "low",
+    createdAt: Date.now()
+  };
+  await runtimeState.stateRepository.insertCommandExecution(commandRequest);
+  if (patchSet.runId) {
+    await runtimeState.stateRepository.upsertToolInvocation({
+      id: createId("tool"),
+      runId: patchSet.runId,
+      toolName: "terminal.run",
+      summary: `${commandRequest.command} ${commandRequest.args.join(" ")}`,
+      status: "completed",
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    });
+  }
+
+  if (runDetail) {
+    await runtimeState.stateRepository.upsertAgentRun({
+      ...runDetail.run,
+      status: "verifying",
+      updatedAt: Date.now()
+    });
+  }
+
+  const retryExecution = await runtimeState.terminalService.executeWithRetries(commandRequest, workspaceRoot, {
+    maxAttempts: 3,
+    baseDelayMs: 300
+  });
+  const commandResult = retryExecution.result;
+  const validation = buildValidationResult({
+    workspaceId: patchSet.workspaceId,
+    runId: patchSet.runId,
+    patchSetId: patchSet.id,
+    commandResult
+  });
+  await runtimeState.stateRepository.insertValidationResult(validation);
+  await runtimeState.stateRepository.appendAuditRecord({
+    entityType: "session",
+    entityId: patchSet.sessionId,
+    action: "validation.retried",
+    detail: stringifyRetryAttempts(retryExecution.attempts),
+    createdAt: Date.now()
+  });
+
+  if (!commandResult.success) {
+    const rolledBack = await runtimeState.changeEngine.rollbackPatchSet(workspaceRoot, applied);
+    await runtimeState.stateRepository.upsertPatchSet(rolledBack);
+    const repairResult = patchSet.runId
+      ? await runtimeState.agentRuntime.startRepairRun({
+          workspaceId: patchSet.workspaceId,
+          sessionId: patchSet.sessionId,
+          workspaceRoot,
+          failedPatchSet: rolledBack,
+          validation
+        })
+      : undefined;
+    if (runDetail) {
+      await runtimeState.stateRepository.upsertAgentRun({
+        ...runDetail.run,
+        status: "rolled-back",
+        summary: validation.summary,
+        updatedAt: Date.now(),
+        completedAt: Date.now()
+      });
+    }
+    await recordValidationConversationMessage({
+      sessionId: patchSet.sessionId,
+      runId: patchSet.runId,
+      patchSetId: patchSet.id,
+      commandLabel: `${commandRequest.command} ${commandRequest.args.join(" ")}`,
+      validation,
+      rolledBack: true,
+      repairPatchSet: repairResult?.patchSet
+    });
+    if (repairResult?.patchSet) {
+      await runtimeState.stateRepository.appendAuditRecord({
+        entityType: "session",
+        entityId: patchSet.sessionId,
+        action: "repair-preview.generated",
+        detail: `Generated repair patch set ${repairResult.patchSet.id} after validation failure.`,
+        createdAt: Date.now()
+      });
+    }
+    return {
+      patchSet: rolledBack,
+      validation,
+      commandResult,
+      rolledBack: true,
+      repairPatchSet: repairResult?.patchSet
+    };
+  }
+
+  if (runDetail) {
+    await runtimeState.stateRepository.upsertAgentRun({
+      ...runDetail.run,
+      status: "succeeded",
+      summary: validation.summary,
+      updatedAt: Date.now(),
+      completedAt: Date.now()
+    });
+  }
+  await recordValidationConversationMessage({
+    sessionId: patchSet.sessionId,
+    runId: patchSet.runId,
+    patchSetId: patchSet.id,
+    commandLabel: `${commandRequest.command} ${commandRequest.args.join(" ")}`,
+    validation,
+    rolledBack: false
+  });
+  return {
+    patchSet: applied,
+    validation,
+    commandResult,
+    rolledBack: false
+  };
+}
+
+function createCommandTaskOperation(request: CommandRequest): TaskOperation {
+  return {
+    kind: "terminal.run",
+    target: request.command,
+    params: {
+      requestId: request.id,
+      command: request.command,
+      args: request.args,
+      shell: request.shell,
+      profile: request.profile
+    },
+    riskLevel: request.riskLevel,
+    reversible: true
+  };
+}
+
+function restoreCommandRequestFromTask(task: TaskRecord): CommandRequest {
+  const operation = task.operations.find((item) => item.kind === "terminal.run");
+  if (!operation) {
+    throw new Error("Command operation metadata not found.");
+  }
+
+  return {
+    id: String(operation.params.requestId ?? createId("command")),
+    workspaceId: task.workspaceId,
+    runId: undefined,
+    profile: operation.params.profile as CommandRequest["profile"],
+    command: String(operation.params.command ?? operation.target ?? ""),
+    args: Array.isArray(operation.params.args) ? operation.params.args.map((value) => String(value)) : [],
+    shell: Boolean(operation.params.shell),
+    riskLevel: operation.riskLevel,
+    createdAt: task.startedAt ?? task.createdAt
+  };
+}
+
+async function runCommandTask(task: TaskRecord, request: CommandRequest): Promise<CommandExecutionResult> {
+  if (!runtime) {
+    throw new Error("Runtime not initialized.");
+  }
+
+  const workspace = runtime.workspaceService.getCurrentWorkspace();
+  if (!workspace || workspace.id !== task.workspaceId) {
+    throw new Error("The task workspace is not active.");
+  }
+
+  await runtime.stateRepository.upsertTask({
+    ...task,
+    status: "running",
+    startedAt: task.startedAt ?? Date.now(),
+    updatedAt: Date.now(),
+    resultJson: undefined,
+    errorJson: undefined
+  });
+  await runtime.stateRepository.insertCommandExecution(request);
+  const retryExecution = await runtime.terminalService.executeWithRetries(request, workspace.rootPath, {
+    maxAttempts: request.riskLevel === "low" ? 2 : 3,
+    baseDelayMs: 250
+  });
+  const commandResult = retryExecution.result;
+
+  await runtime.stateRepository.upsertTask({
+    ...task,
+    status: commandResult.success ? "completed" : "failed",
+    startedAt: task.startedAt ?? Date.now(),
+    updatedAt: Date.now(),
+    completedAt: commandResult.completedAt,
+    resultJson: commandResult.success ? commandResult.summary : undefined,
+    errorJson: commandResult.success ? undefined : commandResult.summary
+  });
+  await runtime.stateRepository.appendAuditRecord({
+    entityType: "task",
+    entityId: task.id,
+    action: commandResult.success ? "task.completed" : "task.failed",
+    detail: commandResult.summary,
+    createdAt: Date.now()
+  });
+  await runtime.stateRepository.appendAuditRecord({
+    entityType: "task",
+    entityId: task.id,
+    action: "task.retry-summary",
+    detail: stringifyRetryAttempts(retryExecution.attempts),
+    createdAt: Date.now()
+  });
+  await runtime.workspaceService.updateSessionSummary(
+    task.workspaceId,
+    {
+      lastTaskId: task.id
+    },
+    task.id
+  );
+  return commandResult;
+}
+
+async function executeGovernedCommand(input: {
+  command: string;
+  args: string[];
+  shell?: boolean;
+}): Promise<CommandRunResult> {
+  if (!runtime) {
+    throw new Error("Runtime not initialized.");
+  }
+
+  const workspace = runtime.workspaceService.getCurrentWorkspace();
+  if (!workspace) {
+    throw new Error("No active workspace.");
+  }
+
+  const session = await runtime.workspaceService.ensureSession(workspace.id);
+  const classification = classifyCommandProfile(`${input.command} ${input.args.join(" ")}`);
+  const request: CommandRequest = {
+    id: createId("command"),
+    workspaceId: workspace.id,
+    profile: classification.profile,
+    command: input.command,
+    args: input.args,
+    shell: input.shell ?? false,
+    riskLevel: input.shell ? "high" : classification.riskLevel,
+    createdAt: Date.now()
+  };
+  const operations = [createCommandTaskOperation(request)];
+  const now = Date.now();
+  const task: TaskRecord = {
+    id: createId("task"),
+    workspaceId: workspace.id,
+    sessionId: session.id,
+    type: "command.run",
+    description: `Execute ${request.command} ${request.args.join(" ")}`.trim(),
+    status: shouldRequireApproval(operations) ? "waiting-approval" : "running",
+    priority: request.riskLevel === "high" ? "high" : "medium",
+    operations,
+    createdAt: now,
+    updatedAt: now,
+    startedAt: now
+  };
+
+  if (shouldRequireApproval(operations)) {
+    const approvalRequest = createApprovalRequest({
+      taskId: task.id,
+      title: `command.${request.profile}`,
+      description: `Command ${request.command} ${request.args.join(" ")} requires approval before execution.`,
+      operations,
+      impact: [
+        "This command may modify the workspace or dependency graph.",
+        "Execution is paused until the approval is resolved."
+      ],
+      createdAt: now
+    });
+    const approval: ApprovalRecord = {
+      id: approvalRequest.id,
+      taskId: task.id,
+      workspaceId: workspace.id,
+      riskLevel: approvalRequest.riskLevel,
+      request: approvalRequest,
+      createdAt: now,
+      expiresAt: now + 15 * 60 * 1000
+    };
+    await runtime.stateRepository.upsertApproval(approval);
+    await runtime.stateRepository.upsertTask({
+      ...task,
+      approvalId: approval.id
+    });
+    await runtime.stateRepository.appendAuditRecord({
+      entityType: "approval",
+      entityId: approval.id,
+      action: "approval.requested",
+      detail: approval.request.description,
+      createdAt: now
+    });
+    await emitRuntimeEvent(runtime.eventBus, runtime.diagnostics, {
+      type: EVENT_NAMES.approvalRequested,
+      timestamp: now,
+      payload: {
+        workspaceId: workspace.id,
+        approvalId: approval.id,
+        taskId: task.id
+      }
+    });
+    return {
+      status: "waiting-approval",
+      taskId: task.id,
+      request,
+      approvalRequest
+    };
+  }
+
+  await runtime.stateRepository.upsertTask(task);
+  const result = await runCommandTask(task, request);
+  return {
+    status: "completed",
+    taskId: task.id,
+    request,
+    result
+  };
+}
+
 async function decideApproval(input: {
   approvalId: string;
   decision: "approved" | "rejected";
@@ -884,6 +1627,20 @@ async function decideApproval(input: {
       },
       relatedTask.id
     );
+
+    if (input.decision === "approved" && relatedTask.type === "command.run") {
+      const restoredRequest = restoreCommandRequestFromTask({
+        ...relatedTask,
+        checkpointId
+      });
+      await runCommandTask(
+        {
+          ...relatedTask,
+          checkpointId
+        },
+        restoredRequest
+      );
+    }
   }
 
   await runtime.stateRepository.appendAuditRecord({
@@ -1002,6 +1759,23 @@ function registerIpcHandlers(): void {
     return ok(runtime.diagnostics);
   });
 
+  ipcMain.handle("app:getModelHealth", async (): Promise<IpcResult<ModelGatewayHealthSnapshot>> => {
+    try {
+      if (!runtime) {
+        return err(ERROR_CODES.internal, "Runtime not initialized.");
+      }
+      return ok(await refreshModelHealthSnapshot(runtime));
+    } catch (error) {
+      if (runtime) {
+        void recordRuntimeError(runtime.errorReporter, runtime.diagnostics, runtime.logger, error, {
+          surface: "app:getModelHealth"
+        });
+      }
+      const failure = toUserMessage(error);
+      return err(failure.code, failure.message);
+    }
+  });
+
   ipcMain.handle("app:updatePreferences", async (_event, patch: AppPreferencePatch): Promise<IpcResult<AppInfo>> => {
     try {
       if (!runtime) {
@@ -1010,11 +1784,17 @@ function registerIpcHandlers(): void {
 
       runtime.config = applyConfigPatch(runtime.config, patch, nativeTheme.shouldUseDarkColors);
       await saveConfig(runtime.configDir, runtime.config);
+      if (patch.modelPreferences) {
+        runtime.modelGateway = createModelGateway(runtime.config);
+        runtime.agentRuntime = createAgentRuntime(runtime.stateRepository, runtime.modelGateway);
+        await refreshModelHealthSnapshot(runtime);
+      }
       runtime.logger.info(
         `Preferences updated: language=${runtime.config.language}, themeMode=${runtime.config.themeMode}`,
         {
           language: runtime.config.language,
-          themeMode: runtime.config.themeMode
+          themeMode: runtime.config.themeMode,
+          modelPreferences: patch.modelPreferences
         }
       );
       return ok(createAppInfo());
@@ -1047,6 +1827,8 @@ function registerIpcHandlers(): void {
         return err(ERROR_CODES.internal, "Runtime not initialized.");
       }
       const workspace = await runtime.workspaceService.open(workspacePath);
+      await startWorkspaceWatcher(runtime, workspace.rootPath);
+      await recoverWorkspaceExecutionState(runtime, workspace.id);
       await runtime.retrieval.startIndexing(workspace.id, workspace.rootPath);
       runtime.logger.info(`Workspace open request succeeded for ${workspace.rootPath}`);
       await emitRuntimeEvent(runtime.eventBus, runtime.diagnostics, {
@@ -1070,6 +1852,44 @@ function registerIpcHandlers(): void {
     }
   });
 
+  ipcMain.handle("workspace:readFile", async (_event, relativePath: string): Promise<IpcResult<WorkspaceFileDocument>> => {
+    try {
+      const runtimeState = requireRuntime();
+      const { workspaceRoot } = requireCurrentWorkspaceState();
+      const document = await runtimeState.fsOps.readDocument(workspaceRoot, relativePath);
+      return ok({
+        path: relativePath,
+        content: document.content,
+        lastModifiedAt: document.lastModifiedAt
+      });
+    } catch (error) {
+      const failure = toUserMessage(error);
+      return err(failure.code, failure.message);
+    }
+  });
+
+  ipcMain.handle("workspace:search", async (_event, query: string): Promise<IpcResult<WorkspaceSearchHit[]>> => {
+    try {
+      const runtimeState = requireRuntime();
+      const { workspaceRoot } = requireCurrentWorkspaceState();
+      return ok(await runtimeState.fsOps.search(workspaceRoot, query));
+    } catch (error) {
+      const failure = toUserMessage(error);
+      return err(failure.code, failure.message);
+    }
+  });
+
+  ipcMain.handle("workspace:outline", async (_event, relativePath: string): Promise<IpcResult<FileOutlineItem[]>> => {
+    try {
+      const runtimeState = requireRuntime();
+      const { workspaceRoot } = requireCurrentWorkspaceState();
+      return ok(await runtimeState.fsOps.outline(workspaceRoot, relativePath));
+    } catch (error) {
+      const failure = toUserMessage(error);
+      return err(failure.code, failure.message);
+    }
+  });
+
   ipcMain.handle("retrieval:getStatus", async () => {
     try {
       if (!runtime) {
@@ -1084,6 +1904,220 @@ function registerIpcHandlers(): void {
       return err(failure.code, failure.message);
     }
   });
+
+  ipcMain.handle("conversation:createSession", async (_event, title?: string): Promise<IpcResult<ConversationSessionRecord>> => {
+    try {
+      const { workspaceId } = requireCurrentWorkspaceState();
+      return ok(await requireRuntime().conversationService.createSession(workspaceId, title?.trim() || "Single Agent Session"));
+    } catch (error) {
+      const failure = toUserMessage(error);
+      return err(failure.code, failure.message);
+    }
+  });
+
+  ipcMain.handle("conversation:listSessions", async (): Promise<IpcResult<ConversationSessionRecord[]>> => {
+    try {
+      const { workspaceId } = requireCurrentWorkspaceState();
+      return ok(await requireRuntime().conversationService.listSessions(workspaceId));
+    } catch (error) {
+      const failure = toUserMessage(error);
+      return err(failure.code, failure.message);
+    }
+  });
+
+  ipcMain.handle("conversation:getSession", async (_event, sessionId: string) => {
+    try {
+      return ok(await requireRuntime().conversationService.getSession(sessionId));
+    } catch (error) {
+      const failure = toUserMessage(error);
+      return err(failure.code, failure.message);
+    }
+  });
+
+  ipcMain.handle(
+    "conversation:sendMessage",
+    async (
+      _event,
+      input: { sessionId: string; content: string; scenario?: "chat" | "plan" | "code-edit" }
+    ): Promise<IpcResult<ConversationSendResult>> => {
+      try {
+        return ok(await executeConversationRun(input));
+      } catch (error) {
+        const failure = toUserMessage(error);
+        return err(failure.code, failure.message);
+      }
+    }
+  );
+
+  ipcMain.handle("conversation:cancelMessage", async (_event, runId: string): Promise<IpcResult<AgentRunDetail | undefined>> => {
+    try {
+      const runtimeState = requireRuntime();
+      const detail = await runtimeState.stateRepository.getAgentRunDetail(runId);
+      if (!detail) {
+        return ok(undefined);
+      }
+      await runtimeState.stateRepository.upsertAgentRun({
+        ...detail.run,
+        status: "aborted",
+        updatedAt: Date.now(),
+        completedAt: Date.now()
+      });
+      return ok(await runtimeState.stateRepository.getAgentRunDetail(runId));
+    } catch (error) {
+      const failure = toUserMessage(error);
+      return err(failure.code, failure.message);
+    }
+  });
+
+  ipcMain.handle(
+    "agent:startRun",
+    async (
+      _event,
+      input: { sessionId: string; prompt: string; scenario?: "chat" | "plan" | "code-edit" }
+    ): Promise<IpcResult<ConversationSendResult>> => {
+      try {
+        return ok(
+          await executeConversationRun({
+            sessionId: input.sessionId,
+            content: input.prompt,
+            scenario: input.scenario
+          })
+        );
+      } catch (error) {
+        const failure = toUserMessage(error);
+        return err(failure.code, failure.message);
+      }
+    }
+  );
+
+  ipcMain.handle("agent:getRun", async (_event, runId: string): Promise<IpcResult<AgentRunDetail | undefined>> => {
+    try {
+      return ok(await requireRuntime().agentRuntime.getRun(runId));
+    } catch (error) {
+      const failure = toUserMessage(error);
+      return err(failure.code, failure.message);
+    }
+  });
+
+  ipcMain.handle("agent:retryRun", async (_event, runId: string): Promise<IpcResult<AgentRunDetail | undefined>> => {
+    try {
+      const runtimeState = requireRuntime();
+      const detail = await runtimeState.agentRuntime.getRun(runId);
+      if (!detail) {
+        return ok(undefined);
+      }
+      const rerun = await executeConversationRun({
+        sessionId: detail.run.sessionId,
+        content: detail.run.prompt,
+        scenario: detail.run.scenario
+      });
+      return ok(rerun.runDetail);
+    } catch (error) {
+      const failure = toUserMessage(error);
+      return err(failure.code, failure.message);
+    }
+  });
+
+  ipcMain.handle("agent:abortRun", async (_event, runId: string): Promise<IpcResult<AgentRunDetail | undefined>> => {
+    try {
+      const runtimeState = requireRuntime();
+      const detail = await runtimeState.stateRepository.getAgentRunDetail(runId);
+      if (!detail) {
+        return ok(undefined);
+      }
+      await runtimeState.stateRepository.upsertAgentRun({
+        ...detail.run,
+        status: "aborted",
+        updatedAt: Date.now(),
+        completedAt: Date.now()
+      });
+      return ok(await runtimeState.stateRepository.getAgentRunDetail(runId));
+    } catch (error) {
+      const failure = toUserMessage(error);
+      return err(failure.code, failure.message);
+    }
+  });
+
+  ipcMain.handle("patch:getPatchSet", async (_event, patchSetId: string): Promise<IpcResult<PatchSet | undefined>> => {
+    try {
+      return ok(await requireRuntime().stateRepository.getPatchSet(patchSetId));
+    } catch (error) {
+      const failure = toUserMessage(error);
+      return err(failure.code, failure.message);
+    }
+  });
+
+  ipcMain.handle(
+    "patch:setHunkDecision",
+    async (
+      _event,
+      input: { patchSetId: string; hunkId: string; decision: "pending" | "accepted" | "rejected" }
+    ): Promise<IpcResult<PatchSet>> => {
+      try {
+        return ok(await requireRuntime().stateRepository.setPatchHunkDecision(input));
+      } catch (error) {
+        const failure = toUserMessage(error);
+        return err(failure.code, failure.message);
+      }
+    }
+  );
+
+  ipcMain.handle("patch:applyPatchSet", async (_event, patchSetId: string): Promise<IpcResult<PatchApplicationResult>> => {
+    try {
+      return ok(await applyPatchAndValidate(patchSetId));
+    } catch (error) {
+      const failure = toUserMessage(error);
+      return err(failure.code, failure.message);
+    }
+  });
+
+  ipcMain.handle("patch:rollbackPatchSet", async (_event, patchSetId: string): Promise<IpcResult<PatchSet>> => {
+    try {
+      const runtimeState = requireRuntime();
+      const { workspaceRoot } = requireCurrentWorkspaceState();
+      const patchSet = await runtimeState.stateRepository.getPatchSet(patchSetId);
+      if (!patchSet) {
+        return err(ERROR_CODES.notFound, "Patch set not found.");
+      }
+      const rolledBack = await runtimeState.changeEngine.rollbackPatchSet(workspaceRoot, patchSet);
+      await runtimeState.stateRepository.upsertPatchSet(rolledBack);
+      return ok(rolledBack);
+    } catch (error) {
+      const failure = toUserMessage(error);
+      return err(failure.code, failure.message);
+    }
+  });
+
+  ipcMain.handle("command:getProfiles", async () =>
+    ok([
+      { id: "build", label: "Build" },
+      { id: "test", label: "Test" },
+      { id: "lint", label: "Lint" },
+      { id: "install", label: "Install" },
+      { id: "custom", label: "Custom" }
+    ])
+  );
+
+  ipcMain.handle(
+    "command:run",
+    async (
+      _event,
+      input: { command: string; args: string[]; shell?: boolean }
+    ): Promise<IpcResult<CommandRunResult>> => {
+      try {
+        return ok(await executeGovernedCommand(input));
+      } catch (error) {
+        if (runtime) {
+          void recordRuntimeError(runtime.errorReporter, runtime.diagnostics, runtime.logger, error, {
+            surface: "command:run",
+            command: input.command
+          });
+        }
+        const failure = toUserMessage(error);
+        return err(failure.code, failure.message);
+      }
+    }
+  );
 
   ipcMain.handle("task:getSnapshot", async (): Promise<IpcResult<TaskCenterSnapshot>> => {
     if (!runtime) {
@@ -1229,6 +2263,7 @@ app.on("window-all-closed", () => {
 
 app.on("before-quit", () => {
   if (runtime) {
+    void runtime.workspaceWatcher.close();
     void emitRuntimeEvent(runtime.eventBus, runtime.diagnostics, {
       type: EVENT_NAMES.appShutdown,
       timestamp: Date.now(),

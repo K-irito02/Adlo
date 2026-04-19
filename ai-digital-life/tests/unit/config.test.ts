@@ -37,14 +37,32 @@ describe("config", () => {
         language: "en-US",
         themeMode: "dark",
         logLevel: "debug",
-        maxRecentWorkspaces: 12
+        maxRecentWorkspaces: 12,
+        modelPreferences: {
+          providers: {
+            deepseek: {
+              enabled: false,
+              priority: 2,
+              modelId: "deepseek-reasoner"
+            }
+          }
+        }
       })
     ).toMatchObject({
       language: "en-US",
       themeMode: "dark",
       resolvedTheme: "dark",
       logLevel: "debug",
-      maxRecentWorkspaces: 12
+      maxRecentWorkspaces: 12,
+      modelPreferences: {
+        providers: {
+          deepseek: {
+            enabled: false,
+            priority: 2,
+            modelId: "deepseek-reasoner"
+          }
+        }
+      }
     });
   });
 
@@ -52,13 +70,25 @@ describe("config", () => {
     expect(
       applyConfigPatch(DEFAULT_CONFIG, {
         language: "en-US",
-        themeMode: "dark"
+        themeMode: "dark",
+        modelPreferences: {
+          minimax: {
+            priority: 1
+          }
+        }
       })
     ).toMatchObject({
       language: "en-US",
       themeMode: "dark",
       resolvedTheme: "dark",
-      logLevel: "info"
+      logLevel: "info",
+      modelPreferences: {
+        providers: {
+          minimax: {
+            priority: 1
+          }
+        }
+      }
     });
   });
 
@@ -78,7 +108,8 @@ describe("config", () => {
       language: "en-US",
       themeMode: "dark",
       logLevel: "info",
-      maxRecentWorkspaces: 8
+      maxRecentWorkspaces: 8,
+      modelPreferences: DEFAULT_CONFIG.modelPreferences
     });
   });
 });

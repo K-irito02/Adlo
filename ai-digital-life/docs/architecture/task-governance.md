@@ -11,6 +11,13 @@ The implementation now persists:
 
 These records live in SQLite and currently back the home-shell governance panel.
 
+Phase 2 tranche 1 additionally persists:
+
+- conversation sessions and messages
+- single-agent run metadata and plan steps
+- patch-set, file-patch, and hunk decision state
+- model provider preference metadata in the config layer
+
 ## Runtime Rules
 
 - Task orchestration remains separate from command execution.
@@ -21,8 +28,13 @@ These records live in SQLite and currently back the home-shell governance panel.
 - Approved high-risk requests create a checkpoint payload bundle and metadata anchor before future execution layers take over.
 - Pending approvals can now time out explicitly and write timeout audit records instead of remaining open forever.
 - The desktop shell can trigger restore execution from the latest checkpoint payload, and the resulting restore task is recorded as a rollback-style task outcome.
+- Patch application in the Phase 2 workspace shell remains explicit and checkpoint-backed; the renderer can review and change hunk decisions but cannot write files directly.
+- Patch application now drives a minimal validation loop: the system selects a workspace validation command, stores the execution record, persists structured validation output, and rolls back automatically when verification fails.
+- Single-agent execution now routes through real `DeepSeek` and `MiniMax` providers when configured, with a synthetic fallback only after both providers fail.
+- Validation failure can generate one conservative repair preview; it does not auto-apply the follow-up change.
 
 ## Present Limits
 
 - Task execution is still shell-owned and synthetic for Phase 0 baseline flows.
 - Restore execution currently replays captured files only; it does not yet replay deletions or handle merge conflicts.
+- More advanced model routing telemetry, streaming outputs, and multi-step automatic repair loops remain incomplete.
