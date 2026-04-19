@@ -33,6 +33,12 @@ export interface DigitalLifeBridge {
   subscribeModelStream: (listener: (event: DigitalLifeModelStreamEventV1) => void) => () => void;
   /** Subscribe to Main-originated terminal stream events (typed, no secrets). */
   subscribeTerminalStream: (listener: (event: DigitalLifeTerminalStreamEventV1) => void) => () => void;
+  window: {
+    minimize: () => Promise<void>;
+    maximize: () => Promise<void>;
+    close: () => Promise<void>;
+    isMaximized: () => Promise<boolean>;
+  };
   app: {
     getInfo: () => Promise<IpcResult<AppInfo>>;
     getHealth: () => Promise<IpcResult<HealthSnapshot>>;

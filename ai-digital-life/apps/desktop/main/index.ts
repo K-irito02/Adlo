@@ -2227,6 +2227,26 @@ async function restoreCheckpoint(checkpointId: string): Promise<TaskCenterSnapsh
 }
 
 function registerIpcHandlers(): void {
+  ipcMain.handle("window:minimize", () => {
+    mainWindow?.minimize();
+  });
+
+  ipcMain.handle("window:maximize", () => {
+    if (mainWindow?.isMaximized()) {
+      mainWindow.unmaximize();
+    } else {
+      mainWindow?.maximize();
+    }
+  });
+
+  ipcMain.handle("window:close", () => {
+    mainWindow?.close();
+  });
+
+  ipcMain.handle("window:isMaximized", (): boolean => {
+    return mainWindow?.isMaximized() ?? false;
+  });
+
   ipcMain.handle("app:getInfo", async (): Promise<IpcResult<AppInfo>> => {
     try {
       return ok(createAppInfo());
@@ -2769,7 +2789,11 @@ async function createWindow(): Promise<void> {
     x: windowState.x,
     y: windowState.y,
     show: false,
+    frame: false,
+    titleBarStyle: "hidden",
+    titleBarOverlay: false,
     backgroundColor: "#0e1217",
+    trafficLightPosition: { x: 8, y: 8 },
     webPreferences: {
       preload: path.join(__dirname, "../preload/index.js"),
       contextIsolation: true,

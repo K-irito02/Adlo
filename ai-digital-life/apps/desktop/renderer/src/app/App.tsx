@@ -79,6 +79,7 @@ export function App() {
   const editorDirtyTimerRef = useRef<number | undefined>(undefined);
   const [diffSideBySide, setDiffSideBySide] = useState(readDiffSideBySidePreference);
   const [colorScheme, setColorScheme] = useState<ColorScheme>(() => themeController.getState().colorScheme);
+  const [isMaximized, setIsMaximized] = useState(false);
 
   const persistDiffLayout = useCallback((sideBySide: boolean) => {
     setDiffSideBySide(sideBySide);
@@ -264,6 +265,28 @@ export function App() {
     themeController.setColorScheme(scheme);
   };
 
+  const handleWindowMinimize = useCallback(() => {
+    void window.digitalLife.window.minimize();
+  }, []);
+
+  const handleWindowMaximize = useCallback(async () => {
+    await window.digitalLife.window.maximize();
+    setIsMaximized(await window.digitalLife.window.isMaximized());
+  }, []);
+
+  const handleWindowClose = useCallback(() => {
+    void window.digitalLife.window.close();
+  }, []);
+
+  useEffect(() => {
+    const syncMaximized = async () => {
+      setIsMaximized(await window.digitalLife.window.isMaximized());
+    };
+    void syncMaximized();
+    const timer = setInterval(syncMaximized, 500);
+    return () => clearInterval(timer);
+  }, []);
+
   if (loading) {
     const loadingCopy = copy[(appInfo?.config.language ?? "zh-CN") as Locale];
     return (
@@ -316,6 +339,43 @@ export function App() {
             <option value="light">Light</option>
             <option value="dark">Dark</option>
           </select>
+        </div>
+        <div className="adl-ide-titlebar-controls">
+          <button
+            type="button"
+            className="adl-titlebar-control-btn"
+            aria-label="Minimize"
+            onClick={handleWindowMinimize}
+          >
+            <svg width="10" height="1" viewBox="0 0 10 1" fill="currentColor"><rect width="10" height="1"/></svg>
+          </button>
+          <button
+            type="button"
+            className="adl-titlebar-control-btn"
+            aria-label={isMaximized ? "Restore" : "Maximize"}
+            onClick={handleWindowMaximize}
+          >
+            {isMaximized ? (
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.2">
+                <rect x="1" y="3.5" width="6.5" height="6.5" rx="0.5"/>
+                <path d="M3.5 6.5V1.5C3.5 1 4 0.5 4.5 0.5H8.5C9 0.5 9.5 1 9.5 1.5V5.5C9.5 6 9 6.5 8.5 6.5H6.5"/>
+              </svg>
+            ) : (
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.2">
+                <rect x="0.6" y="0.6" width="8.8" height="8.8" rx="0.8"/>
+              </svg>
+            )}
+          </button>
+          <button
+            type="button"
+            className="adl-titlebar-control-btn adl-titlebar-control-btn--close"
+            aria-label="Close"
+            onClick={handleWindowClose}
+          >
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.2">
+              <path d="M1 1L9 9M9 1L1 9"/>
+            </svg>
+          </button>
         </div>
       </header>
 

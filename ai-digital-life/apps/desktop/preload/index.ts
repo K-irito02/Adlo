@@ -20,6 +20,12 @@ const api: DigitalLifeBridge = {
       ipcRenderer.removeListener("digitalLife:terminalStream", handler);
     };
   },
+  window: {
+    minimize: () => ipcRenderer.invoke("window:minimize"),
+    maximize: () => ipcRenderer.invoke("window:maximize"),
+    close: () => ipcRenderer.invoke("window:close"),
+    isMaximized: () => ipcRenderer.invoke("window:isMaximized")
+  },
   app: {
     getInfo: () => ipcRenderer.invoke("app:getInfo"),
     getHealth: () => ipcRenderer.invoke("app:getHealth"),

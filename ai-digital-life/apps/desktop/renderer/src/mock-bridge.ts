@@ -299,6 +299,12 @@ function createSendResult(sessionId: string, content: string): ConversationSendR
 export const mockDigitalLifeBridge: DigitalLifeBridge = {
   subscribeModelStream: () => () => undefined,
   subscribeTerminalStream: () => () => undefined,
+  window: {
+    minimize: async () => {},
+    maximize: async () => {},
+    close: async () => {},
+    isMaximized: async () => false
+  },
   app: {
     getInfo: async () => ({ ok: true, data: appInfo }),
     getHealth: async () => ({

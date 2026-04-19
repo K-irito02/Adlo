@@ -17,6 +17,7 @@ alwaysApply: true
 | `design-system.md` | 设计系统约束、主题、组件规范 | 涉及 UI/样式时 |
 | `phase-boundary.md` | 阶段边界、范围限制、排除项 | 涉及新功能规划时 |
 | `commands.md` | 常用命令速查、脚本入口 | 执行命令时 |
+| `desktop-ui-verification.md` | 桌面端 UI 验证流程、修改后必须重启应用 | 修改 renderer UI 时 |
 
 ## 新增规则文件
 
