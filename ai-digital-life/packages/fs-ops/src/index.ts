@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import chokidar, { type FSWatcher } from "chokidar";
@@ -67,6 +68,13 @@ export class WorkspaceFsService {
   async readFile(rootPath: string, relativePath: string): Promise<string> {
     const document = await this.readDocument(rootPath, relativePath);
     return document.content;
+  }
+
+  /** SHA256 hex digest of file bytes (UTF-8 read); throws if missing. */
+  async sha256File(rootPath: string, relativePath: string): Promise<string> {
+    const absolutePath = assertWorkspacePath(rootPath, relativePath);
+    const buf = await fs.readFile(absolutePath);
+    return crypto.createHash("sha256").update(buf).digest("hex");
   }
 
   async search(rootPath: string, query: string, limit = 20): Promise<WorkspaceSearchHit[]> {
@@ -141,8 +149,27 @@ export class WorkspaceFsService {
     });
   }
 
-  async atomicWrite(rootPath: string, relativePath: string, content: string): Promise<void> {
+  async atomicWrite(
+    rootPath: string,
+    relativePath: string,
+    content: string,
+    options?: { expectSha256Before?: string }
+  ): Promise<void> {
     const absolutePath = assertWorkspacePath(rootPath, relativePath);
+    if (options?.expectSha256Before) {
+      try {
+        const current = await fs.readFile(absolutePath);
+        const digest = crypto.createHash("sha256").update(current).digest("hex");
+        if (digest !== options.expectSha256Before) {
+          throw new WorkspaceError("Pre-write hash did not match disk contents; refusing atomic write.");
+        }
+      } catch (error) {
+        if (error instanceof WorkspaceError) {
+          throw error;
+        }
+        throw new WorkspaceError("Could not verify pre-write hash (file missing or unreadable).");
+      }
+    }
     const tempPath = `${absolutePath}.tmp-${Date.now()}`;
     await fs.mkdir(path.dirname(absolutePath), { recursive: true });
     await fs.writeFile(tempPath, content, "utf8");

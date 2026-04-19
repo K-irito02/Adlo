@@ -11,12 +11,13 @@ import {
   type ConversationBlock,
   type ConversationScenario,
   type DiagnosticSummary,
+  type ModelResponse,
   type PatchSet,
   type ValidationResult,
   createId
 } from "@ai-digital-life/kernel";
 import { ModelGateway } from "@ai-digital-life/model-gateway";
-import { buildPrompt } from "@ai-digital-life/prompt-engine";
+import { assemblePromptBundle, rememberPromptVersion, wrapUntrustedReference } from "@ai-digital-life/prompt-engine";
 import type { StateRepository } from "@ai-digital-life/storage";
 
 export interface AgentExecutionResult {
@@ -26,8 +27,31 @@ export interface AgentExecutionResult {
   patchSet?: PatchSet;
 }
 
-function extractExplicitPaths(prompt: string): string[] {
-  return Array.from(prompt.matchAll(/@([A-Za-z0-9_./-]+)/g)).map((match) => match[1]);
+/** Prepared DB state + prompt construction before any model IO. */
+export interface AgentRunBootstrap {
+  run: AgentRunRecord;
+  steps: AgentPlanStep[];
+  promptText: string;
+  contextSummary: string;
+  scenario: ConversationScenario;
+  explicitPaths: string[];
+  workspaceRoot: string;
+  workspaceId: string;
+  sessionId: string;
+  userFacingPrompt: string;
+}
+
+function extractFileMarkers(prompt: string): string[] {
+  const unique = new Set<string>();
+  for (const match of prompt.matchAll(/@(?:file:)?([A-Za-z0-9_./-]+)/g)) {
+    unique.add(match[1]);
+  }
+  return [...unique];
+}
+
+function extractSymbolName(prompt: string): string | undefined {
+  const match = /@symbol:([A-Za-z0-9_]+)/.exec(prompt);
+  return match?.[1];
 }
 
 function createPlanSteps(runId: string): AgentPlanStep[] {
@@ -117,13 +141,88 @@ export class AgentRuntimeService {
     this.modelGateway = options?.modelGateway ?? new ModelGateway({ providerPreferences: options?.providerPreferences });
   }
 
-  async startRun(input: {
+  private async buildContextEntries(input: {
+    workspaceRoot: string;
+    workspaceId: string;
+    prompt: string;
+  }): Promise<ContextEntry[]> {
+    const entries: ContextEntry[] = [];
+    const markers = extractFileMarkers(input.prompt);
+    for (const relativePath of markers) {
+      try {
+        const content = await this.fsOps.readFile(input.workspaceRoot, relativePath);
+        entries.push({
+          id: createId("ctx"),
+          type: "file",
+          label: relativePath,
+          path: relativePath,
+          content,
+          tokenEstimate: Math.max(120, Math.ceil(content.length / 4))
+        });
+      } catch {
+        entries.push({
+          id: createId("ctx"),
+          type: "file",
+          label: relativePath,
+          path: relativePath,
+          content: "(file not readable)",
+          tokenEstimate: 80
+        });
+      }
+    }
+
+    const symbol = extractSymbolName(input.prompt);
+    if (symbol) {
+      const scanFiles =
+        markers.length > 0
+          ? markers
+          : (await this.fsOps.listFiles(input.workspaceRoot)).filter((p) => /\.(ts|tsx|js|jsx|md)$/.test(p)).slice(0, 60);
+      const hits: string[] = [];
+      for (const filePath of scanFiles) {
+        const outline = await this.fsOps.outline(input.workspaceRoot, filePath);
+        if (outline.some((item) => item.label === symbol)) {
+          hits.push(filePath);
+          if (hits.length >= 3) {
+            break;
+          }
+        }
+      }
+      const summary = hits.length
+        ? `Symbol "${symbol}" matched in: ${hits.join(", ")}`
+        : `Symbol "${symbol}" not found in scanned outlines.`;
+      entries.push({
+        id: createId("ctx"),
+        type: "outline",
+        label: `symbol:${symbol}`,
+        content: summary,
+        tokenEstimate: Math.max(80, summary.length / 4)
+      });
+    }
+
+    if (/@terminal:last\b/.test(input.prompt)) {
+      const latest = await this.stateRepository.getLatestCommandRequest(input.workspaceId);
+      const summary = latest
+        ? `terminal: ${latest.command} ${latest.args.join(" ")} (profile ${latest.profile}, risk ${latest.riskLevel})`
+        : "terminal: (no recorded commands for this workspace yet)";
+      entries.push({
+        id: createId("ctx"),
+        type: "message",
+        label: "terminal:last",
+        content: wrapUntrustedReference("last-command", summary),
+        tokenEstimate: Math.max(60, summary.length / 4)
+      });
+    }
+
+    return entries;
+  }
+
+  async prepareAgentRun(input: {
     workspaceId: string;
     sessionId: string;
     workspaceRoot: string;
     prompt: string;
     scenario?: ConversationScenario;
-  }): Promise<AgentExecutionResult> {
+  }): Promise<AgentRunBootstrap> {
     const runId = createId("run");
     const now = Date.now();
     const scenario = input.scenario ?? "code-edit";
@@ -134,7 +233,7 @@ export class AgentRuntimeService {
       sessionId: input.sessionId,
       prompt: input.prompt,
       scenario,
-      status: "ready",
+      status: "planning",
       createdAt: now,
       updatedAt: now
     };
@@ -143,37 +242,51 @@ export class AgentRuntimeService {
     await this.stateRepository.upsertAgentRun(run);
     await this.stateRepository.replaceAgentSteps(runId, steps);
 
-    const explicitPaths = extractExplicitPaths(input.prompt);
-    const contextEntries: ContextEntry[] = explicitPaths.map((relativePath) => ({
-      id: createId("ctx"),
-      type: "file",
-      label: relativePath,
-      path: relativePath,
-      content: "",
-      tokenEstimate: 200
-    }));
-    const promptText = buildPrompt({
+    const explicitPaths = extractFileMarkers(input.prompt);
+    const contextEntries = await this.buildContextEntries({
+      workspaceRoot: input.workspaceRoot,
+      workspaceId: input.workspaceId,
+      prompt: input.prompt
+    });
+    const bundle = assemblePromptBundle({
       scenario,
       sessionTitle: `workspace:${path.basename(input.workspaceRoot)}`,
       prompt: input.prompt
     });
+    rememberPromptVersion(input.workspaceId, bundle.versionId, bundle.finalText);
+    const promptText = bundle.finalText;
     const contextSummary = summarizeContext(selectContextWindow(contextEntries));
-    const modelResponse = await this.modelGateway.generateResponse({
-      scenario,
-      prompt: promptText,
-      contextSummary
-    });
 
+    return {
+      run,
+      steps,
+      promptText,
+      contextSummary,
+      scenario,
+      explicitPaths,
+      workspaceRoot: input.workspaceRoot,
+      workspaceId: input.workspaceId,
+      sessionId: input.sessionId,
+      userFacingPrompt: input.prompt
+    };
+  }
+
+  async completeAgentRunWithModelResponse(
+    bootstrap: AgentRunBootstrap,
+    modelResponse: ModelResponse
+  ): Promise<AgentExecutionResult> {
+    const run = { ...bootstrap.run, updatedAt: Date.now(), status: "ready" as const };
+    const { steps } = bootstrap;
     let patchSet: PatchSet | undefined;
 
-    if (explicitPaths.length > 0) {
-      const relativePath = explicitPaths[0];
-      const beforeContent = await this.fsOps.readFile(input.workspaceRoot, relativePath);
-      const afterContent = buildPatchContent(input.prompt, beforeContent, modelResponse.content);
+    if (bootstrap.explicitPaths.length > 0) {
+      const relativePath = bootstrap.explicitPaths[0];
+      const beforeContent = await this.fsOps.readFile(bootstrap.workspaceRoot, relativePath);
+      const afterContent = buildPatchContent(bootstrap.userFacingPrompt, beforeContent, modelResponse.content);
       patchSet = this.changeEngine.createSingleHunkPatchSet({
-        workspaceId: input.workspaceId,
-        sessionId: input.sessionId,
-        runId,
+        workspaceId: bootstrap.workspaceId,
+        sessionId: bootstrap.sessionId,
+        runId: run.id,
         relativePath,
         beforeContent,
         afterContent,
@@ -183,8 +296,9 @@ export class AgentRuntimeService {
       await this.stateRepository.upsertPatchSet(patchSet);
       run.patchSetId = patchSet.id;
       run.summary = `Prepared patch preview for ${relativePath} using ${modelResponse.modelId}.`;
-      await this.stateRepository.upsertAgentRun(run);
     }
+
+    await this.stateRepository.upsertAgentRun(run);
 
     const assistantBlocks: ConversationBlock[] = [
       {
@@ -228,6 +342,27 @@ export class AgentRuntimeService {
       assistantBlocks,
       patchSet
     };
+  }
+
+  async startRun(input: {
+    workspaceId: string;
+    sessionId: string;
+    workspaceRoot: string;
+    prompt: string;
+    scenario?: ConversationScenario;
+  }): Promise<AgentExecutionResult> {
+    const bootstrap = await this.prepareAgentRun(input);
+    await this.stateRepository.upsertAgentRun({
+      ...bootstrap.run,
+      status: "executing",
+      updatedAt: Date.now()
+    });
+    const modelResponse = await this.modelGateway.generateResponse({
+      scenario: bootstrap.scenario,
+      prompt: bootstrap.promptText,
+      contextSummary: bootstrap.contextSummary
+    });
+    return this.completeAgentRunWithModelResponse(bootstrap, modelResponse);
   }
 
   async getRun(runId: string): Promise<AgentRunDetail | undefined> {

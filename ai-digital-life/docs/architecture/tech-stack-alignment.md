@@ -32,6 +32,7 @@
 - DeepSeek / MiniMax 模型路由与健康检查
 - Patch 预览、应用、验证与回滚
 - 命令审批与恢复审计
+- 终端包 `executeStream` 与桌面 `digitalLife:terminalStream` 事件（与模型流式相同的安全模式：Main 执行、Renderer 只读订阅）
 
 因此当前实现保留了 `stageOne` 核心主线的技术方向，但没有为了“名义对齐”提前引入未被当前 slice 使用的依赖。这样做的优点是：
 

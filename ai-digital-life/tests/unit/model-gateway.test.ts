@@ -149,6 +149,49 @@ describe("model gateway", () => {
     expect(result.content).toBe("MiniMax 接管成功");
   });
 
+  it("streams deepseek sse chunks", async () => {
+    const sse =
+      'data: {"choices":[{"delta":{"content":"你"}}]}\n\ndata: {"choices":[{"delta":{"content":"好"}}]}\n\ndata: [DONE]\n\n';
+    const encoder = new TextEncoder();
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode(sse));
+        controller.close();
+      }
+    });
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(body, {
+          status: 200,
+          headers: { "Content-Type": "text/event-stream" }
+        })
+    );
+    const gateway = new ModelGateway({
+      apiKey: "token",
+      baseUrl: "https://api.deepseek.com",
+      model: "deepseek-chat",
+      fetchImpl: fetchImpl as unknown as typeof fetch
+    });
+
+    const deltas: string[] = [];
+    for await (const event of gateway.generateResponseStream({
+      scenario: "chat",
+      prompt: "ping",
+      runId: "run-test",
+      workspaceId: "ws-1",
+      sessionId: "sess-1"
+    })) {
+      if (event.type === "delta") {
+        deltas.push(event.text);
+      }
+    }
+
+    expect(deltas.join("")).toBe("你好");
+    expect(fetchImpl).toHaveBeenCalled();
+    const init = fetchImpl.mock.calls[0]?.[1] as { body?: string };
+    expect(init?.body).toContain('"stream":true');
+  });
+
   it("honors provider preferences for enabled state and priority", async () => {
     const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);

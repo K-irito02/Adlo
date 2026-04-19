@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  TerminalService,
   analyzeRetryDisposition,
   buildValidationResult,
   classifyCommandProfile,
@@ -8,6 +9,32 @@ import {
 } from "@ai-digital-life/terminal";
 
 describe("terminal", () => {
+  it("executeStream forwards stdout chunks", async () => {
+    const logger = { info: () => undefined, warn: () => undefined } as import("@ai-digital-life/logger").Logger;
+    const service = new TerminalService(logger);
+    const chunks: string[] = [];
+    const result = await service.executeStream(
+      {
+        id: "cmd-stream-1",
+        workspaceId: "ws",
+        profile: "custom",
+        command: process.execPath,
+        args: ["-e", "console.log('stream-line')"],
+        shell: false,
+        riskLevel: "low",
+        createdAt: Date.now()
+      },
+      process.cwd(),
+      {
+        onStdout: (text) => {
+          chunks.push(text);
+        }
+      }
+    );
+    expect(result.success).toBe(true);
+    expect(chunks.join("")).toContain("stream-line");
+  });
+
   it("classifies common command profiles", () => {
     expect(classifyCommandProfile("npm run test")).toEqual({
       profile: "test",

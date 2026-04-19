@@ -2,6 +2,24 @@ import { contextBridge, ipcRenderer } from "electron";
 import type { DigitalLifeBridge } from "../shared/ipc";
 
 const api: DigitalLifeBridge = {
+  subscribeModelStream: (listener) => {
+    const handler = (_event: Electron.IpcRendererEvent, payload: unknown) => {
+      listener(payload as Parameters<typeof listener>[0]);
+    };
+    ipcRenderer.on("digitalLife:modelStream", handler);
+    return () => {
+      ipcRenderer.removeListener("digitalLife:modelStream", handler);
+    };
+  },
+  subscribeTerminalStream: (listener) => {
+    const handler = (_event: Electron.IpcRendererEvent, payload: unknown) => {
+      listener(payload as Parameters<typeof listener>[0]);
+    };
+    ipcRenderer.on("digitalLife:terminalStream", handler);
+    return () => {
+      ipcRenderer.removeListener("digitalLife:terminalStream", handler);
+    };
+  },
   app: {
     getInfo: () => ipcRenderer.invoke("app:getInfo"),
     getHealth: () => ipcRenderer.invoke("app:getHealth"),
@@ -15,6 +33,7 @@ const api: DigitalLifeBridge = {
     readFile: (relativePath: string) => ipcRenderer.invoke("workspace:readFile", relativePath),
     search: (query: string) => ipcRenderer.invoke("workspace:search", query),
     outline: (relativePath: string) => ipcRenderer.invoke("workspace:outline", relativePath),
+    setEditorDirtyPaths: (relativePaths: string[]) => ipcRenderer.invoke("workspace:setEditorDirtyPaths", relativePaths),
     onFileChanged: (listener) => {
       const handler = (_event: Electron.IpcRendererEvent, payload: unknown) => {
         listener(payload as Parameters<typeof listener>[0]);
@@ -49,7 +68,10 @@ const api: DigitalLifeBridge = {
   },
   command: {
     getProfiles: () => ipcRenderer.invoke("command:getProfiles"),
-    run: (input) => ipcRenderer.invoke("command:run", input)
+    run: (input) => ipcRenderer.invoke("command:run", input),
+    runStream: (input) => ipcRenderer.invoke("command:runStream", input),
+    stopStream: (executionId: string) => ipcRenderer.invoke("command:stopStream", executionId),
+    listRecent: (limit?: number) => ipcRenderer.invoke("command:listRecent", limit)
   },
   task: {
     getSnapshot: () => ipcRenderer.invoke("task:getSnapshot"),

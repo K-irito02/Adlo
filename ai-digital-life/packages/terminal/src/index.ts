@@ -250,6 +250,120 @@ export function detectWorkspaceValidationCommand(rootPath: string, workspaceType
 export class TerminalService {
   constructor(private readonly logger: Logger) {}
 
+  /**
+   * Runs a command with incremental stdout/stderr callbacks (single attempt; no retries).
+   * Honors `signal` by killing the child process.
+   */
+  async executeStream(
+    request: CommandRequest,
+    workspaceRoot: string,
+    options?: {
+      signal?: AbortSignal;
+      onStdout?: (chunk: string) => void;
+      onStderr?: (chunk: string) => void;
+      /** Total retained stdout+stderr cap to limit memory (default 512 KiB each side, soft-trim oldest). */
+      maxBufferChars?: number;
+    }
+  ): Promise<CommandExecutionResult> {
+    if (!isWorkspacePath(workspaceRoot, workspaceRoot)) {
+      throw new Error("Invalid workspace root.");
+    }
+
+    const startedAt = Date.now();
+    const maxBuffer = Math.max(4096, options?.maxBufferChars ?? 524_288);
+    this.logger.info(`Streaming command: ${request.command} ${request.args.join(" ")}`, {
+      profile: request.profile,
+      runId: request.runId
+    });
+
+    return new Promise<CommandExecutionResult>((resolve, reject) => {
+      const child = spawn(request.command, request.args, {
+        cwd: workspaceRoot,
+        shell: request.shell,
+        windowsHide: true
+      });
+
+      let stdout = "";
+      let stderr = "";
+      let timeoutHandle: NodeJS.Timeout | undefined;
+      let settled = false;
+
+      const softAppend = (side: "stdout" | "stderr", chunk: string, onChunk?: (c: string) => void) => {
+        if (side === "stdout") {
+          stdout += chunk;
+          if (stdout.length > maxBuffer) {
+            stdout = stdout.slice(-maxBuffer);
+          }
+          onChunk?.(chunk);
+        } else {
+          stderr += chunk;
+          if (stderr.length > maxBuffer) {
+            stderr = stderr.slice(-maxBuffer);
+          }
+          onChunk?.(chunk);
+        }
+      };
+
+      const onAbort = () => {
+        if (!settled) {
+          child.kill("SIGTERM");
+        }
+      };
+      options?.signal?.addEventListener("abort", onAbort, { once: true });
+
+      const finish = (result: CommandExecutionResult) => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        options?.signal?.removeEventListener("abort", onAbort);
+        if (timeoutHandle) {
+          clearTimeout(timeoutHandle);
+        }
+        resolve(result);
+      };
+
+      child.stdout?.on("data", (chunk) => {
+        softAppend("stdout", chunk.toString(), options?.onStdout);
+      });
+      child.stderr?.on("data", (chunk) => {
+        softAppend("stderr", chunk.toString(), options?.onStderr);
+      });
+      child.on("error", (error) => {
+        if (timeoutHandle) {
+          clearTimeout(timeoutHandle);
+        }
+        options?.signal?.removeEventListener("abort", onAbort);
+        if (settled) {
+          return;
+        }
+        settled = true;
+        reject(error);
+      });
+      child.on("close", (exitCode, signal) => {
+        const completedAt = Date.now();
+        const killedByAbort = options?.signal?.aborted === true;
+        finish({
+          request,
+          exitCode,
+          signal: signal ?? undefined,
+          stdout,
+          stderr,
+          summary: killedByAbort
+            ? "Command stopped by user."
+            : summarizeOutput(stdout, stderr, exitCode),
+          success: !killedByAbort && exitCode === 0,
+          startedAt,
+          completedAt
+        });
+      });
+
+      timeoutHandle = setTimeout(() => {
+        child.kill("SIGTERM");
+      }, 60_000);
+    });
+  }
+
   async execute(request: CommandRequest, workspaceRoot: string): Promise<CommandExecutionResult> {
     if (!isWorkspacePath(workspaceRoot, workspaceRoot)) {
       throw new Error("Invalid workspace root.");

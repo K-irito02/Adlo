@@ -27,6 +27,7 @@ import {
   type TaskRecord,
   type ToolInvocationRecord,
   type ValidationResult,
+  type ModelCallAuditRecord,
   type WorkspaceMeta,
   type RepoMapEntry,
   type RetrievalFileTypeCount,
@@ -291,6 +292,39 @@ export class StateRepository {
         metadata_json TEXT NOT NULL,
         updated_at INTEGER NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS model_call_audit (
+        id TEXT PRIMARY KEY,
+        request_id TEXT NOT NULL,
+        workspace_id TEXT NOT NULL,
+        session_id TEXT NOT NULL,
+        run_id TEXT,
+        provider_id TEXT NOT NULL,
+        model_id TEXT NOT NULL,
+        scenario TEXT NOT NULL,
+        route_meta_json TEXT NOT NULL,
+        prompt_tokens INTEGER,
+        completion_tokens INTEGER,
+        latency_ms INTEGER NOT NULL,
+        error TEXT,
+        streamed INTEGER NOT NULL,
+        created_at INTEGER NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS model_call_audit_workspace_idx
+      ON model_call_audit(workspace_id, created_at DESC);
+
+      CREATE TABLE IF NOT EXISTS context_summary_cache (
+        cache_key TEXT PRIMARY KEY,
+        workspace_id TEXT NOT NULL,
+        session_id TEXT NOT NULL,
+        artifact_hash TEXT NOT NULL,
+        summary_text TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS context_summary_cache_workspace_idx
+      ON context_summary_cache(workspace_id, created_at DESC);
     `);
     this.database
       .prepare(
@@ -312,6 +346,16 @@ export class StateRepository {
         "INSERT OR IGNORE INTO schema_migrations(version, name, applied_at) VALUES (?, ?, ?)"
       )
       .run(4, "phase_two_conversation_agent_patch_tables", Date.now());
+    this.database
+      .prepare(
+        "INSERT OR IGNORE INTO schema_migrations(version, name, applied_at) VALUES (?, ?, ?)"
+      )
+      .run(5, "model_call_audit_table", Date.now());
+    this.database
+      .prepare(
+        "INSERT OR IGNORE INTO schema_migrations(version, name, applied_at) VALUES (?, ?, ?)"
+      )
+      .run(6, "context_summary_cache_table", Date.now());
 
     await this.migrateLegacyFileIfNeeded();
   }
@@ -1173,6 +1217,151 @@ export class StateRepository {
         lastMessageAt: message.createdAt
       });
     }
+  }
+
+  async listRecentCommandRequests(workspaceId: string, limit = 30): Promise<CommandRequest[]> {
+    const database = this.getDatabase();
+    const rows = database
+      .prepare(
+        `SELECT id, workspace_id, run_id, profile, command, args_json, shell, risk_level, created_at
+         FROM command_executions
+         WHERE workspace_id = ?
+         ORDER BY created_at DESC
+         LIMIT ?`
+      )
+      .all(workspaceId, limit) as Array<{
+      id: string;
+      workspace_id: string;
+      run_id: string | null;
+      profile: CommandRequest["profile"];
+      command: string;
+      args_json: string;
+      shell: number;
+      risk_level: CommandRequest["riskLevel"];
+      created_at: number;
+    }>;
+
+    return rows.map((row) => ({
+      id: row.id,
+      workspaceId: row.workspace_id,
+      runId: row.run_id ?? undefined,
+      profile: row.profile,
+      command: row.command,
+      args: JSON.parse(row.args_json) as string[],
+      shell: Boolean(row.shell),
+      riskLevel: row.risk_level,
+      createdAt: row.created_at
+    }));
+  }
+
+  async getLatestCommandRequest(workspaceId: string): Promise<CommandRequest | undefined> {
+    const database = this.getDatabase();
+    const row = database
+      .prepare(
+        `SELECT id, workspace_id, run_id, profile, command, args_json, shell, risk_level, created_at
+         FROM command_executions
+         WHERE workspace_id = ?
+         ORDER BY created_at DESC
+         LIMIT 1`
+      )
+      .get(workspaceId) as
+      | {
+          id: string;
+          workspace_id: string;
+          run_id: string | null;
+          profile: CommandRequest["profile"];
+          command: string;
+          args_json: string;
+          shell: number;
+          risk_level: CommandRequest["riskLevel"];
+          created_at: number;
+        }
+      | undefined;
+    if (!row) {
+      return undefined;
+    }
+    return {
+      id: row.id,
+      workspaceId: row.workspace_id,
+      runId: row.run_id ?? undefined,
+      profile: row.profile,
+      command: row.command,
+      args: JSON.parse(row.args_json) as string[],
+      shell: Boolean(row.shell),
+      riskLevel: row.risk_level,
+      createdAt: row.created_at
+    };
+  }
+
+  async getContextSummaryCache(cacheKey: string): Promise<string | undefined> {
+    const database = this.getDatabase();
+    const row = database
+      .prepare("SELECT summary_text FROM context_summary_cache WHERE cache_key = ?")
+      .get(cacheKey) as { summary_text: string } | undefined;
+    return row?.summary_text;
+  }
+
+  async upsertContextSummaryCache(input: {
+    cacheKey: string;
+    workspaceId: string;
+    sessionId: string;
+    artifactHash: string;
+    summaryText: string;
+    createdAt: number;
+  }): Promise<void> {
+    const database = this.getDatabase();
+    database
+      .prepare(
+        `INSERT OR REPLACE INTO context_summary_cache(
+          cache_key, workspace_id, session_id, artifact_hash, summary_text, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        input.cacheKey,
+        input.workspaceId,
+        input.sessionId,
+        input.artifactHash,
+        input.summaryText,
+        input.createdAt
+      );
+  }
+
+  async invalidateContextSummaryForWorkspace(workspaceId: string): Promise<void> {
+    const database = this.getDatabase();
+    database.prepare("DELETE FROM context_summary_cache WHERE workspace_id = ?").run(workspaceId);
+  }
+
+  async clearConversationMessages(sessionId: string): Promise<void> {
+    const database = this.getDatabase();
+    database.prepare("DELETE FROM conversation_messages WHERE session_id = ?").run(sessionId);
+  }
+
+  async insertModelCallAudit(record: ModelCallAuditRecord): Promise<void> {
+    const database = this.getDatabase();
+    database
+      .prepare(
+        `INSERT INTO model_call_audit(
+          id, request_id, workspace_id, session_id, run_id, provider_id, model_id, scenario,
+          route_meta_json, prompt_tokens, completion_tokens, latency_ms, error, streamed, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        record.id,
+        record.requestId,
+        record.workspaceId,
+        record.sessionId,
+        record.runId ?? null,
+        record.providerId,
+        record.modelId,
+        record.scenario,
+        JSON.stringify(record.routeMeta),
+        record.promptTokens ?? null,
+        record.completionTokens ?? null,
+        record.latencyMs,
+        record.error ?? null,
+        record.streamed ? 1 : 0,
+        record.createdAt
+      );
   }
 
   async listConversationMessages(sessionId: string): Promise<ConversationMessageRecord[]> {

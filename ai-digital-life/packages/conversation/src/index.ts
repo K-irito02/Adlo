@@ -33,6 +33,10 @@ export class ConversationService {
     return this.stateRepository.getConversationDetail(sessionId);
   }
 
+  async clearMessages(sessionId: string): Promise<void> {
+    await this.stateRepository.clearConversationMessages(sessionId);
+  }
+
   async addMessage(input: {
     sessionId: string;
     role: ConversationRole;

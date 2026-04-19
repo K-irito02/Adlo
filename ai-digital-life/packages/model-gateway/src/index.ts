@@ -1,10 +1,14 @@
 import type {
   ConversationScenario,
   ConfigSnapshot,
+  DigitalLifeModelStreamEventV1,
   ModelDescriptor,
   ModelGatewayHealthSnapshot,
+  ModelProviderId,
   ModelResponse,
+  ModelTokenUsage,
 } from "@ai-digital-life/kernel";
+import { createId } from "@ai-digital-life/kernel";
 
 export const DEFAULT_MODEL_ROUTE: ModelDescriptor[] = [
   {
@@ -199,6 +203,140 @@ function extractAssistantContent(message?: {
   return message?.content?.trim() || message?.reasoning_content?.trim();
 }
 
+const DEFAULT_FIRST_BYTE_TIMEOUT_MS = 45_000;
+const DEFAULT_TOTAL_STREAM_MS = 180_000;
+
+function roughTokenEstimate(text: string): number {
+  return Math.max(1, Math.ceil(text.length / 4));
+}
+
+function usageFromApiPayload(usage?: {
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  total_tokens?: number;
+}): ModelTokenUsage | undefined {
+  if (!usage) {
+    return undefined;
+  }
+  const promptTokens = usage.prompt_tokens;
+  const completionTokens = usage.completion_tokens;
+  const totalTokens = usage.total_tokens ?? (promptTokens ?? 0) + (completionTokens ?? 0);
+  if (promptTokens == null && completionTokens == null) {
+    return undefined;
+  }
+  return { promptTokens, completionTokens, totalTokens, estimated: false };
+}
+
+function mergeUsageEstimate(input: { promptText: string; completionText: string }): ModelTokenUsage {
+  return {
+    promptTokens: roughTokenEstimate(input.promptText),
+    completionTokens: roughTokenEstimate(input.completionText),
+    totalTokens: roughTokenEstimate(`${input.promptText}${input.completionText}`),
+    estimated: true
+  };
+}
+
+function abortAfterMs(ms: number): AbortSignal {
+  if (typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function") {
+    return AbortSignal.timeout(ms);
+  }
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(), ms);
+  return controller.signal;
+}
+
+function linkAbortSignals(userSignal: AbortSignal | undefined, ...timeouts: AbortSignal[]): AbortController {
+  const master = new AbortController();
+  const forward = () => {
+    if (!master.signal.aborted) {
+      master.abort();
+    }
+  };
+  userSignal?.addEventListener("abort", forward, { once: true });
+  for (const signal of timeouts) {
+    signal.addEventListener("abort", forward, { once: true });
+  }
+  if (userSignal?.aborted || timeouts.some((signal) => signal.aborted)) {
+    forward();
+  }
+  return master;
+}
+
+async function* parseOpenAiCompatibleSseStream(params: {
+  body: ReadableStream<Uint8Array>;
+  signal: AbortSignal;
+}): AsyncGenerator<{ text?: string; usage?: ModelTokenUsage }> {
+  const reader = params.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  try {
+    while (!params.signal.aborted) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      buffer += decoder.decode(value, { stream: true });
+      for (;;) {
+        const newline = buffer.indexOf("\n");
+        if (newline < 0) {
+          break;
+        }
+        const rawLine = buffer.slice(0, newline);
+        buffer = buffer.slice(newline + 1);
+        const line = rawLine.replace(/\r$/, "").trim();
+        if (!line.startsWith("data:")) {
+          continue;
+        }
+        const data = line.slice(5).trim();
+        if (data === "[DONE]") {
+          return;
+        }
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(data) as {
+            choices?: Array<{
+              delta?: { content?: string; reasoning_content?: string };
+              message?: { content?: string; reasoning_content?: string };
+            }>;
+            usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+            error?: { message?: string };
+          };
+        } catch {
+          continue;
+        }
+        if (typeof parsed === "object" && parsed && "error" in parsed) {
+          const message = (parsed as { error?: { message?: string } }).error?.message;
+          throw new Error(message || "Stream provider error.");
+        }
+        const choice = (parsed as { choices?: unknown[] }).choices?.[0] as
+          | {
+              delta?: { content?: string; reasoning_content?: string };
+              message?: { content?: string; reasoning_content?: string };
+            }
+          | undefined;
+        const piece =
+          choice?.delta?.content ??
+          choice?.delta?.reasoning_content ??
+          choice?.message?.content ??
+          choice?.message?.reasoning_content;
+        if (piece) {
+          yield { text: piece };
+        }
+        const usage = usageFromApiPayload((parsed as { usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } }).usage);
+        if (usage) {
+          yield { usage };
+        }
+      }
+    }
+  } finally {
+    try {
+      await reader.cancel();
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
 export class ModelGateway {
   private readonly deepseekConfig: ProviderRuntimeConfig;
   private readonly minimaxConfig: ProviderRuntimeConfig;
@@ -242,6 +380,8 @@ export class ModelGateway {
       throw new Error("DeepSeek API key is not configured.");
     }
 
+    const systemPrompt = mapScenarioToSystemPrompt(input.scenario);
+    const userContent = buildUserPrompt(input);
     const payload = await requireSuccessfulJsonResponse<{
       model?: string;
       choices?: Array<{
@@ -250,6 +390,7 @@ export class ModelGateway {
           reasoning_content?: string;
         };
       }>;
+      usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
     }>(
       this.fetchImpl(`${this.deepseekConfig.baseUrl}/chat/completions`, {
         method: "POST",
@@ -263,11 +404,11 @@ export class ModelGateway {
           messages: [
             {
               role: "system",
-              content: mapScenarioToSystemPrompt(input.scenario)
+              content: systemPrompt
             },
             {
               role: "user",
-              content: buildUserPrompt(input)
+              content: userContent
             }
           ]
         })
@@ -279,11 +420,17 @@ export class ModelGateway {
       throw new Error("DeepSeek response did not contain assistant content.");
     }
 
+    const requestId = createId("mreq");
+    const usage = usageFromApiPayload(payload.usage) ?? mergeUsageEstimate({ promptText: `${systemPrompt}\n${userContent}`, completionText: content });
+
     return {
       providerId: "deepseek",
       modelId: payload.model || this.deepseekConfig.model,
       synthetic: false,
-      content
+      content,
+      requestId,
+      usage,
+      route: { reason: "priority_provider", chain: ["deepseek"], synthetic: false }
     };
   }
 
@@ -296,6 +443,8 @@ export class ModelGateway {
       throw new Error("MiniMax API key is not configured.");
     }
 
+    const systemPrompt = mapScenarioToSystemPrompt(input.scenario);
+    const userContent = buildUserPrompt(input);
     const payload = await requireSuccessfulJsonResponse<{
       model?: string;
       choices?: Array<{
@@ -304,6 +453,7 @@ export class ModelGateway {
           reasoning_content?: string;
         };
       }>;
+      usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
     }>(
       this.fetchImpl(`${this.minimaxConfig.baseUrl}/v1/text/chatcompletion_v2`, {
         method: "POST",
@@ -317,12 +467,12 @@ export class ModelGateway {
             {
               role: "system",
               name: "AI Digital Life",
-              content: mapScenarioToSystemPrompt(input.scenario)
+              content: systemPrompt
             },
             {
               role: "user",
               name: "User",
-              content: buildUserPrompt(input)
+              content: userContent
             }
           ]
         })
@@ -334,11 +484,17 @@ export class ModelGateway {
       throw new Error("MiniMax response did not contain assistant content.");
     }
 
+    const requestId = createId("mreq");
+    const usage = usageFromApiPayload(payload.usage) ?? mergeUsageEstimate({ promptText: `${systemPrompt}\n${userContent}`, completionText: content });
+
     return {
       providerId: "minimax",
       modelId: payload.model || this.minimaxConfig.model,
       synthetic: false,
-      content
+      content,
+      requestId,
+      usage,
+      route: { reason: "priority_provider", chain: ["minimax"], synthetic: false }
     };
   }
 
@@ -415,30 +571,241 @@ export class ModelGateway {
     const failures: string[] = [];
 
     if (routeAttempts.length === 0) {
+      const content = `Synthetic ${input.scenario} response for:\n${trimmedPrompt}${suffix}\n\nRoute failures:\nNo enabled model providers configured.`;
       return {
         providerId: "deepseek",
         modelId: this.deepseekConfig.model,
         synthetic: true,
-        content: `Synthetic ${input.scenario} response for:\n${trimmedPrompt}${suffix}\n\nRoute failures:\nNo enabled model providers configured.`
+        content,
+        requestId: createId("mreq"),
+        usage: mergeUsageEstimate({ promptText: trimmedPrompt + suffix, completionText: content }),
+        route: {
+          reason: "no_enabled_provider",
+          chain: [],
+          synthetic: true
+        }
       };
     }
 
+    const chain = routeAttempts.map((attempt) => `${attempt.providerId}:${attempt.modelId}`);
     for (const attempt of routeAttempts) {
       try {
-        return await attempt.invoke();
+        const response = await attempt.invoke();
+        return {
+          ...response,
+          route: {
+            reason: `routed_${attempt.providerId}`,
+            chain,
+            synthetic: response.synthetic
+          }
+        };
       } catch (error) {
         failures.push(`${attempt.providerId}: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
 
+    const fallbackContent =
+      input.scenario === "plan"
+        ? `Synthetic planning response for:\n${trimmedPrompt}${suffix}\n\nRoute failures:\n${failures.join("\n")}`
+        : `Synthetic ${input.scenario} response for:\n${trimmedPrompt}${suffix}\n\nRoute failures:\n${failures.join("\n")}`;
     return {
       providerId: routeAttempts[0].providerId,
       modelId: routeAttempts[0].modelId,
       synthetic: true,
-      content:
-        input.scenario === "plan"
-          ? `Synthetic planning response for:\n${trimmedPrompt}${suffix}\n\nRoute failures:\n${failures.join("\n")}`
-          : `Synthetic ${input.scenario} response for:\n${trimmedPrompt}${suffix}\n\nRoute failures:\n${failures.join("\n")}`
+      content: fallbackContent,
+      requestId: createId("mreq"),
+      usage: mergeUsageEstimate({ promptText: trimmedPrompt + suffix, completionText: fallbackContent }),
+      route: {
+        reason: "all_providers_failed_synthetic",
+        chain,
+        synthetic: true
+      }
     };
+  }
+
+  /**
+   * Streams assistant text for the first successful provider route.
+   * DeepSeek uses native SSE; MiniMax is degraded to a single chunk (API not unified for SSE here).
+   */
+  async *generateResponseStream(input: {
+    scenario: ConversationScenario;
+    prompt: string;
+    contextSummary?: string;
+    runId: string;
+    workspaceId: string;
+    sessionId: string;
+    signal?: AbortSignal;
+    firstByteTimeoutMs?: number;
+    totalTimeoutMs?: number;
+  }): AsyncGenerator<DigitalLifeModelStreamEventV1> {
+    const firstByteMs = input.firstByteTimeoutMs ?? DEFAULT_FIRST_BYTE_TIMEOUT_MS;
+    const totalMs = input.totalTimeoutMs ?? DEFAULT_TOTAL_STREAM_MS;
+    let seq = 0;
+    const nextSeq = () => {
+      seq += 1;
+      return seq;
+    };
+
+    const routeAttempts = this.listProviders()
+      .filter((descriptor) => this.providerPreferences[descriptor.providerId].enabled)
+      .map((descriptor) => ({
+        providerId: descriptor.providerId as ModelProviderId,
+        modelId: descriptor.modelId
+      }));
+
+    if (routeAttempts.length === 0) {
+      yield {
+        v: 1,
+        runId: input.runId,
+        seq: nextSeq(),
+        type: "error",
+        message: "No enabled model providers configured."
+      };
+      yield { v: 1, runId: input.runId, seq: nextSeq(), type: "done" };
+      return;
+    }
+
+    const failures: string[] = [];
+    const chain = routeAttempts.map((attempt) => `${attempt.providerId}:${attempt.modelId}`);
+
+    for (const attempt of routeAttempts) {
+      const totalTimeout = abortAfterMs(totalMs);
+      const linked = linkAbortSignals(input.signal, totalTimeout);
+      const signal = linked.signal;
+
+      yield {
+        v: 1,
+        runId: input.runId,
+        seq: nextSeq(),
+        type: "route",
+        providerId: attempt.providerId,
+        modelId: attempt.modelId,
+        reason: `trying_provider_priority`
+      };
+
+      try {
+        if (attempt.providerId === "deepseek") {
+          if (!this.deepseekConfig.apiKey) {
+            throw new Error("DeepSeek API key is not configured.");
+          }
+          const streamResponse = await this.fetchImpl(`${this.deepseekConfig.baseUrl}/chat/completions`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${this.deepseekConfig.apiKey}`
+            },
+            body: JSON.stringify({
+              model: this.deepseekConfig.model,
+              stream: true,
+              messages: [
+                { role: "system", content: mapScenarioToSystemPrompt(input.scenario) },
+                { role: "user", content: buildUserPrompt(input) }
+              ]
+            }),
+            signal
+          });
+
+          if (!streamResponse.ok) {
+            const failureText = await streamResponse.text();
+            throw new Error(`DeepSeek stream failed (${streamResponse.status}): ${failureText}`);
+          }
+          if (!streamResponse.body) {
+            throw new Error("DeepSeek stream response has no body.");
+          }
+
+          const firstByteController = new AbortController();
+          let firstByteTimer: ReturnType<typeof setTimeout> | undefined = setTimeout(() => firstByteController.abort(), firstByteMs);
+          const parseSignal = linkAbortSignals(signal, firstByteController.signal).signal;
+
+          let aggregatedUsage: ModelTokenUsage | undefined;
+          let completionBuffer = "";
+          try {
+            for await (const chunk of parseOpenAiCompatibleSseStream({
+              body: streamResponse.body,
+              signal: parseSignal
+            })) {
+              if (firstByteTimer) {
+                clearTimeout(firstByteTimer);
+                firstByteTimer = undefined;
+              }
+              if (chunk.usage) {
+                aggregatedUsage = chunk.usage;
+              }
+              if (chunk.text) {
+                completionBuffer += chunk.text;
+                yield { v: 1, runId: input.runId, seq: nextSeq(), type: "delta", text: chunk.text };
+              }
+            }
+          } finally {
+            if (firstByteTimer) {
+              clearTimeout(firstByteTimer);
+            }
+          }
+
+          if (aggregatedUsage) {
+            yield { v: 1, runId: input.runId, seq: nextSeq(), type: "usage", usage: aggregatedUsage };
+          } else {
+            yield {
+              v: 1,
+              runId: input.runId,
+              seq: nextSeq(),
+              type: "usage",
+              usage: mergeUsageEstimate({
+                promptText: `${mapScenarioToSystemPrompt(input.scenario)}\n${buildUserPrompt(input)}`,
+                completionText: completionBuffer
+              })
+            };
+          }
+          yield { v: 1, runId: input.runId, seq: nextSeq(), type: "done" };
+          return;
+        }
+
+        if (attempt.providerId === "minimax") {
+          const modelResponse = await this.invokeMiniMax({
+            scenario: input.scenario,
+            prompt: input.prompt,
+            contextSummary: input.contextSummary
+          });
+          yield { v: 1, runId: input.runId, seq: nextSeq(), type: "delta", text: modelResponse.content };
+          if (modelResponse.usage) {
+            yield { v: 1, runId: input.runId, seq: nextSeq(), type: "usage", usage: modelResponse.usage };
+          } else {
+            yield {
+              v: 1,
+              runId: input.runId,
+              seq: nextSeq(),
+              type: "usage",
+              usage: mergeUsageEstimate({
+                promptText: `${mapScenarioToSystemPrompt(input.scenario)}\n${buildUserPrompt(input)}`,
+                completionText: modelResponse.content
+              })
+            };
+          }
+          yield { v: 1, runId: input.runId, seq: nextSeq(), type: "done" };
+          return;
+        }
+
+        throw new Error(`Unsupported streaming provider: ${attempt.providerId}`);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        failures.push(`${attempt.providerId}: ${message}`);
+        yield {
+          v: 1,
+          runId: input.runId,
+          seq: nextSeq(),
+          type: "error",
+          message: `${attempt.providerId} failed: ${message}`
+        };
+      }
+    }
+
+    yield {
+      v: 1,
+      runId: input.runId,
+      seq: nextSeq(),
+      type: "error",
+      message: `All providers failed:\n${failures.join("\n")}`
+    };
+    yield { v: 1, runId: input.runId, seq: nextSeq(), type: "done" };
   }
 }

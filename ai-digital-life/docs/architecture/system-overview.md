@@ -33,6 +33,8 @@ The implemented surface currently covers:
 - automatic repair preview generation after validation failure
 - chokidar-driven workspace file change notifications
 - Playwright-based acceptance coverage for the workspace shell
+- governed `command:runStream` / `command:stopStream` with `digitalLife:terminalStream` versioned events (Main-only execution; Renderer subscribes like model stream)
+- optional SHA256 pre-check on `WorkspaceFsService.atomicWrite` for baseline-sensitive writes
 
 ## Runtime Path
 
@@ -42,8 +44,8 @@ The implemented surface currently covers:
 4. `Main` creates a locked-down `BrowserWindow`.
 5. `Preload` exposes the `window.digitalLife` bridge and hides raw Electron primitives.
 6. `Renderer` now has two visible shells:
-   - the existing Phase 0 home shell
-   - the new Phase 2 workspace shell implemented with `React + Zustand`
+  - the existing Phase 0 home shell
+  - the new Phase 2 workspace shell implemented with `React + Zustand`
 7. `Renderer` can open a workspace, create/list/get conversation sessions, send a structured single-agent request, inspect file content, inspect outline/search results, and review a patch preview.
 8. `Main` routes the single-agent request through prompt assembly, context selection, configurable `DeepSeek -> MiniMax` provider routing, patch-set persistence, and explicit patch application.
 9. Patch application creates a checkpoint payload bundle before files are written, runs validation, rolls back on failure, and can generate a repair preview for a second pass.

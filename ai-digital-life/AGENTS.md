@@ -4,13 +4,13 @@
 
 ## 当前阶段
 
-- 当前实现属于 `Phase 0` 可运行薄切片
-- 当前目标是桌面壳层、安全边界、状态恢复、工作区打开、SQLite 状态真相源和 Retrieval Worker
-- 不在当前目录默认引入 Phase 1 以上的模型执行、命令执行、补丁引擎和复杂审批编排
+- 当前实现覆盖 **Phase 0 底座** 与 **阶段二（Phase 2）单 Agent 薄切片**：桌面壳、SQLite 状态、工作区与对话、补丁预览/应用/回滚、模型网关（含流式与取消）、命令治理与**终端流式输出**（Main 执行、Renderer 仅订阅白名单事件）
+- Renderer 仍禁止直接接触文件系统、子进程、SQL 与模型密钥；跨进程能力通过 `apps/desktop/shared/ipc.ts` 与 preload 白名单暴露
+- 不在本目录默认实现多 Agent DAG、MCP、插件市场（见阶段二 README 排除项）
 
 ## 本目录的额外要求
 
-- 架构、技术栈、状态真相源变化必须同步 `docs/architecture/*`
+- 架构、技术栈、状态真相源变化必须同步 `docs/architecture/`*
 - 与规划仓约束不一致时，先更新规划文档，再更新实现
 - Renderer 不直接接触系统原语、SQL、文件写入或命令执行
 - 新 IPC 通道必须白名单化、类型化，并返回结构化错误
@@ -85,3 +85,4 @@ ai-digital-life/
     ├── unit/             # 单元测试
     └── integration/      # 集成测试
 ```
+

@@ -120,6 +120,8 @@ describe("desktop renderer phase 2 workspace shell", () => {
     };
 
     const bridge = {
+      subscribeModelStream: vi.fn(() => () => undefined),
+      subscribeTerminalStream: vi.fn(() => () => undefined),
       app: {
         getInfo: vi.fn(async () => ({
           ok: true,
@@ -264,6 +266,7 @@ describe("desktop renderer phase 2 workspace shell", () => {
         })),
         search: vi.fn(async () => ({ ok: true, data: [] })),
         outline: vi.fn(async () => ({ ok: true, data: [] })),
+        setEditorDirtyPaths: vi.fn(async () => ({ ok: true, data: true })),
         onFileChanged: vi.fn(() => () => undefined)
       },
       retrieval: {
@@ -365,6 +368,25 @@ describe("desktop renderer phase 2 workspace shell", () => {
       },
       command: {
         getProfiles: vi.fn(async () => ({ ok: true, data: [] })),
+        runStream: vi.fn(async () => ({
+          ok: true,
+          data: {
+            mode: "started" as const,
+            executionId: "exec-test-1",
+            taskId: "task-stream-1",
+            request: {
+              id: "command-stream-1",
+              workspaceId: "workspace-1",
+              profile: "test" as const,
+              command: "npm",
+              args: ["run", "test"],
+              shell: false,
+              riskLevel: "low" as const,
+              createdAt: now
+            }
+          }
+        })),
+        stopStream: vi.fn(async () => ({ ok: true, data: true })),
         run: vi.fn(async () => ({
           ok: true,
           data: {

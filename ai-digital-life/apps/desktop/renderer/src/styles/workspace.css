@@ -30,11 +30,58 @@
 .adl-panel-header,
 .adl-inline-form,
 .adl-inline-actions,
+.adl-diff-layout-toggle,
 .adl-toolbar,
 .adl-hunk-actions {
   display: flex;
   gap: 0.75rem;
   align-items: center;
+}
+
+.adl-diff-layout-toggle {
+  flex-wrap: wrap;
+}
+
+.adl-diff-layout-toggle button {
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
+  background: var(--surface-raised, rgba(255, 255, 255, 0.04));
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.adl-diff-layout-toggle button.is-active {
+  border-color: var(--accent-strong, #122e8a);
+}
+
+.adl-terminal-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.adl-terminal-panel__title {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-muted, rgba(255, 255, 255, 0.65));
+}
+
+.adl-terminal-panel__output {
+  margin: 0;
+  max-height: 200px;
+  overflow: auto;
+  padding: 0.75rem;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
+  background: var(--surface-sunken, rgba(0, 0, 0, 0.25));
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .adl-panel-header {

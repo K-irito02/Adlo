@@ -2,6 +2,7 @@ import type { DigitalLifeBridge } from "../../shared/ipc";
 import type {
   AgentRunDetail,
   AppInfo,
+  CommandRequest,
   CommandRunResult,
   ConversationDetail,
   ConversationMessageRecord,
@@ -296,6 +297,8 @@ function createSendResult(sessionId: string, content: string): ConversationSendR
 }
 
 export const mockDigitalLifeBridge: DigitalLifeBridge = {
+  subscribeModelStream: () => () => undefined,
+  subscribeTerminalStream: () => () => undefined,
   app: {
     getInfo: async () => ({ ok: true, data: appInfo }),
     getHealth: async () => ({
@@ -432,6 +435,7 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
         });
       return { ok: true, data: items };
     },
+    setEditorDirtyPaths: async () => ({ ok: true, data: true }),
     onFileChanged: () => () => undefined
   },
   retrieval: {
@@ -569,7 +573,7 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
       }
       return { ok: true, data: activePatchSet as PatchSet };
     }
-    },
+  },
   command: {
     getProfiles: async () => ({
       ok: true,
@@ -595,6 +599,61 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
           createdAt: Date.now()
         }
       } satisfies CommandRunResult
+    }),
+    runStream: async (input) => {
+      if (input.command.includes("install")) {
+        return {
+          ok: true,
+          data: {
+            mode: "waiting-approval" as const,
+            taskId: `task-stream-${Date.now()}`,
+            request: {
+              id: `command-${Date.now()}`,
+              workspaceId: "workspace-mock-1",
+              profile: "install",
+              command: input.command,
+              args: input.args,
+              shell: input.shell ?? false,
+              riskLevel: "high" as const,
+              createdAt: Date.now()
+            },
+            approvalRequest: {
+              id: "approval-stream-mock",
+              taskId: "task-stream",
+              title: "command.install",
+              description: "Install requires approval.",
+              riskLevel: "high" as const,
+              impact: [],
+              reversible: true,
+              createdAt: Date.now()
+            }
+          }
+        };
+      }
+      const executionId = `termexec-mock-${Date.now()}`;
+      return {
+        ok: true,
+        data: {
+          mode: "started" as const,
+          executionId,
+          taskId: `task-stream-${Date.now()}`,
+          request: {
+            id: `command-${Date.now()}`,
+            workspaceId: "workspace-mock-1",
+            profile: "test",
+            command: input.command,
+            args: input.args,
+            shell: input.shell ?? false,
+            riskLevel: "low" as const,
+            createdAt: Date.now()
+          }
+        }
+      };
+    },
+    stopStream: async () => ({ ok: true, data: true }),
+    listRecent: async (_limit?: number): Promise<{ ok: true; data: CommandRequest[] }> => ({
+      ok: true,
+      data: []
     })
   },
   task: {

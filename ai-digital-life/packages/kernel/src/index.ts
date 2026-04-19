@@ -548,11 +548,61 @@ export interface ModelChatMessage {
   content: string;
 }
 
+export interface ModelTokenUsage {
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+  estimated?: boolean;
+}
+
+export interface ModelRouteDecision {
+  reason: string;
+  chain: string[];
+  synthetic?: boolean;
+}
+
 export interface ModelResponse {
   providerId: ModelProviderId;
   modelId: string;
   content: string;
   synthetic: boolean;
+  requestId?: string;
+  usage?: ModelTokenUsage;
+  route?: ModelRouteDecision;
+}
+
+/** Main → Renderer: versioned model stream envelope (no secrets). */
+export type DigitalLifeModelStreamEventV1 =
+  | { v: 1; runId: string; seq: number; type: "delta"; text: string }
+  | {
+      v: 1;
+      runId: string;
+      seq: number;
+      type: "route";
+      providerId: ModelProviderId;
+      modelId: string;
+      reason: string;
+    }
+  | { v: 1; runId: string; seq: number; type: "usage"; usage: ModelTokenUsage }
+  | { v: 1; runId: string; seq: number; type: "error"; message: string }
+  | { v: 1; runId: string; seq: number; type: "done" };
+
+export interface ModelCallAuditRecord {
+  id: string;
+  requestId: string;
+  workspaceId: string;
+  sessionId: string;
+  runId?: string;
+  providerId: ModelProviderId;
+  modelId: string;
+  scenario: ConversationScenario;
+  routeMeta: ModelRouteDecision;
+  promptTokens?: number | null;
+  completionTokens?: number | null;
+  latencyMs: number;
+  error?: string;
+  streamed: boolean;
+  createdAt: number;
 }
 
 export interface ProviderHealthStatus {
@@ -698,6 +748,27 @@ export interface CommandRunResult {
   result?: CommandExecutionResult;
   approvalRequest?: ApprovalRequestSummary;
 }
+
+/** Main → Renderer: versioned terminal stream (no env vars or secrets). */
+export type DigitalLifeTerminalStreamEventV1 =
+  | { v: 1; executionId: string; seq: number; type: "stdout"; text: string }
+  | { v: 1; executionId: string; seq: number; type: "stderr"; text: string }
+  | {
+      v: 1;
+      executionId: string;
+      seq: number;
+      type: "done";
+      exitCode: number | null;
+      success: boolean;
+      summary: string;
+      signal?: string;
+    }
+  | { v: 1; executionId: string; seq: number; type: "error"; message: string };
+
+/** Result of starting a governed terminal stream (approval gate same as `command:run`). */
+export type CommandRunStreamStart =
+  | { mode: "waiting-approval"; taskId: string; request: CommandRequest; approvalRequest: ApprovalRequestSummary }
+  | { mode: "started"; executionId: string; taskId: string; request: CommandRequest };
 
 export interface DiagnosticSummary {
   id: string;

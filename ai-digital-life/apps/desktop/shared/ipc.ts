@@ -2,11 +2,15 @@ import type {
   AgentRunDetail,
   AppInfo,
   AppPreferencePatch,
+  CommandRequest,
   CommandRunResult,
+  CommandRunStreamStart,
+  DigitalLifeTerminalStreamEventV1,
   CheckpointPayloadPreview,
   ConversationDetail,
   ConversationSendResult,
   ConversationSessionRecord,
+  DigitalLifeModelStreamEventV1,
   HealthSnapshot,
   IpcResult,
   ModelGatewayHealthSnapshot,
@@ -25,6 +29,10 @@ import type {
 } from "@ai-digital-life/kernel";
 
 export interface DigitalLifeBridge {
+  /** Subscribe to Main-originated model stream events (typed, no secrets). */
+  subscribeModelStream: (listener: (event: DigitalLifeModelStreamEventV1) => void) => () => void;
+  /** Subscribe to Main-originated terminal stream events (typed, no secrets). */
+  subscribeTerminalStream: (listener: (event: DigitalLifeTerminalStreamEventV1) => void) => () => void;
   app: {
     getInfo: () => Promise<IpcResult<AppInfo>>;
     getHealth: () => Promise<IpcResult<HealthSnapshot>>;
@@ -38,6 +46,8 @@ export interface DigitalLifeBridge {
     readFile: (relativePath: string) => Promise<IpcResult<WorkspaceFileDocument>>;
     search: (query: string) => Promise<IpcResult<WorkspaceSearchHit[]>>;
     outline: (relativePath: string) => Promise<IpcResult<FileOutlineItem[]>>;
+    /** Replace the set of workspace-relative paths considered dirty in the editor (best-effort). */
+    setEditorDirtyPaths: (relativePaths: string[]) => Promise<IpcResult<boolean>>;
     onFileChanged: (listener: (event: WorkspaceFileChangedEvent) => void) => () => void;
   };
   retrieval: {
@@ -65,6 +75,11 @@ export interface DigitalLifeBridge {
   command: {
     getProfiles: () => Promise<IpcResult<Array<{ id: string; label: string }>>>;
     run: (input: { command: string; args: string[]; shell?: boolean }) => Promise<IpcResult<CommandRunResult>>;
+    /** Start a governed command with incremental stdout/stderr events (`digitalLife:terminalStream`). */
+    runStream: (input: { command: string; args: string[]; shell?: boolean }) => Promise<IpcResult<CommandRunStreamStart>>;
+    /** Stop a stream started via `runStream` (best-effort SIGTERM). */
+    stopStream: (executionId: string) => Promise<IpcResult<boolean>>;
+    listRecent: (limit?: number) => Promise<IpcResult<CommandRequest[]>>;
   };
   task: {
     getSnapshot: () => Promise<IpcResult<TaskCenterSnapshot>>;

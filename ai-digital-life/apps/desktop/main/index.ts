@@ -3,6 +3,7 @@ import path from "node:path";
 import { Worker } from "node:worker_threads";
 import { app, BrowserWindow, ipcMain, nativeTheme } from "electron";
 import { AgentRuntimeService } from "@ai-digital-life/agent-runtime";
+import { invalidateSessionSummaryL1 } from "@ai-digital-life/context-engine";
 import { ChangeEngine } from "@ai-digital-life/change-engine";
 import { applyConfigPatch, loadConfig, saveConfig } from "@ai-digital-life/config";
 import { ConversationService } from "@ai-digital-life/conversation";
@@ -15,7 +16,9 @@ import {
   APP_VERSION,
   type CommandExecutionResult,
   type CommandRunResult,
+  type CommandRunStreamStart,
   type CommandRequest,
+  type DigitalLifeTerminalStreamEventV1,
   ERROR_CODES,
   EVENT_NAMES,
   type AgentRunDetail,
@@ -28,6 +31,7 @@ import {
   type CheckpointRecord,
   type CheckpointPayloadPreview,
   type ConfigSnapshot,
+  type ConversationMessageRecord,
   type ConversationSendResult,
   type ConversationSessionRecord,
   type EventDiagnostics,
@@ -35,7 +39,11 @@ import {
   type HealthSnapshot,
   type IpcResult,
   type LogEntrySummary,
+  type ModelCallAuditRecord,
   type ModelGatewayHealthSnapshot,
+  type ModelResponse,
+  type ModelTokenUsage,
+  type ModelProviderId,
   type PatchApplicationResult,
   type PatchSet,
   type RetrievalSnapshot,
@@ -93,6 +101,8 @@ type Runtime = {
   modelGateway: ModelGateway;
   modelHealthSnapshot?: ModelGatewayHealthSnapshot;
   terminalService: TerminalService;
+  /** Relative paths reported by the renderer as having unsaved edits (best-effort). */
+  dirtyEditorPaths: Set<string>;
   getRecentLogs: (limit?: number) => LogEntrySummary[];
   retrieval: RetrievalController;
 };
@@ -223,10 +233,37 @@ class RetrievalController {
 }
 
 let mainWindow: BrowserWindow | null = null;
+
+/** In-flight model streams keyed by agent run id (Main-only). */
+const runStreamAbortControllers = new Map<string, AbortController>();
+
+/** Terminal stream runs: execution id → abort (Main-only). */
+const terminalStreamAbortControllers = new Map<string, AbortController>();
+
+function broadcastModelStreamEvent(
+  event: import("@ai-digital-life/kernel").DigitalLifeModelStreamEventV1
+): void {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return;
+  }
+  mainWindow.webContents.send("digitalLife:modelStream", event);
+}
+
+function broadcastTerminalStreamEvent(event: DigitalLifeTerminalStreamEventV1): void {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return;
+  }
+  mainWindow.webContents.send("digitalLife:terminalStream", event);
+}
 let runtime: Runtime | null = null;
 
 async function startWorkspaceWatcher(runtimeState: Runtime, rootPath: string): Promise<void> {
   await runtimeState.workspaceWatcher.watch(rootPath, async (event) => {
+    const workspace = runtimeState.workspaceService.getCurrentWorkspace();
+    if (workspace) {
+      invalidateSessionSummaryL1(workspace.id);
+      await runtimeState.stateRepository.invalidateContextSummaryForWorkspace(workspace.id);
+    }
     mainWindow?.webContents.send("workspace:fileChanged", event);
   });
 }
@@ -612,6 +649,7 @@ async function createRuntime(): Promise<Runtime> {
       agentRuntime,
       modelGateway,
       terminalService,
+      dirtyEditorPaths: new Set<string>(),
       getRecentLogs: loggerFactory.getRecentEntries,
       retrieval
     } satisfies Runtime;
@@ -646,6 +684,7 @@ async function createRuntime(): Promise<Runtime> {
     agentRuntime,
     modelGateway,
     terminalService,
+    dirtyEditorPaths: new Set<string>(),
     getRecentLogs: loggerFactory.getRecentEntries,
     retrieval
   };
@@ -1016,6 +1055,113 @@ async function getOrCreateConversationSession(title?: string): Promise<Conversat
   return runtimeState.conversationService.createSession(workspaceId, title ? title.trim() : "Single Agent Session");
 }
 
+function parseSlashCommand(content: string): { command: string; args: string } | undefined {
+  const trimmed = content.trim();
+  if (!trimmed.startsWith("/")) {
+    return undefined;
+  }
+  const space = trimmed.indexOf(" ");
+  if (space < 0) {
+    return { command: trimmed.slice(1).toLowerCase(), args: "" };
+  }
+  return { command: trimmed.slice(1, space).toLowerCase(), args: trimmed.slice(space + 1).trim() };
+}
+
+async function handleSlashConversationTurn(input: {
+  sessionId: string;
+  workspaceId: string;
+  workspaceRoot: string;
+  userMessage: ConversationMessageRecord;
+  slash: { command: string; args: string };
+}): Promise<ConversationSendResult> {
+  const runtimeState = requireRuntime();
+  const runId = createId("run");
+  const now = Date.now();
+  const baseRun = {
+    id: runId,
+    workspaceId: input.workspaceId,
+    sessionId: input.sessionId,
+    prompt: `${input.slash.command} ${input.slash.args}`.trim(),
+    scenario: "chat" as const,
+    status: "succeeded" as const,
+    createdAt: now,
+    updatedAt: now,
+    completedAt: now,
+    summary: "slash"
+  };
+  await runtimeState.stateRepository.upsertAgentRun(baseRun);
+  await runtimeState.stateRepository.replaceAgentSteps(runId, []);
+
+  let assistantBody = "";
+
+  switch (input.slash.command) {
+    case "help":
+      assistantBody = [
+        "## Slash 命令",
+        "",
+        "- `/help` 显示本帮助",
+        "- `/clear` 清空当前会话消息",
+        "- `/run <command> [args...]` 通过治理与审批执行命令（与命令面板一致）",
+        "",
+        "引用：`@path`、`@file:path`、`@symbol:Name`、`@terminal:last` 会被拼入模型上下文。"
+      ].join("\n");
+      break;
+    case "clear":
+      await runtimeState.conversationService.clearMessages(input.sessionId);
+      invalidateSessionSummaryL1(input.workspaceId);
+      await runtimeState.stateRepository.invalidateContextSummaryForWorkspace(input.workspaceId);
+      assistantBody = "已清空当前会话消息，并丢弃本地上下文摘要缓存。";
+      break;
+    case "run": {
+      const parts = input.slash.args.trim().split(/\s+/).filter(Boolean);
+      if (!parts[0]) {
+        assistantBody = "用法：`/run <command> [args...]`";
+        break;
+      }
+      const command = parts[0];
+      const args = parts.slice(1);
+      const cmdResult = await executeGovernedCommand({ command, args, shell: false });
+      assistantBody = [
+        `命令：${command} ${args.join(" ")}`.trim(),
+        `状态：${cmdResult.status}`,
+        cmdResult.result
+          ? `退出码：${cmdResult.result.exitCode}\n摘要：${cmdResult.result.summary}`
+          : "结果：等待审批或尚未执行。",
+        cmdResult.approvalRequest ? `审批：${cmdResult.approvalRequest.title}` : ""
+      ]
+        .filter(Boolean)
+        .join("\n");
+      break;
+    }
+    default:
+      assistantBody = `未知命令 \`/${input.slash.command}\`。输入 \`/help\` 查看列表。`;
+  }
+
+  const assistantMessage = await runtimeState.conversationService.addMessage({
+    sessionId: input.sessionId,
+    role: "assistant",
+    content: assistantBody,
+    blocks: [],
+    runId
+  });
+
+  const detail = await runtimeState.stateRepository.getConversationDetail(input.sessionId);
+  if (!detail) {
+    throw new Error("Conversation session not found after slash handling.");
+  }
+
+  return {
+    session: detail.session,
+    userMessage: input.userMessage,
+    assistantMessage,
+    runDetail: {
+      run: baseRun,
+      steps: []
+    },
+    patchSet: undefined
+  };
+}
+
 async function executeConversationRun(input: {
   sessionId: string;
   content: string;
@@ -1028,13 +1174,144 @@ async function executeConversationRun(input: {
     role: "user",
     content: input.content
   });
-  const execution = await runtimeState.agentRuntime.startRun({
+
+  const slash = parseSlashCommand(input.content);
+  if (slash) {
+    return handleSlashConversationTurn({
+      sessionId: input.sessionId,
+      workspaceId,
+      workspaceRoot,
+      userMessage,
+      slash
+    });
+  }
+
+  const bootstrap = await runtimeState.agentRuntime.prepareAgentRun({
     workspaceId,
     sessionId: input.sessionId,
     workspaceRoot,
     prompt: input.content,
     scenario: input.scenario
   });
+
+  const abortController = new AbortController();
+  runStreamAbortControllers.set(bootstrap.run.id, abortController);
+
+  const streamStartedAt = Date.now();
+  let aggregatedText = "";
+  const streamErrors: string[] = [];
+  let lastUsage: ModelTokenUsage | undefined;
+  let lastRoute: { providerId: ModelProviderId; modelId: string } | undefined;
+  const routeChain: string[] = [];
+
+  try {
+    try {
+      for await (const event of runtimeState.modelGateway.generateResponseStream({
+        scenario: bootstrap.scenario,
+        prompt: bootstrap.promptText,
+        contextSummary: bootstrap.contextSummary,
+        runId: bootstrap.run.id,
+        workspaceId,
+        sessionId: input.sessionId,
+        signal: abortController.signal
+      })) {
+        broadcastModelStreamEvent(event);
+        switch (event.type) {
+          case "delta":
+            aggregatedText += event.text;
+            break;
+          case "usage":
+            lastUsage = event.usage;
+            break;
+          case "route":
+            lastRoute = { providerId: event.providerId, modelId: event.modelId };
+            routeChain.push(`${event.providerId}:${event.modelId}`);
+            break;
+          case "error":
+            streamErrors.push(event.message);
+            break;
+          default:
+            break;
+        }
+      }
+    } catch (error) {
+      if (!abortController.signal.aborted) {
+        throw error;
+      }
+    }
+  } finally {
+    runStreamAbortControllers.delete(bootstrap.run.id);
+  }
+
+  const latencyMs = Date.now() - streamStartedAt;
+  const wasAborted = abortController.signal.aborted;
+  const trimmed = aggregatedText.trim();
+  const fallbackBody =
+    trimmed.length > 0
+      ? aggregatedText
+      : streamErrors.length > 0
+        ? streamErrors.join("\n\n")
+        : "（模型未返回可见文本。）";
+
+  const modelResponse: ModelResponse = {
+    providerId: lastRoute?.providerId ?? "deepseek",
+    modelId: lastRoute?.modelId ?? runtimeState.modelGateway.listProviders()[0]?.modelId ?? "deepseek-chat",
+    synthetic: Boolean(!trimmed.length && streamErrors.length > 0),
+    content: wasAborted && trimmed.length > 0 ? `${aggregatedText}\n\n（生成已由用户取消。）` : wasAborted ? "（生成已由用户取消。）" : fallbackBody,
+    requestId: createId("mreq"),
+    usage:
+      lastUsage ??
+      ({
+        estimated: true,
+        promptTokens: Math.max(1, Math.ceil((bootstrap.promptText.length + bootstrap.contextSummary.length) / 4)),
+        completionTokens: Math.max(1, Math.ceil(fallbackBody.length / 4))
+      } satisfies ModelTokenUsage),
+    route: {
+      reason: wasAborted ? "aborted" : streamErrors.length && !trimmed ? "stream_failed" : "stream_completed",
+      chain: routeChain.length > 0 ? routeChain : ["unrouted"],
+      synthetic: Boolean(!trimmed.length && streamErrors.length > 0)
+    }
+  };
+
+  const execution = await runtimeState.agentRuntime.completeAgentRunWithModelResponse(bootstrap, modelResponse);
+
+  if (wasAborted) {
+    const abortedRun = {
+      ...execution.runDetail.run,
+      status: "aborted" as const,
+      updatedAt: Date.now(),
+      completedAt: Date.now(),
+      summary: "User cancelled model generation."
+    };
+    await runtimeState.stateRepository.upsertAgentRun(abortedRun);
+    execution.runDetail.run = abortedRun;
+  }
+
+  const audit: ModelCallAuditRecord = {
+    id: createId("mcaudit"),
+    requestId: modelResponse.requestId ?? createId("mreq"),
+    workspaceId,
+    sessionId: input.sessionId,
+    runId: bootstrap.run.id,
+    providerId: modelResponse.providerId,
+    modelId: modelResponse.modelId,
+    scenario: bootstrap.scenario,
+    routeMeta: modelResponse.route ?? { reason: "unknown", chain: [] },
+    promptTokens: modelResponse.usage?.promptTokens ?? null,
+    completionTokens: modelResponse.usage?.completionTokens ?? null,
+    latencyMs,
+    error: streamErrors.length ? streamErrors.join(" | ").slice(0, 2000) : wasAborted ? "aborted" : undefined,
+    streamed: true,
+    createdAt: Date.now()
+  };
+  try {
+    await runtimeState.stateRepository.insertModelCallAudit(audit);
+  } catch (error) {
+    runtimeState.logger.warn("model_call_audit insert failed", {
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+
   const assistantMessage = await runtimeState.conversationService.addMessage({
     sessionId: input.sessionId,
     role: "assistant",
@@ -1178,6 +1455,17 @@ async function applyPatchAndValidate(patchSetId: string): Promise<PatchApplicati
     });
   }
 
+  const precondition = await runtimeState.changeEngine.assertPatchApplies(
+    applyingPatchSet,
+    workspaceRoot,
+    runtimeState.dirtyEditorPaths
+  );
+  if (!precondition.ok) {
+    throw new Error(
+      `Patch apply blocked (${precondition.reason})${precondition.relativePath ? `: ${precondition.relativePath}` : ""}`
+    );
+  }
+
   const applied = await runtimeState.changeEngine.applyPatchSet(workspaceRoot, applyingPatchSet);
   await runtimeState.stateRepository.upsertPatchSet(applied);
 
@@ -1258,15 +1546,38 @@ async function applyPatchAndValidate(patchSetId: string): Promise<PatchApplicati
   if (!commandResult.success) {
     const rolledBack = await runtimeState.changeEngine.rollbackPatchSet(workspaceRoot, applied);
     await runtimeState.stateRepository.upsertPatchSet(rolledBack);
-    const repairResult = patchSet.runId
-      ? await runtimeState.agentRuntime.startRepairRun({
+    const maxRepairRounds = 2;
+    let repairPatchSet: PatchSet | undefined;
+    let rollingValidation: ValidationResult = validation;
+    if (patchSet.runId) {
+      for (let round = 0; round < maxRepairRounds; round += 1) {
+        const repairResult = await runtimeState.agentRuntime.startRepairRun({
           workspaceId: patchSet.workspaceId,
           sessionId: patchSet.sessionId,
           workspaceRoot,
           failedPatchSet: rolledBack,
-          validation
-        })
-      : undefined;
+          validation: rollingValidation
+        });
+        if (!repairResult?.patchSet) {
+          break;
+        }
+        repairPatchSet = repairResult.patchSet;
+        if (round < maxRepairRounds - 1) {
+          rollingValidation = {
+            ...rollingValidation,
+            diagnostics: [
+              ...rollingValidation.diagnostics,
+              {
+                id: createId("diag"),
+                source: "system",
+                severity: "info",
+                message: `Prior repair model output (round ${round + 1}): ${repairResult.assistantContent.slice(0, 1200)}`
+              }
+            ]
+          };
+        }
+      }
+    }
     if (runDetail) {
       await runtimeState.stateRepository.upsertAgentRun({
         ...runDetail.run,
@@ -1283,14 +1594,14 @@ async function applyPatchAndValidate(patchSetId: string): Promise<PatchApplicati
       commandLabel: `${commandRequest.command} ${commandRequest.args.join(" ")}`,
       validation,
       rolledBack: true,
-      repairPatchSet: repairResult?.patchSet
+      repairPatchSet
     });
-    if (repairResult?.patchSet) {
+    if (repairPatchSet) {
       await runtimeState.stateRepository.appendAuditRecord({
         entityType: "session",
         entityId: patchSet.sessionId,
         action: "repair-preview.generated",
-        detail: `Generated repair patch set ${repairResult.patchSet.id} after validation failure.`,
+        detail: `Generated repair patch set ${repairPatchSet.id} after validation failure.`,
         createdAt: Date.now()
       });
     }
@@ -1299,7 +1610,7 @@ async function applyPatchAndValidate(patchSetId: string): Promise<PatchApplicati
       validation,
       commandResult,
       rolledBack: true,
-      repairPatchSet: repairResult?.patchSet
+      repairPatchSet
     };
   }
 
@@ -1421,11 +1732,22 @@ async function runCommandTask(task: TaskRecord, request: CommandRequest): Promis
   return commandResult;
 }
 
-async function executeGovernedCommand(input: {
+type PreparedGovernedCommand =
+  | {
+      kind: "approval";
+      runResult: CommandRunResult;
+    }
+  | {
+      kind: "ready";
+      task: TaskRecord;
+      request: CommandRequest;
+    };
+
+async function prepareGovernedCommand(input: {
   command: string;
   args: string[];
   shell?: boolean;
-}): Promise<CommandRunResult> {
+}): Promise<PreparedGovernedCommand> {
   if (!runtime) {
     throw new Error("Runtime not initialized.");
   }
@@ -1506,20 +1828,189 @@ async function executeGovernedCommand(input: {
       }
     });
     return {
-      status: "waiting-approval",
-      taskId: task.id,
-      request,
-      approvalRequest
+      kind: "approval",
+      runResult: {
+        status: "waiting-approval",
+        taskId: task.id,
+        request,
+        approvalRequest
+      }
     };
   }
 
   await runtime.stateRepository.upsertTask(task);
-  const result = await runCommandTask(task, request);
+  return { kind: "ready", task, request };
+}
+
+async function executeGovernedCommand(input: {
+  command: string;
+  args: string[];
+  shell?: boolean;
+}): Promise<CommandRunResult> {
+  const prepared = await prepareGovernedCommand(input);
+  if (prepared.kind === "approval") {
+    return prepared.runResult;
+  }
+  const result = await runCommandTask(prepared.task, prepared.request);
   return {
     status: "completed",
-    taskId: task.id,
-    request,
+    taskId: prepared.task.id,
+    request: prepared.request,
     result
+  };
+}
+
+async function runCommandTaskStream(
+  task: TaskRecord,
+  request: CommandRequest,
+  executionId: string,
+  signal: AbortSignal
+): Promise<void> {
+  if (!runtime) {
+    return;
+  }
+
+  const workspace = runtime.workspaceService.getCurrentWorkspace();
+  if (!workspace || workspace.id !== task.workspaceId) {
+    broadcastTerminalStreamEvent({
+      v: 1,
+      executionId,
+      seq: 1,
+      type: "error",
+      message: "The task workspace is not active."
+    });
+    broadcastTerminalStreamEvent({
+      v: 1,
+      executionId,
+      seq: 2,
+      type: "done",
+      exitCode: null,
+      success: false,
+      summary: "Workspace not active."
+    });
+    terminalStreamAbortControllers.delete(executionId);
+    return;
+  }
+
+  let seq = 0;
+  const bump = (): number => {
+    seq += 1;
+    return seq;
+  };
+
+  try {
+    await runtime.stateRepository.upsertTask({
+      ...task,
+      status: "running",
+      startedAt: task.startedAt ?? Date.now(),
+      updatedAt: Date.now(),
+      resultJson: undefined,
+      errorJson: undefined
+    });
+    await runtime.stateRepository.insertCommandExecution(request);
+
+    const commandResult = await runtime.terminalService.executeStream(request, workspace.rootPath, {
+      signal,
+      onStdout: (text) => {
+        if (text) {
+          broadcastTerminalStreamEvent({ v: 1, executionId, seq: bump(), type: "stdout", text });
+        }
+      },
+      onStderr: (text) => {
+        if (text) {
+          broadcastTerminalStreamEvent({ v: 1, executionId, seq: bump(), type: "stderr", text });
+        }
+      }
+    });
+
+    await runtime.stateRepository.upsertTask({
+      ...task,
+      status: commandResult.success ? "completed" : "failed",
+      startedAt: task.startedAt ?? Date.now(),
+      updatedAt: Date.now(),
+      completedAt: commandResult.completedAt,
+      resultJson: commandResult.success ? commandResult.summary : undefined,
+      errorJson: commandResult.success ? undefined : commandResult.summary
+    });
+    await runtime.stateRepository.appendAuditRecord({
+      entityType: "task",
+      entityId: task.id,
+      action: commandResult.success ? "task.completed" : "task.failed",
+      detail: commandResult.summary,
+      createdAt: Date.now()
+    });
+    await runtime.workspaceService.updateSessionSummary(
+      task.workspaceId,
+      {
+        lastTaskId: task.id
+      },
+      task.id
+    );
+
+    broadcastTerminalStreamEvent({
+      v: 1,
+      executionId,
+      seq: bump(),
+      type: "done",
+      exitCode: commandResult.exitCode,
+      success: commandResult.success,
+      summary: commandResult.summary,
+      signal: commandResult.signal
+    });
+  } catch (error) {
+    const failure = toUserMessage(error);
+    broadcastTerminalStreamEvent({
+      v: 1,
+      executionId,
+      seq: bump(),
+      type: "error",
+      message: failure.message
+    });
+    broadcastTerminalStreamEvent({
+      v: 1,
+      executionId,
+      seq: bump(),
+      type: "done",
+      exitCode: null,
+      success: false,
+      summary: failure.message
+    });
+    await runtime.stateRepository.upsertTask({
+      ...task,
+      status: "failed",
+      updatedAt: Date.now(),
+      errorJson: failure.message
+    });
+  } finally {
+    terminalStreamAbortControllers.delete(executionId);
+  }
+}
+
+async function executeGovernedCommandStream(input: {
+  command: string;
+  args: string[];
+  shell?: boolean;
+}): Promise<CommandRunStreamStart> {
+  const prepared = await prepareGovernedCommand(input);
+  if (prepared.kind === "approval") {
+    const r = prepared.runResult;
+    return {
+      mode: "waiting-approval",
+      taskId: r.taskId,
+      request: r.request,
+      approvalRequest: r.approvalRequest!
+    };
+  }
+
+  const executionId = createId("termexec");
+  const controller = new AbortController();
+  terminalStreamAbortControllers.set(executionId, controller);
+  void runCommandTaskStream(prepared.task, prepared.request, executionId, controller.signal);
+  return {
+    mode: "started",
+    executionId,
+    taskId: prepared.task.id,
+    request: prepared.request
   };
 }
 
@@ -1890,6 +2381,23 @@ function registerIpcHandlers(): void {
     }
   });
 
+  ipcMain.handle("workspace:setEditorDirtyPaths", async (_event, relativePaths: string[]): Promise<IpcResult<boolean>> => {
+    try {
+      const runtimeState = requireRuntime();
+      runtimeState.dirtyEditorPaths.clear();
+      for (const entry of relativePaths ?? []) {
+        const normalized = entry.replace(/\\/g, "/").trim();
+        if (normalized) {
+          runtimeState.dirtyEditorPaths.add(normalized);
+        }
+      }
+      return ok(true);
+    } catch (error) {
+      const failure = toUserMessage(error);
+      return err(failure.code, failure.message);
+    }
+  });
+
   ipcMain.handle("retrieval:getStatus", async () => {
     try {
       if (!runtime) {
@@ -1952,6 +2460,8 @@ function registerIpcHandlers(): void {
   ipcMain.handle("conversation:cancelMessage", async (_event, runId: string): Promise<IpcResult<AgentRunDetail | undefined>> => {
     try {
       const runtimeState = requireRuntime();
+      const controller = runStreamAbortControllers.get(runId);
+      controller?.abort();
       const detail = await runtimeState.stateRepository.getAgentRunDetail(runId);
       if (!detail) {
         return ok(undefined);
@@ -2021,6 +2531,8 @@ function registerIpcHandlers(): void {
   ipcMain.handle("agent:abortRun", async (_event, runId: string): Promise<IpcResult<AgentRunDetail | undefined>> => {
     try {
       const runtimeState = requireRuntime();
+      const controller = runStreamAbortControllers.get(runId);
+      controller?.abort();
       const detail = await runtimeState.stateRepository.getAgentRunDetail(runId);
       if (!detail) {
         return ok(undefined);
@@ -2118,6 +2630,56 @@ function registerIpcHandlers(): void {
       }
     }
   );
+
+  ipcMain.handle(
+    "command:runStream",
+    async (
+      _event,
+      input: { command: string; args: string[]; shell?: boolean }
+    ): Promise<IpcResult<CommandRunStreamStart>> => {
+      try {
+        return ok(await executeGovernedCommandStream(input));
+      } catch (error) {
+        if (runtime) {
+          void recordRuntimeError(runtime.errorReporter, runtime.diagnostics, runtime.logger, error, {
+            surface: "command:runStream",
+            command: input.command
+          });
+        }
+        const failure = toUserMessage(error);
+        return err(failure.code, failure.message);
+      }
+    }
+  );
+
+  ipcMain.handle("command:stopStream", async (_event, executionId: string): Promise<IpcResult<boolean>> => {
+    try {
+      const controller = terminalStreamAbortControllers.get(executionId);
+      if (!controller) {
+        return ok(false);
+      }
+      controller.abort();
+      return ok(true);
+    } catch (error) {
+      const failure = toUserMessage(error);
+      return err(failure.code, failure.message);
+    }
+  });
+
+  ipcMain.handle("command:listRecent", async (_event, limit?: number): Promise<IpcResult<CommandRequest[]>> => {
+    try {
+      const runtimeState = requireRuntime();
+      const workspace = runtimeState.workspaceService.getCurrentWorkspace();
+      if (!workspace) {
+        return ok([]);
+      }
+      const rows = await runtimeState.stateRepository.listRecentCommandRequests(workspace.id, limit ?? 30);
+      return ok(rows);
+    } catch (error) {
+      const failure = toUserMessage(error);
+      return err(failure.code, failure.message);
+    }
+  });
 
   ipcMain.handle("task:getSnapshot", async (): Promise<IpcResult<TaskCenterSnapshot>> => {
     if (!runtime) {

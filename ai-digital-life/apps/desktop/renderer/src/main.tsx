@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Editor, { DiffEditor } from "@monaco-editor/react";
 import { createRoot } from "react-dom/client";
 import { create } from "zustand";
@@ -39,6 +39,8 @@ declare global {
 
 const themeController = new ThemeController();
 
+let terminalStreamUnsub: (() => void) | undefined;
+
 const copy = {
   "zh-CN": {
     landingTitle: "AI Digital Life",
@@ -61,6 +63,7 @@ const copy = {
     search: "检索文件",
     commandRunner: "命令执行",
     send: "发送",
+    cancelGenerate: "停止生成",
     noWorkspace: "当前还没有激活工作区。",
     noMessages: "发出第一条消息，开始单 Agent 工作流。",
     noPatch: "暂无补丁预览。",
@@ -86,12 +89,18 @@ const copy = {
     approvalPolicy: "审批策略",
     modelUnavailable: "尚未检查模型提供方状态。",
     externalFileChanged: "检测到该文件已被外部程序修改。",
+    diffLayoutLabel: "差异视图",
+    diffLayoutInline: "内联",
+    diffLayoutSideBySide: "并排",
     reloadFile: "重新加载",
     commandBinary: "命令",
     commandArgs: "参数",
     runCommand: "执行命令",
     commandWaitingApproval: "命令已进入审批等待。",
-    commandCompleted: "命令执行完成。"
+    commandCompleted: "命令执行完成。",
+    runStreamCommand: "流式执行",
+    stopStreamCommand: "停止",
+    terminalOutput: "终端输出"
   },
   "en-US": {
     landingTitle: "AI Digital Life",
@@ -114,6 +123,7 @@ const copy = {
     search: "Search Files",
     commandRunner: "Command Runner",
     send: "Send",
+    cancelGenerate: "Stop generating",
     noWorkspace: "No active workspace is attached yet.",
     noMessages: "Send the first message to start the single-agent workflow.",
     noPatch: "No patch preview yet.",
@@ -139,12 +149,18 @@ const copy = {
     approvalPolicy: "Approval Policy",
     modelUnavailable: "Model provider health has not been checked yet.",
     externalFileChanged: "This file changed outside the editor.",
+    diffLayoutLabel: "Diff layout",
+    diffLayoutInline: "Inline",
+    diffLayoutSideBySide: "Side by side",
     reloadFile: "Reload File",
     commandBinary: "Command",
     commandArgs: "Args",
     runCommand: "Run Command",
     commandWaitingApproval: "Command is waiting for approval.",
-    commandCompleted: "Command completed."
+    commandCompleted: "Command completed.",
+    runStreamCommand: "Run (stream)",
+    stopStreamCommand: "Stop",
+    terminalOutput: "Terminal output"
   }
 } as const;
 
@@ -171,6 +187,34 @@ function mapPatchToEditorTab(filePatch: FilePatch): EditorTabState {
 
 function findFirstDiagnostic(diagnostics: DiagnosticSummary[]) {
   return diagnostics.find((diagnostic) => diagnostic.severity === "error") ?? diagnostics[0];
+}
+
+const DIFF_LAYOUT_STORAGE_KEY = "adl-diff-side-by-side";
+
+function readDiffSideBySidePreference(): boolean {
+  try {
+    return window.localStorage.getItem(DIFF_LAYOUT_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function normalizeWorkspaceRelativePath(filePath: string): string {
+  return filePath.replace(/\\/g, "/").trim();
+}
+
+function mergeDirtyEditorPaths(current: string[], path: string, isDirty: boolean): string[] {
+  const norm = normalizeWorkspaceRelativePath(path);
+  if (!norm) {
+    return current;
+  }
+  const set = new Set(current.map((entry) => normalizeWorkspaceRelativePath(entry)));
+  if (isDirty) {
+    set.add(norm);
+  } else {
+    set.delete(norm);
+  }
+  return [...set];
 }
 
 function filterDiagnosticsForPath(
@@ -233,6 +277,10 @@ type StoreState = {
   taskCenter?: TaskCenterSnapshot;
   modelHealth?: ModelGatewayHealthSnapshot;
   latestCommandRun?: CommandRunResult;
+  terminalOutput: string;
+  activeTerminalExecutionId?: string;
+  streamingAssistantText: string;
+  streamingActiveRunId?: string;
   openTabs: EditorTabState[];
   selectedFilePath?: string;
   fileContent?: string;
@@ -241,11 +289,14 @@ type StoreState = {
   outline: FileOutlineItem[];
   searchQuery: string;
   searchResults: WorkspaceSearchHit[];
+  /** Workspace-relative paths considered dirty vs last loaded disk snapshot (synced to Main for patch guards). */
+  dirtyEditorPaths: string[];
   bootstrap: () => Promise<void>;
   openWorkspace: (workspacePath: string) => Promise<void>;
   createSession: () => Promise<void>;
   selectSession: (sessionId: string) => Promise<void>;
   sendMessage: (content: string) => Promise<void>;
+  cancelActiveStream: () => Promise<void>;
   openFile: (relativePath: string) => Promise<void>;
   searchFiles: (query: string) => Promise<void>;
   setHunkDecision: (patchSetId: string, hunkId: string, decision: "pending" | "accepted" | "rejected") => Promise<void>;
@@ -254,7 +305,10 @@ type StoreState = {
   refreshTaskCenter: () => Promise<void>;
   decideApproval: (approvalId: string, decision: "approved" | "rejected") => Promise<void>;
   markExternalFileChange: (input: { path: string; lastModifiedAt: number }) => void;
+  notifyEditorBufferDirty: (relativePath: string, isDirty: boolean) => void;
   runCommand: (command: string, argsText: string) => Promise<void>;
+  runCommandStream: (command: string, argsText: string) => Promise<void>;
+  stopCommandStream: () => Promise<void>;
   refreshModelHealth: () => Promise<void>;
   updatePreferences: (patch: AppPreferencePatch) => Promise<void>;
 };
@@ -309,6 +363,9 @@ const useAppStore = create<StoreState>((set, get) => ({
   outline: [],
   searchQuery: "",
   searchResults: [],
+  streamingAssistantText: "",
+  terminalOutput: "",
+  dirtyEditorPaths: [],
   bootstrap: async () => {
     set({ loading: true, error: undefined });
 
@@ -327,8 +384,11 @@ const useAppStore = create<StoreState>((set, get) => ({
       appInfo: appInfoResult.data,
       modelHealth: modelHealthResult.ok ? modelHealthResult.data : undefined,
       recentWorkspaces: recentResult.ok ? recentResult.data : [],
-      loading: false
+      loading: false,
+      dirtyEditorPaths: []
     };
+
+    void window.digitalLife.workspace.setEditorDirtyPaths([]);
 
     if (appInfoResult.data.currentWorkspace) {
       const conversationState = await loadConversationState();
@@ -340,7 +400,8 @@ const useAppStore = create<StoreState>((set, get) => ({
         activeSessionId: conversationState.activeSessionId,
         sessionDetails: conversationState.detail
           ? { [conversationState.detail.session.id]: conversationState.detail }
-          : {}
+          : {},
+        dirtyEditorPaths: []
       });
       if (conversationState.detail?.messages.length) {
         const patchBlock = conversationState.detail.messages
@@ -361,7 +422,7 @@ const useAppStore = create<StoreState>((set, get) => ({
       return;
     }
 
-    set(nextState as StoreState);
+    set({ ...(nextState as StoreState), dirtyEditorPaths: [] });
   },
   openWorkspace: async (workspacePath: string) => {
     const result = await window.digitalLife.workspace.open(workspacePath);
@@ -403,37 +464,80 @@ const useAppStore = create<StoreState>((set, get) => ({
     if (!sessionId || !content.trim()) {
       return;
     }
-    const result = await window.digitalLife.conversation.sendMessage({
-      sessionId,
-      content,
-      scenario: "code-edit"
+    set({ streamingAssistantText: "", streamingActiveRunId: undefined, error: undefined });
+    const unsubscribe = window.digitalLife.subscribeModelStream((event) => {
+      if (event.v !== 1) {
+        return;
+      }
+      set((state) => {
+        if (event.type === "route") {
+          return { streamingActiveRunId: event.runId };
+        }
+        if (event.type === "delta") {
+          const nextRunId = state.streamingActiveRunId ?? event.runId;
+          if (state.streamingActiveRunId && event.runId !== state.streamingActiveRunId) {
+            return state;
+          }
+          return {
+            streamingActiveRunId: nextRunId,
+            streamingAssistantText: state.streamingAssistantText + event.text
+          };
+        }
+        if (event.type === "done") {
+          return { streamingAssistantText: "", streamingActiveRunId: undefined };
+        }
+        return state;
+      });
     });
+
+    try {
+      const result = await window.digitalLife.conversation.sendMessage({
+        sessionId,
+        content,
+        scenario: "code-edit"
+      });
+      if (!result.ok) {
+        set({ error: result.error.message });
+        return;
+      }
+
+      const detailResult = await window.digitalLife.conversation.getSession(sessionId);
+      if (!detailResult.ok) {
+        set({ error: detailResult.error.message });
+        return;
+      }
+
+      const nextState: Partial<StoreState> = {
+        activeRun: result.data.runDetail,
+        activePatchSet: result.data.patchSet,
+        openTabs: result.data.patchSet?.filePatches.map(mapPatchToEditorTab) ?? get().openTabs,
+        selectedFilePath: result.data.patchSet?.filePatches[0]?.relativePath,
+        streamingAssistantText: "",
+        streamingActiveRunId: undefined
+      };
+
+      if (result.data.patchSet?.filePatches[0]?.relativePath) {
+        await get().openFile(result.data.patchSet.filePatches[0].relativePath);
+      }
+
+      set((state) => ({
+        ...nextState,
+        sessionDetails: detailResult.data ? { ...state.sessionDetails, [sessionId]: detailResult.data } : state.sessionDetails
+      }));
+    } finally {
+      unsubscribe();
+      set({ streamingAssistantText: "", streamingActiveRunId: undefined });
+    }
+  },
+  cancelActiveStream: async () => {
+    const runId = get().streamingActiveRunId;
+    if (!runId) {
+      return;
+    }
+    const result = await window.digitalLife.conversation.cancelMessage(runId);
     if (!result.ok) {
       set({ error: result.error.message });
-      return;
     }
-
-    const detailResult = await window.digitalLife.conversation.getSession(sessionId);
-    if (!detailResult.ok) {
-      set({ error: detailResult.error.message });
-      return;
-    }
-
-    const nextState: Partial<StoreState> = {
-      activeRun: result.data.runDetail,
-      activePatchSet: result.data.patchSet,
-      openTabs: result.data.patchSet?.filePatches.map(mapPatchToEditorTab) ?? get().openTabs,
-      selectedFilePath: result.data.patchSet?.filePatches[0]?.relativePath
-    };
-
-    if (result.data.patchSet?.filePatches[0]?.relativePath) {
-      await get().openFile(result.data.patchSet.filePatches[0].relativePath);
-    }
-
-    set((state) => ({
-      ...nextState,
-      sessionDetails: detailResult.data ? { ...state.sessionDetails, [sessionId]: detailResult.data } : state.sessionDetails
-    }));
   },
   openFile: async (relativePath: string) => {
     const [fileResult, outlineResult] = await Promise.all([
@@ -444,15 +548,21 @@ const useAppStore = create<StoreState>((set, get) => ({
       set({ error: fileResult.error.message });
       return;
     }
-    set({
-      openTabs: get().openTabs.some((tab) => tab.path === relativePath)
-        ? get().openTabs
-        : [...get().openTabs, createEditorTab(relativePath)],
-      selectedFilePath: relativePath,
-      fileContent: fileResult.data.content,
-      fileLastModifiedAt: fileResult.data.lastModifiedAt,
-      externalFileChange: get().externalFileChange?.path === relativePath ? undefined : get().externalFileChange,
-      outline: outlineResult.ok ? outlineResult.data : []
+    const norm = normalizeWorkspaceRelativePath(relativePath);
+    set((state) => {
+      const nextDirty = state.dirtyEditorPaths.filter((p) => normalizeWorkspaceRelativePath(p) !== norm);
+      void window.digitalLife.workspace.setEditorDirtyPaths(nextDirty);
+      return {
+        openTabs: state.openTabs.some((tab) => tab.path === relativePath)
+          ? state.openTabs
+          : [...state.openTabs, createEditorTab(relativePath)],
+        selectedFilePath: relativePath,
+        fileContent: fileResult.data.content,
+        fileLastModifiedAt: fileResult.data.lastModifiedAt,
+        externalFileChange: state.externalFileChange?.path === relativePath ? undefined : state.externalFileChange,
+        outline: outlineResult.ok ? outlineResult.data : [],
+        dirtyEditorPaths: nextDirty
+      };
     });
   },
   searchFiles: async (query: string) => {
@@ -532,17 +642,31 @@ const useAppStore = create<StoreState>((set, get) => ({
     set({ taskCenter: result.data });
   },
   markExternalFileChange: ({ path, lastModifiedAt }) => {
-    if (get().selectedFilePath !== path) {
+    const selected = normalizeWorkspaceRelativePath(get().selectedFilePath ?? "");
+    const incoming = normalizeWorkspaceRelativePath(path);
+    if (!selected || selected !== incoming) {
       return;
     }
     if (typeof get().fileLastModifiedAt === "number" && get().fileLastModifiedAt === lastModifiedAt) {
       return;
     }
-    set({
-      externalFileChange: {
-        path,
-        lastModifiedAt
-      }
+    set((state) => {
+      const nextDirty = [...new Set([...state.dirtyEditorPaths, incoming])];
+      void window.digitalLife.workspace.setEditorDirtyPaths(nextDirty);
+      return {
+        externalFileChange: {
+          path,
+          lastModifiedAt
+        },
+        dirtyEditorPaths: nextDirty
+      };
+    });
+  },
+  notifyEditorBufferDirty: (relativePath: string, isDirty: boolean) => {
+    set((state) => {
+      const nextDirty = mergeDirtyEditorPaths(state.dirtyEditorPaths, relativePath, isDirty);
+      void window.digitalLife.workspace.setEditorDirtyPaths(nextDirty);
+      return { dirtyEditorPaths: nextDirty };
     });
   },
   runCommand: async (command, argsText) => {
@@ -563,6 +687,75 @@ const useAppStore = create<StoreState>((set, get) => ({
     }
     set({ latestCommandRun: result.data });
     await get().refreshTaskCenter();
+  },
+  runCommandStream: async (command, argsText) => {
+    if (!command.trim()) {
+      return;
+    }
+    terminalStreamUnsub?.();
+    terminalStreamUnsub = undefined;
+    set({ terminalOutput: "", activeTerminalExecutionId: undefined, error: undefined });
+    const args = argsText
+      .split(/\s+/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+    const result = await window.digitalLife.command.runStream({
+      command: command.trim(),
+      args
+    });
+    if (!result.ok) {
+      set({ error: result.error.message });
+      return;
+    }
+    if (result.data.mode === "waiting-approval") {
+      set({
+        latestCommandRun: {
+          status: "waiting-approval",
+          taskId: result.data.taskId,
+          request: result.data.request,
+          approvalRequest: result.data.approvalRequest
+        }
+      });
+      await get().refreshTaskCenter();
+      return;
+    }
+    const { executionId } = result.data;
+    set({ activeTerminalExecutionId: executionId });
+    terminalStreamUnsub = window.digitalLife.subscribeTerminalStream((event) => {
+      if (event.v !== 1 || event.executionId !== executionId) {
+        return;
+      }
+      if (event.type === "stdout" || event.type === "stderr") {
+        set((state) => ({
+          terminalOutput: state.terminalOutput + event.text
+        }));
+        return;
+      }
+      if (event.type === "error") {
+        set((state) => ({
+          terminalOutput: `${state.terminalOutput}\n[error] ${event.message}\n`
+        }));
+      }
+      if (event.type === "done") {
+        terminalStreamUnsub?.();
+        terminalStreamUnsub = undefined;
+        set((state) => ({
+          activeTerminalExecutionId: undefined,
+          terminalOutput: `${state.terminalOutput}\n[exit ${event.exitCode ?? "null"}] ${event.summary}\n`
+        }));
+        void get().refreshTaskCenter();
+      }
+    });
+  },
+  stopCommandStream: async () => {
+    const id = get().activeTerminalExecutionId;
+    if (!id) {
+      return;
+    }
+    const result = await window.digitalLife.command.stopStream(id);
+    if (!result.ok) {
+      set({ error: result.error.message });
+    }
   },
   refreshModelHealth: async () => {
     const result = await window.digitalLife.app.getModelHealth();
@@ -717,6 +910,8 @@ function App() {
     taskCenter,
     modelHealth,
     latestCommandRun,
+    terminalOutput,
+    activeTerminalExecutionId,
     openTabs,
     selectedFilePath,
     fileContent,
@@ -729,6 +924,9 @@ function App() {
     createSession,
     selectSession,
     sendMessage,
+    cancelActiveStream,
+    streamingAssistantText,
+    streamingActiveRunId,
     openFile,
     searchFiles,
     setHunkDecision,
@@ -737,7 +935,10 @@ function App() {
     refreshTaskCenter,
     decideApproval,
     markExternalFileChange,
+    notifyEditorBufferDirty,
     runCommand,
+    runCommandStream,
+    stopCommandStream,
     refreshModelHealth,
     updatePreferences
   } = useAppStore();
@@ -749,6 +950,43 @@ function App() {
   const [editorHint, setEditorHint] = useState<string>();
   const standardEditorRef = useRef<MonacoEditorRef | null>(null);
   const diffEditorRef = useRef<MonacoEditorRef | null>(null);
+  const terminalOutputEndRef = useRef<HTMLDivElement | null>(null);
+  const editorDirtyTimerRef = useRef<number>();
+  const [diffSideBySide, setDiffSideBySide] = useState(readDiffSideBySidePreference);
+
+  const persistDiffLayout = useCallback((sideBySide: boolean) => {
+    setDiffSideBySide(sideBySide);
+    try {
+      window.localStorage.setItem(DIFF_LAYOUT_STORAGE_KEY, sideBySide ? "1" : "0");
+    } catch {
+      /* ignore quota / private mode */
+    }
+  }, []);
+
+  const handleStandardEditorChange = useCallback(
+    (value: string | undefined) => {
+      const pathAtEdit = selectedFilePath;
+      if (!pathAtEdit) {
+        return;
+      }
+      window.clearTimeout(editorDirtyTimerRef.current);
+      editorDirtyTimerRef.current = window.setTimeout(() => {
+        if (useAppStore.getState().selectedFilePath !== pathAtEdit) {
+          return;
+        }
+        const baseline = useAppStore.getState().fileContent ?? "";
+        const dirty = (value ?? "") !== baseline;
+        notifyEditorBufferDirty(pathAtEdit, dirty);
+      }, 300);
+    },
+    [notifyEditorBufferDirty, selectedFilePath]
+  );
+
+  useEffect(() => {
+    return () => {
+      window.clearTimeout(editorDirtyTimerRef.current);
+    };
+  }, [selectedFilePath]);
 
   useEffect(() => {
     void bootstrap();
@@ -780,6 +1018,13 @@ function App() {
       markExternalFileChange(event);
     });
   }, [markExternalFileChange]);
+
+  useEffect(() => {
+    if (!terminalOutput) {
+      return;
+    }
+    terminalOutputEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [terminalOutput]);
 
   const locale = (appInfo?.config.language ?? "zh-CN") as Locale;
   const t = copy[locale];
@@ -1095,14 +1340,33 @@ function App() {
               <div className="adl-inline-form">
                 <input value={commandArgs} onChange={(event) => setCommandArgs(event.target.value)} placeholder={t.commandArgs} />
               </div>
-              <button type="button" onClick={() => void runCommand(commandBinary, commandArgs)}>
-                {t.runCommand}
-              </button>
+              <div className="adl-inline-actions">
+                <button type="button" onClick={() => void runCommand(commandBinary, commandArgs)}>
+                  {t.runCommand}
+                </button>
+                <button type="button" onClick={() => void runCommandStream(commandBinary, commandArgs)}>
+                  {t.runStreamCommand}
+                </button>
+                <button
+                  type="button"
+                  disabled={!activeTerminalExecutionId}
+                  onClick={() => void stopCommandStream()}
+                >
+                  {t.stopStreamCommand}
+                </button>
+              </div>
               {latestCommandRun ? (
                 <p className="adl-status">
                   {latestCommandRun.status === "waiting-approval" ? t.commandWaitingApproval : t.commandCompleted}
                 </p>
               ) : null}
+              <div className="adl-terminal-panel">
+                <h4 className="adl-terminal-panel__title">{t.terminalOutput}</h4>
+                <pre className="adl-terminal-panel__output" data-testid="terminal-output">
+                  {terminalOutput || "—"}
+                </pre>
+                <div ref={terminalOutputEndRef} />
+              </div>
             </section>
           </aside>
 
@@ -1124,6 +1388,15 @@ function App() {
               ) : (
                 <p className="text-muted">{t.noMessages}</p>
               )}
+              {streamingAssistantText ? (
+                <article className="adl-message adl-message--assistant adl-message--streaming">
+                  <header>
+                    <strong>assistant</strong>
+                    <span className="text-muted"> streaming</span>
+                  </header>
+                  <p>{streamingAssistantText}</p>
+                </article>
+              ) : null}
             </div>
             <div className="adl-composer">
               <textarea
@@ -1142,6 +1415,11 @@ function App() {
               >
                 {t.send}
               </button>
+              {streamingActiveRunId ? (
+                <button type="button" className="adl-button-secondary" onClick={() => void cancelActiveStream()}>
+                  {t.cancelGenerate}
+                </button>
+              ) : null}
             </div>
           </section>
 
@@ -1254,6 +1532,22 @@ function App() {
                 {filePatch && filePatch.relativePath === selectedFilePath ? (
                   <>
                     <p className="adl-status">{t.diffPreview}</p>
+                    <div className="adl-diff-layout-toggle" role="group" aria-label={t.diffLayoutLabel}>
+                      <button
+                        type="button"
+                        className={diffSideBySide ? "" : "is-active"}
+                        onClick={() => persistDiffLayout(false)}
+                      >
+                        {t.diffLayoutInline}
+                      </button>
+                      <button
+                        type="button"
+                        className={diffSideBySide ? "is-active" : ""}
+                        onClick={() => persistDiffLayout(true)}
+                      >
+                        {t.diffLayoutSideBySide}
+                      </button>
+                    </div>
                     <DiffEditor
                       height="320px"
                       language={editorLanguage}
@@ -1262,7 +1556,7 @@ function App() {
                       options={{
                         readOnly: true,
                         minimap: { enabled: false },
-                        renderSideBySide: false,
+                        renderSideBySide: diffSideBySide,
                         scrollBeyondLastLine: false
                       }}
                       onMount={(editor) => {
@@ -1276,10 +1570,11 @@ function App() {
                     language={editorLanguage}
                     value={fileContent ?? ""}
                     options={{
-                      readOnly: true,
+                      readOnly: false,
                       minimap: { enabled: false },
                       scrollBeyondLastLine: false
                     }}
+                    onChange={(value) => handleStandardEditorChange(value)}
                     onMount={(editor, monaco) => {
                       standardEditorRef.current = editor as unknown as MonacoEditorRef;
                       (window as typeof window & { monaco?: typeof monaco }).monaco = monaco;

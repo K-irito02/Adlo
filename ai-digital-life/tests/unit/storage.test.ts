@@ -195,4 +195,33 @@ describe("state repository", () => {
     );
     repository.close();
   });
+
+  it("inserts model_call_audit records", async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "adl-model-audit-"));
+    tempDirs.push(tempDir);
+    const repository = new StateRepository(tempDir, createFakeLogger() as never);
+    await repository.initialize();
+
+    await expect(
+      repository.insertModelCallAudit({
+        id: createId("mcaudit"),
+        requestId: "req-1",
+        workspaceId: "ws-1",
+        sessionId: "sess-1",
+        runId: "run-1",
+        providerId: "deepseek",
+        modelId: "deepseek-chat",
+        scenario: "chat",
+        routeMeta: { reason: "test", chain: ["deepseek:deepseek-chat"] },
+        promptTokens: 10,
+        completionTokens: 20,
+        latencyMs: 100,
+        error: undefined,
+        streamed: true,
+        createdAt: Date.now()
+      })
+    ).resolves.toBeUndefined();
+
+    repository.close();
+  });
 });

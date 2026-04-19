@@ -9,6 +9,10 @@
   },
   "dependencies": {
     "@ai-digital-life/fs-ops": "file:../fs-ops",
-    "@ai-digital-life/kernel": "file:../kernel"
+    "@ai-digital-life/kernel": "file:../kernel",
+    "diff": "^5.2.0"
+  },
+  "devDependencies": {
+    "@types/diff": "^7.0.2"
   }
 }
