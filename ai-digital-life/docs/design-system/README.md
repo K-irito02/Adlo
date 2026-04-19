@@ -17,12 +17,20 @@ The design intent originates in [`digitalLife/aiFunction-Implementation/stageOne
 
 ```
 apps/desktop/renderer/src/
+├── main.tsx               # Vite/React 入口：mock 桥接、挂载根节点、全局样式
+├── app/
+│   ├── App.tsx            # 阶段二工作区 UI 组合
+│   ├── store.ts           # Zustand 应用状态与 IPC 调用
+│   ├── theme.ts           # ThemeController 单例（与 Main 下发的 theme 同步）
+│   ├── copy.ts            # 内联文案表（与 locales 并存时可逐步收敛）
+│   └── …                  # 纯函数拆分（路径、会话加载、选区提示等）
 ├── styles/
 │   ├── tokens.css         # 1. Atomic CSS custom properties
 │   ├── themes.css         # 2. 5 schemes × light/dark
 │   ├── base.css           # 3. Resets, focus, scrollbar
 │   ├── layout.css         # 4. App shell, sidebar, grid presets
 │   ├── components.css     # 5. Buttons, cards, pills, modal, ...
+│   ├── workspace.css      # 阶段二工作区布局与面板（消费语义 token）
 │   ├── utilities.css      # 6. sr-only, skip link, gap helpers
 │   └── index.css          # Single import surface
 └── design-system/

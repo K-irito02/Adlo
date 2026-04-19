@@ -62,6 +62,7 @@ ai-digital-life/
 │       ├── preload/       # Preload 脚本
 │       ├── renderer/      # Renderer 进程
 │       │   └── src/
+│       │       ├── app/            # React：App、store、工具与文案（与 design-system 分层）
 │       │       ├── design-system/  # 设计系统模块
 │       │       ├── styles/         # CSS 样式系统
 │       │       └── locales/        # 国际化资源

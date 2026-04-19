@@ -19,7 +19,7 @@ Why these matter:
 
 - **Security**: hostile data attributes are caught before they reach the DOM.
 - **Stability**: theme persistence + resolution rules are validated under hostile storage / media-query stubs.
-- **Determinism**: the renderer integration test (`tests/integration/renderer-shell.test.ts`) depends on stable data-attributes (e.g. `data-approval-decision`, `data-restore-checkpoint`) and on specific copy in the locale files. Tests pin those contracts.
+- **Determinism**: the renderer integration test (`tests/integration/renderer-shell.test.ts`) dynamically imports `renderer/src/main.tsx`, which mounts `app/App.tsx`; it pins `data-testid`s, visible copy, and the stubbed `digitalLife` bridge contract.
 
 ## 2. Integration tests (Vitest jsdom)
 
@@ -56,7 +56,7 @@ Phase 0 does **not** automate visual regression yet. The plan for Stage One:
 | ---------------------------- | --------------------------------------------------------------------------------------------------------- |
 | `design-system/*.ts` helpers | ≥ 90 % statements + branches.                                                                             |
 | `styles/*.css`               | Spot-checked via integration test rendering and build.                                                    |
-| `main.ts`                    | Covered indirectly by the integration test. Add a dedicated smoke test only when adding non-IPC behavior. |
+| `main.tsx` / `app/*`         | Covered indirectly by `renderer-shell` integration tests; add focused unit tests when adding renderer-only behavior. |
 | `theme.ts` controller        | 100 % public surface.                                                                                     |
 
 

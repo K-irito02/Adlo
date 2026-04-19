@@ -35,7 +35,7 @@ export interface ColorSchemeMeta {
 
 export const COLOR_SCHEME_META: ColorSchemeMeta[] = [
   { id: "scheme-1", zhName: "炭黑甜酷粉", enName: "Charcoal Pink", accentLight: "#e6397c", accentDark: "#ff5b9b" },
-  { id: "scheme-2", zhName: "深海柔奶白", enName: "Deep Sea Cream", accentLight: "#122e8a", accentDark: "#f5efea" },
+  { id: "scheme-2", zhName: "云白靛蓝", enName: "Cloud Indigo", accentLight: "#2563eb", accentDark: "#93c5fd" },
   { id: "scheme-3", zhName: "藤紫钛啡绿", enName: "Wisteria Green", accentLight: "#5e55a2", accentDark: "#a59ce6" },
   { id: "scheme-4", zhName: "无白茶花红", enName: "Camellia Red", accentLight: "#e72d48", accentDark: "#ff6f8a" },
   { id: "scheme-5", zhName: "捣蓝清水蓝", enName: "Indigo Cyan", accentLight: "#113056", accentDark: "#91cfd5" }

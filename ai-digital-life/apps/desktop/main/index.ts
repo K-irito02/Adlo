@@ -2801,7 +2801,8 @@ async function createWindow(): Promise<void> {
   });
 
   if (isDev) {
-    await mainWindow.loadURL("http://localhost:5173");
+    const rendererDevUrl = (process.env.ADL_RENDERER_DEV_URL ?? "http://localhost:5173").trim() || "http://localhost:5173";
+    await mainWindow.loadURL(rendererDevUrl);
   } else {
     await mainWindow.loadFile(path.join(__dirname, "../renderer/index.html"));
   }

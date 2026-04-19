@@ -41,10 +41,8 @@ body {
 /* Each theme provides a tailored radial backdrop. Avoid scroll-thrash by
    enabling a fallback background colour first. */
 [data-theme="light"] body {
-  background:
-    radial-gradient(circle at top left, var(--accent-soft) 0%, transparent 28%),
-    radial-gradient(circle at top right, var(--info-soft) 0%, transparent 24%),
-    linear-gradient(160deg, var(--bg) 0%, var(--surface-sunken) 140%);
+  /* Minimal canvas: flat tone with a whisper of depth (no heavy gradients) */
+  background: var(--bg);
 }
 
 [data-theme="dark"] body {
