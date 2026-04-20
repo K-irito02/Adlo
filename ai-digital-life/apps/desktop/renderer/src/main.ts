@@ -18,7 +18,6 @@ import type {
 
 import {
   ThemeController,
-  COLOR_SCHEME_META,
   classNames,
   escapeHtml,
   formatBytes,
@@ -33,7 +32,6 @@ import {
   renderNavItem,
   renderPill,
   renderSegmentedControl,
-  type ColorScheme,
   type IconName,
   type PillTone,
   type Renderable
@@ -277,28 +275,8 @@ function renderTitlebar(messages: Messages, info: AppInfo): Renderable {
         <span class="app-shell__brand-meta">v${info.version}</span>
       </div>
       <div class="app-shell__titlebar-spacer"></div>
-      ${renderColorSchemePicker(messages)}
     </header>
   `;
-}
-
-function renderColorSchemePicker(messages: Messages): Renderable {
-  const state = themeController.getState();
-  const labelMap: Record<ColorScheme, string> = {
-    "scheme-1": messages.colorScheme1,
-    "scheme-2": messages.colorScheme2,
-    "scheme-3": messages.colorScheme3,
-    "scheme-4": messages.colorScheme4,
-    "scheme-5": messages.colorScheme5
-  };
-
-  const buttons = COLOR_SCHEME_META.map((meta) => {
-    const isActive = meta.id === state.colorScheme;
-    const swatch = `<span class="color-scheme__swatch" style="background:${state.resolvedTheme === "dark" ? meta.accentDark : meta.accentLight}" aria-hidden="true"></span>`;
-    return `<button type="button" class="${classNames("color-scheme__btn", isActive && "color-scheme__btn--active")}" data-color-scheme-button="${meta.id}" aria-pressed="${isActive ? "true" : "false"}" aria-label="${escapeHtml(labelMap[meta.id])}" title="${escapeHtml(labelMap[meta.id])}">${swatch}</button>`;
-  }).join("");
-
-  return raw(`<div class="color-scheme" role="group" aria-label="${escapeHtml(messages.colorSchemeOpenLabel)}">${buttons}</div>`);
 }
 
 function renderSidebar(messages: Messages): Renderable {
@@ -367,7 +345,6 @@ function renderHero(messages: Messages, info: AppInfo): Renderable {
                 value: info.config.themeMode,
                 options: themeOptions
               })}
-              <p class="field__hint">${messages.themePickerHelp}</p>
             </div>
           </div>
         </div>
@@ -829,7 +806,6 @@ function attachListeners(messages: Messages): void {
   const input = document.querySelector<HTMLInputElement>("#workspace-path");
   const buttons = document.querySelectorAll<HTMLButtonElement>("[data-open-workspace]");
   const segmentedButtons = document.querySelectorAll<HTMLButtonElement>("[data-segmented-name]");
-  const colorSchemeButtons = document.querySelectorAll<HTMLButtonElement>("[data-color-scheme-button]");
   const approvalButtons = document.querySelectorAll<HTMLButtonElement>("[data-approval-decision]");
   const restoreButtons = document.querySelectorAll<HTMLButtonElement>("[data-restore-checkpoint]");
   const approvalReasonInput = document.querySelector<HTMLInputElement>("#approval-reason");
@@ -937,15 +913,6 @@ function attachListeners(messages: Messages): void {
       } else if (name === "theme") {
         await updatePreferences({ themeMode: value as ThemeMode });
       }
-    });
-  });
-
-  colorSchemeButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      const value = button.dataset.colorSchemeButton as ColorScheme | undefined;
-      if (!value) return;
-      themeController.setColorScheme(value);
-      renderApp();
     });
   });
 

@@ -20,13 +20,8 @@ export {
 
 export {
   ThemeController,
-  COLOR_SCHEMES,
-  COLOR_SCHEME_META,
-  isColorScheme,
   isThemeMode,
   resolveThemeMode,
-  type ColorScheme,
-  type ColorSchemeMeta,
   type ThemeMode,
   type ResolvedTheme,
   type ThemeControllerOptions,

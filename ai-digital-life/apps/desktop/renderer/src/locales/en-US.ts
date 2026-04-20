@@ -112,14 +112,6 @@ export const enUS = {
   skipToContent: "Skip to main content",
   themeSystem: "System",
   themeModeLabel: "Theme mode",
-  colorScheme: "Color scheme",
-  colorSchemeOpenLabel: "Choose color scheme",
-  colorScheme1: "Charcoal Pink",
-  colorScheme2: "Deep Sea Cream",
-  colorScheme3: "Wisteria Green",
-  colorScheme4: "Camellia Red",
-  colorScheme5: "Indigo Cyan",
-  themePickerHelp: "Switch freely between five color schemes and light / dark modes.",
   workspacePathLabel: "Workspace path",
   approvalReasonLabel: "Approval note",
   ariaPendingApprovals: "Pending approvals list",
@@ -127,5 +119,5 @@ export const enUS = {
   ariaRecentList: "Recent workspaces list",
   ariaLogList: "Recent logs list",
   ariaHealthList: "Component health list",
-  designSystemReady: "Design system loaded: 5 schemes \u00d7 light/dark = 10 themes."
+  designSystemReady: "Design system loaded: light/dark themes."
 } as const;

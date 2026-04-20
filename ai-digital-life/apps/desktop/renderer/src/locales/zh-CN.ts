@@ -112,14 +112,6 @@ export const zhCN = {
   skipToContent: "跳转到主要内容",
   themeSystem: "跟随系统",
   themeModeLabel: "主题模式",
-  colorScheme: "配色方案",
-  colorSchemeOpenLabel: "选择配色方案",
-  colorScheme1: "炭黑甜酷粉",
-  colorScheme2: "深海柔奶白",
-  colorScheme3: "藤紫钛啡绿",
-  colorScheme4: "无白茶花红",
-  colorScheme5: "捣蓝清水蓝",
-  themePickerHelp: "可在 5 套配色与浅/深色之间任意切换。",
   workspacePathLabel: "工作区路径",
   approvalReasonLabel: "审批备注",
   ariaPendingApprovals: "待审批列表",
@@ -127,5 +119,5 @@ export const zhCN = {
   ariaRecentList: "最近工作区列表",
   ariaLogList: "最近日志列表",
   ariaHealthList: "健康状态列表",
-  designSystemReady: "已加载设计系统：5 套配色 × 浅/深 = 10 种主题。"
+  designSystemReady: "已加载设计系统：浅色/深色两种主题。"
 } as const;

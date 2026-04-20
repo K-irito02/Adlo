@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Editor, { DiffEditor } from "@monaco-editor/react";
 import type { AppInfo, ApprovalRequestSummary } from "@ai-digital-life/kernel";
-import { COLOR_SCHEME_META, type ColorScheme } from "../design-system";
 import { copy, type Locale } from "./copy";
 import { DIFF_LAYOUT_STORAGE_KEY, MODEL_PROVIDER_IDS } from "./constants";
 import { MessageBlocks } from "./MessageBlocks";
@@ -78,7 +77,6 @@ export function App() {
   const terminalOutputEndRef = useRef<HTMLDivElement | null>(null);
   const editorDirtyTimerRef = useRef<number | undefined>(undefined);
   const [diffSideBySide, setDiffSideBySide] = useState(readDiffSideBySidePreference);
-  const [colorScheme, setColorScheme] = useState<ColorScheme>(() => themeController.getState().colorScheme);
   const [isMaximized, setIsMaximized] = useState(false);
 
   const persistDiffLayout = useCallback((sideBySide: boolean) => {
@@ -118,12 +116,6 @@ export function App() {
   useEffect(() => {
     void bootstrap();
   }, [bootstrap]);
-
-  useEffect(() => {
-    return themeController.subscribe((state) => {
-      setColorScheme(state.colorScheme);
-    });
-  }, []);
 
   useEffect(() => {
     if (!appInfo) {
@@ -261,10 +253,6 @@ export function App() {
     await sendMessage(buildSelectionPrompt(locale, selectedFilePath, selectedText));
   };
 
-  const handleColorSchemePick = (scheme: ColorScheme) => {
-    themeController.setColorScheme(scheme);
-  };
-
   const handleWindowMinimize = useCallback(() => {
     void window.digitalLife.window.minimize();
   }, []);
@@ -306,20 +294,6 @@ export function App() {
           <span>{t.landingTitle}</span>
         </div>
         <div className="adl-ide-titlebar-actions">
-          <div className="color-scheme" role="list">
-            {COLOR_SCHEME_META.map((meta) => (
-              <button
-                key={meta.id}
-                type="button"
-                className={`color-scheme__btn${meta.id === colorScheme ? " color-scheme__btn--active" : ""}`}
-                aria-label={locale === "zh-CN" ? meta.zhName : meta.enName}
-                aria-pressed={meta.id === colorScheme}
-                onClick={() => handleColorSchemePick(meta.id)}
-              >
-                <span className="color-scheme__swatch" style={{ background: meta.accentLight }} />
-              </button>
-            ))}
-          </div>
           <select
             className="select select--sm"
             style={{ width: "auto" }}
