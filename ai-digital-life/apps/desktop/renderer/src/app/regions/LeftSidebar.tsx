@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import type {
   AppInfo,
   ConversationSessionRecord,
@@ -161,6 +161,49 @@ export function LeftSidebar({
 
   const language = appInfo?.config.language ?? "zh-CN";
 
+  const draggingRef = useRef(false);
+  const rafRef = useRef(0);
+
+  const handleResizeMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      const shellBody = document.querySelector(".adl-shell__body");
+      if (!shellBody) return;
+      draggingRef.current = true;
+      shellBody.classList.add("is-resizing");
+      const startX = e.clientX;
+      const root = document.documentElement;
+      const startWidth = parseFloat(getComputedStyle(root).getPropertyValue("--leftbar-width")) || 248;
+
+      const onMouseMove = (moveEvent: MouseEvent) => {
+        if (!draggingRef.current) return;
+        if (rafRef.current) return;
+        rafRef.current = requestAnimationFrame(() => {
+          rafRef.current = 0;
+          const delta = moveEvent.clientX - startX;
+          const newWidth = Math.min(520, Math.max(180, startWidth + delta));
+          root.style.setProperty("--leftbar-width", `${newWidth}px`);
+        });
+      };
+
+      const onMouseUp = () => {
+        draggingRef.current = false;
+        shellBody.classList.remove("is-resizing");
+        if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = 0; }
+        window.removeEventListener("mousemove", onMouseMove);
+        window.removeEventListener("mouseup", onMouseUp);
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+      };
+
+      window.addEventListener("mousemove", onMouseMove);
+      window.addEventListener("mouseup", onMouseUp);
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+    },
+    []
+  );
+
   return (
     <aside className="adl-leftbar" aria-label="Workspace and session navigator">
       {/* Region 5: Quick actions */}
@@ -189,7 +232,7 @@ export function LeftSidebar({
         <TooltipSimple content={t.quickNewWorkspace} placement="right">
           <button
             type="button"
-            className="adl-quick-btn adl-quick-btn--primary"
+            className="adl-quick-btn"
             onClick={onTriggerCreateWorkspace}
           >
             <IconFolderPlus size={16} decorative />
@@ -414,6 +457,7 @@ export function LeftSidebar({
           </select>
         </label>
       </section>
+      <div className="adl-leftbar__resize-handle" onMouseDown={handleResizeMouseDown} role="separator" aria-orientation="vertical" aria-label="调整侧边栏宽度" />
     </aside>
   );
 }

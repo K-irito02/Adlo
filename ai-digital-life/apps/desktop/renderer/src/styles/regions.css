@@ -48,6 +48,10 @@
   transition: grid-template-columns var(--duration-200) var(--ease-default);
 }
 
+.adl-shell__body.is-resizing {
+  transition: none;
+}
+
 .adl-shell__body.is-left-collapsed {
   grid-template-columns: 0 1fr var(--rightpanel-width);
 }
@@ -428,13 +432,24 @@
   border-right: 1px solid var(--border-subtle);
   overflow: hidden;
   transition: var(--theme-transition);
+  position: relative;
+}
+
+.adl-leftbar__resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 5px;
+  cursor: col-resize;
+  z-index: 10;
 }
 
 .adl-leftbar__quick {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-direction: column;
   gap: var(--space-1);
-  padding: var(--space-2);
+  padding: 0;
   border-bottom: 1px solid var(--border-subtle);
 }
 
@@ -442,33 +457,47 @@
   display: flex;
   align-items: center;
   gap: var(--space-1-5);
-  padding: var(--space-2);
+  padding: var(--space-2) var(--space-3);
   font-size: var(--text-xs);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--surface);
+  border: 1px solid transparent;
+  border-right: none;
+  border-radius: 0;
+  background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: var(--transition-colors);
+  width: 100%;
+  box-sizing: border-box;
+  transition:
+    background var(--duration-150) var(--ease-default),
+    border-color var(--duration-150) var(--ease-default),
+    color var(--duration-150) var(--ease-default),
+    box-shadow var(--duration-150) var(--ease-default);
   position: relative;
 }
 
 .adl-quick-btn:hover:not(:disabled) {
   background: var(--surface-hover);
   color: var(--text-primary);
+  border-color: var(--border-subtle);
+  border-right-color: transparent;
+}
+
+.adl-quick-btn:active:not(:disabled) {
+  background: var(--surface-active, rgba(34, 34, 34, 0.1));
+  border-color: var(--border-subtle);
+  border-right-color: transparent;
+}
+
+.adl-quick-btn:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  border-right-color: transparent;
+  box-shadow: 0 0 0 2px var(--accent-soft);
 }
 
 .adl-quick-btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
-}
-
-.adl-quick-btn--primary {
-  grid-column: span 2;
-  background: var(--accent-soft);
-  color: var(--accent);
-  border-color: transparent;
-  justify-content: center;
 }
 
 .adl-quick-btn__label {
@@ -525,6 +554,7 @@
 .adl-workspace-list {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 0 var(--space-1);
   margin: 0;
   list-style: none;
