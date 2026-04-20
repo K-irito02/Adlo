@@ -130,7 +130,7 @@
 
 .btn--danger {
   background: var(--danger);
-  color: #fff;
+  color: var(--text-inverse);
 }
 
 .btn--danger:hover:not([disabled]) {
@@ -642,7 +642,7 @@
   height: 16px;
   margin-left: var(--space-2);
   border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--bg-hover);
   color: inherit;
   border: none;
   cursor: pointer;
@@ -653,7 +653,7 @@
 }
 
 .tooltip__close:hover {
-  background: rgba(255, 255, 255, 0.25);
+  background: var(--bg-active);
 }
 
 .tooltip__close:focus-visible {

@@ -66,13 +66,13 @@
 }
 
 .adl-banner--error {
-  background: var(--danger-subtle, rgba(239, 68, 68, 0.1));
-  color: var(--danger, #dc2626);
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 
 .adl-banner--warning {
-  background: var(--warning-subtle, rgba(245, 158, 11, 0.12));
-  color: var(--warning, #b45309);
+  background: var(--warning-soft);
+  color: var(--warning);
   display: flex;
   gap: var(--space-2);
   align-items: center;
@@ -82,7 +82,7 @@
 }
 
 .adl-banner--info {
-  background: var(--surface-subtle, rgba(148, 163, 184, 0.12));
+  background: var(--surface-subtle);
   color: var(--text-primary);
   display: flex;
   gap: var(--space-2);
@@ -145,7 +145,7 @@
   color: var(--text-secondary);
   white-space: nowrap;
   padding: 2px 8px;
-  background: var(--surface-elevated, var(--surface));
+  background: var(--surface-elevated);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow-md);
@@ -194,7 +194,7 @@
   top: calc(100% + 2px);
   left: 0;
   min-width: 220px;
-  background: var(--surface-raised, var(--surface));
+  background: var(--surface-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
@@ -297,8 +297,8 @@
 }
 
 .adl-icon-btn.is-toggled {
-  background: var(--accent-subtle, rgba(59, 130, 246, 0.15));
-  color: var(--accent, #2563eb);
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
 .adl-icon-btn--xs {
@@ -317,8 +317,8 @@
 }
 
 .adl-window-btn--close:hover {
-  background: var(--danger, #dc2626);
-  color: #fff;
+  background: var(--danger);
+  color: var(--text-inverse);
 }
 
 /* ---------------- Buttons (shared) ---------------- */
@@ -350,13 +350,13 @@
 }
 
 .adl-btn--primary {
-  background: var(--accent, #2563eb);
-  color: #fff;
-  border-color: var(--accent, #2563eb);
+  background: var(--accent);
+  color: var(--text-inverse);
+  border-color: var(--accent);
 }
 
 .adl-btn--primary:hover:not(:disabled) {
-  background: var(--accent-strong, #1d4ed8);
+  background: var(--accent-strong);
 }
 
 .adl-btn--ghost {
@@ -392,26 +392,26 @@
   padding: 2px var(--space-1-5);
   border-radius: var(--radius-full);
   font-size: 11px;
-  background: var(--surface-subtle, rgba(148, 163, 184, 0.15));
+  background: var(--surface-subtle);
   color: var(--text-secondary);
   border: 1px solid var(--border-subtle);
 }
 
 .adl-chip--success {
-  background: var(--success-subtle, rgba(34, 197, 94, 0.12));
-  color: var(--success, #15803d);
+  background: var(--success-soft);
+  color: var(--success);
   border-color: transparent;
 }
 
 .adl-chip--warning {
-  background: var(--warning-subtle, rgba(245, 158, 11, 0.12));
-  color: var(--warning, #b45309);
+  background: var(--warning-soft);
+  color: var(--warning);
   border-color: transparent;
 }
 
 .adl-chip--info {
-  background: var(--accent-subtle, rgba(59, 130, 246, 0.12));
-  color: var(--accent, #2563eb);
+  background: var(--accent-soft);
+  color: var(--accent);
   border-color: transparent;
 }
 
@@ -461,8 +461,8 @@
 
 .adl-quick-btn--primary {
   grid-column: span 2;
-  background: var(--accent-subtle, rgba(59, 130, 246, 0.1));
-  color: var(--accent, #2563eb);
+  background: var(--accent-soft);
+  color: var(--accent);
   border-color: transparent;
   justify-content: center;
 }
@@ -694,21 +694,21 @@
 }
 
 .adl-status-lamp--processing {
-  background: var(--accent, #2563eb);
+  background: var(--accent);
   animation: adl-breathe 1.6s infinite ease-in-out;
 }
 
 .adl-status-lamp--pending-approval {
-  background: var(--warning, #b45309);
+  background: var(--warning);
   animation: adl-breathe 2.2s infinite ease-in-out;
 }
 
 .adl-status-lamp--abnormal {
-  background: var(--danger, #dc2626);
+  background: var(--danger);
 }
 
 .adl-status-lamp--completed {
-  background: var(--success, #15803d);
+  background: var(--success);
 }
 
 .adl-status-lamp--read {
@@ -821,26 +821,26 @@
 }
 
 .adl-agent-status--processing {
-  color: var(--accent, #2563eb);
-  background: var(--accent-subtle, rgba(59, 130, 246, 0.1));
+  color: var(--accent);
+  background: var(--accent-soft);
   border-color: transparent;
 }
 
 .adl-agent-status--pending {
-  color: var(--warning, #b45309);
-  background: var(--warning-subtle, rgba(245, 158, 11, 0.12));
+  color: var(--warning);
+  background: var(--warning-soft);
   border-color: transparent;
 }
 
 .adl-agent-status--error {
-  color: var(--danger, #dc2626);
-  background: var(--danger-subtle, rgba(239, 68, 68, 0.1));
+  color: var(--danger);
+  background: var(--danger-soft);
   border-color: transparent;
 }
 
 .adl-agent-status--success {
-  color: var(--success, #15803d);
-  background: var(--success-subtle, rgba(34, 197, 94, 0.12));
+  color: var(--success);
+  background: var(--success-soft);
   border-color: transparent;
 }
 
@@ -994,7 +994,7 @@
 }
 
 .adl-message--user {
-  background: var(--accent-subtle, rgba(59, 130, 246, 0.05));
+  background: var(--accent-soft);
 }
 
 .adl-message--assistant {
@@ -1002,7 +1002,7 @@
 }
 
 .adl-message--streaming {
-  border-color: var(--accent, #2563eb);
+  border-color: var(--accent);
 }
 
 .adl-message header {
@@ -1064,7 +1064,7 @@
 }
 
 .adl-composer__inner:focus-within {
-  border-color: var(--accent, #2563eb);
+  border-color: var(--accent);
 }
 
 .adl-composer__left,
@@ -1114,22 +1114,22 @@
 }
 
 .adl-action-btn--primary {
-  background: var(--accent, #2563eb);
-  color: #fff;
+  background: var(--accent);
+  color: var(--text-inverse);
 }
 
 .adl-action-btn--primary:hover:not(:disabled) {
-  background: var(--accent-strong, #1d4ed8);
+  background: var(--accent-strong);
 }
 
 .adl-action-btn--danger {
-  background: var(--danger, #dc2626);
-  color: #fff;
+  background: var(--danger);
+  color: var(--text-inverse);
 }
 
 .adl-action-btn--warning {
-  background: var(--warning, #b45309);
-  color: #fff;
+  background: var(--warning);
+  color: var(--text-inverse);
 }
 
 .adl-action-btn:disabled {
@@ -1146,7 +1146,7 @@
   min-width: 260px;
   max-width: 320px;
   padding: var(--space-2);
-  background: var(--surface-raised, var(--surface));
+  background: var(--surface-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-xl);
@@ -1248,8 +1248,8 @@
 }
 
 .adl-toolswitcher__tab.is-active {
-  color: var(--accent, #2563eb);
-  border-left-color: var(--accent, #2563eb);
+  color: var(--accent);
+  border-left-color: var(--accent);
 }
 
 /* ---------------- Tool bodies ---------------- */
@@ -1505,8 +1505,8 @@
 }
 
 .adl-segmented button[aria-pressed="true"] {
-  background: var(--accent, #2563eb);
-  color: #fff;
+  background: var(--accent);
+  color: var(--text-inverse);
 }
 
 /* Patch / run card */
@@ -1777,7 +1777,7 @@
   bottom: calc(100% + 4px);
   right: 0;
   min-width: 220px;
-  background: var(--surface-raised, var(--surface));
+  background: var(--surface-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);

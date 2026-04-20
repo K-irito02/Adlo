@@ -462,7 +462,7 @@
 .adl-ide-statusbar__sep {
   width: 1px;
   height: 14px;
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--border-strong);
 }
 
 /* Specific UI elements */
@@ -619,8 +619,8 @@
   overflow: auto;
   padding: var(--space-2);
   border-radius: var(--radius-md);
-  background: #1e1e1e;
-  color: #d4d4d4;
+  background: var(--code-bg);
+  color: var(--text-primary);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   line-height: var(--leading-relaxed);
@@ -1286,7 +1286,7 @@
 
 .statusbar__section[role="button"]:hover,
 .statusbar__section[tabindex]:hover {
-  background: rgba(128, 128, 128, 0.12);
+  background: var(--bg-hover);
 }
 
 .statusbar__section[role="button"]:focus-visible,
@@ -1393,7 +1393,7 @@
 }
 
 .statusbar__model-btn:hover {
-  background: rgba(128, 128, 128, 0.12);
+  background: var(--bg-hover);
   color: var(--text-secondary);
 }
 

@@ -227,3 +227,173 @@ function releaseGlobalListener(key: string): void {
 3. **代码质量**: 组件拆分提升了可维护性，事件监听器管理更加规范和可追踪
 
 建议在合并前进行充分的回归测试，特别是多实例场景和内存泄漏测试。
+
+---
+
+## 1. 高层摘要 (TL;DR)
+
+- **影响范围**: 🟡 **中等** - 重构了 `useTooltip` Hook 的全局事件监听器管理机制
+- **核心变更**:
+  - ✅ 简化了全局 scroll/resize 监听器的管理逻辑
+  - ✅ 移除了复杂的引用计数机制，改用 Set 存储回调
+  - ✅ 减少了内存占用和代码复杂度
+  - ✅ 保持了相同的功能行为，但实现更简洁
+
+## 2. 可视化概览 (代码逻辑图)
+
+```mermaid
+graph TD
+    subgraph "旧实现机制"
+        A1["useTooltip 实例化"] --> B1["创建 instanceIdRef"]
+        B1 --> C1["调用 getOrCreateGlobalListener"]
+        C1 --> D1["globalListenerMap 引用计数+1"]
+        D1 --> E1["添加 window 监听器"]
+        E1 --> F1["instanceSubscriptions WeakMap 存储监听器"]
+        F1 --> G1["清理时 releaseGlobalListener 引用计数-1"]
+    end
+    
+    subgraph "新实现机制"
+        A2["useTooltip 实例化"] --> B2["调用 registerScrollResizeCallback"]
+        B2 --> C2["scrollResizeCallbacks Set 添加回调"]
+        C2 --> D2{首次注册?}
+        D2 -->|是| E2["window 添加全局监听器"]
+        D2 -->|否| F2["复用已有监听器"]
+        E2 --> G2["globalListenerAttached = true"]
+        F2 --> H2["清理时 unregisterScrollResizeCallback"]
+        G2 --> H2
+        H2 --> I2{Set 为空?}
+        I2 -->|是| J2["移除 window 监听器"]
+        I2 -->|否| K2["保持监听器活跃"]
+    end
+    
+    style A1 fill:#fff3e0,color:#e65100
+    style A2 fill:#c8e6c9,color:#1a5e20
+    style E2 fill:#bbdefb,color:#0d47a1
+    style J2 fill:#bbdefb,color:#0d47a1
+```
+
+## 3. 详细变更分析
+
+### 📦 组件: `useTooltip.ts` - 全局监听器管理重构
+
+**变更原因**: 简化代码复杂度，提高性能，移除不必要的抽象层
+
+#### 🔧 数据结构变更
+
+| 数据结构 | 旧实现 | 新实现 | 说明 |
+|---------|--------|--------|------|
+| **全局监听器存储** | `Map<string, { handler, count }>` | `Set<() => void>` | 从引用计数改为直接存储回调 |
+| **实例监听器存储** | `WeakMap<object, ListenerEntry[]>` | 本地数组 `instanceListeners[]` | 移除 WeakMap，使用局部变量 |
+| **全局监听器标志** | 无 | `globalListenerAttached: boolean` | 新增标志避免重复添加监听器 |
+
+#### 📝 核心函数变更
+
+**移除的函数**:
+- ❌ `getOrCreateGlobalListener(key, handler)` - 基于引用计数创建/获取全局监听器
+- ❌ `releaseGlobalListener(key)` - 释放全局监听器（减少引用计数）
+
+**新增的函数**:
+- ✅ `globalScrollResizeHandler()` - 统一的 scroll/resize 处理器，遍历 Set 执行所有回调
+- ✅ `registerScrollResizeCallback(callback)` - 注册回调到 Set，首次注册时添加全局监听器
+- ✅ `unregisterScrollResizeCallback(callback)` - 从 Set 移除回调，Set 为空时移除全局监听器
+
+#### 💡 逻辑变更详解
+
+**1. 监听器注册流程** (源文件: `useTooltip.ts:251-254`)
+
+```typescript
+// ❌ 旧代码: 使用引用计数
+const scrollResizeKey = "tooltip:scroll-resize";
+const sharedHandler = getOrCreateGlobalListener(scrollResizeKey, handleScrollResize);
+window.addEventListener("scroll", sharedHandler, { passive: true });
+window.addEventListener("resize", sharedHandler, { passive: true });
+
+// ✅ 新代码: 直接注册回调
+registerScrollResizeCallback(handleScrollResize);
+```
+
+**2. 清理流程** (源文件: `useTooltip.ts:286-292`)
+
+```typescript
+// ❌ 旧代码: 需要管理引用计数和 WeakMap
+listeners.forEach(({ target, type, handler }) => {
+  target.removeEventListener(type, handler);
+});
+releaseGlobalListener(scrollResizeKey);
+instanceSubscriptions.delete(instanceId);
+
+// ✅ 新代码: 简化清理逻辑
+unregisterScrollResizeCallback(handleScrollResize);
+instanceListeners.forEach(({ target, type, handler }) => {
+  target.removeEventListener(type, handler);
+});
+```
+
+**3. 新增全局监听器管理逻辑** (源文件: `useTooltip.ts:40-63`)
+
+```typescript
+// 新增: 全局回调集合
+const scrollResizeCallbacks = new Set<() => void>();
+let globalListenerAttached = false;
+
+// 新增: 统一处理器
+function globalScrollResizeHandler() {
+  scrollResizeCallbacks.forEach((cb) => cb());
+}
+
+// 新增: 注册回调
+function registerScrollResizeCallback(callback: () => void): void {
+  scrollResizeCallbacks.add(callback);
+  if (!globalListenerAttached) {
+    window.addEventListener("scroll", globalScrollResizeHandler, { passive: true });
+    window.addEventListener("resize", globalScrollResizeHandler, { passive: true });
+    globalListenerAttached = true;
+  }
+}
+
+// 新增: 取消注册
+function unregisterScrollResizeCallback(callback: () => void): void {
+  scrollResizeCallbacks.delete(callback);
+  if (scrollResizeCallbacks.size === 0 && globalListenerAttached) {
+    window.removeEventListener("scroll", globalScrollResizeHandler);
+    window.removeEventListener("resize", globalScrollResizeHandler);
+    globalListenerAttached = false;
+  }
+}
+```
+
+## 4. 影响与风险评估
+
+### ⚠️ 潜在风险
+
+| 风险项 | 严重程度 | 说明 |
+|--------|---------|------|
+| **内存泄漏** | 🟢 低 | 新实现使用 Set，当所有 tooltip 实例销毁后会自动清理全局监听器 |
+| **性能回归** | 🟢 低 | 新实现减少了 Map 查找和 WeakMap 操作，性能应该有所提升 |
+| **行为变化** | 🟢 低 | 逻辑等价，只是实现方式不同 |
+
+### ✅ 测试建议
+
+1. **多 Tooltip 实例场景**:
+   - 同时创建多个 tooltip，验证所有都能正确响应 scroll/resize
+   - 逐个销毁 tooltip，验证监听器正确清理
+
+2. **快速创建/销毁**:
+   - 快速创建和销毁 tooltip 实例，验证没有内存泄漏
+   - 使用 React DevTools Profiler 检查内存占用
+
+3. **边界情况**:
+   - 验证当最后一个 tooltip 销毁时，全局监听器被正确移除
+   - 验证重新创建 tooltip 时，全局监听器被正确添加
+
+4. **功能回归测试**:
+   - Tooltip 在页面滚动时位置是否正确更新
+   - Tooltip 在窗口缩放时位置是否正确更新
+   - ESC 键关闭功能是否正常工作
+
+### 📊 优势总结
+
+- ✨ **代码简洁**: 减少了约 40 行代码
+- 🚀 **性能提升**: 移除了 Map 查找和 WeakMap 操作
+- 🔧 **易于维护**: 逻辑更直观，减少了抽象层
+- 💾 **内存优化**: 移除了 WeakMap 和不必要的引用计数
