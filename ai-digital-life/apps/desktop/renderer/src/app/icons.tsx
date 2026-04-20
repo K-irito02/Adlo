@@ -101,6 +101,13 @@ export const IconPanelRightClose = make(
     <path d="m8 9 3 3-3 3" />
   </>
 );
+export const IconEye = make(
+  <>
+    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+    <circle cx="12" cy="12" r="3" />
+  </>
+);
+
 export const IconColumns = make(
   <>
     <rect x="3" y="3" width="18" height="18" rx="2" />

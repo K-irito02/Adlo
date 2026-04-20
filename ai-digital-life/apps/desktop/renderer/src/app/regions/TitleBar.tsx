@@ -3,15 +3,15 @@ import type { AppInfo } from "@ai-digital-life/kernel";
 import type { CopyDict } from "../copy";
 import {
   IconClose,
-  IconColumns,
   IconCopy,
-  IconLogo,
+  IconEye,
   IconMinus,
   IconPanelLeft,
   IconPanelRight,
   IconSettings,
   IconSquare
 } from "../icons";
+import logoUrl from "/logo.png?url";
 import { useUiStore } from "../ui-store";
 
 interface TitleBarProps {
@@ -192,10 +192,9 @@ export function TitleBar({
   return (
     <header className="adl-titlebar" role="banner">
       <div className="adl-titlebar__left">
-        <h1 className="adl-titlebar__brand" title={t.landingTitle}>
-          <IconLogo size={18} decorative />
-          <span className="adl-titlebar__brand-name">{t.landingTitle}</span>
-          <span className="adl-titlebar__brand-phase">{t.phaseLabel}</span>
+        <h1 className="adl-titlebar__brand" title={t.brandHoverName}>
+          <img src={logoUrl} alt="" className="adl-titlebar__logo" draggable={false} />
+          <span className="adl-titlebar__brand-tooltip">{t.brandHoverName}</span>
         </h1>
         <nav className="adl-titlebar__menus" aria-label="Application menu">
           <MenuDropdown
@@ -238,6 +237,15 @@ export function TitleBar({
         <div className="adl-titlebar__panel-group" role="group" aria-label="Panel controls">
           <button
             type="button"
+            className="adl-icon-btn"
+            onClick={toggleBoth}
+            aria-label={t.panelToggleBoth}
+            title={t.panelToggleBoth}
+          >
+            <IconEye size={16} decorative />
+          </button>
+          <button
+            type="button"
             className={`adl-icon-btn${leftCollapsed ? " is-toggled" : ""}`}
             onClick={toggleLeft}
             aria-label={t.panelToggleLeft}
@@ -245,15 +253,6 @@ export function TitleBar({
             aria-pressed={leftCollapsed}
           >
             <IconPanelLeft size={16} decorative />
-          </button>
-          <button
-            type="button"
-            className="adl-icon-btn"
-            onClick={toggleBoth}
-            aria-label={t.panelToggleBoth}
-            title={t.panelToggleBoth}
-          >
-            <IconColumns size={16} decorative />
           </button>
           <button
             type="button"

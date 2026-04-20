@@ -4,6 +4,7 @@ export const copy = {
     landingTitle: "AI Digital Life",
     landingBody: "阶段二首个可运行切片：单 Agent 对话、计划、文件理解与 Patch 预览。",
     phaseLabel: "阶段 2",
+    brandHoverName: "砚",
     loading: "加载中…",
 
     // Menus (Region 1)
@@ -213,6 +214,7 @@ export const copy = {
     landingTitle: "AI Digital Life",
     landingBody: "First runnable Phase 2 slice: single-agent chat, plan, file understanding, and patch preview.",
     phaseLabel: "Phase 2",
+    brandHoverName: "Yan",
     loading: "Loading…",
 
     menuFile: "File",

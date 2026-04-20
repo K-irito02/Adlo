@@ -35,7 +35,7 @@ body {
   color: var(--text-primary);
   background: var(--bg);
   background-attachment: fixed;
-  overflow-y: scroll;
+  overflow: hidden;
 }
 
 /* Each theme provides a tailored radial backdrop. Avoid scroll-thrash by
