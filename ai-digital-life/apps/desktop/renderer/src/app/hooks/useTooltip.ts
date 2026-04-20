@@ -37,6 +37,31 @@ export interface UseTooltipReturn {
 const DEFAULT_SHOW_DELAY = 300;
 const DEFAULT_HIDE_DELAY = 150;
 
+type ListenerEntry = { target: EventTarget; type: string; handler: EventListenerOrEventListenerObject };
+
+const globalListenerMap = new Map<string, { handler: EventListenerOrEventListenerObject; count: number }>();
+const instanceSubscriptions = new WeakMap<object, ListenerEntry[]>();
+
+function getOrCreateGlobalListener(key: string, handler: EventListenerOrEventListenerObject): EventListenerOrEventListenerObject {
+  const existing = globalListenerMap.get(key);
+  if (existing) {
+    existing.count++;
+    return existing.handler;
+  }
+  globalListenerMap.set(key, { handler, count: 1 });
+  return handler;
+}
+
+function releaseGlobalListener(key: string): void {
+  const existing = globalListenerMap.get(key);
+  if (existing) {
+    existing.count--;
+    if (existing.count <= 0) {
+      globalListenerMap.delete(key);
+    }
+  }
+}
+
 export function useTooltip(options: UseTooltipOptions = {}): UseTooltipReturn {
   const {
     trigger = "hover",
@@ -63,7 +88,7 @@ export function useTooltip(options: UseTooltipOptions = {}): UseTooltipReturn {
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rafRef = useRef<number | null>(null);
   const isPointerInTooltipRef = useRef(false);
-  const cleanupRef = useRef<(() => void) | null>(null);
+  const instanceIdRef = useRef<object>({});
 
   const updatePosition = useCallback(() => {
     const triggerEl = triggerElRef.current;
@@ -207,7 +232,8 @@ export function useTooltip(options: UseTooltipOptions = {}): UseTooltipReturn {
     const triggerEl = triggerElRef.current;
     if (!triggerEl) return;
 
-    const observers: ResizeObserver[] = [];
+    const instanceId = instanceIdRef.current;
+    const listeners: ListenerEntry[] = [];
 
     const resizeObserver = new ResizeObserver(() => {
       if (isOpen) {
@@ -221,15 +247,23 @@ export function useTooltip(options: UseTooltipOptions = {}): UseTooltipReturn {
       resizeObserver.observe(tooltipEl);
     }
 
-    observers.push(resizeObserver);
-
-    const handleScroll = () => {
+    const handleScrollResize = () => {
       if (isOpen) {
         scheduleUpdatePosition();
       }
     };
 
-    let scrollParent: HTMLElement | Window | null = triggerEl.parentElement;
+    const scrollResizeKey = "tooltip:scroll-resize";
+    const sharedHandler = getOrCreateGlobalListener(scrollResizeKey, handleScrollResize);
+
+    window.addEventListener("scroll", sharedHandler, { passive: true });
+    window.addEventListener("resize", sharedHandler, { passive: true });
+    listeners.push(
+      { target: window, type: "scroll", handler: sharedHandler },
+      { target: window, type: "resize", handler: sharedHandler }
+    );
+
+    let scrollParent: HTMLElement | null = triggerEl.parentElement;
     while (scrollParent && scrollParent !== document.body) {
       if (
         scrollParent instanceof HTMLElement &&
@@ -238,44 +272,36 @@ export function useTooltip(options: UseTooltipOptions = {}): UseTooltipReturn {
           getComputedStyle(scrollParent).overflowX === "auto" ||
           getComputedStyle(scrollParent).overflowX === "scroll")
       ) {
-        scrollParent.addEventListener("scroll", handleScroll, { passive: true });
+        scrollParent.addEventListener("scroll", handleScrollResize, { passive: true });
+        listeners.push({ target: scrollParent, type: "scroll", handler: handleScrollResize });
       }
       scrollParent = scrollParent.parentElement;
     }
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    window.addEventListener("resize", handleScroll, { passive: true });
 
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isOpen) {
-        e.preventDefault();
-        e.stopPropagation();
+    const handleKeyDown = ((e: Event) => {
+      const ke = e as KeyboardEvent;
+      if (ke.key === "Escape" && isOpen) {
+        ke.preventDefault();
+        ke.stopPropagation();
         close();
-        (e.target as HTMLElement)?.blur?.();
+        triggerElRef.current?.focus();
       }
-    };
+    }) as EventListener;
 
     if (isOpen) {
       document.addEventListener("keydown", handleKeyDown);
+      listeners.push({ target: document, type: "keydown", handler: handleKeyDown });
     }
 
-    cleanupRef.current = () => {
-      observers.forEach((obs) => obs.disconnect());
-      window.removeEventListener("scroll", handleScroll);
-      window.removeEventListener("resize", handleScroll);
-      document.removeEventListener("keydown", handleKeyDown);
-
-      let sp: HTMLElement | Window | null = triggerEl.parentElement;
-      while (sp && sp !== document.body) {
-        if (sp instanceof HTMLElement) {
-          sp.removeEventListener("scroll", handleScroll);
-        }
-        sp = sp.parentElement;
-      }
-    };
+    instanceSubscriptions.set(instanceId, listeners);
 
     return () => {
-      cleanupRef.current?.();
-      cleanupRef.current = null;
+      resizeObserver.disconnect();
+      listeners.forEach(({ target, type, handler }) => {
+        target.removeEventListener(type, handler);
+      });
+      releaseGlobalListener(scrollResizeKey);
+      instanceSubscriptions.delete(instanceId);
     };
   }, [isOpen, scheduleUpdatePosition, close]);
 

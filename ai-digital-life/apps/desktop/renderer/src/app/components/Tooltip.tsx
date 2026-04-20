@@ -1,11 +1,11 @@
 import React, {
   createContext,
-  createElement,
   useCallback,
   useContext,
   useEffect,
   useMemo,
-  useState
+  useState,
+  memo
 } from "react";
 import { createPortal } from "react-dom";
 import type { Placement, Alignment } from "../utils/tooltipPosition";
@@ -170,6 +170,92 @@ export interface TooltipContentProps {
   id?: string;
 }
 
+const TooltipContentInner = memo(function TooltipContentInner({
+  children,
+  side,
+  placement,
+  position,
+  isOpen,
+  tooltipRef,
+  close,
+  handleTooltipEnter,
+  handleTooltipLeave,
+  dismissible,
+  showArrow,
+  className,
+  id
+}: {
+  children: React.ReactNode;
+  side?: Placement;
+  placement: Placement;
+  position: import("../utils/tooltipPosition").PositionResult | null;
+  isOpen: boolean;
+  tooltipRef: React.RefCallback<HTMLElement>;
+  close: () => void;
+  handleTooltipEnter: () => void;
+  handleTooltipLeave: () => void;
+  dismissible: boolean;
+  showArrow: boolean;
+  className?: string;
+  id?: string;
+}) {
+  const effectiveSide = side ?? placement;
+
+  const isOffscreen = !position || !isOpen;
+  const left = isOffscreen ? -9999 : position.x;
+  const top = isOffscreen ? -9999 : position.y;
+
+  const content = (
+    <div
+      role="tooltip"
+      id={id}
+      data-state={isOpen ? "open" : "closed"}
+      data-side={effectiveSide}
+      data-testid="tooltip-content"
+      ref={tooltipRef}
+      className={`tooltip ${className ?? ""}`}
+      style={{
+        position: "fixed",
+        left,
+        top,
+        pointerEvents: isOpen ? "auto" : "none"
+      }}
+      onMouseEnter={handleTooltipEnter}
+      onMouseLeave={handleTooltipLeave}
+    >
+      {showArrow && position && (
+        <span
+          className="tooltip__arrow"
+          style={{
+            left: position.arrowX != null ? `${position.arrowX}px` : undefined,
+            top: position.arrowY != null ? `${position.arrowY}px` : undefined
+          }}
+        />
+      )}
+      <span className="tooltip__content">
+        {children}
+      </span>
+      {dismissible && (
+        <button
+          type="button"
+          className="tooltip__close"
+          aria-label="Close"
+          onClick={(e) => {
+            e.stopPropagation();
+            close();
+          }}
+        >
+          ✕
+        </button>
+      )}
+    </div>
+  );
+
+  if (typeof document === "undefined") return null;
+
+  return createPortal(content, document.body);
+});
+
 export function TooltipContent({
   children,
   side,
@@ -207,57 +293,23 @@ export function TooltipContent({
 
   if (!isOpen && !mounted) return null;
 
-  const effectiveSide = side ?? placement;
-  const content = (
-    <div
-      role="tooltip"
+  return (
+    <TooltipContentInner
+      children={children}
+      side={side}
+      placement={placement}
+      position={position}
+      isOpen={isOpen}
+      tooltipRef={tooltipRef}
+      close={close}
+      handleTooltipEnter={handleTooltipEnter}
+      handleTooltipLeave={handleTooltipLeave}
+      dismissible={dismissible}
+      showArrow={showArrow}
+      className={className}
       id={id}
-      data-state={isOpen ? "open" : "closed"}
-      data-side={effectiveSide}
-      data-testid="tooltip-content"
-      ref={tooltipRef}
-      className={`tooltip ${className ?? ""}`}
-      style={{
-        position: "fixed",
-        left: position?.x ?? -9999,
-        top: position?.y ?? -9999,
-        visibility: position ? "visible" : "hidden",
-        pointerEvents: isOpen ? "auto" : "none"
-      }}
-      onMouseEnter={handleTooltipEnter}
-      onMouseLeave={handleTooltipLeave}
-    >
-      {showArrow && position && (
-        <span
-          className="tooltip__arrow"
-          style={{
-            left: position.arrowX != null ? `${position.arrowX}px` : undefined,
-            top: position.arrowY != null ? `${position.arrowY}px` : undefined
-          }}
-        />
-      )}
-      <span className="tooltip__content">
-        {children}
-      </span>
-      {dismissible && (
-        <button
-          type="button"
-          className="tooltip__close"
-          aria-label="Close"
-          onClick={(e) => {
-            e.stopPropagation();
-            close();
-          }}
-        >
-          ✕
-        </button>
-      )}
-    </div>
+    />
   );
-
-  if (typeof document === "undefined") return null;
-
-  return createPortal(content, document.body);
 }
 
 export interface TooltipSimpleProps {
