@@ -38,6 +38,14 @@
   --accent-soft: rgba(37, 99, 235, 0.1);
   --accent-contrast: #ffffff;
 
+  /* Semantic color aliases (per UI spec) */
+  --color-primary: #2563eb;
+  --color-danger: #dc2626;
+  --color-success: #16a34a;
+  --color-warning: #d97706;
+  --color-info: #2563eb;
+  --color-purple: #7c3aed;
+
   --info: #0b6bcb;
   --info-soft: rgba(11, 108, 203, 0.1);
   --success: #067647;
@@ -46,6 +54,8 @@
   --warning-soft: rgba(181, 71, 8, 0.12);
   --danger: #b42318;
   --danger-soft: rgba(180, 35, 24, 0.12);
+  --purple: #7c3aed;
+  --purple-soft: rgba(124, 58, 237, 0.1);
 
   --focus-ring: rgba(37, 99, 235, 0.28);
   --shadow-soft: 0 1px 0 rgba(15, 23, 42, 0.04);
@@ -80,6 +90,14 @@
   --accent-soft: rgba(245, 239, 234, 0.12);
   --accent-contrast: #122e8a;
 
+  /* Semantic color aliases (per UI spec) */
+  --color-primary: #f5efea;
+  --color-danger: #f97066;
+  --color-success: #47cd89;
+  --color-warning: #f7b267;
+  --color-info: #7cc1f5;
+  --color-purple: #c084fc;
+
   --info: #7cc1f5;
   --info-soft: rgba(124, 193, 245, 0.12);
   --success: #47cd89;
@@ -88,6 +106,8 @@
   --warning-soft: rgba(247, 178, 103, 0.14);
   --danger: #f97066;
   --danger-soft: rgba(249, 112, 102, 0.14);
+  --purple: #c084fc;
+  --purple-soft: rgba(192, 132, 252, 0.14);
 
   --focus-ring: rgba(245, 239, 234, 0.4);
   --shadow-soft: 0 28px 80px rgba(0, 0, 0, 0.45);

@@ -157,9 +157,19 @@
   /* --- Layout tokens --- */
   --titlebar-height: 36px;
   --statusbar-height: 28px;
-  --sidebar-width: 248px;
-  --sidebar-width-collapsed: 64px;
+  --sidebar-width: 260px;
+  --sidebar-width-collapsed: 48px;
+  --right-panel-width: 30%;
+  --right-panel-width-min: 280px;
+  --right-panel-width-max: 50%;
   --content-max-width: 1440px;
+
+  /* --- Activity bar --- */
+  --activity-bar-width: 48px;
+
+  /* --- Tool sidebar width --- */
+  --tool-sidebar-width: 48px;
+  --tool-sidebar-width-expanded: 200px;
 
   /* --- Focus ring (themed in themes.css) --- */
   --focus-ring-width: 3px;
