@@ -193,7 +193,7 @@ export function TitleBar({
     <header className="adl-titlebar" role="banner">
       <div className="adl-titlebar__left">
         <h1 className="adl-titlebar__brand" title={t.brandHoverName}>
-          <img src={logoUrl} alt="" className="adl-titlebar__logo" draggable={false} />
+          <img src={logoUrl} alt={t.landingTitle} className="adl-titlebar__logo" draggable={false} />
           <span className="adl-titlebar__brand-tooltip">{t.brandHoverName}</span>
         </h1>
         <nav className="adl-titlebar__menus" aria-label="Application menu">
