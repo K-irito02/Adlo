@@ -24,6 +24,7 @@ import { createEditorTab, mapPatchToEditorTab, type EditorTabState } from "./edi
 import { loadConversationState, loadTaskCenterState } from "./loaders";
 import { mergeDirtyEditorPaths, normalizeWorkspaceRelativePath } from "./workspacePaths";
 import { themeController } from "./theme";
+import type { ToolId } from "./ui-store";
 
 let terminalStreamUnsub: (() => void) | undefined;
 
@@ -58,12 +59,12 @@ export type StoreState = {
   /* ---------- UI layout state ---------- */
   leftSidebarVisible: boolean;
   rightPanelVisible: boolean;
-  activeRightTool: 'files' | 'changes' | 'browser' | 'terminal';
+  activeRightTool: ToolId;
   currentModel: string;
   composerMessage: string;
   setLeftSidebarVisible: (visible: boolean) => void;
   setRightPanelVisible: (visible: boolean) => void;
-  setActiveRightTool: (tool: 'files' | 'changes' | 'browser' | 'terminal') => void;
+  setActiveRightTool: (tool: ToolId) => void;
   setCurrentModel: (model: string) => void;
   setComposerMessage: (message: string) => void;
   toggleLeftSidebar: () => void;

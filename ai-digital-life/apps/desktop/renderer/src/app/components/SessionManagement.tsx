@@ -25,6 +25,7 @@ export interface SessionManagementProps {
   activeSessionId?: string;
   workspaces?: WorkspaceTab[];
   onCreateSession: () => void;
+  onNewWorkspace: () => void;
   onSelectSession: (id: string) => void;
   onSelectWorkspace: (id: string) => void;
 }
@@ -186,6 +187,7 @@ export function SessionManagement({
   activeSessionId,
   workspaces = [],
   onCreateSession,
+  onNewWorkspace,
   onSelectSession,
   onSelectWorkspace,
 }: SessionManagementProps): React.ReactElement {
@@ -229,7 +231,7 @@ export function SessionManagement({
           <button
             type="button"
             className="sidebar-section__add-btn"
-            onClick={() => {} /* TODO: wire to onNewWorkspace via parent */ }
+            onClick={onNewWorkspace}
             title="New workspace"
             aria-label="Add workspace"
           >

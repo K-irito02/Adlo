@@ -81,6 +81,7 @@ export function LeftSidebar({
         activeSessionId={activeSessionId}
         workspaces={workspaces}
         onCreateSession={onCreateSession}
+        onNewWorkspace={onNewWorkspace}
         onSelectSession={onSelectSession}
         onSelectWorkspace={onSelectWorkspace}
       />
