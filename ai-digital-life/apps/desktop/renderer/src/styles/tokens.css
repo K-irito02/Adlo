@@ -133,6 +133,20 @@
     opacity var(--duration-200) var(--ease-enter),
     transform var(--duration-200) var(--ease-enter);
 
+  /* --- Theme transition ---
+     Opt-in: components add `transition: var(--theme-transition)` to
+     smoothly animate color/surface changes when the user switches theme.
+     Reduced-motion is handled automatically: tokens.css sets all
+     --duration-* to 1ms under prefers-reduced-motion. */
+  --theme-transition:
+    background-color var(--duration-200) var(--ease-default),
+    color var(--duration-200) var(--ease-default),
+    border-color var(--duration-200) var(--ease-default),
+    box-shadow var(--duration-200) var(--ease-default),
+    fill var(--duration-200) var(--ease-default),
+    stroke var(--duration-200) var(--ease-default),
+    opacity var(--duration-200) var(--ease-default);
+
   /* --- Z-index Layers --- */
   --z-base: 0;
   --z-raised: 10;

@@ -15,10 +15,16 @@
    ========================================================================== */
 
 /* -------- Theme transition support --------
-   Scoped to structural containers and interactive elements only.
-   Avoids the universal * selector which forces transition computation
-   on every DOM node (layout thrash, animation jank).
+   Opt-in model: components use `transition: var(--theme-transition)` to
+   adopt smooth theme-switch transitions. No global selector list needed.
+
+   Benefits over selector-list approach:
+   - New components opt in automatically by using the variable
+   - No risk of missing components when the list grows
+   - No style-conflict with component-specific transitions
+   - Reduced-motion handled by tokens.css (--duration-* → 1ms)
    -------------------------------------------------------------------------- */
+
 html,
 body,
 [data-theme] {
@@ -27,154 +33,11 @@ body,
     color var(--duration-200) var(--ease-default);
 }
 
-.adl-shell,
-.adl-ide,
-.adl-center,
-.adl-leftbar,
-.adl-rightpanel,
-.adl-titlebar,
-.adl-statusbar,
-.adl-composer,
-.card,
-.tile,
-.stat,
-.modal,
-.modal-backdrop,
-.toast,
-.banner,
-.pill,
-.eyebrow,
-.input,
-.textarea,
-.select,
-.btn,
-.segmented__btn,
-.adl-btn,
-.adl-icon-btn,
-.adl-quick-btn,
-.adl-chip,
-.adl-session-item,
-.adl-workspace-row,
-.adl-menu__item,
-.adl-menu__trigger,
-.adl-titlebar-menu__item,
-.adl-titlebar-menu__trigger,
-.adl-toolswitcher__tab,
-.adl-tool-main__tabs button,
-.adl-statusbar__item,
-.adl-statusbar__model-option,
-.adl-context-item,
-.adl-tool-sidebar__list button,
-.adl-browser-address,
-.adl-terminal-runner input,
-.adl-select,
-.adl-env-btn,
-.adl-workspace-row__disclosure,
-.adl-badge,
-.adl-inline-approval,
-.adl-patch-card,
-.adl-run-card,
-.adl-hunk pre,
-.adl-composer__inner,
-.adl-composer__mode,
-.adl-action-btn,
-.adl-segmented button,
-.adl-status-lamp,
-.adl-agent-status,
-.adl-message,
-.adl-empty-hint,
-.adl-empty-state,
-.adl-welcome__hints,
-.adl-welcome__recent button,
-.adl-editor-tabs button,
-.adl-diagnostic-list button,
-.adl-model-health-item,
-.adl-setting-row input,
-.adl-terminal-panel__output,
-.adl-terminal-output,
-.color-scheme__btn,
-.color-scheme__swatch,
-.tooltip,
-.skeleton {
-  transition-property: background-color, color, border-color, box-shadow, fill, stroke, opacity;
-  transition-duration: var(--duration-200);
-  transition-timing-function: var(--ease-default);
-}
-
 @media (prefers-reduced-motion: reduce) {
   html,
   body,
-  [data-theme],
-  .adl-shell,
-  .adl-ide,
-  .adl-center,
-  .adl-leftbar,
-  .adl-rightpanel,
-  .adl-titlebar,
-  .adl-statusbar,
-  .adl-composer,
-  .card,
-  .tile,
-  .stat,
-  .modal,
-  .modal-backdrop,
-  .toast,
-  .banner,
-  .pill,
-  .eyebrow,
-  .input,
-  .textarea,
-  .select,
-  .btn,
-  .segmented__btn,
-  .adl-btn,
-  .adl-icon-btn,
-  .adl-quick-btn,
-  .adl-chip,
-  .adl-session-item,
-  .adl-workspace-row,
-  .adl-menu__item,
-  .adl-menu__trigger,
-  .adl-titlebar-menu__item,
-  .adl-titlebar-menu__trigger,
-  .adl-toolswitcher__tab,
-  .adl-tool-main__tabs button,
-  .adl-statusbar__item,
-  .adl-statusbar__model-option,
-  .adl-context-item,
-  .adl-tool-sidebar__list button,
-  .adl-browser-address,
-  .adl-terminal-runner input,
-  .adl-select,
-  .adl-env-btn,
-  .adl-workspace-row__disclosure,
-  .adl-badge,
-  .adl-inline-approval,
-  .adl-patch-card,
-  .adl-run-card,
-  .adl-hunk pre,
-  .adl-composer__inner,
-  .adl-composer__mode,
-  .adl-action-btn,
-  .adl-segmented button,
-  .adl-status-lamp,
-  .adl-agent-status,
-  .adl-message,
-  .adl-empty-hint,
-  .adl-empty-state,
-  .adl-welcome__hints,
-  .adl-welcome__recent button,
-  .adl-editor-tabs button,
-  .adl-diagnostic-list button,
-  .adl-model-health-item,
-  .adl-setting-row input,
-  .adl-terminal-panel__output,
-  .adl-terminal-output,
-  .color-scheme__btn,
-  .color-scheme__swatch,
-  .tooltip,
-  .skeleton {
-    transition-property: none !important;
+  [data-theme] {
+    transition-property: none;
   }
 }
 
