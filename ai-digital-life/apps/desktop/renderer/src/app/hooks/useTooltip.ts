@@ -37,28 +37,28 @@ export interface UseTooltipReturn {
 const DEFAULT_SHOW_DELAY = 300;
 const DEFAULT_HIDE_DELAY = 150;
 
-type ListenerEntry = { target: EventTarget; type: string; handler: EventListenerOrEventListenerObject };
+const scrollResizeCallbacks = new Set<() => void>();
+let globalListenerAttached = false;
 
-const globalListenerMap = new Map<string, { handler: EventListenerOrEventListenerObject; count: number }>();
-const instanceSubscriptions = new WeakMap<object, ListenerEntry[]>();
-
-function getOrCreateGlobalListener(key: string, handler: EventListenerOrEventListenerObject): EventListenerOrEventListenerObject {
-  const existing = globalListenerMap.get(key);
-  if (existing) {
-    existing.count++;
-    return existing.handler;
-  }
-  globalListenerMap.set(key, { handler, count: 1 });
-  return handler;
+function globalScrollResizeHandler() {
+  scrollResizeCallbacks.forEach((cb) => cb());
 }
 
-function releaseGlobalListener(key: string): void {
-  const existing = globalListenerMap.get(key);
-  if (existing) {
-    existing.count--;
-    if (existing.count <= 0) {
-      globalListenerMap.delete(key);
-    }
+function registerScrollResizeCallback(callback: () => void): void {
+  scrollResizeCallbacks.add(callback);
+  if (!globalListenerAttached) {
+    window.addEventListener("scroll", globalScrollResizeHandler, { passive: true });
+    window.addEventListener("resize", globalScrollResizeHandler, { passive: true });
+    globalListenerAttached = true;
+  }
+}
+
+function unregisterScrollResizeCallback(callback: () => void): void {
+  scrollResizeCallbacks.delete(callback);
+  if (scrollResizeCallbacks.size === 0 && globalListenerAttached) {
+    window.removeEventListener("scroll", globalScrollResizeHandler);
+    window.removeEventListener("resize", globalScrollResizeHandler);
+    globalListenerAttached = false;
   }
 }
 
@@ -88,7 +88,6 @@ export function useTooltip(options: UseTooltipOptions = {}): UseTooltipReturn {
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rafRef = useRef<number | null>(null);
   const isPointerInTooltipRef = useRef(false);
-  const instanceIdRef = useRef<object>({});
 
   const updatePosition = useCallback(() => {
     const triggerEl = triggerElRef.current;
@@ -232,8 +231,7 @@ export function useTooltip(options: UseTooltipOptions = {}): UseTooltipReturn {
     const triggerEl = triggerElRef.current;
     if (!triggerEl) return;
 
-    const instanceId = instanceIdRef.current;
-    const listeners: ListenerEntry[] = [];
+    const instanceListeners: { target: EventTarget; type: string; handler: EventListenerOrEventListenerObject }[] = [];
 
     const resizeObserver = new ResizeObserver(() => {
       if (isOpen) {
@@ -253,15 +251,7 @@ export function useTooltip(options: UseTooltipOptions = {}): UseTooltipReturn {
       }
     };
 
-    const scrollResizeKey = "tooltip:scroll-resize";
-    const sharedHandler = getOrCreateGlobalListener(scrollResizeKey, handleScrollResize);
-
-    window.addEventListener("scroll", sharedHandler, { passive: true });
-    window.addEventListener("resize", sharedHandler, { passive: true });
-    listeners.push(
-      { target: window, type: "scroll", handler: sharedHandler },
-      { target: window, type: "resize", handler: sharedHandler }
-    );
+    registerScrollResizeCallback(handleScrollResize);
 
     let scrollParent: HTMLElement | null = triggerEl.parentElement;
     while (scrollParent && scrollParent !== document.body) {
@@ -273,7 +263,7 @@ export function useTooltip(options: UseTooltipOptions = {}): UseTooltipReturn {
           getComputedStyle(scrollParent).overflowX === "scroll")
       ) {
         scrollParent.addEventListener("scroll", handleScrollResize, { passive: true });
-        listeners.push({ target: scrollParent, type: "scroll", handler: handleScrollResize });
+        instanceListeners.push({ target: scrollParent, type: "scroll", handler: handleScrollResize });
       }
       scrollParent = scrollParent.parentElement;
     }
@@ -290,18 +280,15 @@ export function useTooltip(options: UseTooltipOptions = {}): UseTooltipReturn {
 
     if (isOpen) {
       document.addEventListener("keydown", handleKeyDown);
-      listeners.push({ target: document, type: "keydown", handler: handleKeyDown });
+      instanceListeners.push({ target: document, type: "keydown", handler: handleKeyDown });
     }
-
-    instanceSubscriptions.set(instanceId, listeners);
 
     return () => {
       resizeObserver.disconnect();
-      listeners.forEach(({ target, type, handler }) => {
+      unregisterScrollResizeCallback(handleScrollResize);
+      instanceListeners.forEach(({ target, type, handler }) => {
         target.removeEventListener(type, handler);
       });
-      releaseGlobalListener(scrollResizeKey);
-      instanceSubscriptions.delete(instanceId);
     };
   }, [isOpen, scheduleUpdatePosition, close]);
 
