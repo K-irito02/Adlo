@@ -23,6 +23,53 @@
    - No risk of missing components when the list grows
    - No style-conflict with component-specific transitions
    - Reduced-motion handled by tokens.css (--duration-* → 1ms)
+
+   ---- Migration Guide ----
+
+   1. Components that already use `var(--transition-colors)` or
+      `var(--transition-shadow)` DO NOT need `--theme-transition`.
+      Those token-based transitions already cover color/bg/border
+      changes and will animate smoothly on theme switch.
+
+      Already covered (no action needed):
+        .btn, .segmented__btn, .input, .textarea, .select,
+        .tile, .adl-btn, .adl-icon-btn, .adl-quick-btn,
+        .adl-menu__trigger, .adl-workspace-row, .adl-env-btn,
+        .adl-composer__inner, .adl-action-btn,
+        .adl-toolswitcher__tab, .adl-titlebar-control-btn,
+        .adl-titlebar-menu__trigger, .adl-titlebar-menu__item,
+        .adl-ide-activity-item, .tool-switcher__tab,
+        .tool-sidebar__btn, .statusbar__model-btn,
+        .color-scheme__btn, .tooltip__close
+
+   2. Structural containers and visual elements that change
+      appearance with theme but have NO existing transition
+      MUST add `transition: var(--theme-transition)`.
+
+      Already migrated:
+        .adl-shell, .adl-ide, .adl-titlebar, .adl-statusbar,
+        .adl-leftbar, .adl-rightpanel, .adl-center,
+        .card, .stat, .pill, .eyebrow, .banner,
+        .adl-chip, .adl-agent-status, .adl-message,
+        .adl-composer, .adl-patch-card, .adl-run-card
+
+   3. When to add `transition: var(--theme-transition)`:
+      - The element uses theme CSS variables (bg, surface, text-*, border-*)
+      - The element has NO existing transition declaration
+      - The element is visually prominent (not a tiny helper)
+
+   4. When NOT to add it:
+      - The element already has `var(--transition-colors)` (redundant)
+      - The element is purely decorative or invisible
+      - The element uses `animation:` instead of `transition:`
+        (e.g., .skeleton, .adl-status-lamp--processing)
+
+   5. Reduced-motion handling:
+      - tokens.css sets all --duration-* to 1ms under
+        prefers-reduced-motion, so var(--theme-transition)
+        automatically becomes near-instant.
+      - The html/body/[data-theme] rule above uses
+        transition-property: none for complete disable.
    -------------------------------------------------------------------------- */
 
 html,

@@ -28,6 +28,7 @@
   background: var(--bg);
   color: var(--text-primary);
   overflow: hidden;
+  transition: var(--theme-transition);
 }
 
 .adl-shell__loading {
@@ -103,6 +104,7 @@
   border-bottom: 1px solid var(--border-subtle);
   -webkit-app-region: drag;
   user-select: none;
+  transition: var(--theme-transition);
 }
 
 .adl-titlebar > *,
@@ -395,6 +397,7 @@
   background: var(--surface-subtle);
   color: var(--text-secondary);
   border: 1px solid var(--border-subtle);
+  transition: var(--theme-transition);
 }
 
 .adl-chip--success {
@@ -424,6 +427,7 @@
   background: var(--surface);
   border-right: 1px solid var(--border-subtle);
   overflow: hidden;
+  transition: var(--theme-transition);
 }
 
 .adl-leftbar__quick {
@@ -784,6 +788,7 @@
   min-height: 0;
   min-width: 0;
   background: var(--bg);
+  transition: var(--theme-transition);
 }
 
 .adl-center__header {
@@ -818,6 +823,7 @@
   border: 1px solid var(--border-subtle);
   background: var(--surface-subtle);
   color: var(--text-secondary);
+  transition: var(--theme-transition);
 }
 
 .adl-agent-status--processing {
@@ -991,6 +997,7 @@
   border-radius: var(--radius-md);
   background: var(--surface);
   border: 1px solid var(--border-subtle);
+  transition: var(--theme-transition);
 }
 
 .adl-message--user {
@@ -1029,6 +1036,7 @@
   border-top: 1px solid var(--border-subtle);
   background: var(--surface);
   padding: var(--space-3);
+  transition: var(--theme-transition);
 }
 
 .adl-composer__chips {
@@ -1200,6 +1208,7 @@
   background: var(--surface);
   border-left: 1px solid var(--border-subtle);
   overflow: hidden;
+  transition: var(--theme-transition);
 }
 
 .adl-rightpanel--collapsed {
@@ -1515,6 +1524,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: var(--space-3);
+  transition: var(--theme-transition);
 }
 
 .adl-patch-card header {
@@ -1570,6 +1580,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: var(--space-3);
+  transition: var(--theme-transition);
 }
 
 .adl-run-card header {
@@ -1734,6 +1745,7 @@
   border-top: 1px solid var(--border-subtle);
   font-size: 11px;
   color: var(--text-muted);
+  transition: var(--theme-transition);
 }
 
 .adl-statusbar__item {
