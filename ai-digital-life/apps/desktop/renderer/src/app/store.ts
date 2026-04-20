@@ -54,6 +54,19 @@ export type StoreState = {
   searchResults: WorkspaceSearchHit[];
   /** Workspace-relative paths considered dirty vs last loaded disk snapshot (synced to Main for patch guards). */
   dirtyEditorPaths: string[];
+  /* ---------- UI layout state ---------- */
+  leftSidebarVisible: boolean;
+  rightPanelVisible: boolean;
+  activeRightTool: 'files' | 'changes' | 'browser' | 'terminal';
+  currentModel: string;
+  composerMessage: string;
+  setLeftSidebarVisible: (visible: boolean) => void;
+  setRightPanelVisible: (visible: boolean) => void;
+  setActiveRightTool: (tool: 'files' | 'changes' | 'browser' | 'terminal') => void;
+  setCurrentModel: (model: string) => void;
+  setComposerMessage: (message: string) => void;
+  toggleLeftSidebar: () => void;
+  toggleRightSidebar: () => void;
   bootstrap: () => Promise<void>;
   openWorkspace: (workspacePath: string) => Promise<void>;
   createSession: () => Promise<void>;
@@ -88,6 +101,11 @@ export const useAppStore = create<StoreState>((set, get) => ({
   streamingAssistantText: "",
   terminalOutput: "",
   dirtyEditorPaths: [],
+  leftSidebarVisible: true,
+  rightPanelVisible: true,
+  activeRightTool: 'files',
+  currentModel: 'GPT-4o',
+  composerMessage: '',
   bootstrap: async () => {
     set({ loading: true, error: undefined });
 
@@ -506,5 +524,12 @@ export const useAppStore = create<StoreState>((set, get) => ({
     if (patch.modelPreferences) {
       await get().refreshModelHealth();
     }
-  }
+  },
+  setLeftSidebarVisible: (visible) => set({ leftSidebarVisible: visible }),
+  setRightPanelVisible: (visible) => set({ rightPanelVisible: visible }),
+  setActiveRightTool: (tool) => set({ activeRightTool: tool }),
+  setCurrentModel: (model) => set({ currentModel: model }),
+  setComposerMessage: (message) => set({ composerMessage: message }),
+  toggleLeftSidebar: () => set((s) => ({ leftSidebarVisible: !s.leftSidebarVisible })),
+  toggleRightSidebar: () => set((s) => ({ rightPanelVisible: !s.rightPanelVisible }))
 }));

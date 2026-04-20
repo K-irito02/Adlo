@@ -16,4 +16,6 @@
 @import "./layout.css";
 @import "./components.css";
 @import "./workspace.css";
+@import "./main-content.css";
+@import "./sidebar.css";
 @import "./utilities.css";
