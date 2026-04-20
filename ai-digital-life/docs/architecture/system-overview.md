@@ -20,7 +20,7 @@ The implemented surface currently covers:
 - lightweight Git snapshot capture for workspace safety visibility
 - startup recovery markers and migration diagnostics
 - shared event-bus emission across workspace, retrieval, task, and approval flows
-- React + Zustand workspace shell for the Phase 2 working view
+- React + Zustand workspace shell for the Phase 2 working view, now structured as a 17-region three-pane layout (see [renderer-shell-redesign.md](./renderer-shell-redesign.md))
 - conversation sessions and persisted conversation messages
 - single-agent sequential planning state with stored run and step metadata
 - patch-set, file-patch, and hunk persistence in SQLite

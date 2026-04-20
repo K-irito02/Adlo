@@ -14,6 +14,7 @@ import type {
   FilePatch,
   PatchApplicationResult,
   PatchSet,
+  RecentWorkspaceEntry,
   TaskCenterSnapshot,
   WorkspaceSearchHit
 } from "@ai-digital-life/kernel";
@@ -30,7 +31,7 @@ export type StoreState = {
   loading: boolean;
   error?: string;
   appInfo?: AppInfo;
-  recentWorkspaces: Array<{ path: string; name: string; available: boolean }>;
+  recentWorkspaces: RecentWorkspaceEntry[];
   sessions: ConversationSessionRecord[];
   activeSessionId?: string;
   sessionDetails: Record<string, ConversationDetail>;

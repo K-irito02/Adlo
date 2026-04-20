@@ -41,6 +41,7 @@
 - [docs/architecture/theming.md](/E:/Programs/Obsidian/notes/ai-digital-life/docs/architecture/theming.md)
 - [docs/architecture/workspace-and-retrieval.md](/E:/Programs/Obsidian/notes/ai-digital-life/docs/architecture/workspace-and-retrieval.md)
 - [docs/architecture/stage-one-validation.md](/E:/Programs/Obsidian/notes/ai-digital-life/docs/architecture/stage-one-validation.md)
+- [docs/architecture/renderer-shell-redesign.md](/E:/Programs/Obsidian/notes/ai-digital-life/docs/architecture/renderer-shell-redesign.md)
 
 ### 设计系统文档
 
