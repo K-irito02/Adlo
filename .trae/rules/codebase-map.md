@@ -60,7 +60,19 @@ ai-digital-life/
 | 目录 | 职责 |
 |------|------|
 | `unit/` | 单元测试 |
+| `unit/components/` | React 组件单元测试（.tsx） |
+| `unit/design-system/` | 设计系统单元测试 |
 | `integration/` | 集成测试 |
+
+## Renderer 关键目录 (`apps/desktop/renderer/src/app/`)
+
+| 目录 | 职责 |
+|------|------|
+| `components/` | React UI 组件（含 Tooltip） |
+| `hooks/` | 自定义 React Hooks（含 useTooltip） |
+| `utils/` | 纯函数工具（含 tooltipPosition） |
+| `regions/` | 区域级布局组件 |
+| `design-system/` | 设计系统核心（tokens, icons, theme） |
 
 ## 索引策略
 

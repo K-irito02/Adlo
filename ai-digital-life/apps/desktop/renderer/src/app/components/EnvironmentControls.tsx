@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { renderIcon, type IconName } from "../../design-system/icons";
+import { TooltipSimple } from "./Tooltip";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -179,20 +180,21 @@ export function EnvironmentControls({
 
       {/* ---- Theme toggler ---- */}
       <div className="sidebar-env-controls__item">
-        <button
-          type="button"
-          className="sidebar-env-btn"
-          onClick={handleCycleTheme}
-          title={`Theme: ${currentTheme} (click to cycle)`}
-          aria-label={`Current theme: ${currentTheme}. Click to change.`}
-        >
-          <span
-            className="sidebar-env-btn__icon"
-            dangerouslySetInnerHTML={{
-              __html: renderIcon(resolveThemeIcon(currentTheme), { size: "sm", decorative: true }).value,
-            }}
-          />
-        </button>
+        <TooltipSimple content={`Theme: ${currentTheme} (click to cycle)`} placement="right">
+          <button
+            type="button"
+            className="sidebar-env-btn"
+            onClick={handleCycleTheme}
+            aria-label={`Current theme: ${currentTheme}. Click to change.`}
+          >
+            <span
+              className="sidebar-env-btn__icon"
+              dangerouslySetInnerHTML={{
+                __html: renderIcon(resolveThemeIcon(currentTheme), { size: "sm", decorative: true }).value,
+              }}
+            />
+          </button>
+        </TooltipSimple>
       </div>
     </div>
   );

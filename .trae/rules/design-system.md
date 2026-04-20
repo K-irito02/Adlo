@@ -13,6 +13,25 @@ alwaysApply: false
 | 颜色 | 必须使用 CSS 自定义属性 `var(--…)`，禁止硬编码 |
 | 图标 | 必须使用 SVG 格式并继承 `currentColor`，禁止 emoji |
 | 最小窗口宽度 | 640px |
+| Tooltip 提示 | **禁止**使用原生 HTML `title` 属性，必须使用 `TooltipSimple` 组件 |
+
+## Tooltip 组件规范
+
+### API
+
+| 组件 | 用途 |
+|------|------|
+| `TooltipSimple` | 便捷组件，用于简单文本提示（推荐） |
+| `Tooltip` + `TooltipTrigger` + `TooltipContent` | 组合模式，用于富内容/复杂场景 |
+
+### 关键文件
+
+| 文件 | 职责 |
+|------|------|
+| `components/Tooltip.tsx` | React 组件（组合模式 API + TooltipSimple） |
+| `hooks/useTooltip.ts` | 核心 Hook（状态管理、定时器、事件处理） |
+| `utils/tooltipPosition.ts` | 纯函数定位引擎（4方向 + 自动翻转 + 边界检测） |
+| `styles/components.css` | Tooltip CSS 样式（动画、箭头、主题适配） |
 
 ## 交互状态
 

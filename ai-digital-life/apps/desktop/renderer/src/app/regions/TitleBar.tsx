@@ -13,6 +13,7 @@ import {
 } from "../icons";
 import logoUrl from "/logo.png?url";
 import { useUiStore } from "../ui-store";
+import { TooltipSimple } from "../components/Tooltip";
 
 interface TitleBarProps {
   t: CopyDict;
@@ -192,9 +193,10 @@ export function TitleBar({
   return (
     <header className="adl-titlebar" role="banner">
       <div className="adl-titlebar__left">
-        <h1 className="adl-titlebar__brand" title={t.brandHoverName}>
-          <img src={logoUrl} alt={t.landingTitle} className="adl-titlebar__logo" draggable={false} />
-          <span className="adl-titlebar__brand-tooltip">{t.brandHoverName}</span>
+        <h1 className="adl-titlebar__brand">
+          <TooltipSimple content={t.brandHoverName} placement="bottom">
+            <img src={logoUrl} alt={t.landingTitle} className="adl-titlebar__logo" draggable={false} />
+          </TooltipSimple>
         </h1>
         <nav className="adl-titlebar__menus" aria-label="Application menu">
           <MenuDropdown
@@ -225,74 +227,81 @@ export function TitleBar({
       </div>
       <div className="adl-titlebar__drag" aria-hidden="true" />
       <div className="adl-titlebar__right">
-        <button
-          type="button"
-          className="adl-icon-btn"
-          onClick={onOpenSettings}
-          aria-label={t.menuSettings}
-          title={t.menuSettings}
-        >
-          <IconSettings size={16} decorative />
-        </button>
-        <div className="adl-titlebar__panel-group" role="group" aria-label="Panel controls">
+        <TooltipSimple content={t.menuSettings} placement="bottom">
           <button
             type="button"
             className="adl-icon-btn"
-            onClick={toggleBoth}
-            aria-label={t.panelToggleBoth}
-            title={t.panelToggleBoth}
+            onClick={onOpenSettings}
+            aria-label={t.menuSettings}
           >
-            <IconEye size={16} decorative />
+            <IconSettings size={16} decorative />
           </button>
-          <button
-            type="button"
-            className={`adl-icon-btn${leftCollapsed ? " is-toggled" : ""}`}
-            onClick={toggleLeft}
-            aria-label={t.panelToggleLeft}
-            title={t.panelToggleLeft}
-            aria-pressed={leftCollapsed}
-          >
-            <IconPanelLeft size={16} decorative />
-          </button>
-          <button
-            type="button"
-            className={`adl-icon-btn${rightCollapsed ? " is-toggled" : ""}`}
-            onClick={toggleRight}
-            aria-label={t.panelToggleRight}
-            title={t.panelToggleRight}
-            aria-pressed={rightCollapsed}
-          >
-            <IconPanelRight size={16} decorative />
-          </button>
+        </TooltipSimple>
+        <div className="adl-titlebar__panel-group" role="group" aria-label="Panel controls">
+          <TooltipSimple content={t.panelToggleBoth} placement="bottom">
+            <button
+              type="button"
+              className="adl-icon-btn"
+              onClick={toggleBoth}
+              aria-label={t.panelToggleBoth}
+            >
+              <IconEye size={16} decorative />
+            </button>
+          </TooltipSimple>
+          <TooltipSimple content={t.panelToggleLeft} placement="bottom">
+            <button
+              type="button"
+              className={`adl-icon-btn${leftCollapsed ? " is-toggled" : ""}`}
+              onClick={toggleLeft}
+              aria-label={t.panelToggleLeft}
+              aria-pressed={leftCollapsed}
+            >
+              <IconPanelLeft size={16} decorative />
+            </button>
+          </TooltipSimple>
+          <TooltipSimple content={t.panelToggleRight} placement="bottom">
+            <button
+              type="button"
+              className={`adl-icon-btn${rightCollapsed ? " is-toggled" : ""}`}
+              onClick={toggleRight}
+              aria-label={t.panelToggleRight}
+              aria-pressed={rightCollapsed}
+            >
+              <IconPanelRight size={16} decorative />
+            </button>
+          </TooltipSimple>
         </div>
         <div className="adl-titlebar__window-group" role="group" aria-label="Window controls">
-          <button
-            type="button"
-            className="adl-icon-btn adl-window-btn"
-            onClick={handleMinimize}
-            aria-label={t.windowMinimize}
-            title={t.windowMinimize}
-          >
-            <IconMinus size={14} decorative />
-          </button>
-          <button
-            type="button"
-            className="adl-icon-btn adl-window-btn"
-            onClick={handleMaximize}
-            aria-label={isMaximized ? t.windowRestore : t.windowMaximize}
-            title={isMaximized ? t.windowRestore : t.windowMaximize}
-          >
-            {isMaximized ? <IconCopy size={14} decorative /> : <IconSquare size={12} decorative />}
-          </button>
-          <button
-            type="button"
-            className="adl-icon-btn adl-window-btn adl-window-btn--close"
-            onClick={handleClose}
-            aria-label={t.windowClose}
-            title={t.windowClose}
-          >
-            <IconClose size={14} decorative />
-          </button>
+          <TooltipSimple content={t.windowMinimize} placement="bottom">
+            <button
+              type="button"
+              className="adl-icon-btn adl-window-btn"
+              onClick={handleMinimize}
+              aria-label={t.windowMinimize}
+            >
+              <IconMinus size={14} decorative />
+            </button>
+          </TooltipSimple>
+          <TooltipSimple content={isMaximized ? t.windowRestore : t.windowMaximize} placement="bottom">
+            <button
+              type="button"
+              className="adl-icon-btn adl-window-btn"
+              onClick={handleMaximize}
+              aria-label={isMaximized ? t.windowRestore : t.windowMaximize}
+            >
+              {isMaximized ? <IconCopy size={14} decorative /> : <IconSquare size={12} decorative />}
+            </button>
+          </TooltipSimple>
+          <TooltipSimple content={t.windowClose} placement="bottom">
+            <button
+              type="button"
+              className="adl-icon-btn adl-window-btn adl-window-btn--close"
+              onClick={handleClose}
+              aria-label={t.windowClose}
+            >
+              <IconClose size={14} decorative />
+            </button>
+          </TooltipSimple>
         </div>
       </div>
     </header>

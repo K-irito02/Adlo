@@ -33,6 +33,7 @@ import {
 } from "../icons";
 import type { MonacoEditorRef } from "../types";
 import { useUiStore, type ToolId } from "../ui-store";
+import { TooltipSimple } from "../components/Tooltip";
 
 interface RightPanelProps {
   t: CopyDict;
@@ -110,18 +111,18 @@ function ToolSwitcher({
   return (
     <div className="adl-toolswitcher" role="tablist" aria-label="Tool switcher">
       {tabs.map((tab) => (
-        <button
-          key={tab.id}
-          type="button"
-          role="tab"
-          aria-selected={activeTool === tab.id}
-          className={`adl-toolswitcher__tab${activeTool === tab.id ? " is-active" : ""}`}
-          onClick={() => onSelect(tab.id)}
-          title={`${tab.label} · ${tab.shortcut}`}
-        >
-          {tab.icon}
-          <span>{tab.label}</span>
-        </button>
+        <TooltipSimple key={tab.id} content={`${tab.label} · ${tab.shortcut}`} placement="top">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTool === tab.id}
+            className={`adl-toolswitcher__tab${activeTool === tab.id ? " is-active" : ""}`}
+            onClick={() => onSelect(tab.id)}
+          >
+            {tab.icon}
+            <span>{tab.label}</span>
+          </button>
+        </TooltipSimple>
       ))}
     </div>
   );
@@ -180,15 +181,21 @@ function FilesTool(props: RightPanelProps) {
           </button>
         </div>
         <div className="adl-tool-sidebar__actions">
-          <button type="button" className="adl-icon-btn adl-icon-btn--xs" title={t.fileNewFile} aria-label={t.fileNewFile}>
-            <IconFilePlus size={12} decorative />
-          </button>
-          <button type="button" className="adl-icon-btn adl-icon-btn--xs" title={t.fileNewFolder} aria-label={t.fileNewFolder}>
-            <IconFolderPlus size={12} decorative />
-          </button>
-          <button type="button" className="adl-icon-btn adl-icon-btn--xs" title={t.fileRefresh} aria-label={t.fileRefresh}>
-            <IconRefreshCw size={12} decorative />
-          </button>
+          <TooltipSimple content={t.fileNewFile} placement="top">
+            <button type="button" className="adl-icon-btn adl-icon-btn--xs" aria-label={t.fileNewFile}>
+              <IconFilePlus size={12} decorative />
+            </button>
+          </TooltipSimple>
+          <TooltipSimple content={t.fileNewFolder} placement="top">
+            <button type="button" className="adl-icon-btn adl-icon-btn--xs" aria-label={t.fileNewFolder}>
+              <IconFolderPlus size={12} decorative />
+            </button>
+          </TooltipSimple>
+          <TooltipSimple content={t.fileRefresh} placement="top">
+            <button type="button" className="adl-icon-btn adl-icon-btn--xs" aria-label={t.fileRefresh}>
+              <IconRefreshCw size={12} decorative />
+            </button>
+          </TooltipSimple>
         </div>
         <ul className="adl-tool-sidebar__list">
           {searchResults.length === 0 && editorTabs.length === 0 ? (
@@ -543,9 +550,11 @@ function BrowserTool({ t }: { t: CopyDict }) {
     <div className="adl-tool-body adl-tool-body--browser">
       <aside className="adl-tool-sidebar">
         <div className="adl-tool-sidebar__actions">
-          <button type="button" className="adl-icon-btn adl-icon-btn--xs" title={t.menuOpenFolder}>
-            <IconArrowLeft size={12} decorative />
-          </button>
+          <TooltipSimple content={t.menuOpenFolder} placement="top">
+            <button type="button" className="adl-icon-btn adl-icon-btn--xs">
+              <IconArrowLeft size={12} decorative />
+            </button>
+          </TooltipSimple>
           <button type="button" className="adl-icon-btn adl-icon-btn--xs">
             <IconArrowRight size={12} decorative />
           </button>

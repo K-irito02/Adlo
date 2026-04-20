@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from "react";
 import { renderIcon, type IconName } from "../../design-system/icons";
+import { TooltipSimple } from "./Tooltip";
 
 interface MessageBubbleProps {
   id: string;
@@ -82,51 +83,55 @@ export function MessageBubble({ id, role, content, timestamp }: MessageBubblePro
         <div className="message-bubble__content">{content}</div>
 
         {formattedTime && (
-          <time
-            className="message-bubble__timestamp"
-            dateTime={timestamp}
-            title={timestamp}
-          >
-            {formattedTime}
-          </time>
+          <TooltipSimple content={timestamp} placement="top">
+            <time
+              className="message-bubble__timestamp"
+              dateTime={timestamp}
+            >
+              {formattedTime}
+            </time>
+          </TooltipSimple>
         )}
 
         {isHovered && (
           <div className="message-bubble__actions" role="toolbar" aria-label="消息操作">
-            <button
-              type="button"
-              className="message-bubble__action-btn"
-              onClick={handleCopy}
-              title={copied ? "已复制" : "复制"}
-              aria-label={copied ? "已复制到剪贴板" : "复制消息内容"}
-            >
-              {copied ? (
-                <Icon name="check" size="xs" />
-              ) : (
-                <Icon name="copy" size="xs" />
-              )}
-            </button>
-
-            {!isUser && (
+            <TooltipSimple content={copied ? "已复制" : "复制"} placement="top">
               <button
                 type="button"
                 className="message-bubble__action-btn"
-                title="重新生成"
-                aria-label="重新生成此回复"
+                onClick={handleCopy}
+                aria-label={copied ? "已复制到剪贴板" : "复制消息内容"}
               >
-                <Icon name="refresh" size="xs" />
+                {copied ? (
+                  <Icon name="check" size="xs" />
+                ) : (
+                  <Icon name="copy" size="xs" />
+                )}
               </button>
+            </TooltipSimple>
+
+            {!isUser && (
+              <TooltipSimple content="重新生成" placement="top">
+                <button
+                  type="button"
+                  className="message-bubble__action-btn"
+                  aria-label="重新生成此回复"
+                >
+                  <Icon name="refresh" size="xs" />
+                </button>
+              </TooltipSimple>
             )}
 
             {canEdit && (
-              <button
-                type="button"
-                className="message-bubble__action-btn"
-                title="编辑消息"
-                aria-label="编辑此消息"
-              >
-                <Icon name="pencil" size="xs" />
-              </button>
+              <TooltipSimple content="编辑消息" placement="top">
+                <button
+                  type="button"
+                  className="message-bubble__action-btn"
+                  aria-label="编辑此消息"
+                >
+                  <Icon name="pencil" size="xs" />
+                </button>
+              </TooltipSimple>
             )}
           </div>
         )}

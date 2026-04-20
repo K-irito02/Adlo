@@ -10,6 +10,7 @@ import {
   IconGitBranch,
   IconUpload
 } from "../icons";
+import { TooltipSimple } from "../components/Tooltip";
 
 type GitStatus = "synced" | "dirty" | "unpushed" | "conflict" | "no-repo";
 
@@ -77,14 +78,15 @@ export function StatusBar({
 
   return (
     <footer className="adl-statusbar" role="contentinfo">
-      <button
-        type="button"
-        className="adl-statusbar__item"
-        title={`${gitStatusLabel(t, gitStatus)}`}
-      >
-        {gitIcon(gitStatus)}
-        <span>{gitStatusLabel(t, gitStatus)}</span>
-      </button>
+      <TooltipSimple content={gitStatusLabel(t, gitStatus)} placement="top">
+        <button
+          type="button"
+          className="adl-statusbar__item"
+        >
+          {gitIcon(gitStatus)}
+          <span>{gitStatusLabel(t, gitStatus)}</span>
+        </button>
+      </TooltipSimple>
       <span className="adl-statusbar__sep" aria-hidden="true" />
       <span className="adl-statusbar__item">
         <IconFolder size={12} decorative />
@@ -101,17 +103,18 @@ export function StatusBar({
       </span>
       <span className="adl-statusbar__sep" aria-hidden="true" />
       <div className="adl-statusbar__model">
-        <button
-          type="button"
-          className="adl-statusbar__item adl-statusbar__model-trigger"
-          onClick={() => setMenuOpen((prev) => !prev)}
-          aria-haspopup="menu"
-          aria-expanded={menuOpen}
-          title={`${t.modelLabel}: ${activeProvider?.modelId ?? "—"}`}
-        >
-          <span>{t.modelLabel}</span>
-          <strong>{activeProvider?.modelId ?? "—"}</strong>
-        </button>
+        <TooltipSimple content={`${t.modelLabel}: ${activeProvider?.modelId ?? "—"}`} placement="top">
+          <button
+            type="button"
+            className="adl-statusbar__item adl-statusbar__model-trigger"
+            onClick={() => setMenuOpen((prev) => !prev)}
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+          >
+            <span>{t.modelLabel}</span>
+            <strong>{activeProvider?.modelId ?? "—"}</strong>
+          </button>
+        </TooltipSimple>
         {menuOpen ? (
           <div className="adl-statusbar__model-menu" role="menu">
             {MODEL_PROVIDER_IDS.map((providerId) => {

@@ -1,5 +1,6 @@
 import React from "react";
 import { renderIcon, type IconName } from "../../design-system/icons";
+import { TooltipSimple } from "./Tooltip";
 
 export interface QuickActionsProps {
   /** Identifier of the currently active action (for visual highlight). */
@@ -30,25 +31,26 @@ interface ActionButtonProps {
 
 function ActionButton({ icon, label, tooltip, isActive, onClick, statusDot }: ActionButtonProps) {
   return (
-    <button
-      type="button"
-      className={`sidebar-quick-action${isActive ? " sidebar-quick-action--active" : ""}`}
-      aria-label={tooltip}
-      title={tooltip}
-      onClick={onClick}
-    >
-      <span
-        className="sidebar-quick-action__icon"
-        dangerouslySetInnerHTML={{ __html: renderIcon(icon, { size: "sm", decorative: true }).value }}
-      />
-      {statusDot ? (
+    <TooltipSimple content={tooltip} placement="right">
+      <button
+        type="button"
+        className={`sidebar-quick-action${isActive ? " sidebar-quick-action--active" : ""}`}
+        aria-label={tooltip}
+        onClick={onClick}
+      >
         <span
-          className="sidebar-quick-action__dot"
-          style={{ backgroundColor: statusDot }}
-          aria-hidden="true"
+          className="sidebar-quick-action__icon"
+          dangerouslySetInnerHTML={{ __html: renderIcon(icon, { size: "sm", decorative: true }).value }}
         />
-      ) : null}
-    </button>
+        {statusDot ? (
+          <span
+            className="sidebar-quick-action__dot"
+            style={{ backgroundColor: statusDot }}
+            aria-hidden="true"
+          />
+        ) : null}
+      </button>
+    </TooltipSimple>
   );
 }
 

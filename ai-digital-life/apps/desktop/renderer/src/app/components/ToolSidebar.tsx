@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { renderIcon, type IconName } from "../../design-system/icons";
+import { TooltipSimple } from "./Tooltip";
 import type { ToolType } from "./RightPanel";
 
 export interface ToolSidebarProps {
@@ -68,19 +69,20 @@ export function ToolSidebar({ activeTool, onAction }: ToolSidebarProps) {
             className={`tool-sidebar__item${action.separator ? " tool-sidebar__item--separator" : ""}`}
             role={action.separator ? "separator" : undefined}
           >
-            <button
-              type="button"
-              className={`tool-sidebar__btn${activeAction === action.key ? " tool-sidebar__btn--active" : ""}`}
-              title={action.title}
-              onClick={() => handleAction(action.key)}
-              aria-pressed={activeAction === action.key}
-            >
-              <span
-                dangerouslySetInnerHTML={{
-                  __html: renderIcon(action.icon, { size: "sm", decorative: true }).value,
-                }}
-              />
-            </button>
+            <TooltipSimple content={action.title} placement="right">
+              <button
+                type="button"
+                className={`tool-sidebar__btn${activeAction === action.key ? " tool-sidebar__btn--active" : ""}`}
+                onClick={() => handleAction(action.key)}
+                aria-pressed={activeAction === action.key}
+              >
+                <span
+                  dangerouslySetInnerHTML={{
+                    __html: renderIcon(action.icon, { size: "sm", decorative: true }).value,
+                  }}
+                />
+              </button>
+            </TooltipSimple>
           </li>
         ))}
       </ul>

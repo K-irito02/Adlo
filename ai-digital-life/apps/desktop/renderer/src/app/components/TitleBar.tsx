@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { renderIcon, type IconName } from "../../design-system/icons";
+import { TooltipSimple } from "./Tooltip";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -257,85 +258,92 @@ export function TitleBar({
 
       {/* ======== Region 2: Settings ======== */}
       <div className="adl-titlebar__region adl-titlebar__region--settings">
-        <button
-          type="button"
-          className="adl-titlebar-control-btn"
-          aria-label="Settings"
-          title="Settings"
-          onClick={onSettingsClick}
-        >
-          <TbIcon name="settings" size="lg" decorative />
-        </button>
+        <TooltipSimple content="Settings">
+          <button
+            type="button"
+            className="adl-titlebar-control-btn"
+            aria-label="Settings"
+            onClick={onSettingsClick}
+          >
+            <TbIcon name="settings" size="lg" decorative />
+          </button>
+        </TooltipSimple>
       </div>
 
       {/* ======== Region 3: Panel Controls ======== */}
       <div className="adl-titlebar__region adl-titlebar__region--panels">
-        <button
-          type="button"
-          className="adl-titlebar-control-btn"
-          aria-label={leftSidebarVisible ? "Hide left sidebar" : "Show left sidebar"}
-          title={leftSidebarVisible ? "Hide left sidebar" : "Show left sidebar"}
-          onClick={onToggleLeftSidebar}
-        >
-          <TbIcon name={leftIcon} size="sm" decorative />
-        </button>
+        <TooltipSimple content={leftSidebarVisible ? "Hide left sidebar" : "Show left sidebar"}>
+          <button
+            type="button"
+            className="adl-titlebar-control-btn"
+            aria-label={leftSidebarVisible ? "Hide left sidebar" : "Show left sidebar"}
+            onClick={onToggleLeftSidebar}
+          >
+            <TbIcon name={leftIcon} size="sm" decorative />
+          </button>
+        </TooltipSimple>
 
-        <button
-          type="button"
-          className="adl-titlebar-control-btn"
-          aria-label={rightPanelVisible ? "Hide right panel" : "Show right panel"}
-          title={rightPanelVisible ? "Hide right panel" : "Show right panel"}
-          onClick={onToggleRightSidebar}
-        >
-          <TbIcon name={rightIcon} size="sm" decorative />
-        </button>
+        <TooltipSimple content={rightPanelVisible ? "Hide right panel" : "Show right panel"}>
+          <button
+            type="button"
+            className="adl-titlebar-control-btn"
+            aria-label={rightPanelVisible ? "Hide right panel" : "Show right panel"}
+            onClick={onToggleRightSidebar}
+          >
+            <TbIcon name={rightIcon} size="sm" decorative />
+          </button>
+        </TooltipSimple>
 
-        <button
-          type="button"
-          className="adl-titlebar-control-btn"
-          aria-label="Toggle all panels"
-          title="Toggle all panels"
-          onClick={onToggleAllPanels}
-        >
-          <TbIcon name="columns" size="sm" decorative />
-        </button>
+        <TooltipSimple content="Toggle all panels">
+          <button
+            type="button"
+            className="adl-titlebar-control-btn"
+            aria-label="Toggle all panels"
+            onClick={onToggleAllPanels}
+          >
+            <TbIcon name="columns" size="sm" decorative />
+          </button>
+        </TooltipSimple>
       </div>
 
       {/* ======== Region 4: Window Management ======== */}
       <div className="adl-titlebar__region adl-titlebar__region--window">
-        <button
-          type="button"
-          className="adl-titlebar-control-btn"
-          aria-label="Minimize"
-          title="Minimize"
-          onClick={onMinimize}
-        >
-          <TbIcon name="minus" size="sm" decorative />
-        </button>
+        <TooltipSimple content="Minimize">
+          <button
+            type="button"
+            className="adl-titlebar-control-btn"
+            aria-label="Minimize"
+            onClick={onMinimize}
+          >
+            <TbIcon name="minus" size="sm" decorative />
+          </button>
+        </TooltipSimple>
 
-        <button
-          type="button"
-          className="adl-titlebar-control-btn"
-          aria-label={isMaximized ? "Restore" : "Maximize"}
-          title={isMaximized ? "Restore" : "Maximize"}
-          onClick={onMaximize}
-        >
-          {isMaximized ? (
-            <TbIcon name="minimize-2" size="sm" decorative />
-          ) : (
-            <TbIcon name="square" size="sm" decorative />
-          )}
-        </button>
+        <TooltipSimple content={isMaximized ? "Restore" : "Maximize"}>
+          <button
+            type="button"
+            className="adl-titlebar-control-btn"
+            aria-label={isMaximized ? "Restore" : "Maximize"}
+            onClick={onMaximize}
+          >
+            {isMaximized ? (
+              <TbIcon name="minimize-2" size="sm" decorative />
+            ) : (
+              <TbIcon name="square" size="sm" decorative />
+            )}
+          </button>
+        </TooltipSimple>
 
-        <button
-          type="button"
-          className="adl-titlebar-control-btn adl-titlebar-control-btn--close"
-          aria-label="Close"
-          title="Close"
-          onClick={onClose}
-        >
-          <TbIcon name="close" size="sm" decorative />
-        </button>
+        <TooltipSimple content="Close">
+          <button
+            type="button"
+            className="adl-titlebar-control-btn adl-titlebar-control-btn--close"
+            aria-label="Close"
+            onClick={onClose}
+          >
+            <TbIcon name="close" size="sm" decorative />
+          </button>
+        </TooltipSimple>
       </div>
     </header>
   );

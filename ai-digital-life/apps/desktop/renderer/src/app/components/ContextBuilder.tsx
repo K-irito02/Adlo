@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { renderIcon, type IconName } from "../../design-system/icons";
+import { TooltipSimple } from "./Tooltip";
 
 interface ContextBuilderProps {
   onAddContext: (type: string, value?: string) => void;
@@ -158,17 +159,18 @@ export function ContextBuilder({ onAddContext, activeContexts = [] }: ContextBui
 
   return (
     <div className="context-builder">
-      <button
-        ref={buttonRef}
-        type="button"
-        className={`context-builder__trigger${isOpen ? " context-builder__trigger--open" : ""}`}
-        onClick={handleToggle}
-        aria-expanded={isOpen}
-        aria-haspopup="listbox"
-        title="添加上下文"
-      >
-        <Icon name="plus" size="sm" />
-      </button>
+      <TooltipSimple content="添加上下文" placement="top">
+        <button
+          ref={buttonRef}
+          type="button"
+          className={`context-builder__trigger${isOpen ? " context-builder__trigger--open" : ""}`}
+          onClick={handleToggle}
+          aria-expanded={isOpen}
+          aria-haspopup="listbox"
+        >
+          <Icon name="plus" size="sm" />
+        </button>
+      </TooltipSimple>
 
       {isOpen && (
         <div

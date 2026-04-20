@@ -95,6 +95,7 @@
 - `test-requirement-guard`
 - `doc-sync-guard`
 - `dangerous-action-approval`
+- `mandatory-testing`
 
 ## 禁止项
 
@@ -104,6 +105,8 @@
 - 凭据写入普通配置或日志
 - 未说明 Phase 边界就引入远期能力
 - 高风险改动无测试计划、无恢复说明、无审计考虑
+- 使用原生 HTML `title` 属性作为 Tooltip（必须使用 `TooltipSimple` 组件）
+- UI/UX 或功能变更后跳过红绿测试
 
 ## 项目级 Skills 规则
 
@@ -125,6 +128,7 @@
 - 国际化策略变化
 - 主题系统规则变化
 - 配置、持久化或恢复策略变化
+- UI 组件库变更（新增/迁移组件）
 
 详细说明见：
 

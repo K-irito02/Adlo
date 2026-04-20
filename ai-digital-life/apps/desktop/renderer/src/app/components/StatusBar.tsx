@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { renderIcon } from "../../design-system/icons";
+import { TooltipSimple } from "./Tooltip";
 
 export type GitStatusType = "synced" | "dirty" | "ahead" | "behind" | "conflict" | "none";
 
@@ -57,19 +58,20 @@ export function StatusBar({
 
       <div className="statusbar__sep" aria-hidden="true" />
 
-      <div
-        className="statusbar__section"
-        title={workspacePath ?? workspaceName}
-        tabIndex={0}
-        role="button"
-        aria-label={`Workspace: ${workspacePath ?? workspaceName}`}
-      >
-        <span
-          className="statusbar__icon"
-          dangerouslySetInnerHTML={{ __html: renderIcon("folder", { size: "xs", decorative: true }).value }}
-        />
-        <span className="statusbar__label">{workspaceName}</span>
-      </div>
+      <TooltipSimple content={workspacePath ?? workspaceName} placement="top">
+        <div
+          className="statusbar__section"
+          tabIndex={0}
+          role="button"
+          aria-label={`Workspace: ${workspacePath ?? workspaceName}`}
+        >
+          <span
+            className="statusbar__icon"
+            dangerouslySetInnerHTML={{ __html: renderIcon("folder", { size: "xs", decorative: true }).value }}
+          />
+          <span className="statusbar__label">{workspaceName}</span>
+        </div>
+      </TooltipSimple>
 
       <div className="statusbar__sep" aria-hidden="true" />
 

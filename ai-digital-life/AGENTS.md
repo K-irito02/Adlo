@@ -26,6 +26,15 @@
 - 颜色方案（color scheme）是 Renderer 端偏好，存储在 `localStorage`
 - 桌面端最小支持窗口宽度为 640px
 - 所有公共设计系统辅助函数必须有测试覆盖
+- **禁止使用原生 HTML `title` 属性**，必须使用 `TooltipSimple` 组件
+- UI/UX 或功能变更后必须执行全量红绿测试（typecheck + vitest）
+
+## Tooltip 组件
+
+- 便捷 API：`<TooltipSimple content="提示文本" placement="top">...</TooltipSimple>`
+- 组合 API：`<Tooltip>` + `<TooltipTrigger>` + `<TooltipContent>`
+- 核心文件：`components/Tooltip.tsx`、`hooks/useTooltip.ts`、`utils/tooltipPosition.ts`
+- 侧边栏项目使用 `placement="right"`，其余区域使用 `placement="top"`
 
 ## 文档入口
 

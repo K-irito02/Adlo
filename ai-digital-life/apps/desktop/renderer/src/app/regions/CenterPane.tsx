@@ -33,6 +33,7 @@ import {
 import { MessageBlocks } from "../MessageBlocks";
 import { type ChatMode, type ContextChip, useUiStore } from "../ui-store";
 import { MODEL_PROVIDER_IDS } from "../constants";
+import { TooltipSimple } from "../components/Tooltip";
 
 interface CenterPaneProps {
   t: CopyDict;
@@ -595,16 +596,17 @@ export function CenterPane({
         ) : null}
         <div className="adl-composer__inner">
           <div className="adl-composer__left">
-            <button
-              type="button"
-              className="adl-icon-btn adl-icon-btn--round"
-              onClick={() => setContextMenuOpen(!contextMenuOpen)}
-              aria-label={t.contextBuilderTrigger}
-              title={t.contextBuilderTrigger}
-              aria-expanded={contextMenuOpen}
-            >
-              <IconPlus size={16} decorative />
-            </button>
+            <TooltipSimple content={t.contextBuilderTrigger} placement="top">
+              <button
+                type="button"
+                className="adl-icon-btn adl-icon-btn--round"
+                onClick={() => setContextMenuOpen(!contextMenuOpen)}
+                aria-label={t.contextBuilderTrigger}
+                aria-expanded={contextMenuOpen}
+              >
+                <IconPlus size={16} decorative />
+              </button>
+            </TooltipSimple>
             <ContextBuilderPopover
               t={t}
               open={contextMenuOpen}
@@ -631,38 +633,42 @@ export function CenterPane({
                   ? t.chatModeDebug
                   : t.chatModeAsk}
             </span>
-            <button
-              type="button"
-              className="adl-icon-btn"
-              aria-label="Voice"
-              title="Voice"
-              disabled
-            >
-              <IconMic size={14} decorative />
-            </button>
+            <TooltipSimple content="Voice" placement="top">
+              <button
+                type="button"
+                className="adl-icon-btn"
+                aria-label="Voice"
+                disabled
+              >
+                <IconMic size={14} decorative />
+              </button>
+            </TooltipSimple>
             {buttonState === "stop" ? (
+            <TooltipSimple content={t.cancelGenerate} placement="top">
               <button
                 type="button"
                 className="adl-action-btn adl-action-btn--danger"
                 data-testid="composer-send"
                 onClick={onCancelGenerate}
                 aria-label={t.cancelGenerate}
-                title={t.cancelGenerate}
               >
                 <IconStopCircle size={16} decorative />
               </button>
+            </TooltipSimple>
             ) : buttonState === "retry" ? (
+            <TooltipSimple content={t.retry} placement="top">
               <button
                 type="button"
                 className="adl-action-btn adl-action-btn--warning"
                 data-testid="composer-send"
                 onClick={() => void handleSend()}
                 aria-label={t.retry}
-                title={t.retry}
               >
                 <IconRefreshCw size={16} decorative />
               </button>
+            </TooltipSimple>
             ) : (
+            <TooltipSimple content={t.send} placement="top">
               <button
                 type="button"
                 className="adl-action-btn adl-action-btn--primary"
@@ -670,10 +676,10 @@ export function CenterPane({
                 onClick={() => void handleSend()}
                 disabled={!draft.trim()}
                 aria-label={t.send}
-                title={t.send}
               >
                 <IconArrowUp size={16} decorative />
               </button>
+            </TooltipSimple>
             )}
           </div>
         </div>

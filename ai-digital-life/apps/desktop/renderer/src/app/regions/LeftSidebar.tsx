@@ -22,6 +22,7 @@ import {
   IconSun
 } from "../icons";
 import { useUiStore } from "../ui-store";
+import { TooltipSimple } from "../components/Tooltip";
 
 export type SessionVisualStatus =
   | "processing"
@@ -78,7 +79,6 @@ function StatusLamp({ status, title }: { status: SessionVisualStatus; title: str
       className={`adl-status-lamp adl-status-lamp--${status}`}
       role="img"
       aria-label={title}
-      title={title}
     />
   );
 }
@@ -165,49 +165,53 @@ export function LeftSidebar({
     <aside className="adl-leftbar" aria-label="Workspace and session navigator">
       {/* Region 5: Quick actions */}
       <section className="adl-leftbar__quick">
-        <button
-          type="button"
-          className="adl-quick-btn"
-          title={`${t.quickSkills} · ${t.quickSkillsComingSoon}`}
-          disabled
-        >
-          <IconSparkles size={16} decorative />
-          <span className="adl-quick-btn__label">{t.quickSkills}</span>
-        </button>
-        <button
-          type="button"
-          className="adl-quick-btn"
-          title={`${t.quickMcp} · ${t.quickSkillsComingSoon}`}
-          disabled
-        >
-          <IconPlug size={16} decorative />
-          <span className="adl-quick-btn__label">{t.quickMcp}</span>
-          <span className="adl-status-lamp adl-status-lamp--read" aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          className="adl-quick-btn adl-quick-btn--primary"
-          onClick={onTriggerCreateWorkspace}
-          title={t.quickNewWorkspace}
-        >
-          <IconFolderPlus size={16} decorative />
-          <span className="adl-quick-btn__label">{t.quickNewWorkspace}</span>
-        </button>
+        <TooltipSimple content={`${t.quickSkills} · ${t.quickSkillsComingSoon}`} placement="right">
+          <button
+            type="button"
+            className="adl-quick-btn"
+            disabled
+          >
+            <IconSparkles size={16} decorative />
+            <span className="adl-quick-btn__label">{t.quickSkills}</span>
+          </button>
+        </TooltipSimple>
+        <TooltipSimple content={`${t.quickMcp} · ${t.quickSkillsComingSoon}`} placement="right">
+          <button
+            type="button"
+            className="adl-quick-btn"
+            disabled
+          >
+            <IconPlug size={16} decorative />
+            <span className="adl-quick-btn__label">{t.quickMcp}</span>
+            <span className="adl-status-lamp adl-status-lamp--read" aria-hidden="true" />
+          </button>
+        </TooltipSimple>
+        <TooltipSimple content={t.quickNewWorkspace} placement="right">
+          <button
+            type="button"
+            className="adl-quick-btn adl-quick-btn--primary"
+            onClick={onTriggerCreateWorkspace}
+          >
+            <IconFolderPlus size={16} decorative />
+            <span className="adl-quick-btn__label">{t.quickNewWorkspace}</span>
+          </button>
+        </TooltipSimple>
       </section>
 
       {/* Region 6: Workspace + session tabs */}
       <section className="adl-leftbar__nav" aria-label={t.workspaces}>
         <header className="adl-leftbar__nav-header">
           <span>{t.workspaces}</span>
-          <button
-            type="button"
-            className="adl-icon-btn adl-icon-btn--xs"
-            onClick={onTriggerCreateWorkspace}
-            aria-label={t.quickNewWorkspace}
-            title={t.quickNewWorkspace}
-          >
-            <IconPlus size={14} decorative />
-          </button>
+          <TooltipSimple content={t.quickNewWorkspace} placement="right">
+            <button
+              type="button"
+              className="adl-icon-btn adl-icon-btn--xs"
+              onClick={onTriggerCreateWorkspace}
+              aria-label={t.quickNewWorkspace}
+            >
+              <IconPlus size={14} decorative />
+            </button>
+          </TooltipSimple>
         </header>
         <div className="adl-leftbar__search">
           <IconSearch size={14} decorative />
@@ -255,51 +259,55 @@ export function LeftSidebar({
                       <IconChevronRight size={12} decorative />
                     )}
                   </button>
-                  <button
-                    type="button"
-                    className="adl-workspace-row__label"
-                    onClick={() => {
-                      if (!isCurrent) onOpenWorkspace(workspace.path);
-                    }}
-                    title={workspace.path}
-                  >
-                    {pinned[workspace.path] ? <IconPin size={12} decorative /> : null}
-                    <span>{workspace.name}</span>
-                    {!expanded ? (
-                      <StatusLamp status={rollupStatus} title={t[STATUS_LABEL[rollupStatus]] as string} />
-                    ) : null}
-                  </button>
+                  <TooltipSimple content={workspace.path} placement="right">
+                    <button
+                      type="button"
+                      className="adl-workspace-row__label"
+                      onClick={() => {
+                        if (!isCurrent) onOpenWorkspace(workspace.path);
+                      }}
+                    >
+                      {pinned[workspace.path] ? <IconPin size={12} decorative /> : null}
+                      <span>{workspace.name}</span>
+                      {!expanded ? (
+                        <StatusLamp status={rollupStatus} title={t[STATUS_LABEL[rollupStatus]] as string} />
+                      ) : null}
+                    </button>
+                  </TooltipSimple>
                   <div className="adl-workspace-row__actions">
-                    <button
-                      type="button"
-                      className="adl-icon-btn adl-icon-btn--xs"
-                      onClick={() =>
-                        setPinned((prev) => ({ ...prev, [workspace.path]: !prev[workspace.path] }))
-                      }
-                      aria-label={pinned[workspace.path] ? t.sessionMenuUnpin : t.sessionMenuPin}
-                      title={pinned[workspace.path] ? t.sessionMenuUnpin : t.sessionMenuPin}
-                    >
-                      <IconPin size={12} decorative />
-                    </button>
-                    <button
-                      type="button"
-                      className="adl-icon-btn adl-icon-btn--xs"
-                      onClick={() => isCurrent && onCreateSession()}
-                      disabled={!isCurrent}
-                      aria-label={t.newSession}
-                      title={t.newSession}
-                    >
-                      <IconPlus size={12} decorative />
-                    </button>
-                    <button
-                      type="button"
-                      className="adl-icon-btn adl-icon-btn--xs"
-                      onClick={() => setRemoved((prev) => ({ ...prev, [workspace.path]: true }))}
-                      aria-label={t.sessionMenuRemove}
-                      title={t.sessionMenuRemove}
-                    >
-                      <IconMoreVertical size={12} decorative />
-                    </button>
+                    <TooltipSimple content={pinned[workspace.path] ? t.sessionMenuUnpin : t.sessionMenuPin} placement="right">
+                      <button
+                        type="button"
+                        className="adl-icon-btn adl-icon-btn--xs"
+                        onClick={() =>
+                          setPinned((prev) => ({ ...prev, [workspace.path]: !prev[workspace.path] }))
+                        }
+                        aria-label={pinned[workspace.path] ? t.sessionMenuUnpin : t.sessionMenuPin}
+                      >
+                        <IconPin size={12} decorative />
+                      </button>
+                    </TooltipSimple>
+                    <TooltipSimple content={t.newSession} placement="right">
+                      <button
+                        type="button"
+                        className="adl-icon-btn adl-icon-btn--xs"
+                        onClick={() => isCurrent && onCreateSession()}
+                        disabled={!isCurrent}
+                        aria-label={t.newSession}
+                      >
+                        <IconPlus size={12} decorative />
+                      </button>
+                    </TooltipSimple>
+                    <TooltipSimple content={t.sessionMenuRemove} placement="right">
+                      <button
+                        type="button"
+                        className="adl-icon-btn adl-icon-btn--xs"
+                        onClick={() => setRemoved((prev) => ({ ...prev, [workspace.path]: true }))}
+                        aria-label={t.sessionMenuRemove}
+                      >
+                        <IconMoreVertical size={12} decorative />
+                      </button>
+                    </TooltipSimple>
                   </div>
                 </div>
 
@@ -324,23 +332,24 @@ export function LeftSidebar({
                         const statusLabel = t[STATUS_LABEL[status]] as string;
                         return (
                           <li key={session.id}>
-                            <button
-                              type="button"
-                              className={`adl-session-item${session.id === activeSessionId ? " is-active" : ""}`}
-                              onClick={() => onSelectSession(session.id)}
-                              title={session.title}
-                            >
-                              <StatusLamp status={status} title={statusLabel} />
-                              <span className="adl-session-item__title">{session.title}</span>
-                              <span className="adl-session-item__meta">
-                                {new Date(session.updatedAt).toLocaleString(locale, {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                  month: "2-digit",
-                                  day: "2-digit"
-                                })}
-                              </span>
-                            </button>
+                            <TooltipSimple content={session.title} placement="right">
+                              <button
+                                type="button"
+                                className={`adl-session-item${session.id === activeSessionId ? " is-active" : ""}`}
+                                onClick={() => onSelectSession(session.id)}
+                              >
+                                <StatusLamp status={status} title={statusLabel} />
+                                <span className="adl-session-item__title">{session.title}</span>
+                                <span className="adl-session-item__meta">
+                                  {new Date(session.updatedAt).toLocaleString(locale, {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                    month: "2-digit",
+                                    day: "2-digit"
+                                  })}
+                                </span>
+                              </button>
+                            </TooltipSimple>
                           </li>
                         );
                       })}
@@ -382,16 +391,17 @@ export function LeftSidebar({
 
       {/* Region 7: Environment controls */}
       <section className="adl-leftbar__env">
-        <button
-          type="button"
-          className="adl-env-btn"
-          onClick={onCycleTheme}
-          aria-label={t.theme}
-          title={t.theme}
-        >
-          <ThemeIcon mode={appInfo?.config.themeMode} />
-          <span>{t.theme}</span>
-        </button>
+        <TooltipSimple content={t.theme} placement="right">
+          <button
+            type="button"
+            className="adl-env-btn"
+            onClick={onCycleTheme}
+            aria-label={t.theme}
+          >
+            <ThemeIcon mode={appInfo?.config.themeMode} />
+            <span>{t.theme}</span>
+          </button>
+        </TooltipSimple>
         <label className="adl-env-select">
           <span className="sr-only">{t.language}</span>
           <select

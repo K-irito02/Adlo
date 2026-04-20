@@ -1,5 +1,6 @@
 import React from "react";
 import { renderIcon } from "../../design-system/icons";
+import { TooltipSimple } from "./Tooltip";
 import type { ToolType } from "./RightPanel";
 
 export interface ToolContextAreaProps {
@@ -36,30 +37,33 @@ function FilesContext({ onAction }: Pick<ToolContextAreaProps, "onAction">) {
         />
       </div>
       <div className="tool-context-area__actions">
-        <button
-          type="button"
-          className="tool-context-area__action-btn btn btn--ghost btn--sm"
-          title="New file"
-          onClick={() => onAction?.("new-file")}
-        >
-          <span dangerouslySetInnerHTML={{ __html: renderIcon("file-plus", { size: "xs", decorative: true }).value }} />
-        </button>
-        <button
-          type="button"
-          className="tool-context-area__action-btn btn btn--ghost btn--sm"
-          title="New folder"
-          onClick={() => onAction?.("new-folder")}
-        >
-          <span dangerouslySetInnerHTML={{ __html: renderIcon("folder-plus", { size: "xs", decorative: true }).value }} />
-        </button>
-        <button
-          type="button"
-          className="tool-context-area__action-btn btn btn--ghost btn--sm"
-          title="Refresh"
-          onClick={() => onAction?.("refresh-files")}
-        >
-          <span dangerouslySetInnerHTML={{ __html: renderIcon("refresh", { size: "xs", decorative: true }).value }} />
-        </button>
+        <TooltipSimple content="New file">
+          <button
+            type="button"
+            className="tool-context-area__action-btn btn btn--ghost btn--sm"
+            onClick={() => onAction?.("new-file")}
+          >
+            <span dangerouslySetInnerHTML={{ __html: renderIcon("file-plus", { size: "xs", decorative: true }).value }} />
+          </button>
+        </TooltipSimple>
+        <TooltipSimple content="New folder">
+          <button
+            type="button"
+            className="tool-context-area__action-btn btn btn--ghost btn--sm"
+            onClick={() => onAction?.("new-folder")}
+          >
+            <span dangerouslySetInnerHTML={{ __html: renderIcon("folder-plus", { size: "xs", decorative: true }).value }} />
+          </button>
+        </TooltipSimple>
+        <TooltipSimple content="Refresh">
+          <button
+            type="button"
+            className="tool-context-area__action-btn btn btn--ghost btn--sm"
+            onClick={() => onAction?.("refresh-files")}
+          >
+            <span dangerouslySetInnerHTML={{ __html: renderIcon("refresh", { size: "xs", decorative: true }).value }} />
+          </button>
+        </TooltipSimple>
       </div>
     </div>
   );
@@ -106,38 +110,26 @@ function ChangesContext({ contextData, onAction }: ToolContextAreaProps) {
         </span>
       </div>
       <div className="tool-context-area__actions">
-        <button
-          type="button"
-          className="tool-context-area__action-btn btn btn--ghost btn--sm"
-          title="Stage all"
-          onClick={() => onAction?.("stage-all")}
-        >
-          <span dangerouslySetInnerHTML={{ __html: renderIcon("check-circle", { size: "xs", decorative: true }).value }} />
-        </button>
-        <button
-          type="button"
-          className="tool-context-area__action-btn btn btn--ghost btn--sm"
-          title="Commit"
-          onClick={() => onAction?.("commit")}
-        >
-          <span dangerouslySetInnerHTML={{ __html: renderIcon("archive", { size: "xs", decorative: true }).value }} />
-        </button>
-        <button
-          type="button"
-          className="tool-context-area__action-btn btn btn--ghost btn--sm"
-          title="Push"
-          onClick={() => onAction?.("push")}
-        >
-          <span dangerouslySetInnerHTML={{ __html: renderIcon("upload", { size: "xs", decorative: true }).value }} />
-        </button>
-        <button
-          type="button"
-          className="tool-context-area__action-btn btn btn--ghost btn--sm"
-          title="Pull"
-          onClick={() => onAction?.("pull")}
-        >
-          <span dangerouslySetInnerHTML={{ __html: renderIcon("download", { size: "xs", decorative: true }).value }} />
-        </button>
+        <TooltipSimple content="Stage all">
+          <button type="button" className="tool-context-area__action-btn btn btn--ghost btn--sm" onClick={() => onAction?.("stage-all")}>
+            <span dangerouslySetInnerHTML={{ __html: renderIcon("check-circle", { size: "xs", decorative: true }).value }} />
+          </button>
+        </TooltipSimple>
+        <TooltipSimple content="Commit">
+          <button type="button" className="tool-context-area__action-btn btn btn--ghost btn--sm" onClick={() => onAction?.("commit")}>
+            <span dangerouslySetInnerHTML={{ __html: renderIcon("archive", { size: "xs", decorative: true }).value }} />
+          </button>
+        </TooltipSimple>
+        <TooltipSimple content="Push">
+          <button type="button" className="tool-context-area__action-btn btn btn--ghost btn--sm" onClick={() => onAction?.("push")}>
+            <span dangerouslySetInnerHTML={{ __html: renderIcon("upload", { size: "xs", decorative: true }).value }} />
+          </button>
+        </TooltipSimple>
+        <TooltipSimple content="Pull">
+          <button type="button" className="tool-context-area__action-btn btn btn--ghost btn--sm" onClick={() => onAction?.("pull")}>
+            <span dangerouslySetInnerHTML={{ __html: renderIcon("download", { size: "xs", decorative: true }).value }} />
+          </button>
+        </TooltipSimple>
       </div>
     </div>
   );
@@ -149,38 +141,26 @@ function BrowserContext({ contextData, onAction }: ToolContextAreaProps) {
   return (
     <div className="tool-context-area tool-context-area--browser">
       <div className="tool-context-area__nav-buttons">
-        <button
-          type="button"
-          className="tool-context-area__action-btn btn btn--ghost btn--sm"
-          title="Back"
-          onClick={() => onAction?.("browser-back")}
-        >
-          <span dangerouslySetInnerHTML={{ __html: renderIcon("chevron-left", { size: "xs", decorative: true }).value }} />
-        </button>
-        <button
-          type="button"
-          className="tool-context-area__action-btn btn btn--ghost btn--sm"
-          title="Forward"
-          onClick={() => onAction?.("browser-forward")}
-        >
-          <span dangerouslySetInnerHTML={{ __html: renderIcon("chevron-right", { size: "xs", decorative: true }).value }} />
-        </button>
-        <button
-          type="button"
-          className="tool-context-area__action-btn btn btn--ghost btn--sm"
-          title="Refresh"
-          onClick={() => onAction?.("browser-refresh")}
-        >
-          <span dangerouslySetInnerHTML={{ __html: renderIcon("refresh", { size: "xs", decorative: true }).value }} />
-        </button>
-        <button
-          type="button"
-          className="tool-context-area__action-btn btn btn--ghost btn--sm"
-          title="Home"
-          onClick={() => onAction?.("browser-home")}
-        >
-          <span dangerouslySetInnerHTML={{ __html: renderIcon("home", { size: "xs", decorative: true }).value }} />
-        </button>
+        <TooltipSimple content="Back">
+          <button type="button" className="tool-context-area__action-btn btn btn--ghost btn--sm" onClick={() => onAction?.("browser-back")}>
+            <span dangerouslySetInnerHTML={{ __html: renderIcon("chevron-left", { size: "xs", decorative: true }).value }} />
+          </button>
+        </TooltipSimple>
+        <TooltipSimple content="Forward">
+          <button type="button" className="tool-context-area__action-btn btn btn--ghost btn--sm" onClick={() => onAction?.("browser-forward")}>
+            <span dangerouslySetInnerHTML={{ __html: renderIcon("chevron-right", { size: "xs", decorative: true }).value }} />
+          </button>
+        </TooltipSimple>
+        <TooltipSimple content="Refresh">
+          <button type="button" className="tool-context-area__action-btn btn btn--ghost btn--sm" onClick={() => onAction?.("browser-refresh")}>
+            <span dangerouslySetInnerHTML={{ __html: renderIcon("refresh", { size: "xs", decorative: true }).value }} />
+          </button>
+        </TooltipSimple>
+        <TooltipSimple content="Home">
+          <button type="button" className="tool-context-area__action-btn btn btn--ghost btn--sm" onClick={() => onAction?.("browser-home")}>
+            <span dangerouslySetInnerHTML={{ __html: renderIcon("home", { size: "xs", decorative: true }).value }} />
+          </button>
+        </TooltipSimple>
       </div>
       <div className="tool-context-area__address-bar">
         <span
@@ -197,14 +177,15 @@ function BrowserContext({ contextData, onAction }: ToolContextAreaProps) {
           aria-label="Address bar"
         />
       </div>
-      <button
-        type="button"
-        className="tool-context-area__action-btn btn btn--ghost btn--sm"
-        title="Bookmark"
-        onClick={() => onAction?.("browser-bookmark")}
-      >
-        <span dangerouslySetInnerHTML={{ __html: renderIcon("bookmark", { size: "xs", decorative: true }).value }} />
-      </button>
+      <TooltipSimple content="Bookmark">
+        <button
+          type="button"
+          className="tool-context-area__action-btn btn btn--ghost btn--sm"
+          onClick={() => onAction?.("browser-bookmark")}
+        >
+          <span dangerouslySetInnerHTML={{ __html: renderIcon("bookmark", { size: "xs", decorative: true }).value }} />
+        </button>
+      </TooltipSimple>
     </div>
   );
 }
@@ -227,14 +208,33 @@ function TerminalContext({ contextData, onAction }: ToolContextAreaProps) {
           </button>
         ))}
       </div>
-      <button
-        type="button"
-        className="tool-context-area__action-btn btn btn--ghost btn--sm"
-        title="New terminal"
-        onClick={() => onAction?.("new-terminal")}
-      >
-        <span dangerouslySetInnerHTML={{ __html: renderIcon("plus", { size: "xs", decorative: true }).value }} />
-      </button>
+      <TooltipSimple content="New terminal">
+        <button
+          type="button"
+          className="tool-context-area__action-btn btn btn--ghost btn--sm"
+          onClick={() => onAction?.("new-terminal")}
+        >
+          <span dangerouslySetInnerHTML={{ __html: renderIcon("plus", { size: "xs", decorative: true }).value }} />
+        </button>
+      </TooltipSimple>
+      <TooltipSimple content="New note">
+        <button
+          type="button"
+          className="tool-context-area__action-btn btn btn--ghost btn--sm"
+          onClick={() => onAction?.("new-note")}
+        >
+          <span dangerouslySetInnerHTML={{ __html: renderIcon("plus", { size: "xs", decorative: true }).value }} />
+        </button>
+      </TooltipSimple>
+      <TooltipSimple content="Clear terminal">
+        <button
+          type="button"
+          className="tool-context-area__action-btn btn btn--ghost btn--sm"
+          onClick={() => onAction?.("clear-terminal")}
+        >
+          <span dangerouslySetInnerHTML={{ __html: renderIcon("trash-2", { size: "xs", decorative: true }).value }} />
+        </button>
+      </TooltipSimple>
       <select
         className="tool-context-area__shell-select select--sm"
         value={shellType}

@@ -3,6 +3,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import React from "react";
 
+class ResizeObserverPolyfill {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
+if (typeof window.ResizeObserver === "undefined") {
+  window.ResizeObserver = ResizeObserverPolyfill as unknown as typeof ResizeObserver;
+}
+
 vi.mock("@monaco-editor/react", () => ({
   __esModule: true,
   default: ({ value }: { value?: string }) => React.createElement("div", { "data-testid": "monaco-editor" }, value ?? ""),

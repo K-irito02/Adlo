@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 import { renderIcon, type IconName } from "../../design-system/icons";
+import { TooltipSimple } from "./Tooltip";
 
 interface ActionButtonProps {
   state: "idle" | "generating" | "error" | "waiting";
@@ -82,20 +83,21 @@ export function ActionButton({ state, hasContent, onSend, onStop, onRetry }: Act
   const isSpinning = state === "error" || state === "waiting";
 
   return (
-    <button
-      type="button"
-      className={appearance.className}
-      onClick={appearance.onClick}
-      disabled={appearance.isDisabled}
-      title={appearance.label}
-      aria-label={appearance.label}
-      data-action-state={state}
-      data-testid="action-button"
-    >
-      <span className={`action-btn__icon${isSpinning ? " action-btn__icon--spin" : ""}`}>
-        <Icon name={appearance.icon} size="md" />
-      </span>
-    </button>
+    <TooltipSimple content={appearance.label} placement="top">
+      <button
+        type="button"
+        className={appearance.className}
+        onClick={appearance.onClick}
+        disabled={appearance.isDisabled}
+        aria-label={appearance.label}
+        data-action-state={state}
+        data-testid="action-button"
+      >
+        <span className={`action-btn__icon${isSpinning ? " action-btn__icon--spin" : ""}`}>
+          <Icon name={appearance.icon} size="md" />
+        </span>
+      </button>
+    </TooltipSimple>
   );
 }
 

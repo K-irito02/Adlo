@@ -48,6 +48,8 @@ npm run start
 - [ ] 状态栏（`.adl-ide-statusbar`）
 - [ ] 主题变量（`themes.css`、`tokens.css`）
 - [ ] 组件样式（`components.css`、`workspace.css`）
+- [ ] Tooltip 组件（悬停交互、主题适配、定位正确性）
+- [ ] 原生 `title` 属性残留检查（应全部迁移为 `TooltipSimple`）
 
 ## 随项目演进
 

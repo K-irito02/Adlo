@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo } from "react";
 import { renderIcon, type IconName } from "../../design-system/icons";
+import { TooltipSimple } from "./Tooltip";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -98,8 +99,10 @@ function WorkspaceItem({ workspace, onSelect }: WorkspaceItemProps) {
         className="sidebar-workspace-tab__icon"
         dangerouslySetInnerHTML={{ __html: renderIcon("folder", { size: "sm", decorative: true }).value }}
       />
-      <span className="sidebar-workspace-tab__name" title={workspace.name}>
-        {workspace.name}
+      <span className="sidebar-workspace-tab__name">
+        <TooltipSimple content={workspace.name} placement="right">
+          <span>{workspace.name}</span>
+        </TooltipSimple>
       </span>
       <span
         className="sidebar-workspace-tab__dot"
@@ -110,29 +113,32 @@ function WorkspaceItem({ workspace, onSelect }: WorkspaceItemProps) {
       {/* Hover actions */}
       <span className={`sidebar-workspace-tab__actions${hovered ? " is-visible" : ""}`}>
         {workspace.isPinned ? (
-          <span
-            className="sidebar-workspace-tab__action"
-            title="Pinned"
-            dangerouslySetInnerHTML={{
-              __html: renderIcon("pin", { size: "xs", decorative: true }).value,
-            }}
-          />
+          <TooltipSimple content="Pinned" placement="top">
+            <span
+              className="sidebar-workspace-tab__action"
+              dangerouslySetInnerHTML={{
+                __html: renderIcon("pin", { size: "xs", decorative: true }).value,
+              }}
+            />
+          </TooltipSimple>
         ) : (
+          <TooltipSimple content="Pin" placement="top">
+            <span
+              className="sidebar-workspace-tab__action"
+              dangerouslySetInnerHTML={{
+                __html: renderIcon("pin", { size: "xs", decorative: true }).value,
+              }}
+            />
+          </TooltipSimple>
+        )}
+        <TooltipSimple content="More options" placement="top">
           <span
             className="sidebar-workspace-tab__action"
-            title="Pin"
             dangerouslySetInnerHTML={{
-              __html: renderIcon("pin", { size: "xs", decorative: true }).value,
+              __html: renderIcon("more-vertical", { size: "xs", decorative: true }).value,
             }}
           />
-        )}
-        <span
-          className="sidebar-workspace-tab__action"
-          title="More options"
-          dangerouslySetInnerHTML={{
-            __html: renderIcon("more-vertical", { size: "xs", decorative: true }).value,
-          }}
-        />
+        </TooltipSimple>
       </span>
     </button>
   );
@@ -160,8 +166,10 @@ function SessionItemEl({ session, isActive, onSelect }: SessionItemProps) {
         aria-hidden="true"
       />
       <span className="sidebar-session-item__content">
-        <span className="sidebar-session-item__title" title={session.title}>
-          {session.title}
+        <span className="sidebar-session-item__title">
+          <TooltipSimple content={session.title} placement="right">
+            <span>{session.title}</span>
+          </TooltipSimple>
         </span>
         <span className="sidebar-session-item__time">{formatTimestamp(session.updatedAt)}</span>
       </span>
@@ -228,19 +236,20 @@ export function SessionManagement({
             />
             <span className="sidebar-section__title">Workspaces</span>
           </button>
-          <button
-            type="button"
-            className="sidebar-section__add-btn"
-            onClick={onNewWorkspace}
-            title="New workspace"
-            aria-label="Add workspace"
-          >
-            <span
-              dangerouslySetInnerHTML={{
-                __html: renderIcon("plus", { size: "xs", decorative: true }).value,
-              }}
-            />
-          </button>
+          <TooltipSimple content="New workspace" placement="right">
+            <button
+              type="button"
+              className="sidebar-section__add-btn"
+              onClick={onNewWorkspace}
+              aria-label="Add workspace"
+            >
+              <span
+                dangerouslySetInnerHTML={{
+                  __html: renderIcon("plus", { size: "xs", decorative: true }).value,
+                }}
+              />
+            </button>
+          </TooltipSimple>
         </header>
 
         {!workspacesCollapsed && (
@@ -275,19 +284,20 @@ export function SessionManagement({
             />
             <span className="sidebar-section__title">Sessions</span>
           </button>
-          <button
-            type="button"
-            className="sidebar-section__add-btn"
-            onClick={onCreateSession}
-            title="New session"
-            aria-label="Create session"
-          >
-            <span
-              dangerouslySetInnerHTML={{
-                __html: renderIcon("plus", { size: "xs", decorative: true }).value,
-              }}
-            />
-          </button>
+          <TooltipSimple content="New session" placement="right">
+            <button
+              type="button"
+              className="sidebar-section__add-btn"
+              onClick={onCreateSession}
+              aria-label="Create session"
+            >
+              <span
+                dangerouslySetInnerHTML={{
+                  __html: renderIcon("plus", { size: "xs", decorative: true }).value,
+                }}
+              />
+            </button>
+          </TooltipSimple>
         </header>
 
         {!sessionsCollapsed && (
