@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   AppInfo,
   ConversationSessionRecord,
@@ -163,6 +163,13 @@ export function LeftSidebar({
 
   const draggingRef = useRef(false);
   const rafRef = useRef(0);
+  const cleanupDragRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (cleanupDragRef.current) { cleanupDragRef.current(); cleanupDragRef.current = null; }
+    };
+  }, []);
 
   const handleResizeMouseDown = useCallback(
     (e: React.MouseEvent) => {
@@ -186,18 +193,26 @@ export function LeftSidebar({
         });
       };
 
-      const onMouseUp = () => {
+      const cleanup = () => {
         draggingRef.current = false;
         shellBody.classList.remove("is-resizing");
         if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = 0; }
         window.removeEventListener("mousemove", onMouseMove);
         window.removeEventListener("mouseup", onMouseUp);
+        window.removeEventListener("blur", onBlur);
         document.body.style.cursor = "";
         document.body.style.userSelect = "";
+        cleanupDragRef.current = null;
       };
+
+      const onBlur = () => cleanup();
+      const onMouseUp = () => cleanup();
+
+      cleanupDragRef.current = cleanup;
 
       window.addEventListener("mousemove", onMouseMove);
       window.addEventListener("mouseup", onMouseUp);
+      window.addEventListener("blur", onBlur);
       document.body.style.cursor = "col-resize";
       document.body.style.userSelect = "none";
     },
@@ -229,22 +244,35 @@ export function LeftSidebar({
             <span className="adl-status-lamp adl-status-lamp--read" aria-hidden="true" />
           </button>
         </TooltipSimple>
-        <TooltipSimple content={t.quickNewWorkspace} placement="right">
-          <button
-            type="button"
-            className="adl-quick-btn"
-            onClick={onTriggerCreateWorkspace}
-          >
-            <IconFolderPlus size={16} decorative />
-            <span className="adl-quick-btn__label">{t.quickNewWorkspace}</span>
-          </button>
-        </TooltipSimple>
       </section>
 
       {/* Region 6: Workspace + session tabs */}
       <section className="adl-leftbar__nav" aria-label={t.workspaces}>
-        <header className="adl-leftbar__nav-header">
-          <span>{t.workspaces}</span>
+        <div className="adl-workspace-toolbar">
+          <TooltipSimple content={t.workspaces} placement="right">
+            <button
+              type="button"
+              className="adl-icon-btn adl-icon-btn--xs"
+              onClick={() => {
+                const allExpanded = workspaceEntries.every(
+                  (w) => expandedSessionWorkspaces[w.path] ?? (currentWorkspace?.path === w.path)
+                );
+                workspaceEntries.forEach((w) => {
+                  const shouldBeExpanded = !allExpanded;
+                  if (shouldBeExpanded !== (expandedSessionWorkspaces[w.path] ?? (currentWorkspace?.path === w.path))) {
+                    toggleSessionWorkspace(w.path);
+                  }
+                });
+              }}
+              aria-label={t.workspaces}
+            >
+              {workspaceEntries.every((w) => expandedSessionWorkspaces[w.path] ?? (currentWorkspace?.path === w.path)) ? (
+                <IconChevronDown size={14} decorative />
+              ) : (
+                <IconChevronRight size={14} decorative />
+              )}
+            </button>
+          </TooltipSimple>
           <TooltipSimple content={t.quickNewWorkspace} placement="right">
             <button
               type="button"
@@ -255,16 +283,6 @@ export function LeftSidebar({
               <IconPlus size={14} decorative />
             </button>
           </TooltipSimple>
-        </header>
-        <div className="adl-leftbar__search">
-          <IconSearch size={14} decorative />
-          <input
-            type="search"
-            value={workspaceFilter}
-            onChange={(event) => setWorkspaceFilter(event.target.value)}
-            placeholder={t.searchPlaceholder}
-            aria-label={t.workspaces}
-          />
         </div>
 
         <ul className="adl-workspace-list" role="tree">

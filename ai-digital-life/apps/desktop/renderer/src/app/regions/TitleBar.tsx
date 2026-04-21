@@ -8,6 +8,7 @@ import {
   IconMinus,
   IconPanelLeft,
   IconPanelRight,
+  IconSearch,
   IconSettings,
   IconSquare
 } from "../icons";
@@ -223,6 +224,16 @@ export function TitleBar({
             onToggle={() => setHelpMenuOpen(!helpMenuOpen)}
             onClose={closeAllMenus}
           />
+          <TooltipSimple content={t.menuCommandPalette} placement="bottom">
+            <button
+              type="button"
+              className="adl-icon-btn"
+              onClick={onOpenCommandPalette}
+              aria-label={t.menuCommandPalette}
+            >
+              <IconSearch size={16} decorative />
+            </button>
+          </TooltipSimple>
         </nav>
       </div>
       <div className="adl-titlebar__drag" aria-hidden="true" />
