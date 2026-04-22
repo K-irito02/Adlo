@@ -18,6 +18,7 @@ Use a compact bottom-anchored layout:
 - The composer defaults to a single-line visual height and only grows when content wraps.
 - The status row becomes a thin, content-fit inline strip directly under the composer.
 - The status row keeps the current information and model switch behavior.
+- The final visual treatment may use a floating rounded card instead of a pure capsule if that better matches the shell.
 
 ## Layout Rules
 
@@ -40,6 +41,8 @@ Use a compact bottom-anchored layout:
 - Existing send / stop / retry behavior stays unchanged.
 - Existing model menu behavior stays unchanged.
 - Existing tooltip usage stays unchanged.
+- Input focus styling should avoid bright blue browser-default rings.
+- If the runtime does not provide a visually acceptable native caret, the composer may use a renderer-controlled visible caret while keeping text input behavior unchanged.
 
 ## Error Handling
 
@@ -52,3 +55,12 @@ Use a compact bottom-anchored layout:
 - Existing vitest suite must pass.
 - Existing workspace-shell Playwright spec must pass.
 - E2E assertions should continue to confirm the relocated status row and visible composer.
+
+## Implementation Notes
+
+The implemented result went slightly beyond the original first-pass layout simplification:
+
+- the composer is now a floating bottom control group rather than a normal in-flow footer block
+- the prompt field uses a custom visible caret so caret appearance is stable in Electron/Chromium
+- the top empty-state helper sentence was removed to keep focus on the bottom interaction group
+- panel-collapse motion in the shell was later softened so the composer area is not visually disrupted by side-panel width changes

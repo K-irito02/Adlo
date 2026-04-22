@@ -18,6 +18,11 @@
   --rightpanel-width: 420px;
   --rightpanel-width-collapsed: 0;
   --toolswitcher-width: 48px;
+  --panel-content-shift: 10px;
+  --panel-content-blur: 1px;
+  --panel-shell-duration: 170ms;
+  --panel-content-duration: 130ms;
+  --panel-content-delay: 55ms;
 }
 
 /* ---------------- Shell ---------------- */
@@ -47,7 +52,7 @@
   grid-template-columns: var(--leftbar-width) 1fr var(--rightpanel-width);
   min-height: 0;
   background: var(--bg);
-  transition: grid-template-columns var(--duration-200) var(--ease-default);
+  transition: grid-template-columns var(--panel-shell-duration) var(--ease-default);
 }
 
 .adl-shell__body.is-resizing {
@@ -433,8 +438,40 @@
   background: var(--surface);
   border-right: 1px solid var(--border-subtle);
   overflow: hidden;
-  transition: var(--theme-transition);
+  transition:
+    border-color var(--duration-200) var(--ease-default),
+    background-color var(--duration-200) var(--ease-default),
+    color var(--duration-200) var(--ease-default);
   position: relative;
+}
+
+.adl-leftbar--collapsed {
+  border-right-color: transparent;
+}
+
+.adl-leftbar__content {
+  display: flex;
+  flex-direction: column;
+  width: var(--leftbar-width);
+  min-width: var(--leftbar-width);
+  min-height: 0;
+  height: 100%;
+  opacity: 1;
+  transform: translateX(0);
+  filter: blur(0);
+  transition:
+    opacity var(--panel-content-duration) var(--ease-default) var(--panel-content-delay),
+    transform var(--panel-shell-duration) var(--ease-default) var(--panel-content-delay),
+    filter var(--panel-shell-duration) var(--ease-default) var(--panel-content-delay);
+  will-change: opacity, transform, filter;
+}
+
+.adl-leftbar--collapsed .adl-leftbar__content {
+  opacity: 0;
+  transform: translateX(calc(var(--panel-content-shift) * -1));
+  filter: blur(var(--panel-content-blur));
+  pointer-events: none;
+  transition-delay: 0ms;
 }
 
 .adl-leftbar__resize-handle {
@@ -1505,18 +1542,45 @@
 /* ---------------- Right panel ---------------- */
 
 .adl-rightpanel {
-  display: grid;
-  grid-template-columns: var(--toolswitcher-width) 1fr;
+  display: block;
   min-height: 0;
   min-width: 0;
   background: var(--surface);
   border-left: 1px solid var(--border-subtle);
   overflow: hidden;
-  transition: var(--theme-transition);
+  transition:
+    border-color var(--duration-200) var(--ease-default),
+    background-color var(--duration-200) var(--ease-default),
+    color var(--duration-200) var(--ease-default);
 }
 
 .adl-rightpanel--collapsed {
-  display: none;
+  border-left-color: transparent;
+}
+
+.adl-rightpanel__content {
+  display: grid;
+  grid-template-columns: var(--toolswitcher-width) minmax(0, 1fr);
+  width: var(--rightpanel-width);
+  min-width: var(--rightpanel-width);
+  min-height: 0;
+  height: 100%;
+  opacity: 1;
+  transform: translateX(0);
+  filter: blur(0);
+  transition:
+    opacity var(--panel-content-duration) var(--ease-default) var(--panel-content-delay),
+    transform var(--panel-shell-duration) var(--ease-default) var(--panel-content-delay),
+    filter var(--panel-shell-duration) var(--ease-default) var(--panel-content-delay);
+  will-change: opacity, transform, filter;
+}
+
+.adl-rightpanel--collapsed .adl-rightpanel__content {
+  opacity: 0;
+  transform: translateX(var(--panel-content-shift));
+  filter: blur(var(--panel-content-blur));
+  pointer-events: none;
+  transition-delay: 0ms;
 }
 
 .adl-rightpanel__tool {

@@ -1,7 +1,8 @@
 # Phase 2 Renderer Shell Redesign (17-Region Layout)
 
 This note records the original 17-region shell refactor and the follow-up sidebar navigation foundation that now backs the left sidebar with
-persisted workspace / session navigation metadata.
+persisted workspace / session navigation metadata. It also captures the later center-pane composer consolidation and the softer panel
+collapse/expand motion now used by the shell.
 
 The initial shell composition was Renderer-first, but the current implementation is **not Renderer-only anymore**: sidebar pinning, ordering,
 read / unread state, archive operations, rename, reveal-in-file-manager, and delete now flow through the documented IPC bridge into package
@@ -45,7 +46,7 @@ still goes through `window.digitalLife`, and no direct Node / SQLite access was 
 | 10 | Context builder (chips + @mention) | `regions/CenterPane.tsx` |
 | 11 | Prompt composer input | `regions/CenterPane.tsx` |
 | 12 | Primary action button (send / stop / retry) | `regions/CenterPane.tsx` |
-| 13 | Status bar (git, diagnostics, model health) | `regions/StatusBar.tsx` |
+| 13 | Inline status strip under the composer (git, diagnostics, model health) | `regions/CenterPane.tsx` |
 | 14 | Tool switcher (Files / Changes / Browser / Terminal) | `regions/RightPanel.tsx` |
 | 15 | Files tool (tree + Monaco) | `regions/RightPanel.tsx` |
 | 16 | Changes tool (patch preview + diff) | `regions/RightPanel.tsx` |
@@ -74,6 +75,30 @@ The left sidebar is now a cross-layer feature, not just a view refactor.
 
 The UI store is deliberately renderer-local: it never makes IPC calls and never holds security-relevant preferences. Preferences that affect
 Main (language, theme, provider priority) continue to flow through `window.digitalLife.app.updatePreferences`.
+
+## Center Pane Interaction Update
+
+The initial 17-region split treated the composer and status bar as separate visual bands. The current implementation intentionally consolidates
+them into a bottom-centered interaction group:
+
+- the composer is a floating, bottom-anchored control in `CenterPane`
+- the status information now renders as a lightweight inline strip directly under the composer instead of a full-width app footer
+- the empty stream no longer renders placeholder guidance cards above the composer by default
+- the composer input uses a renderer-controlled editable surface plus a custom visible caret so the insertion marker remains visually
+  consistent across the Electron/Chromium runtime
+
+This is a presentation-only refinement. It does not introduce new IPC surfaces or change message-send / cancel / retry behavior.
+
+## Panel Motion Rule
+
+Left and right panel collapse behavior should avoid the appearance of content being compressed in place. The implemented rule is:
+
+- shell columns own width transitions
+- panel content keeps its natural width inside an overflow-hidden shell
+- collapsing panels fade and translate their content slightly before the column fully closes
+- expanding panels reverse that motion so content appears to settle into place rather than stretch
+
+This keeps the shell visually stable while preserving the existing `leftCollapsed` / `rightCollapsed` state model in `useUiStore`.
 
 ## Right Panel Rendering Rule
 

@@ -361,6 +361,7 @@ export function App() {
           t={t}
           locale={locale}
           appInfo={appInfo}
+          collapsed={leftCollapsed}
           recentWorkspaces={recentWorkspaces}
           sessions={sessions}
           activeSessionId={activeSessionId}

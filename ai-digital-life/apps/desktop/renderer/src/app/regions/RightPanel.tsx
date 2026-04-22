@@ -686,26 +686,26 @@ export function RightPanel(props: RightPanelProps) {
   const { t, collapsed } = props;
   const { activeTool, setActiveTool } = useUiStore();
 
-  if (collapsed) {
-    return (
-      <aside className="adl-rightpanel adl-rightpanel--collapsed" aria-hidden="true" />
-    );
-  }
-
   return (
-    <aside className="adl-rightpanel" aria-label="Workspace tool panel">
-      <ToolSwitcher t={t} activeTool={activeTool} onSelect={setActiveTool} />
-      <div className={`adl-rightpanel__tool${activeTool === "files" ? " is-active" : ""}`} hidden={activeTool !== "files"}>
-        <FilesTool {...props} />
-      </div>
-      <div className={`adl-rightpanel__tool${activeTool === "changes" ? " is-active" : ""}`} hidden={activeTool !== "changes"}>
-        <ChangesTool {...props} />
-      </div>
-      <div className={`adl-rightpanel__tool${activeTool === "browser" ? " is-active" : ""}`} hidden={activeTool !== "browser"}>
-        <BrowserTool t={t} />
-      </div>
-      <div className={`adl-rightpanel__tool${activeTool === "terminal" ? " is-active" : ""}`} hidden={activeTool !== "terminal"}>
-        <TerminalTool {...props} />
+    <aside
+      className={`adl-rightpanel${collapsed ? " adl-rightpanel--collapsed" : ""}`}
+      aria-label="Workspace tool panel"
+      aria-hidden={collapsed}
+    >
+      <div className="adl-rightpanel__content">
+        <ToolSwitcher t={t} activeTool={activeTool} onSelect={setActiveTool} />
+        <div className={`adl-rightpanel__tool${activeTool === "files" ? " is-active" : ""}`} hidden={activeTool !== "files"}>
+          <FilesTool {...props} />
+        </div>
+        <div className={`adl-rightpanel__tool${activeTool === "changes" ? " is-active" : ""}`} hidden={activeTool !== "changes"}>
+          <ChangesTool {...props} />
+        </div>
+        <div className={`adl-rightpanel__tool${activeTool === "browser" ? " is-active" : ""}`} hidden={activeTool !== "browser"}>
+          <BrowserTool t={t} />
+        </div>
+        <div className={`adl-rightpanel__tool${activeTool === "terminal" ? " is-active" : ""}`} hidden={activeTool !== "terminal"}>
+          <TerminalTool {...props} />
+        </div>
       </div>
     </aside>
   );

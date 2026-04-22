@@ -41,6 +41,7 @@ interface LeftSidebarProps {
   t: CopyDict;
   locale: Locale;
   appInfo?: AppInfo;
+  collapsed: boolean;
   recentWorkspaces: RecentWorkspaceEntry[];
   sessions: ConversationSessionRecord[];
   activeSessionId?: string;
@@ -212,6 +213,7 @@ export function LeftSidebar({
   t,
   locale,
   appInfo,
+  collapsed,
   recentWorkspaces,
   sessions,
   activeSessionId,
@@ -472,7 +474,12 @@ export function LeftSidebar({
   ];
 
   return (
-    <aside className="adl-leftbar" aria-label="Workspace and session navigator">
+    <aside
+      className={`adl-leftbar${collapsed ? " adl-leftbar--collapsed" : ""}`}
+      aria-label="Workspace and session navigator"
+      aria-hidden={collapsed}
+    >
+      <div className="adl-leftbar__content">
       <section className="adl-leftbar__quick">
         <TooltipSimple content={`${t.quickSkills} · ${t.quickSkillsComingSoon}`} placement="right">
           <button type="button" className="adl-quick-btn" disabled>
@@ -843,6 +850,8 @@ export function LeftSidebar({
           </button>
         </TooltipSimple>
       </section>
+
+      </div>
 
       {menuState ? (
         menuState.type === "workspace" ? (
