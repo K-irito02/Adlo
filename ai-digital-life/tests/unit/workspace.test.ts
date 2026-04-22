@@ -56,6 +56,10 @@ describe("workspace", () => {
           rootPath: "E:\\repo-1",
           name: "repo-1",
           lastOpenedAt: 1,
+          isPinned: false,
+          pinnedOrder: 0,
+          unpinnedOrder: 0,
+          removedFromSidebar: false,
           available: true
         }
       ],
@@ -65,6 +69,10 @@ describe("workspace", () => {
         rootPath: "E:\\repo-1",
         name: "repo-1",
         lastOpenedAt: 2,
+        isPinned: false,
+        pinnedOrder: 0,
+        unpinnedOrder: 0,
+        removedFromSidebar: false,
         available: true
       },
       8

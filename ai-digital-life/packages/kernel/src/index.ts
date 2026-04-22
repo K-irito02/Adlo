@@ -145,6 +145,10 @@ export interface RecentWorkspaceEntry {
   rootPath: string;
   name: string;
   lastOpenedAt: number;
+  isPinned: boolean;
+  pinnedOrder: number;
+  unpinnedOrder: number;
+  removedFromSidebar: boolean;
   available: boolean;
 }
 
@@ -505,9 +509,29 @@ export interface ConversationSessionRecord {
   workspaceId: string;
   title: string;
   status: "active" | "archived";
+  isPinned: boolean;
+  pinnedOrder: number;
+  unpinnedOrder: number;
+  manualUnread: boolean;
+  lastReadAt?: number;
+  archivedAt?: number;
+  titleUpdatedAt?: number;
   createdAt: number;
   updatedAt: number;
   lastMessageAt: number;
+}
+
+export type SidebarOrderBucket = "pinned" | "unpinned";
+
+export interface ReorderWorkspacesInput {
+  pinnedIds: string[];
+  unpinnedIds: string[];
+}
+
+export interface ReorderSessionsInput {
+  workspaceId: string;
+  pinnedIds: string[];
+  unpinnedIds: string[];
 }
 
 export interface ConversationMessageRecord {

@@ -30,6 +30,9 @@ import {
   type ModelCallAuditRecord,
   type WorkspaceMeta,
   type RepoMapEntry,
+  type ReorderSessionsInput,
+  type ReorderWorkspacesInput,
+  type RecentWorkspaceEntry,
   type RetrievalFileTypeCount,
   type RetrievalSnapshot,
   defaultAppState,
@@ -37,6 +40,23 @@ import {
   StateStoreError
 } from "@ai-digital-life/kernel";
 import type { Logger } from "@ai-digital-life/logger";
+
+type ConversationSessionRow = {
+  id: string;
+  workspace_id: string;
+  title: string;
+  status: ConversationSessionRecord["status"];
+  is_pinned: number;
+  pinned_order: number;
+  unpinned_order: number;
+  manual_unread: number;
+  last_read_at: number | null;
+  archived_at: number | null;
+  title_updated_at: number | null;
+  created_at: number;
+  updated_at: number;
+  last_message_at: number;
+};
 
 export class StateRepository {
   private readonly legacyStateFilePath: string;
@@ -76,7 +96,11 @@ export class StateRepository {
         path TEXT NOT NULL UNIQUE,
         root_path TEXT NOT NULL,
         name TEXT NOT NULL,
-        last_opened_at INTEGER NOT NULL
+        last_opened_at INTEGER NOT NULL,
+        is_pinned INTEGER NOT NULL DEFAULT 0,
+        pinned_order INTEGER NOT NULL DEFAULT 0,
+        unpinned_order INTEGER NOT NULL DEFAULT 0,
+        removed_from_sidebar INTEGER NOT NULL DEFAULT 0
       );
 
       CREATE INDEX IF NOT EXISTS recent_workspaces_last_opened_idx
@@ -178,6 +202,13 @@ export class StateRepository {
         workspace_id TEXT NOT NULL,
         title TEXT NOT NULL,
         status TEXT NOT NULL,
+        is_pinned INTEGER NOT NULL DEFAULT 0,
+        pinned_order INTEGER NOT NULL DEFAULT 0,
+        unpinned_order INTEGER NOT NULL DEFAULT 0,
+        manual_unread INTEGER NOT NULL DEFAULT 0,
+        last_read_at INTEGER,
+        archived_at INTEGER,
+        title_updated_at INTEGER,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL,
         last_message_at INTEGER NOT NULL
@@ -356,6 +387,7 @@ export class StateRepository {
         "INSERT OR IGNORE INTO schema_migrations(version, name, applied_at) VALUES (?, ?, ?)"
       )
       .run(6, "context_summary_cache_table", Date.now());
+    this.ensureSidebarMetadataSchema();
 
     await this.migrateLegacyFileIfNeeded();
   }
@@ -371,9 +403,11 @@ export class StateRepository {
         .get("windowState") as { value_json: string } | undefined;
       const recentRows = database
         .prepare(
-          `SELECT id, path, root_path, name, last_opened_at
+          `SELECT id, path, root_path, name, last_opened_at, is_pinned, pinned_order, unpinned_order, removed_from_sidebar
            FROM recent_workspaces
-           ORDER BY last_opened_at DESC`
+           ORDER BY is_pinned DESC,
+                    CASE WHEN is_pinned = 1 THEN pinned_order ELSE unpinned_order END ASC,
+                    last_opened_at DESC`
         )
         .all() as Array<{
         id: string;
@@ -381,6 +415,10 @@ export class StateRepository {
         root_path: string;
         name: string;
         last_opened_at: number;
+        is_pinned: number;
+        pinned_order: number;
+        unpinned_order: number;
+        removed_from_sidebar: number;
       }>;
 
       return {
@@ -393,6 +431,10 @@ export class StateRepository {
           rootPath: row.root_path,
           name: row.name,
           lastOpenedAt: row.last_opened_at,
+          isPinned: Boolean(row.is_pinned),
+          pinnedOrder: row.pinned_order,
+          unpinnedOrder: row.unpinned_order,
+          removedFromSidebar: Boolean(row.removed_from_sidebar),
           available: true
         }))
       };
@@ -408,6 +450,9 @@ export class StateRepository {
       const normalizedState: AppStateV1 = {
         ...defaultAppState(),
         ...nextState,
+        recentWorkspaces: (nextState.recentWorkspaces ?? []).map((workspace, index) =>
+          this.normalizeRecentWorkspaceEntry(workspace, index)
+        ),
         schemaVersion: APP_STATE_SCHEMA_VERSION
       };
       const saveTransaction = database.transaction((state: AppStateV1) => {
@@ -420,8 +465,9 @@ export class StateRepository {
         database.prepare("DELETE FROM recent_workspaces").run();
 
         const insertRecent = database.prepare(
-          `INSERT INTO recent_workspaces(id, path, root_path, name, last_opened_at)
-           VALUES (?, ?, ?, ?, ?)`
+          `INSERT INTO recent_workspaces(
+            id, path, root_path, name, last_opened_at, is_pinned, pinned_order, unpinned_order, removed_from_sidebar
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
         );
         for (const workspace of state.recentWorkspaces) {
           insertRecent.run(
@@ -429,7 +475,11 @@ export class StateRepository {
             workspace.path,
             workspace.rootPath,
             workspace.name,
-            workspace.lastOpenedAt
+            workspace.lastOpenedAt,
+            workspace.isPinned ? 1 : 0,
+            workspace.pinnedOrder,
+            workspace.unpinnedOrder,
+            workspace.removedFromSidebar ? 1 : 0
           );
         }
       });
@@ -439,6 +489,92 @@ export class StateRepository {
         cause: error instanceof Error ? error : undefined
       });
     }
+  }
+
+  async listRecentWorkspaceEntries(options?: { includeRemoved?: boolean }): Promise<RecentWorkspaceEntry[]> {
+    const state = await this.load();
+    if (options?.includeRemoved) {
+      return state.recentWorkspaces;
+    }
+    return state.recentWorkspaces.filter((workspace) => !workspace.removedFromSidebar);
+  }
+
+  async pinRecentWorkspace(workspaceId: string): Promise<RecentWorkspaceEntry[]> {
+    return this.updateRecentWorkspaceEntries((entries) =>
+      this.resequenceRecentWorkspaces(
+        entries.map((entry) =>
+          entry.id === workspaceId
+            ? {
+                ...entry,
+                isPinned: true,
+                removedFromSidebar: false
+              }
+            : entry
+        )
+      )
+    );
+  }
+
+  async unpinRecentWorkspace(workspaceId: string): Promise<RecentWorkspaceEntry[]> {
+    return this.updateRecentWorkspaceEntries((entries) =>
+      this.resequenceRecentWorkspaces(
+        entries.map((entry) =>
+          entry.id === workspaceId
+            ? {
+                ...entry,
+                isPinned: false,
+                removedFromSidebar: false
+              }
+            : entry
+        )
+      )
+    );
+  }
+
+  async reorderRecentWorkspaces(input: ReorderWorkspacesInput): Promise<RecentWorkspaceEntry[]> {
+    return this.updateRecentWorkspaceEntries((entries) => {
+      const byId = new Map(entries.map((entry) => [entry.id, entry] as const));
+      const pinnedEntries = input.pinnedIds
+        .map((id) => byId.get(id))
+        .filter((entry): entry is RecentWorkspaceEntry => Boolean(entry))
+        .map((entry) => ({ ...entry, isPinned: true, removedFromSidebar: false }));
+      const unpinnedEntries = input.unpinnedIds
+        .map((id) => byId.get(id))
+        .filter((entry): entry is RecentWorkspaceEntry => Boolean(entry))
+        .map((entry) => ({ ...entry, isPinned: false, removedFromSidebar: false }));
+      const remaining = entries.filter((entry) => !input.pinnedIds.includes(entry.id) && !input.unpinnedIds.includes(entry.id));
+      return this.resequenceRecentWorkspaces([...pinnedEntries, ...unpinnedEntries, ...remaining]);
+    });
+  }
+
+  async removeRecentWorkspaceFromSidebar(workspaceId: string): Promise<RecentWorkspaceEntry[]> {
+    return this.updateRecentWorkspaceEntries((entries) =>
+      this.resequenceRecentWorkspaces(
+        entries.map((entry) =>
+          entry.id === workspaceId
+            ? {
+                ...entry,
+                removedFromSidebar: true
+              }
+            : entry
+        )
+      )
+    );
+  }
+
+  async restoreRecentWorkspaceToSidebar(workspaceId: string): Promise<RecentWorkspaceEntry[]> {
+    return this.updateRecentWorkspaceEntries((entries) =>
+      this.resequenceRecentWorkspaces(
+        entries.map((entry) =>
+          entry.id === workspaceId
+            ? {
+                ...entry,
+                removedFromSidebar: false
+              }
+            : entry
+        )
+      )
+    );
   }
 
   async saveRetrievalSnapshot(snapshot: RetrievalSnapshot): Promise<void> {
@@ -1135,48 +1271,155 @@ export class StateRepository {
     database
       .prepare(
         `INSERT OR REPLACE INTO conversation_sessions(
-          id, workspace_id, title, status, created_at, updated_at, last_message_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)`
+          id, workspace_id, title, status, is_pinned, pinned_order, unpinned_order,
+          manual_unread, last_read_at, archived_at, title_updated_at, created_at, updated_at, last_message_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         session.id,
         session.workspaceId,
         session.title,
         session.status,
+        session.isPinned ? 1 : 0,
+        session.pinnedOrder,
+        session.unpinnedOrder,
+        session.manualUnread ? 1 : 0,
+        session.lastReadAt ?? null,
+        session.archivedAt ?? null,
+        session.titleUpdatedAt ?? null,
         session.createdAt,
         session.updatedAt,
         session.lastMessageAt
       );
   }
 
-  async listConversationSessions(workspaceId: string): Promise<ConversationSessionRecord[]> {
+  async getConversationSession(sessionId: string): Promise<ConversationSessionRecord | undefined> {
+    const database = this.getDatabase();
+    const row = database
+      .prepare(
+        `SELECT id, workspace_id, title, status, is_pinned, pinned_order, unpinned_order,
+                manual_unread, last_read_at, archived_at, title_updated_at, created_at, updated_at, last_message_at
+         FROM conversation_sessions
+         WHERE id = ?`
+      )
+      .get(sessionId) as ConversationSessionRow | undefined;
+
+    return row ? this.mapConversationSessionRow(row) : undefined;
+  }
+
+  async listConversationSessions(workspaceId: string, options?: { includeArchived?: boolean }): Promise<ConversationSessionRecord[]> {
     const database = this.getDatabase();
     const rows = database
       .prepare(
-        `SELECT id, workspace_id, title, status, created_at, updated_at, last_message_at
+        `SELECT id, workspace_id, title, status, is_pinned, pinned_order, unpinned_order,
+                manual_unread, last_read_at, archived_at, title_updated_at, created_at, updated_at, last_message_at
          FROM conversation_sessions
          WHERE workspace_id = ?
-         ORDER BY last_message_at DESC`
+           AND (? = 1 OR archived_at IS NULL)
+         ORDER BY is_pinned DESC,
+                  CASE WHEN is_pinned = 1 THEN pinned_order ELSE unpinned_order END ASC,
+                  last_message_at DESC`
       )
-      .all(workspaceId) as Array<{
-      id: string;
-      workspace_id: string;
-      title: string;
-      status: ConversationSessionRecord["status"];
-      created_at: number;
-      updated_at: number;
-      last_message_at: number;
-    }>;
+      .all(workspaceId, options?.includeArchived ? 1 : 0) as ConversationSessionRow[];
 
-    return rows.map((row) => ({
-      id: row.id,
-      workspaceId: row.workspace_id,
-      title: row.title,
-      status: row.status,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-      lastMessageAt: row.last_message_at
-    }));
+    return rows.map((row) => this.mapConversationSessionRow(row));
+  }
+
+  async renameConversationSession(sessionId: string, title: string): Promise<ConversationSessionRecord> {
+    const session = await this.requireConversationSession(sessionId);
+    const nextSession: ConversationSessionRecord = {
+      ...session,
+      title,
+      titleUpdatedAt: Date.now(),
+      updatedAt: Date.now()
+    };
+    await this.upsertConversationSession(nextSession);
+    return nextSession;
+  }
+
+  async pinConversationSession(sessionId: string): Promise<ConversationSessionRecord> {
+    return this.moveConversationSessionToBucket(sessionId, "pinned");
+  }
+
+  async unpinConversationSession(sessionId: string): Promise<ConversationSessionRecord> {
+    return this.moveConversationSessionToBucket(sessionId, "unpinned");
+  }
+
+  async reorderConversationSessions(input: ReorderSessionsInput): Promise<ConversationSessionRecord[]> {
+    const sessions = await this.listConversationSessions(input.workspaceId, { includeArchived: true });
+    const byId = new Map(sessions.map((session) => [session.id, session] as const));
+    const pinnedSessions = input.pinnedIds
+      .map((id) => byId.get(id))
+      .filter((session): session is ConversationSessionRecord => Boolean(session))
+      .map((session) => ({ ...session, isPinned: true, archivedAt: undefined, status: "active" as const }));
+    const unpinnedSessions = input.unpinnedIds
+      .map((id) => byId.get(id))
+      .filter((session): session is ConversationSessionRecord => Boolean(session))
+      .map((session) => ({ ...session, isPinned: false, archivedAt: undefined, status: "active" as const }));
+    const untouched = sessions.filter((session) => !input.pinnedIds.includes(session.id) && !input.unpinnedIds.includes(session.id));
+    const nextSessions = this.resequenceConversationSessions([...pinnedSessions, ...unpinnedSessions, ...untouched]);
+    await this.persistConversationSessions(nextSessions);
+    return nextSessions.filter((session) => !session.archivedAt);
+  }
+
+  async markConversationSessionRead(sessionId: string, readAt = Date.now()): Promise<ConversationSessionRecord> {
+    const session = await this.requireConversationSession(sessionId);
+    const nextSession: ConversationSessionRecord = {
+      ...session,
+      manualUnread: false,
+      lastReadAt: Math.max(readAt, session.lastMessageAt),
+      updatedAt: Math.max(session.updatedAt, readAt)
+    };
+    await this.upsertConversationSession(nextSession);
+    return nextSession;
+  }
+
+  async markConversationSessionUnread(sessionId: string): Promise<ConversationSessionRecord> {
+    const session = await this.requireConversationSession(sessionId);
+    const nextSession: ConversationSessionRecord = {
+      ...session,
+      manualUnread: true,
+      updatedAt: Date.now()
+    };
+    await this.upsertConversationSession(nextSession);
+    return nextSession;
+  }
+
+  async archiveConversationSession(sessionId: string, archivedAt = Date.now()): Promise<ConversationSessionRecord> {
+    const session = await this.requireConversationSession(sessionId);
+    const nextSession: ConversationSessionRecord = {
+      ...session,
+      status: "archived",
+      archivedAt,
+      updatedAt: archivedAt
+    };
+    await this.upsertConversationSession(nextSession);
+    return nextSession;
+  }
+
+  async archiveConversationSessionsInWorkspace(workspaceId: string, archivedAt = Date.now()): Promise<ConversationSessionRecord[]> {
+    const sessions = await this.listConversationSessions(workspaceId, { includeArchived: true });
+    const nextSessions = sessions.map((session) =>
+      session.archivedAt
+        ? session
+        : {
+            ...session,
+            status: "archived" as const,
+            archivedAt,
+            updatedAt: archivedAt
+          }
+    );
+    await this.persistConversationSessions(nextSessions);
+    return nextSessions;
+  }
+
+  async deleteConversationSession(sessionId: string): Promise<void> {
+    const database = this.getDatabase();
+    const transaction = database.transaction((targetId: string) => {
+      database.prepare("DELETE FROM conversation_messages WHERE session_id = ?").run(targetId);
+      database.prepare("DELETE FROM conversation_sessions WHERE id = ?").run(targetId);
+    });
+    transaction(sessionId);
   }
 
   async insertConversationMessage(message: ConversationMessageRecord): Promise<void> {
@@ -1197,22 +1440,16 @@ export class StateRepository {
         message.createdAt
       );
     const session = database
-      .prepare("SELECT workspace_id, title, status, created_at FROM conversation_sessions WHERE id = ?")
-      .get(message.sessionId) as
-      | {
-          workspace_id: string;
-          title: string;
-          status: ConversationSessionRecord["status"];
-          created_at: number;
-        }
-      | undefined;
+      .prepare(
+        `SELECT id, workspace_id, title, status, is_pinned, pinned_order, unpinned_order,
+                manual_unread, last_read_at, archived_at, title_updated_at, created_at, updated_at, last_message_at
+         FROM conversation_sessions
+         WHERE id = ?`
+      )
+      .get(message.sessionId) as ConversationSessionRow | undefined;
     if (session) {
       await this.upsertConversationSession({
-        id: message.sessionId,
-        workspaceId: session.workspace_id,
-        title: session.title,
-        status: session.status,
-        createdAt: session.created_at,
+        ...this.mapConversationSessionRow(session),
         updatedAt: message.createdAt,
         lastMessageAt: message.createdAt
       });
@@ -1395,39 +1632,13 @@ export class StateRepository {
   }
 
   async getConversationDetail(sessionId: string): Promise<ConversationDetail | undefined> {
-    const database = this.getDatabase();
-    const row = database
-      .prepare(
-        `SELECT id, workspace_id, title, status, created_at, updated_at, last_message_at
-         FROM conversation_sessions
-         WHERE id = ?`
-      )
-      .get(sessionId) as
-      | {
-          id: string;
-          workspace_id: string;
-          title: string;
-          status: ConversationSessionRecord["status"];
-          created_at: number;
-          updated_at: number;
-          last_message_at: number;
-        }
-      | undefined;
-
-    if (!row) {
+    const session = await this.getConversationSession(sessionId);
+    if (!session) {
       return undefined;
     }
 
     return {
-      session: {
-        id: row.id,
-        workspaceId: row.workspace_id,
-        title: row.title,
-        status: row.status,
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-        lastMessageAt: row.last_message_at
-      },
+      session,
       messages: await this.listConversationMessages(sessionId)
     };
   }
@@ -1815,6 +2026,147 @@ export class StateRepository {
       );
   }
 
+  private mapConversationSessionRow(row: ConversationSessionRow): ConversationSessionRecord {
+    return {
+      id: row.id,
+      workspaceId: row.workspace_id,
+      title: row.title,
+      status: row.status,
+      isPinned: Boolean(row.is_pinned),
+      pinnedOrder: row.pinned_order,
+      unpinnedOrder: row.unpinned_order,
+      manualUnread: Boolean(row.manual_unread),
+      lastReadAt: row.last_read_at ?? undefined,
+      archivedAt: row.archived_at ?? undefined,
+      titleUpdatedAt: row.title_updated_at ?? undefined,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      lastMessageAt: row.last_message_at
+    };
+  }
+
+  private async requireConversationSession(sessionId: string): Promise<ConversationSessionRecord> {
+    const session = await this.getConversationSession(sessionId);
+    if (!session) {
+      throw new StateStoreError(ERROR_CODES.notFound, "Conversation session not found.");
+    }
+    return session;
+  }
+
+  private async persistConversationSessions(sessions: ConversationSessionRecord[]): Promise<void> {
+    const database = this.getDatabase();
+    const transaction = database.transaction((nextSessions: ConversationSessionRecord[]) => {
+      for (const session of nextSessions) {
+        database
+          .prepare(
+            `INSERT OR REPLACE INTO conversation_sessions(
+              id, workspace_id, title, status, is_pinned, pinned_order, unpinned_order,
+              manual_unread, last_read_at, archived_at, title_updated_at, created_at, updated_at, last_message_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          )
+          .run(
+            session.id,
+            session.workspaceId,
+            session.title,
+            session.status,
+            session.isPinned ? 1 : 0,
+            session.pinnedOrder,
+            session.unpinnedOrder,
+            session.manualUnread ? 1 : 0,
+            session.lastReadAt ?? null,
+            session.archivedAt ?? null,
+            session.titleUpdatedAt ?? null,
+            session.createdAt,
+            session.updatedAt,
+            session.lastMessageAt
+          );
+      }
+    });
+    transaction(sessions);
+  }
+
+  private resequenceConversationSessions(sessions: ConversationSessionRecord[]): ConversationSessionRecord[] {
+    let pinnedOrder = 0;
+    let unpinnedOrder = 0;
+    return sessions.map((session) => {
+      if (session.isPinned) {
+        return {
+          ...session,
+          pinnedOrder: pinnedOrder++,
+          unpinnedOrder: 0
+        };
+      }
+      return {
+        ...session,
+        pinnedOrder: 0,
+        unpinnedOrder: unpinnedOrder++
+      };
+    });
+  }
+
+  private async moveConversationSessionToBucket(
+    sessionId: string,
+    targetBucket: "pinned" | "unpinned"
+  ): Promise<ConversationSessionRecord> {
+    const session = await this.requireConversationSession(sessionId);
+    const sessions = await this.listConversationSessions(session.workspaceId, { includeArchived: true });
+    const reordered = sessions.map((candidate) =>
+      candidate.id === sessionId
+        ? {
+            ...candidate,
+            isPinned: targetBucket === "pinned",
+            archivedAt: candidate.archivedAt,
+            status: candidate.archivedAt ? candidate.status : "active"
+          }
+        : candidate
+    );
+    const nextSessions = this.resequenceConversationSessions(reordered);
+    await this.persistConversationSessions(nextSessions);
+    return nextSessions.find((candidate) => candidate.id === sessionId) ?? session;
+  }
+
+  private async updateRecentWorkspaceEntries(
+    updater: (entries: RecentWorkspaceEntry[]) => RecentWorkspaceEntry[]
+  ): Promise<RecentWorkspaceEntry[]> {
+    const state = await this.load();
+    const nextEntries = updater(state.recentWorkspaces);
+    await this.save({
+      ...state,
+      recentWorkspaces: nextEntries
+    });
+    return nextEntries;
+  }
+
+  private resequenceRecentWorkspaces(entries: RecentWorkspaceEntry[]): RecentWorkspaceEntry[] {
+    let pinnedOrder = 0;
+    let unpinnedOrder = 0;
+    return entries.map((entry) => {
+      if (entry.isPinned) {
+        return {
+          ...entry,
+          pinnedOrder: pinnedOrder++,
+          unpinnedOrder: 0
+        };
+      }
+      return {
+        ...entry,
+        pinnedOrder: 0,
+        unpinnedOrder: unpinnedOrder++
+      };
+    });
+  }
+
+  private normalizeRecentWorkspaceEntry(entry: RecentWorkspaceEntry, index: number): RecentWorkspaceEntry {
+    return {
+      ...entry,
+      isPinned: entry.isPinned ?? false,
+      pinnedOrder: entry.pinnedOrder ?? 0,
+      unpinnedOrder: entry.unpinnedOrder ?? index,
+      removedFromSidebar: entry.removedFromSidebar ?? false,
+      available: entry.available ?? true
+    };
+  }
+
   close(): void {
     this.database?.close();
     this.database = undefined;
@@ -1859,5 +2211,35 @@ export class StateRepository {
     } catch (error) {
       this.logger.warn("Legacy app state could not be migrated into SQLite.");
     }
+  }
+
+  private ensureSidebarMetadataSchema(): void {
+    const database = this.getDatabase();
+    const appliedAt = Date.now();
+    this.ensureColumn("recent_workspaces", "is_pinned", "INTEGER NOT NULL DEFAULT 0");
+    this.ensureColumn("recent_workspaces", "pinned_order", "INTEGER NOT NULL DEFAULT 0");
+    this.ensureColumn("recent_workspaces", "unpinned_order", "INTEGER NOT NULL DEFAULT 0");
+    this.ensureColumn("recent_workspaces", "removed_from_sidebar", "INTEGER NOT NULL DEFAULT 0");
+    this.ensureColumn("conversation_sessions", "is_pinned", "INTEGER NOT NULL DEFAULT 0");
+    this.ensureColumn("conversation_sessions", "pinned_order", "INTEGER NOT NULL DEFAULT 0");
+    this.ensureColumn("conversation_sessions", "unpinned_order", "INTEGER NOT NULL DEFAULT 0");
+    this.ensureColumn("conversation_sessions", "manual_unread", "INTEGER NOT NULL DEFAULT 0");
+    this.ensureColumn("conversation_sessions", "last_read_at", "INTEGER");
+    this.ensureColumn("conversation_sessions", "archived_at", "INTEGER");
+    this.ensureColumn("conversation_sessions", "title_updated_at", "INTEGER");
+    database
+      .prepare(
+        "INSERT OR IGNORE INTO schema_migrations(version, name, applied_at) VALUES (?, ?, ?)"
+      )
+      .run(7, "sidebar_navigation_metadata", appliedAt);
+  }
+
+  private ensureColumn(tableName: string, columnName: string, columnDefinition: string): void {
+    const database = this.getDatabase();
+    const columns = database.prepare(`PRAGMA table_info(${tableName})`).all() as Array<{ name: string }>;
+    if (columns.some((column) => column.name === columnName)) {
+      return;
+    }
+    database.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnDefinition}`);
   }
 }

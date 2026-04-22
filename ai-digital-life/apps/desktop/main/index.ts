@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { Worker } from "node:worker_threads";
-import { app, BrowserWindow, ipcMain, nativeTheme } from "electron";
+import { app, BrowserWindow, ipcMain, nativeTheme, shell } from "electron";
 import { AgentRuntimeService } from "@ai-digital-life/agent-runtime";
 import { invalidateSessionSummaryL1 } from "@ai-digital-life/context-engine";
 import { ChangeEngine } from "@ai-digital-life/change-engine";
@@ -46,7 +46,10 @@ import {
   type ModelProviderId,
   type PatchApplicationResult,
   type PatchSet,
+  type RecentWorkspaceEntry,
   type RetrievalSnapshot,
+  type ReorderSessionsInput,
+  type ReorderWorkspacesInput,
   type RuntimeDiagnosticsSnapshot,
   type RuntimeLifecycleSnapshot,
   type RiskLevel,
@@ -2363,6 +2366,61 @@ function registerIpcHandlers(): void {
     }
   });
 
+  ipcMain.handle("workspace:pin", async (_event, workspaceId: string): Promise<IpcResult<RecentWorkspaceEntry[]>> => {
+    try {
+      return ok(await requireRuntime().workspaceService.pinWorkspace(workspaceId));
+    } catch (error) {
+      const failure = toUserMessage(error);
+      return err(failure.code, failure.message);
+    }
+  });
+
+  ipcMain.handle("workspace:unpin", async (_event, workspaceId: string): Promise<IpcResult<RecentWorkspaceEntry[]>> => {
+    try {
+      return ok(await requireRuntime().workspaceService.unpinWorkspace(workspaceId));
+    } catch (error) {
+      const failure = toUserMessage(error);
+      return err(failure.code, failure.message);
+    }
+  });
+
+  ipcMain.handle("workspace:reorder", async (_event, input: ReorderWorkspacesInput): Promise<IpcResult<RecentWorkspaceEntry[]>> => {
+    try {
+      return ok(await requireRuntime().workspaceService.reorderWorkspaces(input));
+    } catch (error) {
+      const failure = toUserMessage(error);
+      return err(failure.code, failure.message);
+    }
+  });
+
+  ipcMain.handle("workspace:removeFromSidebar", async (_event, workspaceId: string): Promise<IpcResult<RecentWorkspaceEntry[]>> => {
+    try {
+      return ok(await requireRuntime().workspaceService.removeWorkspaceFromSidebar(workspaceId));
+    } catch (error) {
+      const failure = toUserMessage(error);
+      return err(failure.code, failure.message);
+    }
+  });
+
+  ipcMain.handle("workspace:restoreToSidebar", async (_event, workspaceId: string): Promise<IpcResult<RecentWorkspaceEntry[]>> => {
+    try {
+      return ok(await requireRuntime().workspaceService.restoreWorkspaceToSidebar(workspaceId));
+    } catch (error) {
+      const failure = toUserMessage(error);
+      return err(failure.code, failure.message);
+    }
+  });
+
+  ipcMain.handle("workspace:revealInFileManager", async (_event, workspacePath: string): Promise<IpcResult<boolean>> => {
+    try {
+      shell.showItemInFolder(workspacePath);
+      return ok(true);
+    } catch (error) {
+      const failure = toUserMessage(error);
+      return err(failure.code, failure.message);
+    }
+  });
+
   ipcMain.handle("workspace:readFile", async (_event, relativePath: string): Promise<IpcResult<WorkspaceFileDocument>> => {
     try {
       const runtimeState = requireRuntime();
@@ -2456,6 +2514,98 @@ function registerIpcHandlers(): void {
   ipcMain.handle("conversation:getSession", async (_event, sessionId: string) => {
     try {
       return ok(await requireRuntime().conversationService.getSession(sessionId));
+    } catch (error) {
+      const failure = toUserMessage(error);
+      return err(failure.code, failure.message);
+    }
+  });
+
+  ipcMain.handle(
+    "conversation:renameSession",
+    async (_event, input: { sessionId: string; title: string }): Promise<IpcResult<ConversationSessionRecord>> => {
+      try {
+        return ok(await requireRuntime().conversationService.renameSession(input.sessionId, input.title));
+      } catch (error) {
+        const failure = toUserMessage(error);
+        return err(failure.code, failure.message);
+      }
+    }
+  );
+
+  ipcMain.handle("conversation:pinSession", async (_event, sessionId: string): Promise<IpcResult<ConversationSessionRecord>> => {
+    try {
+      return ok(await requireRuntime().conversationService.pinSession(sessionId));
+    } catch (error) {
+      const failure = toUserMessage(error);
+      return err(failure.code, failure.message);
+    }
+  });
+
+  ipcMain.handle("conversation:unpinSession", async (_event, sessionId: string): Promise<IpcResult<ConversationSessionRecord>> => {
+    try {
+      return ok(await requireRuntime().conversationService.unpinSession(sessionId));
+    } catch (error) {
+      const failure = toUserMessage(error);
+      return err(failure.code, failure.message);
+    }
+  });
+
+  ipcMain.handle(
+    "conversation:reorderSessions",
+    async (_event, input: ReorderSessionsInput): Promise<IpcResult<ConversationSessionRecord[]>> => {
+      try {
+        return ok(await requireRuntime().conversationService.reorderSessions(input));
+      } catch (error) {
+        const failure = toUserMessage(error);
+        return err(failure.code, failure.message);
+      }
+    }
+  );
+
+  ipcMain.handle(
+    "conversation:markSessionRead",
+    async (_event, input: { sessionId: string; readAt?: number }): Promise<IpcResult<ConversationSessionRecord>> => {
+      try {
+        return ok(await requireRuntime().conversationService.markSessionRead(input.sessionId, input.readAt));
+      } catch (error) {
+        const failure = toUserMessage(error);
+        return err(failure.code, failure.message);
+      }
+    }
+  );
+
+  ipcMain.handle("conversation:markSessionUnread", async (_event, sessionId: string): Promise<IpcResult<ConversationSessionRecord>> => {
+    try {
+      return ok(await requireRuntime().conversationService.markSessionUnread(sessionId));
+    } catch (error) {
+      const failure = toUserMessage(error);
+      return err(failure.code, failure.message);
+    }
+  });
+
+  ipcMain.handle("conversation:archiveSession", async (_event, sessionId: string): Promise<IpcResult<ConversationSessionRecord>> => {
+    try {
+      return ok(await requireRuntime().conversationService.archiveSession(sessionId));
+    } catch (error) {
+      const failure = toUserMessage(error);
+      return err(failure.code, failure.message);
+    }
+  });
+
+  ipcMain.handle("conversation:archiveAllInWorkspace", async (): Promise<IpcResult<ConversationSessionRecord[]>> => {
+    try {
+      const { workspaceId } = requireCurrentWorkspaceState();
+      return ok(await requireRuntime().conversationService.archiveAllSessionsInWorkspace(workspaceId));
+    } catch (error) {
+      const failure = toUserMessage(error);
+      return err(failure.code, failure.message);
+    }
+  });
+
+  ipcMain.handle("conversation:deleteSession", async (_event, sessionId: string): Promise<IpcResult<boolean>> => {
+    try {
+      await requireRuntime().conversationService.deleteSession(sessionId);
+      return ok(true);
     } catch (error) {
       const failure = toUserMessage(error);
       return err(failure.code, failure.message);

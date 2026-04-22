@@ -249,6 +249,12 @@ export const IconGitFork = make(
   </>
 );
 export const IconCheck = make(<path d="m5 12 5 5L20 7" />);
+export const IconCheckCheck = make(
+  <>
+    <path d="m3 12 4 4 5-6" />
+    <path d="m10 12 4 4 7-9" />
+  </>
+);
 export const IconCheckCircle = make(
   <>
     <circle cx="12" cy="12" r="9" />
@@ -345,6 +351,19 @@ export const IconArchive = make(
     <rect x="3" y="4" width="18" height="4" rx="1" />
     <path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8" />
     <path d="M10 12h4" />
+  </>
+);
+export const IconMail = make(
+  <>
+    <rect x="3" y="5" width="18" height="14" rx="2" />
+    <path d="m4 7 8 6 8-6" />
+  </>
+);
+export const IconDownload = make(
+  <>
+    <path d="M12 3v12" />
+    <path d="m7 10 5 5 5-5" />
+    <path d="M5 21h14" />
   </>
 );
 export const IconMoreVertical = make(

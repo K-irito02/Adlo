@@ -51,6 +51,20 @@ export function App() {
     openWorkspace,
     createSession,
     selectSession,
+    pinSession,
+    unpinSession,
+    markSessionRead,
+    markSessionUnread,
+    archiveSession,
+    archiveAllSessions,
+    pinWorkspace,
+    unpinWorkspace,
+    removeWorkspaceFromSidebar,
+    reorderWorkspaces,
+    reorderSessions,
+    markAllSessionsRead,
+    revealWorkspaceInFileManager,
+    deleteSession,
     sendMessage,
     cancelActiveStream,
     streamingAssistantText,
@@ -355,6 +369,21 @@ export function App() {
           taskCenter={taskCenter}
           onSelectSession={(id) => void selectSession(id)}
           onCreateSession={() => void createSession()}
+          onPinWorkspace={(workspaceId) => void pinWorkspace(workspaceId)}
+          onUnpinWorkspace={(workspaceId) => void unpinWorkspace(workspaceId)}
+          onRemoveWorkspace={(workspaceId) => void removeWorkspaceFromSidebar(workspaceId)}
+          onReorderWorkspaces={(input) => void reorderWorkspaces(input)}
+          onPinSession={(sessionId) => void pinSession(sessionId)}
+          onUnpinSession={(sessionId) => void unpinSession(sessionId)}
+          onRenameSession={(sessionId, title) => void store.renameSession(sessionId, title)}
+          onArchiveSession={(sessionId) => void archiveSession(sessionId)}
+          onArchiveAllSessions={() => void archiveAllSessions()}
+          onMarkSessionRead={(sessionId) => void markSessionRead(sessionId)}
+          onMarkSessionUnread={(sessionId) => void markSessionUnread(sessionId)}
+          onMarkAllSessionsRead={(sessionIds) => void markAllSessionsRead(sessionIds)}
+          onReorderSessions={(input) => void reorderSessions(input)}
+          onRevealWorkspace={(workspacePath) => void revealWorkspaceInFileManager(workspacePath)}
+          onDeleteSession={(sessionId) => void deleteSession(sessionId)}
           onOpenWorkspace={(path) => void openWorkspace(path)}
           onTriggerCreateWorkspace={handleTriggerCreateWorkspace}
           onCycleTheme={handleCycleTheme}

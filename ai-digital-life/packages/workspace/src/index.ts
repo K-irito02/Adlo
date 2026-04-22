@@ -4,6 +4,7 @@ import path from "node:path";
 import {
   APPROVAL_POLICY_MODE,
   type GitSnapshot,
+  type ReorderWorkspacesInput,
   type SessionMeta,
   type SessionSummary,
   createWorkspaceId,
@@ -177,8 +178,31 @@ export function upsertRecentWorkspace(
   limit: number
 ): RecentWorkspaceEntry[] {
   const deduped = recents.filter((entry) => entry.path !== nextEntry.path);
-  deduped.unshift(nextEntry);
-  return deduped.slice(0, limit);
+  const existing = recents.find((entry) => entry.path === nextEntry.path);
+  const candidate: RecentWorkspaceEntry = {
+    ...nextEntry,
+    isPinned: existing?.isPinned ?? nextEntry.isPinned,
+    pinnedOrder: existing?.pinnedOrder ?? nextEntry.pinnedOrder,
+    unpinnedOrder: existing?.unpinnedOrder ?? nextEntry.unpinnedOrder,
+    removedFromSidebar: false
+  };
+  deduped.unshift(candidate);
+  let pinnedOrder = 0;
+  let unpinnedOrder = 0;
+  return deduped.slice(0, limit).map((entry) => {
+    if (entry.isPinned) {
+      return {
+        ...entry,
+        pinnedOrder: pinnedOrder++,
+        unpinnedOrder: 0
+      };
+    }
+    return {
+      ...entry,
+      pinnedOrder: 0,
+      unpinnedOrder: unpinnedOrder++
+    };
+  });
 }
 
 export class WorkspaceService {
@@ -207,7 +231,7 @@ export class WorkspaceService {
     return this.state.recentWorkspaces.map((entry) => ({
       ...entry,
       available: fs.existsSync(entry.path)
-    }));
+    })).filter((entry) => !entry.removedFromSidebar);
   }
 
   async open(workspacePath: string): Promise<WorkspaceMeta> {
@@ -234,6 +258,10 @@ export class WorkspaceService {
       rootPath: meta.rootPath,
       name: meta.name,
       lastOpenedAt: meta.lastOpenedAt,
+      isPinned: existingWorkspace ? this.state.recentWorkspaces.find((entry) => entry.id === meta.id)?.isPinned ?? false : false,
+      pinnedOrder: this.state.recentWorkspaces.find((entry) => entry.id === meta.id)?.pinnedOrder ?? 0,
+      unpinnedOrder: this.state.recentWorkspaces.find((entry) => entry.id === meta.id)?.unpinnedOrder ?? this.state.recentWorkspaces.filter((entry) => !entry.isPinned).length,
+      removedFromSidebar: false,
       available: true
     };
 
@@ -337,5 +365,35 @@ export class WorkspaceService {
     };
     await this.stateRepository.upsertSession(nextSession);
     return nextSession;
+  }
+
+  async pinWorkspace(workspaceId: string): Promise<RecentWorkspaceEntry[]> {
+    const nextEntries = await this.stateRepository.pinRecentWorkspace(workspaceId);
+    this.state = { ...this.state, recentWorkspaces: nextEntries };
+    return this.listRecent();
+  }
+
+  async unpinWorkspace(workspaceId: string): Promise<RecentWorkspaceEntry[]> {
+    const nextEntries = await this.stateRepository.unpinRecentWorkspace(workspaceId);
+    this.state = { ...this.state, recentWorkspaces: nextEntries };
+    return this.listRecent();
+  }
+
+  async reorderWorkspaces(input: ReorderWorkspacesInput): Promise<RecentWorkspaceEntry[]> {
+    const nextEntries = await this.stateRepository.reorderRecentWorkspaces(input);
+    this.state = { ...this.state, recentWorkspaces: nextEntries };
+    return this.listRecent();
+  }
+
+  async removeWorkspaceFromSidebar(workspaceId: string): Promise<RecentWorkspaceEntry[]> {
+    const nextEntries = await this.stateRepository.removeRecentWorkspaceFromSidebar(workspaceId);
+    this.state = { ...this.state, recentWorkspaces: nextEntries };
+    return this.listRecent();
+  }
+
+  async restoreWorkspaceToSidebar(workspaceId: string): Promise<RecentWorkspaceEntry[]> {
+    const nextEntries = await this.stateRepository.restoreRecentWorkspaceToSidebar(workspaceId);
+    this.state = { ...this.state, recentWorkspaces: nextEntries };
+    return this.listRecent();
   }
 }

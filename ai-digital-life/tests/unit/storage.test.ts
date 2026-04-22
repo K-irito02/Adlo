@@ -79,7 +79,104 @@ describe("state repository", () => {
     const loaded = await repository.load();
     expect(loaded.currentWorkspacePath).toBe("E:\\repo");
     expect(loaded.recentWorkspaces).toHaveLength(1);
+    expect(loaded.recentWorkspaces[0]).toMatchObject({
+      isPinned: false,
+      pinnedOrder: 0,
+      removedFromSidebar: false
+    });
     await expect(fs.access(path.join(tempDir, "app-state.v1.json.migrated"))).resolves.toBeUndefined();
+    repository.close();
+  });
+
+  it("persists workspace pinning and sidebar removal metadata", async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "adl-state-workspace-nav-"));
+    tempDirs.push(tempDir);
+    const repository = new StateRepository(tempDir, createFakeLogger() as never);
+    await repository.initialize();
+
+    await repository.save({
+      ...defaultAppState(),
+      recentWorkspaces: [
+        {
+          id: "ws-1",
+          path: "E:\\repo-1",
+          rootPath: "E:\\repo-1",
+          name: "repo-1",
+          lastOpenedAt: 1,
+          isPinned: false,
+          pinnedOrder: 0,
+          unpinnedOrder: 0,
+          removedFromSidebar: false,
+          available: true
+        },
+        {
+          id: "ws-2",
+          path: "E:\\repo-2",
+          rootPath: "E:\\repo-2",
+          name: "repo-2",
+          lastOpenedAt: 2,
+          isPinned: false,
+          pinnedOrder: 0,
+          unpinnedOrder: 1,
+          removedFromSidebar: false,
+          available: true
+        }
+      ]
+    });
+
+    await repository.pinRecentWorkspace("ws-2");
+    await repository.removeRecentWorkspaceFromSidebar("ws-1");
+
+    await expect(repository.listRecentWorkspaceEntries({ includeRemoved: true })).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "ws-2", isPinned: true, pinnedOrder: 0 }),
+        expect.objectContaining({ id: "ws-1", removedFromSidebar: true })
+      ])
+    );
+    repository.close();
+  });
+
+  it("persists conversation navigation metadata and read state", async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "adl-state-conversation-nav-"));
+    tempDirs.push(tempDir);
+    const repository = new StateRepository(tempDir, createFakeLogger() as never);
+    await repository.initialize();
+
+    const now = Date.now();
+    await repository.upsertConversationSession({
+      id: "conversation-1",
+      workspaceId: "workspace-1",
+      title: "Session 1",
+      status: "active",
+      isPinned: false,
+      pinnedOrder: 0,
+      unpinnedOrder: 0,
+      manualUnread: false,
+      lastReadAt: now,
+      archivedAt: undefined,
+      titleUpdatedAt: now,
+      createdAt: now,
+      updatedAt: now,
+      lastMessageAt: now
+    });
+
+    await repository.markConversationSessionUnread("conversation-1");
+    await repository.pinConversationSession("conversation-1");
+    await repository.archiveConversationSession("conversation-1", now + 10);
+
+    const detail = await repository.getConversationDetail("conversation-1");
+    expect(detail?.session).toMatchObject({
+      isPinned: true,
+      manualUnread: true,
+      status: "archived",
+      archivedAt: now + 10
+    });
+
+    await repository.markConversationSessionRead("conversation-1", now + 20);
+    await expect(repository.getConversationSession("conversation-1")).resolves.toMatchObject({
+      manualUnread: false,
+      lastReadAt: now + 20
+    });
     repository.close();
   });
 

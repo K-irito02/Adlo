@@ -30,7 +30,7 @@ apps/desktop/renderer/src/
 │   ├── base.css           # 3. Resets, focus, scrollbar
 │   ├── layout.css         # 4. App shell, sidebar, grid presets
 │   ├── components.css     # 5. Buttons, cards, pills, modal, ...
-│   ├── workspace.css      # 阶段二工作区布局与面板（消费语义 token）
+│   ├── regions.css        # 阶段二 17-region shell、工作空间 / 会话侧边栏与面板布局
 │   ├── utilities.css      # 6. sr-only, skip link, gap helpers
 │   └── index.css          # Single import surface
 └── design-system/

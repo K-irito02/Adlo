@@ -53,6 +53,13 @@ describe("desktop renderer phase 2 workspace shell", () => {
         workspaceId: "workspace-1",
         title: "Single Agent Session",
         status: "active" as const,
+        isPinned: false,
+        pinnedOrder: 0,
+        unpinnedOrder: 0,
+        manualUnread: false,
+        lastReadAt: now,
+        archivedAt: undefined,
+        titleUpdatedAt: now,
         createdAt: now,
         updatedAt: now,
         lastMessageAt: now
@@ -266,6 +273,12 @@ describe("desktop renderer phase 2 workspace shell", () => {
             lastOpenedAt: now
           }
         })),
+        pin: vi.fn(async () => ({ ok: true, data: [] })),
+        unpin: vi.fn(async () => ({ ok: true, data: [] })),
+        reorder: vi.fn(async () => ({ ok: true, data: [] })),
+        removeFromSidebar: vi.fn(async () => ({ ok: true, data: [] })),
+        restoreToSidebar: vi.fn(async () => ({ ok: true, data: [] })),
+        revealInFileManager: vi.fn(async () => ({ ok: true, data: true })),
         readFile: vi.fn(async () => ({
           ok: true,
           data: {
@@ -286,6 +299,15 @@ describe("desktop renderer phase 2 workspace shell", () => {
         createSession: vi.fn(async () => ({ ok: true, data: conversationDetail.session })),
         listSessions: vi.fn(async () => ({ ok: true, data: [conversationDetail.session] })),
         getSession: vi.fn(async () => ({ ok: true, data: conversationDetail })),
+        renameSession: vi.fn(async () => ({ ok: true, data: conversationDetail.session })),
+        pinSession: vi.fn(async () => ({ ok: true, data: conversationDetail.session })),
+        unpinSession: vi.fn(async () => ({ ok: true, data: conversationDetail.session })),
+        reorderSessions: vi.fn(async () => ({ ok: true, data: [conversationDetail.session] })),
+        markSessionRead: vi.fn(async () => ({ ok: true, data: conversationDetail.session })),
+        markSessionUnread: vi.fn(async () => ({ ok: true, data: conversationDetail.session })),
+        archiveSession: vi.fn(async () => ({ ok: true, data: conversationDetail.session })),
+        archiveAllInWorkspace: vi.fn(async () => ({ ok: true, data: [conversationDetail.session] })),
+        deleteSession: vi.fn(async () => ({ ok: true, data: true })),
         sendMessage: vi.fn(async () => ({
           ok: true,
           data: {

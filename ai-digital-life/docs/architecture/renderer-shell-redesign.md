@@ -1,11 +1,12 @@
 # Phase 2 Renderer Shell Redesign (17-Region Layout)
 
-This note records the Renderer-only UI refactor that reshaped the Phase 2 single-agent thin slice into the 17-region three-pane layout defined by
-`digitalLife/aiFunction-Implementation/UI设计草稿/GLM-5V-Turbo.md`.
+This note records the original 17-region shell refactor and the follow-up sidebar navigation foundation that now backs the left sidebar with
+persisted workspace / session navigation metadata.
 
-The refactor is **Renderer-only**. It does **not** add new capabilities, change IPC whitelists, alter SQLite schema, or introduce Phase 2+
-surfaces such as multi-agent DAG, MCP or plugin market. All privilege boundaries defined in
-[`ai-digital-life/AGENTS.md`](../../AGENTS.md) remain unchanged.
+The initial shell composition was Renderer-first, but the current implementation is **not Renderer-only anymore**: sidebar pinning, ordering,
+read / unread state, archive operations, rename, reveal-in-file-manager, and delete now flow through the documented IPC bridge into package
+services and SQLite-backed storage. Privilege boundaries defined in [`ai-digital-life/AGENTS.md`](../../AGENTS.md) remain unchanged: Renderer
+still goes through `window.digitalLife`, and no direct Node / SQLite access was added to Renderer.
 
 ## Scope
 
@@ -17,12 +18,16 @@ surfaces such as multi-agent DAG, MCP or plugin market. All privilege boundaries
 - Add `apps/desktop/renderer/src/app/icons.tsx` as the single SVG icon surface (Lucide-style, `currentColor`, token-driven sizes).
 - Extend i18n strings in `apps/desktop/renderer/src/app/copy.ts` with the new region labels (zh-CN / en-US).
 - Add `apps/desktop/renderer/src/styles/regions.css` for region-scoped layout rules; all tokens come from `tokens.css` / `themes.css`.
+- Add `apps/desktop/renderer/src/app/sidebarViewModel.ts` to map persisted workspace / session records into sidebar presentation state
+  (grouping, rollup status, archived buckets, hover-state display decisions).
+- Extend sidebar behavior through `apps/desktop/shared/ipc.ts`, `apps/desktop/preload/index.ts`, `apps/desktop/main/index.ts`,
+  `packages/workspace`, `packages/conversation`, `packages/storage`, and `packages/kernel` so workspace/session actions are durable.
 
 ### Explicitly out of scope (kept for later phases / follow-ups)
 
-- New IPC channels, new SQLite tables, or new migrations (no "workspace tabs / pinned sessions / archived sessions" persistence in this tranche).
 - Visual theming changes beyond composition (no token or theme edits).
-- Any Main / Preload / packages / workers changes. Only Renderer files under `apps/desktop/renderer/src/**` are touched.
+- New privileged surfaces outside the existing desktop bridge boundary (no Renderer direct file system, shell, or database access).
+- Phase 2+ features such as multi-agent DAG, MCP runtime, plugin market, or cloud collaboration surfaces.
 
 ## Region → Component Mapping
 
@@ -46,12 +51,26 @@ surfaces such as multi-agent DAG, MCP or plugin market. All privilege boundaries
 | 16 | Changes tool (patch preview + diff) | `regions/RightPanel.tsx` |
 | 17 | Terminal tool (command stream) | `regions/RightPanel.tsx` |
 
+## Sidebar Foundation Delta
+
+The left sidebar is now a cross-layer feature, not just a view refactor.
+
+- `packages/kernel` defines navigation metadata such as workspace/session pin state, per-bucket ordering, read tracking, archive timestamps,
+  and sidebar visibility.
+- `packages/storage` persists those fields in SQLite and returns records pre-sorted by pinned / unpinned buckets.
+- `packages/workspace` and `packages/conversation` expose sidebar actions used by Renderer:
+  `pin/unpin`, `reorder`, `rename`, `mark read/unread`, `archive`, `delete`, `removeFromSidebar`, `restoreToSidebar`,
+  `revealInFileManager`.
+- `apps/desktop/shared/ipc.ts` / `preload` / `main` expose the corresponding allowlisted bridge methods.
+- `apps/desktop/renderer/src/app/sidebarViewModel.ts` is the presentation boundary for region 6. `regions/LeftSidebar.tsx` consumes that
+  view-model instead of recomputing storage semantics inline.
+
 ## State Ownership
 
 | Concern | Store |
 | ------- | ----- |
 | Workspace, sessions, runs, patches, provider health, task center, search, retrieval | `app/store.ts` (`useAppStore`) — unchanged truth source over IPC |
-| Renderer-only shell state: `leftCollapsed`, `rightCollapsed`, `activeTool`, `chatMode`, `contextChips`, `composerDraft`, `statusPanelOpen`, `commandPaletteOpen` | `app/ui-store.ts` (`useUiStore`) |
+| Renderer-only shell state: `leftCollapsed`, `rightCollapsed`, `activeTool`, expanded workspace sections, chat mode, menus, context chips | `app/ui-store.ts` (`useUiStore`) |
 
 The UI store is deliberately renderer-local: it never makes IPC calls and never holds security-relevant preferences. Preferences that affect
 Main (language, theme, provider priority) continue to flow through `window.digitalLife.app.updatePreferences`.
@@ -85,9 +104,8 @@ Gate results after the refactor (in the current environment):
 If a later phase decides to persist additional shell state, the following surfaces should be introduced through the documented
 architecture-change workflow (docs first, then IPC, then SQLite migration):
 
-- Pinned / archived / ordered conversation sessions beyond the current `archived` flag.
 - Workspace tab set (multiple simultaneous file editors).
 - Per-workspace panel widths.
 
-Each of these would require: a new IPC channel in `apps/desktop/shared/ipc.ts`, a migration under `packages/migration`, repository support in
-`packages/storage`, and matching tests. None are required for the 17-region visual redesign.
+Each of these would require the same pattern used by the sidebar foundation: bridge updates in `apps/desktop/shared/ipc.ts`, storage support
+under `packages/storage`, and matching tests.

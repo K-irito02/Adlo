@@ -43,6 +43,13 @@ const sessions: ConversationSessionRecord[] = [
     workspaceId: "workspace-mock-1",
     title: "Single Agent Session",
     status: "active",
+    isPinned: false,
+    pinnedOrder: 0,
+    unpinnedOrder: 0,
+    manualUnread: false,
+    lastReadAt: now,
+    archivedAt: undefined,
+    titleUpdatedAt: now,
     createdAt: now,
     updatedAt: now,
     lastMessageAt: now
@@ -286,6 +293,13 @@ function createSendResult(sessionId: string, content: string): ConversationSendR
   const sessionMessages = messagesBySession.get(sessionId) ?? [];
   sessionMessages.push(userMessage, assistantMessage);
   messagesBySession.set(sessionId, sessionMessages);
+  const session = sessions.find((candidate) => candidate.id === sessionId);
+  if (session) {
+    session.updatedAt = assistantMessage.createdAt;
+    session.lastMessageAt = assistantMessage.createdAt;
+    session.manualUnread = false;
+    session.lastReadAt = assistantMessage.createdAt;
+  }
 
   return {
     session: ensureSession(sessionId).session,
@@ -380,6 +394,10 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
           rootPath: workspaceRoot,
           name: "ai-digital-life",
           lastOpenedAt: now,
+          isPinned: false,
+          pinnedOrder: 0,
+          unpinnedOrder: 0,
+          removedFromSidebar: false,
           available: true
         }
       ]
@@ -393,6 +411,76 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
         name: workspacePath.split("/").pop() || workspacePath
       }
     }),
+    pin: async () => ({
+      ok: true,
+      data: [
+        {
+          id: "workspace-mock-1",
+          path: workspaceRoot,
+          rootPath: workspaceRoot,
+          name: "ai-digital-life",
+          lastOpenedAt: now,
+          isPinned: true,
+          pinnedOrder: 0,
+          unpinnedOrder: 0,
+          removedFromSidebar: false,
+          available: true
+        }
+      ]
+    }),
+    unpin: async () => ({
+      ok: true,
+      data: [
+        {
+          id: "workspace-mock-1",
+          path: workspaceRoot,
+          rootPath: workspaceRoot,
+          name: "ai-digital-life",
+          lastOpenedAt: now,
+          isPinned: false,
+          pinnedOrder: 0,
+          unpinnedOrder: 0,
+          removedFromSidebar: false,
+          available: true
+        }
+      ]
+    }),
+    reorder: async () => ({
+      ok: true,
+      data: [
+        {
+          id: "workspace-mock-1",
+          path: workspaceRoot,
+          rootPath: workspaceRoot,
+          name: "ai-digital-life",
+          lastOpenedAt: now,
+          isPinned: false,
+          pinnedOrder: 0,
+          unpinnedOrder: 0,
+          removedFromSidebar: false,
+          available: true
+        }
+      ]
+    }),
+    removeFromSidebar: async () => ({ ok: true, data: [] }),
+    restoreToSidebar: async () => ({
+      ok: true,
+      data: [
+        {
+          id: "workspace-mock-1",
+          path: workspaceRoot,
+          rootPath: workspaceRoot,
+          name: "ai-digital-life",
+          lastOpenedAt: now,
+          isPinned: false,
+          pinnedOrder: 0,
+          unpinnedOrder: 0,
+          removedFromSidebar: false,
+          available: true
+        }
+      ]
+    }),
+    revealInFileManager: async () => ({ ok: true, data: true }),
     readFile: async (relativePath: string) => ({
       ok: true,
       data: {
@@ -454,6 +542,13 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
         workspaceId: "workspace-mock-1",
         title: title || "Single Agent Session",
         status: "active",
+        isPinned: false,
+        pinnedOrder: 0,
+        unpinnedOrder: sessions.filter((candidate) => !candidate.isPinned).length,
+        manualUnread: false,
+        lastReadAt: Date.now(),
+        archivedAt: undefined,
+        titleUpdatedAt: Date.now(),
         createdAt: Date.now(),
         updatedAt: Date.now(),
         lastMessageAt: Date.now()
@@ -464,6 +559,55 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
     },
     listSessions: async () => ({ ok: true, data: sessions }),
     getSession: async (sessionId: string) => ({ ok: true, data: ensureSession(sessionId) }),
+    renameSession: async ({ sessionId, title }) => {
+      const session = sessions.find((candidate) => candidate.id === sessionId)!;
+      session.title = title;
+      session.titleUpdatedAt = Date.now();
+      return { ok: true, data: session };
+    },
+    pinSession: async (sessionId: string) => {
+      const session = sessions.find((candidate) => candidate.id === sessionId)!;
+      session.isPinned = true;
+      return { ok: true, data: session };
+    },
+    unpinSession: async (sessionId: string) => {
+      const session = sessions.find((candidate) => candidate.id === sessionId)!;
+      session.isPinned = false;
+      return { ok: true, data: session };
+    },
+    reorderSessions: async () => ({ ok: true, data: sessions }),
+    markSessionRead: async ({ sessionId }) => {
+      const session = sessions.find((candidate) => candidate.id === sessionId)!;
+      session.manualUnread = false;
+      session.lastReadAt = Date.now();
+      return { ok: true, data: session };
+    },
+    markSessionUnread: async (sessionId: string) => {
+      const session = sessions.find((candidate) => candidate.id === sessionId)!;
+      session.manualUnread = true;
+      return { ok: true, data: session };
+    },
+    archiveSession: async (sessionId: string) => {
+      const session = sessions.find((candidate) => candidate.id === sessionId)!;
+      session.status = "archived";
+      session.archivedAt = Date.now();
+      return { ok: true, data: session };
+    },
+    archiveAllInWorkspace: async () => {
+      for (const session of sessions) {
+        session.status = "archived";
+        session.archivedAt = Date.now();
+      }
+      return { ok: true, data: sessions };
+    },
+    deleteSession: async (sessionId: string) => {
+      const index = sessions.findIndex((candidate) => candidate.id === sessionId);
+      if (index >= 0) {
+        sessions.splice(index, 1);
+        messagesBySession.delete(sessionId);
+      }
+      return { ok: true, data: true };
+    },
     sendMessage: async ({ sessionId, content }) => ({ ok: true, data: createSendResult(sessionId, content) }),
     cancelMessage: async () => ({ ok: true, data: activeRun })
   },

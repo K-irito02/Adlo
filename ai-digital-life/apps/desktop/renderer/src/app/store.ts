@@ -14,6 +14,8 @@ import type {
   FilePatch,
   PatchApplicationResult,
   PatchSet,
+  ReorderSessionsInput,
+  ReorderWorkspacesInput,
   RecentWorkspaceEntry,
   TaskCenterSnapshot,
   WorkspaceSearchHit
@@ -27,6 +29,15 @@ import { themeController } from "./theme";
 import type { ToolId } from "./ui-store";
 
 let terminalStreamUnsub: (() => void) | undefined;
+
+async function refreshConversationSlice(activeSessionId?: string) {
+  const conversationState = await loadConversationState(activeSessionId);
+  return {
+    sessions: conversationState.sessions,
+    activeSessionId: conversationState.activeSessionId,
+    detail: conversationState.detail
+  };
+}
 
 export type StoreState = {
   loading: boolean;
@@ -73,6 +84,21 @@ export type StoreState = {
   openWorkspace: (workspacePath: string) => Promise<void>;
   createSession: () => Promise<void>;
   selectSession: (sessionId: string) => Promise<void>;
+  renameSession: (sessionId: string, title: string) => Promise<void>;
+  pinSession: (sessionId: string) => Promise<void>;
+  unpinSession: (sessionId: string) => Promise<void>;
+  markSessionRead: (sessionId: string) => Promise<void>;
+  markSessionUnread: (sessionId: string) => Promise<void>;
+  archiveSession: (sessionId: string) => Promise<void>;
+  archiveAllSessions: () => Promise<void>;
+  pinWorkspace: (workspaceId: string) => Promise<void>;
+  unpinWorkspace: (workspaceId: string) => Promise<void>;
+  removeWorkspaceFromSidebar: (workspaceId: string) => Promise<void>;
+  reorderWorkspaces: (input: ReorderWorkspacesInput) => Promise<void>;
+  reorderSessions: (input: ReorderSessionsInput) => Promise<void>;
+  markAllSessionsRead: (sessionIds: string[]) => Promise<void>;
+  revealWorkspaceInFileManager: (workspacePath: string) => Promise<void>;
+  deleteSession: (sessionId: string) => Promise<void>;
   sendMessage: (content: string) => Promise<void>;
   cancelActiveStream: () => Promise<void>;
   openFile: (relativePath: string) => Promise<void>;
@@ -192,15 +218,172 @@ export const useAppStore = create<StoreState>((set, get) => ({
     }));
   },
   selectSession: async (sessionId: string) => {
+    const markReadResult = await window.digitalLife.conversation.markSessionRead({ sessionId });
+    if (!markReadResult.ok) {
+      set({ error: markReadResult.error.message });
+      return;
+    }
     const result = await window.digitalLife.conversation.getSession(sessionId);
     if (!result.ok) {
       set({ error: result.error.message });
       return;
     }
+    const conversationState = await refreshConversationSlice(sessionId);
     set((state) => ({
+      sessions: conversationState.sessions,
       activeSessionId: sessionId,
       sessionDetails: result.data ? { ...state.sessionDetails, [sessionId]: result.data } : state.sessionDetails
     }));
+  },
+  renameSession: async (sessionId: string, title: string) => {
+    const result = await window.digitalLife.conversation.renameSession({ sessionId, title });
+    if (!result.ok) {
+      set({ error: result.error.message });
+      return;
+    }
+    const conversationState = await refreshConversationSlice(get().activeSessionId ?? sessionId);
+    set((state) => ({
+      sessions: conversationState.sessions,
+      sessionDetails:
+        state.sessionDetails[sessionId]
+          ? {
+              ...state.sessionDetails,
+              [sessionId]: {
+                ...state.sessionDetails[sessionId],
+                session: result.data
+              }
+            }
+          : state.sessionDetails
+    }));
+  },
+  pinSession: async (sessionId: string) => {
+    const result = await window.digitalLife.conversation.pinSession(sessionId);
+    if (!result.ok) {
+      set({ error: result.error.message });
+      return;
+    }
+    const conversationState = await refreshConversationSlice(get().activeSessionId ?? sessionId);
+    set({ sessions: conversationState.sessions });
+  },
+  unpinSession: async (sessionId: string) => {
+    const result = await window.digitalLife.conversation.unpinSession(sessionId);
+    if (!result.ok) {
+      set({ error: result.error.message });
+      return;
+    }
+    const conversationState = await refreshConversationSlice(get().activeSessionId ?? sessionId);
+    set({ sessions: conversationState.sessions });
+  },
+  markSessionRead: async (sessionId: string) => {
+    const result = await window.digitalLife.conversation.markSessionRead({ sessionId });
+    if (!result.ok) {
+      set({ error: result.error.message });
+      return;
+    }
+    const conversationState = await refreshConversationSlice(get().activeSessionId ?? sessionId);
+    set({ sessions: conversationState.sessions });
+  },
+  markSessionUnread: async (sessionId: string) => {
+    const result = await window.digitalLife.conversation.markSessionUnread(sessionId);
+    if (!result.ok) {
+      set({ error: result.error.message });
+      return;
+    }
+    const conversationState = await refreshConversationSlice(get().activeSessionId ?? sessionId);
+    set({ sessions: conversationState.sessions });
+  },
+  archiveSession: async (sessionId: string) => {
+    const result = await window.digitalLife.conversation.archiveSession(sessionId);
+    if (!result.ok) {
+      set({ error: result.error.message });
+      return;
+    }
+    const conversationState = await refreshConversationSlice(get().activeSessionId);
+    set({ sessions: conversationState.sessions });
+  },
+  archiveAllSessions: async () => {
+    const result = await window.digitalLife.conversation.archiveAllInWorkspace();
+    if (!result.ok) {
+      set({ error: result.error.message });
+      return;
+    }
+    const conversationState = await refreshConversationSlice(get().activeSessionId);
+    set({ sessions: conversationState.sessions });
+  },
+  pinWorkspace: async (workspaceId: string) => {
+    const result = await window.digitalLife.workspace.pin(workspaceId);
+    if (!result.ok) {
+      set({ error: result.error.message });
+      return;
+    }
+    set({ recentWorkspaces: result.data });
+  },
+  unpinWorkspace: async (workspaceId: string) => {
+    const result = await window.digitalLife.workspace.unpin(workspaceId);
+    if (!result.ok) {
+      set({ error: result.error.message });
+      return;
+    }
+    set({ recentWorkspaces: result.data });
+  },
+  removeWorkspaceFromSidebar: async (workspaceId: string) => {
+    const result = await window.digitalLife.workspace.removeFromSidebar(workspaceId);
+    if (!result.ok) {
+      set({ error: result.error.message });
+      return;
+    }
+    set({ recentWorkspaces: result.data });
+  },
+  reorderWorkspaces: async (input) => {
+    const result = await window.digitalLife.workspace.reorder(input);
+    if (!result.ok) {
+      set({ error: result.error.message });
+      return;
+    }
+    set({ recentWorkspaces: result.data });
+  },
+  reorderSessions: async (input) => {
+    const result = await window.digitalLife.conversation.reorderSessions(input);
+    if (!result.ok) {
+      set({ error: result.error.message });
+      return;
+    }
+    set({ sessions: result.data });
+  },
+  markAllSessionsRead: async (sessionIds) => {
+    const results = await Promise.all(sessionIds.map((sessionId) => window.digitalLife.conversation.markSessionRead({ sessionId })));
+    const failure = results.find((result) => !result.ok);
+    if (failure && !failure.ok) {
+      set({ error: failure.error.message });
+      return;
+    }
+    const conversationState = await refreshConversationSlice(get().activeSessionId);
+    set({ sessions: conversationState.sessions });
+  },
+  revealWorkspaceInFileManager: async (workspacePath) => {
+    const result = await window.digitalLife.workspace.revealInFileManager(workspacePath);
+    if (!result.ok) {
+      set({ error: result.error.message });
+    }
+  },
+  deleteSession: async (sessionId) => {
+    const result = await window.digitalLife.conversation.deleteSession(sessionId);
+    if (!result.ok) {
+      set({ error: result.error.message });
+      return;
+    }
+    const conversationState = await refreshConversationSlice(
+      get().activeSessionId === sessionId ? undefined : get().activeSessionId
+    );
+    set((state) => {
+      const nextDetails = { ...state.sessionDetails };
+      delete nextDetails[sessionId];
+      return {
+        sessions: conversationState.sessions,
+        activeSessionId: conversationState.activeSessionId,
+        sessionDetails: nextDetails
+      };
+    });
   },
   sendMessage: async (content: string) => {
     const sessionId = get().activeSessionId;
