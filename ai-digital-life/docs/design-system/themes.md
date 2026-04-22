@@ -28,6 +28,14 @@ Accent: `--accent`, `--accent-hover`, `--accent-active`, `--accent-soft`, `--acc
 Status: `--info` / `--info-soft`, `--success` / `--success-soft`, `--warning` / `--warning-soft`, `--danger` / `--danger-soft`
 Misc: `--focus-ring`, `--shadow-soft`
 
+## Shell background baseline
+
+- The renderer shell prefers a mostly uniform structural background to reduce panel fragmentation and visual noise.
+- Light mode uses `--bg: rgb(248, 248, 248)` as the primary shell canvas.
+- Dark mode uses `--bg: rgb(20, 20, 20)` as the primary shell canvas.
+- Structural containers such as the title bar, left rail, center shell header, right tool rail, tool panes, and status bar should prefer `--bg` unless a stronger separation is necessary.
+- Raised controls and overlays such as inputs, composer shells, dropdowns, menus, and popovers may use `--bg-input`, `--surface-elevated`, or `--surface-raised` to preserve interaction clarity.
+
 ## Mode resolution
 
 ```ts

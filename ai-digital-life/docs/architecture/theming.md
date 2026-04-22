@@ -30,4 +30,5 @@ The full visual contract lives in the `[docs/design-system/](../design-system/RE
 
 - The theme is calibrated to keep the home shell legible under both desktop and mobile-class widths (down to 640 px).
 - `--accent` always carries the brand recognisability; semantic status colors (`--success`, `--warning`, `--danger`) stay perceptually distinct in every theme.
-- Long-form content surfaces (`--surface`, `--surface-elevated`) keep blue-charcoal restraint in dark mode and warm paper tones in light mode for sustained reading comfort.
+- The shell now uses a unified neutral canvas for most structural regions so title bar, sidebars, center header, tool switcher, tool panes, and status bar read as one continuous workspace.
+- The current shell background baseline is `rgb(248, 248, 248)` in light mode and `rgb(20, 20, 20)` in dark mode; higher-elevation elements such as inputs, menus, and popovers keep a restrained secondary surface for separation.

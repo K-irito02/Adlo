@@ -89,32 +89,32 @@ body,
 }
 
 /* ===== LIGHT THEME =====
-   User Spec: 
-   - Primary BG: RGB(243,243,243) / #F3F3F3
-   - Secondary BG: RGB(230,230,230) / #E6E6E6  
+   User Spec:
+   - Primary BG: RGB(248,248,248) / #F8F8F8
+   - Secondary BG: derived from the same neutral family
    - Primary Text: RGB(34,34,34) / #222222
    - Secondary Text: RGB(152,152,152) → optimized to #767676 for WCAG
    - Hint/Placeholder: RGB(216,216,216) → optimized to #A0A0A0 for WCAG
-   - Card BG: derived from surface system
+   - Shell goal: most structural surfaces share one calm background
 */
 :root,
 [data-theme="light"] {
   /* === Background Layers === */
-  --bg: #f3f3f3;
-  --bg-secondary: #e6e6e6;
+  --bg: #f8f8f8;
+  --bg-secondary: #f8f8f8;
   --bg-strong: #ffffff;
-  --bg-elevated: #ffffff;
+  --bg-elevated: #f8f8f8;
   --bg-muted: rgba(34, 34, 34, 0.06);
   --bg-overlay: rgba(34, 34, 34, 0.35);
-  --bg-card: #ffffff;
+  --bg-card: #fbfbfb;
   --bg-input: #ffffff;
   --bg-hover: rgba(34, 34, 34, 0.06);
   --bg-active: rgba(34, 34, 34, 0.1);
 
   /* === Surface System === */
-  --surface: #ffffff;
-  --surface-elevated: #ffffff;
-  --surface-sunken: #e8e8e8;
+  --surface: #f8f8f8;
+  --surface-elevated: #fafafa;
+  --surface-sunken: #f8f8f8;
   --surface-subtle: rgba(34, 34, 34, 0.04);
   --surface-hover: rgba(34, 34, 34, 0.06);
   --surface-active: rgba(34, 34, 34, 0.08);
@@ -202,33 +202,33 @@ body,
 /* ===== DARK THEME =====
    User Spec:
    - Primary BG: RGB(20,20,20) / #141414
-   - Secondary BG: RGB(33,33,33) / #212121
+   - Secondary BG: derived from the same neutral family
    - Primary Text: RGB(216,216,216) / #D8D8D8
    - Secondary Text: RGB(78,78,78) → optimized to #9A9A9A for WCAG
    - Hint/Placeholder: RGB(98,98,98) → optimized to #707070 for WCAG
-   - Card BG: RGB(40,40,40) / #282828
+   - Shell goal: most structural surfaces share one calm background
 */
 [data-theme="dark"] {
   /* === Background Layers === */
   --bg: #141414;
-  --bg-secondary: #212121;
-  --bg-strong: #1e1e1e;
-  --bg-elevated: rgba(30, 30, 30, 0.95);
+  --bg-secondary: #141414;
+  --bg-strong: #1c1c1c;
+  --bg-elevated: #141414;
   --bg-muted: rgba(255, 255, 255, 0.06);
   --bg-overlay: rgba(0, 0, 0, 0.65);
-  --bg-card: #282828;
-  --bg-input: #1e1e1e;
+  --bg-card: #1a1a1a;
+  --bg-input: #1c1c1c;
   --bg-hover: rgba(255, 255, 255, 0.08);
   --bg-active: rgba(255, 255, 255, 0.12);
 
   /* === Surface System === */
-  --surface: #1e1e1e;
-  --surface-elevated: #252525;
-  --surface-sunken: #181818;
+  --surface: #141414;
+  --surface-elevated: #171717;
+  --surface-sunken: #141414;
   --surface-subtle: rgba(255, 255, 255, 0.04);
   --surface-hover: rgba(255, 255, 255, 0.08);
   --surface-active: rgba(255, 255, 255, 0.12);
-  --surface-raised: #282828;
+  --surface-raised: #1c1c1c;
 
   /* === Text Hierarchy (WCAG AA Compliant) === */
   --text-primary: #d8d8d8;

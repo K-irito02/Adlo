@@ -111,7 +111,7 @@
   align-items: center;
   height: var(--titlebar-height);
   padding: 0 var(--space-3);
-  background: var(--surface);
+  background: var(--bg);
   border-bottom: 1px solid var(--border-subtle);
   -webkit-app-region: drag;
   user-select: none;
@@ -435,7 +435,7 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  background: var(--surface);
+  background: var(--bg);
   border-right: 1px solid var(--border-subtle);
   overflow: hidden;
   transition:
@@ -464,6 +464,7 @@
     transform var(--panel-shell-duration) var(--ease-default) var(--panel-content-delay),
     filter var(--panel-shell-duration) var(--ease-default) var(--panel-content-delay);
   will-change: opacity, transform, filter;
+  background: var(--bg);
 }
 
 .adl-leftbar--collapsed .adl-leftbar__content {
@@ -490,6 +491,7 @@
   gap: var(--space-0-5);
   padding: 0;
   border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg);
 }
 
 .adl-quick-btn {
@@ -548,6 +550,7 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
+  background: var(--bg);
 }
 
 .adl-workspace-toolbar {
@@ -1036,6 +1039,7 @@
   align-items: center;
   padding: var(--space-2);
   border-top: 1px solid var(--border-subtle);
+  background: var(--bg);
 }
 
 .adl-env-btn {
@@ -1077,7 +1081,7 @@
   justify-content: space-between;
   padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--border-subtle);
-  background: var(--surface);
+  background: var(--bg);
 }
 
 .adl-center__header h2 {
@@ -1360,7 +1364,7 @@
   padding: var(--space-1-5) var(--space-2) var(--space-1-5) var(--space-3);
   border: 1px solid var(--border);
   border-radius: var(--radius-full);
-  background: var(--surface-raised);
+  background: var(--bg-input);
   box-shadow: var(--shadow-sm), 0 1px 0 rgba(255, 255, 255, 0.4) inset;
   transition: var(--transition-colors), var(--transition-shadow);
 }
@@ -1545,7 +1549,7 @@
   display: block;
   min-height: 0;
   min-width: 0;
-  background: var(--surface);
+  background: var(--bg);
   border-left: 1px solid var(--border-subtle);
   overflow: hidden;
   transition:
@@ -1573,6 +1577,7 @@
     transform var(--panel-shell-duration) var(--ease-default) var(--panel-content-delay),
     filter var(--panel-shell-duration) var(--ease-default) var(--panel-content-delay);
   will-change: opacity, transform, filter;
+  background: var(--bg);
 }
 
 .adl-rightpanel--collapsed .adl-rightpanel__content {
@@ -1602,6 +1607,7 @@
   border-right: 1px solid var(--border-subtle);
   padding: var(--space-2) 0;
   gap: var(--space-1);
+  background: var(--bg);
 }
 
 .adl-toolswitcher__tab {
@@ -1637,6 +1643,7 @@
   min-height: 0;
   min-width: 0;
   height: 100%;
+  background: var(--bg);
 }
 
 .adl-tool-body--browser,
@@ -1652,6 +1659,7 @@
   border-right: 1px solid var(--border-subtle);
   overflow: hidden;
   min-height: 0;
+  background: var(--bg);
 }
 
 .adl-tool-sidebar__search {
@@ -1747,6 +1755,7 @@
   flex-direction: column;
   min-height: 0;
   min-width: 0;
+  background: var(--bg);
 }
 
 .adl-tool-main__title {
@@ -1763,7 +1772,7 @@
   gap: var(--space-1);
   padding: var(--space-1) var(--space-2);
   border-bottom: 1px solid var(--border-subtle);
-  background: var(--surface-subtle);
+  background: var(--bg);
   overflow-x: auto;
   min-height: 34px;
 }
@@ -1800,6 +1809,7 @@
   flex-direction: column;
   gap: var(--space-3);
   min-height: 0;
+  background: var(--bg);
 }
 
 .adl-tool-main__scroll--centered {
@@ -2109,7 +2119,7 @@
   gap: var(--space-1);
   height: var(--statusbar-height);
   padding: 0 var(--space-2);
-  background: var(--surface);
+  background: var(--bg);
   border-top: 1px solid var(--border-subtle);
   font-size: 11px;
   color: var(--text-muted);
