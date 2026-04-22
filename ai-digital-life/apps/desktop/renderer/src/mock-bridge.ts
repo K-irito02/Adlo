@@ -466,6 +466,78 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
       ]
     }),
     revealInFileManager: async () => ({ ok: true, data: true }),
+    listTree: async () => ({
+      ok: true,
+      data: [
+        {
+          path: "apps",
+          name: "apps",
+          kind: "directory",
+          children: [
+            {
+              path: "apps/desktop",
+              name: "desktop",
+              kind: "directory",
+              children: [
+                {
+                  path: "apps/desktop/renderer",
+                  name: "renderer",
+                  kind: "directory",
+                  children: [
+                    {
+                      path: "apps/desktop/renderer/src",
+                      name: "src",
+                      kind: "directory",
+                      children: [
+                        {
+                          path: "apps/desktop/renderer/src/main.tsx",
+                          name: "main.tsx",
+                          kind: "file",
+                          children: []
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          path: "packages",
+          name: "packages",
+          kind: "directory",
+          children: [
+            {
+              path: "packages/kernel",
+              name: "kernel",
+              kind: "directory",
+              children: [
+                {
+                  path: "packages/kernel/src",
+                  name: "src",
+                  kind: "directory",
+                  children: [
+                    {
+                      path: "packages/kernel/src/index.ts",
+                      name: "index.ts",
+                      kind: "file",
+                      children: []
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          path: "README.md",
+          name: "README.md",
+          kind: "file",
+          children: []
+        }
+      ]
+    }),
     readFile: async (relativePath: string) => ({
       ok: true,
       data: {

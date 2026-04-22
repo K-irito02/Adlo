@@ -279,6 +279,38 @@ describe("desktop renderer phase 2 workspace shell", () => {
         removeFromSidebar: vi.fn(async () => ({ ok: true, data: [] })),
         restoreToSidebar: vi.fn(async () => ({ ok: true, data: [] })),
         revealInFileManager: vi.fn(async () => ({ ok: true, data: true })),
+        listTree: vi.fn(async () => ({
+          ok: true,
+          data: [
+            {
+              path: "packages",
+              name: "packages",
+              kind: "directory",
+              children: [
+                {
+                  path: "packages/kernel",
+                  name: "kernel",
+                  kind: "directory",
+                  children: [
+                    {
+                      path: "packages/kernel/src",
+                      name: "src",
+                      kind: "directory",
+                      children: [
+                        {
+                          path: "packages/kernel/src/index.ts",
+                          name: "index.ts",
+                          kind: "file",
+                          children: []
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        })),
         readFile: vi.fn(async () => ({
           ok: true,
           data: {
@@ -507,6 +539,9 @@ describe("desktop renderer phase 2 workspace shell", () => {
     expect(document.body.textContent).toContain("dirty-worktree.guard");
     expect(document.body.textContent).toContain("Model Settings");
     expect(document.body.textContent).toContain("Single Agent Session");
+    expect(document.querySelector(".adl-toolswitcher")).not.toBeNull();
+    expect(document.querySelector(".adl-tool-context")).not.toBeNull();
+    expect(document.querySelector(".adl-filetree")).not.toBeNull();
 
     expect(document.body.textContent).toContain("Patch preview generated.");
     expect(document.body.textContent).toContain("packages/kernel/src/index.ts");

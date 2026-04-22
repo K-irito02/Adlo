@@ -26,6 +26,7 @@ import type {
   FileOutlineItem,
   WorkspaceFileChangedEvent,
   WorkspaceFileDocument,
+  WorkspaceTreeNode,
   WorkspaceSearchHit,
   WorkspaceMeta
 } from "@ai-digital-life/kernel";
@@ -58,6 +59,7 @@ export interface DigitalLifeBridge {
     restoreToSidebar: (workspaceId: string) => Promise<IpcResult<RecentWorkspaceEntry[]>>;
     revealInFileManager: (workspacePath: string) => Promise<IpcResult<boolean>>;
     readFile: (relativePath: string) => Promise<IpcResult<WorkspaceFileDocument>>;
+    listTree: () => Promise<IpcResult<WorkspaceTreeNode[]>>;
     search: (query: string) => Promise<IpcResult<WorkspaceSearchHit[]>>;
     outline: (relativePath: string) => Promise<IpcResult<FileOutlineItem[]>>;
     /** Replace the set of workspace-relative paths considered dirty in the editor (best-effort). */

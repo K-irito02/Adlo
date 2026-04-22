@@ -840,6 +840,13 @@ export interface WorkspaceFileChangedEvent {
   lastModifiedAt: number;
 }
 
+export interface WorkspaceTreeNode {
+  path: string;
+  name: string;
+  kind: "file" | "directory";
+  children: WorkspaceTreeNode[];
+}
+
 export interface FileOutlineItem {
   id: string;
   label: string;

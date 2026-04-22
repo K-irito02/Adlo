@@ -18,6 +18,7 @@ import type {
   ReorderWorkspacesInput,
   RecentWorkspaceEntry,
   TaskCenterSnapshot,
+  WorkspaceTreeNode,
   WorkspaceSearchHit
 } from "@ai-digital-life/kernel";
 import { copy } from "./copy";
@@ -63,6 +64,7 @@ export type StoreState = {
   fileLastModifiedAt?: number;
   externalFileChange?: { path: string; lastModifiedAt: number };
   outline: FileOutlineItem[];
+  workspaceTree: WorkspaceTreeNode[];
   searchQuery: string;
   searchResults: WorkspaceSearchHit[];
   /** Workspace-relative paths considered dirty vs last loaded disk snapshot (synced to Main for patch guards). */
@@ -102,6 +104,7 @@ export type StoreState = {
   sendMessage: (content: string) => Promise<void>;
   cancelActiveStream: () => Promise<void>;
   openFile: (relativePath: string) => Promise<void>;
+  refreshWorkspaceTree: () => Promise<void>;
   searchFiles: (query: string) => Promise<void>;
   setHunkDecision: (patchSetId: string, hunkId: string, decision: "pending" | "accepted" | "rejected") => Promise<void>;
   applyPatchSet: (patchSetId: string) => Promise<void>;
@@ -124,6 +127,7 @@ export const useAppStore = create<StoreState>((set, get) => ({
   sessionDetails: {},
   openTabs: [],
   outline: [],
+  workspaceTree: [],
   searchQuery: "",
   searchResults: [],
   streamingAssistantText: "",
@@ -159,11 +163,13 @@ export const useAppStore = create<StoreState>((set, get) => ({
     void window.digitalLife.workspace.setEditorDirtyPaths([]);
 
     if (appInfoResult.data.currentWorkspace) {
+      const treeResult = await window.digitalLife.workspace.listTree();
       const conversationState = await loadConversationState();
       const taskCenter = await loadTaskCenterState();
       set({
         ...nextState,
         taskCenter,
+        workspaceTree: treeResult.ok ? treeResult.data : [],
         sessions: conversationState.sessions,
         activeSessionId: conversationState.activeSessionId,
         sessionDetails: conversationState.detail
@@ -190,7 +196,7 @@ export const useAppStore = create<StoreState>((set, get) => ({
       return;
     }
 
-    set({ ...(nextState as StoreState), dirtyEditorPaths: [] });
+    set({ ...(nextState as StoreState), dirtyEditorPaths: [], workspaceTree: [] });
   },
   openWorkspace: async (workspacePath: string) => {
     const result = await window.digitalLife.workspace.open(workspacePath);
@@ -490,6 +496,14 @@ export const useAppStore = create<StoreState>((set, get) => ({
         dirtyEditorPaths: nextDirty
       };
     });
+  },
+  refreshWorkspaceTree: async () => {
+    const result = await window.digitalLife.workspace.listTree();
+    if (!result.ok) {
+      set({ error: result.error.message });
+      return;
+    }
+    set({ workspaceTree: result.data });
   },
   searchFiles: async (query: string) => {
     set({ searchQuery: query });

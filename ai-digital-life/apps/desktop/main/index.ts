@@ -59,6 +59,7 @@ import {
   type TaskStatus,
   type ValidationResult,
   type WorkspaceFileDocument,
+  type WorkspaceTreeNode,
   type WorkspaceSearchHit,
   ok,
   err,
@@ -2431,6 +2432,17 @@ function registerIpcHandlers(): void {
         content: document.content,
         lastModifiedAt: document.lastModifiedAt
       });
+    } catch (error) {
+      const failure = toUserMessage(error);
+      return err(failure.code, failure.message);
+    }
+  });
+
+  ipcMain.handle("workspace:listTree", async (): Promise<IpcResult<WorkspaceTreeNode[]>> => {
+    try {
+      const runtimeState = requireRuntime();
+      const { workspaceRoot } = requireCurrentWorkspaceState();
+      return ok(await runtimeState.fsOps.listTree(workspaceRoot));
     } catch (error) {
       const failure = toUserMessage(error);
       return err(failure.code, failure.message);

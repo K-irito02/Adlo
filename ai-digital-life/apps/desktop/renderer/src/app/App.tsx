@@ -43,9 +43,13 @@ export function App() {
     openTabs,
     selectedFilePath,
     fileContent,
+    fileLastModifiedAt,
     externalFileChange,
+    outline,
+    workspaceTree,
     searchQuery,
     searchResults,
+    dirtyEditorPaths,
     bootstrap,
     openWorkspace,
     createSession,
@@ -69,6 +73,7 @@ export function App() {
     streamingAssistantText,
     streamingActiveRunId,
     openFile,
+    refreshWorkspaceTree,
     searchFiles,
     setHunkDecision,
     applyPatchSet,
@@ -84,7 +89,7 @@ export function App() {
     updatePreferences
   } = store;
 
-  const { leftCollapsed, rightCollapsed, activeTool, setActiveTool } = useUiStore();
+  const { leftCollapsed, rightCollapsed, activeTool, setActiveTool, rightPanelWidth } = useUiStore();
   const [diffSideBySide, setDiffSideBySide] = React.useState(readDiffSideBySidePreference);
   const [commandBinary, setCommandBinary] = React.useState("npm");
   const [commandArgs, setCommandArgs] = React.useState("run test");
@@ -356,6 +361,7 @@ export function App() {
 
       <div
         className={`adl-shell__body${leftCollapsed ? " is-left-collapsed" : ""}${rightCollapsed ? " is-right-collapsed" : ""}`}
+        style={{ "--rightpanel-width": `${rightPanelWidth}px` } as React.CSSProperties}
       >
         <LeftSidebar
           t={t}
@@ -420,14 +426,18 @@ export function App() {
           editorTabs={mergedTabs}
           selectedFilePath={selectedFilePath}
           fileContent={fileContent}
+          fileLastModifiedAt={fileLastModifiedAt}
           externalChangePath={externalFileChange?.path}
           editorLanguage={editorLanguage}
           diffSideBySide={diffSideBySide}
           filePatch={filePatch}
           diagnostics={selectedDiagnostics}
           editorHint={editorHint}
+          outline={outline}
+          workspaceTree={workspaceTree}
           searchQuery={localSearchQuery}
           searchResults={searchResults}
+          dirtyEditorPaths={dirtyEditorPaths}
           standardEditorRef={standardEditorRef}
           diffEditorRef={diffEditorRef}
           onOpenFile={(path) => void openFile(path)}
@@ -437,6 +447,7 @@ export function App() {
           onDiffMount={handleDiffMount}
           onSearch={handleSearchSubmit}
           onSearchChange={setLocalSearchQuery}
+          onRefreshWorkspaceTree={() => void refreshWorkspaceTree()}
           onSendSelection={() => void handleSendSelection()}
           onSetDiffLayout={persistDiffLayout}
           activePatchSet={activePatchSet}

@@ -6,6 +6,7 @@ import {
   type FileOutlineItem,
   type WorkspaceFileChangedEvent,
   type WorkspaceSearchHit,
+  type WorkspaceTreeNode,
   ValidationError,
   WorkspaceError,
   normalizePath
@@ -46,6 +47,65 @@ async function walkDirectory(rootPath: string, currentPath: string, files: strin
   }
 }
 
+type MutableWorkspaceTreeNode = WorkspaceTreeNode & {
+  childrenMap: Map<string, MutableWorkspaceTreeNode>;
+};
+
+function sortTreeNodes(nodes: WorkspaceTreeNode[]): WorkspaceTreeNode[] {
+  return nodes.sort((left, right) => {
+    if (left.kind !== right.kind) {
+      return left.kind === "directory" ? -1 : 1;
+    }
+    return left.name.localeCompare(right.name, undefined, { numeric: true, sensitivity: "base" });
+  });
+}
+
+export function buildWorkspaceTree(paths: string[]): WorkspaceTreeNode[] {
+  const roots = new Map<string, MutableWorkspaceTreeNode>();
+
+  for (const rawPath of paths) {
+    const normalizedPath = rawPath.replaceAll("\\", "/").trim();
+    if (!normalizedPath) {
+      continue;
+    }
+
+    const segments = normalizedPath.split("/").filter(Boolean);
+    let currentLevel = roots;
+    let currentPath = "";
+
+    segments.forEach((segment, index) => {
+      currentPath = currentPath ? `${currentPath}/${segment}` : segment;
+      const isLeaf = index === segments.length - 1;
+      let node = currentLevel.get(segment);
+      if (!node) {
+        node = {
+          path: currentPath,
+          name: segment,
+          kind: isLeaf ? "file" : "directory",
+          children: [],
+          childrenMap: new Map<string, MutableWorkspaceTreeNode>()
+        };
+        currentLevel.set(segment, node);
+      } else if (!isLeaf) {
+        node.kind = "directory";
+      }
+      currentLevel = node.childrenMap;
+    });
+  }
+
+  const finalize = (map: Map<string, MutableWorkspaceTreeNode>): WorkspaceTreeNode[] =>
+    sortTreeNodes(
+      Array.from(map.values()).map((node) => ({
+        path: node.path,
+        name: node.name,
+        kind: node.kind,
+        children: finalize(node.childrenMap)
+      }))
+    );
+
+  return finalize(roots);
+}
+
 export class WorkspaceFsService {
   async readDocument(rootPath: string, relativePath: string): Promise<{ content: string; lastModifiedAt: number }> {
     const absolutePath = assertWorkspacePath(rootPath, relativePath);
@@ -63,6 +123,10 @@ export class WorkspaceFsService {
     const files: string[] = [];
     await walkDirectory(rootPath, rootPath, files);
     return files.sort();
+  }
+
+  async listTree(rootPath: string): Promise<WorkspaceTreeNode[]> {
+    return buildWorkspaceTree(await this.listFiles(rootPath));
   }
 
   async readFile(rootPath: string, relativePath: string): Promise<string> {

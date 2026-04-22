@@ -47,10 +47,10 @@ still goes through `window.digitalLife`, and no direct Node / SQLite access was 
 | 11 | Prompt composer input | `regions/CenterPane.tsx` |
 | 12 | Primary action button (send / stop / retry) | `regions/CenterPane.tsx` |
 | 13 | Inline status strip under the composer (git, diagnostics, model health) | `regions/CenterPane.tsx` |
-| 14 | Tool switcher (Files / Changes / Browser / Terminal) | `regions/RightPanel.tsx` |
-| 15 | Files tool (tree + Monaco) | `regions/RightPanel.tsx` |
-| 16 | Changes tool (patch preview + diff) | `regions/RightPanel.tsx` |
-| 17 | Terminal tool (command stream) | `regions/RightPanel.tsx` |
+| 14 | Tool switcher (Files / Changes / Browser / Terminal) | `regions/RightPanel.tsx` + `regions/right-panel/ToolSwitcher.tsx` |
+| 15 | Tool context + files tool shell | `regions/RightPanel.tsx` + `regions/right-panel/FilesPanel.tsx` |
+| 16 | Changes tool shell (summary / git navigator / patch preview) | `regions/RightPanel.tsx` + `regions/right-panel/ChangesPanel.tsx` |
+| 17 | Browser + terminal shells | `regions/RightPanel.tsx` + `regions/right-panel/BrowserPanel.tsx` / `TerminalPanel.tsx` |
 
 ## Sidebar Foundation Delta
 
@@ -105,6 +105,26 @@ This keeps the shell visually stable while preserving the existing `leftCollapse
 `RightPanel` renders **all four tool panes** concurrently and toggles visibility via the `hidden` HTML attribute plus `aria-hidden`. This keeps
 `textContent`-based integration assertions working (e.g. `renderer-shell.test.ts` searches the document for patch preview strings) while still
 presenting a single active tool to users.
+
+The current right panel is no longer a single nested sidebar layout. It is a four-layer shell:
+
+- top row horizontal tool switcher with badges
+- second row tool-specific context bar
+- body row with fixed rail, collapsible navigator, and primary workspace view
+- left-edge resize handle with renderer-local width persistence
+
+Renderer-local state for panel width, navigator collapse, file-tree expansion, browser shell tabs/history/bookmarks, and terminal shell tabs/layout
+now lives in `app/ui-store.ts`.
+
+## Workspace Tree Surface
+
+Files region navigation now consumes a typed workspace tree bridge instead of deriving explorer state from open tabs or search results:
+
+- `packages/kernel` defines `WorkspaceTreeNode`
+- `apps/desktop/shared/ipc.ts` exposes `workspace.listTree()`
+- Main delegates to `WorkspaceFsService.listTree()`, which builds a directory-first nested tree from the allowlisted workspace root
+
+This keeps Renderer within the existing file-access boundary while enabling a real explorer navigator in region 15.
 
 ## Test Compatibility Invariants
 

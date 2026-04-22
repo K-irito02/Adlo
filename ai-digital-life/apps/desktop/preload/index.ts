@@ -43,6 +43,7 @@ const api: DigitalLifeBridge = {
     restoreToSidebar: (workspaceId: string) => ipcRenderer.invoke("workspace:restoreToSidebar", workspaceId),
     revealInFileManager: (workspacePath: string) => ipcRenderer.invoke("workspace:revealInFileManager", workspacePath),
     readFile: (relativePath: string) => ipcRenderer.invoke("workspace:readFile", relativePath),
+    listTree: () => ipcRenderer.invoke("workspace:listTree"),
     search: (query: string) => ipcRenderer.invoke("workspace:search", query),
     outline: (relativePath: string) => ipcRenderer.invoke("workspace:outline", relativePath),
     setEditorDirtyPaths: (relativePaths: string[]) => ipcRenderer.invoke("workspace:setEditorDirtyPaths", relativePaths),
