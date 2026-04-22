@@ -502,10 +502,11 @@ describe("desktop renderer phase 2 workspace shell", () => {
       await new Promise((resolve) => setTimeout(resolve, 10));
     }
 
-    expect(document.body.textContent).toContain("Conversation");
+    expect(document.body.textContent).not.toContain("Conversation");
     expect(document.body.textContent).toContain("Patch Preview");
     expect(document.body.textContent).toContain("dirty-worktree.guard");
     expect(document.body.textContent).toContain("Model Settings");
+    expect(document.body.textContent).toContain("Single Agent Session");
 
     expect(document.body.textContent).toContain("Patch preview generated.");
     expect(document.body.textContent).toContain("packages/kernel/src/index.ts");

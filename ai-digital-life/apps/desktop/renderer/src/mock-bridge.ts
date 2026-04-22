@@ -59,22 +59,7 @@ const sessions: ConversationSessionRecord[] = [
 const messagesBySession = new Map<string, ConversationMessageRecord[]>([
   [
     sessions[0].id,
-    [
-      {
-        id: "message-welcome",
-        sessionId: sessions[0].id,
-        role: "assistant",
-        content: "欢迎进入第二阶段工作区主界面。",
-        blocks: [
-          {
-            id: "block-welcome",
-            type: "final-summary",
-            summary: "这里展示单 Agent 的计划、补丁预览和文件理解流。"
-          }
-        ],
-        createdAt: now
-      }
-    ]
+    []
   ]
 ]);
 

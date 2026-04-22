@@ -21,6 +21,7 @@ interface StatusBarProps {
   modelHealth?: ModelGatewayHealthSnapshot;
   isStreaming: boolean;
   onSelectModel: (providerId: string) => void;
+  inline?: boolean;
 }
 
 function gitIcon(status: GitStatus, size: 12 | 14 | 16 = 12) {
@@ -59,9 +60,11 @@ export function StatusBar({
   currentWorkspace,
   modelHealth,
   isStreaming,
-  onSelectModel
+  onSelectModel,
+  inline = false
 }: StatusBarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const ContainerTag = inline ? "div" : "footer";
 
   // Placeholder until a dedicated Git IPC channel lands. Inferred from
   // workspace availability so the layout renders meaningfully in Phase 2.
@@ -77,7 +80,11 @@ export function StatusBar({
   }, [appInfo?.config.modelPreferences.providers]);
 
   return (
-    <footer className="adl-statusbar" role="contentinfo">
+    <ContainerTag
+      className={`adl-statusbar${inline ? " adl-statusbar--inline" : ""}`}
+      role={inline ? "group" : "contentinfo"}
+      aria-label={inline ? "Conversation status" : undefined}
+    >
       <TooltipSimple content={gitStatusLabel(t, gitStatus)} placement="top">
         <button
           type="button"
@@ -144,6 +151,6 @@ export function StatusBar({
           </div>
         ) : null}
       </div>
-    </footer>
+    </ContainerTag>
   );
 }

@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   AgentRunDetail,
+  AppInfo,
+  ModelGatewayHealthSnapshot,
   ApprovalRequestSummary,
   ConversationDetail,
   RecentWorkspaceEntry,
@@ -32,17 +34,19 @@ import {
 } from "../icons";
 import { MessageBlocks } from "../MessageBlocks";
 import { type ChatMode, type ContextChip, useUiStore } from "../ui-store";
-import { MODEL_PROVIDER_IDS } from "../constants";
 import { TooltipSimple } from "../components/Tooltip";
+import { StatusBar } from "./StatusBar";
 
 interface CenterPaneProps {
   t: CopyDict;
   locale: Locale;
+  appInfo?: AppInfo;
   hasWorkspace: boolean;
   activeDetail?: ConversationDetail;
   streamingAssistantText: string;
   streamingActiveRunId?: string;
   activeRun?: AgentRunDetail;
+  modelHealth?: ModelGatewayHealthSnapshot;
   taskCenter?: TaskCenterSnapshot;
   recentWorkspaces: RecentWorkspaceEntry[];
   onSendMessage: (content: string, opts: { mode: ChatMode; chips: ContextChip[] }) => Promise<void>;
@@ -51,48 +55,10 @@ interface CenterPaneProps {
   onTriggerCreateWorkspace: () => void;
   onCreateSession: () => void;
   onDecideApproval: (approvalId: string, decision: "approved" | "rejected") => void;
+  onSelectModel: (providerId: string) => void;
 }
 
 type ButtonState = "send" | "stop" | "retry" | "waiting";
-
-function AgentStatusBadge({ t, streamingActiveRunId, activeRun, hasApproval }: {
-  t: CopyDict;
-  streamingActiveRunId?: string;
-  activeRun?: AgentRunDetail;
-  hasApproval: boolean;
-}) {
-  if (streamingActiveRunId) {
-    return (
-      <span className="adl-agent-status adl-agent-status--processing">
-        <IconBrain size={14} decorative />
-        {t.agentThinking}
-      </span>
-    );
-  }
-  if (hasApproval) {
-    return (
-      <span className="adl-agent-status adl-agent-status--pending">
-        <IconMessageQuestion size={14} decorative />
-        {t.agentAwaiting}
-      </span>
-    );
-  }
-  if (activeRun?.run?.status === "failed") {
-    return (
-      <span className="adl-agent-status adl-agent-status--error">
-        {t.agentErrored}
-      </span>
-    );
-  }
-  if (activeRun?.run?.status === "ready") {
-    return (
-      <span className="adl-agent-status adl-agent-status--success">
-        {t.agentCompleted}
-      </span>
-    );
-  }
-  return null;
-}
 
 function ContextBuilderPopover({
   t,
@@ -398,20 +364,20 @@ function WelcomeState({
   }
 
   return (
-    <div className="adl-empty-stream" role="status">
-      <p>{t.noMessages}</p>
-    </div>
+    <div className="adl-empty-stream" aria-hidden="true" />
   );
 }
 
 export function CenterPane({
   t,
   locale,
+  appInfo,
   hasWorkspace,
   activeDetail,
   streamingAssistantText,
   streamingActiveRunId,
   activeRun,
+  modelHealth,
   taskCenter,
   recentWorkspaces,
   onSendMessage,
@@ -419,11 +385,16 @@ export function CenterPane({
   onOpenWorkspace,
   onTriggerCreateWorkspace,
   onCreateSession,
-  onDecideApproval
+  onDecideApproval,
+  onSelectModel
 }: CenterPaneProps) {
   const [draft, setDraft] = useState("");
   const [hasError, setHasError] = useState(false);
+  const [composerFocused, setComposerFocused] = useState(false);
   const streamRef = useRef<HTMLDivElement | null>(null);
+  const composerEditorRef = useRef<HTMLDivElement | null>(null);
+  const composerInputRef = useRef<HTMLDivElement | null>(null);
+  const composerCaretRef = useRef<HTMLSpanElement | null>(null);
   const {
     chatMode,
     contextChips,
@@ -434,8 +405,11 @@ export function CenterPane({
     removeContextChip
   } = useUiStore();
 
-  const hasApproval = (taskCenter?.pendingApprovals.length ?? 0) > 0;
   const messages = activeDetail?.messages ?? [];
+  const visibleMessages = useMemo(
+    () => messages.filter((message) => message.id !== "message-welcome"),
+    [messages]
+  );
 
   useEffect(() => {
     const el = streamRef.current;
@@ -444,7 +418,7 @@ export function CenterPane({
     } else if (el) {
       el.scrollTop = el.scrollHeight;
     }
-  }, [messages.length, streamingAssistantText]);
+  }, [visibleMessages.length, streamingAssistantText]);
 
   const buttonState: ButtonState = useMemo(() => {
     if (streamingActiveRunId) return "stop";
@@ -464,8 +438,72 @@ export function CenterPane({
     }
   }, [chatMode, contextChips, draft, onSendMessage]);
 
+  const updateCustomCaret = useCallback(() => {
+    const editor = composerInputRef.current;
+    const editorWrap = composerEditorRef.current;
+    const caret = composerCaretRef.current;
+    if (!editor || !editorWrap || !caret) return;
+
+    const selection = window.getSelection();
+    if (
+      !composerFocused ||
+      !selection ||
+      selection.rangeCount === 0 ||
+      !selection.isCollapsed ||
+      !editor.contains(selection.anchorNode)
+    ) {
+      caret.hidden = true;
+      return;
+    }
+
+    const editorWrapRect = editorWrap.getBoundingClientRect();
+    const computedStyle = window.getComputedStyle(editor);
+    const lineHeight = Number.parseFloat(computedStyle.lineHeight) || 28;
+    const caretHeight = Math.max(18, lineHeight - 6);
+    const caretOffset = Math.max(0, (lineHeight - caretHeight) / 2);
+    const range = selection.getRangeAt(0).cloneRange();
+    const rect = range.getBoundingClientRect();
+
+    if ((rect.width === 0 && rect.height === 0) || !(editor.textContent ?? "").length) {
+      caret.style.left = "0px";
+      caret.style.top = `${Math.max(0, (editorWrapRect.height - lineHeight) / 2) + caretOffset}px`;
+      caret.style.height = `${caretHeight}px`;
+      caret.hidden = false;
+      return;
+    }
+
+    caret.style.left = `${Math.max(0, rect.left - editorWrapRect.left)}px`;
+    caret.style.top = `${Math.max(0, rect.top - editorWrapRect.top) + caretOffset}px`;
+    caret.style.height = `${Math.max(caretHeight, rect.height - 6)}px`;
+    caret.hidden = false;
+  }, [composerFocused]);
+
+  useEffect(() => {
+    const el = composerInputRef.current;
+    if (!el) return;
+    const nextValue = draft;
+    if (el.textContent !== nextValue) {
+      el.textContent = nextValue;
+    }
+    window.requestAnimationFrame(updateCustomCaret);
+  }, [draft, updateCustomCaret]);
+
+  useEffect(() => {
+    if (!composerFocused) return;
+
+    const syncCaret = () => window.requestAnimationFrame(updateCustomCaret);
+    document.addEventListener("selectionchange", syncCaret);
+    window.addEventListener("resize", syncCaret);
+
+    syncCaret();
+    return () => {
+      document.removeEventListener("selectionchange", syncCaret);
+      window.removeEventListener("resize", syncCaret);
+    };
+  }, [composerFocused, updateCustomCaret]);
+
   const onKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
       if (event.key === "Enter" && !event.shiftKey) {
         event.preventDefault();
         if (buttonState === "send") {
@@ -480,40 +518,15 @@ export function CenterPane({
     [buttonState, handleSend, onCancelGenerate, streamingActiveRunId]
   );
 
-  const hasMessages = messages.length > 0 || !!streamingAssistantText;
+  const onInput = useCallback((event: React.FormEvent<HTMLDivElement>) => {
+    setDraft(event.currentTarget.textContent ?? "");
+    window.requestAnimationFrame(updateCustomCaret);
+  }, [updateCustomCaret]);
+
+  const hasMessages = visibleMessages.length > 0 || !!streamingAssistantText;
 
   return (
     <section className="adl-center" aria-label={t.conversation}>
-      {/* Region 8: Task display header */}
-      <header className="adl-center__header">
-        <div>
-          <h2>{t.conversation}</h2>
-          {activeDetail?.session.title ? (
-            <span className="adl-center__subtitle">{activeDetail.session.title}</span>
-          ) : null}
-        </div>
-        <AgentStatusBadge
-          t={t}
-          streamingActiveRunId={streamingActiveRunId}
-          activeRun={activeRun}
-          hasApproval={hasApproval}
-        />
-      </header>
-
-      {/* E2E invariant: keep a visible model status card on entry. */}
-      <article className="adl-run-card">
-        <header>
-          <h3>{t.models}</h3>
-        </header>
-        <ul className="adl-run-card__list">
-          {MODEL_PROVIDER_IDS.map((providerId) => (
-            <li key={providerId}>
-              <strong>{providerId}</strong>
-            </li>
-          ))}
-        </ul>
-      </article>
-
       {/* Pending approvals prominently surfaced */}
       {taskCenter?.pendingApprovals?.length ? (
         <div className="adl-center__approvals">
@@ -542,7 +555,7 @@ export function CenterPane({
           />
         ) : (
           <div className="adl-message-stream">
-            {messages.map((messageItem) => (
+            {visibleMessages.map((messageItem) => (
               <article
                 key={messageItem.id}
                 className={`adl-message adl-message--${messageItem.role}`}
@@ -616,23 +629,35 @@ export function CenterPane({
               onAddChip={addContextChip}
             />
           </div>
-          <textarea
-            className="adl-composer__input"
-            data-testid="composer-input"
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            onKeyDown={onKeyDown}
-            placeholder={t.composerPlaceholder}
-            rows={1}
-          />
+          <div className="adl-composer__editor" ref={composerEditorRef}>
+            <div
+              ref={composerInputRef}
+              className="adl-composer__input"
+              data-testid="composer-input"
+              contentEditable
+              role="textbox"
+              aria-multiline="true"
+              aria-label={t.composerPlaceholder}
+              data-placeholder={t.composerPlaceholder}
+              suppressContentEditableWarning
+              onInput={onInput}
+              onKeyDown={onKeyDown}
+              onFocus={() => {
+                setComposerFocused(true);
+                window.requestAnimationFrame(updateCustomCaret);
+              }}
+              onBlur={() => setComposerFocused(false)}
+              onClick={() => window.requestAnimationFrame(updateCustomCaret)}
+              onKeyUp={() => window.requestAnimationFrame(updateCustomCaret)}
+            />
+            <span
+              ref={composerCaretRef}
+              className="adl-composer__caret"
+              aria-hidden="true"
+              hidden
+            />
+          </div>
           <div className="adl-composer__right">
-            <span className="adl-composer__mode" aria-label="Mode">
-              {chatMode === "plan"
-                ? t.chatModePlan
-                : chatMode === "debug"
-                  ? t.chatModeDebug
-                  : t.chatModeAsk}
-            </span>
             <TooltipSimple content="Voice" placement="top">
               <button
                 type="button"
@@ -683,6 +708,15 @@ export function CenterPane({
             )}
           </div>
         </div>
+        <StatusBar
+          inline
+          t={t}
+          appInfo={appInfo}
+          currentWorkspace={appInfo?.currentWorkspace}
+          modelHealth={modelHealth}
+          isStreaming={!!streamingActiveRunId}
+          onSelectModel={onSelectModel}
+        />
       </footer>
     </section>
   );

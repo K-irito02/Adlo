@@ -12,7 +12,6 @@ import { useUiStore } from "./ui-store";
 import { TitleBar } from "./regions/TitleBar";
 import { LeftSidebar } from "./regions/LeftSidebar";
 import { CenterPane } from "./regions/CenterPane";
-import { StatusBar } from "./regions/StatusBar";
 import { RightPanel } from "./regions/RightPanel";
 
 function readDiffSideBySidePreference(): boolean {
@@ -393,11 +392,13 @@ export function App() {
         <CenterPane
           t={t}
           locale={locale}
+          appInfo={appInfo}
           hasWorkspace={hasWorkspace}
           activeDetail={activeDetail}
           streamingAssistantText={streamingAssistantText}
           streamingActiveRunId={streamingActiveRunId}
           activeRun={activeRun}
+          modelHealth={modelHealth}
           taskCenter={taskCenter}
           recentWorkspaces={recentWorkspaces}
           onSendMessage={async (content) => {
@@ -408,6 +409,7 @@ export function App() {
           onTriggerCreateWorkspace={handleTriggerCreateWorkspace}
           onCreateSession={() => void createSession()}
           onDecideApproval={(approvalId, decision) => void decideApproval(approvalId, decision)}
+          onSelectModel={handleSelectModel}
         />
 
         <RightPanel
@@ -457,14 +459,6 @@ export function App() {
         />
       </div>
 
-      <StatusBar
-        t={t}
-        appInfo={appInfo}
-        currentWorkspace={appInfo?.currentWorkspace}
-        modelHealth={modelHealth}
-        isStreaming={!!streamingActiveRunId}
-        onSelectModel={handleSelectModel}
-      />
     </main>
   );
 }
