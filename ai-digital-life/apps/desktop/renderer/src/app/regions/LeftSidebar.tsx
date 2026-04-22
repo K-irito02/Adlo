@@ -12,12 +12,13 @@ import {
   IconChevronRight,
   IconFolderPlus,
   IconMonitor,
+  IconLangEn,
+  IconLangZh,
   IconMoon,
   IconMoreVertical,
   IconPin,
   IconPlug,
   IconPlus,
-  IconSearch,
   IconSparkles,
   IconSun
 } from "../icons";
@@ -94,6 +95,16 @@ function ThemeIcon({ mode }: { mode: AppInfo["config"]["themeMode"] | undefined 
   }
 }
 
+function LanguageIcon({ language }: { language: AppInfo["config"]["language"] | undefined }) {
+  switch (language) {
+    case "en-US":
+      return <IconLangEn size={16} decorative />;
+    case "zh-CN":
+    default:
+      return <IconLangZh size={16} decorative />;
+  }
+}
+
 export function LeftSidebar({
   t,
   locale,
@@ -111,8 +122,6 @@ export function LeftSidebar({
   onSelectLanguage
 }: LeftSidebarProps) {
   const { expandedSessionWorkspaces, toggleSessionWorkspace } = useUiStore();
-  const [workspaceFilter, setWorkspaceFilter] = useState("");
-  const [sessionFilter, setSessionFilter] = useState("");
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [pinned, setPinned] = useState<Record<string, boolean>>({});
   const [removed, setRemoved] = useState<Record<string, boolean>>({});
@@ -127,21 +136,17 @@ export function LeftSidebar({
       if (s.status === "archived") archived.push(s);
       else active.push(s);
     }
-    const filter = sessionFilter.trim().toLowerCase();
-    const filterFn = (s: ConversationSessionRecord) =>
-      filter ? s.title.toLowerCase().includes(filter) : true;
     return {
       active: active
-        .filter(filterFn)
         .sort((a, b) => {
           const pa = pinned[a.id] ? 1 : 0;
           const pb = pinned[b.id] ? 1 : 0;
           if (pa !== pb) return pb - pa;
           return b.updatedAt - a.updatedAt;
         }),
-      archived: archived.filter(filterFn)
+      archived
     };
-  }, [pinned, sessionFilter, sessions]);
+  }, [pinned, sessions]);
 
   const workspaceEntries = useMemo(() => {
     const entries = [...recentWorkspaces];
@@ -155,11 +160,11 @@ export function LeftSidebar({
         available: true
       });
     }
-    const needle = workspaceFilter.trim().toLowerCase();
-    return entries.filter((w) => !removed[w.path] && (needle ? w.name.toLowerCase().includes(needle) : true));
-  }, [currentWorkspace, recentWorkspaces, removed, workspaceFilter]);
+    return entries.filter((w) => !removed[w.path]);
+  }, [currentWorkspace, recentWorkspaces, removed]);
 
   const language = appInfo?.config.language ?? "zh-CN";
+  const nextLanguage = language === "zh-CN" ? "en-US" : "zh-CN";
 
   const draggingRef = useRef(false);
   const rafRef = useRef(0);
@@ -285,7 +290,7 @@ export function LeftSidebar({
           </TooltipSimple>
         </div>
 
-        <ul className="adl-workspace-list" role="tree">
+          <ul className="adl-workspace-list" role="tree">
           {workspaceEntries.length === 0 ? (
             <li className="adl-empty-hint">{t.workspaceEmpty}</li>
           ) : null}
@@ -374,16 +379,6 @@ export function LeftSidebar({
 
                 {expanded && isCurrent ? (
                   <div className="adl-session-wrapper">
-                    <div className="adl-leftbar__search adl-leftbar__search--nested">
-                      <IconSearch size={12} decorative />
-                      <input
-                        type="search"
-                        value={sessionFilter}
-                        onChange={(event) => setSessionFilter(event.target.value)}
-                        placeholder={t.sessionSearchPlaceholder}
-                        aria-label={t.sessions}
-                      />
-                    </div>
                     <ul className="adl-session-list" role="group">
                       {workspaceSessions.length === 0 ? (
                         <li className="adl-empty-hint adl-empty-hint--nested">{t.sessionEmpty}</li>
@@ -463,17 +458,17 @@ export function LeftSidebar({
             <span>{t.theme}</span>
           </button>
         </TooltipSimple>
-        <label className="adl-env-select">
-          <span className="sr-only">{t.language}</span>
-          <select
-            value={language}
-            onChange={(event) => onSelectLanguage(event.target.value as AppInfo["config"]["language"])}
-            aria-label={t.language}
+        <TooltipSimple content={t.language} placement="right">
+          <button
+            type="button"
+            className="adl-env-btn"
+            onClick={() => onSelectLanguage(nextLanguage)}
+            aria-label={`${t.language}: ${nextLanguage === "zh-CN" ? "中文" : "EN"}`}
           >
-            <option value="zh-CN">中文</option>
-            <option value="en-US">EN</option>
-          </select>
-        </label>
+            <LanguageIcon language={language} />
+            <span>{language === "zh-CN" ? "中文" : "EN"}</span>
+          </button>
+        </TooltipSimple>
       </section>
       <div className="adl-leftbar__resize-handle" onMouseDown={handleResizeMouseDown} role="separator" aria-orientation="vertical" aria-label="调整侧边栏宽度" />
     </aside>

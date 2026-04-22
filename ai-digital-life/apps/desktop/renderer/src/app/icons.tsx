@@ -194,6 +194,36 @@ export const IconGlobe = make(
     <path d="M12 3a14 14 0 0 0 0 18" />
   </>
 );
+export const IconLangZh = make(
+  <>
+    <rect x="3" y="3" width="18" height="18" rx="5" />
+    <text
+      x="12"
+      y="15"
+      textAnchor="middle"
+      fontSize="10"
+      fontWeight="700"
+      fill="currentColor"
+    >
+      中
+    </text>
+  </>
+);
+export const IconLangEn = make(
+  <>
+    <rect x="3" y="3" width="18" height="18" rx="5" />
+    <text
+      x="12"
+      y="15"
+      textAnchor="middle"
+      fontSize="9"
+      fontWeight="700"
+      fill="currentColor"
+    >
+      EN
+    </text>
+  </>
+);
 export const IconTerminal = make(
   <>
     <rect x="2" y="4" width="20" height="16" rx="2" />
