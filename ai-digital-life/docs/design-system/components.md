@@ -120,6 +120,43 @@ renderSegmentedControl({
 
 Each generated button carries `data-segmented-name` + `data-segmented-value`, so a single delegated click handler in `main.ts` can route the change.
 
+## Icon strip
+
+Source of truth: `[apps/desktop/renderer/src/styles/regions.css](../../apps/desktop/renderer/src/styles/regions.css)` via
+`.adl-iconstrip`, `.adl-iconstrip__button`, `.adl-iconstrip__separator`, `.adl-iconstrip__badge`.
+
+This is the application-specific compact icon switcher language extracted from the right-panel tool switcher so future shell surfaces can
+reuse the same visual grammar instead of re-inventing local toolbar styles.
+
+```tsx
+<div className="adl-iconstrip" role="tablist" aria-label="Tools">
+  <button className="adl-iconstrip__button is-active" type="button" aria-label="Files" />
+  <span className="adl-iconstrip__separator is-visible" aria-hidden="true" />
+  <button className="adl-iconstrip__button" type="button" aria-label="Browser">
+    <span className="adl-iconstrip__badge">1</span>
+  </button>
+</div>
+```
+
+Design rules:
+
+- Icon-only buttons by default; visible labels remain optional and are usually hidden while `aria-label` stays required.
+- Selected and hovered buttons share the same neutral grey fill; no accent-colored active chrome is used inside the strip.
+- Separators are **conditional overlays**, not permanent dividers and not layout gaps. Show them only when adjacent grey states would visually merge.
+- The strip must visually bond with its host region edge; no extra inner padding or floating radius.
+- Badges are compact neutral counters, inset from the corner instead of touching the container border.
+
+Customisation is done with CSS variables on the container:
+
+- `--adl-iconstrip-height`
+- `--adl-iconstrip-button-size`
+- `--adl-iconstrip-separator-inset`
+- `--adl-iconstrip-badge-top`
+- `--adl-iconstrip-badge-right`
+- `--adl-iconstrip-badge-min-width`
+- `--adl-iconstrip-badge-height`
+- `--adl-iconstrip-badge-font-size`
+
 ## Stat tile
 
 ```ts
@@ -167,5 +204,4 @@ The stylesheet also ships ready-to-use classes that helpers don't expose yet but
 | Banner           | ✅       | n/a   | n/a   | n/a    | n/a      | n/a     | empty mode reserves space |
 | Modal            | ✅       | n/a   | n/a   | n/a    | n/a      | n/a     | n/a                       |
 | Toast            | ✅       | n/a   | n/a   | n/a    | n/a      | n/a     | n/a                       |
-
 

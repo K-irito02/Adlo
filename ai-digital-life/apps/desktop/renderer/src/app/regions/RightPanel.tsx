@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useId } from "react";
 import { useUiStore } from "../ui-store";
 import { BrowserPanel } from "./right-panel/BrowserPanel";
 import { ChangesPanel } from "./right-panel/ChangesPanel";
@@ -9,6 +9,7 @@ import type { RightPanelViewProps } from "./right-panel/types";
 import { countGitChanges } from "./right-panel/types";
 
 export function RightPanel(props: RightPanelViewProps) {
+  const panelIdBase = useId();
   const { collapsed, editorTabs, dirtyEditorPaths } = props;
   const activeTool = useUiStore((state) => state.activeTool);
   const setActiveTool = useUiStore((state) => state.setActiveTool);
@@ -57,22 +58,49 @@ export function RightPanel(props: RightPanelViewProps) {
     >
       <div className="adl-rightpanel__resize-handle" onPointerDown={handleResizeStart} aria-hidden="true" />
       <div className="adl-rightpanel__content">
-        <ToolSwitcher t={props.t} activeTool={activeTool} badges={badges} onSelect={setActiveTool} />
+        <ToolSwitcher t={props.t} activeTool={activeTool} badges={badges} idBase={panelIdBase} onSelect={setActiveTool} />
 
-        <div className={`adl-rightpanel__tool${activeTool === "files" ? " is-active" : ""}`} hidden={activeTool !== "files"}>
+        <div
+          id={`${panelIdBase}-files-panel`}
+          role="tabpanel"
+          aria-labelledby={`${panelIdBase}-files-tab`}
+          tabIndex={0}
+          className={`adl-rightpanel__tool${activeTool === "files" ? " is-active" : ""}`}
+          hidden={activeTool !== "files"}
+        >
           <FilesPanel {...props} />
         </div>
-        <div className={`adl-rightpanel__tool${activeTool === "changes" ? " is-active" : ""}`} hidden={activeTool !== "changes"}>
+        <div
+          id={`${panelIdBase}-changes-panel`}
+          role="tabpanel"
+          aria-labelledby={`${panelIdBase}-changes-tab`}
+          tabIndex={0}
+          className={`adl-rightpanel__tool${activeTool === "changes" ? " is-active" : ""}`}
+          hidden={activeTool !== "changes"}
+        >
           <ChangesPanel {...props} />
         </div>
-        <div className={`adl-rightpanel__tool${activeTool === "browser" ? " is-active" : ""}`} hidden={activeTool !== "browser"}>
+        <div
+          id={`${panelIdBase}-browser-panel`}
+          role="tabpanel"
+          aria-labelledby={`${panelIdBase}-browser-tab`}
+          tabIndex={0}
+          className={`adl-rightpanel__tool${activeTool === "browser" ? " is-active" : ""}`}
+          hidden={activeTool !== "browser"}
+        >
           <BrowserPanel {...props} />
         </div>
-        <div className={`adl-rightpanel__tool${activeTool === "terminal" ? " is-active" : ""}`} hidden={activeTool !== "terminal"}>
+        <div
+          id={`${panelIdBase}-terminal-panel`}
+          role="tabpanel"
+          aria-labelledby={`${panelIdBase}-terminal-tab`}
+          tabIndex={0}
+          className={`adl-rightpanel__tool${activeTool === "terminal" ? " is-active" : ""}`}
+          hidden={activeTool !== "terminal"}
+        >
           <TerminalPanel {...props} />
         </div>
       </div>
     </aside>
   );
 }
-

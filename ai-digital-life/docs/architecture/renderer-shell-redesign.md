@@ -113,6 +113,10 @@ The current right panel is no longer a single nested sidebar layout. It is a fou
 - body row with fixed rail, collapsible navigator, and primary workspace view
 - left-edge resize handle with renderer-local width persistence
 
+The top-row tool switcher now also acts as the first consumer of the shared `adl-iconstrip` shell pattern in `regions.css`. That pattern
+captures this product's compact icon-only tab language for future shell surfaces: edge-bonded neutral backgrounds, no accent active fill,
+conditional center separators only when adjacent highlighted states visually merge, and inset neutral badges.
+
 Renderer-local state for panel width, navigator collapse, file-tree expansion, browser shell tabs/history/bookmarks, and terminal shell tabs/layout
 now lives in `app/ui-store.ts`.
 
