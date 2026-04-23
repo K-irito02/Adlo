@@ -123,10 +123,11 @@ Each generated button carries `data-segmented-name` + `data-segmented-value`, so
 ## Icon strip
 
 Source of truth: `[apps/desktop/renderer/src/styles/regions.css](../../apps/desktop/renderer/src/styles/regions.css)` via
-`.adl-iconstrip`, `.adl-iconstrip__button`, `.adl-iconstrip__separator`, `.adl-iconstrip__badge`.
+`.adl-iconstrip`, `.adl-iconstrip__button`, `.adl-iconstrip__button--label`, `.adl-iconstrip__button--labelwide`, `.adl-iconstrip__button--window`,
+`.adl-iconstrip__separator`, `.adl-iconstrip__badge`.
 
 This is the application-specific compact icon switcher language extracted from the right-panel tool switcher so future shell surfaces can
-reuse the same visual grammar instead of re-inventing local toolbar styles.
+reuse the same visual grammar instead of re-inventing local toolbar styles. It is now also the shared style language for the desktop titlebar.
 
 ```tsx
 <div className="adl-iconstrip" role="tablist" aria-label="Tools">
@@ -145,6 +146,9 @@ Design rules:
 - Separators are **conditional overlays**, not permanent dividers and not layout gaps. Show them only when adjacent grey states would visually merge.
 - The strip must visually bond with its host region edge; no extra inner padding or floating radius.
 - Badges are compact neutral counters, inset from the corner instead of touching the container border.
+- `--label` expands a button for short text actions such as titlebar menus; `--window` keeps system controls aligned to the strip metric.
+- `--labelwide` is the edge-bonded icon + text variant for compact environment controls such as the left sidebar theme / language strip.
+- Titlebar usage is a wider full-height track: menu / icon / window controls share the same strip language, but cluster-to-cluster separation uses real border lines while intra-strip highlighted adjacency uses the conditional center separator overlay.
 
 Customisation is done with CSS variables on the container:
 
@@ -204,4 +208,3 @@ The stylesheet also ships ready-to-use classes that helpers don't expose yet but
 | Banner           | ✅       | n/a   | n/a   | n/a    | n/a      | n/a     | empty mode reserves space |
 | Modal            | ✅       | n/a   | n/a   | n/a    | n/a      | n/a     | n/a                       |
 | Toast            | ✅       | n/a   | n/a   | n/a    | n/a      | n/a     | n/a                       |
-

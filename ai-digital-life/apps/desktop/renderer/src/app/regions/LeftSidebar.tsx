@@ -831,9 +831,14 @@ export function LeftSidebar({
         </ul>
       </section>
 
-      <section className="adl-leftbar__env">
+      <section className="adl-leftbar__env adl-iconstrip" aria-label="Environment controls">
         <TooltipSimple content={t.theme} placement="right">
-          <button type="button" className="adl-env-btn" onClick={onCycleTheme} aria-label={t.theme}>
+          <button
+            type="button"
+            className="adl-env-btn adl-iconstrip__button adl-iconstrip__button--labelwide"
+            onClick={onCycleTheme}
+            aria-label={t.theme}
+          >
             <ThemeIcon mode={appInfo?.config.themeMode} />
             <span>{t.theme}</span>
           </button>
@@ -841,7 +846,7 @@ export function LeftSidebar({
         <TooltipSimple content={t.language} placement="right">
           <button
             type="button"
-            className="adl-env-btn"
+            className="adl-env-btn adl-iconstrip__button adl-iconstrip__button--labelwide"
             onClick={() => onSelectLanguage(nextLanguage)}
             aria-label={`${t.language}: ${nextLanguage === "zh-CN" ? "中文" : "EN"}`}
           >

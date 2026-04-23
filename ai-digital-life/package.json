@@ -14,11 +14,13 @@
     "start": "npm run start -w @ai-digital-life/desktop",
     "test": "vitest run",
     "typecheck": "npm run typecheck -w @ai-digital-life/kernel && npm run typecheck -w @ai-digital-life/config && npm run typecheck -w @ai-digital-life/errors && npm run typecheck -w @ai-digital-life/events && npm run typecheck -w @ai-digital-life/storage && npm run typecheck -w @ai-digital-life/task && npm run typecheck -w @ai-digital-life/migration && npm run typecheck -w @ai-digital-life/logger && npm run typecheck -w @ai-digital-life/workspace && npm run typecheck -w @ai-digital-life/model-gateway && npm run typecheck -w @ai-digital-life/prompt-engine && npm run typecheck -w @ai-digital-life/context-engine && npm run typecheck -w @ai-digital-life/fs-ops && npm run typecheck -w @ai-digital-life/change-engine && npm run typecheck -w @ai-digital-life/conversation && npm run typecheck -w @ai-digital-life/agent-runtime && npm run typecheck -w @ai-digital-life/terminal && npm run typecheck -w @ai-digital-life/editor && npm run typecheck -w @ai-digital-life/retrieval-worker && npm run typecheck -w @ai-digital-life/desktop",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "rebuild": "npx electron-rebuild --target 35.7.5",
+    "postinstall": "npm run rebuild"
   },
   "devDependencies": {
-    "@playwright/test": "^1.52.0",
     "@electron/rebuild": "^4.0.3",
+    "@playwright/test": "^1.52.0",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.13.11",
     "@types/react": "^19.1.2",
@@ -28,5 +30,8 @@
     "typescript": "^5.8.3",
     "vite": "^6.3.1",
     "vitest": "^3.1.2"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.9.0"
   }
 }

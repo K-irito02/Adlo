@@ -65,7 +65,7 @@ function MenuDropdown({
     <div ref={wrapperRef} className="adl-menu" data-menu-id={id}>
       <button
         type="button"
-        className={`adl-menu__trigger${open ? " is-open" : ""}`}
+        className={`adl-menu__trigger adl-iconstrip__button adl-iconstrip__button--label${open ? " is-open" : ""}`}
         onClick={onToggle}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -199,7 +199,7 @@ export function TitleBar({
             <img src={logoUrl} alt={t.landingTitle} className="adl-titlebar__logo" draggable={false} />
           </TooltipSimple>
         </h1>
-        <nav className="adl-titlebar__menus" aria-label="Application menu">
+        <nav className="adl-titlebar__menus adl-iconstrip" aria-label="Application menu">
           <MenuDropdown
             id="file"
             label={t.menuFile}
@@ -227,7 +227,7 @@ export function TitleBar({
           <TooltipSimple content={t.menuCommandPalette} placement="bottom">
             <button
               type="button"
-              className="adl-icon-btn"
+              className="adl-icon-btn adl-iconstrip__button"
               onClick={onOpenCommandPalette}
               aria-label={t.menuCommandPalette}
             >
@@ -238,21 +238,23 @@ export function TitleBar({
       </div>
       <div className="adl-titlebar__drag" aria-hidden="true" />
       <div className="adl-titlebar__right">
-        <TooltipSimple content={t.menuSettings} placement="bottom">
-          <button
-            type="button"
-            className="adl-icon-btn"
-            onClick={onOpenSettings}
-            aria-label={t.menuSettings}
-          >
-            <IconSettings size={16} decorative />
-          </button>
-        </TooltipSimple>
-        <div className="adl-titlebar__panel-group" role="group" aria-label="Panel controls">
+        <div className="adl-titlebar__action-group adl-iconstrip" role="group" aria-label="Titlebar actions">
+          <TooltipSimple content={t.menuSettings} placement="bottom">
+            <button
+              type="button"
+              className="adl-icon-btn adl-iconstrip__button"
+              onClick={onOpenSettings}
+              aria-label={t.menuSettings}
+            >
+              <IconSettings size={16} decorative />
+            </button>
+          </TooltipSimple>
+        </div>
+        <div className="adl-titlebar__panel-group adl-iconstrip" role="group" aria-label="Panel controls">
           <TooltipSimple content={t.panelToggleBoth} placement="bottom">
             <button
               type="button"
-              className="adl-icon-btn"
+              className="adl-icon-btn adl-iconstrip__button"
               onClick={toggleBoth}
               aria-label={t.panelToggleBoth}
             >
@@ -262,7 +264,7 @@ export function TitleBar({
           <TooltipSimple content={t.panelToggleLeft} placement="bottom">
             <button
               type="button"
-              className={`adl-icon-btn${leftCollapsed ? " is-toggled" : ""}`}
+              className={`adl-icon-btn adl-iconstrip__button${leftCollapsed ? " is-toggled" : ""}`}
               onClick={toggleLeft}
               aria-label={t.panelToggleLeft}
               aria-pressed={leftCollapsed}
@@ -273,7 +275,7 @@ export function TitleBar({
           <TooltipSimple content={t.panelToggleRight} placement="bottom">
             <button
               type="button"
-              className={`adl-icon-btn${rightCollapsed ? " is-toggled" : ""}`}
+              className={`adl-icon-btn adl-iconstrip__button${rightCollapsed ? " is-toggled" : ""}`}
               onClick={toggleRight}
               aria-label={t.panelToggleRight}
               aria-pressed={rightCollapsed}
@@ -282,11 +284,11 @@ export function TitleBar({
             </button>
           </TooltipSimple>
         </div>
-        <div className="adl-titlebar__window-group" role="group" aria-label="Window controls">
+        <div className="adl-titlebar__window-group adl-iconstrip" role="group" aria-label="Window controls">
           <TooltipSimple content={t.windowMinimize} placement="bottom">
             <button
               type="button"
-              className="adl-icon-btn adl-window-btn"
+              className="adl-icon-btn adl-iconstrip__button adl-iconstrip__button--window adl-window-btn"
               onClick={handleMinimize}
               aria-label={t.windowMinimize}
             >
@@ -296,7 +298,7 @@ export function TitleBar({
           <TooltipSimple content={isMaximized ? t.windowRestore : t.windowMaximize} placement="bottom">
             <button
               type="button"
-              className="adl-icon-btn adl-window-btn"
+              className="adl-icon-btn adl-iconstrip__button adl-iconstrip__button--window adl-window-btn"
               onClick={handleMaximize}
               aria-label={isMaximized ? t.windowRestore : t.windowMaximize}
             >
@@ -306,7 +308,7 @@ export function TitleBar({
           <TooltipSimple content={t.windowClose} placement="bottom">
             <button
               type="button"
-              className="adl-icon-btn adl-window-btn adl-window-btn--close"
+              className="adl-icon-btn adl-iconstrip__button adl-iconstrip__button--window adl-window-btn adl-window-btn--close"
               onClick={handleClose}
               aria-label={t.windowClose}
             >

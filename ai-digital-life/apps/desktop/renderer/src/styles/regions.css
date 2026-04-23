@@ -130,6 +130,8 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
+  align-self: stretch;
+  height: 100%;
 }
 
 .adl-titlebar__brand {
@@ -175,25 +177,27 @@
 }
 
 .adl-titlebar__menus {
+  --adl-iconstrip-height: var(--titlebar-height);
+  --adl-iconstrip-button-size: 36px;
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 0;
+  align-self: stretch;
+  height: 100%;
 }
 
 .adl-menu {
   position: relative;
+  display: flex;
+  align-self: stretch;
 }
 
 .adl-menu__trigger {
-  padding: var(--space-1) var(--space-2);
-  height: 26px;
+  width: auto;
+  min-width: 0;
+  height: 100%;
+  padding: 0 var(--space-2-5);
   font-size: var(--text-xs);
-  color: var(--text-secondary);
-  background: transparent;
-  border: none;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: var(--transition-colors);
 }
 
 .adl-menu__trigger:hover,
@@ -261,25 +265,37 @@
 .adl-titlebar__right {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: 0;
+  align-self: stretch;
+  height: 100%;
 }
 
+.adl-titlebar__action-group,
 .adl-titlebar__panel-group {
+  --adl-iconstrip-height: var(--titlebar-height);
+  --adl-iconstrip-button-size: 36px;
   display: flex;
   align-items: center;
-  gap: var(--space-1);
-  padding-left: var(--space-2);
-  border-left: 1px solid var(--border-subtle);
-  margin-left: var(--space-1);
+  justify-content: center;
+  gap: 0;
+  align-self: stretch;
+  height: 100%;
 }
 
 .adl-titlebar__window-group {
+  --adl-iconstrip-height: var(--titlebar-height);
+  --adl-iconstrip-button-size: 36px;
   display: flex;
   align-items: center;
-  gap: var(--space-1);
-  padding-left: var(--space-2);
+  justify-content: center;
+  gap: 0;
+  align-self: stretch;
+  height: 100%;
   border-left: 1px solid var(--border-subtle);
-  margin-left: var(--space-1);
+}
+
+.adl-titlebar__panel-group {
+  border-left: 1px solid var(--border-subtle);
 }
 
 /* ---------------- Icon buttons (shared) ---------------- */
@@ -310,8 +326,8 @@
 }
 
 .adl-icon-btn.is-toggled {
-  background: var(--accent-soft);
-  color: var(--accent);
+  background: var(--surface-hover);
+  color: var(--text-primary);
 }
 
 .adl-icon-btn--xs {
@@ -324,7 +340,7 @@
 }
 
 .adl-window-btn {
-  width: 30px;
+  width: var(--adl-iconstrip-button-size, 30px);
   height: var(--titlebar-height);
   border-radius: 0;
 }
@@ -1033,34 +1049,64 @@
 }
 
 .adl-leftbar__env {
+  --adl-iconstrip-height: 42px;
+  --adl-iconstrip-button-size: auto;
   display: flex;
-  justify-content: center;
-  gap: var(--space-1);
+  justify-content: stretch;
+  gap: 0;
   align-items: center;
-  padding: var(--space-2);
+  align-self: stretch;
+  padding: 0;
   border-top: 1px solid var(--border-subtle);
   background: var(--bg);
 }
 
 .adl-env-btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-1-5);
-  min-width: 72px;
-  padding: var(--space-1-5) var(--space-2);
+  min-width: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0 var(--space-3);
   border: none;
   background: transparent;
   color: var(--text-secondary);
   font-size: var(--text-xs);
-  border-radius: var(--radius-sm);
+  font-weight: var(--font-medium);
+  border-radius: 0;
   cursor: pointer;
-  transition: var(--transition-colors);
+  transition: var(--transition-colors), var(--transition-shadow);
 }
 
-.adl-env-btn:hover {
-  background: var(--surface-hover);
-  color: var(--text-primary);
+.adl-leftbar__env .tooltip-trigger {
+  display: flex !important;
+  flex: 1 1 0;
+  align-self: stretch;
+  height: 100%;
+}
+
+.adl-leftbar__env .adl-iconstrip__button {
+  width: 100%;
+  min-width: 0;
+  align-self: stretch;
+  height: 100%;
+}
+
+.adl-iconstrip__button--labelwide {
+  width: 100%;
+  min-width: 0;
+  padding: 0 var(--space-3);
+  justify-content: center;
+}
+
+.adl-leftbar__env .adl-iconstrip__button + .tooltip-trigger > .adl-iconstrip__button {
+  border-left: 1px solid var(--border-subtle);
+}
+
+.adl-env-btn > span:last-child {
+  white-space: nowrap;
 }
 
 /* ---------------- CenterPane ---------------- */
@@ -1658,6 +1704,25 @@
   transition: var(--transition-colors), var(--transition-shadow);
 }
 
+.adl-iconstrip__button:hover:not(:disabled),
+.adl-iconstrip__button.is-open,
+.adl-iconstrip__button.is-active,
+.adl-iconstrip__button[aria-pressed="true"],
+.adl-iconstrip__button:focus-visible {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.adl-iconstrip__button--label {
+  width: auto;
+  min-width: 0;
+  padding: 0 var(--space-2-5);
+}
+
+.adl-iconstrip__button--window {
+  width: var(--adl-iconstrip-button-size);
+}
+
 .adl-iconstrip__separator {
   position: relative;
   width: 0;
@@ -1730,6 +1795,39 @@
   color: var(--text-primary);
   background: var(--surface-active);
   box-shadow: none;
+}
+
+.adl-titlebar .adl-iconstrip__button {
+  display: inline-flex;
+  align-self: stretch;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+}
+
+.adl-titlebar .tooltip-trigger {
+  display: flex !important;
+  align-self: stretch;
+  height: 100%;
+  position: relative;
+  align-items: stretch;
+  justify-content: center;
+}
+
+.adl-titlebar .tooltip-trigger:has(> .adl-iconstrip__button:is(:hover, .is-open, .is-active, [aria-pressed="true"], :focus-visible))
+  + .tooltip-trigger:has(> .adl-iconstrip__button:is(:hover, .is-open, .is-active, [aria-pressed="true"], :focus-visible))::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 7px;
+  bottom: 7px;
+  width: 1px;
+  background: transparent;
+  transform: translateX(-0.5px);
+  pointer-events: none;
+  z-index: 1;
+  transition: background-color var(--duration-150) var(--ease-default);
+  background: var(--border-strong);
 }
 
 /* ---------------- Tool bodies ---------------- */
