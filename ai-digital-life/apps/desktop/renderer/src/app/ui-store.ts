@@ -52,6 +52,10 @@ const RIGHT_COLLAPSED_KEY = "adl-ui:right-collapsed";
 const ACTIVE_TOOL_KEY = "adl-ui:active-tool";
 const SESSION_TABS_EXPANDED_KEY = "adl-ui:session-tabs-expanded";
 const RIGHT_PANEL_WIDTH_KEY = "adl-ui:right-panel-width";
+const FILES_NAVIGATOR_WIDTH_KEY = "adl-ui:files-navigator-width";
+const CHANGES_NAVIGATOR_WIDTH_KEY = "adl-ui:changes-navigator-width";
+const BROWSER_NAVIGATOR_WIDTH_KEY = "adl-ui:browser-navigator-width";
+const TERMINAL_NAVIGATOR_WIDTH_KEY = "adl-ui:terminal-navigator-width";
 const NAVIGATOR_COLLAPSED_KEY = "adl-ui:navigator-collapsed";
 const FILE_TREE_EXPANDED_KEY = "adl-ui:file-tree-expanded";
 const BROWSER_TABS_KEY = "adl-ui:browser-tabs";
@@ -62,9 +66,21 @@ const TERMINAL_TABS_KEY = "adl-ui:terminal-tabs";
 const TERMINAL_ACTIVE_TAB_KEY = "adl-ui:terminal-active-tab";
 const TERMINAL_LAYOUT_KEY = "adl-ui:terminal-layout";
 
-const RIGHT_PANEL_WIDTH_MIN = 520;
-const RIGHT_PANEL_WIDTH_MAX = 920;
+export const RIGHT_PANEL_WIDTH_MIN = 520;
+export const RIGHT_PANEL_WIDTH_MAX = 680;
 const DEFAULT_RIGHT_PANEL_WIDTH = 620;
+const FILES_NAVIGATOR_WIDTH_MIN = 180;
+const FILES_NAVIGATOR_WIDTH_MAX = 300;
+const DEFAULT_FILES_NAVIGATOR_WIDTH = 240;
+const CHANGES_NAVIGATOR_WIDTH_MIN = 180;
+const CHANGES_NAVIGATOR_WIDTH_MAX = 300;
+const DEFAULT_CHANGES_NAVIGATOR_WIDTH = 240;
+const BROWSER_NAVIGATOR_WIDTH_MIN = 180;
+const BROWSER_NAVIGATOR_WIDTH_MAX = 300;
+const DEFAULT_BROWSER_NAVIGATOR_WIDTH = 240;
+const TERMINAL_NAVIGATOR_WIDTH_MIN = 180;
+const TERMINAL_NAVIGATOR_WIDTH_MAX = 300;
+const DEFAULT_TERMINAL_NAVIGATOR_WIDTH = 240;
 const TOOL_IDS: ToolId[] = ["files", "changes", "browser", "terminal"];
 
 function createUiId(prefix: string): string {
@@ -199,6 +215,10 @@ export interface UiState {
   rightCollapsed: boolean;
   activeTool: ToolId;
   rightPanelWidth: number;
+  filesNavigatorWidth: number;
+  changesNavigatorWidth: number;
+  browserNavigatorWidth: number;
+  terminalNavigatorWidth: number;
   navigatorCollapsedByTool: Record<ToolId, boolean>;
   expandedFileTreePaths: Record<string, boolean>;
   expandedSessionWorkspaces: Record<string, boolean>;
@@ -220,6 +240,10 @@ export interface UiState {
   toggleBoth: () => void;
   setActiveTool: (tool: ToolId) => void;
   setRightPanelWidth: (width: number) => void;
+  setFilesNavigatorWidth: (width: number) => void;
+  setChangesNavigatorWidth: (width: number) => void;
+  setBrowserNavigatorWidth: (width: number) => void;
+  setTerminalNavigatorWidth: (width: number) => void;
   setNavigatorCollapsed: (tool: ToolId, collapsed: boolean) => void;
   toggleNavigator: (tool: ToolId) => void;
   setFileTreePathExpanded: (path: string, expanded: boolean) => void;
@@ -261,6 +285,30 @@ export const useUiStore = create<UiState>((set) => ({
   rightCollapsed: readFlag(RIGHT_COLLAPSED_KEY, false),
   activeTool: readTool(),
   rightPanelWidth: readNumber(RIGHT_PANEL_WIDTH_KEY, DEFAULT_RIGHT_PANEL_WIDTH, RIGHT_PANEL_WIDTH_MIN, RIGHT_PANEL_WIDTH_MAX),
+  filesNavigatorWidth: readNumber(
+    FILES_NAVIGATOR_WIDTH_KEY,
+    DEFAULT_FILES_NAVIGATOR_WIDTH,
+    FILES_NAVIGATOR_WIDTH_MIN,
+    FILES_NAVIGATOR_WIDTH_MAX
+  ),
+  changesNavigatorWidth: readNumber(
+    CHANGES_NAVIGATOR_WIDTH_KEY,
+    DEFAULT_CHANGES_NAVIGATOR_WIDTH,
+    CHANGES_NAVIGATOR_WIDTH_MIN,
+    CHANGES_NAVIGATOR_WIDTH_MAX
+  ),
+  browserNavigatorWidth: readNumber(
+    BROWSER_NAVIGATOR_WIDTH_KEY,
+    DEFAULT_BROWSER_NAVIGATOR_WIDTH,
+    BROWSER_NAVIGATOR_WIDTH_MIN,
+    BROWSER_NAVIGATOR_WIDTH_MAX
+  ),
+  terminalNavigatorWidth: readNumber(
+    TERMINAL_NAVIGATOR_WIDTH_KEY,
+    DEFAULT_TERMINAL_NAVIGATOR_WIDTH,
+    TERMINAL_NAVIGATOR_WIDTH_MIN,
+    TERMINAL_NAVIGATOR_WIDTH_MAX
+  ),
   navigatorCollapsedByTool: initialNavigatorCollapsed,
   expandedFileTreePaths: readJson<Record<string, boolean>>(FILE_TREE_EXPANDED_KEY, {}),
   expandedSessionWorkspaces: readJson<Record<string, boolean>>(SESSION_TABS_EXPANDED_KEY, {}),
@@ -304,6 +352,26 @@ export const useUiStore = create<UiState>((set) => ({
     const next = clamp(width, RIGHT_PANEL_WIDTH_MIN, RIGHT_PANEL_WIDTH_MAX);
     writeNumber(RIGHT_PANEL_WIDTH_KEY, next);
     set({ rightPanelWidth: next });
+  },
+  setFilesNavigatorWidth: (width) => {
+    const next = clamp(width, FILES_NAVIGATOR_WIDTH_MIN, FILES_NAVIGATOR_WIDTH_MAX);
+    writeNumber(FILES_NAVIGATOR_WIDTH_KEY, next);
+    set({ filesNavigatorWidth: next });
+  },
+  setChangesNavigatorWidth: (width) => {
+    const next = clamp(width, CHANGES_NAVIGATOR_WIDTH_MIN, CHANGES_NAVIGATOR_WIDTH_MAX);
+    writeNumber(CHANGES_NAVIGATOR_WIDTH_KEY, next);
+    set({ changesNavigatorWidth: next });
+  },
+  setBrowserNavigatorWidth: (width) => {
+    const next = clamp(width, BROWSER_NAVIGATOR_WIDTH_MIN, BROWSER_NAVIGATOR_WIDTH_MAX);
+    writeNumber(BROWSER_NAVIGATOR_WIDTH_KEY, next);
+    set({ browserNavigatorWidth: next });
+  },
+  setTerminalNavigatorWidth: (width) => {
+    const next = clamp(width, TERMINAL_NAVIGATOR_WIDTH_MIN, TERMINAL_NAVIGATOR_WIDTH_MAX);
+    writeNumber(TERMINAL_NAVIGATOR_WIDTH_KEY, next);
+    set({ terminalNavigatorWidth: next });
   },
   setNavigatorCollapsed: (tool, collapsed) =>
     set((state) => {
@@ -518,4 +586,3 @@ export const useUiStore = create<UiState>((set) => ({
     set({ terminalLayout: layout });
   }
 }));
-

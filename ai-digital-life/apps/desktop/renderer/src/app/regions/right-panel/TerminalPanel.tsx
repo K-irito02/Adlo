@@ -1,48 +1,46 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  IconClose,
-  IconColumns,
-  IconPanelLeft,
+  IconChevronDown,
+  IconFileCode,
+  IconMoreVertical,
   IconPanelLeftClose,
-  IconPlay,
   IconPlus,
-  IconRefreshCw,
-  IconStopCircle,
   IconTerminal
 } from "../../icons";
 import { TooltipSimple } from "../../components/Tooltip";
 import { useUiStore, type TerminalLayout, type TerminalProfile } from "../../ui-store";
 import type { RightPanelViewProps } from "./types";
 
-type TerminalNavigatorMode = "sessions" | "history" | "layout";
-
-const LAYOUT_OPTIONS: TerminalLayout[] = ["single", "vertical", "horizontal"];
+type TerminalNavigatorMode = "sessions" | "history";
+type TerminalMenuItem =
+  | { id: string; separator: true }
+  | { id: string; label: string; disabled?: boolean; action?: () => void };
+type TerminalShellMenuItem =
+  | { id: string; separator: true }
+  | { id: string; label: string; profile?: TerminalProfile; action: () => void };
 
 export function TerminalPanel(props: RightPanelViewProps) {
   const {
     t,
     commandBinary,
-    commandArgs,
-    latestCommandRun,
-    terminalOutput,
-    activeTerminalExecutionId,
-    onCommandBinaryChange,
-    onCommandArgsChange,
-    onRunCommand,
-    onRunCommandStream,
-    onStopCommandStream
+    commandArgs
   } = props;
   const [navigatorMode, setNavigatorMode] = useState<TerminalNavigatorMode>("sessions");
+  const [terminalMenuOpen, setTerminalMenuOpen] = useState(false);
+  const [shellMenuOpen, setShellMenuOpen] = useState(false);
   const navigatorCollapsed = useUiStore((state) => state.navigatorCollapsedByTool.terminal);
   const toggleNavigator = useUiStore((state) => state.toggleNavigator);
+  const terminalNavigatorWidth = useUiStore((state) => state.terminalNavigatorWidth);
+  const setTerminalNavigatorWidth = useUiStore((state) => state.setTerminalNavigatorWidth);
   const terminalTabs = useUiStore((state) => state.terminalTabs);
   const terminalActiveTabId = useUiStore((state) => state.terminalActiveTabId);
   const terminalLayout = useUiStore((state) => state.terminalLayout);
   const terminalCreateTab = useUiStore((state) => state.terminalCreateTab);
   const terminalSelectTab = useUiStore((state) => state.terminalSelectTab);
-  const terminalCloseTab = useUiStore((state) => state.terminalCloseTab);
   const terminalUpdateActiveTab = useUiStore((state) => state.terminalUpdateActiveTab);
   const terminalSetLayout = useUiStore((state) => state.terminalSetLayout);
+  const terminalMenuRef = useRef<HTMLDivElement | null>(null);
+  const shellMenuRef = useRef<HTMLDivElement | null>(null);
   const activeTab = useMemo(
     () => terminalTabs.find((tab) => tab.id === terminalActiveTabId) ?? terminalTabs[0],
     [terminalActiveTabId, terminalTabs]
@@ -60,27 +58,59 @@ export function TerminalPanel(props: RightPanelViewProps) {
   );
 
   useEffect(() => {
+    if (terminalLayout !== "vertical") {
+      terminalSetLayout("vertical" as TerminalLayout);
+    }
+  }, [terminalLayout, terminalSetLayout]);
+
+  useEffect(() => {
     if (activeTab?.live) {
       terminalUpdateActiveTab({ commandBinary, commandArgs });
     }
   }, [activeTab?.id, activeTab?.live, commandArgs, commandBinary, terminalUpdateActiveTab]);
 
-  const currentBinary = activeTab?.live ? commandBinary : activeTab?.commandBinary ?? "npm";
-  const currentArgs = activeTab?.live ? commandArgs : activeTab?.commandArgs ?? "run test";
-
-  const updateBinary = (value: string) => {
-    if (activeTab?.live) {
-      onCommandBinaryChange(value);
+  useEffect(() => {
+    if (!terminalMenuOpen && !shellMenuOpen) {
+      return;
     }
-    terminalUpdateActiveTab({ commandBinary: value });
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (!terminalMenuRef.current?.contains(target)) {
+        setTerminalMenuOpen(false);
+      }
+      if (!shellMenuRef.current?.contains(target)) {
+        setShellMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [shellMenuOpen, terminalMenuOpen]);
+
+  const handleNavigatorResizeStart = (event: React.PointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const startX = event.clientX;
+    const startWidth = terminalNavigatorWidth;
+    const body = document.body;
+    body.classList.add("adl-is-resizing");
+
+    const handleMove = (moveEvent: PointerEvent) => {
+      const delta = moveEvent.clientX - startX;
+      setTerminalNavigatorWidth(startWidth + delta);
+    };
+
+    const handleUp = () => {
+      body.classList.remove("adl-is-resizing");
+      window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("pointerup", handleUp);
+    };
+
+    window.addEventListener("pointermove", handleMove);
+    window.addEventListener("pointerup", handleUp);
   };
 
-  const updateArgs = (value: string) => {
-    if (activeTab?.live) {
-      onCommandArgsChange(value);
-    }
-    terminalUpdateActiveTab({ commandArgs: value });
-  };
+  const navigatorTitle = navigatorMode === "sessions" ? t.terminalSessions : t.terminalRecentCommands;
+  const navigatorCount = navigatorMode === "sessions" ? terminalTabs.length : recentCommands.length;
 
   const updateProfile = (profile: TerminalProfile) => {
     terminalUpdateActiveTab({
@@ -88,111 +118,173 @@ export function TerminalPanel(props: RightPanelViewProps) {
       title: profile === "powershell" ? "PowerShell" : profile === "bash" ? "Bash" : "CMD"
     });
   };
-  const layoutLabel = (layout: TerminalLayout) =>
-    layout === "single"
-      ? t.terminalLayoutSingle
-      : layout === "vertical"
-        ? t.terminalLayoutVertical
-        : t.terminalLayoutHorizontal;
+  const currentProfile = activeTab?.profile ?? "powershell";
+  const currentProfileLabel = currentProfile === "powershell" ? "PowerShell" : currentProfile === "bash" ? "Bash" : "CMD";
+  const terminalMenuItems: TerminalMenuItem[] = [
+    { id: "copy", label: t.terminalCopy, disabled: true },
+    { id: "paste", label: t.terminalPaste, disabled: true },
+    { id: "clear", label: t.terminalClear, disabled: true },
+    { id: "sep-1", separator: true },
+    { id: "kill", label: t.terminalKillProcess, disabled: true }
+  ];
+  const shellMenuItems: TerminalShellMenuItem[] = [
+    { id: "new-terminal", label: t.menuNewTerminal, action: () => terminalCreateTab(currentProfile) },
+    { id: "sep-1", separator: true },
+    { id: "powershell", label: "PowerShell", profile: "powershell", action: () => updateProfile("powershell") },
+    { id: "bash", label: "Bash", profile: "bash", action: () => updateProfile("bash") },
+    { id: "cmd", label: "CMD", profile: "cmd", action: () => updateProfile("cmd") }
+  ];
 
   return (
     <div className="adl-tool-panel adl-tool-panel--terminal">
-      <div className="adl-tool-context">
-        <div className="adl-tool-context__group adl-tool-context__group--grow">
-          <select
-            className="adl-select adl-select--sm"
-            aria-label={t.terminalShellLabel}
-            value={activeTab?.profile ?? "powershell"}
-            onChange={(event) => updateProfile(event.target.value as TerminalProfile)}
-          >
-            <option value="powershell">PowerShell</option>
-            <option value="bash">Bash</option>
-            <option value="cmd">CMD</option>
-          </select>
-          <div className="adl-segmented">
-            {LAYOUT_OPTIONS.map((option) => (
-              <button
-                key={option}
-                type="button"
-                aria-pressed={terminalLayout === option}
-                onClick={() => terminalSetLayout(option)}
-              >
-                {layoutLabel(option)}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="adl-tool-context__group">
-          <button type="button" className="adl-btn adl-btn--ghost adl-btn--xs" onClick={() => terminalCreateTab(activeTab?.profile)}>
-            <IconPlus size={12} decorative />
-            <span>{t.menuNewTerminal}</span>
-          </button>
-        </div>
-      </div>
-
-      <div className={`adl-tool-surface${navigatorCollapsed ? " is-navigator-collapsed" : ""}`}>
-        <aside className="adl-tool-rail" aria-label={`${t.toolTerminal} rail`}>
-          <TooltipSimple content={navigatorCollapsed ? t.panelToggleRight : t.panelToggleLeft} placement="right">
-            <button type="button" className="adl-tool-rail__btn" onClick={() => toggleNavigator("terminal")}>
-              {navigatorCollapsed ? <IconPanelLeft size={14} decorative /> : <IconPanelLeftClose size={14} decorative />}
-            </button>
-          </TooltipSimple>
-          <TooltipSimple content={t.terminalSessions} placement="right">
+      <div className="adl-tool-context adl-tool-context--files" aria-label={t.toolTerminal}>
+        <div className="adl-tool-context__group adl-tool-context__group--grow adl-tool-context__group--files">
+          <TooltipSimple content={navigatorCollapsed ? t.panelToggleRight : t.panelToggleLeft} placement="top">
             <button
               type="button"
-              className={`adl-tool-rail__btn${navigatorMode === "sessions" ? " is-active" : ""}`}
-              onClick={() => setNavigatorMode("sessions")}
+              className="adl-tool-context__iconbtn adl-tool-context__iconbtn--leading"
+              onClick={() => toggleNavigator("terminal")}
+              aria-label={navigatorCollapsed ? t.panelToggleRight : t.panelToggleLeft}
             >
+              <IconPanelLeftClose size={14} decorative />
+            </button>
+          </TooltipSimple>
+          <div ref={shellMenuRef} className="adl-menu adl-file-context__menu">
+            <div className={`adl-split-pill${shellMenuOpen ? " is-open" : ""}`}>
+              <TooltipSimple content={t.menuNewTerminal} placement="top">
+                <button
+                  type="button"
+                  className="adl-split-pill__main"
+                  onClick={() => terminalCreateTab(currentProfile)}
+                  aria-label={t.menuNewTerminal}
+                >
+                  <IconPlus size={12} decorative />
+                  <span>{currentProfileLabel}</span>
+                </button>
+              </TooltipSimple>
+              <TooltipSimple content="类型选择" placement="top">
+                <button
+                  type="button"
+                  className={`adl-split-pill__toggle${shellMenuOpen ? " is-open" : ""}`}
+                  onClick={() => setShellMenuOpen((value) => !value)}
+                  aria-label="类型选择"
+                  aria-haspopup="menu"
+                  aria-expanded={shellMenuOpen}
+                >
+                  <IconChevronDown size={12} decorative />
+                </button>
+              </TooltipSimple>
+            </div>
+            {shellMenuOpen ? (
+              <div className="adl-menu__dropdown adl-file-context__dropdown adl-terminal-shell-dropdown" role="menu">
+                {shellMenuItems.map((item) =>
+                  "separator" in item ? (
+                    <div key={item.id} className="adl-menu__sep" role="separator" />
+                  ) : (
+                    <button
+                      key={item.id}
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={item.profile ? item.profile === currentProfile : false}
+                      className="adl-menu__item"
+                      onClick={() => {
+                        item.action();
+                        setShellMenuOpen(false);
+                      }}
+                    >
+                      <span>{item.label}</span>
+                    </button>
+                  )
+                )}
+              </div>
+            ) : null}
+          </div>
+        </div>
+        <div className="adl-tool-context__group adl-tool-context__group--files-actions">
+          <TooltipSimple content={t.runStreamCommand} placement="top">
+            <button type="button" className="adl-tool-context__iconbtn" disabled aria-label={t.runStreamCommand}>
               <IconTerminal size={14} decorative />
             </button>
           </TooltipSimple>
-          <TooltipSimple content={t.terminalRecentCommands} placement="right">
-            <button
-              type="button"
-              className={`adl-tool-rail__btn${navigatorMode === "history" ? " is-active" : ""}`}
-              onClick={() => setNavigatorMode("history")}
-            >
-              <IconRefreshCw size={14} decorative />
-            </button>
-          </TooltipSimple>
-          <TooltipSimple content={t.terminalLayout} placement="right">
-            <button
-              type="button"
-              className={`adl-tool-rail__btn${navigatorMode === "layout" ? " is-active" : ""}`}
-              onClick={() => setNavigatorMode("layout")}
-            >
-              <IconColumns size={14} decorative />
-            </button>
-          </TooltipSimple>
-        </aside>
+          <div ref={terminalMenuRef} className="adl-menu adl-file-context__menu">
+            <TooltipSimple content={t.terminalMoreActions} placement="top">
+              <button
+                type="button"
+                className={`adl-tool-context__iconbtn${terminalMenuOpen ? " is-open" : ""}`}
+                onClick={() => setTerminalMenuOpen((value) => !value)}
+                aria-label={t.terminalMoreActions}
+                aria-haspopup="menu"
+                aria-expanded={terminalMenuOpen}
+              >
+                <IconMoreVertical size={14} decorative />
+              </button>
+            </TooltipSimple>
+            {terminalMenuOpen ? (
+              <div className="adl-menu__dropdown adl-file-context__dropdown" role="menu">
+                {terminalMenuItems.map((item) =>
+                  "separator" in item ? (
+                    <div key={item.id} className="adl-menu__sep" role="separator" />
+                  ) : (
+                    <button
+                      key={item.id}
+                      type="button"
+                      role="menuitem"
+                      className="adl-menu__item"
+                      disabled={item.disabled}
+                      onClick={() => {
+                        item.action?.();
+                        setTerminalMenuOpen(false);
+                      }}
+                    >
+                      <span>{item.label}</span>
+                    </button>
+                  )
+                )}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </div>
 
+      <div
+        className={`adl-tool-surface adl-tool-surface--files${navigatorCollapsed ? " is-navigator-collapsed" : ""}`}
+        style={{ "--adl-files-nav-width": `${terminalNavigatorWidth}px` } as React.CSSProperties}
+      >
         <aside className="adl-tool-navigator" aria-label={t.toolTerminal}>
-          <header className="adl-tool-navigator__header">
-            <strong>
-              {navigatorMode === "sessions"
-                ? t.terminalSessions
-                : navigatorMode === "history"
-                  ? t.terminalRecentCommands
-                  : t.terminalLayout}
-            </strong>
-            <span className="adl-tool-navigator__meta">
-              {navigatorMode === "sessions"
-                ? terminalTabs.length
-                : navigatorMode === "history"
-                  ? recentCommands.length
-                  : LAYOUT_OPTIONS.length}
-            </span>
-          </header>
+          <div className="adl-tool-navigator__context">
+            <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--actions">
+              <span className="adl-tool-navigator__context-title">{navigatorTitle}</span>
+            </div>
+            <span className="adl-tool-navigator__meta">{navigatorCount}</span>
+          </div>
+          <div className="adl-tool-navigator__context adl-tool-navigator__context--tabs">
+            <TooltipSimple content={t.terminalSessions} placement="top">
+              <button
+                type="button"
+                className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${navigatorMode === "sessions" ? " is-active" : ""}`}
+                onClick={() => setNavigatorMode("sessions")}
+                aria-label={t.terminalSessions}
+              >
+                <IconTerminal size={14} decorative />
+              </button>
+            </TooltipSimple>
+            <TooltipSimple content={t.terminalRecentCommands} placement="top">
+              <button
+                type="button"
+                className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${navigatorMode === "history" ? " is-active" : ""}`}
+                onClick={() => setNavigatorMode("history")}
+                aria-label={t.terminalRecentCommands}
+              >
+                <IconFileCode size={14} decorative />
+              </button>
+            </TooltipSimple>
+          </div>
 
           {navigatorMode === "sessions" ? (
             <ul className="adl-tool-list">
               {terminalTabs.map((tab) => (
                 <li key={tab.id}>
-                  <button
-                    type="button"
-                    className={`adl-tool-list__item${tab.id === terminalActiveTabId ? " is-active" : ""}`}
-                    onClick={() => terminalSelectTab(tab.id)}
-                  >
+                  <button type="button" className={`adl-tool-list__item${tab.id === terminalActiveTabId ? " is-active" : ""}`} onClick={() => terminalSelectTab(tab.id)}>
                     <span className="adl-tool-list__title">{tab.title}</span>
                     <small>{tab.live ? t.terminalLiveShell : t.terminalPlaceholderShell}</small>
                   </button>
@@ -206,13 +298,7 @@ export function TerminalPanel(props: RightPanelViewProps) {
               <ul className="adl-tool-list">
                 {recentCommands.map((entry) => (
                   <li key={entry.id}>
-                    <button
-                      type="button"
-                      className="adl-tool-list__item"
-                      onClick={() => {
-                        terminalSelectTab(entry.id);
-                      }}
-                    >
+                    <button type="button" className="adl-tool-list__item" onClick={() => terminalSelectTab(entry.id)}>
                       <span className="adl-tool-list__title">{entry.title}</span>
                       <small>{entry.label}</small>
                     </button>
@@ -223,114 +309,21 @@ export function TerminalPanel(props: RightPanelViewProps) {
               <p className="adl-empty-hint">{t.terminalNoRecentCommands}</p>
             )
           ) : null}
-
-          {navigatorMode === "layout" ? (
-            <div className="adl-startpage-list">
-              {LAYOUT_OPTIONS.map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  className={`adl-startpage-card${terminalLayout === option ? " is-active" : ""}`}
-                  onClick={() => terminalSetLayout(option)}
-                >
-                  <strong>{layoutLabel(option)}</strong>
-                  <span>{option === "single" ? t.terminalLiveShell : t.terminalPlaceholderShell}</span>
-                </button>
-              ))}
-            </div>
-          ) : null}
+          <div
+            className="adl-tool-navigator__resize-handle"
+            onPointerDown={handleNavigatorResizeStart}
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize terminal navigator"
+            aria-valuemin={180}
+            aria-valuemax={300}
+            aria-valuenow={terminalNavigatorWidth}
+          />
         </aside>
 
-        <div className="adl-tool-primary">
-          <div className="adl-tool-primary__tabs adl-tool-primary__tabs--terminal">
-            {terminalTabs.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                className={tab.id === terminalActiveTabId ? "is-active" : ""}
-                onClick={() => terminalSelectTab(tab.id)}
-              >
-                <IconTerminal size={12} decorative />
-                <span>{tab.title}</span>
-                {terminalTabs.length > 1 ? (
-                  <span
-                    className="adl-tool-primary__tab-close"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      terminalCloseTab(tab.id);
-                    }}
-                  >
-                    <IconClose size={12} decorative />
-                  </span>
-                ) : null}
-              </button>
-            ))}
-            <div className="adl-tool-primary__tabs-spacer" />
-            <button type="button" className="adl-icon-btn adl-icon-btn--xs" onClick={() => terminalCreateTab(activeTab?.profile)}>
-              <IconPlus size={12} decorative />
-            </button>
-          </div>
-
-          <div className="adl-tool-primary__terminal-bar">
-            <input
-              value={currentBinary}
-              onChange={(event) => updateBinary(event.target.value)}
-              placeholder={t.commandBinary}
-              aria-label={t.commandBinary}
-            />
-            <input
-              value={currentArgs}
-              onChange={(event) => updateArgs(event.target.value)}
-              placeholder={t.commandArgs}
-              aria-label={t.commandArgs}
-            />
-            <button
-              type="button"
-              className="adl-btn adl-btn--ghost adl-btn--sm"
-              onClick={onRunCommand}
-              disabled={!activeTab?.live}
-            >
-              <IconPlay size={12} decorative />
-              <span>{t.runCommand}</span>
-            </button>
-            <button
-              type="button"
-              className="adl-btn adl-btn--primary adl-btn--sm"
-              onClick={onRunCommandStream}
-              disabled={!activeTab?.live}
-            >
-              <IconTerminal size={12} decorative />
-              <span>{t.runStreamCommand}</span>
-            </button>
-            <button
-              type="button"
-              className="adl-btn adl-btn--ghost adl-btn--sm"
-              disabled={!activeTab?.live || !activeTerminalExecutionId}
-              onClick={onStopCommandStream}
-            >
-              <IconStopCircle size={12} decorative />
-              <span>{t.stopStreamCommand}</span>
-            </button>
-          </div>
-
+        <div className="adl-tool-primary adl-tool-primary--terminal-empty">
           <div className="adl-tool-primary__scroll adl-tool-primary__scroll--terminal">
-            {activeTab?.live ? (
-              <>
-                {latestCommandRun ? (
-                  <p className="adl-tool-hint">
-                    {latestCommandRun.status === "waiting-approval" ? t.commandWaitingApproval : t.commandCompleted}
-                  </p>
-                ) : null}
-                <pre className="adl-terminal-output" data-testid="terminal-output">
-                  {terminalOutput || "—"}
-                </pre>
-              </>
-            ) : (
-              <div className="adl-terminal-placeholder">
-                <span className="adl-chip adl-chip--warning">TODO</span>
-                <p>{t.terminalPlaceholderNotice}</p>
-              </div>
-            )}
+            <div className="adl-terminal-canvas" aria-hidden="true" />
           </div>
         </div>
       </div>

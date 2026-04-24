@@ -5,11 +5,16 @@ import {
   IconClose,
   IconCopy,
   IconEye,
+  IconLangEn,
+  IconLangZh,
+  IconMonitor,
   IconMinus,
+  IconMoon,
   IconPanelLeft,
   IconPanelRight,
   IconSearch,
   IconSettings,
+  IconSun,
   IconSquare
 } from "../icons";
 import logoUrl from "/logo.png?url";
@@ -22,6 +27,29 @@ interface TitleBarProps {
   onOpenSettings: () => void;
   onTriggerCreateWorkspace: () => void;
   onOpenCommandPalette: () => void;
+  onCycleTheme: () => void;
+  onSelectLanguage: (language: AppInfo["config"]["language"]) => void;
+}
+
+function ThemeIcon({ mode }: { mode: AppInfo["config"]["themeMode"] | undefined }) {
+  switch (mode) {
+    case "dark":
+      return <IconMoon size={16} decorative />;
+    case "light":
+      return <IconSun size={16} decorative />;
+    default:
+      return <IconMonitor size={16} decorative />;
+  }
+}
+
+function LanguageIcon({ language }: { language: AppInfo["config"]["language"] | undefined }) {
+  switch (language) {
+    case "en-US":
+      return <IconLangEn size={16} decorative />;
+    case "zh-CN":
+    default:
+      return <IconLangZh size={16} decorative />;
+  }
 }
 
 interface MenuItem {
@@ -103,10 +131,12 @@ function MenuDropdown({
 
 export function TitleBar({
   t,
-  appInfo: _appInfo,
+  appInfo,
   onOpenSettings,
   onTriggerCreateWorkspace,
-  onOpenCommandPalette
+  onOpenCommandPalette,
+  onCycleTheme,
+  onSelectLanguage
 }: TitleBarProps) {
   const [isMaximized, setIsMaximized] = useState(false);
   const {
@@ -123,6 +153,8 @@ export function TitleBar({
     setHelpMenuOpen,
     closeAllMenus
   } = useUiStore();
+  const language = appInfo?.config.language ?? "zh-CN";
+  const nextLanguage = language === "zh-CN" ? "en-US" : "zh-CN";
 
   useEffect(() => {
     let cancelled = false;
@@ -239,6 +271,26 @@ export function TitleBar({
       <div className="adl-titlebar__drag" aria-hidden="true" />
       <div className="adl-titlebar__right">
         <div className="adl-titlebar__action-group adl-iconstrip" role="group" aria-label="Titlebar actions">
+          <TooltipSimple content={t.theme} placement="bottom">
+            <button
+              type="button"
+              className="adl-icon-btn adl-iconstrip__button"
+              onClick={onCycleTheme}
+              aria-label={t.theme}
+            >
+              <ThemeIcon mode={appInfo?.config.themeMode} />
+            </button>
+          </TooltipSimple>
+          <TooltipSimple content={t.language} placement="bottom">
+            <button
+              type="button"
+              className="adl-icon-btn adl-iconstrip__button"
+              onClick={() => onSelectLanguage(nextLanguage)}
+              aria-label={`${t.language}: ${nextLanguage === "zh-CN" ? "中文" : "EN"}`}
+            >
+              <LanguageIcon language={language} />
+            </button>
+          </TooltipSimple>
           <TooltipSimple content={t.menuSettings} placement="bottom">
             <button
               type="button"
@@ -264,7 +316,7 @@ export function TitleBar({
           <TooltipSimple content={t.panelToggleLeft} placement="bottom">
             <button
               type="button"
-              className={`adl-icon-btn adl-iconstrip__button${leftCollapsed ? " is-toggled" : ""}`}
+              className="adl-icon-btn adl-iconstrip__button adl-iconstrip__button--paneltoggle"
               onClick={toggleLeft}
               aria-label={t.panelToggleLeft}
               aria-pressed={leftCollapsed}
@@ -275,7 +327,7 @@ export function TitleBar({
           <TooltipSimple content={t.panelToggleRight} placement="bottom">
             <button
               type="button"
-              className={`adl-icon-btn adl-iconstrip__button${rightCollapsed ? " is-toggled" : ""}`}
+              className="adl-icon-btn adl-iconstrip__button adl-iconstrip__button--paneltoggle"
               onClick={toggleRight}
               aria-label={t.panelToggleRight}
               aria-pressed={rightCollapsed}

@@ -17,18 +17,13 @@ import {
   IconDownload,
   IconFolder,
   IconFolderOpen,
-  IconLangEn,
-  IconLangZh,
   IconMail,
-  IconMonitor,
-  IconMoon,
   IconMoreVertical,
   IconPencil,
   IconPin,
   IconPinOff,
   IconPlug,
   IconSparkles,
-  IconSun,
   IconTrash,
   IconCopy,
   IconPlus
@@ -66,8 +61,6 @@ interface LeftSidebarProps {
   onDeleteSession: (sessionId: string) => void;
   onOpenWorkspace: (path: string) => void;
   onTriggerCreateWorkspace: () => void;
-  onCycleTheme: () => void;
-  onSelectLanguage: (language: AppInfo["config"]["language"]) => void;
 }
 
 type SidebarMenuState =
@@ -86,27 +79,6 @@ const WORKSPACE_STATUS_ORDER: SessionVisualStatus[] = ["abnormal", "pending-appr
 
 function StatusLamp({ status, title }: { status: SessionVisualStatus; title: string }) {
   return <span className={`adl-status-lamp adl-status-lamp--${status}`} role="img" aria-label={title} />;
-}
-
-function ThemeIcon({ mode }: { mode: AppInfo["config"]["themeMode"] | undefined }) {
-  switch (mode) {
-    case "dark":
-      return <IconMoon size={16} decorative />;
-    case "light":
-      return <IconSun size={16} decorative />;
-    default:
-      return <IconMonitor size={16} decorative />;
-  }
-}
-
-function LanguageIcon({ language }: { language: AppInfo["config"]["language"] | undefined }) {
-  switch (language) {
-    case "en-US":
-      return <IconLangEn size={16} decorative />;
-    case "zh-CN":
-    default:
-      return <IconLangZh size={16} decorative />;
-  }
 }
 
 function buildWorkspaceTooltip(t: CopyDict, counts: Record<SessionVisualStatus, number>): string {
@@ -237,9 +209,7 @@ export function LeftSidebar({
   onRevealWorkspace,
   onDeleteSession,
   onOpenWorkspace,
-  onTriggerCreateWorkspace,
-  onCycleTheme,
-  onSelectLanguage
+  onTriggerCreateWorkspace
 }: LeftSidebarProps) {
   const { expandedSessionWorkspaces, toggleSessionWorkspace } = useUiStore();
   const [archiveOpen, setArchiveOpen] = useState(false);
@@ -261,9 +231,6 @@ export function LeftSidebar({
       }),
     [appInfo, recentWorkspaces, sessions, streamingActiveRunId, taskCenter]
   );
-
-  const language = appInfo?.config.language ?? "zh-CN";
-  const nextLanguage = language === "zh-CN" ? "en-US" : "zh-CN";
 
   const draggingRef = useRef(false);
   const rafRef = useRef(0);
@@ -829,31 +796,6 @@ export function LeftSidebar({
             );
           })}
         </ul>
-      </section>
-
-      <section className="adl-leftbar__env adl-iconstrip" aria-label="Environment controls">
-        <TooltipSimple content={t.theme} placement="right">
-          <button
-            type="button"
-            className="adl-env-btn adl-iconstrip__button adl-iconstrip__button--labelwide"
-            onClick={onCycleTheme}
-            aria-label={t.theme}
-          >
-            <ThemeIcon mode={appInfo?.config.themeMode} />
-            <span>{t.theme}</span>
-          </button>
-        </TooltipSimple>
-        <TooltipSimple content={t.language} placement="right">
-          <button
-            type="button"
-            className="adl-env-btn adl-iconstrip__button adl-iconstrip__button--labelwide"
-            onClick={() => onSelectLanguage(nextLanguage)}
-            aria-label={`${t.language}: ${nextLanguage === "zh-CN" ? "中文" : "EN"}`}
-          >
-            <LanguageIcon language={language} />
-            <span>{language === "zh-CN" ? "中文" : "EN"}</span>
-          </button>
-        </TooltipSimple>
       </section>
 
       </div>

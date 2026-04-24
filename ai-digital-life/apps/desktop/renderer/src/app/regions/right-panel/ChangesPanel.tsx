@@ -1,208 +1,260 @@
-import React, { useMemo, useState } from "react";
-import { MODEL_PROVIDER_IDS } from "../../constants";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  IconCheckCircle,
+  IconChevronDown,
   IconFileText,
   IconGitBranch,
-  IconGitFork,
-  IconPanelLeft,
+  IconMoreVertical,
   IconPanelLeftClose,
-  IconRefreshCw
+  IconUpload
 } from "../../icons";
 import { TooltipSimple } from "../../components/Tooltip";
 import { useUiStore } from "../../ui-store";
 import type { RightPanelViewProps } from "./types";
 import { countGitChanges } from "./types";
 
-type ChangesNavigatorMode = "changes" | "summary" | "models";
+const CHANGES_BRANCH_STORAGE_KEY = "adl-ui:changes-branch";
+const FALLBACK_BRANCHES = ["main", "develop", "release/0.1.0", "feature/right-panel"];
 
 function groupGitFiles(paths: string[]) {
   return [...paths].sort((left, right) => left.localeCompare(right, undefined, { sensitivity: "base" }));
 }
 
+function readSelectedBranch(initialBranch: string): string {
+  try {
+    return window.localStorage.getItem(CHANGES_BRANCH_STORAGE_KEY)?.trim() || initialBranch;
+  } catch {
+    return initialBranch;
+  }
+}
+
+function writeSelectedBranch(branch: string) {
+  try {
+    window.localStorage.setItem(CHANGES_BRANCH_STORAGE_KEY, branch);
+  } catch {
+    // ignore local preview persistence failures
+  }
+}
+
 export function ChangesPanel(props: RightPanelViewProps) {
-  const {
-    t,
-    appInfo,
-    activePatchSet,
-    latestPatchApplication,
-    onOpenFile,
-    onSetHunkDecision,
-    onApplyPatchSet,
-    onRollbackPatchSet,
-    modelHealth,
-    onRefreshModelHealth,
-    onUpdatePreference
-  } = props;
-  const [navigatorMode, setNavigatorMode] = useState<ChangesNavigatorMode>("changes");
+  const { t, appInfo, activePatchSet, latestPatchApplication, onOpenFile, onSetHunkDecision, onApplyPatchSet, onRollbackPatchSet } =
+    props;
   const navigatorCollapsed = useUiStore((state) => state.navigatorCollapsedByTool.changes);
   const toggleNavigator = useUiStore((state) => state.toggleNavigator);
+  const changesNavigatorWidth = useUiStore((state) => state.changesNavigatorWidth);
+  const setChangesNavigatorWidth = useUiStore((state) => state.setChangesNavigatorWidth);
   const snapshot = appInfo?.currentWorkspace?.gitSnapshot;
+  const fallbackBranch = snapshot?.branch ?? "main";
+  const [branchMenuOpen, setBranchMenuOpen] = useState(false);
+  const [changesMenuOpen, setChangesMenuOpen] = useState(false);
+  const [selectedBranch, setSelectedBranch] = useState(() => readSelectedBranch(fallbackBranch));
+  const branchMenuRef = useRef<HTMLDivElement | null>(null);
+  const changesMenuRef = useRef<HTMLDivElement | null>(null);
   const validation = latestPatchApplication?.validation;
   const patchFile = activePatchSet?.filePatches[0];
   const changedGroups = useMemo(
-    () => [
-      { key: "staged", label: t.changesStaged, paths: groupGitFiles(snapshot?.staged ?? []) },
-      { key: "changes", label: t.changesModified, paths: groupGitFiles(snapshot?.unstaged ?? []) },
-      { key: "untracked", label: t.changesUntracked, paths: groupGitFiles(snapshot?.untracked ?? []) },
-      { key: "conflicts", label: t.changesConflicts, paths: groupGitFiles(snapshot?.conflicts ?? []) }
-    ].filter((group) => group.paths.length > 0),
+    () =>
+      [
+        { key: "staged", label: t.changesStaged, paths: groupGitFiles(snapshot?.staged ?? []) },
+        { key: "changes", label: t.changesModified, paths: groupGitFiles(snapshot?.unstaged ?? []) },
+        { key: "untracked", label: t.changesUntracked, paths: groupGitFiles(snapshot?.untracked ?? []) },
+        { key: "conflicts", label: t.changesConflicts, paths: groupGitFiles(snapshot?.conflicts ?? []) }
+      ].filter((group) => group.paths.length > 0),
     [snapshot, t.changesConflicts, t.changesModified, t.changesStaged, t.changesUntracked]
   );
+  const branchOptions = useMemo(() => {
+    const options = new Set<string>([fallbackBranch, ...FALLBACK_BRANCHES]);
+    return [...options];
+  }, [fallbackBranch]);
+  const changesMenuItems = [
+    { id: "stage-all", label: t.changesStageAll, disabled: true },
+    { id: "unstage-all", label: t.changesUnstageAll, disabled: true },
+    { id: "commit", label: t.changesCommit, disabled: true },
+    { id: "push", label: t.changesPush, disabled: true },
+    { id: "pull", label: t.changesPull, disabled: true },
+    { id: "sep-1", separator: true },
+    { id: "discard-all", label: t.changesDiscardAll, disabled: true }
+  ];
+
+  useEffect(() => {
+    if (!branchOptions.includes(selectedBranch)) {
+      setSelectedBranch(fallbackBranch);
+      writeSelectedBranch(fallbackBranch);
+    }
+  }, [branchOptions, fallbackBranch, selectedBranch]);
+
+  useEffect(() => {
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (!branchMenuRef.current?.contains(target)) {
+        setBranchMenuOpen(false);
+      }
+      if (!changesMenuRef.current?.contains(target)) {
+        setChangesMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, []);
+
+  const handleNavigatorResizeStart = (event: React.PointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const startX = event.clientX;
+    const startWidth = changesNavigatorWidth;
+    const body = document.body;
+    body.classList.add("adl-is-resizing");
+
+    const handleMove = (moveEvent: PointerEvent) => {
+      const delta = moveEvent.clientX - startX;
+      setChangesNavigatorWidth(startWidth + delta);
+    };
+
+    const handleUp = () => {
+      body.classList.remove("adl-is-resizing");
+      window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("pointerup", handleUp);
+    };
+
+    window.addEventListener("pointermove", handleMove);
+    window.addEventListener("pointerup", handleUp);
+  };
 
   return (
     <div className="adl-tool-panel adl-tool-panel--changes">
-      <div className="adl-tool-context">
-        <div className="adl-tool-context__group adl-tool-context__group--grow">
-          <span className="adl-branch-pill">
-            <IconGitBranch size={12} decorative />
-            <span>{snapshot?.branch ?? "main"}</span>
-          </span>
-          <span className="adl-tool-context__summary">
-            {countGitChanges(appInfo)} {t.changesFilesChanged}
-          </span>
+      <div className="adl-tool-context adl-tool-context--files" aria-label={t.toolChanges}>
+        <div className="adl-tool-context__group adl-tool-context__group--grow adl-tool-context__group--files">
+          <TooltipSimple content={navigatorCollapsed ? t.panelToggleRight : t.panelToggleLeft} placement="top">
+            <button
+              type="button"
+              className="adl-tool-context__iconbtn adl-tool-context__iconbtn--leading"
+              onClick={() => toggleNavigator("changes")}
+              aria-label={navigatorCollapsed ? t.panelToggleRight : t.panelToggleLeft}
+            >
+              <IconPanelLeftClose size={14} decorative />
+            </button>
+          </TooltipSimple>
+          <div ref={branchMenuRef} className="adl-menu adl-file-context__menu">
+            <TooltipSimple content={t.changesSummaryBranch} placement="top">
+              <button
+                type="button"
+                className={`adl-branch-pill adl-branch-pill--button${branchMenuOpen ? " is-open" : ""}`}
+                onClick={() => setBranchMenuOpen((value) => !value)}
+                aria-label={t.changesSummaryBranch}
+                aria-haspopup="menu"
+                aria-expanded={branchMenuOpen}
+              >
+                <IconGitBranch size={12} decorative />
+                <span>{selectedBranch}</span>
+                <IconChevronDown size={12} decorative />
+              </button>
+            </TooltipSimple>
+            {branchMenuOpen ? (
+              <div className="adl-menu__dropdown adl-file-context__dropdown" role="menu">
+                {branchOptions.map((branch) => (
+                  <TooltipSimple key={branch} content={branch} placement="right">
+                    <button
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={branch === selectedBranch}
+                      className="adl-menu__item"
+                      onClick={() => {
+                        setSelectedBranch(branch);
+                        writeSelectedBranch(branch);
+                        setBranchMenuOpen(false);
+                      }}
+                    >
+                      <span className="adl-menu__label adl-menu__label--branch">{branch}</span>
+                    </button>
+                  </TooltipSimple>
+                ))}
+              </div>
+            ) : null}
+          </div>
         </div>
-        <div className="adl-tool-context__group">
-          <button type="button" className="adl-btn adl-btn--ghost adl-btn--xs" disabled>
-            {t.changesStageAll}
-          </button>
-          <button type="button" className="adl-btn adl-btn--primary adl-btn--xs" disabled>
-            {t.changesCommit}
-          </button>
-          <button type="button" className="adl-btn adl-btn--ghost adl-btn--xs" disabled>
-            {t.changesPush}
-          </button>
-          <button type="button" className="adl-btn adl-btn--ghost adl-btn--xs" disabled>
-            {t.changesPull}
-          </button>
+        <div className="adl-tool-context__group adl-tool-context__group--files-actions">
+          <TooltipSimple content={t.changesPush} placement="top">
+            <button type="button" className="adl-tool-context__iconbtn" disabled aria-label={t.changesPush}>
+              <IconUpload size={14} decorative />
+            </button>
+          </TooltipSimple>
+          <div ref={changesMenuRef} className="adl-menu adl-file-context__menu">
+            <TooltipSimple content={t.changesMoreActions} placement="top">
+              <button
+                type="button"
+                className={`adl-tool-context__iconbtn${changesMenuOpen ? " is-open" : ""}`}
+                onClick={() => setChangesMenuOpen((value) => !value)}
+                aria-label={t.changesMoreActions}
+                aria-haspopup="menu"
+                aria-expanded={changesMenuOpen}
+              >
+                <IconMoreVertical size={14} decorative />
+              </button>
+            </TooltipSimple>
+            {changesMenuOpen ? (
+              <div className="adl-menu__dropdown adl-file-context__dropdown" role="menu">
+                {changesMenuItems.map((item) =>
+                  "separator" in item ? (
+                    <div key={item.id} className="adl-menu__sep" role="separator" />
+                  ) : (
+                    <button key={item.id} type="button" role="menuitem" className="adl-menu__item" disabled={item.disabled}>
+                      <span>{item.label}</span>
+                    </button>
+                  )
+                )}
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
 
-      <div className={`adl-tool-surface${navigatorCollapsed ? " is-navigator-collapsed" : ""}`}>
-        <aside className="adl-tool-rail" aria-label={`${t.toolChanges} rail`}>
-          <TooltipSimple content={navigatorCollapsed ? t.panelToggleRight : t.panelToggleLeft} placement="right">
-            <button type="button" className="adl-tool-rail__btn" onClick={() => toggleNavigator("changes")}>
-              {navigatorCollapsed ? <IconPanelLeft size={14} decorative /> : <IconPanelLeftClose size={14} decorative />}
-            </button>
-          </TooltipSimple>
-          <TooltipSimple content={t.toolChanges} placement="right">
-            <button
-              type="button"
-              className={`adl-tool-rail__btn${navigatorMode === "changes" ? " is-active" : ""}`}
-              onClick={() => setNavigatorMode("changes")}
-            >
-              <IconGitFork size={14} decorative />
-            </button>
-          </TooltipSimple>
-          <TooltipSimple content={t.patchPreview} placement="right">
-            <button
-              type="button"
-              className={`adl-tool-rail__btn${navigatorMode === "summary" ? " is-active" : ""}`}
-              onClick={() => setNavigatorMode("summary")}
-            >
-              <IconFileText size={14} decorative />
-            </button>
-          </TooltipSimple>
-          <TooltipSimple content={t.models} placement="right">
-            <button
-              type="button"
-              className={`adl-tool-rail__btn${navigatorMode === "models" ? " is-active" : ""}`}
-              onClick={() => setNavigatorMode("models")}
-            >
-              <IconCheckCircle size={14} decorative />
-            </button>
-          </TooltipSimple>
-          <TooltipSimple content={t.refreshModelHealth} placement="right">
-            <button type="button" className="adl-tool-rail__btn" onClick={onRefreshModelHealth}>
-              <IconRefreshCw size={14} decorative />
-            </button>
-          </TooltipSimple>
-        </aside>
-
+      <div
+        className={`adl-tool-surface adl-tool-surface--files${navigatorCollapsed ? " is-navigator-collapsed" : ""}`}
+        style={{ "--adl-files-nav-width": `${changesNavigatorWidth}px` } as React.CSSProperties}
+      >
         <aside className="adl-tool-navigator" aria-label={t.toolChanges}>
-          <header className="adl-tool-navigator__header">
-            <strong>
-              {navigatorMode === "changes" ? t.toolChanges : navigatorMode === "summary" ? t.patchPreview : t.models}
-            </strong>
-          </header>
+          <div className="adl-tool-navigator__context">
+            <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--actions">
+              <IconGitBranch size={14} decorative />
+              <span className="adl-tool-navigator__context-title">{t.toolChanges}</span>
+            </div>
+            <span className="adl-tool-navigator__meta">{countGitChanges(appInfo)}</span>
+          </div>
 
-          {navigatorMode === "changes" ? (
-            changedGroups.length > 0 ? (
-              <div className="adl-navigator-groups">
-                {changedGroups.map((group) => (
-                  <section key={group.key} className="adl-navigator-group">
-                    <header>
-                      <strong>{group.label}</strong>
-                      <span>{group.paths.length}</span>
-                    </header>
-                    <ul className="adl-tool-list">
-                      {group.paths.map((entry) => (
-                        <li key={entry}>
-                          <button type="button" className="adl-tool-list__item" onClick={() => onOpenFile(entry)}>
-                            <span className="adl-tool-list__title">{entry}</span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </section>
-                ))}
-              </div>
-            ) : (
-              <p className="adl-empty-hint">{t.noPatch}</p>
-            )
-          ) : null}
-
-          {navigatorMode === "summary" ? (
-            <div className="adl-summary-list">
-              <div className="adl-summary-list__row">
-                <span>{t.changesSummaryBranch}</span>
-                <strong>{snapshot?.branch ?? "main"}</strong>
-              </div>
-              <div className="adl-summary-list__row">
-                <span>{t.changesSummaryCount}</span>
-                <strong>{countGitChanges(appInfo)}</strong>
-              </div>
-              <div className="adl-summary-list__row">
-                <span>{t.changesSummaryPatchFiles}</span>
-                <strong>{activePatchSet?.filePatches.length ?? 0}</strong>
-              </div>
+          {changedGroups.length > 0 ? (
+            <div className="adl-navigator-groups">
+              {changedGroups.map((group) => (
+                <section key={group.key} className="adl-navigator-group">
+                  <header>
+                    <strong>{group.label}</strong>
+                    <span>{group.paths.length}</span>
+                  </header>
+                  <ul className="adl-tool-list">
+                    {group.paths.map((entry) => (
+                      <li key={entry}>
+                        <button type="button" className="adl-tool-list__item" onClick={() => onOpenFile(entry)}>
+                          <span className="adl-tool-list__title">{entry}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ))}
             </div>
           ) : null}
-
-          {navigatorMode === "models" ? (
-            modelHealth?.providers.length ? (
-              <ul className="adl-tool-list">
-                {modelHealth.providers.map((provider) => (
-                  <li key={provider.providerId}>
-                    <div className="adl-tool-list__item adl-tool-list__item--static">
-                      <span className="adl-tool-list__title">{provider.providerId}</span>
-                      <small>{provider.healthy ? t.statusHealthy : t.statusDegraded} · {provider.detail}</small>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="adl-empty-hint">{t.modelUnavailable}</p>
-            )
-          ) : null}
+          <div
+            className="adl-tool-navigator__resize-handle"
+            onPointerDown={handleNavigatorResizeStart}
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize changes navigator"
+            aria-valuemin={180}
+            aria-valuemax={300}
+            aria-valuenow={changesNavigatorWidth}
+          />
         </aside>
 
         <div className="adl-tool-primary adl-tool-primary--scrollable">
-          <div className="adl-tool-primary__tabs">
-            <h3 className="adl-tool-primary__title">{t.patchPreview}</h3>
-            {activePatchSet ? <span className="adl-chip adl-chip--info">{activePatchSet.status}</span> : null}
-            <div className="adl-tool-primary__tabs-spacer" />
-            <button
-              type="button"
-              className="adl-btn adl-btn--ghost adl-btn--sm"
-              onClick={onRefreshModelHealth}
-              aria-label={t.refreshModelHealth}
-            >
-              <IconRefreshCw size={12} decorative />
-            </button>
-          </div>
-
-          <div className="adl-tool-primary__scroll">
+          <div className="adl-tool-primary__scroll adl-tool-primary__scroll--changes">
             {validation ? (
               <div className="adl-banner adl-banner--info">
                 <strong>{validation.status}</strong>
@@ -226,30 +278,17 @@ export function ChangesPanel(props: RightPanelViewProps) {
                     <p>{hunk.preview}</p>
                     <pre>{hunk.afterText}</pre>
                     <div className="adl-hunk__actions">
-                      <button
-                        type="button"
-                        className="adl-btn adl-btn--primary adl-btn--sm"
-                        onClick={() => onSetHunkDecision(hunk.id, "accepted")}
-                      >
+                      <button type="button" className="adl-btn adl-btn--primary adl-btn--sm" onClick={() => onSetHunkDecision(hunk.id, "accepted")}>
                         {t.accept}
                       </button>
-                      <button
-                        type="button"
-                        className="adl-btn adl-btn--ghost adl-btn--sm"
-                        onClick={() => onSetHunkDecision(hunk.id, "rejected")}
-                      >
+                      <button type="button" className="adl-btn adl-btn--ghost adl-btn--sm" onClick={() => onSetHunkDecision(hunk.id, "rejected")}>
                         {t.reject}
                       </button>
                     </div>
                   </div>
                 ))}
                 <div className="adl-patch-card__footer">
-                  <button
-                    data-testid="patch-apply"
-                    type="button"
-                    className="adl-btn adl-btn--primary"
-                    onClick={onApplyPatchSet}
-                  >
+                  <button data-testid="patch-apply" type="button" className="adl-btn adl-btn--primary" onClick={onApplyPatchSet}>
                     {t.applyPatch}
                   </button>
                   <button type="button" className="adl-btn adl-btn--ghost" onClick={onRollbackPatchSet}>
@@ -257,75 +296,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
                   </button>
                 </div>
               </article>
-            ) : (
-              <p className="adl-empty-hint">{t.noPatch}</p>
-            )}
-
-            <article className="adl-run-card">
-              <header>
-                <h3>{t.models}</h3>
-                <button
-                  type="button"
-                  className="adl-btn adl-btn--ghost adl-btn--xs"
-                  onClick={onRefreshModelHealth}
-                >
-                  <IconRefreshCw size={12} decorative />
-                </button>
-              </header>
-              {modelHealth?.providers.length ? (
-                <ul className="adl-run-card__list">
-                  {modelHealth.providers.map((provider) => (
-                    <li key={provider.providerId}>
-                      <strong>{provider.providerId}</strong>
-                      <span className={`adl-chip adl-chip--${provider.healthy ? "success" : "warning"}`}>
-                        {provider.healthy ? t.statusHealthy : t.statusDegraded}
-                      </span>
-                      <span>{provider.detail}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="adl-empty-hint">{t.modelUnavailable}</p>
-              )}
-              <h4>{t.modelSettings}</h4>
-              <div className="adl-run-card__settings">
-                {MODEL_PROVIDER_IDS.map((providerId) => {
-                  const preference = appInfo?.config.modelPreferences.providers[providerId];
-                  if (!preference) return null;
-                  return (
-                    <section key={providerId}>
-                      <strong>{providerId}</strong>
-                      <label>
-                        <span>{t.providerEnabled}</span>
-                        <input
-                          type="checkbox"
-                          checked={preference.enabled}
-                          onChange={(event) =>
-                            onUpdatePreference({
-                              modelPreferences: { [providerId]: { enabled: event.target.checked } }
-                            })
-                          }
-                        />
-                      </label>
-                      <label>
-                        <span>{t.providerPriority}</span>
-                        <input
-                          type="number"
-                          min={1}
-                          max={10}
-                          value={preference.priority}
-                          onChange={(event) =>
-                            onUpdatePreference({
-                              modelPreferences: { [providerId]: { priority: Number(event.target.value) } }
-                            })
-                          }
-                        />
-                      </label>
-                    </section>
-                  );
-                })}
-              </div>
-            </article>
+            ) : null}
           </div>
         </div>
       </div>

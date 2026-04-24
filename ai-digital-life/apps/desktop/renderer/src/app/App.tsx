@@ -89,7 +89,11 @@ export function App() {
     updatePreferences
   } = store;
 
-  const { leftCollapsed, rightCollapsed, activeTool, setActiveTool, rightPanelWidth } = useUiStore();
+  const leftCollapsed = useUiStore((state) => state.leftCollapsed);
+  const rightCollapsed = useUiStore((state) => state.rightCollapsed);
+  const activeTool = useUiStore((state) => state.activeTool);
+  const setActiveTool = useUiStore((state) => state.setActiveTool);
+  const rightPanelWidth = useUiStore((state) => state.rightPanelWidth);
   const [diffSideBySide, setDiffSideBySide] = React.useState(readDiffSideBySidePreference);
   const [commandBinary, setCommandBinary] = React.useState("npm");
   const [commandArgs, setCommandArgs] = React.useState("run test");
@@ -345,13 +349,15 @@ export function App() {
 
   return (
     <main className="adl-shell adl-ide">
-      <TitleBar
-        t={t}
-        appInfo={appInfo}
-        onOpenSettings={handleOpenSettings}
-        onTriggerCreateWorkspace={handleTriggerCreateWorkspace}
-        onOpenCommandPalette={handleOpenCommandPalette}
-      />
+        <TitleBar
+          t={t}
+          appInfo={appInfo}
+          onOpenSettings={handleOpenSettings}
+          onTriggerCreateWorkspace={handleTriggerCreateWorkspace}
+          onOpenCommandPalette={handleOpenCommandPalette}
+          onCycleTheme={handleCycleTheme}
+          onSelectLanguage={handleSelectLanguage}
+        />
 
       {error ? (
         <div className="adl-banner adl-banner--error" role="alert">
@@ -392,8 +398,6 @@ export function App() {
           onDeleteSession={(sessionId) => void deleteSession(sessionId)}
           onOpenWorkspace={(path) => void openWorkspace(path)}
           onTriggerCreateWorkspace={handleTriggerCreateWorkspace}
-          onCycleTheme={handleCycleTheme}
-          onSelectLanguage={handleSelectLanguage}
         />
 
         <CenterPane

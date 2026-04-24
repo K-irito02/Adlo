@@ -1,5 +1,5 @@
-import React, { useCallback, useId } from "react";
-import { useUiStore } from "../ui-store";
+import React, { useCallback, useId, useRef } from "react";
+import { RIGHT_PANEL_WIDTH_MAX, RIGHT_PANEL_WIDTH_MIN, useUiStore } from "../ui-store";
 import { BrowserPanel } from "./right-panel/BrowserPanel";
 import { ChangesPanel } from "./right-panel/ChangesPanel";
 import { FilesPanel } from "./right-panel/FilesPanel";
@@ -17,22 +17,46 @@ export function RightPanel(props: RightPanelViewProps) {
   const setRightPanelWidth = useUiStore((state) => state.setRightPanelWidth);
   const browserTabs = useUiStore((state) => state.browserTabs);
   const terminalTabs = useUiStore((state) => state.terminalTabs);
+  const panelRef = useRef<HTMLElement | null>(null);
+  const resizeFrameRef = useRef<number | null>(null);
 
   const handleResizeStart = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       event.preventDefault();
       const startX = event.clientX;
       const startWidth = rightPanelWidth;
+      let latestWidth = startWidth;
       const body = document.body;
+      const shellBody = panelRef.current?.closest(".adl-shell__body") as HTMLElement | null;
       body.classList.add("adl-is-resizing");
+      shellBody?.classList.add("is-resizing");
+
+      const clampWidth = (value: number) => Math.max(RIGHT_PANEL_WIDTH_MIN, Math.min(RIGHT_PANEL_WIDTH_MAX, value));
+      const applyPreviewWidth = (value: number) => {
+        shellBody?.style.setProperty("--rightpanel-width", `${clampWidth(value)}px`);
+      };
 
       const handleMove = (moveEvent: PointerEvent) => {
         const delta = startX - moveEvent.clientX;
-        setRightPanelWidth(startWidth + delta);
+        latestWidth = clampWidth(startWidth + delta);
+        if (resizeFrameRef.current !== null) {
+          return;
+        }
+        resizeFrameRef.current = window.requestAnimationFrame(() => {
+          resizeFrameRef.current = null;
+          applyPreviewWidth(latestWidth);
+        });
       };
 
       const handleUp = () => {
         body.classList.remove("adl-is-resizing");
+        shellBody?.classList.remove("is-resizing");
+        if (resizeFrameRef.current !== null) {
+          window.cancelAnimationFrame(resizeFrameRef.current);
+          resizeFrameRef.current = null;
+        }
+        applyPreviewWidth(latestWidth);
+        setRightPanelWidth(latestWidth);
         window.removeEventListener("pointermove", handleMove);
         window.removeEventListener("pointerup", handleUp);
       };
@@ -52,6 +76,7 @@ export function RightPanel(props: RightPanelViewProps) {
 
   return (
     <aside
+      ref={panelRef}
       className={`adl-rightpanel${collapsed ? " adl-rightpanel--collapsed" : ""}`}
       aria-label="Workspace tool panel"
       aria-hidden={collapsed}
