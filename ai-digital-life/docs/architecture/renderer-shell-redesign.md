@@ -1,7 +1,8 @@
 # Phase 2 Renderer Shell Redesign (17-Region Layout)
 
 This note records the original 17-region shell refactor and the follow-up sidebar navigation foundation that now backs the left sidebar with
-persisted workspace / session navigation metadata. It also captures the later center-pane composer consolidation and the softer panel
+persisted workspace/session navigation metadata. The current left sidebar splits into a durable project-bound workspace bucket and a
+renderer-local standalone conversation bucket. This note also captures the later center-pane composer consolidation and the softer panel
 collapse/expand motion now used by the shell.
 
 The initial shell composition was Renderer-first, but the current implementation is **not Renderer-only anymore**: sidebar pinning, ordering,
@@ -65,6 +66,9 @@ The left sidebar is now a cross-layer feature, not just a view refactor.
 - `apps/desktop/shared/ipc.ts` / `preload` / `main` expose the corresponding allowlisted bridge methods.
 - `apps/desktop/renderer/src/app/sidebarViewModel.ts` is the presentation boundary for region 6. `regions/LeftSidebar.tsx` consumes that
   view-model instead of recomputing storage semantics inline.
+- The current sidebar UI renders two separate buckets: project-bound sessions that follow the durable IPC/storage path, and a standalone
+  conversation bucket that is renderer-local for now. The standalone bucket keeps its own visible-row cap, expand/collapse affordance,
+  local reorder behavior, and resize-adjustable section height, but it does not write back to SQLite yet.
 
 ## State Ownership
 
@@ -155,6 +159,7 @@ architecture-change workflow (docs first, then IPC, then SQLite migration):
 
 - Workspace tab set (multiple simultaneous file editors).
 - Per-workspace panel widths.
+- Durable standalone conversation namespace and its sidebar actions.
 
 Each of these would require the same pattern used by the sidebar foundation: bridge updates in `apps/desktop/shared/ipc.ts`, storage support
 under `packages/storage`, and matching tests.

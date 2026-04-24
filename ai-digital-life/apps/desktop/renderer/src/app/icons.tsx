@@ -117,6 +117,20 @@ export const IconColumns = make(
   </>
 );
 
+export const IconExpandRows = make(
+  <>
+    <path d="m6 9 6-6 6 6" />
+    <path d="m6 15 6 6 6-6" />
+  </>
+);
+
+export const IconCollapseRows = make(
+  <>
+    <path d="m6 4.5 6 5 6-5" />
+    <path d="m6 19.5 6-5 6 5" />
+  </>
+);
+
 // ---------------- Actions ----------------
 export const IconSettings = make(
   <>

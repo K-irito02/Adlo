@@ -17,6 +17,20 @@ export type SidebarWorkspaceItem = {
   statusCounts: Record<SessionVisualStatus, number>;
 };
 
+export type SidebarViewModel = {
+  workspaces: SidebarWorkspaceItem[];
+  standaloneSessions: SidebarSessionItem[];
+  standaloneArchivedSessions: SidebarSessionItem[];
+};
+
+export type VisibleSidebarSessions = {
+  items: SidebarSessionItem[];
+  hiddenCount: number;
+  limit: number;
+};
+
+export const SIDEBAR_SESSION_PREVIEW_LIMIT = 5;
+
 const STATUS_PRIORITY: SessionVisualStatus[] = ["abnormal", "pending-approval", "processing", "completed", "read"];
 
 function isSessionUnread(session: ConversationSessionRecord): boolean {
@@ -65,7 +79,7 @@ export function buildSidebarViewModel(input: {
   sessions: ConversationSessionRecord[];
   streamingActiveRunId?: string;
   taskCenter?: TaskCenterSnapshot;
-}): SidebarWorkspaceItem[] {
+}): SidebarViewModel {
   const currentWorkspace = input.appInfo?.currentWorkspace;
   const entries = [...input.recentWorkspaces];
   if (currentWorkspace && !entries.some((entry) => entry.id === currentWorkspace.id)) {
@@ -84,34 +98,58 @@ export function buildSidebarViewModel(input: {
   }
 
   const hasPendingApproval = (input.taskCenter?.pendingApprovals.length ?? 0) > 0;
+  const visibleEntries = entries.filter((entry) => !entry.removedFromSidebar);
+  const knownWorkspaceIds = new Set(visibleEntries.map((entry) => entry.id));
+  const sessionItems = input.sessions.map((session) => ({
+    session,
+    status: computeSessionVisualStatus(session, input.streamingActiveRunId, hasPendingApproval),
+    isUnread: isSessionUnread(session)
+  }));
 
-  return entries
-    .filter((entry) => !entry.removedFromSidebar)
-    .map((workspace) => {
-      const isCurrent = currentWorkspace?.id === workspace.id;
-      const workspaceSessions = isCurrent ? input.sessions : [];
-      const sessionItems = workspaceSessions.map((session) => ({
-        session,
-        status: computeSessionVisualStatus(session, input.streamingActiveRunId, hasPendingApproval),
-        isUnread: isSessionUnread(session)
-      }));
-      const activeSessions = sessionItems.filter((item) => !item.session.archivedAt);
-      const archivedSessions = sessionItems.filter((item) => Boolean(item.session.archivedAt));
-      const statusCounts = emptyStatusCounts();
-      for (const item of activeSessions) {
-        statusCounts[item.status] += 1;
-      }
-      const rollupStatus =
-        STATUS_PRIORITY.find((status) => statusCounts[status] > 0) ??
-        (activeSessions.length > 0 ? "read" : "read");
+  const workspaces = visibleEntries.map((workspace) => {
+    const isCurrent = currentWorkspace?.id === workspace.id;
+    const workspaceSessionItems = sessionItems.filter((item) => item.session.workspaceId === workspace.id);
+    const activeSessions = workspaceSessionItems.filter((item) => !item.session.archivedAt);
+    const archivedSessions = workspaceSessionItems.filter((item) => Boolean(item.session.archivedAt));
+    const statusCounts = emptyStatusCounts();
+    for (const item of activeSessions) {
+      statusCounts[item.status] += 1;
+    }
+    const rollupStatus =
+      STATUS_PRIORITY.find((status) => statusCounts[status] > 0) ??
+      (activeSessions.length > 0 ? "read" : "read");
 
-      return {
-        workspace,
-        isCurrent,
-        sessions: activeSessions,
-        archivedSessions,
-        rollupStatus,
-        statusCounts
-      };
-    });
+    return {
+      workspace,
+      isCurrent,
+      sessions: activeSessions,
+      archivedSessions,
+      rollupStatus,
+      statusCounts
+    };
+  });
+
+  const standaloneSessionItems = sessionItems.filter((item) => !knownWorkspaceIds.has(item.session.workspaceId));
+
+  return {
+    workspaces,
+    standaloneSessions: standaloneSessionItems.filter((item) => !item.session.archivedAt),
+    standaloneArchivedSessions: standaloneSessionItems.filter((item) => Boolean(item.session.archivedAt))
+  };
+}
+
+export function getVisibleSidebarSessions(
+  sessions: SidebarSessionItem[],
+  expanded: boolean,
+  limit = SIDEBAR_SESSION_PREVIEW_LIMIT
+): VisibleSidebarSessions {
+  if (expanded || sessions.length <= limit) {
+    return { items: sessions, hiddenCount: 0, limit };
+  }
+
+  return {
+    items: sessions.slice(0, limit),
+    hiddenCount: sessions.length - limit,
+    limit
+  };
 }
