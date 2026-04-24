@@ -141,21 +141,26 @@ npm run start
 
 ### 本地开发（Vite + Electron）
 
-开发模式下 Main 会加载 `http://localhost:5173`（见 `apps/desktop/main/index.ts`）。首次或 Main/Preload 变更后需先编译二者：
+`npm run dev` 现在会先编译 Main/Preload，再固定在 `http://127.0.0.1:5173/` 启动 Vite，并在服务可用后自动拉起 Electron。这样浏览器预览和外部桌面应用会走同一份 Renderer，避免端口漂移或少开一个终端。
 
 ```bash
-npm run build:main -w @ai-digital-life/desktop
-npm run build:preload -w @ai-digital-life/desktop
+npm run dev
 ```
 
-然后开两个终端：
+- **渲染进程 / 内置浏览器预览**：在 Cursor/VS Code 的 **Simple Browser** 或系统浏览器打开 `http://127.0.0.1:5173/` 即可预览 UI。无 Electron 时会继续走 `main.tsx` 内的 mock 桥接。
+- **外部桌面应用**：同一条 `npm run dev` 会自动启动 Electron 窗口，并通过 `ADL_RENDERER_DEV_URL` 指向同一个 Renderer Dev Server。
 
-1. **渲染进程 / 内置浏览器预览**：`npm run dev -w @ai-digital-life/desktop`  
-   - 在 Cursor/VS Code 的 **Simple Browser** 或系统浏览器打开 `http://localhost:5173` 即可预览 UI（无 Electron 时使用 `main.tsx` 内的 mock 桥接，功能受限但便于调样式）。
-2. **外部桌面应用**：在 Vite 已启动的前提下执行 `npm run start -w @ai-digital-life/desktop` 启动 Electron 窗口（完整 IPC 与文件系统能力）。  
-   - 若 Vite 提示端口被占用而改用其他端口（例如 `http://localhost:5174/`），请**先 `npm run build:main -w @ai-digital-life/desktop`** 再在同一 shell 设置环境变量后启动 Electron，例如 PowerShell：  
-     `$env:ADL_RENDERER_DEV_URL='http://localhost:5174/'; npm run start -w @ai-digital-life/desktop`  
-     （`ADL_RENDERER_DEV_URL` 由 `apps/desktop/main/index.ts` 读取，默认仍为 `http://localhost:5173`。）
+如果只想单独跑浏览器预览，可以使用：
+
+```bash
+npm run dev:browser
+```
+
+如果需要显式指定另一台调试机或不同地址，也可以先设置环境变量再启动整套链路，例如 PowerShell：
+
+```powershell
+$env:ADL_RENDERER_DEV_URL='http://127.0.0.1:5173/'; npm run dev:desktop
+```
 
 `pnpm-workspace.yaml` is included because the target layout is still a `pnpm workspace`, but the scripts are also `npm workspace` compatible for environments where `pnpm` is not yet provisioned.
 
