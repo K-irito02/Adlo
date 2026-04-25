@@ -16,8 +16,8 @@ alwaysApply: false
 ## 契约真源
 
 - **类型与命令形状**：`crates/kernel` 中导出的 `serde` 类型 + `src-tauri/src/commands/*` 的 `#[tauri::command]` 函数签名。
-- **能力白名单**：`src-tauri/capabilities/*.json` 决定每个窗口可调用哪些命令；新增命令必须同步登记。
-- **前端调用层**：契约在 `frontend/src/shared/ipc.ts`（`DigitalLifeBridge`）。当前开发态用 `frontend/src/mock-bridge.ts` 注入 `window.digitalLife`；接入 Tauri 时应以封装 `invoke` 的实现替换或与之组合，保持接口不变。
+- **能力白名单**：`src-tauri/capabilities/*.json` 引用 `src-tauri/permissions/*.toml` 中的自定义权限集（如 `digital-life-commands`）；新增 `#[tauri::command]` 必须在权限 TOML 的 `commands.allow` 中登记，并确保 capability JSON 已引用该权限。
+- **前端调用层**：契约在 `frontend/src/shared/ipc.ts`（`DigitalLifeBridge`）。浏览器预览用 `frontend/src/mock-bridge.ts`；Tauri WebView 用 `frontend/src/tauri-bridge.ts`（`invoke` + `listen`），由 `frontend/src/main.tsx` 按 `import.meta.env.TAURI_ENV_PLATFORM` 选择挂载。
 
 ## 事件通道（版本化载荷）
 

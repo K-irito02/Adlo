@@ -42,7 +42,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
   const toggleNavigator = useUiStore((state) => state.toggleNavigator);
   const changesNavigatorWidth = useUiStore((state) => state.changesNavigatorWidth);
   const setChangesNavigatorWidth = useUiStore((state) => state.setChangesNavigatorWidth);
-  const snapshot = appInfo?.currentWorkspace?.gitSnapshot;
+  const snapshot = props.gitSnapshot ?? appInfo?.currentWorkspace?.gitSnapshot;
   const fallbackBranch = snapshot?.branch ?? "main";
   const [branchMenuOpen, setBranchMenuOpen] = useState(false);
   const [changesMenuOpen, setChangesMenuOpen] = useState(false);
@@ -217,7 +217,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
               <IconGitBranch size={14} decorative />
               <span className="adl-tool-navigator__context-title">{t.toolChanges}</span>
             </div>
-            <span className="adl-tool-navigator__meta">{countGitChanges(appInfo)}</span>
+            <span className="adl-tool-navigator__meta">{countGitChanges(snapshot)}</span>
           </div>
 
           {changedGroups.length > 0 ? (

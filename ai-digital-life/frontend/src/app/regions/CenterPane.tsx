@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type {
   AgentRunDetail,
   AppInfo,
+  IndexingStatus,
   ModelGatewayHealthSnapshot,
   ApprovalRequestSummary,
   ConversationDetail,
@@ -52,6 +53,7 @@ interface CenterPaneProps {
   activeRun?: AgentRunDetail;
   modelHealth?: ModelGatewayHealthSnapshot;
   taskCenter?: TaskCenterSnapshot;
+  indexingStatus?: IndexingStatus;
   recentWorkspaces: RecentWorkspaceEntry[];
   onSendMessage: (content: string, opts: { mode: ChatMode; chips: ContextChip[] }) => Promise<void>;
   onCancelGenerate: () => void;
@@ -383,6 +385,7 @@ export function CenterPane({
   activeRun,
   modelHealth,
   taskCenter,
+  indexingStatus,
   recentWorkspaces,
   onSendMessage,
   onCancelGenerate,
@@ -739,6 +742,8 @@ export function CenterPane({
           currentWorkspace={appInfo?.currentWorkspace}
           modelHealth={modelHealth}
           isStreaming={!!streamingActiveRunId}
+          activeRun={activeRun}
+          indexingStatus={indexingStatus}
           onSelectModel={onSelectModel}
         />
       </footer>

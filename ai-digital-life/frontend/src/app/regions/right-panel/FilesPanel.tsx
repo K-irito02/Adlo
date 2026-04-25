@@ -21,6 +21,7 @@ import {
   IconUnfoldVertical
 } from "../../icons";
 import { TooltipSimple } from "../../components/Tooltip";
+import { RepoMapView } from "../../components/workspace/RepoMapView";
 import { useUiStore } from "../../ui-store";
 import { normalizeWorkspaceRelativePath } from "../../workspacePaths";
 import { getFileTreeVisualSpec } from "./fileTreeVisuals";
@@ -152,6 +153,7 @@ export function FilesPanel(props: RightPanelViewProps) {
     editorHint,
     outline,
     workspaceTree,
+    repoMap,
     searchQuery,
     searchResults,
     dirtyEditorPaths,
@@ -513,25 +515,28 @@ export function FilesPanel(props: RightPanelViewProps) {
           </div>
 
           {navigatorMode === "tree" ? (
-            workspaceTree.length > 0 ? (
-              <ul className="adl-filetree">
-                {workspaceTree.map((node) => (
-                  <TreeNode
-                    key={node.path}
-                    node={node}
-                    depth={0}
-                    selectedFilePath={selectedFilePath}
-                    expandedPaths={expandedPaths}
-                    dirtyPaths={dirtyPaths}
-                    externalChangePath={externalChangePath}
-                    onToggle={toggleFileTreePath}
-                    onOpenFile={onOpenFile}
-                  />
-                ))}
-              </ul>
-            ) : (
-              <p className="adl-empty-hint">{t.workspaceEmpty}</p>
-            )
+            <>
+              {workspaceTree.length > 0 ? (
+                <ul className="adl-filetree">
+                  {workspaceTree.map((node) => (
+                    <TreeNode
+                      key={node.path}
+                      node={node}
+                      depth={0}
+                      selectedFilePath={selectedFilePath}
+                      expandedPaths={expandedPaths}
+                      dirtyPaths={dirtyPaths}
+                      externalChangePath={externalChangePath}
+                      onToggle={toggleFileTreePath}
+                      onOpenFile={onOpenFile}
+                    />
+                  ))}
+                </ul>
+              ) : (
+                <p className="adl-empty-hint">{t.workspaceEmpty}</p>
+              )}
+              {repoMap.length > 0 ? <RepoMapView t={t} nodes={repoMap} /> : null}
+            </>
           ) : null}
 
           {navigatorMode === "search" ? (

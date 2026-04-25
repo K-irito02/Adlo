@@ -220,10 +220,26 @@ export const useAppStore = create<StoreState>((set, get) => ({
           }
         }
       }
+      await Promise.allSettled([
+        get().fetchIndexStatus(),
+        get().fetchRepoMap(),
+        get().fetchAuditEntries(40),
+        get().fetchCommandHistory(),
+        get().fetchGitStatus()
+      ]);
       return;
     }
 
-    set({ ...(nextState as StoreState), dirtyEditorPaths: [], workspaceTree: [] });
+    set({
+      ...(nextState as StoreState),
+      dirtyEditorPaths: [],
+      workspaceTree: [],
+      indexingStatus: undefined,
+      repoMap: [],
+      auditEntries: [],
+      commandHistory: [],
+      gitSnapshot: undefined
+    });
   },
   openWorkspace: async (workspacePath: string) => {
     const result = await window.digitalLife.workspace.open(workspacePath);
@@ -596,6 +612,14 @@ export const useAppStore = create<StoreState>((set, get) => ({
     set({
       activePatchSet: result.data.repairPatchSet ?? result.data.patchSet,
       latestPatchApplication: result.data,
+      latestCommandRun: result.data.commandResult
+        ? {
+            status: "completed",
+            taskId: result.data.commandResult.request.id,
+            request: result.data.commandResult.request,
+            result: result.data.commandResult
+          }
+        : undefined,
       openTabs: (result.data.repairPatchSet ?? result.data.patchSet).filePatches.map(mapPatchToEditorTab)
     });
     const detail = get().activeSessionId ? await window.digitalLife.conversation.getSession(get().activeSessionId!) : undefined;
@@ -617,6 +641,8 @@ export const useAppStore = create<StoreState>((set, get) => ({
     }
     await get().refreshTaskCenter();
     await get().fetchAuditEntries(40);
+    await get().fetchCommandHistory();
+    await get().fetchGitStatus();
   },
   rollbackPatchSet: async (patchSetId: string) => {
     const result = await window.digitalLife.patch.rollbackPatchSet(patchSetId);
@@ -641,6 +667,7 @@ export const useAppStore = create<StoreState>((set, get) => ({
     }
     await get().refreshTaskCenter();
     await get().fetchAuditEntries(40);
+    await get().fetchGitStatus();
   },
   refreshTaskCenter: async () => {
     const result = await window.digitalLife.task.getSnapshot();
@@ -656,8 +683,10 @@ export const useAppStore = create<StoreState>((set, get) => ({
       set({ error: result.error.message });
       return;
     }
-    set({ taskCenter: result.data });
+    set({ taskCenter: result.data, latestCommandRun: undefined });
     await get().fetchAuditEntries(40);
+    await get().fetchCommandHistory();
+    await get().fetchGitStatus();
   },
   markExternalFileChange: ({ path, lastModifiedAt }) => {
     const selected = normalizeWorkspaceRelativePath(get().selectedFilePath ?? "");
@@ -706,6 +735,8 @@ export const useAppStore = create<StoreState>((set, get) => ({
     set({ latestCommandRun: result.data });
     await get().refreshTaskCenter();
     await get().fetchAuditEntries(40);
+    await get().fetchCommandHistory();
+    await get().fetchGitStatus();
   },
   runCommandStream: async (command, argsText) => {
     if (!command.trim()) {
@@ -737,6 +768,7 @@ export const useAppStore = create<StoreState>((set, get) => ({
       });
       await get().refreshTaskCenter();
       await get().fetchAuditEntries(40);
+      await get().fetchCommandHistory();
       return;
     }
     const { executionId } = result.data;
@@ -765,6 +797,8 @@ export const useAppStore = create<StoreState>((set, get) => ({
         }));
         void get().refreshTaskCenter();
         void get().fetchAuditEntries(40);
+        void get().fetchCommandHistory();
+        void get().fetchGitStatus();
       }
     });
   },
@@ -851,7 +885,19 @@ export const useAppStore = create<StoreState>((set, get) => ({
   fetchGitStatus: async () => {
     const result = await window.digitalLife.workspace.getGitStatus();
     if (result.ok) {
-      set({ gitSnapshot: result.data });
+      set((state) => ({
+        gitSnapshot: result.data,
+        appInfo:
+          state.appInfo && state.appInfo.currentWorkspace
+            ? {
+                ...state.appInfo,
+                currentWorkspace: {
+                  ...state.appInfo.currentWorkspace,
+                  gitSnapshot: result.data
+                }
+              }
+            : state.appInfo
+      }));
     }
   },
   acceptAllHunks: async () => {
@@ -876,7 +922,14 @@ export const useAppStore = create<StoreState>((set, get) => ({
       }
     }
   },
-  restoreCheckpoint: async (_checkpointId: string) => {
-    // Will be implemented when checkpoint IPC is available
+  restoreCheckpoint: async (checkpointId: string) => {
+    const result = await window.digitalLife.task.restoreCheckpoint(checkpointId);
+    if (!result.ok) {
+      set({ error: result.error.message });
+      return;
+    }
+    set({ taskCenter: result.data });
+    await get().fetchAuditEntries(40);
+    await get().bootstrap();
   }
 }));

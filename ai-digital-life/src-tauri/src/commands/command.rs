@@ -3,13 +3,14 @@ use crate::error::CommandError;
 use crate::state::AppState;
 use adl_errors::AppError;
 use adl_kernel::{
-    CommandProfileSummary, CommandRequest, CommandRunResult, CommandRunStreamStart, IpcResult,
-    RiskLevel, TaskOperation,
+    now_ms, AuditEntry, CommandExecutionResult, CommandProfileSummary, CommandRequest,
+    CommandRunResult, CommandRunStreamStart, IpcResult, RiskLevel, TaskOperation,
 };
-use adl_storage::EntityTable;
+use adl_storage::{Database, EntityTable};
+use std::sync::Arc;
 use tauri::Emitter;
 use tokio::io::{AsyncBufReadExt, BufReader};
-use tokio::sync::oneshot;
+use tokio::sync::{oneshot, Mutex};
 
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -220,7 +221,10 @@ async fn command_run_stream_inner(
         app,
         execution_id.clone(),
         workspace.root_path.clone(),
+        workspace.id.clone(),
         request.clone(),
+        state.db.clone(),
+        state.command_cancellations.clone(),
         cancel_rx,
     );
     Ok(CommandRunStreamStart::Started {
@@ -273,7 +277,10 @@ fn spawn_stream(
     app: tauri::AppHandle,
     execution_id: String,
     root_path: String,
+    workspace_id: String,
     request: CommandRequest,
+    db: Database,
+    command_cancellations: Arc<Mutex<std::collections::HashMap<String, oneshot::Sender<()>>>>,
     mut cancel_rx: oneshot::Receiver<()>,
 ) {
     tauri::async_runtime::spawn(async move {
@@ -287,53 +294,104 @@ fn spawn_stream(
             Ok(mut child) => {
                 let stdout = child.stdout.take();
                 let stderr = child.stderr.take();
+                let stdout_capture = Arc::new(Mutex::new(String::new()));
+                let stderr_capture = Arc::new(Mutex::new(String::new()));
                 let mut seq = 0usize;
+                let mut stdout_handle = None;
+                let mut stderr_handle = None;
                 if let Some(stdout) = stdout {
                     let app = app.clone();
                     let execution_id = execution_id.clone();
-                    tauri::async_runtime::spawn(async move {
+                    let stdout_capture = Arc::clone(&stdout_capture);
+                    stdout_handle = Some(tauri::async_runtime::spawn(async move {
                         let mut lines = BufReader::new(stdout).lines();
                         let mut seq = 0usize;
                         while let Ok(Some(line)) = lines.next_line().await {
                             seq += 1;
+                            let text = format!("{line}\n");
+                            stdout_capture.lock().await.push_str(&text);
                             let _ = app.emit(
                                 "digital-life://terminal-stream",
-                                serde_json::json!({"v":1,"executionId":execution_id,"seq":seq,"type":"stdout","text":format!("{line}\n")}),
+                                serde_json::json!({"v":1,"executionId":execution_id,"seq":seq,"type":"stdout","text":text}),
                             );
                         }
-                    });
+                    }));
                 }
                 if let Some(stderr) = stderr {
                     let app = app.clone();
                     let execution_id = execution_id.clone();
-                    tauri::async_runtime::spawn(async move {
+                    let stderr_capture = Arc::clone(&stderr_capture);
+                    stderr_handle = Some(tauri::async_runtime::spawn(async move {
                         let mut lines = BufReader::new(stderr).lines();
                         let mut seq = 0usize;
                         while let Ok(Some(line)) = lines.next_line().await {
                             seq += 1;
+                            let text = format!("{line}\n");
+                            stderr_capture.lock().await.push_str(&text);
                             let _ = app.emit(
                                 "digital-life://terminal-stream",
-                                serde_json::json!({"v":1,"executionId":execution_id,"seq":seq,"type":"stderr","text":format!("{line}\n")}),
+                                serde_json::json!({"v":1,"executionId":execution_id,"seq":seq,"type":"stderr","text":text}),
                             );
                         }
-                    });
+                    }));
                 }
-                let status = tokio::select! {
-                    status = child.wait() => status.ok(),
+                let (status, was_cancelled) = tokio::select! {
+                    status = child.wait() => (status.ok(), false),
                     _ = &mut cancel_rx => {
                         let _ = child.kill().await;
-                        child.wait().await.ok()
+                        (child.wait().await.ok(), true)
                     }
                 };
+                if let Some(handle) = stdout_handle {
+                    let _ = handle.await;
+                }
+                if let Some(handle) = stderr_handle {
+                    let _ = handle.await;
+                }
+                command_cancellations.lock().await.remove(&execution_id);
                 seq += 1;
                 let exit_code = status.and_then(|status| status.code());
-                let success = exit_code == Some(0);
+                let success = !was_cancelled && exit_code == Some(0);
+                let summary = if was_cancelled {
+                    "Command was cancelled.".to_string()
+                } else if success {
+                    "Command completed.".to_string()
+                } else {
+                    format!("Command failed with exit code {}.", exit_code.map_or("null".into(), |code| code.to_string()))
+                };
+                let stdout = adl_terminal::truncate_output(&stdout_capture.lock().await.clone());
+                let stderr = adl_terminal::truncate_output(&stderr_capture.lock().await.clone());
+                let result = CommandExecutionResult {
+                    request: request.clone(),
+                    exit_code,
+                    signal: None,
+                    stdout,
+                    stderr,
+                    summary: summary.clone(),
+                    success,
+                    started_at: request.created_at,
+                    completed_at: now_ms(),
+                };
+                let _ = save_stream_execution(&db, &workspace_id, &result);
                 let _ = app.emit(
                     "digital-life://terminal-stream",
-                    serde_json::json!({"v":1,"executionId":execution_id,"seq":seq,"type":"done","exitCode":exit_code,"success":success,"summary":if success {"Command completed."} else {"Command failed or was cancelled."}}),
+                    serde_json::json!({"v":1,"executionId":execution_id,"seq":seq,"type":"done","exitCode":exit_code,"success":success,"summary":summary}),
                 );
             }
             Err(error) => {
+                command_cancellations.lock().await.remove(&execution_id);
+                let result = CommandExecutionResult {
+                    request: request.clone(),
+                    exit_code: None,
+                    signal: None,
+                    stdout: String::new(),
+                    stderr: error.to_string(),
+                    summary: format!("Failed to spawn command: {}", error),
+                    success: false,
+                    started_at: request.created_at,
+                    completed_at: now_ms(),
+                };
+                let _ = save_stream_execution(&db, &workspace_id, &result);
                 let _ = app.emit(
                     "digital-life://terminal-stream",
                     serde_json::json!({"v":1,"executionId":execution_id,"seq":1,"type":"error","message":error.to_string()}),
@@ -341,4 +399,42 @@ fn spawn_stream(
             }
         }
     });
+}
+
+fn save_stream_execution(
+    db: &Database,
+    workspace_id: &str,
+    result: &CommandExecutionResult,
+) -> Result<(), AppError> {
+    db.save_entity(
+        EntityTable::CommandExecutions,
+        &result.request.id,
+        Some(workspace_id),
+        Some("command"),
+        Some(if result.success { "completed" } else { "failed" }),
+        result,
+    )?;
+
+    let audit = AuditEntry {
+        id: adl_kernel::create_id("audit"),
+        timestamp: now_ms(),
+        operation_type: "command".into(),
+        summary: result.summary.clone(),
+        risk_level: result.request.risk_level,
+        decision: Some("auto".into()),
+        detail: Some(format!(
+            "command={} {}",
+            result.request.command,
+            result.request.args.join(" ")
+        )),
+    };
+    db.save_entity(
+        EntityTable::AuditRecords,
+        &audit.id,
+        Some(workspace_id),
+        Some("command"),
+        Some("command"),
+        &audit,
+    )?;
+    Ok(())
 }

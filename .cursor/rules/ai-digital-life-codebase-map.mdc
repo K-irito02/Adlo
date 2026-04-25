@@ -33,8 +33,9 @@ alwaysApply: false
   - `src/locales/`：i18n（`zh-CN` / `en-US`）
   - `src/kernel/index.ts`：通过路径别名 `@ai-digital-life/kernel` 引用的**前端侧**共享类型与工具（与 `crates/kernel` 职责区分：后端以 Rust 为准，前端类型为桥接与 UI 契约）
   - `src/shared/ipc.ts`：`DigitalLifeBridge` 接口
-  - `src/mock-bridge.ts`：无 Tauri 后端时挂载 `window.digitalLife` 的 mock
-  - 联调/生产：通过 `@tauri-apps/api` 的 `invoke()` / `listen()` 调用后端，替换或包装 mock
+  - `src/mock-bridge.ts`：浏览器预览用 mock `window.digitalLife`
+  - `src/tauri-bridge.ts`：Tauri WebView 真桥接（`invoke` / `listen`）
+  - `src-tauri/permissions/*.toml`：应用命令 ACL，与 `capabilities/*.json` 联动
 
 ## Crates（`crates/`）
 

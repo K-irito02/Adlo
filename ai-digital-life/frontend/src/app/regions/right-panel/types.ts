@@ -1,10 +1,14 @@
 import type {
   AppInfo,
+  AuditEntry,
   CommandRunResult,
   FileOutlineItem,
   FilePatch,
+  GitSnapshot,
   PatchApplicationResult,
   PatchSet,
+  RepoMapNode,
+  SettingItem,
   WorkspaceSearchHit,
   WorkspaceTreeNode
 } from "@ai-digital-life/kernel";
@@ -35,6 +39,7 @@ export interface RightPanelViewProps {
   editorHint?: string;
   outline: FileOutlineItem[];
   workspaceTree: WorkspaceTreeNode[];
+  repoMap: RepoMapNode[];
   searchQuery: string;
   searchResults: WorkspaceSearchHit[];
   dirtyEditorPaths: string[];
@@ -57,7 +62,11 @@ export interface RightPanelViewProps {
   onRollbackPatchSet: () => void;
   modelHealth?: { providers: Array<{ providerId: string; healthy: boolean; detail: string }> } | undefined;
   onRefreshModelHealth: () => void;
-  onUpdatePreference: (patch: unknown) => void;
+  auditEntries: AuditEntry[];
+  settings: SettingItem[];
+  gitSnapshot?: GitSnapshot;
+  commandHistory: string[];
+  onChangeSetting: (id: string, value: string | boolean | number) => void;
   commandBinary: string;
   commandArgs: string;
   latestCommandRun?: CommandRunResult;
@@ -70,8 +79,7 @@ export interface RightPanelViewProps {
   onStopCommandStream: () => void;
 }
 
-export function countGitChanges(appInfo?: AppInfo): number {
-  const snapshot = appInfo?.currentWorkspace?.gitSnapshot;
+export function countGitChanges(snapshot?: GitSnapshot): number {
   if (!snapshot) {
     return 0;
   }

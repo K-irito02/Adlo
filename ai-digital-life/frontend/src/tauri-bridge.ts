@@ -1,0 +1,208 @@
+import { invoke } from "@tauri-apps/api/core";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import type { DigitalLifeBridge } from "./shared/ipc";
+import type {
+  AgentRunDetail,
+  AppInfo,
+  AppPreferencePatch,
+  AuditEntry,
+  ApprovalRequestSummary,
+  CheckpointPayloadPreview,
+  CommandRequest,
+  CommandRunResult,
+  CommandRunStreamStart,
+  ConversationDetail,
+  ConversationSendResult,
+  ConversationSessionRecord,
+  DigitalLifeModelStreamEventV1,
+  DigitalLifeTerminalStreamEventV1,
+  GitSnapshot,
+  HealthSnapshot,
+  IpcResult,
+  ModelGatewayHealthSnapshot,
+  PatchApplicationResult,
+  PatchSet,
+  RecentWorkspaceEntry,
+  RepoMapNode,
+  RetrievalSnapshot,
+  ReorderSessionsInput,
+  ReorderWorkspacesInput,
+  RuntimeDiagnosticsSnapshot,
+  TaskCenterSnapshot,
+  WorkspaceFileChangedEvent,
+  WorkspaceFileDocument,
+  WorkspaceMeta,
+  WorkspaceSearchHit,
+  WorkspaceTreeNode
+} from "@ai-digital-life/kernel";
+import { repoMapEntriesToTree } from "./app/repoMapFromEntries";
+
+async function invokeIpc<T>(cmd: string, args?: Record<string, unknown>): Promise<IpcResult<T>> {
+  try {
+    return await invoke<IpcResult<T>>(cmd, args);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    return { ok: false, error: { code: "INVOKE_ERROR", message } };
+  }
+}
+
+function subscribeChannel<T>(
+  eventName: string,
+  listener: (payload: T) => void
+): () => void {
+  let active = true;
+  let ul: UnlistenFn | undefined;
+  void listen<T>(eventName, (event) => {
+    if (active) {
+      listener(event.payload);
+    }
+  }).then((unlisten) => {
+    if (active) {
+      ul = unlisten;
+    } else {
+      void unlisten();
+    }
+  });
+  return () => {
+    active = false;
+    void ul?.();
+  };
+}
+
+export function isTauriShell(): boolean {
+  try {
+    return typeof import.meta !== "undefined" && Boolean(import.meta.env?.TAURI_ENV_PLATFORM);
+  } catch {
+    return false;
+  }
+}
+
+export function createTauriBridge(): DigitalLifeBridge {
+  const win = () => getCurrentWindow();
+
+  return {
+    subscribeModelStream: (listener: (event: DigitalLifeModelStreamEventV1) => void) =>
+      subscribeChannel<DigitalLifeModelStreamEventV1>("digital-life://model-stream", listener),
+
+    subscribeTerminalStream: (listener: (event: DigitalLifeTerminalStreamEventV1) => void) =>
+      subscribeChannel<DigitalLifeTerminalStreamEventV1>("digital-life://terminal-stream", listener),
+
+    window: {
+      minimize: () => win().minimize(),
+      maximize: () => win().toggleMaximize(),
+      close: () => win().close(),
+      isMaximized: () => win().isMaximized()
+    },
+
+    app: {
+      getInfo: () => invokeIpc<AppInfo>("app_get_info"),
+      getHealth: () => invokeIpc<HealthSnapshot>("app_get_health"),
+      getDiagnostics: () => invokeIpc<RuntimeDiagnosticsSnapshot>("app_get_diagnostics"),
+      getModelHealth: () => invokeIpc<ModelGatewayHealthSnapshot>("app_get_model_health"),
+      updatePreferences: (patch: AppPreferencePatch) => invokeIpc<AppInfo>("app_update_preferences", { patch })
+    },
+
+    workspace: {
+      listRecent: () => invokeIpc<RecentWorkspaceEntry[]>("workspace_list_recent"),
+      open: (workspacePath: string) => invokeIpc<WorkspaceMeta>("workspace_open", { workspacePath }),
+      pin: (workspaceId: string) => invokeIpc<RecentWorkspaceEntry[]>("workspace_pin", { workspaceId }),
+      unpin: (workspaceId: string) => invokeIpc<RecentWorkspaceEntry[]>("workspace_unpin", { workspaceId }),
+      reorder: (input: ReorderWorkspacesInput) => invokeIpc<RecentWorkspaceEntry[]>("workspace_reorder", { input }),
+      removeFromSidebar: (workspaceId: string) =>
+        invokeIpc<RecentWorkspaceEntry[]>("workspace_remove_from_sidebar", { workspaceId }),
+      restoreToSidebar: (workspaceId: string) =>
+        invokeIpc<RecentWorkspaceEntry[]>("workspace_restore_to_sidebar", { workspaceId }),
+      revealInFileManager: (workspacePath: string) =>
+        invokeIpc<boolean>("workspace_reveal_in_file_manager", { path: workspacePath }),
+      readFile: (relativePath: string) => invokeIpc<WorkspaceFileDocument>("workspace_read_file", { relativePath }),
+      listTree: () => invokeIpc<WorkspaceTreeNode[]>("workspace_list_tree"),
+      search: (query: string) => invokeIpc<WorkspaceSearchHit[]>("workspace_search", { query }),
+      outline: (relativePath: string) => invokeIpc("workspace_outline", { relativePath }),
+      setEditorDirtyPaths: (relativePaths: string[]) =>
+        invokeIpc<boolean>("workspace_set_editor_dirty_paths", { relativePaths }),
+      onFileChanged: (listener: (event: WorkspaceFileChangedEvent) => void) =>
+        subscribeChannel<WorkspaceFileChangedEvent>("digital-life://workspace-file-changed", listener),
+      getGitStatus: () => invokeIpc<GitSnapshot>("workspace_get_git_status")
+    },
+
+    retrieval: {
+      getStatus: () => invokeIpc<RetrievalSnapshot | undefined>("retrieval_get_status"),
+      getRepoMap: async (): Promise<IpcResult<RepoMapNode[]>> => {
+        const snapshot = await invokeIpc<RetrievalSnapshot | undefined>("retrieval_get_status");
+        if (!snapshot.ok) {
+          return snapshot;
+        }
+        return { ok: true, data: repoMapEntriesToTree(snapshot.data?.repoMap ?? []) };
+      },
+      rebuildIndex: () => invokeIpc<boolean>("retrieval_rebuild_index")
+    },
+
+    conversation: {
+      createSession: (title?: string) => invokeIpc<ConversationSessionRecord>("conversation_create_session", { title }),
+      listSessions: () => invokeIpc<ConversationSessionRecord[]>("conversation_list_sessions"),
+      getSession: (sessionId: string) =>
+        invokeIpc<ConversationDetail | undefined>("conversation_get_session", { sessionId }),
+      renameSession: (input: { sessionId: string; title: string }) =>
+        invokeIpc<ConversationSessionRecord>("conversation_rename_session", { input }),
+      pinSession: (sessionId: string) => invokeIpc<ConversationSessionRecord>("conversation_pin_session", { sessionId }),
+      unpinSession: (sessionId: string) =>
+        invokeIpc<ConversationSessionRecord>("conversation_unpin_session", { sessionId }),
+      reorderSessions: (input: ReorderSessionsInput) =>
+        invokeIpc<ConversationSessionRecord[]>("conversation_reorder_sessions", { input }),
+      markSessionRead: (input: { sessionId: string; readAt?: number }) =>
+        invokeIpc<ConversationSessionRecord>("conversation_mark_session_read", { input }),
+      markSessionUnread: (sessionId: string) =>
+        invokeIpc<ConversationSessionRecord>("conversation_mark_session_unread", { sessionId }),
+      archiveSession: (sessionId: string) =>
+        invokeIpc<ConversationSessionRecord>("conversation_archive_session", { sessionId }),
+      archiveAllInWorkspace: () =>
+        invokeIpc<ConversationSessionRecord[]>("conversation_archive_all_in_workspace"),
+      deleteSession: (sessionId: string) => invokeIpc<boolean>("conversation_delete_session", { sessionId }),
+      sendMessage: (input: { sessionId: string; content: string; scenario?: "chat" | "plan" | "code-edit" }) =>
+        invokeIpc<ConversationSendResult>("conversation_send_message", { input }),
+      cancelMessage: (runId: string) =>
+        invokeIpc<AgentRunDetail | undefined>("conversation_cancel_message", { runId })
+    },
+
+    agent: {
+      startRun: (input: { sessionId: string; prompt: string; scenario?: "chat" | "plan" | "code-edit" }) =>
+        invokeIpc<ConversationSendResult>("agent_start_run", { input }),
+      getRun: (runId: string) => invokeIpc<AgentRunDetail | undefined>("agent_get_run", { runId }),
+      retryRun: (runId: string) => invokeIpc<AgentRunDetail | undefined>("agent_retry_run", { runId }),
+      abortRun: (runId: string) => invokeIpc<AgentRunDetail | undefined>("agent_abort_run", { runId })
+    },
+
+    patch: {
+      getPatchSet: (patchSetId: string) => invokeIpc<PatchSet | undefined>("patch_get_patch_set", { patchSetId }),
+      setHunkDecision: (input: { patchSetId: string; hunkId: string; decision: "pending" | "accepted" | "rejected" }) =>
+        invokeIpc<PatchSet>("patch_set_hunk_decision", { input }),
+      applyPatchSet: (patchSetId: string) =>
+        invokeIpc<PatchApplicationResult>("patch_apply_patch_set", { patchSetId }),
+      rollbackPatchSet: (patchSetId: string) =>
+        invokeIpc<PatchSet>("patch_rollback_patch_set", { patchSetId })
+    },
+
+    command: {
+      getProfiles: () => invokeIpc("command_get_profiles"),
+      run: (input: { command: string; args: string[]; shell?: boolean }) =>
+        invokeIpc<CommandRunResult>("command_run", { input }),
+      runStream: (input: { command: string; args: string[]; shell?: boolean }) =>
+        invokeIpc<CommandRunStreamStart>("command_run_stream", { input }),
+      stopStream: (executionId: string) => invokeIpc<boolean>("command_stop_stream", { executionId }),
+      listRecent: (limit?: number) => invokeIpc<CommandRequest[]>("command_list_recent", { limit })
+    },
+
+    task: {
+      getSnapshot: () => invokeIpc<TaskCenterSnapshot>("task_get_snapshot"),
+      listPendingApprovals: () => invokeIpc<ApprovalRequestSummary[]>("task_list_pending_approvals"),
+      getCheckpointPreview: (checkpointId: string) =>
+        invokeIpc<CheckpointPayloadPreview | undefined>("task_get_checkpoint_preview", { checkpointId }),
+      restoreCheckpoint: (checkpointId: string) =>
+        invokeIpc<TaskCenterSnapshot>("task_restore_checkpoint", { checkpointId }),
+      decideApproval: (input: { approvalId: string; decision: "approved" | "rejected"; reason?: string }) =>
+        invokeIpc<TaskCenterSnapshot>("task_decide_approval", { input }),
+      listAuditEntries: (limit?: number) => invokeIpc<AuditEntry[]>("task_list_audit_entries", { limit })
+    }
+  };
+}

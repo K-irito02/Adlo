@@ -444,7 +444,7 @@ export function LeftSidebar({
   const [droppedSessionId, setDroppedSessionId] = useState<string>();
   const [expandedSessionLists, setExpandedSessionLists] = useState<Record<string, boolean>>({});
   const [conversationPanelHeight, setConversationPanelHeight] = useState<number>(() => readConversationPanelHeight());
-  const [mockStandaloneSessions, setMockStandaloneSessions] = useState<SidebarSessionItem[]>(() => buildMockStandaloneSessions());
+  const [mockStandaloneSessions, setMockStandaloneSessions] = useState<SidebarSessionItem[]>([]);
   const [mockStandaloneArchivedSessions, setMockStandaloneArchivedSessions] = useState<SidebarSessionItem[]>([]);
   const [ephemeralVisibleSessionIds, setEphemeralVisibleSessionIds] = useState<Record<string, string[]>>({});
 
@@ -460,11 +460,9 @@ export function LeftSidebar({
     [appInfo, recentWorkspaces, sessions, streamingActiveRunId, taskCenter]
   );
   const workspaceItems = sidebarViewModel.workspaces;
-  const usingMockStandaloneSessions = sidebarViewModel.standaloneSessions.length === 0;
-  const displayStandaloneSessions = usingMockStandaloneSessions ? mockStandaloneSessions : sidebarViewModel.standaloneSessions;
-  const displayStandaloneArchivedSessions = usingMockStandaloneSessions
-    ? mockStandaloneArchivedSessions
-    : sidebarViewModel.standaloneArchivedSessions;
+  const usingMockStandaloneSessions = false;
+  const displayStandaloneSessions = sidebarViewModel.standaloneSessions;
+  const displayStandaloneArchivedSessions = sidebarViewModel.standaloneArchivedSessions;
 
   const draggingRef = useRef(false);
   const rafRef = useRef(0);
@@ -1714,12 +1712,7 @@ export function LeftSidebar({
               type="button"
               className="adl-icon-btn adl-icon-btn--xs"
               aria-label={t.newConversation}
-              onClick={() => {
-                if (usingMockStandaloneSessions) {
-                  createMockStandaloneSession();
-                }
-              }}
-              disabled={!usingMockStandaloneSessions}
+              onClick={onCreateSession}
             >
               <IconPlus size={14} decorative />
             </button>
@@ -1728,9 +1721,10 @@ export function LeftSidebar({
         {!conversationsCollapsed ? (
           <div className="adl-leftbar__conversation-body">
             <ul className="adl-session-list adl-session-list--standalone" role="list">
+              {displayStandaloneSessions.length === 0 ? <li className="adl-empty-hint">{t.sessionEmpty}</li> : null}
               {renderSessionRows(displayStandaloneSessions, {
                 listKey: "standalone",
-                allowStandaloneReorder: usingMockStandaloneSessions
+                allowStandaloneReorder: false
               })}
             </ul>
             {displayStandaloneArchivedSessions.length > 0 ? (

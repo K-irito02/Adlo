@@ -4,10 +4,89 @@ use crate::state::AppState;
 use adl_errors::AppError;
 use adl_kernel::{
     AgentRunDetail, AgentRunStatus, ConversationRole, ConversationScenario, ConversationSendResult,
-    IpcResult,
+    IpcResult, ModelResponse,
 };
 use adl_storage::EntityTable;
 use tauri::Emitter;
+
+const MODEL_STREAM_CHARS: usize = 120;
+
+fn emit_model_stream_events(app: &tauri::AppHandle, run_id: &str, response: &ModelResponse) {
+    let reason = response
+        .route
+        .as_ref()
+        .map(|r| r.reason.as_str())
+        .unwrap_or("primary route");
+    let _ = app.emit(
+        "digital-life://model-stream",
+        serde_json::json!({
+            "v": 1,
+            "runId": run_id,
+            "seq": 0,
+            "type": "route",
+            "providerId": response.provider_id,
+            "modelId": response.model_id,
+            "reason": reason,
+        }),
+    );
+    let mut seq = 1usize;
+    let content = &response.content;
+    if content.is_empty() {
+        let _ = app.emit(
+            "digital-life://model-stream",
+            serde_json::json!({
+                "v": 1,
+                "runId": run_id,
+                "seq": seq,
+                "type": "done"
+            }),
+        );
+        return;
+    }
+    let mut buf = String::new();
+    let mut char_count = 0usize;
+    for ch in content.chars() {
+        buf.push(ch);
+        char_count += 1;
+        if char_count >= MODEL_STREAM_CHARS {
+            let _ = app.emit(
+                "digital-life://model-stream",
+                serde_json::json!({
+                    "v": 1,
+                    "runId": run_id,
+                    "seq": seq,
+                    "type": "delta",
+                    "text": &buf,
+                }),
+            );
+            seq += 1;
+            buf.clear();
+            char_count = 0;
+        }
+    }
+    if !buf.is_empty() {
+        let _ = app.emit(
+            "digital-life://model-stream",
+            serde_json::json!({
+                "v": 1,
+                "runId": run_id,
+                "seq": seq,
+                "type": "delta",
+                "text": &buf,
+            }),
+        );
+        seq += 1;
+    }
+    let _ = app.emit(
+        "digital-life://model-stream",
+        serde_json::json!({
+            "v": 1,
+            "runId": run_id,
+            "seq": seq,
+            "type": "done"
+        }),
+    );
+}
 
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -148,15 +227,7 @@ async fn start_run_inner(
         }),
         &model_audit,
     )?;
-    let _ = app.emit(
-        "digital-life://model-stream",
-        serde_json::json!({
-            "v": 1,
-            "runId": detail.run.id,
-            "seq": 1,
-            "type": "done"
-        }),
-    );
+    emit_model_stream_events(app, &detail.run.id, &model_response);
 
     let patch_set = match scenario {
         ConversationScenario::CodeEdit => {

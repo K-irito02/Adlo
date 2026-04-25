@@ -7,6 +7,7 @@ import { themeController } from "./theme";
 import type { MonacoEditorRef } from "./types";
 import { filterDiagnosticsForPath, findFirstDiagnostic, detectEditorLanguage } from "./workspacePaths";
 import { mapPatchToEditorTab } from "./editorTabs";
+import { buildSettingsItems, preferencePatchFromSettingChange } from "./settingsViewModel";
 import { useAppStore } from "./store";
 import { useUiStore } from "./ui-store";
 import { TitleBar } from "./regions/TitleBar";
@@ -37,6 +38,11 @@ export function App() {
     latestPatchApplication,
     taskCenter,
     modelHealth,
+    indexingStatus,
+    repoMap,
+    auditEntries,
+    commandHistory,
+    gitSnapshot,
     latestCommandRun,
     terminalOutput,
     activeTerminalExecutionId,
@@ -106,6 +112,7 @@ export function App() {
   const locale = (appInfo?.config.language ?? "zh-CN") as Locale;
   const t = copy[locale];
   const activeDetail = activeSessionId ? sessionDetails[activeSessionId] : undefined;
+  const settings = useMemo(() => buildSettingsItems(t, appInfo), [appInfo, t]);
 
   const filePatch = useMemo(() => {
     if (!activePatchSet) return undefined;
@@ -291,6 +298,16 @@ export function App() {
     useUiStore.getState().setActiveTool("settings");
   }, []);
 
+  const handleChangeSetting = useCallback(
+    (id: string, value: string | boolean | number) => {
+      const patch = preferencePatchFromSettingChange(id, value);
+      if (patch) {
+        void updatePreferences(patch);
+      }
+    },
+    [updatePreferences]
+  );
+
   const handleOpenCommandPalette = useCallback(() => {
     // Command palette is planned for a future phase. For now, surface
     // the search tool as a graceful fallback.
@@ -379,6 +396,7 @@ export function App() {
           activeSessionId={activeSessionId}
           streamingActiveRunId={streamingActiveRunId}
           taskCenter={taskCenter}
+          indexingStatus={indexingStatus}
           onSelectSession={(id) => void selectSession(id)}
           onCreateSession={() => void createSession()}
           onPinWorkspace={(workspaceId) => void pinWorkspace(workspaceId)}
@@ -411,6 +429,7 @@ export function App() {
           activeRun={activeRun}
           modelHealth={modelHealth}
           taskCenter={taskCenter}
+          indexingStatus={indexingStatus}
           recentWorkspaces={recentWorkspaces}
           onSendMessage={async (content, opts) => {
             await sendMessage(content, { mode: opts.mode, chips: opts.chips });
@@ -439,9 +458,14 @@ export function App() {
           editorHint={editorHint}
           outline={outline}
           workspaceTree={workspaceTree}
+          repoMap={repoMap}
           searchQuery={localSearchQuery}
           searchResults={searchResults}
           dirtyEditorPaths={dirtyEditorPaths}
+          auditEntries={auditEntries}
+          settings={settings}
+          gitSnapshot={gitSnapshot}
+          commandHistory={commandHistory}
           standardEditorRef={standardEditorRef}
           diffEditorRef={diffEditorRef}
           onOpenFile={(path) => void openFile(path)}
@@ -461,7 +485,7 @@ export function App() {
           onRollbackPatchSet={handleRollbackPatch}
           modelHealth={modelHealth}
           onRefreshModelHealth={() => void refreshModelHealth()}
-          onUpdatePreference={(patch) => void updatePreferences(patch as never)}
+          onChangeSetting={handleChangeSetting}
           commandBinary={commandBinary}
           commandArgs={commandArgs}
           latestCommandRun={latestCommandRun}

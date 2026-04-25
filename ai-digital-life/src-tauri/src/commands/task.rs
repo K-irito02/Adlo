@@ -244,6 +244,39 @@ fn snapshot(state: &AppState) -> Result<TaskCenterSnapshot, AppError> {
     let mut checkpoints: Vec<CheckpointRecord> =
         state.db.list_entities(EntityTable::Checkpoints)?;
     checkpoints.sort_by_key(|checkpoint| std::cmp::Reverse(checkpoint.created_at));
+    let current_session = if let Some(workspace) = state
+        .current_workspace
+        .lock()
+        .expect("workspace mutex poisoned")
+        .clone()
+    {
+        let conversation_sessions: Vec<adl_kernel::ConversationSessionRecord> = state
+            .db
+            .list_entities_by_workspace(EntityTable::Sessions, &workspace.id)?;
+        conversation_sessions
+            .into_iter()
+            .filter(|session| session.status != "archived")
+            .max_by_key(|session| session.updated_at)
+            .map(|session| {
+                let session_id = session.id.clone();
+                adl_kernel::SessionMeta {
+                    id: session.id,
+                    workspace_id: session.workspace_id,
+                    status: adl_kernel::SessionStatus::Active,
+                    approval_mode: "manual".into(),
+                    current_task_id: tasks
+                        .iter()
+                        .filter(|task| task.session_id == session_id)
+                        .max_by_key(|task| task.updated_at)
+                        .map(|task| task.id.clone()),
+                    summary: adl_kernel::SessionSummary::default(),
+                    created_at: session.created_at,
+                    updated_at: session.updated_at,
+                }
+            })
+    } else {
+        None
+    };
     Ok(TaskCenterSnapshot {
         tasks: tasks.iter().map(adl_task::task_summary).collect(),
         pending_approvals: approvals
@@ -251,7 +284,7 @@ fn snapshot(state: &AppState) -> Result<TaskCenterSnapshot, AppError> {
             .map(|approval| approval.request)
             .collect(),
         policy: adl_task::default_policy(),
-        current_session: None,
+        current_session,
         latest_checkpoint: checkpoints.into_iter().next(),
     })
 }

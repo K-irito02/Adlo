@@ -70,9 +70,18 @@ export function StatusBar({
   const [menuOpen, setMenuOpen] = useState(false);
   const ContainerTag = inline ? "div" : "footer";
 
-  // Placeholder until a dedicated Git IPC channel lands. Inferred from
-  // workspace availability so the layout renders meaningfully in Phase 2.
-  const gitStatus: GitStatus = currentWorkspace ? "synced" : "no-repo";
+  const gitSnapshot = currentWorkspace?.gitSnapshot;
+  const gitStatus: GitStatus = !gitSnapshot?.isRepo
+    ? "no-repo"
+    : gitSnapshot.conflicts.length > 0
+      ? "conflict"
+      : gitSnapshot.ahead && gitSnapshot.ahead > 0
+        ? "unpushed"
+        : gitSnapshot.staged.length > 0 ||
+            gitSnapshot.unstaged.length > 0 ||
+            gitSnapshot.untracked.length > 0
+          ? "dirty"
+          : "synced";
 
   const activeProvider = useMemo(() => {
     const providers = appInfo?.config.modelPreferences.providers;
@@ -106,7 +115,7 @@ export function StatusBar({
       <span className="adl-statusbar__sep" aria-hidden="true" />
       <span className="adl-statusbar__item">
         <IconGitBranch size={12} decorative />
-        <span>main</span>
+        <span>{gitSnapshot?.branch ?? "main"}</span>
       </span>
       <span className="adl-statusbar__spacer" />
       <span className="adl-statusbar__item" aria-live="polite">
@@ -165,7 +174,7 @@ export function StatusBar({
                   <span
                     className={`adl-chip adl-chip--${health?.healthy ? "success" : "warning"}`}
                   >
-                    {health?.healthy ? "healthy" : "degraded"}
+                    {health?.healthy ? t.statusHealthy : t.statusDegraded}
                   </span>
                 </button>
               );

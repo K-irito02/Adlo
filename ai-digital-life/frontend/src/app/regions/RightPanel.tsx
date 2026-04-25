@@ -10,7 +10,6 @@ import { ModelHealthPanel } from "../components/models/ModelHealthPanel";
 import { SettingsPanel } from "../components/settings/SettingsPanel";
 import type { RightPanelViewProps } from "./right-panel/types";
 import { countGitChanges } from "./right-panel/types";
-import type { AuditEntry, SettingItem } from "@ai-digital-life/kernel";
 
 export function RightPanel(props: RightPanelViewProps) {
   const panelIdBase = useId();
@@ -73,10 +72,10 @@ export function RightPanel(props: RightPanelViewProps) {
 
   const badges: Record<string, number> = {
     files: dirtyEditorPaths.length,
-    changes: countGitChanges(props.appInfo),
+    changes: countGitChanges(props.gitSnapshot ?? props.appInfo?.currentWorkspace?.gitSnapshot),
     browser: browserTabs.length,
     terminal: terminalTabs.length,
-    audit: 0,
+    audit: props.auditEntries.length,
     models: 0,
     settings: 0
   };
@@ -140,7 +139,7 @@ export function RightPanel(props: RightPanelViewProps) {
           className={`adl-rightpanel__tool${activeTool === "audit" ? " is-active" : ""}`}
           hidden={activeTool !== "audit"}
         >
-          <AuditPanel t={props.t} entries={[]} />
+          <AuditPanel t={props.t} entries={props.auditEntries} />
         </div>
         <div
           id={`${panelIdBase}-models-panel`}
@@ -160,7 +159,7 @@ export function RightPanel(props: RightPanelViewProps) {
           className={`adl-rightpanel__tool${activeTool === "settings" ? " is-active" : ""}`}
           hidden={activeTool !== "settings"}
         >
-          <SettingsPanel t={props.t} settings={[]} onChangeSetting={() => {}} />
+          <SettingsPanel t={props.t} settings={props.settings} onChangeSetting={props.onChangeSetting} />
         </div>
       </div>
     </aside>

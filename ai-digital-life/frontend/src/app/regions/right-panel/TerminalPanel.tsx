@@ -39,6 +39,7 @@ export function TerminalPanel(props: RightPanelViewProps) {
   const terminalSelectTab = useUiStore((state) => state.terminalSelectTab);
   const terminalUpdateActiveTab = useUiStore((state) => state.terminalUpdateActiveTab);
   const terminalSetLayout = useUiStore((state) => state.terminalSetLayout);
+  const setActiveTool = useUiStore((state) => state.setActiveTool);
   const terminalMenuRef = useRef<HTMLDivElement | null>(null);
   const shellMenuRef = useRef<HTMLDivElement | null>(null);
   const activeTab = useMemo(
@@ -46,15 +47,23 @@ export function TerminalPanel(props: RightPanelViewProps) {
     [terminalActiveTabId, terminalTabs]
   );
   const recentCommands = useMemo(
-    () =>
-      terminalTabs
+    () => {
+      if (props.commandHistory.length > 0) {
+        return props.commandHistory.map((entry, index) => ({
+          id: `history-${index}`,
+          label: entry,
+          title: entry.split(" ")[0] || t.terminalCommandHistory
+        }));
+      }
+      return terminalTabs
         .map((tab) => ({
           id: tab.id,
           label: `${tab.commandBinary} ${tab.commandArgs}`.trim(),
           title: tab.title
         }))
-        .filter((entry) => entry.label),
-    [terminalTabs]
+        .filter((entry) => entry.label);
+    },
+    [props.commandHistory, t.terminalCommandHistory, terminalTabs]
   );
 
   useEffect(() => {
@@ -333,7 +342,11 @@ export function TerminalPanel(props: RightPanelViewProps) {
             {props.latestCommandRun?.status === "waiting-approval" && (
               <div className="adl-terminal-approval-hint">
                 <span>{t.terminalNeedsApproval}</span>
-                <button type="button" className="adl-btn adl-btn--primary adl-btn--xs" onClick={() => props.onRunCommand()}>
+                <button
+                  type="button"
+                  className="adl-btn adl-btn--primary adl-btn--xs"
+                  onClick={() => setActiveTool("audit")}
+                >
                   {t.terminalGoToApproval}
                 </button>
               </div>

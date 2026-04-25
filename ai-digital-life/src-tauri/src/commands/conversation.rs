@@ -31,6 +31,13 @@ pub struct ReorderSessionsInput {
     pub unpinned_ids: Vec<String>,
 }
 
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MarkSessionReadInput {
+    pub session_id: String,
+    pub read_at: Option<i64>,
+}
+
 #[tauri::command]
 pub fn conversation_create_session(
     state: tauri::State<'_, AppState>,
@@ -205,15 +212,29 @@ pub fn conversation_delete_session(
 #[tauri::command]
 pub fn conversation_mark_session_read(
     state: tauri::State<'_, AppState>,
-    session_id: String,
-    read_at: Option<i64>,
+    input: MarkSessionReadInput,
 ) -> IpcResult<ConversationSessionRecord> {
     crate::commands::ipc_try(|| {
-        let mut session = require_session(&state, &session_id)?;
+        let mut session = require_session(&state, &input.session_id)?;
         session.manual_unread = false;
-        session.last_read_at = Some(read_at.unwrap_or_else(adl_kernel::now_ms));
+        session.last_read_at = Some(input.read_at.unwrap_or_else(adl_kernel::now_ms));
         save_session(&state, &session)?;
         Ok(session)
+    })
+}
+
+#[tauri::command]
+pub fn conversation_cancel_message(
+    state: tauri::State<'_, AppState>,
+    run_id: String,
+) -> IpcResult<Option<adl_kernel::AgentRunDetail>> {
+    crate::commands::ipc_try(|| {
+        let Some(detail) = crate::commands::agent::load_run_detail(&state, &run_id)? else {
+            return Ok(None);
+        };
+        let detail = adl_agent_runtime::abort_run(detail);
+        crate::commands::agent::save_run_detail(&state, &detail)?;
+        Ok(Some(detail))
     })
 }
 
