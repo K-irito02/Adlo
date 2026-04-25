@@ -5,15 +5,15 @@ priority_rule:
 skills:
   - id: project-architecture
     path: .agents/skills/project-architecture/SKILL.md
-    owner_agents: [architect, infra-foundation, desktop-shell, code-reviewer]
+    owner_agents: [architect, infra-foundation, tauri-shell, code-reviewer]
     priority: 90
     triggers: [phase-boundary, package-boundary, dependency-rule, architecture-change]
     conflicts_with: []
-  - id: desktop-electron-security
-    path: .agents/skills/desktop-electron-security/SKILL.md
-    owner_agents: [desktop-shell, app-security]
+  - id: desktop-tauri-security
+    path: .agents/skills/desktop-tauri-security/SKILL.md
+    owner_agents: [tauri-shell, app-security]
     priority: 95
-    triggers: [electron, ipc, preload, renderer, worker, permission-boundary, secret-storage]
+    triggers: [tauri, command, capability, webview, rust-backend, permission-boundary, secret-storage]
     conflicts_with: []
   - id: workspace-retrieval
     path: .agents/skills/workspace-retrieval/SKILL.md

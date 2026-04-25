@@ -1,0 +1,38 @@
+---
+description: Tauri Backend/Commands/WebView boundaries, capability allowlists, and event channels for ai-digital-life desktop
+globs: ai-digital-life/src-tauri/**/*,ai-digital-life/frontend/**/*,ai-digital-life/crates/**/*
+alwaysApply: false
+---
+
+# Tauri 壳与命令边界
+
+## 安全基线（不可降级）
+
+- `tauri.conf.json` 中 `app.security.csp` **必须**显式声明，禁止使用空 CSP。
+- WebView **不得**直接访问文件系统、子进程、SQLite 或模型 `fetch`；一律通过 `@tauri-apps/api` 的 `invoke()` 调用受 capability 白名单约束的 Rust Commands。
+- `withGlobalTauri` 默认关闭；前端只通过显式 `import` 的 `@tauri-apps/api` 接口访问后端。
+- `tauri-plugin-shell` / `tauri-plugin-fs` / `tauri-plugin-http` 等高权限插件**必须**启用 scope 限制，禁止 `"all"` / `"**"` 通配。
+
+## 契约真源
+
+- **类型与命令形状**：`crates/kernel` 中导出的 `serde` 类型 + `src-tauri/src/commands/*` 的 `#[tauri::command]` 函数签名。
+- **能力白名单**：`src-tauri/capabilities/*.json` 决定每个窗口可调用哪些命令；新增命令必须同步登记。
+- **前端调用层**：契约在 `frontend/src/shared/ipc.ts`（`DigitalLifeBridge`）。当前开发态用 `frontend/src/mock-bridge.ts` 注入 `window.digitalLife`；接入 Tauri 时应以封装 `invoke` 的实现替换或与之组合，保持接口不变。
+
+## 事件通道（版本化载荷）
+
+- 模型流：`digital-life://model-stream`（如 `ModelStreamEventV1`）
+- 终端流：`digital-life://terminal-stream`（如 `TerminalStreamEventV1`）
+- 工作区文件变更：`digital-life://workspace-file-changed`
+
+新增 `app.emit` / `window.emit` 通道时：**同步** `kernel` 类型 + `src-tauri/src/commands/*` 发射点 + 本规则一行摘要 + 前端 mock（若有）。
+
+## 密钥与审计
+
+- API Key、模型请求体敏感部分：**仅 Rust 后端**，优先使用 OS 凭据存储（`keyring` crate）。
+- 审计写 SQLite，不在前端 `localStorage` / Zustand 记录密钥原文。
+
+## 命令实现规范
+
+- 所有 `#[tauri::command]` 必须：返回 `Result<T, AppError>`（结构化错误，可序列化）；对输入参数做显式校验；不直接 `panic!`。
+- 长耗时命令使用 `async fn` 并在内部 `tokio::spawn`，不阻塞 Tauri 事件循环。

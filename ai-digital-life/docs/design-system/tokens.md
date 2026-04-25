@@ -1,6 +1,6 @@
 # Design Tokens
 
-Source of truth: `[apps/desktop/renderer/src/styles/tokens.css](../../apps/desktop/renderer/src/styles/tokens.css)`.
+Source of truth: `[frontend/src/styles/tokens.css](../../frontend/src/styles/tokens.css)`.
 
 Tokens are the only acceptable way to express atomic design decisions in the codebase. Components MUST refer to them via CSS custom properties — `color: #fff` is forbidden, `color: var(--text-on-accent)` is required.
 

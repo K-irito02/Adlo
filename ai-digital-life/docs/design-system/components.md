@@ -1,8 +1,8 @@
 # Components
 
-Source of truth: `[apps/desktop/renderer/src/styles/components.css](../../apps/desktop/renderer/src/styles/components.css)` (visual rules) and `[apps/desktop/renderer/src/design-system/components.ts](../../apps/desktop/renderer/src/design-system/components.ts)` (renderer helpers).
+Source of truth: `[frontend/src/styles/components.css](../../frontend/src/styles/components.css)` (visual rules) and `[frontend/src/design-system/components.ts](../../frontend/src/design-system/components.ts)` (renderer helpers).
 
-All renderer helpers return `RawHtml` from the `[html](../../apps/desktop/renderer/src/design-system/html.ts)` tagged template, so they compose safely with each other while interpolated user data is automatically HTML-escaped.
+All renderer helpers return `RawHtml` from the `[html](../../frontend/src/design-system/html.ts)` tagged template, so they compose safely with each other while interpolated user data is automatically HTML-escaped.
 
 ## Button
 
@@ -122,7 +122,7 @@ Each generated button carries `data-segmented-name` + `data-segmented-value`, so
 
 ## Icon strip
 
-Source of truth: `[apps/desktop/renderer/src/styles/regions.css](../../apps/desktop/renderer/src/styles/regions.css)` via
+Source of truth: `[frontend/src/styles/regions.css](../../frontend/src/styles/regions.css)` via
 `.adl-iconstrip`, `.adl-iconstrip__button`, `.adl-iconstrip__button--label`, `.adl-iconstrip__button--labelwide`, `.adl-iconstrip__button--window`,
 `.adl-iconstrip__separator`, `.adl-iconstrip__badge`.
 

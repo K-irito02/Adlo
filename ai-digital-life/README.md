@@ -1,187 +1,152 @@
-# AI Digital Life Thin Slice
+# AI Digital Life (Rust + Tauri)
 
-This workspace contains the first runnable Phase 0 thin slice for `AI Digital Life`.
+This workspace hosts the `AI Digital Life` desktop app, rebuilt on **Rust + Tauri 2.x**.
+
+> The previous Electron / TypeScript implementation is deprecated. See [docs/architecture/rust-migration-plan.md](./docs/architecture/rust-migration-plan.md) for the migration plan.
 
 ## Governance
 
-- [AGENTS.md](/E:/Programs/Obsidian/notes/ai-digital-life/AGENTS.md)
-- [CONTRIBUTING.md](/E:/Programs/Obsidian/notes/ai-digital-life/CONTRIBUTING.md)
-- [System Overview](/E:/Programs/Obsidian/notes/ai-digital-life/docs/architecture/system-overview.md)
-- [Tech Stack Alignment](/E:/Programs/Obsidian/notes/ai-digital-life/docs/architecture/tech-stack-alignment.md)
-- [StageOne Validation](/E:/Programs/Obsidian/notes/ai-digital-life/docs/architecture/stage-one-validation.md)
+- [AGENTS.md](./AGENTS.md)
+- [CONTRIBUTING.md](./CONTRIBUTING.md)
+- [System Overview](./docs/architecture/system-overview.md)
+- [Tech Stack Alignment](./docs/architecture/tech-stack-alignment.md)
+- [Rust Migration Plan](./docs/architecture/rust-migration-plan.md)
 
-## Current Scope
+## Tech Stack
 
-### Desktop Shell
-
-- Electron desktop shell with `Main / Preload / Renderer / Worker`
-- Typed, allowlisted IPC bridge
-- Secure BrowserWindow configuration (`contextIsolation: true`, `sandbox: true`, `nodeIntegration: false`)
-
-### Workspace & Retrieval
-
-- SQLite-backed recent workspace open and restore flow
-- Retrieval worker driven workspace scan and status reporting
-- Persisted workspace/session/task/approval/audit metadata in SQLite
-
-### Health & Diagnostics
-
-- Health status and log summary on the home screen
-- Startup recovery markers, migration evaluation, and diagnostics surfaced in the UI
-- Default registered migration scripts with backup path and execution status diagnostics
-
-### Task Governance
-
-- Manual approval shell with task queue and pending-approval placeholders
-- Runtime event emission for app, workspace, retrieval, task, and approval flows
-- Approval decision write-back with checkpoint metadata anchors
-- Checkpoint payload bundles with captured file snapshots and restore preview metadata
-- Checkpoint restore execution from captured payload bundles
-- Basic Git dirty-worktree snapshot and approval trigger shell
-
-### Preferences
-
-- Runtime language switch (`zh-CN` / `en-US`)
-- Runtime theme switch (`light` / `dark` / `system`) persisted to config
-- Five color schemes with consistent semantic tokens
-
-### Design System
-
-- Layered CSS architecture: tokens, themes, base, layout, components, utilities
-- TypeScript design-system modules: html, icons, theme, components
-- WCAG AA color contrast compliance
-- Keyboard accessibility and screen-reader friendly markup
-- Responsive design down to 640px minimum window width
-- Unit test coverage for all public design-system helpers
-
-### Infrastructure Packages
-
-- Standalone `events` package for cross-module event emission
-- Standalone `task` package for Phase 0 governance primitives
-- Standalone `migration` package with version detection, backup, and runner execution skeleton
-- `config`, `logger`, `errors`, `storage`, `workspace`, `kernel` packages
-
-## Out Of Scope For This Slice
-
-- Model routing
-- Command execution
-- Patch application
-- Full `stageOne` infrastructure coverage for `events`, persistent task center, session summaries, Git snapshots, and migration workflows
-
-## StageOne Status
-
-This repository now covers the `stageOne` runtime-facing Phase 0 baseline and has a concrete validation summary in `docs/architecture/stage-one-validation.md`.
-
-The current codebase now covers the full Phase 0 desktop runtime path:
-
-- workspace open and recent restore
-- retrieval worker status
-- health and logs
-- preference controls
-- approval shell entry UI
-- startup recovery markers and recovery diagnostics
-- migration detection, backup preparation, and upgrade diagnostics
-- restore execution from the latest checkpoint payload
-- cross-module event emission through the shared event bus
-- checkpoint payload capture plus restore preview metadata
-- design system with themes, components, and accessibility
-
-Still worth improving after `stageOne` baseline completion:
-
-- broader packaging and installer validation
-- richer migration and restore semantics
-
-## Tech Stack Note
-
-This thin slice follows the `stageOne` technology direction, but currently lands only the subset already needed for Phase 0 runtime validation. The exact alignment and deferred stack items are tracked in `docs/architecture/tech-stack-alignment.md`.
+| 层 | 选型 |
+|---|---|
+| 桌面框架 | Tauri 2.x |
+| 后端语言 | Rust (stable) |
+| 异步运行时 | tokio |
+| 持久化 | SQLite via `rusqlite` |
+| 序列化 | `serde` / `serde_json` |
+| 日志 | `tracing` + `tracing-subscriber` |
+| 错误 | `thiserror`（库 crate） / `anyhow`（应用层） |
+| 文件监听 | `notify` |
+| HTTP 客户端 | `reqwest` |
+| 凭据存储 | `keyring` |
+| 前端 UI | React 19 + Vite + Zustand + TypeScript |
+| 桥接 | `#[tauri::command]` + `@tauri-apps/api` |
+| 打包 | `cargo tauri build` |
+| 测试 | `cargo test`、`vitest`（前端）、`tauri-driver`（E2E） |
 
 ## Project Structure
 
 ```
 ai-digital-life/
-├── apps/
-│   └── desktop/              # Electron desktop application
-│       ├── main/             # Main process
-│       ├── preload/          # Preload script
-│       ├── renderer/         # Renderer process
-│       │   └── src/
-│       │       ├── app/            # React 壳层：入口组合、Zustand store、文案与纯函数
-│       │       ├── design-system/  # TypeScript design modules
-│       │       ├── styles/         # CSS style system（含 workspace 阶段 UI）
-│       │       └── locales/        # i18n resources
-│       └── shared/           # Shared type definitions
-├── packages/                 # Shared packages
-│   ├── config/              # Configuration management
-│   ├── errors/              # Error handling
-│   ├── events/              # Event system
-│   ├── kernel/              # Kernel module
-│   ├── logger/              # Logging system
-│   ├── migration/           # Migration system
-│   ├── storage/             # Storage layer
-│   ├── task/                # Task governance
-│   └── workspace/           # Workspace management
-├── workers/
-│   └── health/              # Retrieval Worker
-├── docs/
-│   ├── architecture/        # Architecture documentation
-│   └── design-system/       # Design system documentation
-└── tests/
-    ├── unit/                # Unit tests
-    └── integration/         # Integration tests
+├── Cargo.toml              # Workspace root
+├── src-tauri/              # Tauri Rust 入口（main、commands、capabilities）
+│   └── tauri.conf.json
+├── crates/                 # 业务 crate（kernel、storage、workspace、…）
+├── frontend/               # WebView 前端（React + Vite）
+├── docs/                   # architecture / design-system
+└── tests/                  # integration / e2e
 ```
+
+详见 [AGENTS.md](./AGENTS.md) 中的完整目录树。
+
+**前端目录要点（与 Electron 时代路径不同）**：完整 UI 在 `frontend/src/app/`（含 Monaco 编辑器）；共享类型在 `frontend/src/kernel`（import 别名 `@ai-digital-life/kernel`）；IPC 契约为 `frontend/src/shared/ipc.ts`；开发态数据与 `window.digitalLife` 由 `frontend/src/mock-bridge.ts` 提供，接入真实 Tauri 命令时保持同一接口即可。
+
+## Current Scope
+
+### Tauri Desktop Shell
+
+- Tauri 2.x 桌面壳（Rust Backend + WebView）
+- 类型化、capability 白名单的 Tauri Command 桥
+- 默认 CSP、scope-限制的插件、无 `withGlobalTauri`
+
+### Workspace & Retrieval
+
+- SQLite-backed 最近工作区打开与恢复
+- `tokio` 任务驱动的工作区扫描与状态回报（不开独立 Node Worker）
+- 持久化 workspace / session / task / approval / audit 元数据
+
+### Health & Diagnostics
+
+- Health 状态与日志摘要
+- 启动恢复标记、迁移评估与诊断
+- 注册的迁移脚本带备份路径与执行状态诊断
+
+### Task Governance
+
+- 手动审批壳与任务队列
+- 跨模块运行时事件总线（app / workspace / retrieval / task / approval）
+- 审批决策回写与 checkpoint 元数据锚点
+- Checkpoint payload 与恢复执行
+- 基础 Git 脏树快照与审批触发
+
+### Preferences
+
+- 运行时语言切换（`zh-CN` / `en-US`）
+- 运行时主题切换（`light` / `dark` / `system`）
+- 五种语义一致的色彩方案
+
+### Design System
+
+- 分层 CSS：tokens / themes / base / layout / components / utilities
+- TypeScript 设计系统模块
+- WCAG AA 对比度
+- 键盘可达 / 屏幕阅读器友好
+- 响应式（>= 640px）
+- 设计系统辅助函数全测试覆盖
+
+### Infrastructure Crates
+
+- `events`：跨模块事件
+- `task`：Phase 0 治理原语
+- `migration`：版本检测、备份与执行骨架
+- `config` / `logger` / `errors` / `storage` / `workspace` / `kernel`
+
+## Out Of Scope For This Slice
+
+- 多 Agent 自治网络
+- 插件市场
+- 浏览器自动化运行时
+- 远端协作
 
 ## Commands
 
-```bash
-npm install
-npm run build
-npm run test
-npm run start
-```
-
-### 本地开发（Vite + Electron）
-
-`npm run dev` 现在会先编译 Main/Preload，再固定在 `http://127.0.0.1:5173/` 启动 Vite，并在服务可用后自动拉起 Electron。这样浏览器预览和外部桌面应用会走同一份 Renderer，避免端口漂移或少开一个终端。
+> 当前实现处于 Rust + Tauri 重构阶段，命令以最终 Cargo workspace 为准。
 
 ```bash
-npm run dev
+# Rust 端
+cargo check --workspace
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
+cargo fmt --all
+
+# 前端
+npm --prefix frontend install
+npm --prefix frontend run dev
+npm --prefix frontend test
+
+# 联合开发（Tauri + 前端 dev server）
+cargo tauri dev
+
+# 生产打包
+cargo tauri build
 ```
-
-- **渲染进程 / 内置浏览器预览**：在 Cursor/VS Code 的 **Simple Browser** 或系统浏览器打开 `http://127.0.0.1:5173/` 即可预览 UI。无 Electron 时会继续走 `main.tsx` 内的 mock 桥接。
-- **外部桌面应用**：同一条 `npm run dev` 会自动启动 Electron 窗口，并通过 `ADL_RENDERER_DEV_URL` 指向同一个 Renderer Dev Server。
-
-如果只想单独跑浏览器预览，可以使用：
-
-```bash
-npm run dev:browser
-```
-
-如果需要显式指定另一台调试机或不同地址，也可以先设置环境变量再启动整套链路，例如 PowerShell：
-
-```powershell
-$env:ADL_RENDERER_DEV_URL='http://127.0.0.1:5173/'; npm run dev:desktop
-```
-
-`pnpm-workspace.yaml` is included because the target layout is still a `pnpm workspace`, but the scripts are also `npm workspace` compatible for environments where `pnpm` is not yet provisioned.
 
 ## Documentation
 
 ### Architecture
 
-- [System Overview](/E:/Programs/Obsidian/notes/ai-digital-life/docs/architecture/system-overview.md)
-- [Tech Stack Alignment](/E:/Programs/Obsidian/notes/ai-digital-life/docs/architecture/tech-stack-alignment.md)
-- [Internationalization](/E:/Programs/Obsidian/notes/ai-digital-life/docs/architecture/internationalization.md)
-- [Theming](/E:/Programs/Obsidian/notes/ai-digital-life/docs/architecture/theming.md)
-- [Recovery and Migration](/E:/Programs/Obsidian/notes/ai-digital-life/docs/architecture/recovery-and-migration.md)
-- [Task Governance](/E:/Programs/Obsidian/notes/ai-digital-life/docs/architecture/task-governance.md)
-- [Workspace and Retrieval](/E:/Programs/Obsidian/notes/ai-digital-life/docs/architecture/workspace-and-retrieval.md)
+- [System Overview](./docs/architecture/system-overview.md)
+- [Tech Stack Alignment](./docs/architecture/tech-stack-alignment.md)
+- [Rust Migration Plan](./docs/architecture/rust-migration-plan.md)
+- [Internationalization](./docs/architecture/internationalization.md)
+- [Theming](./docs/architecture/theming.md)
+- [Recovery and Migration](./docs/architecture/recovery-and-migration.md)
+- [Task Governance](./docs/architecture/task-governance.md)
+- [Workspace and Retrieval](./docs/architecture/workspace-and-retrieval.md)
 
 ### Design System
 
-- [Design System Overview](/E:/Programs/Obsidian/notes/ai-digital-life/docs/design-system/README.md)
-- [Tokens](/E:/Programs/Obsidian/notes/ai-digital-life/docs/design-system/tokens.md)
-- [Themes](/E:/Programs/Obsidian/notes/ai-digital-life/docs/design-system/themes.md)
-- [Components](/E:/Programs/Obsidian/notes/ai-digital-life/docs/design-system/components.md)
-- [Accessibility](/E:/Programs/Obsidian/notes/ai-digital-life/docs/design-system/accessibility.md)
-- [Responsive Design](/E:/Programs/Obsidian/notes/ai-digital-life/docs/design-system/responsive.md)
-- [Testing Strategy](/E:/Programs/Obsidian/notes/ai-digital-life/docs/design-system/testing.md)
+- [Design System Overview](./docs/design-system/README.md)
+- [Tokens](./docs/design-system/tokens.md)
+- [Themes](./docs/design-system/themes.md)
+- [Components](./docs/design-system/components.md)
+- [Accessibility](./docs/design-system/accessibility.md)
+- [Responsive Design](./docs/design-system/responsive.md)
+- [Testing Strategy](./docs/design-system/testing.md)

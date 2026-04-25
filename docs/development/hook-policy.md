@@ -39,12 +39,12 @@
 ### `sensitive-surface-guard`
 
 - 事件：`pre-edit`
-- 作用：检查 Electron 安全面、凭据路径、危险暴露面
+- 作用：检查 Tauri 安全面（`tauri.conf.json` CSP、`capabilities/*.json`、插件 scope）、凭据路径、`unsafe` Rust 代码、危险暴露面
 
 ### `architecture-consistency-guard`
 
 - 事件：`pre-edit`
-- 作用：检查低层依赖高层、Renderer 越权、多事件总线等问题
+- 作用：检查低层 crate 依赖高层 crate、WebView 越权、多事件总线等问题
 
 ### `ui-foundation-guard`
 

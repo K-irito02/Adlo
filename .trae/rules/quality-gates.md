@@ -1,6 +1,6 @@
 ---
 description: Tests, typecheck, migration, and pre-merge quality gates
-globs: ai-digital-life/tests/**,ai-digital-life/vitest.config.ts
+globs: ai-digital-life/tests/**,ai-digital-life/frontend/**,ai-digital-life/crates/**,ai-digital-life/src-tauri/**
 alwaysApply: false
 ---
 
@@ -10,9 +10,12 @@ alwaysApply: false
 
 | 检查项 | 命令 | 执行目录 |
 |--------|------|----------|
-| 单元测试 | `npm test` | `ai-digital-life/` |
-| 类型检查 | `npm run typecheck` | `ai-digital-life/` |
-| 桌面类型检查 | `npm run typecheck -w @ai-digital-life/desktop` | `ai-digital-life/` |
+| Rust 格式检查 | `cargo fmt --all -- --check` | `ai-digital-life/` |
+| Rust lint | `cargo clippy --workspace --all-targets -- -D warnings` | `ai-digital-life/` |
+| Rust 检查 | `cargo check --workspace` | `ai-digital-life/` |
+| Rust 测试 | `cargo test --workspace` | `ai-digital-life/` |
+| 前端类型检查 | `npm --prefix frontend run typecheck` | `ai-digital-life/` |
+| 前端测试 | `npm --prefix frontend test` | `ai-digital-life/` |
 
 ## 高风险改动必检项
 
@@ -20,13 +23,11 @@ alwaysApply: false
 
 | 改动类型 | 必须覆盖的测试 |
 |----------|----------------|
-| IPC 通道 | `tests/integration/renderer-shell.test.ts` |
-| 存储迁移 | `tests/unit/storage/` 或 `tests/unit/migration/` |
-| `kernel` 契约 | 相关包单元测试 |
-| `applyPatch` 路径 | `tests/unit/change-engine/` |
-| UI 组件 | `tests/unit/components/` |
-| React Hook | `tests/unit/components/` 或 `tests/unit/hooks/` |
-| CSS 样式变更 | 类型检查 + 视觉验证 |
+| Tauri Command / capability | Rust 单测或 `tests/integration/` + 文档同步 |
+| 存储迁移 | `cargo test --workspace` 中迁移/存储相关测试 |
+| `kernel` 契约 | 相关 Rust 单测 + `frontend/src/shared/ipc.ts` 对齐 |
+| 前端 UI 组件 | `npm --prefix frontend test` + 视觉验证 |
+| 主题 / i18n / 状态桥接 | 前端测试 + 启动烟测说明 |
 
 ## UI/功能变更红绿测试规则
 
@@ -36,9 +37,9 @@ alwaysApply: false
 
 | 步骤 | 命令 | 说明 |
 |------|------|------|
-| 1. 类型检查 | `npm run typecheck -w @ai-digital-life/desktop` | 确保零类型错误 |
-| 2. 单元测试 | `npx vitest run` | 确保所有测试通过 |
-| 3. 受影响组件测试 | `npx vitest run tests/unit/components/` | 确保组件测试通过 |
+| 1. Rust 测试 | `cargo test --workspace` | 确保后端与基础设施回归 |
+| 2. 前端类型检查 | `npm --prefix frontend run typecheck` | 确保零类型错误 |
+| 3. 前端测试 | `npm --prefix frontend test` | 确保 UI 与交互测试通过 |
 
 ### 适用范围
 
@@ -58,19 +59,19 @@ alwaysApply: false
 
 - Schema 变更：**必须**带迁移脚本
 - 禁止仅改运行时字符串而不改版本与迁移注册
-- 迁移脚本位置：`packages/migration/`
+- 迁移脚本位置：`crates/migration/`
 
-## Renderer 集成测试
+## 桌面集成测试
 
-- 工作区壳与关键 IPC：`tests/integration/renderer-shell.test.ts`
-- 桥接 API 变更时同步 mock：`renderer/src/mock-bridge.ts`
+- Tauri Command、恢复、持久化与工作区链路：`tests/integration/`
+- 桥接 API 变更时同步 mock：`frontend/src/mock-bridge.ts`
 
 ## 测试目录结构
 
 ```
 tests/
-├── unit/           # 单元测试（与包对应）
-└── integration/    # 集成测试
+├── integration/    # Rust 集成测试
+└── e2e/            # WebDriver / tauri-driver
 ```
 
 ## 随项目演进
@@ -81,5 +82,5 @@ tests/
 
 ## 相关文件
 
-- [ai-digital-life/vitest.config.ts](/E:/Programs/Obsidian/notes/ai-digital-life/vitest.config.ts)
+- [ai-digital-life/frontend/package.json](/E:/Programs/Obsidian/notes/ai-digital-life/frontend/package.json)
 - [ai-digital-life/package.json](/E:/Programs/Obsidian/notes/ai-digital-life/package.json)

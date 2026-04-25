@@ -16,7 +16,7 @@ The design intent originates in [`digitalLife/aiFunction-Implementation/stageOne
 ## Layered Architecture
 
 ```
-apps/desktop/renderer/src/
+frontend/src/
 ├── main.tsx               # Vite/React 入口：mock 桥接、挂载根节点、全局样式
 ├── app/
 │   ├── App.tsx            # 阶段二工作区 UI 组合

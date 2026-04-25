@@ -4,7 +4,7 @@
 
 - **入口与维护协议**：`notes-workspace-and-rules.mdc`（`alwaysApply: true`）
 - **实现仓地图**：`ai-digital-life-codebase-map.mdc`
-- **Electron / IPC**：`ai-digital-life-electron-shell.mdc`
+- **Tauri / Command 边界**：`ai-digital-life-tauri-shell.mdc`
 - **测试与门禁**：`ai-digital-life-quality-gates.mdc`
 
 新增规则：新建 `*.mdc` → 在 `notes-workspace-and-rules.mdc` 的表格中登记 → 必要时更新根目录 `AGENTS.md`。

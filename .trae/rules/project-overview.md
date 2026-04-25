@@ -10,18 +10,18 @@ alwaysApply: true
 | 根目录 | 职责 | 主要内容 |
 |--------|------|----------|
 | `notes/` | 规划与治理 | Obsidian 笔记、产品文档、`AGENTS.md`、`docs/development/` |
-| `ai-digital-life/` | 实现工作区 | TypeScript monorepo、Electron 桌面应用 |
+| `ai-digital-life/` | 实现工作区 | Rust + Tauri 桌面应用 + WebView 前端（`frontend/`） |
 
 ## 技术栈
 
 | 层级 | 技术 |
 |------|------|
-| 桌面框架 | Electron 35 |
-| 前端框架 | React 19 + TypeScript 5.8 |
-| 构建工具 | Vite 6 |
-| 包管理 | pnpm 9.15 (workspaces) |
-| 测试 | Vitest 3 + Playwright 1.52 |
-| 存储 | SQLite (better-sqlite3) |
+| 桌面框架 | Tauri 2.x |
+| 后端 | Rust (Cargo workspace) |
+| 前端 | React 19 + TypeScript + Vite + Zustand |
+| 包管理 | 根 `package.json` 脚本 + `npm --prefix frontend`；Rust 用 `cargo` |
+| 测试 | `cargo test`、`npm --prefix frontend`（typecheck / vitest） |
+| 持久化 | SQLite（`rusqlite`，后端） |
 
 ## 真源定位
 
@@ -32,16 +32,18 @@ alwaysApply: true
 | 架构文档 | `ai-digital-life/docs/architecture/` |
 | 设计系统 | `ai-digital-life/docs/design-system/` |
 | 开发约束 | `docs/development/` |
-| IPC 契约 | `ai-digital-life/apps/desktop/shared/ipc.ts` |
+| IPC 契约（WebView） | `ai-digital-life/frontend/src/shared/ipc.ts` |
+| 前端类型别名 | `ai-digital-life/frontend/src/kernel`（`@ai-digital-life/kernel`） |
+| 进程边界与命令 | `ai-digital-life/src-tauri/`、`ai-digital-life/crates/` |
 
 ## 任务路由速查
 
 | 任务类型 | 默认检索位置 |
 |----------|--------------|
-| 实现与 IPC | `ai-digital-life/` |
+| Rust 后端与 Tauri 命令 | `ai-digital-life/src-tauri/`、`ai-digital-life/crates/` |
+| WebView UI 与样式 | `ai-digital-life/frontend/src/` |
 | 阶段/路由/治理 | 根目录 `AGENTS.md` + `docs/development/` |
 | 架构设计 | `ai-digital-life/docs/architecture/` |
-| UI/样式 | `ai-digital-life/apps/desktop/renderer/src/design-system/` |
 
 ## 随项目演进
 
@@ -53,4 +55,3 @@ alwaysApply: true
 
 - [AGENTS.md](/E:/Programs/Obsidian/notes/AGENTS.md)
 - [ai-digital-life/AGENTS.md](/E:/Programs/Obsidian/notes/ai-digital-life/AGENTS.md)
-- [ai-digital-life/package.json](/E:/Programs/Obsidian/notes/ai-digital-life/package.json)

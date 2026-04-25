@@ -137,7 +137,7 @@ function Stop-AllDevProcesses([string]$workDir, [string]$statePath) {
   
   $state = Read-State $statePath
   
-  foreach ($k in @("devPid", "vitePid", "electronPid", "devRunnerPid")) {
+  foreach ($k in @("devPid", "vitePid", "tauriPid", "devRunnerPid")) {
     try {
       $v = $state[$k]
       if ($v) {
@@ -154,7 +154,7 @@ function Stop-AllDevProcesses([string]$workDir, [string]$statePath) {
     Write-Log "Cleared processes using port 5173"
   }
   
-  Stop-ProcessesByName -names @("node", "electron") -workDir $workDir
+  Stop-ProcessesByName -names @("node", "cargo", "vite") -workDir $workDir
   
   Start-Sleep -Milliseconds 500
   
@@ -203,10 +203,8 @@ function Test-NpmCommand([string]$cmd, [string]$workDir) {
 try {
   $workDir = Join-Path $RepoRoot "ai-digital-life"
   $statePath = Join-Path $RepoRoot ".cursor/hooks/.restart-desktop-dev.state.json"
-  $viteOutPath = Join-Path $RepoRoot ".cursor/hooks/desktop-vite.out.log"
-  $viteErrPath = Join-Path $RepoRoot ".cursor/hooks/desktop-vite.err.log"
-  $electronOutPath = Join-Path $RepoRoot ".cursor/hooks/desktop-electron.out.log"
-  $electronErrPath = Join-Path $RepoRoot ".cursor/hooks/desktop-electron.err.log"
+  $devOutPath = Join-Path $RepoRoot ".cursor/hooks/desktop-dev.out.log"
+  $devErrPath = Join-Path $RepoRoot ".cursor/hooks/desktop-dev.err.log"
 
   if (-not (Test-Path -LiteralPath (Join-Path $workDir "package.json"))) {
     Write-Log "Error: package.json not found in $workDir"
@@ -235,63 +233,24 @@ try {
     exit 1
   }
 
-  Write-Log "Starting Vite dev server on port 5173..."
-  $viteProc = Start-HiddenPowerShell -WorkingDirectory $workDir -Command "npm run dev -w @ai-digital-life/desktop" -StdoutPath $viteOutPath -StderrPath $viteErrPath
-  Write-Log "Vite process started (PID: $($viteProc.Id))"
-
-  $viteReady = Wait-PortReady -port 5173 -timeoutMs 30000
-  if (-not $viteReady) {
-    Write-Log "Error: Vite failed to start within 30 seconds"
-    Stop-ProcessSafely -proc (Get-Process -Id $viteProc.Id -ErrorAction SilentlyContinue) -reason "Vite startup timeout"
-    $state = Read-State $statePath
-    $state["lastError"] = "Vite startup timeout"
-    $state["lastErrorAtMs"] = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
-    Write-State $statePath $state
-    exit 1
-  }
-  Write-Log "Vite dev server is ready on port 5173"
-
-  Write-Log "Building main process..."
-  npm run build:main -w @ai-digital-life/desktop 2>&1 | Out-Null
-  if ($LASTEXITCODE -ne 0) {
-    Write-Log "Error: Failed to build main process"
-    $state = Read-State $statePath
-    $state["lastError"] = "Main process build failed"
-    $state["lastErrorAtMs"] = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
-    Write-State $statePath $state
-    exit 1
-  }
-
-  Write-Log "Building preload script..."
-  npm run build:preload -w @ai-digital-life/desktop 2>&1 | Out-Null
-  if ($LASTEXITCODE -ne 0) {
-    Write-Log "Error: Failed to build preload script"
-    $state = Read-State $statePath
-    $state["lastError"] = "Preload build failed"
-    $state["lastErrorAtMs"] = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
-    Write-State $statePath $state
-    exit 1
-  }
-
-  Write-Log "Starting Electron..."
-  $electronCommand = '$env:ELECTRON_DEV="true"; $env:ADL_RENDERER_DEV_URL="http://localhost:5173"; npm run start -w @ai-digital-life/desktop'
-  $electronProc = Start-HiddenPowerShell -WorkingDirectory $workDir -Command $electronCommand -StdoutPath $electronOutPath -StderrPath $electronErrPath
-  Write-Log "Electron process started (PID: $($electronProc.Id))"
+  Write-Log "Starting Tauri dev environment..."
+  $devProc = Start-HiddenPowerShell -WorkingDirectory $workDir -Command "npm run dev" -StdoutPath $devOutPath -StderrPath $devErrPath
+  Write-Log "Tauri dev process started (PID: $($devProc.Id))"
 
   $state = Read-State $statePath
-  $state["vitePid"] = $viteProc.Id
-  $state["electronPid"] = $electronProc.Id
+  $state["devPid"] = $devProc.Id
+  $state["tauriPid"] = $devProc.Id
   $state["devRunnerPid"] = $PID
   $state["devStartedAtMs"] = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
-  $state["viteReady"] = $true
+  $state["viteReady"] = $null
   $state["lastError"] = $null
   $state["lastErrorAtMs"] = $null
   Write-State $statePath $state
 
-  Write-Log "Dev environment started successfully. Waiting for Electron to exit..."
+  Write-Log "Dev environment started successfully. Waiting for Tauri dev process to exit..."
 
-  Wait-Process -Id $electronProc.Id -ErrorAction SilentlyContinue
-  Write-Log "Electron process exited"
+  Wait-Process -Id $devProc.Id -ErrorAction SilentlyContinue
+  Write-Log "Tauri dev process exited"
   exit 0
 } catch {
   Write-Log "Fatal error: $($_.Exception.Message)"

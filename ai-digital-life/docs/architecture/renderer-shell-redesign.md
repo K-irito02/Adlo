@@ -1,4 +1,8 @@
-# Phase 2 Renderer Shell Redesign (17-Region Layout)
+# Phase 2 WebView Shell Redesign (17-Region Layout)
+
+> **历史归档（Electron 时代）**：本文件记录 Electron 实现下的 17 区布局演进。项目已迁移到 Rust + Tauri；下方的「Renderer」「IPC」「`window.digitalLife`」「Electron」等术语在新栈中分别对应 **WebView 前端**、**Tauri Command**、**`@tauri-apps/api` 的 `invoke`** 和 **Tauri**。关于 Tauri 桥接形态请以 [system-overview.md](./system-overview.md) 与 [rust-migration-plan.md](./rust-migration-plan.md) 为准。
+
+> **路径对照（仅作阅读本归档时）**：正文中的 `apps/desktop/renderer/` 已对应为仓库内 **`frontend/src/`**；`apps/desktop/shared/ipc.ts` 对应 **`frontend/src/shared/ipc.ts`**；`packages/kernel` 的前端类型已收拢为 **`frontend/src/kernel`**（`@ai-digital-life/kernel`）。
 
 This note records the original 17-region shell refactor and the follow-up sidebar navigation foundation that now backs the left sidebar with
 persisted workspace/session navigation metadata. The current left sidebar splits into a durable project-bound workspace bucket and a

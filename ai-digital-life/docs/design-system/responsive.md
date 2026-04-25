@@ -1,6 +1,6 @@
 # Responsive Design
 
-Implementation: [`apps/desktop/renderer/src/styles/layout.css`](../../apps/desktop/renderer/src/styles/layout.css).
+Implementation: [`frontend/src/styles/layout.css`](../../frontend/src/styles/layout.css).
 
 The desktop renderer is a single window app; it is therefore tuned for **resizable desktop windows** rather than full mobile layouts, but it remains usable down to 640 px wide.
 
@@ -48,7 +48,7 @@ The renderer uses `:hover` for affordances but never relies on it for required i
 
 | Width | Manual smoke check |
 | --- | --- |
-| 1920 px | Default Electron window — all dashboards in 3 columns. |
+| 1920 px | Default Tauri window — all dashboards in 3 columns. |
 | 1280 px | Common laptop window — dashboards in 2 columns. |
 | 960 px | Half-screen split — sidebar collapses, single column dashboards. |
 | 640 px | Minimum supported — sidebar hidden, banners stay readable. |

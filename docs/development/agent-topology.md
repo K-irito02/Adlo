@@ -31,8 +31,8 @@
 
 - `product-spec`
 - `architect`
-- `desktop-shell`
-- `infra-foundation`
+- `tauri-shell`（Rust Backend / Tauri Commands / WebView 边界、capability、CSP）
+- `infra-foundation`（Rust 基础设施 crate：config、logger、errors、storage、migration）
 - `retrieval-engineer`
 - `task-governance`
 
@@ -67,7 +67,7 @@
 重点激活：
 
 - `architect`
-- `desktop-shell`
+- `tauri-shell`
 - `infra-foundation`
 - `retrieval-engineer`
 - `task-governance`

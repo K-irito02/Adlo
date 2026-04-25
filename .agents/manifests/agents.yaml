@@ -19,13 +19,13 @@ agents:
     default_skills: [project-architecture, docs-phase-governance]
     escalation_policy: escalate_on_cross_boundary_change
     review_required: true
-    handoff_targets: [desktop-shell, infra-foundation, retrieval-engineer, task-governance]
-  - id: desktop-shell
-    role: desktop-shell
-    file: .agents/roles/desktop-shell.md
-    responsibility: Electron壳层、IPC、Main/Preload/Renderer/Worker、安全边界与恢复
+    handoff_targets: [tauri-shell, infra-foundation, retrieval-engineer, task-governance]
+  - id: tauri-shell
+    role: tauri-shell
+    file: .agents/roles/tauri-shell.md
+    responsibility: Tauri壳层、Commands、Backend/WebView 边界、Capability、安全边界与恢复
     allowed_tools: [read, search, edit-code, shell-readonly, run-tests]
-    default_skills: [project-architecture, desktop-electron-security]
+    default_skills: [project-architecture, desktop-tauri-security]
     escalation_policy: escalate_on_renderer_privilege_expansion
     review_required: true
     handoff_targets: [app-security, test-engineer, code-reviewer]
@@ -46,7 +46,7 @@ agents:
     default_skills: [workspace-retrieval, project-architecture]
     escalation_policy: escalate_on_index_model_or_worker_boundary_change
     review_required: true
-    handoff_targets: [desktop-shell, test-engineer, code-reviewer]
+    handoff_targets: [tauri-shell, test-engineer, code-reviewer]
   - id: task-governance
     role: task-governance
     file: .agents/roles/task-governance.md
@@ -61,10 +61,10 @@ agents:
     file: .agents/roles/app-security.md
     responsibility: 权限边界、秘密管理、危险动作限制、审计要求
     allowed_tools: [read, search, edit-code, edit-docs, shell-readonly, run-tests]
-    default_skills: [desktop-electron-security, task-approval-audit]
+    default_skills: [desktop-tauri-security, task-approval-audit]
     escalation_policy: escalate_on_sensitive_surface_change
     review_required: true
-    handoff_targets: [desktop-shell, task-governance, code-reviewer]
+    handoff_targets: [tauri-shell, task-governance, code-reviewer]
   - id: test-engineer
     role: test-engineer
     file: .agents/roles/test-engineer.md

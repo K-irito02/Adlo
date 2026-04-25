@@ -27,7 +27,7 @@
 
 ## 交接目标
 
-- `desktop-shell`
+- `tauri-shell`
 - `test-engineer`
 - `code-reviewer`
 

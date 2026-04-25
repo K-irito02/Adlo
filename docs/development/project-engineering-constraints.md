@@ -13,12 +13,20 @@
 
 当前默认技术基线：
 
-- `TypeScript 5.3+`
-- `Electron 28+`
-- `Vite + electron-builder`
-- `Zustand`
-- `SQLite`
-- 包管理以 `pnpm` 为主，可兼容 `Bun`
+- 后端语言：`Rust (stable)`
+- 桌面框架：`Tauri 2.x`
+- 异步运行时：`tokio`
+- 持久化：`SQLite via rusqlite`
+- 序列化：`serde` / `serde_json`
+- 日志：`tracing` + `tracing-subscriber`
+- 错误处理：`thiserror`（库 crate） + `anyhow`（应用层）
+- 文件监听：`notify`
+- HTTP 客户端：`reqwest`
+- 凭据存储：`keyring`
+- 前端：`React 19 + Vite + Zustand + TypeScript`（运行在 Tauri WebView）
+- 桥接：`#[tauri::command]` + `@tauri-apps/api` 的 `invoke()` / `listen()`
+- 打包：`cargo tauri build`
+- 包管理：Rust 端 `Cargo workspace`；前端 `pnpm`（推荐）或 `npm`
 
 当前阶段边界：
 
@@ -40,20 +48,21 @@
 
 必须保持以下层次边界：
 
-- `Main` 负责应用生命周期、系统集成、窗口管理、受控 IPC、权限与恢复编排
-- `Preload` 只负责最小桥接与类型化暴露，不承载业务决策
-- `Renderer` 负责界面、交互编排和表现层状态，不直接触达系统能力
-- `Worker` 负责后台索引、检索、计算等可隔离任务，不直接承担 UI 状态管理
-- 应用服务层负责任务流、配置流、恢复流、审批流等业务编排
-- 基础设施层负责存储、日志、配置源、数据库、文件系统适配等实现细节
+- `Tauri Core (Rust)` 负责应用生命周期、系统集成、窗口管理、Capability 与权限编排、恢复编排
+- `Tauri Commands` 是 WebView 与后端的唯一桥接面：类型化、capability 白名单、结构化错误返回
+- `WebView Frontend (React)` 负责界面、交互编排和表现层状态，不直接触达系统能力
+- 后台任务通过 `tokio::spawn`（或专用线程）承载索引、检索、长耗时计算，不直接承担 UI 状态
+- 应用服务层（业务 crate）负责任务流、配置流、恢复流、审批流等业务编排
+- 基础设施层（`storage` / `logger` / `config` / `errors` 等 crate）负责实现细节
 
 明确禁止：
 
-- Renderer 直接调用文件系统、进程、网络特权、数据库原语或任意命令执行
-- Preload 暴露宽泛的“万能桥接”对象
-- 低层模块依赖高层模块
+- WebView 直接调用文件系统、进程、网络特权、数据库原语或任意命令执行
+- Tauri Command 设计成宽泛的「万能命令」（如接受任意 SQL 或任意路径写入）
+- 低层 crate 依赖高层 crate
 - 多个事件总线并行成为事实标准
 - UI 组件内部承载跨页面业务规则、恢复策略或持久化细节
+- `tauri.conf.json` 或 `capabilities/*.json` 使用 `"all"` / `"**"` 通配权限
 
 ## 跨平台约束
 
@@ -152,28 +161,30 @@
 必须遵守：
 
 - SQLite schema 变更必须附带迁移脚本、版本号和回滚/恢复说明
-- 数据访问层必须集中管理，不允许 Renderer 拼接 SQL
-- 所有查询参数必须参数化，禁止字符串拼接 SQL
-- 审计、任务、索引、缓存、设置等数据域应分表或分边界管理，不使用无边界的“万能表”
+- 数据访问层（`storage` crate）必须集中管理，不允许 WebView 拼接 SQL
+- 所有查询参数必须使用 `rusqlite` 命名/位置参数绑定，禁止字符串拼接 SQL
+- 审计、任务、索引、缓存、设置等数据域应分表或分边界管理，不使用无边界的「万能表」
 - 缓存数据与用户关键数据必须区分，清理策略不能互相污染
 - 损坏数据库、迁移中断、磁盘不足、文件占用等异常必须有恢复路径
 
 推荐约束：
 
-- 优先使用适合 Electron 主进程的 SQLite 驱动与集中仓储接口
+- `rusqlite` 同步 API 在 `tokio::task::spawn_blocking` 中调用，避免阻塞异步运行时
 - 对检索索引、任务审计、用户偏好建立生命周期与保留策略
 
 ## 安全与权限规则
 
 必须遵守：
 
-- BrowserWindow 安全基线必须开启并保持最小暴露面
-- IPC 采用白名单、类型化 contract 和显式输入校验
-- Renderer 发起的危险动作必须进入审批、确认或风险分级流程
-- 密钥、令牌、凭据必须进入受控秘密存储，不得进入普通配置、快照或日志
+- `tauri.conf.json` 必须显式声明 `app.security.csp`，`withGlobalTauri` 默认关闭
+- Tauri Command 采用 capability 白名单（`src-tauri/capabilities/*.json`）、类型化 contract 和显式输入校验
+- WebView 发起的危险动作必须进入审批、确认或风险分级流程
+- 密钥、令牌、凭据必须进入 OS 凭据存储（`keyring` crate），不得进入普通配置、快照或日志
+- `tauri-plugin-fs` / `tauri-plugin-shell` / `tauri-plugin-http` 必须配置 scope 限制，禁止 `"all"` / `"**"` 通配
 - 文件系统写入必须显式限定作用域，禁止无边界任意路径写入
 - 命令执行能力必须最小化、可审计、可拒绝、可回放上下文
 - 任何扩权设计都必须同时更新测试、文档、风险说明和审计要求
+- Rust `unsafe` 代码块必须有注释说明不变量，并优先用 safe abstraction 替代
 
 ## 恢复、容错与生命周期
 
@@ -189,7 +200,8 @@
 
 必须遵守：
 
-- 不在 Renderer 执行长时间阻塞 IO、重查询或大批量同步计算
+- 不在 WebView 主线程执行长时间阻塞 IO、重查询或大批量同步计算
+- Rust 后端阻塞 IO（`rusqlite`、文件读写等）必须包在 `tokio::task::spawn_blocking` 中，避免堵塞 tokio runtime
 - 大文本、索引、搜索结果、审计记录采用分页、分块或增量策略
 - 主题切换、语言切换、工作区切换不能触发无边界全量重建
 - 启动性能、空闲内存、索引期间 CPU 占用需要有预算意识，避免默认后台满载
@@ -213,7 +225,7 @@
 
 以下变更必须补齐测试计划与验证说明：
 
-- IPC contract 变更
+- Tauri Command contract 或 capability 变更
 - 权限边界变更
 - 配置 schema 变更
 - SQLite schema 或迁移变更
@@ -223,9 +235,9 @@
 
 最低要求：
 
-- 单测覆盖纯业务规则、格式化逻辑、状态机和配置解析
-- 集成测试覆盖 IPC、持久化、迁移、恢复和工作区关键链路
-- E2E 或验收矩阵覆盖首批双语、三态主题、首次启动、升级迁移、异常恢复
+- 单测（`cargo test` 内 `#[cfg(test)] mod tests`）覆盖纯业务规则、格式化逻辑、状态机和配置解析
+- 集成测试（`tests/integration/`）覆盖 Tauri Command、持久化、迁移、恢复和工作区关键链路
+- E2E（`tauri-driver` / WebDriver）或验收矩阵覆盖首批双语、三态主题、首次启动、升级迁移、异常恢复
 
 发布前必须验证：
 
@@ -242,7 +254,7 @@
 - 主题模式或 design token 策略变化
 - 配置分层、状态真相源或持久化策略变化
 - SQLite schema、迁移与恢复策略变化
-- 权限边界、IPC 基线或审计要求变化
+- 权限边界、Tauri Command / capability 基线或审计要求变化
 - 测试门禁或发布检查变化
 
 若变更同时影响 Agent 路由、hook 策略或阶段边界，还必须同步：
@@ -260,10 +272,12 @@
 - 用组件内散落颜色常量替代主题令牌
 - 用 localStorage 式思路直接替代桌面应用的受控配置与持久化层
 - 用单一 store 混合 UI 状态、配置真相源、数据库缓存和临时派生状态
-- 用“先上线再补迁移”处理 schema 变更
+- 用「先上线再补迁移」处理 schema 变更
 - 用日志兜底代替审计
-- 用系统权限直通代替审批或最小暴露 IPC
+- 用系统权限直通代替审批或最小暴露 Tauri Command
 - 用平台特例代码直接渗透到业务层
+- 在 capability 文件中使用 `"all"` 或 `"**"` 通配权限
+- 在 Rust 中使用未注释的 `unsafe` 代码块
 
 ## 执行建议
 
@@ -271,7 +285,8 @@
 
 - i18n 资源完整性检查
 - 主题令牌与主题快照检查
-- IPC contract 类型检查和输入校验
+- Tauri Command 类型检查（`serde` 派生）与输入校验
 - 配置 schema 校验与迁移测试
 - SQLite 迁移验收脚本
+- `cargo clippy --workspace -- -D warnings` 与 `cargo fmt --check` 阻断
 - 发布前双语与三态主题 smoke checklist

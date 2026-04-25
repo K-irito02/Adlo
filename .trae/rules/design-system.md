@@ -1,6 +1,6 @@
 ---
 description: Design system constraints, theming, component specifications, and accessibility
-globs: ai-digital-life/apps/desktop/renderer/**/*
+globs: ai-digital-life/frontend/**/*
 alwaysApply: false
 ---
 
@@ -50,10 +50,10 @@ alwaysApply: false
 
 | 层级 | 职责 | 存储位置 |
 |------|------|----------|
-| 主题 (Theme) | 持久化偏好 | Main 进程，通过 IPC |
-| 配色方案 (Color Scheme) | Renderer 端偏好 | `localStorage` |
+| 主题 (Theme) | 持久化偏好 | Tauri backend，经桥接同步 |
+| 配色方案 (Color Scheme) | WebView 端偏好 | `localStorage` |
 
-**重要**：Renderer 不得直接修改持久化主题状态，必须通过 IPC：
+**重要**：WebView 不得直接修改持久化主题状态，必须通过桥接命令：
 ```typescript
 window.digitalLife.app.updatePreferences({ theme: 'dark' })
 ```
@@ -61,7 +61,7 @@ window.digitalLife.app.updatePreferences({ theme: 'dark' })
 ## 目录结构
 
 ```
-renderer/src/
+frontend/src/
 ├── design-system/   # 设计系统组件
 ├── styles/          # CSS 样式系统
 │   └── tokens.css   # 设计令牌

@@ -1,14 +1,14 @@
 # Theming
 
-The full visual contract lives in the `[docs/design-system/](../design-system/README.md)` folder. This page only documents the architectural rules — i.e. **who owns what** between Main, Preload, and Renderer.
+The full visual contract lives in the `[docs/design-system/](../design-system/README.md)` folder. This page only documents the architectural rules — i.e. **who owns what** between the Rust backend and the WebView frontend.
 
 ## Ownership
 
-- **Main** owns the persisted appearance preferences (`language`, `themeMode`, `logLevel`, …) and writes them to `config/config.json` via `@ai-digital-life/config`.
+- The **Rust backend** owns the persisted appearance preferences (`language`, `themeMode`, `logLevel`, …) and writes them to `config/config.json` via the `config` crate.
   - `themeMode` is `"light" | "dark" | "system"`.
-  - When `system`, Main resolves the active theme via the OS-level `nativeTheme` and exposes `resolvedTheme` to the renderer.
-- **Renderer** never mutates `data-theme` directly. It calls `themeController.setTheme({ mode, resolvedTheme })` which centralises all DOM mutation.
-- **Renderer** never mutates persisted `themeMode` directly. It calls `window.digitalLife.app.updatePreferences({ themeMode })` and rebuilds from the returned `AppInfo`.
+  - When `system`, the backend resolves the active theme via Tauri's window theme APIs and exposes `resolvedTheme` to the WebView.
+- The **WebView** never mutates `data-theme` directly. It calls `themeController.setTheme({ mode, resolvedTheme })` which centralises all DOM mutation.
+- The **WebView** never mutates persisted `themeMode` directly. It calls the `app_update_preferences` Tauri Command and rebuilds from the returned `AppInfo`.
 
 ## DOM contract
 
@@ -23,8 +23,8 @@ The full visual contract lives in the `[docs/design-system/](../design-system/RE
 
 - `ThemeController` is the only allowed mutator of `document.documentElement.dataset`.
 - Components MUST consume CSS custom properties (`var(--accent)`); raw colors are forbidden by code review.
-- All component styles MUST live under `apps/desktop/renderer/src/styles/` (see [Design System README](../design-system/README.md)).
-- Switching `themeMode` to `system` re-subscribes to `prefers-color-scheme: dark` and updates `data-theme` reactively without an IPC round-trip.
+- All component styles MUST live under `frontend/src/styles/` (see [Design System README](../design-system/README.md)).
+- Switching `themeMode` to `system` re-subscribes to `prefers-color-scheme: dark` and updates `data-theme` reactively without a Tauri Command round-trip.
 
 ## Design intent
 

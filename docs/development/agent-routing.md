@@ -20,15 +20,16 @@
 - 里程碑拆分
 - 验收标准定义
 
-### Electron 与桌面安全边界
+### Tauri 与桌面安全边界
 
-`architect -> desktop-shell -> app-security -> test-engineer -> code-reviewer`
+`architect -> tauri-shell -> app-security -> test-engineer -> code-reviewer`
 
 适用：
 
-- Main/Preload/Renderer/Worker
-- IPC
-- BrowserWindow 安全参数
+- Tauri Backend (Rust) / Tauri Commands / WebView Frontend 边界
+- Capability 与 Permission 声明
+- `tauri.conf.json` 安全参数（CSP、`withGlobalTauri`）
+- 高权限插件 scope（`tauri-plugin-fs/shell/http`）
 - 恢复与健康检查
 
 ### 基础设施
@@ -37,11 +38,11 @@
 
 适用：
 
-- config
-- logger
-- errors
-- storage
-- migration
+- `config` crate
+- `logger` crate（tracing）
+- `errors` crate（thiserror / anyhow）
+- `storage` crate（rusqlite）
+- `migration` crate
 
 ### 工作区与检索
 
@@ -53,7 +54,7 @@
 - indexing
 - retrieval
 - repo map
-- worker 索引任务
+- 后台 `tokio::spawn` 索引任务
 
 ### 任务、审批与审计
 

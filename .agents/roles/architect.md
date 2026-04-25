@@ -26,7 +26,7 @@
 
 ## 交接目标
 
-- `desktop-shell`
+- `tauri-shell`
 - `infra-foundation`
 - `retrieval-engineer`
 - `task-governance`

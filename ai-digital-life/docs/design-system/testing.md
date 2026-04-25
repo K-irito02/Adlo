@@ -34,12 +34,12 @@ Run via `npx vitest run` or `npm run test`.
 
 ## 3. Build verification
 
-`npm run build:renderer -w @ai-digital-life/desktop` validates that:
+`npm --prefix frontend run build` validates that:
 
 - All design-system imports type-check.
 - All CSS imports resolve and merge into a single bundle (32 kB gzipped 7 kB at the time of writing).
 
-`npm run typecheck -w @ai-digital-life/desktop` covers Main, Preload, and Renderer projects in one command.
+`npm --prefix frontend run typecheck` covers the WebView frontend; `cargo check --workspace` covers the Rust backend.
 
 ## 4. Visual regression (next stage)
 
@@ -56,23 +56,24 @@ Phase 0 does **not** automate visual regression yet. The plan for Stage One:
 | ---------------------------- | --------------------------------------------------------------------------------------------------------- |
 | `design-system/*.ts` helpers | ≥ 90 % statements + branches.                                                                             |
 | `styles/*.css`               | Spot-checked via integration test rendering and build.                                                    |
-| `main.tsx` / `app/*`         | Covered indirectly by `renderer-shell` integration tests; add focused unit tests when adding renderer-only behavior. |
+| `main.tsx` / `app/*`         | Covered indirectly by `frontend-shell` integration tests; add focused unit tests when adding WebView-only behavior. |
 | `theme.ts` controller        | 100 % public surface.                                                                                     |
 
 
 ## Local commands
 
 ```bash
-# Single test run
-npm run test
+# Single test run (frontend)
+npm --prefix frontend test
 
 # Watch a specific design-system spec
 npx vitest tests/unit/design-system/theme.test.ts
 
-# Type check everything (Main + Preload + Renderer)
-npm run typecheck -w @ai-digital-life/desktop
+# Type check (frontend + Rust backend)
+npm --prefix frontend run typecheck
+cargo check --workspace
 
 # Build to verify CSS + JS bundle size
-npm run build:renderer -w @ai-digital-life/desktop
+npm --prefix frontend run build
 ```
 

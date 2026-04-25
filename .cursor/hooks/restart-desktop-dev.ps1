@@ -97,12 +97,11 @@ function Should-RestartForPath([string]$p) {
   if (Test-ExcludedPath $pn) { return $false }
 
   $includePatterns = @(
-    "^ai-digital-life/apps/desktop/renderer/",
-    "^ai-digital-life/apps/desktop/shared/",
-    "^ai-digital-life/packages/(ui|ux|design|theme|styles?)/",
-    "^ai-digital-life/packages/.+/src/.*(ui|ux|design|theme|styles?)",
-    "^ai-digital-life/packages/.+/(src/)?design-system/",
-    "^ai-digital-life/packages/.+/(src/)?styles/"
+    "^ai-digital-life/frontend/src/",
+    "^ai-digital-life/frontend/index\\.html$",
+    "^ai-digital-life/frontend/package\\.json$",
+    "^ai-digital-life/src-tauri/src/",
+    "^ai-digital-life/src-tauri/capabilities/"
   )
 
   foreach ($pat in $includePatterns) {
@@ -248,7 +247,7 @@ function Stop-ProcessSafely($proc, [string]$reason = "", [string]$repoRoot) {
 
 function Stop-ExistingDev($state, [string]$repoRoot) {
   $pids = @()
-  foreach ($k in @("devPid", "vitePid", "electronPid", "devRunnerPid")) {
+  foreach ($k in @("devPid", "vitePid", "tauriPid", "devRunnerPid")) {
     try {
       $v = $state[$k]
       if ($v) { $pids += [int]$v }

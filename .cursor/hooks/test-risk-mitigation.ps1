@@ -108,28 +108,26 @@ function Test-PathMatching {
   Write-Host "`n========== Path Matching Tests ==========" -ForegroundColor Cyan
   
   $testCases = @(
-    @{ Path = "ai-digital-life/apps/desktop/renderer/src/app/App.tsx"; ShouldMatch = $true; Reason = "Renderer source file" },
-    @{ Path = "ai-digital-life/apps/desktop/shared/utils.ts"; ShouldMatch = $true; Reason = "Shared code" },
-    @{ Path = "ai-digital-life/packages/ui/src/components/Button.tsx"; ShouldMatch = $true; Reason = "UI component" },
-    @{ Path = "ai-digital-life/packages/theme/src/styles/colors.ts"; ShouldMatch = $true; Reason = "Theme styles" },
-    @{ Path = "ai-digital-life/apps/desktop/main/index.ts"; ShouldMatch = $false; Reason = "Main process code" },
-    @{ Path = "ai-digital-life/apps/desktop/renderer/src/app/App.test.tsx"; ShouldMatch = $false; Reason = "Test file" },
-    @{ Path = "ai-digital-life/apps/desktop/renderer/src/app/App.spec.ts"; ShouldMatch = $false; Reason = "Spec file" },
-    @{ Path = "ai-digital-life/apps/desktop/renderer/src/app/App.stories.tsx"; ShouldMatch = $false; Reason = "Stories file" },
-    @{ Path = "ai-digital-life/apps/desktop/renderer/vite.config.ts"; ShouldMatch = $false; Reason = "Config file" },
-    @{ Path = "ai-digital-life/apps/desktop/renderer/tsconfig.json"; ShouldMatch = $false; Reason = "TypeScript config" },
-    @{ Path = "ai-digital-life/apps/desktop/renderer/README.md"; ShouldMatch = $false; Reason = "Documentation" },
-    @{ Path = "ai-digital-life/packages/ui/src/index.d.ts"; ShouldMatch = $false; Reason = "Type declaration" },
-    @{ Path = "ai-digital-life/apps/desktop/renderer/src/__tests__/App.test.ts"; ShouldMatch = $false; Reason = "Test directory" }
+    @{ Path = "ai-digital-life/frontend/src/app/App.tsx"; ShouldMatch = $true; Reason = "Frontend source file" },
+    @{ Path = "ai-digital-life/frontend/src/styles/themes.css"; ShouldMatch = $true; Reason = "Theme styles" },
+    @{ Path = "ai-digital-life/src-tauri/src/commands/app.rs"; ShouldMatch = $true; Reason = "Tauri command source" },
+    @{ Path = "ai-digital-life/src-tauri/capabilities/default.json"; ShouldMatch = $true; Reason = "Capability file" },
+    @{ Path = "ai-digital-life/frontend/src/app/App.test.tsx"; ShouldMatch = $false; Reason = "Test file" },
+    @{ Path = "ai-digital-life/frontend/src/app/App.spec.ts"; ShouldMatch = $false; Reason = "Spec file" },
+    @{ Path = "ai-digital-life/frontend/src/app/App.stories.tsx"; ShouldMatch = $false; Reason = "Stories file" },
+    @{ Path = "ai-digital-life/frontend/vite.config.ts"; ShouldMatch = $false; Reason = "Config file" },
+    @{ Path = "ai-digital-life/frontend/tsconfig.json"; ShouldMatch = $false; Reason = "TypeScript config" },
+    @{ Path = "ai-digital-life/frontend/README.md"; ShouldMatch = $false; Reason = "Documentation" },
+    @{ Path = "ai-digital-life/frontend/src/index.d.ts"; ShouldMatch = $false; Reason = "Type declaration" },
+    @{ Path = "ai-digital-life/frontend/src/__tests__/App.test.ts"; ShouldMatch = $false; Reason = "Test directory" }
   )
   
   $includePatterns = @(
-    "^ai-digital-life/apps/desktop/renderer/",
-    "^ai-digital-life/apps/desktop/shared/",
-    "^ai-digital-life/packages/(ui|ux|design|theme|styles?)/",
-    "^ai-digital-life/packages/.+/src/.*(ui|ux|design|theme|styles?)",
-    "^ai-digital-life/packages/.+/(src/)?design-system/",
-    "^ai-digital-life/packages/.+/(src/)?styles/"
+    "^ai-digital-life/frontend/src/",
+    "^ai-digital-life/frontend/index\\.html$",
+    "^ai-digital-life/frontend/package\\.json$",
+    "^ai-digital-life/src-tauri/src/",
+    "^ai-digital-life/src-tauri/capabilities/"
   )
   
   $excludePatterns = @(

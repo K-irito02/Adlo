@@ -1,6 +1,6 @@
 ---
-description: Tests, typecheck, and persistence migration expectations for ai-digital-life
-globs: ai-digital-life/tests/**,ai-digital-life/vitest.config.ts
+description: Tests, cargo checks, and persistence migration expectations for ai-digital-life Rust + Tauri workspace
+globs: ai-digital-life/**/Cargo.toml,ai-digital-life/tests/**,ai-digital-life/crates/**
 alwaysApply: false
 ---
 
@@ -8,18 +8,23 @@ alwaysApply: false
 
 ## 命令（在 `ai-digital-life/` 目录执行）
 
-- **全量单测**：`npm test`（`vitest run`）。
-- **桌面类型检查**：`npm run typecheck -w @ai-digital-life/desktop`（Main + Preload + Renderer）。
+- **格式化**：`cargo fmt --all -- --check`
+- **lint**：`cargo clippy --workspace --all-targets -- -D warnings`
+- **类型/借用检查**：`cargo check --workspace`
+- **全量测试**：`cargo test --workspace`
+- **前端检查**：`npm --prefix frontend run typecheck` 与 `npm --prefix frontend test`；涉及 `frontendDist` 或生产打包路径时补 `npm --prefix frontend run build`
+- **Tauri 打包烟测**（高风险变更）：`cargo tauri build --debug`
 
-高风险改动（IPC、存储迁移、`kernel` 契约、`applyPatch` 路径）应**至少**覆盖相关 `tests/unit/*` 或 `tests/integration/*`。
+高风险改动（Tauri Command 契约、SQLite 迁移、`kernel` 类型契约、补丁应用路径）应**至少**覆盖相关 `crates/*/src/**` 的 `#[cfg(test)]` 单测或 `tests/integration/*`。
 
-## SQLite / `storage`
+## SQLite / `storage` crate
 
-- Schema 变更：**必须**带迁移脚本与 `storage`/迁移相关单测；禁止仅改运行时字符串而不改版本与迁移注册。
+- Schema 变更：**必须**带迁移脚本与 `storage`/`migration` 单测；禁止仅改运行时 SQL 字符串而不改版本与迁移注册。
+- 所有查询参数必须使用 `rusqlite` 的命名/位置参数绑定，禁止字符串拼接。
 
-## Renderer 集成
+## 前端集成
 
-- 工作区壳与关键 IPC：`tests/integration/renderer-shell.test.ts`；桥接 API 变更时同步 mock（`renderer/src/mock-bridge.ts`）。
+- 工作区壳与关键 Tauri Command：`tests/integration/frontend-shell.rs` 或前端 `vitest`；invoke 形状变更时同步前端 mock（`frontend/src/mock-bridge.ts`）。
 
 ## 文档
 

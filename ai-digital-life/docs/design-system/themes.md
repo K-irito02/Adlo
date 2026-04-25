@@ -1,8 +1,8 @@
 # Themes
 
-Source of truth: `[apps/desktop/renderer/src/styles/themes.css](../../apps/desktop/renderer/src/styles/themes.css)` and `[apps/desktop/renderer/src/design-system/theme.ts](../../apps/desktop/renderer/src/design-system/theme.ts)`.
+Source of truth: `[frontend/src/styles/themes.css](../../frontend/src/styles/themes.css)` and `[frontend/src/design-system/theme.ts](../../frontend/src/design-system/theme.ts)`.
 
-The desktop renderer ships **2 appearance modes (light / dark)**. The Main process additionally exposes `system` mode that resolves to either light or dark based on the OS preference.
+The desktop renderer ships **2 appearance modes (light / dark)**. The Tauri backend additionally exposes `system` mode that resolves to either light or dark based on the OS preference.
 
 ## DOM contract
 
@@ -46,7 +46,7 @@ function resolveThemeMode(mode: ThemeMode, prefersDark: boolean): "light" | "dar
 }
 ```
 
-- `themeMode` and `language` are persisted by **Main** in `config/config.json`.
+- `themeMode` and `language` are persisted by the **Tauri backend** and surfaced to the WebView bridge.
 - When `themeMode === "system"`, the renderer subscribes to `prefers-color-scheme: dark` and updates `data-theme` on the fly without an IPC round-trip.
 
 ## ThemeController API

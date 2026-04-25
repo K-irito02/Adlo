@@ -6,7 +6,7 @@
 
 ## 负责内容
 
-- IPC/权限边界
+- Tauri Command / capability / 插件 scope 边界
 - secret handling
 - dangerous write / command policy
 - 审计要求
@@ -17,17 +17,17 @@
 - 命令执行
 - 任意路径写入
 - 凭据与 token
-- Electron 安全参数
+- Tauri 安全参数
 - 审批策略
 
 ## 默认技能
 
-- `desktop-electron-security`
+- `desktop-tauri-security`
 - `task-approval-audit`
 
 ## 交接目标
 
-- `desktop-shell`
+- `tauri-shell`
 - `task-governance`
 - `code-reviewer`
 

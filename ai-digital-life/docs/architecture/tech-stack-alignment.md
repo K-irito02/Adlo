@@ -2,136 +2,126 @@
 
 ## Summary
 
-当前实现**已采用 Phase 0 基座和 Phase 2 单 Agent 薄切片所需的主栈**，其余仅保留为明确的后续项。
+项目已迁移到 **Rust + Tauri 2.x** 技术栈。本文件记录主栈、依赖选型理由以及取代旧 Electron 栈的逐项对应。
 
-已采用的主栈：
+### 已采用的主栈
 
-- `TypeScript 5.x`
-- `Electron`
-- `Vite`
-- `React 19`
-- `Zustand`
-- `SQLite + better-sqlite3`
-- `Node.js`
-- `Vitest`
 
-尚未完全落地的栈项：
+| 层         | 选型                                         | 替代了                                |
+| --------- | ------------------------------------------ | ---------------------------------- |
+| 桌面框架      | Tauri 2.x                                  | Electron                           |
+| 后端语言      | Rust (stable)                              | Node.js / TypeScript（Main 进程）      |
+| 异步运行时     | tokio                                      | Node event loop                    |
+| 持久化       | SQLite via `rusqlite`                      | `better-sqlite3`                   |
+| 序列化       | `serde` / `serde_json`                     | 手写 JSON                            |
+| 日志        | `tracing` + `tracing-subscriber`           | `pino`                             |
+| 错误处理      | `thiserror`（库）+ `anyhow`（应用层）              | 自定义 TS Error                       |
+| 文件监听      | `notify`                                   | `chokidar`                         |
+| HTTP 客户端  | `reqwest`                                  | Node `fetch`                       |
+| 凭据存储      | `keyring`                                  | 普通配置（不安全）                          |
+| 进程执行      | `tokio::process` / `std::process::Command` | Node `child_process`               |
+| 前端框架      | React 19 + Vite + Zustand + TypeScript     | （保留）                               |
+| 桥接        | `#[tauri::command]` + `@tauri-apps/api`    | `ipcMain.handle` + `contextBridge` |
+| 打包        | `cargo tauri build`                        | `electron-builder`                 |
+| 包管理（Rust） | Cargo workspace                            | —                                  |
+| 包管理（前端）   | npm / pnpm                                 | npm / pnpm（保留）                     |
+| 单测        | `cargo test` + `vitest`（前端）                | `vitest`                           |
+| E2E       | `tauri-driver` (WebDriver)                 | Playwright                         |
 
+
+### 已废弃的栈项
+
+- Electron / `electron-rebuild`
+- `better-sqlite3`（Node binding）
+- `chokidar`
+- `pino`
 - `electron-builder`
-- `pnpm` 作为实际执行入口
+- Node Worker Thread（被 `tokio::spawn` 取代）
+- Preload 脚本（Tauri 原生隔离不需要）
 
-## Why The Current Subset Is Acceptable
+## Why Rust + Tauri
 
-当前实现的目标已经扩展为：
+迁移到 Rust + Tauri 的核心驱动：
 
-- 桌面壳层安全边界
-- SQLite 状态真相源
-- 工作区恢复
-- Retrieval Worker
-- React + Zustand 工作区主界面
-- DeepSeek / MiniMax 模型路由与健康检查
-- Patch 预览、应用、验证与回滚
-- 命令审批与恢复审计
-- 终端包 `executeStream` 与桌面 `digitalLife:terminalStream` 事件（与模型流式相同的安全模式：Main 执行、Renderer 只读订阅）
-
-因此当前实现保留了 `stageOne` 核心主线的技术方向，但没有为了“名义对齐”提前引入未被当前 slice 使用的依赖。这样做的优点是：
-
-- 降低 Phase 0 首批切片的依赖复杂度
-- 避免提前引入未使用的运行时和打包层负担
-- 让安全边界、恢复链路、SQLite 和 Worker 先稳定
-- 把 `electron-builder` 和 `pnpm` 作为仍待收口的明确后续项，而不是隐性债务
+- **更小的安装包与运行时占用**：Tauri 利用 OS 自带 WebView，安装包从数十 MB 降至个位数 MB
+- **内存安全**：Rust 借用检查器消除大类内存安全问题，对长期运行的桌面应用尤为关键
+- **能力模型更细粒度**：Tauri 2.x Capability + Permission 系统天然落实最小权限
+- **统一类型契约**：Rust struct + `serde` 在 backend 与 WebView 之间天然类型化，无需手维 IPC d.ts
+- **无 Node 原生模块兼容噩梦**：`better-sqlite3` 等 native module 对 Electron 版本敏感，Rust crate 通过 Cargo 解决
+- **更强的并发模型**：`tokio` + 通道 + 借用检查 替代 EventEmitter + Promise 编排
 
 ## Alignment Decision By Item
 
-### TypeScript
+### Tauri 2.x
 
-已采用。
+已采用。理由：
 
-原因：
+- 当前目标本身就是桌面壳层、Backend、WebView 边界与权限治理
+- Capability + Permission 模型直接落实「最小暴露面」
 
-- 类型化 IPC、SQLite 状态结构、Worker 消息契约都直接受益
+### Rust (stable)
 
-### Electron
+已采用。理由：
 
-已采用。
-
-原因：
-
-- 当前目标本身就是桌面壳层、Preload、Renderer、Worker 边界
+- 类型化 IPC、SQLite 状态结构、后台任务消息契约都直接受益
+- 无 GC、无运行时依赖，启动与稳态都更可控
 
 ### Vite
 
-已采用。
+已采用（前端）。理由：
 
-原因：
+- 前端 dev/build 工具链稳定，无需更换
 
-- 当前 Renderer 很轻，Vite 足以支撑开发和打包
+### React 19 + Zustand
 
-### SQLite + better-sqlite3
+已采用（前端）。理由：
 
-已采用。
+- 阶段二工作区主界面需要多面板共享状态
+- 无需重写已经稳定的 UI 层
 
-原因：
+### rusqlite
 
-- 当前切片已经需要可靠状态真相源和本地恢复链路
+已采用。理由：
 
-### Zustand
+- 桌面应用本地 SQLite 通常无需异步 DB 复杂度
+- 同步 API 在 `tokio::task::spawn_blocking` 中调用即可
+- 比 `sqlx` 更轻量，编译时间更短，无需运行 macro/migration 工具
 
-已采用。
+### tokio
 
-原因：
+已采用。理由：
 
-- Phase 2 工作区主界面已经进入多面板、会话、补丁、文件预览共享状态
-- 引入 `Zustand` 后，Renderer 不再继续扩张手写 DOM 状态机
+- 模型流、文件监听、命令执行、HTTP、检索任务都天然异步
+- Tauri 自身基于 tokio runtime
 
-### pino
+### tracing
 
-已采用。
+已采用。理由：
 
-原因：
+- 结构化日志 + span 比 `pino` 更强的上下文传递
+- 与 `tracing-subscriber` 生态对齐（控制台、文件、JSON、OTLP）
 
-- Main 和基础设施日志现在统一走 `pino`
-- 结构化日志与上层 `Logger` 调用面保持解耦
+### notify
 
-### chokidar
+已采用。理由：
 
-已采用。
+- 跨平台文件监听，是 Rust 生态对 `chokidar` 的标准替代
+- 与 `tokio` 配合可以做事件去抖与批处理
 
-原因：
+### keyring
 
-- 工作区文件变更检测已经切到事件驱动
-- 当前阶段已需要外部修改冲突提示与上下文失效触发
+已采用。理由：
 
-### electron-builder
+- 跨平台访问 OS 凭据存储（Windows Credential Manager / macOS Keychain / Linux Secret Service）
+- 满足「密钥不进入普通配置或日志」的安全基线
 
-未采用。
+### tauri-driver / WebDriver
 
-原因：
+已采用（E2E）。理由：
 
-- 当前重点是运行时链路验证，不是安装包和发布产物
+- Tauri 官方推荐 E2E 工具
+- Playwright 仍可用于纯前端 dev server 调试，但生产 E2E 走 WebDriver
 
-### Playwright
+## Migration Notes
 
-已采用。
-
-原因：
-
-- 已补入阶段二工作区壳的浏览器级验收流
-- 当前自动化覆盖 `会话 -> 补丁预览 -> 应用 -> 验证` 主链路
-
-### pnpm
-
-规范上仍以 `pnpm workspace` 为目标布局，但当前实际命令使用 `npm workspace` 兼容执行。
-
-原因：
-
-- 当前环境没有稳定可用的本地 `pnpm` 入口
-- 为避免工具不可用阻塞实现，先使用 `npm` 承接执行命令，同时保留 `pnpm-workspace.yaml`
-
-## Next Alignment Steps
-
-当以下条件出现时，应回到 `stageOne` 的完整推荐栈：
-
-- Renderer 出现跨页面共享状态：引入 `Zustand`
-- 需要正式打包和安装：引入 `electron-builder`
-- 本地工具链稳定后：切换到 `pnpm` 作为实际执行入口
+详见 [rust-migration-plan.md](./rust-migration-plan.md)：分阶段实施路线、Cargo workspace 目标结构、Electron -> Tauri 安全模型映射、关键技术决策表。

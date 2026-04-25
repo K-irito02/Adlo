@@ -1,5 +1,5 @@
 ---
-description: Codebase map, packages list, directory structure, and indexing strategy
+description: Codebase map, Cargo workspace, frontend layout, and indexing strategy
 globs: ai-digital-life/**/*
 alwaysApply: false
 ---
@@ -10,84 +10,61 @@ alwaysApply: false
 
 ```
 ai-digital-life/
-├── apps/desktop/     # Electron 桌面应用
-├── packages/         # 共享包
-├── workers/          # Worker 线程
-├── docs/             # 架构与设计文档
-└── tests/            # 测试文件
+├── Cargo.toml          # Rust workspace 根
+├── src-tauri/          # Tauri 二进制与 #[tauri::command]
+│   └── tauri.conf.json # Tauri 应用配置
+├── crates/             # Rust 库 crate（kernel、storage、…）
+├── frontend/           # WebView：React + Vite
+├── docs/               # 架构与设计文档
+└── tests/              # 集成 / E2E 等
 ```
 
-## 应用层 (`apps/desktop/`)
+## 应用层（Tauri + WebView）
 
-| 目录 | 进程 | 职责 |
-|------|------|------|
-| `main/` | Main (Node) | 系统能力、IPC 处理、存储、命令执行 |
-| `preload/` | Preload | 桥接层、API 白名单暴露 |
-| `renderer/` | Renderer (React) | UI 渲染、状态管理、用户交互 |
-| `shared/` | 共享 | IPC 类型契约 (`ipc.ts`) |
+| 位置 | 职责 |
+|------|------|
+| `src-tauri/` | 窗口、Rust 启动、`invoke` 处理、capabilities |
+| `frontend/src/` | React UI、Zustand、`window.digitalLife` 桥接（开发态为 `mock-bridge.ts`） |
+| `frontend/src/shared/ipc.ts` | `DigitalLifeBridge` 类型契约 |
+| `frontend/src/kernel` | 前端侧 `@ai-digital-life/kernel` 类型与工具（与 `crates/kernel` 后端契约应对齐） |
 
-## 包层 (`packages/`)
+## Crates 层（`crates/`）
 
-| 区域 | 包名 | 职责 |
-|------|------|------|
-| 核心 | `kernel` | 契约与常量 |
-| 持久化 | `storage` | SQLite 封装 |
-| 持久化 | `migration` | 数据库迁移 |
-| 基础设施 | `config` | 配置管理 |
-| 基础设施 | `logger` | 日志系统 |
-| 基础设施 | `errors` | 错误处理 |
-| 基础设施 | `events` | 事件系统 |
-| 桌面支撑 | `workspace` | 工作区管理 |
-| 桌面支撑 | `fs-ops` | 文件系统操作 |
-| 任务 | `task` | 任务治理与审批 |
-| AI 能力 | `model-gateway` | 模型网关 |
-| AI 能力 | `agent-runtime` | Agent 运行时 |
-| AI 能力 | `conversation` | 对话管理 |
-| AI 能力 | `context-engine` | 上下文引擎 |
-| AI 能力 | `prompt-engine` | Prompt 引擎 |
-| AI 能力 | `change-engine` | 变更引擎 |
-| AI 能力 | `terminal` | 终端集成 |
-| AI 能力 | `editor` | 编辑器集成 |
+| 区域 | crate 名 | 职责 |
+|------|----------|------|
+| 契约与常量 | `kernel` | 后端共享类型与常量（Rust） |
+| 持久化 | `storage` / `migration` | SQLite |
+| 支撑 | `config`、`logger`、`errors`、`events` 等 | 见 `AGENTS.md` 完整表 |
+| Phase 2+ | `workspace`、`task`、`conversation`、`model-gateway` 等 | 业务域 |
 
-## Worker 层 (`workers/`)
+## 测试目录（`tests/`）
 
 | 目录 | 职责 |
 |------|------|
-| `health/` | 检索 Worker（与 Main 线程隔离） |
+| `integration/` | 跨 crate 集成（Rust） |
+| `e2e/` | 端到端（计划 tauri-driver 等） |
 
-## 测试目录 (`tests/`)
-
-| 目录 | 职责 |
-|------|------|
-| `unit/` | 单元测试 |
-| `unit/components/` | React 组件单元测试（.tsx） |
-| `unit/design-system/` | 设计系统单元测试 |
-| `integration/` | 集成测试 |
-
-## Renderer 关键目录 (`apps/desktop/renderer/src/app/`)
+## 前端关键目录（`frontend/src/app/`）
 
 | 目录 | 职责 |
 |------|------|
-| `components/` | React UI 组件（含 Tooltip） |
-| `hooks/` | 自定义 React Hooks（含 useTooltip） |
-| `utils/` | 纯函数工具（含 tooltipPosition） |
-| `regions/` | 区域级布局组件 |
-| `design-system/` | 设计系统核心（tokens, icons, theme） |
+| `components/` | React 组件（含 Tooltip） |
+| `hooks/` | 自定义 Hooks |
+| `utils/` | 纯函数（如 tooltipPosition） |
+| `regions/` | 区域布局（TitleBar、侧栏、中心、右侧面板等） |
 
 ## 索引策略
 
-1. **定位入口**：业务逻辑 → `packages/*`，进程边界 → `apps/desktop/*`
-2. **类型契约**：跨包类型以 `@ai-digital-life/kernel` 导出为准
+1. **定位入口**：业务逻辑 → `crates/*`；Tauri 边界 → `src-tauri/*`；UI → `frontend/src/*`。
+2. **类型契约**：Rust 以 `crates/kernel` 为准；WebView 以 `frontend/src/kernel` + `shared/ipc.ts` 为准，变更时双向对齐。
 3. **架构引用**：`docs/architecture/system-overview.md`
 
 ## 随项目演进
 
-- 新增 package：更新包层表格
-- 重命名/删除 package：同步更新表格
-- 新增 Worker：更新 Worker 层表格
+- 新增 crate：更新 Crates 层表格
+- 前端子目录重命名：更新「前端关键目录」
 - 目录结构调整：更新顶层结构图
 
 ## 相关文件
 
-- [ai-digital-life/package.json](/E:/Programs/Obsidian/notes/ai-digital-life/package.json)
 - [ai-digital-life/AGENTS.md](/E:/Programs/Obsidian/notes/ai-digital-life/AGENTS.md)

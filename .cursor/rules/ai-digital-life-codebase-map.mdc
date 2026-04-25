@@ -1,5 +1,5 @@
 ---
-description: ai-digital-life monorepo layout, packages, apps, workers, and common CLI entrypoints
+description: ai-digital-life Rust + Tauri workspace layout, crates, commands, and common Cargo/Tauri entrypoints
 globs: ai-digital-life/**
 alwaysApply: false
 ---
@@ -8,34 +8,67 @@ alwaysApply: false
 
 ## 顶层
 
-- `package.json`：workspace 根脚本（`npm test` → `vitest run`，`npm run typecheck` 串联各包，`npm run dev` 启动桌面）。
-- `vitest.config.ts`：单测/集成测入口。
+- `Cargo.toml` / `Cargo.lock`：Cargo workspace 根，列出所有成员 crate。
+- `src-tauri/tauri.conf.json`：Tauri 应用配置（窗口、bundler、安全策略等）。
+- `package.json`：工作区根脚本（`cargo tauri dev`、`cargo test --workspace`、前端代理命令）。
+- `frontend/package.json`：WebView 前端依赖与脚本。
 - `AGENTS.md`、`CONTRIBUTING.md`、`docs/architecture/`：实现侧治理与架构真源。
 
-## 应用与共享
+## 应用入口
 
-- `apps/desktop/`：`main/`（Node）、`preload/`（桥）、`renderer/`（React + Vite）、`shared/ipc.ts`（与 preload 对齐的契约类型）。
+- `src-tauri/`：Tauri Rust 入口
+  - `src/main.rs`：`tauri::Builder` 应用启动
+  - `src/commands/`：`#[tauri::command]` 处理函数（替代 Electron `ipcMain.handle`）
+  - `src/state.rs`：跨命令共享状态（`tauri::State`）
+  - `src/setup.rs`：应用初始化、窗口、worker 启动
+  - `capabilities/*.json`：Tauri 2.x 能力 / 权限声明（前端可调用的命令白名单）
 
-## 包（`packages/`）
+## 前端（WebView）
 
-| 区域 | 包名（按需深入） |
-|------|------------------|
+- `frontend/`：React 19 + Vite + Zustand + TypeScript
+  - `src/main.tsx`：React 入口；`index.html` 中根节点为 `#app`
+  - `src/app/`：全壳布局、Zustand store、区域与右侧面板（含 Monaco 编辑器依赖 `@monaco-editor/react`）
+  - `src/design-system/`：设计系统（HTML 组合与主题）
+  - `src/styles/`：分层 CSS（tokens / themes / layout / regions 等）
+  - `src/locales/`：i18n（`zh-CN` / `en-US`）
+  - `src/kernel/index.ts`：通过路径别名 `@ai-digital-life/kernel` 引用的**前端侧**共享类型与工具（与 `crates/kernel` 职责区分：后端以 Rust 为准，前端类型为桥接与 UI 契约）
+  - `src/shared/ipc.ts`：`DigitalLifeBridge` 接口
+  - `src/mock-bridge.ts`：无 Tauri 后端时挂载 `window.digitalLife` 的 mock
+  - 联调/生产：通过 `@tauri-apps/api` 的 `invoke()` / `listen()` 调用后端，替换或包装 mock
+
+## Crates（`crates/`）
+
+| 区域 | crate 名 |
+|------|----------|
 | 契约与常量 | `kernel` |
-| 持久化 | `storage`、`migration` |
-| 桌面支撑 | `config`、`logger`、`errors`、`events`、`workspace`、`fs-ops` |
+| 持久化 | `storage`（rusqlite）、`migration` |
+| 桌面支撑 | `config`、`logger`（tracing）、`errors`、`events`、`workspace`、`fs-ops`（notify） |
 | 任务与审批 | `task` |
-| Phase 2 切片 | `model-gateway`、`agent-runtime`、`conversation`、`change-engine`、`context-engine`、`prompt-engine`、`terminal`、`editor`（按仓库现状为准） |
+| Phase 2 切片 | `model-gateway`、`agent-runtime`、`conversation`、`change-engine`、`context-engine`、`prompt-engine`、`terminal`、`editor` |
 
-## Worker
+## 检索 / 后台计算
 
-- `workers/health/`：检索 worker（与 Main 线程隔离）。
+- 在 Rust 后端通过 `tokio::spawn` 或专用线程承载，不开独立 Node Worker。
+- 状态外显与心跳通过 Tauri Events 推送给前端。
+
+## 常用命令（在 `ai-digital-life/` 目录执行）
+
+- `cargo check --workspace`：快速类型/借用检查
+- `cargo clippy --workspace --all-targets`：lint
+- `cargo test --workspace`：运行所有 Rust 单测/集成测
+- `cargo fmt --all`：格式化
+- `npm --prefix frontend run dev`：仅启动前端 Vite dev server
+- `cargo tauri dev`：联合启动 Tauri + 前端（开发态）
+- `cargo tauri build`：生产打包
 
 ## 测试
 
-- `tests/unit/`、`tests/integration/`：与实现对齐；新增高风险模块时优先补邻近单测。
+- 各 crate 内 `#[cfg(test)] mod tests` 覆盖单测
+- `tests/integration/`：跨 crate 集成测试
+- `tests/e2e/`：基于 `tauri-driver` / WebDriver 的端到端
 
 ## 索引策略（给 Agent）
 
-1. 改行为先定位 **Main vs Renderer vs 包**：业务默认在 `packages/*`，进程边界在 `apps/desktop/*`。
-2. 跨包类型以 **`@ai-digital-life/kernel` 导出** 为准。
+1. 改行为先定位 **Rust 后端 crate vs Tauri Command vs WebView 前端**：业务默认在 `crates/*`，进程边界在 `src-tauri/src/commands/*`，UI 在 `frontend/`。
+2. 跨 Rust crate 类型以 **`crates/kernel`** 为准；WebView 与 `DigitalLifeBridge` 的 TypeScript 类型以 **`frontend/src/kernel`（`@ai-digital-life/kernel`）** 与 **`frontend/src/shared/ipc.ts`** 为准，演进时需与 Rust 契约对齐。
 3. 架构段落引用 **`docs/architecture/system-overview.md`**，避免与代码漂移。

@@ -28,7 +28,7 @@
 - `system-overview.md`
   - 说明 Phase 边界、核心目标、层次结构、模块关系
 - `desktop-boundaries.md`
-  - 定义 Main、Preload、Renderer、Worker、IPC 的职责与禁止项
+  - 定义 Tauri Core (Rust)、Tauri Commands、WebView Frontend、后台 `tokio::spawn` 任务的职责与禁止项；capability / permission 声明规范
 - `state-and-persistence.md`
   - 定义配置分层、store 边界、持久化真相源、schema 与迁移策略
 - `workspace-and-retrieval.md`
@@ -40,7 +40,7 @@
 - `theming.md`
   - 定义 `light`、`dark`、`system`、token 体系和 system 跟随策略
 - `security-baseline.md`
-  - 定义 BrowserWindow、IPC、秘密存储、文件系统与命令执行基线
+  - 定义 `tauri.conf.json` 安全字段、capability/permission、秘密存储（`keyring`）、文件系统与命令执行基线、Rust `unsafe` 使用规范
 - `recovery-and-migration.md`
   - 定义启动恢复、异常恢复、数据库迁移、配置迁移和回滚策略
 - `observability.md`
@@ -74,11 +74,13 @@
 
 - i18n 缺失 key 与未使用 key 检查
 - 主题 token 使用检查，阻止散落颜色常量进入核心组件
-- IPC contract 类型检查与输入校验
+- Tauri Command 类型检查（`serde` 派生）与输入校验
+- Capability / permission 文件 lint（禁止 `"all"` / `"**"` 通配）
 - 配置 schema 校验与迁移测试
 - SQLite 迁移 smoke test
+- `cargo clippy --workspace -- -D warnings` 与 `cargo fmt --check`
 - 关键双语页面和三态主题 smoke test
-- 依赖方向与跨层导入检查
+- 依赖方向与跨层导入检查（`cargo deny` 或 workspace 规则）
 
 ## 五、与当前规划仓的映射关系
 

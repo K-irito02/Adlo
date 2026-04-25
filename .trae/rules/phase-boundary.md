@@ -15,7 +15,7 @@ alwaysApply: true
 
 ## 当前已实现
 
-- 桌面壳（Main/Preload/Renderer）
+- 桌面壳（Tauri Backend / WebView）
 - SQLite 状态持久化
 - 工作区与对话管理
 - 补丁预览/应用/回滚
@@ -40,8 +40,8 @@ alwaysApply: true
 引入新功能前必须确认：
 
 - [ ] 是否在当前 Phase 范围内？
-- [ ] 是否需要新增 IPC 通道？
-- [ ] 是否涉及 Renderer 直接访问系统资源？
+- [ ] 是否需要新增 Tauri Command / capability / 事件通道？
+- [ ] 是否涉及 WebView 直接访问系统资源？
 - [ ] 是否需要新增持久化存储？
 - [ ] 是否需要同步文档更新？
 

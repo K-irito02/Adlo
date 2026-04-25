@@ -7,12 +7,12 @@ The renderer currently supports:
 - `zh-CN`
 - `en-US`
 
-Language selection is owned by `Main`, persisted in `config/config.json`, and exposed to `Renderer` only through typed IPC.
+Language selection is owned by the Rust backend, persisted in `config/config.json`, and exposed to the WebView only through typed Tauri Commands.
 
 ## Runtime Rules
 
-- `Renderer` must not write config files directly.
-- Locale messages live under `apps/desktop/renderer/src/locales/`.
+- The WebView must not write config files directly.
+- Locale messages live under `frontend/src/locales/`.
 - All new user-facing strings for the desktop home shell must be added to both locale files in the same change.
 - Fallback behavior is conservative: unsupported values resolve to `zh-CN`.
 
