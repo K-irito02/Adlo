@@ -32,7 +32,13 @@ import { createEditorTab, mapPatchToEditorTab, type EditorTabState } from "./edi
 import { loadConversationState, loadTaskCenterState } from "./loaders";
 import { mergeDirtyEditorPaths, normalizeWorkspaceRelativePath } from "./workspacePaths";
 import { themeController } from "./theme";
-import type { ToolId } from "./ui-store";
+import {
+  applySlashScenarioOverride,
+  augmentPromptWithChips,
+  chatModeToScenario,
+  type MessageSendOptions
+} from "./composerSend";
+import { useUiStore, type ToolId } from "./ui-store";
 
 let terminalStreamUnsub: (() => void) | undefined;
 
@@ -111,7 +117,7 @@ export type StoreState = {
   markAllSessionsRead: (sessionIds: string[]) => Promise<void>;
   revealWorkspaceInFileManager: (workspacePath: string) => Promise<void>;
   deleteSession: (sessionId: string) => Promise<void>;
-  sendMessage: (content: string) => Promise<void>;
+  sendMessage: (content: string, options?: MessageSendOptions) => Promise<void>;
   cancelActiveStream: () => Promise<void>;
   openFile: (relativePath: string) => Promise<void>;
   refreshWorkspaceTree: () => Promise<void>;
@@ -412,11 +418,45 @@ export const useAppStore = create<StoreState>((set, get) => ({
       };
     });
   },
-  sendMessage: async (content: string) => {
+  sendMessage: async (content: string, options?: MessageSendOptions) => {
     const sessionId = get().activeSessionId;
     if (!sessionId || !content.trim()) {
       return;
     }
+    const trimmed = content.trim();
+    if (trimmed === "/apply") {
+      const ps = get().activePatchSet;
+      if (ps) {
+        await get().applyPatchSet(ps.id);
+      } else {
+        set({ error: "当前没有可应用的补丁。" });
+      }
+      return;
+    }
+    if (trimmed === "/rollback") {
+      const ps = get().activePatchSet;
+      if (ps) {
+        await get().rollbackPatchSet(ps.id);
+      } else {
+        set({ error: "当前没有可回滚的补丁。" });
+      }
+      return;
+    }
+    if (trimmed === "/model") {
+      useUiStore.getState().setActiveTool("models");
+      return;
+    }
+    if (trimmed === "/clear") {
+      set({
+        error:
+          "「/clear」尚未实现清空历史。请使用侧栏「新建会话」开始新线程，或删除当前会话。"
+      });
+      return;
+    }
+    const mode = options?.mode ?? useUiStore.getState().chatMode;
+    const baseScenario = chatModeToScenario(mode);
+    const withChips = augmentPromptWithChips(content, options?.chips);
+    const { scenario, prompt } = applySlashScenarioOverride(withChips, baseScenario);
     set({ streamingAssistantText: "", streamingActiveRunId: undefined, error: undefined });
     const unsubscribe = window.digitalLife.subscribeModelStream((event) => {
       if (event.v !== 1) {
@@ -446,8 +486,8 @@ export const useAppStore = create<StoreState>((set, get) => ({
     try {
       const result = await window.digitalLife.conversation.sendMessage({
         sessionId,
-        content,
-        scenario: "code-edit"
+        content: prompt,
+        scenario
       });
       if (!result.ok) {
         set({ error: result.error.message });
@@ -568,7 +608,15 @@ export const useAppStore = create<StoreState>((set, get) => ({
     if (filePath) {
       await get().openFile(filePath);
     }
+    const runId = result.data.patchSet.runId;
+    if (runId) {
+      const run = await window.digitalLife.agent.getRun(runId);
+      if (run.ok) {
+        set({ activeRun: run.data });
+      }
+    }
     await get().refreshTaskCenter();
+    await get().fetchAuditEntries(40);
   },
   rollbackPatchSet: async (patchSetId: string) => {
     const result = await window.digitalLife.patch.rollbackPatchSet(patchSetId);
@@ -584,7 +632,15 @@ export const useAppStore = create<StoreState>((set, get) => ({
     if (filePath) {
       await get().openFile(filePath);
     }
+    const runId = result.data.runId;
+    if (runId) {
+      const run = await window.digitalLife.agent.getRun(runId);
+      if (run.ok) {
+        set({ activeRun: run.data });
+      }
+    }
     await get().refreshTaskCenter();
+    await get().fetchAuditEntries(40);
   },
   refreshTaskCenter: async () => {
     const result = await window.digitalLife.task.getSnapshot();
@@ -601,6 +657,7 @@ export const useAppStore = create<StoreState>((set, get) => ({
       return;
     }
     set({ taskCenter: result.data });
+    await get().fetchAuditEntries(40);
   },
   markExternalFileChange: ({ path, lastModifiedAt }) => {
     const selected = normalizeWorkspaceRelativePath(get().selectedFilePath ?? "");
@@ -648,6 +705,7 @@ export const useAppStore = create<StoreState>((set, get) => ({
     }
     set({ latestCommandRun: result.data });
     await get().refreshTaskCenter();
+    await get().fetchAuditEntries(40);
   },
   runCommandStream: async (command, argsText) => {
     if (!command.trim()) {
@@ -678,6 +736,7 @@ export const useAppStore = create<StoreState>((set, get) => ({
         }
       });
       await get().refreshTaskCenter();
+      await get().fetchAuditEntries(40);
       return;
     }
     const { executionId } = result.data;
@@ -705,6 +764,7 @@ export const useAppStore = create<StoreState>((set, get) => ({
           terminalOutput: `${state.terminalOutput}\n[exit ${event.exitCode ?? "null"}] ${event.summary}\n`
         }));
         void get().refreshTaskCenter();
+        void get().fetchAuditEntries(40);
       }
     });
   },

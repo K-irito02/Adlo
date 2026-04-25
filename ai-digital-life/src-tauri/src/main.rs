@@ -58,6 +58,7 @@ fn main() {
             commands::command::command_list_recent,
             commands::task::task_get_snapshot,
             commands::task::task_list_pending_approvals,
+            commands::task::task_list_audit_entries,
             commands::task::task_decide_approval,
             commands::task::task_get_checkpoint_preview,
             commands::task::task_restore_checkpoint,

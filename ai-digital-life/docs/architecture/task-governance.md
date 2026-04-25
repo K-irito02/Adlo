@@ -34,10 +34,13 @@ Phase 2 tranche 1 additionally persists:
 - Single-agent execution now routes through real `DeepSeek` and `MiniMax` providers when configured, with a synthetic fallback only after both providers fail.
 - Validation failure can generate one conservative repair preview; it does not auto-apply the follow-up change.
 - Backend command execution now uses `command + args[]` by default, assigns low/medium/high risk, and creates approval-bound task records for medium/high-risk commands.
+- Approved command requests now continue into backend execution automatically and persist both execution summaries and audit entries.
+- Audit timeline entries are queryable from the renderer, so approvals, patch apply/rollback, validation, and command execution can share one review surface.
 - Patch application now validates the original file hash, creates a checkpoint payload, applies accepted hunks only, stores validation output, and rolls back when validation fails.
 
 ## Present Limits
 
 - Task execution is still shell-owned and synthetic for Phase 0 baseline flows.
+- Approved streaming commands do not yet resume as a live stream after approval; they currently complete through the captured backend execution path.
 - Restore execution currently replays captured files only; it does not yet replay deletions or handle merge conflicts.
 - More advanced model routing telemetry, streaming outputs, and multi-step automatic repair loops remain incomplete.

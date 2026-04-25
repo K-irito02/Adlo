@@ -1,9 +1,11 @@
 use crate::commands::ipc;
+use crate::error::CommandError;
 use crate::state::AppState;
 use adl_errors::AppError;
 use adl_kernel::{
-    ApprovalDecision, ApprovalRecord, ApprovalRequestSummary, CheckpointPayloadPreview,
-    CheckpointRecord, IpcResult, TaskCenterSnapshot, TaskRecord, TaskStatus,
+    ApprovalDecision, ApprovalRecord, ApprovalRequestSummary, AuditEntry, CommandRequest,
+    CheckpointPayloadPreview, CheckpointRecord, IpcResult, TaskCenterSnapshot, TaskRecord,
+    TaskStatus, WorkspaceMeta,
 };
 use adl_storage::EntityTable;
 
@@ -36,11 +38,25 @@ pub fn task_list_pending_approvals(
 }
 
 #[tauri::command]
-pub fn task_decide_approval(
+pub fn task_list_audit_entries(
+    state: tauri::State<'_, AppState>,
+    limit: Option<usize>,
+) -> IpcResult<Vec<AuditEntry>> {
+    ipc(crate::commands::audit::list_audit_entries(&state, limit))
+}
+
+#[tauri::command]
+pub async fn task_decide_approval(
     state: tauri::State<'_, AppState>,
     input: ApprovalDecisionInput,
-) -> IpcResult<TaskCenterSnapshot> {
-    crate::commands::ipc_try(|| {
+) -> Result<IpcResult<TaskCenterSnapshot>, CommandError> {
+    Ok(ipc(decide_approval_inner(&state, input).await))
+}
+
+async fn decide_approval_inner(
+    state: &AppState,
+    input: ApprovalDecisionInput,
+) -> Result<TaskCenterSnapshot, AppError> {
         let mut approval: ApprovalRecord = state
             .db
             .load_entity(EntityTable::Approvals, &input.approval_id)?
@@ -83,9 +99,25 @@ pub fn task_decide_approval(
                 }),
                 &task,
             )?;
+            if matches!(input.decision, ApprovalDecision::Approved) {
+                maybe_execute_approved_command(state, &mut task).await?;
+            }
         }
-        snapshot(&state)
-    })
+        let _ = crate::commands::audit::save_audit_entry(
+            state,
+            &approval.workspace_id,
+            Some("approval"),
+            "approval",
+            approval.risk_level,
+            format!("Approval {} was {:?}.", approval.request.title, input.decision),
+            Some(match input.decision {
+                ApprovalDecision::Approved => "approved",
+                ApprovalDecision::Rejected => "rejected",
+                ApprovalDecision::Timeout => "rejected",
+            }),
+            approval.reason.clone(),
+        );
+        snapshot(state)
 }
 
 #[tauri::command]
@@ -109,8 +141,100 @@ pub fn task_restore_checkpoint(
             &state.data_dir.join("state").join("checkpoints"),
             &checkpoint_id,
         )?;
+        if let Some(checkpoint) = state
+            .db
+            .load_entity::<CheckpointRecord>(EntityTable::Checkpoints, &checkpoint_id)?
+        {
+            let _ = crate::commands::audit::save_audit_entry(
+                &state,
+                &checkpoint.workspace_id,
+                Some(&checkpoint.session_id),
+                "patch-rollback",
+                adl_kernel::RiskLevel::Medium,
+                format!("Restored checkpoint {}.", checkpoint.id),
+                Some("approved"),
+                Some(checkpoint.description),
+            );
+        }
         snapshot(&state)
     })
+}
+
+async fn maybe_execute_approved_command(
+    state: &AppState,
+    task: &mut TaskRecord,
+) -> Result<(), AppError> {
+    let Some(operation) = task.operations.first() else {
+        return Ok(());
+    };
+    if operation.kind != "command.run" {
+        return Ok(());
+    }
+    let request: CommandRequest = serde_json::from_value(operation.params.clone())?;
+    let workspace = state
+        .db
+        .load_entity::<WorkspaceMeta>(EntityTable::Workspaces, &task.workspace_id)?
+        .or_else(|| {
+            state
+                .current_workspace
+                .lock()
+                .expect("workspace mutex poisoned")
+                .clone()
+        })
+        .ok_or_else(|| AppError::NotFound(format!("workspace {}", task.workspace_id)))?;
+    task.status = TaskStatus::Running;
+    task.started_at = Some(adl_kernel::now_ms());
+    task.updated_at = adl_kernel::now_ms();
+    state.db.save_entity(
+        EntityTable::Tasks,
+        &task.id,
+        Some(&task.workspace_id),
+        Some(&task.session_id),
+        Some("running"),
+        task,
+    )?;
+
+    let result = adl_terminal::run_approved_command(
+        std::path::Path::new(&workspace.root_path),
+        request.clone(),
+        Some(120),
+    )
+    .await?;
+    state.db.save_entity(
+        EntityTable::CommandExecutions,
+        &result.request.id,
+        Some(&workspace.id),
+        Some(&task.session_id),
+        Some(if result.success { "completed" } else { "failed" }),
+        &result,
+    )?;
+    task.status = if result.success {
+        TaskStatus::Completed
+    } else {
+        TaskStatus::Failed
+    };
+    task.result_json = Some(serde_json::to_string(&result)?);
+    task.completed_at = Some(adl_kernel::now_ms());
+    task.updated_at = adl_kernel::now_ms();
+    state.db.save_entity(
+        EntityTable::Tasks,
+        &task.id,
+        Some(&task.workspace_id),
+        Some(&task.session_id),
+        Some(if result.success { "completed" } else { "failed" }),
+        task,
+    )?;
+    let _ = crate::commands::audit::save_audit_entry(
+        state,
+        &workspace.id,
+        Some(&task.session_id),
+        "command",
+        request.risk_level,
+        result.summary.clone(),
+        Some("approved"),
+        Some(format!("command={} {}", request.command, request.args.join(" "))),
+    );
+    Ok(())
 }
 
 fn snapshot(state: &AppState) -> Result<TaskCenterSnapshot, AppError> {

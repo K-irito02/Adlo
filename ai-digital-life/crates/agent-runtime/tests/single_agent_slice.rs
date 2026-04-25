@@ -26,7 +26,7 @@ fn single_agent_patch_preview_apply_and_rollback_flow() {
         "add a task note to @file:src/lib.rs",
         &document,
     );
-    run = adl_agent_runtime::complete_plan(run, Some(&patch));
+    run = adl_agent_runtime::complete_plan(run, Some(&patch), ConversationScenario::CodeEdit);
     assert_eq!(run.run.patch_set_id, Some(patch.id.clone()));
 
     let hunk_id = patch.file_patches[0].hunks[0].id.clone();

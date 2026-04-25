@@ -100,6 +100,23 @@ pub fn apply_patch_set(
         )));
     }
 
+    let accepted_paths = patch_set
+        .file_patches
+        .iter()
+        .filter(|file_patch| {
+            file_patch
+                .hunks
+                .iter()
+                .any(|hunk| hunk.decision == PatchHunkDecision::Accepted)
+        })
+        .map(|file_patch| file_patch.relative_path.clone())
+        .collect::<Vec<_>>();
+    if accepted_paths.is_empty() {
+        return Err(AppError::Patch(
+            "No patch hunks were accepted. Accept at least one hunk before applying.".into(),
+        ));
+    }
+
     let paths = patch_set
         .file_patches
         .iter()
@@ -264,5 +281,26 @@ mod tests {
             patch.file_patches[0].hunks[0].decision,
             PatchHunkDecision::Accepted
         );
+    }
+
+    #[test]
+    fn rejects_apply_without_accepted_hunks() {
+        let patch = create_single_file_patch_set(PatchProposal {
+            workspace_id: "w",
+            session_id: "s",
+            run_id: Some("r".into()),
+            relative_path: "README.md",
+            before_content: "before",
+            after_content: "after",
+            title: "title".into(),
+            summary: "summary".into(),
+        });
+        let root = std::env::temp_dir().join(format!("adl-change-{}", now_ms()));
+        let checkpoints = root.join("checkpoints");
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join("README.md"), "before").unwrap();
+        let error = apply_patch_set(patch, &root, &checkpoints).unwrap_err();
+        assert!(error.to_string().contains("No patch hunks were accepted"));
+        let _ = std::fs::remove_dir_all(&root);
     }
 }

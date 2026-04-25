@@ -56,13 +56,29 @@ pub async fn run_command(
     request: CommandRequest,
     timeout_secs: Option<u64>,
 ) -> Result<CommandExecutionResult, AppError> {
-    if request.risk_level != RiskLevel::Low {
+    run_command_internal(workspace_root, request, timeout_secs, false).await
+}
+
+pub async fn run_approved_command(
+    workspace_root: &Path,
+    request: CommandRequest,
+    timeout_secs: Option<u64>,
+) -> Result<CommandExecutionResult, AppError> {
+    run_command_internal(workspace_root, request, timeout_secs, true).await
+}
+
+async fn run_command_internal(
+    workspace_root: &Path,
+    request: CommandRequest,
+    timeout_secs: Option<u64>,
+    approval_granted: bool,
+) -> Result<CommandExecutionResult, AppError> {
+    if request.risk_level != RiskLevel::Low && !approval_granted {
         return Err(AppError::ApprovalRequired(format!(
             "command requires approval: {}",
             request.command
         )));
     }
-
     let started_at = now_ms();
     let mut command = if request.shell {
         shell_command(&request.command, &request.args)

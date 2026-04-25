@@ -514,6 +514,18 @@ pub struct AuditRecord {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct AuditEntry {
+    pub id: String,
+    pub timestamp: TimestampMs,
+    pub operation_type: String,
+    pub summary: String,
+    pub risk_level: RiskLevel,
+    pub decision: Option<String>,
+    pub detail: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CheckpointRecord {
     pub id: String,
     pub session_id: String,

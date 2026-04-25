@@ -412,8 +412,8 @@ export function App() {
           modelHealth={modelHealth}
           taskCenter={taskCenter}
           recentWorkspaces={recentWorkspaces}
-          onSendMessage={async (content, _opts) => {
-            await sendMessage(content);
+          onSendMessage={async (content, opts) => {
+            await sendMessage(content, { mode: opts.mode, chips: opts.chips });
           }}
           onCancelGenerate={() => void cancelActiveStream()}
           onOpenWorkspace={(path) => void openWorkspace(path)}

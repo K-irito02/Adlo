@@ -1,5 +1,6 @@
 pub mod agent;
 pub mod app;
+pub mod audit;
 pub mod command;
 pub mod conversation;
 pub mod model;

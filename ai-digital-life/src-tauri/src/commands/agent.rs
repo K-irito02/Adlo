@@ -83,8 +83,44 @@ async fn start_run_inner(
         Some(detail.run.id.clone()),
     );
     crate::commands::conversation::save_message(state, &workspace.id, &user_message)?;
+    let _ = crate::commands::audit::save_audit_entry(
+        state,
+        &workspace.id,
+        Some(&session.id),
+        "approval",
+        adl_kernel::RiskLevel::Low,
+        format!("Agent run started in {:?} mode.", scenario),
+        Some("auto"),
+        Some(format!("runId={}", detail.run.id)),
+    );
 
-    let context = vec![adl_context_engine::workspace_context(&workspace)];
+    let mut context = vec![adl_context_engine::workspace_context(&workspace)];
+    const FILE_CONTEXT_MAX_TOKENS: usize = 6_000;
+    if let Some(rel) = adl_agent_runtime::target_file_from_prompt(&input.prompt) {
+        if let Ok(doc) =
+            adl_workspace::read_file(std::path::Path::new(&workspace.root_path), &rel)
+        {
+            context.push(adl_context_engine::file_context(
+                &rel,
+                &doc.content,
+                FILE_CONTEXT_MAX_TOKENS,
+            ));
+            if let Ok(items) =
+                adl_workspace::outline(std::path::Path::new(&workspace.root_path), &rel)
+            {
+                if let Some(outline) = adl_context_engine::outline_context(&rel, &items, 16) {
+                    context.push(outline);
+                }
+            }
+        }
+    }
+    if let Some(sym) = adl_agent_runtime::target_symbol_from_prompt(&input.prompt) {
+        context.push(adl_context_engine::symbol_context(&sym));
+        if let Ok(hits) = adl_workspace::search_text(std::path::Path::new(&workspace.root_path), &sym) {
+            context.extend(adl_context_engine::search_hit_contexts(&sym, &hits, 6));
+        }
+    }
+    context = adl_context_engine::sort_context(context);
     let messages =
         adl_agent_runtime::build_model_messages(&workspace, &input.prompt, scenario, &context);
     let gateway = {
@@ -122,19 +158,26 @@ async fn start_run_inner(
         }),
     );
 
-    let patch_set = match adl_agent_runtime::target_file_from_prompt(&input.prompt) {
-        Some(path) => {
-            let document =
-                adl_workspace::read_file(std::path::Path::new(&workspace.root_path), &path)?;
-            Some(adl_agent_runtime::create_patch_from_document(
-                &workspace.id,
-                &session.id,
-                Some(detail.run.id.clone()),
-                &input.prompt,
-                &document,
-            ))
+    let patch_set = match scenario {
+        ConversationScenario::CodeEdit => {
+            match adl_agent_runtime::target_file_from_prompt(&input.prompt) {
+                Some(path) => {
+                    let document = adl_workspace::read_file(
+                        std::path::Path::new(&workspace.root_path),
+                        &path,
+                    )?;
+                    Some(adl_agent_runtime::create_patch_from_document(
+                        &workspace.id,
+                        &session.id,
+                        Some(detail.run.id.clone()),
+                        &input.prompt,
+                        &document,
+                    ))
+                }
+                None => None,
+            }
         }
-        None => None,
+        ConversationScenario::Plan | ConversationScenario::Chat => None,
     };
     if let Some(patch_set) = &patch_set {
         state.db.save_entity(
@@ -166,10 +209,32 @@ async fn start_run_inner(
             }
         }
     }
-    detail = adl_agent_runtime::complete_plan(detail, patch_set.as_ref());
+    detail = adl_agent_runtime::complete_plan(detail, patch_set.as_ref(), scenario);
     save_run_detail(state, &detail)?;
+    let _ = crate::commands::audit::save_audit_entry(
+        state,
+        &workspace.id,
+        Some(&session.id),
+        if patch_set.is_some() {
+            "patch-apply"
+        } else {
+            "approval"
+        },
+        if patch_set.is_some() {
+            adl_kernel::RiskLevel::Medium
+        } else {
+            adl_kernel::RiskLevel::Low
+        },
+        detail
+            .run
+            .summary
+            .clone()
+            .unwrap_or_else(|| "Agent run updated.".into()),
+        Some("auto"),
+        Some(format!("runId={}", detail.run.id)),
+    );
 
-    let blocks = adl_agent_runtime::assistant_blocks(&detail, patch_set.as_ref());
+    let blocks = adl_agent_runtime::assistant_blocks(&detail, patch_set.as_ref(), scenario);
     let assistant_message = adl_conversation::create_message(
         &session.id,
         ConversationRole::Assistant,

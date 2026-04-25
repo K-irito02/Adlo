@@ -113,6 +113,16 @@ async fn command_run_inner(
     )?;
     if request.risk_level != RiskLevel::Low {
         let (task, approval) = approval_for_command(state, &workspace.id, &request)?;
+        let _ = crate::commands::audit::save_audit_entry(
+            state,
+            &workspace.id,
+            Some("command"),
+            "approval",
+            request.risk_level,
+            format!("Command requires approval: {} {}", request.command, request.args.join(" ")),
+            None,
+            Some(format!("taskId={}", task.id)),
+        );
         return Ok(CommandRunResult {
             status: "waiting-approval".into(),
             task_id: task.id,
@@ -139,6 +149,16 @@ async fn command_run_inner(
         }),
         &result,
     )?;
+    let _ = crate::commands::audit::save_audit_entry(
+        state,
+        &workspace.id,
+        Some("command"),
+        "command",
+        request.risk_level,
+        result.summary.clone(),
+        Some("auto"),
+        Some(format!("command={} {}", request.command, request.args.join(" "))),
+    );
     Ok(CommandRunResult {
         status: "completed".into(),
         task_id: result.request.id.clone(),
@@ -171,6 +191,16 @@ async fn command_run_stream_inner(
     )?;
     if request.risk_level != RiskLevel::Low {
         let (task, approval) = approval_for_command(state, &workspace.id, &request)?;
+        let _ = crate::commands::audit::save_audit_entry(
+            state,
+            &workspace.id,
+            Some("command"),
+            "approval",
+            request.risk_level,
+            format!("Streaming command requires approval: {} {}", request.command, request.args.join(" ")),
+            None,
+            Some(format!("taskId={}", task.id)),
+        );
         return Ok(CommandRunStreamStart::WaitingApproval {
             task_id: task.id,
             request,
