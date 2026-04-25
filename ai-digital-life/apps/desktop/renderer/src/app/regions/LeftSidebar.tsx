@@ -38,6 +38,7 @@ const CONVERSATION_PANEL_HEIGHT_KEY = "adl-ui:conversation-panel-height";
 const DEFAULT_CONVERSATION_PANEL_HEIGHT = 180;
 const MIN_CONVERSATION_PANEL_HEIGHT = 120;
 const MAX_CONVERSATION_PANEL_HEIGHT = 9_999;
+const DROP_FLASH_DURATION_MS = 900;
 
 function readConversationPanelHeight(): number {
   try {
@@ -437,6 +438,7 @@ export function LeftSidebar({
   const [dragWorkspaceId, setDragWorkspaceId] = useState<string>();
   const [dragSessionId, setDragSessionId] = useState<string>();
   const [dragOverSessionId, setDragOverSessionId] = useState<string>();
+  const [droppedSessionId, setDroppedSessionId] = useState<string>();
   const [expandedSessionLists, setExpandedSessionLists] = useState<Record<string, boolean>>({});
   const [conversationPanelHeight, setConversationPanelHeight] = useState<number>(() => readConversationPanelHeight());
   const [mockStandaloneSessions, setMockStandaloneSessions] = useState<SidebarSessionItem[]>(() => buildMockStandaloneSessions());
@@ -465,6 +467,8 @@ export function LeftSidebar({
   const rafRef = useRef(0);
   const cleanupDragRef = useRef<(() => void) | null>(null);
   const conversationResizeCleanupRef = useRef<(() => void) | null>(null);
+  const dropFlashTimeoutRef = useRef<number | null>(null);
+  const dragOverSessionIdRef = useRef<string | undefined>(undefined);
   const leftbarContentRef = useRef<HTMLDivElement | null>(null);
   const workspaceToolbarRef = useRef<HTMLDivElement | null>(null);
   const sessionItemsById = useMemo(() => {
@@ -496,7 +500,30 @@ export function LeftSidebar({
         conversationResizeCleanupRef.current();
         conversationResizeCleanupRef.current = null;
       }
+      if (dropFlashTimeoutRef.current) {
+        window.clearTimeout(dropFlashTimeoutRef.current);
+        dropFlashTimeoutRef.current = null;
+      }
     };
+  }, []);
+
+  const setDragOverSessionTarget = useCallback((nextSessionId: string | undefined) => {
+    if (dragOverSessionIdRef.current === nextSessionId) {
+      return;
+    }
+    dragOverSessionIdRef.current = nextSessionId;
+    setDragOverSessionId(nextSessionId);
+  }, []);
+
+  const flashDroppedSession = useCallback((sessionId: string) => {
+    if (dropFlashTimeoutRef.current) {
+      window.clearTimeout(dropFlashTimeoutRef.current);
+    }
+    setDroppedSessionId(sessionId);
+    dropFlashTimeoutRef.current = window.setTimeout(() => {
+      setDroppedSessionId((current) => (current === sessionId ? undefined : current));
+      dropFlashTimeoutRef.current = null;
+    }, DROP_FLASH_DURATION_MS);
   }, []);
 
   const getConversationPanelMaxHeight = useCallback(() => {
@@ -829,10 +856,11 @@ export function LeftSidebar({
         ? workspace.sessions.filter((item) => !item.session.isPinned).map((item) => item.session.id)
         : nextIds;
       onReorderSessions({ workspaceId, pinnedIds, unpinnedIds });
+      flashDroppedSession(dragSessionId);
       setDragSessionId(undefined);
-      setDragOverSessionId(undefined);
+      setDragOverSessionTarget(undefined);
     },
-    [dragSessionId, onReorderSessions, workspaceItems]
+    [dragSessionId, flashDroppedSession, onReorderSessions, setDragOverSessionTarget, workspaceItems]
   );
 
   const handleStandaloneSessionDrop = useCallback(
@@ -863,10 +891,11 @@ export function LeftSidebar({
           ...unpinnedIds.map((id) => byId.get(id)!)
         ]);
       });
+      flashDroppedSession(dragSessionId);
       setDragSessionId(undefined);
-      setDragOverSessionId(undefined);
+      setDragOverSessionTarget(undefined);
     },
-    [displayStandaloneSessions, dragSessionId, usingMockStandaloneSessions]
+    [displayStandaloneSessions, dragSessionId, flashDroppedSession, setDragOverSessionTarget, usingMockStandaloneSessions]
   );
 
   const handleSessionDropAfterVisibleTarget = useCallback(
@@ -892,10 +921,11 @@ export function LeftSidebar({
         ? workspace.sessions.filter((item) => !item.session.isPinned).map((item) => item.session.id)
         : nextIds;
       onReorderSessions({ workspaceId, pinnedIds, unpinnedIds });
+      flashDroppedSession(dragSessionId);
       setDragSessionId(undefined);
-      setDragOverSessionId(undefined);
+      setDragOverSessionTarget(undefined);
     },
-    [dragSessionId, onReorderSessions, workspaceItems]
+    [dragSessionId, flashDroppedSession, onReorderSessions, setDragOverSessionTarget, workspaceItems]
   );
 
   const handleStandaloneSessionDropAfterVisibleTarget = useCallback(
@@ -923,10 +953,11 @@ export function LeftSidebar({
           ...unpinnedIds.map((id) => byId.get(id)!)
         ]);
       });
+      flashDroppedSession(dragSessionId);
       setDragSessionId(undefined);
-      setDragOverSessionId(undefined);
+      setDragOverSessionTarget(undefined);
     },
-    [displayStandaloneSessions, dragSessionId, usingMockStandaloneSessions]
+    [displayStandaloneSessions, dragSessionId, flashDroppedSession, setDragOverSessionTarget, usingMockStandaloneSessions]
   );
 
   const handleSessionDropToBucketEnd = useCallback(
@@ -952,10 +983,11 @@ export function LeftSidebar({
         ? workspace.sessions.filter((item) => !item.session.isPinned).map((item) => item.session.id)
         : nextIds;
       onReorderSessions({ workspaceId, pinnedIds, unpinnedIds });
+      flashDroppedSession(dragSessionId);
       setDragSessionId(undefined);
-      setDragOverSessionId(undefined);
+      setDragOverSessionTarget(undefined);
     },
-    [dragSessionId, onReorderSessions, workspaceItems]
+    [dragSessionId, flashDroppedSession, onReorderSessions, setDragOverSessionTarget, workspaceItems]
   );
 
   const handleStandaloneSessionDropToBucketEnd = useCallback(
@@ -983,10 +1015,11 @@ export function LeftSidebar({
           ...unpinnedIds.map((id) => byId.get(id)!)
         ]);
       });
+      flashDroppedSession(dragSessionId);
       setDragSessionId(undefined);
-      setDragOverSessionId(undefined);
+      setDragOverSessionTarget(undefined);
     },
-    [displayStandaloneSessions, dragSessionId, usingMockStandaloneSessions]
+    [displayStandaloneSessions, dragSessionId, flashDroppedSession, setDragOverSessionTarget, usingMockStandaloneSessions]
   );
 
   const renderWorkspaceMenu = (workspace: RecentWorkspaceEntry) => {
@@ -1169,28 +1202,20 @@ export function LeftSidebar({
                   event.dataTransfer.effectAllowed = "move";
                   event.dataTransfer.setData("text/plain", sessionItem.session.id);
                   setDragSessionId(sessionItem.session.id);
-                  setDragOverSessionId(undefined);
+                  setDragOverSessionTarget(undefined);
                 }
               }}
               onDragEnd={() => {
                 setDragSessionId(undefined);
-                setDragOverSessionId(undefined);
+                setDragOverSessionTarget(undefined);
               }}
               onDragOver={(event) => {
                 if (interactive) {
                   event.preventDefault();
                   if (canReorderIntoTarget) {
-                    setDragOverSessionId(sessionItem.session.id);
-                  } else {
-                    setDragOverSessionId((current) => (current === sessionItem.session.id ? undefined : current));
+                    setDragOverSessionTarget(sessionItem.session.id);
                   }
                 }
-              }}
-              onDragLeave={(event) => {
-                if (event.currentTarget.contains(event.relatedTarget as Node | null)) {
-                  return;
-                }
-                setDragOverSessionId((current) => (current === sessionItem.session.id ? undefined : current));
               }}
               onDrop={() =>
                 interactive
@@ -1205,7 +1230,7 @@ export function LeftSidebar({
               <div
                 role="button"
                 tabIndex={0}
-                className={`adl-session-item${sessionItem.session.id === activeSessionId ? " is-active" : ""}${dragSessionId === sessionItem.session.id ? " is-dragging" : ""}${isDropTarget ? " is-drop-target" : ""}`}
+                className={`adl-session-item${sessionItem.session.id === activeSessionId ? " is-active" : ""}${dragSessionId === sessionItem.session.id ? " is-dragging" : ""}${isDropTarget ? " is-drop-target" : ""}${droppedSessionId === sessionItem.session.id ? " is-drop-flash" : ""}`}
                 onMouseEnter={() => setHoveredSessionId(sessionItem.session.id)}
                 onMouseLeave={() => setHoveredSessionId((current) => (current === sessionItem.session.id ? undefined : current))}
                 onContextMenu={(event) => {
@@ -1357,14 +1382,8 @@ export function LeftSidebar({
             onDragOver={(event) => {
               event.preventDefault();
               if (lastVisibleInBucket) {
-                setDragOverSessionId(tailDropTargetId);
+                setDragOverSessionTarget(tailDropTargetId);
               }
-            }}
-            onDragLeave={(event) => {
-              if (event.currentTarget.contains(event.relatedTarget as Node | null)) {
-                return;
-              }
-              setDragOverSessionId((current) => (current === tailDropTargetId ? undefined : current));
             }}
             onDrop={() => {
               if (options.workspaceId) {
@@ -1382,13 +1401,7 @@ export function LeftSidebar({
           isTailDropTarget: dragOverSessionId === tailDropTargetId,
           onTailDragOver: (event) => {
             event.preventDefault();
-            setDragOverSessionId(tailDropTargetId);
-          },
-          onTailDragLeave: (event) => {
-            if (event.currentTarget.contains(event.relatedTarget as Node | null)) {
-              return;
-            }
-            setDragOverSessionId((current) => (current === tailDropTargetId ? undefined : current));
+            setDragOverSessionTarget(tailDropTargetId);
           },
           onTailDrop: () => {
             const shouldDropAfterVisibleTail = !expanded && hiddenCount > 0 && lastVisibleInBucket;
@@ -1414,7 +1427,8 @@ export function LeftSidebar({
                 handleStandaloneSessionDropToBucketEnd(draggedSessionItem.session.isPinned);
               }
             }
-          }
+          },
+          onTailDragLeave: undefined
         } : undefined)}
       </>
     );
