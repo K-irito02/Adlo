@@ -81,3 +81,9 @@ The user must explicitly retry from the task center or conversation after recove
 
 SQLite remains the persisted source of truth for runtime state.
 Legacy file state is still migrated on first startup, and migration diagnostics continue to be exposed through the desktop health surface.
+
+## Single-Agent State Tables
+
+The backend thin slice stores single-agent runtime metadata in SQLite tables for workspaces, sessions, retrieval snapshots, tasks, approvals, audit records, checkpoints, conversation messages, agent runs and steps, patch sets/file patches/hunks, command requests/executions, validation results, model preferences, and model call audit records.
+
+Checkpoint payloads remain file-backed under `state/checkpoints/<checkpointId>/` so rollback can restore captured workspace-relative file snapshots without granting the WebView direct filesystem access.

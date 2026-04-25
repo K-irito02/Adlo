@@ -1,0 +1,14 @@
+[package]
+name = "adl-terminal"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+adl-kernel = { path = "../kernel" }
+adl-errors = { path = "../errors" }
+adl-task = { path = "../task" }
+tokio.workspace = true
+tracing.workspace = true
+serde.workspace = true
+uuid.workspace = true
+chrono.workspace = true

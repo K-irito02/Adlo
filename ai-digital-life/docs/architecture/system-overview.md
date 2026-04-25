@@ -1,77 +1,83 @@
-# Phase 0 And Phase 2 Thin Slice Overview
+# Phase 0 And Phase 2 Thin Slice Overview (Rust + Tauri)
 
 ## Purpose
 
-This codebase now contains two layers of runnable scope:
+This codebase targets two layers of runnable scope on top of **Rust + Tauri 2.x**:
 
 - Phase 0 foundation
 - Phase 2 single-agent thin slice
 
-The implemented surface currently covers:
+## Implemented Backend Thin Slice
 
-- secure Electron shell
-- controlled IPC
+The Rust backend now contains a pragmatic single-agent thin slice across the Cargo workspace. It provides shared DTOs, SQLite-backed metadata tables, workspace scanning/search/outline, conversation and run persistence, governed command execution, approval records, checkpoint-backed PatchSet application/rollback, prompt/context assembly, and DeepSeek/MiniMax model routing with OS keyring secrets plus a controlled local fallback when providers are unavailable.
+
+This is intentionally not a full autonomous multi-agent runtime. The backend exposes typed Tauri commands and versioned events for the existing WebView contract, while keeping all filesystem, process, SQL, and model-secret access inside Rust.
+
+The implemented surface (after the Rust migration completes) covers:
+
+- secure Tauri shell with CSP and capability allowlist
+- typed `#[tauri::command]` bridge consumed via `@tauri-apps/api`
 - recent workspace restore
-- SQLite state persistence with legacy file migration
-- retrieval worker indexing and status reporting
+- SQLite state persistence (`rusqlite`) with versioned migrations
+- workspace indexing via `tokio` tasks (no separate Node worker)
 - runtime language and theme preferences
-- task / approval shell entry surfaces in the renderer
+- task / approval shell entry surfaces in the WebView frontend
 - persisted workspace, session, task, approval, and audit metadata
 - lightweight Git snapshot capture for workspace safety visibility
 - startup recovery markers and migration diagnostics
 - shared event-bus emission across workspace, retrieval, task, and approval flows
-- React + Zustand workspace shell for the Phase 2 working view, now structured as a 17-region three-pane layout (see [renderer-shell-redesign.md](./renderer-shell-redesign.md))
+- React + Zustand workspace shell hosted inside the Tauri WebView
 - conversation sessions and persisted conversation messages
 - single-agent sequential planning state with stored run and step metadata
 - patch-set, file-patch, and hunk persistence in SQLite
-- structured workspace `readFile/search/outline` IPC surfaces
+- structured workspace `read_file` / `search` / `outline` Tauri commands
 - patch-first preview, explicit hunk decision, apply, and rollback flows
 - apply-after-validate loop with structured validation results and automatic rollback on failure
 - dual-provider routing for `DeepSeek -> MiniMax` with synthetic fallback only after both providers fail
-- persisted non-sensitive model provider preferences, including enable switch, priority, and default model id
-- real provider health snapshots exposed to the desktop shell
+- persisted non-sensitive model provider preferences
+- real provider health snapshots exposed to the WebView
 - automatic repair preview generation after validation failure
-- chokidar-driven workspace file change notifications
-- Playwright-based acceptance coverage for the workspace shell
-- governed `command:runStream` / `command:stopStream` with `digitalLife:terminalStream` versioned events (Main-only execution; Renderer subscribes like model stream)
-- optional SHA256 pre-check on `WorkspaceFsService.atomicWrite` for baseline-sensitive writes
+- `notify`-driven workspace file change events delivered via Tauri events
+- WebDriver-based acceptance coverage for the workspace shell
+- governed `command_run_stream` / `command_stop_stream` Tauri commands with versioned `digital-life://terminal-stream` events (Rust-side execution; WebView only subscribes)
 
 ## Runtime Path
 
-1. `Main` resolves the user data directory, records the runtime lifecycle marker, and initializes config, logging, and persisted state.
-2. `Main` evaluates version changes, prepares upgrade backups when needed, and records migration diagnostics.
-3. `Main` starts a worker thread used for workspace retrieval scans and worker health visibility.
-4. `Main` creates a locked-down `BrowserWindow`.
-5. `Preload` exposes the `window.digitalLife` bridge and hides raw Electron primitives.
-6. `Renderer` now has two visible shells:
-  - the existing Phase 0 home shell
-  - the new Phase 2 workspace shell implemented with `React + Zustand`
-7. `Renderer` can open a workspace, create/list/get conversation sessions, send a structured single-agent request, inspect file content, inspect outline/search results, and review a patch preview.
-8. `Main` routes the single-agent request through prompt assembly, context selection, configurable `DeepSeek -> MiniMax` provider routing, patch-set persistence, and explicit patch application.
+1. The Tauri Rust process resolves the user data directory, records the runtime lifecycle marker, and initializes config, logging (`tracing`), and persisted state.
+2. It evaluates version changes, prepares upgrade backups, and records migration diagnostics.
+3. It spawns retrieval tasks via `tokio::spawn` (no separate Node worker).
+4. It creates a Tauri window with explicit CSP and capability bindings.
+5. The WebView loads the React frontend, which talks to the backend exclusively through `@tauri-apps/api`'s `invoke()` and `listen()`.
+6. The frontend exposes two visible shells:
+   - the Phase 0 home shell
+   - the Phase 2 workspace shell implemented with `React + Zustand`
+7. The frontend can open a workspace, manage conversation sessions, send a structured single-agent request, inspect file content, inspect outline/search results, and review a patch preview.
+8. The Rust backend routes the single-agent request through prompt assembly, context selection, configurable `DeepSeek -> MiniMax` provider routing, patch-set persistence, and explicit patch application.
 9. Patch application creates a checkpoint payload bundle before files are written, runs validation, rolls back on failure, and can generate a repair preview for a second pass.
-10. When model preferences change, `Main` persists the new non-sensitive settings, rebuilds `ModelGateway` and `AgentRuntimeService`, and refreshes the provider health snapshot without expanding Renderer privilege.
-11. File changes are observed through `chokidar`, and the renderer receives structured conflict notifications instead of polling raw filesystem state.
+10. When model preferences change, the backend persists the new non-sensitive settings, rebuilds the gateway and runtime, and refreshes the provider health snapshot without expanding WebView privilege.
+11. File changes are observed through `notify`, and the frontend receives structured conflict notifications via Tauri events instead of polling.
 
-## Validation Status
+## Validation Status (Target)
 
-The repository now includes:
+Once the Rust migration completes, the repository will provide:
 
-- unit coverage for the Phase 0 infrastructure packages
-- an integration renderer-shell test that exercises the Phase 2 workspace shell and patch preview flow
-- a Playwright acceptance test covering the main workspace patch flow
-- passing `test`, `typecheck`, and `build` commands in the current environment
+- unit coverage for Phase 0 infrastructure crates (`#[cfg(test)] mod tests` per crate)
+- Rust integration tests under `tests/integration/` exercising Tauri command surfaces
+- a WebDriver acceptance test (`tauri-driver`) covering the main workspace patch flow
+- passing `cargo test --workspace`, `cargo clippy`, `cargo check`, and `cargo tauri build` in the project environment
 
 ## Security Baseline
 
-- `contextIsolation: true`
-- `sandbox: true`
-- `nodeIntegration: false`
-- no raw `ipcRenderer` exposure
-- no direct filesystem or process access from `Renderer`
+- explicit `app.security.csp` in `tauri.conf.json` (no empty CSP)
+- capability-based command allowlist via `src-tauri/capabilities/*.json`
+- `withGlobalTauri` disabled
+- no raw filesystem, process, or SQL access from the WebView
+- high-permission plugins (`tauri-plugin-fs`, `tauri-plugin-shell`, `tauri-plugin-http`) configured with strict scope
+- secrets stored via the OS credential store (`keyring` crate); never in config files or logs
 
 ## Persistence
 
-This slice stores persisted state in `state/app-state.db`:
+State is stored in `state/app-state.db` (SQLite via `rusqlite`):
 
 - schema version
 - current workspace path
@@ -82,12 +88,12 @@ This slice stores persisted state in `state/app-state.db`:
 - conversation sessions and conversation messages
 - agent runs, steps, and tool invocation metadata
 - patch sets, file patches, and hunk decisions
-- command execution and validation result placeholders for later tranches
+- command execution and validation result records
 - model provider preferences and provider routing metadata
 
-If a legacy `app-state.v1.json` file exists, it is migrated into SQLite on first startup.
+If a legacy `app-state.v1.json` (or pre-Rust `state/*.db`) exists, it is migrated into the current SQLite schema on first startup.
 
-Separate runtime lifecycle markers are stored under `state/runtime-status.json` so the next launch can detect unclean shutdowns and surface recovery diagnostics.
+Runtime lifecycle markers live in `state/runtime-status.json` so the next launch can detect unclean shutdowns and surface recovery diagnostics.
 
 UI preferences are stored separately in `config/config.json` and currently include:
 

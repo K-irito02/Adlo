@@ -1,0 +1,106 @@
+use std::sync::{
+    atomic::{AtomicUsize, Ordering},
+    Arc, Mutex,
+};
+use tokio::sync::broadcast;
+use tracing::debug;
+
+#[derive(Debug, Clone)]
+pub enum AppEvent {
+    WorkspaceOpened(String),
+    WorkspaceClosed,
+    RetrievalStatusChanged(String),
+    TaskCreated(String),
+    ApprovalRequested(String),
+    ApprovalDecided(String),
+    AgentRunChanged(String),
+    PatchSetChanged(String),
+    TerminalStream(String),
+    ModelStream(String),
+    ConfigChanged,
+    FileChanged { path: String },
+}
+
+#[derive(Clone)]
+pub struct EventBus {
+    tx: broadcast::Sender<AppEvent>,
+    emitted: Arc<AtomicUsize>,
+    by_type: Arc<Mutex<std::collections::BTreeMap<String, usize>>>,
+}
+
+impl EventBus {
+    pub fn new(capacity: usize) -> Self {
+        let (tx, _) = broadcast::channel(capacity);
+        Self {
+            tx,
+            emitted: Arc::new(AtomicUsize::new(0)),
+            by_type: Arc::new(Mutex::new(std::collections::BTreeMap::new())),
+        }
+    }
+
+    pub fn emit(&self, event: AppEvent) {
+        debug!(?event, "event emitted");
+        self.emitted.fetch_add(1, Ordering::Relaxed);
+        let key = event.kind().to_string();
+        let mut by_type = self
+            .by_type
+            .lock()
+            .expect("event diagnostics mutex poisoned");
+        *by_type.entry(key).or_insert(0) += 1;
+        drop(by_type);
+        let _ = self.tx.send(event);
+    }
+
+    pub fn subscribe(&self) -> broadcast::Receiver<AppEvent> {
+        self.tx.subscribe()
+    }
+
+    pub fn diagnostics(&self) -> (usize, std::collections::BTreeMap<String, usize>) {
+        (
+            self.emitted.load(Ordering::Relaxed),
+            self.by_type
+                .lock()
+                .expect("event diagnostics mutex poisoned")
+                .clone(),
+        )
+    }
+}
+
+impl AppEvent {
+    pub fn kind(&self) -> &'static str {
+        match self {
+            Self::WorkspaceOpened(_) => "workspace.opened",
+            Self::WorkspaceClosed => "workspace.closed",
+            Self::RetrievalStatusChanged(_) => "retrieval.status-changed",
+            Self::TaskCreated(_) => "task.created",
+            Self::ApprovalRequested(_) => "approval.requested",
+            Self::ApprovalDecided(_) => "approval.decided",
+            Self::AgentRunChanged(_) => "agent.run-changed",
+            Self::PatchSetChanged(_) => "patch.changed",
+            Self::TerminalStream(_) => "terminal.stream",
+            Self::ModelStream(_) => "model.stream",
+            Self::ConfigChanged => "config.changed",
+            Self::FileChanged { .. } => "workspace.file-changed",
+        }
+    }
+}
+
+impl Default for EventBus {
+    fn default() -> Self {
+        Self::new(256)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn event_bus_delivers() {
+        let bus = EventBus::default();
+        let mut rx = bus.subscribe();
+        bus.emit(AppEvent::ConfigChanged);
+        let event = rx.recv().await.unwrap();
+        assert!(matches!(event, AppEvent::ConfigChanged));
+    }
+}

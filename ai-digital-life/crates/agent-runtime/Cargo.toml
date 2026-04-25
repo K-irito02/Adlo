@@ -1,0 +1,20 @@
+[package]
+name = "adl-agent-runtime"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+adl-kernel = { path = "../kernel" }
+adl-errors = { path = "../errors" }
+adl-change-engine = { path = "../change-engine" }
+adl-context-engine = { path = "../context-engine" }
+adl-prompt-engine = { path = "../prompt-engine" }
+tokio.workspace = true
+tracing.workspace = true
+serde.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+
+[dev-dependencies]
+adl-workspace = { path = "../workspace" }
+adl-fs-ops = { path = "../fs-ops" }

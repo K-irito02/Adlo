@@ -1,0 +1,184 @@
+//! Governed command execution with bounded output capture.
+
+use adl_errors::AppError;
+use adl_kernel::{
+    create_id, now_ms, CommandExecutionResult, CommandProfile, CommandRequest, RiskLevel,
+};
+use std::path::Path;
+use std::time::Duration;
+use tokio::process::Command;
+
+const DEFAULT_TIMEOUT_SECS: u64 = 120;
+const MAX_CAPTURE_CHARS: usize = 60_000;
+
+pub fn build_request(
+    workspace_id: &str,
+    run_id: Option<String>,
+    command: String,
+    args: Vec<String>,
+    shell: bool,
+) -> CommandRequest {
+    let risk = adl_task::assess_command_risk(&command, &args, shell);
+    CommandRequest {
+        id: create_id("command"),
+        workspace_id: workspace_id.to_string(),
+        run_id,
+        profile: classify_profile(&command, &args),
+        command,
+        args,
+        shell,
+        risk_level: risk,
+        created_at: now_ms(),
+    }
+}
+
+pub fn classify_profile(command: &str, args: &[String]) -> CommandProfile {
+    let joined = std::iter::once(command)
+        .chain(args.iter().map(String::as_str))
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_lowercase();
+    if joined.contains(" test") || joined.contains("vitest") || joined.contains("cargo test") {
+        CommandProfile::Test
+    } else if joined.contains(" build") || joined.contains("cargo check") {
+        CommandProfile::Build
+    } else if joined.contains("lint") || joined.contains("clippy") {
+        CommandProfile::Lint
+    } else if joined.contains("install") {
+        CommandProfile::Install
+    } else {
+        CommandProfile::Custom
+    }
+}
+
+pub async fn run_command(
+    workspace_root: &Path,
+    request: CommandRequest,
+    timeout_secs: Option<u64>,
+) -> Result<CommandExecutionResult, AppError> {
+    if request.risk_level != RiskLevel::Low {
+        return Err(AppError::ApprovalRequired(format!(
+            "command requires approval: {}",
+            request.command
+        )));
+    }
+
+    let started_at = now_ms();
+    let mut command = if request.shell {
+        shell_command(&request.command, &request.args)
+    } else {
+        let mut command = Command::new(&request.command);
+        command.args(&request.args);
+        command
+    };
+    command.current_dir(workspace_root);
+    command.kill_on_drop(true);
+
+    let output = tokio::time::timeout(
+        Duration::from_secs(timeout_secs.unwrap_or(DEFAULT_TIMEOUT_SECS)),
+        command.output(),
+    )
+    .await
+    .map_err(|_| AppError::Terminal("command timed out".into()))?
+    .map_err(|e| AppError::Terminal(format!("failed to run command: {e}")))?;
+
+    let stdout = truncate_output(&String::from_utf8_lossy(&output.stdout));
+    let stderr = truncate_output(&String::from_utf8_lossy(&output.stderr));
+    let success = output.status.success();
+    let exit_code = output.status.code();
+    Ok(CommandExecutionResult {
+        request,
+        exit_code,
+        signal: None,
+        stdout,
+        stderr,
+        summary: if success {
+            "Command completed successfully.".into()
+        } else {
+            format!("Command failed with exit code {exit_code:?}.")
+        },
+        success,
+        started_at,
+        completed_at: now_ms(),
+    })
+}
+
+fn shell_command(command: &str, args: &[String]) -> Command {
+    #[cfg(windows)]
+    {
+        let mut shell = Command::new("cmd");
+        shell.arg("/C").arg(
+            std::iter::once(command)
+                .chain(args.iter().map(String::as_str))
+                .collect::<Vec<_>>()
+                .join(" "),
+        );
+        shell
+    }
+    #[cfg(not(windows))]
+    {
+        let mut shell = Command::new("sh");
+        shell.arg("-c").arg(
+            std::iter::once(command)
+                .chain(args.iter().map(String::as_str))
+                .collect::<Vec<_>>()
+                .join(" "),
+        );
+        shell
+    }
+}
+
+pub fn truncate_output(value: &str) -> String {
+    if value.chars().count() <= MAX_CAPTURE_CHARS {
+        return value.to_string();
+    }
+    let head: String = value.chars().take(MAX_CAPTURE_CHARS / 2).collect();
+    let tail: String = value
+        .chars()
+        .rev()
+        .take(MAX_CAPTURE_CHARS / 2)
+        .collect::<String>()
+        .chars()
+        .rev()
+        .collect();
+    format!("{head}\n...[output truncated]...\n{tail}")
+}
+
+pub fn validation_command(
+    root: &Path,
+    workspace_id: &str,
+    run_id: Option<String>,
+) -> Option<CommandRequest> {
+    if root.join("Cargo.toml").exists() {
+        Some(build_request(
+            workspace_id,
+            run_id,
+            "cargo".into(),
+            vec!["test".into(), "--workspace".into()],
+            false,
+        ))
+    } else if root.join("package.json").exists() {
+        Some(build_request(
+            workspace_id,
+            run_id,
+            "npm".into(),
+            vec!["test".into()],
+            false,
+        ))
+    } else {
+        None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cargo_test_is_test_profile() {
+        assert_eq!(
+            classify_profile("cargo", &["test".into(), "--workspace".into()]),
+            CommandProfile::Test
+        );
+    }
+}

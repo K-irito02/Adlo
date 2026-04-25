@@ -17,6 +17,7 @@ Phase 2 tranche 1 additionally persists:
 - single-agent run metadata and plan steps
 - patch-set, file-patch, and hunk decision state
 - model provider preference metadata in the config layer
+- command requests, command execution summaries, validation results, and model call audit metadata
 
 ## Runtime Rules
 
@@ -32,6 +33,8 @@ Phase 2 tranche 1 additionally persists:
 - Patch application now drives a minimal validation loop: the system selects a workspace validation command, stores the execution record, persists structured validation output, and rolls back automatically when verification fails.
 - Single-agent execution now routes through real `DeepSeek` and `MiniMax` providers when configured, with a synthetic fallback only after both providers fail.
 - Validation failure can generate one conservative repair preview; it does not auto-apply the follow-up change.
+- Backend command execution now uses `command + args[]` by default, assigns low/medium/high risk, and creates approval-bound task records for medium/high-risk commands.
+- Patch application now validates the original file hash, creates a checkpoint payload, applies accepted hunks only, stores validation output, and rolls back when validation fails.
 
 ## Present Limits
 

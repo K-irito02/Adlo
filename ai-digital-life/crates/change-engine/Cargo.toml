@@ -1,0 +1,15 @@
+[package]
+name = "adl-change-engine"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+adl-kernel = { path = "../kernel" }
+adl-errors = { path = "../errors" }
+adl-fs-ops = { path = "../fs-ops" }
+adl-terminal = { path = "../terminal" }
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+chrono.workspace = true
