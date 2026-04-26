@@ -20,6 +20,7 @@ Retrieval remains worker-owned and continues to store only externally visible st
 - Git snapshot collection is best-effort and must not block opening a workspace if Git is unavailable.
 - Retrieval status is converted into a persisted task summary for the governance shell.
 - The WebView never receives arbitrary filesystem access; it can only call structured `read_file`, `search`, and `outline` Tauri Commands against the active workspace.
+- In pure browser preview, the renderer still does not read the filesystem directly. It calls a development-only local Vite API that exposes the same workspace tree / file read / search / outline surfaces, plus controlled file and directory creation for local testing.
 
 ## Present Limits
 

@@ -79,6 +79,8 @@ export function App() {
     streamingAssistantText,
     streamingActiveRunId,
     openFile,
+    createWorkspaceFile,
+    createWorkspaceFolder,
     refreshWorkspaceTree,
     searchFiles,
     setHunkDecision,
@@ -173,6 +175,15 @@ export function App() {
   useEffect(() => {
     void bootstrap();
   }, [bootstrap]);
+
+  useEffect(() => {
+    if (!appInfo) return;
+    if (appInfo.currentWorkspace) return;
+    const configuredPath = (import.meta.env.VITE_ADL_DEFAULT_WORKSPACE_PATH as string | undefined)?.trim();
+    const defaultPath = configuredPath || "E:\\OnlineEditing";
+    if (!defaultPath) return;
+    void openWorkspace(defaultPath);
+  }, [appInfo, openWorkspace]);
 
   useEffect(() => {
     if (!activePatchSet) return;
@@ -468,9 +479,11 @@ export function App() {
           commandHistory={commandHistory}
           standardEditorRef={standardEditorRef}
           diffEditorRef={diffEditorRef}
-          onOpenFile={(path) => void openFile(path)}
-          onReloadExternal={handleReloadExternal}
-          onEditorChange={handleStandardEditorChange}
+            onOpenFile={(path) => void openFile(path)}
+            onReloadExternal={handleReloadExternal}
+            onCreateWorkspaceFile={createWorkspaceFile}
+            onCreateWorkspaceFolder={createWorkspaceFolder}
+            onEditorChange={handleStandardEditorChange}
           onEditorMount={handleEditorMount}
           onDiffMount={handleDiffMount}
           onSearch={handleSearchSubmit}

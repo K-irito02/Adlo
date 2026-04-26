@@ -24,7 +24,7 @@ alwaysApply: false
 
 ## 前端集成
 
-- 工作区壳与关键 Tauri Command：`tests/integration/frontend-shell.rs` 或前端 `vitest`；invoke 形状变更时同步前端 mock（`frontend/src/mock-bridge.ts`）。
+- 工作区壳与关键 Tauri Command：`tests/integration/frontend-shell.rs` 或前端 `vitest`；`DigitalLifeBridge` 形状变更时同步 `frontend/src/shared/ipc.ts`、`frontend/src/tauri-bridge.ts`，以及浏览器开发态对应桥接（`frontend/src/preview-bridge.ts`；必要时含 `frontend/src/mock-bridge.ts`）。
 
 ## 文档
 

@@ -114,7 +114,9 @@ ai-digital-life/
 │       ├── locales/            # i18n 资源
 │       ├── kernel/             # 前端侧共享类型与 IPC 结果类型（`@ai-digital-life/kernel` 路径别名 → 此处）
 │       ├── shared/ipc.ts       # `DigitalLifeBridge` 接口契约
-│       └── mock-bridge.ts      # 开发态 `window.digitalLife` 实现；后续 Tauri 用 `invoke` 的包装层可并列新增
+│       ├── preview-bridge.ts   # 浏览器开发态桥接（经本地开发服务访问真实工作区）
+│       ├── tauri-bridge.ts     # Tauri 桌面壳桥接（`invoke`/事件订阅）
+│       └── mock-bridge.ts      # 非文件系统能力的开发态 mock 与 preview fallback
 ├── docs/
 │   ├── architecture/           # 架构文档
 │   └── design-system/          # 设计系统文档

@@ -216,6 +216,31 @@ pub fn workspace_open(
 }
 
 #[tauri::command]
+pub fn workspace_create_file(
+    state: tauri::State<'_, AppState>,
+    relative_path: String,
+    content: String,
+) -> IpcResult<WorkspaceFileDocument> {
+    ipc(with_workspace(&state, |workspace| {
+        adl_workspace::create_file(
+            PathBuf::from(&workspace.root_path).as_path(),
+            &relative_path,
+            &content,
+        )
+    }))
+}
+
+#[tauri::command]
+pub fn workspace_create_folder(
+    state: tauri::State<'_, AppState>,
+    relative_path: String,
+) -> IpcResult<bool> {
+    ipc(with_workspace(&state, |workspace| {
+        adl_workspace::create_folder(PathBuf::from(&workspace.root_path).as_path(), &relative_path)
+    }))
+}
+
+#[tauri::command]
 pub fn workspace_read_file(
     state: tauri::State<'_, AppState>,
     relative_path: String,

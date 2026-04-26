@@ -33,7 +33,9 @@ alwaysApply: false
   - `src/locales/`：i18n（`zh-CN` / `en-US`）
   - `src/kernel/index.ts`：通过路径别名 `@ai-digital-life/kernel` 引用的**前端侧**共享类型与工具（与 `crates/kernel` 职责区分：后端以 Rust 为准，前端类型为桥接与 UI 契约）
   - `src/shared/ipc.ts`：`DigitalLifeBridge` 接口
-  - `src/mock-bridge.ts`：浏览器预览用 mock `window.digitalLife`
+  - `src/mock-bridge.ts`：对话、补丁、终端等非文件系统开发态 mock 数据
+  - `src/preview-bridge.ts`：纯浏览器预览桥接；通过本地 Vite 工作区接口提供真实文件树 / 文件读取 / 搜索 / outline / 基础创建
+  - `dev/previewWorkspaceService.ts`：Vite 开发服务侧工作区 API，实现真实本地目录的开发态访问
   - `src/tauri-bridge.ts`：Tauri WebView 真桥接（`invoke` / `listen`）
   - `src-tauri/permissions/*.toml`：应用命令 ACL，与 `capabilities/*.json` 联动
 

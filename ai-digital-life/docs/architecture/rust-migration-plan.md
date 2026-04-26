@@ -198,7 +198,8 @@ ai-digital-life/
 │       ├── lib/
 │       │   ├── bridge.ts       # 类型化 invoke 包装（与后端 kernel 类型对齐）
 │       │   └── events.ts       # listen() 订阅工具
-│       └── mock-bridge.ts      # 浏览器预览态的 mock
+│       ├── preview-bridge.ts   # 浏览器开发态桥接（经本地开发服务访问真实工作区）
+│       └── mock-bridge.ts      # 非文件系统能力的开发态 mock
 │
 ├── docs/
 │   ├── architecture/           # 本文件所在目录
@@ -230,7 +231,7 @@ ai-digital-life/
 - 初始化 `Cargo.toml`（workspace 根）、`src-tauri/`、`tauri.conf.json`、`build.rs`
 - 建立 `crates/{kernel, errors, logger, config, events, storage, migration}` 7 个基础 crate（仅模块骨架 + 占位类型）
 - 落地 `frontend/` 目录（已从历史 `apps/desktop/renderer/` 迁入），独立 `package.json`、`vite.config.ts`
-- `frontend/src/shared/ipc.ts` + `frontend/src/mock-bridge.ts`（或后续 Tauri 专用 `invoke` 包装）：保持 `DigitalLifeBridge` 不变；用 `app_get_info` 等命令端到端验证（当前壳层命令在 `src-tauri` 中逐步补齐）
+- `frontend/src/shared/ipc.ts` + `frontend/src/preview-bridge.ts` / `frontend/src/tauri-bridge.ts`：保持 `DigitalLifeBridge` 不变；浏览器开发态通过本地 Vite 工作区接口访问真实目录并支持基础文件/目录创建，桌面壳通过 Tauri Command 访问真实目录；用 `app_get_info`、工作区打开、文件树读取与创建操作端到端验证
 - CI（即使本地）配置：`cargo fmt --check`、`cargo clippy -D warnings`、`cargo test`、`npm --prefix frontend run typecheck`
 - 写入 `tauri.conf.json` 安全基线：显式 CSP、`withGlobalTauri: false`、空插件列表
 - `src-tauri/capabilities/default.json` 仅放 `app_get_info`，验证 capability 拒绝未注册命令
@@ -378,4 +379,3 @@ ai-digital-life/
 2. **安装 Rust 技能（已完成）** — 8 个方面的技能就绪。
 3. **代码实施按 R0 → R1 → R2 → R3 推进** — 每阶段独立可验收，禁止跳阶段。
 4. **每阶段完成后** — 同步本文件「分阶段实施路线」中的勾选项；如发现技术决策调整，先改本文件，再改代码。
-

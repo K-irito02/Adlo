@@ -1,7 +1,7 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import type { DigitalLifeBridge } from "./shared/ipc";
-import { setupMockBridge } from "./mock-bridge";
+import { setupPreviewBridge } from "./preview-bridge";
 import { createTauriBridge, isTauriShell } from "./tauri-bridge";
 import { App } from "./app/App";
 import { themeController } from "./app/theme";
@@ -11,7 +11,7 @@ if (typeof window !== "undefined" && !window.digitalLife) {
   if (isTauriShell()) {
     window.digitalLife = createTauriBridge();
   } else {
-    setupMockBridge();
+    setupPreviewBridge();
   }
 }
 

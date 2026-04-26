@@ -122,6 +122,10 @@ export function createTauriBridge(): DigitalLifeBridge {
         invokeIpc<RecentWorkspaceEntry[]>("workspace_restore_to_sidebar", { workspaceId }),
       revealInFileManager: (workspacePath: string) =>
         invokeIpc<boolean>("workspace_reveal_in_file_manager", { path: workspacePath }),
+      createFile: (relativePath: string, content = "") =>
+        invokeIpc<WorkspaceFileDocument>("workspace_create_file", { relativePath, content }),
+      createFolder: (relativePath: string) =>
+        invokeIpc<boolean>("workspace_create_folder", { relativePath }),
       readFile: (relativePath: string) => invokeIpc<WorkspaceFileDocument>("workspace_read_file", { relativePath }),
       listTree: () => invokeIpc<WorkspaceTreeNode[]>("workspace_list_tree"),
       search: (query: string) => invokeIpc<WorkspaceSearchHit[]>("workspace_search", { query }),

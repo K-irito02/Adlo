@@ -46,7 +46,7 @@ ai-digital-life/
 
 详见 [AGENTS.md](./AGENTS.md) 中的完整目录树。
 
-**前端目录要点（与 Electron 时代路径不同）**：完整 UI 在 `frontend/src/app/`（含 Monaco 编辑器）；共享类型在 `frontend/src/kernel`（import 别名 `@ai-digital-life/kernel`）；IPC 契约为 `frontend/src/shared/ipc.ts`；开发态数据与 `window.digitalLife` 由 `frontend/src/mock-bridge.ts` 提供，接入真实 Tauri 命令时保持同一接口即可。
+**前端目录要点（与 Electron 时代路径不同）**：完整 UI 在 `frontend/src/app/`（含 Monaco 编辑器）；共享类型在 `frontend/src/kernel`（import 别名 `@ai-digital-life/kernel`）；IPC 契约为 `frontend/src/shared/ipc.ts`；桌面壳通过 `frontend/src/tauri-bridge.ts` 调 Tauri 命令，纯浏览器开发态通过 `frontend/src/preview-bridge.ts` 调本地 Vite 工作区接口；两者保持同一 `DigitalLifeBridge` 契约，并都支持真实文件树刷新与基础文件/目录创建。
 
 ## Current Scope
 
@@ -60,6 +60,7 @@ ai-digital-life/
 
 - SQLite-backed 最近工作区打开与恢复
 - `tokio` 任务驱动的工作区扫描与状态回报（不开独立 Node Worker）
+- Retrieval snapshot 会生成 repo-map 等结构化元数据（默认不在 UI 直接展示，主要用于模型消费与后台诊断日志）
 - 持久化 workspace / session / task / approval / audit 元数据
 
 ### Health & Diagnostics

@@ -51,9 +51,20 @@ export interface FileTreeVisualSpec {
 function makeBadgeSpec(label: string, tone: FileTreeVisualTone): FileTreeVisualSpec {
   return {
     kind: "badge",
-    label,
+    label: compactBadgeLabel(label),
     tone
   };
+}
+
+function compactBadgeLabel(label: string): string {
+  const normalized = label.replace(/[^a-z0-9]/gi, "").toUpperCase();
+  if (!normalized) {
+    return "FI";
+  }
+  if (normalized.length <= 2) {
+    return normalized;
+  }
+  return `${normalized[0]}${normalized[normalized.length - 1]}`;
 }
 
 const SPECIAL_FILE_RULES: Array<{
@@ -221,10 +232,13 @@ const EXTENSION_SPECS = new Map<string, FileTreeVisualSpec>([
 
 function getDefaultLabel(extension: string): string {
   if (!extension) {
-    return "FILE";
+    return "FI";
   }
   const normalized = extension.replace(/[^a-z0-9]/gi, "").toUpperCase();
-  return normalized.slice(0, 4) || "FILE";
+  if (normalized.length <= 2) {
+    return normalized || "FI";
+  }
+  return `${normalized[0]}${normalized[normalized.length - 1]}`;
 }
 
 export function getFileKey(name: string, path: string): FileKey {

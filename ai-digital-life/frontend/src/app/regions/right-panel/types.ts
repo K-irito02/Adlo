@@ -47,6 +47,8 @@ export interface RightPanelViewProps {
   diffEditorRef: React.MutableRefObject<MonacoEditorRef | null>;
   onOpenFile: (relativePath: string) => void;
   onReloadExternal: () => void;
+  onCreateWorkspaceFile: (relativePath: string, content?: string) => Promise<string | undefined>;
+  onCreateWorkspaceFolder: (relativePath: string) => Promise<string | undefined>;
   onEditorChange: (value: string | undefined) => void;
   onEditorMount: (editor: MonacoEditorRef, monaco: unknown) => void;
   onDiffMount: (editor: MonacoEditorRef) => void;

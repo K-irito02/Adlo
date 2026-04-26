@@ -27,6 +27,7 @@ The full visual contract lives in the `[docs/design-system/](../design-system/RE
 - Switching `themeMode` to `system` re-subscribes to `prefers-color-scheme: dark` and updates `data-theme` reactively without a Tauri Command round-trip.
 - Theme tokens default to a restrained, low-saturation look. Prefer neutral text and soft/subtle semantic variants (`--text-secondary`, `--text-muted`, `--surface-hover`, `--accent-soft`, `--success-soft`, `--warning-soft`, `--danger-soft`) unless stronger emphasis is required for accessibility, critical feedback, or a primary call to action.
 - Saturated semantic base colors (`--accent`, `--success`, `--warning`, `--danger`) are reserved for narrow emphasis zones such as focus rings, destructive confirmations, hard errors, or other states where a softer variant would weaken clarity.
+- Third-party renderers that cannot read CSS custom properties directly, such as Monaco, must derive their programmatic theme from the same resolved light/dark state and the documented shell background baseline rather than inventing an independent palette.
 
 ## Design intent
 
@@ -34,3 +35,4 @@ The full visual contract lives in the `[docs/design-system/](../design-system/RE
 - `--accent` always carries the brand recognisability; semantic status colors (`--success`, `--warning`, `--danger`) stay perceptually distinct in every theme.
 - The shell now uses a unified neutral canvas for most structural regions so title bar, sidebars, center header, tool switcher, tool panes, and status bar read as one continuous workspace.
 - The current shell background baseline is `rgb(248, 248, 248)` in light mode and `rgb(20, 20, 20)` in dark mode; higher-elevation elements such as inputs, menus, and popovers keep a restrained secondary surface for separation.
+- Embedded editing surfaces inside the shell are expected to visually merge into this baseline, including editor body, gutter, and minimap regions.

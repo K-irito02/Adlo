@@ -23,6 +23,8 @@ fn main() {
             commands::app::app_update_preferences,
             commands::workspace::workspace_list_recent,
             commands::workspace::workspace_open,
+            commands::workspace::workspace_create_file,
+            commands::workspace::workspace_create_folder,
             commands::workspace::workspace_read_file,
             commands::workspace::workspace_list_tree,
             commands::workspace::workspace_search,

@@ -2680,7 +2680,7 @@
   justify-content: space-between;
   gap: var(--space-1);
   min-height: 34px;
-  padding: var(--space-1) var(--space-1-5);
+  padding: var(--space-1) calc(var(--space-1-5) + 6px) var(--space-1) var(--space-1-5);
   background: var(--bg);
 }
 
@@ -2692,8 +2692,15 @@
 }
 
 .adl-tool-navigator__context-group--actions {
+  flex: 1 1 auto;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+.adl-tool-navigator__context-group--utility {
   flex: 0 0 auto;
   flex-wrap: nowrap;
+  padding-inline-end: 2px;
 }
 
 .adl-tool-panel--browser .adl-tool-navigator__context-group--actions {
@@ -2715,6 +2722,30 @@
   flex: 0 0 auto;
   width: 24px;
   height: 24px;
+}
+
+.adl-tool-navigator__createbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-1-5) var(--space-1);
+  background: var(--bg);
+}
+
+.adl-tool-navigator__createinput {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 26px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font-size: var(--text-xs);
+}
+
+.adl-tool-navigator__createinput:focus {
+  outline: none;
+  border-color: var(--accent-subtle);
 }
 
 .adl-tool-navigator__resize-handle {
@@ -2780,21 +2811,25 @@
 
 .adl-filetree {
   margin: 0;
-  padding: var(--space-1) 0 var(--space-2);
+  padding: 4px 0 var(--space-1);
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
   overflow-y: auto;
 }
 
 .adl-filetree__children {
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 0 0 0 14px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
+}
+
+.adl-filetree__item {
+  --adl-filetree-hover-offset: 0px;
 }
 
 .adl-filetree__node,
@@ -2815,9 +2850,12 @@
 }
 
 .adl-filetree__node {
-  --adl-filetree-depth: 0;
-  min-height: 26px;
-  padding: 4px 8px 4px calc(8px + (var(--adl-filetree-depth) * 12px));
+  box-sizing: border-box;
+  min-height: 24px;
+  padding: 3px 8px;
+  width: calc(100% + var(--adl-filetree-hover-offset));
+  margin-inline-start: calc(-1 * var(--adl-filetree-hover-offset));
+  padding-inline-start: calc(8px + var(--adl-filetree-hover-offset));
   border-radius: 0;
 }
 
@@ -2845,7 +2883,10 @@
 }
 
 .adl-filetree__node-main {
-  gap: var(--space-1);
+  flex: 1 1 auto;
+  width: 100%;
+  gap: 2px;
+  overflow: hidden;
 }
 
 .adl-filetree__label,
@@ -2856,6 +2897,8 @@
 }
 
 .adl-filetree__label {
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: var(--text-sm);
   line-height: 1.25;
 }
@@ -2863,20 +2906,18 @@
 .adl-filetree__meta {
   display: inline-flex;
   align-items: center;
+  flex: 0 0 auto;
   gap: var(--space-1);
   color: var(--warning);
 }
 
 .adl-filetree__chevron {
   width: 12px;
+  flex: 0 0 12px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   color: var(--text-muted);
-}
-
-.adl-filetree__chevron--empty {
-  opacity: 0;
 }
 
 .adl-filetree__node--directory .adl-filetree__label {
@@ -2889,29 +2930,36 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 24px;
+  width: 20px;
+  min-width: 20px;
   height: 18px;
   flex-shrink: 0;
   color: var(--adl-file-badge-ink);
+  overflow: hidden;
 }
 
 .adl-filetree__file-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 24px;
+  width: 2ch;
+  min-width: 2ch;
+  max-width: 2ch;
   height: 18px;
-  padding: 0 2px 0 0;
+  padding: 0;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
   color: var(--adl-file-badge-ink);
   font-size: 10px;
   font-weight: var(--font-bold);
+  font-family: ui-monospace, "SFMono-Regular", "Cascadia Mono", "Fira Code", Consolas, monospace;
+  font-variant-numeric: tabular-nums;
   line-height: 1;
   letter-spacing: 0;
   text-transform: uppercase;
   white-space: nowrap;
+  text-align: center;
 }
 
 .adl-filetree__file-icon--default {

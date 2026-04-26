@@ -21,13 +21,15 @@ import {
   IconUnfoldVertical
 } from "../../icons";
 import { TooltipSimple } from "../../components/Tooltip";
-import { RepoMapView } from "../../components/workspace/RepoMapView";
 import { useUiStore } from "../../ui-store";
 import { normalizeWorkspaceRelativePath } from "../../workspacePaths";
 import { getFileTreeVisualSpec } from "./fileTreeVisuals";
 import type { RightPanelViewProps } from "./types";
 
 type FilesNavigatorMode = "tree" | "search" | "outline";
+
+const MONACO_THEME_LIGHT = "adl-light";
+const MONACO_THEME_DARK = "adl-dark";
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -62,6 +64,34 @@ function collectDirectoryPaths(nodes: WorkspaceTreeNode[]): string[] {
   return paths;
 }
 
+function buildDefaultCreationPath(selectedFilePath: string | undefined, fallbackName: string): string {
+  const normalized = normalizeWorkspaceRelativePath(selectedFilePath ?? "");
+  if (!normalized) {
+    return fallbackName;
+  }
+  const segments = normalized.split("/").filter(Boolean);
+  if (segments.length <= 1) {
+    return fallbackName;
+  }
+  return `${segments.slice(0, -1).join("/")}/${fallbackName}`;
+}
+
+function normalizeCreationPath(input: string): string | undefined {
+  const trimmed = input.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  if (/^[A-Za-z]:[\\/]/.test(trimmed) || trimmed.startsWith("/") || trimmed.startsWith("\\")) {
+    return undefined;
+  }
+  const normalized = normalizeWorkspaceRelativePath(trimmed);
+  const segments = normalized.split("/").filter(Boolean);
+  if (segments.length === 0 || segments.some((segment) => segment === "." || segment === "..")) {
+    return undefined;
+  }
+  return segments.join("/");
+}
+
 function TreeNode({
   node,
   depth,
@@ -89,11 +119,13 @@ function TreeNode({
   const fileVisual = isDirectory ? undefined : getFileTreeVisualSpec(node);
 
   return (
-    <li className="adl-filetree__item">
+    <li
+      className="adl-filetree__item"
+      style={{ "--adl-filetree-hover-offset": `${depth * 14}px` } as React.CSSProperties}
+    >
       <button
         type="button"
         className={`adl-filetree__node${isSelected ? " is-active" : ""}${isDirectory ? " adl-filetree__node--directory" : ""}`}
-        style={{ "--adl-filetree-depth": depth } as React.CSSProperties}
         onClick={() => (isDirectory ? onToggle(node.path) : onOpenFile(node.path))}
       >
         <span className="adl-filetree__node-main">
@@ -102,14 +134,11 @@ function TreeNode({
               {isExpanded ? <IconChevronDown size={12} decorative /> : <IconChevronRight size={12} decorative />}
             </span>
           ) : (
-            <>
-              <span className="adl-filetree__chevron adl-filetree__chevron--empty" />
-              <span className={`adl-filetree__file-icon adl-filetree__file-icon--${fileVisual?.tone ?? "default"}`}>
-                <span className="adl-filetree__file-badge" aria-hidden="true">
-                  {fileVisual?.label ?? "FILE"}
-                </span>
+            <span className={`adl-filetree__file-icon adl-filetree__file-icon--${fileVisual?.tone ?? "default"}`}>
+              <span className="adl-filetree__file-badge" aria-hidden="true">
+                {fileVisual?.label ?? "FILE"}
               </span>
-            </>
+            </span>
           )}
           <span className="adl-filetree__label">{node.name}</span>
         </span>
@@ -153,18 +182,18 @@ export function FilesPanel(props: RightPanelViewProps) {
     editorHint,
     outline,
     workspaceTree,
-    repoMap,
     searchQuery,
     searchResults,
     dirtyEditorPaths,
     onOpenFile,
-    onReloadExternal,
     onEditorChange,
     onEditorMount,
     onDiffMount,
     onSearch,
     onSearchChange,
     onRefreshWorkspaceTree,
+    onCreateWorkspaceFile,
+    onCreateWorkspaceFolder,
     onSetDiffLayout
   } = props;
   const [navigatorMode, setNavigatorMode] = useState<FilesNavigatorMode>("tree");
@@ -174,6 +203,8 @@ export function FilesPanel(props: RightPanelViewProps) {
   const [matchCase, setMatchCase] = useState(false);
   const [matchWholeWord, setMatchWholeWord] = useState(false);
   const [useRegex, setUseRegex] = useState(false);
+  const [createTarget, setCreateTarget] = useState<"file" | "folder" | null>(null);
+  const [createPathValue, setCreatePathValue] = useState("");
   const [wordWrapEnabled, setWordWrapEnabled] = useState(false);
   const [lineNumbersEnabled, setLineNumbersEnabled] = useState(true);
   const navigatorCollapsed = useUiStore((state) => state.navigatorCollapsedByTool.files);
@@ -187,6 +218,7 @@ export function FilesPanel(props: RightPanelViewProps) {
   const collapseAllFileTreePaths = useUiStore((state) => state.collapseAllFileTreePaths);
   const fileMenuRef = useRef<HTMLDivElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const createInputRef = useRef<HTMLInputElement | null>(null);
   const [fileHistory, setFileHistory] = useState<string[]>([]);
   const [fileHistoryIndex, setFileHistoryIndex] = useState(-1);
   const fileHistoryNavRef = useRef(false);
@@ -208,11 +240,52 @@ export function FilesPanel(props: RightPanelViewProps) {
     const normalizedRelative = selectedFilePath.split("/").join(separator);
     return `${rootPath}${rootPath.endsWith(separator) ? "" : separator}${normalizedRelative}`;
   }, [appInfo?.currentWorkspace?.path, appInfo?.currentWorkspace?.rootPath, selectedFilePath]);
+  const monacoTheme = appInfo?.config.resolvedTheme === "dark" ? MONACO_THEME_DARK : MONACO_THEME_LIGHT;
   useEffect(() => {
     if (selectedFilePath) {
       expandFileTreePathChain(selectedFilePath);
     }
   }, [expandFileTreePathChain, selectedFilePath]);
+
+  useEffect(() => {
+    const monaco = (window as typeof window & {
+      monaco?: {
+        editor?: {
+          defineTheme?: (
+            name: string,
+            data: {
+              base: "vs" | "vs-dark";
+              inherit: boolean;
+              rules: Array<{ token: string; foreground?: string; background?: string }>;
+              colors: Record<string, string>;
+            }
+          ) => void;
+          setTheme?: (theme: string) => void;
+        };
+      };
+    }).monaco;
+    monaco?.editor?.defineTheme?.(MONACO_THEME_LIGHT, {
+      base: "vs",
+      inherit: true,
+      rules: [],
+      colors: {
+        "editor.background": "#F8F8F8",
+        "editorGutter.background": "#F8F8F8",
+        "minimap.background": "#F8F8F8"
+      }
+    });
+    monaco?.editor?.defineTheme?.(MONACO_THEME_DARK, {
+      base: "vs-dark",
+      inherit: true,
+      rules: [],
+      colors: {
+        "editor.background": "#141414",
+        "editorGutter.background": "#141414",
+        "minimap.background": "#141414"
+      }
+    });
+    monaco?.editor?.setTheme?.(monacoTheme);
+  }, [monacoTheme]);
 
   useEffect(() => {
     if (!selectedFilePath) {
@@ -251,6 +324,16 @@ export function FilesPanel(props: RightPanelViewProps) {
       window.setTimeout(() => searchInputRef.current?.focus(), 0);
     }
   }, [navigatorMode]);
+
+  useEffect(() => {
+    if (!createTarget) {
+      return;
+    }
+    window.setTimeout(() => {
+      createInputRef.current?.focus();
+      createInputRef.current?.select();
+    }, 0);
+  }, [createTarget]);
 
   const navigatorTitle =
     navigatorMode === "tree" ? t.toolFiles : navigatorMode === "search" ? t.searchResults : t.outline;
@@ -306,6 +389,43 @@ export function FilesPanel(props: RightPanelViewProps) {
       return;
     }
     collapseAllFileTreePaths();
+  };
+  const handleRefreshNavigator = async () => {
+    await onRefreshWorkspaceTree();
+  };
+  const handleStartCreate = (target: "file" | "folder") => {
+    setCreateTarget(target);
+    setCreatePathValue(
+      buildDefaultCreationPath(selectedFilePath, target === "file" ? "untitled.md" : "new-folder")
+    );
+  };
+  const handleCancelCreate = () => {
+    setCreateTarget(null);
+    setCreatePathValue("");
+  };
+  const handleSubmitCreate = async () => {
+    if (!createTarget) {
+      return;
+    }
+    const relativePath = normalizeCreationPath(createPathValue);
+    if (!relativePath) {
+      return;
+    }
+    if (createTarget === "file") {
+      const createdPath = await onCreateWorkspaceFile(relativePath);
+      if (!createdPath) {
+        return;
+      }
+      expandFileTreePathChain(createdPath);
+    } else {
+      const createdPath = await onCreateWorkspaceFolder(relativePath);
+      if (!createdPath) {
+        return;
+      }
+      expandFileTreePathChain(createdPath);
+      setFileTreePathExpanded(createdPath, true);
+    }
+    handleCancelCreate();
   };
   const handleNavigatorResizeStart = (event: React.PointerEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -480,12 +600,12 @@ export function FilesPanel(props: RightPanelViewProps) {
               <span className="adl-tool-navigator__context-title">{appInfo?.currentWorkspace?.name ?? t.toolFiles}</span>
             </div>
 
-            <div className="adl-tool-navigator__context-group">
+            <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--utility">
               <TooltipSimple content={t.fileRefresh} placement="top">
                 <button
                   type="button"
                   className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-                  onClick={onRefreshWorkspaceTree}
+                  onClick={() => void handleRefreshNavigator()}
                   aria-label={t.fileRefresh}
                 >
                   <IconRefreshCw size={14} decorative />
@@ -495,8 +615,8 @@ export function FilesPanel(props: RightPanelViewProps) {
                 <button
                   type="button"
                   className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
+                  onClick={() => handleStartCreate("file")}
                   aria-label={t.fileNewFile}
-                  disabled
                 >
                   <IconFilePlus size={14} decorative />
                 </button>
@@ -505,14 +625,52 @@ export function FilesPanel(props: RightPanelViewProps) {
                 <button
                   type="button"
                   className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
+                  onClick={() => handleStartCreate("folder")}
                   aria-label={t.fileNewFolder}
-                  disabled
                 >
                   <IconFolderPlus size={14} decorative />
                 </button>
               </TooltipSimple>
             </div>
           </div>
+
+          {createTarget ? (
+            <div className="adl-tool-navigator__createbar">
+              <input
+                ref={createInputRef}
+                type="text"
+                className="adl-tool-navigator__createinput"
+                value={createPathValue}
+                onChange={(event) => setCreatePathValue(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    void handleSubmitCreate();
+                  }
+                  if (event.key === "Escape") {
+                    event.preventDefault();
+                    handleCancelCreate();
+                  }
+                }}
+                aria-label={createTarget === "file" ? t.fileNewFile : t.fileNewFolder}
+              />
+              <button
+                type="button"
+                className="adl-btn adl-btn--ghost adl-btn--sm"
+                onClick={() => void handleSubmitCreate()}
+                disabled={!normalizeCreationPath(createPathValue)}
+              >
+                {createTarget === "file" ? t.fileNewFile : t.fileNewFolder}
+              </button>
+              <button
+                type="button"
+                className="adl-btn adl-btn--ghost adl-btn--sm"
+                onClick={handleCancelCreate}
+              >
+                {t.cancel}
+              </button>
+            </div>
+          ) : null}
 
           {navigatorMode === "tree" ? (
             <>
@@ -535,7 +693,6 @@ export function FilesPanel(props: RightPanelViewProps) {
               ) : (
                 <p className="adl-empty-hint">{t.workspaceEmpty}</p>
               )}
-              {repoMap.length > 0 ? <RepoMapView t={t} nodes={repoMap} /> : null}
             </>
           ) : null}
 
@@ -674,19 +831,6 @@ export function FilesPanel(props: RightPanelViewProps) {
         </aside>
 
         <div className="adl-tool-primary">
-          {externalChangePath === selectedFilePath ? (
-            <div className="adl-banner adl-banner--warning" role="alert">
-              <IconAlertTriangle size={14} decorative />
-              <div>
-                <strong>{t.externalChange}</strong>
-                <span>{t.externalFileChanged}</span>
-              </div>
-              <button type="button" className="adl-btn adl-btn--ghost adl-btn--sm" onClick={onReloadExternal}>
-                {t.reloadFile}
-              </button>
-            </div>
-          ) : null}
-
           {editorHint ? <p className="adl-tool-hint">{editorHint}</p> : null}
 
           <div className="adl-tool-editor" data-testid="editor-shell">
@@ -704,6 +848,7 @@ export function FilesPanel(props: RightPanelViewProps) {
                   </div>
                 </div>
                 <DiffEditor
+                  theme={monacoTheme}
                   language={editorLanguage}
                   original={filePatch.beforeContent}
                   modified={filePatch.afterContent}
@@ -720,6 +865,7 @@ export function FilesPanel(props: RightPanelViewProps) {
               </>
             ) : (
               <Editor
+                theme={monacoTheme}
                 language={editorLanguage}
                 value={fileContent ?? ""}
                 options={{

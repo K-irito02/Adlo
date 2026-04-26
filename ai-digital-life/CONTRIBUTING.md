@@ -47,5 +47,5 @@
 2. 在 `src-tauri/src/commands/<domain>.rs` 实现，返回 `Result<T, AppError>`。
 3. 在 `src-tauri/src/main.rs` 的 `invoke_handler` 注册。
 4. 在对应 `src-tauri/capabilities/*.json` 登记到允许调用该命令的窗口/上下文。
-5. 在前端增加类型化调用：在 `src/shared/ipc.ts` 保持 `DigitalLifeBridge` 与后端一致；实现可放在新文件（如 `tauri-bridge.ts`）或扩展现有层，并与 `mock-bridge.ts` 二选一/组合在入口挂载到 `window.digitalLife`。
+5. 在前端增加类型化调用：在 `src/shared/ipc.ts` 保持 `DigitalLifeBridge` 与后端一致；同时同步 `tauri-bridge.ts` 与浏览器开发态桥接（当前为 `preview-bridge.ts`，必要时再配合 `mock-bridge.ts`）并在入口统一挂载到 `window.digitalLife`。
 6. 补充单测（命令逻辑层）+ 集成测试（穿过 Tauri 调用层）。

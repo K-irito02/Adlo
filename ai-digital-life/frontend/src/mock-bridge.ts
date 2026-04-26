@@ -21,7 +21,63 @@ import type {
 
 const now = Date.now();
 
-const workspaceRoot = "E:/mock/ai-digital-life";
+let workspaceRoot =
+  (import.meta.env.VITE_ADL_DEFAULT_WORKSPACE_PATH as string | undefined)?.trim() || "E:/mock/ai-digital-life";
+
+function workspaceNameFromPath(value: string): string {
+  const normalized = value.replace(/\\/g, "/").replace(/\/+$/g, "");
+  return normalized.split("/").pop() || normalized || "workspace";
+}
+
+function buildWorkspaceTreeFromPaths(paths: string[], directoryPaths: string[] = []) {
+  type Node = { path: string; name: string; kind: "file" | "directory"; children: Node[] };
+  const rootNodes: Node[] = [];
+  const dirs = new Map<string, Node>();
+
+  function ensureDir(pathValue: string): Node {
+    const normalized = pathValue.replace(/\\/g, "/").replace(/^\/+/g, "").replace(/\/+$/g, "");
+    const cached = dirs.get(normalized);
+    if (cached) return cached;
+    const name = normalized.split("/").pop() || normalized;
+    const node: Node = { path: normalized, name, kind: "directory", children: [] };
+    dirs.set(normalized, node);
+    const parent = normalized.includes("/") ? normalized.slice(0, normalized.lastIndexOf("/")) : "";
+    if (parent) {
+      ensureDir(parent).children.push(node);
+    } else {
+      rootNodes.push(node);
+    }
+    return node;
+  }
+
+  for (const raw of directoryPaths) {
+    const normalized = raw.replace(/\\/g, "/").replace(/^\/+/g, "").replace(/\/+$/g, "");
+    if (!normalized) continue;
+    ensureDir(normalized);
+  }
+
+  for (const raw of paths) {
+    const normalized = raw.replace(/\\/g, "/").replace(/^\/+/g, "").replace(/\/+$/g, "");
+    if (!normalized) continue;
+    const parent = normalized.includes("/") ? normalized.slice(0, normalized.lastIndexOf("/")) : "";
+    const name = normalized.split("/").pop() || normalized;
+    const fileNode: Node = { path: normalized, name, kind: "file", children: [] };
+    if (parent) {
+      ensureDir(parent).children.push(fileNode);
+    } else {
+      rootNodes.push(fileNode);
+    }
+  }
+
+  function sort(nodes: Node[]) {
+    nodes.sort((a, b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name));
+    nodes.forEach((node) => node.children.length && sort(node.children));
+  }
+  sort(rootNodes);
+  return rootNodes;
+}
+
+const emptyDirectories = new Set<string>();
 
 const documents = new Map<string, string>([
   [
@@ -94,7 +150,7 @@ const appInfo: AppInfo = {
     id: "workspace-mock-1",
     path: workspaceRoot,
     rootPath: workspaceRoot,
-    name: "ai-digital-life",
+    name: workspaceNameFromPath(workspaceRoot),
     type: "node" as const,
     status: "ready" as const,
     createdAt: now,
@@ -106,7 +162,7 @@ const appInfo: AppInfo = {
       timestamp: now,
       level: "info" as const,
       scope: "tauri",
-      message: "Tauri desktop mock shell booted"
+      message: `Preview mode: using mock bridge (no real filesystem). workspace=${workspaceRoot}`
     }
   ]
 };
@@ -392,12 +448,23 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
     }),
     open: async (workspacePath: string) => ({
       ok: true,
-      data: {
-        ...(appInfo.currentWorkspace as WorkspaceMeta),
-        path: workspacePath,
-        rootPath: workspacePath,
-        name: workspacePath.split("/").pop() || workspacePath
-      }
+      data: (() => {
+        workspaceRoot = workspacePath;
+        const next = {
+          ...(appInfo.currentWorkspace as WorkspaceMeta),
+          path: workspacePath,
+          rootPath: workspacePath,
+          name: workspaceNameFromPath(workspacePath)
+        };
+        appInfo.currentWorkspace = next;
+        appInfo.recentLogs.unshift({
+          timestamp: Date.now(),
+          level: "info" as const,
+          scope: "workspace",
+          message: `Preview mode: switched mock workspace to ${workspacePath}`
+        });
+        return next;
+      })()
     }),
     pin: async () => ({
       ok: true,
@@ -469,77 +536,25 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
       ]
     }),
     revealInFileManager: async () => ({ ok: true, data: true }),
+    createFile: async (relativePath: string, content = "") => {
+      documents.set(relativePath, content);
+      fileVersions.set(relativePath, Date.now());
+      return {
+        ok: true,
+        data: {
+          path: relativePath,
+          content,
+          lastModifiedAt: fileVersions.get(relativePath) ?? Date.now()
+        }
+      };
+    },
+    createFolder: async (relativePath: string) => {
+      emptyDirectories.add(relativePath.replace(/\\/g, "/").replace(/^\/+|\/+$/g, ""));
+      return { ok: true, data: true };
+    },
     listTree: async () => ({
       ok: true,
-      data: [
-        {
-          path: "frontend",
-          name: "frontend",
-          kind: "directory",
-          children: [
-            {
-              path: "frontend/src",
-              name: "src",
-              kind: "directory",
-              children: [
-                {
-                  path: "frontend/src/app",
-                  name: "app",
-                  kind: "directory",
-                  children: [
-                    {
-                      path: "frontend/src/app/regions",
-                      name: "regions",
-                      kind: "directory",
-                      children: [
-                        {
-                          path: "frontend/src/main.tsx",
-                          name: "main.tsx",
-                          kind: "file",
-                          children: []
-                        }
-                      ]
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
-        },
-        {
-          path: "crates",
-          name: "crates",
-          kind: "directory",
-          children: [
-            {
-              path: "crates/kernel",
-              name: "kernel",
-              kind: "directory",
-              children: [
-                {
-                  path: "crates/kernel/src",
-                  name: "src",
-                  kind: "directory",
-                  children: [
-                    {
-                      path: "crates/kernel/src/lib.rs",
-                      name: "lib.rs",
-                      kind: "file",
-                      children: []
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
-        },
-        {
-          path: "README.md",
-          name: "README.md",
-          kind: "file",
-          children: []
-        }
-      ]
+      data: buildWorkspaceTreeFromPaths(Array.from(documents.keys()), Array.from(emptyDirectories))
     }),
     readFile: async (relativePath: string) => ({
       ok: true,

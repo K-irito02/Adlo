@@ -120,6 +120,8 @@ export type StoreState = {
   sendMessage: (content: string, options?: MessageSendOptions) => Promise<void>;
   cancelActiveStream: () => Promise<void>;
   openFile: (relativePath: string) => Promise<void>;
+  createWorkspaceFile: (relativePath: string, content?: string) => Promise<string | undefined>;
+  createWorkspaceFolder: (relativePath: string) => Promise<string | undefined>;
   refreshWorkspaceTree: () => Promise<void>;
   searchFiles: (query: string) => Promise<void>;
   setHunkDecision: (patchSetId: string, hunkId: string, decision: "pending" | "accepted" | "rejected") => Promise<void>;
@@ -222,7 +224,6 @@ export const useAppStore = create<StoreState>((set, get) => ({
       }
       await Promise.allSettled([
         get().fetchIndexStatus(),
-        get().fetchRepoMap(),
         get().fetchAuditEntries(40),
         get().fetchCommandHistory(),
         get().fetchGitStatus()
@@ -574,13 +575,50 @@ export const useAppStore = create<StoreState>((set, get) => ({
       };
     });
   },
+  createWorkspaceFile: async (relativePath: string, content = "") => {
+    const result = await window.digitalLife.workspace.createFile(relativePath, content);
+    if (!result.ok) {
+      set({ error: result.error.message });
+      return undefined;
+    }
+    const outlineResult = await window.digitalLife.workspace.outline(relativePath);
+    await get().refreshWorkspaceTree();
+    const norm = normalizeWorkspaceRelativePath(relativePath);
+    set((state) => {
+      const nextDirty = state.dirtyEditorPaths.filter((p) => normalizeWorkspaceRelativePath(p) !== norm);
+      void window.digitalLife.workspace.setEditorDirtyPaths(nextDirty);
+      return {
+        error: undefined,
+        openTabs: state.openTabs.some((tab) => tab.path === relativePath)
+          ? state.openTabs
+          : [...state.openTabs, createEditorTab(relativePath)],
+        selectedFilePath: relativePath,
+        fileContent: result.data.content,
+        fileLastModifiedAt: result.data.lastModifiedAt,
+        externalFileChange: state.externalFileChange?.path === relativePath ? undefined : state.externalFileChange,
+        outline: outlineResult.ok ? outlineResult.data : [],
+        dirtyEditorPaths: nextDirty
+      };
+    });
+    return relativePath;
+  },
+  createWorkspaceFolder: async (relativePath: string) => {
+    const result = await window.digitalLife.workspace.createFolder(relativePath);
+    if (!result.ok) {
+      set({ error: result.error.message });
+      return undefined;
+    }
+    await get().refreshWorkspaceTree();
+    set({ error: undefined });
+    return relativePath;
+  },
   refreshWorkspaceTree: async () => {
     const result = await window.digitalLife.workspace.listTree();
     if (!result.ok) {
       set({ error: result.error.message });
       return;
     }
-    set({ workspaceTree: result.data });
+    set({ error: undefined, workspaceTree: result.data });
   },
   searchFiles: async (query: string) => {
     set({ searchQuery: query });
@@ -697,6 +735,7 @@ export const useAppStore = create<StoreState>((set, get) => ({
     if (typeof get().fileLastModifiedAt === "number" && get().fileLastModifiedAt === lastModifiedAt) {
       return;
     }
+    console.info("[workspace] external file changed", { path: incoming, lastModifiedAt });
     set((state) => {
       const nextDirty = [...new Set([...state.dirtyEditorPaths, incoming])];
       void window.digitalLife.workspace.setEditorDirtyPaths(nextDirty);

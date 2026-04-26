@@ -10,9 +10,12 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use tracing::{debug, info};
 
 const DEFAULT_MAX_FILE_BYTES: u64 = 1024 * 1024;
 const MAX_SEARCH_RESULTS: usize = 200;
+const MAX_TREE_DEPTH: usize = 64;
+const MAX_TREE_NODES: usize = 200_000;
 const IGNORED_DIRS: &[&str] = &[
     ".git",
     "target",
@@ -188,34 +191,84 @@ fn first_non_empty_line(value: String) -> Option<String> {
 }
 
 pub fn list_tree(root: &Path) -> Result<Vec<WorkspaceTreeNode>, AppError> {
-    list_tree_inner(root, root, 0)
+    let mut remaining = MAX_TREE_NODES;
+    list_tree_inner(root, root, 0, &mut remaining)
 }
 
 fn list_tree_inner(
     root: &Path,
     dir: &Path,
     depth: usize,
+    remaining: &mut usize,
 ) -> Result<Vec<WorkspaceTreeNode>, AppError> {
-    if depth > 6 {
+    if *remaining == 0 {
+        return Ok(vec![]);
+    }
+    if depth > MAX_TREE_DEPTH {
         return Ok(vec![]);
     }
     let mut nodes = Vec::new();
-    for entry in fs::read_dir(dir)? {
-        let entry = entry?;
+    let entries = match fs::read_dir(dir) {
+        Ok(value) => value,
+        Err(err) => {
+            debug!(
+                dir = %dir.to_string_lossy(),
+                error = %err,
+                "failed to read directory for workspace tree"
+            );
+            return Ok(vec![]);
+        }
+    };
+    for entry in entries {
+        let entry = match entry {
+            Ok(value) => value,
+            Err(err) => {
+                debug!(
+                    dir = %dir.to_string_lossy(),
+                    error = %err,
+                    "failed to read directory entry for workspace tree"
+                );
+                continue;
+            }
+        };
         let path = entry.path();
         let name = entry.file_name().to_string_lossy().to_string();
         if should_ignore(&name) {
             continue;
         }
+        if let Ok(file_type) = entry.file_type() {
+            if file_type.is_symlink() {
+                debug!(
+                    path = %path.to_string_lossy(),
+                    "skipping symlink in workspace tree"
+                );
+                continue;
+            }
+        }
         let relative = relative_path(root, &path);
         if path.is_dir() {
+            if *remaining == 0 {
+                break;
+            }
+            *remaining = remaining.saturating_sub(1);
             nodes.push(WorkspaceTreeNode {
                 path: relative,
                 name,
                 kind: "directory".into(),
-                children: list_tree_inner(root, &path, depth + 1)?,
+                children: list_tree_inner(root, &path, depth + 1, remaining).unwrap_or_else(|err| {
+                    debug!(
+                        dir = %path.to_string_lossy(),
+                        error = %err,
+                        "failed to read child directory for workspace tree"
+                    );
+                    vec![]
+                }),
             });
         } else if path.is_file() {
+            if *remaining == 0 {
+                break;
+            }
+            *remaining = remaining.saturating_sub(1);
             nodes.push(WorkspaceTreeNode {
                 path: relative,
                 name,
@@ -231,17 +284,42 @@ fn list_tree_inner(
 pub fn read_file(root: &Path, relative_path: &str) -> Result<WorkspaceFileDocument, AppError> {
     let path = adl_fs_ops::resolve_workspace_path(root, relative_path)?;
     let content = adl_fs_ops::read_text_file(root, relative_path, DEFAULT_MAX_FILE_BYTES)?;
-    let modified = fs::metadata(&path)
-        .and_then(|meta| meta.modified())
-        .ok()
-        .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
-        .map(|duration| duration.as_millis() as i64)
-        .unwrap_or_else(now_ms);
+    let modified = file_modified_at(&path);
     Ok(WorkspaceFileDocument {
         path: relative_path.replace('\\', "/"),
         content,
         last_modified_at: modified,
     })
+}
+
+pub fn create_file(
+    root: &Path,
+    relative_path: &str,
+    content: &str,
+) -> Result<WorkspaceFileDocument, AppError> {
+    let path = adl_fs_ops::resolve_workspace_path(root, relative_path)?;
+    if path.exists() {
+        return Err(AppError::InvalidInput(format!(
+            "file already exists: {relative_path}"
+        )));
+    }
+    adl_fs_ops::atomic_write(root, relative_path, content)?;
+    Ok(WorkspaceFileDocument {
+        path: relative_path.replace('\\', "/"),
+        content: content.to_string(),
+        last_modified_at: file_modified_at(&path),
+    })
+}
+
+pub fn create_folder(root: &Path, relative_path: &str) -> Result<bool, AppError> {
+    let path = adl_fs_ops::resolve_workspace_path(root, relative_path)?;
+    if path.exists() {
+        return Err(AppError::InvalidInput(format!(
+            "path already exists: {relative_path}"
+        )));
+    }
+    fs::create_dir_all(path)?;
+    Ok(true)
 }
 
 pub fn search_text(root: &Path, query: &str) -> Result<Vec<WorkspaceSearchHit>, AppError> {
@@ -334,11 +412,28 @@ pub fn build_retrieval_snapshot(
         .collect();
     top_extensions.sort_by_key(|entry| std::cmp::Reverse(entry.count));
     top_extensions.truncate(12);
-    let repo_map = list_tree(root)?
+    let repo_map: Vec<RepoMapEntry> = list_tree(root)?
         .into_iter()
         .flat_map(flatten_tree)
         .take(200)
         .collect();
+    info!(
+        workspace_id = workspace_id,
+        scanned_files = files.len(),
+        indexed_text_files = files.len(),
+        repo_map_entries = repo_map.len(),
+        top_extensions = ?top_extensions,
+        "retrieval snapshot built"
+    );
+    debug!(
+        workspace_id = workspace_id,
+        repo_map_preview = ?repo_map
+            .iter()
+            .take(40)
+            .map(|entry| format!("{} ({})", entry.path, entry.r#type))
+            .collect::<Vec<_>>(),
+        "repo-map preview (first 40 entries)"
+    );
     Ok(RetrievalSnapshot {
         workspace_id: workspace_id.to_string(),
         root_path: root.to_string_lossy().to_string(),
@@ -410,6 +505,15 @@ fn relative_path(root: &Path, path: &Path) -> String {
         .replace('\\', "/")
 }
 
+fn file_modified_at(path: &Path) -> i64 {
+    fs::metadata(path)
+        .and_then(|meta| meta.modified())
+        .ok()
+        .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|duration| duration.as_millis() as i64)
+        .unwrap_or_else(now_ms)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -420,6 +524,23 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("Cargo.toml"), "[package]\nname='x'").unwrap();
         assert_eq!(workspace_type(&dir), WorkspaceType::Rust);
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn creates_file_and_folder_in_workspace() {
+        let dir = std::env::temp_dir().join(format!("adl-workspace-create-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let created = create_file(&dir, "docs/spec.md", "# spec\n").unwrap();
+        assert_eq!(created.path, "docs/spec.md");
+        assert!(dir.join("docs/spec.md").exists());
+
+        create_folder(&dir, "empty-dir").unwrap();
+        let tree = list_tree(&dir).unwrap();
+        assert!(tree.iter().any(|node| node.path == "docs"));
+        assert!(tree.iter().any(|node| node.path == "empty-dir"));
+
         let _ = std::fs::remove_dir_all(dir);
     }
 }

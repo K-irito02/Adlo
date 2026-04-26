@@ -86,7 +86,7 @@ Banners render with `role="status"` and `aria-live`, and reserve their vertical 
 renderEmptyState({
   icon: "search",
   title: "No retrieval yet",
-  description: "Start indexing to populate the repo map.",
+  description: "Start indexing to generate the repo map (available in logs / retrieval snapshot).",
   action: renderButton({ label: "Start", icon: "play" })
 });
 ```

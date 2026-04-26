@@ -9,6 +9,8 @@ commands.allow = [
   "app_update_preferences",
   "workspace_list_recent",
   "workspace_open",
+  "workspace_create_file",
+  "workspace_create_folder",
   "workspace_read_file",
   "workspace_list_tree",
   "workspace_search",

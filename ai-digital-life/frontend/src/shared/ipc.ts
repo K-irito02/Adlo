@@ -62,6 +62,8 @@ export interface DigitalLifeBridge {
     removeFromSidebar: (workspaceId: string) => Promise<IpcResult<RecentWorkspaceEntry[]>>;
     restoreToSidebar: (workspaceId: string) => Promise<IpcResult<RecentWorkspaceEntry[]>>;
     revealInFileManager: (workspacePath: string) => Promise<IpcResult<boolean>>;
+    createFile: (relativePath: string, content?: string) => Promise<IpcResult<WorkspaceFileDocument>>;
+    createFolder: (relativePath: string) => Promise<IpcResult<boolean>>;
     readFile: (relativePath: string) => Promise<IpcResult<WorkspaceFileDocument>>;
     listTree: () => Promise<IpcResult<WorkspaceTreeNode[]>>;
     search: (query: string) => Promise<IpcResult<WorkspaceSearchHit[]>>;

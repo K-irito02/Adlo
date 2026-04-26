@@ -36,6 +36,12 @@ Misc: `--focus-ring`, `--shadow-soft`
 - Structural containers such as the title bar, left rail, center shell header, right tool rail, tool panes, and status bar should prefer `--bg` unless a stronger separation is necessary.
 - Raised controls and overlays such as inputs, composer shells, dropdowns, menus, and popovers may use `--bg-input`, `--surface-elevated`, or `--surface-raised` to preserve interaction clarity.
 
+## Embedded editor surfaces
+
+- Embedded editors that do not consume CSS custom properties directly, such as Monaco, must still resolve against the same shell background baseline.
+- The default editor canvas, gutter, and minimap background should use `rgb(248, 248, 248)` in light mode and `rgb(20, 20, 20)` in dark mode unless a documented product requirement overrides it.
+- When an embedded editor requires a programmatic theme definition, that theme should be treated as an implementation mirror of the design tokens rather than a separate visual system.
+
 ## Mode resolution
 
 ```ts
