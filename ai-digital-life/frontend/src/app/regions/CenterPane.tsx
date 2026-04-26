@@ -36,7 +36,6 @@ import {
 } from "../icons";
 import { MessageBlocks } from "../MessageBlocks";
 import { ContextSummaryBar } from "../components/conversation/ContextSummaryBar";
-import { ModelSelector } from "../components/models/ModelSelector";
 import { ApprovalCard } from "../components/approval/ApprovalCard";
 import { type ChatMode, type ContextChip, useUiStore } from "../ui-store";
 import { TooltipSimple } from "../components/Tooltip";
@@ -726,14 +725,6 @@ export function CenterPane({
             </TooltipSimple>
             )}
           </div>
-        </div>
-        <div className="adl-composer__model-row">
-          <ModelSelector
-            t={t}
-            currentModelId={modelHealth?.providers.find((p) => p.healthy)?.providerId}
-            modelHealth={modelHealth}
-            onSelect={onSelectModel}
-          />
         </div>
         <StatusBar
           inline

@@ -72,7 +72,14 @@ function subscribeChannel<T>(
 
 export function isTauriShell(): boolean {
   try {
-    return typeof import.meta !== "undefined" && Boolean(import.meta.env?.TAURI_ENV_PLATFORM);
+    if (typeof window === "undefined") {
+      return false;
+    }
+    const candidate = window as typeof window & {
+      __TAURI__?: unknown;
+      __TAURI_INTERNALS__?: unknown;
+    };
+    return Boolean(candidate.__TAURI_INTERNALS__ ?? candidate.__TAURI__);
   } catch {
     return false;
   }

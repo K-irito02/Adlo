@@ -17,7 +17,7 @@ import {
   IconSun,
   IconSquare
 } from "../icons";
-import logoUrl from "/logo.png?url";
+import logoUrl from "/logo-chatgpt.png?url";
 import { useUiStore } from "../ui-store";
 import { TooltipSimple } from "../components/Tooltip";
 
@@ -226,11 +226,13 @@ export function TitleBar({
   return (
     <header className="adl-titlebar" role="banner">
       <div className="adl-titlebar__left">
-        <h1 className="adl-titlebar__brand">
-          <TooltipSimple content={t.brandHoverName} placement="bottom">
-            <img src={logoUrl} alt={t.landingTitle} className="adl-titlebar__logo" draggable={false} />
-          </TooltipSimple>
-        </h1>
+        <div className="adl-titlebar__brand-slot" data-tauri-drag-region>
+          <h1 className="adl-titlebar__brand">
+            <TooltipSimple content={t.brandHoverName} placement="bottom">
+              <img src={logoUrl} alt={t.landingTitle} className="adl-titlebar__logo" draggable={false} />
+            </TooltipSimple>
+          </h1>
+        </div>
         <nav className="adl-titlebar__menus adl-iconstrip" aria-label="Application menu">
           <MenuDropdown
             id="file"
@@ -268,7 +270,7 @@ export function TitleBar({
           </TooltipSimple>
         </nav>
       </div>
-      <div className="adl-titlebar__drag" aria-hidden="true" />
+      <div className="adl-titlebar__drag" aria-hidden="true" data-tauri-drag-region />
       <div className="adl-titlebar__right">
         <div className="adl-titlebar__action-group adl-iconstrip" role="group" aria-label="Titlebar actions">
           <TooltipSimple content={t.theme} placement="bottom">

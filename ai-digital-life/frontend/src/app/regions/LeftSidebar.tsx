@@ -270,6 +270,34 @@ function StatusLamp({ status, title }: { status: SessionVisualStatus; title: str
   return <span className={`adl-status-lamp adl-status-lamp--${status}`} role="img" aria-label={title} />;
 }
 
+function WorkspaceDirectoryIcon({
+  expanded,
+  status,
+  title
+}: {
+  expanded: boolean;
+  status: SessionVisualStatus;
+  title: string;
+}) {
+  if (expanded) {
+    return (
+      <span className="adl-workspace-row__kind adl-workspace-row__kind--expanded" aria-hidden="true">
+        <IconFolderOpen size={12} decorative />
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className={`adl-workspace-row__kind adl-workspace-row__kind--collapsed adl-workspace-row__kind--${status}`}
+      role="img"
+      aria-label={title}
+    >
+      <IconFolder size={12} decorative />
+    </span>
+  );
+}
+
 function buildWorkspaceTooltip(t: CopyDict, counts: Record<SessionVisualStatus, number>): string {
   const parts = WORKSPACE_STATUS_ORDER.filter((status) => counts[status] > 0).map(
     (status) => `${t[STATUS_LABEL[status]]}: ${counts[status]}`
@@ -410,7 +438,7 @@ export function LeftSidebar({
   activeSessionId,
   streamingActiveRunId,
   taskCenter,
-  indexingStatus,
+  indexingStatus: _indexingStatus,
   onSelectSession,
   onCreateSession,
   onPinWorkspace,
@@ -1537,15 +1565,11 @@ export function LeftSidebar({
                   <span className="adl-workspace-row__leading">
                     {expanded ? (
                       <TooltipSimple content={t.workspaces} placement="right">
-                        <span className="adl-workspace-row__kind" aria-hidden="true">
-                          <IconFolder size={12} decorative />
-                        </span>
+                        <WorkspaceDirectoryIcon expanded status={item.rollupStatus} title={workspaceStatusLabel} />
                       </TooltipSimple>
                     ) : (
                       <TooltipSimple content={buildWorkspaceTooltip(t, item.statusCounts)} placement="right">
-                        <span className="adl-workspace-row__indicator adl-workspace-row__indicator--static">
-                          <StatusLamp status={item.rollupStatus} title={workspaceStatusLabel} />
-                        </span>
+                        <WorkspaceDirectoryIcon expanded={false} status={item.rollupStatus} title={workspaceStatusLabel} />
                       </TooltipSimple>
                     )}
                   </span>
@@ -1564,13 +1588,6 @@ export function LeftSidebar({
                       }}
                     >
                       <span>{item.workspace.name}</span>
-                      {item.isCurrent && indexingStatus && (
-                        <span className={`adl-chip adl-chip--xs adl-chip--${
-                          indexingStatus.state === "indexed" ? "success" : indexingStatus.state === "indexing" ? "info" : indexingStatus.state === "error" ? "danger" : "muted"
-                        }`}>
-                          {indexingStatus.state === "indexed" ? t.indexingCompleted : indexingStatus.state === "indexing" ? t.indexingInProgress : indexingStatus.state === "error" ? t.indexingError : t.indexingIdle}
-                        </span>
-                      )}
                     </button>
                   </TooltipSimple>
 

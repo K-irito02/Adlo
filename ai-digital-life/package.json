@@ -3,7 +3,10 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "dev": "cargo tauri dev",
+    "dev": "node ./scripts/run-project-surface.mjs tauri",
+    "dev:browser": "node ./scripts/run-project-surface.mjs browser",
+    "dev:both": "node ./scripts/run-project-surface.mjs both",
+    "dev:tauri": "node ./scripts/run-project-surface.mjs tauri",
     "build": "cargo tauri build",
     "frontend:dev": "npm --prefix frontend run dev",
     "frontend:build": "npm --prefix frontend run build",

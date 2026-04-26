@@ -110,7 +110,7 @@
   display: flex;
   align-items: center;
   height: var(--titlebar-height);
-  padding: 0 var(--space-3);
+  padding: 0 0 0 var(--space-3);
   background: var(--bg);
   border-bottom: 1px solid var(--border-subtle);
   -webkit-app-region: drag;
@@ -124,6 +124,10 @@
 .adl-titlebar .adl-titlebar__left,
 .adl-titlebar .adl-titlebar__right {
   -webkit-app-region: no-drag;
+}
+
+.adl-titlebar [data-tauri-drag-region] {
+  -webkit-app-region: drag;
 }
 
 .adl-titlebar__left {
@@ -143,6 +147,12 @@
   color: var(--text-primary);
   margin: 0;
   position: relative;
+}
+
+.adl-titlebar__brand-slot {
+  display: flex;
+  align-items: center;
+  align-self: stretch;
 }
 
 .adl-titlebar__logo {
@@ -825,6 +835,44 @@
   height: 22px;
   color: var(--text-muted);
   flex-shrink: 0;
+}
+
+.adl-workspace-row__kind--collapsed {
+  border-radius: var(--radius-sm);
+  transition: background-color var(--duration-150) var(--ease-default), color var(--duration-150) var(--ease-default);
+}
+
+.adl-workspace-row__kind--collapsed:hover,
+.adl-workspace-row__kind--collapsed:focus-visible,
+.adl-workspace-row__kind--collapsed:active {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.adl-workspace-row__kind--processing {
+  color: var(--accent);
+  animation: adl-breathe 1.6s infinite ease-in-out;
+}
+
+.adl-workspace-row__kind--pending-approval {
+  color: var(--warning);
+  animation: adl-breathe 2.2s infinite ease-in-out;
+}
+
+.adl-workspace-row__kind--abnormal {
+  color: var(--danger);
+  animation: adl-breathe 2s infinite ease-in-out;
+}
+
+.adl-workspace-row__kind--completed {
+  color: var(--success);
+  animation: adl-complete-fade 3s forwards;
+}
+
+.adl-workspace-row__kind--read {
+  color: var(--text-muted);
+  opacity: 0.4;
 }
 
 .adl-workspace-row__tail {
@@ -3920,6 +3968,46 @@
   background: transparent;
 }
 
+.adl-statusbar__model-trigger {
+  min-width: 0;
+  max-width: 220px;
+  height: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--space-1);
+  color: var(--text-muted);
+}
+
+.adl-statusbar__model-name {
+  display: inline-block;
+  min-width: 0;
+  max-width: 128px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: var(--font-medium);
+  color: inherit;
+}
+
+.adl-statusbar__model-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow: 0 0 0 1px color-mix(in srgb, currentColor 28%, transparent);
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+.adl-statusbar__model-dot--healthy {
+  color: color-mix(in srgb, var(--success) 70%, var(--text-muted));
+}
+
+.adl-statusbar__model-dot--degraded {
+  color: color-mix(in srgb, var(--warning) 70%, var(--text-muted));
+}
+
 .adl-statusbar__item:hover:not(:disabled) {
   background: var(--surface-hover);
   color: var(--text-primary);
@@ -3932,7 +4020,54 @@
 
 .adl-statusbar--inline .adl-statusbar__model-trigger:hover:not(:disabled) {
   background: transparent;
-  color: var(--text-primary);
+  color: currentColor;
+}
+
+.adl-statusbar__model-trigger:hover:not(:disabled) .adl-statusbar__model-dot,
+.adl-statusbar__model-trigger:focus-visible .adl-statusbar__model-dot {
+  box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 16%, transparent);
+}
+
+.adl-statusbar__model-option {
+  width: 100%;
+  min-width: 0;
+  height: 28px;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 0 var(--space-2);
+}
+
+.adl-statusbar__model-option.is-active {
+  background: var(--surface-hover);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+
+.adl-statusbar__model-option-name {
+  display: inline-block;
+  min-width: 0;
+  max-width: 148px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+
+.adl-statusbar__model-option-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow: 0 0 0 1px color-mix(in srgb, currentColor 28%, transparent);
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+.adl-statusbar__model-option-dot--healthy {
+  color: color-mix(in srgb, var(--success) 70%, var(--text-muted));
+}
+
+.adl-statusbar__model-option-dot--degraded {
+  color: color-mix(in srgb, var(--warning) 70%, var(--text-muted));
 }
 
 .adl-statusbar__sep {
@@ -3957,14 +4092,7 @@
 
 .adl-statusbar__model {
   position: relative;
-}
-
-.adl-statusbar__model-trigger strong {
-  color: var(--text-primary);
-}
-
-.adl-statusbar--inline .adl-statusbar__model-trigger strong {
-  font-weight: var(--font-medium);
+  min-width: 0;
 }
 
 @media (max-width: 960px) {
@@ -3999,7 +4127,9 @@
   position: absolute;
   bottom: calc(100% + 4px);
   right: 0;
+  width: 220px;
   min-width: 220px;
+  max-width: 220px;
   background: var(--surface-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -4013,8 +4143,8 @@
 
 .adl-statusbar--inline .adl-statusbar__model-menu {
   bottom: calc(100% + var(--space-1));
-  left: 0;
-  right: auto;
+  right: -34px;
+  left: auto;
 }
 
 .adl-statusbar__model-option {

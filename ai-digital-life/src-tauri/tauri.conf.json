@@ -5,9 +5,8 @@
   "identifier": "com.ai-digital-life.app",
   "build": {
     "frontendDist": "../frontend/dist",
-    "devUrl": "http://localhost:5173",
-    "beforeDevCommand": "npm --prefix ../frontend run dev",
-    "beforeBuildCommand": "npm --prefix ../frontend run build"
+    "devUrl": "http://127.0.0.1:5173",
+    "beforeBuildCommand": "npm --prefix ./frontend run build"
   },
   "app": {
     "windows": [
@@ -18,6 +17,7 @@
         "height": 800,
         "minWidth": 640,
         "minHeight": 480,
+        "decorations": false,
         "resizable": true,
         "fullscreen": false
       }
