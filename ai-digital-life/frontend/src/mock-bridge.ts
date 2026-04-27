@@ -515,27 +515,34 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
     }),
     getModelHealth: async () => ({ ok: true, data: modelHealth }),
     updatePreferences: async (patch) => {
+      const nextConfig = { ...appInfo.config };
       if (patch.language) {
-        appInfo.config.language = patch.language;
+        nextConfig.language = patch.language;
       }
       if (patch.themeMode) {
-        appInfo.config.themeMode = patch.themeMode;
-        appInfo.config.resolvedTheme = patch.themeMode === "dark" ? "dark" : "light";
+        nextConfig.themeMode = patch.themeMode;
+        nextConfig.resolvedTheme = patch.themeMode === "dark" ? "dark" : "light";
       }
       if (patch.modelPreferences) {
+        const nextProviders = { ...nextConfig.modelPreferences.providers };
         if (patch.modelPreferences.deepseek) {
-          appInfo.config.modelPreferences.providers.deepseek = {
-            ...appInfo.config.modelPreferences.providers.deepseek,
+          nextProviders.deepseek = {
+            ...nextProviders.deepseek,
             ...patch.modelPreferences.deepseek
           };
         }
         if (patch.modelPreferences.minimax) {
-          appInfo.config.modelPreferences.providers.minimax = {
-            ...appInfo.config.modelPreferences.providers.minimax,
+          nextProviders.minimax = {
+            ...nextProviders.minimax,
             ...patch.modelPreferences.minimax
           };
         }
+        nextConfig.modelPreferences = {
+          ...nextConfig.modelPreferences,
+          providers: nextProviders
+        };
       }
+      appInfo.config = nextConfig;
       return { ok: true, data: { ...appInfo, currentWorkspace: currentWorkspaceMeta } };
     }
   },

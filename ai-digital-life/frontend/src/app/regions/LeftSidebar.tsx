@@ -744,6 +744,7 @@ export function LeftSidebar({
     const startWidth = parseFloat(getComputedStyle(root).getPropertyValue("--leftbar-width")) || 180;
     const minWidth = parseFloat(getComputedStyle(root).getPropertyValue("--leftbar-width-min")) || 180;
     const maxWidth = parseFloat(getComputedStyle(root).getPropertyValue("--leftbar-width-max")) || 360;
+    const centerMinWidth = parseFloat(getComputedStyle(root).getPropertyValue("--center-width-min")) || 640;
 
     const onMouseMove = (moveEvent: MouseEvent) => {
       if (!draggingRef.current || rafRef.current) {
@@ -752,7 +753,12 @@ export function LeftSidebar({
       rafRef.current = requestAnimationFrame(() => {
         rafRef.current = 0;
         const delta = moveEvent.clientX - startX;
-        const newWidth = Math.min(maxWidth, Math.max(minWidth, startWidth + delta));
+        const rightWidth = shellBody.classList.contains("is-right-collapsed")
+          ? 0
+          : (parseFloat(getComputedStyle(shellBody).getPropertyValue("--rightpanel-width")) || 0);
+        const shellWidth = shellBody.getBoundingClientRect().width;
+        const allowedMax = Math.max(minWidth, shellWidth - rightWidth - centerMinWidth);
+        const newWidth = Math.min(Math.min(maxWidth, allowedMax), Math.max(minWidth, startWidth + delta));
         root.style.setProperty("--leftbar-width", `${newWidth}px`);
       });
     };

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import type { AppInfo, ModelProviderId } from "@ai-digital-life/kernel";
 import { copy, type Locale } from "./copy";
 import { DIFF_LAYOUT_STORAGE_KEY } from "./constants";
+import { MODEL_PROVIDER_IDS } from "./constants";
 import { buildSelectionPrompt } from "./selectionPrompt";
 import { themeController } from "./theme";
 import type { MonacoEditorRef } from "./types";
@@ -357,12 +358,23 @@ export function App() {
   );
 
   const handleSelectModel = useCallback(
-    (providerId: string) => {
-      void updatePreferences({
-        modelPreferences: {
-          [providerId as ModelProviderId]: { priority: 1, enabled: true }
+    (providerId: ModelProviderId, modelId?: string) => {
+      const patch: Record<ModelProviderId, { priority?: number; enabled?: boolean; modelId?: string }> =
+        {} as Record<ModelProviderId, { priority?: number; enabled?: boolean; modelId?: string }>;
+
+      for (const id of MODEL_PROVIDER_IDS) {
+        if (id === providerId) {
+          patch[id] = {
+            priority: 1,
+            enabled: true,
+            ...(modelId ? { modelId } : {})
+          };
+        } else {
+          patch[id] = { priority: 2 };
         }
-      });
+      }
+
+      void updatePreferences({ modelPreferences: patch });
     },
     [updatePreferences]
   );
@@ -407,8 +419,11 @@ export function App() {
     []
   );
 
-  const handleDiffMount = useCallback((editor: MonacoEditorRef) => {
+  const handleDiffMount = useCallback((editor: MonacoEditorRef, monaco?: unknown) => {
     diffEditorRef.current = editor;
+    if (monaco) {
+      (window as typeof window & { monaco?: unknown }).monaco = monaco;
+    }
   }, []);
 
   const handleApplyPatch = useCallback(() => {

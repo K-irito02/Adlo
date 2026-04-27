@@ -4,6 +4,7 @@ import type {
   AppInfo,
   GitBranchSummary,
   GitSnapshot,
+  ModelProviderId,
   ModelGatewayHealthSnapshot,
   RecentWorkspaceEntry,
   WorkspaceGitBranchCreateInput,
@@ -12,11 +13,13 @@ import type {
 } from "@ai-digital-life/kernel";
 import type { CopyDict } from "../copy";
 import { MODEL_PROVIDER_IDS } from "../constants";
+import { MODEL_OPTIONS } from "../constants";
 import {
   IconAlertTriangle,
   IconCheck,
   IconCheckCircle,
   IconCircle,
+  IconChevronRight,
   IconFolder,
   IconFolderOpen,
   IconGitBranch,
@@ -32,6 +35,12 @@ type PendingBranchAction =
   | { kind: "switch"; input: WorkspaceGitBranchSwitchInput }
   | { kind: "create"; input: WorkspaceGitBranchCreateInput };
 
+function modelLabel(providerId: ModelProviderId, modelId?: string): string {
+  if (!modelId) return "—";
+  const option = (MODEL_OPTIONS[providerId] ?? []).find((candidate) => candidate.id === modelId);
+  return option?.label ?? modelId;
+}
+
 interface StatusBarProps {
   t: CopyDict;
   appInfo?: AppInfo;
@@ -44,7 +53,7 @@ interface StatusBarProps {
   activeRun?: AgentRunDetail;
   workspaceContextMode: "workspace" | "global";
   pendingWorkspacePath?: string;
-  onSelectModel: (providerId: string) => void;
+  onSelectModel: (providerId: ModelProviderId, modelId?: string) => void;
   onOpenWorkspace: (workspacePath: string) => void;
   onClearWorkspaceContext: () => Promise<void>;
   onSetPendingWorkspacePath: (workspacePath?: string) => void;
@@ -126,8 +135,10 @@ export function StatusBar({
   const [workspaceDraft, setWorkspaceDraft] = useState(pendingWorkspacePath ?? "");
   const [branchDraft, setBranchDraft] = useState("");
   const [baseBranchDraft, setBaseBranchDraft] = useState("");
+  const [baseBranchMenuOpen, setBaseBranchMenuOpen] = useState(false);
   const [pendingBranchAction, setPendingBranchAction] = useState<PendingBranchAction>();
   const rootRef = useRef<HTMLDivElement>(null);
+  const baseBranchMenuWrapRef = useRef<HTMLDivElement>(null);
   const ContainerTag = inline ? "div" : "footer";
   const effectiveGitSnapshot = gitSnapshot ?? currentWorkspace?.gitSnapshot;
   const currentBranch = effectiveGitSnapshot?.branch ?? "main";
@@ -157,6 +168,11 @@ export function StatusBar({
     if (!activeProvider) return undefined;
     return modelHealth?.providers.find((provider) => provider.providerId === activeProvider.id);
   }, [activeProvider, modelHealth?.providers]);
+
+  const activeModelLabel = useMemo(() => {
+    if (!activeProvider?.id) return "—";
+    return modelLabel(activeProvider.id as ModelProviderId, activeProvider.modelId);
+  }, [activeProvider?.id, activeProvider?.modelId]);
 
   const workspaceStatusLabel = useMemo(() => {
     if (currentWorkspace) {
@@ -190,12 +206,14 @@ export function StatusBar({
       if (!rootRef.current?.contains(event.target as Node)) {
         setOpenMenu(undefined);
         setPendingBranchAction(undefined);
+        setBaseBranchMenuOpen(false);
       }
     };
     const onEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setOpenMenu(undefined);
         setPendingBranchAction(undefined);
+        setBaseBranchMenuOpen(false);
       }
     };
     document.addEventListener("mousedown", onPointerDown);
@@ -205,6 +223,19 @@ export function StatusBar({
       document.removeEventListener("keydown", onEscape);
     };
   }, [openMenu]);
+
+  useEffect(() => {
+    if (!baseBranchMenuOpen) {
+      return;
+    }
+    const onPointerDown = (event: MouseEvent) => {
+      if (!baseBranchMenuWrapRef.current?.contains(event.target as Node)) {
+        setBaseBranchMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    return () => document.removeEventListener("mousedown", onPointerDown);
+  }, [baseBranchMenuOpen]);
 
   useEffect(() => {
     if (openMenu === "branch" && hasWorkspace) {
@@ -278,6 +309,13 @@ export function StatusBar({
     }
     await handleCreateBranch(input);
   };
+
+  const baseBranchLabel = useMemo(() => {
+    if (!baseBranchDraft.trim()) {
+      return t.branchCreateFromCurrent;
+    }
+    return baseBranchDraft.trim();
+  }, [baseBranchDraft, t.branchCreateFromCurrent]);
 
   return (
     <ContainerTag
@@ -356,7 +394,7 @@ export function StatusBar({
                 </button>
                 <button
                   type="button"
-                  className="adl-btn adl-btn--primary adl-btn--sm"
+                  className="adl-btn adl-btn--ghost adl-btn--sm"
                   onClick={() => void handleBindPendingWorkspace(workspaceDraft)}
                   disabled={!workspaceDraft.trim()}
                 >
@@ -369,7 +407,7 @@ export function StatusBar({
             <div className="adl-statusbar__menu-section">
               <button
                 type="button"
-                className="adl-statusbar__menu-option"
+                className="adl-statusbar__menu-option adl-statusbar__menu-option--global"
                 onClick={() => {
                   void onClearWorkspaceContext().then(() => {
                     onSetPendingWorkspacePath(undefined);
@@ -473,29 +511,61 @@ export function StatusBar({
 
             <div className="adl-statusbar__menu-section">
               <strong className="adl-statusbar__menu-subtitle">{t.branchCreateTitle}</strong>
-              <input
-                className="adl-statusbar__input"
-                value={branchDraft}
-                onChange={(event) => setBranchDraft(event.currentTarget.value)}
-                placeholder={t.branchCreatePlaceholder}
-              />
-              <select
-                className="adl-select adl-select--sm"
-                value={baseBranchDraft}
-                onChange={(event) => setBaseBranchDraft(event.currentTarget.value)}
-                aria-label={t.branchCreateFromCurrent}
-              >
-                <option value="">{t.branchCreateFromCurrent}</option>
-                {gitBranches.map((branch) => (
-                  <option key={branch.name} value={branch.name}>
-                    {branch.name}
-                  </option>
-                ))}
-              </select>
+              <div className="adl-statusbar__menu-row adl-statusbar__menu-row--branch-create">
+                <input
+                  className="adl-statusbar__input"
+                  value={branchDraft}
+                  onChange={(event) => setBranchDraft(event.currentTarget.value)}
+                  placeholder={t.branchCreatePlaceholder}
+                />
+                <div className="adl-statusbar__submenu-wrap" ref={baseBranchMenuWrapRef}>
+                  <button
+                    type="button"
+                    className="adl-statusbar__submenu-trigger"
+                    aria-haspopup="menu"
+                    aria-expanded={baseBranchMenuOpen}
+                    onClick={() => setBaseBranchMenuOpen((current) => !current)}
+                  >
+                    <span className="adl-statusbar__submenu-label">{baseBranchLabel}</span>
+                    <IconChevronRight size={14} decorative />
+                  </button>
+                  {baseBranchMenuOpen ? (
+                    <div className="adl-statusbar__submenu" role="menu" aria-label={t.branchCreateFromCurrent}>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className={`adl-statusbar__menu-option${!baseBranchDraft.trim() ? " is-active" : ""}`}
+                        onClick={() => {
+                          setBaseBranchDraft("");
+                          setBaseBranchMenuOpen(false);
+                        }}
+                      >
+                        <span className="adl-statusbar__menu-option-main">{t.branchCreateFromCurrent}</span>
+                        {!baseBranchDraft.trim() ? <IconCheck size={14} decorative /> : null}
+                      </button>
+                      {gitBranches.map((branch) => (
+                        <button
+                          key={branch.name}
+                          type="button"
+                          role="menuitem"
+                          className={`adl-statusbar__menu-option${baseBranchDraft === branch.name ? " is-active" : ""}`}
+                          onClick={() => {
+                            setBaseBranchDraft(branch.name);
+                            setBaseBranchMenuOpen(false);
+                          }}
+                        >
+                          <span className="adl-statusbar__menu-option-main">{branch.name}</span>
+                          {baseBranchDraft === branch.name ? <IconCheck size={14} decorative /> : null}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
               <div className="adl-statusbar__menu-actions">
                 <button
                   type="button"
-                  className="adl-btn adl-btn--primary adl-btn--sm"
+                  className="adl-btn adl-btn--ghost adl-btn--sm"
                   onClick={() => void handleSubmitCreateBranch()}
                   disabled={!branchDraft.trim()}
                 >
@@ -509,6 +579,7 @@ export function StatusBar({
       </div>
 
       <span className="adl-statusbar__spacer" />
+      <span className="adl-statusbar__sep" aria-hidden="true" />
 
       <div className="adl-statusbar__slot">
         <button
@@ -518,8 +589,8 @@ export function StatusBar({
           aria-haspopup="menu"
         >
           <span>{t.modelLabel}</span>
-          <TooltipSimple content={activeProvider?.modelId ?? "—"} placement="top">
-            <strong className="adl-statusbar__model-name">{activeProvider?.modelId ?? "—"}</strong>
+          <TooltipSimple content={activeModelLabel} placement="top">
+            <strong className="adl-statusbar__model-name">{activeModelLabel}</strong>
           </TooltipSimple>
           <TooltipSimple content={modelHealthLabel(t, activeProviderHealth?.healthy)} placement="top">
             <span
@@ -531,29 +602,43 @@ export function StatusBar({
         </button>
         {openMenu === "model" ? (
           <div className="adl-statusbar__menu adl-statusbar__menu--model" role="menu">
-            {MODEL_PROVIDER_IDS.map((providerId) => {
+            {MODEL_PROVIDER_IDS.flatMap((providerId) => {
               const health = modelHealth?.providers.find((provider) => provider.providerId === providerId);
               const preference = appInfo?.config.modelPreferences.providers[providerId];
-              if (!preference) return null;
-              return (
-                <button
-                  key={providerId}
-                  type="button"
-                  role="menuitem"
-                  className={`adl-statusbar__menu-option${providerId === activeProvider?.id ? " is-active" : ""}`}
-                  onClick={() => {
-                    onSelectModel(providerId);
-                    setOpenMenu(undefined);
-                  }}
-                >
-                  <span className="adl-statusbar__menu-option-main">{preference.modelId}</span>
-                  <span
-                    className={`adl-statusbar__model-option-dot adl-statusbar__model-option-dot--${modelHealthTone(health?.healthy)}`}
-                    aria-label={modelHealthLabel(t, health?.healthy)}
-                    role="img"
-                  />
-                </button>
-              );
+              if (!preference) return [];
+
+              const configured = { id: preference.modelId, label: preference.modelId };
+              const baseOptions = MODEL_OPTIONS[providerId] ?? [];
+              const options = baseOptions.some((option) => option.id === configured.id)
+                ? baseOptions
+                : [configured, ...baseOptions];
+
+              return options.map((option) => {
+                const isActive = providerId === activeProvider?.id && option.id === activeProvider.modelId;
+                return (
+                  <button
+                    key={`${providerId}:${option.id}`}
+                    type="button"
+                    role="menuitem"
+                    className={`adl-statusbar__menu-option${isActive ? " is-active" : ""}`}
+                    onClick={() => {
+                      onSelectModel(providerId, option.id);
+                      setOpenMenu(undefined);
+                    }}
+                  >
+                    <span className="adl-statusbar__menu-option-main">{option.label}</span>
+                    {isActive ? (
+                      <IconCheck size={14} decorative />
+                    ) : (
+                      <span
+                        className={`adl-statusbar__model-option-dot adl-statusbar__model-option-dot--${modelHealthTone(health?.healthy)}`}
+                        aria-label={modelHealthLabel(t, health?.healthy)}
+                        role="img"
+                      />
+                    )}
+                  </button>
+                );
+              });
             })}
           </div>
         ) : null}

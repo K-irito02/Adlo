@@ -182,28 +182,35 @@ export function setupPreviewBridge(): void {
       getDiagnostics: mockDigitalLifeBridge.app.getDiagnostics,
       getModelHealth: mockDigitalLifeBridge.app.getModelHealth,
       updatePreferences: async (patch: AppPreferencePatch) => {
+        const nextConfig = { ...appInfo.config };
         if (patch.language) {
-          appInfo.config.language = patch.language;
+          nextConfig.language = patch.language;
         }
         if (patch.themeMode) {
-          appInfo.config.themeMode = patch.themeMode;
-          appInfo.config.resolvedTheme = patch.themeMode === "dark" ? "dark" : "light";
+          nextConfig.themeMode = patch.themeMode;
+          nextConfig.resolvedTheme = patch.themeMode === "dark" ? "dark" : "light";
         }
         if (patch.modelPreferences) {
+          const nextProviders = { ...nextConfig.modelPreferences.providers };
           if (patch.modelPreferences.deepseek) {
-            appInfo.config.modelPreferences.providers.deepseek = {
-              ...appInfo.config.modelPreferences.providers.deepseek,
+            nextProviders.deepseek = {
+              ...nextProviders.deepseek,
               ...patch.modelPreferences.deepseek
             };
           }
           if (patch.modelPreferences.minimax) {
-            appInfo.config.modelPreferences.providers.minimax = {
-              ...appInfo.config.modelPreferences.providers.minimax,
+            nextProviders.minimax = {
+              ...nextProviders.minimax,
               ...patch.modelPreferences.minimax
             };
           }
+          nextConfig.modelPreferences = {
+            ...nextConfig.modelPreferences,
+            providers: nextProviders
+          };
         }
-        persistPreviewPreferences(appInfo.config);
+        appInfo.config = nextConfig;
+        persistPreviewPreferences(nextConfig);
         return {
           ok: true,
           data: {

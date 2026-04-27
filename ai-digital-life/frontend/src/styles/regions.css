@@ -17,6 +17,7 @@
   --leftbar-width-collapsed: 0;
   --rightpanel-width: 420px;
   --rightpanel-width-collapsed: 0;
+  --center-width-min: 640px;
   --toolswitcher-width: 48px;
   --panel-content-shift: 10px;
   --panel-content-blur: 1px;
@@ -49,7 +50,7 @@
 
 .adl-shell__body {
   display: grid;
-  grid-template-columns: var(--leftbar-width) 1fr var(--rightpanel-width);
+  grid-template-columns: var(--leftbar-width) minmax(var(--center-width-min), 1fr) var(--rightpanel-width);
   min-height: 0;
   background: var(--bg);
   transition: grid-template-columns var(--panel-shell-duration) var(--ease-default);
@@ -60,15 +61,15 @@
 }
 
 .adl-shell__body.is-left-collapsed {
-  grid-template-columns: 0 1fr var(--rightpanel-width);
+  grid-template-columns: 0 minmax(var(--center-width-min), 1fr) var(--rightpanel-width);
 }
 
 .adl-shell__body.is-right-collapsed {
-  grid-template-columns: var(--leftbar-width) 1fr 0;
+  grid-template-columns: var(--leftbar-width) minmax(var(--center-width-min), 1fr) 0;
 }
 
 .adl-shell__body.is-left-collapsed.is-right-collapsed {
-  grid-template-columns: 0 1fr 0;
+  grid-template-columns: 0 minmax(var(--center-width-min), 1fr) 0;
 }
 
 .adl-banner {
@@ -1544,7 +1545,7 @@
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
   padding: var(--space-4);
-  width: min(420px, 100%);
+  width: min(380px, 100%);
   margin-top: 0;
   box-sizing: border-box;
 }
@@ -1635,9 +1636,12 @@
 }
 
 .adl-welcome__recent button {
-  display: flex;
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 0;
+  justify-items: start;
+  column-gap: var(--space-1);
+  text-align: left;
   width: 100%;
   padding: var(--space-2) var(--space-3);
   background: transparent;
@@ -1670,15 +1674,15 @@
 
 .adl-welcome__path {
   color: var(--text-muted);
-  margin-left: var(--space-2);
   font-family: var(--font-mono);
   font-size: 11px;
-  flex: 1 1 auto;
   min-width: 0;
   max-width: none;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  justify-self: end;
+  text-align: right;
 }
 
 .adl-welcome__recent-icon {
@@ -1687,16 +1691,14 @@
   align-items: center;
   justify-content: flex-start;
   color: var(--text-muted);
-  flex: 0 0 auto;
 }
 
 .adl-welcome__recent-icon svg {
-  /* Nudge glyph towards the label to reduce perceived whitespace. */
-  transform: translateX(8px);
+  display: block;
 }
 
 .adl-welcome__recent-name {
-  flex: 0 1 42%;
+  color: var(--text-secondary);
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1705,11 +1707,17 @@
 
 .adl-welcome__hints {
   padding: 0;
+  text-align: center;
+}
+
+.adl-welcome__actionsbar .adl-btn {
+  color: var(--text-secondary);
 }
 
 .adl-welcome__hints header {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: var(--space-2);
   font-size: var(--text-xs);
   font-weight: var(--font-semibold);
@@ -1723,6 +1731,10 @@
   font-size: var(--text-xs);
   color: var(--text-secondary);
   list-style: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
 }
 
 
@@ -1798,6 +1810,10 @@
   transition: var(--theme-transition);
 }
 
+.adl-center__body--empty + .adl-composer {
+  border-top: 0;
+}
+
 .adl-composer__chips {
   display: flex;
   flex-wrap: wrap;
@@ -1825,10 +1841,10 @@
   align-items: center;
   gap: var(--space-1-5);
   width: 100%;
-  min-height: 54px;
+  min-height: 44px;
   height: auto;
   place-self: center;
-  padding: var(--space-1-5) var(--space-2) var(--space-1-5) var(--space-3);
+  padding: calc(var(--space-1) + var(--space-0-5)) var(--space-2) calc(var(--space-1) + var(--space-0-5)) var(--space-3);
   border: 1px solid var(--border);
   border-radius: var(--radius-full);
   background: var(--bg-input);
@@ -3601,7 +3617,8 @@
 
 .adl-browser-welcome,
 .adl-browser-preview,
-.adl-terminal-placeholder {
+.adl-terminal-placeholder,
+.adl-editor-placeholder {
   display: grid;
   gap: var(--space-3);
   padding: var(--space-4);
@@ -4312,9 +4329,9 @@
   }
 
   .adl-composer__inner {
-    min-height: 50px;
-    padding: var(--space-1-5) var(--space-1-5) var(--space-1-5) var(--space-2);
-    border-radius: var(--radius-2xl);
+    min-height: 42px;
+    padding: calc(var(--space-1) + var(--space-0-5)) var(--space-1-5) calc(var(--space-1) + var(--space-0-5)) var(--space-2);
+    border-radius: var(--radius-full);
   }
 
   .adl-statusbar--inline {
@@ -4366,13 +4383,88 @@
   width: min(320px, calc(100vw - var(--space-6)));
 }
 
+.adl-statusbar__menu--workspace .adl-statusbar__menu-option {
+  border: 0;
+}
+
+.adl-statusbar__menu--branch .adl-statusbar__menu-option {
+  border: 0;
+}
+
+.adl-statusbar__menu--model .adl-statusbar__menu-option {
+  border: 0;
+}
+
+.adl-statusbar__menu--workspace .adl-statusbar__menu-option:hover,
+.adl-statusbar__menu--workspace .adl-statusbar__menu-option:focus-visible {
+  border-color: transparent;
+  box-shadow: none;
+  outline: none;
+}
+
+.adl-statusbar__menu--branch .adl-statusbar__menu-option:hover,
+.adl-statusbar__menu--branch .adl-statusbar__menu-option:focus-visible {
+  border-color: transparent;
+  box-shadow: none;
+  outline: none;
+}
+
+.adl-statusbar__menu--model .adl-statusbar__menu-option:hover,
+.adl-statusbar__menu--model .adl-statusbar__menu-option:focus-visible {
+  border-color: transparent;
+  box-shadow: none;
+  outline: none;
+}
+
+.adl-statusbar__menu--workspace .adl-statusbar__menu-option.is-active {
+  border-color: transparent;
+}
+
+.adl-statusbar__menu--branch .adl-statusbar__menu-option.is-active {
+  border-color: transparent;
+}
+
+.adl-statusbar__menu--model .adl-statusbar__menu-option.is-active {
+  border-color: transparent;
+}
+
+.adl-statusbar__menu--workspace .adl-statusbar__menu-option--global {
+  background: var(--surface-subtle);
+}
+
+.adl-statusbar__menu--workspace .adl-statusbar__menu-option--global .adl-statusbar__menu-option-main {
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+}
+
+.adl-statusbar__menu--workspace .adl-statusbar__menu-option--global:hover,
+.adl-statusbar__menu--workspace .adl-statusbar__menu-option--global:focus-visible {
+  background: var(--surface-hover);
+}
+
 .adl-statusbar__menu--branch {
   width: min(280px, calc(100vw - var(--space-6)));
+}
+
+.adl-statusbar__menu--model {
+  width: min(168px, calc(100vw - var(--space-6)));
 }
 
 .adl-statusbar__menu-section {
   display: grid;
   gap: var(--space-1-5);
+}
+
+.adl-statusbar__menu-row {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  align-items: center;
+  gap: var(--space-1-5);
+  min-width: 0;
+}
+
+.adl-statusbar__menu-row > * {
+  min-width: 0;
 }
 
 .adl-statusbar__menu-section + .adl-statusbar__menu-section {
@@ -4474,6 +4566,61 @@
   gap: var(--space-1-5);
 }
 
+.adl-statusbar__menu--workspace .adl-statusbar__menu-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: stretch;
+  gap: var(--space-1-5);
+}
+
+.adl-statusbar__menu--workspace .adl-statusbar__menu-actions .adl-btn {
+  width: 100%;
+  height: 32px;
+  justify-content: center;
+  align-items: center;
+  border: 0;
+  background: var(--surface-subtle);
+  color: var(--text-secondary);
+}
+
+.adl-statusbar__menu--branch .adl-statusbar__menu-actions .adl-btn {
+  width: 100%;
+  height: 32px;
+  justify-content: center;
+  align-items: center;
+  border: 0;
+  background: var(--surface-subtle);
+  color: var(--text-secondary);
+}
+
+.adl-statusbar__menu--workspace .adl-statusbar__menu-actions .adl-btn:focus-visible {
+  box-shadow: none;
+  outline: none;
+}
+
+.adl-statusbar__menu--branch .adl-statusbar__menu-actions .adl-btn:focus-visible {
+  box-shadow: none;
+  outline: none;
+}
+
+.adl-statusbar__menu--workspace .adl-statusbar__menu-actions .adl-btn:disabled {
+  opacity: 1;
+}
+
+.adl-statusbar__menu--branch .adl-statusbar__menu-actions .adl-btn:disabled {
+  opacity: 1;
+}
+
+.adl-statusbar__menu--workspace .adl-statusbar__menu-actions .adl-btn:hover,
+.adl-statusbar__menu--workspace .adl-statusbar__menu-actions .adl-btn:focus-visible {
+  background: var(--surface-hover);
+}
+
+.adl-statusbar__menu--branch .adl-statusbar__menu-actions .adl-btn:hover,
+.adl-statusbar__menu--branch .adl-statusbar__menu-actions .adl-btn:focus-visible {
+  background: var(--surface-hover);
+}
+
 .adl-statusbar__input {
   width: 100%;
   min-width: 0;
@@ -4486,10 +4633,117 @@
   font-size: var(--text-xs);
 }
 
+.adl-statusbar__menu--workspace .adl-statusbar__input {
+  border: 0;
+  background: transparent;
+}
+
+.adl-statusbar__menu--branch .adl-statusbar__input {
+  border: 0;
+  background: transparent;
+}
+
 .adl-statusbar__input:focus {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.adl-statusbar__menu--workspace .adl-statusbar__input:focus-visible {
+  box-shadow: none;
+  outline: none;
+}
+
+.adl-statusbar__menu--branch .adl-statusbar__input:focus-visible {
+  box-shadow: none;
+  outline: none;
+}
+
+.adl-statusbar__menu--workspace .adl-statusbar__input:focus {
+  border-color: transparent;
+  box-shadow: none;
+  background: var(--surface-subtle);
+}
+
+.adl-statusbar__menu--branch .adl-statusbar__input:focus {
+  border-color: transparent;
+  box-shadow: none;
+  background: var(--surface-subtle);
+}
+
+.adl-statusbar__menu--workspace .adl-statusbar__input:hover,
+.adl-statusbar__menu--branch .adl-statusbar__input:hover {
+  background: var(--surface-subtle);
+}
+
+.adl-statusbar__submenu-wrap {
+  position: relative;
+  min-width: 0;
+}
+
+.adl-statusbar__submenu-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1);
+  width: 100%;
+  height: 32px;
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-align: left;
+}
+
+.adl-statusbar__submenu-trigger:hover,
+.adl-statusbar__submenu-trigger:focus-visible {
+  background: var(--surface-subtle);
+  outline: none;
+  box-shadow: none;
+}
+
+.adl-statusbar__submenu-trigger[aria-expanded="true"] {
+  background: var(--surface-subtle);
+}
+
+.adl-statusbar__submenu-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adl-statusbar__submenu {
+  position: absolute;
+  top: 0;
+  left: calc(100% + var(--space-1));
+  z-index: calc(var(--z-popover) + 1);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  width: min(220px, calc(100vw - var(--space-6)));
+  padding: var(--space-2);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+.adl-statusbar__submenu .adl-statusbar__menu-option {
+  border: 0;
+}
+
+.adl-statusbar__submenu .adl-statusbar__menu-option:hover,
+.adl-statusbar__submenu .adl-statusbar__menu-option:focus-visible {
+  border-color: transparent;
+  box-shadow: none;
+  outline: none;
+}
+
+.adl-statusbar__submenu .adl-statusbar__menu-option.is-active {
+  border-color: transparent;
 }
 
 .adl-statusbar__item--readonly {

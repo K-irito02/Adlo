@@ -5,6 +5,7 @@ import type {
   DigitalLifeRunActivityEventV1,
   GitBranchSummary,
   GitSnapshot,
+  ModelProviderId,
   ModelTokenUsage,
   ModelGatewayHealthSnapshot,
   ApprovalRequestSummary,
@@ -74,7 +75,7 @@ interface CenterPaneProps {
   onPickWorkspaceDirectory: () => Promise<string | undefined>;
   onCreateSession: () => void;
   onDecideApproval: (approvalId: string, decision: "approved" | "rejected") => void;
-  onSelectModel: (providerId: string) => void;
+  onSelectModel: (providerId: ModelProviderId, modelId?: string) => void;
   onRefreshGitBranches: () => Promise<void>;
   onSwitchGitBranch: (input: WorkspaceGitBranchSwitchInput) => Promise<void>;
   onCreateGitBranch: (input: WorkspaceGitBranchCreateInput) => Promise<void>;

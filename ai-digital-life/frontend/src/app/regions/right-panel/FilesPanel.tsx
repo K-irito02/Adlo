@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Editor, { DiffEditor } from "@monaco-editor/react";
 import type { WorkspaceTreeNode } from "@ai-digital-life/kernel";
 import type { MonacoEditorRef } from "../../types";
@@ -30,6 +30,59 @@ type FilesNavigatorMode = "tree" | "search" | "outline";
 
 const MONACO_THEME_LIGHT = "adl-light";
 const MONACO_THEME_DARK = "adl-dark";
+
+type MonacoNamespace = {
+  editor?: {
+    defineTheme?: (
+      name: string,
+      data: {
+        base: "vs" | "vs-dark";
+        inherit: boolean;
+        rules: Array<{ token: string; foreground?: string; background?: string }>;
+        colors: Record<string, string>;
+      }
+    ) => void;
+    setTheme?: (theme: string) => void;
+  };
+};
+
+function readThemeVar(theme: "light" | "dark", name: string): string | undefined {
+  if (typeof document === "undefined") return undefined;
+  const probe = document.createElement("div");
+  probe.setAttribute("data-theme", theme);
+  probe.style.position = "absolute";
+  probe.style.opacity = "0";
+  probe.style.pointerEvents = "none";
+  probe.style.width = "0";
+  probe.style.height = "0";
+
+  const container = document.body ?? document.documentElement;
+  container.appendChild(probe);
+  try {
+    const value = getComputedStyle(probe).getPropertyValue(name).trim();
+    return value ? value : undefined;
+  } finally {
+    container.removeChild(probe);
+  }
+}
+
+function buildMonacoThemeData(theme: "light" | "dark"): {
+  base: "vs" | "vs-dark";
+  inherit: boolean;
+  rules: Array<{ token: string; foreground?: string; background?: string }>;
+  colors: Record<string, string>;
+} {
+  const base = theme === "dark" ? "vs-dark" : "vs";
+  const surface = readThemeVar(theme, "--surface") ?? readThemeVar(theme, "--bg");
+  const colors: Record<string, string> = surface
+    ? {
+        "editor.background": surface,
+        "editorGutter.background": surface,
+        "minimap.background": surface
+      }
+    : {};
+  return { base, inherit: true, rules: [], colors };
+}
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -241,6 +294,23 @@ export function FilesPanel(props: RightPanelViewProps) {
     return `${rootPath}${rootPath.endsWith(separator) ? "" : separator}${normalizedRelative}`;
   }, [appInfo?.currentWorkspace?.path, appInfo?.currentWorkspace?.rootPath, selectedFilePath]);
   const monacoTheme = appInfo?.config.resolvedTheme === "dark" ? MONACO_THEME_DARK : MONACO_THEME_LIGHT;
+  const [monacoNamespace, setMonacoNamespace] = useState<MonacoNamespace | null>(null);
+
+  const ensureMonacoThemes = useCallback((monaco: MonacoNamespace) => {
+    monaco.editor?.defineTheme?.(MONACO_THEME_LIGHT, buildMonacoThemeData("light"));
+    monaco.editor?.defineTheme?.(MONACO_THEME_DARK, buildMonacoThemeData("dark"));
+  }, []);
+
+  const handleMonacoBeforeMount = useCallback(
+    (monaco: unknown) => {
+      const namespace = monaco as MonacoNamespace;
+      setMonacoNamespace((current) => (current === namespace ? current : namespace));
+      (window as typeof window & { monaco?: unknown }).monaco = monaco;
+      ensureMonacoThemes(namespace);
+    },
+    [ensureMonacoThemes]
+  );
+
   useEffect(() => {
     if (selectedFilePath) {
       expandFileTreePathChain(selectedFilePath);
@@ -248,44 +318,10 @@ export function FilesPanel(props: RightPanelViewProps) {
   }, [expandFileTreePathChain, selectedFilePath]);
 
   useEffect(() => {
-    const monaco = (window as typeof window & {
-      monaco?: {
-        editor?: {
-          defineTheme?: (
-            name: string,
-            data: {
-              base: "vs" | "vs-dark";
-              inherit: boolean;
-              rules: Array<{ token: string; foreground?: string; background?: string }>;
-              colors: Record<string, string>;
-            }
-          ) => void;
-          setTheme?: (theme: string) => void;
-        };
-      };
-    }).monaco;
-    monaco?.editor?.defineTheme?.(MONACO_THEME_LIGHT, {
-      base: "vs",
-      inherit: true,
-      rules: [],
-      colors: {
-        "editor.background": "#F8F8F8",
-        "editorGutter.background": "#F8F8F8",
-        "minimap.background": "#F8F8F8"
-      }
-    });
-    monaco?.editor?.defineTheme?.(MONACO_THEME_DARK, {
-      base: "vs-dark",
-      inherit: true,
-      rules: [],
-      colors: {
-        "editor.background": "#141414",
-        "editorGutter.background": "#141414",
-        "minimap.background": "#141414"
-      }
-    });
-    monaco?.editor?.setTheme?.(monacoTheme);
-  }, [monacoTheme]);
+    if (!monacoNamespace) return;
+    ensureMonacoThemes(monacoNamespace);
+    monacoNamespace.editor?.setTheme?.(monacoTheme);
+  }, [ensureMonacoThemes, monacoNamespace, monacoTheme]);
 
   useEffect(() => {
     if (!selectedFilePath) {
@@ -691,7 +727,7 @@ export function FilesPanel(props: RightPanelViewProps) {
                   ))}
                 </ul>
               ) : (
-                <p className="adl-empty-hint">{t.workspaceEmpty}</p>
+                null
               )}
             </>
           ) : null}
@@ -834,7 +870,9 @@ export function FilesPanel(props: RightPanelViewProps) {
           {editorHint ? <p className="adl-tool-hint">{editorHint}</p> : null}
 
           <div className="adl-tool-editor" data-testid="editor-shell">
-            {filePatch && filePatch.relativePath === selectedFilePath ? (
+            {!selectedFilePath ? (
+              null
+            ) : filePatch && filePatch.relativePath === selectedFilePath ? (
               <>
                 <div className="adl-diff-toolbar" role="group" aria-label={t.diffLayoutLabel}>
                   <span className="adl-diff-toolbar__label">{t.diffLayoutLabel}</span>
@@ -849,6 +887,7 @@ export function FilesPanel(props: RightPanelViewProps) {
                 </div>
                 <DiffEditor
                   theme={monacoTheme}
+                  beforeMount={handleMonacoBeforeMount}
                   language={editorLanguage}
                   original={filePatch.beforeContent}
                   modified={filePatch.afterContent}
@@ -860,12 +899,13 @@ export function FilesPanel(props: RightPanelViewProps) {
                     scrollBeyondLastLine: false,
                     wordWrap: wordWrapEnabled ? "on" : "off"
                   }}
-                  onMount={(editor) => onDiffMount(editor as unknown as MonacoEditorRef)}
-                />
+                onMount={(editor) => onDiffMount(editor as unknown as MonacoEditorRef)}
+              />
               </>
             ) : (
               <Editor
                 theme={monacoTheme}
+                beforeMount={handleMonacoBeforeMount}
                 language={editorLanguage}
                 value={fileContent ?? ""}
                 options={{

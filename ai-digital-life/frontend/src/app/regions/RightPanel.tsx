@@ -31,10 +31,20 @@ export function RightPanel(props: RightPanelViewProps) {
       let latestWidth = startWidth;
       const body = document.body;
       const shellBody = panelRef.current?.closest(".adl-shell__body") as HTMLElement | null;
+      const root = document.documentElement;
       body.classList.add("adl-is-resizing");
       shellBody?.classList.add("is-resizing");
 
-      const clampWidth = (value: number) => Math.max(RIGHT_PANEL_WIDTH_MIN, Math.min(RIGHT_PANEL_WIDTH_MAX, value));
+      const clampWidth = (value: number) => {
+        const leftWidth = shellBody?.classList.contains("is-left-collapsed")
+          ? 0
+          : (parseFloat(getComputedStyle(root).getPropertyValue("--leftbar-width")) || 0);
+        const centerMinWidth = parseFloat(getComputedStyle(root).getPropertyValue("--center-width-min")) || 640;
+        const shellWidth = shellBody?.getBoundingClientRect().width ?? window.innerWidth;
+        const allowedMax = Math.max(RIGHT_PANEL_WIDTH_MIN, shellWidth - leftWidth - centerMinWidth);
+        const maxWidth = Math.min(RIGHT_PANEL_WIDTH_MAX, allowedMax);
+        return Math.max(RIGHT_PANEL_WIDTH_MIN, Math.min(maxWidth, value));
+      };
       const applyPreviewWidth = (value: number) => {
         shellBody?.style.setProperty("--rightpanel-width", `${clampWidth(value)}px`);
       };

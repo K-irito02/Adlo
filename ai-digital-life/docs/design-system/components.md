@@ -194,6 +194,50 @@ The stylesheet also ships ready-to-use classes that helpers don't expose yet but
 - `.tooltip` — absolutely-positioned tooltip surface (paired with custom JS positioning logic when used).
 - `.toast-region`, `.toast` — top-right notification stack with `toast-in` animation.
 
+## StatusBar menus
+
+Source of truth: `[frontend/src/app/regions/StatusBar.tsx](../../frontend/src/app/regions/StatusBar.tsx)` and `[frontend/src/styles/regions.css](../../frontend/src/styles/regions.css)`.
+
+Applies to the inline StatusBar menus:
+
+- `.adl-statusbar__menu` base container
+- `.adl-statusbar__menu--workspace` (workspace binding / recent list)
+- `.adl-statusbar__menu--branch` (git branch switch/create)
+- `.adl-statusbar__menu--model` (model selection)
+
+### Layout + container
+
+- Menu uses a popover card style: `--surface-raised` background, `--border` outline, `--radius-lg` rounding, `--shadow-lg` shadow.
+- Width is constrained to a safe minimum for dense statusbars (`--model` intentionally narrower than other menus).
+- Sections (`.adl-statusbar__menu-section`) are separated with a subtle top border (`--border-subtle`).
+
+### Option rows
+
+- `.adl-statusbar__menu-option` is the shared row primitive for menu list items.
+- Active + hover states use **background only** (`--surface-hover`); **no visible border outline** in these menus (workspace/branch/model) to keep the card clean and consistent.
+- `:focus-visible` removes default outlines and relies on the same background emphasis as hover to avoid “double focus rings” inside the card.
+
+### Inputs
+
+- `.adl-statusbar__input` uses a minimal chrome style (no visible border by default).
+- On hover or focus, inputs show a subtle grey background emphasis, and return to transparent when the pointer leaves and the input is not focused.
+
+### Actions
+
+- `.adl-statusbar__menu-actions` buttons are equal-width and centered within their own halves for a stable layout.
+- Actions use `--surface-subtle` backgrounds by default and `--surface-hover` on hover/focus, with icon + text inheriting `currentColor`.
+
+### Additional rules
+
+- **No blue chrome**: avoid `adl-btn--primary` in these menus; use `ghost` + a neutral background instead.
+- **Consistent action surfaces**: buttons inside `.adl-statusbar__menu-actions` always show the same neutral background, even when disabled.
+- **Muted action tone**: action buttons use `color: var(--text-secondary)` so icon + label read as a unified light grey.
+- **Workspace bind actions are two-column**: `.adl-statusbar__menu--workspace .adl-statusbar__menu-actions` uses a 2× grid so “选择文件夹 / 绑定该路径” split evenly and center within their cells.
+- **Global mode row**: use `.adl-statusbar__menu-option--global` for the “对话模式 / 不用绑定工作空间” row to pin a default subtle background and a slightly stronger title weight.
+- **Branch create row**: use `.adl-statusbar__menu-row` (e.g. `adl-statusbar__menu-row--branch-create`) to put “新建分支名称输入框 + 基于当前分支选择” on the same line.
+- **Branch base selector is a cascading submenu**: use `.adl-statusbar__submenu-trigger` with a right-chevron and open a sibling `.adl-statusbar__submenu` card aligned to the right, matching the same menu surface tokens.
+- **Model menu stays compact**: `.adl-statusbar__menu--model` uses a narrower width; model selection updates provider priority to avoid ties so switching always takes effect.
+
 ## State coverage matrix
 
 
