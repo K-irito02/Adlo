@@ -255,14 +255,16 @@ fn list_tree_inner(
                 path: relative,
                 name,
                 kind: "directory".into(),
-                children: list_tree_inner(root, &path, depth + 1, remaining).unwrap_or_else(|err| {
-                    debug!(
-                        dir = %path.to_string_lossy(),
-                        error = %err,
-                        "failed to read child directory for workspace tree"
-                    );
-                    vec![]
-                }),
+                children: list_tree_inner(root, &path, depth + 1, remaining).unwrap_or_else(
+                    |err| {
+                        debug!(
+                            dir = %path.to_string_lossy(),
+                            error = %err,
+                            "failed to read child directory for workspace tree"
+                        );
+                        vec![]
+                    },
+                ),
             });
         } else if path.is_file() {
             if *remaining == 0 {
@@ -529,7 +531,8 @@ mod tests {
 
     #[test]
     fn creates_file_and_folder_in_workspace() {
-        let dir = std::env::temp_dir().join(format!("adl-workspace-create-{}", uuid::Uuid::new_v4()));
+        let dir =
+            std::env::temp_dir().join(format!("adl-workspace-create-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
 
         let created = create_file(&dir, "docs/spec.md", "# spec\n").unwrap();

@@ -3,8 +3,8 @@ use crate::error::CommandError;
 use crate::state::AppState;
 use adl_errors::AppError;
 use adl_kernel::{
-    AgentRunDetail, AgentRunStatus, ConversationRole, ConversationScenario, ConversationSendResult,
-    create_id, now_ms, DigitalLifeRunActivityEventV1, IpcResult, ModelResponse,
+    create_id, now_ms, AgentRunDetail, AgentRunStatus, ConversationRole, ConversationScenario,
+    ConversationSendResult, DigitalLifeRunActivityEventV1, IpcResult, ModelResponse,
 };
 use adl_storage::EntityTable;
 use tauri::Emitter;
@@ -31,7 +31,11 @@ fn persist_run_activity(
         Some(session_id),
         Some(run_id),
         event,
-    )
+    )?;
+    // Best-effort: keep per-run history bounded to prevent unbounded DB growth in long sessions.
+    // (global retention/row caps are handled at startup; this is a tighter per-run guardrail)
+    let _ = state.db.prune_run_activity_events_for_run(run_id, 5_000);
+    Ok(())
 }
 
 fn emit_model_stream_events(app: &tauri::AppHandle, run_id: &str, response: &ModelResponse) {
@@ -186,14 +190,13 @@ async fn start_run_inner(
 ) -> Result<ConversationSendResult, AppError> {
     let workspace = crate::commands::workspace::current_workspace(state)?;
     let mut session = crate::commands::conversation::require_session(state, &input.session_id)?;
+    let session_id = session.id.clone();
     let scenario = input.scenario.unwrap_or(ConversationScenario::CodeEdit);
     let mut detail =
         adl_agent_runtime::create_run(&workspace.id, &session.id, &input.prompt, scenario);
 
     let run_id = detail.run.id.clone();
-    let mut activity_seq: i64 = 0;
-    let mut emit_activity = |event: serde_json::Value| {
-        activity_seq += 1;
+    let emit_activity = |event: serde_json::Value| {
         let mut obj = match event {
             serde_json::Value::Object(obj) => obj,
             other => {
@@ -206,20 +209,23 @@ async fn start_run_inner(
                 fallback
             }
         };
+        let ts = now_ms();
+        let seq = crate::run_activity_seq::next_run_activity_seq(ts);
         obj.insert("v".into(), serde_json::Value::Number(1.into()));
         obj.insert("runId".into(), serde_json::Value::String(run_id.clone()));
         obj.insert(
             "seq".into(),
-            serde_json::Value::Number(serde_json::Number::from(activity_seq)),
+            serde_json::Value::Number(serde_json::Number::from(seq)),
         );
         obj.insert(
             "ts".into(),
-            serde_json::Value::Number(serde_json::Number::from(now_ms())),
+            serde_json::Value::Number(serde_json::Number::from(ts)),
         );
         let payload = serde_json::Value::Object(obj);
         // Best-effort: persist typed event for replay; still emit even if parsing fails.
-        if let Ok(typed) = serde_json::from_value::<DigitalLifeRunActivityEventV1>(payload.clone()) {
-            let _ = persist_run_activity(state, &workspace.id, &session.id, &run_id, &typed);
+        if let Ok(typed) = serde_json::from_value::<DigitalLifeRunActivityEventV1>(payload.clone())
+        {
+            let _ = persist_run_activity(state, &workspace.id, &session_id, &run_id, &typed);
         }
         emit_run_activity(app, payload);
     };
@@ -229,7 +235,7 @@ async fn start_run_inner(
       "scenario": scenario
     }));
     let user_message = adl_conversation::create_message(
-        &session.id,
+        &session_id,
         ConversationRole::User,
         input.prompt.clone(),
         vec![],
@@ -239,7 +245,7 @@ async fn start_run_inner(
     let _ = crate::commands::audit::save_audit_entry(
         state,
         &workspace.id,
-        Some(&session.id),
+        Some(&session_id),
         "approval",
         adl_kernel::RiskLevel::Low,
         format!("Agent run started in {:?} mode.", scenario),
@@ -257,10 +263,10 @@ async fn start_run_inner(
     let mut context = vec![ws_ctx];
     const FILE_CONTEXT_MAX_TOKENS: usize = 6_000;
     if let Some(rel) = adl_agent_runtime::target_file_from_prompt(&input.prompt) {
-        if let Ok(doc) =
-            adl_workspace::read_file(std::path::Path::new(&workspace.root_path), &rel)
+        if let Ok(doc) = adl_workspace::read_file(std::path::Path::new(&workspace.root_path), &rel)
         {
-            let file_ctx = adl_context_engine::file_context(&rel, &doc.content, FILE_CONTEXT_MAX_TOKENS);
+            let file_ctx =
+                adl_context_engine::file_context(&rel, &doc.content, FILE_CONTEXT_MAX_TOKENS);
             let truncated = file_ctx.content.len() != doc.content.len();
             emit_activity(serde_json::json!({
               "type": "file-read",
@@ -272,12 +278,16 @@ async fn start_run_inner(
             let _ = crate::commands::audit::save_audit_entry(
                 state,
                 &workspace.id,
-                Some(&session.id),
+                Some(&session_id),
                 "file-read",
                 adl_kernel::RiskLevel::Low,
                 format!("Read file context: {rel}"),
                 Some("auto"),
-                Some(format!("runId={}; bytes={}", detail.run.id, doc.content.len())),
+                Some(format!(
+                    "runId={}; bytes={}",
+                    detail.run.id,
+                    doc.content.len()
+                )),
             );
             emit_activity(serde_json::json!({
               "type": "context-added",
@@ -311,7 +321,9 @@ async fn start_run_inner(
           "contextType": "symbol",
           "label": format!("@{sym}"),
         }));
-        if let Ok(hits) = adl_workspace::search_text(std::path::Path::new(&workspace.root_path), &sym) {
+        if let Ok(hits) =
+            adl_workspace::search_text(std::path::Path::new(&workspace.root_path), &sym)
+        {
             emit_activity(serde_json::json!({
               "type": "search",
               "query": sym,
@@ -321,7 +333,7 @@ async fn start_run_inner(
             let _ = crate::commands::audit::save_audit_entry(
                 state,
                 &workspace.id,
-                Some(&session.id),
+                Some(&session_id),
                 "search",
                 adl_kernel::RiskLevel::Low,
                 format!("Workspace search for `{sym}` ({}) hits.", hits.len()),
@@ -371,7 +383,7 @@ async fn start_run_inner(
     let _ = crate::commands::audit::save_audit_entry(
         state,
         &workspace.id,
-        Some(&session.id),
+        Some(&session_id),
         "model",
         adl_kernel::RiskLevel::Low,
         format!(

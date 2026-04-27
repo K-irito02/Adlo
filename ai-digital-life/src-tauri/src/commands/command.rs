@@ -3,8 +3,9 @@ use crate::error::CommandError;
 use crate::state::AppState;
 use adl_errors::AppError;
 use adl_kernel::{
-    now_ms, AgentRunRecord, AuditEntry, CommandExecutionResult, CommandProfileSummary, CommandRequest,
-    CommandRunResult, CommandRunStreamStart, DigitalLifeRunActivityEventV1, IpcResult, RiskLevel, TaskOperation,
+    now_ms, AgentRunRecord, AuditEntry, CommandExecutionResult, CommandProfileSummary,
+    CommandRequest, CommandRunResult, CommandRunStreamStart, DigitalLifeRunActivityEventV1,
+    IpcResult, RiskLevel, TaskOperation,
 };
 use adl_storage::{Database, EntityTable};
 use std::sync::Arc;
@@ -122,7 +123,11 @@ async fn command_run_inner(
             Some("command"),
             "approval",
             request.risk_level,
-            format!("Command requires approval: {} {}", request.command, request.args.join(" ")),
+            format!(
+                "Command requires approval: {} {}",
+                request.command,
+                request.args.join(" ")
+            ),
             None,
             Some(format!("taskId={}", task.id)),
         );
@@ -160,7 +165,11 @@ async fn command_run_inner(
         request.risk_level,
         result.summary.clone(),
         Some("auto"),
-        Some(format!("command={} {}", request.command, request.args.join(" "))),
+        Some(format!(
+            "command={} {}",
+            request.command,
+            request.args.join(" ")
+        )),
     );
     Ok(CommandRunResult {
         status: "completed".into(),
@@ -200,7 +209,11 @@ async fn command_run_stream_inner(
             Some("command"),
             "approval",
             request.risk_level,
-            format!("Streaming command requires approval: {} {}", request.command, request.args.join(" ")),
+            format!(
+                "Streaming command requires approval: {} {}",
+                request.command,
+                request.args.join(" ")
+            ),
             None,
             Some(format!("taskId={}", task.id)),
         );
@@ -277,11 +290,13 @@ fn approval_for_command(
     )?;
 
     if let Some(run_id) = &request.run_id {
+        let ts = now_ms();
+        let seq = crate::run_activity_seq::next_run_activity_seq(ts);
         let event = DigitalLifeRunActivityEventV1::Approval {
             v: 1,
             run_id: run_id.clone(),
-            seq: now_ms() as i64,
-            ts: now_ms(),
+            seq,
+            ts,
             phase: "requested".into(),
             approval_id: approval.id.clone(),
             decision: None,
@@ -300,8 +315,8 @@ fn approval_for_command(
             serde_json::json!({
               "v": 1,
               "runId": run_id,
-              "seq": now_ms(),
-              "ts": now_ms(),
+              "seq": seq,
+              "ts": ts,
               "type": "approval",
               "phase": "requested",
               "approvalId": approval.id
@@ -341,10 +356,11 @@ fn spawn_stream(
             Ok(mut child) => {
                 if let Some((run_id, session_id)) = &run_meta {
                     let ts = now_ms();
+                    let seq = crate::run_activity_seq::next_run_activity_seq(ts);
                     let event = DigitalLifeRunActivityEventV1::Command {
                         v: 1,
                         run_id: run_id.clone(),
-                        seq: ts as i64,
+                        seq,
                         ts,
                         phase: "start".into(),
                         command: request.command.clone(),
@@ -364,7 +380,7 @@ fn spawn_stream(
                         serde_json::json!({
                           "v": 1,
                           "runId": run_id,
-                          "seq": ts,
+                          "seq": seq,
                           "ts": ts,
                           "type": "command",
                           "phase": "start",
@@ -439,7 +455,10 @@ fn spawn_stream(
                 } else if success {
                     "Command completed.".to_string()
                 } else {
-                    format!("Command failed with exit code {}.", exit_code.map_or("null".into(), |code| code.to_string()))
+                    format!(
+                        "Command failed with exit code {}.",
+                        exit_code.map_or("null".into(), |code| code.to_string())
+                    )
                 };
                 let stdout = adl_terminal::truncate_output(&stdout_capture.lock().await.clone());
                 let stderr = adl_terminal::truncate_output(&stderr_capture.lock().await.clone());
@@ -462,10 +481,11 @@ fn spawn_stream(
 
                 if let Some((run_id, session_id)) = &run_meta {
                     let ts = now_ms();
+                    let seq = crate::run_activity_seq::next_run_activity_seq(ts);
                     let event = DigitalLifeRunActivityEventV1::Command {
                         v: 1,
                         run_id: run_id.clone(),
-                        seq: ts as i64,
+                        seq,
                         ts,
                         phase: "done".into(),
                         command: request.command.clone(),
@@ -485,7 +505,7 @@ fn spawn_stream(
                         serde_json::json!({
                           "v": 1,
                           "runId": run_id,
-                          "seq": ts,
+                          "seq": seq,
                           "ts": ts,
                           "type": "command",
                           "phase": "done",
@@ -517,10 +537,11 @@ fn spawn_stream(
 
                 if let Some((run_id, session_id)) = &run_meta {
                     let ts = now_ms();
+                    let seq = crate::run_activity_seq::next_run_activity_seq(ts);
                     let err_event = DigitalLifeRunActivityEventV1::Error {
                         v: 1,
                         run_id: run_id.clone(),
-                        seq: ts as i64,
+                        seq,
                         ts,
                         message: format!("Failed to spawn command: {}", error),
                     };
@@ -537,17 +558,19 @@ fn spawn_stream(
                         serde_json::json!({
                           "v": 1,
                           "runId": run_id,
-                          "seq": ts,
+                          "seq": seq,
                           "ts": ts,
                           "type": "error",
                           "message": format!("Failed to spawn command: {}", error)
                         }),
                     );
+                    let ts_done = now_ms();
+                    let seq_done = crate::run_activity_seq::next_run_activity_seq(ts_done);
                     let event = DigitalLifeRunActivityEventV1::Command {
                         v: 1,
                         run_id: run_id.clone(),
-                        seq: ts as i64,
-                        ts,
+                        seq: seq_done,
+                        ts: ts_done,
                         phase: "done".into(),
                         command: request.command.clone(),
                         args: Some(request.args.clone()),
@@ -560,6 +583,20 @@ fn spawn_stream(
                         session_id.as_deref(),
                         Some(run_id),
                         &event,
+                    );
+                    let _ = app.emit(
+                        "digital-life://run-activity",
+                        serde_json::json!({
+                          "v": 1,
+                          "runId": run_id,
+                          "seq": seq_done,
+                          "ts": ts_done,
+                          "type": "command",
+                          "phase": "done",
+                          "command": request.command,
+                          "args": request.args,
+                          "exitCode": serde_json::Value::Null
+                        }),
                     );
                 }
             }
@@ -577,7 +614,11 @@ fn save_stream_execution(
         &result.request.id,
         Some(workspace_id),
         Some("command"),
-        Some(if result.success { "completed" } else { "failed" }),
+        Some(if result.success {
+            "completed"
+        } else {
+            "failed"
+        }),
         result,
     )?;
 

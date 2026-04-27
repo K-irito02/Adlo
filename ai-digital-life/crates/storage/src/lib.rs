@@ -374,6 +374,75 @@ impl Database {
             .map_err(|e| AppError::Storage(e.to_string()))?;
         Ok(changed > 0)
     }
+
+    /// Best-effort pruning for `run_activity_events`.
+    ///
+    /// Notes:
+    /// - Uses `updated_at` (insert time) as the retention clock.
+    /// - `status` column stores `run_id` for this table.
+    pub fn prune_run_activity_events(
+        &self,
+        retention_ms: Option<i64>,
+        max_total_rows: Option<i64>,
+    ) -> Result<(), AppError> {
+        let conn = self.conn();
+        if let Some(retention_ms) = retention_ms {
+            if retention_ms > 0 {
+                let cutoff = now_ms().saturating_sub(retention_ms);
+                conn.execute(
+                    "DELETE FROM run_activity_events WHERE updated_at < ?1",
+                    params![cutoff],
+                )
+                .map_err(|e| AppError::Storage(e.to_string()))?;
+            }
+        }
+
+        if let Some(max_total_rows) = max_total_rows {
+            if max_total_rows > 0 {
+                let count: i64 = conn
+                    .query_row("SELECT COUNT(*) FROM run_activity_events", [], |r| r.get(0))
+                    .map_err(|e| AppError::Storage(e.to_string()))?;
+                let overflow = count - max_total_rows;
+                if overflow > 0 {
+                    conn.execute(
+                        "DELETE FROM run_activity_events
+                         WHERE id IN (
+                           SELECT id FROM run_activity_events
+                           ORDER BY updated_at ASC
+                           LIMIT ?1
+                         )",
+                        params![overflow],
+                    )
+                    .map_err(|e| AppError::Storage(e.to_string()))?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Keep only the newest `keep_last` rows for a given run_id.
+    pub fn prune_run_activity_events_for_run(
+        &self,
+        run_id: &str,
+        keep_last: i64,
+    ) -> Result<(), AppError> {
+        if keep_last <= 0 {
+            return Ok(());
+        }
+        let conn = self.conn();
+        conn.execute(
+            "DELETE FROM run_activity_events
+             WHERE id IN (
+               SELECT id FROM run_activity_events
+               WHERE status = ?1
+               ORDER BY updated_at DESC
+               LIMIT -1 OFFSET ?2
+             )",
+            params![run_id, keep_last],
+        )
+        .map_err(|e| AppError::Storage(e.to_string()))?;
+        Ok(())
+    }
 }
 
 impl Clone for Database {

@@ -20,8 +20,9 @@ fn list_by_run_id(
 ) -> Result<Vec<DigitalLifeRunActivityEventV1>, AppError> {
     // `status` column is used as a generic filter field across entity tables.
     // We store run_id in `status` for this table to keep the generic storage API.
-    let mut events: Vec<DigitalLifeRunActivityEventV1> =
-        state.db.list_entities_by_status(EntityTable::RunActivityEvents, run_id)?;
+    let mut events: Vec<DigitalLifeRunActivityEventV1> = state
+        .db
+        .list_entities_by_status(EntityTable::RunActivityEvents, run_id)?;
     events.sort_by_key(|event| match event {
         DigitalLifeRunActivityEventV1::RunStart { seq, .. } => *seq,
         DigitalLifeRunActivityEventV1::ContextAdded { seq, .. } => *seq,
@@ -39,4 +40,3 @@ fn list_by_run_id(
     }
     Ok(events)
 }
-

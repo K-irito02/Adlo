@@ -62,7 +62,10 @@ pub fn complete_plan(
     match (scenario, patch_set.is_some()) {
         (_, true) => {
             detail.run.status = AgentRunStatus::Ready;
-            detail.run.summary = Some("Patch preview is ready for review; apply from the changes panel when satisfied.".into());
+            detail.run.summary = Some(
+                "Patch preview is ready for review; apply from the changes panel when satisfied."
+                    .into(),
+            );
         }
         (ConversationScenario::Plan | ConversationScenario::Chat, false) => {
             detail.run.status = AgentRunStatus::Succeeded;
@@ -113,7 +116,10 @@ pub fn complete_after_patch(
     detail.run.completed_at = Some(now);
     if rolled_back {
         detail.run.status = AgentRunStatus::RolledBack;
-        detail.run.summary = Some(format!("Validation failed and changes were rolled back: {}", validation.summary));
+        detail.run.summary = Some(format!(
+            "Validation failed and changes were rolled back: {}",
+            validation.summary
+        ));
         return detail;
     }
     detail.run.status = if validation.status == "failed" {
@@ -122,9 +128,15 @@ pub fn complete_after_patch(
         AgentRunStatus::Succeeded
     };
     detail.run.summary = Some(match validation.status.as_str() {
-        "passed" => format!("Patch applied and validation passed: {}", validation.summary),
+        "passed" => format!(
+            "Patch applied and validation passed: {}",
+            validation.summary
+        ),
         "skipped" => "Patch applied; no validation command was selected.".into(),
-        _ => format!("Patch applied but validation failed: {}", validation.summary),
+        _ => format!(
+            "Patch applied but validation failed: {}",
+            validation.summary
+        ),
     });
     detail
 }
@@ -160,17 +172,14 @@ pub fn target_file_from_prompt(prompt: &str) -> Option<String> {
                 return Some(p.replace('\\', "/"));
             }
         }
-        if let Some(p) = token
-            .strip_prefix('@')
-            .filter(|value| {
-                !value.is_empty()
-                    && (value.contains('/')
-                        || value.contains('\\')
-                        || value
-                            .rsplit_once('.')
-                            .is_some_and(|(base, ext)| !base.is_empty() && !ext.is_empty()))
-            })
-        {
+        if let Some(p) = token.strip_prefix('@').filter(|value| {
+            !value.is_empty()
+                && (value.contains('/')
+                    || value.contains('\\')
+                    || value
+                        .rsplit_once('.')
+                        .is_some_and(|(base, ext)| !base.is_empty() && !ext.is_empty()))
+        }) {
             if p.starts_with("symbol:") {
                 continue;
             }
@@ -184,7 +193,10 @@ pub fn target_file_from_prompt(prompt: &str) -> Option<String> {
 pub fn target_symbol_from_prompt(prompt: &str) -> Option<String> {
     prompt.split_whitespace().find_map(|token| {
         let t = token.trim_matches(|ch: char| ch == '`' || ch == ',' || ch == '.' || ch == ')');
-        t.strip_prefix("@symbol:").map(str::trim).filter(|s| !s.is_empty()).map(String::from)
+        t.strip_prefix("@symbol:")
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(String::from)
     })
 }
 
@@ -255,7 +267,8 @@ pub fn assistant_blocks(
     } else {
         match scenario {
             ConversationScenario::CodeEdit => {
-                "未生成补丁：请使用 @file:相对路径 指向工作区文件，或切换到「规划/问答」模式。".into()
+                "未生成补丁：请使用 @file:相对路径 指向工作区文件，或切换到「规划/问答」模式。"
+                    .into()
             }
             _ => "本轮无补丁输出。".into(),
         }
@@ -289,7 +302,12 @@ mod tests {
 
     #[test]
     fn completes_patch_run_after_rollback() {
-        let detail = create_run("w", "s", "edit @file:src/lib.rs", ConversationScenario::CodeEdit);
+        let detail = create_run(
+            "w",
+            "s",
+            "edit @file:src/lib.rs",
+            ConversationScenario::CodeEdit,
+        );
         let validation = ValidationResult {
             id: "validation_1".into(),
             workspace_id: "w".into(),

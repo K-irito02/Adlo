@@ -30,6 +30,14 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
     adl_migration::run_pending(&db).context("failed to run migrations")?;
     info!("migrations complete");
 
+    // Run-activity housekeeping (best-effort).
+    //
+    // Defaults (can be elevated to config later):
+    // - retain ~30 days by insertion time
+    // - cap total rows to avoid unbounded growth in long-running dev sessions
+    crate::run_activity_seq::init_run_activity_seq_seed();
+    let _ = db.prune_run_activity_events(Some(30_i64 * 24 * 60 * 60 * 1_000), Some(200_000));
+
     let event_bus = EventBus::default();
     let current_workspace = db
         .get_state("current_workspace")

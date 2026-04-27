@@ -3,11 +3,12 @@ use crate::error::CommandError;
 use crate::state::AppState;
 use adl_errors::AppError;
 use adl_kernel::{
-    ApprovalDecision, ApprovalRecord, ApprovalRequestSummary, AuditEntry, CommandRequest,
-    CheckpointPayloadPreview, CheckpointRecord, IpcResult, TaskCenterSnapshot, TaskRecord,
-    TaskStatus, WorkspaceMeta,
+    ApprovalDecision, ApprovalRecord, ApprovalRequestSummary, AuditEntry, CheckpointPayloadPreview,
+    CheckpointRecord, CommandRequest, IpcResult, TaskCenterSnapshot, TaskRecord, TaskStatus,
+    WorkspaceMeta,
 };
 use adl_storage::EntityTable;
+use tauri::Emitter;
 
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -59,113 +60,117 @@ async fn decide_approval_inner(
     state: &AppState,
     input: ApprovalDecisionInput,
 ) -> Result<TaskCenterSnapshot, AppError> {
-        let mut approval: ApprovalRecord = state
-            .db
-            .load_entity(EntityTable::Approvals, &input.approval_id)?
-            .ok_or_else(|| AppError::NotFound(format!("approval {}", input.approval_id)))?;
-        approval.decision = Some(input.decision);
-        approval.reason = input.reason;
-        approval.decided_at = Some(adl_kernel::now_ms());
+    let mut approval: ApprovalRecord = state
+        .db
+        .load_entity(EntityTable::Approvals, &input.approval_id)?
+        .ok_or_else(|| AppError::NotFound(format!("approval {}", input.approval_id)))?;
+    approval.decision = Some(input.decision);
+    approval.reason = input.reason;
+    approval.decided_at = Some(adl_kernel::now_ms());
+    state.db.save_entity(
+        EntityTable::Approvals,
+        &approval.id,
+        Some(&approval.workspace_id),
+        Some("approval"),
+        Some(match input.decision {
+            ApprovalDecision::Approved => "approved",
+            ApprovalDecision::Rejected => "rejected",
+            ApprovalDecision::Timeout => "timeout",
+        }),
+        &approval,
+    )?;
+    if let Some(mut task) = state
+        .db
+        .load_entity::<TaskRecord>(EntityTable::Tasks, &approval.task_id)?
+    {
+        task.status = match input.decision {
+            ApprovalDecision::Approved => TaskStatus::Approved,
+            ApprovalDecision::Rejected => TaskStatus::Rejected,
+            ApprovalDecision::Timeout => TaskStatus::Failed,
+        };
+        task.updated_at = adl_kernel::now_ms();
         state.db.save_entity(
-            EntityTable::Approvals,
-            &approval.id,
-            Some(&approval.workspace_id),
-            Some("approval"),
-            Some(match input.decision {
-                ApprovalDecision::Approved => "approved",
-                ApprovalDecision::Rejected => "rejected",
-                ApprovalDecision::Timeout => "timeout",
+            EntityTable::Tasks,
+            &task.id,
+            Some(&task.workspace_id),
+            Some(&task.session_id),
+            Some(match task.status {
+                TaskStatus::Approved => "approved",
+                TaskStatus::Rejected => "rejected",
+                TaskStatus::Failed => "failed",
+                _ => "updated",
             }),
-            &approval,
+            &task,
         )?;
-        if let Some(mut task) = state
+        if matches!(input.decision, ApprovalDecision::Approved) {
+            maybe_execute_approved_command(app, state, &mut task).await?;
+        }
+    }
+    let _ = crate::commands::audit::save_audit_entry(
+        state,
+        &approval.workspace_id,
+        Some("approval"),
+        "approval",
+        approval.risk_level,
+        format!(
+            "Approval {} was {:?}.",
+            approval.request.title, input.decision
+        ),
+        Some(match input.decision {
+            ApprovalDecision::Approved => "approved",
+            ApprovalDecision::Rejected => "rejected",
+            ApprovalDecision::Timeout => "rejected",
+        }),
+        approval.reason.clone(),
+    );
+
+    if let Some(run_id) = approval.run_id.clone() {
+        let task_session_id = state
             .db
             .load_entity::<TaskRecord>(EntityTable::Tasks, &approval.task_id)?
-        {
-            task.status = match input.decision {
-                ApprovalDecision::Approved => TaskStatus::Approved,
-                ApprovalDecision::Rejected => TaskStatus::Rejected,
-                ApprovalDecision::Timeout => TaskStatus::Failed,
-            };
-            task.updated_at = adl_kernel::now_ms();
-            state.db.save_entity(
-                EntityTable::Tasks,
-                &task.id,
-                Some(&task.workspace_id),
-                Some(&task.session_id),
-                Some(match task.status {
-                    TaskStatus::Approved => "approved",
-                    TaskStatus::Rejected => "rejected",
-                    TaskStatus::Failed => "failed",
-                    _ => "updated",
-                }),
-                &task,
-            )?;
-            if matches!(input.decision, ApprovalDecision::Approved) {
-                maybe_execute_approved_command(app, state, &mut task).await?;
-            }
-        }
-        let _ = crate::commands::audit::save_audit_entry(
-            state,
-            &approval.workspace_id,
-            Some("approval"),
-            "approval",
-            approval.risk_level,
-            format!("Approval {} was {:?}.", approval.request.title, input.decision),
-            Some(match input.decision {
-                ApprovalDecision::Approved => "approved",
-                ApprovalDecision::Rejected => "rejected",
-                ApprovalDecision::Timeout => "rejected",
-            }),
-            approval.reason.clone(),
+            .map(|task| task.session_id)
+            .unwrap_or_else(|| approval.task_id.clone());
+        let ts = adl_kernel::now_ms();
+        let seq = crate::run_activity_seq::next_run_activity_seq(ts);
+        let decision = match input.decision {
+            ApprovalDecision::Approved => "approved",
+            ApprovalDecision::Rejected => "rejected",
+            ApprovalDecision::Timeout => "timeout",
+        };
+        let event = adl_kernel::DigitalLifeRunActivityEventV1::Approval {
+            v: 1,
+            run_id: run_id.clone(),
+            seq,
+            ts,
+            phase: "decided".into(),
+            approval_id: approval.id.clone(),
+            decision: Some(decision.into()),
+            reason: approval.reason.clone(),
+        };
+        let _ = state.db.save_entity(
+            EntityTable::RunActivityEvents,
+            &adl_kernel::create_id("runact"),
+            Some(&approval.workspace_id),
+            Some(&task_session_id),
+            Some(&run_id),
+            &event,
         );
-
-        if let Some(run_id) = approval.run_id.clone() {
-            let task_session_id = state
-                .db
-                .load_entity::<TaskRecord>(EntityTable::Tasks, &approval.task_id)?
-                .map(|task| task.session_id)
-                .unwrap_or_else(|| approval.task_id.clone());
-            let ts = adl_kernel::now_ms();
-            let decision = match input.decision {
-                ApprovalDecision::Approved => "approved",
-                ApprovalDecision::Rejected => "rejected",
-                ApprovalDecision::Timeout => "timeout",
-            };
-            let event = adl_kernel::DigitalLifeRunActivityEventV1::Approval {
-                v: 1,
-                run_id: run_id.clone(),
-                seq: ts as i64,
-                ts,
-                phase: "decided".into(),
-                approval_id: approval.id.clone(),
-                decision: Some(decision.into()),
-                reason: approval.reason.clone(),
-            };
-            let _ = state.db.save_entity(
-                EntityTable::RunActivityEvents,
-                &adl_kernel::create_id("runact"),
-                Some(&approval.workspace_id),
-                Some(&task_session_id),
-                Some(&run_id),
-                &event,
-            );
-            let _ = app.emit(
-                "digital-life://run-activity",
-                serde_json::json!({
-                  "v": 1,
-                  "runId": run_id,
-                  "seq": ts,
-                  "ts": ts,
-                  "type": "approval",
-                  "phase": "decided",
-                  "approvalId": approval.id,
-                  "decision": decision,
-                  "reason": approval.reason
-                }),
-            );
-        }
-        snapshot(state)
+        let _ = app.emit(
+            "digital-life://run-activity",
+            serde_json::json!({
+              "v": 1,
+              "runId": run_id,
+              "seq": seq,
+              "ts": ts,
+              "type": "approval",
+              "phase": "decided",
+              "approvalId": approval.id,
+              "decision": decision,
+              "reason": approval.reason
+            }),
+        );
+    }
+    snapshot(state)
 }
 
 #[tauri::command]
@@ -245,10 +250,11 @@ async fn maybe_execute_approved_command(
 
     if let Some(run_id) = &request.run_id {
         let ts = adl_kernel::now_ms();
+        let seq = crate::run_activity_seq::next_run_activity_seq(ts);
         let event = adl_kernel::DigitalLifeRunActivityEventV1::Command {
             v: 1,
             run_id: run_id.clone(),
-            seq: ts as i64,
+            seq,
             ts,
             phase: "start".into(),
             command: request.command.clone(),
@@ -268,7 +274,7 @@ async fn maybe_execute_approved_command(
             serde_json::json!({
               "v": 1,
               "runId": run_id,
-              "seq": ts,
+              "seq": seq,
               "ts": ts,
               "type": "command",
               "phase": "start",
@@ -289,7 +295,11 @@ async fn maybe_execute_approved_command(
         &result.request.id,
         Some(&workspace.id),
         Some(&task.session_id),
-        Some(if result.success { "completed" } else { "failed" }),
+        Some(if result.success {
+            "completed"
+        } else {
+            "failed"
+        }),
         &result,
     )?;
     task.status = if result.success {
@@ -305,7 +315,11 @@ async fn maybe_execute_approved_command(
         &task.id,
         Some(&task.workspace_id),
         Some(&task.session_id),
-        Some(if result.success { "completed" } else { "failed" }),
+        Some(if result.success {
+            "completed"
+        } else {
+            "failed"
+        }),
         task,
     )?;
     let _ = crate::commands::audit::save_audit_entry(
@@ -316,10 +330,16 @@ async fn maybe_execute_approved_command(
         request.risk_level,
         result.summary.clone(),
         Some("approved"),
-        Some(format!("command={} {}", request.command, request.args.join(" "))),
+        Some(format!(
+            "command={} {}",
+            request.command,
+            request.args.join(" ")
+        )),
     );
 
     if let Some(run_id) = &request.run_id {
+        let ts = adl_kernel::now_ms();
+        let seq = crate::run_activity_seq::next_run_activity_seq(ts);
         let _ = state.db.save_entity(
             EntityTable::RunActivityEvents,
             &adl_kernel::create_id("runact"),
@@ -329,8 +349,8 @@ async fn maybe_execute_approved_command(
             &adl_kernel::DigitalLifeRunActivityEventV1::Command {
                 v: 1,
                 run_id: run_id.clone(),
-                seq: (adl_kernel::now_ms() as i64),
-                ts: adl_kernel::now_ms(),
+                seq,
+                ts,
                 phase: "done".into(),
                 command: request.command.clone(),
                 args: Some(request.args.clone()),
@@ -342,8 +362,8 @@ async fn maybe_execute_approved_command(
             serde_json::json!({
               "v": 1,
               "runId": run_id,
-              "seq": adl_kernel::now_ms(),
-              "ts": adl_kernel::now_ms(),
+              "seq": seq,
+              "ts": ts,
               "type": "command",
               "phase": "done",
               "command": request.command,

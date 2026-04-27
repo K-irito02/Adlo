@@ -4,6 +4,7 @@ use crate::state::AppState;
 use adl_errors::AppError;
 use adl_kernel::{IpcResult, PatchApplicationResult, PatchHunkDecision, PatchSet, PatchSetStatus};
 use adl_storage::EntityTable;
+use tauri::Emitter;
 
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -68,15 +69,23 @@ pub fn patch_rollback_patch_set(
             None,
         );
         if let Some(run_id) = &patch_set.run_id {
+            let ts = adl_kernel::now_ms();
+            let seq = crate::run_activity_seq::next_run_activity_seq(ts);
             let event = adl_kernel::DigitalLifeRunActivityEventV1::Patch {
                 v: 1,
                 run_id: run_id.clone(),
-                seq: adl_kernel::now_ms() as i64,
-                ts: adl_kernel::now_ms(),
+                seq,
+                ts,
                 phase: "rolled-back".into(),
                 patch_set_id: patch_set.id.clone(),
                 file_count: Some(patch_set.file_patches.len()),
-                hunk_count: Some(patch_set.file_patches.iter().map(|f| f.hunks.len()).sum::<usize>()),
+                hunk_count: Some(
+                    patch_set
+                        .file_patches
+                        .iter()
+                        .map(|f| f.hunks.len())
+                        .sum::<usize>(),
+                ),
             };
             let _ = state.db.save_entity(
                 EntityTable::RunActivityEvents,
@@ -91,8 +100,8 @@ pub fn patch_rollback_patch_set(
                 serde_json::json!({
                   "v": 1,
                   "runId": run_id,
-                  "seq": adl_kernel::now_ms(),
-                  "ts": adl_kernel::now_ms(),
+                  "seq": seq,
+                  "ts": ts,
                   "type": "patch",
                   "phase": "rolled-back",
                   "patchSetId": patch_set.id,
@@ -148,15 +157,23 @@ async fn apply_patch_set_inner(
         }
     }
     if let Some(run_id) = &patch_set.run_id {
+        let ts = adl_kernel::now_ms();
+        let seq = crate::run_activity_seq::next_run_activity_seq(ts);
         let event = adl_kernel::DigitalLifeRunActivityEventV1::Patch {
             v: 1,
             run_id: run_id.clone(),
-            seq: adl_kernel::now_ms() as i64,
-            ts: adl_kernel::now_ms(),
+            seq,
+            ts,
             phase: "applied".into(),
             patch_set_id: patch_set.id.clone(),
             file_count: Some(patch_set.file_patches.len()),
-            hunk_count: Some(patch_set.file_patches.iter().map(|f| f.hunks.len()).sum::<usize>()),
+            hunk_count: Some(
+                patch_set
+                    .file_patches
+                    .iter()
+                    .map(|f| f.hunks.len())
+                    .sum::<usize>(),
+            ),
         };
         let _ = state.db.save_entity(
             EntityTable::RunActivityEvents,
@@ -171,8 +188,8 @@ async fn apply_patch_set_inner(
             serde_json::json!({
               "v": 1,
               "runId": run_id,
-              "seq": adl_kernel::now_ms(),
-              "ts": adl_kernel::now_ms(),
+              "seq": seq,
+              "ts": ts,
               "type": "patch",
               "phase": "applied",
               "patchSetId": patch_set.id,
@@ -181,7 +198,10 @@ async fn apply_patch_set_inner(
             }),
         );
         if let Some(detail) = crate::commands::agent::load_run_detail(state, run_id)? {
-            crate::commands::agent::save_run_detail(state, &adl_agent_runtime::mark_applying(detail))?;
+            crate::commands::agent::save_run_detail(
+                state,
+                &adl_agent_runtime::mark_applying(detail),
+            )?;
         }
     }
     let checkpoints_dir = state.data_dir.join("state").join("checkpoints");
@@ -211,7 +231,10 @@ async fn apply_patch_set_inner(
         adl_terminal::validation_command(root, &workspace.id, patch_set.run_id.clone());
     if let Some(run_id) = &patch_set.run_id {
         if let Some(detail) = crate::commands::agent::load_run_detail(state, run_id)? {
-            crate::commands::agent::save_run_detail(state, &adl_agent_runtime::mark_verifying(detail))?;
+            crate::commands::agent::save_run_detail(
+                state,
+                &adl_agent_runtime::mark_verifying(detail),
+            )?;
         }
     }
     let command_result = if let Some(request) = command_request {

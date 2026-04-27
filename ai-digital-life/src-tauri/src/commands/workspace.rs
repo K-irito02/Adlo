@@ -20,7 +20,10 @@ fn load_sidebar_entries(state: &AppState) -> Result<Vec<RecentWorkspaceEntry>, A
     }
 }
 
-fn save_sidebar_entries(state: &AppState, entries: &[RecentWorkspaceEntry]) -> Result<(), AppError> {
+fn save_sidebar_entries(
+    state: &AppState,
+    entries: &[RecentWorkspaceEntry],
+) -> Result<(), AppError> {
     state
         .db
         .put_state(RECENT_SIDEBAR_KEY, &serde_json::to_string(entries)?)?;
@@ -160,7 +163,9 @@ pub struct ReorderWorkspacesInput {
 }
 
 #[tauri::command]
-pub fn workspace_list_recent(state: tauri::State<'_, AppState>) -> IpcResult<Vec<RecentWorkspaceEntry>> {
+pub fn workspace_list_recent(
+    state: tauri::State<'_, AppState>,
+) -> IpcResult<Vec<RecentWorkspaceEntry>> {
     ipc(presentable_recent_list(&state))
 }
 
@@ -236,7 +241,10 @@ pub fn workspace_create_folder(
     relative_path: String,
 ) -> IpcResult<bool> {
     ipc(with_workspace(&state, |workspace| {
-        adl_workspace::create_folder(PathBuf::from(&workspace.root_path).as_path(), &relative_path)
+        adl_workspace::create_folder(
+            PathBuf::from(&workspace.root_path).as_path(),
+            &relative_path,
+        )
     }))
 }
 
@@ -471,9 +479,7 @@ fn reveal_in_os_file_manager(path: &str) -> Result<(), AppError> {
     }
     #[cfg(target_os = "windows")]
     {
-        std::process::Command::new("explorer")
-            .arg(p)
-            .spawn()?;
+        std::process::Command::new("explorer").arg(p).spawn()?;
     }
     #[cfg(target_os = "macos")]
     {

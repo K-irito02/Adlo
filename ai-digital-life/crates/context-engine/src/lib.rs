@@ -65,7 +65,11 @@ pub fn symbol_context(symbol_name: &str) -> ContextEntry {
     }
 }
 
-pub fn outline_context(path: &str, items: &[FileOutlineItem], max_items: usize) -> Option<ContextEntry> {
+pub fn outline_context(
+    path: &str,
+    items: &[FileOutlineItem],
+    max_items: usize,
+) -> Option<ContextEntry> {
     if items.is_empty() {
         return None;
     }
@@ -85,11 +89,18 @@ pub fn outline_context(path: &str, items: &[FileOutlineItem], max_items: usize) 
     })
 }
 
-pub fn search_hit_contexts(query: &str, hits: &[WorkspaceSearchHit], max_hits: usize) -> Vec<ContextEntry> {
+pub fn search_hit_contexts(
+    query: &str,
+    hits: &[WorkspaceSearchHit],
+    max_hits: usize,
+) -> Vec<ContextEntry> {
     hits.iter()
         .take(max_hits)
         .map(|hit| {
-            let content = format!("Search hit for `{query}`\n{}:{}\n{}", hit.path, hit.line, hit.preview);
+            let content = format!(
+                "Search hit for `{query}`\n{}:{}\n{}",
+                hit.path, hit.line, hit.preview
+            );
             ContextEntry {
                 id: create_id("ctx"),
                 r#type: "search-hit".into(),

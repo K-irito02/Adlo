@@ -4,6 +4,7 @@ use tauri::Manager;
 
 mod commands;
 mod error;
+mod run_activity_seq;
 mod setup;
 mod state;
 
