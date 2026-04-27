@@ -15,6 +15,26 @@ if (typeof window !== "undefined" && !window.digitalLife) {
   }
 }
 
+async function syncTauriWindowIcon(): Promise<void> {
+  if (typeof window === "undefined" || !isTauriShell()) {
+    return;
+  }
+
+  try {
+    const response = await fetch("/logo-chatgpt.png", { cache: "force-cache" });
+    if (!response.ok) {
+      return;
+    }
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    await getCurrentWindow().setIcon(bytes);
+  } catch {
+    // Best-effort only. Tauri still falls back to bundled icons.
+  }
+}
+
+void syncTauriWindowIcon();
+
 declare global {
   interface Window {
     digitalLife: DigitalLifeBridge;

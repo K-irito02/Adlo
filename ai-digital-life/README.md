@@ -59,6 +59,8 @@ ai-digital-life/
 ### Workspace & Retrieval
 
 - SQLite-backed 最近工作区打开与恢复
+- 支持“仅对话模式”全局会话；无活动工作区时，会话以内部 `__global__` 作用域持久化
+- 状态栏支持切换已有工作区、预绑定新工作区，并在首次发送消息时延迟创建对应工作区会话
 - `tokio` 任务驱动的工作区扫描与状态回报（不开独立 Node Worker）
 - Retrieval snapshot 会生成 repo-map 等结构化元数据（默认不在 UI 直接展示，主要用于模型消费与后台诊断日志）
 - 持久化 workspace / session / task / approval / audit 元数据
@@ -76,6 +78,7 @@ ai-digital-life/
 - 审批决策回写与 checkpoint 元数据锚点
 - Checkpoint payload 与恢复执行
 - 基础 Git 脏树快照与审批触发
+- 工作区状态栏支持列出本地分支、切换分支、创建新分支；跨基底或脏树场景要求显式 stash 确认
 
 ### Preferences
 

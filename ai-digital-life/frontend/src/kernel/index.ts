@@ -4,6 +4,7 @@ export const APP_NAME = "AI Digital Life";
 export const APP_VERSION = "0.1.0";
 export const APP_STATE_SCHEMA_VERSION = "1";
 export const APPROVAL_POLICY_MODE = "manual";
+export const GLOBAL_WORKSPACE_ID = "__global__";
 
 export const EVENT_NAMES = {
   appInitialized: "app.initialized",
@@ -167,6 +168,22 @@ export interface GitSnapshot {
   capturedAt: number;
 }
 
+export interface GitBranchSummary {
+  name: string;
+  isCurrent: boolean;
+}
+
+export interface WorkspaceGitBranchSwitchInput {
+  branchName: string;
+  allowStash: boolean;
+}
+
+export interface WorkspaceGitBranchCreateInput {
+  branchName: string;
+  baseBranch?: string;
+  allowStash: boolean;
+}
+
 export interface WorkspaceMeta {
   id: string;
   path: string;
@@ -178,6 +195,14 @@ export interface WorkspaceMeta {
   createdAt: number;
   updatedAt: number;
   lastOpenedAt: number;
+}
+
+export interface WorkspaceGitBranchChangeResult {
+  workspace: WorkspaceMeta;
+  gitSnapshot: GitSnapshot;
+  previousBranch?: string;
+  currentBranch: string;
+  stashedChanges: boolean;
 }
 
 export type SessionStatus = "active" | "paused" | "completed" | "archived";

@@ -20,6 +20,12 @@ alwaysApply: false
 - **能力白名单**：`src-tauri/capabilities/*.json` 引用 `src-tauri/permissions/*.toml` 中的自定义权限集（如 `digital-life-commands`）；新增 `#[tauri::command]` 必须在权限 TOML 的 `commands.allow` 中登记，并确保 capability JSON 已引用该权限。
 - **前端调用层**：契约在 `frontend/src/shared/ipc.ts`（`DigitalLifeBridge`）。Tauri WebView 用 `frontend/src/tauri-bridge.ts`（`invoke` + `listen`）；纯浏览器预览用 `frontend/src/preview-bridge.ts`，后者通过 `frontend/dev/previewWorkspaceService.ts` 提供的本地 Vite 工作区接口访问真实目录；`frontend/src/main.tsx` 按运行环境选择挂载。
 
+当前工作区 / 对话 / 分支相关命令至少包括：
+
+- `workspace_open` / `workspace_clear_current` / `workspace_pick_directory`
+- `workspace_list_git_branches` / `workspace_switch_git_branch` / `workspace_create_git_branch`
+- `conversation_create_session` / `conversation_list_sessions` 在无活动工作区时必须支持全局会话作用域（内部 sentinel `__global__`）
+
 ## 事件通道（版本化载荷）
 
 - 模型流：`digital-life://model-stream`（如 `ModelStreamEventV1`）
@@ -37,3 +43,4 @@ alwaysApply: false
 
 - 所有 `#[tauri::command]` 必须：返回 `Result<T, AppError>`（结构化错误，可序列化）；对输入参数做显式校验；不直接 `panic!`。
 - 长耗时命令使用 `async fn` 并在内部 `tokio::spawn`，不阻塞 Tauri 事件循环。
+- WebView 侧“仅对话模式”只是 UI/存储作用域切换，不得绕过工作区命令边界直接访问文件树 / Git；分支切换与新建分支仍必须经 workspace-domain 命令完成，并在脏工作树场景下要求显式 stash 确认。

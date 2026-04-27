@@ -3,6 +3,7 @@ use uuid::Uuid;
 
 pub const APP_NAME: &str = "AI Digital Life";
 pub const DEFAULT_APPROVAL_MODE: &str = "manual";
+pub const GLOBAL_WORKSPACE_ID: &str = "__global__";
 
 pub type TimestampMs = i64;
 
@@ -220,6 +221,38 @@ pub struct GitSnapshot {
     pub untracked: Vec<String>,
     pub conflicts: Vec<String>,
     pub captured_at: TimestampMs,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitBranchSummary {
+    pub name: String,
+    pub is_current: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceGitBranchSwitchInput {
+    pub branch_name: String,
+    pub allow_stash: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceGitBranchCreateInput {
+    pub branch_name: String,
+    pub base_branch: Option<String>,
+    pub allow_stash: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceGitBranchChangeResult {
+    pub workspace: WorkspaceMeta,
+    pub git_snapshot: GitSnapshot,
+    pub previous_branch: Option<String>,
+    pub current_branch: String,
+    pub stashed_changes: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

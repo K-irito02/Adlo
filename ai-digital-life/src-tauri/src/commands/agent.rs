@@ -188,12 +188,14 @@ async fn start_run_inner(
     state: &AppState,
     input: StartRunInput,
 ) -> Result<ConversationSendResult, AppError> {
-    let workspace = crate::commands::workspace::current_workspace(state)?;
     let mut session = crate::commands::conversation::require_session(state, &input.session_id)?;
+    let workspace = crate::commands::workspace::current_workspace(state)
+        .unwrap_or_else(|_| crate::commands::workspace::virtual_global_workspace());
+    let workspace_scope_id = session.workspace_id.clone();
     let session_id = session.id.clone();
     let scenario = input.scenario.unwrap_or(ConversationScenario::CodeEdit);
     let mut detail =
-        adl_agent_runtime::create_run(&workspace.id, &session.id, &input.prompt, scenario);
+        adl_agent_runtime::create_run(&workspace_scope_id, &session.id, &input.prompt, scenario);
 
     let run_id = detail.run.id.clone();
     let emit_activity = |event: serde_json::Value| {
@@ -225,7 +227,7 @@ async fn start_run_inner(
         // Best-effort: persist typed event for replay; still emit even if parsing fails.
         if let Ok(typed) = serde_json::from_value::<DigitalLifeRunActivityEventV1>(payload.clone())
         {
-            let _ = persist_run_activity(state, &workspace.id, &session_id, &run_id, &typed);
+            let _ = persist_run_activity(state, &workspace_scope_id, &session_id, &run_id, &typed);
         }
         emit_run_activity(app, payload);
     };
@@ -241,10 +243,10 @@ async fn start_run_inner(
         vec![],
         Some(detail.run.id.clone()),
     );
-    crate::commands::conversation::save_message(state, &workspace.id, &user_message)?;
+    crate::commands::conversation::save_message(state, &workspace_scope_id, &user_message)?;
     let _ = crate::commands::audit::save_audit_entry(
         state,
-        &workspace.id,
+        &workspace_scope_id,
         Some(&session_id),
         "approval",
         adl_kernel::RiskLevel::Low,
@@ -262,54 +264,61 @@ async fn start_run_inner(
     }));
     let mut context = vec![ws_ctx];
     const FILE_CONTEXT_MAX_TOKENS: usize = 6_000;
-    if let Some(rel) = adl_agent_runtime::target_file_from_prompt(&input.prompt) {
-        if let Ok(doc) = adl_workspace::read_file(std::path::Path::new(&workspace.root_path), &rel)
-        {
-            let file_ctx =
-                adl_context_engine::file_context(&rel, &doc.content, FILE_CONTEXT_MAX_TOKENS);
-            let truncated = file_ctx.content.len() != doc.content.len();
-            emit_activity(serde_json::json!({
-              "type": "file-read",
-              "path": rel,
-              "bytes": doc.content.len(),
-              "tokenEstimate": file_ctx.token_estimate,
-              "truncated": truncated
-            }));
-            let _ = crate::commands::audit::save_audit_entry(
-                state,
-                &workspace.id,
-                Some(&session_id),
-                "file-read",
-                adl_kernel::RiskLevel::Low,
-                format!("Read file context: {rel}"),
-                Some("auto"),
-                Some(format!(
-                    "runId={}; bytes={}",
-                    detail.run.id,
-                    doc.content.len()
-                )),
-            );
-            emit_activity(serde_json::json!({
-              "type": "context-added",
-              "contextType": "file",
-              "label": file_ctx.label,
-              "path": file_ctx.path,
-              "tokenEstimate": file_ctx.token_estimate,
-              "truncated": truncated
-            }));
-            context.push(file_ctx);
-            if let Ok(items) =
-                adl_workspace::outline(std::path::Path::new(&workspace.root_path), &rel)
+    if !workspace.root_path.is_empty() {
+        if let Some(rel) = adl_agent_runtime::target_file_from_prompt(&input.prompt) {
+            if let Ok(doc) =
+                adl_workspace::read_file(std::path::Path::new(&workspace.root_path), &rel)
             {
-                if let Some(outline) = adl_context_engine::outline_context(&rel, &items, 16) {
-                    emit_activity(serde_json::json!({
-                      "type": "context-added",
-                      "contextType": "outline",
-                      "label": outline.label,
-                      "path": outline.path,
-                      "tokenEstimate": outline.token_estimate
-                    }));
-                    context.push(outline);
+                let file_ctx = adl_context_engine::file_context(
+                    &rel,
+                    &doc.content,
+                    FILE_CONTEXT_MAX_TOKENS,
+                );
+                let truncated = file_ctx.content.len() != doc.content.len();
+                emit_activity(serde_json::json!({
+                  "type": "file-read",
+                  "path": rel,
+                  "bytes": doc.content.len(),
+                  "tokenEstimate": file_ctx.token_estimate,
+                  "truncated": truncated
+                }));
+                let _ = crate::commands::audit::save_audit_entry(
+                    state,
+                    &workspace_scope_id,
+                    Some(&session_id),
+                    "file-read",
+                    adl_kernel::RiskLevel::Low,
+                    format!("Read file context: {rel}"),
+                    Some("auto"),
+                    Some(format!(
+                        "runId={}; bytes={}",
+                        detail.run.id,
+                        doc.content.len()
+                    )),
+                );
+                emit_activity(serde_json::json!({
+                  "type": "context-added",
+                  "contextType": "file",
+                  "label": file_ctx.label,
+                  "path": file_ctx.path,
+                  "tokenEstimate": file_ctx.token_estimate,
+                  "truncated": truncated
+                }));
+                context.push(file_ctx);
+                if let Ok(items) =
+                    adl_workspace::outline(std::path::Path::new(&workspace.root_path), &rel)
+                {
+                    if let Some(outline) = adl_context_engine::outline_context(&rel, &items, 16)
+                    {
+                        emit_activity(serde_json::json!({
+                          "type": "context-added",
+                          "contextType": "outline",
+                          "label": outline.label,
+                          "path": outline.path,
+                          "tokenEstimate": outline.token_estimate
+                        }));
+                        context.push(outline);
+                    }
                 }
             }
         }
@@ -321,26 +330,28 @@ async fn start_run_inner(
           "contextType": "symbol",
           "label": format!("@{sym}"),
         }));
-        if let Ok(hits) =
-            adl_workspace::search_text(std::path::Path::new(&workspace.root_path), &sym)
-        {
-            emit_activity(serde_json::json!({
-              "type": "search",
-              "query": sym,
-              "hitCount": hits.len(),
-              "samplePaths": hits.iter().take(6).map(|h| h.path.clone()).collect::<Vec<_>>(),
-            }));
-            let _ = crate::commands::audit::save_audit_entry(
-                state,
-                &workspace.id,
-                Some(&session_id),
-                "search",
-                adl_kernel::RiskLevel::Low,
-                format!("Workspace search for `{sym}` ({}) hits.", hits.len()),
-                Some("auto"),
-                Some(format!("runId={}", detail.run.id)),
-            );
-            context.extend(adl_context_engine::search_hit_contexts(&sym, &hits, 6));
+        if !workspace.root_path.is_empty() {
+            if let Ok(hits) =
+                adl_workspace::search_text(std::path::Path::new(&workspace.root_path), &sym)
+            {
+                emit_activity(serde_json::json!({
+                  "type": "search",
+                  "query": sym,
+                  "hitCount": hits.len(),
+                  "samplePaths": hits.iter().take(6).map(|h| h.path.clone()).collect::<Vec<_>>(),
+                }));
+                let _ = crate::commands::audit::save_audit_entry(
+                    state,
+                    &workspace_scope_id,
+                    Some(&session_id),
+                    "search",
+                    adl_kernel::RiskLevel::Low,
+                    format!("Workspace search for `{sym}` ({}) hits.", hits.len()),
+                    Some("auto"),
+                    Some(format!("runId={}", detail.run.id)),
+                );
+                context.extend(adl_context_engine::search_hit_contexts(&sym, &hits, 6));
+            }
         }
     }
     context = adl_context_engine::sort_context(context);
@@ -395,7 +406,7 @@ async fn start_run_inner(
     );
 
     let patch_set = match scenario {
-        ConversationScenario::CodeEdit => {
+        ConversationScenario::CodeEdit if !workspace.root_path.is_empty() => {
             match adl_agent_runtime::target_file_from_prompt(&input.prompt) {
                 Some(path) => {
                     let document = adl_workspace::read_file(
@@ -413,7 +424,7 @@ async fn start_run_inner(
                 None => None,
             }
         }
-        ConversationScenario::Plan | ConversationScenario::Chat => None,
+        ConversationScenario::CodeEdit | ConversationScenario::Plan | ConversationScenario::Chat => None,
     };
     if let Some(patch_set) = &patch_set {
         emit_activity(serde_json::json!({

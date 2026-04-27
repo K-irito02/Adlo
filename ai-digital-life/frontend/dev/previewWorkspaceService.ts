@@ -5,6 +5,7 @@ import { spawn } from "node:child_process";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type {
   FileOutlineItem,
+  GitBranchSummary,
   GitSnapshot,
   IpcResult,
   RecentWorkspaceEntry,
@@ -12,6 +13,9 @@ import type {
   RetrievalFileTypeCount,
   RetrievalSnapshot,
   WorkspaceFileDocument,
+  WorkspaceGitBranchChangeResult,
+  WorkspaceGitBranchCreateInput,
+  WorkspaceGitBranchSwitchInput,
   WorkspaceMeta,
   WorkspaceSearchHit,
   WorkspaceTreeNode,
@@ -417,6 +421,131 @@ async function captureGitSnapshot(rootPath: string): Promise<GitSnapshot> {
   };
 }
 
+async function listGitBranches(rootPath: string): Promise<GitBranchSummary[]> {
+  const [currentBranch, branchesOutput] = await Promise.all([
+    runGit(rootPath, ["branch", "--show-current"]),
+    runGit(rootPath, ["branch", "--format=%(refname:short)"])
+  ]);
+  const current = currentBranch?.trim();
+  const branches = (branchesOutput ?? "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((name) => ({ name, isCurrent: name === current }));
+  if (!branches.length) {
+    throw new Error("no local branches found");
+  }
+  branches.sort((left, right) => Number(right.isCurrent) - Number(left.isCurrent) || left.name.localeCompare(right.name));
+  return branches;
+}
+
+async function runGitRequired(rootPath: string, args: string[]): Promise<string> {
+  const output = await runGit(rootPath, args);
+  if (typeof output === "string") {
+    return output;
+  }
+  throw new Error(`git command failed: git ${args.join(" ")}`);
+}
+
+function hasLocalGitChanges(snapshot: GitSnapshot): boolean {
+  return snapshot.staged.length > 0 || snapshot.unstaged.length > 0 || snapshot.untracked.length > 0;
+}
+
+async function stashWorkspaceChanges(rootPath: string): Promise<void> {
+  await runGitRequired(rootPath, [
+    "stash",
+    "push",
+    "--include-untracked",
+    "--message",
+    `adl-preview-auto-stash-${Date.now()}`
+  ]);
+}
+
+async function updateWorkspaceMetaForBranchChange(rootPath: string): Promise<WorkspaceMeta> {
+  const root = await detectWorkspaceRoot(rootPath);
+  const currentTime = nowMs();
+  return {
+    id: createWorkspaceId(root),
+    path: root,
+    rootPath: root,
+    name: path.basename(root) || root,
+    type: await inferWorkspaceType(root),
+    status: "ready",
+    gitSnapshot: await captureGitSnapshot(root),
+    createdAt: currentTime,
+    updatedAt: currentTime,
+    lastOpenedAt: currentTime
+  };
+}
+
+async function switchGitBranch(
+  rootPath: string,
+  input: WorkspaceGitBranchSwitchInput
+): Promise<WorkspaceGitBranchChangeResult> {
+  const snapshot = await captureGitSnapshot(rootPath);
+  if (!snapshot.isRepo) {
+    throw new Error("active workspace is not a Git repository");
+  }
+  const branchName = input.branchName.trim();
+  if (!branchName) {
+    throw new Error("branchName is required");
+  }
+  const stashedChanges = hasLocalGitChanges(snapshot);
+  if (stashedChanges && !input.allowStash) {
+    throw new Error("Dirty worktree requires explicit stash confirmation.");
+  }
+  if (stashedChanges) {
+    await stashWorkspaceChanges(rootPath);
+  }
+  await runGitRequired(rootPath, ["switch", branchName]);
+  const workspace = await updateWorkspaceMetaForBranchChange(rootPath);
+  return {
+    workspace,
+    gitSnapshot: workspace.gitSnapshot!,
+    previousBranch: snapshot.branch,
+    currentBranch: workspace.gitSnapshot?.branch ?? branchName,
+    stashedChanges
+  };
+}
+
+async function createGitBranch(
+  rootPath: string,
+  input: WorkspaceGitBranchCreateInput
+): Promise<WorkspaceGitBranchChangeResult> {
+  const snapshot = await captureGitSnapshot(rootPath);
+  if (!snapshot.isRepo) {
+    throw new Error("active workspace is not a Git repository");
+  }
+  const branchName = input.branchName.trim();
+  if (!branchName) {
+    throw new Error("branchName is required");
+  }
+  const currentBranch = snapshot.branch;
+  if (!currentBranch) {
+    throw new Error("failed to resolve current branch");
+  }
+  const baseBranch = input.baseBranch?.trim() || currentBranch;
+  const stashedChanges = baseBranch !== currentBranch && hasLocalGitChanges(snapshot);
+  if (stashedChanges && !input.allowStash) {
+    throw new Error("Dirty worktree requires explicit stash confirmation.");
+  }
+  if (stashedChanges) {
+    await stashWorkspaceChanges(rootPath);
+  }
+  if (baseBranch !== currentBranch) {
+    await runGitRequired(rootPath, ["switch", baseBranch]);
+  }
+  await runGitRequired(rootPath, ["switch", "-c", branchName]);
+  const workspace = await updateWorkspaceMetaForBranchChange(rootPath);
+  return {
+    workspace,
+    gitSnapshot: workspace.gitSnapshot!,
+    previousBranch: snapshot.branch,
+    currentBranch: workspace.gitSnapshot?.branch ?? branchName,
+    stashedChanges
+  };
+}
+
 async function buildRetrievalSnapshot(workspaceId: string, rootPath: string): Promise<RetrievalSnapshot> {
   const files: string[] = [];
   await collectTextFiles(rootPath, rootPath, files);
@@ -623,6 +752,28 @@ export async function handlePreviewWorkspaceApi(
     }
     if (request.method === "GET" && requestUrl.pathname === `${API_PREFIX}/workspace/git-status`) {
       writeJson(response, ok(await captureGitSnapshot(rootPath)));
+      return true;
+    }
+    if (request.method === "GET" && requestUrl.pathname === `${API_PREFIX}/workspace/git-branches`) {
+      writeJson(response, ok(await listGitBranches(rootPath)));
+      return true;
+    }
+    if (request.method === "POST" && requestUrl.pathname === `${API_PREFIX}/workspace/git-switch`) {
+      const body = (await readBody(request)) as WorkspaceGitBranchSwitchInput | undefined;
+      if (!body) {
+        writeJson(response, fail("branch switch payload is required", "INVALID_INPUT"));
+        return true;
+      }
+      writeJson(response, ok(await switchGitBranch(rootPath, body)));
+      return true;
+    }
+    if (request.method === "POST" && requestUrl.pathname === `${API_PREFIX}/workspace/git-create-branch`) {
+      const body = (await readBody(request)) as WorkspaceGitBranchCreateInput | undefined;
+      if (!body) {
+        writeJson(response, fail("branch creation payload is required", "INVALID_INPUT"));
+        return true;
+      }
+      writeJson(response, ok(await createGitBranch(rootPath, body)));
       return true;
     }
     if (request.method === "GET" && requestUrl.pathname === `${API_PREFIX}/retrieval/status`) {

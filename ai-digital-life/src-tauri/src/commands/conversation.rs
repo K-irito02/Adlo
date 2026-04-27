@@ -44,15 +44,16 @@ pub fn conversation_create_session(
     title: Option<String>,
 ) -> IpcResult<ConversationSessionRecord> {
     crate::commands::ipc_try(|| {
-        let workspace = crate::commands::workspace::current_workspace(&state)?;
+        let workspace_id = active_workspace_scope_id(&state);
         let existing: Vec<ConversationSessionRecord> = state
             .db
-            .list_entities_by_workspace(EntityTable::Sessions, &workspace.id)?;
-        let session = adl_conversation::create_session(&workspace.id, title, existing.len() as i32);
+            .list_entities_by_workspace(EntityTable::Sessions, &workspace_id)?;
+        let session =
+            adl_conversation::create_session(&workspace_id, title, existing.len() as i32);
         state.db.save_entity(
             EntityTable::Sessions,
             &session.id,
-            Some(&workspace.id),
+            Some(&workspace_id),
             Some(&session.id),
             Some(&session.status),
             &session,
@@ -66,10 +67,9 @@ pub fn conversation_list_sessions(
     state: tauri::State<'_, AppState>,
 ) -> IpcResult<Vec<ConversationSessionRecord>> {
     crate::commands::ipc_try(|| {
-        let workspace = crate::commands::workspace::current_workspace(&state)?;
         state
             .db
-            .list_entities_by_workspace(EntityTable::Sessions, &workspace.id)
+            .list_entities_by_workspace(EntityTable::Sessions, &active_workspace_scope_id(&state))
     })
 }
 
@@ -150,10 +150,10 @@ pub fn conversation_archive_all_in_workspace(
     state: tauri::State<'_, AppState>,
 ) -> IpcResult<Vec<ConversationSessionRecord>> {
     crate::commands::ipc_try(|| {
-        let workspace = crate::commands::workspace::current_workspace(&state)?;
+        let workspace_id = active_workspace_scope_id(&state);
         let mut sessions: Vec<ConversationSessionRecord> = state
             .db
-            .list_entities_by_workspace(EntityTable::Sessions, &workspace.id)?;
+            .list_entities_by_workspace(EntityTable::Sessions, &workspace_id)?;
         for session in &mut sessions {
             session.status = "archived".into();
             session.archived_at = Some(adl_kernel::now_ms());
@@ -162,6 +162,16 @@ pub fn conversation_archive_all_in_workspace(
         }
         Ok(sessions)
     })
+}
+
+pub fn active_workspace_scope_id(state: &AppState) -> String {
+    state
+        .current_workspace
+        .lock()
+        .expect("workspace mutex poisoned")
+        .as_ref()
+        .map(|workspace| workspace.id.clone())
+        .unwrap_or_else(|| adl_kernel::GLOBAL_WORKSPACE_ID.to_string())
 }
 
 #[tauri::command]

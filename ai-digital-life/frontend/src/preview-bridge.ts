@@ -1,28 +1,35 @@
 import type {
   AppInfo,
   AppPreferencePatch,
+  GitBranchSummary,
   GitSnapshot,
   IpcResult,
   RecentWorkspaceEntry,
   RepoMapNode,
   RetrievalSnapshot,
+  WorkspaceGitBranchChangeResult,
+  WorkspaceGitBranchCreateInput,
+  WorkspaceGitBranchSwitchInput,
   WorkspaceFileDocument,
   WorkspaceMeta,
   WorkspaceSearchHit,
   WorkspaceTreeNode
 } from "@ai-digital-life/kernel";
-import { mockDigitalLifeBridge } from "./mock-bridge";
+import { mockDigitalLifeBridge, setMockActiveWorkspace } from "./mock-bridge";
 import { repoMapEntriesToTree } from "./app/repoMapFromEntries";
 import type { DigitalLifeBridge } from "./shared/ipc";
 
 const PREVIEW_API_PREFIX = "/__adl_preview_api__";
 const PREVIEW_RECENT_STORAGE_KEY = "adl.preview.recent-workspaces.v1";
+const PREVIEW_PREFERENCES_STORAGE_KEY = "adl.preview.preferences.v1";
 
 type PreviewWorkspaceOpenPayload = {
   meta: WorkspaceMeta;
   recent: RecentWorkspaceEntry;
   retrieval: RetrievalSnapshot;
 };
+
+type PreviewPreferenceState = Pick<AppInfo["config"], "language" | "themeMode" | "resolvedTheme" | "modelPreferences">;
 
 function loadRecentWorkspaces(): RecentWorkspaceEntry[] {
   try {
@@ -45,27 +52,57 @@ function persistRecentWorkspaces(entries: RecentWorkspaceEntry[]) {
   }
 }
 
+function loadPreviewPreferences(): Partial<PreviewPreferenceState> {
+  try {
+    const raw = window.localStorage.getItem(PREVIEW_PREFERENCES_STORAGE_KEY);
+    if (!raw) {
+      return {};
+    }
+    const parsed = JSON.parse(raw) as Partial<PreviewPreferenceState>;
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function persistPreviewPreferences(config: PreviewPreferenceState) {
+  try {
+    window.localStorage.setItem(
+      PREVIEW_PREFERENCES_STORAGE_KEY,
+      JSON.stringify({
+        language: config.language,
+        themeMode: config.themeMode,
+        resolvedTheme: config.resolvedTheme,
+        modelPreferences: config.modelPreferences
+      } satisfies PreviewPreferenceState)
+    );
+  } catch {
+    // ignore persistence errors in preview mode
+  }
+}
+
 function createBaseAppInfo(): AppInfo {
+  const savedPreferences = loadPreviewPreferences();
   return {
     appName: "AI Digital Life",
     version: "0.1.0",
     config: {
-      language: "zh-CN",
-      themeMode: "system",
-      resolvedTheme: "light",
+      language: savedPreferences.language ?? "zh-CN",
+      themeMode: savedPreferences.themeMode ?? "system",
+      resolvedTheme: savedPreferences.resolvedTheme ?? "light",
       logLevel: "info",
       maxRecentWorkspaces: 10,
-      modelPreferences: {
+      modelPreferences: savedPreferences.modelPreferences ?? {
         providers: {
           deepseek: {
             enabled: true,
             priority: 1,
-            modelId: "deepseek-chat"
+            modelId: "deepseek-v4-pro"
           },
           minimax: {
             enabled: true,
-            priority: 3,
-            modelId: "MiniMax-M2.5"
+            priority: 2,
+            modelId: "MiniMax-M2.7"
           }
         }
       }
@@ -129,6 +166,7 @@ export function setupPreviewBridge(): void {
   let recentWorkspaces = loadRecentWorkspaces();
   let currentWorkspace: WorkspaceMeta | undefined;
   let retrievalStatus: RetrievalSnapshot | undefined;
+  setMockActiveWorkspace(undefined);
 
   const previewBridge: DigitalLifeBridge = {
     ...mockDigitalLifeBridge,
@@ -165,6 +203,7 @@ export function setupPreviewBridge(): void {
             };
           }
         }
+        persistPreviewPreferences(appInfo.config);
         return {
           ok: true,
           data: {
@@ -186,6 +225,7 @@ export function setupPreviewBridge(): void {
         }
         currentWorkspace = result.data.meta;
         retrievalStatus = result.data.retrieval;
+        setMockActiveWorkspace(result.data.meta);
         recentWorkspaces = updateRecentWorkspaces(recentWorkspaces, result.data.recent);
         appInfo.recentLogs.unshift({
           timestamp: Date.now(),
@@ -195,6 +235,19 @@ export function setupPreviewBridge(): void {
         });
         return { ok: true, data: result.data.meta };
       },
+      clearCurrent: async () => {
+        currentWorkspace = undefined;
+        retrievalStatus = undefined;
+        setMockActiveWorkspace(undefined);
+        return { ok: true, data: true };
+      },
+      pickDirectory: async () => ({
+        ok: false,
+        error: {
+          code: "UNSUPPORTED",
+          message: "Browser preview does not provide a native directory picker. Enter the workspace path manually."
+        }
+      }),
       pin: async () => ({ ok: true, data: recentWorkspaces }),
       unpin: async () => ({ ok: true, data: recentWorkspaces }),
       reorder: async () => ({ ok: true, data: recentWorkspaces }),
@@ -289,6 +342,41 @@ export function setupPreviewBridge(): void {
         }
         const params = new URLSearchParams({ rootPath: currentWorkspace.rootPath });
         return requestPreviewApi<GitSnapshot>(`/workspace/git-status?${params.toString()}`);
+      },
+      listGitBranches: async () => {
+        if (!currentWorkspace) {
+          return { ok: false, error: { code: "NOT_FOUND", message: "active workspace" } };
+        }
+        const params = new URLSearchParams({ rootPath: currentWorkspace.rootPath });
+        return requestPreviewApi<GitBranchSummary[]>(`/workspace/git-branches?${params.toString()}`);
+      },
+      switchGitBranch: async (input: WorkspaceGitBranchSwitchInput) => {
+        if (!currentWorkspace) {
+          return { ok: false, error: { code: "NOT_FOUND", message: "active workspace" } };
+        }
+        const result = await requestPreviewApi<WorkspaceGitBranchChangeResult>("/workspace/git-switch", {
+          method: "POST",
+          body: JSON.stringify({ rootPath: currentWorkspace.rootPath, input })
+        });
+        if (result.ok) {
+          currentWorkspace = result.data.workspace;
+          setMockActiveWorkspace(result.data.workspace);
+        }
+        return result;
+      },
+      createGitBranch: async (input: WorkspaceGitBranchCreateInput) => {
+        if (!currentWorkspace) {
+          return { ok: false, error: { code: "NOT_FOUND", message: "active workspace" } };
+        }
+        const result = await requestPreviewApi<WorkspaceGitBranchChangeResult>("/workspace/git-create-branch", {
+          method: "POST",
+          body: JSON.stringify({ rootPath: currentWorkspace.rootPath, input })
+        });
+        if (result.ok) {
+          currentWorkspace = result.data.workspace;
+          setMockActiveWorkspace(result.data.workspace);
+        }
+        return result;
       }
     },
     retrieval: {

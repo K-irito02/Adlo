@@ -18,14 +18,7 @@ export async function loadConversationState(sessionId?: string): Promise<{
     throw new Error(sessionsResult.error.message);
   }
 
-  let activeId = sessionId ?? sessionsResult.data[0]?.id;
-  if (!activeId) {
-    const created = await window.digitalLife.conversation.createSession();
-    if (!created.ok) {
-      throw new Error(created.error.message);
-    }
-    activeId = created.data.id;
-  }
+  const activeId = sessionId ?? sessionsResult.data[0]?.id;
 
   const detailResult = activeId ? await window.digitalLife.conversation.getSession(activeId) : undefined;
   if (detailResult && !detailResult.ok) {

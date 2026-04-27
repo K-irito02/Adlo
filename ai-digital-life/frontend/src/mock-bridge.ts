@@ -10,14 +10,20 @@ import type {
   ConversationSendResult,
   ConversationSessionRecord,
   FileOutlineItem,
-
+  GitBranchSummary,
+  GitSnapshot,
   ModelGatewayHealthSnapshot,
   PatchApplicationResult,
   PatchSet,
   RepoMapNode,
+  RecentWorkspaceEntry,
   WorkspaceMeta,
+  WorkspaceGitBranchChangeResult,
+  WorkspaceGitBranchCreateInput,
+  WorkspaceGitBranchSwitchInput,
   WorkspaceSearchHit
 } from "@ai-digital-life/kernel";
+import { GLOBAL_WORKSPACE_ID } from "./app/workspaceScope";
 
 const now = Date.now();
 
@@ -136,12 +142,12 @@ const appInfo: AppInfo = {
         deepseek: {
           enabled: true,
           priority: 1,
-          modelId: "deepseek-chat"
+          modelId: "deepseek-v4-pro"
         },
         minimax: {
           enabled: true,
-          priority: 3,
-          modelId: "MiniMax-M2.5"
+          priority: 2,
+          modelId: "MiniMax-M2.7"
         }
       }
     }
@@ -166,6 +172,101 @@ const appInfo: AppInfo = {
     }
   ]
 };
+
+const recentWorkspaces: RecentWorkspaceEntry[] = [
+  {
+    id: "workspace-mock-1",
+    path: workspaceRoot,
+    rootPath: workspaceRoot,
+    name: "ai-digital-life",
+    lastOpenedAt: now,
+    isPinned: false,
+    pinnedOrder: 0,
+    unpinnedOrder: 0,
+    removedFromSidebar: false,
+    available: true
+  }
+];
+
+let currentWorkspaceMeta: WorkspaceMeta | undefined = appInfo.currentWorkspace;
+
+function setMockCurrentWorkspace(workspace?: WorkspaceMeta): void {
+  currentWorkspaceMeta = workspace;
+  appInfo.currentWorkspace = workspace;
+}
+
+export function setMockActiveWorkspace(workspace?: WorkspaceMeta): void {
+  setMockCurrentWorkspace(workspace);
+}
+
+function activeWorkspaceScopeId(): string {
+  return currentWorkspaceMeta?.id ?? GLOBAL_WORKSPACE_ID;
+}
+
+function emptyGitSnapshot(): GitSnapshot {
+  return {
+    isRepo: false,
+    branch: undefined,
+    head: undefined,
+    ahead: undefined,
+    behind: undefined,
+    staged: [],
+    unstaged: [],
+    untracked: [],
+    conflicts: [],
+    capturedAt: Date.now()
+  };
+}
+
+function ensureRecentWorkspace(meta: WorkspaceMeta): void {
+  const existing = recentWorkspaces.find((entry) => entry.path === meta.path);
+  if (existing) {
+    existing.id = meta.id;
+    existing.rootPath = meta.rootPath;
+    existing.name = meta.name;
+    existing.lastOpenedAt = Date.now();
+    existing.available = true;
+    existing.removedFromSidebar = false;
+    return;
+  }
+  recentWorkspaces.unshift({
+    id: meta.id,
+    path: meta.path,
+    rootPath: meta.rootPath,
+    name: meta.name,
+    lastOpenedAt: Date.now(),
+    isPinned: false,
+    pinnedOrder: 0,
+    unpinnedOrder: recentWorkspaces.filter((entry) => !entry.isPinned).length,
+    removedFromSidebar: false,
+    available: true
+  });
+}
+
+function buildMockWorkspaceMeta(workspacePath: string): WorkspaceMeta {
+  return {
+    id: `workspace-mock-${workspaceNameFromPath(workspacePath).toLowerCase()}`,
+    path: workspacePath,
+    rootPath: workspacePath,
+    name: workspaceNameFromPath(workspacePath),
+    type: "node",
+    status: "ready",
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    lastOpenedAt: Date.now(),
+    gitSnapshot: {
+      ...emptyGitSnapshot(),
+      isRepo: true,
+      branch: "main",
+      head: "abc1234"
+    }
+  };
+}
+
+function listScopedSessions(): ConversationSessionRecord[] {
+  const scopeId = activeWorkspaceScopeId();
+  return sessions.filter((session) => session.workspaceId === scopeId);
+}
 
 const modelHealth: ModelGatewayHealthSnapshot = {
   checkedAt: now,
@@ -194,13 +295,14 @@ function ensureSession(sessionId: string): ConversationDetail {
   };
 }
 
-function createPatchSet(relativePath: string, prompt: string): PatchSet {
+function createPatchSet(sessionId: string, relativePath: string, prompt: string): PatchSet {
   const beforeContent = documents.get(relativePath) ?? "";
   const afterContent = `// AI Digital Life: ${prompt.trim()}\n${beforeContent}`;
+  const workspaceId = activeWorkspaceScopeId();
   const patchSet: PatchSet = {
     id: `patchset-${Date.now()}`,
-    workspaceId: "workspace-mock-1",
-    sessionId: sessions[0].id,
+    workspaceId,
+    sessionId,
     runId: activeRun?.run.id,
     title: `Update ${relativePath}`,
     summary: `建议在 ${relativePath} 顶部加入任务说明注释。`,
@@ -241,6 +343,7 @@ function createPatchSet(relativePath: string, prompt: string): PatchSet {
 }
 
 function createSendResult(sessionId: string, content: string): ConversationSendResult {
+  const workspaceId = activeWorkspaceScopeId();
   const userMessage: ConversationMessageRecord = {
     id: `message-user-${Date.now()}`,
     sessionId,
@@ -282,7 +385,7 @@ function createSendResult(sessionId: string, content: string): ConversationSendR
   activeRun = {
     run: {
       id: `run-${Date.now()}`,
-      workspaceId: "workspace-mock-1",
+      workspaceId,
       sessionId,
       prompt: content,
       scenario: "code-edit",
@@ -293,7 +396,7 @@ function createSendResult(sessionId: string, content: string): ConversationSendR
     steps
   };
 
-  activePatchSet = targetPath ? createPatchSet(targetPath, content) : undefined;
+  activePatchSet = targetPath ? createPatchSet(sessionId, targetPath, content) : undefined;
 
   const assistantMessage: ConversationMessageRecord = {
     id: `message-assistant-${Date.now()}`,
@@ -372,7 +475,7 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
     }
   },
   app: {
-    getInfo: async () => ({ ok: true, data: appInfo }),
+    getInfo: async () => ({ ok: true, data: { ...appInfo, currentWorkspace: currentWorkspaceMeta } }),
     getHealth: async () => ({
       ok: true,
       data: {
@@ -433,38 +536,18 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
           };
         }
       }
-      return { ok: true, data: appInfo };
+      return { ok: true, data: { ...appInfo, currentWorkspace: currentWorkspaceMeta } };
     }
   },
   workspace: {
-    listRecent: async () => ({
-      ok: true,
-      data: [
-        {
-          id: "workspace-mock-1",
-          path: workspaceRoot,
-          rootPath: workspaceRoot,
-          name: "ai-digital-life",
-          lastOpenedAt: now,
-          isPinned: false,
-          pinnedOrder: 0,
-          unpinnedOrder: 0,
-          removedFromSidebar: false,
-          available: true
-        }
-      ]
-    }),
+    listRecent: async () => ({ ok: true, data: recentWorkspaces }),
     open: async (workspacePath: string) => ({
       ok: true,
       data: (() => {
         workspaceRoot = workspacePath;
-        const next = {
-          ...(appInfo.currentWorkspace as WorkspaceMeta),
-          path: workspacePath,
-          rootPath: workspacePath,
-          name: workspaceNameFromPath(workspacePath)
-        };
-        appInfo.currentWorkspace = next;
+        const next = buildMockWorkspaceMeta(workspacePath);
+        ensureRecentWorkspace(next);
+        setMockCurrentWorkspace(next);
         appInfo.recentLogs.unshift({
           timestamp: Date.now(),
           level: "info" as const,
@@ -474,75 +557,43 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
         return next;
       })()
     }),
-    pin: async () => ({
-      ok: true,
-      data: [
-        {
-          id: "workspace-mock-1",
-          path: workspaceRoot,
-          rootPath: workspaceRoot,
-          name: "ai-digital-life",
-          lastOpenedAt: now,
-          isPinned: true,
-          pinnedOrder: 0,
-          unpinnedOrder: 0,
-          removedFromSidebar: false,
-          available: true
-        }
-      ]
+    clearCurrent: async () => {
+      setMockCurrentWorkspace(undefined);
+      return { ok: true, data: true };
+    },
+    pickDirectory: async () => ({
+      ok: false,
+      error: { code: "UNSUPPORTED", message: "Directory picker is unavailable in the mock bridge." }
     }),
-    unpin: async () => ({
-      ok: true,
-      data: [
-        {
-          id: "workspace-mock-1",
-          path: workspaceRoot,
-          rootPath: workspaceRoot,
-          name: "ai-digital-life",
-          lastOpenedAt: now,
-          isPinned: false,
-          pinnedOrder: 0,
-          unpinnedOrder: 0,
-          removedFromSidebar: false,
-          available: true
-        }
-      ]
-    }),
-    reorder: async () => ({
-      ok: true,
-      data: [
-        {
-          id: "workspace-mock-1",
-          path: workspaceRoot,
-          rootPath: workspaceRoot,
-          name: "ai-digital-life",
-          lastOpenedAt: now,
-          isPinned: false,
-          pinnedOrder: 0,
-          unpinnedOrder: 0,
-          removedFromSidebar: false,
-          available: true
-        }
-      ]
-    }),
-    removeFromSidebar: async () => ({ ok: true, data: [] }),
-    restoreToSidebar: async () => ({
-      ok: true,
-      data: [
-        {
-          id: "workspace-mock-1",
-          path: workspaceRoot,
-          rootPath: workspaceRoot,
-          name: "ai-digital-life",
-          lastOpenedAt: now,
-          isPinned: false,
-          pinnedOrder: 0,
-          unpinnedOrder: 0,
-          removedFromSidebar: false,
-          available: true
-        }
-      ]
-    }),
+    pin: async (workspaceId: string) => {
+      const entry = recentWorkspaces.find((item) => item.id === workspaceId);
+      if (entry) {
+        entry.isPinned = true;
+      }
+      return { ok: true, data: recentWorkspaces };
+    },
+    unpin: async (workspaceId: string) => {
+      const entry = recentWorkspaces.find((item) => item.id === workspaceId);
+      if (entry) {
+        entry.isPinned = false;
+      }
+      return { ok: true, data: recentWorkspaces };
+    },
+    reorder: async () => ({ ok: true, data: recentWorkspaces }),
+    removeFromSidebar: async (workspaceId: string) => {
+      const entry = recentWorkspaces.find((item) => item.id === workspaceId);
+      if (entry) {
+        entry.removedFromSidebar = true;
+      }
+      return { ok: true, data: recentWorkspaces };
+    },
+    restoreToSidebar: async (workspaceId: string) => {
+      const entry = recentWorkspaces.find((item) => item.id === workspaceId);
+      if (entry) {
+        entry.removedFromSidebar = false;
+      }
+      return { ok: true, data: recentWorkspaces };
+    },
     revealInFileManager: async () => ({ ok: true, data: true }),
     createFile: async (relativePath: string, content = "") => {
       documents.set(relativePath, content);
@@ -562,7 +613,7 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
     },
     listTree: async () => ({
       ok: true,
-      data: buildWorkspaceTreeFromPaths(Array.from(documents.keys()), Array.from(emptyDirectories))
+      data: currentWorkspaceMeta ? buildWorkspaceTreeFromPaths(Array.from(documents.keys()), Array.from(emptyDirectories)) : []
     }),
     readFile: async (relativePath: string) => ({
       ok: true,
@@ -615,27 +666,101 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
     setEditorDirtyPaths: async () => ({ ok: true, data: true }),
     getGitStatus: async () => ({
       ok: true,
-      data: {
+      data: currentWorkspaceMeta?.gitSnapshot ?? emptyGitSnapshot()
+    }),
+    listGitBranches: async () => {
+      if (!currentWorkspaceMeta) {
+        return { ok: false, error: { code: "NOT_FOUND", message: "active workspace" } };
+      }
+      const currentBranch = currentWorkspaceMeta.gitSnapshot?.branch ?? "main";
+      const branches: GitBranchSummary[] = [
+        { name: currentBranch, isCurrent: true },
+        { name: "main", isCurrent: currentBranch === "main" },
+        { name: "experiment/mock", isCurrent: currentBranch === "experiment/mock" }
+      ].filter((branch, index, list) => list.findIndex((item) => item.name === branch.name) === index);
+      return { ok: true, data: branches };
+    },
+    switchGitBranch: async (input: WorkspaceGitBranchSwitchInput) => {
+      if (!currentWorkspaceMeta) {
+        return { ok: false, error: { code: "NOT_FOUND", message: "active workspace" } };
+      }
+      const dirty = (currentWorkspaceMeta.gitSnapshot?.staged.length ?? 0) > 0 ||
+        (currentWorkspaceMeta.gitSnapshot?.unstaged.length ?? 0) > 0 ||
+        (currentWorkspaceMeta.gitSnapshot?.untracked.length ?? 0) > 0;
+      if (dirty && !input.allowStash) {
+        return {
+          ok: false,
+          error: { code: "INVALID_INPUT", message: "Dirty worktree requires explicit stash confirmation." }
+        };
+      }
+      const previousBranch = currentWorkspaceMeta.gitSnapshot?.branch ?? "main";
+      const gitSnapshot: GitSnapshot = {
+        ...(currentWorkspaceMeta.gitSnapshot ?? emptyGitSnapshot()),
         isRepo: true,
-        branch: "main",
-        head: "abc1234",
-        ahead: 2,
-        behind: 0,
-        staged: ["frontend/src/app/App.tsx"],
-        unstaged: ["frontend/src/styles/components.css"],
-        untracked: ["frontend/src/app/components/agent/PlanCard.tsx"],
+        branch: input.branchName,
+        staged: [],
+        unstaged: [],
+        untracked: [],
         conflicts: [],
         capturedAt: Date.now()
+      };
+      const workspace = { ...currentWorkspaceMeta, gitSnapshot, updatedAt: Date.now(), lastOpenedAt: Date.now() };
+      setMockCurrentWorkspace(workspace);
+      const result: WorkspaceGitBranchChangeResult = {
+        workspace,
+        gitSnapshot,
+        previousBranch,
+        currentBranch: input.branchName,
+        stashedChanges: dirty
+      };
+      return { ok: true, data: result };
+    },
+    createGitBranch: async (input: WorkspaceGitBranchCreateInput) => {
+      if (!currentWorkspaceMeta) {
+        return { ok: false, error: { code: "NOT_FOUND", message: "active workspace" } };
       }
-    }),
+      const previousBranch = currentWorkspaceMeta.gitSnapshot?.branch ?? "main";
+      const shouldStash =
+        Boolean(input.baseBranch && input.baseBranch !== previousBranch) &&
+        (((currentWorkspaceMeta.gitSnapshot?.staged.length ?? 0) > 0) ||
+          ((currentWorkspaceMeta.gitSnapshot?.unstaged.length ?? 0) > 0) ||
+          ((currentWorkspaceMeta.gitSnapshot?.untracked.length ?? 0) > 0));
+      if (shouldStash && !input.allowStash) {
+        return {
+          ok: false,
+          error: { code: "INVALID_INPUT", message: "Dirty worktree requires explicit stash confirmation." }
+        };
+      }
+      const gitSnapshot: GitSnapshot = {
+        ...(currentWorkspaceMeta.gitSnapshot ?? emptyGitSnapshot()),
+        isRepo: true,
+        branch: input.branchName,
+        staged: [],
+        unstaged: [],
+        untracked: [],
+        conflicts: [],
+        capturedAt: Date.now()
+      };
+      const workspace = { ...currentWorkspaceMeta, gitSnapshot, updatedAt: Date.now(), lastOpenedAt: Date.now() };
+      setMockCurrentWorkspace(workspace);
+      const result: WorkspaceGitBranchChangeResult = {
+        workspace,
+        gitSnapshot,
+        previousBranch,
+        currentBranch: input.branchName,
+        stashedChanges: shouldStash
+      };
+      return { ok: true, data: result };
+    },
     onFileChanged: () => () => undefined
   },
   retrieval: {
     getStatus: async () => ({
       ok: true,
-      data: {
-        workspaceId: "ws-mock-001",
-        rootPath: "/mock/workspace",
+      data: currentWorkspaceMeta
+        ? {
+        workspaceId: currentWorkspaceMeta.id,
+        rootPath: currentWorkspaceMeta.rootPath,
         status: "completed" as const,
         scannedFiles: 400,
         indexedTextFiles: 356,
@@ -654,6 +779,7 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
           { path: "frontend/src/kernel/index.ts", type: "file" as const }
         ]
       }
+        : undefined
     }),
     getRepoMap: async () => ({
       ok: true,
@@ -686,9 +812,10 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
   },
   conversation: {
     createSession: async (title?: string) => {
+      const workspaceId = activeWorkspaceScopeId();
       const session: ConversationSessionRecord = {
         id: `conversation-${Date.now()}`,
-        workspaceId: "workspace-mock-1",
+        workspaceId,
         title: title || "Single Agent Session",
         status: "active",
         isPinned: false,
@@ -706,7 +833,7 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
       messagesBySession.set(session.id, []);
       return { ok: true, data: session };
     },
-    listSessions: async () => ({ ok: true, data: sessions }),
+    listSessions: async () => ({ ok: true, data: listScopedSessions() }),
     getSession: async (sessionId: string) => ({ ok: true, data: ensureSession(sessionId) }),
     renameSession: async ({ sessionId, title }) => {
       const session = sessions.find((candidate) => candidate.id === sessionId)!;
@@ -743,11 +870,11 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
       return { ok: true, data: session };
     },
     archiveAllInWorkspace: async () => {
-      for (const session of sessions) {
+      for (const session of listScopedSessions()) {
         session.status = "archived";
         session.archivedAt = Date.now();
       }
-      return { ok: true, data: sessions };
+      return { ok: true, data: listScopedSessions() };
     },
     deleteSession: async (sessionId: string) => {
       const index = sessions.findIndex((candidate) => candidate.id === sessionId);
@@ -790,10 +917,11 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
           status: "applied",
           updatedAt: Date.now()
         };
-        const sessionMessages = messagesBySession.get(sessions[0].id) ?? [];
+        const targetSessionId = activePatchSet.sessionId;
+        const sessionMessages = messagesBySession.get(targetSessionId) ?? [];
         sessionMessages.push({
           id: `message-validation-${Date.now()}`,
-          sessionId: sessions[0].id,
+          sessionId: targetSessionId,
           role: "assistant",
           content: "Patch applied and validation completed.",
           blocks: [
@@ -839,7 +967,7 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
           commandResult: {
             request: {
               id: `command-${Date.now()}`,
-              workspaceId: "workspace-mock-1",
+              workspaceId: activeWorkspaceScopeId(),
               runId: activeRun?.run.id,
               profile: "test",
               command: "npm",
@@ -889,7 +1017,7 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
         taskId: `task-command-${Date.now()}`,
         request: {
           id: `command-${Date.now()}`,
-          workspaceId: "workspace-mock-1",
+          workspaceId: activeWorkspaceScopeId(),
           profile: input.command.includes("install") ? "install" : "custom",
           command: input.command,
           args: input.args,
@@ -908,7 +1036,7 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
             taskId: `task-stream-${Date.now()}`,
             request: {
               id: `command-${Date.now()}`,
-              workspaceId: "workspace-mock-1",
+              workspaceId: activeWorkspaceScopeId(),
               profile: "install",
               command: input.command,
               args: input.args,
@@ -938,7 +1066,7 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
           taskId: `task-stream-${Date.now()}`,
           request: {
             id: `command-${Date.now()}`,
-            workspaceId: "workspace-mock-1",
+            workspaceId: activeWorkspaceScopeId(),
             profile: "test",
             command: input.command,
             args: input.args,

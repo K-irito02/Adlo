@@ -1738,7 +1738,7 @@ export function LeftSidebar({
         {!conversationsCollapsed ? (
           <div className="adl-leftbar__conversation-body">
             <ul className="adl-session-list adl-session-list--standalone" role="list">
-              {displayStandaloneSessions.length === 0 ? <li className="adl-empty-hint">{t.sessionEmpty}</li> : null}
+              {displayStandaloneSessions.length === 0 ? <li className="adl-empty-hint">{t.conversationEmpty}</li> : null}
               {renderSessionRows(displayStandaloneSessions, {
                 listKey: "standalone",
                 allowStandaloneReorder: false

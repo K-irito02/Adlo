@@ -89,13 +89,18 @@ Main (language, theme, provider priority) continue to flow through `window.digit
 The initial 17-region split treated the composer and status bar as separate visual bands. The current implementation intentionally consolidates
 them into a bottom-centered interaction group:
 
-- the composer is a floating, bottom-anchored control in `CenterPane`
+- the composer is laid out as the bottom row of the `CenterPane` grid (not an absolutely-positioned overlay)
 - the status information now renders as a lightweight inline strip directly under the composer instead of a full-width app footer
 - the empty stream no longer renders placeholder guidance cards above the composer by default
 - the composer input uses a renderer-controlled editable surface plus a custom visible caret so the insertion marker remains visually
   consistent across the Electron/Chromium runtime
 
 This is a presentation-only refinement. It does not introduce new IPC surfaces or change message-send / cancel / retry behavior.
+
+Empty-state layout note (post-migration hardening):
+
+- the message area (`.adl-center__body`) is pinned to the `1fr` grid row so it stays stable whether approvals are present or not
+- welcome/empty-state content is centered within the message area without using oversized "safety" padding meant for the composer
 
 ## Panel Motion Rule
 

@@ -11,6 +11,7 @@ import type {
   DigitalLifeRunActivityEventV1,
   DiagnosticSummary,
   FileOutlineItem,
+  GitBranchSummary,
   GitSnapshot,
   IndexingState,
   IndexingStatus,
@@ -25,6 +26,8 @@ import type {
   RecentWorkspaceEntry,
   RepoMapNode,
   TaskCenterSnapshot,
+  WorkspaceGitBranchCreateInput,
+  WorkspaceGitBranchSwitchInput,
   WorkspaceTreeNode,
   WorkspaceSearchHit
 } from "@ai-digital-life/kernel";
@@ -51,6 +54,18 @@ async function refreshConversationSlice(activeSessionId?: string) {
     activeSessionId: conversationState.activeSessionId,
     detail: conversationState.detail
   };
+}
+
+function sessionFallbackTitle(appInfo?: AppInfo): string {
+  return appInfo?.config.language === "en-US" ? copy["en-US"].sessionFallback : copy["zh-CN"].sessionFallback;
+}
+
+function workspaceContextModeFromInfo(appInfo?: AppInfo): "workspace" | "global" {
+  return appInfo?.currentWorkspace ? "workspace" : "global";
+}
+
+function hasConversationMessages(detail?: ConversationDetail): boolean {
+  return (detail?.messages.length ?? 0) > 0;
 }
 
 export type StoreState = {
@@ -90,6 +105,9 @@ export type StoreState = {
   auditEntries: AuditEntry[];
   commandHistory: string[];
   gitSnapshot?: GitSnapshot;
+  gitBranches: GitBranchSummary[];
+  workspaceContextMode: "workspace" | "global";
+  pendingWorkspacePath?: string;
   /* ---------- UI layout state ---------- */
   leftSidebarVisible: boolean;
   rightPanelVisible: boolean;
@@ -105,6 +123,9 @@ export type StoreState = {
   toggleRightSidebar: () => void;
   bootstrap: () => Promise<void>;
   openWorkspace: (workspacePath: string) => Promise<void>;
+  clearWorkspaceContext: () => Promise<void>;
+  setPendingWorkspacePath: (workspacePath?: string) => void;
+  pickWorkspaceDirectory: () => Promise<string | undefined>;
   createSession: () => Promise<void>;
   selectSession: (sessionId: string) => Promise<void>;
   renameSession: (sessionId: string, title: string) => Promise<void>;
@@ -146,6 +167,9 @@ export type StoreState = {
   fetchAuditEntries: (limit?: number) => Promise<void>;
   fetchCommandHistory: () => Promise<void>;
   fetchGitStatus: () => Promise<void>;
+  fetchGitBranches: () => Promise<void>;
+  switchGitBranch: (input: WorkspaceGitBranchSwitchInput) => Promise<void>;
+  createGitBranch: (input: WorkspaceGitBranchCreateInput) => Promise<void>;
   acceptAllHunks: () => Promise<void>;
   rejectAllHunks: () => Promise<void>;
   restoreCheckpoint: (checkpointId: string) => Promise<void>;
@@ -169,6 +193,8 @@ export const useAppStore = create<StoreState>((set, get) => ({
   repoMap: [],
   auditEntries: [],
   commandHistory: [],
+  gitBranches: [],
+  workspaceContextMode: "workspace",
   leftSidebarVisible: true,
   rightPanelVisible: true,
   activeRightTool: 'files',
@@ -188,10 +214,21 @@ export const useAppStore = create<StoreState>((set, get) => ({
       return;
     }
 
+    const [conversationState, taskCenter] = await Promise.all([
+      loadConversationState(),
+      loadTaskCenterState()
+    ]);
+
     const nextState: Partial<StoreState> = {
       appInfo: appInfoResult.data,
       modelHealth: modelHealthResult.ok ? modelHealthResult.data : undefined,
       recentWorkspaces: recentResult.ok ? recentResult.data : [],
+      sessions: conversationState.sessions,
+      activeSessionId: conversationState.activeSessionId,
+      sessionDetails: conversationState.detail ? { [conversationState.detail.session.id]: conversationState.detail } : {},
+      taskCenter,
+      workspaceContextMode: workspaceContextModeFromInfo(appInfoResult.data),
+      pendingWorkspacePath: undefined,
       loading: false,
       dirtyEditorPaths: []
     };
@@ -200,17 +237,9 @@ export const useAppStore = create<StoreState>((set, get) => ({
 
     if (appInfoResult.data.currentWorkspace) {
       const treeResult = await window.digitalLife.workspace.listTree();
-      const conversationState = await loadConversationState();
-      const taskCenter = await loadTaskCenterState();
       set({
         ...nextState,
-        taskCenter,
         workspaceTree: treeResult.ok ? treeResult.data : [],
-        sessions: conversationState.sessions,
-        activeSessionId: conversationState.activeSessionId,
-        sessionDetails: conversationState.detail
-          ? { [conversationState.detail.session.id]: conversationState.detail }
-          : {},
         dirtyEditorPaths: []
       });
       if (conversationState.detail?.messages.length) {
@@ -233,7 +262,8 @@ export const useAppStore = create<StoreState>((set, get) => ({
         get().fetchIndexStatus(),
         get().fetchAuditEntries(40),
         get().fetchCommandHistory(),
-        get().fetchGitStatus()
+        get().fetchGitStatus(),
+        get().fetchGitBranches()
       ]);
       return;
     }
@@ -241,12 +271,21 @@ export const useAppStore = create<StoreState>((set, get) => ({
     set({
       ...(nextState as StoreState),
       dirtyEditorPaths: [],
+      openTabs: [],
+      selectedFilePath: undefined,
+      fileContent: undefined,
+      fileLastModifiedAt: undefined,
+      outline: [],
       workspaceTree: [],
       indexingStatus: undefined,
       repoMap: [],
       auditEntries: [],
       commandHistory: [],
-      gitSnapshot: undefined
+      gitSnapshot: undefined,
+      gitBranches: [],
+      searchQuery: "",
+      searchResults: [],
+      externalFileChange: undefined
     });
   },
   openWorkspace: async (workspacePath: string) => {
@@ -257,10 +296,30 @@ export const useAppStore = create<StoreState>((set, get) => ({
     }
     await get().bootstrap();
   },
+  clearWorkspaceContext: async () => {
+    const result = await window.digitalLife.workspace.clearCurrent();
+    if (!result.ok) {
+      set({ error: result.error.message });
+      return;
+    }
+    await get().bootstrap();
+  },
+  setPendingWorkspacePath: (workspacePath) => {
+    set({
+      pendingWorkspacePath: workspacePath?.trim() || undefined,
+      workspaceContextMode: workspacePath?.trim() ? "global" : get().workspaceContextMode
+    });
+  },
+  pickWorkspaceDirectory: async () => {
+    const result = await window.digitalLife.workspace.pickDirectory();
+    if (!result.ok) {
+      set({ error: result.error.message });
+      return undefined;
+    }
+    return result.data?.trim() || undefined;
+  },
   createSession: async () => {
-    const label =
-      get().appInfo?.config.language === "en-US" ? copy["en-US"].sessionFallback : copy["zh-CN"].sessionFallback;
-    const result = await window.digitalLife.conversation.createSession(label);
+    const result = await window.digitalLife.conversation.createSession(sessionFallbackTitle(get().appInfo));
     if (!result.ok) {
       set({ error: result.error.message });
       return;
@@ -443,8 +502,7 @@ export const useAppStore = create<StoreState>((set, get) => ({
     });
   },
   sendMessage: async (content: string, options?: MessageSendOptions) => {
-    const sessionId = get().activeSessionId;
-    if (!sessionId || !content.trim()) {
+    if (!content.trim()) {
       return;
     }
     const trimmed = content.trim();
@@ -482,6 +540,42 @@ export const useAppStore = create<StoreState>((set, get) => ({
     const withChips = augmentPromptWithChips(content, options?.chips);
     const { scenario, prompt } = applySlashScenarioOverride(withChips, baseScenario);
     set({ streamingAssistantText: "", streamingActiveRunId: undefined, error: undefined });
+    const stateBeforeSend = get();
+    let sessionId = stateBeforeSend.activeSessionId;
+    const pendingWorkspacePath = stateBeforeSend.pendingWorkspacePath?.trim();
+
+    if (pendingWorkspacePath) {
+      const activeDetail = sessionId ? stateBeforeSend.sessionDetails[sessionId] : undefined;
+      if (
+        sessionId &&
+        stateBeforeSend.workspaceContextMode === "global" &&
+        !hasConversationMessages(activeDetail)
+      ) {
+        const deleteResult = await window.digitalLife.conversation.deleteSession(sessionId);
+        if (!deleteResult.ok) {
+          set({ error: deleteResult.error.message });
+          return;
+        }
+        sessionId = undefined;
+      }
+
+      const openResult = await window.digitalLife.workspace.open(pendingWorkspacePath);
+      if (!openResult.ok) {
+        set({ error: openResult.error.message });
+        return;
+      }
+      sessionId = undefined;
+    }
+
+    if (!sessionId) {
+      const created = await window.digitalLife.conversation.createSession(sessionFallbackTitle(get().appInfo));
+      if (!created.ok) {
+        set({ error: created.error.message });
+        return;
+      }
+      sessionId = created.data.id;
+    }
+
     const unsubscribe = window.digitalLife.subscribeModelStream((event) => {
       if (event.v !== 1) {
         return;
@@ -540,13 +634,22 @@ export const useAppStore = create<StoreState>((set, get) => ({
         return;
       }
 
+      const appInfoResult = await window.digitalLife.app.getInfo();
+      const nextAppInfo = appInfoResult.ok ? appInfoResult.data : get().appInfo;
+      const conversationState = await refreshConversationSlice(sessionId);
+
       const nextState: Partial<StoreState> = {
+        appInfo: nextAppInfo,
+        sessions: conversationState.sessions,
+        activeSessionId: conversationState.activeSessionId,
         activeRun: result.data.runDetail,
         activePatchSet: result.data.patchSet,
         openTabs: result.data.patchSet?.filePatches.map(mapPatchToEditorTab) ?? get().openTabs,
         selectedFilePath: result.data.patchSet?.filePatches[0]?.relativePath,
         streamingAssistantText: "",
-        streamingActiveRunId: undefined
+        streamingActiveRunId: undefined,
+        workspaceContextMode: workspaceContextModeFromInfo(nextAppInfo),
+        pendingWorkspacePath: undefined
       };
 
       if (result.data.patchSet?.filePatches[0]?.relativePath) {
@@ -555,8 +658,28 @@ export const useAppStore = create<StoreState>((set, get) => ({
 
       set((state) => ({
         ...nextState,
-        sessionDetails: detailResult.data ? { ...state.sessionDetails, [sessionId]: detailResult.data } : state.sessionDetails
+        sessionDetails: detailResult.data
+          ? { ...state.sessionDetails, [sessionId]: detailResult.data }
+          : state.sessionDetails
       }));
+
+      if (nextAppInfo?.currentWorkspace) {
+        await Promise.allSettled([
+          get().refreshWorkspaceTree(),
+          get().fetchIndexStatus(),
+          get().fetchRepoMap(),
+          get().fetchGitStatus(),
+          get().fetchGitBranches()
+        ]);
+      } else {
+        set({
+          workspaceTree: [],
+          indexingStatus: undefined,
+          repoMap: [],
+          gitSnapshot: undefined,
+          gitBranches: []
+        });
+      }
     } finally {
       unsubscribe();
       unsubscribeRunActivity();
@@ -988,6 +1111,10 @@ export const useAppStore = create<StoreState>((set, get) => ({
     }
   },
   fetchGitStatus: async () => {
+    if (!get().appInfo?.currentWorkspace) {
+      set({ gitSnapshot: undefined });
+      return;
+    }
     const result = await window.digitalLife.workspace.getGitStatus();
     if (result.ok) {
       set((state) => ({
@@ -1003,6 +1130,68 @@ export const useAppStore = create<StoreState>((set, get) => ({
               }
             : state.appInfo
       }));
+    }
+  },
+  fetchGitBranches: async () => {
+    if (!get().appInfo?.currentWorkspace) {
+      set({ gitBranches: [] });
+      return;
+    }
+    const result = await window.digitalLife.workspace.listGitBranches();
+    if (!result.ok) {
+      set({ error: result.error.message, gitBranches: [] });
+      return;
+    }
+    set({ error: undefined, gitBranches: result.data });
+  },
+  switchGitBranch: async (input) => {
+    const result = await window.digitalLife.workspace.switchGitBranch(input);
+    if (!result.ok) {
+      set({ error: result.error.message });
+      return;
+    }
+    set((state) => ({
+      appInfo: state.appInfo
+        ? { ...state.appInfo, currentWorkspace: result.data.workspace }
+        : state.appInfo,
+      gitSnapshot: result.data.gitSnapshot,
+      pendingWorkspacePath: undefined,
+      workspaceContextMode: "workspace"
+    }));
+    await Promise.allSettled([
+      get().refreshWorkspaceTree(),
+      get().fetchIndexStatus(),
+      get().fetchRepoMap(),
+      get().fetchGitStatus(),
+      get().fetchGitBranches()
+    ]);
+    if (get().selectedFilePath) {
+      await get().openFile(get().selectedFilePath!);
+    }
+  },
+  createGitBranch: async (input) => {
+    const result = await window.digitalLife.workspace.createGitBranch(input);
+    if (!result.ok) {
+      set({ error: result.error.message });
+      return;
+    }
+    set((state) => ({
+      appInfo: state.appInfo
+        ? { ...state.appInfo, currentWorkspace: result.data.workspace }
+        : state.appInfo,
+      gitSnapshot: result.data.gitSnapshot,
+      pendingWorkspacePath: undefined,
+      workspaceContextMode: "workspace"
+    }));
+    await Promise.allSettled([
+      get().refreshWorkspaceTree(),
+      get().fetchIndexStatus(),
+      get().fetchRepoMap(),
+      get().fetchGitStatus(),
+      get().fetchGitBranches()
+    ]);
+    if (get().selectedFilePath) {
+      await get().openFile(get().selectedFilePath!);
     }
   },
   acceptAllHunks: async () => {

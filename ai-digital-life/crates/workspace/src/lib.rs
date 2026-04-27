@@ -2,7 +2,7 @@
 
 use adl_errors::AppError;
 use adl_kernel::{
-    now_ms, FileOutlineItem, GitSnapshot, RecentWorkspaceEntry, RepoMapEntry,
+    now_ms, FileOutlineItem, GitBranchSummary, GitSnapshot, RecentWorkspaceEntry, RepoMapEntry,
     RetrievalFileTypeCount, RetrievalSnapshot, RetrievalStatusV1, WorkspaceFileDocument,
     WorkspaceMeta, WorkspaceSearchHit, WorkspaceStatus, WorkspaceTreeNode, WorkspaceType,
 };
@@ -87,9 +87,8 @@ pub fn open_workspace(input: &Path) -> Result<(WorkspaceMeta, RecentWorkspaceEnt
     let now = now_ms();
     let name = root
         .file_name()
-        .and_then(|value| value.to_str())
-        .unwrap_or("workspace")
-        .to_string();
+        .map(|value| value.to_string_lossy().to_string())
+        .unwrap_or_else(|| "workspace".to_string());
     let id = stable_workspace_id(&root);
     let root_path = root.to_string_lossy().to_string();
     let meta = WorkspaceMeta {
@@ -169,6 +168,91 @@ pub fn capture_git_snapshot(root: &Path) -> GitSnapshot {
     }
 }
 
+pub fn git_has_local_changes(snapshot: &GitSnapshot) -> bool {
+    !snapshot.staged.is_empty() || !snapshot.unstaged.is_empty() || !snapshot.untracked.is_empty()
+}
+
+pub fn list_git_branches(root: &Path) -> Result<Vec<GitBranchSummary>, AppError> {
+    let current_branch =
+        run_git_required(root, &["branch", "--show-current"]).and_then(|value| {
+            first_non_empty_line(value)
+                .ok_or_else(|| AppError::Workspace("failed to resolve current branch".into()))
+        })?;
+    let output = run_git_required(root, &["branch", "--format=%(refname:short)"])?;
+    let mut branches: Vec<GitBranchSummary> = output
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .map(|name| GitBranchSummary {
+            name: name.to_string(),
+            is_current: name == current_branch,
+        })
+        .collect();
+    if branches.is_empty() {
+        return Err(AppError::Workspace("no local branches found".into()));
+    }
+    branches.sort_by(|left, right| {
+        right
+            .is_current
+            .cmp(&left.is_current)
+            .then_with(|| left.name.cmp(&right.name))
+    });
+    Ok(branches)
+}
+
+pub fn switch_git_branch(root: &Path, branch_name: &str, allow_stash: bool) -> Result<(GitSnapshot, bool, Option<String>), AppError> {
+    let snapshot = capture_git_snapshot(root);
+    if !snapshot.is_repo {
+        return Err(AppError::Workspace("active workspace is not a Git repository".into()));
+    }
+    let previous_branch = snapshot.branch.clone();
+    let should_stash = git_has_local_changes(&snapshot);
+    if should_stash && !allow_stash {
+        return Err(AppError::InvalidInput(
+            "Dirty worktree requires explicit stash confirmation.".into(),
+        ));
+    }
+    if should_stash {
+        stash_workspace_changes(root)?;
+    }
+    run_git_required(root, &["switch", branch_name])?;
+    Ok((capture_git_snapshot(root), should_stash, previous_branch))
+}
+
+pub fn create_git_branch(
+    root: &Path,
+    branch_name: &str,
+    base_branch: Option<&str>,
+    allow_stash: bool,
+) -> Result<(GitSnapshot, bool, Option<String>), AppError> {
+    let snapshot = capture_git_snapshot(root);
+    if !snapshot.is_repo {
+        return Err(AppError::Workspace("active workspace is not a Git repository".into()));
+    }
+    let previous_branch = snapshot.branch.clone();
+    let current_branch = previous_branch
+        .clone()
+        .ok_or_else(|| AppError::Workspace("failed to resolve current branch".into()))?;
+    let base_branch = base_branch
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or(&current_branch);
+    let should_stash = base_branch != current_branch && git_has_local_changes(&snapshot);
+    if should_stash && !allow_stash {
+        return Err(AppError::InvalidInput(
+            "Dirty worktree requires explicit stash confirmation.".into(),
+        ));
+    }
+    if should_stash {
+        stash_workspace_changes(root)?;
+    }
+    if base_branch != current_branch {
+        run_git_required(root, &["switch", base_branch])?;
+    }
+    run_git_required(root, &["switch", "-c", branch_name])?;
+    Ok((capture_git_snapshot(root), should_stash, previous_branch))
+}
+
 fn run_git(root: &Path, args: &[&str]) -> Option<String> {
     let output = Command::new("git")
         .args(args)
@@ -180,6 +264,35 @@ fn run_git(root: &Path, args: &[&str]) -> Option<String> {
     } else {
         None
     }
+}
+
+fn run_git_required(root: &Path, args: &[&str]) -> Result<String, AppError> {
+    let output = Command::new("git")
+        .args(args)
+        .current_dir(root)
+        .output()
+        .map_err(|error| AppError::Workspace(format!("failed to execute git: {error}")))?;
+    if output.status.success() {
+        Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+    } else {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        Err(AppError::Workspace(
+            if stderr.is_empty() {
+                format!("git command failed: git {}", args.join(" "))
+            } else {
+                stderr
+            },
+        ))
+    }
+}
+
+fn stash_workspace_changes(root: &Path) -> Result<(), AppError> {
+    let message = format!("adl-auto-stash-{}", now_ms());
+    run_git_required(
+        root,
+        &["stash", "push", "--include-untracked", "--message", &message],
+    )?;
+    Ok(())
 }
 
 fn first_non_empty_line(value: String) -> Option<String> {

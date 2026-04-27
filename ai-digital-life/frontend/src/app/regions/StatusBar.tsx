@@ -1,28 +1,57 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import type { AgentRunDetail, AppInfo, IndexingStatus, ModelGatewayHealthSnapshot, WorkspaceMeta } from "@ai-digital-life/kernel";
+import type {
+  AgentRunDetail,
+  AppInfo,
+  GitBranchSummary,
+  GitSnapshot,
+  ModelGatewayHealthSnapshot,
+  RecentWorkspaceEntry,
+  WorkspaceGitBranchCreateInput,
+  WorkspaceGitBranchSwitchInput,
+  WorkspaceMeta
+} from "@ai-digital-life/kernel";
 import type { CopyDict } from "../copy";
 import { MODEL_PROVIDER_IDS } from "../constants";
 import {
   IconAlertTriangle,
+  IconCheck,
   IconCheckCircle,
   IconCircle,
   IconFolder,
+  IconFolderOpen,
   IconGitBranch,
+  IconPlus,
   IconUpload
 } from "../icons";
 import { TooltipSimple } from "../components/Tooltip";
+import { workspaceNameFromPath } from "../workspaceScope";
 
 type GitStatus = "synced" | "dirty" | "unpushed" | "conflict" | "no-repo";
+type OpenMenu = "workspace" | "branch" | "model" | undefined;
+type PendingBranchAction =
+  | { kind: "switch"; input: WorkspaceGitBranchSwitchInput }
+  | { kind: "create"; input: WorkspaceGitBranchCreateInput };
 
 interface StatusBarProps {
   t: CopyDict;
   appInfo?: AppInfo;
   currentWorkspace?: WorkspaceMeta;
+  recentWorkspaces: RecentWorkspaceEntry[];
+  gitSnapshot?: GitSnapshot;
+  gitBranches: GitBranchSummary[];
   modelHealth?: ModelGatewayHealthSnapshot;
   isStreaming: boolean;
   activeRun?: AgentRunDetail;
-  indexingStatus?: IndexingStatus;
+  workspaceContextMode: "workspace" | "global";
+  pendingWorkspacePath?: string;
   onSelectModel: (providerId: string) => void;
+  onOpenWorkspace: (workspacePath: string) => void;
+  onClearWorkspaceContext: () => Promise<void>;
+  onSetPendingWorkspacePath: (workspacePath?: string) => void;
+  onPickWorkspaceDirectory: () => Promise<string | undefined>;
+  onRefreshGitBranches: () => Promise<void>;
+  onSwitchGitBranch: (input: WorkspaceGitBranchSwitchInput) => Promise<void>;
+  onCreateGitBranch: (input: WorkspaceGitBranchCreateInput) => Promise<void>;
   inline?: boolean;
 }
 
@@ -64,31 +93,54 @@ function modelHealthTone(healthy?: boolean): "healthy" | "degraded" {
   return healthy ? "healthy" : "degraded";
 }
 
+function isDirtyWorktree(snapshot?: GitSnapshot): boolean {
+  return Boolean(
+    snapshot &&
+      (snapshot.staged.length > 0 || snapshot.unstaged.length > 0 || snapshot.untracked.length > 0)
+  );
+}
+
 export function StatusBar({
   t,
   appInfo,
   currentWorkspace,
+  recentWorkspaces,
+  gitSnapshot,
+  gitBranches,
   modelHealth,
   isStreaming,
   activeRun,
-  indexingStatus,
+  workspaceContextMode,
+  pendingWorkspacePath,
   onSelectModel,
+  onOpenWorkspace,
+  onClearWorkspaceContext,
+  onSetPendingWorkspacePath,
+  onPickWorkspaceDirectory,
+  onRefreshGitBranches,
+  onSwitchGitBranch,
+  onCreateGitBranch,
   inline = false
 }: StatusBarProps) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const modelRef = useRef<HTMLDivElement>(null);
+  const [openMenu, setOpenMenu] = useState<OpenMenu>();
+  const [workspaceDraft, setWorkspaceDraft] = useState(pendingWorkspacePath ?? "");
+  const [branchDraft, setBranchDraft] = useState("");
+  const [baseBranchDraft, setBaseBranchDraft] = useState("");
+  const [pendingBranchAction, setPendingBranchAction] = useState<PendingBranchAction>();
+  const rootRef = useRef<HTMLDivElement>(null);
   const ContainerTag = inline ? "div" : "footer";
+  const effectiveGitSnapshot = gitSnapshot ?? currentWorkspace?.gitSnapshot;
+  const currentBranch = effectiveGitSnapshot?.branch ?? "main";
+  const hasWorkspace = Boolean(currentWorkspace);
+  const hasDirtyChanges = isDirtyWorktree(effectiveGitSnapshot);
 
-  const gitSnapshot = currentWorkspace?.gitSnapshot;
-  const gitStatus: GitStatus = !gitSnapshot?.isRepo
+  const gitStatus: GitStatus = !effectiveGitSnapshot?.isRepo
     ? "no-repo"
-    : gitSnapshot.conflicts.length > 0
+    : effectiveGitSnapshot.conflicts.length > 0
       ? "conflict"
-      : gitSnapshot.ahead && gitSnapshot.ahead > 0
+      : effectiveGitSnapshot.ahead && effectiveGitSnapshot.ahead > 0
         ? "unpushed"
-        : gitSnapshot.staged.length > 0 ||
-            gitSnapshot.unstaged.length > 0 ||
-            gitSnapshot.untracked.length > 0
+        : hasDirtyChanges
           ? "dirty"
           : "synced";
 
@@ -97,8 +149,8 @@ export function StatusBar({
     if (!providers) return undefined;
     return Object.entries(providers)
       .map(([id, value]) => ({ id, ...value }))
-      .filter((p) => p.enabled)
-      .sort((a, b) => a.priority - b.priority)[0];
+      .filter((provider) => provider.enabled)
+      .sort((left, right) => left.priority - right.priority)[0];
   }, [appInfo?.config.modelPreferences.providers]);
 
   const activeProviderHealth = useMemo(() => {
@@ -106,72 +158,364 @@ export function StatusBar({
     return modelHealth?.providers.find((provider) => provider.providerId === activeProvider.id);
   }, [activeProvider, modelHealth?.providers]);
 
+  const workspaceStatusLabel = useMemo(() => {
+    if (currentWorkspace) {
+      return currentWorkspace.name;
+    }
+    if (pendingWorkspacePath) {
+      return `${t.workspaceLabel} · ${workspaceNameFromPath(pendingWorkspacePath)}`;
+    }
+    return workspaceContextMode === "global" ? t.conversations : t.workspaceLabel;
+  }, [currentWorkspace, pendingWorkspacePath, t.conversations, t.workspaceLabel, workspaceContextMode]);
+
+  const workspaceStatusHint = useMemo(() => {
+    if (currentWorkspace) {
+      return currentWorkspace.path;
+    }
+    if (pendingWorkspacePath) {
+      return t.workspaceStatusPendingHint;
+    }
+    return t.workspaceStatusGlobalHint;
+  }, [currentWorkspace, pendingWorkspacePath, t.workspaceStatusGlobalHint, t.workspaceStatusPendingHint]);
+
   useEffect(() => {
-    if (!menuOpen) return;
-    const handler = (event: MouseEvent) => {
-      if (!modelRef.current?.contains(event.target as Node)) {
-        setMenuOpen(false);
+    setWorkspaceDraft(pendingWorkspacePath ?? "");
+  }, [pendingWorkspacePath]);
+
+  useEffect(() => {
+    if (!openMenu) {
+      return;
+    }
+    const onPointerDown = (event: MouseEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpenMenu(undefined);
+        setPendingBranchAction(undefined);
       }
     };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [menuOpen]);
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpenMenu(undefined);
+        setPendingBranchAction(undefined);
+      }
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onEscape);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onEscape);
+    };
+  }, [openMenu]);
+
+  useEffect(() => {
+    if (openMenu === "branch" && hasWorkspace) {
+      void onRefreshGitBranches();
+    }
+  }, [hasWorkspace, onRefreshGitBranches, openMenu]);
+
+  const handleBindPendingWorkspace = async (workspacePath: string) => {
+    const normalized = workspacePath.trim();
+    if (!normalized) {
+      return;
+    }
+    const existingWorkspace = [currentWorkspace, ...recentWorkspaces]
+      .filter(Boolean)
+      .find((workspace) => workspace?.path === normalized);
+    if (existingWorkspace?.path) {
+      onSetPendingWorkspacePath(undefined);
+      onOpenWorkspace(existingWorkspace.path);
+      setOpenMenu(undefined);
+      return;
+    }
+    // Open immediately so the right panel can render the file tree and the user
+    // gets instant feedback after picking a directory.
+    onSetPendingWorkspacePath(undefined);
+    onOpenWorkspace(normalized);
+    setOpenMenu(undefined);
+  };
+
+  const handlePickDirectory = async () => {
+    const selectedPath = await onPickWorkspaceDirectory();
+    if (!selectedPath) {
+      return;
+    }
+    await handleBindPendingWorkspace(selectedPath);
+  };
+
+  const handleSwitchBranch = async (input: WorkspaceGitBranchSwitchInput) => {
+    await onSwitchGitBranch(input);
+    setPendingBranchAction(undefined);
+    setOpenMenu(undefined);
+  };
+
+  const handleCreateBranch = async (input: WorkspaceGitBranchCreateInput) => {
+    await onCreateGitBranch(input);
+    setPendingBranchAction(undefined);
+    setOpenMenu(undefined);
+    setBranchDraft("");
+    setBaseBranchDraft("");
+  };
+
+  const handleSubmitCreateBranch = async () => {
+    const branchName = branchDraft.trim();
+    if (!branchName) {
+      return;
+    }
+    const input: WorkspaceGitBranchCreateInput = {
+      branchName,
+      baseBranch: baseBranchDraft.trim() || undefined,
+      allowStash: false
+    };
+    const requiresStash =
+      hasDirtyChanges &&
+      Boolean(input.baseBranch) &&
+      input.baseBranch !== currentBranch;
+    if (requiresStash) {
+      setPendingBranchAction({
+        kind: "create",
+        input: { ...input, allowStash: true }
+      });
+      return;
+    }
+    await handleCreateBranch(input);
+  };
 
   return (
     <ContainerTag
+      ref={rootRef}
       className={`adl-statusbar${inline ? " adl-statusbar--inline" : ""}`}
       role={inline ? "group" : "contentinfo"}
       aria-label={inline ? "Conversation status" : undefined}
     >
       <TooltipSimple content={gitStatusLabel(t, gitStatus)} placement="top">
-        <button
-          type="button"
-          className="adl-statusbar__item"
-        >
+        <button type="button" className="adl-statusbar__item adl-statusbar__item--readonly">
           {gitIcon(gitStatus)}
           <span>{gitStatusLabel(t, gitStatus)}</span>
         </button>
       </TooltipSimple>
+
       <span className="adl-statusbar__sep" aria-hidden="true" />
-      <span className="adl-statusbar__item">
-        <IconFolder size={12} decorative />
-        <span>{currentWorkspace?.name ?? t.workspaceLabel}</span>
-      </span>
+
+      <div className="adl-statusbar__slot">
+        <TooltipSimple content={workspaceStatusHint} placement="top">
+          <button
+            type="button"
+            className="adl-statusbar__item"
+            onClick={() => setOpenMenu((current) => (current === "workspace" ? undefined : "workspace"))}
+            aria-haspopup="dialog"
+          >
+            <IconFolderOpen size={12} decorative />
+            <span>{workspaceStatusLabel}</span>
+          </button>
+        </TooltipSimple>
+        {openMenu === "workspace" ? (
+          <div className="adl-statusbar__menu adl-statusbar__menu--workspace" role="dialog">
+            <div className="adl-statusbar__menu-section">
+              <strong className="adl-statusbar__menu-title">{t.workspaceLabel}</strong>
+              <p className="adl-statusbar__menu-hint">
+                {currentWorkspace?.path ?? pendingWorkspacePath ?? t.workspaceStatusGlobalHint}
+              </p>
+            </div>
+
+            <div className="adl-statusbar__menu-section">
+              <strong className="adl-statusbar__menu-subtitle">{t.workspaceRecentTitle}</strong>
+              <div className="adl-statusbar__menu-list">
+                {recentWorkspaces.length === 0 ? (
+                  <span className="adl-statusbar__menu-empty">{t.workspaceRecentEmpty}</span>
+                ) : (
+                  recentWorkspaces.slice(0, 6).map((workspace) => (
+                    <button
+                      key={workspace.id}
+                      type="button"
+                      className={`adl-statusbar__menu-option${currentWorkspace?.id === workspace.id ? " is-active" : ""}`}
+                      onClick={() => {
+                        onSetPendingWorkspacePath(undefined);
+                        onOpenWorkspace(workspace.path);
+                        setOpenMenu(undefined);
+                      }}
+                    >
+                      <span className="adl-statusbar__menu-option-main">{workspace.name}</span>
+                      <span className="adl-statusbar__menu-option-sub">{workspace.path}</span>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="adl-statusbar__menu-section">
+              <strong className="adl-statusbar__menu-subtitle">{t.workspaceBindTitle}</strong>
+              <input
+                className="adl-statusbar__input"
+                value={workspaceDraft}
+                onChange={(event) => setWorkspaceDraft(event.currentTarget.value)}
+                placeholder={t.workspacePlaceholder}
+              />
+              <div className="adl-statusbar__menu-actions">
+                <button type="button" className="adl-btn adl-btn--sm" onClick={() => void handlePickDirectory()}>
+                  <IconFolderOpen size={14} decorative />
+                  {t.workspacePickDirectory}
+                </button>
+                <button
+                  type="button"
+                  className="adl-btn adl-btn--primary adl-btn--sm"
+                  onClick={() => void handleBindPendingWorkspace(workspaceDraft)}
+                  disabled={!workspaceDraft.trim()}
+                >
+                  <IconPlus size={14} decorative />
+                  {t.workspaceBindPending}
+                </button>
+              </div>
+            </div>
+
+            <div className="adl-statusbar__menu-section">
+              <button
+                type="button"
+                className="adl-statusbar__menu-option"
+                onClick={() => {
+                  void onClearWorkspaceContext().then(() => {
+                    onSetPendingWorkspacePath(undefined);
+                    setOpenMenu(undefined);
+                  });
+                }}
+              >
+                <span className="adl-statusbar__menu-option-main">{t.workspaceGlobalMode}</span>
+                <span className="adl-statusbar__menu-option-sub">{t.workspaceStatusGlobalHint}</span>
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </div>
+
       <span className="adl-statusbar__sep" aria-hidden="true" />
-      <span className="adl-statusbar__item">
-        <IconGitBranch size={12} decorative />
-        <span>{gitSnapshot?.branch ?? "main"}</span>
-      </span>
+
+      <div className="adl-statusbar__slot">
+        <TooltipSimple
+          content={hasWorkspace ? currentBranch : t.branchDisabledHint}
+          placement="top"
+        >
+          <button
+            type="button"
+            className="adl-statusbar__item"
+            onClick={() => hasWorkspace && setOpenMenu((current) => (current === "branch" ? undefined : "branch"))}
+            aria-haspopup="dialog"
+            disabled={!hasWorkspace}
+          >
+            <IconGitBranch size={12} decorative />
+            <span>{hasWorkspace ? currentBranch : t.branchGlobalLabel}</span>
+          </button>
+        </TooltipSimple>
+        {openMenu === "branch" && hasWorkspace ? (
+          <div className="adl-statusbar__menu adl-statusbar__menu--branch" role="dialog">
+            <div className="adl-statusbar__menu-section">
+              <strong className="adl-statusbar__menu-title">{t.gitSummaryBranch}</strong>
+              <p className="adl-statusbar__menu-hint">{currentBranch}</p>
+            </div>
+
+            {pendingBranchAction ? (
+              <div className="adl-statusbar__menu-section adl-statusbar__menu-section--warning">
+                <strong className="adl-statusbar__menu-subtitle">{t.branchStashConfirmTitle}</strong>
+                <p className="adl-statusbar__menu-hint">{t.branchStashConfirmBody}</p>
+                <div className="adl-statusbar__menu-actions">
+                  <button
+                    type="button"
+                    className="adl-btn adl-btn--primary adl-btn--sm"
+                    onClick={() =>
+                      void (pendingBranchAction.kind === "switch"
+                        ? handleSwitchBranch(pendingBranchAction.input)
+                        : handleCreateBranch(pendingBranchAction.input))
+                    }
+                  >
+                    <IconCheck size={14} decorative />
+                    {t.approve}
+                  </button>
+                  <button
+                    type="button"
+                    className="adl-btn adl-btn--ghost adl-btn--sm"
+                    onClick={() => setPendingBranchAction(undefined)}
+                  >
+                    {t.cancel}
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            <div className="adl-statusbar__menu-section">
+              <strong className="adl-statusbar__menu-subtitle">{t.branchAvailableTitle}</strong>
+              <div className="adl-statusbar__menu-list">
+                {gitBranches.map((branch) => (
+                  <button
+                    key={branch.name}
+                    type="button"
+                    className={`adl-statusbar__menu-option${branch.isCurrent ? " is-active" : ""}`}
+                    onClick={() => {
+                      if (branch.isCurrent) {
+                        return;
+                      }
+                      const input: WorkspaceGitBranchSwitchInput = {
+                        branchName: branch.name,
+                        allowStash: false
+                      };
+                      if (hasDirtyChanges) {
+                        setPendingBranchAction({
+                          kind: "switch",
+                          input: { ...input, allowStash: true }
+                        });
+                        return;
+                      }
+                      void handleSwitchBranch(input);
+                    }}
+                  >
+                    <span className="adl-statusbar__menu-option-main">{branch.name}</span>
+                    {branch.isCurrent ? <IconCheck size={14} decorative /> : null}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="adl-statusbar__menu-section">
+              <strong className="adl-statusbar__menu-subtitle">{t.branchCreateTitle}</strong>
+              <input
+                className="adl-statusbar__input"
+                value={branchDraft}
+                onChange={(event) => setBranchDraft(event.currentTarget.value)}
+                placeholder={t.branchCreatePlaceholder}
+              />
+              <select
+                className="adl-select adl-select--sm"
+                value={baseBranchDraft}
+                onChange={(event) => setBaseBranchDraft(event.currentTarget.value)}
+                aria-label={t.branchCreateFromCurrent}
+              >
+                <option value="">{t.branchCreateFromCurrent}</option>
+                {gitBranches.map((branch) => (
+                  <option key={branch.name} value={branch.name}>
+                    {branch.name}
+                  </option>
+                ))}
+              </select>
+              <div className="adl-statusbar__menu-actions">
+                <button
+                  type="button"
+                  className="adl-btn adl-btn--primary adl-btn--sm"
+                  onClick={() => void handleSubmitCreateBranch()}
+                  disabled={!branchDraft.trim()}
+                >
+                  <IconPlus size={14} decorative />
+                  {t.branchCreateAction}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </div>
+
       <span className="adl-statusbar__spacer" />
-      <span className="adl-statusbar__item" aria-live="polite">
-        {isStreaming
-          ? t.agentGenerating
-          : activeRun?.run.status === "waiting-approval"
-            ? t.agentWaitingApproval
-            : t.statusReady}
-      </span>
-      {indexingStatus && (
-        <>
-          <span className="adl-statusbar__sep" aria-hidden="true" />
-          <span className={`adl-statusbar__item adl-statusbar__item--${indexingStatus.state}`}>
-            {indexingStatus.state === "indexing"
-              ? t.indexingInProgress
-              : indexingStatus.state === "indexed"
-                ? t.indexingCompleted
-                : indexingStatus.state === "error"
-                  ? t.indexingError
-                  : t.indexingIdle}
-          </span>
-        </>
-      )}
-      <span className="adl-statusbar__sep" aria-hidden="true" />
-      <div className="adl-statusbar__model" ref={modelRef}>
+
+      <div className="adl-statusbar__slot">
         <button
           type="button"
           className="adl-statusbar__item adl-statusbar__model-trigger"
-          onClick={() => setMenuOpen((prev) => !prev)}
+          onClick={() => setOpenMenu((current) => (current === "model" ? undefined : "model"))}
           aria-haspopup="menu"
-          aria-expanded={menuOpen}
         >
           <span>{t.modelLabel}</span>
           <TooltipSimple content={activeProvider?.modelId ?? "—"} placement="top">
@@ -185,10 +529,10 @@ export function StatusBar({
             />
           </TooltipSimple>
         </button>
-        {menuOpen ? (
-          <div className="adl-statusbar__model-menu" role="menu">
+        {openMenu === "model" ? (
+          <div className="adl-statusbar__menu adl-statusbar__menu--model" role="menu">
             {MODEL_PROVIDER_IDS.map((providerId) => {
-              const health = modelHealth?.providers.find((p) => p.providerId === providerId);
+              const health = modelHealth?.providers.find((provider) => provider.providerId === providerId);
               const preference = appInfo?.config.modelPreferences.providers[providerId];
               if (!preference) return null;
               return (
@@ -196,23 +540,18 @@ export function StatusBar({
                   key={providerId}
                   type="button"
                   role="menuitem"
-                  className={`adl-statusbar__model-option${providerId === activeProvider?.id ? " is-active" : ""}`}
+                  className={`adl-statusbar__menu-option${providerId === activeProvider?.id ? " is-active" : ""}`}
                   onClick={() => {
                     onSelectModel(providerId);
-                    setMenuOpen(false);
+                    setOpenMenu(undefined);
                   }}
-                  aria-label={preference.modelId}
                 >
-                  <TooltipSimple content={preference.modelId} placement="left">
-                    <span className="adl-statusbar__model-option-name">{preference.modelId}</span>
-                  </TooltipSimple>
-                  <TooltipSimple content={modelHealthLabel(t, health?.healthy)} placement="left">
-                    <span
-                      className={`adl-statusbar__model-option-dot adl-statusbar__model-option-dot--${modelHealthTone(health?.healthy)}`}
-                      aria-label={modelHealthLabel(t, health?.healthy)}
-                      role="img"
-                    />
-                  </TooltipSimple>
+                  <span className="adl-statusbar__menu-option-main">{preference.modelId}</span>
+                  <span
+                    className={`adl-statusbar__model-option-dot adl-statusbar__model-option-dot--${modelHealthTone(health?.healthy)}`}
+                    aria-label={modelHealthLabel(t, health?.healthy)}
+                    role="img"
+                  />
                 </button>
               );
             })}

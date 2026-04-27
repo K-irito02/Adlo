@@ -1,0 +1,101 @@
+import { describe, expect, it } from "vitest";
+import type { AppInfo, ConversationSessionRecord, RecentWorkspaceEntry } from "@ai-digital-life/kernel";
+import { buildSidebarViewModel } from "./sidebarViewModel";
+import { GLOBAL_WORKSPACE_ID } from "./workspaceScope";
+
+const now = Date.now();
+
+function buildWorkspace(id: string, path: string): RecentWorkspaceEntry {
+  return {
+    id,
+    path,
+    rootPath: path,
+    name: path.split("/").pop() ?? path,
+    lastOpenedAt: now,
+    isPinned: false,
+    pinnedOrder: 0,
+    unpinnedOrder: 0,
+    removedFromSidebar: false,
+    available: true
+  };
+}
+
+function buildSession(id: string, workspaceId: string): ConversationSessionRecord {
+  return {
+    id,
+    workspaceId,
+    title: id,
+    status: "active",
+    isPinned: false,
+    pinnedOrder: 0,
+    unpinnedOrder: 0,
+    manualUnread: false,
+    lastReadAt: now,
+    archivedAt: undefined,
+    titleUpdatedAt: now,
+    createdAt: now,
+    updatedAt: now,
+    lastMessageAt: now
+  };
+}
+
+describe("buildSidebarViewModel", () => {
+  it("keeps global sessions in the standalone conversation section", () => {
+    const recentWorkspaces = [buildWorkspace("workspace_a", "E:/workspace-a")];
+    const sessions = [
+      buildSession("session-workspace", "workspace_a"),
+      buildSession("session-global", GLOBAL_WORKSPACE_ID)
+    ];
+
+    const viewModel = buildSidebarViewModel({
+      recentWorkspaces,
+      sessions,
+      taskCenter: { tasks: [], pendingApprovals: [], policy: { mode: "manual", summary: "", highRiskRules: [] } }
+    });
+
+    expect(viewModel.workspaces).toHaveLength(1);
+    expect(viewModel.workspaces[0]?.sessions.map((item) => item.session.id)).toEqual(["session-workspace"]);
+    expect(viewModel.standaloneSessions.map((item) => item.session.id)).toEqual(["session-global"]);
+  });
+
+  it("injects the current workspace into the project list when not yet in recent entries", () => {
+    const appInfo: AppInfo = {
+      appName: "AI Digital Life",
+      version: "0.1.0",
+      config: {
+        language: "zh-CN",
+        themeMode: "system",
+        resolvedTheme: "light",
+        logLevel: "info",
+        maxRecentWorkspaces: 10,
+        modelPreferences: {
+          providers: {
+            deepseek: { enabled: true, priority: 1, modelId: "deepseek-v4-pro" },
+            minimax: { enabled: true, priority: 2, modelId: "MiniMax-M2.7" }
+          }
+        }
+      },
+      currentWorkspace: {
+        id: "workspace_live",
+        path: "E:/live-workspace",
+        rootPath: "E:/live-workspace",
+        name: "live-workspace",
+        type: "node",
+        status: "ready",
+        createdAt: now,
+        updatedAt: now,
+        lastOpenedAt: now
+      },
+      recentLogs: []
+    };
+
+    const viewModel = buildSidebarViewModel({
+      appInfo,
+      recentWorkspaces: [],
+      sessions: [buildSession("session-live", "workspace_live")]
+    });
+
+    expect(viewModel.workspaces[0]?.workspace.id).toBe("workspace_live");
+    expect(viewModel.workspaces[0]?.isCurrent).toBe(true);
+  });
+});

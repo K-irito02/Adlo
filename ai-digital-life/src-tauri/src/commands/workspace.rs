@@ -2,9 +2,10 @@ use crate::commands::ipc;
 use crate::state::AppState;
 use adl_errors::AppError;
 use adl_kernel::{
-    FileOutlineItem, GitSnapshot, IpcResult, RecentWorkspaceEntry, RetrievalSnapshot,
-    WorkspaceFileChangedEvent, WorkspaceFileDocument, WorkspaceMeta, WorkspaceSearchHit,
-    WorkspaceTreeNode,
+    now_ms, FileOutlineItem, GitBranchSummary, GitSnapshot, IpcResult, RecentWorkspaceEntry,
+    RetrievalSnapshot, WorkspaceFileChangedEvent, WorkspaceFileDocument,
+    WorkspaceGitBranchChangeResult, WorkspaceGitBranchCreateInput, WorkspaceGitBranchSwitchInput,
+    WorkspaceMeta, WorkspaceSearchHit, WorkspaceStatus, WorkspaceTreeNode, WorkspaceType,
 };
 use adl_storage::EntityTable;
 use std::collections::HashMap;
@@ -178,21 +179,7 @@ pub fn workspace_open(
     crate::commands::ipc_try(|| {
         let (meta, _recent) =
             adl_workspace::open_workspace(PathBuf::from(workspace_path).as_path())?;
-        state.db.save_entity(
-            EntityTable::Workspaces,
-            &meta.id,
-            Some(&meta.id),
-            None,
-            Some("ready"),
-            &meta,
-        )?;
-        state
-            .db
-            .put_state("current_workspace", &serde_json::to_string(&meta)?)?;
-        *state
-            .current_workspace
-            .lock()
-            .expect("workspace mutex poisoned") = Some(meta.clone());
+        persist_workspace_meta(&state, &meta)?;
         state
             .event_bus
             .emit(adl_events::AppEvent::WorkspaceOpened(meta.id.clone()));
@@ -218,6 +205,23 @@ pub fn workspace_open(
         upsert_sidebar_after_open(&state, &meta)?;
         Ok(meta)
     })
+}
+
+#[tauri::command]
+pub fn workspace_clear_current(state: tauri::State<'_, AppState>) -> IpcResult<bool> {
+    crate::commands::ipc_try(|| {
+        state.db.put_state("current_workspace", "null")?;
+        *state
+            .current_workspace
+            .lock()
+            .expect("workspace mutex poisoned") = None;
+        Ok(true)
+    })
+}
+
+#[tauri::command]
+pub fn workspace_pick_directory() -> IpcResult<Option<String>> {
+    ipc(pick_directory())
 }
 
 #[tauri::command]
@@ -492,6 +496,77 @@ fn reveal_in_os_file_manager(path: &str) -> Result<(), AppError> {
     Ok(())
 }
 
+#[cfg(target_os = "windows")]
+fn pick_directory() -> Result<Option<String>, AppError> {
+    let script = r#"
+Add-Type -AssemblyName System.Windows.Forms
+$dialog = New-Object System.Windows.Forms.FolderBrowserDialog
+$dialog.ShowNewFolderButton = $true
+if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+  [Console]::Write($dialog.SelectedPath)
+}
+"#;
+    let output = std::process::Command::new("powershell")
+        .args(["-NoProfile", "-Command", script])
+        .output()
+        .map_err(|error| AppError::Workspace(format!("failed to open folder dialog: {error}")))?;
+    if !output.status.success() {
+        return Err(AppError::Workspace(
+            String::from_utf8_lossy(&output.stderr).trim().to_string(),
+        ));
+    }
+    let selected = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if selected.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(selected))
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn pick_directory() -> Result<Option<String>, AppError> {
+    let output = std::process::Command::new("osascript")
+        .args([
+            "-e",
+            r#"set chosenFolder to choose folder with prompt "Select workspace folder""#,
+            "-e",
+            r#"POSIX path of chosenFolder"#,
+        ])
+        .output()
+        .map_err(|error| AppError::Workspace(format!("failed to open folder dialog: {error}")))?;
+    if !output.status.success() {
+        return Err(AppError::Workspace(
+            String::from_utf8_lossy(&output.stderr).trim().to_string(),
+        ));
+    }
+    let selected = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if selected.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(selected))
+    }
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+fn pick_directory() -> Result<Option<String>, AppError> {
+    let output = std::process::Command::new("sh")
+        .args([
+            "-c",
+            "command -v zenity >/dev/null 2>&1 && zenity --file-selection --directory || command -v kdialog >/dev/null 2>&1 && kdialog --getexistingdirectory",
+        ])
+        .output()
+        .map_err(|error| AppError::Workspace(format!("failed to open folder dialog: {error}")))?;
+    if !output.status.success() {
+        return Ok(None);
+    }
+    let selected = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if selected.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(selected))
+    }
+}
+
 #[tauri::command]
 pub fn workspace_get_git_status(state: tauri::State<'_, AppState>) -> IpcResult<GitSnapshot> {
     ipc(with_workspace(&state, |workspace| {
@@ -501,6 +576,80 @@ pub fn workspace_get_git_status(state: tauri::State<'_, AppState>) -> IpcResult<
     }))
 }
 
+#[tauri::command]
+pub fn workspace_list_git_branches(
+    state: tauri::State<'_, AppState>,
+) -> IpcResult<Vec<GitBranchSummary>> {
+    ipc(with_workspace(&state, |workspace| {
+        adl_workspace::list_git_branches(PathBuf::from(&workspace.root_path).as_path())
+    }))
+}
+
+#[tauri::command]
+pub fn workspace_switch_git_branch(
+    state: tauri::State<'_, AppState>,
+    input: WorkspaceGitBranchSwitchInput,
+) -> IpcResult<WorkspaceGitBranchChangeResult> {
+    crate::commands::ipc_try(|| {
+        let workspace = current_workspace(&state)?;
+        let branch_name = input.branch_name.trim();
+        if branch_name.is_empty() {
+            return Err(AppError::InvalidInput("branch name is required".into()));
+        }
+        let (git_snapshot, stashed_changes, previous_branch) = adl_workspace::switch_git_branch(
+            PathBuf::from(&workspace.root_path).as_path(),
+            branch_name,
+            input.allow_stash,
+        )?;
+        let current_branch = git_snapshot
+            .branch
+            .clone()
+            .unwrap_or_else(|| branch_name.to_string());
+        let updated_workspace =
+            update_workspace_after_git_change(&state, &workspace, git_snapshot.clone())?;
+        Ok(WorkspaceGitBranchChangeResult {
+            workspace: updated_workspace,
+            git_snapshot,
+            previous_branch,
+            current_branch,
+            stashed_changes,
+        })
+    })
+}
+
+#[tauri::command]
+pub fn workspace_create_git_branch(
+    state: tauri::State<'_, AppState>,
+    input: WorkspaceGitBranchCreateInput,
+) -> IpcResult<WorkspaceGitBranchChangeResult> {
+    crate::commands::ipc_try(|| {
+        let workspace = current_workspace(&state)?;
+        let branch_name = input.branch_name.trim();
+        if branch_name.is_empty() {
+            return Err(AppError::InvalidInput("branch name is required".into()));
+        }
+        let (git_snapshot, stashed_changes, previous_branch) = adl_workspace::create_git_branch(
+            PathBuf::from(&workspace.root_path).as_path(),
+            branch_name,
+            input.base_branch.as_deref(),
+            input.allow_stash,
+        )?;
+        let current_branch = git_snapshot
+            .branch
+            .clone()
+            .unwrap_or_else(|| branch_name.to_string());
+        let updated_workspace =
+            update_workspace_after_git_change(&state, &workspace, git_snapshot.clone())?;
+        Ok(WorkspaceGitBranchChangeResult {
+            workspace: updated_workspace,
+            git_snapshot,
+            previous_branch,
+            current_branch,
+            stashed_changes,
+        })
+    })
+}
+
 pub fn current_workspace(state: &AppState) -> Result<WorkspaceMeta, AppError> {
     state
         .current_workspace
@@ -508,6 +657,58 @@ pub fn current_workspace(state: &AppState) -> Result<WorkspaceMeta, AppError> {
         .expect("workspace mutex poisoned")
         .clone()
         .ok_or_else(|| AppError::NotFound("active workspace".into()))
+}
+
+fn persist_workspace_meta(state: &AppState, meta: &WorkspaceMeta) -> Result<(), AppError> {
+    state.db.save_entity(
+        EntityTable::Workspaces,
+        &meta.id,
+        Some(&meta.id),
+        None,
+        Some("ready"),
+        meta,
+    )?;
+    state
+        .db
+        .put_state("current_workspace", &serde_json::to_string(meta)?)?;
+    *state
+        .current_workspace
+        .lock()
+        .expect("workspace mutex poisoned") = Some(meta.clone());
+    Ok(())
+}
+
+fn update_workspace_after_git_change(
+    state: &AppState,
+    workspace: &WorkspaceMeta,
+    git_snapshot: GitSnapshot,
+) -> Result<WorkspaceMeta, AppError> {
+    let now = now_ms();
+    let updated_workspace = WorkspaceMeta {
+        git_snapshot: Some(git_snapshot),
+        status: WorkspaceStatus::Ready,
+        updated_at: now,
+        last_opened_at: now,
+        ..workspace.clone()
+    };
+    persist_workspace_meta(state, &updated_workspace)?;
+    Ok(updated_workspace)
+}
+
+pub fn virtual_global_workspace() -> WorkspaceMeta {
+    let now = now_ms();
+    WorkspaceMeta {
+        id: adl_kernel::GLOBAL_WORKSPACE_ID.to_string(),
+        path: String::new(),
+        root_path: String::new(),
+        name: "Global Conversation".into(),
+        r#type: WorkspaceType::Unknown,
+        status: WorkspaceStatus::Ready,
+        git_snapshot: None,
+        created_at: now,
+        updated_at: now,
+        last_opened_at: now,
+    }
 }
 
 fn with_workspace<T>(

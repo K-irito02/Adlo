@@ -3,13 +3,16 @@ import type {
   AgentRunDetail,
   AppInfo,
   DigitalLifeRunActivityEventV1,
-  IndexingStatus,
+  GitBranchSummary,
+  GitSnapshot,
   ModelTokenUsage,
   ModelGatewayHealthSnapshot,
   ApprovalRequestSummary,
   ConversationDetail,
   RecentWorkspaceEntry,
-  TaskCenterSnapshot
+  TaskCenterSnapshot,
+  WorkspaceGitBranchCreateInput,
+  WorkspaceGitBranchSwitchInput
 } from "@ai-digital-life/kernel";
 import type { CopyDict, Locale } from "../copy";
 import {
@@ -57,15 +60,24 @@ interface CenterPaneProps {
   runUsageByRunId: Record<string, ModelTokenUsage | undefined>;
   modelHealth?: ModelGatewayHealthSnapshot;
   taskCenter?: TaskCenterSnapshot;
-  indexingStatus?: IndexingStatus;
+  workspaceContextMode: "workspace" | "global";
+  pendingWorkspacePath?: string;
+  gitSnapshot?: GitSnapshot;
+  gitBranches: GitBranchSummary[];
   recentWorkspaces: RecentWorkspaceEntry[];
   onSendMessage: (content: string, opts: { mode: ChatMode; chips: ContextChip[] }) => Promise<void>;
   onCancelGenerate: () => void;
   onOpenWorkspace: (path: string) => void;
   onTriggerCreateWorkspace: () => void;
+  onClearWorkspaceContext: () => Promise<void>;
+  onSetPendingWorkspacePath: (workspacePath?: string) => void;
+  onPickWorkspaceDirectory: () => Promise<string | undefined>;
   onCreateSession: () => void;
   onDecideApproval: (approvalId: string, decision: "approved" | "rejected") => void;
   onSelectModel: (providerId: string) => void;
+  onRefreshGitBranches: () => Promise<void>;
+  onSwitchGitBranch: (input: WorkspaceGitBranchSwitchInput) => Promise<void>;
+  onCreateGitBranch: (input: WorkspaceGitBranchCreateInput) => Promise<void>;
 }
 
 type ButtonState = "send" | "stop" | "retry" | "waiting";
@@ -283,7 +295,6 @@ function ApprovalInlineCard({
 function WelcomeState({
   t,
   hasWorkspace,
-  hasSession,
   recentWorkspaces,
   onOpenWorkspace,
   onTriggerCreateWorkspace,
@@ -291,7 +302,6 @@ function WelcomeState({
 }: {
   t: CopyDict;
   hasWorkspace: boolean;
-  hasSession: boolean;
   recentWorkspaces: RecentWorkspaceEntry[];
   onOpenWorkspace: (path: string) => void;
   onTriggerCreateWorkspace: () => void;
@@ -299,65 +309,51 @@ function WelcomeState({
 }) {
   if (!hasWorkspace) {
     return (
-      <div className="adl-welcome">
-        <div className="adl-welcome__hero">
-          <IconFolderOpen size={48} decorative />
-          <h2>{t.welcomeOpenWorkspace}</h2>
-          <p>{t.welcomeOpenWorkspaceDescription}</p>
-          <button
-            type="button"
-            className="adl-btn adl-btn--primary adl-btn--lg"
-            onClick={onTriggerCreateWorkspace}
-          >
-            <IconFolderOpen size={16} decorative />
-            {t.welcomeOpenWorkspace}
-          </button>
-        </div>
-        {recentWorkspaces.length ? (
-          <div className="adl-welcome__recent">
+      <div className="adl-welcome adl-welcome--panel" aria-label="欢迎页">
+        <section className="adl-welcome__recent" aria-label={t.welcomeRecentWorkspaces}>
+          <header className="adl-welcome__section-header">
             <h3>{t.welcomeRecentWorkspaces}</h3>
-            <ul>
+          </header>
+          {recentWorkspaces.length ? (
+            <ul className="adl-welcome__recent-list">
               {recentWorkspaces.slice(0, 5).map((workspace) => (
                 <li key={workspace.path}>
                   <button type="button" onClick={() => onOpenWorkspace(workspace.path)}>
-                    <IconFolder size={14} decorative />
-                    <span>{workspace.name}</span>
+                    <span className="adl-welcome__recent-icon" aria-hidden="true">
+                      <IconFolder size={14} decorative />
+                    </span>
+                    <span className="adl-welcome__recent-name">{workspace.name}</span>
                     <span className="adl-welcome__path">{workspace.path}</span>
                   </button>
                 </li>
               ))}
             </ul>
-          </div>
-        ) : null}
-        <div className="adl-welcome__hints">
-          <header>
+          ) : (
+            <p className="adl-welcome__empty">{t.workspaceRecentEmpty}</p>
+          )}
+        </section>
+
+        <div className="adl-welcome__actionsbar" aria-label="快速操作">
+          <button type="button" className="adl-btn adl-btn--lg" onClick={onCreateSession}>
+            <IconMessageSquare size={16} decorative />
+            {t.newConversation}
+          </button>
+          <button type="button" className="adl-btn adl-btn--ghost adl-btn--lg" onClick={onTriggerCreateWorkspace}>
+            <IconFolderOpen size={16} decorative />
+            {t.welcomeOpenWorkspace}
+          </button>
+        </div>
+
+        <section className="adl-welcome__hints" aria-label={t.welcomeHints}>
+          <header className="adl-welcome__section-header">
             <IconLightbulb size={16} decorative />
             <span>{t.welcomeHints}</span>
           </header>
           <ul>
             <li>{t.welcomeHintDrag}</li>
             <li>{t.welcomeHintOpen}</li>
-            <li>{t.welcomeHintClone}</li>
           </ul>
-        </div>
-      </div>
-    );
-  }
-
-  if (!hasSession) {
-    return (
-      <div className="adl-welcome adl-welcome--compact">
-        <IconMessageSquare size={48} decorative />
-        <h2>{t.welcomeStartChatTitle}</h2>
-        <p>{t.welcomeStartChatDescription}</p>
-        <button
-          type="button"
-          className="adl-btn adl-btn--primary"
-          onClick={onCreateSession}
-        >
-          <IconPlus size={14} decorative />
-          {t.newSession}
-        </button>
+        </section>
       </div>
     );
   }
@@ -380,15 +376,24 @@ export function CenterPane({
   runUsageByRunId,
   modelHealth,
   taskCenter,
-  indexingStatus,
+  workspaceContextMode,
+  pendingWorkspacePath,
+  gitSnapshot,
+  gitBranches,
   recentWorkspaces,
   onSendMessage,
   onCancelGenerate,
   onOpenWorkspace,
   onTriggerCreateWorkspace,
+  onClearWorkspaceContext,
+  onSetPendingWorkspacePath,
+  onPickWorkspaceDirectory,
   onCreateSession,
   onDecideApproval,
-  onSelectModel
+  onSelectModel,
+  onRefreshGitBranches,
+  onSwitchGitBranch,
+  onCreateGitBranch
 }: CenterPaneProps) {
   const fetchRunActivityByRunId = useAppStore((state) => state.fetchRunActivityByRunId);
   const [draft, setDraft] = useState("");
@@ -557,17 +562,18 @@ export function CenterPane({
       ) : null}
 
       {/* Region 8 / 9: Main stream area */}
-      <div className="adl-center__body" ref={streamRef}>
-        {!hasWorkspace || !activeDetail || !hasMessages ? (
-          <WelcomeState
-            t={t}
-            hasWorkspace={hasWorkspace}
-            hasSession={!!activeDetail}
-            recentWorkspaces={recentWorkspaces}
-            onOpenWorkspace={onOpenWorkspace}
-            onTriggerCreateWorkspace={onTriggerCreateWorkspace}
-            onCreateSession={onCreateSession}
-          />
+      <div className={`adl-center__body${!activeDetail || !hasMessages ? " adl-center__body--empty" : ""}`} ref={streamRef}>
+        {!activeDetail || !hasMessages ? (
+          <div className="adl-center__empty">
+            <WelcomeState
+              t={t}
+              hasWorkspace={hasWorkspace}
+              recentWorkspaces={recentWorkspaces}
+              onOpenWorkspace={onOpenWorkspace}
+              onTriggerCreateWorkspace={onTriggerCreateWorkspace}
+              onCreateSession={onCreateSession}
+            />
+          </div>
         ) : (
           <div className="adl-message-stream">
             {visibleMessages.map((messageItem) => (
@@ -754,8 +760,19 @@ export function CenterPane({
           modelHealth={modelHealth}
           isStreaming={!!streamingActiveRunId}
           activeRun={activeRun}
-          indexingStatus={indexingStatus}
+          workspaceContextMode={workspaceContextMode}
+          pendingWorkspacePath={pendingWorkspacePath}
+          recentWorkspaces={recentWorkspaces}
+          gitSnapshot={gitSnapshot}
+          gitBranches={gitBranches}
           onSelectModel={onSelectModel}
+          onOpenWorkspace={onOpenWorkspace}
+          onClearWorkspaceContext={onClearWorkspaceContext}
+          onSetPendingWorkspacePath={onSetPendingWorkspacePath}
+          onPickWorkspaceDirectory={onPickWorkspaceDirectory}
+          onRefreshGitBranches={onRefreshGitBranches}
+          onSwitchGitBranch={onSwitchGitBranch}
+          onCreateGitBranch={onCreateGitBranch}
         />
       </footer>
 

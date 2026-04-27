@@ -18,6 +18,7 @@ import type {
   DigitalLifeModelStreamEventV1,
   DigitalLifeRunActivityEventV1,
   DigitalLifeTerminalStreamEventV1,
+  GitBranchSummary,
   GitSnapshot,
   HealthSnapshot,
   IpcResult,
@@ -33,6 +34,9 @@ import type {
   TaskCenterSnapshot,
   WorkspaceFileChangedEvent,
   WorkspaceFileDocument,
+  WorkspaceGitBranchChangeResult,
+  WorkspaceGitBranchCreateInput,
+  WorkspaceGitBranchSwitchInput,
   WorkspaceMeta,
   WorkspaceSearchHit,
   WorkspaceTreeNode
@@ -118,6 +122,11 @@ export function createTauriBridge(): DigitalLifeBridge {
     workspace: {
       listRecent: () => invokeIpc<RecentWorkspaceEntry[]>("workspace_list_recent"),
       open: (workspacePath: string) => invokeIpc<WorkspaceMeta>("workspace_open", { workspacePath }),
+      clearCurrent: () => invokeIpc<boolean>("workspace_clear_current"),
+      pickDirectory: async () => {
+        const result = await invokeIpc<string | null>("workspace_pick_directory");
+        return result.ok ? { ok: true, data: result.data ?? undefined } : result;
+      },
       pin: (workspaceId: string) => invokeIpc<RecentWorkspaceEntry[]>("workspace_pin", { workspaceId }),
       unpin: (workspaceId: string) => invokeIpc<RecentWorkspaceEntry[]>("workspace_unpin", { workspaceId }),
       reorder: (input: ReorderWorkspacesInput) => invokeIpc<RecentWorkspaceEntry[]>("workspace_reorder", { input }),
@@ -139,7 +148,12 @@ export function createTauriBridge(): DigitalLifeBridge {
         invokeIpc<boolean>("workspace_set_editor_dirty_paths", { relativePaths }),
       onFileChanged: (listener: (event: WorkspaceFileChangedEvent) => void) =>
         subscribeChannel<WorkspaceFileChangedEvent>("digital-life://workspace-file-changed", listener),
-      getGitStatus: () => invokeIpc<GitSnapshot>("workspace_get_git_status")
+      getGitStatus: () => invokeIpc<GitSnapshot>("workspace_get_git_status"),
+      listGitBranches: () => invokeIpc<GitBranchSummary[]>("workspace_list_git_branches"),
+      switchGitBranch: (input: WorkspaceGitBranchSwitchInput) =>
+        invokeIpc<WorkspaceGitBranchChangeResult>("workspace_switch_git_branch", { input }),
+      createGitBranch: (input: WorkspaceGitBranchCreateInput) =>
+        invokeIpc<WorkspaceGitBranchChangeResult>("workspace_create_git_branch", { input })
     },
 
     retrieval: {

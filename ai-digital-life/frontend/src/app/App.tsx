@@ -14,6 +14,7 @@ import { TitleBar } from "./regions/TitleBar";
 import { LeftSidebar } from "./regions/LeftSidebar";
 import { CenterPane } from "./regions/CenterPane";
 import { RightPanel } from "./regions/RightPanel";
+import { isTauriShell } from "../tauri-bridge";
 
 function readDiffSideBySidePreference(): boolean {
   try {
@@ -43,6 +44,9 @@ export function App() {
     auditEntries,
     commandHistory,
     gitSnapshot,
+    gitBranches,
+    workspaceContextMode,
+    pendingWorkspacePath,
     latestCommandRun,
     terminalOutput,
     activeTerminalExecutionId,
@@ -58,6 +62,9 @@ export function App() {
     dirtyEditorPaths,
     bootstrap,
     openWorkspace,
+    clearWorkspaceContext,
+    setPendingWorkspacePath,
+    pickWorkspaceDirectory,
     createSession,
     selectSession,
     pinSession,
@@ -96,8 +103,73 @@ export function App() {
     runCommandStream,
     stopCommandStream,
     refreshModelHealth,
-    updatePreferences
+    updatePreferences,
+    fetchGitBranches,
+    switchGitBranch,
+    createGitBranch
   } = store;
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && (event.key === "o" || event.key === "O")) {
+        event.preventDefault();
+        void (async () => {
+          const picked = await pickWorkspaceDirectory();
+          if (picked) {
+            await openWorkspace(picked);
+            return;
+          }
+          const input = window.prompt(copy[(appInfo?.config.language ?? "zh-CN") as Locale].workspacePlaceholder);
+          if (input && input.trim()) {
+            await openWorkspace(input.trim());
+          }
+        })();
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [appInfo?.config.language, openWorkspace, pickWorkspaceDirectory]);
+
+  useEffect(() => {
+    if (!isTauriShell()) return;
+    let unlisten: undefined | (() => void);
+
+    void (async () => {
+      try {
+        const mod = await import("@tauri-apps/api/window");
+        const win = mod.getCurrentWindow();
+        // Tauri v2 drag/drop event shape can differ across versions; handle defensively.
+        unlisten = await (win as unknown as { onDragDropEvent: (cb: (e: unknown) => void) => Promise<() => void> }).onDragDropEvent(
+          (e: any) => {
+            const payload = e?.payload ?? e;
+            const type = payload?.type ?? payload?.event ?? payload?.kind;
+            if (type !== "drop") return;
+            const paths: string[] =
+              payload?.paths ??
+              payload?.data?.paths ??
+              payload?.files ??
+              payload?.data?.files ??
+              [];
+            const first = Array.isArray(paths) ? paths[0] : undefined;
+            if (first && typeof first === "string") {
+              void openWorkspace(first);
+            }
+          }
+        );
+      } catch {
+        // Best-effort: drag-drop open is only available in Tauri shell.
+      }
+    })();
+
+    return () => {
+      try {
+        unlisten?.();
+      } catch {
+        /* ignore */
+      }
+    };
+  }, [openWorkspace]);
 
   const leftCollapsed = useUiStore((state) => state.leftCollapsed);
   const rightCollapsed = useUiStore((state) => state.rightCollapsed);
@@ -181,15 +253,6 @@ export function App() {
   useEffect(() => {
     void bootstrap();
   }, [bootstrap]);
-
-  useEffect(() => {
-    if (!appInfo) return;
-    if (appInfo.currentWorkspace) return;
-    const configuredPath = (import.meta.env.VITE_ADL_DEFAULT_WORKSPACE_PATH as string | undefined)?.trim();
-    const defaultPath = configuredPath || "E:\\OnlineEditing";
-    if (!defaultPath) return;
-    void openWorkspace(defaultPath);
-  }, [appInfo, openWorkspace]);
 
   useEffect(() => {
     if (!activePatchSet) return;
@@ -304,12 +367,17 @@ export function App() {
     [updatePreferences]
   );
 
-  const handleTriggerCreateWorkspace = useCallback(() => {
+  const handleTriggerCreateWorkspace = useCallback(async () => {
+    const picked = await pickWorkspaceDirectory();
+    if (picked) {
+      void openWorkspace(picked);
+      return;
+    }
     const input = window.prompt(t.workspacePlaceholder);
     if (input && input.trim()) {
       void openWorkspace(input.trim());
     }
-  }, [openWorkspace, t.workspacePlaceholder]);
+  }, [openWorkspace, pickWorkspaceDirectory, t.workspacePlaceholder]);
 
   const handleOpenSettings = useCallback(() => {
     useUiStore.getState().setActiveTool("settings");
@@ -448,7 +516,10 @@ export function App() {
           runUsageByRunId={runUsageByRunId}
           modelHealth={modelHealth}
           taskCenter={taskCenter}
-          indexingStatus={indexingStatus}
+          workspaceContextMode={workspaceContextMode}
+          pendingWorkspacePath={pendingWorkspacePath}
+          gitSnapshot={gitSnapshot}
+          gitBranches={gitBranches}
           recentWorkspaces={recentWorkspaces}
           onSendMessage={async (content, opts) => {
             await sendMessage(content, { mode: opts.mode, chips: opts.chips });
@@ -456,9 +527,15 @@ export function App() {
           onCancelGenerate={() => void cancelActiveStream()}
           onOpenWorkspace={(path) => void openWorkspace(path)}
           onTriggerCreateWorkspace={handleTriggerCreateWorkspace}
+          onClearWorkspaceContext={clearWorkspaceContext}
+          onSetPendingWorkspacePath={setPendingWorkspacePath}
+          onPickWorkspaceDirectory={pickWorkspaceDirectory}
           onCreateSession={() => void createSession()}
           onDecideApproval={(approvalId, decision) => void decideApproval(approvalId, decision)}
           onSelectModel={handleSelectModel}
+          onRefreshGitBranches={fetchGitBranches}
+          onSwitchGitBranch={switchGitBranch}
+          onCreateGitBranch={createGitBranch}
         />
 
         <RightPanel

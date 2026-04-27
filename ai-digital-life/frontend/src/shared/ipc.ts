@@ -11,6 +11,7 @@ import type {
   ConversationDetail,
   ConversationSendResult,
   ConversationSessionRecord,
+  GitBranchSummary,
   DigitalLifeModelStreamEventV1,
   DigitalLifeRunActivityEventV1,
   GitSnapshot,
@@ -31,6 +32,9 @@ import type {
   FileOutlineItem,
   WorkspaceFileChangedEvent,
   WorkspaceFileDocument,
+  WorkspaceGitBranchChangeResult,
+  WorkspaceGitBranchCreateInput,
+  WorkspaceGitBranchSwitchInput,
   WorkspaceTreeNode,
   WorkspaceSearchHit,
   WorkspaceMeta
@@ -60,6 +64,8 @@ export interface DigitalLifeBridge {
   workspace: {
     listRecent: () => Promise<IpcResult<RecentWorkspaceEntry[]>>;
     open: (workspacePath: string) => Promise<IpcResult<WorkspaceMeta>>;
+    clearCurrent: () => Promise<IpcResult<boolean>>;
+    pickDirectory: () => Promise<IpcResult<string | undefined>>;
     pin: (workspaceId: string) => Promise<IpcResult<RecentWorkspaceEntry[]>>;
     unpin: (workspaceId: string) => Promise<IpcResult<RecentWorkspaceEntry[]>>;
     reorder: (input: ReorderWorkspacesInput) => Promise<IpcResult<RecentWorkspaceEntry[]>>;
@@ -76,6 +82,9 @@ export interface DigitalLifeBridge {
     setEditorDirtyPaths: (relativePaths: string[]) => Promise<IpcResult<boolean>>;
     onFileChanged: (listener: (event: WorkspaceFileChangedEvent) => void) => () => void;
     getGitStatus: () => Promise<IpcResult<GitSnapshot>>;
+    listGitBranches: () => Promise<IpcResult<GitBranchSummary[]>>;
+    switchGitBranch: (input: WorkspaceGitBranchSwitchInput) => Promise<IpcResult<WorkspaceGitBranchChangeResult>>;
+    createGitBranch: (input: WorkspaceGitBranchCreateInput) => Promise<IpcResult<WorkspaceGitBranchChangeResult>>;
   };
   retrieval: {
     getStatus: () => Promise<IpcResult<RetrievalSnapshot | undefined>>;
