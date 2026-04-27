@@ -15,6 +15,7 @@ Phase 2 tranche 1 additionally persists:
 
 - conversation sessions and messages
 - single-agent run metadata and plan steps
+- run activity events (per-run replay timeline)
 - patch-set, file-patch, and hunk decision state
 - model provider preference metadata in the config layer
 - command requests, command execution summaries, validation results, and model call audit metadata
@@ -25,6 +26,7 @@ Phase 2 tranche 1 additionally persists:
 - High-risk work is represented as approval-bound state, not as direct renderer powers.
 - Dirty worktree conflicts can surface a pending approval request before future risky actions.
 - Every system-created task and approval request appends an audit record.
+- The system emits a versioned `digital-life://run-activity` event stream for run-level transparency and writes it to SQLite for replay.
 - Approval decisions are now writable from the renderer and update both task state and audit history.
 - Approved high-risk requests create a checkpoint payload bundle and metadata anchor before future execution layers take over.
 - Pending approvals can now time out explicitly and write timeout audit records instead of remaining open forever.

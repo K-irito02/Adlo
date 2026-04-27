@@ -6,6 +6,7 @@ pub mod conversation;
 pub mod model;
 pub mod patch;
 pub mod retrieval;
+pub mod run_activity;
 pub mod task;
 pub mod workspace;
 

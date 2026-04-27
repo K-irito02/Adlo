@@ -37,14 +37,16 @@ pub fn patch_set_hunk_decision(
 
 #[tauri::command]
 pub async fn patch_apply_patch_set(
+    app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
     patch_set_id: String,
 ) -> Result<IpcResult<PatchApplicationResult>, CommandError> {
-    Ok(ipc(apply_patch_set_inner(&state, &patch_set_id).await))
+    Ok(ipc(apply_patch_set_inner(&app, &state, &patch_set_id).await))
 }
 
 #[tauri::command]
 pub fn patch_rollback_patch_set(
+    app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
     patch_set_id: String,
 ) -> IpcResult<PatchSet> {
@@ -66,6 +68,38 @@ pub fn patch_rollback_patch_set(
             None,
         );
         if let Some(run_id) = &patch_set.run_id {
+            let event = adl_kernel::DigitalLifeRunActivityEventV1::Patch {
+                v: 1,
+                run_id: run_id.clone(),
+                seq: adl_kernel::now_ms() as i64,
+                ts: adl_kernel::now_ms(),
+                phase: "rolled-back".into(),
+                patch_set_id: patch_set.id.clone(),
+                file_count: Some(patch_set.file_patches.len()),
+                hunk_count: Some(patch_set.file_patches.iter().map(|f| f.hunks.len()).sum::<usize>()),
+            };
+            let _ = state.db.save_entity(
+                EntityTable::RunActivityEvents,
+                &adl_kernel::create_id("runact"),
+                Some(&workspace.id),
+                Some(&patch_set.session_id),
+                Some(run_id),
+                &event,
+            );
+            let _ = app.emit(
+                "digital-life://run-activity",
+                serde_json::json!({
+                  "v": 1,
+                  "runId": run_id,
+                  "seq": adl_kernel::now_ms(),
+                  "ts": adl_kernel::now_ms(),
+                  "type": "patch",
+                  "phase": "rolled-back",
+                  "patchSetId": patch_set.id,
+                  "fileCount": patch_set.file_patches.len(),
+                  "hunkCount": patch_set.file_patches.iter().map(|f| f.hunks.len()).sum::<usize>()
+                }),
+            );
             if let Some(detail) = crate::commands::agent::load_run_detail(&state, run_id)? {
                 let validation = adl_kernel::ValidationResult {
                     id: adl_kernel::create_id("validation"),
@@ -87,6 +121,7 @@ pub fn patch_rollback_patch_set(
 }
 
 async fn apply_patch_set_inner(
+    app: &tauri::AppHandle,
     state: &AppState,
     patch_set_id: &str,
 ) -> Result<PatchApplicationResult, AppError> {
@@ -113,6 +148,38 @@ async fn apply_patch_set_inner(
         }
     }
     if let Some(run_id) = &patch_set.run_id {
+        let event = adl_kernel::DigitalLifeRunActivityEventV1::Patch {
+            v: 1,
+            run_id: run_id.clone(),
+            seq: adl_kernel::now_ms() as i64,
+            ts: adl_kernel::now_ms(),
+            phase: "applied".into(),
+            patch_set_id: patch_set.id.clone(),
+            file_count: Some(patch_set.file_patches.len()),
+            hunk_count: Some(patch_set.file_patches.iter().map(|f| f.hunks.len()).sum::<usize>()),
+        };
+        let _ = state.db.save_entity(
+            EntityTable::RunActivityEvents,
+            &adl_kernel::create_id("runact"),
+            Some(&workspace.id),
+            Some(&patch_set.session_id),
+            Some(run_id),
+            &event,
+        );
+        let _ = app.emit(
+            "digital-life://run-activity",
+            serde_json::json!({
+              "v": 1,
+              "runId": run_id,
+              "seq": adl_kernel::now_ms(),
+              "ts": adl_kernel::now_ms(),
+              "type": "patch",
+              "phase": "applied",
+              "patchSetId": patch_set.id,
+              "fileCount": patch_set.file_patches.len(),
+              "hunkCount": patch_set.file_patches.iter().map(|f| f.hunks.len()).sum::<usize>()
+            }),
+        );
         if let Some(detail) = crate::commands::agent::load_run_detail(state, run_id)? {
             crate::commands::agent::save_run_detail(state, &adl_agent_runtime::mark_applying(detail))?;
         }

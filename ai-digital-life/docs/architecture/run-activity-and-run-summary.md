@@ -1,0 +1,41 @@
+# Run Activity And Run Summary (Phase 2 Thin Slice)
+
+This note documents the **run-level transparency surface** used by the WebView shell during development and debugging.
+
+## Goals
+
+- Make the agent's work **fully inspectable** without exposing chain-of-thought.
+- Persist the same timeline so a previous run can be **replayed** after restart.
+- Keep the WebView inside the existing privilege boundary: it only renders events and calls typed Tauri commands.
+
+## Surfaces
+
+### 1) Event stream: `digital-life://run-activity`
+
+- Emitted by the Rust backend at key lifecycle points (context selection, model routing, patch/approval/command events).
+- Versioned payloads (v=1) are intended to be stable enough for UI replay and debugging.
+- The WebView subscribes through `DigitalLifeBridge.subscribeRunActivity`.
+
+### 2) Persistence: `run_activity_events`
+
+Run activity is stored in SQLite so history can be replayed even when the app is restarted.
+
+- Storage table: `run_activity_events`
+- Access pattern: query by `runId` (the backend stores the run id in the generic `status` column for this table).
+
+### 3) Replay IPC
+
+- Tauri command: `run_activity_list_by_run_id(runId, limit?) -> DigitalLifeRunActivityEventV1[]`
+- The WebView uses this when it needs to render an older run whose events are not currently in memory.
+
+## UI behavior (WebView)
+
+- Run Summary is appended after the assistant message for a run (same `runId`).
+- During streaming, a live summary renders and updates as events arrive.
+- The UI groups events (Context / Files / Search / Model / Commands / Patch / Approvals / Errors) and supports copying JSON for debugging.
+
+## Security Notes
+
+- Events are **metadata-only**: paths, ids, token estimates, exit codes, timestamps, decisions.
+- No stdout/stderr or file contents are emitted via run-activity (use `terminal-stream` for live output in the terminal panel when needed).
+

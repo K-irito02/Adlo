@@ -207,6 +207,14 @@ impl Database {
                 status TEXT,
                 updated_at INTEGER NOT NULL,
                 json TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS run_activity_events (
+                id TEXT PRIMARY KEY,
+                workspace_id TEXT,
+                session_id TEXT,
+                status TEXT,
+                updated_at INTEGER NOT NULL,
+                json TEXT NOT NULL
             );",
         )
         .map_err(|e| AppError::Storage(e.to_string()))?;
@@ -218,7 +226,8 @@ impl Database {
              CREATE INDEX IF NOT EXISTS idx_patch_sets_run ON patch_sets(session_id, updated_at);
              CREATE INDEX IF NOT EXISTS idx_tasks_workspace ON tasks(workspace_id, updated_at);
              CREATE INDEX IF NOT EXISTS idx_approvals_workspace ON approvals(workspace_id, updated_at);
-             CREATE INDEX IF NOT EXISTS idx_audit_workspace ON audit_records(workspace_id, updated_at);",
+             CREATE INDEX IF NOT EXISTS idx_audit_workspace ON audit_records(workspace_id, updated_at);
+             CREATE INDEX IF NOT EXISTS idx_run_activity_run ON run_activity_events(status, updated_at);",
         )
         .map_err(|e| AppError::Storage(e.to_string()))?;
         info!("schema initialized");
@@ -396,6 +405,7 @@ pub enum EntityTable {
     ValidationResults,
     ModelPreferences,
     ModelCallAudit,
+    RunActivityEvents,
 }
 
 impl EntityTable {
@@ -420,6 +430,7 @@ impl EntityTable {
             Self::ValidationResults => "validation_results",
             Self::ModelPreferences => "model_preferences",
             Self::ModelCallAudit => "model_call_audit",
+            Self::RunActivityEvents => "run_activity_events",
         }
     }
 }

@@ -108,6 +108,7 @@ pub fn make_approval(task: &TaskRecord, title: impl Into<String>) -> ApprovalRec
         id: request.id.clone(),
         task_id: task.id.clone(),
         workspace_id: task.workspace_id.clone(),
+        run_id: None,
         risk_level: risk,
         request,
         decision: None,

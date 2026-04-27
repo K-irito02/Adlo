@@ -141,6 +141,7 @@ cargo tauri build
 - [Recovery and Migration](./docs/architecture/recovery-and-migration.md)
 - [Task Governance](./docs/architecture/task-governance.md)
 - [Workspace and Retrieval](./docs/architecture/workspace-and-retrieval.md)
+- [Run Activity and Run Summary](./docs/architecture/run-activity-and-run-summary.md)
 
 ### Design System
 

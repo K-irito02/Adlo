@@ -73,6 +73,7 @@ fn main() {
             commands::task::task_decide_approval,
             commands::task::task_get_checkpoint_preview,
             commands::task::task_restore_checkpoint,
+            commands::run_activity::run_activity_list_by_run_id,
             commands::model::model_set_provider_secret,
             commands::model::model_clear_provider_secret,
         ])

@@ -370,6 +370,7 @@ export interface ApprovalRecord {
   id: string;
   taskId: string;
   workspaceId: string;
+  runId?: string;
   riskLevel: RiskLevel;
   request: ApprovalRequestSummary;
   decision?: "approved" | "rejected" | "timeout";
@@ -615,6 +616,109 @@ export type DigitalLifeModelStreamEventV1 =
   | { v: 1; runId: string; seq: number; type: "usage"; usage: ModelTokenUsage }
   | { v: 1; runId: string; seq: number; type: "error"; message: string }
   | { v: 1; runId: string; seq: number; type: "done" };
+
+/** Main → Renderer: versioned agent run activity stream (debug/audit friendly; no chain-of-thought). */
+export type DigitalLifeRunActivityEventV1 =
+  | {
+      v: 1;
+      runId: string;
+      seq: number;
+      ts: number;
+      type: "run-start";
+      scenario: ConversationScenario;
+    }
+  | {
+      v: 1;
+      runId: string;
+      seq: number;
+      ts: number;
+      type: "context-added";
+      contextType: ContextEntry["type"] | "symbol";
+      label: string;
+      path?: string;
+      tokenEstimate?: number;
+      truncated?: boolean;
+    }
+  | {
+      v: 1;
+      runId: string;
+      seq: number;
+      ts: number;
+      type: "file-read";
+      path: string;
+      bytes?: number;
+      tokenEstimate?: number;
+      truncated?: boolean;
+    }
+  | {
+      v: 1;
+      runId: string;
+      seq: number;
+      ts: number;
+      type: "search";
+      query: string;
+      hitCount?: number;
+      samplePaths?: string[];
+    }
+  | {
+      v: 1;
+      runId: string;
+      seq: number;
+      ts: number;
+      type: "command";
+      phase: "start" | "done";
+      command: string;
+      args?: string[];
+      exitCode?: number;
+    }
+  | {
+      v: 1;
+      runId: string;
+      seq: number;
+      ts: number;
+      type: "patch";
+      phase: "proposed" | "applied" | "rolled-back";
+      patchSetId: string;
+      fileCount?: number;
+      hunkCount?: number;
+    }
+  | {
+      v: 1;
+      runId: string;
+      seq: number;
+      ts: number;
+      type: "approval";
+      phase: "requested" | "decided";
+      approvalId: string;
+      decision?: "approved" | "rejected" | "timeout" | "auto";
+      reason?: string;
+    }
+  | {
+      v: 1;
+      runId: string;
+      seq: number;
+      ts: number;
+      type: "model";
+      phase: "route" | "done" | "error";
+      providerId?: ModelProviderId;
+      modelId?: string;
+      reason?: string;
+      usage?: ModelTokenUsage;
+      message?: string;
+    }
+  | { v: 1; runId: string; seq: number; ts: number; type: "error"; message: string }
+  | { v: 1; runId: string; seq: number; ts: number; type: "run-done"; status: AgentRunStatus };
+
+export interface RunActivityEventRecord {
+  id: string;
+  workspaceId: string;
+  sessionId: string;
+  runId: string;
+  seq: number;
+  ts: number;
+  event: DigitalLifeRunActivityEventV1;
+  createdAt: number;
+}
 
 export interface ModelCallAuditRecord {
   id: string;

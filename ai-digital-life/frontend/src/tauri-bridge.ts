@@ -16,6 +16,7 @@ import type {
   ConversationSendResult,
   ConversationSessionRecord,
   DigitalLifeModelStreamEventV1,
+  DigitalLifeRunActivityEventV1,
   DigitalLifeTerminalStreamEventV1,
   GitSnapshot,
   HealthSnapshot,
@@ -92,6 +93,9 @@ export function createTauriBridge(): DigitalLifeBridge {
     subscribeModelStream: (listener: (event: DigitalLifeModelStreamEventV1) => void) =>
       subscribeChannel<DigitalLifeModelStreamEventV1>("digital-life://model-stream", listener),
 
+    subscribeRunActivity: (listener: (event: DigitalLifeRunActivityEventV1) => void) =>
+      subscribeChannel<DigitalLifeRunActivityEventV1>("digital-life://run-activity", listener),
+
     subscribeTerminalStream: (listener: (event: DigitalLifeTerminalStreamEventV1) => void) =>
       subscribeChannel<DigitalLifeTerminalStreamEventV1>("digital-life://terminal-stream", listener),
 
@@ -99,7 +103,8 @@ export function createTauriBridge(): DigitalLifeBridge {
       minimize: () => win().minimize(),
       maximize: () => win().toggleMaximize(),
       close: () => win().close(),
-      isMaximized: () => win().isMaximized()
+      isMaximized: () => win().isMaximized(),
+      setTitle: (title: string) => win().setTitle(title)
     },
 
     app: {
@@ -214,6 +219,11 @@ export function createTauriBridge(): DigitalLifeBridge {
       decideApproval: (input: { approvalId: string; decision: "approved" | "rejected"; reason?: string }) =>
         invokeIpc<TaskCenterSnapshot>("task_decide_approval", { input }),
       listAuditEntries: (limit?: number) => invokeIpc<AuditEntry[]>("task_list_audit_entries", { limit })
+    }
+    ,
+    runActivity: {
+      listByRunId: (runId: string, limit?: number) =>
+        invokeIpc<DigitalLifeRunActivityEventV1[]>("run_activity_list_by_run_id", { runId, limit })
     }
   };
 }

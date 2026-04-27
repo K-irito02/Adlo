@@ -491,6 +491,7 @@ pub struct ApprovalRecord {
     pub id: String,
     pub task_id: String,
     pub workspace_id: String,
+    pub run_id: Option<String>,
     pub risk_level: RiskLevel,
     pub request: ApprovalRequestSummary,
     pub decision: Option<ApprovalDecision>,
@@ -989,6 +990,128 @@ pub struct ModelResponse {
     pub request_id: Option<String>,
     pub usage: Option<ModelTokenUsage>,
     pub route: Option<ModelRouteDecision>,
+}
+
+/// Main → Renderer: versioned agent run activity stream (debug/audit friendly; no chain-of-thought).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "kebab-case")]
+pub enum DigitalLifeRunActivityEventV1 {
+    #[serde(rename_all = "camelCase")]
+    RunStart {
+        v: i32,
+        run_id: String,
+        seq: i64,
+        ts: TimestampMs,
+        scenario: ConversationScenario,
+    },
+    #[serde(rename_all = "camelCase")]
+    ContextAdded {
+        v: i32,
+        run_id: String,
+        seq: i64,
+        ts: TimestampMs,
+        context_type: String,
+        label: String,
+        path: Option<String>,
+        token_estimate: Option<usize>,
+        truncated: Option<bool>,
+    },
+    #[serde(rename_all = "camelCase")]
+    FileRead {
+        v: i32,
+        run_id: String,
+        seq: i64,
+        ts: TimestampMs,
+        path: String,
+        bytes: Option<usize>,
+        token_estimate: Option<usize>,
+        truncated: Option<bool>,
+    },
+    #[serde(rename_all = "camelCase")]
+    Search {
+        v: i32,
+        run_id: String,
+        seq: i64,
+        ts: TimestampMs,
+        query: String,
+        hit_count: Option<usize>,
+        sample_paths: Option<Vec<String>>,
+    },
+    #[serde(rename_all = "camelCase")]
+    Command {
+        v: i32,
+        run_id: String,
+        seq: i64,
+        ts: TimestampMs,
+        phase: String,
+        command: String,
+        args: Option<Vec<String>>,
+        exit_code: Option<i32>,
+    },
+    #[serde(rename_all = "camelCase")]
+    Patch {
+        v: i32,
+        run_id: String,
+        seq: i64,
+        ts: TimestampMs,
+        phase: String,
+        patch_set_id: String,
+        file_count: Option<usize>,
+        hunk_count: Option<usize>,
+    },
+    #[serde(rename_all = "camelCase")]
+    Approval {
+        v: i32,
+        run_id: String,
+        seq: i64,
+        ts: TimestampMs,
+        phase: String,
+        approval_id: String,
+        decision: Option<String>,
+        reason: Option<String>,
+    },
+    #[serde(rename_all = "camelCase")]
+    Model {
+        v: i32,
+        run_id: String,
+        seq: i64,
+        ts: TimestampMs,
+        phase: String,
+        provider_id: Option<ModelProviderId>,
+        model_id: Option<String>,
+        reason: Option<String>,
+        usage: Option<ModelTokenUsage>,
+        message: Option<String>,
+    },
+    #[serde(rename_all = "camelCase")]
+    Error {
+        v: i32,
+        run_id: String,
+        seq: i64,
+        ts: TimestampMs,
+        message: String,
+    },
+    #[serde(rename_all = "camelCase")]
+    RunDone {
+        v: i32,
+        run_id: String,
+        seq: i64,
+        ts: TimestampMs,
+        status: AgentRunStatus,
+    },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RunActivityEventRecord {
+    pub id: String,
+    pub workspace_id: String,
+    pub session_id: String,
+    pub run_id: String,
+    pub seq: i64,
+    pub ts: TimestampMs,
+    pub event: DigitalLifeRunActivityEventV1,
+    pub created_at: TimestampMs,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

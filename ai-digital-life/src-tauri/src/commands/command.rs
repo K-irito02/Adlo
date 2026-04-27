@@ -3,8 +3,8 @@ use crate::error::CommandError;
 use crate::state::AppState;
 use adl_errors::AppError;
 use adl_kernel::{
-    now_ms, AuditEntry, CommandExecutionResult, CommandProfileSummary, CommandRequest,
-    CommandRunResult, CommandRunStreamStart, IpcResult, RiskLevel, TaskOperation,
+    now_ms, AgentRunRecord, AuditEntry, CommandExecutionResult, CommandProfileSummary, CommandRequest,
+    CommandRunResult, CommandRunStreamStart, DigitalLifeRunActivityEventV1, IpcResult, RiskLevel, TaskOperation,
 };
 use adl_storage::{Database, EntityTable};
 use std::sync::Arc;
@@ -44,10 +44,11 @@ pub fn command_get_profiles() -> IpcResult<Vec<CommandProfileSummary>> {
 
 #[tauri::command]
 pub async fn command_run(
+    app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
     input: CommandRunInput,
 ) -> Result<IpcResult<CommandRunResult>, CommandError> {
-    Ok(ipc(command_run_inner(&state, input).await))
+    Ok(ipc(command_run_inner(&app, &state, input).await))
 }
 
 #[tauri::command]
@@ -93,6 +94,7 @@ pub fn command_list_recent(
 }
 
 async fn command_run_inner(
+    app: &tauri::AppHandle,
     state: &AppState,
     input: CommandRunInput,
 ) -> Result<CommandRunResult, AppError> {
@@ -113,7 +115,7 @@ async fn command_run_inner(
         &request,
     )?;
     if request.risk_level != RiskLevel::Low {
-        let (task, approval) = approval_for_command(state, &workspace.id, &request)?;
+        let (task, approval) = approval_for_command(app, state, &workspace.id, &request)?;
         let _ = crate::commands::audit::save_audit_entry(
             state,
             &workspace.id,
@@ -191,7 +193,7 @@ async fn command_run_stream_inner(
         &request,
     )?;
     if request.risk_level != RiskLevel::Low {
-        let (task, approval) = approval_for_command(state, &workspace.id, &request)?;
+        let (task, approval) = approval_for_command(&app, state, &workspace.id, &request)?;
         let _ = crate::commands::audit::save_audit_entry(
             state,
             &workspace.id,
@@ -235,6 +237,7 @@ async fn command_run_stream_inner(
 }
 
 fn approval_for_command(
+    app: &tauri::AppHandle,
     state: &AppState,
     workspace_id: &str,
     request: &CommandRequest,
@@ -253,6 +256,8 @@ fn approval_for_command(
         operation,
     );
     let approval = adl_task::make_approval(&task, "Command execution approval");
+    let mut approval = approval;
+    approval.run_id = request.run_id.clone();
     task.approval_id = Some(approval.id.clone());
     state.db.save_entity(
         EntityTable::Tasks,
@@ -266,10 +271,43 @@ fn approval_for_command(
         EntityTable::Approvals,
         &approval.id,
         Some(workspace_id),
-        Some("command"),
+        Some(&task.session_id),
         Some("pending"),
         &approval,
     )?;
+
+    if let Some(run_id) = &request.run_id {
+        let event = DigitalLifeRunActivityEventV1::Approval {
+            v: 1,
+            run_id: run_id.clone(),
+            seq: now_ms() as i64,
+            ts: now_ms(),
+            phase: "requested".into(),
+            approval_id: approval.id.clone(),
+            decision: None,
+            reason: None,
+        };
+        let _ = state.db.save_entity(
+            EntityTable::RunActivityEvents,
+            &adl_kernel::create_id("runact"),
+            Some(workspace_id),
+            Some(&task.session_id),
+            Some(run_id),
+            &event,
+        );
+        let _ = app.emit(
+            "digital-life://run-activity",
+            serde_json::json!({
+              "v": 1,
+              "runId": run_id,
+              "seq": now_ms(),
+              "ts": now_ms(),
+              "type": "approval",
+              "phase": "requested",
+              "approvalId": approval.id
+            }),
+        );
+    }
     Ok((task, approval))
 }
 
@@ -284,6 +322,15 @@ fn spawn_stream(
     mut cancel_rx: oneshot::Receiver<()>,
 ) {
     tauri::async_runtime::spawn(async move {
+        let run_meta: Option<(String, Option<String>)> = request.run_id.as_ref().map(|run_id| {
+            let session_id = db
+                .load_entity::<AgentRunRecord>(EntityTable::AgentRuns, run_id)
+                .ok()
+                .flatten()
+                .map(|record| record.session_id);
+            (run_id.clone(), session_id)
+        });
+
         let mut child = tokio::process::Command::new(&request.command);
         child.args(&request.args);
         child.current_dir(root_path);
@@ -292,6 +339,41 @@ fn spawn_stream(
         child.kill_on_drop(true);
         match child.spawn() {
             Ok(mut child) => {
+                if let Some((run_id, session_id)) = &run_meta {
+                    let ts = now_ms();
+                    let event = DigitalLifeRunActivityEventV1::Command {
+                        v: 1,
+                        run_id: run_id.clone(),
+                        seq: ts as i64,
+                        ts,
+                        phase: "start".into(),
+                        command: request.command.clone(),
+                        args: Some(request.args.clone()),
+                        exit_code: None,
+                    };
+                    let _ = db.save_entity(
+                        EntityTable::RunActivityEvents,
+                        &adl_kernel::create_id("runact"),
+                        Some(&workspace_id),
+                        session_id.as_deref(),
+                        Some(run_id),
+                        &event,
+                    );
+                    let _ = app.emit(
+                        "digital-life://run-activity",
+                        serde_json::json!({
+                          "v": 1,
+                          "runId": run_id,
+                          "seq": ts,
+                          "ts": ts,
+                          "type": "command",
+                          "phase": "start",
+                          "command": request.command,
+                          "args": request.args,
+                        }),
+                    );
+                }
+
                 let stdout = child.stdout.take();
                 let stderr = child.stderr.take();
                 let stdout_capture = Arc::new(Mutex::new(String::new()));
@@ -377,6 +459,42 @@ fn spawn_stream(
                     "digital-life://terminal-stream",
                     serde_json::json!({"v":1,"executionId":execution_id,"seq":seq,"type":"done","exitCode":exit_code,"success":success,"summary":summary}),
                 );
+
+                if let Some((run_id, session_id)) = &run_meta {
+                    let ts = now_ms();
+                    let event = DigitalLifeRunActivityEventV1::Command {
+                        v: 1,
+                        run_id: run_id.clone(),
+                        seq: ts as i64,
+                        ts,
+                        phase: "done".into(),
+                        command: request.command.clone(),
+                        args: Some(request.args.clone()),
+                        exit_code,
+                    };
+                    let _ = db.save_entity(
+                        EntityTable::RunActivityEvents,
+                        &adl_kernel::create_id("runact"),
+                        Some(&workspace_id),
+                        session_id.as_deref(),
+                        Some(run_id),
+                        &event,
+                    );
+                    let _ = app.emit(
+                        "digital-life://run-activity",
+                        serde_json::json!({
+                          "v": 1,
+                          "runId": run_id,
+                          "seq": ts,
+                          "ts": ts,
+                          "type": "command",
+                          "phase": "done",
+                          "command": request.command,
+                          "args": request.args,
+                          "exitCode": exit_code,
+                        }),
+                    );
+                }
             }
             Err(error) => {
                 command_cancellations.lock().await.remove(&execution_id);
@@ -396,6 +514,54 @@ fn spawn_stream(
                     "digital-life://terminal-stream",
                     serde_json::json!({"v":1,"executionId":execution_id,"seq":1,"type":"error","message":error.to_string()}),
                 );
+
+                if let Some((run_id, session_id)) = &run_meta {
+                    let ts = now_ms();
+                    let err_event = DigitalLifeRunActivityEventV1::Error {
+                        v: 1,
+                        run_id: run_id.clone(),
+                        seq: ts as i64,
+                        ts,
+                        message: format!("Failed to spawn command: {}", error),
+                    };
+                    let _ = db.save_entity(
+                        EntityTable::RunActivityEvents,
+                        &adl_kernel::create_id("runact"),
+                        Some(&workspace_id),
+                        session_id.as_deref(),
+                        Some(run_id),
+                        &err_event,
+                    );
+                    let _ = app.emit(
+                        "digital-life://run-activity",
+                        serde_json::json!({
+                          "v": 1,
+                          "runId": run_id,
+                          "seq": ts,
+                          "ts": ts,
+                          "type": "error",
+                          "message": format!("Failed to spawn command: {}", error)
+                        }),
+                    );
+                    let event = DigitalLifeRunActivityEventV1::Command {
+                        v: 1,
+                        run_id: run_id.clone(),
+                        seq: ts as i64,
+                        ts,
+                        phase: "done".into(),
+                        command: request.command.clone(),
+                        args: Some(request.args.clone()),
+                        exit_code: None,
+                    };
+                    let _ = db.save_entity(
+                        EntityTable::RunActivityEvents,
+                        &adl_kernel::create_id("runact"),
+                        Some(&workspace_id),
+                        session_id.as_deref(),
+                        Some(run_id),
+                        &event,
+                    );
+                }
             }
         }
     });

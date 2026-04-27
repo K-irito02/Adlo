@@ -8,12 +8,14 @@ import type {
   ConversationDetail,
   ConversationMessageRecord,
   ConversationSessionRecord,
+  DigitalLifeRunActivityEventV1,
   DiagnosticSummary,
   FileOutlineItem,
   GitSnapshot,
   IndexingState,
   IndexingStatus,
   ModelGatewayHealthSnapshot,
+  ModelTokenUsage,
   ModelProviderId,
   FilePatch,
   PatchApplicationResult,
@@ -69,6 +71,9 @@ export type StoreState = {
   activeTerminalExecutionId?: string;
   streamingAssistantText: string;
   streamingActiveRunId?: string;
+  runActivityByRunId: Record<string, DigitalLifeRunActivityEventV1[]>;
+  runUsageByRunId: Record<string, ModelTokenUsage | undefined>;
+  fetchRunActivityByRunId: (runId: string, limit?: number) => Promise<void>;
   openTabs: EditorTabState[];
   selectedFilePath?: string;
   fileContent?: string;
@@ -158,6 +163,8 @@ export const useAppStore = create<StoreState>((set, get) => ({
   searchResults: [],
   streamingAssistantText: "",
   terminalOutput: "",
+  runActivityByRunId: {},
+  runUsageByRunId: {},
   dirtyEditorPaths: [],
   repoMap: [],
   auditEntries: [],
@@ -500,6 +507,22 @@ export const useAppStore = create<StoreState>((set, get) => ({
       });
     });
 
+    const unsubscribeRunActivity = window.digitalLife.subscribeRunActivity((event) => {
+      if (event.v !== 1) return;
+      set((state) => {
+        const runId = event.runId;
+        const prev = state.runActivityByRunId[runId] ?? [];
+        const next = prev.length > 500 ? [...prev.slice(-400), event] : [...prev, event];
+        const usagePatch: Partial<StoreState> = {
+          runActivityByRunId: { ...state.runActivityByRunId, [runId]: next }
+        };
+        if (event.type === "model" && event.usage) {
+          usagePatch.runUsageByRunId = { ...state.runUsageByRunId, [runId]: event.usage };
+        }
+        return usagePatch;
+      });
+    });
+
     try {
       const result = await window.digitalLife.conversation.sendMessage({
         sessionId,
@@ -536,6 +559,7 @@ export const useAppStore = create<StoreState>((set, get) => ({
       }));
     } finally {
       unsubscribe();
+      unsubscribeRunActivity();
       set({ streamingAssistantText: "", streamingActiveRunId: undefined });
     }
   },
@@ -912,8 +936,50 @@ export const useAppStore = create<StoreState>((set, get) => ({
   fetchAuditEntries: async (limit?: number) => {
     const result = await window.digitalLife.task.listAuditEntries(limit);
     if (result.ok) {
-      set({ auditEntries: result.data });
+      set((state) => {
+        const runIdRe = /runId=([A-Za-z0-9_-]+)/;
+        const nextRunActivity = { ...state.runActivityByRunId };
+        for (let idx = 0; idx < result.data.length; idx += 1) {
+          const entry = result.data[idx]!;
+          const detail = entry.detail ?? "";
+          const match = detail.match(runIdRe);
+          if (!match) continue;
+          const runId = match[1]!;
+          const existing = nextRunActivity[runId] ?? [];
+          const seq = Number(entry.timestamp) * 1000 + idx;
+          const base = { v: 1 as const, runId, seq, ts: entry.timestamp };
+          let event: DigitalLifeRunActivityEventV1;
+          const op = entry.operationType as unknown as string;
+          if (op === "file-read") {
+            const path = entry.summary.split(":").slice(1).join(":").trim() || entry.summary;
+            event = { ...base, type: "file-read", path };
+          } else if (op === "search") {
+            const q = entry.summary.match(/`([^`]+)`/)?.[1] ?? entry.summary;
+            event = { ...base, type: "search", query: q };
+          } else if (op === "model") {
+            event = { ...base, type: "model", phase: "done", message: entry.summary };
+          } else {
+            event = { ...base, type: "error", message: `${op}: ${entry.summary}` };
+          }
+          const already = existing.some((e) => e.seq === event.seq);
+          if (!already) {
+            nextRunActivity[runId] = [...existing, event].sort((a, b) => a.seq - b.seq);
+          }
+        }
+        return { auditEntries: result.data, runActivityByRunId: nextRunActivity };
+      });
     }
+  },
+  fetchRunActivityByRunId: async (runId: string, limit?: number) => {
+    const existing = get().runActivityByRunId[runId];
+    if (existing && existing.length > 0) {
+      return;
+    }
+    const result = await window.digitalLife.runActivity.listByRunId(runId, limit);
+    if (!result.ok) return;
+    set((state) => ({
+      runActivityByRunId: { ...state.runActivityByRunId, [runId]: result.data }
+    }));
   },
   fetchCommandHistory: async () => {
     const result = await window.digitalLife.command.listRecent(20);

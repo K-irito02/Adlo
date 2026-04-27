@@ -47,13 +47,15 @@ pub fn task_list_audit_entries(
 
 #[tauri::command]
 pub async fn task_decide_approval(
+    app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
     input: ApprovalDecisionInput,
 ) -> Result<IpcResult<TaskCenterSnapshot>, CommandError> {
-    Ok(ipc(decide_approval_inner(&state, input).await))
+    Ok(ipc(decide_approval_inner(&app, &state, input).await))
 }
 
 async fn decide_approval_inner(
+    app: &tauri::AppHandle,
     state: &AppState,
     input: ApprovalDecisionInput,
 ) -> Result<TaskCenterSnapshot, AppError> {
@@ -100,7 +102,7 @@ async fn decide_approval_inner(
                 &task,
             )?;
             if matches!(input.decision, ApprovalDecision::Approved) {
-                maybe_execute_approved_command(state, &mut task).await?;
+                maybe_execute_approved_command(app, state, &mut task).await?;
             }
         }
         let _ = crate::commands::audit::save_audit_entry(
@@ -117,6 +119,52 @@ async fn decide_approval_inner(
             }),
             approval.reason.clone(),
         );
+
+        if let Some(run_id) = approval.run_id.clone() {
+            let task_session_id = state
+                .db
+                .load_entity::<TaskRecord>(EntityTable::Tasks, &approval.task_id)?
+                .map(|task| task.session_id)
+                .unwrap_or_else(|| approval.task_id.clone());
+            let ts = adl_kernel::now_ms();
+            let decision = match input.decision {
+                ApprovalDecision::Approved => "approved",
+                ApprovalDecision::Rejected => "rejected",
+                ApprovalDecision::Timeout => "timeout",
+            };
+            let event = adl_kernel::DigitalLifeRunActivityEventV1::Approval {
+                v: 1,
+                run_id: run_id.clone(),
+                seq: ts as i64,
+                ts,
+                phase: "decided".into(),
+                approval_id: approval.id.clone(),
+                decision: Some(decision.into()),
+                reason: approval.reason.clone(),
+            };
+            let _ = state.db.save_entity(
+                EntityTable::RunActivityEvents,
+                &adl_kernel::create_id("runact"),
+                Some(&approval.workspace_id),
+                Some(&task_session_id),
+                Some(&run_id),
+                &event,
+            );
+            let _ = app.emit(
+                "digital-life://run-activity",
+                serde_json::json!({
+                  "v": 1,
+                  "runId": run_id,
+                  "seq": ts,
+                  "ts": ts,
+                  "type": "approval",
+                  "phase": "decided",
+                  "approvalId": approval.id,
+                  "decision": decision,
+                  "reason": approval.reason
+                }),
+            );
+        }
         snapshot(state)
 }
 
@@ -161,6 +209,7 @@ pub fn task_restore_checkpoint(
 }
 
 async fn maybe_execute_approved_command(
+    app: &tauri::AppHandle,
     state: &AppState,
     task: &mut TaskRecord,
 ) -> Result<(), AppError> {
@@ -193,6 +242,41 @@ async fn maybe_execute_approved_command(
         Some("running"),
         task,
     )?;
+
+    if let Some(run_id) = &request.run_id {
+        let ts = adl_kernel::now_ms();
+        let event = adl_kernel::DigitalLifeRunActivityEventV1::Command {
+            v: 1,
+            run_id: run_id.clone(),
+            seq: ts as i64,
+            ts,
+            phase: "start".into(),
+            command: request.command.clone(),
+            args: Some(request.args.clone()),
+            exit_code: None,
+        };
+        let _ = state.db.save_entity(
+            EntityTable::RunActivityEvents,
+            &adl_kernel::create_id("runact"),
+            Some(&workspace.id),
+            Some(&task.session_id),
+            Some(run_id),
+            &event,
+        );
+        let _ = app.emit(
+            "digital-life://run-activity",
+            serde_json::json!({
+              "v": 1,
+              "runId": run_id,
+              "seq": ts,
+              "ts": ts,
+              "type": "command",
+              "phase": "start",
+              "command": request.command,
+              "args": request.args,
+            }),
+        );
+    }
 
     let result = adl_terminal::run_approved_command(
         std::path::Path::new(&workspace.root_path),
@@ -234,6 +318,40 @@ async fn maybe_execute_approved_command(
         Some("approved"),
         Some(format!("command={} {}", request.command, request.args.join(" "))),
     );
+
+    if let Some(run_id) = &request.run_id {
+        let _ = state.db.save_entity(
+            EntityTable::RunActivityEvents,
+            &adl_kernel::create_id("runact"),
+            Some(&workspace.id),
+            Some(&task.session_id),
+            Some(run_id),
+            &adl_kernel::DigitalLifeRunActivityEventV1::Command {
+                v: 1,
+                run_id: run_id.clone(),
+                seq: (adl_kernel::now_ms() as i64),
+                ts: adl_kernel::now_ms(),
+                phase: "done".into(),
+                command: request.command.clone(),
+                args: Some(request.args.clone()),
+                exit_code: result.exit_code,
+            },
+        );
+        let _ = app.emit(
+            "digital-life://run-activity",
+            serde_json::json!({
+              "v": 1,
+              "runId": run_id,
+              "seq": adl_kernel::now_ms(),
+              "ts": adl_kernel::now_ms(),
+              "type": "command",
+              "phase": "done",
+              "command": request.command,
+              "args": request.args,
+              "exitCode": result.exit_code,
+            }),
+        );
+    }
     Ok(())
 }
 

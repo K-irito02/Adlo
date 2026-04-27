@@ -2,7 +2,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type {
   AgentRunDetail,
   AppInfo,
+  DigitalLifeRunActivityEventV1,
   IndexingStatus,
+  ModelTokenUsage,
   ModelGatewayHealthSnapshot,
   ApprovalRequestSummary,
   ConversationDetail,
@@ -35,8 +37,9 @@ import {
   IconShield
 } from "../icons";
 import { MessageBlocks } from "../MessageBlocks";
-import { ContextSummaryBar } from "../components/conversation/ContextSummaryBar";
+import { RunSummaryBlock } from "../components/conversation/RunSummaryBlock";
 import { ApprovalCard } from "../components/approval/ApprovalCard";
+import { useAppStore } from "../store";
 import { type ChatMode, type ContextChip, useUiStore } from "../ui-store";
 import { TooltipSimple } from "../components/Tooltip";
 import { StatusBar } from "./StatusBar";
@@ -50,6 +53,8 @@ interface CenterPaneProps {
   streamingAssistantText: string;
   streamingActiveRunId?: string;
   activeRun?: AgentRunDetail;
+  runActivityByRunId: Record<string, DigitalLifeRunActivityEventV1[]>;
+  runUsageByRunId: Record<string, ModelTokenUsage | undefined>;
   modelHealth?: ModelGatewayHealthSnapshot;
   taskCenter?: TaskCenterSnapshot;
   indexingStatus?: IndexingStatus;
@@ -95,7 +100,7 @@ function ContextBuilderPopover({
   const uid = () => `ctx-${Math.random().toString(36).slice(2, 10)}`;
 
   return (
-    <div ref={ref} className="adl-context-popover" role="menu" aria-label={t.contextBuilderHeading}>
+    <div ref={ref} className="adl-context-popover" role="dialog" aria-label={t.contextBuilderHeading}>
       <header>{t.contextBuilderHeading}</header>
       <section>
         <h5>{t.contextGroupModes}</h5>
@@ -106,7 +111,6 @@ function ContextBuilderPopover({
             onSelectMode("plan");
             onClose();
           }}
-          role="menuitem"
         >
           <IconClipboardList size={14} decorative />
           <span>{t.chatModePlan}</span>
@@ -118,7 +122,6 @@ function ContextBuilderPopover({
             onSelectMode("debug");
             onClose();
           }}
-          role="menuitem"
         >
           <IconBug size={14} decorative />
           <span>{t.chatModeDebug}</span>
@@ -130,7 +133,6 @@ function ContextBuilderPopover({
             onSelectMode("ask");
             onClose();
           }}
-          role="menuitem"
         >
           <IconMessageQuestion size={14} decorative />
           <span>{t.chatModeAsk}</span>
@@ -141,7 +143,6 @@ function ContextBuilderPopover({
         <button
           type="button"
           className="adl-context-item"
-          role="menuitem"
           onClick={() => {
             onAddChip({ id: uid(), kind: "model", label: t.contextAddModel });
             onClose();
@@ -153,7 +154,6 @@ function ContextBuilderPopover({
         <button
           type="button"
           className="adl-context-item"
-          role="menuitem"
           onClick={() => {
             onAddChip({ id: uid(), kind: "skill", label: t.contextAddSkill });
             onClose();
@@ -165,7 +165,6 @@ function ContextBuilderPopover({
         <button
           type="button"
           className="adl-context-item"
-          role="menuitem"
           onClick={() => {
             onAddChip({ id: uid(), kind: "mcp", label: t.contextAddMcp });
             onClose();
@@ -177,7 +176,6 @@ function ContextBuilderPopover({
         <button
           type="button"
           className="adl-context-item"
-          role="menuitem"
           onClick={() => {
             onAddChip({ id: uid(), kind: "file", label: t.contextAddImage });
             onClose();
@@ -192,7 +190,6 @@ function ContextBuilderPopover({
         <button
           type="button"
           className="adl-context-item"
-          role="menuitem"
           onClick={() => {
             onAddChip({ id: uid(), kind: "file", label: t.contextAddFile });
             onClose();
@@ -204,7 +201,6 @@ function ContextBuilderPopover({
         <button
           type="button"
           className="adl-context-item"
-          role="menuitem"
           onClick={() => {
             onAddChip({ id: uid(), kind: "doc", label: t.contextAddDoc });
             onClose();
@@ -216,7 +212,6 @@ function ContextBuilderPopover({
         <button
           type="button"
           className="adl-context-item"
-          role="menuitem"
           onClick={() => {
             onAddChip({ id: uid(), kind: "url", label: t.contextAddUrl });
             onClose();
@@ -228,7 +223,6 @@ function ContextBuilderPopover({
         <button
           type="button"
           className="adl-context-item"
-          role="menuitem"
           onClick={() => {
             onAddChip({ id: uid(), kind: "codebase", label: t.contextAddCodebase });
             onClose();
@@ -382,6 +376,8 @@ export function CenterPane({
   streamingAssistantText,
   streamingActiveRunId,
   activeRun,
+  runActivityByRunId,
+  runUsageByRunId,
   modelHealth,
   taskCenter,
   indexingStatus,
@@ -394,6 +390,7 @@ export function CenterPane({
   onDecideApproval,
   onSelectModel
 }: CenterPaneProps) {
+  const fetchRunActivityByRunId = useAppStore((state) => state.fetchRunActivityByRunId);
   const [draft, setDraft] = useState("");
   const [hasError, setHasError] = useState(false);
   const [composerFocused, setComposerFocused] = useState(false);
@@ -416,6 +413,19 @@ export function CenterPane({
     () => messages.filter((message) => message.id !== "message-welcome"),
     [messages]
   );
+
+  useEffect(() => {
+    // Best-effort prefetch for replay: only when we see assistant messages with runId.
+    const runIds = new Set<string>();
+    for (const msg of visibleMessages) {
+      if (msg.role === "assistant" && msg.runId) {
+        runIds.add(msg.runId);
+      }
+    }
+    runIds.forEach((runId) => {
+      void fetchRunActivityByRunId(runId, 500);
+    });
+  }, [fetchRunActivityByRunId, visibleMessages]);
 
   useEffect(() => {
     const el = streamRef.current;
@@ -561,22 +571,31 @@ export function CenterPane({
         ) : (
           <div className="adl-message-stream">
             {visibleMessages.map((messageItem) => (
-              <article
-                key={messageItem.id}
-                className={`adl-message adl-message--${messageItem.role}`}
-              >
-                <header>
-                  <strong>{messageItem.role}</strong>
-                  <time>
-                    {new Date(messageItem.createdAt).toLocaleTimeString(locale, {
-                      hour: "2-digit",
-                      minute: "2-digit"
-                    })}
-                  </time>
-                </header>
-                <p>{messageItem.content}</p>
-                <MessageBlocks message={messageItem} t={t} />
-              </article>
+              <React.Fragment key={messageItem.id}>
+                <article className={`adl-message adl-message--${messageItem.role}`}>
+                  <header>
+                    <strong>{messageItem.role}</strong>
+                    <time>
+                      {new Date(messageItem.createdAt).toLocaleTimeString(locale, {
+                        hour: "2-digit",
+                        minute: "2-digit"
+                      })}
+                    </time>
+                  </header>
+                  <p>{messageItem.content}</p>
+                  <MessageBlocks message={messageItem} t={t} />
+                </article>
+                {messageItem.role === "assistant" && messageItem.runId ? (
+                  <RunSummaryBlock
+                    t={t}
+                    runId={messageItem.runId}
+                    run={activeRun?.run.id === messageItem.runId ? activeRun : undefined}
+                    events={runActivityByRunId[messageItem.runId] ?? []}
+                    usage={runUsageByRunId[messageItem.runId]}
+                    defaultExpanded={false}
+                  />
+                ) : null}
+              </React.Fragment>
             ))}
             {activeRun?.run.status === "waiting-approval" && (
               <div className="adl-center__approval-hint">
@@ -596,19 +615,21 @@ export function CenterPane({
                 <p>{streamingAssistantText}</p>
               </article>
             ) : null}
+            {streamingActiveRunId ? (
+              <RunSummaryBlock
+                t={t}
+                runId={streamingActiveRunId}
+                events={runActivityByRunId[streamingActiveRunId] ?? []}
+                usage={runUsageByRunId[streamingActiveRunId]}
+                defaultExpanded
+              />
+            ) : null}
           </div>
         )}
       </div>
 
       {/* Region 10-12: Composer */}
       <footer className="adl-composer" aria-label="Message composer">
-        <ContextSummaryBar
-          t={t}
-          workspaceName={appInfo?.currentWorkspace?.name}
-          chips={contextChips}
-          tokenEstimate={1200}
-          onRemoveChip={removeContextChip}
-        />
         {contextChips.length ? (
           <div className="adl-composer__chips">
             {contextChips.map((chip) => (
@@ -633,7 +654,6 @@ export function CenterPane({
                 className="adl-icon-btn adl-icon-btn--round"
                 onClick={() => setContextMenuOpen(!contextMenuOpen)}
                 aria-label={t.contextBuilderTrigger}
-                aria-expanded={contextMenuOpen}
               >
                 <IconPlus size={16} decorative />
               </button>
@@ -738,6 +758,7 @@ export function CenterPane({
           onSelectModel={onSelectModel}
         />
       </footer>
+
     </section>
   );
 }

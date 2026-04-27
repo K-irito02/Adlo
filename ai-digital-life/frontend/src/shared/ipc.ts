@@ -12,6 +12,7 @@ import type {
   ConversationSendResult,
   ConversationSessionRecord,
   DigitalLifeModelStreamEventV1,
+  DigitalLifeRunActivityEventV1,
   GitSnapshot,
   HealthSnapshot,
   IndexingStatus,
@@ -38,6 +39,8 @@ import type {
 export interface DigitalLifeBridge {
   /** Subscribe to Main-originated model stream events (typed, no secrets). */
   subscribeModelStream: (listener: (event: DigitalLifeModelStreamEventV1) => void) => () => void;
+  /** Subscribe to Main-originated agent run activity events (typed, no chain-of-thought). */
+  subscribeRunActivity: (listener: (event: DigitalLifeRunActivityEventV1) => void) => () => void;
   /** Subscribe to Main-originated terminal stream events (typed, no secrets). */
   subscribeTerminalStream: (listener: (event: DigitalLifeTerminalStreamEventV1) => void) => () => void;
   window: {
@@ -45,6 +48,7 @@ export interface DigitalLifeBridge {
     maximize: () => Promise<void>;
     close: () => Promise<void>;
     isMaximized: () => Promise<boolean>;
+    setTitle: (title: string) => Promise<void>;
   };
   app: {
     getInfo: () => Promise<IpcResult<AppInfo>>;
@@ -122,5 +126,8 @@ export interface DigitalLifeBridge {
     restoreCheckpoint: (checkpointId: string) => Promise<IpcResult<TaskCenterSnapshot>>;
     decideApproval: (input: { approvalId: string; decision: "approved" | "rejected"; reason?: string }) => Promise<IpcResult<TaskCenterSnapshot>>;
     listAuditEntries: (limit?: number) => Promise<IpcResult<AuditEntry[]>>;
+  };
+  runActivity: {
+    listByRunId: (runId: string, limit?: number) => Promise<IpcResult<DigitalLifeRunActivityEventV1[]>>;
   };
 }

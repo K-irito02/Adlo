@@ -78,6 +78,8 @@ export function App() {
     cancelActiveStream,
     streamingAssistantText,
     streamingActiveRunId,
+    runActivityByRunId,
+    runUsageByRunId,
     openFile,
     createWorkspaceFile,
     createWorkspaceFolder,
@@ -115,6 +117,10 @@ export function App() {
   const t = copy[locale];
   const activeDetail = activeSessionId ? sessionDetails[activeSessionId] : undefined;
   const settings = useMemo(() => buildSettingsItems(t, appInfo), [appInfo, t]);
+
+  useEffect(() => {
+    void window.digitalLife.window.setTitle(t.brandHoverName);
+  }, [t.brandHoverName]);
 
   const filePatch = useMemo(() => {
     if (!activePatchSet) return undefined;
@@ -438,6 +444,8 @@ export function App() {
           streamingAssistantText={streamingAssistantText}
           streamingActiveRunId={streamingActiveRunId}
           activeRun={activeRun}
+          runActivityByRunId={runActivityByRunId}
+          runUsageByRunId={runUsageByRunId}
           modelHealth={modelHealth}
           taskCenter={taskCenter}
           indexingStatus={indexingStatus}

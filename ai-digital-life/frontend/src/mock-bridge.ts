@@ -356,12 +356,20 @@ function createSendResult(sessionId: string, content: string): ConversationSendR
 
 export const mockDigitalLifeBridge: DigitalLifeBridge = {
   subscribeModelStream: () => () => undefined,
+  subscribeRunActivity: () => () => undefined,
   subscribeTerminalStream: () => () => undefined,
   window: {
     minimize: async () => {},
     maximize: async () => {},
     close: async () => {},
-    isMaximized: async () => false
+    isMaximized: async () => false,
+    setTitle: async (title: string) => {
+      try {
+        document.title = title;
+      } catch {
+        // ignore
+      }
+    }
   },
   app: {
     getInfo: async () => ({ ok: true, data: appInfo }),
@@ -1014,6 +1022,9 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
         }
       ]
     })
+  },
+  runActivity: {
+    listByRunId: async (_runId: string, _limit?: number) => ({ ok: true, data: [] })
   }
 };
 

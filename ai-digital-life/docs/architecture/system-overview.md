@@ -40,6 +40,7 @@ The implemented surface (after the Rust migration completes) covers:
 - `notify`-driven workspace file change events delivered via Tauri events
 - WebDriver-based acceptance coverage for the workspace shell
 - governed `command_run_stream` / `command_stop_stream` Tauri commands with versioned `digital-life://terminal-stream` events (Rust-side execution; WebView only subscribes)
+- versioned `digital-life://run-activity` events for per-run transparency (persisted for replay)
 
 ## Runtime Path
 
@@ -90,6 +91,7 @@ State is stored in `state/app-state.db` (SQLite via `rusqlite`):
 - patch sets, file patches, and hunk decisions
 - command execution and validation result records
 - model provider preferences and provider routing metadata
+- run activity events (per-run replay timeline)
 
 If a legacy `app-state.v1.json` (or pre-Rust `state/*.db`) exists, it is migrated into the current SQLite schema on first startup.
 
