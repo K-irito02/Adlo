@@ -2529,22 +2529,6 @@
   background: var(--bg-muted);
 }
 
-/* Files tool: only show navigator toggle on hover/focus (reduce visual noise). */
-.adl-tool-context--files .adl-tool-context__iconbtn--leading {
-  opacity: 0;
-  pointer-events: none;
-  transition:
-    opacity var(--duration-150) var(--ease-default),
-    background-color var(--duration-150) var(--ease-default),
-    color var(--duration-150) var(--ease-default);
-}
-
-.adl-tool-context--files:hover .adl-tool-context__iconbtn--leading,
-.adl-tool-context--files:focus-within .adl-tool-context__iconbtn--leading {
-  opacity: 1;
-  pointer-events: auto;
-}
-
 .adl-tool-panel--browser .adl-tool-context__iconbtn:focus-visible,
 .adl-tool-panel--browser .adl-tool-navigator__context-btn:focus-visible {
   outline: none;
