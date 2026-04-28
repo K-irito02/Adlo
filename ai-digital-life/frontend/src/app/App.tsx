@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AppInfo, ModelProviderId } from "@ai-digital-life/kernel";
 import { copy, type Locale } from "./copy";
 import { DIFF_LAYOUT_STORAGE_KEY } from "./constants";
@@ -15,6 +15,15 @@ import { TitleBar } from "./regions/TitleBar";
 import { LeftSidebar } from "./regions/LeftSidebar";
 import { CenterPane } from "./regions/CenterPane";
 import { RightPanel } from "./regions/RightPanel";
+import {
+  findPatchFileByPath,
+  getAdjacentPatchHunk,
+  getPatchHunkTargetLine,
+  type PatchDirection,
+  type PatchReviewFilter,
+  setCollapsedHunksForFile,
+  toggleCollapsedHunkId
+} from "./regions/right-panel/patchReview";
 import { isTauriShell } from "../tauri-bridge";
 
 function readDiffSideBySidePreference(): boolean {
@@ -96,6 +105,8 @@ export function App() {
     setHunkDecision,
     applyPatchSet,
     rollbackPatchSet,
+    acceptAllHunks,
+    rejectAllHunks,
     refreshTaskCenter,
     decideApproval,
     markExternalFileChange,
@@ -182,9 +193,14 @@ export function App() {
   const [commandArgs, setCommandArgs] = React.useState("run test");
   const [editorHint, setEditorHint] = React.useState<string>();
   const [localSearchQuery, setLocalSearchQuery] = React.useState(searchQuery);
+  const [selectedPatchFilePath, setSelectedPatchFilePath] = useState<string>();
+  const [selectedPatchHunkId, setSelectedPatchHunkId] = useState<string>();
+  const [collapsedPatchHunkIds, setCollapsedPatchHunkIds] = useState<string[]>([]);
+  const [patchReviewFilter, setPatchReviewFilter] = useState<PatchReviewFilter>("all");
   const standardEditorRef = useRef<MonacoEditorRef | null>(null);
   const diffEditorRef = useRef<MonacoEditorRef | null>(null);
   const editorDirtyTimerRef = useRef<number | undefined>(undefined);
+  const pendingRevealRef = useRef<{ path: string; line: number } | null>(null);
 
   const locale = (appInfo?.config.language ?? "zh-CN") as Locale;
   const t = copy[locale];
@@ -197,12 +213,8 @@ export function App() {
 
   const filePatch = useMemo(() => {
     if (!activePatchSet) return undefined;
-    if (!selectedFilePath) return activePatchSet.filePatches[0];
-    return (
-      activePatchSet.filePatches.find((candidate) => candidate.relativePath === selectedFilePath) ??
-      activePatchSet.filePatches[0]
-    );
-  }, [activePatchSet, selectedFilePath]);
+    return findPatchFileByPath(activePatchSet, selectedPatchFilePath ?? selectedFilePath);
+  }, [activePatchSet, selectedFilePath, selectedPatchFilePath]);
 
   const validation = latestPatchApplication?.validation;
   const selectedDiagnostics = useMemo(
@@ -263,6 +275,41 @@ export function App() {
   }, [activePatchSet, activeTool, rightCollapsed, setActiveTool]);
 
   useEffect(() => {
+    if (!activePatchSet) {
+      setSelectedPatchFilePath(undefined);
+      setSelectedPatchHunkId(undefined);
+      setCollapsedPatchHunkIds([]);
+      setPatchReviewFilter("all");
+      return;
+    }
+
+    const fallbackFile = findPatchFileByPath(activePatchSet, selectedPatchFilePath ?? selectedFilePath);
+    const nextFilePath = fallbackFile?.relativePath;
+    setSelectedPatchFilePath((current) => {
+      if (current && activePatchSet.filePatches.some((filePatchItem) => filePatchItem.relativePath === current)) {
+        return current;
+      }
+      return nextFilePath;
+    });
+    setSelectedPatchHunkId((current) => {
+      if (current && activePatchSet.filePatches.some((filePatchItem) => filePatchItem.hunks.some((hunk) => hunk.id === current))) {
+        return current;
+      }
+      return fallbackFile?.hunks[0]?.id;
+    });
+    setCollapsedPatchHunkIds((current) =>
+      current.filter((hunkId) => activePatchSet.filePatches.some((filePatchItem) => filePatchItem.hunks.some((hunk) => hunk.id === hunkId)))
+    );
+  }, [activePatchSet, selectedFilePath, selectedPatchFilePath]);
+
+  useEffect(() => {
+    if (!activePatchSet || !selectedFilePath) return;
+    if (activePatchSet.filePatches.some((filePatchItem) => filePatchItem.relativePath === selectedFilePath)) {
+      setSelectedPatchFilePath(selectedFilePath);
+    }
+  }, [activePatchSet, selectedFilePath]);
+
+  useEffect(() => {
     if (!appInfo) return;
     themeController.setTheme({
       mode: appInfo.config.themeMode,
@@ -289,7 +336,21 @@ export function App() {
     if (!activeDiagnostic?.line) return;
     const editor = diffEditorRef.current ?? standardEditorRef.current;
     editor?.revealLineInCenter(activeDiagnostic.line);
+    editor?.setPosition?.({ lineNumber: activeDiagnostic.line, column: 1 });
+    editor?.focus?.();
   }, [activeDiagnostic]);
+
+  useEffect(() => {
+    const pending = pendingRevealRef.current;
+    if (!pending) return;
+    if (!selectedFilePath || selectedFilePath !== pending.path) return;
+    const editor = diffEditorRef.current ?? standardEditorRef.current;
+    if (!editor) return;
+    editor.revealLineInCenter(pending.line);
+    editor.setPosition?.({ lineNumber: pending.line, column: 1 });
+    editor.focus?.();
+    pendingRevealRef.current = null;
+  }, [fileLastModifiedAt, selectedFilePath]);
 
   useEffect(() => {
     const editor = standardEditorRef.current as unknown as { getModel?: () => unknown } | null;
@@ -342,6 +403,69 @@ export function App() {
     setEditorHint(undefined);
     await sendMessage(buildSelectionPrompt(locale, selectedFilePath, selectedText));
   }, [locale, selectedFilePath, sendMessage, t.noSelection]);
+
+  const handleOpenFileAtLine = useCallback(
+    (relativePath: string, line: number) => {
+      pendingRevealRef.current = { path: relativePath, line };
+      void openFile(relativePath);
+    },
+    [openFile]
+  );
+
+  const handleSelectPatchFile = useCallback(
+    (relativePath: string, options?: { activateTool?: boolean; line?: number; hunkId?: string }) => {
+      const matchingFile = findPatchFileByPath(activePatchSet, relativePath);
+      const nextHunkId = options?.hunkId ?? matchingFile?.hunks[0]?.id;
+      setSelectedPatchFilePath(relativePath);
+      if (nextHunkId) {
+        setSelectedPatchHunkId(nextHunkId);
+      }
+      if (typeof options?.line === "number") {
+        pendingRevealRef.current = { path: relativePath, line: options.line };
+      }
+      if (options?.activateTool) {
+        setActiveTool("files");
+      }
+      void openFile(relativePath);
+    },
+    [activePatchSet, openFile, setActiveTool]
+  );
+
+  const handleSelectPatchHunk = useCallback(
+    (relativePath: string, hunkId: string, line: number, options?: { activateTool?: boolean }) => {
+      setSelectedPatchFilePath(relativePath);
+      setSelectedPatchHunkId(hunkId);
+      pendingRevealRef.current = { path: relativePath, line };
+      if (options?.activateTool) {
+        setActiveTool("files");
+      }
+      void openFile(relativePath);
+    },
+    [openFile, setActiveTool]
+  );
+
+  const handleTogglePatchHunkCollapse = useCallback((hunkId: string) => {
+    setCollapsedPatchHunkIds((current) => toggleCollapsedHunkId(current, hunkId));
+  }, []);
+
+  const handleSetAllPatchHunksCollapsed = useCallback(
+    (collapsed: boolean, relativePath?: string) => {
+      const targetFile = findPatchFileByPath(activePatchSet, relativePath ?? selectedPatchFilePath ?? selectedFilePath);
+      setCollapsedPatchHunkIds((current) => setCollapsedHunksForFile(current, targetFile, collapsed));
+    },
+    [activePatchSet, selectedFilePath, selectedPatchFilePath]
+  );
+
+  const handleJumpPatchHunk = useCallback(
+    (direction: PatchDirection) => {
+      const nextHunk = getAdjacentPatchHunk(activePatchSet, selectedPatchHunkId, direction);
+      if (!nextHunk) return;
+      handleSelectPatchHunk(nextHunk.relativePath, nextHunk.id, getPatchHunkTargetLine(nextHunk), {
+        activateTool: true
+      });
+    },
+    [activePatchSet, handleSelectPatchHunk, selectedPatchHunkId]
+  );
 
   const handleCycleTheme = useCallback(() => {
     const mode = appInfo?.config.themeMode ?? "system";
@@ -579,11 +703,12 @@ export function App() {
           commandHistory={commandHistory}
           standardEditorRef={standardEditorRef}
           diffEditorRef={diffEditorRef}
-            onOpenFile={(path) => void openFile(path)}
-            onReloadExternal={handleReloadExternal}
-            onCreateWorkspaceFile={createWorkspaceFile}
-            onCreateWorkspaceFolder={createWorkspaceFolder}
-            onEditorChange={handleStandardEditorChange}
+          onOpenFile={(path) => void openFile(path)}
+          onOpenFileAtLine={handleOpenFileAtLine}
+          onReloadExternal={handleReloadExternal}
+          onCreateWorkspaceFile={createWorkspaceFile}
+          onCreateWorkspaceFolder={createWorkspaceFolder}
+          onEditorChange={handleStandardEditorChange}
           onEditorMount={handleEditorMount}
           onDiffMount={handleDiffMount}
           onSearch={handleSearchSubmit}
@@ -593,9 +718,21 @@ export function App() {
           onSetDiffLayout={persistDiffLayout}
           activePatchSet={activePatchSet}
           latestPatchApplication={latestPatchApplication}
+          selectedPatchFilePath={selectedPatchFilePath}
+          selectedPatchHunkId={selectedPatchHunkId}
+          collapsedPatchHunkIds={collapsedPatchHunkIds}
+          patchReviewFilter={patchReviewFilter}
           onSetHunkDecision={handleSetHunkDecision}
           onApplyPatchSet={handleApplyPatch}
           onRollbackPatchSet={handleRollbackPatch}
+          onAcceptAllHunks={() => void acceptAllHunks()}
+          onRejectAllHunks={() => void rejectAllHunks()}
+          onSelectPatchFile={handleSelectPatchFile}
+          onSelectPatchHunk={handleSelectPatchHunk}
+          onTogglePatchHunkCollapse={handleTogglePatchHunkCollapse}
+          onSetAllPatchHunksCollapsed={handleSetAllPatchHunksCollapsed}
+          onSetPatchReviewFilter={setPatchReviewFilter}
+          onJumpPatchHunk={handleJumpPatchHunk}
           modelHealth={modelHealth}
           onRefreshModelHealth={() => void refreshModelHealth()}
           onChangeSetting={handleChangeSetting}

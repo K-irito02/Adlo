@@ -115,7 +115,7 @@
 - 凭据写入普通配置或日志（必须使用 OS keyring）
 - 未说明 Phase 边界就引入远期能力
 - 高风险改动无测试计划、无恢复说明、无审计考虑
-- 使用原生 HTML `title` 属性作为 Tooltip（必须使用 `TooltipSimple` 组件）
+- 使用原生 HTML `title` 属性作为 Tooltip（必须使用 `TooltipSimple` 组件；仅在 Monaco gutter 折叠控件这类第三方内部 DOM 无法稳定承载自定义 Tooltip 时，允许在受限互操作层同步本地化 `title` 作为回退，不得扩散到常规 UI 组件）
 - UI/UX 或功能变更后跳过红绿测试（`cargo test` + 前端 `vitest`）
 - 在 `tauri.conf.json` 或 capability 文件中使用 `"all"` / `"**"` 通配权限
 

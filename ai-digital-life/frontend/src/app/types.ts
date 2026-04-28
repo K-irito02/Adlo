@@ -14,4 +14,13 @@ export type MonacoEditorRef = {
     }) => string;
   } | null;
   revealLineInCenter: (lineNumber: number) => void;
+  revealLinesInCenter?: (startLineNumber: number, endLineNumber: number) => void;
+  focus?: () => void;
+  setPosition?: (position: { lineNumber: number; column: number }) => void;
+  setSelection?: (selection: {
+    startLineNumber: number;
+    startColumn: number;
+    endLineNumber: number;
+    endColumn: number;
+  }) => void;
 };

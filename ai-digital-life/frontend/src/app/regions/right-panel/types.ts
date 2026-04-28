@@ -15,6 +15,7 @@ import type {
 import type { CopyDict } from "../../copy";
 import type { EditorTabState } from "../../editorTabs";
 import type { MonacoEditorRef } from "../../types";
+import type { PatchDirection, PatchReviewFilter } from "./patchReview";
 
 export interface RightPanelViewProps {
   t: CopyDict;
@@ -46,6 +47,7 @@ export interface RightPanelViewProps {
   standardEditorRef: React.MutableRefObject<MonacoEditorRef | null>;
   diffEditorRef: React.MutableRefObject<MonacoEditorRef | null>;
   onOpenFile: (relativePath: string) => void;
+  onOpenFileAtLine: (relativePath: string, line: number) => void;
   onReloadExternal: () => void;
   onCreateWorkspaceFile: (relativePath: string, content?: string) => Promise<string | undefined>;
   onCreateWorkspaceFolder: (relativePath: string) => Promise<string | undefined>;
@@ -59,9 +61,21 @@ export interface RightPanelViewProps {
   onSetDiffLayout: (sideBySide: boolean) => void;
   activePatchSet?: PatchSet;
   latestPatchApplication?: PatchApplicationResult;
+  selectedPatchFilePath?: string;
+  selectedPatchHunkId?: string;
+  collapsedPatchHunkIds: string[];
+  patchReviewFilter: PatchReviewFilter;
   onSetHunkDecision: (hunkId: string, decision: "pending" | "accepted" | "rejected") => void;
   onApplyPatchSet: () => void;
   onRollbackPatchSet: () => void;
+  onAcceptAllHunks: () => void;
+  onRejectAllHunks: () => void;
+  onSelectPatchFile: (relativePath: string, options?: { activateTool?: boolean; line?: number; hunkId?: string }) => void;
+  onSelectPatchHunk: (relativePath: string, hunkId: string, line: number, options?: { activateTool?: boolean }) => void;
+  onTogglePatchHunkCollapse: (hunkId: string) => void;
+  onSetAllPatchHunksCollapsed: (collapsed: boolean, relativePath?: string) => void;
+  onSetPatchReviewFilter: (filter: PatchReviewFilter) => void;
+  onJumpPatchHunk: (direction: PatchDirection) => void;
   modelHealth?: { providers: Array<{ providerId: string; healthy: boolean; detail: string }> } | undefined;
   onRefreshModelHealth: () => void;
   auditEntries: AuditEntry[];
@@ -96,4 +110,3 @@ export function getDisplayPathName(pathValue?: string): string {
   const segments = getPathSegments(pathValue);
   return segments[segments.length - 1] ?? "";
 }
-

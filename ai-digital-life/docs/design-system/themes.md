@@ -41,6 +41,9 @@ Misc: `--focus-ring`, `--shadow-soft`
 - Embedded editors that do not consume CSS custom properties directly, such as Monaco, must still resolve against the same shell background baseline.
 - The default editor canvas, gutter, and minimap background should use `rgb(248, 248, 248)` in light mode and `rgb(20, 20, 20)` in dark mode unless a documented product requirement overrides it.
 - When an embedded editor requires a programmatic theme definition, that theme should be treated as an implementation mirror of the design tokens rather than a separate visual system.
+- Programmatic editor themes must be registered with resolved color literals (`#RRGGBB`, `#RRGGBBAA`, or concrete `rgb/rgba` values accepted by the target API). Raw CSS custom-property references and CSS keyword colors should be normalized before registration.
+- Transparent editor states should be expressed using the target API's accepted transparent literal, not by assuming browser CSS parsing rules apply inside the programmatic theme layer.
+- Monaco folding controls may use a localized native `title` as a narrow fallback for gutter hover guidance when the editor's internal DOM cannot stably host the shared tooltip component. This exception applies only inside the Monaco integration layer, not to normal product UI controls.
 
 ## Mode resolution
 

@@ -195,6 +195,60 @@ body,
   /* === Code & Special === */
   --code-bg: #f6f6f6;
 
+  /* === Editor (Monaco) — semantic tokens === */
+  --editor-bg: var(--surface);
+  --editor-fg: var(--text-primary);
+  --editor-lineNumber: var(--text-muted);
+  --editor-lineNumber-active: var(--text-primary);
+  --editor-cursor: var(--text-primary);
+  --editor-selection: rgba(37, 99, 235, 0.18);
+  --editor-selection-inactive: rgba(37, 99, 235, 0.12);
+  --editor-lineHighlight: rgba(34, 34, 34, 0.03);
+  --editor-findMatch: rgba(217, 119, 6, 0.22);
+  --editor-findMatch-highlight: rgba(217, 119, 6, 0.14);
+  --editor-hover-bg: var(--surface-raised);
+  --editor-hover-border: var(--border-default);
+  --editor-widget-bg: var(--surface-raised);
+  --editor-widget-border: var(--border-default);
+  --editor-indentGuide: rgba(34, 34, 34, 0.12);
+  --editor-indentGuide-active: rgba(34, 34, 34, 0.22);
+  --editor-whitespace: rgba(34, 34, 34, 0.12);
+
+  --editor-diff-insert-bg: rgba(22, 163, 74, 0.12);
+  --editor-diff-remove-bg: rgba(92, 97, 104, 0.1);
+  --editor-diff-modify-bg: rgba(148, 107, 66, 0.11);
+  --editor-hunk-header-bg: rgba(34, 34, 34, 0.04);
+  --editor-hunk-header-border: rgba(34, 34, 34, 0.08);
+  --editor-current-hunk-ring: rgba(37, 99, 235, 0.16);
+  --editor-fold-bg: transparent;
+  --editor-fold-chip-bg: rgba(107, 126, 149, 0.1);
+  --editor-fold-placeholder-fg: #6d7682;
+  --editor-folding-control: rgba(95, 102, 114, 0.74);
+  --editor-folding-control-hover: #4f657c;
+  --editor-range-highlight: rgba(37, 99, 235, 0.08);
+  --editor-range-highlight-border: rgba(37, 99, 235, 0.12);
+  --change-badge-added-bg: rgba(84, 117, 94, 0.12);
+  --change-badge-added-fg: #4b6355;
+  --change-badge-modified-bg: rgba(124, 101, 72, 0.12);
+  --change-badge-modified-fg: #6b5b4d;
+  --change-badge-deleted-bg: rgba(92, 97, 104, 0.11);
+  --change-badge-deleted-fg: #5f6670;
+  --decision-pending-bg: rgba(110, 112, 118, 0.14);
+  --decision-pending-fg: #5f6672;
+  --decision-accepted-bg: rgba(84, 117, 94, 0.12);
+  --decision-accepted-fg: #4b6355;
+  --decision-rejected-bg: rgba(92, 97, 104, 0.11);
+  --decision-rejected-fg: #5f6670;
+
+  --editor-syntax-comment: var(--text-muted);
+  --editor-syntax-keyword: var(--accent);
+  --editor-syntax-string: #15803d;
+  --editor-syntax-number: #b45309;
+  --editor-syntax-regexp: #0b6bcb;
+  --editor-syntax-type: #7c3aed;
+  --editor-syntax-function: #1d4ed8;
+  --editor-syntax-variable: var(--text-primary);
+
   /* === Border Alias (unified) === */
   --border: var(--border-default);
 }
@@ -304,6 +358,60 @@ body,
 
   /* === Code & Special (dark) === */
   --code-bg: #1a1a1a;
+
+  /* === Editor (Monaco) — semantic tokens === */
+  --editor-bg: var(--surface);
+  --editor-fg: var(--text-primary);
+  --editor-lineNumber: var(--text-muted);
+  --editor-lineNumber-active: var(--text-primary);
+  --editor-cursor: var(--text-primary);
+  --editor-selection: rgba(96, 165, 250, 0.22);
+  --editor-selection-inactive: rgba(96, 165, 250, 0.14);
+  --editor-lineHighlight: rgba(255, 255, 255, 0.035);
+  --editor-findMatch: rgba(251, 191, 36, 0.24);
+  --editor-findMatch-highlight: rgba(251, 191, 36, 0.14);
+  --editor-hover-bg: var(--surface-raised);
+  --editor-hover-border: var(--border-default);
+  --editor-widget-bg: var(--surface-raised);
+  --editor-widget-border: var(--border-default);
+  --editor-indentGuide: rgba(255, 255, 255, 0.14);
+  --editor-indentGuide-active: rgba(255, 255, 255, 0.26);
+  --editor-whitespace: rgba(255, 255, 255, 0.14);
+
+  --editor-diff-insert-bg: rgba(74, 222, 128, 0.14);
+  --editor-diff-remove-bg: rgba(120, 127, 136, 0.14);
+  --editor-diff-modify-bg: rgba(180, 144, 102, 0.12);
+  --editor-hunk-header-bg: rgba(255, 255, 255, 0.045);
+  --editor-hunk-header-border: rgba(255, 255, 255, 0.09);
+  --editor-current-hunk-ring: rgba(96, 165, 250, 0.18);
+  --editor-fold-bg: transparent;
+  --editor-fold-chip-bg: rgba(148, 163, 184, 0.1);
+  --editor-fold-placeholder-fg: #b6c0cc;
+  --editor-folding-control: rgba(198, 208, 220, 0.74);
+  --editor-folding-control-hover: #d8e3ef;
+  --editor-range-highlight: rgba(96, 165, 250, 0.1);
+  --editor-range-highlight-border: rgba(96, 165, 250, 0.16);
+  --change-badge-added-bg: rgba(115, 156, 126, 0.14);
+  --change-badge-added-fg: #a9c5af;
+  --change-badge-modified-bg: rgba(160, 134, 106, 0.16);
+  --change-badge-modified-fg: #d3b995;
+  --change-badge-deleted-bg: rgba(120, 127, 136, 0.16);
+  --change-badge-deleted-fg: #c2cad4;
+  --decision-pending-bg: rgba(130, 138, 150, 0.16);
+  --decision-pending-fg: #c6d0dc;
+  --decision-accepted-bg: rgba(115, 156, 126, 0.14);
+  --decision-accepted-fg: #a9c5af;
+  --decision-rejected-bg: rgba(120, 127, 136, 0.16);
+  --decision-rejected-fg: #c2cad4;
+
+  --editor-syntax-comment: var(--text-muted);
+  --editor-syntax-keyword: var(--accent);
+  --editor-syntax-string: #4ade80;
+  --editor-syntax-number: #fbbf24;
+  --editor-syntax-regexp: #60a5fa;
+  --editor-syntax-type: #c084fc;
+  --editor-syntax-function: #93bbfd;
+  --editor-syntax-variable: var(--text-primary);
 
   /* === Border Alias (unified) === */
   --border: var(--border-default);
