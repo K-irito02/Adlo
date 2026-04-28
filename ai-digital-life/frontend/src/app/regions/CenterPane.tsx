@@ -526,9 +526,9 @@ export function CenterPane({
 
   const onKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
-      if (event.key === "Enter" && !event.shiftKey) {
+      if (event.key === "Enter") {
         event.preventDefault();
-        if (buttonState === "send") {
+        if (!event.shiftKey && buttonState === "send") {
           void handleSend();
         }
       }
@@ -541,7 +541,11 @@ export function CenterPane({
   );
 
   const onInput = useCallback((event: React.FormEvent<HTMLDivElement>) => {
-    setDraft(event.currentTarget.textContent ?? "");
+    const normalized = (event.currentTarget.textContent ?? "").replace(/\s*[\r\n]+\s*/g, " ");
+    if (event.currentTarget.textContent !== normalized) {
+      event.currentTarget.textContent = normalized;
+    }
+    setDraft(normalized);
     window.requestAnimationFrame(updateCustomCaret);
   }, [updateCustomCaret]);
 
@@ -681,7 +685,7 @@ export function CenterPane({
               data-testid="composer-input"
               contentEditable
               role="textbox"
-              aria-multiline="true"
+              aria-multiline="false"
               aria-label={t.composerPlaceholder}
               data-placeholder={t.composerPlaceholder}
               suppressContentEditableWarning

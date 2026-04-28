@@ -67,9 +67,9 @@ const TERMINAL_TABS_KEY = "adl-ui:terminal-tabs";
 const TERMINAL_ACTIVE_TAB_KEY = "adl-ui:terminal-active-tab";
 const TERMINAL_LAYOUT_KEY = "adl-ui:terminal-layout";
 
-export const RIGHT_PANEL_WIDTH_MIN = 520;
-export const RIGHT_PANEL_WIDTH_MAX = 680;
-const DEFAULT_RIGHT_PANEL_WIDTH = 620;
+export const RIGHT_PANEL_WIDTH_MIN = 320;
+export const RIGHT_PANEL_WIDTH_MAX = 4096;
+export const DEFAULT_RIGHT_PANEL_WIDTH = 520;
 const FILES_NAVIGATOR_WIDTH_MIN = 180;
 const FILES_NAVIGATOR_WIDTH_MAX = 300;
 const DEFAULT_FILES_NAVIGATOR_WIDTH = 240;

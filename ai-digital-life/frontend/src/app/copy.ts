@@ -33,6 +33,8 @@ export const copy = {
     panelToggleLeft: "切换左侧边栏",
     panelToggleRight: "切换右侧面板",
     panelToggleBoth: "切换两侧面板",
+    rightPanelExpand: "扩大右侧边栏",
+    rightPanelRestore: "还原右侧边栏",
 
     // Window controls (Region 4)
     windowMinimize: "最小化",
@@ -513,6 +515,8 @@ export const copy = {
     panelToggleLeft: "Toggle left sidebar",
     panelToggleRight: "Toggle right panel",
     panelToggleBoth: "Toggle both panels",
+    rightPanelExpand: "Expand right sidebar",
+    rightPanelRestore: "Restore right sidebar",
 
     windowMinimize: "Minimize",
     windowMaximize: "Maximize",
