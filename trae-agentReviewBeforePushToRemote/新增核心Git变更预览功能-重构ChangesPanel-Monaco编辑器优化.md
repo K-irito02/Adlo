@@ -324,3 +324,131 @@ filter: drop-shadow(-2px 1px 3px rgba(0, 0, 0, 0.30))
 ### 📦 架构改进
 - 前后端类型定义同步（Rust ↔ TypeScript）
 - 清晰的分层架构：UI 层 → 状态层 → IPC 层 → 后端层
+
+---
+
+## 1. 高层摘要 (TL;DR)
+
+*   **影响范围：** 🟢 **低** - 优化了 Git 快照捕获函数的错误处理逻辑
+*   **核心变更：**
+    *   将 `unwrap_or_default()` 替换为 `unwrap_or_else()` 以提供更详细的错误日志
+    *   为 4 个 Git 命令调用添加了调试日志记录
+    *   改善了非 Git 仓库环境下的可观测性
+
+## 2. 可视化概览 (代码与逻辑映射)
+
+```mermaid
+graph TD
+    subgraph "lib.rs: capture_git_snapshot 函数"
+        A["capture_git_snapshot<br/>root: &Path"] --> B["获取分支信息<br/>branch"]
+        A --> C["获取 HEAD 提交<br/>head"]
+        
+        subgraph "Git 状态查询"
+            D["staged<br/>已暂存文件"]
+            E["unstaged<br/>未暂存文件"]
+            F["untracked<br/>未跟踪文件"]
+            G["conflicts<br/>冲突文件"]
+        end
+        
+        B --> D
+        C --> E
+        E --> F
+        F --> G
+        
+        D --> H["run_git_paths<br/>diff --cached"]
+        E --> I["run_git_paths<br/>diff"]
+        F --> J["run_git_paths<br/>ls-files --others"]
+        G --> K["run_git_paths<br/>diff --diff-filter=U"]
+        
+        H --> L{命令成功?}
+        I --> M{命令成功?}
+        J --> N{命令成功?}
+        K --> O{命令成功?}
+        
+        L -->|否| P["📝 debug 日志<br/>记录失败原因"]
+        M -->|否| Q["📝 debug 日志<br/>记录失败原因"]
+        N -->|否| R["📝 debug 日志<br/>记录失败原因"]
+        O -->|否| S["📝 debug 日志<br/>记录失败原因"]
+        
+        P --> T["Vec::new()"]
+        Q --> T
+        R --> T
+        S --> T
+        
+        L -->|是| U["返回文件列表"]
+        M -->|是| U
+        N -->|是| U
+        O -->|是| U
+        
+        T --> V["GitSnapshot 结构体"]
+        U --> V
+    end
+    
+    style D fill:#bbdefb,color:#0d47a1
+    style E fill:#bbdefb,color:#0d47a1
+    style F fill:#bbdefb,color:#0d47a1
+    style G fill:#bbdefb,color:#0d47a1
+    style P fill:#fff3e0,color:#e65100
+    style Q fill:#fff3e0,color:#e65100
+    style R fill:#fff3e0,color:#e65100
+    style S fill:#fff3e0,color:#e65100
+```
+
+## 3. 详细变更分析
+
+### 📦 组件：Git 快照捕获模块 (`lib.rs`)
+
+#### 🔄 变更说明
+优化了 `capture_git_snapshot()` 函数中的错误处理机制，将静默失败改为记录调试日志，提升了系统在非 Git 仓库或 Git 命令失败场景下的可观测性。
+
+#### 📊 Git 命令错误处理变更表
+
+| Git 命令 | 变量名 | 旧处理方式 | 新处理方式 | 新增日志内容 |
+|---------|--------|-----------|-----------|------------|
+| `diff --name-only --cached -z` | `staged` | `unwrap_or_default()` | `unwrap_or_else(\|\| { ... })` | 记录 "git diff --cached failed" |
+| `diff --name-only -z` | `unstaged` | `unwrap_or_default()` | `unwrap_or_else(\|\| { ... })` | 记录 "git diff failed" |
+| `ls-files --others --exclude-standard -z` | `untracked` | `unwrap_or_default()` | `unwrap_or_else(\|\| { ... })` | 记录 "git ls-files --others failed" |
+| `diff --name-only --diff-filter=U -z` | `conflicts` | `unwrap_or_default()` | `unwrap_or_else(\|\| { ... })` | 记录 "git diff --diff-filter=U failed" |
+
+#### 💡 技术细节
+
+**变更模式：**
+```rust
+// 旧代码
+let staged = run_git_paths(root, &["diff", "--name-only", "--cached", "-z"]).unwrap_or_default();
+
+// 新代码
+let staged = run_git_paths(root, &["diff", "--name-only", "--cached", "-z"]).unwrap_or_else(|| {
+    debug!(root = %root.to_string_lossy(), "git diff --cached failed, defaulting to empty staged list");
+    Vec::new()
+});
+```
+
+**关键改进点：**
+1. **延迟求值**：`unwrap_or_else` 只在 `Err` 时才执行闭包，避免不必要的日志记录
+2. **上下文信息**：日志包含 `root` 路径，便于定位问题
+3. **明确意图**：日志明确说明 "defaulting to empty X list"，让开发者了解降级行为
+
+## 4. 影响与风险评估
+
+### ✅ 无破坏性变更
+- **API 兼容性**：函数签名和返回值类型完全不变
+- **行为兼容性**：失败时仍返回空 `Vec`，仅增加了日志输出
+
+### 🧪 测试建议
+
+| 测试场景 | 验证点 |
+|---------|--------|
+| **正常 Git 仓库** | 确认所有 4 个状态列表正确获取，无日志输出 |
+| **非 Git 目录** | 确认返回空列表，检查日志中记录了 4 条失败信息 |
+| **Git 命令权限不足** | 确认降级为空列表，日志记录具体失败的命令 |
+| **部分命令失败** | 确认成功的命令返回正确结果，失败的命令记录日志 |
+
+### ⚠️ 潜在影响
+- **日志量增加**：在非 Git 环境下，每次调用 `capture_git_snapshot` 会产生 4 条 debug 日志
+- **性能影响**：`unwrap_or_else` 的闭包调用开销可忽略不计（仅在失败时执行）
+
+### 📝 备注
+此变更属于**可观测性增强**，主要目的是在开发调试阶段更好地诊断 Git 相关问题。生产环境中若日志级别设置为 `info` 或更高，这些 debug 日志不会输出。
+
+---
