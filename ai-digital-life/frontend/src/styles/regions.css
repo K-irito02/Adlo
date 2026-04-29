@@ -2919,10 +2919,12 @@
 
   .adl-tool-surface--files.is-navigator-collapsed .adl-tool-navigator {
     opacity: 0;
+    visibility: hidden;
     overflow: hidden;
     pointer-events: none;
     max-width: 0;
-    border-width: 0;
+    border-right-width: 0;
+    background: transparent;
   }
 }
 
