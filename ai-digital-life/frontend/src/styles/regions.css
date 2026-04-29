@@ -2245,7 +2245,7 @@
 }
 
 .adl-toolswitcher__tabs {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   min-width: 0;
 }
 
@@ -2253,11 +2253,36 @@
   display: flex;
   align-items: stretch;
   flex: 0 0 auto;
-  border-left: 1px solid var(--border-subtle);
+  min-width: 0;
+  padding-right: 0;
 }
 
-.adl-toolswitcher__expand {
-  flex: 0 0 auto;
+.adl-toolswitcher__actions .tooltip-trigger {
+  display: flex !important;
+}
+
+.adl-toolswitcher__expand.adl-iconstrip__button {
+  width: auto;
+  min-width: var(--adl-iconstrip-button-size);
+  padding: 0 var(--space-2);
+}
+
+.adl-toolswitcher__expand.adl-iconstrip__button.is-active,
+.adl-toolswitcher__expand.adl-iconstrip__button[aria-pressed="true"] {
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.adl-toolswitcher__expand.adl-iconstrip__button:hover:not(:disabled),
+.adl-toolswitcher__expand.adl-iconstrip__button.is-active:hover,
+.adl-toolswitcher__expand.adl-iconstrip__button[aria-pressed="true"]:hover,
+.adl-toolswitcher__expand.adl-iconstrip__button:focus-visible {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.adl-toolswitcher__expand.adl-iconstrip__button:active {
+  background: var(--surface-active);
 }
 
 .adl-iconstrip__button {

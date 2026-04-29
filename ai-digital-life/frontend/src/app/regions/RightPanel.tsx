@@ -159,6 +159,8 @@ export function RightPanel(props: RightPanelViewProps) {
   const handleResizeStart = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       event.preventDefault();
+      const target = event.currentTarget;
+      target.setPointerCapture(event.pointerId);
       const startX = event.clientX;
       const startWidth = rightPanelWidth;
       let latestWidth = startWidth;
@@ -183,7 +185,7 @@ export function RightPanel(props: RightPanelViewProps) {
         });
       };
 
-      const handleUp = () => {
+      const cleanup = () => {
         draggingRef.current = false;
         body.classList.remove("adl-is-resizing");
         shellBody?.classList.remove("is-resizing");
@@ -193,12 +195,17 @@ export function RightPanel(props: RightPanelViewProps) {
         }
         const { nextWidth } = applyPanelGeometry(latestWidth, { commitRestorable: true });
         setRightPanelWidth(nextWidth);
-        window.removeEventListener("pointermove", handleMove);
-        window.removeEventListener("pointerup", handleUp);
+        target.releasePointerCapture(event.pointerId);
+        target.removeEventListener("pointermove", handleMove);
+        target.removeEventListener("pointerup", cleanup);
+        target.removeEventListener("pointercancel", cleanup);
+        target.removeEventListener("lostpointercapture", cleanup);
       };
 
-      window.addEventListener("pointermove", handleMove);
-      window.addEventListener("pointerup", handleUp);
+      target.addEventListener("pointermove", handleMove);
+      target.addEventListener("pointerup", cleanup);
+      target.addEventListener("pointercancel", cleanup);
+      target.addEventListener("lostpointercapture", cleanup);
     },
     [applyPanelGeometry, clampPanelWidthToShell, readLayoutMetrics, rightPanelWidth, setRightPanelWidth]
   );

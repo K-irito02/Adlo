@@ -452,3 +452,139 @@ let staged = run_git_paths(root, &["diff", "--name-only", "--cached", "-z"]).unw
 此变更属于**可观测性增强**，主要目的是在开发调试阶段更好地诊断 Git 相关问题。生产环境中若日志级别设置为 `info` 或更高，这些 debug 日志不会输出。
 
 ---
+
+## 1. 高层摘要 (TL;DR)
+
+- **影响范围：** 🟢 低 - 代码重构，不改变业务逻辑
+- **核心变更：** 将 `capture_git_snapshot` 函数中重复的Git命令错误处理逻辑提取到新的辅助函数 `capture_git_paths_with_fallback`
+- **关键改进：**
+  - ✅ 消除了4处重复的错误处理代码
+  - ✅ 提高了代码可维护性和可读性
+  - ✅ 统一了错误日志格式
+
+---
+
+## 2. 可视化概览 (代码逻辑图)
+
+```mermaid
+graph TD
+    subgraph "lib.rs - Git快照捕获模块"
+        direction TB
+        
+        subgraph "capture_git_snapshot 主函数"
+            A["capture_git_snapshot(root: &Path)"]
+            B["获取分支信息"]
+            C["获取HEAD提交"]
+            D["获取暂存文件<br/>staged"]
+            E["获取未暂存文件<br/>unstaged"]
+            F["获取未跟踪文件<br/>untracked"]
+            G["获取冲突文件<br/>conflicts"]
+            H["构建GitSnapshot"]
+        end
+        
+        subgraph "新增辅助函数"
+            I["capture_git_paths_with_fallback<br/>(root, args, command_name)"]
+            J["run_git_paths(root, args)"]
+            K["执行成功 → 返回路径列表"]
+            L["执行失败 → 记录debug日志<br/>返回空Vec"]
+        end
+        
+        A --> B
+        A --> C
+        A --> D
+        A --> E
+        A --> F
+        A --> G
+        A --> H
+        
+        D --> I
+        E --> I
+        F --> I
+        G --> I
+        
+        I --> J
+        J --> K
+        J --> L
+        
+        style I fill:#bbdefb,color:#0d47a1
+        style D fill:#fff3e0,color:#e65100
+        style E fill:#fff3e0,color:#e65100
+        style F fill:#fff3e0,color:#e65100
+        style G fill:#fff3e0,color:#e65100
+    end
+```
+
+---
+
+## 3. 详细变更分析
+
+### 📦 组件：Git快照捕获模块 (`ai-digital-life/crates/workspace/src/lib.rs`)
+
+#### 🔧 变更说明
+**重构目标：** 消除 `capture_git_snapshot` 函数中的重复代码模式
+
+**变更前：**
+- 每个Git命令调用（staged、unstaged、untracked、conflicts）都包含相同的错误处理逻辑
+- 代码行数：22行（包含4个重复的 `unwrap_or_else` 块）
+
+**变更后：**
+- 提取公共逻辑到新函数 `capture_git_paths_with_fallback`
+- 代码行数：8行（4行调用 + 7行新函数定义）
+- 净减少：7行代码
+
+#### 📋 函数映射表
+
+| Git状态 | 原代码行数 | 新代码调用 | 命令名称参数 |
+|---------|-----------|-----------|-------------|
+| **暂存文件** | 5行 | `capture_git_paths_with_fallback(root, &["diff", "--name-only", "--cached", "-z"], "diff --cached")` | `"diff --cached"` |
+| **未暂存文件** | 5行 | `capture_git_paths_with_fallback(root, &["diff", "--name-only", "-z"], "diff")` | `"diff"` |
+| **未跟踪文件** | 5行 | `capture_git_paths_with_fallback(root, &["ls-files", "--others", "--exclude-standard", "-z"], "ls-files --others")` | `"ls-files --others"` |
+| **冲突文件** | 5行 | `capture_git_paths_with_fallback(root, &["diff", "--name-only", "--diff-filter=U", "-z"], "diff --diff-filter=U")` | `"diff --diff-filter=U"` |
+
+#### 💡 新增函数详情
+
+```rust
+fn capture_git_paths_with_fallback(root: &Path, args: &[&str], command_name: &str) -> Vec<String> {
+    run_git_paths(root, args).unwrap_or_else(|| {
+        debug!(root = %root.to_string_lossy(), "git {} failed, defaulting to empty list", command_name);
+        Vec::new()
+    })
+}
+```
+
+**参数说明：**
+- `root`: Git仓库根路径
+- `args`: Git命令参数数组
+- `command_name`: 用于日志记录的命令名称（如 `"diff --cached"`）
+
+**行为：**
+- ✅ 调用 `run_git_paths` 执行Git命令
+- ✅ 成功时返回路径列表
+- ✅ 失败时记录debug日志并返回空 `Vec<String>`
+
+---
+
+## 4. 影响与风险评估
+
+### ⚠️ 破坏性变更
+- **无** - 纯重构，函数签名和返回值保持不变
+
+### ✅ 测试建议
+
+| 测试场景 | 预期行为 |
+|---------|---------|
+| **正常Git仓库** | 所有4种状态（staged/unstaged/untracked/conflicts）正确捕获 |
+| **非Git目录** | 返回空列表，不抛出异常 |
+| **Git命令失败** | 记录debug日志，返回空列表 |
+| **空仓库** | 正确处理无文件的情况 |
+
+### 🎯 改进收益
+
+| 指标 | 改进 |
+|------|------|
+| **代码重复** | 减少 4处 → 0处 |
+| **可维护性** | ⬆️ 提升（错误逻辑集中管理） |
+| **日志一致性** | ⬆️ 提升（统一格式） |
+| **代码行数** | ⬇️ 减少 7行 |
+
+---
