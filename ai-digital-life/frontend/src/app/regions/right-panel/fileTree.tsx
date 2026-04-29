@@ -1,4 +1,5 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { IconAlertTriangle, IconChevronDown, IconChevronRight, IconCircle } from "../../icons";
 import { getFileTreeVisualSpec } from "./fileTreeVisuals";
 
@@ -170,29 +171,6 @@ export function FileTree<T extends FileTreeRenderableNode>(props: FileTreeProps<
     };
   }, [contextMenuState]);
 
-  useLayoutEffect(() => {
-    if (!contextMenuState || !contextMenuRef.current || !rootRef.current) {
-      return;
-    }
-    const root = rootRef.current;
-    const rect = contextMenuRef.current.getBoundingClientRect();
-    const maxX = root.scrollLeft + root.clientWidth - rect.width - 8;
-    const maxY = root.scrollTop + root.clientHeight - rect.height - 8;
-    const clampedX = Math.max(root.scrollLeft + 8, Math.min(contextMenuState.x, maxX));
-    const clampedY = Math.max(root.scrollTop + 8, Math.min(contextMenuState.y, maxY));
-    if (clampedX !== contextMenuState.x || clampedY !== contextMenuState.y) {
-      setContextMenuState((current) =>
-        current
-          ? {
-              ...current,
-              x: clampedX,
-              y: clampedY
-            }
-          : current
-      );
-    }
-  }, [contextMenuState]);
-
   const handleShowContextMenu = props.getContextMenuItems
     ? (event: React.MouseEvent<HTMLButtonElement>, node: T) => {
         const items = props.getContextMenuItems?.(node) ?? [];
@@ -200,12 +178,9 @@ export function FileTree<T extends FileTreeRenderableNode>(props: FileTreeProps<
           return;
         }
         event.preventDefault();
-        const rootRect = rootRef.current?.getBoundingClientRect();
-        const offsetX = rootRect ? event.clientX - rootRect.left + rootRef.current!.scrollLeft : event.clientX;
-        const offsetY = rootRect ? event.clientY - rootRect.top + rootRef.current!.scrollTop : event.clientY;
         setContextMenuState({
-          x: offsetX + 10,
-          y: offsetY + 10,
+          x: event.clientX,
+          y: event.clientY,
           node,
           items
         });
@@ -219,33 +194,36 @@ export function FileTree<T extends FileTreeRenderableNode>(props: FileTreeProps<
           <FileTreeNode<T> key={node.path} node={node} depth={0} {...props} onShowContextMenu={handleShowContextMenu} />
         ))}
       </ul>
-      {contextMenuState ? (
-        <div
-          ref={contextMenuRef}
-          className="adl-sidebar-menu"
-          role="menu"
-          style={{ left: contextMenuState.x, top: contextMenuState.y }}
-        >
-          {contextMenuState.items.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              role="menuitem"
-              className="adl-sidebar-menu__item"
-              disabled={item.disabled}
-              onClick={() => {
-                if (item.disabled) {
-                  return;
-                }
-                item.action(contextMenuState.node);
-                setContextMenuState(null);
-              }}
+      {contextMenuState
+        ? createPortal(
+            <div
+              ref={contextMenuRef}
+              className="adl-sidebar-menu"
+              role="menu"
+              style={{ left: contextMenuState.x, top: contextMenuState.y }}
             >
-              <span>{item.label}</span>
-            </button>
-          ))}
-        </div>
-      ) : null}
+              {contextMenuState.items.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  role="menuitem"
+                  className="adl-sidebar-menu__item"
+                  disabled={item.disabled}
+                  onClick={() => {
+                    if (item.disabled) {
+                      return;
+                    }
+                    item.action(contextMenuState.node);
+                    setContextMenuState(null);
+                  }}
+                >
+                  <span>{item.label}</span>
+                </button>
+              ))}
+            </div>,
+            document.body
+          )
+        : null}
     </div>
   );
 }

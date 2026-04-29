@@ -1255,7 +1255,7 @@
 }
 
 .adl-sidebar-menu {
-  position: absolute;
+  position: fixed;
   min-width: 132px;
   padding: 4px;
   border: 1px solid var(--border-subtle);
