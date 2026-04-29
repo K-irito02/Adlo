@@ -131,12 +131,22 @@ pub fn stable_workspace_id(root: &Path) -> String {
 pub fn capture_git_snapshot(root: &Path) -> GitSnapshot {
     let branch = run_git(root, &["branch", "--show-current"]).and_then(first_non_empty_line);
     let head = run_git(root, &["rev-parse", "--short", "HEAD"]).and_then(first_non_empty_line);
-    let staged = run_git_paths(root, &["diff", "--name-only", "--cached", "-z"]).unwrap_or_default();
-    let unstaged = run_git_paths(root, &["diff", "--name-only", "-z"]).unwrap_or_default();
-    let untracked =
-        run_git_paths(root, &["ls-files", "--others", "--exclude-standard", "-z"]).unwrap_or_default();
-    let conflicts =
-        run_git_paths(root, &["diff", "--name-only", "--diff-filter=U", "-z"]).unwrap_or_default();
+    let staged = run_git_paths(root, &["diff", "--name-only", "--cached", "-z"]).unwrap_or_else(|| {
+        debug!(root = %root.to_string_lossy(), "git diff --cached failed, defaulting to empty staged list");
+        Vec::new()
+    });
+    let unstaged = run_git_paths(root, &["diff", "--name-only", "-z"]).unwrap_or_else(|| {
+        debug!(root = %root.to_string_lossy(), "git diff failed, defaulting to empty unstaged list");
+        Vec::new()
+    });
+    let untracked = run_git_paths(root, &["ls-files", "--others", "--exclude-standard", "-z"]).unwrap_or_else(|| {
+        debug!(root = %root.to_string_lossy(), "git ls-files --others failed, defaulting to empty untracked list");
+        Vec::new()
+    });
+    let conflicts = run_git_paths(root, &["diff", "--name-only", "--diff-filter=U", "-z"]).unwrap_or_else(|| {
+        debug!(root = %root.to_string_lossy(), "git diff --diff-filter=U failed, defaulting to empty conflicts list");
+        Vec::new()
+    });
     GitSnapshot {
         is_repo: root.join(".git").exists() || branch.is_some() || head.is_some(),
         branch,
