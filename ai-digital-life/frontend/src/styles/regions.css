@@ -2900,10 +2900,22 @@
 
 .adl-tool-surface--files.is-navigator-collapsed {
   grid-template-columns: 0 minmax(0, 1fr);
+  transition: grid-template-columns var(--duration-200) var(--ease-default);
+}
+
+.adl-tool-surface--files.is-navigator-collapsed .adl-tool-navigator {
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  transition: opacity calc(var(--duration-200) * 0.5) var(--ease-default);
 }
 
 .adl-tool-surface--files {
   position: relative;
+}
+
+.adl-tool-surface--files .adl-tool-navigator__context {
+  padding-inline-end: var(--space-1);
 }
 
 .adl-files-collapse-preview {
@@ -3067,7 +3079,7 @@
 .adl-tool-navigator__context-group--utility {
   flex: 0 0 auto;
   flex-wrap: nowrap;
-  padding-inline-end: 2px;
+  padding-inline-end: 0;
 }
 
 .adl-tool-panel--browser .adl-tool-navigator__context-group--actions {
