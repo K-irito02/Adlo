@@ -2898,16 +2898,32 @@
   grid-template-columns: var(--adl-files-nav-width, 240px) minmax(0, 1fr);
 }
 
-.adl-tool-surface--files.is-navigator-collapsed {
-  grid-template-columns: 0 minmax(0, 1fr);
-  transition: grid-template-columns var(--duration-200) var(--ease-default);
+@supports (transition: grid-template-columns 0s) {
+  .adl-tool-surface--files.is-navigator-collapsed {
+    grid-template-columns: 0 minmax(0, 1fr);
+    transition: grid-template-columns 100ms var(--ease-default) 50ms;
+  }
+
+  .adl-tool-surface--files.is-navigator-collapsed .adl-tool-navigator {
+    opacity: 0;
+    overflow: hidden;
+    pointer-events: none;
+    transition: opacity 50ms var(--ease-exit);
+  }
 }
 
-.adl-tool-surface--files.is-navigator-collapsed .adl-tool-navigator {
-  opacity: 0;
-  overflow: hidden;
-  pointer-events: none;
-  transition: opacity calc(var(--duration-200) * 0.5) var(--ease-default);
+@supports not (transition: grid-template-columns 0s) {
+  .adl-tool-surface--files.is-navigator-collapsed {
+    grid-template-columns: 0 minmax(0, 1fr);
+  }
+
+  .adl-tool-surface--files.is-navigator-collapsed .adl-tool-navigator {
+    opacity: 0;
+    overflow: hidden;
+    pointer-events: none;
+    max-width: 0;
+    border-width: 0;
+  }
 }
 
 .adl-tool-surface--files {
