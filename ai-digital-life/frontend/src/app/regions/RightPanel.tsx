@@ -10,8 +10,10 @@ import { ModelHealthPanel } from "../components/models/ModelHealthPanel";
 import { SettingsPanel } from "../components/settings/SettingsPanel";
 import type { RightPanelViewProps } from "./right-panel/types";
 import { countGitChanges } from "./right-panel/types";
-
-type RightPanelMode = "docked" | "overlay_partial" | "overlay_full";
+import {
+  deriveRightPanelOverlayState,
+  type RightPanelMode
+} from "./right-panel/rightPanelLayout";
 
 interface RightPanelLayoutMetrics {
   shellBody: HTMLElement | null;
@@ -45,12 +47,11 @@ export function RightPanel(props: RightPanelViewProps) {
       const shell = shellBody ?? ((panelRef.current?.closest(".adl-shell__body") as HTMLElement | null) ?? null);
       const panel = panelRef.current;
       if (!shell || !panel) return;
-      const isOverlay = mode !== "docked" && !collapsed;
-      const isFullOverlay = mode === "overlay_full" && !collapsed;
-      shell.classList.toggle("is-rightpanel-overlay-active", isOverlay);
-      shell.classList.toggle("is-rightpanel-overlay-expanded", isFullOverlay);
-      panel.classList.toggle("adl-rightpanel--overlay-active", mode !== "docked");
-      panel.classList.toggle("adl-rightpanel--overlay-expanded", mode === "overlay_full");
+      const overlayState = deriveRightPanelOverlayState(mode, collapsed);
+      shell.classList.toggle("is-rightpanel-overlay-active", overlayState.overlayActive);
+      shell.classList.toggle("is-rightpanel-overlay-expanded", overlayState.overlayExpanded);
+      panel.classList.toggle("adl-rightpanel--overlay-active", overlayState.overlayActive);
+      panel.classList.toggle("adl-rightpanel--overlay-expanded", overlayState.overlayExpanded);
     },
     [collapsed]
   );

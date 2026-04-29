@@ -23,3 +23,7 @@ Thumbs.db
 # Environment
 .env
 .env.local
+
+# Local dev runtime logs
+/.run-logs/
+/*.log
