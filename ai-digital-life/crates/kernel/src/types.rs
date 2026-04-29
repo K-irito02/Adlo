@@ -964,6 +964,35 @@ pub struct WorkspaceFileDocument {
     pub last_modified_at: TimestampMs,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum WorkspaceChangeKind {
+    Added,
+    Modified,
+    Deleted,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum WorkspaceChangeStatus {
+    Staged,
+    Modified,
+    Untracked,
+    Conflicted,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceChangePreview {
+    pub path: String,
+    pub change_kind: WorkspaceChangeKind,
+    pub status: WorkspaceChangeStatus,
+    pub base_exists: bool,
+    pub current_exists: bool,
+    pub base_content: String,
+    pub current_content: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceFileChangedEvent {

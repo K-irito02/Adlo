@@ -62,6 +62,9 @@ export function App() {
     activeTerminalExecutionId,
     openTabs,
     selectedFilePath,
+    selectedChangePreviewPath,
+    changePreview,
+    changePreviewLoading,
     fileContent,
     fileLastModifiedAt,
     externalFileChange,
@@ -98,6 +101,7 @@ export function App() {
     runActivityByRunId,
     runUsageByRunId,
     openFile,
+    openChangePreview,
     createWorkspaceFile,
     createWorkspaceFolder,
     refreshWorkspaceTree,
@@ -425,8 +429,8 @@ export function App() {
       }
       if (options?.activateTool) {
         setActiveTool("files");
+        void openFile(relativePath);
       }
-      void openFile(relativePath);
     },
     [activePatchSet, openFile, setActiveTool]
   );
@@ -438,8 +442,8 @@ export function App() {
       pendingRevealRef.current = { path: relativePath, line };
       if (options?.activateTool) {
         setActiveTool("files");
+        void openFile(relativePath);
       }
-      void openFile(relativePath);
     },
     [openFile, setActiveTool]
   );
@@ -683,6 +687,9 @@ export function App() {
           collapsed={rightCollapsed}
           editorTabs={mergedTabs}
           selectedFilePath={selectedFilePath}
+          selectedChangePreviewPath={selectedChangePreviewPath}
+          changePreview={changePreview}
+          changePreviewLoading={changePreviewLoading}
           fileContent={fileContent}
           fileLastModifiedAt={fileLastModifiedAt}
           externalChangePath={externalFileChange?.path}
@@ -704,6 +711,7 @@ export function App() {
           standardEditorRef={standardEditorRef}
           diffEditorRef={diffEditorRef}
           onOpenFile={(path) => void openFile(path)}
+          onOpenChangePreview={(path) => void openChangePreview(path)}
           onOpenFileAtLine={handleOpenFileAtLine}
           onReloadExternal={handleReloadExternal}
           onCreateWorkspaceFile={createWorkspaceFile}

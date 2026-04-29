@@ -12,6 +12,7 @@ import type {
   RepoMapEntry,
   RetrievalFileTypeCount,
   RetrievalSnapshot,
+  WorkspaceChangePreview,
   WorkspaceFileDocument,
   WorkspaceGitBranchChangeResult,
   WorkspaceGitBranchCreateInput,
@@ -374,38 +375,14 @@ function runGit(rootPath: string, args: string[]): Promise<string | undefined> {
 }
 
 async function captureGitSnapshot(rootPath: string): Promise<GitSnapshot> {
-  const [branch, head, porcelain] = await Promise.all([
+  const [branch, head, staged, unstaged, untracked, conflicts] = await Promise.all([
     runGit(rootPath, ["branch", "--show-current"]),
     runGit(rootPath, ["rev-parse", "--short", "HEAD"]),
-    runGit(rootPath, ["status", "--porcelain"])
+    runGitNullSeparated(rootPath, ["diff", "--name-only", "--cached", "-z"]),
+    runGitNullSeparated(rootPath, ["diff", "--name-only", "-z"]),
+    runGitNullSeparated(rootPath, ["ls-files", "--others", "--exclude-standard", "-z"]),
+    runGitNullSeparated(rootPath, ["diff", "--name-only", "--diff-filter=U", "-z"])
   ]);
-
-  const staged: string[] = [];
-  const unstaged: string[] = [];
-  const untracked: string[] = [];
-  const conflicts: string[] = [];
-
-  for (const line of (porcelain ?? "").split(/\r?\n/)) {
-    if (line.length < 3) {
-      continue;
-    }
-    const status = line.slice(0, 2);
-    const filePath = line.slice(3);
-    if (status === "??") {
-      untracked.push(filePath);
-      continue;
-    }
-    if (status.includes("U") || status === "AA" || status === "DD") {
-      conflicts.push(filePath);
-      continue;
-    }
-    if (status[0]?.trim()) {
-      staged.push(filePath);
-    }
-    if (status[1]?.trim()) {
-      unstaged.push(filePath);
-    }
-  }
 
   return {
     isRepo: Boolean(branch || head),
@@ -418,6 +395,101 @@ async function captureGitSnapshot(rootPath: string): Promise<GitSnapshot> {
     untracked,
     conflicts,
     capturedAt: nowMs()
+  };
+}
+
+async function runGitBytes(rootPath: string, args: string[]): Promise<Buffer | undefined> {
+  return new Promise((resolve) => {
+    const child = spawn("git", args, { cwd: rootPath, windowsHide: true });
+    const chunks: Buffer[] = [];
+    child.stdout.on("data", (chunk) => {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    });
+    child.on("error", () => resolve(undefined));
+    child.on("close", (code) => resolve(code === 0 ? Buffer.concat(chunks) : undefined));
+  });
+}
+
+async function runGitNullSeparated(rootPath: string, args: string[]): Promise<string[]> {
+  const stdout = await runGitBytes(rootPath, args);
+  if (!stdout) {
+    return [];
+  }
+  return stdout
+    .toString("utf8")
+    .split("\0")
+    .filter((value) => value.length > 0)
+    .map((value) => normalizePath(value));
+}
+
+async function gitHeadFileExists(rootPath: string, relativeTarget: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const child = spawn("git", ["cat-file", "-e", `HEAD:${normalizePath(relativeTarget)}`], {
+      cwd: rootPath,
+      windowsHide: true
+    });
+    child.on("error", () => resolve(false));
+    child.on("close", (code) => resolve(code === 0));
+  });
+}
+
+async function gitShowFile(rootPath: string, relativeTarget: string): Promise<string | undefined> {
+  const stdout = await runGitBytes(rootPath, ["show", `HEAD:${normalizePath(relativeTarget)}`]);
+  if (stdout && stdout.byteLength > DEFAULT_MAX_FILE_BYTES) {
+    throw new Error(`git blob is too large to preview: ${normalizePath(relativeTarget)}`);
+  }
+  return stdout ? stdout.toString("utf8") : undefined;
+}
+
+async function readChangePreview(rootPath: string, relativeTarget: string): Promise<WorkspaceChangePreview> {
+  const snapshot = await captureGitSnapshot(rootPath);
+  if (!snapshot.isRepo) {
+    throw new Error("active workspace is not a Git repository");
+  }
+
+  const normalizedTarget = normalizePath(relativeTarget);
+  const status = snapshot.conflicts.includes(normalizedTarget)
+    ? "conflicted"
+    : snapshot.untracked.includes(normalizedTarget)
+      ? "untracked"
+      : snapshot.unstaged.includes(normalizedTarget)
+        ? "modified"
+        : snapshot.staged.includes(normalizedTarget)
+          ? "staged"
+          : undefined;
+
+  if (!status) {
+    throw new Error(`change preview for ${normalizedTarget} was not found`);
+  }
+
+  const absolutePath = resolveWorkspacePath(rootPath, normalizedTarget);
+  let stats;
+  try {
+    stats = await fs.stat(absolutePath);
+  } catch {
+    stats = undefined;
+  }
+  if (stats?.isDirectory()) {
+    throw new Error(`change preview requires a file path: ${normalizedTarget}`);
+  }
+
+  const currentExists = stats?.isFile() ?? false;
+  const currentContent = currentExists ? await fs.readFile(absolutePath, "utf8") : "";
+  const baseContent = await gitShowFile(rootPath, normalizedTarget);
+  const baseExists = typeof baseContent === "string" ? true : await gitHeadFileExists(rootPath, normalizedTarget);
+
+  if (!baseExists && !currentExists) {
+    throw new Error(`change preview source is unavailable: ${normalizedTarget}`);
+  }
+
+  return {
+    path: normalizedTarget,
+    changeKind: !baseExists ? "added" : !currentExists ? "deleted" : "modified",
+    status,
+    baseExists,
+    currentExists,
+    baseContent: baseContent ?? "",
+    currentContent
   };
 }
 
@@ -735,6 +807,15 @@ export async function handlePreviewWorkspaceApi(
         return true;
       }
       writeJson(response, ok(await readFile(rootPath, relativeTarget)));
+      return true;
+    }
+    if (request.method === "GET" && requestUrl.pathname === `${API_PREFIX}/workspace/change-preview`) {
+      const relativeTarget = requestUrl.searchParams.get("relativePath");
+      if (!relativeTarget?.trim()) {
+        writeJson(response, fail("relativePath is required", "INVALID_INPUT"));
+        return true;
+      }
+      writeJson(response, ok(await readChangePreview(rootPath, relativeTarget)));
       return true;
     }
     if (request.method === "GET" && requestUrl.pathname === `${API_PREFIX}/workspace/search`) {

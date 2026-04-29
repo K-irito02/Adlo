@@ -3,7 +3,7 @@ use crate::state::AppState;
 use adl_errors::AppError;
 use adl_kernel::{
     now_ms, FileOutlineItem, GitBranchSummary, GitSnapshot, IpcResult, RecentWorkspaceEntry,
-    RetrievalSnapshot, WorkspaceFileChangedEvent, WorkspaceFileDocument,
+    RetrievalSnapshot, WorkspaceChangePreview, WorkspaceFileChangedEvent, WorkspaceFileDocument,
     WorkspaceGitBranchChangeResult, WorkspaceGitBranchCreateInput, WorkspaceGitBranchSwitchInput,
     WorkspaceMeta, WorkspaceSearchHit, WorkspaceStatus, WorkspaceTreeNode, WorkspaceType,
 };
@@ -259,6 +259,19 @@ pub fn workspace_read_file(
 ) -> IpcResult<WorkspaceFileDocument> {
     ipc(with_workspace(&state, |workspace| {
         adl_workspace::read_file(
+            PathBuf::from(&workspace.root_path).as_path(),
+            &relative_path,
+        )
+    }))
+}
+
+#[tauri::command]
+pub fn workspace_get_change_preview(
+    state: tauri::State<'_, AppState>,
+    relative_path: String,
+) -> IpcResult<WorkspaceChangePreview> {
+    ipc(with_workspace(&state, |workspace| {
+        adl_workspace::read_change_preview(
             PathBuf::from(&workspace.root_path).as_path(),
             &relative_path,
         )

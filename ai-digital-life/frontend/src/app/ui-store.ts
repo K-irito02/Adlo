@@ -12,6 +12,7 @@ export type ToolId = "files" | "changes" | "browser" | "terminal" | "audit" | "s
 export type ChatMode = "plan" | "debug" | "ask";
 export type TerminalProfile = "powershell" | "bash" | "cmd";
 export type TerminalLayout = "single" | "vertical" | "horizontal";
+export type ChangesNavigatorMode = "tree" | "list";
 
 export interface ContextChip {
   id: string;
@@ -59,6 +60,8 @@ const BROWSER_NAVIGATOR_WIDTH_KEY = "adl-ui:browser-navigator-width";
 const TERMINAL_NAVIGATOR_WIDTH_KEY = "adl-ui:terminal-navigator-width";
 const NAVIGATOR_COLLAPSED_KEY = "adl-ui:navigator-collapsed";
 const FILE_TREE_EXPANDED_KEY = "adl-ui:file-tree-expanded";
+const CHANGES_TREE_EXPANDED_KEY = "adl-ui:changes-tree-expanded";
+const CHANGES_NAVIGATOR_MODE_KEY = "adl-ui:changes-navigator-mode";
 const BROWSER_TABS_KEY = "adl-ui:browser-tabs";
 const BROWSER_ACTIVE_TAB_KEY = "adl-ui:browser-active-tab";
 const BROWSER_BOOKMARKS_KEY = "adl-ui:browser-bookmarks";
@@ -122,6 +125,37 @@ function readTool(): ToolId {
     /* ignore */
   }
   return "files";
+}
+
+function readChangesNavigatorMode(): ChangesNavigatorMode {
+  try {
+    const raw = window.localStorage.getItem(CHANGES_NAVIGATOR_MODE_KEY);
+    if (raw === "tree" || raw === "list") {
+      return raw;
+    }
+  } catch {
+    /* ignore */
+  }
+  return "tree";
+}
+
+function writeChangesNavigatorMode(mode: ChangesNavigatorMode): void {
+  try {
+    window.localStorage.setItem(CHANGES_NAVIGATOR_MODE_KEY, mode);
+  } catch {
+    /* ignore */
+  }
+}
+
+function expandTreePathChainInState(current: Record<string, boolean>, path: string): Record<string, boolean> {
+  const next = { ...current };
+  const segments = path.split("/").filter(Boolean);
+  let currentPath = "";
+  for (let index = 0; index < segments.length - 1; index += 1) {
+    currentPath = currentPath ? `${currentPath}/${segments[index]}` : segments[index];
+    next[currentPath] = true;
+  }
+  return next;
 }
 
 function writeTool(tool: ToolId): void {
@@ -225,6 +259,8 @@ export interface UiState {
   terminalNavigatorWidth: number;
   navigatorCollapsedByTool: Record<ToolId, boolean>;
   expandedFileTreePaths: Record<string, boolean>;
+  expandedChangesTreePaths: Record<string, boolean>;
+  changesNavigatorMode: ChangesNavigatorMode;
   expandedSessionWorkspaces: Record<string, boolean>;
   browserTabs: BrowserTabState[];
   browserActiveTabId: string;
@@ -258,6 +294,11 @@ export interface UiState {
   toggleFileTreePath: (path: string) => void;
   expandFileTreePathChain: (path: string) => void;
   collapseAllFileTreePaths: () => void;
+  setChangesNavigatorMode: (mode: ChangesNavigatorMode) => void;
+  setChangesTreePathExpanded: (path: string, expanded: boolean) => void;
+  toggleChangesTreePath: (path: string) => void;
+  expandChangesTreePathChain: (path: string) => void;
+  collapseAllChangesTreePaths: () => void;
   toggleSessionWorkspace: (workspaceId: string) => void;
   setChatMode: (mode: ChatMode) => void;
   addContextChip: (chip: ContextChip) => void;
@@ -319,6 +360,8 @@ export const useUiStore = create<UiState>((set) => ({
   ),
   navigatorCollapsedByTool: initialNavigatorCollapsed,
   expandedFileTreePaths: readJson<Record<string, boolean>>(FILE_TREE_EXPANDED_KEY, {}),
+  expandedChangesTreePaths: readJson<Record<string, boolean>>(CHANGES_TREE_EXPANDED_KEY, {}),
+  changesNavigatorMode: readChangesNavigatorMode(),
   expandedSessionWorkspaces: readJson<Record<string, boolean>>(SESSION_TABS_EXPANDED_KEY, {}),
   browserTabs: initialBrowserTabs,
   browserActiveTabId: readJson<string | null>(BROWSER_ACTIVE_TAB_KEY, null) ?? initialBrowserTabs[0].id,
@@ -412,19 +455,39 @@ export const useUiStore = create<UiState>((set) => ({
     }),
   expandFileTreePathChain: (path) =>
     set((state) => {
-      const next = { ...state.expandedFileTreePaths };
-      const segments = path.split("/").filter(Boolean);
-      let current = "";
-      for (let index = 0; index < segments.length - 1; index += 1) {
-        current = current ? `${current}/${segments[index]}` : segments[index];
-        next[current] = true;
-      }
+      const next = expandTreePathChainInState(state.expandedFileTreePaths, path);
       writeJson(FILE_TREE_EXPANDED_KEY, next);
       return { expandedFileTreePaths: next };
     }),
   collapseAllFileTreePaths: () => {
     writeJson(FILE_TREE_EXPANDED_KEY, {});
     set({ expandedFileTreePaths: {} });
+  },
+  setChangesNavigatorMode: (mode) => {
+    writeChangesNavigatorMode(mode);
+    set({ changesNavigatorMode: mode });
+  },
+  setChangesTreePathExpanded: (path, expanded) =>
+    set((state) => {
+      const next = { ...state.expandedChangesTreePaths, [path]: expanded };
+      writeJson(CHANGES_TREE_EXPANDED_KEY, next);
+      return { expandedChangesTreePaths: next };
+    }),
+  toggleChangesTreePath: (path) =>
+    set((state) => {
+      const next = { ...state.expandedChangesTreePaths, [path]: !(state.expandedChangesTreePaths[path] ?? false) };
+      writeJson(CHANGES_TREE_EXPANDED_KEY, next);
+      return { expandedChangesTreePaths: next };
+    }),
+  expandChangesTreePathChain: (path) =>
+    set((state) => {
+      const next = expandTreePathChainInState(state.expandedChangesTreePaths, path);
+      writeJson(CHANGES_TREE_EXPANDED_KEY, next);
+      return { expandedChangesTreePaths: next };
+    }),
+  collapseAllChangesTreePaths: () => {
+    writeJson(CHANGES_TREE_EXPANDED_KEY, {});
+    set({ expandedChangesTreePaths: {} });
   },
   toggleSessionWorkspace: (workspaceId) =>
     set((state) => {

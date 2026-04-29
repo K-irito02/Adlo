@@ -31,6 +31,7 @@ import type {
   TaskCenterSnapshot,
   FileOutlineItem,
   WorkspaceFileChangedEvent,
+  WorkspaceChangePreview,
   WorkspaceFileDocument,
   WorkspaceGitBranchChangeResult,
   WorkspaceGitBranchCreateInput,
@@ -75,6 +76,7 @@ export interface DigitalLifeBridge {
     createFile: (relativePath: string, content?: string) => Promise<IpcResult<WorkspaceFileDocument>>;
     createFolder: (relativePath: string) => Promise<IpcResult<boolean>>;
     readFile: (relativePath: string) => Promise<IpcResult<WorkspaceFileDocument>>;
+    getChangePreview: (relativePath: string) => Promise<IpcResult<WorkspaceChangePreview>>;
     listTree: () => Promise<IpcResult<WorkspaceTreeNode[]>>;
     search: (query: string) => Promise<IpcResult<WorkspaceSearchHit[]>>;
     outline: (relativePath: string) => Promise<IpcResult<FileOutlineItem[]>>;

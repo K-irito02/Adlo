@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Editor, { DiffEditor } from "@monaco-editor/react";
-import type { WorkspaceTreeNode } from "@ai-digital-life/kernel";
+import { ensureAdlMonacoThemes, MONACO_THEME_DARK, MONACO_THEME_LIGHT, type MonacoNamespace } from "../../monacoTheme";
 import type { MonacoEditorRef } from "../../types";
 import {
   IconAlertTriangle,
@@ -24,7 +24,7 @@ import {
 import { TooltipSimple } from "../../components/Tooltip";
 import { useUiStore } from "../../ui-store";
 import { normalizeWorkspaceRelativePath } from "../../workspacePaths";
-import { getFileTreeVisualSpec } from "./fileTreeVisuals";
+import { collectDirectoryPaths, FileTree } from "./fileTree";
 import {
   derivePatchHunkChangeKind,
   getPatchHunkTargetLine,
@@ -34,258 +34,12 @@ import type { RightPanelViewProps } from "./types";
 
 type FilesNavigatorMode = "tree" | "search" | "outline";
 
-const MONACO_THEME_LIGHT = "adl-light";
-const MONACO_THEME_DARK = "adl-dark";
 const FOLDING_CONTROL_SELECTOR =
   ".codicon-folding-manual-collapsed, .codicon-folding-manual-expanded, .codicon-folding-expanded, .codicon-folding-collapsed";
-
-type MonacoNamespace = {
-  editor?: {
-    defineTheme?: (
-      name: string,
-      data: {
-        base: "vs" | "vs-dark";
-        inherit: boolean;
-        rules: Array<{ token: string; foreground?: string; background?: string }>;
-        colors: Record<string, string>;
-      }
-    ) => void;
-    setTheme?: (theme: string) => void;
-  };
-};
 
 type DisposableLike = {
   dispose: () => void;
 };
-
-function normalizeHexColor(value: string): string | undefined {
-  const normalized = value.trim();
-  const match = normalized.match(/^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i);
-  if (!match) return undefined;
-
-  const hex = match[1];
-  if (hex.length === 3 || hex.length === 4) {
-    return `#${hex
-      .split("")
-      .map((part) => `${part}${part}`)
-      .join("")
-      .toLowerCase()}`;
-  }
-  return `#${hex.toLowerCase()}`;
-}
-
-function toHexByte(value: number): string {
-  const bounded = Math.min(255, Math.max(0, Math.round(value)));
-  return bounded.toString(16).padStart(2, "0");
-}
-
-function normalizeRgbColor(value: string): string | undefined {
-  const match = value
-    .trim()
-    .match(/^rgba?\(\s*(\d{1,3})(?:\s*,\s*|\s+)(\d{1,3})(?:\s*,\s*|\s+)(\d{1,3})(?:(?:\s*,\s*|\s*\/\s*)([\d.]+%?))?\s*\)$/i);
-  if (!match) return undefined;
-
-  const [, rRaw, gRaw, bRaw, alphaRaw] = match;
-  const r = Number.parseInt(rRaw, 10);
-  const g = Number.parseInt(gRaw, 10);
-  const b = Number.parseInt(bRaw, 10);
-  const alpha =
-    alphaRaw == null
-      ? 1
-      : alphaRaw.endsWith("%")
-        ? Number.parseFloat(alphaRaw) / 100
-        : Number.parseFloat(alphaRaw);
-
-  if ([r, g, b, alpha].some((part) => Number.isNaN(part))) {
-    return undefined;
-  }
-
-  const alphaByte = Math.min(255, Math.max(0, Math.round(alpha * 255)));
-  return `#${toHexByte(r)}${toHexByte(g)}${toHexByte(b)}${alphaByte < 255 ? toHexByte(alphaByte) : ""}`;
-}
-
-function normalizeMonacoColor(value: string | undefined): string | undefined {
-  if (!value) return undefined;
-  const trimmed = value.trim();
-  if (!trimmed) return undefined;
-  if (trimmed.toLowerCase() === "transparent") {
-    return "#00000000";
-  }
-  return normalizeHexColor(trimmed) ?? normalizeRgbColor(trimmed);
-}
-
-function readThemeColor(theme: "light" | "dark", name: string): string | undefined {
-  if (typeof document === "undefined") return undefined;
-  const probe = document.createElement("div");
-  probe.setAttribute("data-theme", theme);
-  probe.style.position = "absolute";
-  probe.style.opacity = "0";
-  probe.style.pointerEvents = "none";
-  probe.style.width = "0";
-  probe.style.height = "0";
-  probe.style.color = `var(${name})`;
-
-  const container = document.body ?? document.documentElement;
-  container.appendChild(probe);
-  try {
-    const computed = getComputedStyle(probe);
-    return normalizeMonacoColor(computed.color) ?? normalizeMonacoColor(computed.getPropertyValue(name));
-  } finally {
-    container.removeChild(probe);
-  }
-}
-
-function buildMonacoThemeData(theme: "light" | "dark"): {
-  base: "vs" | "vs-dark";
-  inherit: boolean;
-  rules: Array<{ token: string; foreground?: string; background?: string }>;
-  colors: Record<string, string>;
-} {
-  const base = theme === "dark" ? "vs-dark" : "vs";
-
-  const bg = readThemeColor(theme, "--editor-bg") ?? readThemeColor(theme, "--surface") ?? readThemeColor(theme, "--bg");
-  const fg = readThemeColor(theme, "--editor-fg") ?? readThemeColor(theme, "--text-primary");
-  const lineNumber = readThemeColor(theme, "--editor-lineNumber") ?? readThemeColor(theme, "--text-muted");
-  const lineNumberActive = readThemeColor(theme, "--editor-lineNumber-active") ?? readThemeColor(theme, "--text-secondary");
-  const cursor = readThemeColor(theme, "--editor-cursor") ?? fg;
-  const selection = readThemeColor(theme, "--editor-selection");
-  const selectionInactive = readThemeColor(theme, "--editor-selection-inactive");
-  const lineHighlight = readThemeColor(theme, "--editor-lineHighlight");
-  const findMatch = readThemeColor(theme, "--editor-findMatch");
-  const findMatchHighlight = readThemeColor(theme, "--editor-findMatch-highlight");
-  const hoverBg = readThemeColor(theme, "--editor-hover-bg") ?? readThemeColor(theme, "--surface-raised") ?? readThemeColor(theme, "--surface");
-  const hoverBorder = readThemeColor(theme, "--editor-hover-border") ?? readThemeColor(theme, "--border-default") ?? readThemeColor(theme, "--border");
-  const widgetBg = readThemeColor(theme, "--editor-widget-bg") ?? hoverBg;
-  const widgetBorder = readThemeColor(theme, "--editor-widget-border") ?? hoverBorder;
-  const indentGuide = readThemeColor(theme, "--editor-indentGuide");
-  const indentGuideActive = readThemeColor(theme, "--editor-indentGuide-active");
-  const whitespace = readThemeColor(theme, "--editor-whitespace");
-  const diffInsertBg = readThemeColor(theme, "--editor-diff-insert-bg");
-  const diffRemoveBg = readThemeColor(theme, "--editor-diff-remove-bg");
-  const foldBackground = readThemeColor(theme, "--editor-fold-bg");
-  const foldPlaceholderForeground = readThemeColor(theme, "--editor-fold-placeholder-fg");
-  const foldingControl = readThemeColor(theme, "--editor-folding-control");
-  const rangeHighlight = readThemeColor(theme, "--editor-range-highlight");
-  const rangeHighlightBorder = readThemeColor(theme, "--editor-range-highlight-border");
-
-  const syntaxComment = readThemeColor(theme, "--editor-syntax-comment");
-  const syntaxKeyword = readThemeColor(theme, "--editor-syntax-keyword");
-  const syntaxString = readThemeColor(theme, "--editor-syntax-string");
-  const syntaxNumber = readThemeColor(theme, "--editor-syntax-number");
-  const syntaxRegexp = readThemeColor(theme, "--editor-syntax-regexp");
-  const syntaxType = readThemeColor(theme, "--editor-syntax-type");
-  const syntaxFunction = readThemeColor(theme, "--editor-syntax-function");
-  const syntaxVariable = readThemeColor(theme, "--editor-syntax-variable");
-
-  const colors: Record<string, string> = {};
-  if (bg) {
-    colors["editor.background"] = bg;
-    colors["editorGutter.background"] = bg;
-    colors["minimap.background"] = bg;
-  }
-  if (fg) {
-    colors["editor.foreground"] = fg;
-  }
-  if (cursor) {
-    colors["editorCursor.foreground"] = cursor;
-  }
-  if (lineNumber) {
-    colors["editorLineNumber.foreground"] = lineNumber;
-  }
-  if (lineNumberActive) {
-    colors["editorLineNumber.activeForeground"] = lineNumberActive;
-  }
-  if (selection) {
-    colors["editor.selectionBackground"] = selection;
-  }
-  if (selectionInactive) {
-    colors["editor.inactiveSelectionBackground"] = selectionInactive;
-  }
-  if (lineHighlight) {
-    colors["editor.lineHighlightBackground"] = lineHighlight;
-  }
-  if (indentGuide) {
-    colors["editorIndentGuide.background"] = indentGuide;
-  }
-  if (indentGuideActive) {
-    colors["editorIndentGuide.activeBackground"] = indentGuideActive;
-  }
-  if (whitespace) {
-    colors["editorWhitespace.foreground"] = whitespace;
-  }
-  if (findMatch) {
-    colors["editor.findMatchBackground"] = findMatch;
-  }
-  if (findMatchHighlight) {
-    colors["editor.findMatchHighlightBackground"] = findMatchHighlight;
-  }
-  // Override Monaco defaults so folded ranges and active editor states stay calm in both themes.
-  if (foldBackground) {
-    colors["editor.foldBackground"] = foldBackground;
-  }
-  if (foldPlaceholderForeground ?? lineNumberActive ?? fg) {
-    colors["editor.foldPlaceholderForeground"] =
-      foldPlaceholderForeground ?? lineNumberActive ?? fg ?? "inherit";
-  }
-  colors["editor.lineHighlightBorder"] = "#00000000";
-  colors["editor.selectionHighlightBackground"] = "#00000000";
-  colors["editor.selectionHighlightBorder"] = "#00000000";
-  colors["editor.wordHighlightBackground"] = "#00000000";
-  colors["editor.wordHighlightBorder"] = "#00000000";
-  colors["editor.wordHighlightStrongBackground"] = "#00000000";
-  colors["editor.wordHighlightStrongBorder"] = "#00000000";
-  colors["editor.wordHighlightTextBackground"] = "#00000000";
-  colors["editor.wordHighlightTextBorder"] = "#00000000";
-  colors["editorBracketMatch.background"] = "#00000000";
-  colors["editorBracketMatch.border"] = "#00000000";
-  if (foldingControl) {
-    colors["editorGutter.foldingControlForeground"] = foldingControl;
-  }
-  if (rangeHighlight) {
-    colors["editor.rangeHighlightBackground"] = rangeHighlight;
-  }
-  if (rangeHighlightBorder) {
-    colors["editor.rangeHighlightBorder"] = rangeHighlightBorder;
-  }
-  if (hoverBg) {
-    colors["editorHoverWidget.background"] = hoverBg;
-  }
-  if (hoverBorder) {
-    colors["editorHoverWidget.border"] = hoverBorder;
-  }
-  if (widgetBg) {
-    colors["editorWidget.background"] = widgetBg;
-    colors["editorSuggestWidget.background"] = widgetBg;
-  }
-  if (widgetBorder) {
-    colors["editorWidget.border"] = widgetBorder;
-    colors["editorSuggestWidget.border"] = widgetBorder;
-  }
-  if (diffInsertBg) {
-    colors["diffEditor.insertedTextBackground"] = diffInsertBg;
-    colors["diffEditor.insertedLineBackground"] = diffInsertBg;
-  }
-  if (diffRemoveBg) {
-    colors["diffEditor.removedTextBackground"] = diffRemoveBg;
-    colors["diffEditor.removedLineBackground"] = diffRemoveBg;
-  }
-
-  const rules: Array<{ token: string; foreground?: string; background?: string }> = [];
-  const pushRule = (token: string, foreground?: string) => {
-    if (!foreground) return;
-    rules.push({ token, foreground: foreground.replace(/^#/, "") });
-  };
-  pushRule("comment", syntaxComment);
-  pushRule("keyword", syntaxKeyword);
-  pushRule("string", syntaxString);
-  pushRule("number", syntaxNumber);
-  pushRule("regexp", syntaxRegexp);
-  pushRule("type", syntaxType);
-  pushRule("function", syntaxFunction);
-  pushRule("variable", syntaxVariable);
-
-  return { base, inherit: true, rules, colors };
-}
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -302,22 +56,6 @@ function buildSearchPattern(query: string, options: { matchCase: boolean; wholeW
   } catch {
     return undefined;
   }
-}
-
-function collectDirectoryPaths(nodes: WorkspaceTreeNode[]): string[] {
-  const paths: string[] = [];
-  const visit = (items: WorkspaceTreeNode[]) => {
-    items.forEach((item) => {
-      if (item.kind === "directory") {
-        paths.push(item.path);
-        if (item.children.length > 0) {
-          visit(item.children);
-        }
-      }
-    });
-  };
-  visit(nodes);
-  return paths;
 }
 
 function buildDefaultCreationPath(selectedFilePath: string | undefined, fallbackName: string): string {
@@ -355,15 +93,31 @@ function buildMonacoEditorOptions(options: {
   sideBySideDiff?: boolean;
   hideUnchangedRegions?: boolean;
 }) {
-  return {
+  const baseOptions = {
     readOnly: options.readOnly,
     lineNumbers: options.lineNumbersEnabled ? "on" : "off",
-    minimap: { enabled: false },
+    lineNumbersMinChars: 4,
+    lineDecorationsWidth: 12,
+    minimap: {
+      enabled: true,
+      side: "right",
+      size: "fill",
+      showSlider: "mouseover",
+      renderCharacters: true,
+      maxColumn: 80,
+      scale: 1.5
+    },
+    scrollbar: {
+      vertical: "visible",
+      horizontal: "auto",
+      verticalScrollbarSize: 12,
+      horizontalScrollbarSize: 10
+    },
     scrollBeyondLastLine: false,
     wordWrap: options.wordWrapEnabled ? "on" : "off",
     folding: true,
     showFoldingControls: "mouseover",
-    glyphMargin: true,
+    glyphMargin: false,
     renderLineHighlight: "line",
     renderWhitespace: "selection",
     bracketPairColorization: { enabled: true },
@@ -376,6 +130,16 @@ function buildMonacoEditorOptions(options: {
           revealLineCount: 3
         }
       : { enabled: false }
+  } as const;
+
+  if (options.sideBySideDiff === undefined) {
+    return baseOptions;
+  }
+
+  return {
+    ...baseOptions,
+    renderIndicators: false,
+    renderMarginRevertIcon: false
   } as const;
 }
 
@@ -412,82 +176,6 @@ function resolveLineNumberFromMargin(editorRoot: HTMLElement, control: HTMLEleme
   });
 
   return bestMatch?.lineNumber;
-}
-
-function TreeNode({
-  node,
-  depth,
-  selectedFilePath,
-  expandedPaths,
-  dirtyPaths,
-  externalChangePath,
-  onToggle,
-  onOpenFile
-}: {
-  node: WorkspaceTreeNode;
-  depth: number;
-  selectedFilePath?: string;
-  expandedPaths: Record<string, boolean>;
-  dirtyPaths: Set<string>;
-  externalChangePath?: string;
-  onToggle: (path: string) => void;
-  onOpenFile: (relativePath: string) => void;
-}) {
-  const isDirectory = node.kind === "directory";
-  const isExpanded = expandedPaths[node.path] ?? false;
-  const isSelected = node.path === selectedFilePath;
-  const isDirty = dirtyPaths.has(node.path);
-  const isExternal = node.path === externalChangePath;
-  const fileVisual = isDirectory ? undefined : getFileTreeVisualSpec(node);
-
-  return (
-    <li
-      className="adl-filetree__item"
-      style={{ "--adl-filetree-hover-offset": `${depth * 14}px` } as React.CSSProperties}
-    >
-      <button
-        type="button"
-        className={`adl-filetree__node${isSelected ? " is-active" : ""}${isDirectory ? " adl-filetree__node--directory" : ""}`}
-        onClick={() => (isDirectory ? onToggle(node.path) : onOpenFile(node.path))}
-      >
-        <span className="adl-filetree__node-main">
-          {isDirectory ? (
-            <span className="adl-filetree__chevron">
-              {isExpanded ? <IconChevronDown size={12} decorative /> : <IconChevronRight size={12} decorative />}
-            </span>
-          ) : (
-            <span className={`adl-filetree__file-icon adl-filetree__file-icon--${fileVisual?.tone ?? "default"}`}>
-              <span className="adl-filetree__file-badge" aria-hidden="true">
-                {fileVisual?.label ?? "FILE"}
-              </span>
-            </span>
-          )}
-          <span className="adl-filetree__label">{node.name}</span>
-        </span>
-        <span className="adl-filetree__meta">
-          {isExternal ? <IconAlertTriangle size={12} decorative /> : null}
-          {isDirty ? <IconCircle size={12} decorative className="adl-filetree__dirty-dot" /> : null}
-        </span>
-      </button>
-      {isDirectory && isExpanded && node.children.length > 0 ? (
-        <ul className="adl-filetree__children">
-          {node.children.map((child) => (
-            <TreeNode
-              key={child.path}
-              node={child}
-              depth={depth + 1}
-              selectedFilePath={selectedFilePath}
-              expandedPaths={expandedPaths}
-              dirtyPaths={dirtyPaths}
-              externalChangePath={externalChangePath}
-              onToggle={onToggle}
-              onOpenFile={onOpenFile}
-            />
-          ))}
-        </ul>
-      ) : null}
-    </li>
-  );
 }
 
 export function FilesPanel(props: RightPanelViewProps) {
@@ -641,8 +329,7 @@ export function FilesPanel(props: RightPanelViewProps) {
   }, [applyAgentDecorations, filePatch, props.standardEditorRef, selectedFilePath]);
 
   const ensureMonacoThemes = useCallback((monaco: MonacoNamespace) => {
-    monaco.editor?.defineTheme?.(MONACO_THEME_LIGHT, buildMonacoThemeData("light"));
-    monaco.editor?.defineTheme?.(MONACO_THEME_DARK, buildMonacoThemeData("dark"));
+    ensureAdlMonacoThemes(monaco);
   }, []);
 
   const formatFoldingHint = useCallback(
@@ -1300,21 +987,15 @@ export function FilesPanel(props: RightPanelViewProps) {
           {navigatorMode === "tree" ? (
             <>
               {workspaceTree.length > 0 ? (
-                <ul className="adl-filetree">
-                  {workspaceTree.map((node) => (
-                    <TreeNode
-                      key={node.path}
-                      node={node}
-                      depth={0}
-                      selectedFilePath={selectedFilePath}
-                      expandedPaths={expandedPaths}
-                      dirtyPaths={dirtyPaths}
-                      externalChangePath={externalChangePath}
-                      onToggle={toggleFileTreePath}
-                      onOpenFile={onOpenFile}
-                    />
-                  ))}
-                </ul>
+                <FileTree
+                  nodes={workspaceTree}
+                  selectedFilePath={selectedFilePath}
+                  expandedPaths={expandedPaths}
+                  dirtyPaths={dirtyPaths}
+                  externalChangePath={externalChangePath}
+                  onToggle={toggleFileTreePath}
+                  onOpenFile={onOpenFile}
+                />
               ) : (
                 null
               )}

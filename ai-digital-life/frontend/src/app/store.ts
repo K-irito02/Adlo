@@ -28,6 +28,7 @@ import type {
   TaskCenterSnapshot,
   WorkspaceGitBranchCreateInput,
   WorkspaceGitBranchSwitchInput,
+  WorkspaceChangePreview,
   WorkspaceTreeNode,
   WorkspaceSearchHit
 } from "@ai-digital-life/kernel";
@@ -91,6 +92,9 @@ export type StoreState = {
   fetchRunActivityByRunId: (runId: string, limit?: number) => Promise<void>;
   openTabs: EditorTabState[];
   selectedFilePath?: string;
+  selectedChangePreviewPath?: string;
+  changePreview?: WorkspaceChangePreview;
+  changePreviewLoading: boolean;
   fileContent?: string;
   fileLastModifiedAt?: number;
   externalFileChange?: { path: string; lastModifiedAt: number };
@@ -146,6 +150,7 @@ export type StoreState = {
   sendMessage: (content: string, options?: MessageSendOptions) => Promise<void>;
   cancelActiveStream: () => Promise<void>;
   openFile: (relativePath: string) => Promise<void>;
+  openChangePreview: (relativePath: string) => Promise<void>;
   createWorkspaceFile: (relativePath: string, content?: string) => Promise<string | undefined>;
   createWorkspaceFolder: (relativePath: string) => Promise<string | undefined>;
   refreshWorkspaceTree: () => Promise<void>;
@@ -183,6 +188,7 @@ export const useAppStore = create<StoreState>((set, get) => ({
   openTabs: [],
   outline: [],
   workspaceTree: [],
+  changePreviewLoading: false,
   searchQuery: "",
   searchResults: [],
   streamingAssistantText: "",
@@ -253,6 +259,9 @@ export const useAppStore = create<StoreState>((set, get) => ({
             set({
               activePatchSet: patchResult.data,
               selectedFilePath: initialPath,
+              selectedChangePreviewPath: undefined,
+              changePreview: undefined,
+              changePreviewLoading: false,
               openTabs: initialPath ? [createEditorTab(initialPath)] : []
             });
           }
@@ -273,6 +282,9 @@ export const useAppStore = create<StoreState>((set, get) => ({
       dirtyEditorPaths: [],
       openTabs: [],
       selectedFilePath: undefined,
+      selectedChangePreviewPath: undefined,
+      changePreview: undefined,
+      changePreviewLoading: false,
       fileContent: undefined,
       fileLastModifiedAt: undefined,
       outline: [],
@@ -722,6 +734,29 @@ export const useAppStore = create<StoreState>((set, get) => ({
       };
     });
   },
+  openChangePreview: async (relativePath: string) => {
+    set({
+      selectedChangePreviewPath: relativePath,
+      changePreviewLoading: true,
+      changePreview: undefined,
+      error: undefined
+    });
+    const result = await window.digitalLife.workspace.getChangePreview(relativePath);
+    if (!result.ok) {
+      set({
+        selectedChangePreviewPath: relativePath,
+        changePreviewLoading: false,
+        changePreview: undefined
+      });
+      return;
+    }
+    set({
+      selectedChangePreviewPath: relativePath,
+      changePreviewLoading: false,
+      changePreview: result.data,
+      error: undefined
+    });
+  },
   createWorkspaceFile: async (relativePath: string, content = "") => {
     const result = await window.digitalLife.workspace.createFile(relativePath, content);
     if (!result.ok) {
@@ -1112,7 +1147,12 @@ export const useAppStore = create<StoreState>((set, get) => ({
   },
   fetchGitStatus: async () => {
     if (!get().appInfo?.currentWorkspace) {
-      set({ gitSnapshot: undefined });
+      set({
+        gitSnapshot: undefined,
+        selectedChangePreviewPath: undefined,
+        changePreview: undefined,
+        changePreviewLoading: false
+      });
       return;
     }
     const result = await window.digitalLife.workspace.getGitStatus();
@@ -1130,6 +1170,25 @@ export const useAppStore = create<StoreState>((set, get) => ({
               }
             : state.appInfo
       }));
+      const selectedChangePreviewPath = get().selectedChangePreviewPath;
+      if (!selectedChangePreviewPath) {
+        return;
+      }
+      const changedPaths = new Set([
+        ...result.data.staged,
+        ...result.data.unstaged,
+        ...result.data.untracked,
+        ...result.data.conflicts
+      ]);
+      if (!changedPaths.has(selectedChangePreviewPath)) {
+        set({
+          selectedChangePreviewPath: undefined,
+          changePreview: undefined,
+          changePreviewLoading: false
+        });
+        return;
+      }
+      await get().openChangePreview(selectedChangePreviewPath);
     }
   },
   fetchGitBranches: async () => {

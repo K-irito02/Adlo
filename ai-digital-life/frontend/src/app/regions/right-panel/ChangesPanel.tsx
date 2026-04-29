@@ -1,12 +1,17 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { DiffEditor } from "@monaco-editor/react";
+import { ensureAdlMonacoThemes, MONACO_THEME_DARK, MONACO_THEME_LIGHT, type MonacoNamespace } from "../../monacoTheme";
 import {
   IconChevronDown,
   IconChevronRight,
+  IconFiles,
   IconFileText,
+  IconFoldVertical,
   IconGitBranch,
   IconMoreVertical,
   IconPanelLeftClose,
   IconTarget,
+  IconUnfoldVertical,
   IconUpload
 } from "../../icons";
 import { TooltipSimple } from "../../components/Tooltip";
@@ -14,13 +19,12 @@ import { useUiStore } from "../../ui-store";
 import { countGitChanges } from "./types";
 import type { RightPanelViewProps } from "./types";
 import { countReviewedHunks, filterPatchFileSummaries, summarizePatchSet } from "./patchReview";
+import { buildChangeEntries, buildChangeTree, buildFlatChangeNodes, type ChangeTreeNode } from "./changesTree";
+import { collectDirectoryPaths, FileTree, type FileTreeContextMenuItem } from "./fileTree";
+import { detectEditorLanguage } from "../../workspacePaths";
 
 const CHANGES_BRANCH_STORAGE_KEY = "adl-ui:changes-branch";
 const FALLBACK_BRANCHES = ["main", "develop", "release/0.1.0", "feature/right-panel"];
-
-function groupGitFiles(paths: string[]) {
-  return [...paths].sort((left, right) => left.localeCompare(right, undefined, { sensitivity: "base" }));
-}
 
 function readSelectedBranch(initialBranch: string): string {
   try {
@@ -42,6 +46,38 @@ function getChangeKindLabel(changeKind: "added" | "modified" | "deleted", t: Rig
   return changeKind === "added" ? t.gitAdded : changeKind === "deleted" ? t.gitDeleted : t.gitModified;
 }
 
+function getChangeStatusLabel(status: NonNullable<RightPanelViewProps["changePreview"]>["status"], t: RightPanelViewProps["t"]) {
+  if (status === "staged") return t.changesStaged;
+  if (status === "untracked") return t.changesUntracked;
+  if (status === "conflicted") return t.changesConflicts;
+  return t.changesModified;
+}
+
+function getPrimaryBadge(node: ChangeTreeNode): { label: string; tone: string } | undefined {
+  if (node.patchSummary) {
+    if (node.patchSummary.changeKind === "added") {
+      return { label: "A", tone: "added" };
+    }
+    if (node.patchSummary.changeKind === "deleted") {
+      return { label: "D", tone: "deleted" };
+    }
+    return { label: "M", tone: "modified" };
+  }
+  if (node.primaryState === "conflicted") {
+    return { label: "C", tone: "conflicted" };
+  }
+  if (node.primaryState === "untracked") {
+    return { label: "U", tone: "untracked" };
+  }
+  if (node.primaryState === "staged") {
+    return { label: "S", tone: "staged" };
+  }
+  if (node.primaryState === "modified") {
+    return { label: "M", tone: "modified" };
+  }
+  return undefined;
+}
+
 export function ChangesPanel(props: RightPanelViewProps) {
   const {
     t,
@@ -49,6 +85,9 @@ export function ChangesPanel(props: RightPanelViewProps) {
     activePatchSet,
     latestPatchApplication,
     selectedPatchFilePath,
+    selectedChangePreviewPath,
+    changePreview,
+    changePreviewLoading,
     selectedPatchHunkId,
     collapsedPatchHunkIds,
     patchReviewFilter,
@@ -58,6 +97,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
     onAcceptAllHunks,
     onRejectAllHunks,
     onSelectPatchFile,
+    onOpenChangePreview,
     onSelectPatchHunk,
     onTogglePatchHunkCollapse,
     onSetAllPatchHunksCollapsed,
@@ -67,13 +107,23 @@ export function ChangesPanel(props: RightPanelViewProps) {
   const toggleNavigator = useUiStore((state) => state.toggleNavigator);
   const changesNavigatorWidth = useUiStore((state) => state.changesNavigatorWidth);
   const setChangesNavigatorWidth = useUiStore((state) => state.setChangesNavigatorWidth);
+  const changesNavigatorMode = useUiStore((state) => state.changesNavigatorMode);
+  const setChangesNavigatorMode = useUiStore((state) => state.setChangesNavigatorMode);
+  const expandedPaths = useUiStore((state) => state.expandedChangesTreePaths);
+  const toggleChangesTreePath = useUiStore((state) => state.toggleChangesTreePath);
+  const setChangesTreePathExpanded = useUiStore((state) => state.setChangesTreePathExpanded);
+  const expandChangesTreePathChain = useUiStore((state) => state.expandChangesTreePathChain);
+  const collapseAllChangesTreePaths = useUiStore((state) => state.collapseAllChangesTreePaths);
   const snapshot = props.gitSnapshot ?? appInfo?.currentWorkspace?.gitSnapshot;
   const fallbackBranch = snapshot?.branch ?? "main";
   const [branchMenuOpen, setBranchMenuOpen] = useState(false);
   const [changesMenuOpen, setChangesMenuOpen] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState(() => readSelectedBranch(fallbackBranch));
+  const [lineNumbersEnabled, setLineNumbersEnabled] = useState(true);
+  const [wordWrapEnabled, setWordWrapEnabled] = useState(true);
   const branchMenuRef = useRef<HTMLDivElement | null>(null);
   const changesMenuRef = useRef<HTMLDivElement | null>(null);
+  const activeCardRef = useRef<Record<string, HTMLElement | null>>({});
   const validation = latestPatchApplication?.validation;
   const reviewCounts = useMemo(() => countReviewedHunks(activePatchSet), [activePatchSet]);
   const patchSummaries = useMemo(
@@ -85,21 +135,38 @@ export function ChangesPanel(props: RightPanelViewProps) {
     [patchSummaries, patchReviewFilter]
   );
   const activeSummary = filteredPatchSummaries.find((summary) => summary.relativePath === selectedPatchFilePath) ?? filteredPatchSummaries[0];
-  const changedGroups = useMemo(
-    () =>
-      [
-        { key: "staged", label: t.changesStaged, paths: groupGitFiles(snapshot?.staged ?? []) },
-        { key: "changes", label: t.changesModified, paths: groupGitFiles(snapshot?.unstaged ?? []) },
-        { key: "untracked", label: t.changesUntracked, paths: groupGitFiles(snapshot?.untracked ?? []) },
-        { key: "conflicts", label: t.changesConflicts, paths: groupGitFiles(snapshot?.conflicts ?? []) }
-      ].filter((group) => group.paths.length > 0),
-    [snapshot, t.changesConflicts, t.changesModified, t.changesStaged, t.changesUntracked]
+  const changeEntries = useMemo(() => buildChangeEntries(snapshot, patchSummaries), [patchSummaries, snapshot]);
+  const treeNodes = useMemo(() => buildChangeTree(changeEntries), [changeEntries]);
+  const flatNodes = useMemo(() => buildFlatChangeNodes(changeEntries), [changeEntries]);
+  const directoryPaths = useMemo(() => collectDirectoryPaths(treeNodes), [treeNodes]);
+  const hasExpandedDirectories = useMemo(
+    () => directoryPaths.some((pathValue) => expandedPaths[pathValue]),
+    [directoryPaths, expandedPaths]
   );
+  const navigatorSelectedPath = activeSummary?.relativePath ?? selectedPatchFilePath ?? selectedChangePreviewPath;
+  const changePreviewLanguage = useMemo(
+    () => detectEditorLanguage(changePreview?.path),
+    [changePreview?.path]
+  );
+  const changePreviewTheme = appInfo?.config.resolvedTheme === "dark" ? MONACO_THEME_DARK : MONACO_THEME_LIGHT;
   const branchOptions = useMemo(() => {
     const options = new Set<string>([fallbackBranch, ...FALLBACK_BRANCHES]);
     return [...options];
   }, [fallbackBranch]);
   const changesMenuItems = [
+    {
+      id: "line-numbers",
+      label: t.fileLineNumbers,
+      checked: lineNumbersEnabled,
+      action: () => setLineNumbersEnabled((value) => !value)
+    },
+    {
+      id: "word-wrap",
+      label: t.fileWordWrap,
+      checked: wordWrapEnabled,
+      action: () => setWordWrapEnabled((value) => !value)
+    },
+    { id: "sep-display", separator: true },
     { id: "stage-all", label: t.changesStageAll, disabled: true },
     { id: "unstage-all", label: t.changesUnstageAll, disabled: true },
     { id: "commit", label: t.changesCommit, disabled: true },
@@ -130,6 +197,26 @@ export function ChangesPanel(props: RightPanelViewProps) {
     return () => document.removeEventListener("mousedown", handlePointerDown);
   }, []);
 
+  useEffect(() => {
+    if (!navigatorSelectedPath) {
+      return;
+    }
+    expandChangesTreePathChain(navigatorSelectedPath);
+  }, [expandChangesTreePathChain, navigatorSelectedPath]);
+
+  useEffect(() => {
+    if (!activeSummary?.relativePath) {
+      return;
+    }
+    activeCardRef.current[activeSummary.relativePath]?.scrollIntoView({ block: "nearest" });
+  }, [activeSummary?.relativePath]);
+
+  const handleMonacoBeforeMount = useCallback((monaco: unknown) => {
+    const namespace = monaco as MonacoNamespace;
+    (window as typeof window & { monaco?: unknown }).monaco = monaco;
+    ensureAdlMonacoThemes(namespace);
+  }, []);
+
   const handleNavigatorResizeStart = (event: React.PointerEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.stopPropagation();
@@ -151,6 +238,63 @@ export function ChangesPanel(props: RightPanelViewProps) {
 
     window.addEventListener("pointermove", handleMove);
     window.addEventListener("pointerup", handleUp);
+  };
+
+  const handleToggleAllDirectories = () => {
+    if (!directoryPaths.length) {
+      return;
+    }
+    if (hasExpandedDirectories) {
+      collapseAllChangesTreePaths();
+      return;
+    }
+    directoryPaths.forEach((pathValue) => setChangesTreePathExpanded(pathValue, true));
+  };
+
+  const handleSelectNavigatorNode = (relativePath: string) => {
+    const patchSummary = patchSummaries.find((summary) => summary.relativePath === relativePath);
+    if (patchSummary) {
+      onSelectPatchFile(relativePath, {
+        line: patchSummary.hunks[0]?.targetLine,
+        hunkId: patchSummary.hunks[0]?.id
+      });
+      return;
+    }
+    onOpenChangePreview(relativePath);
+  };
+
+  const getContextMenuItems = useCallback(
+    (node: ChangeTreeNode): FileTreeContextMenuItem<ChangeTreeNode>[] => {
+      if (node.kind !== "file") {
+        return [];
+      }
+      const isDeleted = node.patchSummary?.changeKind === "deleted";
+      return [
+        {
+          id: "open-in-files",
+          label: t.changesPreviewOpenInFiles,
+          disabled: isDeleted,
+          action: (targetNode) => props.onOpenFile(targetNode.path)
+        }
+      ];
+    },
+    [props, t.changesPreviewOpenInFiles]
+  );
+
+  const renderNavigatorMeta = (node: ChangeTreeNode) => {
+    const primaryBadge = getPrimaryBadge(node);
+    return (
+      <>
+        {primaryBadge ? (
+          <span className={`adl-filetree__status-badge adl-filetree__status-badge--${primaryBadge.tone}`}>
+            {primaryBadge.label}
+          </span>
+        ) : null}
+        <span className="adl-filetree__count-badge">
+          {node.kind === "directory" ? node.fileCount : node.totalHunks > 0 ? `${node.reviewedHunks}/${node.totalHunks}` : "1"}
+        </span>
+      </>
+    );
   };
 
   return (
@@ -204,6 +348,30 @@ export function ChangesPanel(props: RightPanelViewProps) {
               </div>
             ) : null}
           </div>
+          {!activePatchSet ? (
+            <TooltipSimple content={t.diffLayoutLabel} placement="top">
+              <div className="adl-tool-context__diff-view" role="group" aria-label={t.diffLayoutLabel}>
+                <button
+                  type="button"
+                  className={`adl-tool-context__toggle-btn${!props.diffSideBySide ? " is-active" : ""}`}
+                  aria-pressed={!props.diffSideBySide ? "true" : "false"}
+                  disabled={!changePreview}
+                  onClick={() => props.onSetDiffLayout(false)}
+                >
+                  {t.diffLayoutInline}
+                </button>
+                <button
+                  type="button"
+                  className={`adl-tool-context__toggle-btn${props.diffSideBySide ? " is-active" : ""}`}
+                  aria-pressed={props.diffSideBySide ? "true" : "false"}
+                  disabled={!changePreview}
+                  onClick={() => props.onSetDiffLayout(true)}
+                >
+                  {t.diffLayoutSideBySide}
+                </button>
+              </div>
+            </TooltipSimple>
+          ) : null}
         </div>
         <div className="adl-tool-context__group adl-tool-context__group--files-actions">
           <TooltipSimple content={t.changesPush} placement="top">
@@ -230,8 +398,22 @@ export function ChangesPanel(props: RightPanelViewProps) {
                   "separator" in item ? (
                     <div key={item.id} className="adl-menu__sep" role="separator" />
                   ) : (
-                    <button key={item.id} type="button" role="menuitem" className="adl-menu__item" disabled={item.disabled}>
+                    <button
+                      key={item.id}
+                      type="button"
+                      role={item.checked === undefined ? "menuitem" : "menuitemcheckbox"}
+                      aria-checked={item.checked === undefined ? undefined : item.checked ? "true" : "false"}
+                      className="adl-menu__item"
+                      disabled={item.disabled}
+                      onClick={() => {
+                        item.action?.();
+                        if (!item.action) {
+                          setChangesMenuOpen(false);
+                        }
+                      }}
+                    >
                       <span>{item.label}</span>
+                      {item.checked ? <span className="adl-menu__check">√</span> : null}
                     </button>
                   )
                 )}
@@ -248,56 +430,101 @@ export function ChangesPanel(props: RightPanelViewProps) {
         <aside className="adl-tool-navigator" aria-label={t.toolChanges}>
           <div className="adl-tool-navigator__context">
             <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--actions">
-              <IconGitBranch size={14} decorative />
+              {changesNavigatorMode === "tree" ? (
+                <TooltipSimple content={hasExpandedDirectories ? t.fileCollapseAll : t.fileExpandAll} placement="top">
+                  <button
+                    type="button"
+                    className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
+                    onClick={handleToggleAllDirectories}
+                    aria-label={hasExpandedDirectories ? t.fileCollapseAll : t.fileExpandAll}
+                  >
+                    {hasExpandedDirectories ? <IconFoldVertical size={14} decorative /> : <IconUnfoldVertical size={14} decorative />}
+                  </button>
+                </TooltipSimple>
+              ) : (
+                <IconGitBranch size={14} decorative />
+              )}
               <span className="adl-tool-navigator__context-title">{t.toolChanges}</span>
             </div>
-            <span className="adl-tool-navigator__meta">{countGitChanges(snapshot)}</span>
+            <span className="adl-tool-navigator__meta">{changeEntries.length || countGitChanges(snapshot)}</span>
           </div>
-
-          {changedGroups.length > 0 ? (
-            <div className="adl-navigator-groups">
-              {changedGroups.map((group) => (
-                <section key={group.key} className="adl-navigator-group">
-                  <header>
-                    <strong>{group.label}</strong>
-                    <span>{group.paths.length}</span>
-                  </header>
-                  <ul className="adl-tool-list">
-                    {group.paths.map((entry) => {
-                      const patchSummary = patchSummaries.find((summary) => summary.relativePath === entry);
-                      return (
-                        <li key={entry}>
-                          <button
-                            type="button"
-                            className={`adl-tool-list__item adl-tool-list__item--patchnav${selectedPatchFilePath === entry ? " is-active" : ""}`}
-                            onClick={() =>
-                              patchSummary
-                                ? onSelectPatchFile(entry, {
-                                    activateTool: true,
-                                    line: patchSummary.hunks[0]?.targetLine,
-                                    hunkId: patchSummary.hunks[0]?.id
-                                  })
-                                : onSelectPatchFile(entry, { activateTool: true })
-                            }
-                          >
-                            <span className="adl-tool-list__title">{entry}</span>
-                            {patchSummary ? (
-                              <span className="adl-changes-list__meta">
-                                <span className={`adl-change-badge adl-change-badge--${patchSummary.changeKind}`}>
-                                  {getChangeKindLabel(patchSummary.changeKind, t)}
-                                </span>
-                                <span>{patchSummary.pendingHunks}/{patchSummary.totalHunks}</span>
-                              </span>
-                            ) : null}
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </section>
-              ))}
+          <div className="adl-tool-navigator__context adl-tool-navigator__context--tabs">
+            <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--actions">
+              <TooltipSimple content={t.fileTreeView} placement="top">
+                <button
+                  type="button"
+                  className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${changesNavigatorMode === "tree" ? " is-active" : ""}`}
+                  aria-pressed={changesNavigatorMode === "tree" ? "true" : "false"}
+                  onClick={() => setChangesNavigatorMode("tree")}
+                  aria-label={t.fileTreeView}
+                >
+                  <IconFiles size={14} decorative />
+                </button>
+              </TooltipSimple>
+              <TooltipSimple content={t.changesListView} placement="top">
+                <button
+                  type="button"
+                  className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${changesNavigatorMode === "list" ? " is-active" : ""}`}
+                  aria-pressed={changesNavigatorMode === "list" ? "true" : "false"}
+                  onClick={() => setChangesNavigatorMode("list")}
+                  aria-label={t.changesListView}
+                >
+                  <IconFileText size={14} decorative />
+                </button>
+              </TooltipSimple>
+            </div>
+          </div>
+          {changeEntries.length > 0 ? (
+            <div className="adl-tool-navigator__summary" aria-label={t.toolChanges}>
+              <div className="adl-tool-navigator__summary-stats">
+                <div className="adl-tool-navigator__summary-stat">
+                  <span className="adl-tool-navigator__summary-label">{t.changesStaged}</span>
+                  <strong className="adl-tool-navigator__summary-value">
+                    <span className="adl-tool-navigator__summary-code" aria-hidden="true">S:</span>
+                    {snapshot?.staged.length ?? 0}
+                  </strong>
+                </div>
+                <div className="adl-tool-navigator__summary-stat">
+                  <span className="adl-tool-navigator__summary-label">{t.changesModified}</span>
+                  <strong className="adl-tool-navigator__summary-value">
+                    <span className="adl-tool-navigator__summary-code" aria-hidden="true">M:</span>
+                    {snapshot?.unstaged.length ?? 0}
+                  </strong>
+                </div>
+                <div className="adl-tool-navigator__summary-stat">
+                  <span className="adl-tool-navigator__summary-label">{t.changesUntracked}</span>
+                  <strong className="adl-tool-navigator__summary-value">
+                    <span className="adl-tool-navigator__summary-code" aria-hidden="true">U:</span>
+                    {snapshot?.untracked.length ?? 0}
+                  </strong>
+                </div>
+              </div>
             </div>
           ) : null}
+
+          {changesNavigatorMode === "tree" && treeNodes.length > 0 ? (
+            <FileTree
+              nodes={treeNodes}
+              selectedFilePath={navigatorSelectedPath}
+              expandedPaths={expandedPaths}
+              onToggle={toggleChangesTreePath}
+              onOpenFile={handleSelectNavigatorNode}
+              renderMeta={renderNavigatorMeta}
+              getContextMenuItems={getContextMenuItems}
+            />
+          ) : null}
+          {changesNavigatorMode === "list" && flatNodes.length > 0 ? (
+            <FileTree
+              nodes={flatNodes}
+              selectedFilePath={navigatorSelectedPath}
+              expandedPaths={{}}
+              onToggle={() => undefined}
+              onOpenFile={handleSelectNavigatorNode}
+              renderMeta={renderNavigatorMeta}
+              getContextMenuItems={getContextMenuItems}
+            />
+          ) : null}
+          {changeEntries.length === 0 ? <p className="adl-empty-hint adl-empty-hint--navigator">{t.changesEmpty}</p> : null}
           <div
             className="adl-tool-navigator__resize-handle"
             onPointerDown={handleNavigatorResizeStart}
@@ -310,18 +537,18 @@ export function ChangesPanel(props: RightPanelViewProps) {
           />
         </aside>
 
-        <div className="adl-tool-primary adl-tool-primary--scrollable">
-          <div className="adl-tool-primary__scroll adl-tool-primary__scroll--changes">
-            {validation ? (
-              <div className="adl-banner adl-banner--info">
-                <strong>{validation.status}</strong>
-                <span>{validation.summary}</span>
-                {latestPatchApplication?.rolledBack ? <span className="adl-chip adl-chip--warning">{t.changesRolledBack}</span> : null}
-                {latestPatchApplication?.patchSet.status === "applied" ? <span className="adl-chip adl-chip--success">{t.changesApplied}</span> : null}
-              </div>
-            ) : null}
+        <div className={`adl-tool-primary${activePatchSet ? " adl-tool-primary--scrollable" : ""}`}>
+          {activePatchSet ? (
+            <div className="adl-tool-primary__scroll adl-tool-primary__scroll--changes">
+              {validation ? (
+                <div className="adl-banner adl-banner--info">
+                  <strong>{validation.status}</strong>
+                  <span>{validation.summary}</span>
+                  {latestPatchApplication?.rolledBack ? <span className="adl-chip adl-chip--warning">{t.changesRolledBack}</span> : null}
+                  {latestPatchApplication?.patchSet.status === "applied" ? <span className="adl-chip adl-chip--success">{t.changesApplied}</span> : null}
+                </div>
+              ) : null}
 
-            {activePatchSet ? (
               <>
                 <article className="adl-patch-review-summary">
                   <header className="adl-patch-review-summary__header">
@@ -382,7 +609,13 @@ export function ChangesPanel(props: RightPanelViewProps) {
                     {filteredPatchSummaries.map((summary) => {
                       const isActiveFile = summary.relativePath === activeSummary?.relativePath;
                       return (
-                        <article key={summary.relativePath} className={`adl-patch-file-card${isActiveFile ? " is-active" : ""}`}>
+                        <article
+                          key={summary.relativePath}
+                          ref={(element) => {
+                            activeCardRef.current[summary.relativePath] = element;
+                          }}
+                          className={`adl-patch-file-card${isActiveFile ? " is-active" : ""}`}
+                        >
                           <header className="adl-patch-file-card__header">
                             <button
                               type="button"
@@ -535,10 +768,81 @@ export function ChangesPanel(props: RightPanelViewProps) {
                   </button>
                 </div>
               </>
-            ) : (
-              <p className="adl-empty-hint">{t.noPatch}</p>
-            )}
-          </div>
+            </div>
+          ) : changePreview ? (
+            <>
+              {validation ? (
+                <div className="adl-banner adl-banner--info">
+                  <strong>{validation.status}</strong>
+                  <span>{validation.summary}</span>
+                  {latestPatchApplication?.rolledBack ? <span className="adl-chip adl-chip--warning">{t.changesRolledBack}</span> : null}
+                  {latestPatchApplication?.patchSet.status === "applied" ? <span className="adl-chip adl-chip--success">{t.changesApplied}</span> : null}
+                </div>
+              ) : null}
+              <div className="adl-tool-editor adl-tool-editor--changes" data-testid="changes-preview-shell">
+                <div className="adl-tool-editor__surface">
+                  <DiffEditor
+                    height="100%"
+                    theme={changePreviewTheme}
+                    beforeMount={handleMonacoBeforeMount}
+                    language={changePreviewLanguage}
+                    original={changePreview.baseContent}
+                    modified={changePreview.currentContent}
+                    options={{
+                      automaticLayout: true,
+                      readOnly: true,
+                      renderSideBySide: props.diffSideBySide,
+                      renderSideBySideInlineBreakpoint: 1,
+                      useInlineViewWhenSpaceIsLimited: false,
+                      renderIndicators: false,
+                      renderMarginRevertIcon: false,
+                      wordWrap: wordWrapEnabled ? "on" : "off",
+                      diffWordWrap: wordWrapEnabled ? "on" : "off",
+                      lineNumbers: lineNumbersEnabled ? "on" : "off",
+                      lineNumbersMinChars: 6,
+                      lineDecorationsWidth: 0,
+                      folding: false,
+                      showFoldingControls: "never",
+                      glyphMargin: false,
+                      minimap: props.diffSideBySide
+                        ? { enabled: false }
+                        : {
+                            enabled: true,
+                            side: "right",
+                            size: "fill",
+                            showSlider: "mouseover",
+                            renderCharacters: true,
+                            maxColumn: 80,
+                            scale: 1.5
+                          },
+                      scrollbar: props.diffSideBySide
+                        ? {
+                            vertical: "auto",
+                            horizontal: "auto",
+                            verticalScrollbarSize: 12,
+                            horizontalScrollbarSize: 10
+                          }
+                        : {
+                            vertical: "visible",
+                            horizontal: "auto",
+                            verticalScrollbarSize: 12,
+                            horizontalScrollbarSize: 10
+                          },
+                      scrollBeyondLastLine: false,
+                      renderOverviewRuler: false,
+                      stickyScroll: { enabled: false },
+                      renderLineHighlight: "line",
+                      renderWhitespace: "selection",
+                      bracketPairColorization: { enabled: true },
+                      experimental: {
+                        useTrueInlineView: true
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+            </>
+          ) : changePreviewLoading ? null : null}
         </div>
       </div>
     </div>

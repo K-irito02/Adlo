@@ -4,7 +4,8 @@ use adl_errors::AppError;
 use adl_kernel::{
     now_ms, FileOutlineItem, GitBranchSummary, GitSnapshot, RecentWorkspaceEntry, RepoMapEntry,
     RetrievalFileTypeCount, RetrievalSnapshot, RetrievalStatusV1, WorkspaceFileDocument,
-    WorkspaceMeta, WorkspaceSearchHit, WorkspaceStatus, WorkspaceTreeNode, WorkspaceType,
+    WorkspaceChangeKind, WorkspaceChangePreview, WorkspaceChangeStatus, WorkspaceMeta,
+    WorkspaceSearchHit, WorkspaceStatus, WorkspaceTreeNode, WorkspaceType,
 };
 use std::collections::BTreeMap;
 use std::fs;
@@ -130,30 +131,12 @@ pub fn stable_workspace_id(root: &Path) -> String {
 pub fn capture_git_snapshot(root: &Path) -> GitSnapshot {
     let branch = run_git(root, &["branch", "--show-current"]).and_then(first_non_empty_line);
     let head = run_git(root, &["rev-parse", "--short", "HEAD"]).and_then(first_non_empty_line);
-    let porcelain = run_git(root, &["status", "--porcelain"]).unwrap_or_default();
-    let mut staged = Vec::new();
-    let mut unstaged = Vec::new();
-    let mut untracked = Vec::new();
-    let mut conflicts = Vec::new();
-    for line in porcelain.lines() {
-        if line.len() < 3 {
-            continue;
-        }
-        let status = &line[0..2];
-        let path = line[3..].to_string();
-        if status == "??" {
-            untracked.push(path);
-        } else if status.contains('U') || matches!(status, "AA" | "DD") {
-            conflicts.push(path);
-        } else {
-            if !status[0..1].trim().is_empty() {
-                staged.push(path.clone());
-            }
-            if !status[1..2].trim().is_empty() {
-                unstaged.push(path);
-            }
-        }
-    }
+    let staged = run_git_paths(root, &["diff", "--name-only", "--cached", "-z"]).unwrap_or_default();
+    let unstaged = run_git_paths(root, &["diff", "--name-only", "-z"]).unwrap_or_default();
+    let untracked =
+        run_git_paths(root, &["ls-files", "--others", "--exclude-standard", "-z"]).unwrap_or_default();
+    let conflicts =
+        run_git_paths(root, &["diff", "--name-only", "--diff-filter=U", "-z"]).unwrap_or_default();
     GitSnapshot {
         is_repo: root.join(".git").exists() || branch.is_some() || head.is_some(),
         branch,
@@ -166,6 +149,71 @@ pub fn capture_git_snapshot(root: &Path) -> GitSnapshot {
         conflicts,
         captured_at: now_ms(),
     }
+}
+
+pub fn read_change_preview(
+    root: &Path,
+    relative_path: &str,
+) -> Result<WorkspaceChangePreview, AppError> {
+    let snapshot = capture_git_snapshot(root);
+    if !snapshot.is_repo {
+        return Err(AppError::Workspace(
+            "active workspace is not a Git repository".into(),
+        ));
+    }
+
+    let normalized_path = relative_path.replace('\\', "/");
+    let status = if snapshot.conflicts.iter().any(|path| path == &normalized_path) {
+        WorkspaceChangeStatus::Conflicted
+    } else if snapshot.untracked.iter().any(|path| path == &normalized_path) {
+        WorkspaceChangeStatus::Untracked
+    } else if snapshot.unstaged.iter().any(|path| path == &normalized_path) {
+        WorkspaceChangeStatus::Modified
+    } else if snapshot.staged.iter().any(|path| path == &normalized_path) {
+        WorkspaceChangeStatus::Staged
+    } else {
+        return Err(AppError::NotFound(format!(
+            "change preview for {normalized_path}"
+        )));
+    };
+
+    let absolute_path = adl_fs_ops::resolve_workspace_path(root, &normalized_path)?;
+    if absolute_path.is_dir() {
+        return Err(AppError::InvalidInput(format!(
+            "change preview requires a file path: {normalized_path}"
+        )));
+    }
+
+    let current_exists = absolute_path.is_file();
+    let current_content = if current_exists {
+        adl_fs_ops::read_text_file(root, &normalized_path, DEFAULT_MAX_FILE_BYTES)?
+    } else {
+        String::new()
+    };
+
+    let base_content = git_show_file(root, &normalized_path)?.unwrap_or_default();
+    let base_exists = !base_content.is_empty() || git_file_exists(root, &normalized_path)?;
+    let change_kind = match (base_exists, current_exists) {
+        (false, true) => WorkspaceChangeKind::Added,
+        (true, false) => WorkspaceChangeKind::Deleted,
+        _ => WorkspaceChangeKind::Modified,
+    };
+
+    if !base_exists && !current_exists {
+        return Err(AppError::NotFound(format!(
+            "change preview source is unavailable: {normalized_path}"
+        )));
+    }
+
+    Ok(WorkspaceChangePreview {
+        path: normalized_path,
+        change_kind,
+        status,
+        base_exists,
+        current_exists,
+        base_content,
+        current_content,
+    })
 }
 
 pub fn git_has_local_changes(snapshot: &GitSnapshot) -> bool {
@@ -266,6 +314,30 @@ fn run_git(root: &Path, args: &[&str]) -> Option<String> {
     }
 }
 
+fn run_git_bytes(root: &Path, args: &[&str]) -> Option<Vec<u8>> {
+    let output = Command::new("git")
+        .args(args)
+        .current_dir(root)
+        .output()
+        .ok()?;
+    if output.status.success() {
+        Some(output.stdout)
+    } else {
+        None
+    }
+}
+
+fn run_git_paths(root: &Path, args: &[&str]) -> Option<Vec<String>> {
+    let stdout = run_git_bytes(root, args)?;
+    Some(
+        stdout
+            .split(|byte| *byte == 0)
+            .filter(|chunk| !chunk.is_empty())
+            .map(|chunk| String::from_utf8_lossy(chunk).replace('\\', "/"))
+            .collect(),
+    )
+}
+
 fn run_git_required(root: &Path, args: &[&str]) -> Result<String, AppError> {
     let output = Command::new("git")
         .args(args)
@@ -284,6 +356,37 @@ fn run_git_required(root: &Path, args: &[&str]) -> Result<String, AppError> {
             },
         ))
     }
+}
+
+fn git_show_file(root: &Path, relative_path: &str) -> Result<Option<String>, AppError> {
+    let object_path = format!("HEAD:{relative_path}");
+    let output = Command::new("git")
+        .args(["show", &object_path])
+        .current_dir(root)
+        .output()
+        .map_err(|error| AppError::Workspace(format!("failed to execute git: {error}")))?;
+    if output.status.success() {
+        if output.stdout.len() as u64 > DEFAULT_MAX_FILE_BYTES {
+            return Err(AppError::Workspace(format!(
+                "git blob is too large to preview: {relative_path}"
+            )));
+        }
+        String::from_utf8(output.stdout)
+            .map(Some)
+            .map_err(|error| AppError::Workspace(format!("file is not valid UTF-8: {error}")))
+    } else {
+        Ok(None)
+    }
+}
+
+fn git_file_exists(root: &Path, relative_path: &str) -> Result<bool, AppError> {
+    let object_path = format!("HEAD:{relative_path}");
+    let output = Command::new("git")
+        .args(["cat-file", "-e", &object_path])
+        .current_dir(root)
+        .output()
+        .map_err(|error| AppError::Workspace(format!("failed to execute git: {error}")))?;
+    Ok(output.status.success())
 }
 
 fn stash_workspace_changes(root: &Path) -> Result<(), AppError> {
@@ -632,6 +735,22 @@ fn file_modified_at(path: &Path) -> i64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::process::Command;
+
+    fn run_git_test(dir: &Path, args: &[&str]) {
+        let status = Command::new("git")
+            .args(args)
+            .current_dir(dir)
+            .status()
+            .expect("git should be available for workspace tests");
+        assert!(status.success(), "git command failed: git {}", args.join(" "));
+    }
+
+    fn init_git_repo(dir: &Path) {
+        run_git_test(dir, &["init"]);
+        run_git_test(dir, &["config", "user.email", "adl-tests@example.com"]);
+        run_git_test(dir, &["config", "user.name", "ADL Tests"]);
+    }
 
     #[test]
     fn detects_workspace_type_from_cargo() {
@@ -656,6 +775,51 @@ mod tests {
         let tree = list_tree(&dir).unwrap();
         assert!(tree.iter().any(|node| node.path == "docs"));
         assert!(tree.iter().any(|node| node.path == "empty-dir"));
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn captures_git_snapshot_for_untracked_and_unstaged_files() {
+        let dir =
+            std::env::temp_dir().join(format!("adl-workspace-git-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        init_git_repo(&dir);
+        std::fs::write(dir.join("tracked.txt"), "hello\n").unwrap();
+        run_git_test(&dir, &["add", "tracked.txt"]);
+        run_git_test(&dir, &["commit", "-m", "init"]);
+
+        std::fs::write(dir.join("tracked.txt"), "hello again\n").unwrap();
+        std::fs::write(dir.join("new file.txt"), "new\n").unwrap();
+
+        let snapshot = capture_git_snapshot(&dir);
+        assert!(snapshot.unstaged.iter().any(|path| path == "tracked.txt"));
+        assert!(snapshot.untracked.iter().any(|path| path == "new file.txt"));
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn reads_deleted_change_preview_from_head() {
+        let dir = std::env::temp_dir().join(format!(
+            "adl-workspace-change-preview-{}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir_all(dir.join("resume")).unwrap();
+        init_git_repo(&dir);
+        std::fs::write(dir.join("resume/index.html"), "<h1>resume</h1>\n").unwrap();
+        run_git_test(&dir, &["add", "resume/index.html"]);
+        run_git_test(&dir, &["commit", "-m", "init"]);
+
+        std::fs::remove_file(dir.join("resume/index.html")).unwrap();
+
+        let preview = read_change_preview(&dir, "resume/index.html").unwrap();
+        assert_eq!(preview.change_kind, WorkspaceChangeKind::Deleted);
+        assert_eq!(preview.status, WorkspaceChangeStatus::Modified);
+        assert!(preview.base_exists);
+        assert!(!preview.current_exists);
+        assert!(preview.base_content.contains("resume"));
+        assert!(preview.current_content.is_empty());
 
         let _ = std::fs::remove_dir_all(dir);
     }

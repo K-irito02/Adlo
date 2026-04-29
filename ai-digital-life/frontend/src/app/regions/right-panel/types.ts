@@ -4,6 +4,7 @@ import type {
   CommandRunResult,
   FileOutlineItem,
   FilePatch,
+  WorkspaceChangePreview,
   GitSnapshot,
   PatchApplicationResult,
   PatchSet,
@@ -23,6 +24,9 @@ export interface RightPanelViewProps {
   collapsed: boolean;
   editorTabs: EditorTabState[];
   selectedFilePath?: string;
+  selectedChangePreviewPath?: string;
+  changePreview?: WorkspaceChangePreview;
+  changePreviewLoading: boolean;
   fileContent?: string;
   fileLastModifiedAt?: number;
   externalChangePath?: string;
@@ -47,6 +51,7 @@ export interface RightPanelViewProps {
   standardEditorRef: React.MutableRefObject<MonacoEditorRef | null>;
   diffEditorRef: React.MutableRefObject<MonacoEditorRef | null>;
   onOpenFile: (relativePath: string) => void;
+  onOpenChangePreview: (relativePath: string) => void;
   onOpenFileAtLine: (relativePath: string, line: number) => void;
   onReloadExternal: () => void;
   onCreateWorkspaceFile: (relativePath: string, content?: string) => Promise<string | undefined>;

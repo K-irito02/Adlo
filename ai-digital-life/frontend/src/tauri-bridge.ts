@@ -32,6 +32,7 @@ import type {
   ReorderWorkspacesInput,
   RuntimeDiagnosticsSnapshot,
   TaskCenterSnapshot,
+  WorkspaceChangePreview,
   WorkspaceFileChangedEvent,
   WorkspaceFileDocument,
   WorkspaceGitBranchChangeResult,
@@ -141,6 +142,8 @@ export function createTauriBridge(): DigitalLifeBridge {
       createFolder: (relativePath: string) =>
         invokeIpc<boolean>("workspace_create_folder", { relativePath }),
       readFile: (relativePath: string) => invokeIpc<WorkspaceFileDocument>("workspace_read_file", { relativePath }),
+      getChangePreview: (relativePath: string) =>
+        invokeIpc<WorkspaceChangePreview>("workspace_get_change_preview", { relativePath }),
       listTree: () => invokeIpc<WorkspaceTreeNode[]>("workspace_list_tree"),
       search: (query: string) => invokeIpc<WorkspaceSearchHit[]>("workspace_search", { query }),
       outline: (relativePath: string) => invokeIpc("workspace_outline", { relativePath }),

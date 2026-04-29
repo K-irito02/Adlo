@@ -969,6 +969,19 @@ export interface WorkspaceFileDocument {
   lastModifiedAt: number;
 }
 
+export type WorkspaceChangeKind = "added" | "modified" | "deleted";
+export type WorkspaceChangeStatus = "staged" | "modified" | "untracked" | "conflicted";
+
+export interface WorkspaceChangePreview {
+  path: string;
+  changeKind: WorkspaceChangeKind;
+  status: WorkspaceChangeStatus;
+  baseExists: boolean;
+  currentExists: boolean;
+  baseContent: string;
+  currentContent: string;
+}
+
 export interface WorkspaceFileChangedEvent {
   path: string;
   lastModifiedAt: number;

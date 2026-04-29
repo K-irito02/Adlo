@@ -17,6 +17,7 @@ import type {
   PatchSet,
   RepoMapNode,
   RecentWorkspaceEntry,
+  WorkspaceChangePreview,
   WorkspaceMeta,
   WorkspaceGitBranchChangeResult,
   WorkspaceGitBranchCreateInput,
@@ -215,6 +216,31 @@ function emptyGitSnapshot(): GitSnapshot {
     untracked: [],
     conflicts: [],
     capturedAt: Date.now()
+  };
+}
+
+function buildMockChangePreview(relativePath: string): WorkspaceChangePreview {
+  const snapshot = currentWorkspaceMeta?.gitSnapshot ?? emptyGitSnapshot();
+  const normalizedPath = relativePath.replace(/\\/g, "/");
+  const status = snapshot.conflicts.includes(normalizedPath)
+    ? "conflicted"
+    : snapshot.untracked.includes(normalizedPath)
+      ? "untracked"
+      : snapshot.unstaged.includes(normalizedPath)
+        ? "modified"
+        : "staged";
+  const currentExists = documents.has(normalizedPath);
+  const currentContent = documents.get(normalizedPath) ?? "";
+  const baseExists = status !== "untracked";
+  const baseContent = baseExists ? `// mock HEAD content for ${normalizedPath}\n` : "";
+  return {
+    path: normalizedPath,
+    changeKind: !baseExists ? "added" : !currentExists ? "deleted" : "modified",
+    status,
+    baseExists,
+    currentExists,
+    baseContent,
+    currentContent
   };
 }
 
@@ -629,6 +655,10 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
         content: documents.get(relativePath) ?? "",
         lastModifiedAt: fileVersions.get(relativePath) ?? Date.now()
       }
+    }),
+    getChangePreview: async (relativePath: string) => ({
+      ok: true,
+      data: buildMockChangePreview(relativePath)
     }),
     search: async (query: string) => {
       const hits: WorkspaceSearchHit[] = Array.from(documents.entries())

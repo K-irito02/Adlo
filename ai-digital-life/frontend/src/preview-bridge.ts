@@ -7,6 +7,7 @@ import type {
   RecentWorkspaceEntry,
   RepoMapNode,
   RetrievalSnapshot,
+  WorkspaceChangePreview,
   WorkspaceGitBranchChangeResult,
   WorkspaceGitBranchCreateInput,
   WorkspaceGitBranchSwitchInput,
@@ -303,6 +304,16 @@ export function setupPreviewBridge(): void {
           relativePath
         });
         return requestPreviewApi<WorkspaceFileDocument>(`/workspace/file?${params.toString()}`);
+      },
+      getChangePreview: async (relativePath: string) => {
+        if (!currentWorkspace) {
+          return { ok: false, error: { code: "NOT_FOUND", message: "active workspace" } };
+        }
+        const params = new URLSearchParams({
+          rootPath: currentWorkspace.rootPath,
+          relativePath
+        });
+        return requestPreviewApi<WorkspaceChangePreview>(`/workspace/change-preview?${params.toString()}`);
       },
       listTree: async () => {
         if (!currentWorkspace) {
