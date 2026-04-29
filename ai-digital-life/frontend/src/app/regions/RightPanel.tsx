@@ -185,7 +185,7 @@ export function RightPanel(props: RightPanelViewProps) {
         });
       };
 
-      const cleanup = () => {
+      const cleanup = (endEvent: PointerEvent) => {
         draggingRef.current = false;
         body.classList.remove("adl-is-resizing");
         shellBody?.classList.remove("is-resizing");
@@ -195,7 +195,7 @@ export function RightPanel(props: RightPanelViewProps) {
         }
         const { nextWidth } = applyPanelGeometry(latestWidth, { commitRestorable: true });
         setRightPanelWidth(nextWidth);
-        target.releasePointerCapture(event.pointerId);
+        target.releasePointerCapture(endEvent.pointerId);
         target.removeEventListener("pointermove", handleMove);
         target.removeEventListener("pointerup", cleanup);
         target.removeEventListener("pointercancel", cleanup);
