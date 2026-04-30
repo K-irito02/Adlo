@@ -110,4 +110,16 @@ describe("changes preview gutter spacing", () => {
 
     expect(diffEditorRule).toContain("width: 100%");
   });
+
+  it("fills inline modified editor internal elements to full width", () => {
+    const overflowGuardRule = getRuleBody(
+      ".adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .overflow-guard"
+    );
+    const scrollableElementRule = getRuleBody(
+      ".adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .monaco-scrollable-element"
+    );
+
+    expect(overflowGuardRule).toContain("width: 100% !important;");
+    expect(scrollableElementRule).toContain("width: 100% !important;");
+  });
 });

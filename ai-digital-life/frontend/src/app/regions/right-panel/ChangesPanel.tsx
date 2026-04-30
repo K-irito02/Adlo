@@ -262,37 +262,26 @@ export function ChangesPanel(props: RightPanelViewProps) {
     const de = diffEditor as {
       onDidUpdateDiff(listener: () => void): { dispose(): void };
       layout(dimension?: { width: number; height: number }): void;
-      getModifiedEditor(): { layout(dimension?: { width: number; height: number }): void } | null;
     };
 
-    const forceRelayout = () => {
+    const triggerRelayout = () => {
       const shell = document.querySelector('[data-testid="changes-preview-shell"]');
       if (!shell) return;
       const surface = shell.querySelector(".adl-tool-editor__surface") as HTMLElement;
       if (!surface) return;
       const rect = surface.getBoundingClientRect();
       if (rect.width <= 0 || rect.height <= 0) return;
-      const dim = { width: Math.floor(rect.width), height: Math.floor(rect.height) };
       try {
-        de.layout(dim);
+        de.layout({ width: Math.floor(rect.width), height: Math.floor(rect.height) });
       } catch (_e) { /* ignore */ }
-      try {
-        const modified = de.getModifiedEditor();
-        modified?.layout(dim);
-      } catch (_e) { /* ignore */ }
-      applyMinimapToDiffEditor(diffEditorRef.current, "forceRelayout");
+      applyMinimapToDiffEditor(diffEditorRef.current, "relayout");
     };
 
-    requestAnimationFrame(() => {
-      forceRelayout();
-      setTimeout(forceRelayout, 150);
-    });
+    requestAnimationFrame(triggerRelayout);
 
     const disposable = de.onDidUpdateDiff(() => {
       if (minimapTimerRef.current) clearTimeout(minimapTimerRef.current);
-      minimapTimerRef.current = setTimeout(() => {
-        forceRelayout();
-      }, 80);
+      minimapTimerRef.current = setTimeout(triggerRelayout, 50);
     });
 
     return () => {
@@ -346,10 +335,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
     stickyScroll: { enabled: false },
     renderLineHighlight: "line" as const,
     renderWhitespace: "selection" as const,
-    bracketPairColorization: { enabled: true },
-    experimental: {
-      useTrueInlineView: true
-    }
+    bracketPairColorization: { enabled: true }
   }), [props.diffSideBySide, wordWrapEnabled, lineNumbersEnabled]);
 
   useEffect(() => {

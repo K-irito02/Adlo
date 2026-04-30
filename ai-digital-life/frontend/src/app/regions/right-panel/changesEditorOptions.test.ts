@@ -31,7 +31,6 @@ describe("changes preview editor options", () => {
     expect(changesPanelSource).toContain("getModifiedEditor");
     expect(changesPanelSource).toContain("getOriginalEditor");
     expect(changesPanelSource).toContain("diffEditorOptions");
-    expect(changesPanelSource).toContain("useTrueInlineView");
     expect(changesPanelSource).toContain('enabled: true');
     expect(changesPanelSource).toContain('side: "right"');
     expect(changesPanelSource).toContain("renderCharacters: true");
