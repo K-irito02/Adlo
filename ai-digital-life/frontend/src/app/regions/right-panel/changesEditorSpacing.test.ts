@@ -54,20 +54,21 @@ describe("changes preview gutter spacing", () => {
       ".adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .minimap-slider"
     );
 
-    expect(inlineMinimapRule).toContain("width: 84px !important;");
-    expect(inlineMinimapRule).toContain("right: 12px !important;");
+    expect(inlineMinimapRule).toContain("right: 0 !important;");
     expect(inlineMinimapRule).toContain("background: var(--editor-bg) !important;");
     expect(inlineMinimapRule).not.toContain("border-left");
     expect(inlineMinimapRule).toContain("inset -1px 0 0 rgba(0, 0, 0, 0.18)");
-    expect(inlineMinimapRule).toContain("drop-shadow");
+    expect(inlineMinimapRule).toContain("-2px 2px 6px rgba(0, 0, 0, 0.08)");
+    expect(inlineMinimapRule).not.toContain("filter:");
     expect(inlineScrollbarRule).toContain("right: 0 !important;");
+    expect(inlineScrollbarRule).toContain("left: auto");
 
     const inlineDarkRule = getRuleBody(
       '[data-theme="dark"] .adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .minimap'
     );
     expect(inlineDarkRule).toContain("inset -1px 0 0 rgba(0, 0, 0, 0.80)");
 
-    expect(inlineSliderRule).toContain("width: 84px !important;");
+    expect(inlineSliderRule).toContain("left: 0 !important;");
     expect(inlineSliderRule).toContain("min-height: 40px !important;");
     expect(inlineSliderRule).toContain("max-height: 40% !important;");
     expect(inlineSliderRule).toContain("background: var(--surface-hover) !important;");
@@ -85,11 +86,12 @@ describe("changes preview gutter spacing", () => {
     );
 
     expect(standardMinimapRule).toContain("width: 84px !important;");
-    expect(standardMinimapRule).toContain("right: 12px !important;");
     expect(standardMinimapRule).toContain("background: var(--editor-bg) !important;");
     expect(standardMinimapRule).not.toContain("border-left");
     expect(standardMinimapRule).toContain("inset -1px 0 0 rgba(0, 0, 0, 0.18)");
-    expect(standardMinimapRule).toContain("drop-shadow");
+    expect(standardMinimapRule).toContain("-2px 2px 6px rgba(0, 0, 0, 0.08)");
+    expect(standardMinimapRule).not.toContain("filter:");
+    expect(standardMinimapRule).not.toContain("right:");
     expect(standardScrollbarRule).toContain("right: 0 !important;");
 
     const standardDarkRule = getRuleBody(
@@ -101,5 +103,11 @@ describe("changes preview gutter spacing", () => {
     expect(standardSliderRule).toContain("min-height: 40px !important;");
     expect(standardSliderRule).toContain("max-height: 40% !important;");
     expect(standardSliderRule).toContain("background: var(--surface-hover) !important;");
+  });
+
+  it("constrains diff editor width in changes panel", () => {
+    const diffEditorRule = getRuleBody(".adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side)");
+
+    expect(diffEditorRule).toContain("width: 100%");
   });
 });

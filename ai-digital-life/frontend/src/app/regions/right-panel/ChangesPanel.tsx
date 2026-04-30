@@ -217,6 +217,171 @@ export function ChangesPanel(props: RightPanelViewProps) {
     ensureAdlMonacoThemes(namespace);
   }, []);
 
+  const diffEditorRef = useRef<unknown>(null);
+  const minimapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const applyMinimapToDiffEditor = useCallback((de: unknown, _reason: string) => {
+    const diffInst = de as {
+      updateOptions(opts: unknown): void;
+      getModifiedEditor(): { updateOptions(options: unknown): void } | null;
+      getOriginalEditor(): { updateOptions(options: unknown): void } | null;
+    };
+    try {
+      const minimapOpts = {
+        enabled: true,
+        side: "right" as const,
+        size: "fill" as const,
+        showSlider: "mouseover" as const,
+        renderCharacters: true,
+        maxColumn: 80,
+        scale: 1.5
+      };
+      diffInst.updateOptions({ minimap: minimapOpts });
+      const modifiedEditor = diffInst.getModifiedEditor();
+      if (modifiedEditor) {
+        (modifiedEditor as { updateOptions(options: unknown): void }).updateOptions({
+          minimap: minimapOpts
+        });
+      }
+      const originalEditor = diffInst.getOriginalEditor();
+      if (originalEditor) {
+        (originalEditor as { updateOptions(options: unknown): void }).updateOptions({
+          minimap: { enabled: false }
+        });
+      }
+      return true;
+    } catch (_e) {
+      return false;
+    }
+  }, []);
+
+  const handleDiffEditorMount = useCallback((diffEditor: unknown) => {
+    diffEditorRef.current = diffEditor;
+    applyMinimapToDiffEditor(diffEditor, "onMount");
+
+    const de = diffEditor as {
+      onDidUpdateDiff(listener: () => void): { dispose(): void };
+      layout(dimension?: { width: number; height: number }): void;
+      getModifiedEditor(): { layout(dimension?: { width: number; height: number }): void } | null;
+    };
+
+    const forceRelayout = () => {
+      const shell = document.querySelector('[data-testid="changes-preview-shell"]');
+      if (!shell) return;
+      const surface = shell.querySelector(".adl-tool-editor__surface") as HTMLElement;
+      if (!surface) return;
+      const rect = surface.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return;
+      const dim = { width: Math.floor(rect.width), height: Math.floor(rect.height) };
+      try {
+        de.layout(dim);
+      } catch (_e) { /* ignore */ }
+      try {
+        const modified = de.getModifiedEditor();
+        modified?.layout(dim);
+      } catch (_e) { /* ignore */ }
+      applyMinimapToDiffEditor(diffEditorRef.current, "forceRelayout");
+    };
+
+    requestAnimationFrame(() => {
+      forceRelayout();
+      setTimeout(forceRelayout, 150);
+    });
+
+    const disposable = de.onDidUpdateDiff(() => {
+      if (minimapTimerRef.current) clearTimeout(minimapTimerRef.current);
+      minimapTimerRef.current = setTimeout(() => {
+        forceRelayout();
+      }, 80);
+    });
+
+    return () => {
+      disposable.dispose();
+      if (minimapTimerRef.current) clearTimeout(minimapTimerRef.current);
+    };
+  }, [applyMinimapToDiffEditor]);
+
+  const diffEditorOptions = useMemo(() => ({
+    automaticLayout: true,
+    readOnly: true,
+    renderSideBySide: props.diffSideBySide,
+    renderSideBySideInlineBreakpoint: 1,
+    useInlineViewWhenSpaceIsLimited: false,
+    renderIndicators: false,
+    renderMarginRevertIcon: false,
+    wordWrap: wordWrapEnabled ? "on" as const : "off" as const,
+    diffWordWrap: wordWrapEnabled ? "on" as const : "off" as const,
+    lineNumbers: lineNumbersEnabled ? "on" as const : "off" as const,
+    lineNumbersMinChars: 6,
+    lineDecorationsWidth: 0,
+    folding: false,
+    showFoldingControls: "never" as const,
+    glyphMargin: false,
+    minimap: props.diffSideBySide
+      ? { enabled: false }
+      : {
+          enabled: true,
+          side: "right" as const,
+          size: "fill" as const,
+          showSlider: "mouseover" as const,
+          renderCharacters: true,
+          maxColumn: 80,
+          scale: 1.5
+        },
+    scrollbar: props.diffSideBySide
+      ? {
+          vertical: "auto" as const,
+          horizontal: "auto" as const,
+          verticalScrollbarSize: 12,
+          horizontalScrollbarSize: 10
+        }
+      : {
+          vertical: "visible" as const,
+          horizontal: "auto" as const,
+          verticalScrollbarSize: 12,
+          horizontalScrollbarSize: 10
+        },
+    scrollBeyondLastLine: false,
+    renderOverviewRuler: false,
+    stickyScroll: { enabled: false },
+    renderLineHighlight: "line" as const,
+    renderWhitespace: "selection" as const,
+    bracketPairColorization: { enabled: true },
+    experimental: {
+      useTrueInlineView: true
+    }
+  }), [props.diffSideBySide, wordWrapEnabled, lineNumbersEnabled]);
+
+  useEffect(() => {
+    if (!changePreview || !diffEditorRef.current) return;
+    const shell = document.querySelector('[data-testid="changes-preview-shell"]');
+    if (!shell) return;
+    const target = shell.querySelector(".editor.modified .minimap") || shell.querySelector(".minimap:not([style*='display: none'])");
+    if (!target) return;
+    const observer = new MutationObserver(() => {
+      const minimaps = shell.querySelectorAll(".minimap");
+      minimaps.forEach((m) => {
+        const cs = window.getComputedStyle(m);
+        if (cs.display === "none" && m.closest(".editor.modified")) {
+          applyMinimapToDiffEditor(diffEditorRef.current, "MutationObserver");
+        }
+      });
+    });
+    observer.observe(target, { attributes: true, attributeFilter: ["style", "class"] });
+    return () => observer.disconnect();
+  }, [changePreview?.path, applyMinimapToDiffEditor]);
+
+  useEffect(() => {
+    if (props.diffSideBySide || !diffEditorRef.current) return;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    [100, 300, 600, 1000].forEach(d => {
+      timers.push(setTimeout(() => {
+        applyMinimapToDiffEditor(diffEditorRef.current, `diffModeChange-${d}ms`);
+      }, d));
+    });
+    return () => timers.forEach(t => clearTimeout(t));
+  }, [props.diffSideBySide, applyMinimapToDiffEditor]);
+
   const handleNavigatorResizeStart = (event: React.PointerEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.stopPropagation();
@@ -788,56 +953,8 @@ export function ChangesPanel(props: RightPanelViewProps) {
                     language={changePreviewLanguage}
                     original={changePreview.baseContent}
                     modified={changePreview.currentContent}
-                    options={{
-                      automaticLayout: true,
-                      readOnly: true,
-                      renderSideBySide: props.diffSideBySide,
-                      renderSideBySideInlineBreakpoint: 1,
-                      useInlineViewWhenSpaceIsLimited: false,
-                      renderIndicators: false,
-                      renderMarginRevertIcon: false,
-                      wordWrap: wordWrapEnabled ? "on" : "off",
-                      diffWordWrap: wordWrapEnabled ? "on" : "off",
-                      lineNumbers: lineNumbersEnabled ? "on" : "off",
-                      lineNumbersMinChars: 6,
-                      lineDecorationsWidth: 0,
-                      folding: false,
-                      showFoldingControls: "never",
-                      glyphMargin: false,
-                      minimap: props.diffSideBySide
-                        ? { enabled: false }
-                        : {
-                            enabled: true,
-                            side: "right",
-                            size: "fill",
-                            showSlider: "mouseover",
-                            renderCharacters: true,
-                            maxColumn: 80,
-                            scale: 1.5
-                          },
-                      scrollbar: props.diffSideBySide
-                        ? {
-                            vertical: "auto",
-                            horizontal: "auto",
-                            verticalScrollbarSize: 12,
-                            horizontalScrollbarSize: 10
-                          }
-                        : {
-                            vertical: "visible",
-                            horizontal: "auto",
-                            verticalScrollbarSize: 12,
-                            horizontalScrollbarSize: 10
-                          },
-                      scrollBeyondLastLine: false,
-                      renderOverviewRuler: false,
-                      stickyScroll: { enabled: false },
-                      renderLineHighlight: "line",
-                      renderWhitespace: "selection",
-                      bracketPairColorization: { enabled: true },
-                      experimental: {
-                        useTrueInlineView: true
-                      }
-                    }}
+                    options={diffEditorOptions}
+                    onMount={handleDiffEditorMount}
                   />
                 </div>
               </div>
