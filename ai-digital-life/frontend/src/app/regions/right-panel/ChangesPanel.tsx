@@ -368,7 +368,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
     });
     observer.observe(target, { attributes: true, attributeFilter: ["style", "class"] });
     return () => observer.disconnect();
-  }, [changePreview?.path, applyMinimapToDiffEditor]);
+  }, [changePreview, applyMinimapToDiffEditor]);
 
   useEffect(() => {
     if (props.diffSideBySide || !diffEditorRef.current) return;
@@ -423,7 +423,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
       scrollDisposable?.dispose();
       controller.dispose();
     };
-  }, [changePreview?.path, props.diffSideBySide]);
+  }, [changePreview, props.diffSideBySide]);
 
   const handleNavigatorResizeStart = (event: React.PointerEvent<HTMLDivElement>) => {
     event.preventDefault();
