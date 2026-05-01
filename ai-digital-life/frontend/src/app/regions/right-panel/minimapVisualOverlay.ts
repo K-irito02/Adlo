@@ -83,8 +83,13 @@ function renderDiffIndicators(
   if (minimapHeight <= 0) return;
 
   diffRanges.forEach((range) => {
-    const startY = Math.max(0, (range.startLine - 1) / totalLines) * minimapHeight;
-    const endY = Math.min(minimapHeight, range.endLine / totalLines) * minimapHeight;
+    const startLine = Math.max(1, range.startLine);
+    const endLine = Math.max(startLine, range.endLine);
+
+    if (endLine < 1) return;
+
+    const startY = Math.max(0, (startLine - 1) / totalLines) * minimapHeight;
+    const endY = Math.min(minimapHeight, endLine / totalLines) * minimapHeight;
     const height = Math.max(2, endY - startY);
 
     const indicator = document.createElement("div");

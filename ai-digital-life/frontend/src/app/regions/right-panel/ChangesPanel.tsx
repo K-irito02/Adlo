@@ -387,21 +387,26 @@ export function ChangesPanel(props: RightPanelViewProps) {
       return;
     }
 
-    type EditorLike = {
+    type DiffEditorLike = {
+      getModifiedEditor(): ModifiedEditorLike | null;
+      getDiffInformation?(): Array<{ originalStartLineNumber: number; originalEndLineNumber: number; modifiedStartLineNumber: number; modifiedEndLineNumber: number }>;
+    };
+
+    type ModifiedEditorLike = {
       getScrollTop(): number;
       getScrollHeight(): number;
       getLayoutInfo(): { height: number };
       setScrollPosition(position: { scrollTop: number }): void;
       onDidScrollChange?(listener: () => void): { dispose(): void };
-      getDiffInformation?(): Array<{ originalStartLineNumber: number; originalEndLineNumber: number; modifiedStartLineNumber: number; modifiedEndLineNumber: number }>;
       getModel?(): { getLineCount(): number } | null;
     };
 
-    const getModifiedEditor = (): EditorLike | null => {
-      const inst = diffEditorRef.current as unknown as {
-        getModifiedEditor(): EditorLike | null;
-      } | null;
-      return inst?.getModifiedEditor() ?? null;
+    const getDiffEditor = (): DiffEditorLike | null => {
+      return diffEditorRef.current as unknown as DiffEditorLike | null;
+    };
+
+    const getModifiedEditor = (): ModifiedEditorLike | null => {
+      return getDiffEditor()?.getModifiedEditor() ?? null;
     };
 
     const controller = attachMinimapVisualOverlays(root, {
@@ -418,9 +423,9 @@ export function ChangesPanel(props: RightPanelViewProps) {
         getModifiedEditor()?.setScrollPosition({ scrollTop: value });
       },
       getDiffRanges: () => {
-        const ed = getModifiedEditor();
-        if (!ed?.getDiffInformation) return null;
-        const diffInfo = ed.getDiffInformation();
+        const diffEd = getDiffEditor();
+        if (!diffEd?.getDiffInformation) return null;
+        const diffInfo = diffEd.getDiffInformation();
         if (!diffInfo) return null;
         return diffInfo.map((change) => {
           const isInsert = change.originalStartLineNumber > change.originalEndLineNumber;

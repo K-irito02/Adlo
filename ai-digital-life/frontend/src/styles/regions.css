@@ -4213,22 +4213,22 @@
 .adl-minimap-diff-indicator {
   position: absolute;
   left: 0;
-  width: 3px;
+  width: 4px;
   pointer-events: none;
-  z-index: 2;
+  z-index: 4;
   border-radius: 0;
 }
 
 .adl-minimap-diff-indicator--insert {
-  background: var(--editor-diff-insert-bg);
+  background: var(--minimap-diff-insert);
 }
 
 .adl-minimap-diff-indicator--delete {
-  background: var(--editor-diff-remove-bg);
+  background: var(--minimap-diff-remove);
 }
 
 .adl-minimap-diff-indicator--modify {
-  background: var(--editor-diff-modify-bg);
+  background: var(--minimap-diff-modify);
 }
 
 .adl-tool-hint {
