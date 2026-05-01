@@ -21,6 +21,7 @@ import type { RightPanelViewProps } from "./types";
 import { countReviewedHunks, filterPatchFileSummaries, summarizePatchSet } from "./patchReview";
 import { buildChangeEntries, buildChangeTree, buildFlatChangeNodes, type ChangeTreeNode } from "./changesTree";
 import { collectDirectoryPaths, FileTree, type FileTreeContextMenuItem } from "./fileTree";
+import { attachMinimapVisualOverlays } from "./minimapVisualOverlay";
 import { detectEditorLanguage } from "../../workspacePaths";
 
 const CHANGES_BRANCH_STORAGE_KEY = "adl-ui:changes-branch";
@@ -124,6 +125,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
   const branchMenuRef = useRef<HTMLDivElement | null>(null);
   const changesMenuRef = useRef<HTMLDivElement | null>(null);
   const activeCardRef = useRef<Record<string, HTMLElement | null>>({});
+  const changesPreviewShellRef = useRef<HTMLDivElement | null>(null);
   const validation = latestPatchApplication?.validation;
   const reviewCounts = useMemo(() => countReviewedHunks(activePatchSet), [activePatchSet]);
   const patchSummaries = useMemo(
@@ -236,11 +238,11 @@ export function ChangesPanel(props: RightPanelViewProps) {
       const minimapOpts = {
         enabled: true,
         side: "right" as const,
-        size: "fit" as const,
-        showSlider: "mouseover" as const,
-        renderCharacters: false,
-        maxColumn: 48,
-        scale: 1
+        size: "fill" as const,
+        showSlider: "always" as const,
+        renderCharacters: true,
+        maxColumn: 80,
+        scale: 1.5
       };
       diffInst.updateOptions({
         minimap: minimapOpts,
@@ -322,11 +324,11 @@ export function ChangesPanel(props: RightPanelViewProps) {
       : {
           enabled: true,
           side: "right" as const,
-          size: "fit" as const,
-          showSlider: "mouseover" as const,
-          renderCharacters: false,
-          maxColumn: 48,
-          scale: 1
+          size: "fill" as const,
+          showSlider: "always" as const,
+          renderCharacters: true,
+          maxColumn: 80,
+          scale: 1.5
         },
     scrollbar: props.diffSideBySide
       ? {
@@ -378,6 +380,50 @@ export function ChangesPanel(props: RightPanelViewProps) {
     });
     return () => timers.forEach(t => clearTimeout(t));
   }, [props.diffSideBySide, applyMinimapToDiffEditor]);
+
+  useEffect(() => {
+    const root = changesPreviewShellRef.current;
+    if (!root || props.diffSideBySide || !changePreview) {
+      return;
+    }
+
+    type EditorLike = {
+      getScrollTop(): number;
+      getScrollHeight(): number;
+      getLayoutInfo(): { height: number };
+      setScrollPosition(position: { scrollTop: number }): void;
+      onDidScrollChange?(listener: () => void): { dispose(): void };
+    };
+
+    const getModifiedEditor = (): EditorLike | null => {
+      const inst = diffEditorRef.current as unknown as {
+        getModifiedEditor(): EditorLike | null;
+      } | null;
+      return inst?.getModifiedEditor() ?? null;
+    };
+
+    const controller = attachMinimapVisualOverlays(root, {
+      getScrollState: () => {
+        const ed = getModifiedEditor();
+        if (!ed) return null;
+        return {
+          scrollTop: ed.getScrollTop(),
+          scrollHeight: ed.getScrollHeight(),
+          clientHeight: ed.getLayoutInfo().height
+        };
+      },
+      setScrollTop: (value) => {
+        getModifiedEditor()?.setScrollPosition({ scrollTop: value });
+      }
+    });
+
+    const scrollDisposable = getModifiedEditor()?.onDidScrollChange?.(() => controller.refresh());
+
+    return () => {
+      scrollDisposable?.dispose();
+      controller.dispose();
+    };
+  }, [changePreview?.path, props.diffSideBySide]);
 
   const handleNavigatorResizeStart = (event: React.PointerEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -941,7 +987,11 @@ export function ChangesPanel(props: RightPanelViewProps) {
                   {latestPatchApplication?.patchSet.status === "applied" ? <span className="adl-chip adl-chip--success">{t.changesApplied}</span> : null}
                 </div>
               ) : null}
-              <div className="adl-tool-editor adl-tool-editor--changes" data-testid="changes-preview-shell">
+              <div
+                ref={changesPreviewShellRef}
+                className="adl-tool-editor adl-tool-editor--changes"
+                data-testid="changes-preview-shell"
+              >
                 <div className="adl-tool-editor__surface">
                   <DiffEditor
                     height="100%"

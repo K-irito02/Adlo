@@ -34,3 +34,7 @@ ai-digital-life/.turbo/
 .env
 .env.local
 .env.*.local
+
+# Cursor IDE runtime cache
+.cursor/hooks/electron-profile/
+.cursor/hooks/.restart-desktop-dev.state.json*

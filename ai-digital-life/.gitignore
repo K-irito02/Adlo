@@ -27,3 +27,9 @@ Thumbs.db
 # Local dev runtime logs
 /.run-logs/
 /*.log
+
+# Tauri auto-generated schemas
+/src-tauri/gen/
+
+# TypeScript incremental build cache
+*.tsbuildinfo

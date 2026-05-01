@@ -12,15 +12,15 @@ describe("changes preview editor options", () => {
     expect(changesPanelSource).toContain("lineDecorationsWidth: 0");
   });
 
-  it("keeps only the minimap rail for inline preview while preserving side-by-side scrollbars", () => {
+  it("matches the files minimap rendering in inline preview while preserving side-by-side scrollbars", () => {
     expect(changesPanelSource).toContain("minimap:");
     expect(changesPanelSource).toContain("props.diffSideBySide");
     expect(changesPanelSource).toContain('side: "right"');
-    expect(changesPanelSource).toContain('size: "fit"');
-    expect(changesPanelSource).toContain('showSlider: "mouseover"');
-    expect(changesPanelSource).toContain("renderCharacters: false");
-    expect(changesPanelSource).toContain("maxColumn: 48");
-    expect(changesPanelSource).toContain("scale: 1");
+    expect(changesPanelSource).toContain('size: "fill"');
+    expect(changesPanelSource).toContain('showSlider: "always"');
+    expect(changesPanelSource).toContain("renderCharacters: true");
+    expect(changesPanelSource).toContain("maxColumn: 80");
+    expect(changesPanelSource).toContain("scale: 1.5");
     expect(changesPanelSource).toContain("scrollbar:");
     expect(changesPanelSource).toContain('vertical: "hidden"');
     expect(changesPanelSource).toContain("verticalScrollbarSize: 0");
@@ -35,10 +35,11 @@ describe("changes preview editor options", () => {
     expect(changesPanelSource).toContain("diffEditorOptions");
     expect(changesPanelSource).toContain('enabled: true');
     expect(changesPanelSource).toContain('side: "right"');
-    expect(changesPanelSource).toContain('size: "fit"');
-    expect(changesPanelSource).toContain("renderCharacters: false");
-    expect(changesPanelSource).toContain("maxColumn: 48");
-    expect(changesPanelSource).toContain("scale: 1");
+    expect(changesPanelSource).toContain('size: "fill"');
+    expect(changesPanelSource).toContain('showSlider: "always"');
+    expect(changesPanelSource).toContain("renderCharacters: true");
+    expect(changesPanelSource).toContain("maxColumn: 80");
+    expect(changesPanelSource).toContain("scale: 1.5");
     expect(changesPanelSource).toContain("verticalScrollbarSize: 0");
   });
 });

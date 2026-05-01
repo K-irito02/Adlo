@@ -4,7 +4,10 @@ import { describe, expect, it } from "vitest";
 const regionsCss = readFileSync(new URL("../../../../src/styles/regions.css", import.meta.url), "utf8");
 
 function getRuleBody(selector: string) {
-  const selectorStart = regionsCss.indexOf(selector);
+  const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const selectorPattern = new RegExp(`${escapedSelector}\\s*\\{`);
+  const match = selectorPattern.exec(regionsCss);
+  const selectorStart = match?.index ?? -1;
   expect(selectorStart, `Missing CSS rule for selector: ${selector}`).toBeGreaterThanOrEqual(0);
   const blockStart = regionsCss.indexOf("{", selectorStart);
   const blockEnd = regionsCss.indexOf("}", blockStart);
@@ -43,7 +46,7 @@ describe("changes preview gutter spacing", () => {
     expect(regionsCss).toContain(".monaco-diff-editor:not(.side-by-side) .margin-view-overlays .line-numbers");
   });
 
-  it("keeps the inline minimap visible with a taller slider rail", () => {
+  it("keeps the inline minimap visible with the same rail width as files", () => {
     const inlineMinimapRule = getRuleBody(
       ".adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .minimap"
     );
@@ -55,8 +58,10 @@ describe("changes preview gutter spacing", () => {
     );
 
     expect(inlineMinimapRule).toContain("right: 0 !important;");
-    expect(inlineMinimapRule).toContain("width: 36px !important;");
-    expect(inlineMinimapRule).toContain("max-width: 36px !important;");
+    expect(inlineMinimapRule).toContain("--adl-minimap-slider-visual-height: 48px;");
+    expect(inlineMinimapRule).toContain("width: 84px !important;");
+    expect(inlineMinimapRule).toContain("max-width: 84px !important;");
+    expect(inlineMinimapRule).toContain("overflow: hidden !important;");
     expect(inlineMinimapRule).toContain("background: var(--editor-bg) !important;");
     expect(inlineMinimapRule).not.toContain("border-left");
     expect(inlineMinimapRule).toContain("inset -1px 0 0 rgba(0, 0, 0, 0.18)");
@@ -73,9 +78,15 @@ describe("changes preview gutter spacing", () => {
     expect(inlineSliderRule).toContain("left: 0 !important;");
     expect(inlineSliderRule).toContain("right: 0 !important;");
     expect(inlineSliderRule).toContain("width: 100% !important;");
-    expect(inlineSliderRule).toContain("min-height: 40px !important;");
-    expect(inlineSliderRule).toContain("max-height: 40% !important;");
-    expect(inlineSliderRule).toContain("background: var(--surface-hover) !important;");
+    expect(inlineSliderRule).not.toContain("min-height:");
+    expect(inlineSliderRule).not.toContain("max-height:");
+    expect(inlineSliderRule).toContain("background: transparent !important;");
+    expect(inlineSliderRule).toContain("pointer-events: none !important;");
+    expect(regionsCss).toContain(".adl-minimap-slider-visual");
+    expect(regionsCss).toContain(".adl-minimap-slider-visual--dragging");
+    expect(regionsCss).toContain("cursor: grabbing");
+    expect(regionsCss).toContain("z-index: 3;");
+    expect(regionsCss).toContain("cursor: grab;");
   });
 
   it("keeps the standard editor minimap visible with a consistent slider rail", () => {
@@ -90,6 +101,8 @@ describe("changes preview gutter spacing", () => {
     );
 
     expect(standardMinimapRule).toContain("width: 84px !important;");
+    expect(standardMinimapRule).toContain("--adl-minimap-slider-visual-height: 48px;");
+    expect(standardMinimapRule).toContain("overflow: hidden !important;");
     expect(standardMinimapRule).toContain("background: var(--editor-bg) !important;");
     expect(standardMinimapRule).not.toContain("border-left");
     expect(standardMinimapRule).toContain("inset -1px 0 0 rgba(0, 0, 0, 0.18)");
@@ -105,9 +118,10 @@ describe("changes preview gutter spacing", () => {
     expect(standardDarkRule).toContain("inset -1px 0 0 rgba(0, 0, 0, 0.80)");
 
     expect(standardSliderRule).toContain("width: 84px !important;");
-    expect(standardSliderRule).toContain("min-height: 40px !important;");
-    expect(standardSliderRule).toContain("max-height: 40% !important;");
-    expect(standardSliderRule).toContain("background: var(--surface-hover) !important;");
+    expect(standardSliderRule).not.toContain("min-height:");
+    expect(standardSliderRule).not.toContain("max-height:");
+    expect(standardSliderRule).toContain("background: transparent !important;");
+    expect(standardSliderRule).toContain("pointer-events: none !important;");
   });
 
   it("constrains diff editor width in changes panel", () => {

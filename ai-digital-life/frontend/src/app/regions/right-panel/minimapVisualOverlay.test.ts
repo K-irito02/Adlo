@@ -1,0 +1,103 @@
+import { describe, expect, it } from "vitest";
+
+import { computeMinimapVisualFrame, computeScrollRatio } from "./minimapVisualOverlay";
+
+describe("computeMinimapVisualFrame", () => {
+  it("scrollRatio 0 positions overlay at top", () => {
+    expect(
+      computeMinimapVisualFrame({
+        minimapHeight: 600,
+        scrollRatio: 0,
+        visualHeight: 48
+      })
+    ).toEqual({ top: 0, height: 48 });
+  });
+
+  it("scrollRatio 1 positions overlay at bottom", () => {
+    expect(
+      computeMinimapVisualFrame({
+        minimapHeight: 600,
+        scrollRatio: 1,
+        visualHeight: 48
+      })
+    ).toEqual({ top: 552, height: 48 });
+  });
+
+  it("scrollRatio 0.5 positions overlay at center", () => {
+    expect(
+      computeMinimapVisualFrame({
+        minimapHeight: 600,
+        scrollRatio: 0.5,
+        visualHeight: 48
+      })
+    ).toEqual({ top: 276, height: 48 });
+  });
+
+  it("shrinks height when minimap is smaller than visual size", () => {
+    expect(
+      computeMinimapVisualFrame({
+        minimapHeight: 30,
+        scrollRatio: 0.5,
+        visualHeight: 48
+      })
+    ).toEqual({ top: 0, height: 30 });
+  });
+
+  it("clamps scrollRatio to [0, 1]", () => {
+    const over = computeMinimapVisualFrame({
+      minimapHeight: 600,
+      scrollRatio: 1.5,
+      visualHeight: 48
+    });
+    expect(over.top).toBe(552);
+
+    const under = computeMinimapVisualFrame({
+      minimapHeight: 600,
+      scrollRatio: -0.5,
+      visualHeight: 48
+    });
+    expect(under.top).toBe(0);
+  });
+
+  it("returns zero frame when minimap height is zero", () => {
+    expect(
+      computeMinimapVisualFrame({
+        minimapHeight: 0,
+        scrollRatio: 0.5,
+        visualHeight: 48
+      })
+    ).toEqual({ top: 0, height: 0 });
+  });
+});
+
+describe("computeScrollRatio", () => {
+  it("returns 0 when no scrollable content", () => {
+    expect(
+      computeScrollRatio({ scrollTop: 0, scrollHeight: 500, clientHeight: 500 })
+    ).toBe(0);
+  });
+
+  it("returns 1 at bottom of document", () => {
+    expect(
+      computeScrollRatio({ scrollTop: 1000, scrollHeight: 2000, clientHeight: 1000 })
+    ).toBe(1);
+  });
+
+  it("returns 0.5 at middle of document", () => {
+    expect(
+      computeScrollRatio({ scrollTop: 500, scrollHeight: 2000, clientHeight: 1000 })
+    ).toBe(0.5);
+  });
+
+  it("clamps negative scrollTop to 0", () => {
+    expect(
+      computeScrollRatio({ scrollTop: -10, scrollHeight: 2000, clientHeight: 1000 })
+    ).toBe(0);
+  });
+
+  it("returns 0 when content is shorter than viewport", () => {
+    expect(
+      computeScrollRatio({ scrollTop: 0, scrollHeight: 200, clientHeight: 500 })
+    ).toBe(0);
+  });
+});

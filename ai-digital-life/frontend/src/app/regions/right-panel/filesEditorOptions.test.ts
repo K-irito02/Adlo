@@ -8,8 +8,8 @@ describe("files panel editor options", () => {
     expect(filesPanelSource).toContain("minimap:");
     expect(filesPanelSource).toContain("enabled: true");
     expect(filesPanelSource).toContain('side: "right"');
+    expect(filesPanelSource).toContain('showSlider: "always"');
     expect(filesPanelSource).toContain('size: "fill"');
-    expect(filesPanelSource).toContain('showSlider: "mouseover"');
     expect(filesPanelSource).toContain("renderCharacters: true");
     expect(filesPanelSource).toContain("maxColumn: 80");
     expect(filesPanelSource).toContain("scale: 1.5");

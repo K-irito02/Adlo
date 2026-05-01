@@ -4032,9 +4032,12 @@
 }
 
 .adl-tool-editor:not(.adl-tool-editor--changes) .monaco-editor .minimap {
+  position: absolute !important;
   left: auto !important;
   right: 0 !important;
+  --adl-minimap-slider-visual-height: 48px;
   width: 84px !important;
+  overflow: hidden !important;
   background: var(--editor-bg) !important;
   border: none !important;
   outline: none !important;
@@ -4074,10 +4077,9 @@
 
 .adl-tool-editor:not(.adl-tool-editor--changes) .monaco-editor .minimap-slider {
   width: 84px !important;
-  min-height: 40px !important;
-  max-height: 40% !important;
   box-sizing: border-box;
-  background: var(--surface-hover) !important;
+  background: transparent !important;
+  pointer-events: none !important;
 }
 
 .adl-tool-editor:not(.adl-tool-editor--changes) .monaco-editor .minimap-slider-horizontal {
@@ -4097,11 +4099,14 @@
 }
 
 .adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .minimap {
+  position: absolute !important;
   left: auto !important;
   right: 0 !important;
-  width: 36px !important;
-  min-width: 36px !important;
-  max-width: 36px !important;
+  --adl-minimap-slider-visual-height: 48px;
+  width: 84px !important;
+  min-width: 84px !important;
+  max-width: 84px !important;
+  overflow: hidden !important;
   background: var(--editor-bg) !important;
   border: none !important;
   outline: none !important;
@@ -4151,10 +4156,9 @@
   left: 0 !important;
   right: 0 !important;
   width: 100% !important;
-  min-height: 40px !important;
-  max-height: 40% !important;
   box-sizing: border-box;
-  background: var(--surface-hover) !important;
+  background: transparent !important;
+  pointer-events: none !important;
 }
 
 .adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .minimap-slider-horizontal {
@@ -4164,6 +4168,20 @@
 .adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .minimap canvas,
 .adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .minimap .minimap-decorations-layer {
   width: 100% !important;
+}
+
+.adl-minimap-slider-visual {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 3;
+  border-radius: 0;
+  background: var(--surface-hover);
+  cursor: grab;
+}
+
+.adl-minimap-slider-visual--dragging {
+  cursor: grabbing !important;
 }
 
 .adl-tool-hint {

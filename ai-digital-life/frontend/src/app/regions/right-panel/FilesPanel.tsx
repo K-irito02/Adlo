@@ -25,6 +25,7 @@ import { TooltipSimple } from "../../components/Tooltip";
 import { useUiStore } from "../../ui-store";
 import { normalizeWorkspaceRelativePath } from "../../workspacePaths";
 import { collectDirectoryPaths, FileTree } from "./fileTree";
+import { attachMinimapVisualOverlays } from "./minimapVisualOverlay";
 import {
   derivePatchHunkChangeKind,
   getPatchHunkTargetLine,
@@ -102,7 +103,7 @@ function buildMonacoEditorOptions(options: {
       enabled: true,
       side: "right",
       size: "fill",
-      showSlider: "mouseover",
+      showSlider: "always",
       renderCharacters: true,
       maxColumn: 80,
       scale: 1.5
@@ -218,6 +219,7 @@ export function FilesPanel(props: RightPanelViewProps) {
   const [createPathValue, setCreatePathValue] = useState("");
   const [wordWrapEnabled, setWordWrapEnabled] = useState(false);
   const [lineNumbersEnabled, setLineNumbersEnabled] = useState(true);
+  const editorShellRef = useRef<HTMLDivElement | null>(null);
   const [agentAnnotationsEnabled, setAgentAnnotationsEnabled] = useState(true);
   const [collapsePreviewActive, setCollapsePreviewActive] = useState(false);
   const navigatorCollapsed = useUiStore((state) => state.navigatorCollapsedByTool.files);
@@ -779,6 +781,46 @@ export function FilesPanel(props: RightPanelViewProps) {
     [onDiffMount, replaceFoldingHintBindings]
   );
 
+  useEffect(() => {
+    const root = editorShellRef.current;
+    if (!root || !selectedFilePath) {
+      return;
+    }
+
+    type EditorLike = {
+      getScrollTop(): number;
+      getScrollHeight(): number;
+      getLayoutInfo(): { height: number };
+      setScrollPosition(position: { scrollTop: number }): void;
+      onDidScrollChange?(listener: () => void): { dispose(): void };
+    };
+
+    const getEditor = (): EditorLike | null =>
+      props.standardEditorRef.current as unknown as EditorLike | null;
+
+    const controller = attachMinimapVisualOverlays(root, {
+      getScrollState: () => {
+        const ed = getEditor();
+        if (!ed) return null;
+        return {
+          scrollTop: ed.getScrollTop(),
+          scrollHeight: ed.getScrollHeight(),
+          clientHeight: ed.getLayoutInfo().height
+        };
+      },
+      setScrollTop: (value) => {
+        getEditor()?.setScrollPosition({ scrollTop: value });
+      }
+    });
+
+    const scrollDisposable = getEditor()?.onDidScrollChange?.(() => controller.refresh());
+
+    return () => {
+      scrollDisposable?.dispose();
+      controller.dispose();
+    };
+  }, [selectedFilePath, filePatch?.relativePath, props.standardEditorRef]);
+
   return (
     <div className="adl-tool-panel adl-tool-panel--files">
       <div className="adl-tool-context adl-tool-context--files" aria-label={t.fileExplorerContext}>
@@ -1143,7 +1185,7 @@ export function FilesPanel(props: RightPanelViewProps) {
         <div className="adl-tool-primary">
           {editorHint ? <p className="adl-tool-hint">{editorHint}</p> : null}
 
-          <div className="adl-tool-editor" data-testid="editor-shell">
+          <div ref={editorShellRef} className="adl-tool-editor" data-testid="editor-shell">
             {!selectedFilePath ? (
               null
             ) : filePatch && filePatch.relativePath === selectedFilePath ? (
