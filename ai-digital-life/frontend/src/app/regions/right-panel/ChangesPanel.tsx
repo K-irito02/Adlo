@@ -227,26 +227,37 @@ export function ChangesPanel(props: RightPanelViewProps) {
       getOriginalEditor(): { updateOptions(options: unknown): void } | null;
     };
     try {
+      const inlineScrollbarOpts = {
+        vertical: "hidden" as const,
+        horizontal: "auto" as const,
+        verticalScrollbarSize: 0,
+        horizontalScrollbarSize: 10
+      };
       const minimapOpts = {
         enabled: true,
         side: "right" as const,
-        size: "fill" as const,
+        size: "fit" as const,
         showSlider: "mouseover" as const,
-        renderCharacters: true,
-        maxColumn: 80,
-        scale: 1.5
+        renderCharacters: false,
+        maxColumn: 48,
+        scale: 1
       };
-      diffInst.updateOptions({ minimap: minimapOpts });
+      diffInst.updateOptions({
+        minimap: minimapOpts,
+        scrollbar: inlineScrollbarOpts
+      });
       const modifiedEditor = diffInst.getModifiedEditor();
       if (modifiedEditor) {
         (modifiedEditor as { updateOptions(options: unknown): void }).updateOptions({
-          minimap: minimapOpts
+          minimap: minimapOpts,
+          scrollbar: inlineScrollbarOpts
         });
       }
       const originalEditor = diffInst.getOriginalEditor();
       if (originalEditor) {
         (originalEditor as { updateOptions(options: unknown): void }).updateOptions({
-          minimap: { enabled: false }
+          minimap: { enabled: false },
+          scrollbar: inlineScrollbarOpts
         });
       }
       return true;
@@ -311,11 +322,11 @@ export function ChangesPanel(props: RightPanelViewProps) {
       : {
           enabled: true,
           side: "right" as const,
-          size: "fill" as const,
+          size: "fit" as const,
           showSlider: "mouseover" as const,
-          renderCharacters: true,
-          maxColumn: 80,
-          scale: 1.5
+          renderCharacters: false,
+          maxColumn: 48,
+          scale: 1
         },
     scrollbar: props.diffSideBySide
       ? {
@@ -325,9 +336,9 @@ export function ChangesPanel(props: RightPanelViewProps) {
           horizontalScrollbarSize: 10
         }
       : {
-          vertical: "visible" as const,
+          vertical: "hidden" as const,
           horizontal: "auto" as const,
-          verticalScrollbarSize: 12,
+          verticalScrollbarSize: 0,
           horizontalScrollbarSize: 10
         },
     scrollBeyondLastLine: false,

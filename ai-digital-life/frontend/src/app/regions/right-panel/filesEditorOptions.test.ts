@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 const filesPanelSource = readFileSync(new URL("../../../../src/app/regions/right-panel/FilesPanel.tsx", import.meta.url), "utf8");
 
 describe("files panel editor options", () => {
-  it("uses a VS Code-style minimap and visible scrollbar", () => {
+  it("uses a VS Code-style minimap while hiding the standard vertical scrollbar", () => {
     expect(filesPanelSource).toContain("minimap:");
     expect(filesPanelSource).toContain("enabled: true");
     expect(filesPanelSource).toContain('side: "right"');
@@ -14,7 +14,7 @@ describe("files panel editor options", () => {
     expect(filesPanelSource).toContain("maxColumn: 80");
     expect(filesPanelSource).toContain("scale: 1.5");
     expect(filesPanelSource).toContain("scrollbar:");
-    expect(filesPanelSource).toContain('vertical: "visible"');
-    expect(filesPanelSource).toContain("verticalScrollbarSize: 12");
+    expect(filesPanelSource).toContain('vertical: "hidden"');
+    expect(filesPanelSource).toContain("verticalScrollbarSize: 0");
   });
 });

@@ -108,9 +108,9 @@ function buildMonacoEditorOptions(options: {
       scale: 1.5
     },
     scrollbar: {
-      vertical: "visible",
+      vertical: "hidden",
       horizontal: "auto",
-      verticalScrollbarSize: 12,
+      verticalScrollbarSize: 0,
       horizontalScrollbarSize: 10
     },
     scrollBeyondLastLine: false,
