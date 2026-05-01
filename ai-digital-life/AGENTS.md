@@ -73,6 +73,7 @@
 ```
 ai-digital-life/
 ├── Cargo.toml                  # Cargo workspace 根
+├── .mcp.json                   # MCP 服务器配置（Chrome DevTools 等浏览器测试工具）
 ├── src-tauri/                  # Tauri Rust 入口
 │   ├── Cargo.toml
 │   ├── tauri.conf.json         # Tauri 应用配置
@@ -120,6 +121,8 @@ ai-digital-life/
 ├── docs/
 │   ├── architecture/           # 架构文档
 │   └── design-system/          # 设计系统文档
+├── scripts/                    # 开发脚本
+│   └── run-project-surface.mjs # 动态端口选择，启动浏览器/Tauri/两者
 └── tests/
     ├── integration/            # Rust 集成测试
     └── e2e/                    # WebDriver E2E

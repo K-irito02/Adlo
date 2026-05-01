@@ -12,7 +12,7 @@ alwaysApply: true
 | `README.md` | 本文件：规则索引、维护协议、新增指南 | 始终应用 |
 | `project-overview.md` | 项目总览、双根结构、技术栈、真源定位 | 始终应用 |
 | `codebase-map.md` | 代码地图、包列表、目录结构、索引策略 | 涉及 ai-digital-life/ 时 |
-| `electron-shell.md` | Tauri Command / capability 边界、安全基线、事件白名单 | 涉及桌面应用时 |
+| `tauri-shell.md` | Tauri Command / capability 边界、安全基线、事件白名单 | 涉及桌面应用时 |
 | `quality-gates.md` | 测试、类型检查、迁移、合并前检查 | 涉及测试/构建时 |
 | `design-system.md` | 设计系统约束、主题、组件规范 | 涉及 UI/样式时 |
 | `phase-boundary.md` | 阶段边界、范围限制、排除项 | 涉及新功能规划时 |
@@ -32,7 +32,7 @@ alwaysApply: true
 | 变更类型 | 需更新的规则文件 |
 |----------|------------------|
 | 新增/重命名 package | `codebase-map.md` |
-| Tauri Command / capability / 事件通道变更 | `electron-shell.md` |
+| Tauri Command / capability / 事件通道变更 | `tauri-shell.md` |
 | 测试命令变更 | `quality-gates.md` |
 | 设计系统变更 | `design-system.md` |
 | Phase 范围变更 | `phase-boundary.md` |

@@ -213,3 +213,178 @@ it("constrains diff editor width in changes panel", () => {
 
 ---
 
+## 1. 高层摘要 (TL;DR)
+
+*   **影响范围:** 🟡 **中等** - 优化差异编辑器的布局机制和配置，简化代码逻辑
+*   **核心变更:**
+    *   移除实验性 `useTrueInlineView` 配置，简化编辑器选项
+    *   重构布局触发逻辑，移除对 `modified` 编辑器的单独布局调用
+    *   优化布局时机，减少延迟（从 150ms → 50ms）
+    *   新增内联模式样式测试用例
+
+---
+
+## 2. 可视化概览 (代码与逻辑映射)
+
+```mermaid
+graph TD
+    subgraph "ChangesPanel.tsx"
+        A["useEffect<br/>编辑器初始化"] --> B["triggerRelayout()<br/>触发重新布局"]
+        B --> C["de.layout()<br/>主编辑器布局"]
+        B --> D["applyMinimapToDiffEditor()<br/>应用小地图"]
+        
+        E["onDidUpdateDiff<br/>差异更新事件"] --> F["setTimeout(50ms)<br/>防抖延迟"]
+        F --> B
+        
+        G["diffEditorOptions<br/>编辑器配置"] --> H["移除 useTrueInlineView"]
+    end
+    
+    subgraph "测试文件"
+        I["changesEditorOptions.test.ts"] --> J["移除 useTrueInlineView 断言"]
+        K["changesEditorSpacing.test.ts"] --> L["新增内联模式宽度测试"]
+    end
+    
+    style A fill:#e3f2fd,color:#0d47a1
+    style B fill:#fff3e0,color:#e65100
+    style H fill:#c8e6c9,color:#1a5e20
+    style L fill:#f3e5f5,color:#7b1fa2
+```
+
+---
+
+## 3. 详细变更分析
+
+### 📦 组件 1: ChangesPanel.tsx (主文件)
+
+**变更类型:** 代码重构与优化
+
+**主要逻辑变更:**
+
+| 变更项 | 旧实现 | 新实现 | 影响 |
+|--------|--------|--------|------|
+| **函数重命名** | `forceRelayout()` | `triggerRelayout()` | 更准确的语义命名 |
+| **布局调用** | 主编辑器 + `modified` 编辑器双重布局 | 仅主编辑器布局 | 简化逻辑，减少冗余 |
+| **延迟策略** | `requestAnimationFrame` + `setTimeout(150ms)` | 仅 `requestAnimationFrame` | 减少不必要的延迟 |
+| **防抖延迟** | 80ms | 50ms | 更快的响应速度 |
+| **实验性配置** | `experimental: { useTrueInlineView: true }` | 已移除 | 移除不稳定配置 |
+
+**关键代码变更:**
+
+```typescript
+// 旧代码 - 双重布局 + 延迟
+const forceRelayout = () => {
+  // ... 获取尺寸
+  de.layout(dim);
+  try {
+    const modified = de.getModifiedEditor();
+    modified?.layout(dim);  // ❌ 移除
+  } catch (_e) { /* ignore */ }
+  applyMinimapToDiffEditor(diffEditorRef.current, "forceRelayout");
+};
+
+requestAnimationFrame(() => {
+  forceRelayout();
+  setTimeout(forceRelayout, 150);  // ❌ 移除额外延迟
+});
+
+// 新代码 - 简化布局
+const triggerRelayout = () => {
+  // ... 获取尺寸
+  de.layout({ width: Math.floor(rect.width), height: Math.floor(rect.height) });
+  applyMinimapToDiffEditor(diffEditorRef.current, "relayout");
+};
+
+requestAnimationFrame(triggerRelayout);  // ✅ 单次触发
+```
+
+**配置变更:**
+
+```typescript
+// 移除的配置
+experimental: {
+  useTrueInlineView: true  // ❌ 实验性功能已移除
+}
+```
+
+---
+
+### 🧪 组件 2: changesEditorOptions.test.ts (测试文件)
+
+**变更类型:** 测试更新
+
+**变更说明:**
+- 移除对 `useTrueInlineView` 配置的断言检查
+- 与主文件配置移除保持一致
+
+```typescript
+// 移除的断言
+expect(changesPanelSource).toContain("useTrueInlineView");  // ❌ 已删除
+```
+
+---
+
+### 🧪 组件 3: changesEditorSpacing.test.ts (测试文件)
+
+**变更类型:** 新增测试用例
+
+**变更说明:**
+- 新增内联模式下修改编辑器内部元素的宽度样式验证
+- 确保 `.overflow-guard` 和 `.monaco-scrollable-element` 元素占满 100% 宽度
+
+```typescript
+it("fills inline modified editor internal elements to full width", () => {
+  const overflowGuardRule = getRuleBody(
+    ".adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .overflow-guard"
+  );
+  const scrollableElementRule = getRuleBody(
+    ".adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .monaco-scrollable-element"
+  );
+
+  expect(overflowGuardRule).toContain("width: 100% !important;");
+  expect(scrollableElementRule).toContain("width: 100% !important;");
+});
+```
+
+---
+
+## 4. 影响与风险评估
+
+### ⚠️ 潜在风险
+
+| 风险项 | 描述 | 缓解措施 |
+|--------|------|----------|
+| **布局渲染变化** | 移除 `modified` 编辑器的单独布局可能影响某些边缘情况 | 新增内联模式样式测试确保宽度正确 |
+| **实验性功能移除** | `useTrueInlineView` 移除可能影响内联视图行为 | 已有测试覆盖内联模式样式 |
+| **响应速度变化** | 防抖延迟从 80ms → 50ms 可能增加布局频率 | 需监控性能指标 |
+
+### ✅ 测试建议
+
+1. **功能测试:**
+   - 验证并排模式（side-by-side）下的差异显示正常
+   - 验证内联模式下的差异显示正常
+   - 测试编辑器窗口大小调整时的布局响应
+
+2. **性能测试:**
+   - 监控布局触发频率，确保 50ms 延迟不会导致性能问题
+   - 验证大型文件差异编辑的渲染性能
+
+3. **视觉回归测试:**
+   - 对比移除 `useTrueInlineView` 前后的内联视图渲染效果
+   - 确认内联模式下修改编辑器元素宽度正确填充
+
+---
+
+## 5. 总结
+
+本次变更主要是对差异编辑器的**布局机制进行优化和简化**：
+
+✨ **优点:**
+- 代码逻辑更清晰，移除了冗余的布局调用
+- 响应速度提升（延迟从 150ms + 80ms → 50ms）
+- 移除不稳定的实验性配置
+
+🔍 **关注点:**
+- 需要验证内联模式在移除 `useTrueInlineView` 后的表现
+- 新增的样式测试有助于确保布局正确性
+
+整体而言，这是一次**低风险的代码优化**，通过简化逻辑和移除实验性配置来提升代码的可维护性和稳定性。

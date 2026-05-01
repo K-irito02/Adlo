@@ -36,10 +36,12 @@ This workspace hosts the `AI Digital Life` desktop app, rebuilt on **Rust + Taur
 ```
 ai-digital-life/
 ├── Cargo.toml              # Workspace root
+├── .mcp.json               # MCP server config (Chrome DevTools for browser testing)
 ├── src-tauri/              # Tauri Rust 入口（main、commands、capabilities）
 │   └── tauri.conf.json
 ├── crates/                 # 业务 crate（kernel、storage、workspace、…）
 ├── frontend/               # WebView 前端（React + Vite）
+├── scripts/                # 开发脚本（动态端口选择、多表面启动）
 ├── docs/                   # architecture / design-system
 └── tests/                  # integration / e2e
 ```
@@ -126,7 +128,10 @@ npm --prefix frontend run dev
 npm --prefix frontend test
 
 # 联合开发（Tauri + 前端 dev server）
-cargo tauri dev
+npm run dev            # Tauri 桌面应用
+npm run dev:browser    # 仅浏览器预览
+npm run dev:tauri      # Tauri 桌面应用（同 dev）
+npm run dev:both       # 同时启动浏览器预览 + Tauri 桌面应用
 
 # 生产打包
 cargo tauri build
@@ -155,3 +160,26 @@ cargo tauri build
 - [Accessibility](./docs/design-system/accessibility.md)
 - [Responsive Design](./docs/design-system/responsive.md)
 - [Testing Strategy](./docs/design-system/testing.md)
+
+## Browser Testing
+
+项目支持浏览器预览模式，可通过 MCP 工具进行实时浏览器测试。
+
+### 启动浏览器预览
+
+```bash
+npm run dev:browser    # 仅浏览器
+npm run dev:both       # 浏览器 + Tauri 桌面应用
+```
+
+### MCP 配置（可选）
+
+项目根目录 `.mcp.json` 配置了 Chrome DevTools MCP 服务器，用于 AI 辅助浏览器测试（截图、DOM 检查、控制台日志、性能分析等）。
+
+确保已安装 `browser-testing-with-devtools` 技能：
+
+```bash
+npx skills add addyosmani/agent-skills@browser-testing-with-devtools -g -y
+```
+
+详见 [browser-testing-with-devtools](https://skills.sh/addyosmani/agent-skills/browser-testing-with-devtools)。

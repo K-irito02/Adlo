@@ -9,7 +9,10 @@ alwaysApply: true
 
 | 命令 | 用途 |
 |------|------|
-| `npm run dev` | 启动桌面应用开发模式 |
+| `npm run dev` | 启动桌面应用开发模式（Tauri） |
+| `npm run dev:browser` | 仅启动浏览器预览模式 |
+| `npm run dev:tauri` | 启动 Tauri 桌面应用开发模式 |
+| `npm run dev:both` | 同时启动浏览器预览 + Tauri 桌面应用 |
 | `npm run build` | 构建所有包 |
 | `npm run start` | 启动已构建的桌面应用 |
 | `npm test` | 运行单元测试 |
@@ -52,3 +55,4 @@ alwaysApply: true
 
 - [ai-digital-life/package.json](/E:/Programs/Obsidian/notes/ai-digital-life/package.json)
 - [ai-digital-life/vitest.config.ts](/E:/Programs/Obsidian/notes/ai-digital-life/vitest.config.ts)
+- [ai-digital-life/scripts/run-project-surface.mjs](/E:/Programs/Obsidian/notes/ai-digital-life/scripts/run-project-surface.mjs)

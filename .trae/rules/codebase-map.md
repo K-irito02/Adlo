@@ -11,10 +11,13 @@ alwaysApply: false
 ```
 ai-digital-life/
 ├── Cargo.toml          # Rust workspace 根
+├── .mcp.json           # MCP 服务器配置（Chrome DevTools 等）
+├── .claude/            # Claude Code MCP 配置
 ├── src-tauri/          # Tauri 二进制与 #[tauri::command]
 │   └── tauri.conf.json # Tauri 应用配置
 ├── crates/             # Rust 库 crate（kernel、storage、…）
 ├── frontend/           # WebView：React + Vite
+├── scripts/            # 开发脚本（run-project-surface.mjs）
 ├── docs/               # 架构与设计文档
 └── tests/              # 集成 / E2E 等
 ```
