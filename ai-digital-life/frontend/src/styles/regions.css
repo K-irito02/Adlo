@@ -4031,6 +4031,32 @@
   opacity: 0 !important;
 }
 
+.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .view-lines {
+  width: 100% !important;
+}
+
+.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .view-line {
+  width: 100% !important;
+}
+
+.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .view-line > span {
+  width: 100% !important;
+}
+
+.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .cdr {
+  width: 100% !important;
+  right: 0 !important;
+}
+
+.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .current-line {
+  width: 100% !important;
+  right: 0 !important;
+}
+
+.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .selected-text {
+  right: 0 !important;
+}
+
 .adl-tool-editor:not(.adl-tool-editor--changes) .monaco-editor .minimap {
   position: absolute !important;
   left: auto !important;
@@ -4182,6 +4208,27 @@
 
 .adl-minimap-slider-visual--dragging {
   cursor: grabbing !important;
+}
+
+.adl-minimap-diff-indicator {
+  position: absolute;
+  left: 0;
+  width: 3px;
+  pointer-events: none;
+  z-index: 2;
+  border-radius: 0;
+}
+
+.adl-minimap-diff-indicator--insert {
+  background: var(--editor-diff-insert-bg);
+}
+
+.adl-minimap-diff-indicator--delete {
+  background: var(--editor-diff-remove-bg);
+}
+
+.adl-minimap-diff-indicator--modify {
+  background: var(--editor-diff-modify-bg);
 }
 
 .adl-tool-hint {

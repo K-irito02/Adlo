@@ -215,7 +215,7 @@ body,
   --editor-whitespace: rgba(34, 34, 34, 0.12);
 
   --editor-diff-insert-bg: rgba(22, 163, 74, 0.12);
-  --editor-diff-remove-bg: rgba(92, 97, 104, 0.1);
+  --editor-diff-remove-bg: rgba(239, 68, 68, 0.12);
   --editor-diff-modify-bg: rgba(148, 107, 66, 0.11);
   --editor-hunk-header-bg: rgba(34, 34, 34, 0.04);
   --editor-hunk-header-border: rgba(34, 34, 34, 0.08);
@@ -379,7 +379,7 @@ body,
   --editor-whitespace: rgba(255, 255, 255, 0.14);
 
   --editor-diff-insert-bg: rgba(74, 222, 128, 0.14);
-  --editor-diff-remove-bg: rgba(120, 127, 136, 0.14);
+  --editor-diff-remove-bg: rgba(248, 113, 113, 0.14);
   --editor-diff-modify-bg: rgba(180, 144, 102, 0.12);
   --editor-hunk-header-bg: rgba(255, 255, 255, 0.045);
   --editor-hunk-header-border: rgba(255, 255, 255, 0.09);

@@ -393,6 +393,8 @@ export function ChangesPanel(props: RightPanelViewProps) {
       getLayoutInfo(): { height: number };
       setScrollPosition(position: { scrollTop: number }): void;
       onDidScrollChange?(listener: () => void): { dispose(): void };
+      getDiffInformation?(): Array<{ originalStartLineNumber: number; originalEndLineNumber: number; modifiedStartLineNumber: number; modifiedEndLineNumber: number }>;
+      getModel?(): { getLineCount(): number } | null;
     };
 
     const getModifiedEditor = (): EditorLike | null => {
@@ -414,6 +416,26 @@ export function ChangesPanel(props: RightPanelViewProps) {
       },
       setScrollTop: (value) => {
         getModifiedEditor()?.setScrollPosition({ scrollTop: value });
+      },
+      getDiffRanges: () => {
+        const ed = getModifiedEditor();
+        if (!ed?.getDiffInformation) return null;
+        const diffInfo = ed.getDiffInformation();
+        if (!diffInfo) return null;
+        return diffInfo.map((change) => {
+          const isInsert = change.originalStartLineNumber > change.originalEndLineNumber;
+          const isDelete = change.modifiedStartLineNumber > change.modifiedEndLineNumber;
+          const type = isInsert ? "insert" : isDelete ? "delete" : "modify";
+          return {
+            startLine: change.modifiedStartLineNumber,
+            endLine: change.modifiedEndLineNumber,
+            type
+          };
+        });
+      },
+      getTotalLines: () => {
+        const ed = getModifiedEditor();
+        return ed?.getModel?.()?.getLineCount() ?? null;
       }
     });
 
