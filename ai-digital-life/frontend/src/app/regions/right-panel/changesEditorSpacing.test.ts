@@ -4,16 +4,17 @@ import { describe, expect, it } from "vitest";
 const regionsCss = readFileSync(new URL("../../../../src/styles/regions.css", import.meta.url), "utf8");
 
 function getRuleBody(selector: string) {
-  const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const normalizedCss = regionsCss.replace(/\r\n/g, "\n");
+  const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\\ /g, "\\s+");
   const selectorPattern = new RegExp(`${escapedSelector}\\s*\\{`);
-  const match = selectorPattern.exec(regionsCss);
+  const match = selectorPattern.exec(normalizedCss);
   const selectorStart = match?.index ?? -1;
   expect(selectorStart, `Missing CSS rule for selector: ${selector}`).toBeGreaterThanOrEqual(0);
-  const blockStart = regionsCss.indexOf("{", selectorStart);
-  const blockEnd = regionsCss.indexOf("}", blockStart);
+  const blockStart = normalizedCss.indexOf("{", selectorStart);
+  const blockEnd = normalizedCss.indexOf("}", blockStart);
   expect(blockStart).toBeGreaterThan(selectorStart);
   expect(blockEnd).toBeGreaterThan(blockStart);
-  return regionsCss.slice(blockStart + 1, blockEnd);
+  return normalizedCss.slice(blockStart + 1, blockEnd);
 }
 
 describe("changes preview gutter spacing", () => {

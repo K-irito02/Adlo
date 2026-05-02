@@ -24,6 +24,16 @@ import { computePreviewDiffRanges, type PreviewDiffRange } from "./changePreview
 import { collectDirectoryPaths, FileTree, type FileTreeContextMenuItem } from "./fileTree";
 import { attachMinimapVisualOverlays } from "./minimapVisualOverlay";
 import { detectEditorLanguage } from "../../workspacePaths";
+import {
+  type MonacoDiffEditor,
+  type MonacoEditor,
+  type MonacoDecoration,
+  getMonacoFromWindow,
+  getMinimapPosition,
+  createMonacoRange,
+  isDiffEditor,
+  isMonacoEditor
+} from "./monacoTypes";
 
 const CHANGES_BRANCH_STORAGE_KEY = "adl-ui:changes-branch";
 const FALLBACK_BRANCHES = ["main", "develop", "release/0.1.0", "feature/right-panel"];
@@ -232,11 +242,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
   const [diffEditorReady, setDiffEditorReady] = useState(0);
 
   const applyMinimapToDiffEditor = useCallback((de: unknown, _reason: string) => {
-    const diffInst = de as {
-      updateOptions(opts: unknown): void;
-      getModifiedEditor(): { updateOptions(options: unknown): void } | null;
-      getOriginalEditor(): { updateOptions(options: unknown): void } | null;
-    };
+    if (!isDiffEditor(de)) return false;
     try {
       const inlineScrollbarOpts = {
         vertical: "hidden" as const,
@@ -253,20 +259,20 @@ export function ChangesPanel(props: RightPanelViewProps) {
         maxColumn: 80,
         scale: 1.5
       };
-      diffInst.updateOptions({
+      de.updateOptions({
         minimap: minimapOpts,
         scrollbar: inlineScrollbarOpts
       });
-      const modifiedEditor = diffInst.getModifiedEditor();
+      const modifiedEditor = de.getModifiedEditor();
       if (modifiedEditor) {
-        (modifiedEditor as { updateOptions(options: unknown): void }).updateOptions({
+        modifiedEditor.updateOptions({
           minimap: minimapOpts,
           scrollbar: inlineScrollbarOpts
         });
       }
-      const originalEditor = diffInst.getOriginalEditor();
+      const originalEditor = de.getOriginalEditor();
       if (originalEditor) {
-        (originalEditor as { updateOptions(options: unknown): void }).updateOptions({
+        originalEditor.updateOptions({
           minimap: { enabled: false },
           scrollbar: inlineScrollbarOpts
         });
@@ -278,14 +284,10 @@ export function ChangesPanel(props: RightPanelViewProps) {
   }, []);
 
   const handleDiffEditorMount = useCallback((diffEditor: unknown) => {
+    if (!isDiffEditor(diffEditor)) return;
     diffEditorRef.current = diffEditor;
     setDiffEditorReady((v) => v + 1);
     applyMinimapToDiffEditor(diffEditor, "onMount");
-
-    const de = diffEditor as {
-      onDidUpdateDiff(listener: () => void): { dispose(): void };
-      layout(dimension?: { width: number; height: number }): void;
-    };
 
     const triggerRelayout = () => {
       const shell = document.querySelector('[data-testid="changes-preview-shell"]');
@@ -295,14 +297,14 @@ export function ChangesPanel(props: RightPanelViewProps) {
       const rect = surface.getBoundingClientRect();
       if (rect.width <= 0 || rect.height <= 0) return;
       try {
-        de.layout({ width: Math.floor(rect.width), height: Math.floor(rect.height) });
+        diffEditor.layout({ width: Math.floor(rect.width), height: Math.floor(rect.height) });
       } catch (_e) { /* ignore */ }
       applyMinimapToDiffEditor(diffEditorRef.current, "relayout");
     };
 
     requestAnimationFrame(triggerRelayout);
 
-    const disposable = de.onDidUpdateDiff(() => {
+    const disposable = diffEditor.onDidUpdateDiff(() => {
       if (minimapTimerRef.current) clearTimeout(minimapTimerRef.current);
       minimapTimerRef.current = setTimeout(triggerRelayout, 50);
     });
@@ -367,28 +369,9 @@ export function ChangesPanel(props: RightPanelViewProps) {
   }), [props.diffSideBySide, wordWrapEnabled, lineNumbersEnabled]);
 
   useEffect(() => {
-    type ModifiedEditorWithDecorations = {
-      deltaDecorations(oldDecorations: string[], newDecorations: Array<{
-        range: unknown;
-        options: {
-          isWholeLine: boolean;
-          className: string;
-          minimap: { color: string; darkColor: string; position: number };
-          zIndex: number;
-        };
-      }>): string[];
-    };
-    type DiffEditorWithModified = {
-      getModifiedEditor(): ModifiedEditorWithDecorations | null;
-    };
-    type MonacoLike = {
-      Range: new (startLineNumber: number, startColumn: number, endLineNumber: number, endColumn: number) => unknown;
-      editor?: { MinimapPosition?: { Inline?: number } };
-    };
-
-    const diffEditor = diffEditorRef.current as DiffEditorWithModified | null;
-    const modifiedEditor = diffEditor?.getModifiedEditor?.() ?? null;
-    const monaco = (window as typeof window & { monaco?: MonacoLike }).monaco;
+    const diffEditor = diffEditorRef.current;
+    const modifiedEditor = isDiffEditor(diffEditor) ? diffEditor.getModifiedEditor() : null;
+    const monaco = getMonacoFromWindow();
 
     if (!modifiedEditor || !monaco || props.diffSideBySide || !changePreview) {
       if (modifiedEditor && previewDecorationIdsRef.current.length > 0) {
@@ -397,9 +380,9 @@ export function ChangesPanel(props: RightPanelViewProps) {
       return;
     }
 
-    const minimapPosition = monaco.editor?.MinimapPosition?.Inline ?? 1;
-    const decorations = changePreviewDiffRanges.map((range: PreviewDiffRange) => ({
-      range: new monaco.Range(range.startLine, 1, range.endLine, 1),
+    const minimapPosition = getMinimapPosition(monaco);
+    const decorations: MonacoDecoration[] = changePreviewDiffRanges.map((range: PreviewDiffRange) => ({
+      range: createMonacoRange(monaco, range.startLine, 1, range.endLine, 1),
       options: {
         isWholeLine: true,
         className: `adl-inline-diff-line adl-inline-diff-line--${range.type}`,
@@ -415,8 +398,8 @@ export function ChangesPanel(props: RightPanelViewProps) {
     previewDecorationIdsRef.current = modifiedEditor.deltaDecorations(previewDecorationIdsRef.current, decorations);
 
     return () => {
-      const activeDiffEditor = diffEditorRef.current as DiffEditorWithModified | null;
-      const activeModifiedEditor = activeDiffEditor?.getModifiedEditor?.() ?? null;
+      const activeDiffEditor = diffEditorRef.current;
+      const activeModifiedEditor = isDiffEditor(activeDiffEditor) ? activeDiffEditor.getModifiedEditor() : null;
       if (activeModifiedEditor && previewDecorationIdsRef.current.length > 0) {
         previewDecorationIdsRef.current = activeModifiedEditor.deltaDecorations(previewDecorationIdsRef.current, []);
       }
@@ -459,26 +442,12 @@ export function ChangesPanel(props: RightPanelViewProps) {
       return;
     }
 
-    type DiffEditorLike = {
-      getModifiedEditor(): ModifiedEditorLike | null;
-      getDiffInformation?(): Array<{ originalStartLineNumber: number; originalEndLineNumber: number; modifiedStartLineNumber: number; modifiedEndLineNumber: number }>;
-      onDidUpdateDiff?(listener: () => void): { dispose(): void };
+    const getDiffEditor = (): MonacoDiffEditor | null => {
+      const editor = diffEditorRef.current;
+      return isDiffEditor(editor) ? editor : null;
     };
 
-    type ModifiedEditorLike = {
-      getScrollTop(): number;
-      getScrollHeight(): number;
-      getLayoutInfo(): { height: number };
-      setScrollPosition(position: { scrollTop: number }): void;
-      onDidScrollChange?(listener: () => void): { dispose(): void };
-      getModel?(): { getLineCount(): number } | null;
-    };
-
-    const getDiffEditor = (): DiffEditorLike | null => {
-      return diffEditorRef.current as unknown as DiffEditorLike | null;
-    };
-
-    const getModifiedEditor = (): ModifiedEditorLike | null => {
+    const getModifiedEditor = (): MonacoEditor | null => {
       return getDiffEditor()?.getModifiedEditor() ?? null;
     };
 
@@ -522,8 +491,10 @@ export function ChangesPanel(props: RightPanelViewProps) {
       }
     });
 
-    const scrollDisposable = getModifiedEditor()?.onDidScrollChange?.(() => controller.refresh());
-    const diffUpdateDisposable = getDiffEditor()?.onDidUpdateDiff?.(() => controller.refresh());
+    const modifiedEd = getModifiedEditor();
+    const diffEd = getDiffEditor();
+    const scrollDisposable = modifiedEd?.onDidScrollChange?.(() => controller.refresh());
+    const diffUpdateDisposable = diffEd?.onDidUpdateDiff?.(() => controller.refresh());
 
     return () => {
       scrollDisposable?.dispose();
