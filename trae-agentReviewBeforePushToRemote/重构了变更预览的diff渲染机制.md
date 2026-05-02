@@ -255,3 +255,323 @@ indicator.style.cssText =
 4. **可维护性:** 独立的 diff 计算模块，易于测试和优化
 
 ---
+
+## 1. 高层摘要（TL;DR）
+
+*   **影响范围：** 🟡 **中等** - 重构了ChangesPanel组件中Monaco编辑器的类型系统，提升了类型安全性
+*   **核心变更：**
+    *   ✨ 新增 `monacoTypes.ts` 模块，集中管理Monaco编辑器类型定义
+    *   🛡️ 使用类型守卫函数替代不安全的类型断言
+    *   🧹 移除大量内联类型定义，代码更简洁易维护
+    *   🐛 修复CSS测试中的跨平台换行符兼容性问题
+
+---
+
+## 2. 可视化概览（代码与逻辑映射）
+
+```mermaid
+graph TD
+    subgraph "新增模块 monacoTypes.ts"
+        A["MonacoDiffEditor 接口"]
+        B["MonacoEditor 接口"]
+        C["isDiffEditor 类型守卫"]
+        D["getMonacoFromWindow 工具函数"]
+        E["createMonacoRange 工具函数"]
+    end
+    
+    subgraph "ChangesPanel.tsx 重构"
+        F["applyMinimapToDiffEditor"]
+        G["handleDiffEditorMount"]
+        H["useEffect 装饰器逻辑"]
+        I["滚动同步控制器"]
+    end
+    
+    subgraph "测试文件改进"
+        J["getRuleBody 函数"]
+    end
+    
+    A --> C
+    B --> C
+    D --> E
+    C --> F
+    C --> G
+    D --> H
+    E --> H
+    C --> I
+    J --> "CSS规范化处理"
+    
+    style A fill:#bbdefb,color:#0d47a1
+    style B fill:#bbdefb,color:#0d47a1
+    style C fill:#c8e6c9,color:#1a5e20
+    style D fill:#fff3e0,color:#e65100
+    style E fill:#fff3e0,color:#e65100
+    style F fill:#f3e5f5,color:#7b1fa2
+    style G fill:#f3e5f5,color:#7b1fa2
+    style H fill:#f3e5f5,color:#7b1fa2
+    style I fill:#f3e5f5,color:#7b1fa2
+    style J fill:#ffebee,color:#b71c1c
+```
+
+---
+
+## 3. 详细变更分析
+
+### 📦 新增模块：`monacoTypes.ts`
+
+**变更说明：**
+新增了一个专门的类型定义模块，用于统一管理Monaco编辑器的所有类型定义和工具函数。
+
+**核心类型定义：**
+
+| 类型名称 | 用途 | 主要属性 |
+|---------|------|---------|
+| `MonacoDiffEditor` | 差异编辑器接口 | `updateOptions`, `getModifiedEditor`, `getOriginalEditor`, `onDidUpdateDiff`, `layout` |
+| `MonacoEditor` | 单个编辑器接口 | `deltaDecorations`, `updateOptions`, `getScrollTop`, `setScrollPosition` |
+| `MonacoDecoration` | 装饰器配置 | `range`, `options` |
+| `MonacoNamespace` | Monaco全局命名空间 | `Range`, `editor.MinimapPosition` |
+
+**工具函数：**
+
+| 函数名 | 功能 | 返回值 |
+|-------|------|--------|
+| `getMonacoFromWindow()` | 从window对象获取Monaco实例 | `MonacoNamespace \| undefined` |
+| `getMinimapPosition()` | 获取minimap位置常量 | `number` |
+| `createMonacoRange()` | 创建Monaco Range对象 | `MonacoRange` |
+| `isDiffEditor()` | 类型守卫：验证是否为DiffEditor | `boolean` |
+| `isMonacoEditor()` | 类型守卫：验证是否为Editor | `boolean` |
+
+---
+
+### 🔄 重构：`ChangesPanel.tsx`
+
+**变更说明：**
+移除了所有内联类型定义，改用导入的类型和工具函数，大幅提升代码可维护性和类型安全性。
+
+#### 3.1 导入语句更新
+
+**变更前：**
+```typescript
+// 无相关导入
+```
+
+**变更后：**
+```typescript
+import {
+  type MonacoDiffEditor,
+  type MonacoEditor,
+  type MonacoDecoration,
+  getMonacoFromWindow,
+  getMinimapPosition,
+  createMonacoRange,
+  isDiffEditor,
+  isMonacoEditor
+} from "./monacoTypes";
+```
+
+#### 3.2 `applyMinimapToDiffEditor` 函数重构
+
+**变更前：**
+```typescript
+const applyMinimapToDiffEditor = useCallback((de: unknown, _reason: string) => {
+  const diffInst = de as {
+    updateOptions(opts: unknown): void;
+    getModifiedEditor(): { updateOptions(options: unknown): void } | null;
+    getOriginalEditor(): { updateOptions(options: unknown): void } | null;
+  };
+  // ... 使用 diffInst
+}, []);
+```
+
+**变更后：**
+```typescript
+const applyMinimapToDiffEditor = useCallback((de: unknown, _reason: string) => {
+  if (!isDiffEditor(de)) return false;
+  // ... 直接使用 de，无需类型断言
+}, []);
+```
+
+**改进点：**
+- ✅ 使用 `isDiffEditor()` 类型守卫替代不安全的类型断言
+- ✅ 提前返回无效输入，避免运行时错误
+- ✅ 代码更简洁，减少冗余类型定义
+
+#### 3.3 `handleDiffEditorMount` 函数重构
+
+**变更前：**
+```typescript
+const handleDiffEditorMount = useCallback((diffEditor: unknown) => {
+  diffEditorRef.current = diffEditor;
+  // ...
+  const de = diffEditor as {
+    onDidUpdateDiff(listener: () => void): { dispose(): void };
+    layout(dimension?: { width: number; height: number }): void;
+  };
+  // ... 使用 de
+}, []);
+```
+
+**变更后：**
+```typescript
+const handleDiffEditorMount = useCallback((diffEditor: unknown) => {
+  if (!isDiffEditor(diffEditor)) return;
+  diffEditorRef.current = diffEditor;
+  // ... 直接使用 diffEditor
+}, []);
+```
+
+#### 3.4 useEffect 装饰器逻辑重构
+
+**变更前：**
+```typescript
+useEffect(() => {
+  type ModifiedEditorWithDecorations = { /* 15行类型定义 */ };
+  type DiffEditorWithModified = { /* 3行类型定义 */ };
+  type MonacoLike = { /* 3行类型定义 */ };
+  
+  const diffEditor = diffEditorRef.current as DiffEditorWithModified | null;
+  const modifiedEditor = diffEditor?.getModifiedEditor?.() ?? null;
+  const monaco = (window as typeof window & { monaco?: MonacoLike }).monaco;
+  
+  const minimapPosition = monaco.editor?.MinimapPosition?.Inline ?? 1;
+  const decorations = changePreviewDiffRanges.map((range: PreviewDiffRange) => ({
+    range: new monaco.Range(range.startLine, 1, range.endLine, 1),
+    // ...
+  }));
+}, []);
+```
+
+**变更后：**
+```typescript
+useEffect(() => {
+  const diffEditor = diffEditorRef.current;
+  const modifiedEditor = isDiffEditor(diffEditor) ? diffEditor.getModifiedEditor() : null;
+  const monaco = getMonacoFromWindow();
+  
+  const minimapPosition = getMinimapPosition(monaco);
+  const decorations: MonacoDecoration[] = changePreviewDiffRanges.map((range: PreviewDiffRange) => ({
+    range: createMonacoRange(monaco, range.startLine, 1, range.endLine, 1),
+    // ...
+  }));
+}, []);
+```
+
+**改进点：**
+- ✅ 移除了 **21行** 内联类型定义
+- ✅ 使用工具函数简化逻辑
+- ✅ 类型安全性显著提升
+
+#### 3.5 滚动同步控制器重构
+
+**变更前：**
+```typescript
+type DiffEditorLike = { /* 7行类型定义 */ };
+type ModifiedEditorLike = { /* 6行类型定义 */ };
+
+const getDiffEditor = (): DiffEditorLike | null => {
+  return diffEditorRef.current as unknown as DiffEditorLike | null;
+};
+```
+
+**变更后：**
+```typescript
+const getDiffEditor = (): MonacoDiffEditor | null => {
+  const editor = diffEditorRef.current;
+  return isDiffEditor(editor) ? editor : null;
+};
+```
+
+---
+
+### 🧪 测试改进：`changesEditorSpacing.test.ts`
+
+**变更说明：**
+修复了CSS解析中的跨平台兼容性问题，确保测试在Windows和Unix系统上都能正常运行。
+
+#### `getRuleBody` 函数改进
+
+**变更前：**
+```typescript
+function getRuleBody(selector: string) {
+  const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const selectorPattern = new RegExp(`${escapedSelector}\\s*\\{`);
+  const match = selectorPattern.exec(regionsCss);
+  // ... 直接使用 regionsCss
+}
+```
+
+**变更后：**
+```typescript
+function getRuleBody(selector: string) {
+  const normalizedCss = regionsCss.replace(/\r\n/g, "\n");  // 规范化换行符
+  const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+                                   .replace(/\\ /g, "\\s+");  // 处理空格
+  const selectorPattern = new RegExp(`${escapedSelector}\\s*\\{`);
+  const match = selectorPattern.exec(normalizedCss);
+  // ... 使用 normalizedCss
+}
+```
+
+**改进点：**
+- ✅ 将Windows换行符 `\r\n` 统一转换为 `\n`
+- ✅ 改进选择器转义逻辑，处理空格字符
+- ✅ 提升跨平台测试稳定性
+
+---
+
+## 4. 影响与风险评估
+
+### ⚠️ 破坏性变更
+
+| 变更类型 | 影响范围 | 风险等级 |
+|---------|---------|---------|
+| 新增类型模块 | 无破坏性变更 | 🟢 低 |
+| 重构类型系统 | 内部实现变更，对外接口不变 | 🟢 低 |
+| 测试文件改进 | 仅影响测试逻辑 | 🟢 低 |
+
+### 🧪 测试建议
+
+**高优先级测试场景：**
+
+1. **类型安全验证**
+   - ✅ 验证 `isDiffEditor()` 能正确识别有效的DiffEditor实例
+   - ✅ 验证 `isDiffEditor()` 能正确拒绝无效输入（null、undefined、普通对象）
+   - ✅ 验证 `isMonacoEditor()` 类型守卫的正确性
+
+2. **功能回归测试**
+   - ✅ 测试差异编辑器的minimap显示是否正常
+   - ✅ 测试差异编辑器的滚动同步功能
+   - ✅ 测试装饰器（decorations）的添加和移除
+   - ✅ 测试编辑器布局调整（layout）功能
+
+3. **跨平台兼容性**
+   - ✅ 在Windows系统上运行CSS测试
+   - ✅ 在Unix/Linux系统上运行CSS测试
+   - ✅ 验证换行符处理逻辑
+
+4. **边界情况测试**
+   - ✅ 测试Monaco未加载时的行为
+   - ✅ 测试空diff内容时的行为
+   - ✅ 测试快速切换分支时的状态管理
+
+### 📊 代码质量提升
+
+| 指标 | 改进前 | 改进后 | 提升 |
+|-----|-------|-------|------|
+| 内联类型定义行数 | ~40行 | 0行 | -100% |
+| 类型断言数量 | 8处 | 0处 | -100% |
+| 类型安全性 | ⚠️ 中等 | ✅ 高 | ⬆️ 显著 |
+| 代码可维护性 | ⚠️ 中等 | ✅ 高 | ⬆️ 显著 |
+
+---
+
+## 5. 总结
+
+本次重构是一个**高质量的类型安全改进**，主要成果包括：
+
+1. 🎯 **类型系统集中化** - 新增 `monacoTypes.ts` 模块，统一管理所有Monaco相关类型
+2. 🛡️ **类型安全性提升** - 使用类型守卫替代不安全的类型断言，减少运行时错误风险
+3. 🧹 **代码简化** - 移除40+行内联类型定义，代码更简洁易读
+4. 🐛 **跨平台兼容性** - 修复CSS测试中的换行符问题，提升测试稳定性
+
+**建议：** 合并后重点关注差异编辑器的功能回归测试，确保所有交互功能正常工作。
+

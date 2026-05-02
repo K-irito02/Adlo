@@ -86,11 +86,24 @@ export function createMonacoRange(
 export function isDiffEditor(value: unknown): value is MonacoDiffEditor {
   if (!value || typeof value !== "object") return false;
   const obj = value as Record<string, unknown>;
-  return typeof obj.getModifiedEditor === "function";
+  return (
+    typeof obj.getModifiedEditor === "function" &&
+    typeof obj.getOriginalEditor === "function" &&
+    typeof obj.updateOptions === "function" &&
+    typeof obj.onDidUpdateDiff === "function" &&
+    typeof obj.layout === "function"
+  );
 }
 
 export function isMonacoEditor(value: unknown): value is MonacoEditor {
   if (!value || typeof value !== "object") return false;
   const obj = value as Record<string, unknown>;
-  return typeof obj.deltaDecorations === "function";
+  return (
+    typeof obj.deltaDecorations === "function" &&
+    typeof obj.updateOptions === "function" &&
+    typeof obj.getScrollTop === "function" &&
+    typeof obj.getScrollHeight === "function" &&
+    typeof obj.getLayoutInfo === "function" &&
+    typeof obj.setScrollPosition === "function"
+  );
 }
