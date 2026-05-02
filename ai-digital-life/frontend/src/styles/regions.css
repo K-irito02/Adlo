@@ -4043,7 +4043,8 @@
   width: 100% !important;
 }
 
-.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .cdr {
+.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .cdr.line-insert,
+.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .cdr.line-delete {
   width: 100% !important;
   right: 0 !important;
 }
@@ -4069,6 +4070,31 @@
 .monaco-editor .char-delete,
 .monaco-editor .line-insert,
 .monaco-editor .line-delete {
+  border: none !important;
+  border-color: transparent !important;
+  outline: none !important;
+  outline-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .char-insert,
+.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .char-delete,
+.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .char-insert.diff-range-empty,
+.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .char-delete.diff-range-empty {
+  background-color: transparent !important;
+  display: none !important;
+}
+
+.adl-tool-editor--changes .monaco-diff-editor .unicode-highlight {
+  background-color: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.monaco-editor .findMatch,
+.monaco-editor .currentFindMatch,
+.monaco-editor .findScope {
   border: none !important;
   outline: none !important;
   box-shadow: none !important;

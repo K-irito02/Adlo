@@ -233,11 +233,23 @@ export function attachMinimapVisualOverlays(root: HTMLElement, options?: Minimap
 
   const stripDiffBorders = () => {
     const DIFF_BORDER_CLASSES = ["char-insert", "char-delete", "line-insert", "line-delete"];
+    const BORDER_PROPERTIES = [
+      "border",
+      "border-top",
+      "border-right",
+      "border-bottom",
+      "border-left"
+    ];
     for (const cls of DIFF_BORDER_CLASSES) {
       root.querySelectorAll(`.${cls}`).forEach((el) => {
-        (el as HTMLElement).style.setProperty("border", "none", "important");
-        (el as HTMLElement).style.setProperty("outline", "none", "important");
-        (el as HTMLElement).style.setProperty("box-shadow", "none", "important");
+        const node = el as HTMLElement;
+        BORDER_PROPERTIES.forEach((property) => {
+          node.style.setProperty(property, "none", "important");
+        });
+        node.style.setProperty("border-color", "transparent", "important");
+        node.style.setProperty("outline", "none", "important");
+        node.style.setProperty("outline-color", "transparent", "important");
+        node.style.setProperty("box-shadow", "none", "important");
       });
     }
   };

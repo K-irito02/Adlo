@@ -204,8 +204,8 @@ body,
   --editor-selection: rgba(37, 99, 235, 0.18);
   --editor-selection-inactive: rgba(37, 99, 235, 0.12);
   --editor-lineHighlight: rgba(34, 34, 34, 0.03);
-  --editor-findMatch: rgba(217, 119, 6, 0.22);
-  --editor-findMatch-highlight: rgba(217, 119, 6, 0.14);
+  --editor-findMatch: rgba(37, 99, 235, 0.18);
+  --editor-findMatch-highlight: rgba(37, 99, 235, 0.1);
   --editor-hover-bg: var(--surface-raised);
   --editor-hover-border: var(--border-default);
   --editor-widget-bg: var(--surface-raised);
@@ -369,8 +369,8 @@ body,
   --editor-selection: rgba(96, 165, 250, 0.22);
   --editor-selection-inactive: rgba(96, 165, 250, 0.14);
   --editor-lineHighlight: rgba(255, 255, 255, 0.035);
-  --editor-findMatch: rgba(251, 191, 36, 0.24);
-  --editor-findMatch-highlight: rgba(251, 191, 36, 0.14);
+  --editor-findMatch: rgba(96, 165, 250, 0.2);
+  --editor-findMatch-highlight: rgba(96, 165, 250, 0.12);
   --editor-hover-bg: var(--surface-raised);
   --editor-hover-border: var(--border-default);
   --editor-widget-bg: var(--surface-raised);

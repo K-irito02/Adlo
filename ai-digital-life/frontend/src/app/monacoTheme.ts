@@ -177,6 +177,9 @@ function buildMonacoThemeData(theme: "light" | "dark"): {
   if (findMatchHighlight) {
     colors["editor.findMatchHighlightBackground"] = findMatchHighlight;
   }
+  colors["editor.findMatchBorder"] = "#00000000";
+  colors["editor.findMatchHighlightBorder"] = "#00000000";
+  colors["editor.findRangeHighlightBorder"] = "#00000000";
   if (foldBackground) {
     colors["editor.foldBackground"] = foldBackground;
   }

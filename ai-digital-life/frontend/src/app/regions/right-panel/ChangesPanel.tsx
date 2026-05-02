@@ -350,6 +350,11 @@ export function ChangesPanel(props: RightPanelViewProps) {
     stickyScroll: { enabled: false },
     renderLineHighlight: "line" as const,
     renderWhitespace: "selection" as const,
+    unicodeHighlight: {
+      ambiguousCharacters: false,
+      invisibleCharacters: false,
+      nonBasicASCII: false
+    },
     bracketPairColorization: { enabled: true }
   }), [props.diffSideBySide, wordWrapEnabled, lineNumbersEnabled]);
 
