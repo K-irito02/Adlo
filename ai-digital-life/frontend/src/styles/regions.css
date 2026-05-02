@@ -4071,7 +4071,6 @@
 .monaco-editor .line-insert,
 .monaco-editor .line-delete {
   border: none !important;
-  border-color: transparent !important;
   outline: none !important;
   outline-color: transparent !important;
   box-shadow: none !important;
