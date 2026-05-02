@@ -94,11 +94,8 @@ function renderDiffIndicators(
 
     const indicator = document.createElement("div");
     indicator.className = `${DIFF_INDICATOR_CLASS} ${DIFF_INDICATOR_CLASS}--${range.type}`;
-    const fallbackColor = range.type === "insert"
-      ? "rgba(22, 163, 74, 0.6)"
-      : "rgba(239, 68, 68, 0.6)";
     indicator.style.cssText =
-      `position:absolute;left:0;width:4px;top:${startY}px;height:${height}px;pointer-events:none;z-index:10;border-radius:0;background:${fallbackColor};`;
+      `position:absolute;left:0;right:0;top:${startY}px;height:${height}px;pointer-events:none;`;
     indicator.setAttribute("aria-hidden", "true");
 
     minimap.appendChild(indicator);

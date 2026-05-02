@@ -4043,10 +4043,26 @@
   width: 100% !important;
 }
 
-.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .cdr.line-insert,
-.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .cdr.line-delete {
+.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .view-overlays .adl-inline-diff-line {
+  left: 0 !important;
   width: 100% !important;
   right: 0 !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .view-overlays .adl-inline-diff-line--insert {
+  background-color: var(--editor-diff-insert-bg) !important;
+}
+
+.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .view-overlays .adl-inline-diff-line--delete {
+  background-color: var(--editor-diff-remove-bg) !important;
+}
+
+.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .cdr.line-insert,
+.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .cdr.line-delete {
+  background-color: transparent !important;
 }
 
 .adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .current-line {
@@ -4267,9 +4283,9 @@
 .adl-minimap-diff-indicator {
   position: absolute;
   left: 0;
-  width: 4px;
+  right: 0;
   pointer-events: none;
-  z-index: 10;
+  z-index: 2;
   border-radius: 0;
 }
 

@@ -20,6 +20,7 @@ import { countGitChanges } from "./types";
 import type { RightPanelViewProps } from "./types";
 import { countReviewedHunks, filterPatchFileSummaries, summarizePatchSet } from "./patchReview";
 import { buildChangeEntries, buildChangeTree, buildFlatChangeNodes, type ChangeTreeNode } from "./changesTree";
+import { computePreviewDiffRanges, type PreviewDiffRange } from "./changePreviewDiffRanges";
 import { collectDirectoryPaths, FileTree, type FileTreeContextMenuItem } from "./fileTree";
 import { attachMinimapVisualOverlays } from "./minimapVisualOverlay";
 import { detectEditorLanguage } from "../../workspacePaths";
@@ -150,6 +151,12 @@ export function ChangesPanel(props: RightPanelViewProps) {
     () => detectEditorLanguage(changePreview?.path),
     [changePreview?.path]
   );
+  const changePreviewDiffRanges = useMemo(
+    () => changePreview
+      ? computePreviewDiffRanges(changePreview.baseContent, changePreview.currentContent)
+      : [],
+    [changePreview]
+  );
   const changePreviewTheme = appInfo?.config.resolvedTheme === "dark" ? MONACO_THEME_DARK : MONACO_THEME_LIGHT;
   const branchOptions = useMemo(() => {
     const options = new Set<string>([fallbackBranch, ...FALLBACK_BRANCHES]);
@@ -221,6 +228,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
 
   const diffEditorRef = useRef<unknown>(null);
   const minimapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const previewDecorationIdsRef = useRef<string[]>([]);
   const [diffEditorReady, setDiffEditorReady] = useState(0);
 
   const applyMinimapToDiffEditor = useCallback((de: unknown, _reason: string) => {
@@ -359,6 +367,63 @@ export function ChangesPanel(props: RightPanelViewProps) {
   }), [props.diffSideBySide, wordWrapEnabled, lineNumbersEnabled]);
 
   useEffect(() => {
+    type ModifiedEditorWithDecorations = {
+      deltaDecorations(oldDecorations: string[], newDecorations: Array<{
+        range: unknown;
+        options: {
+          isWholeLine: boolean;
+          className: string;
+          minimap: { color: string; darkColor: string; position: number };
+          zIndex: number;
+        };
+      }>): string[];
+    };
+    type DiffEditorWithModified = {
+      getModifiedEditor(): ModifiedEditorWithDecorations | null;
+    };
+    type MonacoLike = {
+      Range: new (startLineNumber: number, startColumn: number, endLineNumber: number, endColumn: number) => unknown;
+      editor?: { MinimapPosition?: { Inline?: number } };
+    };
+
+    const diffEditor = diffEditorRef.current as DiffEditorWithModified | null;
+    const modifiedEditor = diffEditor?.getModifiedEditor?.() ?? null;
+    const monaco = (window as typeof window & { monaco?: MonacoLike }).monaco;
+
+    if (!modifiedEditor || !monaco || props.diffSideBySide || !changePreview) {
+      if (modifiedEditor && previewDecorationIdsRef.current.length > 0) {
+        previewDecorationIdsRef.current = modifiedEditor.deltaDecorations(previewDecorationIdsRef.current, []);
+      }
+      return;
+    }
+
+    const minimapPosition = monaco.editor?.MinimapPosition?.Inline ?? 1;
+    const decorations = changePreviewDiffRanges.map((range: PreviewDiffRange) => ({
+      range: new monaco.Range(range.startLine, 1, range.endLine, 1),
+      options: {
+        isWholeLine: true,
+        className: `adl-inline-diff-line adl-inline-diff-line--${range.type}`,
+        minimap: {
+          color: range.type === "insert" ? "rgba(22, 163, 74, 0.6)" : "rgba(239, 68, 68, 0.6)",
+          darkColor: range.type === "insert" ? "rgba(74, 222, 128, 0.7)" : "rgba(248, 113, 113, 0.7)",
+          position: minimapPosition
+        },
+        zIndex: 1
+      }
+    }));
+
+    previewDecorationIdsRef.current = modifiedEditor.deltaDecorations(previewDecorationIdsRef.current, decorations);
+
+    return () => {
+      const activeDiffEditor = diffEditorRef.current as DiffEditorWithModified | null;
+      const activeModifiedEditor = activeDiffEditor?.getModifiedEditor?.() ?? null;
+      if (activeModifiedEditor && previewDecorationIdsRef.current.length > 0) {
+        previewDecorationIdsRef.current = activeModifiedEditor.deltaDecorations(previewDecorationIdsRef.current, []);
+      }
+    };
+  }, [changePreview, changePreviewDiffRanges, diffEditorReady, props.diffSideBySide]);
+
+  useEffect(() => {
     if (!changePreview || !diffEditorRef.current) return;
     const shell = document.querySelector('[data-testid="changes-preview-shell"]');
     if (!shell) return;
@@ -431,6 +496,9 @@ export function ChangesPanel(props: RightPanelViewProps) {
         getModifiedEditor()?.setScrollPosition({ scrollTop: value });
       },
       getDiffRanges: () => {
+        if (changePreviewDiffRanges.length > 0) {
+          return changePreviewDiffRanges;
+        }
         const diffEd = getDiffEditor();
         if (!diffEd?.getDiffInformation) return null;
         const diffInfo = diffEd.getDiffInformation();
@@ -462,7 +530,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
       diffUpdateDisposable?.dispose();
       controller.dispose();
     };
-  }, [changePreview, props.diffSideBySide, diffEditorReady]);
+  }, [changePreview, changePreviewDiffRanges, props.diffSideBySide, diffEditorReady]);
 
   const handleNavigatorResizeStart = (event: React.PointerEvent<HTMLDivElement>) => {
     event.preventDefault();

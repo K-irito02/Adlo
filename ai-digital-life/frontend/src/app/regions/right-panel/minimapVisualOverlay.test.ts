@@ -1,6 +1,13 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import { computeMinimapVisualFrame, computeScrollRatio } from "./minimapVisualOverlay";
+
+const minimapOverlaySource = readFileSync(
+  new URL("../../../../src/app/regions/right-panel/minimapVisualOverlay.ts", import.meta.url),
+  "utf8"
+);
+const regionsCss = readFileSync(new URL("../../../../src/styles/regions.css", import.meta.url), "utf8");
 
 describe("computeMinimapVisualFrame", () => {
   it("scrollRatio 0 positions overlay at top", () => {
@@ -99,5 +106,17 @@ describe("computeScrollRatio", () => {
     expect(
       computeScrollRatio({ scrollTop: 0, scrollHeight: 200, clientHeight: 500 })
     ).toBe(0);
+  });
+});
+
+describe("changes minimap diff indicators", () => {
+  it("renders diff indicators across the minimap content width below the slider", () => {
+    expect(minimapOverlaySource).toContain("left:0;right:0;");
+    expect(minimapOverlaySource).not.toContain("width:4px");
+    expect(regionsCss).toContain(".adl-minimap-diff-indicator {");
+    expect(regionsCss).toContain("right: 0;");
+    expect(regionsCss).toContain("z-index: 2;");
+    expect(regionsCss).toContain(".adl-minimap-slider-visual");
+    expect(regionsCss).toContain("z-index: 3;");
   });
 });

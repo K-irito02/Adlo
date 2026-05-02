@@ -145,4 +145,27 @@ describe("changes preview gutter spacing", () => {
     expect(overflowGuardRule).toContain("width: 100% !important;");
     expect(scrollableElementRule).toContain("width: 100% !important;");
   });
+
+  it("uses immediate preview-owned line backgrounds instead of delayed native diff rows", () => {
+    const previewLineRule = getRuleBody(
+      ".adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .view-overlays .adl-inline-diff-line"
+    );
+    const insertRule = getRuleBody(
+      ".adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .view-overlays .adl-inline-diff-line--insert"
+    );
+    const deleteRule = getRuleBody(
+      ".adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .view-overlays .adl-inline-diff-line--delete"
+    );
+    const nativeLineRule = getRuleBody(
+      ".adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .cdr.line-insert,\n.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .cdr.line-delete"
+    );
+
+    expect(previewLineRule).toContain("left: 0 !important;");
+    expect(previewLineRule).toContain("width: 100% !important;");
+    expect(previewLineRule).toContain("right: 0 !important;");
+    expect(insertRule).toContain("background-color: var(--editor-diff-insert-bg) !important;");
+    expect(deleteRule).toContain("background-color: var(--editor-diff-remove-bg) !important;");
+    expect(nativeLineRule).toContain("background-color: transparent !important;");
+    expect(nativeLineRule).not.toContain("width: 100% !important;");
+  });
 });

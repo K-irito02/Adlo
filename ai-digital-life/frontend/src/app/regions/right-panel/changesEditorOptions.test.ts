@@ -42,4 +42,13 @@ describe("changes preview editor options", () => {
     expect(changesPanelSource).toContain("scale: 1.5");
     expect(changesPanelSource).toContain("verticalScrollbarSize: 0");
   });
+
+  it("applies preview-owned line and minimap decorations before Monaco diff finishes asynchronously", () => {
+    expect(changesPanelSource).toContain("computePreviewDiffRanges");
+    expect(changesPanelSource).toContain("deltaDecorations");
+    expect(changesPanelSource).toContain("adl-inline-diff-line");
+    expect(changesPanelSource).toContain("minimap:");
+    expect(changesPanelSource).toContain("MinimapPosition");
+    expect(changesPanelSource).toContain("changePreviewDiffRanges.length > 0");
+  });
 });

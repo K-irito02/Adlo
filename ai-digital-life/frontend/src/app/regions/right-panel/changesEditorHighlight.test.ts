@@ -74,6 +74,12 @@ describe("changes preview highlight theming", () => {
     expect(regionsCss).toContain("display: none !important;");
   });
 
+  it("keeps native async line diff backgrounds transparent after preview-owned rows render", () => {
+    expect(regionsCss).toContain(".editor.modified .cdr.line-insert,");
+    expect(regionsCss).toContain(".editor.modified .cdr.line-delete {");
+    expect(regionsCss).toContain("background-color: transparent !important;");
+  });
+
   it("disables Monaco unicode warning boxes in changes preview", () => {
     expect(changesPanelSource).toContain("unicodeHighlight: {");
     expect(changesPanelSource).toContain("ambiguousCharacters: false");
