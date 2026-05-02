@@ -221,11 +221,30 @@ function buildMonacoThemeData(theme: "light" | "dark"): {
   if (diffInsertBg) {
     colors["diffEditor.insertedTextBackground"] = diffInsertBg;
     colors["diffEditor.insertedLineBackground"] = diffInsertBg;
+    colors["diffEditorGutter.insertedLineBackground"] = diffInsertBg;
   }
   if (diffRemoveBg) {
     colors["diffEditor.removedTextBackground"] = diffRemoveBg;
     colors["diffEditor.removedLineBackground"] = diffRemoveBg;
+    colors["diffEditorGutter.removedLineBackground"] = diffRemoveBg;
   }
+  colors["diffEditor.modifiedTextBackground"] = "#00000000";
+  colors["diffEditor.modifiedLineBackground"] = "#00000000";
+  colors["diffEditorGutter.modifiedLineBackground"] = "#00000000";
+
+  colors["diffEditor.insertedTextBorder"] = "#00000000";
+  colors["diffEditor.removedTextBorder"] = "#00000000";
+  colors["diffEditor.modifiedTextBorder"] = "#00000000";
+  colors["diffEditor.insertedLineBorder"] = "#00000000";
+  colors["diffEditor.removedLineBorder"] = "#00000000";
+  colors["diffEditor.modifiedLineBorder"] = "#00000000";
+
+  colors["diffEditorOverview.insertedForeground"] = "#00000000";
+  colors["diffEditorOverview.removedForeground"] = "#00000000";
+  colors["diffEditorOverview.modifiedForeground"] = "#00000000";
+
+  colors["diffEditorBorder"] = "#00000000";
+  colors["diffEditor.diagonalFillForeground"] = "#00000000";
 
   const rules: Array<{ token: string; foreground?: string; background?: string }> = [];
   const pushRule = (token: string, foreground?: string) => {

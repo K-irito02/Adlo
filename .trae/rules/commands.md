@@ -31,11 +31,15 @@ alwaysApply: true
 
 | 命令 | 用途 |
 |------|------|
-| `vitest run` | 运行所有测试 |
-| `vitest run tests/unit/` | 运行单元测试 |
-| `vitest run tests/integration/` | 运行集成测试 |
-| `vitest watch` | 监听模式运行测试 |
-| `playwright test` | 运行 E2E 测试 |
+| `npm test` | 运行单元测试（Vitest） |
+| `npm run test:e2e` | 运行 E2E 测试（Playwright） |
+| `npm run test:e2e:ui` | Playwright UI 模式 |
+| `npm run test:e2e:report` | 查看 Playwright 测试报告 |
+| `vitest run` | 运行所有 Vitest 测试 |
+| `vitest watch` | 监听模式运行 Vitest |
+| `npx playwright test` | 直接运行 Playwright 测试 |
+| `npx playwright test --ui` | Playwright UI 模式 |
+| `npx playwright show-report` | 查看 Playwright 测试报告 |
 
 ## 包管理
 
@@ -54,5 +58,7 @@ alwaysApply: true
 ## 相关文件
 
 - [ai-digital-life/package.json](/E:/Programs/Obsidian/notes/ai-digital-life/package.json)
+- [ai-digital-life/frontend/package.json](/E:/Programs/Obsidian/notes/ai-digital-life/frontend/package.json)
 - [ai-digital-life/vitest.config.ts](/E:/Programs/Obsidian/notes/ai-digital-life/vitest.config.ts)
+- [ai-digital-life/frontend/playwright.config.ts](/E:/Programs/Obsidian/notes/ai-digital-life/frontend/playwright.config.ts)
 - [ai-digital-life/scripts/run-project-surface.mjs](/E:/Programs/Obsidian/notes/ai-digital-life/scripts/run-project-surface.mjs)

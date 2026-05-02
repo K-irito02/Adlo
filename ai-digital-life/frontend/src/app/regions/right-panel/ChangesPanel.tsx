@@ -221,6 +221,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
 
   const diffEditorRef = useRef<unknown>(null);
   const minimapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [diffEditorReady, setDiffEditorReady] = useState(0);
 
   const applyMinimapToDiffEditor = useCallback((de: unknown, _reason: string) => {
     const diffInst = de as {
@@ -270,6 +271,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
 
   const handleDiffEditorMount = useCallback((diffEditor: unknown) => {
     diffEditorRef.current = diffEditor;
+    setDiffEditorReady((v) => v + 1);
     applyMinimapToDiffEditor(diffEditor, "onMount");
 
     const de = diffEditor as {
@@ -390,6 +392,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
     type DiffEditorLike = {
       getModifiedEditor(): ModifiedEditorLike | null;
       getDiffInformation?(): Array<{ originalStartLineNumber: number; originalEndLineNumber: number; modifiedStartLineNumber: number; modifiedEndLineNumber: number }>;
+      onDidUpdateDiff?(listener: () => void): { dispose(): void };
     };
 
     type ModifiedEditorLike = {
@@ -426,15 +429,17 @@ export function ChangesPanel(props: RightPanelViewProps) {
         const diffEd = getDiffEditor();
         if (!diffEd?.getDiffInformation) return null;
         const diffInfo = diffEd.getDiffInformation();
-        if (!diffInfo) return null;
+        if (!diffInfo || diffInfo.length === 0) return null;
         return diffInfo.map((change) => {
-          const isInsert = change.originalStartLineNumber > change.originalEndLineNumber;
           const isDelete = change.modifiedStartLineNumber > change.modifiedEndLineNumber;
-          const type = isInsert ? "insert" : isDelete ? "delete" : "modify";
+          if (isDelete) {
+            const line = change.modifiedStartLineNumber;
+            return { startLine: line, endLine: line, type: "delete" as const };
+          }
           return {
             startLine: change.modifiedStartLineNumber,
             endLine: change.modifiedEndLineNumber,
-            type
+            type: "insert" as const
           };
         });
       },
@@ -445,12 +450,14 @@ export function ChangesPanel(props: RightPanelViewProps) {
     });
 
     const scrollDisposable = getModifiedEditor()?.onDidScrollChange?.(() => controller.refresh());
+    const diffUpdateDisposable = getDiffEditor()?.onDidUpdateDiff?.(() => controller.refresh());
 
     return () => {
       scrollDisposable?.dispose();
+      diffUpdateDisposable?.dispose();
       controller.dispose();
     };
-  }, [changePreview, props.diffSideBySide]);
+  }, [changePreview, props.diffSideBySide, diffEditorReady]);
 
   const handleNavigatorResizeStart = (event: React.PointerEvent<HTMLDivElement>) => {
     event.preventDefault();

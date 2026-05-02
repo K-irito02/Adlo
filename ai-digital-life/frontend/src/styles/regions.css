@@ -4057,6 +4057,27 @@
   right: 0 !important;
 }
 
+.monaco-editor .view-line,
+.monaco-editor .view-line > span,
+.monaco-editor .view-line > span > span {
+  border-color: transparent !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.monaco-editor .char-insert,
+.monaco-editor .char-delete,
+.monaco-editor .line-insert,
+.monaco-editor .line-delete {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.monaco-diff-editor {
+  border: none !important;
+}
+
 .adl-tool-editor:not(.adl-tool-editor--changes) .monaco-editor .minimap {
   position: absolute !important;
   left: auto !important;
@@ -4196,6 +4217,14 @@
   width: 100% !important;
 }
 
+.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .minimap canvas {
+  z-index: 1 !important;
+}
+
+.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .minimap .minimap-decorations-layer {
+  z-index: 2 !important;
+}
+
 .adl-minimap-slider-visual {
   position: absolute;
   left: 0;
@@ -4215,7 +4244,7 @@
   left: 0;
   width: 4px;
   pointer-events: none;
-  z-index: 4;
+  z-index: 10;
   border-radius: 0;
 }
 
@@ -4225,10 +4254,6 @@
 
 .adl-minimap-diff-indicator--delete {
   background: var(--minimap-diff-remove);
-}
-
-.adl-minimap-diff-indicator--modify {
-  background: var(--minimap-diff-modify);
 }
 
 .adl-tool-hint {

@@ -13,7 +13,7 @@ export type ScrollState = {
 export type DiffRange = {
   startLine: number;
   endLine: number;
-  type: "insert" | "delete" | "modify";
+  type: "insert" | "delete";
 };
 
 export type MinimapOverlayOptions = {
@@ -86,7 +86,7 @@ function renderDiffIndicators(
     const startLine = Math.max(1, range.startLine);
     const endLine = Math.max(startLine, range.endLine);
 
-    if (endLine < 1) return;
+    if (endLine < 1 || startLine > totalLines) return;
 
     const startY = Math.max(0, (startLine - 1) / totalLines) * minimapHeight;
     const endY = Math.min(minimapHeight, endLine / totalLines) * minimapHeight;
@@ -94,8 +94,11 @@ function renderDiffIndicators(
 
     const indicator = document.createElement("div");
     indicator.className = `${DIFF_INDICATOR_CLASS} ${DIFF_INDICATOR_CLASS}--${range.type}`;
-    indicator.style.top = `${startY}px`;
-    indicator.style.height = `${height}px`;
+    const fallbackColor = range.type === "insert"
+      ? "rgba(22, 163, 74, 0.6)"
+      : "rgba(239, 68, 68, 0.6)";
+    indicator.style.cssText =
+      `position:absolute;left:0;width:4px;top:${startY}px;height:${height}px;pointer-events:none;z-index:10;border-radius:0;background:${fallbackColor};`;
     indicator.setAttribute("aria-hidden", "true");
 
     minimap.appendChild(indicator);
@@ -228,8 +231,20 @@ export function attachMinimapVisualOverlays(root: HTMLElement, options?: Minimap
   let rafId = 0;
   const interactionDisposers = new Map<HTMLElement, () => void>();
 
+  const stripDiffBorders = () => {
+    const DIFF_BORDER_CLASSES = ["char-insert", "char-delete", "line-insert", "line-delete"];
+    for (const cls of DIFF_BORDER_CLASSES) {
+      root.querySelectorAll(`.${cls}`).forEach((el) => {
+        (el as HTMLElement).style.setProperty("border", "none", "important");
+        (el as HTMLElement).style.setProperty("outline", "none", "important");
+        (el as HTMLElement).style.setProperty("box-shadow", "none", "important");
+      });
+    }
+  };
+
   const syncAll = () => {
     if (disposed) return;
+    stripDiffBorders();
     const minimaps = collectMinimaps(root);
     const activeSet = new Set(minimaps);
 
