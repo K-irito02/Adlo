@@ -620,13 +620,14 @@ describe("getLineCount callback integration", () => {
     expect(minimapOverlaySource).toContain("getLineCount: options?.getLineCount");
   });
 
-  it("computeContentHeight helper uses getLineCount", () => {
-    expect(minimapOverlaySource).toContain("const computeContentHeight = ");
-    expect(minimapOverlaySource).toContain("options?.getLineCount?.()");
+  it("attachOverlayInteraction no longer requires getContentHeight parameter", () => {
+    expect(minimapOverlaySource).not.toContain("_getContentHeight");
+    expect(minimapOverlaySource).toContain("setScrollTop: (value: number) => void");
   });
 
-  it("attachOverlayInteraction receives getContentHeight closure (now unused)", () => {
-    expect(minimapOverlaySource).toContain("_getContentHeight: () => number");
+  it("getSliderMetrics falls back to CSS variables when slider DOM not found", () => {
+    expect(minimapOverlaySource).toContain('style.getPropertyValue("--adl-slider-top")');
+    expect(minimapOverlaySource).toContain('style.getPropertyValue("--adl-slider-height")');
   });
 });
 

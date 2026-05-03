@@ -215,20 +215,37 @@ function attachOverlayInteraction(
   minimap: HTMLElement,
   overlay: HTMLElement,
   getScrollState: () => ScrollState | null,
-  setScrollTop: (value: number) => void,
-  _getContentHeight: () => number
+  setScrollTop: (value: number) => void
 ): () => void {
   let dragging = false;
 
   const getSliderMetrics = () => {
-    const slider = minimap.querySelector<HTMLElement>(SLIDER_SELECTOR);
     const minimapRect = minimap.getBoundingClientRect();
     const minimapHeight = minimapRect.height;
-    if (!slider || minimapHeight <= 0) return null;
+    if (minimapHeight <= 0) return null;
     
-    const sliderRect = slider.getBoundingClientRect();
-    const sliderHeight = sliderRect.height;
-    const sliderTop = sliderRect.top - minimapRect.top;
+    const slider = minimap.querySelector<HTMLElement>(SLIDER_SELECTOR);
+    
+    if (slider) {
+      const sliderRect = slider.getBoundingClientRect();
+      const sliderHeight = sliderRect.height;
+      const sliderTop = sliderRect.top - minimapRect.top;
+      
+      if (sliderHeight > 0) {
+        const state = getScrollState();
+        if (state && state.scrollHeight > 0 && state.clientHeight > 0) {
+          const maxScroll = state.scrollHeight - state.clientHeight;
+          if (maxScroll <= 0) return { sliderHeight, sliderTop, contentHeight: minimapHeight, maxScroll: 0 };
+          
+          const contentHeight = (sliderHeight / state.clientHeight) * state.scrollHeight;
+          return { sliderHeight, sliderTop, contentHeight: Math.min(contentHeight, minimapHeight), maxScroll };
+        }
+      }
+    }
+    
+    const style = window.getComputedStyle(overlay);
+    const sliderTop = parseFloat(style.getPropertyValue("--adl-slider-top")) || 0;
+    const sliderHeight = parseFloat(style.getPropertyValue("--adl-slider-height")) || 0;
     
     if (sliderHeight <= 0) return null;
     
@@ -239,7 +256,6 @@ function attachOverlayInteraction(
     if (maxScroll <= 0) return { sliderHeight, sliderTop, contentHeight: minimapHeight, maxScroll: 0 };
     
     const contentHeight = (sliderHeight / state.clientHeight) * state.scrollHeight;
-    
     return { sliderHeight, sliderTop, contentHeight: Math.min(contentHeight, minimapHeight), maxScroll };
   };
 
@@ -419,13 +435,6 @@ export function attachMinimapVisualOverlays(root: HTMLElement, options?: Minimap
     getLineCount: options?.getLineCount,
   };
 
-  const computeContentHeight = (minimap: HTMLElement) => {
-    const state = getScrollState?.() ?? null;
-    const lc = options?.getLineCount?.() ?? null;
-    const s = overlayOptions.getSettings?.();
-    return getMinimapContentHeight(minimap, state, lc, s?.scale, s?.size);
-  };
-
   const syncAll = () => {
     if (disposed) return;
     stripDiffBorders();
@@ -445,8 +454,7 @@ export function attachMinimapVisualOverlays(root: HTMLElement, options?: Minimap
       if (getScrollState && setScrollTop) {
         const overlay = minimap.querySelector<HTMLElement>(`.${OVERLAY_CLASS}`);
         if (overlay && !interactionDisposers.has(minimap)) {
-          const getContentHeight = () => computeContentHeight(minimap);
-          interactionDisposers.set(minimap, attachOverlayInteraction(minimap, overlay, getScrollState, setScrollTop, getContentHeight));
+          interactionDisposers.set(minimap, attachOverlayInteraction(minimap, overlay, getScrollState, setScrollTop));
         }
       }
     });
