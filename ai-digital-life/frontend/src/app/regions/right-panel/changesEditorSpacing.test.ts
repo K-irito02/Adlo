@@ -81,8 +81,8 @@ describe("changes preview gutter spacing", () => {
     expect(inlineSliderRule).toContain("width: 100% !important;");
     expect(inlineSliderRule).not.toContain("min-height:");
     expect(inlineSliderRule).not.toContain("max-height:");
-    expect(inlineSliderRule).toContain("background: transparent !important;");
-    expect(inlineSliderRule).toContain("pointer-events: none !important;");
+    expect(inlineSliderRule).toContain("background:");
+    expect(inlineSliderRule).toContain("transparent");
     expect(regionsCss).toContain(".adl-minimap-slider-visual");
     expect(regionsCss).toContain(".adl-minimap-slider-visual--dragging");
     expect(regionsCss).toContain("cursor: grabbing");

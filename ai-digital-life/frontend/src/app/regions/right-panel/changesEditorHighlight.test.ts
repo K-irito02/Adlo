@@ -93,12 +93,7 @@ describe("changes preview highlight theming", () => {
 
   it("uses preview-owned depth classes for inline diff row backgrounds", () => {
     expect(changesPanelSource).toContain("computePreviewDiffVisualRanges");
-    expect(changesPanelSource).toContain("computePreviewDiffMinimapModel");
-    expect(changesPanelSource).toContain("estimateEditorWrapColumn");
-    expect(changesPanelSource).toContain("changePreviewMinimapOptions");
-    expect(changesPanelSource).toContain("wrapColumn: wordWrapEnabled ? changePreviewWrapColumn : null");
     expect(changesPanelSource).toContain("displayOptionChange");
-    expect(changesPanelSource).toContain("setChangePreviewWrapColumn(wordWrapEnabled ? estimateEditorWrapColumn(modifiedEditor) : null)");
     expect(changesPanelSource).toContain("adl-inline-diff-line--${range.tone}");
     expect(regionsCss).toContain(".adl-inline-diff-line--insert.adl-inline-diff-line--strong");
     expect(regionsCss).toContain("background-color: var(--editor-diff-insert-bg-strong) !important;");

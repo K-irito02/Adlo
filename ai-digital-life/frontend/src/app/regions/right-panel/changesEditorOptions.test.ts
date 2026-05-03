@@ -48,15 +48,12 @@ describe("changes preview editor options", () => {
     expect(changesPanelSource).toContain("deltaDecorations");
     expect(changesPanelSource).toContain("adl-inline-diff-line");
     expect(changesPanelSource).toContain("getMinimapPosition");
-    expect(changesPanelSource).toContain("CHANGE_MINIMAP_DECORATION_COLORS");
-    expect(changesPanelSource).toContain("minimap:");
   });
 
-  it("keeps inline minimap drag refresh off the React state path", () => {
-    expect(changesPanelSource).not.toContain("attachMinimapVisualOverlays");
-    expect(changesPanelSource).not.toContain("setChangePreviewWrapColumn");
-    expect(changesPanelSource).not.toContain("getScrollState: () => {");
-    expect(changesPanelSource).not.toContain("new MutationObserver");
-    expect(changesPanelSource).not.toContain("diffModeChange-");
+  it("attaches custom minimap visual overlays in inline mode", () => {
+    expect(changesPanelSource).toContain("attachMinimapVisualOverlays");
+    expect(changesPanelSource).toContain("getScrollState: () => {");
+    expect(changesPanelSource).toContain("onSettingsChange:");
+    expect(changesPanelSource).toContain("getSettings:");
   });
 });

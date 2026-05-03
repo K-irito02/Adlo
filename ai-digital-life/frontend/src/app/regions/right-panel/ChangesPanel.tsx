@@ -29,23 +29,20 @@ import { detectEditorLanguage } from "../../workspacePaths";
 import {
   type MonacoDecoration,
   getMonacoFromWindow,
-  getMinimapPosition,
   createMonacoRange,
-  isDiffEditor
+  isDiffEditor,
+  getMinimapPosition
 } from "./monacoTypes";
+import {
+  attachMinimapVisualOverlays,
+  loadMinimapSettings,
+  saveMinimapSettings,
+  MINIMAP_DEFAULTS,
+  type MinimapSettings
+} from "./minimapVisualOverlay";
 
 const CHANGES_BRANCH_STORAGE_KEY = "adl-ui:changes-branch";
 const FALLBACK_BRANCHES = ["main", "develop", "release/0.1.0", "feature/right-panel"];
-const CHANGE_MINIMAP_DECORATION_COLORS = {
-  insert: {
-    color: "rgba(22, 163, 74, 0.72)",
-    darkColor: "rgba(74, 222, 128, 0.78)"
-  },
-  delete: {
-    color: "rgba(239, 68, 68, 0.72)",
-    darkColor: "rgba(248, 113, 113, 0.78)"
-  }
-};
 
 function readSelectedBranch(initialBranch: string): string {
   try {
@@ -249,6 +246,10 @@ export function ChangesPanel(props: RightPanelViewProps) {
   const minimapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const previewDecorationIdsRef = useRef<string[]>([]);
   const [diffEditorReady, setDiffEditorReady] = useState(0);
+  const [minimapSettings, setMinimapSettings] = useState<MinimapSettings>(loadMinimapSettings);
+  const minimapSettingsRef = useRef(minimapSettings);
+  minimapSettingsRef.current = minimapSettings;
+  const diffRangesRef = useRef<import("./changePreviewDiffRanges").PreviewDiffVisualRange[]>([]);
 
   const applyMinimapToDiffEditor = useCallback((de: unknown, _reason: string) => {
     if (!isDiffEditor(de)) return false;
@@ -259,14 +260,15 @@ export function ChangesPanel(props: RightPanelViewProps) {
         verticalScrollbarSize: 0,
         horizontalScrollbarSize: 10
       };
+      const s = minimapSettingsRef.current;
       const minimapOpts = {
         enabled: true,
         side: "right" as const,
-        size: "proportional" as const,
-        showSlider: "always" as const,
-        renderCharacters: false,
+        size: s.size,
+        showSlider: s.showSlider,
+        renderCharacters: s.renderCharacters,
         maxColumn: 80,
-        scale: 1
+        scale: s.scale
       };
       de.updateOptions({
         minimap: minimapOpts,
@@ -382,6 +384,8 @@ export function ChangesPanel(props: RightPanelViewProps) {
     const modifiedEditor = isDiffEditor(diffEditor) ? diffEditor.getModifiedEditor() : null;
     const monaco = getMonacoFromWindow();
 
+    diffRangesRef.current = changePreviewDiffRanges;
+
     if (!modifiedEditor || !monaco || props.diffSideBySide || !changePreview) {
       if (modifiedEditor && previewDecorationIdsRef.current.length > 0) {
         previewDecorationIdsRef.current = modifiedEditor.deltaDecorations(previewDecorationIdsRef.current, []);
@@ -390,16 +394,21 @@ export function ChangesPanel(props: RightPanelViewProps) {
     }
 
     const minimapPosition = getMinimapPosition(monaco);
+    const root = document.documentElement;
+    const computedStyle = getComputedStyle(root);
+    const insertColor = computedStyle.getPropertyValue("--minimap-diff-insert-bg").trim() || "rgba(22, 163, 74, 0.35)";
+    const deleteColor = computedStyle.getPropertyValue("--minimap-diff-remove-bg").trim() || "rgba(239, 68, 68, 0.35)";
+
     const decorations: MonacoDecoration[] = changePreviewDiffRanges.map((range: PreviewDiffVisualRange) => ({
       range: createMonacoRange(monaco, range.startLine, 1, range.endLine, 1),
       options: {
         isWholeLine: true,
         className: `adl-inline-diff-line adl-inline-diff-line--${range.type} adl-inline-diff-line--${range.tone}`,
+        zIndex: range.type === "delete" ? 2 : 1,
         minimap: {
-          ...CHANGE_MINIMAP_DECORATION_COLORS[range.type],
-          position: minimapPosition
-        },
-        zIndex: range.type === "delete" ? 2 : 1
+          position: minimapPosition,
+          color: range.type === "delete" ? deleteColor : insertColor
+        }
       }
     }));
 
@@ -428,6 +437,80 @@ export function ChangesPanel(props: RightPanelViewProps) {
     const timers = [0, 50, 150, 300, 600].map((delay) => setTimeout(refreshMinimapAfterOptionChange, delay));
     return () => timers.forEach((timer) => clearTimeout(timer));
   }, [changePreview?.path, lineNumbersEnabled, props.diffSideBySide, wordWrapEnabled, applyMinimapToDiffEditor]);
+
+  const getModifiedEditor = useCallback(() => {
+    const de = diffEditorRef.current;
+    return isDiffEditor(de) ? de.getModifiedEditor() : null;
+  }, []);
+
+  const applyMinimapSettings = useCallback((settings: MinimapSettings) => {
+    const de = diffEditorRef.current;
+    if (!isDiffEditor(de)) return;
+    const minimapOpts = {
+      enabled: true,
+      side: "right" as const,
+      size: settings.size,
+      showSlider: settings.showSlider,
+      renderCharacters: settings.renderCharacters,
+      maxColumn: 80,
+      scale: settings.scale
+    };
+    try {
+      de.updateOptions({ minimap: minimapOpts });
+      const modifiedEditor = de.getModifiedEditor();
+      if (modifiedEditor) modifiedEditor.updateOptions({ minimap: minimapOpts });
+    } catch {
+      /* editor disposed */
+    }
+  }, []);
+
+  const handleMinimapSettingsChange = useCallback((settings: MinimapSettings) => {
+    setMinimapSettings(settings);
+    saveMinimapSettings(settings);
+    applyMinimapSettings(settings);
+  }, [applyMinimapSettings]);
+
+  useEffect(() => {
+    if (props.diffSideBySide) return;
+    const shell = changesPreviewShellRef.current;
+    if (!shell) return;
+
+    let disposed = false;
+    let controller: { refresh: () => void; dispose: () => void } | null = null;
+
+    const tryAttach = () => {
+      if (disposed) return;
+      const root = shell.querySelector<HTMLElement>(
+        ".adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .minimap"
+      );
+      if (!root) return;
+
+      controller = attachMinimapVisualOverlays(root, {
+        getScrollState: () => {
+          const editor = getModifiedEditor();
+          if (!editor) return null;
+          return {
+            scrollTop: editor.getScrollTop(),
+            scrollHeight: editor.getScrollHeight(),
+            clientHeight: editor.getLayoutInfo().height,
+          };
+        },
+        setScrollTop: (value) => {
+          getModifiedEditor()?.setScrollPosition({ scrollTop: value });
+        },
+        onSettingsChange: handleMinimapSettingsChange,
+        getSettings: () => minimapSettingsRef.current,
+      });
+    };
+
+    const timers = [0, 100, 300, 600].map((delay) => setTimeout(tryAttach, delay));
+
+    return () => {
+      disposed = true;
+      timers.forEach((timer) => clearTimeout(timer));
+      controller?.dispose();
+    };
+  }, [changePreview?.path, props.diffSideBySide, diffEditorReady, getModifiedEditor, handleMinimapSettingsChange]);
 
   const handleNavigatorResizeStart = (event: React.PointerEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -510,7 +593,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
   };
 
   return (
-    <div className="adl-tool-panel adl-tool-panel--changes">
+    <div ref={changesPreviewShellRef} className="adl-tool-panel adl-tool-panel--changes">
       <div className="adl-tool-context adl-tool-context--files" aria-label={t.toolChanges}>
         <div className="adl-tool-context__group adl-tool-context__group--grow adl-tool-context__group--files">
           <TooltipSimple content={navigatorCollapsed ? t.panelToggleRight : t.panelToggleLeft} placement="top">

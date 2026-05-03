@@ -9,8 +9,8 @@ export type MonacoDecorationOptions = {
   isWholeLine: boolean;
   className: string;
   minimap?: {
-    color: string;
-    darkColor: string;
+    color?: string;
+    darkColor?: string;
     position: number;
   };
   zIndex: number;
@@ -31,6 +31,7 @@ export interface MonacoEditor {
   onDidScrollChange?(listener: () => void): { dispose(): void };
   getModel?(): { getLineCount(): number } | null;
   getDomNode?(): HTMLElement | null;
+  getTopForLineNumber?(lineNumber: number): number;
 }
 
 export interface MonacoDiffEditor {

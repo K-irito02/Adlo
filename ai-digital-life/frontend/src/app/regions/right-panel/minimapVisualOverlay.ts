@@ -1,13 +1,8 @@
 const MINIMAP_SELECTOR = ".minimap";
 const SLIDER_SELECTOR = ".minimap-slider";
 const OVERLAY_CLASS = "adl-minimap-slider-visual";
-const DIFF_INDICATORS_LAYER_CLASS = "adl-minimap-diff-indicators";
-const DIFF_INDICATOR_CLASS = "adl-minimap-diff-indicator";
+const CONTEXT_MENU_CLASS = "adl-minimap-context-menu";
 const DEFAULT_VISUAL_HEIGHT = 48;
-const DEFAULT_MINIMAP_MAX_COLUMN = 80;
-const MIN_INDICATOR_WIDTH = 3;
-const INDICATOR_LEFT_PADDING = 4;
-const INDICATOR_RIGHT_PADDING = 3;
 
 export type ScrollState = {
   scrollTop: number;
@@ -15,19 +10,48 @@ export type ScrollState = {
   clientHeight: number;
 };
 
-export type DiffRange = {
-  startLine: number;
-  endLine: number;
-  type: "insert" | "delete";
-  tone?: "base" | "strong" | "block";
-  contentColumns?: number;
+export type MinimapSettings = {
+  renderCharacters: boolean;
+  size: "proportional" | "fill";
+  scale: number;
+  showSlider: "always" | "mouseover";
 };
+
+export const MINIMAP_DEFAULTS: MinimapSettings = {
+  renderCharacters: true,
+  size: "proportional",
+  scale: 1.5,
+  showSlider: "always",
+};
+
+const MINIMAP_SETTINGS_STORAGE_KEY = "adl-minimap-settings";
+
+export function loadMinimapSettings(): MinimapSettings {
+  try {
+    const raw = localStorage.getItem(MINIMAP_SETTINGS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return { ...MINIMAP_DEFAULTS, ...parsed };
+    }
+  } catch {
+    /* ignore parse errors */
+  }
+  return { ...MINIMAP_DEFAULTS };
+}
+
+export function saveMinimapSettings(settings: MinimapSettings): void {
+  try {
+    localStorage.setItem(MINIMAP_SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+  } catch {
+    /* storage may be unavailable */
+  }
+}
 
 export type MinimapOverlayOptions = {
   getScrollState?: () => ScrollState | null;
   setScrollTop?: (value: number) => void;
-  getDiffRanges?: () => DiffRange[] | null;
-  getTotalLines?: () => number | null;
+  onSettingsChange?: (settings: MinimapSettings) => void;
+  getSettings?: () => MinimapSettings;
 };
 
 type VisualFrameInput = {
@@ -36,24 +60,9 @@ type VisualFrameInput = {
   visualHeight: number;
 };
 
-type DiffIndicatorStyleInput = {
-  range: DiffRange;
-  totalLines: number;
-  minimapHeight: number;
-  minimapWidth: number;
-  maxColumn?: number;
-};
-
 export type MinimapVisualFrame = {
   top: number;
   height: number;
-};
-
-export type MinimapDiffIndicatorStyle = {
-  top: number;
-  height: number;
-  left: number;
-  width: number;
 };
 
 export function computeMinimapVisualFrame(input: VisualFrameInput): MinimapVisualFrame {
@@ -75,36 +84,6 @@ export function computeScrollRatio(state: ScrollState): number {
   return Math.max(0, Math.min(state.scrollTop / maxScroll, 1));
 }
 
-export function computeMinimapDiffIndicatorStyle(input: DiffIndicatorStyleInput): MinimapDiffIndicatorStyle | null {
-  const totalLines = Math.max(0, input.totalLines);
-  const minimapHeight = Math.max(0, input.minimapHeight);
-  const minimapWidth = Math.max(0, input.minimapWidth);
-
-  if (totalLines <= 0 || minimapHeight <= 0 || minimapWidth <= 0) return null;
-
-  const startLine = Math.max(1, input.range.startLine);
-  const endLine = Math.max(startLine, input.range.endLine);
-  if (endLine < 1 || startLine > totalLines) return null;
-
-  const startY = Math.max(0, (startLine - 1) / totalLines) * minimapHeight;
-  const endY = Math.min(minimapHeight, endLine / totalLines) * minimapHeight;
-  const height = Math.max(2, endY - startY);
-  const availableWidth = Math.max(0, minimapWidth - INDICATOR_LEFT_PADDING - INDICATOR_RIGHT_PADDING);
-  if (availableWidth <= 0) return null;
-
-  const maxColumn = Math.max(1, input.maxColumn ?? DEFAULT_MINIMAP_MAX_COLUMN);
-  const contentColumns = Math.max(1, input.range.contentColumns ?? maxColumn);
-  const contentRatio = Math.max(MIN_INDICATOR_WIDTH / availableWidth, Math.min(contentColumns / maxColumn, 1));
-  const width = Math.min(availableWidth, Math.max(MIN_INDICATOR_WIDTH, availableWidth * contentRatio));
-
-  return {
-    top: startY,
-    height,
-    left: INDICATOR_LEFT_PADDING,
-    width
-  };
-}
-
 function readVisualHeight(minimap: HTMLElement): number {
   const raw = getComputedStyle(minimap).getPropertyValue("--adl-minimap-slider-visual-height").trim();
   const parsed = Number.parseFloat(raw);
@@ -122,72 +101,11 @@ function getOrCreateOverlay(minimap: HTMLElement) {
   return overlay;
 }
 
-function getOrCreateDiffIndicatorsLayer(minimap: HTMLElement) {
-  let layer = minimap.querySelector<HTMLElement>(`:scope > .${DIFF_INDICATORS_LAYER_CLASS}`);
-  if (!layer) {
-    layer = document.createElement("div");
-    layer.className = DIFF_INDICATORS_LAYER_CLASS;
-    layer.setAttribute("aria-hidden", "true");
-    minimap.appendChild(layer);
-  }
-  return layer;
-}
-
-function computeDiffIndicatorMaxColumn(diffRanges: DiffRange[]) {
-  return Math.max(
-    DEFAULT_MINIMAP_MAX_COLUMN,
-    ...diffRanges.map((range) => Math.max(0, range.contentColumns ?? 0))
-  );
-}
-
-function renderDiffIndicators(
-  minimap: HTMLElement,
-  diffRanges: DiffRange[],
-  totalLines: number
-) {
-  const layer = getOrCreateDiffIndicatorsLayer(minimap);
-  layer.replaceChildren();
-
-  if (!diffRanges.length || totalLines <= 0) return;
-
-  const minimapRect = minimap.getBoundingClientRect();
-  const minimapHeight = minimapRect.height;
-  const minimapWidth = minimapRect.width;
-  if (minimapHeight <= 0 || minimapWidth <= 0) return;
-
-  const fragment = document.createDocumentFragment();
-  const maxColumn = computeDiffIndicatorMaxColumn(diffRanges);
-
-  diffRanges.forEach((range) => {
-    const layout = computeMinimapDiffIndicatorStyle({
-      range,
-      totalLines,
-      minimapHeight,
-      minimapWidth,
-      maxColumn
-    });
-    if (!layout) return;
-
-    const indicator = document.createElement("div");
-    indicator.className = `${DIFF_INDICATOR_CLASS} ${DIFF_INDICATOR_CLASS}--${range.type} ${DIFF_INDICATOR_CLASS}--${range.tone ?? "base"}`;
-    indicator.style.top = `${layout.top}px`;
-    indicator.style.height = `${layout.height}px`;
-    indicator.style.left = `${layout.left}px`;
-    indicator.style.width = `${layout.width}px`;
-    indicator.setAttribute("aria-hidden", "true");
-
-    fragment.appendChild(indicator);
-  });
-
-  layer.replaceChildren(fragment);
-}
-
 function syncMinimapOverlay(
   minimap: HTMLElement,
-  getScrollState?: () => ScrollState | null,
-  getDiffRanges?: () => DiffRange[] | null,
-  getTotalLines?: () => number | null
+  options?: MinimapOverlayOptions
 ) {
+  const { getScrollState } = options ?? {};
   const slider = minimap.querySelector<HTMLElement>(SLIDER_SELECTOR);
   const overlay = getOrCreateOverlay(minimap);
 
@@ -220,14 +138,6 @@ function syncMinimapOverlay(
   overlay.style.display = "block";
   overlay.style.top = `${frame.top}px`;
   overlay.style.height = `${frame.height}px`;
-
-  if (getDiffRanges && getTotalLines) {
-    const diffRanges = getDiffRanges();
-    const totalLines = getTotalLines();
-    if (diffRanges && totalLines) {
-      renderDiffIndicators(minimap, diffRanges, totalLines);
-    }
-  }
 }
 
 function collectMinimaps(root: ParentNode) {
@@ -303,10 +213,11 @@ function attachOverlayInteraction(
 }
 
 export function attachMinimapVisualOverlays(root: HTMLElement, options?: MinimapOverlayOptions) {
-  const { getScrollState, setScrollTop, getDiffRanges, getTotalLines } = options ?? {};
+  const { getScrollState, setScrollTop, onSettingsChange, getSettings } = options ?? {};
   let disposed = false;
   let rafId = 0;
   const interactionDisposers = new Map<HTMLElement, () => void>();
+  let contextMenuEl: HTMLElement | null = null;
 
   const stripDiffBorders = () => {
     const DIFF_BORDER_CLASSES = ["char-insert", "char-delete", "line-insert", "line-delete"];
@@ -331,6 +242,18 @@ export function attachMinimapVisualOverlays(root: HTMLElement, options?: Minimap
     }
   };
 
+  const closeContextMenu = () => {
+    if (contextMenuEl) {
+      contextMenuEl.remove();
+      contextMenuEl = null;
+    }
+  };
+
+  const overlayOptions: MinimapOverlayOptions = {
+    getScrollState,
+    setScrollTop,
+  };
+
   const syncAll = () => {
     if (disposed) return;
     stripDiffBorders();
@@ -345,7 +268,7 @@ export function attachMinimapVisualOverlays(root: HTMLElement, options?: Minimap
     }
 
     minimaps.forEach((minimap) => {
-      syncMinimapOverlay(minimap, getScrollState, getDiffRanges, getTotalLines);
+      syncMinimapOverlay(minimap, overlayOptions);
 
       if (getScrollState && setScrollTop) {
         const overlay = minimap.querySelector<HTMLElement>(`.${OVERLAY_CLASS}`);
@@ -376,6 +299,129 @@ export function attachMinimapVisualOverlays(root: HTMLElement, options?: Minimap
   resizeObserver.observe(root);
   collectMinimaps(root).forEach((minimap) => resizeObserver.observe(minimap));
 
+  const handleContextMenu = (event: MouseEvent) => {
+    if (!onSettingsChange || !getSettings) return;
+    const minimap = (event.target as HTMLElement).closest(MINIMAP_SELECTOR);
+    if (!minimap || !root.contains(minimap)) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    closeContextMenu();
+
+    const menu = document.createElement("div");
+    menu.className = CONTEXT_MENU_CLASS;
+    menu.style.left = `${event.clientX}px`;
+    menu.style.top = `${event.clientY}px`;
+
+    const settings = getSettings();
+
+    const createCheckItem = (label: string, checked: boolean, onChange: (value: boolean) => void) => {
+      const item = document.createElement("button");
+      item.className = `${CONTEXT_MENU_CLASS}__item`;
+      item.type = "button";
+
+      const labelSpan = document.createElement("span");
+      labelSpan.textContent = label;
+      item.appendChild(labelSpan);
+
+      const checkSpan = document.createElement("span");
+      checkSpan.className = `${CONTEXT_MENU_CLASS}__check`;
+      checkSpan.textContent = checked ? "✓" : "";
+      item.appendChild(checkSpan);
+
+      item.addEventListener("click", (e) => {
+        e.stopPropagation();
+        onChange(!checked);
+        closeContextMenu();
+      });
+      return item;
+    };
+
+    const createRadioGroup = (label: string, options: { value: string; label: string }[], currentValue: string, onChange: (value: string) => void) => {
+      const item = document.createElement("div");
+      item.className = `${CONTEXT_MENU_CLASS}__group`;
+
+      const header = document.createElement("span");
+      header.className = `${CONTEXT_MENU_CLASS}__group-label`;
+      header.textContent = label;
+      item.appendChild(header);
+
+      const optionsContainer = document.createElement("div");
+      optionsContainer.className = `${CONTEXT_MENU_CLASS}__group-options`;
+
+      options.forEach((opt) => {
+        const btn = document.createElement("button");
+        btn.className = `${CONTEXT_MENU_CLASS}__option${opt.value === currentValue ? " is-selected" : ""}`;
+        btn.type = "button";
+        btn.textContent = opt.label;
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          onChange(opt.value);
+          closeContextMenu();
+        });
+        optionsContainer.appendChild(btn);
+      });
+
+      item.appendChild(optionsContainer);
+      return item;
+    };
+
+    const createSeparator = () => {
+      const sep = document.createElement("div");
+      sep.className = `${CONTEXT_MENU_CLASS}__separator`;
+      return sep;
+    };
+
+    menu.appendChild(createCheckItem(
+      "渲染字符",
+      settings.renderCharacters,
+      (value) => onSettingsChange({ ...settings, renderCharacters: value })
+    ));
+
+    menu.appendChild(createRadioGroup("缩略图大小", [
+      { value: "proportional", label: "按比例" },
+      { value: "fill", label: "填充" },
+    ], settings.size, (value) => onSettingsChange({ ...settings, size: value as MinimapSettings["size"] })));
+
+    menu.appendChild(createRadioGroup("缩放比例", [
+      { value: "1", label: "1x" },
+      { value: "1.5", label: "1.5x" },
+      { value: "2", label: "2x" },
+    ], String(settings.scale), (value) => onSettingsChange({ ...settings, scale: Number(value) })));
+
+    menu.appendChild(createRadioGroup("滑块行为", [
+      { value: "always", label: "始终" },
+      { value: "mouseover", label: "悬停" },
+    ], settings.showSlider, (value) => onSettingsChange({ ...settings, showSlider: value as MinimapSettings["showSlider"] })));
+
+    document.body.appendChild(menu);
+    contextMenuEl = menu;
+
+    const menuRect = menu.getBoundingClientRect();
+    if (menuRect.right > window.innerWidth) {
+      menu.style.left = `${window.innerWidth - menuRect.width - 4}px`;
+    }
+    if (menuRect.bottom > window.innerHeight) {
+      menu.style.top = `${window.innerHeight - menuRect.height - 4}px`;
+    }
+  };
+
+  const handleDismissContextMenu = (event: MouseEvent) => {
+    if (!contextMenuEl) return;
+    if (!contextMenuEl.contains(event.target as Node)) {
+      closeContextMenu();
+    }
+  };
+
+  const handleEscape = (event: KeyboardEvent) => {
+    if (event.key === "Escape") closeContextMenu();
+  };
+
+  root.addEventListener("contextmenu", handleContextMenu);
+  document.addEventListener("mousedown", handleDismissContextMenu, true);
+  document.addEventListener("keydown", handleEscape, true);
+
   scheduleSync();
 
   return {
@@ -390,9 +436,11 @@ export function attachMinimapVisualOverlays(root: HTMLElement, options?: Minimap
       resizeObserver.disconnect();
       for (const disposer of interactionDisposers.values()) disposer();
       interactionDisposers.clear();
+      root.removeEventListener("contextmenu", handleContextMenu);
+      document.removeEventListener("mousedown", handleDismissContextMenu, true);
+      document.removeEventListener("keydown", handleEscape, true);
+      closeContextMenu();
       root.querySelectorAll<HTMLElement>(`.${OVERLAY_CLASS}`).forEach((el) => el.remove());
-      root.querySelectorAll<HTMLElement>(`.${DIFF_INDICATORS_LAYER_CLASS}`).forEach((el) => el.remove());
-      root.querySelectorAll<HTMLElement>(`.${DIFF_INDICATOR_CLASS}`).forEach((el) => el.remove());
     }
   };
 }

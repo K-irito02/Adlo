@@ -4283,44 +4283,93 @@
   cursor: grabbing !important;
 }
 
-.adl-minimap-diff-indicators {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 1;
+.adl-minimap-context-menu {
+  position: fixed;
+  min-width: 180px;
+  background: var(--surface-raised, var(--surface-base));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 6px);
+  box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.25));
+  z-index: 9999;
+  padding: var(--space-1, 4px);
+  font-size: var(--text-xs, 11px);
+  font-family: var(--font-sans, inherit);
+  line-height: 1.4;
+  color: var(--text-primary);
+  user-select: none;
 }
 
-.adl-minimap-diff-indicator {
-  position: absolute;
-  pointer-events: none;
-  z-index: 1;
-  border-radius: 0;
-  box-sizing: border-box;
+.adl-minimap-context-menu__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3, 12px);
+  padding: var(--space-1-5, 6px) var(--space-3, 12px);
+  color: var(--text-primary);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm, 3px);
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  font-size: inherit;
+  font-family: inherit;
+  line-height: inherit;
 }
 
-.adl-minimap-diff-indicator--insert {
-  background: linear-gradient(var(--editor-diff-insert-bg), var(--editor-diff-insert-bg)), var(--editor-bg);
+.adl-minimap-context-menu__item:hover:not(:disabled) {
+  background: var(--surface-hover);
 }
 
-.adl-minimap-diff-indicator--delete {
-  background: linear-gradient(var(--editor-diff-remove-bg), var(--editor-diff-remove-bg)), var(--editor-bg);
+.adl-minimap-context-menu__check {
+  min-width: 16px;
+  text-align: center;
+  color: var(--text-muted);
 }
 
-.adl-minimap-diff-indicator--insert.adl-minimap-diff-indicator--strong {
-  background: linear-gradient(var(--editor-diff-insert-bg-strong), var(--editor-diff-insert-bg-strong)), var(--editor-bg);
+.adl-minimap-context-menu__separator {
+  height: 1px;
+  background: var(--border);
+  margin: var(--space-1, 4px) 0;
 }
 
-.adl-minimap-diff-indicator--delete.adl-minimap-diff-indicator--strong {
-  background: linear-gradient(var(--editor-diff-remove-bg-strong), var(--editor-diff-remove-bg-strong)), var(--editor-bg);
-  z-index: 2;
+.adl-minimap-context-menu__group {
+  padding: var(--space-1-5, 6px) var(--space-3, 12px);
 }
 
-.adl-minimap-diff-indicator--insert.adl-minimap-diff-indicator--block {
-  background: linear-gradient(var(--editor-diff-insert-bg-block), var(--editor-diff-insert-bg-block)), var(--editor-bg);
+.adl-minimap-context-menu__group-label {
+  display: block;
+  font-size: inherit;
+  color: var(--text-muted);
+  margin-bottom: var(--space-1, 4px);
 }
 
-.adl-minimap-diff-indicator--delete.adl-minimap-diff-indicator--block {
-  background: linear-gradient(var(--editor-diff-remove-bg-block), var(--editor-diff-remove-bg-block)), var(--editor-bg);
+.adl-minimap-context-menu__group-options {
+  display: flex;
+  gap: var(--space-1, 4px);
+}
+
+.adl-minimap-context-menu__option {
+  padding: var(--space-1, 4px) var(--space-2, 8px);
+  font-size: inherit;
+  font-family: inherit;
+  line-height: inherit;
+  color: var(--text-primary);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 3px);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.adl-minimap-context-menu__option:hover {
+  background: var(--surface-hover);
+}
+
+.adl-minimap-context-menu__option.is-selected {
+  background: var(--accent-bg, var(--surface-active));
+  border-color: var(--accent-border, var(--border));
+  color: var(--accent-text, var(--text-primary));
 }
 
 .adl-tool-hint {

@@ -242,6 +242,16 @@ function buildMonacoThemeData(theme: "light" | "dark"): {
   colors["diffEditor.removedLineBorder"] = "#00000000";
   colors["diffEditor.modifiedLineBorder"] = "#00000000";
 
+  const minimapInsertBg = readThemeColor(theme, "--minimap-diff-insert-bg");
+  const minimapDeleteBg = readThemeColor(theme, "--minimap-diff-remove-bg");
+  if (minimapInsertBg) {
+    colors["minimapGutter.addedBackground"] = minimapInsertBg;
+    colors["minimapGutter.modifiedBackground"] = minimapInsertBg;
+  }
+  if (minimapDeleteBg) {
+    colors["minimapGutter.deletedBackground"] = minimapDeleteBg;
+  }
+
   colors["diffEditorOverview.insertedForeground"] = "#00000000";
   colors["diffEditorOverview.removedForeground"] = "#00000000";
   colors["diffEditorOverview.modifiedForeground"] = "#00000000";

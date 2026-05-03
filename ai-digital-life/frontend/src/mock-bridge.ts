@@ -29,7 +29,7 @@ import { GLOBAL_WORKSPACE_ID } from "./app/workspaceScope";
 const now = Date.now();
 
 let workspaceRoot =
-  (import.meta.env.VITE_ADL_DEFAULT_WORKSPACE_PATH as string | undefined)?.trim() || "E:/mock/ai-digital-life";
+  (import.meta.env.VITE_ADL_DEFAULT_WORKSPACE_PATH as string | undefined)?.trim() || "E:/OnlineEditing";
 
 function workspaceNameFromPath(value: string): string {
   const normalized = value.replace(/\\/g, "/").replace(/\/+$/g, "");
@@ -86,6 +86,56 @@ function buildWorkspaceTreeFromPaths(paths: string[], directoryPaths: string[] =
 
 const emptyDirectories = new Set<string>();
 
+function buildResumeHtml(): string {
+  const lines: string[] = ["<!DOCTYPE html>", "<html lang='en'>", "<head>", "  <meta charset='UTF-8'>", "  <title>Resume</title>", "  <style>"];
+  for (let i = 0; i < 50; i++) {
+    lines.push("    .section-" + i + " { margin: " + i + "px; padding: " + (i * 2) + "px; }");
+  }
+  lines.push("  </style>", "</head>", "<body>");
+  for (let i = 0; i < 500; i++) {
+    lines.push("  <div class='section-" + (i % 50) + "'>");
+    lines.push("    <h2>Section " + i + "</h2>");
+    lines.push("    <p>Content for section " + i + ". This is sample text for testing minimap diff colors.</p>");
+    lines.push("    <ul>");
+    lines.push("      <li>Item 1 of section " + i + "</li>");
+    lines.push("      <li>Item 2 of section " + i + "</li>");
+    lines.push("    </ul>");
+    lines.push("  </div>");
+  }
+  lines.push("</body>", "</html>");
+  return lines.join("\n");
+}
+
+function buildResumeHtmlModified(): string {
+  const lines: string[] = ["<!DOCTYPE html>", "<html lang='en'>", "<head>", "  <meta charset='UTF-8'>", "  <title>Resume Updated</title>", "  <style>"];
+  for (let i = 0; i < 50; i++) {
+    lines.push("    .section-" + i + " { margin: " + i + "px; padding: " + (i * 2) + "px; }");
+  }
+  lines.push("  </style>", "</head>", "<body>");
+  for (let i = 0; i < 500; i++) {
+    if (i >= 1460 && i <= 1480) {
+      lines.push("  <div class='section-" + (i % 50) + " updated'>");
+      lines.push("    <h2>Section " + i + " - MODIFIED</h2>");
+      lines.push("    <p>Updated content for section " + i + ". This line was changed.</p>");
+      lines.push("    <p>New line added in section " + i + ".</p>");
+      lines.push("  </div>");
+    } else if (i === 200) {
+      continue;
+    } else {
+      lines.push("  <div class='section-" + (i % 50) + "'>");
+      lines.push("    <h2>Section " + i + "</h2>");
+      lines.push("    <p>Content for section " + i + ". This is sample text for testing minimap diff colors.</p>");
+      lines.push("    <ul>");
+      lines.push("      <li>Item 1 of section " + i + "</li>");
+      lines.push("      <li>Item 2 of section " + i + "</li>");
+      lines.push("    </ul>");
+      lines.push("  </div>");
+    }
+  }
+  lines.push("</body>", "</html>");
+  return lines.join("\n");
+}
+
 const documents = new Map<string, string>([
   [
     "frontend/src/main.tsx",
@@ -94,6 +144,10 @@ const documents = new Map<string, string>([
   [
     "frontend/src/shared/ipc.ts",
     `export interface ExampleType {\n  id: string;\n}\n`
+  ],
+  [
+    "Resume/index.html",
+    buildResumeHtml()
   ]
 ]);
 
@@ -179,7 +233,7 @@ const recentWorkspaces: RecentWorkspaceEntry[] = [
     id: "workspace-mock-1",
     path: workspaceRoot,
     rootPath: workspaceRoot,
-    name: "ai-digital-life",
+    name: "OnlineEditing",
     lastOpenedAt: now,
     isPinned: false,
     pinnedOrder: 0,
@@ -232,7 +286,13 @@ function buildMockChangePreview(relativePath: string): WorkspaceChangePreview {
   const currentExists = documents.has(normalizedPath);
   const currentContent = documents.get(normalizedPath) ?? "";
   const baseExists = status !== "untracked";
-  const baseContent = baseExists ? `// mock HEAD content for ${normalizedPath}\n` : "";
+  let baseContent: string;
+  if (normalizedPath === "Resume/index.html") {
+    baseContent = buildResumeHtml();
+  } else {
+    baseContent = baseExists ? `// mock HEAD content for ${normalizedPath}\n` : "";
+  }
+  const resolvedCurrentContent = normalizedPath === "Resume/index.html" ? buildResumeHtmlModified() : currentContent;
   return {
     path: normalizedPath,
     changeKind: !baseExists ? "added" : !currentExists ? "deleted" : "modified",
@@ -240,7 +300,7 @@ function buildMockChangePreview(relativePath: string): WorkspaceChangePreview {
     baseExists,
     currentExists,
     baseContent,
-    currentContent
+    currentContent: resolvedCurrentContent
   };
 }
 
@@ -284,7 +344,8 @@ function buildMockWorkspaceMeta(workspacePath: string): WorkspaceMeta {
       ...emptyGitSnapshot(),
       isRepo: true,
       branch: "main",
-      head: "abc1234"
+      head: "abc1234",
+      unstaged: ["Resume/index.html"]
     }
   };
 }

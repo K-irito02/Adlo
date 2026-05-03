@@ -8,11 +8,11 @@ describe("files panel editor options", () => {
     expect(filesPanelSource).toContain("minimap:");
     expect(filesPanelSource).toContain("enabled: true");
     expect(filesPanelSource).toContain('side: "right"');
-    expect(filesPanelSource).toContain('showSlider: "always"');
-    expect(filesPanelSource).toContain('size: "fill"');
-    expect(filesPanelSource).toContain("renderCharacters: true");
+    expect(filesPanelSource).toContain("showSlider: ms.showSlider");
+    expect(filesPanelSource).toContain("size: ms.size");
+    expect(filesPanelSource).toContain("renderCharacters: ms.renderCharacters");
     expect(filesPanelSource).toContain("maxColumn: 80");
-    expect(filesPanelSource).toContain("scale: 1.5");
+    expect(filesPanelSource).toContain("scale: ms.scale");
     expect(filesPanelSource).toContain("scrollbar:");
     expect(filesPanelSource).toContain('vertical: "hidden"');
     expect(filesPanelSource).toContain("verticalScrollbarSize: 0");

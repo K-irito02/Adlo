@@ -25,7 +25,13 @@ import { TooltipSimple } from "../../components/Tooltip";
 import { useUiStore } from "../../ui-store";
 import { normalizeWorkspaceRelativePath } from "../../workspacePaths";
 import { collectDirectoryPaths, FileTree } from "./fileTree";
-import { attachMinimapVisualOverlays } from "./minimapVisualOverlay";
+import {
+  attachMinimapVisualOverlays,
+  loadMinimapSettings,
+  saveMinimapSettings,
+  MINIMAP_DEFAULTS,
+  type MinimapSettings
+} from "./minimapVisualOverlay";
 import {
   derivePatchHunkChangeKind,
   getPatchHunkTargetLine,
@@ -93,7 +99,9 @@ function buildMonacoEditorOptions(options: {
   wordWrapEnabled: boolean;
   sideBySideDiff?: boolean;
   hideUnchangedRegions?: boolean;
+  minimapSettings?: MinimapSettings;
 }) {
+  const ms = options.minimapSettings ?? MINIMAP_DEFAULTS;
   const baseOptions = {
     readOnly: options.readOnly,
     lineNumbers: options.lineNumbersEnabled ? "on" : "off",
@@ -102,11 +110,11 @@ function buildMonacoEditorOptions(options: {
     minimap: {
       enabled: true,
       side: "right",
-      size: "fill",
-      showSlider: "always",
-      renderCharacters: true,
+      size: ms.size,
+      showSlider: ms.showSlider,
+      renderCharacters: ms.renderCharacters,
       maxColumn: 80,
-      scale: 1.5
+      scale: ms.scale
     },
     scrollbar: {
       vertical: "hidden",
@@ -221,6 +229,9 @@ export function FilesPanel(props: RightPanelViewProps) {
   const [lineNumbersEnabled, setLineNumbersEnabled] = useState(true);
   const editorShellRef = useRef<HTMLDivElement | null>(null);
   const [agentAnnotationsEnabled, setAgentAnnotationsEnabled] = useState(true);
+  const [minimapSettings, setMinimapSettings] = useState<MinimapSettings>(loadMinimapSettings);
+  const minimapSettingsRef = useRef(minimapSettings);
+  minimapSettingsRef.current = minimapSettings;
   const [collapsePreviewActive, setCollapsePreviewActive] = useState(false);
   const navigatorCollapsed = useUiStore((state) => state.navigatorCollapsedByTool.files);
   const toggleNavigator = useUiStore((state) => state.toggleNavigator);
@@ -810,7 +821,12 @@ export function FilesPanel(props: RightPanelViewProps) {
       },
       setScrollTop: (value) => {
         getEditor()?.setScrollPosition({ scrollTop: value });
-      }
+      },
+      onSettingsChange: (settings) => {
+        setMinimapSettings(settings);
+        saveMinimapSettings(settings);
+      },
+      getSettings: () => minimapSettingsRef.current,
     });
 
     const scrollDisposable = getEditor()?.onDidScrollChange?.(() => controller.refresh());
@@ -1308,7 +1324,8 @@ export function FilesPanel(props: RightPanelViewProps) {
                     lineNumbersEnabled,
                     wordWrapEnabled,
                     sideBySideDiff: diffSideBySide,
-                    hideUnchangedRegions: hasCollapsedHunks
+                    hideUnchangedRegions: hasCollapsedHunks,
+                    minimapSettings
                   })}
                   onMount={(editor) => handleDiffEditorMount(editor as unknown as MonacoEditorRef)}
                 />
@@ -1322,7 +1339,8 @@ export function FilesPanel(props: RightPanelViewProps) {
                 options={buildMonacoEditorOptions({
                   readOnly: false,
                   lineNumbersEnabled,
-                  wordWrapEnabled
+                  wordWrapEnabled,
+                  minimapSettings
                 })}
                 onChange={(value) => onEditorChange(value)}
                 onMount={(editor, monaco) => handleStandardEditorMount(editor as unknown as MonacoEditorRef, monaco)}
