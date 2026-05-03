@@ -4061,6 +4061,14 @@
   background-color: var(--editor-diff-remove-bg) !important;
 }
 
+/* Minimap-only delete decoration: no editor background change.
+   Used for pure delete positions where the anchorLine in the modified
+   editor is an unchanged or adjacent line, not a deleted line.
+   The red minimap marker indicates nearby deleted content. */
+.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .view-overlays .adl-inline-diff-line--delete-minimap {
+  background-color: transparent !important;
+}
+
 .adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .view-overlays .adl-inline-diff-line--insert.adl-inline-diff-line--strong {
   background-color: var(--editor-diff-insert-bg-strong) !important;
 }
@@ -4136,6 +4144,8 @@
   border: none !important;
 }
 
+/* ── Minimap: Files mode ── */
+
 .adl-tool-editor:not(.adl-tool-editor--changes) .monaco-editor .minimap {
   position: absolute !important;
   left: auto !important;
@@ -4181,6 +4191,8 @@
 }
 
 .adl-tool-editor:not(.adl-tool-editor--changes) .monaco-editor .minimap-slider {
+  left: 0 !important;
+  right: 0 !important;
   width: 84px !important;
   box-sizing: border-box;
   background: transparent !important;
@@ -4199,6 +4211,9 @@
   background: var(--border-default) !important;
 }
 
+/* ── Minimap: Changes (inline diff) mode ── */
+
+/* Hide original editor's minimap in inline diff mode */
 .adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.original .minimap {
   display: none !important;
 }
@@ -4249,6 +4264,21 @@
   border: none !important;
 }
 
+/* Native minimap slider: hidden & non-interactive — replaced by custom visual overlay.
+   Consistent with Files mode: transparent background, pointer-events disabled. */
+.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .minimap-slider {
+  left: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+  box-sizing: border-box;
+  background: transparent !important;
+  pointer-events: none !important;
+}
+
+.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .minimap-slider-horizontal {
+  background: transparent !important;
+}
+
 .adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .scrollbar.vertical .slider {
   background: var(--border-subtle) !important;
 }
@@ -4257,29 +4287,18 @@
   background: var(--border-default) !important;
 }
 
-.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .minimap-slider {
-  left: 0 !important;
-  right: 0 !important;
-  width: 100% !important;
-  box-sizing: border-box;
-  background: color-mix(in srgb, var(--surface-hover) 68%, transparent) !important;
-}
-
-.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .minimap-slider-horizontal {
-  background: transparent !important;
-}
-
 .adl-minimap-slider-visual {
   position: absolute;
   left: 0;
   right: 0;
   z-index: 4;
   border-radius: 0;
-  background: var(--surface-hover);
+  background: color-mix(in srgb, var(--text-primary) calc(var(--adl-slider-intensity, 50%) * 0.28), transparent);
   cursor: grab;
 }
 
-.adl-minimap-slider-visual--dragging {
+.adl-minimap-slider-visual--dragging,
+.adl-minimap-slider-visual:active {
   cursor: grabbing !important;
 }
 
@@ -4370,6 +4389,126 @@
   background: var(--accent-bg, var(--surface-active));
   border-color: var(--accent-border, var(--border));
   color: var(--accent-text, var(--text-primary));
+}
+
+/* ── Context Menu: Range Slider Control ── */
+
+.adl-minimap-context-menu__slider {
+  padding: var(--space-1-5) var(--space-2-5);
+}
+
+.adl-minimap-context-menu__slider-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1);
+  margin-bottom: var(--space-1-5);
+}
+
+.adl-minimap-context-menu__slider-value {
+  width: 28px;
+  padding: 1px 0;
+  font-size: var(--text-xs);
+  font-family: inherit;
+  text-align: center;
+  color: var(--text-primary);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  outline: none !important;
+  box-shadow: none !important;
+  transition: background 0.15s ease;
+}
+
+.adl-minimap-context-menu__slider-value-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+}
+
+.adl-minimap-context-menu__slider-value:focus-visible,
+.adl-minimap-context-menu__slider-value:focus {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+.adl-minimap-context-menu__slider-value:hover,
+.adl-minimap-context-menu__slider-value:focus {
+  background: var(--surface-subtle);
+}
+
+.adl-minimap-context-menu__slider-unit {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.adl-minimap-context-menu__slider-track-wrap {
+  position: relative;
+  height: 6px;
+  background: var(--surface-subtle);
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.adl-minimap-context-menu__slider-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: var(--accent-default, var(--text-primary));
+  border-radius: 3px;
+  pointer-events: none;
+  transition: width 0.05s linear;
+}
+
+.adl-minimap-context-menu__slider-range {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  outline: none;
+}
+
+.adl-minimap-context-menu__slider-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--text-primary);
+  border: 2px solid var(--surface);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  cursor: grab;
+  transition: transform 0.1s ease;
+}
+
+.adl-minimap-context-menu__slider-range::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+
+.adl-minimap-context-menu__slider-range::-webkit-slider-thumb:active {
+  cursor: grabbing;
+  transform: scale(1.05);
+}
+
+.adl-minimap-context-menu__slider-range::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--text-primary);
+  border: 2px solid var(--surface);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  cursor: grab;
 }
 
 .adl-tool-hint {

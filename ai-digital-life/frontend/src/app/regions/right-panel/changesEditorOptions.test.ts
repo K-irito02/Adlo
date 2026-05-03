@@ -12,15 +12,16 @@ describe("changes preview editor options", () => {
     expect(changesPanelSource).toContain("lineDecorationsWidth: 0");
   });
 
-  it("uses a native proportional minimap in inline preview while preserving side-by-side scrollbars", () => {
+  it("uses minimapSettings for inline preview minimap while preserving side-by-side scrollbars", () => {
     expect(changesPanelSource).toContain("minimap:");
     expect(changesPanelSource).toContain("props.diffSideBySide");
     expect(changesPanelSource).toContain('side: "right"');
-    expect(changesPanelSource).toContain('size: "proportional"');
-    expect(changesPanelSource).toContain('showSlider: "always"');
-    expect(changesPanelSource).toContain("renderCharacters: false");
+    // Inline minimap options are driven by user minimapSettings, not hardcoded
+    expect(changesPanelSource).toContain("minimapSettings.size");
+    expect(changesPanelSource).toContain("minimapSettings.showSlider");
+    expect(changesPanelSource).toContain("minimapSettings.renderCharacters");
+    expect(changesPanelSource).toContain("minimapSettings.scale");
     expect(changesPanelSource).toContain("maxColumn: 80");
-    expect(changesPanelSource).toContain("scale: 1");
     expect(changesPanelSource).toContain("scrollbar:");
     expect(changesPanelSource).toContain('vertical: "hidden"');
     expect(changesPanelSource).toContain("verticalScrollbarSize: 0");
@@ -33,13 +34,14 @@ describe("changes preview editor options", () => {
     expect(changesPanelSource).toContain("getOriginalEditor");
     expect(changesPanelSource).toContain("inlineScrollbarOpts");
     expect(changesPanelSource).toContain("diffEditorOptions");
-    expect(changesPanelSource).toContain('enabled: true');
+    expect(changesPanelSource).toContain("enabled: true");
     expect(changesPanelSource).toContain('side: "right"');
-    expect(changesPanelSource).toContain('size: "proportional"');
-    expect(changesPanelSource).toContain('showSlider: "always"');
-    expect(changesPanelSource).toContain("renderCharacters: false");
+    // applyMinimapToDiffEditor and applyMinimapSettings use user settings
+    expect(changesPanelSource).toContain("s.size");
+    expect(changesPanelSource).toContain("s.showSlider");
+    expect(changesPanelSource).toContain("s.renderCharacters");
+    expect(changesPanelSource).toContain("s.scale");
     expect(changesPanelSource).toContain("maxColumn: 80");
-    expect(changesPanelSource).toContain("scale: 1");
     expect(changesPanelSource).toContain("verticalScrollbarSize: 0");
   });
 

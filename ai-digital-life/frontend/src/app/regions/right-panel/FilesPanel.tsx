@@ -26,6 +26,10 @@ import { useUiStore } from "../../ui-store";
 import { normalizeWorkspaceRelativePath } from "../../workspacePaths";
 import { collectDirectoryPaths, FileTree } from "./fileTree";
 import {
+  getMinimapPosition,
+  cssColorToHex
+} from "./monacoTypes";
+import {
   attachMinimapVisualOverlays,
   loadMinimapSettings,
   saveMinimapSettings,
@@ -271,6 +275,8 @@ export function FilesPanel(props: RightPanelViewProps) {
   }, [appInfo?.currentWorkspace?.path, appInfo?.currentWorkspace?.rootPath, selectedFilePath]);
   const monacoTheme = appInfo?.config.resolvedTheme === "dark" ? MONACO_THEME_DARK : MONACO_THEME_LIGHT;
   const [monacoNamespace, setMonacoNamespace] = useState<MonacoNamespace | null>(null);
+  const monacoNamespaceRef = useRef(monacoNamespace);
+  monacoNamespaceRef.current = monacoNamespace;
   const foldingTooltipControllerDisposablesRef = useRef<DisposableLike[]>([]);
   const activeFilePatch = useMemo(() => {
     if (!props.activePatchSet || !props.selectedPatchFilePath) return undefined;
@@ -290,6 +296,17 @@ export function FilesPanel(props: RightPanelViewProps) {
       return;
     }
 
+    // Read minimap colors from CSS variables (same approach as ChangesPanel)
+    const minimapPosition = getMinimapPosition(monacoNamespaceRef.current ?? undefined);
+    const rootDpr = document.documentElement;
+    const cs = getComputedStyle(rootDpr);
+    const insertColor = cssColorToHex(
+      cs.getPropertyValue("--minimap-diff-insert-bg").trim() || "rgba(22, 163, 74, 0.5)"
+    );
+    const deleteColor = cssColorToHex(
+      cs.getPropertyValue("--minimap-diff-remove-bg").trim() || "rgba(239, 68, 68, 0.5)"
+    );
+
     const decorations = activeFilePatch.hunks.map((hunk) => {
       const decisionTone =
         hunk.decision === "accepted" ? "accepted" : hunk.decision === "rejected" ? "rejected" : "pending";
@@ -305,6 +322,10 @@ export function FilesPanel(props: RightPanelViewProps) {
         { value: `- 决策: \`${hunk.decision}\`` }
       ];
 
+      // Deleted/removed lines use the delete (red) minimap color;
+      // added and modified lines use the insert (green) minimap color.
+      const minimapColor = changeKind === "deleted" ? deleteColor : insertColor;
+
       return {
         range: {
           startLineNumber: startLine,
@@ -316,7 +337,11 @@ export function FilesPanel(props: RightPanelViewProps) {
           isWholeLine: true,
           className: `adl-agent-deco adl-agent-deco--${changeKind} adl-agent-deco--${decisionTone}${props.selectedPatchHunkId === hunk.id ? " adl-agent-deco--selected" : ""}`,
           linesDecorationsClassName: `adl-agent-gutter adl-agent-gutter--${changeKind} adl-agent-gutter--${decisionTone}${props.selectedPatchHunkId === hunk.id ? " adl-agent-gutter--selected" : ""}`,
-          hoverMessage: hover as any
+          hoverMessage: hover as any,
+          minimap: {
+            position: minimapPosition,
+            color: minimapColor,
+          }
         }
       };
     });

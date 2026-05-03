@@ -31,7 +31,8 @@ import {
   getMonacoFromWindow,
   createMonacoRange,
   isDiffEditor,
-  getMinimapPosition
+  getMinimapPosition,
+  cssColorToHex
 } from "./monacoTypes";
 import {
   attachMinimapVisualOverlays,
@@ -347,11 +348,11 @@ export function ChangesPanel(props: RightPanelViewProps) {
       : {
           enabled: true,
           side: "right" as const,
-          size: "proportional" as const,
-          showSlider: "always" as const,
-          renderCharacters: false,
+          size: minimapSettings.size,
+          showSlider: minimapSettings.showSlider,
+          renderCharacters: minimapSettings.renderCharacters,
           maxColumn: 80,
-          scale: 1
+          scale: minimapSettings.scale
         },
     scrollbar: props.diffSideBySide
       ? {
@@ -377,7 +378,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
       nonBasicASCII: false
     },
     bracketPairColorization: { enabled: true }
-  }), [props.diffSideBySide, wordWrapEnabled, lineNumbersEnabled]);
+  }), [props.diffSideBySide, wordWrapEnabled, lineNumbersEnabled, minimapSettings.size, minimapSettings.showSlider, minimapSettings.renderCharacters, minimapSettings.scale]);
 
   useEffect(() => {
     const diffEditor = diffEditorRef.current;
@@ -393,28 +394,95 @@ export function ChangesPanel(props: RightPanelViewProps) {
       return;
     }
 
-    const minimapPosition = getMinimapPosition(monaco);
-    const root = document.documentElement;
-    const computedStyle = getComputedStyle(root);
-    const insertColor = computedStyle.getPropertyValue("--minimap-diff-insert-bg").trim() || "rgba(22, 163, 74, 0.35)";
-    const deleteColor = computedStyle.getPropertyValue("--minimap-diff-remove-bg").trim() || "rgba(239, 68, 68, 0.35)";
+    // Apply decorations with a slight delay to ensure DiffEditor has completed
+    // its internal diff calculation and decoration application.
+    // This helps our custom minimap decorations take precedence over
+    // DiffEditor's internal decorations which may not have minimap.color set.
+    const applyTimer = setTimeout(() => {
+      const currentDiffEditor = diffEditorRef.current;
+      const currentModifiedEditor = isDiffEditor(currentDiffEditor) ? currentDiffEditor?.getModifiedEditor() : null;
+      if (!currentModifiedEditor) return;
 
-    const decorations: MonacoDecoration[] = changePreviewDiffRanges.map((range: PreviewDiffVisualRange) => ({
-      range: createMonacoRange(monaco, range.startLine, 1, range.endLine, 1),
-      options: {
-        isWholeLine: true,
-        className: `adl-inline-diff-line adl-inline-diff-line--${range.type} adl-inline-diff-line--${range.tone}`,
-        zIndex: range.type === "delete" ? 2 : 1,
-        minimap: {
-          position: minimapPosition,
-          color: range.type === "delete" ? deleteColor : insertColor
-        }
-      }
-    }));
+      const minimapPosition = getMinimapPosition(monaco);
+      const root = document.documentElement;
+      const computedStyle = getComputedStyle(root);
 
-    previewDecorationIdsRef.current = modifiedEditor.deltaDecorations(previewDecorationIdsRef.current, decorations);
+      // Read colors from CSS variables and convert to hex format.
+      // Monaco's Color.fromHex() ONLY accepts hex strings (#RRGGBBAA).
+      // Any other format (rgba, rgb, hsl) causes parseHex to fail and
+      // silently fall back to Color.red, making all minimap decorations red.
+      const insertColor = cssColorToHex(
+        computedStyle.getPropertyValue("--minimap-diff-insert-bg").trim() || "rgba(22, 163, 74, 0.5)"
+      );
+      const deleteColor = cssColorToHex(
+        computedStyle.getPropertyValue("--minimap-diff-remove-bg").trim() || "rgba(239, 68, 68, 0.5)"
+      );
+
+      // Build a set of line numbers covered by insert ranges.
+      // This is used to prevent overlapping minimap decorations where both
+      // insert (green) and delete (red) would be applied to the same line.
+      // In the modified editor, delete ranges at "anchorLine" positions
+      // often overlap with insert ranges, because the anchorLine is the
+      // content line in the modified editor where the change occurred.
+      // For replacement lines (both insert and delete), the content is new,
+      // so the minimap should show green (insert), not red (delete).
+      const insertLines = new Set<number>();
+      changePreviewDiffRanges
+        .filter(r => r.type === "insert")
+        .forEach(r => {
+          for (let line = r.startLine; line <= r.endLine; line++) {
+            insertLines.add(line);
+          }
+        });
+
+      const decorations: MonacoDecoration[] = changePreviewDiffRanges
+        .filter((range) => {
+          // Filter out invalid ranges
+          if (range.startLine < 1 || range.endLine < range.startLine) return false;
+
+          // Skip delete decorations that overlap with insert decorations.
+          // When a line is both inserted and deleted (replacement), the line
+          // in the modified editor contains NEW content — the minimap should
+          // show green (insert), not red (delete). The insert decoration
+          // already handles this line, so we skip the delete decoration to
+          // avoid minimap color overlap where the wrong color wins.
+          if (range.type === "delete") {
+            for (let line = range.startLine; line <= range.endLine; line++) {
+              if (insertLines.has(line)) return false;
+            }
+          }
+          return true;
+        })
+        .map((range: PreviewDiffVisualRange) => {
+          const isDelete = range.type === "delete";
+          const color = isDelete ? deleteColor : insertColor;
+          return {
+            range: createMonacoRange(monaco, range.startLine, 1, range.endLine, 1),
+            options: {
+              isWholeLine: true,
+              // Delete decorations use a minimap-only class to avoid adding
+              // incorrect red backgrounds to content lines in the editor.
+              // The delete anchorLine points to a content line that is NOT
+              // deleted (it's either inserted or unchanged). Adding a red
+              // background to it would be misleading. The actual deleted
+              // content is shown in Monaco view zones (handled internally).
+              className: isDelete
+                ? "adl-inline-diff-line adl-inline-diff-line--delete-minimap"
+                : `adl-inline-diff-line adl-inline-diff-line--${range.type} adl-inline-diff-line--${range.tone}`,
+              zIndex: 100 + (isDelete ? 1 : 0),
+              minimap: {
+                position: minimapPosition,
+                color: color,
+              }
+            }
+          };
+        });
+
+      previewDecorationIdsRef.current = currentModifiedEditor.deltaDecorations(previewDecorationIdsRef.current, decorations);
+    }, 150); // Delay to allow DiffEditor to finish internal processing
 
     return () => {
+      clearTimeout(applyTimer);
       const activeDiffEditor = diffEditorRef.current;
       const activeModifiedEditor = isDiffEditor(activeDiffEditor) ? activeDiffEditor.getModifiedEditor() : null;
       if (activeModifiedEditor && previewDecorationIdsRef.current.length > 0) {
@@ -465,9 +533,21 @@ export function ChangesPanel(props: RightPanelViewProps) {
   }, []);
 
   const handleMinimapSettingsChange = useCallback((settings: MinimapSettings) => {
+    const prev = minimapSettingsRef.current;
     setMinimapSettings(settings);
     saveMinimapSettings(settings);
-    applyMinimapSettings(settings);
+    // sliderIntensity is a custom CSS variable, NOT a Monaco option.
+    // Calling updateOptions when only sliderIntensity changed causes Monaco
+    // to re-render the minimap, which destroys and rebuilds the minimap canvas,
+    // making all content (code text + diff colors) vanish.
+    const monacoOptionsChanged =
+      prev.size !== settings.size ||
+      prev.showSlider !== settings.showSlider ||
+      prev.renderCharacters !== settings.renderCharacters ||
+      prev.scale !== settings.scale;
+    if (monacoOptionsChanged) {
+      applyMinimapSettings(settings);
+    }
   }, [applyMinimapSettings]);
 
   useEffect(() => {
@@ -475,40 +555,28 @@ export function ChangesPanel(props: RightPanelViewProps) {
     const shell = changesPreviewShellRef.current;
     if (!shell) return;
 
-    let disposed = false;
-    let controller: { refresh: () => void; dispose: () => void } | null = null;
+    const controller = attachMinimapVisualOverlays(shell, {
+      getScrollState: () => {
+        const editor = getModifiedEditor();
+        if (!editor) return null;
+        return {
+          scrollTop: editor.getScrollTop(),
+          scrollHeight: editor.getScrollHeight(),
+          clientHeight: editor.getLayoutInfo().height,
+        };
+      },
+      setScrollTop: (value) => {
+        getModifiedEditor()?.setScrollPosition({ scrollTop: value });
+      },
+      onSettingsChange: handleMinimapSettingsChange,
+      getSettings: () => minimapSettingsRef.current,
+    });
 
-    const tryAttach = () => {
-      if (disposed) return;
-      const root = shell.querySelector<HTMLElement>(
-        ".adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .minimap"
-      );
-      if (!root) return;
-
-      controller = attachMinimapVisualOverlays(root, {
-        getScrollState: () => {
-          const editor = getModifiedEditor();
-          if (!editor) return null;
-          return {
-            scrollTop: editor.getScrollTop(),
-            scrollHeight: editor.getScrollHeight(),
-            clientHeight: editor.getLayoutInfo().height,
-          };
-        },
-        setScrollTop: (value) => {
-          getModifiedEditor()?.setScrollPosition({ scrollTop: value });
-        },
-        onSettingsChange: handleMinimapSettingsChange,
-        getSettings: () => minimapSettingsRef.current,
-      });
-    };
-
-    const timers = [0, 100, 300, 600].map((delay) => setTimeout(tryAttach, delay));
+    const scrollDisposable = getModifiedEditor()?.onDidScrollChange?.(() => controller.refresh());
 
     return () => {
-      disposed = true;
-      timers.forEach((timer) => clearTimeout(timer));
-      controller?.dispose();
+      scrollDisposable?.dispose();
+      controller.dispose();
     };
   }, [changePreview?.path, props.diffSideBySide, diffEditorReady, getModifiedEditor, handleMinimapSettingsChange]);
 

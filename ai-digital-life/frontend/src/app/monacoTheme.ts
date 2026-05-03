@@ -242,14 +242,32 @@ function buildMonacoThemeData(theme: "light" | "dark"): {
   colors["diffEditor.removedLineBorder"] = "#00000000";
   colors["diffEditor.modifiedLineBorder"] = "#00000000";
 
+  // Minimap diff colors - use the same colors as editor diff for consistency
+  // Monaco's minimap renders diff regions using decoration's minimap.color property
+  // or by inheriting from diffEditor.* line background colors.
+  // We set both to ensure proper rendering in all scenarios.
   const minimapInsertBg = readThemeColor(theme, "--minimap-diff-insert-bg");
   const minimapDeleteBg = readThemeColor(theme, "--minimap-diff-remove-bg");
+
   if (minimapInsertBg) {
     colors["minimapGutter.addedBackground"] = minimapInsertBg;
     colors["minimapGutter.modifiedBackground"] = minimapInsertBg;
   }
   if (minimapDeleteBg) {
     colors["minimapGutter.deletedBackground"] = minimapDeleteBg;
+  }
+
+  // Ensure diff line backgrounds are set for both editor content AND minimap inheritance
+  // The minimap in DiffEditor mode reads these colors for its diff rendering
+  if (diffInsertBg || minimapInsertBg) {
+    const insertColorForMinimap = minimapInsertBg ?? diffInsertBg;
+    colors["diffEditor.insertedLineBackground"] = insertColorForMinimap;
+    colors["diffEditor.insertedTextBackground"] = insertColorForMinimap;
+  }
+  if (diffRemoveBg || minimapDeleteBg) {
+    const deleteColorForMinimap = minimapDeleteBg ?? diffRemoveBg;
+    colors["diffEditor.removedLineBackground"] = deleteColorForMinimap;
+    colors["diffEditor.removedTextBackground"] = deleteColorForMinimap;
   }
 
   colors["diffEditorOverview.insertedForeground"] = "#00000000";

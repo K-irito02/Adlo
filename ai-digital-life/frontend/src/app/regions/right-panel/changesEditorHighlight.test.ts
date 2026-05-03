@@ -103,6 +103,12 @@ describe("changes preview highlight theming", () => {
     expect(regionsCss).not.toContain("editor-diff-remove-accent");
   });
 
+  it("uses delete-minimap class for pure delete minimap markers without editor background", () => {
+    expect(changesPanelSource).toContain("adl-inline-diff-line--delete-minimap");
+    expect(regionsCss).toContain(".adl-inline-diff-line--delete-minimap");
+    expect(regionsCss).toContain("background-color: transparent !important;");
+  });
+
   it("disables Monaco unicode warning boxes in changes preview", () => {
     expect(changesPanelSource).toContain("unicodeHighlight: {");
     expect(changesPanelSource).toContain("ambiguousCharacters: false");

@@ -15,13 +15,17 @@ export type MinimapSettings = {
   size: "proportional" | "fill";
   scale: number;
   showSlider: "always" | "mouseover";
+  sliderIntensity: number;
 };
+
+export const SLIDER_INTENSITY_RANGE = { min: 5, max: 100 } as const;
 
 export const MINIMAP_DEFAULTS: MinimapSettings = {
   renderCharacters: true,
   size: "proportional",
   scale: 1.5,
   showSlider: "always",
+  sliderIntensity: 50,
 };
 
 const MINIMAP_SETTINGS_STORAGE_KEY = "adl-minimap-settings";
@@ -105,7 +109,7 @@ function syncMinimapOverlay(
   minimap: HTMLElement,
   options?: MinimapOverlayOptions
 ) {
-  const { getScrollState } = options ?? {};
+  const { getScrollState, getSettings } = options ?? {};
   const slider = minimap.querySelector<HTMLElement>(SLIDER_SELECTOR);
   const overlay = getOrCreateOverlay(minimap);
 
@@ -135,6 +139,9 @@ function syncMinimapOverlay(
     return;
   }
 
+  const settings = getSettings?.();
+  const intensity = settings?.sliderIntensity ?? 50;
+  overlay.style.setProperty("--adl-slider-intensity", `${intensity}%`);
   overlay.style.display = "block";
   overlay.style.top = `${frame.top}px`;
   overlay.style.height = `${frame.height}px`;
@@ -218,6 +225,18 @@ export function attachMinimapVisualOverlays(root: HTMLElement, options?: Minimap
   let rafId = 0;
   const interactionDisposers = new Map<HTMLElement, () => void>();
   let contextMenuEl: HTMLElement | null = null;
+  /**
+   * When the user is actively dragging the intensity slider (or typing in the
+   * numeric input), we update the overlay visuals directly via DOM (bypassing
+   * React state) for instant feedback.  However, ResizeObserver or non-overlay
+   * MutationObserver mutations can still trigger `syncAll()`, which would read
+   * the **stale** React state via `getSettings()` and overwrite the live value.
+   *
+   * `liveIntensity` bridges this gap: while the context-menu slider is open,
+   * `getSettings` returns `liveIntensity` for `sliderIntensity` so that any
+   * `syncAll()` triggered during interaction uses the correct, up-to-date value.
+   */
+  let liveIntensity: number | undefined;
 
   const stripDiffBorders = () => {
     const DIFF_BORDER_CLASSES = ["char-insert", "char-delete", "line-insert", "line-delete"];
@@ -247,11 +266,20 @@ export function attachMinimapVisualOverlays(root: HTMLElement, options?: Minimap
       contextMenuEl.remove();
       contextMenuEl = null;
     }
+    /* Reset live override so subsequent syncs read persisted React state */
+    liveIntensity = undefined;
   };
 
   const overlayOptions: MinimapOverlayOptions = {
     getScrollState,
     setScrollTop,
+    getSettings: () => {
+      const settings = getSettings?.();
+      if (liveIntensity !== undefined && settings) {
+        return { ...settings, sliderIntensity: liveIntensity };
+      }
+      return settings;
+    },
   };
 
   const syncAll = () => {
@@ -287,7 +315,17 @@ export function attachMinimapVisualOverlays(root: HTMLElement, options?: Minimap
     });
   };
 
-  const mutationObserver = new MutationObserver(scheduleSync);
+  const mutationObserver = new MutationObserver((mutations) => {
+    let shouldSync = false;
+    for (const mutation of mutations) {
+      const target = mutation.target as HTMLElement;
+      /* Skip style changes on our own overlays to avoid race with direct visual updates */
+      if (target.classList?.contains(OVERLAY_CLASS)) continue;
+      shouldSync = true;
+      break;
+    }
+    if (shouldSync) scheduleSync();
+  });
   mutationObserver.observe(root, {
     subtree: true,
     childList: true,
@@ -373,27 +411,139 @@ export function attachMinimapVisualOverlays(root: HTMLElement, options?: Minimap
       return sep;
     };
 
+    /* ── range slider with live preview & manual numeric input ── */
+    const createSliderControl = (
+      label: string,
+      currentValue: number,
+      range: { min: number; max: number },
+      onChange: (value: number) => void
+    ) => {
+      const item = document.createElement("div");
+      item.className = `${CONTEXT_MENU_CLASS}__slider`;
+
+      const headerRow = document.createElement("div");
+      headerRow.className = `${CONTEXT_MENU_CLASS}__slider-header`;
+
+      const headerLabel = document.createElement("span");
+      headerLabel.className = `${CONTEXT_MENU_CLASS}__group-label`;
+      headerLabel.textContent = label;
+      headerRow.appendChild(headerLabel);
+
+      const valueDisplay = document.createElement("input");
+      valueDisplay.className = `${CONTEXT_MENU_CLASS}__slider-value`;
+      valueDisplay.type = "text";
+      valueDisplay.value = String(Math.round(currentValue));
+      valueDisplay.inputMode = "numeric";
+      valueDisplay.setAttribute("aria-label", label + "\u6570\u503C");
+
+      let editingValue = false;
+
+      /* Immediately update all overlay visuals without touching React */
+      const applyVisualIntensity = (intensity: number) => {
+        const clamped = Math.max(range.min, Math.min(range.max, intensity));
+        liveIntensity = clamped;
+        root.querySelectorAll<HTMLElement>(`.${OVERLAY_CLASS}`).forEach((el) => {
+          el.style.setProperty("--adl-slider-intensity", `${clamped}%`);
+        });
+      };
+
+      valueDisplay.addEventListener("focus", () => { editingValue = true; });
+      valueDisplay.addEventListener("blur", () => {
+        editingValue = false;
+        const num = Number.parseFloat(valueDisplay.value);
+        if (Number.isFinite(num)) {
+          const clamped = Math.max(range.min, Math.min(range.max, num));
+          onChange(clamped);
+          applyVisualIntensity(clamped);
+          valueDisplay.value = String(Math.round(clamped));
+        } else {
+          valueDisplay.value = String(Math.round(currentValue));
+        }
+      });
+      valueDisplay.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") { e.preventDefault(); valueDisplay.blur(); }
+        if (e.key === "Escape") { editingValue = false; valueDisplay.value = String(Math.round(currentValue)); valueDisplay.blur(); }
+      });
+
+      const percentSign = document.createElement("span");
+      percentSign.className = `${CONTEXT_MENU_CLASS}__slider-unit`;
+      percentSign.textContent = "%";
+
+      const valueGroup = document.createElement("span");
+      valueGroup.className = `${CONTEXT_MENU_CLASS}__slider-value-group`;
+      valueGroup.appendChild(valueDisplay);
+      valueGroup.appendChild(percentSign);
+      headerRow.appendChild(valueGroup);
+      item.appendChild(headerRow);
+
+      const trackWrap = document.createElement("div");
+      trackWrap.className = `${CONTEXT_MENU_CLASS}__slider-track-wrap`;
+
+      const rangeInput = document.createElement("input");
+      rangeInput.type = "range";
+      rangeInput.min = String(range.min);
+      rangeInput.max = String(range.max);
+      rangeInput.step = "1";
+      rangeInput.value = String(currentValue);
+      rangeInput.className = `${CONTEXT_MENU_CLASS}__slider-range`;
+      rangeInput.setAttribute("aria-label", label);
+
+      /* ── Input event: update visual only, NO React state ── */
+      rangeInput.addEventListener("input", () => {
+        const val = Number(rangeInput.value);
+        if (!editingValue) valueDisplay.value = String(val);
+        applyVisualIntensity(val);
+        fillTrack.style.width = ((val - range.min) / (range.max - range.min)) * 100 + "%";
+      });
+
+      /* ── Change event (mouse release): persist via React once ── */
+      rangeInput.addEventListener("change", () => {
+        onChange(Number(rangeInput.value));
+      });
+
+      const fillTrack = document.createElement("div");
+      fillTrack.className = `${CONTEXT_MENU_CLASS}__slider-fill`;
+      fillTrack.style.width = ((currentValue - range.min) / (range.max - range.min)) * 100 + "%";
+
+      trackWrap.appendChild(fillTrack);
+      trackWrap.appendChild(rangeInput);
+      item.appendChild(trackWrap);
+
+      return item;
+    };
+
     menu.appendChild(createCheckItem(
-      "渲染字符",
+      "\u6E32\u67D3\u5B57\u7B26",
       settings.renderCharacters,
       (value) => onSettingsChange({ ...settings, renderCharacters: value })
     ));
 
-    menu.appendChild(createRadioGroup("缩略图大小", [
-      { value: "proportional", label: "按比例" },
-      { value: "fill", label: "填充" },
+    menu.appendChild(createSeparator());
+
+    menu.appendChild(createRadioGroup("\u7F29\u7565\u56FE\u5927\u5C0F", [
+      { value: "proportional", label: "\u6309\u6BD4\u4F8B" },
+      { value: "fill", label: "\u586B\u5145" },
     ], settings.size, (value) => onSettingsChange({ ...settings, size: value as MinimapSettings["size"] })));
 
-    menu.appendChild(createRadioGroup("缩放比例", [
+    menu.appendChild(createRadioGroup("\u7F29\u653E\u6BD4\u4F8B", [
       { value: "1", label: "1x" },
       { value: "1.5", label: "1.5x" },
       { value: "2", label: "2x" },
     ], String(settings.scale), (value) => onSettingsChange({ ...settings, scale: Number(value) })));
 
-    menu.appendChild(createRadioGroup("滑块行为", [
-      { value: "always", label: "始终" },
-      { value: "mouseover", label: "悬停" },
+    menu.appendChild(createRadioGroup("\u6ED1\u5757\u884C\u4E3A", [
+      { value: "always", label: "\u59CB\u7EC8" },
+      { value: "mouseover", label: "\u60AC\u505C" },
     ], settings.showSlider, (value) => onSettingsChange({ ...settings, showSlider: value as MinimapSettings["showSlider"] })));
+
+    menu.appendChild(createSeparator());
+
+    menu.appendChild(createSliderControl(
+      "\u6ED1\u5757\u7A81\u51FA\u5EA6",
+      settings.sliderIntensity,
+      { min: SLIDER_INTENSITY_RANGE.min, max: SLIDER_INTENSITY_RANGE.max },
+      (value) => onSettingsChange({ ...settings, sliderIntensity: value })
+    ));
 
     document.body.appendChild(menu);
     contextMenuEl = menu;
@@ -418,7 +568,7 @@ export function attachMinimapVisualOverlays(root: HTMLElement, options?: Minimap
     if (event.key === "Escape") closeContextMenu();
   };
 
-  root.addEventListener("contextmenu", handleContextMenu);
+  root.addEventListener("contextmenu", handleContextMenu, true);
   document.addEventListener("mousedown", handleDismissContextMenu, true);
   document.addEventListener("keydown", handleEscape, true);
 
@@ -436,7 +586,7 @@ export function attachMinimapVisualOverlays(root: HTMLElement, options?: Minimap
       resizeObserver.disconnect();
       for (const disposer of interactionDisposers.values()) disposer();
       interactionDisposers.clear();
-      root.removeEventListener("contextmenu", handleContextMenu);
+      root.removeEventListener("contextmenu", handleContextMenu, true);
       document.removeEventListener("mousedown", handleDismissContextMenu, true);
       document.removeEventListener("keydown", handleEscape, true);
       closeContextMenu();
