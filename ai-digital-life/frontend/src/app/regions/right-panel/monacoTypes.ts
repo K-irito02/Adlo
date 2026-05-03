@@ -8,7 +8,7 @@ export type MonacoRange = {
 export type MonacoDecorationOptions = {
   isWholeLine: boolean;
   className: string;
-  minimap: {
+  minimap?: {
     color: string;
     darkColor: string;
     position: number;
@@ -26,10 +26,11 @@ export interface MonacoEditor {
   updateOptions(options: unknown): void;
   getScrollTop(): number;
   getScrollHeight(): number;
-  getLayoutInfo(): { height: number };
+  getLayoutInfo(): { height: number; width?: number; contentWidth?: number };
   setScrollPosition(position: { scrollTop: number }): void;
   onDidScrollChange?(listener: () => void): { dispose(): void };
   getModel?(): { getLineCount(): number } | null;
+  getDomNode?(): HTMLElement | null;
 }
 
 export interface MonacoDiffEditor {

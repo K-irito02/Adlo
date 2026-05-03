@@ -575,3 +575,164 @@ function getRuleBody(selector: string) {
 
 **建议：** 合并后重点关注差异编辑器的功能回归测试，确保所有交互功能正常工作。
 
+---
+
+## 1. 高级摘要 (TL;DR)
+
+*   **影响:** 🟡 **中等** - 增强了 Monaco 编辑器的类型安全检查，提高运行时类型判断的准确性
+*   **关键变更:**
+    *   ✅ 增强 `isDiffEditor` 类型守卫，从检查 1 个方法增加到 5 个方法
+    *   ✅ 增强 `isMonacoEditor` 类型守卫，从检查 1 个方法增加到 6 个方法
+    *   🛡️ 提高了类型判断的严格性，减少误判风险
+
+## 2. 可视化概览 (代码与逻辑映射)
+
+```mermaid
+graph TD
+    subgraph "monacoTypes.ts"
+        direction TB
+        
+        subgraph "类型守卫函数"
+            A["isDiffEditor(value: unknown)"]
+            B["isMonacoEditor(value: unknown)"]
+        end
+        
+        subgraph "DiffEditor 检查方法"
+            A1["getModifiedEditor()"]
+            A2["getOriginalEditor()"]
+            A3["updateOptions()"]
+            A4["onDidUpdateDiff()"]
+            A5["layout()"]
+        end
+        
+        subgraph "MonacoEditor 检查方法"
+            B1["deltaDecorations()"]
+            B2["updateOptions()"]
+            B3["getScrollTop()"]
+            B4["getScrollHeight()"]
+            B5["getLayoutInfo()"]
+            B6["setScrollPosition()"]
+        end
+        
+        A --> A1
+        A --> A2
+        A --> A3
+        A --> A4
+        A --> A5
+        
+        B --> B1
+        B --> B2
+        B --> B3
+        B --> B4
+        B --> B5
+        B --> B6
+    end
+    
+    style A fill:#bbdefb,color:#0d47a1
+    style B fill:#bbdefb,color:#0d47a1
+    style A1 fill:#c8e6c9,color:#1a5e20
+    style A2 fill:#c8e6c9,color:#1a5e20
+    style A3 fill:#c8e6c9,color:#1a5e20
+    style A4 fill:#c8e6c9,color:#1a5e20
+    style A5 fill:#c8e6c9,color:#1a5e20
+    style B1 fill:#fff3e0,color:#e65100
+    style B2 fill:#fff3e0,color:#e65100
+    style B3 fill:#fff3e0,color:#e65100
+    style B4 fill:#fff3e0,color:#e65100
+    style B5 fill:#fff3e0,color:#e65100
+    style B6 fill:#fff3e0,color:#e65100
+```
+
+## 3. 详细变更分析
+
+### 📦 组件: Monaco 编辑器类型守卫
+
+**变更说明:**
+增强了两个类型守卫函数的实现，通过检查更多方法来提高类型判断的准确性。这可以有效防止对象只包含部分方法时被错误识别为完整的编辑器实例。
+
+**源文件:** `ai-digital-life/frontend/src/app/regions/right-panel/monacoTypes.ts`
+
+#### 📊 方法检查对比表
+
+| 类型守卫函数 | 原检查方法 | 新增检查方法 | 总方法数 |
+|------------|-----------|------------|---------|
+| **isDiffEditor** | `getModifiedEditor` | `getOriginalEditor`, `updateOptions`, `onDidUpdateDiff`, `layout` | 5 |
+| **isMonacoEditor** | `deltaDecorations` | `updateOptions`, `getScrollTop`, `getScrollHeight`, `getLayoutInfo`, `setScrollPosition` | 6 |
+
+#### 🔍 详细变更内容
+
+**1. `isDiffEditor` 函数增强 (第 86-96 行)**
+
+```typescript
+// 变更前
+return typeof obj.getModifiedEditor === "function";
+
+// 变更后
+return (
+  typeof obj.getModifiedEditor === "function" &&
+  typeof obj.getOriginalEditor === "function" &&
+  typeof obj.updateOptions === "function" &&
+  typeof obj.onDidUpdateDiff === "function" &&
+  typeof obj.layout === "function"
+);
+```
+
+**检查方法说明:**
+- `getModifiedEditor` - 获取修改后的编辑器实例
+- `getOriginalEditor` - 获取原始编辑器实例
+- `updateOptions` - 更新编辑器配置选项
+- `onDidUpdateDiff` - 监听差异更新事件
+- `layout` - 布局调整方法
+
+**2. `isMonacoEditor` 函数增强 (第 98-109 行)**
+
+```typescript
+// 变更前
+return typeof obj.deltaDecorations === "function";
+
+// 变更后
+return (
+  typeof obj.deltaDecorations === "function" &&
+  typeof obj.updateOptions === "function" &&
+  typeof obj.getScrollTop === "function" &&
+  typeof obj.getScrollHeight === "function" &&
+  typeof obj.getLayoutInfo === "function" &&
+  typeof obj.setScrollPosition === "function"
+);
+```
+
+**检查方法说明:**
+- `deltaDecorations` - 管理编辑器装饰（如高亮标记）
+- `updateOptions` - 更新编辑器配置
+- `getScrollTop` - 获取垂直滚动位置
+- `getScrollHeight` - 获取滚动区域高度
+- `getLayoutInfo` - 获取布局信息
+- `setScrollPosition` - 设置滚动位置
+
+## 4. 影响与风险评估
+
+### ⚠️ 潜在影响
+
+*   **更严格的类型检查:** 现在只有包含所有必需方法的对象才会被识别为有效的编辑器实例
+*   **可能的运行时错误:** 如果现有代码中存在部分实现 Monaco 编辑器接口的对象，可能会被拒绝识别
+
+### 🧪 测试建议
+
+建议测试以下场景以确保变更安全：
+
+1. **完整编辑器实例验证**
+   - ✅ 验证标准的 Monaco Diff Editor 实例能通过 `isDiffEditor` 检查
+   - ✅ 验证标准的 Monaco Editor 实例能通过 `isMonacoEditor` 检查
+
+2. **部分实现对象验证**
+   - ⚠️ 测试只包含部分方法的对象是否被正确拒绝
+   - ⚠️ 确保不会误判不完整的对象为有效编辑器
+
+3. **边界情况测试**
+   - 📝 传入 `null` 或 `undefined` 应返回 `false`
+   - 📝 传入非对象类型应返回 `false`
+   - 📝 传入空对象 `{}` 应返回 `false`
+
+### 💡 改进价值
+
+此次变更显著提升了类型安全性，通过检查更多核心方法来确保对象确实是完整的 Monaco 编辑器实例，减少了运行时类型错误的风险。

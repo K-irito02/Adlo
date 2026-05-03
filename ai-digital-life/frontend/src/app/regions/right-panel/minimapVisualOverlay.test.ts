@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { computeMinimapVisualFrame, computeScrollRatio } from "./minimapVisualOverlay";
+import { computeMinimapDiffIndicatorStyle, computeMinimapVisualFrame, computeScrollRatio } from "./minimapVisualOverlay";
 
 const minimapOverlaySource = readFileSync(
   new URL("../../../../src/app/regions/right-panel/minimapVisualOverlay.ts", import.meta.url),
@@ -110,13 +110,62 @@ describe("computeScrollRatio", () => {
 });
 
 describe("changes minimap diff indicators", () => {
-  it("renders diff indicators across the minimap content width below the slider", () => {
-    expect(minimapOverlaySource).toContain("left:0;right:0;");
-    expect(minimapOverlaySource).not.toContain("width:4px");
+  it("sizes diff indicators to changed content columns instead of the full minimap width", () => {
+    expect(
+      computeMinimapDiffIndicatorStyle({
+        range: { startLine: 10, endLine: 10, type: "insert", tone: "strong", contentColumns: 20 },
+        totalLines: 100,
+        minimapHeight: 500,
+        minimapWidth: 84,
+        maxColumn: 80
+      })
+    ).toEqual({ top: 45, height: 5, left: 4, width: 19.25 });
+  });
+
+  it("caps diff indicators at the available minimap width", () => {
+    expect(
+      computeMinimapDiffIndicatorStyle({
+        range: { startLine: 1, endLine: 1, type: "delete", tone: "base", contentColumns: 200 },
+        totalLines: 10,
+        minimapHeight: 100,
+        minimapWidth: 84,
+        maxColumn: 80
+      })?.width
+    ).toBe(77);
+  });
+
+  it("keeps diff indicators inset from the minimap left edge", () => {
+    const layout = computeMinimapDiffIndicatorStyle({
+      range: { startLine: 1, endLine: 1, type: "insert", tone: "base", contentColumns: 8 },
+      totalLines: 20,
+      minimapHeight: 100,
+      minimapWidth: 84,
+      maxColumn: 80
+    });
+
+    expect(layout?.left).toBeGreaterThan(0);
+    expect((layout?.left ?? 0) + (layout?.width ?? 0)).toBeLessThan(84);
+  });
+
+  it("renders diff indicators through theme-owned token classes below the slider", () => {
+    expect(minimapOverlaySource).toContain("computeMinimapDiffIndicatorStyle");
+    expect(minimapOverlaySource).toContain("computeDiffIndicatorMaxColumn");
+    expect(minimapOverlaySource).toContain("const maxColumn = computeDiffIndicatorMaxColumn(diffRanges);");
+    expect(minimapOverlaySource).toContain("indicator.style.width = `${layout.width}px`;");
+    expect(minimapOverlaySource).not.toContain("left:0;right:0;");
     expect(regionsCss).toContain(".adl-minimap-diff-indicator {");
-    expect(regionsCss).toContain("right: 0;");
-    expect(regionsCss).toContain("z-index: 2;");
+    expect(regionsCss).toContain("z-index: 1;");
+    expect(regionsCss).toContain(".adl-minimap-diff-indicator--insert.adl-minimap-diff-indicator--strong");
+    expect(regionsCss).toContain("linear-gradient(var(--editor-diff-insert-bg-strong), var(--editor-diff-insert-bg-strong)), var(--editor-bg);");
     expect(regionsCss).toContain(".adl-minimap-slider-visual");
-    expect(regionsCss).toContain("z-index: 3;");
+    expect(regionsCss).toContain("z-index: 4;");
+  });
+
+  it("leaves the changes preview native minimap drawing layers under Monaco control", () => {
+    expect(regionsCss).not.toContain(".editor.modified .minimap canvas,");
+    expect(regionsCss).not.toContain(".editor.modified .minimap .minimap-decorations-layer {\n  display: block !important;");
+    expect(regionsCss).toContain(".adl-minimap-diff-indicators {");
+    expect(regionsCss).toContain("z-index: 1;");
+    expect(regionsCss).toContain(".adl-minimap-slider-visual");
   });
 });

@@ -46,8 +46,19 @@ describe("changes preview highlight theming", () => {
   it("preserves line-level diff backgrounds after border cleanup", () => {
     expect(themeCss).toContain("--editor-diff-insert-bg: rgba(22, 163, 74, 0.12);");
     expect(themeCss).toContain("--editor-diff-remove-bg: rgba(239, 68, 68, 0.12);");
+    expect(themeCss).toContain("--editor-diff-insert-bg-strong: rgba(22, 163, 74, 0.18);");
+    expect(themeCss).toContain("--editor-diff-remove-bg-strong: rgba(239, 68, 68, 0.18);");
     expect(themeCss).toContain("--editor-diff-insert-bg: rgba(74, 222, 128, 0.14);");
     expect(themeCss).toContain("--editor-diff-remove-bg: rgba(248, 113, 113, 0.14);");
+    expect(themeCss).toContain("--editor-diff-insert-bg-strong: rgba(74, 222, 128, 0.2);");
+    expect(themeCss).toContain("--editor-diff-remove-bg-strong: rgba(248, 113, 113, 0.2);");
+  });
+
+  it("keeps Monaco diff gutter backgrounds transparent so row highlights do not cover line numbers", () => {
+    expect(monacoThemeSource).toContain('colors["diffEditorGutter.insertedLineBackground"] = "#00000000";');
+    expect(monacoThemeSource).toContain('colors["diffEditorGutter.removedLineBackground"] = "#00000000";');
+    expect(monacoThemeSource).not.toContain('colors["diffEditorGutter.insertedLineBackground"] = diffInsertBg;');
+    expect(monacoThemeSource).not.toContain('colors["diffEditorGutter.removedLineBackground"] = diffRemoveBg;');
   });
 
   it("strips runtime find-match classes of fallback borders and shadows", () => {
@@ -78,6 +89,23 @@ describe("changes preview highlight theming", () => {
     expect(regionsCss).toContain(".editor.modified .cdr.line-insert,");
     expect(regionsCss).toContain(".editor.modified .cdr.line-delete {");
     expect(regionsCss).toContain("background-color: transparent !important;");
+  });
+
+  it("uses preview-owned depth classes for inline diff row backgrounds", () => {
+    expect(changesPanelSource).toContain("computePreviewDiffVisualRanges");
+    expect(changesPanelSource).toContain("computePreviewDiffMinimapModel");
+    expect(changesPanelSource).toContain("estimateEditorWrapColumn");
+    expect(changesPanelSource).toContain("changePreviewMinimapOptions");
+    expect(changesPanelSource).toContain("wrapColumn: wordWrapEnabled ? changePreviewWrapColumn : null");
+    expect(changesPanelSource).toContain("displayOptionChange");
+    expect(changesPanelSource).toContain("setChangePreviewWrapColumn(wordWrapEnabled ? estimateEditorWrapColumn(modifiedEditor) : null)");
+    expect(changesPanelSource).toContain("adl-inline-diff-line--${range.tone}");
+    expect(regionsCss).toContain(".adl-inline-diff-line--insert.adl-inline-diff-line--strong");
+    expect(regionsCss).toContain("background-color: var(--editor-diff-insert-bg-strong) !important;");
+    expect(regionsCss).toContain(".adl-inline-diff-line--delete.adl-inline-diff-line--strong");
+    expect(regionsCss).toContain("background-color: var(--editor-diff-remove-bg-strong) !important;");
+    expect(regionsCss).not.toContain("editor-diff-insert-accent");
+    expect(regionsCss).not.toContain("editor-diff-remove-accent");
   });
 
   it("disables Monaco unicode warning boxes in changes preview", () => {

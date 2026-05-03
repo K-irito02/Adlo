@@ -1,8 +1,13 @@
 const MINIMAP_SELECTOR = ".minimap";
 const SLIDER_SELECTOR = ".minimap-slider";
 const OVERLAY_CLASS = "adl-minimap-slider-visual";
+const DIFF_INDICATORS_LAYER_CLASS = "adl-minimap-diff-indicators";
 const DIFF_INDICATOR_CLASS = "adl-minimap-diff-indicator";
 const DEFAULT_VISUAL_HEIGHT = 48;
+const DEFAULT_MINIMAP_MAX_COLUMN = 80;
+const MIN_INDICATOR_WIDTH = 3;
+const INDICATOR_LEFT_PADDING = 4;
+const INDICATOR_RIGHT_PADDING = 3;
 
 export type ScrollState = {
   scrollTop: number;
@@ -14,6 +19,8 @@ export type DiffRange = {
   startLine: number;
   endLine: number;
   type: "insert" | "delete";
+  tone?: "base" | "strong" | "block";
+  contentColumns?: number;
 };
 
 export type MinimapOverlayOptions = {
@@ -29,9 +36,24 @@ type VisualFrameInput = {
   visualHeight: number;
 };
 
+type DiffIndicatorStyleInput = {
+  range: DiffRange;
+  totalLines: number;
+  minimapHeight: number;
+  minimapWidth: number;
+  maxColumn?: number;
+};
+
 export type MinimapVisualFrame = {
   top: number;
   height: number;
+};
+
+export type MinimapDiffIndicatorStyle = {
+  top: number;
+  height: number;
+  left: number;
+  width: number;
 };
 
 export function computeMinimapVisualFrame(input: VisualFrameInput): MinimapVisualFrame {
@@ -53,6 +75,36 @@ export function computeScrollRatio(state: ScrollState): number {
   return Math.max(0, Math.min(state.scrollTop / maxScroll, 1));
 }
 
+export function computeMinimapDiffIndicatorStyle(input: DiffIndicatorStyleInput): MinimapDiffIndicatorStyle | null {
+  const totalLines = Math.max(0, input.totalLines);
+  const minimapHeight = Math.max(0, input.minimapHeight);
+  const minimapWidth = Math.max(0, input.minimapWidth);
+
+  if (totalLines <= 0 || minimapHeight <= 0 || minimapWidth <= 0) return null;
+
+  const startLine = Math.max(1, input.range.startLine);
+  const endLine = Math.max(startLine, input.range.endLine);
+  if (endLine < 1 || startLine > totalLines) return null;
+
+  const startY = Math.max(0, (startLine - 1) / totalLines) * minimapHeight;
+  const endY = Math.min(minimapHeight, endLine / totalLines) * minimapHeight;
+  const height = Math.max(2, endY - startY);
+  const availableWidth = Math.max(0, minimapWidth - INDICATOR_LEFT_PADDING - INDICATOR_RIGHT_PADDING);
+  if (availableWidth <= 0) return null;
+
+  const maxColumn = Math.max(1, input.maxColumn ?? DEFAULT_MINIMAP_MAX_COLUMN);
+  const contentColumns = Math.max(1, input.range.contentColumns ?? maxColumn);
+  const contentRatio = Math.max(MIN_INDICATOR_WIDTH / availableWidth, Math.min(contentColumns / maxColumn, 1));
+  const width = Math.min(availableWidth, Math.max(MIN_INDICATOR_WIDTH, availableWidth * contentRatio));
+
+  return {
+    top: startY,
+    height,
+    left: INDICATOR_LEFT_PADDING,
+    width
+  };
+}
+
 function readVisualHeight(minimap: HTMLElement): number {
   const raw = getComputedStyle(minimap).getPropertyValue("--adl-minimap-slider-visual-height").trim();
   const parsed = Number.parseFloat(raw);
@@ -70,36 +122,64 @@ function getOrCreateOverlay(minimap: HTMLElement) {
   return overlay;
 }
 
+function getOrCreateDiffIndicatorsLayer(minimap: HTMLElement) {
+  let layer = minimap.querySelector<HTMLElement>(`:scope > .${DIFF_INDICATORS_LAYER_CLASS}`);
+  if (!layer) {
+    layer = document.createElement("div");
+    layer.className = DIFF_INDICATORS_LAYER_CLASS;
+    layer.setAttribute("aria-hidden", "true");
+    minimap.appendChild(layer);
+  }
+  return layer;
+}
+
+function computeDiffIndicatorMaxColumn(diffRanges: DiffRange[]) {
+  return Math.max(
+    DEFAULT_MINIMAP_MAX_COLUMN,
+    ...diffRanges.map((range) => Math.max(0, range.contentColumns ?? 0))
+  );
+}
+
 function renderDiffIndicators(
   minimap: HTMLElement,
   diffRanges: DiffRange[],
   totalLines: number
 ) {
-  minimap.querySelectorAll(`.${DIFF_INDICATOR_CLASS}`).forEach((el) => el.remove());
+  const layer = getOrCreateDiffIndicatorsLayer(minimap);
+  layer.replaceChildren();
 
   if (!diffRanges.length || totalLines <= 0) return;
 
-  const minimapHeight = minimap.getBoundingClientRect().height;
-  if (minimapHeight <= 0) return;
+  const minimapRect = minimap.getBoundingClientRect();
+  const minimapHeight = minimapRect.height;
+  const minimapWidth = minimapRect.width;
+  if (minimapHeight <= 0 || minimapWidth <= 0) return;
+
+  const fragment = document.createDocumentFragment();
+  const maxColumn = computeDiffIndicatorMaxColumn(diffRanges);
 
   diffRanges.forEach((range) => {
-    const startLine = Math.max(1, range.startLine);
-    const endLine = Math.max(startLine, range.endLine);
-
-    if (endLine < 1 || startLine > totalLines) return;
-
-    const startY = Math.max(0, (startLine - 1) / totalLines) * minimapHeight;
-    const endY = Math.min(minimapHeight, endLine / totalLines) * minimapHeight;
-    const height = Math.max(2, endY - startY);
+    const layout = computeMinimapDiffIndicatorStyle({
+      range,
+      totalLines,
+      minimapHeight,
+      minimapWidth,
+      maxColumn
+    });
+    if (!layout) return;
 
     const indicator = document.createElement("div");
-    indicator.className = `${DIFF_INDICATOR_CLASS} ${DIFF_INDICATOR_CLASS}--${range.type}`;
-    indicator.style.cssText =
-      `position:absolute;left:0;right:0;top:${startY}px;height:${height}px;pointer-events:none;`;
+    indicator.className = `${DIFF_INDICATOR_CLASS} ${DIFF_INDICATOR_CLASS}--${range.type} ${DIFF_INDICATOR_CLASS}--${range.tone ?? "base"}`;
+    indicator.style.top = `${layout.top}px`;
+    indicator.style.height = `${layout.height}px`;
+    indicator.style.left = `${layout.left}px`;
+    indicator.style.width = `${layout.width}px`;
     indicator.setAttribute("aria-hidden", "true");
 
-    minimap.appendChild(indicator);
+    fragment.appendChild(indicator);
   });
+
+  layer.replaceChildren(fragment);
 }
 
 function syncMinimapOverlay(
@@ -311,6 +391,7 @@ export function attachMinimapVisualOverlays(root: HTMLElement, options?: Minimap
       for (const disposer of interactionDisposers.values()) disposer();
       interactionDisposers.clear();
       root.querySelectorAll<HTMLElement>(`.${OVERLAY_CLASS}`).forEach((el) => el.remove());
+      root.querySelectorAll<HTMLElement>(`.${DIFF_INDICATORS_LAYER_CLASS}`).forEach((el) => el.remove());
       root.querySelectorAll<HTMLElement>(`.${DIFF_INDICATOR_CLASS}`).forEach((el) => el.remove());
     }
   };

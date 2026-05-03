@@ -4050,6 +4050,7 @@
   border: none !important;
   outline: none !important;
   box-shadow: none !important;
+  background-clip: padding-box;
 }
 
 .adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .view-overlays .adl-inline-diff-line--insert {
@@ -4058,6 +4059,22 @@
 
 .adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .view-overlays .adl-inline-diff-line--delete {
   background-color: var(--editor-diff-remove-bg) !important;
+}
+
+.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .view-overlays .adl-inline-diff-line--insert.adl-inline-diff-line--strong {
+  background-color: var(--editor-diff-insert-bg-strong) !important;
+}
+
+.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .view-overlays .adl-inline-diff-line--delete.adl-inline-diff-line--strong {
+  background-color: var(--editor-diff-remove-bg-strong) !important;
+}
+
+.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .view-overlays .adl-inline-diff-line--insert.adl-inline-diff-line--block {
+  background-color: var(--editor-diff-insert-bg-block) !important;
+}
+
+.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .view-overlays .adl-inline-diff-line--delete.adl-inline-diff-line--block {
+  background-color: var(--editor-diff-remove-bg-block) !important;
 }
 
 .adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .cdr.line-insert,
@@ -4245,32 +4262,18 @@
   right: 0 !important;
   width: 100% !important;
   box-sizing: border-box;
-  background: transparent !important;
-  pointer-events: none !important;
+  background: color-mix(in srgb, var(--surface-hover) 68%, transparent) !important;
 }
 
 .adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .minimap-slider-horizontal {
   background: transparent !important;
 }
 
-.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .minimap canvas,
-.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .minimap .minimap-decorations-layer {
-  width: 100% !important;
-}
-
-.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .minimap canvas {
-  z-index: 1 !important;
-}
-
-.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .minimap .minimap-decorations-layer {
-  z-index: 2 !important;
-}
-
 .adl-minimap-slider-visual {
   position: absolute;
   left: 0;
   right: 0;
-  z-index: 3;
+  z-index: 4;
   border-radius: 0;
   background: var(--surface-hover);
   cursor: grab;
@@ -4280,21 +4283,44 @@
   cursor: grabbing !important;
 }
 
+.adl-minimap-diff-indicators {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
 .adl-minimap-diff-indicator {
   position: absolute;
-  left: 0;
-  right: 0;
   pointer-events: none;
-  z-index: 2;
+  z-index: 1;
   border-radius: 0;
+  box-sizing: border-box;
 }
 
 .adl-minimap-diff-indicator--insert {
-  background: var(--minimap-diff-insert);
+  background: linear-gradient(var(--editor-diff-insert-bg), var(--editor-diff-insert-bg)), var(--editor-bg);
 }
 
 .adl-minimap-diff-indicator--delete {
-  background: var(--minimap-diff-remove);
+  background: linear-gradient(var(--editor-diff-remove-bg), var(--editor-diff-remove-bg)), var(--editor-bg);
+}
+
+.adl-minimap-diff-indicator--insert.adl-minimap-diff-indicator--strong {
+  background: linear-gradient(var(--editor-diff-insert-bg-strong), var(--editor-diff-insert-bg-strong)), var(--editor-bg);
+}
+
+.adl-minimap-diff-indicator--delete.adl-minimap-diff-indicator--strong {
+  background: linear-gradient(var(--editor-diff-remove-bg-strong), var(--editor-diff-remove-bg-strong)), var(--editor-bg);
+  z-index: 2;
+}
+
+.adl-minimap-diff-indicator--insert.adl-minimap-diff-indicator--block {
+  background: linear-gradient(var(--editor-diff-insert-bg-block), var(--editor-diff-insert-bg-block)), var(--editor-bg);
+}
+
+.adl-minimap-diff-indicator--delete.adl-minimap-diff-indicator--block {
+  background: linear-gradient(var(--editor-diff-remove-bg-block), var(--editor-diff-remove-bg-block)), var(--editor-bg);
 }
 
 .adl-tool-hint {

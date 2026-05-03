@@ -29,6 +29,7 @@ The full visual contract lives in the `[docs/design-system/](../design-system/RE
 - Saturated semantic base colors (`--accent`, `--success`, `--warning`, `--danger`) are reserved for narrow emphasis zones such as focus rings, destructive confirmations, hard errors, or other states where a softer variant would weaken clarity.
 - Third-party renderers that cannot read CSS custom properties directly, such as Monaco, must derive their programmatic theme from the same resolved light/dark state and the documented shell background baseline rather than inventing an independent palette.
 - When a third-party renderer needs a programmatic theme object, the renderer layer MUST resolve semantic tokens to concrete color literals before registration. Passing raw CSS values such as `var(--surface)` or keyword values such as `transparent` into the third-party theme API is forbidden because those APIs may treat invalid tokens as error colors or fallback markers.
+- Monaco diff previews must keep gutter and line-number backgrounds transparent. Product-owned content-row and minimap overlays may use resolved diff token families for insert/delete depth, but those highlights must not be applied through gutter theme colors.
 - Monaco gutter folding controls are treated as a constrained interoperability exception: if the internal DOM cannot reliably host the product tooltip component, the editor integration layer may assign a localized native `title` to the folding control only, and that exception must not bleed into ordinary UI components.
 
 ## Design intent

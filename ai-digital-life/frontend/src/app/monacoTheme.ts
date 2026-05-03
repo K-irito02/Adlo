@@ -224,13 +224,13 @@ function buildMonacoThemeData(theme: "light" | "dark"): {
   if (diffInsertBg) {
     colors["diffEditor.insertedTextBackground"] = diffInsertBg;
     colors["diffEditor.insertedLineBackground"] = diffInsertBg;
-    colors["diffEditorGutter.insertedLineBackground"] = diffInsertBg;
   }
   if (diffRemoveBg) {
     colors["diffEditor.removedTextBackground"] = diffRemoveBg;
     colors["diffEditor.removedLineBackground"] = diffRemoveBg;
-    colors["diffEditorGutter.removedLineBackground"] = diffRemoveBg;
   }
+  colors["diffEditorGutter.insertedLineBackground"] = "#00000000";
+  colors["diffEditorGutter.removedLineBackground"] = "#00000000";
   colors["diffEditor.modifiedTextBackground"] = "#00000000";
   colors["diffEditor.modifiedLineBackground"] = "#00000000";
   colors["diffEditorGutter.modifiedLineBackground"] = "#00000000";

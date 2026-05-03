@@ -20,23 +20,32 @@ import { countGitChanges } from "./types";
 import type { RightPanelViewProps } from "./types";
 import { countReviewedHunks, filterPatchFileSummaries, summarizePatchSet } from "./patchReview";
 import { buildChangeEntries, buildChangeTree, buildFlatChangeNodes, type ChangeTreeNode } from "./changesTree";
-import { computePreviewDiffRanges, type PreviewDiffRange } from "./changePreviewDiffRanges";
+import {
+  computePreviewDiffVisualRanges,
+  type PreviewDiffVisualRange
+} from "./changePreviewDiffRanges";
 import { collectDirectoryPaths, FileTree, type FileTreeContextMenuItem } from "./fileTree";
-import { attachMinimapVisualOverlays } from "./minimapVisualOverlay";
 import { detectEditorLanguage } from "../../workspacePaths";
 import {
-  type MonacoDiffEditor,
-  type MonacoEditor,
   type MonacoDecoration,
   getMonacoFromWindow,
   getMinimapPosition,
   createMonacoRange,
-  isDiffEditor,
-  isMonacoEditor
+  isDiffEditor
 } from "./monacoTypes";
 
 const CHANGES_BRANCH_STORAGE_KEY = "adl-ui:changes-branch";
 const FALLBACK_BRANCHES = ["main", "develop", "release/0.1.0", "feature/right-panel"];
+const CHANGE_MINIMAP_DECORATION_COLORS = {
+  insert: {
+    color: "rgba(22, 163, 74, 0.72)",
+    darkColor: "rgba(74, 222, 128, 0.78)"
+  },
+  delete: {
+    color: "rgba(239, 68, 68, 0.72)",
+    darkColor: "rgba(248, 113, 113, 0.78)"
+  }
+};
 
 function readSelectedBranch(initialBranch: string): string {
   try {
@@ -163,7 +172,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
   );
   const changePreviewDiffRanges = useMemo(
     () => changePreview
-      ? computePreviewDiffRanges(changePreview.baseContent, changePreview.currentContent)
+      ? computePreviewDiffVisualRanges(changePreview.baseContent, changePreview.currentContent)
       : [],
     [changePreview]
   );
@@ -253,11 +262,11 @@ export function ChangesPanel(props: RightPanelViewProps) {
       const minimapOpts = {
         enabled: true,
         side: "right" as const,
-        size: "fill" as const,
+        size: "proportional" as const,
         showSlider: "always" as const,
-        renderCharacters: true,
+        renderCharacters: false,
         maxColumn: 80,
-        scale: 1.5
+        scale: 1
       };
       de.updateOptions({
         minimap: minimapOpts,
@@ -336,11 +345,11 @@ export function ChangesPanel(props: RightPanelViewProps) {
       : {
           enabled: true,
           side: "right" as const,
-          size: "fill" as const,
+          size: "proportional" as const,
           showSlider: "always" as const,
-          renderCharacters: true,
+          renderCharacters: false,
           maxColumn: 80,
-          scale: 1.5
+          scale: 1
         },
     scrollbar: props.diffSideBySide
       ? {
@@ -381,17 +390,16 @@ export function ChangesPanel(props: RightPanelViewProps) {
     }
 
     const minimapPosition = getMinimapPosition(monaco);
-    const decorations: MonacoDecoration[] = changePreviewDiffRanges.map((range: PreviewDiffRange) => ({
+    const decorations: MonacoDecoration[] = changePreviewDiffRanges.map((range: PreviewDiffVisualRange) => ({
       range: createMonacoRange(monaco, range.startLine, 1, range.endLine, 1),
       options: {
         isWholeLine: true,
-        className: `adl-inline-diff-line adl-inline-diff-line--${range.type}`,
+        className: `adl-inline-diff-line adl-inline-diff-line--${range.type} adl-inline-diff-line--${range.tone}`,
         minimap: {
-          color: range.type === "insert" ? "rgba(22, 163, 74, 0.6)" : "rgba(239, 68, 68, 0.6)",
-          darkColor: range.type === "insert" ? "rgba(74, 222, 128, 0.7)" : "rgba(248, 113, 113, 0.7)",
+          ...CHANGE_MINIMAP_DECORATION_COLORS[range.type],
           position: minimapPosition
         },
-        zIndex: 1
+        zIndex: range.type === "delete" ? 2 : 1
       }
     }));
 
@@ -407,101 +415,19 @@ export function ChangesPanel(props: RightPanelViewProps) {
   }, [changePreview, changePreviewDiffRanges, diffEditorReady, props.diffSideBySide]);
 
   useEffect(() => {
-    if (!changePreview || !diffEditorRef.current) return;
-    const shell = document.querySelector('[data-testid="changes-preview-shell"]');
-    if (!shell) return;
-    const target = shell.querySelector(".editor.modified .minimap") || shell.querySelector(".minimap:not([style*='display: none'])");
-    if (!target) return;
-    const observer = new MutationObserver(() => {
-      const minimaps = shell.querySelectorAll(".minimap");
-      minimaps.forEach((m) => {
-        const cs = window.getComputedStyle(m);
-        if (cs.display === "none" && m.closest(".editor.modified")) {
-          applyMinimapToDiffEditor(diffEditorRef.current, "MutationObserver");
-        }
-      });
-    });
-    observer.observe(target, { attributes: true, attributeFilter: ["style", "class"] });
-    return () => observer.disconnect();
-  }, [changePreview, applyMinimapToDiffEditor]);
+    if (props.diffSideBySide || !diffEditorRef.current) return;
+    applyMinimapToDiffEditor(diffEditorRef.current, "inlinePreviewReady");
+  }, [changePreview?.path, props.diffSideBySide, applyMinimapToDiffEditor]);
 
   useEffect(() => {
     if (props.diffSideBySide || !diffEditorRef.current) return;
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    [100, 300, 600, 1000].forEach(d => {
-      timers.push(setTimeout(() => {
-        applyMinimapToDiffEditor(diffEditorRef.current, `diffModeChange-${d}ms`);
-      }, d));
-    });
-    return () => timers.forEach(t => clearTimeout(t));
-  }, [props.diffSideBySide, applyMinimapToDiffEditor]);
-
-  useEffect(() => {
-    const root = changesPreviewShellRef.current;
-    if (!root || props.diffSideBySide || !changePreview) {
-      return;
-    }
-
-    const getDiffEditor = (): MonacoDiffEditor | null => {
-      const editor = diffEditorRef.current;
-      return isDiffEditor(editor) ? editor : null;
+    const refreshMinimapAfterOptionChange = () => {
+      applyMinimapToDiffEditor(diffEditorRef.current, "displayOptionChange");
     };
 
-    const getModifiedEditor = (): MonacoEditor | null => {
-      return getDiffEditor()?.getModifiedEditor() ?? null;
-    };
-
-    const controller = attachMinimapVisualOverlays(root, {
-      getScrollState: () => {
-        const ed = getModifiedEditor();
-        if (!ed) return null;
-        return {
-          scrollTop: ed.getScrollTop(),
-          scrollHeight: ed.getScrollHeight(),
-          clientHeight: ed.getLayoutInfo().height
-        };
-      },
-      setScrollTop: (value) => {
-        getModifiedEditor()?.setScrollPosition({ scrollTop: value });
-      },
-      getDiffRanges: () => {
-        if (changePreviewDiffRanges.length > 0) {
-          return changePreviewDiffRanges;
-        }
-        const diffEd = getDiffEditor();
-        if (!diffEd?.getDiffInformation) return null;
-        const diffInfo = diffEd.getDiffInformation();
-        if (!diffInfo || diffInfo.length === 0) return null;
-        return diffInfo.map((change) => {
-          const isDelete = change.modifiedStartLineNumber > change.modifiedEndLineNumber;
-          if (isDelete) {
-            const line = change.modifiedStartLineNumber;
-            return { startLine: line, endLine: line, type: "delete" as const };
-          }
-          return {
-            startLine: change.modifiedStartLineNumber,
-            endLine: change.modifiedEndLineNumber,
-            type: "insert" as const
-          };
-        });
-      },
-      getTotalLines: () => {
-        const ed = getModifiedEditor();
-        return ed?.getModel?.()?.getLineCount() ?? null;
-      }
-    });
-
-    const modifiedEd = getModifiedEditor();
-    const diffEd = getDiffEditor();
-    const scrollDisposable = modifiedEd?.onDidScrollChange?.(() => controller.refresh());
-    const diffUpdateDisposable = diffEd?.onDidUpdateDiff?.(() => controller.refresh());
-
-    return () => {
-      scrollDisposable?.dispose();
-      diffUpdateDisposable?.dispose();
-      controller.dispose();
-    };
-  }, [changePreview, changePreviewDiffRanges, props.diffSideBySide, diffEditorReady]);
+    const timers = [0, 50, 150, 300, 600].map((delay) => setTimeout(refreshMinimapAfterOptionChange, delay));
+    return () => timers.forEach((timer) => clearTimeout(timer));
+  }, [changePreview?.path, lineNumbersEnabled, props.diffSideBySide, wordWrapEnabled, applyMinimapToDiffEditor]);
 
   const handleNavigatorResizeStart = (event: React.PointerEvent<HTMLDivElement>) => {
     event.preventDefault();

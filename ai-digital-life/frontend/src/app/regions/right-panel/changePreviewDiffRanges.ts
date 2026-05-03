@@ -4,7 +4,30 @@ export type PreviewDiffRange = {
   type: "insert" | "delete";
 };
 
+export type PreviewDiffVisualTone = "base" | "strong" | "block";
+
+export type PreviewDiffVisualRange = PreviewDiffRange & {
+  tone: PreviewDiffVisualTone;
+  contentColumns: number;
+};
+
+export type PreviewDiffMinimapModel = {
+  ranges: PreviewDiffVisualRange[];
+  totalLines: number;
+};
+
+export type PreviewDiffMinimapOptions = {
+  wrapColumn?: number | null;
+};
+
 const MAX_EXACT_DIFF_CELLS = 2_000_000;
+const BLOCK_TONE_LINE_THRESHOLD = 8;
+
+type InternalDiffRange = PreviewDiffRange & {
+  blockId: number;
+  contentColumns: number;
+  hasOppositeInBlock: boolean;
+};
 
 function splitLines(content: string): string[] {
   if (!content) return [];
@@ -20,7 +43,132 @@ function appendRange(ranges: PreviewDiffRange[], next: PreviewDiffRange) {
   ranges.push(next);
 }
 
-function computeFallbackRange(baseLines: string[], currentLines: string[]): PreviewDiffRange[] {
+function getMaxColumns(lines: string[], startLine: number, endLine: number): number {
+  const startIndex = Math.max(0, startLine - 1);
+  const endIndex = Math.min(lines.length - 1, endLine - 1);
+  if (endIndex < startIndex) return 0;
+
+  let maxColumns = 0;
+  for (let index = startIndex; index <= endIndex; index += 1) {
+    maxColumns = Math.max(maxColumns, lines[index]?.length ?? 0);
+  }
+  return maxColumns;
+}
+
+function appendInternalRange(ranges: InternalDiffRange[], next: InternalDiffRange) {
+  const previous = ranges[ranges.length - 1];
+  if (
+    previous &&
+    previous.type === next.type &&
+    previous.blockId === next.blockId &&
+    previous.hasOppositeInBlock === next.hasOppositeInBlock &&
+    previous.endLine + 1 >= next.startLine
+  ) {
+    previous.endLine = Math.max(previous.endLine, next.endLine);
+    previous.contentColumns = Math.max(previous.contentColumns, next.contentColumns);
+    return;
+  }
+  ranges.push(next);
+}
+
+function appendVisualRange(ranges: PreviewDiffVisualRange[], next: PreviewDiffVisualRange) {
+  const previous = ranges[ranges.length - 1];
+  if (
+    previous &&
+    previous.type === next.type &&
+    previous.tone === next.tone &&
+    previous.contentColumns === next.contentColumns &&
+    previous.endLine + 1 >= next.startLine
+  ) {
+    previous.endLine = Math.max(previous.endLine, next.endLine);
+    return;
+  }
+  ranges.push(next);
+}
+
+function getVisualColumns(line: string, wrapColumn?: number | null): number[] {
+  if (!wrapColumn || wrapColumn <= 0) {
+    return [line.length];
+  }
+
+  const columns: number[] = [];
+  const normalizedWrapColumn = Math.max(1, Math.floor(wrapColumn));
+  let remaining = line.length;
+  if (remaining === 0) {
+    return [0];
+  }
+
+  while (remaining > normalizedWrapColumn) {
+    columns.push(normalizedWrapColumn);
+    remaining -= normalizedWrapColumn;
+  }
+  columns.push(remaining);
+  return columns;
+}
+
+function getVisualLineCount(line: string, wrapColumn?: number | null): number {
+  return getVisualColumns(line, wrapColumn).length;
+}
+
+function createInternalRange(input: {
+  startLine: number;
+  endLine: number;
+  type: "insert" | "delete";
+  blockId: number;
+  contentLines: string[];
+  sourceStartLine: number;
+  sourceEndLine: number;
+  hasOppositeInBlock: boolean;
+}): InternalDiffRange {
+  return {
+    startLine: input.startLine,
+    endLine: input.endLine,
+    type: input.type,
+    blockId: input.blockId,
+    hasOppositeInBlock: input.hasOppositeInBlock,
+    contentColumns: getMaxColumns(input.contentLines, input.sourceStartLine, input.sourceEndLine)
+  };
+}
+
+function computeFallbackRanges(baseLines: string[], currentLines: string[]): InternalDiffRange[] {
+  const prefix = getCommonPrefixLength(baseLines, currentLines);
+  const suffix = getCommonSuffixLength(baseLines, currentLines, prefix);
+
+  const ranges: InternalDiffRange[] = [];
+  const insertedLines = currentLines.length - prefix - suffix;
+  const deletedLines = baseLines.length - prefix - suffix;
+  const anchorLine = Math.max(1, prefix + 1);
+  const hasOppositeInBlock = insertedLines > 0 && deletedLines > 0;
+
+  if (deletedLines > 0) {
+    appendInternalRange(ranges, createInternalRange({
+      startLine: anchorLine,
+      endLine: anchorLine,
+      type: "delete",
+      blockId: 1,
+      contentLines: baseLines,
+      sourceStartLine: prefix + 1,
+      sourceEndLine: baseLines.length - suffix,
+      hasOppositeInBlock
+    }));
+  }
+  if (insertedLines > 0) {
+    appendInternalRange(ranges, createInternalRange({
+      startLine: anchorLine,
+      endLine: Math.max(anchorLine, prefix + insertedLines),
+      type: "insert",
+      blockId: 1,
+      contentLines: currentLines,
+      sourceStartLine: prefix + 1,
+      sourceEndLine: currentLines.length - suffix,
+      hasOppositeInBlock
+    }));
+  }
+
+  return ranges;
+}
+
+function getCommonPrefixLength(baseLines: string[], currentLines: string[]): number {
   let prefix = 0;
   while (
     prefix < baseLines.length &&
@@ -29,7 +177,10 @@ function computeFallbackRange(baseLines: string[], currentLines: string[]): Prev
   ) {
     prefix += 1;
   }
+  return prefix;
+}
 
+function getCommonSuffixLength(baseLines: string[], currentLines: string[], prefix: number): number {
   let suffix = 0;
   while (
     suffix + prefix < baseLines.length &&
@@ -38,40 +189,45 @@ function computeFallbackRange(baseLines: string[], currentLines: string[]): Prev
   ) {
     suffix += 1;
   }
-
-  const ranges: PreviewDiffRange[] = [];
-  const insertedLines = currentLines.length - prefix - suffix;
-  const deletedLines = baseLines.length - prefix - suffix;
-  const anchorLine = Math.max(1, prefix + 1);
-
-  if (deletedLines > 0) {
-    appendRange(ranges, { startLine: anchorLine, endLine: anchorLine, type: "delete" });
-  }
-  if (insertedLines > 0) {
-    appendRange(ranges, {
-      startLine: anchorLine,
-      endLine: Math.max(anchorLine, prefix + insertedLines),
-      type: "insert"
-    });
-  }
-
-  return ranges;
+  return suffix;
 }
 
-export function computePreviewDiffRanges(baseContent: string, currentContent: string): PreviewDiffRange[] {
+function getVisualLineTotal(lines: string[], wrapColumn?: number | null): number {
+  return lines.reduce((total, line) => total + getVisualLineCount(line, wrapColumn), 0);
+}
+
+function computeInternalDiffRanges(baseContent: string, currentContent: string): InternalDiffRange[] {
   const baseLines = splitLines(baseContent);
   const currentLines = splitLines(currentContent);
 
   if (baseLines.length === 0 && currentLines.length === 0) return [];
   if (baseLines.length === 0) {
-    return [{ startLine: 1, endLine: Math.max(1, currentLines.length), type: "insert" }];
+    return [createInternalRange({
+      startLine: 1,
+      endLine: Math.max(1, currentLines.length),
+      type: "insert",
+      blockId: 1,
+      contentLines: currentLines,
+      sourceStartLine: 1,
+      sourceEndLine: currentLines.length,
+      hasOppositeInBlock: false
+    })];
   }
   if (currentLines.length === 0) {
-    return [{ startLine: 1, endLine: 1, type: "delete" }];
+    return [createInternalRange({
+      startLine: 1,
+      endLine: 1,
+      type: "delete",
+      blockId: 1,
+      contentLines: baseLines,
+      sourceStartLine: 1,
+      sourceEndLine: baseLines.length,
+      hasOppositeInBlock: false
+    })];
   }
 
   if (baseLines.length * currentLines.length > MAX_EXACT_DIFF_CELLS) {
-    return computeFallbackRange(baseLines, currentLines);
+    return computeFallbackRanges(baseLines, currentLines);
   }
 
   const rows = baseLines.length + 1;
@@ -86,9 +242,10 @@ export function computePreviewDiffRanges(baseContent: string, currentContent: st
     }
   }
 
-  const ranges: PreviewDiffRange[] = [];
+  const ranges: InternalDiffRange[] = [];
   let i = 0;
   let j = 0;
+  let blockId = 0;
 
   while (i < baseLines.length || j < currentLines.length) {
     if (i < baseLines.length && j < currentLines.length && baseLines[i] === currentLines[j]) {
@@ -98,9 +255,11 @@ export function computePreviewDiffRanges(baseContent: string, currentContent: st
     }
 
     const anchorLine = Math.max(1, j + 1);
+    blockId += 1;
     let insertStartLine = 0;
     let insertEndLine = 0;
-    let hasDelete = false;
+    let deleteStartLine = 0;
+    let deleteEndLine = 0;
 
     while (
       i < baseLines.length || j < currentLines.length
@@ -116,18 +275,265 @@ export function computePreviewDiffRanges(baseContent: string, currentContent: st
         j += 1;
         insertEndLine = j;
       } else {
+        if (deleteStartLine === 0) {
+          deleteStartLine = i + 1;
+        }
         i += 1;
-        hasDelete = true;
+        deleteEndLine = i;
       }
     }
 
+    const hasInsert = insertStartLine > 0;
+    const hasDelete = deleteStartLine > 0;
+    const hasOppositeInBlock = hasInsert && hasDelete;
+
     if (insertStartLine > 0) {
-      appendRange(ranges, { startLine: insertStartLine, endLine: insertEndLine, type: "insert" });
+      appendInternalRange(ranges, createInternalRange({
+        startLine: insertStartLine,
+        endLine: insertEndLine,
+        type: "insert",
+        blockId,
+        contentLines: currentLines,
+        sourceStartLine: insertStartLine,
+        sourceEndLine: insertEndLine,
+        hasOppositeInBlock
+      }));
     }
     if (hasDelete) {
-      appendRange(ranges, { startLine: anchorLine, endLine: anchorLine, type: "delete" });
+      appendInternalRange(ranges, createInternalRange({
+        startLine: anchorLine,
+        endLine: anchorLine,
+        type: "delete",
+        blockId,
+        contentLines: baseLines,
+        sourceStartLine: deleteStartLine,
+        sourceEndLine: deleteEndLine,
+        hasOppositeInBlock
+      }));
     }
   }
 
   return ranges;
+}
+
+function toPreviewDiffRange(range: InternalDiffRange): PreviewDiffRange {
+  return {
+    startLine: range.startLine,
+    endLine: range.endLine,
+    type: range.type
+  };
+}
+
+function getVisualTone(range: InternalDiffRange): PreviewDiffVisualTone {
+  const lineCount = Math.max(1, range.endLine - range.startLine + 1);
+  if (range.hasOppositeInBlock) return "strong";
+  if (lineCount >= BLOCK_TONE_LINE_THRESHOLD) return "block";
+  return "base";
+}
+
+export function computePreviewDiffRanges(baseContent: string, currentContent: string): PreviewDiffRange[] {
+  const ranges: PreviewDiffRange[] = [];
+  computeInternalDiffRanges(baseContent, currentContent).forEach((range) => appendRange(ranges, toPreviewDiffRange(range)));
+  return ranges;
+}
+
+export function computePreviewDiffVisualRanges(baseContent: string, currentContent: string): PreviewDiffVisualRange[] {
+  return computeInternalDiffRanges(baseContent, currentContent).map((range) => ({
+    startLine: range.startLine,
+    endLine: range.endLine,
+    type: range.type,
+    tone: getVisualTone(range),
+    contentColumns: range.contentColumns
+  }));
+}
+
+function appendVisualLineRanges(input: {
+  ranges: PreviewDiffVisualRange[];
+  visualLine: number;
+  lines: string[];
+  type: "insert" | "delete";
+  tone: PreviewDiffVisualTone;
+  wrapColumn?: number | null;
+}): number {
+  let visualLine = input.visualLine;
+  input.lines.forEach((line) => {
+    getVisualColumns(line, input.wrapColumn).forEach((contentColumns) => {
+      appendVisualRange(input.ranges, {
+        startLine: visualLine,
+        endLine: visualLine,
+        type: input.type,
+        tone: input.tone,
+        contentColumns
+      });
+      visualLine += 1;
+    });
+  });
+  return visualLine;
+}
+
+function computeFallbackMinimapModel(
+  baseLines: string[],
+  currentLines: string[],
+  wrapColumn?: number | null
+): PreviewDiffMinimapModel {
+  const prefix = getCommonPrefixLength(baseLines, currentLines);
+  const suffix = getCommonSuffixLength(baseLines, currentLines, prefix);
+  const inserted = currentLines.slice(prefix, currentLines.length - suffix);
+  const deleted = baseLines.slice(prefix, baseLines.length - suffix);
+  const suffixLines = currentLines.slice(currentLines.length - suffix);
+  const ranges: PreviewDiffVisualRange[] = [];
+  const hasOppositeInBlock = inserted.length > 0 && deleted.length > 0;
+  const changedLineCount = inserted.length + deleted.length;
+  const tone: PreviewDiffVisualTone = hasOppositeInBlock
+    ? "strong"
+    : changedLineCount >= BLOCK_TONE_LINE_THRESHOLD
+      ? "block"
+      : "base";
+  let visualLine = getVisualLineTotal(currentLines.slice(0, prefix), wrapColumn) + 1;
+
+  visualLine = appendVisualLineRanges({
+    ranges,
+    visualLine,
+    lines: inserted,
+    type: "insert",
+    tone,
+    wrapColumn
+  });
+  visualLine = appendVisualLineRanges({
+    ranges,
+    visualLine,
+    lines: deleted,
+    type: "delete",
+    tone,
+    wrapColumn
+  });
+
+  return {
+    totalLines: Math.max(1, visualLine - 1 + getVisualLineTotal(suffixLines, wrapColumn)),
+    ranges
+  };
+}
+
+export function computePreviewDiffMinimapModel(
+  baseContent: string,
+  currentContent: string,
+  options?: PreviewDiffMinimapOptions
+): PreviewDiffMinimapModel {
+  const baseLines = splitLines(baseContent);
+  const currentLines = splitLines(currentContent);
+  const wrapColumn = options?.wrapColumn ?? null;
+
+  if (baseLines.length === 0 && currentLines.length === 0) {
+    return { totalLines: 0, ranges: [] };
+  }
+
+  if (baseLines.length === 0) {
+    const ranges: PreviewDiffVisualRange[] = [];
+    const visualLine = appendVisualLineRanges({
+      ranges,
+      visualLine: 1,
+      lines: currentLines,
+      type: "insert",
+      tone: currentLines.length >= BLOCK_TONE_LINE_THRESHOLD ? "block" : "base",
+      wrapColumn
+    });
+    return {
+      totalLines: Math.max(1, visualLine - 1),
+      ranges
+    };
+  }
+
+  if (currentLines.length === 0) {
+    const ranges: PreviewDiffVisualRange[] = [];
+    const visualLine = appendVisualLineRanges({
+      ranges,
+      visualLine: 1,
+      lines: baseLines,
+      type: "delete",
+      tone: baseLines.length >= BLOCK_TONE_LINE_THRESHOLD ? "block" : "base",
+      wrapColumn
+    });
+    return {
+      totalLines: Math.max(1, visualLine - 1),
+      ranges
+    };
+  }
+
+  if (baseLines.length * currentLines.length > MAX_EXACT_DIFF_CELLS) {
+    return computeFallbackMinimapModel(baseLines, currentLines, wrapColumn);
+  }
+
+  const rows = baseLines.length + 1;
+  const columns = currentLines.length + 1;
+  const dp = Array.from({ length: rows }, () => new Uint16Array(columns));
+
+  for (let i = baseLines.length - 1; i >= 0; i -= 1) {
+    for (let j = currentLines.length - 1; j >= 0; j -= 1) {
+      dp[i][j] = baseLines[i] === currentLines[j]
+        ? dp[i + 1][j + 1] + 1
+        : Math.max(dp[i + 1][j], dp[i][j + 1]);
+    }
+  }
+
+  const ranges: PreviewDiffVisualRange[] = [];
+  let i = 0;
+  let j = 0;
+  let visualLine = 1;
+
+  while (i < baseLines.length || j < currentLines.length) {
+    if (i < baseLines.length && j < currentLines.length && baseLines[i] === currentLines[j]) {
+      visualLine += getVisualLineCount(currentLines[j], wrapColumn);
+      i += 1;
+      j += 1;
+      continue;
+    }
+
+    const inserted: string[] = [];
+    const deleted: string[] = [];
+
+    while (i < baseLines.length || j < currentLines.length) {
+      if (i < baseLines.length && j < currentLines.length && baseLines[i] === currentLines[j]) {
+        break;
+      }
+
+      if (j < currentLines.length && (i === baseLines.length || dp[i][j + 1] >= dp[i + 1][j])) {
+        inserted.push(currentLines[j] ?? "");
+        j += 1;
+      } else {
+        deleted.push(baseLines[i] ?? "");
+        i += 1;
+      }
+    }
+
+    const hasOppositeInBlock = inserted.length > 0 && deleted.length > 0;
+    const changedLineCount = inserted.length + deleted.length;
+    const tone: PreviewDiffVisualTone = hasOppositeInBlock
+      ? "strong"
+      : changedLineCount >= BLOCK_TONE_LINE_THRESHOLD
+        ? "block"
+        : "base";
+
+    visualLine = appendVisualLineRanges({
+      ranges,
+      visualLine,
+      lines: inserted,
+      type: "insert",
+      tone,
+      wrapColumn
+    });
+
+    visualLine = appendVisualLineRanges({
+      ranges,
+      visualLine,
+      lines: deleted,
+      type: "delete",
+      tone,
+      wrapColumn
+    });
+  }
+
+  return {
+    totalLines: Math.max(0, visualLine - 1),
+    ranges
+  };
 }

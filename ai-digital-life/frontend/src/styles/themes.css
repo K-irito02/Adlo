@@ -216,8 +216,10 @@ body,
 
   --editor-diff-insert-bg: rgba(22, 163, 74, 0.12);
   --editor-diff-remove-bg: rgba(239, 68, 68, 0.12);
-  --minimap-diff-insert: rgba(22, 163, 74, 0.6);
-  --minimap-diff-remove: rgba(239, 68, 68, 0.6);
+  --editor-diff-insert-bg-strong: rgba(22, 163, 74, 0.18);
+  --editor-diff-remove-bg-strong: rgba(239, 68, 68, 0.18);
+  --editor-diff-insert-bg-block: rgba(22, 163, 74, 0.15);
+  --editor-diff-remove-bg-block: rgba(239, 68, 68, 0.15);
   --editor-hunk-header-bg: rgba(34, 34, 34, 0.04);
   --editor-hunk-header-border: rgba(34, 34, 34, 0.08);
   --editor-current-hunk-ring: rgba(37, 99, 235, 0.16);
@@ -381,8 +383,10 @@ body,
 
   --editor-diff-insert-bg: rgba(74, 222, 128, 0.14);
   --editor-diff-remove-bg: rgba(248, 113, 113, 0.14);
-  --minimap-diff-insert: rgba(74, 222, 128, 0.7);
-  --minimap-diff-remove: rgba(248, 113, 113, 0.7);
+  --editor-diff-insert-bg-strong: rgba(74, 222, 128, 0.2);
+  --editor-diff-remove-bg-strong: rgba(248, 113, 113, 0.2);
+  --editor-diff-insert-bg-block: rgba(74, 222, 128, 0.17);
+  --editor-diff-remove-bg-block: rgba(248, 113, 113, 0.17);
   --editor-hunk-header-bg: rgba(255, 255, 255, 0.045);
   --editor-hunk-header-border: rgba(255, 255, 255, 0.09);
   --editor-current-hunk-ring: rgba(96, 165, 250, 0.18);

@@ -86,7 +86,7 @@ describe("changes preview gutter spacing", () => {
     expect(regionsCss).toContain(".adl-minimap-slider-visual");
     expect(regionsCss).toContain(".adl-minimap-slider-visual--dragging");
     expect(regionsCss).toContain("cursor: grabbing");
-    expect(regionsCss).toContain("z-index: 3;");
+    expect(regionsCss).toContain("z-index: 4;");
     expect(regionsCss).toContain("cursor: grab;");
   });
 

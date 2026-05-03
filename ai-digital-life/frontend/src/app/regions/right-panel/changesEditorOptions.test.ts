@@ -12,15 +12,15 @@ describe("changes preview editor options", () => {
     expect(changesPanelSource).toContain("lineDecorationsWidth: 0");
   });
 
-  it("matches the files minimap rendering in inline preview while preserving side-by-side scrollbars", () => {
+  it("uses a native proportional minimap in inline preview while preserving side-by-side scrollbars", () => {
     expect(changesPanelSource).toContain("minimap:");
     expect(changesPanelSource).toContain("props.diffSideBySide");
     expect(changesPanelSource).toContain('side: "right"');
-    expect(changesPanelSource).toContain('size: "fill"');
+    expect(changesPanelSource).toContain('size: "proportional"');
     expect(changesPanelSource).toContain('showSlider: "always"');
-    expect(changesPanelSource).toContain("renderCharacters: true");
+    expect(changesPanelSource).toContain("renderCharacters: false");
     expect(changesPanelSource).toContain("maxColumn: 80");
-    expect(changesPanelSource).toContain("scale: 1.5");
+    expect(changesPanelSource).toContain("scale: 1");
     expect(changesPanelSource).toContain("scrollbar:");
     expect(changesPanelSource).toContain('vertical: "hidden"');
     expect(changesPanelSource).toContain("verticalScrollbarSize: 0");
@@ -35,20 +35,28 @@ describe("changes preview editor options", () => {
     expect(changesPanelSource).toContain("diffEditorOptions");
     expect(changesPanelSource).toContain('enabled: true');
     expect(changesPanelSource).toContain('side: "right"');
-    expect(changesPanelSource).toContain('size: "fill"');
+    expect(changesPanelSource).toContain('size: "proportional"');
     expect(changesPanelSource).toContain('showSlider: "always"');
-    expect(changesPanelSource).toContain("renderCharacters: true");
+    expect(changesPanelSource).toContain("renderCharacters: false");
     expect(changesPanelSource).toContain("maxColumn: 80");
-    expect(changesPanelSource).toContain("scale: 1.5");
+    expect(changesPanelSource).toContain("scale: 1");
     expect(changesPanelSource).toContain("verticalScrollbarSize: 0");
   });
 
   it("applies preview-owned line and minimap decorations before Monaco diff finishes asynchronously", () => {
-    expect(changesPanelSource).toContain("computePreviewDiffRanges");
+    expect(changesPanelSource).toContain("computePreviewDiffVisualRanges");
     expect(changesPanelSource).toContain("deltaDecorations");
     expect(changesPanelSource).toContain("adl-inline-diff-line");
+    expect(changesPanelSource).toContain("getMinimapPosition");
+    expect(changesPanelSource).toContain("CHANGE_MINIMAP_DECORATION_COLORS");
     expect(changesPanelSource).toContain("minimap:");
-    expect(changesPanelSource).toContain("MinimapPosition");
-    expect(changesPanelSource).toContain("changePreviewDiffRanges.length > 0");
+  });
+
+  it("keeps inline minimap drag refresh off the React state path", () => {
+    expect(changesPanelSource).not.toContain("attachMinimapVisualOverlays");
+    expect(changesPanelSource).not.toContain("setChangePreviewWrapColumn");
+    expect(changesPanelSource).not.toContain("getScrollState: () => {");
+    expect(changesPanelSource).not.toContain("new MutationObserver");
+    expect(changesPanelSource).not.toContain("diffModeChange-");
   });
 });
