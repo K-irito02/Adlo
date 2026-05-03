@@ -629,6 +629,20 @@ describe("getLineCount callback integration", () => {
     expect(minimapOverlaySource).toContain('style.getPropertyValue("--adl-slider-top")');
     expect(minimapOverlaySource).toContain('style.getPropertyValue("--adl-slider-height")');
   });
+
+  it("extracts common logic into computeMetricsFromSlider helper", () => {
+    expect(minimapOverlaySource).toContain("const computeMetricsFromSlider = ");
+    expect(minimapOverlaySource).toContain("sliderHeight / state.clientHeight");
+  });
+
+  it("computeMetricsFromSlider is called from both code paths", () => {
+    const source = minimapOverlaySource;
+    const helperIdx = source.indexOf("const computeMetricsFromSlider = ");
+    const domPathIdx = source.indexOf("computeMetricsFromSlider(sliderHeight, sliderTop, minimapHeight)");
+    const cssPathIdx = source.lastIndexOf("computeMetricsFromSlider(sliderHeight, sliderTop, minimapHeight)");
+    expect(helperIdx).toBeLessThan(domPathIdx);
+    expect(domPathIdx).toBeLessThan(cssPathIdx);
+  });
 });
 
 describe("scrollToPointer uses native slider metrics", () => {

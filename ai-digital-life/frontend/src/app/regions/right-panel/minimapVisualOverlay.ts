@@ -219,6 +219,23 @@ function attachOverlayInteraction(
 ): () => void {
   let dragging = false;
 
+  const computeMetricsFromSlider = (
+    sliderHeight: number,
+    sliderTop: number,
+    minimapHeight: number
+  ): { sliderHeight: number; sliderTop: number; contentHeight: number; maxScroll: number } | null => {
+    if (sliderHeight <= 0) return null;
+    
+    const state = getScrollState();
+    if (!state || state.scrollHeight <= 0 || state.clientHeight <= 0) return null;
+    
+    const maxScroll = state.scrollHeight - state.clientHeight;
+    if (maxScroll <= 0) return { sliderHeight, sliderTop, contentHeight: minimapHeight, maxScroll: 0 };
+    
+    const contentHeight = (sliderHeight / state.clientHeight) * state.scrollHeight;
+    return { sliderHeight, sliderTop, contentHeight: Math.min(contentHeight, minimapHeight), maxScroll };
+  };
+
   const getSliderMetrics = () => {
     const minimapRect = minimap.getBoundingClientRect();
     const minimapHeight = minimapRect.height;
@@ -231,32 +248,15 @@ function attachOverlayInteraction(
       const sliderHeight = sliderRect.height;
       const sliderTop = sliderRect.top - minimapRect.top;
       
-      if (sliderHeight > 0) {
-        const state = getScrollState();
-        if (state && state.scrollHeight > 0 && state.clientHeight > 0) {
-          const maxScroll = state.scrollHeight - state.clientHeight;
-          if (maxScroll <= 0) return { sliderHeight, sliderTop, contentHeight: minimapHeight, maxScroll: 0 };
-          
-          const contentHeight = (sliderHeight / state.clientHeight) * state.scrollHeight;
-          return { sliderHeight, sliderTop, contentHeight: Math.min(contentHeight, minimapHeight), maxScroll };
-        }
-      }
+      const metrics = computeMetricsFromSlider(sliderHeight, sliderTop, minimapHeight);
+      if (metrics) return metrics;
     }
     
     const style = window.getComputedStyle(overlay);
     const sliderTop = parseFloat(style.getPropertyValue("--adl-slider-top")) || 0;
     const sliderHeight = parseFloat(style.getPropertyValue("--adl-slider-height")) || 0;
     
-    if (sliderHeight <= 0) return null;
-    
-    const state = getScrollState();
-    if (!state || state.scrollHeight <= 0 || state.clientHeight <= 0) return null;
-    
-    const maxScroll = state.scrollHeight - state.clientHeight;
-    if (maxScroll <= 0) return { sliderHeight, sliderTop, contentHeight: minimapHeight, maxScroll: 0 };
-    
-    const contentHeight = (sliderHeight / state.clientHeight) * state.scrollHeight;
-    return { sliderHeight, sliderTop, contentHeight: Math.min(contentHeight, minimapHeight), maxScroll };
+    return computeMetricsFromSlider(sliderHeight, sliderTop, minimapHeight);
   };
 
   const scrollToPointer = (clientY: number) => {
