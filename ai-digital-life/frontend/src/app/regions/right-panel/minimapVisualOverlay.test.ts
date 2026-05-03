@@ -3,6 +3,7 @@ import { describe, expect, it, vi, beforeEach, beforeAll, afterAll } from "vites
 
 import {
   computeMinimapVisualFrame,
+  computeMinimapLineHeight,
   computeScrollRatio,
   loadMinimapSettings,
   saveMinimapSettings,
@@ -81,6 +82,77 @@ describe("computeMinimapVisualFrame", () => {
         visualHeight: 48
       })
     ).toEqual({ top: 0, height: 0 });
+  });
+
+  it("constrains slider to contentHeight when content is shorter than minimap", () => {
+    // Short file: content only fills 120px of a 600px minimap
+    const frame = computeMinimapVisualFrame({
+      minimapHeight: 600,
+      scrollRatio: 0,
+      visualHeight: 48,
+      contentHeight: 120
+    });
+    expect(frame.height).toBe(48);
+    expect(frame.top).toBe(0);
+    // Slider should NOT be able to travel beyond 120 - 48 = 72px
+    const frameAtBottom = computeMinimapVisualFrame({
+      minimapHeight: 600,
+      scrollRatio: 1,
+      visualHeight: 48,
+      contentHeight: 120
+    });
+    expect(frameAtBottom.top).toBe(72); // 120 - 48
+    expect(frameAtBottom.height).toBe(48);
+  });
+
+  it("slider covers entire content when content is shorter than visualHeight", () => {
+    // Very short file: content only 30px, visualHeight is 48px
+    const frame = computeMinimapVisualFrame({
+      minimapHeight: 600,
+      scrollRatio: 0,
+      visualHeight: 48,
+      contentHeight: 30
+    });
+    expect(frame.top).toBe(0);
+    expect(frame.height).toBe(30); // Clamped to contentHeight
+  });
+
+  it("slider cannot move when content height equals visual height", () => {
+    const frame = computeMinimapVisualFrame({
+      minimapHeight: 600,
+      scrollRatio: 1,
+      visualHeight: 48,
+      contentHeight: 48
+    });
+    expect(frame.top).toBe(0); // travelRange = 48 - 48 = 0
+    expect(frame.height).toBe(48);
+  });
+
+  it("behaves identically to no contentHeight when content fills minimap", () => {
+    const withContent = computeMinimapVisualFrame({
+      minimapHeight: 600,
+      scrollRatio: 0.5,
+      visualHeight: 48,
+      contentHeight: 800 // Content taller than minimap → clamped to minimapHeight
+    });
+    const withoutContent = computeMinimapVisualFrame({
+      minimapHeight: 600,
+      scrollRatio: 0.5,
+      visualHeight: 48
+    });
+    expect(withContent).toEqual(withoutContent);
+  });
+
+  it("medium file: slider at midpoint within content area", () => {
+    const frame = computeMinimapVisualFrame({
+      minimapHeight: 600,
+      scrollRatio: 0.5,
+      visualHeight: 48,
+      contentHeight: 300
+    });
+    // effectiveHeight = 300, travelRange = 300 - 48 = 252
+    expect(frame.top).toBe(126); // 0.5 * 252
+    expect(frame.height).toBe(48);
   });
 });
 
@@ -337,5 +409,229 @@ describe("context menu range slider CSS", () => {
     expect(focusRule).toContain("outline: none !important");
     expect(focusRule).toContain("box-shadow: none !important");
     expect(focusRule).toContain("border: none !important");
+  });
+});
+
+describe("computeMinimapLineHeight", () => {
+  it("returns 2 for scale 1", () => {
+    expect(computeMinimapLineHeight(1)).toBe(2);
+  });
+
+  it("returns 3 for scale 1.5", () => {
+    expect(computeMinimapLineHeight(1.5)).toBe(3);
+  });
+
+  it("returns 4 for scale 2", () => {
+    expect(computeMinimapLineHeight(2)).toBe(4);
+  });
+
+  it("returns minimum of 2 for very small scale", () => {
+    expect(computeMinimapLineHeight(0.5)).toBe(2);
+  });
+
+  it("rounds non-integer scales", () => {
+    expect(computeMinimapLineHeight(1.3)).toBe(3);
+    expect(computeMinimapLineHeight(1.7)).toBe(3);
+  });
+});
+
+describe("getMinimapContentHeight with lineCount", () => {
+  it("accepts lineCount, scale, and size parameters", () => {
+    expect(minimapOverlaySource).toContain("function getMinimapContentHeight(");
+    expect(minimapOverlaySource).toContain("lineCount?: number | null");
+    expect(minimapOverlaySource).toContain("scale?: number");
+    expect(minimapOverlaySource).toContain('size?: "proportional" | "fill"');
+  });
+
+  it("computes content height from lineCount when content fits viewport", () => {
+    expect(minimapOverlaySource).toContain("computeMinimapLineHeight(effectiveScale)");
+    expect(minimapOverlaySource).toContain("lineCount * minimapLineHeight");
+  });
+
+  it("returns 0 for empty file (0 lines)", () => {
+    expect(minimapOverlaySource).toContain("if (lineCount === 0) return 0");
+  });
+
+  it("returns minimapHeight in fill mode regardless of line count", () => {
+    expect(minimapOverlaySource).toContain('if (size === "fill") return minimapHeight');
+  });
+
+  it("falls back to scroll-ratio formula when lineCount is null", () => {
+    expect(minimapOverlaySource).toContain("minimapHeight * contentRatio");
+    expect(minimapOverlaySource).toContain("scrollState.scrollHeight / Math.max(1, scrollState.clientHeight)");
+  });
+
+  it("returns full minimap height when content is scrollable (maxScroll > 0)", () => {
+    expect(minimapOverlaySource).toContain("return minimapHeight;");
+  });
+
+  it("reads canvas height from DOM as primary method regardless of maxScroll", () => {
+    expect(minimapOverlaySource).toContain("canvas.minimap-decorations-layer");
+    expect(minimapOverlaySource).toContain("canvas.getBoundingClientRect().height");
+  });
+
+  it("uses canvas height when available, before checking lineCount", () => {
+    const canvasCheckIdx = minimapOverlaySource.indexOf("const canvas = minimap.querySelector");
+    const lineCountCheckIdx = minimapOverlaySource.indexOf("if (lineCount != null");
+    expect(canvasCheckIdx).toBeLessThan(lineCountCheckIdx);
+  });
+
+  it("returns canvas height clamped to minimapHeight", () => {
+    expect(minimapOverlaySource).toContain("Math.min(canvasHeight, minimapHeight)");
+  });
+
+  it("only uses contentRatio fallback when maxScroll <= 0 and contentRatio < 1", () => {
+    expect(minimapOverlaySource).toContain("if (maxScroll <= 0)");
+    expect(minimapOverlaySource).toContain("if (contentRatio < 1)");
+  });
+
+  it("estimates content height from native slider dimensions as fallback", () => {
+    expect(minimapOverlaySource).toContain("sliderHeight * scrollState.scrollHeight / scrollState.clientHeight");
+  });
+
+  it("only uses slider estimation when canvas and lineCount are unavailable", () => {
+    const sliderEstIdx = minimapOverlaySource.indexOf("sliderHeight * scrollState.scrollHeight");
+    const canvasIdx = minimapOverlaySource.indexOf("const canvas = minimap.querySelector");
+    const lineCountIdx = minimapOverlaySource.indexOf("if (lineCount != null");
+    expect(canvasIdx).toBeLessThan(lineCountIdx);
+    expect(lineCountIdx).toBeLessThan(sliderEstIdx);
+  });
+});
+
+describe("full-height overlay blocks Monaco native slider", () => {
+  it("sets overlay to cover full minimap height via CSS", () => {
+    const overlayRuleStart = regionsCss.indexOf(".adl-minimap-slider-visual {");
+    expect(overlayRuleStart).toBeGreaterThanOrEqual(0);
+    const overlayRuleEnd = regionsCss.indexOf("}", overlayRuleStart);
+    const overlayRule = regionsCss.slice(overlayRuleStart, overlayRuleEnd);
+    expect(overlayRule).toContain("top: 0");
+    expect(overlayRule).toContain("height: 100%");
+    expect(overlayRule).toContain("background: transparent");
+  });
+
+  it("uses ::before pseudo-element for slider visual highlight", () => {
+    expect(regionsCss).toContain(".adl-minimap-slider-visual::before");
+    const pseudoStart = regionsCss.indexOf(".adl-minimap-slider-visual::before");
+    const pseudoEnd = regionsCss.indexOf("}", pseudoStart);
+    const pseudoRule = regionsCss.slice(pseudoStart, pseudoEnd);
+    expect(pseudoRule).toContain("--adl-slider-top");
+    expect(pseudoRule).toContain("--adl-slider-height");
+    expect(pseudoRule).toContain("pointer-events: none");
+  });
+
+  it("sets --adl-slider-top and --adl-slider-height CSS custom properties", () => {
+    expect(minimapOverlaySource).toContain('"--adl-slider-top"');
+    expect(minimapOverlaySource).toContain('"--adl-slider-height"');
+  });
+
+  it("does not use clip-path for content boundary", () => {
+    expect(minimapOverlaySource).not.toContain("clipPath");
+  });
+
+  it("no separate content boundary DOM element", () => {
+    expect(minimapOverlaySource).not.toContain("CONTENT_BOUNDARY_CLASS");
+    expect(minimapOverlaySource).not.toContain("getOrCreateContentBoundary");
+    expect(minimapOverlaySource).not.toContain("adl-minimap-content-boundary");
+  });
+});
+
+describe("syncMinimapOverlay reads from native slider", () => {
+  it("reads slider height from native slider element", () => {
+    expect(minimapOverlaySource).toContain("sliderRect.height");
+  });
+
+  it("reads slider top position from native slider element", () => {
+    expect(minimapOverlaySource).toContain("sliderRect.top - minimapRect.top");
+  });
+
+  it("sets --adl-slider-top from native slider position", () => {
+    expect(minimapOverlaySource).toContain('"--adl-slider-top"');
+    expect(minimapOverlaySource).toContain("sliderTop");
+  });
+
+  it("sets --adl-slider-height from native slider height", () => {
+    expect(minimapOverlaySource).toContain('"--adl-slider-height"');
+    expect(minimapOverlaySource).toContain("sliderHeight");
+  });
+});
+
+describe("attachOverlayInteraction uses native slider metrics", () => {
+  it("defines getSliderMetrics function to read native slider", () => {
+    expect(minimapOverlaySource).toContain("const getSliderMetrics = ");
+    expect(minimapOverlaySource).toContain("SLIDER_SELECTOR");
+  });
+
+  it("calculates contentHeight from slider height and scroll state", () => {
+    expect(minimapOverlaySource).toContain("sliderHeight / state.clientHeight");
+    expect(minimapOverlaySource).toContain("* state.scrollHeight");
+  });
+
+  it("uses sliderHeight for scroll calculation instead of fixed visualHeight", () => {
+    const scrollToPointerIdx = minimapOverlaySource.indexOf("const scrollToPointer = ");
+    const scrollToPointerEnd = minimapOverlaySource.indexOf("};", scrollToPointerIdx);
+    const scrollToPointerBlock = minimapOverlaySource.slice(scrollToPointerIdx, scrollToPointerEnd);
+    expect(scrollToPointerBlock).toContain("sliderHeight");
+    expect(scrollToPointerBlock).not.toContain("visualHeight");
+  });
+
+  it("rejects pointerdown events outside content area", () => {
+    expect(minimapOverlaySource).toContain("if (relativeY > metrics.contentHeight) return");
+  });
+
+  it("continues dragging even when pointer moves outside content area", () => {
+    const scrollToPointerIdx = minimapOverlaySource.indexOf("const scrollToPointer = ");
+    const scrollToPointerEnd = minimapOverlaySource.indexOf("};", scrollToPointerIdx);
+    const scrollToPointerBlock = minimapOverlaySource.slice(scrollToPointerIdx, scrollToPointerEnd);
+    expect(scrollToPointerBlock).toContain("Math.min(clientY - minimapRect.top, contentHeight)");
+  });
+
+  it("adds over-slider class when pointer is over slider", () => {
+    expect(minimapOverlaySource).toContain("OVER_SLIDER_CLASS");
+    expect(minimapOverlaySource).toContain("isOverSlider");
+  });
+
+  it("reads slider position from CSS custom properties for hover detection", () => {
+    expect(minimapOverlaySource).toContain("getOverlaySliderMetrics");
+    expect(minimapOverlaySource).toContain("--adl-slider-top");
+    expect(minimapOverlaySource).toContain("--adl-slider-height");
+  });
+
+  it("removes over-slider class on pointer leave", () => {
+    expect(minimapOverlaySource).toContain("handlePointerLeave");
+    expect(minimapOverlaySource).toContain('overlay.removeEventListener("pointerleave"');
+  });
+});
+
+describe("getLineCount callback integration", () => {
+  it("MinimapOverlayOptions includes getLineCount", () => {
+    expect(minimapOverlaySource).toContain("getLineCount?: () => number | null");
+  });
+
+  it("syncMinimapOverlay reads getSettings from options", () => {
+    expect(minimapOverlaySource).toContain("const { getScrollState, getSettings, getLineCount } = options ?? {}");
+  });
+
+  it("syncMinimapOverlay reads from native slider instead of computing", () => {
+    expect(minimapOverlaySource).toContain("sliderRect.height");
+    expect(minimapOverlaySource).toContain("sliderRect.top - minimapRect.top");
+  });
+
+  it("overlayOptions forwards getLineCount from caller", () => {
+    expect(minimapOverlaySource).toContain("getLineCount: options?.getLineCount");
+  });
+
+  it("computeContentHeight helper uses getLineCount", () => {
+    expect(minimapOverlaySource).toContain("const computeContentHeight = ");
+    expect(minimapOverlaySource).toContain("options?.getLineCount?.()");
+  });
+
+  it("attachOverlayInteraction receives getContentHeight closure (now unused)", () => {
+    expect(minimapOverlaySource).toContain("_getContentHeight: () => number");
+  });
+});
+
+describe("scrollToPointer uses native slider metrics", () => {
+  it("calls setScrollTop with calculated ratio", () => {
+    expect(minimapOverlaySource).toContain("setScrollTop(ratio * maxScroll)");
   });
 });

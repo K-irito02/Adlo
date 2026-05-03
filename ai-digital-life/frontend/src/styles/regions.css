@@ -4289,16 +4289,34 @@
 
 .adl-minimap-slider-visual {
   position: absolute;
+  top: 0;
   left: 0;
   right: 0;
+  height: 100%;
   z-index: 4;
   border-radius: 0;
-  background: color-mix(in srgb, var(--text-primary) calc(var(--adl-slider-intensity, 50%) * 0.28), transparent);
+  background: transparent;
+  cursor: default;
+}
+
+.adl-minimap-slider-visual--over-slider {
   cursor: grab;
 }
 
+.adl-minimap-slider-visual::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: var(--adl-slider-top, 0);
+  height: var(--adl-slider-height, 48px);
+  background: color-mix(in srgb, var(--text-primary) calc(var(--adl-slider-intensity, 50%) * 0.28), transparent);
+  pointer-events: none;
+  border-radius: 0;
+}
+
 .adl-minimap-slider-visual--dragging,
-.adl-minimap-slider-visual:active {
+.adl-minimap-slider-visual--dragging.adl-minimap-slider-visual--over-slider {
   cursor: grabbing !important;
 }
 

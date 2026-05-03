@@ -570,6 +570,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
       },
       onSettingsChange: handleMinimapSettingsChange,
       getSettings: () => minimapSettingsRef.current,
+      getLineCount: () => getModifiedEditor()?.getModel?.()?.getLineCount() ?? null,
     });
 
     const scrollDisposable = getModifiedEditor()?.onDidScrollChange?.(() => controller.refresh());

@@ -829,6 +829,7 @@ export function FilesPanel(props: RightPanelViewProps) {
       getLayoutInfo(): { height: number };
       setScrollPosition(position: { scrollTop: number }): void;
       onDidScrollChange?(listener: () => void): { dispose(): void };
+      getModel?(): { getLineCount(): number } | null;
     };
 
     const getEditor = (): EditorLike | null =>
@@ -852,6 +853,7 @@ export function FilesPanel(props: RightPanelViewProps) {
         saveMinimapSettings(settings);
       },
       getSettings: () => minimapSettingsRef.current,
+      getLineCount: () => getEditor()?.getModel?.()?.getLineCount() ?? null,
     });
 
     const scrollDisposable = getEditor()?.onDidScrollChange?.(() => controller.refresh());

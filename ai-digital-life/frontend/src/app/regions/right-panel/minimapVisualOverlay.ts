@@ -56,12 +56,16 @@ export type MinimapOverlayOptions = {
   setScrollTop?: (value: number) => void;
   onSettingsChange?: (settings: MinimapSettings) => void;
   getSettings?: () => MinimapSettings;
+  getLineCount?: () => number | null;
 };
 
 type VisualFrameInput = {
   minimapHeight: number;
   scrollRatio: number;
   visualHeight: number;
+  /** Actual content height rendered inside the minimap canvas. When omitted,
+   *  falls back to `minimapHeight` (i.e. assumes content fills the minimap). */
+  contentHeight?: number;
 };
 
 export type MinimapVisualFrame = {
@@ -71,13 +75,16 @@ export type MinimapVisualFrame = {
 
 export function computeMinimapVisualFrame(input: VisualFrameInput): MinimapVisualFrame {
   const minimapHeight = Math.max(0, input.minimapHeight);
-  const height = Math.max(0, Math.min(input.visualHeight, minimapHeight));
+  const contentHeight = input.contentHeight != null ? Math.max(0, input.contentHeight) : minimapHeight;
+  const effectiveHeight = Math.min(minimapHeight, contentHeight);
+
+  const height = Math.max(0, Math.min(input.visualHeight, effectiveHeight));
   if (height === 0) {
     return { top: 0, height: 0 };
   }
 
   const ratio = Math.max(0, Math.min(input.scrollRatio, 1));
-  const travelRange = minimapHeight - height;
+  const travelRange = effectiveHeight - height;
   const top = ratio * travelRange;
   return { top, height };
 }
@@ -92,6 +99,60 @@ function readVisualHeight(minimap: HTMLElement): number {
   const raw = getComputedStyle(minimap).getPropertyValue("--adl-minimap-slider-visual-height").trim();
   const parsed = Number.parseFloat(raw);
   return Number.isFinite(parsed) ? parsed : DEFAULT_VISUAL_HEIGHT;
+}
+
+export function computeMinimapLineHeight(scale: number): number {
+  return Math.max(2, Math.round(2 * scale));
+}
+
+function getMinimapContentHeight(
+  minimap: HTMLElement,
+  scrollState: ScrollState | null,
+  lineCount?: number | null,
+  scale?: number,
+  size?: "proportional" | "fill"
+): number {
+  const minimapHeight = minimap.getBoundingClientRect().height;
+  if (!scrollState || minimapHeight <= 0) return minimapHeight;
+
+  if (size === "fill") return minimapHeight;
+
+  const canvas = minimap.querySelector<HTMLCanvasElement>("canvas.minimap-decorations-layer, canvas");
+  if (canvas) {
+    const canvasHeight = canvas.getBoundingClientRect().height;
+    if (canvasHeight > 0) {
+      return Math.min(canvasHeight, minimapHeight);
+    }
+  }
+
+  if (lineCount != null && lineCount >= 0) {
+    if (lineCount === 0) return 0;
+    const effectiveScale = scale ?? 1.5;
+    const minimapLineHeight = computeMinimapLineHeight(effectiveScale);
+    const contentHeight = lineCount * minimapLineHeight;
+    return Math.min(minimapHeight, Math.max(0, contentHeight));
+  }
+
+  const slider = minimap.querySelector<HTMLElement>(SLIDER_SELECTOR);
+  if (slider && scrollState.scrollHeight > 0 && scrollState.clientHeight > 0) {
+    const sliderHeight = slider.getBoundingClientRect().height;
+    if (sliderHeight > 0) {
+      const estimated = sliderHeight * scrollState.scrollHeight / scrollState.clientHeight;
+      if (estimated > 0 && estimated < minimapHeight) {
+        return estimated;
+      }
+    }
+  }
+
+  const maxScroll = Math.max(0, scrollState.scrollHeight - scrollState.clientHeight);
+  if (maxScroll <= 0) {
+    const contentRatio = scrollState.scrollHeight / Math.max(1, scrollState.clientHeight);
+    if (contentRatio < 1) {
+      return Math.min(minimapHeight, Math.max(0, minimapHeight * contentRatio));
+    }
+  }
+
+  return minimapHeight;
 }
 
 function getOrCreateOverlay(minimap: HTMLElement) {
@@ -109,7 +170,7 @@ function syncMinimapOverlay(
   minimap: HTMLElement,
   options?: MinimapOverlayOptions
 ) {
-  const { getScrollState, getSettings } = options ?? {};
+  const { getScrollState, getSettings, getLineCount } = options ?? {};
   const slider = minimap.querySelector<HTMLElement>(SLIDER_SELECTOR);
   const overlay = getOrCreateOverlay(minimap);
 
@@ -126,15 +187,11 @@ function syncMinimapOverlay(
     return;
   }
 
-  const state = getScrollState?.() ?? null;
-  const scrollRatio = state ? computeScrollRatio(state) : 0;
-  const frame = computeMinimapVisualFrame({
-    minimapHeight,
-    scrollRatio,
-    visualHeight: readVisualHeight(minimap)
-  });
+  const sliderRect = slider.getBoundingClientRect();
+  const sliderHeight = sliderRect.height;
+  const sliderTop = sliderRect.top - minimapRect.top;
 
-  if (frame.height <= 0) {
+  if (sliderHeight <= 0) {
     overlay.style.display = "none";
     return;
   }
@@ -142,9 +199,9 @@ function syncMinimapOverlay(
   const settings = getSettings?.();
   const intensity = settings?.sliderIntensity ?? 50;
   overlay.style.setProperty("--adl-slider-intensity", `${intensity}%`);
+  overlay.style.setProperty("--adl-slider-top", `${sliderTop}px`);
+  overlay.style.setProperty("--adl-slider-height", `${sliderHeight}px`);
   overlay.style.display = "block";
-  overlay.style.top = `${frame.top}px`;
-  overlay.style.height = `${frame.height}px`;
 }
 
 function collectMinimaps(root: ParentNode) {
@@ -158,34 +215,82 @@ function attachOverlayInteraction(
   minimap: HTMLElement,
   overlay: HTMLElement,
   getScrollState: () => ScrollState | null,
-  setScrollTop: (value: number) => void
+  setScrollTop: (value: number) => void,
+  _getContentHeight: () => number
 ): () => void {
   let dragging = false;
-  let visualHeight = readVisualHeight(minimap);
+
+  const getSliderMetrics = () => {
+    const slider = minimap.querySelector<HTMLElement>(SLIDER_SELECTOR);
+    const minimapRect = minimap.getBoundingClientRect();
+    const minimapHeight = minimapRect.height;
+    if (!slider || minimapHeight <= 0) return null;
+    
+    const sliderRect = slider.getBoundingClientRect();
+    const sliderHeight = sliderRect.height;
+    const sliderTop = sliderRect.top - minimapRect.top;
+    
+    if (sliderHeight <= 0) return null;
+    
+    const state = getScrollState();
+    if (!state || state.scrollHeight <= 0 || state.clientHeight <= 0) return null;
+    
+    const maxScroll = state.scrollHeight - state.clientHeight;
+    if (maxScroll <= 0) return { sliderHeight, sliderTop, contentHeight: minimapHeight, maxScroll: 0 };
+    
+    const contentHeight = (sliderHeight / state.clientHeight) * state.scrollHeight;
+    
+    return { sliderHeight, sliderTop, contentHeight: Math.min(contentHeight, minimapHeight), maxScroll };
+  };
 
   const scrollToPointer = (clientY: number) => {
-    const state = getScrollState();
-    if (!state) return;
+    const metrics = getSliderMetrics();
+    if (!metrics || metrics.maxScroll <= 0) return;
+    
     const minimapRect = minimap.getBoundingClientRect();
-    const maxTravel = minimapRect.height - visualHeight;
+    const { sliderHeight, contentHeight, maxScroll } = metrics;
+    
+    const maxTravel = contentHeight - sliderHeight;
     if (maxTravel <= 0) return;
-    const relativeY = clientY - minimapRect.top;
-    const ratio = Math.max(0, Math.min((relativeY - visualHeight / 2) / maxTravel, 1));
-    const maxScroll = Math.max(0, state.scrollHeight - state.clientHeight);
-    if (maxScroll <= 0) return;
+    
+    const relativeY = Math.max(0, Math.min(clientY - minimapRect.top, contentHeight));
+    const ratio = Math.max(0, Math.min((relativeY - sliderHeight / 2) / maxTravel, 1));
+    
     setScrollTop(ratio * maxScroll);
   };
 
   const DRAGGING_CLASS = "adl-minimap-slider-visual--dragging";
+  const OVER_SLIDER_CLASS = "adl-minimap-slider-visual--over-slider";
+
+  const getOverlaySliderMetrics = () => {
+    const style = window.getComputedStyle(overlay);
+    const sliderTop = parseFloat(style.getPropertyValue("--adl-slider-top")) || 0;
+    const sliderHeight = parseFloat(style.getPropertyValue("--adl-slider-height")) || 0;
+    return { sliderTop, sliderHeight };
+  };
+
+  const isOverSlider = (clientY: number): boolean => {
+    const minimapRect = minimap.getBoundingClientRect();
+    const relativeY = clientY - minimapRect.top;
+    const { sliderTop, sliderHeight } = getOverlaySliderMetrics();
+    return relativeY >= sliderTop && relativeY <= sliderTop + sliderHeight;
+  };
 
   const handlePointerDown = (event: PointerEvent) => {
     if (event.button !== 0) return;
+
     event.preventDefault();
     event.stopPropagation();
 
+    const metrics = getSliderMetrics();
+    if (!metrics) return;
+
+    const minimapRect = minimap.getBoundingClientRect();
+    const relativeY = event.clientY - minimapRect.top;
+    if (relativeY > metrics.contentHeight) return;
+
     dragging = true;
     overlay.classList.add(DRAGGING_CLASS);
-    visualHeight = readVisualHeight(minimap);
     try {
       overlay.setPointerCapture(event.pointerId);
     } catch {
@@ -194,9 +299,30 @@ function attachOverlayInteraction(
     scrollToPointer(event.clientY);
   };
 
-  const handlePointerMove = (event: PointerEvent) => {
-    if (!dragging) return;
+  const suppressMouseDown = (event: MouseEvent) => {
     event.preventDefault();
+    event.stopPropagation();
+  };
+
+  const handlePointerMove = (event: PointerEvent) => {
+    if (!dragging) {
+      if (isOverSlider(event.clientY)) {
+        overlay.classList.add(OVER_SLIDER_CLASS);
+      } else {
+        overlay.classList.remove(OVER_SLIDER_CLASS);
+      }
+      return;
+    }
+
+    event.preventDefault();
+
+    const metrics = getSliderMetrics();
+    if (!metrics) {
+      dragging = false;
+      overlay.classList.remove(DRAGGING_CLASS);
+      return;
+    }
+
     scrollToPointer(event.clientY);
   };
 
@@ -206,16 +332,24 @@ function attachOverlayInteraction(
     overlay.classList.remove(DRAGGING_CLASS);
   };
 
+  const handlePointerLeave = () => {
+    overlay.classList.remove(OVER_SLIDER_CLASS);
+  };
+
   overlay.addEventListener("pointerdown", handlePointerDown);
   overlay.addEventListener("pointermove", handlePointerMove);
   overlay.addEventListener("pointerup", handlePointerUp);
   overlay.addEventListener("pointercancel", handlePointerUp);
+  overlay.addEventListener("pointerleave", handlePointerLeave);
+  overlay.addEventListener("mousedown", suppressMouseDown);
 
   return () => {
     overlay.removeEventListener("pointerdown", handlePointerDown);
     overlay.removeEventListener("pointermove", handlePointerMove);
     overlay.removeEventListener("pointerup", handlePointerUp);
     overlay.removeEventListener("pointercancel", handlePointerUp);
+    overlay.removeEventListener("pointerleave", handlePointerLeave);
+    overlay.removeEventListener("mousedown", suppressMouseDown);
   };
 }
 
@@ -273,13 +407,23 @@ export function attachMinimapVisualOverlays(root: HTMLElement, options?: Minimap
   const overlayOptions: MinimapOverlayOptions = {
     getScrollState,
     setScrollTop,
-    getSettings: () => {
-      const settings = getSettings?.();
-      if (liveIntensity !== undefined && settings) {
-        return { ...settings, sliderIntensity: liveIntensity };
-      }
-      return settings;
-    },
+    getSettings: getSettings
+      ? () => {
+          const settings = getSettings();
+          if (liveIntensity !== undefined && settings) {
+            return { ...settings, sliderIntensity: liveIntensity };
+          }
+          return settings;
+        }
+      : undefined,
+    getLineCount: options?.getLineCount,
+  };
+
+  const computeContentHeight = (minimap: HTMLElement) => {
+    const state = getScrollState?.() ?? null;
+    const lc = options?.getLineCount?.() ?? null;
+    const s = overlayOptions.getSettings?.();
+    return getMinimapContentHeight(minimap, state, lc, s?.scale, s?.size);
   };
 
   const syncAll = () => {
@@ -301,7 +445,8 @@ export function attachMinimapVisualOverlays(root: HTMLElement, options?: Minimap
       if (getScrollState && setScrollTop) {
         const overlay = minimap.querySelector<HTMLElement>(`.${OVERLAY_CLASS}`);
         if (overlay && !interactionDisposers.has(minimap)) {
-          interactionDisposers.set(minimap, attachOverlayInteraction(minimap, overlay, getScrollState, setScrollTop));
+          const getContentHeight = () => computeContentHeight(minimap);
+          interactionDisposers.set(minimap, attachOverlayInteraction(minimap, overlay, getScrollState, setScrollTop, getContentHeight));
         }
       }
     });
