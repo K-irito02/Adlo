@@ -3975,12 +3975,111 @@
 .adl-tool-editor {
   flex: 1;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .adl-tool-editor--changes {
-  display: flex;
-  flex-direction: column;
   background: var(--bg);
+}
+
+.adl-sticky-context {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  display: grid;
+  gap: 1px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: color-mix(in srgb, var(--bg-elevated, var(--surface-raised)) 88%, transparent);
+  backdrop-filter: blur(16px);
+}
+
+.adl-sticky-context__row {
+  display: grid;
+  grid-template-columns: 3px 18px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 28px;
+  padding: 0 var(--space-3);
+  background: color-mix(in srgb, var(--surface-raised) 92%, transparent);
+  color: var(--text-secondary);
+  text-align: left;
+  transition: var(--transition-colors);
+}
+
+.adl-sticky-context__row:hover,
+.adl-sticky-context__row.is-active {
+  background: color-mix(in srgb, var(--surface-hover) 92%, transparent);
+  color: var(--text-primary);
+}
+
+.adl-sticky-context__row.is-at-top {
+  color: var(--text-muted);
+}
+
+.adl-sticky-context__row--top {
+  font-weight: 600;
+}
+
+.adl-sticky-context__row--top .adl-sticky-context__kind {
+  color: var(--accent-primary);
+}
+
+.adl-sticky-context__rail {
+  align-self: stretch;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.adl-sticky-context__row--insert .adl-sticky-context__rail {
+  background: var(--diff-insert-line);
+}
+
+.adl-sticky-context__row--delete .adl-sticky-context__rail {
+  background: var(--diff-remove-line);
+}
+
+.adl-sticky-context__row--modified .adl-sticky-context__rail {
+  background: linear-gradient(180deg, var(--diff-remove-line), var(--diff-insert-line));
+}
+
+.adl-sticky-context__row--top .adl-sticky-context__rail {
+  background: var(--accent-primary);
+}
+
+.adl-sticky-context__kind {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.adl-sticky-context__copy {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.adl-sticky-context__label,
+.adl-sticky-context__detail {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adl-sticky-context__label {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.adl-sticky-context__detail {
+  color: var(--text-muted);
+  font-size: 11px;
 }
 
 .adl-tool-editor__surface {

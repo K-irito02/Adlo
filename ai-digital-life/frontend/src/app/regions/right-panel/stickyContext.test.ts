@@ -1,0 +1,128 @@
+import { readFileSync } from "node:fs";
+import { describe, expect, it } from "vitest";
+import {
+  buildStickyContextEntries,
+  createStickyContextModel,
+  resolveStickyContextRowCount,
+  type StickyContextEntry
+} from "./stickyContext";
+
+describe("stickyContext helpers", () => {
+  it("always exposes a file-top entry and falls back to line text when no outline exists", () => {
+    const entries = buildStickyContextEntries({
+      content: ["alpha", "", "beta", "gamma", "delta"].join("\n"),
+      outline: [],
+      visibleStartLine: 5,
+      maxContextRows: 3
+    });
+
+    expect(entries.map((entry) => entry.line)).toEqual([1, 3, 4]);
+    expect(entries.map((entry) => entry.label)).toEqual(["alpha", "beta", "gamma"]);
+    expect(entries.every((entry) => entry.kind === "line")).toBe(true);
+  });
+
+  it("prefers the most recent structural outline context for markdown and code files", () => {
+    const entries = buildStickyContextEntries({
+      content: [
+        "# Overview",
+        "intro",
+        "## Details",
+        "more",
+        "function buildModel() {}",
+        "tail"
+      ].join("\n"),
+      outline: [
+        { id: "h1", label: "Overview", kind: "heading", line: 1 },
+        { id: "h2", label: "Details", kind: "heading", line: 3 },
+        { id: "fn", label: "buildModel", kind: "function", line: 5 }
+      ],
+      visibleStartLine: 6,
+      maxContextRows: 3
+    });
+
+    expect(entries.map((entry) => ({ kind: entry.kind, label: entry.label, line: entry.line }))).toEqual([
+      { kind: "heading", label: "Overview", line: 1 },
+      { kind: "heading", label: "Details", line: 3 },
+      { kind: "function", label: "buildModel", line: 5 }
+    ]);
+  });
+
+  it("caps context rows at three content rows so the sticky strip never exceeds four rows total", () => {
+    const entries = buildStickyContextEntries({
+      content: Array.from({ length: 20 }, (_, index) => `line ${index + 1}`).join("\n"),
+      outline: Array.from({ length: 8 }, (_, index) => ({
+        id: `outline-${index + 1}`,
+        label: `Symbol${index + 1}`,
+        kind: "function" as const,
+        line: index + 1
+      })),
+      visibleStartLine: 9,
+      maxContextRows: 6
+    });
+
+    expect(entries).toHaveLength(3);
+    expect(resolveStickyContextRowCount(entries)).toBe(4);
+  });
+
+  it("marks diff-backed entries with change-aware tones from modified/current ranges", () => {
+    const entries = buildStickyContextEntries({
+      content: ["one", "two", "three", "four"].join("\n"),
+      outline: [],
+      visibleStartLine: 4,
+      maxContextRows: 3,
+      diffRanges: [
+        { startLine: 2, endLine: 2, type: "insert", tone: "strong", contentColumns: 3 },
+        { startLine: 3, endLine: 3, type: "delete", tone: "base", contentColumns: 3 }
+      ]
+    });
+
+    expect(entries.map((entry) => entry.tone)).toEqual(["context", "insert", "delete"]);
+  });
+
+  it("creates a model whose navigation delegates to the provided line callback", () => {
+    const visited: number[] = [];
+    const contextEntries: StickyContextEntry[] = [
+      {
+        id: "line-4",
+        label: "buildModel",
+        detail: "L4",
+        line: 4,
+        kind: "function",
+        tone: "modified"
+      }
+    ];
+
+    const model = createStickyContextModel({
+      contextEntries,
+      activeLine: 4,
+      canScrollToTop: true,
+      onNavigateLine: (line) => visited.push(line)
+    });
+
+    model.scrollToTop();
+    model.scrollToEntry("line-4");
+
+    expect(model.topEntry.kind).toBe("top");
+    expect(model.activeEntryId).toBe("line-4");
+    expect(visited).toEqual([1, 4]);
+  });
+});
+
+describe("sticky context panel wiring", () => {
+  const filesPanelSource = readFileSync(new URL("./FilesPanel.tsx", import.meta.url), "utf8");
+  const changesPanelSource = readFileSync(new URL("./ChangesPanel.tsx", import.meta.url), "utf8");
+
+  it("renders sticky context above the files editor surface in both editor modes", () => {
+    expect(filesPanelSource).toContain("StickyContext");
+    expect(filesPanelSource).toContain('data-testid="files-sticky-context"');
+    expect(filesPanelSource).toContain("buildStickyContextEntries");
+    expect(filesPanelSource).toContain("createStickyContextModel");
+  });
+
+  it("renders sticky context above the changes preview surface", () => {
+    expect(changesPanelSource).toContain("StickyContext");
+    expect(changesPanelSource).toContain('data-testid="changes-sticky-context"');
+    expect(changesPanelSource).toContain("buildStickyContextEntries");
+    expect(changesPanelSource).toContain("createStickyContextModel");
+  });
+});

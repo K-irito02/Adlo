@@ -24,14 +24,27 @@ export type MonacoDecoration = {
 export interface MonacoEditor {
   deltaDecorations(oldDecorations: string[], newDecorations: MonacoDecoration[]): string[];
   updateOptions(options: unknown): void;
+  getSelection?(): {
+    startLineNumber: number;
+    startColumn: number;
+    endLineNumber: number;
+    endColumn: number;
+  } | null;
   getScrollTop(): number;
   getScrollHeight(): number;
   getLayoutInfo(): { height: number; width?: number; contentWidth?: number };
   setScrollPosition(position: { scrollTop: number }): void;
+  getVisibleRanges?(): MonacoRange[];
   onDidScrollChange?(listener: () => void): { dispose(): void };
+  onDidChangeHiddenAreas?(listener: () => void): { dispose(): void };
+  onDidLayoutChange?(listener: () => void): { dispose(): void };
   getModel?(): { getLineCount(): number } | null;
   getDomNode?(): HTMLElement | null;
   getTopForLineNumber?(lineNumber: number): number;
+  revealLineInCenter?(lineNumber: number): void;
+  revealLinesInCenter?(startLineNumber: number, endLineNumber: number): void;
+  focus?(): void;
+  setPosition?(position: { lineNumber: number; column: number }): void;
 }
 
 export interface MonacoDiffEditor {
@@ -59,7 +72,7 @@ export interface MonacoEditorNamespace {
 }
 
 export interface MonacoNamespace {
-  Range: new (startLineNumber: number, startColumn: number, endLineNumber: number, endColumn: number) => MonacoRange;
+  Range?: new (startLineNumber: number, startColumn: number, endLineNumber: number, endColumn: number) => MonacoRange;
   editor?: MonacoEditorNamespace;
 }
 
@@ -71,8 +84,8 @@ export function getMonacoFromWindow(): MonacoNamespace | undefined {
   return (window as MonacoWindow).monaco;
 }
 
-export function getMinimapPosition(monaco: MonacoNamespace | undefined): number {
-  return monaco?.editor?.MinimapPosition?.Inline ?? 1;
+export function getMinimapPosition(monaco: unknown): number {
+  return (monaco as { editor?: { MinimapPosition?: { Inline?: number } } } | undefined)?.editor?.MinimapPosition?.Inline ?? 1;
 }
 
 export function createMonacoRange(
@@ -82,7 +95,24 @@ export function createMonacoRange(
   endLine: number,
   endColumn: number
 ): MonacoRange {
+  if (!monaco.Range) {
+    throw new Error("Monaco Range constructor is unavailable");
+  }
   return new monaco.Range(startLine, startColumn, endLine, endColumn);
+}
+
+export function getEditorVisibleStartLine(editor: MonacoEditor | null | undefined): number | undefined {
+  const firstVisibleRange = editor?.getVisibleRanges?.()?.[0];
+  return firstVisibleRange?.startLineNumber;
+}
+
+export function navigateEditorToLine(editor: MonacoEditor | null | undefined, line: number) {
+  if (!editor) {
+    return;
+  }
+  editor.revealLineInCenter?.(line);
+  editor.setPosition?.({ lineNumber: line, column: 1 });
+  editor.focus?.();
 }
 
 export function isDiffEditor(value: unknown): value is MonacoDiffEditor {

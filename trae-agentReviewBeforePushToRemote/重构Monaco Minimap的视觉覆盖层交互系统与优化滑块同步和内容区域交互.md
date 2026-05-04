@@ -310,3 +310,147 @@ Monaco Minimap 优化（滑块与原生同步、内容区域交互限制、悬�
 4.  **更完善的测试覆盖** - 新增 200+ 行测试,确保功能稳定
 
 所有变更均保持向后兼容,建议重点测试长文件、短文件和 Diff 模式下的 minimap 交互。
+
+---
+
+## 1. 高层摘要 (TL;DR)
+
+*   **影响范围:** 🟡 **中等** - 重构了小地图视觉覆盖层的指标计算逻辑
+*   **核心变更:**
+    *   ✨ 新增 `computeMetricsFromSlider` 辅助函数，封装滑块指标计算逻辑
+    *   ♻️ 消除 `getSliderMetrics` 函数中的重复代码
+    *   ✅ 新增测试用例验证重构的正确性
+
+## 2. 可视化概览 (代码与逻辑映射)
+
+```mermaid
+graph TD
+    subgraph "minimapVisualOverlay.ts"
+        direction TB
+        
+        subgraph "getSliderMetrics 函数"
+            DOM["DOM 路径<br/>sliderRect.getBoundingClientRect()"]
+            CSS["CSS 路径<br/>window.getComputedStyle()"]
+            
+            DOM -->|调用| Compute1["computeMetricsFromSlider<br/>(sliderHeight, sliderTop, minimapHeight)"]
+            CSS -->|调用| Compute2["computeMetricsFromSlider<br/>(sliderHeight, sliderTop, minimapHeight)"]
+        end
+        
+        subgraph "computeMetricsFromSlider 辅助函数"
+            Validate["验证: sliderHeight > 0"]
+            GetState["获取滚动状态<br/>getScrollState()"]
+            CheckState["验证: scrollHeight > 0<br/>clientHeight > 0"]
+            CalcMaxScroll["计算最大滚动<br/>maxScroll = scrollHeight - clientHeight"]
+            CalcContentHeight["计算内容高度<br/>contentHeight = (sliderHeight / clientHeight) * scrollHeight"]
+            Return["返回指标对象<br/>{sliderHeight, sliderTop, contentHeight, maxScroll}"]
+            
+            Validate -->|失败| Null1["返回 null"]
+            Validate -->|成功| GetState
+            GetState -->|失败| Null2["返回 null"]
+            GetState -->|成功| CheckState
+            CheckState -->|失败| Null3["返回 null"]
+            CheckState -->|成功| CalcMaxScroll
+            CalcMaxScroll -->|maxScroll <= 0| ReturnEdge["返回边缘情况指标"]
+            CalcMaxScroll -->|maxScroll > 0| CalcContentHeight
+            CalcContentHeight --> Return
+        end
+    end
+    
+    style Compute1 fill:#bbdefb,color:#0d47a1
+    style Compute2 fill:#bbdefb,color:#0d47a1
+    style computeMetricsFromSlider fill:#c8e6c9,color:#1a5e20
+    style Return fill:#fff3e0,color:#e65100
+    style Null1 fill:#ffcdd2,color:#c62828
+    style Null2 fill:#ffcdd2,color:#c62828
+    style Null3 fill:#ffcdd2,color:#c62828
+```
+
+## 3. 详细变更分析
+
+### 📦 组件：minimapVisualOverlay.ts
+
+#### **变更内容：**
+提取了重复的滑块指标计算逻辑到独立的辅助函数中，提高了代码的可维护性和可测试性。
+
+**源文件：** `ai-digital-life/frontend/src/app/regions/right-panel/minimapVisualOverlay.ts`
+
+#### **新增函数：computeMetricsFromSlider**
+
+| 属性 | 值 |
+|------|-----|
+| **函数名** | `computeMetricsFromSlider` |
+| **位置** | 第 222-237 行 |
+| **参数** | `sliderHeight: number`, `sliderTop: number`, `minimapHeight: number` |
+| **返回类型** | `{ sliderHeight, sliderTop, contentHeight, maxScroll } \| null` |
+
+**功能说明：**
+- **输入验证：** 检查 `sliderHeight` 是否大于 0
+- **状态获取：** 调用 `getScrollState()` 获取滚动状态
+- **边界处理：** 处理无滚动内容的情况（`maxScroll <= 0`）
+- **核心计算：** 根据滑块比例计算实际内容高度
+  ```typescript
+  contentHeight = (sliderHeight / state.clientHeight) * state.scrollHeight
+  ```
+
+#### **重构：getSliderMetrics 函数**
+
+| 代码路径 | 重构前 | 重构后 |
+|---------|--------|--------|
+| **DOM 路径** | 内联 17 行计算逻辑 | 调用 `computeMetricsFromSlider()` |
+| **CSS 路径** | 内联 17 行计算逻辑 | 调用 `computeMetricsFromSlider()` |
+| **代码行数** | ~34 行重复代码 | 2 行调用 + 16 行辅助函数 |
+
+**消除的重复代码：**
+- ❌ 滑块高度验证（`sliderHeight <= 0`）
+- ❌ 滚动状态获取和验证
+- ❌ 最大滚动距离计算
+- ❌ 内容高度计算逻辑
+
+---
+
+### 🧪 组件：minimapVisualOverlay.test.ts
+
+#### **变更内容：**
+新增测试用例以验证重构的正确性和辅助函数的调用情况。
+
+**源文件：** `ai-digital-life/frontend/src/app/regions/right-panel/minimapVisualOverlay.test.ts`
+
+#### **新增测试用例：**
+
+| 测试名称 | 验证目标 | 位置 |
+|---------|---------|------|
+| `extracts common logic into computeMetricsFromSlider helper` | 验证辅助函数存在且包含核心计算逻辑 | 第 633-636 行 |
+| `computeMetricsFromSlider is called from both code paths` | 验证辅助函数在两个代码路径中都被调用 | 第 638-645 行 |
+
+**测试逻辑：**
+```typescript
+// 验证辅助函数定义在两个调用之前
+const helperIdx = source.indexOf("const computeMetricsFromSlider = ");
+const domPathIdx = source.indexOf("computeMetricsFromSlider(...)");
+const cssPathIdx = source.lastIndexOf("computeMetricsFromSlider(...)");
+expect(helperIdx).toBeLessThan(domPathIdx);
+expect(domPathIdx).toBeLessThan(cssPathIdx);
+```
+
+## 4. 影响与风险评估
+
+### ⚠️ 破坏性变更
+**无** - 这是一个纯重构变更，未改变外部 API 或行为。
+
+### ✅ 测试建议
+
+| 测试场景 | 验证内容 |
+|---------|---------|
+| **正常滚动** | 滑块拖动时，内容高度计算是否正确 |
+| **无滚动内容** | 当 `maxScroll <= 0` 时，是否返回正确的边缘情况指标 |
+| **无效滑块** | 当 `sliderHeight <= 0` 时，是否返回 `null` |
+| **CSS 路径回退** | 当 DOM 路径失败时，CSS 路径是否能正确计算指标 |
+
+### 🎯 重构收益
+
+| 收益项 | 说明 |
+|--------|------|
+| **代码复用** | 消除了 34 行重复代码 |
+| **可维护性** | 计算逻辑集中在一处，修改更容易 |
+| **可测试性** | 辅助函数可独立测试 |
+| **可读性** | `getSliderMetrics` 函数更简洁清晰 |

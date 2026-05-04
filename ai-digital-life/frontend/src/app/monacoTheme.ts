@@ -261,13 +261,17 @@ function buildMonacoThemeData(theme: "light" | "dark"): {
   // The minimap in DiffEditor mode reads these colors for its diff rendering
   if (diffInsertBg || minimapInsertBg) {
     const insertColorForMinimap = minimapInsertBg ?? diffInsertBg;
-    colors["diffEditor.insertedLineBackground"] = insertColorForMinimap;
-    colors["diffEditor.insertedTextBackground"] = insertColorForMinimap;
+    if (insertColorForMinimap) {
+      colors["diffEditor.insertedLineBackground"] = insertColorForMinimap;
+      colors["diffEditor.insertedTextBackground"] = insertColorForMinimap;
+    }
   }
   if (diffRemoveBg || minimapDeleteBg) {
     const deleteColorForMinimap = minimapDeleteBg ?? diffRemoveBg;
-    colors["diffEditor.removedLineBackground"] = deleteColorForMinimap;
-    colors["diffEditor.removedTextBackground"] = deleteColorForMinimap;
+    if (deleteColorForMinimap) {
+      colors["diffEditor.removedLineBackground"] = deleteColorForMinimap;
+      colors["diffEditor.removedTextBackground"] = deleteColorForMinimap;
+    }
   }
 
   colors["diffEditorOverview.insertedForeground"] = "#00000000";

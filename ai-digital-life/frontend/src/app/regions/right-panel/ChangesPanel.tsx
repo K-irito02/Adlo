@@ -19,6 +19,7 @@ import { useUiStore } from "../../ui-store";
 import { countGitChanges } from "./types";
 import type { RightPanelViewProps } from "./types";
 import { countReviewedHunks, filterPatchFileSummaries, summarizePatchSet } from "./patchReview";
+import { StickyContext } from "./stickyContextView";
 import { buildChangeEntries, buildChangeTree, buildFlatChangeNodes, type ChangeTreeNode } from "./changesTree";
 import {
   computePreviewDiffVisualRanges,
@@ -30,8 +31,10 @@ import {
   type MonacoDecoration,
   getMonacoFromWindow,
   createMonacoRange,
+  getEditorVisibleStartLine,
   isDiffEditor,
   getMinimapPosition,
+  navigateEditorToLine,
   cssColorToHex
 } from "./monacoTypes";
 import {
@@ -41,6 +44,7 @@ import {
   MINIMAP_DEFAULTS,
   type MinimapSettings
 } from "./minimapVisualOverlay";
+import { buildStickyContextEntries, createStickyContextModel, type StickyContextModel } from "./stickyContext";
 
 const CHANGES_BRANCH_STORAGE_KEY = "adl-ui:changes-branch";
 const FALLBACK_BRANCHES = ["main", "develop", "release/0.1.0", "feature/right-panel"];
@@ -143,7 +147,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
   const branchMenuRef = useRef<HTMLDivElement | null>(null);
   const changesMenuRef = useRef<HTMLDivElement | null>(null);
   const activeCardRef = useRef<Record<string, HTMLElement | null>>({});
-  const changesPreviewShellRef = useRef<HTMLDivElement | null>(null);
+  const changesPreviewEditorShellRef = useRef<HTMLDivElement | null>(null);
   const validation = latestPatchApplication?.validation;
   const reviewCounts = useMemo(() => countReviewedHunks(activePatchSet), [activePatchSet]);
   const patchSummaries = useMemo(
@@ -248,6 +252,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
   const previewDecorationIdsRef = useRef<string[]>([]);
   const [diffEditorReady, setDiffEditorReady] = useState(0);
   const [minimapSettings, setMinimapSettings] = useState<MinimapSettings>(loadMinimapSettings);
+  const [stickyContextModel, setStickyContextModel] = useState<StickyContextModel | null>(null);
   const minimapSettingsRef = useRef(minimapSettings);
   minimapSettingsRef.current = minimapSettings;
   const diffRangesRef = useRef<import("./changePreviewDiffRanges").PreviewDiffVisualRange[]>([]);
@@ -511,6 +516,31 @@ export function ChangesPanel(props: RightPanelViewProps) {
     return isDiffEditor(de) ? de.getModifiedEditor() : null;
   }, []);
 
+  const refreshStickyContext = useCallback(() => {
+    if (!changePreview) {
+      setStickyContextModel(null);
+      return;
+    }
+
+    const editor = getModifiedEditor();
+    const visibleStartLine = getEditorVisibleStartLine(editor) ?? editor?.getSelection?.()?.startLineNumber ?? 1;
+    const contextEntries = buildStickyContextEntries({
+      content: changePreview.currentContent,
+      outline: [],
+      visibleStartLine,
+      maxContextRows: 3,
+      diffRanges: changePreviewDiffRanges
+    });
+
+    setStickyContextModel(createStickyContextModel({
+      contextEntries,
+      activeLine: visibleStartLine,
+      canScrollToTop: visibleStartLine > 1,
+      onNavigateLine: (line) => navigateEditorToLine(getModifiedEditor(), line),
+      topLabel: t.stickyContextTop
+    }));
+  }, [changePreview, changePreviewDiffRanges, getModifiedEditor, t.stickyContextTop]);
+
   const applyMinimapSettings = useCallback((settings: MinimapSettings) => {
     const de = diffEditorRef.current;
     if (!isDiffEditor(de)) return;
@@ -552,7 +582,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
 
   useEffect(() => {
     if (props.diffSideBySide) return;
-    const shell = changesPreviewShellRef.current;
+    const shell = changesPreviewEditorShellRef.current;
     if (!shell) return;
 
     const controller = attachMinimapVisualOverlays(shell, {
@@ -580,6 +610,41 @@ export function ChangesPanel(props: RightPanelViewProps) {
       controller.dispose();
     };
   }, [changePreview?.path, props.diffSideBySide, diffEditorReady, getModifiedEditor, handleMinimapSettingsChange]);
+
+  useEffect(() => {
+    if (!changePreview) {
+      setStickyContextModel(null);
+      return;
+    }
+
+    refreshStickyContext();
+    const editor = getModifiedEditor();
+    if (!editor) {
+      return;
+    }
+
+    const disposables = [
+      editor.onDidScrollChange?.(refreshStickyContext),
+      editor.onDidChangeHiddenAreas?.(refreshStickyContext),
+      editor.onDidLayoutChange?.(refreshStickyContext)
+    ].filter(Boolean) as Array<{ dispose(): void }>;
+
+    const shell = changesPreviewEditorShellRef.current;
+    const observer =
+      shell && typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(() => refreshStickyContext())
+        : null;
+    if (observer && shell) {
+      observer.observe(shell);
+    }
+
+    window.addEventListener("resize", refreshStickyContext);
+    return () => {
+      disposables.forEach((disposable) => disposable.dispose());
+      observer?.disconnect();
+      window.removeEventListener("resize", refreshStickyContext);
+    };
+  }, [changePreview, diffEditorReady, getModifiedEditor, props.diffSideBySide, refreshStickyContext, wordWrapEnabled]);
 
   const handleNavigatorResizeStart = (event: React.PointerEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -662,7 +727,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
   };
 
   return (
-    <div ref={changesPreviewShellRef} className="adl-tool-panel adl-tool-panel--changes">
+    <div className="adl-tool-panel adl-tool-panel--changes">
       <div className="adl-tool-context adl-tool-context--files" aria-label={t.toolChanges}>
         <div className="adl-tool-context__group adl-tool-context__group--grow adl-tool-context__group--files">
           <TooltipSimple content={navigatorCollapsed ? t.panelToggleRight : t.panelToggleLeft} placement="top">
@@ -1144,10 +1209,11 @@ export function ChangesPanel(props: RightPanelViewProps) {
                 </div>
               ) : null}
               <div
-                ref={changesPreviewShellRef}
+                ref={changesPreviewEditorShellRef}
                 className="adl-tool-editor adl-tool-editor--changes"
                 data-testid="changes-preview-shell"
               >
+                {stickyContextModel ? <StickyContext data-testid="changes-sticky-context" model={stickyContextModel} /> : null}
                 <div className="adl-tool-editor__surface">
                   <DiffEditor
                     height="100%"

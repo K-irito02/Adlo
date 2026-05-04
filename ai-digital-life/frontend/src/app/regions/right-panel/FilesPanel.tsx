@@ -24,8 +24,13 @@ import {
 import { TooltipSimple } from "../../components/Tooltip";
 import { useUiStore } from "../../ui-store";
 import { normalizeWorkspaceRelativePath } from "../../workspacePaths";
+import { StickyContext } from "./stickyContextView";
 import { collectDirectoryPaths, FileTree } from "./fileTree";
 import {
+  getEditorVisibleStartLine,
+  navigateEditorToLine,
+  isDiffEditor,
+  type MonacoEditor,
   getMinimapPosition,
   cssColorToHex
 } from "./monacoTypes";
@@ -41,6 +46,8 @@ import {
   getPatchHunkTargetLine,
   summarizePatchFile
 } from "./patchReview";
+import type { PreviewDiffVisualRange } from "./changePreviewDiffRanges";
+import { buildStickyContextEntries, createStickyContextModel, type StickyContextModel } from "./stickyContext";
 import type { RightPanelViewProps } from "./types";
 
 type FilesNavigatorMode = "tree" | "search" | "outline";
@@ -127,6 +134,7 @@ function buildMonacoEditorOptions(options: {
       horizontalScrollbarSize: 10
     },
     scrollBeyondLastLine: false,
+    stickyScroll: { enabled: false },
     wordWrap: options.wordWrapEnabled ? "on" : "off",
     folding: true,
     showFoldingControls: "mouseover",
@@ -154,6 +162,49 @@ function buildMonacoEditorOptions(options: {
     renderIndicators: false,
     renderMarginRevertIcon: false
   } as const;
+}
+
+function buildStickyDiffRangesFromHunks(
+  hunks: NonNullable<ReturnType<typeof summarizePatchFile>>["hunks"]
+): PreviewDiffVisualRange[] {
+  return hunks.flatMap((hunk) => {
+    const anchorLine = Math.max(1, hunk.newStart || hunk.oldStart || 1);
+    const lineSpan = Math.max(1, hunk.newLines || hunk.oldLines || 1);
+    if (hunk.changeKind === "added") {
+      return [{
+        startLine: anchorLine,
+        endLine: anchorLine + lineSpan - 1,
+        type: "insert" as const,
+        tone: "strong" as const,
+        contentColumns: 1
+      }];
+    }
+    if (hunk.changeKind === "deleted") {
+      return [{
+        startLine: anchorLine,
+        endLine: anchorLine,
+        type: "delete" as const,
+        tone: "base" as const,
+        contentColumns: 1
+      }];
+    }
+    return [
+      {
+        startLine: anchorLine,
+        endLine: anchorLine + lineSpan - 1,
+        type: "insert" as const,
+        tone: "strong" as const,
+        contentColumns: 1
+      },
+      {
+        startLine: anchorLine,
+        endLine: anchorLine + lineSpan - 1,
+        type: "delete" as const,
+        tone: "base" as const,
+        contentColumns: 1
+      }
+    ];
+  });
 }
 
 function stripNativeFoldingTitles(root: ParentNode | null | undefined) {
@@ -278,6 +329,9 @@ export function FilesPanel(props: RightPanelViewProps) {
   const monacoNamespaceRef = useRef(monacoNamespace);
   monacoNamespaceRef.current = monacoNamespace;
   const foldingTooltipControllerDisposablesRef = useRef<DisposableLike[]>([]);
+  const fileDiffEditorRef = useRef<unknown>(null);
+  const [stickyContextModel, setStickyContextModel] = useState<StickyContextModel | null>(null);
+  const [stickyEditorReady, setStickyEditorReady] = useState(0);
   const activeFilePatch = useMemo(() => {
     if (!props.activePatchSet || !props.selectedPatchFilePath) return undefined;
     return props.activePatchSet.filePatches.find((candidate) => candidate.relativePath === props.selectedPatchFilePath);
@@ -286,6 +340,17 @@ export function FilesPanel(props: RightPanelViewProps) {
     () => (activeFilePatch ? summarizePatchFile(activeFilePatch, props.collapsedPatchHunkIds) : undefined),
     [activeFilePatch, props.collapsedPatchHunkIds]
   );
+  const stickyDiffRanges = useMemo(
+    () => (activeFilePatchSummary ? buildStickyDiffRangesFromHunks(activeFilePatchSummary.hunks) : undefined),
+    [activeFilePatchSummary]
+  );
+  const getStickySourceEditor = useCallback((): MonacoEditor | null => {
+    if (filePatch && filePatch.relativePath === selectedFilePath) {
+      const diffEditor = fileDiffEditorRef.current;
+      return isDiffEditor(diffEditor) ? diffEditor.getModifiedEditor() : null;
+    }
+    return props.standardEditorRef.current as unknown as MonacoEditor | null;
+  }, [filePatch, props.standardEditorRef, selectedFilePath]);
 
   const applyAgentDecorations = useCallback(() => {
     const editor = props.standardEditorRef.current as any;
@@ -557,11 +622,10 @@ export function FilesPanel(props: RightPanelViewProps) {
       return;
     }
     const line = getPatchHunkTargetLine(selectedHunk);
-    const editor = props.diffEditorRef.current ?? props.standardEditorRef.current;
+    const editor = getStickySourceEditor();
     editor?.revealLinesInCenter?.(line, line + Math.max(selectedHunk.newLines, 1));
-    editor?.revealLineInCenter(line);
-    editor?.setPosition?.({ lineNumber: line, column: 1 });
-  }, [activeFilePatch, props.diffEditorRef, props.selectedPatchHunkId, props.standardEditorRef]);
+    navigateEditorToLine(editor, line);
+  }, [activeFilePatch, getStickySourceEditor, props.selectedPatchHunkId]);
 
   useEffect(() => {
     if (!monacoNamespace) return;
@@ -675,10 +739,7 @@ export function FilesPanel(props: RightPanelViewProps) {
   };
 
   const handleRevealLine = (line: number) => {
-    const editor = props.diffEditorRef.current ?? props.standardEditorRef.current;
-    editor?.revealLineInCenter(line);
-    editor?.setPosition?.({ lineNumber: line, column: 1 });
-    editor?.focus?.();
+    navigateEditorToLine(getStickySourceEditor(), line);
   };
   const handleJumpPatchHunk = (direction: "previous" | "next") => {
     props.onJumpPatchHunk(direction);
@@ -805,17 +866,91 @@ export function FilesPanel(props: RightPanelViewProps) {
     (editor: MonacoEditorRef, monaco: unknown) => {
       replaceFoldingHintBindings(editor as any);
       onEditorMount(editor, monaco);
+      setStickyEditorReady((value) => value + 1);
     },
     [onEditorMount, replaceFoldingHintBindings]
   );
 
   const handleDiffEditorMount = useCallback(
     (editor: MonacoEditorRef) => {
+      fileDiffEditorRef.current = editor;
       replaceFoldingHintBindings(editor as any);
       onDiffMount(editor);
+      setStickyEditorReady((value) => value + 1);
     },
     [onDiffMount, replaceFoldingHintBindings]
   );
+
+  const refreshStickyContext = useCallback(() => {
+    if (!selectedFilePath) {
+      setStickyContextModel(null);
+      return;
+    }
+
+    const editor = getStickySourceEditor();
+    const visibleStartLine = getEditorVisibleStartLine(editor) ?? editor?.getSelection?.()?.startLineNumber ?? 1;
+    const content = filePatch && filePatch.relativePath === selectedFilePath
+      ? filePatch.afterContent
+      : fileContent ?? "";
+    const contextEntries = buildStickyContextEntries({
+      content,
+      outline,
+      visibleStartLine,
+      maxContextRows: 3,
+      diffRanges: filePatch && filePatch.relativePath === selectedFilePath ? stickyDiffRanges : undefined
+    });
+
+    setStickyContextModel(createStickyContextModel({
+      contextEntries,
+      activeLine: visibleStartLine,
+      canScrollToTop: visibleStartLine > 1,
+      onNavigateLine: (line) => navigateEditorToLine(getStickySourceEditor(), line),
+      topLabel: t.stickyContextTop
+    }));
+  }, [
+    fileContent,
+    filePatch,
+    getStickySourceEditor,
+    outline,
+    selectedFilePath,
+    stickyDiffRanges,
+    t.stickyContextTop
+  ]);
+
+  useEffect(() => {
+    if (!selectedFilePath) {
+      setStickyContextModel(null);
+      return;
+    }
+
+    refreshStickyContext();
+    const editor = getStickySourceEditor();
+    if (!editor) {
+      return;
+    }
+
+    const disposables = [
+      editor.onDidScrollChange?.(refreshStickyContext),
+      editor.onDidChangeHiddenAreas?.(refreshStickyContext),
+      editor.onDidLayoutChange?.(refreshStickyContext)
+    ].filter(Boolean) as Array<{ dispose(): void }>;
+
+    const shell = editorShellRef.current;
+    const observer =
+      shell && typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(() => refreshStickyContext())
+        : null;
+    if (observer && shell) {
+      observer.observe(shell);
+    }
+
+    window.addEventListener("resize", refreshStickyContext);
+    return () => {
+      disposables.forEach((disposable) => disposable.dispose());
+      observer?.disconnect();
+      window.removeEventListener("resize", refreshStickyContext);
+    };
+  }, [getStickySourceEditor, refreshStickyContext, selectedFilePath, stickyEditorReady, wordWrapEnabled, diffSideBySide]);
 
   useEffect(() => {
     const root = editorShellRef.current;
@@ -1340,38 +1475,46 @@ export function FilesPanel(props: RightPanelViewProps) {
                     </div>
                   </div>
                 ) : null}
-                <DiffEditor
-                  theme={monacoTheme}
-                  beforeMount={handleMonacoBeforeMount}
-                  language={editorLanguage}
-                  original={filePatch.beforeContent}
-                  modified={filePatch.afterContent}
-                  options={buildMonacoEditorOptions({
-                    readOnly: true,
-                    lineNumbersEnabled,
-                    wordWrapEnabled,
-                    sideBySideDiff: diffSideBySide,
-                    hideUnchangedRegions: hasCollapsedHunks,
-                    minimapSettings
-                  })}
-                  onMount={(editor) => handleDiffEditorMount(editor as unknown as MonacoEditorRef)}
-                />
+                {stickyContextModel ? <StickyContext data-testid="files-sticky-context" model={stickyContextModel} /> : null}
+                <div className="adl-tool-editor__surface">
+                  <DiffEditor
+                    theme={monacoTheme}
+                    beforeMount={handleMonacoBeforeMount}
+                    language={editorLanguage}
+                    original={filePatch.beforeContent}
+                    modified={filePatch.afterContent}
+                    options={buildMonacoEditorOptions({
+                      readOnly: true,
+                      lineNumbersEnabled,
+                      wordWrapEnabled,
+                      sideBySideDiff: diffSideBySide,
+                      hideUnchangedRegions: hasCollapsedHunks,
+                      minimapSettings
+                    })}
+                    onMount={(editor) => handleDiffEditorMount(editor as unknown as MonacoEditorRef)}
+                  />
+                </div>
               </>
             ) : (
-              <Editor
-                theme={monacoTheme}
-                beforeMount={handleMonacoBeforeMount}
-                language={editorLanguage}
-                value={fileContent ?? ""}
-                options={buildMonacoEditorOptions({
-                  readOnly: false,
-                  lineNumbersEnabled,
-                  wordWrapEnabled,
-                  minimapSettings
-                })}
-                onChange={(value) => onEditorChange(value)}
-                onMount={(editor, monaco) => handleStandardEditorMount(editor as unknown as MonacoEditorRef, monaco)}
-              />
+              <>
+                {stickyContextModel ? <StickyContext data-testid="files-sticky-context" model={stickyContextModel} /> : null}
+                <div className="adl-tool-editor__surface">
+                  <Editor
+                    theme={monacoTheme}
+                    beforeMount={handleMonacoBeforeMount}
+                    language={editorLanguage}
+                    value={fileContent ?? ""}
+                    options={buildMonacoEditorOptions({
+                      readOnly: false,
+                      lineNumbersEnabled,
+                      wordWrapEnabled,
+                      minimapSettings
+                    })}
+                    onChange={(value) => onEditorChange(value)}
+                    onMount={(editor, monaco) => handleStandardEditorMount(editor as unknown as MonacoEditorRef, monaco)}
+                  />
+                </div>
+              </>
             )}
           </div>
 

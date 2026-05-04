@@ -19,6 +19,29 @@
 
 涉及 Tauri 启动链路、SQLite、恢复流程或后台 `tokio::spawn` 任务变更时，补一条 `cargo tauri dev` 启动烟测说明。
 
+## Windows Rust Toolchain Notes
+
+- Windows 开发默认使用 `stable-x86_64-pc-windows-msvc`。
+- 若 `rustup`/`cargo` 在 Windows 上出现半安装或组件回滚，优先在当前终端跳过代理或清理代理环境变量后再重试，不要求关闭本地代理软件本身。
+- 国内网络建议在当前终端临时设置 Rust 镜像，再执行安装：
+
+```powershell
+Remove-Item Env:HTTP_PROXY -ErrorAction SilentlyContinue
+Remove-Item Env:HTTPS_PROXY -ErrorAction SilentlyContinue
+Remove-Item Env:ALL_PROXY -ErrorAction SilentlyContinue
+Remove-Item Env:NO_PROXY -ErrorAction SilentlyContinue
+$env:RUSTUP_DIST_SERVER="https://rsproxy.cn"
+$env:RUSTUP_UPDATE_ROOT="https://rsproxy.cn/rustup"
+rustup set profile minimal
+rustup toolchain install stable-x86_64-pc-windows-msvc
+rustup default stable-x86_64-pc-windows-msvc
+rustup target add x86_64-pc-windows-msvc
+```
+
+- `minimal` profile 足够支撑 `cargo check` / `cargo test --workspace`；`rustfmt` 与 `clippy` 可在工具链恢复后单独安装。
+- `vcvars64.bat` / `VsDevCmd.bat` 报错本身不构成失败结论；以 `cargo test --workspace`、`cargo check --workspace` 的实际结果为准。
+- 若需要额外确认 MSVC 编译器可见性，再检查 `where cl` 与 `where link`。
+
 ## Must-Sync Docs
 
 以下变更必须同步 `docs/architecture/*` 和必要的规划文档：
