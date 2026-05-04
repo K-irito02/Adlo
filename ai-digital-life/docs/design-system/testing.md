@@ -32,7 +32,28 @@ Why these matter:
 
 Run via `npx vitest run` or `npm run test`.
 
-## 3. Build verification
+## 3. Right-panel editor regressions
+
+The file / diff viewers rely on Monaco-specific behavior that is easy to break with innocent-looking layout changes. The following targeted tests are part of the required regression net:
+
+| File | Scope |
+| --- | --- |
+| `frontend/src/app/regions/right-panel/stickyContext.test.ts` | Sticky row derivation, top-row visibility, max-row cap, markdown/plain-text fallback, diff-side context selection. |
+| `frontend/src/app/regions/right-panel/changesEditorOptions.test.ts` | Diff editor options, side-by-side scroll policy, unified right-side minimap behavior. |
+| `frontend/src/app/regions/right-panel/minimapVisualOverlay.test.ts` | Minimap overlay anchoring and width reservation rules for the editor surface. |
+| `frontend/src/app/regions/right-panel/monacoTypes.test.ts` | Monaco compatibility guards, including safe failure when the `Range` constructor is unavailable or malformed. |
+
+When touching `FilesPanel`, `ChangesPanel`, sticky navigation, minimap sizing, or Monaco adapter code, run at least:
+
+```bash
+npm --prefix frontend test -- --run \
+  src/app/regions/right-panel/stickyContext.test.ts \
+  src/app/regions/right-panel/changesEditorOptions.test.ts \
+  src/app/regions/right-panel/minimapVisualOverlay.test.ts \
+  src/app/regions/right-panel/monacoTypes.test.ts
+```
+
+## 4. Build verification
 
 `npm --prefix frontend run build` validates that:
 
@@ -41,7 +62,7 @@ Run via `npx vitest run` or `npm run test`.
 
 `npm --prefix frontend run typecheck` covers the WebView frontend; `cargo check --workspace` covers the Rust backend.
 
-## 4. Visual regression (next stage)
+## 5. Visual regression (next stage)
 
 Phase 0 does **not** automate visual regression yet. The plan for Stage One:
 
@@ -76,4 +97,3 @@ cargo check --workspace
 # Build to verify CSS + JS bundle size
 npm --prefix frontend run build
 ```
-

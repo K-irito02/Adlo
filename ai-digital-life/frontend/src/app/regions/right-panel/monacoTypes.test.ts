@@ -1,5 +1,39 @@
 import { describe, it, expect } from "vitest";
-import { cssColorToHex } from "./monacoTypes";
+import { createMonacoRange, cssColorToHex } from "./monacoTypes";
+
+describe("createMonacoRange", () => {
+  it("creates a range when Monaco exposes a valid Range constructor", () => {
+    class FakeRange {
+      constructor(
+        public startLineNumber: number,
+        public startColumn: number,
+        public endLineNumber: number,
+        public endColumn: number
+      ) {}
+    }
+
+    const range = createMonacoRange({ Range: FakeRange }, 1, 2, 3, 4);
+
+    expect(range).toEqual({
+      startLineNumber: 1,
+      startColumn: 2,
+      endLineNumber: 3,
+      endColumn: 4,
+    });
+  });
+
+  it("throws when Monaco does not expose a Range constructor", () => {
+    expect(() => createMonacoRange({}, 1, 1, 1, 1)).toThrowError(
+      "Monaco Range constructor is unavailable"
+    );
+  });
+
+  it("throws when Range exists but is not a constructor", () => {
+    expect(() =>
+      createMonacoRange({ Range: 42 as unknown as never }, 1, 1, 1, 1)
+    ).toThrowError("Monaco Range constructor is unavailable");
+  });
+});
 
 describe("cssColorToHex", () => {
   it("passes through hex colors unchanged", () => {

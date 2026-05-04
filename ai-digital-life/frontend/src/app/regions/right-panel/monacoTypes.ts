@@ -80,6 +80,12 @@ export type MonacoWindow = typeof window & {
   monaco?: MonacoNamespace;
 };
 
+function isMonacoRangeConstructor(
+  value: MonacoNamespace["Range"] | unknown
+): value is NonNullable<MonacoNamespace["Range"]> {
+  return typeof value === "function";
+}
+
 export function getMonacoFromWindow(): MonacoNamespace | undefined {
   return (window as MonacoWindow).monaco;
 }
@@ -95,10 +101,11 @@ export function createMonacoRange(
   endLine: number,
   endColumn: number
 ): MonacoRange {
-  if (!monaco.Range) {
+  const RangeConstructor = monaco.Range;
+  if (!isMonacoRangeConstructor(RangeConstructor)) {
     throw new Error("Monaco Range constructor is unavailable");
   }
-  return new monaco.Range(startLine, startColumn, endLine, endColumn);
+  return new RangeConstructor(startLine, startColumn, endLine, endColumn);
 }
 
 export function getEditorVisibleStartLine(editor: MonacoEditor | null | undefined): number | undefined {

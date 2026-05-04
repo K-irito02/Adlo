@@ -23,6 +23,7 @@ export interface StickyContextModel {
   contextEntries: StickyContextEntry[];
   activeEntryId: string;
   canScrollToTop: boolean;
+  showTopEntry: boolean;
   rowCount: number;
   scrollToTop: () => void;
   scrollToEntry: (entryId: string) => void;
@@ -157,8 +158,8 @@ export function buildStickyContextEntries(input: BuildStickyContextEntriesInput)
   return buildFallbackLineEntries(input, lines, maxContextRows);
 }
 
-export function resolveStickyContextRowCount(entries: StickyContextEntry[]): number {
-  return 1 + Math.min(MAX_STICKY_CONTEXT_ROWS, entries.length);
+export function resolveStickyContextRowCount(entries: StickyContextEntry[], includeTopEntry = true): number {
+  return Math.min(MAX_STICKY_CONTEXT_ROWS, entries.length) + (includeTopEntry ? 1 : 0);
 }
 
 export function createStickyContextModel(input: CreateStickyContextModelInput): StickyContextModel {
@@ -173,13 +174,15 @@ export function createStickyContextModel(input: CreateStickyContextModelInput): 
 
   const activeEntry =
     [...input.contextEntries].reverse().find((entry) => entry.line <= input.activeLine) ?? topEntry;
+  const showTopEntry = input.canScrollToTop;
 
   return {
     topEntry,
     contextEntries: input.contextEntries,
     activeEntryId: activeEntry.id,
     canScrollToTop: input.canScrollToTop,
-    rowCount: resolveStickyContextRowCount(input.contextEntries),
+    showTopEntry,
+    rowCount: resolveStickyContextRowCount(input.contextEntries, showTopEntry),
     scrollToTop: () => input.onNavigateLine(1),
     scrollToEntry: (entryId: string) => {
       const entry = input.contextEntries.find((candidate) => candidate.id === entryId);

@@ -62,6 +62,7 @@ describe("stickyContext helpers", () => {
 
     expect(entries).toHaveLength(3);
     expect(resolveStickyContextRowCount(entries)).toBe(4);
+    expect(resolveStickyContextRowCount(entries, false)).toBe(3);
   });
 
   it("marks diff-backed entries with change-aware tones from modified/current ranges", () => {
@@ -103,8 +104,21 @@ describe("stickyContext helpers", () => {
     model.scrollToEntry("line-4");
 
     expect(model.topEntry.kind).toBe("top");
+    expect(model.showTopEntry).toBe(true);
     expect(model.activeEntryId).toBe("line-4");
     expect(visited).toEqual([1, 4]);
+  });
+
+  it("hides the top row when the first real file line is already visible", () => {
+    const model = createStickyContextModel({
+      contextEntries: [],
+      activeLine: 1,
+      canScrollToTop: false,
+      onNavigateLine: () => undefined
+    });
+
+    expect(model.showTopEntry).toBe(false);
+    expect(model.rowCount).toBe(0);
   });
 });
 

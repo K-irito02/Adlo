@@ -12,7 +12,7 @@ describe("changes preview editor options", () => {
     expect(changesPanelSource).toContain("lineDecorationsWidth: 0");
   });
 
-  it("uses minimapSettings for inline preview minimap while preserving side-by-side scrollbars", () => {
+  it("uses minimapSettings for both inline and side-by-side preview minimap while hiding native vertical scrollbars", () => {
     expect(changesPanelSource).toContain("minimap:");
     expect(changesPanelSource).toContain("props.diffSideBySide");
     expect(changesPanelSource).toContain('side: "right"');
@@ -25,7 +25,7 @@ describe("changes preview editor options", () => {
     expect(changesPanelSource).toContain("scrollbar:");
     expect(changesPanelSource).toContain('vertical: "hidden"');
     expect(changesPanelSource).toContain("verticalScrollbarSize: 0");
-    expect(changesPanelSource).toContain('vertical: "auto"');
+    expect(changesPanelSource).not.toContain('vertical: "auto"');
   });
 
   it("configures minimap on modified editor via onMount handler", () => {
@@ -52,7 +52,7 @@ describe("changes preview editor options", () => {
     expect(changesPanelSource).toContain("getMinimapPosition");
   });
 
-  it("attaches custom minimap visual overlays in inline mode", () => {
+  it("attaches custom minimap visual overlays for the shared right-side minimap", () => {
     expect(changesPanelSource).toContain("attachMinimapVisualOverlays");
     expect(changesPanelSource).toContain("getScrollState: () => {");
     expect(changesPanelSource).toContain("onSettingsChange:");

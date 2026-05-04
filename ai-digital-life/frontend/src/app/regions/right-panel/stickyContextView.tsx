@@ -15,7 +15,13 @@ function buildStickyAriaLabel(entry: StickyContextEntry): string {
 }
 
 export function StickyContext(props: StickyContextProps) {
-  const entries = [props.model.topEntry, ...props.model.contextEntries];
+  const entries = props.model.showTopEntry
+    ? [props.model.topEntry, ...props.model.contextEntries]
+    : props.model.contextEntries;
+
+  if (entries.length === 0) {
+    return null;
+  }
 
   return (
     <div

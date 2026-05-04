@@ -283,6 +283,7 @@ export function FilesPanel(props: RightPanelViewProps) {
   const [wordWrapEnabled, setWordWrapEnabled] = useState(false);
   const [lineNumbersEnabled, setLineNumbersEnabled] = useState(true);
   const editorShellRef = useRef<HTMLDivElement | null>(null);
+  const editorSurfaceRef = useRef<HTMLDivElement | null>(null);
   const [agentAnnotationsEnabled, setAgentAnnotationsEnabled] = useState(true);
   const [minimapSettings, setMinimapSettings] = useState<MinimapSettings>(loadMinimapSettings);
   const minimapSettingsRef = useRef(minimapSettings);
@@ -935,7 +936,7 @@ export function FilesPanel(props: RightPanelViewProps) {
       editor.onDidLayoutChange?.(refreshStickyContext)
     ].filter(Boolean) as Array<{ dispose(): void }>;
 
-    const shell = editorShellRef.current;
+    const shell = editorSurfaceRef.current;
     const observer =
       shell && typeof ResizeObserver !== "undefined"
         ? new ResizeObserver(() => refreshStickyContext())
@@ -953,7 +954,7 @@ export function FilesPanel(props: RightPanelViewProps) {
   }, [getStickySourceEditor, refreshStickyContext, selectedFilePath, stickyEditorReady, wordWrapEnabled, diffSideBySide]);
 
   useEffect(() => {
-    const root = editorShellRef.current;
+    const root = editorSurfaceRef.current;
     if (!root || !selectedFilePath) {
       return;
     }
@@ -1475,8 +1476,8 @@ export function FilesPanel(props: RightPanelViewProps) {
                     </div>
                   </div>
                 ) : null}
-                {stickyContextModel ? <StickyContext data-testid="files-sticky-context" model={stickyContextModel} /> : null}
-                <div className="adl-tool-editor__surface">
+                <div ref={editorSurfaceRef} className="adl-tool-editor__surface">
+                  {stickyContextModel ? <StickyContext data-testid="files-sticky-context" model={stickyContextModel} /> : null}
                   <DiffEditor
                     theme={monacoTheme}
                     beforeMount={handleMonacoBeforeMount}
@@ -1497,8 +1498,8 @@ export function FilesPanel(props: RightPanelViewProps) {
               </>
             ) : (
               <>
-                {stickyContextModel ? <StickyContext data-testid="files-sticky-context" model={stickyContextModel} /> : null}
-                <div className="adl-tool-editor__surface">
+                <div ref={editorSurfaceRef} className="adl-tool-editor__surface">
+                  {stickyContextModel ? <StickyContext data-testid="files-sticky-context" model={stickyContextModel} /> : null}
                   <Editor
                     theme={monacoTheme}
                     beforeMount={handleMonacoBeforeMount}

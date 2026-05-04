@@ -161,6 +161,32 @@ Customisation is done with CSS variables on the container:
 - `--adl-iconstrip-badge-height`
 - `--adl-iconstrip-badge-font-size`
 
+## Sticky Context
+
+Source of truth:
+
+- `[frontend/src/app/regions/right-panel/stickyContext.ts](../../frontend/src/app/regions/right-panel/stickyContext.ts)`
+- `[frontend/src/app/regions/right-panel/stickyContextView.tsx](../../frontend/src/app/regions/right-panel/stickyContextView.tsx)`
+- `[frontend/src/styles/regions.css](../../frontend/src/styles/regions.css)`
+
+This is the shared sticky navigation layer for the right-panel file viewer surfaces used by `文件` and `变更`.
+
+Design rules:
+
+- Sticky rows are rendered **inside the editor surface**, not above the entire panel shell, so Monaco layout and scroll math stay anchored to the real editor viewport.
+- The sticky block must reserve the right-side minimap gutter (`--adl-editor-minimap-width`) and may never paint over or capture space from the minimap column.
+- The first sticky row is a full-width “回到顶部 / 文件顶部” action, but it only appears when the real first line of the current file is no longer visible in the viewport.
+- Total sticky height is adaptive with a hard cap of **4 rows**. The optional top row counts toward that cap.
+- Context rows follow the current/modified side in diff-backed views and may carry lightweight insert / delete / modified rails, but navigation still targets the current readable side only.
+- Sticky surfaces must use existing theme tokens (`--surface`, `--surface-hover`, `--border-*`, `--text-*`) rather than local hard-coded colors.
+- Hover and active states must remain obvious in both light and dark themes without relying on native `title` tooltips.
+
+Interaction rules:
+
+- Each row is keyboard reachable and behaves like a direct navigation affordance.
+- Empty files and outline-less files still render a stable sticky model; the UI may collapse to zero rows only when the top row is hidden and no context rows are available.
+- The sticky view must not own editor height. Any “fill the remaining surface” rule must explicitly exclude `.adl-sticky-context`.
+
 ## Stat tile
 
 ```ts

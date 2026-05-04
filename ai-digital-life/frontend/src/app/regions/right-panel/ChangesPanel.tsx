@@ -148,6 +148,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
   const changesMenuRef = useRef<HTMLDivElement | null>(null);
   const activeCardRef = useRef<Record<string, HTMLElement | null>>({});
   const changesPreviewEditorShellRef = useRef<HTMLDivElement | null>(null);
+  const changesPreviewEditorSurfaceRef = useRef<HTMLDivElement | null>(null);
   const validation = latestPatchApplication?.validation;
   const reviewCounts = useMemo(() => countReviewedHunks(activePatchSet), [activePatchSet]);
   const patchSummaries = useMemo(
@@ -348,30 +349,21 @@ export function ChangesPanel(props: RightPanelViewProps) {
     folding: false,
     showFoldingControls: "never" as const,
     glyphMargin: false,
-    minimap: props.diffSideBySide
-      ? { enabled: false }
-      : {
-          enabled: true,
-          side: "right" as const,
-          size: minimapSettings.size,
-          showSlider: minimapSettings.showSlider,
-          renderCharacters: minimapSettings.renderCharacters,
-          maxColumn: 80,
-          scale: minimapSettings.scale
-        },
-    scrollbar: props.diffSideBySide
-      ? {
-          vertical: "auto" as const,
-          horizontal: "auto" as const,
-          verticalScrollbarSize: 12,
-          horizontalScrollbarSize: 10
-        }
-      : {
-          vertical: "hidden" as const,
-          horizontal: "auto" as const,
-          verticalScrollbarSize: 0,
-          horizontalScrollbarSize: 10
-        },
+    minimap: {
+      enabled: true,
+      side: "right" as const,
+      size: minimapSettings.size,
+      showSlider: minimapSettings.showSlider,
+      renderCharacters: minimapSettings.renderCharacters,
+      maxColumn: 80,
+      scale: minimapSettings.scale
+    },
+    scrollbar: {
+      vertical: "hidden" as const,
+      horizontal: "auto" as const,
+      verticalScrollbarSize: 0,
+      horizontalScrollbarSize: 10
+    },
     scrollBeyondLastLine: false,
     renderOverviewRuler: false,
     stickyScroll: { enabled: false },
@@ -392,7 +384,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
 
     diffRangesRef.current = changePreviewDiffRanges;
 
-    if (!modifiedEditor || !monaco || props.diffSideBySide || !changePreview) {
+    if (!modifiedEditor || !monaco || !changePreview) {
       if (modifiedEditor && previewDecorationIdsRef.current.length > 0) {
         previewDecorationIdsRef.current = modifiedEditor.deltaDecorations(previewDecorationIdsRef.current, []);
       }
@@ -497,12 +489,12 @@ export function ChangesPanel(props: RightPanelViewProps) {
   }, [changePreview, changePreviewDiffRanges, diffEditorReady, props.diffSideBySide]);
 
   useEffect(() => {
-    if (props.diffSideBySide || !diffEditorRef.current) return;
+    if (!diffEditorRef.current) return;
     applyMinimapToDiffEditor(diffEditorRef.current, "inlinePreviewReady");
   }, [changePreview?.path, props.diffSideBySide, applyMinimapToDiffEditor]);
 
   useEffect(() => {
-    if (props.diffSideBySide || !diffEditorRef.current) return;
+    if (!diffEditorRef.current) return;
     const refreshMinimapAfterOptionChange = () => {
       applyMinimapToDiffEditor(diffEditorRef.current, "displayOptionChange");
     };
@@ -581,8 +573,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
   }, [applyMinimapSettings]);
 
   useEffect(() => {
-    if (props.diffSideBySide) return;
-    const shell = changesPreviewEditorShellRef.current;
+    const shell = changesPreviewEditorSurfaceRef.current;
     if (!shell) return;
 
     const controller = attachMinimapVisualOverlays(shell, {
@@ -629,7 +620,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
       editor.onDidLayoutChange?.(refreshStickyContext)
     ].filter(Boolean) as Array<{ dispose(): void }>;
 
-    const shell = changesPreviewEditorShellRef.current;
+    const shell = changesPreviewEditorSurfaceRef.current;
     const observer =
       shell && typeof ResizeObserver !== "undefined"
         ? new ResizeObserver(() => refreshStickyContext())
@@ -1213,8 +1204,8 @@ export function ChangesPanel(props: RightPanelViewProps) {
                 className="adl-tool-editor adl-tool-editor--changes"
                 data-testid="changes-preview-shell"
               >
-                {stickyContextModel ? <StickyContext data-testid="changes-sticky-context" model={stickyContextModel} /> : null}
-                <div className="adl-tool-editor__surface">
+                <div ref={changesPreviewEditorSurfaceRef} className="adl-tool-editor__surface">
+                  {stickyContextModel ? <StickyContext data-testid="changes-sticky-context" model={stickyContextModel} /> : null}
                   <DiffEditor
                     height="100%"
                     theme={changePreviewTheme}
