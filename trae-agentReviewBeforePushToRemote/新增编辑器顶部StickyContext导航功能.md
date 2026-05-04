@@ -871,3 +871,82 @@ graph TD
 3. **依赖 Minimap:** 明确将导航责任转移给 Minimap 组件
 
 这是一个**低风险**的变更，主要影响 Side-by-Side 模式的交互方式。建议在发布前进行用户验收测试，确保 Minimap 导航能够满足实际使用需求。
+
+---
+
+## 1. 高层摘要 (TL;DR)
+
+*   **影响范围:** 🟢 **低** - 仅更新测试用例的描述文案，无代码逻辑变更
+*   **核心变更:**
+    *   更新了 `changesEditorOptions.test.ts` 中一个测试用例的描述
+    *   描述从"在所有模式下隐藏垂直滚动条"改为"使用统一的滚动条配置"
+    *   提高了测试描述的准确性和语义清晰度
+
+---
+
+## 2. 视觉概览 (代码与逻辑映射)
+
+```mermaid
+graph TD
+    subgraph "测试文件: changesEditorOptions.test.ts"
+        A["测试套件: changes preview editor options"]
+        B["测试用例: uses minimapSettings for minimap with unified scrollbar configuration"]
+        C["断言1: expect.contains 'minimap:'"]
+        D["断言2: expect.contains 'props.diffSideBySide'"]
+        E["断言3: expect.contains 'side: right'"]
+        
+        A --> B
+        B --> C
+        B --> D
+        B --> E
+    end
+    
+    style B fill:#fff3e0,color:#e65100,stroke:#e65100,stroke-width:2px
+    style A fill:#e3f2fd,color:#0d47a1
+    style C fill:#c8e6c9,color:#1a5e20
+    style D fill:#c8e6c9,color:#1a5e20
+    style E fill:#c8e6c9,color:#1a5e20
+```
+
+---
+
+## 3. 详细变更分析
+
+### 📝 测试文件更新
+
+**文件:** `ai-digital-life/frontend/src/app/regions/right-panel/changesEditorOptions.test.ts`
+
+**变更内容:**
+*   **变更类型:** 测试描述文案优化
+*   **变更位置:** 第 14 行
+
+| 项目 | 旧值 | 新值 | 说明 |
+|------|------|------|------|
+| 测试描述 | `uses minimapSettings for minimap and hides vertical scrollbar in all modes` | `uses minimapSettings for minimap with unified scrollbar configuration` | 更准确地描述滚动条配置行为 |
+
+**变更原因分析:**
+*   原描述提到"在所有模式下隐藏垂直滚动条"，这可能不够准确或过于具体
+*   新描述"使用统一的滚动条配置"更加通用和准确，反映了配置的实际行为
+*   这种描述变更通常发生在代码重构或功能调整后，以确保测试文档与实际实现保持一致
+
+---
+
+## 4. 影响与风险评估
+
+### ✅ 破坏性变更
+*   **无破坏性变更** - 仅修改测试描述，不影响任何运行时代码或测试逻辑
+
+### 🧪 测试建议
+*   **验证测试通过:** 运行该测试文件，确认测试用例仍然通过
+*   **检查测试覆盖率:** 确保该测试用例仍然覆盖预期的功能场景
+*   **文档一致性:** 检查相关的用户文档或代码注释是否需要同步更新
+
+### ⚠️ 注意事项
+*   这是一个纯文档性质的变更，不会影响应用程序的任何功能
+*   如果有其他测试或文档引用了旧的测试描述，可能需要同步更新
+
+---
+
+## 总结
+
+本次变更属于**测试文档优化**，通过更新测试用例的描述文案，使其更准确地反映被测试代码的实际行为。这是一个低风险的维护性变更，有助于提高代码库的可读性和可维护性。
