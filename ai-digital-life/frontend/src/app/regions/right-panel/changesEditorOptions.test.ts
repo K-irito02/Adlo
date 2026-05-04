@@ -12,7 +12,7 @@ describe("changes preview editor options", () => {
     expect(changesPanelSource).toContain("lineDecorationsWidth: 0");
   });
 
-  it("uses minimapSettings for both inline and side-by-side preview minimap while hiding native vertical scrollbars", () => {
+  it("uses minimapSettings for both inline and side-by-side preview minimap with mode-specific scrollbar config", () => {
     expect(changesPanelSource).toContain("minimap:");
     expect(changesPanelSource).toContain("props.diffSideBySide");
     expect(changesPanelSource).toContain('side: "right"');
@@ -23,9 +23,12 @@ describe("changes preview editor options", () => {
     expect(changesPanelSource).toContain("minimapSettings.scale");
     expect(changesPanelSource).toContain("maxColumn: 80");
     expect(changesPanelSource).toContain("scrollbar:");
+    // Inline mode: hide vertical scrollbar (vertical: "hidden", verticalScrollbarSize: 0)
     expect(changesPanelSource).toContain('vertical: "hidden"');
     expect(changesPanelSource).toContain("verticalScrollbarSize: 0");
-    expect(changesPanelSource).not.toContain('vertical: "auto"');
+    // Side-by-side mode: show vertical scrollbar (vertical: "auto", verticalScrollbarSize: 12)
+    expect(changesPanelSource).toContain('vertical: "auto"');
+    expect(changesPanelSource).toContain("verticalScrollbarSize: 12");
   });
 
   it("configures minimap on modified editor via onMount handler", () => {

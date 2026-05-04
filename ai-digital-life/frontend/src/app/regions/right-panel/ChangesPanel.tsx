@@ -358,12 +358,19 @@ export function ChangesPanel(props: RightPanelViewProps) {
       maxColumn: 80,
       scale: minimapSettings.scale
     },
-    scrollbar: {
-      vertical: "hidden" as const,
-      horizontal: "auto" as const,
-      verticalScrollbarSize: 0,
-      horizontalScrollbarSize: 10
-    },
+    scrollbar: props.diffSideBySide
+      ? {
+          vertical: "auto" as const,
+          horizontal: "auto" as const,
+          verticalScrollbarSize: 12,
+          horizontalScrollbarSize: 10
+        }
+      : {
+          vertical: "hidden" as const,
+          horizontal: "auto" as const,
+          verticalScrollbarSize: 0,
+          horizontalScrollbarSize: 10
+        },
     scrollBeyondLastLine: false,
     renderOverviewRuler: false,
     stickyScroll: { enabled: false },
@@ -600,7 +607,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
       scrollDisposable?.dispose();
       controller.dispose();
     };
-  }, [changePreview?.path, props.diffSideBySide, diffEditorReady, getModifiedEditor, handleMinimapSettingsChange]);
+  }, [changePreview?.path, diffEditorReady, getModifiedEditor, handleMinimapSettingsChange]);
 
   useEffect(() => {
     if (!changePreview) {
