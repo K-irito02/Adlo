@@ -12,23 +12,22 @@ describe("changes preview editor options", () => {
     expect(changesPanelSource).toContain("lineDecorationsWidth: 0");
   });
 
-  it("uses minimapSettings for both inline and side-by-side preview minimap with mode-specific scrollbar config", () => {
+  it("uses minimapSettings for minimap and hides vertical scrollbar in all modes", () => {
     expect(changesPanelSource).toContain("minimap:");
     expect(changesPanelSource).toContain("props.diffSideBySide");
     expect(changesPanelSource).toContain('side: "right"');
-    // Inline minimap options are driven by user minimapSettings, not hardcoded
+    // Minimap options are driven by user minimapSettings, not hardcoded
     expect(changesPanelSource).toContain("minimapSettings.size");
     expect(changesPanelSource).toContain("minimapSettings.showSlider");
     expect(changesPanelSource).toContain("minimapSettings.renderCharacters");
     expect(changesPanelSource).toContain("minimapSettings.scale");
     expect(changesPanelSource).toContain("maxColumn: 80");
+    // Scrollbar: vertical scrollbar is hidden in all modes (use minimap for navigation)
     expect(changesPanelSource).toContain("scrollbar:");
-    // Inline mode: hide vertical scrollbar (vertical: "hidden", verticalScrollbarSize: 0)
     expect(changesPanelSource).toContain('vertical: "hidden"');
     expect(changesPanelSource).toContain("verticalScrollbarSize: 0");
-    // Side-by-side mode: show vertical scrollbar (vertical: "auto", verticalScrollbarSize: 12)
-    expect(changesPanelSource).toContain('vertical: "auto"');
-    expect(changesPanelSource).toContain("verticalScrollbarSize: 12");
+    // Should NOT have conditional scrollbar config for side-by-side mode
+    expect(changesPanelSource).not.toContain("verticalScrollbarSize: 12");
   });
 
   it("configures minimap on modified editor via onMount handler", () => {
