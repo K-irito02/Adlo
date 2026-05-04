@@ -626,3 +626,248 @@ export function createMonacoRange(
 
 ---
 
+## 1. 高层摘要 (TL;DR)
+
+*   **影响范围:** 🟡 **中等** - 优化了代码差异编辑器的滚动条行为，提升用户体验
+*   **核心变更:**
+    *   📊 滚动条配置根据 `diffSideBySide` 模式动态切换
+    *   🔧 并排模式显示垂直滚动条，内联模式隐藏垂直滚动条
+    *   ✅ 更新测试用例以验证两种模式的滚动条配置
+
+---
+
+## 2. 可视化概览 (代码逻辑图)
+
+```mermaid
+graph TD
+    subgraph "ChangesPanel.tsx"
+        A["ChangesPanel 组件"] --> B{props.diffSideBySide}
+        B -->|true| C["并排模式配置"]
+        B -->|false| D["内联模式配置"]
+        C --> C1["vertical: auto"]
+        C --> C2["verticalScrollbarSize: 12"]
+        C --> C3["horizontal: auto"]
+        C --> C4["horizontalScrollbarSize: 10"]
+        D --> D1["vertical: hidden"]
+        D --> D2["verticalScrollbarSize: 0"]
+        D --> D3["horizontal: auto"]
+        D --> D4["horizontalScrollbarSize: 10"]
+    end
+    
+    style C fill:#bbdefb,color:#0d47a1
+    style D fill:#c8e6c9,color:#1a5e20
+    style C1 fill:#e3f2fd,color:#1565c0
+    style C2 fill:#e3f2fd,color:#1565c0
+    style D1 fill:#e8f5e9,color:#2e7d32
+    style D2 fill:#e8f5e9,color:#2e7d32
+```
+
+**业务逻辑映射:**
+- **业务目标:** 根据不同的代码差异显示模式提供最优的滚动体验
+- **关键文件:** `ChangesPanel.tsx` (主组件), `changesEditorOptions.test.ts` (测试)
+- **关键方法:** `useEffect` hook 中的编辑器配置逻辑
+
+---
+
+## 3. 详细变更分析
+
+### 📦 组件: ChangesPanel (UI 组件)
+
+#### 🔄 变更内容: 滚动条配置逻辑优化
+
+**文件:** `ai-digital-life/frontend/src/app/regions/right-panel/ChangesPanel.tsx`
+
+**逻辑说明:**
+将原本固定的滚动条配置改为根据 `props.diffSideBySide` 属性动态配置，以适应不同的差异显示模式。
+
+**滚动条配置对比表:**
+
+| 配置项 | 内联模式 (diffSideBySide=false) | 并排模式 (diffSideBySide=true) | 说明 |
+|--------|----------------------------------|--------------------------------|------|
+| `vertical` | `"hidden"` | `"auto"` | 垂直滚动条显示策略 |
+| `horizontal` | `"auto"` | `"auto"` | 水平滚动条显示策略 |
+| `verticalScrollbarSize` | `0` | `12` | 垂直滚动条宽度 |
+| `horizontalScrollbarSize` | `10` | `10` | 水平滚动条高度 |
+
+**设计意图:**
+- **内联模式:** 隐藏垂直滚动条以节省空间，因为内联模式通常内容较短
+- **并排模式:** 显示垂直滚动条，因为并排显示左右两个编辑器，内容可能较长
+
+**依赖项调整:**
+从 `useEffect` 依赖数组中移除了 `props.diffSideBySide`，这意味着滚动条配置变化不会触发 effect 重新执行。这可能是因为滚动条配置是在组件渲染时直接计算的，不需要在 effect 中响应变化。
+
+---
+
+### 🧪 组件: 测试用例更新
+
+#### 🔄 变更内容: 测试断言增强
+
+**文件:** `ai-digital-life/frontend/src/app/regions/right-panel/changesEditorOptions.test.ts`
+
+**变更详情:**
+
+| 变更类型 | 旧值 | 新值 | 说明 |
+|---------|------|------|------|
+| 测试描述 | "hiding native vertical scrollbars" | "mode-specific scrollbar config" | 更准确描述测试目的 |
+| 断言逻辑 | 仅验证隐藏滚动条 | 验证两种模式的滚动条配置 | 增加测试覆盖率 |
+
+**新增测试验证:**
+```typescript
+// Side-by-side mode: show vertical scrollbar
+expect(changesPanelSource).toContain('vertical: "auto"');
+expect(changesPanelSource).toContain("verticalScrollbarSize: 12");
+```
+
+---
+
+## 4. 影响与风险评估
+
+### ⚠️ 潜在风险
+
+1. **依赖项移除的影响:**
+   - 从 `useEffect` 依赖数组中移除 `props.diffSideBySide` 可能导致模式切换时滚动条配置不更新
+   - **建议:** 验证在运行时切换 `diffSideBySide` 模式时，滚动条是否正确更新
+
+2. **用户体验变化:**
+   - 并排模式现在会显示垂直滚动条，可能会占用额外空间
+   - **建议:** 确认并排模式的布局能够容纳新的滚动条宽度
+
+### ✅ 测试建议
+
+| 测试场景 | 预期行为 |
+|---------|---------|
+| 切换到内联模式 | 垂直滚动条隐藏，verticalScrollbarSize 为 0 |
+| 切换到并排模式 | 垂直滚动条显示，verticalScrollbarSize 为 12 |
+| 长内容滚动 | 水平滚动条在两种模式下都正常工作 |
+| 模式动态切换 | 滚动条配置实时更新（需验证） |
+
+### 🎯 无破坏性变更
+- ✅ 无 API 接口变更
+- ✅ 无数据库架构变更
+- ✅ 向后兼容，仅优化用户体验
+
+---
+
+## 5. 总结
+
+本次变更是一个**用户体验优化**，通过智能化的滚动条配置，为不同的代码差异显示模式提供更合适的滚动体验。变更逻辑清晰，测试覆盖充分，风险较低。建议重点关注模式切换时的滚动条更新行为是否符合预期。
+
+---
+
+## 1. 高层摘要 (TL;DR)
+
+*   **影响范围:** 🟢 **低** - 简化编辑器滚动条配置逻辑
+*   **核心变更:**
+    *   ✨ 移除了基于 `diffSideBySide` 模式的条件滚动条配置
+    *   🎯 统一在所有模式下隐藏垂直滚动条
+    *   📝 更新测试用例以反映新的统一行为
+    *   💡 用户现在依赖 minimap 进行导航，而非垂直滚动条
+
+---
+
+## 2. 可视化概览 (逻辑流程图)
+
+```mermaid
+graph TD
+    subgraph "ChangesPanel.tsx - 编辑器配置"
+        A[props.diffSideBySide] -->|旧逻辑| B{判断模式}
+        B -->|Side-by-Side| C[显示垂直滚动条<br/>vertical: 'auto'<br/>size: 12]
+        B -->|Inline| D[隐藏垂直滚动条<br/>vertical: 'hidden'<br/>size: 0]
+        
+        A -.->|新逻辑| E[统一配置<br/>vertical: 'hidden'<br/>size: 0]
+    end
+    
+    subgraph "用户体验变化"
+        C --> F[旧: Side-by-Side模式<br/>有垂直滚动条]
+        D --> G[旧: Inline模式<br/>无垂直滚动条]
+        E --> H[新: 所有模式<br/>统一使用Minimap导航]
+    end
+    
+    style C fill:#fff3e0,color:#e65100
+    style D fill:#c8e6c9,color:#1a5e20
+    style E fill:#bbdefb,color:#0d47a1
+    style H fill:#bbdefb,color:#0d47a1
+```
+
+---
+
+## 3. 详细变更分析
+
+### 📦 组件: ChangesPanel.tsx
+
+**变更位置:** `ai-digital-life/frontend/src/app/regions/right-panel/ChangesPanel.tsx`
+
+#### 🔄 逻辑变更
+
+**之前的行为:**
+- 根据编辑器显示模式（side-by-side 或 inline）动态配置滚动条
+- **Side-by-Side 模式:** 显示垂直滚动条 (`vertical: "auto"`, `verticalScrollbarSize: 12`)
+- **Inline 模式:** 隐藏垂直滚动条 (`vertical: "hidden"`, `verticalScrollbarSize: 0`)
+
+**现在的行为:**
+- 统一配置，不再区分模式
+- **所有模式:** 隐藏垂直滚动条 (`vertical: "hidden"`, `verticalScrollbarSize: 0`)
+- 水平滚动条保持不变 (`horizontal: "auto"`, `horizontalScrollbarSize: 10`)
+
+#### 📊 配置对比表
+
+| 配置项 | 旧值 (Side-by-Side) | 旧值 (Inline) | 新值 (所有模式) |
+|--------|---------------------|---------------|-----------------|
+| `vertical` | `"auto"` | `"hidden"` | `"hidden"` |
+| `verticalScrollbarSize` | `12` | `0` | `0` |
+| `horizontal` | `"auto"` | `"auto"` | `"auto"` |
+| `horizontalScrollbarSize` | `10` | `10` | `10` |
+
+---
+
+### 🧪 测试文件: changesEditorOptions.test.ts
+
+**变更位置:** `ai-digital-life/frontend/src/app/regions/right-panel/changesEditorOptions.test.ts`
+
+#### 📝 测试用例更新
+
+| 项目 | 旧值 | 新值 |
+|------|------|------|
+| **测试名称** | "uses minimapSettings for both inline and side-by-side preview minimap with mode-specific scrollbar config" | "uses minimapSettings for minimap and hides vertical scrollbar in all modes" |
+| **注释更新** | "Inline minimap options are driven by user minimapSettings, not hardcoded" | "Minimap options are driven by user minimapSettings, not hardcoded" |
+| **新增注释** | - | "Scrollbar: vertical scrollbar is hidden in all modes (use minimap for navigation)" |
+| **移除断言** | `expect(...).toContain('vertical: "auto"')`<br/>`expect(...).toContain("verticalScrollbarSize: 12")` | - |
+| **新增断言** | - | `expect(...).not.toContain("verticalScrollbarSize: 12")` |
+
+---
+
+## 4. 影响与风险评估
+
+### ⚠️ 潜在影响
+
+| 影响类型 | 描述 | 严重程度 |
+|---------|------|---------|
+| **用户体验变化** | Side-by-Side 模式下用户将无法使用垂直滚动条，必须依赖 Minimap 进行导航 | 🟡 中等 |
+| **行为一致性** | 所有模式现在具有统一的滚动条行为，降低了认知负担 | 🟢 正面 |
+
+### 🧪 测试建议
+
+1. **功能测试:**
+   - ✅ 验证 Side-by-Side 模式下编辑器可以正常滚动（通过 Minimap 或其他方式）
+   - ✅ 验证 Inline 模式下编辑器行为无变化
+   - ✅ 验证水平滚动条在所有模式下正常工作
+
+2. **用户体验测试:**
+   - 👥 观察用户在 Side-by-Side 模式下是否适应无垂直滚动条的交互
+   - 👥 确认 Minimap 导航的可用性是否满足需求
+
+3. **回归测试:**
+   - 🔄 运行现有的 `changesEditorOptions.test.ts` 测试套件
+   - 🔄 检查其他依赖 ChangesPanel 的组件是否受影响
+
+---
+
+## 5. 变更总结
+
+此次变更是一个**简化性重构**，主要目的是：
+
+1. **减少条件逻辑:** 移除了基于 `diffSideBySide` 的分支判断
+2. **统一用户体验:** 所有编辑器模式现在使用相同的滚动条配置
+3. **依赖 Minimap:** 明确将导航责任转移给 Minimap 组件
+
+这是一个**低风险**的变更，主要影响 Side-by-Side 模式的交互方式。建议在发布前进行用户验收测试，确保 Minimap 导航能够满足实际使用需求。

@@ -12,7 +12,7 @@ describe("changes preview editor options", () => {
     expect(changesPanelSource).toContain("lineDecorationsWidth: 0");
   });
 
-  it("uses minimapSettings for minimap and hides vertical scrollbar in all modes", () => {
+  it("uses minimapSettings for minimap with unified scrollbar configuration", () => {
     expect(changesPanelSource).toContain("minimap:");
     expect(changesPanelSource).toContain("props.diffSideBySide");
     expect(changesPanelSource).toContain('side: "right"');
