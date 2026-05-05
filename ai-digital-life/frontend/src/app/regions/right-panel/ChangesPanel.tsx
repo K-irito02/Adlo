@@ -441,9 +441,15 @@ export function ChangesPanel(props: RightPanelViewProps) {
         };
       });
 
-    previewDecorationIdsRef.current = modifiedEditor.deltaDecorations(previewDecorationIdsRef.current, decorations);
+    const rafId = requestAnimationFrame(() => {
+      const currentDiffEditor = diffEditorRef.current;
+      const currentModifiedEditor = isDiffEditor(currentDiffEditor) ? currentDiffEditor.getModifiedEditor() : null;
+      if (!currentModifiedEditor) return;
+      previewDecorationIdsRef.current = currentModifiedEditor.deltaDecorations(previewDecorationIdsRef.current, decorations);
+    });
 
     return () => {
+      cancelAnimationFrame(rafId);
       const activeDiffEditor = diffEditorRef.current;
       const activeModifiedEditor = isDiffEditor(activeDiffEditor) ? activeDiffEditor.getModifiedEditor() : null;
       if (activeModifiedEditor && previewDecorationIdsRef.current.length > 0) {
