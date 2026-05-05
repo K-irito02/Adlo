@@ -25,12 +25,16 @@ export function StickyContext(props: StickyContextProps) {
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const clearHideTimerRef = useRef<() => void>(() => {});
 
-  clearHideTimerRef.current = () => {
+  const clearHideTimer = useCallback(() => {
     if (hideTimerRef.current) {
       clearTimeout(hideTimerRef.current);
       hideTimerRef.current = null;
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    clearHideTimerRef.current = clearHideTimer;
+  }, [clearHideTimer]);
 
   const startHideTimer = useCallback(() => {
     clearHideTimerRef.current();
