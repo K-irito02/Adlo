@@ -249,7 +249,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
   }, []);
 
   const diffEditorRef = useRef<unknown>(null);
-  const minimapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const minimapTimerRef = useRef<number | null>(null);
   const previewDecorationIdsRef = useRef<string[]>([]);
   const [diffEditorReady, setDiffEditorReady] = useState(0);
   const [minimapSettings, setMinimapSettings] = useState<MinimapSettings>(loadMinimapSettings);
