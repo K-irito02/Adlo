@@ -28,7 +28,7 @@ States covered by CSS:
 | `:hover`             | Darkens accent (or background for ghost / secondary).    |
 | `:active`            | Translates 1 px down, deeper accent.                     |
 | `:focus-visible`     | 3 px focus ring (`--focus-ring`).                        |
-| `[disabled]`         | Opacity 0.55, `cursor: not-allowed`, pointer events off. |
+| `[disabled]`         | Opacity 0.55, `cursor: not-allowed`, pointer events off.|
 | `[aria-busy="true"]` | Spinner, hides label, disables pointer events.           |
 
 
@@ -48,7 +48,7 @@ Tone → CSS class table:
 | `neutral`                          | `.pill`                                | `--bg-muted`     |
 | `healthy` / `success`              | `.pill--healthy` / `.pill--success`    | `--success-soft` |
 | `degraded` / `pending` / `warning` | `.pill--degraded` etc.                 | `--warning-soft` |
-| `unavailable` / `danger`           | `.pill--unavailable` / `.pill--danger` | `--danger-soft`  |
+| `unavailable` / `danger`           | `.pill--unavailable` / `.pill--danger` | `--danger-soft` |
 | `info`                             | `.pill--info`                          | `--info-soft`    |
 | `accent`                           | `.pill--accent`                        | `--accent-soft`  |
 
@@ -175,7 +175,7 @@ Design rules:
 
 - Sticky rows are rendered **inside the editor surface**, not above the entire panel shell, so Monaco layout and scroll math stay anchored to the real editor viewport.
 - The sticky block must reserve the right-side minimap gutter (`--adl-editor-minimap-width`) and may never paint over or capture space from the minimap column.
-- The first sticky row is a full-width “回到顶部 / 文件顶部” action, but it only appears when the real first line of the current file is no longer visible in the viewport.
+- The first sticky row is a full-width "回到顶部 / 文件顶部" action, but it only appears when the real first line of the current file is no longer visible in the viewport.
 - Total sticky height is adaptive with a hard cap of **4 rows**. The optional top row counts toward that cap.
 - Context rows follow the current/modified side in diff-backed views and may carry lightweight insert / delete / modified rails, but navigation still targets the current readable side only.
 - Sticky surfaces must use existing theme tokens (`--surface`, `--surface-hover`, `--border-*`, `--text-*`) rather than local hard-coded colors.
@@ -183,9 +183,18 @@ Design rules:
 
 Interaction rules:
 
-- Each row is keyboard reachable and behaves like a direct navigation affordance.
+- Sticky navigation appears automatically when the active entry changes (e.g., during scrolling) and auto-hides after 1.8 seconds of inactivity.
+- **Hover behavior**: When the mouse hovers over the sticky area, the auto-hide timer is paused and will only resume when the mouse leaves.
+- Each row provides hover feedback with a subtle background highlight; no border or box-shadow effects.
 - Empty files and outline-less files still render a stable sticky model; the UI may collapse to zero rows only when the top row is hidden and no context rows are available.
-- The sticky view must not own editor height. Any “fill the remaining surface” rule must explicitly exclude `.adl-sticky-context`.
+- The sticky view must not own editor height. Any "fill the remaining surface" rule must explicitly exclude `.adl-sticky-context`.
+
+Visual design:
+
+- The sticky area uses **full transparency** (no background, no blur effects) to avoid obstructing editor content.
+- Content is right-aligned with the "向上箭头" icon appearing inline before the "文件顶部" label.
+- Line numbers display as "行 xxx" (localized) instead of "Lxxx".
+- Hover states show only background color change without borders or shadows.
 
 ## Stat tile
 
@@ -241,7 +250,7 @@ Applies to the inline StatusBar menus:
 
 - `.adl-statusbar__menu-option` is the shared row primitive for menu list items.
 - Active + hover states use **background only** (`--surface-hover`); **no visible border outline** in these menus (workspace/branch/model) to keep the card clean and consistent.
-- `:focus-visible` removes default outlines and relies on the same background emphasis as hover to avoid “double focus rings” inside the card.
+- `:focus-visible` removes default outlines and relies on the same background emphasis as hover to avoid "double focus rings" inside the card.
 
 ### Inputs
 
@@ -258,9 +267,9 @@ Applies to the inline StatusBar menus:
 - **No blue chrome**: avoid `adl-btn--primary` in these menus; use `ghost` + a neutral background instead.
 - **Consistent action surfaces**: buttons inside `.adl-statusbar__menu-actions` always show the same neutral background, even when disabled.
 - **Muted action tone**: action buttons use `color: var(--text-secondary)` so icon + label read as a unified light grey.
-- **Workspace bind actions are two-column**: `.adl-statusbar__menu--workspace .adl-statusbar__menu-actions` uses a 2× grid so “选择文件夹 / 绑定该路径” split evenly and center within their cells.
-- **Global mode row**: use `.adl-statusbar__menu-option--global` for the “对话模式 / 不用绑定工作空间” row to pin a default subtle background and a slightly stronger title weight.
-- **Branch create row**: use `.adl-statusbar__menu-row` (e.g. `adl-statusbar__menu-row--branch-create`) to put “新建分支名称输入框 + 基于当前分支选择” on the same line.
+- **Workspace bind actions are two-column**: `.adl-statusbar__menu--workspace .adl-statusbar__menu-actions` uses a 2× grid so "选择文件夹 / 绑定该路径" split evenly and center within their cells.
+- **Global mode row**: use `.adl-statusbar__menu-option--global` for the "对话模式 / 不用绑定工作空间" row to pin a default subtle background and a slightly stronger title weight.
+- **Branch create row**: use `.adl-statusbar__menu-row` (e.g. `adl-statusbar__menu-row--branch-create`) to put "新建分支名称输入框 + 基于当前分支选择" on the same line.
 - **Branch base selector is a cascading submenu**: use `.adl-statusbar__submenu-trigger` with a right-chevron and open a sibling `.adl-statusbar__submenu` card aligned to the right, matching the same menu surface tokens.
 - **Model menu stays compact**: `.adl-statusbar__menu--model` uses a narrower width; model selection updates provider priority to avoid ties so switching always takes effect.
 

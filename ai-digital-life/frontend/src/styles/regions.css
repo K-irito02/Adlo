@@ -3994,32 +3994,39 @@
   gap: 1px;
   height: auto;
   max-height: max-content;
-  border-bottom: 1px solid var(--border-subtle);
-  background: var(--surface);
-  contain: paint;
+  border: none;
+  background: transparent;
+  contain: layout style paint;
   overflow: hidden;
   pointer-events: auto;
+  opacity: 1;
+  transition: opacity 0.2s ease-out, visibility 0s linear 0.2s;
+  visibility: visible;
+}
+
+.adl-sticky-context.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  transition: opacity 0.2s ease-out, visibility 0s linear 0.2s;
 }
 
 .adl-sticky-context__row {
   display: grid;
-  grid-template-columns: 3px 18px minmax(0, 1fr);
+  grid-template-columns: 3px minmax(0, 1fr);
   align-items: center;
   gap: var(--space-2);
   min-height: 28px;
   padding: 0 var(--space-3);
-  background: var(--surface);
+  background: transparent;
   color: var(--text-secondary);
-  text-align: left;
+  text-align: right;
   transition: var(--transition-colors);
-  box-shadow: inset 0 0 0 1px transparent;
 }
 
-.adl-sticky-context__row:hover,
-.adl-sticky-context__row.is-active {
-  background: color-mix(in srgb, var(--surface) 56%, var(--surface-hover));
+.adl-sticky-context__row:hover {
+  background: color-mix(in srgb, var(--surface) 60%, transparent);
   color: var(--text-primary);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border-strong) 44%, transparent);
 }
 
 .adl-sticky-context__row.is-at-top {
@@ -4030,7 +4037,10 @@
   font-weight: 600;
 }
 
-.adl-sticky-context__row--top .adl-sticky-context__kind {
+.adl-sticky-context__arrow {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 4px;
   color: var(--accent-primary);
 }
 

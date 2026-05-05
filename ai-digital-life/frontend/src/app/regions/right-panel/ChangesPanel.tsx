@@ -1205,7 +1205,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
                 data-testid="changes-preview-shell"
               >
                 <div ref={changesPreviewEditorSurfaceRef} className="adl-tool-editor__surface">
-                  {stickyContextModel ? <StickyContext data-testid="changes-sticky-context" model={stickyContextModel} /> : null}
+                  {stickyContextModel ? <StickyContext data-testid="changes-sticky-context" model={stickyContextModel} t={t} /> : null}
                   <DiffEditor
                     height="100%"
                     theme={changePreviewTheme}

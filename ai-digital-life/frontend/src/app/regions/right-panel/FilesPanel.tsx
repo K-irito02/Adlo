@@ -1477,7 +1477,7 @@ export function FilesPanel(props: RightPanelViewProps) {
                   </div>
                 ) : null}
                 <div ref={editorSurfaceRef} className="adl-tool-editor__surface">
-                  {stickyContextModel ? <StickyContext data-testid="files-sticky-context" model={stickyContextModel} /> : null}
+                  {stickyContextModel ? <StickyContext data-testid="files-sticky-context" model={stickyContextModel} t={t} /> : null}
                   <DiffEditor
                     theme={monacoTheme}
                     beforeMount={handleMonacoBeforeMount}
@@ -1499,7 +1499,7 @@ export function FilesPanel(props: RightPanelViewProps) {
             ) : (
               <>
                 <div ref={editorSurfaceRef} className="adl-tool-editor__surface">
-                  {stickyContextModel ? <StickyContext data-testid="files-sticky-context" model={stickyContextModel} /> : null}
+                  {stickyContextModel ? <StickyContext data-testid="files-sticky-context" model={stickyContextModel} t={t} /> : null}
                   <Editor
                     theme={monacoTheme}
                     beforeMount={handleMonacoBeforeMount}
