@@ -4151,13 +4151,14 @@
 
 .adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .monaco-scrollable-element {
   width: 100% !important;
-  overflow-x: hidden !important;
+  overflow-x: visible !important;
 }
 
 .adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .view-overlays {
   width: calc(100% + 84px) !important;
   right: 0 !important;
   left: 0 !important;
+  overflow-x: visible !important;
 }
 
 .adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .view-overlays .adl-inline-diff-line {
