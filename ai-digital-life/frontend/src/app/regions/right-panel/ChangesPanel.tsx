@@ -323,13 +323,13 @@ export function ChangesPanel(props: RightPanelViewProps) {
     requestAnimationFrame(triggerRelayout);
 
     const disposable = diffEditor.onDidUpdateDiff(() => {
-      if (minimapTimerRef.current) cancelAnimationFrame(minimapTimerRef.current);
+      if (minimapTimerRef.current !== null) cancelAnimationFrame(minimapTimerRef.current);
       minimapTimerRef.current = requestAnimationFrame(triggerRelayout);
     });
 
     return () => {
       disposable.dispose();
-      if (minimapTimerRef.current) cancelAnimationFrame(minimapTimerRef.current);
+      if (minimapTimerRef.current !== null) cancelAnimationFrame(minimapTimerRef.current);
     };
   }, [applyMinimapToDiffEditor]);
 
