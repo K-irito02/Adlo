@@ -19,51 +19,35 @@ function buildStickyAriaLabel(entry: StickyContextEntry): string {
   return `${entry.label} ${entry.detail ?? `L${entry.line}`}`.trim();
 }
 
-function resolveKindLabel(kind: string, t: CopyDict): string {
-  switch (kind) {
-    case "heading":
-      return t.stickyContextKindHeading;
-    case "line":
-      return t.stickyContextKindLine;
-    case "function":
-      return t.stickyContextKindFunction;
-    case "variable":
-      return t.stickyContextKindVariable;
-    case "class":
-      return t.stickyContextKindClass;
-    case "interface":
-      return t.stickyContextKindInterface;
-    default:
-      return kind.slice(0, 1).toUpperCase();
-  }
-}
-
 export function StickyContext(props: StickyContextProps) {
   const [isVisible, setIsVisible] = useState(true);
   const [isHovering, setIsHovering] = useState(false);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearHideTimerRef = useRef<() => void>(() => {});
 
-  const clearHideTimer = useCallback(() => {
+  clearHideTimerRef.current = () => {
     if (hideTimerRef.current) {
       clearTimeout(hideTimerRef.current);
       hideTimerRef.current = null;
     }
-  }, []);
+  };
 
   const startHideTimer = useCallback(() => {
-    clearHideTimer();
+    clearHideTimerRef.current();
     hideTimerRef.current = setTimeout(() => {
       setIsVisible(false);
       hideTimerRef.current = null;
     }, AUTO_HIDE_DELAY_MS);
-  }, [clearHideTimer]);
+  }, []);
 
   useEffect(() => {
     setIsVisible(true);
     startHideTimer();
 
-    return clearHideTimer;
-  }, [props.model.activeEntryId, props.model.contextEntries.length, startHideTimer, clearHideTimer]);
+    return () => {
+      clearHideTimerRef.current();
+    };
+  }, [props.model.activeEntryId, props.model.contextEntries.length, startHideTimer]);
 
   useEffect(() => {
     if (!isHovering && isVisible) {
@@ -73,8 +57,8 @@ export function StickyContext(props: StickyContextProps) {
 
   const handleMouseEnter = useCallback(() => {
     setIsHovering(true);
-    clearHideTimer();
-  }, [clearHideTimer]);
+    clearHideTimerRef.current();
+  }, []);
 
   const handleMouseLeave = useCallback(() => {
     setIsHovering(false);
