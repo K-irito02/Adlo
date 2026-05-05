@@ -323,13 +323,13 @@ export function ChangesPanel(props: RightPanelViewProps) {
     requestAnimationFrame(triggerRelayout);
 
     const disposable = diffEditor.onDidUpdateDiff(() => {
-      if (minimapTimerRef.current) clearTimeout(minimapTimerRef.current);
-      minimapTimerRef.current = setTimeout(triggerRelayout, 50);
+      if (minimapTimerRef.current) cancelAnimationFrame(minimapTimerRef.current);
+      minimapTimerRef.current = requestAnimationFrame(triggerRelayout);
     });
 
     return () => {
       disposable.dispose();
-      if (minimapTimerRef.current) clearTimeout(minimapTimerRef.current);
+      if (minimapTimerRef.current) cancelAnimationFrame(minimapTimerRef.current);
     };
   }, [applyMinimapToDiffEditor]);
 
@@ -391,11 +391,11 @@ export function ChangesPanel(props: RightPanelViewProps) {
       return;
     }
 
-    // Apply decorations with a slight delay to ensure DiffEditor has completed
+    // Apply decorations on next animation frame to ensure DiffEditor has completed
     // its internal diff calculation and decoration application.
     // This helps our custom minimap decorations take precedence over
     // DiffEditor's internal decorations which may not have minimap.color set.
-    const applyTimer = setTimeout(() => {
+    const applyTimer = requestAnimationFrame(() => {
       const currentDiffEditor = diffEditorRef.current;
       const currentModifiedEditor = isDiffEditor(currentDiffEditor) ? currentDiffEditor?.getModifiedEditor() : null;
       if (!currentModifiedEditor) return;
@@ -404,10 +404,6 @@ export function ChangesPanel(props: RightPanelViewProps) {
       const root = document.documentElement;
       const computedStyle = getComputedStyle(root);
 
-      // Read colors from CSS variables and convert to hex format.
-      // Monaco's Color.fromHex() ONLY accepts hex strings (#RRGGBBAA).
-      // Any other format (rgba, rgb, hsl) causes parseHex to fail and
-      // silently fall back to Color.red, making all minimap decorations red.
       const insertColor = cssColorToHex(
         computedStyle.getPropertyValue("--minimap-diff-insert-bg").trim() || "rgba(22, 163, 74, 0.5)"
       );
@@ -415,14 +411,6 @@ export function ChangesPanel(props: RightPanelViewProps) {
         computedStyle.getPropertyValue("--minimap-diff-remove-bg").trim() || "rgba(239, 68, 68, 0.5)"
       );
 
-      // Build a set of line numbers covered by insert ranges.
-      // This is used to prevent overlapping minimap decorations where both
-      // insert (green) and delete (red) would be applied to the same line.
-      // In the modified editor, delete ranges at "anchorLine" positions
-      // often overlap with insert ranges, because the anchorLine is the
-      // content line in the modified editor where the change occurred.
-      // For replacement lines (both insert and delete), the content is new,
-      // so the minimap should show green (insert), not red (delete).
       const insertLines = new Set<number>();
       changePreviewDiffRanges
         .filter(r => r.type === "insert")
@@ -434,15 +422,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
 
       const decorations: MonacoDecoration[] = changePreviewDiffRanges
         .filter((range) => {
-          // Filter out invalid ranges
           if (range.startLine < 1 || range.endLine < range.startLine) return false;
-
-          // Skip delete decorations that overlap with insert decorations.
-          // When a line is both inserted and deleted (replacement), the line
-          // in the modified editor contains NEW content — the minimap should
-          // show green (insert), not red (delete). The insert decoration
-          // already handles this line, so we skip the delete decoration to
-          // avoid minimap color overlap where the wrong color wins.
           if (range.type === "delete") {
             for (let line = range.startLine; line <= range.endLine; line++) {
               if (insertLines.has(line)) return false;
@@ -457,12 +437,6 @@ export function ChangesPanel(props: RightPanelViewProps) {
             range: createMonacoRange(monaco, range.startLine, 1, range.endLine, 1),
             options: {
               isWholeLine: true,
-              // Delete decorations use a minimap-only class to avoid adding
-              // incorrect red backgrounds to content lines in the editor.
-              // The delete anchorLine points to a content line that is NOT
-              // deleted (it's either inserted or unchanged). Adding a red
-              // background to it would be misleading. The actual deleted
-              // content is shown in Monaco view zones (handled internally).
               className: isDelete
                 ? "adl-inline-diff-line adl-inline-diff-line--delete-minimap"
                 : `adl-inline-diff-line adl-inline-diff-line--${range.type} adl-inline-diff-line--${range.tone}`,
@@ -476,10 +450,10 @@ export function ChangesPanel(props: RightPanelViewProps) {
         });
 
       previewDecorationIdsRef.current = currentModifiedEditor.deltaDecorations(previewDecorationIdsRef.current, decorations);
-    }, 150); // Delay to allow DiffEditor to finish internal processing
+    });
 
     return () => {
-      clearTimeout(applyTimer);
+      cancelAnimationFrame(applyTimer);
       const activeDiffEditor = diffEditorRef.current;
       const activeModifiedEditor = isDiffEditor(activeDiffEditor) ? activeDiffEditor.getModifiedEditor() : null;
       if (activeModifiedEditor && previewDecorationIdsRef.current.length > 0) {
@@ -499,8 +473,8 @@ export function ChangesPanel(props: RightPanelViewProps) {
       applyMinimapToDiffEditor(diffEditorRef.current, "displayOptionChange");
     };
 
-    const timers = [0, 50, 150, 300, 600].map((delay) => setTimeout(refreshMinimapAfterOptionChange, delay));
-    return () => timers.forEach((timer) => clearTimeout(timer));
+    const rafId = requestAnimationFrame(refreshMinimapAfterOptionChange);
+    return () => cancelAnimationFrame(rafId);
   }, [changePreview?.path, lineNumbersEnabled, props.diffSideBySide, wordWrapEnabled, applyMinimapToDiffEditor]);
 
   const getModifiedEditor = useCallback(() => {
@@ -543,7 +517,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
       return;
     }
 
-    setTimeout(() => {
+    requestAnimationFrame(() => {
       const currentDiffEditor = diffEditorRef.current;
       const currentModifiedEditor = isDiffEditor(currentDiffEditor) ? currentDiffEditor?.getModifiedEditor() : null;
       if (!currentModifiedEditor) return;
@@ -598,7 +572,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
         });
 
       previewDecorationIdsRef.current = currentModifiedEditor.deltaDecorations(previewDecorationIdsRef.current, decorations);
-    }, 200);
+    });
   }, [changePreview]);
 
   const applyMinimapSettings = useCallback((settings: MinimapSettings) => {

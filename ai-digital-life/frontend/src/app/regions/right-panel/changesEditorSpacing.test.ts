@@ -162,8 +162,8 @@ describe("changes preview gutter spacing", () => {
     );
 
     expect(previewLineRule).toContain("left: 0 !important;");
-    expect(previewLineRule).toContain("width: 100% !important;");
-    expect(previewLineRule).toContain("right: 0 !important;");
+    expect(previewLineRule).toContain("width: calc(100% + 84px) !important;");
+    expect(previewLineRule).toContain("right: -84px !important;");
     expect(insertRule).toContain("background-color: var(--editor-diff-insert-bg) !important;");
     expect(deleteRule).toContain("background-color: var(--editor-diff-remove-bg) !important;");
     expect(nativeLineRule).toContain("background-color: transparent !important;");
