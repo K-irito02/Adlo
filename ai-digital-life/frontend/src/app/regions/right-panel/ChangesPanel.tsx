@@ -375,7 +375,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
       nonBasicASCII: false
     },
     bracketPairColorization: { enabled: true }
-  }), [props.diffSideBySide, wordWrapEnabled, lineNumbersEnabled, minimapSettings.size, minimapSettings.showSlider, minimapSettings.renderCharacters, minimapSettings.scale]);
+  }), [props.diffSideBySide, wordWrapEnabled, lineNumbersEnabled]);
 
   useEffect(() => {
     const diffEditor = diffEditorRef.current;
@@ -533,6 +533,74 @@ export function ChangesPanel(props: RightPanelViewProps) {
     }));
   }, [changePreview, changePreviewDiffRanges, getModifiedEditor, t.stickyContextTop]);
 
+  const reapplyDiffDecorations = useCallback(() => {
+    const diffEditor = diffEditorRef.current;
+    const modifiedEditor = isDiffEditor(diffEditor) ? diffEditor.getModifiedEditor() : null;
+    const monaco = getMonacoFromWindow();
+    const ranges = diffRangesRef.current;
+
+    if (!modifiedEditor || !monaco || !changePreview) {
+      return;
+    }
+
+    setTimeout(() => {
+      const currentDiffEditor = diffEditorRef.current;
+      const currentModifiedEditor = isDiffEditor(currentDiffEditor) ? currentDiffEditor?.getModifiedEditor() : null;
+      if (!currentModifiedEditor) return;
+
+      const minimapPosition = getMinimapPosition(monaco);
+      const root = document.documentElement;
+      const computedStyle = getComputedStyle(root);
+
+      const insertColor = cssColorToHex(
+        computedStyle.getPropertyValue("--minimap-diff-insert-bg").trim() || "rgba(22, 163, 74, 0.5)"
+      );
+      const deleteColor = cssColorToHex(
+        computedStyle.getPropertyValue("--minimap-diff-remove-bg").trim() || "rgba(239, 68, 68, 0.5)"
+      );
+
+      const insertLines = new Set<number>();
+      ranges
+        .filter(r => r.type === "insert")
+        .forEach(r => {
+          for (let line = r.startLine; line <= r.endLine; line++) {
+            insertLines.add(line);
+          }
+        });
+
+      const decorations: MonacoDecoration[] = ranges
+        .filter((range) => {
+          if (range.startLine < 1 || range.endLine < range.startLine) return false;
+          if (range.type === "delete") {
+            for (let line = range.startLine; line <= range.endLine; line++) {
+              if (insertLines.has(line)) return false;
+            }
+          }
+          return true;
+        })
+        .map((range: PreviewDiffVisualRange) => {
+          const isDelete = range.type === "delete";
+          const color = isDelete ? deleteColor : insertColor;
+          return {
+            range: createMonacoRange(monaco, range.startLine, 1, range.endLine, 1),
+            options: {
+              isWholeLine: true,
+              className: isDelete
+                ? "adl-inline-diff-line adl-inline-diff-line--delete-minimap"
+                : `adl-inline-diff-line adl-inline-diff-line--${range.type} adl-inline-diff-line--${range.tone}`,
+              zIndex: 100 + (isDelete ? 1 : 0),
+              minimap: {
+                position: minimapPosition,
+                color: color,
+              }
+            }
+          };
+        });
+
+      previewDecorationIdsRef.current = currentModifiedEditor.deltaDecorations(previewDecorationIdsRef.current, decorations);
+    }, 200);
+  }, [changePreview]);
+
   const applyMinimapSettings = useCallback((settings: MinimapSettings) => {
     const de = diffEditorRef.current;
     if (!isDiffEditor(de)) return;
@@ -549,10 +617,13 @@ export function ChangesPanel(props: RightPanelViewProps) {
       de.updateOptions({ minimap: minimapOpts });
       const modifiedEditor = de.getModifiedEditor();
       if (modifiedEditor) modifiedEditor.updateOptions({ minimap: minimapOpts });
+      
+      // Reapply diff decorations after minimap rebuilds
+      reapplyDiffDecorations();
     } catch {
       /* editor disposed */
     }
-  }, []);
+  }, [reapplyDiffDecorations]);
 
   const handleMinimapSettingsChange = useCallback((settings: MinimapSettings) => {
     const prev = minimapSettingsRef.current;

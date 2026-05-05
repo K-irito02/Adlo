@@ -201,6 +201,18 @@ function syncMinimapOverlay(
   overlay.style.setProperty("--adl-slider-intensity", `${intensity}%`);
   overlay.style.setProperty("--adl-slider-top", `${sliderTop}px`);
   overlay.style.setProperty("--adl-slider-height", `${sliderHeight}px`);
+
+  const showSlider = settings?.showSlider ?? "always";
+  if (showSlider === "mouseover") {
+    overlay.style.opacity = "0";
+    overlay.style.transition = "opacity 0.15s ease";
+    minimap.classList.add("adl-minimap--slider-hover");
+  } else {
+    overlay.style.opacity = "1";
+    overlay.style.transition = "";
+    minimap.classList.remove("adl-minimap--slider-hover");
+  }
+  
   overlay.style.display = "block";
 }
 

@@ -557,3 +557,137 @@ const startHideTimer = useCallback(() => {
 ## 总结
 
 本次变更是一次**纯粹的性能优化**，通过将 `useCallback` 替换为 `useRef` 存储函数引用，消除了不必要的依赖链，减少了 React 组件的重新渲染和副作用执行。同时清理了未使用的代码，提升了代码质量。建议进行基本的交互测试以确保功能正常。
+
+---
+
+## 1. 高层摘要 (TL;DR)
+
+- **影响范围:** 🟢 **低** - 性能优化，不改变业务逻辑
+- **核心变更:** 将定时器清理函数从直接赋值改为使用 `useCallback` + `useEffect` 模式，确保函数引用稳定性
+
+### 🔑 关键修改
+- ✅ 将 `clearHideTimerRef.current` 从普通函数改为 `useCallback` 包装的函数
+- ✅ 添加 `useEffect` hook 来同步 ref 引用
+- ✅ 优化性能，避免每次渲染创建新函数实例
+
+---
+
+## 2. 可视化概览 (代码逻辑图)
+
+```mermaid
+graph TD
+    subgraph "StickyContext 组件"
+        direction TB
+        
+        subgraph "原始实现"
+            A["组件渲染"] --> B["直接赋值函数"]
+            B --> C["clearHideTimerRef.current = () => {...}"]
+            C --> D["每次渲染创建新函数实例"]
+            style D fill:#ffcdd2,color:#b71c1c
+        end
+        
+        subgraph "优化后实现"
+            E["组件渲染"] --> F["useCallback 包装"]
+            F --> G["clearHideTimer = useCallback(() => {...}, [])"]
+            G --> H["useEffect 同步"]
+            H --> I["clearHideTimerRef.current = clearHideTimer"]
+            I --> J["函数引用保持稳定"]
+            style J fill:#c8e6c9,color:#1a5e20
+        end
+    end
+    
+    style F fill:#bbdefb,color:#0d47a1
+    style H fill:#bbdefb,color:#0d47a1
+```
+
+### 📊 变更对比表
+
+| 方面 | 原始实现 | 优化后实现 |
+|------|---------|-----------|
+| **函数创建时机** | 每次组件渲染 | 仅在组件挂载时 |
+| **引用稳定性** | ❌ 每次渲染都变化 | ✅ 保持稳定 |
+| **性能影响** | 可能导致不必要的依赖更新 | 减少不必要的重渲染 |
+| **代码行数** | 6 行 | 11 行 |
+
+---
+
+## 3. 详细变更分析
+
+### 📁 组件: `StickyContextView.tsx`
+
+#### 🔧 变更内容
+优化了定时器清理函数的引用管理方式，从直接赋值改为使用 React Hooks 模式。
+
+**修改位置:** `ai-digital-life/frontend/src/app/regions/right-panel/stickyContextView.tsx`
+
+#### 📝 代码变更详解
+
+**原始代码:**
+```typescript
+clearHideTimerRef.current = () => {
+  if (hideTimerRef.current) {
+    clearTimeout(hideTimerRef.current);
+    hideTimerRef.current = null;
+  }
+};
+```
+
+**优化后代码:**
+```typescript
+const clearHideTimer = useCallback(() => {
+  if (hideTimerRef.current) {
+    clearTimeout(hideTimerRef.current);
+    hideTimerRef.current = null;
+  }
+}, []);
+
+useEffect(() => {
+  clearHideTimerRef.current = clearHideTimer;
+}, [clearHideTimer]);
+```
+
+#### 💡 优化原理
+
+1. **使用 `useCallback` 稳定函数引用**
+   - 空依赖数组 `[]` 确保函数只在组件挂载时创建一次
+   - 避免每次渲染都生成新的函数实例
+
+2. **通过 `useEffect` 同步 ref**
+   - 将稳定的函数引用赋值给 `clearHideTimerRef.current`
+   - 确保其他使用该 ref 的代码（如 `startHideTimer`）能获取到稳定的引用
+
+3. **性能收益**
+   - 减少内存分配（避免频繁创建函数）
+   - 如果 `clearHideTimerRef.current` 被用作其他 hook 的依赖，可避免不必要的重渲染
+
+---
+
+## 4. 影响与风险评估
+
+### ✅ 积极影响
+- 🚀 **性能提升:** 减少函数实例创建，降低内存压力
+- 🎯 **引用稳定:** 避免因函数引用变化导致的潜在副作用
+- 📚 **代码规范:** 符合 React Hooks 最佳实践
+
+### ⚠️ 风险评估
+- 🟢 **风险极低:** 
+  - 不改变业务逻辑
+  - 不影响现有功能
+  - 仅优化内部实现
+
+### 🧪 测试建议
+
+虽然风险很低，但建议验证以下场景：
+
+| 测试场景 | 验证点 |
+|---------|-------|
+| **快速连续操作** | 验证定时器清理逻辑是否正常工作 |
+| **组件频繁重渲染** | 确认没有性能回退或内存泄漏 |
+| **定时器触发** | 验证 `hideTimerRef` 的清理和重置逻辑 |
+| **边界情况** | 组件卸载时定时器是否被正确清理 |
+
+---
+
+## 5. 总结
+
+这是一次**纯粹的代码质量优化**，通过引入 `useCallback` 和 `useEffect` 模式，提升了定时器清理函数的引用稳定性。虽然代码行数略有增加，但带来了更好的性能表现和更符合 React 最佳实践的代码结构。建议合并。

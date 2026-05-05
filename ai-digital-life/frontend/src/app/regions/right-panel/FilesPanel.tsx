@@ -964,12 +964,62 @@ export function FilesPanel(props: RightPanelViewProps) {
       getScrollHeight(): number;
       getLayoutInfo(): { height: number };
       setScrollPosition(position: { scrollTop: number }): void;
+      updateOptions(options: unknown): void;
       onDidScrollChange?(listener: () => void): { dispose(): void };
       getModel?(): { getLineCount(): number } | null;
     };
 
-    const getEditor = (): EditorLike | null =>
-      props.standardEditorRef.current as unknown as EditorLike | null;
+    const getEditor = (): EditorLike | null => {
+      if (filePatch && filePatch.relativePath === selectedFilePath) {
+        const diffEditor = fileDiffEditorRef.current;
+        if (isDiffEditor(diffEditor)) {
+          return diffEditor.getModifiedEditor() as unknown as EditorLike;
+        }
+        return null;
+      }
+      return props.standardEditorRef.current as unknown as EditorLike | null;
+    };
+
+    const applyMinimapSettings = (settings: MinimapSettings) => {
+      if (filePatch && filePatch.relativePath === selectedFilePath) {
+        const diffEditor = fileDiffEditorRef.current;
+        if (!isDiffEditor(diffEditor)) return;
+        const minimapOpts = {
+          enabled: true,
+          side: "right" as const,
+          size: settings.size,
+          showSlider: settings.showSlider,
+          renderCharacters: settings.renderCharacters,
+          maxColumn: 80,
+          scale: settings.scale
+        };
+        try {
+          diffEditor.updateOptions({ minimap: minimapOpts });
+          const modifiedEditor = diffEditor.getModifiedEditor();
+          if (modifiedEditor) modifiedEditor.updateOptions({ minimap: minimapOpts });
+        } catch {
+          /* editor disposed */
+        }
+      } else {
+        const editor = props.standardEditorRef.current as unknown as EditorLike | null;
+        if (!editor) return;
+        try {
+          editor.updateOptions({
+            minimap: {
+              enabled: true,
+              side: "right" as const,
+              size: settings.size,
+              showSlider: settings.showSlider,
+              renderCharacters: settings.renderCharacters,
+              maxColumn: 80,
+              scale: settings.scale
+            }
+          });
+        } catch {
+          /* editor disposed */
+        }
+      }
+    };
 
     const controller = attachMinimapVisualOverlays(root, {
       getScrollState: () => {
@@ -985,8 +1035,17 @@ export function FilesPanel(props: RightPanelViewProps) {
         getEditor()?.setScrollPosition({ scrollTop: value });
       },
       onSettingsChange: (settings) => {
+        const prev = minimapSettingsRef.current;
         setMinimapSettings(settings);
         saveMinimapSettings(settings);
+        const monacoOptionsChanged =
+          prev.size !== settings.size ||
+          prev.showSlider !== settings.showSlider ||
+          prev.renderCharacters !== settings.renderCharacters ||
+          prev.scale !== settings.scale;
+        if (monacoOptionsChanged) {
+          applyMinimapSettings(settings);
+        }
       },
       getSettings: () => minimapSettingsRef.current,
       getLineCount: () => getEditor()?.getModel?.()?.getLineCount() ?? null,

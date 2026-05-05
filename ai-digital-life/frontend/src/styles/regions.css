@@ -4506,6 +4506,28 @@
   cursor: grabbing !important;
 }
 
+.adl-minimap--slider-hover .adl-minimap-slider-visual {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.adl-minimap--slider-hover:hover .adl-minimap-slider-visual {
+  opacity: 1 !important;
+}
+
+.adl-minimap--slider-hover:hover .adl-minimap-slider-visual::before {
+  opacity: 1;
+}
+
+.adl-minimap--slider-hover:hover .adl-minimap-slider-visual--over-slider {
+  cursor: grab;
+}
+
+.adl-minimap--slider-hover:hover .adl-minimap-slider-visual--dragging,
+.adl-minimap--slider-hover:hover .adl-minimap-slider-visual--dragging.adl-minimap-slider-visual--over-slider {
+  cursor: grabbing !important;
+}
+
 .adl-minimap-context-menu {
   position: fixed;
   min-width: 180px;
