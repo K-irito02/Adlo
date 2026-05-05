@@ -3,7 +3,7 @@ import { IconArrowUp } from "../../icons";
 import type { StickyContextEntry, StickyContextModel } from "./stickyContext";
 import type { CopyDict } from "../../copy";
 
-const AUTO_HIDE_DELAY_MS = 1500;
+const AUTO_HIDE_DELAY_MS = 1800;
 
 type StickyContextProps = {
   model: StickyContextModel;
@@ -43,54 +43,45 @@ export function StickyContext(props: StickyContextProps) {
   const [isHovering, setIsHovering] = useState(false);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const resetHideTimer = useCallback(() => {
+  const clearHideTimer = useCallback(() => {
     if (hideTimerRef.current) {
       clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
     }
+  }, []);
 
+  const startHideTimer = useCallback(() => {
+    clearHideTimer();
     hideTimerRef.current = setTimeout(() => {
       setIsVisible(false);
+      hideTimerRef.current = null;
     }, AUTO_HIDE_DELAY_MS);
-  }, []);
+  }, [clearHideTimer]);
 
   useEffect(() => {
     setIsVisible(true);
-    resetHideTimer();
+    startHideTimer();
 
-    return () => {
-      if (hideTimerRef.current) {
-        clearTimeout(hideTimerRef.current);
-      }
-    };
-  }, [props.model.activeEntryId, props.model.contextEntries.length, resetHideTimer]);
+    return clearHideTimer;
+  }, [props.model.activeEntryId, props.model.contextEntries.length, startHideTimer, clearHideTimer]);
 
   useEffect(() => {
     if (!isHovering && isVisible) {
-      resetHideTimer();
+      startHideTimer();
     }
-  }, [isHovering, isVisible, resetHideTimer]);
-
-  useEffect(() => {
-    return () => {
-      if (hideTimerRef.current) {
-        clearTimeout(hideTimerRef.current);
-      }
-    };
-  }, []);
+  }, [isHovering, isVisible, startHideTimer]);
 
   const handleMouseEnter = useCallback(() => {
     setIsHovering(true);
-    if (hideTimerRef.current) {
-      clearTimeout(hideTimerRef.current);
-    }
-  }, []);
+    clearHideTimer();
+  }, [clearHideTimer]);
 
   const handleMouseLeave = useCallback(() => {
     setIsHovering(false);
     if (isVisible) {
-      resetHideTimer();
+      startHideTimer();
     }
-  }, [isVisible, resetHideTimer]);
+  }, [isVisible, startHideTimer]);
 
   const entries = props.model.showTopEntry
     ? [props.model.topEntry, ...props.model.contextEntries]
@@ -111,7 +102,6 @@ export function StickyContext(props: StickyContextProps) {
       {entries.map((entry) => {
         const isTop = entry.kind === "top";
         const isActive = props.model.activeEntryId === entry.id;
-        const kindLabel = isTop ? "" : resolveKindLabel(entry.kind, props.t);
         const lineDetail = entry.detail?.replace(/^L(\d+)$/, (_, num) => `${props.t.stickyContextKindLine} ${num}`);
         return (
           <button
