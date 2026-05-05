@@ -396,6 +396,9 @@ export function ChangesPanel(props: RightPanelViewProps) {
     const root = document.documentElement;
     const computedStyle = getComputedStyle(root);
 
+    const DELETE_MINIMAP_CLASS = "adl-inline-diff-line--delete-minimap";
+    const INSERT_MINIMAP_CLASS = "adl-inline-diff-line--insert-minimap";
+
     const insertColor = cssColorToHex(
       computedStyle.getPropertyValue("--minimap-diff-insert-bg").trim() || "rgba(22, 163, 74, 0.5)"
     );
@@ -429,9 +432,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
           range: createMonacoRange(monaco, range.startLine, 1, range.endLine, 1),
           options: {
             isWholeLine: true,
-            className: isDelete
-              ? "adl-inline-diff-line adl-inline-diff-line--delete-minimap"
-              : `adl-inline-diff-line adl-inline-diff-line--${range.type} adl-inline-diff-line--${range.tone}`,
+            className: `adl-inline-diff-line adl-inline-diff-line--${range.type} adl-inline-diff-line--${range.tone} adl-inline-diff-line--${range.type}-minimap`,
             zIndex: 100 + (isDelete ? 1 : 0),
             minimap: {
               position: minimapPosition,
@@ -517,6 +518,9 @@ export function ChangesPanel(props: RightPanelViewProps) {
     const root = document.documentElement;
     const computedStyle = getComputedStyle(root);
 
+    const DELETE_MINIMAP_CLASS = "adl-inline-diff-line--delete-minimap";
+    const INSERT_MINIMAP_CLASS = "adl-inline-diff-line--insert-minimap";
+
     const insertColor = cssColorToHex(
       computedStyle.getPropertyValue("--minimap-diff-insert-bg").trim() || "rgba(22, 163, 74, 0.5)"
     );
@@ -550,9 +554,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
           range: createMonacoRange(monaco, range.startLine, 1, range.endLine, 1),
           options: {
             isWholeLine: true,
-            className: isDelete
-              ? "adl-inline-diff-line adl-inline-diff-line--delete-minimap"
-              : `adl-inline-diff-line adl-inline-diff-line--${range.type} adl-inline-diff-line--${range.tone}`,
+            className: `adl-inline-diff-line adl-inline-diff-line--${range.type} adl-inline-diff-line--${range.tone} adl-inline-diff-line--${range.type}-minimap`,
             zIndex: 100 + (isDelete ? 1 : 0),
             minimap: {
               position: minimapPosition,

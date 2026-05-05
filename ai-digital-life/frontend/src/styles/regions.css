@@ -4138,7 +4138,7 @@
 }
 
 .adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .overflow-guard {
-  width: 100% !important;
+  width: calc(100% - var(--adl-editor-minimap-width, 84px)) !important;
 }
 
 .adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.original .margin,
@@ -4147,29 +4147,33 @@
   opacity: 0 !important;
 }
 
-
-
 .adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .monaco-scrollable-element {
   width: 100% !important;
-  overflow-x: visible !important;
+  overflow-x: hidden !important;
 }
 
 .adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .view-overlays {
-  width: calc(100% + 84px) !important;
+  position: absolute !important;
+  width: calc(100% + var(--adl-editor-minimap-width, 84px)) !important;
   right: 0 !important;
   left: 0 !important;
-  overflow-x: visible !important;
+  top: 0 !important;
+  bottom: 0 !important;
 }
 
 .adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .view-overlays .adl-inline-diff-line {
+  position: absolute !important;
   left: 0 !important;
-  width: calc(100% + 84px) !important;
-  right: -84px !important;
+  width: calc(100% + var(--adl-editor-minimap-width, 84px)) !important;
+  right: calc(-1 * var(--adl-editor-minimap-width, 84px)) !important;
+  top: 0 !important;
+  bottom: 0 !important;
   border: none !important;
   outline: none !important;
   box-shadow: none !important;
-  background-clip: padding-box;
 }
+
+
 
 .adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .view-overlays .adl-inline-diff-line--insert {
   background-color: var(--editor-diff-insert-bg) !important;
@@ -4177,14 +4181,6 @@
 
 .adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .view-overlays .adl-inline-diff-line--delete {
   background-color: var(--editor-diff-remove-bg) !important;
-}
-
-/* Minimap-only delete decoration: no editor background change.
-   Used for pure delete positions where the anchorLine in the modified
-   editor is an unchanged or adjacent line, not a deleted line.
-   The red minimap marker indicates nearby deleted content. */
-.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .view-overlays .adl-inline-diff-line--delete-minimap {
-  background-color: transparent !important;
 }
 
 .adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .view-overlays .adl-inline-diff-line--insert.adl-inline-diff-line--strong {
@@ -4201,6 +4197,10 @@
 
 .adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .view-overlays .adl-inline-diff-line--delete.adl-inline-diff-line--block {
   background-color: var(--editor-diff-remove-bg-block) !important;
+}
+
+.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .view-overlays .adl-inline-diff-line--delete-minimap {
+  background-color: transparent !important;
 }
 
 .adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .cdr.line-insert,
@@ -4376,6 +4376,7 @@
   background: var(--editor-bg) !important;
   border: none !important;
   outline: none !important;
+  z-index: 10 !important;
   box-shadow:
     inset -1px 0 0 rgba(0, 0, 0, 0.18),
     -2px 0 4px rgba(0, 0, 0, 0.06),
@@ -4387,6 +4388,8 @@
   border-right: none !important;
   outline: none !important;
 }
+
+
 
 [data-theme="dark"] .adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .minimap {
   border: none !important;

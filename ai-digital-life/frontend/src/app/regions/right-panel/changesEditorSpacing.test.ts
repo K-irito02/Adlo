@@ -143,7 +143,7 @@ describe("changes preview gutter spacing", () => {
     );
 
     expect(modifiedInnerRule).toContain("width: 100% !important;");
-    expect(overflowGuardRule).toContain("width: 100% !important;");
+    expect(overflowGuardRule).toContain("width: calc(100% - var(--adl-editor-minimap-width, 84px)) !important;");
     expect(scrollableElementRule).toContain("width: 100% !important;");
   });
 
@@ -162,8 +162,8 @@ describe("changes preview gutter spacing", () => {
     );
 
     expect(previewLineRule).toContain("left: 0 !important;");
-    expect(previewLineRule).toContain("width: calc(100% + 84px) !important;");
-    expect(previewLineRule).toContain("right: -84px !important;");
+    expect(previewLineRule).toContain("width: calc(100% + var(--adl-editor-minimap-width, 84px)) !important;");
+    expect(previewLineRule).toContain("right: calc(-1 * var(--adl-editor-minimap-width, 84px)) !important;");
     expect(insertRule).toContain("background-color: var(--editor-diff-insert-bg) !important;");
     expect(deleteRule).toContain("background-color: var(--editor-diff-remove-bg) !important;");
     expect(nativeLineRule).toContain("background-color: transparent !important;");
