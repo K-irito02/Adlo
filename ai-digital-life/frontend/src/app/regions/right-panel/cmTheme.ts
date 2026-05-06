@@ -1,7 +1,7 @@
 import { EditorView } from "@codemirror/view";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
-import type { Extension } from "@codemirror/state";
+import { EditorState, type Extension } from "@codemirror/state";
 
 export const DIFF_INSERT_CLASS = "adl-cm-diff-insert";
 export const DIFF_DELETE_CLASS = "adl-cm-diff-delete";
@@ -120,12 +120,12 @@ function readColors(theme: "light" | "dark"): ThemeColors {
     readThemeColor(theme, "--editor-bg") ??
     readThemeColor(theme, "--surface") ??
     readThemeColor(theme, "--bg") ??
-    (theme === "dark" ? "#1e1e1e" : "#ffffff");
+    (theme === "dark" ? "#141414" : "#f8f8f8");
   const fg =
     readThemeColor(theme, "--editor-fg") ?? readThemeColor(theme, "--text-primary") ?? (theme === "dark" ? "#d4d4d4" : "#1e1e1e");
   const gutterBg =
     readThemeColor(theme, "--editor-gutter-bg") ??
-    (theme === "dark" ? "#181818" : "#f7f7f7");
+    (theme === "dark" ? "#141414" : "#f8f8f8");
   const lineNumber =
     readThemeColor(theme, "--editor-lineNumber") ?? readThemeColor(theme, "--text-muted") ?? (theme === "dark" ? "#6e7681" : "#8b949e");
   const lineNumberActive =
@@ -212,7 +212,7 @@ function readColors(theme: "light" | "dark"): ThemeColors {
   };
 }
 
-function buildEditorTheme(c: ThemeColors): Extension {
+function buildEditorTheme(c: ThemeColors, theme: "light" | "dark"): Extension {
   return EditorView.theme(
     {
       "&": {
@@ -223,6 +223,9 @@ function buildEditorTheme(c: ThemeColors): Extension {
       },
       "&.cm-focused": {
         outline: "none",
+      },
+      ".cm-scroller": {
+        backgroundColor: c.bg,
       },
       ".cm-content": {
         fontFamily: "var(--font-mono, 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'SF Mono', 'Consolas', monospace)",
@@ -305,7 +308,7 @@ function buildEditorTheme(c: ThemeColors): Extension {
         backgroundColor: c.diffRemoveBg,
       },
     },
-    { dark: false },
+    { dark: theme === "dark" },
   );
 }
 
@@ -389,17 +392,30 @@ const diffBaseTheme: Extension = EditorView.baseTheme({
     color: "var(--text-secondary)",
     opacity: "0.68",
   },
-  ".cm-merge-collapsed-widget": {
-    backgroundColor: "var(--surface-subtle, rgba(255,255,255,0.04))",
-    border: "1px solid var(--border-subtle, rgba(255,255,255,0.08))",
-    borderRadius: "4px",
-    padding: "2px 8px",
+  ".cm-collapsedLines": {
+    backgroundColor: "transparent",
+    border: "none",
+    borderRadius: "0",
+    padding: "2px 0",
     color: "var(--text-muted)",
-    fontSize: "0.85em",
+    fontSize: "0.8em",
     cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
   },
-  ".cm-merge-collapsed-widget:hover": {
-    backgroundColor: "var(--surface-hover, rgba(255,255,255,0.08))",
+  ".cm-collapsedLines::before": {
+    content: "''",
+    flex: "1",
+    borderTop: "1px dashed var(--border-subtle, rgba(255,255,255,0.12))",
+    margin: "0",
+  },
+  ".cm-collapsedLines::after": {
+    content: "''",
+    flex: "1",
+    borderTop: "1px dashed var(--border-subtle, rgba(255,255,255,0.12))",
+    margin: "0",
+  },
+  ".cm-collapsedLines:hover": {
     color: "var(--text-primary)",
   },
   ".cm-merge-change-chunk": {
@@ -435,7 +451,7 @@ let adlDarkTheme: Extension[];
 
 function buildThemeExtensions(theme: "light" | "dark"): Extension[] {
   const colors = readColors(theme);
-  const editorTheme = buildEditorTheme(colors);
+  const editorTheme = buildEditorTheme(colors, theme);
   const highlightStyle = buildHighlightStyle(colors);
   return [diffBaseTheme, editorTheme, highlightStyle];
 }
@@ -459,4 +475,16 @@ export function getThemeExtension(theme: "light" | "dark"): Extension {
 export function rebuildThemes(): void {
   adlLightTheme = buildThemeExtensions("light");
   adlDarkTheme = buildThemeExtensions("dark");
+}
+
+export function getPhrasesExtension(locale: string): Extension {
+  if (locale === "zh-CN") {
+    return EditorState.phrases.of({
+      "$ unchanged lines": "$ 行无变化",
+      "Revert this chunk": "还原此块",
+      Accept: "接受",
+      Reject: "拒绝",
+    });
+  }
+  return [];
 }

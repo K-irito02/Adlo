@@ -9,13 +9,14 @@ import { search } from "@codemirror/search";
 import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import type { EditorRef } from "../../types";
 import { createEditorRef } from "./editorAdapters";
-import { getThemeExtension, rebuildThemes } from "./cmTheme";
+import { getThemeExtension, rebuildThemes, getPhrasesExtension } from "./cmTheme";
 import { getLanguageExtension } from "./cmLanguages";
 
 export type CodeEditorProps = {
   value: string;
   language?: string;
   theme?: "light" | "dark";
+  locale?: string;
   readOnly?: boolean;
   lineNumbers?: boolean;
   wordWrap?: boolean;
@@ -72,6 +73,7 @@ export function CodeEditor({
   value,
   language = "plaintext",
   theme = "dark",
+  locale = "en-US",
   readOnly = false,
   lineNumbers: lineNumbersEnabled = true,
   wordWrap = false,
@@ -97,11 +99,11 @@ export function CodeEditor({
       foldGutterCompartment.of(gutterEnabled ? foldGutter() : []),
       wordWrapCompartment.of(wordWrap ? EditorView.lineWrapping : []),
       EditorState.readOnly.of(readOnly),
-      getThemeExtension(theme),
       ...getLanguageExtension(language),
+      getPhrasesExtension(locale || "en-US"),
     ];
     return exts;
-  }, [language, theme, readOnly, lineNumbersEnabled, wordWrap]);
+  }, [language, theme, readOnly, lineNumbersEnabled, wordWrap, locale]);
 
   const allExtensions = useMemo<Extension[]>(
     () => [...baseExtensions, ...extraExtensions],
@@ -150,7 +152,7 @@ export function CodeEditor({
     <CodeMirror
       value={value}
       extensions={allExtensions}
-      theme={theme === "dark" ? "dark" : "light"}
+      theme={getThemeExtension(theme)}
       onChange={handleChange}
       onCreateEditor={handleCreateEditorView}
       className="adl-cm-editor"

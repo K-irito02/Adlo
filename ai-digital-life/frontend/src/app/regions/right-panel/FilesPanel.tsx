@@ -239,6 +239,7 @@ export function FilesPanel(props: RightPanelViewProps) {
   const [stickyContextModel, setStickyContextModel] = useState<StickyContextModel | null>(null);
   const [stickyEditorReady, setStickyEditorReady] = useState(0);
   const resolvedTheme = appInfo?.config.resolvedTheme === "dark" ? "dark" : "light";
+  const resolvedLocale = appInfo?.config.language ?? "zh-CN";
   const fileCategory = useMemo(() => categorizeFile(selectedFilePath), [selectedFilePath]);
   const dirtyPaths = useMemo(
     () => new Set(dirtyEditorPaths.map((pathValue) => normalizeWorkspaceRelativePath(pathValue))),
@@ -849,6 +850,7 @@ export function FilesPanel(props: RightPanelViewProps) {
               modified={filePatch.afterContent}
               language={editorLanguage}
               theme={resolvedTheme}
+              locale={resolvedLocale}
               sideBySide={diffSideBySide}
               readOnly={diffEditorOptions.readOnly}
               lineNumbers={diffEditorOptions.lineNumbers}
@@ -912,6 +914,7 @@ export function FilesPanel(props: RightPanelViewProps) {
           value={fileContent ?? ""}
           language={editorLanguage}
           theme={resolvedTheme}
+          locale={resolvedLocale}
           readOnly={previewEnabled || editorOptions.readOnly}
           lineNumbers={editorOptions.lineNumbers}
           wordWrap={editorOptions.wordWrap}

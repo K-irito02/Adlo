@@ -9,7 +9,7 @@ import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import type { Extension } from "@codemirror/state";
 import type { DiffEditorRef, EditorRef } from "../../types";
 import { createDiffEditorRef, createEditorRef } from "./editorAdapters";
-import { getThemeExtension, rebuildThemes } from "./cmTheme";
+import { getThemeExtension, rebuildThemes, getPhrasesExtension } from "./cmTheme";
 import { getLanguageExtension } from "./cmLanguages";
 
 export type DiffViewerProps = {
@@ -17,6 +17,7 @@ export type DiffViewerProps = {
   modified: string;
   language?: string;
   theme?: "light" | "dark";
+  locale?: string;
   sideBySide?: boolean;
   readOnly?: boolean;
   lineNumbers?: boolean;
@@ -37,6 +38,7 @@ function buildSharedExtensions(
   readOnly: boolean,
   lineNumbersEnabled: boolean,
   wordWrap: boolean,
+  locale: string,
 ): Extension[] {
   const gutterEnabled = lineNumbersEnabled;
   const exts: Extension[] = [
@@ -54,6 +56,7 @@ function buildSharedExtensions(
     EditorState.readOnly.of(readOnly),
     themeCompartment.of(getThemeExtension(theme)),
     langCompartment.of(getLanguageExtension(language)),
+    getPhrasesExtension(locale),
   ];
   return exts;
 }
@@ -63,6 +66,7 @@ function SideBySideDiffViewer({
   modified,
   language,
   theme,
+  locale,
   readOnly,
   lineNumbersEnabled,
   wordWrap,
@@ -73,6 +77,7 @@ function SideBySideDiffViewer({
   modified: string;
   language: string;
   theme: "light" | "dark";
+  locale: string;
   readOnly: boolean;
   lineNumbersEnabled: boolean;
   wordWrap: boolean;
@@ -83,8 +88,8 @@ function SideBySideDiffViewer({
   const mergeViewRef = useRef<MergeView | null>(null);
 
   const sharedExts = useMemo(
-    () => buildSharedExtensions(language, theme, readOnly, lineNumbersEnabled, wordWrap),
-    [language, theme, readOnly, lineNumbersEnabled, wordWrap],
+    () => buildSharedExtensions(language, theme, readOnly, lineNumbersEnabled, wordWrap, locale),
+    [language, theme, readOnly, lineNumbersEnabled, wordWrap, locale],
   );
 
   useEffect(() => {
@@ -155,6 +160,7 @@ function InlineDiffViewer({
   modified,
   language,
   theme,
+  locale,
   readOnly,
   lineNumbersEnabled,
   wordWrap,
@@ -165,6 +171,7 @@ function InlineDiffViewer({
   modified: string;
   language: string;
   theme: "light" | "dark";
+  locale: string;
   readOnly: boolean;
   lineNumbersEnabled: boolean;
   wordWrap: boolean;
@@ -175,7 +182,7 @@ function InlineDiffViewer({
   const viewRef = useRef<EditorView | null>(null);
 
   const extensions = useMemo<Extension[]>(() => {
-    const base = buildSharedExtensions(language, theme, readOnly, lineNumbersEnabled, wordWrap);
+    const base = buildSharedExtensions(language, theme, readOnly, lineNumbersEnabled, wordWrap, locale);
     return [
       ...base,
       ...extraExtensions,
@@ -187,7 +194,7 @@ function InlineDiffViewer({
         collapseUnchanged: { margin: 3, minSize: 4 },
       }),
     ];
-  }, [language, theme, readOnly, lineNumbersEnabled, wordWrap, original]);
+  }, [language, theme, readOnly, lineNumbersEnabled, wordWrap, locale, original]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -252,6 +259,7 @@ export function DiffViewer({
   modified,
   language = "plaintext",
   theme = "dark",
+  locale = "en-US",
   sideBySide = false,
   readOnly = true,
   lineNumbers: lineNumbersEnabled = true,
@@ -259,6 +267,7 @@ export function DiffViewer({
   onMount,
   extensions: extraExtensions = [],
 }: DiffViewerProps) {
+  const resolvedLocale = locale || "en-US";
   if (sideBySide) {
     return (
       <SideBySideDiffViewer
@@ -266,6 +275,7 @@ export function DiffViewer({
         modified={modified}
         language={language}
         theme={theme}
+        locale={resolvedLocale}
         readOnly={readOnly}
         lineNumbersEnabled={lineNumbersEnabled}
         wordWrap={wordWrap}
@@ -281,6 +291,7 @@ export function DiffViewer({
       modified={modified}
       language={language}
       theme={theme}
+      locale={resolvedLocale}
       readOnly={readOnly}
       lineNumbersEnabled={lineNumbersEnabled}
       wordWrap={wordWrap}

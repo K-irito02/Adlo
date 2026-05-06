@@ -132,6 +132,10 @@ await page.locator('.adl-tool-context__group--files-actions .adl-tool-context__i
 
 > 取消行号时，整个 gutter 区域（行号数字 + 折叠/展开图标）全部消失，正文内容向左移动占满空间。
 
+### 国际化支持
+
+> CodeMirror 编辑器内置 phrase 国际化机制，Diff 视图中的折叠区块控件文案随应用语言切换自动变化。`locale` prop 通过 `appInfo.config.language` 传入 CodeEditor / DiffViewer。
+
 ### 已移除的冗余提示
 
 | 已移除元素 | 原因 |

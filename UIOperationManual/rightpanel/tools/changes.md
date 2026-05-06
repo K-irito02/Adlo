@@ -84,7 +84,7 @@ await page.locator('.adl-tool-context__group--files-actions .adl-tool-context__i
 | 行内更亮的绿色底部高亮线 | CodeMirror merge 的行内 changed-text 语义 | 该变更行内部还有更细的词/字符级差异 | 在长行内快速定位真正改动的片段 |
 | 选中 hunk 的浅蓝描边 | `--editor-current-hunk-ring` | 当前聚焦的补丁块 | 辅助键盘导航、接受/拒绝操作和上下文跟踪 |
 | 并排 Diff 中央分隔线 | `.cm-mergeViewEditors > .cm-editor + .cm-editor` | 左右版本边界 | 仅在并排模式下帮助区分两个 pane，不表示变更状态 |
-| 折叠区块控件 | `.cm-merge-collapsed-widget` | 被收起的未变更上下文 | 减少长 Diff 噪音，同时保留展开入口 |
+| 折叠区块控件 | `.cm-collapsedLines` | 被收起的未变更上下文 | 减少长 Diff 噪音，同时保留展开入口 |
 
 ### 行号切换行为
 
@@ -96,6 +96,26 @@ await page.locator('.adl-tool-context__group--files-actions .adl-tool-context__i
 | ❌ 关闭 | 隐藏 | 隐藏 | 完全消失，正文左移 |
 
 > 取消行号时，整个 gutter 区域（行号数字 + 折叠/展开图标）全部消失，正文内容向左移动占满空间。
+
+### 国际化支持
+
+> CodeMirror 编辑器内置 phrase 国际化机制，折叠区块控件文案随应用语言切换自动变化。
+
+| 语言 | 折叠区块文案 | 还原按钮 | 接受按钮 | 拒绝按钮 |
+|------|-------------|----------|----------|----------|
+| 中文 (zh-CN) | `N 行无变化` | 还原此块 | 接受 | 拒绝 |
+| English (en-US) | `N unchanged lines` | Revert this chunk | Accept | Reject |
+
+> `locale` prop 通过 `appInfo.config.language` 传入 CodeEditor / DiffViewer，由 `getPhrasesExtension(locale)` 生成 `EditorState.phrases` 扩展。
+
+### 刷新按钮
+
+> 变更文件统计数字右侧的刷新按钮，同时刷新文件树和 Git 快照。
+
+| 操作 | 调用 |
+|------|------|
+| 刷新文件树 | `onRefreshWorkspaceTree()` |
+| 刷新 Git 状态 | `useAppStore.getState().fetchGitStatus()` |
 
 ### 已移除的冗余提示
 

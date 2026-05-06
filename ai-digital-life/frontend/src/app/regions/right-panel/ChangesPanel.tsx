@@ -10,11 +10,13 @@ import {
   IconGitBranch,
   IconMoreVertical,
   IconPanelLeftClose,
+  IconRefreshCw,
   IconTarget,
   IconUnfoldVertical,
   IconUpload
 } from "../../icons";
 import { TooltipSimple } from "../../components/Tooltip";
+import { useAppStore } from "../../store";
 import { useUiStore } from "../../ui-store";
 import { countGitChanges } from "./types";
 import type { RightPanelViewProps } from "./types";
@@ -178,7 +180,8 @@ export function ChangesPanel(props: RightPanelViewProps) {
     onTogglePatchHunkCollapse,
     onSetAllPatchHunksCollapsed,
     onSetPatchReviewFilter,
-    onOpenFile
+    onOpenFile,
+    onRefreshWorkspaceTree
   } = props;
   const navigatorCollapsed = useUiStore((state) => state.navigatorCollapsedByTool.changes);
   const toggleNavigator = useUiStore((state) => state.toggleNavigator);
@@ -237,6 +240,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
     [changePreview]
   );
   const changePreviewTheme = appInfo?.config.resolvedTheme === "dark" ? "dark" as const : "light" as const;
+  const changePreviewLocale = appInfo?.config.language ?? "zh-CN";
   const diffExtensions = useMemo(() => [
     ...getAgentDecorationExtensions(),
     ...getMinimapExtension(),
@@ -664,6 +668,19 @@ export function ChangesPanel(props: RightPanelViewProps) {
               <span className="adl-tool-navigator__context-title">{t.toolChanges}</span>
             </div>
             <span className="adl-tool-navigator__meta">{changeEntries.length || countGitChanges(snapshot)}</span>
+            <TooltipSimple content={t.changesRefresh} placement="top">
+              <button
+                type="button"
+                className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
+                onClick={() => {
+                  void onRefreshWorkspaceTree();
+                  void useAppStore.getState().fetchGitStatus();
+                }}
+                aria-label={t.changesRefresh}
+              >
+                <IconRefreshCw size={14} decorative />
+              </button>
+            </TooltipSimple>
           </div>
           <div className="adl-tool-navigator__context adl-tool-navigator__context--tabs">
             <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--actions">
@@ -1011,6 +1028,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
                       value={changePreview.currentContent}
                       language={changePreviewLanguage}
                       theme={changePreviewTheme}
+                      locale={changePreviewLocale}
                       readOnly={true}
                       lineNumbers={lineNumbersEnabled}
                       wordWrap={wordWrapEnabled}
@@ -1025,6 +1043,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
                       modified={changePreview.currentContent}
                       language={changePreviewLanguage}
                       theme={changePreviewTheme}
+                      locale={changePreviewLocale}
                       sideBySide={props.diffSideBySide}
                       readOnly={true}
                       lineNumbers={lineNumbersEnabled}
