@@ -25,6 +25,7 @@ ai-digital-life/
 | `src-tauri/` | 窗口、Rust 启动、invoke 处理、capabilities |
 | `frontend/src/` | React UI、Zustand、桥接 |
 | `frontend/src/shared/ipc.ts` | `DigitalLifeBridge` 类型契约 |
+| `frontend/dev/previewWorkspaceService.ts` | 浏览器开发态服务端 API（原生目录选择器、工作区操作、Git 等） |
 
 ## Crates 层
 

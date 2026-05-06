@@ -714,6 +714,57 @@ async function revealInFileManager(targetPath: string): Promise<boolean> {
   return true;
 }
 
+async function pickDirectory(): Promise<string | undefined> {
+  const script =
+    process.platform === "win32"
+      ? {
+          cmd: "powershell",
+          args: [
+            "-NoProfile",
+            "-Command",
+            [
+              "Add-Type -AssemblyName System.Windows.Forms",
+              "$dialog = New-Object System.Windows.Forms.FolderBrowserDialog",
+              "$dialog.ShowNewFolderButton = $true",
+              'if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {',
+              "  [Console]::Write($dialog.SelectedPath)",
+              "}"
+            ].join("\n")
+          ]
+        }
+      : process.platform === "darwin"
+        ? {
+            cmd: "osascript",
+            args: [
+              "-e",
+              'set chosenFolder to choose folder with prompt "Select workspace folder"',
+              "-e",
+              "POSIX path of chosenFolder"
+            ]
+          }
+        : {
+            cmd: "zenity",
+            args: ["--file-selection", "--directory", "--title=Select workspace folder"]
+          };
+
+  return new Promise((resolve) => {
+    const child = spawn(script.cmd, script.args, { windowsHide: true });
+    let stdout = "";
+    child.stdout.on("data", (chunk: Buffer | string) => {
+      stdout += String(chunk);
+    });
+    child.on("error", () => resolve(undefined));
+    child.on("close", (code) => {
+      if (code !== 0) {
+        resolve(undefined);
+        return;
+      }
+      const selected = stdout.trim();
+      resolve(selected || undefined);
+    });
+  });
+}
+
 async function readBody(request: IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = [];
   for await (const chunk of request) {
@@ -752,6 +803,12 @@ export async function handlePreviewWorkspaceApi(
         return true;
       }
       writeJson(response, ok(await openWorkspace(body.workspacePath.trim())));
+      return true;
+    }
+
+    if (request.method === "POST" && requestUrl.pathname === `${API_PREFIX}/workspace/pick-directory`) {
+      const selectedPath = await pickDirectory();
+      writeJson(response, ok(selectedPath));
       return true;
     }
 

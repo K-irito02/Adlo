@@ -48,7 +48,7 @@ ai-digital-life/
 
 详见 [AGENTS.md](./AGENTS.md) 中的完整目录树。
 
-**前端目录要点（与 Electron 时代路径不同）**：完整 UI 在 `frontend/src/app/`（含 CodeMirror 编辑器、Diff 视图与多格式预览）；共享类型在 `frontend/src/kernel`（import 别名 `@ai-digital-life/kernel`）；IPC 契约为 `frontend/src/shared/ipc.ts`；桌面壳通过 `frontend/src/tauri-bridge.ts` 调 Tauri 命令，纯浏览器开发态通过 `frontend/src/preview-bridge.ts` 调本地 Vite 工作区接口；两者保持同一 `DigitalLifeBridge` 契约，并都支持真实文件树刷新与基础文件/目录创建。
+**前端目录要点（与 Electron 时代路径不同）**：完整 UI 在 `frontend/src/app/`（含 CodeMirror 编辑器、Diff 视图与多格式预览）；共享类型在 `frontend/src/kernel`（import 别名 `@ai-digital-life/kernel`）；IPC 契约为 `frontend/src/shared/ipc.ts`；桌面壳通过 `frontend/src/tauri-bridge.ts` 调 Tauri 命令，纯浏览器开发态通过 `frontend/src/preview-bridge.ts` 调本地 Vite 工作区接口（由 `frontend/dev/previewWorkspaceService.ts` 提供服务端 API，含原生目录选择器）；两者保持同一 `DigitalLifeBridge` 契约，并都支持真实文件树刷新、基础文件/目录创建与原生目录选择。
 
 ## Current Scope
 

@@ -29,6 +29,7 @@ alwaysApply: false
 | `src-tauri/src/commands/*.rs` | `#[tauri::command]` 处理 |
 | `src-tauri/capabilities/*.json` | Command 白名单 |
 | `crates/kernel` | `serde` 契约类型 |
+| `frontend/dev/previewWorkspaceService.ts` | 浏览器开发态服务端 API（镜像 Tauri Command 能力） |
 
 ## 事件通道
 

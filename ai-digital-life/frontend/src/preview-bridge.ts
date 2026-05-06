@@ -249,13 +249,15 @@ export function setupPreviewBridge(): void {
         setMockActiveWorkspace(undefined);
         return { ok: true, data: true };
       },
-      pickDirectory: async () => ({
-        ok: false,
-        error: {
-          code: "UNSUPPORTED",
-          message: "Browser preview does not provide a native directory picker. Enter the workspace path manually."
+      pickDirectory: async () => {
+        const result = await requestPreviewApi<string | undefined>("/workspace/pick-directory", {
+          method: "POST"
+        });
+        if (!result.ok) {
+          return { ok: true, data: undefined };
         }
-      }),
+        return { ok: true, data: result.data };
+      },
       pin: async () => ({ ok: true, data: recentWorkspaces }),
       unpin: async () => ({ ok: true, data: recentWorkspaces }),
       reorder: async () => ({ ok: true, data: recentWorkspaces }),

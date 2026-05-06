@@ -2,9 +2,9 @@ import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { EditorView, lineNumbers, highlightActiveLineGutter, highlightActiveLine, keymap } from "@codemirror/view";
 import type { Extension } from "@codemirror/state";
-import { EditorState } from "@codemirror/state";
+import { EditorState, Compartment } from "@codemirror/state";
 import { history } from "@codemirror/commands";
-import { indentOnInput, syntaxHighlighting, defaultHighlightStyle, bracketMatching, foldGutter } from "@codemirror/language";
+import { indentOnInput, bracketMatching, foldGutter } from "@codemirror/language";
 import { search } from "@codemirror/search";
 import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import type { EditorRef } from "../../types";
@@ -27,6 +27,9 @@ export type CodeEditorProps = {
 const stateCache = new Map<string, { state: EditorState; timestamp: number }>();
 const STATE_CACHE_MAX_SIZE = 20;
 const STATE_CACHE_TTL = 5 * 60 * 1000;
+const lineNumbersCompartment = new Compartment();
+const wordWrapCompartment = new Compartment();
+const foldGutterCompartment = new Compartment();
 
 function pruneStateCache() {
   const now = Date.now();
@@ -80,19 +83,19 @@ export function CodeEditor({
   const mountedRef = useRef(false);
 
   const baseExtensions = useMemo<Extension[]>(() => {
+    const gutterEnabled = lineNumbersEnabled;
     const exts: Extension[] = [
       history(),
-      lineNumbersEnabled ? lineNumbers() : [],
+      lineNumbersCompartment.of(gutterEnabled ? lineNumbers() : []),
       highlightActiveLineGutter(),
       highlightActiveLine(),
       bracketMatching(),
       indentOnInput(),
-      syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
       search(),
       closeBrackets(),
       keymap.of(closeBracketsKeymap),
-      foldGutter(),
-      wordWrap ? [EditorView.lineWrapping] : [],
+      foldGutterCompartment.of(gutterEnabled ? foldGutter() : []),
+      wordWrapCompartment.of(wordWrap ? EditorView.lineWrapping : []),
       EditorState.readOnly.of(readOnly),
       getThemeExtension(theme),
       ...getLanguageExtension(language),
@@ -130,6 +133,18 @@ export function CodeEditor({
       rebuildThemes();
     }
   }, [theme]);
+
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({
+      effects: [
+        lineNumbersCompartment.reconfigure(lineNumbersEnabled ? lineNumbers() : []),
+        foldGutterCompartment.reconfigure(lineNumbersEnabled ? foldGutter() : []),
+        wordWrapCompartment.reconfigure(wordWrap ? EditorView.lineWrapping : []),
+      ],
+    });
+  }, [lineNumbersEnabled, wordWrap]);
 
   return (
     <CodeMirror

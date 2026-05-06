@@ -3,7 +3,7 @@ import { MergeView, unifiedMergeView } from "@codemirror/merge";
 import { EditorView, lineNumbers, highlightActiveLineGutter, highlightActiveLine, keymap } from "@codemirror/view";
 import { EditorState, Compartment } from "@codemirror/state";
 import { history } from "@codemirror/commands";
-import { indentOnInput, syntaxHighlighting, defaultHighlightStyle, bracketMatching, foldGutter } from "@codemirror/language";
+import { indentOnInput, bracketMatching, foldGutter } from "@codemirror/language";
 import { search } from "@codemirror/search";
 import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import type { Extension } from "@codemirror/state";
@@ -27,6 +27,9 @@ export type DiffViewerProps = {
 
 const themeCompartment = new Compartment();
 const langCompartment = new Compartment();
+const lineNumbersCompartment = new Compartment();
+const wordWrapCompartment = new Compartment();
+const foldGutterCompartment = new Compartment();
 
 function buildSharedExtensions(
   language: string,
@@ -35,19 +38,19 @@ function buildSharedExtensions(
   lineNumbersEnabled: boolean,
   wordWrap: boolean,
 ): Extension[] {
+  const gutterEnabled = lineNumbersEnabled;
   const exts: Extension[] = [
     history(),
-    lineNumbersEnabled ? lineNumbers() : [],
+    lineNumbersCompartment.of(gutterEnabled ? lineNumbers() : []),
     highlightActiveLineGutter(),
     highlightActiveLine(),
     bracketMatching(),
     indentOnInput(),
-    syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
     search(),
     closeBrackets(),
     keymap.of(closeBracketsKeymap),
-    foldGutter(),
-    wordWrap ? [EditorView.lineWrapping] : [],
+    foldGutterCompartment.of(gutterEnabled ? foldGutter() : []),
+    wordWrapCompartment.of(wordWrap ? EditorView.lineWrapping : []),
     EditorState.readOnly.of(readOnly),
     themeCompartment.of(getThemeExtension(theme)),
     langCompartment.of(getLanguageExtension(language)),
@@ -100,7 +103,7 @@ function SideBySideDiffViewer({
       b: { doc: modified, extensions: bExts },
       parent: containerRef.current,
       collapseUnchanged: { margin: 3, minSize: 4 },
-      gutter: true,
+      gutter: false,
       highlightChanges: true,
     });
 
@@ -116,7 +119,24 @@ function SideBySideDiffViewer({
         mergeViewRef.current = null;
       }
     };
-  }, [original, modified]);
+  }, [original, modified, sharedExts, extraExtensions]);
+
+  useEffect(() => {
+    const mv = mergeViewRef.current;
+    if (!mv) return;
+    const reconfigure = (view: EditorView | null) => {
+      if (!view) return;
+      view.dispatch({
+        effects: [
+          lineNumbersCompartment.reconfigure(lineNumbersEnabled ? lineNumbers() : []),
+          foldGutterCompartment.reconfigure(lineNumbersEnabled ? foldGutter() : []),
+          wordWrapCompartment.reconfigure(wordWrap ? EditorView.lineWrapping : []),
+        ],
+      });
+    };
+    reconfigure(mv.a);
+    reconfigure(mv.b);
+  }, [lineNumbersEnabled, wordWrap]);
 
   useEffect(() => {
     rebuildThemes();
@@ -162,7 +182,7 @@ function InlineDiffViewer({
       unifiedMergeView({
         original,
         highlightChanges: true,
-        gutter: true,
+        gutter: false,
         mergeControls: true,
         collapseUnchanged: { margin: 3, minSize: 4 },
       }),
@@ -201,7 +221,19 @@ function InlineDiffViewer({
         viewRef.current = null;
       }
     };
-  }, [original, modified]);
+  }, [original, modified, extensions]);
+
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({
+      effects: [
+        lineNumbersCompartment.reconfigure(lineNumbersEnabled ? lineNumbers() : []),
+        foldGutterCompartment.reconfigure(lineNumbersEnabled ? foldGutter() : []),
+        wordWrapCompartment.reconfigure(wordWrap ? EditorView.lineWrapping : []),
+      ],
+    });
+  }, [lineNumbersEnabled, wordWrap]);
 
   useEffect(() => {
     rebuildThemes();

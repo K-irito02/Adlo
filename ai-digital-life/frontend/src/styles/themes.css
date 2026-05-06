@@ -216,6 +216,8 @@ body,
 
   --editor-diff-insert-bg: rgba(22, 163, 74, 0.12);
   --editor-diff-remove-bg: rgba(239, 68, 68, 0.12);
+  --editor-diff-insert-border: rgba(34, 197, 94, 0.45);
+  --editor-diff-remove-border: rgba(239, 68, 68, 0.45);
   --editor-diff-insert-bg-strong: rgba(22, 163, 74, 0.18);
   --editor-diff-remove-bg-strong: rgba(239, 68, 68, 0.18);
   --editor-diff-insert-bg-block: rgba(22, 163, 74, 0.15);
@@ -253,6 +255,14 @@ body,
   --editor-syntax-type: #7c3aed;
   --editor-syntax-function: #1d4ed8;
   --editor-syntax-variable: var(--text-primary);
+  --editor-syntax-property: #e45649;
+  --editor-syntax-heading: #1d4ed8;
+  --editor-syntax-strong: var(--text-primary);
+  --editor-syntax-emphasis: #a626a4;
+  --editor-syntax-link: #1d4ed8;
+  --editor-gutter-bg: #f7f7f7;
+  --editor-lineHighlight-border: rgba(0, 0, 0, 0.06);
+  --editor-fold-placeholder: rgba(0, 0, 0, 0.08);
 
   /* === Border Alias (unified) === */
   --border: var(--border-default);
@@ -385,6 +395,8 @@ body,
 
   --editor-diff-insert-bg: rgba(74, 222, 128, 0.14);
   --editor-diff-remove-bg: rgba(248, 113, 113, 0.14);
+  --editor-diff-insert-border: rgba(74, 222, 128, 0.5);
+  --editor-diff-remove-border: rgba(248, 113, 113, 0.5);
   --editor-diff-insert-bg-strong: rgba(74, 222, 128, 0.2);
   --editor-diff-remove-bg-strong: rgba(248, 113, 113, 0.2);
   --editor-diff-insert-bg-block: rgba(74, 222, 128, 0.17);
@@ -422,6 +434,14 @@ body,
   --editor-syntax-type: #c084fc;
   --editor-syntax-function: #93bbfd;
   --editor-syntax-variable: var(--text-primary);
+  --editor-syntax-property: #e06c75;
+  --editor-syntax-heading: #61afef;
+  --editor-syntax-strong: var(--text-primary);
+  --editor-syntax-emphasis: #c678dd;
+  --editor-syntax-link: #61afef;
+  --editor-gutter-bg: #181818;
+  --editor-lineHighlight-border: rgba(255, 255, 255, 0.07);
+  --editor-fold-placeholder: rgba(255, 255, 255, 0.1);
 
   /* === Border Alias (unified) === */
   --border: var(--border-default);
