@@ -4,73 +4,56 @@ import { describe, expect, it } from "vitest";
 const changesPanelSource = readFileSync(new URL("../../../../src/app/regions/right-panel/ChangesPanel.tsx", import.meta.url), "utf8");
 
 describe("changes preview editor options", () => {
-  it("does not reserve extra gutter width when folding controls are disabled", () => {
-    expect(changesPanelSource).toContain("folding: false");
-    expect(changesPanelSource).toContain("showFoldingControls");
-    expect(changesPanelSource).toContain('"never"');
-    expect(changesPanelSource).toContain("lineNumbersMinChars: 6");
-    expect(changesPanelSource).toContain("lineDecorationsWidth: 0");
+  it("uses DiffViewer component instead of Monaco DiffEditor", () => {
+    expect(changesPanelSource).toContain("DiffViewer");
+    expect(changesPanelSource).toContain("from \"./DiffViewer\"");
+    expect(changesPanelSource).not.toContain("@monaco-editor/react");
   });
 
-  it("uses minimapSettings for minimap with unified scrollbar configuration", () => {
-    expect(changesPanelSource).toContain("minimap:");
-    expect(changesPanelSource).toContain("props.diffSideBySide");
-    expect(changesPanelSource).toContain('side: "right"');
-    // Minimap options are driven by user minimapSettings, not hardcoded
-    expect(changesPanelSource).toContain("minimapSettings.size");
-    expect(changesPanelSource).toContain("minimapSettings.showSlider");
-    expect(changesPanelSource).toContain("minimapSettings.renderCharacters");
-    expect(changesPanelSource).toContain("minimapSettings.scale");
-    expect(changesPanelSource).toContain("maxColumn: INLINE_MINIMAP_MAX_COLUMN");
-    // Scrollbar: vertical scrollbar is hidden in all modes (use minimap for navigation)
-    expect(changesPanelSource).toContain("scrollbar:");
-    expect(changesPanelSource).toContain('vertical: "hidden"');
-    expect(changesPanelSource).toContain("verticalScrollbarSize: 0");
-    // Should NOT have conditional scrollbar config for side-by-side mode
-    expect(changesPanelSource).not.toContain("verticalScrollbarSize: 12");
+  it("passes CodeMirror extensions for agent decorations, minimap, inline diff, and folding", () => {
+    expect(changesPanelSource).toContain("getAgentDecorationExtensions");
+    expect(changesPanelSource).toContain("getMinimapExtension");
+    expect(changesPanelSource).toContain("getInlineDiffBackgroundExtension");
+    expect(changesPanelSource).toContain("getFoldingTooltipExtension");
+    expect(changesPanelSource).toContain("diffExtensions");
   });
 
-  it("configures minimap on modified editor via onMount handler", () => {
-    expect(changesPanelSource).toContain("handleDiffEditorMount");
-    expect(changesPanelSource).toContain("getModifiedEditor");
-    expect(changesPanelSource).toContain("getOriginalEditor");
-    expect(changesPanelSource).toContain("inlineScrollbarOpts");
-    expect(changesPanelSource).toContain("diffEditorOptions");
-    expect(changesPanelSource).toContain("enabled: true");
-    expect(changesPanelSource).toContain('side: "right"');
-    // applyMinimapToDiffEditor and applyMinimapSettings use user settings
-    expect(changesPanelSource).toContain("s.size");
-    expect(changesPanelSource).toContain("s.showSlider");
-    expect(changesPanelSource).toContain("s.renderCharacters");
-    expect(changesPanelSource).toContain("s.scale");
-    expect(changesPanelSource).toContain("maxColumn: INLINE_MINIMAP_MAX_COLUMN");
-    expect(changesPanelSource).toContain("verticalScrollbarSize: 0");
+  it("applies agent decorations and minimap hunks from preview diff ranges", () => {
+    expect(changesPanelSource).toContain("applyAgentDecorations");
+    expect(changesPanelSource).toContain("updateMinimapDiffHunks");
+    expect(changesPanelSource).toContain("previewDiffRangesToAgentHunks");
   });
 
-  it("applies preview-owned line and minimap decorations before Monaco diff finishes asynchronously", () => {
-    expect(changesPanelSource).toContain("computePreviewDiffVisualRanges");
-    expect(changesPanelSource).toContain("deltaDecorations");
-    expect(changesPanelSource).toContain("adl-inline-diff-line");
-    expect(changesPanelSource).toContain("getMinimapPosition");
-    expect(changesPanelSource).toContain("syncInlineDiffBackgrounds");
-    expect(changesPanelSource).toContain("adl-inline-diff-backgrounds");
+  it("applies inline diff background chunks from preview diff ranges", () => {
+    expect(changesPanelSource).toContain("applyInlineDiffChunks");
+    expect(changesPanelSource).toContain("previewDiffRangesToChunks");
   });
 
-  it("attaches custom minimap visual overlays for the shared right-side minimap", () => {
-    expect(changesPanelSource).toContain("attachMinimapVisualOverlays");
-    expect(changesPanelSource).toContain("getScrollState: () => {");
-    expect(changesPanelSource).toContain("onSettingsChange:");
-    expect(changesPanelSource).toContain("getSettings:");
+  it("uses simple dark/light theme string instead of Monaco theme constants", () => {
+    expect(changesPanelSource).toContain("changePreviewTheme");
+    expect(changesPanelSource).toContain('"dark"');
+    expect(changesPanelSource).toContain('"light"');
+    expect(changesPanelSource).not.toContain("MONACO_THEME_DARK");
+    expect(changesPanelSource).not.toContain("MONACO_THEME_LIGHT");
   });
 
-  it("syncs the inline minimap rail width from Monaco layout info before falling back to DOM measurement", () => {
-    expect(changesPanelSource).toContain('root.style.setProperty("--adl-editor-minimap-width"');
-    expect(changesPanelSource).toContain("editor?.getLayoutInfo().minimap");
-    expect(changesPanelSource).toContain("model.getLineMaxColumn(lineNumber) - 1");
-    expect(changesPanelSource).toContain("computeInlineMinimapRailWidth");
-    expect(changesPanelSource).toContain('canvas.minimap-decorations-layer, canvas');
-    expect(changesPanelSource).toContain("isDiffEditor(currentDiffEditor) ? currentDiffEditor.getModifiedEditor() : null");
-    expect(changesPanelSource).toContain('root.style.setProperty("--adl-editor-scroll-left"');
+  it("uses EditorRef and DiffEditorRef types from shared types", () => {
+    expect(changesPanelSource).toContain("EditorRef");
+    expect(changesPanelSource).toContain("DiffEditorRef");
+    expect(changesPanelSource).toContain("from \"../../types\"");
   });
 
+  it("uses sticky context helpers from CodeMirror stickyContext module", () => {
+    expect(changesPanelSource).toContain("getVisibleStartLine");
+    expect(changesPanelSource).toContain("navigateToLine");
+    expect(changesPanelSource).toContain("subscribeToEditor");
+    expect(changesPanelSource).toContain("from \"./stickyContext\"");
+  });
+
+  it("passes readOnly, lineNumbers, wordWrap, and sideBySide as DiffViewer props", () => {
+    expect(changesPanelSource).toContain("readOnly={true}");
+    expect(changesPanelSource).toContain("lineNumbers={lineNumbersEnabled}");
+    expect(changesPanelSource).toContain("wordWrap={wordWrapEnabled}");
+    expect(changesPanelSource).toContain("sideBySide={props.diffSideBySide}");
+  });
 });

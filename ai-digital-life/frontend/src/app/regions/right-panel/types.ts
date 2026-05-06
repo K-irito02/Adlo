@@ -15,7 +15,7 @@ import type {
 } from "@ai-digital-life/kernel";
 import type { CopyDict } from "../../copy";
 import type { EditorTabState } from "../../editorTabs";
-import type { MonacoEditorRef } from "../../types";
+import type { EditorRef, DiffEditorRef } from "../../types";
 import type { PatchDirection, PatchReviewFilter } from "./patchReview";
 
 export interface RightPanelViewProps {
@@ -48,8 +48,7 @@ export interface RightPanelViewProps {
   searchQuery: string;
   searchResults: WorkspaceSearchHit[];
   dirtyEditorPaths: string[];
-  standardEditorRef: React.MutableRefObject<MonacoEditorRef | null>;
-  diffEditorRef: React.MutableRefObject<MonacoEditorRef | null>;
+  standardEditorRef: React.MutableRefObject<EditorRef | null>;
   onOpenFile: (relativePath: string) => void;
   onOpenChangePreview: (relativePath: string) => void;
   onOpenFileAtLine: (relativePath: string, line: number) => void;
@@ -57,8 +56,8 @@ export interface RightPanelViewProps {
   onCreateWorkspaceFile: (relativePath: string, content?: string) => Promise<string | undefined>;
   onCreateWorkspaceFolder: (relativePath: string) => Promise<string | undefined>;
   onEditorChange: (value: string | undefined) => void;
-  onEditorMount: (editor: MonacoEditorRef, monaco: unknown) => void;
-  onDiffMount: (editor: MonacoEditorRef) => void;
+  onEditorMount: (editor: EditorRef) => void;
+  onDiffMount: (editor: EditorRef | DiffEditorRef) => void;
   onSearch: (query: string) => void;
   onSearchChange: (query: string) => void;
   onRefreshWorkspaceTree: () => void;

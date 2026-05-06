@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { DiffEditor } from "@monaco-editor/react";
-import { ensureAdlMonacoThemes, MONACO_THEME_DARK, MONACO_THEME_LIGHT, type MonacoNamespace } from "../../monacoTheme";
+import { EditorView } from "@codemirror/view";
 import {
   IconChevronDown,
   IconChevronRight,
+  IconEye,
   IconFiles,
   IconFileText,
   IconFoldVertical,
@@ -26,45 +26,22 @@ import {
   type PreviewDiffVisualRange
 } from "./changePreviewDiffRanges";
 import { collectDirectoryPaths, FileTree, type FileTreeContextMenuItem } from "./fileTree";
-import {
-  computeInlineMinimapRailWidth,
-  DEFAULT_INLINE_MINIMAP_WIDTH,
-  getLongestLineColumn,
-  INLINE_MINIMAP_MAX_COLUMN
-} from "./inlineMinimapLayout";
 import { detectEditorLanguage } from "../../workspacePaths";
-import {
-  type MonacoDecoration,
-  type MonacoEditor,
-  getMonacoFromWindow,
-  createMonacoRange,
-  getEditorVisibleStartLine,
-  isDiffEditor,
-  getMinimapPosition,
-  navigateEditorToLine,
-  cssColorToHex
-} from "./monacoTypes";
-import {
-  attachMinimapVisualOverlays,
-  loadMinimapSettings,
-  saveMinimapSettings,
-  MINIMAP_DEFAULTS,
-  type MinimapSettings
-} from "./minimapVisualOverlay";
+import { categorizeFile } from "./fileTypeRouter";
+import { DiffViewer } from "./DiffViewer";
+import { CodeEditor } from "./CodeEditor";
+import { LazyMarkdownPreviewWrapper } from "./LazyPreviews";
+import type { EditorRef, DiffEditorRef } from "../../types";
+import { CodeMirrorEditorRef } from "./editorAdapters";
+import { getAgentDecorationExtensions, applyAgentDecorations, type AgentHunkDecoration } from "./agentDecorations";
+import { getMinimapExtension, updateMinimapDiffHunks } from "./cmMinimap";
+import { getInlineDiffBackgroundExtension, applyInlineDiffChunks, type DiffChunkInfo } from "./cmInlineDiffBackgrounds";
+import { getFoldingTooltipExtension } from "./cmFoldingTooltip";
+import { getVisibleStartLine, navigateToLine, subscribeToEditor } from "./stickyContext";
 import { buildStickyContextEntries, createStickyContextModel, type StickyContextModel } from "./stickyContext";
 
 const CHANGES_BRANCH_STORAGE_KEY = "adl-ui:changes-branch";
 const FALLBACK_BRANCHES = ["main", "develop", "release/0.1.0", "feature/right-panel"];
-const INLINE_MINIMAP_SELECTOR = ".monaco-diff-editor:not(.side-by-side) .editor.modified .minimap";
-const INLINE_MINIMAP_CANVAS_SELECTOR = "canvas.minimap-decorations-layer, canvas";
-const INLINE_DIFF_BACKGROUND_LAYER_CLASS = "adl-inline-diff-backgrounds";
-const INLINE_DIFF_BACKGROUND_BAND_CLASS = "adl-inline-diff-background-band";
-const INLINE_DIFF_INSERT_MINIMAP_CLASS = "adl-inline-diff-line--insert-minimap";
-const INLINE_DIFF_DELETE_MINIMAP_CLASS = "adl-inline-diff-line--delete-minimap";
-const INLINE_MODIFIED_OVERFLOW_GUARD_SELECTOR =
-  ".monaco-diff-editor:not(.side-by-side) .editor.modified .overflow-guard";
-const INLINE_MODIFIED_SCROLLABLE_SELECTOR =
-  ".monaco-diff-editor:not(.side-by-side) .editor.modified .monaco-scrollable-element";
 
 function readSelectedBranch(initialBranch: string): string {
   try {
@@ -77,9 +54,7 @@ function readSelectedBranch(initialBranch: string): string {
 function writeSelectedBranch(branch: string) {
   try {
     window.localStorage.setItem(CHANGES_BRANCH_STORAGE_KEY, branch);
-  } catch {
-    // ignore local preview persistence failures
-  }
+  } catch {}
 }
 
 function getChangeKindLabel(changeKind: "added" | "modified" | "deleted", t: RightPanelViewProps["t"]) {
@@ -118,64 +93,6 @@ function getPrimaryBadge(node: ChangeTreeNode): { label: string; tone: string } 
   return undefined;
 }
 
-function getInlinePreviewLongestLineColumn(editor: MonacoEditor | null | undefined, content: string): number {
-  const model = editor?.getModel?.();
-  const lineCount = model?.getLineCount() ?? 0;
-  if (!model?.getLineMaxColumn || lineCount <= 0) {
-    return getLongestLineColumn(content);
-  }
-
-  let longestLineColumn = 0;
-  for (let lineNumber = 1; lineNumber <= lineCount; lineNumber += 1) {
-    longestLineColumn = Math.max(longestLineColumn, model.getLineMaxColumn(lineNumber) - 1);
-    if (longestLineColumn >= INLINE_MINIMAP_MAX_COLUMN) {
-      return INLINE_MINIMAP_MAX_COLUMN;
-    }
-  }
-
-  return longestLineColumn;
-}
-
-function readInlineMinimapWidth(root: ParentNode, editor: MonacoEditor | null | undefined, content: string): number | null {
-  const minimapLayout = editor?.getLayoutInfo().minimap;
-  if (minimapLayout?.minimapWidth && minimapLayout.minimapCharWidth) {
-    return computeInlineMinimapRailWidth({
-      configuredWidth: minimapLayout.minimapWidth,
-      minimapCharWidth: minimapLayout.minimapCharWidth,
-      longestLineColumn: getInlinePreviewLongestLineColumn(editor, content),
-      maxColumn: INLINE_MINIMAP_MAX_COLUMN
-    });
-  }
-
-  const minimap = root.querySelector<HTMLElement>(INLINE_MINIMAP_SELECTOR);
-  if (!minimap) return null;
-
-  const canvasWidths = Array.from(minimap.querySelectorAll<HTMLCanvasElement>(INLINE_MINIMAP_CANVAS_SELECTOR))
-    .map((canvas) => canvas.getBoundingClientRect().width)
-    .filter((width) => width > 0);
-  const fallbackWidth = minimap.getBoundingClientRect().width;
-  const candidateWidth = canvasWidths.length > 0 ? Math.max(...canvasWidths) : fallbackWidth;
-  if (candidateWidth <= 0) return null;
-  return Math.ceil(candidateWidth);
-}
-
-function syncInlineMinimapWidth(root: HTMLElement | null, editor: MonacoEditor | null | undefined, content: string) {
-  if (!root) return;
-  const nextWidth = readInlineMinimapWidth(root, editor, content) ?? DEFAULT_INLINE_MINIMAP_WIDTH;
-  root.style.setProperty("--adl-editor-minimap-width", `${nextWidth}px`);
-}
-
-function syncInlineHorizontalScroll(root: HTMLElement | null, editor: MonacoEditor | null | undefined) {
-  if (!root) return;
-  const scrollLeft = Math.max(0, Math.ceil(editor?.getScrollLeft?.() ?? 0));
-  root.style.setProperty("--adl-editor-scroll-left", `${scrollLeft}px`);
-}
-
-function syncInlinePreviewLayout(root: HTMLElement | null, editor: MonacoEditor | null | undefined, content: string) {
-  syncInlineMinimapWidth(root, editor, content);
-  syncInlineHorizontalScroll(root, editor);
-}
-
 function getRenderablePreviewDiffRanges(ranges: PreviewDiffVisualRange[]): PreviewDiffVisualRange[] {
   const insertLines = new Set<number>();
   ranges
@@ -197,96 +114,44 @@ function getRenderablePreviewDiffRanges(ranges: PreviewDiffVisualRange[]): Previ
   });
 }
 
-function getPreviewDecorationClassName(range: PreviewDiffVisualRange, sideBySide: boolean): string {
-  const minimapClassName = range.type === "delete" ? INLINE_DIFF_DELETE_MINIMAP_CLASS : INLINE_DIFF_INSERT_MINIMAP_CLASS;
-  if (!sideBySide) {
-    return `adl-inline-diff-line ${minimapClassName}`;
+function getEditorView(editorRef: EditorRef | null): EditorView | null {
+  if (!editorRef) return null;
+  if (editorRef instanceof CodeMirrorEditorRef) {
+    return editorRef.getView();
   }
-  return `adl-inline-diff-line adl-inline-diff-line--${range.type} adl-inline-diff-line--${range.tone} ${minimapClassName}`;
+  return null;
 }
 
-function removeInlineDiffBackgrounds(root: ParentNode | null) {
-  root
-    ?.querySelectorAll<HTMLElement>(`.${INLINE_DIFF_BACKGROUND_LAYER_CLASS}`)
-    .forEach((element) => element.remove());
+function previewDiffRangesToAgentHunks(ranges: PreviewDiffVisualRange[]): AgentHunkDecoration[] {
+  return getRenderablePreviewDiffRanges(ranges).map((range, index) => ({
+    startLine: range.startLine,
+    endLine: range.endLine,
+    changeKind: range.type === "insert" ? ("added" as const) : ("deleted" as const),
+    decision: "pending" as const,
+    hunkId: `diff-range-${index}`,
+  }));
 }
 
-function getEditorLineHeight(editor: MonacoEditor, lineNumber: number, lineCount: number): number {
-  const currentTop = editor.getTopForLineNumber?.(lineNumber);
-  const nextTop = lineNumber < lineCount ? editor.getTopForLineNumber?.(lineNumber + 1) : undefined;
-  if (typeof currentTop === "number" && typeof nextTop === "number" && nextTop > currentTop) {
-    return nextTop - currentTop;
+function previewDiffRangesToChunks(ranges: PreviewDiffVisualRange[], view: EditorView): DiffChunkInfo[] {
+  const doc = view.state.doc;
+  if (doc.lines === 0) return [];
+  const renderable = getRenderablePreviewDiffRanges(ranges);
+  const chunks: DiffChunkInfo[] = [];
+  for (const range of renderable) {
+    if (range.startLine > doc.lines) continue;
+    const startLine = Math.max(1, range.startLine);
+    const endLine = Math.min(range.endLine, doc.lines);
+    const fromB = doc.line(startLine).from;
+    const toB = endLine < doc.lines ? doc.line(endLine + 1).from : doc.length;
+    const isInsert = range.type === "insert";
+    chunks.push({
+      fromA: isInsert ? fromB : fromB,
+      toA: isInsert ? fromB : toB,
+      fromB,
+      toB,
+    });
   }
-
-  const domLineHeight = editor.getDomNode?.()?.querySelector<HTMLElement>(".view-line")?.getBoundingClientRect().height ?? 0;
-  return domLineHeight > 0 ? domLineHeight : 19;
-}
-
-function syncInlineDiffBackgrounds(
-  root: HTMLElement | null,
-  editor: MonacoEditor | null | undefined,
-  ranges: PreviewDiffVisualRange[]
-) {
-  if (!root || !editor || ranges.length === 0) {
-    removeInlineDiffBackgrounds(root);
-    return;
-  }
-
-  const guard = root.querySelector<HTMLElement>(INLINE_MODIFIED_OVERFLOW_GUARD_SELECTOR);
-  const scrollable = root.querySelector<HTMLElement>(INLINE_MODIFIED_SCROLLABLE_SELECTOR);
-  const minimap = root.querySelector<HTMLElement>(INLINE_MINIMAP_SELECTOR);
-  const model = editor.getModel?.();
-  const lineCount = model?.getLineCount() ?? 0;
-  if (!guard || !scrollable || lineCount <= 0 || !editor.getTopForLineNumber) {
-    removeInlineDiffBackgrounds(root);
-    return;
-  }
-
-  let layer = guard.querySelector<HTMLElement>(`:scope > .${INLINE_DIFF_BACKGROUND_LAYER_CLASS}`);
-  if (!layer) {
-    layer = document.createElement("div");
-    layer.className = INLINE_DIFF_BACKGROUND_LAYER_CLASS;
-    layer.setAttribute("aria-hidden", "true");
-    guard.insertBefore(layer, guard.firstChild);
-  }
-
-  const guardRect = guard.getBoundingClientRect();
-  const scrollableRect = scrollable.getBoundingClientRect();
-  const minimapRect = minimap?.getBoundingClientRect();
-  const layerLeft = Math.max(0, Math.floor(scrollableRect.left - guardRect.left));
-  const layerTop = Math.max(0, Math.floor(scrollableRect.top - guardRect.top));
-  const minimapLeft = minimapRect && minimapRect.width > 0 ? minimapRect.left : guardRect.right;
-  const layerRight = Math.max(0, Math.floor(guardRect.right - minimapLeft) - 1);
-
-  layer.style.left = `${layerLeft}px`;
-  layer.style.top = `${layerTop}px`;
-  layer.style.right = `${layerRight}px`;
-
-  const scrollTop = editor.getScrollTop();
-  const visibleRanges = editor.getVisibleRanges?.() ?? [];
-  const visibleStartLine = Math.max(1, visibleRanges[0]?.startLineNumber ?? 1);
-  const visibleEndLine = Math.min(lineCount, visibleRanges[visibleRanges.length - 1]?.endLineNumber ?? lineCount);
-  const fragment = document.createDocumentFragment();
-
-  getRenderablePreviewDiffRanges(ranges).forEach((range) => {
-    const startLine = Math.max(range.startLine, visibleStartLine);
-    const endLine = Math.min(range.endLine, visibleEndLine, lineCount);
-    if (endLine < startLine) return;
-
-    const top = Math.floor(editor.getTopForLineNumber?.(startLine) ?? 0) - scrollTop;
-    const nextTop = endLine < lineCount ? editor.getTopForLineNumber?.(endLine + 1) : undefined;
-    const fallbackHeight = getEditorLineHeight(editor, startLine, lineCount) * (endLine - startLine + 1);
-    const bottom = typeof nextTop === "number" ? nextTop - scrollTop : top + fallbackHeight;
-    const height = Math.max(1, Math.ceil(bottom - top));
-
-    const band = document.createElement("div");
-    band.className = `${INLINE_DIFF_BACKGROUND_BAND_CLASS} ${INLINE_DIFF_BACKGROUND_BAND_CLASS}--${range.type} ${INLINE_DIFF_BACKGROUND_BAND_CLASS}--${range.tone}`;
-    band.style.top = `${top}px`;
-    band.style.height = `${height}px`;
-    fragment.appendChild(band);
-  });
-
-  layer.replaceChildren(fragment);
+  return chunks;
 }
 
 export function ChangesPanel(props: RightPanelViewProps) {
@@ -312,7 +177,8 @@ export function ChangesPanel(props: RightPanelViewProps) {
     onSelectPatchHunk,
     onTogglePatchHunkCollapse,
     onSetAllPatchHunksCollapsed,
-    onSetPatchReviewFilter
+    onSetPatchReviewFilter,
+    onOpenFile
   } = props;
   const navigatorCollapsed = useUiStore((state) => state.navigatorCollapsedByTool.changes);
   const toggleNavigator = useUiStore((state) => state.toggleNavigator);
@@ -336,7 +202,10 @@ export function ChangesPanel(props: RightPanelViewProps) {
   const changesMenuRef = useRef<HTMLDivElement | null>(null);
   const activeCardRef = useRef<Record<string, HTMLElement | null>>({});
   const changesPreviewEditorShellRef = useRef<HTMLDivElement | null>(null);
-  const changesPreviewEditorSurfaceRef = useRef<HTMLDivElement | null>(null);
+  const editorRef = useRef<DiffEditorRef | EditorRef | null>(null);
+  const [editorReady, setEditorReady] = useState(0);
+  const [stickyContextModel, setStickyContextModel] = useState<StickyContextModel | null>(null);
+  const [previewEnabled, setPreviewEnabled] = useState(false);
   const validation = latestPatchApplication?.validation;
   const reviewCounts = useMemo(() => countReviewedHunks(activePatchSet), [activePatchSet]);
   const patchSummaries = useMemo(
@@ -367,7 +236,13 @@ export function ChangesPanel(props: RightPanelViewProps) {
       : [],
     [changePreview]
   );
-  const changePreviewTheme = appInfo?.config.resolvedTheme === "dark" ? MONACO_THEME_DARK : MONACO_THEME_LIGHT;
+  const changePreviewTheme = appInfo?.config.resolvedTheme === "dark" ? "dark" as const : "light" as const;
+  const diffExtensions = useMemo(() => [
+    ...getAgentDecorationExtensions(),
+    ...getMinimapExtension(),
+    getInlineDiffBackgroundExtension(),
+    getFoldingTooltipExtension(),
+  ], []);
   const branchOptions = useMemo(() => {
     const options = new Set<string>([fallbackBranch, ...FALLBACK_BRANCHES]);
     return [...options];
@@ -424,255 +299,42 @@ export function ChangesPanel(props: RightPanelViewProps) {
   }, [expandChangesTreePathChain, navigatorSelectedPath]);
 
   useEffect(() => {
+    setPreviewEnabled(false);
+  }, [selectedChangePreviewPath, selectedPatchFilePath]);
+
+  useEffect(() => {
     if (!activeSummary?.relativePath) {
       return;
     }
     activeCardRef.current[activeSummary.relativePath]?.scrollIntoView({ block: "nearest" });
   }, [activeSummary?.relativePath]);
 
-  const handleMonacoBeforeMount = useCallback((monaco: unknown) => {
-    const namespace = monaco as MonacoNamespace;
-    (window as typeof window & { monaco?: unknown }).monaco = monaco;
-    ensureAdlMonacoThemes(namespace);
+  const handleDiffMount = useCallback((editor: DiffEditorRef | EditorRef) => {
+    editorRef.current = editor;
+    setEditorReady((v) => v + 1);
   }, []);
 
-  const diffEditorRef = useRef<unknown>(null);
-  const minimapTimerRef = useRef<number | null>(null);
-  const previewDecorationIdsRef = useRef<string[]>([]);
-  const [diffEditorReady, setDiffEditorReady] = useState(0);
-  const [minimapSettings, setMinimapSettings] = useState<MinimapSettings>(loadMinimapSettings);
-  const [stickyContextModel, setStickyContextModel] = useState<StickyContextModel | null>(null);
-  const minimapSettingsRef = useRef(minimapSettings);
-  minimapSettingsRef.current = minimapSettings;
-  const diffRangesRef = useRef<import("./changePreviewDiffRanges").PreviewDiffVisualRange[]>([]);
-
-  const applyMinimapToDiffEditor = useCallback((de: unknown, _reason: string) => {
-    if (!isDiffEditor(de)) return false;
-    try {
-      const inlineScrollbarOpts = {
-        vertical: "hidden" as const,
-        horizontal: "auto" as const,
-        verticalScrollbarSize: 0,
-        horizontalScrollbarSize: 10
-      };
-      const s = minimapSettingsRef.current;
-      const minimapOpts = {
-        enabled: true,
-        side: "right" as const,
-        size: s.size,
-        showSlider: s.showSlider,
-        renderCharacters: s.renderCharacters,
-        maxColumn: INLINE_MINIMAP_MAX_COLUMN,
-        scale: s.scale
-      };
-      de.updateOptions({
-        minimap: minimapOpts,
-        scrollbar: inlineScrollbarOpts
-      });
-      const modifiedEditor = de.getModifiedEditor();
-      if (modifiedEditor) {
-        modifiedEditor.updateOptions({
-          minimap: minimapOpts,
-          scrollbar: inlineScrollbarOpts
-        });
-      }
-      const originalEditor = de.getOriginalEditor();
-      if (originalEditor) {
-        originalEditor.updateOptions({
-          minimap: { enabled: false },
-          scrollbar: inlineScrollbarOpts
-        });
-      }
-      return true;
-    } catch (_e) {
-      return false;
+  const getModifiedEditor = useCallback((): EditorRef | null => {
+    const ref = editorRef.current;
+    if (!ref) return null;
+    if ("getModifiedEditor" in ref) {
+      return (ref as DiffEditorRef).getModifiedEditor();
     }
+    return ref as EditorRef;
   }, []);
 
-  const handleDiffEditorMount = useCallback((diffEditor: unknown) => {
-    if (!isDiffEditor(diffEditor)) return;
-    diffEditorRef.current = diffEditor;
-    setDiffEditorReady((v) => v + 1);
-    applyMinimapToDiffEditor(diffEditor, "onMount");
-
-    const triggerRelayout = () => {
-      const shell = changesPreviewEditorShellRef.current;
-      if (!shell) return;
-      const surface = shell.querySelector(".adl-tool-editor__surface") as HTMLElement;
-      if (!surface) return;
-      const rect = surface.getBoundingClientRect();
-      if (rect.width <= 0 || rect.height <= 0) return;
-      try {
-        diffEditor.layout({ width: Math.floor(rect.width), height: Math.floor(rect.height) });
-      } catch (_e) { /* ignore */ }
-      applyMinimapToDiffEditor(diffEditorRef.current, "relayout");
-      requestAnimationFrame(() =>
-        {
-          const currentDiffEditor = diffEditorRef.current;
-          const modifiedEditor = isDiffEditor(currentDiffEditor) ? currentDiffEditor.getModifiedEditor() : null;
-          syncInlinePreviewLayout(
-            changesPreviewEditorShellRef.current,
-            modifiedEditor,
-            changePreview?.currentContent ?? ""
-          );
-        }
-      );
-    };
-
-    requestAnimationFrame(triggerRelayout);
-
-    const disposable = diffEditor.onDidUpdateDiff(() => {
-      if (minimapTimerRef.current !== null) cancelAnimationFrame(minimapTimerRef.current);
-      minimapTimerRef.current = requestAnimationFrame(triggerRelayout);
-    });
-
-    return () => {
-      disposable.dispose();
-      if (minimapTimerRef.current !== null) cancelAnimationFrame(minimapTimerRef.current);
-    };
-  }, [applyMinimapToDiffEditor, changePreview?.currentContent]);
-
-  const diffEditorOptions = useMemo(() => ({
-    automaticLayout: true,
-    readOnly: true,
-    renderSideBySide: props.diffSideBySide,
-    renderSideBySideInlineBreakpoint: 1,
-    useInlineViewWhenSpaceIsLimited: false,
-    renderIndicators: false,
-    renderMarginRevertIcon: false,
-    wordWrap: wordWrapEnabled ? "on" as const : "off" as const,
-    diffWordWrap: wordWrapEnabled ? "on" as const : "off" as const,
-    lineNumbers: lineNumbersEnabled ? "on" as const : "off" as const,
-    lineNumbersMinChars: 6,
-    lineDecorationsWidth: 0,
-    folding: false,
-    showFoldingControls: "never" as const,
-    glyphMargin: false,
-    minimap: {
-      enabled: true,
-      side: "right" as const,
-      size: minimapSettings.size,
-      showSlider: minimapSettings.showSlider,
-      renderCharacters: minimapSettings.renderCharacters,
-      maxColumn: INLINE_MINIMAP_MAX_COLUMN,
-      scale: minimapSettings.scale
-    },
-    scrollbar: {
-      vertical: "hidden" as const,
-      horizontal: "auto" as const,
-      verticalScrollbarSize: 0,
-      horizontalScrollbarSize: 10
-    },
-    scrollBeyondLastLine: false,
-    scrollBeyondLastColumn: 0,
-    renderOverviewRuler: false,
-    stickyScroll: { enabled: false },
-    renderLineHighlight: "line" as const,
-    renderWhitespace: "selection" as const,
-    unicodeHighlight: {
-      ambiguousCharacters: false,
-      invisibleCharacters: false,
-      nonBasicASCII: false
-    },
-    bracketPairColorization: { enabled: true }
-  }), [props.diffSideBySide, wordWrapEnabled, lineNumbersEnabled]);
-
   useEffect(() => {
-    const diffEditor = diffEditorRef.current;
-    const modifiedEditor = isDiffEditor(diffEditor) ? diffEditor.getModifiedEditor() : null;
-    const monaco = getMonacoFromWindow();
+    const modifiedEditor = getModifiedEditor();
+    const view = getEditorView(modifiedEditor);
+    if (!view || !changePreview) return;
 
-    diffRangesRef.current = changePreviewDiffRanges;
+    const hunks = previewDiffRangesToAgentHunks(changePreviewDiffRanges);
+    applyAgentDecorations(view, hunks);
+    updateMinimapDiffHunks(view, hunks);
 
-    if (!modifiedEditor || !monaco || !changePreview) {
-      if (modifiedEditor && previewDecorationIdsRef.current.length > 0) {
-        previewDecorationIdsRef.current = modifiedEditor.deltaDecorations(previewDecorationIdsRef.current, []);
-      }
-      return;
-    }
-
-    const minimapPosition = getMinimapPosition(monaco);
-    const root = document.documentElement;
-    const computedStyle = getComputedStyle(root);
-
-    const insertColor = cssColorToHex(
-      computedStyle.getPropertyValue("--minimap-diff-insert-bg").trim() || "rgba(22, 163, 74, 0.5)"
-    );
-    const deleteColor = cssColorToHex(
-      computedStyle.getPropertyValue("--minimap-diff-remove-bg").trim() || "rgba(239, 68, 68, 0.5)"
-    );
-
-    const decorations: MonacoDecoration[] = getRenderablePreviewDiffRanges(changePreviewDiffRanges)
-      .map((range: PreviewDiffVisualRange) => {
-        const isDelete = range.type === "delete";
-        const color = isDelete ? deleteColor : insertColor;
-        return {
-          range: createMonacoRange(monaco, range.startLine, 1, range.endLine, 1),
-          options: {
-            isWholeLine: true,
-            className: getPreviewDecorationClassName(range, props.diffSideBySide),
-            zIndex: 100 + (isDelete ? 1 : 0),
-            minimap: {
-              position: minimapPosition,
-              color: color,
-            }
-          }
-        };
-      });
-
-    const rafId = requestAnimationFrame(() => {
-      const currentDiffEditor = diffEditorRef.current;
-      const currentModifiedEditor = isDiffEditor(currentDiffEditor) ? currentDiffEditor.getModifiedEditor() : null;
-      if (!currentModifiedEditor) return;
-      previewDecorationIdsRef.current = currentModifiedEditor.deltaDecorations(previewDecorationIdsRef.current, decorations);
-    });
-
-    return () => {
-      cancelAnimationFrame(rafId);
-      const activeDiffEditor = diffEditorRef.current;
-      const activeModifiedEditor = isDiffEditor(activeDiffEditor) ? activeDiffEditor.getModifiedEditor() : null;
-      if (activeModifiedEditor && previewDecorationIdsRef.current.length > 0) {
-        previewDecorationIdsRef.current = activeModifiedEditor.deltaDecorations(previewDecorationIdsRef.current, []);
-      }
-    };
-  }, [changePreview, changePreviewDiffRanges, diffEditorReady, props.diffSideBySide]);
-
-  useEffect(() => {
-    if (!diffEditorRef.current) return;
-    applyMinimapToDiffEditor(diffEditorRef.current, "inlinePreviewReady");
-  }, [changePreview?.path, props.diffSideBySide, applyMinimapToDiffEditor]);
-
-  useEffect(() => {
-    if (!diffEditorRef.current) return;
-    const refreshMinimapAfterOptionChange = () => {
-      const currentDiffEditor = diffEditorRef.current;
-      const modifiedEditor = isDiffEditor(currentDiffEditor) ? currentDiffEditor.getModifiedEditor() : null;
-      applyMinimapToDiffEditor(currentDiffEditor, "displayOptionChange");
-      syncInlinePreviewLayout(
-        changesPreviewEditorShellRef.current,
-        modifiedEditor,
-        changePreview?.currentContent ?? ""
-      );
-    };
-
-    const rafId = requestAnimationFrame(refreshMinimapAfterOptionChange);
-    return () => cancelAnimationFrame(rafId);
-  }, [changePreview?.currentContent, changePreview?.path, lineNumbersEnabled, props.diffSideBySide, wordWrapEnabled, applyMinimapToDiffEditor]);
-
-  useEffect(() => {
-    const currentDiffEditor = diffEditorRef.current;
-    const modifiedEditor = isDiffEditor(currentDiffEditor) ? currentDiffEditor.getModifiedEditor() : null;
-    syncInlinePreviewLayout(
-      changesPreviewEditorShellRef.current,
-      modifiedEditor,
-      changePreview?.currentContent ?? ""
-    );
-  }, [changePreview?.currentContent, changePreview?.path, diffEditorReady, props.diffSideBySide, minimapSettings]);
-
-  const getModifiedEditor = useCallback(() => {
-    const de = diffEditorRef.current;
-    return isDiffEditor(de) ? de.getModifiedEditor() : null;
-  }, []);
+    const chunks = previewDiffRangesToChunks(changePreviewDiffRanges, view);
+    applyInlineDiffChunks(view, chunks);
+  }, [changePreview, changePreviewDiffRanges, editorReady, getModifiedEditor, props.diffSideBySide]);
 
   const refreshStickyContext = useCallback(() => {
     if (!changePreview) {
@@ -681,7 +343,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
     }
 
     const editor = getModifiedEditor();
-    const visibleStartLine = getEditorVisibleStartLine(editor) ?? editor?.getSelection?.()?.startLineNumber ?? 1;
+    const visibleStartLine = getVisibleStartLine(editor);
     const contextEntries = buildStickyContextEntries({
       content: changePreview.currentContent,
       outline: [],
@@ -694,177 +356,10 @@ export function ChangesPanel(props: RightPanelViewProps) {
       contextEntries,
       activeLine: visibleStartLine,
       canScrollToTop: visibleStartLine > 1,
-      onNavigateLine: (line) => navigateEditorToLine(getModifiedEditor(), line),
+      onNavigateLine: (line) => navigateToLine(getModifiedEditor(), line),
       topLabel: t.stickyContextTop
     }));
   }, [changePreview, changePreviewDiffRanges, getModifiedEditor, t.stickyContextTop]);
-
-  const reapplyDiffDecorations = useCallback(() => {
-    const diffEditor = diffEditorRef.current;
-    const modifiedEditor = isDiffEditor(diffEditor) ? diffEditor.getModifiedEditor() : null;
-    const monaco = getMonacoFromWindow();
-    const ranges = diffRangesRef.current;
-
-    if (!modifiedEditor || !monaco || !changePreview) {
-      return;
-    }
-
-    const minimapPosition = getMinimapPosition(monaco);
-    const root = document.documentElement;
-    const computedStyle = getComputedStyle(root);
-
-    const insertColor = cssColorToHex(
-      computedStyle.getPropertyValue("--minimap-diff-insert-bg").trim() || "rgba(22, 163, 74, 0.5)"
-    );
-    const deleteColor = cssColorToHex(
-      computedStyle.getPropertyValue("--minimap-diff-remove-bg").trim() || "rgba(239, 68, 68, 0.5)"
-    );
-
-    const decorations: MonacoDecoration[] = getRenderablePreviewDiffRanges(ranges)
-      .map((range: PreviewDiffVisualRange) => {
-        const isDelete = range.type === "delete";
-        const color = isDelete ? deleteColor : insertColor;
-        return {
-          range: createMonacoRange(monaco, range.startLine, 1, range.endLine, 1),
-          options: {
-            isWholeLine: true,
-            className: getPreviewDecorationClassName(range, props.diffSideBySide),
-            zIndex: 100 + (isDelete ? 1 : 0),
-            minimap: {
-              position: minimapPosition,
-              color: color,
-            }
-          }
-        };
-      });
-
-    previewDecorationIdsRef.current = modifiedEditor.deltaDecorations(previewDecorationIdsRef.current, decorations);
-  }, [changePreview, props.diffSideBySide]);
-
-  const applyMinimapSettings = useCallback((settings: MinimapSettings) => {
-    const de = diffEditorRef.current;
-    if (!isDiffEditor(de)) return;
-    const minimapOpts = {
-      enabled: true,
-      side: "right" as const,
-      size: settings.size,
-      showSlider: settings.showSlider,
-      renderCharacters: settings.renderCharacters,
-      maxColumn: INLINE_MINIMAP_MAX_COLUMN,
-      scale: settings.scale
-    };
-    try {
-      de.updateOptions({ minimap: minimapOpts });
-      const modifiedEditor = de.getModifiedEditor();
-      if (modifiedEditor) modifiedEditor.updateOptions({ minimap: minimapOpts });
-      
-      // Reapply diff decorations after minimap rebuilds
-      reapplyDiffDecorations();
-    } catch {
-      /* editor disposed */
-    }
-  }, [reapplyDiffDecorations]);
-
-  const handleMinimapSettingsChange = useCallback((settings: MinimapSettings) => {
-    const prev = minimapSettingsRef.current;
-    setMinimapSettings(settings);
-    saveMinimapSettings(settings);
-    // sliderIntensity is a custom CSS variable, NOT a Monaco option.
-    // Calling updateOptions when only sliderIntensity changed causes Monaco
-    // to re-render the minimap, which destroys and rebuilds the minimap canvas,
-    // making all content (code text + diff colors) vanish.
-    const monacoOptionsChanged =
-      prev.size !== settings.size ||
-      prev.showSlider !== settings.showSlider ||
-      prev.renderCharacters !== settings.renderCharacters ||
-      prev.scale !== settings.scale;
-    if (monacoOptionsChanged) {
-      applyMinimapSettings(settings);
-    }
-  }, [applyMinimapSettings]);
-
-  useEffect(() => {
-    const shell = changesPreviewEditorSurfaceRef.current;
-    if (!shell) return;
-
-    const controller = attachMinimapVisualOverlays(shell, {
-      getScrollState: () => {
-        const editor = getModifiedEditor();
-        if (!editor) return null;
-        return {
-          scrollTop: editor.getScrollTop(),
-          scrollHeight: editor.getScrollHeight(),
-          clientHeight: editor.getLayoutInfo().height,
-        };
-      },
-      setScrollTop: (value) => {
-        getModifiedEditor()?.setScrollPosition({ scrollTop: value });
-      },
-      onSettingsChange: handleMinimapSettingsChange,
-      getSettings: () => minimapSettingsRef.current,
-      getLineCount: () => getModifiedEditor()?.getModel?.()?.getLineCount() ?? null,
-    });
-
-    const editor = getModifiedEditor();
-    syncInlineHorizontalScroll(changesPreviewEditorShellRef.current, editor);
-    const scrollDisposable = editor?.onDidScrollChange?.(() => {
-      syncInlineHorizontalScroll(changesPreviewEditorShellRef.current, editor);
-      controller.refresh();
-    });
-
-    return () => {
-      scrollDisposable?.dispose();
-      controller.dispose();
-    };
-  }, [changePreview?.path, diffEditorReady, getModifiedEditor, handleMinimapSettingsChange]);
-
-  useEffect(() => {
-    const shell = changesPreviewEditorSurfaceRef.current;
-    const editor = getModifiedEditor();
-    if (!shell || !changePreview || props.diffSideBySide || !editor) {
-      removeInlineDiffBackgrounds(shell);
-      return;
-    }
-
-    let rafId = 0;
-    const scheduleRefresh = () => {
-      window.cancelAnimationFrame(rafId);
-      rafId = window.requestAnimationFrame(() => {
-        syncInlineDiffBackgrounds(shell, editor, diffRangesRef.current);
-      });
-    };
-
-    scheduleRefresh();
-    const disposables = [
-      editor.onDidScrollChange?.(scheduleRefresh),
-      editor.onDidChangeHiddenAreas?.(scheduleRefresh),
-      editor.onDidLayoutChange?.(scheduleRefresh)
-    ].filter(Boolean) as Array<{ dispose(): void }>;
-
-    const observer =
-      typeof ResizeObserver !== "undefined"
-        ? new ResizeObserver(scheduleRefresh)
-        : null;
-    observer?.observe(shell);
-    window.addEventListener("resize", scheduleRefresh);
-
-    return () => {
-      window.cancelAnimationFrame(rafId);
-      disposables.forEach((disposable) => disposable.dispose());
-      observer?.disconnect();
-      window.removeEventListener("resize", scheduleRefresh);
-      removeInlineDiffBackgrounds(shell);
-    };
-  }, [
-    changePreview,
-    changePreviewDiffRanges,
-    diffEditorReady,
-    getModifiedEditor,
-    lineNumbersEnabled,
-    minimapSettings,
-    props.diffSideBySide,
-    wordWrapEnabled
-  ]);
 
   useEffect(() => {
     if (!changePreview) {
@@ -878,13 +373,8 @@ export function ChangesPanel(props: RightPanelViewProps) {
       return;
     }
 
-    const disposables = [
-      editor.onDidScrollChange?.(refreshStickyContext),
-      editor.onDidChangeHiddenAreas?.(refreshStickyContext),
-      editor.onDidLayoutChange?.(refreshStickyContext)
-    ].filter(Boolean) as Array<{ dispose(): void }>;
-
-    const shell = changesPreviewEditorSurfaceRef.current;
+    const disposable = subscribeToEditor(editor, refreshStickyContext);
+    const shell = changesPreviewEditorShellRef.current;
     const observer =
       shell && typeof ResizeObserver !== "undefined"
         ? new ResizeObserver(() => refreshStickyContext())
@@ -895,33 +385,64 @@ export function ChangesPanel(props: RightPanelViewProps) {
 
     window.addEventListener("resize", refreshStickyContext);
     return () => {
-      disposables.forEach((disposable) => disposable.dispose());
+      disposable.dispose();
       observer?.disconnect();
       window.removeEventListener("resize", refreshStickyContext);
     };
-  }, [changePreview, diffEditorReady, getModifiedEditor, props.diffSideBySide, refreshStickyContext, wordWrapEnabled]);
+  }, [changePreview, editorReady, getModifiedEditor, props.diffSideBySide, refreshStickyContext, wordWrapEnabled]);
 
   const handleNavigatorResizeStart = (event: React.PointerEvent<HTMLDivElement>) => {
     event.preventDefault();
-    event.stopPropagation();
+    const target = event.currentTarget;
+    target.setPointerCapture(event.pointerId);
+    const navigator = target.closest<HTMLElement>(".adl-tool-navigator");
+    const navigatorRect = navigator?.getBoundingClientRect();
     const startX = event.clientX;
     const startWidth = changesNavigatorWidth;
     const body = document.body;
     body.classList.add("adl-is-resizing");
+    const preview = document.createElement("div");
+    preview.className = "adl-tool-navigator__resize-preview";
+    preview.style.left = `${Math.round(navigatorRect?.right ?? startX)}px`;
+    document.body.appendChild(preview);
+
+    let latestX = startX;
+    let rafId = 0;
+
+    const applyDelta = () => {
+      rafId = 0;
+      const delta = latestX - startX;
+      const nextWidth = Math.max(180, Math.min(300, startWidth + delta));
+      preview.style.transform = `translate3d(${nextWidth - startWidth}px, 0, 0)`;
+    };
 
     const handleMove = (moveEvent: PointerEvent) => {
-      const delta = moveEvent.clientX - startX;
-      setChangesNavigatorWidth(startWidth + delta);
+      latestX = moveEvent.clientX;
+      if (!rafId) rafId = requestAnimationFrame(applyDelta);
     };
 
-    const handleUp = () => {
+    const handleUp = (upEvent: PointerEvent) => {
+      if (target.hasPointerCapture(upEvent.pointerId)) {
+        target.releasePointerCapture(upEvent.pointerId);
+      }
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+        rafId = 0;
+      }
       body.classList.remove("adl-is-resizing");
-      window.removeEventListener("pointermove", handleMove);
-      window.removeEventListener("pointerup", handleUp);
+      preview.remove();
+      const finalWidth = Math.max(180, Math.min(300, startWidth + upEvent.clientX - startX));
+      setChangesNavigatorWidth(finalWidth);
+      target.removeEventListener("pointermove", handleMove);
+      target.removeEventListener("pointerup", handleUp);
+      target.removeEventListener("pointercancel", handleUp);
+      target.removeEventListener("lostpointercapture", handleUp);
     };
 
-    window.addEventListener("pointermove", handleMove);
-    window.addEventListener("pointerup", handleUp);
+    target.addEventListener("pointermove", handleMove);
+    target.addEventListener("pointerup", handleUp);
+    target.addEventListener("pointercancel", handleUp);
+    target.addEventListener("lostpointercapture", handleUp);
   };
 
   const handleToggleAllDirectories = () => {
@@ -935,7 +456,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
     directoryPaths.forEach((pathValue) => setChangesTreePathExpanded(pathValue, true));
   };
 
-  const handleSelectNavigatorNode = (relativePath: string) => {
+  const handleSelectNavigatorNode = useCallback((relativePath: string) => {
     const patchSummary = patchSummaries.find((summary) => summary.relativePath === relativePath);
     if (patchSummary) {
       onSelectPatchFile(relativePath, {
@@ -945,7 +466,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
       return;
     }
     onOpenChangePreview(relativePath);
-  };
+  }, [onOpenChangePreview, onSelectPatchFile, patchSummaries]);
 
   const getContextMenuItems = useCallback(
     (node: ChangeTreeNode): FileTreeContextMenuItem<ChangeTreeNode>[] => {
@@ -958,14 +479,14 @@ export function ChangesPanel(props: RightPanelViewProps) {
           id: "open-in-files",
           label: t.changesPreviewOpenInFiles,
           disabled: isDeleted,
-          action: (targetNode) => props.onOpenFile(targetNode.path)
+          action: (targetNode) => onOpenFile(targetNode.path)
         }
       ];
     },
-    [props, t.changesPreviewOpenInFiles]
+    [onOpenFile, t.changesPreviewOpenInFiles]
   );
 
-  const renderNavigatorMeta = (node: ChangeTreeNode) => {
+  const renderNavigatorMeta = useCallback((node: ChangeTreeNode) => {
     const primaryBadge = getPrimaryBadge(node);
     return (
       <>
@@ -979,7 +500,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
         </span>
       </>
     );
-  };
+  }, []);
 
   return (
     <div className="adl-tool-panel adl-tool-panel--changes">
@@ -1058,6 +579,18 @@ export function ChangesPanel(props: RightPanelViewProps) {
           ) : null}
         </div>
         <div className="adl-tool-context__group adl-tool-context__group--files-actions">
+          <TooltipSimple content={previewEnabled ? t.filePreview : t.fileEdit} placement="top">
+            <button
+              type="button"
+              className={`adl-tool-context__iconbtn${previewEnabled ? " is-active" : ""}`}
+              onClick={() => setPreviewEnabled((value) => !value)}
+              aria-label={previewEnabled ? t.filePreview : t.fileEdit}
+              aria-pressed={previewEnabled ? "true" : "false"}
+              disabled={!changePreview}
+            >
+              <IconEye size={14} decorative />
+            </button>
+          </TooltipSimple>
           <TooltipSimple content={t.changesPush} placement="top">
             <button type="button" className="adl-tool-context__iconbtn" disabled aria-label={t.changesPush}>
               <IconUpload size={14} decorative />
@@ -1468,19 +1001,39 @@ export function ChangesPanel(props: RightPanelViewProps) {
                 className="adl-tool-editor adl-tool-editor--changes"
                 data-testid="changes-preview-shell"
               >
-                <div ref={changesPreviewEditorSurfaceRef} className="adl-tool-editor__surface">
-                  {stickyContextModel ? <StickyContext data-testid="changes-sticky-context" model={stickyContextModel} t={t} /> : null}
-                  <DiffEditor
-                    height="100%"
-                    theme={changePreviewTheme}
-                    beforeMount={handleMonacoBeforeMount}
-                    language={changePreviewLanguage}
-                    original={changePreview.baseContent}
-                    modified={changePreview.currentContent}
-                    options={diffEditorOptions}
-                    onMount={handleDiffEditorMount}
-                  />
-                </div>
+                {previewEnabled && categorizeFile(changePreview.path) === "markdown" ? (
+                  <div className="adl-tool-editor__surface adl-tool-editor__surface--preview">
+                    <LazyMarkdownPreviewWrapper content={changePreview.currentContent} theme={changePreviewTheme} />
+                  </div>
+                ) : previewEnabled ? (
+                  <div className="adl-tool-editor__surface">
+                    <CodeEditor
+                      value={changePreview.currentContent}
+                      language={changePreviewLanguage}
+                      theme={changePreviewTheme}
+                      readOnly={true}
+                      lineNumbers={lineNumbersEnabled}
+                      wordWrap={wordWrapEnabled}
+                      extensions={diffExtensions}
+                    />
+                  </div>
+                ) : (
+                  <div className="adl-tool-editor__surface">
+                    {stickyContextModel ? <StickyContext data-testid="changes-sticky-context" model={stickyContextModel} t={t} /> : null}
+                    <DiffViewer
+                      original={changePreview.baseContent}
+                      modified={changePreview.currentContent}
+                      language={changePreviewLanguage}
+                      theme={changePreviewTheme}
+                      sideBySide={props.diffSideBySide}
+                      readOnly={true}
+                      lineNumbers={lineNumbersEnabled}
+                      wordWrap={wordWrapEnabled}
+                      onMount={handleDiffMount}
+                      extensions={diffExtensions}
+                    />
+                  </div>
+                )}
               </div>
             </>
           ) : changePreviewLoading ? null : null}

@@ -170,6 +170,7 @@ export const copy = {
 
     // File tool (Region 15 / 17 Files)
     filePreview: "文件预览",
+    fileEdit: "编辑文件",
     currentFilePath: "当前文件路径",
     search: "检索文件",
     searchPlaceholder: "输入关键词…",
@@ -658,6 +659,7 @@ export const copy = {
     toolSwitcher: "Tool Switcher",
 
     filePreview: "File Preview",
+    fileEdit: "Edit File",
     currentFilePath: "Current file path",
     search: "Search Files",
     searchPlaceholder: "Search…",

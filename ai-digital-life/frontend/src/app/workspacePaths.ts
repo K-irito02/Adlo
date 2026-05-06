@@ -42,20 +42,33 @@ export function detectEditorLanguage(filePath?: string, fallbackLanguage?: strin
       return "typescript";
     case "js":
     case "jsx":
+    case "mjs":
       return "javascript";
     case "json":
       return "json";
-    case "md":
-      return "markdown";
-    case "css":
-      return "css";
-    case "html":
-      return "html";
-    case "yml":
     case "yaml":
+    case "yml":
       return "yaml";
-    case "sh":
-      return "shell";
+    case "html":
+    case "htm":
+      return "html";
+    case "css":
+    case "scss":
+    case "less":
+      return "css";
+    case "md":
+    case "markdown":
+      return "markdown";
+    case "sql":
+      return "sql";
+    case "py":
+      return "python";
+    case "rs":
+      return "rust";
+    case "xml":
+    case "svg":
+      return "xml";
+    case "txt":
     default:
       return "plaintext";
   }

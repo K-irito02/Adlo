@@ -1,17 +1,11 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const monacoThemeSource = readFileSync(new URL("../../../../src/app/monacoTheme.ts", import.meta.url), "utf8");
 const changesPanelSource = readFileSync(
   new URL("../../../../src/app/regions/right-panel/ChangesPanel.tsx", import.meta.url),
   "utf8"
 );
-const minimapOverlaySource = readFileSync(
-  new URL("../../../../src/app/regions/right-panel/minimapVisualOverlay.ts", import.meta.url),
-  "utf8"
-);
 const themeCss = readFileSync(new URL("../../../../src/styles/themes.css", import.meta.url), "utf8");
-const regionsCss = readFileSync(new URL("../../../../src/styles/regions.css", import.meta.url), "utf8");
 
 function extractThemeSection(css: string, marker: string, nextMarker: string | null) {
   const start = css.indexOf(marker);
@@ -22,12 +16,6 @@ function extractThemeSection(css: string, marker: string, nextMarker: string | n
 }
 
 describe("changes preview highlight theming", () => {
-  it("removes Monaco find-match borders so inline diff highlights do not fall back to yellow outlines", () => {
-    expect(monacoThemeSource).toContain('colors["editor.findMatchBorder"] = "#00000000";');
-    expect(monacoThemeSource).toContain('colors["editor.findMatchHighlightBorder"] = "#00000000";');
-    expect(monacoThemeSource).toContain('colors["editor.findRangeHighlightBorder"] = "#00000000";');
-  });
-
   it("uses accent-based find-match colors instead of warning yellow in both themes", () => {
     const lightTheme = extractThemeSection(themeCss, '[data-theme="light"] {', '[data-theme="dark"] {');
     const darkTheme = extractThemeSection(themeCss, '[data-theme="dark"] {', null);
@@ -54,76 +42,30 @@ describe("changes preview highlight theming", () => {
     expect(themeCss).toContain("--editor-diff-remove-bg-strong: rgba(248, 113, 113, 0.2);");
   });
 
-  it("keeps Monaco diff gutter backgrounds transparent so row highlights do not cover line numbers", () => {
-    expect(monacoThemeSource).toContain('colors["diffEditorGutter.insertedLineBackground"] = "#00000000";');
-    expect(monacoThemeSource).toContain('colors["diffEditorGutter.removedLineBackground"] = "#00000000";');
-    expect(monacoThemeSource).not.toContain('colors["diffEditorGutter.insertedLineBackground"] = diffInsertBg;');
-    expect(monacoThemeSource).not.toContain('colors["diffEditorGutter.removedLineBackground"] = diffRemoveBg;');
-  });
-
-  it("strips runtime find-match classes of fallback borders and shadows", () => {
-    expect(regionsCss).toContain(".monaco-editor .findMatch,");
-    expect(regionsCss).toContain(".monaco-editor .currentFindMatch,");
-    expect(regionsCss).toContain(".monaco-editor .findScope {");
-    expect(regionsCss).toContain("border: none !important;");
-    expect(regionsCss).toContain("outline: none !important;");
-    expect(regionsCss).toContain("box-shadow: none !important;");
-  });
-
-  it("keeps inline diff character decorations at Monaco-calculated width", () => {
-    expect(regionsCss).toContain(".editor.modified .cdr.line-insert,");
-    expect(regionsCss).toContain(".editor.modified .cdr.line-delete {");
-    expect(regionsCss).not.toContain(".editor.modified .cdr {\n  width: 100% !important;");
-  });
-
-  it("removes duplicated inline character diff blocks in changes preview", () => {
-    expect(regionsCss).toContain(".editor.modified .char-insert,");
-    expect(regionsCss).toContain(".editor.modified .char-delete,");
-    expect(regionsCss).toContain(".editor.modified .char-insert.diff-range-empty,");
-    expect(regionsCss).toContain(".editor.modified .char-delete.diff-range-empty {");
-    expect(regionsCss).toContain("background-color: transparent !important;");
-    expect(regionsCss).toContain("display: none !important;");
-  });
-
-  it("keeps native async line diff backgrounds transparent after preview-owned rows render", () => {
-    expect(regionsCss).toContain(".editor.modified .cdr.line-insert,");
-    expect(regionsCss).toContain(".editor.modified .cdr.line-delete {");
-    expect(regionsCss).toContain("background-color: transparent !important;");
-  });
-
-  it("uses preview-owned depth classes for inline diff row backgrounds", () => {
+  it("uses CodeMirror agent decorations for diff range highlighting", () => {
     expect(changesPanelSource).toContain("computePreviewDiffVisualRanges");
-    expect(changesPanelSource).toContain("displayOptionChange");
-    expect(changesPanelSource).toContain("adl-inline-diff-line--${range.tone}");
-    expect(regionsCss).toContain(".adl-inline-diff-line--insert.adl-inline-diff-line--strong");
-    expect(regionsCss).toContain("background-color: var(--editor-diff-insert-bg-strong) !important;");
-    expect(regionsCss).toContain(".adl-inline-diff-line--delete.adl-inline-diff-line--strong");
-    expect(regionsCss).toContain("background-color: var(--editor-diff-remove-bg-strong) !important;");
-    expect(regionsCss).not.toContain("editor-diff-insert-accent");
-    expect(regionsCss).not.toContain("editor-diff-remove-accent");
+    expect(changesPanelSource).toContain("applyAgentDecorations");
+    expect(changesPanelSource).toContain("previewDiffRangesToAgentHunks");
+    expect(changesPanelSource).toContain("getAgentDecorationExtensions");
   });
 
-  it("uses delete-minimap class for pure delete minimap markers without editor background", () => {
-    expect(changesPanelSource).toContain("adl-inline-diff-line--delete-minimap");
-    expect(regionsCss).toContain(".adl-inline-diff-line--delete-minimap");
-    expect(regionsCss).toContain("background-color: transparent !important;");
+  it("uses CodeMirror inline diff backgrounds for visual diff emphasis", () => {
+    expect(changesPanelSource).toContain("getInlineDiffBackgroundExtension");
+    expect(changesPanelSource).toContain("applyInlineDiffChunks");
+    expect(changesPanelSource).toContain("previewDiffRangesToChunks");
   });
 
-  it("disables Monaco unicode warning boxes in changes preview", () => {
-    expect(changesPanelSource).toContain("unicodeHighlight: {");
-    expect(changesPanelSource).toContain("ambiguousCharacters: false");
-    expect(changesPanelSource).toContain("invisibleCharacters: false");
-    expect(changesPanelSource).toContain("nonBasicASCII: false");
-    expect(regionsCss).toContain(".adl-tool-editor--changes .monaco-diff-editor .unicode-highlight {");
-    expect(regionsCss).toContain("background-color: transparent !important;");
-  });
-
-  it("strips async Monaco diff decoration borders on every side", () => {
-    expect(minimapOverlaySource).toContain('"border-top"');
-    expect(minimapOverlaySource).toContain('"border-right"');
-    expect(minimapOverlaySource).toContain('"border-bottom"');
-    expect(minimapOverlaySource).toContain('"border-left"');
-    expect(minimapOverlaySource).toContain('node.style.setProperty("border-color", "transparent", "important");');
-    expect(minimapOverlaySource).toContain('node.style.setProperty("outline-color", "transparent", "important");');
+  it("does not contain any Monaco imports or references", () => {
+    expect(changesPanelSource).not.toContain("@monaco-editor/react");
+    expect(changesPanelSource).not.toContain("monacoTheme");
+    expect(changesPanelSource).not.toContain("monacoTypes");
+    expect(changesPanelSource).not.toContain("minimapVisualOverlay");
+    expect(changesPanelSource).not.toContain("inlineMinimapLayout");
+    expect(changesPanelSource).not.toContain("deltaDecorations");
+    expect(changesPanelSource).not.toContain("from \"@monaco-editor/react\"");
+    expect(changesPanelSource).not.toContain("handleMonacoBeforeMount");
+    expect(changesPanelSource).not.toContain("MonacoEditorRef");
+    expect(changesPanelSource).not.toContain("MonacoNamespace");
+    expect(changesPanelSource).not.toContain("getMonacoFromWindow");
   });
 });

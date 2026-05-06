@@ -69,12 +69,13 @@ const BROWSER_HISTORY_KEY = "adl-ui:browser-history";
 const TERMINAL_TABS_KEY = "adl-ui:terminal-tabs";
 const TERMINAL_ACTIVE_TAB_KEY = "adl-ui:terminal-active-tab";
 const TERMINAL_LAYOUT_KEY = "adl-ui:terminal-layout";
+const deferredJsonWriteHandles = new Map<string, number>();
 
 export const RIGHT_PANEL_WIDTH_MIN = 320;
 export const RIGHT_PANEL_WIDTH_MAX = 4096;
 export const DEFAULT_RIGHT_PANEL_WIDTH = 520;
 const FILES_NAVIGATOR_WIDTH_MIN = 180;
-const FILES_NAVIGATOR_WIDTH_MAX = 300;
+const FILES_NAVIGATOR_WIDTH_MAX = 420;
 const DEFAULT_FILES_NAVIGATOR_WIDTH = 240;
 const CHANGES_NAVIGATOR_WIDTH_MIN = 180;
 const CHANGES_NAVIGATOR_WIDTH_MAX = 300;
@@ -147,12 +148,49 @@ function writeChangesNavigatorMode(mode: ChangesNavigatorMode): void {
   }
 }
 
-function expandTreePathChainInState(current: Record<string, boolean>, path: string): Record<string, boolean> {
-  const next = { ...current };
+type TreeExpansionState = Record<string, boolean>;
+
+function scheduleJsonWrite(key: string, value: unknown): void {
+  const previousHandle = deferredJsonWriteHandles.get(key);
+  if (previousHandle !== undefined) {
+    window.clearTimeout(previousHandle);
+  }
+  const nextHandle = window.setTimeout(() => {
+    deferredJsonWriteHandles.delete(key);
+    writeJson(key, value);
+  }, 0);
+  deferredJsonWriteHandles.set(key, nextHandle);
+}
+
+export function setTreePathExpandedInState(
+  current: TreeExpansionState,
+  path: string,
+  expanded: boolean
+): TreeExpansionState {
+  if ((current[path] ?? false) === expanded) {
+    return current;
+  }
+  return { ...current, [path]: expanded };
+}
+
+export function toggleTreePathExpandedInState(current: TreeExpansionState, path: string): TreeExpansionState {
+  return { ...current, [path]: !(current[path] ?? false) };
+}
+
+export function expandTreePathChainInState(current: TreeExpansionState, path: string): TreeExpansionState {
+  let next = current;
+  let changed = false;
   const segments = path.split("/").filter(Boolean);
   let currentPath = "";
   for (let index = 0; index < segments.length - 1; index += 1) {
     currentPath = currentPath ? `${currentPath}/${segments[index]}` : segments[index];
+    if (next[currentPath]) {
+      continue;
+    }
+    if (!changed) {
+      next = { ...current };
+      changed = true;
+    }
     next[currentPath] = true;
   }
   return next;
@@ -443,24 +481,30 @@ export const useUiStore = create<UiState>((set) => ({
     }),
   setFileTreePathExpanded: (path, expanded) =>
     set((state) => {
-      const next = { ...state.expandedFileTreePaths, [path]: expanded };
-      writeJson(FILE_TREE_EXPANDED_KEY, next);
+      const next = setTreePathExpandedInState(state.expandedFileTreePaths, path, expanded);
+      if (next === state.expandedFileTreePaths) {
+        return state;
+      }
+      scheduleJsonWrite(FILE_TREE_EXPANDED_KEY, next);
       return { expandedFileTreePaths: next };
     }),
   toggleFileTreePath: (path) =>
     set((state) => {
-      const next = { ...state.expandedFileTreePaths, [path]: !(state.expandedFileTreePaths[path] ?? false) };
-      writeJson(FILE_TREE_EXPANDED_KEY, next);
+      const next = toggleTreePathExpandedInState(state.expandedFileTreePaths, path);
+      scheduleJsonWrite(FILE_TREE_EXPANDED_KEY, next);
       return { expandedFileTreePaths: next };
     }),
   expandFileTreePathChain: (path) =>
     set((state) => {
       const next = expandTreePathChainInState(state.expandedFileTreePaths, path);
-      writeJson(FILE_TREE_EXPANDED_KEY, next);
+      if (next === state.expandedFileTreePaths) {
+        return state;
+      }
+      scheduleJsonWrite(FILE_TREE_EXPANDED_KEY, next);
       return { expandedFileTreePaths: next };
     }),
   collapseAllFileTreePaths: () => {
-    writeJson(FILE_TREE_EXPANDED_KEY, {});
+    scheduleJsonWrite(FILE_TREE_EXPANDED_KEY, {});
     set({ expandedFileTreePaths: {} });
   },
   setChangesNavigatorMode: (mode) => {
@@ -469,24 +513,30 @@ export const useUiStore = create<UiState>((set) => ({
   },
   setChangesTreePathExpanded: (path, expanded) =>
     set((state) => {
-      const next = { ...state.expandedChangesTreePaths, [path]: expanded };
-      writeJson(CHANGES_TREE_EXPANDED_KEY, next);
+      const next = setTreePathExpandedInState(state.expandedChangesTreePaths, path, expanded);
+      if (next === state.expandedChangesTreePaths) {
+        return state;
+      }
+      scheduleJsonWrite(CHANGES_TREE_EXPANDED_KEY, next);
       return { expandedChangesTreePaths: next };
     }),
   toggleChangesTreePath: (path) =>
     set((state) => {
-      const next = { ...state.expandedChangesTreePaths, [path]: !(state.expandedChangesTreePaths[path] ?? false) };
-      writeJson(CHANGES_TREE_EXPANDED_KEY, next);
+      const next = toggleTreePathExpandedInState(state.expandedChangesTreePaths, path);
+      scheduleJsonWrite(CHANGES_TREE_EXPANDED_KEY, next);
       return { expandedChangesTreePaths: next };
     }),
   expandChangesTreePathChain: (path) =>
     set((state) => {
       const next = expandTreePathChainInState(state.expandedChangesTreePaths, path);
-      writeJson(CHANGES_TREE_EXPANDED_KEY, next);
+      if (next === state.expandedChangesTreePaths) {
+        return state;
+      }
+      scheduleJsonWrite(CHANGES_TREE_EXPANDED_KEY, next);
       return { expandedChangesTreePaths: next };
     }),
   collapseAllChangesTreePaths: () => {
-    writeJson(CHANGES_TREE_EXPANDED_KEY, {});
+    scheduleJsonWrite(CHANGES_TREE_EXPANDED_KEY, {});
     set({ expandedChangesTreePaths: {} });
   },
   toggleSessionWorkspace: (workspaceId) =>

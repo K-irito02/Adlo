@@ -7,6 +7,8 @@
 | 选择器 | 说明 |
 |--------|------|
 | `#changes-panel` | 变更面板容器 |
+| `.adl-tool-panel--changes` | 变更工具面板根节点 |
+| `.adl-tool-surface--files` | 变更面板的双栏布局容器 |
 
 ---
 
@@ -18,29 +20,27 @@
 
 | 优先级 | 类型 | 选择器 |
 |--------|------|--------|
-| 1 | CSS | `.adl-changes-tree` |
-| 2 | CSS | `.adl-changes-panel__list` |
+| 1 | CSS | `.adl-patch-file-card` |
+| 2 | CSS | `.adl-patch-file-card__open` |
+| 3 | CSS | `.adl-patch-hunk-card` |
 
 ### 变更项
 
 | 选择器 | 说明 |
 |--------|------|
-| `.adl-changes-item` | 变更文件项 |
-| `.adl-changes-item--added` | 新增文件 |
-| `.adl-changes-item--modified` | 修改文件 |
-| `.adl-changes-item--deleted` | 删除文件 |
-| `.adl-changes-item--renamed` | 重命名文件 |
+| `.adl-patch-file-card` | 变更文件卡片 |
+| `.adl-patch-file-card.is-active` | 当前选中变更文件 |
+| `.adl-patch-file-card__open` | 打开当前文件到右侧视图 |
+| `.adl-patch-hunk-card` | 单个补丁块 |
+| `.adl-patch-hunk-card__toggle` | 折叠/展开补丁块 |
 
 ### 操作
 
 #### 查看变更详情
 
 ```javascript
-// 点击变更项
-await page.click('.adl-changes-item');
-
-// 等待 Diff 视图加载
-await page.waitForSelector('.monaco-diff-editor');
+await page.click('.adl-patch-file-card__open');
+await page.waitForSelector('div[data-testid="changes-preview-shell"]');
 ```
 
 ---
@@ -53,18 +53,23 @@ await page.waitForSelector('.monaco-diff-editor');
 
 | 优先级 | 类型 | 选择器 |
 |--------|------|--------|
-| 1 | CSS | `.monaco-diff-editor` |
+| 1 | CSS | `div[data-testid="changes-preview-shell"]` |
+| 2 | CSS | `.adl-tool-editor--changes` |
+| 3 | CSS | `.adl-diff-toolbar` |
 
 ### 操作
 
 #### 查看差异
 
 ```javascript
-// 点击变更项
-await page.click('.adl-changes-item');
+await page.click('.adl-patch-file-card__open');
+await page.waitForSelector('.adl-diff-toolbar');
+```
 
-// 等待 Diff 编辑器加载
-await page.waitForSelector('.monaco-diff-editor');
+#### 切换预览/编辑
+
+```javascript
+await page.locator('.adl-tool-context__group--files-actions .adl-tool-context__iconbtn').first().click();
 ```
 
 ---
@@ -77,18 +82,16 @@ await page.waitForSelector('.monaco-diff-editor');
 
 | 按钮 | aria-label | 说明 |
 |------|------------|------|
-| 应用全部 | "应用全部" | 应用所有补丁 |
-| 回滚全部 | "回滚全部" | 回滚所有补丁 |
-| 接受 | "接受" | 接受当前补丁块 |
-| 拒绝 | "拒绝" | 拒绝当前补丁块 |
+| 预览 / 编辑 | 文件预览 / 文件编辑 | 眼睛图标按钮，切换右侧视图 |
+| 应用全部 | 应用全部 | 应用所有补丁 |
+| 回滚全部 | 回滚全部 | 回滚所有补丁 |
+| 接受 | 接受 | 接受当前补丁块 |
+| 拒绝 | 拒绝 | 拒绝当前补丁块 |
 
 ### 操作
 
 ```javascript
-// 应用全部补丁
 await page.click('button[aria-label="应用全部"]');
-
-// 回滚全部补丁
 await page.click('button[aria-label="回滚全部"]');
 ```
 
@@ -99,5 +102,6 @@ await page.click('button[aria-label="回滚全部"]');
 | 元素 | 选择器 | 说明 |
 |------|--------|------|
 | 变更面板 | `#changes-panel` | 变更面板容器 |
-| 变更列表 | `.adl-changes-tree` | 变更文件列表 |
-| Diff 编辑器 | `.monaco-diff-editor` | 差异预览编辑器 |
+| 变更列表 | `.adl-patch-file-card` | 变更文件卡片 |
+| Diff 工具条 | `.adl-diff-toolbar` | 变更预览工具栏 |
+| 预览编辑器 | `div[data-testid="changes-preview-shell"]` | 差异/只读预览容器 |

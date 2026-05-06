@@ -1,7 +1,35 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Editor, { DiffEditor } from "@monaco-editor/react";
-import { ensureAdlMonacoThemes, MONACO_THEME_DARK, MONACO_THEME_LIGHT, type MonacoNamespace } from "../../monacoTheme";
-import type { MonacoEditorRef } from "../../types";
+import { EditorView } from "@codemirror/view";
+import { CodeEditor, saveEditorState, getSavedEditorState } from "./CodeEditor";
+import { DiffViewer } from "./DiffViewer";
+import {
+  getAgentDecorationExtensions,
+  applyAgentDecorations,
+  setAgentDecorationsEnabled,
+  clearAgentDecorations,
+  type AgentHunkDecoration,
+} from "./agentDecorations";
+import {
+  getMinimapExtension,
+  updateMinimapDiffHunks,
+  loadMinimapSettings,
+  saveMinimapSettings,
+  type MinimapSettings as CmMinimapSettings,
+} from "./cmMinimap";
+import { getFoldingTooltipExtension } from "./cmFoldingTooltip";
+import { categorizeFile, type FileCategory } from "./fileTypeRouter";
+import {
+  LazyMarkdownPreviewWrapper,
+  LazyDocxPreviewWrapper,
+  LazyPdfPreviewWrapper,
+} from "./LazyPreviews";
+import type { EditorRef, DiffEditorRef } from "../../types";
+import { normalizeWorkspaceRelativePath, detectEditorLanguage } from "../../workspacePaths";
+import {
+  getVisibleStartLine,
+  navigateToLine,
+  subscribeToEditor,
+} from "./stickyContext";
 import {
   IconAlertTriangle,
   IconArrowLeft,
@@ -9,6 +37,7 @@ import {
   IconChevronDown,
   IconChevronRight,
   IconCircle,
+  IconEye,
   IconFilePlus,
   IconFoldVertical,
   IconFolderPlus,
@@ -23,41 +52,22 @@ import {
 } from "../../icons";
 import { TooltipSimple } from "../../components/Tooltip";
 import { useUiStore } from "../../ui-store";
-import { normalizeWorkspaceRelativePath } from "../../workspacePaths";
 import { StickyContext } from "./stickyContextView";
 import { collectDirectoryPaths, FileTree } from "./fileTree";
-import {
-  getEditorVisibleStartLine,
-  navigateEditorToLine,
-  isDiffEditor,
-  type MonacoEditor,
-  getMinimapPosition,
-  cssColorToHex
-} from "./monacoTypes";
-import {
-  attachMinimapVisualOverlays,
-  loadMinimapSettings,
-  saveMinimapSettings,
-  MINIMAP_DEFAULTS,
-  type MinimapSettings
-} from "./minimapVisualOverlay";
 import {
   derivePatchHunkChangeKind,
   getPatchHunkTargetLine,
   summarizePatchFile
 } from "./patchReview";
 import type { PreviewDiffVisualRange } from "./changePreviewDiffRanges";
-import { buildStickyContextEntries, createStickyContextModel, type StickyContextModel } from "./stickyContext";
+import {
+  buildStickyContextEntries,
+  createStickyContextModel,
+  type StickyContextModel,
+} from "./stickyContext";
 import type { RightPanelViewProps } from "./types";
 
 type FilesNavigatorMode = "tree" | "search" | "outline";
-
-const FOLDING_CONTROL_SELECTOR =
-  ".codicon-folding-manual-collapsed, .codicon-folding-manual-expanded, .codicon-folding-expanded, .codicon-folding-collapsed";
-
-type DisposableLike = {
-  dispose: () => void;
-};
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -104,64 +114,16 @@ function normalizeCreationPath(input: string): string | undefined {
   return segments.join("/");
 }
 
-function buildMonacoEditorOptions(options: {
+function buildEditorOptions(options: {
   readOnly: boolean;
   lineNumbersEnabled: boolean;
   wordWrapEnabled: boolean;
-  sideBySideDiff?: boolean;
-  hideUnchangedRegions?: boolean;
-  minimapSettings?: MinimapSettings;
 }) {
-  const ms = options.minimapSettings ?? MINIMAP_DEFAULTS;
-  const baseOptions = {
-    readOnly: options.readOnly,
-    lineNumbers: options.lineNumbersEnabled ? "on" : "off",
-    lineNumbersMinChars: 4,
-    lineDecorationsWidth: 12,
-    minimap: {
-      enabled: true,
-      side: "right",
-      size: ms.size,
-      showSlider: ms.showSlider,
-      renderCharacters: ms.renderCharacters,
-      maxColumn: 80,
-      scale: ms.scale
-    },
-    scrollbar: {
-      vertical: "hidden",
-      horizontal: "auto",
-      verticalScrollbarSize: 0,
-      horizontalScrollbarSize: 10
-    },
-    scrollBeyondLastLine: false,
-    stickyScroll: { enabled: false },
-    wordWrap: options.wordWrapEnabled ? "on" : "off",
-    folding: true,
-    showFoldingControls: "mouseover",
-    glyphMargin: false,
-    renderLineHighlight: "line",
-    renderWhitespace: "selection",
-    bracketPairColorization: { enabled: true },
-    renderSideBySide: options.sideBySideDiff,
-    hideUnchangedRegions: options.hideUnchangedRegions
-      ? {
-          enabled: true,
-          contextLineCount: 3,
-          minimumLineCount: 3,
-          revealLineCount: 3
-        }
-      : { enabled: false }
-  } as const;
-
-  if (options.sideBySideDiff === undefined) {
-    return baseOptions;
-  }
-
   return {
-    ...baseOptions,
-    renderIndicators: false,
-    renderMarginRevertIcon: false
-  } as const;
+    readOnly: options.readOnly,
+    lineNumbers: options.lineNumbersEnabled,
+    wordWrap: options.wordWrapEnabled,
+  };
 }
 
 function buildStickyDiffRangesFromHunks(
@@ -207,41 +169,6 @@ function buildStickyDiffRangesFromHunks(
   });
 }
 
-function stripNativeFoldingTitles(root: ParentNode | null | undefined) {
-  if (!root || !("querySelectorAll" in root)) return;
-  root.querySelectorAll<HTMLElement>(FOLDING_CONTROL_SELECTOR).forEach((control) => {
-    control.removeAttribute("title");
-    control.removeAttribute("aria-label");
-  });
-}
-
-function resolveLineNumberFromMargin(editorRoot: HTMLElement, control: HTMLElement): number | undefined {
-  const controlRect = control.getBoundingClientRect();
-  const lineNumberNodes = Array.from(
-    editorRoot.querySelectorAll<HTMLElement>(".margin-view-overlays .line-numbers")
-  );
-
-  let bestMatch: { lineNumber: number; distance: number } | undefined;
-  lineNumberNodes.forEach((node) => {
-    const text = node.textContent?.trim() ?? "";
-    const lineNumber = Number.parseInt(text, 10);
-    if (!Number.isFinite(lineNumber)) {
-      return;
-    }
-    const rect = node.getBoundingClientRect();
-    const verticallyAligned = controlRect.bottom >= rect.top - 1 && controlRect.top <= rect.bottom + 1;
-    if (!verticallyAligned) {
-      return;
-    }
-    const distance = Math.abs(rect.top - controlRect.top);
-    if (!bestMatch || distance < bestMatch.distance) {
-      bestMatch = { lineNumber, distance };
-    }
-  });
-
-  return bestMatch?.lineNumber;
-}
-
 export function FilesPanel(props: RightPanelViewProps) {
   const {
     t,
@@ -285,10 +212,11 @@ export function FilesPanel(props: RightPanelViewProps) {
   const editorShellRef = useRef<HTMLDivElement | null>(null);
   const editorSurfaceRef = useRef<HTMLDivElement | null>(null);
   const [agentAnnotationsEnabled, setAgentAnnotationsEnabled] = useState(true);
-  const [minimapSettings, setMinimapSettings] = useState<MinimapSettings>(loadMinimapSettings);
+  const [minimapSettings, setMinimapSettings] = useState<CmMinimapSettings>(loadMinimapSettings);
   const minimapSettingsRef = useRef(minimapSettings);
   minimapSettingsRef.current = minimapSettings;
   const [collapsePreviewActive, setCollapsePreviewActive] = useState(false);
+  const [previewEnabled, setPreviewEnabled] = useState(false);
   const navigatorCollapsed = useUiStore((state) => state.navigatorCollapsedByTool.files);
   const toggleNavigator = useUiStore((state) => state.toggleNavigator);
   const filesNavigatorWidth = useUiStore((state) => state.filesNavigatorWidth);
@@ -304,9 +232,14 @@ export function FilesPanel(props: RightPanelViewProps) {
   const [fileHistory, setFileHistory] = useState<string[]>([]);
   const [fileHistoryIndex, setFileHistoryIndex] = useState(-1);
   const fileHistoryNavRef = useRef(false);
-  const agentDecorationIdsRef = useRef<string[]>([]);
   const agentDecorationsEnabledRef = useRef(agentAnnotationsEnabled);
   agentDecorationsEnabledRef.current = agentAnnotationsEnabled;
+  const cmViewRef = useRef<EditorView | null>(null);
+  const localDiffEditorRef = useRef<DiffEditorRef | EditorRef | null>(null);
+  const [stickyContextModel, setStickyContextModel] = useState<StickyContextModel | null>(null);
+  const [stickyEditorReady, setStickyEditorReady] = useState(0);
+  const resolvedTheme = appInfo?.config.resolvedTheme === "dark" ? "dark" : "light";
+  const fileCategory = useMemo(() => categorizeFile(selectedFilePath), [selectedFilePath]);
   const dirtyPaths = useMemo(
     () => new Set(dirtyEditorPaths.map((pathValue) => normalizeWorkspaceRelativePath(pathValue))),
     [dirtyEditorPaths]
@@ -325,14 +258,6 @@ export function FilesPanel(props: RightPanelViewProps) {
     const normalizedRelative = selectedFilePath.split("/").join(separator);
     return `${rootPath}${rootPath.endsWith(separator) ? "" : separator}${normalizedRelative}`;
   }, [appInfo?.currentWorkspace?.path, appInfo?.currentWorkspace?.rootPath, selectedFilePath]);
-  const monacoTheme = appInfo?.config.resolvedTheme === "dark" ? MONACO_THEME_DARK : MONACO_THEME_LIGHT;
-  const [monacoNamespace, setMonacoNamespace] = useState<MonacoNamespace | null>(null);
-  const monacoNamespaceRef = useRef(monacoNamespace);
-  monacoNamespaceRef.current = monacoNamespace;
-  const foldingTooltipControllerDisposablesRef = useRef<DisposableLike[]>([]);
-  const fileDiffEditorRef = useRef<unknown>(null);
-  const [stickyContextModel, setStickyContextModel] = useState<StickyContextModel | null>(null);
-  const [stickyEditorReady, setStickyEditorReady] = useState(0);
   const activeFilePatch = useMemo(() => {
     if (!props.activePatchSet || !props.selectedPatchFilePath) return undefined;
     return props.activePatchSet.filePatches.find((candidate) => candidate.relativePath === props.selectedPatchFilePath);
@@ -345,274 +270,79 @@ export function FilesPanel(props: RightPanelViewProps) {
     () => (activeFilePatchSummary ? buildStickyDiffRangesFromHunks(activeFilePatchSummary.hunks) : undefined),
     [activeFilePatchSummary]
   );
-  const getStickySourceEditor = useCallback((): MonacoEditor | null => {
-    if (filePatch && filePatch.relativePath === selectedFilePath) {
-      const diffEditor = fileDiffEditorRef.current;
-      return isDiffEditor(diffEditor) ? diffEditor.getModifiedEditor() : null;
-    }
-    return props.standardEditorRef.current as unknown as MonacoEditor | null;
-  }, [filePatch, props.standardEditorRef, selectedFilePath]);
-
-  const applyAgentDecorations = useCallback(() => {
-    const editor = props.standardEditorRef.current as any;
-    if (!editor?.deltaDecorations) return;
-
-    if (!agentDecorationsEnabledRef.current || !activeFilePatch || !selectedFilePath) {
-      agentDecorationIdsRef.current = editor.deltaDecorations(agentDecorationIdsRef.current, []);
-      return;
-    }
-
-    // Read minimap colors from CSS variables (same approach as ChangesPanel)
-    const minimapPosition = getMinimapPosition(monacoNamespaceRef.current ?? undefined);
-    const rootDpr = document.documentElement;
-    const cs = getComputedStyle(rootDpr);
-    const insertColor = cssColorToHex(
-      cs.getPropertyValue("--minimap-diff-insert-bg").trim() || "rgba(22, 163, 74, 0.5)"
-    );
-    const deleteColor = cssColorToHex(
-      cs.getPropertyValue("--minimap-diff-remove-bg").trim() || "rgba(239, 68, 68, 0.5)"
-    );
-
-    const decorations = activeFilePatch.hunks.map((hunk) => {
-      const decisionTone =
-        hunk.decision === "accepted" ? "accepted" : hunk.decision === "rejected" ? "rejected" : "pending";
+  const agentHunkDecorations = useMemo<AgentHunkDecoration[]>(() => {
+    if (!activeFilePatch || !selectedFilePath) return [];
+    return activeFilePatch.hunks.map((hunk) => {
       const changeKind = derivePatchHunkChangeKind(hunk);
       const startLine = Math.max(1, hunk.newStart || hunk.oldStart || 1);
       const lineSpan = Math.max(1, hunk.newLines || hunk.oldLines || 1);
       const endLine = startLine + lineSpan - 1;
-      const hover = [
-        { value: `**Agent 变更**` },
-        { value: `- 文件: \`${hunk.relativePath}\`` },
-        { value: `- hunk: \`${hunk.id}\`` },
-        { value: `- 类型: \`${changeKind}\`` },
-        { value: `- 决策: \`${hunk.decision}\`` }
-      ];
-
-      // Deleted/removed lines use the delete (red) minimap color;
-      // added and modified lines use the insert (green) minimap color.
-      const minimapColor = changeKind === "deleted" ? deleteColor : insertColor;
-
       return {
-        range: {
-          startLineNumber: startLine,
-          startColumn: 1,
-          endLineNumber: endLine,
-          endColumn: 1
-        },
-        options: {
-          isWholeLine: true,
-          className: `adl-agent-deco adl-agent-deco--${changeKind} adl-agent-deco--${decisionTone}${props.selectedPatchHunkId === hunk.id ? " adl-agent-deco--selected" : ""}`,
-          linesDecorationsClassName: `adl-agent-gutter adl-agent-gutter--${changeKind} adl-agent-gutter--${decisionTone}${props.selectedPatchHunkId === hunk.id ? " adl-agent-gutter--selected" : ""}`,
-          hoverMessage: hover as any,
-          minimap: {
-            position: minimapPosition,
-            color: minimapColor,
-          }
-        }
+        startLine,
+        endLine,
+        changeKind,
+        decision: hunk.decision === "accepted" ? "accepted" : hunk.decision === "rejected" ? "rejected" : "pending" as const,
+        isSelected: props.selectedPatchHunkId === hunk.id,
+        hunkId: hunk.id,
       };
     });
+  }, [activeFilePatch, props.selectedPatchHunkId, selectedFilePath]);
 
-    agentDecorationIdsRef.current = editor.deltaDecorations(agentDecorationIdsRef.current, decorations);
-  }, [activeFilePatch, props.selectedPatchHunkId, props.standardEditorRef, selectedFilePath]);
+  const editorExtensions = useMemo(() => [
+    ...getAgentDecorationExtensions(),
+    ...getMinimapExtension(),
+    getFoldingTooltipExtension(),
+  ], []);
+
+  const getStickySourceEditor = useCallback((): EditorRef | null => {
+    if (filePatch && filePatch.relativePath === selectedFilePath) {
+      const diffRef = localDiffEditorRef.current;
+      if (diffRef && "getModifiedEditor" in diffRef) {
+        return (diffRef as DiffEditorRef).getModifiedEditor();
+      }
+      if (diffRef && "getVisibleRanges" in diffRef) {
+        return diffRef as EditorRef;
+      }
+      return null;
+    }
+    return props.standardEditorRef.current;
+  }, [filePatch, props.standardEditorRef, selectedFilePath]);
 
   useEffect(() => {
+    const view = cmViewRef.current;
+    if (!view) return;
     if (filePatch && filePatch.relativePath === selectedFilePath) {
-      const editor = props.standardEditorRef.current as any;
-      if (editor?.deltaDecorations) {
-        agentDecorationIdsRef.current = editor.deltaDecorations(agentDecorationIdsRef.current, []);
-      }
+      clearAgentDecorations(view);
       return;
     }
-
-    applyAgentDecorations();
+    if (!agentDecorationsEnabledRef.current || agentHunkDecorations.length === 0) {
+      clearAgentDecorations(view);
+      return;
+    }
+    applyAgentDecorations(view, agentHunkDecorations);
+    updateMinimapDiffHunks(view, agentHunkDecorations);
     return () => {
-      const editor = props.standardEditorRef.current as any;
-      if (!editor?.deltaDecorations) return;
-      agentDecorationIdsRef.current = editor.deltaDecorations(agentDecorationIdsRef.current, []);
-    };
-  }, [applyAgentDecorations, filePatch, props.standardEditorRef, selectedFilePath]);
-
-  const ensureMonacoThemes = useCallback((monaco: MonacoNamespace) => {
-    ensureAdlMonacoThemes(monaco);
-  }, []);
-
-  const formatFoldingHint = useCallback(
-    (isCollapsed: boolean, endLineNumber: number) =>
-      (isCollapsed ? t.foldingExpandToLine : t.foldingCollapseToLine).replace("{line}", String(endLineNumber)),
-    [t]
-  );
-
-  const syncFoldingControlTooltip = useCallback((foldingControl: HTMLElement, content: string) => {
-    foldingControl.setAttribute("title", content);
-    foldingControl.removeAttribute("aria-label");
-  }, []);
-
-  const resolveFoldingRegion = useCallback(async (editorInstance: any, lineNumber: number) => {
-    const controller = editorInstance?.getContribution?.("editor.contrib.folding");
-    const foldingModelPromise = controller?.getFoldingModel?.();
-    if (!foldingModelPromise) {
-      return undefined;
-    }
-    const foldingModel = await foldingModelPromise;
-    const region = foldingModel?.getRegionAtLine?.(lineNumber);
-    if (!region || region.startLineNumber !== lineNumber) {
-      return undefined;
-    }
-    return {
-      endLineNumber: region.endLineNumber as number,
-      isCollapsed: Boolean(region.isCollapsed)
-    };
-  }, []);
-
-  const createFoldingTooltipController = useCallback(
-    (editorInstance: any): DisposableLike | undefined => {
-      const editorRoot = editorInstance?.getDomNode?.() as HTMLElement | null | undefined;
-      if (!editorRoot) {
-        return undefined;
+      if (cmViewRef.current) {
+        clearAgentDecorations(cmViewRef.current);
       }
+    };
+  }, [agentHunkDecorations, filePatch, selectedFilePath]);
 
-      let disposed = false;
-
-      const resolveLineNumber = (control: HTMLElement, mouseEvent: MouseEvent) => {
-        const pointInMargin = editorInstance?.getTargetAtClientPoint?.(mouseEvent.clientX, mouseEvent.clientY);
-        const pointInContent = editorInstance?.getTargetAtClientPoint?.(mouseEvent.clientX + 24, mouseEvent.clientY);
-        return (
-          (pointInMargin?.position?.lineNumber as number | undefined) ??
-          (pointInMargin?.range?.startLineNumber as number | undefined) ??
-          (pointInMargin?.range?.endLineNumber as number | undefined) ??
-          (pointInContent?.position?.lineNumber as number | undefined) ??
-          (pointInContent?.range?.startLineNumber as number | undefined) ??
-          (pointInContent?.range?.endLineNumber as number | undefined) ??
-          resolveLineNumberFromMargin(editorRoot, control)
-        );
-      };
-
-      const resolveLineNumberFromControlRect = (control: HTMLElement) => {
-        const rect = control.getBoundingClientRect();
-        const pointNearContent = editorInstance?.getTargetAtClientPoint?.(rect.right + 24, rect.top + rect.height / 2);
-        return (
-          (pointNearContent?.position?.lineNumber as number | undefined) ??
-          (pointNearContent?.range?.startLineNumber as number | undefined) ??
-          (pointNearContent?.range?.endLineNumber as number | undefined) ??
-          resolveLineNumberFromMargin(editorRoot, control)
-        );
-      };
-
-      const syncVisibleControlTooltips = async (preferredControl?: HTMLElement, preferredEvent?: MouseEvent) => {
-        const controls = Array.from(editorRoot.querySelectorAll<HTMLElement>(FOLDING_CONTROL_SELECTOR));
-        const orderedControls = preferredControl
-          ? [preferredControl, ...controls.filter((control) => control !== preferredControl)]
-          : controls;
-        await Promise.all(
-          orderedControls.map(async (control) => {
-            const lineNumber =
-              control === preferredControl && preferredEvent
-                ? resolveLineNumber(control, preferredEvent)
-                : resolveLineNumberFromControlRect(control);
-            if (!lineNumber) {
-              return;
-            }
-            const region = await resolveFoldingRegion(editorInstance, lineNumber);
-            if (!region || disposed) {
-              return;
-            }
-            const content = formatFoldingHint(region.isCollapsed, region.endLineNumber);
-            syncFoldingControlTooltip(control, content);
-          })
-        );
-      };
-
-      const mutationObserver =
-        typeof MutationObserver === "undefined"
-          ? undefined
-          : new MutationObserver(() => {
-              stripNativeFoldingTitles(editorRoot);
-              void syncVisibleControlTooltips();
-            });
-
-      stripNativeFoldingTitles(editorRoot);
-      void syncVisibleControlTooltips();
-      mutationObserver?.observe(editorRoot, {
-        subtree: true,
-        childList: true,
-        attributes: true,
-        attributeFilter: ["class"]
-      });
-
-      const handlePointerOver = (event: Event) => {
-        const target = event.target as HTMLElement | null;
-        const foldingControl = target?.closest?.(FOLDING_CONTROL_SELECTOR) as HTMLElement | null;
-        if (!foldingControl) {
-          return;
-        }
-        void syncVisibleControlTooltips(foldingControl, event as MouseEvent);
-      };
-
-      editorRoot.addEventListener("mouseover", handlePointerOver, true);
-
-      const subscriptions: DisposableLike[] = [];
-      const pushDisposable = (subscription: { dispose: () => void } | undefined) => {
-        if (subscription) {
-          subscriptions.push(subscription);
-        }
-      };
-      pushDisposable(
-        editorInstance?.onDidScrollChange?.(() => {
-          void syncVisibleControlTooltips();
-        })
-      );
-      pushDisposable(
-        editorInstance?.onDidChangeModelContent?.(() => {
-          void syncVisibleControlTooltips();
-        })
-      );
-
-      return {
-        dispose: () => {
-          disposed = true;
-          subscriptions.forEach((subscription) => subscription.dispose());
-          editorRoot.removeEventListener("mouseover", handlePointerOver, true);
-          mutationObserver?.disconnect();
-        }
-      };
-    },
-    [formatFoldingHint, resolveFoldingRegion, syncFoldingControlTooltip]
-  );
-
-  const replaceFoldingHintBindings = useCallback(
-    (editorLike: any) => {
-      foldingTooltipControllerDisposablesRef.current.forEach((subscription) => subscription.dispose());
-      foldingTooltipControllerDisposablesRef.current = [];
-
-      if (!editorLike) {
-        return;
-      }
-
-      const editors = [editorLike.getModifiedEditor?.(), editorLike.getOriginalEditor?.()].filter(Boolean);
-      const scopedEditors = editors.length > 0 ? editors : [editorLike];
-      foldingTooltipControllerDisposablesRef.current = scopedEditors.flatMap((editorInstance) => {
-        const controller = createFoldingTooltipController(editorInstance);
-        return controller ? [controller] : [];
-      });
-    },
-    [createFoldingTooltipController]
-  );
-
-  const handleMonacoBeforeMount = useCallback(
-    (monaco: unknown) => {
-      const namespace = monaco as MonacoNamespace;
-      setMonacoNamespace((current) => (current === namespace ? current : namespace));
-      (window as typeof window & { monaco?: unknown }).monaco = monaco;
-      ensureMonacoThemes(namespace);
-    },
-    [ensureMonacoThemes]
-  );
+  useEffect(() => {
+    const view = cmViewRef.current;
+    if (!view) return;
+    setAgentDecorationsEnabled(view, agentAnnotationsEnabled);
+  }, [agentAnnotationsEnabled]);
 
   useEffect(() => {
     if (selectedFilePath) {
       expandFileTreePathChain(selectedFilePath);
     }
   }, [expandFileTreePathChain, selectedFilePath]);
+
+  useEffect(() => {
+    setPreviewEnabled(fileCategory === "markdown");
+  }, [fileCategory, selectedFilePath]);
 
   useEffect(() => {
     if (!activeFilePatch || !props.selectedPatchHunkId) {
@@ -625,22 +355,8 @@ export function FilesPanel(props: RightPanelViewProps) {
     const line = getPatchHunkTargetLine(selectedHunk);
     const editor = getStickySourceEditor();
     editor?.revealLinesInCenter?.(line, line + Math.max(selectedHunk.newLines, 1));
-    navigateEditorToLine(editor, line);
+    navigateToLine(editor, line);
   }, [activeFilePatch, getStickySourceEditor, props.selectedPatchHunkId]);
-
-  useEffect(() => {
-    if (!monacoNamespace) return;
-    ensureMonacoThemes(monacoNamespace);
-    monacoNamespace.editor?.setTheme?.(monacoTheme);
-  }, [ensureMonacoThemes, monacoNamespace, monacoTheme]);
-
-  useEffect(
-    () => () => {
-      foldingTooltipControllerDisposablesRef.current.forEach((subscription) => subscription.dispose());
-      foldingTooltipControllerDisposablesRef.current = [];
-    },
-    []
-  );
 
   useEffect(() => {
     if (!selectedFilePath) {
@@ -690,6 +406,15 @@ export function FilesPanel(props: RightPanelViewProps) {
     }, 0);
   }, [createTarget]);
 
+  const prevFilePathRef = useRef<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (prevFilePathRef.current && prevFilePathRef.current !== selectedFilePath && cmViewRef.current) {
+      saveEditorState(prevFilePathRef.current, cmViewRef.current);
+    }
+    prevFilePathRef.current = selectedFilePath;
+  }, [selectedFilePath]);
+
   const navigatorTitle =
     navigatorMode === "tree" ? t.toolFiles : navigatorMode === "search" ? t.searchResults : t.outline;
   const searchPattern = useMemo(
@@ -715,7 +440,6 @@ export function FilesPanel(props: RightPanelViewProps) {
     try {
       await navigator.clipboard.writeText(value);
     } catch {
-      // ignore clipboard failures in preview mode
     }
     setFileMenuOpen(false);
   };
@@ -740,7 +464,7 @@ export function FilesPanel(props: RightPanelViewProps) {
   };
 
   const handleRevealLine = (line: number) => {
-    navigateEditorToLine(getStickySourceEditor(), line);
+    navigateToLine(getStickySourceEditor(), line);
   };
   const handleJumpPatchHunk = (direction: "previous" | "next") => {
     props.onJumpPatchHunk(direction);
@@ -800,25 +524,56 @@ export function FilesPanel(props: RightPanelViewProps) {
   };
   const handleNavigatorResizeStart = (event: React.PointerEvent<HTMLDivElement>) => {
     event.preventDefault();
-    event.stopPropagation();
+    const target = event.currentTarget;
+    target.setPointerCapture(event.pointerId);
+    const navigator = target.closest<HTMLElement>(".adl-tool-navigator");
+    const navigatorRect = navigator?.getBoundingClientRect();
     const startX = event.clientX;
     const startWidth = filesNavigatorWidth;
     const body = document.body;
     body.classList.add("adl-is-resizing");
+    const preview = document.createElement("div");
+    preview.className = "adl-tool-navigator__resize-preview";
+    preview.style.left = `${Math.round(navigatorRect?.right ?? startX)}px`;
+    document.body.appendChild(preview);
+
+    let latestX = startX;
+    let rafId = 0;
+
+    const applyDelta = () => {
+      rafId = 0;
+      const delta = latestX - startX;
+      const nextWidth = Math.max(180, Math.min(420, startWidth + delta));
+      preview.style.transform = `translate3d(${nextWidth - startWidth}px, 0, 0)`;
+    };
 
     const handleMove = (moveEvent: PointerEvent) => {
-      const delta = moveEvent.clientX - startX;
-      setFilesNavigatorWidth(startWidth + delta);
+      latestX = moveEvent.clientX;
+      if (!rafId) rafId = requestAnimationFrame(applyDelta);
     };
 
-    const handleUp = () => {
+    const handleUp = (upEvent: PointerEvent) => {
+      if (target.hasPointerCapture(upEvent.pointerId)) {
+        target.releasePointerCapture(upEvent.pointerId);
+      }
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+        rafId = 0;
+      }
       body.classList.remove("adl-is-resizing");
-      window.removeEventListener("pointermove", handleMove);
-      window.removeEventListener("pointerup", handleUp);
+      preview.remove();
+      const finalWidth = Math.max(180, Math.min(420, startWidth + upEvent.clientX - startX));
+      setFilesNavigatorWidth(finalWidth);
+      target.removeEventListener("pointermove", handleMove);
+      target.removeEventListener("pointerup", handleUp);
+      target.removeEventListener("pointercancel", handleUp);
+      target.removeEventListener("lostpointercapture", handleUp);
     };
 
-    window.addEventListener("pointermove", handleMove);
-    window.addEventListener("pointerup", handleUp);
+    target.addEventListener("pointermove", handleMove);
+    target.addEventListener("pointerup", handleUp);
+    target.addEventListener("pointercancel", handleUp);
+    target.addEventListener("lostpointercapture", handleUp);
   };
   const fileMenuItems = [
     { id: "save", label: t.fileSave, shortcut: "Ctrl+S", disabled: true },
@@ -864,22 +619,29 @@ export function FilesPanel(props: RightPanelViewProps) {
   ];
 
   const handleStandardEditorMount = useCallback(
-    (editor: MonacoEditorRef, monaco: unknown) => {
-      replaceFoldingHintBindings(editor as any);
-      onEditorMount(editor, monaco);
+    (editor: EditorRef) => {
+      const domNode = editor.getDomNode?.();
+      cmViewRef.current = domNode ? EditorView.findFromDOM(domNode) ?? null : null;
+      props.standardEditorRef.current = editor;
+      onEditorMount(editor);
       setStickyEditorReady((value) => value + 1);
     },
-    [onEditorMount, replaceFoldingHintBindings]
+    [onEditorMount]
   );
 
   const handleDiffEditorMount = useCallback(
-    (editor: MonacoEditorRef) => {
-      fileDiffEditorRef.current = editor;
-      replaceFoldingHintBindings(editor as any);
-      onDiffMount(editor);
+    (editor: DiffEditorRef | EditorRef) => {
+      localDiffEditorRef.current = editor;
+      let editorRef: EditorRef;
+      if ("getModifiedEditor" in editor) {
+        editorRef = (editor as DiffEditorRef).getModifiedEditor() ?? (editor as unknown as EditorRef);
+      } else {
+        editorRef = editor as unknown as EditorRef;
+      }
+      onDiffMount(editorRef);
       setStickyEditorReady((value) => value + 1);
     },
-    [onDiffMount, replaceFoldingHintBindings]
+    [onDiffMount]
   );
 
   const refreshStickyContext = useCallback(() => {
@@ -889,7 +651,7 @@ export function FilesPanel(props: RightPanelViewProps) {
     }
 
     const editor = getStickySourceEditor();
-    const visibleStartLine = getEditorVisibleStartLine(editor) ?? editor?.getSelection?.()?.startLineNumber ?? 1;
+    const visibleStartLine = getVisibleStartLine(editor) ?? editor?.getSelection?.()?.startLineNumber ?? 1;
     const content = filePatch && filePatch.relativePath === selectedFilePath
       ? filePatch.afterContent
       : fileContent ?? "";
@@ -905,7 +667,7 @@ export function FilesPanel(props: RightPanelViewProps) {
       contextEntries,
       activeLine: visibleStartLine,
       canScrollToTop: visibleStartLine > 1,
-      onNavigateLine: (line) => navigateEditorToLine(getStickySourceEditor(), line),
+      onNavigateLine: (line) => navigateToLine(getStickySourceEditor(), line),
       topLabel: t.stickyContextTop
     }));
   }, [
@@ -953,111 +715,201 @@ export function FilesPanel(props: RightPanelViewProps) {
     };
   }, [getStickySourceEditor, refreshStickyContext, selectedFilePath, stickyEditorReady, wordWrapEnabled, diffSideBySide]);
 
-  useEffect(() => {
-    const root = editorSurfaceRef.current;
-    if (!root || !selectedFilePath) {
-      return;
+  const editorOptions = buildEditorOptions({
+    readOnly: false,
+    lineNumbersEnabled,
+    wordWrapEnabled,
+  });
+
+  const diffEditorOptions = buildEditorOptions({
+    readOnly: true,
+    lineNumbersEnabled,
+    wordWrapEnabled,
+  });
+
+  const renderEditorSurface = () => {
+    if (!selectedFilePath) {
+      return null;
     }
 
-    type EditorLike = {
-      getScrollTop(): number;
-      getScrollHeight(): number;
-      getLayoutInfo(): { height: number };
-      setScrollPosition(position: { scrollTop: number }): void;
-      updateOptions(options: unknown): void;
-      onDidScrollChange?(listener: () => void): { dispose(): void };
-      getModel?(): { getLineCount(): number } | null;
-    };
+    if (filePatch && filePatch.relativePath === selectedFilePath) {
+      return (
+        <>
+          <div className="adl-diff-toolbar" role="group" aria-label={t.diffLayoutLabel}>
+            <div className="adl-diff-toolbar__group">
+              <span className="adl-diff-toolbar__label">{t.diffLayoutLabel}</span>
+              <div className="adl-segmented">
+                <button
+                  type="button"
+                  aria-pressed={!diffSideBySide ? "true" : "false"}
+                  onClick={() => onSetDiffLayout(false)}
+                >
+                  {t.diffLayoutInline}
+                </button>
+                <button type="button" aria-pressed={diffSideBySide ? "true" : "false"} onClick={() => onSetDiffLayout(true)}>
+                  {t.diffLayoutSideBySide}
+                </button>
+              </div>
+            </div>
+            <div className="adl-diff-toolbar__group">
+              <button
+                type="button"
+                className={`adl-diff-toolbar__toggle${lineNumbersEnabled ? " is-active" : ""}`}
+                onClick={() => setLineNumbersEnabled((value) => !value)}
+              >
+                <IconHash size={12} decorative />
+                <span>{t.fileLineNumbers}</span>
+              </button>
+              <button
+                type="button"
+                className={`adl-diff-toolbar__toggle${wordWrapEnabled ? " is-active" : ""}`}
+                onClick={() => setWordWrapEnabled((value) => !value)}
+              >
+                <span>{t.fileWordWrap}</span>
+              </button>
+              <button
+                type="button"
+                className={`adl-diff-toolbar__toggle${agentAnnotationsEnabled ? " is-active" : ""}`}
+                onClick={() => setAgentAnnotationsEnabled((value) => !value)}
+              >
+                <span>{t.agentChangeAnnotations}</span>
+              </button>
+            </div>
+            <div className="adl-diff-toolbar__group">
+              <button type="button" className="adl-diff-toolbar__nav" onClick={() => handleJumpPatchHunk("previous")}>
+                {t.patchPreviousChange}
+              </button>
+              <button type="button" className="adl-diff-toolbar__nav" onClick={() => handleJumpPatchHunk("next")}>
+                {t.patchNextChange}
+              </button>
+              <button
+                type="button"
+                className="adl-diff-toolbar__nav"
+                onClick={() => props.onSetAllPatchHunksCollapsed(!hasCollapsedHunks, activeFilePatch?.relativePath)}
+              >
+                {hasCollapsedHunks ? t.fileExpandAll : t.fileCollapseAll}
+              </button>
+            </div>
+          </div>
+          {activeFilePatchSummary ? (
+            <div className="adl-diff-hunk-strip" aria-label={t.patchReview}>
+              <div className="adl-diff-hunk-strip__header">
+                <div>
+                  <strong>{activeFilePatchSummary.relativePath}</strong>
+                  <small>
+                    {activeFilePatchSummary.totalHunks} · {activeFilePatchSummary.acceptedHunks + activeFilePatchSummary.rejectedHunks}/
+                    {activeFilePatchSummary.totalHunks}
+                  </small>
+                </div>
+              </div>
+              <div className="adl-diff-hunk-strip__list">
+                {activeFilePatchSummary.hunks.map((hunk, index) => (
+                  <div
+                    key={hunk.id}
+                    className={`adl-diff-hunk-pill adl-diff-hunk-pill--${hunk.changeKind}${props.selectedPatchHunkId === hunk.id ? " is-active" : ""}`}
+                  >
+                    <button
+                      type="button"
+                      className="adl-diff-hunk-pill__main"
+                      onClick={() => handleSelectPatchHunk(hunk.id, hunk.targetLine)}
+                    >
+                      <span className="adl-diff-hunk-pill__index">{index + 1}</span>
+                      <span className="adl-diff-hunk-pill__body">
+                        <strong>{hunk.preview}</strong>
+                        <small>
+                          {hunk.newStart || hunk.oldStart}
+                          {hunk.isCollapsed ? ` · ${t.expandDetails}` : ""}
+                        </small>
+                      </span>
+                      <span className={`adl-decision-chip adl-decision-chip--${hunk.decision}`}>
+                        {hunk.decision === "accepted"
+                          ? t.approvalApproved
+                          : hunk.decision === "rejected"
+                            ? t.approvalRejected
+                            : t.approvalPendingCount}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      className="adl-diff-hunk-pill__toggle"
+                      onClick={(event) => handleTogglePatchHunk(event, hunk.id)}
+                      aria-label={hunk.isCollapsed ? t.expandDetails : t.collapseDetails}
+                    >
+                      {hunk.isCollapsed ? <IconChevronRight size={12} decorative /> : <IconChevronDown size={12} decorative />}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          <div ref={editorSurfaceRef} className="adl-tool-editor__surface">
+            {stickyContextModel ? <StickyContext data-testid="files-sticky-context" model={stickyContextModel} t={t} /> : null}
+            <DiffViewer
+              original={filePatch.beforeContent}
+              modified={filePatch.afterContent}
+              language={editorLanguage}
+              theme={resolvedTheme}
+              sideBySide={diffSideBySide}
+              readOnly={diffEditorOptions.readOnly}
+              lineNumbers={diffEditorOptions.lineNumbers}
+              wordWrap={diffEditorOptions.wordWrap}
+              onMount={handleDiffEditorMount}
+              extensions={editorExtensions}
+            />
+          </div>
+        </>
+      );
+    }
 
-    const getEditor = (): EditorLike | null => {
-      if (filePatch && filePatch.relativePath === selectedFilePath) {
-        const diffEditor = fileDiffEditorRef.current;
-        if (isDiffEditor(diffEditor)) {
-          return diffEditor.getModifiedEditor() as unknown as EditorLike;
-        }
-        return null;
-      }
-      return props.standardEditorRef.current as unknown as EditorLike | null;
-    };
+    if (fileCategory === "markdown" && previewEnabled) {
+      return (
+        <div ref={editorSurfaceRef} className="adl-tool-editor__surface adl-tool-editor__surface--preview">
+          <LazyMarkdownPreviewWrapper content={fileContent ?? ""} theme={resolvedTheme} />
+        </div>
+      );
+    }
 
-    const applyMinimapSettings = (settings: MinimapSettings) => {
-      if (filePatch && filePatch.relativePath === selectedFilePath) {
-        const diffEditor = fileDiffEditorRef.current;
-        if (!isDiffEditor(diffEditor)) return;
-        const minimapOpts = {
-          enabled: true,
-          side: "right" as const,
-          size: settings.size,
-          showSlider: settings.showSlider,
-          renderCharacters: settings.renderCharacters,
-          maxColumn: 80,
-          scale: settings.scale
-        };
-        try {
-          diffEditor.updateOptions({ minimap: minimapOpts });
-          const modifiedEditor = diffEditor.getModifiedEditor();
-          if (modifiedEditor) modifiedEditor.updateOptions({ minimap: minimapOpts });
-        } catch {
-          /* editor disposed */
-        }
-      } else {
-        const editor = props.standardEditorRef.current as unknown as EditorLike | null;
-        if (!editor) return;
-        try {
-          editor.updateOptions({
-            minimap: {
-              enabled: true,
-              side: "right" as const,
-              size: settings.size,
-              showSlider: settings.showSlider,
-              renderCharacters: settings.renderCharacters,
-              maxColumn: 80,
-              scale: settings.scale
-            }
-          });
-        } catch {
-          /* editor disposed */
-        }
-      }
-    };
+    if (fileCategory === "docx") {
+      return (
+        <div ref={editorSurfaceRef} className="adl-tool-editor__surface adl-tool-editor__surface--preview">
+          <div className="adl-unsupported-preview">不支持预览</div>
+        </div>
+      );
+    }
 
-    const controller = attachMinimapVisualOverlays(root, {
-      getScrollState: () => {
-        const ed = getEditor();
-        if (!ed) return null;
-        return {
-          scrollTop: ed.getScrollTop(),
-          scrollHeight: ed.getScrollHeight(),
-          clientHeight: ed.getLayoutInfo().height
-        };
-      },
-      setScrollTop: (value) => {
-        getEditor()?.setScrollPosition({ scrollTop: value });
-      },
-      onSettingsChange: (settings) => {
-        const prev = minimapSettingsRef.current;
-        setMinimapSettings(settings);
-        saveMinimapSettings(settings);
-        const monacoOptionsChanged =
-          prev.size !== settings.size ||
-          prev.showSlider !== settings.showSlider ||
-          prev.renderCharacters !== settings.renderCharacters ||
-          prev.scale !== settings.scale;
-        if (monacoOptionsChanged) {
-          applyMinimapSettings(settings);
-        }
-      },
-      getSettings: () => minimapSettingsRef.current,
-      getLineCount: () => getEditor()?.getModel?.()?.getLineCount() ?? null,
-    });
+    if (fileCategory === "pdf") {
+      return (
+        <div ref={editorSurfaceRef} className="adl-tool-editor__surface adl-tool-editor__surface--preview">
+          <div className="adl-unsupported-preview">不支持预览</div>
+        </div>
+      );
+    }
 
-    const scrollDisposable = getEditor()?.onDidScrollChange?.(() => controller.refresh());
+    if (fileCategory === "binary") {
+      return (
+        <div ref={editorSurfaceRef} className="adl-tool-editor__surface adl-tool-editor__surface--preview">
+          <div className="adl-unsupported-preview">不支持预览</div>
+        </div>
+      );
+    }
 
-    return () => {
-      scrollDisposable?.dispose();
-      controller.dispose();
-    };
-  }, [selectedFilePath, filePatch?.relativePath, props.standardEditorRef]);
+    return (
+      <div ref={editorSurfaceRef} className="adl-tool-editor__surface">
+        {stickyContextModel ? <StickyContext data-testid="files-sticky-context" model={stickyContextModel} t={t} /> : null}
+        <CodeEditor
+          value={fileContent ?? ""}
+          language={editorLanguage}
+          theme={resolvedTheme}
+          readOnly={previewEnabled || editorOptions.readOnly}
+          lineNumbers={editorOptions.lineNumbers}
+          wordWrap={editorOptions.wordWrap}
+          onChange={onEditorChange}
+          onMount={handleStandardEditorMount}
+          extensions={editorExtensions}
+        />
+      </div>
+    );
+  };
 
   return (
     <div className="adl-tool-panel adl-tool-panel--files">
@@ -1113,6 +965,17 @@ export function FilesPanel(props: RightPanelViewProps) {
         </div>
 
         <div className="adl-tool-context__group adl-tool-context__group--files-actions">
+          <TooltipSimple content={previewEnabled ? t.filePreview : t.fileEdit} placement="top">
+            <button
+              type="button"
+              className={`adl-tool-context__iconbtn${previewEnabled ? " is-active" : ""}`}
+              onClick={() => setPreviewEnabled((value) => !value)}
+              aria-label={previewEnabled ? t.filePreview : t.fileEdit}
+              aria-pressed={previewEnabled ? "true" : "false"}
+            >
+              <IconEye size={14} decorative />
+            </button>
+          </TooltipSimple>
           <div ref={fileMenuRef} className="adl-menu adl-file-context__menu">
             <TooltipSimple content={t.fileMoreActions} placement="top">
               <button
@@ -1424,158 +1287,7 @@ export function FilesPanel(props: RightPanelViewProps) {
           {editorHint ? <p className="adl-tool-hint">{editorHint}</p> : null}
 
           <div ref={editorShellRef} className="adl-tool-editor" data-testid="editor-shell">
-            {!selectedFilePath ? (
-              null
-            ) : filePatch && filePatch.relativePath === selectedFilePath ? (
-              <>
-                <div className="adl-diff-toolbar" role="group" aria-label={t.diffLayoutLabel}>
-                  <div className="adl-diff-toolbar__group">
-                    <span className="adl-diff-toolbar__label">{t.diffLayoutLabel}</span>
-                    <div className="adl-segmented">
-                      <button
-                        type="button"
-                        aria-pressed={!diffSideBySide ? "true" : "false"}
-                        onClick={() => onSetDiffLayout(false)}
-                      >
-                        {t.diffLayoutInline}
-                      </button>
-                      <button type="button" aria-pressed={diffSideBySide ? "true" : "false"} onClick={() => onSetDiffLayout(true)}>
-                        {t.diffLayoutSideBySide}
-                      </button>
-                    </div>
-                  </div>
-                  <div className="adl-diff-toolbar__group">
-                    <button
-                      type="button"
-                      className={`adl-diff-toolbar__toggle${lineNumbersEnabled ? " is-active" : ""}`}
-                      onClick={() => setLineNumbersEnabled((value) => !value)}
-                    >
-                      <IconHash size={12} decorative />
-                      <span>{t.fileLineNumbers}</span>
-                    </button>
-                    <button
-                      type="button"
-                      className={`adl-diff-toolbar__toggle${wordWrapEnabled ? " is-active" : ""}`}
-                      onClick={() => setWordWrapEnabled((value) => !value)}
-                    >
-                      <span>{t.fileWordWrap}</span>
-                    </button>
-                    <button
-                      type="button"
-                      className={`adl-diff-toolbar__toggle${agentAnnotationsEnabled ? " is-active" : ""}`}
-                      onClick={() => setAgentAnnotationsEnabled((value) => !value)}
-                    >
-                      <span>{t.agentChangeAnnotations}</span>
-                    </button>
-                  </div>
-                  <div className="adl-diff-toolbar__group">
-                    <button type="button" className="adl-diff-toolbar__nav" onClick={() => handleJumpPatchHunk("previous")}>
-                      {t.patchPreviousChange}
-                    </button>
-                    <button type="button" className="adl-diff-toolbar__nav" onClick={() => handleJumpPatchHunk("next")}>
-                      {t.patchNextChange}
-                    </button>
-                    <button
-                      type="button"
-                      className="adl-diff-toolbar__nav"
-                      onClick={() => props.onSetAllPatchHunksCollapsed(!hasCollapsedHunks, activeFilePatch?.relativePath)}
-                    >
-                      {hasCollapsedHunks ? t.fileExpandAll : t.fileCollapseAll}
-                    </button>
-                  </div>
-                </div>
-                {activeFilePatchSummary ? (
-                  <div className="adl-diff-hunk-strip" aria-label={t.patchReview}>
-                    <div className="adl-diff-hunk-strip__header">
-                      <div>
-                        <strong>{activeFilePatchSummary.relativePath}</strong>
-                        <small>
-                          {activeFilePatchSummary.totalHunks} · {activeFilePatchSummary.acceptedHunks + activeFilePatchSummary.rejectedHunks}/
-                          {activeFilePatchSummary.totalHunks}
-                        </small>
-                      </div>
-                    </div>
-                    <div className="adl-diff-hunk-strip__list">
-                      {activeFilePatchSummary.hunks.map((hunk, index) => (
-                        <div
-                          key={hunk.id}
-                          className={`adl-diff-hunk-pill adl-diff-hunk-pill--${hunk.changeKind}${props.selectedPatchHunkId === hunk.id ? " is-active" : ""}`}
-                        >
-                          <button
-                            type="button"
-                            className="adl-diff-hunk-pill__main"
-                            onClick={() => handleSelectPatchHunk(hunk.id, hunk.targetLine)}
-                          >
-                            <span className="adl-diff-hunk-pill__index">{index + 1}</span>
-                            <span className="adl-diff-hunk-pill__body">
-                              <strong>{hunk.preview}</strong>
-                              <small>
-                                {hunk.newStart || hunk.oldStart}
-                                {hunk.isCollapsed ? ` · ${t.expandDetails}` : ""}
-                              </small>
-                            </span>
-                            <span className={`adl-decision-chip adl-decision-chip--${hunk.decision}`}>
-                              {hunk.decision === "accepted"
-                                ? t.approvalApproved
-                                : hunk.decision === "rejected"
-                                  ? t.approvalRejected
-                                  : t.approvalPendingCount}
-                            </span>
-                          </button>
-                          <button
-                            type="button"
-                            className="adl-diff-hunk-pill__toggle"
-                            onClick={(event) => handleTogglePatchHunk(event, hunk.id)}
-                            aria-label={hunk.isCollapsed ? t.expandDetails : t.collapseDetails}
-                          >
-                            {hunk.isCollapsed ? <IconChevronRight size={12} decorative /> : <IconChevronDown size={12} decorative />}
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-                <div ref={editorSurfaceRef} className="adl-tool-editor__surface">
-                  {stickyContextModel ? <StickyContext data-testid="files-sticky-context" model={stickyContextModel} t={t} /> : null}
-                  <DiffEditor
-                    theme={monacoTheme}
-                    beforeMount={handleMonacoBeforeMount}
-                    language={editorLanguage}
-                    original={filePatch.beforeContent}
-                    modified={filePatch.afterContent}
-                    options={buildMonacoEditorOptions({
-                      readOnly: true,
-                      lineNumbersEnabled,
-                      wordWrapEnabled,
-                      sideBySideDiff: diffSideBySide,
-                      hideUnchangedRegions: hasCollapsedHunks,
-                      minimapSettings
-                    })}
-                    onMount={(editor) => handleDiffEditorMount(editor as unknown as MonacoEditorRef)}
-                  />
-                </div>
-              </>
-            ) : (
-              <>
-                <div ref={editorSurfaceRef} className="adl-tool-editor__surface">
-                  {stickyContextModel ? <StickyContext data-testid="files-sticky-context" model={stickyContextModel} t={t} /> : null}
-                  <Editor
-                    theme={monacoTheme}
-                    beforeMount={handleMonacoBeforeMount}
-                    language={editorLanguage}
-                    value={fileContent ?? ""}
-                    options={buildMonacoEditorOptions({
-                      readOnly: false,
-                      lineNumbersEnabled,
-                      wordWrapEnabled,
-                      minimapSettings
-                    })}
-                    onChange={(value) => onEditorChange(value)}
-                    onMount={(editor, monaco) => handleStandardEditorMount(editor as unknown as MonacoEditorRef, monaco)}
-                  />
-                </div>
-              </>
-            )}
+            {renderEditorSurface()}
           </div>
 
           {diagnostics.length ? (

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { memo, startTransition, useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { IconAlertTriangle, IconChevronDown, IconChevronRight, IconCircle } from "../../icons";
 import { getFileTreeVisualSpec } from "./fileTreeVisuals";
@@ -44,6 +44,14 @@ interface FileTreeNodeProps<T extends FileTreeRenderableNode> {
   onShowContextMenu?: (event: React.MouseEvent<HTMLButtonElement>, node: T) => void;
 }
 
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function isPathInSubtree(rootPath: string, path: string | undefined): boolean {
+  return !!path && (path === rootPath || path.startsWith(`${rootPath}/`));
+}
+
 export function collectDirectoryPaths<T extends FileTreeRenderableNode>(nodes: T[]): string[] {
   const paths: string[] = [];
   const visit = (items: T[]) => {
@@ -60,7 +68,7 @@ export function collectDirectoryPaths<T extends FileTreeRenderableNode>(nodes: T
   return paths;
 }
 
-function FileTreeNode<T extends FileTreeRenderableNode>({
+function FileTreeNodeComponent<T extends FileTreeRenderableNode>({
   node,
   depth,
   selectedFilePath,
@@ -118,7 +126,7 @@ function FileTreeNode<T extends FileTreeRenderableNode>({
       {isDirectory && isExpanded && node.children.length > 0 ? (
         <ul className="adl-filetree__children">
           {(node.children as T[]).map((child) => (
-            <FileTreeNode<T>
+            <MemoizedFileTreeNode<T>
               key={child.path}
               node={child}
               depth={depth + 1}
@@ -139,6 +147,51 @@ function FileTreeNode<T extends FileTreeRenderableNode>({
   );
 }
 
+function areFileTreeNodePropsEqual<T extends FileTreeRenderableNode>(
+  previous: FileTreeNodeProps<T>,
+  next: FileTreeNodeProps<T>
+): boolean {
+  if (
+    previous.node !== next.node ||
+    previous.depth !== next.depth ||
+    previous.onToggle !== next.onToggle ||
+    previous.onOpenFile !== next.onOpenFile ||
+    previous.renderMeta !== next.renderMeta ||
+    previous.getNodeClassName !== next.getNodeClassName ||
+    previous.onShowContextMenu !== next.onShowContextMenu
+  ) {
+    return false;
+  }
+
+  const path = previous.node.path;
+  if ((previous.expandedPaths[path] ?? false) !== (next.expandedPaths[path] ?? false)) {
+    return false;
+  }
+  if ((previous.selectedFilePath === path) !== (next.selectedFilePath === path)) {
+    return false;
+  }
+  if (previous.node.kind === "directory") {
+    const previousContainsSelected = isPathInSubtree(path, previous.selectedFilePath);
+    const nextContainsSelected = isPathInSubtree(path, next.selectedFilePath);
+    if (previousContainsSelected !== nextContainsSelected) {
+      return false;
+    }
+    if ((previous.expandedPaths[path] ?? false) && previous.expandedPaths !== next.expandedPaths) {
+      return false;
+    }
+  }
+  if ((previous.externalChangePath === path) !== (next.externalChangePath === path)) {
+    return false;
+  }
+  if ((previous.dirtyPaths?.has(path) ?? false) !== (next.dirtyPaths?.has(path) ?? false)) {
+    return false;
+  }
+
+  return true;
+}
+
+const MemoizedFileTreeNode = memo(FileTreeNodeComponent, areFileTreeNodePropsEqual) as typeof FileTreeNodeComponent;
+
 export function FileTree<T extends FileTreeRenderableNode>(props: FileTreeProps<T>) {
   const [contextMenuState, setContextMenuState] = useState<{
     x: number;
@@ -147,7 +200,37 @@ export function FileTree<T extends FileTreeRenderableNode>(props: FileTreeProps<
     items: FileTreeContextMenuItem<T>[];
   } | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const scrollbarThumbRef = useRef<HTMLDivElement | null>(null);
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
+  const [optimisticSelectedPath, setOptimisticSelectedPath] = useState<string | undefined>();
+
+  useEffect(() => {
+    setOptimisticSelectedPath(undefined);
+  }, [props.selectedFilePath]);
+
+  const updateScrollbar = useCallback(() => {
+    const root = rootRef.current;
+    const scroll = scrollRef.current;
+    const thumb = scrollbarThumbRef.current;
+    if (!root || !scroll || !thumb) {
+      return;
+    }
+    const maxScrollTop = scroll.scrollHeight - scroll.clientHeight;
+    const isScrollable = maxScrollTop > 1;
+    root.classList.toggle("is-scrollable", isScrollable);
+    if (!isScrollable) {
+      thumb.style.height = "0px";
+      thumb.style.transform = "translateY(0px)";
+      return;
+    }
+    const trackHeight = scroll.clientHeight;
+    const thumbHeight = Math.max(24, Math.round((scroll.clientHeight / scroll.scrollHeight) * trackHeight));
+    const maxThumbTop = Math.max(1, trackHeight - thumbHeight);
+    const thumbTop = Math.round((scroll.scrollTop / maxScrollTop) * maxThumbTop);
+    thumb.style.height = `${thumbHeight}px`;
+    thumb.style.transform = `translateY(${thumbTop}px)`;
+  }, []);
 
   useEffect(() => {
     if (!contextMenuState) {
@@ -171,29 +254,129 @@ export function FileTree<T extends FileTreeRenderableNode>(props: FileTreeProps<
     };
   }, [contextMenuState]);
 
-  const handleShowContextMenu = props.getContextMenuItems
-    ? (event: React.MouseEvent<HTMLButtonElement>, node: T) => {
-        const items = props.getContextMenuItems?.(node) ?? [];
-        if (!items.length) {
-          return;
-        }
-        event.preventDefault();
-        setContextMenuState({
-          x: event.clientX,
-          y: event.clientY,
-          node,
-          items
-        });
+  useEffect(() => {
+    const scroll = scrollRef.current;
+    if (!scroll) {
+      return;
+    }
+    let rafId = 0;
+    const scheduleUpdate = () => {
+      if (rafId) {
+        return;
       }
-    : undefined;
+      rafId = window.requestAnimationFrame(() => {
+        rafId = 0;
+        updateScrollbar();
+      });
+    };
+    scheduleUpdate();
+    scroll.addEventListener("scroll", scheduleUpdate, { passive: true });
+    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(scheduleUpdate) : null;
+    observer?.observe(scroll);
+    if (scroll.firstElementChild) {
+      observer?.observe(scroll.firstElementChild);
+    }
+    return () => {
+      if (rafId) {
+        window.cancelAnimationFrame(rafId);
+      }
+      scroll.removeEventListener("scroll", scheduleUpdate);
+      observer?.disconnect();
+    };
+  }, [props.nodes, props.expandedPaths, updateScrollbar]);
+
+  const handleOpenFile = useCallback(
+    (relativePath: string) => {
+      setOptimisticSelectedPath(relativePath);
+      startTransition(() => props.onOpenFile(relativePath));
+    },
+    [props.onOpenFile]
+  );
+
+  const handleShowContextMenu = useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>, node: T) => {
+      const items = props.getContextMenuItems?.(node) ?? [];
+      if (!items.length) {
+        return;
+      }
+      event.preventDefault();
+      setContextMenuState({
+        x: event.clientX,
+        y: event.clientY,
+        node,
+        items
+      });
+    },
+    [props.getContextMenuItems]
+  );
+
+  const handleScrollbarPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    const scroll = scrollRef.current;
+    const thumb = scrollbarThumbRef.current;
+    if (!scroll || !thumb || scroll.scrollHeight <= scroll.clientHeight) {
+      return;
+    }
+    event.preventDefault();
+    const track = event.currentTarget;
+    track.setPointerCapture(event.pointerId);
+    const trackRect = track.getBoundingClientRect();
+    const thumbRect = thumb.getBoundingClientRect();
+    const pointerInsideThumb = event.clientY >= thumbRect.top && event.clientY <= thumbRect.bottom;
+    const thumbOffset = pointerInsideThumb ? event.clientY - thumbRect.top : thumbRect.height / 2;
+
+    const applyClientY = (clientY: number) => {
+      const maxScrollTop = scroll.scrollHeight - scroll.clientHeight;
+      const maxThumbTop = Math.max(1, trackRect.height - thumbRect.height);
+      const nextThumbTop = clamp(clientY - trackRect.top - thumbOffset, 0, maxThumbTop);
+      scroll.scrollTop = Math.round((nextThumbTop / maxThumbTop) * maxScrollTop);
+      updateScrollbar();
+    };
+
+    applyClientY(event.clientY);
+
+    const handleMove = (moveEvent: PointerEvent) => applyClientY(moveEvent.clientY);
+    const cleanup = (upEvent: PointerEvent) => {
+      if (track.hasPointerCapture(upEvent.pointerId)) {
+        track.releasePointerCapture(upEvent.pointerId);
+      }
+      track.removeEventListener("pointermove", handleMove);
+      track.removeEventListener("pointerup", cleanup);
+      track.removeEventListener("pointercancel", cleanup);
+      track.removeEventListener("lostpointercapture", cleanup);
+    };
+
+    track.addEventListener("pointermove", handleMove);
+    track.addEventListener("pointerup", cleanup);
+    track.addEventListener("pointercancel", cleanup);
+    track.addEventListener("lostpointercapture", cleanup);
+  }, [updateScrollbar]);
+
+  const selectedFilePath = optimisticSelectedPath ?? props.selectedFilePath;
 
   return (
     <div ref={rootRef} className="adl-filetree-shell">
-      <ul className="adl-filetree">
-        {props.nodes.map((node) => (
-          <FileTreeNode<T> key={node.path} node={node} depth={0} {...props} onShowContextMenu={handleShowContextMenu} />
-        ))}
-      </ul>
+      <div ref={scrollRef} className="adl-filetree-scroll">
+        <ul className="adl-filetree">
+          {props.nodes.map((node) => (
+            <MemoizedFileTreeNode<T>
+              key={node.path}
+              node={node}
+              depth={0}
+              {...props}
+              selectedFilePath={selectedFilePath}
+              onOpenFile={handleOpenFile}
+              onShowContextMenu={props.getContextMenuItems ? handleShowContextMenu : undefined}
+            />
+          ))}
+        </ul>
+      </div>
+      <div
+        className="adl-filetree-scrollbar"
+        aria-hidden="true"
+        onPointerDown={handleScrollbarPointerDown}
+      >
+        <div ref={scrollbarThumbRef} className="adl-filetree-scrollbar__thumb" />
+      </div>
       {contextMenuState
         ? createPortal(
             <div

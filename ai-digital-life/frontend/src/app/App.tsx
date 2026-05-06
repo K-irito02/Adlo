@@ -5,7 +5,7 @@ import { DIFF_LAYOUT_STORAGE_KEY } from "./constants";
 import { MODEL_PROVIDER_IDS } from "./constants";
 import { buildSelectionPrompt } from "./selectionPrompt";
 import { themeController } from "./theme";
-import type { MonacoEditorRef } from "./types";
+import type { EditorRef, DiffEditorRef } from "./types";
 import { filterDiagnosticsForPath, findFirstDiagnostic, detectEditorLanguage } from "./workspacePaths";
 import { mapPatchToEditorTab } from "./editorTabs";
 import { buildSettingsItems, preferencePatchFromSettingChange } from "./settingsViewModel";
@@ -201,8 +201,8 @@ export function App() {
   const [selectedPatchHunkId, setSelectedPatchHunkId] = useState<string>();
   const [collapsedPatchHunkIds, setCollapsedPatchHunkIds] = useState<string[]>([]);
   const [patchReviewFilter, setPatchReviewFilter] = useState<PatchReviewFilter>("all");
-  const standardEditorRef = useRef<MonacoEditorRef | null>(null);
-  const diffEditorRef = useRef<MonacoEditorRef | null>(null);
+  const standardEditorRef = useRef<EditorRef | null>(null);
+  const diffEditorRef = useRef<EditorRef | DiffEditorRef | null>(null);
   const editorDirtyTimerRef = useRef<number | undefined>(undefined);
   const pendingRevealRef = useRef<{ path: string; line: number } | null>(null);
 
@@ -338,61 +338,30 @@ export function App() {
 
   useEffect(() => {
     if (!activeDiagnostic?.line) return;
-    const editor = diffEditorRef.current ?? standardEditorRef.current;
-    editor?.revealLineInCenter(activeDiagnostic.line);
-    editor?.setPosition?.({ lineNumber: activeDiagnostic.line, column: 1 });
-    editor?.focus?.();
+    const raw = diffEditorRef.current ?? standardEditorRef.current;
+    const editor = raw && "getModifiedEditor" in raw ? (raw as DiffEditorRef).getModifiedEditor() : raw;
+    if (!editor) return;
+    editor.revealLineInCenter(activeDiagnostic.line);
+    editor.setPosition({ lineNumber: activeDiagnostic.line, column: 1 });
+    editor.focus();
   }, [activeDiagnostic]);
 
   useEffect(() => {
     const pending = pendingRevealRef.current;
     if (!pending) return;
     if (!selectedFilePath || selectedFilePath !== pending.path) return;
-    const editor = diffEditorRef.current ?? standardEditorRef.current;
+    const raw = diffEditorRef.current ?? standardEditorRef.current;
+    const editor = raw && "getModifiedEditor" in raw ? (raw as DiffEditorRef).getModifiedEditor() : raw;
     if (!editor) return;
     editor.revealLineInCenter(pending.line);
-    editor.setPosition?.({ lineNumber: pending.line, column: 1 });
-    editor.focus?.();
+    editor.setPosition({ lineNumber: pending.line, column: 1 });
+    editor.focus();
     pendingRevealRef.current = null;
   }, [fileLastModifiedAt, selectedFilePath]);
 
-  useEffect(() => {
-    const editor = standardEditorRef.current as unknown as { getModel?: () => unknown } | null;
-    const model = editor?.getModel?.();
-    const monacoEditor = (
-      window as typeof window & {
-        monaco?: {
-          editor: {
-            setModelMarkers: (model: unknown, owner: string, markers: unknown[]) => void;
-            MarkerSeverity: { Error: number; Warning: number; Info: number };
-          };
-        };
-      }
-    ).monaco;
-
-    if (!model || !monacoEditor) return;
-
-    monacoEditor.editor.setModelMarkers(
-      model,
-      "validation",
-      selectedDiagnostics.map((diagnostic) => ({
-        startLineNumber: diagnostic.line ?? 1,
-        startColumn: diagnostic.column ?? 1,
-        endLineNumber: diagnostic.line ?? 1,
-        endColumn: (diagnostic.column ?? 1) + 1,
-        message: diagnostic.message,
-        severity:
-          diagnostic.severity === "error"
-            ? monacoEditor.editor.MarkerSeverity.Error
-            : diagnostic.severity === "warning"
-              ? monacoEditor.editor.MarkerSeverity.Warning
-              : monacoEditor.editor.MarkerSeverity.Info
-      }))
-    );
-  }, [selectedDiagnostics]);
-
   const handleSendSelection = useCallback(async () => {
-    const editor = diffEditorRef.current ?? standardEditorRef.current;
+    const raw = diffEditorRef.current ?? standardEditorRef.current;
+    const editor = raw && "getModifiedEditor" in raw ? (raw as DiffEditorRef).getModifiedEditor() : raw;
     const selection = editor?.getSelection();
     const model = editor?.getModel();
     if (!selection || !model || !selectedFilePath) {
@@ -540,18 +509,14 @@ export function App() {
   }, []);
 
   const handleEditorMount = useCallback(
-    (editor: MonacoEditorRef, monaco: unknown) => {
+    (editor: EditorRef) => {
       standardEditorRef.current = editor;
-      (window as typeof window & { monaco?: typeof monaco }).monaco = monaco;
     },
     []
   );
 
-  const handleDiffMount = useCallback((editor: MonacoEditorRef, monaco?: unknown) => {
+  const handleDiffMount = useCallback((editor: EditorRef | DiffEditorRef) => {
     diffEditorRef.current = editor;
-    if (monaco) {
-      (window as typeof window & { monaco?: unknown }).monaco = monaco;
-    }
   }, []);
 
   const handleApplyPatch = useCallback(() => {
@@ -709,7 +674,6 @@ export function App() {
           gitSnapshot={gitSnapshot}
           commandHistory={commandHistory}
           standardEditorRef={standardEditorRef}
-          diffEditorRef={diffEditorRef}
           onOpenFile={(path) => void openFile(path)}
           onOpenChangePreview={(path) => void openChangePreview(path)}
           onOpenFileAtLine={handleOpenFileAtLine}

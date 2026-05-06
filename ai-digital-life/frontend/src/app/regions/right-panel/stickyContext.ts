@@ -1,4 +1,5 @@
 import type { FileOutlineItem } from "@ai-digital-life/kernel";
+import type { EditorRef, Disposable } from "../../types";
 import type { PreviewDiffVisualRange } from "./changePreviewDiffRanges";
 
 const MAX_STICKY_CONTEXT_ROWS = 3;
@@ -192,4 +193,28 @@ export function createStickyContextModel(input: CreateStickyContextModelInput): 
       input.onNavigateLine(entry.line);
     }
   };
+}
+
+export function getVisibleStartLine(editor: EditorRef | null): number {
+  const firstVisibleRange = editor?.getVisibleRanges()?.[0];
+  return firstVisibleRange?.startLineNumber ?? 1;
+}
+
+export function navigateToLine(editor: EditorRef | null, line: number): void {
+  if (!editor) {
+    return;
+  }
+  editor.revealLineInCenter(line);
+  editor.setPosition({ lineNumber: line, column: 1 });
+  editor.focus();
+}
+
+export function subscribeToEditor(
+  editor: EditorRef | null,
+  callback: () => void
+): Disposable {
+  if (!editor) {
+    return { dispose() {} };
+  }
+  return editor.onDidScrollChange(callback);
 }
