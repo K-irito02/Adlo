@@ -21,6 +21,23 @@ export type MonacoDecoration = {
   options: MonacoDecorationOptions;
 };
 
+export type MonacoTextModel = {
+  getLineCount(): number;
+  getLineMaxColumn?(lineNumber: number): number;
+};
+
+export type MonacoMinimapLayoutInfo = {
+  minimapWidth?: number;
+  minimapCharWidth?: number;
+};
+
+export type MonacoEditorLayoutInfo = {
+  height: number;
+  width?: number;
+  contentWidth?: number;
+  minimap?: MonacoMinimapLayoutInfo;
+};
+
 export interface MonacoEditor {
   deltaDecorations(oldDecorations: string[], newDecorations: MonacoDecoration[]): string[];
   updateOptions(options: unknown): void;
@@ -31,14 +48,15 @@ export interface MonacoEditor {
     endColumn: number;
   } | null;
   getScrollTop(): number;
+  getScrollLeft?(): number;
   getScrollHeight(): number;
-  getLayoutInfo(): { height: number; width?: number; contentWidth?: number };
+  getLayoutInfo(): MonacoEditorLayoutInfo;
   setScrollPosition(position: { scrollTop: number }): void;
   getVisibleRanges?(): MonacoRange[];
   onDidScrollChange?(listener: () => void): { dispose(): void };
   onDidChangeHiddenAreas?(listener: () => void): { dispose(): void };
   onDidLayoutChange?(listener: () => void): { dispose(): void };
-  getModel?(): { getLineCount(): number } | null;
+  getModel?(): MonacoTextModel | null;
   getDomNode?(): HTMLElement | null;
   getTopForLineNumber?(lineNumber: number): number;
   revealLineInCenter?(lineNumber: number): void;

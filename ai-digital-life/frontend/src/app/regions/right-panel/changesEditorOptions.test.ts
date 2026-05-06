@@ -21,7 +21,7 @@ describe("changes preview editor options", () => {
     expect(changesPanelSource).toContain("minimapSettings.showSlider");
     expect(changesPanelSource).toContain("minimapSettings.renderCharacters");
     expect(changesPanelSource).toContain("minimapSettings.scale");
-    expect(changesPanelSource).toContain("maxColumn: 80");
+    expect(changesPanelSource).toContain("maxColumn: INLINE_MINIMAP_MAX_COLUMN");
     // Scrollbar: vertical scrollbar is hidden in all modes (use minimap for navigation)
     expect(changesPanelSource).toContain("scrollbar:");
     expect(changesPanelSource).toContain('vertical: "hidden"');
@@ -43,7 +43,7 @@ describe("changes preview editor options", () => {
     expect(changesPanelSource).toContain("s.showSlider");
     expect(changesPanelSource).toContain("s.renderCharacters");
     expect(changesPanelSource).toContain("s.scale");
-    expect(changesPanelSource).toContain("maxColumn: 80");
+    expect(changesPanelSource).toContain("maxColumn: INLINE_MINIMAP_MAX_COLUMN");
     expect(changesPanelSource).toContain("verticalScrollbarSize: 0");
   });
 
@@ -52,6 +52,8 @@ describe("changes preview editor options", () => {
     expect(changesPanelSource).toContain("deltaDecorations");
     expect(changesPanelSource).toContain("adl-inline-diff-line");
     expect(changesPanelSource).toContain("getMinimapPosition");
+    expect(changesPanelSource).toContain("syncInlineDiffBackgrounds");
+    expect(changesPanelSource).toContain("adl-inline-diff-backgrounds");
   });
 
   it("attaches custom minimap visual overlays for the shared right-side minimap", () => {
@@ -60,4 +62,15 @@ describe("changes preview editor options", () => {
     expect(changesPanelSource).toContain("onSettingsChange:");
     expect(changesPanelSource).toContain("getSettings:");
   });
+
+  it("syncs the inline minimap rail width from Monaco layout info before falling back to DOM measurement", () => {
+    expect(changesPanelSource).toContain('root.style.setProperty("--adl-editor-minimap-width"');
+    expect(changesPanelSource).toContain("editor?.getLayoutInfo().minimap");
+    expect(changesPanelSource).toContain("model.getLineMaxColumn(lineNumber) - 1");
+    expect(changesPanelSource).toContain("computeInlineMinimapRailWidth");
+    expect(changesPanelSource).toContain('canvas.minimap-decorations-layer, canvas');
+    expect(changesPanelSource).toContain("isDiffEditor(currentDiffEditor) ? currentDiffEditor.getModifiedEditor() : null");
+    expect(changesPanelSource).toContain('root.style.setProperty("--adl-editor-scroll-left"');
+  });
+
 });

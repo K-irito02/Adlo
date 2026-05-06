@@ -47,7 +47,7 @@ describe("changes preview gutter spacing", () => {
     expect(regionsCss).toContain(".monaco-diff-editor:not(.side-by-side) .margin-view-overlays .line-numbers");
   });
 
-  it("keeps the inline minimap visible with the same rail width as files", () => {
+  it("keeps the inline minimap visible with a layered rail over diff backgrounds", () => {
     const inlineMinimapRule = getRuleBody(
       ".adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .minimap"
     );
@@ -60,8 +60,9 @@ describe("changes preview gutter spacing", () => {
 
     expect(inlineMinimapRule).toContain("right: 0 !important;");
     expect(inlineMinimapRule).toContain("--adl-minimap-slider-visual-height: 48px;");
-    expect(inlineMinimapRule).toContain("width: 84px !important;");
-    expect(inlineMinimapRule).toContain("max-width: 84px !important;");
+    expect(inlineMinimapRule).toContain("width: var(--adl-editor-minimap-width, 84px) !important;");
+    expect(inlineMinimapRule).toContain("min-width: var(--adl-editor-minimap-width, 84px) !important;");
+    expect(inlineMinimapRule).toContain("max-width: var(--adl-editor-minimap-width, 84px) !important;");
     expect(inlineMinimapRule).toContain("overflow: hidden !important;");
     expect(inlineMinimapRule).toContain("background: var(--editor-bg) !important;");
     expect(inlineMinimapRule).not.toContain("border-left");
@@ -75,6 +76,7 @@ describe("changes preview gutter spacing", () => {
       '[data-theme="dark"] .adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .minimap'
     );
     expect(inlineDarkRule).toContain("inset -1px 0 0 rgba(0, 0, 0, 0.80)");
+    expect(inlineDarkRule).toContain("-2px 1px 3px rgba(0, 0, 0, 0.30)");
 
     expect(inlineSliderRule).toContain("left: 0 !important;");
     expect(inlineSliderRule).toContain("right: 0 !important;");
@@ -143,27 +145,57 @@ describe("changes preview gutter spacing", () => {
     );
 
     expect(modifiedInnerRule).toContain("width: 100% !important;");
-    expect(overflowGuardRule).toContain("width: calc(100% - var(--adl-editor-minimap-width, 84px)) !important;");
+    expect(overflowGuardRule).toContain("width: 100% !important;");
     expect(scrollableElementRule).toContain("width: 100% !important;");
   });
 
+  it("stops the inline horizontal scrollbar at the minimap edge", () => {
+    const horizontalScrollbarRule = getRuleBody(
+      ".adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .scrollbar.horizontal"
+    );
+    const horizontalSliderRule = getRuleBody(
+      ".adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .scrollbar.horizontal .slider"
+    );
+
+    expect(horizontalScrollbarRule).toContain("right: var(--adl-editor-minimap-width, 84px) !important;");
+    expect(horizontalScrollbarRule).toContain("width: auto !important;");
+    expect(horizontalSliderRule).toContain("max-width: 100% !important;");
+  });
+
   it("uses immediate preview-owned line backgrounds instead of delayed native diff rows", () => {
+    const previewOverlayRule = getRuleBody(
+      ".adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .view-overlays"
+    );
     const previewLineRule = getRuleBody(
       ".adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .view-overlays .adl-inline-diff-line"
     );
+    const backgroundLayerRule = getRuleBody(
+      ".adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .adl-inline-diff-backgrounds"
+    );
+    const backgroundBandRule = getRuleBody(
+      ".adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .adl-inline-diff-background-band"
+    );
     const insertRule = getRuleBody(
-      ".adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .view-overlays .adl-inline-diff-line--insert"
+      ".adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .adl-inline-diff-background-band--insert"
     );
     const deleteRule = getRuleBody(
-      ".adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .view-overlays .adl-inline-diff-line--delete"
+      ".adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .adl-inline-diff-background-band--delete"
     );
     const nativeLineRule = getRuleBody(
       ".adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .cdr.line-insert,\n.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .cdr.line-delete"
     );
 
-    expect(previewLineRule).toContain("left: 0 !important;");
-    expect(previewLineRule).toContain("width: calc(100% + var(--adl-editor-minimap-width, 84px)) !important;");
-    expect(previewLineRule).toContain("right: calc(-1 * var(--adl-editor-minimap-width, 84px)) !important;");
+    expect(previewOverlayRule).toContain("overflow: hidden !important;");
+    expect(previewOverlayRule).not.toContain("width:");
+    expect(previewOverlayRule).not.toContain("right:");
+    expect(previewOverlayRule).not.toContain("left:");
+    expect(previewLineRule).toContain("background-color: transparent !important;");
+    expect(backgroundLayerRule).toContain("position: absolute;");
+    expect(backgroundLayerRule).toContain("pointer-events: none;");
+    expect(backgroundLayerRule).toContain("overflow: hidden;");
+    expect(backgroundLayerRule).toContain("z-index: 0;");
+    expect(backgroundBandRule).toContain("left: 0;");
+    expect(backgroundBandRule).toContain("right: 0;");
     expect(insertRule).toContain("background-color: var(--editor-diff-insert-bg) !important;");
     expect(deleteRule).toContain("background-color: var(--editor-diff-remove-bg) !important;");
     expect(nativeLineRule).toContain("background-color: transparent !important;");

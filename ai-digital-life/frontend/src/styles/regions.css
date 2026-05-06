@@ -3974,6 +3974,7 @@
 
 .adl-tool-editor {
   --adl-editor-minimap-width: 84px;
+  --adl-editor-scroll-left: 0px;
   flex: 1;
   min-height: 0;
   display: flex;
@@ -4138,7 +4139,8 @@
 }
 
 .adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .overflow-guard {
-  width: calc(100% - var(--adl-editor-minimap-width, 84px)) !important;
+  width: 100% !important;
+  position: relative !important;
 }
 
 .adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.original .margin,
@@ -4150,52 +4152,71 @@
 .adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .monaco-scrollable-element {
   width: 100% !important;
   overflow-x: hidden !important;
+  background: transparent !important;
+  z-index: 1 !important;
+}
+
+.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .scrollbar.horizontal {
+  right: var(--adl-editor-minimap-width, 84px) !important;
+  width: auto !important;
+}
+
+.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .scrollbar.horizontal .slider {
+  max-width: 100% !important;
 }
 
 .adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .view-overlays {
-  position: absolute !important;
-  width: calc(100% + var(--adl-editor-minimap-width, 84px)) !important;
-  right: 0 !important;
-  left: 0 !important;
-  top: 0 !important;
-  bottom: 0 !important;
+  overflow: hidden !important;
 }
 
 .adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .view-overlays .adl-inline-diff-line {
-  position: absolute !important;
-  left: 0 !important;
-  width: calc(100% + var(--adl-editor-minimap-width, 84px)) !important;
-  right: calc(-1 * var(--adl-editor-minimap-width, 84px)) !important;
-  top: 0 !important;
-  bottom: 0 !important;
+  background-color: transparent !important;
   border: none !important;
   outline: none !important;
   box-shadow: none !important;
 }
 
+.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .monaco-editor-background,
+.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .lines-content,
+.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .view-lines {
+  background: transparent !important;
+}
 
+.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .adl-inline-diff-backgrounds {
+  position: absolute;
+  inset: 0 var(--adl-editor-minimap-width, 84px) 0 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
 
-.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .view-overlays .adl-inline-diff-line--insert {
+.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .adl-inline-diff-background-band {
+  position: absolute;
+  left: 0;
+  right: 0;
+}
+
+.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .adl-inline-diff-background-band--insert {
   background-color: var(--editor-diff-insert-bg) !important;
 }
 
-.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .view-overlays .adl-inline-diff-line--delete {
+.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .adl-inline-diff-background-band--delete {
   background-color: var(--editor-diff-remove-bg) !important;
 }
 
-.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .view-overlays .adl-inline-diff-line--insert.adl-inline-diff-line--strong {
+.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .adl-inline-diff-background-band--insert.adl-inline-diff-background-band--strong {
   background-color: var(--editor-diff-insert-bg-strong) !important;
 }
 
-.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .view-overlays .adl-inline-diff-line--delete.adl-inline-diff-line--strong {
+.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .adl-inline-diff-background-band--delete.adl-inline-diff-background-band--strong {
   background-color: var(--editor-diff-remove-bg-strong) !important;
 }
 
-.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .view-overlays .adl-inline-diff-line--insert.adl-inline-diff-line--block {
+.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .adl-inline-diff-background-band--insert.adl-inline-diff-background-band--block {
   background-color: var(--editor-diff-insert-bg-block) !important;
 }
 
-.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .view-overlays .adl-inline-diff-line--delete.adl-inline-diff-line--block {
+.adl-tool-editor--changes .monaco-diff-editor:not(.side-by-side) .editor.modified .adl-inline-diff-background-band--delete.adl-inline-diff-background-band--block {
   background-color: var(--editor-diff-remove-bg-block) !important;
 }
 
@@ -4369,9 +4390,9 @@
   left: auto !important;
   right: 0 !important;
   --adl-minimap-slider-visual-height: 48px;
-  width: 84px !important;
-  min-width: 84px !important;
-  max-width: 84px !important;
+  width: var(--adl-editor-minimap-width, 84px) !important;
+  min-width: var(--adl-editor-minimap-width, 84px) !important;
+  max-width: var(--adl-editor-minimap-width, 84px) !important;
   overflow: hidden !important;
   background: var(--editor-bg) !important;
   border: none !important;

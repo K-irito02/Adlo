@@ -26,9 +26,16 @@ import {
   type PreviewDiffVisualRange
 } from "./changePreviewDiffRanges";
 import { collectDirectoryPaths, FileTree, type FileTreeContextMenuItem } from "./fileTree";
+import {
+  computeInlineMinimapRailWidth,
+  DEFAULT_INLINE_MINIMAP_WIDTH,
+  getLongestLineColumn,
+  INLINE_MINIMAP_MAX_COLUMN
+} from "./inlineMinimapLayout";
 import { detectEditorLanguage } from "../../workspacePaths";
 import {
   type MonacoDecoration,
+  type MonacoEditor,
   getMonacoFromWindow,
   createMonacoRange,
   getEditorVisibleStartLine,
@@ -48,6 +55,16 @@ import { buildStickyContextEntries, createStickyContextModel, type StickyContext
 
 const CHANGES_BRANCH_STORAGE_KEY = "adl-ui:changes-branch";
 const FALLBACK_BRANCHES = ["main", "develop", "release/0.1.0", "feature/right-panel"];
+const INLINE_MINIMAP_SELECTOR = ".monaco-diff-editor:not(.side-by-side) .editor.modified .minimap";
+const INLINE_MINIMAP_CANVAS_SELECTOR = "canvas.minimap-decorations-layer, canvas";
+const INLINE_DIFF_BACKGROUND_LAYER_CLASS = "adl-inline-diff-backgrounds";
+const INLINE_DIFF_BACKGROUND_BAND_CLASS = "adl-inline-diff-background-band";
+const INLINE_DIFF_INSERT_MINIMAP_CLASS = "adl-inline-diff-line--insert-minimap";
+const INLINE_DIFF_DELETE_MINIMAP_CLASS = "adl-inline-diff-line--delete-minimap";
+const INLINE_MODIFIED_OVERFLOW_GUARD_SELECTOR =
+  ".monaco-diff-editor:not(.side-by-side) .editor.modified .overflow-guard";
+const INLINE_MODIFIED_SCROLLABLE_SELECTOR =
+  ".monaco-diff-editor:not(.side-by-side) .editor.modified .monaco-scrollable-element";
 
 function readSelectedBranch(initialBranch: string): string {
   try {
@@ -99,6 +116,177 @@ function getPrimaryBadge(node: ChangeTreeNode): { label: string; tone: string } 
     return { label: "M", tone: "modified" };
   }
   return undefined;
+}
+
+function getInlinePreviewLongestLineColumn(editor: MonacoEditor | null | undefined, content: string): number {
+  const model = editor?.getModel?.();
+  const lineCount = model?.getLineCount() ?? 0;
+  if (!model?.getLineMaxColumn || lineCount <= 0) {
+    return getLongestLineColumn(content);
+  }
+
+  let longestLineColumn = 0;
+  for (let lineNumber = 1; lineNumber <= lineCount; lineNumber += 1) {
+    longestLineColumn = Math.max(longestLineColumn, model.getLineMaxColumn(lineNumber) - 1);
+    if (longestLineColumn >= INLINE_MINIMAP_MAX_COLUMN) {
+      return INLINE_MINIMAP_MAX_COLUMN;
+    }
+  }
+
+  return longestLineColumn;
+}
+
+function readInlineMinimapWidth(root: ParentNode, editor: MonacoEditor | null | undefined, content: string): number | null {
+  const minimapLayout = editor?.getLayoutInfo().minimap;
+  if (minimapLayout?.minimapWidth && minimapLayout.minimapCharWidth) {
+    return computeInlineMinimapRailWidth({
+      configuredWidth: minimapLayout.minimapWidth,
+      minimapCharWidth: minimapLayout.minimapCharWidth,
+      longestLineColumn: getInlinePreviewLongestLineColumn(editor, content),
+      maxColumn: INLINE_MINIMAP_MAX_COLUMN
+    });
+  }
+
+  const minimap = root.querySelector<HTMLElement>(INLINE_MINIMAP_SELECTOR);
+  if (!minimap) return null;
+
+  const canvasWidths = Array.from(minimap.querySelectorAll<HTMLCanvasElement>(INLINE_MINIMAP_CANVAS_SELECTOR))
+    .map((canvas) => canvas.getBoundingClientRect().width)
+    .filter((width) => width > 0);
+  const fallbackWidth = minimap.getBoundingClientRect().width;
+  const candidateWidth = canvasWidths.length > 0 ? Math.max(...canvasWidths) : fallbackWidth;
+  if (candidateWidth <= 0) return null;
+  return Math.ceil(candidateWidth);
+}
+
+function syncInlineMinimapWidth(root: HTMLElement | null, editor: MonacoEditor | null | undefined, content: string) {
+  if (!root) return;
+  const nextWidth = readInlineMinimapWidth(root, editor, content) ?? DEFAULT_INLINE_MINIMAP_WIDTH;
+  root.style.setProperty("--adl-editor-minimap-width", `${nextWidth}px`);
+}
+
+function syncInlineHorizontalScroll(root: HTMLElement | null, editor: MonacoEditor | null | undefined) {
+  if (!root) return;
+  const scrollLeft = Math.max(0, Math.ceil(editor?.getScrollLeft?.() ?? 0));
+  root.style.setProperty("--adl-editor-scroll-left", `${scrollLeft}px`);
+}
+
+function syncInlinePreviewLayout(root: HTMLElement | null, editor: MonacoEditor | null | undefined, content: string) {
+  syncInlineMinimapWidth(root, editor, content);
+  syncInlineHorizontalScroll(root, editor);
+}
+
+function getRenderablePreviewDiffRanges(ranges: PreviewDiffVisualRange[]): PreviewDiffVisualRange[] {
+  const insertLines = new Set<number>();
+  ranges
+    .filter((range) => range.type === "insert")
+    .forEach((range) => {
+      for (let line = range.startLine; line <= range.endLine; line += 1) {
+        insertLines.add(line);
+      }
+    });
+
+  return ranges.filter((range) => {
+    if (range.startLine < 1 || range.endLine < range.startLine) return false;
+    if (range.type === "delete") {
+      for (let line = range.startLine; line <= range.endLine; line += 1) {
+        if (insertLines.has(line)) return false;
+      }
+    }
+    return true;
+  });
+}
+
+function getPreviewDecorationClassName(range: PreviewDiffVisualRange, sideBySide: boolean): string {
+  const minimapClassName = range.type === "delete" ? INLINE_DIFF_DELETE_MINIMAP_CLASS : INLINE_DIFF_INSERT_MINIMAP_CLASS;
+  if (!sideBySide) {
+    return `adl-inline-diff-line ${minimapClassName}`;
+  }
+  return `adl-inline-diff-line adl-inline-diff-line--${range.type} adl-inline-diff-line--${range.tone} ${minimapClassName}`;
+}
+
+function removeInlineDiffBackgrounds(root: ParentNode | null) {
+  root
+    ?.querySelectorAll<HTMLElement>(`.${INLINE_DIFF_BACKGROUND_LAYER_CLASS}`)
+    .forEach((element) => element.remove());
+}
+
+function getEditorLineHeight(editor: MonacoEditor, lineNumber: number, lineCount: number): number {
+  const currentTop = editor.getTopForLineNumber?.(lineNumber);
+  const nextTop = lineNumber < lineCount ? editor.getTopForLineNumber?.(lineNumber + 1) : undefined;
+  if (typeof currentTop === "number" && typeof nextTop === "number" && nextTop > currentTop) {
+    return nextTop - currentTop;
+  }
+
+  const domLineHeight = editor.getDomNode?.()?.querySelector<HTMLElement>(".view-line")?.getBoundingClientRect().height ?? 0;
+  return domLineHeight > 0 ? domLineHeight : 19;
+}
+
+function syncInlineDiffBackgrounds(
+  root: HTMLElement | null,
+  editor: MonacoEditor | null | undefined,
+  ranges: PreviewDiffVisualRange[]
+) {
+  if (!root || !editor || ranges.length === 0) {
+    removeInlineDiffBackgrounds(root);
+    return;
+  }
+
+  const guard = root.querySelector<HTMLElement>(INLINE_MODIFIED_OVERFLOW_GUARD_SELECTOR);
+  const scrollable = root.querySelector<HTMLElement>(INLINE_MODIFIED_SCROLLABLE_SELECTOR);
+  const minimap = root.querySelector<HTMLElement>(INLINE_MINIMAP_SELECTOR);
+  const model = editor.getModel?.();
+  const lineCount = model?.getLineCount() ?? 0;
+  if (!guard || !scrollable || lineCount <= 0 || !editor.getTopForLineNumber) {
+    removeInlineDiffBackgrounds(root);
+    return;
+  }
+
+  let layer = guard.querySelector<HTMLElement>(`:scope > .${INLINE_DIFF_BACKGROUND_LAYER_CLASS}`);
+  if (!layer) {
+    layer = document.createElement("div");
+    layer.className = INLINE_DIFF_BACKGROUND_LAYER_CLASS;
+    layer.setAttribute("aria-hidden", "true");
+    guard.insertBefore(layer, guard.firstChild);
+  }
+
+  const guardRect = guard.getBoundingClientRect();
+  const scrollableRect = scrollable.getBoundingClientRect();
+  const minimapRect = minimap?.getBoundingClientRect();
+  const layerLeft = Math.max(0, Math.floor(scrollableRect.left - guardRect.left));
+  const layerTop = Math.max(0, Math.floor(scrollableRect.top - guardRect.top));
+  const minimapLeft = minimapRect && minimapRect.width > 0 ? minimapRect.left : guardRect.right;
+  const layerRight = Math.max(0, Math.floor(guardRect.right - minimapLeft) - 1);
+
+  layer.style.left = `${layerLeft}px`;
+  layer.style.top = `${layerTop}px`;
+  layer.style.right = `${layerRight}px`;
+
+  const scrollTop = editor.getScrollTop();
+  const visibleRanges = editor.getVisibleRanges?.() ?? [];
+  const visibleStartLine = Math.max(1, visibleRanges[0]?.startLineNumber ?? 1);
+  const visibleEndLine = Math.min(lineCount, visibleRanges[visibleRanges.length - 1]?.endLineNumber ?? lineCount);
+  const fragment = document.createDocumentFragment();
+
+  getRenderablePreviewDiffRanges(ranges).forEach((range) => {
+    const startLine = Math.max(range.startLine, visibleStartLine);
+    const endLine = Math.min(range.endLine, visibleEndLine, lineCount);
+    if (endLine < startLine) return;
+
+    const top = Math.floor(editor.getTopForLineNumber?.(startLine) ?? 0) - scrollTop;
+    const nextTop = endLine < lineCount ? editor.getTopForLineNumber?.(endLine + 1) : undefined;
+    const fallbackHeight = getEditorLineHeight(editor, startLine, lineCount) * (endLine - startLine + 1);
+    const bottom = typeof nextTop === "number" ? nextTop - scrollTop : top + fallbackHeight;
+    const height = Math.max(1, Math.ceil(bottom - top));
+
+    const band = document.createElement("div");
+    band.className = `${INLINE_DIFF_BACKGROUND_BAND_CLASS} ${INLINE_DIFF_BACKGROUND_BAND_CLASS}--${range.type} ${INLINE_DIFF_BACKGROUND_BAND_CLASS}--${range.tone}`;
+    band.style.top = `${top}px`;
+    band.style.height = `${height}px`;
+    fragment.appendChild(band);
+  });
+
+  layer.replaceChildren(fragment);
 }
 
 export function ChangesPanel(props: RightPanelViewProps) {
@@ -274,7 +462,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
         size: s.size,
         showSlider: s.showSlider,
         renderCharacters: s.renderCharacters,
-        maxColumn: 80,
+        maxColumn: INLINE_MINIMAP_MAX_COLUMN,
         scale: s.scale
       };
       de.updateOptions({
@@ -308,7 +496,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
     applyMinimapToDiffEditor(diffEditor, "onMount");
 
     const triggerRelayout = () => {
-      const shell = document.querySelector('[data-testid="changes-preview-shell"]');
+      const shell = changesPreviewEditorShellRef.current;
       if (!shell) return;
       const surface = shell.querySelector(".adl-tool-editor__surface") as HTMLElement;
       if (!surface) return;
@@ -318,6 +506,17 @@ export function ChangesPanel(props: RightPanelViewProps) {
         diffEditor.layout({ width: Math.floor(rect.width), height: Math.floor(rect.height) });
       } catch (_e) { /* ignore */ }
       applyMinimapToDiffEditor(diffEditorRef.current, "relayout");
+      requestAnimationFrame(() =>
+        {
+          const currentDiffEditor = diffEditorRef.current;
+          const modifiedEditor = isDiffEditor(currentDiffEditor) ? currentDiffEditor.getModifiedEditor() : null;
+          syncInlinePreviewLayout(
+            changesPreviewEditorShellRef.current,
+            modifiedEditor,
+            changePreview?.currentContent ?? ""
+          );
+        }
+      );
     };
 
     requestAnimationFrame(triggerRelayout);
@@ -331,7 +530,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
       disposable.dispose();
       if (minimapTimerRef.current !== null) cancelAnimationFrame(minimapTimerRef.current);
     };
-  }, [applyMinimapToDiffEditor]);
+  }, [applyMinimapToDiffEditor, changePreview?.currentContent]);
 
   const diffEditorOptions = useMemo(() => ({
     automaticLayout: true,
@@ -355,7 +554,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
       size: minimapSettings.size,
       showSlider: minimapSettings.showSlider,
       renderCharacters: minimapSettings.renderCharacters,
-      maxColumn: 80,
+      maxColumn: INLINE_MINIMAP_MAX_COLUMN,
       scale: minimapSettings.scale
     },
     scrollbar: {
@@ -396,9 +595,6 @@ export function ChangesPanel(props: RightPanelViewProps) {
     const root = document.documentElement;
     const computedStyle = getComputedStyle(root);
 
-    const DELETE_MINIMAP_CLASS = "adl-inline-diff-line--delete-minimap";
-    const INSERT_MINIMAP_CLASS = "adl-inline-diff-line--insert-minimap";
-
     const insertColor = cssColorToHex(
       computedStyle.getPropertyValue("--minimap-diff-insert-bg").trim() || "rgba(22, 163, 74, 0.5)"
     );
@@ -406,25 +602,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
       computedStyle.getPropertyValue("--minimap-diff-remove-bg").trim() || "rgba(239, 68, 68, 0.5)"
     );
 
-    const insertLines = new Set<number>();
-    changePreviewDiffRanges
-      .filter(r => r.type === "insert")
-      .forEach(r => {
-        for (let line = r.startLine; line <= r.endLine; line++) {
-          insertLines.add(line);
-        }
-      });
-
-    const decorations: MonacoDecoration[] = changePreviewDiffRanges
-      .filter((range) => {
-        if (range.startLine < 1 || range.endLine < range.startLine) return false;
-        if (range.type === "delete") {
-          for (let line = range.startLine; line <= range.endLine; line++) {
-            if (insertLines.has(line)) return false;
-          }
-        }
-        return true;
-      })
+    const decorations: MonacoDecoration[] = getRenderablePreviewDiffRanges(changePreviewDiffRanges)
       .map((range: PreviewDiffVisualRange) => {
         const isDelete = range.type === "delete";
         const color = isDelete ? deleteColor : insertColor;
@@ -432,7 +610,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
           range: createMonacoRange(monaco, range.startLine, 1, range.endLine, 1),
           options: {
             isWholeLine: true,
-            className: `adl-inline-diff-line adl-inline-diff-line--${range.type} adl-inline-diff-line--${range.tone} adl-inline-diff-line--${range.type}-minimap`,
+            className: getPreviewDecorationClassName(range, props.diffSideBySide),
             zIndex: 100 + (isDelete ? 1 : 0),
             minimap: {
               position: minimapPosition,
@@ -467,12 +645,29 @@ export function ChangesPanel(props: RightPanelViewProps) {
   useEffect(() => {
     if (!diffEditorRef.current) return;
     const refreshMinimapAfterOptionChange = () => {
-      applyMinimapToDiffEditor(diffEditorRef.current, "displayOptionChange");
+      const currentDiffEditor = diffEditorRef.current;
+      const modifiedEditor = isDiffEditor(currentDiffEditor) ? currentDiffEditor.getModifiedEditor() : null;
+      applyMinimapToDiffEditor(currentDiffEditor, "displayOptionChange");
+      syncInlinePreviewLayout(
+        changesPreviewEditorShellRef.current,
+        modifiedEditor,
+        changePreview?.currentContent ?? ""
+      );
     };
 
     const rafId = requestAnimationFrame(refreshMinimapAfterOptionChange);
     return () => cancelAnimationFrame(rafId);
-  }, [changePreview?.path, lineNumbersEnabled, props.diffSideBySide, wordWrapEnabled, applyMinimapToDiffEditor]);
+  }, [changePreview?.currentContent, changePreview?.path, lineNumbersEnabled, props.diffSideBySide, wordWrapEnabled, applyMinimapToDiffEditor]);
+
+  useEffect(() => {
+    const currentDiffEditor = diffEditorRef.current;
+    const modifiedEditor = isDiffEditor(currentDiffEditor) ? currentDiffEditor.getModifiedEditor() : null;
+    syncInlinePreviewLayout(
+      changesPreviewEditorShellRef.current,
+      modifiedEditor,
+      changePreview?.currentContent ?? ""
+    );
+  }, [changePreview?.currentContent, changePreview?.path, diffEditorReady, props.diffSideBySide, minimapSettings]);
 
   const getModifiedEditor = useCallback(() => {
     const de = diffEditorRef.current;
@@ -518,9 +713,6 @@ export function ChangesPanel(props: RightPanelViewProps) {
     const root = document.documentElement;
     const computedStyle = getComputedStyle(root);
 
-    const DELETE_MINIMAP_CLASS = "adl-inline-diff-line--delete-minimap";
-    const INSERT_MINIMAP_CLASS = "adl-inline-diff-line--insert-minimap";
-
     const insertColor = cssColorToHex(
       computedStyle.getPropertyValue("--minimap-diff-insert-bg").trim() || "rgba(22, 163, 74, 0.5)"
     );
@@ -528,25 +720,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
       computedStyle.getPropertyValue("--minimap-diff-remove-bg").trim() || "rgba(239, 68, 68, 0.5)"
     );
 
-    const insertLines = new Set<number>();
-    ranges
-      .filter(r => r.type === "insert")
-      .forEach(r => {
-        for (let line = r.startLine; line <= r.endLine; line++) {
-          insertLines.add(line);
-        }
-      });
-
-    const decorations: MonacoDecoration[] = ranges
-      .filter((range) => {
-        if (range.startLine < 1 || range.endLine < range.startLine) return false;
-        if (range.type === "delete") {
-          for (let line = range.startLine; line <= range.endLine; line++) {
-            if (insertLines.has(line)) return false;
-          }
-        }
-        return true;
-      })
+    const decorations: MonacoDecoration[] = getRenderablePreviewDiffRanges(ranges)
       .map((range: PreviewDiffVisualRange) => {
         const isDelete = range.type === "delete";
         const color = isDelete ? deleteColor : insertColor;
@@ -554,7 +728,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
           range: createMonacoRange(monaco, range.startLine, 1, range.endLine, 1),
           options: {
             isWholeLine: true,
-            className: `adl-inline-diff-line adl-inline-diff-line--${range.type} adl-inline-diff-line--${range.tone} adl-inline-diff-line--${range.type}-minimap`,
+            className: getPreviewDecorationClassName(range, props.diffSideBySide),
             zIndex: 100 + (isDelete ? 1 : 0),
             minimap: {
               position: minimapPosition,
@@ -565,7 +739,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
       });
 
     previewDecorationIdsRef.current = modifiedEditor.deltaDecorations(previewDecorationIdsRef.current, decorations);
-  }, [changePreview]);
+  }, [changePreview, props.diffSideBySide]);
 
   const applyMinimapSettings = useCallback((settings: MinimapSettings) => {
     const de = diffEditorRef.current;
@@ -576,7 +750,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
       size: settings.size,
       showSlider: settings.showSlider,
       renderCharacters: settings.renderCharacters,
-      maxColumn: 80,
+      maxColumn: INLINE_MINIMAP_MAX_COLUMN,
       scale: settings.scale
     };
     try {
@@ -631,13 +805,66 @@ export function ChangesPanel(props: RightPanelViewProps) {
       getLineCount: () => getModifiedEditor()?.getModel?.()?.getLineCount() ?? null,
     });
 
-    const scrollDisposable = getModifiedEditor()?.onDidScrollChange?.(() => controller.refresh());
+    const editor = getModifiedEditor();
+    syncInlineHorizontalScroll(changesPreviewEditorShellRef.current, editor);
+    const scrollDisposable = editor?.onDidScrollChange?.(() => {
+      syncInlineHorizontalScroll(changesPreviewEditorShellRef.current, editor);
+      controller.refresh();
+    });
 
     return () => {
       scrollDisposable?.dispose();
       controller.dispose();
     };
   }, [changePreview?.path, diffEditorReady, getModifiedEditor, handleMinimapSettingsChange]);
+
+  useEffect(() => {
+    const shell = changesPreviewEditorSurfaceRef.current;
+    const editor = getModifiedEditor();
+    if (!shell || !changePreview || props.diffSideBySide || !editor) {
+      removeInlineDiffBackgrounds(shell);
+      return;
+    }
+
+    let rafId = 0;
+    const scheduleRefresh = () => {
+      window.cancelAnimationFrame(rafId);
+      rafId = window.requestAnimationFrame(() => {
+        syncInlineDiffBackgrounds(shell, editor, diffRangesRef.current);
+      });
+    };
+
+    scheduleRefresh();
+    const disposables = [
+      editor.onDidScrollChange?.(scheduleRefresh),
+      editor.onDidChangeHiddenAreas?.(scheduleRefresh),
+      editor.onDidLayoutChange?.(scheduleRefresh)
+    ].filter(Boolean) as Array<{ dispose(): void }>;
+
+    const observer =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(scheduleRefresh)
+        : null;
+    observer?.observe(shell);
+    window.addEventListener("resize", scheduleRefresh);
+
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      disposables.forEach((disposable) => disposable.dispose());
+      observer?.disconnect();
+      window.removeEventListener("resize", scheduleRefresh);
+      removeInlineDiffBackgrounds(shell);
+    };
+  }, [
+    changePreview,
+    changePreviewDiffRanges,
+    diffEditorReady,
+    getModifiedEditor,
+    lineNumbersEnabled,
+    minimapSettings,
+    props.diffSideBySide,
+    wordWrapEnabled
+  ]);
 
   useEffect(() => {
     if (!changePreview) {
