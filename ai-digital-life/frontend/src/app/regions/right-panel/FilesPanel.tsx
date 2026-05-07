@@ -42,6 +42,7 @@ import {
   IconFoldVertical,
   IconFolderPlus,
   IconHash,
+  IconList,
   IconPanelLeftClose,
   IconMoreVertical,
   IconRefreshCw,
@@ -857,6 +858,7 @@ export function FilesPanel(props: RightPanelViewProps) {
               wordWrap={diffEditorOptions.wordWrap}
               onMount={handleDiffEditorMount}
               extensions={editorExtensions}
+              hunks={agentHunkDecorations}
             />
           </div>
         </>
@@ -980,6 +982,18 @@ export function FilesPanel(props: RightPanelViewProps) {
         </div>
 
         <div className="adl-tool-context__group adl-tool-context__group--files-actions">
+          <TooltipSimple content={outline.length > 0 ? t.outline : t.toolFiles} placement="top">
+            <button
+              type="button"
+              className={`adl-tool-context__iconbtn${navigatorMode === "outline" ? " is-active" : ""}`}
+              onClick={() => setNavigatorMode((current) => (current === "outline" ? "tree" : "outline"))}
+              aria-label={outline.length > 0 ? t.outline : t.toolFiles}
+              aria-pressed={navigatorMode === "outline" ? "true" : "false"}
+            >
+              <IconList size={14} decorative />
+            </button>
+          </TooltipSimple>
+          <div className="adl-tool-context__divider" />
           <TooltipSimple content={previewEnabled ? t.filePreview : t.fileEdit} placement="top">
             <button
               type="button"

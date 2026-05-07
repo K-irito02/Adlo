@@ -753,3 +753,22 @@ export const IconEyeOff = make(
     <path d="M17.9 17.4C20.2 15.7 22 12 22 12s-3-7-10-7c-.8 0-1.6.1-2.3.3" />
   </>
 );
+export const IconList = make(
+  <>
+    <path d="M8 6h13" />
+    <path d="M8 12h13" />
+    <path d="M8 18h13" />
+    <path d="M3 6h.01" />
+    <path d="M3 12h.01" />
+    <path d="M3 18h.01" />
+  </>
+);
+export const IconAlignLeft = make(
+  <>
+    <path d="M15 6h-11" />
+    <path d="M17 12h-7" />
+    <path d="M17 18h-7" />
+    <path d="M3 12h.01" />
+    <path d="M3 18h.01" />
+  </>
+);

@@ -2538,6 +2538,14 @@
   gap: var(--space-1);
 }
 
+.adl-tool-context__divider {
+  width: 1px;
+  height: 18px;
+  background: var(--border-subtle);
+  margin: 0 var(--space-1);
+  align-self: center;
+}
+
 .adl-tool-context__group--grow {
   flex: 1;
 }
@@ -4813,14 +4821,13 @@
   overflow: hidden;
   z-index: 10;
   cursor: pointer;
-  background: var(--bg);
-  opacity: 0.5;
-  transition: opacity 0.2s;
+  background: var(--surface);
   border-left: 1px solid var(--border-subtle);
+  transition: opacity 0.2s;
 }
 
 .adl-cm-minimap:hover {
-  opacity: 0.9;
+  background: var(--surface-hover);
 }
 
 .adl-cm-minimap-canvas {
@@ -4881,6 +4888,18 @@
 
 .adl-cm-minimap-menu-item--checked {
   color: var(--accent);
+}
+
+.adl-cm-minimap-menu-item--checked::before {
+  content: "✓";
+  margin-right: var(--space-2);
+  font-size: 11px;
+}
+
+.adl-cm-minimap-menu-separator {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 4px 0;
 }
 
 /* Legacy Monaco diff/minimap overrides removed after the CodeMirror migration. */

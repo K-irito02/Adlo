@@ -163,6 +163,7 @@ await page.locator('.adl-tool-context__group--files-actions .adl-tool-context__i
 | 收起导航栏 | 面板切换 | 折叠/展开左侧文件导航 |
 | 搜索 | 搜索/返回 | 切换文件树与搜索视图 |
 | 后退 / 前进 | 返回历史 / 前进历史 | 导航历史 |
+| 大纲 | 文档大纲 / 文件 | 列表图标按钮，切换文件树与文档大纲视图 |
 | 预览 / 编辑 | 文件预览 / 文件编辑 | 眼睛图标按钮，切换预览模式 |
 | 更多操作 | 更多操作 | 打开文件菜单 |
 | 新建文件 | 新建文件 | 创建新文件 |
@@ -176,6 +177,33 @@ await page.locator('.adl-tool-context__group--files-actions .adl-tool-context__i
 ```javascript
 await page.click('button[aria-label="新建文件"]');
 await page.click('button[aria-label="刷新"]');
+```
+
+---
+
+## 文档大纲
+
+> 文档目录导航功能
+
+### 定位选择器
+
+| 优先级 | 类型 | 选择器 |
+|--------|------|--------|
+| 1 | aria-label | 切换到文档大纲视图按钮 |
+
+### 操作
+
+#### 切换到大纲视图
+
+```javascript
+await page.click('button[aria-label="文档大纲"]');
+await page.waitForSelector('.adl-tool-list');
+```
+
+#### 点击大纲项跳转
+
+```javascript
+await page.locator('.adl-tool-list__item').first().click();
 ```
 
 ---

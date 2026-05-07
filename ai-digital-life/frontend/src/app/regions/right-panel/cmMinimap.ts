@@ -8,6 +8,8 @@ export interface MinimapSettings {
   zoomLevel: number;
   sliderBehavior: "proportional" | "fixed";
   sliderProminence: "subtle" | "normal" | "bold";
+  scrollbarType: "minimap" | "native";
+  isGlobal: boolean;
 }
 
 const DEFAULT_MINIMAP_SETTINGS: MinimapSettings = {
@@ -16,6 +18,8 @@ const DEFAULT_MINIMAP_SETTINGS: MinimapSettings = {
   zoomLevel: 1,
   sliderBehavior: "proportional",
   sliderProminence: "normal",
+  scrollbarType: "minimap",
+  isGlobal: true,
 };
 
 const STORAGE_KEY = "adl-minimap-settings";
@@ -75,12 +79,14 @@ class MinimapPlugin implements PluginValue {
 
     this.canvas.addEventListener("mousedown", this.handleMouseDown);
     this.canvas.addEventListener("contextmenu", this.handleContextMenu);
+    this.slider.addEventListener("mousedown", this.handleSliderMouseDown);
     window.addEventListener("mousemove", this.handleMouseMove);
     window.addEventListener("mouseup", this.handleMouseUp);
 
     this.hunks = view.state.field(minimapDiffHunksField, false) ?? [];
     this.render();
     this.updateSlider();
+    this.updateScrollbarStyle();
 
     view.dom.appendChild(this.dom);
   }
@@ -117,9 +123,10 @@ class MinimapPlugin implements PluginValue {
 
     this.ctx.clearRect(0, 0, width, height);
 
-    const fgColor = getComputedStyle(this.view.dom).color || "#d4d4d4";
-    const insertColor = "rgba(22,163,74,0.4)";
-    const deleteColor = "rgba(239,68,68,0.4)";
+    const computedStyle = getComputedStyle(this.view.dom);
+    const fgColor = computedStyle.color || "#d4d4d4";
+    const insertColor = computedStyle.getPropertyValue("--minimap-diff-insert-bg") || "rgba(22,163,74,0.35)";
+    const deleteColor = computedStyle.getPropertyValue("--minimap-diff-remove-bg") || "rgba(239,68,68,0.35)";
 
     const diffLineSet = new Map<number, "added" | "deleted" | "modified">();
     for (const hunk of this.hunks) {
@@ -178,6 +185,16 @@ class MinimapPlugin implements PluginValue {
     }
   };
 
+  private handleSliderMouseDown = (e: MouseEvent) => {
+    if (e.button === 0) {
+      e.preventDefault();
+      e.stopPropagation();
+      this.isDragging = true;
+      this.dragStartY = e.clientY;
+      this.dragStartScrollTop = this.view.scrollDOM.scrollTop;
+    }
+  };
+
   private handleMouseMove = (e: MouseEvent) => {
     if (!this.isDragging) return;
     const rect = this.canvas.getBoundingClientRect();
@@ -199,6 +216,17 @@ class MinimapPlugin implements PluginValue {
     scrollDom.scrollTop = Math.max(0, Math.min(targetScrollTop, scrollHeight - scrollDom.clientHeight));
   }
 
+  private updateScrollbarStyle() {
+    const scrollDom = this.view.scrollDOM;
+    if (this.settings.scrollbarType === "minimap") {
+      this.dom.style.display = "";
+      scrollDom.style.overflowY = "hidden";
+    } else {
+      this.dom.style.display = "none";
+      scrollDom.style.overflowY = "";
+    }
+  }
+
   private handleContextMenu = (e: MouseEvent) => {
     e.preventDefault();
     const menu = document.createElement("div");
@@ -206,7 +234,23 @@ class MinimapPlugin implements PluginValue {
 
     const settings = this.settings;
 
-    const items: Array<{ label: string; checked: boolean; onClick: () => void }> = [
+    const items: Array<{ label: string; checked: boolean; onClick: () => void; separator?: boolean }> = [
+      {
+        label: "滑动条: Minimap",
+        checked: settings.scrollbarType === "minimap",
+        onClick: () => { settings.scrollbarType = "minimap"; this.applySettings(); },
+      },
+      {
+        label: "滑动条: 原生",
+        checked: settings.scrollbarType === "native",
+        onClick: () => { settings.scrollbarType = "native"; this.applySettings(); },
+      },
+      {
+        label: "",
+        checked: false,
+        onClick: () => {},
+        separator: true,
+      },
       {
         label: "渲染字符",
         checked: settings.renderCharacters,
@@ -222,10 +266,80 @@ class MinimapPlugin implements PluginValue {
         checked: settings.sliderBehavior === "fixed",
         onClick: () => { settings.sliderBehavior = "fixed"; this.applySettings(); },
       },
+      {
+        label: "",
+        checked: false,
+        onClick: () => {},
+        separator: true,
+      },
+      {
+        label: "缩放: 50%",
+        checked: settings.zoomLevel === 0.5,
+        onClick: () => { settings.zoomLevel = 0.5; this.applySettings(); },
+      },
+      {
+        label: "缩放: 100%",
+        checked: settings.zoomLevel === 1,
+        onClick: () => { settings.zoomLevel = 1; this.applySettings(); },
+      },
+      {
+        label: "缩放: 150%",
+        checked: settings.zoomLevel === 1.5,
+        onClick: () => { settings.zoomLevel = 1.5; this.applySettings(); },
+      },
+      {
+        label: "缩放: 200%",
+        checked: settings.zoomLevel === 2,
+        onClick: () => { settings.zoomLevel = 2; this.applySettings(); },
+      },
+      {
+        label: "",
+        checked: false,
+        onClick: () => {},
+        separator: true,
+      },
+      {
+        label: "宽度: 60px",
+        checked: settings.thumbnailSize === 60,
+        onClick: () => { settings.thumbnailSize = 60; this.applySettings(); },
+      },
+      {
+        label: "宽度: 80px",
+        checked: settings.thumbnailSize === 80,
+        onClick: () => { settings.thumbnailSize = 80; this.applySettings(); },
+      },
+      {
+        label: "宽度: 100px",
+        checked: settings.thumbnailSize === 100,
+        onClick: () => { settings.thumbnailSize = 100; this.applySettings(); },
+      },
+      {
+        label: "",
+        checked: false,
+        onClick: () => {},
+        separator: true,
+      },
+      {
+        label: "设置: 全局",
+        checked: settings.isGlobal,
+        onClick: () => { settings.isGlobal = true; this.applySettings(); },
+      },
+      {
+        label: "设置: 独立",
+        checked: !settings.isGlobal,
+        onClick: () => { settings.isGlobal = false; this.applySettings(); },
+      },
     ];
 
     for (const item of items) {
-      const el = document.createElement("div");
+      if (item.separator) {
+        const separator = document.createElement("div");
+        separator.className = "adl-cm-minimap-menu-separator";
+        menu.appendChild(separator);
+        continue;
+      }
+      const el = document.createElement("button");
+      el.type = "button";
       el.className = `adl-cm-minimap-menu-item${item.checked ? " adl-cm-minimap-menu-item--checked" : ""}`;
       el.textContent = item.label;
       el.addEventListener("click", () => {
@@ -235,23 +349,42 @@ class MinimapPlugin implements PluginValue {
       menu.appendChild(el);
     }
 
-    menu.style.left = `${e.clientX}px`;
-    menu.style.top = `${e.clientY}px`;
+    const rect = e.currentTarget instanceof Element ? e.currentTarget.getBoundingClientRect() : document.body.getBoundingClientRect();
+    let menuX = e.clientX;
+    let menuY = e.clientY;
+    
+    const menuWidth = 160;
+    const menuHeight = items.filter(i => !i.separator).length * 28 + items.filter(i => i.separator).length * 8 + 8;
+    
+    if (menuX + menuWidth > window.innerWidth) {
+      menuX = window.innerWidth - menuWidth - 8;
+    }
+    if (menuY + menuHeight > window.innerHeight) {
+      menuY = window.innerHeight - menuHeight - 8;
+    }
+
+    menu.style.left = `${menuX}px`;
+    menu.style.top = `${menuY}px`;
     document.body.appendChild(menu);
 
     const close = (ev: MouseEvent) => {
       if (!menu.contains(ev.target as Node)) {
         menu.remove();
         document.removeEventListener("click", close);
+        document.removeEventListener("contextmenu", close);
       }
     };
-    setTimeout(() => document.addEventListener("click", close), 0);
+    setTimeout(() => {
+      document.addEventListener("click", close);
+      document.addEventListener("contextmenu", close);
+    }, 0);
   }
 
   private applySettings() {
     saveMinimapSettings(this.settings);
     this.render();
     this.updateSlider();
+    this.updateScrollbarStyle();
   }
 }
 

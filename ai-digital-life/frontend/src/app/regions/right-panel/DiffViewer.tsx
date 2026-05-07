@@ -11,6 +11,8 @@ import type { DiffEditorRef, EditorRef } from "../../types";
 import { createDiffEditorRef, createEditorRef } from "./editorAdapters";
 import { getThemeExtension, rebuildThemes, getPhrasesExtension } from "./cmTheme";
 import { getLanguageExtension } from "./cmLanguages";
+import { getMinimapExtension, updateMinimapDiffHunks } from "./cmMinimap";
+import type { AgentHunkDecoration } from "./agentDecorations";
 
 export type DiffViewerProps = {
   original: string;
@@ -24,6 +26,7 @@ export type DiffViewerProps = {
   wordWrap?: boolean;
   onMount?: (editor: DiffEditorRef | EditorRef) => void;
   extensions?: Extension[];
+  hunks?: AgentHunkDecoration[];
 };
 
 const themeCompartment = new Compartment();
@@ -72,6 +75,7 @@ function SideBySideDiffViewer({
   wordWrap,
   onMount,
   extraExtensions,
+  hunks,
 }: {
   original: string;
   modified: string;
@@ -83,9 +87,11 @@ function SideBySideDiffViewer({
   wordWrap: boolean;
   onMount?: (editor: DiffEditorRef | EditorRef) => void;
   extraExtensions: Extension[];
+  hunks?: AgentHunkDecoration[];
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mergeViewRef = useRef<MergeView | null>(null);
+  const scrollHandlersRef = useRef<{ handleScrollA: () => void; handleScrollB: () => void } | null>(null);
 
   const sharedExts = useMemo(
     () => buildSharedExtensions(language, theme, readOnly, lineNumbersEnabled, wordWrap, locale),
@@ -100,8 +106,8 @@ function SideBySideDiffViewer({
       mergeViewRef.current = null;
     }
 
-    const aExts: Extension[] = [...sharedExts, ...extraExtensions];
-    const bExts: Extension[] = [...sharedExts, ...extraExtensions];
+    const aExts: Extension[] = [...sharedExts];
+    const bExts: Extension[] = [...sharedExts, ...extraExtensions, ...getMinimapExtension()];
 
     const mv = new MergeView({
       a: { doc: original, extensions: aExts },
@@ -112,6 +118,29 @@ function SideBySideDiffViewer({
       highlightChanges: true,
     });
 
+    let syncing = false;
+    const handleScrollA = () => {
+      if (syncing) return;
+      syncing = true;
+      if (mv.b) {
+        mv.b.scrollDOM.scrollTop = mv.a.scrollDOM.scrollTop;
+      }
+      syncing = false;
+    };
+    const handleScrollB = () => {
+      if (syncing) return;
+      syncing = true;
+      if (mv.a) {
+        mv.a.scrollDOM.scrollTop = mv.b.scrollDOM.scrollTop;
+      }
+      syncing = false;
+    };
+
+    scrollHandlersRef.current = { handleScrollA, handleScrollB };
+
+    mv.a.scrollDOM.addEventListener("scroll", handleScrollA);
+    mv.b.scrollDOM.addEventListener("scroll", handleScrollB);
+
     mergeViewRef.current = mv;
 
     if (onMount) {
@@ -119,6 +148,11 @@ function SideBySideDiffViewer({
     }
 
     return () => {
+      if (mergeViewRef.current && scrollHandlersRef.current) {
+        mergeViewRef.current.a.scrollDOM.removeEventListener("scroll", scrollHandlersRef.current.handleScrollA);
+        mergeViewRef.current.b.scrollDOM.removeEventListener("scroll", scrollHandlersRef.current.handleScrollB);
+        scrollHandlersRef.current = null;
+      }
       if (mergeViewRef.current) {
         mergeViewRef.current.destroy();
         mergeViewRef.current = null;
@@ -142,6 +176,14 @@ function SideBySideDiffViewer({
     reconfigure(mv.a);
     reconfigure(mv.b);
   }, [lineNumbersEnabled, wordWrap]);
+
+  useEffect(() => {
+    const mv = mergeViewRef.current;
+    if (!mv?.b) return;
+    if (hunks && hunks.length > 0) {
+      updateMinimapDiffHunks(mv.b, hunks);
+    }
+  }, [hunks]);
 
   useEffect(() => {
     rebuildThemes();
@@ -266,6 +308,7 @@ export function DiffViewer({
   wordWrap = false,
   onMount,
   extensions: extraExtensions = [],
+  hunks,
 }: DiffViewerProps) {
   const resolvedLocale = locale || "en-US";
   if (sideBySide) {
@@ -281,6 +324,7 @@ export function DiffViewer({
         wordWrap={wordWrap}
         onMount={onMount}
         extraExtensions={extraExtensions}
+        hunks={hunks}
       />
     );
   }
