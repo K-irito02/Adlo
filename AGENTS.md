@@ -62,6 +62,41 @@
 - 使用原生 HTML `title` 属性（必须使用 `TooltipSimple` 组件）
 - UI/UX 或功能变更后跳过红绿测试
 - 在 capability 文件中使用 `"all"` / `"**"` 通配权限
+- 功能或显示效果仅在 Tauri 或浏览器单一模式下可用（必须双端一致）
+
+## 双端一致性原则
+
+所有功能实现、显示效果和交互行为必须在 **Tauri 桌面应用** 和 **浏览器模式**（内置预览 / 外部浏览器）中保持一致。
+
+### 架构机制
+
+| 机制 | 说明 |
+|------|------|
+| `DigitalLifeBridge` | 统一 IPC 抽象层，Tauri 模式走 `createTauriBridge()`，浏览器模式走 `setupPreviewBridge()` |
+| `isTauriShell()` | 运行时环境检测，用于条件渲染平台专属 UI |
+| `data-shell` 属性 | `<html data-shell="tauri|browser">`，CSS 可据此适配样式 |
+| `preview-bridge.ts` | 浏览器模式桥接层，通过 Vite Preview API 提供真实文件系统访问 |
+| `mock-bridge.ts` | 纯内存模拟数据，作为 preview-bridge 的基础回退 |
+
+### 差异允许清单
+
+以下差异是**允许的**，因为它们属于平台原生能力的合理映射：
+
+| 差异 | Tauri 模式 | 浏览器模式 | 原因 |
+|------|-----------|-----------|------|
+| 窗口控制按钮 | 显示（最小化/最大化/关闭） | 隐藏 | 浏览器有原生窗口控制 |
+| 窗口拖拽区域 | `data-tauri-drag-region` 启用 | 禁用拖拽 | 浏览器无自定义标题栏拖拽 |
+| 窗口图标同步 | `syncTauriWindowIcon()` | 跳过 | 浏览器使用 favicon |
+| 目录选择器 | 原生对话框 | Vite Preview API | 平台限制 |
+
+### 新增功能检查清单
+
+引入新功能或修改现有功能时，必须确认：
+
+- [ ] Tauri 模式和浏览器模式下功能是否一致？
+- [ ] 是否有 `isTauriShell()` 条件分支？如有，浏览器模式是否有等效替代？
+- [ ] CSS 是否依赖 Tauri 专属属性（如 `-webkit-app-region`）？如有，浏览器模式是否有降级？
+- [ ] 新增 IPC 方法是否在 `mock-bridge.ts` 和 `preview-bridge.ts` 中同步实现？
 
 ## 真源定位
 

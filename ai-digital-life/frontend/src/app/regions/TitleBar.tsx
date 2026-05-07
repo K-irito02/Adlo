@@ -19,6 +19,7 @@ import {
 } from "../icons";
 import logoUrl from "/logo-chatgpt.png?url";
 import { useUiStore } from "../ui-store";
+import { isTauriShell } from "../../tauri-bridge";
 import { TooltipSimple } from "../components/Tooltip";
 
 interface TitleBarProps {
@@ -338,38 +339,40 @@ export function TitleBar({
             </button>
           </TooltipSimple>
         </div>
-        <div className="adl-titlebar__window-group adl-iconstrip" role="group" aria-label="Window controls">
-          <TooltipSimple content={t.windowMinimize} placement="bottom">
-            <button
-              type="button"
-              className="adl-icon-btn adl-iconstrip__button adl-iconstrip__button--window adl-window-btn"
-              onClick={handleMinimize}
-              aria-label={t.windowMinimize}
-            >
-              <IconMinus size={14} decorative />
-            </button>
-          </TooltipSimple>
-          <TooltipSimple content={isMaximized ? t.windowRestore : t.windowMaximize} placement="bottom">
-            <button
-              type="button"
-              className="adl-icon-btn adl-iconstrip__button adl-iconstrip__button--window adl-window-btn"
-              onClick={handleMaximize}
-              aria-label={isMaximized ? t.windowRestore : t.windowMaximize}
-            >
-              {isMaximized ? <IconCopy size={14} decorative /> : <IconSquare size={12} decorative />}
-            </button>
-          </TooltipSimple>
-          <TooltipSimple content={t.windowClose} placement="bottom">
-            <button
-              type="button"
-              className="adl-icon-btn adl-iconstrip__button adl-iconstrip__button--window adl-window-btn adl-window-btn--close"
-              onClick={handleClose}
-              aria-label={t.windowClose}
-            >
-              <IconClose size={14} decorative />
-            </button>
-          </TooltipSimple>
-        </div>
+        {isTauriShell() ? (
+          <div className="adl-titlebar__window-group adl-iconstrip" role="group" aria-label="Window controls">
+            <TooltipSimple content={t.windowMinimize} placement="bottom">
+              <button
+                type="button"
+                className="adl-icon-btn adl-iconstrip__button adl-iconstrip__button--window adl-window-btn"
+                onClick={handleMinimize}
+                aria-label={t.windowMinimize}
+              >
+                <IconMinus size={14} decorative />
+              </button>
+            </TooltipSimple>
+            <TooltipSimple content={isMaximized ? t.windowRestore : t.windowMaximize} placement="bottom">
+              <button
+                type="button"
+                className="adl-icon-btn adl-iconstrip__button adl-iconstrip__button--window adl-window-btn"
+                onClick={handleMaximize}
+                aria-label={isMaximized ? t.windowRestore : t.windowMaximize}
+              >
+                {isMaximized ? <IconCopy size={14} decorative /> : <IconSquare size={12} decorative />}
+              </button>
+            </TooltipSimple>
+            <TooltipSimple content={t.windowClose} placement="bottom">
+              <button
+                type="button"
+                className="adl-icon-btn adl-iconstrip__button adl-iconstrip__button--window adl-window-btn adl-window-btn--close"
+                onClick={handleClose}
+                aria-label={t.windowClose}
+              >
+                <IconClose size={14} decorative />
+              </button>
+            </TooltipSimple>
+          </div>
+        ) : null}
       </div>
     </header>
   );

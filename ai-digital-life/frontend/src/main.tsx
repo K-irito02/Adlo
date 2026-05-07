@@ -10,8 +10,10 @@ import "./styles/index.css";
 if (typeof window !== "undefined" && !window.digitalLife) {
   if (isTauriShell()) {
     window.digitalLife = createTauriBridge();
+    document.documentElement.dataset.shell = "tauri";
   } else {
     setupPreviewBridge();
+    document.documentElement.dataset.shell = "browser";
   }
 }
 

@@ -155,7 +155,6 @@ export function App() {
       try {
         const mod = await import("@tauri-apps/api/window");
         const win = mod.getCurrentWindow();
-        // Tauri v2 drag/drop event shape can differ across versions; handle defensively.
         unlisten = await (win as unknown as { onDragDropEvent: (cb: (e: unknown) => void) => Promise<() => void> }).onDragDropEvent(
           (e: any) => {
             const payload = e?.payload ?? e;
@@ -184,6 +183,53 @@ export function App() {
       } catch {
         /* ignore */
       }
+    };
+  }, [openWorkspace]);
+
+  useEffect(() => {
+    if (isTauriShell()) return;
+
+    const handleDragOver = (event: DragEvent) => {
+      event.preventDefault();
+      if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = "link";
+      }
+    };
+
+    const handleDrop = (event: DragEvent) => {
+      event.preventDefault();
+      if (!event.dataTransfer) return;
+      const items = event.dataTransfer.items;
+      if (!items || items.length === 0) return;
+      for (let i = 0; i < items.length; i++) {
+        const entry = items[i].webkitGetAsEntry?.();
+        if (entry && entry.isDirectory) {
+          const file = items[i].getAsFile();
+          if (file) {
+            const path = (file as File & { path?: string }).path;
+            if (path) {
+              void openWorkspace(path);
+              return;
+            }
+            void openWorkspace(file.name);
+            return;
+          }
+        }
+      }
+      const file = items[0].getAsFile();
+      if (file) {
+        const path = (file as File & { path?: string }).path;
+        if (path) {
+          void openWorkspace(path);
+        }
+      }
+    };
+
+    document.addEventListener("dragover", handleDragOver);
+    document.addEventListener("drop", handleDrop);
+    return () => {
+      document.removeEventListener("dragover", handleDragOver);
+      document.removeEventListener("drop", handleDrop);
     };
   }, [openWorkspace]);
 

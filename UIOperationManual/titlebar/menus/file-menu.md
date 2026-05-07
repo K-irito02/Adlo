@@ -50,7 +50,7 @@ await page.keyboard.up('Control');
 
 #### 状态变化
 
-- 弹出文件夹选择对话框（Tauri 原生对话框）
+- 弹出文件夹选择对话框（Tauri 原生对话框 / 浏览器模式通过 Vite Preview API）
 - 或弹出输入框让用户输入路径
 
 #### 预期结果

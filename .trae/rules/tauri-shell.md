@@ -45,6 +45,31 @@ alwaysApply: false
 - [ ] 在 `src-tauri/src/commands/*.rs` 实现 `#[tauri::command]`
 - [ ] 在 `capabilities/*.json` 登记 capability
 - [ ] 在 `frontend/src/shared/ipc.ts` 对齐桥接契约
+- [ ] 在 `mock-bridge.ts` 和 `preview-bridge.ts` 同步实现浏览器模式对等方法
+
+## 双端一致性
+
+所有功能必须在 Tauri 桌面应用和浏览器模式下共同可用。
+
+| 机制 | 用途 |
+|------|------|
+| `isTauriShell()` | 运行时检测当前 shell 环境 |
+| `document.documentElement.dataset.shell` | CSS 可通过 `[data-shell="tauri"]` / `[data-shell="browser"]` 适配 |
+| `preview-bridge.ts` | 浏览器模式通过 Vite Preview API 镜像 Tauri Command 能力 |
+| `mock-bridge.ts` | 纯内存回退，preview-bridge 的基础层 |
+
+### 允许的平台差异
+
+- 窗口控制按钮：Tauri 显示，浏览器隐藏
+- 窗口拖拽区域：Tauri 启用 `-webkit-app-region: drag`，浏览器禁用
+- 目录选择器：Tauri 用原生对话框，浏览器用 Vite Preview API
+- 窗口图标：Tauri 同步，浏览器跳过
+
+### 新增功能必须检查
+
+- [ ] Tauri 和浏览器模式下功能是否一致？
+- [ ] `isTauriShell()` 条件分支是否有浏览器等效替代？
+- [ ] CSS Tauri 专属属性是否有浏览器降级？
 
 ## 相关文件
 

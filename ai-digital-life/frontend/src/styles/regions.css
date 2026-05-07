@@ -171,6 +171,11 @@
   -webkit-app-region: drag;
 }
 
+[data-shell="browser"] .adl-titlebar [data-tauri-drag-region] {
+  -webkit-app-region: no-drag;
+  cursor: default;
+}
+
 .adl-titlebar__left {
   display: flex;
   align-items: center;

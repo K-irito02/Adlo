@@ -52,6 +52,25 @@ rustup target add x86_64-pc-windows-msvc
 - Workspace / Retrieval 责任边界变化
 - UI 主题、国际化、状态真相源变化
 
+## 双端一致性原则
+
+所有功能必须在 **Tauri 桌面应用**和**浏览器开发模式**（通过 `preview-bridge.ts`）下保持一致：
+
+1. 新增 Tauri Command 时，必须同步实现：
+   - `tauri-bridge.ts`（Tauri 模式）
+   - `preview-bridge.ts`（浏览器模式，Vite Preview API）
+   - `mock-bridge.ts`（纯内存回退）
+
+2. 新增 UI/UX 变更后，必须使用 `npm run dev:both` 同时验证两种模式的一致性
+
+3. 条件渲染仅允许以下平台差异：
+   - 窗口控制按钮（仅 Tauri 显示）
+   - 标题栏拖拽（仅 Tauri 可用）
+   - 窗口图标同步（仅 Tauri）
+   - 目录选择器（Tauri 原生，浏览器通过 Preview API）
+
+4. 所有其他功能必须双端行为一致
+
 ## Change Summary Template
 
 提交说明至少覆盖：

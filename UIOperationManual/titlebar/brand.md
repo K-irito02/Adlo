@@ -54,7 +54,7 @@ await page.waitForSelector('.adl-titlebar__logo');
 
 | 元素 | 选择器 | 说明 |
 |------|--------|------|
-| Brand 容器 | `.adl-titlebar__brand-slot` | 包含 Logo 和拖拽区域 |
+| Brand 容器 | `.adl-titlebar__brand-slot` | 包含 Logo 和拖拽区域（Tauri 模式下可拖拽移动窗口，浏览器模式下不可拖拽） |
 | Logo 图片 | `.adl-titlebar__logo` | 品牌 Logo 图片 |
 | Tooltip | `.adl-tooltip` | 悬停后显示的提示 |
 

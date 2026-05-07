@@ -21,6 +21,29 @@ alwaysApply: true
 | 前端 | React 19 + TypeScript + Vite + Zustand |
 | 持久化 | SQLite（`rusqlite`，后端） |
 
+## 双端架构
+
+应用同时支持 **Tauri 桌面应用** 和 **浏览器模式**（内置预览 / 外部浏览器），通过 `DigitalLifeBridge` 统一抽象层实现功能对等。
+
+| 运行模式 | 桥接层 | 数据来源 |
+|----------|--------|----------|
+| Tauri 桌面 | `createTauriBridge()` | Rust 后端 + SQLite |
+| 浏览器预览 | `setupPreviewBridge()` | Vite Preview API + mock 数据 |
+
+| 环境检测 | 说明 |
+|----------|------|
+| `isTauriShell()` | 运行时判断当前是否在 Tauri 环境中 |
+| `data-shell="tauri\|browser"` | HTML 根元素属性，CSS 可据此适配 |
+
+### 关键文件
+
+| 文件 | 职责 |
+|------|------|
+| `frontend/src/tauri-bridge.ts` | Tauri 模式桥接 + `isTauriShell()` 检测 |
+| `frontend/src/preview-bridge.ts` | 浏览器模式桥接（Vite Preview API） |
+| `frontend/src/mock-bridge.ts` | 纯内存模拟数据（preview-bridge 基础层） |
+| `frontend/src/shared/ipc.ts` | `DigitalLifeBridge` 类型定义 |
+
 ## 真源定位
 
 | 内容 | 真源位置 |

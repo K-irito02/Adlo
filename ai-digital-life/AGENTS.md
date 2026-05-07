@@ -31,6 +31,20 @@
 
 跨进程能力通过 `#[tauri::command]` + `capabilities/*.json` 白名单暴露。
 
+## 双端一致性
+
+应用同时运行于 Tauri 桌面和浏览器模式，所有功能必须双端可用。
+
+| 检测方式 | 说明 |
+|----------|------|
+| `isTauriShell()` | 运行时环境检测 |
+| `data-shell="tauri\|browser"` | HTML 根元素属性，CSS 适配用 |
+
+新增 IPC 方法时，必须同步实现：
+- `tauri-bridge.ts`（Tauri 模式）
+- `preview-bridge.ts`（浏览器模式，Vite Preview API）
+- `mock-bridge.ts`（纯内存回退）
+
 ## 命令规范
 
 - 新 Tauri Command 必须类型化（`serde`）、登记到 `capabilities/*.json`
