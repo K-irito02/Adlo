@@ -1016,8 +1016,10 @@ pub struct FileOutlineItem {
     pub label: String,
     pub kind: String,
     pub line: usize,
+    /// 大纲项结束行号（如果可确定）
     #[serde(skip_serializing_if = "Option::is_none")]
     pub end_line: Option<usize>,
+    /// 大纲项在层级结构中的深度
     #[serde(skip_serializing_if = "Option::is_none")]
     pub depth: Option<usize>,
 }

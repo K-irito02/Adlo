@@ -48,8 +48,7 @@ pub fn conversation_create_session(
         let existing: Vec<ConversationSessionRecord> = state
             .db
             .list_entities_by_workspace(EntityTable::Sessions, &workspace_id)?;
-        let session =
-            adl_conversation::create_session(&workspace_id, title, existing.len() as i32);
+        let session = adl_conversation::create_session(&workspace_id, title, existing.len() as i32);
         state.db.save_entity(
             EntityTable::Sessions,
             &session.id,

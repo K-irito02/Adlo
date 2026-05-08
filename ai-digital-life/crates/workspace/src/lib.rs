@@ -3,8 +3,8 @@
 use adl_errors::AppError;
 use adl_kernel::{
     now_ms, FileOutlineItem, GitBranchSummary, GitSnapshot, RecentWorkspaceEntry, RepoMapEntry,
-    RetrievalFileTypeCount, RetrievalSnapshot, RetrievalStatusV1, WorkspaceFileDocument,
-    WorkspaceChangeKind, WorkspaceChangePreview, WorkspaceChangeStatus, WorkspaceMeta,
+    RetrievalFileTypeCount, RetrievalSnapshot, RetrievalStatusV1, WorkspaceChangeKind,
+    WorkspaceChangePreview, WorkspaceChangeStatus, WorkspaceFileDocument, WorkspaceMeta,
     WorkspaceSearchHit, WorkspaceStatus, WorkspaceTreeNode, WorkspaceType,
 };
 use regex::Regex;
@@ -29,8 +29,8 @@ const IGNORED_DIRS: &[&str] = &[
     ".cache",
 ];
 const BLOCK_KEYWORDS: &[&str] = &[
-    "if", "else", "for", "while", "switch", "case", "catch", "try", "finally", "match",
-    "do", "with", "except", "elif", "foreach",
+    "if", "else", "for", "while", "switch", "case", "catch", "try", "finally", "match", "do",
+    "with", "except", "elif", "foreach",
 ];
 
 #[derive(Clone)]
@@ -145,10 +145,22 @@ pub fn stable_workspace_id(root: &Path) -> String {
 pub fn capture_git_snapshot(root: &Path) -> GitSnapshot {
     let branch = run_git(root, &["branch", "--show-current"]).and_then(first_non_empty_line);
     let head = run_git(root, &["rev-parse", "--short", "HEAD"]).and_then(first_non_empty_line);
-    let staged = capture_git_paths_with_fallback(root, &["diff", "--name-only", "--cached", "-z"], "diff --cached");
+    let staged = capture_git_paths_with_fallback(
+        root,
+        &["diff", "--name-only", "--cached", "-z"],
+        "diff --cached",
+    );
     let unstaged = capture_git_paths_with_fallback(root, &["diff", "--name-only", "-z"], "diff");
-    let untracked = capture_git_paths_with_fallback(root, &["ls-files", "--others", "--exclude-standard", "-z"], "ls-files --others");
-    let conflicts = capture_git_paths_with_fallback(root, &["diff", "--name-only", "--diff-filter=U", "-z"], "diff --diff-filter=U");
+    let untracked = capture_git_paths_with_fallback(
+        root,
+        &["ls-files", "--others", "--exclude-standard", "-z"],
+        "ls-files --others",
+    );
+    let conflicts = capture_git_paths_with_fallback(
+        root,
+        &["diff", "--name-only", "--diff-filter=U", "-z"],
+        "diff --diff-filter=U",
+    );
     GitSnapshot {
         is_repo: root.join(".git").exists() || branch.is_some() || head.is_some(),
         branch,
@@ -175,11 +187,23 @@ pub fn read_change_preview(
     }
 
     let normalized_path = relative_path.replace('\\', "/");
-    let status = if snapshot.conflicts.iter().any(|path| path == &normalized_path) {
+    let status = if snapshot
+        .conflicts
+        .iter()
+        .any(|path| path == &normalized_path)
+    {
         WorkspaceChangeStatus::Conflicted
-    } else if snapshot.untracked.iter().any(|path| path == &normalized_path) {
+    } else if snapshot
+        .untracked
+        .iter()
+        .any(|path| path == &normalized_path)
+    {
         WorkspaceChangeStatus::Untracked
-    } else if snapshot.unstaged.iter().any(|path| path == &normalized_path) {
+    } else if snapshot
+        .unstaged
+        .iter()
+        .any(|path| path == &normalized_path)
+    {
         WorkspaceChangeStatus::Modified
     } else if snapshot.staged.iter().any(|path| path == &normalized_path) {
         WorkspaceChangeStatus::Staged
@@ -260,10 +284,16 @@ pub fn list_git_branches(root: &Path) -> Result<Vec<GitBranchSummary>, AppError>
     Ok(branches)
 }
 
-pub fn switch_git_branch(root: &Path, branch_name: &str, allow_stash: bool) -> Result<(GitSnapshot, bool, Option<String>), AppError> {
+pub fn switch_git_branch(
+    root: &Path,
+    branch_name: &str,
+    allow_stash: bool,
+) -> Result<(GitSnapshot, bool, Option<String>), AppError> {
     let snapshot = capture_git_snapshot(root);
     if !snapshot.is_repo {
-        return Err(AppError::Workspace("active workspace is not a Git repository".into()));
+        return Err(AppError::Workspace(
+            "active workspace is not a Git repository".into(),
+        ));
     }
     let previous_branch = snapshot.branch.clone();
     let should_stash = git_has_local_changes(&snapshot);
@@ -287,7 +317,9 @@ pub fn create_git_branch(
 ) -> Result<(GitSnapshot, bool, Option<String>), AppError> {
     let snapshot = capture_git_snapshot(root);
     if !snapshot.is_repo {
-        return Err(AppError::Workspace("active workspace is not a Git repository".into()));
+        return Err(AppError::Workspace(
+            "active workspace is not a Git repository".into(),
+        ));
     }
     let previous_branch = snapshot.branch.clone();
     let current_branch = previous_branch
@@ -367,13 +399,11 @@ fn run_git_required(root: &Path, args: &[&str]) -> Result<String, AppError> {
         Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-        Err(AppError::Workspace(
-            if stderr.is_empty() {
-                format!("git command failed: git {}", args.join(" "))
-            } else {
-                stderr
-            },
-        ))
+        Err(AppError::Workspace(if stderr.is_empty() {
+            format!("git command failed: git {}", args.join(" "))
+        } else {
+            stderr
+        }))
     }
 }
 
@@ -412,7 +442,13 @@ fn stash_workspace_changes(root: &Path) -> Result<(), AppError> {
     let message = format!("adl-auto-stash-{}", now_ms());
     run_git_required(
         root,
-        &["stash", "push", "--include-untracked", "--message", &message],
+        &[
+            "stash",
+            "push",
+            "--include-untracked",
+            "--message",
+            &message,
+        ],
     )?;
     Ok(())
 }
@@ -762,8 +798,8 @@ fn brace_matchers() -> &'static Vec<(Regex, &'static str)> {
 }
 
 fn sanitize_brace_line(line_text: &str) -> String {
-    let string_regex = Regex::new(r#""(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`"#)
-        .unwrap();
+    let string_regex =
+        Regex::new(r#""(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`"#).unwrap();
     let comment_regex = Regex::new(r"//.*$|/\*.*?\*/").unwrap();
     let without_strings = string_regex.replace_all(line_text, "\"\"");
     comment_regex.replace_all(&without_strings, "").into_owned()
@@ -790,10 +826,14 @@ fn parse_brace_outline(content: &str) -> Vec<OutlineDraft> {
             continue;
         }
         let sanitized = sanitize_brace_line(line_text);
-        let effective_depth = brace_depth.saturating_sub(count_leading_closers(&sanitized, &['}', ']']));
+        let effective_depth =
+            brace_depth.saturating_sub(count_leading_closers(&sanitized, &['}', ']']));
         for (regex, kind) in brace_matchers().iter() {
             if let Some(captures) = regex.captures(trimmed) {
-                let label = captures.get(1).map(|value| value.as_str().trim()).unwrap_or("");
+                let label = captures
+                    .get(1)
+                    .map(|value| value.as_str().trim())
+                    .unwrap_or("");
                 if label.is_empty() {
                     continue;
                 }
@@ -844,7 +884,11 @@ fn parse_python_outline(content: &str) -> Vec<OutlineDraft> {
             .take_while(|ch| ch.is_whitespace())
             .map(|ch| if ch == '\t' { 4 } else { 1 })
             .sum();
-        while indent_stack.last().copied().is_some_and(|value| indent <= value) {
+        while indent_stack
+            .last()
+            .copied()
+            .is_some_and(|value| indent <= value)
+        {
             indent_stack.pop();
         }
         if let Some(captures) = class_regex.captures(trimmed) {
@@ -886,7 +930,11 @@ fn parse_yaml_outline(content: &str) -> Vec<OutlineDraft> {
             .take_while(|ch| ch.is_whitespace())
             .map(|ch| if ch == '\t' { 2 } else { 1 })
             .sum();
-        while indent_stack.last().copied().is_some_and(|value| indent <= value) {
+        while indent_stack
+            .last()
+            .copied()
+            .is_some_and(|value| indent <= value)
+        {
             indent_stack.pop();
         }
         if let Some(captures) = list_key_regex.captures(trimmed) {
@@ -900,7 +948,10 @@ fn parse_yaml_outline(content: &str) -> Vec<OutlineDraft> {
             continue;
         }
         if let Some(captures) = key_regex.captures(trimmed) {
-            let suffix = captures.get(2).map(|value| value.as_str().trim()).unwrap_or("");
+            let suffix = captures
+                .get(2)
+                .map(|value| value.as_str().trim())
+                .unwrap_or("");
             if !suffix.is_empty()
                 && suffix != "|"
                 && suffix != ">"
@@ -947,7 +998,11 @@ fn parse_config_outline(content: &str) -> Vec<OutlineDraft> {
         }
         if let Some(captures) = section_regex.captures(trimmed) {
             let label = captures[1].trim().to_string();
-            current_section_depth = label.split('.').filter(|part| !part.is_empty()).count().max(1);
+            current_section_depth = label
+                .split('.')
+                .filter(|part| !part.is_empty())
+                .count()
+                .max(1);
             drafts.push(OutlineDraft {
                 label,
                 kind: "heading".to_string(),
@@ -981,9 +1036,13 @@ fn parse_json_outline(content: &str) -> Vec<OutlineDraft> {
             continue;
         }
         let sanitized = line_text.replace('"', "");
-        let effective_depth = brace_depth.saturating_sub(count_leading_closers(&sanitized, &['}', ']']));
+        let effective_depth =
+            brace_depth.saturating_sub(count_leading_closers(&sanitized, &['}', ']']));
         if let Some(captures) = key_regex.captures(trimmed) {
-            let value = captures.get(2).map(|capture| capture.as_str().trim()).unwrap_or("");
+            let value = captures
+                .get(2)
+                .map(|capture| capture.as_str().trim())
+                .unwrap_or("");
             if value.is_empty() || value.starts_with('{') || value.starts_with('[') {
                 drafts.push(OutlineDraft {
                     label: captures[1].to_string(),
@@ -1002,10 +1061,44 @@ fn parse_json_outline(content: &str) -> Vec<OutlineDraft> {
 
 fn should_outline_html_tag(tag: &str, attrs: &str) -> bool {
     const STRUCTURAL: &[&str] = &[
-        "html", "head", "body", "main", "header", "footer", "section", "article", "aside",
-        "nav", "details", "summary", "dialog", "form", "fieldset", "div", "template",
-        "script", "style", "table", "thead", "tbody", "tfoot", "tr", "td", "th", "ul",
-        "ol", "li", "dl", "dt", "dd", "svg", "g", "path", "symbol", "defs", "slot",
+        "html",
+        "head",
+        "body",
+        "main",
+        "header",
+        "footer",
+        "section",
+        "article",
+        "aside",
+        "nav",
+        "details",
+        "summary",
+        "dialog",
+        "form",
+        "fieldset",
+        "div",
+        "template",
+        "script",
+        "style",
+        "table",
+        "thead",
+        "tbody",
+        "tfoot",
+        "tr",
+        "td",
+        "th",
+        "ul",
+        "ol",
+        "li",
+        "dl",
+        "dt",
+        "dd",
+        "svg",
+        "g",
+        "path",
+        "symbol",
+        "defs",
+        "slot",
         "component",
     ];
     STRUCTURAL.contains(&tag)
@@ -1042,10 +1135,32 @@ fn parse_html_outline(content: &str) -> Vec<OutlineDraft> {
     for (index, line_text) in content.lines().enumerate() {
         for captures in tag_regex.captures_iter(line_text) {
             let raw = captures.get(0).map(|value| value.as_str()).unwrap_or("");
-            let tag = captures.get(1).map(|value| value.as_str().to_ascii_lowercase()).unwrap_or_default();
+            let tag = captures
+                .get(1)
+                .map(|value| value.as_str().to_ascii_lowercase())
+                .unwrap_or_default();
             let attrs = captures.get(2).map(|value| value.as_str()).unwrap_or("");
-            let self_closing = captures.get(3).map(|value| !value.as_str().is_empty()).unwrap_or(false)
-                || matches!(tag.as_str(), "area" | "base" | "br" | "col" | "embed" | "hr" | "img" | "input" | "link" | "meta" | "param" | "source" | "track" | "wbr");
+            let self_closing = captures
+                .get(3)
+                .map(|value| !value.as_str().is_empty())
+                .unwrap_or(false)
+                || matches!(
+                    tag.as_str(),
+                    "area"
+                        | "base"
+                        | "br"
+                        | "col"
+                        | "embed"
+                        | "hr"
+                        | "img"
+                        | "input"
+                        | "link"
+                        | "meta"
+                        | "param"
+                        | "source"
+                        | "track"
+                        | "wbr"
+                );
             let is_closing = raw.starts_with("</");
             if is_closing {
                 while let Some(current) = tag_stack.pop() {
@@ -1203,8 +1318,7 @@ fn parse_sql_outline(content: &str) -> Vec<OutlineDraft> {
     let mut inside_create_table = false;
     let create_table_regex = Regex::new(r#"(?i)^create\s+table\s+([A-Za-z0-9_."]+)"#).unwrap();
     let create_other_regex =
-        Regex::new(r#"(?i)^create\s+(view|index|function|procedure)\s+([A-Za-z0-9_."]+)"#)
-            .unwrap();
+        Regex::new(r#"(?i)^create\s+(view|index|function|procedure)\s+([A-Za-z0-9_."]+)"#).unwrap();
     let alter_table_regex = Regex::new(r#"(?i)^alter\s+table\s+([A-Za-z0-9_."]+)"#).unwrap();
     let column_regex = Regex::new(r#"^([A-Za-z_"][\w"]*)\s+[A-Za-z_]"#).unwrap();
     for (index, line_text) in content.lines().enumerate() {
@@ -1400,7 +1514,11 @@ mod tests {
             .current_dir(dir)
             .status()
             .expect("git should be available for workspace tests");
-        assert!(status.success(), "git command failed: git {}", args.join(" "));
+        assert!(
+            status.success(),
+            "git command failed: git {}",
+            args.join(" ")
+        );
     }
 
     fn init_git_repo(dir: &Path) {
@@ -1438,8 +1556,7 @@ mod tests {
 
     #[test]
     fn captures_git_snapshot_for_untracked_and_unstaged_files() {
-        let dir =
-            std::env::temp_dir().join(format!("adl-workspace-git-{}", uuid::Uuid::new_v4()));
+        let dir = std::env::temp_dir().join(format!("adl-workspace-git-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
         init_git_repo(&dir);
         std::fs::write(dir.join("tracked.txt"), "hello\n").unwrap();

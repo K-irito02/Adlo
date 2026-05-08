@@ -269,11 +269,8 @@ async fn start_run_inner(
             if let Ok(doc) =
                 adl_workspace::read_file(std::path::Path::new(&workspace.root_path), &rel)
             {
-                let file_ctx = adl_context_engine::file_context(
-                    &rel,
-                    &doc.content,
-                    FILE_CONTEXT_MAX_TOKENS,
-                );
+                let file_ctx =
+                    adl_context_engine::file_context(&rel, &doc.content, FILE_CONTEXT_MAX_TOKENS);
                 let truncated = file_ctx.content.len() != doc.content.len();
                 emit_activity(serde_json::json!({
                   "type": "file-read",
@@ -308,8 +305,7 @@ async fn start_run_inner(
                 if let Ok(items) =
                     adl_workspace::outline(std::path::Path::new(&workspace.root_path), &rel)
                 {
-                    if let Some(outline) = adl_context_engine::outline_context(&rel, &items, 16)
-                    {
+                    if let Some(outline) = adl_context_engine::outline_context(&rel, &items, 16) {
                         emit_activity(serde_json::json!({
                           "type": "context-added",
                           "contextType": "outline",
@@ -424,7 +420,9 @@ async fn start_run_inner(
                 None => None,
             }
         }
-        ConversationScenario::CodeEdit | ConversationScenario::Plan | ConversationScenario::Chat => None,
+        ConversationScenario::CodeEdit
+        | ConversationScenario::Plan
+        | ConversationScenario::Chat => None,
     };
     if let Some(patch_set) = &patch_set {
         emit_activity(serde_json::json!({
