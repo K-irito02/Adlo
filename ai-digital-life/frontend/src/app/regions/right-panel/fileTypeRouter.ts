@@ -10,12 +10,12 @@ const CODE_EXTENSIONS = new Set([
   "ts", "tsx", "js", "jsx", "mjs",
   "json", "yaml", "yml",
   "html", "htm", "css", "scss", "less",
-  "sql", "py", "rs", "xml", "svg",
+  "sql", "py", "rs", "xml", "svg", "vue",
   "sh", "bash", "zsh", "fish",
-  "toml", "ini", "cfg", "conf",
+  "ps1", "toml", "ini", "cfg", "conf",
   "gitignore", "env", "dockerfile",
-  "c", "cpp", "h", "hpp",
-  "go", "java", "kt", "swift",
+  "c", "cc", "cpp", "cxx", "h", "hpp",
+  "cs", "go", "java", "kt", "swift",
   "rb", "php", "lua", "vim",
 ]);
 
@@ -36,7 +36,7 @@ export function categorizeFile(filePath: string | undefined): FileCategory {
   const dotIndex = fileName.lastIndexOf(".");
   if (dotIndex <= 0) {
     const lowerName = fileName.toLowerCase();
-    if (lowerName === "dockerfile" || lowerName === "makefile" || lowerName === "license") return "code";
+    if (lowerName === "dockerfile" || lowerName === "makefile" || lowerName === "license" || lowerName === ".gitignore") return "code";
     return "text";
   }
   const ext = fileName.slice(dotIndex + 1).toLowerCase();

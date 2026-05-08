@@ -29,9 +29,11 @@
 | 选择器 | 说明 |
 |--------|------|
 | `.adl-filetree__item` | 文件/文件夹项容器 |
-| `.adl-filetree__node` | 可点击的文件/文件夹按钮 |
-| `.adl-filetree__node.is-active` | 当前选中项 |
-| `.adl-filetree__node--directory` | 文件夹按钮 |
+| `.adl-filetree__row` | 文件树整行交互区域 |
+| `.adl-filetree__label` | 文件/文件夹名称按钮 |
+| `.adl-filetree__toggle` | 文件夹收起/展开按钮 |
+| `.adl-filetree__item.is-active` | 当前选中项 |
+| `.adl-filetree__node--directory` | 文件夹节点样式修饰符 |
 | `.adl-filetree__children` | 子目录列表 |
 | `.adl-filetree-scrollbar` | 自定义滚动条 |
 | `.adl-tool-navigator__resize-handle` | 右边框拖拽手柄 |
@@ -41,14 +43,14 @@
 #### 展开文件夹
 
 ```javascript
-await page.locator('.adl-filetree__node').filter({ hasText: 'notes' }).click();
+await page.locator('.adl-filetree__label').filter({ hasText: 'notes' }).click();
 await page.waitForSelector('.adl-filetree__children');
 ```
 
 #### 打开文件
 
 ```javascript
-await page.locator('.adl-filetree__node').filter({ hasText: '.md' }).click();
+await page.locator('.adl-filetree__label').filter({ hasText: '.md' }).click();
 await page.waitForSelector('div[data-testid="editor-shell"] .cm-editor');
 ```
 
@@ -163,7 +165,8 @@ await page.locator('.adl-tool-context__group--files-actions .adl-tool-context__i
 | 收起导航栏 | 面板切换 | 折叠/展开左侧文件导航 |
 | 搜索 | 搜索/返回 | 切换文件树与搜索视图 |
 | 后退 / 前进 | 返回历史 / 前进历史 | 导航历史 |
-| 大纲 | 文档大纲 / 文件 | 列表图标按钮，切换文件树与文档大纲视图 |
+| 文件树 | 文件树 | 树形图标按钮，切换到文件树视图 |
+| 大纲 | 文档大纲 | 列表图标按钮，切换到文档大纲视图 |
 | 预览 / 编辑 | 文件预览 / 文件编辑 | 眼睛图标按钮，切换预览模式 |
 | 更多操作 | 更多操作 | 打开文件菜单 |
 | 新建文件 | 新建文件 | 创建新文件 |
@@ -189,7 +192,21 @@ await page.click('button[aria-label="刷新"]');
 
 | 优先级 | 类型 | 选择器 |
 |--------|------|--------|
-| 1 | aria-label | 切换到文档大纲视图按钮 |
+| 1 | aria-label | `button[aria-label="文档大纲"]` |
+| 2 | CSS | `.adl-outline-tree-shell` |
+| 3 | CSS | `.adl-outline-tree` |
+
+### 大纲项与滚动壳
+
+| 选择器 | 说明 |
+|--------|------|
+| `.adl-outline-tree__item` | 单个大纲节点容器 |
+| `.adl-outline-tree__row` | 大纲项整行点击/高亮区域 |
+| `.adl-outline-tree__label` | 标题名称按钮 |
+| `.adl-outline-tree__toggle` | 收起/展开按钮 |
+| `.adl-outline-tree__meta` | hover 时显示的元信息 |
+| `.adl-outline-tree__scrollbar` | 自定义滚动条轨道 |
+| `.adl-outline-tree__scrollbar-thumb` | 自定义滚动条滑块 |
 
 ### 操作
 
@@ -197,14 +214,28 @@ await page.click('button[aria-label="刷新"]');
 
 ```javascript
 await page.click('button[aria-label="文档大纲"]');
-await page.waitForSelector('.adl-tool-list');
+await page.waitForSelector('.adl-outline-tree');
 ```
 
 #### 点击大纲项跳转
 
 ```javascript
-await page.locator('.adl-tool-list__item').first().click();
+await page.locator('.adl-outline-tree__label').first().click();
 ```
+
+#### 验证 hover 元信息
+
+```javascript
+const firstItem = page.locator('.adl-outline-tree__row').first();
+await firstItem.hover();
+await page.waitForSelector('.adl-outline-tree__meta', { state: 'visible' });
+```
+
+### 行为约定
+
+1. Markdown 与代码文件共用同一套树形大纲组件，支持多行标题、层级展开/收起和选中态高亮。
+2. 大纲滚动区与文件树共用同一套自绘滚动壳，滑块在 hover / active 时会放大。
+3. 点击 Markdown 大纲项时，预览模式优先滚动到正文标题；编辑模式跳编辑器行号。
 
 ---
 
@@ -215,5 +246,7 @@ await page.locator('.adl-tool-list__item').first().click();
 | 文件面板 | `#files-panel` | 文件面板容器 |
 | 文件树 | `.adl-filetree` | 文件树 |
 | 滚动条 | `.adl-filetree-scrollbar` | 自定义滚动条 |
+| 大纲树 | `.adl-outline-tree` | 文档大纲树 |
+| 大纲滚动条 | `.adl-outline-tree__scrollbar` | 文档大纲自定义滚动条 |
 | 编辑器 | `div[data-testid="editor-shell"] .cm-editor` | CodeMirror 编辑器 |
 | 预览区 | `.adl-tool-editor__surface--preview` | Markdown / 只读预览 |

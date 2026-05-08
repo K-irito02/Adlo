@@ -37,6 +37,7 @@ import { MODEL_PROVIDER_IDS } from "./constants";
 import { createEditorTab, mapPatchToEditorTab, type EditorTabState } from "./editorTabs";
 import { loadConversationState, loadTaskCenterState } from "./loaders";
 import { mergeDirtyEditorPaths, normalizeWorkspaceRelativePath } from "./workspacePaths";
+import { buildOutlineFromContent } from "../shared/outline";
 import { themeController } from "./theme";
 import {
   applySlashScenarioOverride,
@@ -709,14 +710,12 @@ export const useAppStore = create<StoreState>((set, get) => ({
     }
   },
   openFile: async (relativePath: string) => {
-    const [fileResult, outlineResult] = await Promise.all([
-      window.digitalLife.workspace.readFile(relativePath),
-      window.digitalLife.workspace.outline(relativePath)
-    ]);
+    const fileResult = await window.digitalLife.workspace.readFile(relativePath);
     if (!fileResult.ok) {
       set({ error: fileResult.error.message });
       return;
     }
+    const nextOutline = buildOutlineFromContent(fileResult.data.content, relativePath);
     const norm = normalizeWorkspaceRelativePath(relativePath);
     set((state) => {
       const nextDirty = state.dirtyEditorPaths.filter((p) => normalizeWorkspaceRelativePath(p) !== norm);
@@ -729,7 +728,7 @@ export const useAppStore = create<StoreState>((set, get) => ({
         fileContent: fileResult.data.content,
         fileLastModifiedAt: fileResult.data.lastModifiedAt,
         externalFileChange: state.externalFileChange?.path === relativePath ? undefined : state.externalFileChange,
-        outline: outlineResult.ok ? outlineResult.data : [],
+        outline: nextOutline,
         dirtyEditorPaths: nextDirty
       };
     });
@@ -763,8 +762,8 @@ export const useAppStore = create<StoreState>((set, get) => ({
       set({ error: result.error.message });
       return undefined;
     }
-    const outlineResult = await window.digitalLife.workspace.outline(relativePath);
     await get().refreshWorkspaceTree();
+    const nextOutline = buildOutlineFromContent(result.data.content, relativePath);
     const norm = normalizeWorkspaceRelativePath(relativePath);
     set((state) => {
       const nextDirty = state.dirtyEditorPaths.filter((p) => normalizeWorkspaceRelativePath(p) !== norm);
@@ -778,7 +777,7 @@ export const useAppStore = create<StoreState>((set, get) => ({
         fileContent: result.data.content,
         fileLastModifiedAt: result.data.lastModifiedAt,
         externalFileChange: state.externalFileChange?.path === relativePath ? undefined : state.externalFileChange,
-        outline: outlineResult.ok ? outlineResult.data : [],
+        outline: nextOutline,
         dirtyEditorPaths: nextDirty
       };
     });

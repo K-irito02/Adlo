@@ -21,6 +21,7 @@ export type DiffViewerProps = {
   theme?: "light" | "dark";
   locale?: string;
   sideBySide?: boolean;
+  collapseUnchanged?: boolean;
   readOnly?: boolean;
   lineNumbers?: boolean;
   wordWrap?: boolean;
@@ -73,6 +74,7 @@ function SideBySideDiffViewer({
   readOnly,
   lineNumbersEnabled,
   wordWrap,
+  collapseUnchanged,
   onMount,
   extraExtensions,
   hunks,
@@ -85,6 +87,7 @@ function SideBySideDiffViewer({
   readOnly: boolean;
   lineNumbersEnabled: boolean;
   wordWrap: boolean;
+  collapseUnchanged: boolean;
   onMount?: (editor: DiffEditorRef | EditorRef) => void;
   extraExtensions: Extension[];
   hunks?: AgentHunkDecoration[];
@@ -113,7 +116,7 @@ function SideBySideDiffViewer({
       a: { doc: original, extensions: aExts },
       b: { doc: modified, extensions: bExts },
       parent: containerRef.current,
-      collapseUnchanged: { margin: 3, minSize: 4 },
+      collapseUnchanged: collapseUnchanged ? { margin: 3, minSize: 4 } : undefined,
       gutter: false,
       highlightChanges: true,
     });
@@ -158,7 +161,7 @@ function SideBySideDiffViewer({
         mergeViewRef.current = null;
       }
     };
-  }, [original, modified, sharedExts, extraExtensions]);
+  }, [original, modified, sharedExts, extraExtensions, collapseUnchanged]);
 
   useEffect(() => {
     const mv = mergeViewRef.current;
@@ -206,6 +209,7 @@ function InlineDiffViewer({
   readOnly,
   lineNumbersEnabled,
   wordWrap,
+  collapseUnchanged,
   onMount,
   extraExtensions,
 }: {
@@ -217,6 +221,7 @@ function InlineDiffViewer({
   readOnly: boolean;
   lineNumbersEnabled: boolean;
   wordWrap: boolean;
+  collapseUnchanged: boolean;
   onMount?: (editor: DiffEditorRef | EditorRef) => void;
   extraExtensions: Extension[];
 }) {
@@ -233,10 +238,10 @@ function InlineDiffViewer({
         highlightChanges: true,
         gutter: false,
         mergeControls: true,
-        collapseUnchanged: { margin: 3, minSize: 4 },
+        collapseUnchanged: collapseUnchanged ? { margin: 3, minSize: 4 } : undefined,
       }),
     ];
-  }, [language, theme, readOnly, lineNumbersEnabled, wordWrap, locale, original]);
+  }, [language, theme, readOnly, lineNumbersEnabled, wordWrap, locale, original, collapseUnchanged]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -303,6 +308,7 @@ export function DiffViewer({
   theme = "dark",
   locale = "en-US",
   sideBySide = false,
+  collapseUnchanged = true,
   readOnly = true,
   lineNumbers: lineNumbersEnabled = true,
   wordWrap = false,
@@ -322,6 +328,7 @@ export function DiffViewer({
         readOnly={readOnly}
         lineNumbersEnabled={lineNumbersEnabled}
         wordWrap={wordWrap}
+        collapseUnchanged={collapseUnchanged}
         onMount={onMount}
         extraExtensions={extraExtensions}
         hunks={hunks}
@@ -339,6 +346,7 @@ export function DiffViewer({
       readOnly={readOnly}
       lineNumbersEnabled={lineNumbersEnabled}
       wordWrap={wordWrap}
+      collapseUnchanged={collapseUnchanged}
       onMount={onMount}
       extraExtensions={extraExtensions}
     />

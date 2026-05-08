@@ -25,6 +25,7 @@ import type {
   WorkspaceSearchHit
 } from "@ai-digital-life/kernel";
 import { GLOBAL_WORKSPACE_ID } from "./app/workspaceScope";
+import { buildOutlineFromContent } from "./shared/outline";
 
 const now = Date.now();
 
@@ -739,26 +740,7 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
     },
     outline: async (relativePath: string) => {
       const content = documents.get(relativePath) ?? "";
-      const items: FileOutlineItem[] = content
-        .split(/\r?\n/)
-        .flatMap((lineText, index) => {
-          const trimmed = lineText.trim();
-          const match =
-            trimmed.match(/^(?:export\s+)?function\s+([A-Za-z0-9_]+)/) ??
-            trimmed.match(/^(?:export\s+)?interface\s+([A-Za-z0-9_]+)/) ??
-            trimmed.match(/^(?:export\s+)?const\s+([A-Za-z0-9_]+)/);
-          if (!match) {
-            return [];
-          }
-          return [
-            {
-              id: `${relativePath}:${index + 1}`,
-              label: match[1],
-              kind: trimmed.includes("interface") ? "interface" : trimmed.includes("function") ? "function" : "const",
-              line: index + 1
-            }
-          ];
-        });
+      const items: FileOutlineItem[] = buildOutlineFromContent(content, relativePath);
       return { ok: true, data: items };
     },
     setEditorDirtyPaths: async () => ({ ok: true, data: true }),

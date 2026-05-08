@@ -19,8 +19,10 @@ export function getLanguageExtension(languageId: string): Extension[] {
     case "json":
       return [json()];
     case "yaml":
+    case "config":
       return [yaml()];
     case "html":
+    case "vue":
       return [html()];
     case "css":
       return [css()];

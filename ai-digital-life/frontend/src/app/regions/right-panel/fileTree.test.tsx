@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { FileTree, type FileTreeRenderableNode } from "./fileTree";
 
 describe("FileTree", () => {
-  it("renders the dedicated scroll wrapper so row backgrounds can extend to the edge", () => {
+  it("renders the shared tree row chrome inside the dedicated scroll wrapper", () => {
     const nodes: FileTreeRenderableNode[] = [
       {
         path: "src",
@@ -28,11 +28,16 @@ describe("FileTree", () => {
         expandedPaths={{ src: true }}
         onToggle={() => undefined}
         onOpenFile={() => undefined}
+        expandLabel="Expand"
+        collapseLabel="Collapse"
       />
     );
 
     expect(markup).toContain("adl-filetree-scroll");
     expect(markup).toContain("adl-filetree-scrollbar");
-    expect(markup).toContain("adl-filetree__node is-active");
+    expect(markup).toContain("adl-tree-root");
+    expect(markup).toContain("adl-tree-node__toggle");
+    expect(markup).toContain("adl-filetree__row");
+    expect(markup).toContain("adl-tree-node is-active");
   });
 });

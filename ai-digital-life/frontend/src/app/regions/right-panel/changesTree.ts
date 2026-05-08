@@ -168,9 +168,10 @@ export function buildFlatChangeNodes(entries: ChangeEntry[]): ChangeTreeNode[] {
   const byPath = new Map(entries.map((entry) => [entry.path, entry] as const));
   return sortPaths(entries.map((entry) => entry.path)).map((path) => {
     const entry = byPath.get(path)!;
+    const name = entry.path.split("/").filter(Boolean).pop() ?? entry.path;
     return {
       path: entry.path,
-      name: entry.path,
+      name,
       kind: "file",
       children: [],
       fileCount: 1,

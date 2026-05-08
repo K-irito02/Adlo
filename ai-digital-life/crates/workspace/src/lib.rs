@@ -7,10 +7,12 @@ use adl_kernel::{
     WorkspaceChangeKind, WorkspaceChangePreview, WorkspaceChangeStatus, WorkspaceMeta,
     WorkspaceSearchHit, WorkspaceStatus, WorkspaceTreeNode, WorkspaceType,
 };
+use regex::Regex;
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::OnceLock;
 use tracing::{debug, info};
 
 const DEFAULT_MAX_FILE_BYTES: u64 = 1024 * 1024;
@@ -26,6 +28,18 @@ const IGNORED_DIRS: &[&str] = &[
     ".next",
     ".cache",
 ];
+const BLOCK_KEYWORDS: &[&str] = &[
+    "if", "else", "for", "while", "switch", "case", "catch", "try", "finally", "match",
+    "do", "with", "except", "elif", "foreach",
+];
+
+#[derive(Clone)]
+struct OutlineDraft {
+    label: String,
+    kind: String,
+    line: usize,
+    depth: usize,
+}
 
 pub fn detect_root(input: &Path) -> Result<PathBuf, AppError> {
     let start = input
@@ -571,47 +585,685 @@ pub fn search_text(root: &Path, query: &str) -> Result<Vec<WorkspaceSearchHit>, 
 
 pub fn outline(root: &Path, relative_path: &str) -> Result<Vec<FileOutlineItem>, AppError> {
     let doc = read_file(root, relative_path)?;
-    let mut items = Vec::new();
-    for (index, line) in doc.content.lines().enumerate() {
-        let trimmed = line.trim_start();
-        let candidates = [
-            ("function ", "function"),
-            ("fn ", "function"),
-            ("class ", "class"),
-            ("interface ", "interface"),
-            ("type ", "type"),
-            ("const ", "const"),
-            ("pub fn ", "function"),
-            ("struct ", "class"),
-            ("enum ", "type"),
-            ("# ", "heading"),
-            ("## ", "heading"),
-        ];
-        for (prefix, kind) in candidates {
-            let label = trimmed
-                .strip_prefix("export ")
-                .unwrap_or(trimmed)
-                .strip_prefix(prefix);
-            if let Some(label) = label {
-                let label = label
-                    .split(|ch: char| ch == '(' || ch == '{' || ch == ':' || ch.is_whitespace())
-                    .next()
-                    .unwrap_or("")
-                    .trim_matches('#')
-                    .trim();
-                if !label.is_empty() {
-                    items.push(FileOutlineItem {
-                        id: format!("{}:{}", relative_path.replace('\\', "/"), index + 1),
-                        label: label.to_string(),
-                        kind: kind.to_string(),
-                        line: index + 1,
-                    });
+    let total_lines = doc.content.lines().count().max(1);
+    let drafts = match detect_outline_family(relative_path) {
+        "markdown" => parse_markdown_outline(&doc.content),
+        "python" => parse_python_outline(&doc.content),
+        "yaml" => parse_yaml_outline(&doc.content),
+        "config" => parse_config_outline(&doc.content),
+        "json" => parse_json_outline(&doc.content),
+        "html" => parse_html_outline(&doc.content),
+        "css" => parse_css_outline(&doc.content),
+        "vue" => parse_vue_outline(&doc.content),
+        "shell" => parse_shell_outline(&doc.content, false),
+        "powershell" => parse_shell_outline(&doc.content, true),
+        "sql" => parse_sql_outline(&doc.content),
+        "none" => Vec::new(),
+        _ => parse_brace_outline(&doc.content),
+    };
+    Ok(finalize_outline_items(
+        drafts,
+        &relative_path.replace('\\', "/"),
+        total_lines,
+    ))
+}
+
+fn clean_markdown_heading_label(value: &str) -> &str {
+    let trimmed = value.trim();
+    let without_closing_hashes = trimmed.trim_end_matches('#').trim_end();
+    without_closing_hashes.trim()
+}
+
+fn detect_outline_family(relative_path: &str) -> &'static str {
+    let normalized = relative_path.replace('\\', "/");
+    let file_name = normalized
+        .rsplit('/')
+        .next()
+        .unwrap_or(&normalized)
+        .to_ascii_lowercase();
+    let extension = file_name
+        .rsplit_once('.')
+        .map(|(_, ext)| ext)
+        .unwrap_or(file_name.as_str());
+
+    match extension {
+        "md" | "markdown" => "markdown",
+        "py" => "python",
+        "yaml" | "yml" => "yaml",
+        "toml" | "ini" | "cfg" | "conf" => "config",
+        "json" => "json",
+        "html" | "htm" | "xml" | "svg" => "html",
+        "css" | "scss" | "less" => "css",
+        "vue" => "vue",
+        "sh" | "bash" | "zsh" | "fish" => "shell",
+        "ps1" => "powershell",
+        "sql" => "sql",
+        "db" | "sqlite" | "sqlite3" => "none",
+        _ if file_name == "dockerfile" => "shell",
+        _ => "brace",
+    }
+}
+
+fn finalize_outline_items(
+    drafts: Vec<OutlineDraft>,
+    relative_path: &str,
+    total_lines: usize,
+) -> Vec<FileOutlineItem> {
+    let mut sorted = drafts;
+    sorted.sort_by(|left, right| {
+        left.line
+            .cmp(&right.line)
+            .then(left.depth.cmp(&right.depth))
+            .then(left.label.cmp(&right.label))
+    });
+
+    let mut line_occurrences: BTreeMap<usize, usize> = BTreeMap::new();
+    sorted
+        .iter()
+        .enumerate()
+        .map(|(index, item)| {
+            let mut end_line = total_lines;
+            for next in sorted.iter().skip(index + 1) {
+                if next.depth <= item.depth {
+                    end_line = std::cmp::max(item.line, next.line.saturating_sub(1));
+                    break;
                 }
+            }
+            let occurrence = line_occurrences.entry(item.line).or_insert(0);
+            *occurrence += 1;
+            let id = if *occurrence == 1 {
+                format!("{relative_path}:{}", item.line)
+            } else {
+                format!("{relative_path}:{}:{}", item.line, *occurrence)
+            };
+            FileOutlineItem {
+                id,
+                label: item.label.clone(),
+                kind: item.kind.clone(),
+                line: item.line,
+                end_line: Some(end_line),
+                depth: Some(item.depth),
+            }
+        })
+        .collect()
+}
+
+fn parse_markdown_outline(content: &str) -> Vec<OutlineDraft> {
+    let mut drafts = Vec::new();
+    let mut in_fence = false;
+    for (index, line_text) in content.lines().enumerate() {
+        let trimmed = line_text.trim_start();
+        if trimmed.is_empty() {
+            continue;
+        }
+        if trimmed.starts_with("```") || trimmed.starts_with("~~~") {
+            in_fence = !in_fence;
+            continue;
+        }
+        if in_fence || !trimmed.starts_with('#') {
+            continue;
+        }
+        let depth = trimmed.chars().take_while(|ch| *ch == '#').count().min(6);
+        let has_required_space = trimmed
+            .chars()
+            .nth(depth)
+            .map(|ch| ch.is_whitespace())
+            .unwrap_or(false);
+        if !has_required_space {
+            continue;
+        }
+        let label = clean_markdown_heading_label(&trimmed[depth..]);
+        if label.is_empty() {
+            continue;
+        }
+        drafts.push(OutlineDraft {
+            label: label.to_string(),
+            kind: "heading".to_string(),
+            line: index + 1,
+            depth,
+        });
+    }
+    drafts
+}
+
+fn brace_matchers() -> &'static Vec<(Regex, &'static str)> {
+    static MATCHERS: OnceLock<Vec<(Regex, &'static str)>> = OnceLock::new();
+    MATCHERS.get_or_init(|| {
+        vec![
+            (Regex::new(r"^(?:export\s+)?(?:abstract\s+)?class\s+([A-Za-z_$][\w$]*)").unwrap(), "class"),
+            (Regex::new(r"^(?:export\s+)?interface\s+([A-Za-z_$][\w$]*)").unwrap(), "interface"),
+            (Regex::new(r"^(?:export\s+)?type\s+([A-Za-z_$][\w$]*)").unwrap(), "type"),
+            (Regex::new(r"^(?:export\s+)?enum\s+([A-Za-z_$][\w$]*)").unwrap(), "enum"),
+            (Regex::new(r"^(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)").unwrap(), "function"),
+            (Regex::new(r"^(?:export\s+)?const\s+([A-Za-z_$][\w$]*)\s*=\s*(?:\{|\[|async\b|function\b|\(?[\w\s,]*\)?\s*=>)").unwrap(), "const"),
+            (Regex::new(r"^(?:export\s+)?(?:let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:\{|\[|async\b|function\b|\(?[\w\s,]*\)?\s*=>)").unwrap(), "variable"),
+            (Regex::new(r"^(?:pub\s+)?fn\s+([A-Za-z_][\w]*)").unwrap(), "function"),
+            (Regex::new(r"^(?:pub\s+)?struct\s+([A-Za-z_][\w]*)").unwrap(), "class"),
+            (Regex::new(r"^(?:pub\s+)?enum\s+([A-Za-z_][\w]*)").unwrap(), "enum"),
+            (Regex::new(r"^(?:pub\s+)?trait\s+([A-Za-z_][\w]*)").unwrap(), "interface"),
+            (Regex::new(r"^(?:pub\s+)?impl(?:<[^>]+>)?\s+([A-Za-z_][\w:]*)").unwrap(), "heading"),
+            (Regex::new(r"^(?:pub\s+)?type\s+([A-Za-z_][\w]*)").unwrap(), "type"),
+            (Regex::new(r"^(?:pub\s+)?const\s+([A-Za-z_][\w]*)").unwrap(), "const"),
+            (Regex::new(r"^func(?:\s*\([^)]*\))?\s+([A-Za-z_][\w]*)").unwrap(), "function"),
+            (Regex::new(r"^type\s+([A-Za-z_][\w]*)\s+(?:struct|interface)\b").unwrap(), "class"),
+            (Regex::new(r"(?i)^(?:public|private|protected|internal|abstract|sealed|static|partial|final|\s)*class\s+([A-Za-z_][\w]*)").unwrap(), "class"),
+            (Regex::new(r"(?i)^(?:public|private|protected|internal|abstract|sealed|static|partial|final|\s)*interface\s+([A-Za-z_][\w]*)").unwrap(), "interface"),
+            (Regex::new(r"(?i)^(?:public|private|protected|internal|abstract|sealed|static|partial|final|\s)*enum\s+([A-Za-z_][\w]*)").unwrap(), "enum"),
+            (Regex::new(r"(?i)^(?:public|private|protected|internal|abstract|sealed|static|partial|final|\s)*record\s+([A-Za-z_][\w]*)").unwrap(), "class"),
+            (Regex::new(r"(?i)^(?:public|private|protected|internal|\s)*namespace\s+([A-Za-z_][\w.]*)").unwrap(), "heading"),
+            (Regex::new(r"^(?:template\s*<[^>]+>\s*)?(?:class|struct)\s+([A-Za-z_~][\w:]*)").unwrap(), "class"),
+            (Regex::new(r"^enum\s+(?:class\s+)?([A-Za-z_][\w]*)").unwrap(), "enum"),
+            (Regex::new(r"^(?:module|mod)\s+([A-Za-z_][\w]*)").unwrap(), "heading"),
+            (Regex::new(r"^(?:public|private|protected|internal|static|async|virtual|override|abstract|readonly|get|set|\s)+([A-Za-z_$][\w$]*)\s*\([^;=]*\)\s*(?::[^{=]+)?\s*(?:\{|=>)").unwrap(), "method"),
+            (Regex::new(r"^(?:public|private|protected|internal|readonly|static|\s)+([A-Za-z_$][\w$]*)\s*[:=]").unwrap(), "property"),
+            (Regex::new(r"^(?:[\w:<>,~*&\[\]\s]+)\s+([A-Za-z_~][\w:]*)\s*\([^;]*\)\s*(?:const\b)?\s*(?:\{|$)").unwrap(), "function"),
+        ]
+    })
+}
+
+fn sanitize_brace_line(line_text: &str) -> String {
+    let string_regex = Regex::new(r#""(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`"#)
+        .unwrap();
+    let comment_regex = Regex::new(r"//.*$|/\*.*?\*/").unwrap();
+    let without_strings = string_regex.replace_all(line_text, "\"\"");
+    comment_regex.replace_all(&without_strings, "").into_owned()
+}
+
+fn count_leading_closers(value: &str, closers: &[char]) -> usize {
+    value
+        .trim_start()
+        .chars()
+        .take_while(|ch| closers.contains(ch))
+        .count()
+}
+
+fn count_chars(value: &str, chars: &[char]) -> usize {
+    value.chars().filter(|ch| chars.contains(ch)).count()
+}
+
+fn parse_brace_outline(content: &str) -> Vec<OutlineDraft> {
+    let mut drafts = Vec::new();
+    let mut brace_depth = 0usize;
+    for (index, line_text) in content.lines().enumerate() {
+        let trimmed = line_text.trim();
+        if trimmed.is_empty() || trimmed.starts_with("//") || trimmed.starts_with('*') {
+            continue;
+        }
+        let sanitized = sanitize_brace_line(line_text);
+        let effective_depth = brace_depth.saturating_sub(count_leading_closers(&sanitized, &['}', ']']));
+        for (regex, kind) in brace_matchers().iter() {
+            if let Some(captures) = regex.captures(trimmed) {
+                let label = captures.get(1).map(|value| value.as_str().trim()).unwrap_or("");
+                if label.is_empty() {
+                    continue;
+                }
+                let lowered = label
+                    .rsplit("::")
+                    .next()
+                    .unwrap_or(label)
+                    .to_ascii_lowercase();
+                if (*kind == "function" || *kind == "method")
+                    && BLOCK_KEYWORDS.contains(&lowered.as_str())
+                {
+                    continue;
+                }
+                if (*kind == "function" || *kind == "method")
+                    && trimmed.ends_with(';')
+                    && !trimmed.contains('{')
+                {
+                    continue;
+                }
+                drafts.push(OutlineDraft {
+                    label: label.to_string(),
+                    kind: (*kind).to_string(),
+                    line: index + 1,
+                    depth: effective_depth + 1,
+                });
                 break;
             }
         }
+        brace_depth = brace_depth
+            .saturating_add(count_chars(&sanitized, &['{', '[']))
+            .saturating_sub(count_chars(&sanitized, &['}', ']']));
     }
-    Ok(items)
+    drafts
+}
+
+fn parse_python_outline(content: &str) -> Vec<OutlineDraft> {
+    let mut drafts = Vec::new();
+    let mut indent_stack: Vec<usize> = Vec::new();
+    let class_regex = Regex::new(r"^class\s+([A-Za-z_][\w]*)").unwrap();
+    let fn_regex = Regex::new(r"^(?:async\s+)?def\s+([A-Za-z_][\w]*)").unwrap();
+    for (index, line_text) in content.lines().enumerate() {
+        let trimmed = line_text.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            continue;
+        }
+        let indent = line_text
+            .chars()
+            .take_while(|ch| ch.is_whitespace())
+            .map(|ch| if ch == '\t' { 4 } else { 1 })
+            .sum();
+        while indent_stack.last().copied().is_some_and(|value| indent <= value) {
+            indent_stack.pop();
+        }
+        if let Some(captures) = class_regex.captures(trimmed) {
+            indent_stack.push(indent);
+            drafts.push(OutlineDraft {
+                label: captures[1].to_string(),
+                kind: "class".to_string(),
+                line: index + 1,
+                depth: indent_stack.len(),
+            });
+            continue;
+        }
+        if let Some(captures) = fn_regex.captures(trimmed) {
+            indent_stack.push(indent);
+            drafts.push(OutlineDraft {
+                label: captures[1].to_string(),
+                kind: "function".to_string(),
+                line: index + 1,
+                depth: indent_stack.len(),
+            });
+        }
+    }
+    drafts
+}
+
+fn parse_yaml_outline(content: &str) -> Vec<OutlineDraft> {
+    let mut drafts = Vec::new();
+    let mut indent_stack: Vec<usize> = Vec::new();
+    let list_key_regex = Regex::new(r"^-+\s*([^:#]+)\s*:\s*(.*)$").unwrap();
+    let key_regex = Regex::new(r"^([^:#][^:]*?)\s*:\s*(.*)$").unwrap();
+    let list_regex = Regex::new(r"^-+\s*(?:\{|\[)?\s*$").unwrap();
+    for (index, line_text) in content.lines().enumerate() {
+        let trimmed = line_text.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            continue;
+        }
+        let indent = line_text
+            .chars()
+            .take_while(|ch| ch.is_whitespace())
+            .map(|ch| if ch == '\t' { 2 } else { 1 })
+            .sum();
+        while indent_stack.last().copied().is_some_and(|value| indent <= value) {
+            indent_stack.pop();
+        }
+        if let Some(captures) = list_key_regex.captures(trimmed) {
+            indent_stack.push(indent);
+            drafts.push(OutlineDraft {
+                label: format!("- {}", captures[1].trim()),
+                kind: "heading".to_string(),
+                line: index + 1,
+                depth: indent_stack.len(),
+            });
+            continue;
+        }
+        if let Some(captures) = key_regex.captures(trimmed) {
+            let suffix = captures.get(2).map(|value| value.as_str().trim()).unwrap_or("");
+            if !suffix.is_empty()
+                && suffix != "|"
+                && suffix != ">"
+                && !suffix.starts_with('{')
+                && !suffix.starts_with('[')
+            {
+                continue;
+            }
+            indent_stack.push(indent);
+            drafts.push(OutlineDraft {
+                label: captures[1]
+                    .trim()
+                    .trim_matches('"')
+                    .trim_matches('\'')
+                    .to_string(),
+                kind: "heading".to_string(),
+                line: index + 1,
+                depth: indent_stack.len(),
+            });
+            continue;
+        }
+        if list_regex.is_match(trimmed) {
+            indent_stack.push(indent);
+            drafts.push(OutlineDraft {
+                label: "- item".to_string(),
+                kind: "heading".to_string(),
+                line: index + 1,
+                depth: indent_stack.len(),
+            });
+        }
+    }
+    drafts
+}
+
+fn parse_config_outline(content: &str) -> Vec<OutlineDraft> {
+    let mut drafts = Vec::new();
+    let section_regex = Regex::new(r"^\[([^\]]+)\]$").unwrap();
+    let entry_regex = Regex::new(r"^([A-Za-z0-9_.-]+)\s*=\s*(.+)$").unwrap();
+    let mut current_section_depth = 0usize;
+    for (index, line_text) in content.lines().enumerate() {
+        let trimmed = line_text.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') || trimmed.starts_with(';') {
+            continue;
+        }
+        if let Some(captures) = section_regex.captures(trimmed) {
+            let label = captures[1].trim().to_string();
+            current_section_depth = label.split('.').filter(|part| !part.is_empty()).count().max(1);
+            drafts.push(OutlineDraft {
+                label,
+                kind: "heading".to_string(),
+                line: index + 1,
+                depth: current_section_depth,
+            });
+            continue;
+        }
+        if let Some(captures) = entry_regex.captures(trimmed) {
+            let value = captures[2].trim();
+            if value.starts_with('{') || value.starts_with('[') || value.is_empty() {
+                drafts.push(OutlineDraft {
+                    label: captures[1].to_string(),
+                    kind: "heading".to_string(),
+                    line: index + 1,
+                    depth: current_section_depth + 1,
+                });
+            }
+        }
+    }
+    drafts
+}
+
+fn parse_json_outline(content: &str) -> Vec<OutlineDraft> {
+    let mut drafts = Vec::new();
+    let mut brace_depth = 0usize;
+    let key_regex = Regex::new(r#"^"([^"]+)"\s*:\s*(.*)$"#).unwrap();
+    for (index, line_text) in content.lines().enumerate() {
+        let trimmed = line_text.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        let sanitized = line_text.replace('"', "");
+        let effective_depth = brace_depth.saturating_sub(count_leading_closers(&sanitized, &['}', ']']));
+        if let Some(captures) = key_regex.captures(trimmed) {
+            let value = captures.get(2).map(|capture| capture.as_str().trim()).unwrap_or("");
+            if value.is_empty() || value.starts_with('{') || value.starts_with('[') {
+                drafts.push(OutlineDraft {
+                    label: captures[1].to_string(),
+                    kind: "heading".to_string(),
+                    line: index + 1,
+                    depth: effective_depth + 1,
+                });
+            }
+        }
+        brace_depth = brace_depth
+            .saturating_add(count_chars(&sanitized, &['{', '[']))
+            .saturating_sub(count_chars(&sanitized, &['}', ']']));
+    }
+    drafts
+}
+
+fn should_outline_html_tag(tag: &str, attrs: &str) -> bool {
+    const STRUCTURAL: &[&str] = &[
+        "html", "head", "body", "main", "header", "footer", "section", "article", "aside",
+        "nav", "details", "summary", "dialog", "form", "fieldset", "div", "template",
+        "script", "style", "table", "thead", "tbody", "tfoot", "tr", "td", "th", "ul",
+        "ol", "li", "dl", "dt", "dd", "svg", "g", "path", "symbol", "defs", "slot",
+        "component",
+    ];
+    STRUCTURAL.contains(&tag)
+        || tag.contains('-')
+        || attrs.contains(" id=")
+        || attrs.contains(" class=")
+        || attrs.contains(" name=")
+        || attrs.contains(" role=")
+}
+
+fn format_html_tag_label(tag: &str, attrs: &str) -> String {
+    let id_regex = Regex::new(r#"id=["']([^"']+)["']"#).unwrap();
+    let class_regex = Regex::new(r#"class=["']([^"']+)["']"#).unwrap();
+    let name_regex = Regex::new(r#"(?:name|role)=["']([^"']+)["']"#).unwrap();
+    if let Some(captures) = id_regex.captures(attrs) {
+        return format!("{tag}#{}", &captures[1]);
+    }
+    if let Some(captures) = class_regex.captures(attrs) {
+        let first_class = captures[1].split_whitespace().next().unwrap_or("");
+        if !first_class.is_empty() {
+            return format!("{tag}.{first_class}");
+        }
+    }
+    if let Some(captures) = name_regex.captures(attrs) {
+        return format!("{tag}[{}]", &captures[1]);
+    }
+    tag.to_string()
+}
+
+fn parse_html_outline(content: &str) -> Vec<OutlineDraft> {
+    let mut drafts = Vec::new();
+    let mut tag_stack: Vec<String> = Vec::new();
+    let tag_regex = Regex::new(r#"</?([A-Za-z][\w:-]*)([^>]*?)(/?)>"#).unwrap();
+    for (index, line_text) in content.lines().enumerate() {
+        for captures in tag_regex.captures_iter(line_text) {
+            let raw = captures.get(0).map(|value| value.as_str()).unwrap_or("");
+            let tag = captures.get(1).map(|value| value.as_str().to_ascii_lowercase()).unwrap_or_default();
+            let attrs = captures.get(2).map(|value| value.as_str()).unwrap_or("");
+            let self_closing = captures.get(3).map(|value| !value.as_str().is_empty()).unwrap_or(false)
+                || matches!(tag.as_str(), "area" | "base" | "br" | "col" | "embed" | "hr" | "img" | "input" | "link" | "meta" | "param" | "source" | "track" | "wbr");
+            let is_closing = raw.starts_with("</");
+            if is_closing {
+                while let Some(current) = tag_stack.pop() {
+                    if current == tag {
+                        break;
+                    }
+                }
+                continue;
+            }
+            if should_outline_html_tag(&tag, attrs) {
+                drafts.push(OutlineDraft {
+                    label: format_html_tag_label(&tag, attrs),
+                    kind: "heading".to_string(),
+                    line: index + 1,
+                    depth: tag_stack.len() + 1,
+                });
+            }
+            if !self_closing {
+                tag_stack.push(tag);
+            }
+        }
+    }
+    drafts
+}
+
+fn parse_css_outline(content: &str) -> Vec<OutlineDraft> {
+    let mut drafts = Vec::new();
+    let mut brace_depth = 0usize;
+    for (index, line_text) in content.lines().enumerate() {
+        let trimmed = line_text.trim();
+        if trimmed.is_empty() || trimmed.starts_with("/*") || trimmed.starts_with('*') {
+            continue;
+        }
+        if let Some(open_index) = line_text.find('{') {
+            let label = line_text[..open_index].trim();
+            if !label.is_empty() && !label.contains(':') {
+                drafts.push(OutlineDraft {
+                    label: label.to_string(),
+                    kind: "heading".to_string(),
+                    line: index + 1,
+                    depth: brace_depth + 1,
+                });
+            }
+        }
+        brace_depth = brace_depth
+            .saturating_add(count_chars(line_text, &['{']))
+            .saturating_sub(count_chars(line_text, &['}']));
+    }
+    drafts
+}
+
+fn parse_vue_outline(content: &str) -> Vec<OutlineDraft> {
+    let mut drafts = Vec::new();
+    let lines: Vec<&str> = content.lines().collect();
+    let open_regex = Regex::new(r"^\s*<(template|script|style)([^>]*)>").unwrap();
+    let mut index = 0usize;
+    while index < lines.len() {
+        let line = lines[index];
+        let Some(captures) = open_regex.captures(line) else {
+            index += 1;
+            continue;
+        };
+        let section = captures
+            .get(1)
+            .map(|value| value.as_str().to_ascii_lowercase())
+            .unwrap_or_else(|| "script".to_string());
+        let start_line = index + 1;
+        let end_tag = format!("</{section}>");
+        let mut end_index = index + 1;
+        while end_index < lines.len() && !lines[end_index].to_ascii_lowercase().contains(&end_tag) {
+            end_index += 1;
+        }
+        drafts.push(OutlineDraft {
+            label: section.clone(),
+            kind: "heading".to_string(),
+            line: start_line,
+            depth: 1,
+        });
+        let inner_content = lines[index + 1..end_index].join("\n");
+        let inner_drafts = if section == "template" {
+            parse_html_outline(&inner_content)
+        } else if section == "style" {
+            parse_css_outline(&inner_content)
+        } else {
+            parse_brace_outline(&inner_content)
+        };
+        drafts.extend(inner_drafts.into_iter().map(|draft| OutlineDraft {
+            line: draft.line + start_line,
+            depth: draft.depth + 1,
+            ..draft
+        }));
+        index = end_index + 1;
+    }
+    drafts
+}
+
+fn parse_shell_outline(content: &str, powershell: bool) -> Vec<OutlineDraft> {
+    let mut drafts = Vec::new();
+    let mut depth = 0usize;
+    let ps_function_regex = Regex::new(r"(?i)^function\s+([A-Za-z_][\w-]*)").unwrap();
+    let sh_function_regex = Regex::new(r"^(?:function\s+)?([A-Za-z_][\w-]*)\s*\(\)\s*\{").unwrap();
+    let ps_block_regex =
+        Regex::new(r"(?i)^(if|foreach|for|while|switch|try|catch|finally|class|enum)\b").unwrap();
+    let sh_block_regex = Regex::new(r"^(if|for|while|until|case|select)\b").unwrap();
+    let shell_close_regex = Regex::new(r"^(fi|done|esac)\b").unwrap();
+    for (index, line_text) in content.lines().enumerate() {
+        let trimmed = line_text.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            continue;
+        }
+        if trimmed.starts_with('}') || shell_close_regex.is_match(trimmed) {
+            depth = depth.saturating_sub(1);
+        }
+        let line = index + 1;
+        if let Some(captures) = if powershell {
+            ps_function_regex.captures(trimmed)
+        } else {
+            sh_function_regex.captures(trimmed)
+        } {
+            drafts.push(OutlineDraft {
+                label: captures[1].to_string(),
+                kind: "function".to_string(),
+                line,
+                depth: depth + 1,
+            });
+        } else if let Some(captures) = if powershell {
+            ps_block_regex.captures(trimmed)
+        } else {
+            sh_block_regex.captures(trimmed)
+        } {
+            drafts.push(OutlineDraft {
+                label: captures[1].to_ascii_lowercase(),
+                kind: "heading".to_string(),
+                line,
+                depth: depth + 1,
+            });
+        }
+        let opens_block = if powershell {
+            trimmed.ends_with('{')
+        } else {
+            trimmed.ends_with('{')
+                || trimmed.ends_with(" do")
+                || trimmed.ends_with(" then")
+                || trimmed.starts_with("case ")
+        };
+        if opens_block {
+            depth += 1;
+        }
+    }
+    drafts
+}
+
+fn parse_sql_outline(content: &str) -> Vec<OutlineDraft> {
+    let mut drafts = Vec::new();
+    let mut inside_create_table = false;
+    let create_table_regex = Regex::new(r#"(?i)^create\s+table\s+([A-Za-z0-9_."]+)"#).unwrap();
+    let create_other_regex =
+        Regex::new(r#"(?i)^create\s+(view|index|function|procedure)\s+([A-Za-z0-9_."]+)"#)
+            .unwrap();
+    let alter_table_regex = Regex::new(r#"(?i)^alter\s+table\s+([A-Za-z0-9_."]+)"#).unwrap();
+    let column_regex = Regex::new(r#"^([A-Za-z_"][\w"]*)\s+[A-Za-z_]"#).unwrap();
+    for (index, line_text) in content.lines().enumerate() {
+        let trimmed = line_text.trim();
+        if trimmed.is_empty() || trimmed.starts_with("--") {
+            continue;
+        }
+        let line = index + 1;
+        if let Some(captures) = create_table_regex.captures(trimmed) {
+            drafts.push(OutlineDraft {
+                label: format!("table {}", captures[1].replace('"', "")),
+                kind: "type".to_string(),
+                line,
+                depth: 1,
+            });
+            inside_create_table = true;
+            continue;
+        }
+        if let Some(captures) = create_other_regex.captures(trimmed) {
+            let category = captures[1].to_ascii_lowercase();
+            drafts.push(OutlineDraft {
+                label: format!("{category} {}", captures[2].replace('"', "")),
+                kind: if category == "function" {
+                    "function".to_string()
+                } else {
+                    "heading".to_string()
+                },
+                line,
+                depth: 1,
+            });
+            inside_create_table = false;
+            continue;
+        }
+        if let Some(captures) = alter_table_regex.captures(trimmed) {
+            drafts.push(OutlineDraft {
+                label: format!("alter {}", captures[1].replace('"', "")),
+                kind: "heading".to_string(),
+                line,
+                depth: 1,
+            });
+            inside_create_table = false;
+            continue;
+        }
+        if inside_create_table {
+            if trimmed == ")" || trimmed == ");" {
+                inside_create_table = false;
+                continue;
+            }
+            if let Some(captures) = column_regex.captures(trimmed) {
+                drafts.push(OutlineDraft {
+                    label: captures[1].replace('"', ""),
+                    kind: "property".to_string(),
+                    line,
+                    depth: 2,
+                });
+            }
+        }
+    }
+    drafts
 }
 
 pub fn build_retrieval_snapshot(
@@ -800,6 +1452,149 @@ mod tests {
         let snapshot = capture_git_snapshot(&dir);
         assert!(snapshot.unstaged.iter().any(|path| path == "tracked.txt"));
         assert!(snapshot.untracked.iter().any(|path| path == "new file.txt"));
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn markdown_outline_keeps_full_heading_text_and_depth() {
+        let dir =
+            std::env::temp_dir().join(format!("adl-workspace-outline-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("AGENTS.md"),
+            "# AI 数字生命 - 项目治理规则\n\n## 当前阶段\n\n### 已实现功能\n",
+        )
+        .unwrap();
+
+        let items = outline(&dir, "AGENTS.md").unwrap();
+
+        assert_eq!(items.len(), 3);
+        assert_eq!(items[0].label, "AI 数字生命 - 项目治理规则");
+        assert_eq!(items[0].depth, Some(1));
+        assert_eq!(items[1].label, "当前阶段");
+        assert_eq!(items[1].depth, Some(2));
+        assert_eq!(items[2].label, "已实现功能");
+        assert_eq!(items[2].depth, Some(3));
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn markdown_outline_ignores_fenced_headings_and_closing_hashes() {
+        let dir = std::env::temp_dir().join(format!(
+            "adl-workspace-outline-fence-{}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("README.md"),
+            "# Visible Heading ###\n\n```md\n# Hidden Heading\n```\n\n## Second Heading\n",
+        )
+        .unwrap();
+
+        let items = outline(&dir, "README.md").unwrap();
+
+        assert_eq!(items.len(), 2);
+        assert_eq!(items[0].label, "Visible Heading");
+        assert_eq!(items[0].depth, Some(1));
+        assert_eq!(items[1].label, "Second Heading");
+        assert_eq!(items[1].depth, Some(2));
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn code_outline_builds_nested_brace_symbols() {
+        let dir = std::env::temp_dir().join(format!(
+            "adl-workspace-outline-brace-{}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir_all(dir.join("src")).unwrap();
+        std::fs::write(
+            dir.join("src/runtime.ts"),
+            "export class Runtime {\n  public boot() {\n    const state = {\n      ready: true\n    };\n  }\n}\n",
+        )
+        .unwrap();
+
+        let items = outline(&dir, "src/runtime.ts").unwrap();
+
+        assert_eq!(items.len(), 3);
+        assert_eq!(items[0].label, "Runtime");
+        assert_eq!(items[0].kind, "class");
+        assert_eq!(items[0].depth, Some(1));
+        assert_eq!(items[1].label, "boot");
+        assert_eq!(items[1].kind, "method");
+        assert_eq!(items[1].depth, Some(2));
+        assert_eq!(items[2].label, "state");
+        assert_eq!(items[2].kind, "const");
+        assert_eq!(items[2].depth, Some(3));
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn code_outline_supports_python_yaml_and_vue_structures() {
+        let dir = std::env::temp_dir().join(format!(
+            "adl-workspace-outline-structured-{}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir_all(dir.join("app")).unwrap();
+        std::fs::write(
+            dir.join("app/main.py"),
+            "class App:\n    def run(self):\n        def inner():\n            return True\n",
+        )
+        .unwrap();
+        std::fs::write(
+            dir.join("app/config.yaml"),
+            "server:\n  http:\n    routes:\n      - path:\n          secure: true\n",
+        )
+        .unwrap();
+        std::fs::write(
+            dir.join("app/HeroCard.vue"),
+            "<template>\n  <section id=\"hero\">\n    <div class=\"panel\"></div>\n  </section>\n</template>\n<script>\nexport class HeroCard {\n  public render() {\n  }\n}\n</script>\n<style>\n.hero-card {\n  color: red;\n}\n</style>\n",
+        )
+        .unwrap();
+
+        let py_items = outline(&dir, "app/main.py").unwrap();
+        let yaml_items = outline(&dir, "app/config.yaml").unwrap();
+        let vue_items = outline(&dir, "app/HeroCard.vue").unwrap();
+
+        assert_eq!(
+            py_items
+                .iter()
+                .map(|item| (item.label.as_str(), item.depth))
+                .collect::<Vec<_>>(),
+            vec![("App", Some(1)), ("run", Some(2)), ("inner", Some(3))]
+        );
+        assert_eq!(
+            yaml_items
+                .iter()
+                .map(|item| (item.label.as_str(), item.depth))
+                .collect::<Vec<_>>(),
+            vec![
+                ("server", Some(1)),
+                ("http", Some(2)),
+                ("routes", Some(3)),
+                ("- path", Some(4))
+            ]
+        );
+        assert_eq!(
+            vue_items
+                .iter()
+                .map(|item| (item.label.as_str(), item.depth))
+                .collect::<Vec<_>>(),
+            vec![
+                ("template", Some(1)),
+                ("section#hero", Some(2)),
+                ("div.panel", Some(3)),
+                ("script", Some(1)),
+                ("HeroCard", Some(2)),
+                ("render", Some(3)),
+                ("style", Some(1)),
+                (".hero-card", Some(2))
+            ]
+        );
 
         let _ = std::fs::remove_dir_all(dir);
     }

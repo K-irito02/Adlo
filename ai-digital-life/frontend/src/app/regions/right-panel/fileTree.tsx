@@ -1,7 +1,9 @@
 import React, { memo, startTransition, useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { IconAlertTriangle, IconChevronDown, IconChevronRight, IconCircle } from "../../icons";
+import { IconAlertTriangle, IconCircle } from "../../icons";
 import { getFileTreeVisualSpec } from "./fileTreeVisuals";
+import { CustomScrollArea } from "./CustomScrollArea";
+import { TreeNodeRow } from "./TreeNodeRow";
 
 export interface FileTreeRenderableNode {
   path: string;
@@ -28,12 +30,14 @@ interface FileTreeProps<T extends FileTreeRenderableNode> {
   renderMeta?: (node: T) => React.ReactNode;
   getNodeClassName?: (node: T) => string | undefined;
   getContextMenuItems?: (node: T) => FileTreeContextMenuItem<T>[];
+  expandLabel?: string;
+  collapseLabel?: string;
 }
 
 interface FileTreeNodeProps<T extends FileTreeRenderableNode> {
   node: T;
   depth: number;
-  selectedFilePath?: string;
+  activePath?: string;
   expandedPaths: Record<string, boolean>;
   dirtyPaths?: Set<string>;
   externalChangePath?: string;
@@ -41,11 +45,9 @@ interface FileTreeNodeProps<T extends FileTreeRenderableNode> {
   onOpenFile: (relativePath: string) => void;
   renderMeta?: (node: T) => React.ReactNode;
   getNodeClassName?: (node: T) => string | undefined;
-  onShowContextMenu?: (event: React.MouseEvent<HTMLButtonElement>, node: T) => void;
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value));
+  onShowContextMenu?: (event: React.MouseEvent<HTMLDivElement>, node: T) => void;
+  expandLabel: string;
+  collapseLabel: string;
 }
 
 function isPathInSubtree(rootPath: string, path: string | undefined): boolean {
@@ -71,7 +73,7 @@ export function collectDirectoryPaths<T extends FileTreeRenderableNode>(nodes: T
 function FileTreeNodeComponent<T extends FileTreeRenderableNode>({
   node,
   depth,
-  selectedFilePath,
+  activePath,
   expandedPaths,
   dirtyPaths,
   externalChangePath,
@@ -79,11 +81,13 @@ function FileTreeNodeComponent<T extends FileTreeRenderableNode>({
   onOpenFile,
   renderMeta,
   getNodeClassName,
-  onShowContextMenu
+  onShowContextMenu,
+  expandLabel,
+  collapseLabel
 }: FileTreeNodeProps<T>) {
   const isDirectory = node.kind === "directory";
   const isExpanded = expandedPaths[node.path] ?? false;
-  const isSelected = node.path === selectedFilePath;
+  const isSelected = node.path === activePath;
   const isDirty = dirtyPaths?.has(node.path) ?? false;
   const isExternal = node.path === externalChangePath;
   const fileVisual = isDirectory ? undefined : getFileTreeVisualSpec(node);
@@ -91,46 +95,48 @@ function FileTreeNodeComponent<T extends FileTreeRenderableNode>({
   const nodeClassName = getNodeClassName?.(node);
 
   return (
-    <li
-      className="adl-filetree__item"
-      style={{ "--adl-filetree-hover-offset": `${depth * 14}px` } as React.CSSProperties}
-    >
-      <button
-        type="button"
-        className={`adl-filetree__node${isSelected ? " is-active" : ""}${isDirectory ? " adl-filetree__node--directory" : ""}${nodeClassName ? ` ${nodeClassName}` : ""}`}
-        onClick={() => (isDirectory ? onToggle(node.path) : onOpenFile(node.path))}
-        onContextMenu={onShowContextMenu ? (event) => onShowContextMenu(event, node) : undefined}
-      >
-        <span className="adl-filetree__node-main">
-          {isDirectory ? (
-            <span className="adl-filetree__chevron">
-              {isExpanded ? <IconChevronDown size={12} decorative /> : <IconChevronRight size={12} decorative />}
-            </span>
-          ) : (
-            <span className={`adl-filetree__file-icon adl-filetree__file-icon--${fileVisual?.tone ?? "default"}`}>
-              <span className="adl-filetree__file-badge" aria-hidden="true">
-                {fileVisual?.label ?? "FILE"}
-              </span>
-            </span>
-          )}
-          <span className="adl-filetree__label">{node.name}</span>
-        </span>
-        {(customMeta || isExternal || isDirty) ? (
-          <span className="adl-filetree__meta">
-            {customMeta}
-            {isExternal ? <IconAlertTriangle size={12} decorative /> : null}
-            {isDirty ? <IconCircle size={12} decorative className="adl-filetree__dirty-dot" /> : null}
+    <TreeNodeRow
+      depth={depth + 1}
+      rowOffset={(depth * 14) + 4}
+      hasChildren={isDirectory}
+      isExpanded={isExpanded}
+      isActive={isSelected}
+      expandLabel={expandLabel}
+      collapseLabel={collapseLabel}
+      onToggle={isDirectory ? () => onToggle(node.path) : undefined}
+      onActivate={() => (isDirectory ? onToggle(node.path) : onOpenFile(node.path))}
+      itemClassName={`adl-filetree__item${isDirectory ? " adl-filetree__node--directory" : ""}${nodeClassName ? ` ${nodeClassName}` : ""}`}
+      rowClassName="adl-filetree__row"
+      labelClassName="adl-filetree__label"
+      toggleClassName="adl-filetree__toggle"
+      indentClassName="adl-filetree__indent"
+      labelContentClassName="adl-filetree__node-main"
+      label={node.name}
+      labelLeading={isDirectory ? undefined : (
+        <span className={`adl-filetree__file-icon adl-filetree__file-icon--${fileVisual?.tone ?? "default"}`}>
+          <span className="adl-filetree__file-badge" aria-hidden="true">
+            {fileVisual?.label ?? "FILE"}
           </span>
-        ) : null}
-      </button>
+        </span>
+      )}
+      meta={(customMeta || isExternal || isDirty) ? (
+        <>
+          {customMeta}
+          {isExternal ? <IconAlertTriangle size={12} decorative /> : null}
+          {isDirty ? <IconCircle size={12} decorative className="adl-filetree__dirty-dot" /> : null}
+        </>
+      ) : undefined}
+      metaClassName="adl-filetree__meta adl-tree-node__meta--inline"
+      onContextMenu={onShowContextMenu ? (event) => onShowContextMenu(event, node) : undefined}
+    >
       {isDirectory && isExpanded && node.children.length > 0 ? (
-        <ul className="adl-filetree__children">
+        <ul className="adl-filetree__children adl-tree-node__children">
           {(node.children as T[]).map((child) => (
             <MemoizedFileTreeNode<T>
               key={child.path}
               node={child}
               depth={depth + 1}
-              selectedFilePath={selectedFilePath}
+              activePath={activePath}
               expandedPaths={expandedPaths}
               dirtyPaths={dirtyPaths}
               externalChangePath={externalChangePath}
@@ -139,11 +145,13 @@ function FileTreeNodeComponent<T extends FileTreeRenderableNode>({
               renderMeta={renderMeta}
               getNodeClassName={getNodeClassName}
               onShowContextMenu={onShowContextMenu}
+              expandLabel={expandLabel}
+              collapseLabel={collapseLabel}
             />
           ))}
         </ul>
       ) : null}
-    </li>
+    </TreeNodeRow>
   );
 }
 
@@ -158,7 +166,9 @@ function areFileTreeNodePropsEqual<T extends FileTreeRenderableNode>(
     previous.onOpenFile !== next.onOpenFile ||
     previous.renderMeta !== next.renderMeta ||
     previous.getNodeClassName !== next.getNodeClassName ||
-    previous.onShowContextMenu !== next.onShowContextMenu
+    previous.onShowContextMenu !== next.onShowContextMenu ||
+    previous.expandLabel !== next.expandLabel ||
+    previous.collapseLabel !== next.collapseLabel
   ) {
     return false;
   }
@@ -167,12 +177,12 @@ function areFileTreeNodePropsEqual<T extends FileTreeRenderableNode>(
   if ((previous.expandedPaths[path] ?? false) !== (next.expandedPaths[path] ?? false)) {
     return false;
   }
-  if ((previous.selectedFilePath === path) !== (next.selectedFilePath === path)) {
+  if ((previous.activePath === path) !== (next.activePath === path)) {
     return false;
   }
   if (previous.node.kind === "directory") {
-    const previousContainsSelected = isPathInSubtree(path, previous.selectedFilePath);
-    const nextContainsSelected = isPathInSubtree(path, next.selectedFilePath);
+    const previousContainsSelected = isPathInSubtree(path, previous.activePath);
+    const nextContainsSelected = isPathInSubtree(path, next.activePath);
     if (previousContainsSelected !== nextContainsSelected) {
       return false;
     }
@@ -199,38 +209,12 @@ export function FileTree<T extends FileTreeRenderableNode>(props: FileTreeProps<
     node: T;
     items: FileTreeContextMenuItem<T>[];
   } | null>(null);
-  const rootRef = useRef<HTMLDivElement | null>(null);
-  const scrollRef = useRef<HTMLDivElement | null>(null);
-  const scrollbarThumbRef = useRef<HTMLDivElement | null>(null);
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
-  const [optimisticSelectedPath, setOptimisticSelectedPath] = useState<string | undefined>();
+  const [activePath, setActivePath] = useState<string | undefined>(props.selectedFilePath);
 
   useEffect(() => {
-    setOptimisticSelectedPath(undefined);
+    setActivePath(props.selectedFilePath);
   }, [props.selectedFilePath]);
-
-  const updateScrollbar = useCallback(() => {
-    const root = rootRef.current;
-    const scroll = scrollRef.current;
-    const thumb = scrollbarThumbRef.current;
-    if (!root || !scroll || !thumb) {
-      return;
-    }
-    const maxScrollTop = scroll.scrollHeight - scroll.clientHeight;
-    const isScrollable = maxScrollTop > 1;
-    root.classList.toggle("is-scrollable", isScrollable);
-    if (!isScrollable) {
-      thumb.style.height = "0px";
-      thumb.style.transform = "translateY(0px)";
-      return;
-    }
-    const trackHeight = scroll.clientHeight;
-    const thumbHeight = Math.max(24, Math.round((scroll.clientHeight / scroll.scrollHeight) * trackHeight));
-    const maxThumbTop = Math.max(1, trackHeight - thumbHeight);
-    const thumbTop = Math.round((scroll.scrollTop / maxScrollTop) * maxThumbTop);
-    thumb.style.height = `${thumbHeight}px`;
-    thumb.style.transform = `translateY(${thumbTop}px)`;
-  }, []);
 
   useEffect(() => {
     if (!contextMenuState) {
@@ -254,47 +238,24 @@ export function FileTree<T extends FileTreeRenderableNode>(props: FileTreeProps<
     };
   }, [contextMenuState]);
 
-  useEffect(() => {
-    const scroll = scrollRef.current;
-    if (!scroll) {
-      return;
-    }
-    let rafId = 0;
-    const scheduleUpdate = () => {
-      if (rafId) {
-        return;
-      }
-      rafId = window.requestAnimationFrame(() => {
-        rafId = 0;
-        updateScrollbar();
-      });
-    };
-    scheduleUpdate();
-    scroll.addEventListener("scroll", scheduleUpdate, { passive: true });
-    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(scheduleUpdate) : null;
-    observer?.observe(scroll);
-    if (scroll.firstElementChild) {
-      observer?.observe(scroll.firstElementChild);
-    }
-    return () => {
-      if (rafId) {
-        window.cancelAnimationFrame(rafId);
-      }
-      scroll.removeEventListener("scroll", scheduleUpdate);
-      observer?.disconnect();
-    };
-  }, [props.nodes, props.expandedPaths, updateScrollbar]);
-
   const handleOpenFile = useCallback(
     (relativePath: string) => {
-      setOptimisticSelectedPath(relativePath);
+      setActivePath(relativePath);
       startTransition(() => props.onOpenFile(relativePath));
     },
     [props.onOpenFile]
   );
 
+  const handleToggleDirectory = useCallback(
+    (path: string) => {
+      setActivePath(path);
+      props.onToggle(path);
+    },
+    [props.onToggle]
+  );
+
   const handleShowContextMenu = useCallback(
-    (event: React.MouseEvent<HTMLButtonElement>, node: T) => {
+    (event: React.MouseEvent<HTMLDivElement>, node: T) => {
       const items = props.getContextMenuItems?.(node) ?? [];
       if (!items.length) {
         return;
@@ -309,74 +270,31 @@ export function FileTree<T extends FileTreeRenderableNode>(props: FileTreeProps<
     },
     [props.getContextMenuItems]
   );
-
-  const handleScrollbarPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    const scroll = scrollRef.current;
-    const thumb = scrollbarThumbRef.current;
-    if (!scroll || !thumb || scroll.scrollHeight <= scroll.clientHeight) {
-      return;
-    }
-    event.preventDefault();
-    const track = event.currentTarget;
-    track.setPointerCapture(event.pointerId);
-    const trackRect = track.getBoundingClientRect();
-    const thumbRect = thumb.getBoundingClientRect();
-    const pointerInsideThumb = event.clientY >= thumbRect.top && event.clientY <= thumbRect.bottom;
-    const thumbOffset = pointerInsideThumb ? event.clientY - thumbRect.top : thumbRect.height / 2;
-
-    const applyClientY = (clientY: number) => {
-      const maxScrollTop = scroll.scrollHeight - scroll.clientHeight;
-      const maxThumbTop = Math.max(1, trackRect.height - thumbRect.height);
-      const nextThumbTop = clamp(clientY - trackRect.top - thumbOffset, 0, maxThumbTop);
-      scroll.scrollTop = Math.round((nextThumbTop / maxThumbTop) * maxScrollTop);
-      updateScrollbar();
-    };
-
-    applyClientY(event.clientY);
-
-    const handleMove = (moveEvent: PointerEvent) => applyClientY(moveEvent.clientY);
-    const cleanup = (upEvent: PointerEvent) => {
-      if (track.hasPointerCapture(upEvent.pointerId)) {
-        track.releasePointerCapture(upEvent.pointerId);
-      }
-      track.removeEventListener("pointermove", handleMove);
-      track.removeEventListener("pointerup", cleanup);
-      track.removeEventListener("pointercancel", cleanup);
-      track.removeEventListener("lostpointercapture", cleanup);
-    };
-
-    track.addEventListener("pointermove", handleMove);
-    track.addEventListener("pointerup", cleanup);
-    track.addEventListener("pointercancel", cleanup);
-    track.addEventListener("lostpointercapture", cleanup);
-  }, [updateScrollbar]);
-
-  const selectedFilePath = optimisticSelectedPath ?? props.selectedFilePath;
-
   return (
-    <div ref={rootRef} className="adl-filetree-shell">
-      <div ref={scrollRef} className="adl-filetree-scroll">
-        <ul className="adl-filetree">
+    <>
+      <CustomScrollArea
+        shellClassName="adl-filetree-shell"
+        scrollClassName="adl-filetree-scroll"
+        scrollbarClassName="adl-filetree-scrollbar"
+        thumbClassName="adl-filetree-scrollbar__thumb"
+      >
+        <ul className="adl-filetree adl-tree-root" role="tree">
           {props.nodes.map((node) => (
             <MemoizedFileTreeNode<T>
               key={node.path}
               node={node}
               depth={0}
               {...props}
-              selectedFilePath={selectedFilePath}
+              activePath={activePath}
+              onToggle={handleToggleDirectory}
               onOpenFile={handleOpenFile}
               onShowContextMenu={props.getContextMenuItems ? handleShowContextMenu : undefined}
+              expandLabel={props.expandLabel ?? "Expand"}
+              collapseLabel={props.collapseLabel ?? "Collapse"}
             />
           ))}
         </ul>
-      </div>
-      <div
-        className="adl-filetree-scrollbar"
-        aria-hidden="true"
-        onPointerDown={handleScrollbarPointerDown}
-      >
-        <div ref={scrollbarThumbRef} className="adl-filetree-scrollbar__thumb" />
-      </div>
+      </CustomScrollArea>
       {contextMenuState
         ? createPortal(
             <div
@@ -407,6 +325,6 @@ export function FileTree<T extends FileTreeRenderableNode>(props: FileTreeProps<
             document.body
           )
         : null}
-    </div>
+    </>
   );
 }

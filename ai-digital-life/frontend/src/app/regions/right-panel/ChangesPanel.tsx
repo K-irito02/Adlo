@@ -8,6 +8,7 @@ import {
   IconFileText,
   IconFoldVertical,
   IconGitBranch,
+  IconList,
   IconMoreVertical,
   IconPanelLeftClose,
   IconRefreshCw,
@@ -41,6 +42,8 @@ import { getInlineDiffBackgroundExtension, applyInlineDiffChunks, type DiffChunk
 import { getFoldingTooltipExtension } from "./cmFoldingTooltip";
 import { getVisibleStartLine, navigateToLine, subscribeToEditor } from "./stickyContext";
 import { buildStickyContextEntries, createStickyContextModel, type StickyContextModel } from "./stickyContext";
+import { OutlineTree } from "./OutlineTree";
+import { buildOutlineFromContent, getDefaultExpandedOutlineIds } from "./outlineModel";
 
 const CHANGES_BRANCH_STORAGE_KEY = "adl-ui:changes-branch";
 const FALLBACK_BRANCHES = ["main", "develop", "release/0.1.0", "feature/right-panel"];
@@ -209,6 +212,8 @@ export function ChangesPanel(props: RightPanelViewProps) {
   const [editorReady, setEditorReady] = useState(0);
   const [stickyContextModel, setStickyContextModel] = useState<StickyContextModel | null>(null);
   const [previewEnabled, setPreviewEnabled] = useState(false);
+  const [forceExpandUnchangedDiff, setForceExpandUnchangedDiff] = useState(false);
+  const [pendingOutlineRevealLine, setPendingOutlineRevealLine] = useState<number | null>(null);
   const validation = latestPatchApplication?.validation;
   const reviewCounts = useMemo(() => countReviewedHunks(activePatchSet), [activePatchSet]);
   const patchSummaries = useMemo(
@@ -239,6 +244,27 @@ export function ChangesPanel(props: RightPanelViewProps) {
       : [],
     [changePreview]
   );
+  const changeOutline = useMemo(
+    () => changePreview ? buildOutlineFromContent(changePreview.currentContent, changePreview.path) : [],
+    [changePreview]
+  );
+  const defaultExpandedOutlineIds = useMemo(() => getDefaultExpandedOutlineIds(changeOutline), [changeOutline]);
+  const [expandedOutlineIds, setExpandedOutlineIds] = useState<Set<string>>(() => defaultExpandedOutlineIds);
+  useEffect(() => {
+    setExpandedOutlineIds(defaultExpandedOutlineIds);
+  }, [defaultExpandedOutlineIds]);
+  const hasExpandableOutlineItems = defaultExpandedOutlineIds.size > 0;
+  const hasExpandedOutlineItems = expandedOutlineIds.size > 0;
+  const canToggleNavigatorStructure = changesNavigatorMode === "tree"
+    ? directoryPaths.length > 0
+    : changesNavigatorMode === "outline"
+      ? hasExpandableOutlineItems
+      : false;
+  const structureToggleExpanded = changesNavigatorMode === "tree"
+    ? hasExpandedDirectories
+    : changesNavigatorMode === "outline"
+      ? hasExpandedOutlineItems
+      : false;
   const changePreviewTheme = appInfo?.config.resolvedTheme === "dark" ? "dark" as const : "light" as const;
   const changePreviewLocale = appInfo?.config.language ?? "zh-CN";
   const diffExtensions = useMemo(() => [
@@ -307,6 +333,11 @@ export function ChangesPanel(props: RightPanelViewProps) {
   }, [selectedChangePreviewPath, selectedPatchFilePath]);
 
   useEffect(() => {
+    setForceExpandUnchangedDiff(false);
+    setPendingOutlineRevealLine(null);
+  }, [changePreview?.path, selectedChangePreviewPath, selectedPatchFilePath]);
+
+  useEffect(() => {
     if (!activeSummary?.relativePath) {
       return;
     }
@@ -326,6 +357,39 @@ export function ChangesPanel(props: RightPanelViewProps) {
     }
     return ref as EditorRef;
   }, []);
+
+  const handleRevealPreviewLine = (line: number): boolean => {
+    const target = changesPreviewEditorShellRef.current?.querySelector<HTMLElement>(`[data-source-line="${line}"]`);
+    if (!target) {
+      return false;
+    }
+    target.scrollIntoView({ block: "start", behavior: "smooth" });
+    return true;
+  };
+
+  const handleRevealOutlineLine = (line: number) => {
+    if (previewEnabled && changePreview && categorizeFile(changePreview.path) === "markdown" && handleRevealPreviewLine(line)) {
+      return;
+    }
+    if (previewEnabled) {
+      navigateToLine(getModifiedEditor(), line);
+      return;
+    }
+    if (!forceExpandUnchangedDiff) {
+      setPendingOutlineRevealLine(line);
+      setForceExpandUnchangedDiff(true);
+      return;
+    }
+    navigateToLine(getModifiedEditor(), line);
+  };
+
+  useEffect(() => {
+    if (pendingOutlineRevealLine === null || previewEnabled || !forceExpandUnchangedDiff) {
+      return;
+    }
+    navigateToLine(getModifiedEditor(), pendingOutlineRevealLine);
+    setPendingOutlineRevealLine(null);
+  }, [editorReady, forceExpandUnchangedDiff, getModifiedEditor, pendingOutlineRevealLine, previewEnabled, props.diffSideBySide]);
 
   useEffect(() => {
     const modifiedEditor = getModifiedEditor();
@@ -350,7 +414,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
     const visibleStartLine = getVisibleStartLine(editor);
     const contextEntries = buildStickyContextEntries({
       content: changePreview.currentContent,
-      outline: [],
+      outline: changeOutline,
       visibleStartLine,
       maxContextRows: 3,
       diffRanges: changePreviewDiffRanges
@@ -363,7 +427,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
       onNavigateLine: (line) => navigateToLine(getModifiedEditor(), line),
       topLabel: t.stickyContextTop
     }));
-  }, [changePreview, changePreviewDiffRanges, getModifiedEditor, t.stickyContextTop]);
+  }, [changeOutline, changePreview, changePreviewDiffRanges, getModifiedEditor, t.stickyContextTop]);
 
   useEffect(() => {
     if (!changePreview) {
@@ -458,6 +522,21 @@ export function ChangesPanel(props: RightPanelViewProps) {
       return;
     }
     directoryPaths.forEach((pathValue) => setChangesTreePathExpanded(pathValue, true));
+  };
+  const handleToggleAllOutlineItems = () => {
+    if (!hasExpandableOutlineItems) {
+      return;
+    }
+    setExpandedOutlineIds(hasExpandedOutlineItems ? new Set() : new Set(defaultExpandedOutlineIds));
+  };
+  const handleToggleNavigatorStructure = () => {
+    if (changesNavigatorMode === "tree") {
+      handleToggleAllDirectories();
+      return;
+    }
+    if (changesNavigatorMode === "outline") {
+      handleToggleAllOutlineItems();
+    }
   };
 
   const handleSelectNavigatorNode = useCallback((relativePath: string) => {
@@ -651,23 +730,28 @@ export function ChangesPanel(props: RightPanelViewProps) {
         <aside className="adl-tool-navigator" aria-label={t.toolChanges}>
           <div className="adl-tool-navigator__context">
             <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--actions">
-              {changesNavigatorMode === "tree" ? (
-                <TooltipSimple content={hasExpandedDirectories ? t.fileCollapseAll : t.fileExpandAll} placement="top">
+              {changesNavigatorMode === "tree" || changesNavigatorMode === "outline" ? (
+                <TooltipSimple content={structureToggleExpanded ? t.fileCollapseAll : t.fileExpandAll} placement="top">
                   <button
                     type="button"
                     className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-                    onClick={handleToggleAllDirectories}
-                    aria-label={hasExpandedDirectories ? t.fileCollapseAll : t.fileExpandAll}
+                    onClick={handleToggleNavigatorStructure}
+                    aria-label={structureToggleExpanded ? t.fileCollapseAll : t.fileExpandAll}
+                    disabled={!canToggleNavigatorStructure}
                   >
-                    {hasExpandedDirectories ? <IconFoldVertical size={14} decorative /> : <IconUnfoldVertical size={14} decorative />}
+                    {structureToggleExpanded ? <IconFoldVertical size={14} decorative /> : <IconUnfoldVertical size={14} decorative />}
                   </button>
                 </TooltipSimple>
               ) : (
                 <IconGitBranch size={14} decorative />
               )}
-              <span className="adl-tool-navigator__context-title">{t.toolChanges}</span>
+              <span className="adl-tool-navigator__context-title">
+                {changesNavigatorMode === "outline" ? t.outline : t.toolChanges}
+              </span>
             </div>
-            <span className="adl-tool-navigator__meta">{changeEntries.length || countGitChanges(snapshot)}</span>
+            <span className="adl-tool-navigator__meta">
+              {changesNavigatorMode === "outline" ? changeOutline.length : changeEntries.length || countGitChanges(snapshot)}
+            </span>
             <TooltipSimple content={t.changesRefresh} placement="top">
               <button
                 type="button"
@@ -706,9 +790,20 @@ export function ChangesPanel(props: RightPanelViewProps) {
                   <IconFileText size={14} decorative />
                 </button>
               </TooltipSimple>
+              <TooltipSimple content={t.outline} placement="top">
+                <button
+                  type="button"
+                  className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${changesNavigatorMode === "outline" ? " is-active" : ""}`}
+                  aria-pressed={changesNavigatorMode === "outline" ? "true" : "false"}
+                  onClick={() => setChangesNavigatorMode("outline")}
+                  aria-label={t.outline}
+                >
+                  <IconList size={14} decorative />
+                </button>
+              </TooltipSimple>
             </div>
           </div>
-          {changeEntries.length > 0 ? (
+          {changeEntries.length > 0 && changesNavigatorMode !== "outline" ? (
             <div className="adl-tool-navigator__summary" aria-label={t.toolChanges}>
               <div className="adl-tool-navigator__summary-stats">
                 <div className="adl-tool-navigator__summary-stat">
@@ -745,6 +840,8 @@ export function ChangesPanel(props: RightPanelViewProps) {
               onOpenFile={handleSelectNavigatorNode}
               renderMeta={renderNavigatorMeta}
               getContextMenuItems={getContextMenuItems}
+              expandLabel={t.expandDetails}
+              collapseLabel={t.collapseDetails}
             />
           ) : null}
           {changesNavigatorMode === "list" && flatNodes.length > 0 ? (
@@ -756,9 +853,25 @@ export function ChangesPanel(props: RightPanelViewProps) {
               onOpenFile={handleSelectNavigatorNode}
               renderMeta={renderNavigatorMeta}
               getContextMenuItems={getContextMenuItems}
+              expandLabel={t.expandDetails}
+              collapseLabel={t.collapseDetails}
             />
           ) : null}
-          {changeEntries.length === 0 ? <p className="adl-empty-hint adl-empty-hint--navigator">{t.changesEmpty}</p> : null}
+          {changesNavigatorMode === "outline" ? (
+            changeOutline.length > 0 ? (
+              <OutlineTree
+                items={changeOutline}
+                onNavigate={(line) => handleRevealOutlineLine(line)}
+                expandLabel={t.expandDetails}
+                collapseLabel={t.collapseDetails}
+                expandedIds={expandedOutlineIds}
+                onExpandedIdsChange={setExpandedOutlineIds}
+              />
+            ) : (
+              <p className="adl-empty-hint adl-empty-hint--navigator">{t.noDiagnostics}</p>
+            )
+          ) : null}
+          {changeEntries.length === 0 && changesNavigatorMode !== "outline" ? <p className="adl-empty-hint adl-empty-hint--navigator">{t.changesEmpty}</p> : null}
           <div
             className="adl-tool-navigator__resize-handle"
             onPointerDown={handleNavigatorResizeStart}
@@ -1033,6 +1146,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
                       lineNumbers={lineNumbersEnabled}
                       wordWrap={wordWrapEnabled}
                       extensions={diffExtensions}
+                      onMount={handleDiffMount}
                     />
                   </div>
                 ) : (
@@ -1045,6 +1159,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
                       theme={changePreviewTheme}
                       locale={changePreviewLocale}
                       sideBySide={props.diffSideBySide}
+                      collapseUnchanged={!forceExpandUnchangedDiff}
                       readOnly={true}
                       lineNumbers={lineNumbersEnabled}
                       wordWrap={wordWrapEnabled}

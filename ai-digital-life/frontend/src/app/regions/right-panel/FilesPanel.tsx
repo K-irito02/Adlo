@@ -38,6 +38,7 @@ import {
   IconChevronRight,
   IconCircle,
   IconEye,
+  IconFiles,
   IconFilePlus,
   IconFoldVertical,
   IconFolderPlus,
@@ -55,6 +56,8 @@ import { TooltipSimple } from "../../components/Tooltip";
 import { useUiStore } from "../../ui-store";
 import { StickyContext } from "./stickyContextView";
 import { collectDirectoryPaths, FileTree } from "./fileTree";
+import { OutlineTree } from "./OutlineTree";
+import { getDefaultExpandedOutlineIds } from "./outlineModel";
 import {
   derivePatchHunkChangeKind,
   getPatchHunkTargetLine,
@@ -251,6 +254,21 @@ export function FilesPanel(props: RightPanelViewProps) {
     () => directoryPaths.some((pathValue) => expandedPaths[pathValue]),
     [directoryPaths, expandedPaths]
   );
+  const defaultExpandedOutlineIds = useMemo(() => getDefaultExpandedOutlineIds(outline), [outline]);
+  const [expandedOutlineIds, setExpandedOutlineIds] = useState<Set<string>>(() => defaultExpandedOutlineIds);
+  useEffect(() => {
+    setExpandedOutlineIds(defaultExpandedOutlineIds);
+  }, [defaultExpandedOutlineIds]);
+  const hasExpandableOutlineItems = defaultExpandedOutlineIds.size > 0;
+  const hasExpandedOutlineItems = expandedOutlineIds.size > 0;
+  const canToggleNavigatorStructure = navigatorMode === "tree"
+    ? directoryPaths.length > 0
+    : navigatorMode === "outline"
+      ? hasExpandableOutlineItems
+      : false;
+  const structureToggleExpanded = navigatorMode === "tree"
+    ? hasExpandedDirectories
+    : hasExpandedOutlineItems;
   const selectedAbsolutePath = useMemo(() => {
     const rootPath = appInfo?.currentWorkspace?.rootPath ?? appInfo?.currentWorkspace?.path;
     if (!rootPath || !selectedFilePath) {
@@ -465,7 +483,19 @@ export function FilesPanel(props: RightPanelViewProps) {
     onOpenFile(nextPath);
   };
 
+  const handleRevealPreviewLine = (line: number): boolean => {
+    const target = editorSurfaceRef.current?.querySelector<HTMLElement>(`[data-source-line="${line}"]`);
+    if (!target) {
+      return false;
+    }
+    target.scrollIntoView({ block: "start", behavior: "smooth" });
+    return true;
+  };
+
   const handleRevealLine = (line: number) => {
+    if (fileCategory === "markdown" && previewEnabled && handleRevealPreviewLine(line)) {
+      return;
+    }
     navigateToLine(getStickySourceEditor(), line);
   };
   const handleJumpPatchHunk = (direction: "previous" | "next") => {
@@ -486,6 +516,21 @@ export function FilesPanel(props: RightPanelViewProps) {
       return;
     }
     collapseAllFileTreePaths();
+  };
+  const handleToggleAllOutlineItems = () => {
+    if (!hasExpandableOutlineItems) {
+      return;
+    }
+    setExpandedOutlineIds(hasExpandedOutlineItems ? new Set() : new Set(defaultExpandedOutlineIds));
+  };
+  const handleToggleNavigatorStructure = () => {
+    if (navigatorMode === "tree") {
+      handleToggleAllDirectories();
+      return;
+    }
+    if (navigatorMode === "outline") {
+      handleToggleAllOutlineItems();
+    }
   };
   const handleRefreshNavigator = async () => {
     await onRefreshWorkspaceTree();
@@ -982,17 +1027,6 @@ export function FilesPanel(props: RightPanelViewProps) {
         </div>
 
         <div className="adl-tool-context__group adl-tool-context__group--files-actions">
-          <TooltipSimple content={outline.length > 0 ? t.outline : t.toolFiles} placement="top">
-            <button
-              type="button"
-              className={`adl-tool-context__iconbtn${navigatorMode === "outline" ? " is-active" : ""}`}
-              onClick={() => setNavigatorMode((current) => (current === "outline" ? "tree" : "outline"))}
-              aria-label={outline.length > 0 ? t.outline : t.toolFiles}
-              aria-pressed={navigatorMode === "outline" ? "true" : "false"}
-            >
-              <IconList size={14} decorative />
-            </button>
-          </TooltipSimple>
           <div className="adl-tool-context__divider" />
           <TooltipSimple content={previewEnabled ? t.filePreview : t.fileEdit} placement="top">
             <button
@@ -1071,14 +1105,15 @@ export function FilesPanel(props: RightPanelViewProps) {
         <aside className="adl-tool-navigator" aria-label={navigatorTitle}>
           <div className="adl-tool-navigator__context">
             <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--actions">
-              <TooltipSimple content={hasExpandedDirectories ? t.fileCollapseAll : t.fileExpandAll} placement="top">
+              <TooltipSimple content={structureToggleExpanded ? t.fileCollapseAll : t.fileExpandAll} placement="top">
                 <button
                   type="button"
                   className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-                  onClick={handleToggleAllDirectories}
-                  aria-label={hasExpandedDirectories ? t.fileCollapseAll : t.fileExpandAll}
+                  onClick={handleToggleNavigatorStructure}
+                  aria-label={structureToggleExpanded ? t.fileCollapseAll : t.fileExpandAll}
+                  disabled={!canToggleNavigatorStructure}
                 >
-                  {hasExpandedDirectories ? <IconFoldVertical size={14} decorative /> : <IconUnfoldVertical size={14} decorative />}
+                  {structureToggleExpanded ? <IconFoldVertical size={14} decorative /> : <IconUnfoldVertical size={14} decorative />}
                 </button>
               </TooltipSimple>
               <span className="adl-tool-navigator__context-title">{appInfo?.currentWorkspace?.name ?? t.toolFiles}</span>
@@ -1095,6 +1130,36 @@ export function FilesPanel(props: RightPanelViewProps) {
                   <IconRefreshCw size={14} decorative />
                 </button>
               </TooltipSimple>
+            </div>
+          </div>
+
+          <div className="adl-tool-navigator__context adl-tool-navigator__context--secondary">
+            <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--actions">
+              <TooltipSimple content={t.fileTreeView} placement="top">
+                <button
+                  type="button"
+                  className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${navigatorMode === "tree" ? " is-active" : ""}`}
+                  onClick={() => setNavigatorMode("tree")}
+                  aria-label={t.fileTreeView}
+                  aria-pressed={navigatorMode === "tree" ? "true" : "false"}
+                >
+                  <IconFiles size={14} decorative />
+                </button>
+              </TooltipSimple>
+              <TooltipSimple content={outline.length > 0 ? t.outline : t.toolFiles} placement="top">
+                <button
+                  type="button"
+                  className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${navigatorMode === "outline" ? " is-active" : ""}`}
+                  onClick={() => setNavigatorMode("outline")}
+                  aria-label={outline.length > 0 ? t.outline : t.toolFiles}
+                  aria-pressed={navigatorMode === "outline" ? "true" : "false"}
+                >
+                  <IconList size={14} decorative />
+                </button>
+              </TooltipSimple>
+            </div>
+
+            <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--utility">
               <TooltipSimple content={t.fileNewFile} placement="top">
                 <button
                   type="button"
@@ -1167,6 +1232,8 @@ export function FilesPanel(props: RightPanelViewProps) {
                   externalChangePath={externalChangePath}
                   onToggle={toggleFileTreePath}
                   onOpenFile={onOpenFile}
+                  expandLabel={t.expandDetails}
+                  collapseLabel={t.collapseDetails}
                 />
               ) : (
                 null
@@ -1286,16 +1353,14 @@ export function FilesPanel(props: RightPanelViewProps) {
 
           {navigatorMode === "outline" ? (
             outline.length > 0 ? (
-              <ul className="adl-tool-list">
-                {outline.map((item) => (
-                  <li key={item.id}>
-                    <button type="button" className="adl-tool-list__item" onClick={() => handleRevealLine(item.line)}>
-                      <span className="adl-tool-list__title">{item.label}</span>
-                      <small>{item.kind} · {item.line}</small>
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              <OutlineTree
+                items={outline}
+                onNavigate={(line) => handleRevealLine(line)}
+                expandLabel={t.expandDetails}
+                collapseLabel={t.collapseDetails}
+                expandedIds={expandedOutlineIds}
+                onExpandedIdsChange={setExpandedOutlineIds}
+              />
             ) : (
               <p className="adl-empty-hint">{t.noDiagnostics}</p>
             )

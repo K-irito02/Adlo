@@ -56,4 +56,10 @@ describe("changes preview editor options", () => {
     expect(changesPanelSource).toContain("wordWrap={wordWrapEnabled}");
     expect(changesPanelSource).toContain("sideBySide={props.diffSideBySide}");
   });
+
+  it("expands unchanged diff sections before outline navigation", () => {
+    expect(changesPanelSource).toContain("forceExpandUnchangedDiff");
+    expect(changesPanelSource).toContain("pendingOutlineRevealLine");
+    expect(changesPanelSource).toContain("collapseUnchanged={!forceExpandUnchangedDiff}");
+  });
 });

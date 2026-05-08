@@ -1016,6 +1016,10 @@ pub struct FileOutlineItem {
     pub label: String,
     pub kind: String,
     pub line: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub end_line: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub depth: Option<usize>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

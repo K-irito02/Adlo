@@ -16,7 +16,7 @@ function escapeHtml(str: string): string {
 }
 
 function createMdInstance(theme: "light" | "dark"): MarkdownIt {
-  return new MarkdownIt({
+  const md = new MarkdownIt({
     html: false,
     linkify: true,
     typographer: true,
@@ -39,12 +39,35 @@ function createMdInstance(theme: "light" | "dark"): MarkdownIt {
       return `<pre class="hljs"><code>${escaped}</code></pre>`;
     },
   });
+
+  const defaultHeadingOpen =
+    md.renderer.rules.heading_open ??
+    ((tokens, idx, options, _env, self) => self.renderToken(tokens, idx, options));
+
+  md.renderer.rules.heading_open = (tokens, idx, options, env, self) => {
+    const token = tokens[idx]!;
+    const sourceLine = typeof token.map?.[0] === "number" ? token.map[0] + 1 : undefined;
+    if (sourceLine) {
+      token.attrSet("data-source-line", String(sourceLine));
+      token.attrSet("id", `adl-heading-${sourceLine}`);
+    }
+    return defaultHeadingOpen(tokens, idx, options, env, self);
+  };
+
+  return md;
+}
+
+export function renderMarkdownPreviewHtml(content: string, theme: "light" | "dark" = "dark"): string {
+  return createMdInstance(theme).render(content);
+}
+
+function useMarkdownPreviewHtml(content: string, theme: "light" | "dark"): string {
+  const md = useMemo(() => createMdInstance(theme), [theme]);
+  return useMemo(() => md.render(content), [content, md]);
 }
 
 export function MarkdownPreview({ content, theme = "dark" }: MarkdownPreviewProps) {
-  const md = useMemo(() => createMdInstance(theme), [theme]);
-
-  const html = useMemo(() => md.render(content), [md, content]);
+  const html = useMarkdownPreviewHtml(content, theme);
 
   return (
     <div

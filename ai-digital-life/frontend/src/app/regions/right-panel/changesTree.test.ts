@@ -102,4 +102,16 @@ describe("changesTree helpers", () => {
     expect(flatNodes).toHaveLength(entries.length);
     expect(flatNodes[0].children).toEqual([]);
   });
+
+  it("shows basename labels in flat list mode", () => {
+    const flatNodes = buildFlatChangeNodes([
+      {
+        path: "packages/frontend/src/app/store.ts",
+        states: ["modified"],
+      },
+    ]);
+
+    expect(flatNodes[0].path).toBe("packages/frontend/src/app/store.ts");
+    expect(flatNodes[0].name).toBe("store.ts");
+  });
 });

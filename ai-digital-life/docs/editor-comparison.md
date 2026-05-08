@@ -63,12 +63,17 @@
 | FilesPanel | `frontend/src/app/regions/right-panel/FilesPanel.tsx` | 文件树、代码编辑、Markdown 预览、Patch 预览 |
 | ChangesPanel | `frontend/src/app/regions/right-panel/ChangesPanel.tsx` | Git 变更列表、Diff 预览、只读预览 |
 | fileTree | `frontend/src/app/regions/right-panel/fileTree.tsx` | 文件树渲染与交互 |
+| TreeNodeRow | `frontend/src/app/regions/right-panel/TreeNodeRow.tsx` | 文件树 / 文档大纲共享的树节点行框架、toggle 和层级背景交互 |
+| OutlineTree | `frontend/src/app/regions/right-panel/OutlineTree.tsx` | Markdown / 代码文档大纲树渲染与交互 |
+| outlineModel | `frontend/src/app/regions/right-panel/outlineModel.ts` | 扁平大纲条目转树、默认展开状态 |
+| CustomScrollArea | `frontend/src/app/regions/right-panel/CustomScrollArea.tsx` | 文件树 / 文档大纲共享的自绘滚动壳 |
 | DiffViewer | `frontend/src/app/regions/right-panel/DiffViewer.tsx` | Diff 对比视图 |
 | cmTheme | `frontend/src/app/regions/right-panel/cmTheme.ts` | CodeMirror 主题定义与同步 |
 | cmLanguages | `frontend/src/app/regions/right-panel/cmLanguages.ts` | 语言扩展加载器 |
 | cmMinimap | `frontend/src/app/regions/right-panel/cmMinimap.ts` | Minimap 导航系统 |
 | cmInlineDiffBackgrounds | `frontend/src/app/regions/right-panel/cmInlineDiffBackgrounds.ts` | 内联 Diff 背景渲染 |
 | fileTypeRouter | `frontend/src/app/regions/right-panel/fileTypeRouter.ts` | 文件类型路由器 |
+| shared/outline | `frontend/src/shared/outline.ts` | Markdown / 代码 / 配置文件统一大纲抽取 |
 | LazyPreviews | `frontend/src/app/regions/right-panel/LazyPreviews.tsx` | 懒加载预览包装器 |
 | editorAdapters | `frontend/src/app/regions/right-panel/editorAdapters.ts` | 编辑器 ref 适配器 |
 | changePreviewDiffRanges | `frontend/src/app/regions/right-panel/changePreviewDiffRanges.ts` | Diff 算法 |

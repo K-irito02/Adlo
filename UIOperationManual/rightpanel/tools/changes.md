@@ -45,6 +45,76 @@ await page.waitForSelector('div[data-testid="changes-preview-shell"]');
 
 ---
 
+## 导航模式
+
+> 变更面板左侧支持 `文件树` / `文件列表` / `文档大纲` 三种导航模式。
+
+### 文件树
+
+| 选择器 | 说明 |
+|--------|------|
+| `.adl-filetree-shell` | 共享自绘滚动壳 |
+| `.adl-filetree-scroll` | 文件树滚动容器 |
+| `.adl-filetree__item` | 文件 / 文件夹节点 |
+| `.adl-filetree__row` | 整行交互区域 |
+| `.adl-filetree__label` | 文件 / 文件夹名称按钮 |
+| `.adl-filetree__toggle` | 文件夹收起 / 展开按钮 |
+| `.adl-filetree__item.is-active` | 当前点击选中节点 |
+
+### 文件列表
+
+| 选择器 | 说明 |
+|--------|------|
+| `.adl-patch-files-flat` | 平铺文件列表容器 |
+| `.adl-patch-files-flat__item` | 单个文件项 |
+| `.adl-patch-files-flat__item.is-active` | 当前选中文件 |
+| `.adl-patch-files-flat__name` | 文件名称文本 |
+
+### 行为约定
+
+1. 文件树与文档大纲共用同一套树节点行交互规则：hover 时仅标签区域高亮，active 时整行和 toggle 一起进入选中态。
+2. 文件列表模式只显示文件名，不显示完整路径；超长名称使用单行截断省略。
+3. 文件树与文档大纲共用 `CustomScrollArea` 自绘滚动壳，滚动条 hover / active 视觉保持一致。
+
+---
+
+## 文档大纲
+
+> 变更预览中的结构导航。支持文件树 / 文件列表 / 文档大纲三种导航模式。
+
+### 定位选择器
+
+| 优先级 | 类型 | 选择器 |
+|--------|------|--------|
+| 1 | aria-label | `button[aria-label="文档大纲"]` |
+| 2 | CSS | `.adl-outline-tree-shell` |
+| 3 | CSS | `.adl-outline-tree__label` |
+
+### 操作
+
+#### 切换到大纲视图
+
+```javascript
+await page.click('button[aria-label="文档大纲"]');
+await page.waitForSelector('.adl-outline-tree');
+```
+
+#### 通过大纲跳转到变更位置
+
+```javascript
+await page.locator('.adl-outline-tree__label').first().click();
+await page.waitForSelector('div[data-testid="changes-preview-shell"]');
+```
+
+### 行为约定
+
+1. 变更大纲基于 `changePreview.currentContent` 生成，只反映当前修改侧内容。
+2. 在内联 Diff 和并排 Diff 中，点击大纲项前会自动展开“无变更行自动收起”的上下文，再跳到修改侧对应行。
+3. 在 Markdown 预览模式下，点击大纲项优先滚动到预览正文标题；在代码预览 / Diff 模式下，跳转到代码视图对应行。
+4. 变更大纲与文件大纲共用同一套树形组件和自绘滚动壳，滑块 hover / active 效果一致。
+
+---
+
 ## 补丁预览
 
 > 补丁差异预览

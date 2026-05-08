@@ -34,14 +34,15 @@ Run via `npx vitest run` or `npm run test`.
 
 ## 3. Right-panel editor regressions
 
-The file / diff viewers rely on Monaco-specific behavior that is easy to break with innocent-looking layout changes. The following targeted tests are part of the required regression net:
+The file / diff viewers, outline navigation, and shared custom scroll shells rely on CodeMirror and product-owned layout behavior that is easy to break with innocent-looking layout changes. The following targeted tests are part of the required regression net:
 
 | File | Scope |
 | --- | --- |
 | `frontend/src/app/regions/right-panel/stickyContext.test.ts` | Sticky row derivation, top-row visibility, max-row cap, markdown/plain-text fallback, diff-side context selection. |
 | `frontend/src/app/regions/right-panel/changesEditorOptions.test.ts` | Diff editor options, side-by-side scroll policy, unified right-side minimap behavior. |
-| `frontend/src/app/regions/right-panel/minimapVisualOverlay.test.ts` | Minimap overlay anchoring and width reservation rules for the editor surface. |
-| `frontend/src/app/regions/right-panel/monacoTypes.test.ts` | Monaco compatibility guards, including safe failure when the `Range` constructor is unavailable or malformed. |
+| `frontend/src/app/regions/right-panel/outlineModel.test.ts` | Markdown / 代码 / 配置文件大纲抽取与树构建规则。 |
+| `frontend/src/app/regions/right-panel/outlinePanelWiring.test.ts` | Files / Changes 大纲接线、共享滚动壳和浏览器 preview outline 接线。 |
+| `frontend/src/app/regions/right-panel/fileTree.test.tsx` | 文件树行级交互与共享滚动壳基础渲染。 |
 
 When touching `FilesPanel`, `ChangesPanel`, sticky navigation, minimap sizing, or Monaco adapter code, run at least:
 
@@ -49,8 +50,8 @@ When touching `FilesPanel`, `ChangesPanel`, sticky navigation, minimap sizing, o
 npm --prefix frontend test -- --run \
   src/app/regions/right-panel/stickyContext.test.ts \
   src/app/regions/right-panel/changesEditorOptions.test.ts \
-  src/app/regions/right-panel/minimapVisualOverlay.test.ts \
-  src/app/regions/right-panel/monacoTypes.test.ts
+  src/app/regions/right-panel/outlineModel.test.ts \
+  src/app/regions/right-panel/outlinePanelWiring.test.ts
 ```
 
 ## 4. Build verification

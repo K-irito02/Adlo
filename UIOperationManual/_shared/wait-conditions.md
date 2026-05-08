@@ -100,7 +100,7 @@ await page.waitForResponse(response =>
 | 操作 | 等待条件 | 超时建议 |
 |------|----------|----------|
 | 切换工具 | `[role="tabpanel"].is-active` 更新 | 1000ms |
-| 加载文件树 | `.adl-file-tree` 内容出现 | 3000ms |
+| 加载文件树 / 文档大纲 | `.adl-filetree, .adl-outline-tree` 内容出现 | 3000ms |
 | 加载文件内容 | Monaco editor 模型加载 | 5000ms |
 | 执行命令 | 终端输出更新 | 10000ms+ |
 

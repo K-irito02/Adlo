@@ -22,6 +22,7 @@ import type {
   WorkspaceTreeNode,
   WorkspaceType
 } from "../src/kernel/index";
+import { buildOutlineFromContent } from "../src/shared/outline";
 
 const DEFAULT_MAX_FILE_BYTES = 1024 * 1024;
 const MAX_SEARCH_RESULTS = 200;
@@ -319,47 +320,7 @@ async function searchText(rootPath: string, query: string): Promise<WorkspaceSea
 
 async function outline(rootPath: string, relativeTarget: string): Promise<FileOutlineItem[]> {
   const document = await readFile(rootPath, relativeTarget);
-  const items: FileOutlineItem[] = [];
-  const candidates: Array<[string, FileOutlineItem["kind"]]> = [
-    ["function ", "function"],
-    ["fn ", "function"],
-    ["class ", "class"],
-    ["interface ", "interface"],
-    ["type ", "type"],
-    ["const ", "const"],
-    ["pub fn ", "function"],
-    ["struct ", "class"],
-    ["enum ", "type"],
-    ["# ", "heading"],
-    ["## ", "heading"]
-  ];
-
-  document.content.split(/\r?\n/).forEach((lineText, index) => {
-    const trimmed = lineText.trimStart();
-    for (const [prefix, kind] of candidates) {
-      const label = trimmed.replace(/^export\s+/, "").startsWith(prefix)
-        ? trimmed.replace(/^export\s+/, "").slice(prefix.length)
-        : undefined;
-      if (!label) {
-        continue;
-      }
-      const title = label
-        .split(/[\s({:]/)[0]
-        ?.trim()
-        .replace(/^#+/, "");
-      if (!title) {
-        break;
-      }
-      items.push({
-        id: `${normalizePath(relativeTarget)}:${index + 1}`,
-        label: title,
-        kind,
-        line: index + 1
-      });
-      break;
-    }
-  });
-  return items;
+  return buildOutlineFromContent(document.content, normalizePath(relativeTarget));
 }
 
 function runGit(rootPath: string, args: string[]): Promise<string | undefined> {

@@ -44,6 +44,19 @@ export function detectEditorLanguage(filePath?: string, fallbackLanguage?: strin
     case "jsx":
     case "mjs":
       return "javascript";
+    case "c":
+    case "cc":
+    case "cpp":
+    case "cxx":
+    case "h":
+    case "hpp":
+      return "cpp";
+    case "cs":
+      return "csharp";
+    case "go":
+      return "go";
+    case "java":
+      return "java";
     case "json":
       return "json";
     case "yaml":
@@ -56,6 +69,8 @@ export function detectEditorLanguage(filePath?: string, fallbackLanguage?: strin
     case "scss":
     case "less":
       return "css";
+    case "vue":
+      return "vue";
     case "md":
     case "markdown":
       return "markdown";
@@ -65,6 +80,18 @@ export function detectEditorLanguage(filePath?: string, fallbackLanguage?: strin
       return "python";
     case "rs":
       return "rust";
+    case "sh":
+    case "bash":
+    case "zsh":
+    case "fish":
+      return "shell";
+    case "ps1":
+      return "powershell";
+    case "toml":
+    case "ini":
+    case "cfg":
+    case "conf":
+      return "config";
     case "xml":
     case "svg":
       return "xml";

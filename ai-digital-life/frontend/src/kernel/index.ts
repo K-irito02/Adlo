@@ -997,8 +997,12 @@ export interface WorkspaceTreeNode {
 export interface FileOutlineItem {
   id: string;
   label: string;
-  kind: "function" | "class" | "interface" | "type" | "const" | "heading";
+  kind: "function" | "class" | "interface" | "type" | "const" | "heading" | "variable" | "method" | "property" | "enum" | "enum-member";
   line: number;
+  endLine?: number;
+  depth?: number;
+  icon?: string;
+  children?: FileOutlineItem[];
 }
 
 export interface ToolInvocationRecord {

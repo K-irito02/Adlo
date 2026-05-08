@@ -12,7 +12,7 @@ export type ToolId = "files" | "changes" | "browser" | "terminal" | "audit" | "s
 export type ChatMode = "plan" | "debug" | "ask";
 export type TerminalProfile = "powershell" | "bash" | "cmd";
 export type TerminalLayout = "single" | "vertical" | "horizontal";
-export type ChangesNavigatorMode = "tree" | "list";
+export type ChangesNavigatorMode = "tree" | "list" | "outline";
 
 export interface ContextChip {
   id: string;
@@ -131,7 +131,7 @@ function readTool(): ToolId {
 function readChangesNavigatorMode(): ChangesNavigatorMode {
   try {
     const raw = window.localStorage.getItem(CHANGES_NAVIGATOR_MODE_KEY);
-    if (raw === "tree" || raw === "list") {
+    if (raw === "tree" || raw === "list" || raw === "outline") {
       return raw;
     }
   } catch {
