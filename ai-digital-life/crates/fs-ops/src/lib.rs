@@ -221,4 +221,68 @@ mod tests {
         assert_eq!(content_hash("abc"), content_hash("abc"));
         assert_ne!(content_hash("abc"), content_hash("abcd"));
     }
+
+    #[test]
+    fn rejects_empty_path() {
+        let err = normalize_relative_path("").unwrap_err();
+        assert!(matches!(err, AppError::InvalidInput(_)));
+    }
+
+    #[test]
+    fn rejects_whitespace_only_path() {
+        let err = normalize_relative_path("   ").unwrap_err();
+        assert!(matches!(err, AppError::InvalidInput(_)));
+    }
+
+    #[test]
+    fn rejects_absolute_path() {
+        let err = normalize_relative_path("/etc/passwd").unwrap_err();
+        assert!(matches!(err, AppError::Security(_)));
+    }
+
+    #[test]
+    fn accepts_simple_relative_path() {
+        let result = normalize_relative_path("src/main.rs").unwrap();
+        assert_eq!(result, PathBuf::from("src").join("main.rs"));
+    }
+
+    #[test]
+    fn accepts_nested_relative_path() {
+        let result = normalize_relative_path("packages/core/src/lib.ts").unwrap();
+        assert_eq!(result, PathBuf::from("packages").join("core").join("src").join("lib.ts"));
+    }
+
+    #[test]
+    fn ignores_curdir_components() {
+        let result = normalize_relative_path("src/./main.rs").unwrap();
+        assert_eq!(result, PathBuf::from("src").join("main.rs"));
+    }
+
+    #[test]
+    fn rejects_root_path_component() {
+        let err = normalize_relative_path("src/../../etc/passwd").unwrap_err();
+        assert!(matches!(err, AppError::Security(_)));
+    }
+
+    #[test]
+    fn looks_binary_detects_null_bytes() {
+        assert!(looks_binary(b"hello\x00world"));
+    }
+
+    #[test]
+    fn looks_binary_allows_text_content() {
+        assert!(!looks_binary(b"hello world this is text"));
+    }
+
+    #[test]
+    fn looks_binary_handles_empty_bytes() {
+        assert!(!looks_binary(b""));
+    }
+
+    #[test]
+    fn looks_binary_checks_only_first_bytes() {
+        let mut large = vec![b'x'; 5000];
+        large[100] = 0;
+        assert!(looks_binary(&large));
+    }
 }

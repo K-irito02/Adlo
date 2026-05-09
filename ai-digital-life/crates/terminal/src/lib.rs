@@ -197,4 +197,157 @@ mod tests {
             CommandProfile::Test
         );
     }
+
+    #[test]
+    fn classify_profile_build_commands() {
+        assert_eq!(
+            classify_profile("cargo", &["build".into()]),
+            CommandProfile::Build
+        );
+        assert_eq!(
+            classify_profile("cargo", &["check".into()]),
+            CommandProfile::Build
+        );
+    }
+
+    #[test]
+    fn classify_profile_lint_commands() {
+        assert_eq!(
+            classify_profile("cargo", &["clippy".into()]),
+            CommandProfile::Lint
+        );
+        assert_eq!(
+            classify_profile("npm", &["run".into(), "lint".into()]),
+            CommandProfile::Lint
+        );
+    }
+
+    #[test]
+    fn classify_profile_install_commands() {
+        assert_eq!(
+            classify_profile("npm", &["install".into()]),
+            CommandProfile::Install
+        );
+        assert_eq!(
+            classify_profile("pnpm", &["install".into()]),
+            CommandProfile::Install
+        );
+        assert_eq!(
+            classify_profile("pip", &["install".into(), "package".into()]),
+            CommandProfile::Install
+        );
+        assert_eq!(
+            classify_profile("pnpm", &["add".into()]),
+            CommandProfile::Custom
+        );
+    }
+
+    #[test]
+    fn classify_profile_custom_commands() {
+        assert_eq!(
+            classify_profile("echo", &["hello".into()]),
+            CommandProfile::Custom
+        );
+        assert_eq!(
+            classify_profile("node", &["server.js".into()]),
+            CommandProfile::Custom
+        );
+    }
+
+    #[test]
+    fn truncate_output_preserves_short_output() {
+        let short = "hello world";
+        let result = truncate_output(short);
+        assert_eq!(result, short);
+    }
+
+    #[test]
+    fn truncate_output_handles_exact_limit() {
+        let chars: String = (0..MAX_CAPTURE_CHARS).map(|_| 'x').collect();
+        let result = truncate_output(&chars);
+        assert_eq!(result.len(), MAX_CAPTURE_CHARS);
+        assert!(!result.contains("...[output truncated]..."));
+    }
+
+    #[test]
+    fn truncate_output_truncates_long_output() {
+        let chars: String = (0..MAX_CAPTURE_CHARS + 1000).map(|_| 'x').collect();
+        let result = truncate_output(&chars);
+        assert!(result.contains("...[output truncated]..."));
+        assert!(result.len() < MAX_CAPTURE_CHARS + 1000);
+    }
+
+    #[test]
+    fn truncate_output_preserves_head_and_tail() {
+        let head = "START: ";
+        let tail = " :END";
+        let total_len = MAX_CAPTURE_CHARS + 500;
+        let middle: String = (0..total_len - head.len() - tail.len()).map(|_| 'x').collect();
+        let content = format!("{}{}{}", head, middle, tail);
+        let result = truncate_output(&content);
+        assert!(result.starts_with(head));
+        assert!(result.ends_with(tail));
+    }
+
+    #[test]
+    fn build_request_classifies_risk() {
+        let request = build_request(
+            "w1",
+            Some("r1".into()),
+            "cargo".into(),
+            vec!["build".into()],
+            false,
+        );
+        assert_eq!(request.risk_level, RiskLevel::Low);
+
+        let install_request = build_request(
+            "w1",
+            Some("r1".into()),
+            "npm".into(),
+            vec!["install".into()],
+            false,
+        );
+        assert_eq!(install_request.risk_level, RiskLevel::Medium);
+    }
+
+    #[test]
+    fn validation_command_returns_cargo_for_rust_workspace() {
+        let dir = std::env::temp_dir().join(format!("adl-terminal-val-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("Cargo.toml"), "[package]\nname='x'").unwrap();
+
+        let request = validation_command(&dir, "w1", Some("r1".into()));
+        assert!(request.is_some());
+        let req = request.unwrap();
+        assert_eq!(req.command, "cargo");
+        assert_eq!(req.args, vec!["test", "--workspace"]);
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn validation_command_returns_npm_for_node_workspace() {
+        let dir = std::env::temp_dir().join(format!("adl-terminal-val-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("package.json"), "{}").unwrap();
+
+        let request = validation_command(&dir, "w1", Some("r1".into()));
+        assert!(request.is_some());
+        let req = request.unwrap();
+        assert_eq!(req.command, "npm");
+        assert_eq!(req.args, vec!["test"]);
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn validation_command_returns_none_for_unknown_workspace() {
+        let dir = std::env::temp_dir().join(format!("adl-terminal-val-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let request = validation_command(&dir, "w1", Some("r1".into()));
+        assert!(request.is_none());
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
 }

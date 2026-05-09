@@ -189,4 +189,216 @@ mod tests {
             RiskLevel::Medium
         );
     }
+
+    #[test]
+    fn assess_command_risk_destructive_git_operations() {
+        assert_eq!(
+            assess_command_risk("git", &["push".into(), "--force".into()], false),
+            RiskLevel::High
+        );
+        assert_eq!(
+            assess_command_risk("git", &["reset".into(), "--hard".into()], false),
+            RiskLevel::High
+        );
+        assert_eq!(
+            assess_command_risk("git", &["reset".into()], false),
+            RiskLevel::Low
+        );
+    }
+
+    #[test]
+    fn assess_command_risk_delete_operations() {
+        assert_eq!(
+            assess_command_risk("cmd", &["del".into(), "/f".into(), "file.txt".into()], false),
+            RiskLevel::High
+        );
+        assert_eq!(
+            assess_command_risk("powershell", &["Remove-Item".into()], true),
+            RiskLevel::High
+        );
+        assert_eq!(
+            assess_command_risk("powershell", &["Remove-Item".into()], false),
+            RiskLevel::High
+        );
+    }
+
+    #[test]
+    fn assess_command_risk_format_commands() {
+        assert_eq!(
+            assess_command_risk("cmd", &["format".into(), "d:".into()], false),
+            RiskLevel::High
+        );
+    }
+
+    #[test]
+    fn assess_command_risk_npm_commands() {
+        assert_eq!(
+            assess_command_risk("npm", &[], false),
+            RiskLevel::Medium
+        );
+        assert_eq!(
+            assess_command_risk("pnpm", &[], false),
+            RiskLevel::Medium
+        );
+        assert_eq!(
+            assess_command_risk("npm", &["start".into()], false),
+            RiskLevel::Medium
+        );
+    }
+
+    #[test]
+    fn assess_command_risk_cargo_install() {
+        assert_eq!(
+            assess_command_risk("cargo", &["install".into()], false),
+            RiskLevel::Medium
+        );
+        assert_eq!(
+            assess_command_risk("cargo", &["publish".into()], false),
+            RiskLevel::Medium
+        );
+        assert_eq!(
+            assess_command_risk("cargo", &["build".into()], false),
+            RiskLevel::Low
+        );
+    }
+
+    #[test]
+    fn assess_command_risk_install_subcommand() {
+        assert_eq!(
+            assess_command_risk("pip", &["install".into()], false),
+            RiskLevel::Medium
+        );
+        assert_eq!(
+            assess_command_risk("pip", &["install".into(), "package".into()], false),
+            RiskLevel::Medium
+        );
+        assert_eq!(
+            assess_command_risk("go", &["get".into()], false),
+            RiskLevel::Low
+        );
+    }
+
+    #[test]
+    fn requires_approval_for_medium_and_high_risk() {
+        assert!(requires_approval(RiskLevel::Medium));
+        assert!(requires_approval(RiskLevel::High));
+        assert!(!requires_approval(RiskLevel::Low));
+    }
+
+    #[test]
+    fn make_task_with_low_risk_approved_immediately() {
+        let operation = TaskOperation {
+            kind: "read".into(),
+            target: Some("README.md".into()),
+            params: serde_json::Value::Null,
+            risk_level: RiskLevel::Low,
+            reversible: true,
+        };
+        let task = make_task("w1", "s1", "Read file", operation);
+        assert_eq!(task.status, TaskStatus::Approved);
+    }
+
+    #[test]
+    fn make_task_with_high_risk_waits_for_approval() {
+        let operation = TaskOperation {
+            kind: "delete".into(),
+            target: Some("temp.txt".into()),
+            params: serde_json::Value::Null,
+            risk_level: RiskLevel::High,
+            reversible: false,
+        };
+        let task = make_task("w1", "s1", "Delete file", operation);
+        assert_eq!(task.status, TaskStatus::WaitingApproval);
+    }
+
+    #[test]
+    fn make_approval_extracts_highest_risk_level() {
+        let operations = vec![
+            TaskOperation {
+                kind: "read".into(),
+                target: None,
+                params: serde_json::Value::Null,
+                risk_level: RiskLevel::Low,
+                reversible: true,
+            },
+            TaskOperation {
+                kind: "write".into(),
+                target: Some("file.txt".into()),
+                params: serde_json::Value::Null,
+                risk_level: RiskLevel::Medium,
+                reversible: true,
+            },
+        ];
+        let task = TaskRecord {
+            id: "task1".into(),
+            workspace_id: "w1".into(),
+            session_id: "s1".into(),
+            r#type: "multi".into(),
+            description: "Multiple operations".into(),
+            status: TaskStatus::WaitingApproval,
+            priority: "medium".into(),
+            operations,
+            approval_id: None,
+            checkpoint_id: None,
+            result_json: None,
+            error_json: None,
+            created_at: now_ms(),
+            updated_at: now_ms(),
+            started_at: None,
+            completed_at: None,
+        };
+        let approval = make_approval(&task, "Approve task");
+        assert_eq!(approval.risk_level, RiskLevel::Medium);
+    }
+
+    #[test]
+    fn task_summary_extracts_operation_info() {
+        let operation = TaskOperation {
+            kind: "edit".into(),
+            target: Some("src/main.rs".into()),
+            params: serde_json::Value::Null,
+            risk_level: RiskLevel::Low,
+            reversible: true,
+        };
+        let task = TaskRecord {
+            id: "task1".into(),
+            workspace_id: "w1".into(),
+            session_id: "s1".into(),
+            r#type: "edit".into(),
+            description: "Edit main file".into(),
+            status: TaskStatus::Running,
+            priority: "low".into(),
+            operations: vec![operation],
+            approval_id: None,
+            checkpoint_id: None,
+            result_json: None,
+            error_json: None,
+            created_at: now_ms(),
+            updated_at: now_ms(),
+            started_at: None,
+            completed_at: None,
+        };
+        let summary = task_summary(&task);
+        assert_eq!(summary.id, "task1");
+        assert_eq!(summary.title, "edit");
+        assert_eq!(summary.status, TaskStatus::Running);
+        assert_eq!(summary.risk_level, RiskLevel::Low);
+        assert!(summary.detail.contains("src/main.rs"));
+    }
+
+    #[test]
+    fn audit_record_creation() {
+        let record = audit("workspace", "w1", "open", "Opened /path/to/workspace");
+        assert_eq!(record.entity_type, "workspace");
+        assert_eq!(record.entity_id, "w1");
+        assert_eq!(record.action, "open");
+        assert_eq!(record.detail, "Opened /path/to/workspace");
+    }
+
+    #[test]
+    fn default_policy_contains_rules() {
+        let policy = default_policy();
+        assert_eq!(policy.mode, "manual");
+        assert!(!policy.high_risk_rules.is_empty());
+    }
 }

@@ -1555,6 +1555,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires git in PATH"]
     fn captures_git_snapshot_for_untracked_and_unstaged_files() {
         let dir = std::env::temp_dir().join(format!("adl-workspace-git-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
@@ -1717,6 +1718,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "requires git in PATH"]
     fn reads_deleted_change_preview_from_head() {
         let dir = std::env::temp_dir().join(format!(
             "adl-workspace-change-preview-{}",
@@ -1737,6 +1739,215 @@ mod tests {
         assert!(!preview.current_exists);
         assert!(preview.base_content.contains("resume"));
         assert!(preview.current_content.is_empty());
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn stable_workspace_id_normalizes_path_separators() {
+        let path1 = Path::new("C:\\Users\\test\\workspace");
+        let path2 = Path::new("C:/Users/test/workspace");
+        let id1 = stable_workspace_id(path1);
+        let id2 = stable_workspace_id(path2);
+        assert_eq!(id1, id2);
+    }
+
+    #[test]
+    fn stable_workspace_id_is_case_insensitive() {
+        let path1 = Path::new("C:/Users/TEST/workspace");
+        let path2 = Path::new("C:/Users/test/workspace");
+        let id1 = stable_workspace_id(path1);
+        let id2 = stable_workspace_id(path2);
+        assert_eq!(id1, id2);
+    }
+
+    #[test]
+    fn stable_workspace_id_produces_consistent_format() {
+        let path = Path::new("C:/Users/test/workspace");
+        let id = stable_workspace_id(path);
+        assert!(id.starts_with("workspace_"));
+        assert_eq!(id.len(), "workspace_".len() + 8);
+    }
+
+    #[test]
+    fn workspace_type_detection_rust() {
+        let dir = std::env::temp_dir().join(format!("adl-ws-type-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("Cargo.toml"), "[package]\nname='x'").unwrap();
+        assert_eq!(workspace_type(&dir), WorkspaceType::Rust);
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn workspace_type_detection_node() {
+        let dir = std::env::temp_dir().join(format!("adl-ws-type-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("package.json"), "{}").unwrap();
+        assert_eq!(workspace_type(&dir), WorkspaceType::Node);
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn workspace_type_detection_python() {
+        let dir = std::env::temp_dir().join(format!("adl-ws-type-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("pyproject.toml"), "[project]").unwrap();
+        assert_eq!(workspace_type(&dir), WorkspaceType::Python);
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn workspace_type_detection_go() {
+        let dir = std::env::temp_dir().join(format!("adl-ws-type-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("go.mod"), "module example").unwrap();
+        assert_eq!(workspace_type(&dir), WorkspaceType::Go);
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn workspace_type_detection_java() {
+        let dir = std::env::temp_dir().join(format!("adl-ws-type-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("pom.xml"), "<project>").unwrap();
+        assert_eq!(workspace_type(&dir), WorkspaceType::Java);
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn workspace_type_detection_unknown() {
+        let dir = std::env::temp_dir().join(format!("adl-ws-type-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        assert_eq!(workspace_type(&dir), WorkspaceType::Unknown);
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    #[ignore = "requires git in PATH"]
+    fn git_has_local_changes_returns_false_for_clean_repo() {
+        let dir = std::env::temp_dir().join(format!("adl-ws-clean-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        init_git_repo(&dir);
+        std::fs::write(dir.join("README.md"), "# Test").unwrap();
+        run_git_test(&dir, &["add", "README.md"]);
+        run_git_test(&dir, &["commit", "-m", "init"]);
+
+        let snapshot = capture_git_snapshot(&dir);
+        assert!(!git_has_local_changes(&snapshot));
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    #[ignore = "requires git in PATH"]
+    fn git_has_local_changes_returns_true_with_unstaged() {
+        let dir = std::env::temp_dir().join(format!("adl-ws-unstaged-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        init_git_repo(&dir);
+        std::fs::write(dir.join("README.md"), "# Test").unwrap();
+        run_git_test(&dir, &["add", "README.md"]);
+        run_git_test(&dir, &["commit", "-m", "init"]);
+        std::fs::write(dir.join("README.md"), "# Test Updated").unwrap();
+
+        let snapshot = capture_git_snapshot(&dir);
+        assert!(git_has_local_changes(&snapshot));
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    #[ignore = "requires git in PATH"]
+    fn git_has_local_changes_returns_true_with_untracked() {
+        let dir = std::env::temp_dir().join(format!("adl-ws-untracked-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        init_git_repo(&dir);
+        std::fs::write(dir.join("README.md"), "# Test").unwrap();
+        run_git_test(&dir, &["add", "README.md"]);
+        run_git_test(&dir, &["commit", "-m", "init"]);
+        std::fs::write(dir.join("new.txt"), "new file").unwrap();
+
+        let snapshot = capture_git_snapshot(&dir);
+        assert!(git_has_local_changes(&snapshot));
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    #[ignore = "requires git in PATH"]
+    fn list_git_branches_returns_current_branch() {
+        let dir = std::env::temp_dir().join(format!("adl-ws-branches-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        init_git_repo(&dir);
+
+        let branches = list_git_branches(&dir).unwrap();
+        assert!(!branches.is_empty());
+        let current = branches.iter().find(|b| b.is_current);
+        assert!(current.is_some());
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn search_text_returns_matches() {
+        let dir = std::env::temp_dir().join(format!("adl-ws-search-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("test.txt"), "hello world\nfoo bar\nhello again").unwrap();
+
+        let hits = search_text(&dir, "hello").unwrap();
+        assert_eq!(hits.len(), 2);
+        assert_eq!(hits[0].path, "test.txt");
+        assert_eq!(hits[0].line, 1);
+        assert_eq!(hits[1].line, 3);
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn search_text_is_case_insensitive() {
+        let dir = std::env::temp_dir().join(format!("adl-ws-search-case-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("test.txt"), "Hello World").unwrap();
+
+        let hits = search_text(&dir, "hello").unwrap();
+        assert_eq!(hits.len(), 1);
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn search_text_returns_empty_for_no_matches() {
+        let dir = std::env::temp_dir().join(format!("adl-ws-search-empty-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("test.txt"), "hello world").unwrap();
+
+        let hits = search_text(&dir, "xyz").unwrap();
+        assert!(hits.is_empty());
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn search_text_ignores_empty_query() {
+        let dir = std::env::temp_dir().join(format!("adl-ws-search-empty-q-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("test.txt"), "hello world").unwrap();
+
+        let hits = search_text(&dir, "").unwrap();
+        assert!(hits.is_empty());
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn search_text_limits_results() {
+        let dir = std::env::temp_dir().join(format!("adl-ws-search-limit-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        for i in 0..300 {
+            std::fs::write(dir.join(format!("file{}.txt", i)), "hello world").unwrap();
+        }
+
+        let hits = search_text(&dir, "hello").unwrap();
+        assert!(hits.len() <= 200);
 
         let _ = std::fs::remove_dir_all(dir);
     }

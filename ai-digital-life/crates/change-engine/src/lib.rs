@@ -262,6 +262,7 @@ fn language_for_path(path: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use adl_kernel::{CommandProfile, RiskLevel};
 
     #[test]
     fn hunk_decision_updates() {
@@ -302,5 +303,198 @@ mod tests {
         let error = apply_patch_set(patch, &root, &checkpoints).unwrap_err();
         assert!(error.to_string().contains("No patch hunks were accepted"));
         let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn set_hunk_decision_returns_error_for_unknown_hunk() {
+        let patch = create_single_file_patch_set(PatchProposal {
+            workspace_id: "w",
+            session_id: "s",
+            run_id: Some("r".into()),
+            relative_path: "README.md",
+            before_content: "before",
+            after_content: "after",
+            title: "title".into(),
+            summary: "summary".into(),
+        });
+        let error = set_hunk_decision(patch, "nonexistent-hunk-id", PatchHunkDecision::Accepted)
+            .unwrap_err();
+        assert!(error.to_string().contains("hunk nonexistent-hunk-id"));
+    }
+
+    #[test]
+    fn apply_patch_set_updates_file_content() {
+        let root = std::env::temp_dir().join(format!("adl-change-apply-{}", now_ms()));
+        let checkpoints = root.join("checkpoints");
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join("config.txt"), "original content").unwrap();
+
+        let mut patch = create_single_file_patch_set(PatchProposal {
+            workspace_id: "w",
+            session_id: "s",
+            run_id: Some("r".into()),
+            relative_path: "config.txt",
+            before_content: "original content",
+            after_content: "modified content",
+            title: "Update config".into(),
+            summary: "Update config.txt".into(),
+        });
+        let hunk_id = patch.file_patches[0].hunks[0].id.clone();
+        patch = set_hunk_decision(patch, &hunk_id, PatchHunkDecision::Accepted).unwrap();
+
+        let (updated_patch, _checkpoint) = apply_patch_set(patch, &root, &checkpoints).unwrap();
+        assert_eq!(updated_patch.status, PatchSetStatus::Applied);
+
+        let content = std::fs::read_to_string(root.join("config.txt")).unwrap();
+        assert_eq!(content, "modified content");
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn apply_patch_set_rejects_if_file_changed() {
+        let root = std::env::temp_dir().join(format!("adl-change-conflict-{}", now_ms()));
+        let checkpoints = root.join("checkpoints");
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join("data.txt"), "original content").unwrap();
+
+        let mut patch = create_single_file_patch_set(PatchProposal {
+            workspace_id: "w",
+            session_id: "s",
+            run_id: Some("r".into()),
+            relative_path: "data.txt",
+            before_content: "original content",
+            after_content: "modified content",
+            title: "Update data".into(),
+            summary: "Update data.txt".into(),
+        });
+        let hunk_id = patch.file_patches[0].hunks[0].id.clone();
+        patch = set_hunk_decision(patch, &hunk_id, PatchHunkDecision::Accepted).unwrap();
+
+        std::fs::write(root.join("data.txt"), "someone else changed this").unwrap();
+
+        let error = apply_patch_set(patch, &root, &checkpoints).unwrap_err();
+        assert!(error.to_string().contains("file changed since patch creation"));
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn rollback_patch_set_restores_original_content() {
+        let root = std::env::temp_dir().join(format!("adl-change-rollback-{}", now_ms()));
+        let checkpoints = root.join("checkpoints");
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join("sample.txt"), "original content").unwrap();
+
+        let mut patch = create_single_file_patch_set(PatchProposal {
+            workspace_id: "w",
+            session_id: "s",
+            run_id: Some("r".into()),
+            relative_path: "sample.txt",
+            before_content: "original content",
+            after_content: "new content",
+            title: "Update sample".into(),
+            summary: "Update sample.txt".into(),
+        });
+        let hunk_id = patch.file_patches[0].hunks[0].id.clone();
+        patch = set_hunk_decision(patch, &hunk_id, PatchHunkDecision::Accepted).unwrap();
+
+        apply_patch_set(patch.clone(), &root, &checkpoints).unwrap();
+
+        let rolled_back = rollback_patch_set(patch, &root).unwrap();
+        assert_eq!(rolled_back.status, PatchSetStatus::RolledBack);
+
+        let content = std::fs::read_to_string(root.join("sample.txt")).unwrap();
+        assert_eq!(content, "original content");
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn validation_result_from_command_success() {
+        let result = validation_result_from_command(
+            "w",
+            Some("r".into()),
+            Some("ps".into()),
+            Some(&adl_kernel::CommandExecutionResult {
+                request: adl_kernel::CommandRequest {
+                    id: "cmd1".into(),
+                    workspace_id: "w".into(),
+                    run_id: Some("r".into()),
+                    profile: CommandProfile::Test,
+                    command: "cargo test".into(),
+                    args: vec![],
+                    shell: false,
+                    risk_level: RiskLevel::Low,
+                    created_at: now_ms(),
+                },
+                exit_code: Some(0),
+                signal: None,
+                stdout: "All tests passed".into(),
+                stderr: String::new(),
+                summary: "Tests passed".into(),
+                success: true,
+                started_at: now_ms(),
+                completed_at: now_ms(),
+            }),
+        );
+        assert_eq!(result.status, "passed");
+        assert_eq!(result.summary, "Tests passed");
+    }
+
+    #[test]
+    fn validation_result_from_command_failure() {
+        let result = validation_result_from_command(
+            "w",
+            Some("r".into()),
+            Some("ps".into()),
+            Some(&adl_kernel::CommandExecutionResult {
+                request: adl_kernel::CommandRequest {
+                    id: "cmd1".into(),
+                    workspace_id: "w".into(),
+                    run_id: Some("r".into()),
+                    profile: CommandProfile::Build,
+                    command: "cargo build".into(),
+                    args: vec![],
+                    shell: false,
+                    risk_level: RiskLevel::Medium,
+                    created_at: now_ms(),
+                },
+                exit_code: Some(1),
+                signal: None,
+                stdout: String::new(),
+                stderr: "error: failed to compile".into(),
+                summary: "Build failed".into(),
+                success: false,
+                started_at: now_ms(),
+                completed_at: now_ms(),
+            }),
+        );
+        assert_eq!(result.status, "failed");
+        assert!(!result.diagnostics.is_empty());
+    }
+
+    #[test]
+    fn validation_result_skipped_when_no_command() {
+        let result = validation_result_from_command(
+            "w",
+            Some("r".into()),
+            Some("ps".into()),
+            None,
+        );
+        assert_eq!(result.status, "skipped");
+        assert!(result.diagnostics.is_empty());
+    }
+
+    #[test]
+    fn language_for_path_returns_correct_language() {
+        assert_eq!(language_for_path("main.rs").unwrap(), "rust");
+        assert_eq!(language_for_path("app.ts").unwrap(), "typescript");
+        assert_eq!(language_for_path("app.tsx").unwrap(), "typescript");
+        assert_eq!(language_for_path("index.js").unwrap(), "javascript");
+        assert_eq!(language_for_path("readme.md").unwrap(), "markdown");
+        assert_eq!(language_for_path("config.json").unwrap(), "json");
+        assert!(language_for_path("image.png").is_none());
+        assert!(language_for_path("document.pdf").is_none());
     }
 }
