@@ -23,6 +23,7 @@ import type { DigitalLifeBridge } from "./shared/ipc";
 const PREVIEW_API_PREFIX = "/__adl_preview_api__";
 const PREVIEW_RECENT_STORAGE_KEY = "adl.preview.recent-workspaces.v1";
 const PREVIEW_PREFERENCES_STORAGE_KEY = "adl.preview.preferences.v1";
+const PREVIEW_ACTIVE_WORKSPACE_STORAGE_KEY = "adl.preview.active-workspace.v1";
 
 type PreviewWorkspaceOpenPayload = {
   meta: WorkspaceMeta;
@@ -77,6 +78,26 @@ function persistPreviewPreferences(config: PreviewPreferenceState) {
         modelPreferences: config.modelPreferences
       } satisfies PreviewPreferenceState)
     );
+  } catch {
+    // ignore persistence errors in preview mode
+  }
+}
+
+function loadActiveWorkspacePath(): string | undefined {
+  try {
+    return window.localStorage.getItem(PREVIEW_ACTIVE_WORKSPACE_STORAGE_KEY)?.trim() || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function persistActiveWorkspacePath(workspacePath?: string) {
+  try {
+    if (!workspacePath?.trim()) {
+      window.localStorage.removeItem(PREVIEW_ACTIVE_WORKSPACE_STORAGE_KEY);
+      return;
+    }
+    window.localStorage.setItem(PREVIEW_ACTIVE_WORKSPACE_STORAGE_KEY, workspacePath.trim());
   } catch {
     // ignore persistence errors in preview mode
   }
@@ -167,18 +188,70 @@ export function setupPreviewBridge(): void {
   let recentWorkspaces = loadRecentWorkspaces();
   let currentWorkspace: WorkspaceMeta | undefined;
   let retrievalStatus: RetrievalSnapshot | undefined;
+  let restoreCurrentWorkspacePromise: Promise<void> | undefined;
   setMockActiveWorkspace(undefined);
+
+  const applyOpenedWorkspace = (payload: PreviewWorkspaceOpenPayload) => {
+    currentWorkspace = payload.meta;
+    retrievalStatus = payload.retrieval;
+    setMockActiveWorkspace(payload.meta);
+    recentWorkspaces = updateRecentWorkspaces(recentWorkspaces, payload.recent);
+    persistActiveWorkspacePath(payload.meta.rootPath);
+    appInfo.recentLogs.unshift({
+      timestamp: Date.now(),
+      level: "info",
+      scope: "workspace",
+      message: `Preview mode: opened real local workspace ${payload.meta.rootPath}`
+    });
+  };
+
+  const openWorkspaceFromPreviewApi = async (workspacePath: string): Promise<IpcResult<WorkspaceMeta>> => {
+    const result = await requestPreviewApi<PreviewWorkspaceOpenPayload>("/workspace/open", {
+      method: "POST",
+      body: JSON.stringify({ workspacePath })
+    });
+    if (result.ok) {
+      applyOpenedWorkspace(result.data);
+      return { ok: true, data: result.data.meta };
+    }
+    return result;
+  };
+
+  const ensureCurrentWorkspaceRestored = async () => {
+    if (currentWorkspace || restoreCurrentWorkspacePromise) {
+      await restoreCurrentWorkspacePromise;
+      return;
+    }
+    const savedWorkspacePath = loadActiveWorkspacePath();
+    if (!savedWorkspacePath) {
+      return;
+    }
+    restoreCurrentWorkspacePromise = (async () => {
+      const result = await openWorkspaceFromPreviewApi(savedWorkspacePath);
+      if (!result.ok) {
+        persistActiveWorkspacePath(undefined);
+      }
+    })();
+    try {
+      await restoreCurrentWorkspacePromise;
+    } finally {
+      restoreCurrentWorkspacePromise = undefined;
+    }
+  };
 
   const previewBridge: DigitalLifeBridge = {
     ...mockDigitalLifeBridge,
     app: {
-      getInfo: async () => ({
-        ok: true,
-        data: {
-          ...appInfo,
-          currentWorkspace
-        }
-      }),
+      getInfo: async () => {
+        await ensureCurrentWorkspaceRestored();
+        return {
+          ok: true,
+          data: {
+            ...appInfo,
+            currentWorkspace
+          }
+        };
+      },
       getHealth: mockDigitalLifeBridge.app.getHealth,
       getDiagnostics: mockDigitalLifeBridge.app.getDiagnostics,
       getModelHealth: mockDigitalLifeBridge.app.getModelHealth,
@@ -223,30 +296,12 @@ export function setupPreviewBridge(): void {
     },
     workspace: {
       listRecent: async () => ({ ok: true, data: recentWorkspaces }),
-      open: async (workspacePath: string) => {
-        const result = await requestPreviewApi<PreviewWorkspaceOpenPayload>("/workspace/open", {
-          method: "POST",
-          body: JSON.stringify({ workspacePath })
-        });
-        if (!result.ok) {
-          return result;
-        }
-        currentWorkspace = result.data.meta;
-        retrievalStatus = result.data.retrieval;
-        setMockActiveWorkspace(result.data.meta);
-        recentWorkspaces = updateRecentWorkspaces(recentWorkspaces, result.data.recent);
-        appInfo.recentLogs.unshift({
-          timestamp: Date.now(),
-          level: "info",
-          scope: "workspace",
-          message: `Preview mode: opened real local workspace ${result.data.meta.rootPath}`
-        });
-        return { ok: true, data: result.data.meta };
-      },
+      open: async (workspacePath: string) => openWorkspaceFromPreviewApi(workspacePath),
       clearCurrent: async () => {
         currentWorkspace = undefined;
         retrievalStatus = undefined;
         setMockActiveWorkspace(undefined);
+        persistActiveWorkspacePath(undefined);
         return { ok: true, data: true };
       },
       pickDirectory: async () => {

@@ -11,7 +11,12 @@ import type { DiffEditorRef, EditorRef } from "../../types";
 import { createDiffEditorRef, createEditorRef } from "./editorAdapters";
 import { getThemeExtension, rebuildThemes, getPhrasesExtension } from "./cmTheme";
 import { getLanguageExtension } from "./cmLanguages";
-import { getMinimapExtension, updateMinimapDiffHunks } from "./cmMinimap";
+import {
+  getMinimapExtension,
+  minimapHunksToDiffModel,
+  updateMinimapDiffModel,
+  type CmMinimapDiffModel
+} from "./cmMinimap";
 import type { AgentHunkDecoration } from "./agentDecorations";
 
 export type DiffViewerProps = {
@@ -27,6 +32,8 @@ export type DiffViewerProps = {
   wordWrap?: boolean;
   onMount?: (editor: DiffEditorRef | EditorRef) => void;
   extensions?: Extension[];
+  minimapModel?: CmMinimapDiffModel;
+  onMinimapDragStart?: () => void;
   hunks?: AgentHunkDecoration[];
 };
 
@@ -77,6 +84,8 @@ function SideBySideDiffViewer({
   collapseUnchanged,
   onMount,
   extraExtensions,
+  minimapModel,
+  onMinimapDragStart,
   hunks,
 }: {
   original: string;
@@ -90,6 +99,8 @@ function SideBySideDiffViewer({
   collapseUnchanged: boolean;
   onMount?: (editor: DiffEditorRef | EditorRef) => void;
   extraExtensions: Extension[];
+  minimapModel?: CmMinimapDiffModel;
+  onMinimapDragStart?: () => void;
   hunks?: AgentHunkDecoration[];
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -110,7 +121,7 @@ function SideBySideDiffViewer({
     }
 
     const aExts: Extension[] = [...sharedExts];
-    const bExts: Extension[] = [...sharedExts, ...extraExtensions, ...getMinimapExtension()];
+    const bExts: Extension[] = [...sharedExts, ...extraExtensions, ...getMinimapExtension({ onDragStart: onMinimapDragStart })];
 
     const mv = new MergeView({
       a: { doc: original, extensions: aExts },
@@ -161,7 +172,7 @@ function SideBySideDiffViewer({
         mergeViewRef.current = null;
       }
     };
-  }, [original, modified, sharedExts, extraExtensions, collapseUnchanged]);
+  }, [original, modified, sharedExts, extraExtensions, collapseUnchanged, onMinimapDragStart]);
 
   useEffect(() => {
     const mv = mergeViewRef.current;
@@ -183,10 +194,11 @@ function SideBySideDiffViewer({
   useEffect(() => {
     const mv = mergeViewRef.current;
     if (!mv?.b) return;
-    if (hunks && hunks.length > 0) {
-      updateMinimapDiffHunks(mv.b, hunks);
-    }
-  }, [hunks]);
+    updateMinimapDiffModel(
+      mv.b,
+      minimapModel ?? (hunks ? minimapHunksToDiffModel(hunks, mv.b.state.doc.lines) : null)
+    );
+  }, [hunks, minimapModel]);
 
   useEffect(() => {
     rebuildThemes();
@@ -212,6 +224,9 @@ function InlineDiffViewer({
   collapseUnchanged,
   onMount,
   extraExtensions,
+  minimapModel,
+  onMinimapDragStart,
+  hunks,
 }: {
   original: string;
   modified: string;
@@ -224,6 +239,9 @@ function InlineDiffViewer({
   collapseUnchanged: boolean;
   onMount?: (editor: DiffEditorRef | EditorRef) => void;
   extraExtensions: Extension[];
+  minimapModel?: CmMinimapDiffModel;
+  onMinimapDragStart?: () => void;
+  hunks?: AgentHunkDecoration[];
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -233,6 +251,7 @@ function InlineDiffViewer({
     return [
       ...base,
       ...extraExtensions,
+      ...getMinimapExtension({ onDragStart: onMinimapDragStart }),
       unifiedMergeView({
         original,
         highlightChanges: true,
@@ -241,7 +260,7 @@ function InlineDiffViewer({
         collapseUnchanged: collapseUnchanged ? { margin: 3, minSize: 4 } : undefined,
       }),
     ];
-  }, [language, theme, readOnly, lineNumbersEnabled, wordWrap, locale, original, collapseUnchanged]);
+  }, [language, theme, readOnly, lineNumbersEnabled, wordWrap, locale, original, collapseUnchanged, extraExtensions, onMinimapDragStart]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -290,6 +309,15 @@ function InlineDiffViewer({
   }, [lineNumbersEnabled, wordWrap]);
 
   useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    updateMinimapDiffModel(
+      view,
+      minimapModel ?? (hunks ? minimapHunksToDiffModel(hunks, view.state.doc.lines) : null)
+    );
+  }, [hunks, minimapModel]);
+
+  useEffect(() => {
     rebuildThemes();
   }, [theme]);
 
@@ -314,6 +342,8 @@ export function DiffViewer({
   wordWrap = false,
   onMount,
   extensions: extraExtensions = [],
+  minimapModel,
+  onMinimapDragStart,
   hunks,
 }: DiffViewerProps) {
   const resolvedLocale = locale || "en-US";
@@ -331,6 +361,8 @@ export function DiffViewer({
         collapseUnchanged={collapseUnchanged}
         onMount={onMount}
         extraExtensions={extraExtensions}
+        minimapModel={minimapModel}
+        onMinimapDragStart={onMinimapDragStart}
         hunks={hunks}
       />
     );
@@ -349,6 +381,9 @@ export function DiffViewer({
       collapseUnchanged={collapseUnchanged}
       onMount={onMount}
       extraExtensions={extraExtensions}
+      minimapModel={minimapModel}
+      onMinimapDragStart={onMinimapDragStart}
+      hunks={hunks}
     />
   );
 }

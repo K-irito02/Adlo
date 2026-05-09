@@ -4560,6 +4560,19 @@
   padding-right: var(--adl-editor-minimap-width, 84px);
   line-height: 1.65;
   overflow-x: auto;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+
+.adl-cm-editor .cm-scroller::-webkit-scrollbar,
+.adl-cm-diff-viewer .cm-scroller::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-editor:first-child .cm-scroller {
+  padding-right: 0;
 }
 
 .adl-cm-editor .cm-content,
@@ -4589,11 +4602,19 @@
 
 .adl-cm-diff-viewer .cm-mergeView {
   height: 100%;
+  width: 100%;
+  min-width: 0;
 }
 
 .adl-cm-diff-viewer .cm-mergeViewEditors {
   height: 100%;
   gap: 0;
+  min-width: 0;
+}
+
+.adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-editor {
+  min-width: 0;
+  flex: 1 1 0;
 }
 
 .adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-editor + .cm-editor {
@@ -5131,7 +5152,7 @@
   color: #6a737d;
 }
 
-.adl-cm-minimap {
+.adl-tool-editor__surface > .adl-cm-minimap {
   position: absolute;
   top: 0;
   right: 0;
@@ -5144,7 +5165,7 @@
   transition: opacity 0.2s;
 }
 
-.adl-cm-minimap:hover {
+.adl-tool-editor__surface > .adl-cm-minimap:hover {
   background: var(--surface-hover);
 }
 

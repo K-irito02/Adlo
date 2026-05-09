@@ -6,6 +6,14 @@ const codeEditorSource = readFileSync(new URL("../../../../src/app/regions/right
 const diffViewerSource = readFileSync(new URL("../../../../src/app/regions/right-panel/DiffViewer.tsx", import.meta.url), "utf8");
 const regionsCssSource = readFileSync(new URL("../../../../src/styles/regions.css", import.meta.url), "utf8");
 
+function extractCssBlock(css: string, selector: string) {
+  const start = css.indexOf(selector);
+  expect(start).toBeGreaterThanOrEqual(0);
+  const end = css.indexOf("\n}", start);
+  expect(end).toBeGreaterThan(start);
+  return css.slice(start, end + 2);
+}
+
 describe("CodeMirror preview styling", () => {
   it("uses the custom theme as the only syntax highlight source", () => {
     expect(codeEditorSource).toContain("getThemeExtension(theme)");
@@ -38,5 +46,20 @@ describe("CodeMirror preview styling", () => {
     expect(cmThemeSource).toContain('borderRight: "none"');
     expect(cmThemeSource).toContain('paddingRight: "0"');
     expect(cmThemeSource).toContain('outline: "none"');
+  });
+
+  it("anchors the CodeMirror minimap to the editor surface while preserving wheel scrolling", () => {
+    expect(regionsCssSource).toContain(".adl-tool-editor__surface > .adl-cm-minimap");
+    expect(regionsCssSource).toContain("right: 0;");
+    expect(regionsCssSource).toContain("scrollbar-width: none;");
+    expect(regionsCssSource).toContain("overflow-y: auto !important;");
+    expect(regionsCssSource).toContain(".adl-cm-editor .cm-scroller::-webkit-scrollbar");
+    expect(extractCssBlock(regionsCssSource, ".adl-cm-editor .cm-scroller,\n.adl-cm-diff-viewer .cm-scroller")).not.toContain("overflow-y: hidden");
+  });
+
+  it("does not reserve minimap space in the original side-by-side diff pane", () => {
+    expect(regionsCssSource).toContain(".adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-editor:first-child .cm-scroller");
+    expect(regionsCssSource).toContain(".adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-editor");
+    expect(regionsCssSource).toContain("padding-right: 0;");
   });
 });

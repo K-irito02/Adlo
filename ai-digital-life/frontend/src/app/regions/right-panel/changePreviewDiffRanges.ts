@@ -14,6 +14,7 @@ export type PreviewDiffVisualRange = PreviewDiffRange & {
 export type PreviewDiffMinimapModel = {
   ranges: PreviewDiffVisualRange[];
   totalLines: number;
+  lineColumns: number[];
 };
 
 export type PreviewDiffMinimapOptions = {
@@ -349,6 +350,7 @@ export function computePreviewDiffVisualRanges(baseContent: string, currentConte
 
 function appendVisualLineRanges(input: {
   ranges: PreviewDiffVisualRange[];
+  lineColumns?: number[];
   visualLine: number;
   lines: string[];
   type: "insert" | "delete";
@@ -358,6 +360,7 @@ function appendVisualLineRanges(input: {
   let visualLine = input.visualLine;
   input.lines.forEach((line) => {
     getVisualColumns(line, input.wrapColumn).forEach((contentColumns) => {
+      input.lineColumns?.push(contentColumns);
       appendVisualRange(input.ranges, {
         startLine: visualLine,
         endLine: visualLine,
@@ -371,6 +374,16 @@ function appendVisualLineRanges(input: {
   return visualLine;
 }
 
+function appendVisualLineColumns(lineColumns: number[], lines: string[], wrapColumn?: number | null): number {
+  let visualLineCount = 0;
+  lines.forEach((line) => {
+    const columns = getVisualColumns(line, wrapColumn);
+    lineColumns.push(...columns);
+    visualLineCount += columns.length;
+  });
+  return visualLineCount;
+}
+
 function computeFallbackMinimapModel(
   baseLines: string[],
   currentLines: string[],
@@ -382,6 +395,7 @@ function computeFallbackMinimapModel(
   const deleted = baseLines.slice(prefix, baseLines.length - suffix);
   const suffixLines = currentLines.slice(currentLines.length - suffix);
   const ranges: PreviewDiffVisualRange[] = [];
+  const lineColumns: number[] = [];
   const hasOppositeInBlock = inserted.length > 0 && deleted.length > 0;
   const changedLineCount = inserted.length + deleted.length;
   const tone: PreviewDiffVisualTone = hasOppositeInBlock
@@ -389,10 +403,11 @@ function computeFallbackMinimapModel(
     : changedLineCount >= BLOCK_TONE_LINE_THRESHOLD
       ? "block"
       : "base";
-  let visualLine = getVisualLineTotal(currentLines.slice(0, prefix), wrapColumn) + 1;
+  let visualLine = appendVisualLineColumns(lineColumns, currentLines.slice(0, prefix), wrapColumn) + 1;
 
   visualLine = appendVisualLineRanges({
     ranges,
+    lineColumns,
     visualLine,
     lines: inserted,
     type: "insert",
@@ -401,6 +416,7 @@ function computeFallbackMinimapModel(
   });
   visualLine = appendVisualLineRanges({
     ranges,
+    lineColumns,
     visualLine,
     lines: deleted,
     type: "delete",
@@ -409,8 +425,9 @@ function computeFallbackMinimapModel(
   });
 
   return {
-    totalLines: Math.max(1, visualLine - 1 + getVisualLineTotal(suffixLines, wrapColumn)),
-    ranges
+    totalLines: Math.max(1, visualLine - 1 + appendVisualLineColumns(lineColumns, suffixLines, wrapColumn)),
+    ranges,
+    lineColumns
   };
 }
 
@@ -424,13 +441,15 @@ export function computePreviewDiffMinimapModel(
   const wrapColumn = options?.wrapColumn ?? null;
 
   if (baseLines.length === 0 && currentLines.length === 0) {
-    return { totalLines: 0, ranges: [] };
+    return { totalLines: 0, ranges: [], lineColumns: [] };
   }
 
   if (baseLines.length === 0) {
     const ranges: PreviewDiffVisualRange[] = [];
+    const lineColumns: number[] = [];
     const visualLine = appendVisualLineRanges({
       ranges,
+      lineColumns,
       visualLine: 1,
       lines: currentLines,
       type: "insert",
@@ -439,14 +458,17 @@ export function computePreviewDiffMinimapModel(
     });
     return {
       totalLines: Math.max(1, visualLine - 1),
-      ranges
+      ranges,
+      lineColumns
     };
   }
 
   if (currentLines.length === 0) {
     const ranges: PreviewDiffVisualRange[] = [];
+    const lineColumns: number[] = [];
     const visualLine = appendVisualLineRanges({
       ranges,
+      lineColumns,
       visualLine: 1,
       lines: baseLines,
       type: "delete",
@@ -455,7 +477,8 @@ export function computePreviewDiffMinimapModel(
     });
     return {
       totalLines: Math.max(1, visualLine - 1),
-      ranges
+      ranges,
+      lineColumns
     };
   }
 
@@ -476,13 +499,16 @@ export function computePreviewDiffMinimapModel(
   }
 
   const ranges: PreviewDiffVisualRange[] = [];
+  const lineColumns: number[] = [];
   let i = 0;
   let j = 0;
   let visualLine = 1;
 
   while (i < baseLines.length || j < currentLines.length) {
     if (i < baseLines.length && j < currentLines.length && baseLines[i] === currentLines[j]) {
-      visualLine += getVisualLineCount(currentLines[j], wrapColumn);
+      const columns = getVisualColumns(currentLines[j], wrapColumn);
+      lineColumns.push(...columns);
+      visualLine += columns.length;
       i += 1;
       j += 1;
       continue;
@@ -515,6 +541,7 @@ export function computePreviewDiffMinimapModel(
 
     visualLine = appendVisualLineRanges({
       ranges,
+      lineColumns,
       visualLine,
       lines: inserted,
       type: "insert",
@@ -524,6 +551,7 @@ export function computePreviewDiffMinimapModel(
 
     visualLine = appendVisualLineRanges({
       ranges,
+      lineColumns,
       visualLine,
       lines: deleted,
       type: "delete",
@@ -534,6 +562,7 @@ export function computePreviewDiffMinimapModel(
 
   return {
     totalLines: Math.max(0, visualLine - 1),
-    ranges
+    ranges,
+    lineColumns
   };
 }

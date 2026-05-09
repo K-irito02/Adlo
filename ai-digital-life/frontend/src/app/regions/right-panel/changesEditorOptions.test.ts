@@ -20,8 +20,9 @@ describe("changes preview editor options", () => {
 
   it("applies agent decorations and minimap hunks from preview diff ranges", () => {
     expect(changesPanelSource).toContain("applyAgentDecorations");
-    expect(changesPanelSource).toContain("updateMinimapDiffHunks");
-    expect(changesPanelSource).toContain("previewDiffRangesToAgentHunks");
+    expect(changesPanelSource).toContain("computePreviewDiffMinimapModel");
+    expect(changesPanelSource).toContain("minimapModel={changePreviewMinimapModel}");
+    expect(changesPanelSource).toContain("onMinimapDragStart={handleMinimapDragStart}");
   });
 
   it("applies inline diff background chunks from preview diff ranges", () => {
@@ -60,6 +61,12 @@ describe("changes preview editor options", () => {
   it("expands unchanged diff sections before outline navigation", () => {
     expect(changesPanelSource).toContain("forceExpandUnchangedDiff");
     expect(changesPanelSource).toContain("pendingOutlineRevealLine");
-    expect(changesPanelSource).toContain("collapseUnchanged={!forceExpandUnchangedDiff}");
+    expect(changesPanelSource).toContain("collapseUnchanged={collapseUnchangedDiff}");
+  });
+
+  it("tracks minimap-driven diff expansion separately from outline navigation", () => {
+    expect(changesPanelSource).toContain("minimapExpandedUnchangedDiff");
+    expect(changesPanelSource).toContain("setMinimapExpandedUnchangedDiff(true)");
+    expect(changesPanelSource).toContain("const collapseUnchangedDiff = !(forceExpandUnchangedDiff || minimapExpandedUnchangedDiff)");
   });
 });

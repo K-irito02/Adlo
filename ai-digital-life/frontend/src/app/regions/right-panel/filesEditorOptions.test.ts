@@ -11,6 +11,12 @@ describe("files panel editor options", () => {
     expect(filesPanelSource).toContain("getFoldingTooltipExtension");
   });
 
+  it("passes a complete minimap model and drag callback to file diffs", () => {
+    expect(filesPanelSource).toContain("fileDiffMinimapModel");
+    expect(filesPanelSource).toContain("onMinimapDragStart={handleFileDiffMinimapDragStart}");
+    expect(filesPanelSource).toContain("setFileDiffMinimapExpandedUnchanged(true)");
+  });
+
   it("does not use Monaco editor", () => {
     expect(filesPanelSource).not.toContain("@monaco-editor/react");
     expect(filesPanelSource).not.toContain("minimap:");

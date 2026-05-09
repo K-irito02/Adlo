@@ -1,4 +1,5 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from "@playwright/test";
+import { openPreviewWorkspace } from "./support/previewWorkspace";
 
 /**
  * Minimap Diff Colors E2E Test
@@ -13,14 +14,14 @@ import { test, expect } from '@playwright/test';
  * - Added cssColorToHex() utility to convert rgba/rgb CSS colors to #RRGGBBAA hex
  * - Used cssColorToHex() when setting minimap.color in decoration options
  */
-test.describe('Minimap Diff Colors', () => {
+test.describe("Minimap Diff Colors", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await openPreviewWorkspace(page);
+    await page.waitForLoadState("networkidle");
     await page.waitForTimeout(2000);
   });
 
-  test('cssColorToHex converts rgba to hex correctly in browser', async ({ page }) => {
+  test("cssColorToHex converts rgba to hex correctly in browser", async ({ page }) => {
     // Verify the cssColorToHex function works correctly in the browser
     const result = await page.evaluate(() => {
       // Test the actual CSS variable values
@@ -44,7 +45,7 @@ test.describe('Minimap Diff Colors', () => {
     expect(result.deleteIsRgba || result.deleteBgRaw.startsWith('#')).toBeTruthy();
   });
 
-  test('minimap decoration colors use hex format', async ({ page }) => {
+  test("minimap decoration colors use hex format", async ({ page }) => {
     // Navigate to changes panel
     const changesTab = page.locator('.adl-tool-switcher__tab, .adl-toolswitcher__tab').filter({ hasText: /变更|Changes/ });
     if (await changesTab.count() > 0) {

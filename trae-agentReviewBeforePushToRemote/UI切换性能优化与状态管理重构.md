@@ -278,3 +278,114 @@ graph TD
 *   **切换响应时间**: 减少约 50-70% (缓存机制 + 细粒度订阅)
 *   **内存占用**: 增加 ~2-5MB (LRU 缓存开销，但在可接受范围内)
 *   **用户体验**: 显著提升，无闪烁、无白屏、即时反馈
+
+---
+
+## 1. 高层摘要 (TL;DR)
+
+*   **影响:** 🟢 **低** - 代码质量改进，优化运算符优先级并补充测试用例
+*   **关键变更:**
+    *   ✅ 在 `FilesPanel.tsx` 中为条件表达式添加括号，明确运算符优先级
+    *   ✅ 新增测试用例验证缓存限制常量的模块作用域
+    *   ✅ 新增测试用例验证文件预览默认值的显式处理
+
+---
+
+## 2. 可视化概览 (代码与逻辑映射)
+
+```mermaid
+graph TD
+    subgraph "FilesPanel.tsx (组件层)"
+        A["FilesPanel组件"] --> B["previewEnabled计算"]
+        B --> C["filePreviewModeByPath[selectedFilePath]"]
+        B --> D["(fileCategory === 'markdown')"]
+        C --> E["?? 空值合并运算符"]
+        D --> E
+        E --> F["最终预览状态"]
+    end
+    
+    subgraph "loadingPerformance.test.ts (测试层)"
+        G["性能测试套件"] --> H["新测试用例"]
+        H --> I["验证缓存限制常量"]
+        H --> J["验证预览默认值逻辑"]
+        I --> K["FILE_DOCUMENT_CACHE_LIMIT = 32"]
+        I --> L["CHANGE_PREVIEW_CACHE_LIMIT = 32"]
+        J --> M["检查括号优先级处理"]
+    end
+    
+    style B fill:#bbdefb,color:#0d47a1
+    style E fill:#fff3e0,color:#e65100
+    style H fill:#c8e6c9,color:#1a5e20
+```
+
+---
+
+## 3. 详细变更分析
+
+### 📝 组件层：FilesPanel.tsx
+
+**文件路径:** `ai-digital-life/frontend/src/app/regions/right-panel/FilesPanel.tsx`
+
+**变更内容:**
+在第 250-251 行，为条件表达式添加了括号以明确运算符优先级。
+
+| 位置 | 修改前 | 修改后 | 说明 |
+|------|--------|--------|------|
+| 第 251 行 | `?? fileCategory === "markdown"` | `?? (fileCategory === "markdown")` | 添加括号确保 `===` 优先于 `??` |
+
+**技术解释:**
+- **问题:** 虽然 `===` 的优先级确实高于 `??`，但显式添加括号可以提高代码可读性，避免未来维护时的困惑
+- **逻辑:** 当 `filePreviewModeByPath[selectedFilePath]` 为 `null` 或 `undefined` 时，使用默认值：如果是 markdown 文件则启用预览，否则不启用
+
+---
+
+### 🧪 测试层：loadingPerformance.test.ts
+
+**文件路径:** `ai-digital-life/frontend/src/app/loadingPerformance.test.ts`
+
+**变更内容:**
+新增一个测试用例（第 52-55 行），验证两个关键代码质量点。
+
+**新增测试用例:**
+```typescript
+it("keeps cache limits module-scoped and makes file preview defaults explicit", () => {
+  expect(storeSource).toMatch(/const FILE_DOCUMENT_CACHE_LIMIT = 32;[\s\S]*const CHANGE_PREVIEW_CACHE_LIMIT = 32;/);
+  expect(filesPanelSource).toContain('filePreviewModeByPath[selectedFilePath] ?? (fileCategory === "markdown")');
+});
+```
+
+**验证目标:**
+
+| 验证项 | 预期值 | 意义 |
+|--------|--------|------|
+| `FILE_DOCUMENT_CACHE_LIMIT` | `32` | 确保文件文档缓存限制为模块级常量 |
+| `CHANGE_PREVIEW_CACHE_LIMIT` | `32` | 确保变更预览缓存限制为模块级常量 |
+| 预览默认值逻辑 | 包含括号 `(...)` | 确保运算符优先级显式处理 |
+
+---
+
+## 4. 影响与风险评估
+
+### ✅ 积极影响
+- **代码可读性提升:** 括号明确表达了开发者的意图，减少歧义
+- **测试覆盖增强:** 新增测试用例确保代码质量约定得到遵守
+- **维护性改进:** 未来开发者能更快理解条件判断的优先级
+
+### ⚠️ 风险评估
+- **功能风险:** 🟢 **无** - 仅为语法层面的改进，不改变业务逻辑
+- **性能风险:** 🟢 **无** - 括号不影响运行时性能
+- **兼容性风险:** 🟢 **无** - 纯前端代码变更
+
+### 🧪 测试建议
+
+建议验证以下场景：
+1. **Markdown 文件预览:** 选择一个 markdown 文件，确认预览功能默认开启
+2. **非 Markdown 文件预览:** 选择一个非 markdown 文件（如图片、代码文件），确认预览功能默认关闭
+3. **手动切换预览:** 切换预览状态后，确认状态被正确保存和恢复
+4. **缓存限制:** 确认文件文档和变更预览的缓存数量限制为 32
+
+---
+
+## 5. 总结
+
+这是一次**代码质量优化**提交，主要改进了条件表达式的可读性，并通过新增测试用例来确保代码约定得到遵守。虽然变更量很小，但体现了良好的工程实践：**显式优于隐式**。

@@ -163,7 +163,10 @@ cargo tauri build
 
 ## Browser Testing
 
-项目支持浏览器预览模式，可通过 MCP 工具进行实时浏览器测试。
+项目支持两类浏览器测试：
+
+- **手工 / in-app browser 验证**：适合交互调试、截图、DOM 检查
+- **Playwright 真实浏览器测试**：适合隔离会话、可重复回归、CI
 
 ### 启动浏览器预览
 
@@ -171,6 +174,37 @@ cargo tauri build
 npm run dev:browser    # 仅浏览器
 npm run dev:both       # 浏览器 + Tauri 桌面应用
 ```
+
+### Playwright 真实浏览器回归
+
+前端 Playwright 配置默认会：
+
+1. 通过根级 `npm run dev:browser` 启动真实浏览器预览
+2. 使用独立 Chromium 会话访问 `preview-bridge.ts`
+3. 通过 `adl.preview.active-workspace.v1` 恢复目标工作区
+4. 复用 `frontend/e2e/support/previewWorkspace.ts` 打开真实 workspace，而不是依赖手工准备的 in-app 状态
+
+常用命令：
+
+```bash
+npm --prefix frontend run test:e2e:workspace   # 仅验证独立浏览器会话可恢复真实 workspace
+npm --prefix frontend run test:e2e             # 全量 Playwright 浏览器测试
+```
+
+可选环境变量：
+
+```bash
+ADL_E2E_HOST=127.0.0.1
+ADL_E2E_PORT=5173
+ADL_E2E_BASE_URL=http://127.0.0.1:5173
+ADL_E2E_WORKSPACE=E:/Programs/Obsidian/notes/ai-digital-life
+```
+
+约束：
+
+- 需要工作区上下文的浏览器测试，必须显式恢复或打开 workspace
+- 不要依赖某个已经打开的 in-app browser 标签页状态
+- 优先通过 `openPreviewWorkspace()` 建立前置条件，再进入具体断言
 
 ### MCP 配置（可选）
 

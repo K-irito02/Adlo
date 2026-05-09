@@ -53,11 +53,13 @@ const selectors = {
   titlebar: '.adl-titlebar',
   brand: '.adl-titlebar__brand',
   fileMenu: '.adl-menu[data-menu-id="file"]',
-  themeBtn: 'button[aria-label="主题"]',
+  titlebarActions: '[role="group"][aria-label="Titlebar actions"]',
+  panelControls: '[role="group"][aria-label="Panel controls"]',
+  themeBtn: '[role="group"][aria-label="Titlebar actions"] button[aria-label="主题"]',
   langBtn: 'button[aria-label*="语言"]',
   settingsBtn: 'button[aria-label="设置"]',
-  leftPanelToggle: 'button[aria-label="切换左侧边栏"]',
-  rightPanelToggle: 'button[aria-label="切换右侧面板"]',
+  leftPanelToggle: '[role="group"][aria-label="Panel controls"] button[aria-label="切换左侧边栏"]',
+  rightPanelToggle: '[role="group"][aria-label="Panel controls"] button[aria-label="切换右侧面板"]',
   minimizeBtn: 'button[aria-label="最小化"]',
   maximizeBtn: 'button[aria-label="最大化"]',
   closeBtn: 'button[aria-label="关闭"]',
@@ -185,9 +187,10 @@ await page.waitForSelector('.adl-menu__dropdown', { state: 'hidden' });
 
 ```typescript
 import { test, expect } from '@playwright/test';
+import { openPreviewWorkspace } from './support/previewWorkspace';
 
 test('should display main layout', async ({ page }) => {
-  await page.goto('/');
+  await openPreviewWorkspace(page);
   
   await expect(page.locator('.adl-titlebar')).toBeVisible();
   await expect(page.locator('.adl-leftbar')).toBeVisible();
@@ -196,15 +199,22 @@ test('should display main layout', async ({ page }) => {
 });
 
 test('should toggle theme', async ({ page }) => {
-  await page.goto('/');
+  await openPreviewWorkspace(page);
   
-  const themeBtn = page.locator('button[aria-label="主题"]');
+  const themeBtn = page.locator('[role="group"][aria-label="Titlebar actions"] button[aria-label="主题"]');
+  const initialThemeMode = await page.evaluate(async () => {
+    const result = await window.digitalLife.app.getInfo();
+    return result.ok ? result.data.config.themeMode : undefined;
+  });
   await themeBtn.click();
   
-  // 验证主题变化
-  await page.waitForFunction(() => {
-    return document.documentElement.getAttribute('data-theme') !== null;
-  });
+  await expect.poll(async () => {
+    const result = await page.evaluate(async () => {
+      const next = await window.digitalLife.app.getInfo();
+      return next.ok ? next.data.config.themeMode : undefined;
+    });
+    return result;
+  }).not.toBe(initialThemeMode);
 });
 ```
 
@@ -234,6 +244,7 @@ test('should send message', async ({ page }) => {
 2. **动态渲染**：菜单下拉、弹出框等是动态渲染的，需要等待出现后再操作
 3. **异步加载**：文件树、会话列表等需要等待异步加载完成
 4. **状态检查**：操作前检查元素是否可交互（非 disabled、非 loading）
+5. **真实工作区前置条件**：独立浏览器会话需要显式恢复 workspace，避免依赖手工打开的页面状态
 
 ## 相关文档
 

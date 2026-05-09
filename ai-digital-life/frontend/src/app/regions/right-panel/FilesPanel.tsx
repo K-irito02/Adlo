@@ -65,6 +65,7 @@ import {
   summarizePatchFile
 } from "./patchReview";
 import type { PreviewDiffVisualRange } from "./changePreviewDiffRanges";
+import { computePreviewDiffMinimapModel } from "./changePreviewDiffRanges";
 import {
   buildStickyContextEntries,
   createStickyContextModel,
@@ -211,6 +212,7 @@ export function FilesPanel(props: RightPanelViewProps) {
   const [createPathValue, setCreatePathValue] = useState("");
   const [wordWrapEnabled, setWordWrapEnabled] = useState(false);
   const [lineNumbersEnabled, setLineNumbersEnabled] = useState(true);
+  const [fileDiffMinimapExpandedUnchanged, setFileDiffMinimapExpandedUnchanged] = useState(false);
   const editorShellRef = useRef<HTMLDivElement | null>(null);
   const editorSurfaceRef = useRef<HTMLDivElement | null>(null);
   const [agentAnnotationsEnabled, setAgentAnnotationsEnabled] = useState(true);
@@ -327,6 +329,23 @@ export function FilesPanel(props: RightPanelViewProps) {
     ...getMinimapExtension(),
     getFoldingTooltipExtension(),
   ], []);
+  const diffEditorExtensions = useMemo(() => [
+    ...getAgentDecorationExtensions(),
+    getFoldingTooltipExtension(),
+  ], []);
+  const fileDiffMinimapModel = useMemo(
+    () => filePatch && filePatch.relativePath === selectedFilePath
+      ? computePreviewDiffMinimapModel(filePatch.beforeContent, filePatch.afterContent)
+      : undefined,
+    [filePatch, selectedFilePath]
+  );
+  const handleFileDiffMinimapDragStart = useCallback(() => {
+    setFileDiffMinimapExpandedUnchanged(true);
+  }, []);
+
+  useEffect(() => {
+    setFileDiffMinimapExpandedUnchanged(false);
+  }, [diffSideBySide, filePatch?.relativePath, selectedFilePath]);
 
   const getStickySourceEditor = useCallback((): EditorRef | null => {
     if (filePatch && filePatch.relativePath === selectedFilePath) {
@@ -883,11 +902,14 @@ export function FilesPanel(props: RightPanelViewProps) {
               theme={resolvedTheme}
               locale={resolvedLocale}
               sideBySide={diffSideBySide}
+              collapseUnchanged={!fileDiffMinimapExpandedUnchanged}
               readOnly={diffEditorOptions.readOnly}
               lineNumbers={diffEditorOptions.lineNumbers}
               wordWrap={diffEditorOptions.wordWrap}
               onMount={handleDiffEditorMount}
-              extensions={editorExtensions}
+              extensions={diffEditorExtensions}
+              minimapModel={fileDiffMinimapModel}
+              onMinimapDragStart={handleFileDiffMinimapDragStart}
               hunks={agentHunkDecorations}
             />
           </div>
