@@ -54,6 +54,7 @@ import {
 } from "../../icons";
 import { TooltipSimple } from "../../components/Tooltip";
 import { useUiStore } from "../../ui-store";
+import { useNavigatorResize } from "../../hooks/useNavigatorResize";
 import { StickyContext } from "./stickyContextView";
 import { collectDirectoryPaths, FileTree } from "./fileTree";
 import { OutlineTree } from "./OutlineTree";
@@ -219,7 +220,6 @@ export function FilesPanel(props: RightPanelViewProps) {
   const [minimapSettings, setMinimapSettings] = useState<CmMinimapSettings>(loadMinimapSettings);
   const minimapSettingsRef = useRef(minimapSettings);
   minimapSettingsRef.current = minimapSettings;
-  const [collapsePreviewActive, setCollapsePreviewActive] = useState(false);
   const [previewEnabled, setPreviewEnabled] = useState(false);
   const navigatorCollapsed = useUiStore((state) => state.navigatorCollapsedByTool.files);
   const toggleNavigator = useUiStore((state) => state.toggleNavigator);
@@ -569,59 +569,11 @@ export function FilesPanel(props: RightPanelViewProps) {
     }
     handleCancelCreate();
   };
-  const handleNavigatorResizeStart = (event: React.PointerEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    const target = event.currentTarget;
-    target.setPointerCapture(event.pointerId);
-    const navigator = target.closest<HTMLElement>(".adl-tool-navigator");
-    const navigatorRect = navigator?.getBoundingClientRect();
-    const startX = event.clientX;
-    const startWidth = filesNavigatorWidth;
-    const body = document.body;
-    body.classList.add("adl-is-resizing");
-    const preview = document.createElement("div");
-    preview.className = "adl-tool-navigator__resize-preview";
-    preview.style.left = `${Math.round(navigatorRect?.right ?? startX)}px`;
-    document.body.appendChild(preview);
-
-    let latestX = startX;
-    let rafId = 0;
-
-    const applyDelta = () => {
-      rafId = 0;
-      const delta = latestX - startX;
-      const nextWidth = Math.max(180, Math.min(420, startWidth + delta));
-      preview.style.transform = `translate3d(${nextWidth - startWidth}px, 0, 0)`;
-    };
-
-    const handleMove = (moveEvent: PointerEvent) => {
-      latestX = moveEvent.clientX;
-      if (!rafId) rafId = requestAnimationFrame(applyDelta);
-    };
-
-    const handleUp = (upEvent: PointerEvent) => {
-      if (target.hasPointerCapture(upEvent.pointerId)) {
-        target.releasePointerCapture(upEvent.pointerId);
-      }
-      if (rafId) {
-        cancelAnimationFrame(rafId);
-        rafId = 0;
-      }
-      body.classList.remove("adl-is-resizing");
-      preview.remove();
-      const finalWidth = Math.max(180, Math.min(420, startWidth + upEvent.clientX - startX));
-      setFilesNavigatorWidth(finalWidth);
-      target.removeEventListener("pointermove", handleMove);
-      target.removeEventListener("pointerup", handleUp);
-      target.removeEventListener("pointercancel", handleUp);
-      target.removeEventListener("lostpointercapture", handleUp);
-    };
-
-    target.addEventListener("pointermove", handleMove);
-    target.addEventListener("pointerup", handleUp);
-    target.addEventListener("pointercancel", handleUp);
-    target.addEventListener("lostpointercapture", handleUp);
-  };
+  const { handlePointerDown: handleNavigatorResizeStart } = useNavigatorResize({
+    onWidthCommit: setFilesNavigatorWidth,
+    minWidth: 180,
+    maxWidth: 420
+  });
   const fileMenuItems = [
     { id: "save", label: t.fileSave, shortcut: "Ctrl+S", disabled: true },
     { id: "discard", label: t.fileDiscardChanges, disabled: true },
@@ -983,10 +935,6 @@ export function FilesPanel(props: RightPanelViewProps) {
               className="adl-tool-context__iconbtn adl-tool-context__iconbtn--leading"
               onClick={() => toggleNavigator("files")}
               aria-label={navigatorCollapsed ? t.panelToggleRight : t.panelToggleLeft}
-              onMouseEnter={() => setCollapsePreviewActive(true)}
-              onMouseLeave={() => setCollapsePreviewActive(false)}
-              onFocus={() => setCollapsePreviewActive(true)}
-              onBlur={() => setCollapsePreviewActive(false)}
             >
               <IconPanelLeftClose size={14} decorative />
             </button>
@@ -1098,10 +1046,9 @@ export function FilesPanel(props: RightPanelViewProps) {
       </div>
 
       <div
-        className={`adl-tool-surface adl-tool-surface--files${navigatorCollapsed ? " is-navigator-collapsed" : ""}${collapsePreviewActive && !navigatorCollapsed ? " is-collapse-preview" : ""}`}
+        className={`adl-tool-surface adl-tool-surface--files${navigatorCollapsed ? " is-navigator-collapsed" : ""}`}
         style={{ "--adl-files-nav-width": `${filesNavigatorWidth}px` } as React.CSSProperties}
       >
-        <div className="adl-files-collapse-preview" aria-hidden="true" />
         <aside className="adl-tool-navigator" aria-label={navigatorTitle}>
           <div className="adl-tool-navigator__context">
             <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--actions">

@@ -60,7 +60,7 @@ alwaysApply: false
 
 ### 允许的平台差异
 
-- 窗口控制按钮：Tauri 显示，浏览器隐藏
+- 窗口控制按钮：Tauri 和浏览器均显示（Tauri 可实际执行窗口操作，浏览器为无操作 UI）
 - 窗口拖拽区域：Tauri 启用 `-webkit-app-region: drag`，浏览器禁用
 - 目录选择器：Tauri 用原生对话框，浏览器用 Vite Preview API
 - 窗口图标：Tauri 同步，浏览器跳过

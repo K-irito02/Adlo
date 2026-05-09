@@ -13,6 +13,7 @@ import {
 } from "../../icons";
 import { TooltipSimple } from "../../components/Tooltip";
 import { useUiStore } from "../../ui-store";
+import { useNavigatorResize } from "../../hooks/useNavigatorResize";
 import type { RightPanelViewProps } from "./types";
 
 type BrowserNavigatorMode = "bookmarks" | "history" | "search";
@@ -170,28 +171,11 @@ export function BrowserPanel({ t }: RightPanelViewProps) {
     }
   }, [addressExpanded]);
 
-  const handleNavigatorResizeStart = (event: React.PointerEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    const startX = event.clientX;
-    const startWidth = browserNavigatorWidth;
-    const body = document.body;
-    body.classList.add("adl-is-resizing");
-
-    const handleMove = (moveEvent: PointerEvent) => {
-      const delta = moveEvent.clientX - startX;
-      setBrowserNavigatorWidth(startWidth + delta);
-    };
-
-    const handleUp = () => {
-      body.classList.remove("adl-is-resizing");
-      window.removeEventListener("pointermove", handleMove);
-      window.removeEventListener("pointerup", handleUp);
-    };
-
-    window.addEventListener("pointermove", handleMove);
-    window.addEventListener("pointerup", handleUp);
-  };
+  const { handlePointerDown: handleNavigatorResizeStart } = useNavigatorResize({
+    onWidthCommit: setBrowserNavigatorWidth,
+    minWidth: 180,
+    maxWidth: 300
+  });
 
   useEffect(() => {
     if (navigatorMode === "search") {

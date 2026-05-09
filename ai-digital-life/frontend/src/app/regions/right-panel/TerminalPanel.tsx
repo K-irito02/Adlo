@@ -9,6 +9,7 @@ import {
 } from "../../icons";
 import { TooltipSimple } from "../../components/Tooltip";
 import { useUiStore, type TerminalLayout, type TerminalProfile } from "../../ui-store";
+import { useNavigatorResize } from "../../hooks/useNavigatorResize";
 import type { RightPanelViewProps } from "./types";
 
 type TerminalNavigatorMode = "sessions" | "history";
@@ -95,28 +96,11 @@ export function TerminalPanel(props: RightPanelViewProps) {
     return () => document.removeEventListener("mousedown", handlePointerDown);
   }, [shellMenuOpen, terminalMenuOpen]);
 
-  const handleNavigatorResizeStart = (event: React.PointerEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    const startX = event.clientX;
-    const startWidth = terminalNavigatorWidth;
-    const body = document.body;
-    body.classList.add("adl-is-resizing");
-
-    const handleMove = (moveEvent: PointerEvent) => {
-      const delta = moveEvent.clientX - startX;
-      setTerminalNavigatorWidth(startWidth + delta);
-    };
-
-    const handleUp = () => {
-      body.classList.remove("adl-is-resizing");
-      window.removeEventListener("pointermove", handleMove);
-      window.removeEventListener("pointerup", handleUp);
-    };
-
-    window.addEventListener("pointermove", handleMove);
-    window.addEventListener("pointerup", handleUp);
-  };
+  const { handlePointerDown: handleNavigatorResizeStart } = useNavigatorResize({
+    onWidthCommit: setTerminalNavigatorWidth,
+    minWidth: 180,
+    maxWidth: 300
+  });
 
   const navigatorTitle = navigatorMode === "sessions" ? t.terminalSessions : t.terminalRecentCommands;
   const navigatorCount = navigatorMode === "sessions" ? terminalTabs.length : recentCommands.length;

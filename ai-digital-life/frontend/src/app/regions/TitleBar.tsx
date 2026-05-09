@@ -19,7 +19,6 @@ import {
 } from "../icons";
 import logoUrl from "/logo-chatgpt.png?url";
 import { useUiStore } from "../ui-store";
-import { isTauriShell } from "../../tauri-bridge";
 import { TooltipSimple } from "../components/Tooltip";
 
 interface TitleBarProps {
@@ -339,8 +338,7 @@ export function TitleBar({
             </button>
           </TooltipSimple>
         </div>
-        {isTauriShell() ? (
-          <div className="adl-titlebar__window-group adl-iconstrip" role="group" aria-label="Window controls">
+        <div className="adl-titlebar__window-group adl-iconstrip" role="group" aria-label="Window controls">
             <TooltipSimple content={t.windowMinimize} placement="bottom">
               <button
                 type="button"
@@ -372,7 +370,6 @@ export function TitleBar({
               </button>
             </TooltipSimple>
           </div>
-        ) : null}
       </div>
     </header>
   );

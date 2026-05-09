@@ -63,18 +63,124 @@ await page.waitForSelector('div[data-testid="changes-preview-shell"]');
 
 ### 文件列表
 
+> 文件列表模式以平铺方式展示所有变更文件（无目录层级），与文件树模式共用同一套 `.adl-filetree` 文件树组件，通过 `flat` prop 移除缩进占位符以获得更紧凑的显示。
+
 | 选择器 | 说明 |
 |--------|------|
-| `.adl-patch-files-flat` | 平铺文件列表容器 |
-| `.adl-patch-files-flat__item` | 单个文件项 |
-| `.adl-patch-files-flat__item.is-active` | 当前选中文件 |
-| `.adl-patch-files-flat__name` | 文件名称文本 |
+| `.adl-filetree-shell` | 共享自绘滚动壳 |
+| `.adl-filetree-scroll` | 文件列表滚动容器 |
+| `.adl-filetree__item` | 文件节点 |
+| `.adl-filetree__row` | 整行交互区域（无左侧额外缩进） |
+| `.adl-filetree__label` | 文件名称按钮 |
+| `.adl-filetree__item.is-active` | 当前点击选中节点 |
 
 ### 行为约定
 
 1. 文件树与文档大纲共用同一套树节点行交互规则：hover 时仅标签区域高亮，active 时整行和 toggle 一起进入选中态。
 2. 文件列表模式只显示文件名，不显示完整路径；超长名称使用单行截断省略。
-3. 文件树与文档大纲共用 `CustomScrollArea` 自绘滚动壳，滚动条 hover / active 视觉保持一致。
+3. 文件列表模式无目录层级，所有节点为同一缩进级别，无展开/折叠操作。
+4. 文件树与文档大纲共用 `CustomScrollArea` 自绘滚动壳，滚动条 hover / active 视觉保持一致。
+
+---
+
+## 摘要统计与状态筛选
+
+> 变更导航器顶部显示 `已暂存` / `已修改` / `未跟踪` 三个统计卡片，展示各状态的文件计数，同时支持点击筛选。
+
+### 定位选择器
+
+| 优先级 | 类型 | 选择器 |
+|--------|------|--------|
+| 1 | aria-label | `button[aria-label="已暂存"]` |
+| 2 | aria-label | `button[aria-label="已修改"]` |
+| 3 | aria-label | `button[aria-label="未跟踪"]` |
+| 4 | CSS | `.adl-tool-navigator__summary` |
+| 5 | CSS | `.adl-tool-navigator__summary-stat` |
+| 6 | CSS | `.adl-tool-navigator__summary-stat.is-active` |
+
+### 容器结构
+
+```text
+┌───────────────────────────────────────────┐
+│  .adl-tool-navigator__summary             │
+│  ┌─────────────────────────────────────┐  │
+│  │ .adl-tool-navigator__summary-stats  │  │
+│  │ ┌────────┐┌────────┐┌──────────┐   │  │
+│  │ │ 已暂存  ││ 已修改  ││ 未跟踪    │   │  │
+│  │ │  S:0   ││  M:8   ││  U:0     │   │  │
+│  │ └────────┘└────────┘└──────────┘   │  │
+│  └─────────────────────────────────────┘  │
+└───────────────────────────────────────────┘
+```
+
+### 前置条件
+
+- [x] 选择"变更"工具面板（`#changes-panel`）
+- [x] 当前工作区存在 Git 变更文件
+- [x] 导航器模式为"文件树"或"文件列表"（大纲模式下不显示）
+
+### 操作
+
+#### 筛选已暂存文件
+
+```javascript
+await page.click('button[aria-label="已暂存"]');
+await page.waitForSelector('button[aria-label="已暂存"].is-active');
+```
+
+#### 筛选已修改文件
+
+```javascript
+await page.click('button[aria-label="已修改"]');
+await page.waitForSelector('button[aria-label="已修改"].is-active');
+```
+
+#### 筛选未跟踪文件
+
+```javascript
+await page.click('button[aria-label="未跟踪"]');
+await page.waitForSelector('button[aria-label="未跟踪"].is-active');
+```
+
+#### 组合多选筛选
+
+```javascript
+// 依次点击多个状态按钮可实现组合筛选
+await page.click('button[aria-label="已暂存"]');
+await page.click('button[aria-label="已修改"]');
+// 此时只显示 已暂存 + 已修改 的文件
+```
+
+### 状态变化
+
+| 操作 | 筛选结果 |
+|------|----------|
+| 点击某个状态按钮 | 仅显示包含该状态的文件 |
+| 点击多个状态按钮 | 显示包含任一选中状态的文件（OR 逻辑） |
+| 取消所有选中 | 显示全部文件（等同于未筛选） |
+| 选中全部三种状态 | 显示全部文件（等同于未筛选） |
+| 再次点击已激活的按钮 | 取消该状态的筛选 |
+
+### 预期结果
+
+- 筛选后左侧文件树/文件列表实时更新，仅显示匹配的文件
+- 导航器顶部元数据计数反映筛选后的文件数量
+- 选中状态按钮背景变为透明（与容器背景融合），悬停时显示灰色边框
+- 筛选状态可通过再次点击该按钮取消
+
+### 交互状态
+
+| 状态 | 背景 | 边框 |
+|------|------|------|
+| 默认 | `var(--surface-raised)` 白色卡片 | 透明 |
+| 悬停 | 透明（透出容器渐变背景） | 灰色 |
+| 激活（选中） | 透明（透出容器渐变背景） | 透明 |
+
+### 注意事项
+
+1. 筛选仅影响左侧导航器的文件显示，不影响右侧变更预览内容。
+2. 已暂存（S）/ 已修改（M）/ 未跟踪（U）徽标始终显示在文件项上，不受筛选影响。
+3. 刷新文件树或 Git 状态后筛选状态保持，不会自动重置。
 
 ---
 

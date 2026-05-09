@@ -32,6 +32,7 @@ interface FileTreeProps<T extends FileTreeRenderableNode> {
   getContextMenuItems?: (node: T) => FileTreeContextMenuItem<T>[];
   expandLabel?: string;
   collapseLabel?: string;
+  flat?: boolean;
 }
 
 interface FileTreeNodeProps<T extends FileTreeRenderableNode> {
@@ -48,6 +49,7 @@ interface FileTreeNodeProps<T extends FileTreeRenderableNode> {
   onShowContextMenu?: (event: React.MouseEvent<HTMLDivElement>, node: T) => void;
   expandLabel: string;
   collapseLabel: string;
+  flat?: boolean;
 }
 
 function isPathInSubtree(rootPath: string, path: string | undefined): boolean {
@@ -83,7 +85,8 @@ function FileTreeNodeComponent<T extends FileTreeRenderableNode>({
   getNodeClassName,
   onShowContextMenu,
   expandLabel,
-  collapseLabel
+  collapseLabel,
+  flat
 }: FileTreeNodeProps<T>) {
   const isDirectory = node.kind === "directory";
   const isExpanded = expandedPaths[node.path] ?? false;
@@ -109,7 +112,7 @@ function FileTreeNodeComponent<T extends FileTreeRenderableNode>({
       rowClassName="adl-filetree__row"
       labelClassName="adl-filetree__label"
       toggleClassName="adl-filetree__toggle"
-      indentClassName="adl-filetree__indent"
+      indentClassName={`adl-filetree__indent${flat ? " adl-filetree__indent--flat" : ""}`}
       labelContentClassName="adl-filetree__node-main"
       label={node.name}
       labelLeading={isDirectory ? undefined : (
@@ -147,6 +150,7 @@ function FileTreeNodeComponent<T extends FileTreeRenderableNode>({
               onShowContextMenu={onShowContextMenu}
               expandLabel={expandLabel}
               collapseLabel={collapseLabel}
+              flat={flat}
             />
           ))}
         </ul>

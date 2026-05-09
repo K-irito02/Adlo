@@ -19,11 +19,12 @@ import {
 import { TooltipSimple } from "../../components/Tooltip";
 import { useAppStore } from "../../store";
 import { useUiStore } from "../../ui-store";
+import { useNavigatorResize } from "../../hooks/useNavigatorResize";
 import { countGitChanges } from "./types";
 import type { RightPanelViewProps } from "./types";
 import { countReviewedHunks, filterPatchFileSummaries, summarizePatchSet } from "./patchReview";
 import { StickyContext } from "./stickyContextView";
-import { buildChangeEntries, buildChangeTree, buildFlatChangeNodes, type ChangeTreeNode } from "./changesTree";
+import { buildChangeEntries, buildChangeTree, buildFlatChangeNodes, type ChangeFileState, type ChangeTreeNode } from "./changesTree";
 import {
   computePreviewDiffVisualRanges,
   type PreviewDiffVisualRange
@@ -214,6 +215,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
   const [previewEnabled, setPreviewEnabled] = useState(false);
   const [forceExpandUnchangedDiff, setForceExpandUnchangedDiff] = useState(false);
   const [pendingOutlineRevealLine, setPendingOutlineRevealLine] = useState<number | null>(null);
+  const [changesStatusFilter, setChangesStatusFilter] = useState<Set<ChangeFileState>>(() => new Set());
   const validation = latestPatchApplication?.validation;
   const reviewCounts = useMemo(() => countReviewedHunks(activePatchSet), [activePatchSet]);
   const patchSummaries = useMemo(
@@ -226,8 +228,12 @@ export function ChangesPanel(props: RightPanelViewProps) {
   );
   const activeSummary = filteredPatchSummaries.find((summary) => summary.relativePath === selectedPatchFilePath) ?? filteredPatchSummaries[0];
   const changeEntries = useMemo(() => buildChangeEntries(snapshot, patchSummaries), [patchSummaries, snapshot]);
-  const treeNodes = useMemo(() => buildChangeTree(changeEntries), [changeEntries]);
-  const flatNodes = useMemo(() => buildFlatChangeNodes(changeEntries), [changeEntries]);
+  const filteredChangeEntries = useMemo(() => {
+    if (changesStatusFilter.size === 0 || changesStatusFilter.size === 3) return changeEntries;
+    return changeEntries.filter((entry) => entry.states.some((state) => changesStatusFilter.has(state)));
+  }, [changeEntries, changesStatusFilter]);
+  const treeNodes = useMemo(() => buildChangeTree(filteredChangeEntries), [filteredChangeEntries]);
+  const flatNodes = useMemo(() => buildFlatChangeNodes(filteredChangeEntries), [filteredChangeEntries]);
   const directoryPaths = useMemo(() => collectDirectoryPaths(treeNodes), [treeNodes]);
   const hasExpandedDirectories = useMemo(
     () => directoryPaths.some((pathValue) => expandedPaths[pathValue]),
@@ -459,59 +465,11 @@ export function ChangesPanel(props: RightPanelViewProps) {
     };
   }, [changePreview, editorReady, getModifiedEditor, props.diffSideBySide, refreshStickyContext, wordWrapEnabled]);
 
-  const handleNavigatorResizeStart = (event: React.PointerEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    const target = event.currentTarget;
-    target.setPointerCapture(event.pointerId);
-    const navigator = target.closest<HTMLElement>(".adl-tool-navigator");
-    const navigatorRect = navigator?.getBoundingClientRect();
-    const startX = event.clientX;
-    const startWidth = changesNavigatorWidth;
-    const body = document.body;
-    body.classList.add("adl-is-resizing");
-    const preview = document.createElement("div");
-    preview.className = "adl-tool-navigator__resize-preview";
-    preview.style.left = `${Math.round(navigatorRect?.right ?? startX)}px`;
-    document.body.appendChild(preview);
-
-    let latestX = startX;
-    let rafId = 0;
-
-    const applyDelta = () => {
-      rafId = 0;
-      const delta = latestX - startX;
-      const nextWidth = Math.max(180, Math.min(300, startWidth + delta));
-      preview.style.transform = `translate3d(${nextWidth - startWidth}px, 0, 0)`;
-    };
-
-    const handleMove = (moveEvent: PointerEvent) => {
-      latestX = moveEvent.clientX;
-      if (!rafId) rafId = requestAnimationFrame(applyDelta);
-    };
-
-    const handleUp = (upEvent: PointerEvent) => {
-      if (target.hasPointerCapture(upEvent.pointerId)) {
-        target.releasePointerCapture(upEvent.pointerId);
-      }
-      if (rafId) {
-        cancelAnimationFrame(rafId);
-        rafId = 0;
-      }
-      body.classList.remove("adl-is-resizing");
-      preview.remove();
-      const finalWidth = Math.max(180, Math.min(300, startWidth + upEvent.clientX - startX));
-      setChangesNavigatorWidth(finalWidth);
-      target.removeEventListener("pointermove", handleMove);
-      target.removeEventListener("pointerup", handleUp);
-      target.removeEventListener("pointercancel", handleUp);
-      target.removeEventListener("lostpointercapture", handleUp);
-    };
-
-    target.addEventListener("pointermove", handleMove);
-    target.addEventListener("pointerup", handleUp);
-    target.addEventListener("pointercancel", handleUp);
-    target.addEventListener("lostpointercapture", handleUp);
-  };
+  const { handlePointerDown: handleNavigatorResizeStart } = useNavigatorResize({
+    onWidthCommit: setChangesNavigatorWidth,
+    minWidth: 180,
+    maxWidth: 300
+  });
 
   const handleToggleAllDirectories = () => {
     if (!directoryPaths.length) {
@@ -538,6 +496,18 @@ export function ChangesPanel(props: RightPanelViewProps) {
       handleToggleAllOutlineItems();
     }
   };
+
+  const handleStatusFilterClick = useCallback((filter: ChangeFileState) => {
+    setChangesStatusFilter((current) => {
+      const next = new Set(current);
+      if (next.has(filter)) {
+        next.delete(filter);
+      } else {
+        next.add(filter);
+      }
+      return next;
+    });
+  }, []);
 
   const handleSelectNavigatorNode = useCallback((relativePath: string) => {
     const patchSummary = patchSummaries.find((summary) => summary.relativePath === relativePath);
@@ -750,7 +720,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
               </span>
             </div>
             <span className="adl-tool-navigator__meta">
-              {changesNavigatorMode === "outline" ? changeOutline.length : changeEntries.length || countGitChanges(snapshot)}
+              {changesNavigatorMode === "outline" ? changeOutline.length : filteredChangeEntries.length || countGitChanges(snapshot)}
             </span>
             <TooltipSimple content={t.changesRefresh} placement="top">
               <button
@@ -806,27 +776,45 @@ export function ChangesPanel(props: RightPanelViewProps) {
           {changeEntries.length > 0 && changesNavigatorMode !== "outline" ? (
             <div className="adl-tool-navigator__summary" aria-label={t.toolChanges}>
               <div className="adl-tool-navigator__summary-stats">
-                <div className="adl-tool-navigator__summary-stat">
+                <button
+                  type="button"
+                  className={`adl-tool-navigator__summary-stat${changesStatusFilter.has("staged") ? " is-active" : ""}`}
+                  onClick={() => handleStatusFilterClick("staged")}
+                  aria-pressed={changesStatusFilter.has("staged")}
+                  aria-label={t.changesStaged}
+                >
                   <span className="adl-tool-navigator__summary-label">{t.changesStaged}</span>
                   <strong className="adl-tool-navigator__summary-value">
                     <span className="adl-tool-navigator__summary-code" aria-hidden="true">S:</span>
                     {snapshot?.staged.length ?? 0}
                   </strong>
-                </div>
-                <div className="adl-tool-navigator__summary-stat">
+                </button>
+                <button
+                  type="button"
+                  className={`adl-tool-navigator__summary-stat${changesStatusFilter.has("modified") ? " is-active" : ""}`}
+                  onClick={() => handleStatusFilterClick("modified")}
+                  aria-pressed={changesStatusFilter.has("modified")}
+                  aria-label={t.changesModified}
+                >
                   <span className="adl-tool-navigator__summary-label">{t.changesModified}</span>
                   <strong className="adl-tool-navigator__summary-value">
                     <span className="adl-tool-navigator__summary-code" aria-hidden="true">M:</span>
                     {snapshot?.unstaged.length ?? 0}
                   </strong>
-                </div>
-                <div className="adl-tool-navigator__summary-stat">
+                </button>
+                <button
+                  type="button"
+                  className={`adl-tool-navigator__summary-stat${changesStatusFilter.has("untracked") ? " is-active" : ""}`}
+                  onClick={() => handleStatusFilterClick("untracked")}
+                  aria-pressed={changesStatusFilter.has("untracked")}
+                  aria-label={t.changesUntracked}
+                >
                   <span className="adl-tool-navigator__summary-label">{t.changesUntracked}</span>
                   <strong className="adl-tool-navigator__summary-value">
                     <span className="adl-tool-navigator__summary-code" aria-hidden="true">U:</span>
                     {snapshot?.untracked.length ?? 0}
                   </strong>
-                </div>
+                </button>
               </div>
             </div>
           ) : null}
@@ -855,6 +843,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
               getContextMenuItems={getContextMenuItems}
               expandLabel={t.expandDetails}
               collapseLabel={t.collapseDetails}
+              flat
             />
           ) : null}
           {changesNavigatorMode === "outline" ? (
@@ -871,7 +860,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
               <p className="adl-empty-hint adl-empty-hint--navigator">{t.noDiagnostics}</p>
             )
           ) : null}
-          {changeEntries.length === 0 && changesNavigatorMode !== "outline" ? <p className="adl-empty-hint adl-empty-hint--navigator">{t.changesEmpty}</p> : null}
+          {filteredChangeEntries.length === 0 && changesNavigatorMode !== "outline" ? <p className="adl-empty-hint adl-empty-hint--navigator">{t.changesEmpty}</p> : null}
           <div
             className="adl-tool-navigator__resize-handle"
             onPointerDown={handleNavigatorResizeStart}
