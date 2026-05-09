@@ -26,6 +26,45 @@ alwaysApply: true
 1. 开发阶段：先用 `npm run dev:browser` 在浏览器中快速迭代（方便 Agent 测试）
 2. 验证阶段：用 `npm run dev:both` 同时验证两种模式的一致性
 
+## 浏览器自动化命令
+
+### agent-browser（推荐 — 全功能终端自动化）
+
+| 命令 | 用途 |
+|------|------|
+| `agent-browser --session <name> open <url>` | 打开浏览器并导航 |
+| `agent-browser --session <name> eval <js>` | 执行 JavaScript（可调用 window.digitalLife.* API） |
+| `agent-browser --session <name> click <sel\|ref>` | 点击元素 |
+| `agent-browser --session <name> find role <role> <action> --name <name>` | 按 ARIA 角色定位元素 |
+| `agent-browser --session <name> screenshot <path>` | 截图 |
+| `agent-browser --session <name> snapshot -i` | 获取可访问性快照 |
+| `agent-browser --session <name> console` | 查看控制台日志 |
+| `agent-browser --session <name> errors` | 查看页面错误 |
+| `agent-browser --session <name> record start/stop` | 录制视频 |
+| `agent-browser --session <name> close --all` | 关闭浏览器及会话 |
+
+### Playwright CLI（仅支持静态截图，无交互命令）
+
+| 命令 | 用途 |
+|------|------|
+| `$env:PATH = "D:\Program Files\nodejs;E:\dev-tools\npm-global;$env:PATH"; $env:PLAYWRIGHT_BROWSERS_PATH = "E:\dev-tools\playwright-browsers"` | 环境设置 |
+| `playwright open <url>` | 打开浏览器 |
+| `playwright screenshot <url> <file>` | 截取页面截图 |
+
+> ⚠️ 本地安装的 Playwright CLI v1.59.1 **不支持** `click`、`fill`、`eval`、`snapshot` 等交互式命令。交互测试请使用 `agent-browser`。
+
+### Browser Harness
+
+| 命令 | 用途 |
+|------|------|
+| `$env:PATH = "E:\dev-tools\uv-bin;$env:PATH"; $env:BU_CDP_URL = "http://127.0.0.1:9222"` | 环境设置 |
+| `Start-Process "chrome.exe" -ArgumentList "--remote-debugging-port=9222", "--user-data-dir=E:\dev-tools\chrome-debug-profile"` | 启动 Chrome 调试模式 |
+| `browser-harness -c "new_tab('url'); wait_for_load()"` | 打开新标签页 |
+| `browser-harness -c "capture_screenshot()"` | 截图理解页面 |
+| `browser-harness -c "click_at_xy(x, y)"` | 坐标点击 |
+| `browser-harness -c "print(page_info())"` | 获取页面信息 |
+| `browser-harness -c "exec(open('script.py').read())"` | 执行脚本文件（推荐用于复杂流程） |
+
 ## 测试命令
 
 | 命令 | 用途 |

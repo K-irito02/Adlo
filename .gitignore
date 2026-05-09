@@ -38,3 +38,6 @@ ai-digital-life/.turbo/
 # Cursor IDE runtime cache
 .cursor/hooks/electron-profile/
 .cursor/hooks/.restart-desktop-dev.state.json*
+
+# Test artifacts
+dogfood-output/

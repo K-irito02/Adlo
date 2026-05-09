@@ -47,6 +47,19 @@
 | [_shared/states.md](./_shared/states.md) | 通用元素状态定义 |
 | [_shared/wait-conditions.md](./_shared/wait-conditions.md) | 通用等待条件模板 |
 
+## 浏览器自动化工具
+
+本手册支持四种浏览器自动化工具进行 UI 测试，按推荐优先级排列：
+
+| 工具 | 适用场景 | 环境设置 |
+|------|----------|----------|
+| **agent-browser**（推荐） | 全功能终端自动化：JS eval、find role、snapshot、console 检查、视频录制 | 全局安装，无需额外环境配置 |
+| **MCP Playwright Tools** | IDE 内置工具调用：快速迭代、JS evaluate、文件树测试 | 无需配置（IDE 内置） |
+| **Browser Harness** | 坐标点击、自愈工作流、连接用户真实 Chrome | `$env:PATH = "E:\dev-tools\uv-bin;$env:PATH"; $env:BU_CDP_URL = "http://127.0.0.1:9222"` |
+| **Playwright CLI** | 静态页面截图（**交互命令不可用**） | `$env:PATH = "D:\Program Files\nodejs;E:\dev-tools\npm-global;$env:PATH"; $env:PLAYWRIGHT_BROWSERS_PATH = "E:\dev-tools\playwright-browsers"` |
+
+详细命令参考见 `browser-automation` 技能。
+
 ## 使用方式
 
 ### 0. 建立测试会话上下文
