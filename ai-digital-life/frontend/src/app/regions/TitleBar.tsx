@@ -19,6 +19,7 @@ import {
 } from "../icons";
 import logoUrl from "/logo-chatgpt.png?url";
 import { useUiStore } from "../ui-store";
+import { isTauriShell } from "../../tauri-bridge";
 import { TooltipSimple } from "../components/Tooltip";
 
 interface TitleBarProps {
@@ -157,6 +158,7 @@ export function TitleBar({
   const nextLanguage = language === "zh-CN" ? "en-US" : "zh-CN";
 
   useEffect(() => {
+    if (!isTauriShell()) return;
     let cancelled = false;
     const syncMaximized = async () => {
       try {
@@ -174,8 +176,12 @@ export function TitleBar({
     };
   }, []);
 
-  const handleMinimize = useCallback(() => void window.digitalLife.window.minimize(), []);
+  const handleMinimize = useCallback(() => {
+    if (!isTauriShell()) return;
+    void window.digitalLife.window.minimize();
+  }, []);
   const handleMaximize = useCallback(async () => {
+    if (!isTauriShell()) return;
     await window.digitalLife.window.maximize();
     try {
       setIsMaximized(await window.digitalLife.window.isMaximized());
@@ -183,7 +189,10 @@ export function TitleBar({
       /* ignore */
     }
   }, []);
-  const handleClose = useCallback(() => void window.digitalLife.window.close(), []);
+  const handleClose = useCallback(() => {
+    if (!isTauriShell()) return;
+    void window.digitalLife.window.close();
+  }, []);
 
   const zoomBy = useCallback((delta: number) => {
     const current = parseFloat(getComputedStyle(document.documentElement).zoom || "1");
