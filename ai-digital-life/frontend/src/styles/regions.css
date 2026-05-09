@@ -4510,8 +4510,10 @@
 .adl-tool-editor__surface {
   flex: 1;
   min-height: 0;
+  min-width: 0;
   position: relative;
   isolation: isolate;
+  overflow: hidden;
   background: var(--editor-bg, var(--bg));
 }
 
@@ -4571,7 +4573,16 @@
   height: 0;
 }
 
-.adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-editor:first-child .cm-scroller {
+.adl-cm-scroller--minimap-scrollbar::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.adl-cm-scroller--minimap-scrollbar {
+  scrollbar-width: none;
+}
+
+.adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-editor .cm-scroller {
   padding-right: 0;
 }
 

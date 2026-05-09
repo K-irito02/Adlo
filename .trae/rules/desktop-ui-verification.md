@@ -24,6 +24,13 @@ alwaysApply: false
 3. 验证视觉效果与交互功能
 4. **双端验证**：在 Tauri 桌面和浏览器模式下分别确认功能一致
 
+### 使用浏览器自动化工具验证
+
+| 工具 | 验证方式 |
+|------|----------|
+| Playwright CLI | `playwright open http://localhost:5173` → `playwright snapshot` → 交互验证 → `playwright screenshot` |
+| Browser Harness | `browser-harness -c "new_tab('http://localhost:5173'); wait_for_load(); capture_screenshot()"` |
+
 ## 双端验证清单
 
 修改以下内容后必须在两种模式下分别验证：

@@ -7,11 +7,13 @@ const diffViewerSource = readFileSync(new URL("../../../../src/app/regions/right
 const regionsCssSource = readFileSync(new URL("../../../../src/styles/regions.css", import.meta.url), "utf8");
 
 function extractCssBlock(css: string, selector: string) {
-  const start = css.indexOf(selector);
+  const normalizedCss = css.replace(/\r\n/g, "\n");
+  const normalizedSelector = selector.replace(/\r\n/g, "\n");
+  const start = normalizedCss.indexOf(normalizedSelector);
   expect(start).toBeGreaterThanOrEqual(0);
-  const end = css.indexOf("\n}", start);
+  const end = normalizedCss.indexOf("\n}", start);
   expect(end).toBeGreaterThan(start);
-  return css.slice(start, end + 2);
+  return normalizedCss.slice(start, end + 2);
 }
 
 describe("CodeMirror preview styling", () => {
@@ -57,9 +59,8 @@ describe("CodeMirror preview styling", () => {
     expect(extractCssBlock(regionsCssSource, ".adl-cm-editor .cm-scroller,\n.adl-cm-diff-viewer .cm-scroller")).not.toContain("overflow-y: hidden");
   });
 
-  it("does not reserve minimap space in the original side-by-side diff pane", () => {
-    expect(regionsCssSource).toContain(".adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-editor:first-child .cm-scroller");
-    expect(regionsCssSource).toContain(".adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-editor");
+  it("does not reserve minimap space in side-by-side diff panes", () => {
+    expect(regionsCssSource).toContain(".adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-editor .cm-scroller");
     expect(regionsCssSource).toContain("padding-right: 0;");
   });
 });

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import { MergeView, unifiedMergeView } from "@codemirror/merge";
 import { EditorView, lineNumbers, highlightActiveLineGutter, highlightActiveLine, keymap } from "@codemirror/view";
 import { EditorState, Compartment } from "@codemirror/state";
@@ -17,6 +17,7 @@ import {
   updateMinimapDiffModel,
   type CmMinimapDiffModel
 } from "./cmMinimap";
+import { computePreviewDiffMinimapModel } from "./changePreviewDiffRanges";
 import type { AgentHunkDecoration } from "./agentDecorations";
 
 export type DiffViewerProps = {
@@ -112,6 +113,11 @@ function SideBySideDiffViewer({
     [language, theme, readOnly, lineNumbersEnabled, wordWrap, locale],
   );
 
+  const mergedMinimapModel = useMemo(() => {
+    if (minimapModel) return minimapModel;
+    return computePreviewDiffMinimapModel(original, modified);
+  }, [original, modified, minimapModel]);
+
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -152,8 +158,8 @@ function SideBySideDiffViewer({
 
     scrollHandlersRef.current = { handleScrollA, handleScrollB };
 
-    mv.a.scrollDOM.addEventListener("scroll", handleScrollA);
-    mv.b.scrollDOM.addEventListener("scroll", handleScrollB);
+    mv.a.scrollDOM.addEventListener("scroll", handleScrollA, { passive: true });
+    mv.b.scrollDOM.addEventListener("scroll", handleScrollB, { passive: true });
 
     mergeViewRef.current = mv;
 
@@ -196,9 +202,9 @@ function SideBySideDiffViewer({
     if (!mv?.b) return;
     updateMinimapDiffModel(
       mv.b,
-      minimapModel ?? (hunks ? minimapHunksToDiffModel(hunks, mv.b.state.doc.lines) : null)
+      mergedMinimapModel ?? (hunks ? minimapHunksToDiffModel(hunks, mv.b.state.doc.lines) : null)
     );
-  }, [hunks, minimapModel]);
+  }, [hunks, mergedMinimapModel]);
 
   useEffect(() => {
     rebuildThemes();
@@ -245,6 +251,11 @@ function InlineDiffViewer({
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
+
+  const mergedMinimapModel = useMemo(() => {
+    if (minimapModel) return minimapModel;
+    return computePreviewDiffMinimapModel(original, modified);
+  }, [original, modified, minimapModel]);
 
   const extensions = useMemo<Extension[]>(() => {
     const base = buildSharedExtensions(language, theme, readOnly, lineNumbersEnabled, wordWrap, locale);
@@ -313,9 +324,9 @@ function InlineDiffViewer({
     if (!view) return;
     updateMinimapDiffModel(
       view,
-      minimapModel ?? (hunks ? minimapHunksToDiffModel(hunks, view.state.doc.lines) : null)
+      mergedMinimapModel ?? (hunks ? minimapHunksToDiffModel(hunks, view.state.doc.lines) : null)
     );
-  }, [hunks, minimapModel]);
+  }, [hunks, mergedMinimapModel]);
 
   useEffect(() => {
     rebuildThemes();

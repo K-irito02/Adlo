@@ -31,10 +31,11 @@ alwaysApply: true
 |----------|----------|
 | 新增/重命名 package | `codebase-map.md` |
 | Tauri Command 变更 | `tauri-shell.md` |
-| 测试命令变更 | `quality-gates.md` |
+| 测试命令变更 | `quality-gates.md`、`commands.md` |
 | 设计系统变更 | `design-system.md` |
 | Phase 范围变更 | `phase-boundary.md` |
 | 双端一致性变更 | `tauri-shell.md`、`project-overview.md`、`desktop-ui-verification.md` |
+| 浏览器自动化工具变更 | `commands.md`、`browser-automation` 技能 |
 
 ## 相关文件
 

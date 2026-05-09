@@ -1,6 +1,6 @@
 ---
 name: "ai-digital-life-ui-testing"
-description: "AI Digital Life 项目 UI 自动化测试指南。包含项目特定的选择器定位策略、元素状态定义、等待条件模板。与 playwright-best-practices 和 vitest-testing 技能配合使用。"
+description: "AI Digital Life 项目 UI 自动化测试指南。包含项目特定的选择器定位策略、元素状态定义、等待条件模板，以及 Playwright CLI 和 Browser Harness 的项目专属操作命令。与 browser-automation 和 vitest-testing 技能配合使用。"
 ---
 
 # AI Digital Life UI 自动化测试
@@ -12,9 +12,33 @@ description: "AI Digital Life 项目 UI 自动化测试指南。包含项目特�
 | 技能 | 用途 | 与本技能的关系 |
 |------|------|----------------|
 | **本技能** | 项目特定的选择器和操作 | 提供项目特定的 UI 定位信息 |
-| `playwright-best-practices` | Playwright 通用最佳实践 | 提供测试架构和模式指导 |
+| `browser-automation` | Playwright CLI + Browser Harness 工具参考 | 提供工具的完整命令参考 |
 | `vitest-testing` | Vitest 单元测试模式 | 提供单元测试模式指导 |
-| `browser-testing-with-devtools` | 浏览器调试方法 | 提供 DevTools 调试方法 |
+| `run-project-surfaces` | 启动应用 | 提供应用启动方式 |
+
+## 测试工具选择
+
+| 场景 | 推荐工具 | 命令前缀 |
+|------|----------|----------|
+| 精确元素交互、E2E 测试 | Playwright CLI | `playwright` |
+| AI 驱动探索、自愈工作流 | Browser Harness | `browser-harness -c` |
+| 编写可重复测试脚本 | Playwright Test | `npx playwright test` |
+| 单元/组件测试 | Vitest | `npm test` |
+
+### 环境准备
+
+```powershell
+# Playwright CLI
+$env:PATH = "D:\Program Files\nodejs;E:\dev-tools\npm-global;$env:PATH"
+$env:PLAYWRIGHT_BROWSERS_PATH = "E:\dev-tools\playwright-browsers"
+
+# Browser Harness（需先启动 Chrome 调试模式）
+$env:PATH = "E:\dev-tools\uv-bin;$env:PATH"
+$env:BU_CDP_URL = "http://127.0.0.1:9222"
+
+# Chrome 调试模式（Browser Harness 前置条件）
+Start-Process "C:\Program Files\Google\Chrome\Application\chrome.exe" -ArgumentList "--remote-debugging-port=9222", "--user-data-dir=E:\dev-tools\chrome-debug-profile"
+```
 
 ## UI 操作手册
 
@@ -53,13 +77,11 @@ const selectors = {
   titlebar: '.adl-titlebar',
   brand: '.adl-titlebar__brand',
   fileMenu: '.adl-menu[data-menu-id="file"]',
-  titlebarActions: '[role="group"][aria-label="Titlebar actions"]',
-  panelControls: '[role="group"][aria-label="Panel controls"]',
-  themeBtn: '[role="group"][aria-label="Titlebar actions"] button[aria-label="主题"]',
+  themeBtn: 'button[aria-label="主题"]',
   langBtn: 'button[aria-label*="语言"]',
   settingsBtn: 'button[aria-label="设置"]',
-  leftPanelToggle: '[role="group"][aria-label="Panel controls"] button[aria-label="切换左侧边栏"]',
-  rightPanelToggle: '[role="group"][aria-label="Panel controls"] button[aria-label="切换右侧面板"]',
+  leftPanelToggle: 'button[aria-label="切换左侧边栏"]',
+  rightPanelToggle: 'button[aria-label="切换右侧面板"]',
   minimizeBtn: 'button[aria-label="最小化"]',
   maximizeBtn: 'button[aria-label="最大化"]',
   closeBtn: 'button[aria-label="关闭"]',
@@ -181,16 +203,94 @@ await page.waitForSelector('.adl-menu[data-menu-id="file"] .adl-menu__dropdown')
 await page.waitForSelector('.adl-menu__dropdown', { state: 'hidden' });
 ```
 
-## 测试示例
+## Playwright CLI 项目专属操作
+
+### 快速验证流程
+
+```bash
+# 1. 打开应用
+playwright open http://localhost:5173
+playwright snapshot
+
+# 2. 验证布局
+playwright click "getByRole('button', { name: '主题' })"
+playwright screenshot --filename=theme-test.png
+
+# 3. 测试发送消息
+playwright fill "[data-testid='composer-input']" "测试消息"
+playwright click "[data-testid='composer-send']"
+playwright snapshot
+
+# 4. 关闭
+playwright close
+```
+
+### 常用 Playwright CLI 选择器映射
+
+| 操作 | Playwright CLI 命令 |
+|------|---------------------|
+| 点击主题按钮 | `playwright click "button[aria-label='主题']"` |
+| 点击设置按钮 | `playwright click "button[aria-label='设置']"` |
+| 切换左侧边栏 | `playwright click "button[aria-label='切换左侧边栏']"` |
+| 切换右侧面板 | `playwright click "button[aria-label='切换右侧面板']"` |
+| 输入消息 | `playwright fill "[data-testid='composer-input']" "内容"` |
+| 发送消息 | `playwright click "[data-testid='composer-send']"` |
+| 读取页面标题 | `playwright eval "document.title"` |
+| 检查主题状态 | `playwright eval "document.documentElement.getAttribute('data-theme')"` |
+
+### 保存和恢复认证状态
+
+```bash
+# 登录后保存状态
+playwright state-save adl-auth.json
+
+# 下次直接恢复
+playwright state-load adl-auth.json
+```
+
+## Browser Harness 项目专属操作
+
+### 快速验证流程
+
+```powershell
+# 1. 打开应用
+browser-harness -c "new_tab('http://localhost:5173'); wait_for_load(); print(page_info())"
+
+# 2. 截图理解页面
+browser-harness -c "capture_screenshot()"
+
+# 3. 坐标点击（根据截图确定坐标）
+browser-harness -c "click_at_xy(100, 200)"
+
+# 4. 验证操作结果
+browser-harness -c "capture_screenshot()"
+```
+
+### 常用 Browser Harness DOM 查询
+
+```powershell
+# 读取标题栏文本
+browser-harness -c "js('document.querySelector("".adl-titlebar"").textContent')"
+
+# 检查主题状态
+browser-harness -c "js('document.documentElement.getAttribute(""data-theme"")')"
+
+# 获取消息数量
+browser-harness -c "js('document.querySelectorAll("".adl-message"").length')"
+
+# 检查面板状态
+browser-harness -c "js('document.querySelector("".adl-leftbar"").classList.contains(""adl-leftbar--collapsed"")')"
+```
+
+## Playwright Test 测试示例
 
 ### 基础 UI 测试
 
 ```typescript
 import { test, expect } from '@playwright/test';
-import { openPreviewWorkspace } from './support/previewWorkspace';
 
 test('should display main layout', async ({ page }) => {
-  await openPreviewWorkspace(page);
+  await page.goto('/');
   
   await expect(page.locator('.adl-titlebar')).toBeVisible();
   await expect(page.locator('.adl-leftbar')).toBeVisible();
@@ -199,22 +299,14 @@ test('should display main layout', async ({ page }) => {
 });
 
 test('should toggle theme', async ({ page }) => {
-  await openPreviewWorkspace(page);
+  await page.goto('/');
   
-  const themeBtn = page.locator('[role="group"][aria-label="Titlebar actions"] button[aria-label="主题"]');
-  const initialThemeMode = await page.evaluate(async () => {
-    const result = await window.digitalLife.app.getInfo();
-    return result.ok ? result.data.config.themeMode : undefined;
-  });
+  const themeBtn = page.locator('button[aria-label="主题"]');
   await themeBtn.click();
   
-  await expect.poll(async () => {
-    const result = await page.evaluate(async () => {
-      const next = await window.digitalLife.app.getInfo();
-      return next.ok ? next.data.config.themeMode : undefined;
-    });
-    return result;
-  }).not.toBe(initialThemeMode);
+  await page.waitForFunction(() => {
+    return document.documentElement.getAttribute('data-theme') !== null;
+  });
 });
 ```
 
@@ -224,16 +316,10 @@ test('should toggle theme', async ({ page }) => {
 test('should send message', async ({ page }) => {
   await page.goto('/');
   
-  // 输入消息
   await page.fill('[data-testid="composer-input"]', '你好');
-  
-  // 点击发送
   await page.click('[data-testid="composer-send"]');
   
-  // 等待用户消息出现
   await page.waitForSelector('.adl-message--user');
-  
-  // 等待助手响应
   await page.waitForSelector('.adl-message--assistant');
 });
 ```
@@ -244,7 +330,9 @@ test('should send message', async ({ page }) => {
 2. **动态渲染**：菜单下拉、弹出框等是动态渲染的，需要等待出现后再操作
 3. **异步加载**：文件树、会话列表等需要等待异步加载完成
 4. **状态检查**：操作前检查元素是否可交互（非 disabled、非 loading）
-5. **真实工作区前置条件**：独立浏览器会话需要显式恢复 workspace，避免依赖手工打开的页面状态
+5. **双端一致性**：所有 UI 测试必须在 Tauri 桌面和浏览器模式下分别验证
+6. **Browser Harness 坐标**：坐标点击依赖页面布局，布局变化后坐标需重新确定
+7. **Playwright CLI ref**：优先使用 snapshot 返回的 ref（如 `e15`），比 CSS 选择器更稳定
 
 ## 相关文档
 
@@ -252,3 +340,4 @@ test('should send message', async ({ page }) => {
 - [选择器定位策略](../../../UIOperationManual/_shared/selectors.md)
 - [元素状态定义](../../../UIOperationManual/_shared/states.md)
 - [等待条件模板](../../../UIOperationManual/_shared/wait-conditions.md)
+- [browser-automation 技能](../browser-automation/SKILL.md) — Playwright CLI + Browser Harness 完整命令参考

@@ -41,3 +41,6 @@ ai-digital-life/.turbo/
 
 # Test artifacts
 dogfood-output/
+
+# Windows reserved device name (causes git index errors)
+nul

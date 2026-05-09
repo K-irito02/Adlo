@@ -45,3 +45,9 @@ skills:
     priority: 91
     triggers: [version, migration, packaging, release, compatibility]
     conflicts_with: []
+  - id: browser-automation
+    path: .agents/skills/browser-automation/SKILL.md
+    owner_agents: [test-engineer, code-reviewer]
+    priority: 85
+    triggers: [browser, playwright, screenshot, scrape, ui-test, e2e, dogfood, qa, browser-harness, cdp]
+    conflicts_with: []

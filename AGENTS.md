@@ -109,6 +109,7 @@
 | 开发约束 | `docs/development/` |
 | IPC 契约 | `ai-digital-life/frontend/src/shared/ipc.ts` |
 | 进程边界 | `ai-digital-life/src-tauri/`、`ai-digital-life/crates/` |
+| UI 测试 | `UIOperationManual/`、`.trae/skills/browser-automation/` |
 
 ## 相关文档
 

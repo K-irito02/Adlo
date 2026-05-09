@@ -207,10 +207,11 @@ class MinimapPlugin implements PluginValue {
   private isDragging = false;
   private dragOffsetY = 0;
   private frame = 0;
-  private pendingScrollTop: number | null = null;
+  private pendingScrollLine: number | null = null;
   private diffModel: CmMinimapDiffModel | null = null;
   private host: HTMLElement;
   private notifyDragAfterRelease = false;
+  private handleWheel: (e: WheelEvent) => void;
 
   constructor(private view: EditorView, private options: CmMinimapExtensionOptions = {}) {
     this.settings = loadMinimapSettings();
@@ -233,6 +234,13 @@ class MinimapPlugin implements PluginValue {
     this.slider.addEventListener("pointerdown", this.handleSliderPointerDown);
     this.view.scrollDOM.addEventListener("scroll", this.handleEditorScroll, { passive: true });
 
+    this.handleWheel = (e: WheelEvent) => {
+      const scrollDom = this.view.scrollDOM;
+      scrollDom.scrollTop += e.deltaY;
+      e.preventDefault();
+    };
+    this.dom.addEventListener("wheel", this.handleWheel, { passive: false });
+
     this.host = view.dom;
     this.attachToHost();
     requestAnimationFrame(() => {
@@ -242,8 +250,6 @@ class MinimapPlugin implements PluginValue {
     });
 
     this.diffModel = view.state.field(minimapDiffModelField, false) ?? null;
-    this.render();
-    this.updateSlider();
     this.updateScrollbarStyle();
   }
 
@@ -251,13 +257,21 @@ class MinimapPlugin implements PluginValue {
     this.attachToHost();
     if (update.docChanged || update.viewportChanged || update.geometryChanged) {
       this.diffModel = update.state.field(minimapDiffModelField, false) ?? null;
-      this.render();
-      this.updateSlider();
+      this.scheduleRender();
     }
     if (update.transactions.some(tr => tr.effects.some(e => e.is(setMinimapDiffModel) || e.is(setMinimapDiffHunks)))) {
       this.diffModel = update.state.field(minimapDiffModelField, false) ?? null;
-      this.render();
+      this.scheduleRender();
     }
+  }
+
+  private scheduleRender() {
+    if (this.frame) return;
+    this.frame = requestAnimationFrame(() => {
+      this.frame = 0;
+      this.render();
+      this.updateSlider();
+    });
   }
 
   destroy() {
@@ -265,6 +279,7 @@ class MinimapPlugin implements PluginValue {
     this.canvas.removeEventListener("contextmenu", this.handleContextMenu);
     this.slider.removeEventListener("pointerdown", this.handleSliderPointerDown);
     this.view.scrollDOM.removeEventListener("scroll", this.handleEditorScroll);
+    this.dom.removeEventListener("wheel", this.handleWheel);
     if (this.frame) {
       cancelAnimationFrame(this.frame);
       this.frame = 0;
@@ -273,8 +288,17 @@ class MinimapPlugin implements PluginValue {
     this.dom.remove();
   }
 
+  private findSurfaceHost(): HTMLElement | null {
+    let el: HTMLElement | null = this.view.dom;
+    while (el) {
+      if (el.classList.contains("adl-tool-editor__surface")) return el;
+      el = el.parentElement;
+    }
+    return null;
+  }
+
   private attachToHost() {
-    const nextHost = this.view.dom.closest(".adl-tool-editor__surface") as HTMLElement | null ?? this.view.dom;
+    const nextHost = this.findSurfaceHost() ?? this.view.dom;
     if (nextHost === this.host && this.dom.parentElement === nextHost) {
       return;
     }
@@ -284,9 +308,38 @@ class MinimapPlugin implements PluginValue {
     this.host.style.setProperty("--adl-editor-minimap-width", `${this.settings.thumbnailSize}px`);
   }
 
+  private getEffectiveLineCount(): number {
+    const diffModel = this.diffModel;
+    const hasDiffRanges = diffModel && diffModel.ranges.length > 0;
+    if (hasDiffRanges && diffModel.lineColumns && diffModel.lineColumns.length > 0) {
+      return diffModel.lineColumns.length;
+    }
+    if (hasDiffRanges && diffModel.totalLines > 0) {
+      return diffModel.totalLines;
+    }
+    return this.view.state.doc.lines;
+  }
+
   private render() {
-    const lineColumns = this.diffModel?.lineColumns;
-    const lineCount = Math.max(1, lineColumns?.length ?? this.diffModel?.totalLines ?? this.view.state.doc.lines);
+    const docLineCount = this.view.state.doc.lines;
+    const diffModel = this.diffModel;
+    const hasDiffRanges = diffModel && diffModel.ranges.length > 0;
+
+    let lineCount: number;
+    let useDocLines: boolean;
+
+    if (hasDiffRanges && diffModel.lineColumns && diffModel.lineColumns.length > 0) {
+      lineCount = diffModel.lineColumns.length;
+      useDocLines = false;
+    } else if (hasDiffRanges && diffModel.totalLines > 0) {
+      lineCount = diffModel.totalLines;
+      useDocLines = false;
+    } else {
+      lineCount = docLineCount;
+      useDocLines = true;
+    }
+    lineCount = Math.max(1, lineCount);
+
     const width = this.settings.thumbnailSize;
     const height = Math.max(this.dom.clientHeight || this.view.scrollDOM.clientHeight || 1, 1);
     const dpr = window.devicePixelRatio || 1;
@@ -311,20 +364,22 @@ class MinimapPlugin implements PluginValue {
     const computedStyle = getComputedStyle(this.view.dom);
     const fgColor = computedStyle.color || "rgba(148, 163, 184, 0.45)";
 
+    const charWidth = width / 80;
+
     for (let i = 1; i <= lineCount; i++) {
-      const sourceLine = !lineColumns && i <= this.view.state.doc.lines ? this.view.state.doc.line(i) : null;
       const y = (i - 1) * renderMetrics.lineHeight;
       const lineHeight = renderMetrics.lineHeight;
       this.ctx.fillStyle = fgColor;
 
-      const charWidth = width / 80;
-      const lineColumnsValue = lineColumns?.[i - 1] ?? sourceLine?.length ?? 0;
+      const lineColumnsValue = useDocLines && i <= docLineCount
+        ? this.view.state.doc.line(i).length
+        : diffModel?.lineColumns?.[i - 1] ?? 0;
       const linePixelWidth = Math.min(lineColumnsValue * charWidth, width);
       if (linePixelWidth > 0) {
         this.ctx.fillRect(0, y, linePixelWidth, Math.max(1, lineHeight * 0.65));
       }
 
-      const segments = getMinimapDiffSegmentsForLine(this.diffModel, i);
+      const segments = getMinimapDiffSegmentsForLine(diffModel, i);
       for (const segment of segments) {
         this.ctx.fillStyle = this.getSegmentColor(segment);
         const laneWidth = width / Math.max(1, segment.laneCount);
@@ -336,28 +391,47 @@ class MinimapPlugin implements PluginValue {
   }
 
   private updateSlider() {
-    const scrollDom = this.view.scrollDOM;
-    const metrics = computeMinimapSliderMetrics({
-      scrollTop: scrollDom.scrollTop,
-      scrollHeight: scrollDom.scrollHeight,
-      clientHeight: scrollDom.clientHeight,
-      trackHeight: this.dom.clientHeight || scrollDom.clientHeight,
-    });
+    const lineCount = Math.max(1, this.getEffectiveLineCount());
+    const containerHeight = Math.max(1, this.dom.clientHeight || this.view.scrollDOM.clientHeight);
 
-    if (!metrics.visible) {
+    const viewport = this.view.viewport;
+    const docLines = this.view.state.doc.lines;
+    const firstLine = docLines > 0
+      ? this.view.state.doc.lineAt(Math.min(viewport.from, this.view.state.doc.length)).number
+      : 1;
+    const lastLine = docLines > 0
+      ? this.view.state.doc.lineAt(Math.min(viewport.to, this.view.state.doc.length)).number
+      : 1;
+    const visibleLineCount = Math.max(1, lastLine - firstLine + 1);
+
+    const sliderMinHeight = 20;
+    const rawSliderHeight = (visibleLineCount / lineCount) * containerHeight;
+    const sliderHeight = clamp(rawSliderHeight, Math.min(sliderMinHeight, containerHeight), containerHeight);
+    const maxSliderTop = Math.max(0, containerHeight - sliderHeight);
+    const sliderTop = lineCount <= visibleLineCount
+      ? 0
+      : ((firstLine - 1) / (lineCount - visibleLineCount)) * maxSliderTop;
+
+    if (lineCount <= visibleLineCount && containerHeight > 0) {
+      this.slider.style.display = "";
+      this.slider.style.top = "0px";
+      this.slider.style.height = `${containerHeight}px`;
+      return;
+    }
+
+    if (containerHeight <= 0) {
       this.slider.style.display = "none";
       return;
     }
 
     this.slider.style.display = "";
-    this.slider.style.top = `${metrics.top}px`;
-    this.slider.style.height = `${metrics.height}px`;
+    this.slider.style.top = `${sliderTop}px`;
+    this.slider.style.height = `${sliderHeight}px`;
   }
 
   private handleCanvasPointerDown = (e: PointerEvent) => {
     if (e.button === 0) {
       e.preventDefault();
-      this.expandCollapsedLines();
       this.notifyDragAfterRelease = true;
       this.isDragging = true;
       const sliderRect = this.slider.getBoundingClientRect();
@@ -374,7 +448,6 @@ class MinimapPlugin implements PluginValue {
     if (e.button === 0) {
       e.preventDefault();
       e.stopPropagation();
-      this.expandCollapsedLines();
       this.notifyDragAfterRelease = true;
       this.isDragging = true;
       const sliderRect = this.slider.getBoundingClientRect();
@@ -413,24 +486,42 @@ class MinimapPlugin implements PluginValue {
   };
 
   private scrollToPointer(pointerY: number) {
-    const scrollDom = this.view.scrollDOM;
+    const lineCount = Math.max(1, this.getEffectiveLineCount());
+    const containerHeight = Math.max(1, this.dom.clientHeight || this.view.scrollDOM.clientHeight);
+
+    const viewport = this.view.viewport;
+    const docLines = this.view.state.doc.lines;
+    const firstLine = docLines > 0
+      ? this.view.state.doc.lineAt(Math.min(viewport.from, this.view.state.doc.length)).number
+      : 1;
+    const lastLine = docLines > 0
+      ? this.view.state.doc.lineAt(Math.min(viewport.to, this.view.state.doc.length)).number
+      : 1;
+    const visibleLineCount = Math.max(1, lastLine - firstLine + 1);
+
+    const sliderMinHeight = 20;
+    const rawSliderHeight = (visibleLineCount / lineCount) * containerHeight;
+    const sliderHeight = clamp(rawSliderHeight, Math.min(sliderMinHeight, containerHeight), containerHeight);
+
     const rect = this.dom.getBoundingClientRect();
-    const sliderHeight = this.slider.getBoundingClientRect().height;
-    this.pendingScrollTop = computeMinimapScrollTopFromPointer({
-      pointerY,
-      trackTop: rect.top,
-      dragOffsetY: this.dragOffsetY,
-      scrollHeight: scrollDom.scrollHeight,
-      clientHeight: scrollDom.clientHeight,
-      trackHeight: rect.height,
-      sliderHeight,
-    });
+    const trackTravel = Math.max(1, containerHeight - sliderHeight);
+    const sliderTop = clamp(pointerY - rect.top - this.dragOffsetY, 0, trackTravel);
+    const ratio = sliderTop / trackTravel;
+    const targetLine = Math.max(1, Math.min(lineCount, Math.round(ratio * (lineCount - visibleLineCount + 1)) + 1));
+
+    this.pendingScrollLine = targetLine;
     if (this.frame) return;
     this.frame = requestAnimationFrame(() => {
       this.frame = 0;
-      if (this.pendingScrollTop === null) return;
-      scrollDom.scrollTop = this.pendingScrollTop;
-      this.pendingScrollTop = null;
+      if (this.pendingScrollLine === null) return;
+      const line = this.pendingScrollLine;
+      this.pendingScrollLine = null;
+      if (line <= this.view.state.doc.lines) {
+        const pos = this.view.state.doc.line(line).from;
+        this.view.dispatch({
+          effects: EditorView.scrollIntoView(pos, { y: "start" }),
+        });
+      }
       this.updateSlider();
     });
   }
@@ -449,11 +540,6 @@ class MinimapPlugin implements PluginValue {
   private handleEditorScroll = () => {
     this.updateSlider();
   };
-
-  private expandCollapsedLines() {
-    const collapsedLines = this.view.dom.querySelectorAll<HTMLElement>(".cm-collapsedLines");
-    collapsedLines.forEach((element) => element.click());
-  }
 
   private getSegmentColor(segment: CmMinimapDiffSegment): string {
     const computedStyle = getComputedStyle(this.view.dom);
@@ -598,10 +684,10 @@ class MinimapPlugin implements PluginValue {
     const rect = e.currentTarget instanceof Element ? e.currentTarget.getBoundingClientRect() : document.body.getBoundingClientRect();
     let menuX = e.clientX;
     let menuY = e.clientY;
-    
+
     const menuWidth = 160;
     const menuHeight = items.filter(i => !i.separator).length * 28 + items.filter(i => i.separator).length * 8 + 8;
-    
+
     if (menuX + menuWidth > window.innerWidth) {
       menuX = window.innerWidth - menuWidth - 8;
     }
