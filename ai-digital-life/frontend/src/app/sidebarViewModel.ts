@@ -100,21 +100,56 @@ export function buildSidebarViewModel(input: {
   const hasPendingApproval = (input.taskCenter?.pendingApprovals.length ?? 0) > 0;
   const visibleEntries = entries.filter((entry) => !entry.removedFromSidebar);
   const knownWorkspaceIds = new Set(visibleEntries.map((entry) => entry.id));
-  const sessionItems = input.sessions.map((session) => ({
-    session,
-    status: computeSessionVisualStatus(session, input.streamingActiveRunId, hasPendingApproval),
-    isUnread: isSessionUnread(session)
-  }));
+
+  const workspaceSessionBuckets = new Map<
+    string,
+    {
+      activeSessions: SidebarSessionItem[];
+      archivedSessions: SidebarSessionItem[];
+      statusCounts: Record<SessionVisualStatus, number>;
+    }
+  >();
+  for (const workspace of visibleEntries) {
+    workspaceSessionBuckets.set(workspace.id, {
+      activeSessions: [],
+      archivedSessions: [],
+      statusCounts: emptyStatusCounts()
+    });
+  }
+
+  const standaloneSessions: SidebarSessionItem[] = [];
+  const standaloneArchivedSessions: SidebarSessionItem[] = [];
+  for (const session of input.sessions) {
+    const item: SidebarSessionItem = {
+      session,
+      status: computeSessionVisualStatus(session, input.streamingActiveRunId, hasPendingApproval),
+      isUnread: isSessionUnread(session)
+    };
+    const bucket = knownWorkspaceIds.has(session.workspaceId)
+      ? workspaceSessionBuckets.get(session.workspaceId)
+      : undefined;
+    if (!bucket) {
+      if (session.archivedAt) {
+        standaloneArchivedSessions.push(item);
+      } else {
+        standaloneSessions.push(item);
+      }
+      continue;
+    }
+    if (session.archivedAt) {
+      bucket.archivedSessions.push(item);
+      continue;
+    }
+    bucket.activeSessions.push(item);
+    bucket.statusCounts[item.status] += 1;
+  }
 
   const workspaces = visibleEntries.map((workspace) => {
     const isCurrent = currentWorkspace?.id === workspace.id;
-    const workspaceSessionItems = sessionItems.filter((item) => item.session.workspaceId === workspace.id);
-    const activeSessions = workspaceSessionItems.filter((item) => !item.session.archivedAt);
-    const archivedSessions = workspaceSessionItems.filter((item) => Boolean(item.session.archivedAt));
-    const statusCounts = emptyStatusCounts();
-    for (const item of activeSessions) {
-      statusCounts[item.status] += 1;
-    }
+    const bucket = workspaceSessionBuckets.get(workspace.id);
+    const activeSessions = bucket?.activeSessions ?? [];
+    const archivedSessions = bucket?.archivedSessions ?? [];
+    const statusCounts = bucket?.statusCounts ?? emptyStatusCounts();
     const rollupStatus =
       STATUS_PRIORITY.find((status) => statusCounts[status] > 0) ??
       (activeSessions.length > 0 ? "read" : "read");
@@ -129,12 +164,10 @@ export function buildSidebarViewModel(input: {
     };
   });
 
-  const standaloneSessionItems = sessionItems.filter((item) => !knownWorkspaceIds.has(item.session.workspaceId));
-
   return {
     workspaces,
-    standaloneSessions: standaloneSessionItems.filter((item) => !item.session.archivedAt),
-    standaloneArchivedSessions: standaloneSessionItems.filter((item) => Boolean(item.session.archivedAt))
+    standaloneSessions,
+    standaloneArchivedSessions
   };
 }
 

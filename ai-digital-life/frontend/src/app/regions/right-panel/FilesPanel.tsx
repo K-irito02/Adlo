@@ -53,7 +53,7 @@ import {
   IconUnfoldVertical
 } from "../../icons";
 import { TooltipSimple } from "../../components/Tooltip";
-import { useUiStore } from "../../ui-store";
+import { useUiStore, type FilesNavigatorMode } from "../../ui-store";
 import { useNavigatorResize } from "../../hooks/useNavigatorResize";
 import { StickyContext } from "./stickyContextView";
 import { collectDirectoryPaths, FileTree } from "./fileTree";
@@ -71,8 +71,6 @@ import {
   type StickyContextModel,
 } from "./stickyContext";
 import type { RightPanelViewProps } from "./types";
-
-type FilesNavigatorMode = "tree" | "search" | "outline";
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -203,7 +201,6 @@ export function FilesPanel(props: RightPanelViewProps) {
     onCreateWorkspaceFolder,
     onSetDiffLayout
   } = props;
-  const [navigatorMode, setNavigatorMode] = useState<FilesNavigatorMode>("tree");
   const [fileMenuOpen, setFileMenuOpen] = useState(false);
   const [replaceOpen, setReplaceOpen] = useState(false);
   const [replaceQuery, setReplaceQuery] = useState("");
@@ -220,7 +217,10 @@ export function FilesPanel(props: RightPanelViewProps) {
   const [minimapSettings, setMinimapSettings] = useState<CmMinimapSettings>(loadMinimapSettings);
   const minimapSettingsRef = useRef(minimapSettings);
   minimapSettingsRef.current = minimapSettings;
-  const [previewEnabled, setPreviewEnabled] = useState(false);
+  const navigatorMode = useUiStore((state) => state.filesNavigatorMode);
+  const setNavigatorMode = useUiStore((state) => state.setFilesNavigatorMode);
+  const filePreviewModeByPath = useUiStore((state) => state.filePreviewModeByPath);
+  const setFilePreviewModeForPath = useUiStore((state) => state.setFilePreviewModeForPath);
   const navigatorCollapsed = useUiStore((state) => state.navigatorCollapsedByTool.files);
   const toggleNavigator = useUiStore((state) => state.toggleNavigator);
   const filesNavigatorWidth = useUiStore((state) => state.filesNavigatorWidth);
@@ -241,10 +241,24 @@ export function FilesPanel(props: RightPanelViewProps) {
   const cmViewRef = useRef<EditorView | null>(null);
   const localDiffEditorRef = useRef<DiffEditorRef | EditorRef | null>(null);
   const [stickyContextModel, setStickyContextModel] = useState<StickyContextModel | null>(null);
+  const stickyContextFrameRef = useRef<number | null>(null);
+  const stickyContextKeyRef = useRef<string>("");
   const [stickyEditorReady, setStickyEditorReady] = useState(0);
   const resolvedTheme = appInfo?.config.resolvedTheme === "dark" ? "dark" : "light";
   const resolvedLocale = appInfo?.config.language ?? "zh-CN";
   const fileCategory = useMemo(() => categorizeFile(selectedFilePath), [selectedFilePath]);
+  const previewEnabled = selectedFilePath
+    ? filePreviewModeByPath[selectedFilePath] ?? fileCategory === "markdown"
+    : false;
+  const setPreviewEnabled = useCallback(
+    (enabled: boolean) => {
+      if (!selectedFilePath) {
+        return;
+      }
+      setFilePreviewModeForPath(selectedFilePath, enabled);
+    },
+    [selectedFilePath, setFilePreviewModeForPath]
+  );
   const dirtyPaths = useMemo(
     () => new Set(dirtyEditorPaths.map((pathValue) => normalizeWorkspaceRelativePath(pathValue))),
     [dirtyEditorPaths]
@@ -361,10 +375,6 @@ export function FilesPanel(props: RightPanelViewProps) {
   }, [expandFileTreePathChain, selectedFilePath]);
 
   useEffect(() => {
-    setPreviewEnabled(fileCategory === "markdown");
-  }, [fileCategory, selectedFilePath]);
-
-  useEffect(() => {
     if (!activeFilePatch || !props.selectedPatchHunkId) {
       return;
     }
@@ -449,8 +459,8 @@ export function FilesPanel(props: RightPanelViewProps) {
       return [];
     }
     return searchResults.filter((result) => {
-      const localPattern = new RegExp(searchPattern.source, searchPattern.flags);
-      return localPattern.test(`${result.path}\n${result.preview}`);
+      searchPattern.lastIndex = 0;
+      return searchPattern.test(`${result.path}\n${result.preview}`);
     });
   }, [searchPattern, searchQuery, searchResults]);
   const handleCopyPath = async (value?: string) => {
@@ -645,6 +655,7 @@ export function FilesPanel(props: RightPanelViewProps) {
 
   const refreshStickyContext = useCallback(() => {
     if (!selectedFilePath) {
+      stickyContextKeyRef.current = "";
       setStickyContextModel(null);
       return;
     }
@@ -661,6 +672,13 @@ export function FilesPanel(props: RightPanelViewProps) {
       maxContextRows: 3,
       diffRanges: filePatch && filePatch.relativePath === selectedFilePath ? stickyDiffRanges : undefined
     });
+    const nextContextKey = `${selectedFilePath}:${visibleStartLine}:${contextEntries
+      .map((entry) => `${entry.line}:${entry.kind}:${entry.tone}:${entry.label}:${entry.detail ?? ""}`)
+      .join("|")}`;
+    if (stickyContextKeyRef.current === nextContextKey) {
+      return;
+    }
+    stickyContextKeyRef.current = nextContextKey;
 
     setStickyContextModel(createStickyContextModel({
       contextEntries,
@@ -681,36 +699,51 @@ export function FilesPanel(props: RightPanelViewProps) {
 
   useEffect(() => {
     if (!selectedFilePath) {
+      stickyContextKeyRef.current = "";
       setStickyContextModel(null);
       return;
     }
 
-    refreshStickyContext();
+    const queueRefreshStickyContext = () => {
+      if (stickyContextFrameRef.current !== null) {
+        return;
+      }
+      stickyContextFrameRef.current = window.requestAnimationFrame(() => {
+        stickyContextFrameRef.current = null;
+        refreshStickyContext();
+      });
+    };
+
+    queueRefreshStickyContext();
     const editor = getStickySourceEditor();
     if (!editor) {
       return;
     }
 
     const disposables = [
-      editor.onDidScrollChange?.(refreshStickyContext),
-      editor.onDidChangeHiddenAreas?.(refreshStickyContext),
-      editor.onDidLayoutChange?.(refreshStickyContext)
+      editor.onDidScrollChange?.(queueRefreshStickyContext),
+      editor.onDidChangeHiddenAreas?.(queueRefreshStickyContext),
+      editor.onDidLayoutChange?.(queueRefreshStickyContext)
     ].filter(Boolean) as Array<{ dispose(): void }>;
 
     const shell = editorSurfaceRef.current;
     const observer =
       shell && typeof ResizeObserver !== "undefined"
-        ? new ResizeObserver(() => refreshStickyContext())
+        ? new ResizeObserver(() => queueRefreshStickyContext())
         : null;
     if (observer && shell) {
       observer.observe(shell);
     }
 
-    window.addEventListener("resize", refreshStickyContext);
+    window.addEventListener("resize", queueRefreshStickyContext);
     return () => {
       disposables.forEach((disposable) => disposable.dispose());
       observer?.disconnect();
-      window.removeEventListener("resize", refreshStickyContext);
+      window.removeEventListener("resize", queueRefreshStickyContext);
+      if (stickyContextFrameRef.current !== null) {
+        window.cancelAnimationFrame(stickyContextFrameRef.current);
+        stickyContextFrameRef.current = null;
+      }
     };
   }, [getStickySourceEditor, refreshStickyContext, selectedFilePath, stickyEditorReady, wordWrapEnabled, diffSideBySide]);
 
@@ -944,7 +977,7 @@ export function FilesPanel(props: RightPanelViewProps) {
             <button
               type="button"
               className="adl-tool-context__iconbtn"
-              onClick={() => setNavigatorMode((current) => (current === "search" ? "tree" : "search"))}
+              onClick={() => setNavigatorMode(navigatorMode === "search" ? "tree" : "search")}
               aria-label={navigatorMode === "search" ? t.browserBack : t.search}
             >
               {navigatorMode === "search" ? <IconReturn size={14} decorative /> : <IconSearch size={14} decorative />}
@@ -980,7 +1013,7 @@ export function FilesPanel(props: RightPanelViewProps) {
             <button
               type="button"
               className={`adl-tool-context__iconbtn${previewEnabled ? " is-active" : ""}`}
-              onClick={() => setPreviewEnabled((value) => !value)}
+              onClick={() => setPreviewEnabled(!previewEnabled)}
               aria-label={previewEnabled ? t.filePreview : t.fileEdit}
               aria-pressed={previewEnabled ? "true" : "false"}
             >

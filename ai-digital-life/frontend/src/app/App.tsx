@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 import type { AppInfo, ModelProviderId } from "@ai-digital-life/kernel";
 import { copy, type Locale } from "./copy";
 import { DIFF_LAYOUT_STORAGE_KEY } from "./constants";
@@ -35,9 +36,7 @@ function readDiffSideBySidePreference(): boolean {
 }
 
 export function App() {
-  const store = useAppStore();
   const {
-    loading,
     error,
     appInfo,
     recentWorkspaces,
@@ -80,6 +79,7 @@ export function App() {
     pickWorkspaceDirectory,
     createSession,
     selectSession,
+    renameSession,
     pinSession,
     unpinSession,
     markSessionRead,
@@ -123,7 +123,96 @@ export function App() {
     fetchGitBranches,
     switchGitBranch,
     createGitBranch
-  } = store;
+  } = useAppStore(
+    useShallow((state) => ({
+      error: state.error,
+      appInfo: state.appInfo,
+      recentWorkspaces: state.recentWorkspaces,
+      sessions: state.sessions,
+      activeSessionId: state.activeSessionId,
+      sessionDetails: state.sessionDetails,
+      activeRun: state.activeRun,
+      activePatchSet: state.activePatchSet,
+      latestPatchApplication: state.latestPatchApplication,
+      taskCenter: state.taskCenter,
+      modelHealth: state.modelHealth,
+      indexingStatus: state.indexingStatus,
+      repoMap: state.repoMap,
+      auditEntries: state.auditEntries,
+      commandHistory: state.commandHistory,
+      gitSnapshot: state.gitSnapshot,
+      gitBranches: state.gitBranches,
+      workspaceContextMode: state.workspaceContextMode,
+      pendingWorkspacePath: state.pendingWorkspacePath,
+      latestCommandRun: state.latestCommandRun,
+      terminalOutput: state.terminalOutput,
+      activeTerminalExecutionId: state.activeTerminalExecutionId,
+      openTabs: state.openTabs,
+      selectedFilePath: state.selectedFilePath,
+      selectedChangePreviewPath: state.selectedChangePreviewPath,
+      changePreview: state.changePreview,
+      changePreviewLoading: state.changePreviewLoading,
+      fileContent: state.fileContent,
+      fileLastModifiedAt: state.fileLastModifiedAt,
+      externalFileChange: state.externalFileChange,
+      outline: state.outline,
+      workspaceTree: state.workspaceTree,
+      searchQuery: state.searchQuery,
+      searchResults: state.searchResults,
+      dirtyEditorPaths: state.dirtyEditorPaths,
+      bootstrap: state.bootstrap,
+      openWorkspace: state.openWorkspace,
+      clearWorkspaceContext: state.clearWorkspaceContext,
+      setPendingWorkspacePath: state.setPendingWorkspacePath,
+      pickWorkspaceDirectory: state.pickWorkspaceDirectory,
+      createSession: state.createSession,
+      selectSession: state.selectSession,
+      renameSession: state.renameSession,
+      pinSession: state.pinSession,
+      unpinSession: state.unpinSession,
+      markSessionRead: state.markSessionRead,
+      markSessionUnread: state.markSessionUnread,
+      archiveSession: state.archiveSession,
+      archiveAllSessions: state.archiveAllSessions,
+      pinWorkspace: state.pinWorkspace,
+      unpinWorkspace: state.unpinWorkspace,
+      removeWorkspaceFromSidebar: state.removeWorkspaceFromSidebar,
+      reorderWorkspaces: state.reorderWorkspaces,
+      reorderSessions: state.reorderSessions,
+      markAllSessionsRead: state.markAllSessionsRead,
+      revealWorkspaceInFileManager: state.revealWorkspaceInFileManager,
+      deleteSession: state.deleteSession,
+      sendMessage: state.sendMessage,
+      cancelActiveStream: state.cancelActiveStream,
+      streamingAssistantText: state.streamingAssistantText,
+      streamingActiveRunId: state.streamingActiveRunId,
+      runActivityByRunId: state.runActivityByRunId,
+      runUsageByRunId: state.runUsageByRunId,
+      openFile: state.openFile,
+      openChangePreview: state.openChangePreview,
+      createWorkspaceFile: state.createWorkspaceFile,
+      createWorkspaceFolder: state.createWorkspaceFolder,
+      refreshWorkspaceTree: state.refreshWorkspaceTree,
+      searchFiles: state.searchFiles,
+      setHunkDecision: state.setHunkDecision,
+      applyPatchSet: state.applyPatchSet,
+      rollbackPatchSet: state.rollbackPatchSet,
+      acceptAllHunks: state.acceptAllHunks,
+      rejectAllHunks: state.rejectAllHunks,
+      refreshTaskCenter: state.refreshTaskCenter,
+      decideApproval: state.decideApproval,
+      markExternalFileChange: state.markExternalFileChange,
+      notifyEditorBufferDirty: state.notifyEditorBufferDirty,
+      runCommand: state.runCommand,
+      runCommandStream: state.runCommandStream,
+      stopCommandStream: state.stopCommandStream,
+      refreshModelHealth: state.refreshModelHealth,
+      updatePreferences: state.updatePreferences,
+      fetchGitBranches: state.fetchGitBranches,
+      switchGitBranch: state.switchGitBranch,
+      createGitBranch: state.createGitBranch
+    }))
+  );
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -591,16 +680,6 @@ export function App() {
     [searchFiles]
   );
 
-  if (loading) {
-    return (
-      <main className="adl-shell" aria-busy="true">
-        <div className="adl-shell__loading">
-          <p>{t.loading}</p>
-        </div>
-      </main>
-    );
-  }
-
   const hasWorkspace = !!appInfo?.currentWorkspace;
 
   return (
@@ -644,7 +723,7 @@ export function App() {
           onReorderWorkspaces={(input) => void reorderWorkspaces(input)}
           onPinSession={(sessionId) => void pinSession(sessionId)}
           onUnpinSession={(sessionId) => void unpinSession(sessionId)}
-          onRenameSession={(sessionId, title) => void store.renameSession(sessionId, title)}
+          onRenameSession={(sessionId, title) => void renameSession(sessionId, title)}
           onArchiveSession={(sessionId) => void archiveSession(sessionId)}
           onArchiveAllSessions={() => void archiveAllSessions()}
           onMarkSessionRead={(sessionId) => void markSessionRead(sessionId)}

@@ -109,6 +109,13 @@ await page.keyboard.type('new content');
 await page.locator('.adl-tool-context__group--files-actions .adl-tool-context__iconbtn').first().click();
 ```
 
+### 切换连续性约定
+
+1. 点击文件树节点后，文件树 active 态应立即切换；命中缓存时目标内容应直接显示。
+2. 未命中缓存时，旧文件内容应保持可见直到新文件读取完成，不允许先清空编辑器或预览区。
+3. 预览 / 编辑模式切换不得出现“加载预览”或其它显式加载文案。
+4. 文件工具切走再切回时，应恢复上次的导航模式和预览/编辑模式，而不是回退到默认态。
+
 ### 显示语义与视觉约定
 
 > 文件工具中的代码文件、普通文本、Markdown 编辑态与 Markdown 预览态，共用一套“安静专业”的预览语义。颜色由主题 token 驱动，不应在组件里写死。

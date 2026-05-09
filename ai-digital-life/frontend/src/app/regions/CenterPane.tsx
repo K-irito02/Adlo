@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 import type {
   AgentRunDetail,
   AppInfo,
@@ -412,7 +413,17 @@ export function CenterPane({
     setContextMenuOpen,
     addContextChip,
     removeContextChip
-  } = useUiStore();
+  } = useUiStore(
+    useShallow((state) => ({
+      chatMode: state.chatMode,
+      contextChips: state.contextChips,
+      contextMenuOpen: state.contextMenuOpen,
+      setChatMode: state.setChatMode,
+      setContextMenuOpen: state.setContextMenuOpen,
+      addContextChip: state.addContextChip,
+      removeContextChip: state.removeContextChip
+    }))
+  );
 
   const messages = activeDetail?.messages ?? [];
   const visibleMessages = useMemo(

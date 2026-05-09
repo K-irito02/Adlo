@@ -59,6 +59,7 @@ await pinBtn.click();
 - 添加 `.is-active` 类
 - 背景色高亮
 - 右侧面板显示会话详情
+- 旧消息内容在新会话详情准备完成前保持可见，不应先清空成空白区域
 
 ```javascript
 // 检查是否为激活会话
@@ -66,6 +67,12 @@ const isActive = await page.evaluate((item) => {
   return item.classList.contains('is-active');
 }, sessionItem);
 ```
+
+### 切换连续性约定
+
+1. 点击会话后，左侧激活态必须立即切换。
+2. 会话详情刷新期间不得出现整屏闪烁、空白壳层或显式 `loading` 文案。
+3. 连续快速切换多个会话时，只允许最后一次点击生效；过期请求返回后不得覆盖当前会话。
 
 ## 会话限制控制
 

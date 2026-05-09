@@ -113,6 +113,15 @@ await page.click('.adl-workspace-item:not(.is-current) .adl-workspace-row');
 await page.click('.adl-workspace-item.is-current .adl-workspace-row');
 ```
 
+### 切换连续性约定
+
+> 工作区切换采用“即时反馈 + 后台准备 + 原子提交”策略。
+
+1. 点击非当前工作区后，左侧选中态应在 1 帧内切换到目标工作区。
+2. 切换期间主区域、右侧工具区和左侧列表不得整屏清空，不显示显式 `loading` 文案。
+3. 旧工作区内容在新数据准备完成前继续保持可见；新工作区快照准备完成后一次性替换。
+4. 连续点击多个工作区时，过期请求结果必须丢弃，不能回跳到较早点击的工作区。
+
 #### 展开/折叠会话列表
 
 ```javascript

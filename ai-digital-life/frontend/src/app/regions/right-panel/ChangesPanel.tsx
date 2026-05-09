@@ -193,6 +193,8 @@ export function ChangesPanel(props: RightPanelViewProps) {
   const setChangesNavigatorWidth = useUiStore((state) => state.setChangesNavigatorWidth);
   const changesNavigatorMode = useUiStore((state) => state.changesNavigatorMode);
   const setChangesNavigatorMode = useUiStore((state) => state.setChangesNavigatorMode);
+  const previewEnabled = useUiStore((state) => state.changesPreviewEnabled);
+  const setPreviewEnabled = useUiStore((state) => state.setChangesPreviewEnabled);
   const expandedPaths = useUiStore((state) => state.expandedChangesTreePaths);
   const toggleChangesTreePath = useUiStore((state) => state.toggleChangesTreePath);
   const setChangesTreePathExpanded = useUiStore((state) => state.setChangesTreePathExpanded);
@@ -212,7 +214,6 @@ export function ChangesPanel(props: RightPanelViewProps) {
   const editorRef = useRef<DiffEditorRef | EditorRef | null>(null);
   const [editorReady, setEditorReady] = useState(0);
   const [stickyContextModel, setStickyContextModel] = useState<StickyContextModel | null>(null);
-  const [previewEnabled, setPreviewEnabled] = useState(false);
   const [forceExpandUnchangedDiff, setForceExpandUnchangedDiff] = useState(false);
   const [pendingOutlineRevealLine, setPendingOutlineRevealLine] = useState<number | null>(null);
   const [changesStatusFilter, setChangesStatusFilter] = useState<Set<ChangeFileState>>(() => new Set());
@@ -333,10 +334,6 @@ export function ChangesPanel(props: RightPanelViewProps) {
     }
     expandChangesTreePathChain(navigatorSelectedPath);
   }, [expandChangesTreePathChain, navigatorSelectedPath]);
-
-  useEffect(() => {
-    setPreviewEnabled(false);
-  }, [selectedChangePreviewPath, selectedPatchFilePath]);
 
   useEffect(() => {
     setForceExpandUnchangedDiff(false);
@@ -636,7 +633,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
             <button
               type="button"
               className={`adl-tool-context__iconbtn${previewEnabled ? " is-active" : ""}`}
-              onClick={() => setPreviewEnabled((value) => !value)}
+              onClick={() => setPreviewEnabled(!previewEnabled)}
               aria-label={previewEnabled ? t.filePreview : t.fileEdit}
               aria-pressed={previewEnabled ? "true" : "false"}
               disabled={!changePreview}

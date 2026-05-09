@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 import type {
   AppInfo,
   ConversationSessionRecord,
@@ -459,7 +460,12 @@ export function LeftSidebar({
   onOpenWorkspace,
   onTriggerCreateWorkspace
 }: LeftSidebarProps) {
-  const { expandedSessionWorkspaces, toggleSessionWorkspace } = useUiStore();
+  const { expandedSessionWorkspaces, toggleSessionWorkspace } = useUiStore(
+    useShallow((state) => ({
+      expandedSessionWorkspaces: state.expandedSessionWorkspaces,
+      toggleSessionWorkspace: state.toggleSessionWorkspace
+    }))
+  );
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [conversationsCollapsed, setConversationsCollapsed] = useState(false);
   const [hoveredSessionId, setHoveredSessionId] = useState<string>();

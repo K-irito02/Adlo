@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 import type { AppInfo } from "@ai-digital-life/kernel";
 import type { CopyDict } from "../copy";
 import {
@@ -153,7 +154,22 @@ export function TitleBar({
     setViewMenuOpen,
     setHelpMenuOpen,
     closeAllMenus
-  } = useUiStore();
+  } = useUiStore(
+    useShallow((state) => ({
+      leftCollapsed: state.leftCollapsed,
+      rightCollapsed: state.rightCollapsed,
+      toggleLeft: state.toggleLeft,
+      toggleRight: state.toggleRight,
+      toggleBoth: state.toggleBoth,
+      fileMenuOpen: state.fileMenuOpen,
+      viewMenuOpen: state.viewMenuOpen,
+      helpMenuOpen: state.helpMenuOpen,
+      setFileMenuOpen: state.setFileMenuOpen,
+      setViewMenuOpen: state.setViewMenuOpen,
+      setHelpMenuOpen: state.setHelpMenuOpen,
+      closeAllMenus: state.closeAllMenus
+    }))
+  );
   const language = appInfo?.config.language ?? "zh-CN";
   const nextLanguage = language === "zh-CN" ? "en-US" : "zh-CN";
 

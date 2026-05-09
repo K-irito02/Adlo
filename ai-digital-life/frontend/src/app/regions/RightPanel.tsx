@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useId, useRef } from "react";
-import { RIGHT_PANEL_WIDTH_MAX, RIGHT_PANEL_WIDTH_MIN, useUiStore } from "../ui-store";
+import { RIGHT_PANEL_WIDTH_MAX, RIGHT_PANEL_WIDTH_MIN, useUiStore, type ToolId } from "../ui-store";
 import { BrowserPanel } from "./right-panel/BrowserPanel";
 import { ChangesPanel } from "./right-panel/ChangesPanel";
 import { FilesPanel } from "./right-panel/FilesPanel";
@@ -21,6 +21,37 @@ interface RightPanelLayoutMetrics {
   leftWidth: number;
   rightMaxWidth: number;
   overlayThreshold: number;
+}
+
+interface ActiveToolPanelProps extends RightPanelViewProps {
+  activeTool: ToolId;
+  idBase: string;
+}
+
+function ActiveToolPanel({ activeTool, idBase, ...props }: ActiveToolPanelProps) {
+  const panelId = `${idBase}-${activeTool}-panel`;
+  const tabId = `${idBase}-${activeTool}-tab`;
+  return (
+    <div
+      id={panelId}
+      role="tabpanel"
+      aria-labelledby={tabId}
+      tabIndex={0}
+      className="adl-rightpanel__tool is-active"
+    >
+      {activeTool === "files" ? <FilesPanel {...props} /> : null}
+      {activeTool === "changes" ? <ChangesPanel {...props} /> : null}
+      {activeTool === "browser" ? <BrowserPanel {...props} /> : null}
+      {activeTool === "terminal" ? <TerminalPanel {...props} /> : null}
+      {activeTool === "audit" ? <AuditPanel t={props.t} entries={props.auditEntries} /> : null}
+      {activeTool === "models" ? (
+        <ModelHealthPanel t={props.t} modelHealth={props.modelHealth as any} onRefresh={props.onRefreshModelHealth} />
+      ) : null}
+      {activeTool === "settings" ? (
+        <SettingsPanel t={props.t} settings={props.settings} onChangeSetting={props.onChangeSetting} />
+      ) : null}
+    </div>
+  );
 }
 
 export function RightPanel(props: RightPanelViewProps) {
@@ -313,76 +344,7 @@ export function RightPanel(props: RightPanelViewProps) {
           }}
         />
 
-        <div
-          id={`${panelIdBase}-files-panel`}
-          role="tabpanel"
-          aria-labelledby={`${panelIdBase}-files-tab`}
-          tabIndex={0}
-          className={`adl-rightpanel__tool${activeTool === "files" ? " is-active" : ""}`}
-          hidden={activeTool !== "files"}
-        >
-          <FilesPanel {...props} />
-        </div>
-        <div
-          id={`${panelIdBase}-changes-panel`}
-          role="tabpanel"
-          aria-labelledby={`${panelIdBase}-changes-tab`}
-          tabIndex={0}
-          className={`adl-rightpanel__tool${activeTool === "changes" ? " is-active" : ""}`}
-          hidden={activeTool !== "changes"}
-        >
-          <ChangesPanel {...props} />
-        </div>
-        <div
-          id={`${panelIdBase}-browser-panel`}
-          role="tabpanel"
-          aria-labelledby={`${panelIdBase}-browser-tab`}
-          tabIndex={0}
-          className={`adl-rightpanel__tool${activeTool === "browser" ? " is-active" : ""}`}
-          hidden={activeTool !== "browser"}
-        >
-          <BrowserPanel {...props} />
-        </div>
-        <div
-          id={`${panelIdBase}-terminal-panel`}
-          role="tabpanel"
-          aria-labelledby={`${panelIdBase}-terminal-tab`}
-          tabIndex={0}
-          className={`adl-rightpanel__tool${activeTool === "terminal" ? " is-active" : ""}`}
-          hidden={activeTool !== "terminal"}
-        >
-          <TerminalPanel {...props} />
-        </div>
-        <div
-          id={`${panelIdBase}-audit-panel`}
-          role="tabpanel"
-          aria-labelledby={`${panelIdBase}-audit-tab`}
-          tabIndex={0}
-          className={`adl-rightpanel__tool${activeTool === "audit" ? " is-active" : ""}`}
-          hidden={activeTool !== "audit"}
-        >
-          <AuditPanel t={props.t} entries={props.auditEntries} />
-        </div>
-        <div
-          id={`${panelIdBase}-models-panel`}
-          role="tabpanel"
-          aria-labelledby={`${panelIdBase}-models-tab`}
-          tabIndex={0}
-          className={`adl-rightpanel__tool${activeTool === "models" ? " is-active" : ""}`}
-          hidden={activeTool !== "models"}
-        >
-          <ModelHealthPanel t={props.t} modelHealth={props.modelHealth as any} onRefresh={props.onRefreshModelHealth} />
-        </div>
-        <div
-          id={`${panelIdBase}-settings-panel`}
-          role="tabpanel"
-          aria-labelledby={`${panelIdBase}-settings-tab`}
-          tabIndex={0}
-          className={`adl-rightpanel__tool${activeTool === "settings" ? " is-active" : ""}`}
-          hidden={activeTool !== "settings"}
-        >
-          <SettingsPanel t={props.t} settings={props.settings} onChangeSetting={props.onChangeSetting} />
-        </div>
+        <ActiveToolPanel {...props} activeTool={activeTool} idBase={panelIdBase} />
       </div>
     </aside>
   );

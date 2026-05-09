@@ -12,6 +12,7 @@ export type ToolId = "files" | "changes" | "browser" | "terminal" | "audit" | "s
 export type ChatMode = "plan" | "debug" | "ask";
 export type TerminalProfile = "powershell" | "bash" | "cmd";
 export type TerminalLayout = "single" | "vertical" | "horizontal";
+export type FilesNavigatorMode = "tree" | "search" | "outline";
 export type ChangesNavigatorMode = "tree" | "list" | "outline";
 
 export interface ContextChip {
@@ -61,6 +62,9 @@ const TERMINAL_NAVIGATOR_WIDTH_KEY = "adl-ui:terminal-navigator-width";
 const NAVIGATOR_COLLAPSED_KEY = "adl-ui:navigator-collapsed";
 const FILE_TREE_EXPANDED_KEY = "adl-ui:file-tree-expanded";
 const CHANGES_TREE_EXPANDED_KEY = "adl-ui:changes-tree-expanded";
+const FILES_NAVIGATOR_MODE_KEY = "adl-ui:files-navigator-mode";
+const FILE_PREVIEW_MODE_KEY = "adl-ui:file-preview-mode";
+const CHANGES_PREVIEW_ENABLED_KEY = "adl-ui:changes-preview-enabled";
 const CHANGES_NAVIGATOR_MODE_KEY = "adl-ui:changes-navigator-mode";
 const BROWSER_TABS_KEY = "adl-ui:browser-tabs";
 const BROWSER_ACTIVE_TAB_KEY = "adl-ui:browser-active-tab";
@@ -143,6 +147,26 @@ function readChangesNavigatorMode(): ChangesNavigatorMode {
 function writeChangesNavigatorMode(mode: ChangesNavigatorMode): void {
   try {
     window.localStorage.setItem(CHANGES_NAVIGATOR_MODE_KEY, mode);
+  } catch {
+    /* ignore */
+  }
+}
+
+function readFilesNavigatorMode(): FilesNavigatorMode {
+  try {
+    const raw = window.localStorage.getItem(FILES_NAVIGATOR_MODE_KEY);
+    if (raw === "tree" || raw === "search" || raw === "outline") {
+      return raw;
+    }
+  } catch {
+    /* ignore */
+  }
+  return "tree";
+}
+
+function writeFilesNavigatorMode(mode: FilesNavigatorMode): void {
+  try {
+    window.localStorage.setItem(FILES_NAVIGATOR_MODE_KEY, mode);
   } catch {
     /* ignore */
   }
@@ -298,6 +322,9 @@ export interface UiState {
   navigatorCollapsedByTool: Record<ToolId, boolean>;
   expandedFileTreePaths: Record<string, boolean>;
   expandedChangesTreePaths: Record<string, boolean>;
+  filesNavigatorMode: FilesNavigatorMode;
+  filePreviewModeByPath: Record<string, boolean>;
+  changesPreviewEnabled: boolean;
   changesNavigatorMode: ChangesNavigatorMode;
   expandedSessionWorkspaces: Record<string, boolean>;
   browserTabs: BrowserTabState[];
@@ -332,6 +359,9 @@ export interface UiState {
   toggleFileTreePath: (path: string) => void;
   expandFileTreePathChain: (path: string) => void;
   collapseAllFileTreePaths: () => void;
+  setFilesNavigatorMode: (mode: FilesNavigatorMode) => void;
+  setFilePreviewModeForPath: (path: string, previewEnabled: boolean) => void;
+  setChangesPreviewEnabled: (previewEnabled: boolean) => void;
   setChangesNavigatorMode: (mode: ChangesNavigatorMode) => void;
   setChangesTreePathExpanded: (path: string, expanded: boolean) => void;
   toggleChangesTreePath: (path: string) => void;
@@ -399,6 +429,9 @@ export const useUiStore = create<UiState>((set) => ({
   navigatorCollapsedByTool: initialNavigatorCollapsed,
   expandedFileTreePaths: readJson<Record<string, boolean>>(FILE_TREE_EXPANDED_KEY, {}),
   expandedChangesTreePaths: readJson<Record<string, boolean>>(CHANGES_TREE_EXPANDED_KEY, {}),
+  filesNavigatorMode: readFilesNavigatorMode(),
+  filePreviewModeByPath: readJson<Record<string, boolean>>(FILE_PREVIEW_MODE_KEY, {}),
+  changesPreviewEnabled: readFlag(CHANGES_PREVIEW_ENABLED_KEY, false),
   changesNavigatorMode: readChangesNavigatorMode(),
   expandedSessionWorkspaces: readJson<Record<string, boolean>>(SESSION_TABS_EXPANDED_KEY, {}),
   browserTabs: initialBrowserTabs,
@@ -506,6 +539,20 @@ export const useUiStore = create<UiState>((set) => ({
   collapseAllFileTreePaths: () => {
     scheduleJsonWrite(FILE_TREE_EXPANDED_KEY, {});
     set({ expandedFileTreePaths: {} });
+  },
+  setFilesNavigatorMode: (mode) => {
+    writeFilesNavigatorMode(mode);
+    set({ filesNavigatorMode: mode });
+  },
+  setFilePreviewModeForPath: (path, previewEnabled) =>
+    set((state) => {
+      const next = { ...state.filePreviewModeByPath, [path]: previewEnabled };
+      scheduleJsonWrite(FILE_PREVIEW_MODE_KEY, next);
+      return { filePreviewModeByPath: next };
+    }),
+  setChangesPreviewEnabled: (previewEnabled) => {
+    writeFlag(CHANGES_PREVIEW_ENABLED_KEY, previewEnabled);
+    set({ changesPreviewEnabled: previewEnabled });
   },
   setChangesNavigatorMode: (mode) => {
     writeChangesNavigatorMode(mode);

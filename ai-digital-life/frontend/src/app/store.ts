@@ -48,6 +48,60 @@ import {
 import { useUiStore, type ToolId } from "./ui-store";
 
 let terminalStreamUnsub: (() => void) | undefined;
+let workspaceRequestSeq = 0;
+let sessionRequestSeq = 0;
+let fileRequestSeq = 0;
+let changePreviewRequestSeq = 0;
+
+type CachedFileDocument = {
+  content: string;
+  lastModifiedAt: number;
+};
+
+type CachedChangePreview = WorkspaceChangePreview;
+
+const FILE_DOCUMENT_CACHE_LIMIT = 32;
+const CHANGE_PREVIEW_CACHE_LIMIT = 32;
+const fileDocumentCache = new Map<string, CachedFileDocument>();
+const changePreviewCache = new Map<string, CachedChangePreview>();
+
+function getWorkspaceCachePrefix(appInfo?: AppInfo): string {
+  return appInfo?.currentWorkspace?.id ?? "global";
+}
+
+function getWorkspaceScopedCacheKey(appInfo: AppInfo | undefined, relativePath: string): string {
+  return `${getWorkspaceCachePrefix(appInfo)}:${normalizeWorkspaceRelativePath(relativePath)}`;
+}
+
+function getCachedLru<T>(cache: Map<string, T>, key: string): T | undefined {
+  const cached = cache.get(key);
+  if (cached === undefined) {
+    return undefined;
+  }
+  cache.delete(key);
+  cache.set(key, cached);
+  return cached;
+}
+
+function setCachedLru<T>(cache: Map<string, T>, key: string, value: T, limit: number): void {
+  if (cache.has(key)) {
+    cache.delete(key);
+  }
+  cache.set(key, value);
+  while (cache.size > limit) {
+    const oldest = cache.keys().next().value;
+    if (oldest === undefined) {
+      return;
+    }
+    cache.delete(oldest);
+  }
+}
+
+function queueLowPriorityRefresh(refresh: () => Promise<void>): void {
+  window.setTimeout(() => {
+    void refresh();
+  }, 0);
+}
 
 async function refreshConversationSlice(activeSessionId?: string) {
   const conversationState = await loadConversationState(activeSessionId);
@@ -208,13 +262,17 @@ export const useAppStore = create<StoreState>((set, get) => ({
   currentModel: 'GPT-4o',
   composerMessage: '',
   bootstrap: async () => {
-    set({ loading: true, error: undefined });
+    const requestSeq = workspaceRequestSeq;
+    set({ error: undefined });
 
     const [appInfoResult, recentResult, modelHealthResult] = await Promise.all([
       window.digitalLife.app.getInfo(),
       window.digitalLife.workspace.listRecent(),
       window.digitalLife.app.getModelHealth()
     ]);
+    if (requestSeq !== workspaceRequestSeq) {
+      return;
+    }
 
     if (!appInfoResult.ok) {
       set({ loading: false, error: appInfoResult.error.message });
@@ -225,6 +283,9 @@ export const useAppStore = create<StoreState>((set, get) => ({
       loadConversationState(),
       loadTaskCenterState()
     ]);
+    if (requestSeq !== workspaceRequestSeq) {
+      return;
+    }
 
     const nextState: Partial<StoreState> = {
       appInfo: appInfoResult.data,
@@ -243,10 +304,29 @@ export const useAppStore = create<StoreState>((set, get) => ({
     void window.digitalLife.workspace.setEditorDirtyPaths([]);
 
     if (appInfoResult.data.currentWorkspace) {
-      const treeResult = await window.digitalLife.workspace.listTree();
+      const [treeResult, gitStatusResult] = await Promise.all([
+        window.digitalLife.workspace.listTree(),
+        window.digitalLife.workspace.getGitStatus()
+      ]);
+      if (requestSeq !== workspaceRequestSeq) {
+        return;
+      }
+      const gitSnapshot = gitStatusResult.ok ? gitStatusResult.data : undefined;
+      const appInfoWithGitSnapshot =
+        gitSnapshot && appInfoResult.data.currentWorkspace
+          ? {
+              ...appInfoResult.data,
+              currentWorkspace: {
+                ...appInfoResult.data.currentWorkspace,
+                gitSnapshot
+              }
+            }
+          : appInfoResult.data;
       set({
         ...nextState,
+        appInfo: appInfoWithGitSnapshot,
         workspaceTree: treeResult.ok ? treeResult.data : [],
+        gitSnapshot,
         dirtyEditorPaths: []
       });
       if (conversationState.detail?.messages.length) {
@@ -255,6 +335,9 @@ export const useAppStore = create<StoreState>((set, get) => ({
           .find((block) => block.type === "patch-summary");
         if (patchBlock?.type === "patch-summary") {
           const patchResult = await window.digitalLife.patch.getPatchSet(patchBlock.patchSetId);
+          if (requestSeq !== workspaceRequestSeq) {
+            return;
+          }
           if (patchResult.ok) {
             const initialPath = patchResult.data?.filePatches[0]?.relativePath;
             set({
@@ -268,13 +351,17 @@ export const useAppStore = create<StoreState>((set, get) => ({
           }
         }
       }
-      await Promise.allSettled([
-        get().fetchIndexStatus(),
-        get().fetchAuditEntries(40),
-        get().fetchCommandHistory(),
-        get().fetchGitStatus(),
-        get().fetchGitBranches()
-      ]);
+      queueLowPriorityRefresh(async () => {
+        if (requestSeq !== workspaceRequestSeq) {
+          return;
+        }
+        await Promise.allSettled([
+          get().fetchIndexStatus(),
+          get().fetchAuditEntries(40),
+          get().fetchCommandHistory(),
+          get().fetchGitBranches()
+        ]);
+      });
       return;
     }
 
@@ -302,7 +389,14 @@ export const useAppStore = create<StoreState>((set, get) => ({
     });
   },
   openWorkspace: async (workspacePath: string) => {
+    const requestSeq = ++workspaceRequestSeq;
+    fileRequestSeq += 1;
+    changePreviewRequestSeq += 1;
+    sessionRequestSeq += 1;
     const result = await window.digitalLife.workspace.open(workspacePath);
+    if (requestSeq !== workspaceRequestSeq) {
+      return;
+    }
     if (!result.ok) {
       set({ error: result.error.message });
       return;
@@ -310,7 +404,14 @@ export const useAppStore = create<StoreState>((set, get) => ({
     await get().bootstrap();
   },
   clearWorkspaceContext: async () => {
+    const requestSeq = ++workspaceRequestSeq;
+    fileRequestSeq += 1;
+    changePreviewRequestSeq += 1;
+    sessionRequestSeq += 1;
     const result = await window.digitalLife.workspace.clearCurrent();
+    if (requestSeq !== workspaceRequestSeq) {
+      return;
+    }
     if (!result.ok) {
       set({ error: result.error.message });
       return;
@@ -347,21 +448,24 @@ export const useAppStore = create<StoreState>((set, get) => ({
     }));
   },
   selectSession: async (sessionId: string) => {
+    const requestSeq = ++sessionRequestSeq;
+    set({ activeSessionId: sessionId, error: undefined });
     const markReadResult = await window.digitalLife.conversation.markSessionRead({ sessionId });
+    if (requestSeq !== sessionRequestSeq) {
+      return;
+    }
     if (!markReadResult.ok) {
       set({ error: markReadResult.error.message });
       return;
     }
-    const result = await window.digitalLife.conversation.getSession(sessionId);
-    if (!result.ok) {
-      set({ error: result.error.message });
+    const conversationState = await refreshConversationSlice(sessionId);
+    if (requestSeq !== sessionRequestSeq) {
       return;
     }
-    const conversationState = await refreshConversationSlice(sessionId);
     set((state) => ({
       sessions: conversationState.sessions,
-      activeSessionId: sessionId,
-      sessionDetails: result.data ? { ...state.sessionDetails, [sessionId]: result.data } : state.sessionDetails
+      activeSessionId: conversationState.activeSessionId,
+      sessionDetails: conversationState.detail ? { ...state.sessionDetails, [sessionId]: conversationState.detail } : state.sessionDetails
     }));
   },
   renameSession: async (sessionId: string, title: string) => {
@@ -710,45 +814,81 @@ export const useAppStore = create<StoreState>((set, get) => ({
     }
   },
   openFile: async (relativePath: string) => {
+    const requestSeq = ++fileRequestSeq;
+    const cacheKey = getWorkspaceScopedCacheKey(get().appInfo, relativePath);
+    const cachedDocument = getCachedLru(fileDocumentCache, cacheKey);
+    const applyDocument = (document: CachedFileDocument, outlineOverride?: FileOutlineItem[]) => {
+      const nextOutline = outlineOverride ?? buildOutlineFromContent(document.content, relativePath);
+      const norm = normalizeWorkspaceRelativePath(relativePath);
+      set((state) => {
+        const nextDirty = state.dirtyEditorPaths.filter((p) => normalizeWorkspaceRelativePath(p) !== norm);
+        void window.digitalLife.workspace.setEditorDirtyPaths(nextDirty);
+        return {
+          error: undefined,
+          openTabs: state.openTabs.some((tab) => tab.path === relativePath)
+            ? state.openTabs
+            : [...state.openTabs, createEditorTab(relativePath)],
+          selectedFilePath: relativePath,
+          fileContent: document.content,
+          fileLastModifiedAt: document.lastModifiedAt,
+          externalFileChange: state.externalFileChange?.path === relativePath ? undefined : state.externalFileChange,
+          outline: nextOutline,
+          dirtyEditorPaths: nextDirty
+        };
+      });
+    };
+
+    if (cachedDocument) {
+      applyDocument(cachedDocument);
+    } else {
+      set((state) => ({
+        error: undefined,
+        openTabs: state.openTabs.some((tab) => tab.path === relativePath)
+          ? state.openTabs
+          : [...state.openTabs, createEditorTab(relativePath)],
+        selectedFilePath: relativePath
+      }));
+    }
+
     const fileResult = await window.digitalLife.workspace.readFile(relativePath);
+    if (requestSeq !== fileRequestSeq) {
+      return;
+    }
     if (!fileResult.ok) {
       set({ error: fileResult.error.message });
       return;
     }
     const nextOutline = buildOutlineFromContent(fileResult.data.content, relativePath);
-    const norm = normalizeWorkspaceRelativePath(relativePath);
-    set((state) => {
-      const nextDirty = state.dirtyEditorPaths.filter((p) => normalizeWorkspaceRelativePath(p) !== norm);
-      void window.digitalLife.workspace.setEditorDirtyPaths(nextDirty);
-      return {
-        openTabs: state.openTabs.some((tab) => tab.path === relativePath)
-          ? state.openTabs
-          : [...state.openTabs, createEditorTab(relativePath)],
-        selectedFilePath: relativePath,
-        fileContent: fileResult.data.content,
-        fileLastModifiedAt: fileResult.data.lastModifiedAt,
-        externalFileChange: state.externalFileChange?.path === relativePath ? undefined : state.externalFileChange,
-        outline: nextOutline,
-        dirtyEditorPaths: nextDirty
-      };
-    });
+    const nextDocument: CachedFileDocument = {
+      content: fileResult.data.content,
+      lastModifiedAt: fileResult.data.lastModifiedAt
+    };
+    setCachedLru(fileDocumentCache, cacheKey, nextDocument, FILE_DOCUMENT_CACHE_LIMIT);
+    applyDocument(nextDocument, nextOutline);
   },
   openChangePreview: async (relativePath: string) => {
+    const requestSeq = ++changePreviewRequestSeq;
+    const cacheKey = getWorkspaceScopedCacheKey(get().appInfo, relativePath);
+    const cachedPreview = getCachedLru(changePreviewCache, cacheKey);
     set({
       selectedChangePreviewPath: relativePath,
-      changePreviewLoading: true,
-      changePreview: undefined,
+      changePreview: cachedPreview ?? get().changePreview,
+      changePreviewLoading: false,
       error: undefined
     });
     const result = await window.digitalLife.workspace.getChangePreview(relativePath);
+    if (requestSeq !== changePreviewRequestSeq) {
+      return;
+    }
     if (!result.ok) {
       set({
         selectedChangePreviewPath: relativePath,
         changePreviewLoading: false,
-        changePreview: undefined
+        changePreview: get().changePreview?.path === relativePath ? undefined : get().changePreview
       });
       return;
     }
+    setCachedLru(changePreviewCache, cacheKey, result.data, CHANGE_PREVIEW_CACHE_LIMIT);
     set({
       selectedChangePreviewPath: relativePath,
       changePreviewLoading: false,

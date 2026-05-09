@@ -98,4 +98,36 @@ describe("buildSidebarViewModel", () => {
     expect(viewModel.workspaces[0]?.workspace.id).toBe("workspace_live");
     expect(viewModel.workspaces[0]?.isCurrent).toBe(true);
   });
+
+  it("groups large workspace and session lists without changing visible ordering", () => {
+    const recentWorkspaces = Array.from({ length: 12 }, (_, index) =>
+      buildWorkspace(`workspace_${index}`, `E:/workspace-${index}`)
+    );
+    const sessions = recentWorkspaces.flatMap((workspace, workspaceIndex) =>
+      Array.from({ length: 8 }, (_, sessionIndex) =>
+        buildSession(`session_${workspaceIndex}_${sessionIndex}`, workspace.id)
+      )
+    );
+    sessions.push(buildSession("session-global", GLOBAL_WORKSPACE_ID));
+    sessions[3] = { ...sessions[3], archivedAt: now, status: "archived" };
+
+    const viewModel = buildSidebarViewModel({ recentWorkspaces, sessions });
+
+    expect(viewModel.workspaces.map((item) => item.workspace.id)).toEqual(
+      recentWorkspaces.map((workspace) => workspace.id)
+    );
+    expect(viewModel.workspaces[0]?.sessions.map((item) => item.session.id)).toEqual([
+      "session_0_0",
+      "session_0_1",
+      "session_0_2",
+      "session_0_4",
+      "session_0_5",
+      "session_0_6",
+      "session_0_7"
+    ]);
+    expect(viewModel.workspaces[0]?.archivedSessions.map((item) => item.session.id)).toEqual([
+      "session_0_3"
+    ]);
+    expect(viewModel.standaloneSessions.map((item) => item.session.id)).toEqual(["session-global"]);
+  });
 });

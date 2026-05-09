@@ -283,3 +283,129 @@ indentClassName={`adl-filetree__indent${flat ? " adl-filetree__indent--flat" : "
 - 状态筛选支持组合筛选,提供更灵活的文件过滤
 - 窗口控制按钮在双端保持UI一致性,减少用户困惑
 - 状态筛选按钮采用透明背景设计,视觉更轻盈
+
+---
+
+## 1. 高层摘要 (TL;DR)
+
+*   **影响范围：** 🟡 **中等** - 增强了TitleBar组件在不同运行环境下的兼容性
+*   **核心变更：**
+    *   ✅ 导入 `isTauriShell()` 环境检测函数
+    *   ✅ 为所有窗口控制操作（最小化、最大化、关闭、同步状态）添加环境检查
+    *   ✅ 防止在非Tauri环境（如浏览器）中调用不存在的窗口API导致运行时错误
+
+---
+
+## 2. 可视化概览 (逻辑流程图)
+
+```mermaid
+graph TD
+    subgraph "TitleBar.tsx 组件"
+        A["TitleBar 组件初始化"]
+        B["导入 isTauriShell()"]
+        C["useEffect: syncMaximized"]
+        D["handleMinimize"]
+        E["handleMaximize"]
+        F["handleClose"]
+    end
+
+    subgraph "环境检测逻辑"
+        G["isTauriShell() 检查"]
+        H["✅ Tauri 环境"]
+        I["❌ 非 Tauri 环境<br/>(浏览器等)"]
+        J["执行窗口操作<br/>window.digitalLife.window.*"]
+        K["提前返回<br/>(不执行操作)"]
+    end
+
+    A --> B
+    B --> C
+    B --> D
+    B --> E
+    B --> F
+
+    C --> G
+    D --> G
+    E --> G
+    F --> G
+
+    G -->|true| H
+    G -->|false| I
+
+    H --> J
+    I --> K
+
+    style G fill:#fff3e0,color:#e65100
+    style H fill:#c8e6c9,color:#1a5e20
+    style I fill:#ffcdd2,color:#c62828
+    style J fill:#bbdefb,color:#0d47a1
+    style K fill:#f3e5f5,color:#7b1fa2
+```
+
+---
+
+## 3. 详细变更分析
+
+### 📦 组件：TitleBar 窗口控制模块
+
+**变更文件：** `ai-digital-life/frontend/src/app/regions/TitleBar.tsx`
+
+#### 🔄 导入变更
+
+| 变更类型 | 代码 | 说明 |
+|---------|------|------|
+| **新增导入** | `import { isTauriShell } from "../../tauri-bridge";` | 引入环境检测函数，用于判断当前是否运行在Tauri桌面环境中 |
+
+#### 🛡️ 环境兼容性增强
+
+为以下 **4个关键函数** 添加了 `isTauriShell()` 环境检查：
+
+| 函数名 | 变更内容 | 业务目的 |
+|--------|---------|---------|
+| **`syncMaximized`** (useEffect内) | 添加 `if (!isTauriShell()) return;` | 同步窗口最大化状态到UI，仅在Tauri环境执行 |
+| **`handleMinimize`** | 添加 `if (!isTauriShell()) return;` | 处理窗口最小化操作 |
+| **`handleMaximize`** | 添加 `if (!isTauriShell()) return;` | 处理窗口最大化/还原操作 |
+| **`handleClose`** | 添加 `if (!isTauriShell()) return;` | 处理窗口关闭操作 |
+
+#### 💡 代码逻辑说明
+
+**变更前：**
+```typescript
+const handleMinimize = useCallback(() =>
+  void window.digitalLife.window.minimize(),
+[]);
+```
+❌ **问题**：在浏览器环境中，`window.digitalLife` 不存在，会导致运行时错误。
+
+**变更后：**
+```typescript
+const handleMinimize = useCallback(() => {
+  if (!isTauriShell()) return;  // ✅ 环境检查
+  void window.digitalLife.window.minimize();
+}, []);
+```
+✅ **改进**：先检查环境，非Tauri环境直接返回，避免调用不存在的API。
+
+---
+
+## 4. 影响与风险评估
+
+### ⚠️ 破坏性变更
+**无** - 这是一个纯防御性改进，不改变现有API或行为。
+
+### ✅ 兼容性改进
+*   **浏览器环境：** 现在可以在浏览器中安全地渲染该组件，不会因调用Tauri API而崩溃
+*   **Tauri环境：** 行为保持不变，窗口控制功能正常工作
+
+### 🧪 测试建议
+
+| 测试场景 | 预期行为 |
+|---------|---------|
+| **Tauri桌面环境** | 窗口最小化/最大化/关闭按钮正常工作，窗口状态正确同步 |
+| **浏览器环境** | 组件正常渲染，点击窗口控制按钮无响应（静默忽略），无控制台错误 |
+| **环境切换** | 在开发和生产环境之间切换时，组件行为自动适配 |
+
+### 🔍 潜在风险
+*   🟢 **低风险** - 变更为纯防御性代码，不影响现有功能
+*   ⚠️ **注意点** - 确保 `isTauriShell()` 函数实现正确，能准确识别运行环境
+
+---
