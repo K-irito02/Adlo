@@ -48,4 +48,9 @@ describe("loading and switching performance guards", () => {
     expect(sidebarViewModelSource).not.toContain("sessionItems.filter((item) => item.session.workspaceId === workspace.id)");
     expect(filesPanelSource).not.toContain("new RegExp(searchPattern.source, searchPattern.flags)");
   });
+
+  it("keeps cache limits module-scoped and makes file preview defaults explicit", () => {
+    expect(storeSource).toMatch(/const FILE_DOCUMENT_CACHE_LIMIT = 32;[\s\S]*const CHANGE_PREVIEW_CACHE_LIMIT = 32;/);
+    expect(filesPanelSource).toContain('filePreviewModeByPath[selectedFilePath] ?? (fileCategory === "markdown")');
+  });
 });

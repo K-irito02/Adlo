@@ -248,7 +248,7 @@ export function FilesPanel(props: RightPanelViewProps) {
   const resolvedLocale = appInfo?.config.language ?? "zh-CN";
   const fileCategory = useMemo(() => categorizeFile(selectedFilePath), [selectedFilePath]);
   const previewEnabled = selectedFilePath
-    ? filePreviewModeByPath[selectedFilePath] ?? fileCategory === "markdown"
+    ? filePreviewModeByPath[selectedFilePath] ?? (fileCategory === "markdown")
     : false;
   const setPreviewEnabled = useCallback(
     (enabled: boolean) => {
