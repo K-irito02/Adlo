@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
-import { MergeView, unifiedMergeView } from "@codemirror/merge";
+import { MergeView, getChunks, uncollapseUnchanged, unifiedMergeView } from "@codemirror/merge";
 import { EditorView, lineNumbers, highlightActiveLineGutter, highlightActiveLine, keymap } from "@codemirror/view";
 import { EditorState, Compartment } from "@codemirror/state";
 import { history } from "@codemirror/commands";
@@ -17,7 +17,10 @@ import {
   updateMinimapDiffModel,
   type CmMinimapDiffModel
 } from "./cmMinimap";
-import { computePreviewDiffMinimapModel } from "./changePreviewDiffRanges";
+import {
+  computePreviewDiffMinimapModel,
+  type PreviewDiffCollapsedRange,
+} from "./changePreviewDiffRanges";
 import type { AgentHunkDecoration } from "./agentDecorations";
 
 export type DiffViewerProps = {
@@ -35,6 +38,7 @@ export type DiffViewerProps = {
   extensions?: Extension[];
   minimapModel?: CmMinimapDiffModel;
   onMinimapDragStart?: () => void;
+  onCollapsedUnchangedRangesChange?: (ranges: PreviewDiffCollapsedRange[]) => void;
   hunks?: AgentHunkDecoration[];
 };
 
@@ -43,6 +47,76 @@ const langCompartment = new Compartment();
 const lineNumbersCompartment = new Compartment();
 const wordWrapCompartment = new Compartment();
 const foldGutterCompartment = new Compartment();
+
+export type ScrollSyncMetrics = {
+  sourceScrollTop: number;
+  sourceScrollHeight: number;
+  sourceClientHeight: number;
+  targetScrollHeight: number;
+  targetClientHeight: number;
+};
+
+const COLLAPSE_UNCHANGED_CONFIG = { margin: 3, minSize: 4 } as const;
+type MergeChunksResult = Exclude<ReturnType<typeof getChunks>, null>;
+type MergeChunk = MergeChunksResult["chunks"][number];
+
+function getMergeChunks(state: EditorState): readonly MergeChunk[] {
+  return getChunks(state)?.chunks ?? [];
+}
+
+export function computeSyncedScrollTop(input: ScrollSyncMetrics): number {
+  const sourceMax = Math.max(0, input.sourceScrollHeight - input.sourceClientHeight);
+  if (sourceMax <= 0) return 0;
+  const targetMax = Math.max(0, input.targetScrollHeight - input.targetClientHeight);
+  const ratio = Math.max(0, Math.min(input.sourceScrollTop, sourceMax)) / sourceMax;
+  return ratio * targetMax;
+}
+
+export function buildCollapsedUnchangedRanges(input: {
+  chunks: readonly MergeChunk[];
+  doc: EditorState["doc"];
+  margin?: number;
+  minSize?: number;
+  expandedLines?: ReadonlySet<number>;
+}): PreviewDiffCollapsedRange[] {
+  const margin = input.margin ?? COLLAPSE_UNCHANGED_CONFIG.margin;
+  const minSize = input.minSize ?? COLLAPSE_UNCHANGED_CONFIG.minSize;
+  const expandedLines = input.expandedLines ?? new Set<number>();
+  const ranges: PreviewDiffCollapsedRange[] = [];
+  let prevLine = 1;
+
+  for (let index = 0; ; index += 1) {
+    const chunk = index < input.chunks.length ? input.chunks[index] : null;
+    const collapseFrom = index > 0 ? prevLine + margin : 1;
+    const collapseTo = chunk
+      ? input.doc.lineAt(chunk.fromB).number - 1 - margin
+      : input.doc.lines;
+    const lineCount = collapseTo - collapseFrom + 1;
+    if (
+      lineCount >= minSize &&
+      ![...expandedLines].some((line) => line >= collapseFrom && line <= collapseTo)
+    ) {
+      ranges.push({ startLine: collapseFrom, endLine: collapseTo });
+    }
+    if (!chunk) break;
+    prevLine = input.doc.lineAt(Math.min(input.doc.length, chunk.toB)).number;
+  }
+
+  return ranges;
+}
+
+function syncScrollPosition(source: HTMLElement, target: HTMLElement) {
+  const nextScrollTop = computeSyncedScrollTop({
+    sourceScrollTop: source.scrollTop,
+    sourceScrollHeight: source.scrollHeight,
+    sourceClientHeight: source.clientHeight,
+    targetScrollHeight: target.scrollHeight,
+    targetClientHeight: target.clientHeight,
+  });
+  if (Math.abs(target.scrollTop - nextScrollTop) > 0.5) {
+    target.scrollTop = nextScrollTop;
+  }
+}
 
 function buildSharedExtensions(
   language: string,
@@ -87,6 +161,7 @@ function SideBySideDiffViewer({
   extraExtensions,
   minimapModel,
   onMinimapDragStart,
+  onCollapsedUnchangedRangesChange,
   hunks,
 }: {
   original: string;
@@ -102,11 +177,17 @@ function SideBySideDiffViewer({
   extraExtensions: Extension[];
   minimapModel?: CmMinimapDiffModel;
   onMinimapDragStart?: () => void;
+  onCollapsedUnchangedRangesChange?: (ranges: PreviewDiffCollapsedRange[]) => void;
   hunks?: AgentHunkDecoration[];
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mergeViewRef = useRef<MergeView | null>(null);
-  const scrollHandlersRef = useRef<{ handleScrollA: () => void; handleScrollB: () => void } | null>(null);
+  const scrollHandlersRef = useRef<{
+    handleScrollA: () => void;
+    handleScrollB: () => void;
+    handleWheel: (event: WheelEvent) => void;
+  } | null>(null);
+  const expandedCollapsedLinesRef = useRef<Set<number>>(new Set());
 
   const sharedExts = useMemo(
     () => buildSharedExtensions(language, theme, readOnly, lineNumbersEnabled, wordWrap, locale),
@@ -118,6 +199,19 @@ function SideBySideDiffViewer({
     return computePreviewDiffMinimapModel(original, modified);
   }, [original, modified, minimapModel]);
 
+  const emitCollapsedUnchangedRanges = useCallback((view: EditorView) => {
+    if (!onCollapsedUnchangedRangesChange) return;
+    if (!collapseUnchanged) {
+      onCollapsedUnchangedRangesChange([]);
+      return;
+    }
+    onCollapsedUnchangedRangesChange(buildCollapsedUnchangedRanges({
+      chunks: getMergeChunks(view.state),
+      doc: view.state.doc,
+      expandedLines: expandedCollapsedLinesRef.current,
+    }));
+  }, [collapseUnchanged, onCollapsedUnchangedRangesChange]);
+
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -126,24 +220,46 @@ function SideBySideDiffViewer({
       mergeViewRef.current = null;
     }
 
+    let syncing = false;
+    let activeMergeView: MergeView | null = null;
+    expandedCollapsedLinesRef.current = new Set();
+
     const aExts: Extension[] = [...sharedExts];
-    const bExts: Extension[] = [...sharedExts, ...extraExtensions, ...getMinimapExtension({ onDragStart: onMinimapDragStart })];
+    const bExts: Extension[] = [
+      ...sharedExts,
+      ...extraExtensions,
+      EditorView.updateListener.of((update) => {
+        const expandedLines = update.transactions.flatMap((transaction) => transaction.effects)
+          .filter((effect) => effect.is(uncollapseUnchanged))
+          .map((effect) => update.state.doc.lineAt(effect.value).number);
+        if (expandedLines.length > 0) {
+          expandedLines.forEach((line) => expandedCollapsedLinesRef.current.add(line));
+        }
+        if (expandedLines.length > 0 || update.docChanged) {
+          emitCollapsedUnchangedRanges(update.view);
+        }
+      }),
+      ...getMinimapExtension({
+        onDragStart: onMinimapDragStart,
+        scrollElement: () => activeMergeView?.dom ?? null,
+      }),
+    ];
 
     const mv = new MergeView({
       a: { doc: original, extensions: aExts },
       b: { doc: modified, extensions: bExts },
       parent: containerRef.current,
-      collapseUnchanged: collapseUnchanged ? { margin: 3, minSize: 4 } : undefined,
+      collapseUnchanged: collapseUnchanged ? COLLAPSE_UNCHANGED_CONFIG : undefined,
       gutter: false,
       highlightChanges: true,
     });
 
-    let syncing = false;
+    activeMergeView = mv;
     const handleScrollA = () => {
       if (syncing) return;
       syncing = true;
       if (mv.b) {
-        mv.b.scrollDOM.scrollTop = mv.a.scrollDOM.scrollTop;
+        syncScrollPosition(mv.a.scrollDOM, mv.b.scrollDOM);
       }
       syncing = false;
     };
@@ -151,17 +267,30 @@ function SideBySideDiffViewer({
       if (syncing) return;
       syncing = true;
       if (mv.a) {
-        mv.a.scrollDOM.scrollTop = mv.b.scrollDOM.scrollTop;
+        syncScrollPosition(mv.b.scrollDOM, mv.a.scrollDOM);
       }
       syncing = false;
     };
+    const handleWheel = (event: WheelEvent) => {
+      if (event.ctrlKey || event.metaKey || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) {
+        return;
+      }
+      const previousScrollTop = mv.dom.scrollTop;
+      mv.dom.scrollTop += event.deltaY;
+      if (Math.abs(mv.dom.scrollTop - previousScrollTop) > 0.5) {
+        handleScrollB();
+        event.preventDefault();
+      }
+    };
 
-    scrollHandlersRef.current = { handleScrollA, handleScrollB };
+    scrollHandlersRef.current = { handleScrollA, handleScrollB, handleWheel };
 
     mv.a.scrollDOM.addEventListener("scroll", handleScrollA, { passive: true });
     mv.b.scrollDOM.addEventListener("scroll", handleScrollB, { passive: true });
+    mv.dom.addEventListener("wheel", handleWheel, { passive: false });
 
     mergeViewRef.current = mv;
+    emitCollapsedUnchangedRanges(mv.b);
 
     if (onMount) {
       onMount(createDiffEditorRef(mv));
@@ -171,14 +300,26 @@ function SideBySideDiffViewer({
       if (mergeViewRef.current && scrollHandlersRef.current) {
         mergeViewRef.current.a.scrollDOM.removeEventListener("scroll", scrollHandlersRef.current.handleScrollA);
         mergeViewRef.current.b.scrollDOM.removeEventListener("scroll", scrollHandlersRef.current.handleScrollB);
+        mergeViewRef.current.dom.removeEventListener("wheel", scrollHandlersRef.current.handleWheel);
         scrollHandlersRef.current = null;
       }
       if (mergeViewRef.current) {
         mergeViewRef.current.destroy();
         mergeViewRef.current = null;
       }
+      onCollapsedUnchangedRangesChange?.([]);
+      activeMergeView = null;
     };
-  }, [original, modified, sharedExts, extraExtensions, collapseUnchanged, onMinimapDragStart]);
+  }, [
+    original,
+    modified,
+    sharedExts,
+    extraExtensions,
+    collapseUnchanged,
+    onMinimapDragStart,
+    onCollapsedUnchangedRangesChange,
+    emitCollapsedUnchangedRanges,
+  ]);
 
   useEffect(() => {
     const mv = mergeViewRef.current;
@@ -232,6 +373,7 @@ function InlineDiffViewer({
   extraExtensions,
   minimapModel,
   onMinimapDragStart,
+  onCollapsedUnchangedRangesChange,
   hunks,
 }: {
   original: string;
@@ -247,10 +389,12 @@ function InlineDiffViewer({
   extraExtensions: Extension[];
   minimapModel?: CmMinimapDiffModel;
   onMinimapDragStart?: () => void;
+  onCollapsedUnchangedRangesChange?: (ranges: PreviewDiffCollapsedRange[]) => void;
   hunks?: AgentHunkDecoration[];
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
+  const expandedCollapsedLinesRef = useRef<Set<number>>(new Set());
 
   const mergedMinimapModel = useMemo(() => {
     if (minimapModel) return minimapModel;
@@ -262,16 +406,48 @@ function InlineDiffViewer({
     return [
       ...base,
       ...extraExtensions,
+      EditorView.updateListener.of((update) => {
+        if (!onCollapsedUnchangedRangesChange) return;
+        const expandedLines = update.transactions.flatMap((transaction) => transaction.effects)
+          .filter((effect) => effect.is(uncollapseUnchanged))
+          .map((effect) => update.state.doc.lineAt(effect.value).number);
+        if (expandedLines.length > 0) {
+          expandedLines.forEach((line) => expandedCollapsedLinesRef.current.add(line));
+        }
+        if (!collapseUnchanged) {
+          onCollapsedUnchangedRangesChange([]);
+          return;
+        }
+        if (expandedLines.length > 0 || update.docChanged) {
+          onCollapsedUnchangedRangesChange(buildCollapsedUnchangedRanges({
+            chunks: getMergeChunks(update.state),
+            doc: update.state.doc,
+            expandedLines: expandedCollapsedLinesRef.current,
+          }));
+        }
+      }),
       ...getMinimapExtension({ onDragStart: onMinimapDragStart }),
       unifiedMergeView({
         original,
         highlightChanges: true,
         gutter: false,
         mergeControls: true,
-        collapseUnchanged: collapseUnchanged ? { margin: 3, minSize: 4 } : undefined,
+        collapseUnchanged: collapseUnchanged ? COLLAPSE_UNCHANGED_CONFIG : undefined,
       }),
     ];
-  }, [language, theme, readOnly, lineNumbersEnabled, wordWrap, locale, original, collapseUnchanged, extraExtensions, onMinimapDragStart]);
+  }, [
+    language,
+    theme,
+    readOnly,
+    lineNumbersEnabled,
+    wordWrap,
+    locale,
+    original,
+    collapseUnchanged,
+    extraExtensions,
+    onMinimapDragStart,
+    onCollapsedUnchangedRangesChange,
+  ]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -282,6 +458,7 @@ function InlineDiffViewer({
     }
 
     containerRef.current.innerHTML = "";
+    expandedCollapsedLinesRef.current = new Set();
 
     const state = EditorState.create({
       doc: modified,
@@ -294,6 +471,13 @@ function InlineDiffViewer({
     });
 
     viewRef.current = view;
+    if (onCollapsedUnchangedRangesChange) {
+      onCollapsedUnchangedRangesChange(
+        collapseUnchanged
+          ? buildCollapsedUnchangedRanges({ chunks: getMergeChunks(view.state), doc: view.state.doc })
+          : []
+      );
+    }
 
     if (onMount) {
       onMount(createEditorRef(view));
@@ -304,8 +488,9 @@ function InlineDiffViewer({
         viewRef.current.destroy();
         viewRef.current = null;
       }
+      onCollapsedUnchangedRangesChange?.([]);
     };
-  }, [original, modified, extensions]);
+  }, [original, modified, extensions, collapseUnchanged, onCollapsedUnchangedRangesChange]);
 
   useEffect(() => {
     const view = viewRef.current;
@@ -355,6 +540,7 @@ export function DiffViewer({
   extensions: extraExtensions = [],
   minimapModel,
   onMinimapDragStart,
+  onCollapsedUnchangedRangesChange,
   hunks,
 }: DiffViewerProps) {
   const resolvedLocale = locale || "en-US";
@@ -374,6 +560,7 @@ export function DiffViewer({
         extraExtensions={extraExtensions}
         minimapModel={minimapModel}
         onMinimapDragStart={onMinimapDragStart}
+        onCollapsedUnchangedRangesChange={onCollapsedUnchangedRangesChange}
         hunks={hunks}
       />
     );
@@ -394,6 +581,7 @@ export function DiffViewer({
       extraExtensions={extraExtensions}
       minimapModel={minimapModel}
       onMinimapDragStart={onMinimapDragStart}
+      onCollapsedUnchangedRangesChange={onCollapsedUnchangedRangesChange}
       hunks={hunks}
     />
   );

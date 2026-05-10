@@ -19,6 +19,12 @@ export type PreviewDiffMinimapModel = {
 
 export type PreviewDiffMinimapOptions = {
   wrapColumn?: number | null;
+  hiddenUnchangedRanges?: PreviewDiffCollapsedRange[];
+};
+
+export type PreviewDiffCollapsedRange = {
+  startLine: number;
+  endLine: number;
 };
 
 const MAX_EXACT_DIFF_CELLS = 2_000_000;
@@ -384,6 +390,10 @@ function appendVisualLineColumns(lineColumns: number[], lines: string[], wrapCol
   return visualLineCount;
 }
 
+function isLineHidden(lineNumber: number, hiddenUnchangedRanges: PreviewDiffCollapsedRange[]): boolean {
+  return hiddenUnchangedRanges.some((range) => lineNumber >= range.startLine && lineNumber <= range.endLine);
+}
+
 function computeFallbackMinimapModel(
   baseLines: string[],
   currentLines: string[],
@@ -439,6 +449,7 @@ export function computePreviewDiffMinimapModel(
   const baseLines = splitLines(baseContent);
   const currentLines = splitLines(currentContent);
   const wrapColumn = options?.wrapColumn ?? null;
+  const hiddenUnchangedRanges = options?.hiddenUnchangedRanges ?? [];
 
   if (baseLines.length === 0 && currentLines.length === 0) {
     return { totalLines: 0, ranges: [], lineColumns: [] };
@@ -506,9 +517,12 @@ export function computePreviewDiffMinimapModel(
 
   while (i < baseLines.length || j < currentLines.length) {
     if (i < baseLines.length && j < currentLines.length && baseLines[i] === currentLines[j]) {
-      const columns = getVisualColumns(currentLines[j], wrapColumn);
-      lineColumns.push(...columns);
-      visualLine += columns.length;
+      const currentLineNumber = j + 1;
+      if (!isLineHidden(currentLineNumber, hiddenUnchangedRanges)) {
+        const columns = getVisualColumns(currentLines[j], wrapColumn);
+        lineColumns.push(...columns);
+        visualLine += columns.length;
+      }
       i += 1;
       j += 1;
       continue;

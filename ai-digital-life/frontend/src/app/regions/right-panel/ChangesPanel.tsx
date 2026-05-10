@@ -27,6 +27,7 @@ import { StickyContext } from "./stickyContextView";
 import { buildChangeEntries, buildChangeTree, buildFlatChangeNodes, type ChangeFileState, type ChangeTreeNode } from "./changesTree";
 import {
   computePreviewDiffMinimapModel,
+  type PreviewDiffCollapsedRange,
   computePreviewDiffVisualRanges,
   type PreviewDiffVisualRange
 } from "./changePreviewDiffRanges";
@@ -216,7 +217,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
   const [editorReady, setEditorReady] = useState(0);
   const [stickyContextModel, setStickyContextModel] = useState<StickyContextModel | null>(null);
   const [forceExpandUnchangedDiff, setForceExpandUnchangedDiff] = useState(false);
-  const [minimapExpandedUnchangedDiff, setMinimapExpandedUnchangedDiff] = useState(false);
+  const [collapsedUnchangedDiffRanges, setCollapsedUnchangedDiffRanges] = useState<PreviewDiffCollapsedRange[]>([]);
   const [pendingOutlineRevealLine, setPendingOutlineRevealLine] = useState<number | null>(null);
   const [changesStatusFilter, setChangesStatusFilter] = useState<Set<ChangeFileState>>(() => new Set());
   const validation = latestPatchApplication?.validation;
@@ -253,11 +254,14 @@ export function ChangesPanel(props: RightPanelViewProps) {
       : [],
     [changePreview]
   );
+  const collapseUnchangedDiff = !forceExpandUnchangedDiff;
   const changePreviewMinimapModel = useMemo(
     () => changePreview
-      ? computePreviewDiffMinimapModel(changePreview.baseContent, changePreview.currentContent)
+      ? computePreviewDiffMinimapModel(changePreview.baseContent, changePreview.currentContent, {
+        hiddenUnchangedRanges: collapseUnchangedDiff ? collapsedUnchangedDiffRanges : [],
+      })
       : undefined,
-    [changePreview]
+    [changePreview, collapseUnchangedDiff, collapsedUnchangedDiffRanges]
   );
   const changeOutline = useMemo(
     () => changePreview ? buildOutlineFromContent(changePreview.currentContent, changePreview.path) : [],
@@ -293,7 +297,6 @@ export function ChangesPanel(props: RightPanelViewProps) {
     getInlineDiffBackgroundExtension(),
     getFoldingTooltipExtension(),
   ], []);
-  const collapseUnchangedDiff = !(forceExpandUnchangedDiff || minimapExpandedUnchangedDiff);
   const branchOptions = useMemo(() => {
     const options = new Set<string>([fallbackBranch, ...FALLBACK_BRANCHES]);
     return [...options];
@@ -351,7 +354,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
 
   useEffect(() => {
     setForceExpandUnchangedDiff(false);
-    setMinimapExpandedUnchangedDiff(false);
+    setCollapsedUnchangedDiffRanges([]);
     setPendingOutlineRevealLine(null);
   }, [changePreview?.path, selectedChangePreviewPath, selectedPatchFilePath]);
 
@@ -400,10 +403,6 @@ export function ChangesPanel(props: RightPanelViewProps) {
     }
     navigateToLine(getModifiedEditor(), line);
   };
-  const handleMinimapDragStart = useCallback(() => {
-    setMinimapExpandedUnchangedDiff(true);
-  }, []);
-
   useEffect(() => {
     if (pendingOutlineRevealLine === null || previewEnabled || !forceExpandUnchangedDiff) {
       return;
@@ -1170,7 +1169,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
                       onMount={handleDiffMount}
                       extensions={diffExtensions}
                       minimapModel={changePreviewMinimapModel}
-                      onMinimapDragStart={handleMinimapDragStart}
+                      onCollapsedUnchangedRangesChange={setCollapsedUnchangedDiffRanges}
                     />
                   </div>
                 )}

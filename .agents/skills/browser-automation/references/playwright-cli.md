@@ -2,7 +2,7 @@
 
 Full command reference and project-specific usage for Playwright CLI (v1.59.1).
 
-> **⚠️ Version Limitation**: The locally installed version (v1.59.1 at `E:\dev-tools\npm-global`) only supports `open` (open browser) and `screenshot <url> <file>` (static page capture). Interactive commands like `click`, `fill`, `eval`, `snapshot`, `goto`, `press`, `tab-list`, etc. are **NOT available** in this version. The full reference below is provided for documentation purposes. For interactive automation, use **agent-browser** or **MCP Playwright Tools** instead.
+> **⚠️ Version Limitation**: The locally installed version (v1.59.1 at `E:\dev-tools\npm-global`) only supports `open` (open browser) and `screenshot <url> <file>` (static page capture). Interactive commands like `click`, `fill`, `eval`, `snapshot`, `goto`, `press`, `tab-list`, etc. are **NOT available** in this version. The full reference below is provided for documentation purposes. For interactive automation, use **agent-browser** instead.
 
 ## Installation
 
@@ -314,8 +314,8 @@ playwright screenshot http://localhost:5173 screenshot.png
 |-----------|--------|---------|
 | Open browser | ✅ Available | `playwright open http://localhost:5173` |
 | Static screenshot | ✅ Available | `playwright screenshot <url> <file>` |
-| Click element | ❌ Not available | Use agent-browser or MCP Playwright Tools instead |
-| JS evaluation | ❌ Not available | Use agent-browser `eval` or MCP Playwright `evaluate` |
+| Click element | ❌ Not available | Use agent-browser instead |
+| JS evaluation | ❌ Not available | Use agent-browser `eval` instead |
 | File tree navigation | ❌ Not available | Use agent-browser `eval` with DOM traversal |
 | Accessibility snapshot | ❌ Not available | Use agent-browser `snapshot -i` |
 | Console/errors check | ❌ Not available | Use agent-browser `console` / `errors` |
@@ -323,9 +323,7 @@ playwright screenshot http://localhost:5173 screenshot.png
 
 ### File Tree Operations (Reference Only — Not Available)
 
-The file tree operations below require `playwright eval` which is not available in the installed version. They are documented here for reference. Use **agent-browser** `eval` or **MCP Playwright Tools** `evaluate` instead — the JS scripts are identical.
-
-```bash
+The file tree operations below require `playwright eval` which is not available in the installed version. They are documented here for reference. Use **agent-browser** `eval` instead — the JS scripts are identical.```bash
 # Title bar
 playwright click "button[aria-label='主题']"
 playwright click "button[aria-label='设置']"
@@ -389,6 +387,6 @@ $env:PLAYWRIGHT_BROWSERS_PATH = "E:\dev-tools\playwright-browsers"
 npx playwright test --headed
 ```
 
-### When to Use MCP Playwright Tools Instead
+### When to Use agent-browser Instead
 
-For workflows involving JS-heavy DOM navigation (file tree), in-app API calls (open workspace), or complex evaluate patterns, consider using **MCP Playwright Tools** (built-in IDE tools) instead of Playwright CLI. They provide the same underlying Playwright engine but are invoked as IDE tool-calls, avoiding terminal command-line escaping issues. See [MCP Playwright Tools](./mcp-playwright.md) for details.
+For workflows involving JS-heavy DOM navigation (file tree), in-app API calls (open workspace), or complex evaluate patterns, use **agent-browser** instead of Playwright CLI. It provides `eval`, `find role`, `snapshot -i`, `console`, and `errors` commands for full-featured browser automation. See [agent-browser Reference](./agent-browser.md) for details.

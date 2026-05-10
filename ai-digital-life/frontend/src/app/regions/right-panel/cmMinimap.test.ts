@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -9,7 +10,21 @@ import {
   type CmMinimapDiffModel,
 } from "./cmMinimap";
 
+const cmMinimapSource = readFileSync(new URL("../../../../src/app/regions/right-panel/cmMinimap.ts", import.meta.url), "utf8");
+
 describe("cm minimap geometry", () => {
+  it("pins the minimap frame to the editor surface viewport instead of content width", () => {
+    expect(cmMinimapSource).toContain("syncFrameToHost");
+    expect(cmMinimapSource).toContain("findRightEdgeHost");
+    expect(cmMinimapSource).toContain("findFrameHost");
+    expect(cmMinimapSource).toContain("findFixedContainBlock");
+    expect(cmMinimapSource).toContain('this.dom.style.position = "fixed"');
+    expect(cmMinimapSource).toContain('this.dom.style.right = "0"');
+    expect(cmMinimapSource).toContain("ResizeObserver");
+    expect(cmMinimapSource).toContain('el.classList.contains("adl-tool-surface")');
+    expect(cmMinimapSource).toContain('el.classList.contains("adl-tool-editor")');
+  });
+
   it("keeps the slider proportional to the visible scroll range", () => {
     expect(computeMinimapSliderMetrics({
       scrollTop: 200,
@@ -20,6 +35,43 @@ describe("cm minimap geometry", () => {
       visible: true,
       top: 100,
       height: 125,
+    });
+  });
+
+  it("keeps fixed sliders the same size across short and long scroll ranges", () => {
+    const shortDocument = computeMinimapSliderMetrics({
+      scrollTop: 100,
+      scrollHeight: 900,
+      clientHeight: 300,
+      trackHeight: 600,
+      sliderBehavior: "fixed",
+      fixedHeight: 96,
+    });
+    const longDocument = computeMinimapSliderMetrics({
+      scrollTop: 100,
+      scrollHeight: 3000,
+      clientHeight: 300,
+      trackHeight: 600,
+      sliderBehavior: "fixed",
+      fixedHeight: 96,
+    });
+
+    expect(shortDocument.height).toBe(96);
+    expect(longDocument.height).toBe(96);
+  });
+
+  it("maps fixed slider travel to the real editor scroll range", () => {
+    expect(computeMinimapSliderMetrics({
+      scrollTop: 600,
+      scrollHeight: 900,
+      clientHeight: 300,
+      trackHeight: 600,
+      sliderBehavior: "fixed",
+      fixedHeight: 96,
+    })).toEqual({
+      visible: true,
+      top: 504,
+      height: 96,
     });
   });
 

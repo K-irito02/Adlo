@@ -113,7 +113,6 @@ agent-browser snapshot -i
 
 ```powershell
 # Evaluate arbitrary JS for complex DOM navigation
-# All DOM helper scripts from MCP Playwright Tools work here too
 agent-browser eval "document.querySelector('.adl-filetree-scroll')?.querySelectorAll('li')?.length"
 ```
 

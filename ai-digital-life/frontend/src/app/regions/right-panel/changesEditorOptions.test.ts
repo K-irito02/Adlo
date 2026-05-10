@@ -22,7 +22,7 @@ describe("changes preview editor options", () => {
     expect(changesPanelSource).toContain("applyAgentDecorations");
     expect(changesPanelSource).toContain("computePreviewDiffMinimapModel");
     expect(changesPanelSource).toContain("minimapModel={changePreviewMinimapModel}");
-    expect(changesPanelSource).toContain("onMinimapDragStart={handleMinimapDragStart}");
+    expect(changesPanelSource).toContain("onCollapsedUnchangedRangesChange={setCollapsedUnchangedDiffRanges}");
   });
 
   it("applies inline diff background chunks from preview diff ranges", () => {
@@ -64,9 +64,9 @@ describe("changes preview editor options", () => {
     expect(changesPanelSource).toContain("collapseUnchanged={collapseUnchangedDiff}");
   });
 
-  it("tracks minimap-driven diff expansion separately from outline navigation", () => {
-    expect(changesPanelSource).toContain("minimapExpandedUnchangedDiff");
-    expect(changesPanelSource).toContain("setMinimapExpandedUnchangedDiff(true)");
-    expect(changesPanelSource).toContain("const collapseUnchangedDiff = !(forceExpandUnchangedDiff || minimapExpandedUnchangedDiff)");
+  it("keeps minimap hidden ranges aligned with folded unchanged diff sections", () => {
+    expect(changesPanelSource).toContain("collapsedUnchangedDiffRanges");
+    expect(changesPanelSource).toContain("hiddenUnchangedRanges: collapseUnchangedDiff ? collapsedUnchangedDiffRanges : []");
+    expect(changesPanelSource).toContain("const collapseUnchangedDiff = !forceExpandUnchangedDiff");
   });
 });

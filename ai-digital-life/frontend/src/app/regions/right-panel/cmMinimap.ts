@@ -17,13 +17,14 @@ const DEFAULT_MINIMAP_SETTINGS: MinimapSettings = {
   renderCharacters: false,
   thumbnailSize: 80,
   zoomLevel: 1,
-  sliderBehavior: "proportional",
+  sliderBehavior: "fixed",
   sliderProminence: "normal",
   scrollbarType: "minimap",
   isGlobal: true,
 };
 
 const STORAGE_KEY = "adl-minimap-settings";
+const FIXED_SLIDER_HEIGHT = 96;
 
 export function loadMinimapSettings(): MinimapSettings {
   try {
@@ -60,6 +61,8 @@ export type CmMinimapDiffSegment = {
 
 export type CmMinimapExtensionOptions = {
   onDragStart?: () => void;
+  onScroll?: (scrollTop: number) => void;
+  scrollElement?: () => HTMLElement | null;
 };
 
 export type MinimapSliderMetricsInput = {
@@ -68,6 +71,8 @@ export type MinimapSliderMetricsInput = {
   clientHeight: number;
   trackHeight: number;
   minHeight?: number;
+  sliderBehavior?: MinimapSettings["sliderBehavior"];
+  fixedHeight?: number;
 };
 
 export type MinimapSliderMetrics = {
@@ -116,7 +121,9 @@ export function computeMinimapSliderMetrics(input: MinimapSliderMetricsInput): M
   }
 
   const maxScrollTop = scrollHeight - clientHeight;
-  const rawHeight = (clientHeight / scrollHeight) * trackHeight;
+  const rawHeight = input.sliderBehavior === "fixed"
+    ? input.fixedHeight ?? FIXED_SLIDER_HEIGHT
+    : (clientHeight / scrollHeight) * trackHeight;
   const height = clamp(rawHeight, Math.min(minHeight, trackHeight), trackHeight);
   const maxTop = Math.max(0, trackHeight - height);
   const top = maxScrollTop <= 0 ? 0 : (clamp(input.scrollTop, 0, maxScrollTop) / maxScrollTop) * maxTop;
@@ -207,11 +214,17 @@ class MinimapPlugin implements PluginValue {
   private isDragging = false;
   private dragOffsetY = 0;
   private frame = 0;
-  private pendingScrollLine: number | null = null;
+  private pendingScrollTop: number | null = null;
   private diffModel: CmMinimapDiffModel | null = null;
   private host: HTMLElement;
+  private scrollElement: HTMLElement;
   private notifyDragAfterRelease = false;
   private handleWheel: (e: WheelEvent) => void;
+  private resizeObserver: ResizeObserver | null = null;
+  private handleWindowResize = () => {
+    this.syncFrameToHost();
+    this.scheduleRender();
+  };
 
   constructor(private view: EditorView, private options: CmMinimapExtensionOptions = {}) {
     this.settings = loadMinimapSettings();
@@ -232,19 +245,27 @@ class MinimapPlugin implements PluginValue {
     this.canvas.addEventListener("pointerdown", this.handleCanvasPointerDown);
     this.canvas.addEventListener("contextmenu", this.handleContextMenu);
     this.slider.addEventListener("pointerdown", this.handleSliderPointerDown);
-    this.view.scrollDOM.addEventListener("scroll", this.handleEditorScroll, { passive: true });
+    this.scrollElement = this.getScrollElement();
+    this.scrollElement.addEventListener("scroll", this.handleEditorScroll, { passive: true });
 
     this.handleWheel = (e: WheelEvent) => {
-      const scrollDom = this.view.scrollDOM;
-      scrollDom.scrollTop += e.deltaY;
+      const scrollElement = this.getScrollElement();
+      const previousScrollTop = scrollElement.scrollTop;
+      scrollElement.scrollTop += e.deltaY;
+      if (scrollElement.scrollTop !== previousScrollTop) {
+        this.options.onScroll?.(scrollElement.scrollTop);
+      }
       e.preventDefault();
     };
     this.dom.addEventListener("wheel", this.handleWheel, { passive: false });
 
     this.host = view.dom;
     this.attachToHost();
+    window.addEventListener("resize", this.handleWindowResize);
     requestAnimationFrame(() => {
+      this.refreshScrollElement();
       this.attachToHost();
+      this.syncFrameToHost();
       this.render();
       this.updateSlider();
     });
@@ -254,6 +275,7 @@ class MinimapPlugin implements PluginValue {
   }
 
   update(update: ViewUpdate) {
+    this.refreshScrollElement();
     this.attachToHost();
     if (update.docChanged || update.viewportChanged || update.geometryChanged) {
       this.diffModel = update.state.field(minimapDiffModelField, false) ?? null;
@@ -278,13 +300,21 @@ class MinimapPlugin implements PluginValue {
     this.canvas.removeEventListener("pointerdown", this.handleCanvasPointerDown);
     this.canvas.removeEventListener("contextmenu", this.handleContextMenu);
     this.slider.removeEventListener("pointerdown", this.handleSliderPointerDown);
-    this.view.scrollDOM.removeEventListener("scroll", this.handleEditorScroll);
+    this.scrollElement.removeEventListener("scroll", this.handleEditorScroll);
+    this.scrollElement.classList.remove("adl-cm-scroller--minimap-scrollbar");
     this.dom.removeEventListener("wheel", this.handleWheel);
     if (this.frame) {
       cancelAnimationFrame(this.frame);
       this.frame = 0;
     }
     this.host.style.removeProperty("--adl-editor-minimap-width");
+    const surfaceHost = this.findSurfaceHost();
+    if (surfaceHost && surfaceHost !== this.host) {
+      surfaceHost.style.removeProperty("--adl-editor-minimap-width");
+    }
+    this.resizeObserver?.disconnect();
+    this.resizeObserver = null;
+    window.removeEventListener("resize", this.handleWindowResize);
     this.dom.remove();
   }
 
@@ -297,15 +327,162 @@ class MinimapPlugin implements PluginValue {
     return null;
   }
 
+  /** Find the nearest ancestor that creates a containing block for position:fixed
+   *  (elements with transform/perspective/filter/will-change). */
+  private findFixedContainBlock(): HTMLElement | null {
+    let el: HTMLElement | null = this.view.dom;
+    while (el) {
+      if (el.classList.contains("adl-rightpanel__content")) return el;
+      el = el.parentElement;
+    }
+    return null;
+  }
+
+  private findRightEdgeHost(): HTMLElement | null {
+    let el: HTMLElement | null = this.host;
+    while (el) {
+      if (
+        el.classList.contains("adl-rightpanel") ||
+        el.classList.contains("adl-rightpanel__content") ||
+        el.classList.contains("adl-tool-panel")
+      ) {
+        return el;
+      }
+      el = el.parentElement;
+    }
+    return null;
+  }
+
+  private findFrameHost(): HTMLElement {
+    let el: HTMLElement | null = this.host;
+    while (el) {
+      if (el.classList.contains("adl-tool-editor__surface")) return el;
+      if (el.classList.contains("adl-tool-surface")) return el;
+      if (el.classList.contains("adl-tool-editor")) return el;
+      el = el.parentElement;
+    }
+    return this.host;
+  }
+
+  private getScrollElement(): HTMLElement {
+    return this.options.scrollElement?.() ?? this.view.scrollDOM;
+  }
+
+  private refreshScrollElement() {
+    const nextScrollElement = this.getScrollElement();
+    if (nextScrollElement === this.scrollElement) return;
+    this.scrollElement.removeEventListener("scroll", this.handleEditorScroll);
+    this.scrollElement.classList.remove("adl-cm-scroller--minimap-scrollbar");
+    this.scrollElement = nextScrollElement;
+    this.scrollElement.addEventListener("scroll", this.handleEditorScroll, { passive: true });
+    this.updateScrollbarStyle();
+  }
+
   private attachToHost() {
-    const nextHost = this.findSurfaceHost() ?? this.view.dom;
+    const surfaceHost = this.findSurfaceHost();
+    // Prefer the fixed-positioning containing block as the DOM parent so the
+    // minimap is never clipped by the surface's overflow:hidden / isolation:isolate.
+    const fixedHost = this.findFixedContainBlock();
+    const nextHost = fixedHost ?? surfaceHost ?? this.view.dom;
+
     if (nextHost === this.host && this.dom.parentElement === nextHost) {
+      // Keep the --adl-editor-minimap-width variable on the surfaceHost so
+      // .cm-scroller padding-right stays in sync per-editor.
+      if (surfaceHost) {
+        surfaceHost.style.setProperty("--adl-editor-minimap-width", `${this.settings.thumbnailSize}px`);
+      }
+      this.syncFrameToHost();
       return;
     }
     this.host.style.removeProperty("--adl-editor-minimap-width");
     this.host = nextHost;
     this.host.appendChild(this.dom);
-    this.host.style.setProperty("--adl-editor-minimap-width", `${this.settings.thumbnailSize}px`);
+    // Always set the minimap-width variable on the surfaceHost (not the DOM host)
+    // so each editor's .cm-scroller gets the correct padding-right.
+    if (surfaceHost) {
+      surfaceHost.style.setProperty("--adl-editor-minimap-width", `${this.settings.thumbnailSize}px`);
+    }
+    this.observeHost();
+    this.syncFrameToHost();
+  }
+
+  private observeHost() {
+    this.resizeObserver?.disconnect();
+    if (typeof ResizeObserver === "undefined") {
+      this.resizeObserver = null;
+      return;
+    }
+    this.resizeObserver = new ResizeObserver(() => {
+      this.syncFrameToHost();
+      this.scheduleRender();
+    });
+    this.resizeObserver.observe(this.host);
+    const frameHost = this.findFrameHost();
+    if (frameHost !== this.host) {
+      this.resizeObserver.observe(frameHost);
+    }
+    // Also observe the fixed-positioning containing block so the minimap
+    // recalculates when the right panel resizes or shifts.
+    const fixedHost = this.findFixedContainBlock();
+    if (fixedHost && fixedHost !== this.host && fixedHost !== frameHost) {
+      this.resizeObserver.observe(fixedHost);
+    }
+  }
+
+  private syncFrameToHost() {
+    const surfaceHost = this.findSurfaceHost();
+    const fixedHost = this.findFixedContainBlock();
+
+    // Primary path: minimap lives inside .adl-rightpanel__content (fixedHost)
+    // which has transform, making it the containing block for position:fixed.
+    // position:fixed; right:0 guarantees the minimap always snaps to the
+    // application's right edge, regardless of the surface's layout quirks.
+    if (fixedHost && this.dom.parentElement === fixedHost) {
+      const surfaceRect = surfaceHost?.getBoundingClientRect();
+      const hostRect = fixedHost.getBoundingClientRect();
+
+      this.dom.style.position = "fixed";
+      this.dom.style.top = surfaceRect ? `${surfaceRect.top - hostRect.top}px` : "0";
+      this.dom.style.right = "0";
+      this.dom.style.bottom = "auto";
+      this.dom.style.left = "auto";
+      this.dom.style.height = surfaceRect ? `${surfaceRect.height}px` : "100%";
+      return;
+    }
+
+    // Fallback: minimap is inside the surface host — use absolute positioning
+    if (surfaceHost && this.dom.parentElement === surfaceHost) {
+      if (fixedHost) {
+        const surfaceRect = surfaceHost.getBoundingClientRect();
+        const hostRect = fixedHost.getBoundingClientRect();
+        this.dom.style.position = "fixed";
+        this.dom.style.top = `${surfaceRect.top - hostRect.top}px`;
+        this.dom.style.right = "0";
+        this.dom.style.bottom = "auto";
+        this.dom.style.left = "auto";
+        this.dom.style.height = `${surfaceRect.height}px`;
+      } else {
+        this.dom.style.position = "absolute";
+        this.dom.style.top = "0";
+        this.dom.style.right = "0";
+        this.dom.style.bottom = "0";
+        this.dom.style.left = "auto";
+        this.dom.style.height = "";
+      }
+      return;
+    }
+
+    // Last resort: viewport-relative fixed positioning
+    const rect = this.findFrameHost().getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return;
+    const rightEdgeRect = this.findRightEdgeHost()?.getBoundingClientRect();
+    const rightEdge = rightEdgeRect?.right ?? window.innerWidth;
+    this.dom.style.position = "fixed";
+    this.dom.style.top = `${Math.max(0, rect.top)}px`;
+    this.dom.style.right = `${Math.max(0, window.innerWidth - rightEdge)}px`;
+    this.dom.style.left = "auto";
+    this.dom.style.bottom = "auto";
+    this.dom.style.height = `${Math.max(1, rect.height)}px`;
   }
 
   private getEffectiveLineCount(): number {
@@ -341,7 +518,8 @@ class MinimapPlugin implements PluginValue {
     lineCount = Math.max(1, lineCount);
 
     const width = this.settings.thumbnailSize;
-    const height = Math.max(this.dom.clientHeight || this.view.scrollDOM.clientHeight || 1, 1);
+    this.syncFrameToHost();
+    const height = Math.max(this.dom.clientHeight || this.scrollElement.clientHeight || 1, 1);
     const dpr = window.devicePixelRatio || 1;
     const renderMetrics = computeMinimapRenderMetrics({
       lineCount,
@@ -391,42 +569,26 @@ class MinimapPlugin implements PluginValue {
   }
 
   private updateSlider() {
-    const lineCount = Math.max(1, this.getEffectiveLineCount());
-    const containerHeight = Math.max(1, this.dom.clientHeight || this.view.scrollDOM.clientHeight);
+    const containerHeight = Math.max(1, this.dom.clientHeight || this.scrollElement.clientHeight);
+    const scrollDom = this.scrollElement;
+    const metrics = computeMinimapSliderMetrics({
+      scrollTop: scrollDom.scrollTop,
+      scrollHeight: scrollDom.scrollHeight,
+      clientHeight: scrollDom.clientHeight,
+      trackHeight: containerHeight,
+      minHeight: 20,
+      sliderBehavior: this.settings.sliderBehavior,
+      fixedHeight: FIXED_SLIDER_HEIGHT,
+    });
 
-    const viewport = this.view.viewport;
-    const docLines = this.view.state.doc.lines;
-    const firstLine = docLines > 0
-      ? this.view.state.doc.lineAt(Math.min(viewport.from, this.view.state.doc.length)).number
-      : 1;
-    const lastLine = docLines > 0
-      ? this.view.state.doc.lineAt(Math.min(viewport.to, this.view.state.doc.length)).number
-      : 1;
-    const visibleLineCount = Math.max(1, lastLine - firstLine + 1);
-
-    const sliderMinHeight = 20;
-    const rawSliderHeight = (visibleLineCount / lineCount) * containerHeight;
-    const sliderHeight = clamp(rawSliderHeight, Math.min(sliderMinHeight, containerHeight), containerHeight);
-    const maxSliderTop = Math.max(0, containerHeight - sliderHeight);
-    const sliderTop = lineCount <= visibleLineCount
-      ? 0
-      : ((firstLine - 1) / (lineCount - visibleLineCount)) * maxSliderTop;
-
-    if (lineCount <= visibleLineCount && containerHeight > 0) {
-      this.slider.style.display = "";
-      this.slider.style.top = "0px";
-      this.slider.style.height = `${containerHeight}px`;
-      return;
-    }
-
-    if (containerHeight <= 0) {
+    if (!metrics.visible) {
       this.slider.style.display = "none";
       return;
     }
 
     this.slider.style.display = "";
-    this.slider.style.top = `${sliderTop}px`;
-    this.slider.style.height = `${sliderHeight}px`;
+    this.slider.style.top = `${metrics.top}px`;
+    this.slider.style.height = `${metrics.height}px`;
   }
 
   private handleCanvasPointerDown = (e: PointerEvent) => {
@@ -486,54 +648,49 @@ class MinimapPlugin implements PluginValue {
   };
 
   private scrollToPointer(pointerY: number) {
-    const lineCount = Math.max(1, this.getEffectiveLineCount());
-    const containerHeight = Math.max(1, this.dom.clientHeight || this.view.scrollDOM.clientHeight);
-
-    const viewport = this.view.viewport;
-    const docLines = this.view.state.doc.lines;
-    const firstLine = docLines > 0
-      ? this.view.state.doc.lineAt(Math.min(viewport.from, this.view.state.doc.length)).number
-      : 1;
-    const lastLine = docLines > 0
-      ? this.view.state.doc.lineAt(Math.min(viewport.to, this.view.state.doc.length)).number
-      : 1;
-    const visibleLineCount = Math.max(1, lastLine - firstLine + 1);
-
-    const sliderMinHeight = 20;
-    const rawSliderHeight = (visibleLineCount / lineCount) * containerHeight;
-    const sliderHeight = clamp(rawSliderHeight, Math.min(sliderMinHeight, containerHeight), containerHeight);
-
+    const containerHeight = Math.max(1, this.dom.clientHeight || this.scrollElement.clientHeight);
+    const scrollDom = this.scrollElement;
+    const metrics = computeMinimapSliderMetrics({
+      scrollTop: scrollDom.scrollTop,
+      scrollHeight: scrollDom.scrollHeight,
+      clientHeight: scrollDom.clientHeight,
+      trackHeight: containerHeight,
+      minHeight: 20,
+      sliderBehavior: this.settings.sliderBehavior,
+      fixedHeight: FIXED_SLIDER_HEIGHT,
+    });
+    if (!metrics.visible) return;
     const rect = this.dom.getBoundingClientRect();
-    const trackTravel = Math.max(1, containerHeight - sliderHeight);
-    const sliderTop = clamp(pointerY - rect.top - this.dragOffsetY, 0, trackTravel);
-    const ratio = sliderTop / trackTravel;
-    const targetLine = Math.max(1, Math.min(lineCount, Math.round(ratio * (lineCount - visibleLineCount + 1)) + 1));
+    const scrollTop = computeMinimapScrollTopFromPointer({
+      pointerY,
+      trackTop: rect.top,
+      dragOffsetY: this.dragOffsetY,
+      scrollHeight: scrollDom.scrollHeight,
+      clientHeight: scrollDom.clientHeight,
+      trackHeight: containerHeight,
+      sliderHeight: metrics.height,
+    });
 
-    this.pendingScrollLine = targetLine;
+    this.pendingScrollTop = scrollTop;
     if (this.frame) return;
     this.frame = requestAnimationFrame(() => {
       this.frame = 0;
-      if (this.pendingScrollLine === null) return;
-      const line = this.pendingScrollLine;
-      this.pendingScrollLine = null;
-      if (line <= this.view.state.doc.lines) {
-        const pos = this.view.state.doc.line(line).from;
-        this.view.dispatch({
-          effects: EditorView.scrollIntoView(pos, { y: "start" }),
-        });
-      }
+      if (this.pendingScrollTop === null) return;
+      const nextScrollTop = this.pendingScrollTop;
+      this.pendingScrollTop = null;
+      scrollDom.scrollTop = nextScrollTop;
+      this.options.onScroll?.(scrollDom.scrollTop);
       this.updateSlider();
     });
   }
 
   private updateScrollbarStyle() {
-    const scrollDom = this.view.scrollDOM;
     if (this.settings.scrollbarType === "minimap") {
       this.dom.style.display = "";
-      scrollDom.classList.add("adl-cm-scroller--minimap-scrollbar");
+      this.scrollElement.classList.add("adl-cm-scroller--minimap-scrollbar");
     } else {
       this.dom.style.display = "none";
-      scrollDom.classList.remove("adl-cm-scroller--minimap-scrollbar");
+      this.scrollElement.classList.remove("adl-cm-scroller--minimap-scrollbar");
     }
   }
 

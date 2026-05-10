@@ -107,4 +107,19 @@ describe("computePreviewDiffRanges", () => {
       ]
     });
   });
+
+  it("omits folded unchanged lines from the minimap model", () => {
+    expect(computePreviewDiffMinimapModel(
+      "line 1\nline 2\nold value\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10",
+      "line 1\nline 2\nnew value\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10",
+      { hiddenUnchangedRanges: [{ startLine: 4, endLine: 8 }] }
+    )).toEqual({
+      totalLines: 6,
+      lineColumns: [6, 6, 9, 9, 6, 7],
+      ranges: [
+        { startLine: 3, endLine: 3, type: "insert", tone: "strong", contentColumns: 9 },
+        { startLine: 4, endLine: 4, type: "delete", tone: "strong", contentColumns: 9 }
+      ]
+    });
+  });
 });
