@@ -135,6 +135,12 @@ describe("cm minimap settings", () => {
     expect(cmMinimapSource).not.toContain('this.dom.style.display = "none"');
   });
 
+  it("cleans up scroll listeners when the scroll host changes or the plugin is destroyed", () => {
+    expect(cmMinimapSource).toContain('this.scrollElement.addEventListener("scroll", this.handleEditorScroll, { passive: true })');
+    expect(cmMinimapSource).toContain('this.scrollElement.removeEventListener("scroll", this.handleEditorScroll);');
+    expect(cmMinimapSource).toContain("private refreshScrollElement()");
+  });
+
   it("keeps the context menu singleton instead of stacking duplicate cards", () => {
     expect(cmMinimapSource).toContain("closeActiveMinimapMenu()");
     expect(cmMinimapSource).toContain('const MINIMAP_MENU_ROOT_ID = "adl-cm-minimap-context-menu-root"');
