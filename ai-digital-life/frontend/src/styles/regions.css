@@ -4595,9 +4595,14 @@
 
 .adl-cm-editor .cm-scroller.adl-cm-scroller--minimap-scrollbar::-webkit-scrollbar,
 .adl-cm-diff-viewer .cm-scroller.adl-cm-scroller--minimap-scrollbar::-webkit-scrollbar,
+.adl-cm-diff-viewer--side-by-side .cm-mergeView.adl-cm-scroller--minimap-scrollbar .cm-scroller::-webkit-scrollbar,
 .adl-cm-diff-viewer--side-by-side .cm-mergeView.adl-cm-scroller--minimap-scrollbar::-webkit-scrollbar {
   width: 0;
   height: 0;
+}
+
+.adl-cm-diff-viewer--side-by-side .cm-mergeView.adl-cm-scroller--minimap-scrollbar .cm-scroller {
+  scrollbar-width: none;
 }
 
 .adl-cm-scroller--minimap-scrollbar::-webkit-scrollbar {
@@ -5240,6 +5245,7 @@
   background: var(--editor-bg, var(--bg));
   border-left: 1px solid var(--border-subtle);
   cursor: default;
+  box-shadow: inset 1px 0 0 color-mix(in srgb, var(--border-subtle) 55%, transparent);
 }
 
 .adl-cm-minimap:hover {
@@ -5275,12 +5281,13 @@
 }
 
 .adl-cm-minimap--standard .adl-cm-minimap-slider {
-  left: 3px;
-  right: 3px;
+  left: 2px;
+  right: 2px;
   border-radius: 999px;
   border-color: transparent;
-  background: color-mix(in srgb, var(--text-muted) 54%, transparent);
+  background: color-mix(in srgb, var(--text-muted) 42%, transparent);
   box-shadow: none;
+  transition: background 0.15s ease, opacity 0.15s ease;
 }
 
 .adl-cm-minimap-slider--subtle {
@@ -5297,7 +5304,7 @@
 }
 
 .adl-cm-minimap--standard .adl-cm-minimap-slider:hover {
-  background: color-mix(in srgb, var(--text-primary) 68%, transparent);
+  background: color-mix(in srgb, var(--text-primary) 60%, transparent);
   border-color: transparent;
 }
 
@@ -5308,7 +5315,7 @@
 }
 
 .adl-cm-minimap--standard .adl-cm-minimap-slider:active {
-  background: color-mix(in srgb, var(--text-primary) 78%, transparent);
+  background: color-mix(in srgb, var(--text-primary) 72%, transparent);
   border-color: transparent;
 }
 

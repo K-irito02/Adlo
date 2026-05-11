@@ -40,7 +40,7 @@ import { LazyMarkdownPreviewWrapper } from "./LazyPreviews";
 import type { EditorRef, DiffEditorRef } from "../../types";
 import { CodeMirrorEditorRef } from "./editorAdapters";
 import { getAgentDecorationExtensions, applyAgentDecorations, type AgentHunkDecoration } from "./agentDecorations";
-import { getMinimapExtension, updateMinimapDiffModel } from "./cmMinimap";
+import { estimateWrapColumn, getMinimapExtension, updateMinimapDiffModel } from "./cmMinimap";
 import { getInlineDiffBackgroundExtension, applyInlineDiffChunks, type DiffChunkInfo } from "./cmInlineDiffBackgrounds";
 import { getFoldingTooltipExtension } from "./cmFoldingTooltip";
 import { getVisibleStartLine, navigateToLine, subscribeToEditor } from "./stickyContext";
@@ -215,6 +215,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
   const changesPreviewEditorShellRef = useRef<HTMLDivElement | null>(null);
   const editorRef = useRef<DiffEditorRef | EditorRef | null>(null);
   const [editorReady, setEditorReady] = useState(0);
+  const [changePreviewWrapColumn, setChangePreviewWrapColumn] = useState<number | null>(null);
   const [stickyContextModel, setStickyContextModel] = useState<StickyContextModel | null>(null);
   const [forceExpandUnchangedDiff, setForceExpandUnchangedDiff] = useState(false);
   const [collapsedUnchangedDiffRanges, setCollapsedUnchangedDiffRanges] = useState<PreviewDiffCollapsedRange[]>([]);
@@ -258,10 +259,11 @@ export function ChangesPanel(props: RightPanelViewProps) {
   const changePreviewMinimapModel = useMemo(
     () => changePreview
       ? computePreviewDiffMinimapModel(changePreview.baseContent, changePreview.currentContent, {
+        wrapColumn: changePreviewWrapColumn,
         hiddenUnchangedRanges: collapseUnchangedDiff ? collapsedUnchangedDiffRanges : [],
       })
       : undefined,
-    [changePreview, collapseUnchangedDiff, collapsedUnchangedDiffRanges]
+    [changePreview, changePreviewWrapColumn, collapseUnchangedDiff, collapsedUnchangedDiffRanges]
   );
   const changeOutline = useMemo(
     () => changePreview ? buildOutlineFromContent(changePreview.currentContent, changePreview.path) : [],
@@ -388,6 +390,42 @@ export function ChangesPanel(props: RightPanelViewProps) {
     }
     return ref as EditorRef;
   }, []);
+
+  useEffect(() => {
+    let frame = 0;
+    const updateWrapColumn = () => {
+      const view = getEditorView(getModifiedEditor());
+      setChangePreviewWrapColumn(wordWrapEnabled && view ? estimateWrapColumn(view) : null);
+    };
+    const scheduleWrapColumnUpdate = () => {
+      if (frame) {
+        cancelAnimationFrame(frame);
+      }
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        updateWrapColumn();
+      });
+    };
+
+    scheduleWrapColumnUpdate();
+    const editor = getModifiedEditor();
+    if (!editor) {
+      if (frame) {
+        cancelAnimationFrame(frame);
+      }
+      return;
+    }
+
+    const layoutDisposable = editor.onDidLayoutChange?.(scheduleWrapColumnUpdate);
+    window.addEventListener("resize", scheduleWrapColumnUpdate);
+    return () => {
+      if (frame) {
+        cancelAnimationFrame(frame);
+      }
+      layoutDisposable?.dispose();
+      window.removeEventListener("resize", scheduleWrapColumnUpdate);
+    };
+  }, [editorReady, getModifiedEditor, props.diffSideBySide, wordWrapEnabled]);
 
   const handleRevealPreviewLine = (line: number): boolean => {
     const target = changesPreviewEditorShellRef.current?.querySelector<HTMLElement>(`[data-source-line="${line}"]`);

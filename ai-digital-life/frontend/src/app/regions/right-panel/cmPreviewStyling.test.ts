@@ -86,6 +86,8 @@ describe("CodeMirror preview styling", () => {
     expect(standardSliderBlock).toContain("left:");
     expect(standardSliderBlock).toContain("right:");
     expect(regionsCssSource).toContain(".adl-cm-minimap--standard .adl-cm-minimap-canvas");
+    expect(regionsCssSource).toContain(".cm-mergeView.adl-cm-scroller--minimap-scrollbar .cm-scroller::-webkit-scrollbar");
+    expect(regionsCssSource).toContain(".cm-mergeView.adl-cm-scroller--minimap-scrollbar .cm-scroller {\n  scrollbar-width: none;");
   });
 
   it("styles the scrollbar mode switcher like the shared segmented buttons and right-aligns checkmarks", () => {

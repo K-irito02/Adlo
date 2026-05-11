@@ -7,7 +7,6 @@ export interface MinimapSettings {
   renderCharacters: boolean;
   thumbnailSize: number;
   zoomLevel: number;
-  sliderBehavior: "proportional" | "fixed";
   sliderProminence: "subtle" | "normal";
   scrollbarType: "minimap" | "standard";
   isGlobal: boolean;
@@ -17,7 +16,6 @@ const DEFAULT_MINIMAP_SETTINGS: MinimapSettings = {
   renderCharacters: false,
   thumbnailSize: 80,
   zoomLevel: 1,
-  sliderBehavior: "fixed",
   sliderProminence: "normal",
   scrollbarType: "minimap",
   isGlobal: true,
@@ -30,8 +28,9 @@ const FIXED_SLIDER_HEIGHT = 96;
 const STANDARD_SCROLLBAR_WIDTH = 12;
 const MINIMAP_MENU_ROOT_ID = "adl-cm-minimap-context-menu-root";
 
-type MinimapSettingsInput = Partial<Omit<MinimapSettings, "scrollbarType">> & {
+type MinimapSettingsInput = Partial<MinimapSettings> & {
   scrollbarType?: MinimapSettings["scrollbarType"] | "native";
+  sliderBehavior?: "proportional" | "fixed";
 };
 
 type ScopedSettingsStore = Record<string, MinimapSettingsInput | undefined>;
@@ -92,9 +91,6 @@ function normalizeMinimapSettings(input: MinimapSettingsInput | null | undefined
     : merged.scrollbarType === "standard" || merged.scrollbarType === "minimap"
       ? merged.scrollbarType
       : DEFAULT_MINIMAP_SETTINGS.scrollbarType;
-  const sliderBehavior = merged.sliderBehavior === "proportional" || merged.sliderBehavior === "fixed"
-    ? merged.sliderBehavior
-    : DEFAULT_MINIMAP_SETTINGS.sliderBehavior;
   const sliderProminence =
     merged.sliderProminence === "subtle" || merged.sliderProminence === "normal"
       ? merged.sliderProminence
@@ -104,7 +100,6 @@ function normalizeMinimapSettings(input: MinimapSettingsInput | null | undefined
     renderCharacters: Boolean(merged.renderCharacters),
     thumbnailSize: sanitizeNumber(merged.thumbnailSize, DEFAULT_MINIMAP_SETTINGS.thumbnailSize, 60, 100),
     zoomLevel: sanitizeNumber(merged.zoomLevel, DEFAULT_MINIMAP_SETTINGS.zoomLevel, 0.5, 2),
-    sliderBehavior,
     sliderProminence,
     scrollbarType,
     isGlobal: merged.isGlobal !== false,
@@ -173,8 +168,10 @@ export type MinimapSliderMetricsInput = {
   scrollHeight: number;
   clientHeight: number;
   trackHeight: number;
+  contentTopInset?: number;
+  contentBottomInset?: number;
   minHeight?: number;
-  sliderBehavior?: MinimapSettings["sliderBehavior"];
+  sliderBehavior?: "proportional" | "fixed";
   fixedHeight?: number;
 };
 
@@ -188,10 +185,26 @@ export type MinimapDragInput = {
   pointerY: number;
   trackTop: number;
   dragOffsetY: number;
-  scrollHeight: number;
-  clientHeight: number;
   trackHeight: number;
   sliderHeight: number;
+  contentScrollHeight: number;
+  contentViewportHeight: number;
+};
+
+export type MinimapContentMetricsInput = {
+  scrollTop: number;
+  scrollHeight: number;
+  clientHeight: number;
+  contentTopInset?: number;
+  contentBottomInset?: number;
+};
+
+export type MinimapContentMetrics = {
+  contentTopInset: number;
+  contentBottomInset: number;
+  contentScrollHeight: number;
+  contentViewportHeight: number;
+  contentScrollTop: number;
 };
 
 export type MinimapRenderMetricsInput = {
@@ -205,6 +218,36 @@ export type MinimapRenderMetrics = {
   lineHeight: number;
 };
 
+export type MinimapContentTrackMetricsInput = {
+  viewportHeight: number;
+  contentScrollHeight: number;
+  contentViewportHeight: number;
+  contentScrollTop: number;
+  fixedSliderHeight: number;
+  naturalContentHeight: number;
+};
+
+export type MinimapContentTrackMetrics = {
+  contentHeight: number;
+  contentOffset: number;
+};
+
+type MinimapTrackMetrics = {
+  top: number;
+  viewportHeight: number;
+  trackHeight: number;
+  contentHeight: number;
+  contentOffset: number;
+  fixedSliderHeight: number;
+};
+
+type MinimapRenderedLineMetric = {
+  top: number;
+  height: number;
+  contentColumns: number;
+  lineNumber: number;
+};
+
 const DIFF_SEGMENT_ORDER: Record<CmMinimapDiffSegment["type"], number> = {
   delete: 0,
   insert: 1,
@@ -214,22 +257,51 @@ function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(value, max));
 }
 
-export function computeMinimapSliderMetrics(input: MinimapSliderMetricsInput): MinimapSliderMetrics {
-  const minHeight = input.minHeight ?? 20;
+export function measureMinimapContentMetrics(input: MinimapContentMetricsInput): MinimapContentMetrics {
+  const scrollTop = Math.max(input.scrollTop, 0);
   const scrollHeight = Math.max(input.scrollHeight, 0);
   const clientHeight = Math.max(input.clientHeight, 0);
+  const contentTopInset = Math.max(0, input.contentTopInset ?? 0);
+  const contentBottomInset = Math.max(0, input.contentBottomInset ?? 0);
+  const contentScrollHeight = Math.max(0, scrollHeight - contentTopInset - contentBottomInset);
+  const visibleStart = clamp(scrollTop - contentTopInset, 0, contentScrollHeight);
+  const visibleEnd = clamp(scrollTop + clientHeight - contentTopInset, 0, contentScrollHeight);
+  return {
+    contentTopInset,
+    contentBottomInset,
+    contentScrollHeight,
+    contentViewportHeight: Math.max(0, visibleEnd - visibleStart),
+    contentScrollTop: visibleStart,
+  };
+}
+
+export function toDomScrollTop(contentScrollTop: number, metrics: Pick<MinimapContentMetrics, "contentScrollHeight" | "contentViewportHeight" | "contentTopInset">): number {
+  const maxContentScrollTop = Math.max(0, metrics.contentScrollHeight - metrics.contentViewportHeight);
+  const clampedContentScrollTop = clamp(contentScrollTop, 0, maxContentScrollTop);
+  return clampedContentScrollTop <= 0 ? 0 : clampedContentScrollTop + metrics.contentTopInset;
+}
+
+export function computeMinimapSliderMetrics(input: MinimapSliderMetricsInput): MinimapSliderMetrics {
+  const minHeight = input.minHeight ?? 20;
   const trackHeight = Math.max(input.trackHeight, 0);
-  if (scrollHeight <= clientHeight || clientHeight <= 0 || trackHeight <= 0) {
+  const contentMetrics = measureMinimapContentMetrics({
+    scrollTop: input.scrollTop,
+    scrollHeight: input.scrollHeight,
+    clientHeight: input.clientHeight,
+    contentTopInset: input.contentTopInset,
+    contentBottomInset: input.contentBottomInset,
+  });
+  if (contentMetrics.contentScrollHeight <= contentMetrics.contentViewportHeight || contentMetrics.contentViewportHeight <= 0 || trackHeight <= 0) {
     return { visible: false, top: 0, height: 0 };
   }
 
-  const maxScrollTop = scrollHeight - clientHeight;
+  const maxScrollTop = contentMetrics.contentScrollHeight - contentMetrics.contentViewportHeight;
   const rawHeight = input.sliderBehavior === "fixed"
     ? input.fixedHeight ?? FIXED_SLIDER_HEIGHT
-    : (clientHeight / scrollHeight) * trackHeight;
+    : (contentMetrics.contentViewportHeight / contentMetrics.contentScrollHeight) * trackHeight;
   const height = clamp(rawHeight, Math.min(minHeight, trackHeight), trackHeight);
   const maxTop = Math.max(0, trackHeight - height);
-  const top = maxScrollTop <= 0 ? 0 : (clamp(input.scrollTop, 0, maxScrollTop) / maxScrollTop) * maxTop;
+  const top = maxScrollTop <= 0 ? 0 : (contentMetrics.contentScrollTop / maxScrollTop) * maxTop;
   return {
     visible: true,
     top,
@@ -238,7 +310,7 @@ export function computeMinimapSliderMetrics(input: MinimapSliderMetricsInput): M
 }
 
 export function computeMinimapScrollTopFromPointer(input: MinimapDragInput): number {
-  const maxScrollTop = Math.max(0, input.scrollHeight - input.clientHeight);
+  const maxScrollTop = Math.max(0, input.contentScrollHeight - input.contentViewportHeight);
   const trackTravel = Math.max(1, input.trackHeight - input.sliderHeight);
   const sliderTop = clamp(input.pointerY - input.trackTop - input.dragOffsetY, 0, trackTravel);
   return (sliderTop / trackTravel) * maxScrollTop;
@@ -252,6 +324,51 @@ export function computeMinimapRenderMetrics(input: MinimapRenderMetricsInput): M
   return {
     lineHeight,
     renderHeight: Math.min(containerHeight, lineCount * lineHeight),
+  };
+}
+
+export function computeMinimapFixedSliderHeight(viewportHeight: number, zoomLevel: number): number {
+  const normalizedViewportHeight = Math.max(1, viewportHeight);
+  return clamp(
+    FIXED_SLIDER_HEIGHT * zoomLevel,
+    Math.min(48, normalizedViewportHeight),
+    normalizedViewportHeight,
+  );
+}
+
+export function computeMinimapContentTrackMetrics(input: MinimapContentTrackMetricsInput): MinimapContentTrackMetrics {
+  const viewportHeight = Math.max(1, input.viewportHeight);
+  const fixedSliderHeight = clamp(input.fixedSliderHeight, Math.min(1, viewportHeight), viewportHeight);
+  const contentScrollHeight = Math.max(0, input.contentScrollHeight);
+  const contentViewportHeight = Math.max(0, input.contentViewportHeight);
+  const contentScrollTop = Math.max(0, input.contentScrollTop);
+  const naturalContentHeight = Math.max(1, input.naturalContentHeight);
+  const maxContentScrollTop = Math.max(0, contentScrollHeight - contentViewportHeight);
+
+  if (naturalContentHeight <= viewportHeight) {
+    return {
+      contentHeight: naturalContentHeight,
+      contentOffset: 0,
+    };
+  }
+
+  if (maxContentScrollTop <= 0 || contentViewportHeight <= 0) {
+    return {
+      contentHeight: clamp(naturalContentHeight, 1, viewportHeight),
+      contentOffset: 0,
+    };
+  }
+
+  const derivedContentHeight = Math.max(
+    viewportHeight,
+    Math.round((fixedSliderHeight * contentScrollHeight) / contentViewportHeight),
+  );
+  const contentHeight = Math.max(derivedContentHeight, naturalContentHeight);
+  const maxContentOffset = Math.max(0, contentHeight - viewportHeight);
+  const ratio = maxContentScrollTop <= 0 ? 0 : clamp(contentScrollTop, 0, maxContentScrollTop) / maxContentScrollTop;
+  return {
+    contentHeight,
+    contentOffset: Math.round(maxContentOffset * ratio),
   };
 }
 
@@ -295,6 +412,30 @@ export function minimapHunksToDiffModel(hunks: AgentHunkDecoration[], totalLines
       ];
     }),
   };
+}
+
+function getVisualColumns(line: string, wrapColumn?: number | null): number[] {
+  if (!wrapColumn || wrapColumn <= 0) {
+    return [line.length];
+  }
+  const normalizedWrapColumn = Math.max(1, Math.floor(wrapColumn));
+  if (line.length === 0) return [0];
+  const columns: number[] = [];
+  let remaining = line.length;
+  while (remaining > normalizedWrapColumn) {
+    columns.push(normalizedWrapColumn);
+    remaining -= normalizedWrapColumn;
+  }
+  columns.push(remaining);
+  return columns;
+}
+
+export function estimateWrapColumn(view: EditorView): number | null {
+  if (!view.lineWrapping) return null;
+  const charWidth = view.defaultCharacterWidth;
+  const contentWidth = view.contentDOM.clientWidth;
+  if (!Number.isFinite(charWidth) || charWidth <= 0 || contentWidth <= 0) return null;
+  return Math.max(1, Math.floor(contentWidth / charWidth));
 }
 
 const minimapDiffModelField = StateField.define<CmMinimapDiffModel | null>({
@@ -387,7 +528,11 @@ class MinimapPlugin implements PluginValue {
   update(update: ViewUpdate) {
     this.refreshScrollElement();
     this.attachToHost();
-    if (update.docChanged || update.viewportChanged || update.geometryChanged) {
+    const shouldRerender = update.docChanged
+      || update.viewportChanged
+      || update.geometryChanged
+      || update.transactions.some(tr => tr.reconfigured);
+    if (shouldRerender) {
       this.diffModel = update.state.field(minimapDiffModelField, false) ?? null;
       this.scheduleRender();
     }
@@ -484,6 +629,37 @@ class MinimapPlugin implements PluginValue {
     return this.settings.scrollbarType === "standard" ? STANDARD_SCROLLBAR_WIDTH : this.settings.thumbnailSize;
   }
 
+  private getContentElement(): HTMLElement | null {
+    return this.view.contentDOM instanceof HTMLElement ? this.view.contentDOM : null;
+  }
+
+  private getContentInsets() {
+    const contentElement = this.getContentElement();
+    if (!contentElement) {
+      return { contentTopInset: 0, contentBottomInset: 0 };
+    }
+    const style = getComputedStyle(contentElement);
+    const parseInset = (value: string) => {
+      const parsed = Number.parseFloat(value);
+      return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+    };
+    return {
+      contentTopInset: parseInset(style.paddingTop),
+      contentBottomInset: parseInset(style.paddingBottom),
+    };
+  }
+
+  private getContentMetrics(scrollElement: HTMLElement = this.scrollElement): MinimapContentMetrics {
+    const { contentTopInset, contentBottomInset } = this.getContentInsets();
+    return measureMinimapContentMetrics({
+      scrollTop: scrollElement.scrollTop,
+      scrollHeight: scrollElement.scrollHeight,
+      clientHeight: scrollElement.clientHeight,
+      contentTopInset,
+      contentBottomInset,
+    });
+  }
+
   private refreshScrollElement() {
     const nextScrollElement = this.getScrollElement();
     if (nextScrollElement === this.scrollElement) return;
@@ -492,6 +668,7 @@ class MinimapPlugin implements PluginValue {
     this.scrollElement = nextScrollElement;
     this.scrollElement.addEventListener("scroll", this.handleEditorScroll, { passive: true });
     this.updateScrollbarStyle();
+    this.observeHost();
   }
 
   private attachToHost() {
@@ -536,6 +713,11 @@ class MinimapPlugin implements PluginValue {
     const frameHost = this.findFrameHost();
     if (frameHost !== this.host) {
       this.resizeObserver.observe(frameHost);
+    }
+    this.resizeObserver.observe(this.scrollElement);
+    const contentElement = this.getContentElement();
+    if (contentElement) {
+      this.resizeObserver.observe(contentElement);
     }
     // Also observe the fixed-positioning containing block so the minimap
     // recalculates when the right panel resizes or shifts.
@@ -610,13 +792,89 @@ class MinimapPlugin implements PluginValue {
     if (hasDiffRanges && diffModel.totalLines > 0) {
       return diffModel.totalLines;
     }
-    return this.view.state.doc.lines;
+    return this.getDocumentLineColumns().length || this.view.state.doc.lines;
+  }
+
+  private getDocumentLineColumns(): number[] {
+    const wrapColumn = estimateWrapColumn(this.view);
+    const columns: number[] = [];
+    for (let lineNumber = 1; lineNumber <= this.view.state.doc.lines; lineNumber += 1) {
+      columns.push(...getVisualColumns(this.view.state.doc.line(lineNumber).text, wrapColumn));
+    }
+    return columns;
+  }
+
+  private getFixedMinimapSliderHeight(viewportHeight: number): number {
+    return computeMinimapFixedSliderHeight(viewportHeight, this.settings.zoomLevel);
+  }
+
+  private getNaturalMinimapContentHeight(viewportHeight: number): number {
+    const naturalLineHeight = Math.max(1, 2 * this.settings.zoomLevel);
+    return Math.max(1, this.getEffectiveLineCount() * naturalLineHeight);
+  }
+
+  private getStandardTrackMetrics(scrollElement: HTMLElement = this.scrollElement): MinimapTrackMetrics {
+    const viewportHeight = Math.max(1, this.dom.clientHeight || scrollElement.clientHeight || 1);
+    return {
+      top: 0,
+      viewportHeight,
+      trackHeight: viewportHeight,
+      contentHeight: viewportHeight,
+      contentOffset: 0,
+      fixedSliderHeight: 0,
+    };
+  }
+
+  private getMinimapTrackMetrics(scrollElement: HTMLElement = this.scrollElement): MinimapTrackMetrics {
+    const viewportHeight = Math.max(1, this.dom.clientHeight || scrollElement.clientHeight || 1);
+    const fixedSliderHeight = this.getFixedMinimapSliderHeight(viewportHeight);
+    const naturalContentHeight = this.getNaturalMinimapContentHeight(viewportHeight);
+    const contentMetrics = this.getContentMetrics(scrollElement);
+    const contentTrack = computeMinimapContentTrackMetrics({
+      viewportHeight,
+      contentScrollHeight: contentMetrics.contentScrollHeight,
+      contentViewportHeight: contentMetrics.contentViewportHeight,
+      contentScrollTop: contentMetrics.contentScrollTop,
+      fixedSliderHeight,
+      naturalContentHeight,
+    });
+
+    return {
+      top: 0,
+      viewportHeight,
+      trackHeight: Math.min(contentTrack.contentHeight, viewportHeight),
+      contentHeight: contentTrack.contentHeight,
+      contentOffset: contentTrack.contentOffset,
+      fixedSliderHeight,
+    };
+  }
+
+  private getTrackMetrics(scrollElement: HTMLElement = this.scrollElement): MinimapTrackMetrics {
+    return this.settings.scrollbarType === "standard"
+      ? this.getStandardTrackMetrics(scrollElement)
+      : this.getMinimapTrackMetrics(scrollElement);
   }
 
   private render() {
+    if (this.settings.scrollbarType === "standard") {
+      const width = this.getTrackWidth();
+      const height = Math.max(1, this.dom.clientHeight || this.scrollElement.clientHeight || 1);
+      this.canvas.style.width = `${width}px`;
+      this.canvas.style.height = `${height}px`;
+      this.dom.style.width = `${width}px`;
+      this.dom.style.setProperty("--adl-cm-minimap-width", `${width}px`);
+      this.findSurfaceHost()?.style.setProperty("--adl-editor-minimap-width", `${width}px`);
+      this.canvas.width = width * window.devicePixelRatio;
+      this.canvas.height = height * window.devicePixelRatio;
+      this.ctx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
+      this.ctx.clearRect(0, 0, width, height);
+      return;
+    }
+
     const docLineCount = this.view.state.doc.lines;
     const diffModel = this.diffModel;
     const hasDiffRanges = diffModel && diffModel.ranges.length > 0;
+    const documentLineColumns = !hasDiffRanges ? this.getDocumentLineColumns() : null;
 
     let lineCount: number;
     let useDocLines: boolean;
@@ -627,6 +885,9 @@ class MinimapPlugin implements PluginValue {
     } else if (hasDiffRanges && diffModel.totalLines > 0) {
       lineCount = diffModel.totalLines;
       useDocLines = false;
+    } else if (documentLineColumns) {
+      lineCount = Math.max(1, documentLineColumns.length);
+      useDocLines = false;
     } else {
       lineCount = docLineCount;
       useDocLines = true;
@@ -634,14 +895,12 @@ class MinimapPlugin implements PluginValue {
     lineCount = Math.max(1, lineCount);
 
     const width = this.getTrackWidth();
+    const trackMetrics = this.getTrackMetrics();
     this.syncFrameToHost();
-    const height = Math.max(this.dom.clientHeight || this.scrollElement.clientHeight || 1, 1);
+    const height = Math.max(trackMetrics.viewportHeight, 1);
     const dpr = window.devicePixelRatio || 1;
-    const renderMetrics = computeMinimapRenderMetrics({
-      lineCount,
-      containerHeight: height,
-      maxLineHeight: 2 * this.settings.zoomLevel,
-    });
+    const renderHeight = Math.max(1, trackMetrics.contentHeight);
+    const renderLineHeight = renderHeight / lineCount;
 
     this.canvas.width = Math.max(1, Math.floor(width * dpr));
     this.canvas.height = Math.max(1, Math.floor(height * dpr));
@@ -660,14 +919,26 @@ class MinimapPlugin implements PluginValue {
 
     const charWidth = width / 80;
 
-    for (let i = 1; i <= lineCount; i++) {
-      const y = (i - 1) * renderMetrics.lineHeight;
-      const lineHeight = renderMetrics.lineHeight;
+    const renderedLines: MinimapRenderedLineMetric[] = Array.from({ length: lineCount }, (_, index) => ({
+      lineNumber: index + 1,
+      top: index * renderLineHeight - trackMetrics.contentOffset,
+      height: renderLineHeight,
+      contentColumns: documentLineColumns?.[index]
+        ?? (useDocLines && index + 1 <= docLineCount
+          ? this.view.state.doc.line(index + 1).length
+          : diffModel?.lineColumns?.[index] ?? 0),
+    }));
+
+    for (const renderedLine of renderedLines) {
+      const i = renderedLine.lineNumber;
+      const y = renderedLine.top;
+      const lineHeight = renderedLine.height;
+      if (y + lineHeight < 0 || y > height) {
+        continue;
+      }
       this.ctx.fillStyle = fgColor;
 
-      const lineColumnsValue = useDocLines && i <= docLineCount
-        ? this.view.state.doc.line(i).length
-        : diffModel?.lineColumns?.[i - 1] ?? 0;
+      const lineColumnsValue = renderedLine.contentColumns;
       const linePixelWidth = Math.min(lineColumnsValue * charWidth, width);
       if (linePixelWidth > 0) {
         if (this.settings.renderCharacters) {
@@ -693,18 +964,28 @@ class MinimapPlugin implements PluginValue {
     }
   }
 
+  private getEffectiveSliderBehavior(): "proportional" | "fixed" {
+    if (this.settings.scrollbarType === "standard") {
+      return "proportional";
+    }
+    return "fixed";
+  }
+
   private updateSlider() {
     this.applyModeClasses();
-    const containerHeight = Math.max(1, this.dom.clientHeight || this.scrollElement.clientHeight);
+    const trackMetrics = this.getTrackMetrics();
     const scrollDom = this.scrollElement;
+    const { contentTopInset, contentBottomInset } = this.getContentInsets();
     const metrics = computeMinimapSliderMetrics({
       scrollTop: scrollDom.scrollTop,
       scrollHeight: scrollDom.scrollHeight,
       clientHeight: scrollDom.clientHeight,
-      trackHeight: containerHeight,
+      trackHeight: trackMetrics.trackHeight,
+      contentTopInset,
+      contentBottomInset,
       minHeight: 20,
-      sliderBehavior: this.settings.sliderBehavior,
-      fixedHeight: FIXED_SLIDER_HEIGHT,
+      sliderBehavior: this.getEffectiveSliderBehavior(),
+      fixedHeight: trackMetrics.fixedSliderHeight,
     });
 
     if (!metrics.visible) {
@@ -713,7 +994,7 @@ class MinimapPlugin implements PluginValue {
     }
 
     this.slider.style.display = "";
-    this.slider.style.top = `${metrics.top}px`;
+    this.slider.style.top = `${trackMetrics.top + metrics.top}px`;
     this.slider.style.height = `${metrics.height}px`;
   }
 
@@ -774,30 +1055,34 @@ class MinimapPlugin implements PluginValue {
   };
 
   private scrollToPointer(pointerY: number) {
-    const containerHeight = Math.max(1, this.dom.clientHeight || this.scrollElement.clientHeight);
+    const trackMetrics = this.getTrackMetrics();
     const scrollDom = this.scrollElement;
+    const { contentTopInset, contentBottomInset } = this.getContentInsets();
+    const contentMetrics = this.getContentMetrics(scrollDom);
     const metrics = computeMinimapSliderMetrics({
       scrollTop: scrollDom.scrollTop,
       scrollHeight: scrollDom.scrollHeight,
       clientHeight: scrollDom.clientHeight,
-      trackHeight: containerHeight,
+      trackHeight: trackMetrics.trackHeight,
+      contentTopInset,
+      contentBottomInset,
       minHeight: 20,
-      sliderBehavior: this.settings.sliderBehavior,
-      fixedHeight: FIXED_SLIDER_HEIGHT,
+      sliderBehavior: this.getEffectiveSliderBehavior(),
+      fixedHeight: trackMetrics.fixedSliderHeight,
     });
     if (!metrics.visible) return;
     const rect = this.dom.getBoundingClientRect();
     const scrollTop = computeMinimapScrollTopFromPointer({
       pointerY,
-      trackTop: rect.top,
+      trackTop: rect.top + trackMetrics.top,
       dragOffsetY: this.dragOffsetY,
-      scrollHeight: scrollDom.scrollHeight,
-      clientHeight: scrollDom.clientHeight,
-      trackHeight: containerHeight,
+      trackHeight: trackMetrics.trackHeight,
       sliderHeight: metrics.height,
+      contentScrollHeight: contentMetrics.contentScrollHeight,
+      contentViewportHeight: contentMetrics.contentViewportHeight,
     });
 
-    this.pendingScrollTop = scrollTop;
+    this.pendingScrollTop = toDomScrollTop(scrollTop, contentMetrics);
     if (this.frame) return;
     this.frame = requestAnimationFrame(() => {
       this.frame = 0;
@@ -813,11 +1098,7 @@ class MinimapPlugin implements PluginValue {
   private updateScrollbarStyle() {
     this.dom.style.display = "";
     this.scrollElement.classList.add("adl-cm-scroller--minimap-scrollbar");
-    if (this.settings.scrollbarType === "minimap") {
-      this.scrollElement.style.setProperty("scrollbar-width", "none");
-    } else {
-      this.scrollElement.style.removeProperty("scrollbar-width");
-    }
+    this.scrollElement.style.setProperty("scrollbar-width", "none");
     this.applyModeClasses();
     this.syncFrameToHost();
   }
@@ -881,17 +1162,6 @@ class MinimapPlugin implements PluginValue {
               },
               createSeparator(),
               {
-                label: "滑块: 按比例",
-                checked: settings.sliderBehavior === "proportional",
-                onClick: () => { settings.sliderBehavior = "proportional"; this.applySettings(); },
-              },
-              {
-                label: "滑块: 固定",
-                checked: settings.sliderBehavior === "fixed",
-                onClick: () => { settings.sliderBehavior = "fixed"; this.applySettings(); },
-              },
-              createSeparator(),
-              {
                 label: "缩放: 50%",
                 checked: settings.zoomLevel === 0.5,
                 onClick: () => { settings.zoomLevel = 0.5; this.applySettings(); },
@@ -929,19 +1199,7 @@ class MinimapPlugin implements PluginValue {
               },
               createSeparator(),
             ]
-          : [
-              {
-                label: "滑块: 按比例",
-                checked: settings.sliderBehavior === "proportional",
-                onClick: () => { settings.sliderBehavior = "proportional"; this.applySettings(); },
-              },
-              {
-                label: "滑块: 固定",
-                checked: settings.sliderBehavior === "fixed",
-                onClick: () => { settings.sliderBehavior = "fixed"; this.applySettings(); },
-              },
-              createSeparator(),
-            ];
+          : [];
 
       return [
         ...modeSpecificItems,

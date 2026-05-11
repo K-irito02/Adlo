@@ -10,6 +10,7 @@ import {
   type AgentHunkDecoration,
 } from "./agentDecorations";
 import {
+  estimateWrapColumn,
   getMinimapExtension,
   updateMinimapDiffHunks,
 } from "./cmMinimap";
@@ -210,6 +211,7 @@ export function FilesPanel(props: RightPanelViewProps) {
   const [wordWrapEnabled, setWordWrapEnabled] = useState(false);
   const [lineNumbersEnabled, setLineNumbersEnabled] = useState(true);
   const [fileDiffMinimapExpandedUnchanged, setFileDiffMinimapExpandedUnchanged] = useState(false);
+  const [fileDiffWrapColumn, setFileDiffWrapColumn] = useState<number | null>(null);
   const editorShellRef = useRef<HTMLDivElement | null>(null);
   const editorSurfaceRef = useRef<HTMLDivElement | null>(null);
   const [agentAnnotationsEnabled, setAgentAnnotationsEnabled] = useState(true);
@@ -337,9 +339,11 @@ export function FilesPanel(props: RightPanelViewProps) {
   ], []);
   const fileDiffMinimapModel = useMemo(
     () => filePatch && filePatch.relativePath === selectedFilePath
-      ? computePreviewDiffMinimapModel(filePatch.beforeContent, filePatch.afterContent)
+      ? computePreviewDiffMinimapModel(filePatch.beforeContent, filePatch.afterContent, {
+        wrapColumn: fileDiffWrapColumn,
+      })
       : undefined,
-    [filePatch, selectedFilePath]
+    [fileDiffWrapColumn, filePatch, selectedFilePath]
   );
   const handleFileDiffMinimapDragStart = useCallback(() => {
     setFileDiffMinimapExpandedUnchanged(true);
@@ -362,6 +366,44 @@ export function FilesPanel(props: RightPanelViewProps) {
     }
     return props.standardEditorRef.current;
   }, [filePatch, props.standardEditorRef, selectedFilePath]);
+
+  useEffect(() => {
+    let frame = 0;
+    const updateWrapColumn = () => {
+      const editor = getStickySourceEditor();
+      const domNode = editor?.getDomNode?.();
+      const view = domNode ? EditorView.findFromDOM(domNode) ?? null : null;
+      setFileDiffWrapColumn(wordWrapEnabled && view ? estimateWrapColumn(view) : null);
+    };
+    const scheduleWrapColumnUpdate = () => {
+      if (frame) {
+        cancelAnimationFrame(frame);
+      }
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        updateWrapColumn();
+      });
+    };
+
+    scheduleWrapColumnUpdate();
+    const editor = getStickySourceEditor();
+    if (!editor) {
+      if (frame) {
+        cancelAnimationFrame(frame);
+      }
+      return;
+    }
+
+    const layoutDisposable = editor.onDidLayoutChange?.(scheduleWrapColumnUpdate);
+    window.addEventListener("resize", scheduleWrapColumnUpdate);
+    return () => {
+      if (frame) {
+        cancelAnimationFrame(frame);
+      }
+      layoutDisposable?.dispose();
+      window.removeEventListener("resize", scheduleWrapColumnUpdate);
+    };
+  }, [diffSideBySide, getStickySourceEditor, selectedFilePath, stickyEditorReady, wordWrapEnabled]);
 
   useEffect(() => {
     const view = cmViewRef.current;

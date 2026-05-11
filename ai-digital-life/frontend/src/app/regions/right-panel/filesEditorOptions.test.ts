@@ -17,6 +17,12 @@ describe("files panel editor options", () => {
     expect(filesPanelSource).toContain("setFileDiffMinimapExpandedUnchanged(true)");
   });
 
+  it("recomputes file diff minimap wrapping from the active editor layout", () => {
+    expect(filesPanelSource).toContain("estimateWrapColumn");
+    expect(filesPanelSource).toContain("fileDiffWrapColumn");
+    expect(filesPanelSource).toContain("wrapColumn: fileDiffWrapColumn");
+  });
+
   it("passes stable minimap scopes to file editors and file diffs", () => {
     expect(filesPanelSource).toContain("files:${selectedFilePath}:editor");
     expect(filesPanelSource).toContain("files:${selectedFilePath}:diff");

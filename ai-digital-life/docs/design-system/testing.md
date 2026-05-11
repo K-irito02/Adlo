@@ -38,8 +38,8 @@ The file / diff viewers, outline navigation, and shared custom scroll shells rel
 
 | File | Scope |
 | --- | --- |
-| `frontend/src/app/regions/right-panel/cmMinimap.test.ts` | Minimap / standard rail setting normalization, scoped persistence, singleton context menu behavior, menu grouping, and slider geometry. |
-| `frontend/src/app/regions/right-panel/cmPreviewStyling.test.ts` | CodeMirror preview/diff shell CSS, minimap anchoring, custom scrollbar visibility rules, and side-by-side diff scroll ownership. |
+| `frontend/src/app/regions/right-panel/cmMinimap.test.ts` | Minimap / standard rail setting normalization, scoped persistence, singleton context menu behavior, menu grouping, fixed-slider zoom behavior, natural-vs-long content track switching, and slider geometry. |
+| `frontend/src/app/regions/right-panel/cmPreviewStyling.test.ts` | CodeMirror preview/diff shell CSS, minimap anchoring, custom scrollbar visibility rules, native-scrollbar suppression for the app-owned standard rail, and side-by-side diff scroll ownership. |
 | `frontend/src/app/regions/right-panel/filesEditorOptions.test.ts` | Files editor wiring, preview/editor scope IDs, and shared minimap extension attachment. |
 | `frontend/src/app/regions/right-panel/stickyContext.test.ts` | Sticky row derivation, top-row visibility, max-row cap, markdown/plain-text fallback, diff-side context selection. |
 | `frontend/src/app/regions/right-panel/changesEditorOptions.test.ts` | Diff editor options, side-by-side scroll policy, unified right-side minimap behavior. |

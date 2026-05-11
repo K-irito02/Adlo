@@ -31,6 +31,12 @@ describe("changes preview editor options", () => {
     expect(changesPanelSource).toContain("onCollapsedUnchangedRangesChange={setCollapsedUnchangedDiffRanges}");
   });
 
+  it("recomputes change preview minimap wrapping from the modified editor layout", () => {
+    expect(changesPanelSource).toContain("estimateWrapColumn");
+    expect(changesPanelSource).toContain("changePreviewWrapColumn");
+    expect(changesPanelSource).toContain("wrapColumn: changePreviewWrapColumn");
+  });
+
   it("applies inline diff background chunks from preview diff ranges", () => {
     expect(changesPanelSource).toContain("applyInlineDiffChunks");
     expect(changesPanelSource).toContain("previewDiffRangesToChunks");

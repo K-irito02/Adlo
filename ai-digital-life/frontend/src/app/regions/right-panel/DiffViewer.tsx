@@ -341,6 +341,8 @@ function SideBySideDiffViewer({
     };
     reconfigure(mv.a);
     reconfigure(mv.b);
+    mv.a.requestMeasure();
+    mv.b.requestMeasure();
   }, [lineNumbersEnabled, wordWrap]);
 
   useEffect(() => {
@@ -510,6 +512,7 @@ function InlineDiffViewer({
         wordWrapCompartment.reconfigure(wordWrap ? EditorView.lineWrapping : []),
       ],
     });
+    view.requestMeasure();
   }, [lineNumbersEnabled, wordWrap]);
 
   useEffect(() => {

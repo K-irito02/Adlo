@@ -136,6 +136,8 @@ export class CodeMirrorEditorRef implements EditorRef {
   onDidLayoutChange?(listener: () => void): Disposable {
     const observer = new ResizeObserver(listener);
     observer.observe(this.view.dom);
+    observer.observe(this.view.scrollDOM);
+    observer.observe(this.view.contentDOM);
     return {
       dispose() {
         observer.disconnect();
