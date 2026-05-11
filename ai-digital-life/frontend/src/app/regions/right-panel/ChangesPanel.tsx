@@ -286,6 +286,16 @@ export function ChangesPanel(props: RightPanelViewProps) {
       : false;
   const changePreviewTheme = appInfo?.config.resolvedTheme === "dark" ? "dark" as const : "light" as const;
   const changePreviewLocale = appInfo?.config.language ?? "zh-CN";
+  const changePreviewEditorMinimapScopeId = useMemo(
+    () => changePreview ? `changes:${changePreview.path}:preview` : "changes:unselected:preview",
+    [changePreview]
+  );
+  const changePreviewDiffMinimapScopeId = useMemo(
+    () => changePreview
+      ? `changes:${changePreview.path}:diff:${props.diffSideBySide ? "side-by-side" : "inline"}`
+      : `changes:unselected:diff:${props.diffSideBySide ? "side-by-side" : "inline"}`,
+    [changePreview, props.diffSideBySide]
+  );
   const diffExtensions = useMemo(() => [
     ...getAgentDecorationExtensions(),
     getInlineDiffBackgroundExtension(),
@@ -293,10 +303,10 @@ export function ChangesPanel(props: RightPanelViewProps) {
   ], []);
   const previewEditorExtensions = useMemo(() => [
     ...getAgentDecorationExtensions(),
-    ...getMinimapExtension(),
+    ...getMinimapExtension({ scopeId: changePreviewEditorMinimapScopeId }),
     getInlineDiffBackgroundExtension(),
     getFoldingTooltipExtension(),
-  ], []);
+  ], [changePreviewEditorMinimapScopeId]);
   const branchOptions = useMemo(() => {
     const options = new Set<string>([fallbackBranch, ...FALLBACK_BRANCHES]);
     return [...options];
@@ -1169,6 +1179,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
                       onMount={handleDiffMount}
                       extensions={diffExtensions}
                       minimapModel={changePreviewMinimapModel}
+                      minimapScopeId={changePreviewDiffMinimapScopeId}
                       onCollapsedUnchangedRangesChange={setCollapsedUnchangedDiffRanges}
                     />
                   </div>

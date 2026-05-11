@@ -18,6 +18,12 @@ describe("changes preview editor options", () => {
     expect(changesPanelSource).toContain("diffExtensions");
   });
 
+  it("passes stable minimap scopes to change preview and diff editors", () => {
+    expect(changesPanelSource).toContain("changes:${changePreview.path}:preview");
+    expect(changesPanelSource).toContain("changes:${changePreview.path}:diff:${props.diffSideBySide ? \"side-by-side\" : \"inline\"}");
+    expect(changesPanelSource).toContain("minimapScopeId={changePreviewDiffMinimapScopeId}");
+  });
+
   it("applies agent decorations and minimap hunks from preview diff ranges", () => {
     expect(changesPanelSource).toContain("applyAgentDecorations");
     expect(changesPanelSource).toContain("computePreviewDiffMinimapModel");

@@ -12,9 +12,6 @@ import {
 import {
   getMinimapExtension,
   updateMinimapDiffHunks,
-  loadMinimapSettings,
-  saveMinimapSettings,
-  type MinimapSettings as CmMinimapSettings,
 } from "./cmMinimap";
 import { getFoldingTooltipExtension } from "./cmFoldingTooltip";
 import { categorizeFile, type FileCategory } from "./fileTypeRouter";
@@ -216,9 +213,6 @@ export function FilesPanel(props: RightPanelViewProps) {
   const editorShellRef = useRef<HTMLDivElement | null>(null);
   const editorSurfaceRef = useRef<HTMLDivElement | null>(null);
   const [agentAnnotationsEnabled, setAgentAnnotationsEnabled] = useState(true);
-  const [minimapSettings, setMinimapSettings] = useState<CmMinimapSettings>(loadMinimapSettings);
-  const minimapSettingsRef = useRef(minimapSettings);
-  minimapSettingsRef.current = minimapSettings;
   const navigatorMode = useUiStore((state) => state.filesNavigatorMode);
   const setNavigatorMode = useUiStore((state) => state.setFilesNavigatorMode);
   const filePreviewModeByPath = useUiStore((state) => state.filePreviewModeByPath);
@@ -324,11 +318,19 @@ export function FilesPanel(props: RightPanelViewProps) {
     });
   }, [activeFilePatch, props.selectedPatchHunkId, selectedFilePath]);
 
+  const fileEditorMinimapScopeId = useMemo(
+    () => selectedFilePath ? `files:${selectedFilePath}:editor` : "files:unselected:editor",
+    [selectedFilePath]
+  );
+  const fileDiffMinimapScopeId = useMemo(
+    () => selectedFilePath ? `files:${selectedFilePath}:diff` : "files:unselected:diff",
+    [selectedFilePath]
+  );
   const editorExtensions = useMemo(() => [
     ...getAgentDecorationExtensions(),
-    ...getMinimapExtension(),
+    ...getMinimapExtension({ scopeId: fileEditorMinimapScopeId }),
     getFoldingTooltipExtension(),
-  ], []);
+  ], [fileEditorMinimapScopeId]);
   const diffEditorExtensions = useMemo(() => [
     ...getAgentDecorationExtensions(),
     getFoldingTooltipExtension(),
@@ -909,6 +911,7 @@ export function FilesPanel(props: RightPanelViewProps) {
               onMount={handleDiffEditorMount}
               extensions={diffEditorExtensions}
               minimapModel={fileDiffMinimapModel}
+              minimapScopeId={fileDiffMinimapScopeId}
               onMinimapDragStart={handleFileDiffMinimapDragStart}
               hunks={agentHunkDecorations}
             />

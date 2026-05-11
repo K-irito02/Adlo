@@ -37,6 +37,7 @@ export type DiffViewerProps = {
   onMount?: (editor: DiffEditorRef | EditorRef) => void;
   extensions?: Extension[];
   minimapModel?: CmMinimapDiffModel;
+  minimapScopeId?: string;
   onMinimapDragStart?: () => void;
   onCollapsedUnchangedRangesChange?: (ranges: PreviewDiffCollapsedRange[]) => void;
   hunks?: AgentHunkDecoration[];
@@ -160,6 +161,7 @@ function SideBySideDiffViewer({
   onMount,
   extraExtensions,
   minimapModel,
+  minimapScopeId,
   onMinimapDragStart,
   onCollapsedUnchangedRangesChange,
   hunks,
@@ -176,6 +178,7 @@ function SideBySideDiffViewer({
   onMount?: (editor: DiffEditorRef | EditorRef) => void;
   extraExtensions: Extension[];
   minimapModel?: CmMinimapDiffModel;
+  minimapScopeId?: string;
   onMinimapDragStart?: () => void;
   onCollapsedUnchangedRangesChange?: (ranges: PreviewDiffCollapsedRange[]) => void;
   hunks?: AgentHunkDecoration[];
@@ -242,6 +245,7 @@ function SideBySideDiffViewer({
       ...getMinimapExtension({
         onDragStart: onMinimapDragStart,
         scrollElement: () => activeMergeView?.dom ?? null,
+        scopeId: minimapScopeId,
       }),
     ];
 
@@ -317,6 +321,7 @@ function SideBySideDiffViewer({
     extraExtensions,
     collapseUnchanged,
     onMinimapDragStart,
+    minimapScopeId,
     onCollapsedUnchangedRangesChange,
     emitCollapsedUnchangedRanges,
   ]);
@@ -372,6 +377,7 @@ function InlineDiffViewer({
   onMount,
   extraExtensions,
   minimapModel,
+  minimapScopeId,
   onMinimapDragStart,
   onCollapsedUnchangedRangesChange,
   hunks,
@@ -388,6 +394,7 @@ function InlineDiffViewer({
   onMount?: (editor: DiffEditorRef | EditorRef) => void;
   extraExtensions: Extension[];
   minimapModel?: CmMinimapDiffModel;
+  minimapScopeId?: string;
   onMinimapDragStart?: () => void;
   onCollapsedUnchangedRangesChange?: (ranges: PreviewDiffCollapsedRange[]) => void;
   hunks?: AgentHunkDecoration[];
@@ -426,7 +433,7 @@ function InlineDiffViewer({
           }));
         }
       }),
-      ...getMinimapExtension({ onDragStart: onMinimapDragStart }),
+      ...getMinimapExtension({ onDragStart: onMinimapDragStart, scopeId: minimapScopeId }),
       unifiedMergeView({
         original,
         highlightChanges: true,
@@ -446,6 +453,7 @@ function InlineDiffViewer({
     collapseUnchanged,
     extraExtensions,
     onMinimapDragStart,
+    minimapScopeId,
     onCollapsedUnchangedRangesChange,
   ]);
 
@@ -539,6 +547,7 @@ export function DiffViewer({
   onMount,
   extensions: extraExtensions = [],
   minimapModel,
+  minimapScopeId,
   onMinimapDragStart,
   onCollapsedUnchangedRangesChange,
   hunks,
@@ -559,6 +568,7 @@ export function DiffViewer({
         onMount={onMount}
         extraExtensions={extraExtensions}
         minimapModel={minimapModel}
+        minimapScopeId={minimapScopeId}
         onMinimapDragStart={onMinimapDragStart}
         onCollapsedUnchangedRangesChange={onCollapsedUnchangedRangesChange}
         hunks={hunks}
@@ -580,6 +590,7 @@ export function DiffViewer({
       onMount={onMount}
       extraExtensions={extraExtensions}
       minimapModel={minimapModel}
+      minimapScopeId={minimapScopeId}
       onMinimapDragStart={onMinimapDragStart}
       onCollapsedUnchangedRangesChange={onCollapsedUnchangedRangesChange}
       hunks={hunks}

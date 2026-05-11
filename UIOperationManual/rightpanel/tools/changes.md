@@ -284,6 +284,22 @@ await page.locator('.adl-tool-context__group--files-actions .adl-tool-context__i
 
 > `locale` prop 通过 `appInfo.config.language` 传入 CodeEditor / DiffViewer，由 `getPhrasesExtension(locale)` 生成 `EditorState.phrases` 扩展。
 
+### Minimap / 滑动条菜单
+
+> 变更工具中的只读预览、内联 Diff、并排 Diff 共用同一套右侧滚动壳与菜单语义。右键点击右侧滚动区域，可切换 `Minimap` 与 `普通` 两种模式。
+
+| 菜单项 | 作用 |
+|--------|------|
+| `滑动条: Minimap` | 显示缩略图、Diff 分布与当前可视区域滑块 |
+| `滑动条: 普通` | 切换到应用内普通轨道，不再显示缩略图内容 |
+| `渲染字符` | 仅在 `Minimap` 模式出现；控制缩略图字符纹理绘制 |
+| `滑块: 按比例 / 固定` | 控制滑块高度策略 |
+| `缩放` / `宽度` | 仅在 `Minimap` 模式出现；控制缩略图密度与宽度 |
+| `滑块样式: 轻 / 标准` | 调整滑块可见度强弱 |
+| `设置: 全局 / 独立` | 控制配置写入全局设置，还是仅作用于当前变更视图作用域 |
+
+> 菜单点击选项后会保持展开，并原地刷新勾选状态；只有点击菜单外部，或在其他滚动区域重新打开菜单时才会关闭。
+
 ### 刷新按钮
 
 > 变更文件统计数字右侧的刷新按钮，同时刷新文件树和 Git 快照。

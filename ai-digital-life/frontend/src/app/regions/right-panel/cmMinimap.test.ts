@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   computeMinimapScrollTopFromPointer,
@@ -11,6 +11,10 @@ import {
 } from "./cmMinimap";
 
 const cmMinimapSource = readFileSync(new URL("../../../../src/app/regions/right-panel/cmMinimap.ts", import.meta.url), "utf8");
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe("cm minimap geometry", () => {
   it("pins the minimap frame to the editor surface viewport instead of content width", () => {
@@ -107,6 +111,80 @@ describe("cm minimap geometry", () => {
       lineHeight: 0.5,
       renderHeight: 500,
     });
+  });
+});
+
+describe("cm minimap settings", () => {
+  it("migrates legacy native scrollbar settings to the app-owned standard rail", async () => {
+    const storage = new Map<string, string>([
+      ["adl-minimap-settings", JSON.stringify({ scrollbarType: "native" })],
+    ]);
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => storage.get(key) ?? null,
+      setItem: (key: string, value: string) => storage.set(key, value),
+    });
+
+    const { loadMinimapSettings } = await import("./cmMinimap");
+
+    expect(loadMinimapSettings().scrollbarType).toBe("standard");
+  });
+
+  it("keeps a right-click target when standard scrollbar mode is selected", () => {
+    expect(cmMinimapSource).toContain('this.dom.addEventListener("contextmenu", this.handleContextMenu)');
+    expect(cmMinimapSource).toContain("adl-cm-minimap--standard");
+    expect(cmMinimapSource).not.toContain('this.dom.style.display = "none"');
+  });
+
+  it("keeps the context menu singleton instead of stacking duplicate cards", () => {
+    expect(cmMinimapSource).toContain("closeActiveMinimapMenu()");
+    expect(cmMinimapSource).toContain('const MINIMAP_MENU_ROOT_ID = "adl-cm-minimap-context-menu-root"');
+    expect(cmMinimapSource).toContain("activeMinimapMenuCleanup");
+  });
+
+  it("supports scoped minimap settings for independent editor surfaces", () => {
+    expect(cmMinimapSource).toContain("scopeId?: string");
+    expect(cmMinimapSource).toContain("loadMinimapSettings(this.options.scopeId)");
+    expect(cmMinimapSource).toContain("saveMinimapSettings(this.settings, this.options.scopeId)");
+  });
+
+  it("uses renderCharacters and slider prominence settings in rendering and styling", () => {
+    expect(cmMinimapSource).toContain("this.settings.renderCharacters");
+    expect(cmMinimapSource).toContain("this.settings.sliderProminence");
+    expect(cmMinimapSource).toContain("adl-cm-minimap-slider--");
+  });
+
+  it("shows mode-specific menu groups for minimap and standard scrollbar modes", () => {
+    expect(cmMinimapSource).toContain("const modeSpecificItems");
+    expect(cmMinimapSource).toContain('settings.scrollbarType === "minimap"');
+    expect(cmMinimapSource).toContain('label: "渲染字符"');
+    expect(cmMinimapSource).toContain('label: "缩放: 100%"');
+    expect(cmMinimapSource).toContain('label: "宽度: 80px"');
+    expect(cmMinimapSource).toContain('createModeButton("滑动条: Minimap"');
+    expect(cmMinimapSource).not.toContain('label: "滑块样式: 强"');
+  });
+
+  it("adds separators between the requested minimap menu groups", () => {
+    expect(cmMinimapSource).toContain("createSeparator()");
+    expect(cmMinimapSource).toContain('label: "渲染字符"');
+    expect(cmMinimapSource).toContain('label: "滑块: 按比例"');
+    expect(cmMinimapSource).toContain('label: "宽度: 100px"');
+    expect(cmMinimapSource).toContain('label: "滑块样式: 标准"');
+  });
+
+  it("renders the checkmark in a fixed trailing slot instead of prefixing the label", () => {
+    expect(cmMinimapSource).toContain('label.className = "adl-cm-minimap-menu-item__label"');
+    expect(cmMinimapSource).toContain('check.className = "adl-cm-minimap-menu-item__check"');
+    expect(cmMinimapSource).toContain('check.textContent = item.checked ? "√" : ""');
+  });
+
+  it("keeps the menu open after toggling an option and refreshes its contents in place", () => {
+    expect(cmMinimapSource).toContain("const renderMenuContent = () => {");
+    expect(cmMinimapSource).toContain("menu.replaceChildren();");
+    expect(cmMinimapSource).toContain("renderMenuContent();");
+    expect(cmMinimapSource).toContain('menu.addEventListener("click", (event) => {');
+    expect(cmMinimapSource).toContain("event.stopPropagation();");
+    expect(cmMinimapSource).not.toContain('el.addEventListener("click", () => {\n          item.onClick();\n          menu.remove();');
+    expect(cmMinimapSource).not.toContain('button.addEventListener("click", () => {\n          onClick();\n          menu.remove();');
   });
 });
 

@@ -17,6 +17,12 @@ describe("files panel editor options", () => {
     expect(filesPanelSource).toContain("setFileDiffMinimapExpandedUnchanged(true)");
   });
 
+  it("passes stable minimap scopes to file editors and file diffs", () => {
+    expect(filesPanelSource).toContain("files:${selectedFilePath}:editor");
+    expect(filesPanelSource).toContain("files:${selectedFilePath}:diff");
+    expect(filesPanelSource).toContain("minimapScopeId={fileDiffMinimapScopeId}");
+  });
+
   it("does not use Monaco editor", () => {
     expect(filesPanelSource).not.toContain("@monaco-editor/react");
     expect(filesPanelSource).not.toContain("minimap:");

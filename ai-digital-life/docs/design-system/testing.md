@@ -38,16 +38,22 @@ The file / diff viewers, outline navigation, and shared custom scroll shells rel
 
 | File | Scope |
 | --- | --- |
+| `frontend/src/app/regions/right-panel/cmMinimap.test.ts` | Minimap / standard rail setting normalization, scoped persistence, singleton context menu behavior, menu grouping, and slider geometry. |
+| `frontend/src/app/regions/right-panel/cmPreviewStyling.test.ts` | CodeMirror preview/diff shell CSS, minimap anchoring, custom scrollbar visibility rules, and side-by-side diff scroll ownership. |
+| `frontend/src/app/regions/right-panel/filesEditorOptions.test.ts` | Files editor wiring, preview/editor scope IDs, and shared minimap extension attachment. |
 | `frontend/src/app/regions/right-panel/stickyContext.test.ts` | Sticky row derivation, top-row visibility, max-row cap, markdown/plain-text fallback, diff-side context selection. |
 | `frontend/src/app/regions/right-panel/changesEditorOptions.test.ts` | Diff editor options, side-by-side scroll policy, unified right-side minimap behavior. |
 | `frontend/src/app/regions/right-panel/outlineModel.test.ts` | Markdown / 代码 / 配置文件大纲抽取与树构建规则。 |
 | `frontend/src/app/regions/right-panel/outlinePanelWiring.test.ts` | Files / Changes 大纲接线、共享滚动壳和浏览器 preview outline 接线。 |
 | `frontend/src/app/regions/right-panel/fileTree.test.tsx` | 文件树行级交互与共享滚动壳基础渲染。 |
 
-When touching `FilesPanel`, `ChangesPanel`, sticky navigation, minimap sizing, or Monaco adapter code, run at least:
+When touching `FilesPanel`, `ChangesPanel`, `DiffViewer`, sticky navigation, minimap sizing, minimap context menus, or custom scrollbar ownership, run at least:
 
 ```bash
 npm --prefix frontend test -- --run \
+  src/app/regions/right-panel/cmMinimap.test.ts \
+  src/app/regions/right-panel/cmPreviewStyling.test.ts \
+  src/app/regions/right-panel/filesEditorOptions.test.ts \
   src/app/regions/right-panel/stickyContext.test.ts \
   src/app/regions/right-panel/changesEditorOptions.test.ts \
   src/app/regions/right-panel/outlineModel.test.ts \

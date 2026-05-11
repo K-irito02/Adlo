@@ -77,6 +77,30 @@ describe("CodeMirror preview styling", () => {
     expect(extractCssBlock(regionsCssSource, ".adl-cm-editor .cm-scroller,\n.adl-cm-diff-viewer .cm-scroller")).not.toContain("overflow-y: hidden");
   });
 
+  it("keeps the app-owned standard scrollbar visible and context-menu capable", () => {
+    const standardBlock = extractCssBlock(regionsCssSource, ".adl-cm-minimap--standard {\n");
+    const standardSliderBlock = extractCssBlock(regionsCssSource, ".adl-cm-minimap--standard .adl-cm-minimap-slider {\n");
+
+    expect(standardBlock).toContain("width: var(--adl-cm-standard-scrollbar-width");
+    expect(standardBlock).not.toContain("display: none");
+    expect(standardSliderBlock).toContain("left:");
+    expect(standardSliderBlock).toContain("right:");
+    expect(regionsCssSource).toContain(".adl-cm-minimap--standard .adl-cm-minimap-canvas");
+  });
+
+  it("styles the scrollbar mode switcher like the shared segmented buttons and right-aligns checkmarks", () => {
+    expect(regionsCssSource).toContain(".adl-cm-minimap-menu-segmented");
+    expect(regionsCssSource).toContain('.adl-cm-minimap-menu-segmented__button[aria-pressed="true"]');
+    expect(regionsCssSource).toContain(".adl-cm-minimap-menu-item__check");
+    expect(regionsCssSource).not.toContain(".adl-cm-minimap-menu-item--checked::before");
+  });
+
+  it("keeps native scrollbars hidden while the app-owned minimap rail is active", () => {
+    expect(regionsCssSource).toContain(".adl-cm-editor .cm-scroller.adl-cm-scroller--minimap-scrollbar::-webkit-scrollbar");
+    expect(regionsCssSource).toContain(".adl-cm-diff-viewer--side-by-side .cm-mergeView.adl-cm-scroller--minimap-scrollbar::-webkit-scrollbar");
+    expect(regionsCssSource).toContain(".adl-cm-scroller--minimap-scrollbar {\n  scrollbar-width: none;");
+  });
+
   it("keeps diff gutter rows vertically aligned with content rows", () => {
     const contentBlock = extractCssBlock(regionsCssSource, ".adl-cm-editor .cm-content,\n.adl-cm-diff-viewer .cm-content {\n");
     const guttersBlock = extractCssBlock(regionsCssSource, ".adl-cm-editor .cm-gutters,\n.adl-cm-diff-viewer .cm-gutters {\n");

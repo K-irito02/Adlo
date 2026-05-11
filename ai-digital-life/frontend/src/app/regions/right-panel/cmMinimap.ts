@@ -8,8 +8,8 @@ export interface MinimapSettings {
   thumbnailSize: number;
   zoomLevel: number;
   sliderBehavior: "proportional" | "fixed";
-  sliderProminence: "subtle" | "normal" | "bold";
-  scrollbarType: "minimap" | "native";
+  sliderProminence: "subtle" | "normal";
+  scrollbarType: "minimap" | "standard";
   isGlobal: boolean;
 }
 
@@ -24,19 +24,121 @@ const DEFAULT_MINIMAP_SETTINGS: MinimapSettings = {
 };
 
 const STORAGE_KEY = "adl-minimap-settings";
+const SCOPED_STORAGE_KEY = "adl-minimap-settings-scoped";
+const SETTINGS_CHANGED_EVENT = "adl-minimap-settings-changed";
 const FIXED_SLIDER_HEIGHT = 96;
+const STANDARD_SCROLLBAR_WIDTH = 12;
+const MINIMAP_MENU_ROOT_ID = "adl-cm-minimap-context-menu-root";
 
-export function loadMinimapSettings(): MinimapSettings {
+type MinimapSettingsInput = Partial<Omit<MinimapSettings, "scrollbarType">> & {
+  scrollbarType?: MinimapSettings["scrollbarType"] | "native";
+};
+
+type ScopedSettingsStore = Record<string, MinimapSettingsInput | undefined>;
+type MinimapMenuCleanup = () => void;
+type MenuItem = { label: string; checked: boolean; onClick: () => void; separator?: boolean };
+
+let activeMinimapMenuCleanup: MinimapMenuCleanup | null = null;
+
+function parseStoredSettings(raw: string | null): MinimapSettingsInput | null {
+  if (!raw) return null;
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) return { ...DEFAULT_MINIMAP_SETTINGS, ...JSON.parse(stored) };
-  } catch {}
-  return { ...DEFAULT_MINIMAP_SETTINGS };
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
 }
 
-export function saveMinimapSettings(settings: MinimapSettings): void {
+function readScopedSettingsStore(): ScopedSettingsStore {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    const raw = localStorage.getItem(SCOPED_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeScopedSettingsStore(store: ScopedSettingsStore): void {
+  try {
+    localStorage.setItem(SCOPED_STORAGE_KEY, JSON.stringify(store));
+  } catch {}
+}
+
+function closeActiveMinimapMenu(): void {
+  activeMinimapMenuCleanup?.();
+  activeMinimapMenuCleanup = null;
+}
+
+function readGlobalMinimapSettings(): MinimapSettings {
+  try {
+    return normalizeMinimapSettings(parseStoredSettings(localStorage.getItem(STORAGE_KEY)));
+  } catch {
+    return { ...DEFAULT_MINIMAP_SETTINGS };
+  }
+}
+
+function sanitizeNumber(value: unknown, fallback: number, min: number, max: number): number {
+  return typeof value === "number" && Number.isFinite(value)
+    ? clamp(value, min, max)
+    : fallback;
+}
+
+function normalizeMinimapSettings(input: MinimapSettingsInput | null | undefined): MinimapSettings {
+  const merged = { ...DEFAULT_MINIMAP_SETTINGS, ...(input ?? {}) };
+  const scrollbarType = merged.scrollbarType === "native"
+    ? "standard"
+    : merged.scrollbarType === "standard" || merged.scrollbarType === "minimap"
+      ? merged.scrollbarType
+      : DEFAULT_MINIMAP_SETTINGS.scrollbarType;
+  const sliderBehavior = merged.sliderBehavior === "proportional" || merged.sliderBehavior === "fixed"
+    ? merged.sliderBehavior
+    : DEFAULT_MINIMAP_SETTINGS.sliderBehavior;
+  const sliderProminence =
+    merged.sliderProminence === "subtle" || merged.sliderProminence === "normal"
+      ? merged.sliderProminence
+      : DEFAULT_MINIMAP_SETTINGS.sliderProminence;
+
+  return {
+    renderCharacters: Boolean(merged.renderCharacters),
+    thumbnailSize: sanitizeNumber(merged.thumbnailSize, DEFAULT_MINIMAP_SETTINGS.thumbnailSize, 60, 100),
+    zoomLevel: sanitizeNumber(merged.zoomLevel, DEFAULT_MINIMAP_SETTINGS.zoomLevel, 0.5, 2),
+    sliderBehavior,
+    sliderProminence,
+    scrollbarType,
+    isGlobal: merged.isGlobal !== false,
+  };
+}
+
+export function loadMinimapSettings(scopeId?: string): MinimapSettings {
+  const globalSettings = readGlobalMinimapSettings();
+  if (!scopeId) return globalSettings;
+
+  const scopedSettings = readScopedSettingsStore()[scopeId];
+  if (!scopedSettings) return globalSettings;
+
+  const normalizedScoped = normalizeMinimapSettings({ ...globalSettings, ...scopedSettings });
+  return normalizedScoped.isGlobal ? globalSettings : normalizedScoped;
+}
+
+export function saveMinimapSettings(settings: MinimapSettings, scopeId?: string): void {
+  const normalized = normalizeMinimapSettings(settings);
+  if (scopeId && !normalized.isGlobal) {
+    const store = readScopedSettingsStore();
+    store[scopeId] = normalized;
+    writeScopedSettingsStore(store);
+    return;
+  }
+
+  if (scopeId) {
+    const store = readScopedSettingsStore();
+    delete store[scopeId];
+    writeScopedSettingsStore(store);
+  }
+
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...normalized, isGlobal: true }));
   } catch {}
 }
 
@@ -63,6 +165,7 @@ export type CmMinimapExtensionOptions = {
   onDragStart?: () => void;
   onScroll?: (scrollTop: number) => void;
   scrollElement?: () => HTMLElement | null;
+  scopeId?: string;
 };
 
 export type MinimapSliderMetricsInput = {
@@ -225,12 +328,19 @@ class MinimapPlugin implements PluginValue {
     this.syncFrameToHost();
     this.scheduleRender();
   };
+  private handleSettingsChanged = () => {
+    this.settings = loadMinimapSettings(this.options.scopeId);
+    this.render();
+    this.updateSlider();
+    this.updateScrollbarStyle();
+  };
 
   constructor(private view: EditorView, private options: CmMinimapExtensionOptions = {}) {
-    this.settings = loadMinimapSettings();
+    this.settings = loadMinimapSettings(this.options.scopeId);
 
     this.dom = document.createElement("div");
     this.dom.className = "adl-cm-minimap";
+    this.dom.addEventListener("contextmenu", this.handleContextMenu);
 
     this.canvas = document.createElement("canvas");
     this.canvas.className = "adl-cm-minimap-canvas";
@@ -243,7 +353,6 @@ class MinimapPlugin implements PluginValue {
     this.dom.appendChild(this.slider);
 
     this.canvas.addEventListener("pointerdown", this.handleCanvasPointerDown);
-    this.canvas.addEventListener("contextmenu", this.handleContextMenu);
     this.slider.addEventListener("pointerdown", this.handleSliderPointerDown);
     this.scrollElement = this.getScrollElement();
     this.scrollElement.addEventListener("scroll", this.handleEditorScroll, { passive: true });
@@ -262,6 +371,7 @@ class MinimapPlugin implements PluginValue {
     this.host = view.dom;
     this.attachToHost();
     window.addEventListener("resize", this.handleWindowResize);
+    window.addEventListener(SETTINGS_CHANGED_EVENT, this.handleSettingsChanged);
     requestAnimationFrame(() => {
       this.refreshScrollElement();
       this.attachToHost();
@@ -297,8 +407,9 @@ class MinimapPlugin implements PluginValue {
   }
 
   destroy() {
+    closeActiveMinimapMenu();
+    this.dom.removeEventListener("contextmenu", this.handleContextMenu);
     this.canvas.removeEventListener("pointerdown", this.handleCanvasPointerDown);
-    this.canvas.removeEventListener("contextmenu", this.handleContextMenu);
     this.slider.removeEventListener("pointerdown", this.handleSliderPointerDown);
     this.scrollElement.removeEventListener("scroll", this.handleEditorScroll);
     this.scrollElement.classList.remove("adl-cm-scroller--minimap-scrollbar");
@@ -315,6 +426,7 @@ class MinimapPlugin implements PluginValue {
     this.resizeObserver?.disconnect();
     this.resizeObserver = null;
     window.removeEventListener("resize", this.handleWindowResize);
+    window.removeEventListener(SETTINGS_CHANGED_EVENT, this.handleSettingsChanged);
     this.dom.remove();
   }
 
@@ -368,6 +480,10 @@ class MinimapPlugin implements PluginValue {
     return this.options.scrollElement?.() ?? this.view.scrollDOM;
   }
 
+  private getTrackWidth(): number {
+    return this.settings.scrollbarType === "standard" ? STANDARD_SCROLLBAR_WIDTH : this.settings.thumbnailSize;
+  }
+
   private refreshScrollElement() {
     const nextScrollElement = this.getScrollElement();
     if (nextScrollElement === this.scrollElement) return;
@@ -389,7 +505,7 @@ class MinimapPlugin implements PluginValue {
       // Keep the --adl-editor-minimap-width variable on the surfaceHost so
       // .cm-scroller padding-right stays in sync per-editor.
       if (surfaceHost) {
-        surfaceHost.style.setProperty("--adl-editor-minimap-width", `${this.settings.thumbnailSize}px`);
+        surfaceHost.style.setProperty("--adl-editor-minimap-width", `${this.getTrackWidth()}px`);
       }
       this.syncFrameToHost();
       return;
@@ -400,7 +516,7 @@ class MinimapPlugin implements PluginValue {
     // Always set the minimap-width variable on the surfaceHost (not the DOM host)
     // so each editor's .cm-scroller gets the correct padding-right.
     if (surfaceHost) {
-      surfaceHost.style.setProperty("--adl-editor-minimap-width", `${this.settings.thumbnailSize}px`);
+      surfaceHost.style.setProperty("--adl-editor-minimap-width", `${this.getTrackWidth()}px`);
     }
     this.observeHost();
     this.syncFrameToHost();
@@ -517,7 +633,7 @@ class MinimapPlugin implements PluginValue {
     }
     lineCount = Math.max(1, lineCount);
 
-    const width = this.settings.thumbnailSize;
+    const width = this.getTrackWidth();
     this.syncFrameToHost();
     const height = Math.max(this.dom.clientHeight || this.scrollElement.clientHeight || 1, 1);
     const dpr = window.devicePixelRatio || 1;
@@ -554,7 +670,16 @@ class MinimapPlugin implements PluginValue {
         : diffModel?.lineColumns?.[i - 1] ?? 0;
       const linePixelWidth = Math.min(lineColumnsValue * charWidth, width);
       if (linePixelWidth > 0) {
-        this.ctx.fillRect(0, y, linePixelWidth, Math.max(1, lineHeight * 0.65));
+        if (this.settings.renderCharacters) {
+          const glyphWidth = Math.max(1, charWidth * 0.85);
+          const glyphGap = Math.max(1, charWidth * 0.45);
+          for (let x = 0; x < linePixelWidth; x += glyphWidth + glyphGap) {
+            this.ctx.fillRect(x, y, Math.min(glyphWidth, linePixelWidth - x), Math.max(1, lineHeight * 0.65));
+          }
+        } else {
+          const structuralWidth = Math.max(2, Math.min(linePixelWidth, width * 0.72));
+          this.ctx.fillRect(0, y, structuralWidth, Math.max(1, lineHeight * 0.55));
+        }
       }
 
       const segments = getMinimapDiffSegmentsForLine(diffModel, i);
@@ -569,6 +694,7 @@ class MinimapPlugin implements PluginValue {
   }
 
   private updateSlider() {
+    this.applyModeClasses();
     const containerHeight = Math.max(1, this.dom.clientHeight || this.scrollElement.clientHeight);
     const scrollDom = this.scrollElement;
     const metrics = computeMinimapSliderMetrics({
@@ -685,13 +811,24 @@ class MinimapPlugin implements PluginValue {
   }
 
   private updateScrollbarStyle() {
+    this.dom.style.display = "";
+    this.scrollElement.classList.add("adl-cm-scroller--minimap-scrollbar");
     if (this.settings.scrollbarType === "minimap") {
-      this.dom.style.display = "";
-      this.scrollElement.classList.add("adl-cm-scroller--minimap-scrollbar");
+      this.scrollElement.style.setProperty("scrollbar-width", "none");
     } else {
-      this.dom.style.display = "none";
-      this.scrollElement.classList.remove("adl-cm-scroller--minimap-scrollbar");
+      this.scrollElement.style.removeProperty("scrollbar-width");
     }
+    this.applyModeClasses();
+    this.syncFrameToHost();
+  }
+
+  private applyModeClasses() {
+    this.dom.classList.toggle("adl-cm-minimap--standard", this.settings.scrollbarType === "standard");
+    this.dom.classList.toggle("adl-cm-minimap--thumbnail", this.settings.scrollbarType === "minimap");
+    this.slider.className = [
+      "adl-cm-minimap-slider",
+      `adl-cm-minimap-slider--${this.settings.sliderProminence}`,
+    ].join(" ");
   }
 
   private handleEditorScroll = () => {
@@ -718,132 +855,190 @@ class MinimapPlugin implements PluginValue {
 
   private handleContextMenu = (e: MouseEvent) => {
     e.preventDefault();
+    e.stopPropagation();
+    closeActiveMinimapMenu();
     const menu = document.createElement("div");
+    menu.id = MINIMAP_MENU_ROOT_ID;
     menu.className = "adl-cm-minimap-context-menu";
+    menu.addEventListener("click", (event) => {
+      event.stopPropagation();
+    });
+    const createSeparator = (): MenuItem => ({
+      label: "",
+      checked: false,
+      onClick: () => {},
+      separator: true,
+    });
+    const getMenuItems = (): MenuItem[] => {
+      const settings = this.settings;
+      const modeSpecificItems: MenuItem[] =
+        settings.scrollbarType === "minimap"
+          ? [
+              {
+                label: "渲染字符",
+                checked: settings.renderCharacters,
+                onClick: () => { settings.renderCharacters = !settings.renderCharacters; this.applySettings(); },
+              },
+              createSeparator(),
+              {
+                label: "滑块: 按比例",
+                checked: settings.sliderBehavior === "proportional",
+                onClick: () => { settings.sliderBehavior = "proportional"; this.applySettings(); },
+              },
+              {
+                label: "滑块: 固定",
+                checked: settings.sliderBehavior === "fixed",
+                onClick: () => { settings.sliderBehavior = "fixed"; this.applySettings(); },
+              },
+              createSeparator(),
+              {
+                label: "缩放: 50%",
+                checked: settings.zoomLevel === 0.5,
+                onClick: () => { settings.zoomLevel = 0.5; this.applySettings(); },
+              },
+              {
+                label: "缩放: 100%",
+                checked: settings.zoomLevel === 1,
+                onClick: () => { settings.zoomLevel = 1; this.applySettings(); },
+              },
+              {
+                label: "缩放: 150%",
+                checked: settings.zoomLevel === 1.5,
+                onClick: () => { settings.zoomLevel = 1.5; this.applySettings(); },
+              },
+              {
+                label: "缩放: 200%",
+                checked: settings.zoomLevel === 2,
+                onClick: () => { settings.zoomLevel = 2; this.applySettings(); },
+              },
+              createSeparator(),
+              {
+                label: "宽度: 60px",
+                checked: settings.thumbnailSize === 60,
+                onClick: () => { settings.thumbnailSize = 60; this.applySettings(); },
+              },
+              {
+                label: "宽度: 80px",
+                checked: settings.thumbnailSize === 80,
+                onClick: () => { settings.thumbnailSize = 80; this.applySettings(); },
+              },
+              {
+                label: "宽度: 100px",
+                checked: settings.thumbnailSize === 100,
+                onClick: () => { settings.thumbnailSize = 100; this.applySettings(); },
+              },
+              createSeparator(),
+            ]
+          : [
+              {
+                label: "滑块: 按比例",
+                checked: settings.sliderBehavior === "proportional",
+                onClick: () => { settings.sliderBehavior = "proportional"; this.applySettings(); },
+              },
+              {
+                label: "滑块: 固定",
+                checked: settings.sliderBehavior === "fixed",
+                onClick: () => { settings.sliderBehavior = "fixed"; this.applySettings(); },
+              },
+              createSeparator(),
+            ];
 
-    const settings = this.settings;
+      return [
+        ...modeSpecificItems,
+        {
+          label: "滑块样式: 轻",
+          checked: settings.sliderProminence === "subtle",
+          onClick: () => { settings.sliderProminence = "subtle"; this.applySettings(); },
+        },
+        {
+          label: "滑块样式: 标准",
+          checked: settings.sliderProminence === "normal",
+          onClick: () => { settings.sliderProminence = "normal"; this.applySettings(); },
+        },
+        createSeparator(),
+        {
+          label: "设置: 全局",
+          checked: settings.isGlobal,
+          onClick: () => { settings.isGlobal = true; this.applySettings(); },
+        },
+        {
+          label: "设置: 独立",
+          checked: !settings.isGlobal,
+          onClick: () => { settings.isGlobal = false; this.applySettings(); },
+        },
+      ];
+    };
 
-    const items: Array<{ label: string; checked: boolean; onClick: () => void; separator?: boolean }> = [
-      {
-        label: "滑动条: Minimap",
-        checked: settings.scrollbarType === "minimap",
-        onClick: () => { settings.scrollbarType = "minimap"; this.applySettings(); },
-      },
-      {
-        label: "滑动条: 原生",
-        checked: settings.scrollbarType === "native",
-        onClick: () => { settings.scrollbarType = "native"; this.applySettings(); },
-      },
-      {
-        label: "",
-        checked: false,
-        onClick: () => {},
-        separator: true,
-      },
-      {
-        label: "渲染字符",
-        checked: settings.renderCharacters,
-        onClick: () => { settings.renderCharacters = !settings.renderCharacters; this.applySettings(); },
-      },
-      {
-        label: "滑块: 按比例",
-        checked: settings.sliderBehavior === "proportional",
-        onClick: () => { settings.sliderBehavior = "proportional"; this.applySettings(); },
-      },
-      {
-        label: "滑块: 固定",
-        checked: settings.sliderBehavior === "fixed",
-        onClick: () => { settings.sliderBehavior = "fixed"; this.applySettings(); },
-      },
-      {
-        label: "",
-        checked: false,
-        onClick: () => {},
-        separator: true,
-      },
-      {
-        label: "缩放: 50%",
-        checked: settings.zoomLevel === 0.5,
-        onClick: () => { settings.zoomLevel = 0.5; this.applySettings(); },
-      },
-      {
-        label: "缩放: 100%",
-        checked: settings.zoomLevel === 1,
-        onClick: () => { settings.zoomLevel = 1; this.applySettings(); },
-      },
-      {
-        label: "缩放: 150%",
-        checked: settings.zoomLevel === 1.5,
-        onClick: () => { settings.zoomLevel = 1.5; this.applySettings(); },
-      },
-      {
-        label: "缩放: 200%",
-        checked: settings.zoomLevel === 2,
-        onClick: () => { settings.zoomLevel = 2; this.applySettings(); },
-      },
-      {
-        label: "",
-        checked: false,
-        onClick: () => {},
-        separator: true,
-      },
-      {
-        label: "宽度: 60px",
-        checked: settings.thumbnailSize === 60,
-        onClick: () => { settings.thumbnailSize = 60; this.applySettings(); },
-      },
-      {
-        label: "宽度: 80px",
-        checked: settings.thumbnailSize === 80,
-        onClick: () => { settings.thumbnailSize = 80; this.applySettings(); },
-      },
-      {
-        label: "宽度: 100px",
-        checked: settings.thumbnailSize === 100,
-        onClick: () => { settings.thumbnailSize = 100; this.applySettings(); },
-      },
-      {
-        label: "",
-        checked: false,
-        onClick: () => {},
-        separator: true,
-      },
-      {
-        label: "设置: 全局",
-        checked: settings.isGlobal,
-        onClick: () => { settings.isGlobal = true; this.applySettings(); },
-      },
-      {
-        label: "设置: 独立",
-        checked: !settings.isGlobal,
-        onClick: () => { settings.isGlobal = false; this.applySettings(); },
-      },
-    ];
+    const renderMenuContent = () => {
+      menu.replaceChildren();
+      const settings = this.settings;
+      const items = getMenuItems();
+      const scrollbarModeGroup = document.createElement("div");
+      scrollbarModeGroup.className = "adl-cm-minimap-menu-segmented";
 
-    for (const item of items) {
-      if (item.separator) {
-        const separator = document.createElement("div");
-        separator.className = "adl-cm-minimap-menu-separator";
-        menu.appendChild(separator);
-        continue;
+      const createModeButton = (label: string, selected: boolean, onClick: () => void) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "adl-cm-minimap-menu-segmented__button";
+        button.setAttribute("aria-pressed", selected ? "true" : "false");
+        button.textContent = label;
+        button.addEventListener("click", (event) => {
+          event.stopPropagation();
+          onClick();
+          renderMenuContent();
+        });
+        return button;
+      };
+
+      scrollbarModeGroup.appendChild(createModeButton("滑动条: Minimap", settings.scrollbarType === "minimap", () => {
+        settings.scrollbarType = "minimap";
+        this.applySettings();
+      }));
+      scrollbarModeGroup.appendChild(createModeButton("滑动条: 普通", settings.scrollbarType === "standard", () => {
+        settings.scrollbarType = "standard";
+        this.applySettings();
+      }));
+      menu.appendChild(scrollbarModeGroup);
+      menu.appendChild(Object.assign(document.createElement("div"), {
+        className: "adl-cm-minimap-menu-separator",
+      }));
+
+      for (const item of items) {
+        if (item.separator) {
+          const separator = document.createElement("div");
+          separator.className = "adl-cm-minimap-menu-separator";
+          menu.appendChild(separator);
+          continue;
+        }
+        const el = document.createElement("button");
+        el.type = "button";
+        el.className = `adl-cm-minimap-menu-item${item.checked ? " adl-cm-minimap-menu-item--checked" : ""}`;
+        const label = document.createElement("span");
+        label.className = "adl-cm-minimap-menu-item__label";
+        label.textContent = item.label;
+        el.appendChild(label);
+        const check = document.createElement("span");
+        check.className = "adl-cm-minimap-menu-item__check";
+        check.textContent = item.checked ? "√" : "";
+        el.appendChild(check);
+        el.addEventListener("click", (event) => {
+          event.stopPropagation();
+          item.onClick();
+          renderMenuContent();
+        });
+        menu.appendChild(el);
       }
-      const el = document.createElement("button");
-      el.type = "button";
-      el.className = `adl-cm-minimap-menu-item${item.checked ? " adl-cm-minimap-menu-item--checked" : ""}`;
-      el.textContent = item.label;
-      el.addEventListener("click", () => {
-        item.onClick();
-        menu.remove();
-      });
-      menu.appendChild(el);
-    }
+      return items;
+    };
+
+    const items = renderMenuContent();
 
     const rect = e.currentTarget instanceof Element ? e.currentTarget.getBoundingClientRect() : document.body.getBoundingClientRect();
     let menuX = e.clientX;
     let menuY = e.clientY;
 
-    const menuWidth = 160;
-    const menuHeight = items.filter(i => !i.separator).length * 28 + items.filter(i => i.separator).length * 8 + 8;
+    const menuWidth = 196;
+    const menuHeight = 42 + items.filter(i => !i.separator).length * 28 + items.filter(i => i.separator).length * 8 + 16;
 
     if (menuX + menuWidth > window.innerWidth) {
       menuX = window.innerWidth - menuWidth - 8;
@@ -856,21 +1051,30 @@ class MinimapPlugin implements PluginValue {
     menu.style.top = `${menuY}px`;
     document.body.appendChild(menu);
 
+    const cleanup = () => {
+      menu.remove();
+      document.removeEventListener("click", close);
+      document.removeEventListener("contextmenu", close);
+      if (activeMinimapMenuCleanup === cleanup) {
+        activeMinimapMenuCleanup = null;
+      }
+    };
     const close = (ev: MouseEvent) => {
       if (!menu.contains(ev.target as Node)) {
-        menu.remove();
-        document.removeEventListener("click", close);
-        document.removeEventListener("contextmenu", close);
+        cleanup();
       }
     };
     setTimeout(() => {
       document.addEventListener("click", close);
       document.addEventListener("contextmenu", close);
     }, 0);
+    activeMinimapMenuCleanup = cleanup;
   }
 
   private applySettings() {
-    saveMinimapSettings(this.settings);
+    this.settings = normalizeMinimapSettings(this.settings);
+    saveMinimapSettings(this.settings, this.options.scopeId);
+    window.dispatchEvent(new CustomEvent(SETTINGS_CHANGED_EVENT));
     this.render();
     this.updateSlider();
     this.updateScrollbarStyle();

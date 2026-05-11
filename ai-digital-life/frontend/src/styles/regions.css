@@ -4584,11 +4584,18 @@
   overflow-x: auto;
   overflow-y: auto !important;
   overscroll-behavior: contain;
-  scrollbar-width: none;
+  scrollbar-width: thin;
 }
 
 .adl-cm-editor .cm-scroller::-webkit-scrollbar,
 .adl-cm-diff-viewer .cm-scroller::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.adl-cm-editor .cm-scroller.adl-cm-scroller--minimap-scrollbar::-webkit-scrollbar,
+.adl-cm-diff-viewer .cm-scroller.adl-cm-scroller--minimap-scrollbar::-webkit-scrollbar,
+.adl-cm-diff-viewer--side-by-side .cm-mergeView.adl-cm-scroller--minimap-scrollbar::-webkit-scrollbar {
   width: 0;
   height: 0;
 }
@@ -5216,6 +5223,7 @@
 }
 
 .adl-cm-minimap {
+  --adl-cm-standard-scrollbar-width: 12px;
   position: fixed;
   right: 0;
   width: var(--adl-cm-minimap-width, var(--adl-editor-minimap-width, 80px));
@@ -5227,14 +5235,30 @@
   transition: opacity 0.2s;
 }
 
+.adl-cm-minimap--standard {
+  width: var(--adl-cm-standard-scrollbar-width, 12px);
+  background: var(--editor-bg, var(--bg));
+  border-left: 1px solid var(--border-subtle);
+  cursor: default;
+}
+
 .adl-cm-minimap:hover {
   background: var(--surface-hover);
+}
+
+.adl-cm-minimap--standard:hover {
+  background: var(--editor-bg, var(--bg));
 }
 
 .adl-cm-minimap-canvas {
   display: block;
   position: absolute;
   inset: 0;
+}
+
+.adl-cm-minimap--standard .adl-cm-minimap-canvas {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .adl-cm-minimap-slider {
@@ -5250,15 +5274,42 @@
   transition: background 0.15s, border-color 0.15s;
 }
 
+.adl-cm-minimap--standard .adl-cm-minimap-slider {
+  left: 3px;
+  right: 3px;
+  border-radius: 999px;
+  border-color: transparent;
+  background: color-mix(in srgb, var(--text-muted) 54%, transparent);
+  box-shadow: none;
+}
+
+.adl-cm-minimap-slider--subtle {
+  opacity: 0.64;
+}
+
+.adl-cm-minimap-slider--normal {
+  opacity: 1;
+}
+
 .adl-cm-minimap-slider:hover {
   background: color-mix(in srgb, var(--accent) 10%, transparent);
   border-color: color-mix(in srgb, var(--accent) 70%, transparent);
+}
+
+.adl-cm-minimap--standard .adl-cm-minimap-slider:hover {
+  background: color-mix(in srgb, var(--text-primary) 68%, transparent);
+  border-color: transparent;
 }
 
 .adl-cm-minimap-slider:active {
   cursor: grabbing;
   background: color-mix(in srgb, var(--accent) 14%, transparent);
   border-color: color-mix(in srgb, var(--accent) 78%, transparent);
+}
+
+.adl-cm-minimap--standard .adl-cm-minimap-slider:active {
+  background: color-mix(in srgb, var(--text-primary) 78%, transparent);
+  border-color: transparent;
 }
 
 .adl-cm-minimap-context-menu {
@@ -5272,13 +5323,38 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  min-width: 140px;
+  min-width: 196px;
+}
+
+.adl-cm-minimap-menu-segmented {
+  display: inline-flex;
+  width: 100%;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.adl-cm-minimap-menu-segmented__button {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 2px var(--space-2);
+  border: none;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.adl-cm-minimap-menu-segmented__button[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--text-inverse);
 }
 
 .adl-cm-minimap-menu-item {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  justify-content: space-between;
+  gap: var(--space-3);
   width: 100%;
   padding: 6px 8px;
   border: none;
@@ -5298,10 +5374,17 @@
   color: var(--accent);
 }
 
-.adl-cm-minimap-menu-item--checked::before {
-  content: "✓";
-  margin-right: var(--space-2);
+.adl-cm-minimap-menu-item__label {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.adl-cm-minimap-menu-item__check {
+  width: 12px;
+  flex: 0 0 12px;
+  text-align: center;
   font-size: 11px;
+  color: inherit;
 }
 
 .adl-cm-minimap-menu-separator {
