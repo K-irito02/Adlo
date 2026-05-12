@@ -109,8 +109,21 @@ describe("CodeMirror preview styling", () => {
 
     expect(contentBlock).toContain("padding-top: var(--space-2);");
     expect(contentBlock).toContain("padding-bottom: 25vh;");
-    expect(guttersBlock).toContain("padding-top: var(--space-2);");
+    expect(guttersBlock).not.toContain("padding-top:");
     expect(gutterElementBlock).toContain("line-height: 1.65;");
+  });
+
+  it("centers fold gutter icons vertically with line numbers", () => {
+    expect(extractCssBlock(regionsCssSource, ".adl-cm-editor .cm-foldGutter .cm-gutterElement span,\n.adl-cm-diff-viewer .cm-foldGutter .cm-gutterElement span {\n")).toContain("line-height: 1.65;");
+    expect(extractCssBlock(regionsCssSource, ".adl-cm-editor .cm-foldGutter .cm-gutterElement,\n.adl-cm-diff-viewer .cm-foldGutter .cm-gutterElement {\n")).toContain("justify-content: center;");
+  });
+
+  it("provides a draggable resizer between side-by-side diff panes", () => {
+    const resizerBlock = extractCssBlock(regionsCssSource, ".adl-cm-diff-viewer .adl-cm-diff-resizer {\n");
+    expect(resizerBlock).toContain("cursor: col-resize;");
+    expect(resizerBlock).toContain("flex: none;");
+    expect(resizerBlock).toContain("width: 6px;");
+    expect(regionsCssSource).toContain(".adl-cm-diff-resizer--dragging");
   });
 
   it("does not reserve minimap space in side-by-side diff panes", () => {
@@ -118,10 +131,10 @@ describe("CodeMirror preview styling", () => {
     expect(regionsCssSource).toContain("padding-right: 0;");
   });
 
-  it("keeps side-by-side diffs on the shared MergeView scroll container", () => {
+  it("keeps side-by-side diffs on the shared MergeView scroll container with independent horizontal scroll", () => {
     expect(regionsCssSource).toContain(".adl-cm-diff-viewer--side-by-side .cm-mergeView .cm-scroller");
-    expect(extractCssBlock(regionsCssSource, ".adl-cm-diff-viewer--side-by-side .cm-mergeView .cm-scroller")).toContain("overflow-y: visible !important;");
-    expect(extractCssBlock(regionsCssSource, ".adl-cm-diff-viewer--side-by-side .cm-mergeView {\n")).toContain("overflow-y: auto;");
+    expect(extractCssBlock(regionsCssSource, ".adl-cm-diff-viewer--side-by-side .cm-mergeView .cm-scroller")).toContain("overflow: auto !important;");
+    expect(extractCssBlock(regionsCssSource, ".adl-cm-diff-viewer--side-by-side .cm-mergeView {\n")).toContain("overflow: visible;");
     expect(extractCssBlock(regionsCssSource, ".adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors {\n")).toContain("height: auto;");
   });
 });

@@ -4624,11 +4624,8 @@
 
 .adl-cm-diff-viewer .cm-merge-gutter .cm-gutterElement {
   padding: 0;
-  display: flex;
-  align-items: center;
   justify-content: center;
   font-weight: 700;
-  font-size: 0.85em;
 }
 
 /* === 字符级别（对角条纹纹理，内容宽度） === */
@@ -4784,12 +4781,13 @@
 .adl-cm-diff-viewer .cm-gutters {
   min-width: 54px;
   gap: 0;
-  padding-top: var(--space-2);
 }
 
 .adl-cm-editor .cm-gutterElement,
 .adl-cm-diff-viewer .cm-gutterElement {
   line-height: 1.65;
+  display: flex;
+  align-items: center;
 }
 
 .adl-cm-editor .cm-lineNumbers .cm-gutterElement,
@@ -4797,6 +4795,26 @@
   min-width: 42px;
   padding-left: var(--space-2);
   padding-right: var(--space-1);
+  justify-content: flex-end;
+}
+
+.adl-cm-editor .cm-foldGutter .cm-gutterElement,
+.adl-cm-diff-viewer .cm-foldGutter .cm-gutterElement {
+  min-width: 18px;
+  padding: 0;
+  justify-content: center;
+}
+
+.adl-cm-editor .cm-foldGutter .cm-gutterElement span,
+.adl-cm-diff-viewer .cm-foldGutter .cm-gutterElement span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+  font-size: 1.1em;
+  line-height: 1.65;
+  transform: translateY(1px);
 }
 
 .adl-cm-diff-viewer .cm-mergeView {
@@ -4806,19 +4824,11 @@
 }
 
 .adl-cm-diff-viewer--side-by-side .cm-mergeView {
-  overflow-y: auto;
-  overflow-x: hidden;
-  scrollbar-width: none;
-}
-
-.adl-cm-diff-viewer--side-by-side .cm-mergeView::-webkit-scrollbar {
-  width: 0;
-  height: 0;
+  overflow: visible;
 }
 
 .adl-cm-diff-viewer--side-by-side .cm-mergeView .cm-scroller {
-  height: auto !important;
-  overflow-y: visible !important;
+  overflow: auto !important;
 }
 
 .adl-cm-diff-viewer .cm-mergeViewEditors {
@@ -4832,21 +4842,53 @@
   min-height: 100%;
 }
 
-.adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-editor {
+.adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-mergeViewEditor {
   min-width: 0;
   flex: 1 1 0;
+  overflow: visible;
 }
 
-.adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-editor + .cm-editor {
-  border-left: 1px solid var(--border-subtle);
+.adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-mergeViewEditor + .cm-mergeViewEditor {
+  border-left: none;
 }
 
-.adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-editor + .cm-editor {
-  border-left: 1px solid var(--border-subtle);
+.adl-cm-diff-viewer .adl-cm-diff-resizer {
+  flex: none;
+  width: 6px;
+  cursor: col-resize;
+  position: relative;
+  z-index: 10;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  background: transparent;
 }
+
+.adl-cm-diff-viewer .adl-cm-diff-resizer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 2px;
+  width: 1px;
+  height: 100%;
+  border-radius: 999px;
+  background: transparent;
+  opacity: 0;
+  pointer-events: none;
+  transition: width 0.15s, opacity 0.15s, background-color 0.15s;
+}
+
+.adl-cm-diff-viewer .adl-cm-diff-resizer:hover::before,
+.adl-cm-diff-viewer .adl-cm-diff-resizer.adl-cm-diff-resizer--dragging::before {
+  width: 3px;
+  opacity: 1;
+  background: var(--border-strong);
+}
+
+
 
 .adl-cm-diff-viewer .cm-collapsedLines {
-  margin: var(--space-1) var(--space-3) !important;
+  margin: 0 var(--space-3) !important;
   gap: 0 !important;
   background: transparent !important;
   border: none !important;
