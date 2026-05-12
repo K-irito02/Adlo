@@ -5,9 +5,14 @@ import { EditorState, type Extension } from "@codemirror/state";
 
 export const DIFF_INSERT_CLASS = "adl-cm-diff-insert";
 export const DIFF_DELETE_CLASS = "adl-cm-diff-delete";
+export const DIFF_INSERT_BLOCK_CLASS = "adl-cm-diff-block-insert";
+export const DIFF_DELETE_BLOCK_CLASS = "adl-cm-diff-block-delete";
 export const AGENT_DECO_INSERT_CLASS = "adl-cm-agent-insert";
 export const AGENT_DECO_MODIFY_CLASS = "adl-cm-agent-modify";
 export const AGENT_DECO_DELETE_CLASS = "adl-cm-agent-delete";
+export const AGENT_DECO_INSERT_BLOCK_CLASS = "adl-cm-agent-block-insert";
+export const AGENT_DECO_MODIFY_BLOCK_CLASS = "adl-cm-agent-block-modify";
+export const AGENT_DECO_DELETE_BLOCK_CLASS = "adl-cm-agent-block-delete";
 
 function normalizeHexColor(value: string): string | undefined {
   const normalized = value.trim();
@@ -372,13 +377,13 @@ function buildHighlightStyle(c: ThemeColors): Extension {
 
 const diffBaseTheme: Extension = EditorView.baseTheme({
   ".cm-deletedLine": {
-    backgroundColor: "var(--editor-diff-remove-bg, rgba(248,113,113,0.1))",
+    backgroundColor: "transparent",
   },
   ".cm-insertedLine": {
-    backgroundColor: "var(--editor-diff-insert-bg, rgba(74,222,128,0.1))",
+    backgroundColor: "transparent",
   },
   ".cm-changedLine": {
-    backgroundColor: "var(--editor-diff-insert-bg, rgba(74,222,128,0.08))",
+    backgroundColor: "transparent",
   },
   ".cm-deletedLine .cm-gutterElement": {
     color: "var(--danger, #f87171)",

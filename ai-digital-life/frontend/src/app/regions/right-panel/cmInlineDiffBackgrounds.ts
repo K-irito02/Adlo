@@ -1,6 +1,6 @@
 import { ViewPlugin, type PluginValue, EditorView, ViewUpdate, Decoration, type DecorationSet } from "@codemirror/view";
 import { type Extension, type Range, StateEffect } from "@codemirror/state";
-import { DIFF_INSERT_CLASS, DIFF_DELETE_CLASS } from "./cmTheme";
+import { DIFF_INSERT_CLASS } from "./cmTheme";
 
 export interface DiffChunkInfo {
   fromA: number;
@@ -42,19 +42,17 @@ class InlineDiffBackgroundPlugin implements PluginValue {
     const decorations: Range<Decoration>[] = [];
 
     for (const chunk of chunks) {
-      const isInsert = chunk.fromA === chunk.toA;
       const isDelete = chunk.fromB === chunk.toB;
       if (isDelete) continue;
-      const className = isInsert ? DIFF_INSERT_CLASS : DIFF_INSERT_CLASS;
-
       const startLine = doc.lineAt(Math.min(chunk.fromB, doc.length)).number;
       const endLine = doc.lineAt(Math.min(chunk.toB, doc.length)).number;
 
       for (let line = startLine; line <= endLine; line++) {
         if (line > doc.lines) break;
-        const pos = doc.line(line).from;
-        const deco = Decoration.line({ class: className });
-        decorations.push(deco.range(pos));
+        const lineInfo = doc.line(line);
+        if (lineInfo.from < lineInfo.to) {
+          decorations.push(Decoration.mark({ class: DIFF_INSERT_CLASS }).range(lineInfo.from, lineInfo.to));
+        }
       }
     }
 

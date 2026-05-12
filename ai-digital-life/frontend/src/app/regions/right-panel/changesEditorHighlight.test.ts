@@ -6,6 +6,27 @@ const changesPanelSource = readFileSync(
   "utf8"
 );
 const themeCss = readFileSync(new URL("../../../../src/styles/themes.css", import.meta.url), "utf8");
+const regionsCss = readFileSync(new URL("../../../../src/styles/regions.css", import.meta.url), "utf8");
+const inlineDiffBackgroundSource = readFileSync(
+  new URL("../../../../src/app/regions/right-panel/cmInlineDiffBackgrounds.ts", import.meta.url),
+  "utf8"
+);
+const diffBlockLayerSource = readFileSync(
+  new URL("../../../../src/app/regions/right-panel/cmDiffBlockLayer.ts", import.meta.url),
+  "utf8"
+);
+const cmThemeSource = readFileSync(
+  new URL("../../../../src/app/regions/right-panel/cmTheme.ts", import.meta.url),
+  "utf8"
+);
+const agentDecorationsSource = readFileSync(
+  new URL("../../../../src/app/regions/right-panel/agentDecorations.ts", import.meta.url),
+  "utf8"
+);
+const diffViewerSource = readFileSync(
+  new URL("../../../../src/app/regions/right-panel/DiffViewer.tsx", import.meta.url),
+  "utf8"
+);
 
 function extractThemeSection(css: string, marker: string, nextMarker: string | null) {
   const start = css.indexOf(marker);
@@ -53,6 +74,45 @@ describe("changes preview highlight theming", () => {
     expect(changesPanelSource).toContain("getInlineDiffBackgroundExtension");
     expect(changesPanelSource).toContain("applyInlineDiffChunks");
     expect(changesPanelSource).toContain("previewDiffRangesToChunks");
+    expect(diffViewerSource).toContain("getDiffBlockLayerExtension()");
+  });
+
+  it("separates full-width diff block fills from content-width line fills", () => {
+    expect(regionsCss).toContain("--adl-cm-diff-insert-block-bg: rgba(74, 222, 128, 0.06);");
+    expect(regionsCss).toContain("--adl-cm-diff-insert-line-bg: rgba(74, 222, 128, 0.14);");
+    expect(regionsCss).toContain("--adl-cm-diff-block-fill-outset: 100vw;");
+    expect(regionsCss).toContain(".adl-cm-diff-block-layer-root {");
+    expect(regionsCss).toContain(".adl-cm-diff-block-layer--insert {");
+    expect(diffBlockLayerSource).toContain('this.layerDom.className = "adl-cm-diff-block-layer-root"');
+    expect(diffBlockLayerSource).toContain("this.hostDom.appendChild(this.layerDom);");
+    expect(diffBlockLayerSource).toContain('this.view.dom.closest<HTMLElement>(".adl-tool-editor__surface")');
+    expect(diffBlockLayerSource).toContain('this.view.dom.closest<HTMLElement>(".adl-cm-diff-viewer--side-by-side")');
+    expect(diffBlockLayerSource).toContain("this.layerDom.style.left = `${measure.layerLeft}px`;");
+    expect(regionsCss).toContain("bottom: 0;");
+    expect(regionsCss).toContain(":where(.adl-tool-editor__surface, .adl-cm-editor, .adl-cm-diff-viewer)");
+    expect(regionsCss).toContain(".adl-cm-diff-viewer .cm-editor {\n  background: transparent !important;");
+    expect(regionsCss).toContain(".adl-cm-diff-viewer .cm-scroller {\n  background: transparent !important;");
+    expect(regionsCss).toContain("overflow: hidden;");
+    expect(regionsCss).toContain("background: var(--adl-cm-diff-line-bg, transparent) !important;");
+    expect(cmThemeSource).toContain('".cm-deletedLine": {');
+    expect(cmThemeSource).toContain('backgroundColor: "transparent"');
+    expect(inlineDiffBackgroundSource).not.toContain("Decoration.line({ class:");
+    expect(inlineDiffBackgroundSource).toContain("Decoration.mark({ class: DIFF_INSERT_CLASS })");
+    expect(agentDecorationsSource).toContain("Decoration.line({ class: getLineDecoClass(hunk) })");
+    expect(agentDecorationsSource).toContain("Decoration.mark({ class: getContentDecoClass(hunk) })");
+    expect(regionsCss).not.toContain("width: var(--adl-cm-diff-line-fill-width);");
+  });
+
+  it("keeps diff rows visually calm by avoiding active-line and selected-hunk overlay bands", () => {
+    expect(regionsCss).toContain("--adl-cm-diff-line-vertical-fill: 0 -2px 0 0 var(--adl-cm-diff-line-bg), 0 2px 0 0 var(--adl-cm-diff-line-bg);");
+    expect(regionsCss).toContain("isolation: isolate;");
+    expect(regionsCss).toContain("box-decoration-break: clone;");
+    expect(regionsCss).toContain("background-image: linear-gradient(");
+    expect(regionsCss).toContain(".adl-cm-diff-viewer .cm-activeLine.cm-insertedLine");
+    expect(regionsCss).toContain(".adl-cm-diff-viewer .cm-activeLine {");
+    expect(regionsCss).toContain(".adl-cm-diff-viewer .cm-activeLine.adl-cm-agent-block-delete");
+    expect(regionsCss).toContain("--adl-cm-selected-hunk-marker-width: 3px;");
+    expect(regionsCss).toContain("box-shadow: inset var(--adl-cm-selected-hunk-marker-width) 0 0 var(--editor-current-hunk-ring) !important;");
   });
 
   it("does not contain any Monaco imports or references", () => {

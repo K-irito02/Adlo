@@ -22,6 +22,7 @@ import {
   type PreviewDiffCollapsedRange,
 } from "./changePreviewDiffRanges";
 import type { AgentHunkDecoration } from "./agentDecorations";
+import { getDiffBlockLayerExtension } from "./cmDiffBlockLayer";
 
 export type DiffViewerProps = {
   original: string;
@@ -144,6 +145,7 @@ function buildSharedExtensions(
     themeCompartment.of(getThemeExtension(theme)),
     langCompartment.of(getLanguageExtension(language)),
     getPhrasesExtension(locale),
+    getDiffBlockLayerExtension(),
   ];
   return exts;
 }
