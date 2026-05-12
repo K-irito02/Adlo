@@ -4536,28 +4536,10 @@
   min-width: 0;
 }
 
-:where(.adl-tool-editor__surface, .adl-cm-editor, .adl-cm-diff-viewer) {
-  --adl-cm-diff-insert-block-bg: rgba(74, 222, 128, 0.06);
-  --adl-cm-diff-remove-block-bg: rgba(248, 113, 113, 0.06);
-  --adl-cm-diff-modify-block-bg: rgba(96, 165, 250, 0.05);
-  --adl-cm-diff-insert-line-bg: rgba(74, 222, 128, 0.14);
-  --adl-cm-diff-remove-line-bg: rgba(248, 113, 113, 0.14);
-  --adl-cm-diff-modify-line-bg: rgba(96, 165, 250, 0.1);
-}
-
 .adl-cm-editor {
   height: 100%;
   width: 100%;
   min-width: 0;
-}
-
-[data-theme="light"] :where(.adl-tool-editor__surface, .adl-cm-editor, .adl-cm-diff-viewer) {
-  --adl-cm-diff-insert-block-bg: rgba(22, 163, 74, 0.045);
-  --adl-cm-diff-remove-block-bg: rgba(239, 68, 68, 0.045);
-  --adl-cm-diff-modify-block-bg: rgba(37, 99, 235, 0.04);
-  --adl-cm-diff-insert-line-bg: rgba(22, 163, 74, 0.1);
-  --adl-cm-diff-remove-line-bg: rgba(239, 68, 68, 0.1);
-  --adl-cm-diff-modify-line-bg: rgba(37, 99, 235, 0.08);
 }
 
 .adl-cm-editor .cm-editor,
@@ -4594,6 +4576,136 @@
 .adl-cm-diff-viewer .cm-content:focus-visible {
   outline: none !important;
   box-shadow: none !important;
+}
+
+/* === Block level (5%): faint full-width background for changed blocks === */
+/* Side-by-side: A=deleted side red, B=inserted side green */
+.adl-cm-diff-viewer--side-by-side .cm-merge-a .cm-changedLine {
+  background-color: rgba(239, 68, 68, 0.05) !important;
+}
+.adl-cm-diff-viewer--side-by-side .cm-merge-b .cm-changedLine {
+  background-color: rgba(34, 197, 94, 0.05) !important;
+}
+/* Inline mode: neutral gray for deleted chunk blocks */
+.adl-cm-diff-viewer--inline .cm-deletedChunk {
+  background-color: rgba(128, 128, 128, 0.05) !important;
+}
+
+/* Suppress other merge baseTheme decorations */
+.adl-cm-diff-viewer .cm-inlineChangedLine,
+.adl-cm-diff-viewer .cm-merge-b .cm-deletedText {
+  background: transparent !important;
+}
+
+/* === Line level (12%): full-width continuous block backgrounds via :has() === */
+/* .cm-insertedLine/.cm-deletedLine are Decoration.mark() <ins>/<del> inline
+   elements that only wrap changed text ranges, NOT the full line. Setting
+   display:block on them breaks CM6's inline layout. Instead, we suppress
+   their backgrounds and use :has() on .cm-line (the natural block parent)
+   to get guaranteed full-width continuous backgrounds without gaps. */
+.adl-cm-diff-viewer .cm-insertedLine,
+.adl-cm-diff-viewer .cm-deletedLine {
+  background: transparent !important;
+}
+
+.adl-cm-diff-viewer .cm-line:has(.cm-insertedLine) {
+  background-color: var(--editor-diff-insert-bg) !important;
+}
+
+.adl-cm-diff-viewer .cm-line:has(.cm-deletedLine) {
+  background-color: var(--editor-diff-remove-bg) !important;
+}
+
+/* Merge gutter shows +/- indicators for changed lines */
+.adl-cm-diff-viewer .cm-merge-gutter {
+  min-width: 0;
+  width: 22px;
+}
+
+.adl-cm-diff-viewer .cm-merge-gutter .cm-gutterElement {
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85em;
+}
+
+/* === 字符级别（对角条纹纹理，内容宽度） === */
+/* 使用 repeating-linear-gradient 对角条纹作为 background。
+   条纹是与线级相同色相的纹理图案，形成"有纹理/无纹理"的材质变化，
+   而非"深色/浅色"的颜色差异，避免边界处产生视觉间隙感。 */
+
+/* 并排状态 A 侧（红色条纹） */
+.adl-cm-diff-viewer--side-by-side .cm-merge-a .cm-changedText,
+.adl-cm-diff-viewer--side-by-side .cm-merge-a .cm-changed-text {
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 3px,
+    rgba(239, 68, 68, 0.1) 3px,
+    rgba(239, 68, 68, 0.1) 5px
+  ) !important;
+  text-decoration: none !important;
+}
+/* 并排状态 B 侧（绿色条纹） */
+.adl-cm-diff-viewer--side-by-side .cm-merge-b .cm-changedText,
+.adl-cm-diff-viewer--side-by-side .cm-merge-b .cm-changed-text {
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 3px,
+    rgba(34, 197, 94, 0.1) 3px,
+    rgba(34, 197, 94, 0.1) 5px
+  ) !important;
+  text-decoration: none !important;
+}
+
+/* 暗色主题并排状态 A 侧 */
+[data-theme="dark"] .adl-cm-diff-viewer--side-by-side .cm-merge-a .cm-changedText,
+[data-theme="dark"] .adl-cm-diff-viewer--side-by-side .cm-merge-a .cm-changed-text {
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 3px,
+    rgba(248, 113, 113, 0.1) 3px,
+    rgba(248, 113, 113, 0.1) 5px
+  ) !important;
+}
+/* 暗色主题并排状态 B 侧 */
+[data-theme="dark"] .adl-cm-diff-viewer--side-by-side .cm-merge-b .cm-changedText,
+[data-theme="dark"] .adl-cm-diff-viewer--side-by-side .cm-merge-b .cm-changed-text {
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 3px,
+    rgba(74, 222, 128, 0.1) 3px,
+    rgba(74, 222, 128, 0.1) 5px
+  ) !important;
+}
+
+/* 内联状态：按父元素类型使用对应颜色条纹 */
+.adl-cm-diff-viewer--inline .cm-insertedLine .cm-changedText,
+.adl-cm-diff-viewer--inline .cm-insertedLine .cm-changed-text {
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 3px,
+    rgba(34, 197, 94, 0.1) 3px,
+    rgba(34, 197, 94, 0.1) 5px
+  ) !important;
+  text-decoration: none !important;
+}
+.adl-cm-diff-viewer--inline .cm-deletedLine .cm-changedText,
+.adl-cm-diff-viewer--inline .cm-deletedLine .cm-changed-text {
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 3px,
+    rgba(239, 68, 68, 0.1) 3px,
+    rgba(239, 68, 68, 0.1) 5px
+  ) !important;
+  text-decoration: none !important;
 }
 
 .adl-cm-editor .cm-scroller,
@@ -4729,134 +4841,8 @@
   border-left: 1px solid var(--border-subtle);
 }
 
-.adl-cm-editor .adl-cm-agent-block-insert,
-.adl-cm-editor .adl-cm-agent-block-modify,
-.adl-cm-editor .adl-cm-agent-block-delete {
-  position: relative;
-  z-index: 0;
-  isolation: isolate;
-  --adl-cm-diff-block-fill-outset: 100vw;
-  background: transparent !important;
-  box-shadow: none !important;
-}
-
-.adl-cm-editor .adl-cm-agent-block-insert::before,
-.adl-cm-editor .adl-cm-agent-block-modify::before,
-.adl-cm-editor .adl-cm-agent-block-delete::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: calc(-1 * var(--adl-cm-diff-block-fill-outset));
-  right: calc(-1 * var(--adl-cm-diff-block-fill-outset));
-  background: var(--adl-cm-diff-block-bg, transparent);
-  z-index: -1;
-  pointer-events: none;
-}
-
-.adl-cm-diff-block-layer-root {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  right: 0;
-  overflow: hidden;
-  pointer-events: none;
-  z-index: 0;
-}
-
-.adl-cm-diff-block-layer {
-  position: absolute;
-  left: 0;
-  right: 0;
-}
-
-.adl-cm-diff-block-layer--insert {
-  background: var(--adl-cm-diff-insert-block-bg);
-}
-
-.adl-cm-diff-block-layer--delete {
-  background: var(--adl-cm-diff-remove-block-bg);
-}
-
-.adl-cm-diff-block-layer--modify {
-  background: var(--adl-cm-diff-modify-block-bg);
-}
-
-.adl-cm-diff-viewer .adl-cm-diff-insert,
-.adl-cm-diff-viewer .adl-cm-diff-delete,
-.adl-cm-editor .adl-cm-agent-insert,
-.adl-cm-editor .adl-cm-agent-modify,
-.adl-cm-editor .adl-cm-agent-delete,
-.adl-cm-diff-viewer .adl-cm-agent-insert,
-.adl-cm-diff-viewer .adl-cm-agent-modify,
-.adl-cm-diff-viewer .adl-cm-agent-delete,
-.adl-cm-diff-viewer .cm-insertedLine > span,
-.adl-cm-diff-viewer .cm-changedLine > span,
-.adl-cm-diff-viewer .cm-deletedLine > span {
-  --adl-cm-diff-line-vertical-fill: 0 -2px 0 0 var(--adl-cm-diff-line-bg), 0 2px 0 0 var(--adl-cm-diff-line-bg);
-  box-decoration-break: clone;
-  -webkit-box-decoration-break: clone;
-  background: var(--adl-cm-diff-line-bg, transparent) !important;
-  box-shadow: var(--adl-cm-diff-line-vertical-fill) !important;
-}
-
-.adl-cm-diff-viewer .cm-insertedLine,
-.adl-cm-diff-viewer .cm-deletedLine,
-.adl-cm-diff-viewer .cm-changedLine,
-.adl-cm-diff-viewer .adl-cm-agent-block-insert,
-.adl-cm-diff-viewer .adl-cm-agent-block-modify,
-.adl-cm-diff-viewer .adl-cm-agent-block-delete {
-  background-image: linear-gradient(
-    to right,
-    var(--adl-cm-diff-line-bg) 0,
-    var(--adl-cm-diff-line-bg) var(--space-3),
-    transparent var(--space-3)
-  ) !important;
-  background-repeat: no-repeat !important;
-  background-size: 100% 100% !important;
-}
-
-.adl-cm-diff-viewer .cm-deletedLine,
-.adl-cm-editor .adl-cm-agent-block-delete,
-.adl-cm-diff-viewer .adl-cm-agent-block-delete {
-  --adl-cm-diff-block-bg: var(--adl-cm-diff-remove-block-bg);
-  --adl-cm-diff-line-bg: var(--adl-cm-diff-remove-line-bg);
-}
-
-.adl-cm-diff-viewer .cm-insertedLine,
-.adl-cm-diff-viewer .cm-changedLine,
-.adl-cm-editor .adl-cm-agent-block-insert,
-.adl-cm-diff-viewer .adl-cm-agent-block-insert {
-  --adl-cm-diff-block-bg: var(--adl-cm-diff-insert-block-bg);
-  --adl-cm-diff-line-bg: var(--adl-cm-diff-insert-line-bg);
-}
-
-.adl-cm-editor .adl-cm-agent-block-modify,
-.adl-cm-diff-viewer .adl-cm-agent-block-modify {
-  --adl-cm-diff-block-bg: var(--adl-cm-diff-modify-block-bg);
-  --adl-cm-diff-line-bg: var(--adl-cm-diff-modify-line-bg);
-}
-
-.adl-cm-diff-viewer .cm-activeLine {
-  background: transparent !important;
-}
-
-.adl-cm-diff-viewer .cm-activeLine.cm-insertedLine,
-.adl-cm-diff-viewer .cm-activeLine.cm-deletedLine,
-.adl-cm-diff-viewer .cm-activeLine.cm-changedLine,
-.adl-cm-diff-viewer .cm-activeLine.adl-cm-agent-block-insert,
-.adl-cm-diff-viewer .cm-activeLine.adl-cm-agent-block-modify,
-.adl-cm-diff-viewer .cm-activeLine.adl-cm-agent-block-delete,
-.adl-cm-editor .cm-activeLine.adl-cm-agent-block-insert,
-.adl-cm-editor .cm-activeLine.adl-cm-agent-block-modify,
-.adl-cm-editor .cm-activeLine.adl-cm-agent-block-delete {
-  background: var(--adl-cm-diff-block-bg, transparent) !important;
-}
-
-.adl-cm-editor .adl-agent-deco--selected,
-.adl-cm-diff-viewer .adl-agent-deco--selected {
-  --adl-cm-selected-hunk-marker-width: 3px;
-  box-shadow: inset var(--adl-cm-selected-hunk-marker-width) 0 0 var(--editor-current-hunk-ring) !important;
+.adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-editor + .cm-editor {
+  border-left: 1px solid var(--border-subtle);
 }
 
 .adl-cm-diff-viewer .cm-collapsedLines {

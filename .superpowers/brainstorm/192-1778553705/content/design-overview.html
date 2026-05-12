@@ -1,0 +1,147 @@
+<h2>🎨 变更差异显示 — 重新设计</h2>
+<p class="subtitle">在删除了旧版变更背景颜色代码后，我们需要设计一套全新的、优雅的差异视觉系统。以下是需要决策的核心设计维度。</p>
+
+<div class="section">
+  <div class="label">维度一：视觉指示方式</div>
+  <p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:0.75rem">
+    变更行通过什么视觉效果来区分？这是最核心的设计决策。
+  </p>
+  <div class="cards" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr))">
+    <div class="card" data-choice="gutter-only">
+      <div class="card-image" style="flex-direction:column;gap:8px;padding:1rem;aspect-ratio:16/9">
+        <div style="width:100%;display:flex;align-items:center;gap:4px">
+          <div style="width:24px;height:12px;border-radius:2px;background:#34c759"></div>
+          <div style="flex:1;height:8px;background:var(--bg-primary);border-radius:2px"></div>
+        </div>
+        <div style="width:100%;display:flex;align-items:center;gap:4px">
+          <div style="width:24px;height:12px;border-radius:2px;background:#ff3b30"></div>
+          <div style="flex:1;height:8px;background:var(--bg-primary);border-radius:2px"></div>
+        </div>
+        <div style="width:100%;display:flex;align-items:center;gap:4px;opacity:0.5">
+          <div style="width:24px;height:12px;border-radius:2px;background:transparent"></div>
+          <div style="flex:1;height:8px;background:var(--bg-primary);border-radius:2px"></div>
+        </div>
+      </div>
+      <div class="card-body">
+        <h3>A: Gutter Only (纯标记)</h3>
+        <p>仅在行号区域显示颜色标记，正文无任何背景色。最干净、阅读干扰最小。</p>
+      </div>
+    </div>
+    <div class="card" data-choice="left-rail">
+      <div class="card-image" style="flex-direction:column;gap:8px;padding:1rem;aspect-ratio:16/9">
+        <div style="width:100%;display:flex;align-items:center;gap:4px">
+          <div style="width:3px;height:12px;border-radius:1px;background:#34c759"></div>
+          <div style="width:24px;height:12px;border-radius:2px;background:transparent"></div>
+          <div style="flex:1;height:8px;background:var(--bg-primary);border-radius:2px"></div>
+        </div>
+        <div style="width:100%;display:flex;align-items:center;gap:4px">
+          <div style="width:3px;height:12px;border-radius:1px;background:#ff3b30"></div>
+          <div style="width:24px;height:12px;border-radius:2px;background:transparent"></div>
+          <div style="flex:1;height:8px;background:var(--bg-primary);border-radius:2px"></div>
+        </div>
+        <div style="width:100%;display:flex;align-items:center;gap:4px;opacity:0.5">
+          <div style="width:3px;height:12px;border-radius:1px;background:transparent"></div>
+          <div style="width:24px;height:12px;border-radius:2px;background:transparent"></div>
+          <div style="flex:1;height:8px;background:var(--bg-primary);border-radius:2px"></div>
+        </div>
+      </div>
+      <div class="card-body">
+        <h3>B: Left Rail (左边轨)</h3>
+        <p>在行内容左侧添加 2-3px 彩色竖线标记，代码区域保持透明。干净且有明确指示。</p>
+      </div>
+    </div>
+    <div class="card" data-choice="block-fill">
+      <div class="card-image" style="flex-direction:column;gap:8px;padding:1rem;aspect-ratio:16/9">
+        <div style="width:100%;display:flex;align-items:center;gap:4px">
+          <div style="width:24px;height:12px;border-radius:2px;background:#34c759"></div>
+          <div style="flex:1;height:12px;border-radius:2px;background:rgba(52,199,89,0.1)"></div>
+        </div>
+        <div style="width:100%;display:flex;align-items:center;gap:4px">
+          <div style="width:24px;height:12px;border-radius:2px;background:#ff3b30"></div>
+          <div style="flex:1;height:12px;border-radius:2px;background:rgba(255,59,48,0.1)"></div>
+        </div>
+        <div style="width:100%;display:flex;align-items:center;gap:4px;opacity:0.5">
+          <div style="width:24px;height:12px;border-radius:2px;background:transparent"></div>
+          <div style="flex:1;height:12px;border-radius:2px;background:var(--bg-primary)"></div>
+        </div>
+      </div>
+      <div class="card-body">
+        <h3>C: Block Fill (半透明块)</h3>
+        <p>整行半透明背景色，块级合并连续行。传统方案，视觉分组感强但对代码阅读有影响。</p>
+      </div>
+    </div>
+    <div class="card" data-choice="underline">
+      <div class="card-image" style="flex-direction:column;gap:8px;padding:1rem;aspect-ratio:16/9">
+        <div style="width:100%;display:flex;align-items:center;gap:4px">
+          <div style="width:24px;height:12px;border-radius:2px;background:transparent"></div>
+          <div style="flex:1;height:8px;background:var(--bg-primary);border-radius:2px;border-bottom:2px solid #34c759"></div>
+        </div>
+        <div style="width:100%;display:flex;align-items:center;gap:4px">
+          <div style="width:24px;height:12px;border-radius:2px;background:transparent"></div>
+          <div style="flex:1;height:8px;background:var(--bg-primary);border-radius:2px;border-bottom:2px solid #ff3b30"></div>
+        </div>
+        <div style="width:100%;display:flex;align-items:center;gap:4px;opacity:0.5">
+          <div style="width:24px;height:12px;border-radius:2px;background:transparent"></div>
+          <div style="flex:1;height:8px;background:var(--bg-primary);border-radius:2px"></div>
+        </div>
+      </div>
+      <div class="card-body">
+        <h3>D: Underline + Rail (底线)</h3>
+        <p>底部 2px 彩色下划线 + gutter 标记。极简，不影响代码可读性。</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">维度二：色彩体系</div>
+  <p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:0.75rem">
+    如何用颜色区分不同的变更类型？
+  </p>
+  <div class="options">
+    <div class="option" data-choice="color-semantic" onclick="toggleSelect(this)">
+      <div class="letter">1</div>
+      <div class="content">
+        <h3>语义色 — 绿/红/蓝</h3>
+        <p><span style="color:#34c759">● 插入/添加 (绿色)</span> · <span style="color:#ff3b30">● 删除 (红色)</span> · <span style="color:#0071e3">● 修改 (蓝色)</span></p>
+      </div>
+    </div>
+    <div class="option" data-choice="color-monochrome" onclick="toggleSelect(this)">
+      <div class="letter">2</div>
+      <div class="content">
+        <h3>单色调 — 从属/次要</h3>
+        <p>所有变更统一用一种颜色（如蓝色），通过透明度或辅助图标区分增删改</p>
+      </div>
+    </div>
+    <div class="option" data-choice="color-accent" onclick="toggleSelect(this)">
+      <div class="letter">3</div>
+      <div class="content">
+        <h3>强调色 — 仅对"插入"使用颜色</h3>
+        <p>只突出显示新增内容（绿色标记），删除行仅用 gutter 符号表示。简约但有信息损失</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">维度三：Inline 与 Side-by-Side 的一致性</div>
+  <p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:0.75rem">
+    两种视图模式是否使用完全相同的视觉语言？
+  </p>
+  <div class="options">
+    <div class="option" data-choice="consistent" onclick="toggleSelect(this)">
+      <div class="letter">A</div>
+      <div class="content">
+        <h3>完全一致</h3>
+        <p>两种模式使用完全相同的颜色、标记风格。用户在不同布局间切换时体验连续</p>
+      </div>
+    </div>
+    <div class="option" data-choice="adapted" onclick="toggleSelect(this)">
+      <div class="letter">B</div>
+      <div class="content">
+        <h3>适配模式</h3>
+        <p>颜色一致，但 inline 模式下更适合用 rail，side-by-side 适合用 block fill（因为左右分屏自然对比）</p>
+      </div>
+    </div>
+  </div>
+</div>

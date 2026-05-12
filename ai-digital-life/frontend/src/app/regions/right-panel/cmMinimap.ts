@@ -438,6 +438,23 @@ export function estimateWrapColumn(view: EditorView): number | null {
   return Math.max(1, Math.floor(contentWidth / charWidth));
 }
 
+/**
+ * Parse an rgba(r, g, b, alpha) string, boost the alpha channel for minimap
+ * visibility (~3.5x editor alpha, capped at 0.5), and return the new rgba string.
+ * Falls back to the provided fallback if parsing fails.
+ */
+function minimapBoostRgbaAlpha(rgbaStr: string, fallback: string): string {
+  const match = rgbaStr.match(
+    /rgba?\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d*\.?\d+)\s*\)/,
+  );
+  if (!match) return fallback;
+  const [, r, g, b, alphaStr] = match;
+  const alpha = parseFloat(alphaStr);
+  if (!Number.isFinite(alpha)) return fallback;
+  const minimapAlpha = Math.min(0.5, alpha * 3.5);
+  return `rgba(${r}, ${g}, ${b}, ${minimapAlpha.toFixed(2)})`;
+}
+
 const minimapDiffModelField = StateField.define<CmMinimapDiffModel | null>({
   create: () => null,
   update: (value, tr) => {
@@ -1117,21 +1134,22 @@ class MinimapPlugin implements PluginValue {
   };
 
   private getSegmentColor(segment: CmMinimapDiffSegment): string {
-    const computedStyle = getComputedStyle(this.view.dom);
-    const suffix = segment.tone === "strong"
-      ? "-strong"
-      : segment.tone === "block"
-        ? "-block"
-        : "";
-    const fallback = segment.type === "insert"
-      ? "rgba(22,163,74,0.42)"
-      : "rgba(239,68,68,0.42)";
-    const baseName = segment.type === "insert"
-      ? `--minimap-diff-insert-bg${suffix}`
-      : `--minimap-diff-remove-bg${suffix}`;
-    return computedStyle.getPropertyValue(baseName).trim()
-      || computedStyle.getPropertyValue(segment.type === "insert" ? "--minimap-diff-insert-bg" : "--minimap-diff-remove-bg").trim()
-      || fallback;
+    const cssVarName =
+      segment.type === "insert"
+        ? "--editor-diff-insert-bg"
+        : "--editor-diff-remove-bg";
+
+    const fallback =
+      segment.type === "insert"
+        ? "rgba(22,163,74,0.42)"
+        : "rgba(239,68,68,0.42)";
+
+    const raw = getComputedStyle(document.documentElement)
+      .getPropertyValue(cssVarName)
+      .trim();
+    if (!raw) return fallback;
+
+    return minimapBoostRgbaAlpha(raw, fallback);
   }
 
   private handleContextMenu = (e: MouseEvent) => {

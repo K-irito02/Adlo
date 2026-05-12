@@ -10,10 +10,8 @@ describe("changes preview editor options", () => {
     expect(changesPanelSource).not.toContain("@monaco-editor/react");
   });
 
-  it("passes CodeMirror extensions for agent decorations, minimap, inline diff, and folding", () => {
-    expect(changesPanelSource).toContain("getAgentDecorationExtensions");
+  it("passes CodeMirror extensions for minimap and folding", () => {
     expect(changesPanelSource).toContain("getMinimapExtension");
-    expect(changesPanelSource).toContain("getInlineDiffBackgroundExtension");
     expect(changesPanelSource).toContain("getFoldingTooltipExtension");
     expect(changesPanelSource).toContain("diffExtensions");
   });
@@ -24,8 +22,7 @@ describe("changes preview editor options", () => {
     expect(changesPanelSource).toContain("minimapScopeId={changePreviewDiffMinimapScopeId}");
   });
 
-  it("applies agent decorations and minimap hunks from preview diff ranges", () => {
-    expect(changesPanelSource).toContain("applyAgentDecorations");
+  it("passes minimap model to DiffViewer from preview diff model", () => {
     expect(changesPanelSource).toContain("computePreviewDiffMinimapModel");
     expect(changesPanelSource).toContain("minimapModel={changePreviewMinimapModel}");
     expect(changesPanelSource).toContain("onCollapsedUnchangedRangesChange={setCollapsedUnchangedDiffRanges}");
@@ -35,11 +32,6 @@ describe("changes preview editor options", () => {
     expect(changesPanelSource).toContain("estimateWrapColumn");
     expect(changesPanelSource).toContain("changePreviewWrapColumn");
     expect(changesPanelSource).toContain("wrapColumn: changePreviewWrapColumn");
-  });
-
-  it("applies inline diff background chunks from preview diff ranges", () => {
-    expect(changesPanelSource).toContain("applyInlineDiffChunks");
-    expect(changesPanelSource).toContain("previewDiffRangesToChunks");
   });
 
   it("uses simple dark/light theme string instead of Monaco theme constants", () => {

@@ -27,15 +27,14 @@ describe("CodeMirror preview styling", () => {
   it("renders diff state with quiet line backgrounds instead of vertical status rails", () => {
     expect(cmThemeSource).toContain(".cm-deletedLine");
     expect(cmThemeSource).toContain(".cm-insertedLine");
-    expect(cmThemeSource).toContain(".cm-changedLine");
-    expect(diffViewerSource).toContain("gutter: false");
-    expect(diffViewerSource).not.toContain("gutter: true");
+    expect(diffViewerSource).toContain("gutter: true");
+    expect(diffViewerSource).not.toContain("gutter: false");
     expect(cmThemeSource).not.toContain("inset 3px 0 0");
     expect(regionsCssSource).not.toContain("inset 3px 0 0");
   });
 
   it("keeps CodeMirror editor and diff surfaces independent from legacy Monaco selectors", () => {
-    expect(regionsCssSource).toContain(".adl-cm-diff-viewer .cm-insertedLine");
+    expect(regionsCssSource).toContain(".adl-cm-diff-viewer .cm-editor");
     expect(regionsCssSource).toContain(".adl-markdown-preview .adl-md-code-header + pre.hljs");
     expect(regionsCssSource).not.toContain(".monaco-diff-editor");
     expect(regionsCssSource).not.toContain(".monaco-editor");
@@ -45,7 +44,7 @@ describe("CodeMirror preview styling", () => {
     expect(regionsCssSource).not.toContain(".adl-tool-editor .adl-agent-gutter");
     expect(regionsCssSource).not.toContain(".adl-agent-gutter-marker");
     expect(cmThemeSource).not.toContain("AGENT_GUTTER_INSERT_CLASS");
-    expect(cmThemeSource).toContain('borderRight: "none"');
+    expect(cmThemeSource).toContain('borderRight: "1px solid var(--border-subtle)"');
     expect(cmThemeSource).toContain('paddingRight: "0"');
     expect(cmThemeSource).toContain('outline: "none"');
   });

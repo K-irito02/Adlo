@@ -955,7 +955,6 @@ export function FilesPanel(props: RightPanelViewProps) {
               minimapModel={fileDiffMinimapModel}
               minimapScopeId={fileDiffMinimapScopeId}
               onMinimapDragStart={handleFileDiffMinimapDragStart}
-              hunks={agentHunkDecorations}
             />
           </div>
         </>

@@ -1,0 +1,90 @@
+<h2>📋 设计决策汇总</h2>
+<p class="subtitle">以下是在浏览器中已选定的方案汇总 + 新需求讨论</p>
+
+<div class="section">
+  <div class="label">✅ 已确定的方案</div>
+  <div style="background:var(--bg-secondary);border-radius:8px;padding:1rem">
+    <table style="width:100%;font-size:0.85rem;border-collapse:collapse">
+      <tr><td style="padding:4px 8px;color:var(--text-tertiary)">视觉指示方式</td><td style="padding:4px 8px"><strong>C: Block Fill</strong> (整行半透明背景色块)</td></tr>
+      <tr><td style="padding:4px 8px;color:var(--text-tertiary)">色彩体系</td><td style="padding:4px 8px"><strong>1: 标准语义色</strong> <span style="color:#22c55e">● #22c55e</span> <span style="color:#ef4444">● #ef4444</span> <span style="color:#3b82f6">● #3b82f6</span></td></tr>
+      <tr><td style="padding:4px 8px;color:var(--text-tertiary)">透明度级别</td><td style="padding:4px 8px"><strong>C: 可见系</strong> (Insert: 12% · Delete: 12% · Modify: 10%)</td></tr>
+      <tr><td style="padding:4px 8px;color:var(--text-tertiary)">合并策略</td><td style="padding:4px 8px"><strong>A: 紧合并</strong> (间隔 ≤ 1 行合并)</td></tr>
+      <tr><td style="padding:4px 8px;color:var(--text-tertiary)">Sticky Context</td><td style="padding:4px 8px"><strong>B: 保持独立</strong> (不绑定编辑器颜色)</td></tr>
+    </table>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">🆕 新需求: 右键菜单调节透明度</div>
+  <p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:0.75rem">
+    你希望在"正文"区域通过右键菜单实现透明度调节，支持：左右滑块 + 输入框、全局/独立设置、内联/并排独立设置。
+  </p>
+  <div class="mockup">
+    <div class="mockup-header">右键菜单概念设计</div>
+    <div class="mockup-body">
+      <div style="background:var(--bg-primary);border:1px solid var(--border);border-radius:8px;width:240px;padding:0.75rem;font-size:0.8rem">
+        <div style="padding:4px 8px;border-radius:4px;background:var(--bg-tertiary);font-weight:500;color:var(--text-primary)">Diff 透明度设置</div>
+        <div style="margin-top:6px;padding:4px 8px">
+          <div style="display:flex;justify-content:space-between;color:var(--text-secondary)">
+            <span>插入</span><span>12%</span>
+          </div>
+          <input type="range" min="0" max="25" value="12" style="width:100%" disabled>
+        </div>
+        <div style="padding:4px 8px">
+          <div style="display:flex;justify-content:space-between;color:var(--text-secondary)">
+            <span>删除</span><span>12%</span>
+          </div>
+          <input type="range" min="0" max="25" value="12" style="width:100%" disabled>
+        </div>
+        <div style="padding:4px 8px">
+          <div style="display:flex;justify-content:space-between;color:var(--text-secondary)">
+            <span>修改</span><span>10%</span>
+          </div>
+          <input type="range" min="0" max="25" value="10" style="width:100%" disabled>
+        </div>
+        <div style="margin-top:6px;border-top:1px solid var(--border);padding:6px 8px 0;display:flex;gap:6px">
+          <button style="flex:1;padding:4px;border-radius:4px;font-size:0.75rem;background:var(--accent);color:white;border:none">全局</button>
+          <button style="flex:1;padding:4px;border-radius:4px;font-size:0.75rem;background:var(--bg-tertiary);color:var(--text-primary);border:none">独立</button>
+        </div>
+        <div style="padding:4px 8px 0;display:flex;gap:6px">
+          <button style="flex:1;padding:4px;border-radius:4px;font-size:0.75rem;background:var(--bg-tertiary);color:var(--text-primary);border:none">内联</button>
+          <button style="flex:1;padding:4px;border-radius:4px;font-size:0.75rem;background:var(--bg-tertiary);color:var(--text-primary);border:none">并排</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">⚠️ 尚需决策的补充维度</div>
+  <div class="options">
+    <div class="option" data-choice="inquirer-blockfill" onclick="toggleSelect(this)">
+      <div class="letter">1</div>
+      <div class="content">
+        <h3>Gutter 需要 g 差异标记吗？</h3>
+        <p>Block Fill 已有背景色，行号区域的 gutter 图标/颜色标记还需保留吗？还是全部交给背景块？</p>
+      </div>
+    </div>
+    <div class="option" data-choice="inquirer-minimap" onclick="toggleSelect(this)">
+      <div class="letter">2</div>
+      <div class="content">
+        <h3>Minimap 差异指示器</h3>
+        <p>Minimap 缩略图中的红/绿差异条，是与编辑器统一颜色，还是保持自有的独立浅色系统？</p>
+      </div>
+    </div>
+    <div class="option" data-choice="inquirer-darkmode" onclick="toggleSelect(this)">
+      <div class="letter">3</div>
+      <div class="content">
+        <h3>Dark 模式色值偏移</h3>
+        <p>暗色模式下语义色如何偏移？使用更亮的色值（如#4ade80/#f87171/#60a5fa），还是降低饱和度？</p>
+      </div>
+    </div>
+    <div class="option" data-choice="inquirer-setting-persist" onclick="toggleSelect(this)">
+      <div class="letter">4</div>
+      <div class="content">
+        <h3>设置存储方式</h3>
+        <p>全局设置存什么位置？localStorage？app store？用户配置？Scope ID 如何生成？</p>
+      </div>
+    </div>
+  </div>
+</div>

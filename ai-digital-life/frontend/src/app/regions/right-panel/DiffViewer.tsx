@@ -13,7 +13,6 @@ import { getThemeExtension, rebuildThemes, getPhrasesExtension } from "./cmTheme
 import { getLanguageExtension } from "./cmLanguages";
 import {
   getMinimapExtension,
-  minimapHunksToDiffModel,
   updateMinimapDiffModel,
   type CmMinimapDiffModel
 } from "./cmMinimap";
@@ -21,8 +20,6 @@ import {
   computePreviewDiffMinimapModel,
   type PreviewDiffCollapsedRange,
 } from "./changePreviewDiffRanges";
-import type { AgentHunkDecoration } from "./agentDecorations";
-import { getDiffBlockLayerExtension } from "./cmDiffBlockLayer";
 
 export type DiffViewerProps = {
   original: string;
@@ -41,7 +38,6 @@ export type DiffViewerProps = {
   minimapScopeId?: string;
   onMinimapDragStart?: () => void;
   onCollapsedUnchangedRangesChange?: (ranges: PreviewDiffCollapsedRange[]) => void;
-  hunks?: AgentHunkDecoration[];
 };
 
 const themeCompartment = new Compartment();
@@ -145,7 +141,6 @@ function buildSharedExtensions(
     themeCompartment.of(getThemeExtension(theme)),
     langCompartment.of(getLanguageExtension(language)),
     getPhrasesExtension(locale),
-    getDiffBlockLayerExtension(),
   ];
   return exts;
 }
@@ -166,7 +161,6 @@ function SideBySideDiffViewer({
   minimapScopeId,
   onMinimapDragStart,
   onCollapsedUnchangedRangesChange,
-  hunks,
 }: {
   original: string;
   modified: string;
@@ -183,7 +177,6 @@ function SideBySideDiffViewer({
   minimapScopeId?: string;
   onMinimapDragStart?: () => void;
   onCollapsedUnchangedRangesChange?: (ranges: PreviewDiffCollapsedRange[]) => void;
-  hunks?: AgentHunkDecoration[];
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mergeViewRef = useRef<MergeView | null>(null);
@@ -256,7 +249,7 @@ function SideBySideDiffViewer({
       b: { doc: modified, extensions: bExts },
       parent: containerRef.current,
       collapseUnchanged: collapseUnchanged ? COLLAPSE_UNCHANGED_CONFIG : undefined,
-      gutter: false,
+      gutter: true,
       highlightChanges: true,
     });
 
@@ -352,9 +345,9 @@ function SideBySideDiffViewer({
     if (!mv?.b) return;
     updateMinimapDiffModel(
       mv.b,
-      mergedMinimapModel ?? (hunks ? minimapHunksToDiffModel(hunks, mv.b.state.doc.lines) : null)
+      mergedMinimapModel ?? null
     );
-  }, [hunks, mergedMinimapModel]);
+  }, [mergedMinimapModel]);
 
   useEffect(() => {
     rebuildThemes();
@@ -384,7 +377,6 @@ function InlineDiffViewer({
   minimapScopeId,
   onMinimapDragStart,
   onCollapsedUnchangedRangesChange,
-  hunks,
 }: {
   original: string;
   modified: string;
@@ -401,7 +393,6 @@ function InlineDiffViewer({
   minimapScopeId?: string;
   onMinimapDragStart?: () => void;
   onCollapsedUnchangedRangesChange?: (ranges: PreviewDiffCollapsedRange[]) => void;
-  hunks?: AgentHunkDecoration[];
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -441,7 +432,7 @@ function InlineDiffViewer({
       unifiedMergeView({
         original,
         highlightChanges: true,
-        gutter: false,
+        gutter: true,
         mergeControls: true,
         collapseUnchanged: collapseUnchanged ? COLLAPSE_UNCHANGED_CONFIG : undefined,
       }),
@@ -522,9 +513,9 @@ function InlineDiffViewer({
     if (!view) return;
     updateMinimapDiffModel(
       view,
-      mergedMinimapModel ?? (hunks ? minimapHunksToDiffModel(hunks, view.state.doc.lines) : null)
+      mergedMinimapModel ?? null
     );
-  }, [hunks, mergedMinimapModel]);
+  }, [mergedMinimapModel]);
 
   useEffect(() => {
     rebuildThemes();
@@ -555,33 +546,27 @@ export function DiffViewer({
   minimapScopeId,
   onMinimapDragStart,
   onCollapsedUnchangedRangesChange,
-  hunks,
 }: DiffViewerProps) {
   const resolvedLocale = locale || "en-US";
-  if (sideBySide) {
-    return (
-      <SideBySideDiffViewer
-        original={original}
-        modified={modified}
-        language={language}
-        theme={theme}
-        locale={resolvedLocale}
-        readOnly={readOnly}
-        lineNumbersEnabled={lineNumbersEnabled}
-        wordWrap={wordWrap}
-        collapseUnchanged={collapseUnchanged}
-        onMount={onMount}
-        extraExtensions={extraExtensions}
-        minimapModel={minimapModel}
-        minimapScopeId={minimapScopeId}
-        onMinimapDragStart={onMinimapDragStart}
-        onCollapsedUnchangedRangesChange={onCollapsedUnchangedRangesChange}
-        hunks={hunks}
-      />
-    );
-  }
-
-  return (
+  const child = sideBySide ? (
+    <SideBySideDiffViewer
+      original={original}
+      modified={modified}
+      language={language}
+      theme={theme}
+      locale={resolvedLocale}
+      readOnly={readOnly}
+      lineNumbersEnabled={lineNumbersEnabled}
+      wordWrap={wordWrap}
+      collapseUnchanged={collapseUnchanged}
+      onMount={onMount}
+      extraExtensions={extraExtensions}
+      minimapModel={minimapModel}
+      minimapScopeId={minimapScopeId}
+      onMinimapDragStart={onMinimapDragStart}
+      onCollapsedUnchangedRangesChange={onCollapsedUnchangedRangesChange}
+    />
+  ) : (
     <InlineDiffViewer
       original={original}
       modified={modified}
@@ -598,7 +583,8 @@ export function DiffViewer({
       minimapScopeId={minimapScopeId}
       onMinimapDragStart={onMinimapDragStart}
       onCollapsedUnchangedRangesChange={onCollapsedUnchangedRangesChange}
-      hunks={hunks}
     />
   );
+
+  return child;
 }

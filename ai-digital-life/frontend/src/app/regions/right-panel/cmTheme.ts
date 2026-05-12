@@ -3,10 +3,6 @@ import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
 import { EditorState, type Extension } from "@codemirror/state";
 
-export const DIFF_INSERT_CLASS = "adl-cm-diff-insert";
-export const DIFF_DELETE_CLASS = "adl-cm-diff-delete";
-export const DIFF_INSERT_BLOCK_CLASS = "adl-cm-diff-block-insert";
-export const DIFF_DELETE_BLOCK_CLASS = "adl-cm-diff-block-delete";
 export const AGENT_DECO_INSERT_CLASS = "adl-cm-agent-insert";
 export const AGENT_DECO_MODIFY_CLASS = "adl-cm-agent-modify";
 export const AGENT_DECO_DELETE_CLASS = "adl-cm-agent-delete";
@@ -100,8 +96,6 @@ interface ThemeColors {
   lineHighlight: string;
   findMatch: string;
   findMatchHighlight: string;
-  diffInsertBg: string;
-  diffRemoveBg: string;
   indentGuide: string;
   indentGuideActive: string;
   foldPlaceholder: string;
@@ -118,6 +112,8 @@ interface ThemeColors {
   syntaxStrong: string;
   syntaxEmphasis: string;
   syntaxLink: string;
+  diffInsertBg: string;
+  diffRemoveBg: string;
 }
 
 function readColors(theme: "light" | "dark"): ThemeColors {
@@ -147,10 +143,6 @@ function readColors(theme: "light" | "dark"): ThemeColors {
     readThemeColor(theme, "--editor-findMatch") ?? (theme === "dark" ? "rgba(96,165,250,0.22)" : "rgba(37,99,235,0.2)");
   const findMatchHighlight =
     readThemeColor(theme, "--editor-findMatch-highlight") ?? (theme === "dark" ? "rgba(96,165,250,0.12)" : "rgba(37,99,235,0.1)");
-  const diffInsertBg =
-    readThemeColor(theme, "--editor-diff-insert-bg") ?? (theme === "dark" ? "rgba(74,222,128,0.1)" : "rgba(34,197,94,0.08)");
-  const diffRemoveBg =
-    readThemeColor(theme, "--editor-diff-remove-bg") ?? (theme === "dark" ? "rgba(248,113,113,0.1)" : "rgba(239,68,68,0.08)");
   const indentGuide =
     readThemeColor(theme, "--editor-indentGuide") ?? (theme === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)");
   const indentGuideActive =
@@ -184,6 +176,11 @@ function readColors(theme: "light" | "dark"): ThemeColors {
   const syntaxLink =
     readThemeColor(theme, "--editor-syntax-link") ?? (theme === "dark" ? "#61afef" : "#4078f2");
 
+  const diffInsertBg = readThemeColor(theme, "--editor-diff-insert-bg") ??
+    (theme === "dark" ? "rgba(74,222,128,0.12)" : "rgba(34,197,94,0.12)");
+  const diffRemoveBg = readThemeColor(theme, "--editor-diff-remove-bg") ??
+    (theme === "dark" ? "rgba(248,113,113,0.12)" : "rgba(239,68,68,0.12)");
+
   return {
     bg,
     fg,
@@ -196,8 +193,6 @@ function readColors(theme: "light" | "dark"): ThemeColors {
     lineHighlight,
     findMatch,
     findMatchHighlight,
-    diffInsertBg,
-    diffRemoveBg,
     indentGuide,
     indentGuideActive,
     foldPlaceholder,
@@ -214,6 +209,8 @@ function readColors(theme: "light" | "dark"): ThemeColors {
     syntaxStrong,
     syntaxEmphasis,
     syntaxLink,
+    diffInsertBg,
+    diffRemoveBg,
   };
 }
 
@@ -247,7 +244,7 @@ function buildEditorTheme(c: ThemeColors, theme: "light" | "dark"): Extension {
       ".cm-gutters": {
         backgroundColor: c.gutterBg,
         color: c.lineNumber,
-        borderRight: "none",
+        borderRight: "1px solid var(--border-subtle)",
         paddingRight: "0",
       },
       ".cm-activeLineGutter": {
@@ -297,20 +294,11 @@ function buildEditorTheme(c: ThemeColors, theme: "light" | "dark"): Extension {
       ".cm-activeIndent-guides": {
         color: c.indentGuideActive,
       },
-      [`.${DIFF_INSERT_CLASS}`]: {
-        backgroundColor: c.diffInsertBg,
+      ".cm-insertedLine": {
+        backgroundColor: "transparent",
       },
-      [`.${DIFF_DELETE_CLASS}`]: {
-        backgroundColor: c.diffRemoveBg,
-      },
-      [`.${AGENT_DECO_INSERT_CLASS}`]: {
-        backgroundColor: c.diffInsertBg,
-      },
-      [`.${AGENT_DECO_MODIFY_CLASS}`]: {
-        backgroundColor: c.selection,
-      },
-      [`.${AGENT_DECO_DELETE_CLASS}`]: {
-        backgroundColor: c.diffRemoveBg,
+      ".cm-deletedLine": {
+        backgroundColor: "transparent",
       },
     },
     { dark: theme === "dark" },
@@ -376,26 +364,15 @@ function buildHighlightStyle(c: ThemeColors): Extension {
 }
 
 const diffBaseTheme: Extension = EditorView.baseTheme({
-  ".cm-deletedLine": {
-    backgroundColor: "transparent",
-  },
-  ".cm-insertedLine": {
-    backgroundColor: "transparent",
-  },
-  ".cm-changedLine": {
-    backgroundColor: "transparent",
-  },
   ".cm-deletedLine .cm-gutterElement": {
     color: "var(--danger, #f87171)",
-    opacity: "0.62",
+    backgroundColor: "var(--editor-diff-remove-bg)",
+    opacity: "0.85",
   },
   ".cm-insertedLine .cm-gutterElement": {
     color: "var(--success, #4ade80)",
-    opacity: "0.62",
-  },
-  ".cm-changedLine .cm-gutterElement": {
-    color: "var(--text-secondary)",
-    opacity: "0.68",
+    backgroundColor: "var(--editor-diff-insert-bg)",
+    opacity: "0.85",
   },
   ".cm-collapsedLines": {
     backgroundColor: "transparent",
@@ -433,21 +410,6 @@ const diffBaseTheme: Extension = EditorView.baseTheme({
   ".cm-merge-revert:hover, .cm-merge-accept:hover, .cm-merge-reject:hover": {
     color: "var(--text-primary)",
     opacity: "1",
-  },
-  [`.${DIFF_INSERT_CLASS}`]: {
-    backgroundColor: "var(--editor-diff-insert-bg, rgba(74,222,128,0.1))",
-  },
-  [`.${DIFF_DELETE_CLASS}`]: {
-    backgroundColor: "var(--editor-diff-remove-bg, rgba(248,113,113,0.1))",
-  },
-  [`.${AGENT_DECO_INSERT_CLASS}`]: {
-    backgroundColor: "var(--editor-diff-insert-bg, rgba(74,222,128,0.1))",
-  },
-  [`.${AGENT_DECO_MODIFY_CLASS}`]: {
-    backgroundColor: "var(--editor-selection, rgba(96,165,250,0.15))",
-  },
-  [`.${AGENT_DECO_DELETE_CLASS}`]: {
-    backgroundColor: "var(--editor-diff-remove-bg, rgba(248,113,113,0.1))",
   },
 });
 

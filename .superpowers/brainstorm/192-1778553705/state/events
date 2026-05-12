@@ -1,0 +1,3 @@
+{"type":"click","text":"1\n      \n        Gutter 需要 g 差异标记吗？\n        Block Fill 已有背景色，行号区域的 gutter 图标/颜色标记还需保留吗？还是全部交给背景块？","choice":"inquirer-blockfill","id":null,"timestamp":1778555871655}
+{"type":"click","text":"1\n      \n        Gutter 需要 g 差异标记吗？\n        Block Fill 已有背景色，行号区域的 gutter 图标/颜色标记还需保留吗？还是全部交给背景块？","choice":"inquirer-blockfill","id":null,"timestamp":1778555875283}
+{"type":"click","text":"2\n      \n        Minimap 差异指示器\n        Minimap 缩略图中的红/绿差异条，是与编辑器统一颜色，还是保持自有的独立浅色系统？","choice":"inquirer-minimap","id":null,"timestamp":1778555875832}

@@ -29,7 +29,6 @@ import {
   computePreviewDiffMinimapModel,
   type PreviewDiffCollapsedRange,
   computePreviewDiffVisualRanges,
-  type PreviewDiffVisualRange
 } from "./changePreviewDiffRanges";
 import { collectDirectoryPaths, FileTree, type FileTreeContextMenuItem } from "./fileTree";
 import { detectEditorLanguage } from "../../workspacePaths";
@@ -39,9 +38,7 @@ import { CodeEditor } from "./CodeEditor";
 import { LazyMarkdownPreviewWrapper } from "./LazyPreviews";
 import type { EditorRef, DiffEditorRef } from "../../types";
 import { CodeMirrorEditorRef } from "./editorAdapters";
-import { getAgentDecorationExtensions, applyAgentDecorations, type AgentHunkDecoration } from "./agentDecorations";
-import { estimateWrapColumn, getMinimapExtension, updateMinimapDiffModel } from "./cmMinimap";
-import { getInlineDiffBackgroundExtension, applyInlineDiffChunks, type DiffChunkInfo } from "./cmInlineDiffBackgrounds";
+import { estimateWrapColumn, getMinimapExtension } from "./cmMinimap";
 import { getFoldingTooltipExtension } from "./cmFoldingTooltip";
 import { getVisibleStartLine, navigateToLine, subscribeToEditor } from "./stickyContext";
 import { buildStickyContextEntries, createStickyContextModel, type StickyContextModel } from "./stickyContext";
@@ -101,65 +98,12 @@ function getPrimaryBadge(node: ChangeTreeNode): { label: string; tone: string } 
   return undefined;
 }
 
-function getRenderablePreviewDiffRanges(ranges: PreviewDiffVisualRange[]): PreviewDiffVisualRange[] {
-  const insertLines = new Set<number>();
-  ranges
-    .filter((range) => range.type === "insert")
-    .forEach((range) => {
-      for (let line = range.startLine; line <= range.endLine; line += 1) {
-        insertLines.add(line);
-      }
-    });
-
-  return ranges.filter((range) => {
-    if (range.startLine < 1 || range.endLine < range.startLine) return false;
-    if (range.type === "delete") {
-      for (let line = range.startLine; line <= range.endLine; line += 1) {
-        if (insertLines.has(line)) return false;
-      }
-    }
-    return true;
-  });
-}
-
 function getEditorView(editorRef: EditorRef | null): EditorView | null {
   if (!editorRef) return null;
   if (editorRef instanceof CodeMirrorEditorRef) {
     return editorRef.getView();
   }
   return null;
-}
-
-function previewDiffRangesToAgentHunks(ranges: PreviewDiffVisualRange[]): AgentHunkDecoration[] {
-  return getRenderablePreviewDiffRanges(ranges).map((range, index) => ({
-    startLine: range.startLine,
-    endLine: range.endLine,
-    changeKind: range.type === "insert" ? ("added" as const) : ("deleted" as const),
-    decision: "pending" as const,
-    hunkId: `diff-range-${index}`,
-  }));
-}
-
-function previewDiffRangesToChunks(ranges: PreviewDiffVisualRange[], view: EditorView): DiffChunkInfo[] {
-  const doc = view.state.doc;
-  if (doc.lines === 0) return [];
-  const renderable = getRenderablePreviewDiffRanges(ranges);
-  const chunks: DiffChunkInfo[] = [];
-  for (const range of renderable) {
-    if (range.startLine > doc.lines) continue;
-    const startLine = Math.max(1, range.startLine);
-    const endLine = Math.min(range.endLine, doc.lines);
-    const fromB = doc.line(startLine).from;
-    const toB = endLine < doc.lines ? doc.line(endLine + 1).from : doc.length;
-    const isInsert = range.type === "insert";
-    chunks.push({
-      fromA: isInsert ? fromB : fromB,
-      toA: isInsert ? fromB : toB,
-      fromB,
-      toB,
-    });
-  }
-  return chunks;
 }
 
 export function ChangesPanel(props: RightPanelViewProps) {
@@ -274,6 +218,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
   useEffect(() => {
     setExpandedOutlineIds(defaultExpandedOutlineIds);
   }, [defaultExpandedOutlineIds]);
+
   const hasExpandableOutlineItems = defaultExpandedOutlineIds.size > 0;
   const hasExpandedOutlineItems = expandedOutlineIds.size > 0;
   const canToggleNavigatorStructure = changesNavigatorMode === "tree"
@@ -299,14 +244,10 @@ export function ChangesPanel(props: RightPanelViewProps) {
     [changePreview, props.diffSideBySide]
   );
   const diffExtensions = useMemo(() => [
-    ...getAgentDecorationExtensions(),
-    getInlineDiffBackgroundExtension(),
     getFoldingTooltipExtension(),
   ], []);
   const previewEditorExtensions = useMemo(() => [
-    ...getAgentDecorationExtensions(),
     ...getMinimapExtension({ scopeId: changePreviewEditorMinimapScopeId }),
-    getInlineDiffBackgroundExtension(),
     getFoldingTooltipExtension(),
   ], [changePreviewEditorMinimapScopeId]);
   const branchOptions = useMemo(() => {
@@ -458,19 +399,6 @@ export function ChangesPanel(props: RightPanelViewProps) {
     navigateToLine(getModifiedEditor(), pendingOutlineRevealLine);
     setPendingOutlineRevealLine(null);
   }, [editorReady, forceExpandUnchangedDiff, getModifiedEditor, pendingOutlineRevealLine, previewEnabled, props.diffSideBySide]);
-
-  useEffect(() => {
-    const modifiedEditor = getModifiedEditor();
-    const view = getEditorView(modifiedEditor);
-    if (!view || !changePreview) return;
-
-    const hunks = previewDiffRangesToAgentHunks(changePreviewDiffRanges);
-    applyAgentDecorations(view, hunks);
-    updateMinimapDiffModel(view, changePreviewMinimapModel ?? null);
-
-    const chunks = previewDiffRangesToChunks(changePreviewDiffRanges, view);
-    applyInlineDiffChunks(view, chunks);
-  }, [changePreview, changePreviewDiffRanges, changePreviewMinimapModel, editorReady, getModifiedEditor, props.diffSideBySide]);
 
   const refreshStickyContext = useCallback(() => {
     if (!changePreview) {
