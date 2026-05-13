@@ -223,8 +223,16 @@ pub fn workspace_clear_current(state: tauri::State<'_, AppState>) -> IpcResult<b
 #[tauri::command]
 pub fn workspace_pick_directory(app: tauri::AppHandle) -> IpcResult<Option<String>> {
     let path = app.dialog().file().blocking_pick_folder();
-    let result = path.and_then(|p| p.into_path().ok().map(|pp| pp.to_string_lossy().to_string()));
-    IpcResult::ok(result)
+    let result = match path {
+        Some(fp) => match fp.into_path() {
+            Ok(pb) => Ok(Some(pb.to_string_lossy().to_string())),
+            Err(e) => Err(AppError::Workspace(format!(
+                "failed to resolve folder path: {e}"
+            ))),
+        },
+        None => Ok(None),
+    };
+    ipc(result)
 }
 
 #[tauri::command]
