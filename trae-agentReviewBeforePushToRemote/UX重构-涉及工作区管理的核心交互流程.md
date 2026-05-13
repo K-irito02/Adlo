@@ -267,3 +267,168 @@ pub fn workspace_pick_directory(app: tauri::AppHandle) -> IpcResult<Option<Strin
 1. **迁移成本**：如果其他组件依赖 `pendingWorkspacePath`，需要同步更新
 2. **插件依赖**：新增 `tauri-plugin-dialog` 依赖，需要确保 Tauri 版本兼容
 3. **键盘冲突**：新快捷键可能与用户习惯冲突，需要文档说明
+
+---
+
+## 1. 高层摘要 (TL;DR)
+
+- **影响范围:** 🟡 **中等** - 改进了工作区目录选择功能的错误处理机制
+- **核心变更:**
+  - 将简单的链式调用替换为显式的 `match` 模式匹配
+  - 新增对路径解析失败的错误处理逻辑
+  - 统一使用 `ipc()` 函数返回结果，保持代码一致性
+
+---
+
+## 2. 可视化概览 (逻辑流程图)
+
+```mermaid
+flowchart TD
+    subgraph "workspace.rs - workspace_pick_directory()"
+        Start([用户选择目录]) --> Dialog[app.dialog().file().blocking_pick_folder]
+        Dialog --> CheckPath{path 是否存在?}
+        
+        CheckPath -->|None| ReturnNone[返回 Ok_None]
+        CheckPath -->|Some fp| ResolvePath[fp.into_path]
+        
+        ResolvePath --> CheckResolve{解析成功?}
+        CheckResolve -->|Ok pb| ConvertPath[pb.to_string_lossy.to_string]
+        CheckResolve -->|Err e| CreateError[创建 AppError::Workspace]
+        
+        ConvertPath --> ReturnOk[返回 Ok_Some_path]
+        CreateError --> ReturnErr[返回 Err]
+        
+        ReturnNone --> IPC[ipc]
+        ReturnOk --> IPC
+        ReturnErr --> IPC
+        
+        IPC --> End([返回 IpcResult])
+    end
+    
+    style Start fill:#e3f2fd,color:#0d47a1
+    style End fill:#e3f2fd,color:#0d47a1
+    style ReturnOk fill:#c8e6c9,color:#1a5e20
+    style ReturnNone fill:#fff3e0,color:#e65100
+    style ReturnErr fill:#ffcdd2,color:#b71c1c
+    style IPC fill:#f3e5f5,color:#7b1fa2
+```
+
+---
+
+## 3. 详细变更分析
+
+### 📁 组件: `workspace.rs` - 目录选择命令
+
+**变更位置:** `ai-digital-life/src-tauri/src/commands/workspace.rs` (第 223-236 行)
+
+#### 🔍 变更说明
+
+**原有逻辑:**
+```rust
+let result = path.and_then(|p| p.into_path().ok().map(|pp| pp.to_string_lossy().to_string()));
+IpcResult::ok(result)
+```
+- 使用链式调用 (`and_then` → `ok` → `map`) 处理路径
+- 如果 `into_path()` 失败，`ok()` 会将 `Err` 转换为 `None`，**静默丢失错误信息**
+- 直接使用 `IpcResult::ok()` 包装结果
+
+**新逻辑:**
+```rust
+let result = match path {
+    Some(fp) => match fp.into_path() {
+        Ok(pb) => Ok(Some(pb.to_string_lossy().to_string())),
+        Err(e) => Err(AppError::Workspace(format!(
+            "failed to resolve folder path: {e}"
+        ))),
+    },
+    None => Ok(None),
+};
+ipc(result)
+```
+- 使用嵌套 `match` 显式处理所有可能的分支
+- **捕获并保留** `into_path()` 的错误信息，转换为 `AppError::Workspace`
+- 使用统一的 `ipc()` 函数返回结果
+
+#### 📊 错误处理对比表
+
+| 场景 | 原有行为 | 新行为 |
+|------|---------|--------|
+| 用户取消选择 | 返回 `Ok(None)` | 返回 `Ok(None)` ✅ |
+| 路径解析成功 | 返回 `Ok(Some(path))` | 返回 `Ok(Some(path))` ✅ |
+| 路径解析失败 | 返回 `Ok(None)` (静默失败) ❌ | 返回 `Err(AppError::Workspace)` (显式错误) ✅ |
+
+#### 💡 代码改进点
+
+1. **错误可见性提升** - 不再静默丢失路径解析错误
+2. **代码可读性** - 显式的 `match` 模式比链式调用更清晰
+3. **一致性** - 统一使用 `ipc()` 辅助函数，与其他命令保持一致
+4. **调试友好** - 错误消息包含原始错误信息 `{e}`
+
+---
+
+## 4. 影响与风险评估
+
+### ⚠️ 潜在影响
+
+- **非破坏性变更** - API 签名未改变，前端调用方式不受影响
+- **行为变化** - 当路径解析失败时，**从返回 `None` 变为返回错误**
+  - 前端可能需要处理新的错误类型
+  - 如果前端依赖 `None` 作为"解析失败"的信号，需要调整逻辑
+
+### 🧪 测试建议
+
+建议测试以下场景:
+
+1. **正常流程:** 用户成功选择一个有效目录 → 应返回 `Ok(Some(path))`
+2. **取消操作:** 用户取消目录选择对话框 → 应返回 `Ok(None)`
+3. **边缘情况:** 选择特殊路径（如网络驱动器、符号链接等）导致解析失败 → 应返回 `Err(AppError::Workspace)` 并包含错误详情
+
+### ✅ 优点
+
+- ✅ 提升了错误处理的健壮性
+- ✅ 提供了更好的调试信息
+- ✅ 代码风格更符合 Rust 最佳实践
+
+### 📝 建议
+
+- 确认前端是否已处理 `AppError::Workspace` 类型的错误
+- 考虑在错误消息中添加更多上下文信息（如用户选择的原始路径）
+
+
+潜在影响验证完成，**前端已有完整的错误处理链，无需修改**。以下是完整的调用链分析：
+
+### 调用链追踪
+
+```
+Rust workspace_pick_directory
+    ↓ (返回 IpcResult<Option<String>>)
+tauri-bridge.ts  pickDirectory
+    ├─ result.ok → { ok: true, data: result.data ?? undefined }
+    └─ !result.ok → 直接透传错误 { ok: false, error: ... }
+          ↓
+store.ts  pickWorkspaceDirectory
+    ├─ result.ok → 返回路径字符串
+    └─ !result.ok → set({ error: result.error.message }) + return undefined
+          ↓
+WorkspaceSplitButton  handlePickDirectory
+    ├─ selectedPath 非空 → 打开工作空间
+    └─ !selectedPath → 直接 return（取消/错误都走此路径）
+```
+
+### 关键发现
+
+| 层级 | 处理方式 | 是否安全 |
+|------|---------|---------|
+| **Rust 命令** | 返回 `Err(AppError(...))` | ✅ |
+| **tauri-bridge.ts** | `!result.ok` 时透传错误，不篡改 | ✅ |
+| **store.ts** | 检查 `result.ok`，错误时写入 `error` 状态 + 返回 `undefined` | ✅ |
+| **WorkspaceSplitButton** | `!selectedPath` 时提前 return（取消和错误都走到这里） | ✅ |
+
+### 结论
+
+该变更为 **无风险变更**：
+- **API 签名不变**：仍是 `Promise<IpcResult<string | undefined>>`
+- **前端已有完整防御**：`if (!result.ok)` 已覆盖所有调用点
+- **错误有回退路径**：路径解析失败时，store 设置错误状态 + 返回 `undefined`，SplitButton 收到 `undefined` 后正常返回，不会卡死或崩溃
+- **行为改进**：之前路径解析失败会静默返回 `None`（用户以为取消了），现在会显示错误提示
+---
