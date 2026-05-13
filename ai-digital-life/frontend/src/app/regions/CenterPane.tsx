@@ -17,6 +17,7 @@ import type {
   WorkspaceGitBranchSwitchInput
 } from "@ai-digital-life/kernel";
 import type { CopyDict, Locale } from "../copy";
+import { WorkspaceSplitButton } from "../components/WorkspaceSplitButton";
 import {
   IconArrowUp,
   IconBookOpen,
@@ -63,16 +64,14 @@ interface CenterPaneProps {
   modelHealth?: ModelGatewayHealthSnapshot;
   taskCenter?: TaskCenterSnapshot;
   workspaceContextMode: "workspace" | "global";
-  pendingWorkspacePath?: string;
   gitSnapshot?: GitSnapshot;
   gitBranches: GitBranchSummary[];
   recentWorkspaces: RecentWorkspaceEntry[];
   onSendMessage: (content: string, opts: { mode: ChatMode; chips: ContextChip[] }) => Promise<void>;
   onCancelGenerate: () => void;
-  onOpenWorkspace: (path: string) => void;
+  onOpenWorkspace: (path: string) => Promise<{ ok: boolean; error?: string }>;
   onTriggerCreateWorkspace: () => void;
   onClearWorkspaceContext: () => Promise<void>;
-  onSetPendingWorkspacePath: (workspacePath?: string) => void;
   onPickWorkspaceDirectory: () => Promise<string | undefined>;
   onCreateSession: () => void;
   onDecideApproval: (approvalId: string, decision: "approved" | "rejected") => void;
@@ -299,16 +298,30 @@ function WelcomeState({
   hasWorkspace,
   recentWorkspaces,
   onOpenWorkspace,
-  onTriggerCreateWorkspace,
+  onPickWorkspaceDirectory,
   onCreateSession
 }: {
   t: CopyDict;
   hasWorkspace: boolean;
   recentWorkspaces: RecentWorkspaceEntry[];
-  onOpenWorkspace: (path: string) => void;
-  onTriggerCreateWorkspace: () => void;
+  onOpenWorkspace: (path: string) => Promise<{ ok: boolean; error?: string }>;
+  onPickWorkspaceDirectory: () => Promise<string | undefined>;
   onCreateSession: () => void;
 }) {
+  const [showActionCard, setShowActionCard] = useState(false);
+  const actionCardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showActionCard) return;
+    const onPointerDown = (event: MouseEvent) => {
+      if (actionCardRef.current && !actionCardRef.current.contains(event.target as Node)) {
+        setShowActionCard(false);
+      }
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    return () => document.removeEventListener("mousedown", onPointerDown);
+  }, [showActionCard]);
+
   if (!hasWorkspace) {
     return (
       <div className="adl-welcome adl-welcome--panel" aria-label="欢迎页">
@@ -340,10 +353,27 @@ function WelcomeState({
             <IconMessageSquare size={16} decorative />
             {t.newConversation}
           </button>
-          <button type="button" className="adl-btn adl-btn--ghost adl-btn--lg" onClick={onTriggerCreateWorkspace}>
-            <IconFolderOpen size={16} decorative />
-            {t.welcomeOpenWorkspace}
-          </button>
+          <div className="adl-welcome__action-wrap" ref={actionCardRef}>
+            <button type="button" className="adl-btn adl-btn--ghost adl-btn--lg" onClick={() => setShowActionCard((v) => !v)}>
+              <IconFolderOpen size={16} decorative />
+              {t.welcomeOpenWorkspace}
+            </button>
+            {showActionCard ? (
+              <div className="adl-welcome__action-card">
+                <div className="adl-statusbar__menu-section">
+                  <strong className="adl-statusbar__menu-subtitle">{t.workspaceOpenTitle}</strong>
+                  <WorkspaceSplitButton
+                    t={t}
+                    onPickWorkspaceDirectory={onPickWorkspaceDirectory}
+                    onOpenWorkspace={onOpenWorkspace}
+                    onClose={() => setShowActionCard(false)}
+                    initialMode="pick"
+                    persistMode={false}
+                  />
+                </div>
+              </div>
+            ) : null}
+          </div>
         </div>
 
         <section className="adl-welcome__hints" aria-label={t.welcomeHints}>
@@ -354,6 +384,8 @@ function WelcomeState({
           <ul>
             <li>{t.welcomeHintDrag}</li>
             <li>{t.welcomeHintOpen}</li>
+            <li>{t.welcomeHintNewWorkspace}</li>
+            <li>{t.welcomeHintNewSession}</li>
           </ul>
         </section>
       </div>
@@ -379,7 +411,6 @@ export function CenterPane({
   modelHealth,
   taskCenter,
   workspaceContextMode,
-  pendingWorkspacePath,
   gitSnapshot,
   gitBranches,
   recentWorkspaces,
@@ -388,7 +419,6 @@ export function CenterPane({
   onOpenWorkspace,
   onTriggerCreateWorkspace,
   onClearWorkspaceContext,
-  onSetPendingWorkspacePath,
   onPickWorkspaceDirectory,
   onCreateSession,
   onDecideApproval,
@@ -586,7 +616,7 @@ export function CenterPane({
               hasWorkspace={hasWorkspace}
               recentWorkspaces={recentWorkspaces}
               onOpenWorkspace={onOpenWorkspace}
-              onTriggerCreateWorkspace={onTriggerCreateWorkspace}
+              onPickWorkspaceDirectory={onPickWorkspaceDirectory}
               onCreateSession={onCreateSession}
             />
           </div>
@@ -777,14 +807,12 @@ export function CenterPane({
           isStreaming={!!streamingActiveRunId}
           activeRun={activeRun}
           workspaceContextMode={workspaceContextMode}
-          pendingWorkspacePath={pendingWorkspacePath}
           recentWorkspaces={recentWorkspaces}
           gitSnapshot={gitSnapshot}
           gitBranches={gitBranches}
           onSelectModel={onSelectModel}
           onOpenWorkspace={onOpenWorkspace}
           onClearWorkspaceContext={onClearWorkspaceContext}
-          onSetPendingWorkspacePath={onSetPendingWorkspacePath}
           onPickWorkspaceDirectory={onPickWorkspaceDirectory}
           onRefreshGitBranches={onRefreshGitBranches}
           onSwitchGitBranch={onSwitchGitBranch}

@@ -3,7 +3,7 @@ import { MergeView, getChunks, uncollapseUnchanged, unifiedMergeView } from "@co
 import { EditorView, lineNumbers, highlightActiveLineGutter, highlightActiveLine, keymap } from "@codemirror/view";
 import { EditorState, Compartment } from "@codemirror/state";
 import { history } from "@codemirror/commands";
-import { indentOnInput, bracketMatching, foldGutter } from "@codemirror/language";
+import { indentOnInput, bracketMatching } from "@codemirror/language";
 import { search } from "@codemirror/search";
 import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import type { Extension } from "@codemirror/state";
@@ -11,6 +11,7 @@ import type { DiffEditorRef, EditorRef } from "../../types";
 import { createDiffEditorRef, createEditorRef } from "./editorAdapters";
 import { getThemeExtension, rebuildThemes, getPhrasesExtension } from "./cmTheme";
 import { getLanguageExtension } from "./cmLanguages";
+import { createFoldGutterExtension } from "./cmFoldGutter";
 import {
   getMinimapExtension,
   updateMinimapDiffModel,
@@ -135,7 +136,7 @@ function buildSharedExtensions(
     search(),
     closeBrackets(),
     keymap.of(closeBracketsKeymap),
-    foldGutterCompartment.of(gutterEnabled ? foldGutter() : []),
+    foldGutterCompartment.of(gutterEnabled ? createFoldGutterExtension() : []),
     wordWrapCompartment.of(wordWrap ? EditorView.lineWrapping : []),
     EditorState.readOnly.of(readOnly),
     themeCompartment.of(getThemeExtension(theme)),
@@ -433,7 +434,7 @@ function SideBySideDiffViewer({
       view.dispatch({
         effects: [
           lineNumbersCompartment.reconfigure(lineNumbersEnabled ? lineNumbers() : []),
-          foldGutterCompartment.reconfigure(lineNumbersEnabled ? foldGutter() : []),
+          foldGutterCompartment.reconfigure(lineNumbersEnabled ? createFoldGutterExtension() : []),
           wordWrapCompartment.reconfigure(wordWrap ? EditorView.lineWrapping : []),
         ],
       });
@@ -605,7 +606,7 @@ function InlineDiffViewer({
     view.dispatch({
       effects: [
         lineNumbersCompartment.reconfigure(lineNumbersEnabled ? lineNumbers() : []),
-        foldGutterCompartment.reconfigure(lineNumbersEnabled ? foldGutter() : []),
+        foldGutterCompartment.reconfigure(lineNumbersEnabled ? createFoldGutterExtension() : []),
         wordWrapCompartment.reconfigure(wordWrap ? EditorView.lineWrapping : []),
       ],
     });

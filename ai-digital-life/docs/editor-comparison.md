@@ -70,6 +70,7 @@
 | DiffViewer | `frontend/src/app/regions/right-panel/DiffViewer.tsx` | Diff 对比视图 |
 | cmTheme | `frontend/src/app/regions/right-panel/cmTheme.ts` | CodeMirror 主题定义与同步 |
 | cmLanguages | `frontend/src/app/regions/right-panel/cmLanguages.ts` | 语言扩展加载器 |
+| cmFoldGutter | `frontend/src/app/regions/right-panel/cmFoldGutter.ts` | CodeMirror 折叠 gutter 自定义 marker DOM |
 | cmMinimap | `frontend/src/app/regions/right-panel/cmMinimap.ts` | Minimap 导航系统 |
 | cmInlineDiffBackgrounds | `frontend/src/app/regions/right-panel/cmInlineDiffBackgrounds.ts` | 内联 Diff 背景渲染 |
 | fileTypeRouter | `frontend/src/app/regions/right-panel/fileTypeRouter.ts` | 文件类型路由器 |

@@ -10,6 +10,7 @@ mod state;
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let data_dir = setup::resolve_data_dir(app)?;
             let app_state = setup::init_app_state(data_dir)?;

@@ -11,6 +11,13 @@ describe("files panel editor options", () => {
     expect(filesPanelSource).toContain("getFoldingTooltipExtension");
   });
 
+  it("uses the shared custom CodeMirror fold gutter marker", () => {
+    const codeEditorSource = readFileSync(new URL("../../../../src/app/regions/right-panel/CodeEditor.tsx", import.meta.url), "utf8");
+
+    expect(codeEditorSource).toContain("createFoldGutterExtension");
+    expect(codeEditorSource).not.toContain("foldGutter()");
+  });
+
   it("passes a complete minimap model and drag callback to file diffs", () => {
     expect(filesPanelSource).toContain("fileDiffMinimapModel");
     expect(filesPanelSource).toContain("onMinimapDragStart={handleFileDiffMinimapDragStart}");

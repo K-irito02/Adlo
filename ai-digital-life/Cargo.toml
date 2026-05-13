@@ -42,6 +42,7 @@ reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-feature
 keyring = { version = "3", features = ["crypto-rust"] }
 tauri = "2"
 tauri-build = "2"
+tauri-plugin-dialog = "2"
 uuid = { version = "1", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 sha2 = "0.10"

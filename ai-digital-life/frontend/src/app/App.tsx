@@ -16,6 +16,8 @@ import { TitleBar } from "./regions/TitleBar";
 import { LeftSidebar } from "./regions/LeftSidebar";
 import { CenterPane } from "./regions/CenterPane";
 import { RightPanel } from "./regions/RightPanel";
+import { NewSessionDialog } from "./components/NewSessionDialog";
+import { CreateWorkspaceModal } from "./components/CreateWorkspaceModal";
 import {
   findPatchFileByPath,
   getAdjacentPatchHunk,
@@ -55,7 +57,6 @@ export function App() {
     gitSnapshot,
     gitBranches,
     workspaceContextMode,
-    pendingWorkspacePath,
     latestCommandRun,
     terminalOutput,
     activeTerminalExecutionId,
@@ -75,7 +76,6 @@ export function App() {
     bootstrap,
     openWorkspace,
     clearWorkspaceContext,
-    setPendingWorkspacePath,
     pickWorkspaceDirectory,
     createSession,
     selectSession,
@@ -143,7 +143,6 @@ export function App() {
       gitSnapshot: state.gitSnapshot,
       gitBranches: state.gitBranches,
       workspaceContextMode: state.workspaceContextMode,
-      pendingWorkspacePath: state.pendingWorkspacePath,
       latestCommandRun: state.latestCommandRun,
       terminalOutput: state.terminalOutput,
       activeTerminalExecutionId: state.activeTerminalExecutionId,
@@ -163,7 +162,6 @@ export function App() {
       bootstrap: state.bootstrap,
       openWorkspace: state.openWorkspace,
       clearWorkspaceContext: state.clearWorkspaceContext,
-      setPendingWorkspacePath: state.setPendingWorkspacePath,
       pickWorkspaceDirectory: state.pickWorkspaceDirectory,
       createSession: state.createSession,
       selectSession: state.selectSession,
@@ -216,25 +214,23 @@ export function App() {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && (event.key === "o" || event.key === "O")) {
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && (event.key === "n" || event.key === "N")) {
         event.preventDefault();
-        void (async () => {
-          const picked = await pickWorkspaceDirectory();
-          if (picked) {
-            await openWorkspace(picked);
-            return;
-          }
-          const input = window.prompt(copy[(appInfo?.config.language ?? "zh-CN") as Locale].workspacePlaceholder);
-          if (input && input.trim()) {
-            await openWorkspace(input.trim());
-          }
-        })();
+        setNewSessionDialogOpen(true);
+      } else if ((event.ctrlKey || event.metaKey) && (event.key === "n" || event.key === "N")) {
+        event.preventDefault();
+        setCreateWorkspaceModalOpen(true);
+      } else if ((event.ctrlKey || event.metaKey) && (event.key === "o" || event.key === "O")) {
+        event.preventDefault();
+        void pickWorkspaceDirectory().then((picked) => {
+          if (picked) void openWorkspace(picked);
+        });
       }
     };
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [appInfo?.config.language, openWorkspace, pickWorkspaceDirectory]);
+  }, [openWorkspace, pickWorkspaceDirectory]);
 
   useEffect(() => {
     if (!isTauriShell()) return;
@@ -611,17 +607,18 @@ export function App() {
     [updatePreferences]
   );
 
-  const handleTriggerCreateWorkspace = useCallback(async () => {
-    const picked = await pickWorkspaceDirectory();
-    if (picked) {
-      void openWorkspace(picked);
-      return;
-    }
-    const input = window.prompt(t.workspacePlaceholder);
-    if (input && input.trim()) {
-      void openWorkspace(input.trim());
-    }
-  }, [openWorkspace, pickWorkspaceDirectory, t.workspacePlaceholder]);
+  const [createWorkspaceModalOpen, setCreateWorkspaceModalOpen] = useState(false);
+  const [newSessionDialogOpen, setNewSessionDialogOpen] = useState(false);
+
+  const handleTriggerCreateWorkspace = useCallback(() => {
+    setCreateWorkspaceModalOpen(true);
+  }, []);
+
+  const handleOpenFolder = useCallback(() => {
+    void pickWorkspaceDirectory().then((picked) => {
+      if (picked) void openWorkspace(picked);
+    });
+  }, [openWorkspace, pickWorkspaceDirectory]);
 
   const handleOpenSettings = useCallback(() => {
     useUiStore.getState().setActiveTool("settings");
@@ -689,6 +686,7 @@ export function App() {
           appInfo={appInfo}
           onOpenSettings={handleOpenSettings}
           onTriggerCreateWorkspace={handleTriggerCreateWorkspace}
+          onOpenFolder={handleOpenFolder}
           onOpenCommandPalette={handleOpenCommandPalette}
           onCycleTheme={handleCycleTheme}
           onSelectLanguage={handleSelectLanguage}
@@ -716,7 +714,7 @@ export function App() {
           taskCenter={taskCenter}
           indexingStatus={indexingStatus}
           onSelectSession={(id) => void selectSession(id)}
-          onCreateSession={() => void createSession()}
+          onCreateSession={() => setNewSessionDialogOpen(true)}
           onPinWorkspace={(workspaceId) => void pinWorkspace(workspaceId)}
           onUnpinWorkspace={(workspaceId) => void unpinWorkspace(workspaceId)}
           onRemoveWorkspace={(workspaceId) => void removeWorkspaceFromSidebar(workspaceId)}
@@ -732,7 +730,7 @@ export function App() {
           onReorderSessions={(input) => void reorderSessions(input)}
           onRevealWorkspace={(workspacePath) => void revealWorkspaceInFileManager(workspacePath)}
           onDeleteSession={(sessionId) => void deleteSession(sessionId)}
-          onOpenWorkspace={(path) => void openWorkspace(path)}
+          onOpenWorkspace={openWorkspace}
           onTriggerCreateWorkspace={handleTriggerCreateWorkspace}
         />
 
@@ -750,7 +748,6 @@ export function App() {
           modelHealth={modelHealth}
           taskCenter={taskCenter}
           workspaceContextMode={workspaceContextMode}
-          pendingWorkspacePath={pendingWorkspacePath}
           gitSnapshot={gitSnapshot}
           gitBranches={gitBranches}
           recentWorkspaces={recentWorkspaces}
@@ -758,12 +755,11 @@ export function App() {
             await sendMessage(content, { mode: opts.mode, chips: opts.chips });
           }}
           onCancelGenerate={() => void cancelActiveStream()}
-          onOpenWorkspace={(path) => void openWorkspace(path)}
+          onOpenWorkspace={openWorkspace}
           onTriggerCreateWorkspace={handleTriggerCreateWorkspace}
           onClearWorkspaceContext={clearWorkspaceContext}
-          onSetPendingWorkspacePath={setPendingWorkspacePath}
           onPickWorkspaceDirectory={pickWorkspaceDirectory}
-          onCreateSession={() => void createSession()}
+          onCreateSession={() => setNewSessionDialogOpen(true)}
           onDecideApproval={(approvalId, decision) => void decideApproval(approvalId, decision)}
           onSelectModel={handleSelectModel}
           onRefreshGitBranches={fetchGitBranches}
@@ -845,6 +841,28 @@ export function App() {
           onStopCommandStream={() => void stopCommandStream()}
         />
       </div>
+
+      <CreateWorkspaceModal
+        open={createWorkspaceModalOpen}
+        t={t}
+        onPickWorkspaceDirectory={pickWorkspaceDirectory}
+        onOpenWorkspace={openWorkspace}
+        onClose={() => setCreateWorkspaceModalOpen(false)}
+      />
+
+      <NewSessionDialog
+        open={newSessionDialogOpen}
+        t={t}
+        onCreate={async (name) => {
+          await createSession();
+          if (name) {
+            const currentId = useAppStore.getState().activeSessionId;
+            if (currentId) await renameSession(currentId, name);
+          }
+          setNewSessionDialogOpen(false);
+        }}
+        onCancel={() => setNewSessionDialogOpen(false)}
+      />
 
     </main>
   );

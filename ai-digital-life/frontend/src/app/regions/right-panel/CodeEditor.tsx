@@ -4,13 +4,14 @@ import { EditorView, lineNumbers, highlightActiveLineGutter, highlightActiveLine
 import type { Extension } from "@codemirror/state";
 import { EditorState, Compartment } from "@codemirror/state";
 import { history } from "@codemirror/commands";
-import { indentOnInput, bracketMatching, foldGutter } from "@codemirror/language";
+import { indentOnInput, bracketMatching } from "@codemirror/language";
 import { search } from "@codemirror/search";
 import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import type { EditorRef } from "../../types";
 import { createEditorRef } from "./editorAdapters";
 import { getThemeExtension, rebuildThemes, getPhrasesExtension } from "./cmTheme";
 import { getLanguageExtension } from "./cmLanguages";
+import { createFoldGutterExtension } from "./cmFoldGutter";
 
 export type CodeEditorProps = {
   value: string;
@@ -96,7 +97,7 @@ export function CodeEditor({
       search(),
       closeBrackets(),
       keymap.of(closeBracketsKeymap),
-      foldGutterCompartment.of(gutterEnabled ? foldGutter() : []),
+      foldGutterCompartment.of(gutterEnabled ? createFoldGutterExtension() : []),
       wordWrapCompartment.of(wordWrap ? EditorView.lineWrapping : []),
       EditorState.readOnly.of(readOnly),
       ...getLanguageExtension(language),
@@ -142,7 +143,7 @@ export function CodeEditor({
     view.dispatch({
       effects: [
         lineNumbersCompartment.reconfigure(lineNumbersEnabled ? lineNumbers() : []),
-        foldGutterCompartment.reconfigure(lineNumbersEnabled ? foldGutter() : []),
+        foldGutterCompartment.reconfigure(lineNumbersEnabled ? createFoldGutterExtension() : []),
         wordWrapCompartment.reconfigure(wordWrap ? EditorView.lineWrapping : []),
       ],
     });

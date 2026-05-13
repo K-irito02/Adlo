@@ -31,6 +31,91 @@ const MAX_TREE_NODES = 200_000;
 const IGNORED_DIRS = new Set([".git", "target", "node_modules", "dist", "build", ".next", ".cache"]);
 const ROOT_MARKERS = [".git", "Cargo.toml", "package.json", "pyproject.toml", "go.mod", "pom.xml"];
 const API_PREFIX = "/__adl_preview_api__";
+const GIT_CANDIDATE_PATHS = process.platform === "win32"
+  ? [
+      "C:\\Program Files\\Git\\bin\\git.exe",
+      "C:\\Program Files\\Git\\cmd\\git.exe",
+    ]
+  : [];
+
+const WIN_SYSTEM_DIRS = process.platform === "win32"
+  ? [
+      "C:\\Windows\\System32",
+      "C:\\Windows\\System32\\WindowsPowerShell\\v1.0",
+      "C:\\Windows\\SysWOW64",
+      "C:\\Windows\\SysWOW64\\WindowsPowerShell\\v1.0",
+      "C:\\Windows",
+    ]
+  : [];
+
+const CSC_CANDIDATE_PATHS = process.platform === "win32"
+  ? [
+      "C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe",
+      "C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\csc.exe",
+    ]
+  : [];
+
+const PICKER_CS_PATH = path.join(__dirname, "picker", "FolderPicker.cs");
+
+interface ModuleState {
+  gitBinary: string;
+  gitResolved: boolean;
+}
+
+const moduleState: ModuleState = {
+  gitBinary: "git",
+  gitResolved: false,
+};
+
+async function resolveGitBinary(): Promise<string> {
+  if (moduleState.gitResolved) return moduleState.gitBinary;
+
+  const probe = (cmd: string): Promise<boolean> =>
+    new Promise((resolve) => {
+      const child = spawn(cmd, ["--version"], { windowsHide: true, stdio: "ignore" });
+      child.on("error", () => resolve(false));
+      child.on("close", (code) => resolve(code === 0));
+    });
+
+  if (await probe("git")) {
+    moduleState.gitBinary = "git";
+    moduleState.gitResolved = true;
+    return moduleState.gitBinary;
+  }
+
+  for (const candidate of GIT_CANDIDATE_PATHS) {
+    if (fsSync.existsSync(candidate) && (await probe(candidate))) {
+      moduleState.gitBinary = candidate;
+      moduleState.gitResolved = true;
+      return moduleState.gitBinary;
+    }
+  }
+
+  moduleState.gitResolved = true;
+  return moduleState.gitBinary;
+}
+
+async function resolveWindowsBinary(name: string): Promise<string> {
+  const probe = (cmd: string): Promise<boolean> =>
+    new Promise((resolve) => {
+      const child = spawn(cmd, ["//?//"], { windowsHide: true, stdio: "ignore" });
+      child.on("error", () => resolve(false));
+      child.on("close", () => resolve(true));
+    });
+
+  if (await probe(name)) {
+    return name;
+  }
+
+  for (const dir of WIN_SYSTEM_DIRS) {
+    const fullPath = path.join(dir, name);
+    if (fsSync.existsSync(fullPath) && (await probe(fullPath))) {
+      return fullPath;
+    }
+  }
+
+  return name;
+}
 
 type PreviewWorkspacePayload = {
   meta: WorkspaceMeta;
@@ -323,9 +408,10 @@ async function outline(rootPath: string, relativeTarget: string): Promise<FileOu
   return buildOutlineFromContent(document.content, normalizePath(relativeTarget));
 }
 
-function runGit(rootPath: string, args: string[]): Promise<string | undefined> {
+async function runGit(rootPath: string, args: string[]): Promise<string | undefined> {
+  const gitBin = await resolveGitBinary();
   return new Promise((resolve) => {
-    const child = spawn("git", args, { cwd: rootPath, windowsHide: true });
+    const child = spawn(gitBin, args, { cwd: rootPath, windowsHide: true });
     let stdout = "";
     child.stdout.on("data", (chunk) => {
       stdout += String(chunk);
@@ -360,8 +446,9 @@ async function captureGitSnapshot(rootPath: string): Promise<GitSnapshot> {
 }
 
 async function runGitBytes(rootPath: string, args: string[]): Promise<Buffer | undefined> {
+  const gitBin = await resolveGitBinary();
   return new Promise((resolve) => {
-    const child = spawn("git", args, { cwd: rootPath, windowsHide: true });
+    const child = spawn(gitBin, args, { cwd: rootPath, windowsHide: true });
     const chunks: Buffer[] = [];
     child.stdout.on("data", (chunk) => {
       chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
@@ -384,8 +471,9 @@ async function runGitNullSeparated(rootPath: string, args: string[]): Promise<st
 }
 
 async function gitHeadFileExists(rootPath: string, relativeTarget: string): Promise<boolean> {
+  const gitBin = await resolveGitBinary();
   return new Promise((resolve) => {
-    const child = spawn("git", ["cat-file", "-e", `HEAD:${normalizePath(relativeTarget)}`], {
+    const child = spawn(gitBin, ["cat-file", "-e", `HEAD:${normalizePath(relativeTarget)}`], {
       cwd: rootPath,
       windowsHide: true
     });
@@ -621,6 +709,9 @@ async function buildRetrievalSnapshot(workspaceId: string, rootPath: string): Pr
 }
 
 async function openWorkspace(workspacePath: string): Promise<PreviewWorkspacePayload> {
+  if (!fsSync.existsSync(workspacePath)) {
+    fsSync.mkdirSync(workspacePath, { recursive: true });
+  }
   const rootPath = await detectWorkspaceRoot(workspacePath);
   const name = path.basename(rootPath) || rootPath;
   const id = createWorkspaceId(rootPath);
@@ -660,58 +751,134 @@ async function revealInFileManager(targetPath: string): Promise<boolean> {
     throw new Error(`path does not exist: ${targetPath}`);
   }
 
-  const command =
-    process.platform === "win32"
-      ? { cmd: "explorer", args: [absolutePath] }
-      : process.platform === "darwin"
-        ? { cmd: "open", args: [absolutePath] }
-        : { cmd: "xdg-open", args: [absolutePath] };
+  if (process.platform === "win32") {
+    const cmdPath = await resolveWindowsBinary("cmd.exe");
+    await new Promise<void>((resolve, reject) => {
+      const child = spawn(cmdPath, ["/c", "start", "", "explorer", `/select,"${absolutePath}"`], {
+        windowsHide: false,
+        detached: true,
+      });
+      child.on("error", reject);
+      child.on("spawn", () => resolve());
+    });
+    return true;
+  }
 
+  const cmd = process.platform === "darwin" ? "open" : "xdg-open";
   await new Promise<void>((resolve, reject) => {
-    const child = spawn(command.cmd, command.args, { windowsHide: true });
+    const child = spawn(cmd, [absolutePath], { windowsHide: true });
     child.on("error", reject);
     child.on("spawn", () => resolve());
   });
   return true;
 }
 
-async function pickDirectory(): Promise<string | undefined> {
-  const script =
-    process.platform === "win32"
-      ? {
-          cmd: "powershell",
-          args: [
-            "-NoProfile",
-            "-Command",
-            [
-              "Add-Type -AssemblyName System.Windows.Forms",
-              "$dialog = New-Object System.Windows.Forms.FolderBrowserDialog",
-              "$dialog.ShowNewFolderButton = $true",
-              'if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {',
-              "  [Console]::Write($dialog.SelectedPath)",
-              "}"
-            ].join("\n")
-          ]
-        }
-      : process.platform === "darwin"
-        ? {
-            cmd: "osascript",
-            args: [
-              "-e",
-              'set chosenFolder to choose folder with prompt "Select workspace folder"',
-              "-e",
-              "POSIX path of chosenFolder"
-            ]
-          }
-        : {
-            cmd: "zenity",
-            args: ["--file-selection", "--directory", "--title=Select workspace folder"]
-          };
+let compiledPickerExe: string | undefined;
+
+async function compileFolderPicker(): Promise<string | undefined> {
+  if (compiledPickerExe && fsSync.existsSync(compiledPickerExe)) {
+    return compiledPickerExe;
+  }
+  if (!fsSync.existsSync(PICKER_CS_PATH)) {
+    return undefined;
+  }
+  const outputExe = PICKER_CS_PATH.replace(/\.cs$/, ".exe");
+  for (const csc of CSC_CANDIDATE_PATHS) {
+    if (!fsSync.existsSync(csc)) continue;
+    const success = await new Promise<boolean>((resolve) => {
+      const child = spawn(csc, ["/nologo", "/target:exe", `/out:${outputExe}`, PICKER_CS_PATH], { windowsHide: true });
+      child.on("error", () => resolve(false));
+      child.on("close", (code) => resolve(code === 0));
+    });
+    if (success && fsSync.existsSync(outputExe)) {
+      compiledPickerExe = outputExe;
+      return compiledPickerExe;
+    }
+  }
+  return undefined;
+}
+
+async function runFolderPickerCsharp(exe: string): Promise<string | undefined> {
+  return new Promise((resolve) => {
+    const child = spawn(exe, [], {
+      windowsHide: true,
+      detached: true,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let stdout = "";
+    child.stdout.on("data", (chunk) => { stdout += String(chunk); });
+    child.on("error", () => resolve(undefined));
+    child.on("close", (code) => {
+      const selected = stdout.trim();
+      resolve(code === 0 && selected ? selected : undefined);
+    });
+  });
+}
+
+async function runFolderPickerPowerShell(): Promise<string | undefined> {
+  const psPath = await resolveWindowsBinary("powershell.exe");
+  const psScript = [
+    'Add-Type -AssemblyName System.Windows.Forms',
+    '$d = New-Object System.Windows.Forms.FolderBrowserDialog',
+    '$d.Description = "Select workspace folder"',
+    '$d.ShowNewFolderButton = $true',
+    'if ($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {',
+    '  [Console]::Write($d.SelectedPath)',
+    '}',
+  ].join("; ");
 
   return new Promise((resolve) => {
-    const child = spawn(script.cmd, script.args, { windowsHide: true });
+    const child = spawn(psPath, [
+      "-NoProfile", "-Sta",
+      "-Command", psScript,
+    ], { windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
     let stdout = "";
-    child.stdout.on("data", (chunk: Buffer | string) => {
+    child.stdout.on("data", (chunk) => { stdout += String(chunk); });
+    child.on("error", () => resolve(undefined));
+    child.on("close", () => {
+      const selected = stdout.trim();
+      resolve(selected || undefined);
+    });
+  });
+}
+
+async function pickDirectory(): Promise<string | undefined> {
+  if (process.platform === "win32") {
+    const exe = await compileFolderPicker();
+    if (exe) {
+      return runFolderPickerCsharp(exe);
+    }
+    return runFolderPickerPowerShell();
+  }
+
+  if (process.platform === "darwin") {
+    return new Promise((resolve) => {
+      const child = spawn("osascript", [
+        "-e",
+        'set chosenFolder to choose folder with prompt "Select workspace folder"',
+        "-e",
+        "POSIX path of chosenFolder",
+      ], { windowsHide: true });
+      let stdout = "";
+      child.stdout.on("data", (chunk) => {
+        stdout += String(chunk);
+      });
+      child.on("error", () => resolve(undefined));
+      child.on("close", (code) => {
+        if (code !== 0) {
+          resolve(undefined);
+          return;
+        }
+        const selected = stdout.trim();
+        resolve(selected || undefined);
+      });
+    });
+  }
+
+  return new Promise((resolve) => {
+    const child = spawn("zenity", ["--file-selection", "--directory", "--title=Select workspace folder"], { windowsHide: true });
+    let stdout = "";
+    child.stdout.on("data", (chunk) => {
       stdout += String(chunk);
     });
     child.on("error", () => resolve(undefined));
@@ -780,6 +947,11 @@ export async function handlePreviewWorkspaceApi(
         return true;
       }
       writeJson(response, ok(await revealInFileManager(body.path.trim())));
+      return true;
+    }
+
+    if (request.method === "GET" && requestUrl.pathname === `${API_PREFIX}/workspace/app-directory`) {
+      writeJson(response, ok(process.cwd()));
       return true;
     }
 
@@ -854,7 +1026,11 @@ export async function handlePreviewWorkspaceApi(
       return true;
     }
     if (request.method === "GET" && requestUrl.pathname === `${API_PREFIX}/workspace/git-branches`) {
-      writeJson(response, ok(await listGitBranches(rootPath)));
+      try {
+        writeJson(response, ok(await listGitBranches(rootPath)));
+      } catch {
+        writeJson(response, ok<GitBranchSummary[]>([]));
+      }
       return true;
     }
     if (request.method === "POST" && requestUrl.pathname === `${API_PREFIX}/workspace/git-switch`) {

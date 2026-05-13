@@ -1,93 +1,88 @@
 import { EditorView, ViewPlugin, type PluginValue, ViewUpdate } from "@codemirror/view";
 import type { Extension } from "@codemirror/state";
-import { foldedRanges } from "@codemirror/language";
+import { foldable, foldedRanges } from "@codemirror/language";
 
 class FoldingTooltipPlugin implements PluginValue {
-  private currentTooltip: HTMLElement | null = null;
-  private currentHoverTarget: HTMLElement | null = null;
+  private lastDocGeneration = -1;
 
   constructor(private view: EditorView) {
-    this.view.dom.addEventListener("mouseover", this.handleMouseOver);
-    this.view.dom.addEventListener("mouseout", this.handleMouseOut);
+    setTimeout(() => this.updateMarkerTitles(), 0);
   }
 
-  update(_update: ViewUpdate) {}
+  update(update: ViewUpdate) {
+    if (update.view.state.doc.generation === this.lastDocGeneration) return;
+    this.lastDocGeneration = update.view.state.doc.generation;
+    this.updateMarkerTitles();
+  }
 
   destroy() {
-    this.view.dom.removeEventListener("mouseover", this.handleMouseOver);
-    this.view.dom.removeEventListener("mouseout", this.handleMouseOut);
-    this.removeTooltip();
+    const gutter = this.view.dom.querySelector(".cm-foldGutter");
+    if (!gutter) return;
+    for (let i = 0; i < gutter.children.length; i++) {
+      (gutter.children[i] as HTMLElement).removeAttribute("title");
+    }
   }
 
-  private handleMouseOver = (e: MouseEvent) => {
-    const target = e.target as HTMLElement;
-    if (!target.closest(".cm-foldGutter")) return;
+  private updateMarkerTitles() {
+    const gutter = this.view.dom.querySelector(".cm-foldGutter");
+    if (!gutter) return;
 
-    const foldMarker = target.closest(".cm-gutterElement") as HTMLElement;
-    if (!foldMarker) return;
+    const doc = this.view.state.doc;
 
-    const lineEl = this.getLineNumberFromGutterElement(foldMarker);
-    if (lineEl == null) return;
+    for (let i = 0; i < gutter.children.length; i++) {
+      const el = gutter.children[i] as HTMLElement;
+      if (el.style.visibility === "hidden") continue;
 
-    const folded = this.isLineFolded(lineEl);
-    const tooltipText = folded
-      ? `展开至第 ${lineEl} 行`
-      : `折叠至第 ${lineEl} 行`;
+      const marker = el.querySelector(".adl-cm-fold-marker");
+      if (!marker) continue;
 
-    this.showTooltip(foldMarker, tooltipText);
-  };
+      const lineNum = i + 1;
+      if (lineNum > doc.lines) continue;
 
-  private handleMouseOut = (e: MouseEvent) => {
-    const target = e.target as HTMLElement;
-    if (!target.closest(".cm-foldGutter")) {
-      this.removeTooltip();
-    }
-  };
+      const line = doc.line(lineNum);
+      const isClosed = marker.classList.contains("adl-cm-fold-marker--closed");
 
-  private getLineNumberFromGutterElement(el: HTMLElement): number | null {
-    const gutterElements = this.view.dom.querySelectorAll(".cm-gutters .cm-foldGutter .cm-gutterElement");
-    let idx = 0;
-    for (const gel of gutterElements) {
-      if (gel === el) {
-        return idx + 1;
+      let targetLine: number | null = null;
+
+      if (isClosed) {
+        targetLine = this.findFoldedRangeEndLine(lineNum);
+      } else {
+        targetLine = this.findFoldableEndLine(line.from, line.to, lineNum);
       }
-      idx++;
+
+      if (targetLine !== null && targetLine > lineNum) {
+        const text = isClosed
+          ? `折叠至${targetLine}行`
+          : `展开至${targetLine}行`;
+        el.setAttribute("title", text);
+      } else {
+        el.removeAttribute("title");
+      }
     }
-    return null;
   }
 
-  private isLineFolded(lineNumber: number): boolean {
-    const pos = this.view.state.doc.line(lineNumber).from;
-    let folded = false;
-    foldedRanges(this.view.state).between(pos, pos, (from, to) => {
-      if (from <= pos && to >= pos) folded = true;
+  private findFoldedRangeEndLine(currentLineNumber: number): number | null {
+    let result: number | null = null;
+    const doc = this.view.state.doc;
+
+    foldedRanges(this.view.state).between(0, doc.length, (from, to) => {
+      const startLine = doc.lineAt(from).number;
+      const endLine = doc.lineAt(to).number;
+
+      if (startLine === currentLineNumber) {
+        result = endLine;
+      }
     });
-    return folded;
+
+    return result;
   }
 
-  private showTooltip(anchor: HTMLElement, text: string) {
-    this.removeTooltip();
-    const tooltip = document.createElement("div");
-    tooltip.className = "adl-cm-folding-tooltip";
-    tooltip.textContent = text;
+  private findFoldableEndLine(lineStart: number, lineEnd: number, _currentLineNumber: number): number | null {
+    const range = foldable(this.view.state, lineStart, lineEnd);
+    if (!range) return null;
 
-    const rect = anchor.getBoundingClientRect();
-    tooltip.style.position = "fixed";
-    tooltip.style.left = `${rect.left}px`;
-    tooltip.style.top = `${rect.bottom + 4}px`;
-    tooltip.style.zIndex = "10000";
-
-    document.body.appendChild(tooltip);
-    this.currentTooltip = tooltip;
-    this.currentHoverTarget = anchor;
-  }
-
-  private removeTooltip() {
-    if (this.currentTooltip) {
-      this.currentTooltip.remove();
-      this.currentTooltip = null;
-    }
-    this.currentHoverTarget = null;
+    const endPos = range.to > 0 ? range.to - 1 : 0;
+    return this.view.state.doc.lineAt(endPos).number;
   }
 }
 

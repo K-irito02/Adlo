@@ -11,6 +11,7 @@ use adl_storage::EntityTable;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use tauri::Emitter;
+use tauri_plugin_dialog::DialogExt;
 
 const RECENT_SIDEBAR_KEY: &str = "recent_workspaces_sidebar_v1";
 
@@ -220,8 +221,10 @@ pub fn workspace_clear_current(state: tauri::State<'_, AppState>) -> IpcResult<b
 }
 
 #[tauri::command]
-pub fn workspace_pick_directory() -> IpcResult<Option<String>> {
-    ipc(pick_directory())
+pub fn workspace_pick_directory(app: tauri::AppHandle) -> IpcResult<Option<String>> {
+    let path = app.dialog().file().blocking_pick_folder();
+    let result = path.and_then(|p| p.into_path().ok().map(|pp| pp.to_string_lossy().to_string()));
+    IpcResult::ok(result)
 }
 
 #[tauri::command]
@@ -507,77 +510,6 @@ fn reveal_in_os_file_manager(path: &str) -> Result<(), AppError> {
         std::process::Command::new("xdg-open").arg(p).spawn()?;
     }
     Ok(())
-}
-
-#[cfg(target_os = "windows")]
-fn pick_directory() -> Result<Option<String>, AppError> {
-    let script = r#"
-Add-Type -AssemblyName System.Windows.Forms
-$dialog = New-Object System.Windows.Forms.FolderBrowserDialog
-$dialog.ShowNewFolderButton = $true
-if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
-  [Console]::Write($dialog.SelectedPath)
-}
-"#;
-    let output = std::process::Command::new("powershell")
-        .args(["-NoProfile", "-Command", script])
-        .output()
-        .map_err(|error| AppError::Workspace(format!("failed to open folder dialog: {error}")))?;
-    if !output.status.success() {
-        return Err(AppError::Workspace(
-            String::from_utf8_lossy(&output.stderr).trim().to_string(),
-        ));
-    }
-    let selected = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    if selected.is_empty() {
-        Ok(None)
-    } else {
-        Ok(Some(selected))
-    }
-}
-
-#[cfg(target_os = "macos")]
-fn pick_directory() -> Result<Option<String>, AppError> {
-    let output = std::process::Command::new("osascript")
-        .args([
-            "-e",
-            r#"set chosenFolder to choose folder with prompt "Select workspace folder""#,
-            "-e",
-            r#"POSIX path of chosenFolder"#,
-        ])
-        .output()
-        .map_err(|error| AppError::Workspace(format!("failed to open folder dialog: {error}")))?;
-    if !output.status.success() {
-        return Err(AppError::Workspace(
-            String::from_utf8_lossy(&output.stderr).trim().to_string(),
-        ));
-    }
-    let selected = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    if selected.is_empty() {
-        Ok(None)
-    } else {
-        Ok(Some(selected))
-    }
-}
-
-#[cfg(all(unix, not(target_os = "macos")))]
-fn pick_directory() -> Result<Option<String>, AppError> {
-    let output = std::process::Command::new("sh")
-        .args([
-            "-c",
-            "command -v zenity >/dev/null 2>&1 && zenity --file-selection --directory || command -v kdialog >/dev/null 2>&1 && kdialog --getexistingdirectory",
-        ])
-        .output()
-        .map_err(|error| AppError::Workspace(format!("failed to open folder dialog: {error}")))?;
-    if !output.status.success() {
-        return Ok(None);
-    }
-    let selected = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    if selected.is_empty() {
-        Ok(None)
-    } else {
-        Ok(Some(selected))
-    }
 }
 
 #[tauri::command]

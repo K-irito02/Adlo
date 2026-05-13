@@ -82,6 +82,19 @@ alwaysApply: true
 | `pnpm add <pkg> -w <ws>` | 添加依赖 |
 | `pnpm list --depth 0` | 列出顶层依赖 |
 
+## Rust 编译
+
+| 命令 | 用途 | 说明 |
+|------|------|------|
+| `cargo check` | 编译检查（不生成二进制） | 快速验证代码正确性 |
+| `cargo test --workspace` | 运行所有 Rust 测试 | 红绿测试用 |
+| `cargo build` | 完整编译 | 首次或新增依赖时较慢 |
+
+> ⚠️ **Rust 编译注意事项**：
+> - 首次编译或新增依赖时，`cargo check` / `cargo build` 可能需要较长时间（下载依赖 + 编译）
+> - 系统配置了 Clash 代理（`127.0.0.1:7890`），运行前需确保代理已开启，否则依赖下载会失败
+> - Rust 工具链位于 `%USERPROFILE%\.cargo\bin\`，可能不在系统 PATH 中，需手动指定路径或设置环境变量
+
 ## 相关文件
 
 - [ai-digital-life/package.json](/E:/Programs/Obsidian/notes/ai-digital-life/package.json)

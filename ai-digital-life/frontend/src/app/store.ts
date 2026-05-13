@@ -166,7 +166,6 @@ export type StoreState = {
   gitSnapshot?: GitSnapshot;
   gitBranches: GitBranchSummary[];
   workspaceContextMode: "workspace" | "global";
-  pendingWorkspacePath?: string;
   /* ---------- UI layout state ---------- */
   leftSidebarVisible: boolean;
   rightPanelVisible: boolean;
@@ -181,9 +180,8 @@ export type StoreState = {
   toggleLeftSidebar: () => void;
   toggleRightSidebar: () => void;
   bootstrap: () => Promise<void>;
-  openWorkspace: (workspacePath: string) => Promise<void>;
+  openWorkspace: (workspacePath: string) => Promise<{ ok: boolean; error?: string }>;
   clearWorkspaceContext: () => Promise<void>;
-  setPendingWorkspacePath: (workspacePath?: string) => void;
   pickWorkspaceDirectory: () => Promise<string | undefined>;
   createSession: () => Promise<void>;
   selectSession: (sessionId: string) => Promise<void>;
@@ -296,7 +294,6 @@ export const useAppStore = create<StoreState>((set, get) => ({
       sessionDetails: conversationState.detail ? { [conversationState.detail.session.id]: conversationState.detail } : {},
       taskCenter,
       workspaceContextMode: workspaceContextModeFromInfo(appInfoResult.data),
-      pendingWorkspacePath: undefined,
       loading: false,
       dirtyEditorPaths: []
     };
@@ -395,13 +392,14 @@ export const useAppStore = create<StoreState>((set, get) => ({
     sessionRequestSeq += 1;
     const result = await window.digitalLife.workspace.open(workspacePath);
     if (requestSeq !== workspaceRequestSeq) {
-      return;
+      return { ok: false, error: "Request superseded" };
     }
     if (!result.ok) {
       set({ error: result.error.message });
-      return;
+      return { ok: false, error: result.error.message };
     }
     await get().bootstrap();
+    return { ok: true };
   },
   clearWorkspaceContext: async () => {
     const requestSeq = ++workspaceRequestSeq;
@@ -417,12 +415,6 @@ export const useAppStore = create<StoreState>((set, get) => ({
       return;
     }
     await get().bootstrap();
-  },
-  setPendingWorkspacePath: (workspacePath) => {
-    set({
-      pendingWorkspacePath: workspacePath?.trim() || undefined,
-      workspaceContextMode: workspacePath?.trim() ? "global" : get().workspaceContextMode
-    });
   },
   pickWorkspaceDirectory: async () => {
     const result = await window.digitalLife.workspace.pickDirectory();
@@ -566,6 +558,10 @@ export const useAppStore = create<StoreState>((set, get) => ({
       return;
     }
     set({ recentWorkspaces: result.data });
+    const appInfo = get().appInfo;
+    if (appInfo?.currentWorkspace?.id === workspaceId) {
+      await get().clearWorkspaceContext();
+    }
   },
   reorderWorkspaces: async (input) => {
     const result = await window.digitalLife.workspace.reorder(input);
@@ -659,30 +655,6 @@ export const useAppStore = create<StoreState>((set, get) => ({
     set({ streamingAssistantText: "", streamingActiveRunId: undefined, error: undefined });
     const stateBeforeSend = get();
     let sessionId = stateBeforeSend.activeSessionId;
-    const pendingWorkspacePath = stateBeforeSend.pendingWorkspacePath?.trim();
-
-    if (pendingWorkspacePath) {
-      const activeDetail = sessionId ? stateBeforeSend.sessionDetails[sessionId] : undefined;
-      if (
-        sessionId &&
-        stateBeforeSend.workspaceContextMode === "global" &&
-        !hasConversationMessages(activeDetail)
-      ) {
-        const deleteResult = await window.digitalLife.conversation.deleteSession(sessionId);
-        if (!deleteResult.ok) {
-          set({ error: deleteResult.error.message });
-          return;
-        }
-        sessionId = undefined;
-      }
-
-      const openResult = await window.digitalLife.workspace.open(pendingWorkspacePath);
-      if (!openResult.ok) {
-        set({ error: openResult.error.message });
-        return;
-      }
-      sessionId = undefined;
-    }
 
     if (!sessionId) {
       const created = await window.digitalLife.conversation.createSession(sessionFallbackTitle(get().appInfo));
@@ -766,7 +738,6 @@ export const useAppStore = create<StoreState>((set, get) => ({
         streamingAssistantText: "",
         streamingActiveRunId: undefined,
         workspaceContextMode: workspaceContextModeFromInfo(nextAppInfo),
-        pendingWorkspacePath: undefined
       };
 
       if (result.data.patchSet?.filePatches[0]?.relativePath) {
@@ -1353,7 +1324,6 @@ export const useAppStore = create<StoreState>((set, get) => ({
         ? { ...state.appInfo, currentWorkspace: result.data.workspace }
         : state.appInfo,
       gitSnapshot: result.data.gitSnapshot,
-      pendingWorkspacePath: undefined,
       workspaceContextMode: "workspace"
     }));
     await Promise.allSettled([
@@ -1378,7 +1348,6 @@ export const useAppStore = create<StoreState>((set, get) => ({
         ? { ...state.appInfo, currentWorkspace: result.data.workspace }
         : state.appInfo,
       gitSnapshot: result.data.gitSnapshot,
-      pendingWorkspacePath: undefined,
       workspaceContextMode: "workspace"
     }));
     await Promise.allSettled([

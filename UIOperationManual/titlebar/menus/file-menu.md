@@ -8,6 +8,7 @@
 |--------|--------|------|----------|
 | 新建工作空间 | `Ctrl+N` | 创建新的工作空间 | [新建工作空间](#新建工作空间) |
 | 打开文件夹 | `Ctrl+O` | 打开现有文件夹作为工作空间 | [打开文件夹](#打开文件夹) |
+| 新建临时会话 | `Ctrl+Shift+N` | 创建不绑定工作区的临时会话 | [新建临时会话](#新建临时会话) |
 | 新建终端 | `Ctrl+Shift+\`` | 在右侧面板打开新终端标签 | [新建终端](#新建终端) |
 | 新建浏览器 | - | 在右侧面板打开新浏览器标签 | [新建浏览器](#新建浏览器) |
 | 打开编辑器窗口 | - | 切换到文件工具面板 | [打开编辑器窗口](#打开编辑器窗口) |
@@ -109,6 +110,48 @@ await page.keyboard.up('Control');
 await page.waitForSelector('.adl-workspace-item.is-current');
 // 等待文件树加载
 await page.waitForSelector('.adl-file-tree');
+```
+
+---
+
+### 新建临时会话
+
+| 属性 | 值 |
+|------|-----|
+| 快捷键 | `Ctrl+Shift+N` |
+
+#### 前置条件
+
+- [x] 无特殊条件
+
+#### 操作
+
+```javascript
+// 通过快捷键
+await page.keyboard.down('Control');
+await page.keyboard.down('Shift');
+await page.keyboard.press('N');
+await page.keyboard.up('Shift');
+await page.keyboard.up('Control');
+```
+
+#### 状态变化
+
+- 弹出「新建临时会话」对话框
+- 对话框包含名称输入框
+- 输入框默认聚焦
+
+#### 预期结果
+
+- 对话框显示
+- 输入框为空或包含自动生成的名称
+- 点击「创建会话」按钮后，左侧边栏「临时会话」区域出现新的会话标签
+
+#### 等待条件
+
+```javascript
+// 等待对话框出现
+await page.waitForSelector('.adl-prompt-modal');
 ```
 
 ---

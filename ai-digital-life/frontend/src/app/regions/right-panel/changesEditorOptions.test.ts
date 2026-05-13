@@ -16,6 +16,13 @@ describe("changes preview editor options", () => {
     expect(changesPanelSource).toContain("diffExtensions");
   });
 
+  it("uses the shared custom CodeMirror fold gutter marker", () => {
+    const diffViewerSource = readFileSync(new URL("../../../../src/app/regions/right-panel/DiffViewer.tsx", import.meta.url), "utf8");
+
+    expect(diffViewerSource).toContain("createFoldGutterExtension");
+    expect(diffViewerSource).not.toContain("foldGutter()");
+  });
+
   it("passes stable minimap scopes to change preview and diff editors", () => {
     expect(changesPanelSource).toContain("changes:${changePreview.path}:preview");
     expect(changesPanelSource).toContain("changes:${changePreview.path}:diff:${props.diffSideBySide ? \"side-by-side\" : \"inline\"}");

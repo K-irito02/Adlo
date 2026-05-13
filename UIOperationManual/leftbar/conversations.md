@@ -6,7 +6,7 @@
 
 ```
 ┌──────────────────────────────────────┐
-│ 对话                    [展开] [+]   │
+│ 临时会话                   [展开] [+]   │
 ├──────────────────────────────────────┤
 │ ○ 对话1 (处理中)                     │
 │ ○ 对话2 (已完成)                     │
@@ -40,14 +40,14 @@
 |------|--------|------|
 | 标题 | `.adl-workspace-toolbar--conversation .adl-section-toolbar__label` | 显示 "对话" |
 | 展开/折叠按钮 | `.adl-workspace-toolbar--conversation button[aria-label*="展开"], button[aria-label*="收起"]` | 展开/折叠对话列表 |
-| 新建按钮 | `.adl-workspace-toolbar--conversation button[aria-label*="新建对话"]` | 新建独立对话 |
+| 新建按钮 | `.adl-workspace-toolbar--conversation button[aria-label*="新建临时会话"]` | 新建临时会话 |
 
 ### 操作
 
-#### 新建独立对话
+#### 新建临时会话
 
 ```javascript
-const newBtn = await page.waitForSelector('.adl-workspace-toolbar--conversation button[aria-label*="新建对话"]');
+const newBtn = await page.waitForSelector('.adl-workspace-toolbar--conversation button[aria-label*="新建临时会话"]');
 await newBtn.click();
 ```
 

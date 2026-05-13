@@ -27,7 +27,7 @@ import {
   IconUpload
 } from "../icons";
 import { TooltipSimple } from "../components/Tooltip";
-import { workspaceNameFromPath } from "../workspaceScope";
+import { WorkspaceSplitButton } from "../components/WorkspaceSplitButton";
 
 type GitStatus = "synced" | "dirty" | "unpushed" | "conflict" | "no-repo";
 type OpenMenu = "workspace" | "branch" | "model" | undefined;
@@ -52,11 +52,9 @@ interface StatusBarProps {
   isStreaming: boolean;
   activeRun?: AgentRunDetail;
   workspaceContextMode: "workspace" | "global";
-  pendingWorkspacePath?: string;
   onSelectModel: (providerId: ModelProviderId, modelId?: string) => void;
-  onOpenWorkspace: (workspacePath: string) => void;
+  onOpenWorkspace: (workspacePath: string) => Promise<{ ok: boolean; error?: string }>;
   onClearWorkspaceContext: () => Promise<void>;
-  onSetPendingWorkspacePath: (workspacePath?: string) => void;
   onPickWorkspaceDirectory: () => Promise<string | undefined>;
   onRefreshGitBranches: () => Promise<void>;
   onSwitchGitBranch: (input: WorkspaceGitBranchSwitchInput) => Promise<void>;
@@ -120,11 +118,9 @@ export function StatusBar({
   isStreaming,
   activeRun,
   workspaceContextMode,
-  pendingWorkspacePath,
   onSelectModel,
   onOpenWorkspace,
   onClearWorkspaceContext,
-  onSetPendingWorkspacePath,
   onPickWorkspaceDirectory,
   onRefreshGitBranches,
   onSwitchGitBranch,
@@ -132,7 +128,6 @@ export function StatusBar({
   inline = false
 }: StatusBarProps) {
   const [openMenu, setOpenMenu] = useState<OpenMenu>();
-  const [workspaceDraft, setWorkspaceDraft] = useState(pendingWorkspacePath ?? "");
   const [branchDraft, setBranchDraft] = useState("");
   const [baseBranchDraft, setBaseBranchDraft] = useState("");
   const [baseBranchMenuOpen, setBaseBranchMenuOpen] = useState(false);
@@ -178,25 +173,15 @@ export function StatusBar({
     if (currentWorkspace) {
       return currentWorkspace.name;
     }
-    if (pendingWorkspacePath) {
-      return `${t.workspaceLabel} · ${workspaceNameFromPath(pendingWorkspacePath)}`;
-    }
     return workspaceContextMode === "global" ? t.conversations : t.workspaceLabel;
-  }, [currentWorkspace, pendingWorkspacePath, t.conversations, t.workspaceLabel, workspaceContextMode]);
+  }, [currentWorkspace, t.conversations, t.workspaceLabel, workspaceContextMode]);
 
   const workspaceStatusHint = useMemo(() => {
     if (currentWorkspace) {
       return currentWorkspace.path;
     }
-    if (pendingWorkspacePath) {
-      return t.workspaceStatusPendingHint;
-    }
     return t.workspaceStatusGlobalHint;
-  }, [currentWorkspace, pendingWorkspacePath, t.workspaceStatusGlobalHint, t.workspaceStatusPendingHint]);
-
-  useEffect(() => {
-    setWorkspaceDraft(pendingWorkspacePath ?? "");
-  }, [pendingWorkspacePath]);
+  }, [currentWorkspace, t.workspaceStatusGlobalHint]);
 
   useEffect(() => {
     if (!openMenu) {
@@ -242,35 +227,6 @@ export function StatusBar({
       void onRefreshGitBranches();
     }
   }, [hasWorkspace, onRefreshGitBranches, openMenu]);
-
-  const handleBindPendingWorkspace = async (workspacePath: string) => {
-    const normalized = workspacePath.trim();
-    if (!normalized) {
-      return;
-    }
-    const existingWorkspace = [currentWorkspace, ...recentWorkspaces]
-      .filter(Boolean)
-      .find((workspace) => workspace?.path === normalized);
-    if (existingWorkspace?.path) {
-      onSetPendingWorkspacePath(undefined);
-      onOpenWorkspace(existingWorkspace.path);
-      setOpenMenu(undefined);
-      return;
-    }
-    // Open immediately so the right panel can render the file tree and the user
-    // gets instant feedback after picking a directory.
-    onSetPendingWorkspacePath(undefined);
-    onOpenWorkspace(normalized);
-    setOpenMenu(undefined);
-  };
-
-  const handlePickDirectory = async () => {
-    const selectedPath = await onPickWorkspaceDirectory();
-    if (!selectedPath) {
-      return;
-    }
-    await handleBindPendingWorkspace(selectedPath);
-  };
 
   const handleSwitchBranch = async (input: WorkspaceGitBranchSwitchInput) => {
     await onSwitchGitBranch(input);
@@ -350,7 +306,7 @@ export function StatusBar({
             <div className="adl-statusbar__menu-section">
               <strong className="adl-statusbar__menu-title">{t.workspaceLabel}</strong>
               <p className="adl-statusbar__menu-hint">
-                {currentWorkspace?.path ?? pendingWorkspacePath ?? t.workspaceStatusGlobalHint}
+                {currentWorkspace?.path ?? t.workspaceStatusGlobalHint}
               </p>
             </div>
 
@@ -366,7 +322,6 @@ export function StatusBar({
                       type="button"
                       className={`adl-statusbar__menu-option${currentWorkspace?.id === workspace.id ? " is-active" : ""}`}
                       onClick={() => {
-                        onSetPendingWorkspacePath(undefined);
                         onOpenWorkspace(workspace.path);
                         setOpenMenu(undefined);
                       }}
@@ -380,28 +335,14 @@ export function StatusBar({
             </div>
 
             <div className="adl-statusbar__menu-section">
-              <strong className="adl-statusbar__menu-subtitle">{t.workspaceBindTitle}</strong>
-              <input
-                className="adl-statusbar__input"
-                value={workspaceDraft}
-                onChange={(event) => setWorkspaceDraft(event.currentTarget.value)}
-                placeholder={t.workspacePlaceholder}
-              />
-              <div className="adl-statusbar__menu-actions">
-                <button type="button" className="adl-btn adl-btn--sm" onClick={() => void handlePickDirectory()}>
-                  <IconFolderOpen size={14} decorative />
-                  {t.workspacePickDirectory}
-                </button>
-                <button
-                  type="button"
-                  className="adl-btn adl-btn--ghost adl-btn--sm"
-                  onClick={() => void handleBindPendingWorkspace(workspaceDraft)}
-                  disabled={!workspaceDraft.trim()}
-                >
-                  <IconPlus size={14} decorative />
-                  {t.workspaceBindPending}
-                </button>
-              </div>
+              <strong className="adl-statusbar__menu-subtitle">{t.workspaceOpenTitle}</strong>
+
+              <WorkspaceSplitButton
+              t={t}
+              onPickWorkspaceDirectory={onPickWorkspaceDirectory}
+              onOpenWorkspace={onOpenWorkspace}
+              onClose={() => setOpenMenu(undefined)}
+            />
             </div>
 
             <div className="adl-statusbar__menu-section">
@@ -410,7 +351,6 @@ export function StatusBar({
                 className="adl-statusbar__menu-option adl-statusbar__menu-option--global"
                 onClick={() => {
                   void onClearWorkspaceContext().then(() => {
-                    onSetPendingWorkspacePath(undefined);
                     setOpenMenu(undefined);
                   });
                 }}

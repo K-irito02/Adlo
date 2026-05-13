@@ -114,7 +114,25 @@ describe("CodeMirror preview styling", () => {
   });
 
   it("centers fold gutter icons vertically with line numbers", () => {
-    expect(extractCssBlock(regionsCssSource, ".adl-cm-editor .cm-foldGutter .cm-gutterElement span,\n.adl-cm-diff-viewer .cm-foldGutter .cm-gutterElement span {\n")).toContain("line-height: 1.65;");
+    const foldIconBlock = extractCssBlock(regionsCssSource, ".adl-cm-editor .cm-foldGutter .cm-gutterElement span,\n.adl-cm-diff-viewer .cm-foldGutter .cm-gutterElement span {\n");
+    const foldMarkerBlock = extractCssBlock(regionsCssSource, ".adl-cm-fold-marker {\n");
+    const openMarkerBlock = extractCssBlock(regionsCssSource, ".adl-cm-fold-marker--open {\n");
+    const closedMarkerBlock = extractCssBlock(regionsCssSource, ".adl-cm-fold-marker--closed {\n");
+
+    expect(foldIconBlock).toContain("line-height: 1;");
+    expect(foldIconBlock).toContain("font-size: 0;");
+    expect(foldMarkerBlock).toContain("position: relative;");
+    expect(foldMarkerBlock).toContain("width: 8px;");
+    expect(foldMarkerBlock).toContain("height: 8px;");
+    expect(regionsCssSource).toContain(".adl-cm-fold-marker::before");
+    expect(regionsCssSource).toContain(".adl-cm-fold-marker::after");
+    expect(openMarkerBlock).toContain("translateY(0)");
+    expect(regionsCssSource).toContain(".adl-cm-fold-marker--open::before");
+    expect(regionsCssSource).toContain(".adl-cm-fold-marker--open::after");
+    expect(closedMarkerBlock).toContain("translateX(-1px)");
+    expect(regionsCssSource).toContain(".adl-cm-fold-marker--closed::before");
+    expect(regionsCssSource).toContain(".adl-cm-fold-marker--closed::after");
+    expect(regionsCssSource).toContain("rotate(-45deg)");
     expect(extractCssBlock(regionsCssSource, ".adl-cm-editor .cm-foldGutter .cm-gutterElement,\n.adl-cm-diff-viewer .cm-foldGutter .cm-gutterElement {\n")).toContain("justify-content: center;");
   });
 

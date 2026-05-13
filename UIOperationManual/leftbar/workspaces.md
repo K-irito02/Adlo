@@ -40,7 +40,7 @@
 
 | 元素 | 选择器 | 说明 |
 |------|--------|------|
-| 标题 | `.adl-section-toolbar__label` | 显示 "项目" |
+| 标题 | `.adl-section-toolbar__label` | 显示 "工作空间" |
 | 展开/折叠按钮 | `.adl-section-toolbar__title button` | 展开/折叠所有工作区 |
 | 新建按钮 | `.adl-workspace-toolbar button[aria-label*="新建"]` | 新建工作区 |
 

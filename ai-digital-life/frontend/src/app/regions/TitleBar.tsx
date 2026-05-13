@@ -28,6 +28,7 @@ interface TitleBarProps {
   appInfo?: AppInfo;
   onOpenSettings: () => void;
   onTriggerCreateWorkspace: () => void;
+  onOpenFolder: () => void;
   onOpenCommandPalette: () => void;
   onCycleTheme: () => void;
   onSelectLanguage: (language: AppInfo["config"]["language"]) => void;
@@ -136,6 +137,7 @@ export function TitleBar({
   appInfo,
   onOpenSettings,
   onTriggerCreateWorkspace,
+  onOpenFolder,
   onOpenCommandPalette,
   onCycleTheme,
   onSelectLanguage
@@ -221,7 +223,7 @@ export function TitleBar({
 
   const fileItems: MenuItem[] = [
     { id: "new-ws", label: t.menuNewWorkspace, shortcut: "Ctrl+N", action: onTriggerCreateWorkspace },
-    { id: "open-folder", label: t.menuOpenFolder, shortcut: "Ctrl+O", action: onTriggerCreateWorkspace },
+    { id: "open-folder", label: t.menuOpenFolder, shortcut: "Ctrl+O", action: onOpenFolder },
     { id: "new-terminal", label: t.menuNewTerminal, shortcut: "Ctrl+Shift+`", action: () => useUiStore.getState().setActiveTool("terminal") },
     { id: "new-browser", label: t.menuNewBrowser, action: () => useUiStore.getState().setActiveTool("browser") },
     { id: "editor-window", label: t.menuOpenEditorWindow, action: () => useUiStore.getState().setActiveTool("files") },
