@@ -39,7 +39,6 @@ import { LazyMarkdownPreviewWrapper } from "./LazyPreviews";
 import type { EditorRef, DiffEditorRef } from "../../types";
 import { CodeMirrorEditorRef } from "./editorAdapters";
 import { estimateWrapColumn, getMinimapExtension } from "./cmMinimap";
-import { getFoldingTooltipExtension } from "./cmFoldingTooltip";
 import { getVisibleStartLine, navigateToLine, subscribeToEditor } from "./stickyContext";
 import { buildStickyContextEntries, createStickyContextModel, type StickyContextModel } from "./stickyContext";
 import { OutlineTree } from "./OutlineTree";
@@ -244,11 +243,9 @@ export function ChangesPanel(props: RightPanelViewProps) {
     [changePreview, props.diffSideBySide]
   );
   const diffExtensions = useMemo(() => [
-    getFoldingTooltipExtension(),
   ], []);
   const previewEditorExtensions = useMemo(() => [
     ...getMinimapExtension({ scopeId: changePreviewEditorMinimapScopeId }),
-    getFoldingTooltipExtension(),
   ], [changePreviewEditorMinimapScopeId]);
   const branchOptions = useMemo(() => {
     const options = new Set<string>([fallbackBranch, ...FALLBACK_BRANCHES]);

@@ -10,16 +10,16 @@ describe("changes preview editor options", () => {
     expect(changesPanelSource).not.toContain("@monaco-editor/react");
   });
 
-  it("passes CodeMirror extensions for minimap and folding", () => {
+  it("passes CodeMirror extensions for minimap", () => {
     expect(changesPanelSource).toContain("getMinimapExtension");
-    expect(changesPanelSource).toContain("getFoldingTooltipExtension");
     expect(changesPanelSource).toContain("diffExtensions");
   });
 
-  it("uses the shared custom CodeMirror fold gutter marker", () => {
+  it("uses the shared custom CodeMirror fold gutter marker and tooltip overlay", () => {
     const diffViewerSource = readFileSync(new URL("../../../../src/app/regions/right-panel/DiffViewer.tsx", import.meta.url), "utf8");
 
     expect(diffViewerSource).toContain("createFoldGutterExtension");
+    expect(diffViewerSource).toContain("FoldTooltipOverlay");
     expect(diffViewerSource).not.toContain("foldGutter()");
   });
 

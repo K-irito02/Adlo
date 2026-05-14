@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { EditorView, lineNumbers, highlightActiveLineGutter, highlightActiveLine, keymap } from "@codemirror/view";
 import type { Extension } from "@codemirror/state";
@@ -12,6 +12,7 @@ import { createEditorRef } from "./editorAdapters";
 import { getThemeExtension, rebuildThemes, getPhrasesExtension } from "./cmTheme";
 import { getLanguageExtension } from "./cmLanguages";
 import { createFoldGutterExtension } from "./cmFoldGutter";
+import { FoldTooltipOverlay } from "./FoldTooltipOverlay";
 
 export type CodeEditorProps = {
   value: string;
@@ -84,6 +85,7 @@ export function CodeEditor({
 }: CodeEditorProps) {
   const viewRef = useRef<EditorView | null>(null);
   const mountedRef = useRef(false);
+  const [editorView, setEditorView] = useState<EditorView | null>(null);
 
   const baseExtensions = useMemo<Extension[]>(() => {
     const gutterEnabled = lineNumbersEnabled;
@@ -114,6 +116,7 @@ export function CodeEditor({
   const handleCreateEditorView = useCallback(
     (view: EditorView) => {
       viewRef.current = view;
+      setEditorView(view);
       if (onMount) {
         onMount(createEditorRef(view));
       }
@@ -150,14 +153,17 @@ export function CodeEditor({
   }, [lineNumbersEnabled, wordWrap]);
 
   return (
-    <CodeMirror
-      value={value}
-      extensions={allExtensions}
-      theme={getThemeExtension(theme)}
-      onChange={handleChange}
-      onCreateEditor={handleCreateEditorView}
-      className="adl-cm-editor"
-      basicSetup={false}
-    />
+    <div className="adl-cm-editor-wrapper" style={{ position: "relative", width: "100%", height: "100%" }}>
+      <CodeMirror
+        value={value}
+        extensions={allExtensions}
+        theme={getThemeExtension(theme)}
+        onChange={handleChange}
+        onCreateEditor={handleCreateEditorView}
+        className="adl-cm-editor"
+        basicSetup={false}
+      />
+      <FoldTooltipOverlay view={editorView} />
+    </div>
   );
 }

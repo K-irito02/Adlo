@@ -10,7 +10,7 @@
 > - `agentDecorations.ts` — Agent 变更装饰器
 > - `cmMinimap.ts` — Minimap 导航系统
 > - `cmInlineDiffBackgrounds.ts` — 内联 Diff 背景渲染
-> - `cmFoldingTooltip.ts` — 折叠控件 Tooltip
+> - `FoldTooltipOverlay.tsx` — 折叠图标 Tooltip 浮层
 > - `fileTypeRouter.ts` — 文件类型路由器
 > - `MarkdownPreview.tsx` — Markdown 预览
 > - `DocxPreview.tsx` — DOCX 预览

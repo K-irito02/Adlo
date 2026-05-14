@@ -624,10 +624,14 @@
 
 .tooltip[data-side="left"] .tooltip__arrow {
   right: -4px;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .tooltip[data-side="right"] .tooltip__arrow {
   left: -4px;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 /* --- Content wrapper --- */

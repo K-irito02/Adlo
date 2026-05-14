@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MergeView, getChunks, uncollapseUnchanged, unifiedMergeView } from "@codemirror/merge";
 import { EditorView, lineNumbers, highlightActiveLineGutter, highlightActiveLine, keymap } from "@codemirror/view";
 import { EditorState, Compartment } from "@codemirror/state";
@@ -12,6 +12,7 @@ import { createDiffEditorRef, createEditorRef } from "./editorAdapters";
 import { getThemeExtension, rebuildThemes, getPhrasesExtension } from "./cmTheme";
 import { getLanguageExtension } from "./cmLanguages";
 import { createFoldGutterExtension } from "./cmFoldGutter";
+import { FoldTooltipOverlay } from "./FoldTooltipOverlay";
 import {
   getMinimapExtension,
   updateMinimapDiffModel,
@@ -181,6 +182,10 @@ function SideBySideDiffViewer({
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mergeViewRef = useRef<MergeView | null>(null);
+  const mergeViewARef = useRef<EditorView | null>(null);
+  const mergeViewBRef = useRef<EditorView | null>(null);
+  const [editorViewA, setEditorViewA] = useState<EditorView | null>(null);
+  const [editorViewB, setEditorViewB] = useState<EditorView | null>(null);
   const scrollHandlersRef = useRef<{
     handleScrollA: () => void;
     handleScrollB: () => void;
@@ -390,6 +395,10 @@ function SideBySideDiffViewer({
     }
 
     mergeViewRef.current = mv;
+    mergeViewARef.current = mv.a;
+    mergeViewBRef.current = mv.b;
+    setEditorViewA(mv.a);
+    setEditorViewB(mv.b);
     emitCollapsedUnchangedRanges(mv.b);
 
     if (onMount) {
@@ -411,6 +420,10 @@ function SideBySideDiffViewer({
         mergeViewRef.current.destroy();
         mergeViewRef.current = null;
       }
+      mergeViewARef.current = null;
+      mergeViewBRef.current = null;
+      setEditorViewA(null);
+      setEditorViewB(null);
       onCollapsedUnchangedRangesChange?.([]);
       activeMergeView = null;
     };
@@ -459,10 +472,14 @@ function SideBySideDiffViewer({
   }, [theme]);
 
   return (
-    <div
-      ref={containerRef}
-      className="adl-cm-diff-viewer adl-cm-diff-viewer--side-by-side"
-    />
+    <div className="adl-cm-diff-viewer-wrapper" style={{ position: "relative", width: "100%", height: "100%" }}>
+      <div
+        ref={containerRef}
+        className="adl-cm-diff-viewer adl-cm-diff-viewer--side-by-side"
+      />
+      <FoldTooltipOverlay view={editorViewA} />
+      <FoldTooltipOverlay view={editorViewB} />
+    </div>
   );
 }
 
@@ -501,6 +518,7 @@ function InlineDiffViewer({
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
+  const [editorView, setEditorView] = useState<EditorView | null>(null);
   const expandedCollapsedLinesRef = useRef<Set<number>>(new Set());
 
   const mergedMinimapModel = useMemo(() => {
@@ -579,6 +597,7 @@ function InlineDiffViewer({
     });
 
     viewRef.current = view;
+    setEditorView(view);
     if (onCollapsedUnchangedRangesChange) {
       onCollapsedUnchangedRangesChange(
         collapseUnchanged
@@ -596,6 +615,7 @@ function InlineDiffViewer({
         viewRef.current.destroy();
         viewRef.current = null;
       }
+      setEditorView(null);
       onCollapsedUnchangedRangesChange?.([]);
     };
   }, [original, modified, extensions, collapseUnchanged, onCollapsedUnchangedRangesChange]);
@@ -627,10 +647,13 @@ function InlineDiffViewer({
   }, [theme]);
 
   return (
-    <div
-      ref={containerRef}
-      className="adl-cm-diff-viewer adl-cm-diff-viewer--inline"
-    />
+    <div className="adl-cm-diff-viewer-wrapper" style={{ position: "relative", width: "100%", height: "100%" }}>
+      <div
+        ref={containerRef}
+        className="adl-cm-diff-viewer adl-cm-diff-viewer--inline"
+      />
+      <FoldTooltipOverlay view={editorView} />
+    </div>
   );
 }
 

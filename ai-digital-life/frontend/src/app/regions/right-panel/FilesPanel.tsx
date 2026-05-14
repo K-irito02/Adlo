@@ -14,7 +14,6 @@ import {
   getMinimapExtension,
   updateMinimapDiffHunks,
 } from "./cmMinimap";
-import { getFoldingTooltipExtension } from "./cmFoldingTooltip";
 import { categorizeFile, type FileCategory } from "./fileTypeRouter";
 import {
   LazyMarkdownPreviewWrapper,
@@ -331,11 +330,9 @@ export function FilesPanel(props: RightPanelViewProps) {
   const editorExtensions = useMemo(() => [
     ...getAgentDecorationExtensions(),
     ...getMinimapExtension({ scopeId: fileEditorMinimapScopeId }),
-    getFoldingTooltipExtension(),
   ], [fileEditorMinimapScopeId]);
   const diffEditorExtensions = useMemo(() => [
     ...getAgentDecorationExtensions(),
-    getFoldingTooltipExtension(),
   ], []);
   const fileDiffMinimapModel = useMemo(
     () => filePatch && filePatch.relativePath === selectedFilePath
