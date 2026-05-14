@@ -45,7 +45,7 @@ Misc: `--focus-ring`, `--shadow-soft`
 - When an embedded editor requires a programmatic theme definition, that theme should be treated as an implementation mirror of the design tokens rather than a separate visual system.
 - Programmatic editor themes must be registered with resolved color literals (`#RRGGBB`, `#RRGGBBAA`, or concrete `rgb/rgba` values accepted by the target API). Raw CSS custom-property references and CSS keyword colors should be normalized before registration.
 - Transparent editor states should be expressed using the target API's accepted transparent literal, not by assuming browser CSS parsing rules apply inside the programmatic theme layer.
-- Monaco folding controls may use a localized native `title` as a narrow fallback for gutter hover guidance when the editor's internal DOM cannot stably host the shared tooltip component. This exception applies only inside the Monaco integration layer, not to normal product UI controls.
+- Fold gutter tooltips use `FoldTooltipOverlay` (a CodeMirror 6 extension) to render tooltip content via React portal to `document.body`. This replaces the earlier approach of relying on native `title` attributes for gutter hover guidance, and is the standard mechanism for all editor-area tooltips.
 
 ## Mode resolution
 

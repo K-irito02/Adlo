@@ -227,7 +227,26 @@ The stylesheet also ships ready-to-use classes that helpers don't expose yet but
 - `.skeleton` — loading shimmer (`@keyframes skeleton-shimmer`).
 - `.modal-backdrop`, `.modal`, `.modal__title`, `.modal__actions` — dialog primitives.
 - `.tooltip` — absolutely-positioned tooltip surface (paired with custom JS positioning logic when used).
+- `.tooltip__arrow` — CSS-only arrow via `clip-path: polygon(50% 0%, 0% 100%, 100% 100%)` (upward triangle), rotated per `data-side` attribute.
+- `.tooltip__content` — content wrapper with `white-space: pre-line`.
+- `.tooltip__close` — dismiss button for `dismissible` mode.
 - `.toast-region`, `.toast` — top-right notification stack with `toast-in` animation.
+
+### Tooltip design
+
+| Feature | Value |
+|---------|-------|
+| Background | `var(--tooltip-bg)` (inverse theming) |
+| Text color | `var(--tooltip-fg)` |
+| Border radius | `var(--tooltip-radius)` (6px) |
+| Shadow | `var(--tooltip-shadow)` |
+| Animation | Pure opacity transition (no scale) |
+| Arrow | 8px × 8px clip-path triangle |
+| Placement | `data-side="top\|bottom\|left\|right"` (auto-flip on viewport overflow) |
+
+React API entry points: `Tooltip` (provider), `TooltipTrigger` (event wiring), `TooltipContent` (portal surface), `TooltipSimple` (one-shot wrapper). Source: `[Tooltip.tsx](../../frontend/src/app/components/Tooltip.tsx)`.
+
+Fold gutter tooltips use `FoldTooltipOverlay` (CodeMirror 6 extension, portal to `document.body`): `[FoldTooltipOverlay.tsx](../../frontend/src/app/regions/right-panel/FoldTooltipOverlay.tsx)`.
 
 ## StatusBar menus
 

@@ -431,6 +431,11 @@ body,
 
   /* === Border Alias (unified) === */
   --border: var(--border-default);
+
+  /* === Tooltip (inverse: light bg + dark text on dark bg) === */
+  --tooltip-bg: rgba(255, 255, 255, 0.86);
+  --tooltip-fg: #111;
+  --tooltip-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 /* -------- High-contrast preference --------

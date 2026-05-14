@@ -28,6 +28,16 @@ function getLineFromGutterElement(view: EditorView, gutterEl: HTMLElement): numb
   return line.number;
 }
 
+function getLineFromPlaceholder(view: EditorView, placeholderEl: HTMLElement): number | null {
+  const rect = placeholderEl.getBoundingClientRect();
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + rect.height / 2;
+  const pos = view.posAtCoords({ x: centerX, y: centerY });
+  if (pos === null) return null;
+  const line = view.state.doc.lineAt(pos);
+  return line.number;
+}
+
 function computeTooltipText(view: EditorView, lineNum: number, isClosed: boolean): string | null {
   const doc = view.state.doc;
 
@@ -114,39 +124,87 @@ export function FoldTooltipOverlay({ view }: FoldTooltipOverlayProps) {
     if (!view) return;
 
     const gutter = view.dom.querySelector(".cm-foldGutter") as HTMLElement | null;
-    if (!gutter) return;
+    const content = view.contentDOM;
+    if (!gutter || !content) return;
+
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
+          if (node instanceof HTMLElement) {
+            if (node.matches?.(".cm-foldPlaceholder")) {
+              node.removeAttribute("title");
+            }
+            node.querySelectorAll?.(".cm-foldPlaceholder").forEach((el) => {
+              el.removeAttribute("title");
+            });
+          }
+        }
+      }
+    });
+    observer.observe(content, { childList: true, subtree: true });
+
+    content.querySelectorAll(".cm-foldPlaceholder").forEach((el) => {
+      el.removeAttribute("title");
+    });
 
     const handleMouseOver = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
+
       const gutterEl = target.closest(".cm-gutterElement") as HTMLElement | null;
-      if (!gutterEl) return;
+      if (gutterEl) {
+        const marker = gutterEl.querySelector(".adl-cm-fold-marker") as HTMLElement | null;
+        if (marker) {
+          if (hideTimerRef.current !== null) {
+            clearTimeout(hideTimerRef.current);
+            hideTimerRef.current = null;
+          }
 
-      const marker = gutterEl.querySelector(".adl-cm-fold-marker") as HTMLElement | null;
-      if (!marker) return;
+          const lineNum = getLineFromGutterElement(view, gutterEl);
+          if (lineNum === null) return;
 
-      if (hideTimerRef.current !== null) {
-        clearTimeout(hideTimerRef.current);
-        hideTimerRef.current = null;
+          const isClosed = marker.classList.contains("adl-cm-fold-marker--closed");
+          const text = computeTooltipText(view, lineNum, isClosed);
+          if (!text) return;
+
+          const rect = gutterEl.getBoundingClientRect();
+          setTooltipState({ text, rect });
+          return;
+        }
       }
 
-      const lineNum = getLineFromGutterElement(view, gutterEl);
-      if (lineNum === null) return;
+      const placeholder = target.closest(".cm-foldPlaceholder") as HTMLElement | null;
+      if (placeholder) {
+        placeholder.removeAttribute("title");
 
-      const isClosed = marker.classList.contains("adl-cm-fold-marker--closed");
-      const text = computeTooltipText(view, lineNum, isClosed);
-      if (!text) return;
+        if (hideTimerRef.current !== null) {
+          clearTimeout(hideTimerRef.current);
+          hideTimerRef.current = null;
+        }
 
-      const rect = gutterEl.getBoundingClientRect();
-      setTooltipState({ text, rect });
+        const lineNum = getLineFromPlaceholder(view, placeholder);
+        if (lineNum === null) return;
+
+        const text = computeTooltipText(view, lineNum, true);
+        if (!text) return;
+
+        const rect = placeholder.getBoundingClientRect();
+        setTooltipState({ text, rect });
+      }
     };
 
     const handleMouseOut = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      const gutterEl = target.closest(".cm-gutterElement") as HTMLElement | null;
-      if (!gutterEl) return;
-      if (!gutterEl.querySelector(".adl-cm-fold-marker")) return;
 
-      scheduleHide();
+      const gutterEl = target.closest(".cm-gutterElement") as HTMLElement | null;
+      if (gutterEl && gutterEl.querySelector(".adl-cm-fold-marker")) {
+        scheduleHide();
+        return;
+      }
+
+      const placeholder = target.closest(".cm-foldPlaceholder") as HTMLElement | null;
+      if (placeholder) {
+        scheduleHide();
+      }
     };
 
     const handleScroll = () => {
@@ -155,11 +213,16 @@ export function FoldTooltipOverlay({ view }: FoldTooltipOverlayProps) {
 
     gutter.addEventListener("mouseover", handleMouseOver);
     gutter.addEventListener("mouseout", handleMouseOut);
+    content.addEventListener("mouseover", handleMouseOver);
+    content.addEventListener("mouseout", handleMouseOut);
     view.scrollDOM.addEventListener("scroll", handleScroll, { passive: true });
 
     return () => {
+      observer.disconnect();
       gutter.removeEventListener("mouseover", handleMouseOver);
       gutter.removeEventListener("mouseout", handleMouseOut);
+      content.removeEventListener("mouseover", handleMouseOver);
+      content.removeEventListener("mouseout", handleMouseOut);
       view.scrollDOM.removeEventListener("scroll", handleScroll);
       if (hideTimerRef.current !== null) {
         clearTimeout(hideTimerRef.current);

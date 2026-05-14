@@ -74,6 +74,17 @@ Strict layering tokens — nothing else may declare arbitrary z-index numbers:
 - `--focus-ring-width` (3 px, boosted to 4 px under `prefers-contrast: more`)
 - `--focus-ring` (theme-aware, see `themes.css`)
 
+## Tooltip
+
+| Token | Value | Source |
+|-------|-------|--------|
+| `--tooltip-bg` | `rgba(0, 0, 0, 0.86)` (default), `rgba(255, 255, 255, 0.86)` (dark mode) | `tokens.css`, `themes.css` |
+| `--tooltip-fg` | `#fff` (default), `#111` (dark mode) | `tokens.css`, `themes.css` |
+| `--tooltip-shadow` | `0 4px 12px rgba(0, 0, 0, 0.28)` (default), `0 4px 12px rgba(0, 0, 0, 0.08)` (dark mode) | `tokens.css`, `themes.css` |
+| `--tooltip-radius` | `6px` | `tokens.css` |
+
+Tooltip uses inverse theming: light mode → dark tooltip, dark mode → light tooltip. Arrow is rendered via `clip-path: polygon(50% 0%, 0% 100%, 100% 100%)` (upward triangle) with `rotate()` transforms for each side. Animation is pure opacity transition (no scale) to avoid conflict with arrow rotation.
+
 ## Reduced Motion / Reduced Data
 
 - All transition + animation durations collapse to 1 ms when `prefers-reduced-motion: reduce` is set.

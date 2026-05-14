@@ -147,6 +147,12 @@
     stroke var(--duration-200) var(--ease-default),
     opacity var(--duration-200) var(--ease-default);
 
+  /* --- Tooltip tokens --- */
+  --tooltip-bg: rgba(0, 0, 0, 0.86);
+  --tooltip-fg: #fff;
+  --tooltip-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
+  --tooltip-radius: 6px;
+
   /* --- Z-index Layers --- */
   --z-base: 0;
   --z-raised: 10;

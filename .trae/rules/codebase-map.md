@@ -40,9 +40,10 @@ ai-digital-life/
 
 | 目录 | 职责 |
 |------|------|
-| `app/components/` | React 组件（含 Tooltip） |
-| `app/hooks/` | 自定义 Hooks |
-| `app/utils/` | 纯函数 |
+| `app/components/` | React 组件（含 Tooltip、TooltipSimple） |
+| `app/hooks/` | 自定义 Hooks（含 useTooltip） |
+| `app/utils/` | 纯函数（含 tooltipPosition 定位逻辑） |
+| `app/regions/right-panel/` | 右侧面板组件（含 FoldTooltipOverlay、cmFoldGutter） |
 
 ## 索引策略
 
