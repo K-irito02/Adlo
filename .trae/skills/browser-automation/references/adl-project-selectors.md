@@ -180,9 +180,38 @@ UIOperationManual/
 │   ├── states.md                # 通用元素状态定义
 │   └── wait-conditions.md       # 通用等待条件模板
 ├── titlebar/                    # 标题栏区域
+│   ├── README.md
+│   ├── brand.md                 # 品牌标识
+│   ├── window.md                # 窗口控制
+│   ├── panels.md                # 面板切换按钮
+│   ├── actions.md               # 操作按钮
+│   ├── menus.md                 # 菜单概览
+│   └── menus/                   # 各菜单详情
+│       ├── file-menu.md
+│       ├── view-menu.md
+│       └── help-menu.md
 ├── leftbar/                     # 左侧边栏区域
+│   ├── README.md
+│   ├── workspaces.md            # 工作空间管理
+│   ├── sessions.md              # 临时会话
+│   ├── conversations.md         # 对话流
+│   └── quick-actions.md         # 快捷操作
 ├── center/                      # 中心面板区域
+│   ├── README.md
+│   ├── composer.md              # 输入框
+│   ├── message-stream.md        # 消息流
+│   └── statusbar.md             # 状态栏
 └── rightpanel/                  # 右侧面板区域
+    ├── README.md
+    ├── tool-switcher.md         # 工具切换器
+    └── tools/                   # 各工具详情
+        ├── changes.md           # 变更面板
+        ├── files.md             # 文件树
+        ├── terminal.md          # 终端
+        ├── audit.md             # 审计
+        ├── browser.md           # 浏览器
+        ├── models.md            # 模型管理
+        └── settings.md          # 设置
 ```
 
 ## Playwright CLI 项目专属操作

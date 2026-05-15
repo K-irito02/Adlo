@@ -1,8 +1,12 @@
 # Playwright CLI Reference
 
-Full command reference and project-specific usage for Playwright CLI (v1.59.1).
+> **⚠️ 重要限制**：本地安装的 Playwright CLI v1.59.1 **仅支持** `open` 和 `screenshot` 命令。交互式命令（`click`、`fill`、`eval` 等）**不可用**。
+> 
+> **建议**：交互式自动化请使用 [agent-browser](./agent-browser.md)。
 
-> **⚠️ Version Limitation**: The locally installed version (v1.59.1 at `E:\dev-tools\npm-global`) only supports `open` (open browser) and `screenshot <url> <file>` (static page capture). Interactive commands like `click`, `fill`, `eval`, `snapshot`, `goto`, `press`, `tab-list`, etc. are **NOT available** in this version. The full reference below is provided for documentation purposes. For interactive automation, use **agent-browser** instead.
+## 定位
+
+Playwright CLI 是 **辅助工具**，仅用于静态截图场景。所有交互式操作请使用 agent-browser。
 
 ## Installation
 

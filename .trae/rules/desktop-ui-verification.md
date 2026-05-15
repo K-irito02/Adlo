@@ -26,10 +26,7 @@ alwaysApply: false
 
 ### 使用浏览器自动化工具验证
 
-| 工具 | 验证方式 |
-|------|----------|
-| Playwright CLI | `playwright open http://localhost:5173` → `playwright snapshot` → 交互验证 → `playwright screenshot` |
-| Browser Harness | `browser-harness -c "new_tab('http://localhost:5173'); wait_for_load(); capture_screenshot()"` |
+> 工具选择和详细用法参见 [browser-automation.md](./browser-automation.md) 和 [browser-automation 技能](../skills/browser-automation/SKILL.md)
 
 ## 双端验证清单
 
@@ -58,3 +55,4 @@ alwaysApply: false
 
 - [mandatory-testing.md](./mandatory-testing.md)
 - [design-system.md](./design-system.md)
+- [browser-automation.md](./browser-automation.md)

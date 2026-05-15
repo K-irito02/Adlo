@@ -42,5 +42,8 @@ ai-digital-life/.turbo/
 # Test artifacts
 dogfood-output/
 
+# Browser automation test artifacts (screenshots, videos, documents)
+test-artifacts/
+
 # Windows reserved device name (causes git index errors)
 nul

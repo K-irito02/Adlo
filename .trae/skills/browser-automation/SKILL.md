@@ -5,206 +5,97 @@ description: Browser automation for AI Digital Life. Primary tool: agent-browser
 
 # Browser Automation
 
-Browser automation for AI Digital Life with progressive disclosure. Three complementary tools, each with a clear role.
+浏览器自动化技能，采用渐进式披露设计。
 
-## Tool Hierarchy
+---
 
-| Priority | Tool | Role | When to reach for it |
-|----------|------|------|---------------------|
-| **1 (Primary)** | **agent-browser** (dogfood) | Terminal automation | Default choice for all browser tasks — JS eval, `find role`, `snapshot -i`, `console`, `errors`, session management |
-| **2 (Backup)** | **Browser Harness** | CDP exploration | When agent-browser can't help — need coordinate clicks, self-healing helpers, or connection to user's real Chrome |
-| **3 (Auxiliary)** | **Playwright CLI** | Static capture | Quick screenshots only — `playwright screenshot <url> <file>` |
+## 第一层：快速选择
 
-**Default workflow**: Start with agent-browser. Fall back to Browser Harness if you need CDP-level access or self-healing. Use Playwright CLI only for one-shot static screenshots.
+| 你的任务 | 选择 |
+|---------|------|
+| 打开网页、点击按钮、填写表单 | agent-browser |
+| 执行 JS、获取页面信息、检查控制台 | agent-browser |
+| 截图、录屏、自动化测试 | agent-browser |
+| 连接用户已打开的 Chrome | Browser Harness |
+| 坐标点击、复杂 Python 脚本 | Browser Harness |
+| 仅截一张图 | Playwright CLI |
 
-## Environment Setup
+---
+
+## 第二层：快速开始
+
+### agent-browser（推荐）
 
 ```powershell
-# agent-browser (Primary — works out of the box)
-# No PATH setup needed — globally installed via npm
-agent-browser --version
+# 标准流程：打开 → 加载工作区 → 操作 → 清理
+agent-browser --session test open http://127.0.0.1:5173
+agent-browser --session test eval "window.digitalLife.workspace.open('E:\\path').then(() => location.reload())"
+agent-browser --session test wait 3000
+agent-browser --session test snapshot -i
+# ... 执行操作 ...
+agent-browser --session test close --all
+```
 
-# Browser Harness (Backup — requires Chrome debug mode)
+### Browser Harness（备用）
+
+```powershell
 $env:PATH = "E:\dev-tools\uv-bin;$env:PATH"
 $env:BU_CDP_URL = "http://127.0.0.1:9222"
-
-# Playwright CLI (Auxiliary — static screenshot only)
-$env:PATH = "D:\Program Files\nodejs;E:\dev-tools\npm-global;$env:PATH"
-$env:PLAYWRIGHT_BROWSERS_PATH = "E:\dev-tools\playwright-browsers"
+Start-Process "chrome.exe" -ArgumentList "--remote-debugging-port=9222"
+browser-harness -c "new_tab('http://localhost:5173'); wait_for_load()"
 ```
 
-### Chrome Debug Mode (Browser Harness prerequisite)
+### Playwright CLI（仅截图）
 
 ```powershell
-Start-Process "C:\Program Files\Google\Chrome\Application\chrome.exe" -ArgumentList "--remote-debugging-port=9222", "--user-data-dir=E:\dev-tools\chrome-debug-profile"
-```
-
-## Progressive Disclosure
-
-This skill uses progressive disclosure. Start with the overview below, then load the detailed sub-skill when needed:
-
-| Sub-skill | Load when | Content |
-|-----------|-----------|---------|
-| [agent-browser (dogfood)](./references/agent-browser.md) | Need full-featured terminal browser automation, JS eval, snapshot, console checks, or dogfood testing | Complete CLI reference, file tree workflow, workspace patterns, state verification |
-| [Browser Harness](./references/browser-harness.md) | Need AI-driven exploration, self-healing, or user's real Chrome | CDP commands, screenshot workflow, helpers, script-mode patterns |
-| [Playwright CLI](./references/playwright-cli.md) | Need static page screenshots or command reference documentation | Full command reference (reference only), static screenshot capability |
-| [ADL 项目专属选择器](./references/adl-project-selectors.md) | Need project-specific UI selectors, element states, or wait conditions for AI Digital Life | Selector priority, CSS class names, element state definitions, wait templates, Playwright Test examples |
-
-**Load a sub-skill by reading its file** when the task falls into its domain. Load multiple when the task requires combining tools.
-
-## Common Workflows
-
-### Full File Tree Testing (agent-browser — Primary)
-
-**Best for**: Complete browser automation with JS eval, DOM traversal, and console verification.
-
-```powershell
-# Step 1: Open app with named session
-agent-browser --session ft-test --headed open http://127.0.0.1:5173/
-
-# Step 2: Open workspace via in-app API
-agent-browser --session ft-test eval "window.digitalLife.workspace.open('E:\\Programs\\Obsidian\\notes').then(r => JSON.stringify(r))"
-
-# Step 3: Click "文件" tab and refresh tree
-agent-browser --session ft-test find role tab click --name "文件"
-agent-browser --session ft-test eval "document.querySelector('[aria-label=刷新]')?.click()"
-agent-browser --session ft-test wait 3000
-
-# Step 4: Expand a directory and click a file
-agent-browser --session ft-test eval "(() => { const items = document.querySelectorAll('.adl-filetree__node--directory'); for (const item of items) { if (item.querySelector('.adl-tree-node__label-text')?.textContent === 'docs') { item.querySelector('.adl-tree-node__toggle')?.click(); break; } } })()"
-agent-browser --session ft-test eval "(() => { const items = document.querySelectorAll('.adl-filetree__node--directory'); for (const item of items) { if (item.querySelector('.adl-tree-node__label-text')?.textContent === 'docs') { const files = item.querySelector('ul')?.querySelectorAll('li'); if (files) for (const f of files) { if (!f.classList.contains('adl-filetree__node--directory')) { f.querySelector('.adl-tree-node__label')?.click(); break; } } break; } } })()"
-
-# Step 5: Switch to "变更" tab
-agent-browser --session ft-test find role tab click --name "变更"
-
-# Step 6: Switch back, expand another dir, click another file
-agent-browser --session ft-test find role tab click --name "文件"
-agent-browser --session ft-test eval "(() => { const items = document.querySelectorAll('.adl-filetree__node--directory'); for (const item of items) { if (item.querySelector('.adl-tree-node__label-text')?.textContent === 'UIOperationManual') { item.querySelector('.adl-tree-node__toggle')?.click(); break; } } })()"
-agent-browser --session ft-test eval "(() => { const items = document.querySelectorAll('.adl-filetree__node--directory'); for (const item of items) { if (item.querySelector('.adl-tree-node__label-text')?.textContent === 'UIOperationManual') { const files = item.querySelector('ul')?.querySelectorAll('li'); if (files) for (const f of files) { const t = f.querySelector('.adl-tree-node__label-text')?.textContent; if (t === 'README.md') { f.querySelector('.adl-tree-node__label')?.click(); break; } } break; } } })()"
-
-# Step 7: Verify and cleanup
-agent-browser --session ft-test errors
-agent-browser --session ft-test close --all
-```
-
-### Full File Tree Testing (Browser Harness — Backup)
-
-**Best for**: CDP-based automation, connecting to user's existing Chrome.
-
-Write a Python script file and execute it:
-
-```python
-# bh-test.py
-import time
-
-new_tab('http://127.0.0.1:5173/')
-wait_for_load()
-print("Step 1: Navigated")
-
-js('window.digitalLife.workspace.open("E:/Programs/Obsidian/notes")')
-time.sleep(2)
-print("Step 2: Workspace opened")
-
-js('document.querySelector("#_r_0_-files-tab")?.click()')
-time.sleep(1)
-print("Step 3: Files tab clicked")
-
-js('document.querySelector("[aria-label=刷新]")?.click()')
-time.sleep(3)
-print("Step 4: Refreshed")
-
-js('(() => { const i = document.querySelectorAll(".adl-filetree__node--directory"); for (const x of i) { if (x.querySelector(".adl-tree-node__label-text")?.textContent === "docs") { x.querySelector(".adl-tree-node__toggle")?.click(); break; } } })()')
-time.sleep(1)
-print("Step 5: docs expanded")
-
-js('(() => { const i = document.querySelectorAll(".adl-filetree__node--directory"); for (const x of i) { if (x.querySelector(".adl-tree-node__label-text")?.textContent === "docs") { const f = x.querySelector("ul")?.querySelectorAll("li"); if (f) for (const y of f) { if (!y.classList.contains("adl-filetree__node--directory")) { y.querySelector(".adl-tree-node__label")?.click(); break; } } break; } } })()')
-time.sleep(1)
-print("Step 6: File clicked")
-
-js('document.querySelector("#_r_0_-changes-tab")?.click()')
-time.sleep(1)
-print("Step 7: Changes tab clicked")
-
-js('document.querySelector("#_r_0_-files-tab")?.click()')
-time.sleep(1)
-print("Step 8: Files tab back")
-
-js('(() => { const i = document.querySelectorAll(".adl-filetree__node--directory"); for (const x of i) { if (x.querySelector(".adl-tree-node__label-text")?.textContent === "UIOperationManual") { x.querySelector(".adl-tree-node__toggle")?.click(); break; } } })()')
-time.sleep(1)
-
-js('(() => { const i = document.querySelectorAll(".adl-filetree__node--directory"); for (const x of i) { if (x.querySelector(".adl-tree-node__label-text")?.textContent === "UIOperationManual") { const f = x.querySelector("ul")?.querySelectorAll("li"); if (f) for (const y of f) { const t = y.querySelector(".adl-tree-node__label-text")?.textContent; if (t === "README.md") { y.querySelector(".adl-tree-node__label")?.click(); break; } } break; } } })()')
-time.sleep(1)
-print("Step 9: README.md clicked - ALL DONE!")
-```
-
-Then execute:
-
-```powershell
-$env:PATH = "E:\dev-tools\uv-bin;$env:PATH"; $env:BU_CDP_URL = "http://127.0.0.1:9222"
-browser-harness -c "exec(open('bh-test.py').read())"
-```
-
-### Quick Static Screenshot (Playwright CLI — Auxiliary)
-
-```bash
 playwright screenshot http://localhost:5173 screenshot.png
 ```
 
-### Quick UI Exploration (Browser Harness)
+---
 
-```powershell
-$env:PATH = "E:\dev-tools\uv-bin;$env:PATH"; $env:BU_CDP_URL = "http://127.0.0.1:9222"
-browser-harness -c "new_tab('http://localhost:5173'); wait_for_load(); print(page_info())"
-browser-harness -c "capture_screenshot()"
+## 第三层：详细参考
+
+| 文件 | 内容 |
+|------|------|
+| [references/agent-browser.md](./references/agent-browser.md) | 完整命令参考、会话管理、工作流示例 |
+| [references/browser-harness.md](./references/browser-harness.md) | CDP 命令、Python 脚本模式、辅助函数 |
+| [references/playwright-cli.md](./references/playwright-cli.md) | 静态截图命令参考 |
+| [references/adl-project-selectors.md](./references/adl-project-selectors.md) | 项目专属 UI 选择器、元素状态定义 |
+| [scripts/changes-panel-test-checklist.md](./scripts/changes-panel-test-checklist.md) | 变更面板测试步骤清单（Agent 逐步执行） |
+| [scripts/lessons-learned.md](./scripts/lessons-learned.md) | 脚本方案经验教训总结 |
+| [scripts/_template-checklist.md](./scripts/_template-checklist.md) | 步骤清单模板（新建清单时从此复制） |
+
+---
+
+## 测试产物存储
+
+所有测试产物（截图、视频、文档）统一保存到根目录 `test-artifacts/`（已加入 `.gitignore`）。
+
+```
+test-artifacts/
+├── screenshots/    # 截图：{功能名}-{yyyyMMdd-HHmmss}.png
+├── videos/         # 录屏：{功能名}-{yyyyMMdd-HHmmss}.webm
+└── documents/      # 文档：{报告类型}-{yyyyMMdd-HHmmss}.md
 ```
 
-### Bypass Native OS Dialog
+---
 
-The "打开文件夹" menu item triggers a **native OS dialog** that cannot be automated by any tool.
-Use `window.digitalLife.workspace.open("path")` via `eval` (agent-browser) or `js()` (Browser Harness) instead:
+## 关键经验
 
-```powershell
-# agent-browser
-agent-browser eval "window.digitalLife.workspace.open('E:\\Programs\\Obsidian\\notes').then(r => JSON.stringify(r))"
+> 完整经验总结参见 [browser-automation 规则](../../rules/browser-automation.md)
 
-# Browser Harness
-browser-harness -c "js('window.digitalLife.workspace.open(\"E:/Programs/Obsidian/notes\")')"
-```
+| 经验 | 说明 |
+|------|------|
+| 工作区必须真正加载 | `workspace.open()` 后需刷新页面，确认状态栏显示 Git 信息 |
+| 原生对话框需绕过 | 使用 `window.digitalLife.workspace.open(path)` 替代点击菜单 |
+| 操作后等待验证 | 每次操作后 `wait` + `snapshot -i` 确认生效 |
+| 路径转义 | agent-browser 用 `E:\\path`，Browser Harness 用 `E:/path` |
+| 不使用 `--headed` | 可能导致 daemon 死锁，使用默认 headless 模式 |
+| ref 不硬编码 | 页面刷新后 ref 编号变化，每次操作前重新 `snapshot -i` |
 
-## Tool Comparison
+---
 
-| Dimension | agent-browser (Primary) | Browser Harness (Backup) | Playwright CLI (Auxiliary) |
-|-----------|------------------------|--------------------------|---------------------------|
-| Role | Full-featured terminal automation | CDP exploration & self-healing | Static screenshots |
-| Invocation | Terminal commands | Terminal commands (Python DSL) | Terminal commands |
-| Page understanding | Accessibility Tree (`snapshot -i`) | Screenshot (visual) | Static screenshot only |
-| Element targeting | ref / `find role` / CSS / eval | Coordinate (x, y) clicks | ❌ Not available |
-| JS evaluation | ✅ `eval` | ✅ `js()` helper | ❌ Not available |
-| Interactive click | ✅ `click`, `find role` | ✅ `click_at_xy` | ❌ Not available |
-| Console/errors check | ✅ `console`, `errors` | ❌ Requires manual CDP | ❌ Not available |
-| Accessibility snapshot | ✅ `snapshot -i` | ❌ | ❌ Not available |
-| Video recording | ✅ `record start/stop` | ❌ | ❌ |
-| In-app API calls | ✅ Via `eval` | ✅ Via `js()` | ❌ |
-| Self-healing | No | Yes (writes missing helpers) | No |
-| Cross-iframe/shadow DOM | Requires special handling | Automatic (compositor-level) | ❌ |
-| Environment setup | None (globally installed) | Chrome debug mode + `$env:BU_CDP_URL` | `$env:PATH` + `$env:PLAYWRIGHT_BROWSERS_PATH` |
-| Token efficiency | High (~68 tokens) | Lower (screenshot processing) | High (one-shot command) |
+## 相关技能
 
-## Project-Specific Notes
-
-- AI Digital Life runs on `http://localhost:5173` in browser dev mode
-- Use `npm run dev:browser` from `E:\Programs\Obsidian\notes\ai-digital-life` to start
-- For Tauri desktop mode, use `npm run dev:tauri`
-- UI selectors and element states are documented in the [ADL 项目专属选择器](./references/adl-project-selectors.md) reference and `UIOperationManual/`
-- **Recommended tool**: `agent-browser` (dogfood) is the most capable and easiest to set up — use it as the default for browser automation tasks
-- **File tree elements**: Use class names `.adl-filetree__node--directory`, `.adl-tree-node__label-text`, `.adl-tree-node__toggle` for DOM traversal — they are stable across sessions. File tree may need a refresh click after workspace open to trigger loading
-- **Tool tab IDs**: `#_r_0_-files-tab` (文件), `#_r_0_-changes-tab` (变更) — stable within a session but may change on app restart. Use `find role tab click --name "文件"` for more stable targeting
-- **Bypass native OS dialog**: All tools share the same limitation — the "打开文件夹" native dialog cannot be automated. Use `window.digitalLife.workspace.open("path")` via `eval`/`js()` instead
-- **PowerShell semicolons vs &&**: Use `;` (semicolons) to chain commands in PowerShell, not `&&`
-
-## Related Skills
-
-- **dogfood**: Systematic exploratory testing to find bugs and UX issues — uses agent-browser under the hood
-- **vitest-testing-patterns**: Unit/component testing with Vitest and React Testing Library
-- **playwright-best-practices**: General Playwright test development best practices (if installed)
-- **run-project-surfaces**: Starting the app in different modes
+- **dogfood**: 系统性探索测试，发现 Bug 和 UX 问题
+- **run-project-surfaces**: 启动应用的不同模式
