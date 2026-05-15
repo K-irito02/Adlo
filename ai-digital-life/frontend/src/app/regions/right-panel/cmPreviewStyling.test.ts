@@ -107,9 +107,9 @@ describe("CodeMirror preview styling", () => {
     const guttersBlock = extractCssBlock(regionsCssSource, ".adl-cm-editor .cm-gutters,\n.adl-cm-diff-viewer .cm-gutters {\n");
     const gutterElementBlock = extractCssBlock(regionsCssSource, ".adl-cm-editor .cm-gutterElement,\n.adl-cm-diff-viewer .cm-gutterElement {\n");
 
-    expect(contentBlock).toContain("padding-top: var(--space-2);");
+    expect(contentBlock).toContain("padding-top: 0;");
     expect(contentBlock).toContain("padding-bottom: 25vh;");
-    expect(guttersBlock).not.toContain("padding-top:");
+    expect(guttersBlock).toContain("padding-top: 0;");
     expect(gutterElementBlock).toContain("line-height: 1.65;");
   });
 
