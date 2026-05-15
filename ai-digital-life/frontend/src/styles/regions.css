@@ -3028,6 +3028,11 @@ select:focus-visible {
   flex-shrink: 0;
 }
 
+.adl-tool-surface--files > .adl-tool-primary {
+  flex: 1;
+  min-width: 0;
+}
+
 .adl-tool-surface--files > .adl-tool-editor {
   flex: 1;
   min-width: 0;
@@ -4336,6 +4341,7 @@ select:focus-visible {
 
 .adl-tool-primary__scroll--changes {
   padding-top: var(--space-2);
+  padding-right: calc(var(--space-3) + 80px);
 }
 
 .adl-tool-primary__scroll--terminal {
@@ -4646,10 +4652,18 @@ select:focus-visible {
 
 .adl-cm-diff-viewer .cm-line:has(.cm-insertedLine) {
   background-color: var(--editor-diff-insert-bg) !important;
+  box-shadow: 500px 0 0 0 var(--editor-diff-insert-bg);
 }
 
 .adl-cm-diff-viewer .cm-line:has(.cm-deletedLine) {
   background-color: var(--editor-diff-remove-bg) !important;
+  box-shadow: 500px 0 0 0 var(--editor-diff-remove-bg);
+}
+
+.adl-cm-diff-viewer .cm-content {
+  contain: layout style paint !important;
+  width: 100% !important;
+  min-width: 100% !important;
 }
 
 /* Merge gutter shows +/- indicators for changed lines */
@@ -4750,7 +4764,7 @@ select:focus-visible {
   box-sizing: border-box;
   line-height: 1.65;
   overflow-x: auto;
-  overflow-y: auto !important;
+  overflow-y: scroll !important;
   overscroll-behavior: contain;
   scrollbar-width: thin;
 }
@@ -4793,6 +4807,9 @@ select:focus-visible {
 
 .adl-cm-editor .cm-content,
 .adl-cm-diff-viewer .cm-content {
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
   padding-top: var(--space-2);
   padding-bottom: 25vh;
 }
@@ -5499,7 +5516,6 @@ select:focus-visible {
   cursor: pointer;
   background: var(--surface);
   border-left: 1px solid var(--border-subtle);
-  transition: opacity 0.2s;
 }
 
 .adl-cm-minimap--standard {
@@ -5511,7 +5527,7 @@ select:focus-visible {
 }
 
 .adl-cm-minimap:hover {
-  background: var(--surface-hover);
+  background: var(--surface-raised);
 }
 
 .adl-cm-minimap--standard:hover {
@@ -6645,6 +6661,7 @@ select:focus-visible {
 
 .adl-patch-hunk-card__toolbar {
   justify-content: flex-end;
+  padding-right: 80px;
 }
 
 .adl-patch-hunk-card__preview pre {

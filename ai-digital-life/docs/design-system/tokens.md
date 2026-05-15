@@ -68,6 +68,7 @@ Strict layering tokens — nothing else may declare arbitrary z-index numbers:
 - `--titlebar-height` (36 px), `--statusbar-height` (28 px)
 - `--sidebar-width` (248 px), `--sidebar-width-collapsed` (64 px)
 - `--content-max-width` (1440 px)
+- `--adl-editor-minimap-width` (84 px) - Minimap 宽度，用于编辑器内容区域的右侧 padding
 
 ## Focus
 

@@ -646,6 +646,107 @@ function InlineDiffViewer({
     rebuildThemes();
   }, [theme]);
 
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const scroller = container.querySelector(".cm-scroller") as HTMLElement | null;
+    const content = container.querySelector(".cm-content") as HTMLElement | null;
+    if (!scroller || !content) return;
+
+    const DIAG_URL = "http://127.0.0.1:19783/diag";
+
+    const getParentChain = (el: HTMLElement): Array<{ tag: string; cls: string; w: number }> => {
+      const chain: Array<{ tag: string; cls: string; w: number }> = [];
+      let current: HTMLElement | null = el;
+      let depth = 0;
+      while (current && depth < 20) {
+        const cls = current.className?.toString?.()?.slice(0, 60) ?? "";
+        chain.push({ tag: current.tagName, cls, w: current.clientWidth });
+        current = current.parentElement;
+        depth++;
+      }
+      return chain;
+    };
+
+    const sample = () => {
+      const cs = getComputedStyle(scroller);
+      const cc = getComputedStyle(content);
+      const lines = Array.from(container.querySelectorAll(".cm-line")) as HTMLElement[];
+      const diffLines = lines.filter(
+        (l) => l.querySelector(".cm-insertedLine") || l.querySelector(".cm-deletedLine")
+      );
+
+      const hasHScroll = scroller.scrollWidth > scroller.clientWidth + 1;
+      const hasVScroll = scroller.scrollHeight > scroller.clientHeight + 1;
+      const lineWidths = diffLines.map((l) => l.offsetWidth);
+      const maxW = Math.max(...lineWidths, 0);
+      const minW = Math.min(...lineWidths, 0);
+
+      const rightEdges = diffLines.map((l) => Math.round(l.getBoundingClientRect().right));
+      const maxR = Math.max(...rightEdges, 0);
+      const minR = Math.min(...rightEdges, 0);
+
+      const parentChain = getParentChain(scroller);
+
+      const data = {
+        ts: Date.now(),
+        scrollT: scroller.scrollTop,
+        scrollL: scroller.scrollLeft,
+        scroller: {
+          clientW: scroller.clientWidth,
+          scrollW: scroller.scrollWidth,
+          clientH: scroller.clientHeight,
+          scrollH: scroller.scrollHeight,
+          padR: cs.paddingRight,
+          overflowY: cs.overflowY,
+          contain: cs.contain,
+        },
+        content: {
+          offsetW: content.offsetWidth,
+          scrollW: content.scrollWidth,
+          contain: cc.contain,
+          width: cc.width,
+          minWidth: cc.minWidth,
+        },
+        hScroll: hasHScroll,
+        vScroll: hasVScroll,
+        diffLines: diffLines.length,
+        lineWidths: { min: minW, max: maxW },
+        rightEdges: { min: minR, max: maxR, diff: maxR - minR },
+        parentChain,
+      };
+
+      fetch(DIAG_URL, {
+        method: "POST",
+        body: JSON.stringify(data, null, 2),
+        keepalive: true,
+      }).catch(() => {});
+    };
+
+    sample();
+
+    let scrollTimer: ReturnType<typeof setTimeout> | null = null;
+    const onScroll = () => {
+      if (scrollTimer) clearTimeout(scrollTimer);
+      scrollTimer = setTimeout(sample, 200);
+    };
+    scroller.addEventListener("scroll", onScroll, { passive: true });
+
+    const ro = new ResizeObserver(() => {
+      if (scrollTimer) clearTimeout(scrollTimer);
+      scrollTimer = setTimeout(sample, 200);
+    });
+    ro.observe(scroller);
+    ro.observe(content);
+
+    return () => {
+      scroller.removeEventListener("scroll", onScroll);
+      ro.disconnect();
+      if (scrollTimer) clearTimeout(scrollTimer);
+    };
+  }, [editorView]);
+
   return (
     <div className="adl-cm-diff-viewer-wrapper" style={{ position: "relative", width: "100%", height: "100%" }}>
       <div
