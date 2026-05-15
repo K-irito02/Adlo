@@ -65,13 +65,13 @@ describe("CodeMirror preview styling", () => {
     expect(extractCssBlock(regionsCssSource, ".adl-tool-panel {\n")).toContain("min-width: 0;");
     expect(extractCssBlock(regionsCssSource, ".adl-tool-panel {\n")).toContain("overflow: hidden;");
     expect(extractCssBlock(regionsCssSource, ".adl-tool-editor {\n  --adl-editor-minimap-width")).toContain("max-width: 100%;");
-    expect(extractCssBlock(regionsCssSource, ".adl-tool-editor {\n  --adl-editor-minimap-width")).toContain("overflow: hidden;");
+    expect(extractCssBlock(regionsCssSource, ".adl-tool-editor {\n  --adl-editor-minimap-width")).not.toContain("overflow: hidden;");
     expect(extractCssBlock(regionsCssSource, ".adl-tool-editor__surface > div:not(.adl-sticky-context) {\n")).toContain("width: 100%;");
     expect(extractCssBlock(regionsCssSource, ".adl-tool-editor__surface {\n")).toContain("max-width: 100%;");
     expect(extractCssBlock(regionsCssSource, ".adl-cm-diff-viewer {\n")).toContain("width: 100%;");
-    expect(extractCssBlock(regionsCssSource, ".adl-cm-diff-viewer {\n")).toContain("overflow: hidden;");
+    expect(extractCssBlock(regionsCssSource, ".adl-cm-diff-viewer {\n")).not.toContain("overflow: hidden;");
     expect(regionsCssSource).toContain("scrollbar-width: none;");
-    expect(regionsCssSource).toContain("overflow-y: auto !important;");
+    expect(regionsCssSource).toContain("overflow-y: scroll !important;");
     expect(regionsCssSource).toContain(".adl-cm-editor .cm-scroller::-webkit-scrollbar");
     expect(extractCssBlock(regionsCssSource, ".adl-cm-editor .cm-scroller,\n.adl-cm-diff-viewer .cm-scroller")).not.toContain("overflow-y: hidden");
   });

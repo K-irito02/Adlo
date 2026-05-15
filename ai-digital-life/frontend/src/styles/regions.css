@@ -4430,7 +4430,6 @@ select:focus-visible {
   max-width: 100%;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
   background: var(--editor-bg, var(--bg));
 }
 
@@ -4564,7 +4563,6 @@ select:focus-visible {
   box-sizing: border-box;
   position: relative;
   isolation: isolate;
-  overflow: hidden;
   background: var(--editor-bg, var(--bg));
 }
 
@@ -4591,7 +4589,6 @@ select:focus-visible {
   max-width: 100%;
   min-width: 0;
   position: relative;
-  overflow: hidden;
   font-family: var(--font-mono, 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'SF Mono', Consolas, monospace);
   font-size: var(--text-sm, 13px);
   -webkit-font-smoothing: antialiased;
@@ -4600,7 +4597,12 @@ select:focus-visible {
   box-shadow: none !important;
 }
 
+.adl-cm-editor .cm-editor {
+  overflow: hidden;
+}
+
 .adl-cm-diff-viewer .cm-editor {
+  overflow: hidden;
   background: transparent !important;
 }
 
@@ -4652,18 +4654,43 @@ select:focus-visible {
 
 .adl-cm-diff-viewer .cm-line:has(.cm-insertedLine) {
   background-color: var(--editor-diff-insert-bg) !important;
-  box-shadow: 500px 0 0 0 var(--editor-diff-insert-bg);
 }
 
 .adl-cm-diff-viewer .cm-line:has(.cm-deletedLine) {
   background-color: var(--editor-diff-remove-bg) !important;
-  box-shadow: 500px 0 0 0 var(--editor-diff-remove-bg);
 }
 
-.adl-cm-diff-viewer .cm-content {
-  contain: layout style paint !important;
-  width: 100% !important;
-  min-width: 100% !important;
+/* Word wrap ON: CodeMirror's cm-lineWrapping class handles wrapping.
+   .cm-editor { overflow: hidden } contains everything. */
+
+/* Word wrap OFF — two-stage width architecture:
+   Stage 1: .cm-scroller { overflow-x: auto } lets horizontal scrollbars appear.
+   Stage 2: .cm-content { flex: 0 0 max-content } overrides CodeMirror's
+   flex-grow:2 so .cm-content shrink-wraps to its longest visible line.
+   .cm-line { width:100%; box-sizing:border-box } forces every line to fill
+   .cm-content uniformly, giving all lines identical background width.
+   When a wider line scrolls into the DOM, .cm-content recalculates
+   max-content and .cm-line { width:100% } reflows automatically. */
+.adl-cm-no-word-wrap .adl-cm-diff-viewer .cm-scroller {
+  overflow-x: auto;
+}
+
+.adl-cm-no-word-wrap .adl-cm-diff-viewer .cm-content {
+  flex: 0 0 max-content !important;
+  min-width: 100%;
+  max-width: none;
+}
+
+.adl-cm-no-word-wrap .adl-cm-diff-viewer .cm-line {
+  width: 100%;
+  box-sizing: border-box;
+  padding-right: calc(var(--space-3) + var(--adl-editor-minimap-width, 84px) + var(--space-2, 8px));
+}
+
+/* Side-by-side: individual panes have padding-right:0 (no minmap overlay).
+   .cm-line only needs standard right padding plus breathing room. */
+.adl-cm-no-word-wrap .adl-cm-diff-viewer--side-by-side .cm-line {
+  padding-right: calc(var(--space-3) + var(--space-2, 8px));
 }
 
 /* Merge gutter shows +/- indicators for changed lines */
@@ -4763,10 +4790,16 @@ select:focus-visible {
   max-width: 100%;
   box-sizing: border-box;
   line-height: 1.65;
-  overflow-x: auto;
   overflow-y: scroll !important;
   overscroll-behavior: contain;
   scrollbar-width: thin;
+}
+
+/* Override @codemirror/merge's .cm-mergeViewEditor { overflow: hidden }
+   so merge control buttons (Accept/Reject) are not clipped.
+   The overflow containment is handled by .cm-editor instead. */
+.adl-cm-diff-viewer .cm-mergeViewEditor {
+  overflow: visible !important;
 }
 
 .adl-cm-diff-viewer .cm-scroller {
@@ -4787,6 +4820,13 @@ select:focus-visible {
   height: 0;
 }
 
+/* Word wrap OFF: show horizontal scrollbar even when minimap is active */
+.adl-cm-no-word-wrap .adl-cm-diff-viewer .cm-scroller.adl-cm-scroller--minimap-scrollbar::-webkit-scrollbar,
+.adl-cm-no-word-wrap .adl-cm-diff-viewer--side-by-side .cm-mergeView.adl-cm-scroller--minimap-scrollbar .cm-scroller::-webkit-scrollbar {
+  width: 0;
+  height: 10px;
+}
+
 .adl-cm-diff-viewer--side-by-side .cm-mergeView.adl-cm-scroller--minimap-scrollbar .cm-scroller {
   scrollbar-width: none;
 }
@@ -4800,6 +4840,20 @@ select:focus-visible {
   scrollbar-width: none;
 }
 
+/* Word wrap OFF: override minimap scrollbar hiding so horizontal scrollbar appears */
+.adl-cm-no-word-wrap .adl-cm-scroller--minimap-scrollbar::-webkit-scrollbar {
+  width: 0;
+  height: 10px;
+}
+
+.adl-cm-no-word-wrap .adl-cm-scroller--minimap-scrollbar {
+  scrollbar-width: thin !important;
+}
+
+.adl-cm-no-word-wrap .adl-cm-diff-viewer--side-by-side .cm-mergeView.adl-cm-scroller--minimap-scrollbar .cm-scroller {
+  scrollbar-width: thin !important;
+}
+
 .adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-editor .cm-scroller,
 .adl-cm-diff-viewer--side-by-side .cm-mergeViewEditor > .cm-editor .cm-scroller {
   padding-right: 0;
@@ -4809,7 +4863,6 @@ select:focus-visible {
 .adl-cm-diff-viewer .cm-content {
   width: 100%;
   max-width: 100%;
-  overflow: hidden;
   padding-top: var(--space-2);
   padding-bottom: 25vh;
 }
@@ -4822,6 +4875,65 @@ select:focus-visible {
 
 .adl-cm-diff-viewer .cm-content {
   background: transparent !important;
+}
+
+/* Merge controls (Accept/Reject buttons) in inline unified merge view */
+.adl-cm-diff-viewer--inline .cm-deletedChunk {
+  position: relative;
+}
+
+.adl-cm-diff-viewer--inline .cm-deletedChunk .cm-chunkButtons {
+  z-index: 2;
+  position: absolute;
+  inset-inline-end: 5px;
+}
+
+.adl-cm-diff-viewer--inline .cm-deletedChunk .cm-chunkButtons button[name="accept"] {
+  background: #2a2 !important;
+  border: none !important;
+  color: #fff !important;
+  cursor: pointer !important;
+  margin: 0 2px !important;
+  border-radius: 3px !important;
+  padding: 2px 6px !important;
+  font-size: 11px !important;
+  line-height: 1.4 !important;
+  opacity: 0.85 !important;
+}
+
+.adl-cm-diff-viewer--inline .cm-deletedChunk .cm-chunkButtons button[name="reject"] {
+  background: #d43 !important;
+  border: none !important;
+  color: #fff !important;
+  cursor: pointer !important;
+  margin: 0 2px !important;
+  border-radius: 3px !important;
+  padding: 2px 6px !important;
+  font-size: 11px !important;
+  line-height: 1.4 !important;
+  opacity: 0.85 !important;
+}
+
+.adl-cm-diff-viewer--inline .cm-deletedChunk .cm-chunkButtons button:hover {
+  opacity: 1 !important;
+}
+
+/* Side-by-side merge controls */
+.adl-cm-diff-viewer--side-by-side .cm-merge-revert button {
+  background: #49d !important;
+  border: none !important;
+  color: #fff !important;
+  cursor: pointer !important;
+  border-radius: 3px !important;
+  padding: 2px 8px !important;
+  font-size: 11px !important;
+  line-height: 1.4 !important;
+  opacity: 0.85 !important;
+  z-index: 2 !important;
+}
+
+.adl-cm-diff-viewer--side-by-side .cm-merge-revert button:hover {
+  opacity: 1 !important;
 }
 
 .adl-cm-editor .cm-line,
@@ -5083,8 +5195,11 @@ select:focus-visible {
   z-index: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
   background: transparent;
+}
+
+.adl-cm-no-word-wrap .adl-cm-diff-viewer {
+  overflow: visible;
 }
 
 .adl-cm-diff-viewer--side-by-side {
