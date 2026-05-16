@@ -131,6 +131,27 @@
 
 ---
 
+## 13. CodeMirror 水平滚动条的时序问题
+
+在"取消自动换行"模式下，CodeMirror 的 `overflow-x` 控制策略曾遇到以下问题：
+
+| 问题 | 说明 |
+|------|------|
+| 构造函数时序 | `ViewPlugin` 构造函数中 `contentWidth > visibleWidth` 检测在 DOM 布局完成前返回 `false`（都是 0），导致立即隐藏滚动条 |
+| 边界溢出丢失 | 内容仅超出可视区域几个字符宽度时，`+1` 容差导致溢出被忽略 |
+| CSS 级联冲突 | 即使 class 设置了 `overflow-x: scroll`，`::-webkit-scrollbar { height: 0 }` 等其他规则仍可能隐藏滚动条轨道 |
+| JS 内联样式覆盖 | `style.setProperty("overflow-x", "hidden", "important")` 不可逆地覆盖了 CSS 的 `scroll` 值 |
+
+**解决方案**：采用"默认显示，确认无溢出才隐藏"的策略。
+- CSS 中 `overflow-x: scroll !important` 作为默认值
+- `ScrollLeftSyncPlugin.syncOverflow()` 在 no-word-wrap 模式下**完全不干预** overflow
+- 构造函数只设置 CSS 变量，不检测 overflow
+- 只有 word-wrap 模式下 JS 才介入隐藏滚动条
+
+**关键原则**：对于必须始终可滚动的 UI 元素，滚动条可见性应由 CSS 决定，JS 只能从"显示"走向"隐藏"（反之会因时序问题不可靠）。
+
+---
+
 ## 相关文件
 
 - [变更面板测试步骤清单](./changes-panel-test-checklist.md)

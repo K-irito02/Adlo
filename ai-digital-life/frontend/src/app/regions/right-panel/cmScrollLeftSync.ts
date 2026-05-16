@@ -4,6 +4,7 @@ const SCROLL_LEFT_CSS_VAR = "--adl-editor-scroll-left";
 const VISIBLE_WIDTH_CSS_VAR = "--adl-editor-visible-width";
 const CONTENT_WIDTH_CSS_VAR = "--adl-editor-content-width";
 const NO_HSCROLL_CLASS = "adl-cm-scroller--no-hscroll";
+const FORCE_HSCROLL_CLASS = "adl-cm-scroller--hscroll-forced";
 
 function formatPx(value: number): string {
   if (!Number.isFinite(value) || value <= 0) return "0px";
@@ -12,12 +13,61 @@ function formatPx(value: number): string {
 
 class ScrollLeftSyncPlugin implements PluginValue {
   private frame = 0;
-  private lastOverflowX: string | null = null;
   private lastChunkPositions = new Map<Element, string>();
+  private resizeObserver: ResizeObserver | null = null;
 
   constructor(private readonly view: EditorView) {
-    this.sync();
+    this.syncCssPropsOnly();
     this.view.scrollDOM.addEventListener("scroll", this.handleScroll, { passive: true });
+    this.setupResizeObserver();
+  }
+
+  private syncCssPropsOnly(): void {
+    const scrollDOM = this.view.scrollDOM;
+    const contentDOM = this.view.contentDOM;
+    const dom = this.view.dom;
+
+    const scrollLeft = scrollDOM.scrollLeft;
+    dom.style.setProperty(SCROLL_LEFT_CSS_VAR, formatPx(scrollLeft));
+    scrollDOM.style.setProperty(SCROLL_LEFT_CSS_VAR, formatPx(scrollLeft));
+
+    const scrollerStyle = getComputedStyle(scrollDOM);
+    const paddingRight = parseFloat(scrollerStyle.paddingRight) || 0;
+    const visibleWidth = scrollDOM.clientWidth - paddingRight;
+    dom.style.setProperty(VISIBLE_WIDTH_CSS_VAR, formatPx(visibleWidth));
+    scrollDOM.style.setProperty(VISIBLE_WIDTH_CSS_VAR, formatPx(visibleWidth));
+
+    const contentWidth = contentDOM.offsetWidth;
+    dom.style.setProperty(CONTENT_WIDTH_CSS_VAR, formatPx(contentWidth));
+    scrollDOM.style.setProperty(CONTENT_WIDTH_CSS_VAR, formatPx(contentWidth));
+  }
+
+  private syncOverflow(scrollDOM: HTMLElement, contentDOM: HTMLElement): void {
+    const wrapper = scrollDOM.closest(".adl-cm-editor-wrapper, .adl-cm-diff-viewer-wrapper");
+    const isNoWordWrap = wrapper?.classList.contains("adl-cm-no-word-wrap");
+
+    if (isNoWordWrap) {
+      scrollDOM.classList.add(FORCE_HSCROLL_CLASS);
+      scrollDOM.classList.remove(NO_HSCROLL_CLASS);
+      scrollDOM.style.removeProperty("overflow-x");
+      return;
+    }
+
+    const scrollerStyle = getComputedStyle(scrollDOM);
+    const paddingRight = parseFloat(scrollerStyle.paddingRight) || 0;
+    const visibleWidth = scrollDOM.clientWidth - paddingRight;
+    const contentWidth = contentDOM.offsetWidth;
+
+    const hasHorizontalOverflow = contentWidth > visibleWidth;
+    if (hasHorizontalOverflow) {
+      scrollDOM.classList.add(FORCE_HSCROLL_CLASS);
+      scrollDOM.classList.remove(NO_HSCROLL_CLASS);
+      scrollDOM.style.removeProperty("overflow-x");
+    } else {
+      scrollDOM.classList.remove(FORCE_HSCROLL_CLASS);
+      scrollDOM.classList.add(NO_HSCROLL_CLASS);
+      scrollDOM.style.setProperty("overflow-x", "hidden", "important");
+    }
   }
 
   update(update: ViewUpdate): void {
@@ -28,6 +78,8 @@ class ScrollLeftSyncPlugin implements PluginValue {
 
   destroy(): void {
     this.view.scrollDOM.removeEventListener("scroll", this.handleScroll);
+    this.resizeObserver?.disconnect();
+    this.resizeObserver = null;
     if (this.frame) {
       cancelAnimationFrame(this.frame);
       this.frame = 0;
@@ -39,13 +91,22 @@ class ScrollLeftSyncPlugin implements PluginValue {
       scrollDOM.style.removeProperty(prop);
     }
     scrollDOM.classList.remove(NO_HSCROLL_CLASS);
-    this.lastOverflowX = null;
+    scrollDOM.classList.remove(FORCE_HSCROLL_CLASS);
+    scrollDOM.style.removeProperty("overflow-x");
     this.clearChunkButtonStyles();
   }
 
   private handleScroll = (): void => {
     this.schedule();
   };
+
+  private setupResizeObserver(): void {
+    if (typeof ResizeObserver === "undefined") return;
+    this.resizeObserver = new ResizeObserver(() => {
+      this.schedule();
+    });
+    this.resizeObserver.observe(this.view.scrollDOM, { box: "content-box" });
+  }
 
   private schedule(): void {
     if (this.frame) return;
@@ -87,16 +148,7 @@ class ScrollLeftSyncPlugin implements PluginValue {
     dom.style.setProperty(CONTENT_WIDTH_CSS_VAR, formatPx(contentWidth));
     scrollDOM.style.setProperty(CONTENT_WIDTH_CSS_VAR, formatPx(contentWidth));
 
-    const hasHorizontalOverflow = contentWidth > visibleWidth + 1;
-    const targetOverflowX = hasHorizontalOverflow ? "auto" : "hidden";
-    if (this.lastOverflowX !== targetOverflowX) {
-      this.lastOverflowX = targetOverflowX;
-      if (hasHorizontalOverflow) {
-        scrollDOM.classList.remove(NO_HSCROLL_CLASS);
-      } else {
-        scrollDOM.classList.add(NO_HSCROLL_CLASS);
-      }
-    }
+    this.syncOverflow(scrollDOM, contentDOM);
 
     this.positionChunkButtons(visibleWidth, scrollLeft);
   }

@@ -4675,13 +4675,25 @@ select:focus-visible {
 /* Word wrap ON: CodeMirror's cm-lineWrapping class handles wrapping.
    .cm-editor { overflow: hidden } contains everything. */
 
-/* Word wrap OFF: the scroller still reserves the same right rail as wrapped
-   editors. Horizontal overflow should come only from text wider than that
-   visible content area, not from line/background padding. */
+/* Word wrap OFF: the wrapper reserves right-side space for the minimap
+   via padding-right so the scroller is naturally narrower.
+   The scroller ALWAYS shows overflow-x: scroll !important — this ensures
+   horizontal scrollbars appear immediately even for borderline overflow
+   (a few characters beyond the visible area), which the browser's native
+   scrollWidth > clientWidth detection can miss when padding-right on the
+   scroller reduces clientWidth. The ScrollLeftSyncPlugin (syncOverflow)
+   only hides the scrollbar via overflow-x: hidden !important when it
+   confirms NO overflow (word-wrap mode), and never touches overflow in
+   no-word-wrap mode — deferring entirely to CSS. */
+.adl-cm-no-word-wrap.adl-cm-editor-wrapper,
+.adl-cm-no-word-wrap.adl-cm-diff-viewer-wrapper {
+  padding-right: calc(var(--adl-editor-minimap-width, 84px) - var(--adl-scrollbar-width, 0px));
+}
+
 .adl-cm-no-word-wrap .adl-cm-diff-viewer .cm-scroller,
 .adl-cm-no-word-wrap .adl-cm-editor .cm-scroller {
-  overflow-x: auto;
-  padding-right: calc(var(--adl-editor-minimap-width, 84px) - var(--adl-scrollbar-width, 0px));
+  overflow-x: scroll !important;
+  padding-right: 0;
 }
 
 /* Override CodeMirror's built-in white-space:break-spaces (which allows
@@ -4899,6 +4911,24 @@ select:focus-visible {
   height: 0;
 }
 
+.adl-cm-scroller--hscroll-forced {
+  overflow-x: scroll !important;
+}
+
+.adl-cm-scroller--hscroll-forced::-webkit-scrollbar {
+  height: 10px !important;
+  width: auto !important;
+}
+
+.adl-cm-scroller--hscroll-forced::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb, rgba(128, 128, 128, 0.35)) !important;
+  border-radius: 5px !important;
+}
+
+.adl-cm-scroller--hscroll-forced::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
 .adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-editor .cm-scroller,
 .adl-cm-diff-viewer--side-by-side .cm-mergeViewEditor > .cm-editor .cm-scroller {
   padding-right: 0;
@@ -5104,7 +5134,7 @@ select:focus-visible {
 }
 
 .adl-cm-diff-viewer--side-by-side .cm-mergeView .cm-scroller {
-  overflow: auto !important;
+  overflow: scroll !important;
 }
 
 .adl-cm-diff-viewer--side-by-side .cm-mergeView .cm-scroller.adl-cm-scroller--no-hscroll {
