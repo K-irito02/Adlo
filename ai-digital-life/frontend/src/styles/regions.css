@@ -4931,27 +4931,34 @@ select:focus-visible {
 
 .adl-cm-hscroll__thumb {
   position: absolute;
-  top: 1px;
-  bottom: 1px;
+  top: 3px;
+  height: 4px;
   left: 0;
-  min-width: 30px;
-  background: var(--scrollbar-thumb, rgba(128, 128, 128, 0.35));
-  border-radius: 5px;
-  transition: background 0.15s ease;
+  min-width: 6px;
+  max-width: 6px;
+  background: var(--hscroll-thumb-bg);
+  border-radius: 3px;
+  box-shadow: var(--hscroll-thumb-shadow);
+  transition: max-width 0.25s ease, background 0.2s, box-shadow 0.2s;
+  transform: translateX(var(--adl-hscroll-dot-offset, 0px));
+  cursor: default;
+}
+
+.adl-cm-hscroll:hover .adl-cm-hscroll__thumb {
+  max-width: none;
+  min-width: 40px;
+  background: var(--hscroll-thumb-hover-bg);
+  box-shadow: var(--hscroll-thumb-hover-shadow);
+  transform: none;
   cursor: grab;
 }
 
-.adl-cm-hscroll__thumb:hover {
-  background: var(--scrollbar-thumb-hover, rgba(128, 128, 128, 0.55));
-}
-
-.adl-cm-hscroll__thumb:active {
-  background: var(--scrollbar-thumb-active, rgba(128, 128, 128, 0.7));
-  cursor: grabbing;
-}
-
 .adl-cm-hscroll__thumb.is-dragging {
-  background: var(--scrollbar-thumb-active, rgba(128, 128, 128, 0.7));
+  max-width: none;
+  min-width: 40px;
+  background: var(--hscroll-thumb-dragging-bg);
+  box-shadow: var(--hscroll-thumb-dragging-shadow);
+  transform: none;
   cursor: grabbing;
 }
 

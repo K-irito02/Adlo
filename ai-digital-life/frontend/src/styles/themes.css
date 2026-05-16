@@ -259,6 +259,14 @@ body,
 
   /* === Border Alias (unified) === */
   --border: var(--border-default);
+
+  /* === Horizontal Scrollbar (dot indicator) === */
+  --hscroll-thumb-bg: rgba(0, 0, 0, 1.0);
+  --hscroll-thumb-hover-bg: rgba(0, 0, 0, 0.40);
+  --hscroll-thumb-dragging-bg: rgba(0, 0, 0, 0.55);
+  --hscroll-thumb-shadow: 0 0 3px rgba(0, 0, 0, 0.25);
+  --hscroll-thumb-hover-shadow: 0 0 5px rgba(0, 0, 0, 0.18);
+  --hscroll-thumb-dragging-shadow: 0 0 6px rgba(0, 0, 0, 0.28);
 }
 
 /* ===== DARK THEME =====
@@ -436,6 +444,14 @@ body,
   --tooltip-bg: rgba(255, 255, 255, 0.86);
   --tooltip-fg: #111;
   --tooltip-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+
+  /* === Horizontal Scrollbar (dot indicator) === */
+  --hscroll-thumb-bg: rgba(255, 255, 255, 1.0);
+  --hscroll-thumb-hover-bg: rgba(255, 255, 255, 0.52);
+  --hscroll-thumb-dragging-bg: rgba(255, 255, 255, 0.68);
+  --hscroll-thumb-shadow: 0 0 4px rgba(255, 255, 255, 0.35);
+  --hscroll-thumb-hover-shadow: 0 0 6px rgba(255, 255, 255, 0.26);
+  --hscroll-thumb-dragging-shadow: 0 0 8px rgba(255, 255, 255, 0.34);
 }
 
 /* -------- High-contrast preference --------

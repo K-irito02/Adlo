@@ -8,6 +8,8 @@ const GUTTER_WIDTH_CSS_VAR = "--adl-editor-gutter-width";
 const HSCROLL_CLASS = "adl-cm-hscroll";
 const HSCROLL_VISIBLE_CLASS = "is-visible";
 const HSCROLL_DRAGGING_CLASS = "is-dragging";
+const HSCROLL_DOT_OFFSET_VAR = "--adl-hscroll-dot-offset";
+const THUMB_MIN_WIDTH = 40;
 
 function formatPx(value: number): string {
   if (!Number.isFinite(value) || value <= 0) return "0px";
@@ -131,7 +133,7 @@ class ScrollLeftSyncPlugin implements PluginValue {
     const scrollLeft = (thumbLeft / this.dragMaxThumbLeft) * this.dragMaxScrollLeft;
     this.view.scrollDOM.scrollLeft = scrollLeft;
 
-    this.hscrollThumb.style.transform = `translateX(${thumbLeft}px)`;
+    this.hscrollThumb.style.left = `${thumbLeft}px`;
   }
 
   private onWindowMouseUp(): void {
@@ -306,12 +308,13 @@ class ScrollLeftSyncPlugin implements PluginValue {
     if (trackWidth <= 0) return;
 
     const maxScrollLeft = Math.max(0, scrollWidth - visibleWidth);
-    const thumbWidth = Math.max(30, (visibleWidth / scrollWidth) * trackWidth);
+    const thumbWidth = Math.max(THUMB_MIN_WIDTH, (visibleWidth / scrollWidth) * trackWidth);
     const maxThumbLeft = trackWidth - thumbWidth;
     const thumbLeft = maxThumbLeft > 0 ? (scrollLeft / maxScrollLeft) * maxThumbLeft : 0;
 
     this.hscrollThumb.style.width = `${thumbWidth}px`;
-    this.hscrollThumb.style.transform = `translateX(${thumbLeft}px)`;
+    this.hscrollThumb.style.left = `${thumbLeft}px`;
+    this.hscrollThumb.style.setProperty(HSCROLL_DOT_OFFSET_VAR, `${thumbWidth / 2 - 3}px`);
   }
 
   update(update: ViewUpdate): void {
