@@ -4677,14 +4677,10 @@ select:focus-visible {
 
 /* Word wrap OFF: the wrapper reserves right-side space for the minimap
    via padding-right so the scroller is naturally narrower.
-   The scroller ALWAYS shows overflow-x: scroll !important — this ensures
-   horizontal scrollbars appear immediately even for borderline overflow
-   (a few characters beyond the visible area), which the browser's native
-   scrollWidth > clientWidth detection can miss when padding-right on the
-   scroller reduces clientWidth. The ScrollLeftSyncPlugin (syncOverflow)
-   only hides the scrollbar via overflow-x: hidden !important when it
-   confirms NO overflow (word-wrap mode), and never touches overflow in
-   no-word-wrap mode — deferring entirely to CSS. */
+   The scroller uses overflow-x: auto — the browser auto-detects overflow
+   and only shows the horizontal scrollbar when content exceeds the visible
+   area (both track and thumb appear together). The gutter stays fixed via
+   CodeMirror's default position: sticky; left: 0. */
 .adl-cm-no-word-wrap.adl-cm-editor-wrapper,
 .adl-cm-no-word-wrap.adl-cm-diff-viewer-wrapper {
   padding-right: calc(var(--adl-editor-minimap-width, 84px) - var(--adl-scrollbar-width, 0px));
@@ -4692,7 +4688,7 @@ select:focus-visible {
 
 .adl-cm-no-word-wrap .adl-cm-diff-viewer .cm-scroller,
 .adl-cm-no-word-wrap .adl-cm-editor .cm-scroller {
-  overflow-x: scroll !important;
+  overflow-x: hidden !important;
   padding-right: 0;
 }
 
@@ -4737,8 +4733,6 @@ select:focus-visible {
 
 .adl-cm-no-word-wrap .adl-cm-diff-viewer--inline .cm-deletedChunk .cm-chunkButtons {
   z-index: 20;
-  transition: right 0.04s ease-out, inset-inline-end 0.04s ease-out;
-  will-change: right, inset-inline-end;
 }
 
 /* Merge gutter shows +/- indicators for changed lines */
@@ -4911,22 +4905,54 @@ select:focus-visible {
   height: 0;
 }
 
-.adl-cm-scroller--hscroll-forced {
-  overflow-x: scroll !important;
+/* Custom horizontal scrollbar — replaces native scrollbar in no-word-wrap mode.
+   Positioned at the bottom of .cm-editor, starting after the gutter, so it
+   never overlaps line numbers. */
+.adl-cm-hscroll {
+  position: absolute;
+  bottom: 0;
+  left: var(--adl-editor-gutter-width, 0px);
+  right: 0;
+  height: 10px;
+  z-index: 10;
+  display: none;
+  cursor: default;
+  user-select: none;
 }
 
-.adl-cm-scroller--hscroll-forced::-webkit-scrollbar {
-  height: 10px !important;
-  width: auto !important;
+.adl-cm-hscroll.is-visible {
+  display: block;
 }
 
-.adl-cm-scroller--hscroll-forced::-webkit-scrollbar-thumb {
-  background-color: var(--scrollbar-thumb, rgba(128, 128, 128, 0.35)) !important;
-  border-radius: 5px !important;
+.adl-cm-hscroll__track {
+  position: absolute;
+  inset: 0;
 }
 
-.adl-cm-scroller--hscroll-forced::-webkit-scrollbar-track {
-  background: transparent !important;
+.adl-cm-hscroll__thumb {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  left: 0;
+  min-width: 30px;
+  background: var(--scrollbar-thumb, rgba(128, 128, 128, 0.35));
+  border-radius: 5px;
+  transition: background 0.15s ease;
+  cursor: grab;
+}
+
+.adl-cm-hscroll__thumb:hover {
+  background: var(--scrollbar-thumb-hover, rgba(128, 128, 128, 0.55));
+}
+
+.adl-cm-hscroll__thumb:active {
+  background: var(--scrollbar-thumb-active, rgba(128, 128, 128, 0.7));
+  cursor: grabbing;
+}
+
+.adl-cm-hscroll__thumb.is-dragging {
+  background: var(--scrollbar-thumb-active, rgba(128, 128, 128, 0.7));
+  cursor: grabbing;
 }
 
 .adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-editor .cm-scroller,
@@ -5134,7 +5160,7 @@ select:focus-visible {
 }
 
 .adl-cm-diff-viewer--side-by-side .cm-mergeView .cm-scroller {
-  overflow: scroll !important;
+  overflow: auto !important;
 }
 
 .adl-cm-diff-viewer--side-by-side .cm-mergeView .cm-scroller.adl-cm-scroller--no-hscroll {

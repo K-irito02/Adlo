@@ -1,107 +1,116 @@
-# 内联 Diff 视图按钮滚动固定方案设计
+# 内联 Diff 视图按钮滚动固定 — 设计文档
 
-## 问题
+> **状态：** ✅ 已实现
+> **本文档记录最终设计，与原始设计有差异。**
 
-"取消自动换行"模式下，内联 diff 视图的"接受"/"拒绝"按钮存在两个问题：
-1. **垂直居中不精确** — 按钮中心与行中心有子像素偏移
-2. **水平滚动时抖动** — 按钮出现位置跳变和滞后感
+## 问题描述
 
-## 根因
+在"取消自动换行"（no-word-wrap）模式下，内联 diff 视图（`.adl-cm-diff-viewer--inline`）中每个 `.cm-deletedChunk` 区块的"接受"/"拒绝"按钮（`.cm-chunkButtons`）在水平滚动、面板 resize、窗口 resize 等场景下出现幻影移动效果——按钮从旧位置滑动到新位置，而非直接出现在正确位置。
 
-### 抖动/滞后根因：Layout Thrash（强制同步布局）
+## 根因分析
 
-`ScrollLeftSyncPlugin.sync()` 方法存在**读写交叉**，导致每帧多次强制同步布局：
+### 1. CSS transition（主要根因）
 
-```
-sync() {
-  dom.style.setProperty(...)          // WRITE
-  const padR = parseFloat(getComputedStyle(...))   // READ → 强制布局 #1
-  dom.style.setProperty(...)          // WRITE
-  const w = contentDOM.offsetWidth    // READ → 强制布局 #2
-  positionChunkButtons() {
-    scrollerRect = scrollDOM.getBoundingClientRect()  // READ → 强制布局 #3
-    for (chunk of chunks) {
-      r = chunk.getBoundingClientRect()  // READ → 强制布局 #N
-      btn.style.right = ...           // WRITE
-    }
-  }
+```css
+/* 原始 CSS */
+.adl-cm-no-word-wrap .adl-cm-diff-viewer--inline .cm-deletedChunk .cm-chunkButtons {
+  transition: right 0.04s ease-out, inset-inline-end 0.04s ease-out;
+  will-change: right, inset-inline-end;
 }
 ```
 
-每次 `getComputedStyle()` / `offsetWidth` / `getBoundingClientRect()` 都会强制浏览器**同步计算样式和布局**。在滚动期间（16.6ms/帧），多次强制布局导致帧时间超过 16.6ms，产生视觉抖动。
+当 `positionChunkButtons()` 通过 JS 设置新的 `right` 值时，CSS 过渡动画立即开始播放（即使按钮处于 `visibility: hidden` 状态）。按钮重新显示时，过渡尚未完成，产生幻影移动效果。
 
-### 垂直居中偏差根因：子像素累积误差
+**解决方案：** 移除 `transition` 和 `will-change` 属性。
 
-原公式 `top: 50% + margin-top: lineHeight/2 + transform: translateY(-50%)` 有三层堆叠，各层独立取整产生累积误差。
+### 2. 连续位置更新（resize 场景）
 
-## 方案选择
+面板/窗口 resize 时，`ResizeObserver` 持续触发 → `schedule()` → `sync()` → `positionChunkButtons()` 每帧更新按钮的 `right` 值。按钮"跟随"边缘线移动，看起来像滑动效果。
 
-排除了 CSS `position: sticky` 方案（无法在 scrollLeft=0 时固定在右边缘），选择**优化 RAF + 布局预读取**方案。
+**解决方案：** ResizeObserver 触发时立即隐藏按钮，resize 稳定后再显示。
 
-## 修改计划
+## 设计方案
 
-### 文件 1：`cmScrollLeftSync.ts`
+### 架构图
 
-#### 1.1 读写分离 — 消除 Layout Thrash
-
-将 `sync()` 重构为先读后写：
-
-```typescript
-private sync(): void {
-  // === 阶段 1：批量读取 ===
-  const scrollLeft = ...;
-  const allReads = this.batchReadLayout();
-
-  // === 阶段 2：批量写入 ===
-  this.writeCSSVariables(allReads);
-  this.updateOverflowClass(allReads);
-  this.positionChunkButtons(allReads);
-}
+```
+┌─────────────────────────────────────────────────────────┐
+│                  ScrollLeftSyncPlugin                    │
+│                                                         │
+│  ┌──────────────┐    ┌──────────────────────────────┐   │
+│  │ 水平滚动条拖拽 │    │     ResizeObserver + debounce │   │
+│  │              │    │                              │   │
+│  │ onThumbMD ──→│    │  RO 触发 → hide + start timer│   │
+│  │ hide buttons │    │  timer 到期 → show buttons   │   │
+│  │              │    │  (isPointerDown 时跳过)      │   │
+│  │ endDrag ────→│    │                              │   │
+│  │ show buttons │    │  pointerup → 立即 show       │   │
+│  └──────────────┘    └──────────────────────────────┘   │
+│                                                         │
+│  ┌──────────────────────────────────────────────────┐   │
+│  │               sync() 方法                         │   │
+│  │  - CSS 变量更新                                   │   │
+│  │  - syncOverflow()                                │   │
+│  │  - updateCustomScrollbar()                       │   │
+│  │  - positionChunkButtons() (resize 活跃时跳过)     │   │
+│  └──────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────┘
 ```
 
-`positionChunkButtons` 接收预读取的布局数据，用 `chunk.offsetLeft` + `chunk.offsetWidth`（缓存的布局属性）替代 `chunk.getBoundingClientRect()`（强制布局）。
+### 核心方法
 
-#### 1.2 缓存 latest scrollLeft
+#### `prepareAndShowChunkButtons(visibleWidth, scrollLeft)`
 
-RAF guard 仍保留（合帧），但滚动事件中始终记录最新 scrollLeft，在 RAF 回调中使用最新值：
+拖拽结束后调用，先定位后显示，确保按钮直接出现在正确位置。
 
-```typescript
-private handleScroll = (): void => {
-  this.pendingScrollLeft = this.view.scrollDOM.scrollLeft;
-  this.schedule();
-};
+#### `resetResizeDebounce()`
 
-private sync(): void {
-  const scrollLeft = this.pendingScrollLeft ?? this.view.scrollDOM.scrollLeft;
-  this.pendingScrollLeft = null;
-  // ...
-}
+ResizeObserver 回调中调用，启动/重置 100ms debounce timer。timer 到期时检查 `isDragging` 和 `isPointerDown`，均非活跃时定位并显示按钮。
+
+#### `onDocumentPointerUp()`
+
+用户松开鼠标时立即结束 debounce，定位并显示按钮。解决拖拽停顿后按钮不出现的问题。
+
+### 关键字段
+
+| 字段 | 类型 | 用途 |
+|------|------|------|
+| `resizeDebounceTimer` | `ReturnType<typeof setTimeout> \| null` | resize debounce 状态跟踪 |
+| `isPointerDown` | `boolean` | 指针按下状态，防止停顿期间误显示 |
+| `isDragging` | `boolean` | 水平滚动条拖拽状态 |
+
+### 生命周期
+
+```
+constructor()
+  ├── 注册 document pointerdown/pointerup 事件
+  ├── 创建自定义滚动条
+  ├── 注册 scroll/wheel 事件
+  └── 创建 ResizeObserver
+
+destroy()
+  ├── 移除 document pointerdown/pointerup 事件
+  ├── 清理 resizeDebounceTimer
+  ├── 移除 scroll/wheel 事件
+  ├── 销毁自定义滚动条
+  └── 断开 ResizeObserver
 ```
 
-#### 1.3 垂直居中公式简化
+## 变更文件清单
 
-`(lineHeight - btnHeight) / 2` 直接作为 `top`，移除 `translateY` 和 `margin-top`。
+| 文件 | 变更类型 | 说明 |
+|------|----------|------|
+| `frontend/src/styles/regions.css` | 修改 | 移除 transition 和 will-change |
+| `frontend/src/app/regions/right-panel/cmScrollLeftSync.ts` | 修改 | 新增 debounce、pointer 跟踪、prepareAndShow |
+| `frontend/src/app/regions/right-panel/cmPreviewStyling.test.ts` | 修改 | 更新测试断言 |
 
-### 文件 2：`regions.css`
+## 测试
 
-保持现有 `transition: right 0.04s ease-out, inset-inline-end 0.04s ease-out` 和 `will-change: right, inset-inline-end` 不变（已在上一轮添加）。
+- 单元测试 15 项全部通过
+- 类型检查无新增错误
 
-### 文件 3：`cmPreviewStyling.test.ts`
+## 相关文件
 
-更新断言以匹配重构后的代码引用。
-
-## 验证标准
-
-| 指标 | 目标 | 验证方式 |
-|------|------|---------|
-| 垂直居中偏差 | < 0.5px | 浏览器 `getBoundingClientRect()` 比较 |
-| 水平固定 | 任意 scrollLeft 下 btnRight 恒定 | 浏览器 `getBoundingClientRect()` 比较 |
-| 无 Layout Thrash | `sync()` 中无读写交叉 | 代码审查 |
-| 单元测试 | 所有测试通过 | `npm test` |
-
-## 风险与注意事项
-
-1. `chunk.offsetLeft` 是相对 `.cm-content` 的布局偏移，不需异步且不触发布局（在已布局的帧中）
-2. transition 0.04s 足够短不被感知，足够长覆盖帧间抖动
-3. 此方案仅修改现有文件，不涉及 DOM 结构调整，兼容 CM Merge 内部渲染
-4. `pendingScrollLeft` 确保 RAF 回调永远使用最新滚动位置，消除滞后
+- [plan 文档](../plans/2026-05-16-chunk-button-scroll-fix.md)
+- [cmScrollLeftSync.ts](../../../../frontend/src/app/regions/right-panel/cmScrollLeftSync.ts)
+- [regions.css](../../../../frontend/src/styles/regions.css)

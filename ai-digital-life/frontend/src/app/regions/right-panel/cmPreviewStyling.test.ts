@@ -152,7 +152,7 @@ describe("CodeMirror preview styling", () => {
 
   it("keeps side-by-side diffs on the shared MergeView scroll container with independent horizontal scroll", () => {
     expect(regionsCssSource).toContain(".adl-cm-diff-viewer--side-by-side .cm-mergeView .cm-scroller");
-    expect(extractCssBlock(regionsCssSource, ".adl-cm-diff-viewer--side-by-side .cm-mergeView .cm-scroller")).toContain("overflow: scroll !important;");
+    expect(extractCssBlock(regionsCssSource, ".adl-cm-diff-viewer--side-by-side .cm-mergeView .cm-scroller {\n")).toContain("overflow: auto !important;");
     expect(extractCssBlock(regionsCssSource, ".adl-cm-diff-viewer--side-by-side .cm-mergeView {\n")).toContain("overflow: visible;");
     expect(extractCssBlock(regionsCssSource, ".adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors {\n")).toContain("height: auto;");
   });
@@ -174,8 +174,6 @@ describe("CodeMirror preview styling", () => {
     expect(scrollLeftSyncSource).toContain("lineHeight");
     expect(scrollLeftSyncSource).toContain("chunkRect");
     expect(noWrapButtonsBlock).toContain("z-index: 20");
-    expect(noWrapButtonsBlock).toContain("transition");
-    expect(noWrapButtonsBlock).toContain("will-change");
     expect(deletedChunkBlock).toContain("position: relative");
   });
 
@@ -191,7 +189,7 @@ describe("CodeMirror preview styling", () => {
 
     expect(codeEditorSource).toContain("scrollLeftSyncExtension");
     expect(diffViewerSource).toContain("initScrollbarWidth");
-    expect(noWrapScrollerBlock).toContain("overflow-x: scroll !important;");
+    expect(noWrapScrollerBlock).toContain("overflow-x: hidden !important;");
     expect(noWrapScrollerBlock).toContain("padding-right: 0;");
     expect(regionsCssSource).toContain(
       ".adl-cm-no-word-wrap.adl-cm-editor-wrapper,\n.adl-cm-no-word-wrap.adl-cm-diff-viewer-wrapper {\n  padding-right: calc(var(--adl-editor-minimap-width, 84px) - var(--adl-scrollbar-width, 0px));",
