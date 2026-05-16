@@ -191,7 +191,7 @@ class ScrollLeftSyncPlugin implements PluginValue {
 
     const scrollDOM = this.view.scrollDOM;
     const contentDOM = this.view.contentDOM;
-    const contentWidth = contentDOM.offsetWidth;
+    const contentWidth = scrollDOM.scrollWidth;
     const visibleWidth = scrollDOM.clientWidth;
     if (contentWidth <= visibleWidth) return;
 
@@ -239,7 +239,7 @@ class ScrollLeftSyncPlugin implements PluginValue {
     dom.style.setProperty(VISIBLE_WIDTH_CSS_VAR, formatPx(visibleWidth));
     scrollDOM.style.setProperty(VISIBLE_WIDTH_CSS_VAR, formatPx(visibleWidth));
 
-    const contentWidth = contentDOM.offsetWidth;
+    const contentWidth = scrollDOM.scrollWidth;
     dom.style.setProperty(CONTENT_WIDTH_CSS_VAR, formatPx(contentWidth));
     scrollDOM.style.setProperty(CONTENT_WIDTH_CSS_VAR, formatPx(contentWidth));
 
@@ -249,7 +249,7 @@ class ScrollLeftSyncPlugin implements PluginValue {
     scrollDOM.style.setProperty(GUTTER_WIDTH_CSS_VAR, formatPx(gutterWidth));
   }
 
-  private syncOverflow(scrollDOM: HTMLElement, contentDOM: HTMLElement): void {
+  private syncOverflow(scrollDOM: HTMLElement): void {
     const wrapper = scrollDOM.closest(".adl-cm-editor-wrapper, .adl-cm-diff-viewer-wrapper");
     const isNoWordWrap = wrapper?.classList.contains("adl-cm-no-word-wrap");
 
@@ -262,9 +262,9 @@ class ScrollLeftSyncPlugin implements PluginValue {
     const scrollerStyle = getComputedStyle(scrollDOM);
     const paddingRight = parseFloat(scrollerStyle.paddingRight) || 0;
     const visibleWidth = scrollDOM.clientWidth - paddingRight;
-    const contentWidth = contentDOM.offsetWidth;
+    const scrollWidth = scrollDOM.scrollWidth;
 
-    const hasHorizontalOverflow = contentWidth > visibleWidth;
+    const hasHorizontalOverflow = scrollWidth > visibleWidth;
     if (hasHorizontalOverflow) {
       scrollDOM.classList.remove(NO_HSCROLL_CLASS);
       scrollDOM.style.removeProperty("overflow-x");
@@ -420,7 +420,6 @@ class ScrollLeftSyncPlugin implements PluginValue {
 
   private sync(): void {
     const scrollDOM = this.view.scrollDOM;
-    const contentDOM = this.view.contentDOM;
     const dom = this.view.dom;
 
     const scrollLeft = scrollDOM.scrollLeft;
@@ -433,7 +432,7 @@ class ScrollLeftSyncPlugin implements PluginValue {
     dom.style.setProperty(VISIBLE_WIDTH_CSS_VAR, formatPx(visibleWidth));
     scrollDOM.style.setProperty(VISIBLE_WIDTH_CSS_VAR, formatPx(visibleWidth));
 
-    const contentWidth = contentDOM.offsetWidth;
+    const contentWidth = scrollDOM.scrollWidth;
     dom.style.setProperty(CONTENT_WIDTH_CSS_VAR, formatPx(contentWidth));
     scrollDOM.style.setProperty(CONTENT_WIDTH_CSS_VAR, formatPx(contentWidth));
 
@@ -442,7 +441,7 @@ class ScrollLeftSyncPlugin implements PluginValue {
     dom.style.setProperty(GUTTER_WIDTH_CSS_VAR, formatPx(gutterWidth));
     scrollDOM.style.setProperty(GUTTER_WIDTH_CSS_VAR, formatPx(gutterWidth));
 
-    this.syncOverflow(scrollDOM, contentDOM);
+    this.syncOverflow(scrollDOM);
     this.updateCustomScrollbar();
 
     if (!this.resizeDebounceTimer) {
