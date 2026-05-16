@@ -4433,6 +4433,8 @@ select:focus-visible {
 .adl-tool-editor {
   --adl-editor-minimap-width: 84px;
   --adl-editor-scroll-left: 0px;
+  --adl-editor-visible-width: 0px;
+  --adl-editor-content-width: 0px;
   flex: 1;
   min-width: 0;
   min-height: 0;
@@ -4673,35 +4675,58 @@ select:focus-visible {
 /* Word wrap ON: CodeMirror's cm-lineWrapping class handles wrapping.
    .cm-editor { overflow: hidden } contains everything. */
 
-/* Word wrap OFF — two-stage width architecture:
-   Stage 1: .cm-scroller { overflow-x: auto } lets horizontal scrollbars appear.
-   Stage 2: .cm-content { flex: 0 0 max-content } overrides CodeMirror's
-   flex-grow:2 so .cm-content shrink-wraps to its longest visible line.
-   .cm-line { width:100%; box-sizing:border-box } forces every line to fill
-   .cm-content uniformly, giving all lines identical background width.
-   When a wider line scrolls into the DOM, .cm-content recalculates
-   max-content and .cm-line { width:100% } reflows automatically. */
-.adl-cm-no-word-wrap .adl-cm-diff-viewer .cm-scroller {
+/* Word wrap OFF: the scroller still reserves the same right rail as wrapped
+   editors. Horizontal overflow should come only from text wider than that
+   visible content area, not from line/background padding. */
+.adl-cm-no-word-wrap .adl-cm-diff-viewer .cm-scroller,
+.adl-cm-no-word-wrap .adl-cm-editor .cm-scroller {
   overflow-x: auto;
-  padding-right: 0;
+  padding-right: calc(var(--adl-editor-minimap-width, 84px) - var(--adl-scrollbar-width, 0px));
 }
 
-.adl-cm-no-word-wrap .adl-cm-diff-viewer .cm-content {
-  flex: 0 0 max-content !important;
-  min-width: 100%;
-  max-width: none;
+/* Override CodeMirror's built-in white-space:break-spaces (which allows
+   wrapping at space boundaries even without lineWrapping). Using pre
+   lets .cm-line (display:block) overflow .cm-content naturally when
+   text is wider than the flex-allocated width, triggering the scroller
+   scrollbar. min-width:max-content ensures diff backgrounds (block-level
+   and line-level) extend to the full line width. overflow:visible ensures
+   absolutely-positioned chunk buttons (positioned relative to .cm-content)
+   are never clipped by the content element itself. width:auto and
+   max-width:none override the general .cm-content { width:100%; max-width:100% }
+   rule so the content box is purely sized by max-content, eliminating any
+   gap between the background edge and the right edge of the scrollable area. */
+.adl-cm-no-word-wrap .adl-cm-diff-viewer .cm-content,
+.adl-cm-no-word-wrap .adl-cm-editor .cm-content {
+  white-space: pre !important;
+  min-width: max-content;
+  width: auto !important;
+  max-width: none !important;
+  overflow: visible;
 }
 
-.adl-cm-no-word-wrap .adl-cm-diff-viewer .cm-line {
-  width: 100%;
-  box-sizing: border-box;
-  padding-right: calc(var(--space-3) + var(--adl-editor-minimap-width, 84px) + var(--space-2, 8px));
+/* .cm-line fills .cm-content width (display:block default) — no
+   width/min-width override so no false scrollbar is introduced. */
+.adl-cm-no-word-wrap .adl-cm-diff-viewer .cm-line,
+.adl-cm-no-word-wrap .adl-cm-editor .cm-line {
+  /* no width override — block elements naturally fill parent */
 }
 
-/* Side-by-side: individual panes have padding-right:0 (no minmap overlay).
-   .cm-line only needs standard right padding plus breathing room. */
+/* Side-by-side: no special padding needed. */
 .adl-cm-no-word-wrap .adl-cm-diff-viewer--side-by-side .cm-line {
-  padding-right: calc(var(--space-3) + var(--space-2, 8px));
+  /* no extra rules needed */
+}
+
+/* No-wrap inline mode: keep .cm-deletedChunk as the positioning context
+   for .cm-chunkButtons. overflow:visible ensures buttons are never clipped
+   by .cm-content. z-index must exceed the minimap overlay (z-index:10). */
+.adl-cm-no-word-wrap .adl-cm-diff-viewer--inline .cm-deletedChunk {
+  position: relative;
+}
+
+.adl-cm-no-word-wrap .adl-cm-diff-viewer--inline .cm-deletedChunk .cm-chunkButtons {
+  z-index: 20;
+  transition: right 0.04s ease-out, inset-inline-end 0.04s ease-out;
+  will-change: right, inset-inline-end;
 }
 
 /* Merge gutter shows +/- indicators for changed lines */
@@ -4847,7 +4872,8 @@ select:focus-visible {
   height: 0;
 }
 
-.adl-cm-scroller--minimap-scrollbar {
+.adl-cm-editor .adl-cm-scroller--minimap-scrollbar,
+.adl-cm-diff-viewer .adl-cm-scroller--minimap-scrollbar {
   scrollbar-width: none;
 }
 
@@ -4863,6 +4889,14 @@ select:focus-visible {
 
 .adl-cm-no-word-wrap .adl-cm-diff-viewer--side-by-side .cm-mergeView.adl-cm-scroller--minimap-scrollbar .cm-scroller {
   scrollbar-width: thin !important;
+}
+
+.adl-cm-scroller--no-hscroll {
+  overflow-x: hidden !important;
+}
+
+.adl-cm-scroller--no-hscroll::-webkit-scrollbar {
+  height: 0;
 }
 
 .adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-editor .cm-scroller,
@@ -5071,6 +5105,14 @@ select:focus-visible {
 
 .adl-cm-diff-viewer--side-by-side .cm-mergeView .cm-scroller {
   overflow: auto !important;
+}
+
+.adl-cm-diff-viewer--side-by-side .cm-mergeView .cm-scroller.adl-cm-scroller--no-hscroll {
+  overflow-x: hidden !important;
+}
+
+.adl-cm-diff-viewer--side-by-side .cm-mergeView .cm-scroller.adl-cm-scroller--no-hscroll::-webkit-scrollbar {
+  height: 0;
 }
 
 .adl-cm-diff-viewer .cm-mergeViewEditors {

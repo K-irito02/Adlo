@@ -13,6 +13,7 @@ import { getThemeExtension, rebuildThemes, getPhrasesExtension } from "./cmTheme
 import { getLanguageExtension } from "./cmLanguages";
 import { createFoldGutterExtension } from "./cmFoldGutter";
 import { FoldTooltipOverlay } from "./FoldTooltipOverlay";
+import { scrollLeftSyncExtension } from "./cmScrollLeftSync";
 
 export type CodeEditorProps = {
   value: string;
@@ -101,6 +102,7 @@ export function CodeEditor({
       keymap.of(closeBracketsKeymap),
       foldGutterCompartment.of(gutterEnabled ? createFoldGutterExtension() : []),
       wordWrapCompartment.of(wordWrap ? EditorView.lineWrapping : []),
+      scrollLeftSyncExtension,
       EditorState.readOnly.of(readOnly),
       ...getLanguageExtension(language),
       getPhrasesExtension(locale || "en-US"),
@@ -153,7 +155,10 @@ export function CodeEditor({
   }, [lineNumbersEnabled, wordWrap]);
 
   return (
-    <div className="adl-cm-editor-wrapper" style={{ position: "relative", width: "100%", height: "100%" }}>
+    <div
+      className={`adl-cm-editor-wrapper${wordWrap ? " adl-cm-word-wrap" : " adl-cm-no-word-wrap"}`}
+      style={{ position: "relative", width: "100%", height: "100%" }}
+    >
       <CodeMirror
         value={value}
         extensions={allExtensions}

@@ -5,6 +5,38 @@
 
 ---
 
+## 11. 文件树/变更树的交互挑战
+
+通过 agent-browser 操作文件树或变更树打开文件时，遇到以下问题：
+
+| 问题 | 说明 |
+|------|------|
+| 单击无法打开 | 文件树可能使用 `dblclick` 或特定事件处理，`find role button click` 不触发打开动作 |
+| 树自动折叠 | 操作过程中树节点可能自动折叠，需要重新展开 |
+| ref 频繁变化 | 树结构变化后所有 ref 编号重置，无法缓存 |
+| `querySelector` 无法定位 | `ref=eXX` 是 agent-browser 虚拟引用，不是真实 HTML 属性，不能用于 CSS 选择器 |
+
+**对策**：
+- 优先使用 `find role treeitem click --name "文件名"` 尝试打开文件
+- 如不生效，使用 `eval` 通过 `document.evaluate(XPath)` 或 `Array.from().find()` 定位元素
+- 每次操作后重新 `snapshot -i` 获取最新 ref
+- 展开树节点时使用 `Array.from().find(el => el.textContent.includes('名称'))` 配合 `dispatchEvent(new MouseEvent('click', {bubbles: true}))`
+
+---
+
+## 12. CSS 级联与内联样式的优先级
+
+`scrollbar-width: none` 通过 JS `style.setProperty()` 设置为内联样式时，优先级高于所有 CSS 规则（包括 `!important`）。这会导致：
+- 水平滚动条也被隐藏（`scrollbar-width` 同时控制垂直和水平）
+- CSS 中的 `!important` 规则无法覆盖
+
+**对策**：
+- 避免使用 JS 内联样式控制滚动条可见性，使用 CSS class 替代
+- 注意 CSS 选择器 specificity：`.a .b` (0,2,0) 高于 `.b` (0,1,0)
+- 使用 `overflow-x: auto` + `overflow-y: scroll` 独立控制各轴
+
+---
+
 ## 1. 脚本方案 vs Agent 逐步执行
 
 | 维度 | Agent 逐步执行 | 一键脚本 |

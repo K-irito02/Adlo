@@ -43,7 +43,7 @@ ai-digital-life/
 | `app/components/` | React 组件（含 Tooltip、TooltipSimple） |
 | `app/hooks/` | 自定义 Hooks（含 useTooltip） |
 | `app/utils/` | 纯函数（含 tooltipPosition 定位逻辑） |
-| `app/regions/right-panel/` | 右侧面板组件（含 FoldTooltipOverlay、cmFoldGutter） |
+| `app/regions/right-panel/` | 右侧面板组件（含 FoldTooltipOverlay、cmFoldGutter、cmMinimap、scrollbarWidth） |
 
 ## 索引策略
 

@@ -22,6 +22,10 @@ import {
   computePreviewDiffMinimapModel,
   type PreviewDiffCollapsedRange,
 } from "./changePreviewDiffRanges";
+import { scrollLeftSyncExtension } from "./cmScrollLeftSync";
+import { initScrollbarWidth } from "./scrollbarWidth";
+
+initScrollbarWidth();
 
 export type DiffViewerProps = {
   original: string;
@@ -139,6 +143,7 @@ function buildSharedExtensions(
     keymap.of(closeBracketsKeymap),
     foldGutterCompartment.of(gutterEnabled ? createFoldGutterExtension() : []),
     wordWrapCompartment.of(wordWrap ? EditorView.lineWrapping : []),
+    scrollLeftSyncExtension,
     EditorState.readOnly.of(readOnly),
     themeCompartment.of(getThemeExtension(theme)),
     langCompartment.of(getLanguageExtension(language)),

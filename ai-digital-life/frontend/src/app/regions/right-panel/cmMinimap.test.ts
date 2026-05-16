@@ -363,9 +363,9 @@ describe("cm minimap settings", () => {
     expect(cmMinimapSource).toContain('this.findSurfaceHost()?.style.setProperty("--adl-editor-minimap-width", `${width}px`)');
   });
 
-  it("continues hiding native scrollbars when the app-owned standard rail is active", () => {
-    expect(cmMinimapSource).toContain('this.scrollElement.style.setProperty("scrollbar-width", "none");');
-    expect(cmMinimapSource).not.toContain('this.scrollElement.style.removeProperty("scrollbar-width");');
+  it("hides native scrollbars via CSS class when the minimap is active", () => {
+    expect(cmMinimapSource).not.toContain('this.scrollElement.style.setProperty("scrollbar-width", "none");');
+    expect(cmMinimapSource).toContain('this.scrollElement.classList.add("adl-cm-scroller--minimap-scrollbar");');
   });
 
   it("renders the checkmark in a fixed trailing slot instead of prefixing the label", () => {

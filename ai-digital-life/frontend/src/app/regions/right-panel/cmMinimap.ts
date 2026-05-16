@@ -1115,7 +1115,6 @@ class MinimapPlugin implements PluginValue {
   private updateScrollbarStyle() {
     this.dom.style.display = "";
     this.scrollElement.classList.add("adl-cm-scroller--minimap-scrollbar");
-    this.scrollElement.style.setProperty("scrollbar-width", "none");
     this.applyModeClasses();
     this.syncFrameToHost();
   }
