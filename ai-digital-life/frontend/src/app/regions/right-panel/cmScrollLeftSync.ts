@@ -112,11 +112,10 @@ class ScrollLeftSyncPlugin implements PluginValue {
   private cacheDragLayout(): void {
     if (!this.hscrollEl || !this.hscrollThumb) return;
     const scrollDOM = this.view.scrollDOM;
-    const contentDOM = this.view.contentDOM;
     const trackRect = this.hscrollEl.getBoundingClientRect();
     this.dragTrackLeft = trackRect.left;
     this.dragTrackWidth = trackRect.width;
-    this.dragContentWidth = contentDOM.offsetWidth;
+    this.dragContentWidth = scrollDOM.scrollWidth;
     this.dragVisibleWidth = scrollDOM.clientWidth;
     this.dragThumbWidth = parseFloat(this.hscrollThumb.style.width) || 30;
     this.dragMaxScrollLeft = Math.max(0, this.dragContentWidth - this.dragVisibleWidth);
@@ -178,10 +177,9 @@ class ScrollLeftSyncPlugin implements PluginValue {
     const trackRect = this.hscrollEl.getBoundingClientRect();
     const clickX = e.clientX - trackRect.left;
     const scrollDOM = this.view.scrollDOM;
-    const contentDOM = this.view.contentDOM;
-    const contentWidth = contentDOM.offsetWidth;
+    const scrollWidth = scrollDOM.scrollWidth;
     const visibleWidth = scrollDOM.clientWidth;
-    const maxScrollLeft = Math.max(0, contentWidth - visibleWidth);
+    const maxScrollLeft = Math.max(0, scrollWidth - visibleWidth);
     const ratio = clickX / trackRect.width;
     scrollDOM.scrollLeft = ratio * maxScrollLeft;
   }
@@ -280,7 +278,6 @@ class ScrollLeftSyncPlugin implements PluginValue {
     if (!this.hscrollEl || !this.hscrollThumb) return;
 
     const scrollDOM = this.view.scrollDOM;
-    const contentDOM = this.view.contentDOM;
 
     const wrapper = scrollDOM.closest(".adl-cm-editor-wrapper, .adl-cm-diff-viewer-wrapper");
     const isNoWordWrap = wrapper?.classList.contains("adl-cm-no-word-wrap");
@@ -290,11 +287,11 @@ class ScrollLeftSyncPlugin implements PluginValue {
       return;
     }
 
-    const contentWidth = contentDOM.offsetWidth;
+    const scrollWidth = scrollDOM.scrollWidth;
     const visibleWidth = scrollDOM.clientWidth;
     const scrollLeft = scrollDOM.scrollLeft;
 
-    const hasOverflow = contentWidth > visibleWidth;
+    const hasOverflow = scrollWidth > visibleWidth;
     if (!hasOverflow) {
       this.hscrollEl.classList.remove(HSCROLL_VISIBLE_CLASS);
       return;
@@ -302,11 +299,14 @@ class ScrollLeftSyncPlugin implements PluginValue {
 
     this.hscrollEl.classList.add(HSCROLL_VISIBLE_CLASS);
 
+    const scrollbarWidth = scrollDOM.offsetWidth - scrollDOM.clientWidth;
+    this.hscrollEl.style.right = `${scrollbarWidth}px`;
+
     const trackWidth = this.hscrollEl.offsetWidth;
     if (trackWidth <= 0) return;
 
-    const maxScrollLeft = Math.max(0, contentWidth - visibleWidth);
-    const thumbWidth = Math.max(30, (visibleWidth / contentWidth) * trackWidth);
+    const maxScrollLeft = Math.max(0, scrollWidth - visibleWidth);
+    const thumbWidth = Math.max(30, (visibleWidth / scrollWidth) * trackWidth);
     const maxThumbLeft = trackWidth - thumbWidth;
     const thumbLeft = maxThumbLeft > 0 ? (scrollLeft / maxScrollLeft) * maxThumbLeft : 0;
 
