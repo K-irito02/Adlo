@@ -5171,10 +5171,8 @@ select:focus-visible {
   pointer-events: auto;
 }
 
-.adl-cm-editor-wrapper[data-fold-marker-state="hidden"] .cm-foldGutter:hover .adl-cm-fold-marker,
-.adl-cm-diff-viewer-wrapper[data-fold-marker-state="hidden"] .cm-foldGutter:hover .adl-cm-fold-marker,
-.adl-cm-editor-wrapper[data-fold-marker-state="visible"] .cm-foldGutter:hover .adl-cm-fold-marker,
-.adl-cm-diff-viewer-wrapper[data-fold-marker-state="visible"] .cm-foldGutter:hover .adl-cm-fold-marker {
+.adl-cm-editor-wrapper .cm-foldGutter:hover .adl-cm-fold-marker,
+.adl-cm-diff-viewer-wrapper .cm-foldGutter:hover .adl-cm-fold-marker {
   opacity: 0.6;
   pointer-events: auto;
 }
