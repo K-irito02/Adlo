@@ -742,8 +742,6 @@ export function FilesPanel(props: RightPanelViewProps) {
     stickyContextKeyRef.current = nextContextKey;
 
     setStickyContextModel(createStickyContextModel({
-      contextEntries,
-      activeLine: visibleStartLine,
       canScrollToTop: scrollTop > 0,
       onNavigateLine: (line) => navigateToLine(getStickySourceEditor(), line),
       topLabel: t.stickyContextTop

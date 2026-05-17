@@ -3,8 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildStickyContextEntries,
   createStickyContextModel,
-  resolveStickyContextRowCount,
-  type StickyContextEntry
+  resolveStickyContextRowCount
 } from "./stickyContext";
 
 describe("stickyContext helpers", () => {
@@ -82,43 +81,26 @@ describe("stickyContext helpers", () => {
 
   it("creates a model whose navigation delegates to the provided line callback", () => {
     const visited: number[] = [];
-    const contextEntries: StickyContextEntry[] = [
-      {
-        id: "line-4",
-        label: "buildModel",
-        detail: "L4",
-        line: 4,
-        kind: "function",
-        tone: "modified"
-      }
-    ];
 
     const model = createStickyContextModel({
-      contextEntries,
-      activeLine: 4,
       canScrollToTop: true,
       onNavigateLine: (line) => visited.push(line)
     });
 
     model.scrollToTop();
-    model.scrollToEntry("line-4");
 
     expect(model.topEntry.kind).toBe("top");
     expect(model.showTopEntry).toBe(true);
-    expect(model.activeEntryId).toBe("line-4");
-    expect(visited).toEqual([1, 4]);
+    expect(visited).toEqual([1]);
   });
 
   it("hides the top row when the first real file line is already visible", () => {
     const model = createStickyContextModel({
-      contextEntries: [],
-      activeLine: 1,
       canScrollToTop: false,
       onNavigateLine: () => undefined
     });
 
     expect(model.showTopEntry).toBe(false);
-    expect(model.rowCount).toBe(0);
   });
 });
 

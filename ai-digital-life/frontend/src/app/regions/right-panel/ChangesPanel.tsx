@@ -415,8 +415,6 @@ export function ChangesPanel(props: RightPanelViewProps) {
     });
 
     setStickyContextModel(createStickyContextModel({
-      contextEntries,
-      activeLine: visibleStartLine,
       canScrollToTop: scrollTop > 0,
       onNavigateLine: (line) => navigateToLine(getModifiedEditor(), line),
       topLabel: t.stickyContextTop

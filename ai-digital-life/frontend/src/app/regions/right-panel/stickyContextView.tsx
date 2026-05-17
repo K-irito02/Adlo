@@ -12,10 +12,6 @@ type StickyContextProps = {
 };
 
 export function StickyContext(props: StickyContextProps) {
-  if (!props.model.showTopEntry) {
-    return null;
-  }
-
   const [isVisible, setIsVisible] = useState(true);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isHoveringRef = useRef(false);
@@ -37,12 +33,12 @@ export function StickyContext(props: StickyContextProps) {
     }, AUTO_HIDE_MS);
   }, [clearHideTimer]);
 
-  // Reset visibility + timer on every model update
   useEffect(() => {
+    if (!props.model.showTopEntry) return;
     setIsVisible(true);
     startHideTimer();
     return clearHideTimer;
-  }, [props.model.modelId, startHideTimer, clearHideTimer]);
+  }, [props.model.showTopEntry, props.model.modelId, startHideTimer, clearHideTimer]);
 
   const handleMouseEnter = useCallback(() => {
     isHoveringRef.current = true;
@@ -55,6 +51,10 @@ export function StickyContext(props: StickyContextProps) {
       startHideTimer();
     }
   }, [isVisible, startHideTimer]);
+
+  if (!props.model.showTopEntry) {
+    return null;
+  }
 
   const topEntry = props.model.topEntry;
 

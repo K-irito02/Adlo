@@ -22,13 +22,9 @@ export interface StickyContextEntry {
 export interface StickyContextModel {
   modelId: string;
   topEntry: StickyContextEntry;
-  contextEntries: StickyContextEntry[];
-  activeEntryId: string;
   canScrollToTop: boolean;
   showTopEntry: boolean;
-  rowCount: number;
   scrollToTop: () => void;
-  scrollToEntry: (entryId: string) => void;
 }
 
 export interface StickyContextProvider {
@@ -44,8 +40,6 @@ type BuildStickyContextEntriesInput = {
 };
 
 type CreateStickyContextModelInput = {
-  contextEntries: StickyContextEntry[];
-  activeLine: number;
   canScrollToTop: boolean;
   onNavigateLine: (line: number) => void;
   topLabel?: string;
@@ -174,26 +168,12 @@ export function createStickyContextModel(input: CreateStickyContextModelInput): 
     tone: "top"
   };
 
-  const activeEntry =
-    [...input.contextEntries].reverse().find((entry) => entry.line <= input.activeLine) ?? topEntry;
-  const showTopEntry = input.canScrollToTop;
-
   return {
     modelId: `${Date.now()}-${Math.random()}`,
     topEntry,
-    contextEntries: input.contextEntries,
-    activeEntryId: activeEntry.id,
     canScrollToTop: input.canScrollToTop,
-    showTopEntry,
-    rowCount: resolveStickyContextRowCount(input.contextEntries, showTopEntry),
-    scrollToTop: () => input.onNavigateLine(1),
-    scrollToEntry: (entryId: string) => {
-      const entry = input.contextEntries.find((candidate) => candidate.id === entryId);
-      if (!entry) {
-        return;
-      }
-      input.onNavigateLine(entry.line);
-    }
+    showTopEntry: input.canScrollToTop,
+    scrollToTop: () => input.onNavigateLine(1)
   };
 }
 
