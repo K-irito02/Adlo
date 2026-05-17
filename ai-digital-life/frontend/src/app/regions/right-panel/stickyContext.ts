@@ -20,6 +20,7 @@ export interface StickyContextEntry {
 }
 
 export interface StickyContextModel {
+  modelId: string;
   topEntry: StickyContextEntry;
   contextEntries: StickyContextEntry[];
   activeEntryId: string;
@@ -178,6 +179,7 @@ export function createStickyContextModel(input: CreateStickyContextModelInput): 
   const showTopEntry = input.canScrollToTop;
 
   return {
+    modelId: `${Date.now()}-${Math.random()}`,
     topEntry,
     contextEntries: input.contextEntries,
     activeEntryId: activeEntry.id,

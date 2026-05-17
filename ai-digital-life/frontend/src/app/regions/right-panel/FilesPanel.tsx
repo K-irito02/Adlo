@@ -722,6 +722,7 @@ export function FilesPanel(props: RightPanelViewProps) {
 
     const editor = getStickySourceEditor();
     const visibleStartLine = getVisibleStartLine(editor) ?? editor?.getSelection?.()?.startLineNumber ?? 1;
+    const scrollTop = editor?.getScrollTop() ?? 0;
     const content = filePatch && filePatch.relativePath === selectedFilePath
       ? filePatch.afterContent
       : fileContent ?? "";
@@ -743,7 +744,7 @@ export function FilesPanel(props: RightPanelViewProps) {
     setStickyContextModel(createStickyContextModel({
       contextEntries,
       activeLine: visibleStartLine,
-      canScrollToTop: visibleStartLine > 1,
+      canScrollToTop: scrollTop > 0,
       onNavigateLine: (line) => navigateToLine(getStickySourceEditor(), line),
       topLabel: t.stickyContextTop
     }));

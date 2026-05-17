@@ -584,6 +584,8 @@ class MinimapPlugin implements PluginValue {
     const wrapperCleanup = this.scrollElement?.closest<HTMLElement>(".adl-cm-diff-viewer-wrapper, .adl-cm-editor-wrapper");
     if (wrapperCleanup) {
       wrapperCleanup.style.removeProperty("--adl-editor-minimap-width");
+      const surfaceCleanup = wrapperCleanup.closest<HTMLElement>(".adl-tool-editor__surface");
+      surfaceCleanup?.style.removeProperty("--adl-editor-minimap-width");
     }
     this.resizeObserver?.disconnect();
     this.resizeObserver = null;
@@ -866,6 +868,12 @@ class MinimapPlugin implements PluginValue {
 
     if (wrapper) {
       wrapper.style.setProperty("--adl-editor-minimap-width", `${width}px`);
+
+      // Also set on the surface element so siblings (e.g. sticky-context) can inherit it.
+      const surfaceEl = wrapper.closest<HTMLElement>(".adl-tool-editor__surface");
+      if (surfaceEl) {
+        surfaceEl.style.setProperty("--adl-editor-minimap-width", `${width}px`);
+      }
 
       // No-word-wrap: scroller has padding-right:0 in CSS, so Accept/Reject buttons
       // (position:absolute inside the scroller) never move. Override scroller padding

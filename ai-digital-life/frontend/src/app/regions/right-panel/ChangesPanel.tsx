@@ -405,6 +405,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
 
     const editor = getModifiedEditor();
     const visibleStartLine = getVisibleStartLine(editor);
+    const scrollTop = editor?.getScrollTop() ?? 0;
     const contextEntries = buildStickyContextEntries({
       content: changePreview.currentContent,
       outline: changeOutline,
@@ -416,7 +417,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
     setStickyContextModel(createStickyContextModel({
       contextEntries,
       activeLine: visibleStartLine,
-      canScrollToTop: visibleStartLine > 1,
+      canScrollToTop: scrollTop > 0,
       onNavigateLine: (line) => navigateToLine(getModifiedEditor(), line),
       topLabel: t.stickyContextTop
     }));
