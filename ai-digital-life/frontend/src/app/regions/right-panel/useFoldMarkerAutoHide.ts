@@ -9,6 +9,22 @@ function findGutters(container: HTMLElement): HTMLElement[] {
   return Array.from(container.querySelectorAll(".cm-foldGutter"));
 }
 
+function bindGutterListeners(
+  gutters: HTMLElement[],
+  handlers: { onEnter: () => void; onLeave: () => void },
+): () => void {
+  for (const gutter of gutters) {
+    gutter.addEventListener("mouseenter", handlers.onEnter);
+    gutter.addEventListener("mouseleave", handlers.onLeave);
+  }
+  return () => {
+    for (const gutter of gutters) {
+      gutter.removeEventListener("mouseenter", handlers.onEnter);
+      gutter.removeEventListener("mouseleave", handlers.onLeave);
+    }
+  };
+}
+
 export function useFoldMarkerAutoHide(
   containerEl: HTMLElement | null,
   fileKey: string,
@@ -17,6 +33,7 @@ export function useFoldMarkerAutoHide(
   const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hideDelayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isHoveringRef = useRef(false);
+  const cleanupRef = useRef<(() => void) | null>(null);
 
   const clearTimers = useCallback(() => {
     if (revealTimerRef.current !== null) {
@@ -60,28 +77,39 @@ export function useFoldMarkerAutoHide(
   useEffect(() => {
     if (!containerEl) return;
 
-    const gutters = findGutters(containerEl);
-    if (gutters.length === 0) return;
-
-    const handleMouseEnter = () => {
-      isHoveringRef.current = true;
-      show();
+    const handlers = {
+      onEnter: () => {
+        isHoveringRef.current = true;
+        show();
+      },
+      onLeave: () => {
+        isHoveringRef.current = false;
+        scheduleHide();
+      },
     };
 
-    const handleMouseLeave = () => {
-      isHoveringRef.current = false;
-      scheduleHide();
+    const tryBind = (): boolean => {
+      const gutters = findGutters(containerEl!);
+      if (gutters.length === 0) return false;
+      cleanupRef.current = bindGutterListeners(gutters, handlers);
+      return true;
     };
 
-    for (const gutter of gutters) {
-      gutter.addEventListener("mouseenter", handleMouseEnter);
-      gutter.addEventListener("mouseleave", handleMouseLeave);
-    }
+    if (tryBind()) return cleanupRef.current!;
+
+    const observer = new MutationObserver(() => {
+      if (tryBind()) {
+        observer.disconnect();
+      }
+    });
+
+    observer.observe(containerEl, { childList: true, subtree: true });
 
     return () => {
-      for (const gutter of gutters) {
-        gutter.removeEventListener("mouseenter", handleMouseEnter);
-        gutter.removeEventListener("mouseleave", handleMouseLeave);
+      observer.disconnect();
+      if (cleanupRef.current) {
+        cleanupRef.current();
+        cleanupRef.current = null;
       }
     };
   }, [containerEl, fileKey, show, scheduleHide]);
