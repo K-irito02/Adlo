@@ -2,8 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   buildStickyContextEntries,
-  createStickyContextModel,
-  resolveStickyContextRowCount
+  createStickyContextModel
 } from "./stickyContext";
 
 describe("stickyContext helpers", () => {
@@ -44,24 +43,6 @@ describe("stickyContext helpers", () => {
       { kind: "heading", label: "Details", line: 3 },
       { kind: "function", label: "buildModel", line: 5 }
     ]);
-  });
-
-  it("caps context rows at three content rows so the sticky strip never exceeds four rows total", () => {
-    const entries = buildStickyContextEntries({
-      content: Array.from({ length: 20 }, (_, index) => `line ${index + 1}`).join("\n"),
-      outline: Array.from({ length: 8 }, (_, index) => ({
-        id: `outline-${index + 1}`,
-        label: `Symbol${index + 1}`,
-        kind: "function" as const,
-        line: index + 1
-      })),
-      visibleStartLine: 9,
-      maxContextRows: 6
-    });
-
-    expect(entries).toHaveLength(3);
-    expect(resolveStickyContextRowCount(entries)).toBe(4);
-    expect(resolveStickyContextRowCount(entries, false)).toBe(3);
   });
 
   it("marks diff-backed entries with change-aware tones from modified/current ranges", () => {

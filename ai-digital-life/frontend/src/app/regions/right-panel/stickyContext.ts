@@ -154,10 +154,6 @@ export function buildStickyContextEntries(input: BuildStickyContextEntriesInput)
   return buildFallbackLineEntries(input, lines, maxContextRows);
 }
 
-export function resolveStickyContextRowCount(entries: StickyContextEntry[], includeTopEntry = true): number {
-  return Math.min(MAX_STICKY_CONTEXT_ROWS, entries.length) + (includeTopEntry ? 1 : 0);
-}
-
 export function createStickyContextModel(input: CreateStickyContextModelInput): StickyContextModel {
   const topEntry: StickyContextEntry = {
     id: TOP_ENTRY_ID,
