@@ -14,6 +14,7 @@ import { getLanguageExtension } from "./cmLanguages";
 import { createFoldGutterExtension } from "./cmFoldGutter";
 import { FoldTooltipOverlay } from "./FoldTooltipOverlay";
 import { scrollLeftSyncExtension } from "./cmScrollLeftSync";
+import { useFoldMarkerAutoHide } from "./useFoldMarkerAutoHide";
 
 export type CodeEditorProps = {
   value: string;
@@ -23,6 +24,7 @@ export type CodeEditorProps = {
   readOnly?: boolean;
   lineNumbers?: boolean;
   wordWrap?: boolean;
+  fileKey?: string;
   onChange?: (value: string) => void;
   onMount?: (editor: EditorRef) => void;
   extensions?: Extension[];
@@ -80,6 +82,7 @@ export function CodeEditor({
   readOnly = false,
   lineNumbers: lineNumbersEnabled = true,
   wordWrap = false,
+  fileKey,
   onChange,
   onMount,
   extensions: extraExtensions = [],
@@ -87,6 +90,9 @@ export function CodeEditor({
   const viewRef = useRef<EditorView | null>(null);
   const mountedRef = useRef(false);
   const [editorView, setEditorView] = useState<EditorView | null>(null);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+
+  const foldMarkerState = useFoldMarkerAutoHide(wrapperRef.current, fileKey ?? value);
 
   const baseExtensions = useMemo<Extension[]>(() => {
     const gutterEnabled = lineNumbersEnabled;
@@ -156,7 +162,9 @@ export function CodeEditor({
 
   return (
     <div
+      ref={wrapperRef}
       className={`adl-cm-editor-wrapper${wordWrap ? " adl-cm-word-wrap" : " adl-cm-no-word-wrap"}`}
+      data-fold-marker-state={foldMarkerState}
       style={{ position: "relative", width: "100%", height: "100%" }}
     >
       <CodeMirror

@@ -24,6 +24,7 @@ import {
 } from "./changePreviewDiffRanges";
 import { scrollLeftSyncExtension } from "./cmScrollLeftSync";
 import { initScrollbarWidth } from "./scrollbarWidth";
+import { useFoldMarkerAutoHide } from "./useFoldMarkerAutoHide";
 
 initScrollbarWidth();
 
@@ -38,6 +39,7 @@ export type DiffViewerProps = {
   readOnly?: boolean;
   lineNumbers?: boolean;
   wordWrap?: boolean;
+  fileKey?: string;
   onMount?: (editor: DiffEditorRef | EditorRef) => void;
   extensions?: Extension[];
   minimapModel?: CmMinimapDiffModel;
@@ -161,6 +163,7 @@ function SideBySideDiffViewer({
   readOnly,
   lineNumbersEnabled,
   wordWrap,
+  fileKey,
   collapseUnchanged,
   onMount,
   extraExtensions,
@@ -177,8 +180,9 @@ function SideBySideDiffViewer({
   readOnly: boolean;
   lineNumbersEnabled: boolean;
   wordWrap: boolean;
+  fileKey?: string;
   collapseUnchanged: boolean;
-  onMount?: (editor: DiffEditorRef | EditorRef) => void;
+  onMount?: DiffViewerProps["onMount"];
   extraExtensions: Extension[];
   minimapModel?: CmMinimapDiffModel;
   minimapScopeId?: string;
@@ -197,6 +201,8 @@ function SideBySideDiffViewer({
     handleWheel: (event: WheelEvent) => void;
   } | null>(null);
   const expandedCollapsedLinesRef = useRef<Set<number>>(new Set());
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const foldMarkerState = useFoldMarkerAutoHide(wrapperRef.current, fileKey ?? original + modified);
 
   const sharedExts = useMemo(
     () => buildSharedExtensions(language, theme, readOnly, lineNumbersEnabled, wordWrap, locale),
@@ -477,7 +483,12 @@ function SideBySideDiffViewer({
   }, [theme]);
 
   return (
-    <div className={`adl-cm-diff-viewer-wrapper${wordWrap ? " adl-cm-word-wrap" : " adl-cm-no-word-wrap"}`} style={{ position: "relative", width: "100%", height: "100%" }}>
+    <div
+      ref={wrapperRef}
+      className={`adl-cm-diff-viewer-wrapper${wordWrap ? " adl-cm-word-wrap" : " adl-cm-no-word-wrap"}`}
+      data-fold-marker-state={foldMarkerState}
+      style={{ position: "relative", width: "100%", height: "100%" }}
+    >
       <div
         ref={containerRef}
         className="adl-cm-diff-viewer adl-cm-diff-viewer--side-by-side"
@@ -497,6 +508,7 @@ function InlineDiffViewer({
   readOnly,
   lineNumbersEnabled,
   wordWrap,
+  fileKey,
   collapseUnchanged,
   onMount,
   extraExtensions,
@@ -513,8 +525,9 @@ function InlineDiffViewer({
   readOnly: boolean;
   lineNumbersEnabled: boolean;
   wordWrap: boolean;
+  fileKey?: string;
   collapseUnchanged: boolean;
-  onMount?: (editor: DiffEditorRef | EditorRef) => void;
+  onMount?: DiffViewerProps["onMount"];
   extraExtensions: Extension[];
   minimapModel?: CmMinimapDiffModel;
   minimapScopeId?: string;
@@ -525,6 +538,8 @@ function InlineDiffViewer({
   const viewRef = useRef<EditorView | null>(null);
   const [editorView, setEditorView] = useState<EditorView | null>(null);
   const expandedCollapsedLinesRef = useRef<Set<number>>(new Set());
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const foldMarkerState = useFoldMarkerAutoHide(wrapperRef.current, fileKey ?? original + modified);
 
   const mergedMinimapModel = useMemo(() => {
     if (minimapModel) return minimapModel;
@@ -652,7 +667,12 @@ function InlineDiffViewer({
   }, [theme]);
 
   return (
-    <div className={`adl-cm-diff-viewer-wrapper${wordWrap ? " adl-cm-word-wrap" : " adl-cm-no-word-wrap"}`} style={{ position: "relative", width: "100%", height: "100%" }}>
+    <div
+      ref={wrapperRef}
+      className={`adl-cm-diff-viewer-wrapper${wordWrap ? " adl-cm-word-wrap" : " adl-cm-no-word-wrap"}`}
+      data-fold-marker-state={foldMarkerState}
+      style={{ position: "relative", width: "100%", height: "100%" }}
+    >
       <div
         ref={containerRef}
         className="adl-cm-diff-viewer adl-cm-diff-viewer--inline"
@@ -673,6 +693,7 @@ export function DiffViewer({
   readOnly = true,
   lineNumbers: lineNumbersEnabled = true,
   wordWrap = false,
+  fileKey,
   onMount,
   extensions: extraExtensions = [],
   minimapModel,
@@ -691,6 +712,7 @@ export function DiffViewer({
       readOnly={readOnly}
       lineNumbersEnabled={lineNumbersEnabled}
       wordWrap={wordWrap}
+      fileKey={fileKey}
       collapseUnchanged={collapseUnchanged}
       onMount={onMount}
       extraExtensions={extraExtensions}
@@ -709,6 +731,7 @@ export function DiffViewer({
       readOnly={readOnly}
       lineNumbersEnabled={lineNumbersEnabled}
       wordWrap={wordWrap}
+      fileKey={fileKey}
       collapseUnchanged={collapseUnchanged}
       onMount={onMount}
       extraExtensions={extraExtensions}

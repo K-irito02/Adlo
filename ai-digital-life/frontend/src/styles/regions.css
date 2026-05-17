@@ -4980,13 +4980,14 @@ select:focus-visible {
   padding-top: 0;
 }
 
-.adl-cm-diff-viewer .cm-content,
 .adl-cm-diff-viewer .cm-gutters {
   position: relative;
-  z-index: 1;
+  z-index: 2;
 }
 
 .adl-cm-diff-viewer .cm-content {
+  position: relative;
+  z-index: 1;
   background: transparent !important;
 }
 
@@ -5154,7 +5155,53 @@ select:focus-visible {
   transform: rotate(-45deg);
 }
 
+/* === Fold marker auto-hide ===
+   Default: hidden. Visible when:
+   1. data-fold-marker-state="visible" on wrapper (file open reveal / mouse in gutter)
+   2. Gutter is hovered (overrides hidden state) */
+.adl-cm-editor-wrapper .cm-foldGutter .adl-cm-fold-marker,
+.adl-cm-diff-viewer-wrapper .cm-foldGutter .adl-cm-fold-marker {
+  opacity: 0;
+  pointer-events: none;
+}
 
+.adl-cm-editor-wrapper[data-fold-marker-state="visible"] .cm-foldGutter .adl-cm-fold-marker,
+.adl-cm-diff-viewer-wrapper[data-fold-marker-state="visible"] .cm-foldGutter .adl-cm-fold-marker {
+  opacity: 0.6;
+  pointer-events: auto;
+}
+
+.adl-cm-editor-wrapper .cm-foldGutter:hover .adl-cm-fold-marker,
+.adl-cm-diff-viewer-wrapper .cm-foldGutter:hover .adl-cm-fold-marker {
+  opacity: 0.6;
+  pointer-events: auto;
+}
+
+.adl-cm-editor-wrapper .cm-foldGutter .adl-cm-fold-marker:hover,
+.adl-cm-diff-viewer-wrapper .cm-foldGutter .adl-cm-fold-marker:hover {
+  opacity: 1;
+}
+
+/* Hover background highlight using box-shadow (pseudo-elements are used by chevron) */
+.adl-cm-editor-wrapper .cm-foldGutter .cm-gutterElement .adl-cm-fold-marker:hover,
+.adl-cm-diff-viewer-wrapper .cm-foldGutter .cm-gutterElement .adl-cm-fold-marker:hover {
+  box-shadow: 0 0 0 4px rgba(128, 128, 128, 0.12);
+  border-radius: 4px;
+}
+
+/* Active (click) effect */
+.adl-cm-editor-wrapper .cm-foldGutter .adl-cm-fold-marker:active,
+.adl-cm-diff-viewer-wrapper .cm-foldGutter .adl-cm-fold-marker:active {
+  transform: scale(0.9);
+}
+
+/* Focus-visible ring for keyboard navigation */
+.adl-cm-editor-wrapper .cm-foldGutter .adl-cm-fold-marker:focus-visible,
+.adl-cm-diff-viewer-wrapper .cm-foldGutter .adl-cm-fold-marker:focus-visible {
+  outline: 2px solid var(--accent, #4a9eff);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
 
 .adl-cm-diff-viewer .cm-mergeView {
   height: 100%;

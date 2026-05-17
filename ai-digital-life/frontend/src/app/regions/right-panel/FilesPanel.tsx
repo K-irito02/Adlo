@@ -943,6 +943,7 @@ export function FilesPanel(props: RightPanelViewProps) {
               theme={resolvedTheme}
               locale={resolvedLocale}
               sideBySide={diffSideBySide}
+              fileKey={selectedFilePath}
               collapseUnchanged={!fileDiffMinimapExpandedUnchanged}
               readOnly={diffEditorOptions.readOnly}
               lineNumbers={diffEditorOptions.lineNumbers}
@@ -1013,6 +1014,7 @@ export function FilesPanel(props: RightPanelViewProps) {
           readOnly={previewEnabled || editorOptions.readOnly}
           lineNumbers={editorOptions.lineNumbers}
           wordWrap={editorOptions.wordWrap}
+          fileKey={selectedFilePath}
           onChange={onEditorChange}
           onMount={handleStandardEditorMount}
           extensions={editorExtensions}

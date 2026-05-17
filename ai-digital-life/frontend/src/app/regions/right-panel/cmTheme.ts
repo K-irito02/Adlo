@@ -273,11 +273,9 @@ function buildEditorTheme(c: ThemeColors, theme: "light" | "dark"): Extension {
       },
       ".cm-foldGutter span": {
         color: c.lineNumber,
-        opacity: "0.6",
-        transition: "opacity 0.15s",
+        transition: "opacity 0.2s ease, background-color 0.2s ease, transform 0.15s ease",
       },
       ".cm-foldGutter span:hover": {
-        opacity: "1",
         color: c.fg,
       },
       ".cm-foldPlaceholder": {
