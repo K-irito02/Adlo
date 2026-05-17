@@ -35,7 +35,7 @@ type MinimapSettingsInput = Partial<MinimapSettings> & {
 
 type ScopedSettingsStore = Record<string, MinimapSettingsInput | undefined>;
 type MinimapMenuCleanup = () => void;
-type MenuItem = { label: string; checked: boolean; onClick: () => void; separator?: boolean };
+type MenuItem = { label: string; checked: boolean; onClick: () => void; separator?: boolean; group?: boolean };
 
 let activeMinimapMenuCleanup: MinimapMenuCleanup | null = null;
 
@@ -488,9 +488,9 @@ class MinimapPlugin implements PluginValue {
   };
   private handleSettingsChanged = () => {
     this.settings = loadMinimapSettings(this.options.scopeId);
+    this.updateScrollbarStyle();
     this.render();
     this.updateSlider();
-    this.updateScrollbarStyle();
   };
 
   constructor(private view: EditorView, private options: CmMinimapExtensionOptions = {}) {
@@ -581,9 +581,9 @@ class MinimapPlugin implements PluginValue {
       this.frame = 0;
     }
     this.host.style.removeProperty("--adl-editor-minimap-width");
-    const surfaceHost = this.findSurfaceHost();
-    if (surfaceHost && surfaceHost !== this.host) {
-      surfaceHost.style.removeProperty("--adl-editor-minimap-width");
+    const wrapperCleanup = this.scrollElement?.closest<HTMLElement>(".adl-cm-diff-viewer-wrapper, .adl-cm-editor-wrapper");
+    if (wrapperCleanup) {
+      wrapperCleanup.style.removeProperty("--adl-editor-minimap-width");
     }
     this.resizeObserver?.disconnect();
     this.resizeObserver = null;
@@ -689,29 +689,17 @@ class MinimapPlugin implements PluginValue {
   }
 
   private attachToHost() {
-    const surfaceHost = this.findSurfaceHost();
     // Prefer the fixed-positioning containing block as the DOM parent so the
     // minimap is never clipped by the surface's overflow:hidden / isolation:isolate.
     const fixedHost = this.findFixedContainBlock();
-    const nextHost = fixedHost ?? surfaceHost ?? this.view.dom;
+    const nextHost = fixedHost ?? this.view.dom;
 
     if (nextHost === this.host && this.dom.parentElement === nextHost) {
-      // Keep the --adl-editor-minimap-width variable on the surfaceHost so
-      // .cm-scroller padding-right stays in sync per-editor.
-      if (surfaceHost) {
-        surfaceHost.style.setProperty("--adl-editor-minimap-width", `${this.getTrackWidth()}px`);
-      }
       this.syncFrameToHost();
       return;
     }
-    this.host.style.removeProperty("--adl-editor-minimap-width");
     this.host = nextHost;
     this.host.appendChild(this.dom);
-    // Always set the minimap-width variable on the surfaceHost (not the DOM host)
-    // so each editor's .cm-scroller gets the correct padding-right.
-    if (surfaceHost) {
-      surfaceHost.style.setProperty("--adl-editor-minimap-width", `${this.getTrackWidth()}px`);
-    }
     this.observeHost();
     this.syncFrameToHost();
   }
@@ -873,14 +861,36 @@ class MinimapPlugin implements PluginValue {
   }
 
   private render() {
+    const width = this.getTrackWidth();
+    const wrapper = this.scrollElement.closest<HTMLElement>(".adl-cm-diff-viewer-wrapper, .adl-cm-editor-wrapper");
+
+    if (wrapper) {
+      wrapper.style.setProperty("--adl-editor-minimap-width", `${width}px`);
+
+      // No-word-wrap: scroller has padding-right:0 in CSS, so Accept/Reject buttons
+      // (position:absolute inside the scroller) never move. Override scroller padding
+      // inline to move them. The CSS calc on wrapper uses (minimap-width - scrollbar-width),
+      // so scroller padding must match that formula to avoid double-counting with the
+      // scroller's own vertical scrollbar track.
+      // Word-wrap: clear any previously-set inline styles so CSS cascade takes over.
+      const isNoWrap = wrapper.classList.contains("adl-cm-no-word-wrap");
+      if (isNoWrap) {
+        const sbw = Number.parseFloat(getComputedStyle(this.scrollElement).getPropertyValue("--adl-scrollbar-width")) || 0;
+        this.scrollElement.style.paddingRight = `${Math.max(0, width - sbw)}px`;
+        wrapper.style.paddingRight = "0";
+      } else {
+        this.scrollElement.style.paddingRight = "";
+        wrapper.style.paddingRight = "";
+      }
+    }
+    void (wrapper ?? this.scrollElement).offsetHeight;
+
     if (this.settings.scrollbarType === "standard") {
-      const width = this.getTrackWidth();
       const height = Math.max(1, this.dom.clientHeight || this.scrollElement.clientHeight || 1);
       this.canvas.style.width = `${width}px`;
       this.canvas.style.height = `${height}px`;
       this.dom.style.width = `${width}px`;
       this.dom.style.setProperty("--adl-cm-minimap-width", `${width}px`);
-      this.findSurfaceHost()?.style.setProperty("--adl-editor-minimap-width", `${width}px`);
       this.canvas.width = width * window.devicePixelRatio;
       this.canvas.height = height * window.devicePixelRatio;
       this.ctx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
@@ -911,7 +921,6 @@ class MinimapPlugin implements PluginValue {
     }
     lineCount = Math.max(1, lineCount);
 
-    const width = this.getTrackWidth();
     const trackMetrics = this.getTrackMetrics();
     this.syncFrameToHost();
     const height = Math.max(trackMetrics.viewportHeight, 1);
@@ -925,7 +934,6 @@ class MinimapPlugin implements PluginValue {
     this.canvas.style.height = `${height}px`;
     this.dom.style.width = `${width}px`;
     this.dom.style.setProperty("--adl-cm-minimap-width", `${width}px`);
-    this.host.style.setProperty("--adl-editor-minimap-width", `${width}px`);
 
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
@@ -1172,45 +1180,48 @@ class MinimapPlugin implements PluginValue {
       const modeSpecificItems: MenuItem[] =
         settings.scrollbarType === "minimap"
           ? [
+              { label: "显示", checked: false, onClick: () => {}, group: true },
               {
                 label: "渲染字符",
                 checked: settings.renderCharacters,
                 onClick: () => { settings.renderCharacters = !settings.renderCharacters; this.applySettings(); },
               },
               createSeparator(),
+              { label: "缩放", checked: false, onClick: () => {}, group: true },
               {
-                label: "缩放: 50%",
+                label: "50%",
                 checked: settings.zoomLevel === 0.5,
                 onClick: () => { settings.zoomLevel = 0.5; this.applySettings(); },
               },
               {
-                label: "缩放: 100%",
+                label: "100%",
                 checked: settings.zoomLevel === 1,
                 onClick: () => { settings.zoomLevel = 1; this.applySettings(); },
               },
               {
-                label: "缩放: 150%",
+                label: "150%",
                 checked: settings.zoomLevel === 1.5,
                 onClick: () => { settings.zoomLevel = 1.5; this.applySettings(); },
               },
               {
-                label: "缩放: 200%",
+                label: "200%",
                 checked: settings.zoomLevel === 2,
                 onClick: () => { settings.zoomLevel = 2; this.applySettings(); },
               },
               createSeparator(),
+              { label: "宽度", checked: false, onClick: () => {}, group: true },
               {
-                label: "宽度: 60px",
+                label: "60px",
                 checked: settings.thumbnailSize === 60,
                 onClick: () => { settings.thumbnailSize = 60; this.applySettings(); },
               },
               {
-                label: "宽度: 80px",
+                label: "80px",
                 checked: settings.thumbnailSize === 80,
                 onClick: () => { settings.thumbnailSize = 80; this.applySettings(); },
               },
               {
-                label: "宽度: 100px",
+                label: "100px",
                 checked: settings.thumbnailSize === 100,
                 onClick: () => { settings.thumbnailSize = 100; this.applySettings(); },
               },
@@ -1220,24 +1231,26 @@ class MinimapPlugin implements PluginValue {
 
       return [
         ...modeSpecificItems,
+        { label: "滑块突出", checked: false, onClick: () => {}, group: true },
         {
-          label: "滑块样式: 轻",
+          label: "明显",
           checked: settings.sliderProminence === "subtle",
           onClick: () => { settings.sliderProminence = "subtle"; this.applySettings(); },
         },
         {
-          label: "滑块样式: 标准",
+          label: "正常",
           checked: settings.sliderProminence === "normal",
           onClick: () => { settings.sliderProminence = "normal"; this.applySettings(); },
         },
         createSeparator(),
+        { label: "设置", checked: false, onClick: () => {}, group: true },
         {
-          label: "设置: 全局",
+          label: "全局",
           checked: settings.isGlobal,
           onClick: () => { settings.isGlobal = true; this.applySettings(); },
         },
         {
-          label: "设置: 独立",
+          label: "独立",
           checked: !settings.isGlobal,
           onClick: () => { settings.isGlobal = false; this.applySettings(); },
         },
@@ -1265,11 +1278,11 @@ class MinimapPlugin implements PluginValue {
         return button;
       };
 
-      scrollbarModeGroup.appendChild(createModeButton("滑动条: Minimap", settings.scrollbarType === "minimap", () => {
+      scrollbarModeGroup.appendChild(createModeButton("缩略图", settings.scrollbarType === "minimap", () => {
         settings.scrollbarType = "minimap";
         this.applySettings();
       }));
-      scrollbarModeGroup.appendChild(createModeButton("滑动条: 普通", settings.scrollbarType === "standard", () => {
+      scrollbarModeGroup.appendChild(createModeButton("标准", settings.scrollbarType === "standard", () => {
         settings.scrollbarType = "standard";
         this.applySettings();
       }));
@@ -1285,17 +1298,17 @@ class MinimapPlugin implements PluginValue {
           menu.appendChild(separator);
           continue;
         }
+        if (item.group) {
+          const label = document.createElement("div");
+          label.className = "adl-cm-minimap-menu-group-label";
+          label.textContent = item.label;
+          menu.appendChild(label);
+          continue;
+        }
         const el = document.createElement("button");
         el.type = "button";
-        el.className = `adl-cm-minimap-menu-item${item.checked ? " adl-cm-minimap-menu-item--checked" : ""}`;
-        const label = document.createElement("span");
-        label.className = "adl-cm-minimap-menu-item__label";
-        label.textContent = item.label;
-        el.appendChild(label);
-        const check = document.createElement("span");
-        check.className = "adl-cm-minimap-menu-item__check";
-        check.textContent = item.checked ? "√" : "";
-        el.appendChild(check);
+        el.className = `adl-cm-minimap-menu-item${item.checked ? " adl-cm-minimap-menu-item--active" : ""}`;
+        el.textContent = item.label;
         el.addEventListener("click", (event) => {
           event.stopPropagation();
           item.onClick();
@@ -1313,7 +1326,8 @@ class MinimapPlugin implements PluginValue {
     let menuY = e.clientY;
 
     const menuWidth = 196;
-    const menuHeight = 42 + items.filter(i => !i.separator).length * 28 + items.filter(i => i.separator).length * 8 + 16;
+    const groupCount = items.filter(i => i.group).length;
+    const menuHeight = 42 + items.filter(i => !i.separator && !i.group).length * 28 + items.filter(i => i.separator).length * 8 + groupCount * 20 + 16;
 
     if (menuX + menuWidth > window.innerWidth) {
       menuX = window.innerWidth - menuWidth - 8;
@@ -1350,9 +1364,9 @@ class MinimapPlugin implements PluginValue {
     this.settings = normalizeMinimapSettings(this.settings);
     saveMinimapSettings(this.settings, this.options.scopeId);
     window.dispatchEvent(new CustomEvent(SETTINGS_CHANGED_EVENT));
+    this.updateScrollbarStyle();
     this.render();
     this.updateSlider();
-    this.updateScrollbarStyle();
   }
 }
 

@@ -15,6 +15,9 @@ ai-digital-life/
 ├── crates/             # Rust 库 crate
 ├── frontend/           # WebView：React + Vite
 ├── docs/               # 架构与设计文档
+│   ├── architecture/   # 系统架构
+│   ├── design-system/  # 设计系统
+│   └── superpowers/    # 功能设计 & 实施计划 (specs/ + plans/)
 └── tests/              # 集成 / E2E
 ```
 

@@ -319,9 +319,9 @@ describe("cm minimap settings", () => {
     expect(cmMinimapSource).toContain("const modeSpecificItems");
     expect(cmMinimapSource).toContain('settings.scrollbarType === "minimap"');
     expect(cmMinimapSource).toContain('label: "渲染字符"');
-    expect(cmMinimapSource).toContain('label: "缩放: 100%"');
-    expect(cmMinimapSource).toContain('label: "宽度: 80px"');
-    expect(cmMinimapSource).toContain('createModeButton("滑动条: Minimap"');
+    expect(cmMinimapSource).toContain('label: "100%"');
+    expect(cmMinimapSource).toContain('label: "80px"');
+    expect(cmMinimapSource).toContain('createModeButton("缩略图"');
     expect(cmMinimapSource).not.toContain('label: "滑块样式: 强"');
     expect(cmMinimapSource).not.toContain('label: "滑块: 按比例"');
     expect(cmMinimapSource).not.toContain('label: "滑块: 固定"');
@@ -342,11 +342,12 @@ describe("cm minimap settings", () => {
     expect(cmMinimapSource).toContain("this.resizeObserver.observe(contentElement)");
   });
 
-  it("adds separators between the requested minimap menu groups", () => {
+  it("adds separators between the requested minimap menu groups and uses group labels", () => {
     expect(cmMinimapSource).toContain("createSeparator()");
     expect(cmMinimapSource).toContain('label: "渲染字符"');
-    expect(cmMinimapSource).toContain('label: "宽度: 100px"');
-    expect(cmMinimapSource).toContain('label: "滑块样式: 标准"');
+    expect(cmMinimapSource).toContain('label: "100px"');
+    expect(cmMinimapSource).toContain('label: "滑块突出"');
+    expect(cmMinimapSource).toContain('group: true');
   });
 
   it("keeps standard scrollbar geometry separate from minimap content-track geometry", () => {
@@ -360,7 +361,9 @@ describe("cm minimap settings", () => {
 
   it("keeps the standard rail width independent from the previous minimap width", () => {
     expect(cmMinimapSource).toContain('this.dom.style.width = `${width}px`;');
-    expect(cmMinimapSource).toContain('this.findSurfaceHost()?.style.setProperty("--adl-editor-minimap-width", `${width}px`)');
+    expect(cmMinimapSource).toContain('this.dom.style.setProperty("--adl-cm-minimap-width"');
+    expect(cmMinimapSource).toContain('wrapper.style.setProperty("--adl-editor-minimap-width"');
+    expect(cmMinimapSource).toContain('void (wrapper ?? this.scrollElement).offsetHeight');
   });
 
   it("hides native scrollbars via CSS class when the minimap is active", () => {
@@ -368,10 +371,11 @@ describe("cm minimap settings", () => {
     expect(cmMinimapSource).toContain('this.scrollElement.classList.add("adl-cm-scroller--minimap-scrollbar");');
   });
 
-  it("renders the checkmark in a fixed trailing slot instead of prefixing the label", () => {
-    expect(cmMinimapSource).toContain('label.className = "adl-cm-minimap-menu-item__label"');
-    expect(cmMinimapSource).toContain('check.className = "adl-cm-minimap-menu-item__check"');
-    expect(cmMinimapSource).toContain('check.textContent = item.checked ? "√" : ""');
+  it("uses active class with ::before indicator instead of trailing checkmark", () => {
+    expect(cmMinimapSource).not.toContain('label.className = "adl-cm-minimap-menu-item__label"');
+    expect(cmMinimapSource).not.toContain('check.className = "adl-cm-minimap-menu-item__check"');
+    expect(cmMinimapSource).not.toContain('check.textContent = item.checked ? "√" : ""');
+    expect(cmMinimapSource).toContain('adl-cm-minimap-menu-item--active');
   });
 
   it("keeps the menu open after toggling an option and refreshes its contents in place", () => {

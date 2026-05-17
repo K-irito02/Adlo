@@ -21,7 +21,7 @@ Every component reads only semantic tokens (`--text-primary`, `--accent`, …) s
 ## Semantic tokens (provided per theme)
 
 Background: `--bg`, `--bg-strong`, `--bg-elevated`, `--bg-muted`, `--bg-overlay`
-Surface: `--surface`, `--surface-elevated`, `--surface-sunken`
+Surface: `--surface`, `--surface-elevated`, `--surface-raised`, `--surface-sunken`, `--surface-hover`, `--surface-active`
 Text: `--text-primary`, `--text-secondary`, `--text-muted`, `--text-disabled`, `--text-inverse`, `--text-on-accent`
 Border: `--border-subtle`, `--border-default`, `--border-strong`
 Accent: `--accent`, `--accent-hover`, `--accent-active`, `--accent-soft`, `--accent-contrast`

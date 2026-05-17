@@ -90,11 +90,13 @@ describe("CodeMirror preview styling", () => {
     expect(regionsCssSource).toContain(".cm-mergeView.adl-cm-scroller--minimap-scrollbar .cm-scroller {\n  scrollbar-width: none;");
   });
 
-  it("styles the scrollbar mode switcher like the shared segmented buttons and right-aligns checkmarks", () => {
+  it("styles the scrollbar mode switcher like underline tabs and uses group labels with active indicator", () => {
     expect(regionsCssSource).toContain(".adl-cm-minimap-menu-segmented");
     expect(regionsCssSource).toContain('.adl-cm-minimap-menu-segmented__button[aria-pressed="true"]');
-    expect(regionsCssSource).toContain(".adl-cm-minimap-menu-item__check");
-    expect(regionsCssSource).not.toContain(".adl-cm-minimap-menu-item--checked::before");
+    expect(regionsCssSource).toContain(".adl-cm-minimap-menu-group-label");
+    expect(regionsCssSource).not.toContain(".adl-cm-minimap-menu-item__check");
+    expect(regionsCssSource).toContain(".adl-cm-minimap-menu-item--active::before");
+    expect(regionsCssSource).not.toContain(".adl-cm-minimap-menu-item--checked");
   });
 
   it("keeps native scrollbars hidden while the app-owned minimap rail is active", () => {

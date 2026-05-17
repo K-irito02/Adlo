@@ -65,15 +65,19 @@ $OwnerPid = (Get-CimInstance Win32_Process -Filter "ProcessId=$PID" | Select-Obj
 $env:BRAINSTORM_DIR = $SessionDir
 $env:BRAINSTORM_HOST = $BindAddress
 $env:BRAINSTORM_URL_HOST = $UrlHost
-$env:BRAINSTORM_OWNER_PID = "$OwnerPid"
 
 if ($Foreground) {
-  # Foreground mode
+  # Foreground mode — track owner PID because the process is directly attached
+  $env:BRAINSTORM_OWNER_PID = "$OwnerPid"
   "$PID" | Out-File -FilePath $PidFile -Encoding ascii
   & node server.cjs
   exit $LASTEXITCODE
 } else {
-  # Background mode - start server in a new PowerShell process
+  # Background mode — do NOT set BRAINSTORM_OWNER_PID.
+  # The parent process exits shortly after the PowerShell script finishes,
+  # causing the server's lifecycle check to shut down prematurely.
+  # The server's 30-minute idle timeout provides sufficient cleanup.
+  "$PID" | Out-File -FilePath $PidFile -Encoding ascii
   $startInfo = @{
     FilePath = "node"
     ArgumentList = @("server.cjs")

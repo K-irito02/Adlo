@@ -128,6 +128,8 @@ function getNewestScreen() {
 
 function handleRequest(req, res) {
   touchActivity();
+  // Always disable caching so the browser reflects edits instantly
+  const noCache = { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache', 'Expires': '0' };
   if (req.method === 'GET' && req.url === '/') {
     const screenFile = getNewestScreen();
     let html = screenFile
@@ -140,7 +142,7 @@ function handleRequest(req, res) {
       html += helperInjection;
     }
 
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.writeHead(200, noCache);
     res.end(html);
   } else if (req.method === 'GET' && req.url.startsWith('/files/')) {
     const fileName = req.url.slice(7);
@@ -152,7 +154,7 @@ function handleRequest(req, res) {
     }
     const ext = path.extname(filePath).toLowerCase();
     const contentType = MIME_TYPES[ext] || 'application/octet-stream';
-    res.writeHead(200, { 'Content-Type': contentType });
+    res.writeHead(200, { 'Content-Type': contentType, 'Cache-Control': 'no-cache, no-store, must-revalidate' });
     res.end(fs.readFileSync(filePath));
   } else {
     res.writeHead(404);

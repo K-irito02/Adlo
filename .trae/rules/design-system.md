@@ -32,6 +32,18 @@ alwaysApply: false
 | 禁用 | `:disabled` |
 | 加载中 | `[data-loading="true"]` |
 
+## Surface 交互语义层
+
+表面（Surface）层级的交互态通过语义 token 表达，不依赖透明度微调：
+
+| Token | 用途 |
+|-------|------|
+| `--surface-hover` | 悬停态轻微底色（如菜单项 hover） |
+| `--surface-active` | 选中/激活态稍深底色（如菜单项 active） |
+| `--surface-raised` | 弹出层背景（菜单、popover） |
+
+详见 [tokens.md](/E:/Programs/Obsidian/notes/ai-digital-life/docs/design-system/tokens.md)。
+
 ## 主题系统
 
 | 层级 | 存储位置 |

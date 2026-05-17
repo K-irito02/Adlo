@@ -54,8 +54,7 @@ Save `screen_dir` and `state_dir` from the response. Tell user to open the URL.
 **Finding connection info:** The server writes its startup JSON to `$STATE_DIR/server-info`. If you launched the server in the background and didn't capture stdout, read that file to get the URL and port. When using `--project-dir`, check `<project>/.superpowers/brainstorm/` for the session directory.
 
 **Note:** Pass the project root as `--project-dir` so mockups persist in `.superpowers/brainstorm/` and survive server restarts. Without it, files go to a temp directory and get cleaned up. Remind the user to add `.superpowers/` to `.gitignore` if it's not already there.
-
-**Launching the server by platform:**
+## Launching the server by platform:
 
 **Claude Code (macOS / Linux):**
 ```bash
@@ -66,6 +65,17 @@ scripts/start-server.sh --project-dir /path/to/project
 ```powershell
 scripts/start-server.ps1 -ProjectDir "E:\path\to\project"
 ```
+
+### ⚠️ Windows 背景模式已知问题（已修复）
+
+**问题**：后台模式（`-Foreground` 未指定）下，服务器启动约 60 秒后自动关闭。
+**日志现象**：`{"type":"server-stopped","reason":"owner process exited"}`
+
+**根因**：`start-server.ps1` 在后台模式中传入了 `BRAINSTORM_OWNER_PID`（PowerShell 的父进程 PID）。由于 `Start-Process` 的后台 PowerShell 脚本执行完后其父进程退出，`server.cjs` 的 60 秒生命周期检测发现 owner PID 已死，自动关闭服务器。
+
+**修复**：已在 `start-server.ps1` 中修复——后台模式不再设置 `BRAINSTORM_OWNER_PID`，仅依赖 `server.cjs` 自带的 30 分钟空闲超时进行清理。详见 [commit: start-server.ps1]（`BRAINSTORM_OWNER_PID` 仅在 `-Foreground` 模式下传递）。
+
+**验证方式**：启动后等待 65 秒，用 `netstat -ano | findstr :<port>` 确认端口仍处于 LISTENING 状态。
 
 **Codex:**
 ```bash
@@ -93,6 +103,7 @@ scripts/start-server.ps1 -ProjectDir "E:\path\to\project" -BindAddress "0.0.0.0"
 
 1. **Check server is alive**, then **write HTML** to a new file in `screen_dir`:
    - Before each write, check that `$STATE_DIR/server-info` exists. If it doesn't (or `$STATE_DIR/server-stopped` exists), the server has shut down — restart it before continuing. The server auto-exits after 30 minutes of inactivity.
+   - The server now sends `Cache-Control: no-cache, no-store, must-revalidate` headers, so the browser always fetches fresh content.
    - Use semantic filenames: `platform.html`, `visual-style.html`, `layout.html`
    - **Never reuse filenames** — each screen gets a fresh file
    - Use Write tool — **never use cat/heredoc** (dumps noise into terminal)

@@ -5804,9 +5804,7 @@ select:focus-visible {
 .adl-cm-minimap--standard {
   width: var(--adl-cm-standard-scrollbar-width, 12px);
   background: var(--editor-bg, var(--bg));
-  border-left: 1px solid var(--border-subtle);
   cursor: default;
-  box-shadow: inset 1px 0 0 color-mix(in srgb, var(--border-subtle) 55%, transparent);
 }
 
 .adl-cm-minimap:hover {
@@ -5882,40 +5880,55 @@ select:focus-visible {
 
 .adl-cm-minimap-context-menu {
   position: fixed;
-  padding: 4px;
+  padding: 6px;
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
+  border-radius: 10px;
   background: var(--surface-raised);
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.06);
   z-index: calc(var(--z-popover) + 10);
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 0;
   min-width: 196px;
 }
 
 .adl-cm-minimap-menu-segmented {
-  display: inline-flex;
-  width: 100%;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
+  display: flex;
+  margin: 0 6px 4px;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .adl-cm-minimap-menu-segmented__button {
-  flex: 1 1 0;
+  flex: 1;
   min-width: 0;
-  padding: 2px var(--space-2);
+  padding: 7px 0 5px;
   border: none;
-  background: var(--surface);
-  color: var(--text-secondary);
-  font-size: 11px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-weight: 500;
   cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.adl-cm-minimap-menu-segmented__button:hover:not([aria-pressed="true"]) {
+  color: var(--text-secondary);
 }
 
 .adl-cm-minimap-menu-segmented__button[aria-pressed="true"] {
-  background: var(--accent);
-  color: var(--text-inverse);
+  color: var(--text-primary);
+  border-bottom-color: var(--text-primary);
+}
+
+.adl-cm-minimap-menu-group-label {
+  padding: 8px 12px 3px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
 }
 
 .adl-cm-minimap-menu-item {
@@ -5924,22 +5937,43 @@ select:focus-visible {
   justify-content: space-between;
   gap: var(--space-3);
   width: 100%;
-  padding: 6px 8px;
+  padding: 6px 12px;
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: 0;
   background: transparent;
   color: var(--text-primary);
   text-align: left;
   font-size: var(--text-xs);
   cursor: pointer;
+  position: relative;
+}
+
+.adl-cm-minimap-menu-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: transparent;
+  transition: background 0.1s;
 }
 
 .adl-cm-minimap-menu-item:hover {
   background: var(--surface-hover);
 }
 
-.adl-cm-minimap-menu-item--checked {
-  color: var(--accent);
+.adl-cm-minimap-menu-item:hover::before {
+  background: var(--border);
+}
+
+.adl-cm-minimap-menu-item--active {
+  background: var(--surface-active);
+  font-weight: 500;
+}
+
+.adl-cm-minimap-menu-item--active::before {
+  background: var(--text-primary);
 }
 
 .adl-cm-minimap-menu-item__label {
@@ -5947,18 +5981,10 @@ select:focus-visible {
   flex: 1 1 auto;
 }
 
-.adl-cm-minimap-menu-item__check {
-  width: 12px;
-  flex: 0 0 12px;
-  text-align: center;
-  font-size: 11px;
-  color: inherit;
-}
-
 .adl-cm-minimap-menu-separator {
   height: 1px;
   background: var(--border-subtle);
-  margin: 4px 0;
+  margin: 3px 6px;
 }
 
 /* Legacy Monaco diff/minimap overrides removed after the CodeMirror migration. */

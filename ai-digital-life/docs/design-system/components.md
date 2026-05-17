@@ -129,6 +129,23 @@ Source of truth: `[frontend/src/styles/regions.css](../../frontend/src/styles/re
 This is the application-specific compact icon switcher language extracted from the right-panel tool switcher so future shell surfaces can
 reuse the same visual grammar instead of re-inventing local toolbar styles. It is now also the shared style language for the desktop titlebar.
 
+## Context menu (Minimap scrollbar)
+
+Source of truth: `[frontend/src/app/regions/right-panel/cmMinimap.ts](../../frontend/src/app/regions/right-panel/cmMinimap.ts)` (component logic) and
+`[frontend/src/styles/regions.css](../../frontend/src/styles/regions.css)` (visual rules, lines ~5883).
+
+The minimap scrollbar right-click menu uses CSS `.adl-cm-minimap-context-menu` and its sub-components:
+
+| Sub-component | CSS class | Description |
+|--------------|-----------|-------------|
+| Segmented control | `.adl-cm-minimap-menu-segmented` | Underline tabs — "缩略图 / 标准" |
+| Group label | `.adl-cm-minimap-menu-group-label` | Uppercase group headers |
+| Menu item | `.adl-cm-minimap-menu-item` | Flat button with `::before` left indicator line |
+| Active item | `.adl-cm-minimap-menu-item--active` | Active state: darker bg + solid left indicator |
+| Separator | `.adl-cm-minimap-menu-separator` | Horizontal divider |
+
+The visual design is 方案 C · 极简线条风: underline segmented control + `::before` left indicator bar + right-angle backgrounds + highlight-only selection (no checkmark).
+
 ```tsx
 <div className="adl-iconstrip" role="tablist" aria-label="Tools">
   <button className="adl-iconstrip__button is-active" type="button" aria-label="Files" />

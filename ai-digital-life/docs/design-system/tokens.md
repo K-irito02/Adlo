@@ -70,6 +70,17 @@ Strict layering tokens — nothing else may declare arbitrary z-index numbers:
 - `--content-max-width` (1440 px)
 - `--adl-editor-minimap-width` (84 px) - Minimap 宽度，用于编辑器内容区域的右侧 padding
 
+## Surface (interactive)
+
+| Token | Light | Dark | Source |
+|-------|-------|------|--------|
+| `--surface-hover` | `rgba(34, 34, 34, 0.06)` | `rgba(255, 255, 255, 0.08)` | `themes.css` |
+| `--surface-active` | `rgba(34, 34, 34, 0.08)` | `rgba(255, 255, 255, 0.12)` | `themes.css` |
+
+`--surface-hover` 用于鼠标悬停态的轻微底色（如菜单项 hover）。
+`--surface-active` 用于选中/激活态的稍深底色（如菜单项 active）。
+`--surface-raised` 是弹出层（菜单、popover）的背景，定义在 `themes.css` 中。
+
 ## Focus
 
 - `--focus-ring-width` (3 px, boosted to 4 px under `prefers-contrast: more`)
