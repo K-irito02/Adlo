@@ -205,10 +205,8 @@ export function ChangesPanel(props: RightPanelViewProps) {
   const defaultExpandedOutlineIds = useMemo(() => getDefaultExpandedOutlineIds(changeOutline), [changeOutline]);
   const [expandedOutlineIds, setExpandedOutlineIds] = useState<Set<string>>(() => defaultExpandedOutlineIds);
   useEffect(() => {
-    if (defaultExpandedOutlineIds.size !== expandedOutlineIds.size) {
-      setExpandedOutlineIds(defaultExpandedOutlineIds);
-    }
-  }, [defaultExpandedOutlineIds, expandedOutlineIds]);
+    setExpandedOutlineIds(defaultExpandedOutlineIds);
+  }, [defaultExpandedOutlineIds]);
 
   const hasExpandableOutlineItems = defaultExpandedOutlineIds.size > 0;
   const hasExpandedOutlineItems = expandedOutlineIds.size > 0;
