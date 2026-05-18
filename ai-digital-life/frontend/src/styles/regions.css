@@ -5192,10 +5192,13 @@ select:focus-visible {
 }
 
 /* Right editor: no left gap — must sit flush against the resizer.
-   Also remove any border inherited from CodeMirror merge styles. */
+   Also remove any border inherited from CodeMirror merge styles.
+   box-shadow creates the "浮在左侧之上" effect. */
 .adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-mergeViewEditor:last-child {
   margin-left: 0;
   border-left: none;
+  overflow: visible;
+  box-shadow: -2px 0 4px -1px rgba(0, 0, 0, 0.486);
 }
 
 .adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-mergeViewEditor + .cm-mergeViewEditor {
@@ -5258,6 +5261,22 @@ select:focus-visible {
   background: var(--border-strong);
 }
 
+/* 左侧编辑器右边缘渐变遮罩，产生左低右高的分层感。
+   宽度刚好覆盖拖拽区域，不额外占用空间。不影响拖拽交互。 */
+.adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-mergeViewEditor:first-child {
+  position: relative;
+}
+.adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-mergeViewEditor:first-child::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 0;
+  pointer-events: none;
+  z-index: 5;
+  background: linear-gradient(to right, rgba(0, 0, 0, 0.315), var(--bg));
+}
 
 
 .adl-cm-diff-viewer .cm-collapsedLines {

@@ -259,7 +259,7 @@ await page.locator('.adl-tool-context__group--files-actions .adl-tool-context__i
 | 淡红色整行/整块背景 | `--editor-diff-remove-bg-block` / `--editor-diff-remove-bg` | 删除范围或删除行 | 让删除信息与新增信息在阅读上立即分离 |
 | 行内更亮的绿色底部高亮线 | CodeMirror merge 的行内 changed-text 语义 | 该变更行内部还有更细的词/字符级差异 | 在长行内快速定位真正改动的片段 |
 | 选中 hunk 的浅蓝描边 | `--editor-current-hunk-ring` | 当前聚焦的补丁块 | 辅助键盘导航、接受/拒绝操作和上下文跟踪 |
-| 并排 Diff 中央分隔线 | `.cm-mergeViewEditors > .cm-editor + .cm-editor` | 左右版本边界 | 仅在并排模式下帮助区分两个 pane，不表示变更状态 |
+| 并排 Diff 渐变分隔层 | `.adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-mergeViewEditor:first-child::after` | 左右版本边界 + 左侧退后右侧浮出 | 透明→背景色的水平渐变（6px 宽），模拟"左低右高"的卡片分层感 |
 | 折叠区块控件 | `.cm-collapsedLines` | 被收起的未变更上下文 | 减少长 Diff 噪音，同时保留展开入口 |
 
 ### 行号切换行为
