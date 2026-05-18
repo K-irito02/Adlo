@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  computePreviewDiffMinimapModel,
   computePreviewDiffRanges,
   computePreviewDiffVisualRanges
 } from "./changePreviewDiffRanges";
@@ -49,77 +48,4 @@ describe("computePreviewDiffRanges", () => {
     ]);
   });
 
-  it("builds an inline minimap model that includes deleted virtual rows inside replacements", () => {
-    expect(computePreviewDiffMinimapModel(
-      "keep\nold short\nold very very long value\nnext",
-      "keep\nnew short\nnext"
-    )).toEqual({
-      totalLines: 5,
-      lineColumns: [4, 9, 9, 24, 4],
-      ranges: [
-        { startLine: 2, endLine: 2, type: "insert", tone: "strong", contentColumns: 9 },
-        { startLine: 3, endLine: 3, type: "delete", tone: "strong", contentColumns: 9 },
-        { startLine: 4, endLine: 4, type: "delete", tone: "strong", contentColumns: 24 }
-      ]
-    });
-  });
-
-  it("keeps replacement insert and delete rows visible for minimap consumers", () => {
-    const model = computePreviewDiffMinimapModel(
-      "keep\nold value\nnext",
-      "keep\nnew value\nnext"
-    );
-
-    expect(model.ranges).toEqual([
-      { startLine: 2, endLine: 2, type: "insert", tone: "strong", contentColumns: 9 },
-      { startLine: 3, endLine: 3, type: "delete", tone: "strong", contentColumns: 9 }
-    ]);
-    expect(model.lineColumns).toEqual([4, 9, 9, 4]);
-  });
-
-  it("keeps minimap range widths line-specific instead of using the widest line for an entire block", () => {
-    expect(computePreviewDiffMinimapModel(
-      "start\nend",
-      "start\nshort\nthis is a much wider inserted line\nend"
-    )).toEqual({
-      totalLines: 4,
-      lineColumns: [5, 5, 34, 3],
-      ranges: [
-        { startLine: 2, endLine: 2, type: "insert", tone: "base", contentColumns: 5 },
-        { startLine: 3, endLine: 3, type: "insert", tone: "base", contentColumns: 34 }
-      ]
-    });
-  });
-
-  it("expands minimap rows by the active word-wrap column", () => {
-    expect(computePreviewDiffMinimapModel(
-      "keep\nold 123456789012345\nnext",
-      "keep\nnew 123456789012345\nnext",
-      { wrapColumn: 10 }
-    )).toEqual({
-      totalLines: 6,
-      lineColumns: [4, 10, 9, 10, 9, 4],
-      ranges: [
-        { startLine: 2, endLine: 2, type: "insert", tone: "strong", contentColumns: 10 },
-        { startLine: 3, endLine: 3, type: "insert", tone: "strong", contentColumns: 9 },
-        { startLine: 4, endLine: 4, type: "delete", tone: "strong", contentColumns: 10 },
-        { startLine: 5, endLine: 5, type: "delete", tone: "strong", contentColumns: 9 }
-      ]
-    });
-  });
-
-  it("omits folded unchanged lines from the minimap model", () => {
-    expect(computePreviewDiffMinimapModel(
-      "line 1\nline 2\nold value\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10",
-      "line 1\nline 2\nnew value\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10",
-      { hiddenUnchangedRanges: [{ startLine: 4, endLine: 8 }] }
-    )).toEqual({
-      totalLines: 6,
-      lineColumns: [6, 6, 9, 9, 6, 7],
-      ranges: [
-        { startLine: 3, endLine: 3, type: "insert", tone: "strong", contentColumns: 9 },
-        { startLine: 4, endLine: 4, type: "delete", tone: "strong", contentColumns: 9 }
-      ]
-    });
-  });
 });

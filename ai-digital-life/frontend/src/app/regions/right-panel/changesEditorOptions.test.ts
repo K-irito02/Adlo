@@ -10,35 +10,12 @@ describe("changes preview editor options", () => {
     expect(changesPanelSource).not.toContain("@monaco-editor/react");
   });
 
-  it("passes CodeMirror extensions for minimap", () => {
-    expect(changesPanelSource).toContain("getMinimapExtension");
-    expect(changesPanelSource).toContain("diffExtensions");
-  });
-
   it("uses the shared custom CodeMirror fold gutter marker and tooltip overlay", () => {
     const diffViewerSource = readFileSync(new URL("../../../../src/app/regions/right-panel/DiffViewer.tsx", import.meta.url), "utf8");
 
     expect(diffViewerSource).toContain("createFoldGutterExtension");
     expect(diffViewerSource).toContain("FoldTooltipOverlay");
     expect(diffViewerSource).not.toContain("foldGutter()");
-  });
-
-  it("passes stable minimap scopes to change preview and diff editors", () => {
-    expect(changesPanelSource).toContain("changes:${changePreview.path}:preview");
-    expect(changesPanelSource).toContain("changes:${changePreview.path}:diff:${props.diffSideBySide ? \"side-by-side\" : \"inline\"}");
-    expect(changesPanelSource).toContain("minimapScopeId={changePreviewDiffMinimapScopeId}");
-  });
-
-  it("passes minimap model to DiffViewer from preview diff model", () => {
-    expect(changesPanelSource).toContain("computePreviewDiffMinimapModel");
-    expect(changesPanelSource).toContain("minimapModel={changePreviewMinimapModel}");
-    expect(changesPanelSource).toContain("onCollapsedUnchangedRangesChange={setCollapsedUnchangedDiffRanges}");
-  });
-
-  it("recomputes change preview minimap wrapping from the modified editor layout", () => {
-    expect(changesPanelSource).toContain("estimateWrapColumn");
-    expect(changesPanelSource).toContain("changePreviewWrapColumn");
-    expect(changesPanelSource).toContain("wrapColumn: changePreviewWrapColumn");
   });
 
   it("uses simple dark/light theme string instead of Monaco theme constants", () => {
@@ -73,11 +50,5 @@ describe("changes preview editor options", () => {
     expect(changesPanelSource).toContain("forceExpandUnchangedDiff");
     expect(changesPanelSource).toContain("pendingOutlineRevealLine");
     expect(changesPanelSource).toContain("collapseUnchanged={collapseUnchangedDiff}");
-  });
-
-  it("keeps minimap hidden ranges aligned with folded unchanged diff sections", () => {
-    expect(changesPanelSource).toContain("collapsedUnchangedDiffRanges");
-    expect(changesPanelSource).toContain("hiddenUnchangedRanges: collapseUnchangedDiff ? collapsedUnchangedDiffRanges : []");
-    expect(changesPanelSource).toContain("const collapseUnchangedDiff = !forceExpandUnchangedDiff");
   });
 });

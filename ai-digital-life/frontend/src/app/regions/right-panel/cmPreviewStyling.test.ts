@@ -50,61 +50,6 @@ describe("CodeMirror preview styling", () => {
     expect(cmThemeSource).toContain('outline: "none"');
   });
 
-  it("anchors the CodeMirror minimap to the editor surface while preserving wheel scrolling", () => {
-    const minimapCanvasBlock = extractCssBlock(regionsCssSource, ".adl-cm-minimap-canvas {\n");
-    const minimapSliderBlock = extractCssBlock(regionsCssSource, ".adl-cm-minimap-slider {\n");
-
-    expect(regionsCssSource).toContain(".adl-cm-minimap");
-    expect(regionsCssSource).toContain("right: 0;");
-    expect(extractCssBlock(regionsCssSource, ".adl-cm-minimap {\n")).toContain("position: fixed;");
-    expect(minimapCanvasBlock).toContain("position: absolute;");
-    expect(minimapCanvasBlock).toContain("inset: 0;");
-    expect(minimapSliderBlock).toContain("box-sizing: border-box;");
-    expect(minimapSliderBlock).toContain("z-index: 1;");
-    expect(minimapSliderBlock).toContain("var(--accent) 6%");
-    expect(minimapSliderBlock).not.toContain("rgba(120, 120, 120, 0.25)");
-    expect(extractCssBlock(regionsCssSource, ".adl-tool-panel {\n")).toContain("min-width: 0;");
-    expect(extractCssBlock(regionsCssSource, ".adl-tool-panel {\n")).toContain("overflow: hidden;");
-    expect(extractCssBlock(regionsCssSource, ".adl-tool-editor {\n  --adl-editor-minimap-width")).toContain("max-width: 100%;");
-    expect(extractCssBlock(regionsCssSource, ".adl-tool-editor {\n  --adl-editor-minimap-width")).not.toContain("overflow: hidden;");
-    expect(extractCssBlock(regionsCssSource, ".adl-tool-editor__surface > div:not(.adl-sticky-context) {\n")).toContain("width: 100%;");
-    expect(extractCssBlock(regionsCssSource, ".adl-tool-editor__surface {\n")).toContain("max-width: 100%;");
-    expect(extractCssBlock(regionsCssSource, ".adl-cm-diff-viewer {\n")).toContain("width: 100%;");
-    expect(extractCssBlock(regionsCssSource, ".adl-cm-diff-viewer {\n")).not.toContain("overflow: hidden;");
-    expect(regionsCssSource).toContain("scrollbar-width: none;");
-    expect(regionsCssSource).toContain("overflow-y: scroll !important;");
-    expect(regionsCssSource).toContain(".adl-cm-editor .cm-scroller::-webkit-scrollbar");
-    expect(extractCssBlock(regionsCssSource, ".adl-cm-editor .cm-scroller,\n.adl-cm-diff-viewer .cm-scroller")).not.toContain("overflow-y: hidden");
-  });
-
-  it("keeps the app-owned standard scrollbar visible and context-menu capable", () => {
-    const standardBlock = extractCssBlock(regionsCssSource, ".adl-cm-minimap--standard {\n");
-    const standardSliderBlock = extractCssBlock(regionsCssSource, ".adl-cm-minimap--standard .adl-cm-minimap-slider {\n");
-
-    expect(standardBlock).toContain("width: var(--adl-cm-standard-scrollbar-width");
-    expect(standardBlock).not.toContain("display: none");
-    expect(standardSliderBlock).toContain("left:");
-    expect(standardSliderBlock).toContain("right:");
-    expect(regionsCssSource).toContain(".adl-cm-minimap--standard .adl-cm-minimap-canvas");
-    expect(regionsCssSource).toContain(".cm-mergeView.adl-cm-scroller--minimap-scrollbar .cm-scroller::-webkit-scrollbar");
-    expect(regionsCssSource).toContain(".cm-mergeView.adl-cm-scroller--minimap-scrollbar .cm-scroller {\n  scrollbar-width: none;");
-  });
-
-  it("styles the scrollbar mode switcher like underline tabs and uses group labels with active indicator", () => {
-    expect(regionsCssSource).toContain(".adl-cm-minimap-menu-segmented");
-    expect(regionsCssSource).toContain('.adl-cm-minimap-menu-segmented__button[aria-pressed="true"]');
-    expect(regionsCssSource).toContain(".adl-cm-minimap-menu-group-label");
-    expect(regionsCssSource).not.toContain(".adl-cm-minimap-menu-item__check");
-    expect(regionsCssSource).toContain(".adl-cm-minimap-menu-item--active::before");
-    expect(regionsCssSource).not.toContain(".adl-cm-minimap-menu-item--checked");
-  });
-
-  it("keeps native scrollbars hidden while the app-owned minimap rail is active", () => {
-    expect(regionsCssSource).toContain(".adl-cm-editor .cm-scroller.adl-cm-scroller--minimap-scrollbar::-webkit-scrollbar");
-    expect(regionsCssSource).toContain(".adl-cm-diff-viewer--side-by-side .cm-mergeView.adl-cm-scroller--minimap-scrollbar::-webkit-scrollbar");
-    expect(regionsCssSource).toContain(".adl-cm-diff-viewer .adl-cm-scroller--minimap-scrollbar {\n  scrollbar-width: none;");
-  });
-
   it("keeps diff gutter rows vertically aligned with content rows", () => {
     const contentBlock = extractCssBlock(regionsCssSource, ".adl-cm-editor .cm-content,\n.adl-cm-diff-viewer .cm-content {\n");
     const guttersBlock = extractCssBlock(regionsCssSource, ".adl-cm-editor .cm-gutters,\n.adl-cm-diff-viewer .cm-gutters {\n");
@@ -152,11 +97,14 @@ describe("CodeMirror preview styling", () => {
     expect(regionsCssSource).toContain("padding-right: 0;");
   });
 
-  it("keeps side-by-side diffs on the shared MergeView scroll container with independent horizontal scroll", () => {
-    expect(regionsCssSource).toContain(".adl-cm-diff-viewer--side-by-side .cm-mergeView .cm-scroller");
+  it("keeps side-by-side diffs on individual editor scroll containers", () => {
     expect(extractCssBlock(regionsCssSource, ".adl-cm-diff-viewer--side-by-side .cm-mergeView .cm-scroller {\n")).toContain("overflow: auto !important;");
-    expect(extractCssBlock(regionsCssSource, ".adl-cm-diff-viewer--side-by-side .cm-mergeView {\n")).toContain("overflow: visible;");
-    expect(extractCssBlock(regionsCssSource, ".adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors {\n")).toContain("height: auto;");
+    expect(regionsCssSource).toContain("::-webkit-scrollbar:horizontal");
+    expect(extractCssBlock(regionsCssSource, ".adl-cm-diff-viewer--side-by-side .cm-mergeView .cm-scroller.adl-cm-scroller--no-hscroll {\n")).toContain("overflow: auto !important;");
+    expect(regionsCssSource).toContain("scrollbar-width: none");
+    expect(extractCssBlock(regionsCssSource, ".adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-mergeViewEditor {\n")).toContain("overflow: hidden;");
+    expect(regionsCssSource).not.toContain(".cm-mergeView .adl-cm-hscroll");
+    expect(extractCssBlock(regionsCssSource, ".adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-mergeViewEditor:last-child {\n")).toContain("margin-left: 0;");
   });
 
   it("pins no-wrap inline merge controls to the visible editor edge while horizontal scrolling", () => {
@@ -176,7 +124,7 @@ describe("CodeMirror preview styling", () => {
     expect(scrollLeftSyncSource).toContain("lineHeight");
     expect(scrollLeftSyncSource).toContain("chunkRect");
     expect(noWrapButtonsBlock).toContain("z-index: 20");
-    expect(deletedChunkBlock).toContain("position: relative");
+    expect(deletedChunkBlock).not.toContain("position: relative");
   });
 
   it("lets no-wrap editors create horizontal overflow only from actual line width", () => {
@@ -193,8 +141,8 @@ describe("CodeMirror preview styling", () => {
     expect(diffViewerSource).toContain("initScrollbarWidth");
     expect(noWrapScrollerBlock).toContain("overflow-x: hidden !important;");
     expect(noWrapScrollerBlock).toContain("padding-right: 0;");
-    expect(regionsCssSource).toContain(
-      ".adl-cm-no-word-wrap.adl-cm-editor-wrapper,\n.adl-cm-no-word-wrap.adl-cm-diff-viewer-wrapper {\n  padding-right: calc(var(--adl-editor-minimap-width, 84px) - var(--adl-scrollbar-width, 0px));",
+    expect(regionsCssSource).not.toContain(
+      "--adl-editor-minimap-width",
     );
     expect(noWrapScrollerBlock).not.toContain("scrollbar-width:");
     expect(noWrapScrollerBlock).not.toContain("overflow-y:");
@@ -203,6 +151,8 @@ describe("CodeMirror preview styling", () => {
     expect(noWrapContentBlock).toContain("overflow: visible");
     expect(noWrapContentBlock).toContain("width: auto !important;");
     expect(noWrapContentBlock).toContain("max-width: none !important;");
+    expect(noWrapContentBlock).toContain("padding-right: 24px;");
+    expect(extractCssBlock(regionsCssSource, ".adl-cm-no-word-wrap .adl-cm-diff-viewer .cm-line,\n.adl-cm-no-word-wrap .adl-cm-editor .cm-line,\n.adl-cm-no-word-wrap .adl-cm-diff-viewer .cm-deletedChunk {\n")).toContain("padding-right: 24px;");
     expect(regionsCssSource).toContain(".adl-cm-scroller--no-hscroll");
     expect(regionsCssSource).toContain("adl-cm-scroller--no-hscroll");
   });

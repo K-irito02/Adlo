@@ -1,0 +1,57 @@
+# Tasks
+
+- [x] Task 1: 提取 `estimateWrapColumn` 到独立文件 `cmWrapColumn.ts`
+  - 从 `cmMinimap.ts` 中复制 `estimateWrapColumn` 函数到新文件
+  - 新文件只包含该函数及其必要的导入
+  - 确保 FilesPanel.tsx 和 ChangesPanel.tsx 更新导入路径
+- [x] Task 2: 删除 `changePreviewDiffRanges.ts` 中的 Minimap 专用代码
+  - 删除类型: `PreviewDiffMinimapModel`, `PreviewDiffMinimapOptions`
+  - 删除函数: `computePreviewDiffMinimapModel`, `computeFallbackMinimapModel`, `appendVisualLineRanges`, `appendVisualLineColumns`, `isLineHidden`
+  - **保留**: `PreviewDiffVisualRange`, `PreviewDiffCollapsedRange`, `computePreviewDiffVisualRanges`, `computePreviewDiffRanges`, `PreviewDiffRange`
+- [x] Task 3: 清理 `DiffViewer.tsx` 中的 Minimap 代码
+  - 从 `DiffViewerProps` 中删除 `minimapModel`, `minimapScopeId`, `onMinimapDragStart`
+  - 删除 `getMinimapExtension`, `updateMinimapDiffModel`, `CmMinimapDiffModel` 导入
+  - 删除 `computePreviewDiffMinimapModel` 导入和 `mergedMinimapModel` 逻辑
+  - 从 `SideBySideDiffViewer` 和 `InlineDiffViewer` 中移除 minimap props 和扩展注入
+- [x] Task 4: 清理 `FilesPanel.tsx` 中的 Minimap 代码
+  - 更新 `estimateWrapColumn` 导入到 `cmWrapColumn.ts`
+  - 删除 `getMinimapExtension`, `updateMinimapDiffHunks` 导入
+  - 删除 `computePreviewDiffMinimapModel` 导入和调用
+  - 删除 `fileDiffMinimapScopeId`, `fileEditorMinimapScopeId` 相关状态和逻辑
+  - 删除 `fileDiffMinimapExpandedUnchanged` 状态和 `handleFileDiffMinimapDragStart`
+  - 删除传递给 `<DiffViewer>` 的 minimap props
+- [x] Task 5: 清理 `ChangesPanel.tsx` 中的 Minimap 代码
+  - 更新 `estimateWrapColumn` 导入到 `cmWrapColumn.ts`
+  - 删除 `getMinimapExtension` 导入
+  - 删除 `computePreviewDiffMinimapModel` 导入和调用
+  - 删除 `changePreviewEditorMinimapScopeId`, `changePreviewDiffMinimapScopeId` 相关状态和逻辑
+  - 删除传递给 `<DiffViewer>` 的 minimap props
+  - **保留**: `computePreviewDiffVisualRanges` 导入和调用
+- [x] Task 6: 清理 CSS 样式 (`regions.css`)
+  - 删除 `--adl-editor-minimap-width` 定义
+  - 删除所有 `.adl-cm-minimap` 相关选择器
+  - 删除 `.adl-cm-minimap-canvas`, `.adl-cm-minimap-slider`, `.adl-cm-minimap-context-menu` 等
+  - 更新 `.adl-sticky-context` 的 `right` 值从 `var(--adl-editor-minimap-width, 84px)` 改为 `0px`
+  - 删除 `.adl-cm-scroller--minimap-scrollbar` 相关规则
+  - 删除 `.adl-cm-no-word-wrap` 中 `padding-right` 的 minimap 相关调整
+- [x] Task 7: 删除 Minimap 核心实现文件
+  - 删除 `cmMinimap.ts`
+  - 删除 `cmMinimap.test.ts`
+- [x] Task 8: 清理测试文件
+  - 从 `changePreviewDiffRanges.test.ts` 中删除所有 `computePreviewDiffMinimapModel` 相关测试用例
+  - 从 `filesEditorOptions.test.ts` 中删除 minimap 相关断言
+  - 从 `changesEditorOptions.test.ts` 中删除 minimap 相关断言
+  - 从 `cmPreviewStyling.test.ts` 中删除 minimap 引用
+  - 从 `changesEditorHighlight.test.ts` 中删除 minimap 引用
+  - 删除 `minimap-diff-debug.spec.ts`
+- [x] Task 9: 全面测试验证
+  - 运行 `npm --prefix frontend run typecheck` 确认类型无误
+  - 运行 `npm --prefix frontend test` 确认测试通过
+  - 运行 `cargo test --workspace` 确认 Rust 测试通过
+
+# Task Dependencies
+
+- [Task 1] 必须先于 [Task 4, Task 5]
+- [Tasks 2, 3, 4, 5, 6, 8] 无依赖关系，可并行执行（但需等待 Task 1 完成后才能执行 Task 4 和 Task 5）
+- [Task 7] 依赖于 [Tasks 1, 2, 3, 4, 5, 6] 全部完成后才可执行（确保无文件再引用 cmMinimap.ts）
+- [Task 9] 依赖于所有前置任务

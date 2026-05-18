@@ -215,7 +215,6 @@ export function FoldTooltipOverlay({ view }: FoldTooltipOverlayProps) {
     gutter.addEventListener("mouseout", handleMouseOut);
     content.addEventListener("mouseover", handleMouseOver);
     content.addEventListener("mouseout", handleMouseOut);
-    view.scrollDOM.addEventListener("scroll", handleScroll, { passive: true });
 
     return () => {
       observer.disconnect();
@@ -223,7 +222,6 @@ export function FoldTooltipOverlay({ view }: FoldTooltipOverlayProps) {
       gutter.removeEventListener("mouseout", handleMouseOut);
       content.removeEventListener("mouseover", handleMouseOver);
       content.removeEventListener("mouseout", handleMouseOut);
-      view.scrollDOM.removeEventListener("scroll", handleScroll);
       if (hideTimerRef.current !== null) {
         clearTimeout(hideTimerRef.current);
         hideTimerRef.current = null;

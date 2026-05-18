@@ -33,35 +33,32 @@ class ScrollLeftSyncPlugin implements PluginValue {
   private dragThumbWidth = 0;
   private dragMaxScrollLeft = 0;
   private dragMaxThumbLeft = 0;
-  private boundOnThumbMouseDown: (e: MouseEvent) => void;
   private boundOnThumbPointerDown: (e: PointerEvent) => void;
-  private boundOnTrackMouseDown: (e: MouseEvent) => void;
-  private boundOnWindowMouseMove: (e: MouseEvent) => void;
-  private boundOnWindowMouseUp: () => void;
-  private boundOnWindowBlur: () => void;
-  private boundOnPointerUp: () => void;
-  private boundOnPointerCancel: () => void;
+  private boundOnTrackPointerDown: (e: PointerEvent) => void;
+  private boundOnPointerMove: (e: PointerEvent) => void;
+  private boundOnPointerUp: (e: PointerEvent) => void;
+  private boundOnPointerCancel: (e: PointerEvent) => void;
   private boundOnWheel: (e: WheelEvent) => void;
   private boundOnDocumentPointerDown: () => void;
   private boundOnDocumentPointerUp: () => void;
+  private boundOnScrollDOMPointerMove: (e: PointerEvent) => void;
 
   constructor(private readonly view: EditorView) {
-    this.boundOnThumbMouseDown = this.onThumbMouseDown.bind(this);
     this.boundOnThumbPointerDown = this.onThumbPointerDown.bind(this);
-    this.boundOnTrackMouseDown = this.onTrackMouseDown.bind(this);
-    this.boundOnWindowMouseMove = this.onWindowMouseMove.bind(this);
-    this.boundOnWindowMouseUp = this.onWindowMouseUp.bind(this);
-    this.boundOnWindowBlur = this.onWindowBlur.bind(this);
+    this.boundOnTrackPointerDown = this.onTrackPointerDown.bind(this);
+    this.boundOnPointerMove = this.onPointerMove.bind(this);
     this.boundOnPointerUp = this.onPointerUp.bind(this);
     this.boundOnPointerCancel = this.onPointerCancel.bind(this);
     this.boundOnWheel = this.onWheel.bind(this);
     this.boundOnDocumentPointerDown = this.onDocumentPointerDown.bind(this);
     this.boundOnDocumentPointerUp = this.onDocumentPointerUp.bind(this);
+    this.boundOnScrollDOMPointerMove = this.onScrollDOMPointerMove.bind(this);
 
     this.createCustomScrollbar();
     this.syncCssPropsOnly();
     this.view.scrollDOM.addEventListener("scroll", this.handleScroll, { passive: true });
     this.view.scrollDOM.addEventListener("wheel", this.boundOnWheel, { passive: false });
+    this.view.scrollDOM.addEventListener("pointermove", this.boundOnScrollDOMPointerMove);
     document.addEventListener("pointerdown", this.boundOnDocumentPointerDown);
     document.addEventListener("pointerup", this.boundOnDocumentPointerUp);
     this.setupResizeObserver();
@@ -85,17 +82,10 @@ class ScrollLeftSyncPlugin implements PluginValue {
     this.hscrollThumb = thumb;
 
     thumb.addEventListener("pointerdown", this.boundOnThumbPointerDown);
-    thumb.addEventListener("mousedown", this.boundOnThumbMouseDown);
-    track.addEventListener("mousedown", this.boundOnTrackMouseDown);
+    track.addEventListener("pointerdown", this.boundOnTrackPointerDown);
   }
 
   private onThumbPointerDown(e: PointerEvent): void {
-    if (this.hscrollThumb?.setPointerCapture) {
-      this.hscrollThumb.setPointerCapture(e.pointerId);
-    }
-  }
-
-  private onThumbMouseDown(e: MouseEvent): void {
     e.preventDefault();
     e.stopPropagation();
     this.isDragging = true;
@@ -104,9 +94,8 @@ class ScrollLeftSyncPlugin implements PluginValue {
     this.hscrollThumb!.classList.add(HSCROLL_DRAGGING_CLASS);
     this.cacheDragLayout();
     this.setChunkButtonsVisibility(false);
-    window.addEventListener("mousemove", this.boundOnWindowMouseMove);
-    window.addEventListener("mouseup", this.boundOnWindowMouseUp);
-    window.addEventListener("blur", this.boundOnWindowBlur);
+    this.hscrollThumb!.setPointerCapture(e.pointerId);
+    this.hscrollThumb!.addEventListener("pointermove", this.boundOnPointerMove);
     this.hscrollThumb!.addEventListener("pointerup", this.boundOnPointerUp);
     this.hscrollThumb!.addEventListener("pointercancel", this.boundOnPointerCancel);
   }
@@ -124,7 +113,7 @@ class ScrollLeftSyncPlugin implements PluginValue {
     this.dragMaxThumbLeft = Math.max(0, this.dragTrackWidth - this.dragThumbWidth);
   }
 
-  private onWindowMouseMove(e: MouseEvent): void {
+  private onPointerMove(e: PointerEvent): void {
     if (!this.isDragging || !this.hscrollThumb) return;
     if (this.dragMaxThumbLeft <= 0) return;
 
@@ -134,25 +123,32 @@ class ScrollLeftSyncPlugin implements PluginValue {
     this.view.scrollDOM.scrollLeft = scrollLeft;
 
     this.hscrollThumb.style.left = `${thumbLeft}px`;
-  }
 
-  private onWindowMouseUp(): void {
-    this.endDrag();
-    this.schedule();
-  }
-
-  private onWindowBlur(): void {
-    if (this.isDragging) {
-      this.endDrag();
+    const mergeView = this.view.dom.closest(".cm-mergeView");
+    if (mergeView) {
+      const editors = mergeView.querySelectorAll(".cm-mergeViewEditor .cm-scroller");
+      for (const scroller of editors) {
+        if (scroller !== this.view.scrollDOM) {
+          const otherScroll = scroller as HTMLElement;
+          const otherMax = Math.max(0, otherScroll.scrollWidth - otherScroll.clientWidth);
+          if (otherMax > 0) {
+            const ratio = Math.min(1, scrollLeft / this.dragMaxScrollLeft);
+            otherScroll.scrollLeft = ratio * otherMax;
+          }
+        }
+      }
     }
   }
 
   private onPointerUp(): void {
+    if (!this.isDragging) return;
+    this.stopEdgeScroll();
     this.endDrag();
     this.schedule();
   }
 
   private onPointerCancel(): void {
+    if (!this.isDragging) return;
     this.endDrag();
   }
 
@@ -160,6 +156,7 @@ class ScrollLeftSyncPlugin implements PluginValue {
     this.isDragging = false;
     if (this.hscrollThumb) {
       this.hscrollThumb.classList.remove(HSCROLL_DRAGGING_CLASS);
+      this.hscrollThumb.removeEventListener("pointermove", this.boundOnPointerMove);
       this.hscrollThumb.removeEventListener("pointerup", this.boundOnPointerUp);
       this.hscrollThumb.removeEventListener("pointercancel", this.boundOnPointerCancel);
     }
@@ -169,12 +166,9 @@ class ScrollLeftSyncPlugin implements PluginValue {
       const paddingRight = parseFloat(scrollerStyle.paddingRight) || 0;
       this.prepareAndShowChunkButtons(scrollDOM.clientWidth - paddingRight, scrollDOM.scrollLeft);
     }
-    window.removeEventListener("mousemove", this.boundOnWindowMouseMove);
-    window.removeEventListener("mouseup", this.boundOnWindowMouseUp);
-    window.removeEventListener("blur", this.boundOnWindowBlur);
   }
 
-  private onTrackMouseDown(e: MouseEvent): void {
+  private onTrackPointerDown(e: PointerEvent): void {
     if (e.target === this.hscrollThumb || !this.hscrollEl) return;
     const trackRect = this.hscrollEl.getBoundingClientRect();
     const clickX = e.clientX - trackRect.left;
@@ -216,6 +210,7 @@ class ScrollLeftSyncPlugin implements PluginValue {
 
   private onDocumentPointerUp(): void {
     this.isPointerDown = false;
+    this.stopEdgeScroll();
     if (this.resizeDebounceTimer !== null) {
       clearTimeout(this.resizeDebounceTimer);
       this.resizeDebounceTimer = null;
@@ -223,6 +218,83 @@ class ScrollLeftSyncPlugin implements PluginValue {
       const scrollerStyle = getComputedStyle(scrollDOM);
       const paddingRight = parseFloat(scrollerStyle.paddingRight) || 0;
       this.prepareAndShowChunkButtons(scrollDOM.clientWidth - paddingRight, scrollDOM.scrollLeft);
+    }
+  }
+
+  private edgeScrollRafId: number | null = null;
+  private edgeScrollDirection: number = 0;
+  private edgeScrollSpeed: number = 0;
+
+  private onScrollDOMPointerMove(e: PointerEvent): void {
+    if (document.querySelector(".adl-cm-diff-resizer--dragging")) return;
+    if (!(e.buttons & 1)) {
+      this.stopEdgeScroll();
+      return;
+    }
+    if (this.isDragging) return;
+
+    const scrollDOM = this.view.scrollDOM;
+    const scrollerRect = scrollDOM.getBoundingClientRect();
+    const x = e.clientX - scrollerRect.left;
+    const edgeZone = 40;
+
+    if (x >= scrollerRect.width - edgeZone && x < scrollerRect.width) {
+      this.edgeScrollDirection = 1;
+      this.edgeScrollSpeed = ((x - (scrollerRect.width - edgeZone)) / edgeZone);
+      this.startEdgeScroll();
+    } else if (x <= edgeZone && x > 0) {
+      this.edgeScrollDirection = -1;
+      this.edgeScrollSpeed = ((edgeZone - x) / edgeZone);
+      this.startEdgeScroll();
+    } else {
+      this.stopEdgeScroll();
+    }
+  }
+
+  private startEdgeScroll(): void {
+    if (this.edgeScrollRafId !== null) return;
+    this.edgeScrollRafId = requestAnimationFrame(this.tickEdgeScroll);
+  }
+
+  private stopEdgeScroll(): void {
+    if (this.edgeScrollRafId !== null) {
+      cancelAnimationFrame(this.edgeScrollRafId);
+      this.edgeScrollRafId = null;
+    }
+    this.edgeScrollDirection = 0;
+    this.edgeScrollSpeed = 0;
+  }
+
+  private tickEdgeScroll = (): void => {
+    const scrollDOM = this.view.scrollDOM;
+    const dir = this.edgeScrollDirection;
+    const speed = this.edgeScrollSpeed;
+
+    if (dir === 0) {
+      this.edgeScrollRafId = null;
+      return;
+    }
+
+    const maxScrollLeft = Math.max(0, scrollDOM.scrollWidth - scrollDOM.clientWidth);
+
+    if (dir > 0) {
+      scrollDOM.scrollLeft = Math.min(maxScrollLeft, scrollDOM.scrollLeft + 2 + 4 * speed);
+    } else {
+      scrollDOM.scrollLeft = Math.max(0, scrollDOM.scrollLeft - 2 - 4 * speed);
+    }
+
+    const mergeView = this.view.dom.closest(".cm-mergeView");
+    if (mergeView) {
+      const editors = mergeView.querySelectorAll(".cm-mergeViewEditor .cm-scroller");
+      for (const scroller of editors) {
+        if (scroller !== scrollDOM) {
+          (scroller as HTMLElement).scrollLeft = scrollDOM.scrollLeft;
+        }
+      }
+    }
+
+    if (this.edgeScrollRafId !== null) {
+      this.edgeScrollRafId = requestAnimationFrame(this.tickEdgeScroll);
     }
   }
 
@@ -332,6 +404,7 @@ class ScrollLeftSyncPlugin implements PluginValue {
     }
     this.view.scrollDOM.removeEventListener("scroll", this.handleScroll);
     this.view.scrollDOM.removeEventListener("wheel", this.boundOnWheel);
+    this.view.scrollDOM.removeEventListener("pointermove", this.boundOnScrollDOMPointerMove);
     this.resizeObserver?.disconnect();
     this.resizeObserver = null;
     if (this.frame) {

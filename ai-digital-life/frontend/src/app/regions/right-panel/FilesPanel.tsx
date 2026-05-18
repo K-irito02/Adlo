@@ -9,11 +9,7 @@ import {
   clearAgentDecorations,
   type AgentHunkDecoration,
 } from "./agentDecorations";
-import {
-  estimateWrapColumn,
-  getMinimapExtension,
-  updateMinimapDiffHunks,
-} from "./cmMinimap";
+import { estimateWrapColumn } from "./cmWrapColumn";
 import { categorizeFile, type FileCategory } from "./fileTypeRouter";
 import {
   LazyMarkdownPreviewWrapper,
@@ -62,7 +58,6 @@ import {
   summarizePatchFile
 } from "./patchReview";
 import type { PreviewDiffVisualRange } from "./changePreviewDiffRanges";
-import { computePreviewDiffMinimapModel } from "./changePreviewDiffRanges";
 import {
   buildStickyContextEntries,
   createStickyContextModel,
@@ -209,7 +204,6 @@ export function FilesPanel(props: RightPanelViewProps) {
   const [createPathValue, setCreatePathValue] = useState("");
   const [wordWrapEnabled, setWordWrapEnabled] = useState(false);
   const [lineNumbersEnabled, setLineNumbersEnabled] = useState(true);
-  const [fileDiffMinimapExpandedUnchanged, setFileDiffMinimapExpandedUnchanged] = useState(false);
   const [fileDiffWrapColumn, setFileDiffWrapColumn] = useState<number | null>(null);
   const editorShellRef = useRef<HTMLDivElement | null>(null);
   const editorSurfaceRef = useRef<HTMLDivElement | null>(null);
@@ -319,37 +313,12 @@ export function FilesPanel(props: RightPanelViewProps) {
     });
   }, [activeFilePatch, props.selectedPatchHunkId, selectedFilePath]);
 
-  const fileEditorMinimapScopeId = useMemo(
-    () => selectedFilePath ? `files:${selectedFilePath}:editor` : "files:unselected:editor",
-    [selectedFilePath]
-  );
-  const fileDiffMinimapScopeId = useMemo(
-    () => selectedFilePath ? `files:${selectedFilePath}:diff` : "files:unselected:diff",
-    [selectedFilePath]
-  );
   const editorExtensions = useMemo(() => [
     ...getAgentDecorationExtensions(),
-    ...getMinimapExtension({ scopeId: fileEditorMinimapScopeId }),
-  ], [fileEditorMinimapScopeId]);
+  ], []);
   const diffEditorExtensions = useMemo(() => [
     ...getAgentDecorationExtensions(),
   ], []);
-  const fileDiffMinimapModel = useMemo(
-    () => filePatch && filePatch.relativePath === selectedFilePath
-      ? computePreviewDiffMinimapModel(filePatch.beforeContent, filePatch.afterContent, {
-        wrapColumn: fileDiffWrapColumn,
-      })
-      : undefined,
-    [fileDiffWrapColumn, filePatch, selectedFilePath]
-  );
-  const handleFileDiffMinimapDragStart = useCallback(() => {
-    setFileDiffMinimapExpandedUnchanged(true);
-  }, []);
-
-  useEffect(() => {
-    setFileDiffMinimapExpandedUnchanged(false);
-  }, [diffSideBySide, filePatch?.relativePath, selectedFilePath]);
-
   const getStickySourceEditor = useCallback((): EditorRef | null => {
     if (filePatch && filePatch.relativePath === selectedFilePath) {
       const diffRef = localDiffEditorRef.current;
@@ -414,7 +383,6 @@ export function FilesPanel(props: RightPanelViewProps) {
       return;
     }
     applyAgentDecorations(view, agentHunkDecorations);
-    updateMinimapDiffHunks(view, agentHunkDecorations);
     return () => {
       if (cmViewRef.current) {
         clearAgentDecorations(cmViewRef.current);
@@ -942,16 +910,13 @@ export function FilesPanel(props: RightPanelViewProps) {
               theme={resolvedTheme}
               locale={resolvedLocale}
               sideBySide={diffSideBySide}
+              collapseUnchanged={false}
               fileKey={selectedFilePath}
-              collapseUnchanged={!fileDiffMinimapExpandedUnchanged}
               readOnly={diffEditorOptions.readOnly}
               lineNumbers={diffEditorOptions.lineNumbers}
               wordWrap={diffEditorOptions.wordWrap}
               onMount={handleDiffEditorMount}
               extensions={diffEditorExtensions}
-              minimapModel={fileDiffMinimapModel}
-              minimapScopeId={fileDiffMinimapScopeId}
-              onMinimapDragStart={handleFileDiffMinimapDragStart}
             />
           </div>
         </>

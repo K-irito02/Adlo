@@ -4431,7 +4431,6 @@ select:focus-visible {
 }
 
 .adl-tool-editor {
-  --adl-editor-minimap-width: 84px;
   --adl-editor-scroll-left: 0px;
   --adl-editor-visible-width: 0px;
   --adl-editor-content-width: 0px;
@@ -4453,7 +4452,7 @@ select:focus-visible {
   position: absolute;
   top: 0;
   left: 0;
-  right: var(--adl-editor-minimap-width, 84px);
+  right: 0px;
   z-index: var(--z-sticky);
   display: flex;
   justify-content: flex-end;
@@ -4613,16 +4612,7 @@ select:focus-visible {
 /* Word wrap ON: CodeMirror's cm-lineWrapping class handles wrapping.
    .cm-editor { overflow: hidden } contains everything. */
 
-/* Word wrap OFF: the wrapper reserves right-side space for the minimap
-   via padding-right so the scroller is naturally narrower.
-   The scroller uses overflow-x: auto — the browser auto-detects overflow
-   and only shows the horizontal scrollbar when content exceeds the visible
-   area (both track and thumb appear together). The gutter stays fixed via
-   CodeMirror's default position: sticky; left: 0. */
-.adl-cm-no-word-wrap.adl-cm-editor-wrapper,
-.adl-cm-no-word-wrap.adl-cm-diff-viewer-wrapper {
-  padding-right: calc(var(--adl-editor-minimap-width, 84px) - var(--adl-scrollbar-width, 0px));
-}
+
 
 .adl-cm-no-word-wrap .adl-cm-diff-viewer .cm-scroller,
 .adl-cm-no-word-wrap .adl-cm-editor .cm-scroller {
@@ -4641,6 +4631,10 @@ select:focus-visible {
    max-width:none override the general .cm-content { width:100%; max-width:100% }
    rule so the content box is purely sized by max-content, eliminating any
    gap between the background edge and the right edge of the scrollable area. */
+/* No-word-wrap: apply padding-right on .cm-line instead of .cm-content.
+   .cm-line padding is visible in the scrollable area — the content/background
+   fills the padded region, and the extra 16px of scrollWidth ensures the
+   rightmost content has breathing room before touching the scrollbar. */
 .adl-cm-no-word-wrap .adl-cm-diff-viewer .cm-content,
 .adl-cm-no-word-wrap .adl-cm-editor .cm-content {
   white-space: pre !important;
@@ -4648,29 +4642,28 @@ select:focus-visible {
   width: auto !important;
   max-width: none !important;
   overflow: visible;
+  padding-right: 24px;
 }
 
-/* .cm-line fills .cm-content width (display:block default) — no
-   width/min-width override so no false scrollbar is introduced. */
 .adl-cm-no-word-wrap .adl-cm-diff-viewer .cm-line,
-.adl-cm-no-word-wrap .adl-cm-editor .cm-line {
-  /* no width override — block elements naturally fill parent */
+.adl-cm-no-word-wrap .adl-cm-editor .cm-line,
+.adl-cm-no-word-wrap .adl-cm-diff-viewer .cm-deletedChunk {
+  margin-right: -24px;
+  padding-right: 24px;
 }
 
-/* Side-by-side: no special padding needed. */
-.adl-cm-no-word-wrap .adl-cm-diff-viewer--side-by-side .cm-line {
-  /* no extra rules needed */
-}
-
-/* No-wrap inline mode: keep .cm-deletedChunk as the positioning context
-   for .cm-chunkButtons. overflow:visible ensures buttons are never clipped
-   by .cm-content. z-index must exceed the minimap overlay (z-index:10). */
+/* No-wrap inline mode: .cm-deletedChunk must NOT be position:relative (breaks
+   auto-scroll — see note at merge controls section). Only raise chunkButtons z-index. */
 .adl-cm-no-word-wrap .adl-cm-diff-viewer--inline .cm-deletedChunk {
   position: relative;
 }
 
 .adl-cm-no-word-wrap .adl-cm-diff-viewer--inline .cm-deletedChunk .cm-chunkButtons {
   z-index: 20;
+  float: none;
+  position: absolute !important;
+  inset-inline-end: 5px;
+  top: 0;
 }
 
 /* Merge gutter shows +/- indicators for changed lines */
@@ -4684,6 +4677,8 @@ select:focus-visible {
   justify-content: center;
   font-weight: 700;
 }
+
+
 
 /* === 字符级别（对角条纹纹理，内容宽度） === */
 /* 使用 repeating-linear-gradient 对角条纹作为 background。
@@ -4765,7 +4760,6 @@ select:focus-visible {
 .adl-cm-editor .cm-scroller,
 .adl-cm-diff-viewer .cm-scroller {
   position: relative;
-  padding-right: var(--adl-editor-minimap-width, 84px);
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
@@ -4775,11 +4769,8 @@ select:focus-visible {
   scrollbar-width: thin;
 }
 
-/* Override @codemirror/merge's .cm-mergeViewEditor { overflow: hidden }
-   so merge control buttons (Accept/Reject) are not clipped.
-   The overflow containment is handled by .cm-editor instead. */
 .adl-cm-diff-viewer .cm-mergeViewEditor {
-  overflow: visible !important;
+  overflow: hidden !important;
 }
 
 .adl-cm-diff-viewer .cm-scroller {
@@ -4792,48 +4783,7 @@ select:focus-visible {
   height: 10px;
 }
 
-.adl-cm-editor .cm-scroller.adl-cm-scroller--minimap-scrollbar::-webkit-scrollbar,
-.adl-cm-diff-viewer .cm-scroller.adl-cm-scroller--minimap-scrollbar::-webkit-scrollbar,
-.adl-cm-diff-viewer--side-by-side .cm-mergeView.adl-cm-scroller--minimap-scrollbar .cm-scroller::-webkit-scrollbar,
-.adl-cm-diff-viewer--side-by-side .cm-mergeView.adl-cm-scroller--minimap-scrollbar::-webkit-scrollbar {
-  width: 0;
-  height: 0;
-}
 
-/* Word wrap OFF: show horizontal scrollbar even when minimap is active */
-.adl-cm-no-word-wrap .adl-cm-diff-viewer .cm-scroller.adl-cm-scroller--minimap-scrollbar::-webkit-scrollbar,
-.adl-cm-no-word-wrap .adl-cm-diff-viewer--side-by-side .cm-mergeView.adl-cm-scroller--minimap-scrollbar .cm-scroller::-webkit-scrollbar {
-  width: 0;
-  height: 10px;
-}
-
-.adl-cm-diff-viewer--side-by-side .cm-mergeView.adl-cm-scroller--minimap-scrollbar .cm-scroller {
-  scrollbar-width: none;
-}
-
-.adl-cm-scroller--minimap-scrollbar::-webkit-scrollbar {
-  width: 0;
-  height: 0;
-}
-
-.adl-cm-editor .adl-cm-scroller--minimap-scrollbar,
-.adl-cm-diff-viewer .adl-cm-scroller--minimap-scrollbar {
-  scrollbar-width: none;
-}
-
-/* Word wrap OFF: override minimap scrollbar hiding so horizontal scrollbar appears */
-.adl-cm-no-word-wrap .adl-cm-scroller--minimap-scrollbar::-webkit-scrollbar {
-  width: 0;
-  height: 10px;
-}
-
-.adl-cm-no-word-wrap .adl-cm-scroller--minimap-scrollbar {
-  scrollbar-width: thin !important;
-}
-
-.adl-cm-no-word-wrap .adl-cm-diff-viewer--side-by-side .cm-mergeView.adl-cm-scroller--minimap-scrollbar .cm-scroller {
-  scrollbar-width: thin !important;
-}
 
 .adl-cm-scroller--no-hscroll {
   overflow-x: hidden !important;
@@ -4885,6 +4835,8 @@ select:focus-visible {
 .adl-cm-hscroll:hover .adl-cm-hscroll__thumb {
   max-width: none;
   min-width: 40px;
+  height: 6px;
+  top: 2px;
   background: var(--hscroll-thumb-hover-bg);
   box-shadow: var(--hscroll-thumb-hover-shadow);
   transform: none;
@@ -4894,6 +4846,8 @@ select:focus-visible {
 .adl-cm-hscroll__thumb.is-dragging {
   max-width: none;
   min-width: 40px;
+  height: 6px;
+  top: 2px;
   background: var(--hscroll-thumb-dragging-bg);
   box-shadow: var(--hscroll-thumb-dragging-shadow);
   transform: none;
@@ -4930,14 +4884,23 @@ select:focus-visible {
 }
 
 /* Merge controls (Accept/Reject buttons) in inline unified merge view */
+/* .cm-deletedChunk must NOT use position:relative — that creates a positioning
+   context that breaks CodeMirror's auto-scroll detection during text selection drags.
+   Instead, chunkButtons use float:right for positioning.
+
+   CRITICAL: CodeMirror's merge base theme sets .cm-chunkButtons { position: absolute }
+   (default insetInlineEnd: 5px). Since position:absolute makes float:none per CSS spec,
+   we must explicitly set position:static on the buttons to make float:right work.
+   Each chunk then independently positions its buttons at its own top-right corner. */
 .adl-cm-diff-viewer--inline .cm-deletedChunk {
-  position: relative;
+  overflow: hidden;
 }
 
 .adl-cm-diff-viewer--inline .cm-deletedChunk .cm-chunkButtons {
   z-index: 2;
-  position: absolute;
-  inset-inline-end: 5px;
+  float: right;
+  position: static !important;
+  margin-inline-end: 5px;
 }
 
 .adl-cm-diff-viewer--inline .cm-deletedChunk .cm-chunkButtons button[name="accept"] {
@@ -5147,20 +5110,20 @@ select:focus-visible {
   min-width: 0;
 }
 
-.adl-cm-diff-viewer--side-by-side .cm-mergeView {
-  overflow: visible;
+.adl-cm-diff-viewer .cm-scroller {
+  scrollbar-color: color-mix(in srgb, var(--text-primary) 14%, transparent) transparent;
 }
 
-.adl-cm-diff-viewer--side-by-side .cm-mergeView .cm-scroller {
-  overflow: auto !important;
+.adl-cm-diff-viewer .cm-editor .cm-scroller::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--text-primary) 14%, transparent);
+  background-clip: padding-box;
+  border: 2px solid transparent;
 }
 
-.adl-cm-diff-viewer--side-by-side .cm-mergeView .cm-scroller.adl-cm-scroller--no-hscroll {
-  overflow-x: hidden !important;
-}
-
-.adl-cm-diff-viewer--side-by-side .cm-mergeView .cm-scroller.adl-cm-scroller--no-hscroll::-webkit-scrollbar {
-  height: 0;
+.adl-cm-diff-viewer .cm-editor .cm-scroller::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--text-primary) 20%, transparent);
+  background-clip: padding-box;
+  border: 2px solid transparent;
 }
 
 .adl-cm-diff-viewer .cm-mergeViewEditors {
@@ -5169,19 +5132,97 @@ select:focus-visible {
   min-width: 0;
 }
 
+/* Side-by-side editors container: zero gap so the resizer and both editors
+   sit flush side-by-side. */
 .adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors {
-  height: auto;
-  min-height: 100%;
+  height: 100%;
+  min-height: 0;
+  gap: 0;
+}
+
+.adl-cm-diff-viewer--side-by-side .cm-mergeView .cm-editor {
+  height: 100% !important;
+}
+.adl-cm-no-word-wrap .adl-cm-diff-viewer--side-by-side .cm-mergeView .cm-editor {
+  height: calc(100% - 10px) !important;
+}
+
+.adl-cm-diff-viewer--side-by-side .cm-mergeView .cm-scroller {
+  height: 100% !important;
+  overflow: auto !important;
+}
+
+/* Hide native horizontal scrollbar on all editors — custom .adl-cm-hscroll
+   handles horizontal scrolling. */
+.adl-cm-diff-viewer--side-by-side .cm-mergeView .cm-scroller::-webkit-scrollbar:horizontal {
+  height: 0;
+}
+
+/* Left editor: hide native scrollbars entirely. Vertical scroll position synced
+   from the right editor via handleScrollA / handleScrollB. */
+.adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-mergeViewEditor:first-child .cm-scroller {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-mergeViewEditor:first-child .cm-scroller::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+/* Right editor: visible vertical scrollbar with theme-aware colours.
+   Horizontal native scrollbar hidden — prevents gutter border from being
+   cut off at the scrollbar track. */
+.adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-mergeViewEditor:last-child .cm-scroller {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--text-primary) 14%, transparent) transparent;
+  overflow-x: hidden !important;
+}
+.adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-mergeViewEditor:last-child .cm-scroller::-webkit-scrollbar {
+  display: block;
+}
+
+.adl-cm-diff-viewer--side-by-side .cm-mergeView .cm-scroller.adl-cm-scroller--no-hscroll {
+  overflow: auto !important;
 }
 
 .adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-mergeViewEditor {
   min-width: 0;
   flex: 1 1 0;
-  overflow: visible;
+  overflow: hidden;
+}
+
+/* Right editor: no left gap — must sit flush against the resizer.
+   Also remove any border inherited from CodeMirror merge styles. */
+.adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-mergeViewEditor:last-child {
+  margin-left: 0;
+  border-left: none;
 }
 
 .adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-mergeViewEditor + .cm-mergeViewEditor {
   border-left: none;
+}
+
+/* Right editor's .cm-editor must also have no left margin/padding. */
+.adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-mergeViewEditor:last-child .cm-editor {
+  margin-left: 0;
+  padding-left: 0;
+}
+
+/* No left margin/padding on the right editor's scroller */
+.adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-mergeViewEditor:last-child .cm-scroller {
+  padding-left: 0;
+}
+
+/* Right editor gutters: match the exact same styling used by all other
+   gutters in the app (see .adl-cm-diff-viewer .cm-gutters above). */
+.adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-mergeViewEditor:last-child .cm-gutters {
+  min-width: 54px;
+  gap: 0;
+  flex: none;
+}
+
+.adl-cm-diff-viewer--side-by-side .cm-mergeView {
+  overflow: hidden;
 }
 
 .adl-cm-diff-viewer .adl-cm-diff-resizer {
@@ -5727,469 +5768,9 @@ select:focus-visible {
   color: #6a737d;
 }
 
-.adl-cm-minimap {
-  --adl-cm-standard-scrollbar-width: 12px;
-  position: fixed;
-  right: 0;
-  width: var(--adl-cm-minimap-width, var(--adl-editor-minimap-width, 80px));
-  overflow: hidden;
-  z-index: 10;
-  cursor: pointer;
-  background: var(--surface);
-  border-left: 1px solid var(--border-subtle);
-}
 
-.adl-cm-minimap--standard {
-  width: var(--adl-cm-standard-scrollbar-width, 12px);
-  background: var(--editor-bg, var(--bg));
-  cursor: default;
-}
 
-.adl-cm-minimap:hover {
-  background: var(--surface-raised);
-}
 
-.adl-cm-minimap--standard:hover {
-  background: var(--editor-bg, var(--bg));
-}
-
-.adl-cm-minimap-canvas {
-  display: block;
-  position: absolute;
-  inset: 0;
-}
-
-.adl-cm-minimap--standard .adl-cm-minimap-canvas {
-  opacity: 0;
-  pointer-events: none;
-}
-
-.adl-cm-minimap-slider {
-  position: absolute;
-  left: 0;
-  right: 0;
-  box-sizing: border-box;
-  z-index: 1;
-  background: color-mix(in srgb, var(--accent) 6%, transparent);
-  border: 1px solid color-mix(in srgb, var(--accent) 58%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--surface) 55%, transparent);
-  cursor: grab;
-  transition: background 0.15s, border-color 0.15s;
-}
-
-.adl-cm-minimap--standard .adl-cm-minimap-slider {
-  left: 2px;
-  right: 2px;
-  border-radius: 999px;
-  border-color: transparent;
-  background: color-mix(in srgb, var(--text-muted) 42%, transparent);
-  box-shadow: none;
-  transition: background 0.15s ease, opacity 0.15s ease;
-}
-
-.adl-cm-minimap-slider--subtle {
-  opacity: 0.64;
-}
-
-.adl-cm-minimap-slider--normal {
-  opacity: 1;
-}
-
-.adl-cm-minimap-slider:hover {
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
-  border-color: color-mix(in srgb, var(--accent) 70%, transparent);
-}
-
-.adl-cm-minimap--standard .adl-cm-minimap-slider:hover {
-  background: color-mix(in srgb, var(--text-primary) 60%, transparent);
-  border-color: transparent;
-}
-
-.adl-cm-minimap-slider:active {
-  cursor: grabbing;
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
-  border-color: color-mix(in srgb, var(--accent) 78%, transparent);
-}
-
-.adl-cm-minimap--standard .adl-cm-minimap-slider:active {
-  background: color-mix(in srgb, var(--text-primary) 72%, transparent);
-  border-color: transparent;
-}
-
-.adl-cm-minimap-context-menu {
-  position: fixed;
-  padding: 6px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 10px;
-  background: var(--surface-raised);
-  box-shadow: 0 4px 20px rgba(0,0,0,0.06);
-  z-index: calc(var(--z-popover) + 10);
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  min-width: 196px;
-}
-
-.adl-cm-minimap-menu-segmented {
-  display: flex;
-  margin: 0 6px 4px;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.adl-cm-minimap-menu-segmented__button {
-  flex: 1;
-  min-width: 0;
-  padding: 7px 0 5px;
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  font-size: 11.5px;
-  font-weight: 500;
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-  transition: color 0.15s, border-color 0.15s;
-}
-
-.adl-cm-minimap-menu-segmented__button:hover:not([aria-pressed="true"]) {
-  color: var(--text-secondary);
-}
-
-.adl-cm-minimap-menu-segmented__button[aria-pressed="true"] {
-  color: var(--text-primary);
-  border-bottom-color: var(--text-primary);
-}
-
-.adl-cm-minimap-menu-group-label {
-  padding: 8px 12px 3px;
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-}
-
-.adl-cm-minimap-menu-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  width: 100%;
-  padding: 6px 12px;
-  border: none;
-  border-radius: 0;
-  background: transparent;
-  color: var(--text-primary);
-  text-align: left;
-  font-size: var(--text-xs);
-  cursor: pointer;
-  position: relative;
-}
-
-.adl-cm-minimap-menu-item::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  background: transparent;
-  transition: background 0.1s;
-}
-
-.adl-cm-minimap-menu-item:hover {
-  background: var(--surface-hover);
-}
-
-.adl-cm-minimap-menu-item:hover::before {
-  background: var(--border);
-}
-
-.adl-cm-minimap-menu-item--active {
-  background: var(--surface-active);
-  font-weight: 500;
-}
-
-.adl-cm-minimap-menu-item--active::before {
-  background: var(--text-primary);
-}
-
-.adl-cm-minimap-menu-item__label {
-  min-width: 0;
-  flex: 1 1 auto;
-}
-
-.adl-cm-minimap-menu-separator {
-  height: 1px;
-  background: var(--border-subtle);
-  margin: 3px 6px;
-}
-
-/* Legacy Monaco diff/minimap overrides removed after the CodeMirror migration. */
-
-.adl-minimap-slider-visual {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 100%;
-  z-index: 4;
-  border-radius: 0;
-  background: transparent;
-  cursor: default;
-}
-
-.adl-minimap-slider-visual--over-slider {
-  cursor: grab;
-}
-
-.adl-minimap-slider-visual::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: var(--adl-slider-top, 0);
-  height: var(--adl-slider-height, 48px);
-  background: color-mix(in srgb, var(--text-primary) calc(var(--adl-slider-intensity, 50%) * 0.28), transparent);
-  pointer-events: none;
-  border-radius: 0;
-}
-
-.adl-minimap-slider-visual--dragging,
-.adl-minimap-slider-visual--dragging.adl-minimap-slider-visual--over-slider {
-  cursor: grabbing !important;
-}
-
-.adl-minimap--slider-hover .adl-minimap-slider-visual {
-  opacity: 0;
-  transition: opacity 0.15s ease;
-}
-
-.adl-minimap--slider-hover:hover .adl-minimap-slider-visual {
-  opacity: 1 !important;
-}
-
-.adl-minimap--slider-hover:hover .adl-minimap-slider-visual::before {
-  opacity: 1;
-}
-
-.adl-minimap--slider-hover:hover .adl-minimap-slider-visual--over-slider {
-  cursor: grab;
-}
-
-.adl-minimap--slider-hover:hover .adl-minimap-slider-visual--dragging,
-.adl-minimap--slider-hover:hover .adl-minimap-slider-visual--dragging.adl-minimap-slider-visual--over-slider {
-  cursor: grabbing !important;
-}
-
-.adl-minimap-context-menu {
-  position: fixed;
-  min-width: 180px;
-  background: var(--surface-raised, var(--surface-base));
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md, 6px);
-  box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.25));
-  z-index: 9999;
-  padding: var(--space-1, 4px);
-  font-size: var(--text-xs, 11px);
-  font-family: var(--font-sans, inherit);
-  line-height: 1.4;
-  color: var(--text-primary);
-  user-select: none;
-}
-
-.adl-minimap-context-menu__item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3, 12px);
-  padding: var(--space-1-5, 6px) var(--space-3, 12px);
-  color: var(--text-primary);
-  background: transparent;
-  border: none;
-  border-radius: var(--radius-sm, 3px);
-  cursor: pointer;
-  text-align: left;
-  width: 100%;
-  font-size: inherit;
-  font-family: inherit;
-  line-height: inherit;
-}
-
-.adl-minimap-context-menu__item:hover:not(:disabled) {
-  background: var(--surface-hover);
-}
-
-.adl-minimap-context-menu__check {
-  min-width: 16px;
-  text-align: center;
-  color: var(--text-muted);
-}
-
-.adl-minimap-context-menu__separator {
-  height: 1px;
-  background: var(--border);
-  margin: var(--space-1, 4px) 0;
-}
-
-.adl-minimap-context-menu__group {
-  padding: var(--space-1-5, 6px) var(--space-3, 12px);
-}
-
-.adl-minimap-context-menu__group-label {
-  display: block;
-  font-size: inherit;
-  color: var(--text-muted);
-  margin-bottom: var(--space-1, 4px);
-}
-
-.adl-minimap-context-menu__group-options {
-  display: flex;
-  gap: var(--space-1, 4px);
-}
-
-.adl-minimap-context-menu__option {
-  padding: var(--space-1, 4px) var(--space-2, 8px);
-  font-size: inherit;
-  font-family: inherit;
-  line-height: inherit;
-  color: var(--text-primary);
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm, 3px);
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.adl-minimap-context-menu__option:hover {
-  background: var(--surface-hover);
-}
-
-.adl-minimap-context-menu__option.is-selected {
-  background: var(--accent-bg, var(--surface-active));
-  border-color: var(--accent-border, var(--border));
-  color: var(--accent-text, var(--text-primary));
-}
-
-/* ── Context Menu: Range Slider Control ── */
-
-.adl-minimap-context-menu__slider {
-  padding: var(--space-1-5) var(--space-2-5);
-}
-
-.adl-minimap-context-menu__slider-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-1);
-  margin-bottom: var(--space-1-5);
-}
-
-.adl-minimap-context-menu__slider-value {
-  width: 28px;
-  padding: 1px 0;
-  font-size: var(--text-xs);
-  font-family: inherit;
-  text-align: center;
-  color: var(--text-primary);
-  background: transparent;
-  border: none;
-  border-radius: var(--radius-sm);
-  outline: none !important;
-  box-shadow: none !important;
-  transition: background 0.15s ease;
-}
-
-.adl-minimap-context-menu__slider-value-group {
-  display: inline-flex;
-  align-items: center;
-  gap: 0;
-}
-
-.adl-minimap-context-menu__slider-value:focus-visible,
-.adl-minimap-context-menu__slider-value:focus {
-  outline: none !important;
-  box-shadow: none !important;
-  border: none !important;
-}
-
-.adl-minimap-context-menu__slider-value:hover,
-.adl-minimap-context-menu__slider-value:focus {
-  background: var(--surface-subtle);
-}
-
-.adl-minimap-context-menu__slider-unit {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  flex-shrink: 0;
-  line-height: 1;
-}
-
-.adl-minimap-context-menu__slider-track-wrap {
-  position: relative;
-  height: 6px;
-  background: var(--surface-subtle);
-  border-radius: 3px;
-  cursor: pointer;
-}
-
-.adl-minimap-context-menu__slider-fill {
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 100%;
-  background: var(--accent-default, var(--text-primary));
-  border-radius: 3px;
-  pointer-events: none;
-  transition: width 0.05s linear;
-}
-
-.adl-minimap-context-menu__slider-range {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  padding: 0;
-  -webkit-appearance: none;
-  appearance: none;
-  background: transparent;
-  cursor: pointer;
-  outline: none;
-}
-
-.adl-minimap-context-menu__slider-range::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--text-primary);
-  border: 2px solid var(--surface);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
-  cursor: grab;
-  transition: transform 0.1s ease;
-}
-
-.adl-minimap-context-menu__slider-range::-webkit-slider-thumb:hover {
-  transform: scale(1.15);
-}
-
-.adl-minimap-context-menu__slider-range::-webkit-slider-thumb:active {
-  cursor: grabbing;
-  transform: scale(1.05);
-}
-
-.adl-minimap-context-menu__slider-range::-moz-range-thumb {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--text-primary);
-  border: 2px solid var(--surface);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
-  cursor: grab;
-}
 
 .adl-tool-hint {
   margin: 0;

@@ -286,25 +286,16 @@ await page.locator('.adl-tool-context__group--files-actions .adl-tool-context__i
 
 > `locale` prop 通过 `appInfo.config.language` 传入 CodeEditor / DiffViewer，由 `getPhrasesExtension(locale)` 生成 `EditorState.phrases` 扩展。
 
-### Minimap / 滑动条菜单
+### 滑动条菜单
 
-> 变更工具中的只读预览、内联 Diff、并排 Diff 共用同一套右侧滚动壳与菜单语义。右键点击右侧滚动区域，可切换 `Minimap（缩略图）` 与 `普通（标准）` 两种模式。
+> 变更工具中的只读预览、内联 Diff、并排 Diff 共用同一套右侧滚动壳与菜单语义。右键点击右侧滚动区域，可打开滑动条菜单。缩略图（Minimap）功能已移除，当前仅支持标准模式，菜单仅含"设置"分组。
 
-菜单采用 **下划线分段标签 + `::before` 左竖线指示器 + 直角背景高亮** 的极简线条风格（方案 C），不使用勾选（checkmark）或圆角边框。
+菜单采用 **`::before` 左竖线指示器 + 直角背景高亮** 的极简线条风格（方案 C），不使用勾选（checkmark）或圆角边框。
 
 #### 菜单结构
 
 | 分组 | 菜单项 | 说明 |
 |------|--------|------|
-| **模式切换**（分段控件） | 缩略图 / 标准 | 下划线标签式切换 `minimap` ↔ `standard` 模式。`aria-pressed="true"` 标识当前选中 |
-| **显示**（分组标签） | — | 分组标题 |
-| | 渲染字符 | 仅在 `缩略图` 模式出现；控制缩略图是否绘制字符纹理 |
-| **缩放**（分组标签） | — | 分组标题，仅 `缩略图` 模式 |
-| | 50% / 100% / 150% / 200% | 控制缩略图内容缩放比 |
-| **宽度**（分组标签） | — | 分组标题，仅 `缩略图` 模式 |
-| | 60px / 80px / 100px | 控制缩略图轨道宽度 |
-| **滑块突出**（分组标签） | — | 分组标题 |
-| | 轻 / 标准 | 调整滑块可见度强弱 |
 | **设置**（分组标签） | — | 分组标题 |
 | | 全局 / 独立 | 控制配置写入全局设置，还是仅作用于当前变更视图作用域 |
 
@@ -312,33 +303,9 @@ await page.locator('.adl-tool-context__group--files-actions .adl-tool-context__i
 
 | 元素 | CSS 类 | 样式 |
 |------|--------|------|
-| 分段标签容器 | `.adl-cm-minimap-menu-segmented` | 水平 flex，下划线指示当前标签 |
-| 分段标签按钮 | `.adl-cm-minimap-menu-segmented__button` | `aria-pressed` 控制选中态 |
-| 分组标题 | `.adl-cm-minimap-menu-group-label` | 大写文字，浅色文字 |
 | 菜单项 | `.adl-cm-minimap-menu-item` | 扁平按钮，`::before` 隐藏（未选中）或显示（选中） |
 | 选中菜单项 | `.adl-cm-minimap-menu-item--active` | `::before` 左竖线 + 深色底色高亮 |
 | 分隔线 | `.adl-cm-minimap-menu-separator` | 水平分割线 |
-
-#### 模式间差异
-
-| 功能 | 缩略图模式 | 标准模式 |
-|------|-----------|----------|
-| 渲染字符 | 可选 | 无 |
-| 缩放控制 | 有（50%–200%） | 无 |
-| 宽度控制 | 有（60–100px） | 无（固定 12px） |
-| 内容轨道算法 | 缩略图内容高度 | 视口比例 |
-| 视觉内容 | 绘制 diff 缩略图 | 空白轨道 |
-
-#### 实时更新行为
-
-切换模式时（`缩略图 ↔ 标准`），以下内容立即实时更新：
-- **编辑器正文区域**的右侧内边距（`padding-right`）自动调整
-- **接受/拒绝按钮**位置随内边距变化同步移动
-- **diff 背景色**填充范围随内容宽度调整
-- 原生浏览器滚动条立即隐藏/恢复
-- 上述变化在 `自动换行` 和 `取消自动换行` 两种状态下均生效
-
-实现机制：CSS 变量 `--adl-editor-minimap-width` 统一设置于 `.adl-cm-diff-viewer-wrapper` / `.adl-cm-editor-wrapper` 包装元素上，通过 `void wrapper.offsetHeight` 强制同步布局。
 
 #### 交互约定
 

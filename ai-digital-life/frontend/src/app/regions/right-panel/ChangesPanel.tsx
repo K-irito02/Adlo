@@ -26,7 +26,6 @@ import { countReviewedHunks, filterPatchFileSummaries, summarizePatchSet } from 
 import { StickyContext } from "./stickyContextView";
 import { buildChangeEntries, buildChangeTree, buildFlatChangeNodes, type ChangeFileState, type ChangeTreeNode } from "./changesTree";
 import {
-  computePreviewDiffMinimapModel,
   type PreviewDiffCollapsedRange,
   computePreviewDiffVisualRanges,
 } from "./changePreviewDiffRanges";
@@ -38,7 +37,7 @@ import { CodeEditor } from "./CodeEditor";
 import { LazyMarkdownPreviewWrapper } from "./LazyPreviews";
 import type { EditorRef, DiffEditorRef } from "../../types";
 import { CodeMirrorEditorRef } from "./editorAdapters";
-import { estimateWrapColumn, getMinimapExtension } from "./cmMinimap";
+import { estimateWrapColumn } from "./cmWrapColumn";
 import { getVisibleStartLine, navigateToLine, subscribeToEditor } from "./stickyContext";
 import { buildStickyContextEntries, createStickyContextModel, type StickyContextModel } from "./stickyContext";
 import { OutlineTree } from "./OutlineTree";
@@ -199,15 +198,6 @@ export function ChangesPanel(props: RightPanelViewProps) {
     [changePreview]
   );
   const collapseUnchangedDiff = !forceExpandUnchangedDiff;
-  const changePreviewMinimapModel = useMemo(
-    () => changePreview
-      ? computePreviewDiffMinimapModel(changePreview.baseContent, changePreview.currentContent, {
-        wrapColumn: changePreviewWrapColumn,
-        hiddenUnchangedRanges: collapseUnchangedDiff ? collapsedUnchangedDiffRanges : [],
-      })
-      : undefined,
-    [changePreview, changePreviewWrapColumn, collapseUnchangedDiff, collapsedUnchangedDiffRanges]
-  );
   const changeOutline = useMemo(
     () => changePreview ? buildOutlineFromContent(changePreview.currentContent, changePreview.path) : [],
     [changePreview]
@@ -215,8 +205,10 @@ export function ChangesPanel(props: RightPanelViewProps) {
   const defaultExpandedOutlineIds = useMemo(() => getDefaultExpandedOutlineIds(changeOutline), [changeOutline]);
   const [expandedOutlineIds, setExpandedOutlineIds] = useState<Set<string>>(() => defaultExpandedOutlineIds);
   useEffect(() => {
-    setExpandedOutlineIds(defaultExpandedOutlineIds);
-  }, [defaultExpandedOutlineIds]);
+    if (defaultExpandedOutlineIds.size !== expandedOutlineIds.size) {
+      setExpandedOutlineIds(defaultExpandedOutlineIds);
+    }
+  }, [defaultExpandedOutlineIds, expandedOutlineIds]);
 
   const hasExpandableOutlineItems = defaultExpandedOutlineIds.size > 0;
   const hasExpandedOutlineItems = expandedOutlineIds.size > 0;
@@ -232,21 +224,8 @@ export function ChangesPanel(props: RightPanelViewProps) {
       : false;
   const changePreviewTheme = appInfo?.config.resolvedTheme === "dark" ? "dark" as const : "light" as const;
   const changePreviewLocale = appInfo?.config.language ?? "zh-CN";
-  const changePreviewEditorMinimapScopeId = useMemo(
-    () => changePreview ? `changes:${changePreview.path}:preview` : "changes:unselected:preview",
-    [changePreview]
-  );
-  const changePreviewDiffMinimapScopeId = useMemo(
-    () => changePreview
-      ? `changes:${changePreview.path}:diff:${props.diffSideBySide ? "side-by-side" : "inline"}`
-      : `changes:unselected:diff:${props.diffSideBySide ? "side-by-side" : "inline"}`,
-    [changePreview, props.diffSideBySide]
-  );
   const diffExtensions = useMemo(() => [
   ], []);
-  const previewEditorExtensions = useMemo(() => [
-    ...getMinimapExtension({ scopeId: changePreviewEditorMinimapScopeId }),
-  ], [changePreviewEditorMinimapScopeId]);
   const branchOptions = useMemo(() => {
     const options = new Set<string>([fallbackBranch, ...FALLBACK_BRANCHES]);
     return [...options];
@@ -1120,7 +1099,6 @@ export function ChangesPanel(props: RightPanelViewProps) {
                       readOnly={true}
                       lineNumbers={lineNumbersEnabled}
                       wordWrap={wordWrapEnabled}
-                      extensions={previewEditorExtensions}
                       onMount={handleDiffMount}
                     />
                   </div>
@@ -1140,8 +1118,6 @@ export function ChangesPanel(props: RightPanelViewProps) {
                       wordWrap={wordWrapEnabled}
                       onMount={handleDiffMount}
                       extensions={diffExtensions}
-                      minimapModel={changePreviewMinimapModel}
-                      minimapScopeId={changePreviewDiffMinimapScopeId}
                       onCollapsedUnchangedRangesChange={setCollapsedUnchangedDiffRanges}
                     />
                   </div>

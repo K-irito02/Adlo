@@ -1,0 +1,29 @@
+# 检查清单
+
+- [x] `estimateWrapColumn` 已提取到独立文件 `cmWrapColumn.ts`，FilesPanel 和 ChangesPanel 的导入已更新
+- [x] `changePreviewDiffRanges.ts` 中的 `PreviewDiffMinimapModel`、`PreviewDiffMinimapOptions`、`computePreviewDiffMinimapModel` 及其辅助函数已删除
+- [x] `changePreviewDiffRanges.ts` 中的 `PreviewDiffVisualRange`、`PreviewDiffCollapsedRange`、`computePreviewDiffVisualRanges` 等保留
+- [x] `DiffViewer.tsx` 的 props 中不再包含 `minimapModel`、`minimapScopeId`、`onMinimapDragStart`
+- [x] `DiffViewer.tsx` 中不再引用 `getMinimapExtension`、`updateMinimapDiffModel`、`CmMinimapDiffModel`
+- [x] `DiffViewer.tsx` 中不再计算 `mergedMinimapModel`
+- [x] `FilesPanel.tsx` 中不再引用 `getMinimapExtension`、`updateMinimapDiffHunks`、`computePreviewDiffMinimapModel`
+- [x] `FilesPanel.tsx` 中不再有 `fileDiffMinimapScopeId`、`fileEditorMinimapScopeId`、`fileDiffMinimapExpandedUnchanged` 等状态
+- [x] `ChangesPanel.tsx` 中不再引用 `getMinimapExtension`、`computePreviewDiffMinimapModel`
+- [x] `ChangesPanel.tsx` 中不再有 `changePreviewEditorMinimapScopeId`、`changePreviewDiffMinimapScopeId` 等状态
+- [x] `ChangesPanel.tsx` 中仍保留 `computePreviewDiffVisualRanges` 引用（用于 sticky context）
+- [x] CSS 中 `--adl-editor-minimap-width` 已删除
+- [x] CSS 中所有 `.adl-cm-minimap*` 选择器已删除
+- [x] CSS 中 `.adl-sticky-context` 的 `right` 已从 `var(--adl-editor-minimap-width, 84px)` 改为 `0px`
+- [x] CSS 中 `.adl-cm-scroller--minimap-scrollbar` 相关规则已删除
+- [x] CSS 中 `.adl-cm-no-word-wrap` 的 padding-right 规则已更新
+- [x] `cmMinimap.ts` 文件已删除
+- [x] `cmMinimap.test.ts` 文件已删除
+- [x] `minimap-diff-debug.spec.ts` 文件已删除
+- [x] `changePreviewDiffRanges.test.ts` 中不再有 `computePreviewDiffMinimapModel` 测试
+- [x] `filesEditorOptions.test.ts` 中不再有 minimap 相关断言
+- [x] `changesEditorOptions.test.ts` 中不再有 minimap 相关断言
+- [x] `cmPreviewStyling.test.ts` 中不再有 minimap 引用
+- [x] `changesEditorHighlight.test.ts` 中不再有 minimap 引用
+- [x] 类型检查：受改文件零类型错误（13 个预存错误在未修改的文件中）
+- [x] 前端测试：所有修改文件相关测试通过（27/31 文件通过，4 个预存失败文件）
+- [x] Rust 编译检查通过（`cargo check` OK；`cargo test` 失败为预存的 `ConversationBlock::Text` 问题，与本次改动无关）

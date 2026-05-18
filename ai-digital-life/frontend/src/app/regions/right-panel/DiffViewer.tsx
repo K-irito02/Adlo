@@ -13,15 +13,7 @@ import { getThemeExtension, rebuildThemes, getPhrasesExtension } from "./cmTheme
 import { getLanguageExtension } from "./cmLanguages";
 import { createFoldGutterExtension } from "./cmFoldGutter";
 import { FoldTooltipOverlay } from "./FoldTooltipOverlay";
-import {
-  getMinimapExtension,
-  updateMinimapDiffModel,
-  type CmMinimapDiffModel
-} from "./cmMinimap";
-import {
-  computePreviewDiffMinimapModel,
-  type PreviewDiffCollapsedRange,
-} from "./changePreviewDiffRanges";
+import type { PreviewDiffCollapsedRange } from "./changePreviewDiffRanges";
 import { scrollLeftSyncExtension } from "./cmScrollLeftSync";
 import { initScrollbarWidth } from "./scrollbarWidth";
 import { useFoldMarkerAutoHide } from "./useFoldMarkerAutoHide";
@@ -42,9 +34,6 @@ export type DiffViewerProps = {
   fileKey?: string;
   onMount?: (editor: DiffEditorRef | EditorRef) => void;
   extensions?: Extension[];
-  minimapModel?: CmMinimapDiffModel;
-  minimapScopeId?: string;
-  onMinimapDragStart?: () => void;
   onCollapsedUnchangedRangesChange?: (ranges: PreviewDiffCollapsedRange[]) => void;
 };
 
@@ -76,6 +65,18 @@ export function computeSyncedScrollTop(input: ScrollSyncMetrics): number {
   const targetMax = Math.max(0, input.targetScrollHeight - input.targetClientHeight);
   const ratio = Math.max(0, Math.min(input.sourceScrollTop, sourceMax)) / sourceMax;
   return ratio * targetMax;
+}
+
+export function syncHorizontalScroll(source: HTMLElement, target: HTMLElement): void {
+  const sourceMax = Math.max(0, source.scrollWidth - source.clientWidth);
+  if (sourceMax <= 0) {
+    target.scrollLeft = 0;
+    return;
+  }
+  const targetMax = Math.max(0, target.scrollWidth - target.clientWidth);
+  if (targetMax <= 0) return;
+  const ratio = Math.max(0, Math.min(source.scrollLeft, sourceMax)) / sourceMax;
+  target.scrollLeft = ratio * targetMax;
 }
 
 export function buildCollapsedUnchangedRanges(input: {
@@ -167,9 +168,6 @@ function SideBySideDiffViewer({
   collapseUnchanged,
   onMount,
   extraExtensions,
-  minimapModel,
-  minimapScopeId,
-  onMinimapDragStart,
   onCollapsedUnchangedRangesChange,
 }: {
   original: string;
@@ -184,9 +182,6 @@ function SideBySideDiffViewer({
   collapseUnchanged: boolean;
   onMount?: DiffViewerProps["onMount"];
   extraExtensions: Extension[];
-  minimapModel?: CmMinimapDiffModel;
-  minimapScopeId?: string;
-  onMinimapDragStart?: () => void;
   onCollapsedUnchangedRangesChange?: (ranges: PreviewDiffCollapsedRange[]) => void;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -198,7 +193,6 @@ function SideBySideDiffViewer({
   const scrollHandlersRef = useRef<{
     handleScrollA: () => void;
     handleScrollB: () => void;
-    handleWheel: (event: WheelEvent) => void;
   } | null>(null);
   const expandedCollapsedLinesRef = useRef<Set<number>>(new Set());
   const wrapperRef = useRef<HTMLDivElement | null>(null);
@@ -208,11 +202,6 @@ function SideBySideDiffViewer({
     () => buildSharedExtensions(language, theme, readOnly, lineNumbersEnabled, wordWrap, locale),
     [language, theme, readOnly, lineNumbersEnabled, wordWrap, locale],
   );
-
-  const mergedMinimapModel = useMemo(() => {
-    if (minimapModel) return minimapModel;
-    return computePreviewDiffMinimapModel(original, modified);
-  }, [original, modified, minimapModel]);
 
   const emitCollapsedUnchangedRanges = useCallback((view: EditorView) => {
     if (!onCollapsedUnchangedRangesChange) return;
@@ -236,7 +225,6 @@ function SideBySideDiffViewer({
     }
 
     let syncing = false;
-    let activeMergeView: MergeView | null = null;
     expandedCollapsedLinesRef.current = new Set();
 
     const aExts: Extension[] = [...sharedExts];
@@ -254,11 +242,6 @@ function SideBySideDiffViewer({
           emitCollapsedUnchangedRanges(update.view);
         }
       }),
-      ...getMinimapExtension({
-        onDragStart: onMinimapDragStart,
-        scrollElement: () => activeMergeView?.dom ?? null,
-        scopeId: minimapScopeId,
-      }),
     ];
 
     const mv = new MergeView({
@@ -270,12 +253,12 @@ function SideBySideDiffViewer({
       highlightChanges: true,
     });
 
-    activeMergeView = mv;
     const handleScrollA = () => {
       if (syncing) return;
       syncing = true;
       if (mv.b) {
         syncScrollPosition(mv.a.scrollDOM, mv.b.scrollDOM);
+        syncHorizontalScroll(mv.a.scrollDOM, mv.b.scrollDOM);
       }
       syncing = false;
     };
@@ -284,26 +267,14 @@ function SideBySideDiffViewer({
       syncing = true;
       if (mv.a) {
         syncScrollPosition(mv.b.scrollDOM, mv.a.scrollDOM);
+        syncHorizontalScroll(mv.b.scrollDOM, mv.a.scrollDOM);
       }
       syncing = false;
     };
-    const handleWheel = (event: WheelEvent) => {
-      if (event.ctrlKey || event.metaKey || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) {
-        return;
-      }
-      const previousScrollTop = mv.dom.scrollTop;
-      mv.dom.scrollTop += event.deltaY;
-      if (Math.abs(mv.dom.scrollTop - previousScrollTop) > 0.5) {
-        handleScrollB();
-        event.preventDefault();
-      }
-    };
-
-    scrollHandlersRef.current = { handleScrollA, handleScrollB, handleWheel };
+    scrollHandlersRef.current = { handleScrollA, handleScrollB };
 
     mv.a.scrollDOM.addEventListener("scroll", handleScrollA, { passive: true });
     mv.b.scrollDOM.addEventListener("scroll", handleScrollB, { passive: true });
-    mv.dom.addEventListener("wheel", handleWheel, { passive: false });
 
     const editorsContainer = mv.dom.querySelector<HTMLElement>(".cm-mergeViewEditors");
     const resizerEl = document.createElement("div");
@@ -316,7 +287,7 @@ function SideBySideDiffViewer({
 
       const SAVED_RATIO_KEY = "adl-diff-resizer-ratio";
       const MIN_WIDTH = 200;
-      const resizerWidth = 4;
+      const resizerWidth = 6;
       let ratio = parseFloat(localStorage.getItem(SAVED_RATIO_KEY) ?? "0.5");
       if (Number.isNaN(ratio) || ratio <= 0 || ratio >= 1) ratio = 0.5;
 
@@ -420,7 +391,6 @@ function SideBySideDiffViewer({
       if (mergeViewRef.current && scrollHandlersRef.current) {
         mergeViewRef.current.a.scrollDOM.removeEventListener("scroll", scrollHandlersRef.current.handleScrollA);
         mergeViewRef.current.b.scrollDOM.removeEventListener("scroll", scrollHandlersRef.current.handleScrollB);
-        mergeViewRef.current.dom.removeEventListener("wheel", scrollHandlersRef.current.handleWheel);
         scrollHandlersRef.current = null;
       }
       if (resizerCleanup) {
@@ -436,7 +406,6 @@ function SideBySideDiffViewer({
       setEditorViewA(null);
       setEditorViewB(null);
       onCollapsedUnchangedRangesChange?.([]);
-      activeMergeView = null;
     };
   }, [
     original,
@@ -444,8 +413,6 @@ function SideBySideDiffViewer({
     sharedExts,
     extraExtensions,
     collapseUnchanged,
-    onMinimapDragStart,
-    minimapScopeId,
     onCollapsedUnchangedRangesChange,
     emitCollapsedUnchangedRanges,
   ]);
@@ -468,15 +435,6 @@ function SideBySideDiffViewer({
     mv.a.requestMeasure();
     mv.b.requestMeasure();
   }, [lineNumbersEnabled, wordWrap]);
-
-  useEffect(() => {
-    const mv = mergeViewRef.current;
-    if (!mv?.b) return;
-    updateMinimapDiffModel(
-      mv.b,
-      mergedMinimapModel ?? null
-    );
-  }, [mergedMinimapModel]);
 
   useEffect(() => {
     rebuildThemes();
@@ -512,9 +470,6 @@ function InlineDiffViewer({
   collapseUnchanged,
   onMount,
   extraExtensions,
-  minimapModel,
-  minimapScopeId,
-  onMinimapDragStart,
   onCollapsedUnchangedRangesChange,
 }: {
   original: string;
@@ -529,9 +484,6 @@ function InlineDiffViewer({
   collapseUnchanged: boolean;
   onMount?: DiffViewerProps["onMount"];
   extraExtensions: Extension[];
-  minimapModel?: CmMinimapDiffModel;
-  minimapScopeId?: string;
-  onMinimapDragStart?: () => void;
   onCollapsedUnchangedRangesChange?: (ranges: PreviewDiffCollapsedRange[]) => void;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -540,11 +492,6 @@ function InlineDiffViewer({
   const expandedCollapsedLinesRef = useRef<Set<number>>(new Set());
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const foldMarkerState = useFoldMarkerAutoHide(wrapperRef.current, fileKey ?? original + modified);
-
-  const mergedMinimapModel = useMemo(() => {
-    if (minimapModel) return minimapModel;
-    return computePreviewDiffMinimapModel(original, modified);
-  }, [original, modified, minimapModel]);
 
   const extensions = useMemo<Extension[]>(() => {
     const base = buildSharedExtensions(language, theme, readOnly, lineNumbersEnabled, wordWrap, locale);
@@ -571,7 +518,6 @@ function InlineDiffViewer({
           }));
         }
       }),
-      ...getMinimapExtension({ onDragStart: onMinimapDragStart, scopeId: minimapScopeId }),
       unifiedMergeView({
         original,
         highlightChanges: true,
@@ -590,8 +536,6 @@ function InlineDiffViewer({
     original,
     collapseUnchanged,
     extraExtensions,
-    onMinimapDragStart,
-    minimapScopeId,
     onCollapsedUnchangedRangesChange,
   ]);
 
@@ -654,15 +598,6 @@ function InlineDiffViewer({
   }, [lineNumbersEnabled, wordWrap]);
 
   useEffect(() => {
-    const view = viewRef.current;
-    if (!view) return;
-    updateMinimapDiffModel(
-      view,
-      mergedMinimapModel ?? null
-    );
-  }, [mergedMinimapModel]);
-
-  useEffect(() => {
     rebuildThemes();
   }, [theme]);
 
@@ -696,9 +631,6 @@ export function DiffViewer({
   fileKey,
   onMount,
   extensions: extraExtensions = [],
-  minimapModel,
-  minimapScopeId,
-  onMinimapDragStart,
   onCollapsedUnchangedRangesChange,
 }: DiffViewerProps) {
   const resolvedLocale = locale || "en-US";
@@ -716,9 +648,6 @@ export function DiffViewer({
       collapseUnchanged={collapseUnchanged}
       onMount={onMount}
       extraExtensions={extraExtensions}
-      minimapModel={minimapModel}
-      minimapScopeId={minimapScopeId}
-      onMinimapDragStart={onMinimapDragStart}
       onCollapsedUnchangedRangesChange={onCollapsedUnchangedRangesChange}
     />
   ) : (
@@ -735,9 +664,6 @@ export function DiffViewer({
       collapseUnchanged={collapseUnchanged}
       onMount={onMount}
       extraExtensions={extraExtensions}
-      minimapModel={minimapModel}
-      minimapScopeId={minimapScopeId}
-      onMinimapDragStart={onMinimapDragStart}
       onCollapsedUnchangedRangesChange={onCollapsedUnchangedRangesChange}
     />
   );
