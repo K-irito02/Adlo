@@ -7,7 +7,7 @@
 | 层级 | 技术 |
 |------|------|
 | 后端 | Rust stable + Tauri 2.x + tokio + rusqlite + serde + tracing |
-| 前端 | React 19 + Vite + Zustand + TypeScript |
+| 前端 | React 19 + Vite + Zustand + TypeScript + xterm.js |
 | 桥接 | `#[tauri::command]` + `@tauri-apps/api` |
 | 打包 | `cargo tauri build` |
 
@@ -19,6 +19,7 @@
 - 工作区与对话、补丁预览/应用/回滚
 - 模型网关（含流式与取消）
 - 命令治理与终端流式输出
+- xterm.js 交互式终端（多会话 PTY）
 
 **不在本目录实现**：多 Agent DAG、MCP、插件市场、云协作等 Phase 2+ 能力。
 

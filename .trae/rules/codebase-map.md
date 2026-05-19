@@ -29,6 +29,7 @@ ai-digital-life/
 | `frontend/src/` | React UI、Zustand、桥接 |
 | `frontend/src/shared/ipc.ts` | `DigitalLifeBridge` 类型契约 |
 | `frontend/dev/previewWorkspaceService.ts` | 浏览器开发态服务端 API（原生目录选择器、工作区操作、Git 等） |
+| `frontend/dev/previewTerminalService.ts` | 浏览器开发态终端服务（Node.js `child_process.spawn` + SSE PTY 输出） |
 
 ## Crates 层
 
@@ -46,7 +47,8 @@ ai-digital-life/
 | `app/components/` | React 组件（含 Tooltip、TooltipSimple） |
 | `app/hooks/` | 自定义 Hooks（含 useTooltip） |
 | `app/utils/` | 纯函数（含 tooltipPosition 定位逻辑） |
-| `app/regions/right-panel/` | 右侧面板组件（FilesPanel/FileNavigatorShell/EditorSurfaceShell 分层架构，含 hooks/、DiffToolbar、FileContextMenu、FileCreationBar、FileHistoryNav、stickyContextView、FoldTooltipOverlay、cmFoldGutter、cmWrapColumn、scrollbarWidth、useFoldMarkerAutoHide） |
+| `app/regions/right-panel/` | 右侧面板组件（FilesPanel/FileNavigatorShell/EditorSurfaceShell 分层架构，含 hooks/、DiffToolbar、FileContextMenu、FileCreationBar、FileHistoryNav、stickyContextView、FoldTooltipOverlay、cmFoldGutter、cmWrapColumn、scrollbarWidth、useFoldMarkerAutoHide、TerminalPanel、XtermTerminal） |
+| `dev/` | 浏览器开发态服务（previewWorkspaceService.ts、previewTerminalService.ts） |
 
 ## 索引策略
 

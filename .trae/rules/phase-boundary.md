@@ -23,6 +23,7 @@ alwaysApply: true
 - 命令治理与终端流式输出
 - 自定义 Tooltip 组件
 - CodeMirror 编辑器系统
+- xterm.js 交互式终端（真实 PTY Shell 进程、多会话、多 Shell 类型）
 
 ## 排除项
 

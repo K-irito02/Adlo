@@ -11,7 +11,6 @@ import type { SettingsGroupId } from "@ai-digital-life/kernel";
 export type ToolId = "files" | "changes" | "browser" | "terminal" | "audit" | "settings" | "models";
 export type ChatMode = "plan" | "debug" | "ask";
 export type TerminalProfile = "powershell" | "bash" | "cmd";
-export type TerminalLayout = "single" | "vertical" | "horizontal";
 export type FilesNavigatorMode = "tree" | "search" | "outline";
 export type ChangesNavigatorMode = "tree" | "list" | "outline";
 
@@ -45,9 +44,8 @@ export interface TerminalTabState {
   id: string;
   title: string;
   profile: TerminalProfile;
-  commandBinary: string;
-  commandArgs: string;
-  live: boolean;
+  sessionId?: string;
+  status: "idle" | "running" | "terminated";
 }
 
 const LEFT_COLLAPSED_KEY = "adl-ui:left-collapsed";
@@ -72,7 +70,6 @@ const BROWSER_BOOKMARKS_KEY = "adl-ui:browser-bookmarks";
 const BROWSER_HISTORY_KEY = "adl-ui:browser-history";
 const TERMINAL_TABS_KEY = "adl-ui:terminal-tabs";
 const TERMINAL_ACTIVE_TAB_KEY = "adl-ui:terminal-active-tab";
-const TERMINAL_LAYOUT_KEY = "adl-ui:terminal-layout";
 const deferredJsonWriteHandles = new Map<string, number>();
 
 export const RIGHT_PANEL_WIDTH_MIN = 320;
@@ -289,20 +286,11 @@ function normalizeBrowserTabs(tabs: BrowserTabState[]): BrowserTabState[] {
 }
 
 function defaultTerminalTabs(): TerminalTabState[] {
-  return [
-    {
-      id: createUiId("terminal"),
-      title: "PowerShell",
-      profile: "powershell",
-      commandBinary: "npm",
-      commandArgs: "run test",
-      live: true
-    }
-  ];
+  return [];
 }
 
 function normalizeTerminalTabs(tabs: TerminalTabState[]): TerminalTabState[] {
-  return tabs.length > 0 ? tabs : defaultTerminalTabs();
+  return tabs;
 }
 
 function deriveTerminalTitle(profile: TerminalProfile, count: number): string {
@@ -333,7 +321,6 @@ export interface UiState {
   browserHistory: BrowserHistoryEntry[];
   terminalTabs: TerminalTabState[];
   terminalActiveTabId: string;
-  terminalLayout: TerminalLayout;
   chatMode: ChatMode;
   contextChips: ContextChip[];
   contextMenuOpen: boolean;
@@ -387,7 +374,6 @@ export interface UiState {
   terminalSelectTab: (tabId: string) => void;
   terminalCloseTab: (tabId: string) => void;
   terminalUpdateActiveTab: (patch: Partial<Omit<TerminalTabState, "id">>) => void;
-  terminalSetLayout: (layout: TerminalLayout) => void;
 }
 
 const initialBrowserTabs = normalizeBrowserTabs(readJson<BrowserTabState[]>(BROWSER_TABS_KEY, []));
@@ -439,8 +425,7 @@ export const useUiStore = create<UiState>((set) => ({
   browserBookmarks: readJson<BrowserBookmark[]>(BROWSER_BOOKMARKS_KEY, []),
   browserHistory: readJson<BrowserHistoryEntry[]>(BROWSER_HISTORY_KEY, []),
   terminalTabs: initialTerminalTabs,
-  terminalActiveTabId: readJson<string | null>(TERMINAL_ACTIVE_TAB_KEY, null) ?? initialTerminalTabs[0].id,
-  terminalLayout: readJson<TerminalLayout>(TERMINAL_LAYOUT_KEY, "single"),
+  terminalActiveTabId: readJson<string | null>(TERMINAL_ACTIVE_TAB_KEY, null) ?? initialTerminalTabs[0]?.id ?? "",
   chatMode: "ask",
   contextChips: [],
   contextMenuOpen: false,
@@ -717,9 +702,7 @@ export const useUiStore = create<UiState>((set) => ({
         id: createUiId("terminal"),
         title: deriveTerminalTitle(profile, existingCount),
         profile,
-        commandBinary: "npm",
-        commandArgs: "run test",
-        live: existingCount === 1
+        status: "idle"
       };
       const nextTabs = [...state.terminalTabs, tab];
       writeJson(TERMINAL_TABS_KEY, nextTabs);
@@ -736,7 +719,7 @@ export const useUiStore = create<UiState>((set) => ({
       const nextTabs = normalizeTerminalTabs(filtered);
       const nextActive =
         state.terminalActiveTabId === tabId
-          ? nextTabs[Math.max(0, filtered.length - 1)]?.id ?? nextTabs[0].id
+          ? nextTabs[nextTabs.length - 1]?.id ?? ""
           : state.terminalActiveTabId;
       writeJson(TERMINAL_TABS_KEY, nextTabs);
       writeJson(TERMINAL_ACTIVE_TAB_KEY, nextActive);
@@ -752,9 +735,5 @@ export const useUiStore = create<UiState>((set) => ({
       );
       writeJson(TERMINAL_TABS_KEY, nextTabs);
       return { terminalTabs: nextTabs };
-    }),
-  terminalSetLayout: (layout) => {
-    writeJson(TERMINAL_LAYOUT_KEY, layout);
-    set({ terminalLayout: layout });
-  }
+    })
 }));

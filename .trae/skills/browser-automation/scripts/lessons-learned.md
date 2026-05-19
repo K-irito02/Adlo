@@ -1,7 +1,46 @@
 # 浏览器自动化脚本方案 — 经验教训总结
 
-> 来源：2026-05-16 变更面板测试脚本开发过程中的实际调试记录。
+> 来源：2026-05-16 ~ 2026-05-19 变更面板测试 + 项目启动流程中的实际调试记录。
 > 目的：为后续自动化脚本开发提供避坑指南。
+
+---
+
+## 14. `browser_*` 是 MCP 工具，不是 CLI 命令
+
+`browser_navigate`、`browser_snapshot` 等 `browser_*` 系列工具是 **MCP 协议暴露的工具**，通过 Agent 的 tool call 调用。
+
+**错误做法**：在 RunCommand / PowerShell 中执行 `browser_navigate -url "xxx"`。这会报错 "The term 'browser_navigate' is not recognized"。
+
+**正确做法**：这些工具只能通过 MCP 工具接口调用，不能作为终端命令运行。
+
+---
+
+## 15. 纯文本 URL 即可在 Trae IDE 内置浏览器中打开
+
+Trae IDE 会自动检测消息中的纯文本 URL 并使其可点击。这是让用户在内置浏览器中看到页面的最简单方式。
+
+| 做法 | 结果 |
+|------|------|
+| 输出纯文本 URL（如 http://localhost:5173/） | ✅ 可点击，在内置浏览器中跳转 |
+| 用 `` 包裹 URL（如 `http://localhost:5173/`） | ❌ 失去可点击性 |
+
+**对策**：输出 URL 时始终用纯文本，不包裹。
+
+---
+
+## 16. agent-browser 打开的是独立 Chrome 实例
+
+agent-browser 通过 CDP 启动自己的 Chromium 进程，与 Trae IDE 的内置浏览器**无关**。
+
+当用户需要在内置浏览器中查看页面时，输出纯文本 URL 让用户点击即可。不需要通过 agent-browser 去"打开内置浏览器"。
+
+---
+
+## 17. run-project-surfaces 启动后的正确引导
+
+`npm run dev:browser` 启动后，输出的 URL（如 http://127.0.0.1:5173/）应该**以纯文本形式**报告给用户，让用户点击跳转到内置浏览器。
+
+**不要**在启动后用 agent-browser 或其他工具去打开该地址——这既不是内置浏览器，也浪费资源。
 
 ---
 

@@ -30,13 +30,16 @@ alwaysApply: false
 | `src-tauri/capabilities/*.json` | Command 白名单 |
 | `crates/kernel` | `serde` 契约类型 |
 | `frontend/dev/previewWorkspaceService.ts` | 浏览器开发态服务端 API（镜像 Tauri Command 能力） |
+| `frontend/dev/previewTerminalService.ts` | 浏览器开发态终端服务（镜像 Tauri PTY Command，使用 Node.js `child_process.spawn`） |
+| `src-tauri/src/commands/pty_commands.rs` | PTY 终端 `#[tauri::command]`（pty_create / pty_input / pty_resize / pty_kill / pty_list） |
 
 ## 事件通道
 
 | 通道 | 用途 |
 |------|------|
 | `digital-life://model-stream` | 模型流式输出 |
-| `digital-life://terminal-stream` | 终端流式输出 |
+| `digital-life://terminal-stream` | 终端流式输出（旧命令执行） |
+| `digital-life://pty-output` | PTY 终端输出（会话对应） |
 | `digital-life://workspace-file-changed` | 工作区文件变更 |
 
 ## 新增命令检查清单
@@ -46,6 +49,7 @@ alwaysApply: false
 - [ ] 在 `capabilities/*.json` 登记 capability
 - [ ] 在 `frontend/src/shared/ipc.ts` 对齐桥接契约
 - [ ] 在 `mock-bridge.ts` 和 `preview-bridge.ts` 同步实现浏览器模式对等方法
+- [ ] 在 `previewWorkspaceService.ts` 或 `previewTerminalService.ts` 同步实现浏览器开发态服务端 API
 
 ## 双端一致性
 

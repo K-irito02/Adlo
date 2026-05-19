@@ -40,6 +40,10 @@ alwaysApply: false
 | 主题切换 | 正常 | 正常 |
 | 语言切换 | 正常 | 正常 |
 | 文件树/变更面板 | 正常 | 正常（通过 Preview API） |
+| 终端面板 | 正常（Rust PTY） | 正常（通过 `previewTerminalService.ts` + `child_process.spawn`） |
+| 终端多会话 | 正常（多 PTY 进程） | 正常（多 `child_process.spawn` 进程） |
+| 终端 Shell 切换 | PowerShell / CMD / Bash | PowerShell / CMD / Bash |
+| 终端命令执行 | 真实 Shell 进程 | 真实 Shell 进程 |
 
 ## 验证清单
 
@@ -50,6 +54,12 @@ alwaysApply: false
 - [ ] 主题变量
 - [ ] Tooltip 组件
 - [ ] 原生 `title` 属性残留检查
+- [ ] 终端面板（`.adl-tool-panel--terminal`）
+- [ ] 终端多会话切换与关闭
+- [ ] 终端 Shell 类型选择（PowerShell / CMD / Bash）
+- [ ] 终端命令输入与执行
+- [ ] 终端主题同步（亮色/暗色）
+- [ ] 终端空状态居中按钮组
 
 ## 相关文件
 

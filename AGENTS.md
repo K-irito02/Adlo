@@ -17,7 +17,7 @@
 |------|------|
 | 桌面框架 | Tauri 2.x |
 | 后端 | Rust (stable) + tokio + rusqlite + serde + tracing |
-| 前端 | React 19 + Vite + Zustand |
+| 前端 | React 19 + Vite + Zustand + xterm.js |
 | 桥接 | `#[tauri::command]` + `@tauri-apps/api` |
 | 持久化 | SQLite（`rusqlite`，后端） |
 
@@ -39,6 +39,7 @@
 - 命令治理与终端流式输出
 - 自定义 Tooltip 组件
 - CodeMirror 编辑器系统
+- xterm.js 交互式终端（多会话、多 Shell 类型，浏览器模式通过 `child_process.spawn` + SSE 实现真实 Shell 进程）
 
 ### 排除项
 

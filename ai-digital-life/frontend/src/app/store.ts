@@ -47,7 +47,6 @@ import {
 } from "./composerSend";
 import { useUiStore, type ToolId } from "./ui-store";
 
-let terminalStreamUnsub: (() => void) | undefined;
 let workspaceRequestSeq = 0;
 let sessionRequestSeq = 0;
 let fileRequestSeq = 0;
@@ -138,8 +137,6 @@ export type StoreState = {
   taskCenter?: TaskCenterSnapshot;
   modelHealth?: ModelGatewayHealthSnapshot;
   latestCommandRun?: CommandRunResult;
-  terminalOutput: string;
-  activeTerminalExecutionId?: string;
   streamingAssistantText: string;
   streamingActiveRunId?: string;
   runActivityByRunId: Record<string, DigitalLifeRunActivityEventV1[]>;
@@ -216,8 +213,6 @@ export type StoreState = {
   markExternalFileChange: (input: { path: string; lastModifiedAt: number }) => void;
   notifyEditorBufferDirty: (relativePath: string, isDirty: boolean) => void;
   runCommand: (command: string, argsText: string) => Promise<void>;
-  runCommandStream: (command: string, argsText: string) => Promise<void>;
-  stopCommandStream: () => Promise<void>;
   refreshModelHealth: () => Promise<void>;
   updatePreferences: (patch: AppPreferencePatch) => Promise<void>;
   fetchIndexStatus: () => Promise<void>;
@@ -245,7 +240,6 @@ export const useAppStore = create<StoreState>((set, get) => ({
   searchQuery: "",
   searchResults: [],
   streamingAssistantText: "",
-  terminalOutput: "",
   runActivityByRunId: {},
   runUsageByRunId: {},
   dirtyEditorPaths: [],
@@ -1068,80 +1062,6 @@ export const useAppStore = create<StoreState>((set, get) => ({
     await get().fetchAuditEntries(40);
     await get().fetchCommandHistory();
     await get().fetchGitStatus();
-  },
-  runCommandStream: async (command, argsText) => {
-    if (!command.trim()) {
-      return;
-    }
-    terminalStreamUnsub?.();
-    terminalStreamUnsub = undefined;
-    set({ terminalOutput: "", activeTerminalExecutionId: undefined, error: undefined });
-    const args = argsText
-      .split(/\s+/)
-      .map((item) => item.trim())
-      .filter(Boolean);
-    const result = await window.digitalLife.command.runStream({
-      command: command.trim(),
-      args
-    });
-    if (!result.ok) {
-      set({ error: result.error.message });
-      return;
-    }
-    if (result.data.mode === "waiting-approval") {
-      set({
-        latestCommandRun: {
-          status: "waiting-approval",
-          taskId: result.data.taskId,
-          request: result.data.request,
-          approvalRequest: result.data.approvalRequest
-        }
-      });
-      await get().refreshTaskCenter();
-      await get().fetchAuditEntries(40);
-      await get().fetchCommandHistory();
-      return;
-    }
-    const { executionId } = result.data;
-    set({ activeTerminalExecutionId: executionId });
-    terminalStreamUnsub = window.digitalLife.subscribeTerminalStream((event) => {
-      if (event.v !== 1 || event.executionId !== executionId) {
-        return;
-      }
-      if (event.type === "stdout" || event.type === "stderr") {
-        set((state) => ({
-          terminalOutput: state.terminalOutput + event.text
-        }));
-        return;
-      }
-      if (event.type === "error") {
-        set((state) => ({
-          terminalOutput: `${state.terminalOutput}\n[error] ${event.message}\n`
-        }));
-      }
-      if (event.type === "done") {
-        terminalStreamUnsub?.();
-        terminalStreamUnsub = undefined;
-        set((state) => ({
-          activeTerminalExecutionId: undefined,
-          terminalOutput: `${state.terminalOutput}\n[exit ${event.exitCode ?? "null"}] ${event.summary}\n`
-        }));
-        void get().refreshTaskCenter();
-        void get().fetchAuditEntries(40);
-        void get().fetchCommandHistory();
-        void get().fetchGitStatus();
-      }
-    });
-  },
-  stopCommandStream: async () => {
-    const id = get().activeTerminalExecutionId;
-    if (!id) {
-      return;
-    }
-    const result = await window.digitalLife.command.stopStream(id);
-    if (!result.ok) {
-      set({ error: result.error.message });
-    }
   },
   refreshModelHealth: async () => {
     const result = await window.digitalLife.app.getModelHealth();

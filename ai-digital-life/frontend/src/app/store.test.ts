@@ -23,7 +23,7 @@ describe("store utility functions", () => {
     });
 
     it("returns 'global' when currentWorkspace is undefined", () => {
-      const appInfo = undefined;
+      const appInfo = undefined as any;
       const result = appInfo?.currentWorkspace ? "workspace" : "global";
       expect(result).toBe("global");
     });
@@ -43,7 +43,7 @@ describe("store utility functions", () => {
     });
 
     it("returns false when detail is undefined", () => {
-      const detail = undefined;
+      const detail = undefined as any;
       const result = (detail?.messages.length ?? 0) > 0;
       expect(result).toBe(false);
     });

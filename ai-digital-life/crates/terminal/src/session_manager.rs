@@ -1,0 +1,154 @@
+use crate::pty::{PtySession, PtyStatus};
+use adl_errors::AppError;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+use tauri::Emitter;
+use tokio::sync::oneshot;
+
+pub struct PtySessionHandle {
+    pub session: Arc<PtySession>,
+    pub cancel_tx: Option<oneshot::Sender<()>>,
+}
+
+pub struct SessionManager {
+    sessions: Mutex<HashMap<String, PtySessionHandle>>,
+}
+
+impl SessionManager {
+    pub fn new() -> Self {
+        Self {
+            sessions: Mutex::new(HashMap::new()),
+        }
+    }
+
+    pub fn create(
+        &self,
+        app: tauri::AppHandle,
+        shell: &str,
+        cwd: &str,
+        cols: u16,
+        rows: u16,
+    ) -> Result<String, AppError> {
+        let session = PtySession::create(shell, cwd, cols, rows)?;
+        let session_id = session.id.clone();
+        let session = Arc::new(session);
+
+        let (cancel_tx, cancel_rx) = oneshot::channel();
+
+        let session_clone = Arc::clone(&session);
+        let app_clone = app.clone();
+        let sid = session_id.clone();
+        std::thread::spawn(move || {
+            let mut buf = [0u8; 4096];
+            let mut cancel_rx = cancel_rx;
+            loop {
+                if cancel_rx.try_recv().is_ok() {
+                    break;
+                }
+                match session_clone.read_output(&mut buf) {
+                    Ok(0) => break,
+                    Ok(n) => {
+                        let data = String::from_utf8_lossy(&buf[..n]).to_string();
+                        let _ = app_clone.emit(
+                            "digital-life://pty-output",
+                            serde_json::json!({
+                                "sessionId": sid,
+                                "data": data,
+                            }),
+                        );
+                    }
+                    Err(_) => break,
+                }
+            }
+        });
+
+        let mut sessions = self
+            .sessions
+            .lock()
+            .map_err(|_| AppError::Internal("mutex poisoned".into()))?;
+        sessions.insert(
+            session_id.clone(),
+            PtySessionHandle {
+                session,
+                cancel_tx: Some(cancel_tx),
+            },
+        );
+
+        tracing::info!(session_id = %session_id, shell = %shell, "pty session created");
+        Ok(session_id)
+    }
+
+    pub fn write(&self, session_id: &str, data: &str) -> Result<(), AppError> {
+        let sessions = self
+            .sessions
+            .lock()
+            .map_err(|_| AppError::Internal("mutex poisoned".into()))?;
+        let handle = sessions
+            .get(session_id)
+            .ok_or_else(|| AppError::NotFound(format!("pty session not found: {}", session_id)))?;
+        handle.session.write_input(data.as_bytes())
+    }
+
+    pub fn resize(&self, session_id: &str, cols: u16, rows: u16) -> Result<(), AppError> {
+        let sessions = self
+            .sessions
+            .lock()
+            .map_err(|_| AppError::Internal("mutex poisoned".into()))?;
+        let handle = sessions
+            .get(session_id)
+            .ok_or_else(|| AppError::NotFound(format!("pty session not found: {}", session_id)))?;
+        handle.session.resize(cols, rows)
+    }
+
+    pub fn kill(&self, session_id: &str) -> Result<(), AppError> {
+        let mut sessions = self
+            .sessions
+            .lock()
+            .map_err(|_| AppError::Internal("mutex poisoned".into()))?;
+        let mut handle = sessions
+            .remove(session_id)
+            .ok_or_else(|| AppError::NotFound(format!("pty session not found: {}", session_id)))?;
+
+        if let Some(cancel) = handle.cancel_tx.take() {
+            let _ = cancel.send(());
+        }
+        handle.session.kill()?;
+        tracing::info!(session_id = %session_id, "pty session killed");
+        Ok(())
+    }
+
+    pub fn list(&self) -> Result<Vec<PtySessionInfo>, AppError> {
+        let sessions = self
+            .sessions
+            .lock()
+            .map_err(|_| AppError::Internal("mutex poisoned".into()))?;
+        let infos = sessions
+            .iter()
+            .map(|(id, handle)| PtySessionInfo {
+                session_id: id.clone(),
+                shell: handle.session.shell.clone(),
+                cwd: handle.session.cwd.clone(),
+                cols: handle.session.cols,
+                rows: handle.session.rows,
+                status: handle
+                    .session
+                    .status
+                    .lock()
+                    .map(|s| *s)
+                    .unwrap_or(PtyStatus::Running),
+            })
+            .collect();
+        Ok(infos)
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PtySessionInfo {
+    pub session_id: String,
+    pub shell: String,
+    pub cwd: String,
+    pub cols: u16,
+    pub rows: u16,
+    pub status: PtyStatus,
+}

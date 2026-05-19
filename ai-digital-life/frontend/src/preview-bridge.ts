@@ -18,12 +18,31 @@ import type {
 } from "@ai-digital-life/kernel";
 import { mockDigitalLifeBridge, setMockActiveWorkspace } from "./mock-bridge";
 import { repoMapEntriesToTree } from "./app/repoMapFromEntries";
-import type { DigitalLifeBridge } from "./shared/ipc";
+import type { DigitalLifeBridge, PtyOutputEvent, PtySessionInfo } from "./shared/ipc";
 
 const PREVIEW_API_PREFIX = "/__adl_preview_api__";
 const PREVIEW_RECENT_STORAGE_KEY = "adl.preview.recent-workspaces.v1";
 const PREVIEW_PREFERENCES_STORAGE_KEY = "adl.preview.preferences.v1";
 const PREVIEW_ACTIVE_WORKSPACE_STORAGE_KEY = "adl.preview.active-workspace.v1";
+
+const ptyOutputListeners = new Set<(event: PtyOutputEvent) => void>();
+let ptySseConnected = false;
+
+function connectPtySse(): void {
+  const es = new EventSource(`${PREVIEW_API_PREFIX}/pty/output`);
+  es.onmessage = (event) => {
+    try {
+      const parsed = JSON.parse(event.data) as PtyOutputEvent;
+      ptyOutputListeners.forEach((fn) => fn(parsed));
+    } catch {
+      // ignore parse errors
+    }
+  };
+  es.onerror = () => {
+    es.close();
+    ptySseConnected = false;
+  };
+}
 
 type PreviewWorkspaceOpenPayload = {
   meta: WorkspaceMeta;
@@ -241,6 +260,35 @@ export function setupPreviewBridge(): void {
 
   const previewBridge: DigitalLifeBridge = {
     ...mockDigitalLifeBridge,
+    subscribePtyOutput: (listener) => {
+      ptyOutputListeners.add(listener);
+      if (!ptySseConnected) {
+        ptySseConnected = true;
+        connectPtySse();
+      }
+      return () => {
+        ptyOutputListeners.delete(listener);
+      };
+    },
+    pty: {
+      create: async (input) => requestPreviewApi<{ sessionId: string }>("/pty/create", {
+        method: "POST",
+        body: JSON.stringify({ shell: input.shell, cwd: input.cwd, cols: input.cols, rows: input.rows })
+      }),
+      input: async (sessionId, data) => requestPreviewApi<boolean>("/pty/input", {
+        method: "POST",
+        body: JSON.stringify({ sessionId, data })
+      }),
+      resize: async (sessionId, cols, rows) => requestPreviewApi<boolean>("/pty/resize", {
+        method: "POST",
+        body: JSON.stringify({ sessionId, cols, rows })
+      }),
+      kill: async (sessionId) => requestPreviewApi<boolean>("/pty/kill", {
+        method: "POST",
+        body: JSON.stringify({ sessionId })
+      }),
+      list: async () => requestPreviewApi<PtySessionInfo[]>("/pty/list")
+    },
     app: {
       getInfo: async () => {
         await ensureCurrentWorkspaceRestored();

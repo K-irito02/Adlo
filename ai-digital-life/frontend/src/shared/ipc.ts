@@ -5,7 +5,6 @@ import type {
   AuditEntry,
   CommandRequest,
   CommandRunResult,
-  CommandRunStreamStart,
   DigitalLifeTerminalStreamEventV1,
   CheckpointPayloadPreview,
   ConversationDetail,
@@ -41,13 +40,25 @@ import type {
   WorkspaceMeta
 } from "@ai-digital-life/kernel";
 
+export interface PtySessionInfo {
+  sessionId: string;
+  shell: string;
+  cwd: string;
+  cols: number;
+  rows: number;
+  status: "Running" | "Terminated";
+}
+
+export interface PtyOutputEvent {
+  sessionId: string;
+  data: string;
+}
+
 export interface DigitalLifeBridge {
-  /** Subscribe to Main-originated model stream events (typed, no secrets). */
   subscribeModelStream: (listener: (event: DigitalLifeModelStreamEventV1) => void) => () => void;
-  /** Subscribe to Main-originated agent run activity events (typed, no chain-of-thought). */
   subscribeRunActivity: (listener: (event: DigitalLifeRunActivityEventV1) => void) => () => void;
-  /** Subscribe to Main-originated terminal stream events (typed, no secrets). */
   subscribeTerminalStream: (listener: (event: DigitalLifeTerminalStreamEventV1) => void) => () => void;
+  subscribePtyOutput: (listener: (event: PtyOutputEvent) => void) => () => void;
   window: {
     minimize: () => Promise<void>;
     maximize: () => Promise<void>;
@@ -122,13 +133,15 @@ export interface DigitalLifeBridge {
     rollbackPatchSet: (patchSetId: string) => Promise<IpcResult<PatchSet>>;
   };
   command: {
-    getProfiles: () => Promise<IpcResult<Array<{ id: string; label: string }>>>;
     run: (input: { command: string; args: string[]; shell?: boolean }) => Promise<IpcResult<CommandRunResult>>;
-    /** Start a governed command with incremental stdout/stderr events (`digitalLife:terminalStream`). */
-    runStream: (input: { command: string; args: string[]; shell?: boolean }) => Promise<IpcResult<CommandRunStreamStart>>;
-    /** Stop a stream started via `runStream` (best-effort SIGTERM). */
-    stopStream: (executionId: string) => Promise<IpcResult<boolean>>;
     listRecent: (limit?: number) => Promise<IpcResult<CommandRequest[]>>;
+  };
+  pty: {
+    create: (input: { shell?: string; cwd?: string; cols: number; rows: number }) => Promise<IpcResult<{ sessionId: string }>>;
+    input: (sessionId: string, data: string) => Promise<IpcResult<boolean>>;
+    resize: (sessionId: string, cols: number, rows: number) => Promise<IpcResult<boolean>>;
+    kill: (sessionId: string) => Promise<IpcResult<boolean>>;
+    list: () => Promise<IpcResult<PtySessionInfo[]>>;
   };
   task: {
     getSnapshot: () => Promise<IpcResult<TaskCenterSnapshot>>;

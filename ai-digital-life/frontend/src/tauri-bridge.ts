@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import type { DigitalLifeBridge } from "./shared/ipc";
+import type { DigitalLifeBridge, PtyOutputEvent, PtySessionInfo } from "./shared/ipc";
 import type {
   AgentRunDetail,
   AppInfo,
@@ -11,7 +11,6 @@ import type {
   CheckpointPayloadPreview,
   CommandRequest,
   CommandRunResult,
-  CommandRunStreamStart,
   ConversationDetail,
   ConversationSendResult,
   ConversationSessionRecord,
@@ -103,6 +102,9 @@ export function createTauriBridge(): DigitalLifeBridge {
 
     subscribeTerminalStream: (listener: (event: DigitalLifeTerminalStreamEventV1) => void) =>
       subscribeChannel<DigitalLifeTerminalStreamEventV1>("digital-life://terminal-stream", listener),
+
+    subscribePtyOutput: (listener: (event: PtyOutputEvent) => void) =>
+      subscribeChannel<PtyOutputEvent>("digital-life://pty-output", listener),
 
     window: {
       minimize: () => win().minimize(),
@@ -217,13 +219,21 @@ export function createTauriBridge(): DigitalLifeBridge {
     },
 
     command: {
-      getProfiles: () => invokeIpc("command_get_profiles"),
       run: (input: { command: string; args: string[]; shell?: boolean }) =>
         invokeIpc<CommandRunResult>("command_run", { input }),
-      runStream: (input: { command: string; args: string[]; shell?: boolean }) =>
-        invokeIpc<CommandRunStreamStart>("command_run_stream", { input }),
-      stopStream: (executionId: string) => invokeIpc<boolean>("command_stop_stream", { executionId }),
       listRecent: (limit?: number) => invokeIpc<CommandRequest[]>("command_list_recent", { limit })
+    },
+
+    pty: {
+      create: (input: { shell?: string; cwd?: string; cols: number; rows: number }) =>
+        invokeIpc<{ sessionId: string }>("pty_create", { input }),
+      input: (sessionId: string, data: string) =>
+        invokeIpc<boolean>("pty_input", { sessionId, data }),
+      resize: (sessionId: string, cols: number, rows: number) =>
+        invokeIpc<boolean>("pty_resize", { sessionId, cols, rows }),
+      kill: (sessionId: string) =>
+        invokeIpc<boolean>("pty_kill", { sessionId }),
+      list: () => invokeIpc<PtySessionInfo[]>("pty_list")
     },
 
     task: {

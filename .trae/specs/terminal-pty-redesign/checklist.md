@@ -1,0 +1,27 @@
+# Checklist — 验证记录
+
+- [x] xterm.js 组件创建并可挂载到 `adl-terminal-canvas` 容器
+- [x] xterm.js 启用 FitAddon 和 WebLinksAddon
+- [x] `adl-terminal-canvas` 容器内部无卡片式 UI、分段面板或嵌入子组件
+- [x] `previewTerminalService.ts` 浏览器 PTY 服务使用 `child_process.spawn`
+- [x] SSE 端点 `/__adl_preview_api__/pty/output` 实时推送 PTY 输出
+- [x] Tauri `pty_commands.rs` 实现：pty_create / pty_input / pty_resize / pty_kill / pty_list
+- [x] Vite 中间件注册终端 API（`isPreviewTerminalApiRequest` / `handlePreviewTerminalApi`）
+- [x] `DigitalLifeBridge` 接口新增 `pty` 命名空间和 `subscribePtyOutput`
+- [x] `tauri-bridge.ts` 实现 `pty.*` 和 `subscribePtyOutput`
+- [x] `preview-bridge.ts` 实现 `pty.*`（HTTP API + SSE）
+- [x] `mock-bridge.ts` 实现 `pty.*` mock 桩
+- [x] `TerminalTabState` 重构：新增 `sessionId`/`status`，移除 `commandBinary`/`commandArgs`/`live`
+- [x] `TerminalLayout` 类型和相关状态已移除
+- [x] `terminalCreateTab` 创建后端 PTY 会话并传递工作区 CWD
+- [x] `terminalCloseTab` 调用 `pty.kill(sessionId)`
+- [x] XtermTerminal `onData` 事件连接到 `pty.input`
+- [x] 前端订阅 `pty-output` / SSE 事件并写入 xterm.js
+- [x] `sessionOutputsRef` Map 存储每个 session 输出历史，Tab 切换恢复内容
+- [x] xterm 主题跟随 CSS 变量 + MutationObserver 同步 data-theme 变化
+- [x] FitAddon resize 与窗口 resize 联动
+- [x] 空状态居中 Shell 选择按钮组（`.adl-tool-primary--terminal-empty`）
+- [x] 一键关闭所有终端按钮（`IconTrash`）
+- [x] `defaultTerminalTabs()` 返回 `[]`（无默认假终端标签）
+- [x] `npm --prefix frontend run typecheck` 无错误
+- [x] `npm --prefix frontend test` 全部通过（181 tests, 0 errors）

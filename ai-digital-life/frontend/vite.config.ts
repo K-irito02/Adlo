@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "node:path";
 import { handlePreviewWorkspaceApi, isPreviewWorkspaceApiRequest } from "./dev/previewWorkspaceService";
+import { handlePreviewTerminalApi, isPreviewTerminalApiRequest } from "./dev/previewTerminalService";
 
 export default defineConfig({
   plugins: [
@@ -10,6 +11,10 @@ export default defineConfig({
       name: "adl-preview-workspace-api",
       configureServer(server) {
         server.middlewares.use((req, res, next) => {
+          if (isPreviewTerminalApiRequest(req.url)) {
+            void handlePreviewTerminalApi(req, res);
+            return;
+          }
           if (!isPreviewWorkspaceApiRequest(req.url)) {
             next();
             return;

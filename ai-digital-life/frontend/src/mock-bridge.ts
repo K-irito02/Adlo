@@ -1,4 +1,4 @@
-import type { DigitalLifeBridge } from "./shared/ipc";
+import type { DigitalLifeBridge, PtyOutputEvent } from "./shared/ipc";
 import type {
   AgentRunDetail,
   AppInfo,
@@ -28,6 +28,47 @@ import { GLOBAL_WORKSPACE_ID } from "./app/workspaceScope";
 import { buildOutlineFromContent } from "./shared/outline";
 
 const now = Date.now();
+
+const ptyOutputListeners = new Set<(event: PtyOutputEvent) => void>();
+const activeMockPtySessions = new Map<string, { shell: string; inputBuffer: string }>();
+
+function emitPtyOutput(sessionId: string, data: string): void {
+  const event: PtyOutputEvent = { sessionId, data };
+  ptyOutputListeners.forEach((fn) => fn(event));
+}
+
+function getMockPrompt(shell: string): string {
+  if (shell === "cmd") return "C:\\Users\\user>";
+  if (shell === "bash") return "user@host:~$ ";
+  return "PS C:\\Users\\user>";
+}
+
+function executeMockCommand(cmd: string, shell: string): string | undefined {
+  if (!cmd) return undefined;
+  const parts = cmd.split(/\s+/);
+  const command = parts[0].toLowerCase();
+  const args = parts.slice(1);
+
+  if (command === "echo") {
+    return args.join(" ");
+  }
+  if (command === "dir" || command === "ls") {
+    return `2026/05/19  10:00    <DIR>          .\r\n2026/05/19  10:00    <DIR>          ..\r\n2026/05/19  10:00             1024  README.md\r\n2026/05/19  10:00            24576  package.json\r\n2026/05/19  10:00              512  index.ts`;
+  }
+  if (command === "pwd" || command === "cd") {
+    return undefined;
+  }
+  if (command === "date") {
+    return new Date().toLocaleString("zh-CN");
+  }
+  if (command === "whoami") {
+    return "user";
+  }
+  if (command === "help") {
+    return `Available commands: echo, dir/ls, pwd, cd, date, whoami, help, cls/clear`;
+  }
+  return `'${command}' is not recognized as an internal or external command, operable program or batch file.`;
+}
 
 let workspaceRoot =
   (import.meta.env.VITE_ADL_DEFAULT_WORKSPACE_PATH as string | undefined)?.trim() || "E:/OnlineEditing";
@@ -549,6 +590,10 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
   subscribeModelStream: () => () => undefined,
   subscribeRunActivity: () => () => undefined,
   subscribeTerminalStream: () => () => undefined,
+  subscribePtyOutput: (listener: (event: PtyOutputEvent) => void) => {
+    ptyOutputListeners.add(listener);
+    return () => void ptyOutputListeners.delete(listener);
+  },
   window: {
     minimize: async () => {},
     maximize: async () => {},
@@ -1082,14 +1127,6 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
     }
   },
   command: {
-    getProfiles: async () => ({
-      ok: true,
-      data: [
-        { id: "build", label: "Build" },
-        { id: "test", label: "Test" },
-        { id: "lint", label: "Lint" }
-      ]
-    }),
     run: async (input) => ({
       ok: true,
       data: {
@@ -1107,62 +1144,59 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
         }
       } satisfies CommandRunResult
     }),
-    runStream: async (input) => {
-      if (input.command.includes("install")) {
-        return {
-          ok: true,
-          data: {
-            mode: "waiting-approval" as const,
-            taskId: `task-stream-${Date.now()}`,
-            request: {
-              id: `command-${Date.now()}`,
-              workspaceId: activeWorkspaceScopeId(),
-              profile: "install",
-              command: input.command,
-              args: input.args,
-              shell: input.shell ?? false,
-              riskLevel: "high" as const,
-              createdAt: Date.now()
-            },
-            approvalRequest: {
-              id: "approval-stream-mock",
-              taskId: "task-stream",
-              title: "command.install",
-              description: "Install requires approval.",
-              riskLevel: "high" as const,
-              impact: [],
-              reversible: true,
-              createdAt: Date.now()
-            }
-          }
-        };
-      }
-      const executionId = `termexec-mock-${Date.now()}`;
-      return {
-        ok: true,
-        data: {
-          mode: "started" as const,
-          executionId,
-          taskId: `task-stream-${Date.now()}`,
-          request: {
-            id: `command-${Date.now()}`,
-            workspaceId: activeWorkspaceScopeId(),
-            profile: "test",
-            command: input.command,
-            args: input.args,
-            shell: input.shell ?? false,
-            riskLevel: "low" as const,
-            createdAt: Date.now()
-          }
-        }
-      };
-    },
-    stopStream: async () => ({ ok: true, data: true }),
     listRecent: async (_limit?: number): Promise<{ ok: true; data: CommandRequest[] }> => ({
       ok: true,
       data: []
     })
   },
+  pty: {
+      create: async (input) => {
+        const sessionId = `pty-mock-${Date.now()}`;
+        const shell = input.shell ?? "powershell";
+        activeMockPtySessions.set(sessionId, { shell, inputBuffer: "" });
+        const welcome = shell === "cmd"
+          ? `Microsoft Windows [Version 10.0.22621.1]\r\n(c) Microsoft Corporation. All rights reserved.\r\n\r\nC:\\Users\\user>`
+          : shell === "bash"
+            ? `user@host:~$\x20`
+            : `Windows PowerShell\r\nCopyright (C) Microsoft Corporation. All rights reserved.\r\n\r\nPS C:\\Users\\user>`;
+        setTimeout(() => emitPtyOutput(sessionId, welcome), 50);
+        return { ok: true, data: { sessionId } };
+      },
+      input: async (sessionId, data) => {
+        const session = activeMockPtySessions.get(sessionId);
+        if (!session) {
+          return { ok: true, data: true };
+        }
+        if (data === "\r") {
+          const cmd = session.inputBuffer.trim();
+          session.inputBuffer = "";
+          emitPtyOutput(sessionId, "\r\n");
+          if (cmd === "clear" || cmd === "cls") {
+            return { ok: true, data: true };
+          }
+          const output = executeMockCommand(cmd, session.shell);
+          if (output) {
+            emitPtyOutput(sessionId, output + "\r\n");
+          }
+          emitPtyOutput(sessionId, getMockPrompt(session.shell));
+        } else if (data === "\x7f") {
+          if (session.inputBuffer.length > 0) {
+            session.inputBuffer = session.inputBuffer.slice(0, -1);
+            emitPtyOutput(sessionId, "\b \b");
+          }
+        } else {
+          session.inputBuffer += data;
+          emitPtyOutput(sessionId, data);
+        }
+        return { ok: true, data: true };
+      },
+     resize: async () => ({ ok: true, data: true }),
+     kill: async (sessionId) => {
+       activeMockPtySessions.delete(sessionId);
+       return { ok: true, data: true };
+     },
+     list: async () => ({ ok: true, data: [] })
+   },
   task: {
     getSnapshot: async () => ({
       ok: true,

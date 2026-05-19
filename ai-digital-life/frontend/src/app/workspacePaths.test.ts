@@ -131,9 +131,9 @@ describe("workspacePaths", () => {
 
   describe("filterDiagnosticsForPath", () => {
     const mockDiagnostics = [
-      { path: "src/file1.ts", severity: "error" as const, message: "Error 1" },
-      { path: "src/file2.ts", severity: "warning" as const, message: "Warning 1" },
-      { path: "other/file.ts", severity: "error" as const, message: "Error 2" },
+      { id: "d1", source: "typescript" as const, path: "src/file1.ts", severity: "error" as const, message: "Error 1" },
+      { id: "d2", source: "typescript" as const, path: "src/file2.ts", severity: "warning" as const, message: "Warning 1" },
+      { id: "d3", source: "typescript" as const, path: "other/file.ts", severity: "error" as const, message: "Error 2" },
     ];
 
     it("filters diagnostics for exact path match", () => {
@@ -166,8 +166,8 @@ describe("workspacePaths", () => {
   describe("findFirstDiagnostic", () => {
     it("returns first error when present", () => {
       const diagnostics = [
-        { path: "file1.ts", severity: "warning" as const, message: "Warning" },
-        { path: "file2.ts", severity: "error" as const, message: "Error" },
+        { id: "d1", source: "typescript" as const, path: "file1.ts", severity: "warning" as const, message: "Warning" },
+        { id: "d2", source: "typescript" as const, path: "file2.ts", severity: "error" as const, message: "Error" },
       ];
       const result = findFirstDiagnostic(diagnostics);
       expect(result?.severity).toBe("error");
@@ -175,8 +175,8 @@ describe("workspacePaths", () => {
 
     it("returns first diagnostic when no errors", () => {
       const diagnostics = [
-        { path: "file1.ts", severity: "warning" as const, message: "Warning" },
-        { path: "file2.ts", severity: "info" as const, message: "Info" },
+        { id: "d1", source: "typescript" as const, path: "file1.ts", severity: "warning" as const, message: "Warning" },
+        { id: "d2", source: "typescript" as const, path: "file2.ts", severity: "info" as const, message: "Info" },
       ];
       const result = findFirstDiagnostic(diagnostics);
       expect(result?.path).toBe("file1.ts");

@@ -1,5 +1,8 @@
 //! Governed command execution with bounded output capture.
 
+pub mod pty;
+pub mod session_manager;
+
 use adl_errors::AppError;
 use adl_kernel::{
     create_id, now_ms, CommandExecutionResult, CommandProfile, CommandRequest, RiskLevel,

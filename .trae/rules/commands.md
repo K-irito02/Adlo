@@ -35,6 +35,12 @@ alwaysApply: true
 | `npm run typecheck` | 类型检查 |
 | `npx vitest run` | 直接运行 Vitest |
 
+## 终端调试
+
+| 命令 | 用途 |
+|------|------|
+| `npm run dev:browser` | 浏览器预览模式（终端通过 `previewTerminalService.ts` + `child_process.spawn` 运行真实 Shell） |
+
 ## 包管理
 
 | 命令 | 用途 |
@@ -59,6 +65,29 @@ alwaysApply: true
 ## 浏览器自动化
 
 > 浏览器自动化工具选择、经验教训和快速参考已迁移至 [browser-automation.md](./browser-automation.md)
+
+### integrated_browser 快速参考（Trae 内置浏览器）
+
+```powershell
+# 标准流程
+browser_navigate -url "http://localhost:5173/" -take_screenshot_afterwards true
+browser_snapshot -interactive true
+browser_click -ref "e0" -element "提交按钮"
+browser_type -ref "e1" -element "搜索框" -text "Hello" -submit true
+browser_unlock
+```
+
+### agent-browser 快速参考（终端自动化）
+
+```powershell
+agent-browser --session test open http://127.0.0.1:5173
+agent-browser --session test eval "window.digitalLife.workspace.open('E:\\path').then(() => location.reload())"
+agent-browser --session test wait 3000
+agent-browser --session test snapshot -i
+agent-browser --session test close --all
+```
+
+> 详细文档：[browser-automation 技能](../skills/browser-automation/SKILL.md)
 
 ## 相关文件
 

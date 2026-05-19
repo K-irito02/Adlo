@@ -5,6 +5,7 @@ pub mod command;
 pub mod conversation;
 pub mod model;
 pub mod patch;
+pub mod pty_commands;
 pub mod retrieval;
 pub mod run_activity;
 pub mod task;

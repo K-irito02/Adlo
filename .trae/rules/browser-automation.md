@@ -9,7 +9,9 @@ alwaysApply: true
 
 | 场景 | 推荐工具 | 说明 |
 |------|----------|------|
-| 交互式测试、表单填写、元素点击 | agent-browser | 全功能终端自动化 |
+| Trae 内置浏览器交互 | integrated_browser（MCP 工具） | Trae 内置浏览器，通过 MCP 工具调用（非 CLI），支持导航、点击、输入、截图等全功能 |
+| 让用户在内置浏览器中打开 URL | 纯文本 URL（不包裹） | Trae IDE 自动检测纯文本 URL 使其可点击，点击后在内置浏览器中跳转 |
+| 交互式测试、表单填写、元素点击 | agent-browser | 全功能终端自动化，**打开的是独立 Chrome 实例**，非 IDE 内置浏览器 |
 | 连接用户现有 Chrome、坐标点击 | Browser Harness | 基于 CDP，需 Chrome 调试模式 |
 | 仅静态截图 | Playwright CLI | 轻量级，无交互能力 |
 
@@ -17,7 +19,32 @@ alwaysApply: true
 
 ## 核心经验教训
 
-### 1. 工作区必须真正加载到应用上下文
+### 1. integrated_browser 是 MCP 工具，不是 CLI 命令
+
+`browser_*` 系列工具（`browser_navigate`、`browser_snapshot`、`browser_click` 等）是 MCP 协议暴露的工具，**不是 PowerShell CLI 命令**。
+
+**错误做法**（会报错）：
+```powershell
+# ❌ 这会被识别为未知命令
+browser_navigate -url "http://localhost:5173/" -take_screenshot_afterwards true
+```
+
+**正确做法**：通过 MCP 工具接口调用（在 Agent 消息中直接使用对应 tool call）。
+
+### 2. 纯文本 URL 即可在 Trae 内置浏览器中打开
+
+Trae IDE 会自动检测消息中的纯文本 URL 并使其可点击。用户点击后即在内置浏览器中跳转。
+
+**最佳实践**：
+- 输出 URL 时使用纯文本，如：http://localhost:5173/
+- 不要用 `` 包裹 URL，否则会失去可点击性
+- 不需要额外调用任何工具来"打开内置浏览器"
+
+### 3. agent-browser 打开的是独立 Chrome 实例
+
+agent-browser 通过 CDP 启动自己的 Chromium 进程，与 Trae IDE 内置浏览器无关。当需要用户在 IDE 内置浏览器中查看页面时，输出纯文本 URL 让用户点击即可。
+
+### 4. 工作区必须真正加载到应用上下文
 
 `window.digitalLife.workspace.open()` 只是将路径添加到侧边栏列表，**不会**自动加载工作区到应用上下文。
 
@@ -33,14 +60,14 @@ alwaysApply: true
 agent-browser --session test eval "document.querySelector('.adl-statusbar')?.textContent"
 ```
 
-### 2. 变更面板依赖工作区上下文
+### 5. 变更面板依赖工作区上下文
 
 变更面板的数据源是**当前激活的工作区**，而非侧边栏列表。如果工作区未加载到上下文：
 - 变更面板显示"当前没有检测到文件变更"
 - 底部状态栏显示"非 Git 仓库"
 - 即使 `git status` 确认有变更，UI 也不会显示
 
-### 3. 原生对话框无法自动化
+### 6. 原生对话框无法自动化
 
 以下操作会触发原生 OS 对话框，必须使用 API 绕过：
 
@@ -49,14 +76,14 @@ agent-browser --session test eval "document.querySelector('.adl-statusbar')?.tex
 | 打开工作区 | 文件夹选择器 | `window.digitalLife.workspace.open(path)` |
 | 选择目录 | 文件夹选择器 | Vite Preview API |
 
-### 4. 操作后必须等待和验证
+### 7. 操作后必须等待和验证
 
 每次点击/操作后：
 1. `wait 1000~3000` 等待 UI 响应
 2. `snapshot -i` 获取最新状态
 3. 确认操作生效后再继续下一步
 
-### 5. 路径转义规则
+### 8. 路径转义规则
 
 | 工具 | 路径格式 | 说明 |
 |------|----------|------|
@@ -64,11 +91,11 @@ agent-browser --session test eval "document.querySelector('.adl-statusbar')?.tex
 | Browser Harness `js()` | `E:/path` | 使用正斜杠 |
 | PowerShell 参数 | `E:\path` | 单反斜杠 |
 
-### 6. 不使用 `--headed` 参数
+### 9. 不使用 `--headed` 参数
 
 `--headed` 模式可能导致 daemon 死锁。使用默认 headless 模式。
 
-### 7. daemon 操作间隔
+### 10. daemon 操作间隔
 
 `close --all` 后等待 2-3 秒再执行 `open`，避免超时。
 
@@ -152,8 +179,29 @@ agent-browser --session {session-name} close --all
 
 ## 快速参考
 
+### 让用户打开 Trae 内置浏览器（推荐方式）
+
+只需在消息中输出纯文本 URL，Trae IDE 自动使其可点击，用户点击后在内置浏览器中跳转：
+
+```
+项目运行地址：http://127.0.0.1:5173/
+```
+
+不需要调用任何工具，不需要 `` 包裹 URL。
+
+### integrated_browser（MCP 工具，Agent 内部使用）
+
+integrated_browser 的 `browser_*` 工具是通过 MCP 协议暴露的，通过 Agent 的 tool call 直接调用（而非 CLI 命令）。
+
 ```powershell
-# agent-browser 标准流程
+# 注意：以下代码展示的是 MCP 工具的调用逻辑，不可在终端中直接运行
+# 正确方式是在 Agent 消息中使用 tool call 来调用
+```
+
+### agent-browser 标准流程
+
+```powershell
+# 标准流程：打开 → 加载工作区 → 操作 → 清理
 agent-browser --session test open http://127.0.0.1:5173
 agent-browser --session test eval "window.digitalLife.workspace.open('E:\\path').then(() => location.reload())"
 agent-browser --session test wait 3000
@@ -165,6 +213,7 @@ agent-browser --session test close --all
 ## 相关文件
 
 - [browser-automation 技能](../skills/browser-automation/SKILL.md)
+- [integrated_browser 工具参考](../skills/browser-automation/references/integrated-browser.md)
 - [desktop-ui-verification.md](./desktop-ui-verification.md)
 - [commands.md](./commands.md)
 - [步骤清单模板](../skills/browser-automation/scripts/_template-checklist.md)

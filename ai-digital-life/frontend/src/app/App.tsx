@@ -58,8 +58,6 @@ export function App() {
     gitBranches,
     workspaceContextMode,
     latestCommandRun,
-    terminalOutput,
-    activeTerminalExecutionId,
     openTabs,
     selectedFilePath,
     selectedChangePreviewPath,
@@ -116,8 +114,6 @@ export function App() {
     markExternalFileChange,
     notifyEditorBufferDirty,
     runCommand,
-    runCommandStream,
-    stopCommandStream,
     refreshModelHealth,
     updatePreferences,
     fetchGitBranches,
@@ -144,8 +140,6 @@ export function App() {
       gitBranches: state.gitBranches,
       workspaceContextMode: state.workspaceContextMode,
       latestCommandRun: state.latestCommandRun,
-      terminalOutput: state.terminalOutput,
-      activeTerminalExecutionId: state.activeTerminalExecutionId,
       openTabs: state.openTabs,
       selectedFilePath: state.selectedFilePath,
       selectedChangePreviewPath: state.selectedChangePreviewPath,
@@ -202,8 +196,6 @@ export function App() {
       markExternalFileChange: state.markExternalFileChange,
       notifyEditorBufferDirty: state.notifyEditorBufferDirty,
       runCommand: state.runCommand,
-      runCommandStream: state.runCommandStream,
-      stopCommandStream: state.stopCommandStream,
       refreshModelHealth: state.refreshModelHealth,
       updatePreferences: state.updatePreferences,
       fetchGitBranches: state.fetchGitBranches,
@@ -324,8 +316,6 @@ export function App() {
   const setActiveTool = useUiStore((state) => state.setActiveTool);
   const rightPanelWidth = useUiStore((state) => state.rightPanelWidth);
   const [diffSideBySide, setDiffSideBySide] = React.useState(readDiffSideBySidePreference);
-  const [commandBinary, setCommandBinary] = React.useState("npm");
-  const [commandArgs, setCommandArgs] = React.useState("run test");
   const [editorHint, setEditorHint] = React.useState<string>();
   const [localSearchQuery, setLocalSearchQuery] = React.useState(searchQuery);
   const [selectedPatchFilePath, setSelectedPatchFilePath] = useState<string>();
@@ -829,16 +819,7 @@ export function App() {
           modelHealth={modelHealth}
           onRefreshModelHealth={() => void refreshModelHealth()}
           onChangeSetting={handleChangeSetting}
-          commandBinary={commandBinary}
-          commandArgs={commandArgs}
           latestCommandRun={latestCommandRun}
-          terminalOutput={terminalOutput}
-          activeTerminalExecutionId={activeTerminalExecutionId}
-          onCommandBinaryChange={setCommandBinary}
-          onCommandArgsChange={setCommandArgs}
-          onRunCommand={() => void runCommand(commandBinary, commandArgs)}
-          onRunCommandStream={() => void runCommandStream(commandBinary, commandArgs)}
-          onStopCommandStream={() => void stopCommandStream()}
         />
       </div>
 

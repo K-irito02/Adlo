@@ -37,6 +37,19 @@ alwaysApply: true
 | Phase 范围变更 | `phase-boundary.md` |
 | 双端一致性变更 | `tauri-shell.md`、`project-overview.md`、`desktop-ui-verification.md` |
 | 浏览器自动化工具/脚本变更 | `browser-automation.md`、`browser-automation` 技能 |
+| Trae 内置浏览器（integrated_browser）工具变更 | `browser-automation.md`、`browser-automation` 技能 |
+
+## MCP 服务器说明
+
+### integrated_browser
+
+- **路径**: `c:\Users\31432\.trae-cn\mcps\s_notes-df2a1686\solo_agent_lite\integrated_browser\`
+- **服务器名称**: `integrated_browser`
+- **工具数量**: 18 个浏览器自动化工具
+- **用途**: 操控 Trae IDE 内置浏览器
+- **文档**: [integrated-browser.md](../skills/browser-automation/references/integrated-browser.md)
+
+详细说明见 [browser-automation.md](./browser-automation.md)
 
 ## 相关文件
 

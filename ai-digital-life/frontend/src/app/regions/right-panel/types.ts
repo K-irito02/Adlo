@@ -87,16 +87,7 @@ export interface RightPanelViewProps {
   gitSnapshot?: GitSnapshot;
   commandHistory: string[];
   onChangeSetting: (id: string, value: string | boolean | number) => void;
-  commandBinary: string;
-  commandArgs: string;
   latestCommandRun?: CommandRunResult;
-  terminalOutput: string;
-  activeTerminalExecutionId?: string;
-  onCommandBinaryChange: (value: string) => void;
-  onCommandArgsChange: (value: string) => void;
-  onRunCommand: () => void;
-  onRunCommandStream: () => void;
-  onStopCommandStream: () => void;
 }
 
 export function countGitChanges(snapshot?: GitSnapshot): number {

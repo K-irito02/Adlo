@@ -44,6 +44,33 @@ alwaysApply: false
 
 详见 [tokens.md](/E:/Programs/Obsidian/notes/ai-digital-life/docs/design-system/tokens.md)。
 
+## xterm.js 终端组件
+
+| 组件 | 文件 | 说明 |
+|------|------|------|
+| `XtermTerminal` | `frontend/src/app/components/terminal/XtermTerminal.tsx` | xterm.js 封装组件，支持 FitAddon、WebLinksAddon、主题同步（MutationObserver 监听 data-theme 变化） |
+| `TerminalPanel` | `frontend/src/app/regions/right-panel/TerminalPanel.tsx` | 终端面板，管理多标签/多会话、Shell 类型选择、PTY 生命周期 |
+
+### 主题同步机制
+
+xterm.js 主题色从 CSS 自定义属性读取，非硬编码：
+
+| xterm 属性 | CSS 变量 |
+|-----------|---------|
+| `background` | `--bg` |
+| `foreground` | `--text-primary` |
+| `selectionBackground` | `--selection` |
+| `selectionInactiveBackground` | `--selection` (with opacity) |
+
+`MutationObserver` 监听 `<html>` 的 `data-theme` 属性变化，自动更新 xterm 颜色。
+
+### 双端 PTY 实现
+
+| 模式 | 后端 | 通信 |
+|------|------|------|
+| Tauri | `pty_commands.rs` (Rust PTY) | Tauri Event `digital-life://pty-output` |
+| 浏览器 | `previewTerminalService.ts` (Node.js `child_process.spawn`) | SSE `/__adl_preview_api__/pty/output` |
+
 ## 主题系统
 
 | 层级 | 存储位置 |

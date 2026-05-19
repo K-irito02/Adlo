@@ -13,7 +13,11 @@ description: Browser automation for AI Digital Life. Primary tool: agent-browser
 
 | 你的任务 | 选择 |
 |---------|------|
-| 打开网页、点击按钮、填写表单 | agent-browser |
+| Trae 内置浏览器交互（导航、点击、输入） | integrated_browser（MCP 工具，非 CLI 命令） |
+| 执行 JS、获取控制台、检查网络请求 | integrated_browser |
+| 截图、验证 UI 效果 | integrated_browser |
+| 让用户在内置浏览器中打开 URL | 纯文本 URL（不包裹），用户点击即可跳转 |
+| 打开网页、点击按钮、填写表单 | agent-browser（注意：打开的是**独立 Chrome 实例**） |
 | 执行 JS、获取页面信息、检查控制台 | agent-browser |
 | 截图、录屏、自动化测试 | agent-browser |
 | 连接用户已打开的 Chrome | Browser Harness |
@@ -24,7 +28,13 @@ description: Browser automation for AI Digital Life. Primary tool: agent-browser
 
 ## 第二层：快速开始
 
-### agent-browser（推荐）
+### integrated_browser（Trae 内置浏览器 - MCP 工具）
+
+`browser_*` 系列工具是通过 MCP 协议暴露的，通过 Agent 的 tool call 直接调用，**不可在终端 CLI 中运行**。
+
+对于 Trae 内置浏览器，更简单的做法是直接输出纯文本 URL 让用户点击跳转。
+
+### agent-browser（终端全功能自动化，独立 Chrome 实例）
 
 ```powershell
 # 标准流程：打开 → 加载工作区 → 操作 → 清理
@@ -57,6 +67,7 @@ playwright screenshot http://localhost:5173 screenshot.png
 
 | 文件 | 内容 |
 |------|------|
+| [references/integrated-browser.md](./references/integrated-browser.md) | Trae 内置浏览器自动化工具完整参考 |
 | [references/agent-browser.md](./references/agent-browser.md) | 完整命令参考、会话管理、工作流示例 |
 | [references/browser-harness.md](./references/browser-harness.md) | CDP 命令、Python 脚本模式、辅助函数 |
 | [references/playwright-cli.md](./references/playwright-cli.md) | 静态截图命令参考 |
@@ -86,12 +97,15 @@ test-artifacts/
 
 | 经验 | 说明 |
 |------|------|
+| integrated_browser 是 MCP 工具 | `browser_*` 通过 MCP 协议调用，**不可在 PowerShell 中运行** |
+| 纯文本 URL 即可打开内置浏览器 | Trae IDE 自动使纯文本 URL 可点击，不要用 `` 包裹 |
+| agent-browser 打开独立 Chrome | agent-browser 启动的是自己的 Chromium 进程，非 IDE 内置浏览器 |
+| ref 来自快照 | 每次页面变化后需重新 `snapshot -i` 获取新 ref |
 | 工作区必须真正加载 | `workspace.open()` 后需刷新页面，确认状态栏显示 Git 信息 |
 | 原生对话框需绕过 | 使用 `window.digitalLife.workspace.open(path)` 替代点击菜单 |
-| 操作后等待验证 | 每次操作后 `wait` + `snapshot -i` 确认生效 |
+| 操作后等待验证 | 每次操作后 `snapshot` 确认生效 |
 | 路径转义 | agent-browser 用 `E:\\path`，Browser Harness 用 `E:/path` |
-| 不使用 `--headed` | 可能导致 daemon 死锁，使用默认 headless 模式 |
-| ref 不硬编码 | 页面刷新后 ref 编号变化，每次操作前重新 `snapshot -i` |
+| 不使用 `--headed` | agent-browser 可能导致 daemon 死锁，使用默认 headless 模式 |
 
 ---
 

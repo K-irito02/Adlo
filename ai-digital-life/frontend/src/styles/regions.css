@@ -2911,6 +2911,21 @@ select:focus-visible {
   width: 100%;
 }
 
+.adl-tool-panel--terminal {
+  position: relative;
+  overflow: visible;
+}
+
+.adl-tool-panel--terminal .adl-tool-context {
+  position: relative;
+  z-index: 4;
+  overflow: visible;
+}
+
+.adl-tool-panel--terminal .adl-file-context__menu {
+  position: relative;
+}
+
 .adl-terminal-shell-dropdown {
   width: 176px;
   min-width: 176px;
@@ -3936,6 +3951,60 @@ select:focus-visible {
   align-items: flex-start;
 }
 
+.adl-tool-list__item--terminal-tab {
+  flex-direction: row;
+  align-items: center;
+  gap: 0;
+  padding: 1px 4px 1px 8px;
+}
+
+.adl-tool-list__item-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+}
+
+.adl-tool-list__item-btn:hover {
+  background: var(--surface-hover);
+}
+
+.adl-tool-list__item-btn.is-active {
+  background: var(--surface-hover);
+}
+
+.adl-tool-list__item-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: var(--radius-sm);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  flex-shrink: 0;
+}
+
+.adl-tool-list__item:hover .adl-tool-list__item-close {
+  opacity: 1;
+}
+
+.adl-tool-list__item-close:hover {
+  color: var(--text-primary);
+  background: var(--surface-hover);
+}
+
 .adl-outline-tree__scroll {
   min-height: 0;
 }
@@ -4357,12 +4426,31 @@ select:focus-visible {
 }
 
 .adl-tool-primary--terminal-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
   background: var(--bg);
+}
+
+.adl-tool-context__group--terminal-actions {
+  display: flex;
+  align-items: center;
+}
+
+.adl-tool-context__group--spacer {
+  flex: 1;
+  min-width: 0;
 }
 
 .adl-terminal-canvas {
   width: 100%;
   min-height: 100%;
+}
+
+.adl-terminal-canvas .xterm {
+  height: 100%;
+  padding: var(--space-1);
 }
 
 .adl-tool-primary__terminal-bar {

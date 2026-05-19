@@ -1,14 +1,17 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   IconChevronDown,
+  IconClose,
   IconFileCode,
   IconMoreVertical,
   IconPanelLeftClose,
   IconPlus,
-  IconTerminal
+  IconTerminal,
+  IconTrash
 } from "../../icons";
 import { TooltipSimple } from "../../components/Tooltip";
-import { useUiStore, type TerminalLayout, type TerminalProfile } from "../../ui-store";
+import { XtermTerminal, type XtermTerminalHandle } from "../../components/terminal/XtermTerminal";
+import { useUiStore, type TerminalProfile } from "../../ui-store";
 import { useNavigatorResize } from "../../hooks/useNavigatorResize";
 import type { RightPanelViewProps } from "./types";
 
@@ -21,11 +24,7 @@ type TerminalShellMenuItem =
   | { id: string; label: string; profile?: TerminalProfile; action: () => void };
 
 export function TerminalPanel(props: RightPanelViewProps) {
-  const {
-    t,
-    commandBinary,
-    commandArgs
-  } = props;
+  const { t } = props;
   const [navigatorMode, setNavigatorMode] = useState<TerminalNavigatorMode>("sessions");
   const [terminalMenuOpen, setTerminalMenuOpen] = useState(false);
   const [shellMenuOpen, setShellMenuOpen] = useState(false);
@@ -35,18 +34,24 @@ export function TerminalPanel(props: RightPanelViewProps) {
   const setTerminalNavigatorWidth = useUiStore((state) => state.setTerminalNavigatorWidth);
   const terminalTabs = useUiStore((state) => state.terminalTabs);
   const terminalActiveTabId = useUiStore((state) => state.terminalActiveTabId);
-  const terminalLayout = useUiStore((state) => state.terminalLayout);
   const terminalCreateTab = useUiStore((state) => state.terminalCreateTab);
   const terminalSelectTab = useUiStore((state) => state.terminalSelectTab);
+  const terminalCloseTab = useUiStore((state) => state.terminalCloseTab);
   const terminalUpdateActiveTab = useUiStore((state) => state.terminalUpdateActiveTab);
-  const terminalSetLayout = useUiStore((state) => state.terminalSetLayout);
   const setActiveTool = useUiStore((state) => state.setActiveTool);
+
   const terminalMenuRef = useRef<HTMLDivElement | null>(null);
   const shellMenuRef = useRef<HTMLDivElement | null>(null);
+  const xtermRef = useRef<XtermTerminalHandle | null>(null);
+  const sessionOutputsRef = useRef<Map<string, string>>(new Map());
+
   const activeTab = useMemo(
     () => terminalTabs.find((tab) => tab.id === terminalActiveTabId) ?? terminalTabs[0],
     [terminalActiveTabId, terminalTabs]
   );
+
+  const hasActiveTab = activeTab != null;
+
   const recentCommands = useMemo(
     () => {
       if (props.commandHistory.length > 0) {
@@ -59,7 +64,7 @@ export function TerminalPanel(props: RightPanelViewProps) {
       return terminalTabs
         .map((tab) => ({
           id: tab.id,
-          label: `${tab.commandBinary} ${tab.commandArgs}`.trim(),
+          label: tab.title,
           title: tab.title
         }))
         .filter((entry) => entry.label);
@@ -67,17 +72,27 @@ export function TerminalPanel(props: RightPanelViewProps) {
     [props.commandHistory, t.terminalCommandHistory, terminalTabs]
   );
 
-  useEffect(() => {
-    if (terminalLayout !== "vertical") {
-      terminalSetLayout("vertical" as TerminalLayout);
+  const handleCreateTab = useCallback(async (profile: TerminalProfile = "powershell") => {
+    const shellMap: Record<TerminalProfile, string> = {
+      powershell: "powershell",
+      bash: "bash",
+      cmd: "cmd"
+    };
+    terminalCreateTab(profile);
+    const cols = 80;
+    const rows = 24;
+    const cwd = props.appInfo?.currentWorkspace?.rootPath ?? undefined;
+    const result = await window.digitalLife.pty.create({
+      shell: shellMap[profile],
+      cwd,
+      cols,
+      rows
+    });
+    if (result.ok) {
+      terminalUpdateActiveTab({ sessionId: result.data.sessionId, status: "running" });
     }
-  }, [terminalLayout, terminalSetLayout]);
-
-  useEffect(() => {
-    if (activeTab?.live) {
-      terminalUpdateActiveTab({ commandBinary, commandArgs });
-    }
-  }, [activeTab?.id, activeTab?.live, commandArgs, commandBinary, terminalUpdateActiveTab]);
+    xtermRef.current?.focus();
+  }, [terminalCreateTab, terminalUpdateActiveTab, props.appInfo?.currentWorkspace?.rootPath]);
 
   useEffect(() => {
     if (!terminalMenuOpen && !shellMenuOpen) {
@@ -105,28 +120,166 @@ export function TerminalPanel(props: RightPanelViewProps) {
   const navigatorTitle = navigatorMode === "sessions" ? t.terminalSessions : t.terminalRecentCommands;
   const navigatorCount = navigatorMode === "sessions" ? terminalTabs.length : recentCommands.length;
 
-  const updateProfile = (profile: TerminalProfile) => {
+  const updateProfile = useCallback((profile: TerminalProfile) => {
+    if (activeTab?.sessionId) {
+      window.digitalLife.pty.kill(activeTab.sessionId);
+    }
     terminalUpdateActiveTab({
       profile,
-      title: profile === "powershell" ? "PowerShell" : profile === "bash" ? "Bash" : "CMD"
+      title: profile === "powershell" ? "PowerShell" : profile === "bash" ? "Bash" : "CMD",
+      sessionId: undefined,
+      status: "idle"
     });
-  };
+  }, [activeTab?.sessionId, terminalUpdateActiveTab]);
+
   const currentProfile = activeTab?.profile ?? "powershell";
   const currentProfileLabel = currentProfile === "powershell" ? "PowerShell" : currentProfile === "bash" ? "Bash" : "CMD";
+
+  const handleCopy = useCallback(() => {
+    const selection = xtermRef.current?.getSelection();
+    if (selection) {
+      navigator.clipboard.writeText(selection).catch(() => {});
+    }
+  }, []);
+
+  const handlePaste = useCallback(() => {
+    navigator.clipboard.readText().then((text) => {
+      if (activeTab?.sessionId) {
+        window.digitalLife.pty.input(activeTab.sessionId, text);
+      }
+    }).catch(() => {});
+  }, [activeTab?.sessionId]);
+
+  const handleClear = useCallback(() => {
+    xtermRef.current?.clear();
+  }, []);
+
+  const handleKill = useCallback(() => {
+    if (activeTab?.sessionId) {
+      window.digitalLife.pty.kill(activeTab.sessionId);
+      terminalUpdateActiveTab({ status: "terminated" });
+    }
+  }, [activeTab?.sessionId, terminalUpdateActiveTab]);
+
+  const handleCloseTab = useCallback((tabId: string) => {
+    const tabs = useUiStore.getState().terminalTabs;
+    const tab = tabs.find((t) => t.id === tabId);
+    if (tab?.sessionId) {
+      window.digitalLife.pty.kill(tab.sessionId);
+      sessionOutputsRef.current.delete(tab.sessionId);
+    }
+    terminalCloseTab(tabId);
+  }, [terminalCloseTab]);
+
+  const handleCloseAllTabs = useCallback(() => {
+    const tabs = useUiStore.getState().terminalTabs;
+    tabs.forEach((tab) => {
+      if (tab.sessionId) {
+        window.digitalLife.pty.kill(tab.sessionId);
+        sessionOutputsRef.current.delete(tab.sessionId);
+      }
+    });
+    useUiStore.setState({ terminalTabs: [], terminalActiveTabId: "" });
+  }, []);
+
+  const handleSelectTab = useCallback((tabId: string) => {
+    terminalSelectTab(tabId);
+    const tabs = useUiStore.getState().terminalTabs;
+    const tab = tabs.find((t) => t.id === tabId);
+    if (tab?.sessionId) {
+      const stored = sessionOutputsRef.current.get(tab.sessionId) ?? "";
+      xtermRef.current?.clear();
+      if (stored) {
+        xtermRef.current?.write(stored);
+      }
+    }
+  }, [terminalSelectTab]);
+
   const terminalMenuItems: TerminalMenuItem[] = [
-    { id: "copy", label: t.terminalCopy, disabled: true },
-    { id: "paste", label: t.terminalPaste, disabled: true },
-    { id: "clear", label: t.terminalClear, disabled: true },
+    { id: "copy", label: t.terminalCopy, action: handleCopy },
+    { id: "paste", label: t.terminalPaste, action: handlePaste },
+    { id: "clear", label: t.terminalClear, action: handleClear },
     { id: "sep-1", separator: true },
-    { id: "kill", label: t.terminalKillProcess, disabled: true }
+    { id: "kill", label: t.terminalKillProcess, action: handleKill }
   ];
   const shellMenuItems: TerminalShellMenuItem[] = [
-    { id: "new-terminal", label: t.menuNewTerminal, action: () => terminalCreateTab(currentProfile) },
+    { id: "new-terminal", label: t.menuNewTerminal, action: () => handleCreateTab(currentProfile) },
     { id: "sep-1", separator: true },
     { id: "powershell", label: "PowerShell", profile: "powershell", action: () => updateProfile("powershell") },
     { id: "bash", label: "Bash", profile: "bash", action: () => updateProfile("bash") },
     { id: "cmd", label: "CMD", profile: "cmd", action: () => updateProfile("cmd") }
   ];
+
+  const handleXtermData = useCallback((data: string) => {
+    if (activeTab?.sessionId) {
+      window.digitalLife.pty.input(activeTab.sessionId, data);
+    }
+  }, [activeTab?.sessionId]);
+
+  useEffect(() => {
+    const unsub = window.digitalLife.subscribePtyOutput((event) => {
+      const outputs = sessionOutputsRef.current;
+      const previous = outputs.get(event.sessionId) ?? "";
+      outputs.set(event.sessionId, previous + event.data);
+      if (event.sessionId === activeTab?.sessionId) {
+        xtermRef.current?.write(event.data);
+      }
+    });
+    return () => unsub();
+  }, [activeTab?.sessionId]);
+
+  const shellButtonGroup = (
+    <div ref={shellMenuRef} className="adl-menu adl-file-context__menu">
+      <div className={`adl-split-pill${shellMenuOpen ? " is-open" : ""}`}>
+        <TooltipSimple content={t.menuNewTerminal} placement="top">
+          <button
+            type="button"
+            className="adl-split-pill__main"
+            onClick={() => handleCreateTab(currentProfile)}
+            aria-label={t.menuNewTerminal}
+          >
+            <IconPlus size={12} decorative />
+            <span>{currentProfileLabel}</span>
+          </button>
+        </TooltipSimple>
+        <TooltipSimple content="类型选择" placement="top">
+          <button
+            type="button"
+            className={`adl-split-pill__toggle${shellMenuOpen ? " is-open" : ""}`}
+            onClick={() => setShellMenuOpen((value) => !value)}
+            aria-label="类型选择"
+            aria-haspopup="menu"
+            aria-expanded={shellMenuOpen}
+          >
+            <IconChevronDown size={12} decorative />
+          </button>
+        </TooltipSimple>
+      </div>
+      {shellMenuOpen ? (
+        <div className="adl-menu__dropdown adl-file-context__dropdown adl-terminal-shell-dropdown" role="menu">
+          {shellMenuItems.map((item) =>
+            "separator" in item ? (
+              <div key={item.id} className="adl-menu__sep" role="separator" />
+            ) : (
+              <button
+                key={item.id}
+                type="button"
+                role="menuitemradio"
+                aria-checked={item.profile ? item.profile === currentProfile : false}
+                className="adl-menu__item"
+                onClick={() => {
+                  item.action();
+                  setShellMenuOpen(false);
+                }}
+              >
+                <span>{item.label}</span>
+              </button>
+            )
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
 
   return (
     <div className="adl-tool-panel adl-tool-panel--terminal">
@@ -142,63 +295,11 @@ export function TerminalPanel(props: RightPanelViewProps) {
               <IconPanelLeftClose size={14} decorative />
             </button>
           </TooltipSimple>
-          <div ref={shellMenuRef} className="adl-menu adl-file-context__menu">
-            <div className={`adl-split-pill${shellMenuOpen ? " is-open" : ""}`}>
-              <TooltipSimple content={t.menuNewTerminal} placement="top">
-                <button
-                  type="button"
-                  className="adl-split-pill__main"
-                  onClick={() => terminalCreateTab(currentProfile)}
-                  aria-label={t.menuNewTerminal}
-                >
-                  <IconPlus size={12} decorative />
-                  <span>{currentProfileLabel}</span>
-                </button>
-              </TooltipSimple>
-              <TooltipSimple content="类型选择" placement="top">
-                <button
-                  type="button"
-                  className={`adl-split-pill__toggle${shellMenuOpen ? " is-open" : ""}`}
-                  onClick={() => setShellMenuOpen((value) => !value)}
-                  aria-label="类型选择"
-                  aria-haspopup="menu"
-                  aria-expanded={shellMenuOpen}
-                >
-                  <IconChevronDown size={12} decorative />
-                </button>
-              </TooltipSimple>
-            </div>
-            {shellMenuOpen ? (
-              <div className="adl-menu__dropdown adl-file-context__dropdown adl-terminal-shell-dropdown" role="menu">
-                {shellMenuItems.map((item) =>
-                  "separator" in item ? (
-                    <div key={item.id} className="adl-menu__sep" role="separator" />
-                  ) : (
-                    <button
-                      key={item.id}
-                      type="button"
-                      role="menuitemradio"
-                      aria-checked={item.profile ? item.profile === currentProfile : false}
-                      className="adl-menu__item"
-                      onClick={() => {
-                        item.action();
-                        setShellMenuOpen(false);
-                      }}
-                    >
-                      <span>{item.label}</span>
-                    </button>
-                  )
-                )}
-              </div>
-            ) : null}
+          <div className="adl-tool-context__group--terminal-actions">
+            {shellButtonGroup}
           </div>
         </div>
         <div className="adl-tool-context__group adl-tool-context__group--files-actions">
-          <TooltipSimple content={t.runStreamCommand} placement="top">
-            <button type="button" className="adl-tool-context__iconbtn" disabled aria-label={t.runStreamCommand}>
-              <IconTerminal size={14} decorative />
-            </button>
-          </TooltipSimple>
           <div ref={terminalMenuRef} className="adl-menu adl-file-context__menu">
             <TooltipSimple content={t.terminalMoreActions} placement="top">
               <button
@@ -271,16 +372,42 @@ export function TerminalPanel(props: RightPanelViewProps) {
                 <IconFileCode size={14} decorative />
               </button>
             </TooltipSimple>
+            <div className="adl-tool-context__group--spacer" />
+            {navigatorMode === "sessions" && terminalTabs.length > 0 && (
+              <TooltipSimple content="关闭所有" placement="top">
+                <button
+                  type="button"
+                  className="adl-tool-context__iconbtn"
+                  onClick={handleCloseAllTabs}
+                  aria-label="关闭所有"
+                >
+                  <IconTrash size={14} decorative />
+                </button>
+              </TooltipSimple>
+            )}
           </div>
 
           {navigatorMode === "sessions" ? (
             <ul className="adl-tool-list">
               {terminalTabs.map((tab) => (
-                <li key={tab.id}>
-                  <button type="button" className={`adl-tool-list__item${tab.id === terminalActiveTabId ? " is-active" : ""}`} onClick={() => terminalSelectTab(tab.id)}>
+                <li key={tab.id} className="adl-tool-list__item adl-tool-list__item--terminal-tab">
+                  <button type="button" className={`adl-tool-list__item-btn${tab.id === terminalActiveTabId ? " is-active" : ""}`} onClick={() => handleSelectTab(tab.id)}>
                     <span className="adl-tool-list__title">{tab.title}</span>
-                    <small>{tab.live ? t.terminalLiveShell : t.terminalPlaceholderShell}</small>
+                    <small>{tab.status === "running" ? t.terminalLiveShell : tab.profile}</small>
                   </button>
+                  <TooltipSimple content="关闭" placement="top">
+                    <button
+                      type="button"
+                      className="adl-tool-list__item-close"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCloseTab(tab.id);
+                      }}
+                      aria-label="关闭"
+                    >
+                      <IconClose size={12} decorative />
+                    </button>
+                  </TooltipSimple>
                 </li>
               ))}
             </ul>
@@ -291,7 +418,7 @@ export function TerminalPanel(props: RightPanelViewProps) {
               <ul className="adl-tool-list">
                 {recentCommands.map((entry) => (
                   <li key={entry.id}>
-                    <button type="button" className="adl-tool-list__item" onClick={() => terminalSelectTab(entry.id)}>
+                    <button type="button" className="adl-tool-list__item">
                       <span className="adl-tool-list__title">{entry.title}</span>
                       <small>{entry.label}</small>
                     </button>
@@ -314,37 +441,34 @@ export function TerminalPanel(props: RightPanelViewProps) {
           />
         </aside>
 
-        <div className={`adl-tool-primary${props.terminalOutput ? "" : " adl-tool-primary--terminal-empty"}`}>
+        <div className="adl-tool-primary">
           <div className="adl-tool-primary__scroll adl-tool-primary__scroll--terminal">
-            {props.terminalOutput ? (
-              <pre className="adl-terminal-canvas adl-terminal-canvas--live">
-                {props.terminalOutput}
-              </pre>
+            {hasActiveTab ? (
+              <>
+                <XtermTerminal
+                  ref={xtermRef}
+                  className="adl-terminal-canvas"
+                  onData={handleXtermData}
+                />
+                {props.latestCommandRun?.status === "waiting-approval" && (
+                  <div className="adl-terminal-approval-hint">
+                    <span>{t.terminalNeedsApproval}</span>
+                    <button
+                      type="button"
+                      className="adl-btn adl-btn--primary adl-btn--xs"
+                      onClick={() => setActiveTool("audit")}
+                    >
+                      {t.terminalGoToApproval}
+                    </button>
+                  </div>
+                )}
+              </>
             ) : (
-              <div className="adl-terminal-canvas" aria-hidden="true" />
-            )}
-            {props.latestCommandRun?.status === "waiting-approval" && (
-              <div className="adl-terminal-approval-hint">
-                <span>{t.terminalNeedsApproval}</span>
-                <button
-                  type="button"
-                  className="adl-btn adl-btn--primary adl-btn--xs"
-                  onClick={() => setActiveTool("audit")}
-                >
-                  {t.terminalGoToApproval}
-                </button>
+              <div className="adl-tool-primary--terminal-empty">
+                {shellButtonGroup}
               </div>
             )}
           </div>
-          {props.activeTerminalExecutionId && (
-            <div className="adl-terminal-running-bar">
-              <span className="adl-step-block__pulse" aria-hidden="true" />
-              <span>{t.stepRunning}</span>
-              <button type="button" className="adl-btn adl-btn--ghost adl-btn--xs" onClick={() => props.onStopCommandStream()}>
-                {t.cancelGenerate}
-              </button>
-            </div>
-          )}
         </div>
       </div>
     </div>
