@@ -147,14 +147,19 @@ impl PtySession {
         }
         *status = PtyStatus::Terminated;
 
+        // Kill the child process - this closes the PTY slave, causing the
+        // spawned reader thread to see EOF and exit naturally
         let _ = self.child.lock().map(|mut c| {
             if let Some(child) = c.as_mut() {
                 let _ = child.kill();
             }
             c.take()
         });
+        // Close master and writer. The output_reader is NOT touched here:
+        // it is held (locked) by the spawned reader thread blocking on read().
+        // After the child exits, read() returns EOF, the thread exits, and
+        // the reader is dropped when PtySession's Arc refcount reaches 0.
         let _ = self.master.lock().map(|mut m| m.take());
-        let _ = self.output_reader.lock().map(|mut r| r.take());
         let _ = self.writer.lock().map(|mut w| w.take());
         Ok(())
     }
