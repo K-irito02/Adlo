@@ -3,11 +3,9 @@ use adl_errors::AppError;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tauri::Emitter;
-use tokio::sync::oneshot;
 
 pub struct PtySessionHandle {
     pub session: Arc<PtySession>,
-    pub cancel_tx: Option<oneshot::Sender<()>>,
 }
 
 pub struct SessionManager {
@@ -33,18 +31,12 @@ impl SessionManager {
         let session_id = session.id.clone();
         let session = Arc::new(session);
 
-        let (cancel_tx, cancel_rx) = oneshot::channel();
-
         let session_clone = Arc::clone(&session);
         let app_clone = app.clone();
         let sid = session_id.clone();
         std::thread::spawn(move || {
             let mut buf = [0u8; 4096];
-            let mut cancel_rx = cancel_rx;
             loop {
-                if cancel_rx.try_recv().is_ok() {
-                    break;
-                }
                 match session_clone.read_output(&mut buf) {
                     Ok(0) => break,
                     Ok(n) => {
@@ -70,7 +62,6 @@ impl SessionManager {
             session_id.clone(),
             PtySessionHandle {
                 session,
-                cancel_tx: Some(cancel_tx),
             },
         );
 
@@ -105,13 +96,10 @@ impl SessionManager {
             .sessions
             .lock()
             .map_err(|_| AppError::Internal("mutex poisoned".into()))?;
-        let mut handle = sessions
+        let handle = sessions
             .remove(session_id)
             .ok_or_else(|| AppError::NotFound(format!("pty session not found: {}", session_id)))?;
 
-        if let Some(cancel) = handle.cancel_tx.take() {
-            let _ = cancel.send(());
-        }
         handle.session.kill()?;
         tracing::info!(session_id = %session_id, "pty session killed");
         Ok(())

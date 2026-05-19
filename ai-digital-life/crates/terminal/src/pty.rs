@@ -147,7 +147,12 @@ impl PtySession {
         }
         *status = PtyStatus::Terminated;
 
-        let _ = self.child.lock().map(|mut c| c.take());
+        let _ = self.child.lock().map(|mut c| {
+            if let Some(child) = c.as_mut() {
+                let _ = child.kill();
+            }
+            c.take()
+        });
         let _ = self.master.lock().map(|mut m| m.take());
         let _ = self.output_reader.lock().map(|mut r| r.take());
         let _ = self.writer.lock().map(|mut w| w.take());
