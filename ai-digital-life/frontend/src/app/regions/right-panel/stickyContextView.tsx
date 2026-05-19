@@ -34,7 +34,11 @@ export function StickyContext(props: StickyContextProps) {
   }, [clearHideTimer]);
 
   useEffect(() => {
-    if (!props.model.showTopEntry) return;
+    if (!props.model.showTopEntry) {
+      setIsVisible(true);
+      clearHideTimer();
+      return;
+    }
     setIsVisible(true);
     startHideTimer();
     return clearHideTimer;

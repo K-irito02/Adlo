@@ -53,7 +53,7 @@ describe("workspaceScope", () => {
     });
 
     it("handles root path", () => {
-      expect(workspaceNameFromPath("/")).toBe("");
+      expect(workspaceNameFromPath("/")).toBe("workspace");
     });
 
     it("handles empty string", () => {

@@ -2,7 +2,8 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 describe("outline panel wiring", () => {
-  const filesPanelSource = readFileSync(new URL("./FilesPanel.tsx", import.meta.url), "utf8");
+  const fileNavigatorShellSource = readFileSync(new URL("./FileNavigatorShell.tsx", import.meta.url), "utf8");
+  const editorSurfaceShellSource = readFileSync(new URL("./EditorSurfaceShell.tsx", import.meta.url), "utf8");
   const changesPanelSource = readFileSync(new URL("./ChangesPanel.tsx", import.meta.url), "utf8");
   const previewWorkspaceServiceSource = readFileSync(new URL("../../../../dev/previewWorkspaceService.ts", import.meta.url), "utf8");
   const outlineTreeSource = readFileSync(new URL("./OutlineTree.tsx", import.meta.url), "utf8");
@@ -10,12 +11,12 @@ describe("outline panel wiring", () => {
   const treeNodeRowSource = readFileSync(new URL("./TreeNodeRow.tsx", import.meta.url), "utf8");
 
   it("uses the shared outline tree in the files panel", () => {
-    expect(filesPanelSource).toContain("OutlineTree");
-    expect(filesPanelSource).toContain("handleRevealPreviewLine");
-    expect(filesPanelSource).toContain("data-source-line");
-    expect(filesPanelSource).toContain('setNavigatorMode("tree")');
-    expect(filesPanelSource).toContain("handleToggleAllOutlineItems");
-    expect(filesPanelSource).toContain("expandedIds={expandedOutlineIds}");
+    expect(fileNavigatorShellSource).toContain("OutlineTree");
+    expect(editorSurfaceShellSource).toContain("handleRevealPreviewLine");
+    expect(editorSurfaceShellSource).toContain("data-source-line");
+    expect(fileNavigatorShellSource).toContain('setNavigatorMode("tree")');
+    expect(fileNavigatorShellSource).toContain("handleToggleAllOutlineItems");
+    expect(fileNavigatorShellSource).toContain("expandedIds={expandedOutlineIds}");
   });
 
   it("uses the shared outline tree and outline mode in the changes panel", () => {

@@ -73,7 +73,7 @@ function getWorkspaceScopedCacheKey(appInfo: AppInfo | undefined, relativePath: 
   return `${getWorkspaceCachePrefix(appInfo)}:${normalizeWorkspaceRelativePath(relativePath)}`;
 }
 
-function getCachedLru<T>(cache: Map<string, T>, key: string): T | undefined {
+export function getCachedLru<T>(cache: Map<string, T>, key: string): T | undefined {
   const cached = cache.get(key);
   if (cached === undefined) {
     return undefined;
@@ -83,7 +83,7 @@ function getCachedLru<T>(cache: Map<string, T>, key: string): T | undefined {
   return cached;
 }
 
-function setCachedLru<T>(cache: Map<string, T>, key: string, value: T, limit: number): void {
+export function setCachedLru<T>(cache: Map<string, T>, key: string, value: T, limit: number): void {
   if (cache.has(key)) {
     cache.delete(key);
   }

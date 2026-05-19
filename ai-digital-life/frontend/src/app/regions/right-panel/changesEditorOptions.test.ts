@@ -33,10 +33,11 @@ describe("changes preview editor options", () => {
   });
 
   it("uses sticky context helpers from CodeMirror stickyContext module", () => {
-    expect(changesPanelSource).toContain("getVisibleStartLine");
-    expect(changesPanelSource).toContain("navigateToLine");
-    expect(changesPanelSource).toContain("subscribeToEditor");
-    expect(changesPanelSource).toContain("from \"./stickyContext\"");
+    const useStickyContextSource = readFileSync(new URL("./hooks/useStickyContext.ts", import.meta.url), "utf8");
+
+    expect(useStickyContextSource).toContain("getVisibleStartLine");
+    expect(useStickyContextSource).toContain("navigateToLine");
+    expect(useStickyContextSource).toContain("from \"../stickyContext\"");
   });
 
   it("passes readOnly, lineNumbers, wordWrap, and sideBySide as DiffViewer props", () => {

@@ -43,6 +43,7 @@ type CreateStickyContextModelInput = {
   canScrollToTop: boolean;
   onNavigateLine: (line: number) => void;
   topLabel?: string;
+  modelId?: string;
 };
 
 function clampContextRows(value: number | undefined): number {
@@ -165,7 +166,7 @@ export function createStickyContextModel(input: CreateStickyContextModelInput): 
   };
 
   return {
-    modelId: `${Date.now()}-${Math.random()}`,
+    modelId: input.modelId ?? "sticky-context",
     topEntry,
     canScrollToTop: input.canScrollToTop,
     showTopEntry: input.canScrollToTop,

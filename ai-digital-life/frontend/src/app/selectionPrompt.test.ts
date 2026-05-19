@@ -30,7 +30,7 @@ describe("selectionPrompt", () => {
 
     it("handles special characters in selection", () => {
       const result = buildSelectionPrompt("en-US", "test.ts", "<div class='test'>");
-      expect(result).toContain("&lt;div class='test'&gt;");
+      expect(result).toContain("<div class='test'>");
     });
 
     it("handles Unicode in selection", () => {

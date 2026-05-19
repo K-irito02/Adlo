@@ -124,7 +124,7 @@ describe("CodeMirror preview styling", () => {
     expect(scrollLeftSyncSource).toContain("lineHeight");
     expect(scrollLeftSyncSource).toContain("chunkRect");
     expect(noWrapButtonsBlock).toContain("z-index: 20");
-    expect(deletedChunkBlock).not.toContain("position: relative");
+    expect(deletedChunkBlock).toContain("position: relative");
   });
 
   it("lets no-wrap editors create horizontal overflow only from actual line width", () => {

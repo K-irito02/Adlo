@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { copy } from "./copy";
+import { getCachedLru, setCachedLru } from "./store";
 
 describe("store utility functions", () => {
   describe("sessionFallbackTitle", () => {
@@ -51,7 +52,7 @@ describe("store utility functions", () => {
   describe("LRU cache helpers", () => {
     it("getCachedLru returns undefined for missing key", () => {
       const cache = new Map<string, number>();
-      const result = cache.get("missing");
+      const result = getCachedLru(cache, "missing");
       expect(result).toBeUndefined();
     });
 
@@ -59,17 +60,17 @@ describe("store utility functions", () => {
       const cache = new Map<string, number>();
       cache.set("key1", 1);
       cache.set("key2", 2);
-      const result = cache.get("key1");
+      const result = getCachedLru(cache, "key1");
       expect(result).toBe(1);
     });
 
     it("setCachedLru respects limit", () => {
       const cache = new Map<string, number>();
       const limit = 3;
-      cache.set("1", 1);
-      cache.set("2", 2);
-      cache.set("3", 3);
-      cache.set("4", 4);
+      setCachedLru(cache, "1", 1, limit);
+      setCachedLru(cache, "2", 2, limit);
+      setCachedLru(cache, "3", 3, limit);
+      setCachedLru(cache, "4", 4, limit);
       expect(cache.size).toBeLessThanOrEqual(limit);
     });
   });

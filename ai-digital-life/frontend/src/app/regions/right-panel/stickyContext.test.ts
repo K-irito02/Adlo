@@ -86,20 +86,21 @@ describe("stickyContext helpers", () => {
 });
 
 describe("sticky context panel wiring", () => {
-  const filesPanelSource = readFileSync(new URL("./FilesPanel.tsx", import.meta.url), "utf8");
+  const editorSurfaceShellSource = readFileSync(new URL("./EditorSurfaceShell.tsx", import.meta.url), "utf8");
+  const useStickyContextSource = readFileSync(new URL("./hooks/useStickyContext.ts", import.meta.url), "utf8");
   const changesPanelSource = readFileSync(new URL("./ChangesPanel.tsx", import.meta.url), "utf8");
 
   it("renders sticky context above the files editor surface in both editor modes", () => {
-    expect(filesPanelSource).toContain("StickyContext");
-    expect(filesPanelSource).toContain('data-testid="files-sticky-context"');
-    expect(filesPanelSource).toContain("buildStickyContextEntries");
-    expect(filesPanelSource).toContain("createStickyContextModel");
+    expect(editorSurfaceShellSource).toContain("StickyContext");
+    expect(editorSurfaceShellSource).toContain('data-testid="files-sticky-context"');
+    expect(useStickyContextSource).toContain("buildStickyContextEntries");
+    expect(useStickyContextSource).toContain("createStickyContextModel");
   });
 
   it("renders sticky context above the changes preview surface", () => {
     expect(changesPanelSource).toContain("StickyContext");
     expect(changesPanelSource).toContain('data-testid="changes-sticky-context"');
-    expect(changesPanelSource).toContain("buildStickyContextEntries");
-    expect(changesPanelSource).toContain("createStickyContextModel");
+    expect(useStickyContextSource).toContain("buildStickyContextEntries");
+    expect(useStickyContextSource).toContain("createStickyContextModel");
   });
 });

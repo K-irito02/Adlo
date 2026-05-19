@@ -4452,7 +4452,7 @@ select:focus-visible {
   position: absolute;
   top: 0;
   left: 0;
-  right: 0px;
+  right: var(--adl-scrollbar-width, 0px);
   z-index: var(--z-sticky);
   display: flex;
   justify-content: flex-end;

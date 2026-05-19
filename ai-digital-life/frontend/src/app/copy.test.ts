@@ -33,7 +33,9 @@ describe("copy", () => {
       const result = await copyToClipboard("test content");
 
       expect(result.ok).toBe(false);
-      expect(result.error).toContain("Failed to copy");
+      if (!result.ok) {
+        expect(result.error).toContain("Failed to copy");
+      }
     });
   });
 
