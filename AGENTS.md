@@ -17,7 +17,7 @@
 |------|------|
 | 桌面框架 | Tauri 2.x |
 | 后端 | Rust (stable) + tokio + rusqlite + serde + tracing |
-| 前端 | React 19 + Vite + Zustand + xterm.js |
+| 前端 | React 19 + Vite + Zustand + TypeScript + xterm.js |
 | 桥接 | `#[tauri::command]` + `@tauri-apps/api` |
 | 持久化 | SQLite（`rusqlite`，后端） |
 
@@ -40,6 +40,31 @@
 - 自定义 Tooltip 组件
 - CodeMirror 编辑器系统
 - xterm.js 交互式终端（多会话、多 Shell 类型，浏览器模式通过 `child_process.spawn` + SSE 实现真实 Shell 进程）
+- **Zustand 切片模式重构**（10 个独立切片 + 完整类型安全）
+
+### Zustand 切片模式
+
+前端状态管理已重构为 Zustand 切片模式：
+
+```
+app/stores/
+├── slicedStore.ts           # 基于切片模式的完整 Store
+├── slices/                 # 10 个独立切片
+│   ├── uiSlice.ts          # UI 状态
+│   ├── workspaceSlice.ts    # 工作区状态
+│   ├── gitSlice.ts         # Git 状态
+│   ├── sessionSlice.ts     # 会话状态
+│   ├── editorSlice.ts      # 编辑器状态
+│   ├── patchSlice.ts       # 补丁状态
+│   ├── searchSlice.ts      # 搜索状态
+│   ├── diagnosticSlice.ts  # 诊断状态
+│   ├── taskSlice.ts        # 任务状态
+│   └── commandSlice.ts     # 命令状态
+├── selectors.ts            # 通用选择器
+└── INTEGRATION_GUIDE.md    # 集成指南
+```
+
+详见 [docs/重构洞察/REFACTORING_PROGRESS_REPORT.md](./docs/重构洞察/REFACTORING_PROGRESS_REPORT.md)
 
 ### 排除项
 
@@ -111,6 +136,7 @@
 | IPC 契约 | `ai-digital-life/frontend/src/shared/ipc.ts` |
 | 进程边界 | `ai-digital-life/src-tauri/`、`ai-digital-life/crates/` |
 | UI 测试 | `UIOperationManual/`、`.trae/skills/browser-automation/` |
+| 重构进度 | `docs/重构洞察/REFACTORING_PROGRESS_REPORT.md` |
 
 ## 相关文档
 
@@ -118,3 +144,4 @@
 - [docs/development/agent-routing.md](./docs/development/agent-routing.md) - Agent 路由
 - [docs/development/hook-policy.md](./docs/development/hook-policy.md) - Hook 策略
 - [docs/development/project-engineering-constraints.md](./docs/development/project-engineering-constraints.md) - 工程约束
+- [docs/重构洞察/REFACTORING_PROGRESS_REPORT.md](./docs/重构洞察/REFACTORING_PROGRESS_REPORT.md) - Zustand 切片模式重构报告

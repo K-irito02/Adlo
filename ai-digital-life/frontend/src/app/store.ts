@@ -47,80 +47,47 @@ import {
 } from "./composerSend";
 import { useUiStore, type ToolId } from "./ui-store";
 
-let workspaceRequestSeq = 0;
-let sessionRequestSeq = 0;
-let fileRequestSeq = 0;
-let changePreviewRequestSeq = 0;
+// 从共享模块导入（保持向后兼容的别名）
+import {
+  workspaceRequestSeq as sharedWorkspaceRequestSeq,
+  sessionRequestSeq as sharedSessionRequestSeq,
+  fileRequestSeq as sharedFileRequestSeq,
+  changePreviewRequestSeq as sharedChangePreviewRequestSeq,
+  getFileDocumentCache,
+  getChangePreviewCache,
+  FILE_DOCUMENT_CACHE_LIMIT,
+  CHANGE_PREVIEW_CACHE_LIMIT,
+  getWorkspaceCachePrefix,
+  getWorkspaceScopedCacheKey,
+  getCachedLru as sharedGetCachedLru,
+  setCachedLru as sharedSetCachedLru,
+  queueLowPriorityRefresh,
+  resetRequestSeqs,
+  type CachedFileDocument,
+  type CachedChangePreview
+} from "./stores/shared";
+import {
+  sessionFallbackTitle,
+  workspaceContextModeFromInfo,
+  hasConversationMessages,
+  refreshConversationSlice
+} from "./stores/conversationUtils";
 
-type CachedFileDocument = {
-  content: string;
-  lastModifiedAt: number;
-};
+// 保持向后兼容的变量引用
+let workspaceRequestSeq = sharedWorkspaceRequestSeq;
+let sessionRequestSeq = sharedSessionRequestSeq;
+let fileRequestSeq = sharedFileRequestSeq;
+let changePreviewRequestSeq = sharedChangePreviewRequestSeq;
+const fileDocumentCache = getFileDocumentCache();
+const changePreviewCache = getChangePreviewCache();
 
-type CachedChangePreview = WorkspaceChangePreview;
-
-const FILE_DOCUMENT_CACHE_LIMIT = 32;
-const CHANGE_PREVIEW_CACHE_LIMIT = 32;
-const fileDocumentCache = new Map<string, CachedFileDocument>();
-const changePreviewCache = new Map<string, CachedChangePreview>();
-
-function getWorkspaceCachePrefix(appInfo?: AppInfo): string {
-  return appInfo?.currentWorkspace?.id ?? "global";
-}
-
-function getWorkspaceScopedCacheKey(appInfo: AppInfo | undefined, relativePath: string): string {
-  return `${getWorkspaceCachePrefix(appInfo)}:${normalizeWorkspaceRelativePath(relativePath)}`;
-}
-
+// 保持向后兼容的导出
+export { getWorkspaceCachePrefix, getWorkspaceScopedCacheKey, FILE_DOCUMENT_CACHE_LIMIT, CHANGE_PREVIEW_CACHE_LIMIT };
 export function getCachedLru<T>(cache: Map<string, T>, key: string): T | undefined {
-  const cached = cache.get(key);
-  if (cached === undefined) {
-    return undefined;
-  }
-  cache.delete(key);
-  cache.set(key, cached);
-  return cached;
+  return sharedGetCachedLru(cache, key);
 }
-
 export function setCachedLru<T>(cache: Map<string, T>, key: string, value: T, limit: number): void {
-  if (cache.has(key)) {
-    cache.delete(key);
-  }
-  cache.set(key, value);
-  while (cache.size > limit) {
-    const oldest = cache.keys().next().value;
-    if (oldest === undefined) {
-      return;
-    }
-    cache.delete(oldest);
-  }
-}
-
-function queueLowPriorityRefresh(refresh: () => Promise<void>): void {
-  window.setTimeout(() => {
-    void refresh();
-  }, 0);
-}
-
-async function refreshConversationSlice(activeSessionId?: string) {
-  const conversationState = await loadConversationState(activeSessionId);
-  return {
-    sessions: conversationState.sessions,
-    activeSessionId: conversationState.activeSessionId,
-    detail: conversationState.detail
-  };
-}
-
-function sessionFallbackTitle(appInfo?: AppInfo): string {
-  return appInfo?.config.language === "en-US" ? copy["en-US"].sessionFallback : copy["zh-CN"].sessionFallback;
-}
-
-function workspaceContextModeFromInfo(appInfo?: AppInfo): "workspace" | "global" {
-  return appInfo?.currentWorkspace ? "workspace" : "global";
-}
-
-function hasConversationMessages(detail?: ConversationDetail): boolean {
-  return (detail?.messages.length ?? 0) > 0;
+  sharedSetCachedLru(cache, key, value, limit);
 }
 
 export type StoreState = {

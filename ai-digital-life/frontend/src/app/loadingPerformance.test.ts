@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 const appSource = readFileSync(new URL("./App.tsx", import.meta.url), "utf8");
 const storeSource = readFileSync(new URL("./store.ts", import.meta.url), "utf8");
+const sharedSource = readFileSync(new URL("./stores/shared.ts", import.meta.url), "utf8");
 const rightPanelSource = readFileSync(new URL("./regions/RightPanel.tsx", import.meta.url), "utf8");
 const filesPanelSource = readFileSync(new URL("./regions/right-panel/FilesPanel.tsx", import.meta.url), "utf8");
 const sidebarViewModelSource = readFileSync(new URL("./sidebarViewModel.ts", import.meta.url), "utf8");
@@ -50,7 +51,8 @@ describe("loading and switching performance guards", () => {
   });
 
   it("keeps cache limits module-scoped and makes file preview defaults explicit", () => {
-    expect(storeSource).toMatch(/const FILE_DOCUMENT_CACHE_LIMIT = 32;[\s\S]*const CHANGE_PREVIEW_CACHE_LIMIT = 32;/);
+    expect(sharedSource).toMatch(/export const FILE_DOCUMENT_CACHE_LIMIT = 32;/);
+    expect(sharedSource).toMatch(/export const CHANGE_PREVIEW_CACHE_LIMIT = 32;/);
     expect(filesPanelSource).toContain('filePreviewModeByPath[selectedFilePath] ?? (fileCategory === "markdown")');
   });
 });

@@ -89,6 +89,18 @@ agent-browser --session test close --all
 
 > 详细文档：[browser-automation 技能](../skills/browser-automation/SKILL.md)
 
+## ⚠️ Node.js 环境变量
+
+Trae 的 PowerShell 终端**不自动继承**系统/用户 PATH 环境变量。
+
+**执行任何 `npm`/`node`/`pnpm`/`npx` 命令前，必须先运行：**
+
+```powershell
+$env:Path = "D:\Program Files\nodejs;$env:Path"
+```
+
+Node.js 安装路径：`D:\Program Files\nodejs`（v24.15.0）
+
 ## 相关文件
 
 - [ai-digital-life/package.json](/E:/Programs/Obsidian/notes/ai-digital-life/package.json)
