@@ -29,10 +29,7 @@ impl SessionManager {
         rows: u16,
     ) -> Result<String, AppError> {
         let resolution = ShellResolver::resolve(shell)
-            .map_err(|e| AppError::Terminal(format!(
-                "{}\n\nRecovery:\nPowerShell (默认): 系统内置，确保 Windows PowerShell 功能已开启\nCMD: 系统内置，检查 %COMSPEC% 环境变量\nBash: 需安装 Git for Windows 或 WSL",
-                e.message(),
-            )))?;
+            .map_err(|e| AppError::Terminal(e.message()))?;
 
         let config = PtyConfig {
             program: resolution.program,

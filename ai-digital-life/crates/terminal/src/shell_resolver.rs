@@ -106,17 +106,61 @@ pub struct ShellResolution {
     pub args: Vec<String>,
 }
 
-/// Shell resolution error with user-facing message.
+/// Shell resolution error with user-facing message and comprehensive recovery guide.
 #[derive(Debug, Clone)]
 pub struct ShellNotFound {
     pub input: String,
+    pub recovery: String,
 }
 
 impl ShellNotFound {
+    /// Creates a `ShellNotFound` for an unrecognized shell name.
+    /// Generates a comprehensive recovery guide for all three shell types,
+    /// including the `app_data_dir` paths so users know where to place custom binaries.
+    pub fn unknown(input: &str) -> Self {
+        let ad = || -> String {
+            dirs::data_dir()
+                .unwrap_or_else(|| PathBuf::from("."))
+                .join("ai-digital-life")
+                .join("bin")
+                .join("terminals")
+                .to_string_lossy()
+                .to_string()
+        };
+        let ps_dir = Path::new(&ad()).join("PowerShell");
+        let cmd_dir = Path::new(&ad()).join("CMD");
+        let bash_dir = Path::new(&ad()).join("Bash");
+        let recovery = format!(
+            "支持以下终端类型：\n\
+             \n\
+             1. PowerShell（默认）\n\
+               系统内置，确保 Windows PowerShell 功能已开启\n\
+               或自行放置 powershell.exe 到以下目录：\n\
+                  {}\n\
+             \n\
+             2. CMD\n\
+               系统内置，检查 %COMSPEC% 环境变量\n\
+               或自行放置 cmd.exe 到以下目录：\n\
+                  {}\n\
+             \n\
+             3. Bash\n\
+               需安装 Git for Windows 或 WSL\n\
+               或自行放置 bash.exe 到以下目录：\n\
+                  {}",
+            ps_dir.display(),
+            cmd_dir.display(),
+            bash_dir.display(),
+        );
+        Self {
+            input: input.to_string(),
+            recovery,
+        }
+    }
+
     pub fn message(&self) -> String {
         format!(
-            "Unknown shell: '{}'. Expected one of: powershell, cmd, bash",
-            self.input
+            "Unknown shell: '{}'. Expected one of: powershell, cmd, bash\n\nRecovery:\n{}",
+            self.input, self.recovery
         )
     }
 }
@@ -126,7 +170,7 @@ pub struct ShellResolver;
 impl ShellResolver {
     pub fn resolve(shell: &str) -> Result<ShellResolution, ShellNotFound> {
         let kind = ShellKind::from_str(shell)
-            .ok_or_else(|| ShellNotFound { input: shell.to_string() })?;
+            .ok_or_else(|| ShellNotFound::unknown(shell))?;
 
         // Level 1: Well-known system paths
         for candidate in system_candidates(kind) {
