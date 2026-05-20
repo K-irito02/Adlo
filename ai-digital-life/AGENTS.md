@@ -19,7 +19,9 @@
 - 工作区与对话、补丁预览/应用/回滚
 - 模型网关（含流式与取消）
 - 命令治理与终端流式输出
-- xterm.js 交互式终端（多会话 PTY）
+- xterm.js 交互式终端（多会话 PTY，支持 CMD / PowerShell / Bash）
+  - Tauri 桌面模式：Rust `portable-pty`（ConPTY）
+  - 浏览器预览模式：`node-pty`（ConPTY/WinPTY），替代之前 `child_process.spawn` 的编码 hack
 
 **不在本目录实现**：多 Agent DAG、MCP、插件市场、云协作等 Phase 2+ 能力。
 

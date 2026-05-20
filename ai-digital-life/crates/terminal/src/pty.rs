@@ -24,7 +24,65 @@ pub struct PtySession {
     pub status: Mutex<PtyStatus>,
 }
 
+/// Pre-resolved shell program and arguments.
+/// The caller (SessionManager or ShellResolver) is responsible for path resolution.
+pub struct PtyConfig {
+    pub program: String,
+    pub args: Vec<String>,
+}
+
 impl PtySession {
+    pub fn new(
+        config: PtyConfig,
+        cwd: &str,
+        cols: u16,
+        rows: u16,
+    ) -> Result<Self, AppError> {
+        let pty_system = NativePtySystem::default();
+        let size = PtySize { rows, cols, pixel_width: 0, pixel_height: 0 };
+        let pair = pty_system
+            .openpty(size)
+            .map_err(|e| AppError::Terminal(format!("failed to open pty: {}", e)))?;
+
+        let mut cmd = CommandBuilder::new(&config.program);
+        if !config.args.is_empty() {
+            cmd.args(&config.args);
+        }
+        cmd.cwd(cwd);
+
+        let child = pair
+            .slave
+            .spawn_command(cmd)
+            .map_err(|e| AppError::Terminal(format!("failed to spawn shell: {}", e)))?;
+
+        let reader = pair
+            .master
+            .try_clone_reader()
+            .map_err(|e| AppError::Terminal(format!("failed to clone pty reader: {}", e)))?;
+
+        let writer = pair.master.take_writer()
+            .map_err(|e| AppError::Terminal(format!("failed to take pty writer: {}", e)))?;
+
+        let shell_label = std::path::Path::new(&config.program)
+            .file_stem()
+            .map(|s| s.to_string_lossy().to_string())
+            .unwrap_or_else(|| "shell".to_string());
+
+        Ok(Self {
+            id: create_id("pty"),
+            shell: shell_label,
+            cwd: cwd.to_string(),
+            master: Mutex::new(Some(pair.master)),
+            child: Mutex::new(Some(child)),
+            output_reader: Mutex::new(Some(reader)),
+            writer: Mutex::new(Some(writer)),
+            cols,
+            rows,
+            status: Mutex::new(PtyStatus::Running),
+        })
+    }
+
+    #[deprecated(note = "use PtySession::new() + PtyConfig instead")]
     pub fn create(
         shell: &str,
         cwd: &str,

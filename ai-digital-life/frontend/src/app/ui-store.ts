@@ -70,6 +70,7 @@ const BROWSER_BOOKMARKS_KEY = "adl-ui:browser-bookmarks";
 const BROWSER_HISTORY_KEY = "adl-ui:browser-history";
 const TERMINAL_TABS_KEY = "adl-ui:terminal-tabs";
 const TERMINAL_ACTIVE_TAB_KEY = "adl-ui:terminal-active-tab";
+const TERMINAL_DEFAULT_PROFILE_KEY = "adl-ui:terminal-default-profile";
 const deferredJsonWriteHandles = new Map<string, number>();
 
 export const RIGHT_PANEL_WIDTH_MIN = 320;
@@ -321,6 +322,7 @@ export interface UiState {
   browserHistory: BrowserHistoryEntry[];
   terminalTabs: TerminalTabState[];
   terminalActiveTabId: string;
+  defaultTerminalProfile: TerminalProfile;
   chatMode: ChatMode;
   contextChips: ContextChip[];
   contextMenuOpen: boolean;
@@ -374,10 +376,13 @@ export interface UiState {
   terminalSelectTab: (tabId: string) => void;
   terminalCloseTab: (tabId: string) => void;
   terminalUpdateActiveTab: (patch: Partial<Omit<TerminalTabState, "id">>) => void;
+  setDefaultTerminalProfile: (profile: TerminalProfile) => void;
 }
 
 const initialBrowserTabs = normalizeBrowserTabs(readJson<BrowserTabState[]>(BROWSER_TABS_KEY, []));
-const initialTerminalTabs = normalizeTerminalTabs(readJson<TerminalTabState[]>(TERMINAL_TABS_KEY, []));
+const initialTerminalTabs: TerminalTabState[] = [];
+try { localStorage.removeItem(TERMINAL_TABS_KEY); } catch {}
+try { localStorage.removeItem(TERMINAL_ACTIVE_TAB_KEY); } catch {}
 const initialNavigatorCollapsed = {
   ...defaultNavigatorCollapsed(),
   ...readJson<Record<ToolId, boolean>>(NAVIGATOR_COLLAPSED_KEY, defaultNavigatorCollapsed())
@@ -425,7 +430,8 @@ export const useUiStore = create<UiState>((set) => ({
   browserBookmarks: readJson<BrowserBookmark[]>(BROWSER_BOOKMARKS_KEY, []),
   browserHistory: readJson<BrowserHistoryEntry[]>(BROWSER_HISTORY_KEY, []),
   terminalTabs: initialTerminalTabs,
-  terminalActiveTabId: readJson<string | null>(TERMINAL_ACTIVE_TAB_KEY, null) ?? initialTerminalTabs[0]?.id ?? "",
+  terminalActiveTabId: "",
+  defaultTerminalProfile: readJson<TerminalProfile>(TERMINAL_DEFAULT_PROFILE_KEY, "powershell"),
   chatMode: "ask",
   contextChips: [],
   contextMenuOpen: false,
@@ -735,5 +741,9 @@ export const useUiStore = create<UiState>((set) => ({
       );
       writeJson(TERMINAL_TABS_KEY, nextTabs);
       return { terminalTabs: nextTabs };
-    })
+    }),
+  setDefaultTerminalProfile: (profile) => {
+    writeJson(TERMINAL_DEFAULT_PROFILE_KEY, profile);
+    set({ defaultTerminalProfile: profile });
+  }
 }));

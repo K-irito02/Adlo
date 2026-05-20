@@ -2,6 +2,7 @@
 
 pub mod pty;
 pub mod session_manager;
+pub mod shell_resolver;
 
 use adl_errors::AppError;
 use adl_kernel::{

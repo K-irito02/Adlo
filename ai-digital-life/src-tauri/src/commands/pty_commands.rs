@@ -4,6 +4,7 @@ use crate::state::AppState;
 use adl_errors::AppError;
 use adl_kernel::IpcResult;
 use adl_terminal::session_manager::PtySessionInfo;
+use std::path::PathBuf;
 
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -27,8 +28,16 @@ pub async fn pty_create(
     input: PtyCreateInput,
 ) -> Result<IpcResult<PtyCreateResult>, CommandError> {
     let result: Result<PtyCreateResult, AppError> = (|| {
-        let workspace = crate::commands::workspace::current_workspace(&state)?;
-        let cwd = input.cwd.unwrap_or(workspace.root_path);
+        let cwd = match input.cwd {
+            Some(c) => c,
+            None => match crate::commands::workspace::current_workspace(&state) {
+                Ok(w) => w.root_path,
+                Err(_) => std::env::current_dir()
+                    .unwrap_or_else(|_| PathBuf::from("."))
+                    .to_string_lossy()
+                    .to_string(),
+            },
+        };
         let shell = input.shell.unwrap_or_else(|| "powershell".to_string());
         let sessions = state.pty_sessions.lock().map_err(|_| {
             AppError::Internal("pty_sessions mutex poisoned".into())

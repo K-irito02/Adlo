@@ -23,6 +23,23 @@ type TerminalShellMenuItem =
   | { id: string; separator: true }
   | { id: string; label: string; profile?: TerminalProfile; action: () => void };
 
+function ShellPrefix({ profile }: { profile?: TerminalProfile }) {
+  const map: Record<string, { text: string; color: string }> = {
+    powershell: { text: "PS", color: "var(--green, #4ade80)" },
+    cmd: { text: ">", color: "var(--blue, #60a5fa)" },
+    bash: { text: "$", color: "var(--yellow, #facc15)" },
+  };
+  const entry = map[profile ?? "powershell"];
+  return (
+    <span
+      className="adl-terminal-empty__prefix"
+      style={{ color: entry?.color }}
+    >
+      {entry?.text ?? "$"}
+    </span>
+  );
+}
+
 export function TerminalPanel(props: RightPanelViewProps) {
   const { t } = props;
   const [navigatorMode, setNavigatorMode] = useState<TerminalNavigatorMode>("sessions");
@@ -38,6 +55,8 @@ export function TerminalPanel(props: RightPanelViewProps) {
   const terminalSelectTab = useUiStore((state) => state.terminalSelectTab);
   const terminalCloseTab = useUiStore((state) => state.terminalCloseTab);
   const terminalUpdateActiveTab = useUiStore((state) => state.terminalUpdateActiveTab);
+  const defaultTerminalProfile = useUiStore((state) => state.defaultTerminalProfile);
+  const setDefaultTerminalProfile = useUiStore((state) => state.setDefaultTerminalProfile);
   const setActiveTool = useUiStore((state) => state.setActiveTool);
 
   const terminalMenuRef = useRef<HTMLDivElement | null>(null);
@@ -78,6 +97,7 @@ export function TerminalPanel(props: RightPanelViewProps) {
       bash: "bash",
       cmd: "cmd"
     };
+    xtermRef.current?.clear();
     terminalCreateTab(profile);
     const cols = 80;
     const rows = 24;
@@ -90,6 +110,12 @@ export function TerminalPanel(props: RightPanelViewProps) {
     });
     if (result.ok) {
       terminalUpdateActiveTab({ sessionId: result.data.sessionId, status: "running" });
+      const stored = sessionOutputsRef.current.get(result.data.sessionId) ?? "";
+      if (stored) {
+        xtermRef.current?.write(stored);
+      }
+    } else {
+      terminalUpdateActiveTab({ status: "terminated" });
     }
     xtermRef.current?.focus();
   }, [terminalCreateTab, terminalUpdateActiveTab, props.appInfo?.currentWorkspace?.rootPath]);
@@ -121,18 +147,10 @@ export function TerminalPanel(props: RightPanelViewProps) {
   const navigatorCount = navigatorMode === "sessions" ? terminalTabs.length : recentCommands.length;
 
   const updateProfile = useCallback((profile: TerminalProfile) => {
-    if (activeTab?.sessionId) {
-      window.digitalLife.pty.kill(activeTab.sessionId);
-    }
-    terminalUpdateActiveTab({
-      profile,
-      title: profile === "powershell" ? "PowerShell" : profile === "bash" ? "Bash" : "CMD",
-      sessionId: undefined,
-      status: "idle"
-    });
-  }, [activeTab?.sessionId, terminalUpdateActiveTab]);
+    setDefaultTerminalProfile(profile);
+  }, [setDefaultTerminalProfile]);
 
-  const currentProfile = activeTab?.profile ?? "powershell";
+  const currentProfile = defaultTerminalProfile;
   const currentProfileLabel = currentProfile === "powershell" ? "PowerShell" : currentProfile === "bash" ? "Bash" : "CMD";
 
   const handleCopy = useCallback(() => {
@@ -187,8 +205,8 @@ export function TerminalPanel(props: RightPanelViewProps) {
     const tabs = useUiStore.getState().terminalTabs;
     const tab = tabs.find((t) => t.id === tabId);
     if (tab?.sessionId) {
-      const stored = sessionOutputsRef.current.get(tab.sessionId) ?? "";
       xtermRef.current?.clear();
+      const stored = sessionOutputsRef.current.get(tab.sessionId) ?? "";
       if (stored) {
         xtermRef.current?.write(stored);
       }
@@ -210,9 +228,22 @@ export function TerminalPanel(props: RightPanelViewProps) {
     { id: "cmd", label: "CMD", profile: "cmd", action: () => updateProfile("cmd") }
   ];
 
+  const shellTypeItems = useMemo(
+    () => shellMenuItems.filter((item) => "profile" in item) as Array<
+      TerminalShellMenuItem & { label: string; profile: TerminalProfile }
+    >,
+    [shellMenuItems]
+  );
+
   const handleXtermData = useCallback((data: string) => {
     if (activeTab?.sessionId) {
       window.digitalLife.pty.input(activeTab.sessionId, data);
+    }
+  }, [activeTab?.sessionId]);
+
+  const handleXtermResize = useCallback((cols: number, rows: number) => {
+    if (activeTab?.sessionId) {
+      window.digitalLife.pty.resize(activeTab.sessionId, cols, rows);
     }
   }, [activeTab?.sessionId]);
 
@@ -449,6 +480,7 @@ export function TerminalPanel(props: RightPanelViewProps) {
                   ref={xtermRef}
                   className="adl-terminal-canvas"
                   onData={handleXtermData}
+                  onResize={handleXtermResize}
                 />
                 {props.latestCommandRun?.status === "waiting-approval" && (
                   <div className="adl-terminal-approval-hint">
@@ -462,10 +494,41 @@ export function TerminalPanel(props: RightPanelViewProps) {
                     </button>
                   </div>
                 )}
+                {activeTab.status === "terminated" && !activeTab.sessionId && (
+                  <div className="adl-terminal-error-note">
+                    <span>⚠</span>
+                    <span>{t.terminalShellNotFound}</span>
+                  </div>
+                )}
               </>
             ) : (
-              <div className="adl-tool-primary--terminal-empty">
-                {shellButtonGroup}
+              <div className="adl-terminal-empty">
+                <div className="adl-terminal-empty__card">
+                  <div className="adl-terminal-empty__header">
+                    <IconTerminal size={16} decorative />
+                    <span>终端面板</span>
+                  </div>
+                  <p className="adl-terminal-empty__text">
+                    当前没有打开的终端会话<br />
+                    选择一个 Shell 类型开始：
+                  </p>
+                  <div className="adl-terminal-empty__items">
+                    {shellTypeItems.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        className="adl-terminal-empty__item"
+                        onClick={() => handleCreateTab(item.profile)}
+                      >
+                        <ShellPrefix profile={item.profile} />
+                        <span>{item.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <p className="adl-terminal-empty__footer">
+                    点击直接创建 · 也支持在工具栏操作
+                  </p>
+                </div>
               </div>
             )}
           </div>

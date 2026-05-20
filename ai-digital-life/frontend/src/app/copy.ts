@@ -345,6 +345,7 @@ export const copy = {
     terminalPaste: "粘贴",
     terminalClear: "清除",
     terminalKillProcess: "杀死进程",
+    terminalShellNotFound: "未找到终端程序，请在终端输出中查看恢复指引。",
 
     // Approvals (inline in main pane)
     approvals: "待审批",
@@ -852,6 +853,7 @@ export const copy = {
     terminalPaste: "Paste",
     terminalClear: "Clear",
     terminalKillProcess: "Kill Process",
+    terminalShellNotFound: "Shell not found. Check terminal output for recovery instructions.",
 
     approvals: "Approvals",
     approvalPolicy: "Approval Policy",

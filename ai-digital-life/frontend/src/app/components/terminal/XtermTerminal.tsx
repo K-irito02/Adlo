@@ -14,19 +14,23 @@ export interface XtermTerminalHandle {
 interface XtermTerminalProps {
   className?: string;
   onData?: (data: string) => void;
+  onResize?: (cols: number, rows: number) => void;
 }
 
 export const XtermTerminal = forwardRef<XtermTerminalHandle, XtermTerminalProps>(
-  function XtermTerminal({ className, onData }, ref) {
+  function XtermTerminal({ className, onData, onResize }, ref) {
     const containerRef = useRef<HTMLDivElement | null>(null);
     const terminalRef = useRef<Terminal | null>(null);
     const fitAddonRef = useRef<FitAddon | null>(null);
     const onDataRef = useRef(onData);
+    const onResizeRef = useRef(onResize);
     onDataRef.current = onData;
+    onResizeRef.current = onResize;
 
     useImperativeHandle(ref, () => ({
       write(data: string) {
-        terminalRef.current?.write(data);
+        const sanitized = data.replace(/\x7f/g, "");
+        terminalRef.current?.write(sanitized);
       },
       clear() {
         terminalRef.current?.clear();
@@ -74,7 +78,15 @@ export const XtermTerminal = forwardRef<XtermTerminalHandle, XtermTerminalProps>
       terminalRef.current = terminal;
 
       const resizeObserver = new ResizeObserver(() => {
-        fitAddonRef.current?.fit();
+        const addon = fitAddonRef.current;
+        addon?.fit();
+        const term = terminalRef.current;
+        if (addon && term) {
+          const dims = addon.proposeDimensions();
+          if (dims) {
+            onResizeRef.current?.(dims.cols, dims.rows);
+          }
+        }
       });
       resizeObserver.observe(container);
 

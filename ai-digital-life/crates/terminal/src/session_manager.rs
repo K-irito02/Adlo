@@ -1,4 +1,5 @@
-use crate::pty::{PtySession, PtyStatus};
+use crate::pty::{PtyConfig, PtySession, PtyStatus};
+use crate::shell_resolver::ShellResolver;
 use adl_errors::AppError;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -27,7 +28,18 @@ impl SessionManager {
         cols: u16,
         rows: u16,
     ) -> Result<String, AppError> {
-        let session = PtySession::create(shell, cwd, cols, rows)?;
+        let resolution = ShellResolver::resolve(shell)
+            .map_err(|e| AppError::Terminal(format!(
+                "{} not found.\n\nRecovery:\n{}",
+                e.kind.display_name(),
+                e.kind.recovery_guide(),
+            )))?;
+
+        let config = PtyConfig {
+            program: resolution.program,
+            args: resolution.args,
+        };
+        let session = PtySession::new(config, cwd, cols, rows)?;
         let session_id = session.id.clone();
         let session = Arc::new(session);
 
