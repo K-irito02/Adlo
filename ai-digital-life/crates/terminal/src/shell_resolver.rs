@@ -106,10 +106,19 @@ pub struct ShellResolution {
     pub args: Vec<String>,
 }
 
-/// Shell resolution error with user-facing recovery message.
+/// Shell resolution error with user-facing message.
 #[derive(Debug, Clone)]
 pub struct ShellNotFound {
-    pub kind: ShellKind,
+    pub input: String,
+}
+
+impl ShellNotFound {
+    pub fn message(&self) -> String {
+        format!(
+            "Unknown shell: '{}'. Expected one of: powershell, cmd, bash",
+            self.input
+        )
+    }
 }
 
 pub struct ShellResolver;
@@ -117,7 +126,7 @@ pub struct ShellResolver;
 impl ShellResolver {
     pub fn resolve(shell: &str) -> Result<ShellResolution, ShellNotFound> {
         let kind = ShellKind::from_str(shell)
-            .ok_or_else(|| ShellNotFound { kind: ShellKind::Cmd })?;
+            .ok_or_else(|| ShellNotFound { input: shell.to_string() })?;
 
         // Level 1: Well-known system paths
         for candidate in system_candidates(kind) {
