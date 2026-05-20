@@ -56,6 +56,7 @@ class ScrollLeftSyncPlugin implements PluginValue {
 
     this.createCustomScrollbar();
     this.syncCssPropsOnly();
+    this.schedule();
     this.view.scrollDOM.addEventListener("scroll", this.handleScroll, { passive: true });
     this.view.scrollDOM.addEventListener("wheel", this.boundOnWheel, { passive: false });
     this.view.scrollDOM.addEventListener("pointermove", this.boundOnScrollDOMPointerMove);

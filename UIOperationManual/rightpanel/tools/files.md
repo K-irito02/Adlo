@@ -109,6 +109,71 @@ await page.keyboard.type('new content');
 await page.locator('.adl-tool-context__group--files-actions .adl-tool-context__iconbtn').first().click();
 ```
 
+---
+
+## 右键菜单
+
+> 文件树节点支持右键弹出上下文菜单，提供文件操作功能。
+
+### 定位选择器
+
+| 选择器 | 说明 |
+|--------|------|
+| `.adl-sidebar-menu` | 右键菜单容器 |
+| `.adl-sidebar-menu__item` | 菜单项按钮 |
+| `.adl-sidebar-menu__item.is-danger` | 危险操作（如删除） |
+| `.adl-sidebar-menu__sep` | 菜单分隔线 |
+| `.adl-tree-node.is-context-menu-target` | 当前右键选中的树节点（悬停高亮） |
+| `.adl-confirm-overlay` | 删除确认对话框遮罩 |
+| `.adl-confirm-dialog` | 删除确认对话框 |
+| `.adl-rename-dialog` | 重命名输入框容器 |
+| `.adl-rename-input` | 重命名输入框 |
+
+### 菜单项
+
+| 菜单项 | 说明 |
+|--------|------|
+| 打开方式 | 在编辑器中打开该文件 |
+| 在文件管理器中显示 | 在系统文件管理器（资源管理器/Finder）中定位并选中文件 |
+| 复制完整路径 | 复制文件在工作区的绝对路径到系统剪贴板 |
+| 复制相对路径 | 复制文件相对于工作区根目录的路径 |
+| 剪切 | 标记文件待剪切（存入剪贴板切片） |
+| 复制 | 标记文件待复制（存入剪贴板切片） |
+| 粘贴 | 粘贴已剪切/复制的文件到目标目录（自动处理同名冲突 `-copyN`） |
+| 重命名 | 弹出内联输入框，Enter 确认 / Escape 取消 |
+| 删除 | 弹出确认对话框，确认后移至系统回收站 |
+
+### 操作
+
+#### 右键打开菜单
+
+```javascript
+await page.locator('.adl-filetree__label').filter({ hasText: 'target-file.ts' }).click({ button: 'right' });
+await page.waitForSelector('.adl-sidebar-menu');
+```
+
+#### 执行删除
+
+```javascript
+await page.locator('.adl-filetree__label').filter({ hasText: 'target-file.ts' }).click({ button: 'right' });
+await page.waitForSelector('.adl-sidebar-menu');
+await page.locator('.adl-sidebar-menu__item.is-danger').click();
+await page.waitForSelector('.adl-confirm-dialog');
+await page.locator('.adl-btn--danger').click();
+```
+
+#### 执行重命名
+
+```javascript
+await page.locator('.adl-filetree__label').filter({ hasText: 'old-name.ts' }).click({ button: 'right' });
+await page.waitForSelector('.adl-sidebar-menu');
+// 点击重命名项（不含 is-danger 的最后一个分组项）
+await page.locator('.adl-sidebar-menu__item').filter({ hasText: '重命名' }).click();
+await page.waitForSelector('.adl-rename-input');
+await page.fill('.adl-rename-input', 'new-name.ts');
+await page.press('.adl-rename-input', 'Enter');
+```
+
 ### 切换连续性约定
 
 1. 点击文件树节点后，文件树 active 态应立即切换；命中缓存时目标内容应直接显示。

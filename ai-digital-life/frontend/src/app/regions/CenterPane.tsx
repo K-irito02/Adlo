@@ -45,7 +45,7 @@ import {
 import { MessageBlocks } from "../MessageBlocks";
 import { RunSummaryBlock } from "../components/conversation/RunSummaryBlock";
 import { ApprovalCard } from "../components/approval/ApprovalCard";
-import { useAppStore } from "../store";
+import { useAppStore } from "../slicedStore";
 import { type ChatMode, type ContextChip, useUiStore } from "../ui-store";
 import { TooltipSimple } from "../components/Tooltip";
 import { StatusBar } from "./StatusBar";

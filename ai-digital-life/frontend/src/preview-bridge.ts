@@ -361,9 +361,54 @@ export function setupPreviewBridge(): void {
         }
         return { ok: true, data: result.data };
       },
-      pin: async () => ({ ok: true, data: recentWorkspaces }),
-      unpin: async () => ({ ok: true, data: recentWorkspaces }),
-      reorder: async () => ({ ok: true, data: recentWorkspaces }),
+      pin: async (workspaceId: string) => {
+        const workspace = recentWorkspaces.find((w) => w.id === workspaceId);
+        if (!workspace) {
+          return { ok: false, error: { code: "NOT_FOUND", message: "workspace not found" } };
+        }
+        const pinnedCount = recentWorkspaces.filter((w) => w.isPinned).length;
+        recentWorkspaces = recentWorkspaces.map((w) =>
+          w.id === workspaceId
+            ? { ...w, isPinned: true, pinnedOrder: pinnedCount }
+            : w
+        );
+        persistRecentWorkspaces(recentWorkspaces);
+        return { ok: true, data: recentWorkspaces };
+      },
+      unpin: async (workspaceId: string) => {
+        const workspace = recentWorkspaces.find((w) => w.id === workspaceId);
+        if (!workspace) {
+          return { ok: false, error: { code: "NOT_FOUND", message: "workspace not found" } };
+        }
+        recentWorkspaces = recentWorkspaces.map((w) =>
+          w.id === workspaceId
+            ? { ...w, isPinned: false, pinnedOrder: 0 }
+            : w
+        );
+        const pinnedWorkspaces = recentWorkspaces.filter((w) => w.isPinned);
+        pinnedWorkspaces.sort((a, b) => a.pinnedOrder - b.pinnedOrder);
+        const unpinnedWorkspaces = recentWorkspaces.filter((w) => !w.isPinned);
+        unpinnedWorkspaces.sort((a, b) => a.unpinnedOrder - b.unpinnedOrder);
+        recentWorkspaces = [...pinnedWorkspaces, ...unpinnedWorkspaces];
+        persistRecentWorkspaces(recentWorkspaces);
+        return { ok: true, data: recentWorkspaces };
+      },
+      reorder: async (input: { pinnedIds: string[]; unpinnedIds: string[] }) => {
+        const { pinnedIds, unpinnedIds } = input;
+        recentWorkspaces = recentWorkspaces.map((w) => {
+          const pinnedIndex = pinnedIds.indexOf(w.id);
+          const unpinnedIndex = unpinnedIds.indexOf(w.id);
+          if (pinnedIndex !== -1) {
+            return { ...w, isPinned: true, pinnedOrder: pinnedIndex };
+          }
+          if (unpinnedIndex !== -1) {
+            return { ...w, isPinned: false, unpinnedOrder: unpinnedIndex };
+          }
+          return w;
+        });
+        persistRecentWorkspaces(recentWorkspaces);
+        return { ok: true, data: recentWorkspaces };
+      },
       removeFromSidebar: async (workspaceId: string) => {
         recentWorkspaces = recentWorkspaces.filter((entry) => entry.id !== workspaceId);
         persistRecentWorkspaces(recentWorkspaces);
@@ -446,6 +491,40 @@ export function setupPreviewBridge(): void {
           relativePath
         });
         return requestPreviewApi(`/workspace/outline?${params.toString()}`);
+      },
+      renameFile: async (relativePath: string, newName: string) => {
+        if (!currentWorkspace) {
+          return { ok: false, error: { code: "NOT_FOUND", message: "active workspace" } };
+        }
+        return requestPreviewApi<boolean>("/workspace/rename-file", {
+          method: "POST",
+          body: JSON.stringify({ rootPath: currentWorkspace.rootPath, relativePath, newName })
+        });
+      },
+      deleteFile: async (relativePath: string) => {
+        if (!currentWorkspace) {
+          return { ok: false, error: { code: "NOT_FOUND", message: "active workspace" } };
+        }
+        return requestPreviewApi<boolean>("/workspace/delete-file", {
+          method: "POST",
+          body: JSON.stringify({ rootPath: currentWorkspace.rootPath, relativePath })
+        });
+      },
+      duplicateFile: async (srcRelativePath: string, dstRelativePath: string) => {
+        if (!currentWorkspace) {
+          return { ok: false, error: { code: "NOT_FOUND", message: "active workspace" } };
+        }
+        return requestPreviewApi<boolean>("/workspace/duplicate-file", {
+          method: "POST",
+          body: JSON.stringify({ rootPath: currentWorkspace.rootPath, srcRelativePath, dstRelativePath })
+        });
+      },
+      getAbsolutePath: async (relativePath: string) => {
+        if (!currentWorkspace) {
+          return { ok: false, error: { code: "NOT_FOUND", message: "active workspace" } };
+        }
+        const params = new URLSearchParams({ rootPath: currentWorkspace.rootPath, relativePath });
+        return requestPreviewApi<string>(`/workspace/absolute-path?${params.toString()}`);
       },
       setEditorDirtyPaths: async () => ({ ok: true, data: true }),
       onFileChanged: () => () => undefined,

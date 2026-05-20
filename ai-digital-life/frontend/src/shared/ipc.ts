@@ -94,6 +94,10 @@ export interface DigitalLifeBridge {
     /** Replace the set of workspace-relative paths considered dirty in the editor (best-effort). */
     setEditorDirtyPaths: (relativePaths: string[]) => Promise<IpcResult<boolean>>;
     onFileChanged: (listener: (event: WorkspaceFileChangedEvent) => void) => () => void;
+    renameFile: (relativePath: string, newName: string) => Promise<IpcResult<boolean>>;
+    deleteFile: (relativePath: string) => Promise<IpcResult<boolean>>;
+    duplicateFile: (srcRelativePath: string, dstRelativePath: string) => Promise<IpcResult<boolean>>;
+    getAbsolutePath: (relativePath: string) => Promise<IpcResult<string>>;
     getGitStatus: () => Promise<IpcResult<GitSnapshot>>;
     listGitBranches: () => Promise<IpcResult<GitBranchSummary[]>>;
     switchGitBranch: (input: WorkspaceGitBranchSwitchInput) => Promise<IpcResult<WorkspaceGitBranchChangeResult>>;

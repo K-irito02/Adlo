@@ -42,9 +42,9 @@
 - xterm.js 交互式终端（多会话、多 Shell 类型，浏览器模式通过 `child_process.spawn` + SSE 实现真实 Shell 进程）
 - **Zustand 切片模式重构**（10 个独立切片 + 完整类型安全）
 
-### Zustand 切片模式
+### Zustand 切片模式（已重构完成）
 
-前端状态管理已重构为 Zustand 切片模式：
+前端状态管理已重构为 Zustand 切片模式，`store.ts` 已删除，`slicedStore.ts` 为唯一真源：
 
 ```
 app/stores/

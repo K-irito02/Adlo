@@ -8,11 +8,42 @@ pub struct Migration {
     pub sql: &'static str,
 }
 
-pub const MIGRATIONS: &[Migration] = &[Migration {
-    version: 1,
-    description: "Initial schema",
-    sql: "", // schema_version + recent_workspaces + app_state created by Database::init_schema
-}];
+pub const MIGRATIONS: &[Migration] = &[
+    Migration {
+        version: 1,
+        description: "Initial schema",
+        sql: "", // schema_version + recent_workspaces + app_state created by Database::init_schema
+    },
+    Migration {
+        version: 2,
+        description: "Add dedicated columns to sessions table for efficient querying",
+        sql: r#"
+            -- Add dedicated columns to sessions table for efficient querying
+            ALTER TABLE sessions ADD COLUMN title TEXT;
+            ALTER TABLE sessions ADD COLUMN is_pinned INTEGER DEFAULT 0;
+            ALTER TABLE sessions ADD COLUMN pinned_order INTEGER DEFAULT 0;
+            ALTER TABLE sessions ADD COLUMN unpinned_order INTEGER DEFAULT 0;
+            ALTER TABLE sessions ADD COLUMN archived_at INTEGER;
+            ALTER TABLE sessions ADD COLUMN created_at INTEGER;
+            ALTER TABLE sessions ADD COLUMN last_read_at INTEGER;
+            
+            -- Extract data from existing JSON into dedicated columns
+            UPDATE sessions SET
+                title = json_extract(json, '$.title'),
+                is_pinned = CASE WHEN json_extract(json, '$.isPinned') = 1 THEN 1 ELSE 0 END,
+                pinned_order = COALESCE(json_extract(json, '$.pinnedOrder'), 0),
+                unpinned_order = COALESCE(json_extract(json, '$.unpinnedOrder'), 0),
+                archived_at = json_extract(json, '$.archivedAt'),
+                created_at = json_extract(json, '$.createdAt'),
+                last_read_at = json_extract(json, '$.lastReadAt');
+            
+            -- Add indexes for efficient session queries
+            CREATE INDEX idx_sessions_pinned ON sessions(workspace_id, is_pinned, pinned_order);
+            CREATE INDEX idx_sessions_unpinned ON sessions(workspace_id, is_pinned, unpinned_order DESC);
+            CREATE INDEX idx_sessions_archived ON sessions(workspace_id, archived_at);
+        "#,
+    }
+];
 
 pub fn current_version(db: &Database) -> Result<i64, AppError> {
     let conn = db.conn();
@@ -92,7 +123,7 @@ mod tests {
         let result = run_pending(&db);
         assert!(result.is_ok());
         let version = current_version(&db).unwrap();
-        assert_eq!(version, 1);
+        assert_eq!(version, 2);
         let _ = std::fs::remove_file(&path);
     }
 
@@ -105,15 +136,18 @@ mod tests {
         run_pending(&db).unwrap();
         run_pending(&db).unwrap();
         let version = current_version(&db).unwrap();
-        assert_eq!(version, 1);
+        assert_eq!(version, 2);
         let _ = std::fs::remove_file(&path);
     }
 
     #[test]
     fn migration_records_have_correct_structure() {
-        assert_eq!(MIGRATIONS.len(), 1);
-        let m = &MIGRATIONS[0];
-        assert_eq!(m.version, 1);
-        assert_eq!(m.description, "Initial schema");
+        assert_eq!(MIGRATIONS.len(), 2);
+        let m1 = &MIGRATIONS[0];
+        assert_eq!(m1.version, 1);
+        assert_eq!(m1.description, "Initial schema");
+        let m2 = &MIGRATIONS[1];
+        assert_eq!(m2.version, 2);
+        assert_eq!(m2.description, "Add dedicated columns to sessions table for efficient querying");
     }
 }

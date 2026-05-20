@@ -27,8 +27,8 @@ ai-digital-life/
 |------|------|
 | `src-tauri/` | 窗口、Rust 启动、invoke 处理、capabilities |
 | `frontend/src/` | React UI、Zustand、桥接 |
-| `frontend/src/shared/ipc.ts` | `DigitalLifeBridge` 类型契约 |
-| `frontend/dev/previewWorkspaceService.ts` | 浏览器开发态服务端 API（原生目录选择器、工作区操作、Git 等） |
+| `frontend/src/shared/ipc.ts` | `DigitalLifeBridge` 类型契约（含文件操作：rename/delete/duplicate/getAbsolutePath） |
+| `frontend/dev/previewWorkspaceService.ts` | 浏览器开发态服务端 API（含文件操作、Git、工作区管理等） |
 | `frontend/dev/previewTerminalService.ts` | 浏览器开发态终端服务（Node.js `child_process.spawn` + SSE PTY 输出） |
 
 ## Crates 层
@@ -38,13 +38,13 @@ ai-digital-life/
 | `kernel` | 共享类型与常量（serde） |
 | `storage` / `migration` | SQLite |
 | `config`、`logger`、`errors`、`events` | 基础设施 |
-| `workspace`、`task`、`conversation`、`model-gateway` | 业务域 |
+| `workspace`、`task`、`conversation`、`model-gateway` | 业务域（workspace 含 rename/delete/duplicate 文件操作） |
 
 ## 前端关键目录
 
 | 目录 | 职责 |
 |------|------|
-| `app/components/` | React 组件（含 Tooltip、TooltipSimple） |
+| `app/components/` | React 组件（含 ContextMenu、ConfirmDialog、RenameInput、Tooltip 等） |
 | `app/hooks/` | 自定义 Hooks（含 useTooltip） |
 | `app/utils/` | 纯函数（含 tooltipPosition 定位逻辑） |
 | `app/stores/` | Zustand 状态管理（包含切片模式重构） |
@@ -54,8 +54,7 @@ ai-digital-life/
 
 ```
 app/stores/
-├── store.ts                    # 主 Store（原始实现）
-├── slicedStore.ts               # 基于切片模式的 Store 重构
+├── slicedStore.ts               # 基于切片模式的 Store（真源，已替代 store.ts）
 ├── slices.ts                   # 统一导出所有切片
 ├── selectors.ts                # 通用选择器
 ├── shared.ts                   # 共享状态和工具
@@ -74,7 +73,8 @@ app/stores/
 │   ├── searchSlice.ts           # 搜索状态
 │   ├── diagnosticSlice.ts       # 诊断状态
 │   ├── taskSlice.ts             # 任务状态
-│   └── commandSlice.ts          # 命令状态
+│   ├── commandSlice.ts          # 命令状态
+│   └── clipboardSlice.ts        # 剪贴板状态（cut/copy 操作与路径记录）
 │
 └── (legacy sub-stores)         # 独立子 Store（向后兼容）
     ├── useWorkspaceStore.ts

@@ -49,6 +49,7 @@ sha2 = "0.10"
 regex = "1"
 portable-pty = "0.8"
 dirs = "5"
+trash = "5"
 
 [profile.dev]
 opt-level = 0

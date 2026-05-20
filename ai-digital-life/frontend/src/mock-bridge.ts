@@ -788,6 +788,49 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
       const items: FileOutlineItem[] = buildOutlineFromContent(content, relativePath);
       return { ok: true, data: items };
     },
+    renameFile: async (relativePath: string, newName: string) => {
+      const entries = Array.from(documents.entries());
+      const keys = Array.from(documents.keys());
+      const prefix = relativePath.endsWith("/") ? relativePath : relativePath.substring(0, relativePath.lastIndexOf("/") + 1);
+      for (const key of keys) {
+        if (key === relativePath || key.startsWith(relativePath + "/")) {
+          const newKey = prefix + newName + key.substring(relativePath.length);
+          const content = documents.get(key) ?? "";
+          documents.delete(key);
+          documents.set(newKey, content);
+          const ver = fileVersions.get(key) ?? Date.now();
+          fileVersions.delete(key);
+          fileVersions.set(newKey, Date.now());
+        }
+      }
+      return { ok: true, data: true };
+    },
+    deleteFile: async (relativePath: string) => {
+      const keys = Array.from(documents.keys());
+      for (const key of keys) {
+        if (key === relativePath || key.startsWith(relativePath + "/")) {
+          documents.delete(key);
+          fileVersions.delete(key);
+        }
+      }
+      emptyDirectories.delete(relativePath);
+      return { ok: true, data: true };
+    },
+    duplicateFile: async (srcRelativePath: string, dstRelativePath: string) => {
+      const keys = Array.from(documents.keys());
+      for (const key of keys) {
+        if (key === srcRelativePath || key.startsWith(srcRelativePath + "/")) {
+          const newKey = dstRelativePath + key.substring(srcRelativePath.length);
+          const content = documents.get(key) ?? "";
+          documents.set(newKey, content);
+          fileVersions.set(newKey, Date.now());
+        }
+      }
+      return { ok: true, data: true };
+    },
+    getAbsolutePath: async (relativePath: string) => {
+      return { ok: true, data: `/mock/workspace/${relativePath}` };
+    },
     setEditorDirtyPaths: async () => ({ ok: true, data: true }),
     getGitStatus: async () => ({
       ok: true,

@@ -3,21 +3,28 @@ import { EditorView } from "@codemirror/view";
 import {
   IconChevronDown,
   IconChevronRight,
+  IconClipboardList,
+  IconCopy,
   IconEye,
   IconFiles,
   IconFileText,
   IconFoldVertical,
+  IconFolderOpen,
   IconGitBranch,
   IconList,
   IconMoreVertical,
   IconPanelLeftClose,
+  IconPencil,
   IconRefreshCw,
   IconTarget,
+  IconTrash,
   IconUnfoldVertical,
   IconUpload
 } from "../../icons";
 import { TooltipSimple } from "../../components/Tooltip";
-import { useAppStore } from "../../store";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { RenameInput } from "../../components/RenameInput";
+import { useAppStore } from "../../slicedStore";
 import { useUiStore } from "../../ui-store";
 import { useNavigatorResize } from "../../hooks/useNavigatorResize";
 import { countGitChanges } from "./types";
@@ -407,22 +414,158 @@ export function ChangesPanel(props: RightPanelViewProps) {
     onOpenChangePreview(relativePath);
   }, [onOpenChangePreview, onSelectPatchFile, patchSummaries]);
 
+  const copyToClipboard = useCallback(async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+    }
+  }, []);
+
+  const [changesRenamingPath, setChangesRenamingPath] = useState<string | null>(null);
+  const [changesDeleteConfirmPath, setChangesDeleteConfirmPath] = useState<string | null>(null);
+  const changesContextMenuPersistRef = useRef(false);
+  const changesClearMenuHighlightRef = useRef<(() => void) | undefined>(undefined);
+
+  const handleChangesRenameConfirm = useCallback(async (newName: string) => {
+    if (!changesRenamingPath) return;
+    const path = changesRenamingPath;
+    setChangesRenamingPath(null);
+    changesClearMenuHighlightRef.current?.();
+    await useAppStore.getState().renameWorkspaceFile(path, newName);
+  }, [changesRenamingPath]);
+
+  const handleChangesRenameCancel = useCallback(() => {
+    setChangesRenamingPath(null);
+    changesClearMenuHighlightRef.current?.();
+  }, []);
+
+  const handleChangesDeleteConfirm = useCallback(async () => {
+    if (!changesDeleteConfirmPath) return;
+    const path = changesDeleteConfirmPath;
+    setChangesDeleteConfirmPath(null);
+    changesClearMenuHighlightRef.current?.();
+    await useAppStore.getState().deleteWorkspaceFile(path);
+  }, [changesDeleteConfirmPath]);
+
+  const handleChangesDeleteCancel = useCallback(() => {
+    setChangesDeleteConfirmPath(null);
+    changesClearMenuHighlightRef.current?.();
+  }, []);
+
   const getContextMenuItems = useCallback(
     (node: ChangeTreeNode): FileTreeContextMenuItem<ChangeTreeNode>[] => {
       if (node.kind !== "file") {
         return [];
       }
       const isDeleted = node.patchSummary?.changeKind === "deleted";
+      const store = useAppStore.getState();
+      const hasClipboard = store.clipboardOperation !== null;
       return [
         {
           id: "open-in-files",
-          label: t.changesPreviewOpenInFiles,
+          label: t.fileContextOpenWith as string,
+          icon: <IconFiles size={14} />,
           disabled: isDeleted,
           action: (targetNode) => onOpenFile(targetNode.path)
+        },
+        { id: "sep0", separator: true },
+        {
+          id: "reveal",
+          label: t.fileContextReveal as string,
+          icon: <IconFolderOpen size={14} />,
+          disabled: isDeleted,
+          action: async (targetNode) => {
+            const store = useAppStore.getState();
+            const appInfo = store.appInfo;
+            const rootPath = appInfo?.currentWorkspace?.rootPath ?? appInfo?.currentWorkspace?.path;
+            if (!rootPath) return;
+            await window.digitalLife.workspace.revealInFileManager(`${rootPath}/${targetNode.path}`);
+          }
+        },
+        { id: "sep1", separator: true },
+        {
+          id: "copy-full-path",
+          label: t.fileContextCopyFullPath as string,
+          icon: <IconCopy size={14} />,
+          action: async (targetNode) => {
+            const store = useAppStore.getState();
+            const appInfo = store.appInfo;
+            const rootPath = appInfo?.currentWorkspace?.rootPath ?? appInfo?.currentWorkspace?.path;
+            const fullPath = rootPath ? `${rootPath}/${targetNode.path}` : targetNode.path;
+            await copyToClipboard(fullPath);
+          }
+        },
+        {
+          id: "copy-relative-path",
+          label: t.fileContextCopyRelativePath as string,
+          icon: <IconCopy size={14} />,
+          action: async (targetNode) => {
+            await copyToClipboard(targetNode.path);
+          }
+        },
+        { id: "sep2", separator: true },
+        {
+          id: "cut",
+          label: t.fileContextCut as string,
+          icon: <IconClipboardList size={14} />,
+          action: (targetNode) => {
+            store.setClipboard("cut", targetNode.path, targetNode.kind);
+          }
+        },
+        {
+          id: "copy-op",
+          label: t.fileContextCopy as string,
+          icon: <IconCopy size={14} />,
+          action: (targetNode) => {
+            store.setClipboard("copy", targetNode.path, targetNode.kind);
+          }
+        },
+        {
+          id: "paste",
+          label: t.fileContextPaste as string,
+          icon: <IconUpload size={14} />,
+          disabled: !hasClipboard,
+          action: async (targetNode) => {
+            const sourcePath = store.clipboardSourcePath;
+            const operation = store.clipboardOperation;
+            if (!sourcePath || !operation) return;
+            const targetDir = targetNode.kind === "directory" ? targetNode.path : targetNode.path.substring(0, targetNode.path.lastIndexOf("/") + 1);
+            const sourceName = sourcePath.split("/").pop() || sourcePath;
+            const newPath = targetDir ? `${targetDir}/${sourceName}` : sourceName;
+            if (operation === "copy") {
+              await store.duplicateWorkspaceFile(sourcePath, newPath);
+            } else if (operation === "cut") {
+              await store.duplicateWorkspaceFile(sourcePath, newPath);
+              await store.deleteWorkspaceFile(sourcePath);
+            }
+            store.clearClipboard();
+          }
+        },
+        { id: "sep3", separator: true },
+        {
+          id: "rename",
+          label: t.fileContextRename as string,
+          icon: <IconPencil size={14} />,
+          disabled: isDeleted,
+          action: (targetNode) => {
+            changesContextMenuPersistRef.current = true;
+            setChangesRenamingPath(targetNode.path);
+          }
+        },
+        {
+          id: "delete",
+          label: t.fileContextDelete as string,
+          icon: <IconTrash size={14} />,
+          danger: true,
+          disabled: isDeleted,
+          action: (targetNode) => {
+            changesContextMenuPersistRef.current = true;
+            setChangesDeleteConfirmPath(targetNode.path);
+          }
         }
       ];
     },
-    [onOpenFile, t.changesPreviewOpenInFiles]
+    [onOpenFile, t, copyToClipboard]
   );
 
   const renderNavigatorMeta = useCallback((node: ChangeTreeNode) => {
@@ -714,6 +857,8 @@ export function ChangesPanel(props: RightPanelViewProps) {
               onOpenFile={handleSelectNavigatorNode}
               renderMeta={renderNavigatorMeta}
               getContextMenuItems={getContextMenuItems}
+              contextMenuPersistRef={changesContextMenuPersistRef}
+              clearMenuHighlightRef={changesClearMenuHighlightRef}
               expandLabel={t.expandDetails}
               collapseLabel={t.collapseDetails}
             />
@@ -727,6 +872,8 @@ export function ChangesPanel(props: RightPanelViewProps) {
               onOpenFile={handleSelectNavigatorNode}
               renderMeta={renderNavigatorMeta}
               getContextMenuItems={getContextMenuItems}
+              contextMenuPersistRef={changesContextMenuPersistRef}
+              clearMenuHighlightRef={changesClearMenuHighlightRef}
               expandLabel={t.expandDetails}
               collapseLabel={t.collapseDetails}
               flat
@@ -1145,6 +1292,28 @@ export function ChangesPanel(props: RightPanelViewProps) {
           ) : changePreviewLoading ? null : null}
         </div>
       </div>
+      {changesDeleteConfirmPath ? (
+        <ConfirmDialog
+          title={t.fileDeleteConfirm as string}
+          message={t.fileDeleteMessage as string}
+          confirmLabel={t.fileDeleteAction as string}
+          cancelLabel={t.cancel as string}
+          danger
+          onConfirm={handleChangesDeleteConfirm}
+          onCancel={handleChangesDeleteCancel}
+        />
+      ) : null}
+      {changesRenamingPath ? (
+        <div className="adl-rename-overlay" onClick={handleChangesRenameCancel}>
+          <div className="adl-rename-dialog" onClick={(e) => e.stopPropagation()}>
+            <RenameInput
+              initialValue={changesRenamingPath.split("/").pop() || ""}
+              onConfirm={handleChangesRenameConfirm}
+              onCancel={handleChangesRenameCancel}
+            />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

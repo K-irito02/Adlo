@@ -93,8 +93,9 @@ mod tests {
 
     #[test]
     fn create_message_user_role() {
-        let blocks = vec![ConversationBlock::Text {
-            content: "Hello".into(),
+        let blocks = vec![ConversationBlock::Markdown {
+            id: "test-block-1".into(),
+            text: "Hello".into(),
         }];
         let msg = create_message(
             "sess-1",
@@ -112,8 +113,9 @@ mod tests {
 
     #[test]
     fn create_message_assistant_role() {
-        let blocks = vec![ConversationBlock::Text {
-            content: "Hi there!".into(),
+        let blocks = vec![ConversationBlock::Markdown {
+            id: "test-block-2".into(),
+            text: "Hi there!".into(),
         }];
         let msg = create_message(
             "sess-1",

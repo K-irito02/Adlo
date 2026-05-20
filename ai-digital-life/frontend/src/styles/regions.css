@@ -1403,6 +1403,116 @@ select:focus-visible {
   flex-shrink: 0;
 }
 
+.adl-sidebar-menu__sep {
+  height: 1px;
+  margin: 2px 4px;
+  background: var(--border-subtle);
+}
+
+.adl-sidebar-menu__item:disabled {
+  opacity: 0.4;
+  cursor: default;
+  pointer-events: none;
+}
+
+.adl-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-popover) + 20);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--text-primary) 20%, transparent);
+}
+
+.adl-confirm-dialog {
+  min-width: 280px;
+  max-width: 400px;
+  padding: var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-lg);
+}
+
+.adl-confirm-dialog__title {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.adl-confirm-dialog__message {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.adl-confirm-dialog__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.adl-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 5px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.adl-btn--primary {
+  background: var(--accent);
+  color: var(--accent-foreground);
+  border-color: var(--accent);
+}
+
+.adl-btn--secondary {
+  background: transparent;
+  color: var(--text-primary);
+}
+
+.adl-btn--danger {
+  background: var(--danger);
+  color: var(--danger-foreground, white);
+  border-color: var(--danger);
+}
+
+.adl-rename-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-popover) + 20);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 120px;
+  background: color-mix(in srgb, var(--text-primary) 10%, transparent);
+}
+
+.adl-rename-dialog {
+  padding: var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-lg);
+}
+
+.adl-rename-input {
+  width: 240px;
+  padding: 4px 8px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: var(--text-xs);
+  outline: none;
+}
+
 /* Status lamp ("呼吸" breathing for streaming / pending) */
 .adl-status-lamp {
   width: 8px;
@@ -3554,6 +3664,14 @@ select:focus-visible {
   color: var(--text-primary);
 }
 
+.adl-tree-node.is-context-menu-target > .adl-tree-node__row,
+.adl-filetree__item.is-context-menu-target > .adl-filetree__row,
+.adl-outline-tree__item.is-context-menu-target > .adl-outline-tree__row {
+  background: var(--surface-hover);
+  border-color: transparent;
+  color: var(--text-primary);
+}
+
 .adl-tree-node__label,
 .adl-filetree__label,
 .adl-outline-tree__label {
@@ -4822,9 +4940,12 @@ select:focus-visible {
 }
 
 /* No-wrap inline mode: .cm-deletedChunk must NOT be position:relative (breaks
-   auto-scroll — see note at merge controls section). Only raise chunkButtons z-index. */
+   auto-scroll — see note at merge controls section). Only raise chunkButtons z-index.
+   When no-wrap is active, override overflow:visible so absolute-positioned
+   chunk buttons are never clipped by the base .cm-deletedChunk overflow:hidden. */
 .adl-cm-no-word-wrap .adl-cm-diff-viewer--inline .cm-deletedChunk {
   position: relative;
+  overflow: visible;
 }
 
 .adl-cm-no-word-wrap .adl-cm-diff-viewer--inline .cm-deletedChunk .cm-chunkButtons {

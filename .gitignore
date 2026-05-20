@@ -45,5 +45,8 @@ dogfood-output/
 # Browser automation test artifacts (screenshots, videos, documents)
 test-artifacts/
 
+# Trae auto-generated code review snapshots (pre-push review artifacts)
+trae-agentReviewBeforePushToRemote/
+
 # Windows reserved device name (causes git index errors)
 nul

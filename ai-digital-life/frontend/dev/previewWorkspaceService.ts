@@ -745,6 +745,83 @@ async function openWorkspace(workspacePath: string): Promise<PreviewWorkspacePay
   return { meta, recent, retrieval };
 }
 
+async function renameFile(rootPath: string, relativePath: string, newName: string): Promise<boolean> {
+  const src = resolveWorkspacePath(rootPath, relativePath);
+  if (!fsSync.existsSync(src)) {
+    throw new Error(`path not found: ${relativePath}`);
+  }
+  const parent = path.dirname(src);
+  const dst = path.join(parent, newName);
+  if (fsSync.existsSync(dst)) {
+    throw new Error(`target already exists: ${newName}`);
+  }
+  await fs.rename(src, dst);
+  return true;
+}
+
+async function deleteFileEntry(rootPath: string, relativePath: string): Promise<boolean> {
+  const target = resolveWorkspacePath(rootPath, relativePath);
+  if (!fsSync.existsSync(target)) {
+    throw new Error(`path not found: ${relativePath}`);
+  }
+  if (process.platform === "win32") {
+    const psPath = target.replace(/'/g, "''");
+    const isDir = fsSync.statSync(target).isDirectory();
+    const method = isDir ? "DeleteDirectory" : "DeleteFile";
+    const args = isDir ? `'${psPath}','OnlyErrorDialogs','SendToRecycleBin'` : `'${psPath}','OnlyErrorDialogs','SendToRecycleBin'`;
+    await new Promise<void>((resolve, reject) => {
+      const child = spawn("powershell", [
+        "-NoProfile",
+        "-Command",
+        `Add-Type -AssemblyName Microsoft.VisualBasic; [Microsoft.VisualBasic.FileIO.FileSystem]::${method}(${args})`
+      ], { windowsHide: true });
+      child.on("error", reject);
+      child.on("close", (code) => {
+        if (code === 0) resolve(); else reject(new Error(`PowerShell exit code ${code}`));
+      });
+    });
+  } else {
+    if (fsSync.statSync(target).isDirectory()) {
+      await fs.rm(target, { recursive: true, force: true });
+    } else {
+      await fs.unlink(target);
+    }
+  }
+  return true;
+}
+
+async function duplicateFile(rootPath: string, srcRelativePath: string, dstRelativePath: string): Promise<boolean> {
+  const src = resolveWorkspacePath(rootPath, srcRelativePath);
+  if (!fsSync.existsSync(src)) {
+    throw new Error(`source not found: ${srcRelativePath}`);
+  }
+  let dst = path.resolve(rootPath, dstRelativePath);
+  if (fsSync.existsSync(dst)) {
+    const ext = path.extname(dst);
+    const dir = path.dirname(dst);
+    const base = path.basename(dst, ext);
+    let i = 1;
+    while (fsSync.existsSync(dst)) {
+      dst = path.join(dir, `${base}-copy${i}${ext}`);
+      i += 1;
+      if (i > 100) throw new Error(`too many conflict attempts`);
+    }
+  }
+  const dstParent = path.dirname(dst);
+  await fs.mkdir(dstParent, { recursive: true });
+  if (fsSync.statSync(src).isDirectory()) {
+    await fs.cp(src, dst, { recursive: true });
+  } else {
+    await fs.copyFile(src, dst);
+  }
+  return true;
+}
+
+async function getAbsolutePath(rootPath: string, relativePath: string): Promise<string> {
+  const resolved = resolveWorkspacePath(rootPath, relativePath);
+  return normalizePath(resolved);
+}
+
 async function revealInFileManager(targetPath: string): Promise<boolean> {
   const absolutePath = path.resolve(targetPath);
   if (!fsSync.existsSync(absolutePath)) {
@@ -980,6 +1057,36 @@ export async function handlePreviewWorkspaceApi(
       return true;
     }
 
+    if (request.method === "POST" && requestUrl.pathname === `${API_PREFIX}/workspace/rename-file`) {
+      const body = (await readBody(request)) as { rootPath?: string; relativePath?: string; newName?: string } | undefined;
+      if (!body?.rootPath?.trim() || !body?.relativePath?.trim() || !body?.newName?.trim()) {
+        writeJson(response, fail("rootPath, relativePath, and newName are required", "INVALID_INPUT"));
+        return true;
+      }
+      writeJson(response, ok(await renameFile(body.rootPath.trim(), body.relativePath.trim(), body.newName.trim())));
+      return true;
+    }
+
+    if (request.method === "POST" && requestUrl.pathname === `${API_PREFIX}/workspace/delete-file`) {
+      const body = (await readBody(request)) as { rootPath?: string; relativePath?: string } | undefined;
+      if (!body?.rootPath?.trim() || !body?.relativePath?.trim()) {
+        writeJson(response, fail("rootPath and relativePath are required", "INVALID_INPUT"));
+        return true;
+      }
+      writeJson(response, ok(await deleteFileEntry(body.rootPath.trim(), body.relativePath.trim())));
+      return true;
+    }
+
+    if (request.method === "POST" && requestUrl.pathname === `${API_PREFIX}/workspace/duplicate-file`) {
+      const body = (await readBody(request)) as { rootPath?: string; srcRelativePath?: string; dstRelativePath?: string } | undefined;
+      if (!body?.rootPath?.trim() || !body?.srcRelativePath?.trim() || !body?.dstRelativePath?.trim()) {
+        writeJson(response, fail("rootPath, srcRelativePath, and dstRelativePath are required", "INVALID_INPUT"));
+        return true;
+      }
+      writeJson(response, ok(await duplicateFile(body.rootPath.trim(), body.srcRelativePath.trim(), body.dstRelativePath.trim())));
+      return true;
+    }
+
     const rootPath = requestUrl.searchParams.get("rootPath");
     if (!rootPath?.trim()) {
       writeJson(response, fail("rootPath is required", "INVALID_INPUT"));
@@ -1049,6 +1156,15 @@ export async function handlePreviewWorkspaceApi(
         return true;
       }
       writeJson(response, ok(await createGitBranch(rootPath, body)));
+      return true;
+    }
+    if (request.method === "GET" && requestUrl.pathname === `${API_PREFIX}/workspace/absolute-path`) {
+      const relativePath = requestUrl.searchParams.get("relativePath");
+      if (!relativePath?.trim()) {
+        writeJson(response, fail("relativePath is required", "INVALID_INPUT"));
+        return true;
+      }
+      writeJson(response, ok(await getAbsolutePath(rootPath, relativePath)));
       return true;
     }
     if (request.method === "GET" && requestUrl.pathname === `${API_PREFIX}/retrieval/status`) {

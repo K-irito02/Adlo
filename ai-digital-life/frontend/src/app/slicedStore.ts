@@ -199,6 +199,14 @@ export type StoreState = {
   acceptAllHunks: () => Promise<void>;
   rejectAllHunks: () => Promise<void>;
   restoreCheckpoint: (checkpointId: string) => Promise<void>;
+  clipboardOperation: "cut" | "copy" | null;
+  clipboardSourcePath: string | null;
+  clipboardSourceKind: "file" | "directory" | null;
+  setClipboard: (op: "cut" | "copy", path: string, kind: "file" | "directory") => void;
+  clearClipboard: () => void;
+  renameWorkspaceFile: (relativePath: string, newName: string) => Promise<void>;
+  deleteWorkspaceFile: (relativePath: string) => Promise<void>;
+  duplicateWorkspaceFile: (srcRelativePath: string, dstRelativePath: string) => Promise<void>;
 };
 
 export const useSlicedAppStore = create<StoreState>()((set, get) => ({
@@ -234,6 +242,53 @@ export const useSlicedAppStore = create<StoreState>()((set, get) => ({
   setComposerMessage: (message) => set({ composerMessage: message }),
   toggleLeftSidebar: () => set((s) => ({ leftSidebarVisible: !s.leftSidebarVisible })),
   toggleRightSidebar: () => set((s) => ({ rightPanelVisible: !s.rightPanelVisible })),
+
+  clipboardOperation: null,
+  clipboardSourcePath: null,
+  clipboardSourceKind: null,
+
+  setClipboard: (op, path, kind) => set({ clipboardOperation: op, clipboardSourcePath: path, clipboardSourceKind: kind }),
+  clearClipboard: () => set({ clipboardOperation: null, clipboardSourcePath: null, clipboardSourceKind: null }),
+
+  renameWorkspaceFile: async (relativePath, newName) => {
+    const result = await window.digitalLife.workspace.renameFile(relativePath, newName);
+    if (!result.ok) {
+      set({ error: result.error.message });
+      return;
+    }
+    await get().refreshWorkspaceTree();
+    const currentPath = get().selectedFilePath;
+    if (currentPath) {
+      const parts = currentPath.split("/");
+      parts[parts.length - 1] = newName;
+      const newPath = parts.join("/");
+      if (currentPath === relativePath) {
+        await get().openFile(newPath);
+      }
+    }
+  },
+
+  deleteWorkspaceFile: async (relativePath) => {
+    const result = await window.digitalLife.workspace.deleteFile(relativePath);
+    if (!result.ok) {
+      set({ error: result.error.message });
+      return;
+    }
+    await get().refreshWorkspaceTree();
+    const currentPath = get().selectedFilePath;
+    if (currentPath === relativePath) {
+      set({ selectedFilePath: undefined, fileContent: undefined, openTabs: get().openTabs.filter((t) => t.path !== relativePath) });
+    }
+  },
+
+  duplicateWorkspaceFile: async (srcRelativePath, dstRelativePath) => {
+    const result = await window.digitalLife.workspace.duplicateFile(srcRelativePath, dstRelativePath);
+    if (!result.ok) {
+      set({ error: result.error.message });
+      return;
+    }
+    await get().refreshWorkspaceTree();
+  },
 
   bootstrap: async () => {
     const requestSeq = workspaceRequestSeq;

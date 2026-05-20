@@ -31,3 +31,6 @@ export { type TaskSlice, createTaskSlice } from "./slices/taskSlice";
 
 // 命令切片
 export { type CommandSlice, createCommandSlice } from "./slices/commandSlice";
+
+// 剪贴板切片
+export { type ClipboardSlice, createClipboardSlice } from "./slices/clipboardSlice";

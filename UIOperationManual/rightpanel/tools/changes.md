@@ -142,6 +142,30 @@ await page.click('button[aria-label="未跟踪"]');
 await page.waitForSelector('button[aria-label="未跟踪"].is-active');
 ```
 
+---
+
+## 右键菜单
+
+> 变更面板的文件树/文件列表与文件面板共享同一套右键菜单实现。所有选择器和操作与 [文件面板右键菜单](./files.md#右键菜单) 一致，唯一差异是变更面板中：
+> - **已删除文件**：打开方式、在文件管理器中显示、重命名、删除操作不可用（disabled）
+> - 复制完整/相对路径始终可用
+
+### 操作
+
+#### 右键打开变更文件菜单
+
+```javascript
+await page.locator('.adl-filetree__label').first().click({ button: 'right' });
+await page.waitForSelector('.adl-sidebar-menu');
+```
+
+### 行为约定
+
+1. 右键菜单高亮（`.is-context-menu-target`）在菜单关闭时立即消失（无子对话框操作）或子对话框关闭时消失（重命名/删除）。
+2. 粘贴操作自动处理目标路径冲突（`-copy1`、`-copy2`...后缀）。
+3. 剪切+粘贴时无论源与目标是否同目录，均使用 duplicate+delete 方式操作（避免 rename 跨文件系统的限制）。
+4. 删除操作通过 `trash` crate（Tauri）或 PowerShell（浏览器）移至系统回收站，非永久删除。
+
 #### 组合多选筛选
 
 ```javascript

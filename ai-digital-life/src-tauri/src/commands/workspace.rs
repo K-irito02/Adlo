@@ -505,17 +505,27 @@ fn reveal_in_os_file_manager(path: &str) -> Result<(), AppError> {
             "path does not exist: {path}"
         )));
     }
+    let canonical = p.canonicalize().unwrap_or(p);
     #[cfg(target_os = "windows")]
     {
-        std::process::Command::new("explorer").arg(p).spawn()?;
+        let display_path = canonical.to_string_lossy().replace('/', "\\");
+        std::process::Command::new("explorer")
+            .arg("/select,")
+            .arg(&display_path)
+            .spawn()?;
     }
     #[cfg(target_os = "macos")]
     {
-        std::process::Command::new("open").arg(p).spawn()?;
+        std::process::Command::new("open")
+            .arg("-R")
+            .arg(&canonical)
+            .spawn()?;
     }
     #[cfg(all(unix, not(target_os = "macos")))]
     {
-        std::process::Command::new("xdg-open").arg(p).spawn()?;
+        std::process::Command::new("xdg-open")
+            .arg(&canonical.parent().unwrap_or(&canonical))
+            .spawn()?;
     }
     Ok(())
 }
@@ -601,6 +611,77 @@ pub fn workspace_create_git_branch(
             stashed_changes,
         })
     })
+}
+
+#[tauri::command]
+pub fn workspace_rename_file(
+    state: tauri::State<'_, AppState>,
+    relative_path: String,
+    new_name: String,
+) -> IpcResult<bool> {
+    ipc(with_workspace(&state, |workspace| {
+        adl_workspace::rename_entry(
+            PathBuf::from(&workspace.root_path).as_path(),
+            &relative_path,
+            &new_name,
+        )
+    }))
+}
+
+#[tauri::command]
+pub fn workspace_delete_file(
+    state: tauri::State<'_, AppState>,
+    app: tauri::AppHandle,
+    relative_path: String,
+) -> IpcResult<bool> {
+    let succeeded = with_workspace(&state, |workspace| {
+        adl_workspace::delete_entry(
+            PathBuf::from(&workspace.root_path).as_path(),
+            &relative_path,
+        )
+    });
+    match succeeded {
+        Ok(true) => {
+            let _ = app.emit(
+                "digital-life://workspace-file-changed",
+                WorkspaceFileChangedEvent {
+                    path: relative_path,
+                    last_modified_at: now_ms(),
+                },
+            );
+            IpcResult::ok(true)
+        }
+        Ok(false) => IpcResult::ok(false),
+        Err(e) => IpcResult::err("DELETE_FAILED", e.to_string()),
+    }
+}
+
+#[tauri::command]
+pub fn workspace_duplicate_file(
+    state: tauri::State<'_, AppState>,
+    relative_path: String,
+    new_path: String,
+) -> IpcResult<bool> {
+    ipc(with_workspace(&state, |workspace| {
+        adl_workspace::duplicate_entry(
+            PathBuf::from(&workspace.root_path).as_path(),
+            &relative_path,
+            &new_path,
+        )
+    }))
+}
+
+#[tauri::command]
+pub fn workspace_get_absolute_path(
+    state: tauri::State<'_, AppState>,
+    relative_path: String,
+) -> IpcResult<String> {
+    ipc(with_workspace(&state, |workspace| {
+        adl_workspace::get_absolute_path(
+            PathBuf::from(&workspace.root_path).as_path(),
+            &relative_path,
+        )
+    }))
 }
 
 pub fn current_workspace(state: &AppState) -> Result<WorkspaceMeta, AppError> {

@@ -5,7 +5,7 @@
  * 而不需要订阅整个 store。
  */
 
-import type { StoreState } from "../store";
+import type { StoreState } from "../slicedStore";
 import type { AppInfo, GitSnapshot, WorkspaceTreeNode, RecentWorkspaceEntry } from "@ai-digital-life/kernel";
 
 /**

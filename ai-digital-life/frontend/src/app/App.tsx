@@ -10,7 +10,7 @@ import type { EditorRef, DiffEditorRef } from "./types";
 import { filterDiagnosticsForPath, findFirstDiagnostic, detectEditorLanguage } from "./workspacePaths";
 import { mapPatchToEditorTab } from "./editorTabs";
 import { buildSettingsItems, preferencePatchFromSettingChange } from "./settingsViewModel";
-import { useAppStore } from "./store";
+import { useAppStore } from "./slicedStore";
 import { useUiStore } from "./ui-store";
 import { TitleBar } from "./regions/TitleBar";
 import { LeftSidebar } from "./regions/LeftSidebar";

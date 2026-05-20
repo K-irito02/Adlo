@@ -8,6 +8,7 @@ type TreeNodeRowProps = {
   isExpanded?: boolean;
   isActive?: boolean;
   isHovered?: boolean;
+  isContextMenuTarget?: boolean;
   expandLabel: string;
   collapseLabel: string;
   onToggle?: () => void;
@@ -37,6 +38,7 @@ export function TreeNodeRow({
   isExpanded = false,
   isActive = false,
   isHovered = false,
+  isContextMenuTarget = false,
   expandLabel,
   collapseLabel,
   onToggle,
@@ -60,7 +62,7 @@ export function TreeNodeRow({
 }: TreeNodeRowProps) {
   return (
     <li
-      className={`adl-tree-node${isActive ? " is-active" : ""}${isHovered ? " is-hovered" : ""}${itemClassName ? ` ${itemClassName}` : ""}`}
+      className={`adl-tree-node${isActive ? " is-active" : ""}${isHovered ? " is-hovered" : ""}${isContextMenuTarget ? " is-context-menu-target" : ""}${itemClassName ? ` ${itemClassName}` : ""}`}
       data-depth={depth}
       style={
         {

@@ -175,6 +175,51 @@ pub fn capture_git_snapshot(root: &Path) -> GitSnapshot {
     }
 }
 
+pub async fn capture_git_snapshot_async(root: &Path) -> GitSnapshot {
+    let is_repo_check = root.join(".git").exists();
+    let root_owned = root.to_path_buf();
+    let (branch_result, head_result, staged_result, unstaged_result, untracked_result, conflicts_result) = tokio::join!(
+        tokio::task::spawn_blocking({
+            let r = root_owned.clone();
+            move || run_git(&r, &["branch", "--show-current"]).and_then(first_non_empty_line)
+        }),
+        tokio::task::spawn_blocking({
+            let r = root_owned.clone();
+            move || run_git(&r, &["rev-parse", "--short", "HEAD"]).and_then(first_non_empty_line)
+        }),
+        tokio::task::spawn_blocking({
+            let r = root_owned.clone();
+            move || capture_git_paths_with_fallback(&r, &["diff", "--name-only", "--cached", "-z"], "diff --cached")
+        }),
+        tokio::task::spawn_blocking({
+            let r = root_owned.clone();
+            move || capture_git_paths_with_fallback(&r, &["diff", "--name-only", "-z"], "diff")
+        }),
+        tokio::task::spawn_blocking({
+            let r = root_owned.clone();
+            move || capture_git_paths_with_fallback(&r, &["ls-files", "--others", "--exclude-standard", "-z"], "ls-files --others")
+        }),
+        tokio::task::spawn_blocking({
+            let r = root_owned.clone();
+            move || capture_git_paths_with_fallback(&r, &["diff", "--name-only", "--diff-filter=U", "-z"], "diff --diff-filter=U")
+        }),
+    );
+    let branch = branch_result.unwrap_or(None);
+    let head = head_result.unwrap_or(None);
+    GitSnapshot {
+        is_repo: is_repo_check || branch.is_some() || head.is_some(),
+        branch,
+        head,
+        ahead: None,
+        behind: None,
+        staged: staged_result.unwrap_or_default(),
+        unstaged: unstaged_result.unwrap_or_default(),
+        untracked: untracked_result.unwrap_or_default(),
+        conflicts: conflicts_result.unwrap_or_default(),
+        captured_at: now_ms(),
+    }
+}
+
 pub fn read_change_preview(
     root: &Path,
     relative_path: &str,
@@ -595,6 +640,115 @@ pub fn create_folder(root: &Path, relative_path: &str) -> Result<bool, AppError>
     Ok(true)
 }
 
+pub fn rename_entry(root: &Path, relative_path: &str, new_name: &str) -> Result<bool, AppError> {
+    if new_name.trim().is_empty() {
+        return Err(AppError::InvalidInput("new name is required".into()));
+    }
+    if new_name.contains('/') || new_name.contains('\\') {
+        return Err(AppError::InvalidInput(
+            "new name must not contain path separators".into(),
+        ));
+    }
+    let src = adl_fs_ops::resolve_workspace_path(root, relative_path)?;
+    if !src.exists() {
+        return Err(AppError::NotFound(format!(
+            "path not found: {relative_path}"
+        )));
+    }
+    let parent = src.parent().unwrap_or(root);
+    let dst = parent.join(new_name);
+    if dst.exists() {
+        return Err(AppError::InvalidInput(format!(
+            "target already exists: {}",
+            new_name
+        )));
+    }
+    fs::rename(&src, &dst)?;
+    Ok(true)
+}
+
+pub fn delete_entry(root: &Path, relative_path: &str) -> Result<bool, AppError> {
+    let path = adl_fs_ops::resolve_workspace_path(root, relative_path)?;
+    if !path.exists() {
+        return Err(AppError::NotFound(format!(
+            "path not found: {relative_path}"
+        )));
+    }
+    trash::delete(&path).map_err(|e| {
+        AppError::InvalidInput(format!("failed to move to trash: {e}"))
+    })?;
+    Ok(true)
+}
+
+fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), AppError> {
+    fs::create_dir_all(dst)?;
+    for entry in fs::read_dir(src)? {
+        let entry = entry?;
+        let file_type = entry.file_type()?;
+        let src_child = entry.path();
+        let dst_child = dst.join(entry.file_name());
+        if file_type.is_dir() {
+            copy_dir_recursive(&src_child, &dst_child)?;
+        } else {
+            fs::copy(&src_child, &dst_child)?;
+        }
+    }
+    Ok(())
+}
+
+fn resolve_conflict_path(dst: &Path) -> PathBuf {
+    if !dst.exists() {
+        return dst.to_path_buf();
+    }
+    let parent = dst.parent().unwrap_or(Path::new(""));
+    let stem = dst
+        .file_stem()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_default();
+    let ext = dst
+        .extension()
+        .map(|s| format!(".{}", s.to_string_lossy()))
+        .unwrap_or_default();
+    for i in 1..100 {
+        let candidate = parent.join(format!("{stem}-copy{i}{ext}"));
+        if !candidate.exists() {
+            return candidate;
+        }
+    }
+    dst.to_path_buf()
+}
+
+pub fn duplicate_entry(
+    root: &Path,
+    src_relative_path: &str,
+    dst_relative_path: &str,
+) -> Result<bool, AppError> {
+    let src = adl_fs_ops::resolve_workspace_path(root, src_relative_path)?;
+    if !src.exists() {
+        return Err(AppError::NotFound(format!(
+            "source not found: {src_relative_path}"
+        )));
+    }
+    let dst = resolve_conflict_path(&adl_fs_ops::resolve_workspace_path(root, dst_relative_path)?);
+    if let Some(parent) = dst.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    if src.is_dir() {
+        copy_dir_recursive(&src, &dst)?;
+    } else {
+        fs::copy(&src, &dst)?;
+    }
+    Ok(true)
+}
+
+pub fn get_absolute_path(root: &Path, relative_path: &str) -> Result<String, AppError> {
+    let path = adl_fs_ops::resolve_workspace_path(root, relative_path)?;
+    let absolute = path
+        .canonicalize()
+        .map_err(|e| AppError::Workspace(format!("failed to resolve path: {e}")))?;
+    Ok(absolute.to_string_lossy().replace('\\', "/"))
+}
+
 pub fn search_text(root: &Path, query: &str) -> Result<Vec<WorkspaceSearchHit>, AppError> {
     if query.trim().is_empty() {
         return Ok(vec![]);
@@ -611,6 +765,50 @@ pub fn search_text(root: &Path, query: &str) -> Result<Vec<WorkspaceSearchHit>, 
                     preview: line.trim().chars().take(240).collect(),
                 });
                 if hits.len() >= MAX_SEARCH_RESULTS {
+                    return Ok(hits);
+                }
+            }
+        }
+    }
+    Ok(hits)
+}
+
+pub async fn search_text_async(
+    root: &Path,
+    query: &str,
+    mut cancellation: tokio::sync::broadcast::Receiver<()>,
+) -> Result<Vec<WorkspaceSearchHit>, AppError> {
+    if query.trim().is_empty() {
+        return Ok(vec![]);
+    }
+
+    let query_lower = query.to_lowercase();
+    let root_owned = root.to_path_buf();
+    let files = collect_text_files(root, DEFAULT_MAX_FILE_BYTES)?;
+
+    let mut hits = Vec::new();
+    let max_results = MAX_SEARCH_RESULTS;
+
+    for file in files {
+        if cancellation.try_recv().is_ok() {
+            break;
+        }
+
+        let relative = relative_path(&root_owned, &file);
+        let content = tokio::fs::read_to_string(&file).await.unwrap_or_default();
+
+        if cancellation.try_recv().is_ok() {
+            break;
+        }
+
+        for (index, line) in content.lines().enumerate() {
+            if line.to_lowercase().contains(&query_lower) {
+                hits.push(WorkspaceSearchHit {
+                    path: relative.clone(),
+                    line: index + 1,
+                    preview: line.trim().chars().take(240).collect(),
+                });
+                if hits.len() >= max_results {
                     return Ok(hits);
                 }
             }
@@ -1423,6 +1621,105 @@ pub fn build_retrieval_snapshot(
             .collect::<Vec<_>>(),
         "repo-map preview (first 40 entries)"
     );
+    Ok(RetrievalSnapshot {
+        workspace_id: workspace_id.to_string(),
+        root_path: root.to_string_lossy().to_string(),
+        status: RetrievalStatusV1::Completed,
+        scanned_files: files.len(),
+        indexed_text_files: files.len(),
+        started_at: Some(started),
+        updated_at: now_ms(),
+        completed_at: Some(now_ms()),
+        last_error: None,
+        top_extensions,
+        repo_map,
+    })
+}
+
+pub async fn build_retrieval_snapshot_async(
+    workspace_id: &str,
+    root: &Path,
+    mut cancellation: tokio::sync::broadcast::Receiver<()>,
+) -> Result<RetrievalSnapshot, AppError> {
+    let started = now_ms();
+    let root_owned = root.to_path_buf();
+
+    let files = tokio::task::spawn_blocking({
+        let r = root_owned.clone();
+        move || collect_text_files(&r, DEFAULT_MAX_FILE_BYTES)
+    })
+    .await
+    .map_err(|e| AppError::Workspace(format!("task join error: {e}")))??;
+
+    if cancellation.try_recv().is_ok() {
+        return Ok(RetrievalSnapshot {
+            workspace_id: workspace_id.to_string(),
+            root_path: root.to_string_lossy().to_string(),
+            status: RetrievalStatusV1::Cancelled,
+            scanned_files: files.len(),
+            indexed_text_files: files.len(),
+            started_at: Some(started),
+            updated_at: now_ms(),
+            completed_at: Some(now_ms()),
+            last_error: Some("cancelled".to_string()),
+            top_extensions: vec![],
+            repo_map: vec![],
+        });
+    }
+
+    let mut extensions: BTreeMap<String, i32> = BTreeMap::new();
+    for file in &files {
+        let ext = file
+            .extension()
+            .and_then(|value| value.to_str())
+            .unwrap_or("[none]")
+            .to_string();
+        *extensions.entry(ext).or_insert(0) += 1;
+    }
+    let mut top_extensions: Vec<_> = extensions
+        .into_iter()
+        .map(|(extension, count)| RetrievalFileTypeCount { extension, count })
+        .collect();
+    top_extensions.sort_by_key(|entry| std::cmp::Reverse(entry.count));
+    top_extensions.truncate(12);
+
+    if cancellation.try_recv().is_ok() {
+        return Ok(RetrievalSnapshot {
+            workspace_id: workspace_id.to_string(),
+            root_path: root.to_string_lossy().to_string(),
+            status: RetrievalStatusV1::Cancelled,
+            scanned_files: files.len(),
+            indexed_text_files: files.len(),
+            started_at: Some(started),
+            updated_at: now_ms(),
+            completed_at: Some(now_ms()),
+            last_error: Some("cancelled".to_string()),
+            top_extensions,
+            repo_map: vec![],
+        });
+    }
+
+    let repo_map: Vec<RepoMapEntry> = tokio::task::spawn_blocking({
+        let r = root_owned.clone();
+        move || list_tree(&r)
+    })
+    .await
+    .map_err(|e| AppError::Workspace(format!("task join error: {e}")))?
+    .unwrap_or_default()
+    .into_iter()
+    .flat_map(flatten_tree)
+    .take(200)
+    .collect();
+
+    info!(
+        workspace_id = workspace_id,
+        scanned_files = files.len(),
+        indexed_text_files = files.len(),
+        repo_map_entries = repo_map.len(),
+        top_extensions = ?top_extensions,
+        "retrieval snapshot built (async)"
+    );
+
     Ok(RetrievalSnapshot {
         workspace_id: workspace_id.to_string(),
         root_path: root.to_string_lossy().to_string(),

@@ -22,6 +22,10 @@
 - xterm.js 交互式终端（多会话 PTY，支持 CMD / PowerShell / Bash）
   - Tauri 桌面模式：Rust `portable-pty`（ConPTY）
   - 浏览器预览模式：`node-pty`（ConPTY/WinPTY），替代之前 `child_process.spawn` 的编码 hack
+- **文件树右键菜单**（文件/变更面板通用）：打开方式、在文件资源管理器中显示、复制完整/相对路径、剪切、复制、粘贴（自动冲突处理 `-copyN`）、内联重命名、回收站删除
+- **上下文菜单系统**：统一 `ContextMenu` 组件（Portal 渲染、图标/分隔线/danger 样式）、`ConfirmDialog`（删除确认）、`RenameInput`（内联重命名）
+- **剪贴板切换**：Zustand `clipboardSlice`，支持跨面板 cut/copy/paste
+- **回收站删除**：Rust `trash` crate（Tauri） + PowerShell `Microsoft.VisualBasic`（浏览器），文件/目录安全删除到回收站
 
 **不在本目录实现**：多 Agent DAG、MCP、插件市场、云协作等 Phase 2+ 能力。
 

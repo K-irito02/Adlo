@@ -151,6 +151,14 @@ export function createTauriBridge(): DigitalLifeBridge {
       outline: (relativePath: string) => invokeIpc("workspace_outline", { relativePath }),
       setEditorDirtyPaths: (relativePaths: string[]) =>
         invokeIpc<boolean>("workspace_set_editor_dirty_paths", { relativePaths }),
+      renameFile: (relativePath: string, newName: string) =>
+        invokeIpc<boolean>("workspace_rename_file", { relativePath, newName }),
+      deleteFile: (relativePath: string) =>
+        invokeIpc<boolean>("workspace_delete_file", { relativePath }),
+      duplicateFile: (srcRelativePath: string, dstRelativePath: string) =>
+        invokeIpc<boolean>("workspace_duplicate_file", { relativePath: srcRelativePath, newPath: dstRelativePath }),
+      getAbsolutePath: (relativePath: string) =>
+        invokeIpc<string>("workspace_get_absolute_path", { relativePath }),
       onFileChanged: (listener: (event: WorkspaceFileChangedEvent) => void) =>
         subscribeChannel<WorkspaceFileChangedEvent>("digital-life://workspace-file-changed", listener),
       getGitStatus: () => invokeIpc<GitSnapshot>("workspace_get_git_status"),

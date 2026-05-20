@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const appSource = readFileSync(new URL("./App.tsx", import.meta.url), "utf8");
-const storeSource = readFileSync(new URL("./store.ts", import.meta.url), "utf8");
+const storeSource = readFileSync(new URL("./slicedStore.ts", import.meta.url), "utf8");
 const sharedSource = readFileSync(new URL("./stores/shared.ts", import.meta.url), "utf8");
 const rightPanelSource = readFileSync(new URL("./regions/RightPanel.tsx", import.meta.url), "utf8");
 const filesPanelSource = readFileSync(new URL("./regions/right-panel/FilesPanel.tsx", import.meta.url), "utf8");

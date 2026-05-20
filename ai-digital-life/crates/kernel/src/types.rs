@@ -290,6 +290,7 @@ pub struct RecentWorkspaceEntry {
 pub enum RetrievalStatusV1 {
     Idle,
     Running,
+    Cancelled,
     Completed,
     Failed,
 }

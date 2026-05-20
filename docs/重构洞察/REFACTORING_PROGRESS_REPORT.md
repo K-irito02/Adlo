@@ -1,10 +1,10 @@
 # 重构进度报告
 
-> 更新日期: 2026-05-19
+> 更新日期: 2026-05-20
 
 ## 完成状态
 
-**全部完成** ✅
+**全部完成** ✅（含 `store.ts` 已删除，`slicedStore.ts` 已成为唯一真源）
 
 ---
 
@@ -13,6 +13,7 @@
 | 指标 | 数值 |
 |------|------|
 | 新增文件 | 11 个切片文件 |
+| 已删除文件 | `store.ts`（已统一迁移至 `slicedStore.ts`） |
 | 切片数量 | 10 个独立切片 |
 | 代码行数 | ~2800 行 |
 | 类型检查 | 0 错误 |
@@ -167,12 +168,10 @@ const hasSessions = useSessionStore(sessionSelectors.hasSessions);
 
 ## 后续步骤
 
-1. **可选**：将 `store.ts` 替换为 `slicedStore.ts`
-2. **可选**：更新所有使用 `useAppStore` 的组件
+1. ~~将 `store.ts` 替换为 `slicedStore.ts`~~ ✅ **已完成**（`store.ts` 已删除）
+2. ~~更新所有使用 `useAppStore` 的组件~~ ✅ **已完成**
 3. **建议**：逐步将业务逻辑迁移到各个切片中
 4. **建议**：为每个切片编写单元测试
-
----
 
 ## 重构收益
 
@@ -181,4 +180,5 @@ const hasSessions = useSessionStore(sessionSelectors.hasSessions);
 3. **可扩展性**: 新增功能只需创建新切片
 4. **Tree-shaking**: 未使用的切片不会打包
 5. **类型安全**: 完整的 TypeScript 支持
-6. **向后兼容**: 原有 `store.ts` 保持不变
+6. **向后兼容**: 原有独立子 Store（`useWorkspaceStore.ts` 等）保持不变
+7. **代码瘦身**: 已删除重复的 `store.ts`，消除维护负担
