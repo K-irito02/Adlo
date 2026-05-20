@@ -59,10 +59,14 @@ import {
 } from "./composerSend";
 import { useUiStore, type ToolId } from "./ui-store";
 import {
-  workspaceRequestSeq as sharedWorkspaceRequestSeq,
-  sessionRequestSeq as sharedSessionRequestSeq,
-  fileRequestSeq as sharedFileRequestSeq,
-  changePreviewRequestSeq as sharedChangePreviewRequestSeq,
+  workspaceRequestSeq,
+  sessionRequestSeq,
+  fileRequestSeq,
+  changePreviewRequestSeq,
+  getNextWorkspaceRequestSeq,
+  getNextSessionRequestSeq,
+  getNextFileRequestSeq,
+  getNextChangePreviewRequestSeq,
   getFileDocumentCache,
   getChangePreviewCache,
   FILE_DOCUMENT_CACHE_LIMIT,
@@ -83,10 +87,6 @@ import {
   refreshConversationSlice
 } from "./stores/conversationUtils";
 
-let workspaceRequestSeq = sharedWorkspaceRequestSeq;
-let sessionRequestSeq = sharedSessionRequestSeq;
-let fileRequestSeq = sharedFileRequestSeq;
-let changePreviewRequestSeq = sharedChangePreviewRequestSeq;
 const fileDocumentCache = getFileDocumentCache();
 const changePreviewCache = getChangePreviewCache();
 
@@ -350,10 +350,10 @@ export const useSlicedAppStore = create<StoreState>()((set, get) => ({
   },
 
   openWorkspace: async (workspacePath: string) => {
-    const requestSeq = ++workspaceRequestSeq;
-    fileRequestSeq += 1;
-    changePreviewRequestSeq += 1;
-    sessionRequestSeq += 1;
+    const requestSeq = getNextWorkspaceRequestSeq();
+    getNextFileRequestSeq();
+    getNextChangePreviewRequestSeq();
+    getNextSessionRequestSeq();
     const result = await window.digitalLife.workspace.open(workspacePath);
     if (requestSeq !== workspaceRequestSeq) return { ok: false, error: "Request superseded" };
     if (!result.ok) {
@@ -365,10 +365,10 @@ export const useSlicedAppStore = create<StoreState>()((set, get) => ({
   },
 
   clearWorkspaceContext: async () => {
-    const requestSeq = ++workspaceRequestSeq;
-    fileRequestSeq += 1;
-    changePreviewRequestSeq += 1;
-    sessionRequestSeq += 1;
+    const requestSeq = getNextWorkspaceRequestSeq();
+    getNextFileRequestSeq();
+    getNextChangePreviewRequestSeq();
+    getNextSessionRequestSeq();
     const result = await window.digitalLife.workspace.clearCurrent();
     if (requestSeq !== workspaceRequestSeq) return;
     if (!result.ok) {
@@ -404,7 +404,7 @@ export const useSlicedAppStore = create<StoreState>()((set, get) => ({
   },
 
   selectSession: async (sessionId: string) => {
-    const requestSeq = ++sessionRequestSeq;
+    const requestSeq = getNextSessionRequestSeq();
     set({ activeSessionId: sessionId, error: undefined });
     const markReadResult = await window.digitalLife.conversation.markSessionRead({ sessionId });
     if (requestSeq !== sessionRequestSeq) return;
@@ -720,7 +720,7 @@ export const useSlicedAppStore = create<StoreState>()((set, get) => ({
   },
 
   openFile: async (relativePath: string) => {
-    const requestSeq = ++fileRequestSeq;
+    const requestSeq = getNextFileRequestSeq();
     const cacheKey = getWorkspaceScopedCacheKey(get().appInfo, relativePath);
     const cachedDocument = getCachedLru(fileDocumentCache, cacheKey);
     const applyDocument = (document: CachedFileDocument, outlineOverride?: FileOutlineItem[]) => {
@@ -765,7 +765,7 @@ export const useSlicedAppStore = create<StoreState>()((set, get) => ({
   },
 
   openChangePreview: async (relativePath: string) => {
-    const requestSeq = ++changePreviewRequestSeq;
+    const requestSeq = getNextChangePreviewRequestSeq();
     const cacheKey = getWorkspaceScopedCacheKey(get().appInfo, relativePath);
     const cachedPreview = getCachedLru(changePreviewCache, cacheKey);
     set({
