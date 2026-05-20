@@ -13,7 +13,8 @@ import type {
   FilePatch,
 } from "@ai-digital-life/kernel";
 import {
-  changePreviewRequestSeq as sharedChangePreviewRequestSeq,
+  changePreviewRequestSeq,
+  getNextChangePreviewRequestSeq,
   getChangePreviewCache,
   getWorkspaceScopedCacheKey,
   CHANGE_PREVIEW_CACHE_LIMIT,
@@ -45,8 +46,6 @@ export type PatchState = {
   setChangePreview: (preview: WorkspaceChangePreview | undefined) => void;
   setChangePreviewLoading: (loading: boolean) => void;
 };
-
-let localChangePreviewRequestSeq = sharedChangePreviewRequestSeq;
 
 export const usePatchStore = create<PatchState>((set) => ({
   // Initial state
@@ -82,7 +81,7 @@ export const patchActions = {
     appInfo: any,
     setState: (partial: Partial<PatchState>) => void
   ) => {
-    const currentSeq = ++localChangePreviewRequestSeq;
+    const currentSeq = getNextChangePreviewRequestSeq();
     const cacheKey = getWorkspaceScopedCacheKey(appInfo, relativePath);
     const previewCache = getChangePreviewCache();
     const cachedPreview = getCachedLru(previewCache, cacheKey);
@@ -97,7 +96,7 @@ export const patchActions = {
     // Fetch from backend
     const result = await window.digitalLife.workspace.getChangePreview(relativePath);
     
-    if (currentSeq !== localChangePreviewRequestSeq) {
+    if (currentSeq !== changePreviewRequestSeq) {
       return;
     }
 

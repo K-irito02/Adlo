@@ -24,7 +24,7 @@ export function getChangeKindLabel(changeKind: "added" | "modified" | "deleted",
   return changeKind === "added" ? t.gitAdded : changeKind === "deleted" ? t.gitDeleted : t.gitModified;
 }
 
-export function getChangeStatusLabel(status: any, t: RightPanelViewProps["t"]) {
+export function getChangeStatusLabel(status: NonNullable<RightPanelViewProps["changePreview"]>["status"], t: RightPanelViewProps["t"]) {
   if (status === "staged") return t.changesStaged;
   if (status === "untracked") return t.changesUntracked;
   if (status === "conflicted") return t.changesConflicts;

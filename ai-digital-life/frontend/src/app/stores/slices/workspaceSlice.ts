@@ -11,10 +11,7 @@ import type {
   IndexingStatus,
   RepoMapNode
 } from "@ai-digital-life/kernel";
-import { workspaceRequestSeq as sharedWorkspaceRequestSeq, queueLowPriorityRefresh } from "../shared";
-
-// 保持向后兼容的变量
-let workspaceRequestSeq = sharedWorkspaceRequestSeq;
+import { queueLowPriorityRefresh } from "../shared";
 
 export interface WorkspaceSlice {
   appInfo?: AppInfo;

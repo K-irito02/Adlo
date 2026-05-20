@@ -15,7 +15,8 @@ import type {
   DigitalLifeRunActivityEventV1,
 } from "@ai-digital-life/kernel";
 import {
-  sessionRequestSeq as sharedSessionRequestSeq,
+  sessionRequestSeq,
+  getNextSessionRequestSeq,
 } from "./shared";
 
 export type SessionState = {
@@ -39,8 +40,6 @@ export type SessionState = {
   setRunActivity: (runId: string, activities: DigitalLifeRunActivityEventV1[]) => void;
   setRunUsage: (runId: string, usage: ModelTokenUsage | undefined) => void;
 };
-
-let localSessionRequestSeq = sharedSessionRequestSeq;
 
 export const useSessionStore = create<SessionState>((set) => ({
   // Initial state
@@ -78,7 +77,7 @@ export const sessionActions = {
     sessionId: string, 
     setState: (partial: Partial<SessionState> | ((prev: SessionState) => Partial<SessionState>)) => void
   ) => {
-    const currentSeq = ++localSessionRequestSeq;
+    const currentSeq = getNextSessionRequestSeq();
     
     // Use function form for setState to get current state
     setState((prev: SessionState) => ({ activeSessionId: sessionId }));
@@ -86,13 +85,13 @@ export const sessionActions = {
     // Mark as read
     await window.digitalLife.conversation.markSessionRead({ sessionId });
     
-    if (currentSeq !== localSessionRequestSeq) {
+    if (currentSeq !== sessionRequestSeq) {
       return;
     }
 
     // Load session detail
     const detailResult = await window.digitalLife.conversation.getSession(sessionId);
-    if (currentSeq !== localSessionRequestSeq) {
+    if (currentSeq !== sessionRequestSeq) {
       return;
     }
 

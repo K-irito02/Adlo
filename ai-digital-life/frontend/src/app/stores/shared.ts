@@ -73,6 +73,23 @@ export function queueLowPriorityRefresh(refresh: () => Promise<void>): void {
   }, 0);
 }
 
+/** 自增并返回下一个序列值 */
+export function getNextFileRequestSeq(): number {
+  return ++fileRequestSeq;
+}
+
+export function getNextWorkspaceRequestSeq(): number {
+  return ++workspaceRequestSeq;
+}
+
+export function getNextChangePreviewRequestSeq(): number {
+  return ++changePreviewRequestSeq;
+}
+
+export function getNextSessionRequestSeq(): number {
+  return ++sessionRequestSeq;
+}
+
 /** 重置所有请求序列 */
 export function resetRequestSeqs() {
   workspaceRequestSeq += 1;

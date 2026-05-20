@@ -20,7 +20,8 @@ import type {
   RecentWorkspaceEntry
 } from "@ai-digital-life/kernel";
 import {
-  workspaceRequestSeq as sharedWorkspaceRequestSeq,
+  workspaceRequestSeq,
+  getNextWorkspaceRequestSeq,
   queueLowPriorityRefresh,
 } from "./shared";
 
@@ -49,8 +50,6 @@ export type WorkspaceState = {
   setIndexingStatus: (status: IndexingStatus | undefined) => void;
   setRepoMap: (map: RepoMapNode[]) => void;
 };
-
-let localWorkspaceRequestSeq = sharedWorkspaceRequestSeq;
 
 export const useWorkspaceStore = create<WorkspaceState>((set) => ({
   // Initial state
@@ -83,7 +82,7 @@ export const workspaceActions = {
   },
 
   refreshWorkspace: async (setState: (partial: Partial<WorkspaceState>) => void, requestSeq: number) => {
-    const currentSeq = ++localWorkspaceRequestSeq;
+    const currentSeq = getNextWorkspaceRequestSeq();
     
     const [treeResult, gitStatusResult] = await Promise.all([
       window.digitalLife.workspace.listTree(),

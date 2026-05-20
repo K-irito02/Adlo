@@ -9,7 +9,8 @@ import { create } from "zustand";
 import type { FileOutlineItem } from "@ai-digital-life/kernel";
 import { createEditorTab, type EditorTabState } from "../editorTabs";
 import {
-  fileRequestSeq as sharedFileRequestSeq,
+  fileRequestSeq,
+  getNextFileRequestSeq,
   getFileDocumentCache,
   getWorkspaceScopedCacheKey,
   FILE_DOCUMENT_CACHE_LIMIT,
@@ -41,8 +42,6 @@ export type EditorState = {
   removeDirtyPath: (path: string) => void;
   clearDirtyPaths: () => void;
 };
-
-let localFileRequestSeq = sharedFileRequestSeq;
 
 export const useEditorStore = create<EditorState>((set, get) => ({
   // Initial state
@@ -98,7 +97,7 @@ export const editorActions = {
     appInfo: any,
     setState: (partial: Partial<EditorState>) => void
   ) => {
-    const currentSeq = ++localFileRequestSeq;
+    const currentSeq = getNextFileRequestSeq();
     const cacheKey = getWorkspaceScopedCacheKey(appInfo, relativePath);
     const fileCache = getFileDocumentCache();
     const cachedDocument = getCachedLru(fileCache, cacheKey);
@@ -125,7 +124,7 @@ export const editorActions = {
     // Fetch from backend
     const result = await window.digitalLife.workspace.readFile(relativePath);
     
-    if (currentSeq !== localFileRequestSeq) {
+    if (currentSeq !== fileRequestSeq) {
       return;
     }
 
