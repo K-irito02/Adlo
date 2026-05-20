@@ -13,12 +13,17 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::OnceLock;
+use std::time::Duration;
+use tokio::time::timeout as tokio_timeout;
 use tracing::{debug, info};
 
 const DEFAULT_MAX_FILE_BYTES: u64 = 1024 * 1024;
 const MAX_SEARCH_RESULTS: usize = 200;
 const MAX_TREE_DEPTH: usize = 64;
 const MAX_TREE_NODES: usize = 200_000;
+const MAX_COLLECTED_FILES: usize = 50_000;
+const GIT_TIMEOUT_SECS: u64 = 30;
+const CANCEL_CHECK_INTERVAL: usize = 100;
 const IGNORED_DIRS: &[&str] = &[
     ".git",
     "target",
@@ -177,45 +182,26 @@ pub fn capture_git_snapshot(root: &Path) -> GitSnapshot {
 
 pub async fn capture_git_snapshot_async(root: &Path) -> GitSnapshot {
     let is_repo_check = root.join(".git").exists();
-    let root_owned = root.to_path_buf();
-    let (branch_result, head_result, staged_result, unstaged_result, untracked_result, conflicts_result) = tokio::join!(
-        tokio::task::spawn_blocking({
-            let r = root_owned.clone();
-            move || run_git(&r, &["branch", "--show-current"]).and_then(first_non_empty_line)
-        }),
-        tokio::task::spawn_blocking({
-            let r = root_owned.clone();
-            move || run_git(&r, &["rev-parse", "--short", "HEAD"]).and_then(first_non_empty_line)
-        }),
-        tokio::task::spawn_blocking({
-            let r = root_owned.clone();
-            move || capture_git_paths_with_fallback(&r, &["diff", "--name-only", "--cached", "-z"], "diff --cached")
-        }),
-        tokio::task::spawn_blocking({
-            let r = root_owned.clone();
-            move || capture_git_paths_with_fallback(&r, &["diff", "--name-only", "-z"], "diff")
-        }),
-        tokio::task::spawn_blocking({
-            let r = root_owned.clone();
-            move || capture_git_paths_with_fallback(&r, &["ls-files", "--others", "--exclude-standard", "-z"], "ls-files --others")
-        }),
-        tokio::task::spawn_blocking({
-            let r = root_owned.clone();
-            move || capture_git_paths_with_fallback(&r, &["diff", "--name-only", "--diff-filter=U", "-z"], "diff --diff-filter=U")
-        }),
+    let (branch_raw, head_raw, staged, unstaged, untracked, conflicts) = tokio::join!(
+        run_git_with_timeout(root, &["branch", "--show-current"]),
+        run_git_with_timeout(root, &["rev-parse", "--short", "HEAD"]),
+        capture_git_paths_with_fallback_async(root, &["diff", "--name-only", "--cached", "-z"]),
+        capture_git_paths_with_fallback_async(root, &["diff", "--name-only", "-z"]),
+        capture_git_paths_with_fallback_async(root, &["ls-files", "--others", "--exclude-standard", "-z"]),
+        capture_git_paths_with_fallback_async(root, &["diff", "--name-only", "--diff-filter=U", "-z"]),
     );
-    let branch = branch_result.unwrap_or(None);
-    let head = head_result.unwrap_or(None);
+    let branch = branch_raw.and_then(|s| first_non_empty_line(s));
+    let head = head_raw.and_then(|s| first_non_empty_line(s));
     GitSnapshot {
         is_repo: is_repo_check || branch.is_some() || head.is_some(),
         branch,
         head,
         ahead: None,
         behind: None,
-        staged: staged_result.unwrap_or_default(),
-        unstaged: unstaged_result.unwrap_or_default(),
-        untracked: untracked_result.unwrap_or_default(),
-        conflicts: conflicts_result.unwrap_or_default(),
+        staged,
+        unstaged,
+        untracked,
+        conflicts,
         captured_at: now_ms(),
     }
 }
@@ -403,6 +389,29 @@ fn run_git(root: &Path, args: &[&str]) -> Option<String> {
     }
 }
 
+async fn run_git_with_timeout(root: &Path, args: &[&str]) -> Option<String> {
+    let root_owned = root.to_path_buf();
+    let args_owned: Vec<String> = args.iter().map(|s| s.to_string()).collect();
+    let result = tokio_timeout(Duration::from_secs(GIT_TIMEOUT_SECS), async move {
+        tokio::task::spawn_blocking(move || {
+            let output = Command::new("git")
+                .args(&args_owned)
+                .current_dir(&root_owned)
+                .output()
+                .ok()?;
+            if output.status.success() {
+                Some(String::from_utf8_lossy(&output.stdout).trim().to_string())
+            } else {
+                None
+            }
+        })
+        .await
+        .ok()?
+    })
+    .await;
+    result.ok().flatten()
+}
+
 fn run_git_bytes(root: &Path, args: &[&str]) -> Option<Vec<u8>> {
     let output = Command::new("git")
         .args(args)
@@ -504,6 +513,20 @@ fn first_non_empty_line(value: String) -> Option<String> {
         .map(str::trim)
         .find(|line| !line.is_empty())
         .map(ToOwned::to_owned)
+}
+
+async fn capture_git_paths_with_fallback_async(root: &Path, args: &[&str]) -> Vec<String> {
+    let root_owned = root.to_path_buf();
+    let args_owned: Vec<String> = args.iter().map(|s| s.to_string()).collect();
+    tokio_timeout(Duration::from_secs(GIT_TIMEOUT_SECS), async move {
+        tokio::task::spawn_blocking(move || {
+            capture_git_paths_with_fallback(&root_owned, &args_owned.iter().map(|s| s.as_str()).collect::<Vec<&str>>(), &args_owned.join(" "))
+        })
+        .await
+        .unwrap_or_default()
+    })
+    .await
+    .unwrap_or_default()
 }
 
 pub fn list_tree(root: &Path) -> Result<Vec<WorkspaceTreeNode>, AppError> {
@@ -835,6 +858,9 @@ pub async fn search_text_async(
                 if hits.len() >= max_results {
                     return Ok(hits);
                 }
+            }
+            if index % CANCEL_CHECK_INTERVAL == 0 && cancellation.try_recv().is_ok() {
+                return Ok(hits);
             }
         }
     }
@@ -1670,7 +1696,12 @@ pub async fn build_retrieval_snapshot_async(
 
     let files = tokio::task::spawn_blocking({
         let r = root_owned.clone();
-        move || collect_text_files(&r, DEFAULT_MAX_FILE_BYTES)
+        let max_files = MAX_COLLECTED_FILES;
+        move || {
+            let mut all = collect_text_files(&r, DEFAULT_MAX_FILE_BYTES)?;
+            all.truncate(max_files);
+            Ok::<Vec<PathBuf>, AppError>(all)
+        }
     })
     .await
     .map_err(|e| AppError::Workspace(format!("task join error: {e}")))??;
@@ -1783,6 +1814,9 @@ fn collect_text_files_inner(
     files: &mut Vec<PathBuf>,
 ) -> Result<(), AppError> {
     for entry in fs::read_dir(dir)? {
+        if files.len() >= MAX_COLLECTED_FILES {
+            return Ok(());
+        }
         let entry = entry?;
         let path = entry.path();
         let name = entry.file_name().to_string_lossy().to_string();

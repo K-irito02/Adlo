@@ -10,7 +10,9 @@ pub fn normalize_relative_path(path: &str) -> Result<PathBuf, AppError> {
     if path.trim().is_empty() {
         return Err(AppError::InvalidInput("path is required".into()));
     }
-    let candidate = Path::new(path);
+    // Normalize backslash to forward slash for cross-platform consistency
+    let normalized = path.replace('\\', "/");
+    let candidate = Path::new(&normalized);
     if candidate.is_absolute() {
         return Err(AppError::Security(
             "absolute paths are not accepted here".into(),

@@ -260,6 +260,10 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
             if (operation === "copy") {
               await store.duplicateWorkspaceFile(sourcePath, newPath);
             } else if (operation === "cut") {
+              if (sourcePath === newPath) {
+                store.clearClipboard();
+                return;
+              }
               await store.moveWorkspaceFile(sourcePath, newPath);
             }
             store.clearClipboard();

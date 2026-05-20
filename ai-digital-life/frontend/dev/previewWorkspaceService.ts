@@ -28,6 +28,8 @@ const DEFAULT_MAX_FILE_BYTES = 1024 * 1024;
 const MAX_SEARCH_RESULTS = 200;
 const MAX_TREE_DEPTH = 64;
 const MAX_TREE_NODES = 200_000;
+const MAX_COLLECTED_FILES = 50_000;
+const GIT_TIMEOUT_MS = 30_000;
 const IGNORED_DIRS = new Set([".git", "target", "node_modules", "dist", "build", ".next", ".cache"]);
 const ROOT_MARKERS = [".git", "Cargo.toml", "package.json", "pyproject.toml", "go.mod", "pom.xml"];
 const API_PREFIX = "/__adl_preview_api__";
@@ -345,6 +347,7 @@ async function collectTextFiles(rootPath: string, currentPath: string, results: 
     return;
   }
   for (const entry of entries) {
+    if (results.length >= MAX_COLLECTED_FILES) return;
     if (IGNORED_DIRS.has(entry.name) || entry.isSymbolicLink()) {
       continue;
     }
@@ -413,11 +416,22 @@ async function runGit(rootPath: string, args: string[]): Promise<string | undefi
   return new Promise((resolve) => {
     const child = spawn(gitBin, args, { cwd: rootPath, windowsHide: true });
     let stdout = "";
+    let timer: NodeJS.Timeout | undefined;
     child.stdout.on("data", (chunk) => {
       stdout += String(chunk);
     });
-    child.on("error", () => resolve(undefined));
-    child.on("close", (code) => resolve(code === 0 ? stdout.trim() : undefined));
+    child.on("error", () => {
+      if (timer) clearTimeout(timer);
+      resolve(undefined);
+    });
+    child.on("close", (code) => {
+      if (timer) clearTimeout(timer);
+      resolve(code === 0 ? stdout.trim() : undefined);
+    });
+    timer = setTimeout(() => {
+      child.kill();
+      resolve(undefined);
+    }, GIT_TIMEOUT_MS);
   });
 }
 
