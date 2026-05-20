@@ -92,8 +92,8 @@ export function getNextSessionRequestSeq(): number {
 
 /** 重置所有请求序列 */
 export function resetRequestSeqs() {
-  workspaceRequestSeq += 1;
-  fileRequestSeq += 1;
-  changePreviewRequestSeq += 1;
-  sessionRequestSeq += 1;
+  workspaceRequestSeq = 0;
+  fileRequestSeq = 0;
+  changePreviewRequestSeq = 0;
+  sessionRequestSeq = 0;
 }
