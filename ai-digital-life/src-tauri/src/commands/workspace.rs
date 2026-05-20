@@ -510,8 +510,7 @@ fn reveal_in_os_file_manager(path: &str) -> Result<(), AppError> {
     {
         let display_path = canonical.to_string_lossy().replace('/', "\\");
         std::process::Command::new("explorer")
-            .arg("/select,")
-            .arg(&display_path)
+            .arg(format!("/select,{display_path}"))
             .spawn()?;
     }
     #[cfg(target_os = "macos")]
@@ -680,6 +679,21 @@ pub fn workspace_get_absolute_path(
         adl_workspace::get_absolute_path(
             PathBuf::from(&workspace.root_path).as_path(),
             &relative_path,
+        )
+    }))
+}
+
+#[tauri::command]
+pub fn workspace_move_file(
+    state: tauri::State<'_, AppState>,
+    relative_path: String,
+    new_path: String,
+) -> IpcResult<bool> {
+    ipc(with_workspace(&state, |workspace| {
+        adl_workspace::move_entry(
+            PathBuf::from(&workspace.root_path).as_path(),
+            &relative_path,
+            &new_path,
         )
     }))
 }

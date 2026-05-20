@@ -526,6 +526,15 @@ export function setupPreviewBridge(): void {
         const params = new URLSearchParams({ rootPath: currentWorkspace.rootPath, relativePath });
         return requestPreviewApi<string>(`/workspace/absolute-path?${params.toString()}`);
       },
+      moveFile: async (relativePath: string, newPath: string) => {
+        if (!currentWorkspace) {
+          return { ok: false, error: { code: "NOT_FOUND", message: "active workspace" } };
+        }
+        return requestPreviewApi<boolean>("/workspace/move-file", {
+          method: "POST",
+          body: JSON.stringify({ rootPath: currentWorkspace.rootPath, relativePath, newPath })
+        });
+      },
       setEditorDirtyPaths: async () => ({ ok: true, data: true }),
       onFileChanged: () => () => undefined,
       getGitStatus: async () => {

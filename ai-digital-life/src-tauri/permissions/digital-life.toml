@@ -71,5 +71,6 @@ commands.allow = [
   "workspace_rename_file",
   "workspace_delete_file",
   "workspace_duplicate_file",
-  "workspace_get_absolute_path"
+  "workspace_get_absolute_path",
+  "workspace_move_file"
 ]

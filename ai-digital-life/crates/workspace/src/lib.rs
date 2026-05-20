@@ -741,6 +741,30 @@ pub fn duplicate_entry(
     Ok(true)
 }
 
+pub fn move_entry(
+    root: &Path,
+    src_relative_path: &str,
+    dst_relative_path: &str,
+) -> Result<bool, AppError> {
+    let src = adl_fs_ops::resolve_workspace_path(root, src_relative_path)?;
+    if !src.exists() {
+        return Err(AppError::NotFound(format!(
+            "source not found: {src_relative_path}"
+        )));
+    }
+    let dst = adl_fs_ops::resolve_workspace_path(root, dst_relative_path)?;
+    if dst.exists() {
+        return Err(AppError::InvalidInput(format!(
+            "target already exists: {dst_relative_path}"
+        )));
+    }
+    if let Some(parent) = dst.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::rename(&src, &dst)?;
+    Ok(true)
+}
+
 pub fn get_absolute_path(root: &Path, relative_path: &str) -> Result<String, AppError> {
     let path = adl_fs_ops::resolve_workspace_path(root, relative_path)?;
     let absolute = path

@@ -98,6 +98,7 @@ export interface DigitalLifeBridge {
     deleteFile: (relativePath: string) => Promise<IpcResult<boolean>>;
     duplicateFile: (srcRelativePath: string, dstRelativePath: string) => Promise<IpcResult<boolean>>;
     getAbsolutePath: (relativePath: string) => Promise<IpcResult<string>>;
+    moveFile: (relativePath: string, newPath: string) => Promise<IpcResult<boolean>>;
     getGitStatus: () => Promise<IpcResult<GitSnapshot>>;
     listGitBranches: () => Promise<IpcResult<GitBranchSummary[]>>;
     switchGitBranch: (input: WorkspaceGitBranchSwitchInput) => Promise<IpcResult<WorkspaceGitBranchChangeResult>>;

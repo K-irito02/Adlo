@@ -159,6 +159,8 @@ export function createTauriBridge(): DigitalLifeBridge {
         invokeIpc<boolean>("workspace_duplicate_file", { relativePath: srcRelativePath, newPath: dstRelativePath }),
       getAbsolutePath: (relativePath: string) =>
         invokeIpc<string>("workspace_get_absolute_path", { relativePath }),
+      moveFile: (relativePath: string, newPath: string) =>
+        invokeIpc<boolean>("workspace_move_file", { relativePath, newPath }),
       onFileChanged: (listener: (event: WorkspaceFileChangedEvent) => void) =>
         subscribeChannel<WorkspaceFileChangedEvent>("digital-life://workspace-file-changed", listener),
       getGitStatus: () => invokeIpc<GitSnapshot>("workspace_get_git_status"),

@@ -50,6 +50,7 @@ fn main() {
             commands::workspace::workspace_delete_file,
             commands::workspace::workspace_duplicate_file,
             commands::workspace::workspace_get_absolute_path,
+            commands::workspace::workspace_move_file,
             commands::retrieval::retrieval_get_status,
             commands::retrieval::retrieval_rebuild_index,
             commands::conversation::conversation_create_session,

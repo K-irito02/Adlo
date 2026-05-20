@@ -205,6 +205,7 @@ export type StoreState = {
   setClipboard: (op: "cut" | "copy", path: string, kind: "file" | "directory") => void;
   clearClipboard: () => void;
   renameWorkspaceFile: (relativePath: string, newName: string) => Promise<void>;
+  moveWorkspaceFile: (relativePath: string, newPath: string) => Promise<void>;
   deleteWorkspaceFile: (relativePath: string) => Promise<void>;
   duplicateWorkspaceFile: (srcRelativePath: string, dstRelativePath: string) => Promise<void>;
 };
@@ -279,6 +280,15 @@ export const useSlicedAppStore = create<StoreState>()((set, get) => ({
     if (currentPath === relativePath) {
       set({ selectedFilePath: undefined, fileContent: undefined, openTabs: get().openTabs.filter((t) => t.path !== relativePath) });
     }
+  },
+
+  moveWorkspaceFile: async (relativePath, newPath) => {
+    const result = await window.digitalLife.workspace.moveFile(relativePath, newPath);
+    if (!result.ok) {
+      set({ error: result.error.message });
+      return;
+    }
+    await get().refreshWorkspaceTree();
   },
 
   duplicateWorkspaceFile: async (srcRelativePath, dstRelativePath) => {

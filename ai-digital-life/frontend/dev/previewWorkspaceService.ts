@@ -817,6 +817,21 @@ async function duplicateFile(rootPath: string, srcRelativePath: string, dstRelat
   return true;
 }
 
+async function moveFile(rootPath: string, relativePath: string, newPath: string): Promise<boolean> {
+  const src = resolveWorkspacePath(rootPath, relativePath);
+  if (!fsSync.existsSync(src)) {
+    throw new Error(`source not found: ${relativePath}`);
+  }
+  const dst = resolveWorkspacePath(rootPath, newPath);
+  if (fsSync.existsSync(dst)) {
+    throw new Error(`target already exists: ${newPath}`);
+  }
+  const dstParent = path.dirname(dst);
+  await fs.mkdir(dstParent, { recursive: true });
+  await fs.rename(src, dst);
+  return true;
+}
+
 async function getAbsolutePath(rootPath: string, relativePath: string): Promise<string> {
   const resolved = resolveWorkspacePath(rootPath, relativePath);
   return normalizePath(resolved);
@@ -1084,6 +1099,16 @@ export async function handlePreviewWorkspaceApi(
         return true;
       }
       writeJson(response, ok(await duplicateFile(body.rootPath.trim(), body.srcRelativePath.trim(), body.dstRelativePath.trim())));
+      return true;
+    }
+
+    if (request.method === "POST" && requestUrl.pathname === `${API_PREFIX}/workspace/move-file`) {
+      const body = (await readBody(request)) as { rootPath?: string; relativePath?: string; newPath?: string } | undefined;
+      if (!body?.rootPath?.trim() || !body?.relativePath?.trim() || !body?.newPath?.trim()) {
+        writeJson(response, fail("rootPath, relativePath, and newPath are required", "INVALID_INPUT"));
+        return true;
+      }
+      writeJson(response, ok(await moveFile(body.rootPath.trim(), body.relativePath.trim(), body.newPath.trim())));
       return true;
     }
 

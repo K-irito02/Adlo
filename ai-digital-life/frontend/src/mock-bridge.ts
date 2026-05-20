@@ -831,6 +831,27 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
     getAbsolutePath: async (relativePath: string) => {
       return { ok: true, data: `/mock/workspace/${relativePath}` };
     },
+    moveFile: async (relativePath: string, newPath: string) => {
+      const content = documents.get(relativePath);
+      if (content !== undefined) {
+        documents.delete(relativePath);
+        documents.set(newPath, content);
+        const ver = fileVersions.get(relativePath);
+        fileVersions.delete(relativePath);
+        fileVersions.set(newPath, ver ?? Date.now());
+      } else {
+        const keys = Array.from(documents.keys()).filter(k => k.startsWith(relativePath + "/"));
+        for (const key of keys) {
+          const kcontent = documents.get(key);
+          documents.delete(key);
+          documents.set(newPath + key.substring(relativePath.length), kcontent ?? "");
+          const ver = fileVersions.get(key);
+          fileVersions.delete(key);
+          fileVersions.set(newPath + key.substring(relativePath.length), ver ?? Date.now());
+        }
+      }
+      return { ok: true, data: true };
+    },
     setEditorDirtyPaths: async () => ({ ok: true, data: true }),
     getGitStatus: async () => ({
       ok: true,
