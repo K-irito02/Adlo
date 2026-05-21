@@ -46,6 +46,8 @@
 - **统一错误码枚举**（`IpcErrorCode` 跨桥接层统一）
 - **重构洞察验证与修复**（消除 11 处 `as any`、错误粒度、SSE 连接管理、LRU 缓存优化、缓存短路、Send+Sync 断言、路径分隔符抽取等 20+ 项改进）
 - **CodeMirror 双实例 bug 修复**（解决 `@codemirror/state` `instanceof` 检查失败：添加显式依赖 + Vite `optimizeDeps.include` 强制预捆绑为单例）
+- **Store 拆分与桥接模块化**（`slicedStore.ts` 1465→87 行，拆分为 8 个 action 领域模块；`preview-bridge.ts` 615 行拆分为 4 个关注点分离的模块；`DigitalLifeBridge` 拆分为 13 个命名子接口）
+- **Rust 后端优化**（搜索逻辑去重消除 81% 重复代码、文件遍历消除双重 I/O、IGNORED_DIRS 从 7 项扩展至 18 项、正则 `OnceLock` 缓存）
 
 ### Zustand 切片模式（已完成）
 

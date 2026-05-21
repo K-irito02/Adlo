@@ -36,13 +36,13 @@ describe("loading and switching performance guards", () => {
   });
 
   it("guards async switch responses and caches editor previews in the renderer", () => {
-    expect(storeSource).toContain("workspaceRequestSeq");
-    expect(storeSource).toContain("sessionRequestSeq");
-    expect(storeSource).toContain("fileRequestSeq");
-    expect(storeSource).toContain("changePreviewRequestSeq");
-    expect(storeSource).toContain("CachedFileDocument");
-    expect(storeSource).toContain("CachedChangePreview");
-    expect(storeSource).toContain("setCachedLru");
+    expect(sharedSource).toContain("workspaceRequestSeq");
+    expect(sharedSource).toContain("sessionRequestSeq");
+    expect(sharedSource).toContain("fileRequestSeq");
+    expect(sharedSource).toContain("changePreviewRequestSeq");
+    expect(sharedSource).toContain("CachedFileDocument");
+    expect(sharedSource).toContain("CachedChangePreview");
+    expect(sharedSource).toContain("setCachedLru");
   });
 
   it("keeps hot sidebar and file search paths allocation conscious", () => {

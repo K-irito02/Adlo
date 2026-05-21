@@ -11,6 +11,9 @@ export * from "./shared";
 // 导出切片定义
 export * from "./slices";
 
+// 导出 action 模块
+export * from "./actions";
+
 // 导出完整的 StoreState
 export { type StoreState } from "./StoreState";
 

@@ -123,29 +123,32 @@ async fn run_command_internal(
     })
 }
 
+#[cfg(windows)]
+fn shell_command_impl(command: &str, args: &[String]) -> Command {
+    let mut shell = Command::new("cmd");
+    shell.arg("/C").arg(
+        std::iter::once(command)
+            .chain(args.iter().map(String::as_str))
+            .collect::<Vec<_>>()
+            .join(" "),
+    );
+    shell
+}
+
+#[cfg(not(windows))]
+fn shell_command_impl(command: &str, args: &[String]) -> Command {
+    let mut shell = Command::new("sh");
+    shell.arg("-c").arg(
+        std::iter::once(command)
+            .chain(args.iter().map(String::as_str))
+            .collect::<Vec<_>>()
+            .join(" "),
+    );
+    shell
+}
+
 fn shell_command(command: &str, args: &[String]) -> Command {
-    #[cfg(windows)]
-    {
-        let mut shell = Command::new("cmd");
-        shell.arg("/C").arg(
-            std::iter::once(command)
-                .chain(args.iter().map(String::as_str))
-                .collect::<Vec<_>>()
-                .join(" "),
-        );
-        shell
-    }
-    #[cfg(not(windows))]
-    {
-        let mut shell = Command::new("sh");
-        shell.arg("-c").arg(
-            std::iter::once(command)
-                .chain(args.iter().map(String::as_str))
-                .collect::<Vec<_>>()
-                .join(" "),
-        );
-        shell
-    }
+    shell_command_impl(command, args)
 }
 
 pub fn truncate_output(value: &str) -> String {

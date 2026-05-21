@@ -47,7 +47,7 @@ ai-digital-life/
 | `app/components/` | React 组件（含 ContextMenu、ConfirmDialog、RenameInput、Tooltip 等） |
 | `app/hooks/` | 自定义 Hooks（含 useTooltip、useStreamingText） |
 | `app/utils/` | 纯函数（含 tooltipPosition 定位逻辑、preferencesMerger） |
-| `app/stores/` | Zustand 状态管理（切片合并模式） |
+| `app/stores/` | Zustand 状态管理（切片合并模式 + actions/ 领域模块） |
 | `app/features/` | 按功能域分层的模块化组件（file-tree / outline / patch-review / editor / diff-viewer / preview / terminal） |
 | `app/regions/` | 区域布局组件（left-panel / right-panel / bottom-panel） |
 | `design-system/` | 设计 Token 类型定义（tokens.ts / theme.ts / icons.ts） |
@@ -57,8 +57,8 @@ ai-digital-life/
 
 ```
 app/stores/
-├── slicedStore.ts               # 基于切片合并的完整 Store（真源，已替代旧 slicedStore.ts）
-├── StoreState.ts                # 完整 StoreState 类型接口
+├── slicedStore.ts               # 基于切片合并的完整 Store（真源，~87 行）
+├── StoreState.ts                # 完整 StoreState 类型接口（interface extends）
 ├── slices.ts                    # 统一导出所有切片
 ├── selectors.ts                 # 选择器（含 useShallow React Hook 版本，避免不必要重渲染）
 ├── shared.ts                    # 共享状态和工具（LRU 缓存含访问计数优化、createDebouncedSearch、clearWorkspaceCaches、queueMicrotask）
@@ -66,7 +66,7 @@ app/stores/
 ├── conversationUtils.ts         # 会话工具函数
 ├── index.ts                     # 模块索引
 │
-├── slices/                      # Zustand 切片定义
+├── slices/                      # 11 个 Zustand 切片
 │   ├── uiSlice.ts               # UI 状态（侧边栏、工具栏）
 │   ├── workspaceSlice.ts        # 工作区状态
 │   ├── gitSlice.ts              # Git 状态
@@ -79,11 +79,36 @@ app/stores/
 │   ├── commandSlice.ts          # 命令状态
 │   └── clipboardSlice.ts        # 剪贴板状态（cut/copy 操作与路径记录）
 │
+├── actions/                     # [新增] 8 个跨切片 action 模块
+│   ├── workspaceActions.ts      # 工作区操作
+│   ├── sessionActions.ts        # 会话操作
+│   ├── editorActions.ts         # 编辑器操作
+│   ├── patchActions.ts          # 补丁操作
+│   ├── gitActions.ts            # Git 操作
+│   ├── fetchActions.ts          # 数据拉取操作
+│   ├── streamActions.ts         # 流式消息操作（含 sendMessage 流处理器）
+│   └── generalActions.ts        # 通用操作（bootstrap, updatePreferences）
+│
 └── (已删除)                     # 4 个遗留独立 Store 已在重构中删除
     ├── useWorkspaceStore.ts      # ❌ 已删除
     ├── useSessionStore.ts        # ❌ 已删除
     ├── useEditorStore.ts         # ❌ 已删除
     └── usePatchStore.ts          # ❌ 已删除
+```
+
+## 桥接层架构
+
+```
+frontend/src/
+├── shared/ipc.ts           # DigitalLifeBridge + 13 个子接口（WindowBridge / AppBridge / WorkspaceBridge 等）
+├── tauri-bridge.ts         # Tauri 模式桥接
+├── mock-bridge.ts          # 纯内存回退
+├── preview-bridge/         # 浏览器模式桥接模块
+│   ├── index.ts            # 组合入口（setupPreviewBridge）
+│   ├── api.ts              # 请求封装（requestPreviewApi）
+│   ├── storage.ts          # localStorage 持久化工具
+│   └── ptyBridge.ts        # PTY 连接管理（SSE、listeners）
+└── (已迁移) preview-bridge.ts
 ```
 
 ### 切片职责说明

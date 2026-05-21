@@ -25,13 +25,10 @@ const MAX_COLLECTED_FILES: usize = 50_000;
 const GIT_TIMEOUT_SECS: u64 = 30;
 const CANCEL_CHECK_INTERVAL: usize = 100;
 const IGNORED_DIRS: &[&str] = &[
-    ".git",
-    "target",
-    "node_modules",
-    "dist",
-    "build",
-    ".next",
-    ".cache",
+    ".git", "target", "node_modules", "dist", "build",
+    ".next", ".cache", "__pycache__", ".venv", "vendor",
+    ".idea", ".vscode", ".svelte-kit", ".turbo",
+    "coverage", ".nyc_output", "out", ".tox",
 ];
 const BLOCK_KEYWORDS: &[&str] = &[
     "if", "else", "for", "while", "switch", "case", "catch", "try", "finally", "match", "do",
@@ -800,24 +797,8 @@ pub fn search_text(root: &Path, query: &str) -> Result<Vec<WorkspaceSearchHit>, 
     if query.trim().is_empty() {
         return Ok(vec![]);
     }
-    let mut hits = Vec::new();
-    for file in collect_text_files(root, DEFAULT_MAX_FILE_BYTES)? {
-        let relative = relative_path(root, &file);
-        let content = fs::read_to_string(&file).unwrap_or_default();
-        for (index, line) in content.lines().enumerate() {
-            if line.to_lowercase().contains(&query.to_lowercase()) {
-                hits.push(WorkspaceSearchHit {
-                    path: relative.clone(),
-                    line: index + 1,
-                    preview: line.trim().chars().take(240).collect(),
-                });
-                if hits.len() >= MAX_SEARCH_RESULTS {
-                    return Ok(hits);
-                }
-            }
-        }
-    }
-    Ok(hits)
+    let files = collect_text_files(root, DEFAULT_MAX_FILE_BYTES)?;
+    search_text_in_files(&files, root, query, None)
 }
 
 pub async fn search_text_async(
@@ -861,6 +842,45 @@ pub async fn search_text_async(
             }
             if index % CANCEL_CHECK_INTERVAL == 0 && cancellation.try_recv().is_ok() {
                 return Ok(hits);
+            }
+        }
+    }
+    Ok(hits)
+}
+
+fn search_text_in_files(
+    files: &[PathBuf],
+    root: &Path,
+    query: &str,
+    mut cancel: Option<&mut tokio::sync::broadcast::Receiver<()>>,
+) -> Result<Vec<WorkspaceSearchHit>, AppError> {
+    let query_lower = query.to_lowercase();
+    let mut hits = Vec::new();
+    let max_results = MAX_SEARCH_RESULTS;
+
+    for file in files {
+        if let Some(ch) = &mut cancel {
+            if ch.try_recv().is_ok() { break; }
+        }
+
+        let relative = relative_path(root, file);
+        let content = fs::read_to_string(file).unwrap_or_default();
+
+        for (index, line) in content.lines().enumerate() {
+            if line.to_lowercase().contains(&query_lower) {
+                hits.push(WorkspaceSearchHit {
+                    path: relative.clone(),
+                    line: index + 1,
+                    preview: line.trim().chars().take(240).collect(),
+                });
+                if hits.len() >= max_results {
+                    return Ok(hits);
+                }
+            }
+            if let Some(ch) = &mut cancel {
+                if index % CANCEL_CHECK_INTERVAL == 0 && ch.try_recv().is_ok() {
+                    return Ok(hits);
+                }
             }
         }
     }
@@ -1046,9 +1066,14 @@ fn brace_matchers() -> &'static Vec<(Regex, &'static str)> {
 }
 
 fn sanitize_brace_line(line_text: &str) -> String {
-    let string_regex =
-        Regex::new(r#""(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`"#).unwrap();
-    let comment_regex = Regex::new(r"//.*$|/\*.*?\*/").unwrap();
+    static STRING_REGEX: OnceLock<Regex> = OnceLock::new();
+    static COMMENT_REGEX: OnceLock<Regex> = OnceLock::new();
+    let string_regex = STRING_REGEX.get_or_init(|| {
+        Regex::new(r#""(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`"#).unwrap()
+    });
+    let comment_regex = COMMENT_REGEX.get_or_init(|| {
+        Regex::new(r"//.*$|/\*.*?\*/").unwrap()
+    });
     let without_strings = string_regex.replace_all(line_text, "\"\"");
     comment_regex.replace_all(&without_strings, "").into_owned()
 }
@@ -1633,16 +1658,7 @@ pub fn build_retrieval_snapshot(
     root: &Path,
 ) -> Result<RetrievalSnapshot, AppError> {
     let started = now_ms();
-    let files = collect_text_files(root, DEFAULT_MAX_FILE_BYTES)?;
-    let mut extensions: BTreeMap<String, i32> = BTreeMap::new();
-    for file in &files {
-        let ext = file
-            .extension()
-            .and_then(|value| value.to_str())
-            .unwrap_or("[none]")
-            .to_string();
-        *extensions.entry(ext).or_insert(0) += 1;
-    }
+    let (files, extensions) = collect_text_files_with_stats(root, DEFAULT_MAX_FILE_BYTES)?;
     let mut top_extensions: Vec<_> = extensions
         .into_iter()
         .map(|(extension, count)| RetrievalFileTypeCount { extension, count })
@@ -1807,11 +1823,41 @@ fn collect_text_files(root: &Path, max_file_bytes: u64) -> Result<Vec<PathBuf>, 
     Ok(files)
 }
 
+fn collect_text_files_with_stats(
+    root: &Path,
+    max_file_bytes: u64,
+) -> Result<(Vec<PathBuf>, BTreeMap<String, i32>), AppError> {
+    let mut files = Vec::new();
+    let mut extensions: BTreeMap<String, i32> = BTreeMap::new();
+    collect_text_files_inner_ext(root, root, max_file_bytes, &mut files, &mut extensions)?;
+    Ok((files, extensions))
+}
+
 fn collect_text_files_inner(
     root: &Path,
     dir: &Path,
     max_file_bytes: u64,
     files: &mut Vec<PathBuf>,
+) -> Result<(), AppError> {
+    collect_text_files_inner_int(root, dir, max_file_bytes, files, None)
+}
+
+fn collect_text_files_inner_ext(
+    root: &Path,
+    dir: &Path,
+    max_file_bytes: u64,
+    files: &mut Vec<PathBuf>,
+    extensions: &mut BTreeMap<String, i32>,
+) -> Result<(), AppError> {
+    collect_text_files_inner_int(root, dir, max_file_bytes, files, Some(extensions))
+}
+
+fn collect_text_files_inner_int(
+    root: &Path,
+    dir: &Path,
+    max_file_bytes: u64,
+    files: &mut Vec<PathBuf>,
+    mut extensions: Option<&mut BTreeMap<String, i32>>,
 ) -> Result<(), AppError> {
     for entry in fs::read_dir(dir)? {
         if files.len() >= MAX_COLLECTED_FILES {
@@ -1824,14 +1870,19 @@ fn collect_text_files_inner(
             continue;
         }
         if path.is_dir() {
-            collect_text_files_inner(root, &path, max_file_bytes, files)?;
+            collect_text_files_inner_int(root, &path, max_file_bytes, files, extensions.as_deref_mut())?;
         } else if path.is_file() {
-            let meta = fs::metadata(&path)?;
-            if meta.len() <= max_file_bytes {
-                let relative = relative_path(root, &path);
-                if adl_fs_ops::read_text_file(root, &relative, max_file_bytes).is_ok() {
-                    files.push(path);
+            let relative = relative_path(root, &path);
+            if adl_fs_ops::read_text_file(root, &relative, max_file_bytes).is_ok() {
+                if let Some(ref mut ext_map) = extensions {
+                    let ext = path
+                        .extension()
+                        .and_then(|value| value.to_str())
+                        .unwrap_or("[none]")
+                        .to_string();
+                    *ext_map.entry(ext).or_insert(0) += 1;
                 }
+                files.push(path);
             }
         }
     }

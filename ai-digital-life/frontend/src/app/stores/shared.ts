@@ -130,11 +130,18 @@ export function resetRequestSeqs() {
 /** 创建防抖搜索工具 */
 export function createDebouncedSearch(ms: number) {
   let timer: ReturnType<typeof setTimeout> | undefined;
-  return (query: string, doSearch: () => Promise<void>) => {
+  const debounced = (query: string, doSearch: () => Promise<void>) => {
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => {
       timer = undefined;
       void doSearch();
     }, ms);
   };
+  debounced.cancel = () => {
+    if (timer) {
+      clearTimeout(timer);
+      timer = undefined;
+    }
+  };
+  return debounced;
 }

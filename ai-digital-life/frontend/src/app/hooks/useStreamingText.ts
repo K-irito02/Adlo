@@ -59,6 +59,8 @@ export function useStreamingText(runId?: string) {
         cancelAnimationFrame(rafRef.current);
         rafRef.current = 0;
       }
+      bufferRef.current = "";
+      setText("");
     };
   }, [runId, flush]);
 

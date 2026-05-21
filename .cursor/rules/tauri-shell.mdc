@@ -45,7 +45,7 @@ alwaysApply: false
 - [ ] 在 `src-tauri/src/commands/*.rs` 实现 `#[tauri::command]`
 - [ ] 在 `capabilities/*.json` 登记 capability
 - [ ] 在 `frontend/src/shared/ipc.ts` 对齐桥接契约
-- [ ] 在 `mock-bridge.ts` 和 `preview-bridge.ts` 同步实现浏览器模式对等方法
+- [ ] 在 `mock-bridge.ts` 和 `preview-bridge/` 同步实现浏览器模式对等方法
 
 ## 双端一致性
 
@@ -55,8 +55,8 @@ alwaysApply: false
 |------|------|
 | `isTauriShell()` | 运行时检测当前 shell 环境 |
 | `document.documentElement.dataset.shell` | CSS 可通过 `[data-shell="tauri"]` / `[data-shell="browser"]` 适配 |
-| `preview-bridge.ts` | 浏览器模式通过 Vite Preview API 镜像 Tauri Command 能力 |
-| `mock-bridge.ts` | 纯内存回退，preview-bridge 的基础层 |
+| `preview-bridge/` | 浏览器模式通过 Vite Preview API 镜像 Tauri Command 能力 |
+| `mock-bridge.ts` | 纯内存回退，preview-bridge/ 的基础层 |
 
 ### 允许的平台差异
 

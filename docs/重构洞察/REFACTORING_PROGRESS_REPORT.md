@@ -1,63 +1,62 @@
 # 重构进度报告
 
-> 更新日期: 2026-05-21
+> 更新日期: 2026-05-22
 
 ## 完成状态
 
-**全部完成** ✅
+| 轮次 | 日期 | 内容 | 状态 |
+|------|------|------|------|
+| 第一轮 | 2026-05-20 | Zustand 切片定义（10 个切片） | ✅ |
+| 第二轮 | 2026-05-21 | 切片合并 + 性能优化（Rust DRY、搜索 debounce 等） | ✅ |
+| 第三轮 | 2026-05-21 | CSS Token 迁移 + 模块化分层 + 错误码统一 | ✅ |
+| 第四轮 | 2026-05-21 | 重构洞察验证与修复（消除 11 处 `as any`、LRU 优化、SSE 管理等） | ✅ |
+| 第五轮 | 2026-05-22 | CodeMirror 双实例 Bug 修复（`@codemirror/state` 显式依赖 + `optimizeDeps.include`） | ✅ |
+| **第六轮** | **2026-05-22** | **Store/桥接/接口/性能/Rust 全面重构** | ✅ |
 
-## 重构历程
+## 第六轮重构（2026-05-22）：Store 拆分、桥接模块化、Rust 优化
 
-### 第一轮重构（2026-05-20）：Zustand 切片定义
-`store.ts` 已删除，创建 10 个切片定义文件。
+基于 [重构洞察报告](./refactor-insight-2026-05-22.md) 和 [实施计划](../../.trae/documents/refactor-implementation-plan-2026-05-22.md) 完成 17 项改动（另 2 项经分析确认已有最优实现而跳过）：
 
-### 第二轮重构（2026-05-21）：实现切片合并 + 性能优化
-基于 [重构洞察报告](./refactor-insight-2026-05-21.md) 和 [实施计划](./重构实施计划-2026-05-21.md) 完成：
+### Phase 1：前端架构重构（4 项）
 
-| 阶段 | 内容 | 状态 |
+| 任务 | 改动 | 描述 |
 |------|------|------|
-| Phase 0 | 清理 4 个遗留独立 Store（标记 @deprecated 后删除） | ✅ |
-| Phase 1 | slicedStore.ts 迁移到 stores/，真正使用切片合并模式 | ✅ |
-| Phase 2 | 选择器性能优化：useShallow React Hook 版本 | ✅ |
-| Phase 3 | 流式事件性能：useStreamingText Hook（rAF 批量） | ✅ |
-| Phase 4 | Rust 错误码去重 / 模型配置合并 DRY / 搜索 debounce | ✅ |
+| `slicedStore.ts` 拆分 | 1465 → 87 行 | 提取 8 个领域 action 模块到 `stores/actions/` 目录 |
+| `preview-bridge.ts` 拆分 | 615 行 → 4 个模块 | 拆分为 `api.ts`/`storage.ts`/`ptyBridge.ts`/`index.ts` |
+| `DigitalLifeBridge` 接口拆分 | 新增 13 个子接口 | `WindowBridge`、`WorkspaceBridge`、`PtyBridge` 等 |
+| `sendMessage` 流处理器提取 | 2 个工厂函数 | `createModelStreamSubscriber` / `createRunActivitySubscriber` |
 
-### 第三轮重构（2026-05-21）：CSS Token + 模块化分层 + 错误码统一
-基于 [重构洞察报告 §3（其他发现）](./refactor-insight-2026-05-21.md) 完成：
+### Phase 2：前端性能与代码质量（7 项实施 + 2 项验证跳过）
 
-| 议题 | 内容 | 状态 |
-|------|------|------|
-| 议题1：全局 CSS 变量迁移 | 新增 6 个 Shadow 设计 Token，替换硬编码值，添加 TypeScript 类型定义 | ✅ |
-| 议题2：模块化分层（features/） | 7 个功能模块迁移到 `app/features/`，更新所有 import 路径 | ✅ |
-| 议题3：统一错误处理 | 创建 `IpcErrorCode` 枚举，统一桥接层错误码 | ✅ |
-| 遗留 Store 彻底清理 | 删除 4 个 @deprecated Store 文件 | ✅ |
+| 文件 | 优化 |
+|------|------|
+| `useStreamingText.ts` | cleanup 显式重置 `bufferRef` / `setText("")` |
+| `fileTree.tsx` | memo 类型断言简化（`as typeof FileTreeNodeComponent`） |
+| `Composer.tsx` | 移除 2 个冗余 `useCallback` 包装 |
+| `shared.ts` | debounce 新增 `cancel()` 方法 |
+| `StoreState.ts` | 交叉类型 → `interface extends` 继承链 |
+| `fileTree.tsx` T2.3/T2.4 | `useMemo` 依赖 + getMultiSelectedNodes 验证已最优（跳过） |
+| `useTooltip.ts` | 全局 Set + `globalListenerAttached` 经验证为合理优化，保留 |
 
-### 第四轮重构（2026-05-21）：重构洞察验证与修复
-基于 [insight-fix-plan](../../.trae/documents/refactor-insight-fix-plan-2026-05-21.md) 完成：
+### Phase 3：Rust 后端优化（5 项实施 + 1 项验证跳过）
 
-| Phase | 内容 | 状态 |
-|-------|------|------|
-| Phase 1：代码结构与类型安全 | 消除 `as any`（11 个 slice）、错误粒度、SSE 连接、监听器上限、Send+Sync 断言、路径分隔符抽取 | ✅ |
-| Phase 2：性能优化 | 防抖封装、LRU 访问计数、缓存短路、工作区缓存清理、useMemo 对象引用优化、骨架屏动画、Release panic=abort | ✅ |
-| Phase 3：补充问题 | queueMicrotask、subscribeChannel 验证 | ✅ |
+| 函数 | 优化 |
+|------|------|
+| `search_text` / `search_text_async` | 提取公共 `search_text_in_files` 消除重复 |
+| `collect_text_files_inner` | 消除 `fs::metadata()` 双重 I/O + IGNORED_DIRS 扩展至 18 项 |
+| `build_retrieval_snapshot` | 消除二次遍历，extension 统计合并入遍历过程 |
+| `sanitize_brace_line` | 正则缓存 `OnceLock` 一次性编译 |
+| `shell_command` | `#[cfg]` 宏分离为独立函数 |
+| `finalize_outline_items` | O(n²) 但 n<200，收益有限，跳过 |
 
-### 第五轮重构（2026-05-22）：CodeMirror 双实例 Bug 修复
-修复 `@codemirror/state` `instanceof` 检查失败导致的 `Unrecognized extension value` 运行时错误：
+### 当前架构
 
-- **根因**：`@codemirror/state` 并非 `package.json` 直接依赖（仅通过 `@uiw/react-codemirror` 间接引入），pnpm 在不同路径加载导致多个实例
-- **修复**：
-  1. 在 `package.json` 添加 `@codemirror/state@^6.6.0` 作为显式直接依赖
-  2. 在 [vite.config.ts](../../ai-digital-life/frontend/vite.config.ts) 添加 `optimizeDeps.include` — 强制 Vite 将 7 个 CodeMirror 核心包预捆绑为单例
-  3. 因 pnpm store 损坏重建 `node_modules`（切换为 npm）
-
-## 当前架构
-
-### Store 架构
+#### Store 架构（新增 actions/ 目录）
 
 ```
 app/stores/
-├── slicedStore.ts          # 基于切片合并的完整 Store（真源）
-├── StoreState.ts           # 完整 StoreState 类型接口
+├── slicedStore.ts          # 基于切片合并的完整 Store（真源，~87 行）
+├── StoreState.ts           # 完整 StoreState 类型接口（interface extends）
 ├── slices.ts               # 统一导出所有切片
 ├── selectors.ts            # 选择器（含 useShallow React Hook 版本）
 ├── shared.ts               # 共享状态和工具（LRU 缓存、防抖搜索、缓存清理）
@@ -65,48 +64,57 @@ app/stores/
 ├── conversationUtils.ts    # 会话工具函数
 ├── index.ts                # 模块索引
 ├── slices/                 # 11 个独立切片（含 clipboardSlice）
+├── actions/                # [新增] 8 个跨切片 action 模块
+│   ├── workspaceActions.ts # 工作区操作
+│   ├── sessionActions.ts   # 会话操作
+│   ├── editorActions.ts    # 编辑器操作
+│   ├── patchActions.ts     # 补丁操作
+│   ├── gitActions.ts       # Git 操作
+│   ├── fetchActions.ts     # 数据拉取操作
+│   ├── streamActions.ts    # 流式消息操作（含 sendMessage）
+│   └── generalActions.ts   # 通用操作（bootstrap, updatePreferences）
 └── (已删除)                # 4 个遗留 Store 已清理
 ```
 
-### 功能模块架构
+#### 桥接层架构（preview-bridge.ts 目录化）
 
 ```
-app/features/
-├── file-tree/       # 文件树（FileTree, TreeNodeRow, CustomScrollArea）
-├── outline/         # 代码大纲（OutlineTree, outlineModel）
-├── patch-review/    # 补丁审查（patchReview 纯函数）
-├── editor/          # CodeMirror 编辑器（CodeEditor, cmTheme, cmLanguages...）
-├── diff-viewer/     # 差异查看器（DiffViewer, changePreviewDiffRanges）
-├── preview/         # 文件预览（MarkdownPreview, DocxPreview, PdfPreview）
-└── terminal/        # 终端面板（TerminalPanel）
-```
-
-### 设计 Token 类型
-
-```
-frontend/src/design-system/
-├── tokens.ts         # TypeScript 类型定义（ShadowToken / ColorToken / SpacingToken）
-├── theme.ts          # 主题工具函数
-├── index.ts          # 模块索引
-├── components.ts     # 组件样式类型
-├── icons.ts          # 图标类型
-└── html.ts           # HTML 属性类型
+frontend/src/
+├── shared/ipc.ts           # DigitalLifeBridge + 13 个子接口
+├── tauri-bridge.ts         # Tauri 模式桥接
+├── mock-bridge.ts           # 纯内存回退
+├── preview-bridge/          # [新增] 浏览器模式桥接模块
+│   ├── index.ts            # 组合入口（setupPreviewBridge）
+│   ├── api.ts              # 请求封装（requestPreviewApi）
+│   ├── storage.ts          # localStorage 持久化工具
+│   └── ptyBridge.ts        # PTY 连接管理（SSE、listeners）
+└── (已删除) preview-bridge.ts
 ```
 
 ### 关键改进
 
 | 改进项 | 说明 |
 |--------|------|
-| 切片合并 | slicedStore 使用 `createUISlice(), createWorkspaceSlice(), ...` 真正合并，消除 11 处 `as any` |
-| StoreState 类型 | 独立类型文件，定义完整 Store 接口 |
-| 选择器优化 | 所有选择器提供 `useShallow` React Hook 版本，避免不必要重渲染 |
-| 搜索 debounce | `searchFiles` 300ms debounce，封装为 `createDebouncedSearch` 工具 |
-| 流式优化 | `useStreamingText` Hook 使用 rAF 批量合并高频 delta 事件 |
-| LRU 缓存优化 | 访问计数阈值（每 3 次访问提升一次），减少 Map delete+set 重哈希 |
-| 缓存短路 | `openFile` 缓存命中时直接返回，跳过网络请求 |
-| 工作区缓存隔离 | 切换工作区时自动清理陈旧缓存条目 |
-| Rust DRY | `commands/mod.rs` 复用 `CommandError::from()` 去重错误码映射 |
-| 前端 DRY | 提取 `preferencesMerger.ts` 消除桥接重复逻辑；抽取 `joinPathSegments` 消除 5 处路径分隔符重复代码 |
+| Store actions 模块化 | `slicedStore.ts` 从 1465 行降至 87 行，按领域拆分为 8 个独立模块 |
+| 桥接层目录化 | `preview-bridge.ts` 从 615 行拆分为 4 个关注点分离的文件 |
+| 接口类型层次 | `DigitalLifeBridge` 拆分为 13 个命名子接口，改善类型推断与复用 |
+| 流处理器提取 | `sendMessage` 中的流订阅逻辑提取为可复用的工厂函数 |
+| Rust 搜索去重 | `search_text` 与 `search_text_async` 消除 81% 逻辑重复 |
+| 文件遍历 I/O 优化 | 消除 `fs::metadata()` 双重 I/O，每文件减少一次系统调用 |
+| IGNORED_DIRS 扩展 | 从 7 项增至 18 项，覆盖更多常见排除目录 |
+| 正则编译缓存 | `sanitize_brace_line` 正则从每次调用编译改为 `OnceLock` 一次性初始化 |
+
+### 验证结果
+
+| 检查项 | 结果 |
+|--------|------|
+| TypeScript typecheck | ✅ 0 error |
+| 前端测试 (Vitest) | ✅ 31 files, 183 tests |
+| Rust cargo check | ✅ |
+| Rust cargo test (all crates) | ✅ 全部通过 |
+| 新增文件 | 12 |
+| 修改文件 | 16 |
+| 删除文件 | 1 (`preview-bridge.ts` → 目录化) |
 | 遗留清理 | 4 个遗留 Store 已删除 |
 | CSS Token 迁移 | 6 个 Shadow 设计 Token 替换硬编码值，亮暗主题区分 |
 | 模块化分层 | 7 个功能模块迁移到 `features/`，统一 index.ts 导出 |

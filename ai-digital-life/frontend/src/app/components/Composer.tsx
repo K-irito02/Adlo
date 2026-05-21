@@ -32,30 +32,16 @@ export function Composer({
   placeholder,
   disabled = false,
   activeContexts = [],
-  onAddContext,
+  onAddContext = () => {},
   attachments,
   onRemoveAttachment
 }: ComposerProps) {
-  const handleContextAdd = useCallback(
-    (type: string) => {
-      onAddContext?.(type);
-    },
-    [onAddContext]
-  );
-
-  const handleInputChange = useCallback(
-    (value: string) => {
-      onInputChange(value);
-    },
-    [onInputChange]
-  );
-
   return (
     <div className="composer">
       <div className="composer__inner">
         <div className="composer__left">
           <ContextBuilder
-            onAddContext={handleContextAdd}
+            onAddContext={onAddContext}
             activeContexts={activeContexts}
           />
         </div>
@@ -63,7 +49,7 @@ export function Composer({
         <div className="composer__center">
           <PromptInput
             value={input}
-            onChange={handleInputChange}
+            onChange={onInputChange}
             onSubmit={onSubmit}
             placeholder={placeholder}
             disabled={disabled}

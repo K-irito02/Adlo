@@ -50,7 +50,7 @@
 
 新增 IPC 方法时，必须同步实现：
 - `tauri-bridge.ts`（Tauri 模式）
-- `preview-bridge.ts`（浏览器模式，Vite Preview API）
+- `preview-bridge/`（浏览器模式，Vite Preview API）
 - `mock-bridge.ts`（纯内存回退）
 
 ## 命令规范
@@ -76,8 +76,8 @@
 
 ```
 app/stores/
-├── slicedStore.ts               # 基于切片合并的完整 Store（真源）
-├── StoreState.ts                # 完整 StoreState 类型接口
+├── slicedStore.ts               # 基于切片合并的完整 Store（真源，~87 行）
+├── StoreState.ts                # 完整 StoreState 类型接口（interface extends）
 ├── slices.ts                    # 统一导出所有切片
 ├── selectors.ts                 # 选择器（含 useShallow React Hook 版本）
 ├── shared.ts / cacheUtils.ts    # 共享工具
@@ -94,7 +94,16 @@ app/stores/
 │   ├── taskSlice.ts             # 任务状态
 │   ├── commandSlice.ts          # 命令状态
 │   └── clipboardSlice.ts        # 剪贴板状态
-└── (legacy)                     # 4 个 @deprecated 遗留独立 Store
+├── actions/                     # [新增] 8 个跨切片 action 模块
+│   ├── workspaceActions.ts      # 工作区操作
+│   ├── sessionActions.ts        # 会话操作
+│   ├── editorActions.ts         # 编辑器操作
+│   ├── patchActions.ts          # 补丁操作
+│   ├── gitActions.ts            # Git 操作
+│   ├── fetchActions.ts          # 数据拉取操作
+│   ├── streamActions.ts         # 流式消息操作
+│   └── generalActions.ts        # 通用操作
+└── (已删除)                     # 4 个 @deprecated 遗留独立 Store
 ```
 
 ### 关键文件

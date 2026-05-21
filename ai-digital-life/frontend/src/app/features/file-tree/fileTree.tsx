@@ -270,9 +270,7 @@ function areFileTreeNodePropsEqual<T extends FileTreeRenderableNode>(
   return true;
 }
 
-const MemoizedFileTreeNode = memo(FileTreeNodeComponent, areFileTreeNodePropsEqual) as <T extends FileTreeRenderableNode>(
-  props: FileTreeNodeProps<T>
-) => React.ReactElement;
+const MemoizedFileTreeNode = memo(FileTreeNodeComponent, areFileTreeNodePropsEqual) as typeof FileTreeNodeComponent;
 
 export function FileTree<T extends FileTreeRenderableNode>(props: FileTreeProps<T>) {
   const [contextMenuState, setContextMenuState] = useState<{
