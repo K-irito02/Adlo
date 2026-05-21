@@ -39,5 +39,16 @@ export default defineConfig({
     emptyOutDir: true,
     target: "esnext",
   },
+  optimizeDeps: {
+    include: [
+      "@codemirror/state",
+      "@codemirror/view",
+      "@codemirror/language",
+      "@codemirror/commands",
+      "@codemirror/autocomplete",
+      "@codemirror/search",
+      "@codemirror/lint",
+    ],
+  },
   clearScreen: false,
 });
