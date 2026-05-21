@@ -1,6 +1,6 @@
 import type { GitSnapshot } from "@ai-digital-life/kernel";
-import type { FileTreeRenderableNode } from "./fileTree";
-import type { PatchChangeKind, PatchFileSummary } from "./patchReview";
+import type { FileTreeRenderableNode } from "../../features/file-tree";
+import type { PatchChangeKind, PatchFileSummary } from "../../features/patch-review";
 
 export type ChangeFileState = "staged" | "modified" | "untracked" | "conflicted";
 

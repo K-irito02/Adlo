@@ -17,7 +17,14 @@ import type {
 import type { CopyDict } from "../../copy";
 import type { EditorTabState } from "../../editorTabs";
 import type { EditorRef, DiffEditorRef } from "../../types";
-import type { PatchDirection, PatchReviewFilter } from "./patchReview";
+import type {
+  PatchChangeKind,
+  PatchDirection,
+  PatchFileSummary,
+  PatchHunkSummary,
+  PatchReviewFilter,
+  PatchReviewState,
+} from "../../features/patch-review";
 
 export interface RightPanelViewProps {
   t: CopyDict;

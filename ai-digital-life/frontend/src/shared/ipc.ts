@@ -40,6 +40,29 @@ import type {
   WorkspaceMeta
 } from "@ai-digital-life/kernel";
 
+export enum IpcErrorCode {
+  NOT_FOUND = "NOT_FOUND",
+  INVALID_INPUT = "INVALID_INPUT",
+  STORAGE_ERROR = "STORAGE_ERROR",
+  WORKSPACE_ERROR = "WORKSPACE_ERROR",
+  CONFIG_ERROR = "CONFIG_ERROR",
+  IO_ERROR = "IO_ERROR",
+  MIGRATION_ERROR = "MIGRATION_ERROR",
+  SECURITY_ERROR = "SECURITY_ERROR",
+  APPROVAL_REQUIRED = "APPROVAL_REQUIRED",
+  PATCH_ERROR = "PATCH_ERROR",
+  TERMINAL_ERROR = "TERMINAL_ERROR",
+  MODEL_ERROR = "MODEL_ERROR",
+  INTERNAL_ERROR = "INTERNAL_ERROR",
+  NETWORK_ERROR = "NETWORK_ERROR",
+  INVOKE_ERROR = "INVOKE_ERROR",
+  PREVIEW_API_ERROR = "PREVIEW_API_ERROR",
+}
+
+export function createIpcError(code: IpcErrorCode, message: string) {
+  return { code, message };
+}
+
 export interface PtySessionInfo {
   sessionId: string;
   shell: string;

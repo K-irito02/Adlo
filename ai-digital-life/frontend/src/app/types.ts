@@ -51,6 +51,7 @@ export interface EditorRef {
   setSelection?(selection: EditorSelection): void;
   getTopForLineNumber?(lineNumber: number): number;
   getDomNode?(): HTMLElement | null;
+  getView?(): unknown;
 }
 
 export interface DiffEditorRef {

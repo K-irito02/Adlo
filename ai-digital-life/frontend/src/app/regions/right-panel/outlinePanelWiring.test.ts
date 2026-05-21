@@ -7,8 +7,8 @@ describe("outline panel wiring", () => {
   const changesPanelSource = readFileSync(new URL("./ChangesPanel.tsx", import.meta.url), "utf8");
   const previewWorkspaceServiceSource = readFileSync(new URL("../../../../dev/previewWorkspaceService.ts", import.meta.url), "utf8");
   const outlineTreeSource = readFileSync(new URL("./OutlineTree.tsx", import.meta.url), "utf8");
-  const fileTreeSource = readFileSync(new URL("./fileTree.tsx", import.meta.url), "utf8");
-  const treeNodeRowSource = readFileSync(new URL("./TreeNodeRow.tsx", import.meta.url), "utf8");
+  const fileTreeSource = readFileSync(new URL("../../features/file-tree/fileTree.tsx", import.meta.url), "utf8");
+  const treeNodeRowSource = readFileSync(new URL("../../features/file-tree/TreeNodeRow.tsx", import.meta.url), "utf8");
 
   it("uses the shared outline tree in the files panel", () => {
     expect(fileNavigatorShellSource).toContain("OutlineTree");

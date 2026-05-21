@@ -342,5 +342,3 @@ export function computePreviewDiffVisualRanges(baseContent: string, currentConte
     contentColumns: range.contentColumns
   }));
 }
-
-

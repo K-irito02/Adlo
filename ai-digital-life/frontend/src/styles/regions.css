@@ -2143,13 +2143,13 @@ select:focus-visible {
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-full);
   background: var(--bg-input);
-  box-shadow: var(--shadow-sm), 0 1px 0 rgba(255, 255, 255, 0.4) inset;
+  box-shadow: var(--shadow-sm), var(--shadow-inset-highlight);
   transition: var(--transition-colors), var(--transition-shadow);
 }
 
 .adl-composer__inner:focus-within {
   border-color: var(--border-strong);
-  box-shadow: var(--shadow-sm), 0 1px 0 rgba(255, 255, 255, 0.4) inset;
+  box-shadow: var(--shadow-sm), var(--shadow-inset-highlight);
 }
 
 .adl-composer__left,
@@ -2363,7 +2363,7 @@ select:focus-visible {
 }
 
 .adl-rightpanel--overlay-expanded {
-  box-shadow: -12px 0 24px color-mix(in srgb, var(--bg) 58%, transparent);
+  box-shadow: var(--shadow-panel);
 }
 
 .adl-rightpanel__resize-handle {
@@ -4278,7 +4278,7 @@ select:focus-visible {
   pointer-events: none;
   padding: 2px 0 2px 8px;
   background: var(--bg);
-  box-shadow: -10px 0 12px var(--bg);
+  box-shadow: var(--shadow-panel-sm);
   transition: opacity 0.12s ease;
   z-index: 2;
   white-space: nowrap;
@@ -5396,7 +5396,7 @@ select:focus-visible {
 /* Hover background highlight using box-shadow (pseudo-elements are used by chevron) */
 .adl-cm-editor-wrapper .cm-foldGutter .cm-gutterElement .adl-cm-fold-marker:hover,
 .adl-cm-diff-viewer-wrapper .cm-foldGutter .cm-gutterElement .adl-cm-fold-marker:hover {
-  box-shadow: 0 0 0 4px rgba(128, 128, 128, 0.12);
+  box-shadow: 0 0 0 4px var(--ring-neutral);
   border-radius: 4px;
 }
 
@@ -5511,7 +5511,7 @@ select:focus-visible {
   margin-left: 0;
   border-left: none;
   overflow: visible;
-  box-shadow: -2px 0 4px -1px rgba(0, 0, 0, 0.486);
+  box-shadow: var(--shadow-divider);
 }
 
 .adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-mergeViewEditor + .cm-mergeViewEditor {
@@ -7861,7 +7861,7 @@ select:focus-visible {
 
 .adl-prompt-modal__input--error:focus {
   border-color: var(--danger, #ef4444);
-  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.25);
+  box-shadow: 0 0 0 2px var(--ring-error);
 }
 
 .adl-prompt-modal__error {

@@ -1,15 +1,13 @@
 import React, { useCallback, useMemo, useRef } from "react";
 import { EditorView } from "@codemirror/view";
-import { CodeEditor, saveEditorState } from "./CodeEditor";
-import { DiffViewer } from "./DiffViewer";
+import { CodeEditor, saveEditorState } from "../../features/editor";
+import { DiffViewer } from "../../features/diff-viewer";
 import {
   getAgentDecorationExtensions,
   type AgentHunkDecoration,
 } from "./agentDecorations";
 import { categorizeFile, type FileCategory } from "./fileTypeRouter";
-import {
-  LazyMarkdownPreviewWrapper,
-} from "./LazyPreviews";
+import { LazyMarkdownPreviewWrapper } from "../../features/preview";
 import type { EditorRef, DiffEditorRef } from "../../types";
 import { useUiStore } from "../../ui-store";
 import { StickyContext } from "./stickyContextView";
@@ -18,8 +16,8 @@ import {
   derivePatchHunkChangeKind,
   getPatchHunkTargetLine,
   summarizePatchFile,
-} from "./patchReview";
-import type { PatchHunkSummary } from "./patchReview";
+  type PatchHunkSummary,
+} from "../../features/patch-review";
 import {
   useStickyContext,
   useWrapColumn,
@@ -27,7 +25,7 @@ import {
   useEditorStateCache,
 } from "./hooks";
 import type { UseEditorOptionsResult } from "./hooks";
-import type { PreviewDiffVisualRange } from "./changePreviewDiffRanges";
+import type { PreviewDiffVisualRange } from "../../features/diff-viewer";
 import {
   IconChevronDown,
   IconChevronRight,

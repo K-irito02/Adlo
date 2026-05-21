@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import type { FileOutlineItem } from "@ai-digital-life/kernel";
 import { buildOutlineTree, type OutlineNode, getDefaultExpandedOutlineIds } from "./outlineModel";
-import { CustomScrollArea } from "./CustomScrollArea";
-import { TreeNodeRow } from "./TreeNodeRow";
+import { CustomScrollArea } from "../../features/file-tree/CustomScrollArea";
+import { TreeNodeRow } from "../../features/file-tree/TreeNodeRow";
 
 export type OutlineTreeProps = {
   items: FileOutlineItem[];

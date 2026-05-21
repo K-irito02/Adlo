@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { GitSnapshot, PatchSet } from "@ai-digital-life/kernel";
-import { summarizePatchSet } from "./patchReview";
+import { summarizePatchSet } from "../../features/patch-review";
 import { buildChangeEntries, buildChangeTree, buildFlatChangeNodes } from "./changesTree";
 
 function createSnapshot(): GitSnapshot {

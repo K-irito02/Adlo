@@ -31,7 +31,7 @@ export type FileTreeContextMenuItem<T extends FileTreeRenderableNode> = {
   action?: (node: T, multiSelectedNodes: T[]) => void;
 };
 
-interface FileTreeProps<T extends FileTreeRenderableNode> {
+export interface FileTreeProps<T extends FileTreeRenderableNode> {
   nodes: T[];
   selectedFilePath?: string;
   expandedPaths: Record<string, boolean>;
@@ -270,7 +270,9 @@ function areFileTreeNodePropsEqual<T extends FileTreeRenderableNode>(
   return true;
 }
 
-const MemoizedFileTreeNode = memo(FileTreeNodeComponent, areFileTreeNodePropsEqual);
+const MemoizedFileTreeNode = memo(FileTreeNodeComponent, areFileTreeNodePropsEqual) as <T extends FileTreeRenderableNode>(
+  props: FileTreeNodeProps<T>
+) => React.ReactElement;
 
 export function FileTree<T extends FileTreeRenderableNode>(props: FileTreeProps<T>) {
   const [contextMenuState, setContextMenuState] = useState<{
@@ -286,7 +288,7 @@ export function FileTree<T extends FileTreeRenderableNode>(props: FileTreeProps<
   
   // 完全依赖外部状态，不维护本地选中状态
   const activePath = props.selectedFilePath;
-  const selectedPaths = useMemo(() => 
+  const selectedPaths = useMemo((): Set<string> => 
     activePath ? new Set([activePath]) : new Set(),
     [activePath]
   );

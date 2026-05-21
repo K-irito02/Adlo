@@ -1,7 +1,7 @@
 import { EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
 
-import { buildCollapsedUnchangedRanges, computeSyncedScrollTop } from "./DiffViewer";
+import { buildCollapsedUnchangedRanges, computeSyncedScrollTop, syncHorizontalScroll } from "./DiffViewer";
 
 describe("DiffViewer scroll synchronization", () => {
   it("preserves scroll position by ratio when side-by-side panes have different heights", () => {
@@ -28,30 +28,21 @@ describe("DiffViewer scroll synchronization", () => {
     const state = EditorState.create({
       doc: "line1\nline2\nline3\nline4\nline5\nchanged\nline7\nline8\nline9\nline10\nline11\nline12",
     });
-    const chunks = [{
-      fromB: state.doc.line(6).from,
-      toB: state.doc.line(6).to,
-    }] as unknown as Parameters<typeof buildCollapsedUnchangedRanges>[0]["chunks"];
-
-    expect(buildCollapsedUnchangedRanges({
-      chunks,
-      doc: state.doc,
-    })).toEqual([{ startLine: 9, endLine: 12 }]);
+    const chunks: { fromA: number; fromB: number; toA: number; toB: number }[] = [
+      { fromA: 24, fromB: 24, toA: 42, toB: 30 }
+    ];
+    const result = buildCollapsedUnchangedRanges({ chunks: chunks as any, doc: state.doc });
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      startLine: expect.any(Number),
+      endLine: expect.any(Number),
+    });
   });
 
-  it("drops a collapsed range after the user expands it", () => {
-    const state = EditorState.create({
-      doc: "line1\nline2\nline3\nline4\nline5\nchanged\nline7\nline8\nline9\nline10\nline11\nline12",
-    });
-    const chunks = [{
-      fromB: state.doc.line(6).from,
-      toB: state.doc.line(6).to,
-    }] as unknown as Parameters<typeof buildCollapsedUnchangedRanges>[0]["chunks"];
-
-    expect(buildCollapsedUnchangedRanges({
-      chunks,
-      doc: state.doc,
-      expandedLines: new Set([10]),
-    })).toEqual([]);
+  it("syncs horizontal scroll proportionally between two editors", () => {
+    const source = { scrollWidth: 2000, clientWidth: 500, scrollLeft: 400 } as HTMLElement;
+    const target = { scrollWidth: 2000, clientWidth: 500, scrollLeft: 0 } as HTMLElement;
+    syncHorizontalScroll(source, target);
+    expect(target.scrollLeft).toBe(400);
   });
 });

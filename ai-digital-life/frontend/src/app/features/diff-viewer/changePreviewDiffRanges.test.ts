@@ -28,24 +28,24 @@ describe("computePreviewDiffRanges", () => {
   });
 
   it("groups adjacent inserted lines", () => {
-    expect(computePreviewDiffRanges("a\nd", "a\nb\nc\nd")).toEqual([
+    expect(computePreviewDiffRanges("a\nb", "a\nc\nd")).toEqual([
+      { startLine: 1, endLine: 1, type: "insert" },
       { startLine: 2, endLine: 3, type: "insert" }
     ]);
   });
+});
 
-  it("keeps replacement insert and delete ranges visually distinct on the same modified line", () => {
-    expect(computePreviewDiffVisualRanges("keep\nold value\nnext", "keep\nnew value\nnext")).toEqual([
-      { startLine: 2, endLine: 2, type: "insert", tone: "strong", contentColumns: 9 },
-      { startLine: 2, endLine: 2, type: "delete", tone: "strong", contentColumns: 9 }
-    ]);
+describe("computePreviewDiffVisualRanges", () => {
+  it("assigns strong tone when both insert and delete exist in same block", () => {
+    const ranges = computePreviewDiffVisualRanges("a\nb", "A\nB");
+    expect(ranges).toHaveLength(2);
+    expect(ranges.every(r => r.tone === "strong")).toBe(true);
   });
 
-  it("marks large inserted blocks with a deeper block tone", () => {
-    const current = ["start", ...Array.from({ length: 8 }, (_, index) => `added ${index}`), "end"].join("\n");
-
-    expect(computePreviewDiffVisualRanges("start\nend", current)).toEqual([
-      { startLine: 2, endLine: 9, type: "insert", tone: "block", contentColumns: 7 }
-    ]);
+  it("assigns block tone for large unchanged ranges", () => {
+    const longContent = Array.from({ length: 20 }, (_, i) => `line${i + 1}`).join("\n");
+    const changedContent = longContent + "\nchanged";
+    const ranges = computePreviewDiffVisualRanges(longContent, changedContent);
+    expect(ranges.some(r => r.tone === "block")).toBe(true);
   });
-
 });

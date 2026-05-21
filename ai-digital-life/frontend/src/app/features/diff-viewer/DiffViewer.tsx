@@ -8,15 +8,15 @@ import { search } from "@codemirror/search";
 import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import type { Extension } from "@codemirror/state";
 import type { DiffEditorRef, EditorRef } from "../../types";
-import { createDiffEditorRef, createEditorRef } from "./editorAdapters";
-import { getThemeExtension, rebuildThemes, getPhrasesExtension } from "./cmTheme";
-import { getLanguageExtension } from "./cmLanguages";
-import { createFoldGutterExtension } from "./cmFoldGutter";
-import { FoldTooltipOverlay } from "./FoldTooltipOverlay";
-import type { PreviewDiffCollapsedRange } from "./changePreviewDiffRanges";
-import { scrollLeftSyncExtension } from "./cmScrollLeftSync";
+import { createDiffEditorRef, createEditorRef } from "../editor/editorAdapters";
+import { getThemeExtension, rebuildThemes, getPhrasesExtension } from "../editor/cmTheme";
+import { getLanguageExtension } from "../editor/cmLanguages";
+import { createFoldGutterExtension } from "../editor/cmFoldGutter";
+import { FoldTooltipOverlay } from "../editor/FoldTooltipOverlay";
+import { scrollLeftSyncExtension } from "../editor/cmScrollLeftSync";
 import { initScrollbarWidth } from "./scrollbarWidth";
-import { useFoldMarkerAutoHide } from "./useFoldMarkerAutoHide";
+import { useFoldMarkerAutoHide } from "../editor/useFoldMarkerAutoHide";
+import type { PreviewDiffCollapsedRange } from "./changePreviewDiffRanges";
 
 initScrollbarWidth();
 

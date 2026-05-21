@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef, forwardRef, ForwardedRef } from "react";
 
 type CustomScrollAreaProps = {
   shellClassName: string;
@@ -12,13 +12,16 @@ function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
-export function CustomScrollArea({
-  shellClassName,
-  scrollClassName,
-  scrollbarClassName,
-  thumbClassName,
-  children
-}: CustomScrollAreaProps) {
+export const CustomScrollArea = forwardRef(function CustomScrollArea(
+  {
+    shellClassName,
+    scrollClassName,
+    scrollbarClassName,
+    thumbClassName,
+    children
+  }: CustomScrollAreaProps,
+  ref: ForwardedRef<HTMLDivElement>
+) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const scrollbarThumbRef = useRef<HTMLDivElement | null>(null);
@@ -119,6 +122,17 @@ export function CustomScrollArea({
     track.addEventListener("lostpointercapture", cleanup);
   }, [updateScrollbar]);
 
+  useEffect(() => {
+    // Forward the ref to the scrolling container
+    if (ref) {
+      if (typeof ref === "function") {
+        ref(scrollRef.current);
+      } else {
+        ref.current = scrollRef.current;
+      }
+    }
+  }, [ref]);
+
   return (
     <div ref={rootRef} className={shellClassName}>
       <div ref={scrollRef} className={scrollClassName}>
@@ -133,4 +147,4 @@ export function CustomScrollArea({
       </div>
     </div>
   );
-}
+});

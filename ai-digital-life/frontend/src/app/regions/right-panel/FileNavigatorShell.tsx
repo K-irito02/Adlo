@@ -5,9 +5,8 @@ import { IconClipboardList, IconCopy, IconFiles, IconFilePlus, IconFolderOpen, I
 import { TooltipSimple } from "../../components/Tooltip";
 import { useUiStore, type FilesNavigatorMode } from "../../ui-store";
 import { useNavigatorResize } from "../../hooks/useNavigatorResize";
-import { FileTree, collectDirectoryPaths, type FileTreeContextMenuItem } from "./fileTree";
-import { OutlineTree } from "./OutlineTree";
-import { getDefaultExpandedOutlineIds } from "./outlineModel";
+import { FileTree, collectDirectoryPaths, type FileTreeContextMenuItem } from "../../features/file-tree";
+import { OutlineTree, getDefaultExpandedOutlineIds } from "../../features/outline";
 import { normalizeWorkspaceRelativePath } from "../../workspacePaths";
 import { useFileCreation, useSearchPanel } from "./hooks";
 import { FileCreationBar } from "./FileCreationBar";

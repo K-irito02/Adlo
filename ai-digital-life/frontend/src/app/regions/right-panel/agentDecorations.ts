@@ -8,7 +8,7 @@ import {
   AGENT_DECO_MODIFY_CLASS,
   AGENT_DECO_MODIFY_BLOCK_CLASS,
   AGENT_DECO_DELETE_CLASS,
-} from "./cmTheme";
+} from "../../features/editor/cmTheme";
 
 export type AgentHunkDecoration = {
   startLine: number;

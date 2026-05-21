@@ -9,7 +9,7 @@ import {
   getPatchHunkTargetLine,
   setCollapsedHunksForFile,
   summarizePatchSet,
-  toggleCollapsedHunkId
+  toggleCollapsedHunkId,
 } from "./patchReview";
 
 function createPatchSet(): PatchSet {

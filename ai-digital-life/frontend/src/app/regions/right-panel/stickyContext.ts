@@ -1,6 +1,6 @@
 import type { FileOutlineItem } from "@ai-digital-life/kernel";
 import type { EditorRef, Disposable } from "../../types";
-import type { PreviewDiffVisualRange } from "./changePreviewDiffRanges";
+import type { PreviewDiffVisualRange } from "../../features/diff-viewer";
 
 const MAX_STICKY_CONTEXT_ROWS = 3;
 const DEFAULT_TOP_LABEL = "File top";

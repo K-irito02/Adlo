@@ -29,7 +29,7 @@ import { useUiStore } from "../../ui-store";
 import { useNavigatorResize } from "../../hooks/useNavigatorResize";
 import { countGitChanges } from "./types";
 import type { RightPanelViewProps } from "./types";
-import { countReviewedHunks, filterPatchFileSummaries, summarizePatchFile, summarizePatchSet } from "./patchReview";
+import { countReviewedHunks, filterPatchFileSummaries, summarizePatchFile, summarizePatchSet } from "../../features/patch-review";
 import { DiffToolbar } from "./DiffToolbar";
 import { StickyContext } from "./stickyContextView";
 import { useStickyContext, useEditorOptions } from "./hooks";
@@ -37,19 +37,18 @@ import { buildChangeEntries, buildChangeTree, buildFlatChangeNodes, type ChangeF
 import {
   type PreviewDiffCollapsedRange,
   computePreviewDiffVisualRanges,
-} from "./changePreviewDiffRanges";
-import { collectDirectoryPaths, FileTree, type FileTreeContextMenuItem } from "./fileTree";
+} from "../../features/diff-viewer";
+import { collectDirectoryPaths, FileTree, type FileTreeContextMenuItem } from "../../features/file-tree";
 import { detectEditorLanguage } from "../../workspacePaths";
 import { categorizeFile } from "./fileTypeRouter";
-import { DiffViewer } from "./DiffViewer";
-import { CodeEditor } from "./CodeEditor";
-import { LazyMarkdownPreviewWrapper } from "./LazyPreviews";
+import { DiffViewer } from "../../features/diff-viewer";
+import { CodeEditor } from "../../features/editor";
+import { LazyMarkdownPreviewWrapper } from "../../features/preview";
 import type { EditorRef, DiffEditorRef } from "../../types";
-import { CodeMirrorEditorRef } from "./editorAdapters";
+import { CodeMirrorEditorRef } from "../../features/editor";
 import { estimateWrapColumn } from "./cmWrapColumn";
 import { navigateToLine } from "./stickyContext";
-import { OutlineTree } from "./OutlineTree";
-import { buildOutlineFromContent, getDefaultExpandedOutlineIds } from "./outlineModel";
+import { OutlineTree, buildOutlineFromContent, getDefaultExpandedOutlineIds } from "../../features/outline";
 import {
   readSelectedBranch,
   writeSelectedBranch,

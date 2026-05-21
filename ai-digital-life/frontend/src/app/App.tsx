@@ -26,7 +26,7 @@ import {
   type PatchReviewFilter,
   setCollapsedHunksForFile,
   toggleCollapsedHunkId
-} from "./regions/right-panel/patchReview";
+} from "./features/patch-review";
 import { isTauriShell } from "../tauri-bridge";
 
 function readDiffSideBySidePreference(): boolean {

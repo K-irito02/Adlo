@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { IpcErrorCode } from "./shared/ipc";
 import type { DigitalLifeBridge, PtyOutputEvent, PtySessionInfo } from "./shared/ipc";
 import type {
   AgentRunDetail,
@@ -48,7 +49,7 @@ async function invokeIpc<T>(cmd: string, args?: Record<string, unknown>): Promis
     return await invoke<IpcResult<T>>(cmd, args);
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
-    return { ok: false, error: { code: "INVOKE_ERROR", message } };
+    return { ok: false, error: { code: IpcErrorCode.INVOKE_ERROR, message } };
   }
 }
 
