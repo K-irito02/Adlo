@@ -852,19 +852,23 @@ async function getAbsolutePath(rootPath: string, relativePath: string): Promise<
 }
 
 async function revealInFileManager(targetPath: string): Promise<boolean> {
-  const absolutePath = path.resolve(targetPath);
+  const normalizedPath = process.platform === "win32" ? targetPath.replace(/\//g, "\\") : targetPath;
+  const absolutePath = path.resolve(normalizedPath);
   if (!fsSync.existsSync(absolutePath)) {
     throw new Error(`path does not exist: ${targetPath}`);
   }
 
   if (process.platform === "win32") {
-    const cmdPath = await resolveWindowsBinary("cmd.exe");
     await new Promise<void>((resolve, reject) => {
-      const child = spawn(cmdPath, ["/c", "start", "", "explorer", `/select,"${absolutePath}"`], {
+      const child = spawn("cmd.exe", ["/c", "start", "", "explorer", `/select,${absolutePath}`], {
         windowsHide: false,
         detached: true,
+        shell: false,
       });
-      child.on("error", reject);
+      child.on("error", (err) => {
+        console.error("Explorer spawn error:", err);
+        reject(err);
+      });
       child.on("spawn", () => resolve());
     });
     return true;

@@ -479,7 +479,9 @@ export function ChangesPanel(props: RightPanelViewProps) {
             const appInfo = store.appInfo;
             const rootPath = appInfo?.currentWorkspace?.rootPath ?? appInfo?.currentWorkspace?.path;
             if (!rootPath) return;
-            await window.digitalLife.workspace.revealInFileManager(`${rootPath}/${targetNode.path}`);
+            const separator = rootPath.includes("\\") ? "\\" : "/";
+            const fullPath = `${rootPath}${rootPath.endsWith(separator) ? "" : separator}${targetNode.path}`;
+            await window.digitalLife.workspace.revealInFileManager(fullPath);
           }
         },
         { id: "sep1", separator: true },
@@ -491,7 +493,9 @@ export function ChangesPanel(props: RightPanelViewProps) {
             const store = useAppStore.getState();
             const appInfo = store.appInfo;
             const rootPath = appInfo?.currentWorkspace?.rootPath ?? appInfo?.currentWorkspace?.path;
-            const fullPath = rootPath ? `${rootPath}/${targetNode.path}` : targetNode.path;
+            if (!rootPath) return;
+            const separator = rootPath.includes("\\") ? "\\" : "/";
+            const fullPath = `${rootPath}${rootPath.endsWith(separator) ? "" : separator}${targetNode.path}`;
             await copyToClipboard(fullPath);
           }
         },

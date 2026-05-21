@@ -1,7 +1,78 @@
 # 浏览器自动化脚本方案 — 经验教训总结
 
-> 来源：2026-05-16 ~ 2026-05-19 变更面板测试 + 项目启动流程中的实际调试记录。
+> 来源：2026-05-16 ~ 2026-05-21 变更面板测试 + 项目启动流程中的实际调试记录。
 > 目的：为后续自动化脚本开发提供避坑指南。
+
+---
+
+## 18. 跨平台路径拼接必须动态检测分隔符 + Windows Explorer 命令格式
+
+在 Windows 和 Unix 系统混用时，路径分隔符的处理至关重要。
+
+**问题场景**：右键菜单中的"在文件管理器中打开"和"复制完整路径"功能点击后无效。
+
+**根本原因 1**：代码中硬编码了 `/` 作为路径分隔符：
+```typescript
+// ❌ 错误做法
+const fullPath = `${rootPath}/${targetNode.path}`;
+```
+当 `rootPath` 是 Windows 格式（如 `E:\Projects\MyApp`）时，拼接结果为 `E:\Projects\MyApp/filename.txt`，混合分隔符导致系统 API 无法识别。
+
+**根本原因 2**：Windows Explorer 命令参数格式错误：
+```typescript
+// ❌ 错误做法 - 额外的引号会导致路径解析错误
+spawn(cmdPath, ["/c", "start", "", "explorer", `/select,"${absolutePath}"`], {
+```
+
+**正确做法 - 前端路径拼接**：
+```typescript
+const separator = rootPath.includes("\\") ? "\\" : "/";
+const fullPath = `${rootPath}${rootPath.endsWith(separator) ? "" : separator}${targetNode.path}`;
+```
+
+**正确做法 - 后端路径规范化**：
+```typescript
+const normalizedPath = process.platform === "win32" ? targetPath.replace(/\//g, "\\") : targetPath;
+const absolutePath = path.resolve(normalizedPath);
+```
+
+**正确做法 - Explorer 命令**：
+```typescript
+// ✅ 正确格式 - 不要在路径周围加引号
+spawn("cmd.exe", ["/c", "start", "", "explorer", `/select,${absolutePath}`], {
+  windowsHide: false,
+  detached: true,
+  shell: false,
+});
+```
+
+**对策**：
+- 路径拼接前检测源路径的分隔符格式
+- 使用 `path` 模块的 API（Node.js 环境）
+- Windows Explorer 使用 `/select,路径` 格式，**不要**在路径周围加引号
+- 通过 `cmd /c start` 包装，兼容性更好
+
+---
+
+## 19. Rust 工具链损坏的诊断与修复
+
+Rust 编译报错 `can't find crate for 'std'` 可能是因为工具链的标准库文件损坏。
+
+**诊断方法**：
+1. 检查标准库 rmeta 文件是否存在：
+   ```powershell
+   ls "$env:RUSTUP_HOME\toolchains\stable-x86_64-pc-windows-msvc\lib\rustlib\x86_64-pc-windows-msvc\lib\*.rmeta"
+   ```
+2. 尝试简单编译测试：
+   ```powershell
+   echo 'fn main() { println!("hello"); }' | Out-File "$env:TEMP\test.rs"; rustc "$env:TEMP\test.rs" -o "$env:TEMP\test.exe"
+   ```
+
+**修复方案**：
+```powershell
+rustup toolchain uninstall stable
+rustup toolchain install stable
+```
 
 ---
 

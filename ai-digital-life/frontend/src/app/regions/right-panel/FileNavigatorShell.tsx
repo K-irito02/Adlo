@@ -203,9 +203,9 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
             const store = useAppStore.getState();
             const rootPath = store.appInfo?.currentWorkspace?.rootPath ?? store.appInfo?.currentWorkspace?.path;
             if (!rootPath) return;
-            await window.digitalLife.workspace.revealInFileManager(
-              `${rootPath}/${targetNode.path}`
-            );
+            const separator = rootPath.includes("\\") ? "\\" : "/";
+            const fullPath = `${rootPath}${rootPath.endsWith(separator) ? "" : separator}${targetNode.path}`;
+            await window.digitalLife.workspace.revealInFileManager(fullPath);
           }
         },
         { id: "sep1", separator: true },
@@ -216,7 +216,9 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
           action: async (targetNode) => {
             const store = useAppStore.getState();
             const rootPath = store.appInfo?.currentWorkspace?.rootPath ?? store.appInfo?.currentWorkspace?.path;
-            const fullPath = rootPath ? `${rootPath}/${targetNode.path}` : targetNode.path;
+            if (!rootPath) return;
+            const separator = rootPath.includes("\\") ? "\\" : "/";
+            const fullPath = `${rootPath}${rootPath.endsWith(separator) ? "" : separator}${targetNode.path}`;
             await copyToClipboard(fullPath);
           }
         },
