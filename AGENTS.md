@@ -40,16 +40,17 @@
 - 自定义 Tooltip 组件
 - CodeMirror 编辑器系统
 - xterm.js 交互式终端（多会话、多 Shell 类型，浏览器模式通过 `child_process.spawn` + SSE 实现真实 Shell 进程）
-- **Zustand 切片模式重构**（10 个独立切片 + 完整类型安全）
+- **Zustand 切片模式重构**（11 个独立切片 + 完整类型安全）
 
 ### Zustand 切片模式（已重构完成）
 
-前端状态管理已重构为 Zustand 切片模式，`store.ts` 已删除，`slicedStore.ts` 为唯一真源：
+前端状态管理已重构为 Zustand 切片合并模式：
 
 ```
 app/stores/
-├── slicedStore.ts           # 基于切片模式的完整 Store
-├── slices/                 # 10 个独立切片
+├── slicedStore.ts          # 基于切片合并的完整 Store（真源）
+├── StoreState.ts           # 完整 StoreState 类型接口
+├── slices/                 # 11 个独立切片（含 clipboardSlice）
 │   ├── uiSlice.ts          # UI 状态
 │   ├── workspaceSlice.ts    # 工作区状态
 │   ├── gitSlice.ts         # Git 状态
@@ -59,12 +60,15 @@ app/stores/
 │   ├── searchSlice.ts      # 搜索状态
 │   ├── diagnosticSlice.ts  # 诊断状态
 │   ├── taskSlice.ts        # 任务状态
-│   └── commandSlice.ts     # 命令状态
-├── selectors.ts            # 通用选择器
-└── INTEGRATION_GUIDE.md    # 集成指南
+│   ├── commandSlice.ts     # 命令状态
+│   └── clipboardSlice.ts   # 剪贴板状态
+├── selectors.ts            # 选择器（含 useShallow React Hook 版，避免不必要重渲染）
+└── index.ts                # 模块索引
 ```
 
-详见 [docs/重构洞察/REFACTORING_PROGRESS_REPORT.md](./docs/重构洞察/REFACTORING_PROGRESS_REPORT.md)
+4 个遗留独立 Store（`useWorkspaceStore`/`useSessionStore`/`useEditorStore`/`usePatchStore`）已标记 `@deprecated`。
+
+详见 [docs/重构洞察/refactor-insight-2026-05-21.md](./docs/重构洞察/refactor-insight-2026-05-21.md)
 
 ### 排除项
 

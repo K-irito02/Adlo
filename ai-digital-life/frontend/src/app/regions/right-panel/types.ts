@@ -6,6 +6,7 @@ import type {
   FilePatch,
   WorkspaceChangePreview,
   GitSnapshot,
+  ModelGatewayHealthSnapshot,
   PatchApplicationResult,
   PatchSet,
   RepoMapNode,
@@ -80,7 +81,7 @@ export interface RightPanelViewProps {
   onSetAllPatchHunksCollapsed: (collapsed: boolean, relativePath?: string) => void;
   onSetPatchReviewFilter: (filter: PatchReviewFilter) => void;
   onJumpPatchHunk: (direction: PatchDirection) => void;
-  modelHealth?: { providers: Array<{ providerId: string; healthy: boolean; detail: string }> } | undefined;
+  modelHealth?: ModelGatewayHealthSnapshot;
   onRefreshModelHealth: () => void;
   auditEntries: AuditEntry[];
   settings: SettingItem[];

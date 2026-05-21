@@ -8,18 +8,14 @@ export * from "./cacheUtils";
 export * from "./conversationUtils";
 export * from "./shared";
 
-// 导出子 Store 模块 (每个 store 有独立的选择器命名空间)
-export { useWorkspaceStore, workspaceActions, type WorkspaceState } from "./useWorkspaceStore";
-export { useSessionStore, sessionActions, sessionSelectors, type SessionState } from "./useSessionStore";
-export { useEditorStore, editorActions, editorSelectors, type EditorState } from "./useEditorStore";
-export { usePatchStore, patchActions, patchSelectors, type PatchState } from "./usePatchStore";
-
-// 导出切片定义 (用于 Zustand 切片模式重构)
+// 导出切片定义
 export * from "./slices";
 
-// 导出集成指南
-// @ts-ignore
-export { default as INTEGRATION_GUIDE } from "./INTEGRATION_GUIDE.md";
+// 导出完整的 StoreState
+export { type StoreState } from "./StoreState";
+
+// 导出完整的 store
+export { useAppStore, useSlicedAppStore } from "./slicedStore";
 
 // 导出通用选择器
 export * from "./selectors";

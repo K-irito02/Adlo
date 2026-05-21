@@ -10,7 +10,7 @@ import type { EditorRef, DiffEditorRef } from "./types";
 import { filterDiagnosticsForPath, findFirstDiagnostic, detectEditorLanguage } from "./workspacePaths";
 import { mapPatchToEditorTab } from "./editorTabs";
 import { buildSettingsItems, preferencePatchFromSettingChange } from "./settingsViewModel";
-import { useAppStore } from "./slicedStore";
+import { useAppStore } from "./stores/slicedStore";
 import { useUiStore } from "./ui-store";
 import { TitleBar } from "./regions/TitleBar";
 import { LeftSidebar } from "./regions/LeftSidebar";
@@ -233,15 +233,15 @@ export function App() {
         const mod = await import("@tauri-apps/api/window");
         const win = mod.getCurrentWindow();
         unlisten = await (win as unknown as { onDragDropEvent: (cb: (e: unknown) => void) => Promise<() => void> }).onDragDropEvent(
-          (e: any) => {
-            const payload = e?.payload ?? e;
-            const type = payload?.type ?? payload?.event ?? payload?.kind;
+          (e: unknown) => {
+            const payload = (e as Record<string, any>)?.payload ?? e;
+            const type = (payload as Record<string, any>)?.type ?? (payload as Record<string, any>)?.event ?? (payload as Record<string, any>)?.kind;
             if (type !== "drop") return;
             const paths: string[] =
-              payload?.paths ??
-              payload?.data?.paths ??
-              payload?.files ??
-              payload?.data?.files ??
+              (payload as Record<string, any>)?.paths ??
+              (payload as Record<string, any>)?.data?.paths ??
+              (payload as Record<string, any>)?.files ??
+              (payload as Record<string, any>)?.data?.files ??
               [];
             const first = Array.isArray(paths) ? paths[0] : undefined;
             if (first && typeof first === "string") {

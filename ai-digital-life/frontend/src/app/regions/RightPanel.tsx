@@ -45,7 +45,7 @@ function ActiveToolPanel({ activeTool, idBase, ...props }: ActiveToolPanelProps)
       {activeTool === "terminal" ? <TerminalPanel {...props} /> : null}
       {activeTool === "audit" ? <AuditPanel t={props.t} entries={props.auditEntries} /> : null}
       {activeTool === "models" ? (
-        <ModelHealthPanel t={props.t} modelHealth={props.modelHealth as any} onRefresh={props.onRefreshModelHealth} />
+        <ModelHealthPanel t={props.t} modelHealth={props.modelHealth} onRefresh={props.onRefreshModelHealth} />
       ) : null}
       {activeTool === "settings" ? (
         <SettingsPanel t={props.t} settings={props.settings} onChangeSetting={props.onChangeSetting} />

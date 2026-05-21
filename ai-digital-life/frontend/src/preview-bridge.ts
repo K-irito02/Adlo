@@ -16,6 +16,7 @@ import type {
   WorkspaceSearchHit,
   WorkspaceTreeNode
 } from "@ai-digital-life/kernel";
+import { applyPreferencePatch } from "./app/utils/preferencesMerger";
 import { mockDigitalLifeBridge, setMockActiveWorkspace } from "./mock-bridge";
 import { repoMapEntriesToTree } from "./app/repoMapFromEntries";
 import type { DigitalLifeBridge, PtyOutputEvent, PtySessionInfo } from "./shared/ipc";
@@ -304,33 +305,7 @@ export function setupPreviewBridge(): void {
       getDiagnostics: mockDigitalLifeBridge.app.getDiagnostics,
       getModelHealth: mockDigitalLifeBridge.app.getModelHealth,
       updatePreferences: async (patch: AppPreferencePatch) => {
-        const nextConfig = { ...appInfo.config };
-        if (patch.language) {
-          nextConfig.language = patch.language;
-        }
-        if (patch.themeMode) {
-          nextConfig.themeMode = patch.themeMode;
-          nextConfig.resolvedTheme = patch.themeMode === "dark" ? "dark" : "light";
-        }
-        if (patch.modelPreferences) {
-          const nextProviders = { ...nextConfig.modelPreferences.providers };
-          if (patch.modelPreferences.deepseek) {
-            nextProviders.deepseek = {
-              ...nextProviders.deepseek,
-              ...patch.modelPreferences.deepseek
-            };
-          }
-          if (patch.modelPreferences.minimax) {
-            nextProviders.minimax = {
-              ...nextProviders.minimax,
-              ...patch.modelPreferences.minimax
-            };
-          }
-          nextConfig.modelPreferences = {
-            ...nextConfig.modelPreferences,
-            providers: nextProviders
-          };
-        }
+        const nextConfig = applyPreferencePatch(appInfo.config, patch);
         appInfo.config = nextConfig;
         persistPreviewPreferences(nextConfig);
         return {

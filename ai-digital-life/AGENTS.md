@@ -69,6 +69,43 @@
 
 详见 [docs/design-system/](../docs/design-system/)
 
+## Stores 架构（Zustand 切片合并模式）
+
+前端状态管理采用 Zustand 切片合并模式：
+
+```
+app/stores/
+├── slicedStore.ts               # 基于切片合并的完整 Store（真源）
+├── StoreState.ts                # 完整 StoreState 类型接口
+├── slices.ts                    # 统一导出所有切片
+├── selectors.ts                 # 选择器（含 useShallow React Hook 版本）
+├── shared.ts / cacheUtils.ts    # 共享工具
+├── index.ts                     # 模块索引
+├── slices/                      # 11 个独立切片
+│   ├── uiSlice.ts               # UI 状态
+│   ├── workspaceSlice.ts         # 工作区状态
+│   ├── gitSlice.ts              # Git 状态
+│   ├── sessionSlice.ts          # 会话状态
+│   ├── editorSlice.ts           # 编辑器状态
+│   ├── patchSlice.ts            # 补丁状态
+│   ├── searchSlice.ts           # 搜索状态（含 300ms debounce）
+│   ├── diagnosticSlice.ts       # 诊断状态
+│   ├── taskSlice.ts             # 任务状态
+│   ├── commandSlice.ts          # 命令状态
+│   └── clipboardSlice.ts        # 剪贴板状态
+└── (legacy)                     # 4 个 @deprecated 遗留独立 Store
+```
+
+### 关键文件
+
+| 文件 | 职责 |
+|------|------|
+| `frontend/src/app/stores/slicedStore.ts` | 切片合并 Store（真源） |
+| `frontend/src/app/stores/StoreState.ts` | 完整类型接口 |
+| `frontend/src/app/stores/selectors.ts` | 性能选择器（useShallow） |
+| `frontend/src/app/hooks/useStreamingText.ts` | 流式文本 rAF 批量 |
+| `frontend/src/app/utils/preferencesMerger.ts` | 模型配置合并共享函数 |
+
 ## 文档入口
 
 - [README.md](./README.md)

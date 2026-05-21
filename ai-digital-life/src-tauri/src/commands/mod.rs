@@ -13,27 +13,14 @@ pub mod workspace;
 
 use adl_errors::AppError;
 use adl_kernel::IpcResult;
+use crate::error::CommandError;
 
 pub fn ipc<T>(result: Result<T, AppError>) -> IpcResult<T> {
     match result {
         Ok(data) => IpcResult::ok(data),
         Err(error) => {
-            let code = match &error {
-                AppError::NotFound(_) => "NOT_FOUND",
-                AppError::InvalidInput(_) => "INVALID_INPUT",
-                AppError::Storage(_) => "STORAGE_ERROR",
-                AppError::Workspace(_) => "INVALID_WORKSPACE",
-                AppError::Config(_) => "CONFIG_ERROR",
-                AppError::Io(_) => "IO_ERROR",
-                AppError::Migration(_) => "MIGRATION_ERROR",
-                AppError::Security(_) => "SECURITY_ERROR",
-                AppError::ApprovalRequired(_) => "APPROVAL_REQUIRED",
-                AppError::Patch(_) => "PATCH_ERROR",
-                AppError::Terminal(_) => "TERMINAL_ERROR",
-                AppError::Model(_) => "MODEL_ERROR",
-                AppError::Internal(_) => "INTERNAL_ERROR",
-            };
-            IpcResult::err(code, error.to_string())
+            let cmd_err = CommandError::from(error);
+            IpcResult::err(cmd_err.code, cmd_err.message)
         }
     }
 }

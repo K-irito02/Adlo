@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { copy } from "./copy";
-import { getCachedLru, setCachedLru } from "./slicedStore";
+import { getCachedLru, setCachedLru } from "./stores/slicedStore";
 
 describe("store utility functions", () => {
   describe("sessionFallbackTitle", () => {

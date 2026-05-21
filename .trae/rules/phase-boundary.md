@@ -24,6 +24,7 @@ alwaysApply: true
 - 自定义 Tooltip 组件
 - CodeMirror 编辑器系统
 - xterm.js 交互式终端（真实 PTY Shell 进程、多会话、多 Shell 类型）
+- Zustand 切片合并模式（11 个独立切片 + StoreState 类型接口 + useShallow 选择器优化）
 
 ## 排除项
 

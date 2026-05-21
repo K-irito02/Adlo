@@ -1,184 +1,69 @@
 # 重构进度报告
 
-> 更新日期: 2026-05-20
+> 更新日期: 2026-05-21
 
 ## 完成状态
 
-**全部完成** ✅（含 `store.ts` 已删除，`slicedStore.ts` 已成为唯一真源）
+**全部完成** ✅
 
----
+## 重构历程
+
+### 第一轮重构（2026-05-20）：Zustand 切片定义
+`store.ts` 已删除，创建 10 个切片定义文件。
+
+### 第二轮重构（2026-05-21）：实现切片合并 + 性能优化
+基于 [重构洞察报告](./refactor-insight-2026-05-21.md) 和 [实施计划](./重构实施计划-2026-05-21.md) 完成：
+
+| 阶段 | 内容 | 状态 |
+|------|------|------|
+| Phase 0 | 清理 4 个遗留独立 Store（标记 @deprecated） | ✅ |
+| Phase 1 | slicedStore.ts 迁移到 stores/，真正使用切片合并模式 | ✅ |
+| Phase 2 | 选择器性能优化：useShallow React Hook 版本 | ✅ |
+| Phase 3 | 流式事件性能：useStreamingText Hook（rAF 批量） | ✅ |
+| Phase 4 | Rust 错误码去重 / 模型配置合并 DRY / 搜索 debounce | ✅ |
+
+## 当前 Store 架构
+
+```
+app/stores/
+├── slicedStore.ts          # 基于切片合并的完整 Store（真源）
+├── StoreState.ts           # 完整 StoreState 类型接口
+├── slices.ts               # 统一导出所有切片
+├── selectors.ts            # 选择器（含 useShallow React Hook 版本）
+├── shared.ts               # 共享状态和工具
+├── cacheUtils.ts           # 缓存工具函数
+├── conversationUtils.ts    # 会话工具函数
+├── index.ts                # 模块索引
+├── slices/                 # 11 个独立切片（含 clipboardSlice）
+└── (legacy)                # 4 个 @deprecated 遗留 Store
+```
+
+### 关键改进
+
+| 改进项 | 说明 |
+|--------|------|
+| 切片合并 | slicedStore 使用 `createUISlice(), createWorkspaceSlice(), ...` 真正合并 |
+| StoreState 类型 | 独立类型文件，定义完整 Store 接口 |
+| 选择器优化 | 所有选择器提供 `useShallow` React Hook 版本，避免不必要重渲染 |
+| 搜索 debounce | `searchFiles` 300ms debounce，减少 IPC 调用 |
+| 流式优化 | `useStreamingText` Hook 使用 rAF 批量合并高频 delta 事件 |
+| Rust DRY | `commands/mod.rs` 复用 `CommandError::from()` 去重错误码映射 |
+| 前端 DRY | 提取 `preferencesMerger.ts` 消除 preview-bridge / mock-bridge 重复逻辑 |
+| 遗留清理 | 4 个遗留 Store 标记 @deprecated，stores/index.ts 移除导出 |
 
 ## 重构统计
 
 | 指标 | 数值 |
 |------|------|
-| 新增文件 | 11 个切片文件 |
-| 已删除文件 | `store.ts`（已统一迁移至 `slicedStore.ts`） |
-| 切片数量 | 10 个独立切片 |
-| 代码行数 | ~2800 行 |
+| 新增文件 | StoreState.ts, useStreamingText.ts, preferencesMerger.ts |
+| 重写文件 | slicedStore.ts (stores/), selectors.ts, index.ts, slices.ts |
+| 删除文件 | app/slicedStore.ts (旧 1237 行) |
+| 修改文件 | 8 个导入路径更新 + 2 个测试文件 |
+| 切片数量 | 11 个独立切片 |
 | 类型检查 | 0 错误 |
 | 测试通过 | 181/181 (100%) |
 
----
+## 相关文档
 
-## 新增文件清单
-
-### 切片文件 (`stores/slices/`)
-
-| 文件 | 行数 | 职责 |
-|------|------|------|
-| `uiSlice.ts` | 44 | UI 状态（侧边栏、工具栏） |
-| `workspaceSlice.ts` | 60 | 工作区状态 |
-| `gitSlice.ts` | 26 | Git 状态 |
-| `sessionSlice.ts` | 106 | 会话状态 |
-| `editorSlice.ts` | 97 | 编辑器状态 |
-| `patchSlice.ts` | 18 | 补丁状态 |
-| `searchSlice.ts` | 20 | 搜索状态 |
-| `diagnosticSlice.ts` | 37 | 诊断状态 |
-| `taskSlice.ts` | 11 | 任务状态 |
-| `commandSlice.ts` | 25 | 命令状态 |
-
-### 核心文件
-
-| 文件 | 行数 | 职责 |
-|------|------|------|
-| `slicedStore.ts` | 1172 | 基于切片模式的完整 Store 实现 |
-| `slices.ts` | 34 | 统一导出所有切片 |
-| `INTEGRATION_GUIDE.md` | - | 集成指南 |
-
-### 独立子 Store (`stores/`)
-
-| 文件 | 行数 | 职责 |
-|------|------|------|
-| `useWorkspaceStore.ts` | ~180 | 工作区独立 Store |
-| `useSessionStore.ts` | ~206 | 会话独立 Store |
-| `useEditorStore.ts` | ~253 | 编辑器独立 Store |
-| `usePatchStore.ts` | ~232 | 补丁独立 Store |
-
----
-
-## 切片架构
-
-```
-Store
-├── UI Slice (uiSlice.ts)
-│   ├── leftSidebarVisible
-│   ├── rightPanelVisible
-│   ├── activeRightTool
-│   ├── currentModel
-│   └── composerMessage
-│
-├── Workspace Slice (workspaceSlice.ts)
-│   ├── appInfo
-│   ├── recentWorkspaces
-│   ├── workspaceTree
-│   ├── indexingStatus
-│   └── repoMap
-│
-├── Git Slice (gitSlice.ts)
-│   ├── gitSnapshot
-│   └── gitBranches
-│
-├── Session Slice (sessionSlice.ts)
-│   ├── sessions
-│   ├── activeSessionId
-│   ├── sessionDetails
-│   ├── activeRun
-│   ├── streamingAssistantText
-│   ├── runActivityByRunId
-│   └── runUsageByRunId
-│
-├── Editor Slice (editorSlice.ts)
-│   ├── openTabs
-│   ├── selectedFilePath
-│   ├── changePreview
-│   ├── fileContent
-│   ├── outline
-│   └── dirtyEditorPaths
-│
-├── Patch Slice (patchSlice.ts)
-│   ├── activePatchSet
-│   └── latestPatchApplication
-│
-├── Search Slice (searchSlice.ts)
-│   ├── searchQuery
-│   └── searchResults
-│
-├── Diagnostic Slice (diagnosticSlice.ts)
-│   ├── indexingStatus
-│   ├── repoMap
-│   ├── auditEntries
-│   └── modelHealth
-│
-├── Task Slice (taskSlice.ts)
-│   └── taskCenter
-│
-└── Command Slice (commandSlice.ts)
-    ├── latestCommandRun
-    └── commandHistory
-```
-
----
-
-## 验证结果
-
-### TypeScript 类型检查
-```
-$ npm run typecheck
-> tsc --noEmit
-✅ 0 错误
-```
-
-### 单元测试
-```
-$ npm test
-✓ 31 test files
-✓ 181 tests passed
-✓ 100% pass rate
-```
-
----
-
-## 迁移指南
-
-### 旧代码（store.ts）
-```typescript
-const { sessions, activeSessionId, setActiveSessionId } = useAppStore();
-```
-
-### 新代码（slicedStore.ts）
-```typescript
-import { useSlicedAppStore } from './slicedStore';
-const { sessions, activeSessionId, setActiveSessionId } = useSlicedAppStore();
-```
-
-### 使用独立子 Store
-```typescript
-import { useSessionStore } from './stores/useSessionStore';
-const { sessions, activeSessionId } = useSessionStore();
-```
-
-### 使用选择器
-```typescript
-import { sessionSelectors } from './stores';
-const hasSessions = useSessionStore(sessionSelectors.hasSessions);
-```
-
----
-
-## 后续步骤
-
-1. ~~将 `store.ts` 替换为 `slicedStore.ts`~~ ✅ **已完成**（`store.ts` 已删除）
-2. ~~更新所有使用 `useAppStore` 的组件~~ ✅ **已完成**
-3. **建议**：逐步将业务逻辑迁移到各个切片中
-4. **建议**：为每个切片编写单元测试
-
-## 重构收益
-
-1. **模块化**: 每个切片职责清晰，便于理解和维护
-2. **可测试性**: 独立切片更容易编写单元测试
-3. **可扩展性**: 新增功能只需创建新切片
-4. **Tree-shaking**: 未使用的切片不会打包
-5. **类型安全**: 完整的 TypeScript 支持
-6. **向后兼容**: 原有独立子 Store（`useWorkspaceStore.ts` 等）保持不变
-7. **代码瘦身**: 已删除重复的 `store.ts`，消除维护负担
+- [重构洞察报告](./refactor-insight-2026-05-21.md)
+- [重构实施计划](./重构实施计划-2026-05-21.md)

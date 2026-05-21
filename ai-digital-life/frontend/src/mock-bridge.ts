@@ -1,4 +1,5 @@
 import type { DigitalLifeBridge, PtyOutputEvent } from "./shared/ipc";
+import { applyPreferencePatch } from "./app/utils/preferencesMerger";
 import type {
   AgentRunDetail,
   AppInfo,
@@ -648,33 +649,7 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
     }),
     getModelHealth: async () => ({ ok: true, data: modelHealth }),
     updatePreferences: async (patch) => {
-      const nextConfig = { ...appInfo.config };
-      if (patch.language) {
-        nextConfig.language = patch.language;
-      }
-      if (patch.themeMode) {
-        nextConfig.themeMode = patch.themeMode;
-        nextConfig.resolvedTheme = patch.themeMode === "dark" ? "dark" : "light";
-      }
-      if (patch.modelPreferences) {
-        const nextProviders = { ...nextConfig.modelPreferences.providers };
-        if (patch.modelPreferences.deepseek) {
-          nextProviders.deepseek = {
-            ...nextProviders.deepseek,
-            ...patch.modelPreferences.deepseek
-          };
-        }
-        if (patch.modelPreferences.minimax) {
-          nextProviders.minimax = {
-            ...nextProviders.minimax,
-            ...patch.modelPreferences.minimax
-          };
-        }
-        nextConfig.modelPreferences = {
-          ...nextConfig.modelPreferences,
-          providers: nextProviders
-        };
-      }
+      const nextConfig = applyPreferencePatch(appInfo.config, patch);
       appInfo.config = nextConfig;
       return { ok: true, data: { ...appInfo, currentWorkspace: currentWorkspaceMeta } };
     }

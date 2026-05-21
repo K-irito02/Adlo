@@ -1,4 +1,6 @@
 /**
+ * @deprecated This store is deprecated and no longer used. Use `slicedStore.ts` instead.
+ * 
  * Patch Store - 补丁状态管理
  * 
  * 这是一个独立的 Zustand store，专注于补丁和变更预览相关的状态。

@@ -1,4 +1,6 @@
 /**
+ * @deprecated This store is deprecated and no longer used. Use `slicedStore.ts` instead.
+ * 
  * Workspace Store - 工作区状态管理
  * 
  * 这是一个独立的 Zustand store，专注于工作区相关的状态。

@@ -45,38 +45,38 @@ ai-digital-life/
 | 目录 | 职责 |
 |------|------|
 | `app/components/` | React 组件（含 ContextMenu、ConfirmDialog、RenameInput、Tooltip 等） |
-| `app/hooks/` | 自定义 Hooks（含 useTooltip） |
-| `app/utils/` | 纯函数（含 tooltipPosition 定位逻辑） |
-| `app/stores/` | Zustand 状态管理（包含切片模式重构） |
+| `app/hooks/` | 自定义 Hooks（含 useTooltip、useStreamingText） |
+| `app/utils/` | 纯函数（含 tooltipPosition 定位逻辑、preferencesMerger） |
+| `app/stores/` | Zustand 状态管理（切片合并模式） |
 | `app/regions/right-panel/` | 右侧面板组件（FilesPanel/FileNavigatorShell/EditorSurfaceShell 分层架构） |
 
-## Stores 架构（Zustand 切片模式）
+## Stores 架构（Zustand 切片合并模式）
 
 ```
 app/stores/
-├── slicedStore.ts               # 基于切片模式的 Store（真源，已替代 store.ts）
-├── slices.ts                   # 统一导出所有切片
-├── selectors.ts                # 通用选择器
-├── shared.ts                   # 共享状态和工具
-├── cacheUtils.ts               # 缓存工具函数
+├── slicedStore.ts               # 基于切片合并的完整 Store（真源，已替代旧 slicedStore.ts）
+├── StoreState.ts                # 完整 StoreState 类型接口
+├── slices.ts                    # 统一导出所有切片
+├── selectors.ts                 # 选择器（含 useShallow React Hook 版本，避免不必要重渲染）
+├── shared.ts                    # 共享状态和工具
+├── cacheUtils.ts                # 缓存工具函数
 ├── conversationUtils.ts         # 会话工具函数
-├── index.ts                    # 模块索引
-├── INTEGRATION_GUIDE.md        # 集成指南
+├── index.ts                     # 模块索引
 │
-├── slices/                     # Zustand 切片定义
-│   ├── uiSlice.ts              # UI 状态（侧边栏、工具栏）
+├── slices/                      # Zustand 切片定义
+│   ├── uiSlice.ts               # UI 状态（侧边栏、工具栏）
 │   ├── workspaceSlice.ts        # 工作区状态
-│   ├── gitSlice.ts             # Git 状态
+│   ├── gitSlice.ts              # Git 状态
 │   ├── sessionSlice.ts          # 会话状态
 │   ├── editorSlice.ts           # 编辑器状态
 │   ├── patchSlice.ts            # 补丁状态
-│   ├── searchSlice.ts           # 搜索状态
+│   ├── searchSlice.ts           # 搜索状态（含 300ms debounce）
 │   ├── diagnosticSlice.ts       # 诊断状态
 │   ├── taskSlice.ts             # 任务状态
 │   ├── commandSlice.ts          # 命令状态
 │   └── clipboardSlice.ts        # 剪贴板状态（cut/copy 操作与路径记录）
 │
-└── (legacy sub-stores)         # 独立子 Store（向后兼容）
+└── (legacy sub-stores)          # @deprecated，已废弃，使用 slicedStore.ts 替代
     ├── useWorkspaceStore.ts
     ├── useSessionStore.ts
     ├── useEditorStore.ts

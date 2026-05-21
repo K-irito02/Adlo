@@ -13,7 +13,7 @@ import { useFileCreation, useSearchPanel } from "./hooks";
 import { FileCreationBar } from "./FileCreationBar";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { RenameInput } from "../../components/RenameInput";
-import { useAppStore } from "../../slicedStore";
+import { useAppStore } from "../../stores/slicedStore";
 import type { SearchHit } from "./hooks/useSearchPanel";
 
 interface FileNavigatorShellProps {

@@ -1,4 +1,6 @@
 /**
+ * @deprecated This store is deprecated and no longer used. Use `slicedStore.ts` instead.
+ * 
  * Session Store - 会话状态管理
  * 
  * 这是一个独立的 Zustand store，专注于会话相关的状态。

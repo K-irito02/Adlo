@@ -1,230 +1,239 @@
 /**
  * Store Selectors - 从主 store 中提取特定领域的数据
  * 
- * 这些选择器提供了一种类型安全的方式来访问 store 中的特定部分，
- * 而不需要订阅整个 store。
+ * 每个选择器提供纯函数版本（get*）和 React Hook 版本（use*），
+ * 对返回对象/数组的 Hook 使用 useShallow 避免不必要的重渲染。
  */
 
-import type { StoreState } from "../slicedStore";
+import { useShallow } from "zustand/react/shallow";
+import { useAppStore } from "./slicedStore";
+import type { StoreState } from "./StoreState";
 import type { AppInfo, GitSnapshot, WorkspaceTreeNode, RecentWorkspaceEntry } from "@ai-digital-life/kernel";
 
-/**
- * 工作区相关的选择器
- */
+// ============================================
+// 工作区相关的选择器
+// ============================================
 export const workspaceSelectors = {
-  /** 获取当前应用信息 */
   getAppInfo: (state: StoreState) => state.appInfo,
+  useAppInfo: () => useAppStore((s) => s.appInfo),
   
-  /** 获取当前工作区元数据 */
   getCurrentWorkspace: (state: StoreState) => state.appInfo?.currentWorkspace,
+  useCurrentWorkspace: () => useAppStore(useShallow((s) => s.appInfo?.currentWorkspace)),
   
-  /** 获取最近的个工作区列表 */
   getRecentWorkspaces: (state: StoreState) => state.recentWorkspaces,
+  useRecentWorkspaces: () => useAppStore(useShallow((s) => s.recentWorkspaces)),
   
-  /** 获取工作区树 */
   getWorkspaceTree: (state: StoreState) => state.workspaceTree,
+  useWorkspaceTree: () => useAppStore(useShallow((s) => s.workspaceTree)),
   
-  /** 获取 Git 快照 */
   getGitSnapshot: (state: StoreState) => state.gitSnapshot,
+  useGitSnapshot: () => useAppStore(useShallow((s) => s.gitSnapshot)),
   
-  /** 获取 Git 分支列表 */
   getGitBranches: (state: StoreState) => state.gitBranches,
+  useGitBranches: () => useAppStore(useShallow((s) => s.gitBranches)),
   
-  /** 获取工作区上下文模式 */
   getWorkspaceContextMode: (state: StoreState) => state.workspaceContextMode,
+  useWorkspaceContextMode: () => useAppStore((s) => s.workspaceContextMode),
   
-  /** 获取索引状态 */
   getIndexingStatus: (state: StoreState) => state.indexingStatus,
+  useIndexingStatus: () => useAppStore(useShallow((s) => s.indexingStatus)),
   
-  /** 获取仓库地图 */
   getRepoMap: (state: StoreState) => state.repoMap,
+  useRepoMap: () => useAppStore(useShallow((s) => s.repoMap)),
   
-  /** 检查是否有当前工作区 */
   hasCurrentWorkspace: (state: StoreState) => Boolean(state.appInfo?.currentWorkspace),
+  useHasCurrentWorkspace: () => useAppStore((s) => Boolean(s.appInfo?.currentWorkspace)),
   
-  /** 获取工作区 ID */
   getWorkspaceId: (state: StoreState) => state.appInfo?.currentWorkspace?.id,
+  useWorkspaceId: () => useAppStore((s) => s.appInfo?.currentWorkspace?.id),
 };
 
-/**
- * 会话相关的选择器
- */
+// ============================================
+// 会话相关的选择器
+// ============================================
 export const sessionSelectors = {
-  /** 获取所有会话 */
   getSessions: (state: StoreState) => state.sessions,
+  useSessions: () => useAppStore(useShallow((s) => s.sessions)),
   
-  /** 获取当前活跃会话 ID */
   getActiveSessionId: (state: StoreState) => state.activeSessionId,
+  useActiveSessionId: () => useAppStore((s) => s.activeSessionId),
   
-  /** 获取当前活跃会话详情 */
   getActiveSession: (state: StoreState) => {
     const activeId = state.activeSessionId;
     if (!activeId) return undefined;
     return state.sessionDetails[activeId];
   },
+  useActiveSession: () => useAppStore(useShallow((s) => {
+    if (!s.activeSessionId) return undefined;
+    return s.sessionDetails[s.activeSessionId];
+  })),
   
-  /** 获取会话详情映射 */
   getSessionDetails: (state: StoreState) => state.sessionDetails,
+  useSessionDetails: () => useAppStore(useShallow((s) => s.sessionDetails)),
   
-  /** 获取会话数量 */
   getSessionCount: (state: StoreState) => state.sessions.length,
+  useSessionCount: () => useAppStore((s) => s.sessions.length),
   
-  /** 检查是否有会话 */
   hasSessions: (state: StoreState) => state.sessions.length > 0,
+  useHasSessions: () => useAppStore((s) => s.sessions.length > 0),
 };
 
-/**
- * 编辑器相关的选择器
- */
+// ============================================
+// 编辑器相关的选择器
+// ============================================
 export const editorSelectors = {
-  /** 获取打开的标签页 */
   getOpenTabs: (state: StoreState) => state.openTabs,
+  useOpenTabs: () => useAppStore(useShallow((s) => s.openTabs)),
   
-  /** 获取当前选中的文件路径 */
   getSelectedFilePath: (state: StoreState) => state.selectedFilePath,
+  useSelectedFilePath: () => useAppStore((s) => s.selectedFilePath),
   
-  /** 获取当前文件内容 */
   getFileContent: (state: StoreState) => state.fileContent,
+  useFileContent: () => useAppStore((s) => s.fileContent),
   
-  /** 获取文件最后修改时间 */
   getFileLastModifiedAt: (state: StoreState) => state.fileLastModifiedAt,
+  useFileLastModifiedAt: () => useAppStore((s) => s.fileLastModifiedAt),
   
-  /** 获取文件大纲 */
   getOutline: (state: StoreState) => state.outline,
+  useOutline: () => useAppStore(useShallow((s) => s.outline)),
   
-  /** 获取脏编辑器路径列表 */
   getDirtyEditorPaths: (state: StoreState) => state.dirtyEditorPaths,
+  useDirtyEditorPaths: () => useAppStore(useShallow((s) => s.dirtyEditorPaths)),
   
-  /** 获取外部文件变更 */
   getExternalFileChange: (state: StoreState) => state.externalFileChange,
+  useExternalFileChange: () => useAppStore(useShallow((s) => s.externalFileChange)),
   
-  /** 检查文件是否被修改 */
-  isFileDirty: (relativePath: string) => (state: StoreState) => 
+  isFileDirty: (relativePath: string) => (state: StoreState) =>
     state.dirtyEditorPaths.includes(relativePath),
+  useIsFileDirty: (relativePath: string) => useAppStore((s) => s.dirtyEditorPaths.includes(relativePath)),
   
-  /** 获取打开的标签页数量 */
   getOpenTabCount: (state: StoreState) => state.openTabs.length,
+  useOpenTabCount: () => useAppStore((s) => s.openTabs.length),
 };
 
-/**
- * 补丁相关的选择器
- */
+// ============================================
+// 补丁相关的选择器
+// ============================================
 export const patchSelectors = {
-  /** 获取当前活跃的补丁集 */
   getActivePatchSet: (state: StoreState) => state.activePatchSet,
+  useActivePatchSet: () => useAppStore(useShallow((s) => s.activePatchSet)),
   
-  /** 获取最新的补丁应用结果 */
   getLatestPatchApplication: (state: StoreState) => state.latestPatchApplication,
+  useLatestPatchApplication: () => useAppStore(useShallow((s) => s.latestPatchApplication)),
   
-  /** 获取当前选中的变更预览路径 */
   getSelectedChangePreviewPath: (state: StoreState) => state.selectedChangePreviewPath,
+  useSelectedChangePreviewPath: () => useAppStore((s) => s.selectedChangePreviewPath),
   
-  /** 获取变更预览 */
   getChangePreview: (state: StoreState) => state.changePreview,
+  useChangePreview: () => useAppStore(useShallow((s) => s.changePreview)),
   
-  /** 检查变更预览是否正在加载 */
   isChangePreviewLoading: (state: StoreState) => state.changePreviewLoading,
+  useIsChangePreviewLoading: () => useAppStore((s) => s.changePreviewLoading),
   
-  /** 检查是否有活跃的补丁集 */
   hasActivePatchSet: (state: StoreState) => Boolean(state.activePatchSet),
+  useHasActivePatchSet: () => useAppStore((s) => Boolean(s.activePatchSet)),
 };
 
-/**
- * 任务相关的选择器
- */
+// ============================================
+// 任务相关的选择器
+// ============================================
 export const taskSelectors = {
-  /** 获取任务中心快照 */
   getTaskCenter: (state: StoreState) => state.taskCenter,
+  useTaskCenter: () => useAppStore(useShallow((s) => s.taskCenter)),
   
-  /** 获取审计条目 */
   getAuditEntries: (state: StoreState) => state.auditEntries,
+  useAuditEntries: () => useAppStore(useShallow((s) => s.auditEntries)),
   
-  /** 检查是否有任务中心 */
   hasTaskCenter: (state: StoreState) => Boolean(state.taskCenter),
+  useHasTaskCenter: () => useAppStore((s) => Boolean(s.taskCenter)),
 };
 
-/**
- * 运行相关的选择器
- */
+// ============================================
+// 运行相关的选择器
+// ============================================
 export const runSelectors = {
-  /** 获取当前活跃的运行 */
   getActiveRun: (state: StoreState) => state.activeRun,
+  useActiveRun: () => useAppStore(useShallow((s) => s.activeRun)),
   
-  /** 获取流式输出文本 */
   getStreamingAssistantText: (state: StoreState) => state.streamingAssistantText,
+  useStreamingAssistantText: () => useAppStore((s) => s.streamingAssistantText),
   
-  /** 获取流式运行 ID */
   getStreamingActiveRunId: (state: StoreState) => state.streamingActiveRunId,
+  useStreamingActiveRunId: () => useAppStore((s) => s.streamingActiveRunId),
   
-  /** 获取按运行 ID 分组的活动 */
   getRunActivityByRunId: (state: StoreState) => state.runActivityByRunId,
+  useRunActivityByRunId: () => useAppStore(useShallow((s) => s.runActivityByRunId)),
   
-  /** 获取按运行 ID 分组的使用统计 */
   getRunUsageByRunId: (state: StoreState) => state.runUsageByRunId,
+  useRunUsageByRunId: () => useAppStore(useShallow((s) => s.runUsageByRunId)),
   
-  /** 检查是否有活跃运行 */
   hasActiveRun: (state: StoreState) => Boolean(state.activeRun),
+  useHasActiveRun: () => useAppStore((s) => Boolean(s.activeRun)),
   
-  /** 检查是否正在流式输出 */
   isStreaming: (state: StoreState) => Boolean(state.streamingActiveRunId),
+  useIsStreaming: () => useAppStore((s) => Boolean(s.streamingActiveRunId)),
 };
 
-/**
- * 模型健康相关的选择器
- */
+// ============================================
+// 模型健康相关的选择器
+// ============================================
 export const modelSelectors = {
-  /** 获取模型健康快照 */
   getModelHealth: (state: StoreState) => state.modelHealth,
+  useModelHealth: () => useAppStore(useShallow((s) => s.modelHealth)),
   
-  /** 获取当前选中的模型 */
   getCurrentModel: (state: StoreState) => state.currentModel,
+  useCurrentModel: () => useAppStore((s) => s.currentModel),
   
-  /** 检查模型健康状态是否可用 */
   hasModelHealth: (state: StoreState) => Boolean(state.modelHealth),
+  useHasModelHealth: () => useAppStore((s) => Boolean(s.modelHealth)),
 };
 
-/**
- * 命令相关的选择器
- */
+// ============================================
+// 命令相关的选择器
+// ============================================
 export const commandSelectors = {
-  /** 获取最近命令历史 */
   getCommandHistory: (state: StoreState) => state.commandHistory,
+  useCommandHistory: () => useAppStore(useShallow((s) => s.commandHistory)),
   
-  /** 获取最近一次命令运行结果 */
   getLatestCommandRun: (state: StoreState) => state.latestCommandRun,
+  useLatestCommandRun: () => useAppStore(useShallow((s) => s.latestCommandRun)),
   
-  /** 检查是否有命令历史 */
   hasCommandHistory: (state: StoreState) => state.commandHistory.length > 0,
+  useHasCommandHistory: () => useAppStore((s) => s.commandHistory.length > 0),
 };
 
-/**
- * 搜索相关的选择器
- */
+// ============================================
+// 搜索相关的选择器
+// ============================================
 export const searchSelectors = {
-  /** 获取搜索查询 */
   getSearchQuery: (state: StoreState) => state.searchQuery,
+  useSearchQuery: () => useAppStore((s) => s.searchQuery),
   
-  /** 获取搜索结果 */
   getSearchResults: (state: StoreState) => state.searchResults,
+  useSearchResults: () => useAppStore(useShallow((s) => s.searchResults)),
   
-  /** 检查是否有搜索结果 */
   hasSearchResults: (state: StoreState) => state.searchResults.length > 0,
+  useHasSearchResults: () => useAppStore((s) => s.searchResults.length > 0),
 };
 
-/**
- * 组合选择器 - 用于常见的组合场景
- */
+// ============================================
+// 组合选择器
+// ============================================
 export const combinedSelectors = {
-  /** 检查是否可以打开新标签页（基于现有打开的标签页） */
   canOpenNewTab: (state: StoreState) => state.openTabs.length < 20,
+  useCanOpenNewTab: () => useAppStore((s) => s.openTabs.length < 20),
   
-  /** 检查工作区是否就绪 */
-  isWorkspaceReady: (state: StoreState) => 
+  isWorkspaceReady: (state: StoreState) =>
     Boolean(state.appInfo?.currentWorkspace) && state.indexingStatus?.state !== "indexing",
+  useIsWorkspaceReady: () => useAppStore((s) =>
+    Boolean(s.appInfo?.currentWorkspace) && s.indexingStatus?.state !== "indexing"),
   
-  /** 获取当前文件的标签页（如果存在） */
   getCurrentFileTab: (state: StoreState) => {
     if (!state.selectedFilePath) return undefined;
     return state.openTabs.find(tab => tab.path === state.selectedFilePath);
   },
+  useCurrentFileTab: () => useAppStore(useShallow((s) => {
+    if (!s.selectedFilePath) return undefined;
+    return s.openTabs.find(tab => tab.path === s.selectedFilePath);
+  })),
 };

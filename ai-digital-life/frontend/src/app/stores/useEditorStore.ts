@@ -1,4 +1,6 @@
 /**
+ * @deprecated This store is deprecated and no longer used. Use `slicedStore.ts` instead.
+ * 
  * Editor Store - 编辑器状态管理
  * 
  * 这是一个独立的 Zustand store，专注于编辑器相关的状态。
