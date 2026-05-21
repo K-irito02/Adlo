@@ -3643,11 +3643,12 @@ select:focus-visible {
   padding-inline-end: calc(8px + var(--adl-outline-scrollbar-width));
 }
 
+/* 强制选中状态背景优先级最高 */
 .adl-tree-node.is-selected > .adl-tree-node__row,
 .adl-filetree__item.is-selected > .adl-filetree__row,
 .adl-outline-tree__item.is-selected > .adl-outline-tree__row {
-  background: var(--surface-active);
-  color: var(--text-primary);
+  background: var(--surface-active) !important;
+  color: var(--text-primary) !important;
 }
 
 .adl-tree-node.is-context-menu-target:not(.is-selected) > .adl-tree-node__row,
@@ -3657,6 +3658,7 @@ select:focus-visible {
   color: var(--text-primary);
 }
 
+/* 悬停状态仅在未选中时生效 */
 .adl-tree-node.is-hovered:not(.is-selected):not(.is-context-menu-target) > .adl-tree-node__row,
 .adl-filetree__row:hover:not(:has(.is-selected)):not(:has(.is-context-menu-target)),
 .adl-filetree__row:focus-within:not(:has(.is-selected)):not(:has(.is-context-menu-target)),
@@ -3664,6 +3666,17 @@ select:focus-visible {
 .adl-outline-tree__item.is-hovered:not(.is-selected):not(.is-context-menu-target) > .adl-outline-tree__row {
   background: var(--surface-hover);
   color: var(--text-primary);
+}
+
+/* 防止选中的项在任何情况下都显示选中背景 */
+.adl-tree-node.is-selected.is-hovered > .adl-tree-node__row,
+.adl-filetree__item.is-selected.is-hovered > .adl-filetree__row,
+.adl-outline-tree__item.is-selected.is-hovered > .adl-outline-tree__row,
+.adl-tree-node.is-selected.is-context-menu-target > .adl-tree-node__row,
+.adl-filetree__item.is-selected.is-context-menu-target > .adl-filetree__row,
+.adl-outline-tree__item.is-selected.is-context-menu-target > .adl-outline-tree__row {
+  background: var(--surface-active) !important;
+  color: var(--text-primary) !important;
 }
 
 .adl-tool-list__item:hover,

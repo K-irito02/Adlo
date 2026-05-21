@@ -48,9 +48,8 @@ describe("outline panel wiring", () => {
     expect(treeNodeRowSource).toContain("adl-tree-node__toggle");
   });
 
-  it("tracks active file tree path independently so directory clicks also show the selected chrome", () => {
-    expect(fileTreeSource).toContain("const [activePath, setActivePath] = useState<string | undefined>(props.selectedFilePath)");
-    expect(fileTreeSource).toContain("setActivePath(path);");
+  it("tracks active file tree path directly from external props", () => {
+    expect(fileTreeSource).toContain("const activePath = props.selectedFilePath;");
     expect(fileTreeSource).toContain("isActive={isSelected}");
   });
 });

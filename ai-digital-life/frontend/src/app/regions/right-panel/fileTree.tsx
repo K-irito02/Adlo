@@ -283,9 +283,12 @@ export function FileTree<T extends FileTreeRenderableNode>(props: FileTreeProps<
   const [contextMenuTargetPath, setContextMenuTargetPath] = useState<string | undefined>(undefined);
   const persistRef = props.contextMenuPersistRef;
   const highlightedPath = contextMenuTargetPath;
-  const [activePath, setActivePath] = useState<string | undefined>(props.selectedFilePath);
-  const [selectedPaths, setSelectedPaths] = useState<Set<string>>(
-    props.selectedFilePath ? new Set([props.selectedFilePath]) : new Set()
+  
+  // 完全依赖外部状态，不维护本地选中状态
+  const activePath = props.selectedFilePath;
+  const selectedPaths = useMemo(() => 
+    activePath ? new Set([activePath]) : new Set(),
+    [activePath]
   );
   const [hoveredPath, setHoveredPath] = useState<string | undefined>(undefined);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -296,30 +299,19 @@ export function FileTree<T extends FileTreeRenderableNode>(props: FileTreeProps<
     props.clearMenuHighlightRef.current = clearHighlightRef.current;
   }
 
-  useEffect(() => {
-    if (props.selectedFilePath !== activePath) {
-      setActivePath(props.selectedFilePath);
-      if (props.selectedFilePath) {
-        setSelectedPaths(new Set([props.selectedFilePath]));
-      } else {
-        setSelectedPaths(new Set());
-      }
-    }
-  }, [props.selectedFilePath, activePath]);
-
   const getAllNodePaths = useMemo(() => collectAllNodePaths(props.nodes), [props.nodes]);
 
   const handleToggleDirectory = useCallback(
     (path: string) => {
+      // 直接调用外部函数
       props.onToggle(path);
     },
     [props.onToggle]
   );
 
   const handleOpenFile = (relativePath: string, event: React.MouseEvent<HTMLButtonElement>) => {
+    // 使用 flushSync 确保外部状态更新后立即重新渲染
     flushSync(() => {
-      setActivePath(relativePath);
-      setSelectedPaths(new Set([relativePath]));
       props.onOpenFile(relativePath);
     });
   };

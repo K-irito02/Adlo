@@ -92,30 +92,69 @@ if (!wasPreviouslySelected) {
 
 ### 问题 6：左键选中状态背景不加深
 
-**根本原因**：FileTree 组件内部状态管理问题，导致选中状态与外部状态不同步。
+**根本原因**：FileTree 组件内部状态管理与外部状态产生竞态条件。
 
 **具体分析**：
 - FileTree 组件同时维护内部状态（`activePath`、`selectedPaths`）和接收外部状态（`props.selectedFilePath`）
-- 点击文件时，内部状态和外部状态更新不同步
-- 导致 UI 没有正确反映选中状态
+- 虽然使用 `flushSync` 和 `useEffect` 试图同步，但内部状态和外部状态更新存在时序问题
+- 导致点击时选中背景在深灰色和浅灰色之间闪烁
+- 同时 CSS 优先级不足，hover 状态有时会覆盖选中状态
 
-**解决方案**（正在排查中）：
-- 方案 1：使用内部状态管理选中状态，点击时立即更新内部状态
-- 方案 2：完全依赖外部状态，移除内部状态管理
-- 当前实现：使用内部状态 + `useEffect` 同步外部状态 + `flushSync` 确保立即更新
+**最终解决方案**（2026-05-21 已解决）：
 
-**当前状态**：问题尚未完全解决，需要进一步排查。
+1. **代码层面**：彻底简化状态管理，完全依赖外部状态
+   - 移除内部 `localActivePath` 状态
+   - 直接使用 `props.selectedFilePath` 作为 `activePath`
+   - 在 `handleOpenFile` 中使用 `flushSync` 确保外部状态更新后立即重新渲染
+
+2. **CSS 层面**：强制选中状态背景优先级
+   - 给选中状态背景添加 `!important` 声明
+   - 添加专门针对"选中且悬停/右键"的样式规则
+   - 确保选中状态在任何情况下都保持深灰色背景
+
+**最终实现代码**：
 
 ```typescript
-// 当前实现
+// fileTree.tsx
+const activePath = props.selectedFilePath;  // 直接使用外部状态
+const selectedPaths = useMemo(() => 
+  activePath ? new Set([activePath]) : new Set(),
+  [activePath]
+);
+
 const handleOpenFile = (relativePath: string, event: React.MouseEvent<HTMLButtonElement>) => {
   flushSync(() => {
-    setActivePath(relativePath);
-    setSelectedPaths(new Set([relativePath]));
-    props.onOpenFile(relativePath);
+    props.onOpenFile(relativePath);  // 仅调用外部处理函数
   });
 };
 ```
+
+```css
+/* regions.css */
+/* 强制选中状态背景优先级最高 */
+.adl-tree-node.is-selected > .adl-tree-node__row,
+.adl-filetree__item.is-selected > .adl-filetree__row,
+.adl-outline-tree__item.is-selected > .adl-outline-tree__row {
+  background: var(--surface-active) !important;
+  color: var(--text-primary) !important;
+}
+
+/* 防止选中的项在任何情况下都显示选中背景 */
+.adl-tree-node.is-selected.is-hovered > .adl-tree-node__row,
+.adl-filetree__item.is-selected.is-hovered > .adl-filetree__row,
+.adl-outline-tree__item.is-selected.is-hovered > .adl-outline-tree__row,
+.adl-tree-node.is-selected.is-context-menu-target > .adl-tree-node__row,
+.adl-filetree__item.is-selected.is-context-menu-target > .adl-filetree__row,
+.adl-outline-tree__item.is-selected.is-context-menu-target > .adl-outline-tree__row {
+  background: var(--surface-active) !important;
+  color: var(--text-primary) !important;
+}
+```
+
+**关键经验**：
+- **双重保险策略**：代码层面简化状态管理 + CSS 层面强制优先级
+- **KISS 原则**：复杂的状态同步问题最简单的解决方案可能是"不要维护重复状态"
+- **CSS `!important` 的合理使用**：在状态驱动的 UI 中，`!important` 可以确保关键状态（如选中）不会被其他状态（如悬停）覆盖
 
 ## 三、关键技术改进
 
@@ -289,5 +328,6 @@ const MemoizedFileTreeNode = FileTreeNodeComponent;
 |------|------|------|----------|
 | 2026-05-21 | v1.0 | 开发团队 | 初始设计文档 |
 | 2026-05-21 | v1.1 | 开发团队 | 添加问题解决经验总结 |
-| 2026-05-21 | v1.2 | 开发团队 | 添加问题5（鼠标悬停父子节点相互影响）和问题6（左键选中背景不加深） |
+| 2026-05-21 | v1.3 | 开发团队 | 添加问题5（鼠标悬停父子节点相互影响）和问题6（左键选中背景不加深） |
+| 2026-05-21 | v1.4 | 开发团队 | 问题6已完全解决：采用代码+CSS双重方案 |
 | 2026-05-21 | v1.3 | 开发团队 | 添加问题6的详细分析和当前解决方案 |
