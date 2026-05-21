@@ -17,11 +17,12 @@ import {
   type CachedFileDocument,
 } from "../shared";
 import type { FileOutlineItem } from "@ai-digital-life/kernel";
+import type { StoreApi } from "zustand";
 
 const fileDocumentCache = getFileDocumentCache();
 const changePreviewCache = getChangePreviewCache();
 
-export function createEditorActions(set: any, get: () => StoreState) {
+export function createEditorActions(set: StoreApi<StoreState>["setState"], get: () => StoreState) {
   return {
     openFile: async (relativePath: string) => {
       const requestSeq = getNextFileRequestSeq();

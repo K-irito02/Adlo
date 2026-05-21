@@ -5,8 +5,9 @@ import {
   getNextSessionRequestSeq,
   sessionRequestSeq,
 } from "../shared";
+import type { StoreApi } from "zustand";
 
-export function createSessionActions(set: any, get: () => StoreState) {
+export function createSessionActions(set: StoreApi<StoreState>["setState"], get: () => StoreState) {
   return {
     createSession: async () => {
       const result = await window.digitalLife.conversation.createSession(

@@ -1,7 +1,5 @@
 import type { StoreState } from "../StoreState";
 import type { ConversationMessageRecord } from "@ai-digital-life/kernel";
-import { copy } from "../../copy";
-import { MODEL_PROVIDER_IDS } from "../../constants";
 import { mapPatchToEditorTab } from "../../editorTabs";
 import { sessionFallbackTitle, refreshConversationSlice, workspaceContextModeFromInfo } from "../conversationUtils";
 import { useUiStore } from "../../ui-store";
@@ -11,13 +9,14 @@ import {
   chatModeToScenario,
   type MessageSendOptions,
 } from "../../composerSend";
+import type { StoreApi } from "zustand";
 
 type ModelStreamEvent = import("@ai-digital-life/kernel").DigitalLifeModelStreamEventV1;
 type RunActivityEvent = import("@ai-digital-life/kernel").DigitalLifeRunActivityEventV1;
 
 function createModelStreamSubscriber(
   get: () => StoreState,
-  set: any
+  set: StoreApi<StoreState>["setState"]
 ): (event: ModelStreamEvent) => void {
   return (event: ModelStreamEvent) => {
     if (event.v !== 1) return;
@@ -44,7 +43,7 @@ function createModelStreamSubscriber(
 }
 
 function createRunActivitySubscriber(
-  set: any
+  set: StoreApi<StoreState>["setState"]
 ): (event: RunActivityEvent) => void {
   return (event: RunActivityEvent) => {
     if (event.v !== 1) return;
@@ -69,7 +68,7 @@ function createRunActivitySubscriber(
   };
 }
 
-export function createStreamActions(set: any, get: () => StoreState) {
+export function createStreamActions(set: StoreApi<StoreState>["setState"], get: () => StoreState) {
   return {
     sendMessage: async (content: string, options?: MessageSendOptions) => {
       if (!content.trim()) return;

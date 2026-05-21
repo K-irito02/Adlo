@@ -1,7 +1,8 @@
 import type { StoreState } from "../StoreState";
 import { mapPatchToEditorTab } from "../../editorTabs";
+import type { StoreApi } from "zustand";
 
-export function createPatchActions(set: any, get: () => StoreState) {
+export function createPatchActions(set: StoreApi<StoreState>["setState"], get: () => StoreState) {
   return {
     setHunkDecision: async (patchSetId: string, hunkId: string, decision: "pending" | "accepted" | "rejected") => {
       const result = await window.digitalLife.patch.setHunkDecision({

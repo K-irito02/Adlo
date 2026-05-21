@@ -10,10 +10,11 @@ import {
   createDebouncedSearch,
   workspaceRequestSeq,
 } from "../shared";
+import type { StoreApi } from "zustand";
 
 const debouncedSearch = createDebouncedSearch(300);
 
-export function createWorkspaceActions(set: any, get: () => StoreState) {
+export function createWorkspaceActions(set: StoreApi<StoreState>["setState"], get: () => StoreState) {
   return {
     renameWorkspaceFile: async (relativePath: string, newName: string) => {
       const result = await window.digitalLife.workspace.renameFile(

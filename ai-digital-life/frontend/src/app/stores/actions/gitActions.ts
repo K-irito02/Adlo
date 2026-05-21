@@ -3,8 +3,9 @@ import type {
   WorkspaceGitBranchCreateInput,
   WorkspaceGitBranchSwitchInput,
 } from "@ai-digital-life/kernel";
+import type { StoreApi } from "zustand";
 
-export function createGitActions(set: any, get: () => StoreState) {
+export function createGitActions(set: StoreApi<StoreState>["setState"], get: () => StoreState) {
   return {
     fetchGitStatus: async () => {
       if (!get().appInfo?.currentWorkspace) {

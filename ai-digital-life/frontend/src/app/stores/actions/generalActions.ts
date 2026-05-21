@@ -10,8 +10,9 @@ import {
   workspaceRequestSeq,
   queueLowPriorityRefresh,
 } from "../shared";
+import type { StoreApi } from "zustand";
 
-export function createGeneralActions(set: any, get: () => StoreState) {
+export function createGeneralActions(set: StoreApi<StoreState>["setState"], get: () => StoreState) {
   return {
     bootstrap: async () => {
       const requestSeq = workspaceRequestSeq;

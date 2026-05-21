@@ -3,8 +3,9 @@ import type {
   DigitalLifeRunActivityEventV1,
   IndexingStatus,
 } from "@ai-digital-life/kernel";
+import type { StoreApi } from "zustand";
 
-export function createFetchActions(set: any, get: () => StoreState) {
+export function createFetchActions(set: StoreApi<StoreState>["setState"], get: () => StoreState) {
   return {
     fetchIndexStatus: async () => {
       const result = await window.digitalLife.retrieval.getStatus();
