@@ -103,6 +103,7 @@ frontend/src/
 | 文件遍历 I/O 优化 | 消除 `fs::metadata()` 双重 I/O，每文件减少一次系统调用 |
 | IGNORED_DIRS 扩展 | 从 7 项增至 18 项，覆盖更多常见排除目录 |
 | 正则编译缓存 | `sanitize_brace_line` 正则从每次调用编译改为 `OnceLock` 一次性初始化 |
+| Actions 类型安全 | 8 个 action 模块的 `set: any` 替换为 `StoreApi<StoreState>["setState"]`，消除类型盲区 |
 
 ### 验证结果
 
