@@ -3,6 +3,7 @@
  * 管理通用的 UI 状态，保持向后兼容
  */
 import { type ToolId } from "../../ui-store";
+import type { StoreState } from "../StoreState";
 
 // 导出类型定义，与 slices.ts 保持一致
 export interface UISlice {
@@ -25,8 +26,8 @@ export interface UISlice {
  * UI 切片创建器
  */
 export const createUISlice = (
-  set: (partial: Partial<UISlice> | ((state: UISlice) => Partial<UISlice>)) => void,
-  get: () => UISlice
+  set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
+  get: () => StoreState
 ): UISlice => ({
   leftSidebarVisible: true,
   rightPanelVisible: true,

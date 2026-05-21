@@ -3,6 +3,7 @@
  * 管理任务中心快照
  */
 import type { TaskCenterSnapshot } from "@ai-digital-life/kernel";
+import type { StoreState } from "../StoreState";
 
 export interface TaskSlice {
   taskCenter?: TaskCenterSnapshot;
@@ -12,8 +13,8 @@ export interface TaskSlice {
 }
 
 export const createTaskSlice = (
-  set: (partial: Partial<TaskSlice> | ((state: TaskSlice) => Partial<TaskSlice>)) => void,
-  get: () => TaskSlice
+  set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
+  get: () => StoreState
 ): TaskSlice => ({
   setTaskCenter: (snapshot) => set({ taskCenter: snapshot }),
   clearTaskState: () => set({ taskCenter: undefined })

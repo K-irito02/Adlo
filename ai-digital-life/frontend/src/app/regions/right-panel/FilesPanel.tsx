@@ -11,6 +11,7 @@ import { EditorSurfaceShell } from "./EditorSurfaceShell";
 import { FileContextMenu, type FileMenuItem, type FileMenuDivider } from "./FileContextMenu";
 import { FileHistoryNav } from "./FileHistoryNav";
 import type { RightPanelViewProps } from "./types";
+import { joinPathSegments } from "../../workspacePaths";
 
 export function FilesPanel(props: RightPanelViewProps) {
   const {
@@ -56,7 +57,6 @@ export function FilesPanel(props: RightPanelViewProps) {
 
   const localDiffEditorRef = useRef<DiffEditorRef | EditorRef | null>(null);
 
-  const filePreviewModeByPath = useUiStore((s) => s.filePreviewModeByPath);
   const setFilePreviewModeForPath = useUiStore((s) => s.setFilePreviewModeForPath);
   const navigatorCollapsed = useUiStore((s) => s.navigatorCollapsedByTool.files);
   const toggleNavigator = useUiStore((s) => s.toggleNavigator);
@@ -84,9 +84,12 @@ export function FilesPanel(props: RightPanelViewProps) {
   }, [hasActivePatch, props.standardEditorRef]);
 
   const fileCategory = useMemo(() => categorizeFile(selectedFilePath), [selectedFilePath]);
-  const previewEnabled = selectedFilePath
-    ? (filePreviewModeByPath[selectedFilePath] ?? (fileCategory === "markdown"))
-    : false;
+  const previewEnabled = useUiStore(
+    useCallback(
+      (s) => selectedFilePath ? (s.filePreviewModeByPath[selectedFilePath] ?? (fileCategory === "markdown")) : false,
+      [selectedFilePath, fileCategory]
+    )
+  );
 
   const setPreviewEnabled = useCallback(
     (enabled: boolean) => {
@@ -99,9 +102,7 @@ export function FilesPanel(props: RightPanelViewProps) {
   const selectedAbsolutePath = useMemo(() => {
     const rootPath = appInfo?.currentWorkspace?.rootPath ?? appInfo?.currentWorkspace?.path;
     if (!rootPath || !selectedFilePath) return undefined;
-    const separator = rootPath.includes("\\") ? "\\" : "/";
-    const normalizedRelative = selectedFilePath.split("/").join(separator);
-    return `${rootPath}${rootPath.endsWith(separator) ? "" : separator}${normalizedRelative}`;
+    return joinPathSegments(rootPath, selectedFilePath);
   }, [appInfo?.currentWorkspace?.path, appInfo?.currentWorkspace?.rootPath, selectedFilePath]);
 
   const activeFilePatch = useMemo(() => {

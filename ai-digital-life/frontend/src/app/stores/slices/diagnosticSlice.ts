@@ -8,6 +8,7 @@ import type {
   AuditEntry,
   ModelGatewayHealthSnapshot
 } from "@ai-digital-life/kernel";
+import type { StoreState } from "../StoreState";
 
 export interface DiagnosticSlice {
   indexingStatus?: IndexingStatus;
@@ -24,8 +25,8 @@ export interface DiagnosticSlice {
 }
 
 export const createDiagnosticSlice = (
-  set: (partial: Partial<DiagnosticSlice> | ((state: DiagnosticSlice) => Partial<DiagnosticSlice>)) => void,
-  get: () => DiagnosticSlice
+  set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
+  get: () => StoreState
 ): DiagnosticSlice => ({
   repoMap: [],
   auditEntries: [],

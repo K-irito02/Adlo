@@ -48,6 +48,16 @@ async function invokeIpc<T>(cmd: string, args?: Record<string, unknown>): Promis
   try {
     return await invoke<IpcResult<T>>(cmd, args);
   } catch (e) {
+    // TypeError 通常表示网络/超时错误
+    if (e instanceof TypeError) {
+      const message = e.message;
+      return { ok: false, error: { code: IpcErrorCode.NETWORK_ERROR, message } };
+    }
+    // Tauri 后端返回的结构化错误 — 透传 error code
+    if (e && typeof e === "object" && "code" in e && "message" in e) {
+      const { code, message } = e as { code: string; message: string };
+      return { ok: false, error: { code: code as IpcErrorCode, message } };
+    }
     const message = e instanceof Error ? e.message : String(e);
     return { ok: false, error: { code: IpcErrorCode.INVOKE_ERROR, message } };
   }

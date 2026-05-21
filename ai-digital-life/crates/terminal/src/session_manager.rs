@@ -148,3 +148,8 @@ pub struct PtySessionInfo {
     pub rows: u16,
     pub status: PtyStatus,
 }
+
+use static_assertions::assert_impl_all;
+assert_impl_all!(PtySession: Send, Sync);
+assert_impl_all!(SessionManager: Send, Sync);
+assert_impl_all!(PtySessionHandle: Send, Sync);

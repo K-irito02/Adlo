@@ -16,3 +16,4 @@ portable-pty.workspace = true
 tauri.workspace = true
 serde_json.workspace = true
 dirs.workspace = true
+static_assertions = "1"

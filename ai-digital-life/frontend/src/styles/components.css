@@ -485,10 +485,11 @@
     var(--surface-sunken) 50%,
     var(--bg-muted) 100%
   );
-  background-size: 200% 100%;
+  background-size: max(200%, calc(100vw + 100%)) 100%;
   animation: skeleton-shimmer 1500ms ease-in-out infinite;
   border-radius: var(--radius-md);
   min-height: 14px;
+  will-change: background-position;
 }
 
 @keyframes skeleton-shimmer {
@@ -497,6 +498,13 @@
   }
   100% {
     background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+    background-position: 200% 0;
   }
 }
 

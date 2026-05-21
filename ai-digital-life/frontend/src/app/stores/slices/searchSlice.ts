@@ -3,6 +3,7 @@
  * 管理搜索查询和结果
  */
 import type { WorkspaceSearchHit } from "@ai-digital-life/kernel";
+import type { StoreState } from "../StoreState";
 
 export interface SearchSlice {
   searchQuery: string;
@@ -14,8 +15,8 @@ export interface SearchSlice {
 }
 
 export const createSearchSlice = (
-  set: (partial: Partial<SearchSlice> | ((state: SearchSlice) => Partial<SearchSlice>)) => void,
-  get: () => SearchSlice
+  set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
+  get: () => StoreState
 ): SearchSlice => ({
   searchQuery: "",
   searchResults: [],

@@ -40,10 +40,11 @@
 - 自定义 Tooltip 组件
 - CodeMirror 编辑器系统
 - xterm.js 交互式终端（多会话、多 Shell 类型，浏览器模式通过 `child_process.spawn` + SSE 实现真实 Shell 进程）
-- **Zustand 切片模式重构**（11 个独立切片 + 完整类型安全）
+- **Zustand 切片模式重构**（11 个独立切片 + 完整类型安全，消除 11 处 `as any`）
 - **模块化分层重构**（7 个功能模块迁移到 `features/` 目录）
 - **CSS 设计 Token 迁移**（亮暗主题 Shadow token + TypeScript 类型定义）
 - **统一错误码枚举**（`IpcErrorCode` 跨桥接层统一）
+- **重构洞察验证与修复**（消除 11 处 `as any`、错误粒度、SSE 连接管理、LRU 缓存优化、缓存短路、Send+Sync 断言、路径分隔符抽取等 20+ 项改进）
 
 ### Zustand 切片模式（已完成）
 
@@ -87,6 +88,17 @@ app/features/
 ```
 
 详见 [docs/重构洞察/refactor-insight-2026-05-21.md](./docs/重构洞察/refactor-insight-2026-05-21.md)
+
+### 重构完成状态
+
+| 轮次 | 内容 | 日期 |
+|------|------|------|
+| 第一轮 | Zustand 切片定义（创建 10 个切片） | 2026-05-20 |
+| 第二轮 | 切片合并 + 性能优化（Rust DRY、搜索 debounce 等） | 2026-05-21 |
+| 第三轮 | CSS Token 迁移 + 模块化分层 + 错误码统一 | 2026-05-21 |
+| 第四轮 | 重构洞察验证与修复（消除 `as any`、LRU 优化、SSE 管理等） | 2026-05-21 |
+
+全部详情见 [重构进度报告](./docs/重构洞察/REFACTORING_PROGRESS_REPORT.md)
 
 ### 排除项
 

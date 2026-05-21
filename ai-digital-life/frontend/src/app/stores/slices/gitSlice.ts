@@ -8,6 +8,7 @@ import type {
   WorkspaceGitBranchCreateInput,
   WorkspaceGitBranchSwitchInput
 } from "@ai-digital-life/kernel";
+import type { StoreState } from "../StoreState";
 
 export interface GitSlice {
   gitSnapshot?: GitSnapshot;
@@ -19,8 +20,8 @@ export interface GitSlice {
 }
 
 export const createGitSlice = (
-  set: (partial: Partial<GitSlice> | ((state: GitSlice) => Partial<GitSlice>)) => void,
-  get: () => GitSlice
+  set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
+  get: () => StoreState
 ): GitSlice => ({
   gitBranches: [],
 

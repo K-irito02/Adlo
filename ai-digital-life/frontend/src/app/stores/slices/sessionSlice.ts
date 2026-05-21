@@ -9,6 +9,7 @@ import type {
   ModelTokenUsage,
   DigitalLifeRunActivityEventV1
 } from "@ai-digital-life/kernel";
+import type { StoreState } from "../StoreState";
 
 export interface SessionSlice {
   sessions: ConversationSessionRecord[];
@@ -36,8 +37,8 @@ export interface SessionSlice {
 }
 
 export const createSessionSlice = (
-  set: (partial: Partial<SessionSlice> | ((state: SessionSlice) => Partial<SessionSlice>)) => void,
-  get: () => SessionSlice
+  set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
+  get: () => StoreState
 ): SessionSlice => ({
   sessions: [],
   sessionDetails: {},

@@ -28,6 +28,7 @@ import { useAppStore } from "../../stores/slicedStore";
 import { useUiStore } from "../../ui-store";
 import { useNavigatorResize } from "../../hooks/useNavigatorResize";
 import { countGitChanges } from "./types";
+import { joinPathSegments } from "../../workspacePaths";
 import type { RightPanelViewProps } from "./types";
 import { countReviewedHunks, filterPatchFileSummaries, summarizePatchFile, summarizePatchSet } from "../../features/patch-review";
 import { DiffToolbar } from "./DiffToolbar";
@@ -478,8 +479,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
             const appInfo = store.appInfo;
             const rootPath = appInfo?.currentWorkspace?.rootPath ?? appInfo?.currentWorkspace?.path;
             if (!rootPath) return;
-            const separator = rootPath.includes("\\") ? "\\" : "/";
-            const fullPath = `${rootPath}${rootPath.endsWith(separator) ? "" : separator}${targetNode.path}`;
+            const fullPath = joinPathSegments(rootPath, targetNode.path);
             await window.digitalLife.workspace.revealInFileManager(fullPath);
           }
         },
@@ -493,8 +493,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
             const appInfo = store.appInfo;
             const rootPath = appInfo?.currentWorkspace?.rootPath ?? appInfo?.currentWorkspace?.path;
             if (!rootPath) return;
-            const separator = rootPath.includes("\\") ? "\\" : "/";
-            const fullPath = `${rootPath}${rootPath.endsWith(separator) ? "" : separator}${targetNode.path}`;
+            const fullPath = joinPathSegments(rootPath, targetNode.path);
             await copyToClipboard(fullPath);
           }
         },

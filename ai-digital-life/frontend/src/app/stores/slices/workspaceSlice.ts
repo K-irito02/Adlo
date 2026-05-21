@@ -11,6 +11,7 @@ import type {
   IndexingStatus,
   RepoMapNode
 } from "@ai-digital-life/kernel";
+import type { StoreState } from "../StoreState";
 import { queueLowPriorityRefresh } from "../shared";
 
 export interface WorkspaceSlice {
@@ -37,8 +38,8 @@ export interface WorkspaceSlice {
  * 工作区切片创建器（仅包含状态和简单 setters）
  */
 export const createWorkspaceSlice = (
-  set: (partial: Partial<WorkspaceSlice> | ((state: WorkspaceSlice) => Partial<WorkspaceSlice>)) => void,
-  get: () => WorkspaceSlice
+  set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
+  get: () => StoreState
 ): WorkspaceSlice => ({
   recentWorkspaces: [],
   workspaceTree: [],

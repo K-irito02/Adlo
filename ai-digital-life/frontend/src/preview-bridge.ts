@@ -27,11 +27,14 @@ const PREVIEW_RECENT_STORAGE_KEY = "adl.preview.recent-workspaces.v1";
 const PREVIEW_PREFERENCES_STORAGE_KEY = "adl.preview.preferences.v1";
 const PREVIEW_ACTIVE_WORKSPACE_STORAGE_KEY = "adl.preview.active-workspace.v1";
 
+const MAX_PTY_LISTENERS = 32;
 const ptyOutputListeners = new Set<(event: PtyOutputEvent) => void>();
-let ptySseConnected = false;
+let ptySseEventSource: EventSource | null = null;
+let ptySseListenersCount = 0;
 
-function connectPtySse(): void {
+function connectPtySse(onCleanup: () => void): void {
   const es = new EventSource(`${PREVIEW_API_PREFIX}/pty/output`);
+  ptySseEventSource = es;
   es.onmessage = (event) => {
     try {
       const parsed = JSON.parse(event.data) as PtyOutputEvent;
@@ -42,7 +45,8 @@ function connectPtySse(): void {
   };
   es.onerror = () => {
     es.close();
-    ptySseConnected = false;
+    ptySseEventSource = null;
+    onCleanup();
   };
 }
 
@@ -263,13 +267,24 @@ export function setupPreviewBridge(): void {
   const previewBridge: DigitalLifeBridge = {
     ...mockDigitalLifeBridge,
     subscribePtyOutput: (listener) => {
+      if (ptyOutputListeners.size >= MAX_PTY_LISTENERS) {
+        console.warn("preview-bridge: PTY listener limit reached, dropping oldest listener");
+        const oldest = ptyOutputListeners.values().next().value;
+        if (oldest) ptyOutputListeners.delete(oldest);
+      }
       ptyOutputListeners.add(listener);
-      if (!ptySseConnected) {
-        ptySseConnected = true;
-        connectPtySse();
+      ptySseListenersCount += 1;
+      if (!ptySseEventSource) {
+        connectPtySse(() => { ptySseListenersCount = Math.max(0, ptySseListenersCount - 1); });
       }
       return () => {
         ptyOutputListeners.delete(listener);
+        ptySseListenersCount -= 1;
+        if (ptySseListenersCount <= 0 && ptySseEventSource) {
+          ptySseEventSource.close();
+          ptySseEventSource = null;
+          ptySseListenersCount = 0;
+        }
       };
     },
     pty: {

@@ -30,6 +30,7 @@ import { buildOutlineFromContent } from "./shared/outline";
 
 const now = Date.now();
 
+const MAX_PTY_LISTENERS = 32;
 const ptyOutputListeners = new Set<(event: PtyOutputEvent) => void>();
 const activeMockPtySessions = new Map<string, { shell: string; inputBuffer: string }>();
 
@@ -592,6 +593,11 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
   subscribeRunActivity: () => () => undefined,
   subscribeTerminalStream: () => () => undefined,
   subscribePtyOutput: (listener: (event: PtyOutputEvent) => void) => {
+    if (ptyOutputListeners.size >= MAX_PTY_LISTENERS) {
+      console.warn("mock-bridge: PTY listener limit reached, dropping oldest listener");
+      const oldest = ptyOutputListeners.values().next().value;
+      if (oldest) ptyOutputListeners.delete(oldest);
+    }
     ptyOutputListeners.add(listener);
     return () => void ptyOutputListeners.delete(listener);
   },

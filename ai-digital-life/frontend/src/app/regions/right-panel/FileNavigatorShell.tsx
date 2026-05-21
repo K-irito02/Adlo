@@ -7,7 +7,7 @@ import { useUiStore, type FilesNavigatorMode } from "../../ui-store";
 import { useNavigatorResize } from "../../hooks/useNavigatorResize";
 import { FileTree, collectDirectoryPaths, type FileTreeContextMenuItem } from "../../features/file-tree";
 import { OutlineTree, getDefaultExpandedOutlineIds } from "../../features/outline";
-import { normalizeWorkspaceRelativePath } from "../../workspacePaths";
+import { normalizeWorkspaceRelativePath, joinPathSegments } from "../../workspacePaths";
 import { useFileCreation, useSearchPanel } from "./hooks";
 import { FileCreationBar } from "./FileCreationBar";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
@@ -202,8 +202,7 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
             const store = useAppStore.getState();
             const rootPath = store.appInfo?.currentWorkspace?.rootPath ?? store.appInfo?.currentWorkspace?.path;
             if (!rootPath) return;
-            const separator = rootPath.includes("\\") ? "\\" : "/";
-            const fullPath = `${rootPath}${rootPath.endsWith(separator) ? "" : separator}${targetNode.path}`;
+            const fullPath = joinPathSegments(rootPath, targetNode.path);
             await window.digitalLife.workspace.revealInFileManager(fullPath);
           }
         },
@@ -216,8 +215,7 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
             const store = useAppStore.getState();
             const rootPath = store.appInfo?.currentWorkspace?.rootPath ?? store.appInfo?.currentWorkspace?.path;
             if (!rootPath) return;
-            const separator = rootPath.includes("\\") ? "\\" : "/";
-            const fullPath = `${rootPath}${rootPath.endsWith(separator) ? "" : separator}${targetNode.path}`;
+            const fullPath = joinPathSegments(rootPath, targetNode.path);
             await copyToClipboard(fullPath);
           }
         },

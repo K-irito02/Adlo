@@ -3,6 +3,7 @@
  * 管理命令历史和最新命令执行结果
  */
 import type { CommandRunResult } from "@ai-digital-life/kernel";
+import type { StoreState } from "../StoreState";
 
 export interface CommandSlice {
   latestCommandRun?: CommandRunResult;
@@ -15,8 +16,8 @@ export interface CommandSlice {
 }
 
 export const createCommandSlice = (
-  set: (partial: Partial<CommandSlice> | ((state: CommandSlice) => Partial<CommandSlice>)) => void,
-  get: () => CommandSlice
+  set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
+  get: () => StoreState
 ): CommandSlice => ({
   commandHistory: [],
 

@@ -1,3 +1,5 @@
+import type { StoreState } from "../StoreState";
+
 export interface ClipboardSlice {
   clipboardOperation: "cut" | "copy" | null;
   clipboardSourcePath: string | null;
@@ -8,8 +10,8 @@ export interface ClipboardSlice {
 }
 
 export const createClipboardSlice = (
-  set: (partial: Partial<ClipboardSlice> | ((state: ClipboardSlice) => Partial<ClipboardSlice>)) => void,
-  get: () => ClipboardSlice
+  set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
+  get: () => StoreState
 ): ClipboardSlice => ({
   clipboardOperation: null,
   clipboardSourcePath: null,

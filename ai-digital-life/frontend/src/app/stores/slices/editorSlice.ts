@@ -6,6 +6,7 @@ import type {
   FileOutlineItem,
   WorkspaceChangePreview
 } from "@ai-digital-life/kernel";
+import type { StoreState } from "../StoreState";
 import { type EditorTabState } from "../../editorTabs";
 
 export interface EditorSlice {
@@ -38,8 +39,8 @@ export interface EditorSlice {
 }
 
 export const createEditorSlice = (
-  set: (partial: Partial<EditorSlice> | ((state: EditorSlice) => Partial<EditorSlice>)) => void,
-  get: () => EditorSlice
+  set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
+  get: () => StoreState
 ): EditorSlice => ({
   openTabs: [],
   outline: [],

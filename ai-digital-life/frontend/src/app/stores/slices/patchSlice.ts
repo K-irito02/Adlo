@@ -6,6 +6,7 @@ import type {
   PatchSet,
   PatchApplicationResult
 } from "@ai-digital-life/kernel";
+import type { StoreState } from "../StoreState";
 
 export interface PatchSlice {
   activePatchSet?: PatchSet;
@@ -17,8 +18,8 @@ export interface PatchSlice {
 }
 
 export const createPatchSlice = (
-  set: (partial: Partial<PatchSlice> | ((state: PatchSlice) => Partial<PatchSlice>)) => void,
-  get: () => PatchSlice
+  set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
+  get: () => StoreState
 ): PatchSlice => ({
   setActivePatchSet: (patchSet) => set({ activePatchSet: patchSet }),
   setLatestPatchApplication: (result) => set({ latestPatchApplication: result }),

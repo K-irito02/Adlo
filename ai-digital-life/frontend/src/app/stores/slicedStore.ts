@@ -4,7 +4,6 @@
 
 import { create } from "zustand";
 
-let searchDebounceTimer: ReturnType<typeof setTimeout> | undefined;
 import {
   createUISlice,
   createWorkspaceSlice,
@@ -84,6 +83,8 @@ import {
   setCachedLru as sharedSetCachedLru,
   queueLowPriorityRefresh,
   resetRequestSeqs,
+  clearWorkspaceCaches,
+  createDebouncedSearch,
   type CachedFileDocument,
   type CachedChangePreview,
 } from "./shared";
@@ -118,6 +119,7 @@ export function setCachedLru<T>(
 
 const fileDocumentCache = getFileDocumentCache();
 const changePreviewCache = getChangePreviewCache();
+const debouncedSearch = createDebouncedSearch(300);
 
 // 定义完整的 StoreState，与 StoreState.ts 保持一致
 type StoreState = FullStoreState;
@@ -125,17 +127,17 @@ type StoreState = FullStoreState;
 // 合并所有切片并添加跨切片的 actions
 export const useSlicedAppStore = create<StoreState>((set, get) => ({
   // 合并所有基础切片
-  ...createUISlice(set as any, get as any),
-  ...createWorkspaceSlice(set as any, get as any),
-  ...createGitSlice(set as any, get as any),
-  ...createSessionSlice(set as any, get as any),
-  ...createEditorSlice(set as any, get as any),
-  ...createPatchSlice(set as any, get as any),
-  ...createSearchSlice(set as any, get as any),
-  ...createDiagnosticSlice(set as any, get as any),
-  ...createTaskSlice(set as any, get as any),
-  ...createCommandSlice(set as any, get as any),
-  ...createClipboardSlice(set as any, get as any),
+  ...createUISlice(set, get),
+  ...createWorkspaceSlice(set, get),
+  ...createGitSlice(set, get),
+  ...createSessionSlice(set, get),
+  ...createEditorSlice(set, get),
+  ...createPatchSlice(set, get),
+  ...createSearchSlice(set, get),
+  ...createDiagnosticSlice(set, get),
+  ...createTaskSlice(set, get),
+  ...createCommandSlice(set, get),
+  ...createClipboardSlice(set, get),
 
   // 根级状态
   loading: true,
@@ -339,6 +341,7 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
 
   openWorkspace: async (workspacePath: string) => {
     const requestSeq = getNextWorkspaceRequestSeq();
+    clearWorkspaceCaches(getWorkspaceCachePrefix(get().appInfo));
     getNextFileRequestSeq();
     getNextChangePreviewRequestSeq();
     getNextSessionRequestSeq();
@@ -355,6 +358,7 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
 
   clearWorkspaceContext: async () => {
     const requestSeq = getNextWorkspaceRequestSeq();
+    clearWorkspaceCaches(getWorkspaceCachePrefix(get().appInfo));
     getNextFileRequestSeq();
     getNextChangePreviewRequestSeq();
     getNextSessionRequestSeq();
@@ -855,6 +859,7 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
 
     if (cachedDocument) {
       applyDocument(cachedDocument);
+      return;
     } else {
       set((state) => ({
         error: undefined,
@@ -988,14 +993,11 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
 
   searchFiles: async (query: string) => {
     set({ searchQuery: query });
-    if (searchDebounceTimer) {
-      clearTimeout(searchDebounceTimer);
-    }
     if (!query.trim()) {
       set({ searchResults: [] });
       return;
     }
-    searchDebounceTimer = setTimeout(async () => {
+    debouncedSearch(query, async () => {
       if (get().searchQuery !== query) return;
       const result = await window.digitalLife.workspace.search(query);
       if (get().searchQuery !== query) return;
@@ -1004,7 +1006,7 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
         return;
       }
       set({ searchResults: result.data });
-    }, 300);
+    });
   },
 
   // 补丁相关

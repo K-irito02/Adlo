@@ -4,6 +4,14 @@ export function normalizeWorkspaceRelativePath(filePath: string): string {
   return filePath.replace(/\\/g, "/").trim();
 }
 
+export function joinPathSegments(rootPath: string, relativePath: string): string {
+  const separator = rootPath.includes("\\") ? "\\" : "/";
+  const normalized = relativePath.split("/").join(separator);
+  return rootPath.endsWith(separator)
+    ? `${rootPath}${normalized}`
+    : `${rootPath}${separator}${normalized}`;
+}
+
 export function mergeDirtyEditorPaths(current: string[], path: string, isDirty: boolean): string[] {
   const norm = normalizeWorkspaceRelativePath(path);
   if (!norm) {

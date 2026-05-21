@@ -27,10 +27,19 @@
 
 | 议题 | 内容 | 状态 |
 |------|------|------|
-| 议题1：全局 CSS 变量迁移 | 新增 6 个 Shadow 设计 Token（亮暗主题区分），替换 `regions.css` 中 6 处硬编码值，添加 TypeScript 类型定义 | ✅ |
-| 议题2：模块化分层（features/） | 7 个功能模块迁移到 `app/features/`（file-tree / outline / patch-review / editor / diff-viewer / preview / terminal），更新所有 60+ import 路径 | ✅ |
-| 议题3：统一错误处理 | 创建 `IpcErrorCode` 枚举，统一 tauri-bridge 和 preview-bridge 的错误码 | ✅ |
+| 议题1：全局 CSS 变量迁移 | 新增 6 个 Shadow 设计 Token，替换硬编码值，添加 TypeScript 类型定义 | ✅ |
+| 议题2：模块化分层（features/） | 7 个功能模块迁移到 `app/features/`，更新所有 import 路径 | ✅ |
+| 议题3：统一错误处理 | 创建 `IpcErrorCode` 枚举，统一桥接层错误码 | ✅ |
 | 遗留 Store 彻底清理 | 删除 4 个 @deprecated Store 文件 | ✅ |
+
+### 第四轮重构（2026-05-21）：重构洞察验证与修复
+基于 [insight-fix-plan](../../.trae/documents/refactor-insight-fix-plan-2026-05-21.md) 完成：
+
+| Phase | 内容 | 状态 |
+|-------|------|------|
+| Phase 1：代码结构与类型安全 | 消除 `as any`（11 个 slice）、错误粒度、SSE 连接、监听器上限、Send+Sync 断言、路径分隔符抽取 | ✅ |
+| Phase 2：性能优化 | 防抖封装、LRU 访问计数、缓存短路、工作区缓存清理、useMemo 对象引用优化、骨架屏动画、Release panic=abort | ✅ |
+| Phase 3：补充问题 | queueMicrotask、subscribeChannel 验证 | ✅ |
 
 ## 当前架构
 
@@ -42,7 +51,7 @@ app/stores/
 ├── StoreState.ts           # 完整 StoreState 类型接口
 ├── slices.ts               # 统一导出所有切片
 ├── selectors.ts            # 选择器（含 useShallow React Hook 版本）
-├── shared.ts               # 共享状态和工具
+├── shared.ts               # 共享状态和工具（LRU 缓存、防抖搜索、缓存清理）
 ├── cacheUtils.ts           # 缓存工具函数
 ├── conversationUtils.ts    # 会话工具函数
 ├── index.ts                # 模块索引
@@ -79,32 +88,48 @@ frontend/src/design-system/
 
 | 改进项 | 说明 |
 |--------|------|
-| 切片合并 | slicedStore 使用 `createUISlice(), createWorkspaceSlice(), ...` 真正合并 |
+| 切片合并 | slicedStore 使用 `createUISlice(), createWorkspaceSlice(), ...` 真正合并，消除 11 处 `as any` |
 | StoreState 类型 | 独立类型文件，定义完整 Store 接口 |
 | 选择器优化 | 所有选择器提供 `useShallow` React Hook 版本，避免不必要重渲染 |
-| 搜索 debounce | `searchFiles` 300ms debounce，减少 IPC 调用 |
+| 搜索 debounce | `searchFiles` 300ms debounce，封装为 `createDebouncedSearch` 工具 |
 | 流式优化 | `useStreamingText` Hook 使用 rAF 批量合并高频 delta 事件 |
+| LRU 缓存优化 | 访问计数阈值（每 3 次访问提升一次），减少 Map delete+set 重哈希 |
+| 缓存短路 | `openFile` 缓存命中时直接返回，跳过网络请求 |
+| 工作区缓存隔离 | 切换工作区时自动清理陈旧缓存条目 |
 | Rust DRY | `commands/mod.rs` 复用 `CommandError::from()` 去重错误码映射 |
-| 前端 DRY | 提取 `preferencesMerger.ts` 消除 preview-bridge / mock-bridge 重复逻辑 |
+| 前端 DRY | 提取 `preferencesMerger.ts` 消除桥接重复逻辑；抽取 `joinPathSegments` 消除 5 处路径分隔符重复代码 |
 | 遗留清理 | 4 个遗留 Store 已删除 |
 | CSS Token 迁移 | 6 个 Shadow 设计 Token 替换硬编码值，亮暗主题区分 |
 | 模块化分层 | 7 个功能模块迁移到 `features/`，统一 index.ts 导出 |
 | 错误码统一 | `IpcErrorCode` 枚举跨桥接层共享 |
+| invoke 错误粒度 | 区分网络错误（TypeError）→ `NETWORK_ERROR`、后端错误 → 透传 code |
+| SSE 连接管理 | 引用计数自动关闭，无监听器时释放 EventSource |
+| PTY 监听器限流 | 两个桥接层均添加 `MAX_PTY_LISTENERS = 32` 上限 |
+| Rust Send+Sync 断言 | PtySession / SessionManager / PtySessionHandle 静态类型安全验证 |
+| 骨架屏动画 | 响应式 `background-size`、`will-change` GPU 提示、`prefers-reduced-motion` 禁用 |
+| Release 构建 | 添加 `panic = "abort"`，减少二进制体积 |
+| 微任务刷新 | `queueLowPriorityRefresh` 优先使用 `queueMicrotask` |
 
 ## 重构统计
 
 | 指标 | 数值 |
 |------|------|
+| 重构轮次 | 4 轮 |
 | 新增文件 | StoreState.ts, useStreamingText.ts, preferencesMerger.ts, design-system/tokens.ts |
-| 重写/迁移文件 | slicedStore.ts (stores/), selectors.ts, index.ts, slices.ts |
+| 重写/迁移文件 | slicedStore.ts, selectors.ts, shared.ts, 11 个 slice 文件 |
 | 删除文件 | app/slicedStore.ts（旧 1237 行），4 个废弃 Store |
 | 迁移模块 | 7 个（file-tree / outline / patch-review / editor / diff-viewer / preview / terminal） |
 | 新增设计 Token | 6 个 Shadow token（亮暗主题各 6 个值） |
+| 消除 `as any` | 11 处（所有 slice 工厂） |
+| 消除重复代码 | 5 处路径分隔符 → 全局 `joinPathSegments` |
+| 新增 Rust 断言 | 3 个 `static_assertions` |
 | 切片数量 | 11 个独立切片 |
 | 类型检查 | 0 错误 |
 | 测试通过 | 171/171（Vitest），2 个 Playwright E2E 预存问题 |
+| Rust 编译 | cargo check 零警告零错误 |
 
 ## 相关文档
 
 - [重构洞察报告](./refactor-insight-2026-05-21.md)
 - [重构实施计划](./重构实施计划-2026-05-21.md)
+- [Insight Fix 实施计划](../../.trae/documents/refactor-insight-fix-plan-2026-05-21.md)

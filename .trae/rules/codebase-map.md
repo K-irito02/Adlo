@@ -61,7 +61,7 @@ app/stores/
 ├── StoreState.ts                # 完整 StoreState 类型接口
 ├── slices.ts                    # 统一导出所有切片
 ├── selectors.ts                 # 选择器（含 useShallow React Hook 版本，避免不必要重渲染）
-├── shared.ts                    # 共享状态和工具
+├── shared.ts                    # 共享状态和工具（LRU 缓存含访问计数优化、createDebouncedSearch、clearWorkspaceCaches、queueMicrotask）
 ├── cacheUtils.ts                # 缓存工具函数
 ├── conversationUtils.ts         # 会话工具函数
 ├── index.ts                     # 模块索引
