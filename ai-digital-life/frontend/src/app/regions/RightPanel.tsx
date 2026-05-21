@@ -3,7 +3,7 @@ import { RIGHT_PANEL_WIDTH_MAX, RIGHT_PANEL_WIDTH_MIN, useUiStore, type ToolId }
 import { BrowserPanel } from "./right-panel/BrowserPanel";
 import { ChangesPanel } from "./right-panel/ChangesPanel";
 import { FilesPanel } from "./right-panel/FilesPanel";
-import { TerminalPanel } from "./right-panel/TerminalPanel";
+import { TerminalPanel } from "../features/terminal";
 import { ToolSwitcher } from "./right-panel/ToolSwitcher";
 import { AuditPanel } from "../components/approval/AuditPanel";
 import { ModelHealthPanel } from "../components/models/ModelHealthPanel";

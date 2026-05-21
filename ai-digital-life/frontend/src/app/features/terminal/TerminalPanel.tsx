@@ -13,7 +13,7 @@ import { TooltipSimple } from "../../components/Tooltip";
 import { XtermTerminal, type XtermTerminalHandle } from "../../components/terminal/XtermTerminal";
 import { useUiStore, type TerminalProfile } from "../../ui-store";
 import { useNavigatorResize } from "../../hooks/useNavigatorResize";
-import type { RightPanelViewProps } from "./types";
+import type { RightPanelViewProps } from "../../regions/right-panel/types";
 
 type TerminalNavigatorMode = "sessions" | "history";
 type TerminalMenuItem =
