@@ -54,6 +54,8 @@ alwaysApply: true
 | 设计系统 | `ai-digital-life/docs/design-system/` |
 | IPC 契约 | `ai-digital-life/frontend/src/shared/ipc.ts` |
 | 进程边界 | `ai-digital-life/src-tauri/`、`ai-digital-life/crates/` |
+| 设计 Token 类型 | `ai-digital-life/frontend/src/design-system/tokens.ts` |
+| 功能模块（features/） | `ai-digital-life/frontend/src/app/features/` |
 
 ## 任务路由
 
@@ -61,6 +63,8 @@ alwaysApply: true
 |----------|--------------|
 | Rust 后端与 Tauri 命令 | `ai-digital-life/src-tauri/`、`ai-digital-life/crates/` |
 | WebView UI 与样式 | `ai-digital-life/frontend/src/` |
+| 功能模块组件 | `ai-digital-life/frontend/src/app/features/` |
+| 设计 Token / 主题 | `ai-digital-life/frontend/src/design-system/`、`src/styles/` |
 | 阶段/路由/治理 | 根目录 `AGENTS.md` |
 | 架构设计 | `ai-digital-life/docs/architecture/` |
 

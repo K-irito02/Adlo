@@ -41,8 +41,11 @@
 - CodeMirror 编辑器系统
 - xterm.js 交互式终端（多会话、多 Shell 类型，浏览器模式通过 `child_process.spawn` + SSE 实现真实 Shell 进程）
 - **Zustand 切片模式重构**（11 个独立切片 + 完整类型安全）
+- **模块化分层重构**（7 个功能模块迁移到 `features/` 目录）
+- **CSS 设计 Token 迁移**（亮暗主题 Shadow token + TypeScript 类型定义）
+- **统一错误码枚举**（`IpcErrorCode` 跨桥接层统一）
 
-### Zustand 切片模式（已重构完成）
+### Zustand 切片模式（已完成）
 
 前端状态管理已重构为 Zustand 切片合并模式：
 
@@ -66,7 +69,22 @@ app/stores/
 └── index.ts                # 模块索引
 ```
 
-4 个遗留独立 Store（`useWorkspaceStore`/`useSessionStore`/`useEditorStore`/`usePatchStore`）已标记 `@deprecated`。
+4 个遗留独立 Store（`useWorkspaceStore`/`useSessionStore`/`useEditorStore`/`usePatchStore`）已删除。
+
+### 模块化分层（已完成）
+
+前端组件已按功能域重构为 `features/` 目录：
+
+```
+app/features/
+├── file-tree/       # 文件树（FileTree, TreeNodeRow, CustomScrollArea）
+├── outline/         # 代码大纲（OutlineTree, outlineModel）
+├── patch-review/    # 补丁审查（patchReview 纯函数）
+├── editor/          # CodeMirror 编辑器（CodeEditor, cmTheme, cmLanguages...）
+├── diff-viewer/     # 差异查看器（DiffViewer, changePreviewDiffRanges）
+├── preview/         # 文件预览（MarkdownPreview, DocxPreview, PdfPreview）
+└── terminal/        # 终端面板（TerminalPanel）
+```
 
 详见 [docs/重构洞察/refactor-insight-2026-05-21.md](./docs/重构洞察/refactor-insight-2026-05-21.md)
 

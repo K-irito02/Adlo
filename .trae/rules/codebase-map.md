@@ -48,7 +48,10 @@ ai-digital-life/
 | `app/hooks/` | 自定义 Hooks（含 useTooltip、useStreamingText） |
 | `app/utils/` | 纯函数（含 tooltipPosition 定位逻辑、preferencesMerger） |
 | `app/stores/` | Zustand 状态管理（切片合并模式） |
-| `app/regions/right-panel/` | 右侧面板组件（FilesPanel/FileNavigatorShell/EditorSurfaceShell 分层架构） |
+| `app/features/` | 按功能域分层的模块化组件（file-tree / outline / patch-review / editor / diff-viewer / preview / terminal） |
+| `app/regions/` | 区域布局组件（left-panel / right-panel / bottom-panel） |
+| `design-system/` | 设计 Token 类型定义（tokens.ts / theme.ts / icons.ts） |
+| `styles/` | CSS 样式文件（themes.css / tokens.css / regions.css 等） |
 
 ## Stores 架构（Zustand 切片合并模式）
 
@@ -76,11 +79,11 @@ app/stores/
 │   ├── commandSlice.ts          # 命令状态
 │   └── clipboardSlice.ts        # 剪贴板状态（cut/copy 操作与路径记录）
 │
-└── (legacy sub-stores)          # @deprecated，已废弃，使用 slicedStore.ts 替代
-    ├── useWorkspaceStore.ts
-    ├── useSessionStore.ts
-    ├── useEditorStore.ts
-    └── usePatchStore.ts
+└── (已删除)                     # 4 个遗留独立 Store 已在重构中删除
+    ├── useWorkspaceStore.ts      # ❌ 已删除
+    ├── useSessionStore.ts        # ❌ 已删除
+    ├── useEditorStore.ts         # ❌ 已删除
+    └── usePatchStore.ts          # ❌ 已删除
 ```
 
 ### 切片职责说明

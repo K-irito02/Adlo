@@ -26,7 +26,7 @@ Text: `--text-primary`, `--text-secondary`, `--text-muted`, `--text-disabled`, `
 Border: `--border-subtle`, `--border-default`, `--border-strong`
 Accent: `--accent`, `--accent-hover`, `--accent-active`, `--accent-soft`, `--accent-contrast`
 Status: `--info` / `--info-soft`, `--success` / `--success-soft`, `--warning` / `--warning-soft`, `--danger` / `--danger-soft`
-Misc: `--focus-ring`, `--shadow-soft`
+Misc: `--focus-ring`, `--shadow-soft`, `--shadow-inset-highlight`, `--shadow-panel`, `--shadow-panel-sm`, `--shadow-divider`, `--ring-neutral`, `--ring-error`
 
 ## Shell background baseline
 

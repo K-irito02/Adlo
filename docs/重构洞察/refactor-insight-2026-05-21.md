@@ -33,13 +33,15 @@
 | `frontend/src/styles/components.css:479-490` | Skeleton 动画使用 `background-position` 动画，在低端 GPU 上可能产生 jank。 | 考虑使用 `@media (prefers-reduced-motion)` 禁用动画，或使用 CSS `will-change: background-position` 提示。 |
 | `src-tauri/src/main.rs:1` | Release 构建未启用 `panic = "abort"` 和完整 LTO，可能影响二进制大小和运行时性能。 | 在 `Cargo.toml` 的 `[profile.release]` 中添加 `panic = "abort"`，验证性能提升。 |
 
-## 3. 其他发现（可选）
+## 3. 其他发现（已解决 ✅）
 
-- **双端桥接代码重复**：`tauri-bridge.ts`、`preview-bridge.ts` 和 `mock-bridge.ts` 中存在大量重复的类型声明和函数签名。建议抽取共享类型到 `shared/ipc.ts` 并使用 `extends` 继承。
-- **遗留 Store 废弃标记**：`useWorkspaceStore.ts`、`useSessionStore.ts` 等已标记 `@deprecated` 但未被清理，建议在下一版本移除以减少维护负担。
-- **全局 CSS 变量**：`components.css` 中的组件样式未完全迁移到设计 token，部分样式仍使用硬编码值（如 `box-shadow`）。
-- **错误处理不一致**：部分 Tauri Command 返回 `AppError` 而非结构化 `IpcResult`，前端需适配多种错误格式。
-- **模块化程度**：前端 `app/` 目录下组件、hooks、utils 的组织较为扁平，可考虑按功能域进一步分层（如 `app/features/`）。
-- **Rust Crates 依赖**：部分 crate（如 `config`、`logger`）目前仅封装简单逻辑，存在过度工程化倾向。建议评估是否可合并到 `kernel` crate。
+下列问题已在重构中完成修复：
+
+- ✅ **双端桥接代码重复**：已在 `shared/ipc.ts` 中抽取共享类型，3 个桥接文件统一使用 `IpcErrorCode` 枚举。
+- ✅ **遗留 Store 废弃标记**：4 个 @deprecated Store 文件（`useWorkspaceStore.ts`、`useSessionStore.ts`、`useEditorStore.ts`、`usePatchStore.ts`）已彻底删除。
+- ✅ **全局 CSS 变量**：`regions.css` 中 6 处硬编码 Shadow 值已替换为设计 Token，新增亮暗主题 Shadow token 和 TypeScript 类型定义。
+- ✅ **错误处理不一致**：`IpcErrorCode` 枚举已在 `shared/ipc.ts` 中定义，`tauri-bridge.ts` 和 `preview-bridge.ts` 已统一使用。
+- ✅ **模块化程度**：前端已按功能域分层为 `app/features/` 目录，包含 7 个功能模块（file-tree / outline / patch-review / editor / diff-viewer / preview / terminal），所有 import 路径已更新。
+- ⏳ **Rust Crates 依赖**：部分 crate 过度工程化问题待架构评审后合并（已列入 Phase 3+）。
 
 > 由自动化重构洞察生成于 2026-05-21 14:30:00

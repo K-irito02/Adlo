@@ -49,7 +49,7 @@ alwaysApply: false
 | 组件 | 文件 | 说明 |
 |------|------|------|
 | `XtermTerminal` | `frontend/src/app/components/terminal/XtermTerminal.tsx` | xterm.js 封装组件，支持 FitAddon、WebLinksAddon、主题同步（MutationObserver 监听 data-theme 变化） |
-| `TerminalPanel` | `frontend/src/app/regions/right-panel/TerminalPanel.tsx` | 终端面板，管理多标签/多会话、Shell 类型选择、PTY 生命周期 |
+| `TerminalPanel` | `frontend/src/app/features/terminal/TerminalPanel.tsx` | 终端面板，管理多标签/多会话、Shell 类型选择、PTY 生命周期 |
 
 ### 主题同步机制
 
@@ -80,7 +80,33 @@ xterm.js 主题色从 CSS 自定义属性读取，非硬编码：
 
 **重要**：WebView 不得直接修改持久化主题，必须通过桥接命令。
 
+## Design Token 类型定义
+
+设计 Token 的 TypeScript 类型定义位于 `frontend/src/design-system/tokens.ts`：
+
+| 类型 | 说明 |
+|------|------|
+| `ShadowToken` | `'shadow-sm' \| 'shadow' \| 'shadow-md' \| ...` 等 13 个 Shadow token |
+| `ColorToken` | CSS 颜色变量枚举 |
+| `SpacingToken` | 间距变量枚举 |
+
+`SHADOW_TOKENS` 导出列表可在运行时用于遍历或校验。
+
+### 新增的 Shadow 设计 Token
+
+| Token | Light 模式值 | Dark 模式值 | 用途 |
+|-------|-------------|-------------|------|
+| `--shadow-inset-highlight` | `inset 0 1px 0 rgba(255,255,255,0.4)` | `inset 0 1px 0 rgba(255,255,255,0.06)` | 面板顶部内阴影高光 |
+| `--shadow-panel` | `-12px 0 24px ...` | `-12px 0 24px ...` | 右侧面板全局阴影 |
+| `--shadow-panel-sm` | `-10px 0 12px ...` | `-10px 0 12px ...` | 右侧面板小阴影 |
+| `--shadow-divider` | `-2px 0 4px -1px ...` | `-2px 0 4px -1px ...` | 面板分割线阴影 |
+| `--ring-neutral` | `rgba(128,128,128,0.12)` | `rgba(128,128,128,0.12)` | 中性态焦点环 |
+| `--ring-error` | `rgba(239,68,68,0.25)` | `rgba(239,68,68,0.25)` | 错误态焦点环 |
+
 ## 相关文件
 
 - [docs/design-system/README.md](/E:/Programs/Obsidian/notes/ai-digital-life/docs/design-system/README.md)
+- [design-system/tokens.ts](/E:/Programs/Obsidian/notes/ai-digital-life/frontend/src/design-system/tokens.ts)
+- [styles/themes.css](/E:/Programs/Obsidian/notes/ai-digital-life/frontend/src/styles/themes.css)
+- [styles/regions.css](/E:/Programs/Obsidian/notes/ai-digital-life/frontend/src/styles/regions.css)
 - [mandatory-testing.md](./mandatory-testing.md)
