@@ -3621,7 +3621,7 @@ select:focus-visible {
   background: transparent;
   color: var(--text-primary);
   text-align: left;
-  transition: background 0.12s ease, color 0.12s ease;
+  transition: none;
   box-sizing: border-box;
   position: relative;
   isolation: isolate;
@@ -3643,31 +3643,38 @@ select:focus-visible {
   padding-inline-end: calc(8px + var(--adl-outline-scrollbar-width));
 }
 
-.adl-tree-node.is-hovered > .adl-tree-node__row,
-.adl-filetree__row:hover,
-.adl-filetree__row:focus-within,
-.adl-filetree__item.is-hovered > .adl-filetree__row,
-.adl-outline-tree__item.is-hovered > .adl-outline-tree__row,
+.adl-tree-node.is-selected > .adl-tree-node__row,
+.adl-filetree__item.is-selected > .adl-filetree__row,
+.adl-outline-tree__item.is-selected > .adl-outline-tree__row {
+  background: var(--surface-active);
+  color: var(--text-primary);
+}
+
+.adl-tree-node.is-context-menu-target:not(.is-selected) > .adl-tree-node__row,
+.adl-filetree__item.is-context-menu-target:not(.is-selected) > .adl-filetree__row,
+.adl-outline-tree__item.is-context-menu-target:not(.is-selected) > .adl-outline-tree__row {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.adl-tree-node.is-hovered:not(.is-selected):not(.is-context-menu-target) > .adl-tree-node__row,
+.adl-filetree__row:hover:not(:has(.is-selected)):not(:has(.is-context-menu-target)),
+.adl-filetree__row:focus-within:not(:has(.is-selected)):not(:has(.is-context-menu-target)),
+.adl-filetree__item.is-hovered:not(.is-selected):not(.is-context-menu-target) > .adl-filetree__row,
+.adl-outline-tree__item.is-hovered:not(.is-selected):not(.is-context-menu-target) > .adl-outline-tree__row {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
 .adl-tool-list__item:hover,
 .adl-startpage-card:hover {
   background: var(--adl-tree-row-hover-bg);
   color: var(--text-primary);
 }
 
-.adl-tree-node.is-active > .adl-tree-node__row,
-.adl-filetree__item.is-active > .adl-filetree__row,
-.adl-outline-tree__item.is-active > .adl-outline-tree__row,
 .adl-tool-list__item.is-active,
 .adl-startpage-card.is-active {
   background: var(--adl-tree-row-active-bg);
-  border-color: transparent;
-  color: var(--text-primary);
-}
-
-.adl-tree-node.is-context-menu-target > .adl-tree-node__row,
-.adl-filetree__item.is-context-menu-target > .adl-filetree__row,
-.adl-outline-tree__item.is-context-menu-target > .adl-outline-tree__row {
-  background: var(--surface-hover);
   border-color: transparent;
   color: var(--text-primary);
 }

@@ -12,7 +12,7 @@ type TreeNodeRowProps = {
   expandLabel: string;
   collapseLabel: string;
   onToggle?: () => void;
-  onActivate: () => void;
+  onActivate: (event: React.MouseEvent<HTMLButtonElement>) => void;
   onLabelMouseEnter?: () => void;
   onLabelMouseLeave?: () => void;
   onLabelFocus?: () => void;
@@ -62,7 +62,7 @@ export function TreeNodeRow({
 }: TreeNodeRowProps) {
   return (
     <li
-      className={`adl-tree-node${isActive ? " is-active" : ""}${isHovered ? " is-hovered" : ""}${isContextMenuTarget ? " is-context-menu-target" : ""}${itemClassName ? ` ${itemClassName}` : ""}`}
+      className={`adl-tree-node${isActive ? " is-selected" : ""}${isHovered ? " is-hovered" : ""}${isContextMenuTarget ? " is-context-menu-target" : ""}${itemClassName ? ` ${itemClassName}` : ""}`}
       data-depth={depth}
       style={
         {

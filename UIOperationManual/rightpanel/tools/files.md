@@ -33,6 +33,9 @@
 | `.adl-filetree__label` | 文件/文件夹名称按钮 |
 | `.adl-filetree__toggle` | 文件夹收起/展开按钮 |
 | `.adl-filetree__item.is-active` | 当前选中项 |
+| `.adl-filetree__item.is-selected` | 当前选中项（单选/多选） |
+| `.adl-filetree__item.is-hovered` | 当前悬停项 |
+| `.adl-filetree__item.is-context-menu-target` | 当前右键菜单激活项 |
 | `.adl-filetree__node--directory` | 文件夹节点样式修饰符 |
 | `.adl-filetree__children` | 子目录列表 |
 | `.adl-filetree-scrollbar` | 自定义滚动条 |

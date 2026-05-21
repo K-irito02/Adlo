@@ -1,4 +1,5 @@
-import React, { memo, startTransition, useCallback, useEffect, useRef, useState } from "react";
+import React, { memo, useCallback, useEffect, useRef, useState, useMemo } from "react";
+import { flushSync } from "react-dom";
 import { IconAlertTriangle, IconCircle } from "../../icons";
 import { getFileTreeVisualSpec } from "./fileTreeVisuals";
 import { CustomScrollArea } from "./CustomScrollArea";
@@ -19,7 +20,7 @@ export type FileTreeContextMenuItem<T extends FileTreeRenderableNode> = {
   disabled?: boolean;
   danger?: boolean;
   separator?: true;
-  action?: (node: T) => void;
+  action?: (node: T, multiSelectedNodes: T[]) => void;
 } | {
   id: string;
   label: string;
@@ -27,7 +28,7 @@ export type FileTreeContextMenuItem<T extends FileTreeRenderableNode> = {
   disabled?: boolean;
   danger?: boolean;
   separator?: false;
-  action?: (node: T) => void;
+  action?: (node: T, multiSelectedNodes: T[]) => void;
 };
 
 interface FileTreeProps<T extends FileTreeRenderableNode> {
@@ -40,7 +41,7 @@ interface FileTreeProps<T extends FileTreeRenderableNode> {
   onOpenFile: (relativePath: string) => void;
   renderMeta?: (node: T) => React.ReactNode;
   getNodeClassName?: (node: T) => string | undefined;
-  getContextMenuItems?: (node: T) => FileTreeContextMenuItem<T>[];
+  getContextMenuItems?: (node: T, multiSelectedNodes: T[]) => FileTreeContextMenuItem<T>[];
   contextMenuPersistRef?: React.MutableRefObject<boolean>;
   clearMenuHighlightRef?: React.MutableRefObject<(() => void) | undefined>;
   expandLabel?: string;
@@ -52,15 +53,19 @@ interface FileTreeNodeProps<T extends FileTreeRenderableNode> {
   node: T;
   depth: number;
   activePath?: string;
+  selectedPaths: Set<string>;
   highlightedPath?: string;
+  hoveredPath?: string;
   expandedPaths: Record<string, boolean>;
   dirtyPaths?: Set<string>;
   externalChangePath?: string;
   onToggle: (path: string) => void;
-  onOpenFile: (relativePath: string) => void;
+  onOpenFile: (relativePath: string, event: React.MouseEvent<HTMLButtonElement>) => void;
   renderMeta?: (node: T) => React.ReactNode;
   getNodeClassName?: (node: T) => string | undefined;
   onShowContextMenu?: (event: React.MouseEvent<HTMLDivElement>, node: T) => void;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
   expandLabel: string;
   collapseLabel: string;
   flat?: boolean;
@@ -86,11 +91,27 @@ export function collectDirectoryPaths<T extends FileTreeRenderableNode>(nodes: T
   return paths;
 }
 
+function collectAllNodePaths<T extends FileTreeRenderableNode>(nodes: T[]): string[] {
+  const paths: string[] = [];
+  const visit = (items: T[]) => {
+    items.forEach((item) => {
+      paths.push(item.path);
+      if (item.children.length > 0) {
+        visit(item.children as T[]);
+      }
+    });
+  };
+  visit(nodes);
+  return paths;
+}
+
 function FileTreeNodeComponent<T extends FileTreeRenderableNode>({
   node,
   depth,
   activePath,
+  selectedPaths,
   highlightedPath,
+  hoveredPath,
   expandedPaths,
   dirtyPaths,
   externalChangePath,
@@ -99,19 +120,32 @@ function FileTreeNodeComponent<T extends FileTreeRenderableNode>({
   renderMeta,
   getNodeClassName,
   onShowContextMenu,
+  onMouseEnter,
+  onMouseLeave,
   expandLabel,
   collapseLabel,
   flat
 }: FileTreeNodeProps<T>) {
   const isDirectory = node.kind === "directory";
   const isExpanded = expandedPaths[node.path] ?? false;
-  const isSelected = node.path === activePath;
+  const isActive = node.path === activePath;
+  const isMultiSelected = selectedPaths.has(node.path);
+  const isSelected = isActive || isMultiSelected;
   const isContextMenuTarget = node.path === highlightedPath;
+  const isHovered = node.path === hoveredPath;
   const isDirty = dirtyPaths?.has(node.path) ?? false;
   const isExternal = node.path === externalChangePath;
   const fileVisual = isDirectory ? undefined : getFileTreeVisualSpec(node);
   const customMeta = renderMeta?.(node);
   const nodeClassName = getNodeClassName?.(node);
+
+  const handleActivate = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
+    if (isDirectory) {
+      onToggle(node.path);
+    } else {
+      onOpenFile(node.path, event);
+    }
+  }, [isDirectory, node.path, onToggle, onOpenFile]);
 
   return (
     <TreeNodeRow
@@ -120,11 +154,12 @@ function FileTreeNodeComponent<T extends FileTreeRenderableNode>({
       hasChildren={isDirectory}
       isExpanded={isExpanded}
       isActive={isSelected}
+      isHovered={isHovered}
       isContextMenuTarget={isContextMenuTarget}
       expandLabel={expandLabel}
       collapseLabel={collapseLabel}
       onToggle={isDirectory ? () => onToggle(node.path) : undefined}
-      onActivate={() => (isDirectory ? onToggle(node.path) : onOpenFile(node.path))}
+      onActivate={handleActivate}
       itemClassName={`adl-filetree__item${isDirectory ? " adl-filetree__node--directory" : ""}${nodeClassName ? ` ${nodeClassName}` : ""}`}
       rowClassName="adl-filetree__row"
       labelClassName="adl-filetree__label"
@@ -148,6 +183,8 @@ function FileTreeNodeComponent<T extends FileTreeRenderableNode>({
       ) : undefined}
       metaClassName="adl-filetree__meta adl-tree-node__meta--inline"
       onContextMenu={onShowContextMenu ? (event) => onShowContextMenu(event, node) : undefined}
+      onLabelMouseEnter={onMouseEnter}
+      onLabelMouseLeave={onMouseLeave}
     >
       {isDirectory && isExpanded && node.children.length > 0 ? (
         <ul className="adl-filetree__children adl-tree-node__children">
@@ -157,7 +194,9 @@ function FileTreeNodeComponent<T extends FileTreeRenderableNode>({
               node={child}
               depth={depth + 1}
               activePath={activePath}
+              selectedPaths={selectedPaths}
               highlightedPath={highlightedPath}
+              hoveredPath={hoveredPath}
               expandedPaths={expandedPaths}
               dirtyPaths={dirtyPaths}
               externalChangePath={externalChangePath}
@@ -202,7 +241,13 @@ function areFileTreeNodePropsEqual<T extends FileTreeRenderableNode>(
   if ((previous.activePath === path) !== (next.activePath === path)) {
     return false;
   }
+  if (previous.selectedPaths.has(path) !== next.selectedPaths.has(path)) {
+    return false;
+  }
   if ((previous.highlightedPath === path) !== (next.highlightedPath === path)) {
+    return false;
+  }
+  if ((previous.hoveredPath === path) !== (next.hoveredPath === path)) {
     return false;
   }
   if (previous.node.kind === "directory") {
@@ -225,7 +270,7 @@ function areFileTreeNodePropsEqual<T extends FileTreeRenderableNode>(
   return true;
 }
 
-const MemoizedFileTreeNode = memo(FileTreeNodeComponent, areFileTreeNodePropsEqual) as typeof FileTreeNodeComponent;
+const MemoizedFileTreeNode = memo(FileTreeNodeComponent, areFileTreeNodePropsEqual);
 
 export function FileTree<T extends FileTreeRenderableNode>(props: FileTreeProps<T>) {
   const [contextMenuState, setContextMenuState] = useState<{
@@ -233,56 +278,104 @@ export function FileTree<T extends FileTreeRenderableNode>(props: FileTreeProps<
     y: number;
     node: T;
     items: FileTreeContextMenuItem<T>[];
+    multiSelectedNodes: T[];
   } | null>(null);
-  const [internalHighlightPath, setInternalHighlightPath] = useState<string | undefined>(undefined);
+  const [contextMenuTargetPath, setContextMenuTargetPath] = useState<string | undefined>(undefined);
   const persistRef = props.contextMenuPersistRef;
-  const highlightedPath = contextMenuState ? contextMenuState.node.path : internalHighlightPath;
+  const highlightedPath = contextMenuTargetPath;
   const [activePath, setActivePath] = useState<string | undefined>(props.selectedFilePath);
+  const [selectedPaths, setSelectedPaths] = useState<Set<string>>(
+    props.selectedFilePath ? new Set([props.selectedFilePath]) : new Set()
+  );
+  const [hoveredPath, setHoveredPath] = useState<string | undefined>(undefined);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
 
-  // Allow parent to trigger highlight clear via ref
-  const clearHighlightRef = useRef<() => void>(() => setInternalHighlightPath(undefined));
-  clearHighlightRef.current = () => setInternalHighlightPath(undefined);
+  const clearHighlightRef = useRef<(() => void)>(() => setContextMenuTargetPath(undefined));
+  clearHighlightRef.current = () => setContextMenuTargetPath(undefined);
   if (props.clearMenuHighlightRef) {
     props.clearMenuHighlightRef.current = clearHighlightRef.current;
   }
 
   useEffect(() => {
-    setActivePath(props.selectedFilePath);
-  }, [props.selectedFilePath]);
+    if (props.selectedFilePath !== activePath) {
+      setActivePath(props.selectedFilePath);
+      if (props.selectedFilePath) {
+        setSelectedPaths(new Set([props.selectedFilePath]));
+      } else {
+        setSelectedPaths(new Set());
+      }
+    }
+  }, [props.selectedFilePath, activePath]);
 
-  const handleOpenFile = useCallback(
-    (relativePath: string) => {
-      setActivePath(relativePath);
-      startTransition(() => props.onOpenFile(relativePath));
-    },
-    [props.onOpenFile]
-  );
+  const getAllNodePaths = useMemo(() => collectAllNodePaths(props.nodes), [props.nodes]);
 
   const handleToggleDirectory = useCallback(
     (path: string) => {
-      setActivePath(path);
       props.onToggle(path);
     },
     [props.onToggle]
   );
 
+  const handleOpenFile = (relativePath: string, event: React.MouseEvent<HTMLButtonElement>) => {
+    flushSync(() => {
+      setActivePath(relativePath);
+      setSelectedPaths(new Set([relativePath]));
+      props.onOpenFile(relativePath);
+    });
+  };
+
+  const getMultiSelectedNodes = useCallback((): T[] => {
+    const nodes: T[] = [];
+    const visit = (items: T[]) => {
+      items.forEach((item) => {
+        if (selectedPaths.has(item.path)) {
+          nodes.push(item);
+        }
+        if (item.children.length > 0) {
+          visit(item.children as T[]);
+        }
+      });
+    };
+    visit(props.nodes);
+    return nodes;
+  }, [props.nodes, selectedPaths]);
+
   const handleShowContextMenu = useCallback(
     (event: React.MouseEvent<HTMLDivElement>, node: T) => {
-      const items = props.getContextMenuItems?.(node) ?? [];
+      event.preventDefault();
+      if (persistRef) persistRef.current = false;
+
+      flushSync(() => {
+        setContextMenuTargetPath(node.path);
+      });
+
+      // 计算用于上下文菜单的选中节点
+      // 如果当前选中的节点包含右键点击的节点，使用当前选中
+      // 否则，只使用右键点击的节点
+      let multiSelectedNodes: T[];
+      if (selectedPaths.has(node.path)) {
+        multiSelectedNodes = getMultiSelectedNodes();
+      } else {
+        multiSelectedNodes = [node];
+      }
+
+      const items = props.getContextMenuItems?.(node, multiSelectedNodes) ?? [];
       if (!items.length) {
+        flushSync(() => {
+          setContextMenuTargetPath(undefined);
+        });
         return;
       }
-      event.preventDefault();
-      setInternalHighlightPath(undefined);
-      if (persistRef) persistRef.current = false;
+
       setContextMenuState({
         x: event.clientX,
         y: event.clientY,
         node,
-        items
+        items,
+        multiSelectedNodes,
       });
     },
-    [props.getContextMenuItems]
+    [props.getContextMenuItems, persistRef, getMultiSelectedNodes, selectedPaths]
   );
 
   return (
@@ -292,6 +385,7 @@ export function FileTree<T extends FileTreeRenderableNode>(props: FileTreeProps<
         scrollClassName="adl-filetree-scroll"
         scrollbarClassName="adl-filetree-scrollbar"
         thumbClassName="adl-filetree-scrollbar__thumb"
+        ref={scrollAreaRef}
       >
         <ul className="adl-filetree adl-tree-root" role="tree">
           {props.nodes.map((node) => (
@@ -301,10 +395,14 @@ export function FileTree<T extends FileTreeRenderableNode>(props: FileTreeProps<
               depth={0}
               {...props}
               activePath={activePath}
+              selectedPaths={selectedPaths}
               highlightedPath={highlightedPath}
+              hoveredPath={hoveredPath}
               onToggle={handleToggleDirectory}
               onOpenFile={handleOpenFile}
               onShowContextMenu={props.getContextMenuItems ? handleShowContextMenu : undefined}
+              onMouseEnter={() => setHoveredPath(node.path)}
+              onMouseLeave={() => setHoveredPath(undefined)}
               expandLabel={props.expandLabel ?? "Expand"}
               collapseLabel={props.collapseLabel ?? "Collapse"}
             />
@@ -321,16 +419,15 @@ export function FileTree<T extends FileTreeRenderableNode>(props: FileTreeProps<
               danger: item.danger,
               separator: item.separator,
               action: item.action ? () => {
-                item.action!(contextMenuState.node);
+                item.action!(contextMenuState.node, contextMenuState.multiSelectedNodes);
               } : undefined
             }))}
             position={{ x: contextMenuState.x, y: contextMenuState.y }}
             onClose={() => {
-              const nodePath = contextMenuState.node.path;
+              flushSync(() => {
+                setContextMenuTargetPath(undefined);
+              });
               setContextMenuState(null);
-              if (persistRef?.current) {
-                setInternalHighlightPath(nodePath);
-              }
               if (persistRef) persistRef.current = false;
             }}
           />
