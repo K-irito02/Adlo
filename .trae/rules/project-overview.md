@@ -18,8 +18,9 @@ alwaysApply: true
 |------|------|
 | 桌面框架 | Tauri 2.x |
 | 后端 | Rust (Cargo workspace) |
-| 前端 | React 19 + TypeScript + Vite + Zustand |
+| 前端 | React 19 + TypeScript + Vite + Zustand + CodeMirror 6 |
 | 持久化 | SQLite（`rusqlite`，后端） |
+| 包管理 | npm（前端），Cargo（Rust workspace） |
 
 ## 双端架构
 
@@ -56,6 +57,7 @@ alwaysApply: true
 | 进程边界 | `ai-digital-life/src-tauri/`、`ai-digital-life/crates/` |
 | 设计 Token 类型 | `ai-digital-life/frontend/src/design-system/tokens.ts` |
 | 功能模块（features/） | `ai-digital-life/frontend/src/app/features/` |
+| Vite 配置 | `ai-digital-life/frontend/vite.config.ts` |
 
 ## 任务路由
 

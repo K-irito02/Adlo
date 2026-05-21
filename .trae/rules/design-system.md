@@ -44,6 +44,21 @@ alwaysApply: false
 
 详见 [tokens.md](/E:/Programs/Obsidian/notes/ai-digital-life/docs/design-system/tokens.md)。
 
+## CodeMirror 编辑器集成
+
+| 组件 | 文件 | 说明 |
+|------|------|------|
+| `CodeEditor` | `frontend/src/app/features/editor/CodeEditor.tsx` | CodeMirror 6 编辑器封装，支持语言扩展、主题同步、行号/换行/折叠 |
+| `DiffViewer` | `frontend/src/app/features/diff-viewer/DiffViewer.tsx` | 差异查看器（合并视图/并排视图），支持未改块折叠 |
+| `cmTheme` | `frontend/src/app/features/editor/cmTheme.ts` | 主题同步：从 CSS 自定义属性读取颜色，支持亮暗主题动态切换 |
+| `cmScrollLeftSync` | `frontend/src/app/features/editor/cmScrollLeftSync.ts` | 自定义水平滚动条，支持边缘滚动、Diff 双编辑器同步 |
+
+### 依赖管理约束
+
+所有 `@codemirror/*` 核心包（state/view/language/commands/autocomplete/search/lint）必须满足：
+1. **显式依赖**：代码直接使用的包（如 `@codemirror/state`）必须在 `package.json` 的 `dependencies` 中列出
+2. **预捆绑单例**：在 `vite.config.ts` 的 `optimizeDeps.include` 中列出，确保 Vite 开发模式下仅加载一个实例，避免 `instanceof` 检查失败
+
 ## xterm.js 终端组件
 
 | 组件 | 文件 | 说明 |

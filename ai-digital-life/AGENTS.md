@@ -7,9 +7,10 @@
 | 层级 | 技术 |
 |------|------|
 | 后端 | Rust stable + Tauri 2.x + tokio + rusqlite + serde + tracing |
-| 前端 | React 19 + Vite + Zustand + TypeScript + xterm.js |
+| 前端 | React 19 + Vite + Zustand + TypeScript + CodeMirror 6 + xterm.js |
 | 桥接 | `#[tauri::command]` + `@tauri-apps/api` |
 | 打包 | `cargo tauri build` |
+| 包管理 | npm（前端）/ Cargo（Rust） |
 
 ## 当前阶段
 

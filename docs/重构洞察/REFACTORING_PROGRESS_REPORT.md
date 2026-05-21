@@ -41,6 +41,15 @@
 | Phase 2：性能优化 | 防抖封装、LRU 访问计数、缓存短路、工作区缓存清理、useMemo 对象引用优化、骨架屏动画、Release panic=abort | ✅ |
 | Phase 3：补充问题 | queueMicrotask、subscribeChannel 验证 | ✅ |
 
+### 第五轮重构（2026-05-22）：CodeMirror 双实例 Bug 修复
+修复 `@codemirror/state` `instanceof` 检查失败导致的 `Unrecognized extension value` 运行时错误：
+
+- **根因**：`@codemirror/state` 并非 `package.json` 直接依赖（仅通过 `@uiw/react-codemirror` 间接引入），pnpm 在不同路径加载导致多个实例
+- **修复**：
+  1. 在 `package.json` 添加 `@codemirror/state@^6.6.0` 作为显式直接依赖
+  2. 在 [vite.config.ts](../../ai-digital-life/frontend/vite.config.ts) 添加 `optimizeDeps.include` — 强制 Vite 将 7 个 CodeMirror 核心包预捆绑为单例
+  3. 因 pnpm store 损坏重建 `node_modules`（切换为 npm）
+
 ## 当前架构
 
 ### Store 架构
@@ -114,15 +123,17 @@ frontend/src/design-system/
 
 | 指标 | 数值 |
 |------|------|
-| 重构轮次 | 4 轮 |
-| 新增文件 | StoreState.ts, useStreamingText.ts, preferencesMerger.ts, design-system/tokens.ts |
+| 重构轮次 | 5 轮 |
+| 新增/修改文件 | StoreState.ts, useStreamingText.ts, preferencesMerger.ts, design-system/tokens.ts, package.json（@codemirror/state 显式依赖）, vite.config.ts（optimizeDeps） |
 | 重写/迁移文件 | slicedStore.ts, selectors.ts, shared.ts, 11 个 slice 文件 |
-| 删除文件 | app/slicedStore.ts（旧 1237 行），4 个废弃 Store |
+| 删除文件 | app/slicedStore.ts（旧 1237 行），4 个废弃 Store, pnpm-lock.yaml |
 | 迁移模块 | 7 个（file-tree / outline / patch-review / editor / diff-viewer / preview / terminal） |
 | 新增设计 Token | 6 个 Shadow token（亮暗主题各 6 个值） |
 | 消除 `as any` | 11 处（所有 slice 工厂） |
 | 消除重复代码 | 5 处路径分隔符 → 全局 `joinPathSegments` |
 | 新增 Rust 断言 | 3 个 `static_assertions` |
+| 包管理变更 | pnpm → npm（因 pnpm store 损坏恢复为 npm） |
+| 新增 Vite 配置 | `optimizeDeps.include` 强制 7 个 CodeMirror 包预捆绑为单例 |
 | 切片数量 | 11 个独立切片 |
 | 类型检查 | 0 错误 |
 | 测试通过 | 171/171（Vitest），2 个 Playwright E2E 预存问题 |

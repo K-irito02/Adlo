@@ -28,6 +28,9 @@ Thumbs.db
 /.run-logs/
 /*.log
 
+# Temporary pnpm stores (created during build debugging)
+/.local-store/
+
 # Tauri auto-generated schemas
 /src-tauri/gen/
 
