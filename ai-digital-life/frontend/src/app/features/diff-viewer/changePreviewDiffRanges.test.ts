@@ -27,10 +27,10 @@ describe("computePreviewDiffRanges", () => {
     ]);
   });
 
-  it("groups adjacent inserted lines", () => {
+  it("groups adjacent inserted lines and separate deletes", () => {
     expect(computePreviewDiffRanges("a\nb", "a\nc\nd")).toEqual([
-      { startLine: 1, endLine: 1, type: "insert" },
-      { startLine: 2, endLine: 3, type: "insert" }
+      { startLine: 2, endLine: 3, type: "insert" },
+      { startLine: 2, endLine: 2, type: "delete" }
     ]);
   });
 });
@@ -42,10 +42,9 @@ describe("computePreviewDiffVisualRanges", () => {
     expect(ranges.every(r => r.tone === "strong")).toBe(true);
   });
 
-  it("assigns block tone for large unchanged ranges", () => {
-    const longContent = Array.from({ length: 20 }, (_, i) => `line${i + 1}`).join("\n");
-    const changedContent = longContent + "\nchanged";
-    const ranges = computePreviewDiffVisualRanges(longContent, changedContent);
+  it("assigns block tone for large insert-only diff", () => {
+    const longContent = Array.from({ length: 15 }, (_, i) => `line${i + 1}`).join("\n");
+    const ranges = computePreviewDiffVisualRanges("", longContent);
     expect(ranges.some(r => r.tone === "block")).toBe(true);
   });
 });

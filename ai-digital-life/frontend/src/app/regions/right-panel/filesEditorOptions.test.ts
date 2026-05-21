@@ -11,7 +11,7 @@ describe("files panel editor options", () => {
   });
 
   it("uses the shared custom CodeMirror fold gutter marker and tooltip overlay", () => {
-    const codeEditorSource = readFileSync(new URL("./CodeEditor.tsx", import.meta.url), "utf8");
+    const codeEditorSource = readFileSync(new URL("../../features/editor/CodeEditor.tsx", import.meta.url), "utf8");
 
     expect(codeEditorSource).toContain("createFoldGutterExtension");
     expect(codeEditorSource).toContain("FoldTooltipOverlay");

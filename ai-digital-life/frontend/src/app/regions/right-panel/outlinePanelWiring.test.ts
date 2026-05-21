@@ -6,7 +6,7 @@ describe("outline panel wiring", () => {
   const editorSurfaceShellSource = readFileSync(new URL("./EditorSurfaceShell.tsx", import.meta.url), "utf8");
   const changesPanelSource = readFileSync(new URL("./ChangesPanel.tsx", import.meta.url), "utf8");
   const previewWorkspaceServiceSource = readFileSync(new URL("../../../../dev/previewWorkspaceService.ts", import.meta.url), "utf8");
-  const outlineTreeSource = readFileSync(new URL("./OutlineTree.tsx", import.meta.url), "utf8");
+  const outlineTreeSource = readFileSync(new URL("../../features/outline/OutlineTree.tsx", import.meta.url), "utf8");
   const fileTreeSource = readFileSync(new URL("../../features/file-tree/fileTree.tsx", import.meta.url), "utf8");
   const treeNodeRowSource = readFileSync(new URL("../../features/file-tree/TreeNodeRow.tsx", import.meta.url), "utf8");
 

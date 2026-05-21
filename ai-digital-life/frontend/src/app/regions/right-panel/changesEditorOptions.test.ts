@@ -6,12 +6,12 @@ const changesPanelSource = readFileSync(new URL("../../../../src/app/regions/rig
 describe("changes preview editor options", () => {
   it("uses DiffViewer component instead of Monaco DiffEditor", () => {
     expect(changesPanelSource).toContain("DiffViewer");
-    expect(changesPanelSource).toContain("from \"./DiffViewer\"");
+    expect(changesPanelSource).toContain('from "../../features/diff-viewer"');
     expect(changesPanelSource).not.toContain("@monaco-editor/react");
   });
 
   it("uses the shared custom CodeMirror fold gutter marker and tooltip overlay", () => {
-    const diffViewerSource = readFileSync(new URL("../../../../src/app/regions/right-panel/DiffViewer.tsx", import.meta.url), "utf8");
+    const diffViewerSource = readFileSync(new URL("../../features/diff-viewer/DiffViewer.tsx", import.meta.url), "utf8");
 
     expect(diffViewerSource).toContain("createFoldGutterExtension");
     expect(diffViewerSource).toContain("FoldTooltipOverlay");

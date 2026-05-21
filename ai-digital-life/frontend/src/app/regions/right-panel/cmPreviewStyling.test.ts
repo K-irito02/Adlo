@@ -1,10 +1,10 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const cmThemeSource = readFileSync(new URL("../../../../src/app/regions/right-panel/cmTheme.ts", import.meta.url), "utf8");
-const codeEditorSource = readFileSync(new URL("../../../../src/app/regions/right-panel/CodeEditor.tsx", import.meta.url), "utf8");
-const diffViewerSource = readFileSync(new URL("../../../../src/app/regions/right-panel/DiffViewer.tsx", import.meta.url), "utf8");
-const scrollLeftSyncSource = readFileSync(new URL("../../../../src/app/regions/right-panel/cmScrollLeftSync.ts", import.meta.url), "utf8");
+const cmThemeSource = readFileSync(new URL("../features/editor/cmTheme.ts", import.meta.url), "utf8");
+const codeEditorSource = readFileSync(new URL("../features/editor/CodeEditor.tsx", import.meta.url), "utf8");
+const diffViewerSource = readFileSync(new URL("../../features/diff-viewer/DiffViewer.tsx", import.meta.url), "utf8");
+const scrollLeftSyncSource = readFileSync(new URL("../features/editor/cmScrollLeftSync.ts", import.meta.url), "utf8");
 const regionsCssSource = readFileSync(new URL("../../../../src/styles/regions.css", import.meta.url), "utf8");
 
 function extractCssBlock(css: string, selector: string) {
