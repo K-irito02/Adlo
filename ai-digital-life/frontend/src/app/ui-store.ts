@@ -300,7 +300,7 @@ function normalizeTerminalTabs(tabs: TerminalTabState[]): TerminalTabState[] {
 function sortTabs(tabs: TerminalTabState[]): TerminalTabState[] {
   return [...tabs].sort((a, b) => {
     if (a.isPinned !== b.isPinned) {
-      return b.isPinned ? 1 : -1;
+      return a.isPinned ? -1 : 1;
     }
     return a.sortOrder - b.sortOrder;
   });
