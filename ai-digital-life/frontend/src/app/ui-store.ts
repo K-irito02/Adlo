@@ -297,6 +297,15 @@ function normalizeTerminalTabs(tabs: TerminalTabState[]): TerminalTabState[] {
   return tabs;
 }
 
+function sortTabs(tabs: TerminalTabState[]): TerminalTabState[] {
+  return [...tabs].sort((a, b) => {
+    if (a.isPinned !== b.isPinned) {
+      return b.isPinned ? 1 : -1;
+    }
+    return a.sortOrder - b.sortOrder;
+  });
+}
+
 function deriveTerminalTitle(profile: TerminalProfile, count: number): string {
   const label = profile === "powershell" ? "PowerShell" : profile === "bash" ? "Bash" : "CMD";
   return count > 1 ? `${label} ${count}` : label;
@@ -379,6 +388,10 @@ export interface UiState {
   terminalSelectTab: (tabId: string) => void;
   terminalCloseTab: (tabId: string) => void;
   terminalUpdateActiveTab: (patch: Partial<Omit<TerminalTabState, "id">>) => void;
+  terminalUpdateTab: (tabId: string, patch: Partial<Omit<TerminalTabState, "id">>) => void;
+  terminalTogglePin: (tabId: string) => void;
+  terminalReorderTabs: (newOrder: TerminalTabState[]) => void;
+  terminalCloseAllTabs: () => void;
   setDefaultTerminalProfile: (profile: TerminalProfile) => void;
 }
 
@@ -716,7 +729,7 @@ export const useUiStore = create<UiState>((set) => ({
         isPinned: false,
         sortOrder: maxSortOrder + 1
       };
-      const nextTabs = [...state.terminalTabs, tab];
+      const nextTabs = sortTabs([...state.terminalTabs, tab]);
       writeJson(TERMINAL_TABS_KEY, nextTabs);
       writeJson(TERMINAL_ACTIVE_TAB_KEY, tab.id);
       return { terminalTabs: nextTabs, terminalActiveTabId: tab.id };
@@ -728,7 +741,7 @@ export const useUiStore = create<UiState>((set) => ({
   terminalCloseTab: (tabId) =>
     set((state) => {
       const filtered = state.terminalTabs.filter((tab) => tab.id !== tabId);
-      const nextTabs = normalizeTerminalTabs(filtered);
+      const nextTabs = sortTabs(filtered);
       const nextActive =
         state.terminalActiveTabId === tabId
           ? nextTabs[nextTabs.length - 1]?.id ?? ""
@@ -742,12 +755,53 @@ export const useUiStore = create<UiState>((set) => ({
     }),
   terminalUpdateActiveTab: (patch) =>
     set((state) => {
-      const nextTabs = state.terminalTabs.map((tab) =>
+      const nextTabs = sortTabs(state.terminalTabs.map((tab) =>
         tab.id === state.terminalActiveTabId ? { ...tab, ...patch } : tab
-      );
+      ));
       writeJson(TERMINAL_TABS_KEY, nextTabs);
       return { terminalTabs: nextTabs };
     }),
+  terminalUpdateTab: (tabId, patch) =>
+    set((state) => {
+      const nextTabs = sortTabs(state.terminalTabs.map((tab) =>
+        tab.id === tabId ? { ...tab, ...patch } : tab
+      ));
+      writeJson(TERMINAL_TABS_KEY, nextTabs);
+      return { terminalTabs: nextTabs };
+    }),
+  terminalTogglePin: (tabId) =>
+    set((state) => {
+      const nextTabs = sortTabs(state.terminalTabs.map((tab) => {
+        if (tab.id === tabId) {
+          return {
+            ...tab,
+            isPinned: !tab.isPinned,
+            pinnedAt: !tab.isPinned ? Date.now() : undefined
+          };
+        }
+        return tab;
+      }));
+      writeJson(TERMINAL_TABS_KEY, nextTabs);
+      return { terminalTabs: nextTabs };
+    }),
+  terminalReorderTabs: (newOrder) =>
+    set((state) => {
+      const pinnedTabs = newOrder.filter(t => t.isPinned);
+      const unpinnedTabs = newOrder.filter(t => !t.isPinned);
+
+      const reorderedWithSort = [...pinnedTabs, ...unpinnedTabs].map((tab, index) => ({
+        ...tab,
+        sortOrder: index
+      }));
+
+      writeJson(TERMINAL_TABS_KEY, reorderedWithSort);
+      return { terminalTabs: reorderedWithSort };
+    }),
+  terminalCloseAllTabs: () => {
+    writeJson(TERMINAL_TABS_KEY, []);
+    writeJson(TERMINAL_ACTIVE_TAB_KEY, "");
+    set({ terminalTabs: [], terminalActiveTabId: "" });
+  },
   setDefaultTerminalProfile: (profile) => {
     writeJson(TERMINAL_DEFAULT_PROFILE_KEY, profile);
     set({ defaultTerminalProfile: profile });
