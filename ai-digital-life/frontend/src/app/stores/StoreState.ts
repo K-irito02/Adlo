@@ -15,6 +15,7 @@ import type { DiagnosticSlice } from "./slices/diagnosticSlice";
 import type { TaskSlice } from "./slices/taskSlice";
 import type { CommandSlice } from "./slices/commandSlice";
 import type { ClipboardSlice } from "./slices/clipboardSlice";
+import type { TerminalSlice } from "./slices/terminalSlice";
 import type {
   AppInfo,
   AppPreferencePatch,
@@ -36,7 +37,8 @@ interface StoreStateBase
     DiagnosticSlice,
     TaskSlice,
     CommandSlice,
-    ClipboardSlice {
+    ClipboardSlice,
+    TerminalSlice {
   loading: boolean;
   error?: string;
 }

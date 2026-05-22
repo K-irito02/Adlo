@@ -41,6 +41,23 @@ alwaysApply: true
 |------|------|
 | `npm run dev:browser` | 浏览器预览模式（终端通过 `previewTerminalService.ts` + `child_process.spawn` 运行真实 Shell） |
 
+### 浏览器模式终端功能说明
+
+由于 Vite 开发服务器会主动中断长时间运行的 SSE（Server-Sent Events）连接，浏览器模式下的终端功能使用**轮询（polling）机制**替代 SSE：
+
+- **轮询间隔**：100ms（确保良好的响应性）
+- **实现位置**：`frontend/src/preview-bridge/ptyBridge.ts`
+- **服务器端**：`frontend/dev/previewTerminalService.ts`（缓存终端输出）
+- **注意事项**：修改中间件代码后必须**重启开发服务器**才能生效
+
+### 相关问题与经验教训
+
+1. **Vite 中间件修改必须重启服务器** - 任何对 `vite.config.ts` 或 `dev/` 目录下文件的修改都需要完全停止并重新启动 `npm run dev:browser`
+2. **SSE 在 Vite 中不稳定** - Vite 的热更新机制会中断长连接，轮询是更可靠的备选方案
+3. **Zustand 对象展开选择器导致无限循环** - 在 Zustand v5 中应避免使用 `useAppStore((state) => ({ ... }))`，应分别选择状态和动作
+4. **终端光标位置重叠** - 需要确保 xterm.js 在写入内容后自动滚动到底部，添加 `onWriteParsed` 监听器并设置正确的容器样式
+5. **多终端窗口切换** - 共享终端组件实例时，切换标签页需要延迟恢复内容、调整大小、滚动到底部并聚焦
+
 ## 包管理
 
 | 命令 | 用途 |

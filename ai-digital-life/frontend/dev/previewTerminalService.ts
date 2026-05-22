@@ -13,6 +13,7 @@ interface PtySession {
   cwd: string;
   process: pty.IPty;
   createdAt: number;
+  output: string;
 }
 
 const sessions = new Map<string, PtySession>();
@@ -132,6 +133,19 @@ export async function handlePreviewTerminalApi(
   response: ServerResponse
 ): Promise<boolean> {
   const requestUrl = new URL(request.url ?? API_PREFIX, "http://127.0.0.1");
+  console.log("Terminal API request:", request.method, requestUrl.pathname);
+
+  // Handle OPTIONS for CORS preflight
+  if (request.method === "OPTIONS") {
+    console.log("Handling OPTIONS request");
+    response.writeHead(200, {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type",
+    });
+    response.end();
+    return true;
+  }
 
   // POST /__adl_preview_api__/pty/create
   if (request.method === "POST" && requestUrl.pathname === `${API_PREFIX}/pty/create`) {
@@ -170,15 +184,19 @@ export async function handlePreviewTerminalApi(
       cwd,
       process: ptyProcess,
       createdAt: Date.now(),
+      output: "",
     };
     sessions.set(sessionId, session);
 
     ptyProcess.onData((data: string) => {
+      session.output += data;
       sendSse(sessionId, data);
     });
 
     ptyProcess.onExit(({ exitCode, signal }) => {
-      sendSse(sessionId, `\r\n[process exited] (code=${exitCode})\r\n`);
+      const exitMsg = `\r\n[process exited] (code=${exitCode})\r\n`;
+      session.output += exitMsg;
+      sendSse(sessionId, exitMsg);
       sessions.delete(sessionId);
     });
 
@@ -255,6 +273,7 @@ export async function handlePreviewTerminalApi(
       cols: 80,
       rows: 24,
       status: "Running" as const,
+      output: s.output,
     }));
     writeJson(response, { ok: true, data: infos });
     return true;
@@ -262,27 +281,60 @@ export async function handlePreviewTerminalApi(
 
   // GET /__adl_preview_api__/pty/output (SSE - all sessions)
   if (request.method === "GET" && requestUrl.pathname === `${API_PREFIX}/pty/output`) {
+    console.log("New SSE client connected for PTY output");
+    
+    // Important: Prevent Vite from interfering with SSE connection
+    (request as any).socket.setTimeout(0);
+    
     response.writeHead(200, {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
       Connection: "keep-alive",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type",
+      // Important: Disable compression for SSE
+      "Content-Encoding": "identity",
+      // Important: Prevent Vite from buffering
+      "X-Accel-Buffering": "no",
     });
+
+    // Send initial connection message
+    try {
+      response.write(": connected\n\n");
+    } catch (e) {
+      console.error("Failed to send initial SSE message", e);
+    }
 
     const thisClient = response;
     allSseClients.add(thisClient);
+    console.log(`Total SSE clients: ${allSseClients.size}`);
 
     const keepAlive = setInterval(() => {
       try {
         thisClient.write(": keepalive\n\n");
-      } catch {
+      } catch (e) {
+        console.error("Keepalive failed, removing client", e);
         clearInterval(keepAlive);
+        allSseClients.delete(thisClient);
       }
-    }, 15000);
+    }, 30000); // 30 seconds instead of 15
 
     request.on("close", () => {
+      console.log("SSE client disconnected");
       clearInterval(keepAlive);
-      allSseClients?.delete(thisClient);
+      allSseClients.delete(thisClient);
+      console.log(`Remaining SSE clients: ${allSseClients.size}`);
     });
+
+    request.on("error", (err) => {
+      console.error("SSE request error", err);
+      clearInterval(keepAlive);
+      allSseClients.delete(thisClient);
+    });
+
+    // Don't let Vite close the response on us
+    (response as any)._header = true;
 
     return true;
   }

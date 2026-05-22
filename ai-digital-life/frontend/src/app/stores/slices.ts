@@ -34,3 +34,6 @@ export { type CommandSlice, createCommandSlice } from "./slices/commandSlice";
 
 // 剪贴板切片
 export { type ClipboardSlice, createClipboardSlice } from "./slices/clipboardSlice";
+
+// 终端切片
+export { type TerminalSlice, createTerminalSlice } from "./slices/terminalSlice";

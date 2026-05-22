@@ -11,7 +11,9 @@ export default defineConfig({
       name: "adl-preview-workspace-api",
       configureServer(server) {
         server.middlewares.use((req, res, next) => {
+          console.log("Request:", req.method, req.url);
           if (isPreviewTerminalApiRequest(req.url)) {
+            console.log("Handling terminal API request");
             void handlePreviewTerminalApi(req, res);
             return;
           }
@@ -19,6 +21,7 @@ export default defineConfig({
             next();
             return;
           }
+          console.log("Handling workspace API request");
           void handlePreviewWorkspaceApi(req, res);
         });
       }

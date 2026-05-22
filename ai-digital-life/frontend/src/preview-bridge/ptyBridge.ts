@@ -4,25 +4,45 @@ import { requestPreviewApi } from "./api";
 
 const MAX_PTY_LISTENERS = 32;
 const ptyOutputListeners = new Set<(event: PtyOutputEvent) => void>();
-let ptySseEventSource: EventSource | null = null;
-let ptySseListenersCount = 0;
+let ptyPollingInterval: number | null = null;
+let ptyPollingListenersCount = 0;
+const sessionOutputBuffers = new Map<string, string>();
 
-function connectPtySse(onCleanup: () => void): void {
-  const es = new EventSource(`/__adl_preview_api__/pty/output`);
-  ptySseEventSource = es;
-  es.onmessage = (event) => {
+// Use polling instead of SSE for Vite dev server compatibility
+function startPolling(onCleanup: () => void): void {
+  console.log("Starting PTY polling...");
+  
+  if (ptyPollingInterval) {
+    window.clearInterval(ptyPollingInterval);
+  }
+  
+  ptyPollingInterval = window.setInterval(async () => {
     try {
-      const parsed = JSON.parse(event.data) as PtyOutputEvent;
-      ptyOutputListeners.forEach((fn) => fn(parsed));
-    } catch {
-      // ignore parse errors
+      const result = await requestPreviewApi<PtySessionInfo[]>("/pty/list");
+      
+      if (result.ok) {
+        const sessions = result.data;
+        for (const session of sessions) {
+          if (session.output) {
+            const lastOutput = sessionOutputBuffers.get(session.sessionId) || "";
+            if (session.output !== lastOutput) {
+              const newOutput = session.output.slice(lastOutput.length);
+              if (newOutput) {
+                const event: PtyOutputEvent = {
+                  sessionId: session.sessionId,
+                  data: newOutput
+                };
+                ptyOutputListeners.forEach((fn) => fn(event));
+              }
+              sessionOutputBuffers.set(session.sessionId, session.output);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("PTY polling error", e);
     }
-  };
-  es.onerror = () => {
-    es.close();
-    ptySseEventSource = null;
-    onCleanup();
-  };
+  }, 100); // Poll every 100ms for good responsiveness
 }
 
 export function createPtyBridge() {
@@ -34,17 +54,17 @@ export function createPtyBridge() {
         if (oldest) ptyOutputListeners.delete(oldest);
       }
       ptyOutputListeners.add(listener);
-      ptySseListenersCount += 1;
-      if (!ptySseEventSource) {
-        connectPtySse(() => { ptySseListenersCount = Math.max(0, ptySseListenersCount - 1); });
+      ptyPollingListenersCount += 1;
+      if (!ptyPollingInterval) {
+        startPolling(() => { ptyPollingListenersCount = Math.max(0, ptyPollingListenersCount - 1); });
       }
       return () => {
         ptyOutputListeners.delete(listener);
-        ptySseListenersCount -= 1;
-        if (ptySseListenersCount <= 0 && ptySseEventSource) {
-          ptySseEventSource.close();
-          ptySseEventSource = null;
-          ptySseListenersCount = 0;
+        ptyPollingListenersCount -= 1;
+        if (ptyPollingListenersCount <= 0 && ptyPollingInterval) {
+          window.clearInterval(ptyPollingInterval);
+          ptyPollingInterval = null;
+          sessionOutputBuffers.clear();
         }
       };
     },
@@ -65,11 +85,13 @@ export function createPtyBridge() {
           method: "POST",
           body: JSON.stringify({ sessionId, cols, rows })
         }),
-      kill: async (sessionId: string) =>
-        requestPreviewApi<boolean>("/pty/kill", {
+      kill: async (sessionId: string) => {
+        sessionOutputBuffers.delete(sessionId);
+        return requestPreviewApi<boolean>("/pty/kill", {
           method: "POST",
           body: JSON.stringify({ sessionId })
-        }),
+        });
+      },
       list: async () =>
         requestPreviewApi<PtySessionInfo[]>("/pty/list")
     }

@@ -17,6 +17,7 @@ import {
   createTaskSlice,
   createCommandSlice,
   createClipboardSlice,
+  createTerminalSlice,
 } from "./slices";
 import type {
   UISlice,
@@ -30,6 +31,7 @@ import type {
   TaskSlice,
   CommandSlice,
   ClipboardSlice,
+  TerminalSlice,
 } from "./slices";
 import type { StoreState as FullStoreState } from "./StoreState";
 
@@ -68,6 +70,7 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
   ...createTaskSlice(set, get),
   ...createCommandSlice(set, get),
   ...createClipboardSlice(set, get),
+  ...createTerminalSlice(set, get),
 
   // 根级状态
   loading: true,

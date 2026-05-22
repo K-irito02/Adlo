@@ -217,6 +217,35 @@ export const searchSelectors = {
 };
 
 // ============================================
+// 终端相关的选择器
+// ============================================
+export const terminalSelectors = {
+  getTerminalTabs: (state: StoreState) => state.terminalTabs,
+  useTerminalTabs: () => useAppStore(useShallow((s) => s.terminalTabs)),
+
+  getTerminalActiveTabId: (state: StoreState) => state.terminalActiveTabId,
+  useTerminalActiveTabId: () => useAppStore((s) => s.terminalActiveTabId),
+
+  getDefaultTerminalProfile: (state: StoreState) => state.defaultTerminalProfile,
+  useDefaultTerminalProfile: () => useAppStore((s) => s.defaultTerminalProfile),
+
+  getTerminalNavigatorWidth: (state: StoreState) => state.terminalNavigatorWidth,
+  useTerminalNavigatorWidth: () => useAppStore((s) => s.terminalNavigatorWidth),
+
+  getNavigatorCollapsedByTool: (state: StoreState) => state.navigatorCollapsedByTool,
+  useNavigatorCollapsedByTool: () => useAppStore(useShallow((s) => s.navigatorCollapsedByTool)),
+
+  getActiveTerminalTab: (state: StoreState) =>
+    state.terminalTabs.find((tab) => tab.id === state.terminalActiveTabId),
+  useActiveTerminalTab: () => useAppStore(useShallow((s) =>
+    s.terminalTabs.find((tab) => tab.id === s.terminalActiveTabId)
+  )),
+
+  hasTerminalTabs: (state: StoreState) => state.terminalTabs.length > 0,
+  useHasTerminalTabs: () => useAppStore((s) => s.terminalTabs.length > 0),
+};
+
+// ============================================
 // 组合选择器
 // ============================================
 export const combinedSelectors = {

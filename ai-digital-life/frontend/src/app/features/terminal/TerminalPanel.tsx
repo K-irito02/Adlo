@@ -11,9 +11,11 @@ import {
 } from "../../icons";
 import { TooltipSimple } from "../../components/Tooltip";
 import { XtermTerminal, type XtermTerminalHandle } from "../../components/terminal/XtermTerminal";
-import { useUiStore, type TerminalProfile } from "../../ui-store";
+import { type TerminalProfile } from "../../ui-store";
 import { useNavigatorResize } from "../../hooks/useNavigatorResize";
 import type { RightPanelViewProps } from "../../regions/right-panel/types";
+import { useAppStore } from "../../stores/slicedStore";
+import { terminalSelectors } from "../../stores/selectors";
 
 type TerminalNavigatorMode = "sessions" | "history";
 type TerminalMenuItem =
@@ -45,19 +47,22 @@ export function TerminalPanel(props: RightPanelViewProps) {
   const [navigatorMode, setNavigatorMode] = useState<TerminalNavigatorMode>("sessions");
   const [terminalMenuOpen, setTerminalMenuOpen] = useState(false);
   const [shellMenuOpen, setShellMenuOpen] = useState(false);
-  const navigatorCollapsed = useUiStore((state) => state.navigatorCollapsedByTool.terminal);
-  const toggleNavigator = useUiStore((state) => state.toggleNavigator);
-  const terminalNavigatorWidth = useUiStore((state) => state.terminalNavigatorWidth);
-  const setTerminalNavigatorWidth = useUiStore((state) => state.setTerminalNavigatorWidth);
-  const terminalTabs = useUiStore((state) => state.terminalTabs);
-  const terminalActiveTabId = useUiStore((state) => state.terminalActiveTabId);
-  const terminalCreateTab = useUiStore((state) => state.terminalCreateTab);
-  const terminalSelectTab = useUiStore((state) => state.terminalSelectTab);
-  const terminalCloseTab = useUiStore((state) => state.terminalCloseTab);
-  const terminalUpdateActiveTab = useUiStore((state) => state.terminalUpdateActiveTab);
-  const defaultTerminalProfile = useUiStore((state) => state.defaultTerminalProfile);
-  const setDefaultTerminalProfile = useUiStore((state) => state.setDefaultTerminalProfile);
-  const setActiveTool = useUiStore((state) => state.setActiveTool);
+
+  const navigatorCollapsed = terminalSelectors.useNavigatorCollapsedByTool().terminal;
+  const terminalTabs = terminalSelectors.useTerminalTabs();
+  const terminalActiveTabId = terminalSelectors.useTerminalActiveTabId();
+  const defaultTerminalProfile = terminalSelectors.useDefaultTerminalProfile();
+  const terminalNavigatorWidth = terminalSelectors.useTerminalNavigatorWidth();
+
+  const terminalCreateTab = useAppStore((state) => state.terminalCreateTab);
+  const terminalSelectTab = useAppStore((state) => state.terminalSelectTab);
+  const terminalCloseTab = useAppStore((state) => state.terminalCloseTab);
+  const terminalUpdateActiveTab = useAppStore((state) => state.terminalUpdateActiveTab);
+  const setDefaultTerminalProfile = useAppStore((state) => state.setDefaultTerminalProfile);
+  const setTerminalNavigatorWidth = useAppStore((state) => state.setTerminalNavigatorWidth);
+  const toggleTerminalNavigator = useAppStore((state) => state.toggleTerminalNavigator);
+  const terminalCloseAllTabs = useAppStore((state) => state.terminalCloseAllTabs);
+  const setActiveRightTool = useAppStore((state) => state.setActiveRightTool);
 
   const terminalMenuRef = useRef<HTMLDivElement | null>(null);
   const shellMenuRef = useRef<HTMLDivElement | null>(null);
@@ -110,14 +115,17 @@ export function TerminalPanel(props: RightPanelViewProps) {
     });
     if (result.ok) {
       terminalUpdateActiveTab({ sessionId: result.data.sessionId, status: "running" });
-      const stored = sessionOutputsRef.current.get(result.data.sessionId) ?? "";
-      if (stored) {
-        xtermRef.current?.write(stored);
-      }
+      setTimeout(() => {
+        const stored = sessionOutputsRef.current.get(result.data.sessionId) ?? "";
+        if (stored) {
+          xtermRef.current?.write(stored);
+        }
+        xtermRef.current?.resize();
+        xtermRef.current?.focus();
+      }, 50);
     } else {
       terminalUpdateActiveTab({ status: "terminated" });
     }
-    xtermRef.current?.focus();
   }, [terminalCreateTab, terminalUpdateActiveTab, props.appInfo?.currentWorkspace?.rootPath]);
 
   useEffect(() => {
@@ -136,6 +144,12 @@ export function TerminalPanel(props: RightPanelViewProps) {
     document.addEventListener("mousedown", handlePointerDown);
     return () => document.removeEventListener("mousedown", handlePointerDown);
   }, [shellMenuOpen, terminalMenuOpen]);
+
+  const toggleNavigator = useCallback((tool: string) => {
+    if (tool === "terminal") {
+      toggleTerminalNavigator();
+    }
+  }, [toggleTerminalNavigator]);
 
   const { handlePointerDown: handleNavigatorResizeStart } = useNavigatorResize({
     onWidthCommit: setTerminalNavigatorWidth,
@@ -180,7 +194,7 @@ export function TerminalPanel(props: RightPanelViewProps) {
   }, [activeTab?.sessionId, terminalUpdateActiveTab]);
 
   const handleCloseTab = useCallback((tabId: string) => {
-    const tabs = useUiStore.getState().terminalTabs;
+    const tabs = useAppStore.getState().terminalTabs;
     const tab = tabs.find((t) => t.id === tabId);
     if (tab?.sessionId) {
       window.digitalLife.pty.kill(tab.sessionId);
@@ -190,26 +204,31 @@ export function TerminalPanel(props: RightPanelViewProps) {
   }, [terminalCloseTab]);
 
   const handleCloseAllTabs = useCallback(() => {
-    const tabs = useUiStore.getState().terminalTabs;
-    tabs.forEach((tab) => {
+    terminalTabs.forEach((tab) => {
       if (tab.sessionId) {
         window.digitalLife.pty.kill(tab.sessionId);
         sessionOutputsRef.current.delete(tab.sessionId);
       }
     });
-    useUiStore.setState({ terminalTabs: [], terminalActiveTabId: "" });
-  }, []);
+    terminalCloseAllTabs();
+  }, [terminalTabs, terminalCloseAllTabs]);
 
   const handleSelectTab = useCallback((tabId: string) => {
     terminalSelectTab(tabId);
-    const tabs = useUiStore.getState().terminalTabs;
+    const tabs = useAppStore.getState().terminalTabs;
     const tab = tabs.find((t) => t.id === tabId);
     if (tab?.sessionId) {
+      const sessionId = tab.sessionId;
       xtermRef.current?.clear();
-      const stored = sessionOutputsRef.current.get(tab.sessionId) ?? "";
-      if (stored) {
-        xtermRef.current?.write(stored);
-      }
+      setTimeout(() => {
+        const stored = sessionOutputsRef.current.get(sessionId) ?? "";
+        if (stored) {
+          xtermRef.current?.write(stored);
+        }
+        xtermRef.current?.resize();
+        xtermRef.current?.scrollToBottom();
+        xtermRef.current?.focus();
+      }, 50);
     }
   }, [terminalSelectTab]);
 
@@ -488,7 +507,7 @@ export function TerminalPanel(props: RightPanelViewProps) {
                     <button
                       type="button"
                       className="adl-btn adl-btn--primary adl-btn--xs"
-                      onClick={() => setActiveTool("audit")}
+                      onClick={() => setActiveRightTool("audit")}
                     >
                       {t.terminalGoToApproval}
                     </button>

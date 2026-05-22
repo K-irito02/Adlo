@@ -70,6 +70,7 @@ export interface PtySessionInfo {
   cols: number;
   rows: number;
   status: "Running" | "Terminated";
+  output?: string;
 }
 
 export interface PtyOutputEvent {
