@@ -494,6 +494,12 @@ export const IconPinOff = make(
     <path d="M12 14v8" />
   </>
 );
+export const IconEdit = make(
+  <>
+    <path d="M12 20h9" />
+    <path d="m16.5 3.5 4 4-12 12H4.5v-4l12-12z" />
+  </>
+);
 export const IconArchive = make(
   <>
     <rect x="3" y="4" width="18" height="4" rx="1" />

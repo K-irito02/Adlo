@@ -46,6 +46,9 @@ export interface TerminalTabState {
   profile: TerminalProfile;
   sessionId?: string;
   status: "idle" | "running" | "terminated";
+  isPinned: boolean;
+  pinnedAt?: number;
+  sortOrder: number;
 }
 
 const LEFT_COLLAPSED_KEY = "adl-ui:left-collapsed";
@@ -704,11 +707,14 @@ export const useUiStore = create<UiState>((set) => ({
   terminalCreateTab: (profile = "powershell") =>
     set((state) => {
       const existingCount = state.terminalTabs.filter((tab) => tab.profile === profile).length + 1;
+      const maxSortOrder = state.terminalTabs.length > 0 ? Math.max(...state.terminalTabs.map(t => t.sortOrder)) : 0;
       const tab: TerminalTabState = {
         id: createUiId("terminal"),
         title: deriveTerminalTitle(profile, existingCount),
         profile,
-        status: "idle"
+        status: "idle",
+        isPinned: false,
+        sortOrder: maxSortOrder + 1
       };
       const nextTabs = [...state.terminalTabs, tab];
       writeJson(TERMINAL_TABS_KEY, nextTabs);

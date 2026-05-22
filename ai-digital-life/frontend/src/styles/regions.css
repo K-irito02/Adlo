@@ -4093,7 +4093,38 @@ select:focus-visible {
   flex-direction: row;
   align-items: center;
   gap: 0;
-  padding: 1px 4px 1px 8px;
+  width: 100%;
+  padding: 2px 8px;
+  border-radius: 0;
+}
+
+.adl-tool-list__item--terminal-tab:hover {
+  background: var(--surface-hover);
+}
+
+.adl-tool-list__item--terminal-tab.is-active {
+  background: var(--surface-hover);
+}
+
+.adl-tool-list__item--terminal-tab.is-dragging {
+  opacity: 0.5;
+  background: var(--surface-active);
+}
+
+.adl-tool-list__item--terminal-tab.is-pinned {
+  position: relative;
+}
+
+.adl-tool-list__item--terminal-tab.is-pinned::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 12px;
+  background: var(--yellow);
+  border-radius: 2px;
 }
 
 .adl-tool-list__item-btn {
@@ -4111,12 +4142,28 @@ select:focus-visible {
   border-radius: var(--radius-sm);
 }
 
+/* Ensure button doesn't add double background */
 .adl-tool-list__item-btn:hover {
-  background: var(--surface-hover);
+  background: transparent;
 }
 
 .adl-tool-list__item-btn.is-active {
-  background: var(--surface-hover);
+  background: transparent;
+}
+
+/* Tighten spacing for terminal tabs list - match file tree style */
+.adl-tool-navigator__context--tabs + .adl-tool-list {
+  padding: 0;
+  padding-top: 1px;
+  gap: 1px;
+  overflow-x: hidden;
+}
+
+/* Consistent padding for all tool navigator contexts - match files style */
+.adl-tool-surface--changes .adl-tool-navigator__context,
+.adl-tool-surface--browser .adl-tool-navigator__context,
+.adl-tool-panel--terminal .adl-tool-navigator__context {
+  padding-inline-end: var(--space-1);
 }
 
 .adl-tool-list__item-close {
@@ -4689,8 +4736,7 @@ select:focus-visible {
   justify-content: flex-start;
   position: relative;
   z-index: 1;
-  padding-top: var(--space-1);
-  padding-bottom: 0;
+  padding: var(--space-1) calc(var(--space-1-5) + 6px) var(--space-1) var(--space-1-5);
   border-bottom: 1px solid var(--border-subtle);
 }
 

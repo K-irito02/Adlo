@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   IconChevronDown,
   IconClose,
@@ -7,7 +8,10 @@ import {
   IconPanelLeftClose,
   IconPlus,
   IconTerminal,
-  IconTrash
+  IconTrash,
+  IconPin,
+  IconPinOff,
+  IconEdit
 } from "../../icons";
 import { TooltipSimple } from "../../components/Tooltip";
 import { XtermTerminal, type XtermTerminalHandle } from "../../components/terminal/XtermTerminal";
@@ -24,6 +28,14 @@ type TerminalMenuItem =
 type TerminalShellMenuItem =
   | { id: string; separator: true }
   | { id: string; label: string; profile?: TerminalProfile; action: () => void };
+
+interface ContextMenuState {
+  open: boolean;
+  x: number;
+  y: number;
+  tabId: string | null;
+  isPinned: boolean;
+}
 
 function ShellPrefix({ profile }: { profile?: TerminalProfile }) {
   const map: Record<string, { text: string; color: string }> = {
@@ -47,6 +59,17 @@ export function TerminalPanel(props: RightPanelViewProps) {
   const [navigatorMode, setNavigatorMode] = useState<TerminalNavigatorMode>("sessions");
   const [terminalMenuOpen, setTerminalMenuOpen] = useState(false);
   const [shellMenuOpen, setShellMenuOpen] = useState(false);
+  const [contextMenu, setContextMenu] = useState<ContextMenuState>({
+    open: false,
+    x: 0,
+    y: 0,
+    tabId: null,
+    isPinned: false
+  });
+  const [editingTabId, setEditingTabId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOverTabId, setDragOverTabId] = useState<string | null>(null);
 
   const navigatorCollapsed = terminalSelectors.useNavigatorCollapsedByTool().terminal;
   const terminalTabs = terminalSelectors.useTerminalTabs();
@@ -58,6 +81,9 @@ export function TerminalPanel(props: RightPanelViewProps) {
   const terminalSelectTab = useAppStore((state) => state.terminalSelectTab);
   const terminalCloseTab = useAppStore((state) => state.terminalCloseTab);
   const terminalUpdateActiveTab = useAppStore((state) => state.terminalUpdateActiveTab);
+  const terminalUpdateTab = useAppStore((state) => state.terminalUpdateTab);
+  const terminalTogglePin = useAppStore((state) => state.terminalTogglePin);
+  const terminalReorderTabs = useAppStore((state) => state.terminalReorderTabs);
   const setDefaultTerminalProfile = useAppStore((state) => state.setDefaultTerminalProfile);
   const setTerminalNavigatorWidth = useAppStore((state) => state.setTerminalNavigatorWidth);
   const toggleTerminalNavigator = useAppStore((state) => state.toggleTerminalNavigator);
@@ -68,6 +94,7 @@ export function TerminalPanel(props: RightPanelViewProps) {
   const shellMenuRef = useRef<HTMLDivElement | null>(null);
   const xtermRef = useRef<XtermTerminalHandle | null>(null);
   const sessionOutputsRef = useRef<Map<string, string>>(new Map());
+  const editInputRef = useRef<HTMLInputElement | null>(null);
 
   const activeTab = useMemo(
     () => terminalTabs.find((tab) => tab.id === terminalActiveTabId) ?? terminalTabs[0],
@@ -129,7 +156,7 @@ export function TerminalPanel(props: RightPanelViewProps) {
   }, [terminalCreateTab, terminalUpdateActiveTab, props.appInfo?.currentWorkspace?.rootPath]);
 
   useEffect(() => {
-    if (!terminalMenuOpen && !shellMenuOpen) {
+    if (!terminalMenuOpen && !shellMenuOpen && !contextMenu.open) {
       return;
     }
     const handlePointerDown = (event: MouseEvent) => {
@@ -140,10 +167,20 @@ export function TerminalPanel(props: RightPanelViewProps) {
       if (!shellMenuRef.current?.contains(target)) {
         setShellMenuOpen(false);
       }
+      if (contextMenu.open) {
+        setContextMenu(prev => ({ ...prev, open: false }));
+      }
     };
     document.addEventListener("mousedown", handlePointerDown);
     return () => document.removeEventListener("mousedown", handlePointerDown);
-  }, [shellMenuOpen, terminalMenuOpen]);
+  }, [shellMenuOpen, terminalMenuOpen, contextMenu.open]);
+
+  useEffect(() => {
+    if (editingTabId && editInputRef.current) {
+      editInputRef.current.focus();
+      editInputRef.current.select();
+    }
+  }, [editingTabId]);
 
   const toggleNavigator = useCallback((tool: string) => {
     if (tool === "terminal") {
@@ -232,6 +269,115 @@ export function TerminalPanel(props: RightPanelViewProps) {
     }
   }, [terminalSelectTab]);
 
+  const handleDoubleClick = useCallback((tabId: string, title: string) => {
+    setEditValue(title);
+    setEditingTabId(tabId);
+  }, []);
+
+  const handleEditSubmit = useCallback(() => {
+    if (editingTabId && editValue.trim()) {
+      terminalUpdateTab(editingTabId, { title: editValue.trim() });
+    }
+    setEditingTabId(null);
+    setEditValue("");
+  }, [editingTabId, editValue, terminalUpdateTab]);
+
+  const handleEditKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleEditSubmit();
+    } else if (e.key === "Escape") {
+      setEditingTabId(null);
+      setEditValue("");
+    }
+  }, [handleEditSubmit]);
+
+  const handleContextMenu = useCallback((e: React.MouseEvent, tabId: string, isPinned: boolean) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Direct approach: show right at mouse position, no calculations
+    setContextMenu({
+      open: true,
+      x: e.clientX,
+      y: e.clientY,
+      tabId,
+      isPinned
+    });
+  }, []);
+
+  const handleTogglePin = useCallback(() => {
+    if (contextMenu.tabId) {
+      terminalTogglePin(contextMenu.tabId);
+    }
+    setContextMenu(prev => ({ ...prev, open: false }));
+  }, [contextMenu.tabId, terminalTogglePin]);
+
+  const handleRenameFromMenu = useCallback(() => {
+    if (contextMenu.tabId) {
+      const tab = terminalTabs.find(t => t.id === contextMenu.tabId);
+      if (tab) {
+        handleDoubleClick(contextMenu.tabId, tab.title);
+      }
+    }
+    setContextMenu(prev => ({ ...prev, open: false }));
+  }, [contextMenu.tabId, terminalTabs, handleDoubleClick]);
+
+  const handleDeleteFromMenu = useCallback(() => {
+    if (contextMenu.tabId) {
+      handleCloseTab(contextMenu.tabId);
+    }
+    setContextMenu(prev => ({ ...prev, open: false }));
+  }, [contextMenu.tabId, handleCloseTab]);
+
+  const handleDragStart = useCallback((e: React.DragEvent, tabId: string, isPinned: boolean) => {
+    e.dataTransfer.setData("text/plain", tabId);
+    e.dataTransfer.setData("application/x-terminal-tab-isPinned", String(isPinned));
+    setIsDragging(true);
+  }, []);
+
+  const handleDragEnd = useCallback(() => {
+    setIsDragging(false);
+    setDragOverTabId(null);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent, tabId: string, isPinned: boolean) => {
+    e.preventDefault();
+    const draggedIsPinned = e.dataTransfer.getData("application/x-terminal-tab-isPinned") === "true";
+    
+    if (draggedIsPinned === isPinned) {
+      setDragOverTabId(tabId);
+      e.dataTransfer.dropEffect = "move";
+    } else {
+      e.dataTransfer.dropEffect = "none";
+    }
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent, targetTabId: string, targetIsPinned: boolean) => {
+    e.preventDefault();
+    const draggedTabId = e.dataTransfer.getData("text/plain");
+    const draggedIsPinned = e.dataTransfer.getData("application/x-terminal-tab-isPinned") === "true";
+    
+    if (!draggedTabId || draggedIsPinned !== targetIsPinned || draggedTabId === targetTabId) {
+      setDragOverTabId(null);
+      return;
+    }
+
+    const currentTabs = [...terminalTabs];
+    const draggedIndex = currentTabs.findIndex(t => t.id === draggedTabId);
+    const targetIndex = currentTabs.findIndex(t => t.id === targetTabId);
+    
+    if (draggedIndex === -1 || targetIndex === -1) {
+      setDragOverTabId(null);
+      return;
+    }
+
+    const [removed] = currentTabs.splice(draggedIndex, 1);
+    currentTabs.splice(targetIndex, 0, removed);
+    
+    terminalReorderTabs(currentTabs);
+    setDragOverTabId(null);
+  }, [terminalTabs, terminalReorderTabs]);
+
   const terminalMenuItems: TerminalMenuItem[] = [
     { id: "copy", label: t.terminalCopy, action: handleCopy },
     { id: "paste", label: t.terminalPaste, action: handlePaste },
@@ -239,6 +385,7 @@ export function TerminalPanel(props: RightPanelViewProps) {
     { id: "sep-1", separator: true },
     { id: "kill", label: t.terminalKillProcess, action: handleKill }
   ];
+
   const shellMenuItems: TerminalShellMenuItem[] = [
     { id: "new-terminal", label: t.menuNewTerminal, action: () => handleCreateTab(currentProfile) },
     { id: "sep-1", separator: true },
@@ -440,24 +587,63 @@ export function TerminalPanel(props: RightPanelViewProps) {
           {navigatorMode === "sessions" ? (
             <ul className="adl-tool-list">
               {terminalTabs.map((tab) => (
-                <li key={tab.id} className="adl-tool-list__item adl-tool-list__item--terminal-tab">
-                  <button type="button" className={`adl-tool-list__item-btn${tab.id === terminalActiveTabId ? " is-active" : ""}`} onClick={() => handleSelectTab(tab.id)}>
-                    <span className="adl-tool-list__title">{tab.title}</span>
-                    <small>{tab.status === "running" ? t.terminalLiveShell : tab.profile}</small>
-                  </button>
-                  <TooltipSimple content="关闭" placement="top">
-                    <button
-                      type="button"
-                      className="adl-tool-list__item-close"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleCloseTab(tab.id);
+                <li
+                  key={tab.id}
+                  className={`adl-tool-list__item adl-tool-list__item--terminal-tab${isDragging && dragOverTabId === tab.id ? " is-drag-over" : ""}${tab.isPinned ? " is-pinned" : ""}`}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, tab.id, tab.isPinned)}
+                  onDragEnd={handleDragEnd}
+                  onDragOver={(e) => handleDragOver(e, tab.id, tab.isPinned)}
+                  onDrop={(e) => handleDrop(e, tab.id, tab.isPinned)}
+                  onContextMenu={(e) => handleContextMenu(e, tab.id, tab.isPinned)}
+                >
+                  {editingTabId === tab.id ? (
+                    <input
+                      ref={editInputRef}
+                      type="text"
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onBlur={handleEditSubmit}
+                      onKeyDown={handleEditKeyDown}
+                      className="adl-tool-list__item-editable-input"
+                      style={{
+                        flex: 1,
+                        background: "var(--surface)",
+                        border: "1px solid var(--accent)",
+                        color: "var(--text-primary)",
+                        fontSize: "13px",
+                        padding: "2px 6px",
+                        borderRadius: "var(--radius-sm)",
+                        outline: "none",
+                        minWidth: 0
                       }}
-                      aria-label="关闭"
-                    >
-                      <IconClose size={12} decorative />
-                    </button>
-                  </TooltipSimple>
+                    />
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        className={`adl-tool-list__item-btn${tab.id === terminalActiveTabId ? " is-active" : ""}`}
+                        onClick={() => handleSelectTab(tab.id)}
+                        onDoubleClick={() => handleDoubleClick(tab.id, tab.title)}
+                      >
+                        <span className="adl-tool-list__title">{tab.title}</span>
+                        <small>{tab.status === "running" ? t.terminalLiveShell : tab.profile}</small>
+                      </button>
+                      <TooltipSimple content="关闭" placement="top">
+                        <button
+                          type="button"
+                          className="adl-tool-list__item-close"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleCloseTab(tab.id);
+                          }}
+                          aria-label="关闭"
+                        >
+                          <IconClose size={12} decorative />
+                        </button>
+                      </TooltipSimple>
+                    </>
+                  )}
                 </li>
               ))}
             </ul>
@@ -545,7 +731,7 @@ export function TerminalPanel(props: RightPanelViewProps) {
                     ))}
                   </div>
                   <p className="adl-terminal-empty__footer">
-                    点击直接创建 · 也支持在工具栏操作
+                    点击直接创建 · 也可以在工具栏操作
                   </p>
                 </div>
               </div>
@@ -553,6 +739,55 @@ export function TerminalPanel(props: RightPanelViewProps) {
           </div>
         </div>
       </div>
+
+      {contextMenu.open && createPortal((
+        <div
+          className="adl-sidebar-menu"
+          style={{
+            position: "fixed",
+            left: contextMenu.x,
+            top: contextMenu.y,
+            zIndex: 99999
+          }}
+          role="menu"
+        >
+          <button
+            type="button"
+            className="adl-sidebar-menu__item"
+            onClick={handleTogglePin}
+          >
+            <span className="adl-sidebar-menu__icon">
+              {contextMenu.isPinned ? (
+                <IconPinOff size={16} decorative />
+              ) : (
+                <IconPin size={16} decorative />
+              )}
+            </span>
+            <span>{contextMenu.isPinned ? "取消置顶" : "置顶"}</span>
+          </button>
+          <button
+            type="button"
+            className="adl-sidebar-menu__item"
+            onClick={handleRenameFromMenu}
+          >
+            <span className="adl-sidebar-menu__icon">
+              <IconEdit size={16} decorative />
+            </span>
+            <span>重命名</span>
+          </button>
+          <div className="adl-sidebar-menu__sep" role="separator" />
+          <button
+            type="button"
+            className="adl-sidebar-menu__item is-danger"
+            onClick={handleDeleteFromMenu}
+          >
+            <span className="adl-sidebar-menu__icon">
+              <IconTrash size={16} decorative />
+            </span>
+            <span>删除</span>
+          </button>
+        </div>
+      ), document.body)}
     </div>
   );
 }

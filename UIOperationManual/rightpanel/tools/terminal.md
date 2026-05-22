@@ -20,7 +20,7 @@
 
 ## 标签栏
 
-> 终端多会话标签栏
+> 终端多会话标签栏，支持拖拽排序、双击重命名、右键菜单等高级交互
 
 ### 定位选择器
 
@@ -34,6 +34,7 @@
 |--------|------|
 | `.adl-tool-list__item--terminal-tab` | 单个标签容器（flex row） |
 | `.adl-tool-list__item-btn.is-active` | 激活标签 |
+| `.adl-tool-list__item--pinned` | 置顶标签（保持在顶部） |
 
 ### 标签内操作
 
@@ -42,7 +43,40 @@
 | `.adl-tool-list__item-btn` | 标签选择按钮（点击切换） |
 | `.adl-tool-list__item-close` | 标签关闭按钮（`IconClose`） |
 
-### 操作
+### 交互功能
+
+#### 双击重命名
+
+双击标签进入重命名模式，输入新名称后按回车或点击外部确认。
+
+```javascript
+await page.dblclick('.adl-tool-list__item-btn');
+// 输入新名称
+await page.keyboard.type('我的终端');
+await page.keyboard.press('Enter');
+```
+
+#### 右键菜单
+
+右键标签显示操作菜单，包含置顶/取消置顶、重命名、删除等选项。
+
+```javascript
+// 右键打开菜单
+await page.click('.adl-tool-list__item-btn', { button: 'right' });
+// 选择菜单项
+await page.click('.adl-sidebar-menu button[aria-label="置顶"]');
+```
+
+#### 拖拽排序
+
+标签支持拖拽排序，置顶标签始终保持在顶部区域，普通标签可在下方区域排序。
+
+```javascript
+// Playwright 拖拽示例
+const source = await page.$('.adl-tool-list__item--terminal-tab:nth-child(2)');
+const target = await page.$('.adl-tool-list__item--terminal-tab:nth-child(4)');
+await source.dragTo(target);
+```
 
 #### 切换标签
 
@@ -68,6 +102,12 @@ await page.click('button[aria-label="关闭所有终端"]');
 // 点击 Shell 选择按钮
 await page.click('button[aria-label="新建终端"]');
 ```
+
+### 样式说明
+
+- 标签悬停/激活状态灰色背景与左右边缘贴合
+- 标签间距紧凑（1px）
+- 标签区域顶部与导航器底部分割线之间只有 1px 间距
 
 ---
 
