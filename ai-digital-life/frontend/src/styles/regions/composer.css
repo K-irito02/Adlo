@@ -1,0 +1,531 @@
+/* ---------------- Composer ---------------- */
+
+.adl-composer {
+  position: static;
+  width: 100%;
+  max-width: 560px;
+  justify-self: center;
+  align-self: end;
+  margin: 0 auto;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg);
+  min-width: 0;
+  padding: clamp(var(--space-2), 2vw, var(--space-4));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  z-index: auto;
+  transition: var(--theme-transition);
+}
+
+.adl-center__body--empty + .adl-composer {
+  border-top: 0;
+}
+
+.adl-composer__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  width: 100%;
+  min-width: 0;
+  margin: 0 auto;
+}
+
+.adl-composer__chips .adl-chip {
+  padding-right: 4px;
+}
+
+.adl-composer__chips .adl-chip button {
+  background: transparent;
+  border: none;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  color: inherit;
+}
+
+.adl-composer__inner {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--space-1-5);
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  height: auto;
+  place-self: center;
+  padding: calc(var(--space-1) + var(--space-0-5)) var(--space-2) calc(var(--space-1) + var(--space-0-5)) var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  background: var(--bg-input);
+  box-shadow: var(--shadow-sm), var(--shadow-inset-highlight);
+  transition: var(--transition-colors), var(--transition-shadow);
+}
+
+.adl-composer__inner:focus-within {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-sm), var(--shadow-inset-highlight);
+}
+
+.adl-composer__left,
+.adl-composer__right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-0-5);
+  position: relative;
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.adl-composer__editor {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.adl-composer__input {
+  width: 100%;
+  min-width: 0;
+  height: 26px;
+  min-height: 26px;
+  max-height: 26px;
+  display: block;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: clamp(14px, 1.5vw, 17px);
+  line-height: 1.55;
+  padding: 0;
+  align-self: center;
+  caret-color: transparent;
+  white-space: nowrap;
+  word-break: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.adl-composer__caret {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  width: 1px;
+  border-radius: var(--radius-full);
+  background: currentColor;
+  color: var(--text-primary);
+  pointer-events: none;
+  animation: adl-composer-caret-blink 1s steps(1, end) infinite;
+}
+
+.adl-composer__input[data-placeholder]:empty::before {
+  display: flex;
+  align-items: center;
+  content: attr(data-placeholder);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  height: 100%;
+}
+
+.adl-composer__input:focus {
+  outline: none;
+}
+
+@keyframes adl-composer-caret-blink {
+  0%,
+  45% {
+    opacity: 1;
+  }
+
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.adl-composer__input:focus-visible,
+.adl-composer__inner:focus-visible,
+.adl-composer__left > button:focus-visible,
+.adl-composer__right > button:focus-visible {
+  box-shadow: none;
+  outline: none;
+}
+
+.adl-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  border: none;
+  cursor: pointer;
+  transition: var(--transition-colors);
+}
+
+.adl-action-btn--primary {
+  background: var(--text-primary);
+  color: var(--text-inverse);
+}
+
+.adl-action-btn--primary:hover:not(:disabled) {
+  filter: brightness(0.92);
+}
+
+.adl-action-btn--danger {
+  background: var(--danger);
+  color: var(--text-inverse);
+}
+
+.adl-action-btn--warning {
+  background: var(--warning);
+  color: var(--text-inverse);
+}
+
+.adl-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ---------------- Context popover ---------------- */
+
+.adl-context-popover {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + var(--space-2));
+  min-width: 260px;
+  max-width: 320px;
+  padding: var(--space-2);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xl);
+  z-index: var(--z-popover);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.adl-context-popover header {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wider);
+  color: var(--text-muted);
+  padding: var(--space-1) var(--space-2);
+}
+
+.adl-context-popover section h5 {
+  margin: 0 var(--space-2) var(--space-1);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.adl-context-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-1-5) var(--space-2);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  text-align: left;
+}
+
+.adl-context-item:hover,
+.adl-context-item.is-active {
+  background: var(--surface-hover);
+}
+
+/* ---------------- Prompt Modal ---------------- */
+
+.adl-prompt-modal {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-overlay, rgba(0, 0, 0, 0.5));
+  z-index: var(--z-modal, 1000);
+}
+
+.adl-prompt-modal__panel {
+  width: min(90vw, 320px);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.adl-prompt-modal__panel--wide {
+  width: min(90vw, 360px);
+}
+
+.adl-prompt-modal__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.adl-prompt-modal__header {
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+}
+
+.adl-prompt-modal__input {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface);
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  outline: none;
+  box-sizing: border-box;
+}
+
+.adl-prompt-modal__input:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.adl-prompt-modal__input--error {
+  border-color: var(--danger, #ef4444);
+}
+
+.adl-prompt-modal__input--error:focus {
+  border-color: var(--danger, #ef4444);
+  box-shadow: 0 0 0 2px var(--ring-error);
+}
+
+.adl-prompt-modal__error {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--danger, #ef4444);
+  line-height: 1.4;
+}
+
+.adl-prompt-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.adl-prompt-modal .adl-btn {
+  background: var(--surface);
+  color: var(--text-primary);
+  border: none;
+}
+
+.adl-prompt-modal .adl-btn:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.adl-split-btn {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: visible;
+  position: relative;
+}
+
+.adl-split-btn__main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+.adl-split-btn__main:hover {
+  background: var(--surface-hover);
+}
+
+.adl-split-btn__main:disabled {
+  opacity: 0.5;
+  cursor: default;
+  background: transparent;
+}
+
+.adl-split-btn__drop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 28px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-left: 1px solid var(--border);
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 10px;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+.adl-split-btn__drop:hover {
+  background: var(--surface-hover);
+}
+
+.adl-split-btn__menu {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 12px);
+  width: max-content;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  z-index: var(--z-popover);
+}
+
+.adl-split-btn__option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+.adl-split-btn__option:hover {
+  background: var(--surface-hover);
+}
+
+
+.adl-split-btn__input-area {
+  margin-top: 8px;
+  width: 100%;
+}
+
+.adl-split-btn__input-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.adl-split-btn__input {
+  flex: 1;
+  height: 28px;
+  padding: 0 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.adl-split-btn__input:hover {
+  background: var(--surface-hover);
+}
+
+.adl-split-btn__input--error {
+  border-color: var(--danger, #ef4444);
+}
+
+.adl-split-btn__error {
+  margin: 4px 0 0;
+  font-size: var(--text-xs, 11px);
+  color: var(--danger, #ef4444);
+  line-height: 1.4;
+}
+
+.adl-split-btn__dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  font-family: inherit;
+  transition: background 0.15s;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.adl-split-btn__dots:hover {
+  background: var(--surface-hover);
+}
+
+.adl-split-btn__settings {
+  position: absolute;
+  z-index: var(--z-popover);
+  bottom: 0;
+  left: calc(100% + 12px);
+  width: 260px;
+  margin-top: 0;
+  padding: 12px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+}
+
+.adl-split-btn__settings-title {
+  display: block;
+  font-size: 12px;
+  color: var(--text-bright);
+  margin-bottom: 6px;
+}
+
+.adl-split-btn__settings-desc {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--text-dim);
+  text-align: left;
+}
+
+.adl-split-btn__settings-desc strong {
+  color: var(--text);
+  display: block;
+  margin-top: 4px;
+}
+
+.adl-split-btn__settings-desc strong:first-child {
+  margin-top: 0;
+}

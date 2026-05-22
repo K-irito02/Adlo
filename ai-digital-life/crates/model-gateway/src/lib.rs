@@ -2,9 +2,9 @@
 
 use adl_errors::AppError;
 use adl_kernel::{
-    create_id, now_ms, ConversationScenario, ModelCallAuditRecord, ModelChatMessage,
-    ModelGatewayHealthSnapshot, ModelPreferences, ModelProviderId, ModelResponse,
-    ModelRouteDecision, ModelTokenUsage, ProviderHealthStatus,
+    create_id, estimate_tokens, now_ms, ConversationScenario, ModelCallAuditRecord,
+    ModelChatMessage, ModelGatewayHealthSnapshot, ModelPreferences, ModelProviderId,
+    ModelResponse, ModelRouteDecision, ModelTokenUsage, ProviderHealthStatus,
 };
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -64,20 +64,39 @@ impl ModelGateway {
                 .map(|pref| pref.model_id.clone())
                 .unwrap_or_else(|| default_model(provider).to_string());
             match self.call_provider(provider, &model_id, &messages).await {
-                Ok(response) => {
+                Ok(ModelResponse {
+                    usage,
+                    model_id: resp_model_id,
+                    provider_id: resp_provider_id,
+                    content,
+                    synthetic,
+                    request_id,
+                    route,
+                }) => {
                     let audit = audit_record(AuditInput {
                         workspace_id,
                         session_id,
                         run_id,
-                        provider_id: provider,
+                        provider_id: resp_provider_id,
                         model_id,
                         scenario,
                         route_meta,
                         started,
-                        usage: response.usage.clone(),
+                        usage: usage.clone(),
                         error: None,
                     });
-                    return (response, audit);
+                    return (
+                        ModelResponse {
+                            provider_id: resp_provider_id,
+                            model_id: resp_model_id,
+                            content,
+                            synthetic,
+                            request_id,
+                            usage,
+                            route,
+                        },
+                        audit,
+                    );
                 }
                 Err(error) => {
                     last_error = Some(error.to_string());
@@ -88,18 +107,20 @@ impl ModelGateway {
         let provider = ModelProviderId::Deepseek;
         let model_id = "synthetic-local".to_string();
         let content = deterministic_fallback(&messages, last_error.as_deref());
+        let usage = Some(estimate_usage(&messages));
+        let route = ModelRouteDecision {
+            reason: "all configured providers failed or are missing secrets; used local deterministic fallback".into(),
+            chain: vec!["synthetic-local".into()],
+            synthetic: Some(true),
+        };
         let response = ModelResponse {
             provider_id: provider,
             model_id: model_id.clone(),
             content,
             synthetic: true,
             request_id: Some(create_id("modelreq")),
-            usage: Some(estimate_usage(&messages)),
-            route: Some(ModelRouteDecision {
-                reason: "all configured providers failed or are missing secrets; used local deterministic fallback".into(),
-                chain: vec!["synthetic-local".into()],
-                synthetic: Some(true),
-            }),
+            usage: usage.clone(),
+            route: Some(route.clone()),
         };
         let audit = audit_record(AuditInput {
             workspace_id,
@@ -108,9 +129,9 @@ impl ModelGateway {
             provider_id: provider,
             model_id,
             scenario,
-            route_meta: response.route.clone().unwrap(),
+            route_meta: route,
             started,
-            usage: response.usage.clone(),
+            usage,
             error: last_error,
         });
         (response, audit)
@@ -161,7 +182,10 @@ impl ModelGateway {
         model_id: &str,
         messages: &[ModelChatMessage],
     ) -> Result<ModelResponse, AppError> {
-        let api_key = get_provider_secret(provider)?;
+        let api_key = tokio::task::spawn_blocking(move || get_provider_secret(provider))
+            .await
+            .map_err(|e| AppError::Security(e.to_string()))?
+            .map_err(|e| e)?;
         let url = match provider {
             ModelProviderId::Deepseek => format!("{DEEPSEEK_BASE_URL}/chat/completions"),
             ModelProviderId::Minimax => format!("{MINIMAX_BASE_URL}/v1/chat/completions"),
@@ -272,7 +296,7 @@ fn deterministic_fallback(messages: &[ModelChatMessage], error: Option<&str>) ->
 fn estimate_usage(messages: &[ModelChatMessage]) -> ModelTokenUsage {
     let prompt_tokens = messages
         .iter()
-        .map(|message| message.content.chars().count() / 4)
+        .map(|message| estimate_tokens(&message.content))
         .sum::<usize>() as u32;
     ModelTokenUsage {
         prompt_tokens: Some(prompt_tokens),

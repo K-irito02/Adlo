@@ -41,6 +41,25 @@ export default defineConfig({
     outDir: "dist",
     emptyOutDir: true,
     target: "esnext",
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "vendor-react": ["react", "react-dom", "react-dom/client"],
+          "vendor-codemirror": [
+            "@codemirror/state", "@codemirror/view", "@codemirror/language",
+            "@codemirror/commands", "@codemirror/autocomplete", "@codemirror/search",
+            "@codemirror/lint", "@codemirror/lang-javascript", "@codemirror/lang-json",
+            "@codemirror/lang-markdown", "@codemirror/lang-python", "@codemirror/lang-rust",
+            "@codemirror/lang-sql", "@codemirror/lang-css", "@codemirror/lang-html",
+            "@codemirror/lang-xml", "@codemirror/lang-yaml", "@codemirror/merge",
+          ],
+          "vendor-xterm": ["@xterm/xterm", "@xterm/addon-fit", "@xterm/addon-web-links"],
+          "vendor-zustand": ["zustand"],
+          "vendor-markdown": ["markdown-it", "react-markdown", "remark-gfm"],
+          "vendor-pdf": ["pdfjs-dist"],
+        },
+      },
+    },
   },
   optimizeDeps: {
     include: [

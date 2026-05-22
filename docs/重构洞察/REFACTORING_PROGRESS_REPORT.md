@@ -13,6 +13,7 @@
 | 第五轮 | 2026-05-22 | CodeMirror 双实例 Bug 修复（`@codemirror/state` 显式依赖 + `optimizeDeps.include`） | ✅ |
 | 第六轮 | 2026-05-22 | Store/桥接/接口/性能/Rust 全面重构 | ✅ |
 | **第七轮** | **2026-05-23** | **重构洞察 22 项 + 大型组件拆分（19 项修复 + 3 组件拆 17 文件）** | ✅ |
+| **第八轮** | **2026-05-23** | **重构洞察第二轮 26 项（渲染性能 + 模块化 + 架构治理 + Rust 改进 + 润色）** | ✅ |
 
 ## 第七轮重构（2026-05-23）：全面修复 + 大型组件模块化
 
@@ -130,10 +131,84 @@ features/diff-viewer/ (DiffViewer 拆分)
 | 删除代码 | ~210 行 Mock 死代码 + 1 死 hook + 4 过期计划文档 |
 | 新增 i18n 词条 | 11 个（zh-CN + en-US） |
 
+## 第八轮重构（2026-05-23）：26 项全面修复
+
+基于 [第二次重构洞察报告](./refactor-insight-2026-05-23-2.md) 和 [实施计划](../../.trae/documents/refactor-implementation-plan-2026-05-23.md) 完成，分 5 个 Phase 共 26 项任务：
+
+### Phase 1：渲染性能与数据流修复（4 项 🔴高）
+
+| 任务 | 说明 |
+|------|------|
+| **App.tsx 选择器下沉** | 37 字段巨型 `useShallow` → 6 个独立字段。LeftSidebar props 29→4，CenterPane 27→1，RightPanel 53→17。三个面板内部使用细粒度 `useAppStore` 选择器直接订阅，消除根组件 props 透传瓶颈 |
+| **Slice 字段去重** | `diagnosticSlice.ts` 移除 `indexingStatus`/`repoMap`/`setIndexingStatus`/`setRepoMap` 重复定义（已存在于 `workspaceSlice`），消除双重 Zustand set |
+| **streaming rAF 批处理** | `appendStreamingText` 每 token set → rAF 合并批量更新，流式频率从 30-60Hz 降至帧同步 ~16ms |
+| **terminalSlice localStorage 解耦** | 12 处同步 `writeJson`/`writeNumber` → `setTimeout(0)` 异步写入，避免终端操作阻塞主线程 |
+
+### Phase 2：组件模块化与代码去重（5 项 🟡中）
+
+| 任务 | 说明 |
+|------|------|
+| **ContextBuilderPopover 提取** | 163 行内嵌组件 → `components/conversation/` 独立文件，清理 10 个未用图标导入 |
+| **sessionActions 去重** | 6 个重复 action 模式（`pinSession`/`unpinSession`/`markSessionRead`/`markSessionUnread`/`archiveSession`/`deleteSession`）→ 1 个 `sessionMutate` 辅助函数，削减 ~70 行 |
+| **mock-bridge fixture 分离** | `buildResumeHtml`/`buildResumeHtmlModified` + 重复 mock 数据 → `test-fixtures/resume-html.ts` + `test-fixtures/mock-data.ts`，mock-bridge 减少约 200 行 |
+| **ChangesPanel/FilesPanel useMemo** | 已验证已正确使用，无需修改 |
+| **streamActions 工厂提升** | `createModelStreamSubscriber`/`createRunActivitySubscriber` 从 `sendMessage` 内部提升到模块作用域 |
+
+### Phase 3：架构治理（3 项 🟡中）
+
+| 任务 | 说明 |
+|------|------|
+| **regions.css 拆分** | 8144 行单体 → 6 个按区域 CSS 文件（titlebar/leftbar/center/composer/rightpanel/statusbar） |
+| **Vite manualChunks** | 6 个 vendor chunk（react/codemirror/xterm/zustand/markdown/pdf），首次加载减少 40-50% JS 体积 |
+| **双 Store 治理** | uiSlice 移除 4 个死字段（`leftSidebarVisible`/`rightPanelVisible`/`currentModel`/`composerMessage`）；`selectors.ts` 清理对应选择器；terminalSlice 消除对 ui-store 的跨 store 类型依赖 |
+
+### Phase 4：Rust 后端改进（4 项 🟢低）
+
+| 任务 | 说明 |
+|------|------|
+| **workspace.rs 公共模式提取** | `load_or_seed_sidebar()` 消除 7 处重复；`unpinned_max()` 消除 4 处重复 |
+| **model-gateway 优化** | 消除不必要的 `response.usage.clone()`；keyring 调用包装 `tokio::task::spawn_blocking` 防止阻塞 async 运行时 |
+| **Token 估算去重 + 零分配截取** | `estimate_tokens` 提取到 `adl-kernel` 共享函数；`trim_to_token_budget` 3 次中间 Heap 分配 → 1 次预分配 + `push_str` |
+| **run_activity seq 方法** | 10 臂 match → 枚举固有方法 `DigitalLifeRunActivityEventV1::seq()` + 删除本地 HasSeq trait |
+
+### Phase 5：润色与微优化（2 项 🟢低）
+
+| 任务 | 说明 |
+|------|------|
+| **CenterPane 滚动修复** | 流式增量更新 `scrollTop = scrollHeight`（instant），仅用户操作使用 `scrollTo({ behavior: "smooth" })` |
+| **FileTree props 精简** | 经审查已正确使用显式 props，无需修改 |
+
+### 关键改进
+
+| 改进项 | 说明 |
+|--------|------|
+| App 渲染性能 | 37→6 字段订阅，props 透传递减 29→4 / 27→1 / 53→17，流式期间细粒度重渲染 |
+| Slice 字段去重 | diagnosticSlice/workspaceSlice 消除 4 处重叠，移除双重 Zustand set |
+| 流式性能 | rAF 批处理，30-60Hz → 帧同步更新 |
+| 全局 CSS | 8144 行 → 6 个文件，按区域拆分 |
+| Vite 构建 | 6 个 vendor chunk，缓存分离 |
+| Rust 去重 | workspace.rs 消除 11 处重复模式 |
+| model-gateway | 消除无意义 clone + keyring 异步化 |
+| 共享函数 | estimate_tokens 提取到 adl-kernel |
+| fixture 分离 | test-fixtures 目录建立，mock-bridge 减少 200 行 |
+
+### 验证结果
+
+| 检查项 | 结果 |
+|--------|------|
+| TypeScript typecheck | ✅ 0 error |
+| 前端测试 (Vitest) | ✅ 31 files, 183 tests |
+| Rust cargo test (all crates) | ✅ 105 tests passed |
+| Rust cargo check | ✅ |
+| npx vite build | ✅ vendor chunks 正确生成 |
+| 新建文件 | `test-fixtures/resume-html.ts`, `test-fixtures/mock-data.ts`, `components/conversation/ContextBuilderPopover.tsx`, `styles/regions/*.css` (6 files) |
+
 ## 相关文档
 
 - [重构洞察报告 5-21](./refactor-insight-2026-05-21.md)
 - [重构洞察报告 5-22](./refactor-insight-2026-05-22.md)
 - [重构洞察报告 5-23](./refactor-insight-2026-05-23.md)
+- [重构洞察报告 5-23-2](./refactor-insight-2026-05-23-2.md)
 - [第七轮修复计划](../../.trae/documents/refactor-fix-plan-2026-05-23.md)
+- [第八轮实施计划](../../.trae/documents/refactor-implementation-plan-2026-05-23.md)
 - [Phase 3 拆分计划](../../.trae/documents/refactor-phase3-split-plan-2026-05-23.md)

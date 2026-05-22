@@ -15,5 +15,10 @@
 @import "./base.css";
 @import "./layout.css";
 @import "./components.css";
-@import "./regions.css";
+@import "./regions/leftbar.css";
+@import "./regions/center.css";
+@import "./regions/rightpanel.css";
+@import "./regions/titlebar.css";
+@import "./regions/statusbar.css";
+@import "./regions/composer.css";
 @import "./utilities.css";

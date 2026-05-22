@@ -106,7 +106,7 @@ regions/left-sidebar/  # 左侧边栏拆分（WorkspaceList/SessionList/Conversa
 | 第五轮 | CodeMirror 双实例 bug 修复（`@codemirror/state` 显式依赖 + `optimizeDeps.include`） | 2026-05-22 |
 | 第六轮 | Store 拆分 + 桥接模块化 + Rust 优化 | 2026-05-22 |
 | **第七轮** | **25 项全面修复 + 3 大型组件拆分 17 文件** | **2026-05-23** |
-
+| **第八轮** | **重构洞察第二轮 26 项（渲染性能 + 模块化 + 架构治理 + Rust 改进）** | **2026-05-23** |
 全部详情见 [重构进度报告](./docs/重构洞察/REFACTORING_PROGRESS_REPORT.md)
 
 ### 排除项

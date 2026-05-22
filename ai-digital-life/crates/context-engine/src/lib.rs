@@ -1,20 +1,29 @@
 //! Context selection for agent requests.
 
-use adl_kernel::{create_id, ContextEntry, FileOutlineItem, WorkspaceMeta, WorkspaceSearchHit};
-
-pub fn estimate_tokens(content: &str) -> usize {
-    content.chars().count().div_ceil(4)
-}
+use adl_kernel::{create_id, estimate_tokens, ContextEntry, FileOutlineItem, WorkspaceMeta, WorkspaceSearchHit};
 
 pub fn trim_to_token_budget(content: &str, max_tokens: usize) -> String {
     if estimate_tokens(content) <= max_tokens {
         return content.to_string();
     }
     let max_chars = max_tokens.saturating_mul(4);
-    let head: String = content.chars().take(max_chars / 2).collect();
-    let split_idx = content.char_indices().nth_back(max_chars.saturating_sub(1) / 2).map(|(i, _)| i).unwrap_or(0);
-    let tail = content[split_idx..].to_string();
-    format!("{head}\n...[context trimmed]...\n{tail}")
+    let head_end = content
+        .char_indices()
+        .nth(max_chars / 2)
+        .map(|(i, _)| i)
+        .unwrap_or(content.len());
+    let split_idx = content
+        .char_indices()
+        .nth_back(max_chars.saturating_sub(1) / 2)
+        .map(|(i, _)| i)
+        .unwrap_or(content.len());
+    let trim_msg = "\n...[context trimmed]...\n";
+    let mut result =
+        String::with_capacity(head_end + trim_msg.len() + (content.len() - split_idx));
+    result.push_str(&content[..head_end]);
+    result.push_str(trim_msg);
+    result.push_str(&content[split_idx..]);
+    result
 }
 
 pub fn workspace_context(workspace: &WorkspaceMeta) -> ContextEntry {

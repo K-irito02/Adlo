@@ -1,253 +1,42 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import type {
-  AgentRunDetail,
-  AppInfo,
-  DigitalLifeRunActivityEventV1,
-  GitBranchSummary,
-  GitSnapshot,
-  ModelProviderId,
-  ModelTokenUsage,
-  ModelGatewayHealthSnapshot,
   ApprovalRequestSummary,
-  ConversationDetail,
-  RecentWorkspaceEntry,
-  TaskCenterSnapshot,
-  WorkspaceGitBranchCreateInput,
-  WorkspaceGitBranchSwitchInput
+  ModelProviderId,
+  RecentWorkspaceEntry
 } from "@ai-digital-life/kernel";
 import type { CopyDict, Locale } from "../copy";
+import { MODEL_PROVIDER_IDS } from "../constants";
 import { WorkspaceSplitButton } from "../components/WorkspaceSplitButton";
 import {
   IconArrowUp,
-  IconBookOpen,
   IconBrain,
-  IconBug,
-  IconClipboardList,
-  IconCpu,
-  IconDatabase,
-  IconFileText,
   IconFolder,
   IconFolderOpen,
-  IconImagePlus,
   IconLightbulb,
-  IconLink,
   IconMessageQuestion,
   IconMessageSquare,
   IconMic,
-  IconPlug,
   IconPlus,
   IconRefreshCw,
-  IconSparkles,
   IconStopCircle,
   IconShield
 } from "../icons";
 import { MessageBlocks } from "../MessageBlocks";
+import { ContextBuilderPopover } from "../components/conversation/ContextBuilderPopover";
 import { RunSummaryBlock } from "../components/conversation/RunSummaryBlock";
 import { ApprovalCard } from "../components/approval/ApprovalCard";
 import { useAppStore } from "../stores/slicedStore";
-import { type ChatMode, type ContextChip, useUiStore } from "../ui-store";
+import { useAppActions } from "../hooks/useAppActions";
+import { useUiStore } from "../ui-store";
 import { TooltipSimple } from "../components/Tooltip";
 import { StatusBar } from "./StatusBar";
 
 interface CenterPaneProps {
   t: CopyDict;
-  locale: Locale;
-  appInfo?: AppInfo;
-  hasWorkspace: boolean;
-  activeDetail?: ConversationDetail;
-  streamingAssistantText: string;
-  streamingActiveRunId?: string;
-  activeRun?: AgentRunDetail;
-  runActivityByRunId: Record<string, DigitalLifeRunActivityEventV1[]>;
-  runUsageByRunId: Record<string, ModelTokenUsage | undefined>;
-  modelHealth?: ModelGatewayHealthSnapshot;
-  taskCenter?: TaskCenterSnapshot;
-  workspaceContextMode: "workspace" | "global";
-  gitSnapshot?: GitSnapshot;
-  gitBranches: GitBranchSummary[];
-  recentWorkspaces: RecentWorkspaceEntry[];
-  onSendMessage: (content: string, opts: { mode: ChatMode; chips: ContextChip[] }) => Promise<void>;
-  onCancelGenerate: () => void;
-  onOpenWorkspace: (path: string) => Promise<{ ok: boolean; error?: string }>;
-  onTriggerCreateWorkspace: () => void;
-  onClearWorkspaceContext: () => Promise<void>;
-  onPickWorkspaceDirectory: () => Promise<string | undefined>;
-  onCreateSession: () => void;
-  onDecideApproval: (approvalId: string, decision: "approved" | "rejected") => void;
-  onSelectModel: (providerId: ModelProviderId, modelId?: string) => void;
-  onRefreshGitBranches: () => Promise<void>;
-  onSwitchGitBranch: (input: WorkspaceGitBranchSwitchInput) => Promise<void>;
-  onCreateGitBranch: (input: WorkspaceGitBranchCreateInput) => Promise<void>;
 }
 
 type ButtonState = "send" | "stop" | "retry" | "waiting";
-
-function ContextBuilderPopover({
-  t,
-  open,
-  onClose,
-  chatMode,
-  onSelectMode,
-  onAddChip
-}: {
-  t: CopyDict;
-  open: boolean;
-  onClose: () => void;
-  chatMode: ChatMode;
-  onSelectMode: (mode: ChatMode) => void;
-  onAddChip: (chip: ContextChip) => void;
-}) {
-  const ref = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) onClose();
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open, onClose]);
-
-  if (!open) return null;
-
-  const uid = () => `ctx-${Math.random().toString(36).slice(2, 10)}`;
-
-  return (
-    <div ref={ref} className="adl-context-popover" role="dialog" aria-label={t.contextBuilderHeading}>
-      <header>{t.contextBuilderHeading}</header>
-      <section>
-        <h5>{t.contextGroupModes}</h5>
-        <button
-          type="button"
-          className={`adl-context-item${chatMode === "plan" ? " is-active" : ""}`}
-          onClick={() => {
-            onSelectMode("plan");
-            onClose();
-          }}
-        >
-          <IconClipboardList size={14} decorative />
-          <span>{t.chatModePlan}</span>
-        </button>
-        <button
-          type="button"
-          className={`adl-context-item${chatMode === "debug" ? " is-active" : ""}`}
-          onClick={() => {
-            onSelectMode("debug");
-            onClose();
-          }}
-        >
-          <IconBug size={14} decorative />
-          <span>{t.chatModeDebug}</span>
-        </button>
-        <button
-          type="button"
-          className={`adl-context-item${chatMode === "ask" ? " is-active" : ""}`}
-          onClick={() => {
-            onSelectMode("ask");
-            onClose();
-          }}
-        >
-          <IconMessageQuestion size={14} decorative />
-          <span>{t.chatModeAsk}</span>
-        </button>
-      </section>
-      <section>
-        <h5>{t.contextGroupCapabilities}</h5>
-        <button
-          type="button"
-          className="adl-context-item"
-          onClick={() => {
-            onAddChip({ id: uid(), kind: "model", label: t.contextAddModel });
-            onClose();
-          }}
-        >
-          <IconCpu size={14} decorative />
-          <span>{t.contextAddModel}</span>
-        </button>
-        <button
-          type="button"
-          className="adl-context-item"
-          onClick={() => {
-            onAddChip({ id: uid(), kind: "skill", label: t.contextAddSkill });
-            onClose();
-          }}
-        >
-          <IconSparkles size={14} decorative />
-          <span>{t.contextAddSkill}</span>
-        </button>
-        <button
-          type="button"
-          className="adl-context-item"
-          onClick={() => {
-            onAddChip({ id: uid(), kind: "mcp", label: t.contextAddMcp });
-            onClose();
-          }}
-        >
-          <IconPlug size={14} decorative />
-          <span>{t.contextAddMcp}</span>
-        </button>
-        <button
-          type="button"
-          className="adl-context-item"
-          onClick={() => {
-            onAddChip({ id: uid(), kind: "file", label: t.contextAddImage });
-            onClose();
-          }}
-        >
-          <IconImagePlus size={14} decorative />
-          <span>{t.contextAddImage}</span>
-        </button>
-      </section>
-      <section>
-        <h5>{t.contextGroupReferences}</h5>
-        <button
-          type="button"
-          className="adl-context-item"
-          onClick={() => {
-            onAddChip({ id: uid(), kind: "file", label: t.contextAddFile });
-            onClose();
-          }}
-        >
-          <IconFileText size={14} decorative />
-          <span>{t.contextAddFile}</span>
-        </button>
-        <button
-          type="button"
-          className="adl-context-item"
-          onClick={() => {
-            onAddChip({ id: uid(), kind: "doc", label: t.contextAddDoc });
-            onClose();
-          }}
-        >
-          <IconBookOpen size={14} decorative />
-          <span>{t.contextAddDoc}</span>
-        </button>
-        <button
-          type="button"
-          className="adl-context-item"
-          onClick={() => {
-            onAddChip({ id: uid(), kind: "url", label: t.contextAddUrl });
-            onClose();
-          }}
-        >
-          <IconLink size={14} decorative />
-          <span>{t.contextAddUrl}</span>
-        </button>
-        <button
-          type="button"
-          className="adl-context-item"
-          onClick={() => {
-            onAddChip({ id: uid(), kind: "codebase", label: t.contextAddCodebase });
-            onClose();
-          }}
-        >
-          <IconDatabase size={14} decorative />
-          <span>{t.contextAddCodebase}</span>
-        </button>
-      </section>
-    </div>
-  );
-}
 
 function ApprovalInlineCard({
   approval,
@@ -397,37 +186,47 @@ function WelcomeState({
   );
 }
 
-export function CenterPane({
-  t,
-  locale,
-  appInfo,
-  hasWorkspace,
-  activeDetail,
-  streamingAssistantText,
-  streamingActiveRunId,
-  activeRun,
-  runActivityByRunId,
-  runUsageByRunId,
-  modelHealth,
-  taskCenter,
-  workspaceContextMode,
-  gitSnapshot,
-  gitBranches,
-  recentWorkspaces,
-  onSendMessage,
-  onCancelGenerate,
-  onOpenWorkspace,
-  onTriggerCreateWorkspace,
-  onClearWorkspaceContext,
-  onPickWorkspaceDirectory,
-  onCreateSession,
-  onDecideApproval,
-  onSelectModel,
-  onRefreshGitBranches,
-  onSwitchGitBranch,
-  onCreateGitBranch
-}: CenterPaneProps) {
+export function CenterPane({ t }: CenterPaneProps) {
+  const actions = useAppActions();
+  const appInfo = useAppStore((s) => s.appInfo);
+  const activeSessionId = useAppStore((s) => s.activeSessionId);
+  const sessionDetails = useAppStore(useShallow((s) => s.sessionDetails));
+  const streamingAssistantText = useAppStore((s) => s.streamingAssistantText);
+  const streamingActiveRunId = useAppStore((s) => s.streamingActiveRunId);
+  const activeRun = useAppStore(useShallow((s) => s.activeRun));
+  const runActivityByRunId = useAppStore(useShallow((s) => s.runActivityByRunId));
+  const runUsageByRunId = useAppStore(useShallow((s) => s.runUsageByRunId));
+  const modelHealth = useAppStore(useShallow((s) => s.modelHealth));
+  const taskCenter = useAppStore(useShallow((s) => s.taskCenter));
+  const workspaceContextMode = useAppStore((s) => s.workspaceContextMode);
+  const gitSnapshot = useAppStore(useShallow((s) => s.gitSnapshot));
+  const gitBranches = useAppStore(useShallow((s) => s.gitBranches));
+  const recentWorkspaces = useAppStore(useShallow((s) => s.recentWorkspaces));
   const fetchRunActivityByRunId = useAppStore((state) => state.fetchRunActivityByRunId);
+  const locale = (appInfo?.config.language ?? "zh-CN") as Locale;
+  const hasWorkspace = !!appInfo?.currentWorkspace;
+  const activeDetail = activeSessionId ? sessionDetails[activeSessionId] : undefined;
+
+  const handleSelectModel = useCallback(
+    (providerId: ModelProviderId, modelId?: string) => {
+      const patch: Record<ModelProviderId, { priority?: number; enabled?: boolean; modelId?: string }> =
+        {} as Record<ModelProviderId, { priority?: number; enabled?: boolean; modelId?: string }>;
+      for (const id of MODEL_PROVIDER_IDS) {
+        if (id === providerId) {
+          patch[id] = {
+            priority: 1,
+            enabled: true,
+            ...(modelId ? { modelId } : {})
+          };
+        } else {
+          patch[id] = { priority: 2 };
+        }
+      }
+      void actions.updatePreferences({ modelPreferences: patch });
+    },
+    [actions.updatePreferences]
+  );
+
   const [draft, setDraft] = useState("");
   const [hasError, setHasError] = useState(false);
   const [composerFocused, setComposerFocused] = useState(false);
@@ -476,9 +275,14 @@ export function CenterPane({
 
   useEffect(() => {
     const el = streamRef.current;
-    if (el && typeof el.scrollTo === "function") {
+    if (!el) return;
+    if (streamingAssistantText) {
+      // Incremental streaming: 使用即时滚动避免卡顿
+      el.scrollTop = el.scrollHeight;
+    } else if (typeof el.scrollTo === "function") {
+      // 用户操作（新消息）：使用平滑滚动
       el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-    } else if (el) {
+    } else {
       el.scrollTop = el.scrollHeight;
     }
   }, [visibleMessages.length, streamingAssistantText]);
@@ -495,11 +299,11 @@ export function CenterPane({
     try {
       setHasError(false);
       setDraft("");
-      await onSendMessage(content, { mode: chatMode, chips: contextChips });
+      await actions.sendMessage(content, { mode: chatMode, chips: contextChips });
     } catch {
       setHasError(true);
     }
-  }, [chatMode, contextChips, draft, onSendMessage]);
+  }, [actions.sendMessage, chatMode, contextChips, draft]);
 
   const updateCustomCaret = useCallback(() => {
     const editor = composerInputRef.current;
@@ -575,10 +379,10 @@ export function CenterPane({
       }
       if (event.key === "Escape" && streamingActiveRunId) {
         event.preventDefault();
-        onCancelGenerate();
+        actions.cancelActiveStream();
       }
     },
-    [buttonState, handleSend, onCancelGenerate, streamingActiveRunId]
+    [actions.cancelActiveStream, buttonState, handleSend, streamingActiveRunId]
   );
 
   const onInput = useCallback((event: React.FormEvent<HTMLDivElement>) => {
@@ -601,7 +405,7 @@ export function CenterPane({
               key={approval.id}
               t={t}
               approval={approval}
-              onDecide={onDecideApproval}
+              onDecide={actions.decideApproval}
             />
           ))}
         </div>
@@ -615,9 +419,9 @@ export function CenterPane({
               t={t}
               hasWorkspace={hasWorkspace}
               recentWorkspaces={recentWorkspaces}
-              onOpenWorkspace={onOpenWorkspace}
-              onPickWorkspaceDirectory={onPickWorkspaceDirectory}
-              onCreateSession={onCreateSession}
+              onOpenWorkspace={actions.openWorkspace}
+              onPickWorkspaceDirectory={actions.pickWorkspaceDirectory}
+              onCreateSession={() => void actions.createSession()}
             />
           </div>
         ) : (
@@ -764,7 +568,7 @@ export function CenterPane({
                 type="button"
                 className="adl-action-btn adl-action-btn--danger"
                 data-testid="composer-send"
-                onClick={onCancelGenerate}
+                onClick={() => actions.cancelActiveStream()}
                 aria-label={t.cancelGenerate}
               >
                 <IconStopCircle size={16} decorative />
@@ -810,13 +614,13 @@ export function CenterPane({
           recentWorkspaces={recentWorkspaces}
           gitSnapshot={gitSnapshot}
           gitBranches={gitBranches}
-          onSelectModel={onSelectModel}
-          onOpenWorkspace={onOpenWorkspace}
-          onClearWorkspaceContext={onClearWorkspaceContext}
-          onPickWorkspaceDirectory={onPickWorkspaceDirectory}
-          onRefreshGitBranches={onRefreshGitBranches}
-          onSwitchGitBranch={onSwitchGitBranch}
-          onCreateGitBranch={onCreateGitBranch}
+          onSelectModel={handleSelectModel}
+          onOpenWorkspace={actions.openWorkspace}
+          onClearWorkspaceContext={actions.clearWorkspaceContext}
+          onPickWorkspaceDirectory={actions.pickWorkspaceDirectory}
+          onRefreshGitBranches={actions.fetchGitBranches}
+          onSwitchGitBranch={actions.switchGitBranch}
+          onCreateGitBranch={actions.createGitBranch}
         />
       </footer>
 

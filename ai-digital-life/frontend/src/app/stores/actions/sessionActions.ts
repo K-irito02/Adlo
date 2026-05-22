@@ -1,11 +1,28 @@
 import type { StoreState } from "../StoreState";
-import type { ReorderSessionsInput } from "@ai-digital-life/kernel";
+import type { IpcResult, ReorderSessionsInput } from "@ai-digital-life/kernel";
 import { sessionFallbackTitle, refreshConversationSlice } from "../conversationUtils";
 import {
   getNextSessionRequestSeq,
   sessionRequestSeq,
 } from "../shared";
 import type { StoreApi } from "zustand";
+
+async function sessionMutate<T>(
+  get: () => StoreState,
+  set: StoreApi<StoreState>["setState"],
+  sessionId: string,
+  ipcCall: (sessionId: string) => Promise<IpcResult<T>>
+) {
+  const result = await ipcCall(sessionId);
+  if (!result.ok) { set({ error: result.error.message }); return; }
+  const conversationState = await refreshConversationSlice(get().activeSessionId);
+  set((state: StoreState) => ({
+    sessions: conversationState.sessions,
+    ...(conversationState.detail
+      ? { sessionDetails: { ...state.sessionDetails, [sessionId]: conversationState.detail } }
+      : {}),
+  }));
+}
 
 export function createSessionActions(set: StoreApi<StoreState>["setState"], get: () => StoreState) {
   return {
@@ -80,71 +97,23 @@ export function createSessionActions(set: StoreApi<StoreState>["setState"], get:
     },
 
     pinSession: async (sessionId: string) => {
-      const result = await window.digitalLife.conversation.pinSession(sessionId);
-      if (!result.ok) {
-        set({ error: result.error.message });
-        return;
-      }
-      const conversationState = await refreshConversationSlice(
-        get().activeSessionId ?? sessionId
-      );
-      set({ sessions: conversationState.sessions });
+      await sessionMutate(get, set, sessionId, (id) => window.digitalLife.conversation.pinSession(id));
     },
 
     unpinSession: async (sessionId: string) => {
-      const result = await window.digitalLife.conversation.unpinSession(
-        sessionId
-      );
-      if (!result.ok) {
-        set({ error: result.error.message });
-        return;
-      }
-      const conversationState = await refreshConversationSlice(
-        get().activeSessionId ?? sessionId
-      );
-      set({ sessions: conversationState.sessions });
+      await sessionMutate(get, set, sessionId, (id) => window.digitalLife.conversation.unpinSession(id));
     },
 
     markSessionRead: async (sessionId: string) => {
-      const result = await window.digitalLife.conversation.markSessionRead({
-        sessionId,
-      });
-      if (!result.ok) {
-        set({ error: result.error.message });
-        return;
-      }
-      const conversationState = await refreshConversationSlice(
-        get().activeSessionId ?? sessionId
-      );
-      set({ sessions: conversationState.sessions });
+      await sessionMutate(get, set, sessionId, (id) => window.digitalLife.conversation.markSessionRead({ sessionId: id }));
     },
 
     markSessionUnread: async (sessionId: string) => {
-      const result = await window.digitalLife.conversation.markSessionUnread(
-        sessionId
-      );
-      if (!result.ok) {
-        set({ error: result.error.message });
-        return;
-      }
-      const conversationState = await refreshConversationSlice(
-        get().activeSessionId ?? sessionId
-      );
-      set({ sessions: conversationState.sessions });
+      await sessionMutate(get, set, sessionId, (id) => window.digitalLife.conversation.markSessionUnread(id));
     },
 
     archiveSession: async (sessionId: string) => {
-      const result = await window.digitalLife.conversation.archiveSession(
-        sessionId
-      );
-      if (!result.ok) {
-        set({ error: result.error.message });
-        return;
-      }
-      const conversationState = await refreshConversationSlice(
-        get().activeSessionId
-      );
-      set({ sessions: conversationState.sessions });
+      await sessionMutate(get, set, sessionId, (id) => window.digitalLife.conversation.archiveSession(id));
     },
 
     archiveAllSessions: async () => {
@@ -161,25 +130,7 @@ export function createSessionActions(set: StoreApi<StoreState>["setState"], get:
     },
 
     deleteSession: async (sessionId: string) => {
-      const result = await window.digitalLife.conversation.deleteSession(
-        sessionId
-      );
-      if (!result.ok) {
-        set({ error: result.error.message });
-        return;
-      }
-      const conversationState = await refreshConversationSlice(
-        get().activeSessionId === sessionId ? undefined : get().activeSessionId
-      );
-      set((state: StoreState) => {
-        const nextDetails = { ...state.sessionDetails };
-        delete nextDetails[sessionId];
-        return {
-          sessions: conversationState.sessions,
-          activeSessionId: conversationState.activeSessionId,
-          sessionDetails: nextDetails,
-        };
-      });
+      await sessionMutate(get, set, sessionId, (id) => window.digitalLife.conversation.deleteSession(id));
     },
 
     reorderSessions: async (input: ReorderSessionsInput) => {

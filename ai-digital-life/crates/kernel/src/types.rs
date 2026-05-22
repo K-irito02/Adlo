@@ -15,6 +15,10 @@ pub fn create_id(prefix: &str) -> String {
     format!("{prefix}_{}", Uuid::new_v4())
 }
 
+pub fn estimate_tokens(text: &str) -> usize {
+    text.chars().count() / 4
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IpcError {
@@ -667,6 +671,23 @@ pub enum ConversationBlock {
         id: String,
         summary: String,
     },
+}
+
+impl DigitalLifeRunActivityEventV1 {
+    pub fn seq(&self) -> i64 {
+        match self {
+            DigitalLifeRunActivityEventV1::RunStart { seq, .. } => *seq,
+            DigitalLifeRunActivityEventV1::ContextAdded { seq, .. } => *seq,
+            DigitalLifeRunActivityEventV1::FileRead { seq, .. } => *seq,
+            DigitalLifeRunActivityEventV1::Search { seq, .. } => *seq,
+            DigitalLifeRunActivityEventV1::Command { seq, .. } => *seq,
+            DigitalLifeRunActivityEventV1::Patch { seq, .. } => *seq,
+            DigitalLifeRunActivityEventV1::Approval { seq, .. } => *seq,
+            DigitalLifeRunActivityEventV1::Model { seq, .. } => *seq,
+            DigitalLifeRunActivityEventV1::Error { seq, .. } => *seq,
+            DigitalLifeRunActivityEventV1::RunDone { seq, .. } => *seq,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

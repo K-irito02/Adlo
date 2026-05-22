@@ -1,15 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
-import type { AppInfo, ModelProviderId } from "@ai-digital-life/kernel";
+import type { AppInfo } from "@ai-digital-life/kernel";
 import { copy, type Locale } from "./copy";
-import { DIFF_LAYOUT_STORAGE_KEY } from "./constants";
-import { MODEL_PROVIDER_IDS } from "./constants";
 import { buildSelectionPrompt } from "./selectionPrompt";
 import { themeController } from "./theme";
 import type { EditorRef, DiffEditorRef } from "./types";
-import { filterDiagnosticsForPath, findFirstDiagnostic, detectEditorLanguage } from "./workspacePaths";
-import { mapPatchToEditorTab } from "./editorTabs";
-import { buildSettingsItems, preferencePatchFromSettingChange } from "./settingsViewModel";
+import { filterDiagnosticsForPath, findFirstDiagnostic } from "./workspacePaths";
 import { useAppStore } from "./stores/slicedStore";
 import { useUiStore } from "./ui-store";
 import { useAppActions } from "./hooks/useAppActions";
@@ -31,94 +27,14 @@ import {
 } from "./features/patch-review";
 import { isTauriShell } from "../tauri-bridge";
 
-function readDiffSideBySidePreference(): boolean {
-  try {
-    return window.localStorage.getItem(DIFF_LAYOUT_STORAGE_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
 export function App() {
   const error = useAppStore((state) => state.error);
-
+  const appInfo = useAppStore((s) => s.appInfo);
+  const activePatchSet = useAppStore(useShallow((s) => s.activePatchSet));
+  const selectedFilePath = useAppStore((s) => s.selectedFilePath);
+  const latestPatchApplication = useAppStore(useShallow((s) => s.latestPatchApplication));
+  const fileLastModifiedAt = useAppStore((s) => s.fileLastModifiedAt);
   const actions = useAppActions();
-
-  const {
-    appInfo,
-    recentWorkspaces,
-    sessions,
-    activeSessionId,
-    sessionDetails,
-    activeRun,
-    activePatchSet,
-    latestPatchApplication,
-    taskCenter,
-    modelHealth,
-    indexingStatus,
-    repoMap,
-    auditEntries,
-    commandHistory,
-    gitSnapshot,
-    gitBranches,
-    workspaceContextMode,
-    latestCommandRun,
-    openTabs,
-    selectedFilePath,
-    selectedChangePreviewPath,
-    changePreview,
-    changePreviewLoading,
-    fileContent,
-    fileLastModifiedAt,
-    externalFileChange,
-    outline,
-    workspaceTree,
-    searchQuery,
-    searchResults,
-    dirtyEditorPaths,
-    streamingAssistantText,
-    streamingActiveRunId,
-    runActivityByRunId,
-    runUsageByRunId
-  } = useAppStore(
-    useShallow((state) => ({
-      appInfo: state.appInfo,
-      recentWorkspaces: state.recentWorkspaces,
-      sessions: state.sessions,
-      activeSessionId: state.activeSessionId,
-      sessionDetails: state.sessionDetails,
-      activeRun: state.activeRun,
-      activePatchSet: state.activePatchSet,
-      latestPatchApplication: state.latestPatchApplication,
-      taskCenter: state.taskCenter,
-      modelHealth: state.modelHealth,
-      indexingStatus: state.indexingStatus,
-      repoMap: state.repoMap,
-      auditEntries: state.auditEntries,
-      commandHistory: state.commandHistory,
-      gitSnapshot: state.gitSnapshot,
-      gitBranches: state.gitBranches,
-      workspaceContextMode: state.workspaceContextMode,
-      latestCommandRun: state.latestCommandRun,
-      openTabs: state.openTabs,
-      selectedFilePath: state.selectedFilePath,
-      selectedChangePreviewPath: state.selectedChangePreviewPath,
-      changePreview: state.changePreview,
-      changePreviewLoading: state.changePreviewLoading,
-      fileContent: state.fileContent,
-      fileLastModifiedAt: state.fileLastModifiedAt,
-      externalFileChange: state.externalFileChange,
-      outline: state.outline,
-      workspaceTree: state.workspaceTree,
-      searchQuery: state.searchQuery,
-      searchResults: state.searchResults,
-      dirtyEditorPaths: state.dirtyEditorPaths,
-      streamingAssistantText: state.streamingAssistantText,
-      streamingActiveRunId: state.streamingActiveRunId,
-      runActivityByRunId: state.runActivityByRunId,
-      runUsageByRunId: state.runUsageByRunId
-    }))
-  );
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -231,31 +147,21 @@ export function App() {
   const activeTool = useUiStore((state) => state.activeTool);
   const setActiveTool = useUiStore((state) => state.setActiveTool);
   const rightPanelWidth = useUiStore((state) => state.rightPanelWidth);
-  const [diffSideBySide, setDiffSideBySide] = React.useState(readDiffSideBySidePreference);
   const [editorHint, setEditorHint] = React.useState<string>();
-  const [localSearchQuery, setLocalSearchQuery] = React.useState(searchQuery);
   const [selectedPatchFilePath, setSelectedPatchFilePath] = useState<string>();
   const [selectedPatchHunkId, setSelectedPatchHunkId] = useState<string>();
   const [collapsedPatchHunkIds, setCollapsedPatchHunkIds] = useState<string[]>([]);
   const [patchReviewFilter, setPatchReviewFilter] = useState<PatchReviewFilter>("all");
   const standardEditorRef = useRef<EditorRef | null>(null);
   const diffEditorRef = useRef<EditorRef | DiffEditorRef | null>(null);
-  const editorDirtyTimerRef = useRef<number | undefined>(undefined);
   const pendingRevealRef = useRef<{ path: string; line: number } | null>(null);
 
   const locale = (appInfo?.config.language ?? "zh-CN") as Locale;
   const t = copy[locale];
-  const activeDetail = activeSessionId ? sessionDetails[activeSessionId] : undefined;
-  const settings = useMemo(() => buildSettingsItems(t, appInfo), [appInfo, t]);
 
   useEffect(() => {
     void window.digitalLife.window.setTitle(t.brandHoverName);
   }, [t.brandHoverName]);
-
-  const filePatch = useMemo(() => {
-    if (!activePatchSet) return undefined;
-    return findPatchFileByPath(activePatchSet, selectedPatchFilePath ?? selectedFilePath);
-  }, [activePatchSet, selectedFilePath, selectedPatchFilePath]);
 
   const validation = latestPatchApplication?.validation;
   const selectedDiagnostics = useMemo(
@@ -263,46 +169,6 @@ export function App() {
     [selectedFilePath, validation?.diagnostics]
   );
   const activeDiagnostic = useMemo(() => findFirstDiagnostic(selectedDiagnostics), [selectedDiagnostics]);
-  const editorLanguage = useMemo(
-    () => detectEditorLanguage(selectedFilePath, filePatch?.language),
-    [filePatch?.language, selectedFilePath]
-  );
-  const mergedTabs = useMemo(() => {
-    const seen = new Set<string>();
-    return [...openTabs, ...(activePatchSet?.filePatches.map(mapPatchToEditorTab) ?? [])].filter(
-      (tab) => {
-        if (seen.has(tab.path)) return false;
-        seen.add(tab.path);
-        return true;
-      }
-    );
-  }, [activePatchSet?.filePatches, openTabs]);
-
-  const persistDiffLayout = useCallback((sideBySide: boolean) => {
-    setDiffSideBySide(sideBySide);
-    try {
-      window.localStorage.setItem(DIFF_LAYOUT_STORAGE_KEY, sideBySide ? "1" : "0");
-    } catch {
-      /* ignore */
-    }
-  }, []);
-
-  const handleStandardEditorChange = useCallback(
-    (value: string | undefined) => {
-      const pathAtEdit = selectedFilePath;
-      if (!pathAtEdit) return;
-      window.clearTimeout(editorDirtyTimerRef.current);
-      editorDirtyTimerRef.current = window.setTimeout(() => {
-        if (useAppStore.getState().selectedFilePath !== pathAtEdit) return;
-        const baseline = useAppStore.getState().fileContent ?? "";
-        const dirty = (value ?? "") !== baseline;
-        actions.notifyEditorBufferDirty(pathAtEdit, dirty);
-      }, 300);
-    },
-    [actions.notifyEditorBufferDirty, selectedFilePath]
-  );
-
-  useEffect(() => () => window.clearTimeout(editorDirtyTimerRef.current), [selectedFilePath]);
 
   useEffect(() => {
     void actions.bootstrap();
@@ -491,28 +357,6 @@ export function App() {
     [actions.updatePreferences]
   );
 
-  const handleSelectModel = useCallback(
-    (providerId: ModelProviderId, modelId?: string) => {
-      const patch: Record<ModelProviderId, { priority?: number; enabled?: boolean; modelId?: string }> =
-        {} as Record<ModelProviderId, { priority?: number; enabled?: boolean; modelId?: string }>;
-
-      for (const id of MODEL_PROVIDER_IDS) {
-        if (id === providerId) {
-          patch[id] = {
-            priority: 1,
-            enabled: true,
-            ...(modelId ? { modelId } : {})
-          };
-        } else {
-          patch[id] = { priority: 2 };
-        }
-      }
-
-      void actions.updatePreferences({ modelPreferences: patch });
-    },
-    [actions.updatePreferences]
-  );
-
   const [createWorkspaceModalOpen, setCreateWorkspaceModalOpen] = useState(false);
   const [newSessionDialogOpen, setNewSessionDialogOpen] = useState(false);
 
@@ -530,60 +374,15 @@ export function App() {
     useUiStore.getState().setActiveTool("settings");
   }, []);
 
-  const handleChangeSetting = useCallback(
-    (id: string, value: string | boolean | number) => {
-      const patch = preferencePatchFromSettingChange(id, value);
-      if (patch) {
-        void actions.updatePreferences(patch);
-      }
-    },
-    [actions.updatePreferences]
-  );
-
   const handleOpenCommandPalette = useCallback(() => {
     // Command palette is planned for a future phase. For now, surface
     // the search tool as a graceful fallback.
     useUiStore.getState().setActiveTool("files");
   }, []);
 
-  const handleEditorMount = useCallback(
-    (editor: EditorRef) => {
-      standardEditorRef.current = editor;
-    },
-    []
-  );
-
   const handleDiffMount = useCallback((editor: EditorRef | DiffEditorRef) => {
     diffEditorRef.current = editor;
   }, []);
-
-  const handleApplyPatch = useCallback(() => {
-    if (activePatchSet) void actions.applyPatchSet(activePatchSet.id);
-  }, [activePatchSet, actions.applyPatchSet]);
-
-  const handleRollbackPatch = useCallback(() => {
-    if (activePatchSet) void actions.rollbackPatchSet(activePatchSet.id);
-  }, [activePatchSet, actions.rollbackPatchSet]);
-
-  const handleSetHunkDecision = useCallback(
-    (hunkId: string, decision: "pending" | "accepted" | "rejected") => {
-      if (activePatchSet) void actions.setHunkDecision(activePatchSet.id, hunkId, decision);
-    },
-    [activePatchSet, actions.setHunkDecision]
-  );
-
-  const handleReloadExternal = useCallback(() => {
-    if (selectedFilePath) void actions.openFile(selectedFilePath);
-  }, [actions.openFile, selectedFilePath]);
-
-  const handleSearchSubmit = useCallback(
-    (query: string) => {
-      void actions.searchFiles(query);
-    },
-    [actions.searchFiles]
-  );
-
-  const hasWorkspace = !!appInfo?.currentWorkspace;
 
   return (
     <main className="adl-shell adl-ide">
@@ -610,132 +409,32 @@ export function App() {
       >
         <ErrorBoundary><LeftSidebar
           t={t}
-          locale={locale}
-          appInfo={appInfo}
           collapsed={leftCollapsed}
-          recentWorkspaces={recentWorkspaces}
-          sessions={sessions}
-          activeSessionId={activeSessionId}
-          streamingActiveRunId={streamingActiveRunId}
-          taskCenter={taskCenter}
-          indexingStatus={indexingStatus}
-          onSelectSession={(id) => void actions.selectSession(id)}
           onCreateSession={() => setNewSessionDialogOpen(true)}
-          onPinWorkspace={(workspaceId) => void actions.pinWorkspace(workspaceId)}
-          onUnpinWorkspace={(workspaceId) => void actions.unpinWorkspace(workspaceId)}
-          onRemoveWorkspace={(workspaceId) => void actions.removeWorkspaceFromSidebar(workspaceId)}
-          onReorderWorkspaces={(input) => void actions.reorderWorkspaces(input)}
-          onPinSession={(sessionId) => void actions.pinSession(sessionId)}
-          onUnpinSession={(sessionId) => void actions.unpinSession(sessionId)}
-          onRenameSession={(sessionId, title) => void actions.renameSession(sessionId, title)}
-          onArchiveSession={(sessionId) => void actions.archiveSession(sessionId)}
-          onArchiveAllSessions={() => void actions.archiveAllSessions()}
-          onMarkSessionRead={(sessionId) => void actions.markSessionRead(sessionId)}
-          onMarkSessionUnread={(sessionId) => void actions.markSessionUnread(sessionId)}
-          onMarkAllSessionsRead={(sessionIds) => void actions.markAllSessionsRead(sessionIds)}
-          onReorderSessions={(input) => void actions.reorderSessions(input)}
-          onRevealWorkspace={(workspacePath) => void actions.revealWorkspaceInFileManager(workspacePath)}
-          onDeleteSession={(sessionId) => void actions.deleteSession(sessionId)}
-          onOpenWorkspace={actions.openWorkspace}
           onTriggerCreateWorkspace={handleTriggerCreateWorkspace}
         /></ErrorBoundary>
 
         <ErrorBoundary><CenterPane
           t={t}
-          locale={locale}
-          appInfo={appInfo}
-          hasWorkspace={hasWorkspace}
-          activeDetail={activeDetail}
-          streamingAssistantText={streamingAssistantText}
-          streamingActiveRunId={streamingActiveRunId}
-          activeRun={activeRun}
-          runActivityByRunId={runActivityByRunId}
-          runUsageByRunId={runUsageByRunId}
-          modelHealth={modelHealth}
-          taskCenter={taskCenter}
-          workspaceContextMode={workspaceContextMode}
-          gitSnapshot={gitSnapshot}
-          gitBranches={gitBranches}
-          recentWorkspaces={recentWorkspaces}
-          onSendMessage={async (content, opts) => {
-            await actions.sendMessage(content, { mode: opts.mode, chips: opts.chips });
-          }}
-          onCancelGenerate={() => void actions.cancelActiveStream()}
-          onOpenWorkspace={actions.openWorkspace}
-          onTriggerCreateWorkspace={handleTriggerCreateWorkspace}
-          onClearWorkspaceContext={actions.clearWorkspaceContext}
-          onPickWorkspaceDirectory={actions.pickWorkspaceDirectory}
-          onCreateSession={() => setNewSessionDialogOpen(true)}
-          onDecideApproval={(approvalId, decision) => void actions.decideApproval(approvalId, decision)}
-          onSelectModel={handleSelectModel}
-          onRefreshGitBranches={actions.fetchGitBranches}
-          onSwitchGitBranch={actions.switchGitBranch}
-          onCreateGitBranch={actions.createGitBranch}
         /></ErrorBoundary>
 
         <ErrorBoundary><RightPanel
           t={t}
-          appInfo={appInfo}
           collapsed={rightCollapsed}
-          editorTabs={mergedTabs}
-          selectedFilePath={selectedFilePath}
-          selectedChangePreviewPath={selectedChangePreviewPath}
-          changePreview={changePreview}
-          changePreviewLoading={changePreviewLoading}
-          fileContent={fileContent}
-          fileLastModifiedAt={fileLastModifiedAt}
-          externalChangePath={externalFileChange?.path}
-          editorLanguage={editorLanguage}
-          diffSideBySide={diffSideBySide}
-          filePatch={filePatch}
-          diagnostics={selectedDiagnostics}
-          editorHint={editorHint}
-          outline={outline}
-          workspaceTree={workspaceTree}
-          repoMap={repoMap}
-          searchQuery={localSearchQuery}
-          searchResults={searchResults}
-          dirtyEditorPaths={dirtyEditorPaths}
-          auditEntries={auditEntries}
-          settings={settings}
-          gitSnapshot={gitSnapshot}
-          commandHistory={commandHistory}
           standardEditorRef={standardEditorRef}
-          onOpenFile={(path) => void actions.openFile(path)}
-          onOpenChangePreview={(path) => void actions.openChangePreview(path)}
-          onOpenFileAtLine={handleOpenFileAtLine}
-          onReloadExternal={handleReloadExternal}
-          onCreateWorkspaceFile={actions.createWorkspaceFile}
-          onCreateWorkspaceFolder={actions.createWorkspaceFolder}
-          onEditorChange={handleStandardEditorChange}
-          onEditorMount={handleEditorMount}
-          onDiffMount={handleDiffMount}
-          onSearch={handleSearchSubmit}
-          onSearchChange={setLocalSearchQuery}
-          onRefreshWorkspaceTree={() => void actions.refreshWorkspaceTree()}
-          onSendSelection={() => void handleSendSelection()}
-          onSetDiffLayout={persistDiffLayout}
-          activePatchSet={activePatchSet}
-          latestPatchApplication={latestPatchApplication}
           selectedPatchFilePath={selectedPatchFilePath}
           selectedPatchHunkId={selectedPatchHunkId}
           collapsedPatchHunkIds={collapsedPatchHunkIds}
           patchReviewFilter={patchReviewFilter}
-          onSetHunkDecision={handleSetHunkDecision}
-          onApplyPatchSet={handleApplyPatch}
-          onRollbackPatchSet={handleRollbackPatch}
-          onAcceptAllHunks={() => void actions.acceptAllHunks()}
-          onRejectAllHunks={() => void actions.rejectAllHunks()}
+          onOpenFileAtLine={handleOpenFileAtLine}
+          onDiffMount={handleDiffMount}
+          onSendSelection={() => void handleSendSelection()}
           onSelectPatchFile={handleSelectPatchFile}
           onSelectPatchHunk={handleSelectPatchHunk}
           onTogglePatchHunkCollapse={handleTogglePatchHunkCollapse}
           onSetAllPatchHunksCollapsed={handleSetAllPatchHunksCollapsed}
           onSetPatchReviewFilter={setPatchReviewFilter}
           onJumpPatchHunk={handleJumpPatchHunk}
-          modelHealth={modelHealth}
-          onRefreshModelHealth={() => void actions.refreshModelHealth()}
-          onChangeSetting={handleChangeSetting}
-          latestCommandRun={latestCommandRun}
         /></ErrorBoundary>
       </div>
 

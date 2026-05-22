@@ -1,0 +1,403 @@
+/* ==========================================================================
+   Regions: TitleBar
+   ========================================================================== */
+
+/* ---------------- TitleBar ---------------- */
+
+.adl-titlebar {
+  position: relative;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  height: var(--titlebar-height);
+  padding: 0 0 0 var(--space-3);
+  background: var(--bg);
+  border-bottom: 1px solid var(--border-subtle);
+  -webkit-app-region: drag;
+  -webkit-user-select: none;
+  user-select: none;
+  transition: var(--theme-transition);
+}
+
+.adl-titlebar > *,
+.adl-titlebar button,
+.adl-titlebar [role="menu"],
+.adl-titlebar .adl-titlebar__left,
+.adl-titlebar .adl-titlebar__right {
+  -webkit-app-region: no-drag;
+}
+
+.adl-titlebar [data-tauri-drag-region] {
+  -webkit-app-region: drag;
+}
+
+[data-shell="browser"] .adl-titlebar [data-tauri-drag-region] {
+  -webkit-app-region: no-drag;
+  cursor: default;
+}
+
+.adl-titlebar__left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  align-self: stretch;
+  height: 100%;
+}
+
+.adl-titlebar__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+  margin: 0;
+  position: relative;
+}
+
+.adl-titlebar__brand-slot {
+  display: flex;
+  align-items: center;
+  align-self: stretch;
+}
+
+.adl-titlebar__logo {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-md);
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.adl-titlebar__brand-tooltip {
+  display: none;
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  padding: 2px 8px;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  position: absolute;
+  left: calc(100% + var(--space-2));
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: var(--z-dropdown);
+  pointer-events: none;
+}
+
+.adl-titlebar__brand:hover .adl-titlebar__brand-tooltip {
+  display: block;
+}
+
+.adl-titlebar__menus {
+  --adl-iconstrip-height: var(--titlebar-height);
+  --adl-iconstrip-button-size: 36px;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  align-self: stretch;
+  height: 100%;
+}
+
+.adl-menu {
+  position: relative;
+  display: flex;
+  align-self: stretch;
+}
+
+.adl-menu__trigger {
+  width: auto;
+  min-width: 0;
+  height: 100%;
+  padding: 0 var(--space-2-5);
+  font-size: var(--text-xs);
+}
+
+.adl-menu__trigger:hover,
+.adl-menu__trigger.is-open {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.adl-menu__dropdown {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  min-width: 220px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: var(--z-dropdown);
+  padding: var(--space-1);
+  display: flex;
+  flex-direction: column;
+}
+
+.adl-menu__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-1-5) var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--text-primary);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: left;
+}
+
+.adl-menu__item:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.adl-menu__item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.adl-menu__shortcut {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.adl-menu__check {
+  color: currentColor;
+  font-size: 12px;
+  font-weight: var(--font-semibold);
+  line-height: 1;
+}
+
+.adl-menu__sep {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: var(--space-1) 0;
+}
+
+.adl-titlebar__drag {
+  flex: 1;
+  align-self: stretch;
+}
+
+.adl-titlebar__right {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  align-self: stretch;
+  height: 100%;
+}
+
+.adl-titlebar__action-group,
+.adl-titlebar__panel-group {
+  --adl-iconstrip-height: var(--titlebar-height);
+  --adl-iconstrip-button-size: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  align-self: stretch;
+  height: 100%;
+}
+
+.adl-titlebar__window-group {
+  --adl-iconstrip-height: var(--titlebar-height);
+  --adl-iconstrip-button-size: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  align-self: stretch;
+  height: 100%;
+  border-left: 1px solid var(--border-subtle);
+}
+
+.adl-titlebar__panel-group {
+  border-left: 1px solid var(--border-subtle);
+}
+
+/* ---------------- Icon buttons (shared) ---------------- */
+
+.adl-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: var(--transition-colors);
+}
+
+.adl-icon-btn:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.adl-icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.adl-icon-btn.is-toggled {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.adl-icon-btn--xs {
+  width: 22px;
+  height: 22px;
+}
+
+.adl-icon-btn--round {
+  border-radius: var(--radius-full);
+}
+
+.adl-window-btn {
+  width: var(--adl-iconstrip-button-size, 30px);
+  height: var(--titlebar-height);
+  border-radius: 0;
+}
+
+.adl-window-btn--close:hover {
+  background: var(--danger);
+  color: var(--text-inverse);
+}
+
+/* ---------------- Buttons (shared) ---------------- */
+
+.adl-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1-5);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: var(--transition-colors);
+  white-space: nowrap;
+}
+
+.adl-btn:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.adl-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.adl-btn--primary {
+  background: var(--accent);
+  color: var(--text-inverse);
+  border-color: var(--accent);
+}
+
+.adl-btn--primary:hover:not(:disabled) {
+  background: var(--accent-strong);
+}
+
+.adl-btn--ghost {
+  border-color: transparent;
+  background: transparent;
+}
+
+.adl-btn--ghost:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.adl-btn--sm {
+  padding: var(--space-1) var(--space-2);
+  font-size: 11px;
+}
+
+.adl-btn--xs {
+  padding: 2px var(--space-1-5);
+  font-size: 11px;
+}
+
+.adl-btn--lg {
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-sm);
+}
+
+/* ---------------- Chips ---------------- */
+
+.adl-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px var(--space-1-5);
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  background: var(--surface-subtle);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+  transition: var(--theme-transition);
+}
+
+.adl-chip--success {
+  background: var(--success-soft);
+  color: var(--success);
+  border-color: transparent;
+}
+
+.adl-chip--warning {
+  background: var(--warning-soft);
+  color: var(--warning);
+  border-color: transparent;
+}
+
+.adl-chip--info {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: transparent;
+}
+
+
+.adl-titlebar .adl-iconstrip__button {
+  display: inline-flex;
+  align-self: stretch;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+}
+
+.adl-titlebar .tooltip-trigger {
+  display: flex !important;
+  align-self: stretch;
+  height: 100%;
+  position: relative;
+  align-items: stretch;
+  justify-content: center;
+}
+
+.adl-titlebar .tooltip-trigger:has(> .adl-iconstrip__button:is(:hover, .is-open, .is-active, [aria-pressed="true"], :focus-visible))
+  + .tooltip-trigger:has(> .adl-iconstrip__button:is(:hover, .is-open, .is-active, [aria-pressed="true"], :focus-visible))::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 7px;
+  bottom: 7px;
+  width: 1px;
+  background: transparent;
+  transform: translateX(-0.5px);
+  pointer-events: none;
+  z-index: 1;
+  transition: background-color var(--duration-150) var(--ease-default);
+  background: var(--border-strong);
+}

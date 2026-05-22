@@ -25,6 +25,8 @@ import type {
   WorkspaceGitBranchSwitchInput,
   WorkspaceSearchHit
 } from "@ai-digital-life/kernel";
+import { buildResumeHtml, buildResumeHtmlModified } from "./test-fixtures/resume-html";
+import { createMockTaskSnapshot, mockAuditEntries } from "./test-fixtures/mock-data";
 import { GLOBAL_WORKSPACE_ID } from "./app/workspaceScope";
 import { buildOutlineFromContent } from "./shared/outline";
 
@@ -129,56 +131,6 @@ function buildWorkspaceTreeFromPaths(paths: string[], directoryPaths: string[] =
 }
 
 const emptyDirectories = new Set<string>();
-
-function buildResumeHtml(): string {
-  const lines: string[] = ["<!DOCTYPE html>", "<html lang='en'>", "<head>", "  <meta charset='UTF-8'>", "  <title>Resume</title>", "  <style>"];
-  for (let i = 0; i < 50; i++) {
-    lines.push("    .section-" + i + " { margin: " + i + "px; padding: " + (i * 2) + "px; }");
-  }
-  lines.push("  </style>", "</head>", "<body>");
-  for (let i = 0; i < 500; i++) {
-    lines.push("  <div class='section-" + (i % 50) + "'>");
-    lines.push("    <h2>Section " + i + "</h2>");
-    lines.push("    <p>Content for section " + i + ". This is sample text for testing minimap diff colors.</p>");
-    lines.push("    <ul>");
-    lines.push("      <li>Item 1 of section " + i + "</li>");
-    lines.push("      <li>Item 2 of section " + i + "</li>");
-    lines.push("    </ul>");
-    lines.push("  </div>");
-  }
-  lines.push("</body>", "</html>");
-  return lines.join("\n");
-}
-
-function buildResumeHtmlModified(): string {
-  const lines: string[] = ["<!DOCTYPE html>", "<html lang='en'>", "<head>", "  <meta charset='UTF-8'>", "  <title>Resume Updated</title>", "  <style>"];
-  for (let i = 0; i < 50; i++) {
-    lines.push("    .section-" + i + " { margin: " + i + "px; padding: " + (i * 2) + "px; }");
-  }
-  lines.push("  </style>", "</head>", "<body>");
-  for (let i = 0; i < 500; i++) {
-    if (i >= 1460 && i <= 1480) {
-      lines.push("  <div class='section-" + (i % 50) + " updated'>");
-      lines.push("    <h2>Section " + i + " - MODIFIED</h2>");
-      lines.push("    <p>Updated content for section " + i + ". This line was changed.</p>");
-      lines.push("    <p>New line added in section " + i + ".</p>");
-      lines.push("  </div>");
-    } else if (i === 200) {
-      continue;
-    } else {
-      lines.push("  <div class='section-" + (i % 50) + "'>");
-      lines.push("    <h2>Section " + i + "</h2>");
-      lines.push("    <p>Content for section " + i + ". This is sample text for testing minimap diff colors.</p>");
-      lines.push("    <ul>");
-      lines.push("      <li>Item 1 of section " + i + "</li>");
-      lines.push("      <li>Item 2 of section " + i + "</li>");
-      lines.push("    </ul>");
-      lines.push("  </div>");
-    }
-  }
-  lines.push("</body>", "</html>");
-  return lines.join("\n");
-}
 
 const documents = new Map<string, string>([
   [
@@ -1245,69 +1197,20 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
   task: {
     getSnapshot: async () => ({
       ok: true,
-      data: {
-        tasks: [],
-        pendingApprovals: [],
-        policy: {
-          mode: "manual",
-          summary: "High-risk actions stay approval-bound.",
-          highRiskRules: ["Patch apply remains explicit."]
-        }
-      }
+      data: createMockTaskSnapshot()
     }),
     getCheckpointPreview: async () => ({ ok: true, data: undefined }),
     restoreCheckpoint: async () => ({
       ok: true,
-      data: {
-        tasks: [],
-        pendingApprovals: [],
-        policy: {
-          mode: "manual",
-          summary: "High-risk actions stay approval-bound.",
-          highRiskRules: ["Patch apply remains explicit."]
-        }
-      }
+      data: createMockTaskSnapshot()
     }),
     decideApproval: async () => ({
       ok: true,
-      data: {
-        tasks: [],
-        pendingApprovals: [],
-        policy: {
-          mode: "manual",
-          summary: "High-risk actions stay approval-bound.",
-          highRiskRules: ["Patch apply remains explicit."]
-        }
-      }
+      data: createMockTaskSnapshot()
     }),
     listAuditEntries: async (_limit?: number): Promise<{ ok: true; data: AuditEntry[] }> => ({
       ok: true,
-      data: [
-        {
-          id: "audit-1",
-          timestamp: Date.now() - 60_000,
-          operationType: "command",
-          summary: "npm run test",
-          riskLevel: "low",
-          decision: "auto"
-        },
-        {
-          id: "audit-2",
-          timestamp: Date.now() - 120_000,
-          operationType: "patch-apply",
-          summary: "Applied patch to frontend/src/main.tsx",
-          riskLevel: "medium",
-          decision: "approved"
-        },
-        {
-          id: "audit-3",
-          timestamp: Date.now() - 180_000,
-          operationType: "file-write",
-          summary: "Updated configuration file",
-          riskLevel: "low",
-          decision: "auto"
-        }
-      ]
+      data: mockAuditEntries
     })
   },
   runActivity: {

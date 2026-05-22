@@ -181,8 +181,6 @@ export const modelSelectors = {
   getModelHealth: (state: StoreState) => state.modelHealth,
   useModelHealth: () => useAppStore(useShallow((s) => s.modelHealth)),
   
-  getCurrentModel: (state: StoreState) => state.currentModel,
-  useCurrentModel: () => useAppStore((s) => s.currentModel),
   
   hasModelHealth: (state: StoreState) => Boolean(state.modelHealth),
   useHasModelHealth: () => useAppStore((s) => Boolean(s.modelHealth)),

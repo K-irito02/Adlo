@@ -1,10 +1,12 @@
 import React, { useMemo, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
-import type { AppInfo, ConversationSessionRecord, IndexingStatus, RecentWorkspaceEntry, ReorderSessionsInput, ReorderWorkspacesInput, TaskCenterSnapshot } from "@ai-digital-life/kernel";
+import type { ReorderSessionsInput, ReorderWorkspacesInput } from "@ai-digital-life/kernel";
 import type { CopyDict, Locale } from "../copy";
 import { IconArchive, IconPlug, IconSparkles } from "../icons";
 import { buildSidebarViewModel } from "../sidebarViewModel";
 import { useUiStore } from "../ui-store";
+import { useAppStore } from "../stores/slicedStore";
+import { useAppActions } from "../hooks/useAppActions";
 import { TooltipSimple } from "../components/Tooltip";
 import { SidebarContextMenu, SidebarMenuState, buildWorkspaceMenuItems, buildSessionMenuItems, exportSessionMarkdown } from "./left-sidebar/SidebarContextMenu";
 import { ResizeHandle } from "./left-sidebar/ResizeHandle";
@@ -15,66 +17,25 @@ import type { SidebarSessionItem } from "../sidebarViewModel";
 
 interface LeftSidebarProps {
   t: CopyDict;
-  locale: Locale;
-  appInfo?: AppInfo;
   collapsed: boolean;
-  recentWorkspaces: RecentWorkspaceEntry[];
-  sessions: ConversationSessionRecord[];
-  activeSessionId?: string;
-  streamingActiveRunId?: string;
-  taskCenter?: TaskCenterSnapshot;
-  indexingStatus?: IndexingStatus;
-  onSelectSession: (id: string) => void;
   onCreateSession: () => void;
-  onPinWorkspace: (workspaceId: string) => void;
-  onUnpinWorkspace: (workspaceId: string) => void;
-  onRemoveWorkspace: (workspaceId: string) => void;
-  onReorderWorkspaces: (input: ReorderWorkspacesInput) => void;
-  onPinSession: (sessionId: string) => void;
-  onUnpinSession: (sessionId: string) => void;
-  onRenameSession: (sessionId: string, title: string) => void;
-  onArchiveSession: (sessionId: string) => void;
-  onArchiveAllSessions: () => void;
-  onMarkSessionRead: (sessionId: string) => void;
-  onMarkSessionUnread: (sessionId: string) => void;
-  onMarkAllSessionsRead: (sessionIds: string[]) => void;
-  onReorderSessions: (input: ReorderSessionsInput) => void;
-  onRevealWorkspace: (workspacePath: string) => void;
-  onDeleteSession: (sessionId: string) => void;
-  onOpenWorkspace: (path: string) => void;
   onTriggerCreateWorkspace: () => void;
 }
 
 export function LeftSidebar({
   t,
-  locale,
-  appInfo,
   collapsed,
-  recentWorkspaces,
-  sessions,
-  activeSessionId,
-  streamingActiveRunId,
-  taskCenter,
-  onSelectSession,
   onCreateSession,
-  onPinWorkspace,
-  onUnpinWorkspace,
-  onRemoveWorkspace,
-  onReorderWorkspaces,
-  onPinSession,
-  onUnpinSession,
-  onRenameSession,
-  onArchiveSession,
-  onArchiveAllSessions,
-  onMarkSessionRead,
-  onMarkSessionUnread,
-  onMarkAllSessionsRead,
-  onReorderSessions,
-  onRevealWorkspace,
-  onDeleteSession,
-  onOpenWorkspace,
   onTriggerCreateWorkspace
 }: LeftSidebarProps) {
+  const actions = useAppActions();
+  const appInfo = useAppStore((s) => s.appInfo);
+  const recentWorkspaces = useAppStore(useShallow((s) => s.recentWorkspaces));
+  const sessions = useAppStore(useShallow((s) => s.sessions));
+  const activeSessionId = useAppStore((s) => s.activeSessionId);
+  const streamingActiveRunId = useAppStore((s) => s.streamingActiveRunId);
+  const taskCenter = useAppStore(useShallow((s) => s.taskCenter));
+  const locale = (appInfo?.config.language ?? "zh-CN") as Locale;
   const { expandedSessionWorkspaces, toggleSessionWorkspace } = useUiStore(
     useShallow((state) => ({
       expandedSessionWorkspaces: state.expandedSessionWorkspaces,
@@ -131,15 +92,15 @@ export function LeftSidebar({
   };
 
   const commonSessionProps = {
-    onSelectSession,
-    onPinSession,
-    onUnpinSession,
-    onRenameSession,
-    onArchiveSession,
-    onMarkSessionRead,
-    onMarkSessionUnread,
-    onDeleteSession,
-    onReorderSessions,
+    onSelectSession: actions.selectSession,
+    onPinSession: actions.pinSession,
+    onUnpinSession: actions.unpinSession,
+    onRenameSession: actions.renameSession,
+    onArchiveSession: actions.archiveSession,
+    onMarkSessionRead: actions.markSessionRead,
+    onMarkSessionUnread: actions.markSessionUnread,
+    onDeleteSession: actions.deleteSession,
+    onReorderSessions: actions.reorderSessions,
     activeSessionId,
     renamingSessionId,
     renameDraft,
@@ -178,13 +139,13 @@ export function LeftSidebar({
           toggleSessionWorkspace={toggleSessionWorkspace}
           dragWorkspaceId={dragWorkspaceId}
           setDragWorkspaceId={setDragWorkspaceId}
-          onReorderWorkspaces={onReorderWorkspaces}
-          onOpenWorkspace={onOpenWorkspace}
-          onPinWorkspace={onPinWorkspace}
-          onUnpinWorkspace={onUnpinWorkspace}
+          onReorderWorkspaces={actions.reorderWorkspaces}
+          onOpenWorkspace={actions.openWorkspace}
+          onPinWorkspace={actions.pinWorkspace}
+          onUnpinWorkspace={actions.unpinWorkspace}
           onCreateSession={onCreateSession}
           onTriggerCreateWorkspace={onTriggerCreateWorkspace}
-          onSelectSession={onSelectSession}
+          onSelectSession={actions.selectSession}
           onContextMenu={(workspaceId, x, y) => setMenuState({ type: "workspace", workspaceId, x, y })}
           renderSessionRows={(sessionItems, options) => (
             <SessionList
@@ -245,12 +206,12 @@ export function LeftSidebar({
             return workspace ? (
               <SidebarContextMenu
                 items={buildWorkspaceMenuItems(workspace.workspace, sessionIds, t, {
-                  onPinWorkspace,
-                  onUnpinWorkspace,
-                  onMarkAllSessionsRead,
-                  onArchiveAllSessions,
-                  onRemoveWorkspace,
-                  onRevealWorkspace
+                  onPinWorkspace: actions.pinWorkspace,
+                  onUnpinWorkspace: actions.unpinWorkspace,
+                  onMarkAllSessionsRead: actions.markAllSessionsRead,
+                  onArchiveAllSessions: actions.archiveAllSessions,
+                  onRemoveWorkspace: actions.removeWorkspaceFromSidebar,
+                  onRevealWorkspace: actions.revealWorkspaceInFileManager
                 })}
                 x={menuState.x}
                 y={menuState.y}
@@ -268,14 +229,14 @@ export function LeftSidebar({
                     setRenamingSessionId(sessionItem.session.id);
                     setRenameDraft(sessionItem.session.title);
                   },
-                  onMarkRead: () => onMarkSessionRead(sessionItem.session.id),
-                  onMarkUnread: () => onMarkSessionUnread(sessionItem.session.id),
-                  onArchive: () => onArchiveSession(sessionItem.session.id),
+                  onMarkRead: () => actions.markSessionRead(sessionItem.session.id),
+                  onMarkUnread: () => actions.markSessionUnread(sessionItem.session.id),
+                  onArchive: () => actions.archiveSession(sessionItem.session.id),
                   onCopyId: () => void navigator.clipboard?.writeText(sessionItem.session.id),
                   onExport: () => void exportSessionMarkdown(sessionItem.session),
-                  onPin: () => onPinSession(sessionItem.session.id),
-                  onUnpin: () => onUnpinSession(sessionItem.session.id),
-                  onDelete: () => onDeleteSession(sessionItem.session.id)
+                  onPin: () => actions.pinSession(sessionItem.session.id),
+                  onUnpin: () => actions.unpinSession(sessionItem.session.id),
+                  onDelete: () => actions.deleteSession(sessionItem.session.id)
                 })}
                 x={menuState.x}
                 y={menuState.y}

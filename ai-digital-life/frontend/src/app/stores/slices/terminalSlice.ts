@@ -2,8 +2,22 @@
  * 终端切片
  * 管理终端标签页、会话等状态
  */
-import type { TerminalProfile, TerminalTabState, ToolId } from "../../ui-store";
 import type { StoreState } from "../StoreState";
+
+// 本地类型定义，消除对 ui-store 的跨 store 依赖
+export type TerminalProfile = "powershell" | "bash" | "cmd";
+export type ToolId = "files" | "changes" | "browser" | "terminal" | "audit" | "settings" | "models";
+
+export interface TerminalTabState {
+  id: string;
+  title: string;
+  profile: TerminalProfile;
+  sessionId?: string;
+  status: "idle" | "running" | "terminated";
+  isPinned: boolean;
+  pinnedAt?: number;
+  sortOrder: number;
+}
 
 // Local storage keys
 const TERMINAL_TABS_KEY = "adl-ui:terminal-tabs";
@@ -159,13 +173,13 @@ export const createTerminalSlice = (
         sortOrder: maxSortOrder + 1
       };
       const nextTabs = sortTabs([...state.terminalTabs, tab]);
-      writeJson(TERMINAL_TABS_KEY, nextTabs);
-      writeJson(TERMINAL_ACTIVE_TAB_KEY, tab.id);
+      setTimeout(() => writeJson(TERMINAL_TABS_KEY, nextTabs), 0);
+      setTimeout(() => writeJson(TERMINAL_ACTIVE_TAB_KEY, tab.id), 0);
       return { terminalTabs: nextTabs, terminalActiveTabId: tab.id };
     }),
 
   terminalSelectTab: (tabId) => {
-    writeJson(TERMINAL_ACTIVE_TAB_KEY, tabId);
+    setTimeout(() => writeJson(TERMINAL_ACTIVE_TAB_KEY, tabId), 0);
     set({ terminalActiveTabId: tabId });
   },
 
@@ -177,8 +191,8 @@ export const createTerminalSlice = (
         state.terminalActiveTabId === tabId
           ? nextTabs[nextTabs.length - 1]?.id ?? ""
           : state.terminalActiveTabId;
-      writeJson(TERMINAL_TABS_KEY, nextTabs);
-      writeJson(TERMINAL_ACTIVE_TAB_KEY, nextActive);
+      setTimeout(() => writeJson(TERMINAL_TABS_KEY, nextTabs), 0);
+      setTimeout(() => writeJson(TERMINAL_ACTIVE_TAB_KEY, nextActive), 0);
       return {
         terminalTabs: nextTabs,
         terminalActiveTabId: nextActive
@@ -190,7 +204,7 @@ export const createTerminalSlice = (
       const nextTabs = sortTabs(state.terminalTabs.map((tab) =>
         tab.id === state.terminalActiveTabId ? { ...tab, ...patch } : tab
       ));
-      writeJson(TERMINAL_TABS_KEY, nextTabs);
+      setTimeout(() => writeJson(TERMINAL_TABS_KEY, nextTabs), 0);
       return { terminalTabs: nextTabs };
     }),
 
@@ -199,7 +213,7 @@ export const createTerminalSlice = (
       const nextTabs = sortTabs(state.terminalTabs.map((tab) =>
         tab.id === tabId ? { ...tab, ...patch } : tab
       ));
-      writeJson(TERMINAL_TABS_KEY, nextTabs);
+      setTimeout(() => writeJson(TERMINAL_TABS_KEY, nextTabs), 0);
       return { terminalTabs: nextTabs };
     }),
 
@@ -215,7 +229,7 @@ export const createTerminalSlice = (
         }
         return tab;
       }));
-      writeJson(TERMINAL_TABS_KEY, nextTabs);
+      setTimeout(() => writeJson(TERMINAL_TABS_KEY, nextTabs), 0);
       return { terminalTabs: nextTabs };
     }),
 
@@ -229,24 +243,24 @@ export const createTerminalSlice = (
         sortOrder: index
       }));
 
-      writeJson(TERMINAL_TABS_KEY, reorderedWithSort);
+      setTimeout(() => writeJson(TERMINAL_TABS_KEY, reorderedWithSort), 0);
       return { terminalTabs: reorderedWithSort };
     }),
 
   terminalCloseAllTabs: () => {
-    writeJson(TERMINAL_TABS_KEY, []);
-    writeJson(TERMINAL_ACTIVE_TAB_KEY, "");
+    setTimeout(() => writeJson(TERMINAL_TABS_KEY, []), 0);
+    setTimeout(() => writeJson(TERMINAL_ACTIVE_TAB_KEY, ""), 0);
     set({ terminalTabs: [], terminalActiveTabId: "" });
   },
 
   setDefaultTerminalProfile: (profile) => {
-    writeJson(TERMINAL_DEFAULT_PROFILE_KEY, profile);
+    setTimeout(() => writeJson(TERMINAL_DEFAULT_PROFILE_KEY, profile), 0);
     set({ defaultTerminalProfile: profile });
   },
 
   setTerminalNavigatorWidth: (width) => {
     const next = clamp(width, TERMINAL_NAVIGATOR_WIDTH_MIN, TERMINAL_NAVIGATOR_WIDTH_MAX);
-    writeNumber(TERMINAL_NAVIGATOR_WIDTH_KEY, next);
+    setTimeout(() => writeNumber(TERMINAL_NAVIGATOR_WIDTH_KEY, next), 0);
     set({ terminalNavigatorWidth: next });
   },
 
@@ -256,14 +270,14 @@ export const createTerminalSlice = (
         ...state.navigatorCollapsedByTool,
         terminal: !(state.navigatorCollapsedByTool.terminal ?? false)
       };
-      writeJson(TERMINAL_NAVIGATOR_COLLAPSED_KEY, next);
+      setTimeout(() => writeJson(TERMINAL_NAVIGATOR_COLLAPSED_KEY, next), 0);
       return { navigatorCollapsedByTool: next };
     }),
 
   setTerminalNavigatorCollapsed: (collapsed) =>
     set((state) => {
       const next = { ...state.navigatorCollapsedByTool, terminal: collapsed };
-      writeJson(TERMINAL_NAVIGATOR_COLLAPSED_KEY, next);
+      setTimeout(() => writeJson(TERMINAL_NAVIGATOR_COLLAPSED_KEY, next), 0);
       return { navigatorCollapsedByTool: next };
     })
 });

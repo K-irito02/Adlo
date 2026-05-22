@@ -23,6 +23,7 @@
 - xterm.js 交互式终端（多会话 PTY，支持 CMD / PowerShell / Bash）
   - Tauri 桌面模式：Rust `portable-pty`（ConPTY）
   - 浏览器预览模式：`node-pty`（ConPTY/WinPTY），替代之前 `child_process.spawn` 的编码 hack
+- **重构完成（第八轮）**：26 项全面修复，包括渲染性能（App 选择器下沉 37→6 字段、streaming rAF 批处理）、CSS 架构（regions.css 8144→6 文件）、Vite 代码分割、Rust 后端去重优化
 - **文件树右键菜单**（文件/变更面板通用）：打开方式、在文件资源管理器中显示、复制完整/相对路径、剪切、复制、粘贴（自动冲突处理 `-copyN`）、内联重命名、回收站删除
 - **上下文菜单系统**：统一 `ContextMenu` 组件（Portal 渲染、图标/分隔线/danger 样式）、`ConfirmDialog`（删除确认）、`RenameInput`（内联重命名）
 - **剪贴板切换**：Zustand `clipboardSlice`，支持跨面板 cut/copy/paste
@@ -82,19 +83,20 @@ app/stores/
 ├── selectors.ts                 # 选择器（含 useShallow React Hook 版本）
 ├── shared.ts / cacheUtils.ts    # 共享工具
 ├── index.ts                     # 模块索引
-├── slices/                      # 11 个独立切片
+├── slices/                      # 12 个独立切片
 │   ├── uiSlice.ts               # UI 状态
-│   ├── workspaceSlice.ts         # 工作区状态
+│   ├── workspaceSlice.ts         # 工作区状态（含 indexStatus/repoMap）
 │   ├── gitSlice.ts              # Git 状态
-│   ├── sessionSlice.ts          # 会话状态
+│   ├── sessionSlice.ts          # 会话状态（含 rAF 批处理流式文本）
 │   ├── editorSlice.ts           # 编辑器状态
 │   ├── patchSlice.ts            # 补丁状态
 │   ├── searchSlice.ts           # 搜索状态（含 300ms debounce）
 │   ├── diagnosticSlice.ts       # 诊断状态
 │   ├── taskSlice.ts             # 任务状态
 │   ├── commandSlice.ts          # 命令状态
-│   └── clipboardSlice.ts        # 剪贴板状态
-├── actions/                     # [新增] 8 个跨切片 action 模块
+│   ├── clipboardSlice.ts        # 剪贴板状态
+│   └── terminalSlice.ts         # 终端状态（异步 localStorage）
+├── actions/                     # 8 个跨切片 action 模块
 │   ├── workspaceActions.ts      # 工作区操作
 │   ├── sessionActions.ts        # 会话操作
 │   ├── editorActions.ts         # 编辑器操作
@@ -113,8 +115,7 @@ app/stores/
 | `frontend/src/app/stores/slicedStore.ts` | 切片合并 Store（真源） |
 | `frontend/src/app/stores/StoreState.ts` | 完整类型接口 |
 | `frontend/src/app/stores/selectors.ts` | 性能选择器（useShallow） |
-| `frontend/src/app/hooks/useStreamingText.ts` | 流式文本 rAF 批量 |
-| `frontend/src/app/utils/preferencesMerger.ts` | 模型配置合并共享函数 |
+| `frontend/src/utils/preferencesMerger.ts` | 模型配置合并共享函数 |
 
 ## 文档入口
 

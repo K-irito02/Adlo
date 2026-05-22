@@ -32,6 +32,23 @@ fn save_sidebar_entries(
     Ok(())
 }
 
+fn load_or_seed_sidebar(state: &AppState) -> Result<Vec<RecentWorkspaceEntry>, AppError> {
+    let mut all = load_sidebar_entries(state)?;
+    if all.is_empty() {
+        all = seed_sidebar_from_db(state)?;
+    }
+    Ok(all)
+}
+
+fn unpinned_max(entries: &[RecentWorkspaceEntry]) -> i32 {
+    entries
+        .iter()
+        .filter(|e| !e.is_pinned)
+        .map(|e| e.unpinned_order)
+        .max()
+        .unwrap_or(-1)
+}
+
 fn seed_sidebar_from_db(state: &AppState) -> Result<Vec<RecentWorkspaceEntry>, AppError> {
     let workspaces: Vec<WorkspaceMeta> = state.db.list_entities(EntityTable::Workspaces)?;
     let mut entries = Vec::with_capacity(workspaces.len());
@@ -73,10 +90,7 @@ fn merge_workspace_meta_into_sidebar(
 }
 
 fn upsert_sidebar_after_open(state: &AppState, meta: &WorkspaceMeta) -> Result<(), AppError> {
-    let mut all = load_sidebar_entries(state)?;
-    if all.is_empty() {
-        all = seed_sidebar_from_db(state)?;
-    }
+    let mut all = load_or_seed_sidebar(state)?;
     if let Some(i) = all.iter().position(|e| e.id == meta.id) {
         all[i].path = meta.path.clone();
         all[i].root_path = meta.root_path.clone();
@@ -85,12 +99,7 @@ fn upsert_sidebar_after_open(state: &AppState, meta: &WorkspaceMeta) -> Result<(
         all[i].removed_from_sidebar = false;
         all[i].available = true;
     } else {
-        let unpinned_max = all
-            .iter()
-            .filter(|e| !e.is_pinned)
-            .map(|e| e.unpinned_order)
-            .max()
-            .unwrap_or(-1);
+        let max = unpinned_max(&all);
         all.push(RecentWorkspaceEntry {
             id: meta.id.clone(),
             path: meta.path.clone(),
@@ -99,7 +108,7 @@ fn upsert_sidebar_after_open(state: &AppState, meta: &WorkspaceMeta) -> Result<(
             last_opened_at: meta.last_opened_at,
             is_pinned: false,
             pinned_order: 0,
-            unpinned_order: unpinned_max + 1,
+            unpinned_order: max + 1,
             removed_from_sidebar: false,
             available: true,
         });
@@ -110,21 +119,13 @@ fn upsert_sidebar_after_open(state: &AppState, meta: &WorkspaceMeta) -> Result<(
 
 pub fn presentable_recent_list(state: &AppState) -> Result<Vec<RecentWorkspaceEntry>, AppError> {
     let workspaces: Vec<WorkspaceMeta> = state.db.list_entities(EntityTable::Workspaces)?;
-    let mut all = load_sidebar_entries(state)?;
-    if all.is_empty() && !workspaces.is_empty() {
-        all = seed_sidebar_from_db(state)?;
-    }
+    let mut all = load_or_seed_sidebar(state)?;
     merge_workspace_meta_into_sidebar(&mut all, &workspaces);
 
     let mut changed = false;
     for w in &workspaces {
         if !all.iter().any(|e| e.id == w.id) {
-            let unpinned_max = all
-                .iter()
-                .filter(|e| !e.is_pinned)
-                .map(|e| e.unpinned_order)
-                .max()
-                .unwrap_or(-1);
+            let max = unpinned_max(&all);
             all.push(RecentWorkspaceEntry {
                 id: w.id.clone(),
                 path: w.path.clone(),
@@ -133,7 +134,7 @@ pub fn presentable_recent_list(state: &AppState) -> Result<Vec<RecentWorkspaceEn
                 last_opened_at: w.last_opened_at,
                 is_pinned: false,
                 pinned_order: 0,
-                unpinned_order: unpinned_max + 1,
+                unpinned_order: max + 1,
                 removed_from_sidebar: false,
                 available: true,
             });
@@ -359,10 +360,7 @@ pub fn workspace_pin(
     workspace_id: String,
 ) -> IpcResult<Vec<RecentWorkspaceEntry>> {
     crate::commands::ipc_try(|| {
-        let mut all = load_sidebar_entries(&state)?;
-        if all.is_empty() {
-            all = seed_sidebar_from_db(&state)?;
-        }
+        let mut all = load_or_seed_sidebar(&state)?;
         let Some(idx) = all.iter().position(|e| e.id == workspace_id) else {
             return Err(AppError::NotFound(format!("workspace {workspace_id}")));
         };
@@ -386,10 +384,7 @@ pub fn workspace_unpin(
     workspace_id: String,
 ) -> IpcResult<Vec<RecentWorkspaceEntry>> {
     crate::commands::ipc_try(|| {
-        let mut all = load_sidebar_entries(&state)?;
-        if all.is_empty() {
-            all = seed_sidebar_from_db(&state)?;
-        }
+        let mut all = load_or_seed_sidebar(&state)?;
         let Some(idx) = all.iter().position(|e| e.id == workspace_id) else {
             return Err(AppError::NotFound(format!("workspace {workspace_id}")));
         };
@@ -413,10 +408,7 @@ pub fn workspace_reorder(
     input: ReorderWorkspacesInput,
 ) -> IpcResult<Vec<RecentWorkspaceEntry>> {
     crate::commands::ipc_try(|| {
-        let mut all = load_sidebar_entries(&state)?;
-        if all.is_empty() {
-            all = seed_sidebar_from_db(&state)?;
-        }
+        let mut all = load_or_seed_sidebar(&state)?;
         for (i, id) in input.pinned_ids.iter().enumerate() {
             if let Some(e) = all.iter_mut().find(|e| e.id == *id) {
                 e.is_pinned = true;
@@ -440,10 +432,7 @@ pub fn workspace_remove_from_sidebar(
     workspace_id: String,
 ) -> IpcResult<Vec<RecentWorkspaceEntry>> {
     crate::commands::ipc_try(|| {
-        let mut all = load_sidebar_entries(&state)?;
-        if all.is_empty() {
-            all = seed_sidebar_from_db(&state)?;
-        }
+        let mut all = load_or_seed_sidebar(&state)?;
         if let Some(e) = all.iter_mut().find(|e| e.id == workspace_id) {
             e.removed_from_sidebar = true;
         }
@@ -458,10 +447,7 @@ pub fn workspace_restore_to_sidebar(
     workspace_id: String,
 ) -> IpcResult<Vec<RecentWorkspaceEntry>> {
     crate::commands::ipc_try(|| {
-        let mut all = load_sidebar_entries(&state)?;
-        if all.is_empty() {
-            all = seed_sidebar_from_db(&state)?;
-        }
+        let mut all = load_or_seed_sidebar(&state)?;
         if let Some(e) = all.iter_mut().find(|e| e.id == workspace_id) {
             e.removed_from_sidebar = false;
         } else {
@@ -469,12 +455,7 @@ pub fn workspace_restore_to_sidebar(
                 .db
                 .load_entity::<WorkspaceMeta>(EntityTable::Workspaces, &workspace_id)?
                 .ok_or_else(|| AppError::NotFound(format!("workspace {workspace_id}")))?;
-            let unpinned_max = all
-                .iter()
-                .filter(|e| !e.is_pinned)
-                .map(|e| e.unpinned_order)
-                .max()
-                .unwrap_or(-1);
+            let max = unpinned_max(&all);
             all.push(RecentWorkspaceEntry {
                 id: meta.id.clone(),
                 path: meta.path.clone(),
@@ -483,7 +464,7 @@ pub fn workspace_restore_to_sidebar(
                 last_opened_at: meta.last_opened_at,
                 is_pinned: false,
                 pinned_order: 0,
-                unpinned_order: unpinned_max + 1,
+                unpinned_order: max + 1,
                 removed_from_sidebar: false,
                 available: true,
             });

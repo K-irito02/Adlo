@@ -11,6 +11,10 @@ import type {
 } from "@ai-digital-life/kernel";
 import type { StoreState } from "../StoreState";
 
+// rAF-batched streaming buffer
+let _streamingRafPending = false;
+let _streamingBuffer = "";
+
 export interface SessionSlice {
   sessions: ConversationSessionRecord[];
   activeSessionId?: string;
@@ -29,6 +33,7 @@ export interface SessionSlice {
   setActiveRun: (run: AgentRunDetail | undefined) => void;
   setStreamingText: (text: string) => void;
   appendStreamingText: (text: string) => void;
+  flushStreamingText: () => void;
   setStreamingRunId: (runId: string | undefined) => void;
   setRunActivity: (runId: string, activities: DigitalLifeRunActivityEventV1[]) => void;
   appendRunActivity: (runId: string, activity: DigitalLifeRunActivityEventV1) => void;
@@ -61,9 +66,32 @@ export const createSessionSlice = (
   }),
   setActiveRun: (activeRun) => set({ activeRun }),
   setStreamingText: (streamingAssistantText) => set({ streamingAssistantText }),
-  appendStreamingText: (text) => set((state) => ({
-    streamingAssistantText: state.streamingAssistantText + text
-  })),
+  appendStreamingText: (text) => {
+    _streamingBuffer += text;
+    if (!_streamingRafPending) {
+      _streamingRafPending = true;
+      requestAnimationFrame(() => {
+        _streamingRafPending = false;
+        const batch = _streamingBuffer;
+        _streamingBuffer = "";
+        if (batch) {
+          set((state) => ({
+            streamingAssistantText: state.streamingAssistantText + batch
+          }));
+        }
+      });
+    }
+  },
+  flushStreamingText: () => {
+    if (_streamingBuffer) {
+      const batch = _streamingBuffer;
+      _streamingBuffer = "";
+      _streamingRafPending = false;
+      set((state) => ({
+        streamingAssistantText: state.streamingAssistantText + batch
+      }));
+    }
+  },
   setStreamingRunId: (streamingActiveRunId) => set({ streamingActiveRunId }),
   setRunActivity: (runId, activities) => set((state) => ({
     runActivityByRunId: { ...state.runActivityByRunId, [runId]: activities }
