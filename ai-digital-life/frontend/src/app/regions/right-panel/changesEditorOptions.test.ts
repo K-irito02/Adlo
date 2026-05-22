@@ -11,11 +11,11 @@ describe("changes preview editor options", () => {
   });
 
   it("uses the shared custom CodeMirror fold gutter marker and tooltip overlay", () => {
-    const diffViewerSource = readFileSync(new URL("../../features/diff-viewer/DiffViewer.tsx", import.meta.url), "utf8");
+    const sideBySideSource = readFileSync(new URL("../../features/diff-viewer/SideBySideDiffViewer.tsx", import.meta.url), "utf8");
 
-    expect(diffViewerSource).toContain("createFoldGutterExtension");
-    expect(diffViewerSource).toContain("FoldTooltipOverlay");
-    expect(diffViewerSource).not.toContain("foldGutter()");
+    expect(sideBySideSource).toContain("createFoldGutterExtension");
+    expect(sideBySideSource).toContain("FoldTooltipOverlay");
+    expect(sideBySideSource).not.toContain("foldGutter()");
   });
 
   it("uses simple dark/light theme string instead of Monaco theme constants", () => {

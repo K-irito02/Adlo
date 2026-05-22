@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { renderIcon, type IconName } from "../../design-system/icons";
+import { type IconName } from "../../design-system/icons";
 import { TooltipSimple } from "./Tooltip";
+import { Icon } from "./Icon";
 
 interface ContextBuilderProps {
   onAddContext: (type: string, value?: string) => void;
@@ -26,12 +27,6 @@ const CONTEXT_ITEMS: ContextItem[] = [
   { type: "@url", label: "引用链接", icon: "link", section: "reference" },
   { type: "@codebase", label: "代码库上下文", icon: "database", section: "reference" }
 ];
-
-function Icon({ name, size = "md" }: { name: IconName; size?: "xs" | "sm" | "md" | "lg" | "xl" | "2xl" }) {
-  return (
-    <span dangerouslySetInnerHTML={{ __html: renderIcon(name, { size, decorative: true }).value }} />
-  );
-}
 
 export function ContextBuilder({ onAddContext, activeContexts = [] }: ContextBuilderProps) {
   const [isOpen, setIsOpen] = useState(false);

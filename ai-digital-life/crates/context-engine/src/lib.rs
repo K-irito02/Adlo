@@ -12,14 +12,8 @@ pub fn trim_to_token_budget(content: &str, max_tokens: usize) -> String {
     }
     let max_chars = max_tokens.saturating_mul(4);
     let head: String = content.chars().take(max_chars / 2).collect();
-    let tail: String = content
-        .chars()
-        .rev()
-        .take(max_chars / 2)
-        .collect::<String>()
-        .chars()
-        .rev()
-        .collect();
+    let split_idx = content.char_indices().nth_back(max_chars.saturating_sub(1) / 2).map(|(i, _)| i).unwrap_or(0);
+    let tail = content[split_idx..].to_string();
     format!("{head}\n...[context trimmed]...\n{tail}")
 }
 

@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
-import { renderIcon, type IconName } from "../../design-system/icons";
+import { type IconName } from "../../design-system/icons";
 import { TooltipSimple } from "./Tooltip";
+import { Icon } from "./Icon";
 
 interface ActionButtonProps {
   state: "idle" | "generating" | "error" | "waiting";
@@ -16,12 +17,6 @@ interface ButtonAppearance {
   className: string;
   isDisabled: boolean;
   onClick: () => void;
-}
-
-function Icon({ name, size = "md" }: { name: IconName; size?: "xs" | "sm" | "md" | "lg" | "xl" | "2xl" }) {
-  return (
-    <span dangerouslySetInnerHTML={{ __html: renderIcon(name, { size, decorative: true }).value }} />
-  );
 }
 
 const APPEARANCE_MAP: Record<

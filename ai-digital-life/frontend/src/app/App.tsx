@@ -12,7 +12,9 @@ import { mapPatchToEditorTab } from "./editorTabs";
 import { buildSettingsItems, preferencePatchFromSettingChange } from "./settingsViewModel";
 import { useAppStore } from "./stores/slicedStore";
 import { useUiStore } from "./ui-store";
+import { useAppActions } from "./hooks/useAppActions";
 import { TitleBar } from "./regions/TitleBar";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { LeftSidebar } from "./regions/LeftSidebar";
 import { CenterPane } from "./regions/CenterPane";
 import { RightPanel } from "./regions/RightPanel";
@@ -38,8 +40,11 @@ function readDiffSideBySidePreference(): boolean {
 }
 
 export function App() {
+  const error = useAppStore((state) => state.error);
+
+  const actions = useAppActions();
+
   const {
-    error,
     appInfo,
     recentWorkspaces,
     sessions,
@@ -71,57 +76,12 @@ export function App() {
     searchQuery,
     searchResults,
     dirtyEditorPaths,
-    bootstrap,
-    openWorkspace,
-    clearWorkspaceContext,
-    pickWorkspaceDirectory,
-    createSession,
-    selectSession,
-    renameSession,
-    pinSession,
-    unpinSession,
-    markSessionRead,
-    markSessionUnread,
-    archiveSession,
-    archiveAllSessions,
-    pinWorkspace,
-    unpinWorkspace,
-    removeWorkspaceFromSidebar,
-    reorderWorkspaces,
-    reorderSessions,
-    markAllSessionsRead,
-    revealWorkspaceInFileManager,
-    deleteSession,
-    sendMessage,
-    cancelActiveStream,
     streamingAssistantText,
     streamingActiveRunId,
     runActivityByRunId,
-    runUsageByRunId,
-    openFile,
-    openChangePreview,
-    createWorkspaceFile,
-    createWorkspaceFolder,
-    refreshWorkspaceTree,
-    searchFiles,
-    setHunkDecision,
-    applyPatchSet,
-    rollbackPatchSet,
-    acceptAllHunks,
-    rejectAllHunks,
-    refreshTaskCenter,
-    decideApproval,
-    markExternalFileChange,
-    notifyEditorBufferDirty,
-    runCommand,
-    refreshModelHealth,
-    updatePreferences,
-    fetchGitBranches,
-    switchGitBranch,
-    createGitBranch
+    runUsageByRunId
   } = useAppStore(
     useShallow((state) => ({
-      error: state.error,
       appInfo: state.appInfo,
       recentWorkspaces: state.recentWorkspaces,
       sessions: state.sessions,
@@ -153,54 +113,10 @@ export function App() {
       searchQuery: state.searchQuery,
       searchResults: state.searchResults,
       dirtyEditorPaths: state.dirtyEditorPaths,
-      bootstrap: state.bootstrap,
-      openWorkspace: state.openWorkspace,
-      clearWorkspaceContext: state.clearWorkspaceContext,
-      pickWorkspaceDirectory: state.pickWorkspaceDirectory,
-      createSession: state.createSession,
-      selectSession: state.selectSession,
-      renameSession: state.renameSession,
-      pinSession: state.pinSession,
-      unpinSession: state.unpinSession,
-      markSessionRead: state.markSessionRead,
-      markSessionUnread: state.markSessionUnread,
-      archiveSession: state.archiveSession,
-      archiveAllSessions: state.archiveAllSessions,
-      pinWorkspace: state.pinWorkspace,
-      unpinWorkspace: state.unpinWorkspace,
-      removeWorkspaceFromSidebar: state.removeWorkspaceFromSidebar,
-      reorderWorkspaces: state.reorderWorkspaces,
-      reorderSessions: state.reorderSessions,
-      markAllSessionsRead: state.markAllSessionsRead,
-      revealWorkspaceInFileManager: state.revealWorkspaceInFileManager,
-      deleteSession: state.deleteSession,
-      sendMessage: state.sendMessage,
-      cancelActiveStream: state.cancelActiveStream,
       streamingAssistantText: state.streamingAssistantText,
       streamingActiveRunId: state.streamingActiveRunId,
       runActivityByRunId: state.runActivityByRunId,
-      runUsageByRunId: state.runUsageByRunId,
-      openFile: state.openFile,
-      openChangePreview: state.openChangePreview,
-      createWorkspaceFile: state.createWorkspaceFile,
-      createWorkspaceFolder: state.createWorkspaceFolder,
-      refreshWorkspaceTree: state.refreshWorkspaceTree,
-      searchFiles: state.searchFiles,
-      setHunkDecision: state.setHunkDecision,
-      applyPatchSet: state.applyPatchSet,
-      rollbackPatchSet: state.rollbackPatchSet,
-      acceptAllHunks: state.acceptAllHunks,
-      rejectAllHunks: state.rejectAllHunks,
-      refreshTaskCenter: state.refreshTaskCenter,
-      decideApproval: state.decideApproval,
-      markExternalFileChange: state.markExternalFileChange,
-      notifyEditorBufferDirty: state.notifyEditorBufferDirty,
-      runCommand: state.runCommand,
-      refreshModelHealth: state.refreshModelHealth,
-      updatePreferences: state.updatePreferences,
-      fetchGitBranches: state.fetchGitBranches,
-      switchGitBranch: state.switchGitBranch,
-      createGitBranch: state.createGitBranch
+      runUsageByRunId: state.runUsageByRunId
     }))
   );
 
@@ -214,15 +130,15 @@ export function App() {
         setCreateWorkspaceModalOpen(true);
       } else if ((event.ctrlKey || event.metaKey) && (event.key === "o" || event.key === "O")) {
         event.preventDefault();
-        void pickWorkspaceDirectory().then((picked) => {
-          if (picked) void openWorkspace(picked);
+        void actions.pickWorkspaceDirectory().then((picked) => {
+          if (picked) void actions.openWorkspace(picked);
         });
       }
     };
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [openWorkspace, pickWorkspaceDirectory]);
+  }, [actions.openWorkspace, actions.pickWorkspaceDirectory]);
 
   useEffect(() => {
     if (!isTauriShell()) return;
@@ -245,7 +161,7 @@ export function App() {
               [];
             const first = Array.isArray(paths) ? paths[0] : undefined;
             if (first && typeof first === "string") {
-              void openWorkspace(first);
+              void actions.openWorkspace(first);
             }
           }
         );
@@ -261,7 +177,7 @@ export function App() {
         /* ignore */
       }
     };
-  }, [openWorkspace]);
+  }, [actions.openWorkspace]);
 
   useEffect(() => {
     if (isTauriShell()) return;
@@ -285,10 +201,10 @@ export function App() {
           if (file) {
             const path = (file as File & { path?: string }).path;
             if (path) {
-              void openWorkspace(path);
+              void actions.openWorkspace(path);
               return;
             }
-            void openWorkspace(file.name);
+            void actions.openWorkspace(file.name);
             return;
           }
         }
@@ -297,7 +213,7 @@ export function App() {
       if (file) {
         const path = (file as File & { path?: string }).path;
         if (path) {
-          void openWorkspace(path);
+          void actions.openWorkspace(path);
         }
       }
     };
@@ -308,7 +224,7 @@ export function App() {
       document.removeEventListener("dragover", handleDragOver);
       document.removeEventListener("drop", handleDrop);
     };
-  }, [openWorkspace]);
+  }, [actions.openWorkspace]);
 
   const leftCollapsed = useUiStore((state) => state.leftCollapsed);
   const rightCollapsed = useUiStore((state) => state.rightCollapsed);
@@ -380,17 +296,17 @@ export function App() {
         if (useAppStore.getState().selectedFilePath !== pathAtEdit) return;
         const baseline = useAppStore.getState().fileContent ?? "";
         const dirty = (value ?? "") !== baseline;
-        notifyEditorBufferDirty(pathAtEdit, dirty);
+        actions.notifyEditorBufferDirty(pathAtEdit, dirty);
       }, 300);
     },
-    [notifyEditorBufferDirty, selectedFilePath]
+    [actions.notifyEditorBufferDirty, selectedFilePath]
   );
 
   useEffect(() => () => window.clearTimeout(editorDirtyTimerRef.current), [selectedFilePath]);
 
   useEffect(() => {
-    void bootstrap();
-  }, [bootstrap]);
+    void actions.bootstrap();
+  }, [actions.bootstrap]);
 
   useEffect(() => {
     if (!activePatchSet) return;
@@ -446,16 +362,16 @@ export function App() {
   useEffect(() => {
     if (!appInfo?.currentWorkspace) return;
     const timer = window.setInterval(() => {
-      void refreshTaskCenter();
+      void actions.refreshTaskCenter();
     }, 5000);
     return () => window.clearInterval(timer);
-  }, [appInfo?.currentWorkspace, refreshTaskCenter]);
+  }, [appInfo?.currentWorkspace, actions.refreshTaskCenter]);
 
   useEffect(() => {
     return window.digitalLife.workspace.onFileChanged((event) => {
-      markExternalFileChange(event);
+      actions.markExternalFileChange(event);
     });
-  }, [markExternalFileChange]);
+  }, [actions.markExternalFileChange]);
 
   useEffect(() => {
     if (!activeDiagnostic?.line) return;
@@ -495,15 +411,15 @@ export function App() {
       return;
     }
     setEditorHint(undefined);
-    await sendMessage(buildSelectionPrompt(locale, selectedFilePath, selectedText));
-  }, [locale, selectedFilePath, sendMessage, t.noSelection]);
+    await actions.sendMessage(buildSelectionPrompt(locale, selectedFilePath, selectedText));
+  }, [locale, selectedFilePath, actions.sendMessage, t.noSelection]);
 
   const handleOpenFileAtLine = useCallback(
     (relativePath: string, line: number) => {
       pendingRevealRef.current = { path: relativePath, line };
-      void openFile(relativePath);
+      void actions.openFile(relativePath);
     },
-    [openFile]
+    [actions.openFile]
   );
 
   const handleSelectPatchFile = useCallback(
@@ -519,10 +435,10 @@ export function App() {
       }
       if (options?.activateTool) {
         setActiveTool("files");
-        void openFile(relativePath);
+        void actions.openFile(relativePath);
       }
     },
-    [activePatchSet, openFile, setActiveTool]
+    [activePatchSet, actions.openFile, setActiveTool]
   );
 
   const handleSelectPatchHunk = useCallback(
@@ -532,10 +448,10 @@ export function App() {
       pendingRevealRef.current = { path: relativePath, line };
       if (options?.activateTool) {
         setActiveTool("files");
-        void openFile(relativePath);
+        void actions.openFile(relativePath);
       }
     },
-    [openFile, setActiveTool]
+    [actions.openFile, setActiveTool]
   );
 
   const handleTogglePatchHunkCollapse = useCallback((hunkId: string) => {
@@ -565,14 +481,14 @@ export function App() {
     const mode = appInfo?.config.themeMode ?? "system";
     const next: AppInfo["config"]["themeMode"] =
       mode === "system" ? "light" : mode === "light" ? "dark" : "system";
-    void updatePreferences({ themeMode: next });
-  }, [appInfo?.config.themeMode, updatePreferences]);
+    void actions.updatePreferences({ themeMode: next });
+  }, [appInfo?.config.themeMode, actions.updatePreferences]);
 
   const handleSelectLanguage = useCallback(
     (language: AppInfo["config"]["language"]) => {
-      void updatePreferences({ language });
+      void actions.updatePreferences({ language });
     },
-    [updatePreferences]
+    [actions.updatePreferences]
   );
 
   const handleSelectModel = useCallback(
@@ -592,9 +508,9 @@ export function App() {
         }
       }
 
-      void updatePreferences({ modelPreferences: patch });
+      void actions.updatePreferences({ modelPreferences: patch });
     },
-    [updatePreferences]
+    [actions.updatePreferences]
   );
 
   const [createWorkspaceModalOpen, setCreateWorkspaceModalOpen] = useState(false);
@@ -605,10 +521,10 @@ export function App() {
   }, []);
 
   const handleOpenFolder = useCallback(() => {
-    void pickWorkspaceDirectory().then((picked) => {
-      if (picked) void openWorkspace(picked);
+    void actions.pickWorkspaceDirectory().then((picked) => {
+      if (picked) void actions.openWorkspace(picked);
     });
-  }, [openWorkspace, pickWorkspaceDirectory]);
+  }, [actions.openWorkspace, actions.pickWorkspaceDirectory]);
 
   const handleOpenSettings = useCallback(() => {
     useUiStore.getState().setActiveTool("settings");
@@ -618,10 +534,10 @@ export function App() {
     (id: string, value: string | boolean | number) => {
       const patch = preferencePatchFromSettingChange(id, value);
       if (patch) {
-        void updatePreferences(patch);
+        void actions.updatePreferences(patch);
       }
     },
-    [updatePreferences]
+    [actions.updatePreferences]
   );
 
   const handleOpenCommandPalette = useCallback(() => {
@@ -642,29 +558,29 @@ export function App() {
   }, []);
 
   const handleApplyPatch = useCallback(() => {
-    if (activePatchSet) void applyPatchSet(activePatchSet.id);
-  }, [activePatchSet, applyPatchSet]);
+    if (activePatchSet) void actions.applyPatchSet(activePatchSet.id);
+  }, [activePatchSet, actions.applyPatchSet]);
 
   const handleRollbackPatch = useCallback(() => {
-    if (activePatchSet) void rollbackPatchSet(activePatchSet.id);
-  }, [activePatchSet, rollbackPatchSet]);
+    if (activePatchSet) void actions.rollbackPatchSet(activePatchSet.id);
+  }, [activePatchSet, actions.rollbackPatchSet]);
 
   const handleSetHunkDecision = useCallback(
     (hunkId: string, decision: "pending" | "accepted" | "rejected") => {
-      if (activePatchSet) void setHunkDecision(activePatchSet.id, hunkId, decision);
+      if (activePatchSet) void actions.setHunkDecision(activePatchSet.id, hunkId, decision);
     },
-    [activePatchSet, setHunkDecision]
+    [activePatchSet, actions.setHunkDecision]
   );
 
   const handleReloadExternal = useCallback(() => {
-    if (selectedFilePath) void openFile(selectedFilePath);
-  }, [openFile, selectedFilePath]);
+    if (selectedFilePath) void actions.openFile(selectedFilePath);
+  }, [actions.openFile, selectedFilePath]);
 
   const handleSearchSubmit = useCallback(
     (query: string) => {
-      void searchFiles(query);
+      void actions.searchFiles(query);
     },
-    [searchFiles]
+    [actions.searchFiles]
   );
 
   const hasWorkspace = !!appInfo?.currentWorkspace;
@@ -692,7 +608,7 @@ export function App() {
         className={`adl-shell__body${leftCollapsed ? " is-left-collapsed" : ""}${rightCollapsed ? " is-right-collapsed" : ""}`}
         style={{ "--rightpanel-width": `${rightPanelWidth}px` } as React.CSSProperties}
       >
-        <LeftSidebar
+        <ErrorBoundary><LeftSidebar
           t={t}
           locale={locale}
           appInfo={appInfo}
@@ -703,28 +619,28 @@ export function App() {
           streamingActiveRunId={streamingActiveRunId}
           taskCenter={taskCenter}
           indexingStatus={indexingStatus}
-          onSelectSession={(id) => void selectSession(id)}
+          onSelectSession={(id) => void actions.selectSession(id)}
           onCreateSession={() => setNewSessionDialogOpen(true)}
-          onPinWorkspace={(workspaceId) => void pinWorkspace(workspaceId)}
-          onUnpinWorkspace={(workspaceId) => void unpinWorkspace(workspaceId)}
-          onRemoveWorkspace={(workspaceId) => void removeWorkspaceFromSidebar(workspaceId)}
-          onReorderWorkspaces={(input) => void reorderWorkspaces(input)}
-          onPinSession={(sessionId) => void pinSession(sessionId)}
-          onUnpinSession={(sessionId) => void unpinSession(sessionId)}
-          onRenameSession={(sessionId, title) => void renameSession(sessionId, title)}
-          onArchiveSession={(sessionId) => void archiveSession(sessionId)}
-          onArchiveAllSessions={() => void archiveAllSessions()}
-          onMarkSessionRead={(sessionId) => void markSessionRead(sessionId)}
-          onMarkSessionUnread={(sessionId) => void markSessionUnread(sessionId)}
-          onMarkAllSessionsRead={(sessionIds) => void markAllSessionsRead(sessionIds)}
-          onReorderSessions={(input) => void reorderSessions(input)}
-          onRevealWorkspace={(workspacePath) => void revealWorkspaceInFileManager(workspacePath)}
-          onDeleteSession={(sessionId) => void deleteSession(sessionId)}
-          onOpenWorkspace={openWorkspace}
+          onPinWorkspace={(workspaceId) => void actions.pinWorkspace(workspaceId)}
+          onUnpinWorkspace={(workspaceId) => void actions.unpinWorkspace(workspaceId)}
+          onRemoveWorkspace={(workspaceId) => void actions.removeWorkspaceFromSidebar(workspaceId)}
+          onReorderWorkspaces={(input) => void actions.reorderWorkspaces(input)}
+          onPinSession={(sessionId) => void actions.pinSession(sessionId)}
+          onUnpinSession={(sessionId) => void actions.unpinSession(sessionId)}
+          onRenameSession={(sessionId, title) => void actions.renameSession(sessionId, title)}
+          onArchiveSession={(sessionId) => void actions.archiveSession(sessionId)}
+          onArchiveAllSessions={() => void actions.archiveAllSessions()}
+          onMarkSessionRead={(sessionId) => void actions.markSessionRead(sessionId)}
+          onMarkSessionUnread={(sessionId) => void actions.markSessionUnread(sessionId)}
+          onMarkAllSessionsRead={(sessionIds) => void actions.markAllSessionsRead(sessionIds)}
+          onReorderSessions={(input) => void actions.reorderSessions(input)}
+          onRevealWorkspace={(workspacePath) => void actions.revealWorkspaceInFileManager(workspacePath)}
+          onDeleteSession={(sessionId) => void actions.deleteSession(sessionId)}
+          onOpenWorkspace={actions.openWorkspace}
           onTriggerCreateWorkspace={handleTriggerCreateWorkspace}
-        />
+        /></ErrorBoundary>
 
-        <CenterPane
+        <ErrorBoundary><CenterPane
           t={t}
           locale={locale}
           appInfo={appInfo}
@@ -742,22 +658,22 @@ export function App() {
           gitBranches={gitBranches}
           recentWorkspaces={recentWorkspaces}
           onSendMessage={async (content, opts) => {
-            await sendMessage(content, { mode: opts.mode, chips: opts.chips });
+            await actions.sendMessage(content, { mode: opts.mode, chips: opts.chips });
           }}
-          onCancelGenerate={() => void cancelActiveStream()}
-          onOpenWorkspace={openWorkspace}
+          onCancelGenerate={() => void actions.cancelActiveStream()}
+          onOpenWorkspace={actions.openWorkspace}
           onTriggerCreateWorkspace={handleTriggerCreateWorkspace}
-          onClearWorkspaceContext={clearWorkspaceContext}
-          onPickWorkspaceDirectory={pickWorkspaceDirectory}
+          onClearWorkspaceContext={actions.clearWorkspaceContext}
+          onPickWorkspaceDirectory={actions.pickWorkspaceDirectory}
           onCreateSession={() => setNewSessionDialogOpen(true)}
-          onDecideApproval={(approvalId, decision) => void decideApproval(approvalId, decision)}
+          onDecideApproval={(approvalId, decision) => void actions.decideApproval(approvalId, decision)}
           onSelectModel={handleSelectModel}
-          onRefreshGitBranches={fetchGitBranches}
-          onSwitchGitBranch={switchGitBranch}
-          onCreateGitBranch={createGitBranch}
-        />
+          onRefreshGitBranches={actions.fetchGitBranches}
+          onSwitchGitBranch={actions.switchGitBranch}
+          onCreateGitBranch={actions.createGitBranch}
+        /></ErrorBoundary>
 
-        <RightPanel
+        <ErrorBoundary><RightPanel
           t={t}
           appInfo={appInfo}
           collapsed={rightCollapsed}
@@ -785,18 +701,18 @@ export function App() {
           gitSnapshot={gitSnapshot}
           commandHistory={commandHistory}
           standardEditorRef={standardEditorRef}
-          onOpenFile={(path) => void openFile(path)}
-          onOpenChangePreview={(path) => void openChangePreview(path)}
+          onOpenFile={(path) => void actions.openFile(path)}
+          onOpenChangePreview={(path) => void actions.openChangePreview(path)}
           onOpenFileAtLine={handleOpenFileAtLine}
           onReloadExternal={handleReloadExternal}
-          onCreateWorkspaceFile={createWorkspaceFile}
-          onCreateWorkspaceFolder={createWorkspaceFolder}
+          onCreateWorkspaceFile={actions.createWorkspaceFile}
+          onCreateWorkspaceFolder={actions.createWorkspaceFolder}
           onEditorChange={handleStandardEditorChange}
           onEditorMount={handleEditorMount}
           onDiffMount={handleDiffMount}
           onSearch={handleSearchSubmit}
           onSearchChange={setLocalSearchQuery}
-          onRefreshWorkspaceTree={() => void refreshWorkspaceTree()}
+          onRefreshWorkspaceTree={() => void actions.refreshWorkspaceTree()}
           onSendSelection={() => void handleSendSelection()}
           onSetDiffLayout={persistDiffLayout}
           activePatchSet={activePatchSet}
@@ -808,8 +724,8 @@ export function App() {
           onSetHunkDecision={handleSetHunkDecision}
           onApplyPatchSet={handleApplyPatch}
           onRollbackPatchSet={handleRollbackPatch}
-          onAcceptAllHunks={() => void acceptAllHunks()}
-          onRejectAllHunks={() => void rejectAllHunks()}
+          onAcceptAllHunks={() => void actions.acceptAllHunks()}
+          onRejectAllHunks={() => void actions.rejectAllHunks()}
           onSelectPatchFile={handleSelectPatchFile}
           onSelectPatchHunk={handleSelectPatchHunk}
           onTogglePatchHunkCollapse={handleTogglePatchHunkCollapse}
@@ -817,17 +733,17 @@ export function App() {
           onSetPatchReviewFilter={setPatchReviewFilter}
           onJumpPatchHunk={handleJumpPatchHunk}
           modelHealth={modelHealth}
-          onRefreshModelHealth={() => void refreshModelHealth()}
+          onRefreshModelHealth={() => void actions.refreshModelHealth()}
           onChangeSetting={handleChangeSetting}
           latestCommandRun={latestCommandRun}
-        />
+        /></ErrorBoundary>
       </div>
 
       <CreateWorkspaceModal
         open={createWorkspaceModalOpen}
         t={t}
-        onPickWorkspaceDirectory={pickWorkspaceDirectory}
-        onOpenWorkspace={openWorkspace}
+        onPickWorkspaceDirectory={actions.pickWorkspaceDirectory}
+        onOpenWorkspace={actions.openWorkspace}
         onClose={() => setCreateWorkspaceModalOpen(false)}
       />
 
@@ -835,10 +751,10 @@ export function App() {
         open={newSessionDialogOpen}
         t={t}
         onCreate={async (name) => {
-          await createSession();
+          await actions.createSession();
           if (name) {
             const currentId = useAppStore.getState().activeSessionId;
-            if (currentId) await renameSession(currentId, name);
+            if (currentId) await actions.renameSession(currentId, name);
           }
           setNewSessionDialogOpen(false);
         }}

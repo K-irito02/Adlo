@@ -1,6 +1,6 @@
 # 重构进度报告
 
-> 更新日期: 2026-05-22
+> 更新日期: 2026-05-23
 
 ## 完成状态
 
@@ -11,99 +11,111 @@
 | 第三轮 | 2026-05-21 | CSS Token 迁移 + 模块化分层 + 错误码统一 | ✅ |
 | 第四轮 | 2026-05-21 | 重构洞察验证与修复（消除 11 处 `as any`、LRU 优化、SSE 管理等） | ✅ |
 | 第五轮 | 2026-05-22 | CodeMirror 双实例 Bug 修复（`@codemirror/state` 显式依赖 + `optimizeDeps.include`） | ✅ |
-| **第六轮** | **2026-05-22** | **Store/桥接/接口/性能/Rust 全面重构** | ✅ |
+| 第六轮 | 2026-05-22 | Store/桥接/接口/性能/Rust 全面重构 | ✅ |
+| **第七轮** | **2026-05-23** | **重构洞察 22 项 + 大型组件拆分（19 项修复 + 3 组件拆 17 文件）** | ✅ |
 
-## 第六轮重构（2026-05-22）：Store 拆分、桥接模块化、Rust 优化
+## 第七轮重构（2026-05-23）：全面修复 + 大型组件模块化
 
-基于 [重构洞察报告](./refactor-insight-2026-05-22.md) 和 [实施计划](../../.trae/documents/refactor-implementation-plan-2026-05-22.md) 完成 17 项改动（另 2 项经分析确认已有最优实现而跳过）：
+基于 [重构洞察报告](./refactor-insight-2026-05-23.md) 和 [修复计划](../../.trae/documents/refactor-fix-plan-2026-05-23.md) 完成，分 7 个 Phase 共 25 项任务：
 
-### Phase 1：前端架构重构（4 项）
+### Phase 1：快速修复（4 项）
 
-| 任务 | 改动 | 描述 |
+| 任务 | 文件 | 说明 |
 |------|------|------|
-| `slicedStore.ts` 拆分 | 1465 → 87 行 | 提取 8 个领域 action 模块到 `stores/actions/` 目录 |
-| `preview-bridge.ts` 拆分 | 615 行 → 4 个模块 | 拆分为 `api.ts`/`storage.ts`/`ptyBridge.ts`/`index.ts` |
-| `DigitalLifeBridge` 接口拆分 | 新增 13 个子接口 | `WindowBridge`、`WorkspaceBridge`、`PtyBridge` 等 |
-| `sendMessage` 流处理器提取 | 2 个工厂函数 | `createModelStreamSubscriber` / `createRunActivitySubscriber` |
+| 移除死依赖 | `crates/change-engine/Cargo.toml` | 删除 `adl-terminal` |
+| 移除未用依赖 | `crates/context-engine/Cargo.toml`、`crates/prompt-engine/Cargo.toml` | 删除 `adl-errors` |
+| 移除空 crate | `crates/editor/` | 占位 crate 已删除 |
+| 移除死代码 | `frontend/src/app/hooks/useStreamingText.ts` | 由 Zustand managed state 替代 |
 
-### Phase 2：前端性能与代码质量（7 项实施 + 2 项验证跳过）
+### Phase 2：稳定性与性能核心（6 项）
 
-| 文件 | 优化 |
+| 任务 | 说明 |
 |------|------|
-| `useStreamingText.ts` | cleanup 显式重置 `bufferRef` / `setText("")` |
-| `fileTree.tsx` | memo 类型断言简化（`as typeof FileTreeNodeComponent`） |
-| `Composer.tsx` | 移除 2 个冗余 `useCallback` 包装 |
-| `shared.ts` | debounce 新增 `cancel()` 方法 |
-| `StoreState.ts` | 交叉类型 → `interface extends` 继承链 |
-| `fileTree.tsx` T2.3/T2.4 | `useMemo` 依赖 + getMultiSelectedNodes 验证已最优（跳过） |
-| `useTooltip.ts` | 全局 Set + `globalListenerAttached` 经验证为合理优化，保留 |
+| App 选择器拆分 | 80+ 字段 → `error`(单字段) + `useAppActions()`(43 actions) + 35 字段(state 组) |
+| Error Boundary | 新建组件，包裹 3 个主面板，防止单面板崩溃白屏 |
+| storage mutex 中毒降级 | `.expect()` → `map_err` + `?`，12+ 调用点更新 |
+| model-gateway 空 choices | `.unwrap_or_default()` → `AppError` 传播 |
+| DiffViewer onMount 修复 | 2 处 `useEffect` 依赖数组补全 |
+| ptyBridge HMR 泄漏 | 模块级变量 → 工厂函数闭包 |
 
-### Phase 3：Rust 后端优化（5 项实施 + 1 项验证跳过）
+### Phase 3：大型组件拆分（3 项，17 个新文件）
 
-| 函数 | 优化 |
+| 组件 | 原行数 | 现主文件 | 拆分文件 |
+|------|--------|----------|----------|
+| DiffViewer | 673 → 77 | 路由组件 | `SideBySideDiffViewer`、`InlineDiffViewer`、`sharedExtensions`、`diffViewerUtils` |
+| TerminalPanel | 793 → 236 | 组合器 | `useTerminalPanel` hook + 6 子组件（TabBar/EmptyState/ShellSelector/ContextMenu/MenuDropdown/Navigator） |
+| LeftSidebar | 1796 → 292 | 组合器 | `WorkspaceList`、`SessionList`、`ConversationPanel`、`ResizeHandle`、`SidebarContextMenu` |
+
+### Phase 4：代码质量改进（6 项）
+
+| 任务 | 说明 |
 |------|------|
-| `search_text` / `search_text_async` | 提取公共 `search_text_in_files` 消除重复 |
-| `collect_text_files_inner` | 消除 `fs::metadata()` 双重 I/O + IGNORED_DIRS 扩展至 18 项 |
-| `build_retrieval_snapshot` | 消除二次遍历，extension 统计合并入遍历过程 |
-| `sanitize_brace_line` | 正则缓存 `OnceLock` 一次性编译 |
-| `shell_command` | `#[cfg]` 宏分离为独立函数 |
-| `finalize_outline_items` | O(n²) 但 n<200，收益有限，跳过 |
+| 共享 Icon 组件 | 6 处重复定义 → 1 个共享组件 |
+| CodeEditor useMemo | 移除无效 `theme` 依赖 |
+| useMemo 补充 | `badges`/`changesMenuItems`/`fileMenuItems` |
+| task 运算符括号 | `\|\| cargo && args` → `\|\| (cargo && args)` |
+| run_activity seq | 10 路 match → `fn seq()` 方法 |
+| streamActions 优化 | 函数内联化 |
+
+### Phase 5：低优先级优化（3 项）
+
+| 任务 | 说明 |
+|------|------|
+| fileTree props 窄化 | `{...props}` → 6 个显式 prop |
+| CustomScrollArea | 移除 children 依赖，改用 ref |
+| context-engine 零分配 | 双重 `chars().rev()` → `char_indices().nth_back()` |
+
+### 额外清理
+
+- 删除 ~210 行 Mock 死代码（`usingMockStandaloneSessions = false`）
+- 替换 11 处硬编码中文字符串为 `t()` i18n 调用
+- 补充 i18n 词汇表 11 个词条（zh-CN + en-US）
 
 ### 当前架构
 
-#### Store 架构（新增 actions/ 目录）
+#### 大型组件模块化结果
 
 ```
-app/stores/
-├── slicedStore.ts          # 基于切片合并的完整 Store（真源，~87 行）
-├── StoreState.ts           # 完整 StoreState 类型接口（interface extends）
-├── slices.ts               # 统一导出所有切片
-├── selectors.ts            # 选择器（含 useShallow React Hook 版本）
-├── shared.ts               # 共享状态和工具（LRU 缓存、防抖搜索、缓存清理）
-├── cacheUtils.ts           # 缓存工具函数
-├── conversationUtils.ts    # 会话工具函数
-├── index.ts                # 模块索引
-├── slices/                 # 11 个独立切片（含 clipboardSlice）
-├── actions/                # [新增] 8 个跨切片 action 模块
-│   ├── workspaceActions.ts # 工作区操作
-│   ├── sessionActions.ts   # 会话操作
-│   ├── editorActions.ts    # 编辑器操作
-│   ├── patchActions.ts     # 补丁操作
-│   ├── gitActions.ts       # Git 操作
-│   ├── fetchActions.ts     # 数据拉取操作
-│   ├── streamActions.ts    # 流式消息操作（含 sendMessage）
-│   └── generalActions.ts   # 通用操作（bootstrap, updatePreferences）
-└── (已删除)                # 4 个遗留 Store 已清理
-```
+regions/ (LeftSidebar 拆分)
+├── LeftSidebar.tsx                       # ~292 行 合成容器
+└── left-sidebar/
+    ├── WorkspaceList.tsx                 # ~307 行 工作区列表
+    ├── SessionList.tsx                   # ~520 行 会话列表（含拖放重排）
+    ├── ConversationPanel.tsx             # ~107 行 对话面板
+    ├── ResizeHandle.tsx                  # ~197 行 宽度/高度拖拽
+    └── SidebarContextMenu.tsx            # ~255 行 右键菜单 Portal
 
-#### 桥接层架构（preview-bridge.ts 目录化）
+features/terminal/ (TerminalPanel 拆分)
+├── TerminalPanel.tsx                    # ~236 行 组合器
+├── useTerminalPanel.ts                  # ~500 行 自定义 Hook
+├── TerminalTabBar.tsx                   # 标签栏 + 拖拽排序
+├── TerminalEmptyState.tsx               # 空白引导页
+├── TerminalShellSelector.tsx            # Shell 类型选择
+├── TerminalContextMenu.tsx              # 右键菜单
+├── TerminalMenuDropdown.tsx             # 三点菜单
+└── TerminalNavigator.tsx                # 导航器面板
 
-```
-frontend/src/
-├── shared/ipc.ts           # DigitalLifeBridge + 13 个子接口
-├── tauri-bridge.ts         # Tauri 模式桥接
-├── mock-bridge.ts           # 纯内存回退
-├── preview-bridge/          # [新增] 浏览器模式桥接模块
-│   ├── index.ts            # 组合入口（setupPreviewBridge）
-│   ├── api.ts              # 请求封装（requestPreviewApi）
-│   ├── storage.ts          # localStorage 持久化工具
-│   └── ptyBridge.ts        # PTY 连接管理（SSE、listeners）
-└── (已删除) preview-bridge.ts
+features/diff-viewer/ (DiffViewer 拆分)
+├── DiffViewer.tsx                       # ~77 行 路由组件
+├── SideBySideDiffViewer.tsx             # ~333 行 并排对比
+├── InlineDiffViewer.tsx                 # ~183 行 内联对比
+├── sharedExtensions.ts                  # ~60 行 共享扩展
+└── diffViewerUtils.ts                   # ~79 行 工具函数
 ```
 
 ### 关键改进
 
 | 改进项 | 说明 |
 |--------|------|
-| Store actions 模块化 | `slicedStore.ts` 从 1465 行降至 87 行，按领域拆分为 8 个独立模块 |
-| 桥接层目录化 | `preview-bridge.ts` 从 615 行拆分为 4 个关注点分离的文件 |
-| 接口类型层次 | `DigitalLifeBridge` 拆分为 13 个命名子接口，改善类型推断与复用 |
-| 流处理器提取 | `sendMessage` 中的流订阅逻辑提取为可复用的工厂函数 |
-| Rust 搜索去重 | `search_text` 与 `search_text_async` 消除 81% 逻辑重复 |
-| 文件遍历 I/O 优化 | 消除 `fs::metadata()` 双重 I/O，每文件减少一次系统调用 |
-| IGNORED_DIRS 扩展 | 从 7 项增至 18 项，覆盖更多常见排除目录 |
-| 正则编译缓存 | `sanitize_brace_line` 正则从每次调用编译改为 `OnceLock` 一次性初始化 |
-| Actions 类型安全 | 8 个 action 模块的 `set: any` 替换为 `StoreApi<StoreState>["setState"]`，消除类型盲区 |
+| Rust 死依赖移除 | 3 项（change-engine/terminal, context-engine/errors, prompt-engine/errors） |
+| 空 crate 清理 | `crates/editor` 已删除 |
+| DB mutex 中毒降级 | 所有 `conn()` 调用返回 `Result`，中毒不崩溃 |
+| Error Boundary | 3 个主面板独立保护，局部降级 |
+| App 渲染性能 | 80 字段选择器拆分，流式消息期间不再全树重渲染 |
+| DiffViewer onMount | 2 处依赖数组补全，修复潜在 Effect 死锁 |
+| ptyBridge HMR | 工厂函数模式消除 Vite 热更新泄漏 |
+| 零分配优化 | context-engine 字符串截取减少 2 次分配 |
+| 大型组件 | 3 个组件从 3262 行降至 605 行主逻辑，拆分 17 个模块文件 |
 
 ### 验证结果
 
@@ -113,43 +125,15 @@ frontend/src/
 | 前端测试 (Vitest) | ✅ 31 files, 183 tests |
 | Rust cargo check | ✅ |
 | Rust cargo test (all crates) | ✅ 全部通过 |
-| 新增文件 | 12 |
-| 修改文件 | 16 |
-| 删除文件 | 1 (`preview-bridge.ts` → 目录化) |
-| 遗留清理 | 4 个遗留 Store 已删除 |
-| CSS Token 迁移 | 6 个 Shadow 设计 Token 替换硬编码值，亮暗主题区分 |
-| 模块化分层 | 7 个功能模块迁移到 `features/`，统一 index.ts 导出 |
-| 错误码统一 | `IpcErrorCode` 枚举跨桥接层共享 |
-| invoke 错误粒度 | 区分网络错误（TypeError）→ `NETWORK_ERROR`、后端错误 → 透传 code |
-| SSE 连接管理 | 引用计数自动关闭，无监听器时释放 EventSource |
-| PTY 监听器限流 | 两个桥接层均添加 `MAX_PTY_LISTENERS = 32` 上限 |
-| Rust Send+Sync 断言 | PtySession / SessionManager / PtySessionHandle 静态类型安全验证 |
-| 骨架屏动画 | 响应式 `background-size`、`will-change` GPU 提示、`prefers-reduced-motion` 禁用 |
-| Release 构建 | 添加 `panic = "abort"`，减少二进制体积 |
-| 微任务刷新 | `queueLowPriorityRefresh` 优先使用 `queueMicrotask` |
-
-## 重构统计
-
-| 指标 | 数值 |
-|------|------|
-| 重构轮次 | 5 轮 |
-| 新增/修改文件 | StoreState.ts, useStreamingText.ts, preferencesMerger.ts, design-system/tokens.ts, package.json（@codemirror/state 显式依赖）, vite.config.ts（optimizeDeps） |
-| 重写/迁移文件 | slicedStore.ts, selectors.ts, shared.ts, 11 个 slice 文件 |
-| 删除文件 | app/slicedStore.ts（旧 1237 行），4 个废弃 Store, pnpm-lock.yaml |
-| 迁移模块 | 7 个（file-tree / outline / patch-review / editor / diff-viewer / preview / terminal） |
-| 新增设计 Token | 6 个 Shadow token（亮暗主题各 6 个值） |
-| 消除 `as any` | 11 处（所有 slice 工厂） |
-| 消除重复代码 | 5 处路径分隔符 → 全局 `joinPathSegments` |
-| 新增 Rust 断言 | 3 个 `static_assertions` |
-| 包管理变更 | pnpm → npm（因 pnpm store 损坏恢复为 npm） |
-| 新增 Vite 配置 | `optimizeDeps.include` 强制 7 个 CodeMirror 包预捆绑为单例 |
-| 切片数量 | 11 个独立切片 |
-| 类型检查 | 0 错误 |
-| 测试通过 | 171/171（Vitest），2 个 Playwright E2E 预存问题 |
-| Rust 编译 | cargo check 零警告零错误 |
+| 新建文件 | 17 |
+| 修改文件 | 5 |
+| 删除代码 | ~210 行 Mock 死代码 + 1 死 hook + 4 过期计划文档 |
+| 新增 i18n 词条 | 11 个（zh-CN + en-US） |
 
 ## 相关文档
 
-- [重构洞察报告](./refactor-insight-2026-05-21.md)
-- [重构实施计划](./重构实施计划-2026-05-21.md)
-- [Insight Fix 实施计划](../../.trae/documents/refactor-insight-fix-plan-2026-05-21.md)
+- [重构洞察报告 5-21](./refactor-insight-2026-05-21.md)
+- [重构洞察报告 5-22](./refactor-insight-2026-05-22.md)
+- [重构洞察报告 5-23](./refactor-insight-2026-05-23.md)
+- [第七轮修复计划](../../.trae/documents/refactor-fix-plan-2026-05-23.md)
+- [Phase 3 拆分计划](../../.trae/documents/refactor-phase3-split-plan-2026-05-23.md)

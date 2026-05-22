@@ -186,7 +186,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
     const options = new Set<string>([fallbackBranch, ...FALLBACK_BRANCHES]);
     return [...options];
   }, [fallbackBranch]);
-  const changesMenuItems = [
+  const changesMenuItems = useMemo(() => [
     {
       id: "line-numbers",
       label: t.fileLineNumbers,
@@ -207,7 +207,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
     { id: "pull", label: t.changesPull, disabled: true },
     { id: "sep-1", separator: true },
     { id: "discard-all", label: t.changesDiscardAll, disabled: true }
-  ];
+  ], [t, lineNumbersEnabled, wordWrapEnabled]);
 
   useEffect(() => {
     if (!branchOptions.includes(selectedBranch)) {

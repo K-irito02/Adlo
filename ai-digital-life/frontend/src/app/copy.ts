@@ -469,6 +469,19 @@ export const copy = {
     terminalViewFullOutput: "查看完整输出",
     commandBlockPrefix: "$",
 
+    // Terminal panel UI
+    shellTypeSelect: "类型选择",
+    closeAll: "关闭所有",
+    close: "关闭",
+    terminalPanel: "终端面板",
+    noOpenTerminalSessions: "当前没有打开的终端会话",
+    selectShellType: "选择一个 Shell 类型开始：",
+    clickToCreateOrUseToolbar: "点击直接创建 · 也可以在工具栏操作",
+    unpin: "取消置顶",
+    pin: "置顶",
+    rename: "重命名",
+    delete: "删除",
+
     // Changes enhancements
     checkpointTitle: "检查点",
     checkpointCurrent: "当前",
@@ -986,6 +999,19 @@ export const copy = {
     terminalCommandHistory: "Command history",
     terminalViewFullOutput: "View full output",
     commandBlockPrefix: "$",
+
+    // Terminal panel UI
+    shellTypeSelect: "Select shell type",
+    closeAll: "Close All",
+    close: "Close",
+    terminalPanel: "Terminal Panel",
+    noOpenTerminalSessions: "No open terminal sessions",
+    selectShellType: "Select a shell type to start:",
+    clickToCreateOrUseToolbar: "Click to create, or use the toolbar",
+    unpin: "Unpin",
+    pin: "Pin",
+    rename: "Rename",
+    delete: "Delete",
 
     // Changes enhancements
     checkpointTitle: "Checkpoint",

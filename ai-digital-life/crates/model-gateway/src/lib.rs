@@ -205,7 +205,7 @@ impl ModelGateway {
             .choices
             .first()
             .map(|choice| choice.message.content.clone())
-            .unwrap_or_default();
+            .ok_or_else(|| AppError::Model(format!("API returned empty choices array (model={model_id})")))?;
         Ok(ModelResponse {
             provider_id: provider,
             model_id: body.model.unwrap_or_else(|| model_id.to_string()),

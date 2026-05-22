@@ -25,6 +25,8 @@ export const CustomScrollArea = forwardRef(function CustomScrollArea(
   const rootRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const scrollbarThumbRef = useRef<HTMLDivElement | null>(null);
+  const childrenRef = useRef<React.ReactNode>(children);
+  childrenRef.current = children;
 
   const updateScrollbar = useCallback(() => {
     const root = rootRef.current;
@@ -79,7 +81,7 @@ export const CustomScrollArea = forwardRef(function CustomScrollArea(
       scroll.removeEventListener("scroll", scheduleUpdate);
       observer?.disconnect();
     };
-  }, [children, updateScrollbar]);
+  }, [updateScrollbar]);
 
   const handleScrollbarPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     const scroll = scrollRef.current;

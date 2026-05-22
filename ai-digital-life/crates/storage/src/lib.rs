@@ -25,8 +25,8 @@ impl Database {
         })
     }
 
-    pub fn conn(&self) -> std::sync::MutexGuard<'_, Connection> {
-        self.conn.lock().expect("database mutex poisoned")
+    pub fn conn(&self) -> Result<std::sync::MutexGuard<'_, Connection>, AppError> {
+        self.conn.lock().map_err(|_| AppError::Internal("database mutex poisoned".to_string()))
     }
 
     pub fn execute(
@@ -34,13 +34,13 @@ impl Database {
         sql: &str,
         params: &[&dyn rusqlite::types::ToSql],
     ) -> Result<usize, AppError> {
-        self.conn()
+        self.conn()?
             .execute(sql, params)
             .map_err(|e| AppError::Storage(e.to_string()))
     }
 
     pub fn init_schema(&self) -> Result<(), AppError> {
-        let conn = self.conn();
+        let conn = self.conn()?;
         conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS schema_version (
                 version INTEGER PRIMARY KEY,
@@ -236,7 +236,7 @@ impl Database {
     }
 
     pub fn put_state(&self, key: &str, value: &str) -> Result<(), AppError> {
-        self.conn()
+        self.conn()?
             .execute(
                 "INSERT OR REPLACE INTO app_state (key, value) VALUES (?1, ?2)",
                 params![key, value],
@@ -246,7 +246,7 @@ impl Database {
     }
 
     pub fn get_state(&self, key: &str) -> Result<Option<String>, AppError> {
-        self.conn()
+        self.conn()?
             .query_row(
                 "SELECT value FROM app_state WHERE key = ?1",
                 params![key],
@@ -272,7 +272,7 @@ impl Database {
              (id, workspace_id, session_id, status, updated_at, json)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6)"
         );
-        self.conn()
+        self.conn()?
             .execute(
                 &sql,
                 params![id, workspace_id, session_id, status, now_ms(), json],
@@ -296,7 +296,7 @@ impl Database {
         let last_read_at = value.get("lastReadAt").and_then(|v| v.as_i64());
         let json = serde_json::to_string(value)?;
 
-        self.conn()
+        self.conn()?
             .execute(
                 "INSERT OR REPLACE INTO sessions
                  (id, workspace_id, session_id, status, updated_at, json,
@@ -326,7 +326,7 @@ impl Database {
         workspace_id: &str,
         include_archived: bool,
     ) -> Result<Vec<String>, AppError> {
-        let conn = self.conn();
+        let conn = self.conn()?;
         let mut sql = String::from(
             "SELECT id FROM sessions WHERE workspace_id = ?1"
         );
@@ -354,7 +354,7 @@ impl Database {
         let table_name = table.as_str();
         let sql = format!("SELECT json FROM {table_name} WHERE id = ?1");
         let json: Option<String> = self
-            .conn()
+            .conn()?
             .query_row(&sql, params![id], |row| row.get(0))
             .optional()
             .map_err(|e| AppError::Storage(e.to_string()))?;
@@ -411,7 +411,7 @@ impl Database {
             sql.push_str(&format!(" LIMIT {limit}"));
         }
 
-        let conn = self.conn();
+        let conn = self.conn()?;
         let mut stmt = conn
             .prepare(&sql)
             .map_err(|e| AppError::Storage(e.to_string()))?;
@@ -435,7 +435,7 @@ impl Database {
         let table_name = table.as_str();
         let sql = format!("DELETE FROM {table_name} WHERE id = ?1");
         let changed = self
-            .conn()
+            .conn()?
             .execute(&sql, params![id])
             .map_err(|e| AppError::Storage(e.to_string()))?;
         Ok(changed > 0)
@@ -451,7 +451,7 @@ impl Database {
         retention_ms: Option<i64>,
         max_total_rows: Option<i64>,
     ) -> Result<(), AppError> {
-        let conn = self.conn();
+        let conn = self.conn()?;
         if let Some(retention_ms) = retention_ms {
             if retention_ms > 0 {
                 let cutoff = now_ms().saturating_sub(retention_ms);
@@ -495,7 +495,7 @@ impl Database {
         if keep_last <= 0 {
             return Ok(());
         }
-        let conn = self.conn();
+        let conn = self.conn()?;
         conn.execute(
             "DELETE FROM run_activity_events
              WHERE id IN (

@@ -25,10 +25,10 @@ pub fn assess_command_risk(command: &str, args: &[String], shell: bool) -> RiskL
         || args.iter().any(|arg| arg == "install" || arg == "add")
         || command_lower == "npm"
         || command_lower == "pnpm"
-        || command_lower == "cargo"
+        || (command_lower == "cargo"
             && args
                 .iter()
-                .any(|arg| matches!(arg.as_str(), "install" | "publish"))
+                .any(|arg| matches!(arg.as_str(), "install" | "publish")))
     {
         RiskLevel::Medium
     } else {

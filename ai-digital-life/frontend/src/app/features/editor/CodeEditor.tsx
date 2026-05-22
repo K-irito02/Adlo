@@ -114,7 +114,7 @@ export function CodeEditor({
       getPhrasesExtension(locale || "en-US"),
     ];
     return exts;
-  }, [language, theme, readOnly, lineNumbersEnabled, wordWrap, locale]);
+  }, [language, readOnly, lineNumbersEnabled, wordWrap, locale]);
 
   const allExtensions = useMemo<Extension[]>(
     () => [...baseExtensions, ...extraExtensions],

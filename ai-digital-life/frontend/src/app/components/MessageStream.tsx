@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
-import { renderIcon, type IconName } from "../../design-system/icons";
 import { MessageBubble, type MessageBubbleProps } from "./MessageBubble";
+import { Icon } from "./Icon";
 
 interface MessageStreamProps {
   messages: Array<{
@@ -11,12 +11,6 @@ interface MessageStreamProps {
   }>;
   streamingText?: string;
   isStreaming: boolean;
-}
-
-function Icon({ name, size = "md" }: { name: IconName; size?: "xs" | "sm" | "md" | "lg" | "xl" | "2xl" }) {
-  return (
-    <span dangerouslySetInnerHTML={{ __html: renderIcon(name, { size, decorative: true }).value }} />
-  );
 }
 
 export function MessageStream({ messages, streamingText = "", isStreaming }: MessageStreamProps) {

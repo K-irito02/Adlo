@@ -46,7 +46,7 @@ pub const MIGRATIONS: &[Migration] = &[
 ];
 
 pub fn current_version(db: &Database) -> Result<i64, AppError> {
-    let conn = db.conn();
+    let conn = db.conn()?;
     let version: i64 = conn
         .query_row(
             "SELECT COALESCE(MAX(version), 0) FROM schema_version",
@@ -61,7 +61,7 @@ pub fn run_pending(db: &Database) -> Result<(), AppError> {
     let current = current_version(db)?;
     for m in MIGRATIONS.iter().filter(|m| m.version > current) {
         if !m.sql.is_empty() {
-            db.conn()
+            db.conn()?
                 .execute_batch(m.sql)
                 .map_err(|e| AppError::Migration(format!("v{}: {e}", m.version)))?;
         }

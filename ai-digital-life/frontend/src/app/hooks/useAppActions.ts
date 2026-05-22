@@ -1,0 +1,53 @@
+import { useShallow } from "zustand/react/shallow";
+import { useAppStore } from "../stores/slicedStore";
+
+export function useAppActions() {
+  return useAppStore(
+    useShallow((state) => ({
+      bootstrap: state.bootstrap,
+      openWorkspace: state.openWorkspace,
+      clearWorkspaceContext: state.clearWorkspaceContext,
+      pickWorkspaceDirectory: state.pickWorkspaceDirectory,
+      createSession: state.createSession,
+      selectSession: state.selectSession,
+      renameSession: state.renameSession,
+      pinSession: state.pinSession,
+      unpinSession: state.unpinSession,
+      markSessionRead: state.markSessionRead,
+      markSessionUnread: state.markSessionUnread,
+      archiveSession: state.archiveSession,
+      archiveAllSessions: state.archiveAllSessions,
+      pinWorkspace: state.pinWorkspace,
+      unpinWorkspace: state.unpinWorkspace,
+      removeWorkspaceFromSidebar: state.removeWorkspaceFromSidebar,
+      reorderWorkspaces: state.reorderWorkspaces,
+      reorderSessions: state.reorderSessions,
+      markAllSessionsRead: state.markAllSessionsRead,
+      revealWorkspaceInFileManager: state.revealWorkspaceInFileManager,
+      deleteSession: state.deleteSession,
+      sendMessage: state.sendMessage,
+      cancelActiveStream: state.cancelActiveStream,
+      openFile: state.openFile,
+      openChangePreview: state.openChangePreview,
+      createWorkspaceFile: state.createWorkspaceFile,
+      createWorkspaceFolder: state.createWorkspaceFolder,
+      refreshWorkspaceTree: state.refreshWorkspaceTree,
+      searchFiles: state.searchFiles,
+      setHunkDecision: state.setHunkDecision,
+      applyPatchSet: state.applyPatchSet,
+      rollbackPatchSet: state.rollbackPatchSet,
+      acceptAllHunks: state.acceptAllHunks,
+      rejectAllHunks: state.rejectAllHunks,
+      refreshTaskCenter: state.refreshTaskCenter,
+      decideApproval: state.decideApproval,
+      markExternalFileChange: state.markExternalFileChange,
+      notifyEditorBufferDirty: state.notifyEditorBufferDirty,
+      runCommand: state.runCommand,
+      refreshModelHealth: state.refreshModelHealth,
+      updatePreferences: state.updatePreferences,
+      fetchGitBranches: state.fetchGitBranches,
+      switchGitBranch: state.switchGitBranch,
+      createGitBranch: state.createGitBranch,
+    }))
+  );
+}

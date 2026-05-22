@@ -45,10 +45,10 @@ ai-digital-life/
 | 目录 | 职责 |
 |------|------|
 | `app/components/` | React 组件（含 ContextMenu、ConfirmDialog、RenameInput、Tooltip 等） |
-| `app/hooks/` | 自定义 Hooks（含 useTooltip、useStreamingText） |
+| `app/hooks/` | 自定义 Hooks（含 useTooltip、useAppActions、useNavigatorResize） |
 | `app/utils/` | 纯函数（含 tooltipPosition 定位逻辑、preferencesMerger） |
 | `app/stores/` | Zustand 状态管理（切片合并模式 + actions/ 领域模块） |
-| `app/features/` | 按功能域分层的模块化组件（file-tree / outline / patch-review / editor / diff-viewer / preview / terminal） |
+| `app/features/` | 按功能域分层的模块化组件（file-tree / outline / patch-review / editor / diff-viewer(路由+SideBySide+Inline+扩展) / preview / terminal(hook+7子组件)） |
 | `app/regions/` | 区域布局组件（left-panel / right-panel / bottom-panel） |
 | `design-system/` | 设计 Token 类型定义（tokens.ts / theme.ts / icons.ts） |
 | `styles/` | CSS 样式文件（themes.css / tokens.css / regions.css 等） |

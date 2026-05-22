@@ -1,7 +1,7 @@
 import { EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
 
-import { buildCollapsedUnchangedRanges, computeSyncedScrollTop, syncHorizontalScroll } from "./DiffViewer";
+import { buildCollapsedUnchangedRanges, computeSyncedScrollTop, syncHorizontalScroll } from "./diffViewerUtils";
 
 describe("DiffViewer scroll synchronization", () => {
   it("preserves scroll position by ratio when side-by-side panes have different heights", () => {

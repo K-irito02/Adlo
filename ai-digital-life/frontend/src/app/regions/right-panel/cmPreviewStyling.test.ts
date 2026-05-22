@@ -4,6 +4,9 @@ import { describe, expect, it } from "vitest";
 const cmThemeSource = readFileSync(new URL("../../features/editor/cmTheme.ts", import.meta.url), "utf8");
 const codeEditorSource = readFileSync(new URL("../../features/editor/CodeEditor.tsx", import.meta.url), "utf8");
 const diffViewerSource = readFileSync(new URL("../../features/diff-viewer/DiffViewer.tsx", import.meta.url), "utf8");
+const sharedExtensionsSource = readFileSync(new URL("../../features/diff-viewer/sharedExtensions.ts", import.meta.url), "utf8");
+const diffViewerUtilsSource = readFileSync(new URL("../../features/diff-viewer/diffViewerUtils.ts", import.meta.url), "utf8");
+const sideBySideSource = readFileSync(new URL("../../features/diff-viewer/SideBySideDiffViewer.tsx", import.meta.url), "utf8");
 const scrollLeftSyncSource = readFileSync(new URL("../../features/editor/cmScrollLeftSync.ts", import.meta.url), "utf8");
 const regionsCssSource = readFileSync(new URL("../../../../src/styles/regions.css", import.meta.url), "utf8");
 
@@ -20,7 +23,7 @@ function extractCssBlock(css: string, selector: string) {
 describe("CodeMirror preview styling", () => {
   it("uses the custom theme as the only syntax highlight source", () => {
     expect(codeEditorSource).toContain("getThemeExtension(theme)");
-    expect(diffViewerSource).toContain("getThemeExtension(theme)");
+    expect(sharedExtensionsSource).toContain("getThemeExtension");
     expect(codeEditorSource).not.toContain("defaultHighlightStyle");
     expect(diffViewerSource).not.toContain("defaultHighlightStyle");
   });
@@ -28,7 +31,7 @@ describe("CodeMirror preview styling", () => {
   it("renders diff state with quiet line backgrounds instead of vertical status rails", () => {
     expect(cmThemeSource).toContain(".cm-deletedLine");
     expect(cmThemeSource).toContain(".cm-insertedLine");
-    expect(diffViewerSource).toContain("gutter: true");
+    expect(sideBySideSource).toContain("gutter: true");
     expect(diffViewerSource).not.toContain("gutter: false");
     expect(cmThemeSource).not.toContain("inset 3px 0 0");
     expect(regionsCssSource).not.toContain("inset 3px 0 0");
@@ -138,7 +141,7 @@ describe("CodeMirror preview styling", () => {
     );
 
     expect(codeEditorSource).toContain("scrollLeftSyncExtension");
-    expect(diffViewerSource).toContain("initScrollbarWidth");
+    expect(diffViewerUtilsSource).toContain("initScrollbarWidth");
     expect(noWrapScrollerBlock).toContain("overflow-x: hidden !important;");
     expect(noWrapScrollerBlock).toContain("padding-right: 0;");
     expect(regionsCssSource).not.toContain(

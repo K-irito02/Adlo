@@ -3,49 +3,47 @@ import type { PtySessionInfo } from "../shared/ipc";
 import { requestPreviewApi } from "./api";
 
 const MAX_PTY_LISTENERS = 32;
-const ptyOutputListeners = new Set<(event: PtyOutputEvent) => void>();
-let ptyPollingInterval: number | null = null;
-let ptyPollingListenersCount = 0;
-const sessionOutputBuffers = new Map<string, string>();
 
-// Use polling instead of SSE for Vite dev server compatibility
-function startPolling(onCleanup: () => void): void {
-  console.log("Starting PTY polling...");
-  
-  if (ptyPollingInterval) {
-    window.clearInterval(ptyPollingInterval);
-  }
-  
-  ptyPollingInterval = window.setInterval(async () => {
-    try {
-      const result = await requestPreviewApi<PtySessionInfo[]>("/pty/list");
-      
-      if (result.ok) {
-        const sessions = result.data;
-        for (const session of sessions) {
-          if (session.output) {
-            const lastOutput = sessionOutputBuffers.get(session.sessionId) || "";
-            if (session.output !== lastOutput) {
-              const newOutput = session.output.slice(lastOutput.length);
-              if (newOutput) {
-                const event: PtyOutputEvent = {
-                  sessionId: session.sessionId,
-                  data: newOutput
-                };
-                ptyOutputListeners.forEach((fn) => fn(event));
+export function createPtyBridge() {
+  const ptyOutputListeners = new Set<(event: PtyOutputEvent) => void>();
+  let ptyPollingInterval: number | null = null;
+  let ptyPollingListenersCount = 0;
+  const sessionOutputBuffers = new Map<string, string>();
+
+  function startPolling(): void {
+    if (ptyPollingInterval) {
+      window.clearInterval(ptyPollingInterval);
+    }
+
+    ptyPollingInterval = window.setInterval(async () => {
+      try {
+        const result = await requestPreviewApi<PtySessionInfo[]>("/pty/list");
+
+        if (result.ok) {
+          const sessions = result.data;
+          for (const session of sessions) {
+            if (session.output) {
+              const lastOutput = sessionOutputBuffers.get(session.sessionId) || "";
+              if (session.output !== lastOutput) {
+                const newOutput = session.output.slice(lastOutput.length);
+                if (newOutput) {
+                  const event: PtyOutputEvent = {
+                    sessionId: session.sessionId,
+                    data: newOutput
+                  };
+                  ptyOutputListeners.forEach((fn) => fn(event));
+                }
+                sessionOutputBuffers.set(session.sessionId, session.output);
               }
-              sessionOutputBuffers.set(session.sessionId, session.output);
             }
           }
         }
+      } catch (e) {
+        console.warn("PTY polling error", e);
       }
-    } catch (e) {
-      console.warn("PTY polling error", e);
-    }
-  }, 100); // Poll every 100ms for good responsiveness
-}
+    }, 100);
+  }
 
-export function createPtyBridge() {
   return {
     subscribePtyOutput: (listener: (event: PtyOutputEvent) => void) => {
       if (ptyOutputListeners.size >= MAX_PTY_LISTENERS) {
@@ -56,7 +54,7 @@ export function createPtyBridge() {
       ptyOutputListeners.add(listener);
       ptyPollingListenersCount += 1;
       if (!ptyPollingInterval) {
-        startPolling(() => { ptyPollingListenersCount = Math.max(0, ptyPollingListenersCount - 1); });
+        startPolling();
       }
       return () => {
         ptyOutputListeners.delete(listener);

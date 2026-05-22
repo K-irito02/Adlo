@@ -1,9 +1,0 @@
-[package]
-name = "adl-editor"
-version.workspace = true
-edition.workspace = true
-
-[dependencies]
-adl-kernel = { path = "../kernel" }
-adl-errors = { path = "../errors" }
-tracing.workspace = true

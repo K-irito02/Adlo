@@ -11,63 +11,6 @@ import {
 } from "../../composerSend";
 import type { StoreApi } from "zustand";
 
-type ModelStreamEvent = import("@ai-digital-life/kernel").DigitalLifeModelStreamEventV1;
-type RunActivityEvent = import("@ai-digital-life/kernel").DigitalLifeRunActivityEventV1;
-
-function createModelStreamSubscriber(
-  get: () => StoreState,
-  set: StoreApi<StoreState>["setState"]
-): (event: ModelStreamEvent) => void {
-  return (event: ModelStreamEvent) => {
-    if (event.v !== 1) return;
-    set((state: StoreState) => {
-      if (event.type === "route")
-        return { streamingActiveRunId: event.runId };
-      if (event.type === "delta") {
-        const nextRunId = state.streamingActiveRunId ?? event.runId;
-        if (state.streamingActiveRunId && event.runId !== state.streamingActiveRunId)
-          return state;
-        return {
-          streamingActiveRunId: nextRunId,
-          streamingAssistantText: state.streamingAssistantText + event.text,
-        };
-      }
-      if (event.type === "done")
-        return {
-          streamingAssistantText: "",
-          streamingActiveRunId: undefined,
-        };
-      return state;
-    });
-  };
-}
-
-function createRunActivitySubscriber(
-  set: StoreApi<StoreState>["setState"]
-): (event: RunActivityEvent) => void {
-  return (event: RunActivityEvent) => {
-    if (event.v !== 1) return;
-    set((state: StoreState) => {
-      const runId = event.runId;
-      const prev = state.runActivityByRunId[runId] ?? [];
-      const next =
-        prev.length > 500
-          ? [...prev.slice(-400), event]
-          : [...prev, event];
-      const usagePatch: Partial<StoreState> = {
-        runActivityByRunId: { ...state.runActivityByRunId, [runId]: next },
-      };
-      if (event.type === "model" && event.usage) {
-        usagePatch.runUsageByRunId = {
-          ...state.runUsageByRunId,
-          [runId]: event.usage,
-        };
-      }
-      return usagePatch;
-    });
-  };
-}
-
 export function createStreamActions(set: StoreApi<StoreState>["setState"], get: () => StoreState) {
   return {
     sendMessage: async (content: string, options?: MessageSendOptions) => {
@@ -128,11 +71,52 @@ export function createStreamActions(set: StoreApi<StoreState>["setState"], get: 
       }
 
       const unsubscribe = window.digitalLife.subscribeModelStream(
-        createModelStreamSubscriber(get, set)
+        (event) => {
+          if (event.v !== 1) return;
+          set((state: StoreState) => {
+            if (event.type === "route")
+              return { streamingActiveRunId: event.runId };
+            if (event.type === "delta") {
+              const nextRunId = state.streamingActiveRunId ?? event.runId;
+              if (state.streamingActiveRunId && event.runId !== state.streamingActiveRunId)
+                return state;
+              return {
+                streamingActiveRunId: nextRunId,
+                streamingAssistantText: state.streamingAssistantText + event.text,
+              };
+            }
+            if (event.type === "done")
+              return {
+                streamingAssistantText: "",
+                streamingActiveRunId: undefined,
+              };
+            return state;
+          });
+        }
       );
 
       const unsubscribeRunActivity = window.digitalLife.subscribeRunActivity(
-        createRunActivitySubscriber(set)
+        (event) => {
+          if (event.v !== 1) return;
+          set((state: StoreState) => {
+            const runId = event.runId;
+            const prev = state.runActivityByRunId[runId] ?? [];
+            const next =
+              prev.length > 500
+                ? [...prev.slice(-400), event]
+                : [...prev, event];
+            const usagePatch: Partial<StoreState> = {
+              runActivityByRunId: { ...state.runActivityByRunId, [runId]: next },
+            };
+            if (event.type === "model" && event.usage) {
+              usagePatch.runUsageByRunId = {
+                ...state.runUsageByRunId,
+                [runId]: event.usage,
+              };
+            }
+            return usagePatch;
+          });
+        }
       );
 
       try {

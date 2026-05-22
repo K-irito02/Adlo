@@ -1,5 +1,6 @@
 import React, { useCallback, useRef, useState } from "react";
-import { renderIcon, type IconName } from "../../design-system/icons";
+import { type IconName } from "../../design-system/icons";
+import { Icon } from "./Icon";
 
 interface WelcomeStateProps {
   variant: "no-workspace" | "no-session";
@@ -22,12 +23,6 @@ const TIPS = [
   { icon: "keyboard" as IconName, text: "按 Ctrl+O 快速打开工作空间" },
   { icon: "globe" as IconName, text: "支持从 GitHub 克隆远程仓库" }
 ];
-
-function Icon({ name, size = "md" }: { name: IconName; size?: "xs" | "sm" | "md" | "lg" | "xl" | "2xl" }) {
-  return (
-    <span dangerouslySetInnerHTML={{ __html: renderIcon(name, { size, decorative: true }).value }} />
-  );
-}
 
 export function WelcomeState({
   variant,

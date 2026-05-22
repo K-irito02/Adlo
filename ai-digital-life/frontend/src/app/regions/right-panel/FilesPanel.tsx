@@ -126,7 +126,7 @@ export function FilesPanel(props: RightPanelViewProps) {
     }
   }, [getStickySourceEditor]);
 
-  const fileMenuItems: (FileMenuItem | FileMenuDivider)[] = [
+  const fileMenuItems: (FileMenuItem | FileMenuDivider)[] = useMemo(() => [
     { id: "save", label: t.fileSave as string, shortcut: "Ctrl+S", disabled: true },
     { id: "discard", label: t.fileDiscardChanges as string, disabled: true },
     { id: "sep-1", separator: true },
@@ -155,7 +155,7 @@ export function FilesPanel(props: RightPanelViewProps) {
       id: "agent-annotations", label: `${t.agentChangeAnnotations} ${editorOptions.agentAnnotationsEnabled ? "✓" : ""}`.trim(),
       disabled: !activeFilePatch, action: () => editorOptions.setAgentAnnotationsEnabled((v) => !v),
     },
-  ];
+  ], [t, selectedFilePath, selectedAbsolutePath, filePatch, editorOptions.lineNumbersEnabled, editorOptions.wordWrapEnabled, editorOptions.agentAnnotationsEnabled, activeFilePatch, handleCopyPath]);
 
   const resolvedTheme = (appInfo?.config?.resolvedTheme === "dark") ? "dark" : "light";
   const resolvedLocale = appInfo?.config?.language ?? "zh-CN";

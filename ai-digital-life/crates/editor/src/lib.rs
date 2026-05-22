@@ -1,1 +1,0 @@
-//! Editor-side logic (placeholder).

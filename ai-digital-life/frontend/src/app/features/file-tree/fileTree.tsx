@@ -385,7 +385,12 @@ export function FileTree<T extends FileTreeRenderableNode>(props: FileTreeProps<
               key={node.path}
               node={node}
               depth={0}
-              {...props}
+              expandedPaths={props.expandedPaths}
+              dirtyPaths={props.dirtyPaths}
+              externalChangePath={props.externalChangePath}
+              renderMeta={props.renderMeta}
+              getNodeClassName={props.getNodeClassName}
+              flat={props.flat}
               activePath={activePath}
               selectedPaths={selectedPaths}
               highlightedPath={highlightedPath}

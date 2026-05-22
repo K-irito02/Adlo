@@ -48,6 +48,7 @@
 - **CodeMirror 双实例 bug 修复**（解决 `@codemirror/state` `instanceof` 检查失败：添加显式依赖 + Vite `optimizeDeps.include` 强制预捆绑为单例）
 - **Store 拆分与桥接模块化**（`slicedStore.ts` 1465→87 行，拆分为 8 个 action 领域模块；`preview-bridge.ts` 615 行拆分为 4 个关注点分离的模块；`DigitalLifeBridge` 拆分为 13 个命名子接口；8 个 action 模块的 `set: any` 替换为 `StoreApi<StoreState>["setState"]` 类型保护）
 - **Rust 后端优化**（搜索逻辑去重消除 81% 重复代码、文件遍历消除双重 I/O、IGNORED_DIRS 从 7 项扩展至 18 项、正则 `OnceLock` 缓存）
+- **第七轮全面重构**（25 项修复：App 选择器拆分消除级联重渲染、Error Boundary 防白屏、storage mutex 中毒降级、model-gateway 错误传播、ptyBridge HMR 修复、DiffViewer 拆 4 文件、TerminalPanel 拆 7 文件 + hook、LeftSidebar 拆 5 文件 + 删除 210 行 Mock 死代码、Icon 6 处去重、3 处 useMemo 补充、context-engine 零分配优化、i18n 11 处替换等；cargo test + 183 前端测试全部通过）
 
 ### Zustand 切片模式（已完成）
 
@@ -77,7 +78,7 @@ app/stores/
 
 ### 模块化分层（已完成）
 
-前端组件已按功能域重构为 `features/` 目录：
+前端组件已按功能域重构为 `features/` 目录，大型组件已完成模块化拆分：
 
 ```
 app/features/
@@ -85,9 +86,11 @@ app/features/
 ├── outline/         # 代码大纲（OutlineTree, outlineModel）
 ├── patch-review/    # 补丁审查（patchReview 纯函数）
 ├── editor/          # CodeMirror 编辑器（CodeEditor, cmTheme, cmLanguages...）
-├── diff-viewer/     # 差异查看器（DiffViewer, changePreviewDiffRanges）
+├── diff-viewer/     # 差异查看器（路由 + SideBySide + Inline + 共享扩展 + 工具函数）
 ├── preview/         # 文件预览（MarkdownPreview, DocxPreview, PdfPreview）
-└── terminal/        # 终端面板（TerminalPanel）
+└── terminal/        # 终端面板（组合器 + useTerminalPanel hook + TabBar/EmptyState/ShellSelector/ContextMenu/MenuDropdown/Navigator）
+
+regions/left-sidebar/  # 左侧边栏拆分（WorkspaceList/SessionList/ConversationPanel/ResizeHandle/SidebarContextMenu）
 ```
 
 详见 [docs/重构洞察/refactor-insight-2026-05-21.md](./docs/重构洞察/refactor-insight-2026-05-21.md)
@@ -101,6 +104,8 @@ app/features/
 | 第三轮 | CSS Token 迁移 + 模块化分层 + 错误码统一 | 2026-05-21 |
 | 第四轮 | 重构洞察验证与修复（消除 `as any`、LRU 优化、SSE 管理等） | 2026-05-21 |
 | 第五轮 | CodeMirror 双实例 bug 修复（`@codemirror/state` 显式依赖 + `optimizeDeps.include`） | 2026-05-22 |
+| 第六轮 | Store 拆分 + 桥接模块化 + Rust 优化 | 2026-05-22 |
+| **第七轮** | **25 项全面修复 + 3 大型组件拆分 17 文件** | **2026-05-23** |
 
 全部详情见 [重构进度报告](./docs/重构洞察/REFACTORING_PROGRESS_REPORT.md)
 

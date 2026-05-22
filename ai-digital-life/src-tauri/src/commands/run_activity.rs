@@ -4,6 +4,27 @@ use adl_errors::AppError;
 use adl_kernel::{DigitalLifeRunActivityEventV1, IpcResult};
 use adl_storage::EntityTable;
 
+trait HasSeq {
+    fn seq(&self) -> i64;
+}
+
+impl HasSeq for DigitalLifeRunActivityEventV1 {
+    fn seq(&self) -> i64 {
+        match self {
+            DigitalLifeRunActivityEventV1::RunStart { seq, .. } => *seq,
+            DigitalLifeRunActivityEventV1::ContextAdded { seq, .. } => *seq,
+            DigitalLifeRunActivityEventV1::FileRead { seq, .. } => *seq,
+            DigitalLifeRunActivityEventV1::Search { seq, .. } => *seq,
+            DigitalLifeRunActivityEventV1::Command { seq, .. } => *seq,
+            DigitalLifeRunActivityEventV1::Model { seq, .. } => *seq,
+            DigitalLifeRunActivityEventV1::Patch { seq, .. } => *seq,
+            DigitalLifeRunActivityEventV1::Approval { seq, .. } => *seq,
+            DigitalLifeRunActivityEventV1::Error { seq, .. } => *seq,
+            DigitalLifeRunActivityEventV1::RunDone { seq, .. } => *seq,
+        }
+    }
+}
+
 #[tauri::command]
 pub fn run_activity_list_by_run_id(
     state: tauri::State<'_, AppState>,
@@ -23,18 +44,7 @@ fn list_by_run_id(
     let mut events: Vec<DigitalLifeRunActivityEventV1> = state
         .db
         .list_entities_by_status(EntityTable::RunActivityEvents, run_id)?;
-    events.sort_by_key(|event| match event {
-        DigitalLifeRunActivityEventV1::RunStart { seq, .. } => *seq,
-        DigitalLifeRunActivityEventV1::ContextAdded { seq, .. } => *seq,
-        DigitalLifeRunActivityEventV1::FileRead { seq, .. } => *seq,
-        DigitalLifeRunActivityEventV1::Search { seq, .. } => *seq,
-        DigitalLifeRunActivityEventV1::Command { seq, .. } => *seq,
-        DigitalLifeRunActivityEventV1::Model { seq, .. } => *seq,
-        DigitalLifeRunActivityEventV1::Patch { seq, .. } => *seq,
-        DigitalLifeRunActivityEventV1::Approval { seq, .. } => *seq,
-        DigitalLifeRunActivityEventV1::Error { seq, .. } => *seq,
-        DigitalLifeRunActivityEventV1::RunDone { seq, .. } => *seq,
-    });
+    events.sort_by_key(|e| e.seq());
     if let Some(limit) = limit {
         events.truncate(limit);
     }

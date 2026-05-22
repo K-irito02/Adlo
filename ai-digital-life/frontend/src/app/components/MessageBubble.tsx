@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { renderIcon, type IconName } from "../../design-system/icons";
 import { TooltipSimple } from "./Tooltip";
+import { Icon } from "./Icon";
 
 interface MessageBubbleProps {
   id: string;
@@ -10,12 +10,6 @@ interface MessageBubbleProps {
 }
 
 const EDIT_WINDOW_MS = 120_000;
-
-function Icon({ name, size = "md" }: { name: IconName; size?: "xs" | "sm" | "md" | "lg" | "xl" | "2xl" }) {
-  return (
-    <span dangerouslySetInnerHTML={{ __html: renderIcon(name, { size, decorative: true }).value }} />
-  );
-}
 
 export function MessageBubble({ id, role, content, timestamp }: MessageBubbleProps) {
   const [isHovered, setIsHovered] = useState(false);
