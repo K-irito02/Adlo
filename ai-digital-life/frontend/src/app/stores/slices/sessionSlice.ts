@@ -11,10 +11,6 @@ import type {
 } from "@ai-digital-life/kernel";
 import type { StoreState } from "../StoreState";
 
-// rAF-batched streaming buffer
-let _streamingRafPending = false;
-let _streamingBuffer = "";
-
 export interface SessionSlice {
   sessions: ConversationSessionRecord[];
   activeSessionId?: string;
@@ -44,7 +40,12 @@ export interface SessionSlice {
 export const createSessionSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
   get: () => StoreState
-): SessionSlice => ({
+): SessionSlice => {
+  // rAF-batched streaming buffer (closure-local, not module-level)
+  let _streamingRafPending = false;
+  let _streamingBuffer = "";
+
+  return {
   sessions: [],
   sessionDetails: {},
   streamingAssistantText: "",
@@ -105,4 +106,5 @@ export const createSessionSlice = (
     runUsageByRunId: { ...state.runUsageByRunId, [runId]: usage }
   })),
   clearStreaming: () => set({ streamingAssistantText: "", streamingActiveRunId: undefined })
-});
+  };
+};
