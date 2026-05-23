@@ -13,3 +13,5 @@ export { useStickyContext } from "./useStickyContext";
 export type { UseStickyContextInput } from "./useStickyContext";
 export { useWrapColumn } from "./useWrapColumn";
 export type { UseWrapColumnInput } from "./useWrapColumn";
+export { useRightPanelLayout } from "./useRightPanelLayout";
+export { useRightPanelViewProps } from "./useRightPanelViewProps";

@@ -9,7 +9,10 @@ pub mod pty_commands;
 pub mod retrieval;
 pub mod run_activity;
 pub mod task;
+pub mod platform;
 pub mod workspace;
+pub mod workspace_git;
+pub mod workspace_sidebar;
 
 use adl_errors::AppError;
 use adl_kernel::IpcResult;

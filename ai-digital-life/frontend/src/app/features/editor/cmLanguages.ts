@@ -10,33 +10,23 @@ import { python } from "@codemirror/lang-python";
 import { rust } from "@codemirror/lang-rust";
 import { xml } from "@codemirror/lang-xml";
 
+const languageExtensionMap: Record<string, () => Extension[]> = {
+  typescript: () => [javascript({ typescript: true, jsx: true })],
+  javascript: () => [javascript({ jsx: true })],
+  json: () => [json()],
+  yaml: () => [yaml()],
+  config: () => [yaml()],
+  html: () => [html()],
+  vue: () => [html()],
+  css: () => [css()],
+  markdown: () => [markdown()],
+  sql: () => [sql()],
+  python: () => [python()],
+  rust: () => [rust()],
+  xml: () => [xml()],
+};
+
 export function getLanguageExtension(languageId: string): Extension[] {
-  switch (languageId) {
-    case "typescript":
-      return [javascript({ typescript: true, jsx: true })];
-    case "javascript":
-      return [javascript({ jsx: true })];
-    case "json":
-      return [json()];
-    case "yaml":
-    case "config":
-      return [yaml()];
-    case "html":
-    case "vue":
-      return [html()];
-    case "css":
-      return [css()];
-    case "markdown":
-      return [markdown()];
-    case "sql":
-      return [sql()];
-    case "python":
-      return [python()];
-    case "rust":
-      return [rust()];
-    case "xml":
-      return [xml()];
-    default:
-      return [];
-  }
+  const factory = languageExtensionMap[languageId];
+  return factory ? factory() : [];
 }

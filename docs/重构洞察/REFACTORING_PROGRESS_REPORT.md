@@ -1,6 +1,6 @@
 # 重构进度报告
 
-> 更新日期: 2026-05-23
+> 更新日期: 2026-05-24
 
 ## 完成状态
 
@@ -14,6 +14,7 @@
 | 第六轮 | 2026-05-22 | Store/桥接/接口/性能/Rust 全面重构 | ✅ |
 | **第七轮** | **2026-05-23** | **重构洞察 22 项 + 大型组件拆分（19 项修复 + 3 组件拆 17 文件）** | ✅ |
 | **第八轮** | **2026-05-23** | **重构洞察第二轮 26 项（渲染性能 + 模块化 + 架构治理 + Rust 改进 + 润色）** | ✅ |
+| **第九轮** | **2026-05-24** | **重构洞察执行 22 项（Rust 长文件拆分 + 前端组件重构 + 目录治理 + 性能优化）** | ✅ |
 
 ## 第七轮重构（2026-05-23）：全面修复 + 大型组件模块化
 
@@ -203,12 +204,92 @@ features/diff-viewer/ (DiffViewer 拆分)
 | npx vite build | ✅ vendor chunks 正确生成 |
 | 新建文件 | `test-fixtures/resume-html.ts`, `test-fixtures/mock-data.ts`, `components/conversation/ContextBuilderPopover.tsx`, `styles/regions/*.css` (6 files) |
 
+## 第九轮重构（2026-05-24）：22 项重构洞察执行
+
+基于 [重构洞察报告 5-24](./refactor-insight-2026-05-24.md) 和 [实施计划](../../.trae/documents/refactor-implementation-plan-2026-05-24.md) 完成，分 6 个 Phase 共 22 项任务：
+
+### Phase 1：低风险独立修复（7 项 → 4 项实际执行）
+
+| 任务 | 文件 | 说明 |
+|------|------|------|
+| **cmLanguages switch→Map** | `cmLanguages.ts` | 20+ 语言扩展名 O(n) switch → O(1) Map 查找 |
+| **save_entity SQL 预构建** | `crates/storage/src/lib.rs` | 18 种 EntityTable 的 `format!` SQL → `&'static str` 无分配匹配 |
+| **presentable_recent_list 拆分** | `src-tauri/src/commands/workspace.rs` | 三职责（加载+合并+排序）→ `load_sidebar_with_meta` + `sort_and_filter_presentable` |
+| **其他 3 项跳过** | — | `collectAllNodePaths`、`list_tree` 排序、`brace_matchers` 已是最优，无需修改 |
+
+### Phase 2：前端 React 组件重构（4 项）
+
+| 任务 | 原行数 → 现主文件 | 说明 |
+|------|-------------------|------|
+| **RightPanel hook 提取** | 618 → 106 行 | `useRightPanelLayout`（resize 拖拽 + 布局）+ `useRightPanelViewProps`（30 store 订阅合并 + viewProps 构建）|
+| **useTerminalPanel 分组** | 54 扁平属性 → 4 组 | `terminalState`(28)、`terminalActions`(21)、`dragHandlers`(4)、`menuHandlers`(1) |
+| **StoreState 子接口** | 72 方法平铺 → 8 领域接口 | `WorkspaceActions`/`SessionActions`/`EditorActions`/`GitActions`/`PatchActions`/`SearchActions`/`TaskActions`/`CommandActions` + `DataFetchActions` |
+| **MultiWorkspacePanels 容器** | 3 组件 70% 重复 → 共享容器 | `MultiWorkspaceContainer` 接收 `renderContent` render prop，消除 ~200 行重复模板 |
+
+### Phase 3：Rust 后端长文件拆分（3 项）
+
+| 任务 | 原文件 | 说明 |
+|------|--------|------|
+| **workspace/lib.rs 拆分** | 2361 → 675 行 | 拆 15 个文件：`fs.rs`、`git.rs`、`search.rs`、`tree.rs`、`outline/{mod,brace,css,html,json,markdown,python,shell,sql,vue,yaml}.rs` |
+| **大纲按语言独立** | 与上合并执行 | 12 种语言解析器各归独立文件，`outline/mod.rs` 通过 `detect_outline_family` 分发 |
+| **storage schema 外部 SQL** | 内联 200 行字符串 → `sql/init_schema.sql` + `sql/init_indexes.sql` | 使用 `include_str!` 宏加载 |
+
+### Phase 4：性能深水区（1 项）
+
+| 任务 | 文件 | 说明 |
+|------|------|------|
+| **MessageStream 虚拟滚动** | `styles/main-content.css` | CSS `content-visibility: auto; contain-intrinsic-size: 200px` 渐进式性能提升 |
+
+### Phase 5：Tauri 命令层拆分（1 项）
+
+| 任务 | 原行数 → 现 | 说明 |
+|------|-------------|------|
+| **commands/workspace.rs 拆分** | 821 → 370 行 | 拆 3 文件：`workspace_sidebar.rs`(sidebar 管理)、`workspace_git.rs`(Git 命令)、`platform.rs`(文件管理器) |
+
+### Phase 6：目录整理与类型治理（4 项）
+
+| 任务 | 说明 |
+|------|------|
+| **mock-bridge 按接口拆分** | 1252 行 → 7 个子文件（mock-workspace/mock-conversation/mock-patch/mock-terminal/mock-task/mock-retrieval + shared） |
+| **right-panel/ 目录分组** | 分 3 个子目录：`panels/`、`editor-support/`、`hooks/` |
+| **StoreState 类型断言** | 编译期 `_StoreTypeCheck` 确保 store 满足 StoreState |
+| **切片依赖文档化** | `slices.ts` 顶部 6 条依赖关系注释 |
+
+### 关键改进
+
+| 改进项 | 说明 |
+|--------|------|
+| cmLanguages | 20+ 语言 switch O(n) → Map O(1) |
+| save_entity | 18 种 EntityTable 动态 format! → 静态 &'static str |
+| RightPanel | 618→106 行，2 个独立 hook |
+| useTerminalPanel | 54 扁平属性 → 4 组领域对象 |
+| StoreState | 72 平铺方法 → 9 领域子接口 |
+| MultiWorkspace | 3 组件 70% 重复 → 共享容器 |
+| workspace crate | 2361 行单体 → 15 个领域文件 |
+| commands/workspace | 821 行单体 → 3 个领域文件 + 370 行核心 |
+| mock-bridge | 1252 行单体 → 7 个子模块 |
+| storage schema | 200 行内联 SQL → 2 个外部 SQL 文件 |
+| right-panel/ | 20+ 文件扁平 → 3 个子目录分组 |
+| CSS 性能 | MessageStream content-visibility: auto |
+
+### 验证结果
+
+| 检查项 | 结果 |
+|--------|------|
+| TypeScript typecheck | ✅ 0 error |
+| 前端测试 (Vitest) | ✅ 31 files, 183 tests |
+| Rust cargo test (all crates) | ✅ 104 tests passed（6 ignored，与基线一致） |
+| Rust cargo check | ✅ 零警告 |
+| 新建文件 | `crates/workspace/src/` 15 文件、`crates/storage/sql/` 2 文件、`src-tauri/src/commands/` 3 文件、`frontend/src/mock/` 7 文件、`frontend/src/app/features/multi-workspace/`、`right-panel/hooks/` 2 文件、`right-panel/panels/` 3 文件、`right-panel/editor-support/` 4 文件 |
+
 ## 相关文档
 
 - [重构洞察报告 5-21](./refactor-insight-2026-05-21.md)
 - [重构洞察报告 5-22](./refactor-insight-2026-05-22.md)
 - [重构洞察报告 5-23](./refactor-insight-2026-05-23.md)
 - [重构洞察报告 5-23-2](./refactor-insight-2026-05-23-2.md)
+- [重构洞察报告 5-24](./refactor-insight-2026-05-24.md)
 - [第七轮修复计划](../../.trae/documents/refactor-fix-plan-2026-05-23.md)
 - [第八轮实施计划](../../.trae/documents/refactor-implementation-plan-2026-05-23.md)
+- [第九轮实施计划](../../.trae/documents/refactor-implementation-plan-2026-05-24.md)
 - [Phase 3 拆分计划](../../.trae/documents/refactor-phase3-split-plan-2026-05-23.md)

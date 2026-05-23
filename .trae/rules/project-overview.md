@@ -42,7 +42,7 @@ alwaysApply: true
 |------|------|
 | `frontend/src/tauri-bridge.ts` | Tauri 模式桥接 + `isTauriShell()` 检测 |
 | `frontend/src/preview-bridge/` | 浏览器模式桥接（Vite Preview API） |
-| `frontend/src/mock-bridge.ts` | 纯内存模拟数据（preview-bridge/ 基础层） |
+| `frontend/src/mock-bridge.ts` | 纯内存模拟数据入口（委托到 `mock/` 子模块） |
 | `frontend/src/shared/ipc.ts` | `DigitalLifeBridge` 类型定义 |
 
 ## 真源定位

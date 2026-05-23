@@ -31,59 +31,10 @@ export function TerminalPanel(props: RightPanelViewProps) {
   const hideWorkspaceFromRightPanels = useAppStore((s) => s.hideWorkspaceFromRightPanels);
 
   const {
-    xtermRef,
-    editInputRef,
-    shellMenuRef,
-    terminalMenuRef,
-    navigatorMode,
-    shellMenuOpen,
-    terminalMenuOpen,
-    contextMenu,
-    editingTabId,
-    editValue,
-    isDragging,
-    dragOverTabId,
-    terminalTabs,
-    terminalActiveTabId,
-    terminalNavigatorWidth,
-    navigatorCollapsed,
-    activeTab,
-    hasActiveTab,
-    currentProfile,
-    currentProfileLabel,
-    defaultTerminalProfile,
-    navigatorTitle,
-    navigatorCount,
-    recentCommands,
-    shellMenuItems,
-    shellTypeItems,
-    terminalMenuItems,
-    handleCreateTab,
-    handleSelectTab,
-    handleCloseTab,
-    handleCloseAllTabs,
-    handleDragStart,
-    handleDragEnd,
-    handleDragOver,
-    handleDrop,
-    handleTogglePin,
-    handleContextMenu,
-    handleDoubleClick,
-    handleEditSubmit,
-    handleEditKeyDown,
-    handleCopy,
-    handlePaste,
-    handleClear,
-    handleKill,
-    updateProfile,
-    toggleNavigator,
-    handleNavigatorResizeStart,
-    handleXtermData,
-    handleXtermResize,
-    setNavigatorMode,
-    setShellMenuOpen,
-    setTerminalMenuOpen,
-    setEditValue,
+    terminalState,
+    terminalActions,
+    dragHandlers,
+    menuHandlers,
   } = useTerminalPanel(props);
 
   const visibleWorkspaces = useMemo(
@@ -95,7 +46,7 @@ export function TerminalPanel(props: RightPanelViewProps) {
     return visibleWorkspaces.length > 0 && visibleWorkspaces.every((w) => terminalWorkspaceExpanded[w.id]);
   }, [visibleWorkspaces, terminalWorkspaceExpanded]);
 
-  const terminalNavigatorTitle = navigatorMode === "history" ? "命令历史" : "终端";
+  const terminalNavigatorTitle = terminalState.navigatorMode === "history" ? "命令历史" : "终端";
 
   const handleExpandAllTerminal = useCallback(() => {
     const expanded: Record<string, boolean> = {};
@@ -112,10 +63,10 @@ export function TerminalPanel(props: RightPanelViewProps) {
   const visibleTabCount = useMemo(() => {
     let count = 0;
     for (const ws of visibleWorkspaces) {
-      count += terminalTabs.filter(t => t.workspaceId === ws.id).length;
+      count += terminalState.terminalTabs.filter(t => t.workspaceId === ws.id).length;
     }
     return count;
-  }, [visibleWorkspaces, terminalTabs]);
+  }, [visibleWorkspaces, terminalState.terminalTabs]);
 
   const handleRefreshAllTerminal = useCallback(() => {
     const newExpanded: Record<string, boolean> = {};
@@ -141,28 +92,28 @@ export function TerminalPanel(props: RightPanelViewProps) {
     <div className="adl-tool-panel adl-tool-panel--terminal">
       <div className="adl-tool-context adl-tool-context--files" aria-label={t.toolTerminal}>
         <div className="adl-tool-context__group adl-tool-context__group--grow adl-tool-context__group--files">
-          <TooltipSimple content={navigatorCollapsed ? t.panelToggleRight : t.panelToggleLeft} placement="top">
+          <TooltipSimple content={terminalState.navigatorCollapsed ? t.panelToggleRight : t.panelToggleLeft} placement="top">
             <button
               type="button"
               className="adl-tool-context__iconbtn adl-tool-context__iconbtn--leading"
-              onClick={() => toggleNavigator("terminal")}
-              aria-label={navigatorCollapsed ? t.panelToggleRight : t.panelToggleLeft}
+              onClick={() => terminalActions.toggleNavigator("terminal")}
+              aria-label={terminalState.navigatorCollapsed ? t.panelToggleRight : t.panelToggleLeft}
             >
               <IconPanelLeftClose size={14} decorative />
             </button>
           </TooltipSimple>
           <div className="adl-tool-context__group--terminal-actions">
             <TerminalShellSelector
-              currentProfile={currentProfile}
-              currentProfileLabel={currentProfileLabel}
-              menuOpen={shellMenuOpen}
-              menuItems={shellMenuItems}
-              menuRef={shellMenuRef}
-              onCreateTab={handleCreateTab}
-              onToggle={() => setShellMenuOpen((value) => !value)}
+              currentProfile={terminalState.currentProfile}
+              currentProfileLabel={terminalState.currentProfileLabel}
+              menuOpen={terminalState.shellMenuOpen}
+              menuItems={terminalState.shellMenuItems}
+              menuRef={terminalState.shellMenuRef}
+              onCreateTab={terminalActions.handleCreateTab}
+              onToggle={() => terminalActions.setShellMenuOpen((value) => !value)}
               onSelect={(profile: TerminalProfile) => {
-                updateProfile(profile);
-                setShellMenuOpen(false);
+                terminalActions.updateProfile(profile);
+                terminalActions.setShellMenuOpen(false);
               }}
               t={t}
             />
@@ -170,19 +121,19 @@ export function TerminalPanel(props: RightPanelViewProps) {
         </div>
         <div className="adl-tool-context__group adl-tool-context__group--files-actions">
           <TerminalMenuDropdown
-            menuOpen={terminalMenuOpen}
-            menuRef={terminalMenuRef}
-            menuItems={terminalMenuItems}
-            onToggle={() => setTerminalMenuOpen((value) => !value)}
-            onClose={() => setTerminalMenuOpen(false)}
+            menuOpen={terminalState.terminalMenuOpen}
+            menuRef={terminalState.terminalMenuRef}
+            menuItems={terminalState.terminalMenuItems}
+            onToggle={() => terminalActions.setTerminalMenuOpen((value) => !value)}
+            onClose={() => terminalActions.setTerminalMenuOpen(false)}
             t={t}
           />
         </div>
       </div>
 
       <div
-        className={`adl-tool-surface adl-tool-surface--files${navigatorCollapsed ? " is-navigator-collapsed" : ""}`}
-        style={{ "--adl-files-nav-width": `${terminalNavigatorWidth}px` } as React.CSSProperties}
+        className={`adl-tool-surface adl-tool-surface--files${terminalState.navigatorCollapsed ? " is-navigator-collapsed" : ""}`}
+        style={{ "--adl-files-nav-width": `${terminalState.terminalNavigatorWidth}px` } as React.CSSProperties}
       >
         <aside className="adl-tool-navigator">
           <div className="adl-tool-navigator__context">
@@ -220,10 +171,10 @@ export function TerminalPanel(props: RightPanelViewProps) {
               <TooltipSimple content="终端" placement="top">
                 <button
                   type="button"
-                  className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${navigatorMode === "sessions" ? " is-active" : ""}`}
-                  onClick={() => setNavigatorMode("sessions")}
+                  className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${terminalState.navigatorMode === "sessions" ? " is-active" : ""}`}
+                  onClick={() => terminalActions.setNavigatorMode("sessions")}
                   aria-label="终端"
-                  aria-pressed={navigatorMode === "sessions" ? "true" : "false"}
+                  aria-pressed={terminalState.navigatorMode === "sessions" ? "true" : "false"}
                 >
                   <IconFiles size={14} decorative />
                 </button>
@@ -231,10 +182,10 @@ export function TerminalPanel(props: RightPanelViewProps) {
               <TooltipSimple content="命令历史" placement="top">
                 <button
                   type="button"
-                  className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${navigatorMode === "history" ? " is-active" : ""}`}
-                  onClick={() => setNavigatorMode("history")}
+                  className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${terminalState.navigatorMode === "history" ? " is-active" : ""}`}
+                  onClick={() => terminalActions.setNavigatorMode("history")}
                   aria-label="命令历史"
-                  aria-pressed={navigatorMode === "history" ? "true" : "false"}
+                  aria-pressed={terminalState.navigatorMode === "history" ? "true" : "false"}
                 >
                   <IconFileCode size={14} decorative />
                 </button>
@@ -245,7 +196,7 @@ export function TerminalPanel(props: RightPanelViewProps) {
                 <button
                   type="button"
                   className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-                  onClick={handleCloseAllTabs}
+                  onClick={terminalActions.handleCloseAllTabs}
                   aria-label="删除全部"
                 >
                   <IconTrash size={14} decorative />
@@ -256,29 +207,29 @@ export function TerminalPanel(props: RightPanelViewProps) {
           <MultiWorkspaceTerminal
             workspaces={visibleWorkspaces}
             expandedStates={terminalWorkspaceExpanded}
-            terminalTabs={terminalTabs}
-            activeTabId={terminalActiveTabId}
+            terminalTabs={terminalState.terminalTabs}
+            activeTabId={terminalState.terminalActiveTabId}
             onToggleExpand={toggleTerminalWorkspaceExpanded}
-            onCreateTab={(wsId) => terminalCreateTab(defaultTerminalProfile, wsId)}
+            onCreateTab={(wsId) => terminalCreateTab(terminalState.defaultTerminalProfile, wsId)}
             onSelectTab={terminalSelectTab}
             onCloseTab={terminalCloseTab}
             onTogglePin={terminalTogglePin}
             onHideFromRightPanels={handleHideTerminalWorkspace}
             onRefreshTree={handleRefreshAllTerminal}
-            onCloseAllTabs={handleCloseAllTabs}
+            onCloseAllTabs={terminalActions.handleCloseAllTabs}
             t={props.t}
           />
         </aside>
 
         <div className="adl-tool-primary">
           <div className="adl-tool-primary__scroll adl-tool-primary__scroll--terminal">
-            {hasActiveTab ? (
+            {terminalState.hasActiveTab ? (
               <>
                 <XtermTerminal
-                  ref={xtermRef}
+                  ref={terminalState.xtermRef}
                   className="adl-terminal-canvas"
-                  onData={handleXtermData}
-                  onResize={handleXtermResize}
+                  onData={terminalActions.handleXtermData}
+                  onResize={terminalActions.handleXtermResize}
                 />
                 {latestCommandRun?.status === "waiting-approval" && (
                   <div className="adl-terminal-approval-hint">
@@ -292,7 +243,7 @@ export function TerminalPanel(props: RightPanelViewProps) {
                     </button>
                   </div>
                 )}
-                {activeTab!.status === "terminated" && !activeTab!.sessionId && (
+                {terminalState.activeTab!.status === "terminated" && !terminalState.activeTab!.sessionId && (
                   <div className="adl-terminal-error-note">
                     <span>{"\u26A0"}</span>
                     <span>{t.terminalShellNotFound}</span>
@@ -301,8 +252,8 @@ export function TerminalPanel(props: RightPanelViewProps) {
               </>
             ) : (
               <TerminalEmptyState
-                shellTypeItems={shellTypeItems}
-                onSelectProfile={handleCreateTab}
+                shellTypeItems={terminalState.shellTypeItems}
+                onSelectProfile={terminalActions.handleCreateTab}
                 t={t}
               />
             )}
@@ -311,10 +262,10 @@ export function TerminalPanel(props: RightPanelViewProps) {
       </div>
 
       <TerminalContextMenu
-        contextMenu={contextMenu}
-        onTogglePin={handleTogglePin}
-        onRename={handleRenameFromContextMenu(terminalTabs, contextMenu, handleDoubleClick)}
-        onDelete={handleDeleteFromContextMenu(contextMenu, handleCloseTab)}
+        contextMenu={terminalState.contextMenu}
+        onTogglePin={terminalActions.handleTogglePin}
+        onRename={handleRenameFromContextMenu(terminalState.terminalTabs, terminalState.contextMenu, terminalActions.handleDoubleClick)}
+        onDelete={handleDeleteFromContextMenu(terminalState.contextMenu, terminalActions.handleCloseTab)}
         onClose={noop}
         t={t}
       />

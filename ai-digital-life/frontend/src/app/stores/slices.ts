@@ -1,5 +1,19 @@
 /**
  * Store Slices - Zustand 切片模式定义和导出
+ *
+ * ## 切片依赖关系
+ *
+ * 各切片之间存在隐式依赖关系，通过 `get()` 在 action 中访问：
+ *
+ * - `sessionSlice` ← `editorSlice`、`patchSlice`、`taskSlice`、`commandSlice`
+ *   （依赖 `activeSessionId` 作为当前会话上下文）
+ * - `workspaceSlice` ← `gitSlice`、`searchSlice`、`editorSlice`
+ *   （依赖 `currentWorkspace` / `workspaceId` 作为文件操作上下文）
+ * - `uiSlice` ← 所有切片（通过 `activeRightTool` 控制面板显示）
+ * - `clipboardSlice` ← 无依赖（独立剪贴板状态）
+ *
+ * 依赖方向：切片 A ← 切片 B 表示 B 通过 get() 读取 A 的状态。
+ * 所有跨切片访问在创建 store 时由 create() 注入 set/get 参数。
  */
 
 // UI 切片

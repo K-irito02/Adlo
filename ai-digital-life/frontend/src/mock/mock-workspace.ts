@@ -1,0 +1,318 @@
+import type { WorkspaceBridge } from "../shared/ipc";
+import type {
+  GitBranchSummary,
+  GitSnapshot,
+  WorkspaceChangePreview,
+  WorkspaceGitBranchChangeResult,
+  WorkspaceGitBranchCreateInput,
+  WorkspaceGitBranchSwitchInput,
+  WorkspaceMeta,
+  WorkspaceSearchHit
+} from "@ai-digital-life/kernel";
+import {
+  buildMockChangePreview,
+  buildMockWorkspaceMeta,
+  buildWorkspaceTreeFromPaths,
+  currentWorkspaceMeta,
+  documents,
+  emptyDirectories,
+  emptyGitSnapshot,
+  ensureRecentWorkspace,
+  fileVersions,
+  recentWorkspaces,
+  setMockCurrentWorkspace,
+  workspaceRoot,
+} from "./shared";
+import { buildOutlineFromContent } from "../shared/outline";
+import type { FileOutlineItem } from "@ai-digital-life/kernel";
+
+export function setMockActiveWorkspace(workspace?: WorkspaceMeta): void {
+  setMockCurrentWorkspace(workspace);
+}
+
+export const mockWorkspace: WorkspaceBridge = {
+  listRecent: async () => ({ ok: true, data: recentWorkspaces }),
+  open: async (workspacePath: string) => ({
+    ok: true,
+    data: (() => {
+      const next = buildMockWorkspaceMeta(workspacePath);
+      ensureRecentWorkspace(next);
+      setMockCurrentWorkspace(next);
+      return next;
+    })()
+  }),
+  clearCurrent: async () => {
+    setMockCurrentWorkspace(undefined);
+    return { ok: true, data: true };
+  },
+  pickDirectory: async () => ({
+    ok: false,
+    error: { code: "UNSUPPORTED", message: "Directory picker is unavailable in the mock bridge." }
+  }),
+  pin: async (workspaceId: string) => {
+    const entry = recentWorkspaces.find((item) => item.id === workspaceId);
+    if (entry) {
+      entry.isPinned = true;
+    }
+    return { ok: true, data: recentWorkspaces };
+  },
+  unpin: async (workspaceId: string) => {
+    const entry = recentWorkspaces.find((item) => item.id === workspaceId);
+    if (entry) {
+      entry.isPinned = false;
+    }
+    return { ok: true, data: recentWorkspaces };
+  },
+  reorder: async () => ({ ok: true, data: recentWorkspaces }),
+  removeFromSidebar: async (workspaceId: string) => {
+    const entry = recentWorkspaces.find((item) => item.id === workspaceId);
+    if (entry) {
+      entry.removedFromSidebar = true;
+      entry.hiddenFromRightPanels = true;
+    }
+    return { ok: true, data: recentWorkspaces };
+  },
+  restoreToSidebar: async (workspaceId: string) => {
+    const entry = recentWorkspaces.find((item) => item.id === workspaceId);
+    if (entry) {
+      entry.removedFromSidebar = false;
+    }
+    return { ok: true, data: recentWorkspaces };
+  },
+  listTreeForWorkspace: async (workspacePath: string) => ({
+    ok: true,
+    data: currentWorkspaceMeta ? buildWorkspaceTreeFromPaths(Array.from(documents.keys()), Array.from(emptyDirectories)) : []
+  }),
+  listGitStatusForWorkspace: async (_workspacePath: string) => ({
+    ok: true,
+    data: { isRepo: true, branch: "main", staged: [], unstaged: [], untracked: [], conflicts: [], capturedAt: Date.now() }
+  }),
+  hideFromRightPanels: async (workspaceId: string) => {
+    const entry = recentWorkspaces.find((item) => item.id === workspaceId);
+    if (entry) {
+      entry.hiddenFromRightPanels = true;
+    }
+    return { ok: true, data: recentWorkspaces };
+  },
+  showInRightPanels: async (workspaceId: string) => {
+    const entry = recentWorkspaces.find((item) => item.id === workspaceId);
+    if (entry) {
+      entry.hiddenFromRightPanels = false;
+    }
+    return { ok: true, data: recentWorkspaces };
+  },
+  revealInFileManager: async () => ({ ok: true, data: true }),
+  createFile: async (relativePath: string, content = "") => {
+    documents.set(relativePath, content);
+    fileVersions.set(relativePath, Date.now());
+    return {
+      ok: true,
+      data: {
+        path: relativePath,
+        content,
+        lastModifiedAt: fileVersions.get(relativePath) ?? Date.now()
+      }
+    };
+  },
+  createFolder: async (relativePath: string) => {
+    emptyDirectories.add(relativePath.replace(/\\/g, "/").replace(/^\/+|\/+$/g, ""));
+    return { ok: true, data: true };
+  },
+  listTree: async () => ({
+    ok: true,
+    data: currentWorkspaceMeta ? buildWorkspaceTreeFromPaths(Array.from(documents.keys()), Array.from(emptyDirectories)) : []
+  }),
+  readFile: async (relativePath: string) => ({
+    ok: true,
+    data: {
+      path: relativePath,
+      content: documents.get(relativePath) ?? "",
+      lastModifiedAt: fileVersions.get(relativePath) ?? Date.now()
+    }
+  }),
+  getChangePreview: async (relativePath: string) => ({
+    ok: true,
+    data: buildMockChangePreview(relativePath)
+  }),
+  getChangePreviewForWorkspace: async (_workspacePath: string, relativePath: string) => {
+    if (!currentWorkspaceMeta) return { ok: false, error: { message: "No workspace", code: "NO_WORKSPACE" } };
+    return {
+      ok: true,
+      data: buildMockChangePreview(relativePath),
+    };
+  },
+  search: async (query: string) => {
+    const hits: WorkspaceSearchHit[] = Array.from(documents.entries())
+      .flatMap(([filePath, content]) =>
+        content
+          .split(/\r?\n/)
+          .map((lineText, index) => ({ filePath, lineText, index }))
+          .filter((entry) => entry.lineText.toLowerCase().includes(query.toLowerCase()))
+          .map((entry) => ({
+            path: entry.filePath,
+            line: entry.index + 1,
+            preview: entry.lineText.trim()
+          }))
+      )
+      .slice(0, 10);
+    return { ok: true, data: hits };
+  },
+  outline: async (relativePath: string) => {
+    const content = documents.get(relativePath) ?? "";
+    const items: FileOutlineItem[] = buildOutlineFromContent(content, relativePath);
+    return { ok: true, data: items };
+  },
+  renameFile: async (relativePath: string, newName: string) => {
+    const keys = Array.from(documents.keys());
+    const prefix = relativePath.endsWith("/") ? relativePath : relativePath.substring(0, relativePath.lastIndexOf("/") + 1);
+    for (const key of keys) {
+      if (key === relativePath || key.startsWith(relativePath + "/")) {
+        const newKey = prefix + newName + key.substring(relativePath.length);
+        const content = documents.get(key) ?? "";
+        documents.delete(key);
+        documents.set(newKey, content);
+        const ver = fileVersions.get(key) ?? Date.now();
+        fileVersions.delete(key);
+        fileVersions.set(newKey, Date.now());
+      }
+    }
+    return { ok: true, data: true };
+  },
+  deleteFile: async (relativePath: string) => {
+    const keys = Array.from(documents.keys());
+    for (const key of keys) {
+      if (key === relativePath || key.startsWith(relativePath + "/")) {
+        documents.delete(key);
+        fileVersions.delete(key);
+      }
+    }
+    emptyDirectories.delete(relativePath);
+    return { ok: true, data: true };
+  },
+  duplicateFile: async (srcRelativePath: string, dstRelativePath: string) => {
+    const keys = Array.from(documents.keys());
+    for (const key of keys) {
+      if (key === srcRelativePath || key.startsWith(srcRelativePath + "/")) {
+        const newKey = dstRelativePath + key.substring(srcRelativePath.length);
+        const content = documents.get(key) ?? "";
+        documents.set(newKey, content);
+        fileVersions.set(newKey, Date.now());
+      }
+    }
+    return { ok: true, data: true };
+  },
+  getAbsolutePath: async (relativePath: string) => {
+    return { ok: true, data: `/mock/workspace/${relativePath}` };
+  },
+  moveFile: async (relativePath: string, newPath: string) => {
+    const content = documents.get(relativePath);
+    if (content !== undefined) {
+      documents.delete(relativePath);
+      documents.set(newPath, content);
+      const ver = fileVersions.get(relativePath);
+      fileVersions.delete(relativePath);
+      fileVersions.set(newPath, ver ?? Date.now());
+    } else {
+      const keys = Array.from(documents.keys()).filter(k => k.startsWith(relativePath + "/"));
+      for (const key of keys) {
+        const kcontent = documents.get(key);
+        documents.delete(key);
+        documents.set(newPath + key.substring(relativePath.length), kcontent ?? "");
+        const ver = fileVersions.get(key);
+        fileVersions.delete(key);
+        fileVersions.set(newPath + key.substring(relativePath.length), ver ?? Date.now());
+      }
+    }
+    return { ok: true, data: true };
+  },
+  setEditorDirtyPaths: async () => ({ ok: true, data: true }),
+  getGitStatus: async () => ({
+    ok: true,
+    data: currentWorkspaceMeta?.gitSnapshot ?? emptyGitSnapshot()
+  }),
+  listGitBranches: async () => {
+    if (!currentWorkspaceMeta) {
+      return { ok: false, error: { code: "NOT_FOUND", message: "active workspace" } };
+    }
+    const currentBranch = currentWorkspaceMeta.gitSnapshot?.branch ?? "main";
+    const branches: GitBranchSummary[] = [
+      { name: currentBranch, isCurrent: true },
+      { name: "main", isCurrent: currentBranch === "main" },
+      { name: "experiment/mock", isCurrent: currentBranch === "experiment/mock" }
+    ].filter((branch, index, list) => list.findIndex((item) => item.name === branch.name) === index);
+    return { ok: true, data: branches };
+  },
+  switchGitBranch: async (input: WorkspaceGitBranchSwitchInput) => {
+    if (!currentWorkspaceMeta) {
+      return { ok: false, error: { code: "NOT_FOUND", message: "active workspace" } };
+    }
+    const dirty = (currentWorkspaceMeta.gitSnapshot?.staged.length ?? 0) > 0 ||
+      (currentWorkspaceMeta.gitSnapshot?.unstaged.length ?? 0) > 0 ||
+      (currentWorkspaceMeta.gitSnapshot?.untracked.length ?? 0) > 0;
+    if (dirty && !input.allowStash) {
+      return {
+        ok: false,
+        error: { code: "INVALID_INPUT", message: "Dirty worktree requires explicit stash confirmation." }
+      };
+    }
+    const previousBranch = currentWorkspaceMeta.gitSnapshot?.branch ?? "main";
+    const gitSnapshot: GitSnapshot = {
+      ...(currentWorkspaceMeta.gitSnapshot ?? emptyGitSnapshot()),
+      isRepo: true,
+      branch: input.branchName,
+      staged: [],
+      unstaged: [],
+      untracked: [],
+      conflicts: [],
+      capturedAt: Date.now()
+    };
+    const workspace = { ...currentWorkspaceMeta, gitSnapshot, updatedAt: Date.now(), lastOpenedAt: Date.now() };
+    setMockCurrentWorkspace(workspace);
+    const result: WorkspaceGitBranchChangeResult = {
+      workspace,
+      gitSnapshot,
+      previousBranch,
+      currentBranch: input.branchName,
+      stashedChanges: dirty
+    };
+    return { ok: true, data: result };
+  },
+  createGitBranch: async (input: WorkspaceGitBranchCreateInput) => {
+    if (!currentWorkspaceMeta) {
+      return { ok: false, error: { code: "NOT_FOUND", message: "active workspace" } };
+    }
+    const previousBranch = currentWorkspaceMeta.gitSnapshot?.branch ?? "main";
+    const shouldStash =
+      Boolean(input.baseBranch && input.baseBranch !== previousBranch) &&
+      (((currentWorkspaceMeta.gitSnapshot?.staged.length ?? 0) > 0) ||
+        ((currentWorkspaceMeta.gitSnapshot?.unstaged.length ?? 0) > 0) ||
+        ((currentWorkspaceMeta.gitSnapshot?.untracked.length ?? 0) > 0));
+    if (shouldStash && !input.allowStash) {
+      return {
+        ok: false,
+        error: { code: "INVALID_INPUT", message: "Dirty worktree requires explicit stash confirmation." }
+      };
+    }
+    const gitSnapshot: GitSnapshot = {
+      ...(currentWorkspaceMeta.gitSnapshot ?? emptyGitSnapshot()),
+      isRepo: true,
+      branch: input.branchName,
+      staged: [],
+      unstaged: [],
+      untracked: [],
+      conflicts: [],
+      capturedAt: Date.now()
+    };
+    const workspace = { ...currentWorkspaceMeta, gitSnapshot, updatedAt: Date.now(), lastOpenedAt: Date.now() };
+    setMockCurrentWorkspace(workspace);
+    const result: WorkspaceGitBranchChangeResult = {
+      workspace,
+      gitSnapshot,
+      previousBranch,
+      currentBranch: input.branchName,
+      stashedChanges: shouldStash
+    };
+    return { ok: true, data: result };
+  },
+  onFileChanged: () => () => undefined
+};

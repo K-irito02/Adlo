@@ -25,60 +25,68 @@ export interface ContextMenuState {
 }
 
 export interface UseTerminalPanelReturn {
-  xtermRef: React.RefObject<XtermTerminalHandle | null>;
-  sessionOutputsRef: React.RefObject<Map<string, string>>;
-  editInputRef: React.RefObject<HTMLInputElement | null>;
-  shellMenuRef: React.RefObject<HTMLDivElement | null>;
-  terminalMenuRef: React.RefObject<HTMLDivElement | null>;
-  navigatorMode: TerminalNavigatorMode;
-  shellMenuOpen: boolean;
-  terminalMenuOpen: boolean;
-  contextMenu: ContextMenuState;
-  editingTabId: string | null;
-  editValue: string;
-  isDragging: boolean;
-  dragOverTabId: string | null;
-  terminalTabs: ReturnType<typeof terminalSelectors.useTerminalTabs>;
-  terminalActiveTabId: string;
-  defaultTerminalProfile: TerminalProfile;
-  terminalNavigatorWidth: number;
-  navigatorCollapsed: boolean;
-  activeTab?: ReturnType<typeof terminalSelectors.useActiveTerminalTab>;
-  hasActiveTab: boolean;
-  currentProfile: TerminalProfile;
-  currentProfileLabel: string;
-  navigatorTitle: string;
-  navigatorCount: number;
-  recentCommands: Array<{ id: string; label: string; title: string }>;
-  shellMenuItems: TerminalShellMenuItem[];
-  shellTypeItems: Array<TerminalShellMenuItem & { label: string; profile: TerminalProfile }>;
-  terminalMenuItems: TerminalMenuItem[];
-  handleCreateTab: (profile?: TerminalProfile) => Promise<void>;
-  handleSelectTab: (tabId: string) => void;
-  handleCloseTab: (tabId: string) => void;
-  handleCloseAllTabs: () => void;
-  handleDragStart: (e: React.DragEvent, tabId: string, isPinned: boolean) => void;
-  handleDragEnd: () => void;
-  handleDragOver: (e: React.DragEvent, tabId: string, isPinned: boolean) => void;
-  handleDrop: (e: React.DragEvent, targetTabId: string, targetIsPinned: boolean) => void;
-  handleTogglePin: () => void;
-  handleContextMenu: (e: React.MouseEvent, tabId: string, isPinned: boolean) => void;
-  handleDoubleClick: (tabId: string, title: string) => void;
-  handleEditSubmit: () => void;
-  handleEditKeyDown: (e: React.KeyboardEvent) => void;
-  handleCopy: () => void;
-  handlePaste: () => void;
-  handleClear: () => void;
-  handleKill: () => void;
-  updateProfile: (profile: TerminalProfile) => void;
-  toggleNavigator: (tool: string) => void;
-  handleNavigatorResizeStart: (event: React.PointerEvent<HTMLDivElement>) => void;
-  handleXtermData: (data: string) => void;
-  handleXtermResize: (cols: number, rows: number) => void;
-  setNavigatorMode: (mode: TerminalNavigatorMode) => void;
-  setShellMenuOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  setTerminalMenuOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  setEditValue: React.Dispatch<React.SetStateAction<string>>;
+  terminalState: {
+    xtermRef: React.RefObject<XtermTerminalHandle | null>;
+    sessionOutputsRef: React.RefObject<Map<string, string>>;
+    editInputRef: React.RefObject<HTMLInputElement | null>;
+    shellMenuRef: React.RefObject<HTMLDivElement | null>;
+    terminalMenuRef: React.RefObject<HTMLDivElement | null>;
+    navigatorMode: TerminalNavigatorMode;
+    shellMenuOpen: boolean;
+    terminalMenuOpen: boolean;
+    contextMenu: ContextMenuState;
+    editingTabId: string | null;
+    editValue: string;
+    isDragging: boolean;
+    dragOverTabId: string | null;
+    terminalTabs: ReturnType<typeof terminalSelectors.useTerminalTabs>;
+    terminalActiveTabId: string;
+    defaultTerminalProfile: TerminalProfile;
+    terminalNavigatorWidth: number;
+    navigatorCollapsed: boolean;
+    activeTab?: ReturnType<typeof terminalSelectors.useActiveTerminalTab>;
+    hasActiveTab: boolean;
+    currentProfile: TerminalProfile;
+    currentProfileLabel: string;
+    navigatorTitle: string;
+    navigatorCount: number;
+    recentCommands: Array<{ id: string; label: string; title: string }>;
+    shellMenuItems: TerminalShellMenuItem[];
+    shellTypeItems: Array<TerminalShellMenuItem & { label: string; profile: TerminalProfile }>;
+    terminalMenuItems: TerminalMenuItem[];
+  };
+  terminalActions: {
+    handleCreateTab: (profile?: TerminalProfile) => Promise<void>;
+    handleSelectTab: (tabId: string) => void;
+    handleCloseTab: (tabId: string) => void;
+    handleCloseAllTabs: () => void;
+    handleTogglePin: () => void;
+    handleDoubleClick: (tabId: string, title: string) => void;
+    handleEditSubmit: () => void;
+    handleEditKeyDown: (e: React.KeyboardEvent) => void;
+    handleCopy: () => void;
+    handlePaste: () => void;
+    handleClear: () => void;
+    handleKill: () => void;
+    updateProfile: (profile: TerminalProfile) => void;
+    toggleNavigator: (tool: string) => void;
+    handleNavigatorResizeStart: (event: React.PointerEvent<HTMLDivElement>) => void;
+    handleXtermData: (data: string) => void;
+    handleXtermResize: (cols: number, rows: number) => void;
+    setNavigatorMode: (mode: TerminalNavigatorMode) => void;
+    setShellMenuOpen: React.Dispatch<React.SetStateAction<boolean>>;
+    setTerminalMenuOpen: React.Dispatch<React.SetStateAction<boolean>>;
+    setEditValue: React.Dispatch<React.SetStateAction<string>>;
+  };
+  dragHandlers: {
+    handleDragStart: (e: React.DragEvent, tabId: string, isPinned: boolean) => void;
+    handleDragEnd: () => void;
+    handleDragOver: (e: React.DragEvent, tabId: string, isPinned: boolean) => void;
+    handleDrop: (e: React.DragEvent, targetTabId: string, targetIsPinned: boolean) => void;
+  };
+  menuHandlers: {
+    handleContextMenu: (e: React.MouseEvent, tabId: string, isPinned: boolean) => void;
+  };
 }
 
 export function useTerminalPanel(props: RightPanelViewProps): UseTerminalPanelReturn {
@@ -445,59 +453,67 @@ export function useTerminalPanel(props: RightPanelViewProps): UseTerminalPanelRe
   }, [activeTab?.sessionId]);
 
   return {
-    xtermRef,
-    sessionOutputsRef,
-    editInputRef,
-    shellMenuRef,
-    terminalMenuRef,
-    navigatorMode,
-    shellMenuOpen,
-    terminalMenuOpen,
-    contextMenu,
-    editingTabId,
-    editValue,
-    isDragging,
-    dragOverTabId,
-    terminalTabs,
-    terminalActiveTabId,
-    defaultTerminalProfile,
-    terminalNavigatorWidth,
-    navigatorCollapsed,
-    activeTab,
-    hasActiveTab,
-    currentProfile,
-    currentProfileLabel,
-    navigatorTitle,
-    navigatorCount,
-    recentCommands,
-    shellMenuItems,
-    shellTypeItems,
-    terminalMenuItems,
-    handleCreateTab,
-    handleSelectTab,
-    handleCloseTab,
-    handleCloseAllTabs,
-    handleDragStart,
-    handleDragEnd,
-    handleDragOver,
-    handleDrop,
-    handleTogglePin,
-    handleContextMenu,
-    handleDoubleClick,
-    handleEditSubmit,
-    handleEditKeyDown,
-    handleCopy,
-    handlePaste,
-    handleClear,
-    handleKill,
-    updateProfile,
-    toggleNavigator,
-    handleNavigatorResizeStart,
-    handleXtermData,
-    handleXtermResize,
-    setNavigatorMode,
-    setShellMenuOpen,
-    setTerminalMenuOpen,
-    setEditValue,
+    terminalState: {
+      xtermRef,
+      sessionOutputsRef,
+      editInputRef,
+      shellMenuRef,
+      terminalMenuRef,
+      navigatorMode,
+      shellMenuOpen,
+      terminalMenuOpen,
+      contextMenu,
+      editingTabId,
+      editValue,
+      isDragging,
+      dragOverTabId,
+      terminalTabs,
+      terminalActiveTabId,
+      defaultTerminalProfile,
+      terminalNavigatorWidth,
+      navigatorCollapsed,
+      activeTab,
+      hasActiveTab,
+      currentProfile,
+      currentProfileLabel,
+      navigatorTitle,
+      navigatorCount,
+      recentCommands,
+      shellMenuItems,
+      shellTypeItems,
+      terminalMenuItems,
+    },
+    terminalActions: {
+      handleCreateTab,
+      handleSelectTab,
+      handleCloseTab,
+      handleCloseAllTabs,
+      handleTogglePin,
+      handleDoubleClick,
+      handleEditSubmit,
+      handleEditKeyDown,
+      handleCopy,
+      handlePaste,
+      handleClear,
+      handleKill,
+      updateProfile,
+      toggleNavigator,
+      handleNavigatorResizeStart,
+      handleXtermData,
+      handleXtermResize,
+      setNavigatorMode,
+      setShellMenuOpen,
+      setTerminalMenuOpen,
+      setEditValue,
+    },
+    dragHandlers: {
+      handleDragStart,
+      handleDragEnd,
+      handleDragOver,
+      handleDrop,
+    },
+    menuHandlers: {
+      handleContextMenu,
+    },
   };
 }

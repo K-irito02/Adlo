@@ -87,4 +87,9 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
   ...createGeneralActions(set, get),
 }));
 
+// Type safety: compile-time assertion that the store satisfies StoreState
+type _StoreTypeCheck = ReturnType<typeof useSlicedAppStore.getState> extends StoreState ? true : never;
+const _storeTypeCheck: _StoreTypeCheck = true;
+void _storeTypeCheck;
+
 export const useAppStore = useSlicedAppStore;

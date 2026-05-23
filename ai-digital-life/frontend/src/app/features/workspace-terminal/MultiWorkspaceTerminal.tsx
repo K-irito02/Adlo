@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import type { RecentWorkspaceEntry } from "@ai-digital-life/kernel";
 import type { CopyDict } from "../../copy";
 import type { TerminalTabState } from "../../stores/slices/terminalSlice";
-import { CustomScrollArea } from "../../features/file-tree/CustomScrollArea";
+import { MultiWorkspaceContainer } from "../multi-workspace/MultiWorkspaceContainer";
 import { WorkspaceTerminalEntry } from "./WorkspaceTerminalEntry";
 
 export interface MultiWorkspaceTerminalProps {
@@ -36,16 +36,6 @@ export function MultiWorkspaceTerminal({
   onCloseAllTabs,
   t,
 }: MultiWorkspaceTerminalProps) {
-  const pinnedWorkspaces = useMemo(
-    () => workspaces.filter((w) => w.isPinned),
-    [workspaces],
-  );
-
-  const unpinnedWorkspaces = useMemo(
-    () => workspaces.filter((w) => !w.isPinned),
-    [workspaces],
-  );
-
   const tabsByWorkspace = useMemo(() => {
     const map: Record<string, TerminalTabState[]> = {};
     for (const tab of terminalTabs) {
@@ -68,74 +58,29 @@ export function MultiWorkspaceTerminal({
   }
 
   return (
-    <CustomScrollArea
-      shellClassName="adl-multitree"
-      scrollClassName="adl-multitree-scroll"
-      scrollbarClassName="adl-multitree-scrollbar"
-      thumbClassName="adl-multitree-scrollbar__thumb"
-    >
-      {pinnedWorkspaces.length > 0 ? (
-        <>
-          <div className="adl-multitree-section-label" role="heading" aria-level={2}>
-            <span>已置顶</span>
-            <span className="adl-multitree-section-label__count">{pinnedWorkspaces.length}</span>
-          </div>
-          <div className="adl-multitree__bucket">
-            {pinnedWorkspaces.map((workspace) => (
-              <WorkspaceTerminalEntry
-                key={workspace.id}
-                workspace={workspace}
-                isExpanded={expandedStates[workspace.id] ?? false}
-                tabs={tabsByWorkspace[workspace.id] ?? []}
-                activeTabId={activeTabId}
-                tabCount={(tabsByWorkspace[workspace.id] ?? []).length}
-                onToggleExpand={() => onToggleExpand(workspace.id)}
-                onCreateTab={() => onCreateTab(workspace.id)}
-                onSelectTab={onSelectTab}
-                onCloseTab={onCloseTab}
-                onTogglePin={onTogglePin}
-                onHideFromRightPanels={onHideFromRightPanels}
-                onRefreshTree={() => onRefreshTree?.()}
-                onCloseAllTabs={() => onCloseAllTabs?.(workspace.id)}
-                t={t}
-              />
-            ))}
-          </div>
-        </>
-      ) : null}
-
-      {unpinnedWorkspaces.length > 0 ? (
-        <>
-          {pinnedWorkspaces.length > 0 ? (
-            <div className="adl-multitree__separator" />
-          ) : null}
-          <div className="adl-multitree-section-label" role="heading" aria-level={2}>
-            <span>未置顶</span>
-            <span className="adl-multitree-section-label__count">{unpinnedWorkspaces.length}</span>
-          </div>
-          <div className="adl-multitree__bucket">
-            {unpinnedWorkspaces.map((workspace) => (
-              <WorkspaceTerminalEntry
-                key={workspace.id}
-                workspace={workspace}
-                isExpanded={expandedStates[workspace.id] ?? false}
-                tabs={tabsByWorkspace[workspace.id] ?? []}
-                activeTabId={activeTabId}
-                tabCount={(tabsByWorkspace[workspace.id] ?? []).length}
-                onToggleExpand={() => onToggleExpand(workspace.id)}
-                onCreateTab={() => onCreateTab(workspace.id)}
-                onSelectTab={onSelectTab}
-                onCloseTab={onCloseTab}
-                onTogglePin={onTogglePin}
-                onHideFromRightPanels={onHideFromRightPanels}
-                onRefreshTree={() => onRefreshTree?.()}
-                onCloseAllTabs={() => onCloseAllTabs?.(workspace.id)}
-                t={t}
-              />
-            ))}
-          </div>
-        </>
-      ) : null}
-    </CustomScrollArea>
+    <MultiWorkspaceContainer
+      visibleWorkspaces={workspaces}
+      expandedState={expandedStates}
+      onToggleExpand={onToggleExpand}
+      renderContent={(workspace, isExpanded) => (
+        <WorkspaceTerminalEntry
+          key={workspace.id}
+          workspace={workspace}
+          isExpanded={isExpanded}
+          tabs={tabsByWorkspace[workspace.id] ?? []}
+          activeTabId={activeTabId}
+          tabCount={(tabsByWorkspace[workspace.id] ?? []).length}
+          onToggleExpand={() => onToggleExpand(workspace.id)}
+          onCreateTab={() => onCreateTab(workspace.id)}
+          onSelectTab={onSelectTab}
+          onCloseTab={onCloseTab}
+          onTogglePin={onTogglePin}
+          onHideFromRightPanels={onHideFromRightPanels}
+          onRefreshTree={() => onRefreshTree?.()}
+          onCloseAllTabs={() => onCloseAllTabs?.(workspace.id)}
+          t={t}
+        />
+      )}
+    />
   );
 }

@@ -2,7 +2,7 @@ import React, { useCallback, useMemo, useState } from "react";
 import type { RecentWorkspaceEntry, WorkspaceTreeNode, ReorderWorkspacesInput } from "@ai-digital-life/kernel";
 import type { CopyDict } from "../../copy";
 import type { FileTreeContextMenuItem } from "../../features/file-tree";
-import { CustomScrollArea } from "../../features/file-tree/CustomScrollArea";
+import { MultiWorkspaceContainer } from "../multi-workspace/MultiWorkspaceContainer";
 import { WorkspaceChangesEntry } from "./WorkspaceChangesEntry";
 
 export interface MultiWorkspaceChangesTreeProps {
@@ -69,18 +69,15 @@ export function MultiWorkspaceChangesTree({
 }: MultiWorkspaceChangesTreeProps) {
   const [dragWorkspaceId, setDragWorkspaceId] = useState<string | undefined>(undefined);
 
-  const pinnedWorkspaces = useMemo(
-    () => workspaces.filter((w) => w.isPinned),
+  const pinnedIds = useMemo(
+    () => workspaces.filter((w) => w.isPinned).map((w) => w.id),
     [workspaces],
   );
 
-  const unpinnedWorkspaces = useMemo(
-    () => workspaces.filter((w) => !w.isPinned),
+  const unpinnedIds = useMemo(
+    () => workspaces.filter((w) => !w.isPinned).map((w) => w.id),
     [workspaces],
   );
-
-  const pinnedIds = useMemo(() => pinnedWorkspaces.map((w) => w.id), [pinnedWorkspaces]);
-  const unpinnedIds = useMemo(() => unpinnedWorkspaces.map((w) => w.id), [unpinnedWorkspaces]);
 
   const handleDrop = useCallback(
     (targetWorkspaceId: string, isPinnedBucket: boolean) => {
@@ -103,8 +100,8 @@ export function MultiWorkspaceChangesTree({
     [dragWorkspaceId, pinnedIds, unpinnedIds, onReorderWorkspaces],
   );
 
-  const renderEntry = useCallback(
-    (workspace: RecentWorkspaceEntry) => {
+  const renderContent = useCallback(
+    (workspace: RecentWorkspaceEntry, isExpanded: boolean) => {
       const isPinned = workspace.isPinned;
       return (
         <div
@@ -118,7 +115,7 @@ export function MultiWorkspaceChangesTree({
           <WorkspaceChangesEntry
             workspace={workspace}
             isCurrent={workspace.id === activeWorkspaceId}
-            isExpanded={expandedStates[workspace.id] ?? false}
+            isExpanded={isExpanded}
             treeNodes={treeData[workspace.id]}
             isLoading={loadingStates[workspace.id] ?? false}
             error={errorStates[workspace.id]}
@@ -146,7 +143,6 @@ export function MultiWorkspaceChangesTree({
     },
     [
       activeWorkspaceId,
-      expandedStates,
       treeData,
       loadingStates,
       errorStates,
@@ -180,38 +176,11 @@ export function MultiWorkspaceChangesTree({
   }
 
   return (
-    <CustomScrollArea
-      shellClassName="adl-multitree"
-      scrollClassName="adl-multitree-scroll"
-      scrollbarClassName="adl-multitree-scrollbar"
-      thumbClassName="adl-multitree-scrollbar__thumb"
-    >
-      {pinnedWorkspaces.length > 0 ? (
-        <>
-          <div className="adl-multitree-section-label" role="heading" aria-level={2}>
-            <span>已置顶</span>
-            <span className="adl-multitree-section-label__count">{pinnedWorkspaces.length}</span>
-          </div>
-          <div className="adl-multitree__bucket">
-            {pinnedWorkspaces.map(renderEntry)}
-          </div>
-        </>
-      ) : null}
-
-      {unpinnedWorkspaces.length > 0 ? (
-        <>
-          {pinnedWorkspaces.length > 0 ? (
-            <div className="adl-multitree__separator" />
-          ) : null}
-          <div className="adl-multitree-section-label" role="heading" aria-level={2}>
-            <span>未置顶</span>
-            <span className="adl-multitree-section-label__count">{unpinnedWorkspaces.length}</span>
-          </div>
-          <div className="adl-multitree__bucket">
-            {unpinnedWorkspaces.map(renderEntry)}
-          </div>
-        </>
-      ) : null}
-    </CustomScrollArea>
+    <MultiWorkspaceContainer
+      visibleWorkspaces={workspaces}
+      expandedState={expandedStates}
+      onToggleExpand={onToggleExpand}
+      renderContent={renderContent}
+    />
   );
 }

@@ -41,196 +41,11 @@ impl Database {
 
     pub fn init_schema(&self) -> Result<(), AppError> {
         let conn = self.conn()?;
-        conn.execute_batch(
-            "CREATE TABLE IF NOT EXISTS schema_version (
-                version INTEGER PRIMARY KEY,
-                applied_at TEXT NOT NULL DEFAULT (datetime('now'))
-            );
-            CREATE TABLE IF NOT EXISTS recent_workspaces (
-                root_path TEXT PRIMARY KEY,
-                name TEXT NOT NULL,
-                last_opened TEXT NOT NULL,
-                json TEXT
-            );
-            CREATE TABLE IF NOT EXISTS app_state (
-                key TEXT PRIMARY KEY,
-                value TEXT NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS workspaces (
-                id TEXT PRIMARY KEY,
-                workspace_id TEXT,
-                session_id TEXT,
-                status TEXT,
-                updated_at INTEGER NOT NULL,
-                json TEXT NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS sessions (
-                id TEXT PRIMARY KEY,
-                workspace_id TEXT,
-                session_id TEXT,
-                status TEXT,
-                updated_at INTEGER NOT NULL,
-                json TEXT NOT NULL
-            );
-            CREATE INDEX IF NOT EXISTS idx_sessions_workspace ON sessions(workspace_id, updated_at);
-            CREATE TABLE IF NOT EXISTS retrieval_snapshots (
-                id TEXT PRIMARY KEY,
-                workspace_id TEXT,
-                session_id TEXT,
-                status TEXT,
-                updated_at INTEGER NOT NULL,
-                json TEXT NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS tasks (
-                id TEXT PRIMARY KEY,
-                workspace_id TEXT,
-                session_id TEXT,
-                status TEXT,
-                updated_at INTEGER NOT NULL,
-                json TEXT NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS approvals (
-                id TEXT PRIMARY KEY,
-                workspace_id TEXT,
-                session_id TEXT,
-                status TEXT,
-                updated_at INTEGER NOT NULL,
-                json TEXT NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS audit_records (
-                id TEXT PRIMARY KEY,
-                workspace_id TEXT,
-                session_id TEXT,
-                status TEXT,
-                updated_at INTEGER NOT NULL,
-                json TEXT NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS checkpoints (
-                id TEXT PRIMARY KEY,
-                workspace_id TEXT,
-                session_id TEXT,
-                status TEXT,
-                updated_at INTEGER NOT NULL,
-                json TEXT NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS conversation_messages (
-                id TEXT PRIMARY KEY,
-                workspace_id TEXT,
-                session_id TEXT,
-                status TEXT,
-                updated_at INTEGER NOT NULL,
-                json TEXT NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS agent_runs (
-                id TEXT PRIMARY KEY,
-                workspace_id TEXT,
-                session_id TEXT,
-                status TEXT,
-                updated_at INTEGER NOT NULL,
-                json TEXT NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS agent_steps (
-                id TEXT PRIMARY KEY,
-                workspace_id TEXT,
-                session_id TEXT,
-                status TEXT,
-                updated_at INTEGER NOT NULL,
-                json TEXT NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS tool_invocations (
-                id TEXT PRIMARY KEY,
-                workspace_id TEXT,
-                session_id TEXT,
-                status TEXT,
-                updated_at INTEGER NOT NULL,
-                json TEXT NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS patch_sets (
-                id TEXT PRIMARY KEY,
-                workspace_id TEXT,
-                session_id TEXT,
-                status TEXT,
-                updated_at INTEGER NOT NULL,
-                json TEXT NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS file_patches (
-                id TEXT PRIMARY KEY,
-                workspace_id TEXT,
-                session_id TEXT,
-                status TEXT,
-                updated_at INTEGER NOT NULL,
-                json TEXT NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS patch_hunks (
-                id TEXT PRIMARY KEY,
-                workspace_id TEXT,
-                session_id TEXT,
-                status TEXT,
-                updated_at INTEGER NOT NULL,
-                json TEXT NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS command_requests (
-                id TEXT PRIMARY KEY,
-                workspace_id TEXT,
-                session_id TEXT,
-                status TEXT,
-                updated_at INTEGER NOT NULL,
-                json TEXT NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS command_executions (
-                id TEXT PRIMARY KEY,
-                workspace_id TEXT,
-                session_id TEXT,
-                status TEXT,
-                updated_at INTEGER NOT NULL,
-                json TEXT NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS validation_results (
-                id TEXT PRIMARY KEY,
-                workspace_id TEXT,
-                session_id TEXT,
-                status TEXT,
-                updated_at INTEGER NOT NULL,
-                json TEXT NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS model_preferences (
-                id TEXT PRIMARY KEY,
-                workspace_id TEXT,
-                session_id TEXT,
-                status TEXT,
-                updated_at INTEGER NOT NULL,
-                json TEXT NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS model_call_audit (
-                id TEXT PRIMARY KEY,
-                workspace_id TEXT,
-                session_id TEXT,
-                status TEXT,
-                updated_at INTEGER NOT NULL,
-                json TEXT NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS run_activity_events (
-                id TEXT PRIMARY KEY,
-                workspace_id TEXT,
-                session_id TEXT,
-                status TEXT,
-                updated_at INTEGER NOT NULL,
-                json TEXT NOT NULL
-            );",
-        )
-        .map_err(|e| AppError::Storage(e.to_string()))?;
+        conn.execute_batch(include_str!("../sql/init_schema.sql"))
+            .map_err(|e| AppError::Storage(e.to_string()))?;
         let _ = conn.execute("ALTER TABLE recent_workspaces ADD COLUMN json TEXT", []);
-        conn.execute_batch(
-            "CREATE INDEX IF NOT EXISTS idx_sessions_workspace ON sessions(workspace_id, updated_at);
-             CREATE INDEX IF NOT EXISTS idx_messages_session ON conversation_messages(session_id, updated_at);
-             CREATE INDEX IF NOT EXISTS idx_agent_runs_session ON agent_runs(session_id, updated_at);
-             CREATE INDEX IF NOT EXISTS idx_patch_sets_run ON patch_sets(session_id, updated_at);
-             CREATE INDEX IF NOT EXISTS idx_tasks_workspace ON tasks(workspace_id, updated_at);
-             CREATE INDEX IF NOT EXISTS idx_approvals_workspace ON approvals(workspace_id, updated_at);
-             CREATE INDEX IF NOT EXISTS idx_audit_workspace ON audit_records(workspace_id, updated_at);
-             CREATE INDEX IF NOT EXISTS idx_run_activity_run ON run_activity_events(status, updated_at);",
-        )
-        .map_err(|e| AppError::Storage(e.to_string()))?;
+        conn.execute_batch(include_str!("../sql/init_indexes.sql"))
+            .map_err(|e| AppError::Storage(e.to_string()))?;
         info!("schema initialized");
         Ok(())
     }
@@ -266,15 +81,10 @@ impl Database {
         value: &T,
     ) -> Result<(), AppError> {
         let json = serde_json::to_string(value)?;
-        let table_name = table.as_str();
-        let sql = format!(
-            "INSERT OR REPLACE INTO {table_name}
-             (id, workspace_id, session_id, status, updated_at, json)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6)"
-        );
+        let sql = table.insert_sql();
         self.conn()?
             .execute(
-                &sql,
+                sql,
                 params![id, workspace_id, session_id, status, now_ms(), json],
             )
             .map_err(|e| AppError::Storage(e.to_string()))?;
@@ -566,6 +376,31 @@ impl EntityTable {
             Self::ModelPreferences => "model_preferences",
             Self::ModelCallAudit => "model_call_audit",
             Self::RunActivityEvents => "run_activity_events",
+        }
+    }
+
+    pub fn insert_sql(self) -> &'static str {
+        match self {
+            Self::Workspaces => "INSERT OR REPLACE INTO workspaces (id, workspace_id, session_id, status, updated_at, json)\n             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            Self::Sessions => "INSERT OR REPLACE INTO sessions (id, workspace_id, session_id, status, updated_at, json)\n             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            Self::RetrievalSnapshots => "INSERT OR REPLACE INTO retrieval_snapshots (id, workspace_id, session_id, status, updated_at, json)\n             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            Self::Tasks => "INSERT OR REPLACE INTO tasks (id, workspace_id, session_id, status, updated_at, json)\n             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            Self::Approvals => "INSERT OR REPLACE INTO approvals (id, workspace_id, session_id, status, updated_at, json)\n             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            Self::AuditRecords => "INSERT OR REPLACE INTO audit_records (id, workspace_id, session_id, status, updated_at, json)\n             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            Self::Checkpoints => "INSERT OR REPLACE INTO checkpoints (id, workspace_id, session_id, status, updated_at, json)\n             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            Self::ConversationMessages => "INSERT OR REPLACE INTO conversation_messages (id, workspace_id, session_id, status, updated_at, json)\n             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            Self::AgentRuns => "INSERT OR REPLACE INTO agent_runs (id, workspace_id, session_id, status, updated_at, json)\n             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            Self::AgentSteps => "INSERT OR REPLACE INTO agent_steps (id, workspace_id, session_id, status, updated_at, json)\n             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            Self::ToolInvocations => "INSERT OR REPLACE INTO tool_invocations (id, workspace_id, session_id, status, updated_at, json)\n             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            Self::PatchSets => "INSERT OR REPLACE INTO patch_sets (id, workspace_id, session_id, status, updated_at, json)\n             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            Self::FilePatches => "INSERT OR REPLACE INTO file_patches (id, workspace_id, session_id, status, updated_at, json)\n             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            Self::PatchHunks => "INSERT OR REPLACE INTO patch_hunks (id, workspace_id, session_id, status, updated_at, json)\n             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            Self::CommandRequests => "INSERT OR REPLACE INTO command_requests (id, workspace_id, session_id, status, updated_at, json)\n             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            Self::CommandExecutions => "INSERT OR REPLACE INTO command_executions (id, workspace_id, session_id, status, updated_at, json)\n             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            Self::ValidationResults => "INSERT OR REPLACE INTO validation_results (id, workspace_id, session_id, status, updated_at, json)\n             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            Self::ModelPreferences => "INSERT OR REPLACE INTO model_preferences (id, workspace_id, session_id, status, updated_at, json)\n             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            Self::ModelCallAudit => "INSERT OR REPLACE INTO model_call_audit (id, workspace_id, session_id, status, updated_at, json)\n             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            Self::RunActivityEvents => "INSERT OR REPLACE INTO run_activity_events (id, workspace_id, session_id, status, updated_at, json)\n             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
         }
     }
 }

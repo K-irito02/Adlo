@@ -36,9 +36,10 @@ ai-digital-life/
 | crate | 职责 |
 |-------|------|
 | `kernel` | 共享类型与常量（serde） |
-| `storage` / `migration` | SQLite |
+| `storage` / `migration` | SQLite（schema 初始化使用外部 SQL 文件 `sql/`） |
 | `config`、`logger`、`errors`、`events` | 基础设施 |
-| `workspace`、`task`、`conversation`、`model-gateway` | 业务域（workspace 含 rename/delete/duplicate 文件操作） |
+| `workspace` | 业务域（拆分为 fs/git/search/tree/outline×10 子模块，含文件 CRUD + 16+ 语言大纲解析） |
+| `task`、`conversation`、`model-gateway` | 业务域 |
 
 ## 前端关键目录
 
@@ -48,10 +49,10 @@ ai-digital-life/
 | `app/hooks/` | 自定义 Hooks（含 useTooltip、useAppActions、useNavigatorResize） |
 | `app/utils/` | 纯函数（含 tooltipPosition 定位逻辑、preferencesMerger） |
 | `app/stores/` | Zustand 状态管理（切片合并模式 + actions/ 领域模块） |
-| `app/features/` | 按功能域分层的模块化组件（file-tree / outline / patch-review / editor / diff-viewer(路由+SideBySide+Inline+扩展) / preview / terminal(hook+7子组件)） |
-| `app/regions/` | 区域布局组件（left-panel / right-panel / bottom-panel） |
+| `app/features/` | 按功能域分层的模块化组件（file-tree / outline / patch-review / editor / diff-viewer / preview / terminal / multi-workspace） |
+| `app/regions/` | 区域布局组件（left-sidebar / right-panel(panels+editor-support+hooks) / center-pane） |
 | `design-system/` | 设计 Token 类型定义（tokens.ts / theme.ts / icons.ts） |
-| `styles/` | CSS 样式文件（themes.css / tokens.css / regions.css 等） |
+| `styles/` | CSS 样式文件（themes.css / tokens.css / regions/*.css 等） |
 
 ## Stores 架构（Zustand 切片合并模式）
 
@@ -100,15 +101,22 @@ app/stores/
 
 ```
 frontend/src/
-├── shared/ipc.ts           # DigitalLifeBridge + 13 个子接口（WindowBridge / AppBridge / WorkspaceBridge 等）
+├── shared/ipc.ts           # DigitalLifeBridge + 13 个子接口
 ├── tauri-bridge.ts         # Tauri 模式桥接
-├── mock-bridge.ts          # 纯内存回退
+├── mock-bridge.ts          # 纯内存回退入口（委托到 mock/ 子模块）
+├── mock/                   # mock 桥接子模块（7 个子文件）
+│   ├── shared.ts           # 共享可变状态
+│   ├── mock-workspace.ts   # 工作区操作模拟
+│   ├── mock-conversation.ts# 会话管理模拟
+│   ├── mock-patch.ts       # 补丁操作模拟
+│   ├── mock-terminal.ts    # 终端操作模拟
+│   ├── mock-task.ts        # 任务/审批模拟
+│   └── mock-retrieval.ts   # 检索模拟
 ├── preview-bridge/         # 浏览器模式桥接模块
 │   ├── index.ts            # 组合入口（setupPreviewBridge）
 │   ├── api.ts              # 请求封装（requestPreviewApi）
 │   ├── storage.ts          # localStorage 持久化工具
 │   └── ptyBridge.ts        # PTY 连接管理（SSE、listeners）
-└── (已迁移) preview-bridge.ts
 ```
 
 ### 切片职责说明

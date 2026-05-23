@@ -49,6 +49,8 @@
 - **Store 拆分与桥接模块化**（`slicedStore.ts` 1465→87 行，拆分为 8 个 action 领域模块；`preview-bridge.ts` 615 行拆分为 4 个关注点分离的模块；`DigitalLifeBridge` 拆分为 13 个命名子接口；8 个 action 模块的 `set: any` 替换为 `StoreApi<StoreState>["setState"]` 类型保护）
 - **Rust 后端优化**（搜索逻辑去重消除 81% 重复代码、文件遍历消除双重 I/O、IGNORED_DIRS 从 7 项扩展至 18 项、正则 `OnceLock` 缓存）
 - **第七轮全面重构**（25 项修复：App 选择器拆分消除级联重渲染、Error Boundary 防白屏、storage mutex 中毒降级、model-gateway 错误传播、ptyBridge HMR 修复、DiffViewer 拆 4 文件、TerminalPanel 拆 7 文件 + hook、LeftSidebar 拆 5 文件 + 删除 210 行 Mock 死代码、Icon 6 处去重、3 处 useMemo 补充、context-engine 零分配优化、i18n 11 处替换等；cargo test + 183 前端测试全部通过）
+- **第八轮全面重构**（重构洞察第二轮 26 项：渲染性能 37→6 字段订阅、rAF 流式批处理、Slice 字段去重、terminalSlice localStorage 异步化、regions.css 8144→6 文件拆分、Vite manualChunks 6 个 vendor chunk、Rust 模型网关优化、run_activity seq 方法等；cargo test + 105 前端测试全部通过）
+- **第九轮重构洞察执行**（22 项修复：`cmLanguages` switch→Map O(1)、`save_entity` SQL 预构建消除 `format!` 分配、`presentable_recent_list` 函数拆分；RightPanel 618→106 行提取 2 个 hook、`useTerminalPanel` 54 扁平属性→4 组领域对象、`StoreState` 72 方法→8 领域接口、`MultiWorkspacePanels` 三组件去重共享容器；`workspace/lib.rs` 2361→675 行拆 15 个领域文件、`storage` schema 外部 SQL；`commands/workspace.rs` 821→370 行拆 3 文件；`mock-bridge.ts` 1252 行拆 7 个子模块；`MessageStream` CSS `content-visibility` 虚拟滚动；right-panel/ 目录 panels/editor-support/hooks 分组；StoreState 编译期类型断言；切片依赖文档化；cargo test + 183 前端测试全绿）
 
 ### Zustand 切片模式（已完成）
 
@@ -88,9 +90,15 @@ app/features/
 ├── editor/          # CodeMirror 编辑器（CodeEditor, cmTheme, cmLanguages...）
 ├── diff-viewer/     # 差异查看器（路由 + SideBySide + Inline + 共享扩展 + 工具函数）
 ├── preview/         # 文件预览（MarkdownPreview, DocxPreview, PdfPreview）
-└── terminal/        # 终端面板（组合器 + useTerminalPanel hook + TabBar/EmptyState/ShellSelector/ContextMenu/MenuDropdown/Navigator）
+├── terminal/        # 终端面板（组合器 + useTerminalPanel hook + 7 子组件）
+└── multi-workspace/ # 多工作区共享容器（MultiWorkspaceContainer）
 
 regions/left-sidebar/  # 左侧边栏拆分（WorkspaceList/SessionList/ConversationPanel/ResizeHandle/SidebarContextMenu）
+
+regions/right-panel/   # 右侧面板区域
+├── panels/            # 面板视图（FilesPanel/ChangesPanel/BrowserPanel）
+├── editor-support/    # 编辑器插件（agentDecorations/stickyContext/cmWrapColumn）
+└── hooks/             # 布局与视图属性 hooks（useRightPanelLayout/useRightPanelViewProps）
 ```
 
 详见 [docs/重构洞察/refactor-insight-2026-05-21.md](./docs/重构洞察/refactor-insight-2026-05-21.md)
@@ -107,6 +115,7 @@ regions/left-sidebar/  # 左侧边栏拆分（WorkspaceList/SessionList/Conversa
 | 第六轮 | Store 拆分 + 桥接模块化 + Rust 优化 | 2026-05-22 |
 | **第七轮** | **25 项全面修复 + 3 大型组件拆分 17 文件** | **2026-05-23** |
 | **第八轮** | **重构洞察第二轮 26 项（渲染性能 + 模块化 + 架构治理 + Rust 改进）** | **2026-05-23** |
+| **第九轮** | **重构洞察执行 22 项（Rust 长文件拆分 + 前端组件重构 + 目录治理 + 性能优化）** | **2026-05-24** |
 全部详情见 [重构进度报告](./docs/重构洞察/REFACTORING_PROGRESS_REPORT.md)
 
 ### 排除项
