@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { WorkspaceTreeNode, FileOutlineItem } from "@ai-digital-life/kernel";
+import type { WorkspaceTreeNode, FileOutlineItem, RecentWorkspaceEntry } from "@ai-digital-life/kernel";
 import type { CopyDict } from "../../copy";
 import { IconClipboardList, IconCopy, IconFiles, IconFilePlus, IconFolderOpen, IconFoldVertical, IconFolderPlus, IconList, IconPanelLeftClose, IconPencil, IconRefreshCw, IconReplace, IconReturn, IconSearch, IconTrash, IconUnfoldVertical, IconUpload } from "../../icons";
 import { TooltipSimple } from "../../components/Tooltip";
 import { useUiStore, type FilesNavigatorMode } from "../../ui-store";
 import { useNavigatorResize } from "../../hooks/useNavigatorResize";
-import { FileTree, collectDirectoryPaths, type FileTreeContextMenuItem } from "../../features/file-tree";
+import { MultiWorkspaceFileTree } from "../../features/workspace-file-tree";
+import type { FileTreeContextMenuItem } from "../../features/file-tree";
 import { OutlineTree, getDefaultExpandedOutlineIds } from "../../features/outline";
 import { normalizeWorkspaceRelativePath, joinPathSegments } from "../../workspacePaths";
 import { useFileCreation, useSearchPanel } from "./hooks";
@@ -17,7 +18,9 @@ import type { SearchHit } from "./hooks/useSearchPanel";
 
 interface FileNavigatorShellProps {
   selectedFilePath: string | undefined;
-  workspaceTree: WorkspaceTreeNode[];
+  workspaceTrees: Record<string, WorkspaceTreeNode[]>;
+  recentWorkspaces: RecentWorkspaceEntry[];
+  allExpanded: boolean;
   outline: FileOutlineItem[];
   searchQuery: string;
   searchResults: SearchHit[];
@@ -28,7 +31,11 @@ interface FileNavigatorShellProps {
   onOpenFileAtLine: (relativePath: string, line: number) => void;
   onSearch: (query: string) => void;
   onSearchChange: (query: string) => void;
-  onRefreshWorkspaceTree: () => void;
+  onExpandAll: () => void;
+  onCollapseAll: () => void;
+  onRefreshAll: () => void;
+  onRefreshOneWorkspace: (workspaceId: string) => void;
+  onHideFromFileTree: (workspaceId: string) => void;
   onCreateWorkspaceFile: (relativePath: string, content?: string) => Promise<string | undefined>;
   onCreateWorkspaceFolder: (relativePath: string) => Promise<string | undefined>;
   onEditorChange: (value: string | undefined) => void;
@@ -56,7 +63,9 @@ function buildSearchPattern(query: string, options: { matchCase: boolean; wholeW
 function FileNavigatorShell(props: FileNavigatorShellProps) {
   const {
     selectedFilePath,
-    workspaceTree,
+    workspaceTrees,
+    recentWorkspaces,
+    allExpanded,
     outline,
     searchQuery,
     searchResults,
@@ -67,7 +76,11 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
     onOpenFileAtLine,
     onSearch,
     onSearchChange,
-    onRefreshWorkspaceTree,
+    onExpandAll,
+    onCollapseAll,
+    onRefreshAll,
+    onRefreshOneWorkspace,
+    onHideFromFileTree,
     onCreateWorkspaceFile,
     onCreateWorkspaceFolder,
     onEditorChange,
@@ -86,14 +99,31 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
   const expandFileTreePathChain = useUiStore((s) => s.expandFileTreePathChain);
   const collapseAllFileTreePaths = useUiStore((s) => s.collapseAllFileTreePaths);
 
+  const workspaceTreeExpandedInFileNav = useAppStore((s) => s.workspaceTreeExpandedInFileNav);
+  const workspaceTreeLoading = useAppStore((s) => s.workspaceTreeLoading);
+  const workspaceTreeErrors = useAppStore((s) => s.workspaceTreeErrors);
+  const expandWorkspaceTreeInFileNav = useAppStore((s) => s.expandWorkspaceTreeInFileNav);
+
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const activeWorkspaceId = appInfo?.currentWorkspace?.path
+    ? recentWorkspaces.find(w => w.path === appInfo.currentWorkspace?.path)?.id
+    : undefined;
+
+  const visibleWorkspaces = useMemo(
+    () => recentWorkspaces.filter((w) => !w.removedFromSidebar && !w.hiddenInFileTree && w.available),
+    [recentWorkspaces],
+  );
 
   const fileCreation = useFileCreation({
     selectedFilePath,
     onCreateWorkspaceFile,
     onCreateWorkspaceFolder,
-    expandFileTreePathChain,
-    setFileTreePathExpanded,
+    expandFileTreePathChain: (path: string) => {
+      if (activeWorkspaceId) expandFileTreePathChain(activeWorkspaceId, path);
+    },
+    setFileTreePathExpanded: (path: string, expanded: boolean) => {
+      if (activeWorkspaceId) setFileTreePathExpanded(activeWorkspaceId, path, expanded);
+    },
   });
 
   const searchPanel = useSearchPanel({
@@ -114,12 +144,6 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
     [dirtyEditorPaths],
   );
 
-  const directoryPaths = useMemo(() => collectDirectoryPaths(workspaceTree), [workspaceTree]);
-  const hasExpandedDirectories = useMemo(
-    () => directoryPaths.some((p) => expandedPaths[p]),
-    [directoryPaths, expandedPaths],
-  );
-
   const defaultExpandedOutlineIds = useMemo(() => getDefaultExpandedOutlineIds(outline), [outline]);
   const [expandedOutlineIds, setExpandedOutlineIds] = useState<Set<string>>(() => defaultExpandedOutlineIds);
   useEffect(() => {
@@ -129,17 +153,8 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
   const hasExpandableOutlineItems = defaultExpandedOutlineIds.size > 0;
   const hasExpandedOutlineItems = expandedOutlineIds.size > 0;
 
-  const canToggleNavigatorStructure = navigatorMode === "tree"
-    ? directoryPaths.length > 0
-    : navigatorMode === "outline"
-      ? hasExpandableOutlineItems
-      : false;
-
-  const structureToggleExpanded = navigatorMode === "tree"
-    ? hasExpandedDirectories
-    : hasExpandedOutlineItems;
-
   const navigatorTitle = navigatorMode === "tree" ? t.toolFiles : navigatorMode === "search" ? t.searchResults : t.outline;
+  const workspaceCount = visibleWorkspaces.length;
 
   useEffect(() => {
     if (navigatorMode === "search") {
@@ -148,32 +163,14 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
   }, [navigatorMode]);
 
   useEffect(() => {
-    if (selectedFilePath) {
-      expandFileTreePathChain(selectedFilePath);
+    if (selectedFilePath && activeWorkspaceId) {
+      expandFileTreePathChain(activeWorkspaceId, selectedFilePath);
     }
-  }, [expandFileTreePathChain, selectedFilePath]);
-
-  const handleToggleAllDirectories = () => {
-    if (!hasExpandedDirectories) {
-      directoryPaths.forEach((p) => setFileTreePathExpanded(p, true));
-      return;
-    }
-    collapseAllFileTreePaths();
-  };
+  }, [expandFileTreePathChain, selectedFilePath, activeWorkspaceId]);
 
   const handleToggleAllOutlineItems = () => {
     if (!hasExpandableOutlineItems) return;
     setExpandedOutlineIds(hasExpandedOutlineItems ? new Set() : new Set(defaultExpandedOutlineIds));
-  };
-
-  const handleToggleNavigatorStructure = () => {
-    if (navigatorMode === "tree") {
-      handleToggleAllDirectories();
-      return;
-    }
-    if (navigatorMode === "outline") {
-      handleToggleAllOutlineItems();
-    }
   };
 
   const [renamingPath, setRenamingPath] = useState<string | null>(null);
@@ -319,10 +316,6 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
     clearMenuHighlightRef.current?.();
   }, []);
 
-  const handleRefreshNavigator = async () => {
-    await onRefreshWorkspaceTree();
-  };
-
   if (navigatorCollapsed) {
     return (
       <aside className="adl-tool-navigator" aria-hidden="true" />
@@ -333,26 +326,27 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
     <aside className="adl-tool-navigator" aria-label={navigatorTitle as string}>
       <div className="adl-tool-navigator__context">
         <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--actions">
-          <TooltipSimple content={structureToggleExpanded ? t.fileCollapseAll : t.fileExpandAll} placement="top">
+          <TooltipSimple content={allExpanded ? t.fileCollapseAll : t.fileExpandAll} placement="top">
             <button
               type="button"
               className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-              onClick={handleToggleNavigatorStructure}
-              aria-label={(structureToggleExpanded ? t.fileCollapseAll : t.fileExpandAll) as string}
-              disabled={!canToggleNavigatorStructure}
+              onClick={allExpanded ? onCollapseAll : onExpandAll}
+              aria-label={(allExpanded ? t.fileCollapseAll : t.fileExpandAll) as string}
             >
-              {structureToggleExpanded ? <IconFoldVertical size={14} decorative /> : <IconUnfoldVertical size={14} decorative />}
+              {allExpanded ? <IconFoldVertical size={14} decorative /> : <IconUnfoldVertical size={14} decorative />}
             </button>
           </TooltipSimple>
-          <span className="adl-tool-navigator__context-title">{appInfo?.currentWorkspace?.name ?? (t.toolFiles as string)}</span>
+          <span className="adl-tool-navigator__context-title">{navigatorTitle as string}</span>
         </div>
-
         <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--utility">
-          <TooltipSimple content={t.fileRefresh} placement="top">
+          {workspaceCount > 0 ? (
+            <span className="adl-tool-navigator__context-count">{workspaceCount}</span>
+          ) : null}
+          <TooltipSimple content="刷新全部" placement="top">
             <button
               type="button"
               className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-              onClick={() => void handleRefreshNavigator()}
+              onClick={onRefreshAll}
               aria-label={t.fileRefresh as string}
             >
               <IconRefreshCw size={14} decorative />
@@ -360,21 +354,20 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
           </TooltipSimple>
         </div>
       </div>
-
       <div className="adl-tool-navigator__context adl-tool-navigator__context--secondary">
         <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--actions">
-          <TooltipSimple content={t.fileTreeView} placement="top">
+          <TooltipSimple content={t.toolFiles} placement="top">
             <button
               type="button"
               className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${navigatorMode === "tree" ? " is-active" : ""}`}
               onClick={() => setNavigatorMode("tree")}
-              aria-label={t.fileTreeView as string}
+              aria-label={t.toolFiles as string}
               aria-pressed={navigatorMode === "tree" ? "true" : "false"}
             >
               <IconFiles size={14} decorative />
             </button>
           </TooltipSimple>
-          <TooltipSimple content={outline.length > 0 ? t.outline : t.toolFiles} placement="top">
+          <TooltipSimple content="文档大纲" placement="top">
             <button
               type="button"
               className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${navigatorMode === "outline" ? " is-active" : ""}`}
@@ -386,7 +379,6 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
             </button>
           </TooltipSimple>
         </div>
-
         <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--utility">
           <TooltipSimple content={t.fileNewFile} placement="top">
             <button
@@ -430,20 +422,42 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
       ) : null}
 
       {navigatorMode === "tree" ? (
-        workspaceTree.length > 0 ? (
-          <FileTree
-            nodes={workspaceTree}
+        visibleWorkspaces.length > 0 ? (
+          <MultiWorkspaceFileTree
+            workspaces={visibleWorkspaces}
+            activeWorkspaceId={activeWorkspaceId}
+            treeData={workspaceTrees}
+            loadingStates={workspaceTreeLoading}
+            errorStates={workspaceTreeErrors}
+            expandedStates={workspaceTreeExpandedInFileNav}
             selectedFilePath={selectedFilePath}
             expandedPaths={expandedPaths}
             dirtyPaths={dirtyPaths}
             externalChangePath={externalChangePath}
-            onToggle={toggleFileTreePath}
+            onToggleExpand={(workspaceId: string) => {
+              const ws = visibleWorkspaces.find(r => r.id === workspaceId);
+              if (ws) expandWorkspaceTreeInFileNav(workspaceId, ws.path);
+            }}
+            onRefreshOne={onRefreshOneWorkspace}
+            onOpenWorkspace={(path: string) => {
+              useAppStore.getState().openWorkspace(path);
+            }}
+            onPinWorkspace={(workspaceId: string) => {
+              useAppStore.getState().pinWorkspace(workspaceId);
+            }}
+            onUnpinWorkspace={(workspaceId: string) => {
+              useAppStore.getState().unpinWorkspace(workspaceId);
+            }}
+            onHideFromFileTree={onHideFromFileTree}
+            onToggleFileTreePath={toggleFileTreePath}
             onOpenFile={onOpenFile}
+            onReorderWorkspaces={(input) => {
+              useAppStore.getState().reorderWorkspaces(input);
+            }}
             getContextMenuItems={getContextMenuItems}
             contextMenuPersistRef={contextMenuPersistRef}
             clearMenuHighlightRef={clearMenuHighlightRef}
-            expandLabel={t.expandDetails as string}
-            collapseLabel={t.collapseDetails as string}
+            t={t}
           />
         ) : null
       ) : null}

@@ -93,7 +93,8 @@ export function buildSidebarViewModel(input: {
       pinnedOrder: 0,
       unpinnedOrder: entries.filter((entry) => !entry.isPinned).length,
       removedFromSidebar: false,
-      available: true
+      available: true,
+      hiddenInFileTree: false
     });
   }
 

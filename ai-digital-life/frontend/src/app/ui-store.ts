@@ -321,7 +321,7 @@ export interface UiState {
   browserNavigatorWidth: number;
   terminalNavigatorWidth: number;
   navigatorCollapsedByTool: Record<ToolId, boolean>;
-  expandedFileTreePaths: Record<string, boolean>;
+  expandedFileTreePaths: Record<string, Record<string, boolean>>;
   expandedChangesTreePaths: Record<string, boolean>;
   filesNavigatorMode: FilesNavigatorMode;
   filePreviewModeByPath: Record<string, boolean>;
@@ -356,10 +356,10 @@ export interface UiState {
   setTerminalNavigatorWidth: (width: number) => void;
   setNavigatorCollapsed: (tool: ToolId, collapsed: boolean) => void;
   toggleNavigator: (tool: ToolId) => void;
-  setFileTreePathExpanded: (path: string, expanded: boolean) => void;
-  toggleFileTreePath: (path: string) => void;
-  expandFileTreePathChain: (path: string) => void;
-  collapseAllFileTreePaths: () => void;
+  setFileTreePathExpanded: (workspaceId: string, path: string, expanded: boolean) => void;
+  toggleFileTreePath: (workspaceId: string, path: string) => void;
+  expandFileTreePathChain: (workspaceId: string, path: string) => void;
+  collapseAllFileTreePaths: (workspaceId: string) => void;
   setFilesNavigatorMode: (mode: FilesNavigatorMode) => void;
   setFilePreviewModeForPath: (path: string, previewEnabled: boolean) => void;
   setChangesPreviewEnabled: (previewEnabled: boolean) => void;
@@ -434,7 +434,7 @@ export const useUiStore = create<UiState>((set) => ({
     TERMINAL_NAVIGATOR_WIDTH_MAX
   ),
   navigatorCollapsedByTool: initialNavigatorCollapsed,
-  expandedFileTreePaths: readJson<Record<string, boolean>>(FILE_TREE_EXPANDED_KEY, {}),
+  expandedFileTreePaths: readJson<Record<string, Record<string, boolean>>>(FILE_TREE_EXPANDED_KEY, {}),
   expandedChangesTreePaths: readJson<Record<string, boolean>>(CHANGES_TREE_EXPANDED_KEY, {}),
   filesNavigatorMode: readFilesNavigatorMode(),
   filePreviewModeByPath: readJson<Record<string, boolean>>(FILE_PREVIEW_MODE_KEY, {}),
@@ -519,34 +519,42 @@ export const useUiStore = create<UiState>((set) => ({
       writeJson(NAVIGATOR_COLLAPSED_KEY, next);
       return { navigatorCollapsedByTool: next };
     }),
-  setFileTreePathExpanded: (path, expanded) =>
+  setFileTreePathExpanded: (workspaceId, path, expanded) =>
     set((state) => {
-      const next = setTreePathExpandedInState(state.expandedFileTreePaths, path, expanded);
-      if (next === state.expandedFileTreePaths) {
+      const current = state.expandedFileTreePaths[workspaceId] ?? {};
+      const next = setTreePathExpandedInState(current, path, expanded);
+      if (next === current) {
         return state;
       }
-      scheduleJsonWrite(FILE_TREE_EXPANDED_KEY, next);
-      return { expandedFileTreePaths: next };
+      const allPaths = { ...state.expandedFileTreePaths, [workspaceId]: next };
+      scheduleJsonWrite(FILE_TREE_EXPANDED_KEY, allPaths);
+      return { expandedFileTreePaths: allPaths };
     }),
-  toggleFileTreePath: (path) =>
+  toggleFileTreePath: (workspaceId, path) =>
     set((state) => {
-      const next = toggleTreePathExpandedInState(state.expandedFileTreePaths, path);
-      scheduleJsonWrite(FILE_TREE_EXPANDED_KEY, next);
-      return { expandedFileTreePaths: next };
+      const current = state.expandedFileTreePaths[workspaceId] ?? {};
+      const next = toggleTreePathExpandedInState(current, path);
+      const allPaths = { ...state.expandedFileTreePaths, [workspaceId]: next };
+      scheduleJsonWrite(FILE_TREE_EXPANDED_KEY, allPaths);
+      return { expandedFileTreePaths: allPaths };
     }),
-  expandFileTreePathChain: (path) =>
+  expandFileTreePathChain: (workspaceId, path) =>
     set((state) => {
-      const next = expandTreePathChainInState(state.expandedFileTreePaths, path);
-      if (next === state.expandedFileTreePaths) {
+      const current = state.expandedFileTreePaths[workspaceId] ?? {};
+      const next = expandTreePathChainInState(current, path);
+      if (next === current) {
         return state;
       }
-      scheduleJsonWrite(FILE_TREE_EXPANDED_KEY, next);
-      return { expandedFileTreePaths: next };
+      const allPaths = { ...state.expandedFileTreePaths, [workspaceId]: next };
+      scheduleJsonWrite(FILE_TREE_EXPANDED_KEY, allPaths);
+      return { expandedFileTreePaths: allPaths };
     }),
-  collapseAllFileTreePaths: () => {
-    scheduleJsonWrite(FILE_TREE_EXPANDED_KEY, {});
-    set({ expandedFileTreePaths: {} });
-  },
+  collapseAllFileTreePaths: (workspaceId) =>
+    set((state) => {
+      const allPaths = { ...state.expandedFileTreePaths, [workspaceId]: {} };
+      scheduleJsonWrite(FILE_TREE_EXPANDED_KEY, allPaths);
+      return { expandedFileTreePaths: allPaths };
+    }),
   setFilesNavigatorMode: (mode) => {
     writeFilesNavigatorMode(mode);
     set({ filesNavigatorMode: mode });

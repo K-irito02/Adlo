@@ -16,7 +16,8 @@ function buildWorkspace(id: string, path: string): RecentWorkspaceEntry {
     pinnedOrder: 0,
     unpinnedOrder: 0,
     removedFromSidebar: false,
-    available: true
+    available: true,
+    hiddenInFileTree: false
   };
 }
 

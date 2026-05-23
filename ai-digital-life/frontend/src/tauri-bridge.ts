@@ -148,6 +148,12 @@ export function createTauriBridge(): DigitalLifeBridge {
         invokeIpc<RecentWorkspaceEntry[]>("workspace_remove_from_sidebar", { workspaceId }),
       restoreToSidebar: (workspaceId: string) =>
         invokeIpc<RecentWorkspaceEntry[]>("workspace_restore_to_sidebar", { workspaceId }),
+      listTreeForWorkspace: (workspacePath: string) =>
+        invokeIpc<WorkspaceTreeNode[]>("workspace_list_tree", { workspacePath }),
+      hideFromFileTree: (workspaceId: string) =>
+        invokeIpc<RecentWorkspaceEntry[]>("workspace_hide_from_file_tree", { workspaceId }),
+      showInFileTree: (workspaceId: string) =>
+        invokeIpc<RecentWorkspaceEntry[]>("workspace_show_in_file_tree", { workspaceId }),
       revealInFileManager: (workspacePath: string) =>
         invokeIpc<boolean>("workspace_reveal_in_file_manager", { path: workspacePath }),
       createFile: (relativePath: string, content = "") =>

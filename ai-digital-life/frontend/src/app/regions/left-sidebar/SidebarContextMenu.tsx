@@ -146,6 +146,7 @@ export interface WorkspaceMenuCallbacks {
   onArchiveAllSessions: () => void;
   onRemoveWorkspace: (workspaceId: string) => void;
   onRevealWorkspace: (workspacePath: string) => void;
+  onShowInFileTree: (workspaceId: string) => void;
 }
 
 export function buildWorkspaceMenuItems(
@@ -154,7 +155,7 @@ export function buildWorkspaceMenuItems(
   t: CopyDict,
   callbacks: WorkspaceMenuCallbacks
 ): SidebarMenuItem[] {
-  return [
+  const items: SidebarMenuItem[] = [
     {
       id: "pin",
       label: workspace.isPinned ? t.sessionMenuUnpin : t.sessionMenuPin,
@@ -186,6 +187,17 @@ export function buildWorkspaceMenuItems(
       action: () => callbacks.onRevealWorkspace(workspace.path)
     }
   ];
+
+  if (workspace.hiddenInFileTree && !workspace.removedFromSidebar) {
+    items.push({
+      id: "show-in-file-tree",
+      label: t.addToFileTree,
+      icon: <IconFolderOpen size={14} decorative />,
+      action: () => callbacks.onShowInFileTree(workspace.id)
+    });
+  }
+
+  return items;
 }
 
 export interface SessionMenuCallbacks {

@@ -64,6 +64,7 @@ fn seed_sidebar_from_db(state: &AppState) -> Result<Vec<RecentWorkspaceEntry>, A
             unpinned_order: index as i32,
             removed_from_sidebar: false,
             available: true,
+            hidden_in_file_tree: false,
         });
     }
     if !entries.is_empty() {
@@ -111,6 +112,7 @@ fn upsert_sidebar_after_open(state: &AppState, meta: &WorkspaceMeta) -> Result<(
             unpinned_order: max + 1,
             removed_from_sidebar: false,
             available: true,
+            hidden_in_file_tree: false,
         });
     }
     save_sidebar_entries(state, &all)?;
@@ -137,6 +139,7 @@ pub fn presentable_recent_list(state: &AppState) -> Result<Vec<RecentWorkspaceEn
                 unpinned_order: max + 1,
                 removed_from_sidebar: false,
                 available: true,
+                hidden_in_file_tree: false,
             });
             changed = true;
         }
@@ -291,10 +294,16 @@ pub fn workspace_get_change_preview(
 }
 
 #[tauri::command]
-pub fn workspace_list_tree(state: tauri::State<'_, AppState>) -> IpcResult<Vec<WorkspaceTreeNode>> {
-    ipc(with_workspace(&state, |workspace| {
-        adl_workspace::list_tree(PathBuf::from(&workspace.root_path).as_path())
-    }))
+pub fn workspace_list_tree(
+    state: tauri::State<'_, AppState>,
+    workspace_path: Option<String>,
+) -> IpcResult<Vec<WorkspaceTreeNode>> {
+    match workspace_path {
+        Some(path) => ipc(adl_workspace::list_tree(PathBuf::from(&path).as_path())),
+        None => ipc(with_workspace(&state, |workspace| {
+            adl_workspace::list_tree(PathBuf::from(&workspace.root_path).as_path())
+        })),
+    }
 }
 
 #[tauri::command]
@@ -435,6 +444,7 @@ pub fn workspace_remove_from_sidebar(
         let mut all = load_or_seed_sidebar(&state)?;
         if let Some(e) = all.iter_mut().find(|e| e.id == workspace_id) {
             e.removed_from_sidebar = true;
+            e.hidden_in_file_tree = true;
         }
         save_sidebar_entries(&state, &all)?;
         presentable_recent_list(&state)
@@ -467,7 +477,38 @@ pub fn workspace_restore_to_sidebar(
                 unpinned_order: max + 1,
                 removed_from_sidebar: false,
                 available: true,
+                hidden_in_file_tree: false,
             });
+        }
+        save_sidebar_entries(&state, &all)?;
+        presentable_recent_list(&state)
+    })
+}
+
+#[tauri::command]
+pub fn workspace_hide_from_file_tree(
+    state: tauri::State<'_, AppState>,
+    workspace_id: String,
+) -> IpcResult<Vec<RecentWorkspaceEntry>> {
+    crate::commands::ipc_try(|| {
+        let mut all = load_or_seed_sidebar(&state)?;
+        if let Some(e) = all.iter_mut().find(|e| e.id == workspace_id) {
+            e.hidden_in_file_tree = true;
+        }
+        save_sidebar_entries(&state, &all)?;
+        presentable_recent_list(&state)
+    })
+}
+
+#[tauri::command]
+pub fn workspace_show_in_file_tree(
+    state: tauri::State<'_, AppState>,
+    workspace_id: String,
+) -> IpcResult<Vec<RecentWorkspaceEntry>> {
+    crate::commands::ipc_try(|| {
+        let mut all = load_or_seed_sidebar(&state)?;
+        if let Some(e) = all.iter_mut().find(|e| e.id == workspace_id) {
+            e.hidden_in_file_tree = false;
         }
         save_sidebar_entries(&state, &all)?;
         presentable_recent_list(&state)

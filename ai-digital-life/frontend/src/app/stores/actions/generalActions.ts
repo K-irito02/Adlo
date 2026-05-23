@@ -56,10 +56,7 @@ export function createGeneralActions(set: StoreApi<StoreState>["setState"], get:
       void window.digitalLife.workspace.setEditorDirtyPaths([]);
 
       if (appInfoResult.data.currentWorkspace) {
-        const [treeResult, gitStatusResult] = await Promise.all([
-          window.digitalLife.workspace.listTree(),
-          window.digitalLife.workspace.getGitStatus(),
-        ]);
+        const gitStatusResult = await window.digitalLife.workspace.getGitStatus();
         if (requestSeq !== workspaceRequestSeq) return;
 
         const gitSnapshot = gitStatusResult.ok ? gitStatusResult.data : undefined;
@@ -77,7 +74,8 @@ export function createGeneralActions(set: StoreApi<StoreState>["setState"], get:
         set({
           ...nextState,
           appInfo: appInfoWithGitSnapshot,
-          workspaceTree: treeResult.ok ? treeResult.data : [],
+          workspaceTrees: {},
+          workspaceTree: [],
           gitSnapshot,
           dirtyEditorPaths: [],
         });

@@ -287,6 +287,7 @@ pub struct RecentWorkspaceEntry {
     pub unpinned_order: i32,
     pub removed_from_sidebar: bool,
     pub available: bool,
+    pub hidden_in_file_tree: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

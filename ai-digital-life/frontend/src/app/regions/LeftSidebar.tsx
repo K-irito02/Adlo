@@ -211,7 +211,8 @@ export function LeftSidebar({
                   onMarkAllSessionsRead: actions.markAllSessionsRead,
                   onArchiveAllSessions: actions.archiveAllSessions,
                   onRemoveWorkspace: actions.removeWorkspaceFromSidebar,
-                  onRevealWorkspace: actions.revealWorkspaceInFileManager
+                  onRevealWorkspace: actions.revealWorkspaceInFileManager,
+                  onShowInFileTree: actions.showWorkspaceInFileTree
                 })}
                 x={menuState.x}
                 y={menuState.y}

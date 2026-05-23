@@ -14,47 +14,81 @@
 
 ## 文件树
 
-> 工作区文件树
+> 多工作区文件树（MultiWorkspaceFileTree）
+>
+> 文件面板同时展示多个工作区的文件结构。每个工作区为一个独立可展开/折叠的条目，支持置顶排序、拖拽重排和隐藏操作。
 
 ### 定位选择器
 
 | 优先级 | 类型 | 选择器 |
 |--------|------|--------|
-| 1 | CSS | `.adl-filetree-shell` |
-| 2 | CSS | `.adl-filetree-scroll` |
-| 3 | CSS | `.adl-filetree` |
+| 1 | CSS | `.adl-multitree` |
+| 2 | CSS | `.adl-multitree-scroll` |
+| 3 | CSS | `.adl-multitree-entry` |
 
-### 文件项
+### 工作区条目
 
 | 选择器 | 说明 |
 |--------|------|
-| `.adl-filetree__item` | 文件/文件夹项容器 |
-| `.adl-filetree__row` | 文件树整行交互区域 |
-| `.adl-filetree__label` | 文件/文件夹名称按钮 |
-| `.adl-filetree__toggle` | 文件夹收起/展开按钮 |
-| `.adl-filetree__item.is-active` | 当前选中项 |
-| `.adl-filetree__item.is-selected` | 当前选中项（单选/多选） |
-| `.adl-filetree__item.is-hovered` | 当前悬停项 |
-| `.adl-filetree__item.is-context-menu-target` | 当前右键菜单激活项 |
-| `.adl-filetree__node--directory` | 文件夹节点样式修饰符 |
-| `.adl-filetree__children` | 子目录列表 |
-| `.adl-filetree-scrollbar` | 自定义滚动条 |
-| `.adl-tool-navigator__resize-handle` | 右边框拖拽手柄 |
+| `.adl-multitree-entry` | 单个工作区条目 |
+| `.adl-multitree-entry__header` | 条目头部（整体 hover/active 背景） |
+| `.adl-multitree-entry__expand-btn` | 展开/折叠按钮（▶/▼） |
+| `.adl-multitree-entry__name` | 工作区名称（截断显示） |
+| `.adl-multitree-entry__actions` | 悬停时浮现的操作按钮组 |
+| `.adl-multitree-entry__menu` | ⋮ 按钮弹出的菜单卡片 |
+| `.adl-multitree-entry__tree` | 展开后的文件树容器 |
+| `.adl-multitree-entry.is-current` | 当前活跃工作区 |
+| `.adl-multitree-section-label` | "已置顶"/"未置顶"分组标签 |
+| `.adl-multitree-scrollbar` | 自定义滚动条轨道 |
+| `.adl-multitree-scrollbar__thumb` | 自定义滚动条滑块 |
 
 ### 操作
 
-#### 展开文件夹
+#### 展开工作区文件树
 
 ```javascript
-await page.locator('.adl-filetree__label').filter({ hasText: 'notes' }).click();
-await page.waitForSelector('.adl-filetree__children');
+await page.locator('.adl-multitree-entry__expand-btn').first().click();
+await page.waitForSelector('.adl-multitree-entry__tree .adl-filetree');
 ```
 
-#### 打开文件
+#### 切换到工作区
 
 ```javascript
-await page.locator('.adl-filetree__label').filter({ hasText: '.md' }).click();
-await page.waitForSelector('div[data-testid="editor-shell"] .cm-editor');
+await page.locator('.adl-multitree-entry__name').filter({ hasText: 'notes' }).click();
+```
+
+#### 悬停显示操作按钮
+
+```javascript
+await page.locator('.adl-multitree-entry__namezone').first().hover();
+await page.waitForSelector('.adl-multitree-entry__actions button', { state: 'visible' });
+```
+
+#### 打开更多操作菜单
+
+```javascript
+// 先悬停显示操作按钮
+await page.locator('.adl-multitree-entry__namezone').first().hover();
+// 点击 ⋮ 按钮
+await page.locator('.adl-multitree-entry__actions button[aria-label="更多操作"]').click();
+await page.waitForSelector('.adl-multitree-entry__menu');
+```
+
+#### 工具栏操作
+
+| 按钮 | 位置 | aria-label | 说明 |
+|------|------|------------|------|
+| 展开/折叠全部 | Row 1 左 | 展开全部/折叠全部 | 批量展开/收起所有工作区 |
+| 刷新全部 | Row 1 右 | 刷新全部 | 刷新所有已展开工作区文件树 |
+| 文件树 | Row 2 左 | 文件树 | 切换到文件树视图 |
+| 文档大纲 | Row 2 左 | 文档大纲 | 切换到文档大纲视图 |
+| 新建文件 | Row 2 右 | 新建文件 | 创建新文件 |
+| 新建文件夹 | Row 2 右 | 新建文件夹 | 创建新文件夹 |
+
+```javascript
+await page.click('button[aria-label="展开全部"]');
+await page.click('button[aria-label="刷新全部"]');
+await page.click('button[aria-label="新建文件"]');
 ```
 
 ---

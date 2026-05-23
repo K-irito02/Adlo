@@ -114,7 +114,11 @@ export function RightPanel(panelProps: RightPanelProps) {
   const fileLastModifiedAt = useAppStore((s) => s.fileLastModifiedAt);
   const externalFileChange = useAppStore(useShallow((s) => s.externalFileChange));
   const outline = useAppStore(useShallow((s) => s.outline));
-  const workspaceTree = useAppStore(useShallow((s) => s.workspaceTree));
+  const workspaceTrees = useAppStore(useShallow((s) => s.workspaceTrees));
+  const recentWorkspaces = useAppStore(useShallow((s) => s.recentWorkspaces));
+  const workspaceTreeExpandedInFileNav = useAppStore(useShallow((s) => s.workspaceTreeExpandedInFileNav));
+  const workspaceTreeLoading = useAppStore(useShallow((s) => s.workspaceTreeLoading));
+  const workspaceTreeErrors = useAppStore(useShallow((s) => s.workspaceTreeErrors));
   const repoMap = useAppStore(useShallow((s) => s.repoMap));
   const searchQuery = useAppStore((s) => s.searchQuery);
   const searchResults = useAppStore(useShallow((s) => s.searchResults));
@@ -131,6 +135,11 @@ export function RightPanel(panelProps: RightPanelProps) {
   const [diffSideBySide, setDiffSideBySide] = React.useState(readDiffSideBySidePreference);
   const editorDirtyTimerRef = useRef<number | undefined>(undefined);
   const settings = useMemo(() => buildSettingsItems(t, appInfo), [appInfo, t]);
+
+  const allExpanded = useMemo(() => {
+    const visible = recentWorkspaces.filter(w => !w.removedFromSidebar && !w.hiddenInFileTree && w.available);
+    return visible.length > 0 && visible.every(w => workspaceTreeExpandedInFileNav[w.id]);
+  }, [recentWorkspaces, workspaceTreeExpandedInFileNav]);
 
   const persistDiffLayout = useCallback((sideBySide: boolean) => {
     setDiffSideBySide(sideBySide);
@@ -240,7 +249,10 @@ export function RightPanel(panelProps: RightPanelProps) {
     diagnostics: selectedDiagnostics,
     editorHint,
     outline,
-    workspaceTree,
+    workspaceTrees,
+    workspaceTree: [],
+    recentWorkspaces,
+    allExpanded,
     repoMap,
     searchQuery: localSearchQuery,
     searchResults,
@@ -272,6 +284,15 @@ export function RightPanel(panelProps: RightPanelProps) {
     onSearch: (query) => void actions.searchFiles(query),
     onSearchChange: setLocalSearchQuery,
     onRefreshWorkspaceTree: () => void actions.refreshWorkspaceTree(),
+    onExpandAll: () => void actions.expandAllWorkspaceTreesInFileNav(),
+    onCollapseAll: () => void actions.collapseAllWorkspaceTreesInFileNav(),
+    onRefreshAll: () => void actions.refreshAllWorkspaceTrees(),
+    onRefreshOneWorkspace: (workspaceId) => {
+      const ws = recentWorkspaces.find(r => r.id === workspaceId);
+      if (ws) void actions.loadWorkspaceTree(workspaceId, ws.path);
+    },
+    onHideFromFileTree: (workspaceId) => void actions.hideWorkspaceFromFileTree(workspaceId),
+    onShowInFileTree: (workspaceId) => void actions.showWorkspaceInFileTree(workspaceId),
     onSendSelection,
     onSetDiffLayout: persistDiffLayout,
     onSetHunkDecision: handleSetHunkDecision,

@@ -25,7 +25,9 @@ export function FilesPanel(props: RightPanelViewProps) {
     diagnostics,
     editorHint,
     outline,
-    workspaceTree,
+    workspaceTrees,
+    recentWorkspaces,
+    allExpanded,
     searchQuery,
     searchResults,
     dirtyEditorPaths,
@@ -38,6 +40,11 @@ export function FilesPanel(props: RightPanelViewProps) {
     onSearch,
     onSearchChange,
     onRefreshWorkspaceTree,
+    onExpandAll,
+    onCollapseAll,
+    onRefreshAll,
+    onRefreshOneWorkspace,
+    onHideFromFileTree,
     onCreateWorkspaceFile,
     onCreateWorkspaceFolder,
     onSetDiffLayout,
@@ -226,7 +233,9 @@ export function FilesPanel(props: RightPanelViewProps) {
       >
         <FileNavigatorShell
           selectedFilePath={selectedFilePath}
-          workspaceTree={workspaceTree}
+          workspaceTrees={workspaceTrees}
+          recentWorkspaces={recentWorkspaces}
+          allExpanded={allExpanded}
           outline={outline}
           searchQuery={searchQuery}
           searchResults={searchResults}
@@ -237,7 +246,11 @@ export function FilesPanel(props: RightPanelViewProps) {
           onOpenFileAtLine={onOpenFileAtLine}
           onSearch={onSearch}
           onSearchChange={onSearchChange}
-          onRefreshWorkspaceTree={onRefreshWorkspaceTree}
+          onExpandAll={onExpandAll}
+          onCollapseAll={onCollapseAll}
+          onRefreshAll={onRefreshAll}
+          onRefreshOneWorkspace={onRefreshOneWorkspace}
+          onHideFromFileTree={onHideFromFileTree}
           onCreateWorkspaceFile={onCreateWorkspaceFile}
           onCreateWorkspaceFolder={onCreateWorkspaceFolder}
           onEditorChange={onEditorChange}

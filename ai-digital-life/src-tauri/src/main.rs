@@ -41,6 +41,8 @@ fn main() {
             commands::workspace::workspace_reorder,
             commands::workspace::workspace_remove_from_sidebar,
             commands::workspace::workspace_restore_to_sidebar,
+            commands::workspace::workspace_hide_from_file_tree,
+            commands::workspace::workspace_show_in_file_tree,
             commands::workspace::workspace_reveal_in_file_manager,
             commands::workspace::workspace_get_git_status,
             commands::workspace::workspace_list_git_branches,

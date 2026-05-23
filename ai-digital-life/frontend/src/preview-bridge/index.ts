@@ -232,6 +232,26 @@ export function setupPreviewBridge(): void {
         return { ok: true, data: recentWorkspaces };
       },
       restoreToSidebar: async () => ({ ok: true, data: recentWorkspaces }),
+      listTreeForWorkspace: async (workspacePath: string) => {
+        const params = new URLSearchParams({ rootPath: workspacePath });
+        return requestPreviewApi<WorkspaceTreeNode[]>(`/workspace/tree?${params.toString()}`);
+      },
+      hideFromFileTree: async (workspaceId: string) => {
+        const entry = recentWorkspaces.find((item) => item.id === workspaceId);
+        if (entry) {
+          entry.hiddenInFileTree = true;
+        }
+        persistRecentWorkspaces(recentWorkspaces);
+        return { ok: true, data: recentWorkspaces };
+      },
+      showInFileTree: async (workspaceId: string) => {
+        const entry = recentWorkspaces.find((item) => item.id === workspaceId);
+        if (entry) {
+          entry.hiddenInFileTree = false;
+        }
+        persistRecentWorkspaces(recentWorkspaces);
+        return { ok: true, data: recentWorkspaces };
+      },
       revealInFileManager: async (workspacePath: string) =>
         requestPreviewApi<boolean>("/workspace/reveal", {
           method: "POST", body: JSON.stringify({ path: workspacePath })

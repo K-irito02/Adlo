@@ -235,7 +235,8 @@ const recentWorkspaces: RecentWorkspaceEntry[] = [
     pinnedOrder: 0,
     unpinnedOrder: 0,
     removedFromSidebar: false,
-    available: true
+    available: true,
+    hiddenInFileTree: false
   }
 ];
 
@@ -309,6 +310,7 @@ function ensureRecentWorkspace(meta: WorkspaceMeta): void {
     existing.lastOpenedAt = Date.now();
     existing.available = true;
     existing.removedFromSidebar = false;
+    existing.hiddenInFileTree = false;
     return;
   }
   recentWorkspaces.unshift({
@@ -321,7 +323,8 @@ function ensureRecentWorkspace(meta: WorkspaceMeta): void {
     pinnedOrder: 0,
     unpinnedOrder: recentWorkspaces.filter((entry) => !entry.isPinned).length,
     removedFromSidebar: false,
-    available: true
+    available: true,
+    hiddenInFileTree: false
   });
 }
 
@@ -657,6 +660,7 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
       const entry = recentWorkspaces.find((item) => item.id === workspaceId);
       if (entry) {
         entry.removedFromSidebar = true;
+        entry.hiddenInFileTree = true;
       }
       return { ok: true, data: recentWorkspaces };
     },
@@ -664,6 +668,24 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
       const entry = recentWorkspaces.find((item) => item.id === workspaceId);
       if (entry) {
         entry.removedFromSidebar = false;
+      }
+      return { ok: true, data: recentWorkspaces };
+    },
+    listTreeForWorkspace: async (workspacePath: string) => ({
+      ok: true,
+      data: currentWorkspaceMeta ? buildWorkspaceTreeFromPaths(Array.from(documents.keys()), Array.from(emptyDirectories)) : []
+    }),
+    hideFromFileTree: async (workspaceId: string) => {
+      const entry = recentWorkspaces.find((item) => item.id === workspaceId);
+      if (entry) {
+        entry.hiddenInFileTree = true;
+      }
+      return { ok: true, data: recentWorkspaces };
+    },
+    showInFileTree: async (workspaceId: string) => {
+      const entry = recentWorkspaces.find((item) => item.id === workspaceId);
+      if (entry) {
+        entry.hiddenInFileTree = false;
       }
       return { ok: true, data: recentWorkspaces };
     },

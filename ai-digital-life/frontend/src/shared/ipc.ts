@@ -108,6 +108,9 @@ export interface WorkspaceBridge {
   reorder: (input: ReorderWorkspacesInput) => Promise<IpcResult<RecentWorkspaceEntry[]>>;
   removeFromSidebar: (workspaceId: string) => Promise<IpcResult<RecentWorkspaceEntry[]>>;
   restoreToSidebar: (workspaceId: string) => Promise<IpcResult<RecentWorkspaceEntry[]>>;
+  listTreeForWorkspace: (workspacePath: string) => Promise<IpcResult<WorkspaceTreeNode[]>>;
+  hideFromFileTree: (workspaceId: string) => Promise<IpcResult<RecentWorkspaceEntry[]>>;
+  showInFileTree: (workspaceId: string) => Promise<IpcResult<RecentWorkspaceEntry[]>>;
   revealInFileManager: (workspacePath: string) => Promise<IpcResult<boolean>>;
   createFile: (relativePath: string, content?: string) => Promise<IpcResult<WorkspaceFileDocument>>;
   createFolder: (relativePath: string) => Promise<IpcResult<boolean>>;

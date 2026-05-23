@@ -9,6 +9,7 @@ import type {
   ModelGatewayHealthSnapshot,
   PatchApplicationResult,
   PatchSet,
+  RecentWorkspaceEntry,
   RepoMapNode,
   SettingItem,
   WorkspaceSearchHit,
@@ -52,6 +53,15 @@ export interface RightPanelViewProps {
   editorHint?: string;
   outline: FileOutlineItem[];
   workspaceTree: WorkspaceTreeNode[];
+  workspaceTrees: Record<string, WorkspaceTreeNode[]>;
+  recentWorkspaces: RecentWorkspaceEntry[];
+  allExpanded: boolean;
+  onExpandAll: () => void;
+  onCollapseAll: () => void;
+  onRefreshAll: () => void;
+  onRefreshOneWorkspace: (workspaceId: string) => void;
+  onHideFromFileTree: (workspaceId: string) => void;
+  onShowInFileTree: (workspaceId: string) => void;
   repoMap: RepoMapNode[];
   searchQuery: string;
   searchResults: WorkspaceSearchHit[];

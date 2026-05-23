@@ -72,6 +72,15 @@ export interface StoreState extends StoreStateBase {
   createWorkspaceFile: (relativePath: string, content?: string) => Promise<string | undefined>;
   createWorkspaceFolder: (relativePath: string) => Promise<string | undefined>;
   refreshWorkspaceTree: () => Promise<void>;
+  loadWorkspaceTree: (workspaceId: string, workspacePath: string) => Promise<void>;
+  toggleWorkspaceTreeInFileNav: (workspaceId: string) => void;
+  expandWorkspaceTreeInFileNav: (workspaceId: string, workspacePath: string) => Promise<void>;
+  refreshAllWorkspaceTrees: () => Promise<void>;
+  cleanupRemovedWorkspaceTree: (workspaceId: string) => void;
+  hideWorkspaceFromFileTree: (workspaceId: string) => Promise<void>;
+  showWorkspaceInFileTree: (workspaceId: string) => Promise<void>;
+  expandAllWorkspaceTreesInFileNav: () => Promise<void>;
+  collapseAllWorkspaceTreesInFileNav: () => void;
   searchFiles: (query: string) => Promise<void>;
   setHunkDecision: (patchSetId: string, hunkId: string, decision: "pending" | "accepted" | "rejected") => Promise<void>;
   applyPatchSet: (patchSetId: string) => Promise<void>;
