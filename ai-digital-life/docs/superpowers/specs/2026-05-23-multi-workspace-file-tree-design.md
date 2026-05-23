@@ -72,14 +72,26 @@ FileNavigatorShell
 | 交互 | 行为 |
 |------|------|
 | 点击展开▸ | 惰性加载该工作区的文件树，首次展开时调用 `listTreeForWorkspace` |
-| 点击名称 | 切换到该工作区（`openWorkspace`） |
+| 点击名称区域 | 切换展开/折叠（`onToggleExpand`） |
+| 右击名称区域 | 弹出 Portal 菜单（从此区域移除、在文件管理器中显示、复制路径等） |
 | 悬停名称区域 | 浮现 3 个操作按钮（刷新、置顶/取消、更多） |
-| 悬停左区域(▸) | 不触发操作按钮显示 |
+| 悬停左区域(📁) | 不触发操作按钮显示 |
 | 点击 ⋮ | 弹出 Portal 菜单（从此区域移除、在文件管理器中显示、复制路径） |
 | 置顶/取消 | 与侧边栏共享 `isPinned`，通过 `reorderWorkspaces` 同步排序 |
 | 拖拽重排 | HTML5 Drag & Drop，仅在各自桶内排序 |
-| 展开/折叠全部 | 批量调用 `expandWorkspaceTreeInFileNav` / `collapseAllWorkspaceTreesInFileNav` |
+| 展开/折叠全部 | 批量调用 `expandAllWorkspaceTreesInFileNav` / `collapseAllWorkspaceTreesInFileNav` |
 | 刷新全部 | 遍历已展开工作区重新加载文件树 |
+
+## 视觉约定
+
+| 元素 | 行为 |
+|------|------|
+| 展开/折叠图标 | 文件夹图标：折叠 `IconFolder` / 展开 `IconFolderOpen` |
+| is-current 头部行 | 无常驻背景色，仅 hover 时显示 `var(--surface-hover)` |
+| 头部行与文件树 | 无缝连接，无分割线，无额外背景色 |
+| 工作区条目之间 | 使用 `border-bottom: 1px solid var(--border-subtle)` 分割 |
+| 统计数字字号 | `var(--text-sm)`（与工具栏"文件"标签处一致） |
+| 菜单定位 | `createPortal` + `position: fixed`，基于目标按钮的 `getBoundingClientRect()` |
 
 ## 隐藏/显示机制
 

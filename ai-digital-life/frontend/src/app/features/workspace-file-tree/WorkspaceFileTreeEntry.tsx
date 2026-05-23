@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import type { RecentWorkspaceEntry, WorkspaceTreeNode } from "@ai-digital-life/kernel";
 import type { CopyDict } from "../../copy";
-import { IconRefreshCw, IconPin, IconPinOff, IconMoreVertical, IconChevronRight, IconChevronDown, IconAlertTriangle, IconLoader, IconCopy, IconFolderOpen, IconEyeOff } from "../../icons";
+import { IconRefreshCw, IconPin, IconPinOff, IconMoreVertical, IconFolder, IconFolderOpen, IconAlertTriangle, IconLoader, IconCopy, IconEyeOff } from "../../icons";
 import { FileTree, type FileTreeContextMenuItem } from "../../features/file-tree";
 import { TooltipSimple } from "../../components/Tooltip";
 
@@ -90,9 +90,15 @@ export function WorkspaceFileTreeEntry({
   }, [menuOpen, menuId]);
 
   const handleNameClick = () => {
-    if (!isCurrent) {
-      onOpenWorkspace(workspace.path);
-    }
+    onToggleExpand();
+  };
+
+  const handleNameContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setMenuPosition({ top: rect.top, left: rect.right + 4 });
+    setMenuOpen(true);
   };
 
   const handleMoreClick = (e: React.MouseEvent) => {
@@ -149,12 +155,12 @@ export function WorkspaceFileTreeEntry({
               aria-expanded={isExpanded}
               disabled={!workspace.available}
             >
-              {isExpanded ? <IconChevronDown size={12} decorative /> : <IconChevronRight size={12} decorative />}
+              {isExpanded ? <IconFolderOpen size={14} decorative /> : <IconFolder size={14} decorative />}
             </button>
           </TooltipSimple>
         </div>
 
-        <div className="adl-multitree-entry__namezone" role="button" tabIndex={0} onClick={handleNameClick} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") handleNameClick(); }} aria-label={workspace.name}>
+        <div className="adl-multitree-entry__namezone" role="button" tabIndex={0} onClick={handleNameClick} onContextMenu={handleNameContextMenu} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") handleNameClick(); }} aria-label={workspace.name}>
           <span className="adl-multitree-entry__name" title={workspace.path}>{workspace.name}</span>
 
           <div className="adl-multitree-entry__actions">

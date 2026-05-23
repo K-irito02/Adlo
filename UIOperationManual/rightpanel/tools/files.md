@@ -44,11 +44,26 @@
 
 ### 操作
 
-#### 展开工作区文件树
+#### 展开工作区文件树（点击名称区域）
 
 ```javascript
+// 点击名称区域切换展开/折叠
+await page.locator('.adl-multitree-entry__namezone').first().click();
+await page.waitForSelector('.adl-multitree-entry__tree .adl-filetree');
+```
+
+```javascript
+// 也可点击左侧文件夹图标触发展开
 await page.locator('.adl-multitree-entry__expand-btn').first().click();
 await page.waitForSelector('.adl-multitree-entry__tree .adl-filetree');
+```
+
+#### 右键打开更多操作菜单
+
+```javascript
+// 右击名称区域弹出菜单
+await page.locator('.adl-multitree-entry__namezone').first().click({ button: 'right' });
+await page.waitForSelector('.adl-multitree-entry__menu');
 ```
 
 #### 切换到工作区
