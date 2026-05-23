@@ -28,6 +28,9 @@ export function FilesPanel(props: RightPanelViewProps) {
     workspaceTrees,
     recentWorkspaces,
     allExpanded,
+    workspaceTreeExpandedInFileNav,
+    workspaceTreeLoading,
+    workspaceTreeErrors,
     searchQuery,
     searchResults,
     dirtyEditorPaths,
@@ -44,6 +47,7 @@ export function FilesPanel(props: RightPanelViewProps) {
     onCollapseAll,
     onRefreshAll,
     onRefreshOneWorkspace,
+    onToggleExpandInFileNav,
     onHideFromFileTree,
     onCreateWorkspaceFile,
     onCreateWorkspaceFolder,
@@ -236,6 +240,9 @@ export function FilesPanel(props: RightPanelViewProps) {
           workspaceTrees={workspaceTrees}
           recentWorkspaces={recentWorkspaces}
           allExpanded={allExpanded}
+          workspaceTreeExpandedInFileNav={workspaceTreeExpandedInFileNav}
+          workspaceTreeLoading={workspaceTreeLoading}
+          workspaceTreeErrors={workspaceTreeErrors}
           outline={outline}
           searchQuery={searchQuery}
           searchResults={searchResults}
@@ -250,6 +257,7 @@ export function FilesPanel(props: RightPanelViewProps) {
           onCollapseAll={onCollapseAll}
           onRefreshAll={onRefreshAll}
           onRefreshOneWorkspace={onRefreshOneWorkspace}
+          onToggleExpandInFileNav={onToggleExpandInFileNav}
           onHideFromFileTree={onHideFromFileTree}
           onCreateWorkspaceFile={onCreateWorkspaceFile}
           onCreateWorkspaceFolder={onCreateWorkspaceFolder}

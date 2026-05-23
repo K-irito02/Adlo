@@ -56,10 +56,14 @@ export interface RightPanelViewProps {
   workspaceTrees: Record<string, WorkspaceTreeNode[]>;
   recentWorkspaces: RecentWorkspaceEntry[];
   allExpanded: boolean;
+  workspaceTreeExpandedInFileNav: Record<string, boolean>;
+  workspaceTreeLoading: Record<string, boolean>;
+  workspaceTreeErrors: Record<string, string | undefined>;
   onExpandAll: () => void;
   onCollapseAll: () => void;
   onRefreshAll: () => void;
   onRefreshOneWorkspace: (workspaceId: string) => void;
+  onToggleExpandInFileNav: (workspaceId: string) => void;
   onHideFromFileTree: (workspaceId: string) => void;
   onShowInFileTree: (workspaceId: string) => void;
   repoMap: RepoMapNode[];

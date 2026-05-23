@@ -35,11 +35,15 @@ interface FileNavigatorShellProps {
   onCollapseAll: () => void;
   onRefreshAll: () => void;
   onRefreshOneWorkspace: (workspaceId: string) => void;
+  onToggleExpandInFileNav: (workspaceId: string) => void;
   onHideFromFileTree: (workspaceId: string) => void;
   onCreateWorkspaceFile: (relativePath: string, content?: string) => Promise<string | undefined>;
   onCreateWorkspaceFolder: (relativePath: string) => Promise<string | undefined>;
   onEditorChange: (value: string | undefined) => void;
   onNavigateLine: (line: number) => void;
+  workspaceTreeExpandedInFileNav: Record<string, boolean>;
+  workspaceTreeLoading: Record<string, boolean>;
+  workspaceTreeErrors: Record<string, string | undefined>;
   t: CopyDict;
 }
 
@@ -85,6 +89,10 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
     onCreateWorkspaceFolder,
     onEditorChange,
     onNavigateLine,
+    onToggleExpandInFileNav,
+    workspaceTreeExpandedInFileNav,
+    workspaceTreeLoading,
+    workspaceTreeErrors,
     t,
   } = props;
 
@@ -98,11 +106,6 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
   const toggleFileTreePath = useUiStore((s) => s.toggleFileTreePath);
   const expandFileTreePathChain = useUiStore((s) => s.expandFileTreePathChain);
   const collapseAllFileTreePaths = useUiStore((s) => s.collapseAllFileTreePaths);
-
-  const workspaceTreeExpandedInFileNav = useAppStore((s) => s.workspaceTreeExpandedInFileNav);
-  const workspaceTreeLoading = useAppStore((s) => s.workspaceTreeLoading);
-  const workspaceTreeErrors = useAppStore((s) => s.workspaceTreeErrors);
-  const expandWorkspaceTreeInFileNav = useAppStore((s) => s.expandWorkspaceTreeInFileNav);
 
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const activeWorkspaceId = appInfo?.currentWorkspace?.path
@@ -434,10 +437,7 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
             expandedPaths={expandedPaths}
             dirtyPaths={dirtyPaths}
             externalChangePath={externalChangePath}
-            onToggleExpand={(workspaceId: string) => {
-              const ws = visibleWorkspaces.find(r => r.id === workspaceId);
-              if (ws) expandWorkspaceTreeInFileNav(workspaceId, ws.path);
-            }}
+            onToggleExpand={onToggleExpandInFileNav}
             onRefreshOne={onRefreshOneWorkspace}
             onOpenWorkspace={(path: string) => {
               useAppStore.getState().openWorkspace(path);

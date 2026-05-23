@@ -253,6 +253,9 @@ export function RightPanel(panelProps: RightPanelProps) {
     workspaceTree: [],
     recentWorkspaces,
     allExpanded,
+    workspaceTreeExpandedInFileNav,
+    workspaceTreeLoading,
+    workspaceTreeErrors,
     repoMap,
     searchQuery: localSearchQuery,
     searchResults,
@@ -290,6 +293,10 @@ export function RightPanel(panelProps: RightPanelProps) {
     onRefreshOneWorkspace: (workspaceId) => {
       const ws = recentWorkspaces.find(r => r.id === workspaceId);
       if (ws) void actions.loadWorkspaceTree(workspaceId, ws.path);
+    },
+    onToggleExpandInFileNav: (workspaceId) => {
+      const ws = recentWorkspaces.find(r => r.id === workspaceId);
+      if (ws) void actions.expandWorkspaceTreeInFileNav(workspaceId, ws.path);
     },
     onHideFromFileTree: (workspaceId) => void actions.hideWorkspaceFromFileTree(workspaceId),
     onShowInFileTree: (workspaceId) => void actions.showWorkspaceInFileTree(workspaceId),
