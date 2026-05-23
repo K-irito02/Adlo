@@ -118,8 +118,12 @@ export function TerminalPanel(props: RightPanelViewProps) {
   }, [visibleWorkspaces, terminalTabs]);
 
   const handleRefreshAllTerminal = useCallback(() => {
-    // no-op for terminal
-  }, []);
+    const newExpanded: Record<string, boolean> = {};
+    for (const ws of visibleWorkspaces) {
+      newExpanded[ws.id] = true;
+    }
+    setTerminalWorkspaceExpanded(newExpanded);
+  }, [visibleWorkspaces, setTerminalWorkspaceExpanded]);
 
   const toggleTerminalWorkspaceExpanded = useCallback((workspaceId: string) => {
     setTerminalWorkspaceExpanded({

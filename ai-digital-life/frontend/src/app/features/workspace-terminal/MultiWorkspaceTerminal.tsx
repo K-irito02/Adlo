@@ -97,8 +97,6 @@ export function MultiWorkspaceTerminal({
                 onHideFromRightPanels={onHideFromRightPanels}
                 onRefreshTree={() => onRefreshTree?.()}
                 onCloseAllTabs={() => onCloseAllTabs?.(workspace.id)}
-                onPinWorkspace={() => {}}
-                onUnpinWorkspace={() => {}}
                 t={t}
               />
             ))}
@@ -132,8 +130,6 @@ export function MultiWorkspaceTerminal({
                 onHideFromRightPanels={onHideFromRightPanels}
                 onRefreshTree={() => onRefreshTree?.()}
                 onCloseAllTabs={() => onCloseAllTabs?.(workspace.id)}
-                onPinWorkspace={() => {}}
-                onUnpinWorkspace={() => {}}
                 t={t}
               />
             ))}

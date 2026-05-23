@@ -23,8 +23,6 @@ export interface WorkspaceTerminalEntryProps {
   onHideFromRightPanels: (workspaceId: string) => void;
   onRefreshTree: () => void;
   onCloseAllTabs: () => void;
-  onPinWorkspace: (workspaceId: string) => void;
-  onUnpinWorkspace: (workspaceId: string) => void;
   t: CopyDict;
 }
 
@@ -42,8 +40,6 @@ export function WorkspaceTerminalEntry({
   onHideFromRightPanels,
   onRefreshTree,
   onCloseAllTabs,
-  onPinWorkspace,
-  onUnpinWorkspace,
   t,
 }: WorkspaceTerminalEntryProps) {
   const [menuOpen, setMenuOpen] = useState(false);
