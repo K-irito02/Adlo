@@ -1,7 +1,40 @@
 /**
- * 完整的 StoreState 类型定义
- * 基于所有切片合并而成
- * 使用 interface extends 替代交叉类型，改善类型推断性能
+ * 完整的 StoreState 类型定义 — 领域分组总览
+ *
+ * ## 领域分组
+ *
+ * ### 状态切片（12 个，定义在 slices/）
+ * | 切片              | 关键字段                     | 文件                    |
+ * |-------------------|-----------------------------|------------------------|
+ * | UISlice           | leftSidebarVisible, chatMode | slices/uiSlice.ts      |
+ * | WorkspaceSlice    | appInfo, workspaceTree       | slices/workspaceSlice.ts|
+ * | GitSlice          | gitSnapshot, gitBranches     | slices/gitSlice.ts     |
+ * | SessionSlice      | sessions, activeSessionId    | slices/sessionSlice.ts |
+ * | EditorSlice       | openTabs, selectedFilePath   | slices/editorSlice.ts  |
+ * | PatchSlice        | activePatchSet               | slices/patchSlice.ts   |
+ * | SearchSlice       | searchQuery, searchResults   | slices/searchSlice.ts  |
+ * | DiagnosticSlice   | indexingStatus, repoMap      | slices/diagnosticSlice.ts|
+ * | TaskSlice         | taskCenter                   | slices/taskSlice.ts    |
+ * | CommandSlice      | latestCommandRun             | slices/commandSlice.ts |
+ * | ClipboardSlice    | clipboardItems               | slices/clipboardSlice.ts|
+ * | TerminalSlice     | terminalSessions             | slices/terminalSlice.ts|
+ *
+ * ### Action 接口（8 个，定义在 actions/）
+ * | 接口               | 核心方法                      | 文件                       |
+ * |--------------------|------------------------------|----------------------------|
+ * | WorkspaceActions   | openWorkspace, refreshTree   | actions/workspaceActions.ts |
+ * | SessionActions     | sendMessage, createSession   | actions/sessionActions.ts   |
+ * | EditorActions      | openFile, openChangePreview  | actions/editorActions.ts    |
+ * | GitActions         | loadGitSnapshot, switchBranch| actions/gitActions.ts       |
+ * | PatchActions       | applyPatchSet, setHunkDecision| actions/patchActions.ts    |
+ * | SearchActions      | searchFiles                  | (内联在 StoreState.ts)      |
+ * | TaskActions        | refreshTaskCenter            | (内联在 StoreState.ts)      |
+ * | CommandActions     | runCommand                   | (内联在 StoreState.ts)      |
+ * | DataFetchActions   | bootstrap, updatePreferences | actions/generalActions.ts   |
+ *
+ * ### 根级字段
+ * - `loading: boolean` — 应用启动状态
+ * - `error?: string` — 全局错误消息
  */
 
 import type { UISlice } from "./slices/uiSlice";

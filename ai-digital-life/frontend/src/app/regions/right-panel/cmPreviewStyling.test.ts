@@ -8,7 +8,14 @@ const sharedExtensionsSource = readFileSync(new URL("../../features/diff-viewer/
 const diffViewerUtilsSource = readFileSync(new URL("../../features/diff-viewer/diffViewerUtils.ts", import.meta.url), "utf8");
 const sideBySideSource = readFileSync(new URL("../../features/diff-viewer/SideBySideDiffViewer.tsx", import.meta.url), "utf8");
 const scrollLeftSyncSource = readFileSync(new URL("../../features/editor/cmScrollLeftSync.ts", import.meta.url), "utf8");
-const regionsCssSource = readFileSync(new URL("../../../../src/styles/regions.css", import.meta.url), "utf8");
+const regionsCssSource = [
+  "files-panel.css",
+  "changes-panel.css",
+  "editor-surface.css",
+  "diff-viewer.css",
+  "browser-panel.css",
+  "terminal-panel.css",
+].map((f) => readFileSync(new URL(`../../../../src/styles/regions/rightpanel/${f}`, import.meta.url), "utf8")).join("\n");
 
 function extractCssBlock(css: string, selector: string) {
   const normalizedCss = css.replace(/\r\n/g, "\n");

@@ -1,10 +1,15 @@
 use crate::outline::{count_chars, count_leading_closers, OutlineDraft};
 use regex::Regex;
+use std::sync::OnceLock;
+
+fn key_regex() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| Regex::new(r#"^"([^"]+)"\s*:\s*(.*)$"#).unwrap())
+}
 
 pub(crate) fn parse_json_outline(content: &str) -> Vec<OutlineDraft> {
     let mut drafts = Vec::new();
     let mut brace_depth = 0usize;
-    let key_regex = Regex::new(r#"^"([^"]+)"\s*:\s*(.*)$"#).unwrap();
     for (index, line_text) in content.lines().enumerate() {
         let trimmed = line_text.trim();
         if trimmed.is_empty() {
@@ -13,7 +18,7 @@ pub(crate) fn parse_json_outline(content: &str) -> Vec<OutlineDraft> {
         let sanitized = line_text.replace('"', "");
         let effective_depth =
             brace_depth.saturating_sub(count_leading_closers(&sanitized, &['}', ']']));
-        if let Some(captures) = key_regex.captures(trimmed) {
+        if let Some(captures) = key_regex().captures(trimmed) {
             let value = captures
                 .get(2)
                 .map(|capture| capture.as_str().trim())

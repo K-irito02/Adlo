@@ -232,7 +232,7 @@ impl ModelGateway {
             .ok_or_else(|| AppError::Model(format!("API returned empty choices array (model={model_id})")))?;
         Ok(ModelResponse {
             provider_id: provider,
-            model_id: body.model.unwrap_or_else(|| model_id.to_string()),
+            model_id: body.model.unwrap_or_else(|| model_id.into()),
             content,
             synthetic: false,
             request_id: body.id,

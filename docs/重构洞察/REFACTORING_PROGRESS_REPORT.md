@@ -1,6 +1,6 @@
 # 重构进度报告
 
-> 更新日期: 2026-05-24
+> 更新日期: 2026-05-24（第十轮）
 
 ## 完成状态
 
@@ -15,6 +15,7 @@
 | **第七轮** | **2026-05-23** | **重构洞察 22 项 + 大型组件拆分（19 项修复 + 3 组件拆 17 文件）** | ✅ |
 | **第八轮** | **2026-05-23** | **重构洞察第二轮 26 项（渲染性能 + 模块化 + 架构治理 + Rust 改进 + 润色）** | ✅ |
 | **第九轮** | **2026-05-24** | **重构洞察执行 22 项（Rust 长文件拆分 + 前端组件重构 + 目录治理 + 性能优化）** | ✅ |
+| **第十轮** | **2026-05-24** | **重构洞察修复 11 项（Regex OnceLock + 死 CSS 清理 + 文件拆分 + Store 重构）** | ✅ |
 
 ## 第七轮重构（2026-05-23）：全面修复 + 大型组件模块化
 
@@ -282,6 +283,52 @@ features/diff-viewer/ (DiffViewer 拆分)
 | Rust cargo check | ✅ 零警告 |
 | 新建文件 | `crates/workspace/src/` 15 文件、`crates/storage/sql/` 2 文件、`src-tauri/src/commands/` 3 文件、`frontend/src/mock/` 7 文件、`frontend/src/app/features/multi-workspace/`、`right-panel/hooks/` 2 文件、`right-panel/panels/` 3 文件、`right-panel/editor-support/` 4 文件 |
 
+## 第十轮重构（2026-05-24）：重构洞察修复 11 项
+
+基于 [重构洞察报告 5-24](./refactor-insight-2026-05-24.md) 和 [修复计划](../../.trae/documents/2026-05-24-refactor-insight-fixes.md) 完成，分 4 个 Phase 共 11 项任务：
+
+### Phase A：低风险清理（3 项）
+
+| 任务 | 文件 | 说明 |
+|------|------|------|
+| **死 CSS 删除** | `regions.css`(-8,144)、`sidebar.css`(-506)、`main-content.css`(-1,064) | 共 9,714 行未被 `index.css` 导入链引用，重构拆分残留 |
+| **StoreState 文档注释** | `StoreState.ts`、`slicedStore.ts` | 头部领域分组总览表格 + create 调用处边界注释 |
+| **model-gateway 微优化** | `model-gateway/src/lib.rs:235` | `model_id.to_string()` → `model_id.into()` |
+
+### Phase B：Rust 性能优化（4 项）
+
+| 任务 | 文件 | 核心改进 |
+|------|------|---------|
+| **Regex → OnceLock** | 8 文件（python/shell/yaml/sql/html/json/vue/mod.rs）共 22 处 | 每次文件打开重复正则编译→首次编译即缓存 |
+| **detect_outline_family** | `outline/mod.rs` | 3 次堆分配 → 零分配 + O(1) HashMap |
+| **vue.rs 字节切片** | `outline/vue.rs` | `join("\n")` 二次分配 → 字节偏移切片零分配 |
+| **单调栈 O(n)** | `outline/mod.rs:finalize_outline_items` | 嵌套循环 O(n²) → 单调栈 O(n) |
+
+### Phase C：Store 重构（1 项）
+
+| 任务 | 文件 | 说明 |
+|------|------|------|
+| **sendMessage 拆分** | `streamActions.ts` | 140 行单体 → `dispatchSlashCommand`(30行) + `refreshAfterSend`(40行) + 精简 `sendMessage`(70行) |
+
+### Phase D：文件拆分（2 项）
+
+| 任务 | 文件 | 说明 |
+|------|------|------|
+| **rightpanel.css 拆分** | `rightpanel/` 下 6 文件 | 5,006 行 → files-panel(2,482) + editor-surface(922) + diff-viewer(692) + changes-panel(443) + terminal(254) + browser(213) |
+| **ChangesPanel 拆分** | `ChangesToolbar.tsx` + `ChangesEmptyState.tsx` | 1,343 → 1,101 行主文件 + 2 独立组件 |
+
+### 验证结果
+
+| 检查项 | 结果 |
+|--------|------|
+| TypeScript typecheck | ✅ 0 error |
+| 前端测试 (Vitest) | ✅ 31 files, 183 tests |
+| Rust cargo test (all crates) | ✅ 105 tests（含新） |
+| Rust cargo check | ✅ 零警告 |
+| 新建文件 | `frontend/src/styles/regions/rightpanel/` 6 文件、`frontend/src/app/regions/right-panel/panels/ChangesToolbar.tsx`、`ChangesEmptyState.tsx` |
+| 删除文件 | `regions.css`、`sidebar.css`、`main-content.css` 共 9,714 行 |
+| 行净变化 | -9,714 + 6 新 CSS 文件 + 2 新 TSX 文件 |
+
 ## 相关文档
 
 - [重构洞察报告 5-21](./refactor-insight-2026-05-21.md)
@@ -289,7 +336,9 @@ features/diff-viewer/ (DiffViewer 拆分)
 - [重构洞察报告 5-23](./refactor-insight-2026-05-23.md)
 - [重构洞察报告 5-23-2](./refactor-insight-2026-05-23-2.md)
 - [重构洞察报告 5-24](./refactor-insight-2026-05-24.md)
+- [第十轮执行报告 5-24](./refactor-execution-2026-05-24.md)
 - [第七轮修复计划](../../.trae/documents/refactor-fix-plan-2026-05-23.md)
 - [第八轮实施计划](../../.trae/documents/refactor-implementation-plan-2026-05-23.md)
 - [第九轮实施计划](../../.trae/documents/refactor-implementation-plan-2026-05-24.md)
+- [第十轮修复计划](../../.trae/documents/2026-05-24-refactor-insight-fixes.md)
 - [Phase 3 拆分计划](../../.trae/documents/refactor-phase3-split-plan-2026-05-23.md)

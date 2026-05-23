@@ -1,6 +1,7 @@
 use adl_errors::AppError;
 use adl_kernel::FileOutlineItem;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
+use std::sync::OnceLock;
 
 mod brace;
 mod css;
@@ -52,34 +53,61 @@ fn clean_markdown_heading_label(value: &str) -> &str {
     without_closing_hashes.trim()
 }
 
+fn outline_family_map() -> &'static HashMap<&'static str, &'static str> {
+    static MAP: OnceLock<HashMap<&str, &str>> = OnceLock::new();
+    MAP.get_or_init(|| {
+        HashMap::from([
+            ("md", "markdown"),
+            ("markdown", "markdown"),
+            ("py", "python"),
+            ("yaml", "yaml"),
+            ("yml", "yaml"),
+            ("toml", "config"),
+            ("ini", "config"),
+            ("cfg", "config"),
+            ("conf", "config"),
+            ("json", "json"),
+            ("html", "html"),
+            ("htm", "html"),
+            ("xml", "html"),
+            ("svg", "html"),
+            ("css", "css"),
+            ("scss", "css"),
+            ("less", "css"),
+            ("vue", "vue"),
+            ("sh", "shell"),
+            ("bash", "shell"),
+            ("zsh", "shell"),
+            ("fish", "shell"),
+            ("ps1", "powershell"),
+            ("sql", "sql"),
+            ("db", "none"),
+            ("sqlite", "none"),
+            ("sqlite3", "none"),
+        ])
+    })
+}
+
 pub(crate) fn detect_outline_family(relative_path: &str) -> &'static str {
-    let normalized = relative_path.replace('\\', "/");
-    let file_name = normalized
-        .rsplit('/')
+    let file_name = relative_path
+        .rsplit(&['/', '\\'][..])
         .next()
-        .unwrap_or(&normalized)
+        .unwrap_or(relative_path)
         .to_ascii_lowercase();
+
+    if file_name == "dockerfile" {
+        return "shell";
+    }
+
     let extension = file_name
         .rsplit_once('.')
         .map(|(_, ext)| ext)
         .unwrap_or(file_name.as_str());
 
-    match extension {
-        "md" | "markdown" => "markdown",
-        "py" => "python",
-        "yaml" | "yml" => "yaml",
-        "toml" | "ini" | "cfg" | "conf" => "config",
-        "json" => "json",
-        "html" | "htm" | "xml" | "svg" => "html",
-        "css" | "scss" | "less" => "css",
-        "vue" => "vue",
-        "sh" | "bash" | "zsh" | "fish" => "shell",
-        "ps1" => "powershell",
-        "sql" => "sql",
-        "db" | "sqlite" | "sqlite3" => "none",
-        _ if file_name == "dockerfile" => "shell",
-        _ => "brace",
-    }
+    outline_family_map()
+        .get(extension)
+        .copied()
+        .unwrap_or("brace")
 }
 
 fn finalize_outline_items(
@@ -95,18 +123,27 @@ fn finalize_outline_items(
             .then(left.label.cmp(&right.label))
     });
 
+    let n = sorted.len();
+    let mut end_lines = vec![total_lines; n];
+    let mut stack: Vec<usize> = Vec::new();
+
+    for i in 0..n {
+        while let Some(&top) = stack.last() {
+            if sorted[i].depth <= sorted[top].depth {
+                end_lines[top] = sorted[i].line.saturating_sub(1).max(sorted[top].line);
+                stack.pop();
+            } else {
+                break;
+            }
+        }
+        stack.push(i);
+    }
+
     let mut line_occurrences: BTreeMap<usize, usize> = BTreeMap::new();
     sorted
-        .iter()
+        .into_iter()
         .enumerate()
-        .map(|(index, item)| {
-            let mut end_line = total_lines;
-            for next in sorted.iter().skip(index + 1) {
-                if next.depth <= item.depth {
-                    end_line = std::cmp::max(item.line, next.line.saturating_sub(1));
-                    break;
-                }
-            }
+        .map(|(i, item)| {
             let occurrence = line_occurrences.entry(item.line).or_insert(0);
             *occurrence += 1;
             let id = if *occurrence == 1 {
@@ -116,27 +153,35 @@ fn finalize_outline_items(
             };
             FileOutlineItem {
                 id,
-                label: item.label.clone(),
-                kind: item.kind.clone(),
+                label: item.label,
+                kind: item.kind,
                 line: item.line,
-                end_line: Some(end_line),
+                end_line: Some(end_lines[i]),
                 depth: Some(item.depth),
             }
         })
         .collect()
 }
 
+fn config_section_regex() -> &'static regex::Regex {
+    static SECTION_REGEX: OnceLock<regex::Regex> = OnceLock::new();
+    SECTION_REGEX.get_or_init(|| regex::Regex::new(r"^\[([^\]]+)\]$").unwrap())
+}
+
+fn config_entry_regex() -> &'static regex::Regex {
+    static ENTRY_REGEX: OnceLock<regex::Regex> = OnceLock::new();
+    ENTRY_REGEX.get_or_init(|| regex::Regex::new(r"^([A-Za-z0-9_.-]+)\s*=\s*(.+)$").unwrap())
+}
+
 fn parse_config_outline(content: &str) -> Vec<OutlineDraft> {
     let mut drafts = Vec::new();
-    let section_regex = regex::Regex::new(r"^\[([^\]]+)\]$").unwrap();
-    let entry_regex = regex::Regex::new(r"^([A-Za-z0-9_.-]+)\s*=\s*(.+)$").unwrap();
     let mut current_section_depth = 0usize;
     for (index, line_text) in content.lines().enumerate() {
         let trimmed = line_text.trim();
         if trimmed.is_empty() || trimmed.starts_with('#') || trimmed.starts_with(';') {
             continue;
         }
-        if let Some(captures) = section_regex.captures(trimmed) {
+        if let Some(captures) = config_section_regex().captures(trimmed) {
             let label = captures[1].trim().to_string();
             current_section_depth = label
                 .split('.')
@@ -151,7 +196,7 @@ fn parse_config_outline(content: &str) -> Vec<OutlineDraft> {
             });
             continue;
         }
-        if let Some(captures) = entry_regex.captures(trimmed) {
+        if let Some(captures) = config_entry_regex().captures(trimmed) {
             let value = captures[2].trim();
             if value.starts_with('{') || value.starts_with('[') || value.is_empty() {
                 drafts.push(OutlineDraft {

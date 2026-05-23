@@ -1,8 +1,10 @@
 import type { StoreState } from "../StoreState";
 import type {
   ConversationMessageRecord,
+  ConversationSendResult,
   DigitalLifeModelStreamEventV1,
   DigitalLifeRunActivityEventV1,
+  AppInfo,
 } from "@ai-digital-life/kernel";
 import { mapPatchToEditorTab } from "../../editorTabs";
 import { sessionFallbackTitle, refreshConversationSlice, workspaceContextModeFromInfo } from "../conversationUtils";
@@ -68,40 +70,104 @@ function createRunActivitySubscriber(
   };
 }
 
+async function dispatchSlashCommand(
+  trimmed: string,
+  set: StoreApi<StoreState>["setState"],
+  get: () => StoreState
+): Promise<boolean> {
+  if (trimmed === "/apply") {
+    const ps = get().activePatchSet;
+    if (ps) {
+      await get().applyPatchSet(ps.id);
+    } else {
+      set({ error: "当前没有可应用的补丁。" });
+    }
+    return true;
+  }
+  if (trimmed === "/rollback") {
+    const ps = get().activePatchSet;
+    if (ps) {
+      await get().rollbackPatchSet(ps.id);
+    } else {
+      set({ error: "当前没有可回滚的补丁。" });
+    }
+    return true;
+  }
+  if (trimmed === "/model") {
+    useUiStore.getState().setActiveTool("models");
+    return true;
+  }
+  if (trimmed === "/clear") {
+    set({
+      error:
+        "「/clear」尚未实现清空历史。请使用侧栏「新建会话」开始新线程，或删除当前会话。",
+    });
+    return true;
+  }
+  return false;
+}
+
+async function refreshAfterSend(
+  sessionId: string,
+  result: { data: ConversationSendResult },
+  nextAppInfo: AppInfo | undefined,
+  set: StoreApi<StoreState>["setState"],
+  get: () => StoreState
+) {
+  const conversationState = await refreshConversationSlice(sessionId);
+
+  const nextState: Partial<StoreState> = {
+    appInfo: nextAppInfo,
+    sessions: conversationState.sessions,
+    activeSessionId: conversationState.activeSessionId,
+    activeRun: result.data.runDetail,
+    activePatchSet: result.data.patchSet,
+    openTabs:
+      result.data.patchSet?.filePatches.map(mapPatchToEditorTab) ??
+      get().openTabs,
+    selectedFilePath: result.data.patchSet?.filePatches[0]?.relativePath,
+    streamingAssistantText: "",
+    streamingActiveRunId: undefined,
+    workspaceContextMode: workspaceContextModeFromInfo(nextAppInfo),
+  };
+
+  if (result.data.patchSet?.filePatches[0]?.relativePath) {
+    await get().openFile(result.data.patchSet.filePatches[0].relativePath);
+  }
+
+  set((state: StoreState) => ({
+    ...nextState,
+    sessionDetails: state.sessionDetails,
+  }));
+
+  if (nextAppInfo?.currentWorkspace) {
+    await Promise.allSettled([
+      get().refreshWorkspaceTree(),
+      get().fetchIndexStatus(),
+      get().fetchRepoMap(),
+      get().fetchGitStatus(),
+      get().fetchGitBranches(),
+    ]);
+  } else {
+    set({
+      workspaceTree: [],
+      indexingStatus: undefined,
+      repoMap: [],
+      gitSnapshot: undefined,
+      gitBranches: [],
+    });
+  }
+}
+
 export function createStreamActions(set: StoreApi<StoreState>["setState"], get: () => StoreState) {
   return {
     sendMessage: async (content: string, options?: MessageSendOptions) => {
       if (!content.trim()) return;
       const trimmed = content.trim();
-      if (trimmed === "/apply") {
-        const ps = get().activePatchSet;
-        if (ps) {
-          await get().applyPatchSet(ps.id);
-        } else {
-          set({ error: "当前没有可应用的补丁。" });
-        }
-        return;
-      }
-      if (trimmed === "/rollback") {
-        const ps = get().activePatchSet;
-        if (ps) {
-          await get().rollbackPatchSet(ps.id);
-        } else {
-          set({ error: "当前没有可回滚的补丁。" });
-        }
-        return;
-      }
-      if (trimmed === "/model") {
-        useUiStore.getState().setActiveTool("models");
-        return;
-      }
-      if (trimmed === "/clear") {
-        set({
-          error:
-            "「/clear」尚未实现清空历史。请使用侧栏「新建会话」开始新线程，或删除当前会话。",
-        });
-        return;
-      }
+
+      const isHandled = await dispatchSlashCommand(trimmed, set, get);
+      if (isHandled) return;
+
       const mode = options?.mode ?? useUiStore.getState().chatMode;
       const baseScenario = chatModeToScenario(mode);
       const withChips = augmentPromptWithChips(content, options?.chips);
@@ -109,11 +175,13 @@ export function createStreamActions(set: StoreApi<StoreState>["setState"], get: 
         withChips,
         baseScenario
       );
+
       set({
         streamingAssistantText: "",
         streamingActiveRunId: undefined,
         error: undefined,
       });
+
       let sessionId = get().activeSessionId;
 
       if (!sessionId) {
@@ -146,71 +214,19 @@ export function createStreamActions(set: StoreApi<StoreState>["setState"], get: 
           return;
         }
 
-        const detailResult = await window.digitalLife.conversation.getSession(
-          sessionId
-        );
-        if (!detailResult.ok) {
-          set({ error: detailResult.error.message });
-          return;
-        }
-
         const appInfoResult = await window.digitalLife.app.getInfo();
         const nextAppInfo = appInfoResult.ok ? appInfoResult.data : get().appInfo;
-        const conversationState = await refreshConversationSlice(sessionId);
 
-        const nextState: Partial<StoreState> = {
-          appInfo: nextAppInfo,
-          sessions: conversationState.sessions,
-          activeSessionId: conversationState.activeSessionId,
-          activeRun: result.data.runDetail,
-          activePatchSet: result.data.patchSet,
-          openTabs:
-            result.data.patchSet?.filePatches.map(mapPatchToEditorTab) ??
-            get().openTabs,
-          selectedFilePath: result.data.patchSet?.filePatches[0]?.relativePath,
-          streamingAssistantText: "",
-          streamingActiveRunId: undefined,
-          workspaceContextMode: workspaceContextModeFromInfo(nextAppInfo),
-        };
-
-        if (result.data.patchSet?.filePatches[0]?.relativePath) {
-          await get().openFile(result.data.patchSet.filePatches[0].relativePath);
-        }
-
-        set((state: StoreState) => ({
-          ...nextState,
-          sessionDetails: detailResult.data
-            ? {
-                ...state.sessionDetails,
-                [sessionId]: detailResult.data,
-              }
-            : state.sessionDetails,
-        }));
-
-        if (nextAppInfo?.currentWorkspace) {
-          await Promise.allSettled([
-            get().refreshWorkspaceTree(),
-            get().fetchIndexStatus(),
-            get().fetchRepoMap(),
-            get().fetchGitStatus(),
-            get().fetchGitBranches(),
-          ]);
-        } else {
-          set({
-            workspaceTree: [],
-            indexingStatus: undefined,
-            repoMap: [],
-            gitSnapshot: undefined,
-            gitBranches: [],
-          });
-        }
+        await refreshAfterSend(sessionId, result, nextAppInfo, set, get);
       } finally {
         unsubscribe();
         unsubscribeRunActivity();
-        set({
-          streamingAssistantText: "",
-          streamingActiveRunId: undefined,
-        });
+        if (get().streamingAssistantText) {
+          set({
+            streamingAssistantText: "",
+            streamingActiveRunId: undefined,
+          });
+        }
       }
     },
 

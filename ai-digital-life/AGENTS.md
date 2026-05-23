@@ -34,6 +34,7 @@
   - **刷新语义分离**：`loadGitSnapshot`（惰性加载）+ `refreshGitSnapshot`（强制刷新）
   - **统计数字系统**：每个工作区头部行显示变更文件数/终端标签数，hover 时隐藏让位给操作按钮
   - **统一菜单文本**：三个面板的移除菜单全部统一为"从此区域移除不显示"
+- **第十轮 — 重构洞察全面修复**（11 项）：22 处 Rust `Regex::new()` → `OnceLock` 缓存；`detect_outline_family` 字符串操作→静态 HashMap O(1)；vue.rs 字节偏移切片消除二次分配；`finalize_outline_items` 单调栈 O(n)；删除 9,714 行死 CSS；`rightpanel.css` 5006→6 文件；`ChangesPanel.tsx` 1343→3 文件；`sendMessage` 拆 3 函数；cargo test + 183 前端测试全绿
 - **文件树右键菜单**（文件/变更面板通用）：打开方式、在文件资源管理器中显示、复制完整/相对路径、剪切、复制、粘贴（自动冲突处理 `-copyN`）、内联重命名、回收站删除
 - **上下文菜单系统**：统一 `ContextMenu` 组件（Portal 渲染、图标/分隔线/danger 样式）、`ConfirmDialog`（删除确认）、`RenameInput`（内联重命名）
 - **剪贴板切换**：Zustand `clipboardSlice`，支持跨面板 cut/copy/paste

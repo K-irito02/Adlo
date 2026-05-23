@@ -1,14 +1,29 @@
 use crate::outline::OutlineDraft;
 use regex::Regex;
+use std::sync::OnceLock;
+
+fn open_regex() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| Regex::new(r"^\s*<(template|script|style)([^>]*)>").unwrap())
+}
 
 pub(crate) fn parse_vue_outline(content: &str) -> Vec<OutlineDraft> {
     let mut drafts = Vec::new();
     let lines: Vec<&str> = content.lines().collect();
-    let open_regex = Regex::new(r"^\s*<(template|script|style)([^>]*)>").unwrap();
+    let mut line_offsets: Vec<usize> = Vec::with_capacity(lines.len());
+
+    {
+        let mut offset = 0usize;
+        for line in &lines {
+            line_offsets.push(offset);
+            offset += line.len() + 1; // +1 for '\n'
+        }
+    }
+
     let mut index = 0usize;
     while index < lines.len() {
         let line = lines[index];
-        let Some(captures) = open_regex.captures(line) else {
+        let Some(captures) = open_regex().captures(line) else {
             index += 1;
             continue;
         };
@@ -19,28 +34,39 @@ pub(crate) fn parse_vue_outline(content: &str) -> Vec<OutlineDraft> {
         let start_line = index + 1;
         let end_tag = format!("</{section}>");
         let mut end_index = index + 1;
-        while end_index < lines.len() && !lines[end_index].to_ascii_lowercase().contains(&end_tag) {
+        while end_index < lines.len()
+            && !lines[end_index].to_ascii_lowercase().contains(&end_tag)
+        {
             end_index += 1;
         }
+
         drafts.push(OutlineDraft {
             label: section.clone(),
             kind: "heading".to_string(),
             line: start_line,
             depth: 1,
         });
-        let inner_content = lines[index + 1..end_index].join("\n");
-        let inner_drafts = if section == "template" {
-            super::html::parse_html_outline(&inner_content)
-        } else if section == "style" {
-            super::css::parse_css_outline(&inner_content)
-        } else {
-            super::brace::parse_brace_outline(&inner_content)
-        };
-        drafts.extend(inner_drafts.into_iter().map(|draft| OutlineDraft {
-            line: draft.line + start_line,
-            depth: draft.depth + 1,
-            ..draft
-        }));
+
+        if end_index > index + 1 {
+            let inner_start = line_offsets[index + 1];
+            let inner_end = if end_index < lines.len() {
+                line_offsets[end_index].saturating_sub(1)
+            } else {
+                content.len()
+            };
+            let inner_content = &content[inner_start..inner_end.min(content.len())];
+
+            let inner_drafts = match section.as_str() {
+                "template" => super::html::parse_html_outline(inner_content),
+                "style" => super::css::parse_css_outline(inner_content),
+                _ => super::brace::parse_brace_outline(inner_content),
+            };
+            drafts.extend(inner_drafts.into_iter().map(|draft| OutlineDraft {
+                line: draft.line + start_line,
+                depth: draft.depth + 1,
+                ..draft
+            }));
+        }
         index = end_index + 1;
     }
     drafts

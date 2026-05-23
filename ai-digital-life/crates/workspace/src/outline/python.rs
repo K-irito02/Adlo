@@ -1,11 +1,20 @@
 use crate::outline::OutlineDraft;
 use regex::Regex;
+use std::sync::OnceLock;
+
+fn class_regex() -> &'static Regex {
+    static CLASS_REGEX: OnceLock<Regex> = OnceLock::new();
+    CLASS_REGEX.get_or_init(|| Regex::new(r"^class\s+([A-Za-z_][\w]*)").unwrap())
+}
+
+fn fn_regex() -> &'static Regex {
+    static FN_REGEX: OnceLock<Regex> = OnceLock::new();
+    FN_REGEX.get_or_init(|| Regex::new(r"^(?:async\s+)?def\s+([A-Za-z_][\w]*)").unwrap())
+}
 
 pub(crate) fn parse_python_outline(content: &str) -> Vec<OutlineDraft> {
     let mut drafts = Vec::new();
     let mut indent_stack: Vec<usize> = Vec::new();
-    let class_regex = Regex::new(r"^class\s+([A-Za-z_][\w]*)").unwrap();
-    let fn_regex = Regex::new(r"^(?:async\s+)?def\s+([A-Za-z_][\w]*)").unwrap();
     for (index, line_text) in content.lines().enumerate() {
         let trimmed = line_text.trim();
         if trimmed.is_empty() || trimmed.starts_with('#') {
@@ -23,7 +32,7 @@ pub(crate) fn parse_python_outline(content: &str) -> Vec<OutlineDraft> {
         {
             indent_stack.pop();
         }
-        if let Some(captures) = class_regex.captures(trimmed) {
+        if let Some(captures) = class_regex().captures(trimmed) {
             indent_stack.push(indent);
             drafts.push(OutlineDraft {
                 label: captures[1].to_string(),
@@ -33,7 +42,7 @@ pub(crate) fn parse_python_outline(content: &str) -> Vec<OutlineDraft> {
             });
             continue;
         }
-        if let Some(captures) = fn_regex.captures(trimmed) {
+        if let Some(captures) = fn_regex().captures(trimmed) {
             indent_stack.push(indent);
             drafts.push(OutlineDraft {
                 label: captures[1].to_string(),

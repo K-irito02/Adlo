@@ -51,6 +51,7 @@
 - **第七轮全面重构**（25 项修复：App 选择器拆分消除级联重渲染、Error Boundary 防白屏、storage mutex 中毒降级、model-gateway 错误传播、ptyBridge HMR 修复、DiffViewer 拆 4 文件、TerminalPanel 拆 7 文件 + hook、LeftSidebar 拆 5 文件 + 删除 210 行 Mock 死代码、Icon 6 处去重、3 处 useMemo 补充、context-engine 零分配优化、i18n 11 处替换等；cargo test + 183 前端测试全部通过）
 - **第八轮全面重构**（重构洞察第二轮 26 项：渲染性能 37→6 字段订阅、rAF 流式批处理、Slice 字段去重、terminalSlice localStorage 异步化、regions.css 8144→6 文件拆分、Vite manualChunks 6 个 vendor chunk、Rust 模型网关优化、run_activity seq 方法等；cargo test + 105 前端测试全部通过）
 - **第九轮重构洞察执行**（22 项修复：`cmLanguages` switch→Map O(1)、`save_entity` SQL 预构建消除 `format!` 分配、`presentable_recent_list` 函数拆分；RightPanel 618→106 行提取 2 个 hook、`useTerminalPanel` 54 扁平属性→4 组领域对象、`StoreState` 72 方法→8 领域接口、`MultiWorkspacePanels` 三组件去重共享容器；`workspace/lib.rs` 2361→675 行拆 15 个领域文件、`storage` schema 外部 SQL；`commands/workspace.rs` 821→370 行拆 3 文件；`mock-bridge.ts` 1252 行拆 7 个子模块；`MessageStream` CSS `content-visibility` 虚拟滚动；right-panel/ 目录 panels/editor-support/hooks 分组；StoreState 编译期类型断言；切片依赖文档化；cargo test + 183 前端测试全绿）
+- **第十轮重构洞察执行**（11 项修复：22 处 Rust `Regex::new()` → `OnceLock` 缓存；`detect_outline_family` 字符串操作→静态 HashMap O(1)；vue.rs 字节偏移切片消除二次分配；`finalize_outline_items` 单调栈 O(n)；删除 9,714 行死 CSS；`rightpanel.css` 5006→6 文件；`ChangesPanel.tsx` 1343→3 文件；`sendMessage` 拆 3 函数；cargo test + 183 前端测试全绿）
 
 ### Zustand 切片模式（已完成）
 

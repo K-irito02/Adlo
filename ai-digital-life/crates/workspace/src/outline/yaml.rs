@@ -1,12 +1,25 @@
 use crate::outline::OutlineDraft;
 use regex::Regex;
+use std::sync::OnceLock;
+
+fn list_key_regex() -> &'static Regex {
+    static LIST_KEY_REGEX: OnceLock<Regex> = OnceLock::new();
+    LIST_KEY_REGEX.get_or_init(|| Regex::new(r"^-+\s*([^:#]+)\s*:\s*(.*)$").unwrap())
+}
+
+fn key_regex() -> &'static Regex {
+    static KEY_REGEX: OnceLock<Regex> = OnceLock::new();
+    KEY_REGEX.get_or_init(|| Regex::new(r"^([^:#][^:]*?)\s*:\s*(.*)$").unwrap())
+}
+
+fn list_regex() -> &'static Regex {
+    static LIST_REGEX: OnceLock<Regex> = OnceLock::new();
+    LIST_REGEX.get_or_init(|| Regex::new(r"^-+\s*(?:\{|\[)?\s*$").unwrap())
+}
 
 pub(crate) fn parse_yaml_outline(content: &str) -> Vec<OutlineDraft> {
     let mut drafts = Vec::new();
     let mut indent_stack: Vec<usize> = Vec::new();
-    let list_key_regex = Regex::new(r"^-+\s*([^:#]+)\s*:\s*(.*)$").unwrap();
-    let key_regex = Regex::new(r"^([^:#][^:]*?)\s*:\s*(.*)$").unwrap();
-    let list_regex = Regex::new(r"^-+\s*(?:\{|\[)?\s*$").unwrap();
     for (index, line_text) in content.lines().enumerate() {
         let trimmed = line_text.trim();
         if trimmed.is_empty() || trimmed.starts_with('#') {
@@ -24,7 +37,7 @@ pub(crate) fn parse_yaml_outline(content: &str) -> Vec<OutlineDraft> {
         {
             indent_stack.pop();
         }
-        if let Some(captures) = list_key_regex.captures(trimmed) {
+        if let Some(captures) = list_key_regex().captures(trimmed) {
             indent_stack.push(indent);
             drafts.push(OutlineDraft {
                 label: format!("- {}", captures[1].trim()),
@@ -34,7 +47,7 @@ pub(crate) fn parse_yaml_outline(content: &str) -> Vec<OutlineDraft> {
             });
             continue;
         }
-        if let Some(captures) = key_regex.captures(trimmed) {
+        if let Some(captures) = key_regex().captures(trimmed) {
             let suffix = captures
                 .get(2)
                 .map(|value| value.as_str().trim())
@@ -60,7 +73,7 @@ pub(crate) fn parse_yaml_outline(content: &str) -> Vec<OutlineDraft> {
             });
             continue;
         }
-        if list_regex.is_match(trimmed) {
+        if list_regex().is_match(trimmed) {
             indent_stack.push(indent);
             drafts.push(OutlineDraft {
                 label: "- item".to_string(),

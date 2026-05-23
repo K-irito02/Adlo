@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { EditorView } from "@codemirror/view";
 import {
-  IconChevronDown, IconChevronRight, IconClipboardList, IconCopy, IconEye, IconFiles,
-  IconFileText, IconFoldVertical, IconFolderOpen, IconGitBranch, IconList, IconMoreVertical,
-  IconPanelLeftClose, IconPencil, IconRefreshCw, IconTarget, IconTrash, IconUnfoldVertical, IconUpload
+  IconChevronDown, IconChevronRight, IconClipboardList, IconCopy,
+  IconFiles, IconFileText, IconFolderOpen, IconPencil,
+  IconTarget, IconTrash, IconUpload
 } from "../../../icons";
 import { TooltipSimple } from "../../../components/Tooltip";
 import { ConfirmDialog } from "../../../components/ConfirmDialog";
@@ -34,8 +34,9 @@ import { estimateWrapColumn } from "../cmWrapColumn";
 import { navigateToLine } from "../stickyContext";
 import { OutlineTree, buildOutlineFromContent, getDefaultExpandedOutlineIds } from "../../../features/outline";
 import { readSelectedBranch, writeSelectedBranch, getChangeKindLabel, getChangeStatusLabel, getPrimaryBadge, getEditorView } from "../ChangesPanel/utils";
+import { ChangesEmptyState } from "./ChangesEmptyState";
+import { ChangesToolbar } from "./ChangesToolbar";
 
-const CHANGES_BRANCH_STORAGE_KEY = "adl-ui:changes-branch";
 const FALLBACK_BRANCHES = ["main", "develop", "release/0.1.0", "feature/right-panel"];
 
 export function ChangesPanel(props: RightPanelViewProps) {
@@ -91,13 +92,9 @@ export function ChangesPanel(props: RightPanelViewProps) {
   const onPinWorkspace = useCallback((workspaceId: string) => void pinWorkspace(workspaceId), [pinWorkspace]);
   const onUnpinWorkspace = useCallback((workspaceId: string) => void unpinWorkspace(workspaceId), [unpinWorkspace]);
   const fallbackBranch = snapshot?.branch ?? "main";
-  const [branchMenuOpen, setBranchMenuOpen] = useState(false);
-  const [changesMenuOpen, setChangesMenuOpen] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState(() => readSelectedBranch(fallbackBranch));
   const [lineNumbersEnabled, setLineNumbersEnabled] = useState(true);
   const [wordWrapEnabled, setWordWrapEnabled] = useState(true);
-  const branchMenuRef = useRef<HTMLDivElement | null>(null);
-  const changesMenuRef = useRef<HTMLDivElement | null>(null);
   const activeCardRef = useRef<Record<string, HTMLElement | null>>({});
   const changesPreviewEditorShellRef = useRef<HTMLDivElement | null>(null);
   const editorRef = useRef<DiffEditorRef | EditorRef | null>(null);
@@ -202,20 +199,6 @@ export function ChangesPanel(props: RightPanelViewProps) {
       writeSelectedBranch(fallbackBranch);
     }
   }, [branchOptions, fallbackBranch, selectedBranch]);
-
-  useEffect(() => {
-    const handlePointerDown = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (!branchMenuRef.current?.contains(target)) {
-        setBranchMenuOpen(false);
-      }
-      if (!changesMenuRef.current?.contains(target)) {
-        setChangesMenuOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handlePointerDown);
-    return () => document.removeEventListener("mousedown", handlePointerDown);
-  }, []);
 
   useEffect(() => {
     if (!navigatorSelectedPath) {
@@ -677,222 +660,54 @@ export function ChangesPanel(props: RightPanelViewProps) {
     useAppStore.getState().reorderWorkspaces(input);
   }, []);
 
+  const handleSelectBranch = useCallback((branch: string) => {
+    setSelectedBranch(branch);
+    writeSelectedBranch(branch);
+  }, []);
+
+  const handleRefreshAllChanges = useCallback(() => {
+    visibleWorkspaces.forEach((ws) => {
+      useAppStore.getState().refreshGitSnapshot(ws.id, ws.path);
+    });
+  }, [visibleWorkspaces]);
+
   return (
     <div className="adl-tool-panel adl-tool-panel--changes">
-      <div className="adl-tool-context adl-tool-context--files" aria-label={t.toolChanges}>
-        <div className="adl-tool-context__group adl-tool-context__group--grow adl-tool-context__group--files">
-          <TooltipSimple content={navigatorCollapsed ? t.panelToggleRight : t.panelToggleLeft} placement="top">
-            <button
-              type="button"
-              className="adl-tool-context__iconbtn adl-tool-context__iconbtn--leading"
-              onClick={() => toggleNavigator("changes")}
-              aria-label={navigatorCollapsed ? t.panelToggleRight : t.panelToggleLeft}
-            >
-              <IconPanelLeftClose size={14} decorative />
-            </button>
-          </TooltipSimple>
-          <div ref={branchMenuRef} className="adl-menu adl-file-context__menu">
-            <TooltipSimple content={t.changesSummaryBranch} placement="top">
-              <button
-                type="button"
-                className={`adl-branch-pill adl-branch-pill--button${branchMenuOpen ? " is-open" : ""}`}
-                onClick={() => setBranchMenuOpen((value) => !value)}
-                aria-label={t.changesSummaryBranch}
-                aria-haspopup="menu"
-                aria-expanded={branchMenuOpen}
-              >
-                <IconGitBranch size={12} decorative />
-                <span>{selectedBranch}</span>
-                <IconChevronDown size={12} decorative />
-              </button>
-            </TooltipSimple>
-            {branchMenuOpen ? (
-              <div className="adl-menu__dropdown adl-file-context__dropdown" role="menu">
-                {branchOptions.map((branch) => (
-                  <TooltipSimple key={branch} content={branch} placement="right">
-                    <button
-                      type="button"
-                      role="menuitemradio"
-                      aria-checked={branch === selectedBranch}
-                      className="adl-menu__item"
-                      onClick={() => {
-                        setSelectedBranch(branch);
-                        writeSelectedBranch(branch);
-                        setBranchMenuOpen(false);
-                      }}
-                    >
-                      <span className="adl-menu__label adl-menu__label--branch">{branch}</span>
-                    </button>
-                  </TooltipSimple>
-                ))}
-              </div>
-            ) : null}
-          </div>
-          {!activePatchSet ? (
-            <TooltipSimple content={t.diffLayoutLabel} placement="top">
-              <div className="adl-tool-context__diff-view" role="group" aria-label={t.diffLayoutLabel}>
-                <button
-                  type="button"
-                  className={`adl-tool-context__toggle-btn${!props.diffSideBySide ? " is-active" : ""}`}
-                  aria-pressed={!props.diffSideBySide ? "true" : "false"}
-                  disabled={!changePreview}
-                  onClick={() => props.onSetDiffLayout(false)}
-                >
-                  {t.diffLayoutInline}
-                </button>
-                <button
-                  type="button"
-                  className={`adl-tool-context__toggle-btn${props.diffSideBySide ? " is-active" : ""}`}
-                  aria-pressed={props.diffSideBySide ? "true" : "false"}
-                  disabled={!changePreview}
-                  onClick={() => props.onSetDiffLayout(true)}
-                >
-                  {t.diffLayoutSideBySide}
-                </button>
-              </div>
-            </TooltipSimple>
-          ) : null}
-        </div>
-        <div className="adl-tool-context__group adl-tool-context__group--files-actions">
-          <TooltipSimple content={previewEnabled ? t.filePreview : t.fileEdit} placement="top">
-            <button
-              type="button"
-              className={`adl-tool-context__iconbtn${previewEnabled ? " is-active" : ""}`}
-              onClick={() => setPreviewEnabled(!previewEnabled)}
-              aria-label={previewEnabled ? t.filePreview : t.fileEdit}
-              aria-pressed={previewEnabled ? "true" : "false"}
-              disabled={!changePreview}
-            >
-              <IconEye size={14} decorative />
-            </button>
-          </TooltipSimple>
-          <TooltipSimple content={t.changesPush} placement="top">
-            <button type="button" className="adl-tool-context__iconbtn" disabled aria-label={t.changesPush}>
-              <IconUpload size={14} decorative />
-            </button>
-          </TooltipSimple>
-          <div ref={changesMenuRef} className="adl-menu adl-file-context__menu">
-            <TooltipSimple content={t.changesMoreActions} placement="top">
-              <button
-                type="button"
-                className={`adl-tool-context__iconbtn${changesMenuOpen ? " is-open" : ""}`}
-                onClick={() => setChangesMenuOpen((value) => !value)}
-                aria-label={t.changesMoreActions}
-                aria-haspopup="menu"
-                aria-expanded={changesMenuOpen}
-              >
-                <IconMoreVertical size={14} decorative />
-              </button>
-            </TooltipSimple>
-            {changesMenuOpen ? (
-              <div className="adl-menu__dropdown adl-file-context__dropdown" role="menu">
-                {changesMenuItems.map((item) =>
-                  "separator" in item ? (
-                    <div key={item.id} className="adl-menu__sep" role="separator" />
-                  ) : (
-                    <button
-                      key={item.id}
-                      type="button"
-                      role={item.checked === undefined ? "menuitem" : "menuitemcheckbox"}
-                      aria-checked={item.checked === undefined ? undefined : item.checked ? "true" : "false"}
-                      className="adl-menu__item"
-                      disabled={item.disabled}
-                      onClick={() => {
-                        item.action?.();
-                        if (!item.action) {
-                          setChangesMenuOpen(false);
-                        }
-                      }}
-                    >
-                      <span>{item.label}</span>
-                      {item.checked ? <span className="adl-menu__check">√</span> : null}
-                    </button>
-                  )
-                )}
-              </div>
-            ) : null}
-          </div>
-        </div>
-      </div>
+      <ChangesToolbar
+        placement="top"
+        t={t}
+        navigatorCollapsed={navigatorCollapsed}
+        onToggleNavigator={() => toggleNavigator("changes")}
+        branchOptions={branchOptions}
+        selectedBranch={selectedBranch}
+        onSelectBranch={handleSelectBranch}
+        hasActivePatchSet={!!activePatchSet}
+        diffSideBySide={props.diffSideBySide}
+        onSetDiffLayout={props.onSetDiffLayout}
+        hasChangePreview={!!changePreview}
+        previewEnabled={previewEnabled}
+        onTogglePreview={() => setPreviewEnabled(!previewEnabled)}
+        changesMenuItems={changesMenuItems}
+      />
 
       <div
         className={`adl-tool-surface adl-tool-surface--files${navigatorCollapsed ? " is-navigator-collapsed" : ""}`}
         style={{ "--adl-files-nav-width": `${changesNavigatorWidth}px` } as React.CSSProperties}
       >
         <aside className="adl-tool-navigator" aria-label={t.toolChanges}>
-          <div className="adl-tool-navigator__context">
-            <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--actions">
-              <TooltipSimple content={allChangesExpanded ? t.fileCollapseAll : t.fileExpandAll} placement="top">
-                <button
-                  type="button"
-                  className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-                  onClick={allChangesExpanded ? handleCollapseAll : handleExpandAll}
-                  aria-label={allChangesExpanded ? t.fileCollapseAll : t.fileExpandAll}
-                >
-                  {allChangesExpanded ? <IconFoldVertical size={14} decorative /> : <IconUnfoldVertical size={14} decorative />}
-                </button>
-              </TooltipSimple>
-              <span className="adl-tool-navigator__context-title">{changesNavigatorTitle}</span>
-            </div>
-            <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--utility">
-              {visibleWorkspaces.length > 0 ? (
-                <span className="adl-tool-navigator__context-count">{totalChangeCount}</span>
-              ) : null}
-              <TooltipSimple content={t.changesRefresh} placement="top">
-                <button
-                  type="button"
-                  className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-                  onClick={() => {
-                    visibleWorkspaces.forEach((ws) => {
-                      useAppStore.getState().refreshGitSnapshot(ws.id, ws.path);
-                    });
-                  }}
-                  aria-label={t.changesRefresh}
-                >
-                  <IconRefreshCw size={14} decorative />
-                </button>
-              </TooltipSimple>
-            </div>
-          </div>
-          <div className="adl-tool-navigator__context adl-tool-navigator__context--secondary">
-            <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--actions">
-              <TooltipSimple content={t.fileTreeView} placement="top">
-                <button
-                  type="button"
-                  className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${changesNavigatorMode === "tree" ? " is-active" : ""}`}
-                  onClick={() => setChangesNavigatorMode("tree")}
-                  aria-label={t.fileTreeView}
-                  aria-pressed={changesNavigatorMode === "tree" ? "true" : "false"}
-                >
-                  <IconFiles size={14} decorative />
-                </button>
-              </TooltipSimple>
-              <TooltipSimple content={t.changesListView} placement="top">
-                <button
-                  type="button"
-                  className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${changesNavigatorMode === "list" ? " is-active" : ""}`}
-                  onClick={() => setChangesNavigatorMode("list")}
-                  aria-label={t.changesListView}
-                  aria-pressed={changesNavigatorMode === "list" ? "true" : "false"}
-                >
-                  <IconFileText size={14} decorative />
-                </button>
-              </TooltipSimple>
-            </div>
-            <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--utility">
-              <TooltipSimple content={t.outline} placement="top">
-                <button
-                  type="button"
-                  className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${changesNavigatorMode === "outline" ? " is-active" : ""}`}
-                  onClick={() => setChangesNavigatorMode("outline")}
-                  aria-label={t.outline}
-                  aria-pressed={changesNavigatorMode === "outline" ? "true" : "false"}
-                >
-                  <IconList size={14} decorative />
-                </button>
-              </TooltipSimple>
-            </div>
-          </div>
+          <ChangesToolbar
+            placement="navigator"
+            t={t}
+            allChangesExpanded={allChangesExpanded}
+            onExpandAll={handleExpandAll}
+            onCollapseAll={handleCollapseAll}
+            changesNavigatorTitle={changesNavigatorTitle}
+            totalChangeCount={totalChangeCount}
+            hasVisibleWorkspaces={visibleWorkspaces.length > 0}
+            onRefreshAll={handleRefreshAllChanges}
+            changesNavigatorMode={changesNavigatorMode}
+            onSetNavigatorMode={setChangesNavigatorMode}
+          />
           <MultiWorkspaceChangesTree
             workspaces={visibleWorkspaces}
             activeWorkspaceId={activeWorkspaceId}
@@ -1313,7 +1128,9 @@ export function ChangesPanel(props: RightPanelViewProps) {
                 )}
               </div>
             </>
-          ) : changePreviewLoading ? null : null}
+          ) : changePreviewLoading ? null : (
+            <ChangesEmptyState hasWorkspaces={visibleWorkspaces.length > 0} />
+          )}
         </div>
       </div>
       {changesDeleteConfirmPath ? (
