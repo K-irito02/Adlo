@@ -24,6 +24,16 @@
   - Tauri 桌面模式：Rust `portable-pty`（ConPTY）
   - 浏览器预览模式：`node-pty`（ConPTY/WinPTY），替代之前 `child_process.spawn` 的编码 hack
 - **重构完成（第八轮）**：26 项全面修复，包括渲染性能（App 选择器下沉 37→6 字段、streaming rAF 批处理）、CSS 架构（regions.css 8144→6 文件）、Vite 代码分割、Rust 后端去重优化
+- **第九轮 — 右侧面板多工作区改造**：
+  - **Changes 面板多工作区化**：引入 `MultiWorkspaceChangesTree` + `WorkspaceChangesEntry`，每个工作区展开后显示其 git 变更（tree/list/outline 三模式）；两行导航器布局；展开/折叠全部；统计数字；hover 按钮（刷新/置顶/更多操作）
+  - **Terminal 面板多工作区化**：引入 `MultiWorkspaceTerminal` + `WorkspaceTerminalEntry`，工作区分组终端标签；两行导航器布局；hover 按钮（刷新/删除全部/创建终端/更多操作）
+  - **统一导航器布局**：Files/Changes/Terminal 三个面板共用 Row1/Row2 两行工具栏范式
+  - **全栈 workspace-aware diff 预览**：Rust Tauri Command 添加可选 `workspace_path`，IPC 新增 `getChangePreviewForWorkspace`，Store 新增 `openChangePreviewForWorkspace` action，组件回调链传递 workspace 上下文（涉及 10 个文件）
+  - **终端默认 profile 设置菜单**：hover 展开子菜单卡片，显示 ✓ 标记，即时响应 store 变化
+  - **CustomScrollArea 修复**：收起工作区后滚动条残留问题 — 监听 `children` 变化触发 `updateScrollbar`
+  - **刷新语义分离**：`loadGitSnapshot`（惰性加载）+ `refreshGitSnapshot`（强制刷新）
+  - **统计数字系统**：每个工作区头部行显示变更文件数/终端标签数，hover 时隐藏让位给操作按钮
+  - **统一菜单文本**：三个面板的移除菜单全部统一为"从此区域移除不显示"
 - **文件树右键菜单**（文件/变更面板通用）：打开方式、在文件资源管理器中显示、复制完整/相对路径、剪切、复制、粘贴（自动冲突处理 `-copyN`）、内联重命名、回收站删除
 - **上下文菜单系统**：统一 `ContextMenu` 组件（Portal 渲染、图标/分隔线/danger 样式）、`ConfirmDialog`（删除确认）、`RenameInput`（内联重命名）
 - **剪贴板切换**：Zustand `clipboardSlice`，支持跨面板 cut/copy/paste

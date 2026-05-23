@@ -10,6 +10,7 @@ export type ToolId = "files" | "changes" | "browser" | "terminal" | "audit" | "s
 
 export interface TerminalTabState {
   id: string;
+  workspaceId: string;
   title: string;
   profile: TerminalProfile;
   sessionId?: string;
@@ -127,8 +128,10 @@ export interface TerminalSlice {
   defaultTerminalProfile: TerminalProfile;
   terminalNavigatorWidth: number;
   navigatorCollapsedByTool: Record<ToolId, boolean>;
+  terminalWorkspaceExpanded: Record<string, boolean>;
+  terminalPersisted: boolean;
 
-  terminalCreateTab: (profile?: TerminalProfile) => void;
+  terminalCreateTab: (profile?: TerminalProfile, workspaceId?: string) => void;
   terminalSelectTab: (tabId: string) => void;
   terminalCloseTab: (tabId: string) => void;
   terminalUpdateActiveTab: (patch: Partial<Omit<TerminalTabState, "id">>) => void;
@@ -140,6 +143,8 @@ export interface TerminalSlice {
   setTerminalNavigatorWidth: (width: number) => void;
   toggleTerminalNavigator: () => void;
   setTerminalNavigatorCollapsed: (collapsed: boolean) => void;
+  setTerminalWorkspaceExpanded: (expanded: Record<string, boolean>) => void;
+  setTerminalPersisted: (persisted: boolean) => void;
 }
 
 export const createTerminalSlice = (
@@ -159,13 +164,16 @@ export const createTerminalSlice = (
     ...defaultNavigatorCollapsed(),
     ...readJson<Record<ToolId, boolean>>(TERMINAL_NAVIGATOR_COLLAPSED_KEY, defaultNavigatorCollapsed())
   },
+  terminalWorkspaceExpanded: {},
+  terminalPersisted: false,
 
-  terminalCreateTab: (profile = "powershell") =>
+  terminalCreateTab: (profile = "powershell", workspaceId = "") =>
     set((state) => {
       const existingCount = state.terminalTabs.filter((tab) => tab.profile === profile).length + 1;
       const maxSortOrder = state.terminalTabs.length > 0 ? Math.max(...state.terminalTabs.map(t => t.sortOrder)) : 0;
       const tab: TerminalTabState = {
         id: createUiId("terminal"),
+        workspaceId,
         title: deriveTerminalTitle(profile, existingCount),
         profile,
         status: "idle",
@@ -279,5 +287,11 @@ export const createTerminalSlice = (
       const next = { ...state.navigatorCollapsedByTool, terminal: collapsed };
       setTimeout(() => writeJson(TERMINAL_NAVIGATOR_COLLAPSED_KEY, next), 0);
       return { navigatorCollapsedByTool: next };
-    })
+    }),
+
+  setTerminalWorkspaceExpanded: (expanded) =>
+    set({ terminalWorkspaceExpanded: expanded }),
+
+  setTerminalPersisted: (persisted) =>
+    set({ terminalPersisted: persisted })
 });

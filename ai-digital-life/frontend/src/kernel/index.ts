@@ -150,7 +150,7 @@ export interface RecentWorkspaceEntry {
   unpinnedOrder: number;
   removedFromSidebar: boolean;
   available: boolean;
-  hiddenInFileTree: boolean;
+  hiddenFromRightPanels: boolean;
 }
 
 export type WorkspaceType = "node" | "python" | "java" | "go" | "rust" | "unknown";

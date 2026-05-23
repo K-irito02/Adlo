@@ -64,8 +64,8 @@ export interface RightPanelViewProps {
   onRefreshAll: () => void;
   onRefreshOneWorkspace: (workspaceId: string) => void;
   onToggleExpandInFileNav: (workspaceId: string) => void;
-  onHideFromFileTree: (workspaceId: string) => void;
-  onShowInFileTree: (workspaceId: string) => void;
+  onHideFromRightPanels: (workspaceId: string) => void;
+  onShowInRightPanels: (workspaceId: string) => void;
   repoMap: RepoMapNode[];
   searchQuery: string;
   searchResults: WorkspaceSearchHit[];
@@ -86,6 +86,7 @@ export interface RightPanelViewProps {
   onSendSelection: () => void;
   onSetDiffLayout: (sideBySide: boolean) => void;
   activePatchSet?: PatchSet;
+  activePatchSets: Record<string, PatchSet | undefined>;
   latestPatchApplication?: PatchApplicationResult;
   selectedPatchFilePath?: string;
   selectedPatchHunkId?: string;
@@ -107,6 +108,8 @@ export interface RightPanelViewProps {
   auditEntries: AuditEntry[];
   settings: SettingItem[];
   gitSnapshot?: GitSnapshot;
+  gitSnapshots: Record<string, GitSnapshot>;
+  workspaceChangesExpanded: Record<string, boolean>;
   commandHistory: string[];
   onChangeSetting: (id: string, value: string | boolean | number) => void;
   latestCommandRun?: CommandRunResult;

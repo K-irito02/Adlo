@@ -48,7 +48,7 @@ export function FilesPanel(props: RightPanelViewProps) {
     onRefreshAll,
     onRefreshOneWorkspace,
     onToggleExpandInFileNav,
-    onHideFromFileTree,
+    onHideFromRightPanels,
     onCreateWorkspaceFile,
     onCreateWorkspaceFolder,
     onSetDiffLayout,
@@ -258,7 +258,7 @@ export function FilesPanel(props: RightPanelViewProps) {
           onRefreshAll={onRefreshAll}
           onRefreshOneWorkspace={onRefreshOneWorkspace}
           onToggleExpandInFileNav={onToggleExpandInFileNav}
-          onHideFromFileTree={onHideFromFileTree}
+          onHideFromRightPanels={onHideFromRightPanels}
           onCreateWorkspaceFile={onCreateWorkspaceFile}
           onCreateWorkspaceFolder={onCreateWorkspaceFolder}
           onEditorChange={onEditorChange}

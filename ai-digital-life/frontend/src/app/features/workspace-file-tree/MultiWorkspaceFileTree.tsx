@@ -21,7 +21,7 @@ export interface MultiWorkspaceFileTreeProps {
   onOpenWorkspace: (path: string) => void;
   onPinWorkspace: (workspaceId: string) => void;
   onUnpinWorkspace: (workspaceId: string) => void;
-  onHideFromFileTree: (workspaceId: string) => void;
+  onHideFromRightPanels: (workspaceId: string) => void;
   onToggleFileTreePath: (workspaceId: string, path: string) => void;
   onOpenFile: (relativePath: string) => void;
   onReorderWorkspaces: (input: ReorderWorkspacesInput) => void;
@@ -58,7 +58,7 @@ export function MultiWorkspaceFileTree({
   onOpenWorkspace,
   onPinWorkspace,
   onUnpinWorkspace,
-  onHideFromFileTree,
+  onHideFromRightPanels,
   onToggleFileTreePath,
   onOpenFile,
   onReorderWorkspaces,
@@ -130,7 +130,7 @@ export function MultiWorkspaceFileTree({
             onOpenWorkspace={onOpenWorkspace}
             onPinWorkspace={onPinWorkspace}
             onUnpinWorkspace={onUnpinWorkspace}
-            onHideFromFileTree={onHideFromFileTree}
+            onHideFromRightPanels={onHideFromRightPanels}
             onRefreshTree={() => onRefreshOne(workspace.id)}
             onToggleFileTreePath={(path) => onToggleFileTreePath(workspace.id, path)}
             onOpenFile={onOpenFile}
@@ -160,7 +160,7 @@ export function MultiWorkspaceFileTree({
       onOpenWorkspace,
       onPinWorkspace,
       onUnpinWorkspace,
-      onHideFromFileTree,
+      onHideFromRightPanels,
       onToggleFileTreePath,
       onOpenFile,
       onReorderWorkspaces,

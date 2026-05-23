@@ -150,10 +150,12 @@ export function createTauriBridge(): DigitalLifeBridge {
         invokeIpc<RecentWorkspaceEntry[]>("workspace_restore_to_sidebar", { workspaceId }),
       listTreeForWorkspace: (workspacePath: string) =>
         invokeIpc<WorkspaceTreeNode[]>("workspace_list_tree", { workspacePath }),
-      hideFromFileTree: (workspaceId: string) =>
-        invokeIpc<RecentWorkspaceEntry[]>("workspace_hide_from_file_tree", { workspaceId }),
-      showInFileTree: (workspaceId: string) =>
-        invokeIpc<RecentWorkspaceEntry[]>("workspace_show_in_file_tree", { workspaceId }),
+      listGitStatusForWorkspace: (workspacePath) =>
+        invokeIpc<GitSnapshot>("workspace_get_git_status", { workspacePath }),
+      hideFromRightPanels: (workspaceId: string) =>
+        invokeIpc<RecentWorkspaceEntry[]>("workspace_hide_from_right_panels", { workspaceId }),
+      showInRightPanels: (workspaceId: string) =>
+        invokeIpc<RecentWorkspaceEntry[]>("workspace_show_in_right_panels", { workspaceId }),
       revealInFileManager: (workspacePath: string) =>
         invokeIpc<boolean>("workspace_reveal_in_file_manager", { path: workspacePath }),
       createFile: (relativePath: string, content = "") =>
@@ -163,6 +165,8 @@ export function createTauriBridge(): DigitalLifeBridge {
       readFile: (relativePath: string) => invokeIpc<WorkspaceFileDocument>("workspace_read_file", { relativePath }),
       getChangePreview: (relativePath: string) =>
         invokeIpc<WorkspaceChangePreview>("workspace_get_change_preview", { relativePath }),
+      getChangePreviewForWorkspace: (workspacePath: string, relativePath: string) =>
+        invokeIpc<WorkspaceChangePreview>("workspace_get_change_preview", { workspacePath, relativePath }),
       listTree: () => invokeIpc<WorkspaceTreeNode[]>("workspace_list_tree"),
       search: (query: string) => invokeIpc<WorkspaceSearchHit[]>("workspace_search", { query }),
       outline: (relativePath: string) => invokeIpc("workspace_outline", { relativePath }),

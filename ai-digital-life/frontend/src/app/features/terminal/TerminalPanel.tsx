@@ -1,16 +1,18 @@
-import React from "react";
+import React, { useCallback, useMemo } from "react";
 import { useAppStore } from "../../stores/slicedStore";
-import { IconPanelLeftClose } from "../../icons";
+import { IconFiles, IconFileCode, IconFoldVertical, IconPanelLeftClose, IconRefreshCw, IconTrash, IconUnfoldVertical } from "../../icons";
 import { TooltipSimple } from "../../components/Tooltip";
 import { XtermTerminal } from "../../components/terminal/XtermTerminal";
+import { countGitChanges } from "../../regions/right-panel/types";
 import type { RightPanelViewProps } from "../../regions/right-panel/types";
 import type { TerminalProfile } from "../../ui-store";
 import { useTerminalPanel } from "./useTerminalPanel";
 import { TerminalShellSelector } from "./TerminalShellSelector";
 import { TerminalMenuDropdown } from "./TerminalMenuDropdown";
-import { TerminalNavigator } from "./TerminalNavigator";
 import { TerminalEmptyState } from "./TerminalEmptyState";
 import { TerminalContextMenu } from "./TerminalContextMenu";
+import { MultiWorkspaceTerminal } from "../workspace-terminal";
+import type { RecentWorkspaceEntry } from "@ai-digital-life/kernel";
 
 export function TerminalPanel(props: RightPanelViewProps) {
   const {
@@ -19,6 +21,14 @@ export function TerminalPanel(props: RightPanelViewProps) {
   } = props;
 
   const setActiveRightTool = useAppStore((state) => state.setActiveRightTool);
+  const recentWorkspaces = useAppStore((s) => s.recentWorkspaces);
+  const terminalWorkspaceExpanded = useAppStore((s) => s.terminalWorkspaceExpanded);
+  const setTerminalWorkspaceExpanded = useAppStore((s) => s.setTerminalWorkspaceExpanded);
+  const terminalCreateTab = useAppStore((s) => s.terminalCreateTab);
+  const terminalSelectTab = useAppStore((s) => s.terminalSelectTab);
+  const terminalCloseTab = useAppStore((s) => s.terminalCloseTab);
+  const terminalTogglePin = useAppStore((s) => s.terminalTogglePin);
+  const hideWorkspaceFromRightPanels = useAppStore((s) => s.hideWorkspaceFromRightPanels);
 
   const {
     xtermRef,
@@ -41,6 +51,7 @@ export function TerminalPanel(props: RightPanelViewProps) {
     hasActiveTab,
     currentProfile,
     currentProfileLabel,
+    defaultTerminalProfile,
     navigatorTitle,
     navigatorCount,
     recentCommands,
@@ -74,6 +85,53 @@ export function TerminalPanel(props: RightPanelViewProps) {
     setTerminalMenuOpen,
     setEditValue,
   } = useTerminalPanel(props);
+
+  const visibleWorkspaces = useMemo(
+    () => recentWorkspaces.filter((w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available),
+    [recentWorkspaces]
+  );
+
+  const allTerminalExpanded = useMemo(() => {
+    return visibleWorkspaces.length > 0 && visibleWorkspaces.every((w) => terminalWorkspaceExpanded[w.id]);
+  }, [visibleWorkspaces, terminalWorkspaceExpanded]);
+
+  const terminalNavigatorTitle = navigatorMode === "history" ? "命令历史" : "终端";
+
+  const handleExpandAllTerminal = useCallback(() => {
+    const expanded: Record<string, boolean> = {};
+    for (const ws of visibleWorkspaces) {
+      expanded[ws.id] = true;
+    }
+    setTerminalWorkspaceExpanded(expanded);
+  }, [visibleWorkspaces, setTerminalWorkspaceExpanded]);
+
+  const handleCollapseAllTerminal = useCallback(() => {
+    setTerminalWorkspaceExpanded({});
+  }, [setTerminalWorkspaceExpanded]);
+
+  const visibleTabCount = useMemo(() => {
+    let count = 0;
+    for (const ws of visibleWorkspaces) {
+      count += terminalTabs.filter(t => t.workspaceId === ws.id).length;
+    }
+    return count;
+  }, [visibleWorkspaces, terminalTabs]);
+
+  const handleRefreshAllTerminal = useCallback(() => {
+    // no-op for terminal
+  }, []);
+
+  const toggleTerminalWorkspaceExpanded = useCallback((workspaceId: string) => {
+    setTerminalWorkspaceExpanded({
+      ...terminalWorkspaceExpanded,
+      [workspaceId]: !terminalWorkspaceExpanded[workspaceId]
+    });
+  }, [terminalWorkspaceExpanded, setTerminalWorkspaceExpanded]);
+
+  const handleHideTerminalWorkspace = useCallback((workspaceId: string) => {
+    const ws = recentWorkspaces.find(r => r.id === workspaceId);
+    if (ws) hideWorkspaceFromRightPanels(workspaceId);
+  }, [recentWorkspaces, hideWorkspaceFromRightPanels]);
 
   return (
     <div className="adl-tool-panel adl-tool-panel--terminal">
@@ -122,37 +180,91 @@ export function TerminalPanel(props: RightPanelViewProps) {
         className={`adl-tool-surface adl-tool-surface--files${navigatorCollapsed ? " is-navigator-collapsed" : ""}`}
         style={{ "--adl-files-nav-width": `${terminalNavigatorWidth}px` } as React.CSSProperties}
       >
-        <TerminalNavigator
-          navigatorMode={navigatorMode}
-          navigatorTitle={navigatorTitle}
-          navigatorCount={navigatorCount}
-          navigatorCollapsed={navigatorCollapsed}
-          terminalNavigatorWidth={terminalNavigatorWidth}
-          terminalTabs={terminalTabs}
-          terminalActiveTabId={terminalActiveTabId}
-          recentCommands={recentCommands}
-          editingTabId={editingTabId}
-          editValue={editValue}
-          editInputRef={editInputRef}
-          isDragging={isDragging}
-          dragOverTabId={dragOverTabId}
-          onModeChange={setNavigatorMode}
-          onToggleNavigator={toggleNavigator}
-          onCloseAllTabs={handleCloseAllTabs}
-          onSelectTab={handleSelectTab}
-          onCloseTab={handleCloseTab}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-          onDragOver={handleDragOver}
-          onDrop={handleDrop}
-          onContextMenu={handleContextMenu}
-          onDoubleClick={handleDoubleClick}
-          onEditChange={setEditValue}
-          onEditSubmit={handleEditSubmit}
-          onEditKeyDown={handleEditKeyDown}
-          onResizeStart={handleNavigatorResizeStart}
-          t={t}
-        />
+        <aside className="adl-tool-navigator">
+          <div className="adl-tool-navigator__context">
+            <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--actions">
+              <TooltipSimple content={allTerminalExpanded ? "折叠全部" : "展开全部"} placement="top">
+                <button
+                  type="button"
+                  className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
+                  onClick={allTerminalExpanded ? handleCollapseAllTerminal : handleExpandAllTerminal}
+                  aria-label={allTerminalExpanded ? "折叠全部" : "展开全部"}
+                >
+                  {allTerminalExpanded ? <IconFoldVertical size={14} decorative /> : <IconUnfoldVertical size={14} decorative />}
+                </button>
+              </TooltipSimple>
+              <span className="adl-tool-navigator__context-title">{terminalNavigatorTitle}</span>
+            </div>
+            <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--utility">
+              {visibleWorkspaces.length > 0 ? (
+                <span className="adl-tool-navigator__context-count">{visibleTabCount}</span>
+              ) : null}
+              <TooltipSimple content="刷新全部" placement="top">
+                <button
+                  type="button"
+                  className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
+                  onClick={handleRefreshAllTerminal}
+                  aria-label="刷新全部"
+                >
+                  <IconRefreshCw size={14} decorative />
+                </button>
+              </TooltipSimple>
+            </div>
+          </div>
+          <div className="adl-tool-navigator__context adl-tool-navigator__context--secondary">
+            <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--actions">
+              <TooltipSimple content="终端" placement="top">
+                <button
+                  type="button"
+                  className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${navigatorMode === "sessions" ? " is-active" : ""}`}
+                  onClick={() => setNavigatorMode("sessions")}
+                  aria-label="终端"
+                  aria-pressed={navigatorMode === "sessions" ? "true" : "false"}
+                >
+                  <IconFiles size={14} decorative />
+                </button>
+              </TooltipSimple>
+              <TooltipSimple content="命令历史" placement="top">
+                <button
+                  type="button"
+                  className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${navigatorMode === "history" ? " is-active" : ""}`}
+                  onClick={() => setNavigatorMode("history")}
+                  aria-label="命令历史"
+                  aria-pressed={navigatorMode === "history" ? "true" : "false"}
+                >
+                  <IconFileCode size={14} decorative />
+                </button>
+              </TooltipSimple>
+            </div>
+            <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--utility">
+              <TooltipSimple content="删除全部" placement="top">
+                <button
+                  type="button"
+                  className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
+                  onClick={handleCloseAllTabs}
+                  aria-label="删除全部"
+                >
+                  <IconTrash size={14} decorative />
+                </button>
+              </TooltipSimple>
+            </div>
+          </div>
+          <MultiWorkspaceTerminal
+            workspaces={visibleWorkspaces}
+            expandedStates={terminalWorkspaceExpanded}
+            terminalTabs={terminalTabs}
+            activeTabId={terminalActiveTabId}
+            onToggleExpand={toggleTerminalWorkspaceExpanded}
+            onCreateTab={(wsId) => terminalCreateTab(defaultTerminalProfile, wsId)}
+            onSelectTab={terminalSelectTab}
+            onCloseTab={terminalCloseTab}
+            onTogglePin={terminalTogglePin}
+            onHideFromRightPanels={handleHideTerminalWorkspace}
+            onRefreshTree={handleRefreshAllTerminal}
+            onCloseAllTabs={handleCloseAllTabs}
+            t={props.t}
+          />
+        </aside>
 
         <div className="adl-tool-primary">
           <div className="adl-tool-primary__scroll adl-tool-primary__scroll--terminal">

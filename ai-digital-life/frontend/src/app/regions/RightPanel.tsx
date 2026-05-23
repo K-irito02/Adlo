@@ -120,6 +120,9 @@ export function RightPanel(panelProps: RightPanelProps) {
   const workspaceTreeLoading = useAppStore(useShallow((s) => s.workspaceTreeLoading));
   const workspaceTreeErrors = useAppStore(useShallow((s) => s.workspaceTreeErrors));
   const repoMap = useAppStore(useShallow((s) => s.repoMap));
+  const gitSnapshots = useAppStore(useShallow((s) => s.gitSnapshots));
+  const workspaceChangesExpanded = useAppStore(useShallow((s) => s.workspaceChangesExpanded));
+  const activePatchSets = useAppStore(useShallow((s) => s.activePatchSets));
   const searchQuery = useAppStore((s) => s.searchQuery);
   const searchResults = useAppStore(useShallow((s) => s.searchResults));
   const dirtyEditorPaths = useAppStore(useShallow((s) => s.dirtyEditorPaths));
@@ -137,7 +140,7 @@ export function RightPanel(panelProps: RightPanelProps) {
   const settings = useMemo(() => buildSettingsItems(t, appInfo), [appInfo, t]);
 
   const allExpanded = useMemo(() => {
-    const visible = recentWorkspaces.filter(w => !w.removedFromSidebar && !w.hiddenInFileTree && w.available);
+    const visible = recentWorkspaces.filter(w => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available);
     return visible.length > 0 && visible.every(w => workspaceTreeExpandedInFileNav[w.id]);
   }, [recentWorkspaces, workspaceTreeExpandedInFileNav]);
 
@@ -264,8 +267,11 @@ export function RightPanel(panelProps: RightPanelProps) {
     auditEntries,
     settings,
     gitSnapshot,
+    gitSnapshots,
     commandHistory,
     activePatchSet,
+    activePatchSets,
+    workspaceChangesExpanded,
     latestPatchApplication,
     selectedPatchFilePath,
     selectedPatchHunkId,
@@ -298,8 +304,8 @@ export function RightPanel(panelProps: RightPanelProps) {
       const ws = recentWorkspaces.find(r => r.id === workspaceId);
       if (ws) void actions.expandWorkspaceTreeInFileNav(workspaceId, ws.path);
     },
-    onHideFromFileTree: (workspaceId) => void actions.hideWorkspaceFromFileTree(workspaceId),
-    onShowInFileTree: (workspaceId) => void actions.showWorkspaceInFileTree(workspaceId),
+    onHideFromRightPanels: (workspaceId) => void actions.hideWorkspaceFromRightPanels(workspaceId),
+    onShowInRightPanels: (workspaceId) => void actions.showWorkspaceInRightPanels(workspaceId),
     onSendSelection,
     onSetDiffLayout: persistDiffLayout,
     onSetHunkDecision: handleSetHunkDecision,

@@ -236,18 +236,22 @@ export function setupPreviewBridge(): void {
         const params = new URLSearchParams({ rootPath: workspacePath });
         return requestPreviewApi<WorkspaceTreeNode[]>(`/workspace/tree?${params.toString()}`);
       },
-      hideFromFileTree: async (workspaceId: string) => {
+      listGitStatusForWorkspace: async (workspacePath: string) => {
+        const params = new URLSearchParams({ rootPath: workspacePath });
+        return requestPreviewApi<GitSnapshot>(`/workspace/git-status?${params.toString()}`);
+      },
+      hideFromRightPanels: async (workspaceId: string) => {
         const entry = recentWorkspaces.find((item) => item.id === workspaceId);
         if (entry) {
-          entry.hiddenInFileTree = true;
+          entry.hiddenFromRightPanels = true;
         }
         persistRecentWorkspaces(recentWorkspaces);
         return { ok: true, data: recentWorkspaces };
       },
-      showInFileTree: async (workspaceId: string) => {
+      showInRightPanels: async (workspaceId: string) => {
         const entry = recentWorkspaces.find((item) => item.id === workspaceId);
         if (entry) {
-          entry.hiddenInFileTree = false;
+          entry.hiddenFromRightPanels = false;
         }
         persistRecentWorkspaces(recentWorkspaces);
         return { ok: true, data: recentWorkspaces };
@@ -276,6 +280,10 @@ export function setupPreviewBridge(): void {
       getChangePreview: async (relativePath: string) => {
         if (!currentWorkspace) return { ok: false, error: { code: IpcErrorCode.NOT_FOUND, message: "active workspace" } };
         const params = new URLSearchParams({ rootPath: currentWorkspace.rootPath, relativePath });
+        return requestPreviewApi<WorkspaceChangePreview>(`/workspace/change-preview?${params.toString()}`);
+      },
+      getChangePreviewForWorkspace: async (workspacePath: string, relativePath: string) => {
+        const params = new URLSearchParams({ rootPath: workspacePath, relativePath });
         return requestPreviewApi<WorkspaceChangePreview>(`/workspace/change-preview?${params.toString()}`);
       },
       listTree: async () => {

@@ -23,6 +23,11 @@ export interface WorkspaceSlice {
   workspaceTreeErrors: Record<string, string | undefined>;
   workspaceTreeExpandedInFileNav: Record<string, boolean>;
   gitSnapshot?: GitSnapshot;
+  gitSnapshots: Record<string, GitSnapshot>;
+  workspaceChangesExpanded: Record<string, boolean>;
+  workspaceChangesTreeData: Record<string, WorkspaceTreeNode[]>;
+  workspaceChangesTreeLoading: Record<string, boolean>;
+  workspaceChangesTreeErrors: Record<string, string | undefined>;
   gitBranches: GitBranchSummary[];
   workspaceContextMode: "workspace" | "global";
   indexingStatus?: IndexingStatus;
@@ -36,6 +41,11 @@ export interface WorkspaceSlice {
   setWorkspaceTreeErrors: (errors: Record<string, string | undefined>) => void;
   setWorkspaceTreeExpandedInFileNav: (expanded: Record<string, boolean>) => void;
   setGitSnapshot: (snapshot: GitSnapshot | undefined) => void;
+  setGitSnapshots: (snapshots: Record<string, GitSnapshot>) => void;
+  setWorkspaceChangesExpanded: (expanded: Record<string, boolean>) => void;
+  setWorkspaceChangesTreeData: (data: Record<string, WorkspaceTreeNode[]>) => void;
+  setWorkspaceChangesTreeLoading: (loading: Record<string, boolean>) => void;
+  setWorkspaceChangesTreeErrors: (errors: Record<string, string | undefined>) => void;
   setGitBranches: (branches: GitBranchSummary[]) => void;
   setWorkspaceContextMode: (mode: "workspace" | "global") => void;
   setIndexingStatus: (status: IndexingStatus | undefined) => void;
@@ -55,6 +65,11 @@ export const createWorkspaceSlice = (
   workspaceTreeLoading: {},
   workspaceTreeErrors: {},
   workspaceTreeExpandedInFileNav: {},
+  gitSnapshots: {},
+  workspaceChangesExpanded: {},
+  workspaceChangesTreeData: {},
+  workspaceChangesTreeLoading: {},
+  workspaceChangesTreeErrors: {},
   repoMap: [],
   gitBranches: [],
   workspaceContextMode: "workspace",
@@ -67,6 +82,11 @@ export const createWorkspaceSlice = (
   setWorkspaceTreeErrors: (errors) => set({ workspaceTreeErrors: errors }),
   setWorkspaceTreeExpandedInFileNav: (expanded) => set({ workspaceTreeExpandedInFileNav: expanded }),
   setGitSnapshot: (snapshot) => set({ gitSnapshot: snapshot }),
+  setGitSnapshots: (snapshots) => set({ gitSnapshots: snapshots }),
+  setWorkspaceChangesExpanded: (expanded) => set({ workspaceChangesExpanded: expanded }),
+  setWorkspaceChangesTreeData: (data) => set({ workspaceChangesTreeData: data }),
+  setWorkspaceChangesTreeLoading: (loading) => set({ workspaceChangesTreeLoading: loading }),
+  setWorkspaceChangesTreeErrors: (errors) => set({ workspaceChangesTreeErrors: errors }),
   setGitBranches: (branches) => set({ gitBranches: branches }),
   setWorkspaceContextMode: (mode) => set({ workspaceContextMode: mode }),
   setIndexingStatus: (status) => set({ indexingStatus: status }),

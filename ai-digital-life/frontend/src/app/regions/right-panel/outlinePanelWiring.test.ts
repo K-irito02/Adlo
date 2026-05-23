@@ -20,13 +20,11 @@ describe("outline panel wiring", () => {
   });
 
   it("uses the shared outline tree and outline mode in the changes panel", () => {
-    expect(changesPanelSource).toContain("OutlineTree");
-    expect(changesPanelSource).toContain('setChangesNavigatorMode("outline")');
+    expect(changesPanelSource).toContain("MultiWorkspaceChangesTree");
     expect(changesPanelSource).toContain("buildOutlineFromContent(changePreview.currentContent");
     expect(changesPanelSource).toContain("handleRevealOutlineLine");
     expect(changesPanelSource).toContain("setForceExpandUnchangedDiff(true)");
     expect(changesPanelSource).toContain("handleToggleAllOutlineItems");
-    expect(changesPanelSource).toContain('changesNavigatorMode === "tree" || changesNavigatorMode === "outline"');
   });
 
   it("uses the shared outline parser in preview workspace mode", () => {

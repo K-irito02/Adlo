@@ -131,7 +131,7 @@ pub fn open_workspace(input: &Path) -> Result<(WorkspaceMeta, RecentWorkspaceEnt
         unpinned_order: 0,
         removed_from_sidebar: false,
         available: true,
-        hidden_in_file_tree: false,
+        hidden_from_right_panels: false,
     };
     Ok((meta, recent))
 }

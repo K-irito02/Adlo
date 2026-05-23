@@ -130,6 +130,41 @@ export function createEditorActions(set: StoreApi<StoreState>["setState"], get: 
       });
     },
 
+    openChangePreviewForWorkspace: async (workspacePath: string, relativePath: string) => {
+      const requestSeq = getNextChangePreviewRequestSeq();
+      const cacheKey = getWorkspaceScopedCacheKey(get().appInfo, `${workspacePath}:${relativePath}`);
+      const cachedPreview = getCachedLru(changePreviewCache, cacheKey);
+      set({
+        selectedChangePreviewPath: relativePath,
+        changePreview: cachedPreview ?? get().changePreview,
+        changePreviewLoading: false,
+        error: undefined,
+      });
+      const result = await window.digitalLife.workspace.getChangePreviewForWorkspace(
+        workspacePath,
+        relativePath
+      );
+      if (requestSeq !== changePreviewRequestSeq) return;
+      if (!result.ok) {
+        set({
+          selectedChangePreviewPath: relativePath,
+          changePreviewLoading: false,
+          changePreview:
+            get().changePreview?.path === relativePath
+              ? undefined
+              : get().changePreview,
+        });
+        return;
+      }
+      setCachedLru(changePreviewCache, cacheKey, result.data, CHANGE_PREVIEW_CACHE_LIMIT);
+      set({
+        selectedChangePreviewPath: relativePath,
+        changePreviewLoading: false,
+        changePreview: result.data,
+        error: undefined,
+      });
+    },
+
     createWorkspaceFile: async (relativePath: string, content = "") => {
       const result = await window.digitalLife.workspace.createFile(
         relativePath,

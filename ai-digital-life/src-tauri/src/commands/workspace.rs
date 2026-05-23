@@ -64,7 +64,7 @@ fn seed_sidebar_from_db(state: &AppState) -> Result<Vec<RecentWorkspaceEntry>, A
             unpinned_order: index as i32,
             removed_from_sidebar: false,
             available: true,
-            hidden_in_file_tree: false,
+            hidden_from_right_panels: false,
         });
     }
     if !entries.is_empty() {
@@ -112,7 +112,7 @@ fn upsert_sidebar_after_open(state: &AppState, meta: &WorkspaceMeta) -> Result<(
             unpinned_order: max + 1,
             removed_from_sidebar: false,
             available: true,
-            hidden_in_file_tree: false,
+            hidden_from_right_panels: false,
         });
     }
     save_sidebar_entries(state, &all)?;
@@ -139,7 +139,7 @@ pub fn presentable_recent_list(state: &AppState) -> Result<Vec<RecentWorkspaceEn
                 unpinned_order: max + 1,
                 removed_from_sidebar: false,
                 available: true,
-                hidden_in_file_tree: false,
+                hidden_from_right_panels: false,
             });
             changed = true;
         }
@@ -284,13 +284,21 @@ pub fn workspace_read_file(
 pub fn workspace_get_change_preview(
     state: tauri::State<'_, AppState>,
     relative_path: String,
+    workspace_path: Option<String>,
 ) -> IpcResult<WorkspaceChangePreview> {
-    ipc(with_workspace(&state, |workspace| {
-        adl_workspace::read_change_preview(
-            PathBuf::from(&workspace.root_path).as_path(),
-            &relative_path,
-        )
-    }))
+    let root = match workspace_path {
+        Some(p) => PathBuf::from(p),
+        None => {
+            return ipc(with_workspace(&state, |workspace| {
+                adl_workspace::read_change_preview(
+                    PathBuf::from(&workspace.root_path).as_path(),
+                    &relative_path,
+                )
+            }));
+        }
+    };
+    let preview = adl_workspace::read_change_preview(root.as_path(), &relative_path);
+    ipc(preview)
 }
 
 #[tauri::command]
@@ -444,7 +452,7 @@ pub fn workspace_remove_from_sidebar(
         let mut all = load_or_seed_sidebar(&state)?;
         if let Some(e) = all.iter_mut().find(|e| e.id == workspace_id) {
             e.removed_from_sidebar = true;
-            e.hidden_in_file_tree = true;
+            e.hidden_from_right_panels = true;
         }
         save_sidebar_entries(&state, &all)?;
         presentable_recent_list(&state)
@@ -477,7 +485,7 @@ pub fn workspace_restore_to_sidebar(
                 unpinned_order: max + 1,
                 removed_from_sidebar: false,
                 available: true,
-                hidden_in_file_tree: false,
+                hidden_from_right_panels: false,
             });
         }
         save_sidebar_entries(&state, &all)?;
@@ -486,14 +494,14 @@ pub fn workspace_restore_to_sidebar(
 }
 
 #[tauri::command]
-pub fn workspace_hide_from_file_tree(
+pub fn workspace_hide_from_right_panels(
     state: tauri::State<'_, AppState>,
     workspace_id: String,
 ) -> IpcResult<Vec<RecentWorkspaceEntry>> {
     crate::commands::ipc_try(|| {
         let mut all = load_or_seed_sidebar(&state)?;
         if let Some(e) = all.iter_mut().find(|e| e.id == workspace_id) {
-            e.hidden_in_file_tree = true;
+            e.hidden_from_right_panels = true;
         }
         save_sidebar_entries(&state, &all)?;
         presentable_recent_list(&state)
@@ -501,14 +509,14 @@ pub fn workspace_hide_from_file_tree(
 }
 
 #[tauri::command]
-pub fn workspace_show_in_file_tree(
+pub fn workspace_show_in_right_panels(
     state: tauri::State<'_, AppState>,
     workspace_id: String,
 ) -> IpcResult<Vec<RecentWorkspaceEntry>> {
     crate::commands::ipc_try(|| {
         let mut all = load_or_seed_sidebar(&state)?;
         if let Some(e) = all.iter_mut().find(|e| e.id == workspace_id) {
-            e.hidden_in_file_tree = false;
+            e.hidden_from_right_panels = false;
         }
         save_sidebar_entries(&state, &all)?;
         presentable_recent_list(&state)
@@ -552,12 +560,22 @@ fn reveal_in_os_file_manager(path: &str) -> Result<(), AppError> {
 }
 
 #[tauri::command]
-pub fn workspace_get_git_status(state: tauri::State<'_, AppState>) -> IpcResult<GitSnapshot> {
-    ipc(with_workspace(&state, |workspace| {
-        Ok(adl_workspace::capture_git_snapshot(
-            PathBuf::from(&workspace.root_path).as_path(),
-        ))
-    }))
+pub fn workspace_get_git_status(
+    state: tauri::State<'_, AppState>,
+    workspace_path: Option<String>,
+) -> IpcResult<GitSnapshot> {
+    let path = match workspace_path {
+        Some(p) => PathBuf::from(p),
+        None => {
+            return ipc(with_workspace(&state, |workspace| {
+                Ok(adl_workspace::capture_git_snapshot(
+                    PathBuf::from(&workspace.root_path).as_path(),
+                ))
+            }));
+        }
+    };
+    let snapshot = adl_workspace::capture_git_snapshot(path.as_path());
+    ipc(Ok(snapshot))
 }
 
 #[tauri::command]

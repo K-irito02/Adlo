@@ -94,7 +94,7 @@ export function buildSidebarViewModel(input: {
       unpinnedOrder: entries.filter((entry) => !entry.isPinned).length,
       removedFromSidebar: false,
       available: true,
-      hiddenInFileTree: false
+      hiddenFromRightPanels: false
     });
   }
 

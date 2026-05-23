@@ -28,13 +28,15 @@ import { useAppStore } from "../../stores/slicedStore";
 import { useUiStore } from "../../ui-store";
 import { useNavigatorResize } from "../../hooks/useNavigatorResize";
 import { countGitChanges } from "./types";
-import { joinPathSegments } from "../../workspacePaths";
+import { joinPathSegments, normalizeWorkspaceRelativePath } from "../../workspacePaths";
 import type { RightPanelViewProps } from "./types";
+import type { WorkspaceTreeNode, ReorderWorkspacesInput } from "@ai-digital-life/kernel";
 import { countReviewedHunks, filterPatchFileSummaries, summarizePatchFile, summarizePatchSet } from "../../features/patch-review";
 import { DiffToolbar } from "./DiffToolbar";
 import { StickyContext } from "./stickyContextView";
 import { useStickyContext, useEditorOptions } from "./hooks";
 import { buildChangeEntries, buildChangeTree, buildFlatChangeNodes, type ChangeFileState, type ChangeTreeNode } from "./changesTree";
+import { MultiWorkspaceChangesTree } from "../../features/workspace-changes-tree";
 import {
   type PreviewDiffCollapsedRange,
   computePreviewDiffVisualRanges,
@@ -87,7 +89,12 @@ export function ChangesPanel(props: RightPanelViewProps) {
     onSetAllPatchHunksCollapsed,
     onSetPatchReviewFilter,
     onOpenFile,
-    onRefreshWorkspaceTree
+    onRefreshWorkspaceTree,
+    recentWorkspaces,
+    workspaceChangesExpanded,
+    gitSnapshots,
+    activePatchSets,
+    onHideFromRightPanels,
   } = props;
   const navigatorCollapsed = useUiStore((state) => state.navigatorCollapsedByTool.changes);
   const toggleNavigator = useUiStore((state) => state.toggleNavigator);
@@ -103,6 +110,12 @@ export function ChangesPanel(props: RightPanelViewProps) {
   const expandChangesTreePathChain = useUiStore((state) => state.expandChangesTreePathChain);
   const collapseAllChangesTreePaths = useUiStore((state) => state.collapseAllChangesTreePaths);
   const snapshot = props.gitSnapshot ?? appInfo?.currentWorkspace?.gitSnapshot;
+  const workspaceChangesTreeLoading = useAppStore((s) => s.workspaceChangesTreeLoading);
+  const workspaceChangesTreeErrors = useAppStore((s) => s.workspaceChangesTreeErrors);
+  const pinWorkspace = useAppStore((s) => s.pinWorkspace);
+  const unpinWorkspace = useAppStore((s) => s.unpinWorkspace);
+  const onPinWorkspace = useCallback((workspaceId: string) => void pinWorkspace(workspaceId), [pinWorkspace]);
+  const onUnpinWorkspace = useCallback((workspaceId: string) => void unpinWorkspace(workspaceId), [unpinWorkspace]);
   const fallbackBranch = snapshot?.branch ?? "main";
   const [branchMenuOpen, setBranchMenuOpen] = useState(false);
   const [changesMenuOpen, setChangesMenuOpen] = useState(false);
@@ -402,8 +415,10 @@ export function ChangesPanel(props: RightPanelViewProps) {
     });
   }, []);
 
-  const handleSelectNavigatorNode = useCallback((relativePath: string) => {
-    const patchSummary = patchSummaries.find((summary) => summary.relativePath === relativePath);
+  const handleSelectNavigatorNode = useCallback((workspacePath: string, relativePath: string) => {
+    const patchSet = activePatchSets[workspacePath] ?? activePatchSet;
+    const summaries = patchSet ? summarizePatchSet(patchSet, collapsedPatchHunkIds) : [];
+    const patchSummary = summaries.find((summary) => summary.relativePath === relativePath);
     if (patchSummary) {
       onSelectPatchFile(relativePath, {
         line: patchSummary.hunks[0]?.targetLine,
@@ -411,8 +426,8 @@ export function ChangesPanel(props: RightPanelViewProps) {
       });
       return;
     }
-    onOpenChangePreview(relativePath);
-  }, [onOpenChangePreview, onSelectPatchFile, patchSummaries]);
+    useAppStore.getState().openChangePreviewForWorkspace(workspacePath, relativePath);
+  }, [activePatchSet, activePatchSets, collapsedPatchHunkIds, onSelectPatchFile]);
 
   const copyToClipboard = useCallback(async (text: string) => {
     try {
@@ -589,6 +604,105 @@ export function ChangesPanel(props: RightPanelViewProps) {
     );
   }, []);
 
+  const activeWorkspaceId = useMemo(() => {
+    if (!appInfo?.currentWorkspace?.path) return undefined;
+    return recentWorkspaces.find((w) => w.path === appInfo.currentWorkspace?.path)?.id;
+  }, [appInfo?.currentWorkspace?.path, recentWorkspaces]);
+
+  const visibleWorkspaces = useMemo(
+    () => recentWorkspaces.filter((w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available),
+    [recentWorkspaces],
+  );
+
+  const allChangesExpanded = useMemo(() => {
+    return visibleWorkspaces.length > 0 && visibleWorkspaces.every((w) => workspaceChangesExpanded[w.id]);
+  }, [visibleWorkspaces, workspaceChangesExpanded]);
+
+  const changesNavigatorTitle = changesNavigatorMode === "outline" ? t.outline : changesNavigatorMode === "list" ? t.changesListView : t.toolChanges;
+
+  const changesTreeData = useMemo(() => {
+    const result: Record<string, ChangeTreeNode[]> = {};
+    for (const wsId of Object.keys(workspaceChangesExpanded)) {
+      if (workspaceChangesExpanded[wsId]) {
+        const snapshot = gitSnapshots[wsId];
+        const patchSet = activePatchSets[wsId];
+        const patchSummaries = patchSet ? summarizePatchSet(patchSet, collapsedPatchHunkIds) : [];
+        const entries = snapshot ? buildChangeEntries(snapshot, patchSummaries) : [];
+        const filtered = changesStatusFilter.size > 0 && changesStatusFilter.size < 3
+          ? entries.filter((entry) => entry.states.some((state) => changesStatusFilter.has(state)))
+          : entries;
+        if (changesNavigatorMode === "tree") {
+          result[wsId] = buildChangeTree(filtered);
+        } else {
+          result[wsId] = buildFlatChangeNodes(filtered);
+        }
+      }
+    }
+    return result;
+  }, [workspaceChangesExpanded, gitSnapshots, activePatchSets, collapsedPatchHunkIds, changesNavigatorMode, changesStatusFilter]);
+
+  const changeCounts = useMemo(() => {
+    const result: Record<string, number> = {};
+    for (const ws of visibleWorkspaces) {
+      const snapshot = gitSnapshots[ws.id];
+      if (snapshot) {
+        result[ws.id] = snapshot.staged.length + snapshot.unstaged.length + snapshot.untracked.length + snapshot.conflicts.length;
+      } else {
+        result[ws.id] = 0;
+      }
+    }
+    return result;
+  }, [visibleWorkspaces, gitSnapshots]);
+
+  const totalChangeCount = useMemo(() => {
+    return Object.values(changeCounts).reduce((sum, count) => sum + count, 0);
+  }, [changeCounts]);
+
+  const expandedPathsByWs = useMemo(() => {
+    const result: Record<string, Record<string, boolean>> = {};
+    for (const wsId of Object.keys(workspaceChangesExpanded)) {
+      result[wsId] = expandedPaths;
+    }
+    return result;
+  }, [workspaceChangesExpanded, expandedPaths]);
+
+  const dirtyPathsSet = useMemo(
+    () => new Set(props.dirtyEditorPaths.map((p) => normalizeWorkspaceRelativePath(p))),
+    [props.dirtyEditorPaths],
+  );
+
+  const handleToggleExpand = useCallback((workspaceId: string) => {
+    const state = useAppStore.getState();
+    const ws = state.recentWorkspaces.find((w) => w.id === workspaceId);
+    if (ws) {
+      state.expandWorkspaceChangesInFileNav(workspaceId, ws.path);
+    }
+  }, []);
+
+  const handleExpandAll = useCallback(() => {
+    useAppStore.getState().expandAllWorkspaceChanges();
+  }, []);
+
+  const handleCollapseAll = useCallback(() => {
+    useAppStore.getState().collapseAllWorkspaceChanges();
+  }, []);
+
+  const handleRefreshOneWorkspace = useCallback((workspaceId: string) => {
+    const state = useAppStore.getState();
+    const ws = state.recentWorkspaces.find((w) => w.id === workspaceId);
+    if (ws) {
+      state.loadGitSnapshot(workspaceId, ws.path);
+    }
+  }, []);
+
+  const handleToggleFileTreePath = useCallback((workspaceId: string, path: string) => {
+    toggleChangesTreePath(path);
+  }, [toggleChangesTreePath]);
+
+  const handleReorderWorkspaces = useCallback((input: ReorderWorkspacesInput) => {
+    useAppStore.getState().reorderWorkspaces(input);
+  }, []);
+
   return (
     <div className="adl-tool-panel adl-tool-panel--changes">
       <div className="adl-tool-context adl-tool-context--files" aria-label={t.toolChanges}>
@@ -734,51 +848,47 @@ export function ChangesPanel(props: RightPanelViewProps) {
         <aside className="adl-tool-navigator" aria-label={t.toolChanges}>
           <div className="adl-tool-navigator__context">
             <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--actions">
-              {changesNavigatorMode === "tree" || changesNavigatorMode === "outline" ? (
-                <TooltipSimple content={structureToggleExpanded ? t.fileCollapseAll : t.fileExpandAll} placement="top">
-                  <button
-                    type="button"
-                    className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-                    onClick={handleToggleNavigatorStructure}
-                    aria-label={structureToggleExpanded ? t.fileCollapseAll : t.fileExpandAll}
-                    disabled={!canToggleNavigatorStructure}
-                  >
-                    {structureToggleExpanded ? <IconFoldVertical size={14} decorative /> : <IconUnfoldVertical size={14} decorative />}
-                  </button>
-                </TooltipSimple>
-              ) : (
-                <IconGitBranch size={14} decorative />
-              )}
-              <span className="adl-tool-navigator__context-title">
-                {changesNavigatorMode === "outline" ? t.outline : t.toolChanges}
-              </span>
+              <TooltipSimple content={allChangesExpanded ? t.fileCollapseAll : t.fileExpandAll} placement="top">
+                <button
+                  type="button"
+                  className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
+                  onClick={allChangesExpanded ? handleCollapseAll : handleExpandAll}
+                  aria-label={allChangesExpanded ? t.fileCollapseAll : t.fileExpandAll}
+                >
+                  {allChangesExpanded ? <IconFoldVertical size={14} decorative /> : <IconUnfoldVertical size={14} decorative />}
+                </button>
+              </TooltipSimple>
+              <span className="adl-tool-navigator__context-title">{changesNavigatorTitle}</span>
             </div>
-            <span className="adl-tool-navigator__meta">
-              {changesNavigatorMode === "outline" ? changeOutline.length : filteredChangeEntries.length || countGitChanges(snapshot)}
-            </span>
-            <TooltipSimple content={t.changesRefresh} placement="top">
-              <button
-                type="button"
-                className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-                onClick={() => {
-                  void onRefreshWorkspaceTree();
-                  void useAppStore.getState().fetchGitStatus();
-                }}
-                aria-label={t.changesRefresh}
-              >
-                <IconRefreshCw size={14} decorative />
-              </button>
-            </TooltipSimple>
+            <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--utility">
+              {visibleWorkspaces.length > 0 ? (
+                <span className="adl-tool-navigator__context-count">{totalChangeCount}</span>
+              ) : null}
+              <TooltipSimple content={t.changesRefresh} placement="top">
+                <button
+                  type="button"
+                  className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
+                  onClick={() => {
+                    visibleWorkspaces.forEach((ws) => {
+                      useAppStore.getState().refreshGitSnapshot(ws.id, ws.path);
+                    });
+                  }}
+                  aria-label={t.changesRefresh}
+                >
+                  <IconRefreshCw size={14} decorative />
+                </button>
+              </TooltipSimple>
+            </div>
           </div>
-          <div className="adl-tool-navigator__context adl-tool-navigator__context--tabs">
+          <div className="adl-tool-navigator__context adl-tool-navigator__context--secondary">
             <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--actions">
               <TooltipSimple content={t.fileTreeView} placement="top">
                 <button
                   type="button"
                   className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${changesNavigatorMode === "tree" ? " is-active" : ""}`}
-                  aria-pressed={changesNavigatorMode === "tree" ? "true" : "false"}
                   onClick={() => setChangesNavigatorMode("tree")}
                   aria-label={t.fileTreeView}
+                  aria-pressed={changesNavigatorMode === "tree" ? "true" : "false"}
                 >
                   <IconFiles size={14} decorative />
                 </button>
@@ -787,118 +897,53 @@ export function ChangesPanel(props: RightPanelViewProps) {
                 <button
                   type="button"
                   className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${changesNavigatorMode === "list" ? " is-active" : ""}`}
-                  aria-pressed={changesNavigatorMode === "list" ? "true" : "false"}
                   onClick={() => setChangesNavigatorMode("list")}
                   aria-label={t.changesListView}
+                  aria-pressed={changesNavigatorMode === "list" ? "true" : "false"}
                 >
                   <IconFileText size={14} decorative />
                 </button>
               </TooltipSimple>
+            </div>
+            <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--utility">
               <TooltipSimple content={t.outline} placement="top">
                 <button
                   type="button"
                   className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${changesNavigatorMode === "outline" ? " is-active" : ""}`}
-                  aria-pressed={changesNavigatorMode === "outline" ? "true" : "false"}
                   onClick={() => setChangesNavigatorMode("outline")}
                   aria-label={t.outline}
+                  aria-pressed={changesNavigatorMode === "outline" ? "true" : "false"}
                 >
                   <IconList size={14} decorative />
                 </button>
               </TooltipSimple>
             </div>
           </div>
-          {changeEntries.length > 0 && changesNavigatorMode !== "outline" ? (
-            <div className="adl-tool-navigator__summary" aria-label={t.toolChanges}>
-              <div className="adl-tool-navigator__summary-stats">
-                <button
-                  type="button"
-                  className={`adl-tool-navigator__summary-stat${changesStatusFilter.has("staged") ? " is-active" : ""}`}
-                  onClick={() => handleStatusFilterClick("staged")}
-                  aria-pressed={changesStatusFilter.has("staged")}
-                  aria-label={t.changesStaged}
-                >
-                  <span className="adl-tool-navigator__summary-label">{t.changesStaged}</span>
-                  <strong className="adl-tool-navigator__summary-value">
-                    <span className="adl-tool-navigator__summary-code" aria-hidden="true">S:</span>
-                    {snapshot?.staged.length ?? 0}
-                  </strong>
-                </button>
-                <button
-                  type="button"
-                  className={`adl-tool-navigator__summary-stat${changesStatusFilter.has("modified") ? " is-active" : ""}`}
-                  onClick={() => handleStatusFilterClick("modified")}
-                  aria-pressed={changesStatusFilter.has("modified")}
-                  aria-label={t.changesModified}
-                >
-                  <span className="adl-tool-navigator__summary-label">{t.changesModified}</span>
-                  <strong className="adl-tool-navigator__summary-value">
-                    <span className="adl-tool-navigator__summary-code" aria-hidden="true">M:</span>
-                    {snapshot?.unstaged.length ?? 0}
-                  </strong>
-                </button>
-                <button
-                  type="button"
-                  className={`adl-tool-navigator__summary-stat${changesStatusFilter.has("untracked") ? " is-active" : ""}`}
-                  onClick={() => handleStatusFilterClick("untracked")}
-                  aria-pressed={changesStatusFilter.has("untracked")}
-                  aria-label={t.changesUntracked}
-                >
-                  <span className="adl-tool-navigator__summary-label">{t.changesUntracked}</span>
-                  <strong className="adl-tool-navigator__summary-value">
-                    <span className="adl-tool-navigator__summary-code" aria-hidden="true">U:</span>
-                    {snapshot?.untracked.length ?? 0}
-                  </strong>
-                </button>
-              </div>
-            </div>
-          ) : null}
-
-          {changesNavigatorMode === "tree" && treeNodes.length > 0 ? (
-            <FileTree
-              nodes={treeNodes}
-              selectedFilePath={navigatorSelectedPath}
-              expandedPaths={expandedPaths}
-              onToggle={toggleChangesTreePath}
-              onOpenFile={handleSelectNavigatorNode}
-              renderMeta={renderNavigatorMeta}
-              getContextMenuItems={getContextMenuItems}
-              contextMenuPersistRef={changesContextMenuPersistRef}
-              clearMenuHighlightRef={changesClearMenuHighlightRef}
-              expandLabel={t.expandDetails}
-              collapseLabel={t.collapseDetails}
-            />
-          ) : null}
-          {changesNavigatorMode === "list" && flatNodes.length > 0 ? (
-            <FileTree
-              nodes={flatNodes}
-              selectedFilePath={navigatorSelectedPath}
-              expandedPaths={{}}
-              onToggle={() => undefined}
-              onOpenFile={handleSelectNavigatorNode}
-              renderMeta={renderNavigatorMeta}
-              getContextMenuItems={getContextMenuItems}
-              contextMenuPersistRef={changesContextMenuPersistRef}
-              clearMenuHighlightRef={changesClearMenuHighlightRef}
-              expandLabel={t.expandDetails}
-              collapseLabel={t.collapseDetails}
-              flat
-            />
-          ) : null}
-          {changesNavigatorMode === "outline" ? (
-            changeOutline.length > 0 ? (
-              <OutlineTree
-                items={changeOutline}
-                onNavigate={(line) => handleRevealOutlineLine(line)}
-                expandLabel={t.expandDetails}
-                collapseLabel={t.collapseDetails}
-                expandedIds={expandedOutlineIds}
-                onExpandedIdsChange={setExpandedOutlineIds}
-              />
-            ) : (
-              <p className="adl-empty-hint adl-empty-hint--navigator">{t.noDiagnostics}</p>
-            )
-          ) : null}
-          {filteredChangeEntries.length === 0 && changesNavigatorMode !== "outline" ? <p className="adl-empty-hint adl-empty-hint--navigator">{t.changesEmpty}</p> : null}
+          <MultiWorkspaceChangesTree
+            workspaces={visibleWorkspaces}
+            activeWorkspaceId={activeWorkspaceId}
+            expandedStates={workspaceChangesExpanded}
+            treeData={changesTreeData as Record<string, WorkspaceTreeNode[]>}
+            loadingStates={workspaceChangesTreeLoading}
+            errorStates={workspaceChangesTreeErrors}
+            selectedChangePreviewPath={navigatorSelectedPath}
+            expandedPaths={expandedPathsByWs}
+            dirtyPaths={dirtyPathsSet}
+            externalChangePath={props.externalChangePath}
+            onToggleExpand={handleToggleExpand}
+            onRefreshOne={handleRefreshOneWorkspace}
+            onPinWorkspace={onPinWorkspace}
+            onUnpinWorkspace={onUnpinWorkspace}
+            changeCounts={changeCounts}
+            onHideFromRightPanels={onHideFromRightPanels}
+            onToggleFileTreePath={handleToggleFileTreePath}
+            onOpenChangePreview={handleSelectNavigatorNode}
+            onReorderWorkspaces={handleReorderWorkspaces}
+            getContextMenuItems={getContextMenuItems as any}
+            contextMenuPersistRef={changesContextMenuPersistRef}
+            clearMenuHighlightRef={changesClearMenuHighlightRef}
+            t={t}
+          />
           <div
             className="adl-tool-navigator__resize-handle"
             onPointerDown={handleNavigatorResizeStart}

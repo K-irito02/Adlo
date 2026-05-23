@@ -69,6 +69,7 @@ export interface StoreState extends StoreStateBase {
   cancelActiveStream: () => Promise<void>;
   openFile: (relativePath: string) => Promise<void>;
   openChangePreview: (relativePath: string) => Promise<void>;
+  openChangePreviewForWorkspace: (workspacePath: string, relativePath: string) => Promise<void>;
   createWorkspaceFile: (relativePath: string, content?: string) => Promise<string | undefined>;
   createWorkspaceFolder: (relativePath: string) => Promise<string | undefined>;
   refreshWorkspaceTree: () => Promise<void>;
@@ -77,10 +78,15 @@ export interface StoreState extends StoreStateBase {
   expandWorkspaceTreeInFileNav: (workspaceId: string, workspacePath: string) => Promise<void>;
   refreshAllWorkspaceTrees: () => Promise<void>;
   cleanupRemovedWorkspaceTree: (workspaceId: string) => void;
-  hideWorkspaceFromFileTree: (workspaceId: string) => Promise<void>;
-  showWorkspaceInFileTree: (workspaceId: string) => Promise<void>;
+  hideWorkspaceFromRightPanels: (workspaceId: string) => Promise<void>;
+  showWorkspaceInRightPanels: (workspaceId: string) => Promise<void>;
   expandAllWorkspaceTreesInFileNav: () => Promise<void>;
   collapseAllWorkspaceTreesInFileNav: () => void;
+  loadGitSnapshot: (workspaceId: string, workspacePath: string) => Promise<void>;
+  refreshGitSnapshot: (workspaceId: string, workspacePath: string) => Promise<void>;
+  expandWorkspaceChangesInFileNav: (workspaceId: string, workspacePath: string) => Promise<void>;
+  collapseAllWorkspaceChanges: () => void;
+  expandAllWorkspaceChanges: () => Promise<void>;
   searchFiles: (query: string) => Promise<void>;
   setHunkDecision: (patchSetId: string, hunkId: string, decision: "pending" | "accepted" | "rejected") => Promise<void>;
   applyPatchSet: (patchSetId: string) => Promise<void>;

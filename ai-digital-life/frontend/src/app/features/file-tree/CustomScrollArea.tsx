@@ -135,6 +135,10 @@ export const CustomScrollArea = forwardRef(function CustomScrollArea(
     }
   }, [ref]);
 
+  useEffect(() => {
+    updateScrollbar();
+  }, [updateScrollbar, children]);
+
   return (
     <div ref={rootRef} className={shellClassName}>
       <div ref={scrollRef} className={scrollClassName}>

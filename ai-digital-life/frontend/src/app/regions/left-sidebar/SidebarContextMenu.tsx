@@ -146,7 +146,7 @@ export interface WorkspaceMenuCallbacks {
   onArchiveAllSessions: () => void;
   onRemoveWorkspace: (workspaceId: string) => void;
   onRevealWorkspace: (workspacePath: string) => void;
-  onShowInFileTree: (workspaceId: string) => void;
+  onShowInRightPanels: (workspaceId: string) => void;
 }
 
 export function buildWorkspaceMenuItems(
@@ -188,12 +188,12 @@ export function buildWorkspaceMenuItems(
     }
   ];
 
-  if (workspace.hiddenInFileTree && !workspace.removedFromSidebar) {
+  if (workspace.hiddenFromRightPanels && !workspace.removedFromSidebar) {
     items.push({
-      id: "show-in-file-tree",
-      label: t.addToFileTree,
+      id: "show-in-right-panels",
+      label: t.showInRightPanels,
       icon: <IconFolderOpen size={14} decorative />,
-      action: () => callbacks.onShowInFileTree(workspace.id)
+      action: () => callbacks.onShowInRightPanels(workspace.id)
     });
   }
 

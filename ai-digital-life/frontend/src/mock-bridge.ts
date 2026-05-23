@@ -236,7 +236,7 @@ const recentWorkspaces: RecentWorkspaceEntry[] = [
     unpinnedOrder: 0,
     removedFromSidebar: false,
     available: true,
-    hiddenInFileTree: false
+    hiddenFromRightPanels: false
   }
 ];
 
@@ -310,7 +310,7 @@ function ensureRecentWorkspace(meta: WorkspaceMeta): void {
     existing.lastOpenedAt = Date.now();
     existing.available = true;
     existing.removedFromSidebar = false;
-    existing.hiddenInFileTree = false;
+    existing.hiddenFromRightPanels = false;
     return;
   }
   recentWorkspaces.unshift({
@@ -324,7 +324,7 @@ function ensureRecentWorkspace(meta: WorkspaceMeta): void {
     unpinnedOrder: recentWorkspaces.filter((entry) => !entry.isPinned).length,
     removedFromSidebar: false,
     available: true,
-    hiddenInFileTree: false
+    hiddenFromRightPanels: false
   });
 }
 
@@ -660,7 +660,7 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
       const entry = recentWorkspaces.find((item) => item.id === workspaceId);
       if (entry) {
         entry.removedFromSidebar = true;
-        entry.hiddenInFileTree = true;
+        entry.hiddenFromRightPanels = true;
       }
       return { ok: true, data: recentWorkspaces };
     },
@@ -675,17 +675,21 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
       ok: true,
       data: currentWorkspaceMeta ? buildWorkspaceTreeFromPaths(Array.from(documents.keys()), Array.from(emptyDirectories)) : []
     }),
-    hideFromFileTree: async (workspaceId: string) => {
+    listGitStatusForWorkspace: async (_workspacePath: string) => ({
+      ok: true,
+      data: { isRepo: true, branch: "main", staged: [], unstaged: [], untracked: [], conflicts: [], capturedAt: Date.now() }
+    }),
+    hideFromRightPanels: async (workspaceId: string) => {
       const entry = recentWorkspaces.find((item) => item.id === workspaceId);
       if (entry) {
-        entry.hiddenInFileTree = true;
+        entry.hiddenFromRightPanels = true;
       }
       return { ok: true, data: recentWorkspaces };
     },
-    showInFileTree: async (workspaceId: string) => {
+    showInRightPanels: async (workspaceId: string) => {
       const entry = recentWorkspaces.find((item) => item.id === workspaceId);
       if (entry) {
-        entry.hiddenInFileTree = false;
+        entry.hiddenFromRightPanels = false;
       }
       return { ok: true, data: recentWorkspaces };
     },
@@ -722,6 +726,13 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
       ok: true,
       data: buildMockChangePreview(relativePath)
     }),
+    getChangePreviewForWorkspace: async (_workspacePath: string, relativePath: string) => {
+      if (!currentWorkspaceMeta) return { ok: false, error: { message: "No workspace", code: "NO_WORKSPACE" } };
+      return {
+        ok: true,
+        data: buildMockChangePreview(relativePath),
+      };
+    },
     search: async (query: string) => {
       const hits: WorkspaceSearchHit[] = Array.from(documents.entries())
         .flatMap(([filePath, content]) =>

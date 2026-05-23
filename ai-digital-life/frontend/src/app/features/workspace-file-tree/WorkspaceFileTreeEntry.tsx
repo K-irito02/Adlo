@@ -21,7 +21,7 @@ export interface WorkspaceFileTreeEntryProps {
   onOpenWorkspace: (path: string) => void;
   onPinWorkspace: (workspaceId: string) => void;
   onUnpinWorkspace: (workspaceId: string) => void;
-  onHideFromFileTree: (workspaceId: string) => void;
+  onHideFromRightPanels: (workspaceId: string) => void;
   onRefreshTree: () => void;
   onToggleFileTreePath: (path: string) => void;
   onOpenFile: (relativePath: string) => void;
@@ -48,7 +48,7 @@ export function WorkspaceFileTreeEntry({
   onOpenWorkspace,
   onPinWorkspace,
   onUnpinWorkspace,
-  onHideFromFileTree,
+  onHideFromRightPanels,
   onRefreshTree,
   onToggleFileTreePath,
   onOpenFile,
@@ -135,10 +135,10 @@ export function WorkspaceFileTreeEntry({
     await window.digitalLife.workspace.revealInFileManager(workspace.path);
   }, [workspace.path, closeMenu]);
 
-  const handleHideFromFileTree = useCallback(() => {
+  const handleHideFromRightPanels = useCallback(() => {
     closeMenu();
-    onHideFromFileTree(workspace.id);
-  }, [onHideFromFileTree, workspace.id, closeMenu]);
+    onHideFromRightPanels(workspace.id);
+  }, [onHideFromRightPanels, workspace.id, closeMenu]);
 
   const isPinned = workspace.isPinned;
 
@@ -203,7 +203,7 @@ export function WorkspaceFileTreeEntry({
 
       {menuOpen && menuPosition ? createPortal(
         <div className="adl-multitree-entry__menu" role="menu" data-menu-id={menuId} style={{ top: menuPosition.top, left: menuPosition.left }}>
-          <button type="button" className="adl-multitree-entry__menu-item" role="menuitem" onClick={handleHideFromFileTree}>
+          <button type="button" className="adl-multitree-entry__menu-item" role="menuitem" onClick={handleHideFromRightPanels}>
             <IconEyeOff size={14} />
             从此区域移除不显示
           </button>

@@ -36,7 +36,7 @@ interface FileNavigatorShellProps {
   onRefreshAll: () => void;
   onRefreshOneWorkspace: (workspaceId: string) => void;
   onToggleExpandInFileNav: (workspaceId: string) => void;
-  onHideFromFileTree: (workspaceId: string) => void;
+  onHideFromRightPanels: (workspaceId: string) => void;
   onCreateWorkspaceFile: (relativePath: string, content?: string) => Promise<string | undefined>;
   onCreateWorkspaceFolder: (relativePath: string) => Promise<string | undefined>;
   onEditorChange: (value: string | undefined) => void;
@@ -84,7 +84,7 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
     onCollapseAll,
     onRefreshAll,
     onRefreshOneWorkspace,
-    onHideFromFileTree,
+    onHideFromRightPanels,
     onCreateWorkspaceFile,
     onCreateWorkspaceFolder,
     onEditorChange,
@@ -113,7 +113,7 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
     : undefined;
 
   const visibleWorkspaces = useMemo(
-    () => recentWorkspaces.filter((w) => !w.removedFromSidebar && !w.hiddenInFileTree && w.available),
+    () => recentWorkspaces.filter((w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available),
     [recentWorkspaces],
   );
 
@@ -359,12 +359,12 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
       </div>
       <div className="adl-tool-navigator__context adl-tool-navigator__context--secondary">
         <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--actions">
-          <TooltipSimple content={t.toolFiles} placement="top">
+          <TooltipSimple content={t.fileTreeView} placement="top">
             <button
               type="button"
               className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${navigatorMode === "tree" ? " is-active" : ""}`}
               onClick={() => setNavigatorMode("tree")}
-              aria-label={t.toolFiles as string}
+              aria-label={t.fileTreeView as string}
               aria-pressed={navigatorMode === "tree" ? "true" : "false"}
             >
               <IconFiles size={14} decorative />
@@ -448,7 +448,7 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
             onUnpinWorkspace={(workspaceId: string) => {
               useAppStore.getState().unpinWorkspace(workspaceId);
             }}
-            onHideFromFileTree={onHideFromFileTree}
+            onHideFromRightPanels={onHideFromRightPanels}
             onToggleFileTreePath={toggleFileTreePath}
             onOpenFile={onOpenFile}
             onReorderWorkspaces={(input) => {
