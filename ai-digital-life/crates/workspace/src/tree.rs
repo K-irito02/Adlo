@@ -176,9 +176,6 @@ fn collect_retrieval_inner(
     repo_map: &mut Vec<RepoMapEntry>,
 ) -> Result<(), AppError> {
     for entry in fs::read_dir(dir)? {
-        if files.len() >= MAX_COLLECTED_FILES {
-            return Ok(());
-        }
         let entry = entry?;
         let path = entry.path();
         let name = entry.file_name().to_string_lossy().to_string();
@@ -197,7 +194,9 @@ fn collect_retrieval_inner(
                 path: relative.clone(),
                 r#type: "file".to_string(),
             });
-            if adl_fs_ops::read_text_file(root, &relative, max_file_bytes).is_ok() {
+            if files.len() < MAX_COLLECTED_FILES
+                && adl_fs_ops::read_text_file(root, &relative, max_file_bytes).is_ok()
+            {
                 let ext = path
                     .extension()
                     .and_then(|value| value.to_str())

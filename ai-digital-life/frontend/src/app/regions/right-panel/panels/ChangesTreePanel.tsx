@@ -9,7 +9,7 @@ import type { ChangeTreeNode } from "../changesTree";
 
 type ChangeFileState = "staged" | "modified" | "untracked" | "conflicted";
 
-export type ChangesTreePanelProps = {
+interface TreeDataProps {
   t: any;
   visibleWorkspaces: any[];
   activeWorkspaceId: string | undefined;
@@ -23,6 +23,9 @@ export type ChangesTreePanelProps = {
   expandedPathsByWs: Record<string, Record<string, boolean>>;
   dirtyPathsSet: Set<string>;
   externalChangePath: string | undefined;
+}
+
+interface TreeCallbacks {
   onToggleExpand: (workspaceId: string) => void;
   onRefreshOne: (workspaceId: string) => void;
   onPinWorkspace: (workspaceId: string) => void;
@@ -36,29 +39,34 @@ export type ChangesTreePanelProps = {
   clearMenuHighlightRef: React.MutableRefObject<(() => void) | undefined>;
   renderMeta: (node: WorkspaceTreeNode) => React.ReactNode;
   onToggleAllDirectories: () => void;
+  onExpandAll: () => void;
+  onCollapseAll: () => void;
+  onRefreshAll: () => void;
+  onStatusFilterClick: (filter: ChangeFileState) => void;
+  onToggleStructure: () => void;
+  onExpandedOutlineIdsChange: (ids: Set<string>) => void;
+  handleRevealOutlineLine: (line: number) => void;
+}
+
+interface NavigatorStateProps {
   hasExpandedDirectories: boolean;
   changesNavigatorMode: "tree" | "list" | "outline";
   onChangeNavigatorMode: (mode: "tree" | "list" | "outline") => void;
   allChangesExpanded: boolean;
-  onExpandAll: () => void;
-  onCollapseAll: () => void;
   totalChangeCount: number;
   hasChangeEntries: boolean;
   snapshot: any;
   canToggleNavigatorStructure: boolean;
   structureToggleExpanded: boolean;
-  onToggleStructure: () => void;
   changesNavigatorTitle: string;
   changeOutline: any[];
   expandedOutlineIds: Set<string>;
-  onExpandedOutlineIdsChange: (ids: Set<string>) => void;
-  handleRevealOutlineLine: (line: number) => void;
   changesStatusFilter: Set<ChangeFileState>;
-  onStatusFilterClick: (filter: ChangeFileState) => void;
   changeEntries: any[];
-  onRefreshAll: () => void;
   hasVisibleWorkspaces: boolean;
-};
+}
+
+export type ChangesTreePanelProps = TreeDataProps & TreeCallbacks & NavigatorStateProps;
 
 export function ChangesTreePanel(props: ChangesTreePanelProps) {
   const {
