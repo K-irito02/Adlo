@@ -52,6 +52,7 @@ interface ChangesToolbarNavigatorProps {
   snapshot?: { staged: any[]; unstaged: any[]; untracked: any[] };
   canToggleNavigatorStructure: boolean;
   structureToggleExpanded: boolean;
+  onToggleStructure: () => void;
 }
 
 type ChangesToolbarProps = ChangesToolbarTopProps | ChangesToolbarNavigatorProps;
@@ -245,26 +246,23 @@ function NavigatorContextToolbar({
   snapshot,
   canToggleNavigatorStructure,
   structureToggleExpanded,
+  onToggleStructure,
 }: ChangesToolbarNavigatorProps) {
   return (
     <>
       <div className="adl-tool-navigator__context">
         <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--actions">
-          {changesNavigatorMode === "tree" || changesNavigatorMode === "outline" ? (
-            <TooltipSimple content={structureToggleExpanded ? t.fileCollapseAll : t.fileExpandAll} placement="top">
-              <button
-                type="button"
-                className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-                onClick={structureToggleExpanded ? onCollapseAll : onExpandAll}
-                aria-label={structureToggleExpanded ? t.fileCollapseAll : t.fileExpandAll}
-                disabled={!canToggleNavigatorStructure}
-              >
-                {structureToggleExpanded ? <IconFoldVertical size={14} decorative /> : <IconUnfoldVertical size={14} decorative />}
-              </button>
-            </TooltipSimple>
-          ) : (
-            <IconGitBranch size={14} decorative />
-          )}
+          <TooltipSimple content={structureToggleExpanded ? t.fileCollapseAll : t.fileExpandAll} placement="top">
+            <button
+              type="button"
+              className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
+              onClick={onToggleStructure}
+              aria-label={structureToggleExpanded ? t.fileCollapseAll : t.fileExpandAll}
+              disabled={!canToggleNavigatorStructure}
+            >
+              {structureToggleExpanded ? <IconFoldVertical size={14} decorative /> : <IconUnfoldVertical size={14} decorative />}
+            </button>
+          </TooltipSimple>
           <span className="adl-tool-navigator__context-title">
             {changesNavigatorTitle}
           </span>

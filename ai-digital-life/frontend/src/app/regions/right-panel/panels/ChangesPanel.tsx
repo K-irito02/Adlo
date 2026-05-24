@@ -152,16 +152,6 @@ export function ChangesPanel(props: RightPanelViewProps) {
 
   const hasExpandableOutlineItems = defaultExpandedOutlineIds.size > 0;
   const hasExpandedOutlineItems = expandedOutlineIds.size > 0;
-  const canToggleNavigatorStructure = changesNavigatorMode === "tree"
-    ? directoryPaths.length > 0
-    : changesNavigatorMode === "outline"
-      ? hasExpandableOutlineItems
-      : false;
-  const structureToggleExpanded = changesNavigatorMode === "tree"
-    ? hasExpandedDirectories
-    : changesNavigatorMode === "outline"
-      ? hasExpandedOutlineItems
-      : false;
   const changePreviewTheme = appInfo?.config.resolvedTheme === "dark" ? "dark" as const : "light" as const;
   const changePreviewLocale = appInfo?.config.language ?? "zh-CN";
   const diffExtensions = useMemo(() => [
@@ -351,12 +341,17 @@ export function ChangesPanel(props: RightPanelViewProps) {
     setExpandedOutlineIds(hasExpandedOutlineItems ? new Set() : new Set(defaultExpandedOutlineIds));
   };
   const handleToggleNavigatorStructure = () => {
-    if (changesNavigatorMode === "tree") {
-      handleToggleAllDirectories();
+    if (changesNavigatorMode === "tree" || changesNavigatorMode === "list") {
+      if (allChangesExpanded) {
+        handleCollapseAll();
+      } else {
+        handleExpandAll();
+      }
       return;
     }
     if (changesNavigatorMode === "outline") {
       handleToggleAllOutlineItems();
+      return;
     }
   };
 
@@ -576,6 +571,17 @@ export function ChangesPanel(props: RightPanelViewProps) {
     return visibleWorkspaces.length > 0 && visibleWorkspaces.every((w) => workspaceChangesExpanded[w.id]);
   }, [visibleWorkspaces, workspaceChangesExpanded]);
 
+  const canToggleNavigatorStructure = changesNavigatorMode === "tree"
+    ? visibleWorkspaces.length > 0
+    : changesNavigatorMode === "outline"
+      ? hasExpandableOutlineItems
+      : visibleWorkspaces.length > 0;
+  const structureToggleExpanded = changesNavigatorMode === "tree"
+    ? allChangesExpanded
+    : changesNavigatorMode === "outline"
+      ? hasExpandedOutlineItems
+      : allChangesExpanded;
+
   const changesNavigatorTitle = changesNavigatorMode === "outline" ? t.outline : changesNavigatorMode === "list" ? t.changesListView : t.toolChanges;
 
   const changesTreeData = useMemo(() => {
@@ -714,33 +720,49 @@ export function ChangesPanel(props: RightPanelViewProps) {
             snapshot={snapshot}
             canToggleNavigatorStructure={canToggleNavigatorStructure}
             structureToggleExpanded={structureToggleExpanded}
+            onToggleStructure={handleToggleNavigatorStructure}
           />
-          <MultiWorkspaceChangesTree
-            workspaces={visibleWorkspaces}
-            activeWorkspaceId={activeWorkspaceId}
-            expandedStates={workspaceChangesExpanded}
-            treeData={changesTreeData as Record<string, WorkspaceTreeNode[]>}
-            loadingStates={workspaceChangesTreeLoading}
-            errorStates={workspaceChangesTreeErrors}
-            selectedChangePreviewPath={navigatorSelectedPath}
-            expandedPaths={expandedPathsByWs}
-            dirtyPaths={dirtyPathsSet}
-            externalChangePath={props.externalChangePath}
-            onToggleExpand={handleToggleExpand}
-            onRefreshOne={handleRefreshOneWorkspace}
-            onPinWorkspace={onPinWorkspace}
-            onUnpinWorkspace={onUnpinWorkspace}
-            changeCounts={changeCounts}
-            onHideFromRightPanels={onHideFromRightPanels}
-            onToggleFileTreePath={handleToggleFileTreePath}
-            onOpenChangePreview={handleSelectNavigatorNode}
-            onReorderWorkspaces={handleReorderWorkspaces}
-            getContextMenuItems={getContextMenuItems as any}
-            contextMenuPersistRef={changesContextMenuPersistRef}
-            clearMenuHighlightRef={changesClearMenuHighlightRef}
-            t={t}
-            renderMeta={renderNavigatorMeta}
-          />
+          {changesNavigatorMode === "outline" ? (
+            changeOutline.length > 0 ? (
+              <OutlineTree
+                items={changeOutline}
+                onNavigate={handleRevealOutlineLine}
+                expandLabel={t.expandDetails as string}
+                collapseLabel={t.collapseDetails as string}
+                expandedIds={expandedOutlineIds}
+                onExpandedIdsChange={setExpandedOutlineIds}
+              />
+            ) : (
+              <p className="adl-empty-hint">{t.noDiagnostics as string}</p>
+            )
+          ) : (
+            <MultiWorkspaceChangesTree
+              workspaces={visibleWorkspaces}
+              activeWorkspaceId={activeWorkspaceId}
+              expandedStates={workspaceChangesExpanded}
+              treeData={changesTreeData as Record<string, WorkspaceTreeNode[]>}
+              loadingStates={workspaceChangesTreeLoading}
+              errorStates={workspaceChangesTreeErrors}
+              selectedChangePreviewPath={navigatorSelectedPath}
+              expandedPaths={expandedPathsByWs}
+              dirtyPaths={dirtyPathsSet}
+              externalChangePath={props.externalChangePath}
+              onToggleExpand={handleToggleExpand}
+              onRefreshOne={handleRefreshOneWorkspace}
+              onPinWorkspace={onPinWorkspace}
+              onUnpinWorkspace={onUnpinWorkspace}
+              changeCounts={changeCounts}
+              onHideFromRightPanels={onHideFromRightPanels}
+              onToggleFileTreePath={handleToggleFileTreePath}
+              onOpenChangePreview={handleSelectNavigatorNode}
+              onReorderWorkspaces={handleReorderWorkspaces}
+              getContextMenuItems={getContextMenuItems as any}
+              contextMenuPersistRef={changesContextMenuPersistRef}
+              clearMenuHighlightRef={changesClearMenuHighlightRef}
+              t={t}
+              renderMeta={renderNavigatorMeta}
+            />
+          )}
           <div
             className="adl-tool-navigator__resize-handle"
             onPointerDown={handleNavigatorResizeStart}

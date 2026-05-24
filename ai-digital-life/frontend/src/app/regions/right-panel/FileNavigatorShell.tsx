@@ -176,6 +176,32 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
     setExpandedOutlineIds(hasExpandedOutlineItems ? new Set() : new Set(defaultExpandedOutlineIds));
   };
 
+  const canToggleNavigatorStructure = navigatorMode === "tree"
+    ? visibleWorkspaces.length > 0
+    : navigatorMode === "outline"
+      ? hasExpandableOutlineItems
+      : false;
+
+  const structureToggleExpanded = navigatorMode === "tree"
+    ? allExpanded
+    : navigatorMode === "outline"
+      ? hasExpandedOutlineItems
+      : false;
+
+  const handleToggleNavigatorStructure = () => {
+    if (navigatorMode === "tree") {
+      if (allExpanded) {
+        onCollapseAll();
+      } else {
+        onExpandAll();
+      }
+      return;
+    }
+    if (navigatorMode === "outline") {
+      handleToggleAllOutlineItems();
+    }
+  };
+
   const [renamingPath, setRenamingPath] = useState<string | null>(null);
   const [deleteConfirmPath, setDeleteConfirmPath] = useState<string | null>(null);
   const contextMenuPersistRef = useRef(false);
@@ -329,14 +355,15 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
     <aside className="adl-tool-navigator" aria-label={navigatorTitle as string}>
       <div className="adl-tool-navigator__context">
         <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--actions">
-          <TooltipSimple content={allExpanded ? t.fileCollapseAll : t.fileExpandAll} placement="top">
+          <TooltipSimple content={structureToggleExpanded ? t.fileCollapseAll : t.fileExpandAll} placement="top">
             <button
               type="button"
               className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-              onClick={allExpanded ? onCollapseAll : onExpandAll}
-              aria-label={(allExpanded ? t.fileCollapseAll : t.fileExpandAll) as string}
+              onClick={handleToggleNavigatorStructure}
+              aria-label={(structureToggleExpanded ? t.fileCollapseAll : t.fileExpandAll) as string}
+              disabled={!canToggleNavigatorStructure}
             >
-              {allExpanded ? <IconFoldVertical size={14} decorative /> : <IconUnfoldVertical size={14} decorative />}
+              {structureToggleExpanded ? <IconFoldVertical size={14} decorative /> : <IconUnfoldVertical size={14} decorative />}
             </button>
           </TooltipSimple>
           <span className="adl-tool-navigator__context-title">{navigatorTitle as string}</span>
