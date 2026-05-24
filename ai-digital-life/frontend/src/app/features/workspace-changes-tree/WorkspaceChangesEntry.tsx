@@ -31,6 +31,7 @@ export interface WorkspaceChangesEntryProps {
   expandLabel: string;
   collapseLabel: string;
   t: CopyDict;
+  renderMeta?: (node: WorkspaceTreeNode) => React.ReactNode;
 }
 
 export function WorkspaceChangesEntry({
@@ -58,6 +59,7 @@ export function WorkspaceChangesEntry({
   expandLabel,
   collapseLabel,
   t,
+  renderMeta,
 }: WorkspaceChangesEntryProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
@@ -253,6 +255,7 @@ export function WorkspaceChangesEntry({
               clearMenuHighlightRef={clearMenuHighlightRef}
               expandLabel={expandLabel}
               collapseLabel={collapseLabel}
+              renderMeta={renderMeta}
             />
           ) : (
             <div className="adl-multitree-entry__empty">

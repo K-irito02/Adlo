@@ -6,6 +6,7 @@ import {
 } from "../../../icons";
 import { TooltipSimple } from "../../../components/Tooltip";
 import type { CopyDict } from "../../../copy";
+import type { ChangeFileState } from "../changesTree";
 
 interface ChangesMenuItem {
   id: string;
@@ -45,6 +46,12 @@ interface ChangesToolbarNavigatorProps {
   onRefreshAll: () => void;
   changesNavigatorMode: "tree" | "list" | "outline";
   onSetNavigatorMode: (mode: "tree" | "list" | "outline") => void;
+  changesStatusFilter: Set<ChangeFileState>;
+  onStatusFilterClick: (filter: ChangeFileState) => void;
+  hasChangeEntries: boolean;
+  snapshot?: { staged: any[]; unstaged: any[]; untracked: any[] };
+  canToggleNavigatorStructure: boolean;
+  structureToggleExpanded: boolean;
 }
 
 type ChangesToolbarProps = ChangesToolbarTopProps | ChangesToolbarNavigatorProps;
@@ -232,48 +239,59 @@ function NavigatorContextToolbar({
   onRefreshAll,
   changesNavigatorMode,
   onSetNavigatorMode,
+  changesStatusFilter,
+  onStatusFilterClick,
+  hasChangeEntries,
+  snapshot,
+  canToggleNavigatorStructure,
+  structureToggleExpanded,
 }: ChangesToolbarNavigatorProps) {
   return (
     <>
       <div className="adl-tool-navigator__context">
         <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--actions">
-          <TooltipSimple content={allChangesExpanded ? t.fileCollapseAll : t.fileExpandAll} placement="top">
-            <button
-              type="button"
-              className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-              onClick={allChangesExpanded ? onCollapseAll : onExpandAll}
-              aria-label={allChangesExpanded ? t.fileCollapseAll : t.fileExpandAll}
-            >
-              {allChangesExpanded ? <IconFoldVertical size={14} decorative /> : <IconUnfoldVertical size={14} decorative />}
-            </button>
-          </TooltipSimple>
-          <span className="adl-tool-navigator__context-title">{changesNavigatorTitle}</span>
+          {changesNavigatorMode === "tree" || changesNavigatorMode === "outline" ? (
+            <TooltipSimple content={structureToggleExpanded ? t.fileCollapseAll : t.fileExpandAll} placement="top">
+              <button
+                type="button"
+                className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
+                onClick={structureToggleExpanded ? onCollapseAll : onExpandAll}
+                aria-label={structureToggleExpanded ? t.fileCollapseAll : t.fileExpandAll}
+                disabled={!canToggleNavigatorStructure}
+              >
+                {structureToggleExpanded ? <IconFoldVertical size={14} decorative /> : <IconUnfoldVertical size={14} decorative />}
+              </button>
+            </TooltipSimple>
+          ) : (
+            <IconGitBranch size={14} decorative />
+          )}
+          <span className="adl-tool-navigator__context-title">
+            {changesNavigatorTitle}
+          </span>
         </div>
-        <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--utility">
-          {hasVisibleWorkspaces ? (
-            <span className="adl-tool-navigator__context-count">{totalChangeCount}</span>
-          ) : null}
-          <TooltipSimple content={t.changesRefresh} placement="top">
-            <button
-              type="button"
-              className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-              onClick={onRefreshAll}
-              aria-label={t.changesRefresh}
-            >
-              <IconRefreshCw size={14} decorative />
-            </button>
-          </TooltipSimple>
-        </div>
+        <span className="adl-tool-navigator__meta">
+          {totalChangeCount}
+        </span>
+        <TooltipSimple content={t.changesRefresh} placement="top">
+          <button
+            type="button"
+            className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
+            onClick={onRefreshAll}
+            aria-label={t.changesRefresh}
+          >
+            <IconRefreshCw size={14} decorative />
+          </button>
+        </TooltipSimple>
       </div>
-      <div className="adl-tool-navigator__context adl-tool-navigator__context--secondary">
+      <div className="adl-tool-navigator__context adl-tool-navigator__context--tabs">
         <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--actions">
           <TooltipSimple content={t.fileTreeView} placement="top">
             <button
               type="button"
               className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${changesNavigatorMode === "tree" ? " is-active" : ""}`}
+              aria-pressed={changesNavigatorMode === "tree" ? "true" : "false"}
               onClick={() => onSetNavigatorMode("tree")}
               aria-label={t.fileTreeView}
-              aria-pressed={changesNavigatorMode === "tree" ? "true" : "false"}
             >
               <IconFiles size={14} decorative />
             </button>
@@ -282,28 +300,71 @@ function NavigatorContextToolbar({
             <button
               type="button"
               className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${changesNavigatorMode === "list" ? " is-active" : ""}`}
+              aria-pressed={changesNavigatorMode === "list" ? "true" : "false"}
               onClick={() => onSetNavigatorMode("list")}
               aria-label={t.changesListView}
-              aria-pressed={changesNavigatorMode === "list" ? "true" : "false"}
             >
               <IconFileText size={14} decorative />
             </button>
           </TooltipSimple>
-        </div>
-        <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--utility">
           <TooltipSimple content={t.outline} placement="top">
             <button
               type="button"
               className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${changesNavigatorMode === "outline" ? " is-active" : ""}`}
+              aria-pressed={changesNavigatorMode === "outline" ? "true" : "false"}
               onClick={() => onSetNavigatorMode("outline")}
               aria-label={t.outline}
-              aria-pressed={changesNavigatorMode === "outline" ? "true" : "false"}
             >
               <IconList size={14} decorative />
             </button>
           </TooltipSimple>
         </div>
       </div>
+      {hasChangeEntries && changesNavigatorMode !== "outline" ? (
+        <div className="adl-tool-navigator__summary" aria-label={t.toolChanges}>
+          <div className="adl-tool-navigator__summary-stats">
+            <button
+              type="button"
+              className={`adl-tool-navigator__summary-stat${changesStatusFilter.has("staged") ? " is-active" : ""}`}
+              onClick={() => onStatusFilterClick("staged")}
+              aria-pressed={changesStatusFilter.has("staged")}
+              aria-label={t.changesStaged}
+            >
+              <span className="adl-tool-navigator__summary-label">{t.changesStaged}</span>
+              <strong className="adl-tool-navigator__summary-value">
+                <span className="adl-tool-navigator__summary-code" aria-hidden="true">S:</span>
+                {snapshot?.staged.length ?? 0}
+              </strong>
+            </button>
+            <button
+              type="button"
+              className={`adl-tool-navigator__summary-stat${changesStatusFilter.has("modified") ? " is-active" : ""}`}
+              onClick={() => onStatusFilterClick("modified")}
+              aria-pressed={changesStatusFilter.has("modified")}
+              aria-label={t.changesModified}
+            >
+              <span className="adl-tool-navigator__summary-label">{t.changesModified}</span>
+              <strong className="adl-tool-navigator__summary-value">
+                <span className="adl-tool-navigator__summary-code" aria-hidden="true">M:</span>
+                {snapshot?.unstaged.length ?? 0}
+              </strong>
+            </button>
+            <button
+              type="button"
+              className={`adl-tool-navigator__summary-stat${changesStatusFilter.has("untracked") ? " is-active" : ""}`}
+              onClick={() => onStatusFilterClick("untracked")}
+              aria-pressed={changesStatusFilter.has("untracked")}
+              aria-label={t.changesUntracked}
+            >
+              <span className="adl-tool-navigator__summary-label">{t.changesUntracked}</span>
+              <strong className="adl-tool-navigator__summary-value">
+                <span className="adl-tool-navigator__summary-code" aria-hidden="true">U:</span>
+                {snapshot?.untracked.length ?? 0}
+              </strong>
+            </button>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }

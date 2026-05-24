@@ -545,8 +545,9 @@ export function ChangesPanel(props: RightPanelViewProps) {
     [onOpenFile, t, copyToClipboard]
   );
 
-  const renderNavigatorMeta = useCallback((node: ChangeTreeNode) => {
-    const primaryBadge = getPrimaryBadge(node);
+  const renderNavigatorMeta = useCallback((node: any) => {
+    const changeNode = node as ChangeTreeNode;
+    const primaryBadge = getPrimaryBadge(changeNode);
     return (
       <>
         {primaryBadge ? (
@@ -555,7 +556,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
           </span>
         ) : null}
         <span className="adl-filetree__count-badge">
-          {node.kind === "directory" ? node.fileCount : node.totalHunks > 0 ? `${node.reviewedHunks}/${node.totalHunks}` : "1"}
+          {changeNode.kind === "directory" ? changeNode.fileCount : changeNode.totalHunks > 0 ? `${changeNode.reviewedHunks}/${changeNode.totalHunks}` : "1"}
         </span>
       </>
     );
@@ -707,6 +708,12 @@ export function ChangesPanel(props: RightPanelViewProps) {
             onRefreshAll={handleRefreshAllChanges}
             changesNavigatorMode={changesNavigatorMode}
             onSetNavigatorMode={setChangesNavigatorMode}
+            changesStatusFilter={changesStatusFilter}
+            onStatusFilterClick={handleStatusFilterClick}
+            hasChangeEntries={changeEntries.length > 0}
+            snapshot={snapshot}
+            canToggleNavigatorStructure={canToggleNavigatorStructure}
+            structureToggleExpanded={structureToggleExpanded}
           />
           <MultiWorkspaceChangesTree
             workspaces={visibleWorkspaces}
@@ -732,6 +739,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
             contextMenuPersistRef={changesContextMenuPersistRef}
             clearMenuHighlightRef={changesClearMenuHighlightRef}
             t={t}
+            renderMeta={renderNavigatorMeta}
           />
           <div
             className="adl-tool-navigator__resize-handle"

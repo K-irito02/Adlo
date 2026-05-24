@@ -29,6 +29,7 @@ export interface MultiWorkspaceChangesTreeProps {
   contextMenuPersistRef: React.MutableRefObject<boolean>;
   clearMenuHighlightRef: React.MutableRefObject<(() => void) | undefined>;
   t: CopyDict;
+  renderMeta?: (node: WorkspaceTreeNode) => React.ReactNode;
 }
 
 function moveIdWithinBucket(ids: string[], draggedId: string, targetId: string): string[] {
@@ -66,6 +67,7 @@ export function MultiWorkspaceChangesTree({
   contextMenuPersistRef,
   clearMenuHighlightRef,
   t,
+  renderMeta,
 }: MultiWorkspaceChangesTreeProps) {
   const [dragWorkspaceId, setDragWorkspaceId] = useState<string | undefined>(undefined);
 
@@ -137,6 +139,7 @@ export function MultiWorkspaceChangesTree({
             expandLabel={t.expandDetails as string}
             collapseLabel={t.collapseDetails as string}
             t={t}
+            renderMeta={renderMeta}
           />
         </div>
       );
@@ -162,6 +165,7 @@ export function MultiWorkspaceChangesTree({
       clearMenuHighlightRef,
       t,
       handleDrop,
+      renderMeta,
     ],
   );
 
