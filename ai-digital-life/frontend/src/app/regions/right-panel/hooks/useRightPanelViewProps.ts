@@ -40,6 +40,7 @@ export function useRightPanelViewProps(panelProps: RightPanelProps, collapsed: b
   const appInfo = useAppStore((s) => s.appInfo);
   const openTabs = useAppStore(useShallow((s) => s.openTabs));
   const selectedFilePath = useAppStore((s) => s.selectedFilePath);
+  const selectedFileWorkspaceId = useAppStore((s) => s.selectedFileWorkspaceId);
   const selectedChangePreviewPath = useAppStore((s) => s.selectedChangePreviewPath);
   const changePreview = useAppStore(useShallow((s) => s.changePreview));
   const changePreviewLoading = useAppStore((s) => s.changePreviewLoading);
@@ -178,6 +179,7 @@ export function useRightPanelViewProps(panelProps: RightPanelProps, collapsed: b
     collapsed,
     editorTabs: mergedTabs,
     selectedFilePath,
+    selectedFileWorkspaceId,
     selectedChangePreviewPath,
     changePreview,
     changePreviewLoading,
@@ -218,6 +220,7 @@ export function useRightPanelViewProps(panelProps: RightPanelProps, collapsed: b
     modelHealth,
     latestCommandRun,
     onOpenFile: (path) => void actions.openFile(path),
+    onOpenFileForWorkspace: (workspaceId, workspacePath, path) => void actions.openFileForWorkspace(workspaceId, workspacePath, path),
     onOpenChangePreview: (path) => void actions.openChangePreview(path),
     onOpenFileAtLine,
     onReloadExternal: () => {

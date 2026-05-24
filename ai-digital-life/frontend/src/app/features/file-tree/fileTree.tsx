@@ -34,6 +34,7 @@ export type FileTreeContextMenuItem<T extends FileTreeRenderableNode> = {
 export interface FileTreeProps<T extends FileTreeRenderableNode> {
   nodes: T[];
   selectedFilePath?: string;
+  selectedFileWorkspaceId?: string;
   expandedPaths: Record<string, boolean>;
   dirtyPaths?: Set<string>;
   externalChangePath?: string;

@@ -28,6 +28,8 @@ export function createEditorActions(set: StoreApi<StoreState>["setState"], get: 
       const requestSeq = getNextFileRequestSeq();
       const cacheKey = getWorkspaceScopedCacheKey(get().appInfo, relativePath);
       const cachedDocument = getCachedLru(fileDocumentCache, cacheKey);
+      const currentWorkspace = get().appInfo?.currentWorkspace;
+      
       const applyDocument = (
         document: CachedFileDocument,
         outlineOverride?: FileOutlineItem[]
@@ -46,6 +48,7 @@ export function createEditorActions(set: StoreApi<StoreState>["setState"], get: 
               ? state.openTabs
               : [...state.openTabs, createEditorTab(relativePath)],
             selectedFilePath: relativePath,
+            selectedFileWorkspaceId: currentWorkspace?.id,
             fileContent: document.content,
             fileLastModifiedAt: document.lastModifiedAt,
             externalFileChange:
@@ -68,10 +71,83 @@ export function createEditorActions(set: StoreApi<StoreState>["setState"], get: 
             ? state.openTabs
             : [...state.openTabs, createEditorTab(relativePath)],
           selectedFilePath: relativePath,
+          selectedFileWorkspaceId: currentWorkspace?.id,
         }));
       }
 
       const fileResult = await window.digitalLife.workspace.readFile(
+        relativePath
+      );
+      if (requestSeq !== fileRequestSeq) return;
+      if (!fileResult.ok) {
+        set({ error: fileResult.error.message });
+        return;
+      }
+      const nextOutline = buildOutlineFromContent(
+        fileResult.data.content,
+        relativePath
+      );
+      const nextDocument: CachedFileDocument = {
+        content: fileResult.data.content,
+        lastModifiedAt: fileResult.data.lastModifiedAt,
+      };
+      setCachedLru(fileDocumentCache, cacheKey, nextDocument, FILE_DOCUMENT_CACHE_LIMIT);
+      applyDocument(nextDocument, nextOutline);
+    },
+
+    openFileForWorkspace: async (workspaceId: string, workspacePath: string, relativePath: string) => {
+      const requestSeq = getNextFileRequestSeq();
+      
+      const cacheKey = `${workspacePath}:${relativePath}`;
+      const cachedDocument = getCachedLru(fileDocumentCache, cacheKey);
+      
+      const applyDocument = (
+        document: CachedFileDocument,
+        outlineOverride?: FileOutlineItem[]
+      ) => {
+        const nextOutline =
+          outlineOverride ?? buildOutlineFromContent(document.content, relativePath);
+        const norm = normalizeWorkspaceRelativePath(relativePath);
+        set((state: StoreState) => {
+          const nextDirty = state.dirtyEditorPaths.filter(
+            (p) => normalizeWorkspaceRelativePath(p) !== norm
+          );
+          void window.digitalLife.workspace.setEditorDirtyPaths(nextDirty);
+          return {
+            error: undefined,
+            openTabs: state.openTabs.some((tab) => tab.path === relativePath)
+              ? state.openTabs
+              : [...state.openTabs, createEditorTab(relativePath)],
+            selectedFilePath: relativePath,
+            selectedFileWorkspaceId: workspaceId,
+            fileContent: document.content,
+            fileLastModifiedAt: document.lastModifiedAt,
+            externalFileChange:
+              state.externalFileChange?.path === relativePath
+                ? undefined
+                : state.externalFileChange,
+            outline: nextOutline,
+            dirtyEditorPaths: nextDirty,
+          };
+        });
+      };
+
+      if (cachedDocument) {
+        applyDocument(cachedDocument);
+        return;
+      } else {
+        set((state: StoreState) => ({
+          error: undefined,
+          openTabs: state.openTabs.some((tab) => tab.path === relativePath)
+            ? state.openTabs
+            : [...state.openTabs, createEditorTab(relativePath)],
+          selectedFilePath: relativePath,
+          selectedFileWorkspaceId: workspaceId,
+        }));
+      }
+
+      const fileResult = await window.digitalLife.workspace.readFileForWorkspace(
+        workspacePath,
         relativePath
       );
       if (requestSeq !== fileRequestSeq) return;

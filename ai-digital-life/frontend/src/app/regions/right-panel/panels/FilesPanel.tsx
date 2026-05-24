@@ -18,6 +18,7 @@ export function FilesPanel(props: RightPanelViewProps) {
     t,
     appInfo,
     selectedFilePath,
+    selectedFileWorkspaceId,
     fileContent,
     filePatch,
     editorLanguage,
@@ -36,6 +37,7 @@ export function FilesPanel(props: RightPanelViewProps) {
     dirtyEditorPaths,
     externalChangePath,
     onOpenFile,
+    onOpenFileForWorkspace,
     onOpenFileAtLine,
     onEditorChange,
     onEditorMount,
@@ -237,6 +239,7 @@ export function FilesPanel(props: RightPanelViewProps) {
       >
         <FileNavigatorShell
           selectedFilePath={selectedFilePath}
+          selectedFileWorkspaceId={selectedFileWorkspaceId}
           workspaceTrees={workspaceTrees}
           recentWorkspaces={recentWorkspaces}
           allExpanded={allExpanded}
@@ -250,6 +253,7 @@ export function FilesPanel(props: RightPanelViewProps) {
           dirtyEditorPaths={dirtyEditorPaths}
           appInfo={appInfo}
           onOpenFile={onOpenFile}
+          onOpenFileForWorkspace={onOpenFileForWorkspace}
           onOpenFileAtLine={onOpenFileAtLine}
           onSearch={onSearch}
           onSearchChange={onSearchChange}

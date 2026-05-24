@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import type { RecentWorkspaceEntry, WorkspaceTreeNode } from "@ai-digital-life/kernel";
 import type { CopyDict } from "../../copy";
@@ -14,6 +14,7 @@ export interface WorkspaceFileTreeEntryProps {
   isLoading: boolean;
   error: string | undefined;
   selectedFilePath: string | undefined;
+  selectedFileWorkspaceId: string | undefined;
   expandedPaths: Record<string, boolean>;
   dirtyPaths: Set<string>;
   externalChangePath: string | undefined;
@@ -41,6 +42,7 @@ export function WorkspaceFileTreeEntry({
   isLoading,
   error,
   selectedFilePath,
+  selectedFileWorkspaceId,
   expandedPaths,
   dirtyPaths,
   externalChangePath,
@@ -142,6 +144,13 @@ export function WorkspaceFileTreeEntry({
 
   const isPinned = workspace.isPinned;
 
+  const effectiveSelectedPath = useMemo(() => {
+    if (selectedFileWorkspaceId === workspace.id) {
+      return selectedFilePath;
+    }
+    return undefined;
+  }, [selectedFileWorkspaceId, workspace.id, selectedFilePath]);
+
   return (
     <div className={`adl-multitree-entry${isCurrent ? " is-current" : ""}${!workspace.available ? " is-unavailable" : ""}`}>
       <div className="adl-multitree-entry__header">
@@ -239,7 +248,7 @@ export function WorkspaceFileTreeEntry({
           ) : treeNodes && treeNodes.length > 0 ? (
             <FileTree
               nodes={treeNodes}
-              selectedFilePath={selectedFilePath}
+              selectedFilePath={effectiveSelectedPath}
               expandedPaths={expandedPaths}
               dirtyPaths={dirtyPaths}
               externalChangePath={externalChangePath}

@@ -13,6 +13,7 @@ export interface MultiWorkspaceFileTreeProps {
   errorStates: Record<string, string | undefined>;
   expandedStates: Record<string, boolean>;
   selectedFilePath: string | undefined;
+  selectedFileWorkspaceId: string | undefined;
   expandedPaths: Record<string, Record<string, boolean>>;
   dirtyPaths: Set<string>;
   externalChangePath: string | undefined;
@@ -24,6 +25,7 @@ export interface MultiWorkspaceFileTreeProps {
   onHideFromRightPanels: (workspaceId: string) => void;
   onToggleFileTreePath: (workspaceId: string, path: string) => void;
   onOpenFile: (relativePath: string) => void;
+  onOpenFileForWorkspace: (workspaceId: string, workspacePath: string, relativePath: string) => void;
   onReorderWorkspaces: (input: ReorderWorkspacesInput) => void;
   getContextMenuItems: (node: WorkspaceTreeNode) => FileTreeContextMenuItem<WorkspaceTreeNode>[];
   contextMenuPersistRef: React.MutableRefObject<boolean>;
@@ -50,6 +52,7 @@ export function MultiWorkspaceFileTree({
   errorStates,
   expandedStates,
   selectedFilePath,
+  selectedFileWorkspaceId,
   expandedPaths,
   dirtyPaths,
   externalChangePath,
@@ -61,6 +64,7 @@ export function MultiWorkspaceFileTree({
   onHideFromRightPanels,
   onToggleFileTreePath,
   onOpenFile,
+  onOpenFileForWorkspace,
   onReorderWorkspaces,
   getContextMenuItems,
   contextMenuPersistRef,
@@ -103,6 +107,11 @@ export function MultiWorkspaceFileTree({
   const renderContent = useCallback(
     (workspace: RecentWorkspaceEntry, isExpanded: boolean) => {
       const isPinned = workspace.isPinned;
+      
+      const handleOpenFile = (relativePath: string) => {
+        onOpenFileForWorkspace(workspace.id, workspace.path, relativePath);
+      };
+      
       return (
         <div
           key={workspace.id}
@@ -120,6 +129,7 @@ export function MultiWorkspaceFileTree({
             isLoading={loadingStates[workspace.id] ?? false}
             error={errorStates[workspace.id]}
             selectedFilePath={selectedFilePath}
+            selectedFileWorkspaceId={selectedFileWorkspaceId}
             expandedPaths={expandedPaths[workspace.id] ?? {}}
             dirtyPaths={dirtyPaths}
             externalChangePath={externalChangePath}
@@ -130,7 +140,7 @@ export function MultiWorkspaceFileTree({
             onHideFromRightPanels={onHideFromRightPanels}
             onRefreshTree={() => onRefreshOne(workspace.id)}
             onToggleFileTreePath={(path) => onToggleFileTreePath(workspace.id, path)}
-            onOpenFile={onOpenFile}
+            onOpenFile={handleOpenFile}
             getContextMenuItems={getContextMenuItems}
             contextMenuPersistRef={contextMenuPersistRef}
             clearMenuHighlightRef={clearMenuHighlightRef}
@@ -147,6 +157,7 @@ export function MultiWorkspaceFileTree({
       loadingStates,
       errorStates,
       selectedFilePath,
+      selectedFileWorkspaceId,
       expandedPaths,
       dirtyPaths,
       externalChangePath,
@@ -158,7 +169,7 @@ export function MultiWorkspaceFileTree({
       onUnpinWorkspace,
       onHideFromRightPanels,
       onToggleFileTreePath,
-      onOpenFile,
+      onOpenFileForWorkspace,
       getContextMenuItems,
       contextMenuPersistRef,
       clearMenuHighlightRef,

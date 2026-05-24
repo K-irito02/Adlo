@@ -141,6 +141,7 @@ export function LeftSidebar({
           setDragWorkspaceId={setDragWorkspaceId}
           onReorderWorkspaces={actions.reorderWorkspaces}
           onOpenWorkspace={actions.openWorkspace}
+          onSwitchToWorkspace={actions.switchToWorkspace}
           onPinWorkspace={actions.pinWorkspace}
           onUnpinWorkspace={actions.unpinWorkspace}
           onCreateSession={onCreateSession}

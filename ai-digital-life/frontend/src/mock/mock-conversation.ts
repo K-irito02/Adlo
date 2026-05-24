@@ -10,11 +10,10 @@ import {
 } from "./shared";
 
 export const mockConversation: ConversationBridge = {
-  createSession: async (title?: string) => {
-    const workspaceId = activeWorkspaceScopeId();
+  createSession: async (title?: string, workspaceId?: string) => {
     const session: import("@ai-digital-life/kernel").ConversationSessionRecord = {
       id: `conversation-${Date.now()}`,
-      workspaceId,
+      workspaceId: workspaceId || activeWorkspaceScopeId(),
       title: title || "Single Agent Session",
       status: "active",
       isPinned: false,

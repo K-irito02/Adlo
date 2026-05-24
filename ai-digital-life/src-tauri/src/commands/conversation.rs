@@ -42,9 +42,10 @@ pub struct MarkSessionReadInput {
 pub fn conversation_create_session(
     state: tauri::State<'_, AppState>,
     title: Option<String>,
+    workspace_id: Option<String>,
 ) -> IpcResult<ConversationSessionRecord> {
     crate::commands::ipc_try(|| {
-        let workspace_id = active_workspace_scope_id(&state);
+        let workspace_id = workspace_id.unwrap_or_else(|| active_workspace_scope_id(&state));
         let existing: Vec<ConversationSessionRecord> = state
             .db
             .list_entities_by_workspace(EntityTable::Sessions, &workspace_id)?;

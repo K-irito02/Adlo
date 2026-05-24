@@ -18,13 +18,11 @@ export function createGeneralActions(set: StoreApi<StoreState>["setState"], get:
       const requestSeq = workspaceRequestSeq;
       set({ error: undefined });
 
-      const [appInfoResult, recentResult, modelHealthResult] = await Promise.all(
-        [
-          window.digitalLife.app.getInfo(),
-          window.digitalLife.workspace.listRecent(),
-          window.digitalLife.app.getModelHealth(),
-        ]
-      );
+      const [appInfoResult, recentResult, modelHealthResult] = await Promise.all([
+        window.digitalLife.app.getInfo(),
+        window.digitalLife.workspace.listRecent(),
+        window.digitalLife.app.getModelHealth(),
+      ]);
       if (requestSeq !== workspaceRequestSeq) return;
 
       if (!appInfoResult.ok) {
@@ -38,10 +36,22 @@ export function createGeneralActions(set: StoreApi<StoreState>["setState"], get:
       ]);
       if (requestSeq !== workspaceRequestSeq) return;
 
+      const recentWorkspaces = recentResult.ok ? recentResult.data : [];
+      // 为右侧面板设置默认展开所有可见工作区
+      const visibleWorkspaces = recentWorkspaces.filter(
+        (w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available
+      );
+      const workspaceTreeExpandedInFileNav: Record<string, boolean> = {};
+      const workspaceChangesExpanded: Record<string, boolean> = {};
+      visibleWorkspaces.forEach((w) => {
+        workspaceTreeExpandedInFileNav[w.id] = true;
+        workspaceChangesExpanded[w.id] = true;
+      });
+
       const nextState: Partial<StoreState> = {
         appInfo: appInfoResult.data,
         modelHealth: modelHealthResult.ok ? modelHealthResult.data : undefined,
-        recentWorkspaces: recentResult.ok ? recentResult.data : [],
+        recentWorkspaces,
         sessions: conversationState.sessions,
         activeSessionId: conversationState.activeSessionId,
         sessionDetails: conversationState.detail
@@ -51,6 +61,8 @@ export function createGeneralActions(set: StoreApi<StoreState>["setState"], get:
         workspaceContextMode: workspaceContextModeFromInfo(appInfoResult.data),
         loading: false,
         dirtyEditorPaths: [],
+        workspaceTreeExpandedInFileNav,
+        workspaceChangesExpanded,
       };
 
       void window.digitalLife.workspace.setEditorDirtyPaths([]);
@@ -60,6 +72,11 @@ export function createGeneralActions(set: StoreApi<StoreState>["setState"], get:
         if (requestSeq !== workspaceRequestSeq) return;
 
         const gitSnapshot = gitStatusResult.ok ? gitStatusResult.data : undefined;
+        const gitSnapshots: Record<string, any> = {};
+        if (gitSnapshot && appInfoResult.data.currentWorkspace) {
+          gitSnapshots[appInfoResult.data.currentWorkspace.id] = gitSnapshot;
+        }
+
         const appInfoWithGitSnapshot =
           gitSnapshot && appInfoResult.data.currentWorkspace
             ? {
@@ -77,6 +94,7 @@ export function createGeneralActions(set: StoreApi<StoreState>["setState"], get:
           workspaceTrees: {},
           workspaceTree: [],
           gitSnapshot,
+          gitSnapshots,
           dirtyEditorPaths: [],
         });
 
@@ -111,6 +129,9 @@ export function createGeneralActions(set: StoreApi<StoreState>["setState"], get:
             get().fetchAuditEntries(40),
             get().fetchCommandHistory(),
             get().fetchGitBranches(),
+            // 懒加载可见工作区的文件树和变更状态
+            ...visibleWorkspaces.map((w) => get().loadWorkspaceTree(w.id, w.path)),
+            ...visibleWorkspaces.map((w) => get().loadGitSnapshot(w.id, w.path)),
           ]);
         });
         return;
@@ -133,6 +154,7 @@ export function createGeneralActions(set: StoreApi<StoreState>["setState"], get:
         auditEntries: [],
         commandHistory: [],
         gitSnapshot: undefined,
+        gitSnapshots: {},
         gitBranches: [],
         searchQuery: "",
         searchResults: [],

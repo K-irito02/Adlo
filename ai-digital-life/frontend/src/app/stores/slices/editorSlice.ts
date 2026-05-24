@@ -12,6 +12,7 @@ import { type EditorTabState } from "../../editorTabs";
 export interface EditorSlice {
   openTabs: EditorTabState[];
   selectedFilePath?: string;
+  selectedFileWorkspaceId?: string;
   selectedChangePreviewPath?: string;
   changePreview?: WorkspaceChangePreview;
   changePreviewLoading: boolean;
@@ -25,6 +26,7 @@ export interface EditorSlice {
   addOpenTab: (tab: EditorTabState) => void;
   removeOpenTab: (path: string) => void;
   setSelectedFilePath: (path: string | undefined) => void;
+  setSelectedFileWorkspaceId: (workspaceId: string | undefined) => void;
   setSelectedChangePreviewPath: (path: string | undefined) => void;
   setChangePreview: (preview: WorkspaceChangePreview | undefined) => void;
   setChangePreviewLoading: (loading: boolean) => void;
@@ -55,6 +57,7 @@ export const createEditorSlice = (
     openTabs: state.openTabs.filter(t => t.path !== path)
   })),
   setSelectedFilePath: (selectedFilePath) => set({ selectedFilePath }),
+  setSelectedFileWorkspaceId: (selectedFileWorkspaceId) => set({ selectedFileWorkspaceId }),
   setSelectedChangePreviewPath: (selectedChangePreviewPath) => set({ selectedChangePreviewPath }),
   setChangePreview: (changePreview) => set({ changePreview }),
   setChangePreviewLoading: (loading) => set({ changePreviewLoading: loading }),
@@ -77,6 +80,7 @@ export const createEditorSlice = (
   clearEditorState: () => set({
     openTabs: [],
     selectedFilePath: undefined,
+    selectedFileWorkspaceId: undefined,
     selectedChangePreviewPath: undefined,
     changePreview: undefined,
     changePreviewLoading: false,

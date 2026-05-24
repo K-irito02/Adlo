@@ -18,6 +18,7 @@ import type { SearchHit } from "./hooks/useSearchPanel";
 
 interface FileNavigatorShellProps {
   selectedFilePath: string | undefined;
+  selectedFileWorkspaceId: string | undefined;
   workspaceTrees: Record<string, WorkspaceTreeNode[]>;
   recentWorkspaces: RecentWorkspaceEntry[];
   allExpanded: boolean;
@@ -28,6 +29,7 @@ interface FileNavigatorShellProps {
   dirtyEditorPaths: string[];
   appInfo: { currentWorkspace?: { name?: string; rootPath?: string; path?: string }; config?: { language?: string } } | undefined;
   onOpenFile: (relativePath: string) => void;
+  onOpenFileForWorkspace: (workspaceId: string, workspacePath: string, relativePath: string) => void;
   onOpenFileAtLine: (relativePath: string, line: number) => void;
   onSearch: (query: string) => void;
   onSearchChange: (query: string) => void;
@@ -67,6 +69,7 @@ function buildSearchPattern(query: string, options: { matchCase: boolean; wholeW
 function FileNavigatorShell(props: FileNavigatorShellProps) {
   const {
     selectedFilePath,
+    selectedFileWorkspaceId,
     workspaceTrees,
     recentWorkspaces,
     allExpanded,
@@ -77,6 +80,7 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
     dirtyEditorPaths,
     appInfo,
     onOpenFile,
+    onOpenFileForWorkspace,
     onOpenFileAtLine,
     onSearch,
     onSearchChange,
@@ -461,6 +465,7 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
             errorStates={workspaceTreeErrors}
             expandedStates={workspaceTreeExpandedInFileNav}
             selectedFilePath={selectedFilePath}
+            selectedFileWorkspaceId={selectedFileWorkspaceId}
             expandedPaths={expandedPaths}
             dirtyPaths={dirtyPaths}
             externalChangePath={externalChangePath}
@@ -478,6 +483,7 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
             onHideFromRightPanels={onHideFromRightPanels}
             onToggleFileTreePath={toggleFileTreePath}
             onOpenFile={onOpenFile}
+            onOpenFileForWorkspace={onOpenFileForWorkspace}
             onReorderWorkspaces={(input) => {
               useAppStore.getState().reorderWorkspaces(input);
             }}

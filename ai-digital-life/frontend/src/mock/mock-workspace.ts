@@ -130,6 +130,14 @@ export const mockWorkspace: WorkspaceBridge = {
       lastModifiedAt: fileVersions.get(relativePath) ?? Date.now()
     }
   }),
+  readFileForWorkspace: async (_workspacePath: string, relativePath: string) => ({
+    ok: true,
+    data: {
+      path: relativePath,
+      content: documents.get(relativePath) ?? "",
+      lastModifiedAt: fileVersions.get(relativePath) ?? Date.now()
+    }
+  }),
   getChangePreview: async (relativePath: string) => ({
     ok: true,
     data: buildMockChangePreview(relativePath)

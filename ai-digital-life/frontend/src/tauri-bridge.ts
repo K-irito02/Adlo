@@ -163,6 +163,8 @@ export function createTauriBridge(): DigitalLifeBridge {
       createFolder: (relativePath: string) =>
         invokeIpc<boolean>("workspace_create_folder", { relativePath }),
       readFile: (relativePath: string) => invokeIpc<WorkspaceFileDocument>("workspace_read_file", { relativePath }),
+      readFileForWorkspace: (workspacePath: string, relativePath: string) => 
+        invokeIpc<WorkspaceFileDocument>("workspace_read_file", { workspacePath, relativePath }),
       getChangePreview: (relativePath: string) =>
         invokeIpc<WorkspaceChangePreview>("workspace_get_change_preview", { relativePath }),
       getChangePreviewForWorkspace: (workspacePath: string, relativePath: string) =>
@@ -205,7 +207,7 @@ export function createTauriBridge(): DigitalLifeBridge {
     },
 
     conversation: {
-      createSession: (title?: string) => invokeIpc<ConversationSessionRecord>("conversation_create_session", { title }),
+      createSession: (title?: string, workspaceId?: string) => invokeIpc<ConversationSessionRecord>("conversation_create_session", { title, workspaceId }),
       listSessions: () => invokeIpc<ConversationSessionRecord[]>("conversation_list_sessions"),
       getSession: (sessionId: string) =>
         invokeIpc<ConversationDetail | undefined>("conversation_get_session", { sessionId }),

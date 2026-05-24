@@ -25,6 +25,7 @@ export interface WorkspaceListProps {
   setDragWorkspaceId: (workspaceId: string | undefined) => void;
   onReorderWorkspaces: (input: ReorderWorkspacesInput) => void;
   onOpenWorkspace: (path: string) => void;
+  onSwitchToWorkspace: (workspaceId: string, workspacePath: string) => void;
   onPinWorkspace: (workspaceId: string) => void;
   onUnpinWorkspace: (workspaceId: string) => void;
   onCreateSession: () => void;
@@ -58,6 +59,7 @@ export function WorkspaceList({
   setDragWorkspaceId,
   onReorderWorkspaces,
   onOpenWorkspace,
+  onSwitchToWorkspace,
   onPinWorkspace,
   onUnpinWorkspace,
   onCreateSession,
@@ -65,7 +67,7 @@ export function WorkspaceList({
   onSelectSession,
   onContextMenu,
   renderSessionRows,
-  workspaceToolbarRef
+  workspaceToolbarRef,
 }: WorkspaceListProps) {
   const [archiveOpen, setArchiveOpen] = useState(false);
 
@@ -158,7 +160,7 @@ export function WorkspaceList({
                 aria-expanded={expanded}
                 onClick={() => {
                   if (!item.isCurrent) {
-                    onOpenWorkspace(item.workspace.path);
+                    onSwitchToWorkspace(item.workspace.id, item.workspace.path);
                     return;
                   }
                   toggleSessionWorkspace(item.workspace.path);
@@ -187,7 +189,7 @@ export function WorkspaceList({
                     onClick={(event) => {
                       event.stopPropagation();
                       if (!item.isCurrent) {
-                        onOpenWorkspace(item.workspace.path);
+                        onSwitchToWorkspace(item.workspace.id, item.workspace.path);
                       } else {
                         toggleSessionWorkspace(item.workspace.path);
                       }

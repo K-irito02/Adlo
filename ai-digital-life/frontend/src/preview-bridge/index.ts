@@ -277,6 +277,10 @@ export function setupPreviewBridge(): void {
         const params = new URLSearchParams({ rootPath: currentWorkspace.rootPath, relativePath });
         return requestPreviewApi<WorkspaceFileDocument>(`/workspace/file?${params.toString()}`);
       },
+      readFileForWorkspace: async (workspacePath: string, relativePath: string) => {
+        const params = new URLSearchParams({ rootPath: workspacePath, relativePath });
+        return requestPreviewApi<WorkspaceFileDocument>(`/workspace/file?${params.toString()}`);
+      },
       getChangePreview: async (relativePath: string) => {
         if (!currentWorkspace) return { ok: false, error: { code: IpcErrorCode.NOT_FOUND, message: "active workspace" } };
         const params = new URLSearchParams({ rootPath: currentWorkspace.rootPath, relativePath });

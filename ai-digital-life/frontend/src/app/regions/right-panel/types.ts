@@ -33,6 +33,7 @@ export interface RightPanelViewProps {
   collapsed: boolean;
   editorTabs: EditorTabState[];
   selectedFilePath?: string;
+  selectedFileWorkspaceId?: string;
   selectedChangePreviewPath?: string;
   changePreview?: WorkspaceChangePreview;
   changePreviewLoading: boolean;
@@ -72,6 +73,7 @@ export interface RightPanelViewProps {
   dirtyEditorPaths: string[];
   standardEditorRef: React.MutableRefObject<EditorRef | null>;
   onOpenFile: (relativePath: string) => void;
+  onOpenFileForWorkspace: (workspaceId: string, workspacePath: string, relativePath: string) => void;
   onOpenChangePreview: (relativePath: string) => void;
   onOpenFileAtLine: (relativePath: string, line: number) => void;
   onReloadExternal: () => void;

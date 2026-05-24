@@ -116,6 +116,7 @@ export interface WorkspaceBridge {
   createFile: (relativePath: string, content?: string) => Promise<IpcResult<WorkspaceFileDocument>>;
   createFolder: (relativePath: string) => Promise<IpcResult<boolean>>;
   readFile: (relativePath: string) => Promise<IpcResult<WorkspaceFileDocument>>;
+  readFileForWorkspace: (workspacePath: string, relativePath: string) => Promise<IpcResult<WorkspaceFileDocument>>;
   getChangePreview: (relativePath: string) => Promise<IpcResult<WorkspaceChangePreview>>;
   getChangePreviewForWorkspace: (workspacePath: string, relativePath: string) => Promise<IpcResult<WorkspaceChangePreview>>;
   listTree: () => Promise<IpcResult<WorkspaceTreeNode[]>>;
@@ -141,7 +142,7 @@ export interface RetrievalBridge {
 }
 
 export interface ConversationBridge {
-  createSession: (title?: string) => Promise<IpcResult<ConversationSessionRecord>>;
+  createSession: (title?: string, workspaceId?: string) => Promise<IpcResult<ConversationSessionRecord>>;
   listSessions: () => Promise<IpcResult<ConversationSessionRecord[]>>;
   getSession: (sessionId: string) => Promise<IpcResult<ConversationDetail | undefined>>;
   renameSession: (input: { sessionId: string; title: string }) => Promise<IpcResult<ConversationSessionRecord>>;

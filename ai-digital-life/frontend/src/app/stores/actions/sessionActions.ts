@@ -26,9 +26,10 @@ async function sessionMutate<T>(
 
 export function createSessionActions(set: StoreApi<StoreState>["setState"], get: () => StoreState) {
   return {
-    createSession: async () => {
+    createSession: async (workspaceId?: string) => {
       const result = await window.digitalLife.conversation.createSession(
-        sessionFallbackTitle(get().appInfo)
+        sessionFallbackTitle(get().appInfo),
+        workspaceId
       );
       if (!result.ok) {
         set({ error: result.error.message });
@@ -45,6 +46,22 @@ export function createSessionActions(set: StoreApi<StoreState>["setState"], get:
             }
           : state.sessionDetails,
       }));
+    },
+
+    switchToWorkspace: async (workspaceId: string, workspacePath: string) => {
+      const state = get();
+      const workspaceSessions = state.sessions.filter(
+        s => s.workspaceId === workspaceId && !s.archivedAt
+      );
+      
+      if (workspaceSessions.length > 0) {
+        const recentSession = [...workspaceSessions].sort(
+          (a, b) => (b.lastMessageAt || 0) - (a.lastMessageAt || 0)
+        )[0];
+        await get().selectSession(recentSession.id);
+      } else {
+        await get().createSession(workspaceId);
+      }
     },
 
     selectSession: async (sessionId: string) => {

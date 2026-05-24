@@ -104,8 +104,9 @@ interface WorkspaceActions {
 }
 
 interface SessionActions {
-  createSession: () => Promise<void>;
+  createSession: (workspaceId?: string) => Promise<void>;
   selectSession: (sessionId: string) => Promise<void>;
+  switchToWorkspace: (workspaceId: string, workspacePath: string) => Promise<void>;
   renameSession: (sessionId: string, title: string) => Promise<void>;
   pinSession: (sessionId: string) => Promise<void>;
   unpinSession: (sessionId: string) => Promise<void>;
@@ -122,6 +123,7 @@ interface SessionActions {
 
 interface EditorActions {
   openFile: (relativePath: string) => Promise<void>;
+  openFileForWorkspace: (workspaceId: string, workspacePath: string, relativePath: string) => Promise<void>;
   openChangePreview: (relativePath: string) => Promise<void>;
   openChangePreviewForWorkspace: (workspacePath: string, relativePath: string) => Promise<void>;
   markExternalFileChange: (input: { path: string; lastModifiedAt: number }) => void;
