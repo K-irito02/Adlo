@@ -16,237 +16,171 @@ import {
   changePreviewRequestSeq,
   type CachedFileDocument,
 } from "../shared";
-import type { FileOutlineItem } from "@ai-digital-life/kernel";
+import type { FileOutlineItem, IpcResult, WorkspaceFileDocument, WorkspaceChangePreview } from "@ai-digital-life/kernel";
 import type { StoreApi } from "zustand";
 
 const fileDocumentCache = getFileDocumentCache();
 const changePreviewCache = getChangePreviewCache();
 
+type OpenFileConfig = {
+  cacheKey: string;
+  workspaceId: string | undefined;
+  readFile: () => Promise<IpcResult<WorkspaceFileDocument>>;
+};
+
+async function openFileGeneric(
+  set: StoreApi<StoreState>["setState"],
+  get: () => StoreState,
+  relativePath: string,
+  requestSeq: number,
+  config: OpenFileConfig,
+) {
+  const cachedDocument = getCachedLru(fileDocumentCache, config.cacheKey);
+
+  const applyDocument = (
+    document: CachedFileDocument,
+    outlineOverride?: FileOutlineItem[]
+  ) => {
+    const nextOutline =
+      outlineOverride ?? buildOutlineFromContent(document.content, relativePath);
+    const norm = normalizeWorkspaceRelativePath(relativePath);
+    set((state: StoreState) => {
+      const nextDirty = state.dirtyEditorPaths.filter(
+        (p) => normalizeWorkspaceRelativePath(p) !== norm
+      );
+      void window.digitalLife.workspace.setEditorDirtyPaths(nextDirty);
+      return {
+        error: undefined,
+        openTabs: state.openTabs.some((tab) => tab.path === relativePath)
+          ? state.openTabs
+          : [...state.openTabs, createEditorTab(relativePath)],
+        selectedFilePath: relativePath,
+        selectedFileWorkspaceId: config.workspaceId,
+        fileContent: document.content,
+        fileLastModifiedAt: document.lastModifiedAt,
+        externalFileChange:
+          state.externalFileChange?.path === relativePath
+            ? undefined
+            : state.externalFileChange,
+        outline: nextOutline,
+        dirtyEditorPaths: nextDirty,
+      };
+    });
+  };
+
+  if (cachedDocument) {
+    applyDocument(cachedDocument);
+    return;
+  } else {
+    set((state: StoreState) => ({
+      error: undefined,
+      openTabs: state.openTabs.some((tab) => tab.path === relativePath)
+        ? state.openTabs
+        : [...state.openTabs, createEditorTab(relativePath)],
+      selectedFilePath: relativePath,
+      selectedFileWorkspaceId: config.workspaceId,
+    }));
+  }
+
+  const fileResult = await config.readFile();
+  if (requestSeq !== fileRequestSeq) return;
+  if (!fileResult.ok) {
+    set({ error: fileResult.error.message });
+    return;
+  }
+  const nextOutline = buildOutlineFromContent(
+    fileResult.data.content,
+    relativePath
+  );
+  const nextDocument: CachedFileDocument = {
+    content: fileResult.data.content,
+    lastModifiedAt: fileResult.data.lastModifiedAt,
+  };
+  setCachedLru(fileDocumentCache, config.cacheKey, nextDocument, FILE_DOCUMENT_CACHE_LIMIT);
+  applyDocument(nextDocument, nextOutline);
+}
+
+type OpenChangePreviewConfig = {
+  cacheKey: string;
+  workspaceId: string | undefined;
+  getPreview: () => Promise<IpcResult<WorkspaceChangePreview>>;
+};
+
+async function openChangePreviewGeneric(
+  set: StoreApi<StoreState>["setState"],
+  get: () => StoreState,
+  relativePath: string,
+  requestSeq: number,
+  config: OpenChangePreviewConfig,
+) {
+  const cachedPreview = getCachedLru(changePreviewCache, config.cacheKey);
+  set({
+    selectedChangePreviewPath: relativePath,
+    selectedChangePreviewWorkspaceId: config.workspaceId,
+    changePreview: cachedPreview ?? get().changePreview,
+    changePreviewLoading: false,
+    error: undefined,
+  });
+  const result = await config.getPreview();
+  if (requestSeq !== changePreviewRequestSeq) return;
+  if (!result.ok) {
+    set({
+      selectedChangePreviewPath: relativePath,
+      selectedChangePreviewWorkspaceId: config.workspaceId,
+      changePreviewLoading: false,
+      changePreview:
+        get().changePreview?.path === relativePath
+          ? undefined
+          : get().changePreview,
+    });
+    return;
+  }
+  setCachedLru(
+    changePreviewCache,
+    config.cacheKey,
+    result.data,
+    CHANGE_PREVIEW_CACHE_LIMIT
+  );
+  set({
+    selectedChangePreviewPath: relativePath,
+    selectedChangePreviewWorkspaceId: config.workspaceId,
+    changePreviewLoading: false,
+    changePreview: result.data,
+    error: undefined,
+  });
+}
+
 export function createEditorActions(set: StoreApi<StoreState>["setState"], get: () => StoreState) {
   return {
     openFile: async (relativePath: string) => {
-      const requestSeq = getNextFileRequestSeq();
-      const cacheKey = getWorkspaceScopedCacheKey(get().appInfo, relativePath);
-      const cachedDocument = getCachedLru(fileDocumentCache, cacheKey);
-      const currentWorkspace = get().appInfo?.currentWorkspace;
-      
-      const applyDocument = (
-        document: CachedFileDocument,
-        outlineOverride?: FileOutlineItem[]
-      ) => {
-        const nextOutline =
-          outlineOverride ?? buildOutlineFromContent(document.content, relativePath);
-        const norm = normalizeWorkspaceRelativePath(relativePath);
-        set((state: StoreState) => {
-          const nextDirty = state.dirtyEditorPaths.filter(
-            (p) => normalizeWorkspaceRelativePath(p) !== norm
-          );
-          void window.digitalLife.workspace.setEditorDirtyPaths(nextDirty);
-          return {
-            error: undefined,
-            openTabs: state.openTabs.some((tab) => tab.path === relativePath)
-              ? state.openTabs
-              : [...state.openTabs, createEditorTab(relativePath)],
-            selectedFilePath: relativePath,
-            selectedFileWorkspaceId: currentWorkspace?.id,
-            fileContent: document.content,
-            fileLastModifiedAt: document.lastModifiedAt,
-            externalFileChange:
-              state.externalFileChange?.path === relativePath
-                ? undefined
-                : state.externalFileChange,
-            outline: nextOutline,
-            dirtyEditorPaths: nextDirty,
-          };
-        });
-      };
-
-      if (cachedDocument) {
-        applyDocument(cachedDocument);
-        return;
-      } else {
-        set((state: StoreState) => ({
-          error: undefined,
-          openTabs: state.openTabs.some((tab) => tab.path === relativePath)
-            ? state.openTabs
-            : [...state.openTabs, createEditorTab(relativePath)],
-          selectedFilePath: relativePath,
-          selectedFileWorkspaceId: currentWorkspace?.id,
-        }));
-      }
-
-      const fileResult = await window.digitalLife.workspace.readFile(
-        relativePath
-      );
-      if (requestSeq !== fileRequestSeq) return;
-      if (!fileResult.ok) {
-        set({ error: fileResult.error.message });
-        return;
-      }
-      const nextOutline = buildOutlineFromContent(
-        fileResult.data.content,
-        relativePath
-      );
-      const nextDocument: CachedFileDocument = {
-        content: fileResult.data.content,
-        lastModifiedAt: fileResult.data.lastModifiedAt,
-      };
-      setCachedLru(fileDocumentCache, cacheKey, nextDocument, FILE_DOCUMENT_CACHE_LIMIT);
-      applyDocument(nextDocument, nextOutline);
+      await openFileGeneric(set, get, relativePath, getNextFileRequestSeq(), {
+        cacheKey: getWorkspaceScopedCacheKey(get().appInfo, relativePath),
+        workspaceId: get().appInfo?.currentWorkspace?.id,
+        readFile: () => window.digitalLife.workspace.readFile(relativePath),
+      });
     },
 
     openFileForWorkspace: async (workspaceId: string, workspacePath: string, relativePath: string) => {
-      const requestSeq = getNextFileRequestSeq();
-      
-      const cacheKey = `${workspacePath}:${relativePath}`;
-      const cachedDocument = getCachedLru(fileDocumentCache, cacheKey);
-      
-      const applyDocument = (
-        document: CachedFileDocument,
-        outlineOverride?: FileOutlineItem[]
-      ) => {
-        const nextOutline =
-          outlineOverride ?? buildOutlineFromContent(document.content, relativePath);
-        const norm = normalizeWorkspaceRelativePath(relativePath);
-        set((state: StoreState) => {
-          const nextDirty = state.dirtyEditorPaths.filter(
-            (p) => normalizeWorkspaceRelativePath(p) !== norm
-          );
-          void window.digitalLife.workspace.setEditorDirtyPaths(nextDirty);
-          return {
-            error: undefined,
-            openTabs: state.openTabs.some((tab) => tab.path === relativePath)
-              ? state.openTabs
-              : [...state.openTabs, createEditorTab(relativePath)],
-            selectedFilePath: relativePath,
-            selectedFileWorkspaceId: workspaceId,
-            fileContent: document.content,
-            fileLastModifiedAt: document.lastModifiedAt,
-            externalFileChange:
-              state.externalFileChange?.path === relativePath
-                ? undefined
-                : state.externalFileChange,
-            outline: nextOutline,
-            dirtyEditorPaths: nextDirty,
-          };
-        });
-      };
-
-      if (cachedDocument) {
-        applyDocument(cachedDocument);
-        return;
-      } else {
-        set((state: StoreState) => ({
-          error: undefined,
-          openTabs: state.openTabs.some((tab) => tab.path === relativePath)
-            ? state.openTabs
-            : [...state.openTabs, createEditorTab(relativePath)],
-          selectedFilePath: relativePath,
-          selectedFileWorkspaceId: workspaceId,
-        }));
-      }
-
-      const fileResult = await window.digitalLife.workspace.readFileForWorkspace(
-        workspacePath,
-        relativePath
-      );
-      if (requestSeq !== fileRequestSeq) return;
-      if (!fileResult.ok) {
-        set({ error: fileResult.error.message });
-        return;
-      }
-      const nextOutline = buildOutlineFromContent(
-        fileResult.data.content,
-        relativePath
-      );
-      const nextDocument: CachedFileDocument = {
-        content: fileResult.data.content,
-        lastModifiedAt: fileResult.data.lastModifiedAt,
-      };
-      setCachedLru(fileDocumentCache, cacheKey, nextDocument, FILE_DOCUMENT_CACHE_LIMIT);
-      applyDocument(nextDocument, nextOutline);
+      await openFileGeneric(set, get, relativePath, getNextFileRequestSeq(), {
+        cacheKey: `${workspacePath}:${relativePath}`,
+        workspaceId,
+        readFile: () => window.digitalLife.workspace.readFileForWorkspace(workspacePath, relativePath),
+      });
     },
 
     openChangePreview: async (relativePath: string) => {
-      const requestSeq = getNextChangePreviewRequestSeq();
-      const cacheKey = getWorkspaceScopedCacheKey(get().appInfo, relativePath);
-      const cachedPreview = getCachedLru(changePreviewCache, cacheKey);
-      const currentWorkspace = get().appInfo?.currentWorkspace;
-      set({
-        selectedChangePreviewPath: relativePath,
-        selectedChangePreviewWorkspaceId: currentWorkspace?.id,
-        changePreview: cachedPreview ?? get().changePreview,
-        changePreviewLoading: false,
-        error: undefined,
-      });
-      const result = await window.digitalLife.workspace.getChangePreview(
-        relativePath
-      );
-      if (requestSeq !== changePreviewRequestSeq) return;
-      if (!result.ok) {
-        set({
-          selectedChangePreviewPath: relativePath,
-          selectedChangePreviewWorkspaceId: currentWorkspace?.id,
-          changePreviewLoading: false,
-          changePreview:
-            get().changePreview?.path === relativePath
-              ? undefined
-              : get().changePreview,
-        });
-        return;
-      }
-      setCachedLru(
-        changePreviewCache,
-        cacheKey,
-        result.data,
-        CHANGE_PREVIEW_CACHE_LIMIT
-      );
-      set({
-        selectedChangePreviewPath: relativePath,
-        selectedChangePreviewWorkspaceId: currentWorkspace?.id,
-        changePreviewLoading: false,
-        changePreview: result.data,
-        error: undefined,
+      await openChangePreviewGeneric(set, get, relativePath, getNextChangePreviewRequestSeq(), {
+        cacheKey: getWorkspaceScopedCacheKey(get().appInfo, relativePath),
+        workspaceId: get().appInfo?.currentWorkspace?.id,
+        getPreview: () => window.digitalLife.workspace.getChangePreview(relativePath),
       });
     },
 
     openChangePreviewForWorkspace: async (workspacePath: string, relativePath: string) => {
-      const requestSeq = getNextChangePreviewRequestSeq();
-      const cacheKey = getWorkspaceScopedCacheKey(get().appInfo, `${workspacePath}:${relativePath}`);
-      const cachedPreview = getCachedLru(changePreviewCache, cacheKey);
-      const workspaces = get().recentWorkspaces;
-      const targetWorkspace = workspaces.find(w => w.path === workspacePath);
-      set({
-        selectedChangePreviewPath: relativePath,
-        selectedChangePreviewWorkspaceId: targetWorkspace?.id,
-        changePreview: cachedPreview ?? get().changePreview,
-        changePreviewLoading: false,
-        error: undefined,
-      });
-      const result = await window.digitalLife.workspace.getChangePreviewForWorkspace(
-        workspacePath,
-        relativePath
-      );
-      if (requestSeq !== changePreviewRequestSeq) return;
-      if (!result.ok) {
-        set({
-          selectedChangePreviewPath: relativePath,
-          selectedChangePreviewWorkspaceId: targetWorkspace?.id,
-          changePreviewLoading: false,
-          changePreview:
-            get().changePreview?.path === relativePath
-              ? undefined
-              : get().changePreview,
-        });
-        return;
-      }
-      setCachedLru(changePreviewCache, cacheKey, result.data, CHANGE_PREVIEW_CACHE_LIMIT);
-      set({
-        selectedChangePreviewPath: relativePath,
-        selectedChangePreviewWorkspaceId: targetWorkspace?.id,
-        changePreviewLoading: false,
-        changePreview: result.data,
-        error: undefined,
+      await openChangePreviewGeneric(set, get, relativePath, getNextChangePreviewRequestSeq(), {
+        cacheKey: getWorkspaceScopedCacheKey(get().appInfo, `${workspacePath}:${relativePath}`),
+        workspaceId: get().recentWorkspaces.find(w => w.path === workspacePath)?.id,
+        getPreview: () => window.digitalLife.workspace.getChangePreviewForWorkspace(workspacePath, relativePath),
       });
     },
 

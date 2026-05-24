@@ -40,7 +40,19 @@
 - **上下文菜单系统**：统一 `ContextMenu` 组件（Portal 渲染、图标/分隔线/danger 样式）、`ConfirmDialog`（删除确认）、`RenameInput`（内联重命名）
 - **剪贴板切换**：Zustand `clipboardSlice`，支持跨面板 cut/copy/paste
 - **回收站删除**：Rust `trash` crate（Tauri） + PowerShell `Microsoft.VisualBasic`（浏览器），文件/目录安全删除到回收站
-- **第十一轮 — ChangesPanel 组件提取**（3 组件 → `features/patch-review` 模块）：采用渐进式内部组件模式，将 `PatchHunkCard`（hunk 级别决策卡片）、`PatchFileCard`（文件级聚合卡片）、`PatchReviewSummary`（补丁摘要统计+过滤操作栏）从 ChangesPanel.tsx 提取到独立的模块文件；`patch-review/index.ts` 统一导出所有类型和组件；类型检查零错误；6 条经验教训记录于 [重构洞察 docs/重构洞察/](file:///E:/Programs/Obsidian/notes/docs/重构洞察/refactor-insight-2026-05-25-changespanel-extraction.md)
+- **第十一轮 — ChangesPanel 组件提取**（3 组件 → `features/patch-review` 模块）：采用渐进式内部组件模式，将 `PatchHunkCard`（hunk 级别决策卡片）、`PatchFileCard`（文件级聚合卡片）、`PatchReviewSummary`（补丁摘要统计+过滤操作栏）从 ChangesPanel.tsx 提取到独立的模块文件；`patch-review/index.ts` 统一导出所有类型和组件；类型检查零错误；6 条经验教训记录于重构洞察文档
+- **第十二轮 — 阶段 3 组件架构拆分**（4 个大型模块 → 12 个独立文件）：
+  - **P1 ChangesPanel.tsx**（1037 行）：提取 `ChangesTreePanel.tsx`（导航器）+ `ChangesConfirmDialogs.tsx`（确认对话框/重命名输入）；主组件降至 ~870 行
+  - **P2 CenterPane.tsx**（629 行）：提取 `ApprovalInlineCard.tsx` + `WelcomeState.tsx` + `ComposerFooter.tsx` + barrel `index.ts`；主组件降至 ~360 行
+  - **P3 StatusBar.tsx**（588 行）：提取 `StatusBar/utils.tsx`（6 个辅助函数：modelLabel、gitIcon、gitStatusLabel、modelHealthLabel、modelHealthTone、isDirtyWorktree）
+  - **P4 useTerminalPanel.ts**（519 行）：提取 `useTerminalContextMenu.ts`（上下文菜单状态 + 5 个回调）
+  - **测试回归**：outlinePanelWiring.test.ts 因文件拆分需同步更新引用路径；所有 183 项测试通过
+- **第十三轮 — 剩余工作收尾 + UI 复原**：
+  - **R1 agent.rs God Function 拆分**（334 行→6 个函数 + 12 行编排）：`make_activity_emitter` / `prepare_run` / `collect_context` / `call_model` / `generate_patches` / `finalize_run`；克服 `impl Fn` async Send 约束问题，方案为值传递 + String 所有权；`cargo check` + 44 测试通过
+  - **R2 PromptInput 回滚**：`PromptInput` 缺少项目 CSS 样式导致 UI 破坏，回滚至原始 `contentEditable` + 自定义光标，删除约 150 行死代码
+  - **R3 ChangesPanel 暂缓**：剩余 JSX（~250 行）需传递 30+ props，耦合度高，暂缓提取
+  - **R4 工作区选择分离**：核心逻辑已在前序重构完成（`switchToWorkspace` action + 配线），无需额外操作
+  - **UI 复原修复**：3 处 UI 被破坏—① ComposerFooter 输入框样式丢失；② ChangesTreePanel 导航器按钮消失；③ CenterPane refs/events/effects 被误删。全部恢复并通过验证
 
 **不在本目录实现**：多 Agent DAG、MCP、插件市场、云协作等 Phase 2+ 能力。
 

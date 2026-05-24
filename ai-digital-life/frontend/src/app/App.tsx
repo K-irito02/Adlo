@@ -9,6 +9,7 @@ import { filterDiagnosticsForPath, findFirstDiagnostic } from "./workspacePaths"
 import { useAppStore } from "./stores/slicedStore";
 import { useUiStore } from "./ui-store";
 import { useAppActions } from "./hooks/useAppActions";
+import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { TitleBar } from "./regions/TitleBar";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { LeftSidebar } from "./regions/LeftSidebar";
@@ -35,26 +36,6 @@ export function App() {
   const latestPatchApplication = useAppStore(useShallow((s) => s.latestPatchApplication));
   const fileLastModifiedAt = useAppStore((s) => s.fileLastModifiedAt);
   const actions = useAppActions();
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.shiftKey && (event.key === "n" || event.key === "N")) {
-        event.preventDefault();
-        setNewSessionDialogOpen(true);
-      } else if ((event.ctrlKey || event.metaKey) && (event.key === "n" || event.key === "N")) {
-        event.preventDefault();
-        setCreateWorkspaceModalOpen(true);
-      } else if ((event.ctrlKey || event.metaKey) && (event.key === "o" || event.key === "O")) {
-        event.preventDefault();
-        void actions.pickWorkspaceDirectory().then((picked) => {
-          if (picked) void actions.openWorkspace(picked);
-        });
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [actions.openWorkspace, actions.pickWorkspaceDirectory]);
 
   useEffect(() => {
     if (!isTauriShell()) return;
@@ -359,6 +340,8 @@ export function App() {
 
   const [createWorkspaceModalOpen, setCreateWorkspaceModalOpen] = useState(false);
   const [newSessionDialogOpen, setNewSessionDialogOpen] = useState(false);
+
+  useKeyboardShortcuts(setNewSessionDialogOpen, setCreateWorkspaceModalOpen);
 
   const handleTriggerCreateWorkspace = useCallback(() => {
     setCreateWorkspaceModalOpen(true);

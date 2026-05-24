@@ -183,22 +183,14 @@ pub fn agent_abort_run(
     })
 }
 
-async fn start_run_inner(
-    app: &tauri::AppHandle,
-    state: &AppState,
-    input: StartRunInput,
-) -> Result<ConversationSendResult, AppError> {
-    let mut session = crate::commands::conversation::require_session(state, &input.session_id)?;
-    let workspace = crate::commands::workspace::current_workspace(state)
-        .unwrap_or_else(|_| crate::commands::workspace::virtual_global_workspace());
-    let workspace_scope_id = session.workspace_id.clone();
-    let session_id = session.id.clone();
-    let scenario = input.scenario.unwrap_or(ConversationScenario::CodeEdit);
-    let mut detail =
-        adl_agent_runtime::create_run(&workspace_scope_id, &session.id, &input.prompt, scenario);
-
-    let run_id = detail.run.id.clone();
-    let emit_activity = |event: serde_json::Value| {
+fn make_activity_emitter<'a>(
+    app: &'a tauri::AppHandle,
+    state: &'a AppState,
+    workspace_scope_id: String,
+    session_id: String,
+    run_id: String,
+) -> impl Fn(serde_json::Value) + 'a {
+    move |event: serde_json::Value| {
         let mut obj = match event {
             serde_json::Value::Object(obj) => obj,
             other => {
@@ -224,38 +216,57 @@ async fn start_run_inner(
             serde_json::Value::Number(serde_json::Number::from(ts)),
         );
         let payload = serde_json::Value::Object(obj);
-        // Best-effort: persist typed event for replay; still emit even if parsing fails.
         if let Ok(typed) = serde_json::from_value::<DigitalLifeRunActivityEventV1>(payload.clone())
         {
             let _ = persist_run_activity(state, &workspace_scope_id, &session_id, &run_id, &typed);
         }
         emit_run_activity(app, payload);
-    };
+    }
+}
 
+fn prepare_run(
+    state: &AppState,
+    session: &adl_kernel::ConversationSessionRecord,
+    input: &StartRunInput,
+    scenario: ConversationScenario,
+    detail: &AgentRunDetail,
+    emit_activity: impl Fn(serde_json::Value),
+) -> Result<adl_kernel::ConversationMessageRecord, AppError> {
     emit_activity(serde_json::json!({
       "type": "run-start",
       "scenario": scenario
     }));
     let user_message = adl_conversation::create_message(
-        &session_id,
+        &session.id,
         ConversationRole::User,
         input.prompt.clone(),
         vec![],
         Some(detail.run.id.clone()),
     );
-    crate::commands::conversation::save_message(state, &workspace_scope_id, &user_message)?;
+    crate::commands::conversation::save_message(state, &session.workspace_id, &user_message)?;
     let _ = crate::commands::audit::save_audit_entry(
         state,
-        &workspace_scope_id,
-        Some(&session_id),
+        &session.workspace_id,
+        Some(&session.id),
         "approval",
         adl_kernel::RiskLevel::Low,
         format!("Agent run started in {:?} mode.", scenario),
         Some("auto"),
         Some(format!("runId={}", detail.run.id)),
     );
+    Ok(user_message)
+}
 
-    let ws_ctx = adl_context_engine::workspace_context(&workspace);
+fn collect_context(
+    state: &AppState,
+    workspace: &adl_kernel::WorkspaceMeta,
+    input: &StartRunInput,
+    detail: &AgentRunDetail,
+    workspace_scope_id: &str,
+    session_id: &str,
+    emit_activity: impl Fn(serde_json::Value),
+) -> Result<Vec<adl_kernel::ContextEntry>, AppError> {
+    let ws_ctx = adl_context_engine::workspace_context(workspace);
     emit_activity(serde_json::json!({
       "type": "context-added",
       "contextType": "message",
@@ -281,8 +292,8 @@ async fn start_run_inner(
                 }));
                 let _ = crate::commands::audit::save_audit_entry(
                     state,
-                    &workspace_scope_id,
-                    Some(&session_id),
+                    workspace_scope_id,
+                    Some(session_id),
                     "file-read",
                     adl_kernel::RiskLevel::Low,
                     format!("Read file context: {rel}"),
@@ -338,8 +349,8 @@ async fn start_run_inner(
                 }));
                 let _ = crate::commands::audit::save_audit_entry(
                     state,
-                    &workspace_scope_id,
-                    Some(&session_id),
+                    workspace_scope_id,
+                    Some(session_id),
                     "search",
                     adl_kernel::RiskLevel::Low,
                     format!("Workspace search for `{sym}` ({}) hits.", hits.len()),
@@ -350,9 +361,22 @@ async fn start_run_inner(
             }
         }
     }
-    context = adl_context_engine::sort_context(context);
+    Ok(adl_context_engine::sort_context(context))
+}
+
+async fn call_model(
+    state: &AppState,
+    workspace: &adl_kernel::WorkspaceMeta,
+    session: &adl_kernel::ConversationSessionRecord,
+    scenario: ConversationScenario,
+    context: Vec<adl_kernel::ContextEntry>,
+    detail: &AgentRunDetail,
+    input: &StartRunInput,
+    app: &tauri::AppHandle,
+    emit_activity: impl Fn(serde_json::Value),
+) -> Result<(adl_kernel::ModelResponse, adl_kernel::ModelCallAuditRecord), AppError> {
     let messages =
-        adl_agent_runtime::build_model_messages(&workspace, &input.prompt, scenario, &context);
+        adl_agent_runtime::build_model_messages(workspace, &input.prompt, scenario, &context);
     let gateway = {
         let config = state
             .config
@@ -393,7 +417,7 @@ async fn start_run_inner(
     let _ = crate::commands::audit::save_audit_entry(
         state,
         &workspace.id,
-        Some(&session_id),
+        Some(&session.id),
         "model",
         adl_kernel::RiskLevel::Low,
         format!(
@@ -403,7 +427,18 @@ async fn start_run_inner(
         Some("auto"),
         Some(format!("runId={}", detail.run.id)),
     );
+    Ok((model_response, model_audit))
+}
 
+fn generate_patches(
+    workspace: &adl_kernel::WorkspaceMeta,
+    input: &StartRunInput,
+    scenario: ConversationScenario,
+    detail: &mut AgentRunDetail,
+    state: &AppState,
+    session: &adl_kernel::ConversationSessionRecord,
+    emit_activity: impl Fn(serde_json::Value),
+) -> Result<Option<adl_kernel::PatchSet>, AppError> {
     let patch_set = match scenario {
         ConversationScenario::CodeEdit if !workspace.root_path.is_empty() => {
             match adl_agent_runtime::target_file_from_prompt(&input.prompt) {
@@ -464,7 +499,21 @@ async fn start_run_inner(
             }
         }
     }
-    detail = adl_agent_runtime::complete_plan(detail, patch_set.as_ref(), scenario);
+    Ok(patch_set)
+}
+
+fn finalize_run(
+    state: &AppState,
+    workspace: &adl_kernel::WorkspaceMeta,
+    session: &mut adl_kernel::ConversationSessionRecord,
+    detail: AgentRunDetail,
+    model_response: &adl_kernel::ModelResponse,
+    patch_set: Option<&adl_kernel::PatchSet>,
+    scenario: ConversationScenario,
+    user_message: adl_kernel::ConversationMessageRecord,
+    emit_activity: impl Fn(serde_json::Value),
+) -> Result<ConversationSendResult, AppError> {
+    let detail = adl_agent_runtime::complete_plan(detail, patch_set, scenario);
     save_run_detail(state, &detail)?;
     let _ = crate::commands::audit::save_audit_entry(
         state,
@@ -489,17 +538,17 @@ async fn start_run_inner(
         Some(format!("runId={}", detail.run.id)),
     );
 
-    let blocks = adl_agent_runtime::assistant_blocks(&detail, patch_set.as_ref(), scenario);
+    let blocks = adl_agent_runtime::assistant_blocks(&detail, patch_set, scenario);
     let assistant_message = adl_conversation::create_message(
         &session.id,
         ConversationRole::Assistant,
-        model_response.content,
+        model_response.content.clone(),
         blocks,
         Some(detail.run.id.clone()),
     );
     crate::commands::conversation::save_message(state, &workspace.id, &assistant_message)?;
-    adl_conversation::touch_session(&mut session, assistant_message.created_at);
-    crate::commands::conversation::save_session(state, &session)?;
+    adl_conversation::touch_session(session, assistant_message.created_at);
+    crate::commands::conversation::save_session(state, session)?;
     state
         .event_bus
         .emit(adl_events::AppEvent::AgentRunChanged(detail.run.id.clone()));
@@ -510,12 +559,40 @@ async fn start_run_inner(
     }));
 
     Ok(ConversationSendResult {
-        session,
+        session: session.clone(),
         user_message,
         assistant_message,
         run_detail: detail,
-        patch_set,
+        patch_set: patch_set.cloned(),
     })
+}
+
+async fn start_run_inner(
+    app: &tauri::AppHandle,
+    state: &AppState,
+    input: StartRunInput,
+) -> Result<ConversationSendResult, AppError> {
+    let mut session = crate::commands::conversation::require_session(state, &input.session_id)?;
+    let workspace = crate::commands::workspace::current_workspace(state)
+        .unwrap_or_else(|_| crate::commands::workspace::virtual_global_workspace());
+    let workspace_scope_id = session.workspace_id.clone();
+    let session_id = session.id.clone();
+    let scenario = input.scenario.unwrap_or(ConversationScenario::CodeEdit);
+    let mut detail =
+        adl_agent_runtime::create_run(&workspace_scope_id, &session.id, &input.prompt, scenario);
+
+    let emit_activity = make_activity_emitter(app, state,
+        workspace_scope_id.clone(), session_id.clone(), detail.run.id.clone());
+    let user_message = prepare_run(state, &session, &input, scenario, &detail, &emit_activity)?;
+    let context = collect_context(state, &workspace, &input, &detail, &workspace_scope_id, &session_id, &emit_activity)?;
+    let (model_response, _model_audit) = call_model(state, &workspace, &session, scenario, context, &detail, &input, app, &emit_activity).await?;
+    let patch_set = generate_patches(&workspace, &input, scenario, &mut detail, state, &session, &emit_activity)?;
+    let result = finalize_run(
+        state, &workspace, &mut session, detail, &model_response, patch_set.as_ref(), scenario,
+        user_message, &emit_activity,
+    )?;
+
+    Ok(result)
 }
 
 pub fn load_run_detail(state: &AppState, run_id: &str) -> Result<Option<AgentRunDetail>, AppError> {

@@ -116,18 +116,13 @@ pub fn build_retrieval_snapshot(
     root: &Path,
 ) -> Result<RetrievalSnapshot, AppError> {
     let started = now_ms();
-    let (files, extensions) = collect_text_files_with_stats(root, crate::DEFAULT_MAX_FILE_BYTES)?;
+    let (files, extensions, repo_map) = collect_retrieval_data(root, crate::DEFAULT_MAX_FILE_BYTES)?;
     let mut top_extensions: Vec<_> = extensions
         .into_iter()
         .map(|(extension, count)| RetrievalFileTypeCount { extension, count })
         .collect();
     top_extensions.sort_by_key(|entry| std::cmp::Reverse(entry.count));
     top_extensions.truncate(12);
-    let repo_map: Vec<RepoMapEntry> = list_tree(root)?
-        .into_iter()
-        .flat_map(flatten_tree)
-        .take(200)
-        .collect();
     info!(
         workspace_id = workspace_id,
         scanned_files = files.len(),
@@ -160,6 +155,62 @@ pub fn build_retrieval_snapshot(
     })
 }
 
+fn collect_retrieval_data(
+    root: &Path,
+    max_file_bytes: u64,
+) -> Result<(Vec<PathBuf>, BTreeMap<String, i32>, Vec<RepoMapEntry>), AppError> {
+    let mut files = Vec::new();
+    let mut extensions: BTreeMap<String, i32> = BTreeMap::new();
+    let mut repo_map = Vec::new();
+    collect_retrieval_inner(root, root, max_file_bytes, &mut files, &mut extensions, &mut repo_map)?;
+    repo_map.truncate(200);
+    Ok((files, extensions, repo_map))
+}
+
+fn collect_retrieval_inner(
+    root: &Path,
+    dir: &Path,
+    max_file_bytes: u64,
+    files: &mut Vec<PathBuf>,
+    extensions: &mut BTreeMap<String, i32>,
+    repo_map: &mut Vec<RepoMapEntry>,
+) -> Result<(), AppError> {
+    for entry in fs::read_dir(dir)? {
+        if files.len() >= MAX_COLLECTED_FILES {
+            return Ok(());
+        }
+        let entry = entry?;
+        let path = entry.path();
+        let name = entry.file_name().to_string_lossy().to_string();
+        if should_ignore(&name) {
+            continue;
+        }
+        let relative = relative_path(root, &path);
+        if path.is_dir() {
+            repo_map.push(RepoMapEntry {
+                path: relative,
+                r#type: "directory".to_string(),
+            });
+            collect_retrieval_inner(root, &path, max_file_bytes, files, extensions, repo_map)?;
+        } else if path.is_file() {
+            repo_map.push(RepoMapEntry {
+                path: relative.clone(),
+                r#type: "file".to_string(),
+            });
+            if adl_fs_ops::read_text_file(root, &relative, max_file_bytes).is_ok() {
+                let ext = path
+                    .extension()
+                    .and_then(|value| value.to_str())
+                    .unwrap_or("[none]")
+                    .to_string();
+                *extensions.entry(ext).or_insert(0) += 1;
+                files.push(path);
+            }
+        }
+    }
+    Ok(())
+}
+
 pub async fn build_retrieval_snapshot_async(
     workspace_id: &str,
     root: &Path,
@@ -168,13 +219,17 @@ pub async fn build_retrieval_snapshot_async(
     let started = now_ms();
     let root_owned = root.to_path_buf();
 
-    let files = tokio::task::spawn_blocking({
+    let (files, top_extensions, repo_map) = tokio::task::spawn_blocking({
         let r = root_owned.clone();
-        let max_files = MAX_COLLECTED_FILES;
         move || {
-            let mut all = collect_text_files(&r, crate::DEFAULT_MAX_FILE_BYTES)?;
-            all.truncate(max_files);
-            Ok::<Vec<PathBuf>, AppError>(all)
+            let (files, extensions, repo_map) = collect_retrieval_data(&r, crate::DEFAULT_MAX_FILE_BYTES)?;
+            let mut top_extensions: Vec<_> = extensions
+                .into_iter()
+                .map(|(extension, count)| RetrievalFileTypeCount { extension, count })
+                .collect();
+            top_extensions.sort_by_key(|entry| std::cmp::Reverse(entry.count));
+            top_extensions.truncate(12);
+            Ok::<(Vec<PathBuf>, Vec<RetrievalFileTypeCount>, Vec<RepoMapEntry>), AppError>((files, top_extensions, repo_map))
         }
     })
     .await
@@ -191,54 +246,10 @@ pub async fn build_retrieval_snapshot_async(
             updated_at: now_ms(),
             completed_at: Some(now_ms()),
             last_error: Some("cancelled".to_string()),
-            top_extensions: vec![],
-            repo_map: vec![],
-        });
-    }
-
-    let mut extensions: BTreeMap<String, i32> = BTreeMap::new();
-    for file in &files {
-        let ext = file
-            .extension()
-            .and_then(|value| value.to_str())
-            .unwrap_or("[none]")
-            .to_string();
-        *extensions.entry(ext).or_insert(0) += 1;
-    }
-    let mut top_extensions: Vec<_> = extensions
-        .into_iter()
-        .map(|(extension, count)| RetrievalFileTypeCount { extension, count })
-        .collect();
-    top_extensions.sort_by_key(|entry| std::cmp::Reverse(entry.count));
-    top_extensions.truncate(12);
-
-    if cancellation.try_recv().is_ok() {
-        return Ok(RetrievalSnapshot {
-            workspace_id: workspace_id.to_string(),
-            root_path: root.to_string_lossy().to_string(),
-            status: RetrievalStatusV1::Cancelled,
-            scanned_files: files.len(),
-            indexed_text_files: files.len(),
-            started_at: Some(started),
-            updated_at: now_ms(),
-            completed_at: Some(now_ms()),
-            last_error: Some("cancelled".to_string()),
             top_extensions,
             repo_map: vec![],
         });
     }
-
-    let repo_map: Vec<RepoMapEntry> = tokio::task::spawn_blocking({
-        let r = root_owned.clone();
-        move || list_tree(&r)
-    })
-    .await
-    .map_err(|e| AppError::Workspace(format!("task join error: {e}")))?
-    .unwrap_or_default()
-    .into_iter()
-    .flat_map(flatten_tree)
-    .take(200)
-    .collect();
 
     info!(
         workspace_id = workspace_id,
@@ -264,31 +275,10 @@ pub async fn build_retrieval_snapshot_async(
     })
 }
 
-fn flatten_tree(node: WorkspaceTreeNode) -> Vec<RepoMapEntry> {
-    let mut entries = vec![RepoMapEntry {
-        path: node.path.clone(),
-        r#type: node.kind.clone(),
-    }];
-    for child in node.children {
-        entries.extend(flatten_tree(child));
-    }
-    entries
-}
-
 pub(crate) fn collect_text_files(root: &Path, max_file_bytes: u64) -> Result<Vec<PathBuf>, AppError> {
     let mut files = Vec::new();
     collect_text_files_inner(root, root, max_file_bytes, &mut files)?;
     Ok(files)
-}
-
-fn collect_text_files_with_stats(
-    root: &Path,
-    max_file_bytes: u64,
-) -> Result<(Vec<PathBuf>, BTreeMap<String, i32>), AppError> {
-    let mut files = Vec::new();
-    let mut extensions: BTreeMap<String, i32> = BTreeMap::new();
-    collect_text_files_inner_ext(root, root, max_file_bytes, &mut files, &mut extensions)?;
-    Ok((files, extensions))
 }
 
 fn collect_text_files_inner(
@@ -298,16 +288,6 @@ fn collect_text_files_inner(
     files: &mut Vec<PathBuf>,
 ) -> Result<(), AppError> {
     collect_text_files_inner_int(root, dir, max_file_bytes, files, None)
-}
-
-fn collect_text_files_inner_ext(
-    root: &Path,
-    dir: &Path,
-    max_file_bytes: u64,
-    files: &mut Vec<PathBuf>,
-    extensions: &mut BTreeMap<String, i32>,
-) -> Result<(), AppError> {
-    collect_text_files_inner_int(root, dir, max_file_bytes, files, Some(extensions))
 }
 
 fn collect_text_files_inner_int(

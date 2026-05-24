@@ -1,6 +1,7 @@
 use crate::commands::ipc;
 use crate::error::CommandError;
 use crate::state::AppState;
+use crate::terminal::TauriEventEmitter;
 use adl_errors::AppError;
 use adl_kernel::IpcResult;
 use adl_terminal::session_manager::PtySessionInfo;
@@ -42,7 +43,10 @@ pub async fn pty_create(
         let sessions = state.pty_sessions.lock().map_err(|_| {
             AppError::Internal("pty_sessions mutex poisoned".into())
         })?;
-        let session_id = sessions.create(app, &shell, &cwd, input.cols, input.rows)?;
+        let session_id = sessions.create(
+            TauriEventEmitter::new(app.clone()).into_arc(),
+            &shell, &cwd, input.cols, input.rows,
+        )?;
         Ok(PtyCreateResult { session_id })
     })();
     Ok(ipc(result))

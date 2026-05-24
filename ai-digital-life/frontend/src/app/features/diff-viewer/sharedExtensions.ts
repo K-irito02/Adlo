@@ -6,7 +6,6 @@ import { indentOnInput, bracketMatching } from "@codemirror/language";
 import { search } from "@codemirror/search";
 import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import { getThemeExtension, getPhrasesExtension } from "../editor/cmTheme";
-import { getLanguageExtension } from "../editor/cmLanguages";
 import { createFoldGutterExtension } from "../editor/cmFoldGutter";
 import { scrollLeftSyncExtension } from "../editor/cmScrollLeftSync";
 import { getChunks } from "@codemirror/merge";
@@ -37,6 +36,7 @@ export function buildSharedExtensions(
   lineNumbersEnabled: boolean,
   wordWrap: boolean,
   locale: string,
+  langExtensions: Extension[] = [],
 ): Extension[] {
   const gutterEnabled = lineNumbersEnabled;
   const exts: Extension[] = [
@@ -54,7 +54,7 @@ export function buildSharedExtensions(
     scrollLeftSyncExtension,
     EditorState.readOnly.of(readOnly),
     themeCompartment.of(getThemeExtension(theme)),
-    langCompartment.of(getLanguageExtension(language)),
+    langCompartment.of(langExtensions),
     getPhrasesExtension(locale),
   ];
   return exts;

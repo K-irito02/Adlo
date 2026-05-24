@@ -2222,6 +2222,8 @@
   overflow-x: hidden;
   scrollbar-width: none;
   padding: var(--space-1) 0;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 400px;
 }
 .adl-multitree-scroll::-webkit-scrollbar {
   width: 0;

@@ -9,6 +9,7 @@ import { useFoldMarkerAutoHide } from "../editor/useFoldMarkerAutoHide";
 import { createDiffEditorRef } from "../editor/editorAdapters";
 import type { DiffEditorRef, EditorRef } from "../../types";
 import type { PreviewDiffCollapsedRange } from "./changePreviewDiffRanges";
+import { getLanguageExtension } from "../editor/cmLanguages";
 import {
   buildSharedExtensions,
   lineNumbersCompartment,
@@ -65,10 +66,19 @@ export function SideBySideDiffViewer({
   const expandedCollapsedLinesRef = useRef<Set<number>>(new Set());
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const foldMarkerState = useFoldMarkerAutoHide(wrapperRef.current, fileKey ?? original + modified);
+  const [langExtensions, setLangExtensions] = useState<Extension[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getLanguageExtension(language).then((exts) => {
+      if (!cancelled) setLangExtensions(exts);
+    });
+    return () => { cancelled = true; };
+  }, [language]);
 
   const sharedExts = useMemo(
-    () => buildSharedExtensions(language, theme, readOnly, lineNumbersEnabled, wordWrap, locale),
-    [language, theme, readOnly, lineNumbersEnabled, wordWrap, locale],
+    () => buildSharedExtensions(language, theme, readOnly, lineNumbersEnabled, wordWrap, locale, langExtensions),
+    [language, theme, readOnly, lineNumbersEnabled, wordWrap, locale, langExtensions],
   );
 
   const emitCollapsedUnchangedRanges = useCallback((view: EditorView) => {

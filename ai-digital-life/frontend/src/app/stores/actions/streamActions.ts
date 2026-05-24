@@ -8,7 +8,6 @@ import type {
 } from "@ai-digital-life/kernel";
 import { mapPatchToEditorTab } from "../../editorTabs";
 import { sessionFallbackTitle, refreshConversationSlice, workspaceContextModeFromInfo } from "../conversationUtils";
-import { useUiStore } from "../../ui-store";
 import {
   applySlashScenarioOverride,
   augmentPromptWithChips,
@@ -94,7 +93,7 @@ async function dispatchSlashCommand(
     return true;
   }
   if (trimmed === "/model") {
-    useUiStore.getState().setActiveTool("models");
+    get().setActiveRightTool("models");
     return true;
   }
   if (trimmed === "/clear") {
@@ -168,7 +167,7 @@ export function createStreamActions(set: StoreApi<StoreState>["setState"], get: 
       const isHandled = await dispatchSlashCommand(trimmed, set, get);
       if (isHandled) return;
 
-      const mode = options?.mode ?? useUiStore.getState().chatMode;
+      const mode = options?.mode ?? get().chatMode ?? "ask";
       const baseScenario = chatModeToScenario(mode);
       const withChips = augmentPromptWithChips(content, options?.chips);
       const { scenario, prompt } = applySlashScenarioOverride(

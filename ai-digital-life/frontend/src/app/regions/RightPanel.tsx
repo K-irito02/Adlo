@@ -34,7 +34,7 @@ export interface RightPanelProps {
   onJumpPatchHunk: (direction: PatchDirection) => void;
 }
 
-function ActiveToolPanel({ activeTool, idBase, ...props }: { activeTool: ToolId; idBase: string } & RightPanelViewProps) {
+const ActiveToolPanel = React.memo(function ActiveToolPanel({ activeTool, idBase, ...props }: { activeTool: ToolId; idBase: string } & RightPanelViewProps) {
   const panelId = `${idBase}-${activeTool}-panel`;
   const tabId = `${idBase}-${activeTool}-tab`;
   return (
@@ -58,7 +58,7 @@ function ActiveToolPanel({ activeTool, idBase, ...props }: { activeTool: ToolId;
       ) : null}
     </div>
   );
-}
+});
 
 export function RightPanel(panelProps: RightPanelProps) {
   const { t, collapsed } = panelProps;

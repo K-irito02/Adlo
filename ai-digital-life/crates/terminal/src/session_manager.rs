@@ -3,7 +3,10 @@ use crate::shell_resolver::ShellResolver;
 use adl_errors::AppError;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use tauri::Emitter;
+
+pub trait PtyEventEmitter: Send + Sync + 'static {
+    fn emit_output(&self, session_id: &str, data: &str);
+}
 
 pub struct PtySessionHandle {
     pub session: Arc<PtySession>,
@@ -22,7 +25,7 @@ impl SessionManager {
 
     pub fn create(
         &self,
-        app: tauri::AppHandle,
+        emitter: Arc<dyn PtyEventEmitter>,
         shell: &str,
         cwd: &str,
         cols: u16,
@@ -40,7 +43,6 @@ impl SessionManager {
         let session = Arc::new(session);
 
         let session_clone = Arc::clone(&session);
-        let app_clone = app.clone();
         let sid = session_id.clone();
         std::thread::spawn(move || {
             let mut buf = [0u8; 4096];
@@ -49,13 +51,7 @@ impl SessionManager {
                     Ok(0) => break,
                     Ok(n) => {
                         let data = String::from_utf8_lossy(&buf[..n]).to_string();
-                        let _ = app_clone.emit(
-                            "digital-life://pty-output",
-                            serde_json::json!({
-                                "sessionId": sid,
-                                "data": data,
-                            }),
-                        );
+                        emitter.emit_output(&sid, &data);
                     }
                     Err(_) => break,
                 }

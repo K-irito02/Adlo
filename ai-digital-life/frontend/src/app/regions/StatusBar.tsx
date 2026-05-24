@@ -15,10 +15,7 @@ import type { CopyDict } from "../copy";
 import { MODEL_PROVIDER_IDS } from "../constants";
 import { MODEL_OPTIONS } from "../constants";
 import {
-  IconAlertTriangle,
   IconCheck,
-  IconCheckCircle,
-  IconCircle,
   IconChevronRight,
   IconFolder,
   IconFolderOpen,
@@ -28,18 +25,12 @@ import {
 } from "../icons";
 import { TooltipSimple } from "../components/Tooltip";
 import { WorkspaceSplitButton } from "../components/WorkspaceSplitButton";
+import { modelLabel, gitIcon, gitStatusLabel, modelHealthLabel, modelHealthTone, isDirtyWorktree, type GitStatus } from "./StatusBar/utils";
 
-type GitStatus = "synced" | "dirty" | "unpushed" | "conflict" | "no-repo";
 type OpenMenu = "workspace" | "branch" | "model" | undefined;
 type PendingBranchAction =
   | { kind: "switch"; input: WorkspaceGitBranchSwitchInput }
   | { kind: "create"; input: WorkspaceGitBranchCreateInput };
-
-function modelLabel(providerId: ModelProviderId, modelId?: string): string {
-  if (!modelId) return "—";
-  const option = (MODEL_OPTIONS[providerId] ?? []).find((candidate) => candidate.id === modelId);
-  return option?.label ?? modelId;
-}
 
 interface StatusBarProps {
   t: CopyDict;
@@ -60,51 +51,6 @@ interface StatusBarProps {
   onSwitchGitBranch: (input: WorkspaceGitBranchSwitchInput) => Promise<void>;
   onCreateGitBranch: (input: WorkspaceGitBranchCreateInput) => Promise<void>;
   inline?: boolean;
-}
-
-function gitIcon(status: GitStatus, size: 12 | 14 | 16 = 12) {
-  switch (status) {
-    case "synced":
-      return <IconCheckCircle size={size} decorative />;
-    case "dirty":
-      return <IconCircle size={size} decorative />;
-    case "unpushed":
-      return <IconUpload size={size} decorative />;
-    case "conflict":
-      return <IconAlertTriangle size={size} decorative />;
-    default:
-      return <IconFolder size={size} decorative />;
-  }
-}
-
-function gitStatusLabel(t: CopyDict, status: GitStatus): string {
-  switch (status) {
-    case "synced":
-      return t.statusbarGitSynced;
-    case "dirty":
-      return t.statusbarGitDirty;
-    case "unpushed":
-      return t.statusbarGitUnpushed;
-    case "conflict":
-      return t.statusbarGitConflict;
-    default:
-      return t.statusbarGitNoRepo;
-  }
-}
-
-function modelHealthLabel(t: CopyDict, healthy?: boolean): string {
-  return healthy ? t.statusHealthy : t.statusDegraded;
-}
-
-function modelHealthTone(healthy?: boolean): "healthy" | "degraded" {
-  return healthy ? "healthy" : "degraded";
-}
-
-function isDirtyWorktree(snapshot?: GitSnapshot): boolean {
-  return Boolean(
-    snapshot &&
-      (snapshot.staged.length > 0 || snapshot.unstaged.length > 0 || snapshot.untracked.length > 0)
-  );
 }
 
 export function StatusBar({

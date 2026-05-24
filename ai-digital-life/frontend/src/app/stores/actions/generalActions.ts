@@ -16,7 +16,6 @@ export function createGeneralActions(set: StoreApi<StoreState>["setState"], get:
   return {
     bootstrap: async () => {
       const requestSeq = workspaceRequestSeq;
-      set({ error: undefined });
 
       const [appInfoResult, recentResult, modelHealthResult] = await Promise.all([
         window.digitalLife.app.getInfo(),
@@ -96,6 +95,7 @@ export function createGeneralActions(set: StoreApi<StoreState>["setState"], get:
           gitSnapshot,
           gitSnapshots,
           dirtyEditorPaths: [],
+          error: undefined,
         });
 
         if (conversationState.detail?.messages.length) {

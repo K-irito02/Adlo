@@ -100,6 +100,14 @@ function normalizeTerminalTabs(tabs: TerminalTabState[]): TerminalTabState[] {
   return tabs;
 }
 
+function buildTabsById(tabs: TerminalTabState[]): Record<string, TerminalTabState> {
+  const result: Record<string, TerminalTabState> = {};
+  for (const tab of tabs) {
+    result[tab.id] = tab;
+  }
+  return result;
+}
+
 function defaultNavigatorCollapsed(): Record<ToolId, boolean> {
   return {
     files: false,
@@ -112,18 +120,74 @@ function defaultNavigatorCollapsed(): Record<ToolId, boolean> {
   };
 }
 
-// Initialize values (clear old terminal tabs from localStorage for consistency)
-try {
-  localStorage.removeItem(TERMINAL_TABS_KEY);
-} catch {}
-try {
-  localStorage.removeItem(TERMINAL_ACTIVE_TAB_KEY);
-} catch {}
+// Batch write scheduler — coalesces multiple localStorage writes into one
+const pendingWrites = new Map<string, unknown>();
+const pendingNumberWrites = new Map<string, number>();
+let writeScheduled = false;
+
+function scheduleWrite(key: string, value: unknown): void {
+  pendingWrites.set(key, value);
+  scheduleFlush();
+}
+
+function scheduleNumberWrite(key: string, value: number): void {
+  pendingNumberWrites.set(key, value);
+  scheduleFlush();
+}
+
+function scheduleFlush(): void {
+  if (writeScheduled) return;
+  writeScheduled = true;
+  const flush = () => {
+    writeScheduled = false;
+    for (const [key, value] of pendingWrites) {
+      writeJson(key, value);
+    }
+    pendingWrites.clear();
+    for (const [key, value] of pendingNumberWrites) {
+      writeNumber(key, value);
+    }
+    pendingNumberWrites.clear();
+  };
+  if (typeof requestIdleCallback === "function") {
+    requestIdleCallback(flush, { timeout: 500 });
+  } else {
+    setTimeout(flush, 50);
+  }
+}
+
+// Lazy localStorage hydration — reads persisted values in idle time
+let _defaultsHydrated = false;
+
+function hydrateTerminalDefaults(get: () => StoreState, set: (partial: Partial<StoreState>) => void): void {
+  if (_defaultsHydrated) return;
+  _defaultsHydrated = true;
+  const doHydrate = () => {
+    const profile = readJson<TerminalProfile>(TERMINAL_DEFAULT_PROFILE_KEY, "powershell");
+    const width = readNumber(TERMINAL_NAVIGATOR_WIDTH_KEY, DEFAULT_TERMINAL_NAVIGATOR_WIDTH, TERMINAL_NAVIGATOR_WIDTH_MIN, TERMINAL_NAVIGATOR_WIDTH_MAX);
+    const collapsed = {
+      ...defaultNavigatorCollapsed(),
+      ...readJson<Record<ToolId, boolean>>(TERMINAL_NAVIGATOR_COLLAPSED_KEY, defaultNavigatorCollapsed())
+    };
+    set({
+      defaultTerminalProfile: profile,
+      terminalNavigatorWidth: width,
+      navigatorCollapsedByTool: collapsed,
+    });
+  };
+  if (typeof requestIdleCallback === "function") {
+    requestIdleCallback(doHydrate, { timeout: 1000 });
+  } else {
+    setTimeout(doHydrate, 200);
+  }
+}
+
 const initialTerminalTabs: TerminalTabState[] = [];
 
 // Type and slice definition
 export interface TerminalSlice {
   terminalTabs: TerminalTabState[];
+  terminalTabsById: Record<string, TerminalTabState>;
   terminalActiveTabId: string;
   defaultTerminalProfile: TerminalProfile;
   terminalNavigatorWidth: number;
@@ -150,20 +214,15 @@ export interface TerminalSlice {
 export const createTerminalSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
   get: () => StoreState
-): TerminalSlice => ({
-  terminalTabs: initialTerminalTabs,
-  terminalActiveTabId: "",
-  defaultTerminalProfile: readJson<TerminalProfile>(TERMINAL_DEFAULT_PROFILE_KEY, "powershell"),
-  terminalNavigatorWidth: readNumber(
-    TERMINAL_NAVIGATOR_WIDTH_KEY,
-    DEFAULT_TERMINAL_NAVIGATOR_WIDTH,
-    TERMINAL_NAVIGATOR_WIDTH_MIN,
-    TERMINAL_NAVIGATOR_WIDTH_MAX
-  ),
-  navigatorCollapsedByTool: {
-    ...defaultNavigatorCollapsed(),
-    ...readJson<Record<ToolId, boolean>>(TERMINAL_NAVIGATOR_COLLAPSED_KEY, defaultNavigatorCollapsed())
-  },
+): TerminalSlice => {
+  hydrateTerminalDefaults(get, set);
+  return {
+    terminalTabs: initialTerminalTabs,
+    terminalTabsById: {},
+    terminalActiveTabId: "",
+  defaultTerminalProfile: "powershell",
+  terminalNavigatorWidth: DEFAULT_TERMINAL_NAVIGATOR_WIDTH,
+  navigatorCollapsedByTool: defaultNavigatorCollapsed(),
   terminalWorkspaceExpanded: {},
   terminalPersisted: false,
 
@@ -181,13 +240,13 @@ export const createTerminalSlice = (
         sortOrder: maxSortOrder + 1
       };
       const nextTabs = sortTabs([...state.terminalTabs, tab]);
-      setTimeout(() => writeJson(TERMINAL_TABS_KEY, nextTabs), 0);
-      setTimeout(() => writeJson(TERMINAL_ACTIVE_TAB_KEY, tab.id), 0);
-      return { terminalTabs: nextTabs, terminalActiveTabId: tab.id };
+      scheduleWrite(TERMINAL_TABS_KEY, nextTabs);
+      scheduleWrite(TERMINAL_ACTIVE_TAB_KEY, tab.id);
+      return { terminalTabs: nextTabs, terminalTabsById: buildTabsById(nextTabs), terminalActiveTabId: tab.id };
     }),
 
   terminalSelectTab: (tabId) => {
-    setTimeout(() => writeJson(TERMINAL_ACTIVE_TAB_KEY, tabId), 0);
+    scheduleWrite(TERMINAL_ACTIVE_TAB_KEY, tabId);
     set({ terminalActiveTabId: tabId });
   },
 
@@ -199,10 +258,11 @@ export const createTerminalSlice = (
         state.terminalActiveTabId === tabId
           ? nextTabs[nextTabs.length - 1]?.id ?? ""
           : state.terminalActiveTabId;
-      setTimeout(() => writeJson(TERMINAL_TABS_KEY, nextTabs), 0);
-      setTimeout(() => writeJson(TERMINAL_ACTIVE_TAB_KEY, nextActive), 0);
+      scheduleWrite(TERMINAL_TABS_KEY, nextTabs);
+      scheduleWrite(TERMINAL_ACTIVE_TAB_KEY, nextActive);
       return {
         terminalTabs: nextTabs,
+        terminalTabsById: buildTabsById(nextTabs),
         terminalActiveTabId: nextActive
       };
     }),
@@ -212,8 +272,8 @@ export const createTerminalSlice = (
       const nextTabs = sortTabs(state.terminalTabs.map((tab) =>
         tab.id === state.terminalActiveTabId ? { ...tab, ...patch } : tab
       ));
-      setTimeout(() => writeJson(TERMINAL_TABS_KEY, nextTabs), 0);
-      return { terminalTabs: nextTabs };
+      scheduleWrite(TERMINAL_TABS_KEY, nextTabs);
+      return { terminalTabs: nextTabs, terminalTabsById: buildTabsById(nextTabs) };
     }),
 
   terminalUpdateTab: (tabId, patch) =>
@@ -221,8 +281,8 @@ export const createTerminalSlice = (
       const nextTabs = sortTabs(state.terminalTabs.map((tab) =>
         tab.id === tabId ? { ...tab, ...patch } : tab
       ));
-      setTimeout(() => writeJson(TERMINAL_TABS_KEY, nextTabs), 0);
-      return { terminalTabs: nextTabs };
+      scheduleWrite(TERMINAL_TABS_KEY, nextTabs);
+      return { terminalTabs: nextTabs, terminalTabsById: buildTabsById(nextTabs) };
     }),
 
   terminalTogglePin: (tabId) =>
@@ -237,8 +297,8 @@ export const createTerminalSlice = (
         }
         return tab;
       }));
-      setTimeout(() => writeJson(TERMINAL_TABS_KEY, nextTabs), 0);
-      return { terminalTabs: nextTabs };
+      scheduleWrite(TERMINAL_TABS_KEY, nextTabs);
+      return { terminalTabs: nextTabs, terminalTabsById: buildTabsById(nextTabs) };
     }),
 
   terminalReorderTabs: (newOrder) =>
@@ -251,24 +311,24 @@ export const createTerminalSlice = (
         sortOrder: index
       }));
 
-      setTimeout(() => writeJson(TERMINAL_TABS_KEY, reorderedWithSort), 0);
-      return { terminalTabs: reorderedWithSort };
+      scheduleWrite(TERMINAL_TABS_KEY, reorderedWithSort);
+      return { terminalTabs: reorderedWithSort, terminalTabsById: buildTabsById(reorderedWithSort) };
     }),
 
   terminalCloseAllTabs: () => {
-    setTimeout(() => writeJson(TERMINAL_TABS_KEY, []), 0);
-    setTimeout(() => writeJson(TERMINAL_ACTIVE_TAB_KEY, ""), 0);
-    set({ terminalTabs: [], terminalActiveTabId: "" });
+    scheduleWrite(TERMINAL_TABS_KEY, []);
+    scheduleWrite(TERMINAL_ACTIVE_TAB_KEY, "");
+    set({ terminalTabs: [], terminalTabsById: {}, terminalActiveTabId: "" });
   },
 
   setDefaultTerminalProfile: (profile) => {
-    setTimeout(() => writeJson(TERMINAL_DEFAULT_PROFILE_KEY, profile), 0);
+    scheduleWrite(TERMINAL_DEFAULT_PROFILE_KEY, profile);
     set({ defaultTerminalProfile: profile });
   },
 
   setTerminalNavigatorWidth: (width) => {
     const next = clamp(width, TERMINAL_NAVIGATOR_WIDTH_MIN, TERMINAL_NAVIGATOR_WIDTH_MAX);
-    setTimeout(() => writeNumber(TERMINAL_NAVIGATOR_WIDTH_KEY, next), 0);
+    scheduleNumberWrite(TERMINAL_NAVIGATOR_WIDTH_KEY, next);
     set({ terminalNavigatorWidth: next });
   },
 
@@ -278,14 +338,14 @@ export const createTerminalSlice = (
         ...state.navigatorCollapsedByTool,
         terminal: !(state.navigatorCollapsedByTool.terminal ?? false)
       };
-      setTimeout(() => writeJson(TERMINAL_NAVIGATOR_COLLAPSED_KEY, next), 0);
+      scheduleWrite(TERMINAL_NAVIGATOR_COLLAPSED_KEY, next);
       return { navigatorCollapsedByTool: next };
     }),
 
   setTerminalNavigatorCollapsed: (collapsed) =>
     set((state) => {
       const next = { ...state.navigatorCollapsedByTool, terminal: collapsed };
-      setTimeout(() => writeJson(TERMINAL_NAVIGATOR_COLLAPSED_KEY, next), 0);
+      scheduleWrite(TERMINAL_NAVIGATOR_COLLAPSED_KEY, next);
       return { navigatorCollapsedByTool: next };
     }),
 
@@ -294,4 +354,5 @@ export const createTerminalSlice = (
 
   setTerminalPersisted: (persisted) =>
     set({ terminalPersisted: persisted })
-});
+  };
+}

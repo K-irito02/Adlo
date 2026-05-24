@@ -4,6 +4,7 @@ import type { CopyDict } from "../../copy";
 import type { FileTreeContextMenuItem } from "../../features/file-tree";
 import { MultiWorkspaceContainer } from "../multi-workspace/MultiWorkspaceContainer";
 import { WorkspaceFileTreeEntry } from "./WorkspaceFileTreeEntry";
+import { moveIdWithinBucket } from "../../utils/dragUtils";
 
 export interface MultiWorkspaceFileTreeProps {
   workspaces: RecentWorkspaceEntry[];
@@ -33,16 +34,7 @@ export interface MultiWorkspaceFileTreeProps {
   t: CopyDict;
 }
 
-function moveIdWithinBucket(ids: string[], draggedId: string, targetId: string): string[] {
-  const next = ids.filter((id) => id !== draggedId);
-  const targetIndex = next.indexOf(targetId);
-  if (targetIndex < 0) {
-    next.push(draggedId);
-    return next;
-  }
-  next.splice(targetIndex, 0, draggedId);
-  return next;
-}
+
 
 export function MultiWorkspaceFileTree({
   workspaces,

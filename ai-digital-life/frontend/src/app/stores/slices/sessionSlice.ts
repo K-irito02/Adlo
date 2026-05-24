@@ -69,6 +69,15 @@ export const createSessionSlice = (
   setStreamingText: (streamingAssistantText) => set({ streamingAssistantText }),
   appendStreamingText: (text) => {
     _streamingBuffer += text;
+    if (_streamingBuffer.length > 10240) {
+      const batch = _streamingBuffer;
+      _streamingBuffer = "";
+      _streamingRafPending = false;
+      set((state) => ({
+        streamingAssistantText: state.streamingAssistantText + batch
+      }));
+      return;
+    }
     if (!_streamingRafPending) {
       _streamingRafPending = true;
       requestAnimationFrame(() => {

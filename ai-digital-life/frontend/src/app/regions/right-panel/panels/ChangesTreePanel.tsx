@@ -1,0 +1,170 @@
+import React from "react";
+import { useUiStore } from "../../../ui-store";
+import { MultiWorkspaceChangesTree } from "../../../features/workspace-changes-tree";
+import { OutlineTree } from "../../../features/outline";
+import { useNavigatorResize } from "../../../hooks/useNavigatorResize";
+import { ChangesToolbar } from "./ChangesToolbar";
+import type { WorkspaceTreeNode, ReorderWorkspacesInput } from "@ai-digital-life/kernel";
+import type { ChangeTreeNode } from "../changesTree";
+
+type ChangeFileState = "staged" | "modified" | "untracked" | "conflicted";
+
+export type ChangesTreePanelProps = {
+  t: any;
+  visibleWorkspaces: any[];
+  activeWorkspaceId: string | undefined;
+  workspaceChangesExpanded: Record<string, boolean>;
+  changeCounts: Record<string, number>;
+  changesTreeData: Record<string, ChangeTreeNode[]>;
+  workspaceChangesTreeLoading: Record<string, boolean>;
+  workspaceChangesTreeErrors: Record<string, string | undefined>;
+  navigatorSelectedPath: string | undefined;
+  selectedChangePreviewWorkspaceId: string | undefined;
+  expandedPathsByWs: Record<string, Record<string, boolean>>;
+  dirtyPathsSet: Set<string>;
+  externalChangePath: string | undefined;
+  onToggleExpand: (workspaceId: string) => void;
+  onRefreshOne: (workspaceId: string) => void;
+  onPinWorkspace: (workspaceId: string) => void;
+  onUnpinWorkspace: (workspaceId: string) => void;
+  onHideFromRightPanels: (workspaceId: string) => void;
+  onToggleFileTreePath: (workspaceId: string, path: string) => void;
+  onOpenChangePreview: (workspacePath: string, relativePath: string) => void;
+  onReorderWorkspaces: (input: ReorderWorkspacesInput) => void;
+  getContextMenuItems: (node: ChangeTreeNode) => any[];
+  contextMenuPersistRef: React.MutableRefObject<boolean>;
+  clearMenuHighlightRef: React.MutableRefObject<(() => void) | undefined>;
+  renderMeta: (node: WorkspaceTreeNode) => React.ReactNode;
+  onToggleAllDirectories: () => void;
+  hasExpandedDirectories: boolean;
+  changesNavigatorMode: "tree" | "list" | "outline";
+  onChangeNavigatorMode: (mode: "tree" | "list" | "outline") => void;
+  allChangesExpanded: boolean;
+  onExpandAll: () => void;
+  onCollapseAll: () => void;
+  totalChangeCount: number;
+  hasChangeEntries: boolean;
+  snapshot: any;
+  canToggleNavigatorStructure: boolean;
+  structureToggleExpanded: boolean;
+  onToggleStructure: () => void;
+  changesNavigatorTitle: string;
+  changeOutline: any[];
+  expandedOutlineIds: Set<string>;
+  onExpandedOutlineIdsChange: (ids: Set<string>) => void;
+  handleRevealOutlineLine: (line: number) => void;
+  changesStatusFilter: Set<ChangeFileState>;
+  onStatusFilterClick: (filter: ChangeFileState) => void;
+  changeEntries: any[];
+  onRefreshAll: () => void;
+  hasVisibleWorkspaces: boolean;
+};
+
+export function ChangesTreePanel(props: ChangesTreePanelProps) {
+  const {
+    t, visibleWorkspaces, activeWorkspaceId,
+    workspaceChangesExpanded, changeCounts, changesTreeData,
+    workspaceChangesTreeLoading, workspaceChangesTreeErrors,
+    navigatorSelectedPath, selectedChangePreviewWorkspaceId,
+    expandedPathsByWs, dirtyPathsSet, externalChangePath,
+    onToggleExpand, onRefreshOne, onPinWorkspace, onUnpinWorkspace,
+    onHideFromRightPanels, onToggleFileTreePath, onOpenChangePreview,
+    onReorderWorkspaces, getContextMenuItems, contextMenuPersistRef,
+    clearMenuHighlightRef, renderMeta,
+    onToggleAllDirectories, hasExpandedDirectories,
+    changesNavigatorMode, onChangeNavigatorMode,
+    allChangesExpanded, onExpandAll, onCollapseAll,
+    totalChangeCount, hasChangeEntries, snapshot,
+    canToggleNavigatorStructure, structureToggleExpanded,
+    onToggleStructure, changesNavigatorTitle,
+    changeOutline, expandedOutlineIds, onExpandedOutlineIdsChange,
+    handleRevealOutlineLine, changesStatusFilter, onStatusFilterClick,
+    changeEntries, onRefreshAll, hasVisibleWorkspaces,
+  } = props;
+
+  const changesNavigatorWidth = useUiStore((state) => state.changesNavigatorWidth);
+  const setChangesNavigatorWidth = useUiStore((state) => state.setChangesNavigatorWidth);
+
+  const { handlePointerDown: handleNavigatorResizeStart } = useNavigatorResize({
+    onWidthCommit: setChangesNavigatorWidth,
+    minWidth: 180,
+    maxWidth: 300
+  });
+
+  return (
+    <aside className="adl-tool-navigator" aria-label={t.toolChanges}>
+      <ChangesToolbar
+        placement="navigator"
+        t={t}
+        allChangesExpanded={allChangesExpanded}
+        onExpandAll={onExpandAll}
+        onCollapseAll={onCollapseAll}
+        changesNavigatorTitle={changesNavigatorTitle}
+        totalChangeCount={totalChangeCount}
+        hasVisibleWorkspaces={hasVisibleWorkspaces}
+        onRefreshAll={onRefreshAll}
+        changesNavigatorMode={changesNavigatorMode}
+        onSetNavigatorMode={onChangeNavigatorMode}
+        changesStatusFilter={changesStatusFilter}
+        onStatusFilterClick={onStatusFilterClick}
+        hasChangeEntries={hasChangeEntries}
+        snapshot={snapshot}
+        canToggleNavigatorStructure={canToggleNavigatorStructure}
+        structureToggleExpanded={structureToggleExpanded}
+        onToggleStructure={onToggleStructure}
+      />
+      {changesNavigatorMode === "outline" ? (
+        changeOutline.length > 0 ? (
+          <OutlineTree
+            items={changeOutline}
+            onNavigate={handleRevealOutlineLine}
+            expandLabel={t.expandDetails as string}
+            collapseLabel={t.collapseDetails as string}
+            expandedIds={expandedOutlineIds}
+            onExpandedIdsChange={onExpandedOutlineIdsChange}
+          />
+        ) : (
+          <p className="adl-empty-hint">{t.noDiagnostics as string}</p>
+        )
+      ) : (
+        <MultiWorkspaceChangesTree
+          workspaces={visibleWorkspaces}
+          activeWorkspaceId={activeWorkspaceId}
+          expandedStates={workspaceChangesExpanded}
+          treeData={changesTreeData as Record<string, WorkspaceTreeNode[]>}
+          loadingStates={workspaceChangesTreeLoading}
+          errorStates={workspaceChangesTreeErrors}
+          selectedChangePreviewPath={navigatorSelectedPath}
+          selectedChangePreviewWorkspaceId={selectedChangePreviewWorkspaceId}
+          expandedPaths={expandedPathsByWs}
+          dirtyPaths={dirtyPathsSet}
+          externalChangePath={externalChangePath}
+          onToggleExpand={onToggleExpand}
+          onRefreshOne={onRefreshOne}
+          onPinWorkspace={onPinWorkspace}
+          onUnpinWorkspace={onUnpinWorkspace}
+          changeCounts={changeCounts}
+          onHideFromRightPanels={onHideFromRightPanels}
+          onToggleFileTreePath={onToggleFileTreePath}
+          onOpenChangePreview={onOpenChangePreview}
+          onReorderWorkspaces={onReorderWorkspaces}
+          getContextMenuItems={getContextMenuItems as any}
+          contextMenuPersistRef={contextMenuPersistRef}
+          clearMenuHighlightRef={clearMenuHighlightRef}
+          t={t}
+          renderMeta={renderMeta}
+        />
+      )}
+      <div
+        className="adl-tool-navigator__resize-handle"
+        onPointerDown={handleNavigatorResizeStart}
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize changes navigator"
+        aria-valuemin={180}
+        aria-valuemax={300}
+        aria-valuenow={changesNavigatorWidth}
+      />
+    </aside>
+  );
+}

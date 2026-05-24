@@ -90,7 +90,16 @@ export function CodeEditor({
   const viewRef = useRef<EditorView | null>(null);
   const mountedRef = useRef(false);
   const [editorView, setEditorView] = useState<EditorView | null>(null);
+  const [langExtensions, setLangExtensions] = useState<Extension[]>([]);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getLanguageExtension(language).then((exts) => {
+      if (!cancelled) setLangExtensions(exts);
+    });
+    return () => { cancelled = true; };
+  }, [language]);
 
   const foldMarkerState = useFoldMarkerAutoHide(wrapperRef.current, fileKey ?? value);
 
@@ -110,11 +119,11 @@ export function CodeEditor({
       wordWrapCompartment.of(wordWrap ? EditorView.lineWrapping : []),
       scrollLeftSyncExtension,
       EditorState.readOnly.of(readOnly),
-      ...getLanguageExtension(language),
+      ...langExtensions,
       getPhrasesExtension(locale || "en-US"),
     ];
     return exts;
-  }, [language, readOnly, lineNumbersEnabled, wordWrap, locale]);
+  }, [langExtensions, readOnly, lineNumbersEnabled, wordWrap, locale]);
 
   const allExtensions = useMemo<Extension[]>(
     () => [...baseExtensions, ...extraExtensions],

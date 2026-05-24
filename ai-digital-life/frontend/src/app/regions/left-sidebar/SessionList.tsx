@@ -6,35 +6,9 @@ import { TooltipSimple } from "../../components/Tooltip";
 import { getVisibleSidebarSessions, type SidebarSessionItem } from "../../sidebarViewModel";
 import { STATUS_LABEL, StatusLamp } from "./SidebarContextMenu";
 
+import { moveIdWithinBucket, moveIdToBucketEnd, moveIdAfterTarget } from "../../utils/dragUtils";
+
 const DROP_FLASH_DURATION_MS = 900;
-
-function moveIdWithinBucket(ids: string[], draggedId: string, targetId: string): string[] {
-  const next = ids.filter((id) => id !== draggedId);
-  const targetIndex = next.indexOf(targetId);
-  if (targetIndex < 0) {
-    next.push(draggedId);
-    return next;
-  }
-  next.splice(targetIndex, 0, draggedId);
-  return next;
-}
-
-function moveIdToBucketEnd(ids: string[], draggedId: string): string[] {
-  const next = ids.filter((id) => id !== draggedId);
-  next.push(draggedId);
-  return next;
-}
-
-function moveIdAfterTarget(ids: string[], draggedId: string, targetId: string): string[] {
-  const next = ids.filter((id) => id !== draggedId);
-  const targetIndex = next.indexOf(targetId);
-  if (targetIndex < 0) {
-    next.push(draggedId);
-    return next;
-  }
-  next.splice(targetIndex + 1, 0, draggedId);
-  return next;
-}
 
 function mergeEphemeralVisibleSessions(
   allItems: SidebarSessionItem[],

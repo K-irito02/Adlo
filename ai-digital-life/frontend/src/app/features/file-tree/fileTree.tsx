@@ -310,12 +310,12 @@ export function FileTree<T extends FileTreeRenderableNode>(props: FileTreeProps<
     [props.onToggle]
   );
 
-  const handleOpenFile = (relativePath: string, event: React.MouseEvent<HTMLButtonElement>) => {
+  const handleOpenFile = useCallback((relativePath: string, event: React.MouseEvent<HTMLButtonElement>) => {
     // 使用 flushSync 确保外部状态更新后立即重新渲染
     flushSync(() => {
       props.onOpenFile(relativePath);
     });
-  };
+  }, [props.onOpenFile]);
 
   const getMultiSelectedNodes = useCallback((): T[] => {
     const nodes: T[] = [];

@@ -7,6 +7,8 @@
 .adl-tool-panel--changes {
   position: relative;
   overflow: visible;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 300px;
 }
 
 .adl-tool-panel--changes .adl-tool-context {

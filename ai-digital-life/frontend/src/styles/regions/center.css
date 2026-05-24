@@ -551,6 +551,8 @@ select:focus-visible {
   margin: 0 auto;
   flex: 1 1 auto;
   min-height: 0;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 300px;
 }
 
 .adl-message {

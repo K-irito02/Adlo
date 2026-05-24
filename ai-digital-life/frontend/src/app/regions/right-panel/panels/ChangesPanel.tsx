@@ -6,21 +6,20 @@ import {
   IconTarget, IconTrash, IconUpload
 } from "../../../icons";
 import { TooltipSimple } from "../../../components/Tooltip";
-import { ConfirmDialog } from "../../../components/ConfirmDialog";
-import { RenameInput } from "../../../components/RenameInput";
 import { useAppStore } from "../../../stores/slicedStore";
+import { useShallow } from "zustand/react/shallow";
+import type { StoreState } from "../../../stores/StoreState";
 import { useUiStore } from "../../../ui-store";
-import { useNavigatorResize } from "../../../hooks/useNavigatorResize";
 import { countGitChanges } from "../types";
 import { joinPathSegments, normalizeWorkspaceRelativePath } from "../../../workspacePaths";
 import type { RightPanelViewProps } from "../types";
 import type { WorkspaceTreeNode, ReorderWorkspacesInput } from "@ai-digital-life/kernel";
 import { countReviewedHunks, filterPatchFileSummaries, summarizePatchFile, summarizePatchSet } from "../../../features/patch-review";
+import { PatchReviewSummary, PatchFileCard } from "../../../features/patch-review";
 import { DiffToolbar } from "../DiffToolbar";
 import { StickyContext } from "../stickyContextView";
 import { useStickyContext, useEditorOptions } from "../hooks";
 import { buildChangeEntries, buildChangeTree, buildFlatChangeNodes, type ChangeFileState, type ChangeTreeNode } from "../changesTree";
-import { MultiWorkspaceChangesTree } from "../../../features/workspace-changes-tree";
 import { type PreviewDiffCollapsedRange, computePreviewDiffVisualRanges } from "../../../features/diff-viewer";
 import { collectDirectoryPaths, FileTree, type FileTreeContextMenuItem } from "../../../features/file-tree";
 import { detectEditorLanguage } from "../../../workspacePaths";
@@ -32,11 +31,12 @@ import type { EditorRef, DiffEditorRef } from "../../../types";
 import { CodeMirrorEditorRef } from "../../../features/editor";
 import { estimateWrapColumn } from "../cmWrapColumn";
 import { navigateToLine } from "../stickyContext";
-import { OutlineTree, buildOutlineFromContent, getDefaultExpandedOutlineIds } from "../../../features/outline";
+import { buildOutlineFromContent, getDefaultExpandedOutlineIds } from "../../../features/outline";
 import { readSelectedBranch, writeSelectedBranch, getChangeKindLabel, getChangeStatusLabel, getPrimaryBadge, getEditorView } from "../ChangesPanel/utils";
 import { ChangesEmptyState } from "./ChangesEmptyState";
 import { ChangesToolbar } from "./ChangesToolbar";
-import { PatchHunkCard, PatchFileCard, PatchReviewSummary } from "../../../features/patch-review";
+import { ChangesConfirmDialogs } from "./ChangesConfirmDialogs";
+import { ChangesTreePanel } from "./ChangesTreePanel";
 import type { PatchFileSummary } from "../../../features/patch-review";
 import type { PatchHunkDecision } from "@ai-digital-life/kernel";
 
@@ -89,8 +89,8 @@ export function ChangesPanel(props: RightPanelViewProps) {
   const expandChangesTreePathChain = useUiStore((state) => state.expandChangesTreePathChain);
   const collapseAllChangesTreePaths = useUiStore((state) => state.collapseAllChangesTreePaths);
   const snapshot = props.gitSnapshot ?? appInfo?.currentWorkspace?.gitSnapshot;
-  const workspaceChangesTreeLoading = useAppStore((s) => s.workspaceChangesTreeLoading);
-  const workspaceChangesTreeErrors = useAppStore((s) => s.workspaceChangesTreeErrors);
+  const workspaceChangesTreeLoading = useAppStore(useShallow((state: StoreState) => state.workspaceChangesTreeLoading));
+  const workspaceChangesTreeErrors = useAppStore(useShallow((state: StoreState) => state.workspaceChangesTreeErrors));
   const pinWorkspace = useAppStore((s) => s.pinWorkspace);
   const unpinWorkspace = useAppStore((s) => s.unpinWorkspace);
   const onPinWorkspace = useCallback((workspaceId: string) => void pinWorkspace(workspaceId), [pinWorkspace]);
@@ -321,12 +321,6 @@ export function ChangesPanel(props: RightPanelViewProps) {
     () => (activeFilePatchFromSet ? summarizePatchFile(activeFilePatchFromSet, collapsedPatchHunkIds) : undefined),
     [activeFilePatchFromSet, collapsedPatchHunkIds],
   );
-
-  const { handlePointerDown: handleNavigatorResizeStart } = useNavigatorResize({
-    onWidthCommit: setChangesNavigatorWidth,
-    minWidth: 180,
-    maxWidth: 300
-  });
 
   const handleToggleAllDirectories = () => {
     if (!directoryPaths.length) {
@@ -709,80 +703,56 @@ export function ChangesPanel(props: RightPanelViewProps) {
         className={`adl-tool-surface adl-tool-surface--files${navigatorCollapsed ? " is-navigator-collapsed" : ""}`}
         style={{ "--adl-files-nav-width": `${changesNavigatorWidth}px` } as React.CSSProperties}
       >
-        <aside className="adl-tool-navigator" aria-label={t.toolChanges}>
-          <ChangesToolbar
-            placement="navigator"
-            t={t}
-            allChangesExpanded={allChangesExpanded}
-            onExpandAll={handleExpandAll}
-            onCollapseAll={handleCollapseAll}
-            changesNavigatorTitle={changesNavigatorTitle}
-            totalChangeCount={totalChangeCount}
-            hasVisibleWorkspaces={visibleWorkspaces.length > 0}
-            onRefreshAll={handleRefreshAllChanges}
-            changesNavigatorMode={changesNavigatorMode}
-            onSetNavigatorMode={setChangesNavigatorMode}
-            changesStatusFilter={changesStatusFilter}
-            onStatusFilterClick={handleStatusFilterClick}
-            hasChangeEntries={changeEntries.length > 0}
-            snapshot={snapshot}
-            canToggleNavigatorStructure={canToggleNavigatorStructure}
-            structureToggleExpanded={structureToggleExpanded}
-            onToggleStructure={handleToggleNavigatorStructure}
-          />
-          {changesNavigatorMode === "outline" ? (
-            changeOutline.length > 0 ? (
-              <OutlineTree
-                items={changeOutline}
-                onNavigate={handleRevealOutlineLine}
-                expandLabel={t.expandDetails as string}
-                collapseLabel={t.collapseDetails as string}
-                expandedIds={expandedOutlineIds}
-                onExpandedIdsChange={setExpandedOutlineIds}
-              />
-            ) : (
-              <p className="adl-empty-hint">{t.noDiagnostics as string}</p>
-            )
-          ) : (
-            <MultiWorkspaceChangesTree
-              workspaces={visibleWorkspaces}
-              activeWorkspaceId={activeWorkspaceId}
-              expandedStates={workspaceChangesExpanded}
-              treeData={changesTreeData as Record<string, WorkspaceTreeNode[]>}
-              loadingStates={workspaceChangesTreeLoading}
-              errorStates={workspaceChangesTreeErrors}
-              selectedChangePreviewPath={navigatorSelectedPath}
-              selectedChangePreviewWorkspaceId={selectedChangePreviewWorkspaceId}
-              expandedPaths={expandedPathsByWs}
-              dirtyPaths={dirtyPathsSet}
-              externalChangePath={props.externalChangePath}
-              onToggleExpand={handleToggleExpand}
-              onRefreshOne={handleRefreshOneWorkspace}
-              onPinWorkspace={onPinWorkspace}
-              onUnpinWorkspace={onUnpinWorkspace}
-              changeCounts={changeCounts}
-              onHideFromRightPanels={onHideFromRightPanels}
-              onToggleFileTreePath={handleToggleFileTreePath}
-              onOpenChangePreview={handleSelectNavigatorNode}
-              onReorderWorkspaces={handleReorderWorkspaces}
-              getContextMenuItems={getContextMenuItems as any}
-              contextMenuPersistRef={changesContextMenuPersistRef}
-              clearMenuHighlightRef={changesClearMenuHighlightRef}
-              t={t}
-              renderMeta={renderNavigatorMeta}
-            />
-          )}
-          <div
-            className="adl-tool-navigator__resize-handle"
-            onPointerDown={handleNavigatorResizeStart}
-            role="separator"
-            aria-orientation="vertical"
-            aria-label="Resize changes navigator"
-            aria-valuemin={180}
-            aria-valuemax={300}
-            aria-valuenow={changesNavigatorWidth}
-          />
-        </aside>
+        <ChangesTreePanel
+          t={t}
+          visibleWorkspaces={visibleWorkspaces}
+          activeWorkspaceId={activeWorkspaceId}
+          workspaceChangesExpanded={workspaceChangesExpanded}
+          changeCounts={changeCounts}
+          changesTreeData={changesTreeData as any}
+          workspaceChangesTreeLoading={workspaceChangesTreeLoading}
+          workspaceChangesTreeErrors={workspaceChangesTreeErrors}
+          navigatorSelectedPath={navigatorSelectedPath}
+          selectedChangePreviewWorkspaceId={selectedChangePreviewWorkspaceId}
+          expandedPathsByWs={expandedPathsByWs}
+          dirtyPathsSet={dirtyPathsSet}
+          externalChangePath={props.externalChangePath}
+          onToggleExpand={handleToggleExpand}
+          onRefreshOne={handleRefreshOneWorkspace}
+          onPinWorkspace={onPinWorkspace}
+          onUnpinWorkspace={onUnpinWorkspace}
+          onHideFromRightPanels={onHideFromRightPanels}
+          onToggleFileTreePath={handleToggleFileTreePath}
+          onOpenChangePreview={handleSelectNavigatorNode}
+          onReorderWorkspaces={handleReorderWorkspaces}
+          getContextMenuItems={getContextMenuItems as any}
+          contextMenuPersistRef={changesContextMenuPersistRef}
+          clearMenuHighlightRef={changesClearMenuHighlightRef}
+          renderMeta={renderNavigatorMeta}
+          onToggleAllDirectories={handleToggleAllDirectories}
+          hasExpandedDirectories={hasExpandedDirectories}
+          changesNavigatorMode={changesNavigatorMode}
+          onChangeNavigatorMode={setChangesNavigatorMode}
+          allChangesExpanded={allChangesExpanded}
+          onExpandAll={handleExpandAll}
+          onCollapseAll={handleCollapseAll}
+          totalChangeCount={totalChangeCount}
+          hasChangeEntries={changeEntries.length > 0}
+          snapshot={snapshot}
+          canToggleNavigatorStructure={canToggleNavigatorStructure}
+          structureToggleExpanded={structureToggleExpanded}
+          onToggleStructure={handleToggleNavigatorStructure}
+          changesNavigatorTitle={changesNavigatorTitle}
+          changeOutline={changeOutline}
+          expandedOutlineIds={expandedOutlineIds}
+          onExpandedOutlineIdsChange={setExpandedOutlineIds}
+          handleRevealOutlineLine={handleRevealOutlineLine}
+          changesStatusFilter={changesStatusFilter}
+          onStatusFilterClick={handleStatusFilterClick}
+          changeEntries={changeEntries}
+          onRefreshAll={handleRefreshAllChanges}
+          hasVisibleWorkspaces={visibleWorkspaces.length > 0}
+        />
 
         <div className={`adl-tool-primary${activePatchSet ? " adl-tool-primary--scrollable" : ""}`}>
           {activePatchSet ? (
@@ -1008,28 +978,15 @@ export function ChangesPanel(props: RightPanelViewProps) {
           )}
         </div>
       </div>
-      {changesDeleteConfirmPath ? (
-        <ConfirmDialog
-          title={t.fileDeleteConfirm as string}
-          message={t.fileDeleteMessage as string}
-          confirmLabel={t.fileDeleteAction as string}
-          cancelLabel={t.cancel as string}
-          danger
-          onConfirm={handleChangesDeleteConfirm}
-          onCancel={handleChangesDeleteCancel}
-        />
-      ) : null}
-      {changesRenamingPath ? (
-        <div className="adl-rename-overlay" onClick={handleChangesRenameCancel}>
-          <div className="adl-rename-dialog" onClick={(e) => e.stopPropagation()}>
-            <RenameInput
-              initialValue={changesRenamingPath.split("/").pop() || ""}
-              onConfirm={handleChangesRenameConfirm}
-              onCancel={handleChangesRenameCancel}
-            />
-          </div>
-        </div>
-      ) : null}
+      <ChangesConfirmDialogs
+        changesDeleteConfirmPath={changesDeleteConfirmPath}
+        changesRenamingPath={changesRenamingPath}
+        onDeleteConfirm={handleChangesDeleteConfirm}
+        onDeleteCancel={handleChangesDeleteCancel}
+        onRenameConfirm={handleChangesRenameConfirm}
+        onRenameCancel={handleChangesRenameCancel}
+        t={t}
+      />
     </div>
   );
 }

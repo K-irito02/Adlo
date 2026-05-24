@@ -4,6 +4,7 @@ import type { CopyDict } from "../../copy";
 import type { FileTreeContextMenuItem } from "../../features/file-tree";
 import { MultiWorkspaceContainer } from "../multi-workspace/MultiWorkspaceContainer";
 import { WorkspaceChangesEntry } from "./WorkspaceChangesEntry";
+import { moveIdWithinBucket } from "../../utils/dragUtils";
 
 export interface MultiWorkspaceChangesTreeProps {
   workspaces: RecentWorkspaceEntry[];
@@ -31,17 +32,6 @@ export interface MultiWorkspaceChangesTreeProps {
   clearMenuHighlightRef: React.MutableRefObject<(() => void) | undefined>;
   t: CopyDict;
   renderMeta?: (node: WorkspaceTreeNode) => React.ReactNode;
-}
-
-function moveIdWithinBucket(ids: string[], draggedId: string, targetId: string): string[] {
-  const next = ids.filter((id) => id !== draggedId);
-  const targetIndex = next.indexOf(targetId);
-  if (targetIndex < 0) {
-    next.push(draggedId);
-    return next;
-  }
-  next.splice(targetIndex, 0, draggedId);
-  return next;
 }
 
 export function MultiWorkspaceChangesTree({

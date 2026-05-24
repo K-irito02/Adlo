@@ -4,9 +4,16 @@ import path from "node:path";
 import { handlePreviewWorkspaceApi, isPreviewWorkspaceApiRequest } from "./dev/previewWorkspaceService";
 import { handlePreviewTerminalApi, isPreviewTerminalApiRequest } from "./dev/previewTerminalService";
 
+let visualizerPlugin = null;
+if (process.env.BUILD_ANALYZE === "true") {
+  const { visualizer } = await import("rollup-plugin-visualizer");
+  visualizerPlugin = visualizer({ filename: "dist/stats.html", open: true, gzipSize: true });
+}
+
 export default defineConfig({
   plugins: [
     react(),
+    visualizerPlugin,
     {
       name: "adl-preview-workspace-api",
       configureServer(server) {
@@ -26,7 +33,7 @@ export default defineConfig({
         });
       }
     }
-  ],
+  ].filter(Boolean),
   resolve: {
     alias: {
       "@ai-digital-life/kernel": path.resolve(__dirname, "src/kernel/index.ts"),
@@ -41,6 +48,7 @@ export default defineConfig({
     outDir: "dist",
     emptyOutDir: true,
     target: "esnext",
+    sourcemap: false,
     rollupOptions: {
       output: {
         manualChunks: {

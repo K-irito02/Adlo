@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAppStore } from "../../stores/slicedStore";
 import { terminalSelectors } from "../../stores/selectors";
 import { useNavigatorResize } from "../../hooks/useNavigatorResize";
+import { useTerminalContextMenu } from "./useTerminalContextMenu";
 import type { RightPanelViewProps } from "../../regions/right-panel/types";
 import type { TerminalProfile } from "../../ui-store";
 import type { XtermTerminalHandle } from "../../components/terminal/XtermTerminal";
@@ -94,13 +95,6 @@ export function useTerminalPanel(props: RightPanelViewProps): UseTerminalPanelRe
   const [navigatorMode, setNavigatorMode] = useState<TerminalNavigatorMode>("sessions");
   const [terminalMenuOpen, setTerminalMenuOpen] = useState(false);
   const [shellMenuOpen, setShellMenuOpen] = useState(false);
-  const [contextMenu, setContextMenu] = useState<ContextMenuState>({
-    open: false,
-    x: 0,
-    y: 0,
-    tabId: null,
-    isPinned: false
-  });
   const [editingTabId, setEditingTabId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [isDragging, setIsDragging] = useState(false);
@@ -191,7 +185,7 @@ export function useTerminalPanel(props: RightPanelViewProps): UseTerminalPanelRe
   }, [terminalCreateTab, terminalUpdateActiveTab, props.appInfo?.currentWorkspace?.rootPath]);
 
   useEffect(() => {
-    if (!terminalMenuOpen && !shellMenuOpen && !contextMenu.open) {
+    if (!terminalMenuOpen && !shellMenuOpen) {
       return;
     }
     const handlePointerDown = (event: MouseEvent) => {
@@ -202,13 +196,10 @@ export function useTerminalPanel(props: RightPanelViewProps): UseTerminalPanelRe
       if (!shellMenuRef.current?.contains(target)) {
         setShellMenuOpen(false);
       }
-      if (contextMenu.open) {
-        setContextMenu(prev => ({ ...prev, open: false }));
-      }
     };
     document.addEventListener("mousedown", handlePointerDown);
     return () => document.removeEventListener("mousedown", handlePointerDown);
-  }, [shellMenuOpen, terminalMenuOpen, contextMenu.open]);
+  }, [shellMenuOpen, terminalMenuOpen]);
 
   useEffect(() => {
     if (editingTabId && editInputRef.current) {
@@ -326,41 +317,13 @@ export function useTerminalPanel(props: RightPanelViewProps): UseTerminalPanelRe
     }
   }, [handleEditSubmit]);
 
-  const handleContextMenu = useCallback((e: React.MouseEvent, tabId: string, isPinned: boolean) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setContextMenu({
-      open: true,
-      x: e.clientX,
-      y: e.clientY,
-      tabId,
-      isPinned
-    });
-  }, []);
-
-  const handleTogglePin = useCallback(() => {
-    if (contextMenu.tabId) {
-      terminalTogglePin(contextMenu.tabId);
-    }
-    setContextMenu(prev => ({ ...prev, open: false }));
-  }, [contextMenu.tabId, terminalTogglePin]);
-
-  const handleRenameFromMenu = useCallback(() => {
-    if (contextMenu.tabId) {
-      const tab = terminalTabs.find(t => t.id === contextMenu.tabId);
-      if (tab) {
-        handleDoubleClick(contextMenu.tabId, tab.title);
-      }
-    }
-    setContextMenu(prev => ({ ...prev, open: false }));
-  }, [contextMenu.tabId, terminalTabs, handleDoubleClick]);
-
-  const handleDeleteFromMenu = useCallback(() => {
-    if (contextMenu.tabId) {
-      handleCloseTab(contextMenu.tabId);
-    }
-    setContextMenu(prev => ({ ...prev, open: false }));
-  }, [contextMenu.tabId, handleCloseTab]);
+  const {
+    contextMenu,
+    handleContextMenu,
+    handleTogglePin,
+    handleRenameFromMenu,
+    handleDeleteFromMenu,
+  } = useTerminalContextMenu(terminalTabs, handleDoubleClick, terminalTogglePin, handleCloseTab);
 
   const handleDragStart = useCallback((e: React.DragEvent, tabId: string, isPinned: boolean) => {
     e.dataTransfer.setData("text/plain", tabId);

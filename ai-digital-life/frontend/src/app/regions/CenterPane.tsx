@@ -31,160 +31,13 @@ import { useAppActions } from "../hooks/useAppActions";
 import { useUiStore } from "../ui-store";
 import { TooltipSimple } from "../components/Tooltip";
 import { StatusBar } from "./StatusBar";
+import { ApprovalInlineCard, WelcomeState, ComposerFooter } from "./center-pane";
 
 interface CenterPaneProps {
   t: CopyDict;
 }
 
 type ButtonState = "send" | "stop" | "retry" | "waiting";
-
-function ApprovalInlineCard({
-  approval,
-  t,
-  onDecide
-}: {
-  approval: ApprovalRequestSummary;
-  t: CopyDict;
-  onDecide: (id: string, decision: "approved" | "rejected") => void;
-}) {
-  return (
-    <article className="adl-inline-approval" role="alert">
-      <header>
-        <IconMessageQuestion size={16} decorative />
-        <span className="adl-inline-approval__title">{approval.title}</span>
-        <span className="adl-chip adl-chip--warning">{approval.riskLevel}</span>
-      </header>
-      <p>{approval.description}</p>
-      {approval.impact?.length ? (
-        <ul>
-          {approval.impact.map((item, idx) => (
-            <li key={idx}>{item}</li>
-          ))}
-        </ul>
-      ) : null}
-      <div className="adl-inline-approval__actions">
-        <button
-          type="button"
-          className="adl-btn adl-btn--primary adl-btn--sm"
-          onClick={() => onDecide(approval.id, "approved")}
-        >
-          {t.approve}
-        </button>
-        <button
-          type="button"
-          className="adl-btn adl-btn--ghost adl-btn--sm"
-          onClick={() => onDecide(approval.id, "rejected")}
-        >
-          {t.rejectApproval}
-        </button>
-      </div>
-    </article>
-  );
-}
-
-function WelcomeState({
-  t,
-  hasWorkspace,
-  recentWorkspaces,
-  onOpenWorkspace,
-  onPickWorkspaceDirectory,
-  onCreateSession
-}: {
-  t: CopyDict;
-  hasWorkspace: boolean;
-  recentWorkspaces: RecentWorkspaceEntry[];
-  onOpenWorkspace: (path: string) => Promise<{ ok: boolean; error?: string }>;
-  onPickWorkspaceDirectory: () => Promise<string | undefined>;
-  onCreateSession: () => void;
-}) {
-  const [showActionCard, setShowActionCard] = useState(false);
-  const actionCardRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!showActionCard) return;
-    const onPointerDown = (event: MouseEvent) => {
-      if (actionCardRef.current && !actionCardRef.current.contains(event.target as Node)) {
-        setShowActionCard(false);
-      }
-    };
-    document.addEventListener("mousedown", onPointerDown);
-    return () => document.removeEventListener("mousedown", onPointerDown);
-  }, [showActionCard]);
-
-  if (!hasWorkspace) {
-    return (
-      <div className="adl-welcome adl-welcome--panel" aria-label="欢迎页">
-        <section className="adl-welcome__recent" aria-label={t.welcomeRecentWorkspaces}>
-          <header className="adl-welcome__section-header">
-            <h3>{t.welcomeRecentWorkspaces}</h3>
-          </header>
-          {recentWorkspaces.length ? (
-            <ul className="adl-welcome__recent-list">
-              {recentWorkspaces.slice(0, 5).map((workspace) => (
-                <li key={workspace.path}>
-                  <button type="button" onClick={() => onOpenWorkspace(workspace.path)}>
-                    <span className="adl-welcome__recent-icon" aria-hidden="true">
-                      <IconFolder size={14} decorative />
-                    </span>
-                    <span className="adl-welcome__recent-name">{workspace.name}</span>
-                    <span className="adl-welcome__path">{workspace.path}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="adl-welcome__empty">{t.workspaceRecentEmpty}</p>
-          )}
-        </section>
-
-        <div className="adl-welcome__actionsbar" aria-label="快速操作">
-          <button type="button" className="adl-btn adl-btn--lg" onClick={onCreateSession}>
-            <IconMessageSquare size={16} decorative />
-            {t.newConversation}
-          </button>
-          <div className="adl-welcome__action-wrap" ref={actionCardRef}>
-            <button type="button" className="adl-btn adl-btn--ghost adl-btn--lg" onClick={() => setShowActionCard((v) => !v)}>
-              <IconFolderOpen size={16} decorative />
-              {t.welcomeOpenWorkspace}
-            </button>
-            {showActionCard ? (
-              <div className="adl-welcome__action-card">
-                <div className="adl-statusbar__menu-section">
-                  <strong className="adl-statusbar__menu-subtitle">{t.workspaceOpenTitle}</strong>
-                  <WorkspaceSplitButton
-                    t={t}
-                    onPickWorkspaceDirectory={onPickWorkspaceDirectory}
-                    onOpenWorkspace={onOpenWorkspace}
-                    onClose={() => setShowActionCard(false)}
-                    initialMode="pick"
-                    persistMode={false}
-                  />
-                </div>
-              </div>
-            ) : null}
-          </div>
-        </div>
-
-        <section className="adl-welcome__hints" aria-label={t.welcomeHints}>
-          <header className="adl-welcome__section-header">
-            <IconLightbulb size={16} decorative />
-            <span>{t.welcomeHints}</span>
-          </header>
-          <ul>
-            <li>{t.welcomeHintDrag}</li>
-            <li>{t.welcomeHintOpen}</li>
-            <li>{t.welcomeHintNewWorkspace}</li>
-            <li>{t.welcomeHintNewSession}</li>
-          </ul>
-        </section>
-      </div>
-    );
-  }
-
-  return (
-    <div className="adl-empty-stream" aria-hidden="true" />
-  );
-}
 
 export function CenterPane({ t }: CenterPaneProps) {
   const actions = useAppActions();
@@ -485,144 +338,37 @@ export function CenterPane({ t }: CenterPaneProps) {
       </div>
 
       {/* Region 10-12: Composer */}
-      <footer className="adl-composer" aria-label="Message composer">
-        {contextChips.length ? (
-          <div className="adl-composer__chips">
-            {contextChips.map((chip) => (
-              <span key={chip.id} className={`adl-chip adl-chip--${chip.kind}`}>
-                <span>{chip.label}</span>
-                <button
-                  type="button"
-                  onClick={() => removeContextChip(chip.id)}
-                  aria-label="Remove"
-                >
-                  ×
-                </button>
-              </span>
-            ))}
-          </div>
-        ) : null}
-        <div className="adl-composer__inner">
-          <div className="adl-composer__left">
-            <TooltipSimple content={t.contextBuilderTrigger} placement="top">
-              <button
-                type="button"
-                className="adl-icon-btn adl-icon-btn--round"
-                onClick={() => setContextMenuOpen(!contextMenuOpen)}
-                aria-label={t.contextBuilderTrigger}
-              >
-                <IconPlus size={16} decorative />
-              </button>
-            </TooltipSimple>
-            <ContextBuilderPopover
-              t={t}
-              open={contextMenuOpen}
-              onClose={() => setContextMenuOpen(false)}
-              chatMode={chatMode}
-              onSelectMode={setChatMode}
-              onAddChip={addContextChip}
-            />
-          </div>
-          <div className="adl-composer__editor" ref={composerEditorRef}>
-            <div
-              ref={composerInputRef}
-              className="adl-composer__input"
-              data-testid="composer-input"
-              contentEditable
-              role="textbox"
-              aria-multiline="false"
-              aria-label={t.composerPlaceholder}
-              data-placeholder={t.composerPlaceholder}
-              suppressContentEditableWarning
-              onInput={onInput}
-              onKeyDown={onKeyDown}
-              onFocus={() => {
-                setComposerFocused(true);
-                window.requestAnimationFrame(updateCustomCaret);
-              }}
-              onBlur={() => setComposerFocused(false)}
-              onClick={() => window.requestAnimationFrame(updateCustomCaret)}
-              onKeyUp={() => window.requestAnimationFrame(updateCustomCaret)}
-            />
-            <span
-              ref={composerCaretRef}
-              className="adl-composer__caret"
-              aria-hidden="true"
-              hidden
-            />
-          </div>
-          <div className="adl-composer__right">
-            <TooltipSimple content="Voice" placement="top">
-              <button
-                type="button"
-                className="adl-icon-btn"
-                aria-label="Voice"
-                disabled
-              >
-                <IconMic size={14} decorative />
-              </button>
-            </TooltipSimple>
-            {buttonState === "stop" ? (
-            <TooltipSimple content={t.cancelGenerate} placement="top">
-              <button
-                type="button"
-                className="adl-action-btn adl-action-btn--danger"
-                data-testid="composer-send"
-                onClick={() => actions.cancelActiveStream()}
-                aria-label={t.cancelGenerate}
-              >
-                <IconStopCircle size={16} decorative />
-              </button>
-            </TooltipSimple>
-            ) : buttonState === "retry" ? (
-            <TooltipSimple content={t.retry} placement="top">
-              <button
-                type="button"
-                className="adl-action-btn adl-action-btn--warning"
-                data-testid="composer-send"
-                onClick={() => void handleSend()}
-                aria-label={t.retry}
-              >
-                <IconRefreshCw size={16} decorative />
-              </button>
-            </TooltipSimple>
-            ) : (
-            <TooltipSimple content={t.send} placement="top">
-              <button
-                type="button"
-                className="adl-action-btn adl-action-btn--primary"
-                data-testid="composer-send"
-                onClick={() => void handleSend()}
-                disabled={!draft.trim()}
-                aria-label={t.send}
-              >
-                <IconArrowUp size={16} decorative />
-              </button>
-            </TooltipSimple>
-            )}
-          </div>
-        </div>
-        <StatusBar
-          inline
-          t={t}
-          appInfo={appInfo}
-          currentWorkspace={appInfo?.currentWorkspace}
-          modelHealth={modelHealth}
-          isStreaming={!!streamingActiveRunId}
-          activeRun={activeRun}
-          workspaceContextMode={workspaceContextMode}
-          recentWorkspaces={recentWorkspaces}
-          gitSnapshot={gitSnapshot}
-          gitBranches={gitBranches}
-          onSelectModel={handleSelectModel}
-          onOpenWorkspace={actions.openWorkspace}
-          onClearWorkspaceContext={actions.clearWorkspaceContext}
-          onPickWorkspaceDirectory={actions.pickWorkspaceDirectory}
-          onRefreshGitBranches={actions.fetchGitBranches}
-          onSwitchGitBranch={actions.switchGitBranch}
-          onCreateGitBranch={actions.createGitBranch}
-        />
-      </footer>
+      <ComposerFooter
+        t={t}
+        draft={draft}
+        buttonState={buttonState}
+        chatMode={chatMode}
+        contextChips={contextChips}
+        contextMenuOpen={contextMenuOpen}
+        setContextMenuOpen={setContextMenuOpen}
+        setChatMode={setChatMode}
+        addContextChip={addContextChip}
+        removeContextChip={removeContextChip}
+        onSend={() => void handleSend()}
+        onCancelStream={() => actions.cancelActiveStream()}
+        composerEditorRef={composerEditorRef}
+        composerInputRef={composerInputRef}
+        composerCaretRef={composerCaretRef}
+        setComposerFocused={setComposerFocused}
+        updateCustomCaret={updateCustomCaret}
+        onInput={onInput}
+        onKeyDown={onKeyDown}
+        appInfo={appInfo}
+        modelHealth={modelHealth}
+        streamingActiveRunId={streamingActiveRunId}
+        activeRun={activeRun}
+        workspaceContextMode={workspaceContextMode}
+        recentWorkspaces={recentWorkspaces}
+        gitSnapshot={gitSnapshot}
+        gitBranches={gitBranches}
+        handleSelectModel={handleSelectModel}
+        actions={actions}
+      />
 
     </section>
   );

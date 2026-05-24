@@ -234,9 +234,9 @@ export const terminalSelectors = {
   useNavigatorCollapsedByTool: () => useAppStore(useShallow((s) => s.navigatorCollapsedByTool)),
 
   getActiveTerminalTab: (state: StoreState) =>
-    state.terminalTabs.find((tab) => tab.id === state.terminalActiveTabId),
+    state.terminalActiveTabId ? state.terminalTabsById[state.terminalActiveTabId] : undefined,
   useActiveTerminalTab: () => useAppStore(useShallow((s) =>
-    s.terminalTabs.find((tab) => tab.id === s.terminalActiveTabId)
+    s.terminalActiveTabId ? s.terminalTabsById[s.terminalActiveTabId] : undefined
   )),
 
   hasTerminalTabs: (state: StoreState) => state.terminalTabs.length > 0,

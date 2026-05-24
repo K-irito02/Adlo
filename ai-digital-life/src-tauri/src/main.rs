@@ -7,6 +7,7 @@ mod error;
 mod run_activity_seq;
 mod setup;
 mod state;
+mod terminal;
 
 fn main() {
     tauri::Builder::default()
