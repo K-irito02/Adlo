@@ -221,7 +221,8 @@ export function createStreamActions(set: StoreApi<StoreState>["setState"], get: 
       } finally {
         unsubscribe();
         unsubscribeRunActivity();
-        if (get().streamingAssistantText) {
+        const hadStreaming = get().streamingAssistantText;
+        if (hadStreaming) {
           set({
             streamingAssistantText: "",
             streamingActiveRunId: undefined,

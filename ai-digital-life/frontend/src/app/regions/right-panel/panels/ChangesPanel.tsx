@@ -36,6 +36,9 @@ import { OutlineTree, buildOutlineFromContent, getDefaultExpandedOutlineIds } fr
 import { readSelectedBranch, writeSelectedBranch, getChangeKindLabel, getChangeStatusLabel, getPrimaryBadge, getEditorView } from "../ChangesPanel/utils";
 import { ChangesEmptyState } from "./ChangesEmptyState";
 import { ChangesToolbar } from "./ChangesToolbar";
+import { PatchHunkCard, PatchFileCard, PatchReviewSummary } from "../../../features/patch-review";
+import type { PatchFileSummary } from "../../../features/patch-review";
+import type { PatchHunkDecision } from "@ai-digital-life/kernel";
 
 const FALLBACK_BRANCHES = ["main", "develop", "release/0.1.0", "feature/right-panel"];
 
@@ -794,196 +797,32 @@ export function ChangesPanel(props: RightPanelViewProps) {
               ) : null}
 
               <>
-                <article className="adl-patch-review-summary">
-                  <header className="adl-patch-review-summary__header">
-                    <div>
-                      <strong>{activePatchSet.title}</strong>
-                      <p>{activePatchSet.summary}</p>
-                    </div>
-                    <span className="adl-chip adl-chip--info">{reviewCounts.total} {t.changesSummaryPatchFiles}</span>
-                  </header>
-
-                  <div className="adl-patch-review-summary__stats">
-                    <div className="adl-review-stat">
-                      <span>{t.batchAcceptAll}</span>
-                      <strong>{reviewCounts.accepted}</strong>
-                    </div>
-                    <div className="adl-review-stat">
-                      <span>{t.batchRejectAll}</span>
-                      <strong>{reviewCounts.rejected}</strong>
-                    </div>
-                    <div className="adl-review-stat">
-                      <span>{t.approvalPendingCount}</span>
-                      <strong>{reviewCounts.pending}</strong>
-                    </div>
-                  </div>
-
-                  <div className="adl-patch-review-summary__actions">
-                    <div className="adl-segmented" role="tablist" aria-label={t.validationSummary}>
-                      {(["all", "pending", "accepted", "rejected"] as const).map((filter) => (
-                        <button
-                          key={filter}
-                          type="button"
-                          aria-pressed={patchReviewFilter === filter ? "true" : "false"}
-                          onClick={() => onSetPatchReviewFilter(filter)}
-                        >
-                          {filter === "all"
-                            ? t.auditFilterAll
-                            : filter === "pending"
-                              ? t.approvalPendingCount
-                              : filter === "accepted"
-                                ? t.approvalApproved
-                                : t.approvalRejected}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="adl-patch-review-summary__batch">
-                      <button type="button" className="adl-btn adl-btn--ghost adl-btn--sm" onClick={onAcceptAllHunks}>
-                        {t.batchAcceptAll}
-                      </button>
-                      <button type="button" className="adl-btn adl-btn--ghost adl-btn--sm" onClick={onRejectAllHunks}>
-                        {t.batchRejectAll}
-                      </button>
-                    </div>
-                  </div>
-                </article>
+                <PatchReviewSummary
+                  activePatchSet={activePatchSet}
+                  reviewCounts={reviewCounts}
+                  patchReviewFilter={patchReviewFilter}
+                  onSetPatchReviewFilter={onSetPatchReviewFilter}
+                  onAcceptAllHunks={onAcceptAllHunks}
+                  onRejectAllHunks={onRejectAllHunks}
+                  t={t}
+                />
 
                 {filteredPatchSummaries.length > 0 ? (
                   <div className="adl-patch-review-files">
-                    {filteredPatchSummaries.map((summary) => {
-                      const isActiveFile = summary.relativePath === activeSummary?.relativePath;
-                      return (
-                        <article
-                          key={summary.relativePath}
-                          ref={(element) => {
-                            activeCardRef.current[summary.relativePath] = element;
-                          }}
-                          className={`adl-patch-file-card${isActiveFile ? " is-active" : ""}`}
-                        >
-                          <header className="adl-patch-file-card__header">
-                            <button
-                              type="button"
-                              className="adl-patch-file-card__open"
-                              onClick={() =>
-                                onSelectPatchFile(summary.relativePath, {
-                                  activateTool: true,
-                                  line: summary.hunks[0]?.targetLine,
-                                  hunkId: summary.hunks[0]?.id
-                                })
-                              }
-                            >
-                              <IconFileText size={14} decorative />
-                              <span>{summary.relativePath}</span>
-                            </button>
-                            <div className="adl-patch-file-card__header-meta">
-                              <span className={`adl-change-badge adl-change-badge--${summary.changeKind}`}>
-                                {getChangeKindLabel(summary.changeKind, t)}
-                              </span>
-                              <span className="adl-chip adl-chip--info">
-                                {summary.acceptedHunks + summary.rejectedHunks}/{summary.totalHunks}
-                              </span>
-                            </div>
-                          </header>
-
-                          <div className="adl-patch-file-card__progress">
-                            <span>{t.currentTask}</span>
-                            <div className="adl-review-progress" aria-hidden="true">
-                              <span style={{ width: `${Math.max(8, Math.round(summary.reviewedRatio * 100))}%` }} />
-                            </div>
-                          </div>
-
-                          <div className="adl-patch-file-card__hunks">
-                            {summary.hunks.map((hunk) => {
-                              const isSelected = hunk.id === selectedPatchHunkId;
-                              return (
-                                <section
-                                  key={hunk.id}
-                                  className={`adl-patch-hunk-card adl-patch-hunk-card--${hunk.changeKind}${isSelected ? " is-selected" : ""}`}
-                                >
-                                  <div className="adl-patch-hunk-card__summary">
-                                    <button
-                                      type="button"
-                                      className="adl-patch-hunk-card__toggle"
-                                      onClick={() => onTogglePatchHunkCollapse(hunk.id)}
-                                      aria-expanded={hunk.isCollapsed ? "false" : "true"}
-                                      aria-label={hunk.isCollapsed ? t.expandDetails : t.collapseDetails}
-                                    >
-                                      {hunk.isCollapsed ? <IconChevronRight size={12} decorative /> : <IconChevronDown size={12} decorative />}
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className="adl-patch-hunk-card__jump"
-                                      onClick={() =>
-                                        onSelectPatchHunk(summary.relativePath, hunk.id, hunk.targetLine, { activateTool: true })
-                                      }
-                                    >
-                                      <div>
-                                        <strong>{hunk.preview}</strong>
-                                        <small>
-                                          -{hunk.oldStart}:{hunk.oldLines} / +{hunk.newStart}:{hunk.newLines}
-                                        </small>
-                                      </div>
-                                      <span className={`adl-decision-chip adl-decision-chip--${hunk.decision}`}>
-                                        {hunk.decision === "accepted"
-                                          ? t.approvalApproved
-                                          : hunk.decision === "rejected"
-                                            ? t.approvalRejected
-                                            : t.approvalPendingCount}
-                                      </span>
-                                    </button>
-                                    <TooltipSimple content={t.conflictViewDiff} placement="top">
-                                      <button
-                                        type="button"
-                                        className="adl-tool-context__iconbtn"
-                                        onClick={() =>
-                                          onSelectPatchHunk(summary.relativePath, hunk.id, hunk.targetLine, { activateTool: true })
-                                        }
-                                        aria-label={t.conflictViewDiff}
-                                      >
-                                        <IconTarget size={14} decorative />
-                                      </button>
-                                    </TooltipSimple>
-                                  </div>
-
-                                  {!hunk.isCollapsed ? (
-                                    <div className="adl-patch-hunk-card__details">
-                                      <div className="adl-patch-hunk-card__toolbar">
-                                        <button
-                                          type="button"
-                                          className="adl-btn adl-btn--ghost adl-btn--sm"
-                                          onClick={() =>
-                                            onSelectPatchHunk(summary.relativePath, hunk.id, hunk.targetLine, { activateTool: true })
-                                          }
-                                        >
-                                          {t.conflictViewDiff}
-                                        </button>
-                                        <button
-                                          type="button"
-                                          className="adl-btn adl-btn--ghost adl-btn--sm"
-                                          onClick={() => onSetHunkDecision(hunk.id, "accepted")}
-                                        >
-                                          {t.accept}
-                                        </button>
-                                        <button
-                                          type="button"
-                                          className="adl-btn adl-btn--ghost adl-btn--sm"
-                                          onClick={() => onSetHunkDecision(hunk.id, "rejected")}
-                                        >
-                                          {t.reject}
-                                        </button>
-                                      </div>
-                                      <div className="adl-patch-hunk-card__preview">
-                                        <pre>{hunk.preview}</pre>
-                                      </div>
-                                    </div>
-                                  ) : null}
-                                </section>
-                              );
-                            })}
-                          </div>
-                        </article>
-                      );
-                    })}
+                    {filteredPatchSummaries.map((summary) => (
+                      <PatchFileCard
+                        key={summary.relativePath}
+                        summary={summary}
+                        activeSummary={activeSummary}
+                        activeCardRef={activeCardRef}
+                        selectedPatchHunkId={selectedPatchHunkId}
+                        t={t}
+                        onSelectPatchFile={onSelectPatchFile}
+                        onTogglePatchHunkCollapse={onTogglePatchHunkCollapse}
+                        onSelectPatchHunk={onSelectPatchHunk}
+                        onSetHunkDecision={onSetHunkDecision}
+                      />
+                    ))}
                   </div>
                 ) : (
                   <p className="adl-empty-hint">{t.noPatch}</p>

@@ -110,8 +110,8 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
 
   agent: {
     startRun: async ({ sessionId, prompt }) => {
-      const result: { ok: true; data: ConversationSendResult } = await mockConversation.sendMessage({ sessionId, content: prompt }) as any;
-      return { ok: true, data: result.data };
+      const result = await mockConversation.sendMessage({ sessionId, content: prompt });
+      return result;
     },
     getRun: async () => ({ ok: true, data: activeRun }),
     retryRun: async () => ({ ok: true, data: activeRun }),
@@ -155,6 +155,6 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
 
 export function setupMockBridge(): void {
   if (typeof window !== "undefined" && !window.digitalLife) {
-    (window as unknown as { digitalLife: DigitalLifeBridge }).digitalLife = mockDigitalLifeBridge;
+    (window as { digitalLife?: DigitalLifeBridge }).digitalLife = mockDigitalLifeBridge;
   }
 }

@@ -77,7 +77,7 @@ function createBaseAppInfo(): AppInfo {
 }
 
 export function setupPreviewBridge(): void {
-  if (typeof window === "undefined" || (window as any).digitalLife) {
+  if (typeof window === "undefined" || (window as { digitalLife?: unknown }).digitalLife) {
     return;
   }
 
@@ -391,5 +391,5 @@ export function setupPreviewBridge(): void {
     }
   };
 
-  (window as typeof window & { digitalLife: DigitalLifeBridge }).digitalLife = previewBridge;
+  (window as { digitalLife: DigitalLifeBridge }).digitalLife = previewBridge;
 }

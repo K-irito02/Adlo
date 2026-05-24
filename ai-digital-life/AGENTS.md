@@ -40,6 +40,7 @@
 - **上下文菜单系统**：统一 `ContextMenu` 组件（Portal 渲染、图标/分隔线/danger 样式）、`ConfirmDialog`（删除确认）、`RenameInput`（内联重命名）
 - **剪贴板切换**：Zustand `clipboardSlice`，支持跨面板 cut/copy/paste
 - **回收站删除**：Rust `trash` crate（Tauri） + PowerShell `Microsoft.VisualBasic`（浏览器），文件/目录安全删除到回收站
+- **第十一轮 — ChangesPanel 组件提取**（3 组件 → `features/patch-review` 模块）：采用渐进式内部组件模式，将 `PatchHunkCard`（hunk 级别决策卡片）、`PatchFileCard`（文件级聚合卡片）、`PatchReviewSummary`（补丁摘要统计+过滤操作栏）从 ChangesPanel.tsx 提取到独立的模块文件；`patch-review/index.ts` 统一导出所有类型和组件；类型检查零错误；6 条经验教训记录于 [重构洞察 docs/重构洞察/](file:///E:/Programs/Obsidian/notes/docs/重构洞察/refactor-insight-2026-05-25-changespanel-extraction.md)
 
 **不在本目录实现**：多 Agent DAG、MCP、插件市场、云协作等 Phase 2+ 能力。
 

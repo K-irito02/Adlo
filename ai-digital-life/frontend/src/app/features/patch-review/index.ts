@@ -23,3 +23,10 @@ export {
   setCollapsedHunksForFile,
   countReviewedHunks,
 } from "./patchReview";
+
+export { PatchHunkCard } from "./PatchHunkCard";
+export type { PatchHunkCardProps } from "./PatchHunkCard";
+export { PatchFileCard } from "./PatchFileCard";
+export type { PatchFileCardProps } from "./PatchFileCard";
+export { PatchReviewSummary } from "./PatchReviewSummary";
+export type { PatchReviewSummaryProps } from "./PatchReviewSummary";

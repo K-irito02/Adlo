@@ -354,7 +354,10 @@ async fn start_run_inner(
     let messages =
         adl_agent_runtime::build_model_messages(&workspace, &input.prompt, scenario, &context);
     let gateway = {
-        let config = state.config.lock().expect("config mutex poisoned");
+        let config = state
+            .config
+            .lock()
+            .map_err(|_| AppError::Internal("config lock poisoned".into()))?;
         adl_model_gateway::ModelGateway::new(config.model_preferences.clone())?
     };
     let (model_response, model_audit) = gateway

@@ -59,7 +59,10 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
 }
 
 pub fn save_config(state: &AppState) -> anyhow::Result<()> {
-    let config = state.config.lock().expect("config mutex poisoned");
+    let config = state
+        .config
+        .lock()
+        .map_err(|_| anyhow::anyhow!("config lock poisoned"))?;
     adl_config::save(&state.data_dir, &config)?;
     Ok(())
 }

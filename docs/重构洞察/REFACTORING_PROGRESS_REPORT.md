@@ -1,6 +1,6 @@
 # 重构进度报告
 
-> 更新日期: 2026-05-24（第十轮）
+> 更新日期: 2026-05-25（第十一轮）
 
 ## 完成状态
 
@@ -16,6 +16,7 @@
 | **第八轮** | **2026-05-23** | **重构洞察第二轮 26 项（渲染性能 + 模块化 + 架构治理 + Rust 改进 + 润色）** | ✅ |
 | **第九轮** | **2026-05-24** | **重构洞察执行 22 项（Rust 长文件拆分 + 前端组件重构 + 目录治理 + 性能优化）** | ✅ |
 | **第十轮** | **2026-05-24** | **重构洞察修复 11 项（Regex OnceLock + 死 CSS 清理 + 文件拆分 + Store 重构）** | ✅ |
+| **第十一轮** | **2026-05-25** | **ChangesPanel 组件提取（3 组件 → patch-review 模块）** | ✅ |
 
 ## 第七轮重构（2026-05-23）：全面修复 + 大型组件模块化
 
@@ -329,6 +330,55 @@ features/diff-viewer/ (DiffViewer 拆分)
 | 删除文件 | `regions.css`、`sidebar.css`、`main-content.css` 共 9,714 行 |
 | 行净变化 | -9,714 + 6 新 CSS 文件 + 2 新 TSX 文件 |
 
+## 第十一轮重构（2026-05-25）：ChangesPanel 组件提取
+
+基于 [ChangesPanel 组件提取经验教训](./refactor-insight-2026-05-25-changespanel-extraction.md)，分 3 个 Phase 共 11 项任务完成：
+
+### Phase 1：PatchHunkCard 提取（4 项）
+
+| 任务 | 说明 |
+|------|------|
+| **内部组件创建** | 在 ChangesPanel.tsx 内部创建 PatchHunkCard 内部组件，提取 hunk 卡片渲染逻辑 |
+| **代码替换** | 用内部 PatchHunkCard 组件替换原有的内联 JSX |
+| **类型检查验证** | `npm run frontend:typecheck` 验证通过 |
+| **外部模块迁移** | 迁移到 `features/patch-review/PatchHunkCard.tsx`，更新 index.ts 导出 |
+
+### Phase 2：PatchFileCard 提取（4 项）
+
+| 任务 | 说明 |
+|------|------|
+| **内部组件创建** | 在 ChangesPanel.tsx 内部创建 PatchFileCard 内部组件，提取文件级卡片渲染逻辑 |
+| **代码替换** | 用内部 PatchFileCard 组件替换原有的内联 JSX |
+| **类型检查验证** | 验证通过 |
+| **外部模块迁移** | 迁移到 `features/patch-review/PatchFileCard.tsx`，更新 index.ts 导出 |
+
+### Phase 3：PatchReviewSummary 提取（3 项）
+
+| 任务 | 说明 |
+|------|------|
+| **内部组件创建** | 在 ChangesPanel.tsx 内部创建 PatchReviewSummary 内部组件，提取补丁摘要统计和过滤操作栏 |
+| **代码替换 + 类型检查** | 替换内联 JSX，验证通过 |
+| **外部模块迁移** | 迁移到 `features/patch-review/PatchReviewSummary.tsx`，更新 index.ts 导出 |
+
+### 关键改进
+
+| 改进项 | 说明 |
+|--------|------|
+| ChangesPanel 行数缩减 | ~1100 → ~1050 行（去除了 3 个大型内部组件，约 120 行 JSX + 类型定义被提取） |
+| patch-review 模块扩展 | 从纯工具函数模块扩展为工具函数 + 3 个独立 UI 组件 |
+| 模块索引统一导出 | `patch-review/index.ts` 统一导出所有类型和组件，使用者只需一条 import 语句 |
+| 可复用性提升 | PatchHunkCard/PatchFileCard/PatchReviewSummary 可被其他面板或功能复用 |
+
+### 验证结果
+
+| 检查项 | 结果 |
+|--------|------|
+| TypeScript typecheck | ✅ 0 error |
+| 新建文件 | `features/patch-review/PatchHunkCard.tsx`、`PatchFileCard.tsx`、`PatchReviewSummary.tsx` |
+| 修改文件 | `ChangesPanel.tsx`、`patch-review/index.ts` |
+
+---
+
 ## 相关文档
 
 - [重构洞察报告 5-21](./refactor-insight-2026-05-21.md)
@@ -337,6 +387,7 @@ features/diff-viewer/ (DiffViewer 拆分)
 - [重构洞察报告 5-23-2](./refactor-insight-2026-05-23-2.md)
 - [重构洞察报告 5-24](./refactor-insight-2026-05-24.md)
 - [第十轮执行报告 5-24](./refactor-execution-2026-05-24.md)
+- [第十一轮 ChangesPanel 组件提取经验教训 5-25](./refactor-insight-2026-05-25-changespanel-extraction.md)
 - [第七轮修复计划](../../.trae/documents/refactor-fix-plan-2026-05-23.md)
 - [第八轮实施计划](../../.trae/documents/refactor-implementation-plan-2026-05-23.md)
 - [第九轮实施计划](../../.trae/documents/refactor-implementation-plan-2026-05-24.md)

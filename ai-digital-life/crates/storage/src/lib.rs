@@ -3,7 +3,7 @@ use adl_kernel::now_ms;
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{de::DeserializeOwned, Serialize};
 use std::path::Path;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 use tracing::info;
 
 pub struct Database {
@@ -81,10 +81,10 @@ impl Database {
         value: &T,
     ) -> Result<(), AppError> {
         let json = serde_json::to_string(value)?;
-        let sql = table.insert_sql();
+        let sql = get_insert_sql(table);
         self.conn()?
             .execute(
-                sql,
+                &sql,
                 params![id, workspace_id, session_id, status, now_ms(), json],
             )
             .map_err(|e| AppError::Storage(e.to_string()))?;
@@ -161,11 +161,10 @@ impl Database {
         table: EntityTable,
         id: &str,
     ) -> Result<Option<T>, AppError> {
-        let table_name = table.as_str();
-        let sql = format!("SELECT json FROM {table_name} WHERE id = ?1");
+        let sql = get_select_by_id_sql(table);
         let json: Option<String> = self
             .conn()?
-            .query_row(&sql, params![id], |row| row.get(0))
+            .query_row(sql, params![id], |row| row.get(0))
             .optional()
             .map_err(|e| AppError::Storage(e.to_string()))?;
         json.map(|value| serde_json::from_str(&value).map_err(AppError::from))
@@ -209,8 +208,8 @@ impl Database {
         filter: Option<(&'static str, &str)>,
         limit: Option<usize>,
     ) -> Result<Vec<T>, AppError> {
-        let table_name = table.as_str();
-        let mut sql = format!("SELECT json FROM {table_name}");
+        let base_sql = get_select_all_sql(table);
+        let mut sql = base_sql.to_string();
         if let Some((field, _)) = filter {
             sql.push_str(" WHERE ");
             sql.push_str(field);
@@ -242,11 +241,10 @@ impl Database {
     }
 
     pub fn delete_entity(&self, table: EntityTable, id: &str) -> Result<bool, AppError> {
-        let table_name = table.as_str();
-        let sql = format!("DELETE FROM {table_name} WHERE id = ?1");
+        let sql = get_delete_by_id_sql(table);
         let changed = self
             .conn()?
-            .execute(&sql, params![id])
+            .execute(sql, params![id])
             .map_err(|e| AppError::Storage(e.to_string()))?;
         Ok(changed > 0)
     }
@@ -329,6 +327,63 @@ impl Clone for Database {
     }
 }
 
+const INSERT_SQL_TEMPLATE: &str =
+    "INSERT OR REPLACE INTO {table} (id, workspace_id, session_id, status, updated_at, json)\n\
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6)";
+
+const TABLE_NAMES: [&str; 20] = [
+    "workspaces",
+    "sessions",
+    "retrieval_snapshots",
+    "tasks",
+    "approvals",
+    "audit_records",
+    "checkpoints",
+    "conversation_messages",
+    "agent_runs",
+    "agent_steps",
+    "tool_invocations",
+    "patch_sets",
+    "file_patches",
+    "patch_hunks",
+    "command_requests",
+    "command_executions",
+    "validation_results",
+    "model_preferences",
+    "model_call_audit",
+    "run_activity_events",
+];
+
+fn get_insert_sql(table: EntityTable) -> String {
+    static INSERT_SQLS: [OnceLock<String>; 20] = [const { OnceLock::new() }; 20];
+    let idx = table.index();
+    INSERT_SQLS[idx].get_or_init(|| {
+        INSERT_SQL_TEMPLATE.replace("{table}", TABLE_NAMES[idx])
+    }).clone()
+}
+
+fn get_select_all_sql(table: EntityTable) -> &'static str {
+    static SELECT_ALL_SQLS: [OnceLock<String>; 20] = [const { OnceLock::new() }; 20];
+    let idx = table.index();
+    SELECT_ALL_SQLS[idx].get_or_init(|| format!("SELECT json FROM {}", TABLE_NAMES[idx]))
+}
+
+fn get_select_by_id_sql(table: EntityTable) -> &'static str {
+    static SELECT_BY_ID_SQLS: [OnceLock<String>; 20] = [const { OnceLock::new() }; 20];
+    let idx = table.index();
+    SELECT_BY_ID_SQLS[idx].get_or_init(|| {
+        format!("SELECT json FROM {} WHERE id = ?1", TABLE_NAMES[idx])
+    })
+}
+
+fn get_delete_by_id_sql(table: EntityTable) -> &'static str {
+    static DELETE_BY_ID_SQLS: [OnceLock<String>; 20] = [const { OnceLock::new() }; 20];
+    let idx = table.index();
+    DELETE_BY_ID_SQLS[idx].get_or_init(|| {
+        format!("DELETE FROM {} WHERE id = ?1", TABLE_NAMES[idx])
+    })
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum EntityTable {
     Workspaces,
@@ -354,54 +409,37 @@ pub enum EntityTable {
 }
 
 impl EntityTable {
-    pub fn as_str(self) -> &'static str {
+    pub fn index(&self) -> usize {
         match self {
-            Self::Workspaces => "workspaces",
-            Self::Sessions => "sessions",
-            Self::RetrievalSnapshots => "retrieval_snapshots",
-            Self::Tasks => "tasks",
-            Self::Approvals => "approvals",
-            Self::AuditRecords => "audit_records",
-            Self::Checkpoints => "checkpoints",
-            Self::ConversationMessages => "conversation_messages",
-            Self::AgentRuns => "agent_runs",
-            Self::AgentSteps => "agent_steps",
-            Self::ToolInvocations => "tool_invocations",
-            Self::PatchSets => "patch_sets",
-            Self::FilePatches => "file_patches",
-            Self::PatchHunks => "patch_hunks",
-            Self::CommandRequests => "command_requests",
-            Self::CommandExecutions => "command_executions",
-            Self::ValidationResults => "validation_results",
-            Self::ModelPreferences => "model_preferences",
-            Self::ModelCallAudit => "model_call_audit",
-            Self::RunActivityEvents => "run_activity_events",
+            Self::Workspaces => 0,
+            Self::Sessions => 1,
+            Self::RetrievalSnapshots => 2,
+            Self::Tasks => 3,
+            Self::Approvals => 4,
+            Self::AuditRecords => 5,
+            Self::Checkpoints => 6,
+            Self::ConversationMessages => 7,
+            Self::AgentRuns => 8,
+            Self::AgentSteps => 9,
+            Self::ToolInvocations => 10,
+            Self::PatchSets => 11,
+            Self::FilePatches => 12,
+            Self::PatchHunks => 13,
+            Self::CommandRequests => 14,
+            Self::CommandExecutions => 15,
+            Self::ValidationResults => 16,
+            Self::ModelPreferences => 17,
+            Self::ModelCallAudit => 18,
+            Self::RunActivityEvents => 19,
         }
     }
 
-    pub fn insert_sql(self) -> &'static str {
-        match self {
-            Self::Workspaces => "INSERT OR REPLACE INTO workspaces (id, workspace_id, session_id, status, updated_at, json)\n             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            Self::Sessions => "INSERT OR REPLACE INTO sessions (id, workspace_id, session_id, status, updated_at, json)\n             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            Self::RetrievalSnapshots => "INSERT OR REPLACE INTO retrieval_snapshots (id, workspace_id, session_id, status, updated_at, json)\n             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            Self::Tasks => "INSERT OR REPLACE INTO tasks (id, workspace_id, session_id, status, updated_at, json)\n             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            Self::Approvals => "INSERT OR REPLACE INTO approvals (id, workspace_id, session_id, status, updated_at, json)\n             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            Self::AuditRecords => "INSERT OR REPLACE INTO audit_records (id, workspace_id, session_id, status, updated_at, json)\n             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            Self::Checkpoints => "INSERT OR REPLACE INTO checkpoints (id, workspace_id, session_id, status, updated_at, json)\n             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            Self::ConversationMessages => "INSERT OR REPLACE INTO conversation_messages (id, workspace_id, session_id, status, updated_at, json)\n             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            Self::AgentRuns => "INSERT OR REPLACE INTO agent_runs (id, workspace_id, session_id, status, updated_at, json)\n             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            Self::AgentSteps => "INSERT OR REPLACE INTO agent_steps (id, workspace_id, session_id, status, updated_at, json)\n             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            Self::ToolInvocations => "INSERT OR REPLACE INTO tool_invocations (id, workspace_id, session_id, status, updated_at, json)\n             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            Self::PatchSets => "INSERT OR REPLACE INTO patch_sets (id, workspace_id, session_id, status, updated_at, json)\n             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            Self::FilePatches => "INSERT OR REPLACE INTO file_patches (id, workspace_id, session_id, status, updated_at, json)\n             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            Self::PatchHunks => "INSERT OR REPLACE INTO patch_hunks (id, workspace_id, session_id, status, updated_at, json)\n             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            Self::CommandRequests => "INSERT OR REPLACE INTO command_requests (id, workspace_id, session_id, status, updated_at, json)\n             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            Self::CommandExecutions => "INSERT OR REPLACE INTO command_executions (id, workspace_id, session_id, status, updated_at, json)\n             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            Self::ValidationResults => "INSERT OR REPLACE INTO validation_results (id, workspace_id, session_id, status, updated_at, json)\n             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            Self::ModelPreferences => "INSERT OR REPLACE INTO model_preferences (id, workspace_id, session_id, status, updated_at, json)\n             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            Self::ModelCallAudit => "INSERT OR REPLACE INTO model_call_audit (id, workspace_id, session_id, status, updated_at, json)\n             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            Self::RunActivityEvents => "INSERT OR REPLACE INTO run_activity_events (id, workspace_id, session_id, status, updated_at, json)\n             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-        }
+    pub fn as_str(self) -> &'static str {
+        TABLE_NAMES[self.index()]
+    }
+
+    pub fn insert_sql(self) -> String {
+        get_insert_sql(self)
     }
 }
 
