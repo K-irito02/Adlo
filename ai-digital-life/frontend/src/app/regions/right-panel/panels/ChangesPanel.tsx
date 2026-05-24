@@ -990,7 +990,9 @@ export function ChangesPanel(props: RightPanelViewProps) {
               </div>
             </>
           ) : changePreviewLoading ? null : (
-            <ChangesEmptyState hasWorkspaces={visibleWorkspaces.length > 0} />
+            totalChangeCount === 0 ? (
+              <ChangesEmptyState hasWorkspaces={visibleWorkspaces.length > 0} />
+            ) : null
           )}
         </div>
       </div>
