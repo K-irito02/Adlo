@@ -84,7 +84,7 @@ impl Database {
         let sql = get_insert_sql(table);
         self.conn()?
             .execute(
-                &sql,
+                sql,
                 params![id, workspace_id, session_id, status, now_ms(), json],
             )
             .map_err(|e| AppError::Storage(e.to_string()))?;
@@ -354,12 +354,12 @@ const TABLE_NAMES: [&str; 20] = [
     "run_activity_events",
 ];
 
-fn get_insert_sql(table: EntityTable) -> String {
+fn get_insert_sql(table: EntityTable) -> &'static str {
     static INSERT_SQLS: [OnceLock<String>; 20] = [const { OnceLock::new() }; 20];
     let idx = table.index();
     INSERT_SQLS[idx].get_or_init(|| {
         INSERT_SQL_TEMPLATE.replace("{table}", TABLE_NAMES[idx])
-    }).clone()
+    })
 }
 
 fn get_select_all_sql(table: EntityTable) -> &'static str {
@@ -438,7 +438,7 @@ impl EntityTable {
         TABLE_NAMES[self.index()]
     }
 
-    pub fn insert_sql(self) -> String {
+    pub fn insert_sql(self) -> &'static str {
         get_insert_sql(self)
     }
 }
