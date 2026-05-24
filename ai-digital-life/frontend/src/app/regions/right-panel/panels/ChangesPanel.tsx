@@ -624,6 +624,21 @@ export function ChangesPanel(props: RightPanelViewProps) {
     return Object.values(changeCounts).reduce((sum, count) => sum + count, 0);
   }, [changeCounts]);
 
+  const totalChangesStats = useMemo(() => {
+    let staged = 0;
+    let unstaged = 0;
+    let untracked = 0;
+    for (const ws of visibleWorkspaces) {
+      const snapshot = gitSnapshots[ws.id];
+      if (snapshot) {
+        staged += snapshot.staged.length;
+        unstaged += snapshot.unstaged.length;
+        untracked += snapshot.untracked.length;
+      }
+    }
+    return { staged, unstaged, untracked };
+  }, [visibleWorkspaces, gitSnapshots]);
+
   const expandedPathsByWs = useMemo(() => {
     const result: Record<string, Record<string, boolean>> = {};
     for (const wsId of Object.keys(workspaceChangesExpanded)) {
@@ -739,6 +754,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
           totalChangeCount={totalChangeCount}
           hasChangeEntries={changeEntries.length > 0}
           snapshot={snapshot}
+          totalChangesStats={totalChangesStats}
           canToggleNavigatorStructure={canToggleNavigatorStructure}
           structureToggleExpanded={structureToggleExpanded}
           onToggleStructure={handleToggleNavigatorStructure}

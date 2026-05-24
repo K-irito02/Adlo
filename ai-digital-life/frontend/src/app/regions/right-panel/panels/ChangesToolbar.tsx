@@ -50,6 +50,7 @@ interface ChangesToolbarNavigatorProps {
   onStatusFilterClick: (filter: ChangeFileState) => void;
   hasChangeEntries: boolean;
   snapshot?: { staged: any[]; unstaged: any[]; untracked: any[] };
+  totalChangesStats?: { staged: number; unstaged: number; untracked: number };
   canToggleNavigatorStructure: boolean;
   structureToggleExpanded: boolean;
   onToggleStructure: () => void;
@@ -244,6 +245,7 @@ function NavigatorContextToolbar({
   onStatusFilterClick,
   hasChangeEntries,
   snapshot,
+  totalChangesStats,
   canToggleNavigatorStructure,
   structureToggleExpanded,
   onToggleStructure,
@@ -331,7 +333,7 @@ function NavigatorContextToolbar({
               <span className="adl-tool-navigator__summary-label">{t.changesStaged}</span>
               <strong className="adl-tool-navigator__summary-value">
                 <span className="adl-tool-navigator__summary-code" aria-hidden="true">S:</span>
-                {snapshot?.staged.length ?? 0}
+                {totalChangesStats?.staged ?? snapshot?.staged.length ?? 0}
               </strong>
             </button>
             <button
@@ -344,7 +346,7 @@ function NavigatorContextToolbar({
               <span className="adl-tool-navigator__summary-label">{t.changesModified}</span>
               <strong className="adl-tool-navigator__summary-value">
                 <span className="adl-tool-navigator__summary-code" aria-hidden="true">M:</span>
-                {snapshot?.unstaged.length ?? 0}
+                {totalChangesStats?.unstaged ?? snapshot?.unstaged.length ?? 0}
               </strong>
             </button>
             <button
@@ -357,7 +359,7 @@ function NavigatorContextToolbar({
               <span className="adl-tool-navigator__summary-label">{t.changesUntracked}</span>
               <strong className="adl-tool-navigator__summary-value">
                 <span className="adl-tool-navigator__summary-code" aria-hidden="true">U:</span>
-                {snapshot?.untracked.length ?? 0}
+                {totalChangesStats?.untracked ?? snapshot?.untracked.length ?? 0}
               </strong>
             </button>
           </div>

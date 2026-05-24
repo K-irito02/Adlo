@@ -56,6 +56,7 @@ interface NavigatorStateProps {
   totalChangeCount: number;
   hasChangeEntries: boolean;
   snapshot: any;
+  totalChangesStats?: { staged: number; unstaged: number; untracked: number };
   canToggleNavigatorStructure: boolean;
   structureToggleExpanded: boolean;
   changesNavigatorTitle: string;
@@ -83,6 +84,7 @@ export function ChangesTreePanel(props: ChangesTreePanelProps) {
     changesNavigatorMode, onChangeNavigatorMode,
     allChangesExpanded, onExpandAll, onCollapseAll,
     totalChangeCount, hasChangeEntries, snapshot,
+    totalChangesStats,
     canToggleNavigatorStructure, structureToggleExpanded,
     onToggleStructure, changesNavigatorTitle,
     changeOutline, expandedOutlineIds, onExpandedOutlineIdsChange,
@@ -117,6 +119,7 @@ export function ChangesTreePanel(props: ChangesTreePanelProps) {
         onStatusFilterClick={onStatusFilterClick}
         hasChangeEntries={hasChangeEntries}
         snapshot={snapshot}
+        totalChangesStats={totalChangesStats}
         canToggleNavigatorStructure={canToggleNavigatorStructure}
         structureToggleExpanded={structureToggleExpanded}
         onToggleStructure={onToggleStructure}
