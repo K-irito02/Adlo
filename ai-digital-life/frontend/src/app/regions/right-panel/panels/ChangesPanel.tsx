@@ -545,7 +545,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
     [onOpenFile, t, copyToClipboard]
   );
 
-  const renderNavigatorMeta = useCallback((node: any) => {
+  const renderNavigatorMeta = useCallback((node: WorkspaceTreeNode) => {
     const changeNode = node as ChangeTreeNode;
     const primaryBadge = getPrimaryBadge(changeNode);
     return (
