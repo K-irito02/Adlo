@@ -42,6 +42,7 @@ export function useRightPanelViewProps(panelProps: RightPanelProps, collapsed: b
   const selectedFilePath = useAppStore((s) => s.selectedFilePath);
   const selectedFileWorkspaceId = useAppStore((s) => s.selectedFileWorkspaceId);
   const selectedChangePreviewPath = useAppStore((s) => s.selectedChangePreviewPath);
+  const selectedChangePreviewWorkspaceId = useAppStore((s) => s.selectedChangePreviewWorkspaceId);
   const changePreview = useAppStore(useShallow((s) => s.changePreview));
   const changePreviewLoading = useAppStore((s) => s.changePreviewLoading);
   const fileContent = useAppStore((s) => s.fileContent);
@@ -181,6 +182,7 @@ export function useRightPanelViewProps(panelProps: RightPanelProps, collapsed: b
     selectedFilePath,
     selectedFileWorkspaceId,
     selectedChangePreviewPath,
+    selectedChangePreviewWorkspaceId,
     changePreview,
     changePreviewLoading,
     fileContent,
@@ -222,6 +224,7 @@ export function useRightPanelViewProps(panelProps: RightPanelProps, collapsed: b
     onOpenFile: (path) => void actions.openFile(path),
     onOpenFileForWorkspace: (workspaceId, workspacePath, path) => void actions.openFileForWorkspace(workspaceId, workspacePath, path),
     onOpenChangePreview: (path) => void actions.openChangePreview(path),
+    onOpenChangePreviewForWorkspace: (workspacePath, path) => void actions.openChangePreviewForWorkspace(workspacePath, path),
     onOpenFileAtLine,
     onReloadExternal: () => {
       if (selectedFilePath) void actions.openFile(selectedFilePath);

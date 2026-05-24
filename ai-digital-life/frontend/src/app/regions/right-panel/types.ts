@@ -35,6 +35,7 @@ export interface RightPanelViewProps {
   selectedFilePath?: string;
   selectedFileWorkspaceId?: string;
   selectedChangePreviewPath?: string;
+  selectedChangePreviewWorkspaceId?: string;
   changePreview?: WorkspaceChangePreview;
   changePreviewLoading: boolean;
   fileContent?: string;
@@ -75,6 +76,7 @@ export interface RightPanelViewProps {
   onOpenFile: (relativePath: string) => void;
   onOpenFileForWorkspace: (workspaceId: string, workspacePath: string, relativePath: string) => void;
   onOpenChangePreview: (relativePath: string) => void;
+  onOpenChangePreviewForWorkspace: (workspacePath: string, relativePath: string) => void;
   onOpenFileAtLine: (relativePath: string, line: number) => void;
   onReloadExternal: () => void;
   onCreateWorkspaceFile: (relativePath: string, content?: string) => Promise<string | undefined>;

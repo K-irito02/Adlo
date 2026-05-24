@@ -14,6 +14,7 @@ export interface EditorSlice {
   selectedFilePath?: string;
   selectedFileWorkspaceId?: string;
   selectedChangePreviewPath?: string;
+  selectedChangePreviewWorkspaceId?: string;
   changePreview?: WorkspaceChangePreview;
   changePreviewLoading: boolean;
   fileContent?: string;
@@ -28,6 +29,7 @@ export interface EditorSlice {
   setSelectedFilePath: (path: string | undefined) => void;
   setSelectedFileWorkspaceId: (workspaceId: string | undefined) => void;
   setSelectedChangePreviewPath: (path: string | undefined) => void;
+  setSelectedChangePreviewWorkspaceId: (workspaceId: string | undefined) => void;
   setChangePreview: (preview: WorkspaceChangePreview | undefined) => void;
   setChangePreviewLoading: (loading: boolean) => void;
   setFileContent: (content: string | undefined) => void;
@@ -59,6 +61,7 @@ export const createEditorSlice = (
   setSelectedFilePath: (selectedFilePath) => set({ selectedFilePath }),
   setSelectedFileWorkspaceId: (selectedFileWorkspaceId) => set({ selectedFileWorkspaceId }),
   setSelectedChangePreviewPath: (selectedChangePreviewPath) => set({ selectedChangePreviewPath }),
+  setSelectedChangePreviewWorkspaceId: (selectedChangePreviewWorkspaceId) => set({ selectedChangePreviewWorkspaceId }),
   setChangePreview: (changePreview) => set({ changePreview }),
   setChangePreviewLoading: (loading) => set({ changePreviewLoading: loading }),
   setFileContent: (fileContent) => set({ fileContent }),
@@ -82,6 +85,7 @@ export const createEditorSlice = (
     selectedFilePath: undefined,
     selectedFileWorkspaceId: undefined,
     selectedChangePreviewPath: undefined,
+    selectedChangePreviewWorkspaceId: undefined,
     changePreview: undefined,
     changePreviewLoading: false,
     fileContent: undefined,

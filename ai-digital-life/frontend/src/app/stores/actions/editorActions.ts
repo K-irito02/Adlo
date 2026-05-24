@@ -171,8 +171,10 @@ export function createEditorActions(set: StoreApi<StoreState>["setState"], get: 
       const requestSeq = getNextChangePreviewRequestSeq();
       const cacheKey = getWorkspaceScopedCacheKey(get().appInfo, relativePath);
       const cachedPreview = getCachedLru(changePreviewCache, cacheKey);
+      const currentWorkspace = get().appInfo?.currentWorkspace;
       set({
         selectedChangePreviewPath: relativePath,
+        selectedChangePreviewWorkspaceId: currentWorkspace?.id,
         changePreview: cachedPreview ?? get().changePreview,
         changePreviewLoading: false,
         error: undefined,
@@ -184,6 +186,7 @@ export function createEditorActions(set: StoreApi<StoreState>["setState"], get: 
       if (!result.ok) {
         set({
           selectedChangePreviewPath: relativePath,
+          selectedChangePreviewWorkspaceId: currentWorkspace?.id,
           changePreviewLoading: false,
           changePreview:
             get().changePreview?.path === relativePath
@@ -200,6 +203,7 @@ export function createEditorActions(set: StoreApi<StoreState>["setState"], get: 
       );
       set({
         selectedChangePreviewPath: relativePath,
+        selectedChangePreviewWorkspaceId: currentWorkspace?.id,
         changePreviewLoading: false,
         changePreview: result.data,
         error: undefined,
@@ -210,8 +214,11 @@ export function createEditorActions(set: StoreApi<StoreState>["setState"], get: 
       const requestSeq = getNextChangePreviewRequestSeq();
       const cacheKey = getWorkspaceScopedCacheKey(get().appInfo, `${workspacePath}:${relativePath}`);
       const cachedPreview = getCachedLru(changePreviewCache, cacheKey);
+      const workspaces = get().recentWorkspaces;
+      const targetWorkspace = workspaces.find(w => w.path === workspacePath);
       set({
         selectedChangePreviewPath: relativePath,
+        selectedChangePreviewWorkspaceId: targetWorkspace?.id,
         changePreview: cachedPreview ?? get().changePreview,
         changePreviewLoading: false,
         error: undefined,
@@ -224,6 +231,7 @@ export function createEditorActions(set: StoreApi<StoreState>["setState"], get: 
       if (!result.ok) {
         set({
           selectedChangePreviewPath: relativePath,
+          selectedChangePreviewWorkspaceId: targetWorkspace?.id,
           changePreviewLoading: false,
           changePreview:
             get().changePreview?.path === relativePath
@@ -235,6 +243,7 @@ export function createEditorActions(set: StoreApi<StoreState>["setState"], get: 
       setCachedLru(changePreviewCache, cacheKey, result.data, CHANGE_PREVIEW_CACHE_LIMIT);
       set({
         selectedChangePreviewPath: relativePath,
+        selectedChangePreviewWorkspaceId: targetWorkspace?.id,
         changePreviewLoading: false,
         changePreview: result.data,
         error: undefined,
