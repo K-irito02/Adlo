@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import type { RecentWorkspaceEntry, WorkspaceTreeNode } from "@ai-digital-life/kernel";
 import type { CopyDict } from "../../copy";
@@ -14,6 +14,7 @@ export interface WorkspaceChangesEntryProps {
   isLoading: boolean;
   error: string | undefined;
   selectedChangePreviewPath: string | undefined;
+  selectedChangePreviewWorkspaceId: string | undefined;
   expandedPaths: Record<string, boolean>;
   dirtyPaths: Set<string>;
   externalChangePath: string | undefined;
@@ -42,6 +43,7 @@ export function WorkspaceChangesEntry({
   isLoading,
   error,
   selectedChangePreviewPath,
+  selectedChangePreviewWorkspaceId,
   expandedPaths,
   dirtyPaths,
   externalChangePath,
@@ -61,6 +63,12 @@ export function WorkspaceChangesEntry({
   t,
   renderMeta,
 }: WorkspaceChangesEntryProps) {
+  const effectiveSelectedPath = useMemo(() => {
+    if (selectedChangePreviewWorkspaceId === workspace.id) {
+      return selectedChangePreviewPath;
+    }
+    return undefined;
+  }, [selectedChangePreviewWorkspaceId, workspace.id, selectedChangePreviewPath]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const menuId = `ws-changes-menu-${workspace.id}`;
@@ -244,7 +252,7 @@ export function WorkspaceChangesEntry({
           ) : treeNodes && treeNodes.length > 0 ? (
             <FileTree
               nodes={treeNodes}
-              selectedFilePath={selectedChangePreviewPath}
+              selectedFilePath={effectiveSelectedPath}
               expandedPaths={expandedPaths}
               dirtyPaths={dirtyPaths}
               externalChangePath={externalChangePath}

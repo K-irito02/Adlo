@@ -47,6 +47,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
     latestPatchApplication,
     selectedPatchFilePath,
     selectedChangePreviewPath,
+    selectedChangePreviewWorkspaceId,
     changePreview,
     changePreviewLoading,
     selectedPatchHunkId,
@@ -748,6 +749,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
               loadingStates={workspaceChangesTreeLoading}
               errorStates={workspaceChangesTreeErrors}
               selectedChangePreviewPath={navigatorSelectedPath}
+              selectedChangePreviewWorkspaceId={selectedChangePreviewWorkspaceId}
               expandedPaths={expandedPathsByWs}
               dirtyPaths={dirtyPathsSet}
               externalChangePath={props.externalChangePath}

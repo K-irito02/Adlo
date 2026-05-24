@@ -3,10 +3,10 @@
 
 ## 问题描述
 
-在右侧面板文件功能中，有两个主要问题：
+在右侧面板文件功能和变更功能中，有两个主要问题：
 
-1. **非当前工作区文件点击报错**：点击非当前激活工作区的文件时，会提示 "ENOENT: no such file or directory" 错误
-2. **相同文件名同时高亮**：不同工作区中相同路径/文件名的文件会同时显示选中状态
+1. **非当前工作区文件/变更点击报错**：点击非当前激活工作区的文件或变更时，会提示 "ENOENT: no such file or directory" 错误
+2. **相同文件名同时高亮**：不同工作区中相同路径/文件名的文件或变更会同时显示选中状态
 
 ## 问题原因
 
@@ -30,18 +30,24 @@
 ```typescript
 interface EditorSlice {
   selectedFileWorkspaceId: string | undefined;
+  selectedChangePreviewWorkspaceId: string | undefined;
 }
 ```
 
-### 2. 添加 openFileForWorkspace 方法
+### 2. 添加 openFileForWorkspace 和 openChangePreviewForWorkspace 方法
 
-新增方法，支持指定工作区打开文件：
+新增方法，支持指定工作区打开文件或变更：
 ```typescript
 openFileForWorkspace: (
   workspaceId: string,
   workspacePath: string,
   relativePath: string
-) =&gt; Promise&lt;void&gt;;
+) => Promise<void>;
+
+openChangePreviewForWorkspace: (
+  workspacePath: string,
+  relativePath: string
+) => Promise<void>;
 ```
 
 ### 3. 更新桥接层
@@ -54,9 +60,13 @@ openFileForWorkspace: (
 
 ### 4. 更新组件层
 
+**文件面板**：
 - `MultiWorkspaceFileTree` - 添加 `selectedFileWorkspaceId` 属性和 `onOpenFileForWorkspace` 回调
 - `WorkspaceFileTreeEntry` - 只有当 `selectedFileWorkspaceId` 匹配当前工作区时才高亮
-- `FilesPanel` 及其相关组件 - 传递新的属性
+
+**变更面板**：
+- `MultiWorkspaceChangesTree` - 添加 `selectedChangePreviewWorkspaceId` 属性
+- `WorkspaceChangesEntry` - 实现工作区筛选逻辑
 
 ## 修改的文件列表
 
@@ -75,10 +85,15 @@ openFileForWorkspace: (
 ### 组件层
 - `frontend/src/app/features/workspace-file-tree/MultiWorkspaceFileTree.tsx` - 更新组件
 - `frontend/src/app/features/workspace-file-tree/WorkspaceFileTreeEntry.tsx` - 更新组件
+- `frontend/src/app/features/workspace-changes-tree/MultiWorkspaceChangesTree.tsx` - 更新组件
+- `frontend/src/app/features/workspace-changes-tree/WorkspaceChangesEntry.tsx` - 更新组件
 - `frontend/src/app/regions/right-panel/types.ts` - 更新类型
 - `frontend/src/app/regions/right-panel/hooks/useRightPanelViewProps.ts` - 传递属性
 - `frontend/src/app/regions/right-panel/panels/FilesPanel.tsx` - 传递属性
+- `frontend/src/app/regions/right-panel/panels/ChangesPanel.tsx` - 传递属性
 - `frontend/src/app/regions/right-panel/FileNavigatorShell.tsx` - 传递属性
+
+**总计：19 个文件**
 
 ## 架构变化
 
@@ -96,12 +111,14 @@ openFileForWorkspace: (
 {
   selectedFilePath: string | undefined;
   selectedFileWorkspaceId: string | undefined;
+  selectedChangePreviewPath: string | undefined;
+  selectedChangePreviewWorkspaceId: string | undefined;
 }
 ```
 
 ### 数据流变化
 
-**打开文件流程**：
+**打开文件/变更流程**：
 1. 用户点击文件树中的文件
 2. 组件判断是当前工作区还是其他工作区
 3. 调用对应方法（`openFile` 或 `openFileForWorkspace`）
@@ -116,32 +133,37 @@ openFileForWorkspace: (
 - 这是一个经典的 "namespace" 问题
 
 ### 2. 向后兼容设计
-- 保留了原有的 `openFile` 方法，用于当前工作区文件
-- 新增的 `openFileForWorkspace` 用于其他工作区文件
+- 保留了原有的 `openFile`/`openChangePreview` 方法，用于当前工作区资源
+- 新增的 `openFileForWorkspace`/`openChangePreviewForWorkspace` 用于其他工作区资源
 - 最小化破坏性变更
 
 ### 3. 组件设计原则
 - 组件应该尽量简单，接收明确的 props
-- `WorkspaceFileTreeEntry` 不需要知道全局状态，只需要知道 "当前文件是否选中"
+- 子组件不需要知道全局状态，只需要知道 "当前资源是否选中"
 - 父组件负责判断并传递 `effectiveSelectedPath`
 
 ### 4. 测试的价值
 - 重构后所有 183 个测试都通过，确保没有引入新问题
 - 这给了我们信心继续推进更多改进
 
+### 5. 终端面板天然免疫
+
+终端面板不需要类似修复，原因：
+- 每个 `TerminalTabState` 自带 `workspaceId` 字段
+- `tabsByWorkspace` 自动按工作区分组
+- 标签ID全局唯一，不存在路径冲突
+
 ## 验证结果
 
-✅ 类型检查通过  
+✅ TypeScript 类型检查通过  
 ✅ 所有 183 个前端测试通过  
 ✅ 功能验证：
 - 可以正常打开任何工作区的文件
-- 只有正确工作区的文件会高亮
-- 相同路径不同工作区的文件不会同时高亮
+- 可以正常打开任何工作区的变更预览
+- 只有正确工作区的文件/变更会高亮
+- 相同路径不同工作区的资源不会同时高亮
 
-## 下一步
+## 相关文档
 
-可以考虑：
-1. 将此模式应用到 ChangesPanel 和 TerminalPanel
-2. 添加更多的测试用例覆盖多工作区场景
-3. 考虑在类型层面强制要求工作区 ID 与路径同时出现
-
+- [AGENTS.md](file:///E:/Programs/Obsidian/notes/AGENTS.md) - 项目总览
+- [ai-digital-life/AGENTS.md](file:///E:/Programs/Obsidian/notes/ai-digital-life/AGENTS.md) - 实现进度

@@ -13,6 +13,7 @@ export interface MultiWorkspaceChangesTreeProps {
   loadingStates: Record<string, boolean>;
   errorStates: Record<string, string | undefined>;
   selectedChangePreviewPath: string | undefined;
+  selectedChangePreviewWorkspaceId: string | undefined;
   expandedPaths: Record<string, Record<string, boolean>>;
   dirtyPaths: Set<string>;
   externalChangePath: string | undefined;
@@ -51,6 +52,7 @@ export function MultiWorkspaceChangesTree({
   loadingStates,
   errorStates,
   selectedChangePreviewPath,
+  selectedChangePreviewWorkspaceId,
   expandedPaths,
   dirtyPaths,
   externalChangePath,
@@ -122,6 +124,7 @@ export function MultiWorkspaceChangesTree({
             isLoading={loadingStates[workspace.id] ?? false}
             error={errorStates[workspace.id]}
             selectedChangePreviewPath={selectedChangePreviewPath}
+            selectedChangePreviewWorkspaceId={selectedChangePreviewWorkspaceId}
             expandedPaths={expandedPaths[workspace.id] ?? {}}
             dirtyPaths={dirtyPaths}
             externalChangePath={externalChangePath}
@@ -150,6 +153,7 @@ export function MultiWorkspaceChangesTree({
       loadingStates,
       errorStates,
       selectedChangePreviewPath,
+      selectedChangePreviewWorkspaceId,
       expandedPaths,
       dirtyPaths,
       externalChangePath,

@@ -31,6 +31,7 @@ export function useAppActions() {
       openFile: state.openFile,
       openFileForWorkspace: state.openFileForWorkspace,
       openChangePreview: state.openChangePreview,
+      openChangePreviewForWorkspace: state.openChangePreviewForWorkspace,
       createWorkspaceFile: state.createWorkspaceFile,
       createWorkspaceFolder: state.createWorkspaceFolder,
       refreshWorkspaceTree: state.refreshWorkspaceTree,
