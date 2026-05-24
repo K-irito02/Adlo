@@ -560,7 +560,7 @@ export function ChangesPanel(props: RightPanelViewProps) {
         </span>
       </>
     );
-  }, []);
+  }, [getPrimaryBadge]);
 
   const activeWorkspaceId = useMemo(() => {
     if (!appInfo?.currentWorkspace?.path) return undefined;
