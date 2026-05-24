@@ -573,14 +573,18 @@ export function ChangesPanel(props: RightPanelViewProps) {
 
   const canToggleNavigatorStructure = changesNavigatorMode === "tree"
     ? visibleWorkspaces.length > 0
-    : changesNavigatorMode === "outline"
-      ? hasExpandableOutlineItems
-      : visibleWorkspaces.length > 0;
+    : changesNavigatorMode === "list"
+      ? visibleWorkspaces.length > 0
+      : changesNavigatorMode === "outline"
+        ? hasExpandableOutlineItems
+        : false;
   const structureToggleExpanded = changesNavigatorMode === "tree"
     ? allChangesExpanded
-    : changesNavigatorMode === "outline"
-      ? hasExpandedOutlineItems
-      : allChangesExpanded;
+    : changesNavigatorMode === "list"
+      ? allChangesExpanded
+      : changesNavigatorMode === "outline"
+        ? hasExpandedOutlineItems
+        : false;
 
   const changesNavigatorTitle = changesNavigatorMode === "outline" ? t.outline : changesNavigatorMode === "list" ? t.changesListView : t.toolChanges;
 
