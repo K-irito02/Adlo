@@ -72,7 +72,7 @@ export function OutlineTree({
           <TreeNodeRow
             key={item.id}
             depth={depth}
-            rowOffset={((depth - 1) * 14) + 4}
+            rowOffset={((depth - 1) * 48) + 4}
             hasChildren={hasChildren}
             isExpanded={isExpanded}
             isActive={activeId === item.id}

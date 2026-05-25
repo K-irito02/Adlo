@@ -26,6 +26,7 @@ type TreeNodeRowProps = {
   metaClassName?: string;
   labelContentClassName?: string;
   labelLeading?: React.ReactNode;
+  iconBefore?: React.ReactNode;
   label: React.ReactNode;
   meta?: React.ReactNode;
   children?: React.ReactNode;
@@ -56,6 +57,7 @@ export function TreeNodeRow({
   metaClassName,
   labelContentClassName,
   labelLeading,
+  iconBefore,
   label,
   meta,
   children,
@@ -88,6 +90,8 @@ export function TreeNodeRow({
           >
             {isExpanded ? <IconChevronDown size={12} decorative /> : <IconChevronRight size={12} decorative />}
           </button>
+        ) : iconBefore ? (
+          <span className="adl-tree-node__icon-before">{iconBefore}</span>
         ) : (
           <span className={`adl-tree-node__indent${indentClassName ? ` ${indentClassName}` : ""}`} aria-hidden="true" />
         )}

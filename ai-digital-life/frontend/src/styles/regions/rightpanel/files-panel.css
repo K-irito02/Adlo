@@ -1017,7 +1017,7 @@
 .adl-outline-tree__children {
   list-style: none;
   margin: 0;
-  padding: 0 0 0 14px;
+  padding: 0 0 0 48px;
   display: flex;
   flex-direction: column;
   gap: 1px;
@@ -1033,7 +1033,7 @@
 .adl-tree-node::before {
   content: "";
   position: absolute;
-  left: 13px;
+  left: 18px;
   top: 0;
   bottom: 0;
   width: 1px;
@@ -1042,10 +1042,6 @@
 
 .adl-filetree__item::before {
   left: 18px;
-}
-
-.adl-tree-root > .adl-tree-node::before {
-  display: none;
 }
 
 .adl-tree-node__row,
@@ -1086,7 +1082,7 @@
 .adl-outline-tree__row {
   width: calc(100% + var(--adl-outline-row-offset, 4px));
   margin-inline-start: calc(-1 * var(--adl-outline-row-offset, 4px));
-  padding-inline-start: calc(var(--adl-outline-row-offset, 4px) + 4px);
+  padding-inline-start: calc(8px + var(--adl-outline-row-offset, 4px));
   padding-inline-end: calc(8px + var(--adl-outline-scrollbar-width));
 }
 
@@ -1220,13 +1216,20 @@
 .adl-outline-tree__toggle,
 .adl-tree-node__indent,
 .adl-filetree__indent,
-.adl-outline-tree__indent {
+.adl-outline-tree__indent,
+.adl-tree-node__icon-before {
   width: 20px;
   height: 20px;
   margin-top: 1px;
   flex-shrink: 0;
   position: relative;
   z-index: 1;
+}
+
+.adl-tree-node__icon-before {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .adl-filetree__indent--flat {
@@ -1252,6 +1255,11 @@
 .adl-filetree__toggle:hover,
 .adl-outline-tree__toggle:hover {
   background: var(--adl-tree-toggle-hover-bg);
+  color: var(--text-primary);
+}
+
+.adl-tree-node__row:hover .adl-tree-node__toggle,
+.adl-tree-node__row:hover ~ .adl-tree-node__children .adl-tree-node__toggle {
   color: var(--text-primary);
 }
 
@@ -1650,7 +1658,7 @@
 .adl-outline-tree__children {
   list-style: none;
   margin: 0;
-  padding: 0 0 0 14px;
+  padding: 0 0 0 48px;
 }
 
 .adl-outline-tree__item {

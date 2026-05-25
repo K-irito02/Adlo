@@ -151,7 +151,7 @@ function FileTreeNodeComponent<T extends FileTreeRenderableNode>({
   return (
     <TreeNodeRow
       depth={depth + 1}
-      rowOffset={(depth * 14) + 4}
+      rowOffset={(depth * 48) + 4}
       hasChildren={isDirectory}
       isExpanded={isExpanded}
       isActive={isSelected}
@@ -168,7 +168,7 @@ function FileTreeNodeComponent<T extends FileTreeRenderableNode>({
       indentClassName={`adl-filetree__indent${flat ? " adl-filetree__indent--flat" : ""}`}
       labelContentClassName="adl-filetree__node-main"
       label={node.name}
-      labelLeading={isDirectory ? undefined : (
+      iconBefore={isDirectory ? undefined : (
         <span className={`adl-filetree__file-icon adl-filetree__file-icon--${fileVisual?.tone ?? "default"}`}>
           <span className="adl-filetree__file-badge" aria-hidden="true">
             {fileVisual?.label ?? "FILE"}

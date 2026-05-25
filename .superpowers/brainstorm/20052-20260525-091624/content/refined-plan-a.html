@@ -1,0 +1,130 @@
+<h2>完善后的方案A：精修对齐</h2>
+<p class="subtitle">在方案A的基础上，加上您要求的两种对齐规则</p>
+
+<div class="section">
+  <h3>最终效果示意</h3>
+  <div class="mockup">
+    <div class="mockup-body" style="padding: 12px; font-family: 'Segoe UI', sans-serif; font-size: 12.5px; line-height: 1.6;">
+      <div style="display:flex; align-items:center; gap:2px;">
+        <span style="display:inline-flex;justify-content:center;align-items:center;width:20px;height:20px;font-size:10px;">▶</span>
+        <span style="font-weight:600;">src/<span style="color:#999;font-weight:400;font-size:11px;">  ← 父节点首字符 "s"</span></span>
+      </div>
+
+      <div style="position:relative;padding-left:22px;">
+        <!-- 竖线辅助线 -->
+        <div style="position:absolute;left:8px;top:0;bottom:0;width:1px;background:#4a9;"></div>
+        
+        <!-- 子节点1：文件夹 -->
+        <div style="display:flex;align-items:center;gap:2px;position:relative;">
+          <div style="position:absolute;left:-12px;top:0;bottom:0;width:1px;background:transparent;border-left:1px dashed #ccc;"></div>
+          <span style="display:inline-flex;justify-content:center;align-items:center;width:20px;height:20px;font-size:10px;background:#e8f5e9;border-radius:3px;">▶</span>
+          <span style="font-weight:600;">components/<span style="color:#999;font-weight:400;font-size:11px;">  ← ▶ 对齐父 "s"</span></span>
+        </div>
+
+        <!-- 子节点2：文件夹 -->
+        <div style="display:flex;align-items:center;gap:2px;">
+          <span style="display:inline-flex;justify-content:center;align-items:center;width:20px;height:20px;font-size:10px;">▶</span>
+          <span style="font-weight:600;">utils/</span>
+        </div>
+
+        <!-- 子节点3：文件 -->
+        <div style="display:flex;align-items:center;gap:2px;">
+          <span style="display:inline-flex;justify-content:center;align-items:center;width:20px;height:20px;font-size:10px;background:#fff3cd;border-radius:3px;">TSX</span>
+          <span>Button.tsx<span style="color:#999;font-weight:400;font-size:11px;">  ← TSX 徽标与 ▶ 同列</span></span>
+        </div>
+      </div>
+    </div>
+    <div style="padding:4px 12px 8px;font-size:10px;color:#888;">
+      黄底 = 文件 logo（方案改动：从 label 内移到外面，替代 indent 占位符）
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>改动项一览</h3>
+  <div class="options">
+    <div class="option" onclick="void(0)" style="cursor:default;border-color:#4a9;">
+      <div class="letter" style="background:#4a9;">1</div>
+      <div class="content">
+        <h4>CSS：竖线位置微调</h4>
+        <p style="font-size:12px;"><code>::before left: 9px → 10px</code>（图标中心点）</p>
+      </div>
+    </div>
+  </div>
+  <div class="options" style="margin-top:4px;">
+    <div class="option" onclick="void(0)" style="cursor:default;border-color:#e8a020;">
+      <div class="letter" style="background:#e8a020;">2</div>
+      <div class="content">
+        <h4>CSS：子容器缩进调整</h4>
+        <p style="font-size:12px;"><code>children padding-left: 20px → 22px</code></p>
+        <p style="font-size:11px;color:#666;margin-top:2px;">目的：子节点 toggle/logo 位于 position=0（相对children容器），22px使其对齐父节点首字符（20+2=22）</p>
+      </div>
+    </div>
+  </div>
+  <div class="options" style="margin-top:4px;">
+    <div class="option" onclick="void(0)" style="cursor:default;border-color:#e8a020;">
+      <div class="letter" style="background:#e8a020;">3</div>
+      <div class="content">
+        <h4>CSS：顶节点竖线显示</h4>
+        <p style="font-size:12px;">移除 <code>.adl-tree-root > .adl-tree-node::before { display: none; }</code></p>
+      </div>
+    </div>
+  </div>
+  <div class="options" style="margin-top:4px;">
+    <div class="option" onclick="void(0)" style="cursor:default;border-color:#7b1fa2;">
+      <div class="letter" style="background:#7b1fa2;">4</div>
+      <div class="content">
+        <h4>JS/TSX：文件节点结构调整</h4>
+        <p style="font-size:12px;">
+          TreeNodeRow / fileTree.tsx：将文件 logo（badge）从 <code>&lt;label&gt;</code> 内部移到外部，<br>
+          替代 <code>&lt;indent&gt;</code> 占位符。<br>
+          文件节点：<code>[badge] [label-text]</code><br>
+          文件夹节点：<code>[toggle] [label-text]</code>
+        </p>
+        <p style="font-size:11px;color:#666;margin-top:2px;">目的：文件logo与文件夹toggle处于同一水平列</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>考虑过的替代方案（不采用的原因）</h3>
+  <div style="display:flex;flex-direction:column;gap:6px;">
+    <div style="background:#fafafa;border:1px solid #eee;border-radius:4px;padding:8px;font-size:12px;">
+      <strong style="color:#e44;">❌ 不移文件logo：纯靠CSS padding调整</strong>
+      <p style="margin:2px 0 0;color:#666;">文件logo在label内部，padding再怎么调也无法使其与toggle同一列——因为label的padding同时作用于文件夹节点（无logo）和文件节点（有logo），无法单独控制。除非增加条件类名。</p>
+    </div>
+    <div style="background:#fafafa;border:1px solid #eee;border-radius:4px;padding:8px;font-size:12px;">
+      <strong style="color:#e44;">❌ 加条件类名区分文件/文件夹</strong>
+      <p style="margin:2px 0 0;color:#666;">可以用 <code>.adl-filetree__item--file .adl-tree-node__label</code> 减少一些padding，但会引入CSS hack，且文件logo仍然受label的margin/padding影响，不如直接移出来干净。</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>不改动的部分</h3>
+  <div style="background:#e8f5e9;border:1px solid #c8e6c9;border-radius:4px;padding:8px;font-size:12px;">
+    ✅ TreeNodeRow 组件接口不变 —— props 不增加、不删减<br>
+    ✅ fileTree.tsx 的递归渲染逻辑不变<br>
+    ✅ OutlineTree.tsx 不变（大纲树无文件logo）<br>
+    ✅ ARIA tree 语义不变<br>
+    ✅ 悬停高亮逻辑不变
+  </div>
+</div>
+
+<div class="section">
+  <h3>需要确认后决定的</h3>
+  <div style="background:#fff3e0;border:1px solid #ffe0b2;border-radius:4px;padding:8px;font-size:12px;line-height:1.6;">
+    ⚡ 改动项4 的具体实现方式：<br><br>
+    <strong>选项4a：在 TreeNodeRow 层处理</strong>（推荐）<br>
+    给 TreeNodeRow 加一个 <code>leading</code> slot（如 <code>iconBefore</code> prop），文件节点传入文件 badge，文件夹节点不传。<br>
+    内部渲染逻辑：<br>
+    <code>if (hasChildren) → [toggle]</code><br>
+    <code>else if (leading) → [leading]</code><br>
+    <code>else → [indent]</code><br>
+    <span style="color:#666;">优点：TreeNodeRow 承担布局职责；fileTree 只需传 prop 无需改结构</span><br><br>
+    <strong>选项4b：在 fileTree 层用条件渲染覆盖</strong><br>
+    不通过 TreeNodeRow 的 indent/toggle 机制，直接在 fileTree.tsx 的 JSX 中判断。<br>
+    <span style="color:#666;">缺点：破坏 TreeNodeRow 的封装性</span>
+  </div>
+</div>
