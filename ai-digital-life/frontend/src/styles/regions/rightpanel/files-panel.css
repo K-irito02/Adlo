@@ -1670,7 +1670,7 @@
 .adl-outline-tree__item::before {
   content: "";
   position: absolute;
-  left: 13px;
+  left: 28px;
   top: 0;
   bottom: 0;
   width: 1px;
