@@ -5,15 +5,16 @@ import { categorizeFile } from "../fileTypeRouter";
 import { IconEye, IconPanelLeftClose, IconReturn, IconSearch } from "../../../icons";
 import { TooltipSimple } from "../../../components/Tooltip";
 import { useUiStore } from "../../../ui-store";
+import { useAppStore } from "../../../stores/slicedStore";
 import { useEditorOptions, useFileHistory } from "../hooks";
 import { FileNavigatorShell } from "../FileNavigatorShell";
 import { EditorSurfaceShell } from "../EditorSurfaceShell";
 import { FileContextMenu, type FileMenuItem, type FileMenuDivider } from "../FileContextMenu";
 import { FileHistoryNav } from "../FileHistoryNav";
-import type { RightPanelViewProps } from "../types";
+import type { FilesPanelProps } from "../types";
 import { joinPathSegments } from "../../../workspacePaths";
 
-export function FilesPanel(props: RightPanelViewProps) {
+export function FilesPanel(props: FilesPanelProps) {
   const {
     t,
     appInfo,
@@ -75,7 +76,7 @@ export function FilesPanel(props: RightPanelViewProps) {
   const toggleNavigator = useUiStore((s) => s.toggleNavigator);
   const navigatorMode = useUiStore((s) => s.filesNavigatorMode);
   const setNavigatorMode = useUiStore((s) => s.setFilesNavigatorMode);
-  const filesNavigatorWidth = useUiStore((s) => s.filesNavigatorWidth);
+  const filesNavigatorWidth = useAppStore((s) => s.filesNavigatorWidth);
 
   const editorOptions = useEditorOptions();
   const fileHistory = useFileHistory(selectedFilePath, onOpenFile);

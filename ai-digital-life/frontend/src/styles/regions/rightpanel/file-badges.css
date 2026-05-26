@@ -1,0 +1,178 @@
+.adl-filetree__file-icon {
+  --adl-file-badge-ink: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  min-width: 20px;
+  height: 18px;
+  flex-shrink: 0;
+  color: var(--adl-file-badge-ink);
+  overflow: hidden;
+}
+
+.adl-filetree__file-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2ch;
+  min-width: 2ch;
+  max-width: 2ch;
+  height: 18px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--adl-file-badge-ink);
+  font-size: 10px;
+  font-weight: var(--font-bold);
+  font-family: ui-monospace, "SFMono-Regular", "Cascadia Mono", "Fira Code", Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.adl-filetree__file-icon--default {
+  --adl-file-badge-ink: var(--adl-file-badge-default);
+}
+
+.adl-filetree__file-icon--typescript {
+  --adl-file-badge-ink: var(--adl-file-badge-typescript);
+}
+
+.adl-filetree__file-icon--javascript {
+  --adl-file-badge-ink: var(--adl-file-badge-javascript);
+}
+
+.adl-filetree__file-icon--node {
+  --adl-file-badge-ink: var(--adl-file-badge-node);
+}
+
+.adl-filetree__file-icon--python {
+  --adl-file-badge-ink: var(--adl-file-badge-python);
+}
+
+.adl-filetree__file-icon--java {
+  --adl-file-badge-ink: var(--adl-file-badge-java);
+}
+
+.adl-filetree__file-icon--go {
+  --adl-file-badge-ink: var(--adl-file-badge-go);
+}
+
+.adl-filetree__file-icon--rust {
+  --adl-file-badge-ink: var(--adl-file-badge-rust);
+}
+
+.adl-filetree__file-icon--cfamily {
+  --adl-file-badge-ink: var(--adl-file-badge-cfamily);
+}
+
+.adl-filetree__file-icon--csharp {
+  --adl-file-badge-ink: var(--adl-file-badge-csharp);
+}
+
+.adl-filetree__file-icon--php {
+  --adl-file-badge-ink: var(--adl-file-badge-php);
+}
+
+.adl-filetree__file-icon--ruby {
+  --adl-file-badge-ink: var(--adl-file-badge-ruby);
+}
+
+.adl-filetree__file-icon--swift {
+  --adl-file-badge-ink: var(--adl-file-badge-swift);
+}
+
+.adl-filetree__file-icon--kotlin {
+  --adl-file-badge-ink: var(--adl-file-badge-kotlin);
+}
+
+.adl-filetree__file-icon--shell {
+  --adl-file-badge-ink: var(--adl-file-badge-shell);
+}
+
+.adl-filetree__file-icon--powershell {
+  --adl-file-badge-ink: var(--adl-file-badge-powershell);
+}
+
+.adl-filetree__file-icon--markup {
+  --adl-file-badge-ink: var(--adl-file-badge-markup);
+}
+
+.adl-filetree__file-icon--stylesheet {
+  --adl-file-badge-ink: var(--adl-file-badge-stylesheet);
+}
+
+.adl-filetree__file-icon--json {
+  --adl-file-badge-ink: var(--adl-file-badge-json);
+}
+
+.adl-filetree__file-icon--yaml {
+  --adl-file-badge-ink: var(--adl-file-badge-yaml);
+}
+
+.adl-filetree__file-icon--config {
+  --adl-file-badge-ink: var(--adl-file-badge-config);
+}
+
+.adl-filetree__file-icon--markdown {
+  --adl-file-badge-ink: var(--adl-file-badge-markdown);
+}
+
+.adl-filetree__file-icon--doc {
+  --adl-file-badge-ink: var(--adl-file-badge-doc);
+}
+
+.adl-filetree__file-icon--text {
+  --adl-file-badge-ink: var(--adl-file-badge-text);
+}
+
+.adl-filetree__file-icon--sheet {
+  --adl-file-badge-ink: var(--adl-file-badge-sheet);
+}
+
+.adl-filetree__file-icon--slide {
+  --adl-file-badge-ink: var(--adl-file-badge-slide);
+}
+
+.adl-filetree__file-icon--pdf {
+  --adl-file-badge-ink: var(--adl-file-badge-pdf);
+}
+
+.adl-filetree__file-icon--image {
+  --adl-file-badge-ink: var(--adl-file-badge-image);
+}
+
+.adl-filetree__file-icon--vector {
+  --adl-file-badge-ink: var(--adl-file-badge-vector);
+}
+
+.adl-filetree__file-icon--audio {
+  --adl-file-badge-ink: var(--adl-file-badge-audio);
+}
+
+.adl-filetree__file-icon--video {
+  --adl-file-badge-ink: var(--adl-file-badge-video);
+}
+
+.adl-filetree__file-icon--font {
+  --adl-file-badge-ink: var(--adl-file-badge-font);
+}
+
+.adl-filetree__file-icon--archive {
+  --adl-file-badge-ink: var(--adl-file-badge-archive);
+}
+
+.adl-filetree__file-icon--database {
+  --adl-file-badge-ink: var(--adl-file-badge-database);
+}
+
+.adl-filetree__dirty-dot {
+  color: var(--accent);
+  fill: currentColor;
+  stroke: currentColor;
+}

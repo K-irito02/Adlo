@@ -1,5 +1,6 @@
 import React from "react";
 import { useUiStore } from "../../../ui-store";
+import { useAppStore } from "../../../stores/slicedStore";
 import { MultiWorkspaceChangesTree } from "../../../features/workspace-changes-tree";
 import { OutlineTree } from "../../../features/outline";
 import { useNavigatorResize } from "../../../hooks/useNavigatorResize";
@@ -92,8 +93,8 @@ export function ChangesTreePanel(props: ChangesTreePanelProps) {
     changeEntries, onRefreshAll, hasVisibleWorkspaces,
   } = props;
 
-  const changesNavigatorWidth = useUiStore((state) => state.changesNavigatorWidth);
-  const setChangesNavigatorWidth = useUiStore((state) => state.setChangesNavigatorWidth);
+  const changesNavigatorWidth = useAppStore((state) => state.changesNavigatorWidth);
+  const setChangesNavigatorWidth = useAppStore((state) => state.setChangesNavigatorWidth);
 
   const { handlePointerDown: handleNavigatorResizeStart } = useNavigatorResize({
     onWidthCommit: setChangesNavigatorWidth,

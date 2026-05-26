@@ -41,9 +41,12 @@ import {
   createEditorActions,
   createPatchActions,
   createGitActions,
+  createSearchActions,
   createFetchActions,
   createStreamActions,
   createGeneralActions,
+  createTaskActions,
+  createCommandActions,
 } from "./actions";
 
 export {
@@ -81,16 +84,19 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
   error: undefined,
 
   // ════════════════════════════════════════════════════════
-  // 跨切片 Actions（8 个领域模块）
+  // 跨切片 Actions（9 个领域模块）
   // ════════════════════════════════════════════════════════
   ...createWorkspaceActions(set, get),   // 工作区操作
   ...createSessionActions(set, get),     // 会话操作（createSession 等）
   ...createEditorActions(set, get),      // 编辑器操作
   ...createPatchActions(set, get),       // 补丁操作
   ...createGitActions(set, get),         // Git 操作
+  ...createSearchActions(set, get),      // 搜索操作
   ...createFetchActions(set, get),       // 数据拉取（indexStatus, repoMap）
   ...createStreamActions(set, get),      // 流式消息（sendMessage, cancel）
   ...createGeneralActions(set, get),     // 通用操作（bootstrap, updatePreferences）
+  ...createTaskActions(set, get),        // 任务操作（decideApproval, restoreCheckpoint）
+  ...createCommandActions(set, get),     // 命令操作（runCommand）
 }));
 
 // Type safety: compile-time assertion that the store satisfies StoreState

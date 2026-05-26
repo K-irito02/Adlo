@@ -149,7 +149,6 @@ async function refreshAfterSend(
     ]);
   } else {
     set({
-      workspaceTree: [],
       indexingStatus: undefined,
       repoMap: [],
       gitSnapshot: undefined,

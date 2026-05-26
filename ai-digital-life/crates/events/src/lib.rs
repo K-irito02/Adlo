@@ -5,6 +5,27 @@ use std::sync::{
 use tokio::sync::broadcast;
 use tracing::debug;
 
+pub fn run_activity_event(
+    run_id: &str,
+    seq: i64,
+    ts: i64,
+    event_type: &str,
+    extra: serde_json::Value,
+) -> serde_json::Value {
+    let mut obj = serde_json::Map::new();
+    obj.insert("v".into(), serde_json::Value::Number(1.into()));
+    obj.insert("runId".into(), serde_json::Value::String(run_id.to_string()));
+    obj.insert("seq".into(), serde_json::Value::Number(serde_json::Number::from(seq)));
+    obj.insert("ts".into(), serde_json::Value::Number(serde_json::Number::from(ts)));
+    obj.insert("type".into(), serde_json::Value::String(event_type.to_string()));
+    if let serde_json::Value::Object(extra_map) = extra {
+        for (k, v) in extra_map {
+            obj.insert(k, v);
+        }
+    }
+    serde_json::Value::Object(obj)
+}
+
 #[derive(Debug, Clone)]
 pub enum AppEvent {
     WorkspaceOpened(String),

@@ -1040,10 +1040,6 @@
   background: color-mix(in srgb, var(--border) 78%, transparent);
 }
 
-.adl-tree-root > .adl-tree-node::before {
-  display: none;
-}
-
 .adl-filetree__item::before {
   left: 18px;
 }
@@ -1233,18 +1229,8 @@
 
 .adl-tree-node__toggle,
 .adl-filetree__toggle,
-.adl-outline-tree__toggle,
 .adl-tree-node__indent,
 .adl-filetree__indent,
-.adl-outline-tree__indent {
-  width: 20px;
-  height: 20px;
-  margin-top: 1px;
-  flex-shrink: 0;
-  position: relative;
-  z-index: 1;
-}
-
 .adl-tree-node__icon-before {
   width: 16px;
   height: 16px;
@@ -1257,6 +1243,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  align-self: center;
 }
 
 .adl-filetree__indent--flat {
@@ -1265,11 +1252,13 @@
 }
 
 .adl-tree-node__toggle,
-.adl-filetree__toggle,
-.adl-outline-tree__toggle {
+.adl-filetree__toggle {
   display: flex;
   align-items: center;
   justify-content: center;
+  margin-left: 2px;
+  margin-right: 2px;
+  align-self: center;
   border: none;
   background: var(--adl-tree-toggle-rest-bg);
   color: var(--text-muted);
@@ -1284,14 +1273,13 @@
   color: var(--text-primary);
 }
 
-.adl-outline-tree__toggle:hover {
-  background: color-mix(in srgb, var(--surface-hover) 88%, transparent);
+.adl-tree-node__row:hover .adl-tree-node__toggle,
+.adl-tree-node__row:hover ~ .adl-tree-node__children .adl-tree-node__toggle {
   color: var(--text-primary);
 }
 
 .adl-tree-node__toggle svg,
-.adl-filetree__toggle svg,
-.adl-outline-tree__toggle svg {
+.adl-filetree__toggle svg {
   width: 12px;
   height: 12px;
   flex-shrink: 0;
@@ -1707,6 +1695,44 @@
 
 .adl-outline-tree > .adl-outline-tree__item::before {
   display: none;
+}
+
+.adl-outline-tree__toggle {
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: var(--bg);
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 3px;
+  transition: background 0.12s, color 0.12s;
+}
+
+.adl-outline-tree__indent {
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.adl-outline-tree__toggle:hover {
+  background: color-mix(in srgb, var(--surface-hover) 88%, transparent);
+  color: var(--text-primary);
+}
+
+.adl-outline-tree__toggle svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
 }
 
 .adl-outline-tree__row {

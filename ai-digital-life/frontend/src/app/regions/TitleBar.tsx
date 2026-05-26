@@ -20,6 +20,7 @@ import {
 } from "../icons";
 import logoUrl from "/logo-chatgpt.png?url";
 import { useUiStore } from "../ui-store";
+import { useAppStore } from "../stores/slicedStore";
 import { isTauriShell } from "../../tauri-bridge";
 import { TooltipSimple } from "../components/Tooltip";
 
@@ -149,6 +150,16 @@ export function TitleBar({
     toggleLeft,
     toggleRight,
     toggleBoth,
+  } = useAppStore(
+    useShallow((state) => ({
+      leftCollapsed: state.leftCollapsed,
+      rightCollapsed: state.rightCollapsed,
+      toggleLeft: state.toggleLeft,
+      toggleRight: state.toggleRight,
+      toggleBoth: state.toggleBoth,
+    }))
+  );
+  const {
     fileMenuOpen,
     viewMenuOpen,
     helpMenuOpen,
@@ -158,11 +169,6 @@ export function TitleBar({
     closeAllMenus
   } = useUiStore(
     useShallow((state) => ({
-      leftCollapsed: state.leftCollapsed,
-      rightCollapsed: state.rightCollapsed,
-      toggleLeft: state.toggleLeft,
-      toggleRight: state.toggleRight,
-      toggleBoth: state.toggleBoth,
       fileMenuOpen: state.fileMenuOpen,
       viewMenuOpen: state.viewMenuOpen,
       helpMenuOpen: state.helpMenuOpen,
@@ -224,18 +230,18 @@ export function TitleBar({
   const fileItems: MenuItem[] = [
     { id: "new-ws", label: t.menuNewWorkspace, shortcut: "Ctrl+N", action: onTriggerCreateWorkspace },
     { id: "open-folder", label: t.menuOpenFolder, shortcut: "Ctrl+O", action: onOpenFolder },
-    { id: "new-terminal", label: t.menuNewTerminal, shortcut: "Ctrl+Shift+`", action: () => useUiStore.getState().setActiveTool("terminal") },
-    { id: "new-browser", label: t.menuNewBrowser, action: () => useUiStore.getState().setActiveTool("browser") },
-    { id: "editor-window", label: t.menuOpenEditorWindow, action: () => useUiStore.getState().setActiveTool("files") },
+    { id: "new-terminal", label: t.menuNewTerminal, shortcut: "Ctrl+Shift+`", action: () => useUiStore.getState().setActiveRightTool("terminal") },
+    { id: "new-browser", label: t.menuNewBrowser, action: () => useUiStore.getState().setActiveRightTool("browser") },
+    { id: "editor-window", label: t.menuOpenEditorWindow, action: () => useUiStore.getState().setActiveRightTool("files") },
     { id: "sep-1", label: "", separator: true },
     { id: "exit", label: t.menuExit, shortcut: "Alt+F4", action: handleClose }
   ];
 
   const viewItems: MenuItem[] = [
-    { id: "diff-view", label: t.menuDiffView, action: () => useUiStore.getState().setActiveTool("changes") },
-    { id: "browser-view", label: t.menuBrowserView, action: () => useUiStore.getState().setActiveTool("browser") },
-    { id: "file-view", label: t.menuFileView, action: () => useUiStore.getState().setActiveTool("files") },
-    { id: "terminal-view", label: t.menuTerminalView, action: () => useUiStore.getState().setActiveTool("terminal") },
+    { id: "diff-view", label: t.menuDiffView, action: () => useUiStore.getState().setActiveRightTool("changes") },
+    { id: "browser-view", label: t.menuBrowserView, action: () => useUiStore.getState().setActiveRightTool("browser") },
+    { id: "file-view", label: t.menuFileView, action: () => useUiStore.getState().setActiveRightTool("files") },
+    { id: "terminal-view", label: t.menuTerminalView, action: () => useUiStore.getState().setActiveRightTool("terminal") },
     { id: "sep-1", label: "", separator: true },
     { id: "zoom-in", label: t.menuZoomIn, shortcut: "Ctrl++", action: () => zoomBy(0.1) },
     { id: "zoom-out", label: t.menuZoomOut, shortcut: "Ctrl+-", action: () => zoomBy(-0.1) },

@@ -1,0 +1,326 @@
+.adl-cm-editor {
+  height: 100%;
+  width: 100%;
+  min-width: 0;
+}
+
+.adl-cm-editor .cm-editor,
+.adl-cm-diff-viewer .cm-editor {
+  height: 100%;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  position: relative;
+  font-family: var(--font-mono, 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'SF Mono', Consolas, monospace);
+  font-size: var(--text-sm, 13px);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.adl-cm-editor .cm-editor {
+  overflow: hidden;
+}
+
+.adl-cm-editor .cm-editor:focus,
+.adl-cm-editor .cm-editor:focus-visible,
+.adl-cm-diff-viewer .cm-editor:focus,
+.adl-cm-diff-viewer .cm-editor:focus-visible,
+.adl-cm-editor .cm-scroller:focus,
+.adl-cm-editor .cm-scroller:focus-visible,
+.adl-cm-diff-viewer .cm-scroller:focus,
+.adl-cm-diff-viewer .cm-scroller:focus-visible,
+.adl-cm-editor .cm-content:focus,
+.adl-cm-editor .cm-content:focus-visible,
+.adl-cm-diff-viewer .cm-content:focus,
+.adl-cm-diff-viewer .cm-content:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.adl-cm-editor .cm-scroller,
+.adl-cm-diff-viewer .cm-scroller {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  line-height: 1.65;
+  overflow-y: scroll !important;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.adl-cm-editor .cm-scroller::-webkit-scrollbar,
+.adl-cm-diff-viewer .cm-scroller::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+
+
+.adl-cm-scroller--no-hscroll {
+  overflow-x: hidden !important;
+}
+
+.adl-cm-scroller--no-hscroll::-webkit-scrollbar {
+  height: 0;
+}
+
+/* Custom horizontal scrollbar — replaces native scrollbar in no-word-wrap mode.
+   Positioned at the bottom of .cm-editor, starting after the gutter, so it
+   never overlaps line numbers. */
+.adl-cm-hscroll {
+  position: absolute;
+  bottom: 0;
+  left: var(--adl-editor-gutter-width, 0px);
+  right: 0;
+  height: 10px;
+  z-index: 10;
+  display: none;
+  cursor: default;
+  user-select: none;
+}
+
+.adl-cm-hscroll.is-visible {
+  display: block;
+}
+
+.adl-cm-hscroll__track {
+  position: absolute;
+  inset: 0;
+}
+
+.adl-cm-hscroll__thumb {
+  position: absolute;
+  top: 3px;
+  height: 4px;
+  left: 0;
+  min-width: 6px;
+  max-width: 6px;
+  background: var(--hscroll-thumb-bg);
+  border-radius: 3px;
+  box-shadow: var(--hscroll-thumb-shadow);
+  transition: max-width 0.25s ease, background 0.2s, box-shadow 0.2s;
+  transform: translateX(var(--adl-hscroll-dot-offset, 0px));
+  cursor: default;
+}
+
+.adl-cm-hscroll:hover .adl-cm-hscroll__thumb {
+  max-width: none;
+  min-width: 40px;
+  height: 6px;
+  top: 2px;
+  background: var(--hscroll-thumb-hover-bg);
+  box-shadow: var(--hscroll-thumb-hover-shadow);
+  transform: none;
+  cursor: grab;
+}
+
+.adl-cm-hscroll__thumb.is-dragging {
+  max-width: none;
+  min-width: 40px;
+  height: 6px;
+  top: 2px;
+  background: var(--hscroll-thumb-dragging-bg);
+  box-shadow: var(--hscroll-thumb-dragging-shadow);
+  transform: none;
+  cursor: grabbing;
+}
+
+.adl-cm-editor .cm-content,
+.adl-cm-diff-viewer .cm-content {
+  width: 100%;
+  max-width: 100%;
+  padding-top: 0;
+  padding-bottom: 25vh;
+}
+
+.adl-cm-editor .cm-gutters,
+.adl-cm-diff-viewer .cm-gutters {
+  padding-top: 0;
+}
+
+.adl-cm-editor .cm-line,
+.adl-cm-diff-viewer .cm-line {
+  padding-left: var(--space-3);
+  padding-right: var(--space-3);
+}
+
+.adl-cm-editor .cm-gutters,
+.adl-cm-diff-viewer .cm-gutters {
+  min-width: 54px;
+  gap: 0;
+}
+
+.adl-cm-editor .cm-gutterElement,
+.adl-cm-diff-viewer .cm-gutterElement {
+  line-height: 1.65;
+  display: flex;
+  align-items: center;
+}
+
+.adl-cm-editor .cm-lineNumbers .cm-gutterElement,
+.adl-cm-diff-viewer .cm-lineNumbers .cm-gutterElement {
+  min-width: 42px;
+  padding-left: var(--space-2);
+  padding-right: var(--space-1);
+  justify-content: flex-end;
+}
+
+.adl-cm-editor .cm-foldGutter .cm-gutterElement,
+.adl-cm-diff-viewer .cm-foldGutter .cm-gutterElement {
+  min-width: 18px;
+  padding: 0;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.adl-cm-editor .cm-foldGutter .cm-gutterElement[title],
+.adl-cm-diff-viewer .cm-foldGutter .cm-gutterElement[title] {
+  cursor: pointer;
+}
+
+.adl-cm-editor .cm-foldGutter .cm-gutterElement span,
+.adl-cm-diff-viewer .cm-foldGutter .cm-gutterElement span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+  font-size: 0;
+  line-height: 1;
+}
+
+.adl-cm-editor .cm-foldGutter .cm-gutterElement .adl-cm-fold-marker,
+.adl-cm-diff-viewer .cm-foldGutter .cm-gutterElement .adl-cm-fold-marker {
+  display: block;
+  position: relative;
+  width: 8px;
+  height: 8px;
+  transform-origin: center;
+}
+
+.adl-cm-fold-marker::before,
+.adl-cm-fold-marker::after {
+  content: "";
+  position: absolute;
+  width: 6px;
+  height: 1.5px;
+  background: currentColor;
+  border-radius: 999px;
+  transform-origin: center;
+}
+
+.adl-cm-fold-marker--open {
+  transform: translateY(0);
+}
+
+.adl-cm-fold-marker--open::before {
+  left: 0;
+  top: 3px;
+  width: 5.5px;
+  transform: rotate(45deg);
+}
+
+.adl-cm-fold-marker--open::after {
+  right: 0;
+  top: 3px;
+  width: 5.5px;
+  transform: rotate(-45deg);
+}
+
+.adl-cm-fold-marker--closed {
+  transform: translateX(-1px);
+}
+
+.adl-cm-fold-marker--closed::before {
+  left: 1px;
+  top: 2px;
+  transform: rotate(45deg);
+}
+
+.adl-cm-fold-marker--closed::after {
+  left: 1px;
+  bottom: 2px;
+  transform: rotate(-45deg);
+}
+
+/* === Fold marker auto-hide ===
+   Default: hidden. Visible when:
+   1. data-fold-marker-state="visible" on wrapper (file open reveal / mouse in gutter)
+   2. Gutter is hovered (overrides hidden state) */
+.adl-cm-editor-wrapper .cm-foldGutter .adl-cm-fold-marker,
+.adl-cm-diff-viewer-wrapper .cm-foldGutter .adl-cm-fold-marker {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.adl-cm-editor-wrapper[data-fold-marker-state="visible"] .cm-foldGutter .adl-cm-fold-marker,
+.adl-cm-diff-viewer-wrapper[data-fold-marker-state="visible"] .cm-foldGutter .adl-cm-fold-marker {
+  opacity: 0.6;
+  pointer-events: auto;
+}
+
+.adl-cm-editor-wrapper .cm-foldGutter:hover .adl-cm-fold-marker,
+.adl-cm-diff-viewer-wrapper .cm-foldGutter:hover .adl-cm-fold-marker {
+  opacity: 0.6;
+  pointer-events: auto;
+}
+
+.adl-cm-editor-wrapper .cm-foldGutter .adl-cm-fold-marker:hover,
+.adl-cm-diff-viewer-wrapper .cm-foldGutter .adl-cm-fold-marker:hover {
+  opacity: 1;
+}
+
+/* Hover background highlight using box-shadow (pseudo-elements are used by chevron) */
+.adl-cm-editor-wrapper .cm-foldGutter .cm-gutterElement .adl-cm-fold-marker:hover,
+.adl-cm-diff-viewer-wrapper .cm-foldGutter .cm-gutterElement .adl-cm-fold-marker:hover {
+  box-shadow: 0 0 0 4px var(--ring-neutral);
+  border-radius: 4px;
+}
+
+/* Active (click) effect */
+.adl-cm-editor-wrapper .cm-foldGutter .adl-cm-fold-marker:active,
+.adl-cm-diff-viewer-wrapper .cm-foldGutter .adl-cm-fold-marker:active {
+  transform: scale(0.9);
+}
+
+/* Focus-visible ring for keyboard navigation */
+.adl-cm-editor-wrapper .cm-foldGutter .adl-cm-fold-marker:focus-visible,
+.adl-cm-diff-viewer-wrapper .cm-foldGutter .adl-cm-fold-marker:focus-visible {
+  outline: 2px solid var(--accent, #4a9eff);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.adl-cm-editor .cm-collapsedLines {
+  margin: var(--space-1) var(--space-3) !important;
+  gap: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 2px 0 !important;
+  font-size: 0.8em !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  color: var(--text-muted) !important;
+}
+
+.adl-cm-editor .cm-collapsedLines::before,
+.adl-cm-editor .cm-collapsedLines::after {
+  content: '' !important;
+  flex: 1 !important;
+  border-top: 1px dashed var(--border-subtle, rgba(255,255,255,0.12)) !important;
+  margin: 0 !important;
+}
+
+.adl-cm-editor .cm-collapsedLines:hover {
+  color: var(--text-primary) !important;
+}
+
+.adl-cm-editor .cm-collapsedLines:hover::before,
+.adl-cm-editor .cm-collapsedLines:hover::after {
+  border-top-color: var(--text-muted, rgba(255,255,255,0.3)) !important;
+}

@@ -3,7 +3,7 @@ import { useAppStore } from "../../stores/slicedStore";
 import { terminalSelectors } from "../../stores/selectors";
 import { useNavigatorResize } from "../../hooks/useNavigatorResize";
 import { useTerminalContextMenu } from "./useTerminalContextMenu";
-import type { RightPanelViewProps } from "../../regions/right-panel/types";
+import type { TerminalPanelProps } from "../../regions/right-panel/types";
 import type { TerminalProfile } from "../../ui-store";
 import type { XtermTerminalHandle } from "../../components/terminal/XtermTerminal";
 
@@ -90,7 +90,7 @@ export interface UseTerminalPanelReturn {
   };
 }
 
-export function useTerminalPanel(props: RightPanelViewProps): UseTerminalPanelReturn {
+export function useTerminalPanel(props: TerminalPanelProps): UseTerminalPanelReturn {
   const { t } = props;
   const [navigatorMode, setNavigatorMode] = useState<TerminalNavigatorMode>("sessions");
   const [terminalMenuOpen, setTerminalMenuOpen] = useState(false);

@@ -38,7 +38,7 @@ ai-digital-life/
 | `kernel` | 共享类型与常量（serde） |
 | `storage` / `migration` | SQLite（schema 初始化使用外部 SQL 文件 `sql/`） |
 | `config`、`logger`、`errors`、`events` | 基础设施 |
-| `workspace` | 业务域（拆分为 fs/git/search/tree/outline×10 子模块，含文件 CRUD + 16+ 语言大纲解析） |
+| `workspace` | 业务域（拆分 fs/git/search/tree/outline×10 子模块, 文件 CRUD + 16+ 语言大纲解析） |
 | `task`、`conversation`、`model-gateway` | 业务域 |
 
 ## 前端关键目录
@@ -46,10 +46,10 @@ ai-digital-life/
 | 目录 | 职责 |
 |------|------|
 | `app/components/` | React 组件（含 ContextMenu、ConfirmDialog、RenameInput、Tooltip 等） |
-| `app/hooks/` | 自定义 Hooks（含 useTooltip、useAppActions、useNavigatorResize） |
-| `app/utils/` | 纯函数（含 tooltipPosition 定位逻辑、preferencesMerger） |
+| `app/hooks/` | 自定义 Hooks（含 useTooltip、useAppActions、useNavigatorResize、useFileContextMenu） |
+| `app/utils/` | 纯函数（含 tooltipPosition、clipboard、preferencesMerger） |
 | `app/stores/` | Zustand 状态管理（切片合并模式 + actions/ 领域模块） |
-| `app/features/` | 按功能域分层的模块化组件（file-tree / outline / patch-review / editor / diff-viewer / preview / terminal / multi-workspace） |
+| `app/features/` | 按功能域分层的模块化组件 |
 | `app/regions/` | 区域布局组件（left-sidebar / right-panel(panels+editor-support+hooks) / center-pane） |
 | `design-system/` | 设计 Token 类型定义（tokens.ts / theme.ts / icons.ts） |
 | `styles/` | CSS 样式文件（themes.css / tokens.css / regions/*.css 等） |
@@ -58,11 +58,13 @@ ai-digital-life/
 
 ```
 app/stores/
-├── slicedStore.ts               # 基于切片合并的完整 Store（真源，~87 行）
+├── slicedStore.ts               # 基于切片合并的完整 Store（真源）
 ├── StoreState.ts                # 完整 StoreState 类型接口（interface extends）
 ├── slices.ts                    # 统一导出所有切片
-├── selectors.ts                 # 选择器（含 useShallow React Hook 版本，避免不必要重渲染）
-├── shared.ts                    # 共享状态和工具（LRU 缓存含访问计数优化、createDebouncedSearch、clearWorkspaceCaches、queueMicrotask）
+├── selectors.ts                 # 选择器（useShallow React Hook 版本）
+├── shared.ts                    # 共享状态和工具
+├── localStorageUtils.ts         # localStorage JSON 读写工具
+├── storageScheduler.ts          # 批量 debounce 写入调度器
 ├── cacheUtils.ts                # 缓存工具函数
 ├── conversationUtils.ts         # 会话工具函数
 ├── index.ts                     # 模块索引
@@ -78,19 +80,21 @@ app/stores/
 │   ├── diagnosticSlice.ts       # 诊断状态
 │   ├── taskSlice.ts             # 任务状态
 │   ├── commandSlice.ts          # 命令状态
-│   └── clipboardSlice.ts        # 剪贴板状态（cut/copy 操作与路径记录）
+│   └── clipboardSlice.ts        # 剪贴板状态
 │
-├── actions/                     # [新增] 8 个跨切片 action 模块
+├── actions/                     # 9 个跨切片 action 模块
 │   ├── workspaceActions.ts      # 工作区操作
 │   ├── sessionActions.ts        # 会话操作
 │   ├── editorActions.ts         # 编辑器操作
 │   ├── patchActions.ts          # 补丁操作
 │   ├── gitActions.ts            # Git 操作
+│   ├── searchActions.ts         # 文件搜索操作
 │   ├── fetchActions.ts          # 数据拉取操作
-│   ├── streamActions.ts         # 流式消息操作（含 sendMessage 流处理器）
-│   └── generalActions.ts        # 通用操作（bootstrap, updatePreferences）
+│   ├── streamActions.ts         # 流式消息操作
+│   ├── taskActions.ts           # 任务审批/恢复操作
+│   └── commandActions.ts        # 命令执行操作
 │
-└── (已删除)                     # 4 个遗留独立 Store 已在重构中删除
+└── (已删除)                     # 4 个遗留独立 Store
     ├── useWorkspaceStore.ts      # ❌ 已删除
     ├── useSessionStore.ts        # ❌ 已删除
     ├── useEditorStore.ts         # ❌ 已删除
@@ -124,10 +128,10 @@ frontend/src/
 | 切片 | 状态 | Actions |
 |------|------|---------|
 | `uiSlice` | leftSidebarVisible, rightPanelVisible, activeRightTool, currentModel, composerMessage | set*, toggle* |
-| `workspaceSlice` | appInfo, recentWorkspaces, workspaceTree, workspaceContextMode | setAppInfo, setRecentWorkspaces, setWorkspaceTree |
+| `workspaceSlice` | appInfo, recentWorkspaces, workspaceTrees, workspaceContextMode | setAppInfo, setRecentWorkspaces, setWorkspaceTree |
 | `gitSlice` | gitSnapshot, gitBranches | setGitSnapshot, setGitBranches |
-| `sessionSlice` | sessions, activeSessionId, sessionDetails, activeRun, streaming*, runActivity* | set*, append* |
-| `editorSlice` | openTabs, selectedFilePath, changePreview, fileContent, outline, dirtyEditorPaths | set*, add*, remove*, clear* |
+| `sessionSlice` | sessions, activeSessionId, sessionDetails, activeRun | set*, append* |
+| `editorSlice` | openTabs, openTabsByPath, selectedFilePath | set*, add*, remove*, clear* |
 | `patchSlice` | activePatchSet, latestPatchApplication | set*, clear* |
 | `searchSlice` | searchQuery, searchResults | set*, clear* |
 | `diagnosticSlice` | indexingStatus, repoMap, auditEntries, modelHealth | set*, append*, clear* |
@@ -140,8 +144,3 @@ frontend/src/
 2. Tauri 边界 → `src-tauri/*`
 3. UI → `frontend/src/*`
 4. 状态管理 → `frontend/src/app/stores/*`
-
-## 相关文件
-
-- [AGENTS.md](/E:/Programs/Obsidian/notes/ai-digital-life/AGENTS.md)
-- [docs/重构洞察/REFACTORING_PROGRESS_REPORT.md](/E:/Programs/Obsidian/notes/docs/重构洞察/REFACTORING_PROGRESS_REPORT.md)

@@ -13,8 +13,9 @@ import {
 } from "../../../icons";
 import { TooltipSimple } from "../../../components/Tooltip";
 import { useUiStore } from "../../../ui-store";
+import { useAppStore } from "../../../stores/slicedStore";
 import { useNavigatorResize } from "../../../hooks/useNavigatorResize";
-import type { RightPanelViewProps } from "../types";
+import type { BrowserPanelProps } from "../types";
 
 type BrowserNavigatorMode = "bookmarks" | "history" | "search";
 type BrowserSearchScope = "bookmarks" | "history" | "all";
@@ -49,7 +50,7 @@ function filterBrowserItems<T extends BrowserLookupItem>(items: T[], query: stri
   });
 }
 
-export function BrowserPanel({ t }: RightPanelViewProps) {
+export function BrowserPanel({ t }: BrowserPanelProps) {
   const [navigatorMode, setNavigatorMode] = useState<BrowserNavigatorMode>("bookmarks");
   const [browserMenuOpen, setBrowserMenuOpen] = useState(false);
   const [addressExpanded, setAddressExpanded] = useState(false);
@@ -57,8 +58,8 @@ export function BrowserPanel({ t }: RightPanelViewProps) {
   const [searchScope, setSearchScope] = useState<BrowserSearchScope>("all");
   const navigatorCollapsed = useUiStore((state) => state.navigatorCollapsedByTool.browser);
   const toggleNavigator = useUiStore((state) => state.toggleNavigator);
-  const browserNavigatorWidth = useUiStore((state) => state.browserNavigatorWidth);
-  const setBrowserNavigatorWidth = useUiStore((state) => state.setBrowserNavigatorWidth);
+  const browserNavigatorWidth = useAppStore((state) => state.browserNavigatorWidth);
+  const setBrowserNavigatorWidth = useAppStore((state) => state.setBrowserNavigatorWidth);
   const browserTabs = useUiStore((state) => state.browserTabs);
   const browserActiveTabId = useUiStore((state) => state.browserActiveTabId);
   const browserBookmarks = useUiStore((state) => state.browserBookmarks);

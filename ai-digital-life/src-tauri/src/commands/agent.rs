@@ -191,31 +191,35 @@ fn make_activity_emitter<'a>(
     run_id: String,
 ) -> impl Fn(serde_json::Value) + 'a {
     move |event: serde_json::Value| {
-        let mut obj = match event {
-            serde_json::Value::Object(obj) => obj,
-            other => {
-                let mut fallback = serde_json::Map::new();
-                fallback.insert("type".into(), serde_json::Value::String("error".into()));
-                fallback.insert(
-                    "message".into(),
-                    serde_json::Value::String(format!("Invalid run-activity payload: {other:?}")),
-                );
-                fallback
-            }
-        };
         let ts = now_ms();
         let seq = crate::run_activity_seq::next_run_activity_seq(ts);
-        obj.insert("v".into(), serde_json::Value::Number(1.into()));
-        obj.insert("runId".into(), serde_json::Value::String(run_id.clone()));
-        obj.insert(
-            "seq".into(),
-            serde_json::Value::Number(serde_json::Number::from(seq)),
-        );
-        obj.insert(
-            "ts".into(),
-            serde_json::Value::Number(serde_json::Number::from(ts)),
-        );
-        let payload = serde_json::Value::Object(obj);
+        let payload = match event {
+            serde_json::Value::Object(mut obj) => {
+                let event_type = obj
+                    .remove("type")
+                    .and_then(|v| match v {
+                        serde_json::Value::String(s) => Some(s),
+                        _ => None,
+                    })
+                    .unwrap_or_else(|| "error".into());
+                adl_events::run_activity_event(
+                    &run_id,
+                    seq,
+                    ts,
+                    &event_type,
+                    serde_json::Value::Object(obj),
+                )
+            }
+            other => adl_events::run_activity_event(
+                &run_id,
+                seq,
+                ts,
+                "error",
+                serde_json::json!({
+                    "message": format!("Invalid run-activity payload: {other:?}")
+                }),
+            ),
+        };
         if let Ok(typed) = serde_json::from_value::<DigitalLifeRunActivityEventV1>(payload.clone())
         {
             let _ = persist_run_activity(state, &workspace_scope_id, &session_id, &run_id, &typed);

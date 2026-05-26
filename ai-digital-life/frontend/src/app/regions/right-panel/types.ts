@@ -54,7 +54,6 @@ export interface RightPanelViewProps {
   }>;
   editorHint?: string;
   outline: FileOutlineItem[];
-  workspaceTree: WorkspaceTreeNode[];
   workspaceTrees: Record<string, WorkspaceTreeNode[]>;
   recentWorkspaces: RecentWorkspaceEntry[];
   allExpanded: boolean;
@@ -118,6 +117,119 @@ export interface RightPanelViewProps {
   onChangeSetting: (id: string, value: string | boolean | number) => void;
   latestCommandRun?: CommandRunResult;
 }
+
+export type FilesPanelProps = Pick<RightPanelViewProps,
+  | "t"
+  | "appInfo"
+  | "selectedFilePath"
+  | "selectedFileWorkspaceId"
+  | "fileContent"
+  | "filePatch"
+  | "editorLanguage"
+  | "diffSideBySide"
+  | "diagnostics"
+  | "editorHint"
+  | "outline"
+  | "workspaceTrees"
+  | "recentWorkspaces"
+  | "allExpanded"
+  | "workspaceTreeExpandedInFileNav"
+  | "workspaceTreeLoading"
+  | "workspaceTreeErrors"
+  | "searchQuery"
+  | "searchResults"
+  | "dirtyEditorPaths"
+  | "externalChangePath"
+  | "standardEditorRef"
+  | "onOpenFile"
+  | "onOpenFileForWorkspace"
+  | "onOpenFileAtLine"
+  | "onEditorChange"
+  | "onEditorMount"
+  | "onDiffMount"
+  | "onSearch"
+  | "onSearchChange"
+  | "onRefreshWorkspaceTree"
+  | "onExpandAll"
+  | "onCollapseAll"
+  | "onRefreshAll"
+  | "onRefreshOneWorkspace"
+  | "onToggleExpandInFileNav"
+  | "onHideFromRightPanels"
+  | "onCreateWorkspaceFile"
+  | "onCreateWorkspaceFolder"
+  | "onSetDiffLayout"
+  | "onJumpPatchHunk"
+  | "onSelectPatchHunk"
+  | "onTogglePatchHunkCollapse"
+  | "onSetAllPatchHunksCollapsed"
+  | "activePatchSet"
+  | "selectedPatchFilePath"
+  | "selectedPatchHunkId"
+  | "collapsedPatchHunkIds"
+>;
+
+export type ChangesPanelProps = Pick<RightPanelViewProps,
+  | "t"
+  | "appInfo"
+  | "activePatchSet"
+  | "latestPatchApplication"
+  | "selectedPatchFilePath"
+  | "selectedChangePreviewPath"
+  | "selectedChangePreviewWorkspaceId"
+  | "changePreview"
+  | "changePreviewLoading"
+  | "selectedPatchHunkId"
+  | "collapsedPatchHunkIds"
+  | "patchReviewFilter"
+  | "onSetHunkDecision"
+  | "onApplyPatchSet"
+  | "onRollbackPatchSet"
+  | "onAcceptAllHunks"
+  | "onRejectAllHunks"
+  | "onSelectPatchFile"
+  | "onOpenChangePreview"
+  | "onSelectPatchHunk"
+  | "onTogglePatchHunkCollapse"
+  | "onSetAllPatchHunksCollapsed"
+  | "onSetPatchReviewFilter"
+  | "onOpenFile"
+  | "onRefreshWorkspaceTree"
+  | "recentWorkspaces"
+  | "workspaceChangesExpanded"
+  | "gitSnapshot"
+  | "gitSnapshots"
+  | "activePatchSets"
+  | "onHideFromRightPanels"
+  | "diffSideBySide"
+  | "onSetDiffLayout"
+  | "dirtyEditorPaths"
+  | "externalChangePath"
+  | "onJumpPatchHunk"
+>;
+
+export type BrowserPanelProps = Pick<RightPanelViewProps, "t">;
+
+export type TerminalPanelProps = Pick<RightPanelViewProps,
+  | "t"
+  | "latestCommandRun"
+  | "commandHistory"
+  | "appInfo"
+>;
+
+export type AuditPanelProps = Pick<RightPanelViewProps, "t" | "auditEntries">;
+
+export type ModelPanelProps = Pick<RightPanelViewProps,
+  | "t"
+  | "modelHealth"
+  | "onRefreshModelHealth"
+>;
+
+export type SettingsPanelProps = Pick<RightPanelViewProps,
+  | "t"
+  | "settings"
+  | "onChangeSetting"
+>;
 
 export function countGitChanges(snapshot?: GitSnapshot): number {
   if (!snapshot) {

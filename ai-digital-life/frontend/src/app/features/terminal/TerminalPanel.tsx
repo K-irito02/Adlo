@@ -4,7 +4,7 @@ import { IconFiles, IconFileCode, IconFoldVertical, IconPanelLeftClose, IconRefr
 import { TooltipSimple } from "../../components/Tooltip";
 import { XtermTerminal } from "../../components/terminal/XtermTerminal";
 import { countGitChanges } from "../../regions/right-panel/types";
-import type { RightPanelViewProps } from "../../regions/right-panel/types";
+import type { TerminalPanelProps } from "../../regions/right-panel/types";
 import type { TerminalProfile } from "../../ui-store";
 import { useTerminalPanel } from "./useTerminalPanel";
 import { TerminalShellSelector } from "./TerminalShellSelector";
@@ -14,7 +14,7 @@ import { TerminalContextMenu } from "./TerminalContextMenu";
 import { MultiWorkspaceTerminal } from "../workspace-terminal";
 import type { RecentWorkspaceEntry } from "@ai-digital-life/kernel";
 
-export function TerminalPanel(props: RightPanelViewProps) {
+export function TerminalPanel(props: TerminalPanelProps) {
   const {
     t,
     latestCommandRun,

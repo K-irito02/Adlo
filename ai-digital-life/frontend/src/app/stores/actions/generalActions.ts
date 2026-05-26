@@ -91,7 +91,6 @@ export function createGeneralActions(set: StoreApi<StoreState>["setState"], get:
           ...nextState,
           appInfo: appInfoWithGitSnapshot,
           workspaceTrees: {},
-          workspaceTree: [],
           gitSnapshot,
           gitSnapshots,
           dirtyEditorPaths: [],
@@ -148,7 +147,6 @@ export function createGeneralActions(set: StoreApi<StoreState>["setState"], get:
         fileContent: undefined,
         fileLastModifiedAt: undefined,
         outline: [],
-        workspaceTree: [],
         indexingStatus: undefined,
         repoMap: [],
         auditEntries: [],
@@ -180,56 +178,6 @@ export function createGeneralActions(set: StoreApi<StoreState>["setState"], get:
       if (patch.modelPreferences) await get().refreshModelHealth();
     },
 
-    decideApproval: async (approvalId: string, decision: "approved" | "rejected") => {
-      const result = await window.digitalLife.task.decideApproval({
-        approvalId,
-        decision,
-      });
-      if (!result.ok) {
-        set({ error: result.error.message });
-        return;
-      }
-      set({
-        taskCenter: result.data,
-        latestCommandRun: undefined,
-      });
-      await get().fetchAuditEntries(40);
-      await get().fetchCommandHistory();
-      await get().fetchGitStatus();
-    },
 
-    restoreCheckpoint: async (checkpointId: string) => {
-      const result = await window.digitalLife.task.restoreCheckpoint(
-        checkpointId
-      );
-      if (!result.ok) {
-        set({ error: result.error.message });
-        return;
-      }
-      set({ taskCenter: result.data });
-      await get().fetchAuditEntries(40);
-      await get().bootstrap();
-    },
-
-    runCommand: async (command: string, argsText: string) => {
-      if (!command.trim()) return;
-      const args = argsText
-        .split(/\s+/)
-        .map((item: string) => item.trim())
-        .filter(Boolean);
-      const result = await window.digitalLife.command.run({
-        command: command.trim(),
-        args,
-      });
-      if (!result.ok) {
-        set({ error: result.error.message });
-        return;
-      }
-      set({ latestCommandRun: result.data });
-      await get().refreshTaskCenter();
-      await get().fetchAuditEntries(40);
-      await get().fetchCommandHistory();
-      await get().fetchGitStatus();
-    },
   };
 }

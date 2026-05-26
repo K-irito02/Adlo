@@ -157,17 +157,18 @@ async fn decide_approval_inner(
         );
         let _ = app.emit(
             "digital-life://run-activity",
-            serde_json::json!({
-              "v": 1,
-              "runId": run_id,
-              "seq": seq,
-              "ts": ts,
-              "type": "approval",
-              "phase": "decided",
-              "approvalId": approval.id,
-              "decision": decision,
-              "reason": approval.reason
-            }),
+            adl_events::run_activity_event(
+                &run_id,
+                seq,
+                ts,
+                "approval",
+                serde_json::json!({
+                    "phase": "decided",
+                    "approvalId": approval.id,
+                    "decision": decision,
+                    "reason": approval.reason
+                }),
+            ),
         );
     }
     snapshot(state)
@@ -271,16 +272,17 @@ async fn maybe_execute_approved_command(
         );
         let _ = app.emit(
             "digital-life://run-activity",
-            serde_json::json!({
-              "v": 1,
-              "runId": run_id,
-              "seq": seq,
-              "ts": ts,
-              "type": "command",
-              "phase": "start",
-              "command": request.command,
-              "args": request.args,
-            }),
+            adl_events::run_activity_event(
+                run_id,
+                seq,
+                ts,
+                "command",
+                serde_json::json!({
+                    "phase": "start",
+                    "command": request.command,
+                    "args": request.args,
+                }),
+            ),
         );
     }
 
@@ -359,17 +361,18 @@ async fn maybe_execute_approved_command(
         );
         let _ = app.emit(
             "digital-life://run-activity",
-            serde_json::json!({
-              "v": 1,
-              "runId": run_id,
-              "seq": seq,
-              "ts": ts,
-              "type": "command",
-              "phase": "done",
-              "command": request.command,
-              "args": request.args,
-              "exitCode": result.exit_code,
-            }),
+            adl_events::run_activity_event(
+                run_id,
+                seq,
+                ts,
+                "command",
+                serde_json::json!({
+                    "phase": "done",
+                    "command": request.command,
+                    "args": request.args,
+                    "exitCode": result.exit_code,
+                }),
+            ),
         );
     }
     Ok(())

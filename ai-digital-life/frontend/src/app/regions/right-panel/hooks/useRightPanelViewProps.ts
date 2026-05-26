@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { DIFF_LAYOUT_STORAGE_KEY } from "../../../constants";
 import { useUiStore, type ToolId } from "../../../ui-store";
-import { countGitChanges, type RightPanelViewProps } from "../types";
+import { countGitChanges, type RightPanelViewProps, type FilesPanelProps, type ChangesPanelProps, type BrowserPanelProps, type TerminalPanelProps, type AuditPanelProps, type ModelPanelProps, type SettingsPanelProps } from "../types";
 import { useAppStore } from "../../../stores/slicedStore";
 import { useAppActions } from "../../../hooks/useAppActions";
 import { buildSettingsItems } from "../../../settingsViewModel";
@@ -69,10 +69,10 @@ export function useRightPanelViewProps(panelProps: RightPanelProps, collapsed: b
   const modelHealth = useAppStore(useShallow((s) => s.modelHealth));
   const latestCommandRun = useAppStore(useShallow((s) => s.latestCommandRun));
 
-  const activeTool = useUiStore((state) => state.activeTool);
-  const setActiveTool = useUiStore((state) => state.setActiveTool);
+  const activeRightTool = useUiStore((state) => state.activeRightTool);
+  const setActiveRightTool = useUiStore((state) => state.setActiveRightTool);
   const browserTabs = useUiStore((state) => state.browserTabs);
-  const terminalTabs = useUiStore((state) => state.terminalTabs);
+  const terminalTabs = useAppStore((state) => state.terminalTabs);
 
   const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery);
   const [diffSideBySide, setDiffSideBySide] = useState(readDiffSideBySidePreference);
@@ -195,7 +195,6 @@ export function useRightPanelViewProps(panelProps: RightPanelProps, collapsed: b
     editorHint,
     outline,
     workspaceTrees,
-    workspaceTree: [],
     recentWorkspaces,
     allExpanded,
     workspaceTreeExpandedInFileNav,
@@ -267,6 +266,14 @@ export function useRightPanelViewProps(panelProps: RightPanelProps, collapsed: b
     onChangeSetting: handleChangeSetting
   };
 
+  const filesPanelProps: FilesPanelProps = viewProps;
+  const changesPanelProps: ChangesPanelProps = viewProps;
+  const browserPanelProps: BrowserPanelProps = viewProps;
+  const terminalPanelProps: TerminalPanelProps = viewProps;
+  const auditPanelProps: AuditPanelProps = viewProps;
+  const modelPanelProps: ModelPanelProps = viewProps;
+  const settingsPanelProps: SettingsPanelProps = viewProps;
+
   const badges: Record<string, number> = {
     files: dirtyEditorPaths.length,
     changes: countGitChanges(gitSnapshot ?? appInfo?.currentWorkspace?.gitSnapshot),
@@ -279,8 +286,15 @@ export function useRightPanelViewProps(panelProps: RightPanelProps, collapsed: b
 
   return {
     viewProps,
-    activeTool,
-    setActiveTool,
+    filesPanelProps,
+    changesPanelProps,
+    browserPanelProps,
+    terminalPanelProps,
+    auditPanelProps,
+    modelPanelProps,
+    settingsPanelProps,
+    activeRightTool,
+    setActiveRightTool,
     badges
   };
 }

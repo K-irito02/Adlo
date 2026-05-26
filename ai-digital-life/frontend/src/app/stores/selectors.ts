@@ -8,7 +8,7 @@
 import { useShallow } from "zustand/react/shallow";
 import { useAppStore } from "./slicedStore";
 import type { StoreState } from "./StoreState";
-import type { AppInfo, GitSnapshot, WorkspaceTreeNode, RecentWorkspaceEntry } from "@ai-digital-life/kernel";
+import type { AppInfo, GitSnapshot, RecentWorkspaceEntry } from "@ai-digital-life/kernel";
 
 // ============================================
 // 工作区相关的选择器
@@ -23,8 +23,6 @@ export const workspaceSelectors = {
   getRecentWorkspaces: (state: StoreState) => state.recentWorkspaces,
   useRecentWorkspaces: () => useAppStore(useShallow((s) => s.recentWorkspaces)),
   
-  getWorkspaceTree: (state: StoreState) => state.workspaceTree,
-  useWorkspaceTree: () => useAppStore(useShallow((s) => s.workspaceTree)),
   
   getGitSnapshot: (state: StoreState) => state.gitSnapshot,
   useGitSnapshot: () => useAppStore(useShallow((s) => s.gitSnapshot)),

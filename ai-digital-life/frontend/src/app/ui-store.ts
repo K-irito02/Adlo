@@ -40,6 +40,7 @@ export interface BrowserHistoryEntry {
   visitedAt: number;
 }
 
+/** @deprecated Use TerminalTabState from terminalSlice (stores/slices/terminalSlice.ts) instead */
 export interface TerminalTabState {
   id: string;
   title: string;
@@ -51,14 +52,14 @@ export interface TerminalTabState {
   sortOrder: number;
 }
 
-const LEFT_COLLAPSED_KEY = "adl-ui:left-collapsed";
-const RIGHT_COLLAPSED_KEY = "adl-ui:right-collapsed";
-const ACTIVE_TOOL_KEY = "adl-ui:active-tool";
+export const LEFT_COLLAPSED_KEY = "adl-ui:left-collapsed";
+export const RIGHT_COLLAPSED_KEY = "adl-ui:right-collapsed";
+const ACTIVE_RIGHT_TOOL_KEY = "adl-ui:active-right-tool";
 const SESSION_TABS_EXPANDED_KEY = "adl-ui:session-tabs-expanded";
-const RIGHT_PANEL_WIDTH_KEY = "adl-ui:right-panel-width";
-const FILES_NAVIGATOR_WIDTH_KEY = "adl-ui:files-navigator-width";
-const CHANGES_NAVIGATOR_WIDTH_KEY = "adl-ui:changes-navigator-width";
-const BROWSER_NAVIGATOR_WIDTH_KEY = "adl-ui:browser-navigator-width";
+export const RIGHT_PANEL_WIDTH_KEY = "adl-ui:right-panel-width";
+export const FILES_NAVIGATOR_WIDTH_KEY = "adl-ui:files-navigator-width";
+export const CHANGES_NAVIGATOR_WIDTH_KEY = "adl-ui:changes-navigator-width";
+export const BROWSER_NAVIGATOR_WIDTH_KEY = "adl-ui:browser-navigator-width";
 const TERMINAL_NAVIGATOR_WIDTH_KEY = "adl-ui:terminal-navigator-width";
 const NAVIGATOR_COLLAPSED_KEY = "adl-ui:navigator-collapsed";
 const FILE_TREE_EXPANDED_KEY = "adl-ui:file-tree-expanded";
@@ -79,15 +80,15 @@ const deferredJsonWriteHandles = new Map<string, number>();
 export const RIGHT_PANEL_WIDTH_MIN = 320;
 export const RIGHT_PANEL_WIDTH_MAX = 4096;
 export const DEFAULT_RIGHT_PANEL_WIDTH = 520;
-const FILES_NAVIGATOR_WIDTH_MIN = 180;
-const FILES_NAVIGATOR_WIDTH_MAX = 420;
-const DEFAULT_FILES_NAVIGATOR_WIDTH = 240;
-const CHANGES_NAVIGATOR_WIDTH_MIN = 180;
-const CHANGES_NAVIGATOR_WIDTH_MAX = 300;
-const DEFAULT_CHANGES_NAVIGATOR_WIDTH = 240;
-const BROWSER_NAVIGATOR_WIDTH_MIN = 180;
-const BROWSER_NAVIGATOR_WIDTH_MAX = 300;
-const DEFAULT_BROWSER_NAVIGATOR_WIDTH = 240;
+export const FILES_NAVIGATOR_WIDTH_MIN = 180;
+export const FILES_NAVIGATOR_WIDTH_MAX = 420;
+export const DEFAULT_FILES_NAVIGATOR_WIDTH = 240;
+export const CHANGES_NAVIGATOR_WIDTH_MIN = 180;
+export const CHANGES_NAVIGATOR_WIDTH_MAX = 300;
+export const DEFAULT_CHANGES_NAVIGATOR_WIDTH = 240;
+export const BROWSER_NAVIGATOR_WIDTH_MIN = 180;
+export const BROWSER_NAVIGATOR_WIDTH_MAX = 300;
+export const DEFAULT_BROWSER_NAVIGATOR_WIDTH = 240;
 const TERMINAL_NAVIGATOR_WIDTH_MIN = 180;
 const TERMINAL_NAVIGATOR_WIDTH_MAX = 300;
 const DEFAULT_TERMINAL_NAVIGATOR_WIDTH = 240;
@@ -98,11 +99,11 @@ function createUiId(prefix: string): string {
   return `${prefix}-${random}`;
 }
 
-function clamp(value: number, min: number, max: number): number {
+export function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
-function readFlag(key: string, fallback: boolean): boolean {
+export function readFlag(key: string, fallback: boolean): boolean {
   try {
     const raw = window.localStorage.getItem(key);
     if (raw === "1") return true;
@@ -113,7 +114,7 @@ function readFlag(key: string, fallback: boolean): boolean {
   return fallback;
 }
 
-function writeFlag(key: string, value: boolean): void {
+export function writeFlag(key: string, value: boolean): void {
   try {
     window.localStorage.setItem(key, value ? "1" : "0");
   } catch {
@@ -121,9 +122,9 @@ function writeFlag(key: string, value: boolean): void {
   }
 }
 
-function readTool(): ToolId {
+function readRightTool(): ToolId {
   try {
-    const raw = window.localStorage.getItem(ACTIVE_TOOL_KEY);
+    const raw = window.localStorage.getItem(ACTIVE_RIGHT_TOOL_KEY);
     if (raw === "files" || raw === "changes" || raw === "browser" || raw === "terminal" || raw === "audit" || raw === "settings" || raw === "models") {
       return raw;
     }
@@ -221,15 +222,15 @@ export function expandTreePathChainInState(current: TreeExpansionState, path: st
   return next;
 }
 
-function writeTool(tool: ToolId): void {
+function writeRightTool(tool: ToolId): void {
   try {
-    window.localStorage.setItem(ACTIVE_TOOL_KEY, tool);
+    window.localStorage.setItem(ACTIVE_RIGHT_TOOL_KEY, tool);
   } catch {
     /* ignore */
   }
 }
 
-function readNumber(key: string, fallback: number, min: number, max: number): number {
+export function readNumber(key: string, fallback: number, min: number, max: number): number {
   try {
     const raw = Number(window.localStorage.getItem(key));
     if (Number.isFinite(raw)) {
@@ -241,7 +242,7 @@ function readNumber(key: string, fallback: number, min: number, max: number): nu
   return fallback;
 }
 
-function writeNumber(key: string, value: number): void {
+export function writeNumber(key: string, value: number): void {
   try {
     window.localStorage.setItem(key, String(value));
   } catch {
@@ -312,12 +313,18 @@ function deriveTerminalTitle(profile: TerminalProfile, count: number): string {
 }
 
 export interface UiState {
+  /** @deprecated Use uiSlice.leftCollapsed via useAppStore */
   leftCollapsed: boolean;
+  /** @deprecated Use uiSlice.rightCollapsed via useAppStore */
   rightCollapsed: boolean;
-  activeTool: ToolId;
+  activeRightTool: ToolId;
+  /** @deprecated Use uiSlice.rightPanelWidth via useAppStore */
   rightPanelWidth: number;
+  /** @deprecated Use uiSlice.filesNavigatorWidth via useAppStore */
   filesNavigatorWidth: number;
+  /** @deprecated Use uiSlice.changesNavigatorWidth via useAppStore */
   changesNavigatorWidth: number;
+  /** @deprecated Use uiSlice.browserNavigatorWidth via useAppStore */
   browserNavigatorWidth: number;
   terminalNavigatorWidth: number;
   navigatorCollapsedByTool: Record<ToolId, boolean>;
@@ -332,8 +339,11 @@ export interface UiState {
   browserActiveTabId: string;
   browserBookmarks: BrowserBookmark[];
   browserHistory: BrowserHistoryEntry[];
+  /** @deprecated Use terminalTabs from terminalSlice (stores/slices/terminalSlice.ts) instead */
   terminalTabs: TerminalTabState[];
+  /** @deprecated Use terminalActiveTabId from terminalSlice (stores/slices/terminalSlice.ts) instead */
   terminalActiveTabId: string;
+  /** @deprecated Use defaultTerminalProfile from terminalSlice (stores/slices/terminalSlice.ts) instead */
   defaultTerminalProfile: TerminalProfile;
   chatMode: ChatMode;
   contextChips: ContextChip[];
@@ -345,13 +355,20 @@ export interface UiState {
   settingsSearchQuery: string;
   setActiveSettingsGroup: (group: SettingsGroupId) => void;
   setSettingsSearchQuery: (query: string) => void;
+  /** @deprecated Use uiSlice.toggleLeft via useAppStore */
   toggleLeft: () => void;
+  /** @deprecated Use uiSlice.toggleRight via useAppStore */
   toggleRight: () => void;
+  /** @deprecated Use uiSlice.toggleBoth via useAppStore */
   toggleBoth: () => void;
-  setActiveTool: (tool: ToolId) => void;
+  setActiveRightTool: (tool: ToolId) => void;
+  /** @deprecated Use uiSlice.setRightPanelWidth via useAppStore */
   setRightPanelWidth: (width: number) => void;
+  /** @deprecated Use uiSlice.setFilesNavigatorWidth via useAppStore */
   setFilesNavigatorWidth: (width: number) => void;
+  /** @deprecated Use uiSlice.setChangesNavigatorWidth via useAppStore */
   setChangesNavigatorWidth: (width: number) => void;
+  /** @deprecated Use uiSlice.setBrowserNavigatorWidth via useAppStore */
   setBrowserNavigatorWidth: (width: number) => void;
   setTerminalNavigatorWidth: (width: number) => void;
   setNavigatorCollapsed: (tool: ToolId, collapsed: boolean) => void;
@@ -384,14 +401,23 @@ export interface UiState {
   browserNavigateActiveTab: (url: string, title?: string) => void;
   browserToggleBookmark: (input?: { url?: string; title?: string }) => void;
   browserClearHistory: () => void;
+  /** @deprecated Use terminalCreateTab from terminalSlice (stores/slices/terminalSlice.ts) instead */
   terminalCreateTab: (profile?: TerminalProfile) => void;
+  /** @deprecated Use terminalSelectTab from terminalSlice (stores/slices/terminalSlice.ts) instead */
   terminalSelectTab: (tabId: string) => void;
+  /** @deprecated Use terminalCloseTab from terminalSlice (stores/slices/terminalSlice.ts) instead */
   terminalCloseTab: (tabId: string) => void;
+  /** @deprecated Use terminalUpdateActiveTab from terminalSlice (stores/slices/terminalSlice.ts) instead */
   terminalUpdateActiveTab: (patch: Partial<Omit<TerminalTabState, "id">>) => void;
+  /** @deprecated Use terminalUpdateTab from terminalSlice (stores/slices/terminalSlice.ts) instead */
   terminalUpdateTab: (tabId: string, patch: Partial<Omit<TerminalTabState, "id">>) => void;
+  /** @deprecated Use terminalTogglePin from terminalSlice (stores/slices/terminalSlice.ts) instead */
   terminalTogglePin: (tabId: string) => void;
+  /** @deprecated Use terminalReorderTabs from terminalSlice (stores/slices/terminalSlice.ts) instead */
   terminalReorderTabs: (newOrder: TerminalTabState[]) => void;
+  /** @deprecated Use terminalCloseAllTabs from terminalSlice (stores/slices/terminalSlice.ts) instead */
   terminalCloseAllTabs: () => void;
+  /** @deprecated Use setDefaultTerminalProfile from terminalSlice (stores/slices/terminalSlice.ts) instead */
   setDefaultTerminalProfile: (profile: TerminalProfile) => void;
 }
 
@@ -407,7 +433,7 @@ const initialNavigatorCollapsed = {
 export const useUiStore = create<UiState>((set) => ({
   leftCollapsed: readFlag(LEFT_COLLAPSED_KEY, false),
   rightCollapsed: readFlag(RIGHT_COLLAPSED_KEY, false),
-  activeTool: readTool(),
+  activeRightTool: readRightTool(),
   rightPanelWidth: readNumber(RIGHT_PANEL_WIDTH_KEY, DEFAULT_RIGHT_PANEL_WIDTH, RIGHT_PANEL_WIDTH_MIN, RIGHT_PANEL_WIDTH_MAX),
   filesNavigatorWidth: readNumber(
     FILES_NAVIGATOR_WIDTH_KEY,
@@ -475,9 +501,9 @@ export const useUiStore = create<UiState>((set) => ({
       writeFlag(RIGHT_COLLAPSED_KEY, next);
       return { leftCollapsed: next, rightCollapsed: next };
     }),
-  setActiveTool: (tool) => {
-    writeTool(tool);
-    set({ activeTool: tool, rightCollapsed: false });
+  setActiveRightTool: (tool) => {
+    writeRightTool(tool);
+    set({ activeRightTool: tool, rightCollapsed: false });
   },
   setRightPanelWidth: (width) => {
     const next = clamp(width, RIGHT_PANEL_WIDTH_MIN, RIGHT_PANEL_WIDTH_MAX);

@@ -19,7 +19,7 @@
  * | ClipboardSlice    | clipboardItems               | slices/clipboardSlice.ts|
  * | TerminalSlice     | terminalSessions             | slices/terminalSlice.ts|
  *
- * ### Action 接口（8 个，定义在 actions/）
+ * ### Action 接口（9 个，定义在 actions/）
  * | 接口               | 核心方法                      | 文件                       |
  * |--------------------|------------------------------|----------------------------|
  * | WorkspaceActions   | openWorkspace, refreshTree   | actions/workspaceActions.ts |
@@ -27,7 +27,7 @@
  * | EditorActions      | openFile, openChangePreview  | actions/editorActions.ts    |
  * | GitActions         | loadGitSnapshot, switchBranch| actions/gitActions.ts       |
  * | PatchActions       | applyPatchSet, setHunkDecision| actions/patchActions.ts    |
- * | SearchActions      | searchFiles                  | (内联在 StoreState.ts)      |
+ * | SearchActions      | searchFiles                  | actions/searchActions.ts    |
  * | TaskActions        | refreshTaskCenter            | (内联在 StoreState.ts)      |
  * | CommandActions     | runCommand                   | (内联在 StoreState.ts)      |
  * | DataFetchActions   | bootstrap, updatePreferences | actions/generalActions.ts   |

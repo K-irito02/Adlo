@@ -7,8 +7,6 @@ import type {
   RecentWorkspaceEntry,
   WorkspaceTreeNode,
   GitSnapshot,
-  IndexingStatus,
-  RepoMapNode
 } from "@ai-digital-life/kernel";
 import type { StoreState } from "../StoreState";
 import { queueLowPriorityRefresh } from "../shared";
@@ -27,8 +25,6 @@ export interface WorkspaceSlice {
   workspaceChangesTreeLoading: Record<string, boolean>;
   workspaceChangesTreeErrors: Record<string, string | undefined>;
   workspaceContextMode: "workspace" | "global";
-  indexingStatus?: IndexingStatus;
-  repoMap: RepoMapNode[];
 
   setAppInfo: (appInfo: AppInfo | undefined) => void;
   setRecentWorkspaces: (workspaces: RecentWorkspaceEntry[]) => void;
@@ -43,8 +39,6 @@ export interface WorkspaceSlice {
   setWorkspaceChangesTreeLoading: (loading: Record<string, boolean>) => void;
   setWorkspaceChangesTreeErrors: (errors: Record<string, string | undefined>) => void;
   setWorkspaceContextMode: (mode: "workspace" | "global") => void;
-  setIndexingStatus: (status: IndexingStatus | undefined) => void;
-  setRepoMap: (map: RepoMapNode[]) => void;
 }
 
 /**
@@ -65,7 +59,6 @@ export const createWorkspaceSlice = (
   workspaceChangesTreeData: {},
   workspaceChangesTreeLoading: {},
   workspaceChangesTreeErrors: {},
-  repoMap: [],
   workspaceContextMode: "workspace",
 
   setAppInfo: (appInfo) => set({ appInfo }),
@@ -81,6 +74,4 @@ export const createWorkspaceSlice = (
   setWorkspaceChangesTreeLoading: (loading) => set({ workspaceChangesTreeLoading: loading }),
   setWorkspaceChangesTreeErrors: (errors) => set({ workspaceChangesTreeErrors: errors }),
   setWorkspaceContextMode: (mode) => set({ workspaceContextMode: mode }),
-  setIndexingStatus: (status) => set({ indexingStatus: status }),
-  setRepoMap: (map) => set({ repoMap: map })
 });

@@ -7,7 +7,6 @@ import { themeController } from "./theme";
 import type { EditorRef, DiffEditorRef } from "./types";
 import { filterDiagnosticsForPath, findFirstDiagnostic } from "./workspacePaths";
 import { useAppStore } from "./stores/slicedStore";
-import { useUiStore } from "./ui-store";
 import { useAppActions } from "./hooks/useAppActions";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { TitleBar } from "./regions/TitleBar";
@@ -123,11 +122,11 @@ export function App() {
     };
   }, [actions.openWorkspace]);
 
-  const leftCollapsed = useUiStore((state) => state.leftCollapsed);
-  const rightCollapsed = useUiStore((state) => state.rightCollapsed);
-  const activeTool = useUiStore((state) => state.activeTool);
-  const setActiveTool = useUiStore((state) => state.setActiveTool);
-  const rightPanelWidth = useUiStore((state) => state.rightPanelWidth);
+  const leftCollapsed = useAppStore((state) => state.leftCollapsed);
+  const rightCollapsed = useAppStore((state) => state.rightCollapsed);
+  const activeRightTool = useAppStore((state) => state.activeRightTool);
+  const setActiveRightTool = useAppStore((state) => state.setActiveRightTool);
+  const rightPanelWidth = useAppStore((state) => state.rightPanelWidth);
   const [editorHint, setEditorHint] = React.useState<string>();
   const [selectedPatchFilePath, setSelectedPatchFilePath] = useState<string>();
   const [selectedPatchHunkId, setSelectedPatchHunkId] = useState<string>();
@@ -158,9 +157,9 @@ export function App() {
   useEffect(() => {
     if (!activePatchSet) return;
     if (rightCollapsed) return;
-    if (activeTool === "changes") return;
-    setActiveTool("changes");
-  }, [activePatchSet, activeTool, rightCollapsed, setActiveTool]);
+    if (activeRightTool === "changes") return;
+    setActiveRightTool("changes");
+  }, [activePatchSet, activeRightTool, rightCollapsed, setActiveRightTool]);
 
   useEffect(() => {
     if (!activePatchSet) {
@@ -281,11 +280,11 @@ export function App() {
         pendingRevealRef.current = { path: relativePath, line: options.line };
       }
       if (options?.activateTool) {
-        setActiveTool("files");
+        setActiveRightTool("files");
         void actions.openFile(relativePath);
       }
     },
-    [activePatchSet, actions.openFile, setActiveTool]
+    [activePatchSet, actions.openFile, setActiveRightTool]
   );
 
   const handleSelectPatchHunk = useCallback(
@@ -294,11 +293,11 @@ export function App() {
       setSelectedPatchHunkId(hunkId);
       pendingRevealRef.current = { path: relativePath, line };
       if (options?.activateTool) {
-        setActiveTool("files");
+        setActiveRightTool("files");
         void actions.openFile(relativePath);
       }
     },
-    [actions.openFile, setActiveTool]
+    [actions.openFile, setActiveRightTool]
   );
 
   const handleTogglePatchHunkCollapse = useCallback((hunkId: string) => {
@@ -354,13 +353,13 @@ export function App() {
   }, [actions.openWorkspace, actions.pickWorkspaceDirectory]);
 
   const handleOpenSettings = useCallback(() => {
-    useUiStore.getState().setActiveTool("settings");
+    useAppStore.getState().setActiveRightTool("settings");
   }, []);
 
   const handleOpenCommandPalette = useCallback(() => {
     // Command palette is planned for a future phase. For now, surface
     // the search tool as a graceful fallback.
-    useUiStore.getState().setActiveTool("files");
+    useAppStore.getState().setActiveRightTool("files");
   }, []);
 
   const handleDiffMount = useCallback((editor: EditorRef | DiffEditorRef) => {

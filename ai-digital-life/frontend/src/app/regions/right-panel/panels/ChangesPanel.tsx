@@ -12,7 +12,7 @@ import type { StoreState } from "../../../stores/StoreState";
 import { useUiStore } from "../../../ui-store";
 import { countGitChanges } from "../types";
 import { joinPathSegments, normalizeWorkspaceRelativePath } from "../../../workspacePaths";
-import type { RightPanelViewProps } from "../types";
+import type { ChangesPanelProps } from "../types";
 import type { WorkspaceTreeNode, ReorderWorkspacesInput } from "@ai-digital-life/kernel";
 import { countReviewedHunks, filterPatchFileSummaries, summarizePatchFile, summarizePatchSet } from "../../../features/patch-review";
 import { PatchReviewSummary, PatchFileCard } from "../../../features/patch-review";
@@ -42,7 +42,7 @@ import type { PatchHunkDecision } from "@ai-digital-life/kernel";
 
 const FALLBACK_BRANCHES = ["main", "develop", "release/0.1.0", "feature/right-panel"];
 
-export function ChangesPanel(props: RightPanelViewProps) {
+export function ChangesPanel(props: ChangesPanelProps) {
   const {
     t,
     appInfo,
@@ -77,8 +77,8 @@ export function ChangesPanel(props: RightPanelViewProps) {
   } = props;
   const navigatorCollapsed = useUiStore((state) => state.navigatorCollapsedByTool.changes);
   const toggleNavigator = useUiStore((state) => state.toggleNavigator);
-  const changesNavigatorWidth = useUiStore((state) => state.changesNavigatorWidth);
-  const setChangesNavigatorWidth = useUiStore((state) => state.setChangesNavigatorWidth);
+  const changesNavigatorWidth = useAppStore((state) => state.changesNavigatorWidth);
+  const setChangesNavigatorWidth = useAppStore((state) => state.setChangesNavigatorWidth);
   const changesNavigatorMode = useUiStore((state) => state.changesNavigatorMode);
   const setChangesNavigatorMode = useUiStore((state) => state.setChangesNavigatorMode);
   const previewEnabled = useUiStore((state) => state.changesPreviewEnabled);

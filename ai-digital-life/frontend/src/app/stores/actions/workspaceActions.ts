@@ -7,12 +7,9 @@ import {
   getNextChangePreviewRequestSeq,
   getNextSessionRequestSeq,
   clearWorkspaceCaches,
-  createDebouncedSearch,
   workspaceRequestSeq,
 } from "../shared";
 import type { StoreApi } from "zustand";
-
-const debouncedSearch = createDebouncedSearch(300);
 
 export function createWorkspaceActions(set: StoreApi<StoreState>["setState"], get: () => StoreState) {
   return {
@@ -175,7 +172,7 @@ export function createWorkspaceActions(set: StoreApi<StoreState>["setState"], ge
         set({ error: result.error.message });
         return;
       }
-      set({ error: undefined, workspaceTree: result.data });
+      set({ error: undefined });
       const appInfo = get().appInfo;
       if (appInfo?.currentWorkspace?.id) {
         set({
@@ -312,114 +309,6 @@ export function createWorkspaceActions(set: StoreApi<StoreState>["setState"], ge
 
     collapseAllWorkspaceTreesInFileNav: () => {
       set({ workspaceTreeExpandedInFileNav: {} });
-    },
-
-    loadGitSnapshot: async (workspaceId: string, workspacePath: string) => {
-      const state = get();
-      if (state.gitSnapshots[workspaceId] && !state.workspaceChangesTreeLoading[workspaceId]) {
-        return;
-      }
-      set({
-        workspaceChangesTreeLoading: { ...state.workspaceChangesTreeLoading, [workspaceId]: true },
-        workspaceChangesTreeErrors: { ...state.workspaceChangesTreeErrors, [workspaceId]: undefined },
-      });
-      const result = await window.digitalLife.workspace.listGitStatusForWorkspace(workspacePath);
-      const loading = { ...get().workspaceChangesTreeLoading, [workspaceId]: false };
-      if (!result.ok) {
-        set({
-          workspaceChangesTreeLoading: loading,
-          workspaceChangesTreeErrors: { ...get().workspaceChangesTreeErrors, [workspaceId]: result.error.message },
-        });
-        return;
-      }
-      set({
-        gitSnapshots: { ...get().gitSnapshots, [workspaceId]: result.data },
-        workspaceChangesTreeLoading: loading,
-      });
-    },
-
-    refreshGitSnapshot: async (workspaceId: string, workspacePath: string) => {
-      set({
-        workspaceChangesTreeLoading: { ...get().workspaceChangesTreeLoading, [workspaceId]: true },
-        workspaceChangesTreeErrors: { ...get().workspaceChangesTreeErrors, [workspaceId]: undefined },
-      });
-      const result = await window.digitalLife.workspace.listGitStatusForWorkspace(workspacePath);
-      const loading = { ...get().workspaceChangesTreeLoading, [workspaceId]: false };
-      if (!result.ok) {
-        set({
-          workspaceChangesTreeLoading: loading,
-          workspaceChangesTreeErrors: { ...get().workspaceChangesTreeErrors, [workspaceId]: result.error.message },
-        });
-        return;
-      }
-      set({
-        gitSnapshots: { ...get().gitSnapshots, [workspaceId]: result.data },
-        workspaceChangesTreeLoading: loading,
-      });
-    },
-
-    expandWorkspaceChangesInFileNav: async (workspaceId: string, workspacePath: string) => {
-      const state = get();
-      if (state.workspaceChangesExpanded[workspaceId]) {
-        set({
-          workspaceChangesExpanded: {
-            ...state.workspaceChangesExpanded,
-            [workspaceId]: false,
-          },
-        });
-        return;
-      }
-      set({
-        workspaceChangesExpanded: {
-          ...state.workspaceChangesExpanded,
-          [workspaceId]: true,
-        },
-      });
-      if (!state.gitSnapshots[workspaceId]) {
-        await get().loadGitSnapshot(workspaceId, workspacePath);
-      }
-    },
-
-    collapseAllWorkspaceChanges: () => {
-      set({ workspaceChangesExpanded: {} });
-    },
-
-    expandAllWorkspaceChanges: async () => {
-      const state = get();
-      const visibleEntries = state.recentWorkspaces.filter(
-        (w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available
-      );
-      const expandedAll: Record<string, boolean> = {};
-      for (const entry of visibleEntries) {
-        expandedAll[entry.id] = true;
-      }
-      set({ workspaceChangesExpanded: expandedAll });
-      const toLoad = visibleEntries.filter((e) => !state.gitSnapshots[e.id]);
-      const CONCURRENCY = 3;
-      for (let i = 0; i < toLoad.length; i += CONCURRENCY) {
-        const batch = toLoad.slice(i, i + CONCURRENCY);
-        await Promise.allSettled(
-          batch.map((entry) => get().loadGitSnapshot(entry.id, entry.path))
-        );
-      }
-    },
-
-    searchFiles: async (query: string) => {
-      set({ searchQuery: query });
-      if (!query.trim()) {
-        set({ searchResults: [] });
-        return;
-      }
-      debouncedSearch(query, async () => {
-        if (get().searchQuery !== query) return;
-        const result = await window.digitalLife.workspace.search(query);
-        if (get().searchQuery !== query) return;
-        if (!result.ok) {
-          set({ error: result.error.message });
-          return;
-        }
-        set({ searchResults: result.data });
-      });
     },
   };
 }

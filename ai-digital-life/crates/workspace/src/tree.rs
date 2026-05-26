@@ -3,20 +3,26 @@ use adl_kernel::{
     now_ms, RepoMapEntry, RetrievalFileTypeCount, RetrievalSnapshot, RetrievalStatusV1,
     WorkspaceTreeNode,
 };
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 use tracing::{debug, info};
 
 const MAX_TREE_DEPTH: usize = 64;
 const MAX_TREE_NODES: usize = 200_000;
 const MAX_COLLECTED_FILES: usize = 50_000;
-const IGNORED_DIRS: &[&str] = &[
-    ".git", "target", "node_modules", "dist", "build",
-    ".next", ".cache", "__pycache__", ".venv", "vendor",
-    ".idea", ".vscode", ".svelte-kit", ".turbo",
-    "coverage", ".nyc_output", "out", ".tox",
-];
+fn ignored_dirs() -> &'static HashSet<&'static str> {
+    static IGNORED_DIRS: OnceLock<HashSet<&'static str>> = OnceLock::new();
+    IGNORED_DIRS.get_or_init(|| {
+        HashSet::from([
+            ".git", "target", "node_modules", "dist", "build",
+            ".next", ".cache", "__pycache__", ".venv", "vendor",
+            ".idea", ".vscode", ".svelte-kit", ".turbo",
+            "coverage", ".nyc_output", "out", ".tox",
+        ])
+    })
+}
 
 pub fn list_tree(root: &Path) -> Result<Vec<WorkspaceTreeNode>, AppError> {
     let mut remaining = MAX_TREE_NODES;
@@ -327,7 +333,7 @@ fn collect_text_files_inner_int(
 }
 
 fn should_ignore(name: &str) -> bool {
-    IGNORED_DIRS.iter().any(|ignored| ignored == &name)
+    ignored_dirs().contains(name)
 }
 
 pub(crate) fn relative_path(root: &Path, path: &Path) -> String {

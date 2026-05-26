@@ -97,17 +97,18 @@ pub fn patch_rollback_patch_set(
             );
             let _ = app.emit(
                 "digital-life://run-activity",
-                serde_json::json!({
-                  "v": 1,
-                  "runId": run_id,
-                  "seq": seq,
-                  "ts": ts,
-                  "type": "patch",
-                  "phase": "rolled-back",
-                  "patchSetId": patch_set.id,
-                  "fileCount": patch_set.file_patches.len(),
-                  "hunkCount": patch_set.file_patches.iter().map(|f| f.hunks.len()).sum::<usize>()
-                }),
+                adl_events::run_activity_event(
+                    run_id,
+                    seq,
+                    ts,
+                    "patch",
+                    serde_json::json!({
+                        "phase": "rolled-back",
+                        "patchSetId": patch_set.id,
+                        "fileCount": patch_set.file_patches.len(),
+                        "hunkCount": patch_set.file_patches.iter().map(|f| f.hunks.len()).sum::<usize>()
+                    }),
+                ),
             );
             if let Some(detail) = crate::commands::agent::load_run_detail(&state, run_id)? {
                 let validation = adl_kernel::ValidationResult {
@@ -185,17 +186,18 @@ async fn apply_patch_set_inner(
         );
         let _ = app.emit(
             "digital-life://run-activity",
-            serde_json::json!({
-              "v": 1,
-              "runId": run_id,
-              "seq": seq,
-              "ts": ts,
-              "type": "patch",
-              "phase": "applied",
-              "patchSetId": patch_set.id,
-              "fileCount": patch_set.file_patches.len(),
-              "hunkCount": patch_set.file_patches.iter().map(|f| f.hunks.len()).sum::<usize>()
-            }),
+            adl_events::run_activity_event(
+                run_id,
+                seq,
+                ts,
+                "patch",
+                serde_json::json!({
+                    "phase": "applied",
+                    "patchSetId": patch_set.id,
+                    "fileCount": patch_set.file_patches.len(),
+                    "hunkCount": patch_set.file_patches.iter().map(|f| f.hunks.len()).sum::<usize>()
+                }),
+            ),
         );
         if let Some(detail) = crate::commands::agent::load_run_detail(state, run_id)? {
             crate::commands::agent::save_run_detail(

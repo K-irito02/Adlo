@@ -7,7 +7,7 @@ import { ToolSwitcher } from "./right-panel/ToolSwitcher";
 import { AuditPanel } from "../components/approval/AuditPanel";
 import { ModelHealthPanel } from "../components/models/ModelHealthPanel";
 import { SettingsPanel } from "../components/settings/SettingsPanel";
-import type { RightPanelViewProps } from "./right-panel/types";
+import type { RightPanelViewProps, FilesPanelProps, ChangesPanelProps, BrowserPanelProps, TerminalPanelProps, AuditPanelProps, ModelPanelProps, SettingsPanelProps } from "./right-panel/types";
 import type { PatchDirection, PatchReviewFilter } from "../features/patch-review";
 import type { CopyDict } from "../copy";
 import type { EditorRef, DiffEditorRef } from "../types";
@@ -34,7 +34,20 @@ export interface RightPanelProps {
   onJumpPatchHunk: (direction: PatchDirection) => void;
 }
 
-const ActiveToolPanel = React.memo(function ActiveToolPanel({ activeTool, idBase, ...props }: { activeTool: ToolId; idBase: string } & RightPanelViewProps) {
+const ActiveToolPanel = React.memo(function ActiveToolPanel({
+  activeTool, idBase,
+  filesProps, changesProps, browserProps, terminalProps, auditProps, modelProps, settingsProps
+}: {
+  activeTool: ToolId;
+  idBase: string;
+  filesProps: FilesPanelProps;
+  changesProps: ChangesPanelProps;
+  browserProps: BrowserPanelProps;
+  terminalProps: TerminalPanelProps;
+  auditProps: AuditPanelProps;
+  modelProps: ModelPanelProps;
+  settingsProps: SettingsPanelProps;
+}) {
   const panelId = `${idBase}-${activeTool}-panel`;
   const tabId = `${idBase}-${activeTool}-tab`;
   return (
@@ -45,16 +58,16 @@ const ActiveToolPanel = React.memo(function ActiveToolPanel({ activeTool, idBase
       tabIndex={0}
       className="adl-rightpanel__tool is-active"
     >
-      {activeTool === "files" ? <FilesPanel {...props} /> : null}
-      {activeTool === "changes" ? <ChangesPanel {...props} /> : null}
-      {activeTool === "browser" ? <BrowserPanel {...props} /> : null}
-      {activeTool === "terminal" ? <TerminalPanel {...props} /> : null}
-      {activeTool === "audit" ? <AuditPanel t={props.t} entries={props.auditEntries} /> : null}
+      {activeTool === "files" ? <FilesPanel {...filesProps} /> : null}
+      {activeTool === "changes" ? <ChangesPanel {...changesProps} /> : null}
+      {activeTool === "browser" ? <BrowserPanel {...browserProps} /> : null}
+      {activeTool === "terminal" ? <TerminalPanel {...terminalProps} /> : null}
+      {activeTool === "audit" ? <AuditPanel t={auditProps.t} entries={auditProps.auditEntries} /> : null}
       {activeTool === "models" ? (
-        <ModelHealthPanel t={props.t} modelHealth={props.modelHealth} onRefresh={props.onRefreshModelHealth} />
+        <ModelHealthPanel t={modelProps.t} modelHealth={modelProps.modelHealth} onRefresh={modelProps.onRefreshModelHealth} />
       ) : null}
       {activeTool === "settings" ? (
-        <SettingsPanel t={props.t} settings={props.settings} onChangeSetting={props.onChangeSetting} />
+        <SettingsPanel t={settingsProps.t} settings={settingsProps.settings} onChangeSetting={settingsProps.onChangeSetting} />
       ) : null}
     </div>
   );
@@ -63,7 +76,7 @@ const ActiveToolPanel = React.memo(function ActiveToolPanel({ activeTool, idBase
 export function RightPanel(panelProps: RightPanelProps) {
   const { t, collapsed } = panelProps;
 
-  const { viewProps, activeTool, setActiveTool, badges } = useRightPanelViewProps(panelProps, collapsed);
+  const { viewProps, filesPanelProps, changesPanelProps, browserPanelProps, terminalPanelProps, auditPanelProps, modelPanelProps, settingsPanelProps, activeRightTool, setActiveRightTool, badges } = useRightPanelViewProps(panelProps, collapsed);
   const { panelRef, handleResizeStart, rightPanelMode, rightPanelWidth, applyPanelGeometry, lastRestorableWidthRef, readLayoutMetrics, clampPanelWidthToShell, setRightPanelWidth } = useRightPanelLayout(collapsed);
 
   const panelIdBase = useId();
@@ -79,10 +92,10 @@ export function RightPanel(panelProps: RightPanelProps) {
       <div className="adl-rightpanel__content">
         <ToolSwitcher
           t={t}
-          activeTool={activeTool}
+          activeTool={activeRightTool}
           badges={badges}
           idBase={panelIdBase}
-          onSelect={setActiveTool}
+          onSelect={setActiveRightTool}
           rightPanelExpanded={rightPanelMode === "overlay_full"}
           onToggleRightPanelExpanded={() => {
             const metrics = readLayoutMetrics();
@@ -99,7 +112,17 @@ export function RightPanel(panelProps: RightPanelProps) {
           }}
         />
 
-        <ActiveToolPanel {...viewProps} activeTool={activeTool} idBase={panelIdBase} />
+        <ActiveToolPanel
+          activeTool={activeRightTool}
+          idBase={panelIdBase}
+          filesProps={filesPanelProps}
+          changesProps={changesPanelProps}
+          browserProps={browserPanelProps}
+          terminalProps={terminalPanelProps}
+          auditProps={auditPanelProps}
+          modelProps={modelPanelProps}
+          settingsProps={settingsPanelProps}
+        />
       </div>
     </aside>
   );

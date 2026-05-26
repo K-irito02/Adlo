@@ -104,7 +104,7 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
   const setNavigatorMode = useUiStore((s) => s.setFilesNavigatorMode);
   const navigatorCollapsed = useUiStore((s) => s.navigatorCollapsedByTool.files);
   const toggleNavigator = useUiStore((s) => s.toggleNavigator);
-  const filesNavigatorWidth = useUiStore((s) => s.filesNavigatorWidth);
+  const filesNavigatorWidth = useAppStore((s) => s.filesNavigatorWidth);
   const expandedPaths = useUiStore((s) => s.expandedFileTreePaths);
   const setFileTreePathExpanded = useUiStore((s) => s.setFileTreePathExpanded);
   const toggleFileTreePath = useUiStore((s) => s.toggleFileTreePath);
@@ -141,7 +141,7 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
   });
 
   const { handlePointerDown: handleNavigatorResizeStart } = useNavigatorResize({
-    onWidthCommit: useUiStore.getState().setFilesNavigatorWidth,
+    onWidthCommit: useAppStore.getState().setFilesNavigatorWidth,
     minWidth: 180,
     maxWidth: 420,
   });
