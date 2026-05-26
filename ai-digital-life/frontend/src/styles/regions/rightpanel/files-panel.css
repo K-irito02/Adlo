@@ -1048,6 +1048,18 @@
   display: none;
 }
 
+/* 文件节点：icon-before伪装成展开按钮（宽度16px + margin左右各2px） */
+.adl-filetree__node--file > .adl-tree-node__row > .adl-tree-node__icon-before {
+  width: 16px !important;
+  height: 16px;
+  margin-left: 6px;
+  margin-right: 2px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .adl-tree-node__row,
 .adl-filetree__row,
 .adl-outline-tree__row,
@@ -1374,7 +1386,6 @@
   min-width: 20px;
   height: 18px;
   flex-shrink: 0;
-  margin-left: 2px;
   color: var(--adl-file-badge-ink);
   overflow: hidden;
 }
