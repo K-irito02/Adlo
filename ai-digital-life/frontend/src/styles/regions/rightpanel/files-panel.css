@@ -1017,7 +1017,7 @@
 .adl-outline-tree__children {
   list-style: none;
   margin: 0;
-  padding: 0 0 0 48px;
+  padding: 0 0 0 14px;
   display: flex;
   flex-direction: column;
   gap: 1px;
@@ -1033,11 +1033,15 @@
 .adl-tree-node::before {
   content: "";
   position: absolute;
-  left: 18px;
+  left: 13px;
   top: 0;
   bottom: 0;
   width: 1px;
   background: color-mix(in srgb, var(--border) 78%, transparent);
+}
+
+.adl-tree-root > .adl-tree-node::before {
+  display: none;
 }
 
 .adl-filetree__item::before {
@@ -1072,7 +1076,7 @@
   --adl-tree-toggle-active-bg: transparent;
   width: 100%;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 2px;
   min-height: 24px;
@@ -1232,7 +1236,15 @@
 .adl-outline-tree__toggle,
 .adl-tree-node__indent,
 .adl-filetree__indent,
-.adl-outline-tree__indent,
+.adl-outline-tree__indent {
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+
 .adl-tree-node__icon-before {
   width: 16px;
   height: 16px;
@@ -1258,8 +1270,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-left: 2px;
-  margin-right: 2px;
   border: none;
   background: var(--adl-tree-toggle-rest-bg);
   color: var(--text-muted);
@@ -1268,24 +1278,23 @@
   transition: background 0.12s, color 0.12s;
 }
 
+.adl-tree-node__toggle:hover,
+.adl-filetree__toggle:hover {
+  background: var(--adl-tree-toggle-hover-bg);
+  color: var(--text-primary);
+}
+
+.adl-outline-tree__toggle:hover {
+  background: color-mix(in srgb, var(--surface-hover) 88%, transparent);
+  color: var(--text-primary);
+}
+
 .adl-tree-node__toggle svg,
 .adl-filetree__toggle svg,
 .adl-outline-tree__toggle svg {
   width: 12px;
   height: 12px;
   flex-shrink: 0;
-}
-
-.adl-tree-node__toggle:hover,
-.adl-filetree__toggle:hover,
-.adl-outline-tree__toggle:hover {
-  background: var(--adl-tree-toggle-hover-bg);
-  color: var(--text-primary);
-}
-
-.adl-tree-node__row:hover .adl-tree-node__toggle,
-.adl-tree-node__row:hover ~ .adl-tree-node__children .adl-tree-node__toggle {
-  color: var(--text-primary);
 }
 
 .adl-tree-node.is-active > .adl-tree-node__row .adl-tree-node__toggle,
@@ -1680,12 +1689,6 @@
   padding: 0 0 var(--space-1);
 }
 
-.adl-outline-tree__children {
-  list-style: none;
-  margin: 0;
-  padding: 0 0 0 48px;
-}
-
 .adl-outline-tree__item {
   --adl-outline-depth: 1;
   position: relative;
@@ -1695,7 +1698,7 @@
 .adl-outline-tree__item::before {
   content: "";
   position: absolute;
-  left: 28px;
+  left: 13px;
   top: 0;
   bottom: 0;
   width: 1px;
@@ -1722,35 +1725,7 @@
   transition: background 0.12s ease;
 }
 
-.adl-outline-tree__toggle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
-  border: none;
-  background: var(--bg);
-  color: var(--text-muted);
-  cursor: pointer;
-  flex-shrink: 0;
-  border-radius: 3px;
-  transition: background 0.12s, color 0.12s;
-  position: relative;
-  z-index: 1;
-}
 
-.adl-outline-tree__toggle:hover {
-  background: color-mix(in srgb, var(--surface-hover) 88%, transparent);
-  color: var(--text-primary);
-}
-
-.adl-outline-tree__indent {
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
-  position: relative;
-  z-index: 1;
-}
 
 .adl-outline-tree__label {
   display: flex;

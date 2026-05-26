@@ -66,3 +66,110 @@
 - 子节点的 toggle/文件logo 对齐父节点的首字符
 - 同级下文件 logo 与文件夹 toggle 处于同一垂直列（均为 row 内第一个元素）
 - 顶节点显示竖线
+
+---
+
+## 后续恢复（2026-05-27）
+
+### 问题
+
+在实施上述优化后，"文档大纲"功能的样式被错误地影响了，包括：
+- 层级缩进量从14px变为48px
+- 折叠/展开按钮尺寸从20px变为16px
+- 连接竖线位置不正确
+- 按钮悬停效果消失
+
+### 解决方案
+
+**核心原则**：将文件树和文档大纲的样式完全隔离
+
+#### 1. 恢复 OutlineTree.tsx
+
+```typescript
+// rowOffset 恢复为原来的值
+rowOffset={((depth - 1) * 14) + 4}
+```
+
+#### 2. 恢复 files-panel.css 中的文档大纲样式
+
+**子节点缩进**：
+```css
+.adl-tree-node__children,
+.adl-filetree__children,
+.adl-outline-tree__children {
+  padding: 0 0 0 14px;  /* 恢复为14px */
+}
+```
+
+**连接竖线位置**：
+```css
+.adl-tree-node::before {
+  left: 13px;  /* 恢复为13px */
+}
+.adl-tree-root > .adl-tree-node::before {
+  display: none;  /* 添加：隐藏根节点竖线 */
+}
+```
+
+**按钮和缩进尺寸**：
+```css
+.adl-tree-node__toggle,
+.adl-filetree__toggle,
+.adl-outline-tree__toggle,
+.adl-tree-node__indent,
+.adl-filetree__indent,
+.adl-outline-tree__indent {
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+}
+```
+
+**行对齐方式**：
+```css
+.adl-tree-node__row {
+  align-items: flex-start;  /* 恢复为flex-start */
+}
+```
+
+**按钮悬停效果**：
+```css
+.adl-outline-tree__toggle:hover {
+  background: color-mix(in srgb, var(--surface-hover) 88%, transparent);
+  color: var(--text-primary);
+}
+```
+
+#### 3. 保留文件树的优化样式
+
+```css
+/* 文件节点：隐藏连接竖线 */
+.adl-filetree__node--file::before {
+  display: none;
+}
+
+/* 文件节点：icon模拟展开按钮位置 */
+.adl-filetree__node--file > .adl-tree-node__row > .adl-tree-node__icon-before {
+  width: 16px !important;
+  height: 16px;
+  margin-left: 6px;
+  margin-right: 2px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+```
+
+### 最终效果
+
+- ✅ **文件树**：保持优化效果（文件节点无连线、logo与父文件夹名称对齐）
+- ✅ **文档大纲**：恢复到63c4579版本效果（层级缩进14px、按钮20px、悬停效果正常）
+- ✅ **样式隔离**：两种树组件的样式完全独立，互不影响
+
+### 经验教训
+
+1. **模块化CSS**：不同功能模块应有独立的样式文件或明确的类名前缀
+2. **样式隔离**：共享组件应避免样式耦合，建议使用CSS Modules
+3. **版本回滚**：重要样式变更前应记录当前状态，便于快速回滚
+4. **双端验证**：同时检查Tauri桌面和浏览器模式
