@@ -161,7 +161,7 @@ function FileTreeNodeComponent<T extends FileTreeRenderableNode>({
       collapseLabel={collapseLabel}
       onToggle={isDirectory ? () => onToggle(node.path) : undefined}
       onActivate={handleActivate}
-      itemClassName={`adl-filetree__item${isDirectory ? " adl-filetree__node--directory" : ""}${nodeClassName ? ` ${nodeClassName}` : ""}`}
+      itemClassName={`adl-filetree__item${isDirectory ? " adl-filetree__node--directory" : " adl-filetree__node--file"}${nodeClassName ? ` ${nodeClassName}` : ""}`}
       rowClassName="adl-filetree__row"
       labelClassName="adl-filetree__label"
       toggleClassName="adl-filetree__toggle"

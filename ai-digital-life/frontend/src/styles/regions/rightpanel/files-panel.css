@@ -1044,6 +1044,10 @@
   left: 18px;
 }
 
+.adl-filetree__node--file::before {
+  display: none;
+}
+
 .adl-tree-node__row,
 .adl-filetree__row,
 .adl-outline-tree__row,
@@ -1370,6 +1374,7 @@
   min-width: 20px;
   height: 18px;
   flex-shrink: 0;
+  margin-left: 2px;
   color: var(--adl-file-badge-ink);
   overflow: hidden;
 }
