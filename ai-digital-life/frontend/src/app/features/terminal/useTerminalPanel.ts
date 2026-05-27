@@ -13,9 +13,16 @@ export type TerminalMenuItem =
   | { id: string; separator: true }
   | { id: string; label: string; disabled?: boolean; action?: () => void };
 
+export interface WorkspaceMenuItem {
+  id: string;
+  label: string;
+  workspaceId: string;
+}
+
 export type TerminalShellMenuItem =
   | { id: string; separator: true }
-  | { id: string; label: string; profile?: TerminalProfile; action: () => void };
+  | { id: string; label: string; profile?: TerminalProfile; action: () => void }
+  | { id: string; label: string; hasSubMenu: true; subMenu: WorkspaceMenuItem[]; action?: () => void };
 
 export interface ContextMenuState {
   open: boolean;
@@ -405,8 +412,23 @@ export function useTerminalPanel(props: TerminalPanelProps): UseTerminalPanelRet
     { id: "kill", label: t.terminalKillProcess, action: handleKill }
   ];
 
+  const workspaceMenuItems = useMemo(() => {
+    const items: WorkspaceMenuItem[] = [
+      { id: "workspace-independent", label: t.terminalIndependent, workspaceId: "" }
+    ];
+    const validWorkspaces = recentWorkspaces.filter(w => !w.removedFromSidebar && w.available);
+    for (const ws of validWorkspaces) {
+      items.push({
+        id: `workspace-${ws.id}`,
+        label: ws.name,
+        workspaceId: ws.id
+      });
+    }
+    return items;
+  }, [recentWorkspaces, t.terminalIndependent]);
+
   const shellMenuItems: TerminalShellMenuItem[] = [
-    { id: "new-terminal", label: t.menuNewTerminal, action: () => handleCreateTab(currentProfile) },
+    { id: "workspace-section", label: t.terminalBindWorkspace, hasSubMenu: true, subMenu: workspaceMenuItems },
     { id: "sep-1", separator: true },
     { id: "powershell", label: "PowerShell", profile: "powershell", action: () => updateProfile("powershell") },
     { id: "bash", label: "Bash", profile: "bash", action: () => updateProfile("bash") },

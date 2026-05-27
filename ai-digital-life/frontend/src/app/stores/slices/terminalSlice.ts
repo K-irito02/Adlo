@@ -194,6 +194,7 @@ export interface TerminalSlice {
   navigatorCollapsedByTool: Record<ToolId, boolean>;
   terminalWorkspaceExpanded: Record<string, boolean>;
   terminalPersisted: boolean;
+  terminalWorkspaceId: string;
 
   terminalCreateTab: (profile?: TerminalProfile, workspaceId?: string) => void;
   terminalSelectTab: (tabId: string) => void;
@@ -209,6 +210,7 @@ export interface TerminalSlice {
   setTerminalNavigatorCollapsed: (collapsed: boolean) => void;
   setTerminalWorkspaceExpanded: (expanded: Record<string, boolean>) => void;
   setTerminalPersisted: (persisted: boolean) => void;
+  setTerminalWorkspaceId: (workspaceId: string) => void;
 }
 
 export const createTerminalSlice = (
@@ -220,139 +222,143 @@ export const createTerminalSlice = (
     terminalTabs: initialTerminalTabs,
     terminalTabsById: {},
     terminalActiveTabId: "",
-  defaultTerminalProfile: "powershell",
-  terminalNavigatorWidth: DEFAULT_TERMINAL_NAVIGATOR_WIDTH,
-  navigatorCollapsedByTool: defaultNavigatorCollapsed(),
-  terminalWorkspaceExpanded: {},
-  terminalPersisted: false,
+    defaultTerminalProfile: "powershell",
+    terminalNavigatorWidth: DEFAULT_TERMINAL_NAVIGATOR_WIDTH,
+    navigatorCollapsedByTool: defaultNavigatorCollapsed(),
+    terminalWorkspaceExpanded: {},
+    terminalPersisted: false,
+    terminalWorkspaceId: "",
 
-  terminalCreateTab: (profile = "powershell", workspaceId = "") =>
-    set((state) => {
-      const existingCount = state.terminalTabs.filter((tab) => tab.profile === profile).length + 1;
-      const maxSortOrder = state.terminalTabs.length > 0 ? Math.max(...state.terminalTabs.map(t => t.sortOrder)) : 0;
-      const tab: TerminalTabState = {
-        id: createUiId("terminal"),
-        workspaceId,
-        title: deriveTerminalTitle(profile, existingCount),
-        profile,
-        status: "idle",
-        isPinned: false,
-        sortOrder: maxSortOrder + 1
-      };
-      const nextTabs = sortTabs([...state.terminalTabs, tab]);
-      scheduleWrite(TERMINAL_TABS_KEY, nextTabs);
-      scheduleWrite(TERMINAL_ACTIVE_TAB_KEY, tab.id);
-      return { terminalTabs: nextTabs, terminalTabsById: buildTabsById(nextTabs), terminalActiveTabId: tab.id };
-    }),
+    terminalCreateTab: (profile = "powershell", workspaceId = "") =>
+      set((state) => {
+        const existingCount = state.terminalTabs.filter((tab) => tab.profile === profile).length + 1;
+        const maxSortOrder = state.terminalTabs.length > 0 ? Math.max(...state.terminalTabs.map(t => t.sortOrder)) : 0;
+        const tab: TerminalTabState = {
+          id: createUiId("terminal"),
+          workspaceId,
+          title: deriveTerminalTitle(profile, existingCount),
+          profile,
+          status: "idle",
+          isPinned: false,
+          sortOrder: maxSortOrder + 1
+        };
+        const nextTabs = sortTabs([...state.terminalTabs, tab]);
+        scheduleWrite(TERMINAL_TABS_KEY, nextTabs);
+        scheduleWrite(TERMINAL_ACTIVE_TAB_KEY, tab.id);
+        return { terminalTabs: nextTabs, terminalTabsById: buildTabsById(nextTabs), terminalActiveTabId: tab.id };
+      }),
 
-  terminalSelectTab: (tabId) => {
-    scheduleWrite(TERMINAL_ACTIVE_TAB_KEY, tabId);
-    set({ terminalActiveTabId: tabId });
-  },
+    terminalSelectTab: (tabId) => {
+      scheduleWrite(TERMINAL_ACTIVE_TAB_KEY, tabId);
+      set({ terminalActiveTabId: tabId });
+    },
 
-  terminalCloseTab: (tabId) =>
-    set((state) => {
-      const filtered = state.terminalTabs.filter((tab) => tab.id !== tabId);
-      const nextTabs = sortTabs(filtered);
-      const nextActive =
-        state.terminalActiveTabId === tabId
-          ? nextTabs[nextTabs.length - 1]?.id ?? ""
-          : state.terminalActiveTabId;
-      scheduleWrite(TERMINAL_TABS_KEY, nextTabs);
-      scheduleWrite(TERMINAL_ACTIVE_TAB_KEY, nextActive);
-      return {
-        terminalTabs: nextTabs,
-        terminalTabsById: buildTabsById(nextTabs),
-        terminalActiveTabId: nextActive
-      };
-    }),
+    terminalCloseTab: (tabId) =>
+      set((state) => {
+        const filtered = state.terminalTabs.filter((tab) => tab.id !== tabId);
+        const nextTabs = sortTabs(filtered);
+        const nextActive =
+          state.terminalActiveTabId === tabId
+            ? nextTabs[nextTabs.length - 1]?.id ?? ""
+            : state.terminalActiveTabId;
+        scheduleWrite(TERMINAL_TABS_KEY, nextTabs);
+        scheduleWrite(TERMINAL_ACTIVE_TAB_KEY, nextActive);
+        return {
+          terminalTabs: nextTabs,
+          terminalTabsById: buildTabsById(nextTabs),
+          terminalActiveTabId: nextActive
+        };
+      }),
 
-  terminalUpdateActiveTab: (patch) =>
-    set((state) => {
-      const nextTabs = sortTabs(state.terminalTabs.map((tab) =>
-        tab.id === state.terminalActiveTabId ? { ...tab, ...patch } : tab
-      ));
-      scheduleWrite(TERMINAL_TABS_KEY, nextTabs);
-      return { terminalTabs: nextTabs, terminalTabsById: buildTabsById(nextTabs) };
-    }),
+    terminalUpdateActiveTab: (patch) =>
+      set((state) => {
+        const nextTabs = sortTabs(state.terminalTabs.map((tab) =>
+          tab.id === state.terminalActiveTabId ? { ...tab, ...patch } : tab
+        ));
+        scheduleWrite(TERMINAL_TABS_KEY, nextTabs);
+        return { terminalTabs: nextTabs, terminalTabsById: buildTabsById(nextTabs) };
+      }),
 
-  terminalUpdateTab: (tabId, patch) =>
-    set((state) => {
-      const nextTabs = sortTabs(state.terminalTabs.map((tab) =>
-        tab.id === tabId ? { ...tab, ...patch } : tab
-      ));
-      scheduleWrite(TERMINAL_TABS_KEY, nextTabs);
-      return { terminalTabs: nextTabs, terminalTabsById: buildTabsById(nextTabs) };
-    }),
+    terminalUpdateTab: (tabId, patch) =>
+      set((state) => {
+        const nextTabs = sortTabs(state.terminalTabs.map((tab) =>
+          tab.id === tabId ? { ...tab, ...patch } : tab
+        ));
+        scheduleWrite(TERMINAL_TABS_KEY, nextTabs);
+        return { terminalTabs: nextTabs, terminalTabsById: buildTabsById(nextTabs) };
+      }),
 
-  terminalTogglePin: (tabId) =>
-    set((state) => {
-      const nextTabs = sortTabs(state.terminalTabs.map((tab) => {
-        if (tab.id === tabId) {
-          return {
-            ...tab,
-            isPinned: !tab.isPinned,
-            pinnedAt: !tab.isPinned ? Date.now() : undefined
-          };
-        }
-        return tab;
-      }));
-      scheduleWrite(TERMINAL_TABS_KEY, nextTabs);
-      return { terminalTabs: nextTabs, terminalTabsById: buildTabsById(nextTabs) };
-    }),
+    terminalTogglePin: (tabId) =>
+      set((state) => {
+        const nextTabs = sortTabs(state.terminalTabs.map((tab) => {
+          if (tab.id === tabId) {
+            return {
+              ...tab,
+              isPinned: !tab.isPinned,
+              pinnedAt: !tab.isPinned ? Date.now() : undefined
+            };
+          }
+          return tab;
+        }));
+        scheduleWrite(TERMINAL_TABS_KEY, nextTabs);
+        return { terminalTabs: nextTabs, terminalTabsById: buildTabsById(nextTabs) };
+      }),
 
-  terminalReorderTabs: (newOrder) =>
-    set((state) => {
-      const pinnedTabs = newOrder.filter(t => t.isPinned);
-      const unpinnedTabs = newOrder.filter(t => !t.isPinned);
+    terminalReorderTabs: (newOrder) =>
+      set((state) => {
+        const pinnedTabs = newOrder.filter(t => t.isPinned);
+        const unpinnedTabs = newOrder.filter(t => !t.isPinned);
 
-      const reorderedWithSort = [...pinnedTabs, ...unpinnedTabs].map((tab, index) => ({
-        ...tab,
-        sortOrder: index
-      }));
+        const reorderedWithSort = [...pinnedTabs, ...unpinnedTabs].map((tab, index) => ({
+          ...tab,
+          sortOrder: index
+        }));
 
-      scheduleWrite(TERMINAL_TABS_KEY, reorderedWithSort);
-      return { terminalTabs: reorderedWithSort, terminalTabsById: buildTabsById(reorderedWithSort) };
-    }),
+        scheduleWrite(TERMINAL_TABS_KEY, reorderedWithSort);
+        return { terminalTabs: reorderedWithSort, terminalTabsById: buildTabsById(reorderedWithSort) };
+      }),
 
-  terminalCloseAllTabs: () => {
-    scheduleWrite(TERMINAL_TABS_KEY, []);
-    scheduleWrite(TERMINAL_ACTIVE_TAB_KEY, "");
-    set({ terminalTabs: [], terminalTabsById: {}, terminalActiveTabId: "" });
-  },
+    terminalCloseAllTabs: () => {
+      scheduleWrite(TERMINAL_TABS_KEY, []);
+      scheduleWrite(TERMINAL_ACTIVE_TAB_KEY, "");
+      set({ terminalTabs: [], terminalTabsById: {}, terminalActiveTabId: "" });
+    },
 
-  setDefaultTerminalProfile: (profile) => {
-    scheduleWrite(TERMINAL_DEFAULT_PROFILE_KEY, profile);
-    set({ defaultTerminalProfile: profile });
-  },
+    setDefaultTerminalProfile: (profile) => {
+      scheduleWrite(TERMINAL_DEFAULT_PROFILE_KEY, profile);
+      set({ defaultTerminalProfile: profile });
+    },
 
-  setTerminalNavigatorWidth: (width) => {
-    const next = clamp(width, TERMINAL_NAVIGATOR_WIDTH_MIN, TERMINAL_NAVIGATOR_WIDTH_MAX);
-    scheduleNumberWrite(TERMINAL_NAVIGATOR_WIDTH_KEY, next);
-    set({ terminalNavigatorWidth: next });
-  },
+    setTerminalNavigatorWidth: (width) => {
+      const next = clamp(width, TERMINAL_NAVIGATOR_WIDTH_MIN, TERMINAL_NAVIGATOR_WIDTH_MAX);
+      scheduleNumberWrite(TERMINAL_NAVIGATOR_WIDTH_KEY, next);
+      set({ terminalNavigatorWidth: next });
+    },
 
-  toggleTerminalNavigator: () =>
-    set((state) => {
-      const next = {
-        ...state.navigatorCollapsedByTool,
-        terminal: !(state.navigatorCollapsedByTool.terminal ?? false)
-      };
-      scheduleWrite(TERMINAL_NAVIGATOR_COLLAPSED_KEY, next);
-      return { navigatorCollapsedByTool: next };
-    }),
+    toggleTerminalNavigator: () =>
+      set((state) => {
+        const next = {
+          ...state.navigatorCollapsedByTool,
+          terminal: !(state.navigatorCollapsedByTool.terminal ?? false)
+        };
+        scheduleWrite(TERMINAL_NAVIGATOR_COLLAPSED_KEY, next);
+        return { navigatorCollapsedByTool: next };
+      }),
 
-  setTerminalNavigatorCollapsed: (collapsed) =>
-    set((state) => {
-      const next = { ...state.navigatorCollapsedByTool, terminal: collapsed };
-      scheduleWrite(TERMINAL_NAVIGATOR_COLLAPSED_KEY, next);
-      return { navigatorCollapsedByTool: next };
-    }),
+    setTerminalNavigatorCollapsed: (collapsed) =>
+      set((state) => {
+        const next = { ...state.navigatorCollapsedByTool, terminal: collapsed };
+        scheduleWrite(TERMINAL_NAVIGATOR_COLLAPSED_KEY, next);
+        return { navigatorCollapsedByTool: next };
+      }),
 
-  setTerminalWorkspaceExpanded: (expanded) =>
-    set({ terminalWorkspaceExpanded: expanded }),
+    setTerminalWorkspaceExpanded: (expanded) =>
+      set({ terminalWorkspaceExpanded: expanded }),
 
-  setTerminalPersisted: (persisted) =>
-    set({ terminalPersisted: persisted })
+    setTerminalPersisted: (persisted) =>
+      set({ terminalPersisted: persisted }),
+
+    setTerminalWorkspaceId: (workspaceId) =>
+      set({ terminalWorkspaceId: workspaceId })
   };
-}
+};

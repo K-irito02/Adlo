@@ -253,6 +253,8 @@ export function TerminalPanel(props: TerminalPanelProps) {
             ) : (
               <TerminalEmptyState
                 shellTypeItems={terminalState.shellTypeItems}
+                workspaces={recentWorkspaces}
+                defaultProfile={terminalState.defaultTerminalProfile}
                 onSelectProfile={terminalActions.handleCreateTab}
                 t={t}
               />

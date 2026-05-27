@@ -4,7 +4,7 @@ import type { RecentWorkspaceEntry } from "@ai-digital-life/kernel";
 import type { CopyDict } from "../../copy";
 import type { TerminalTabState } from "../../stores/slices/terminalSlice";
 import type { TerminalProfile } from "../../ui-store";
-import { IconRefreshCw, IconTrash, IconPlus, IconMoreVertical, IconEyeOff, IconFolderOpen, IconFolder, IconTerminal } from "../../icons";
+import { IconRefreshCw, IconTrash, IconPlus, IconMoreVertical, IconEyeOff, IconFolderOpen, IconFolder, IconTerminal, IconChevronRight } from "../../icons";
 import { TooltipSimple } from "../../components/Tooltip";
 import { TerminalTabBar } from "../terminal/TerminalTabBar";
 import { useAppStore } from "../../stores/slicedStore";
@@ -23,6 +23,7 @@ export interface WorkspaceTerminalEntryProps {
   onHideFromRightPanels: (workspaceId: string) => void;
   onRefreshTree: () => void;
   onCloseAllTabs: () => void;
+  isIndependent?: boolean;
   t: CopyDict;
 }
 
@@ -40,13 +41,16 @@ export function WorkspaceTerminalEntry({
   onHideFromRightPanels,
   onRefreshTree,
   onCloseAllTabs,
+  isIndependent = false,
   t,
 }: WorkspaceTerminalEntryProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const [subHover, setSubHover] = useState(false);
+  const [subMenuPosition, setSubMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const menuId = `ws-term-menu-${workspace.id}`;
   const subMenuId = `ws-term-submenu-${workspace.id}`;
+  const subMenuTriggerRef = useRef<HTMLDivElement | null>(null);
   const currentProfile = useAppStore((s) => s.defaultTerminalProfile);
   const setDefaultTerminalProfile = useAppStore((s) => s.setDefaultTerminalProfile);
   const subHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -103,6 +107,10 @@ export function WorkspaceTerminalEntry({
       subHideTimerRef.current = null;
     }
     setSubHover(true);
+    if (subMenuTriggerRef.current) {
+      const rect = subMenuTriggerRef.current.getBoundingClientRect();
+      setSubMenuPosition({ top: rect.top, left: rect.right + 6 });
+    }
   }, []);
 
   const hideSubMenuDelayed = useCallback(() => {
@@ -138,7 +146,7 @@ export function WorkspaceTerminalEntry({
   }, [setDefaultTerminalProfile]);
 
   return (
-    <div className={`adl-multitree-entry${!workspace.available ? " is-unavailable" : ""}`}>
+    <div className={`adl-multitree-entry${isIndependent ? " adl-multitree-entry--independent" : ""}${!workspace.available ? " is-unavailable" : ""}`}>
       <div className="adl-multitree-entry__header" data-menu-zone-id={menuId}>
         <div className="adl-multitree-entry__expand">
           <TooltipSimple content={isExpanded ? "收起" : "展开"} placement="top">
@@ -160,24 +168,27 @@ export function WorkspaceTerminalEntry({
           role="button"
           tabIndex={0}
           onClick={handleNameClick}
-          onContextMenu={handleNameContextMenu}
+          onContextMenu={isIndependent ? undefined : handleNameContextMenu}
           onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") handleNameClick(); }}
           aria-label={workspace.name}
         >
+          {isIndependent && <IconTerminal size={14} className="adl-multitree-entry__icon" decorative />}
           <span className="adl-multitree-entry__name" title={workspace.path}>{workspace.name}</span>
           <span className="adl-multitree-entry__count">{tabCount}</span>
 
           <div className="adl-multitree-entry__actions">
-            <TooltipSimple content="刷新" placement="top">
-              <button
-                type="button"
-                className="adl-icon-btn adl-icon-btn--xs"
-                onClick={(e) => { e.stopPropagation(); onRefreshTree(); }}
-                aria-label="刷新"
-              >
-                <IconRefreshCw size={12} decorative />
-              </button>
-            </TooltipSimple>
+            {!isIndependent && (
+              <TooltipSimple content="刷新" placement="top">
+                <button
+                  type="button"
+                  className="adl-icon-btn adl-icon-btn--xs"
+                  onClick={(e) => { e.stopPropagation(); onRefreshTree(); }}
+                  aria-label="刷新"
+                >
+                  <IconRefreshCw size={12} decorative />
+                </button>
+              </TooltipSimple>
+            )}
             <TooltipSimple content="删除全部" placement="top">
               <button
                 type="button"
@@ -198,17 +209,19 @@ export function WorkspaceTerminalEntry({
                 <IconPlus size={12} decorative />
               </button>
             </TooltipSimple>
-            <TooltipSimple content="更多操作" placement="top">
-              <button
-                type="button"
-                className="adl-icon-btn adl-icon-btn--xs"
-                data-menu-btn-id={menuId}
-                onClick={handleMoreClick}
-                aria-label="更多操作"
-              >
-                <IconMoreVertical size={12} decorative />
-              </button>
-            </TooltipSimple>
+            {!isIndependent && (
+              <TooltipSimple content="更多操作" placement="top">
+                <button
+                  type="button"
+                  className="adl-icon-btn adl-icon-btn--xs"
+                  data-menu-btn-id={menuId}
+                  onClick={handleMoreClick}
+                  aria-label="更多操作"
+                >
+                  <IconMoreVertical size={12} decorative />
+                </button>
+              </TooltipSimple>
+            )}
           </div>
         </div>
       </div>
@@ -221,6 +234,7 @@ export function WorkspaceTerminalEntry({
           </button>
           <div className="adl-multitree-entry__menu-sep" role="separator" />
           <div
+            ref={subMenuTriggerRef}
             className="adl-multitree-entry__menu-item adl-multitree-entry__menu-item--with-sub"
             data-sub-menu-id={subMenuId}
             onMouseEnter={showSubMenu}
@@ -228,17 +242,18 @@ export function WorkspaceTerminalEntry({
           >
             <IconTerminal size={14} />
             <span>默认为{defaultProfileLabel}终端</span>
+            <IconChevronRight size={12} decorative />
           </div>
         </div>,
         document.body
       ) : null}
 
-      {menuOpen && menuPosition && subHover ? createPortal(
+      {menuOpen && subHover && subMenuPosition ? createPortal(
         <div
           className="adl-multitree-entry__menu adl-multitree-entry__menu--sub"
           role="menu"
           data-menu-id={subMenuId}
-          style={{ top: menuPosition.top, left: menuPosition.left + 185 }}
+          style={{ top: subMenuPosition.top, left: subMenuPosition.left }}
           onMouseEnter={showSubMenu}
           onMouseLeave={hideSubMenuDelayed}
         >
