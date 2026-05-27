@@ -8,7 +8,7 @@ import { IconRefreshCw, IconTrash, IconPlus, IconMoreVertical, IconEyeOff, IconF
 import { TooltipSimple } from "../../components/Tooltip";
 import { TerminalTabBar } from "../terminal/TerminalTabBar";
 import { useAppStore } from "../../stores/slicedStore";
-import { logTestMessage } from "./test-log";
+
 
 export interface WorkspaceTerminalEntryProps {
   workspace: RecentWorkspaceEntry;
@@ -64,16 +64,7 @@ export function WorkspaceTerminalEntry({
     ? defaultTerminalProfile 
     : (workspaceDefaultProfiles[workspace.id] ?? defaultTerminalProfile);
 
-  useEffect(() => {
-    logTestMessage("Component mounted/updated", { 
-      workspaceId: workspace.id, 
-      workspaceName: workspace.name,
-      isIndependent,
-      currentProfile,
-      workspaceDefaultProfiles: JSON.parse(JSON.stringify(workspaceDefaultProfiles)),
-      setWorkspaceDefaultTerminalProfileExists: typeof setWorkspaceDefaultTerminalProfile === 'function'
-    });
-  }, [workspace.id, workspace.name, isIndependent, currentProfile, workspaceDefaultProfiles]);
+
 
   const profileLabels: Record<TerminalProfile, string> = {
     powershell: "PowerShell",
@@ -162,15 +153,11 @@ export function WorkspaceTerminalEntry({
   }, [onHideFromRightPanels, workspace.id, closeMenu]);
 
   const handleSelectDefaultProfile = useCallback((profile: TerminalProfile) => {
-    logTestMessage("handleSelectDefaultProfile called", { profile, isIndependent, workspaceId: workspace.id });
     if (isIndependent) {
-      logTestMessage("Setting global default profile", { profile });
       setDefaultTerminalProfile(profile);
     } else {
-      logTestMessage("Setting workspace default profile", { workspaceId: workspace.id, profile });
       setWorkspaceDefaultTerminalProfile(workspace.id, profile);
     }
-    // 强制触发重新渲染
     setRenderKey(prev => prev + 1);
     setTimeout(() => {
       closeMenu();
