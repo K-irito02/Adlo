@@ -1,1 +1,0 @@
-export { estimateWrapColumn } from './editor-support/cmWrapColumn';

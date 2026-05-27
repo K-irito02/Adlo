@@ -35,22 +35,35 @@ ai-digital-life/
 
 | crate | 职责 |
 |-------|------|
-| `kernel` | 共享类型与常量（serde） |
-| `storage` / `migration` | SQLite（schema 初始化使用外部 SQL 文件 `sql/`） |
-| `config`、`logger`、`errors`、`events` | 基础设施 |
+| `kernel` | 共享类型与常量（serde），含 `domain` 模块 |
+| `storage` / `migration` | SQLite（r2d2 连接池，`EntityTable` 宏生成，外部 SQL 文件 `sql/`） |
+| `config` | 配置分层与持久化 |
+| `logger` | tracing 初始化、结构化字段 |
+| `errors` | thiserror 错误类型 |
+| `events` | 跨 crate 事件总线 |
 | `workspace` | 业务域（拆分 fs/git/search/tree/outline×10 子模块, 文件 CRUD + 16+ 语言大纲解析） |
-| `task`、`conversation`、`model-gateway` | 业务域 |
+| `outline` | 大纲解析（从 workspace 抽出为独立 crate） |
+| `context` | 上下文选择（替代已拆除的 context-engine） |
+| `command` | 命令执行与治理 |
+| `pty` | 伪终端（PTY）进程管理 |
+| `fs-ops` | notify 监听、原子写、路径作用域 |
+| `task` | 任务状态机、审批 |
+| `conversation` | 会话 / 消息 |
+| `agent-runtime` | 单 Agent 顺序规划 |
+| `model-gateway` | DeepSeek / MiniMax 路由 + 流式 |
+| `change-engine` | patch 预览、应用、回滚、checkpoint |
+| `terminal` | 命令执行 + 流式输出 |
 
 ## 前端关键目录
 
 | 目录 | 职责 |
 |------|------|
 | `app/components/` | React 组件（含 ContextMenu、ConfirmDialog、RenameInput、Tooltip 等） |
-| `app/hooks/` | 自定义 Hooks（含 useTooltip、useAppActions、useNavigatorResize、useFileContextMenu） |
+| `app/hooks/` | 自定义 Hooks（含 useTooltip、useAppActions、useDragDropWorkspace、useEditorReveal、useKeyboardShortcuts、useNavigatorResize、useFileContextMenu、usePatchReview、useTaskCenterPolling、useThemeSync 等 11 个 hook） |
 | `app/utils/` | 纯函数（含 tooltipPosition、clipboard、preferencesMerger） |
 | `app/stores/` | Zustand 状态管理（切片合并模式 + actions/ 领域模块） |
-| `app/features/` | 按功能域分层的模块化组件 |
-| `app/regions/` | 区域布局组件（left-sidebar / right-panel(panels+editor-support+hooks) / center-pane） |
+| `app/features/` | 按功能域分层的模块化组件（含 terminal/ 中 3 个子 hook：useTerminalContextMenu、useTerminalDragDrop、useTerminalMenus） |
+| `app/regions/` | 区域布局组件（left-sidebar / right-panel(panels+editor-support+hooks) / center-pane，App.tsx 由 447 行缩减至 203 行，抽出 5 个新 hook；right-panel 7 个 barrel 文件已删除，新增 7 个 per-panel prop hooks 集中到 hooks/ 目录） |
 | `design-system/` | 设计 Token 类型定义（tokens.ts / theme.ts / icons.ts） |
 | `styles/` | CSS 样式文件（themes.css / tokens.css / regions/*.css 等） |
 
@@ -62,10 +75,9 @@ app/stores/
 ├── StoreState.ts                # 完整 StoreState 类型接口（interface extends）
 ├── slices.ts                    # 统一导出所有切片
 ├── selectors.ts                 # 选择器（useShallow React Hook 版本）
-├── shared.ts                    # 共享状态和工具
+├── shared.ts                    # 共享状态、LRU 缓存、防抖搜索、错误处理、lazy loader 工厂（7+ 工具函数）
 ├── localStorageUtils.ts         # localStorage JSON 读写工具
 ├── storageScheduler.ts          # 批量 debounce 写入调度器
-├── cacheUtils.ts                # 缓存工具函数
 ├── conversationUtils.ts         # 会话工具函数
 ├── index.ts                     # 模块索引
 │
@@ -127,7 +139,7 @@ frontend/src/
 
 | 切片 | 状态 | Actions |
 |------|------|---------|
-| `uiSlice` | leftSidebarVisible, rightPanelVisible, activeRightTool, currentModel, composerMessage | set*, toggle* |
+| `uiSlice` | leftSidebarVisible, rightPanelVisible, activeRightTool, currentModel, composerMessage, isFetching, error | set*, toggle*, setError |
 | `workspaceSlice` | appInfo, recentWorkspaces, workspaceTrees, workspaceContextMode | setAppInfo, setRecentWorkspaces, setWorkspaceTree |
 | `gitSlice` | gitSnapshot, gitBranches | setGitSnapshot, setGitBranches |
 | `sessionSlice` | sessions, activeSessionId, sessionDetails, activeRun | set*, append* |

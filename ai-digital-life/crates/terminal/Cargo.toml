@@ -4,14 +4,5 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-adl-kernel = { path = "../kernel" }
-adl-errors = { path = "../errors" }
-adl-task = { path = "../task" }
-tokio.workspace = true
-tracing.workspace = true
-serde.workspace = true
-uuid.workspace = true
-chrono.workspace = true
-portable-pty.workspace = true
-dirs.workspace = true
-static_assertions = "1"
+adl-command = { path = "../command" }
+adl-pty = { path = "../pty" }

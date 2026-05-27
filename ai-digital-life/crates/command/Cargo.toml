@@ -1,0 +1,14 @@
+[package]
+name = "adl-command"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+adl-kernel = { path = "../kernel" }
+adl-errors = { path = "../errors" }
+adl-task = { path = "../task" }
+tokio.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+uuid = { workspace = true, features = ["v4"] }

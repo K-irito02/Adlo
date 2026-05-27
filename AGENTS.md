@@ -40,7 +40,7 @@
 - 自定义 Tooltip 组件
 - CodeMirror 编辑器系统
 - xterm.js 交互式终端（多会话、多 Shell 类型，浏览器模式通过 `child_process.spawn` + SSE 实现真实 Shell 进程）
-- **Zustand 切片模式重构**（11 个独立切片 + 完整类型安全，消除 11 处 `as any`）
+- **Zustand 切片模式重构**（12 个独立切片 + 完整类型安全，消除 11 处 `as any`）
 - **模块化分层重构**（7 个功能模块迁移到 `features/` 目录）
 - **CSS 设计 Token 迁移**（亮暗主题 Shadow token + TypeScript 类型定义）
 - **统一错误码枚举**（`IpcErrorCode` 跨桥接层统一）
@@ -62,6 +62,9 @@
   - 菜单布局稳定：将 CSS `min-width` 改为固定 `width`；使用 Flexbox `margin-left: auto` 固定箭头图标位置；修复 `file-tree.css` 和 `files-panel.css` 两处样式定义
   - 修改文件：terminalSlice.ts、WorkspaceTerminalEntry.tsx、useTerminalPanel.ts、file-tree.css、files-panel.css
   - 测试验证：cargo test + 183 前端测试全部通过
+- **第十五轮 — 终端层级树状视觉优化**：独立终端常驻、树状层级视觉（缩进/连接线/全宽悬停）、空状态按钮、CSS 架构优化；详见 ai-digital-life/AGENTS.md
+- **第十六轮 — 终端面板精细化修复**（10+ 项）：终端导航器 resize handle、xterm 纯黑背景消除、工作区分割线、树连接线修复、hover 高度提升、关闭按钮位置调整；详见 ai-digital-life/AGENTS.md
+- **第十七轮 — 架构深度重构**：Rust crate 重组（17→19 crate，新增 adl-outline/adl-context/adl-command/adl-pty，移除 context-engine/prompt-engine）；5 个新前端 Hook（useDragDropWorkspace/usePatchReview/useEditorReveal/useThemeSync/useTaskCenterPolling）；Store 新增 isFetching/setError；shared.ts 7 个新工具函数；useTerminalPanel 拆分 3 子 hook（useTerminalPtyLifecycle/useTerminalDragDrop/useTerminalMenus）；右侧面板 7 个 per-panel hooks；useRightPanelViewProps 300→55 行；DB Arc<Mutex>→r2d2 连接池；EntityTable 宏生成；LRU 缓存简化（移除 access count）；vite.config.ts optimizeDeps 更新；terminalSlice 引用稳定性检查；cargo test + 183 前端测试全部通过
 
 ### Zustand 切片模式（已完成）
 
@@ -71,7 +74,7 @@
 app/stores/
 ├── slicedStore.ts          # 基于切片合并的完整 Store（真源）
 ├── StoreState.ts           # 完整 StoreState 类型接口
-├── slices/                 # 11 个独立切片（含 clipboardSlice）
+├── slices/                 # 12 个独立切片（含 clipboardSlice + terminalSlice）
 │   ├── uiSlice.ts          # UI 状态
 │   ├── workspaceSlice.ts    # 工作区状态
 │   ├── gitSlice.ts         # Git 状态
@@ -82,7 +85,8 @@ app/stores/
 │   ├── diagnosticSlice.ts  # 诊断状态
 │   ├── taskSlice.ts        # 任务状态
 │   ├── commandSlice.ts     # 命令状态
-│   └── clipboardSlice.ts   # 剪贴板状态
+│   ├── clipboardSlice.ts   # 剪贴板状态
+│   └── terminalSlice.ts    # 终端状态（异步 localStorage）
 ├── selectors.ts            # 选择器（含 useShallow React Hook 版，避免不必要重渲染）
 └── index.ts                # 模块索引
 ```
@@ -127,6 +131,14 @@ regions/right-panel/   # 右侧面板区域
 | **第七轮** | **25 项全面修复 + 3 大型组件拆分 17 文件** | **2026-05-23** |
 | **第八轮** | **重构洞察第二轮 26 项（渲染性能 + 模块化 + 架构治理 + Rust 改进）** | **2026-05-23** |
 | **第九轮** | **重构洞察执行 22 项（Rust 长文件拆分 + 前端组件重构 + 目录治理 + 性能优化）** | **2026-05-24** |
+| **第十轮** | **重构洞察执行 11 项（OnceLock 缓存、HashMap O(1)、死 CSS 删除等）** | **2026-05-24** |
+| **第十一轮** | **ChangesPanel 组件提取（3 组件 → features/patch-review）** | **2026-05-25** |
+| **第十二轮** | **阶段 3 组件架构拆分（4 个大型模块 → 12 个独立文件）** | **2026-05-25** |
+| **第十三轮** | **God Function 拆分 + UI 复原修复** | **2026-05-25** |
+| **第十四轮** | **终端工作区默认终端类型功能修复** | **2026-05-26** |
+| **第十五轮** | **终端层级树状视觉优化** | **2026-05-26** |
+| **第十六轮** | **终端面板精细化修复（10+ 项）** | **2026-05-26** |
+| **第十七轮** | **架构深度重构（Rust crate 重组 17→19、Store 增强、5 个新 Hook、DB 连接池等）** | **2026-05-28** |
 全部详情见 [重构进度报告](./docs/重构洞察/REFACTORING_PROGRESS_REPORT.md)
 
 ### 排除项

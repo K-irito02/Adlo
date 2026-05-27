@@ -82,6 +82,7 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
   // ════════════════════════════════════════════════════════
   loading: true,
   error: undefined,
+  isFetching: {},
 
   // ════════════════════════════════════════════════════════
   // 跨切片 Actions（9 个领域模块）

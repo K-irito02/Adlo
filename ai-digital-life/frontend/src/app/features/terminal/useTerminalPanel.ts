@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAppStore } from "../../stores/slicedStore";
 import { terminalSelectors } from "../../stores/selectors";
 import { useNavigatorResize } from "../../hooks/useNavigatorResize";
-import { useTerminalContextMenu } from "./useTerminalContextMenu";
+import { useTerminalPtyLifecycle } from "./useTerminalPtyLifecycle";
+import { useTerminalDragDrop } from "./useTerminalDragDrop";
+import { useTerminalMenus } from "./useTerminalMenus";
 import type { TerminalPanelProps } from "../../regions/right-panel/types";
 import type { TerminalProfile } from "../../ui-store";
 import type { XtermTerminalHandle } from "../../components/terminal/XtermTerminal";
@@ -100,12 +102,8 @@ export interface UseTerminalPanelReturn {
 export function useTerminalPanel(props: TerminalPanelProps): UseTerminalPanelReturn {
   const { t } = props;
   const [navigatorMode, setNavigatorMode] = useState<TerminalNavigatorMode>("sessions");
-  const [terminalMenuOpen, setTerminalMenuOpen] = useState(false);
-  const [shellMenuOpen, setShellMenuOpen] = useState(false);
   const [editingTabId, setEditingTabId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragOverTabId, setDragOverTabId] = useState<string | null>(null);
 
   const navigatorCollapsed = terminalSelectors.useNavigatorCollapsedByTool().terminal;
   const terminalTabs = terminalSelectors.useTerminalTabs();
@@ -113,24 +111,11 @@ export function useTerminalPanel(props: TerminalPanelProps): UseTerminalPanelRet
   const defaultTerminalProfile = terminalSelectors.useDefaultTerminalProfile();
   const terminalNavigatorWidth = terminalSelectors.useTerminalNavigatorWidth();
 
-  const terminalCreateTab = useAppStore((state) => state.terminalCreateTab);
-  const terminalSelectTab = useAppStore((state) => state.terminalSelectTab);
-  const terminalCloseTab = useAppStore((state) => state.terminalCloseTab);
-  const terminalUpdateActiveTab = useAppStore((state) => state.terminalUpdateActiveTab);
   const terminalUpdateTab = useAppStore((state) => state.terminalUpdateTab);
-  const terminalTogglePin = useAppStore((state) => state.terminalTogglePin);
   const terminalReorderTabs = useAppStore((state) => state.terminalReorderTabs);
-  const setDefaultTerminalProfile = useAppStore((state) => state.setDefaultTerminalProfile);
   const setTerminalNavigatorWidth = useAppStore((state) => state.setTerminalNavigatorWidth);
   const toggleTerminalNavigator = useAppStore((state) => state.toggleTerminalNavigator);
-  const terminalCloseAllTabs = useAppStore((state) => state.terminalCloseAllTabs);
-  const setActiveRightTool = useAppStore((state) => state.setActiveRightTool);
-  const recentWorkspaces = useAppStore((state) => state.recentWorkspaces);
 
-  const terminalMenuRef = useRef<HTMLDivElement | null>(null);
-  const shellMenuRef = useRef<HTMLDivElement | null>(null);
-  const xtermRef = useRef<XtermTerminalHandle | null>(null);
-  const sessionOutputsRef = useRef<Map<string, string>>(new Map());
   const editInputRef = useRef<HTMLInputElement | null>(null);
 
   const activeTab = useMemo(
@@ -160,103 +145,59 @@ export function useTerminalPanel(props: TerminalPanelProps): UseTerminalPanelRet
     [props.commandHistory, t.terminalCommandHistory, terminalTabs]
   );
 
-  const handleCreateTab = useCallback(async (profile?: TerminalProfile, workspaceId?: string) => {
-    const shellMap: Record<TerminalProfile, string> = {
-      powershell: "powershell",
-      bash: "bash",
-      cmd: "cmd"
-    };
-    
-    // 使用 getState() 获取最新值，而不是依赖闭包捕获的值
-    const { defaultTerminalProfile: currentDefault, workspaceDefaultProfiles: currentProfiles } = useAppStore.getState();
-    
-    // 使用工作区专属默认终端类型，如果没有则使用全局默认
-    let finalProfile: TerminalProfile;
-    if (profile) {
-      finalProfile = profile;
-    } else if (workspaceId && currentProfiles[workspaceId]) {
-      finalProfile = currentProfiles[workspaceId];
-    } else {
-      finalProfile = currentDefault;
-    }
-    
-    xtermRef.current?.clear();
-    terminalCreateTab(finalProfile, workspaceId ?? "");
-    
-    let cwd: string | undefined;
-    if (workspaceId) {
-      const workspace = recentWorkspaces.find((w) => w.id === workspaceId);
-      cwd = workspace?.path ?? undefined;
-    } else {
-      cwd = props.appInfo?.currentWorkspace?.rootPath ?? undefined;
-    }
-    
-    const cols = 80;
-    const rows = 24;
-    
-    try {
-      const result = await window.digitalLife.pty.create({
-        shell: shellMap[finalProfile],
-        cwd,
-        cols,
-        rows
-      });
-      if (result.ok) {
-        terminalUpdateActiveTab({ sessionId: result.data.sessionId, status: "running" });
-        setTimeout(() => {
-          const stored = sessionOutputsRef.current.get(result.data.sessionId) ?? "";
-          if (stored) {
-            xtermRef.current?.write(stored);
-          }
-          xtermRef.current?.resize();
-          xtermRef.current?.focus();
-        }, 50);
-      } else {
-        console.error("Failed to create terminal:", result.error);
-        const errorMsg = result.error?.message || "Unknown error";
-        terminalUpdateActiveTab({ status: "terminated" });
-        // Write error message to terminal
-        setTimeout(() => {
-          xtermRef.current?.write(`\r\n\x1b[31mError: Failed to start ${profile} terminal.\x1b[0m\r\n`);
-          xtermRef.current?.write(`\x1b[31m${errorMsg}\x1b[0m\r\n\r\n`);
-          if (profile === "bash") {
-            xtermRef.current?.write("\x1b[33mHint: Make sure Git for Windows or WSL is installed.\x1b[0m\r\n");
-          }
-        }, 50);
-      }
-    } catch (err) {
-      console.error("Error creating terminal:", err);
-      terminalUpdateActiveTab({ status: "terminated" });
-      setTimeout(() => {
-        xtermRef.current?.write(`\r\n\x1b[31mError: Failed to start ${finalProfile} terminal.\x1b[0m\r\n`);
-        xtermRef.current?.write(`\x1b[31m${err instanceof Error ? err.message : String(err)}\x1b[0m\r\n\r\n`);
-      }, 50);
-    }
-  }, [terminalCreateTab, terminalUpdateActiveTab, props.appInfo?.currentWorkspace?.rootPath, recentWorkspaces]);
+  const rootPath = props.appInfo?.currentWorkspace?.rootPath;
 
-  useEffect(() => {
-    if (!terminalMenuOpen && !shellMenuOpen) {
-      return;
-    }
-    const handlePointerDown = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (!terminalMenuRef.current?.contains(target)) {
-        setTerminalMenuOpen(false);
-      }
-      if (!shellMenuRef.current?.contains(target)) {
-        setShellMenuOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handlePointerDown);
-    return () => document.removeEventListener("mousedown", handlePointerDown);
-  }, [shellMenuOpen, terminalMenuOpen]);
+  const handleDoubleClick = useCallback((tabId: string, title: string) => {
+    setEditValue(title);
+    setEditingTabId(tabId);
+  }, []);
 
-  useEffect(() => {
-    if (editingTabId && editInputRef.current) {
-      editInputRef.current.focus();
-      editInputRef.current.select();
-    }
-  }, [editingTabId]);
+  const {
+    xtermRef,
+    sessionOutputsRef,
+    handleXtermData,
+    handleXtermResize,
+    handleCreateTab,
+    handleSelectTab,
+    handleCloseTab,
+    handleCloseAllTabs,
+    handleKill,
+  } = useTerminalPtyLifecycle({ activeTab, rootPath });
+
+  const {
+    isDragging,
+    dragOverTabId,
+    handleDragStart,
+    handleDragEnd,
+    handleDragOver,
+    handleDrop,
+  } = useTerminalDragDrop(terminalTabs, terminalReorderTabs);
+
+  const {
+    terminalMenuOpen,
+    setTerminalMenuOpen,
+    shellMenuOpen,
+    setShellMenuOpen,
+    terminalMenuRef,
+    shellMenuRef,
+    terminalMenuItems,
+    shellMenuItems,
+    shellTypeItems,
+    contextMenu,
+    handleContextMenu,
+    handleTogglePin,
+    handleCopy,
+    handlePaste,
+    handleClear,
+    updateProfile,
+  } = useTerminalMenus({
+    t,
+    xtermRef,
+    activeTab,
+    handleCloseTab,
+    handleDoubleClick,
+    handleKill,
+  });
 
   const toggleNavigator = useCallback((tool: string) => {
     if (tool === "terminal") {
@@ -273,82 +214,8 @@ export function useTerminalPanel(props: TerminalPanelProps): UseTerminalPanelRet
   const navigatorTitle = navigatorMode === "sessions" ? t.terminalSessions : t.terminalRecentCommands;
   const navigatorCount = navigatorMode === "sessions" ? terminalTabs.length : recentCommands.length;
 
-  const updateProfile = useCallback((profile: TerminalProfile) => {
-    setDefaultTerminalProfile(profile);
-  }, [setDefaultTerminalProfile]);
-
   const currentProfile = defaultTerminalProfile;
   const currentProfileLabel = currentProfile === "powershell" ? "PowerShell" : currentProfile === "bash" ? "Bash" : "CMD";
-
-  const handleCopy = useCallback(() => {
-    const selection = xtermRef.current?.getSelection();
-    if (selection) {
-      navigator.clipboard.writeText(selection).catch(() => {});
-    }
-  }, []);
-
-  const handlePaste = useCallback(() => {
-    navigator.clipboard.readText().then((text) => {
-      if (activeTab?.sessionId) {
-        window.digitalLife.pty.input(activeTab.sessionId, text);
-      }
-    }).catch(() => {});
-  }, [activeTab?.sessionId]);
-
-  const handleClear = useCallback(() => {
-    xtermRef.current?.clear();
-  }, []);
-
-  const handleKill = useCallback(() => {
-    if (activeTab?.sessionId) {
-      window.digitalLife.pty.kill(activeTab.sessionId);
-      terminalUpdateActiveTab({ status: "terminated" });
-    }
-  }, [activeTab?.sessionId, terminalUpdateActiveTab]);
-
-  const handleCloseTab = useCallback((tabId: string) => {
-    const tabs = useAppStore.getState().terminalTabs;
-    const tab = tabs.find((t) => t.id === tabId);
-    if (tab?.sessionId) {
-      window.digitalLife.pty.kill(tab.sessionId);
-      sessionOutputsRef.current.delete(tab.sessionId);
-    }
-    terminalCloseTab(tabId);
-  }, [terminalCloseTab]);
-
-  const handleCloseAllTabs = useCallback(() => {
-    terminalTabs.forEach((tab) => {
-      if (tab.sessionId) {
-        window.digitalLife.pty.kill(tab.sessionId);
-        sessionOutputsRef.current.delete(tab.sessionId);
-      }
-    });
-    terminalCloseAllTabs();
-  }, [terminalTabs, terminalCloseAllTabs]);
-
-  const handleSelectTab = useCallback((tabId: string) => {
-    terminalSelectTab(tabId);
-    const tabs = useAppStore.getState().terminalTabs;
-    const tab = tabs.find((t) => t.id === tabId);
-    if (tab?.sessionId) {
-      const sessionId = tab.sessionId;
-      xtermRef.current?.clear();
-      setTimeout(() => {
-        const stored = sessionOutputsRef.current.get(sessionId) ?? "";
-        if (stored) {
-          xtermRef.current?.write(stored);
-        }
-        xtermRef.current?.resize();
-        xtermRef.current?.scrollToBottom();
-        xtermRef.current?.focus();
-      }, 50);
-    }
-  }, [terminalSelectTab]);
-
-  const handleDoubleClick = useCallback((tabId: string, title: string) => {
-    setEditValue(title);
-    setEditingTabId(tabId);
-  }, []);
 
   const handleEditSubmit = useCallback(() => {
     if (editingTabId && editValue.trim()) {
@@ -367,118 +234,12 @@ export function useTerminalPanel(props: TerminalPanelProps): UseTerminalPanelRet
     }
   }, [handleEditSubmit]);
 
-  const {
-    contextMenu,
-    handleContextMenu,
-    handleTogglePin,
-    handleRenameFromMenu,
-    handleDeleteFromMenu,
-  } = useTerminalContextMenu(terminalTabs, handleDoubleClick, terminalTogglePin, handleCloseTab);
-
-  const handleDragStart = useCallback((e: React.DragEvent, tabId: string, isPinned: boolean) => {
-    e.dataTransfer.setData("text/plain", tabId);
-    e.dataTransfer.setData("application/x-terminal-tab-isPinned", String(isPinned));
-    setIsDragging(true);
-  }, []);
-
-  const handleDragEnd = useCallback(() => {
-    setIsDragging(false);
-    setDragOverTabId(null);
-  }, []);
-
-  const handleDragOver = useCallback((e: React.DragEvent, tabId: string, isPinned: boolean) => {
-    e.preventDefault();
-    const draggedIsPinned = e.dataTransfer.getData("application/x-terminal-tab-isPinned") === "true";
-    if (draggedIsPinned === isPinned) {
-      setDragOverTabId(tabId);
-      e.dataTransfer.dropEffect = "move";
-    } else {
-      e.dataTransfer.dropEffect = "none";
-    }
-  }, []);
-
-  const handleDrop = useCallback((e: React.DragEvent, targetTabId: string, targetIsPinned: boolean) => {
-    e.preventDefault();
-    const draggedTabId = e.dataTransfer.getData("text/plain");
-    const draggedIsPinned = e.dataTransfer.getData("application/x-terminal-tab-isPinned") === "true";
-    if (!draggedTabId || draggedIsPinned !== targetIsPinned || draggedTabId === targetTabId) {
-      setDragOverTabId(null);
-      return;
-    }
-    const currentTabs = [...terminalTabs];
-    const draggedIndex = currentTabs.findIndex(t => t.id === draggedTabId);
-    const targetIndex = currentTabs.findIndex(t => t.id === targetTabId);
-    if (draggedIndex === -1 || targetIndex === -1) {
-      setDragOverTabId(null);
-      return;
-    }
-    const [removed] = currentTabs.splice(draggedIndex, 1);
-    currentTabs.splice(targetIndex, 0, removed);
-    terminalReorderTabs(currentTabs);
-    setDragOverTabId(null);
-  }, [terminalTabs, terminalReorderTabs]);
-
-  const terminalMenuItems: TerminalMenuItem[] = [
-    { id: "copy", label: t.terminalCopy, action: handleCopy },
-    { id: "paste", label: t.terminalPaste, action: handlePaste },
-    { id: "clear", label: t.terminalClear, action: handleClear },
-    { id: "sep-1", separator: true },
-    { id: "kill", label: t.terminalKillProcess, action: handleKill }
-  ];
-
-  const workspaceMenuItems = useMemo(() => {
-    const items: WorkspaceMenuItem[] = [
-      { id: "workspace-independent", label: t.terminalIndependent, workspaceId: "" }
-    ];
-    const validWorkspaces = recentWorkspaces.filter(w => !w.removedFromSidebar && w.available);
-    for (const ws of validWorkspaces) {
-      items.push({
-        id: `workspace-${ws.id}`,
-        label: ws.name,
-        workspaceId: ws.id
-      });
-    }
-    return items;
-  }, [recentWorkspaces, t.terminalIndependent]);
-
-  const shellMenuItems: TerminalShellMenuItem[] = [
-    { id: "workspace-section", label: t.terminalBindWorkspace, hasSubMenu: true, subMenu: workspaceMenuItems },
-    { id: "sep-1", separator: true },
-    { id: "powershell", label: "PowerShell", profile: "powershell", action: () => updateProfile("powershell") },
-    { id: "bash", label: "Bash", profile: "bash", action: () => updateProfile("bash") },
-    { id: "cmd", label: "CMD", profile: "cmd", action: () => updateProfile("cmd") }
-  ];
-
-  const shellTypeItems = useMemo(
-    () => shellMenuItems.filter((item) => "profile" in item) as Array<
-      TerminalShellMenuItem & { label: string; profile: TerminalProfile }
-    >,
-    [shellMenuItems]
-  );
-
-  const handleXtermData = useCallback((data: string) => {
-    if (activeTab?.sessionId) {
-      window.digitalLife.pty.input(activeTab.sessionId, data);
-    }
-  }, [activeTab?.sessionId]);
-
-  const handleXtermResize = useCallback((cols: number, rows: number) => {
-    if (activeTab?.sessionId) {
-      window.digitalLife.pty.resize(activeTab.sessionId, cols, rows);
-    }
-  }, [activeTab?.sessionId]);
-
   useEffect(() => {
-    const unsub = window.digitalLife.subscribePtyOutput((event) => {
-      const outputs = sessionOutputsRef.current;
-      const previous = outputs.get(event.sessionId) ?? "";
-      outputs.set(event.sessionId, previous + event.data);
-      if (event.sessionId === activeTab?.sessionId) {
-        xtermRef.current?.write(event.data);
-      }
-    });
-    return () => unsub();
-  }, [activeTab?.sessionId]);
+    if (editingTabId && editInputRef.current) {
+      editInputRef.current.focus();
+      editInputRef.current.select();
+    }
+  }, [editingTabId]);
 
   return {
     terminalState: {

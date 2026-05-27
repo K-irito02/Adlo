@@ -1,2 +1,0 @@
-export { buildStickyContextEntries, createStickyContextModel, getVisibleStartLine, navigateToLine, subscribeToEditor } from './editor-support/stickyContext';
-export type { StickyContextEntryKind, StickyContextEntryTone, StickyContextEntry, StickyContextModel, StickyContextProvider } from './editor-support/stickyContext';

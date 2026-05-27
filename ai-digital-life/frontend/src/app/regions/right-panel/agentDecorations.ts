@@ -1,2 +1,0 @@
-export { getAgentDecorationExtensions, applyAgentDecorations, clearAgentDecorations, setAgentDecorationsEnabled } from './editor-support/agentDecorations';
-export type { AgentHunkDecoration } from './editor-support/agentDecorations';

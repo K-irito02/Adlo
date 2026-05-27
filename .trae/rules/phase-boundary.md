@@ -15,16 +15,7 @@ alwaysApply: true
 
 ## 已实现功能
 
-- 桌面壳（Tauri Backend / WebView）
-- SQLite 状态持久化
-- 工作区与对话管理
-- 补丁预览/应用/回滚
-- 模型网关（含流式与取消）
-- 命令治理与终端流式输出
-- 自定义 Tooltip 组件
-- CodeMirror 编辑器系统
-- xterm.js 交互式终端（真实 PTY Shell 进程、多会话、多 Shell 类型）
-- Zustand 切片合并模式（11 个独立切片 + StoreState 类型接口 + useShallow 选择器优化）
+详见: `AGENTS.md` > `已实现功能`（含全部 17 轮重构）
 
 ## 排除项
 
@@ -35,6 +26,8 @@ alwaysApply: true
 | 插件市场 | Phase 2+ |
 | 浏览器自动化运行时 | Phase 2+ |
 | 复杂云协作 | Phase 3+ |
+| Zustand 状态管理变更 | 需遵循 `zustand-patterns.md` |
+| Rust 后端模式变更 | 需遵循 `rust-patterns.md` |
 
 ## 新功能评估
 

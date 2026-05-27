@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const changesPanelSource = readFileSync(
-  new URL("../../../../src/app/regions/right-panel/ChangesPanel.tsx", import.meta.url),
+  new URL("../../../../src/app/regions/right-panel/panels/ChangesPanel.tsx", import.meta.url),
   "utf8"
 );
 const themeCss = readFileSync(new URL("../../../../src/styles/themes.css", import.meta.url), "utf8");

@@ -2,6 +2,8 @@
 
 本文档记录 AI 数字生命项目的远期规划与待实现功能。当前阶段聚焦单 Agent 系统与基础设施，远期功能按优先级分层。
 
+> **第十七轮重构完成（2026-05-28）**：Rust crate 重组 17→19、Store 增强（isFetching/setError）、5 个新前端 Hook、DB Arc<Mutex>→r2d2 连接池、useTerminalPanel 拆分 3 子 hook、右侧面板 7 per-panel hooks、EntityTable 宏生成。所有 crate 变更为内部重组，不影响排除项或路线图。
+
 ---
 
 ## Phase 2+ 待实现功能

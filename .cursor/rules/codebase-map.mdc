@@ -31,18 +31,26 @@ ai-digital-life/
 
 | crate | 职责 |
 |-------|------|
-| `kernel` | 共享类型与常量（serde） |
-| `storage` / `migration` | SQLite |
+| `kernel` | 共享类型与常量（serde），含 `domain` 模块 |
+| `storage` / `migration` | SQLite（r2d2 连接池，`EntityTable` 宏生成） |
 | `config`、`logger`、`errors`、`events` | 基础设施 |
-| `workspace`、`task`、`conversation`、`model-gateway` | 业务域 |
+| `workspace` | 业务域 |
+| `outline` | 大纲解析 |
+| `context` | 上下文选择 |
+| `command` | 命令执行与治理 |
+| `pty` | 伪终端（PTY）进程管理 |
+| `fs-ops`、`task`、`conversation`、`agent-runtime`、`model-gateway`、`change-engine`、`terminal` | 业务域 |
 
 ## 前端关键目录
 
 | 目录 | 职责 |
 |------|------|
 | `app/components/` | React 组件（含 Tooltip） |
-| `app/hooks/` | 自定义 Hooks |
+| `app/hooks/` | 自定义 Hooks（含 useTooltip、useAppActions、useDragDropWorkspace、useEditorReveal、useKeyboardShortcuts、useNavigatorResize、useFileContextMenu、usePatchReview、useTaskCenterPolling、useThemeSync 等 11 个 hook） |
 | `app/utils/` | 纯函数 |
+| `app/stores/` | Zustand 状态管理（切片合并模式 + actions/ 领域模块，isFetching + setError 新增到 uiSlice，cacheUtils.ts 已删除） |
+| `app/features/` | 按功能域分层的模块化组件 |
+| `app/regions/` | 区域布局组件（right-panel 7 个 per-panel prop hooks 集中到 hooks/ 目录，App.tsx 447→203 行） |
 
 ## 索引策略
 

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildStickyContextEntries,
   createStickyContextModel
-} from "./stickyContext";
+} from "./editor-support/stickyContext";
 
 describe("stickyContext helpers", () => {
   it("always exposes a file-top entry and falls back to line text when no outline exists", () => {

@@ -1,0 +1,14 @@
+import { useEffect } from "react";
+import type { AppInfo } from "@ai-digital-life/kernel";
+import { themeController } from "../theme";
+
+export function useThemeSync(appInfo: AppInfo | undefined) {
+  useEffect(() => {
+    if (!appInfo) return;
+    themeController.setTheme({
+      mode: appInfo.config.themeMode,
+      resolvedTheme: appInfo.config.resolvedTheme
+    });
+    themeController.hydrate();
+  }, [appInfo?.config.themeMode, appInfo?.config.resolvedTheme]);
+}

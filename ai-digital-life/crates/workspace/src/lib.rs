@@ -2,7 +2,6 @@
 
 pub(crate) mod fs;
 mod git;
-mod outline;
 mod search;
 mod tree;
 
@@ -13,9 +12,17 @@ pub use git::{
     capture_git_snapshot, capture_git_snapshot_async, create_git_branch, git_has_local_changes,
     list_git_branches, switch_git_branch,
 };
-pub use outline::outline;
 pub use search::{search_text, search_text_async};
 pub use tree::{build_retrieval_snapshot, build_retrieval_snapshot_async, list_tree};
+
+use adl_outline;
+use adl_kernel::FileOutlineItem;
+
+pub fn outline(root: &Path, relative_path: &str) -> Result<Vec<FileOutlineItem>, AppError> {
+    let doc = read_file(root, relative_path)?;
+    let total_lines = doc.content.lines().count().max(1);
+    adl_outline::outline(&doc.content, relative_path, total_lines)
+}
 
 use adl_errors::AppError;
 use adl_kernel::{

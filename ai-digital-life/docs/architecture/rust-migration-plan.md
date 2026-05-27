@@ -165,24 +165,25 @@ ai-digital-life/
 │       └── workspace.json      # 工作区窗口 capability
 │
 ├── crates/                     # 业务 crate（library）
-│   ├── kernel/                 # 共享类型 / 常量 / 错误码（serde derive）
+│   ├── kernel/                 # 共享类型 / 常量 / 错误码（serde derive），含 domain 模块
 │   ├── config/                 # 配置分层与持久化
 │   ├── errors/                 # thiserror 错误类型
 │   ├── events/                 # 跨 crate 事件总线
 │   ├── logger/                 # tracing 初始化、结构化字段
 │   ├── migration/              # SQLite 迁移注册与执行
-│   ├── storage/                # rusqlite 仓储接口（spawn_blocking 包装）
+│   ├── storage/                # rusqlite 仓储接口（r2d2 连接池，EntityTable 宏生成）
 │   ├── workspace/              # 工作区识别、会话恢复、git 快照
+│   ├── outline/                # 大纲解析（从 workspace 抽出为独立 crate）
+│   ├── context/                # 上下文选择（替代已拆除的 context-engine）
+│   ├── command/                # 命令执行与治理
+│   ├── pty/                    # 伪终端（PTY）进程管理
 │   ├── fs-ops/                 # notify 监听、原子写、路径作用域
 │   ├── task/                   # 任务状态机、审批
 │   ├── conversation/           # 会话 / 消息
 │   ├── agent-runtime/          # 单 Agent 顺序规划
 │   ├── model-gateway/          # DeepSeek / MiniMax 路由 + 流式
 │   ├── change-engine/          # patch 预览、应用、回滚、checkpoint
-│   ├── context-engine/         # 上下文选择
-│   ├── prompt-engine/          # 提示词组装
-│   ├── terminal/               # 命令执行 + 流式输出
-│   └── editor/                 # 编辑器侧逻辑（如有）
+│   └── terminal/               # 命令执行 + 流式输出
 │
 ├── frontend/                   # WebView 前端 (React + Vite + Zustand)
 │   ├── package.json
@@ -265,7 +266,8 @@ ai-digital-life/
 
 - `crates/task`：任务状态机、审批决策、checkpoint 引用
 - `crates/conversation`：会话 / 消息持久化
-- `crates/prompt-engine`、`crates/context-engine`：提示词与上下文选择
+- `crates/context`：上下文选择（替代已拆除的 context-engine）
+- `crates/command`：命令执行与治理（替代已拆除的 prompt-engine 部分职责）
 - `crates/model-gateway`：`reqwest` 实现 DeepSeek / MiniMax 路由 + 流式（`tokio::sync::mpsc` -> Tauri Event）
 - `crates/agent-runtime`：单 Agent 顺序规划、运行 / 步骤 / 工具调用元数据
 - `crates/change-engine`：patch-set / file-patch / hunk 持久化、应用、回滚、checkpoint payload

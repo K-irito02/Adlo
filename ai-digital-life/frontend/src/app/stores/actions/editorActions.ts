@@ -113,14 +113,25 @@ async function openChangePreviewGeneric(
   requestSeq: number,
   config: OpenChangePreviewConfig,
 ) {
+  set({ changePreviewLoading: true });
+
   const cachedPreview = getCachedLru(changePreviewCache, config.cacheKey);
+  if (cachedPreview) {
+    set({
+      selectedChangePreviewPath: relativePath,
+      selectedChangePreviewWorkspaceId: config.workspaceId,
+      changePreview: cachedPreview,
+      changePreviewLoading: false,
+      error: undefined,
+    });
+    return;
+  }
+
   set({
     selectedChangePreviewPath: relativePath,
     selectedChangePreviewWorkspaceId: config.workspaceId,
-    changePreview: cachedPreview ?? get().changePreview,
-    changePreviewLoading: false,
-    error: undefined,
   });
+
   const result = await config.getPreview();
   if (requestSeq !== changePreviewRequestSeq) return;
   if (!result.ok) {

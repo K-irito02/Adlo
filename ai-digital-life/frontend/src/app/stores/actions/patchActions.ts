@@ -1,26 +1,29 @@
 import type { StoreState } from "../StoreState";
 import { mapPatchToEditorTab } from "../../editorTabs";
 import type { StoreApi } from "zustand";
+import { postMutationRefresh, clearError, captureError } from "../shared";
 
 export function createPatchActions(set: StoreApi<StoreState>["setState"], get: () => StoreState) {
   return {
     setHunkDecision: async (patchSetId: string, hunkId: string, decision: "pending" | "accepted" | "rejected") => {
+      clearError(get);
       const result = await window.digitalLife.patch.setHunkDecision({
         patchSetId,
         hunkId,
         decision,
       });
       if (!result.ok) {
-        set({ error: result.error.message });
+        captureError(get, result.error);
         return;
       }
       set({ activePatchSet: result.data });
     },
 
     applyPatchSet: async (patchSetId: string) => {
+      clearError(get);
       const result = await window.digitalLife.patch.applyPatchSet(patchSetId);
       if (!result.ok) {
-        set({ error: result.error.message });
+        captureError(get, result.error);
         return;
       }
       set({
@@ -56,16 +59,14 @@ export function createPatchActions(set: StoreApi<StoreState>["setState"], get: (
         const run = await window.digitalLife.agent.getRun(runId);
         if (run.ok) set({ activeRun: run.data });
       }
-      await get().refreshTaskCenter();
-      await get().fetchAuditEntries(40);
-      await get().fetchCommandHistory();
-      await get().fetchGitStatus();
+      await postMutationRefresh(get);
     },
 
     rollbackPatchSet: async (patchSetId: string) => {
+      clearError(get);
       const result = await window.digitalLife.patch.rollbackPatchSet(patchSetId);
       if (!result.ok) {
-        set({ error: result.error.message });
+        captureError(get, result.error);
         return;
       }
       set({

@@ -270,7 +270,7 @@ fn collect_context(
     session_id: &str,
     emit_activity: impl Fn(serde_json::Value),
 ) -> Result<Vec<adl_kernel::ContextEntry>, AppError> {
-    let ws_ctx = adl_context_engine::workspace_context(workspace);
+    let ws_ctx = adl_context::workspace_context(workspace);
     emit_activity(serde_json::json!({
       "type": "context-added",
       "contextType": "message",
@@ -285,7 +285,7 @@ fn collect_context(
                 adl_workspace::read_file(std::path::Path::new(&workspace.root_path), &rel)
             {
                 let file_ctx =
-                    adl_context_engine::file_context(&rel, &doc.content, FILE_CONTEXT_MAX_TOKENS);
+                    adl_context::file_context(&rel, &doc.content, FILE_CONTEXT_MAX_TOKENS);
                 let truncated = file_ctx.content.len() != doc.content.len();
                 emit_activity(serde_json::json!({
                   "type": "file-read",
@@ -320,7 +320,7 @@ fn collect_context(
                 if let Ok(items) =
                     adl_workspace::outline(std::path::Path::new(&workspace.root_path), &rel)
                 {
-                    if let Some(outline) = adl_context_engine::outline_context(&rel, &items, 16) {
+                    if let Some(outline) = adl_context::outline_context(&rel, &items, 16) {
                         emit_activity(serde_json::json!({
                           "type": "context-added",
                           "contextType": "outline",
@@ -335,7 +335,7 @@ fn collect_context(
         }
     }
     if let Some(sym) = adl_agent_runtime::target_symbol_from_prompt(&input.prompt) {
-        context.push(adl_context_engine::symbol_context(&sym));
+        context.push(adl_context::symbol_context(&sym));
         emit_activity(serde_json::json!({
           "type": "context-added",
           "contextType": "symbol",
@@ -361,11 +361,11 @@ fn collect_context(
                     Some("auto"),
                     Some(format!("runId={}", detail.run.id)),
                 );
-                context.extend(adl_context_engine::search_hit_contexts(&sym, &hits, 6));
+                context.extend(adl_context::search_hit_contexts(&sym, &hits, 6));
             }
         }
     }
-    Ok(adl_context_engine::sort_context(context))
+    Ok(adl_context::sort_context(context))
 }
 
 async fn call_model(

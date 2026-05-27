@@ -15,6 +15,7 @@ import {
   type MessageSendOptions,
 } from "../../composerSend";
 import type { StoreApi } from "zustand";
+import { postMutationRefresh, captureError } from "../shared";
 
 function createModelStreamSubscriber(
   set: StoreApi<StoreState>["setState"]
@@ -79,7 +80,7 @@ async function dispatchSlashCommand(
     if (ps) {
       await get().applyPatchSet(ps.id);
     } else {
-      set({ error: "当前没有可应用的补丁。" });
+      captureError(get, "当前没有可应用的补丁。");
     }
     return true;
   }
@@ -88,7 +89,7 @@ async function dispatchSlashCommand(
     if (ps) {
       await get().rollbackPatchSet(ps.id);
     } else {
-      set({ error: "当前没有可回滚的补丁。" });
+      captureError(get, "当前没有可回滚的补丁。");
     }
     return true;
   }
@@ -97,10 +98,7 @@ async function dispatchSlashCommand(
     return true;
   }
   if (trimmed === "/clear") {
-    set({
-      error:
-        "「/clear」尚未实现清空历史。请使用侧栏「新建会话」开始新线程，或删除当前会话。",
-    });
+    captureError(get, "「/clear」尚未实现清空历史。请使用侧栏「新建会话」开始新线程，或删除当前会话。");
     return true;
   }
   return false;
@@ -140,13 +138,7 @@ async function refreshAfterSend(
   }));
 
   if (nextAppInfo?.currentWorkspace) {
-    await Promise.allSettled([
-      get().refreshWorkspaceTree(),
-      get().fetchIndexStatus(),
-      get().fetchRepoMap(),
-      get().fetchGitStatus(),
-      get().fetchGitBranches(),
-    ]);
+    await postMutationRefresh(get);
   } else {
     set({
       indexingStatus: undefined,
@@ -187,7 +179,7 @@ export function createStreamActions(set: StoreApi<StoreState>["setState"], get: 
           sessionFallbackTitle(get().appInfo)
         );
         if (!created.ok) {
-          set({ error: created.error.message });
+          captureError(get, created.error);
           return;
         }
         sessionId = created.data.id;
@@ -208,7 +200,7 @@ export function createStreamActions(set: StoreApi<StoreState>["setState"], get: 
           scenario,
         });
         if (!result.ok) {
-          set({ error: result.error.message });
+          captureError(get, result.error);
           return;
         }
 
@@ -233,7 +225,7 @@ export function createStreamActions(set: StoreApi<StoreState>["setState"], get: 
       const runId = get().streamingActiveRunId;
       if (!runId) return;
       const result = await window.digitalLife.conversation.cancelMessage(runId);
-      if (!result.ok) set({ error: result.error.message });
+      if (!result.ok) captureError(get, result.error);
     },
   };
 }

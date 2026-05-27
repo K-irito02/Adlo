@@ -147,7 +147,7 @@ pub fn build_model_messages(
     scenario: ConversationScenario,
     context: &[ContextEntry],
 ) -> Vec<ModelChatMessage> {
-    let prompt = adl_prompt_engine::assemble_prompt(scenario, user_prompt, context);
+    let prompt = adl_context::assemble_prompt(scenario, user_prompt, context);
     vec![
         ModelChatMessage {
             role: adl_kernel::ConversationRole::System,

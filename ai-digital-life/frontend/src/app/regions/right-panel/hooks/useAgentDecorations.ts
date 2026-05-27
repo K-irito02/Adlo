@@ -5,7 +5,7 @@ import {
   clearAgentDecorations,
   setAgentDecorationsEnabled,
   type AgentHunkDecoration,
-} from "../agentDecorations";
+} from "../editor-support/agentDecorations";
 
 interface UseAgentDecorationsInput {
   cmViewRef: React.MutableRefObject<EditorView | null>;

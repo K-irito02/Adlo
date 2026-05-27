@@ -17,7 +17,7 @@ alwaysApply: true
 | 层级 | 技术 |
 |------|------|
 | 桌面框架 | Tauri 2.x |
-| 后端 | Rust (Cargo workspace) |
+| 后端 | Rust (stable) + tokio + rusqlite + r2d2 + serde + tracing |
 | 前端 | React 19 + TypeScript + Vite + Zustand + CodeMirror 6 |
 | 持久化 | SQLite（`rusqlite`，后端） |
 | 包管理 | npm（前端），Cargo（Rust workspace） |
@@ -58,6 +58,8 @@ alwaysApply: true
 | 设计 Token 类型 | `ai-digital-life/frontend/src/design-system/tokens.ts` |
 | 功能模块（features/） | `ai-digital-life/frontend/src/app/features/` |
 | Vite 配置 | `ai-digital-life/frontend/vite.config.ts` |
+| 重构进度 | `docs/重构洞察/REFACTORING_PROGRESS_REPORT.md` |
+| 重构总结 | `docs/reorganization/` |
 
 ## 任务路由
 
@@ -69,6 +71,7 @@ alwaysApply: true
 | 设计 Token / 主题 | `ai-digital-life/frontend/src/design-system/`、`src/styles/` |
 | 阶段/路由/治理 | 根目录 `AGENTS.md` |
 | 架构设计 | `ai-digital-life/docs/architecture/` |
+| 状态管理 / Store 变更 | `ai-digital-life/frontend/src/app/stores/` |
 
 ## 相关文件
 

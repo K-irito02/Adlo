@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { EditorView } from "@codemirror/view";
-import { estimateWrapColumn } from "../cmWrapColumn";
+import { estimateWrapColumn } from "../editor-support/cmWrapColumn";
 import type { EditorRef } from "../../../types";
 
 interface UseWrapColumnInput {

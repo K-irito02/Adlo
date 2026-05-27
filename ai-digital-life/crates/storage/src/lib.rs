@@ -1,32 +1,72 @@
 use adl_errors::AppError;
 use adl_kernel::now_ms;
-use rusqlite::{params, Connection, OptionalExtension};
+use r2d2::Pool;
+use r2d2_sqlite::SqliteConnectionManager;
+use rusqlite::{params, OptionalExtension};
 use serde::{de::DeserializeOwned, Serialize};
 use std::path::Path;
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::OnceLock;
 use tracing::info;
 
+macro_rules! define_entity_table {
+    ($( $(#[$attr:meta])* $variant:ident => $table_name:expr ),+ $(,)?) => {
+        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        pub enum EntityTable {
+            $( $(#[$attr])* $variant, )+
+        }
+
+        pub(crate) const TABLE_NAMES: &[&str] = &[$($table_name),+];
+        pub(crate) const ENTITY_TABLE_COUNT: usize = TABLE_NAMES.len();
+
+        impl EntityTable {
+            pub(crate) fn table_name(self) -> &'static str {
+                match self {
+                    $( Self::$variant => $table_name, )+
+                }
+            }
+
+            pub fn index(self) -> usize {
+                self as usize
+            }
+
+            pub fn as_str(self) -> &'static str {
+                self.table_name()
+            }
+
+            pub fn insert_sql(self) -> &'static str {
+                get_insert_sql(self)
+            }
+        }
+    };
+}
+
+#[derive(Clone)]
 pub struct Database {
-    conn: Arc<Mutex<Connection>>,
+    pool: Pool<SqliteConnectionManager>,
 }
 
 impl Database {
     pub fn open(path: &Path) -> Result<Self, AppError> {
         std::fs::create_dir_all(path.parent().unwrap_or(Path::new(".")))?;
-        let conn = Connection::open(path)
-            .map_err(|e| AppError::Storage(format!("Failed to open database: {e}")))?;
 
+        let manager = SqliteConnectionManager::file(path);
+        let pool = Pool::builder()
+            .max_size(8)
+            .build(manager)
+            .map_err(|e| AppError::Storage(format!("Failed to create connection pool: {e}")))?;
+
+        let conn = pool
+            .get()
+            .map_err(|e| AppError::Storage(format!("Failed to get initial connection: {e}")))?;
         conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;")
             .map_err(|e| AppError::Storage(e.to_string()))?;
 
-        info!(?path, "database opened");
-        Ok(Self {
-            conn: Arc::new(Mutex::new(conn)),
-        })
+        info!(?path, "database pool opened (max_size=8)");
+        Ok(Self { pool })
     }
 
-    pub fn conn(&self) -> Result<std::sync::MutexGuard<'_, Connection>, AppError> {
-        self.conn.lock().map_err(|_| AppError::Internal("database mutex poisoned".to_string()))
+    pub fn conn(&self) -> Result<r2d2::PooledConnection<SqliteConnectionManager>, AppError> {
+        self.pool.get().map_err(|e| AppError::Storage(e.to_string()))
     }
 
     pub fn execute(
@@ -319,128 +359,61 @@ impl Database {
     }
 }
 
-impl Clone for Database {
-    fn clone(&self) -> Self {
-        Self {
-            conn: Arc::clone(&self.conn),
-        }
-    }
-}
-
 const INSERT_SQL_TEMPLATE: &str =
     "INSERT OR REPLACE INTO {table} (id, workspace_id, session_id, status, updated_at, json)\n\
      VALUES (?1, ?2, ?3, ?4, ?5, ?6)";
 
-const TABLE_NAMES: [&str; 20] = [
-    "workspaces",
-    "sessions",
-    "retrieval_snapshots",
-    "tasks",
-    "approvals",
-    "audit_records",
-    "checkpoints",
-    "conversation_messages",
-    "agent_runs",
-    "agent_steps",
-    "tool_invocations",
-    "patch_sets",
-    "file_patches",
-    "patch_hunks",
-    "command_requests",
-    "command_executions",
-    "validation_results",
-    "model_preferences",
-    "model_call_audit",
-    "run_activity_events",
-];
+define_entity_table! {
+    Workspaces => "workspaces",
+    Sessions => "sessions",
+    RetrievalSnapshots => "retrieval_snapshots",
+    Tasks => "tasks",
+    Approvals => "approvals",
+    AuditRecords => "audit_records",
+    Checkpoints => "checkpoints",
+    ConversationMessages => "conversation_messages",
+    AgentRuns => "agent_runs",
+    AgentSteps => "agent_steps",
+    ToolInvocations => "tool_invocations",
+    PatchSets => "patch_sets",
+    FilePatches => "file_patches",
+    PatchHunks => "patch_hunks",
+    CommandRequests => "command_requests",
+    CommandExecutions => "command_executions",
+    ValidationResults => "validation_results",
+    ModelPreferences => "model_preferences",
+    ModelCallAudit => "model_call_audit",
+    RunActivityEvents => "run_activity_events",
+}
 
 fn get_insert_sql(table: EntityTable) -> &'static str {
-    static INSERT_SQLS: [OnceLock<String>; 20] = [const { OnceLock::new() }; 20];
+    static INSERT_SQLS: [OnceLock<String>; ENTITY_TABLE_COUNT] = [const { OnceLock::new() }; ENTITY_TABLE_COUNT];
     let idx = table.index();
     INSERT_SQLS[idx].get_or_init(|| {
-        INSERT_SQL_TEMPLATE.replace("{table}", TABLE_NAMES[idx])
+        INSERT_SQL_TEMPLATE.replace("{table}", table.table_name())
     })
 }
 
 fn get_select_all_sql(table: EntityTable) -> &'static str {
-    static SELECT_ALL_SQLS: [OnceLock<String>; 20] = [const { OnceLock::new() }; 20];
+    static SELECT_ALL_SQLS: [OnceLock<String>; ENTITY_TABLE_COUNT] = [const { OnceLock::new() }; ENTITY_TABLE_COUNT];
     let idx = table.index();
-    SELECT_ALL_SQLS[idx].get_or_init(|| format!("SELECT json FROM {}", TABLE_NAMES[idx]))
+    SELECT_ALL_SQLS[idx].get_or_init(|| format!("SELECT json FROM {}", table.table_name()))
 }
 
 fn get_select_by_id_sql(table: EntityTable) -> &'static str {
-    static SELECT_BY_ID_SQLS: [OnceLock<String>; 20] = [const { OnceLock::new() }; 20];
+    static SELECT_BY_ID_SQLS: [OnceLock<String>; ENTITY_TABLE_COUNT] = [const { OnceLock::new() }; ENTITY_TABLE_COUNT];
     let idx = table.index();
     SELECT_BY_ID_SQLS[idx].get_or_init(|| {
-        format!("SELECT json FROM {} WHERE id = ?1", TABLE_NAMES[idx])
+        format!("SELECT json FROM {} WHERE id = ?1", table.table_name())
     })
 }
 
 fn get_delete_by_id_sql(table: EntityTable) -> &'static str {
-    static DELETE_BY_ID_SQLS: [OnceLock<String>; 20] = [const { OnceLock::new() }; 20];
+    static DELETE_BY_ID_SQLS: [OnceLock<String>; ENTITY_TABLE_COUNT] = [const { OnceLock::new() }; ENTITY_TABLE_COUNT];
     let idx = table.index();
     DELETE_BY_ID_SQLS[idx].get_or_init(|| {
-        format!("DELETE FROM {} WHERE id = ?1", TABLE_NAMES[idx])
+        format!("DELETE FROM {} WHERE id = ?1", table.table_name())
     })
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum EntityTable {
-    Workspaces,
-    Sessions,
-    RetrievalSnapshots,
-    Tasks,
-    Approvals,
-    AuditRecords,
-    Checkpoints,
-    ConversationMessages,
-    AgentRuns,
-    AgentSteps,
-    ToolInvocations,
-    PatchSets,
-    FilePatches,
-    PatchHunks,
-    CommandRequests,
-    CommandExecutions,
-    ValidationResults,
-    ModelPreferences,
-    ModelCallAudit,
-    RunActivityEvents,
-}
-
-impl EntityTable {
-    pub fn index(&self) -> usize {
-        match self {
-            Self::Workspaces => 0,
-            Self::Sessions => 1,
-            Self::RetrievalSnapshots => 2,
-            Self::Tasks => 3,
-            Self::Approvals => 4,
-            Self::AuditRecords => 5,
-            Self::Checkpoints => 6,
-            Self::ConversationMessages => 7,
-            Self::AgentRuns => 8,
-            Self::AgentSteps => 9,
-            Self::ToolInvocations => 10,
-            Self::PatchSets => 11,
-            Self::FilePatches => 12,
-            Self::PatchHunks => 13,
-            Self::CommandRequests => 14,
-            Self::CommandExecutions => 15,
-            Self::ValidationResults => 16,
-            Self::ModelPreferences => 17,
-            Self::ModelCallAudit => 18,
-            Self::RunActivityEvents => 19,
-        }
-    }
-
-    pub fn as_str(self) -> &'static str {
-        TABLE_NAMES[self.index()]
-    }
-
-    pub fn insert_sql(self) -> &'static str {
-        get_insert_sql(self)
-    }
 }
 
 #[cfg(test)]

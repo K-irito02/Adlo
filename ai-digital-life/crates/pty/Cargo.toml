@@ -1,0 +1,13 @@
+[package]
+name = "adl-pty"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+adl-kernel = { path = "../kernel" }
+adl-errors = { path = "../errors" }
+portable-pty.workspace = true
+serde.workspace = true
+tracing.workspace = true
+dirs.workspace = true
+static_assertions = "1"

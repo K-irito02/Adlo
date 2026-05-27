@@ -1,1 +1,0 @@
-export { ChangesPanel } from './panels/ChangesPanel';

@@ -74,6 +74,7 @@ interface StoreStateBase
     TerminalSlice {
   loading: boolean;
   error?: string;
+  isFetching: Record<string, boolean>;
 }
 
 interface WorkspaceActions {

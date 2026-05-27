@@ -77,6 +77,20 @@
   - **关闭按钮位置**：恢复 `<li>` 的 `padding: 0 8px 0 14px`（右侧 8px 内边距）避免关闭按钮太靠右
   - **修改文件**：TerminalPanel.tsx（resize handle）、terminal-panel.css（xterm 背景+padding）、file-tree.css（分割线/hover 高度/关闭按钮/图标位置）
   - **测试验证**：cargo test + 183 前端测试全部通过
+- **第十七轮 — 架构深度重构**：
+  - **Rust crate 重组**：was 17, now 19。REMOVED `crates/context-engine/`（adl-context-engine）、`crates/prompt-engine/`（adl-prompt-engine）。ADDED `crates/outline/`（adl-outline）、`crates/context/`（adl-context）、`crates/command/`（adl-command）、`crates/pty/`（adl-pty）。`workspace/src/outline/` 提取为独立 crate `adl-outline`
+  - **Frontend 精简**：App.tsx 447→203 行；5 个新 Hook——`useDragDropWorkspace`、`usePatchReview`、`useEditorReveal`、`useThemeSync`、`useTaskCenterPolling`；删除 7 个 right-panel barrel 文件；删除 `cacheUtils.ts`
+  - **Store 增强**：新增 `isFetching` 状态 + `setError` action；`shared.ts` 新增 7 个工具函数（`postMutationRefresh`、`batchExpandAll`、`expandSingle`、`createLazyLoader`、`clearError`、`captureError`、`setError`）
+  - **Terminal hook 拆分**：`useTerminalPanel` 547→290 行，提取 3 个子 hook——`useTerminalPtyLifecycle`、`useTerminalDragDrop`、`useTerminalMenus`
+  - **右侧面板 hooks**：7 个 per-panel hooks 创建；`useRightPanelViewProps` 300→55 行
+  - **DB 连接池**：`Arc<Mutex<Connection>>` → r2d2 连接池
+  - **EntityTable 宏生成**：数据访问层宏简化
+  - **kernel domain 模块**：新增 `crates/kernel/src/domain/`
+  - **Loading 性能测试**：更新
+  - **vite.config.ts**：`optimizeDeps.include` 更新
+  - **LRU 缓存简化**：移除 access count 逻辑
+  - **terminalSlice 引用稳定性检查**：添加检查防止闭包引用过期
+  - **测试验证**：cargo test + 183 前端测试全部通过
 
 **不在本目录实现**：多 Agent DAG、MCP、插件市场、云协作等 Phase 2+ 能力。
 
@@ -130,7 +144,7 @@ app/stores/
 ├── StoreState.ts                # 完整 StoreState 类型接口（interface extends）
 ├── slices.ts                    # 统一导出所有切片
 ├── selectors.ts                 # 选择器（含 useShallow React Hook 版本）
-├── shared.ts / cacheUtils.ts    # 共享工具
+├── shared.ts                    # 共享工具（新增 7 个 util：postMutationRefresh/batchExpandAll/expandSingle/createLazyLoader/clearError/captureError/setError）
 ├── index.ts                     # 模块索引
 ├── slices/                      # 12 个独立切片
 │   ├── uiSlice.ts               # UI 状态

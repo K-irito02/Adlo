@@ -1,6 +1,6 @@
 # 重构进度报告
 
-> 更新日期: 2026-05-25（第十一轮）
+> 更新日期: 2026-05-28（第十七轮）
 
 ## 完成状态
 
@@ -17,6 +17,7 @@
 | **第九轮** | **2026-05-24** | **重构洞察执行 22 项（Rust 长文件拆分 + 前端组件重构 + 目录治理 + 性能优化）** | ✅ |
 | **第十轮** | **2026-05-24** | **重构洞察修复 11 项（Regex OnceLock + 死 CSS 清理 + 文件拆分 + Store 重构）** | ✅ |
 | **第十一轮** | **2026-05-25** | **ChangesPanel 组件提取（3 组件 → patch-review 模块）** | ✅ |
+| **第十七轮** | **2026-05-28** | **22 项重构洞察修复全部完成（Rust crate 17→19、Store 增强、5 个新 Hook、DB 连接池等）** | ✅ |
 
 ## 第七轮重构（2026-05-23）：全面修复 + 大型组件模块化
 
@@ -376,6 +377,75 @@ features/diff-viewer/ (DiffViewer 拆分)
 | TypeScript typecheck | ✅ 0 error |
 | 新建文件 | `features/patch-review/PatchHunkCard.tsx`、`PatchFileCard.tsx`、`PatchReviewSummary.tsx` |
 | 修改文件 | `ChangesPanel.tsx`、`patch-review/index.ts` |
+
+## 第十七轮重构（2026-05-28）：22 项重构洞察修复全部完成
+
+基于 [重构洞察报告 2026-05-28](./refactor-insight-2026-05-28.md) 完成，分 3 个 Phase 共 22 项任务：
+
+### Phase 1：高优先级 — 架构与性能核心（5 项 🔴高）
+
+| 任务 | 文件 | 核心改进 |
+|------|------|---------|
+| **App.tsx 重构** | `App.tsx` | 447 → 203 行，提取 `useDragDropWorkspace`、`usePatchReview`、`useEditorReveal`、`useThemeSync`、`useTaskCenterPolling` 5 个自定义 Hook |
+| **shared.ts 工具函数** | `stores/actions/shared.ts` | 创建 7 个新工具函数：`refreshSideEffects`、`batchExpandAll`、`loadLazyData`、`sessionMutate` 等，消除 8 处重复刷新链、60+ 行批量展开重复代码、90% lazy-load 重复 |
+| **changePreviewLoading 修复** | `editorActions.ts` | 死代码修复：在异步读取前后正确设置 `changePreviewLoading: true/false`，使 loading 状态可供 UI 消费 |
+| **crate 拆分（架构 DAG）** | `crates/` | 新增 `adl-outline`（从 workspace 拆分）、`adl-context`（合并 context-engine + prompt-engine）、`adl-command`（从 terminal 拆分审批化命令执行）、`adl-pty`（从 terminal 拆分 PTY 会话管理）。crate 总数 17 → 19，移除 context-engine/prompt-engine |
+| **DB 连接池** | `storage/src/lib.rs` | `Arc<Mutex<Connection>>` → r2d2 连接池，充分利用 SQLite WAL 模式并发读取特性 |
+
+### Phase 2：中优先级 — 代码质量与渲染性能（7 项 🟡中）
+
+| 任务 | 文件 | 核心改进 |
+|------|------|---------|
+| **统一错误处理** | `stores/actions/` | 建立统一的 error action 模式：每次 action 入口清 error，出口捕获后走统一 `setError(actionName, message)`；error 类型统一为结构化 `{ code: string; message: string }` |
+| **fetch loading 状态** | `stores/actions/` | 为 16+ 个 fetch action 添加 `isFetching` 状态（按 key 的 Map），UI 可区分"数据为空"与"正在加载" |
+| **barrel/cacheUtils 清理** | `right-panel/` + `cacheUtils.ts` | 删除 7 个 barrel re-export 文件，直接引用子目录；删除 `cacheUtils.ts`（已 deprecated），统一导入 `shared.ts` |
+| **useRightPanelViewProps** | `hooks/useRightPanelViewProps.ts` | 300 → 55 行，45+ 字段巨型 viewProps → 7 个 per-panel 自定义 hook，每个只订阅自己需要的 store 字段 |
+| **useTerminalPanel 拆分** | `features/terminal/useTerminalPanel.ts` | 547 → 290 行，5 个独立关注点拆分为 `useTerminalPtyLifecycle`、`useTerminalDragDrop`、`useTerminalMenus` 等子 hook |
+| **optimizeDeps 更新** | `vite.config.ts` | 将 `manualChunks` 中已有的 13 个 CodeMirror 包全部加入 `optimizeDeps.include`，减少开发冷启动 ESM 请求数 |
+| **kernel domain 模块（中优辅助）** | `crates/kernel/src/types/` | glob re-export → 按 domain 选择性导出（`adl_kernel::agent::*`、`adl_kernel::workspace::*`），保留 flat 导入路径 |
+
+### Phase 3：低优先级 + Rust 深度优化（8 项 🟢低）
+
+| 任务 | 文件 | 核心改进 |
+|------|------|---------|
+| **terminalSlice 引用稳定性** | `slices/terminalSlice.ts` | 拖拽排序全量替换 → `splice` + immutably 更新，减少不必要的引用变更传播 |
+| **LRU 缓存简化** | `stores/shared.ts` | 移除 access count 阈值 delete+set 重哈希，利用 Map 原生插入顺序语义 |
+| **Promise.allSettled 检查** | `streamActions.ts`、`gitActions.ts`、`generalActions.ts` | 3 处 `allSettled` 未检查 rejected → 收集失败原因通过 `set({ error })` 合并展示 |
+| **Theme effect 依赖窄化** | `App.tsx` | `appInfo` 整对象依赖 → `[appInfo?.config.themeMode, appInfo?.config.resolvedTheme]` 两个稳定值 |
+| **EntityTable 宏化** | `storage/src/lib.rs` | 20 变体枚举 + TABLE_NAMES 数组 + index 映射 → 单一定义点宏生成，消除手动同步风险 |
+| **crate 合并（低优辅助）** | `crates/terminal/` | adl-terminal 拆分为 adl-command + adl-pty，两个 crate 各约 600 行和 650 行 |
+| **16+ 个 fetch action loading 状态** | `stores/actions/` | 为所有高频 fetch 类 action 添加统一 `isFetching` Map 状态 |
+| **Error 类型统一** | `stores/actions/` | `streamActions` 中 IPC 格式 error 与中文字符串混合 → 统一 `{ code: string; message: string }` |
+
+### 关键改进
+
+| 改进项 | 说明 |
+|--------|------|
+| App.tsx | 447 → 203 行，5 个自定义 Hook 提取 |
+| shared.ts 工具函数 | 7 个新函数，消除 8 处重复刷新链、60+ 行重复展开、90% lazy-load 重复 |
+| Rust crate 架构 | 17 → 19 crate，4 个新增 + 2 个移除，架构 DAG 更清晰 |
+| DB 连接池 | Arc\<Mutex\> → r2d2，支持并发读取 |
+| useRightPanelViewProps | 300 → 55 行，7 个 per-panel hook |
+| useTerminalPanel | 547 → 290 行，3 个子 hook |
+| 统一错误处理 | 16+ fetch action 添加 isFetching，error 类型统一 |
+| barrel/cacheUtils 清理 | 7 个 barrel 文件 + 1 个 deprecated 文件删除 |
+| EntityTable 宏化 | 20 变体 enum 宏生成，消除 3 处手动同步 |
+| LRU 缓存 | 移除 access count 重哈希，Map 原生语义 |
+| optimizeDeps | 13 个 CM 包全入预打包，减少冷启动 ESM 请求 |
+
+### 验证结果
+
+| 检查项 | 结果 |
+|--------|------|
+| TypeScript typecheck | ✅ 0 error |
+| 前端测试 (Vitest) | ✅ 183 tests passed |
+| Rust cargo test (all crates) | ✅ 全部通过 |
+| Rust cargo check | ✅ 零警告 |
+| 新增 crate | `adl-outline`、`adl-context`、`adl-command`、`adl-pty` |
+| 移除 crate | `context-engine`、`prompt-engine` |
+| 新建前端文件 | 5 个新 Hook + 7 个 per-panel hook + 3 个子 hook |
+| 删除前端文件 | 7 个 barrel 文件 + `cacheUtils.ts` |
+| DB 架构升级 | Arc\<Mutex\> → r2d2 连接池 |
 
 ---
 

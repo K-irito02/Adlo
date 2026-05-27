@@ -27,7 +27,7 @@ describe("loading and switching performance guards", () => {
 
   it("keeps root shell subscriptions granular instead of subscribing to the full app store", () => {
     expect(appSource).not.toContain("const store = useAppStore();");
-    expect(appSource).toContain("useShallow");
+    expect(appSource).toContain("useAppStore((state) => state.error)");
   });
 
   it("mounts only the active right-side tool panel", () => {

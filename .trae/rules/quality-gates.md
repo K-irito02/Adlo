@@ -16,6 +16,8 @@ alwaysApply: false
 | Rust 测试 | `cargo test --workspace` |
 | 前端类型 | `npm --prefix frontend run typecheck` |
 | 前端测试 | `npm --prefix frontend test` |
+| Rust Clippy | `cargo clippy -- -D warnings` |
+| 重构验证 | `npm --prefix frontend run typecheck` + `npm --prefix frontend test` + `cargo check --workspace` + `cargo test --workspace` |
 | **双端一致性验证** | **分别在 Tauri 桌面和浏览器模式下验证功能一致** |
 
 ## 双端一致性验证
@@ -44,6 +46,15 @@ alwaysApply: false
 
 - Schema 变更必须带迁移脚本
 - 迁移脚本位置：`crates/migration/`
+
+## 重构门禁
+
+重构后必须执行:
+- [ ] 前端类型检查: `npm --prefix frontend run typecheck`
+- [ ] 前端测试: `npm --prefix frontend test`（183 tests 全通过）
+- [ ] Rust 编译: `cargo check --workspace`
+- [ ] Rust 测试: `cargo test --workspace`（105 tests 全通过）
+- [ ] 行为回归: 确认关键用户路径无退化
 
 ## 相关文件
 

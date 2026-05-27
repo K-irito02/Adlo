@@ -75,6 +75,26 @@ alwaysApply: false
 - [ ] `isTauriShell()` 条件分支是否有浏览器等效替代？
 - [ ] CSS Tauri 专属属性是否有浏览器降级？
 
+## IPC/Bridge 架构规范
+
+### Bridge 接口设计
+- `DigitalLifeBridge` 接口必须按领域拆分为命名子接口（参考 13 个子接口）
+- 子接口按功能分组: `workspace`, `conversation`, `patch`, `git`, `search`, `task`, `command`, `pty`, `model`, `window`, `events`, `storage`, `diagnostic`
+- 每个子接口新增方法时，必须在 3 个实现层同步:
+  1. Tauri Bridge (`tauri-bridge.ts`)
+  2. Preview Bridge (`preview-bridge/`)
+  3. Mock Bridge (`mock-bridge.ts` + `mock/` 子模块)
+
+### Bridge 文件组织
+- Preview Bridge: `index.ts`(组合) + `api.ts`(HTTP) + `storage.ts`(localStorage) + `ptyBridge.ts`(轮询/SSE)
+- Mock Bridge: `shared.ts`(共享状态) + per-domain mock 文件 (`mock-workspace.ts`, `mock-conversation.ts`, ...)
+- 单个 bridge 文件 > 600 行时，按上述模式拆分
+
+### PTY 终端规范
+- PTY 进程生命周期由 `adl-pty` crate 管理（非 Tauri Command 层）
+- 前端 PTY 输出通过轮询（浏览器模式）或事件通道（Tauri 模式）获取
+- 终端会话切换时必须正确恢复缓存输出、调整大小、滚动到底部
+
 ## 相关文件
 
 - [frontend/src/shared/ipc.ts](/E:/Programs/Obsidian/notes/ai-digital-life/frontend/src/shared/ipc.ts)

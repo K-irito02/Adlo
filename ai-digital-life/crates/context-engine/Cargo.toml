@@ -1,9 +1,0 @@
-[package]
-name = "adl-context-engine"
-version.workspace = true
-edition.workspace = true
-
-[dependencies]
-adl-kernel = { path = "../kernel" }
-tracing.workspace = true
-serde.workspace = true

@@ -54,9 +54,6 @@ alwaysApply: true
 
 1. **Vite 中间件修改必须重启服务器** - 任何对 `vite.config.ts` 或 `dev/` 目录下文件的修改都需要完全停止并重新启动 `npm run dev:browser`
 2. **SSE 在 Vite 中不稳定** - Vite 的热更新机制会中断长连接，轮询是更可靠的备选方案
-3. **Zustand 对象展开选择器导致无限循环** - 在 Zustand v5 中应避免使用 `useAppStore((state) => ({ ... }))`，应分别选择状态和动作
-4. **终端光标位置重叠** - 需要确保 xterm.js 在写入内容后自动滚动到底部，添加 `onWriteParsed` 监听器并设置正确的容器样式
-5. **多终端窗口切换** - 共享终端组件实例时，切换标签页需要延迟恢复内容、调整大小、滚动到底部并聚焦
 
 ## 包管理
 
@@ -68,16 +65,19 @@ alwaysApply: true
 
 ## Rust 编译
 
-| 命令 | 用途 | 说明 |
-|------|------|------|
-| `cargo check` | 编译检查（不生成二进制） | 快速验证代码正确性 |
-| `cargo test --workspace` | 运行所有 Rust 测试 | 红绿测试用 |
-| `cargo build` | 完整编译 | 首次或新增依赖时较慢 |
+执行 Rust 命令前必须设置 PATH:
+```powershell
+$env:Path = "$env:USERPROFILE\.cargo\bin;$env:Path"
+```
 
-> ⚠️ **Rust 编译注意事项**：
-> - 首次编译或新增依赖时，`cargo check` / `cargo build` 可能需要较长时间（下载依赖 + 编译）
-> - 系统配置了 Clash 代理（`127.0.0.1:7890`），运行前需确保代理已开启，否则依赖下载会失败
-> - Rust 工具链位于 `%USERPROFILE%\.cargo\bin\`，可能不在系统 PATH 中，需手动指定路径或设置环境变量
+| 命令 | 用途 |
+|------|------|
+| `cargo check --workspace` | 编译检查（无二进制输出） |
+| `cargo test --workspace` | 运行所有 Rust 测试 |
+| `cargo build --workspace` | 完整编译（首次/新增依赖时较慢） |
+| `cargo clippy --workspace -- -D warnings` | Lint 检查 |
+
+> 系统配置了 Clash 代理 (`127.0.0.1:7890`)，执行前确保代理已开启。
 
 ## 浏览器自动化
 
@@ -124,3 +124,11 @@ Node.js 安装路径：`D:\Program Files\nodejs`（v24.15.0）
 - [ai-digital-life/vitest.config.ts](/E:/Programs/Obsidian/notes/ai-digital-life/vitest.config.ts)
 - [browser-automation.md](./browser-automation.md)
 - [browser-automation 技能](../skills/browser-automation/SKILL.md)
+
+## 相关规则文件
+
+- [rust-patterns.md](./rust-patterns.md) — Rust 性能与架构模式
+- [zustand-patterns.md](./zustand-patterns.md) — Zustand 状态管理模式
+- [component-architecture.md](./component-architecture.md) — 组件拆分阈值
+- [css-architecture.md](./css-architecture.md) — CSS 架构规范
+- [error-handling.md](./error-handling.md) — 错误处理与加载状态

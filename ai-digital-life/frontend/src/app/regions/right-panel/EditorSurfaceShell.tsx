@@ -5,12 +5,12 @@ import { DiffViewer } from "../../features/diff-viewer";
 import {
   getAgentDecorationExtensions,
   type AgentHunkDecoration,
-} from "./agentDecorations";
+} from "./editor-support/agentDecorations";
 import { categorizeFile, type FileCategory } from "./fileTypeRouter";
 import { LazyMarkdownPreviewWrapper } from "../../features/preview";
 import type { EditorRef, DiffEditorRef } from "../../types";
 import { useUiStore } from "../../ui-store";
-import { StickyContext } from "./stickyContextView";
+import { StickyContext } from "./editor-support/stickyContextView";
 import { DiffToolbar } from "./DiffToolbar";
 import {
   derivePatchHunkChangeKind,

@@ -37,7 +37,7 @@ describe("changes preview editor options", () => {
 
     expect(useStickyContextSource).toContain("getVisibleStartLine");
     expect(useStickyContextSource).toContain("navigateToLine");
-    expect(useStickyContextSource).toContain("from \"../stickyContext\"");
+    expect(useStickyContextSource).toContain("from \"../editor-support/stickyContext\"");
   });
 
   it("passes readOnly, lineNumbers, wordWrap, and sideBySide as DiffViewer props", () => {

@@ -125,3 +125,21 @@ xterm.js 主题色从 CSS 自定义属性读取，非硬编码：
 - [styles/themes.css](/E:/Programs/Obsidian/notes/ai-digital-life/frontend/src/styles/themes.css)
 - [styles/regions.css](/E:/Programs/Obsidian/notes/ai-digital-life/frontend/src/styles/regions.css)
 - [mandatory-testing.md](./mandatory-testing.md)
+
+## CSS 架构
+
+详细 CSS 拆分阈值、死 CSS 预防、布局稳定性规则见 [css-architecture.md](./css-architecture.md)
+
+核心约束:
+- 单个 CSS 文件 > 1000 行必须拆分
+- 删除组件时必须同步删除其专属 CSS
+- 内容可变容器使用固定 `width`，禁止仅设置 `min-width`
+
+## React 性能模式
+
+详细组件拆分、Hook 提取阈值见 [component-architecture.md](./component-architecture.md)
+
+核心约束:
+- `useMemo` 用于避免复杂计算的重复执行
+- `useCallback` 用于传递给 `React.memo` 子组件的回调
+- 超过 50 项的滚动列表使用 `content-visibility: auto`

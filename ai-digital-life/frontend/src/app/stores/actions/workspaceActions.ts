@@ -8,18 +8,24 @@ import {
   getNextSessionRequestSeq,
   clearWorkspaceCaches,
   workspaceRequestSeq,
+  batchExpandAll,
+  expandSingle,
+  createLazyLoader,
+  clearError,
+  captureError,
 } from "../shared";
 import type { StoreApi } from "zustand";
 
 export function createWorkspaceActions(set: StoreApi<StoreState>["setState"], get: () => StoreState) {
   return {
     renameWorkspaceFile: async (relativePath: string, newName: string) => {
+      clearError(get);
       const result = await window.digitalLife.workspace.renameFile(
         relativePath,
         newName
       );
       if (!result.ok) {
-        set({ error: result.error.message });
+        captureError(get, result.error);
         return;
       }
       await get().refreshWorkspaceTree();
@@ -35,9 +41,10 @@ export function createWorkspaceActions(set: StoreApi<StoreState>["setState"], ge
     },
 
     deleteWorkspaceFile: async (relativePath: string) => {
+      clearError(get);
       const result = await window.digitalLife.workspace.deleteFile(relativePath);
       if (!result.ok) {
-        set({ error: result.error.message });
+        captureError(get, result.error);
         return;
       }
       await get().refreshWorkspaceTree();
@@ -52,24 +59,26 @@ export function createWorkspaceActions(set: StoreApi<StoreState>["setState"], ge
     },
 
     moveWorkspaceFile: async (relativePath: string, newPath: string) => {
+      clearError(get);
       const result = await window.digitalLife.workspace.moveFile(
         relativePath,
         newPath
       );
       if (!result.ok) {
-        set({ error: result.error.message });
+        captureError(get, result.error);
         return;
       }
       await get().refreshWorkspaceTree();
     },
 
     duplicateWorkspaceFile: async (srcRelativePath: string, dstRelativePath: string) => {
+      clearError(get);
       const result = await window.digitalLife.workspace.duplicateFile(
         srcRelativePath,
         dstRelativePath
       );
       if (!result.ok) {
-        set({ error: result.error.message });
+        captureError(get, result.error);
         return;
       }
       await get().refreshWorkspaceTree();
@@ -81,11 +90,12 @@ export function createWorkspaceActions(set: StoreApi<StoreState>["setState"], ge
       getNextFileRequestSeq();
       getNextChangePreviewRequestSeq();
       getNextSessionRequestSeq();
+      clearError(get);
       const result = await window.digitalLife.workspace.open(workspacePath);
       if (requestSeq !== workspaceRequestSeq)
         return { ok: false, error: "Request superseded" };
       if (!result.ok) {
-        set({ error: result.error.message });
+        captureError(get, result.error);
         return { ok: false, error: result.error.message };
       }
       await get().bootstrap();
@@ -98,48 +108,53 @@ export function createWorkspaceActions(set: StoreApi<StoreState>["setState"], ge
       getNextFileRequestSeq();
       getNextChangePreviewRequestSeq();
       getNextSessionRequestSeq();
+      clearError(get);
       const result = await window.digitalLife.workspace.clearCurrent();
       if (requestSeq !== workspaceRequestSeq) return;
       if (!result.ok) {
-        set({ error: result.error.message });
+        captureError(get, result.error);
         return;
       }
       await get().bootstrap();
     },
 
     pickWorkspaceDirectory: async () => {
+      clearError(get);
       const result = await window.digitalLife.workspace.pickDirectory();
       if (!result.ok) {
-        set({ error: result.error.message });
+        captureError(get, result.error);
         return undefined;
       }
       return result.data?.trim() || undefined;
     },
 
     pinWorkspace: async (workspaceId: string) => {
+      clearError(get);
       const result = await window.digitalLife.workspace.pin(workspaceId);
       if (!result.ok) {
-        set({ error: result.error.message });
+        captureError(get, result.error);
         return;
       }
       set({ recentWorkspaces: result.data });
     },
 
     unpinWorkspace: async (workspaceId: string) => {
+      clearError(get);
       const result = await window.digitalLife.workspace.unpin(workspaceId);
       if (!result.ok) {
-        set({ error: result.error.message });
+        captureError(get, result.error);
         return;
       }
       set({ recentWorkspaces: result.data });
     },
 
     removeWorkspaceFromSidebar: async (workspaceId: string) => {
+      clearError(get);
       const result = await window.digitalLife.workspace.removeFromSidebar(
         workspaceId
       );
       if (!result.ok) {
-        set({ error: result.error.message });
+        captureError(get, result.error);
         return;
       }
       set({ recentWorkspaces: result.data });
@@ -151,28 +166,30 @@ export function createWorkspaceActions(set: StoreApi<StoreState>["setState"], ge
     },
 
     reorderWorkspaces: async (input: ReorderWorkspacesInput) => {
+      clearError(get);
       const result = await window.digitalLife.workspace.reorder(input);
       if (!result.ok) {
-        set({ error: result.error.message });
+        captureError(get, result.error);
         return;
       }
       set({ recentWorkspaces: result.data });
     },
 
     revealWorkspaceInFileManager: async (workspacePath: string) => {
+      clearError(get);
       const result = await window.digitalLife.workspace.revealInFileManager(
         workspacePath
       );
-      if (!result.ok) set({ error: result.error.message });
+      if (!result.ok) captureError(get, result.error);
     },
 
     refreshWorkspaceTree: async () => {
+      clearError(get);
       const result = await window.digitalLife.workspace.listTree();
       if (!result.ok) {
-        set({ error: result.error.message });
+        captureError(get, result.error);
         return;
       }
-      set({ error: undefined });
       const appInfo = get().appInfo;
       if (appInfo?.currentWorkspace?.id) {
         set({
@@ -184,29 +201,22 @@ export function createWorkspaceActions(set: StoreApi<StoreState>["setState"], ge
       }
     },
 
-    loadWorkspaceTree: async (workspaceId: string, workspacePath: string) => {
-      const state = get();
-      if (state.workspaceTrees[workspaceId] && !state.workspaceTreeLoading[workspaceId]) {
-        return;
-      }
-      set({
-        workspaceTreeLoading: { ...state.workspaceTreeLoading, [workspaceId]: true },
-        workspaceTreeErrors: { ...state.workspaceTreeErrors, [workspaceId]: undefined },
-      });
-      const result = await window.digitalLife.workspace.listTreeForWorkspace(workspacePath);
-      const loading = { ...get().workspaceTreeLoading, [workspaceId]: false };
-      if (!result.ok) {
-        set({
-          workspaceTreeLoading: loading,
-          workspaceTreeErrors: { ...get().workspaceTreeErrors, [workspaceId]: result.error.message },
-        });
-        return;
-      }
-      set({
-        workspaceTrees: { ...get().workspaceTrees, [workspaceId]: result.data },
-        workspaceTreeLoading: loading,
-      });
-    },
+    loadWorkspaceTree: createLazyLoader<WorkspaceTreeNode[]>(
+      (path) => window.digitalLife.workspace.listTreeForWorkspace(path),
+      (s, id) => ({ hasData: !!s.workspaceTrees[id], isLoading: !!s.workspaceTreeLoading[id] }),
+      (g, id) => ({
+        workspaceTreeLoading: { ...g().workspaceTreeLoading, [id]: true },
+        workspaceTreeErrors: { ...g().workspaceTreeErrors, [id]: undefined },
+      }),
+      (g, id, data) => ({
+        workspaceTrees: { ...g().workspaceTrees, [id]: data },
+        workspaceTreeLoading: { ...g().workspaceTreeLoading, [id]: false },
+      }),
+      (g, id, message) => ({
+        workspaceTreeLoading: { ...g().workspaceTreeLoading, [id]: false },
+        workspaceTreeErrors: { ...g().workspaceTreeErrors, [id]: message },
+      }),
+    )(set, get),
 
     toggleWorkspaceTreeInFileNav: (workspaceId: string) => {
       const current = get().workspaceTreeExpandedInFileNav;
@@ -220,24 +230,13 @@ export function createWorkspaceActions(set: StoreApi<StoreState>["setState"], ge
 
     expandWorkspaceTreeInFileNav: async (workspaceId: string, workspacePath: string) => {
       const state = get();
-      if (state.workspaceTreeExpandedInFileNav[workspaceId]) {
-        set({
-          workspaceTreeExpandedInFileNav: {
-            ...state.workspaceTreeExpandedInFileNav,
-            [workspaceId]: false,
-          },
-        });
-        return;
-      }
-      set({
-        workspaceTreeExpandedInFileNav: {
-          ...state.workspaceTreeExpandedInFileNav,
-          [workspaceId]: true,
-        },
-      });
-      if (!state.workspaceTrees[workspaceId]) {
-        await get().loadWorkspaceTree(workspaceId, workspacePath);
-      }
+      await expandSingle(
+        state.workspaceTreeExpandedInFileNav,
+        workspaceId,
+        (next) => set({ workspaceTreeExpandedInFileNav: next }),
+        !!state.workspaceTrees[workspaceId],
+        () => get().loadWorkspaceTree(workspaceId, workspacePath),
+      );
     },
 
     refreshAllWorkspaceTrees: async () => {
@@ -269,9 +268,10 @@ export function createWorkspaceActions(set: StoreApi<StoreState>["setState"], ge
     },
 
     hideWorkspaceFromRightPanels: async (workspaceId: string) => {
+      clearError(get);
       const result = await window.digitalLife.workspace.hideFromRightPanels(workspaceId);
       if (!result.ok) {
-        set({ error: result.error.message });
+        captureError(get, result.error);
         return;
       }
       set({ recentWorkspaces: result.data });
@@ -279,9 +279,10 @@ export function createWorkspaceActions(set: StoreApi<StoreState>["setState"], ge
     },
 
     showWorkspaceInRightPanels: async (workspaceId: string) => {
+      clearError(get);
       const result = await window.digitalLife.workspace.showInRightPanels(workspaceId);
       if (!result.ok) {
-        set({ error: result.error.message });
+        captureError(get, result.error);
         return;
       }
       set({ recentWorkspaces: result.data });
@@ -289,22 +290,13 @@ export function createWorkspaceActions(set: StoreApi<StoreState>["setState"], ge
 
     expandAllWorkspaceTreesInFileNav: async () => {
       const state = get();
-      const visibleEntries = state.recentWorkspaces.filter(
-        (w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available
+      await batchExpandAll(
+        state.recentWorkspaces,
+        state.workspaceTreeExpandedInFileNav,
+        (next) => set({ workspaceTreeExpandedInFileNav: next }),
+        (entry) => get().loadWorkspaceTree(entry.id, entry.path),
+        (id) => !!state.workspaceTrees[id],
       );
-      const expandedAll: Record<string, boolean> = {};
-      for (const entry of visibleEntries) {
-        expandedAll[entry.id] = true;
-      }
-      set({ workspaceTreeExpandedInFileNav: expandedAll });
-      const toLoad = visibleEntries.filter((e) => !state.workspaceTrees[e.id]);
-      const CONCURRENCY = 3;
-      for (let i = 0; i < toLoad.length; i += CONCURRENCY) {
-        const batch = toLoad.slice(i, i + CONCURRENCY);
-        await Promise.allSettled(
-          batch.map((entry) => get().loadWorkspaceTree(entry.id, entry.path))
-        );
-      }
     },
 
     collapseAllWorkspaceTreesInFileNav: () => {

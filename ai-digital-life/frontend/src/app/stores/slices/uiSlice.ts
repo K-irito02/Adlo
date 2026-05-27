@@ -40,6 +40,7 @@ export interface UISlice {
   filesNavigatorWidth: number;
   changesNavigatorWidth: number;
   browserNavigatorWidth: number;
+  isFetching: Record<string, boolean>;
 
   setActiveRightTool: (tool: ToolId) => void;
   setChatMode: (mode: ChatMode) => void;
@@ -52,6 +53,8 @@ export interface UISlice {
   setFilesNavigatorWidth: (width: number) => void;
   setChangesNavigatorWidth: (width: number) => void;
   setBrowserNavigatorWidth: (width: number) => void;
+  setIsFetching: (key: string, value: boolean) => void;
+  setError: (message?: string) => void;
 }
 
 /**
@@ -69,6 +72,7 @@ export const createUISlice = (
   filesNavigatorWidth: readNumber(FILES_NAVIGATOR_WIDTH_KEY, DEFAULT_FILES_NAVIGATOR_WIDTH, FILES_NAVIGATOR_WIDTH_MIN, FILES_NAVIGATOR_WIDTH_MAX),
   changesNavigatorWidth: readNumber(CHANGES_NAVIGATOR_WIDTH_KEY, DEFAULT_CHANGES_NAVIGATOR_WIDTH, CHANGES_NAVIGATOR_WIDTH_MIN, CHANGES_NAVIGATOR_WIDTH_MAX),
   browserNavigatorWidth: readNumber(BROWSER_NAVIGATOR_WIDTH_KEY, DEFAULT_BROWSER_NAVIGATOR_WIDTH, BROWSER_NAVIGATOR_WIDTH_MIN, BROWSER_NAVIGATOR_WIDTH_MAX),
+  isFetching: {},
 
   setActiveRightTool: (tool) => set({ activeRightTool: tool }),
   setChatMode: (mode) => set({ chatMode: mode }),
@@ -119,4 +123,10 @@ export const createUISlice = (
     writeNumber(BROWSER_NAVIGATOR_WIDTH_KEY, next);
     set({ browserNavigatorWidth: next });
   },
+  setIsFetching: (key, value) => {
+    set((state) => ({
+      isFetching: { ...state.isFetching, [key]: value },
+    }));
+  },
+  setError: (message) => set({ error: message }),
 });

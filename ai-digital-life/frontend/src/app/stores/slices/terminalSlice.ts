@@ -321,6 +321,8 @@ export const createTerminalSlice = (
 
     terminalReorderTabs: (newOrder) =>
       set((state) => {
+        if (state.terminalTabs === newOrder) return state;
+
         const pinnedTabs = newOrder.filter(t => t.isPinned);
         const unpinnedTabs = newOrder.filter(t => !t.isPinned);
 

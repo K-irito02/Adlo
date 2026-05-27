@@ -1,19 +1,26 @@
 import React, { useId } from "react";
-import { BrowserPanel } from "./right-panel/BrowserPanel";
-import { ChangesPanel } from "./right-panel/ChangesPanel";
-import { FilesPanel } from "./right-panel/FilesPanel";
+import { BrowserPanel } from "./right-panel/panels/BrowserPanel";
+import { ChangesPanel } from "./right-panel/panels/ChangesPanel";
+import { FilesPanel } from "./right-panel/panels/FilesPanel";
 import { TerminalPanel } from "../features/terminal";
 import { ToolSwitcher } from "./right-panel/ToolSwitcher";
 import { AuditPanel } from "../components/approval/AuditPanel";
 import { ModelHealthPanel } from "../components/models/ModelHealthPanel";
 import { SettingsPanel } from "../components/settings/SettingsPanel";
-import type { RightPanelViewProps, FilesPanelProps, ChangesPanelProps, BrowserPanelProps, TerminalPanelProps, AuditPanelProps, ModelPanelProps, SettingsPanelProps } from "./right-panel/types";
+import type { FilesPanelProps, ChangesPanelProps, BrowserPanelProps, TerminalPanelProps, AuditPanelProps, ModelPanelProps, SettingsPanelProps } from "./right-panel/types";
 import type { PatchDirection, PatchReviewFilter } from "../features/patch-review";
 import type { CopyDict } from "../copy";
 import type { EditorRef, DiffEditorRef } from "../types";
 import type { ToolId } from "../ui-store";
 import { useRightPanelLayout } from "./right-panel/hooks/useRightPanelLayout";
 import { useRightPanelViewProps } from "./right-panel/hooks/useRightPanelViewProps";
+import { useFilesPanelProps } from "./right-panel/hooks/useFilesPanelProps";
+import { useChangesPanelProps } from "./right-panel/hooks/useChangesPanelProps";
+import { useBrowserPanelProps } from "./right-panel/hooks/useBrowserPanelProps";
+import { useTerminalPanelProps } from "./right-panel/hooks/useTerminalPanelProps";
+import { useAuditPanelProps } from "./right-panel/hooks/useAuditPanelProps";
+import { useModelPanelProps } from "./right-panel/hooks/useModelPanelProps";
+import { useSettingsPanelProps } from "./right-panel/hooks/useSettingsPanelProps";
 
 export interface RightPanelProps {
   t: CopyDict;
@@ -76,8 +83,16 @@ const ActiveToolPanel = React.memo(function ActiveToolPanel({
 export function RightPanel(panelProps: RightPanelProps) {
   const { t, collapsed } = panelProps;
 
-  const { viewProps, filesPanelProps, changesPanelProps, browserPanelProps, terminalPanelProps, auditPanelProps, modelPanelProps, settingsPanelProps, activeRightTool, setActiveRightTool, badges } = useRightPanelViewProps(panelProps, collapsed);
+  const { activeRightTool, setActiveRightTool, badges, diffSideBySide, onSetDiffLayout } = useRightPanelViewProps();
   const { panelRef, handleResizeStart, rightPanelMode, rightPanelWidth, applyPanelGeometry, lastRestorableWidthRef, readLayoutMetrics, clampPanelWidthToShell, setRightPanelWidth } = useRightPanelLayout(collapsed);
+
+  const filesProps = useFilesPanelProps(panelProps, diffSideBySide, onSetDiffLayout);
+  const changesProps = useChangesPanelProps(panelProps, diffSideBySide, onSetDiffLayout);
+  const browserProps = useBrowserPanelProps(panelProps);
+  const terminalProps = useTerminalPanelProps(panelProps);
+  const auditProps = useAuditPanelProps(panelProps);
+  const modelProps = useModelPanelProps(panelProps);
+  const settingsProps = useSettingsPanelProps(panelProps);
 
   const panelIdBase = useId();
 
@@ -115,13 +130,13 @@ export function RightPanel(panelProps: RightPanelProps) {
         <ActiveToolPanel
           activeTool={activeRightTool}
           idBase={panelIdBase}
-          filesProps={filesPanelProps}
-          changesProps={changesPanelProps}
-          browserProps={browserPanelProps}
-          terminalProps={terminalPanelProps}
-          auditProps={auditPanelProps}
-          modelProps={modelPanelProps}
-          settingsProps={settingsPanelProps}
+          filesProps={filesProps}
+          changesProps={changesProps}
+          browserProps={browserProps}
+          terminalProps={terminalProps}
+          auditProps={auditProps}
+          modelProps={modelProps}
+          settingsProps={settingsProps}
         />
       </div>
     </aside>

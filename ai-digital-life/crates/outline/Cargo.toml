@@ -1,0 +1,9 @@
+[package]
+name = "adl-outline"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+adl-kernel = { path = "../kernel" }
+adl-errors = { path = "../errors" }
+regex = { workspace = true }

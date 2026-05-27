@@ -9,7 +9,7 @@ import {
   getVisibleStartLine,
   navigateToLine,
   type StickyContextModel,
-} from "../stickyContext";
+} from "../editor-support/stickyContext";
 
 interface UseStickyContextInput {
   selectedFilePath: string | undefined;
