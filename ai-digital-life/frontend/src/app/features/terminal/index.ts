@@ -8,7 +8,6 @@ export type {
   UseTerminalPanelReturn,
 } from "./useTerminalPanel";
 export { TerminalTabBar } from "./TerminalTabBar";
-export { TerminalEmptyState } from "./TerminalEmptyState";
 export { TerminalShellSelector } from "./TerminalShellSelector";
 export { TerminalContextMenu } from "./TerminalContextMenu";
 export { TerminalMenuDropdown } from "./TerminalMenuDropdown";

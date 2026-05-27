@@ -24,6 +24,7 @@ export interface TerminalTabState {
 const TERMINAL_TABS_KEY = "adl-ui:terminal-tabs";
 const TERMINAL_ACTIVE_TAB_KEY = "adl-ui:terminal-active-tab";
 const TERMINAL_DEFAULT_PROFILE_KEY = "adl-ui:terminal-default-profile";
+const TERMINAL_WORKSPACE_DEFAULT_PROFILES_KEY = "adl-ui:terminal-workspace-default-profiles";
 const TERMINAL_NAVIGATOR_WIDTH_KEY = "adl-ui:terminal-navigator-width";
 const TERMINAL_NAVIGATOR_COLLAPSED_KEY = "adl-ui:navigator-collapsed";
 
@@ -164,6 +165,7 @@ function hydrateTerminalDefaults(get: () => StoreState, set: (partial: Partial<S
   _defaultsHydrated = true;
   const doHydrate = () => {
     const profile = readJson<TerminalProfile>(TERMINAL_DEFAULT_PROFILE_KEY, "powershell");
+    const workspaceProfiles = readJson<Record<string, TerminalProfile>>(TERMINAL_WORKSPACE_DEFAULT_PROFILES_KEY, {});
     const width = readNumber(TERMINAL_NAVIGATOR_WIDTH_KEY, DEFAULT_TERMINAL_NAVIGATOR_WIDTH, TERMINAL_NAVIGATOR_WIDTH_MIN, TERMINAL_NAVIGATOR_WIDTH_MAX);
     const collapsed = {
       ...defaultNavigatorCollapsed(),
@@ -171,6 +173,7 @@ function hydrateTerminalDefaults(get: () => StoreState, set: (partial: Partial<S
     };
     set({
       defaultTerminalProfile: profile,
+      workspaceDefaultProfiles: workspaceProfiles,
       terminalNavigatorWidth: width,
       navigatorCollapsedByTool: collapsed,
     });
@@ -190,6 +193,7 @@ export interface TerminalSlice {
   terminalTabsById: Record<string, TerminalTabState>;
   terminalActiveTabId: string;
   defaultTerminalProfile: TerminalProfile;
+  workspaceDefaultProfiles: Record<string, TerminalProfile>;
   terminalNavigatorWidth: number;
   navigatorCollapsedByTool: Record<ToolId, boolean>;
   terminalWorkspaceExpanded: Record<string, boolean>;
@@ -205,6 +209,7 @@ export interface TerminalSlice {
   terminalReorderTabs: (newOrder: TerminalTabState[]) => void;
   terminalCloseAllTabs: () => void;
   setDefaultTerminalProfile: (profile: TerminalProfile) => void;
+  setWorkspaceDefaultTerminalProfile: (workspaceId: string, profile: TerminalProfile) => void;
   setTerminalNavigatorWidth: (width: number) => void;
   toggleTerminalNavigator: () => void;
   setTerminalNavigatorCollapsed: (collapsed: boolean) => void;
@@ -223,21 +228,31 @@ export const createTerminalSlice = (
     terminalTabsById: {},
     terminalActiveTabId: "",
     defaultTerminalProfile: "powershell",
+    workspaceDefaultProfiles: {},
     terminalNavigatorWidth: DEFAULT_TERMINAL_NAVIGATOR_WIDTH,
     navigatorCollapsedByTool: defaultNavigatorCollapsed(),
     terminalWorkspaceExpanded: {},
     terminalPersisted: false,
     terminalWorkspaceId: "",
 
-    terminalCreateTab: (profile = "powershell", workspaceId = "") =>
+    terminalCreateTab: (profile: TerminalProfile | undefined, workspaceId = "") =>
       set((state) => {
-        const existingCount = state.terminalTabs.filter((tab) => tab.profile === profile).length + 1;
+        // 使用工作区专属默认终端类型，如果没有则使用全局默认
+        let finalProfile: TerminalProfile;
+        if (profile) {
+          finalProfile = profile;
+        } else if (workspaceId && state.workspaceDefaultProfiles[workspaceId]) {
+          finalProfile = state.workspaceDefaultProfiles[workspaceId];
+        } else {
+          finalProfile = state.defaultTerminalProfile;
+        }
+        const existingCount = state.terminalTabs.filter((tab) => tab.profile === finalProfile).length + 1;
         const maxSortOrder = state.terminalTabs.length > 0 ? Math.max(...state.terminalTabs.map(t => t.sortOrder)) : 0;
         const tab: TerminalTabState = {
           id: createUiId("terminal"),
           workspaceId,
-          title: deriveTerminalTitle(profile, existingCount),
-          profile,
+          title: deriveTerminalTitle(finalProfile, existingCount),
+          profile: finalProfile,
           status: "idle",
           isPinned: false,
           sortOrder: maxSortOrder + 1
@@ -327,6 +342,14 @@ export const createTerminalSlice = (
     setDefaultTerminalProfile: (profile) => {
       scheduleWrite(TERMINAL_DEFAULT_PROFILE_KEY, profile);
       set({ defaultTerminalProfile: profile });
+    },
+
+    setWorkspaceDefaultTerminalProfile: (workspaceId, profile) => {
+      set((state) => {
+        const nextWorkspaceProfiles = { ...state.workspaceDefaultProfiles, [workspaceId]: profile };
+        scheduleWrite(TERMINAL_WORKSPACE_DEFAULT_PROFILES_KEY, nextWorkspaceProfiles);
+        return { workspaceDefaultProfiles: nextWorkspaceProfiles };
+      });
     },
 
     setTerminalNavigatorWidth: (width) => {

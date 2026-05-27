@@ -225,6 +225,9 @@ export const terminalSelectors = {
   getDefaultTerminalProfile: (state: StoreState) => state.defaultTerminalProfile,
   useDefaultTerminalProfile: () => useAppStore((s) => s.defaultTerminalProfile),
 
+  getWorkspaceDefaultProfiles: (state: StoreState) => state.workspaceDefaultProfiles,
+  useWorkspaceDefaultProfiles: () => useAppStore(useShallow((s) => s.workspaceDefaultProfiles)),
+
   getTerminalNavigatorWidth: (state: StoreState) => state.terminalNavigatorWidth,
   useTerminalNavigatorWidth: () => useAppStore((s) => s.terminalNavigatorWidth),
 

@@ -8,6 +8,7 @@ import { IconRefreshCw, IconTrash, IconPlus, IconMoreVertical, IconEyeOff, IconF
 import { TooltipSimple } from "../../components/Tooltip";
 import { TerminalTabBar } from "../terminal/TerminalTabBar";
 import { useAppStore } from "../../stores/slicedStore";
+import { logTestMessage } from "./test-log";
 
 export interface WorkspaceTerminalEntryProps {
   workspace: RecentWorkspaceEntry;
@@ -48,12 +49,31 @@ export function WorkspaceTerminalEntry({
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const [subHover, setSubHover] = useState(false);
   const [subMenuPosition, setSubMenuPosition] = useState<{ top: number; left: number } | null>(null);
+  const [renderKey, setRenderKey] = useState(0);
   const menuId = `ws-term-menu-${workspace.id}`;
   const subMenuId = `ws-term-submenu-${workspace.id}`;
   const subMenuTriggerRef = useRef<HTMLDivElement | null>(null);
-  const currentProfile = useAppStore((s) => s.defaultTerminalProfile);
-  const setDefaultTerminalProfile = useAppStore((s) => s.setDefaultTerminalProfile);
+  const defaultTerminalProfile = useAppStore((state) => state.defaultTerminalProfile);
+  const workspaceDefaultProfiles = useAppStore((state) => state.workspaceDefaultProfiles);
+  const setDefaultTerminalProfile = useAppStore((state) => state.setDefaultTerminalProfile);
+  const setWorkspaceDefaultTerminalProfile = useAppStore((state) => state.setWorkspaceDefaultTerminalProfile);
   const subHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // 使用工作区专属默认终端类型，如果没有则使用全局默认
+  const currentProfile = isIndependent 
+    ? defaultTerminalProfile 
+    : (workspaceDefaultProfiles[workspace.id] ?? defaultTerminalProfile);
+
+  useEffect(() => {
+    logTestMessage("Component mounted/updated", { 
+      workspaceId: workspace.id, 
+      workspaceName: workspace.name,
+      isIndependent,
+      currentProfile,
+      workspaceDefaultProfiles: JSON.parse(JSON.stringify(workspaceDefaultProfiles)),
+      setWorkspaceDefaultTerminalProfileExists: typeof setWorkspaceDefaultTerminalProfile === 'function'
+    });
+  }, [workspace.id, workspace.name, isIndependent, currentProfile, workspaceDefaultProfiles]);
 
   const profileLabels: Record<TerminalProfile, string> = {
     powershell: "PowerShell",
@@ -142,11 +162,23 @@ export function WorkspaceTerminalEntry({
   }, [onHideFromRightPanels, workspace.id, closeMenu]);
 
   const handleSelectDefaultProfile = useCallback((profile: TerminalProfile) => {
-    setDefaultTerminalProfile(profile);
-  }, [setDefaultTerminalProfile]);
+    logTestMessage("handleSelectDefaultProfile called", { profile, isIndependent, workspaceId: workspace.id });
+    if (isIndependent) {
+      logTestMessage("Setting global default profile", { profile });
+      setDefaultTerminalProfile(profile);
+    } else {
+      logTestMessage("Setting workspace default profile", { workspaceId: workspace.id, profile });
+      setWorkspaceDefaultTerminalProfile(workspace.id, profile);
+    }
+    // 强制触发重新渲染
+    setRenderKey(prev => prev + 1);
+    setTimeout(() => {
+      closeMenu();
+    }, 50);
+  }, [isIndependent, workspace.id, setDefaultTerminalProfile, setWorkspaceDefaultTerminalProfile, closeMenu]);
 
   return (
-    <div className={`adl-multitree-entry${isIndependent ? " adl-multitree-entry--independent" : ""}${!workspace.available ? " is-unavailable" : ""}`}>
+    <div key={renderKey} className={`adl-multitree-entry${isIndependent ? " adl-multitree-entry--independent" : ""}${!workspace.available ? " is-unavailable" : ""}`}>
       <div className="adl-multitree-entry__header" data-menu-zone-id={menuId}>
         <div className="adl-multitree-entry__expand">
           <TooltipSimple content={isExpanded ? "收起" : "展开"} placement="top">

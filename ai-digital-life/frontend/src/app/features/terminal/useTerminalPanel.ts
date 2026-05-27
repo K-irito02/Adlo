@@ -160,14 +160,27 @@ export function useTerminalPanel(props: TerminalPanelProps): UseTerminalPanelRet
     [props.commandHistory, t.terminalCommandHistory, terminalTabs]
   );
 
-  const handleCreateTab = useCallback(async (profile: TerminalProfile = "powershell", workspaceId?: string) => {
+  const workspaceDefaultProfiles = useAppStore((state) => state.workspaceDefaultProfiles);
+  
+  const handleCreateTab = useCallback(async (profile?: TerminalProfile, workspaceId?: string) => {
     const shellMap: Record<TerminalProfile, string> = {
       powershell: "powershell",
       bash: "bash",
       cmd: "cmd"
     };
+    
+    // 使用工作区专属默认终端类型，如果没有则使用全局默认
+    let finalProfile: TerminalProfile;
+    if (profile) {
+      finalProfile = profile;
+    } else if (workspaceId && workspaceDefaultProfiles[workspaceId]) {
+      finalProfile = workspaceDefaultProfiles[workspaceId];
+    } else {
+      finalProfile = defaultTerminalProfile;
+    }
+    
     xtermRef.current?.clear();
-    terminalCreateTab(profile, workspaceId ?? "");
+    terminalCreateTab(finalProfile, workspaceId ?? "");
     
     let cwd: string | undefined;
     if (workspaceId) {
@@ -182,7 +195,7 @@ export function useTerminalPanel(props: TerminalPanelProps): UseTerminalPanelRet
     
     try {
       const result = await window.digitalLife.pty.create({
-        shell: shellMap[profile],
+        shell: shellMap[finalProfile],
         cwd,
         cols,
         rows
@@ -214,11 +227,11 @@ export function useTerminalPanel(props: TerminalPanelProps): UseTerminalPanelRet
       console.error("Error creating terminal:", err);
       terminalUpdateActiveTab({ status: "terminated" });
       setTimeout(() => {
-        xtermRef.current?.write(`\r\n\x1b[31mError: Failed to start ${profile} terminal.\x1b[0m\r\n`);
+        xtermRef.current?.write(`\r\n\x1b[31mError: Failed to start ${finalProfile} terminal.\x1b[0m\r\n`);
         xtermRef.current?.write(`\x1b[31m${err instanceof Error ? err.message : String(err)}\x1b[0m\r\n\r\n`);
       }, 50);
     }
-  }, [terminalCreateTab, terminalUpdateActiveTab, props.appInfo?.currentWorkspace?.rootPath, recentWorkspaces]);
+  }, [terminalCreateTab, terminalUpdateActiveTab, props.appInfo?.currentWorkspace?.rootPath, recentWorkspaces, workspaceDefaultProfiles, defaultTerminalProfile]);
 
   useEffect(() => {
     if (!terminalMenuOpen && !shellMenuOpen) {

@@ -9,7 +9,6 @@ import type { TerminalProfile } from "../../ui-store";
 import { useTerminalPanel } from "./useTerminalPanel";
 import { TerminalShellSelector } from "./TerminalShellSelector";
 import { TerminalMenuDropdown } from "./TerminalMenuDropdown";
-import { TerminalEmptyState } from "./TerminalEmptyState";
 import { TerminalContextMenu } from "./TerminalContextMenu";
 import { MultiWorkspaceTerminal } from "../workspace-terminal";
 import type { RecentWorkspaceEntry } from "@ai-digital-life/kernel";
@@ -210,7 +209,7 @@ export function TerminalPanel(props: TerminalPanelProps) {
             terminalTabs={terminalState.terminalTabs}
             activeTabId={terminalState.terminalActiveTabId}
             onToggleExpand={toggleTerminalWorkspaceExpanded}
-            onCreateTab={(wsId) => terminalActions.handleCreateTab(terminalState.defaultTerminalProfile, wsId)}
+            onCreateTab={(wsId) => terminalActions.handleCreateTab(undefined, wsId)}
             onSelectTab={terminalSelectTab}
             onCloseTab={terminalCloseTab}
             onTogglePin={terminalTogglePin}
@@ -250,15 +249,7 @@ export function TerminalPanel(props: TerminalPanelProps) {
                   </div>
                 )}
               </>
-            ) : (
-              <TerminalEmptyState
-                shellTypeItems={terminalState.shellTypeItems}
-                workspaces={recentWorkspaces}
-                defaultProfile={terminalState.defaultTerminalProfile}
-                onSelectProfile={terminalActions.handleCreateTab}
-                t={t}
-              />
-            )}
+            ) : null}
           </div>
         </div>
       </div>

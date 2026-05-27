@@ -957,6 +957,9 @@
 
 .adl-multitree-entry__menu-item--with-sub {
   position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .adl-multitree-entry__menu--sub {
@@ -968,11 +971,6 @@
   overflow-x: hidden;
   z-index: 1000 !important;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-}
-.adl-multitree-entry__menu-item--with-sub {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
 }
 .adl-multitree-entry__menu-item--with-sub:hover {
   background: var(--surface-hover);
