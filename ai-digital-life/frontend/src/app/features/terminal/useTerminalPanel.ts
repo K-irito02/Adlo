@@ -57,7 +57,7 @@ export interface UseTerminalPanelReturn {
     terminalMenuItems: TerminalMenuItem[];
   };
   terminalActions: {
-    handleCreateTab: (profile?: TerminalProfile) => Promise<void>;
+    handleCreateTab: (profile?: TerminalProfile, workspaceId?: string) => Promise<void>;
     handleSelectTab: (tabId: string) => void;
     handleCloseTab: (tabId: string) => void;
     handleCloseAllTabs: () => void;
@@ -118,6 +118,7 @@ export function useTerminalPanel(props: TerminalPanelProps): UseTerminalPanelRet
   const toggleTerminalNavigator = useAppStore((state) => state.toggleTerminalNavigator);
   const terminalCloseAllTabs = useAppStore((state) => state.terminalCloseAllTabs);
   const setActiveRightTool = useAppStore((state) => state.setActiveRightTool);
+  const recentWorkspaces = useAppStore((state) => state.recentWorkspaces);
 
   const terminalMenuRef = useRef<HTMLDivElement | null>(null);
   const shellMenuRef = useRef<HTMLDivElement | null>(null);
@@ -152,37 +153,65 @@ export function useTerminalPanel(props: TerminalPanelProps): UseTerminalPanelRet
     [props.commandHistory, t.terminalCommandHistory, terminalTabs]
   );
 
-  const handleCreateTab = useCallback(async (profile: TerminalProfile = "powershell") => {
+  const handleCreateTab = useCallback(async (profile: TerminalProfile = "powershell", workspaceId?: string) => {
     const shellMap: Record<TerminalProfile, string> = {
       powershell: "powershell",
       bash: "bash",
       cmd: "cmd"
     };
     xtermRef.current?.clear();
-    terminalCreateTab(profile);
+    terminalCreateTab(profile, workspaceId ?? "");
+    
+    let cwd: string | undefined;
+    if (workspaceId) {
+      const workspace = recentWorkspaces.find((w) => w.id === workspaceId);
+      cwd = workspace?.path ?? undefined;
+    } else {
+      cwd = props.appInfo?.currentWorkspace?.rootPath ?? undefined;
+    }
+    
     const cols = 80;
     const rows = 24;
-    const cwd = props.appInfo?.currentWorkspace?.rootPath ?? undefined;
-    const result = await window.digitalLife.pty.create({
-      shell: shellMap[profile],
-      cwd,
-      cols,
-      rows
-    });
-    if (result.ok) {
-      terminalUpdateActiveTab({ sessionId: result.data.sessionId, status: "running" });
-      setTimeout(() => {
-        const stored = sessionOutputsRef.current.get(result.data.sessionId) ?? "";
-        if (stored) {
-          xtermRef.current?.write(stored);
-        }
-        xtermRef.current?.resize();
-        xtermRef.current?.focus();
-      }, 50);
-    } else {
+    
+    try {
+      const result = await window.digitalLife.pty.create({
+        shell: shellMap[profile],
+        cwd,
+        cols,
+        rows
+      });
+      if (result.ok) {
+        terminalUpdateActiveTab({ sessionId: result.data.sessionId, status: "running" });
+        setTimeout(() => {
+          const stored = sessionOutputsRef.current.get(result.data.sessionId) ?? "";
+          if (stored) {
+            xtermRef.current?.write(stored);
+          }
+          xtermRef.current?.resize();
+          xtermRef.current?.focus();
+        }, 50);
+      } else {
+        console.error("Failed to create terminal:", result.error);
+        const errorMsg = result.error?.message || "Unknown error";
+        terminalUpdateActiveTab({ status: "terminated" });
+        // Write error message to terminal
+        setTimeout(() => {
+          xtermRef.current?.write(`\r\n\x1b[31mError: Failed to start ${profile} terminal.\x1b[0m\r\n`);
+          xtermRef.current?.write(`\x1b[31m${errorMsg}\x1b[0m\r\n\r\n`);
+          if (profile === "bash") {
+            xtermRef.current?.write("\x1b[33mHint: Make sure Git for Windows or WSL is installed.\x1b[0m\r\n");
+          }
+        }, 50);
+      }
+    } catch (err) {
+      console.error("Error creating terminal:", err);
       terminalUpdateActiveTab({ status: "terminated" });
+      setTimeout(() => {
+        xtermRef.current?.write(`\r\n\x1b[31mError: Failed to start ${profile} terminal.\x1b[0m\r\n`);
+        xtermRef.current?.write(`\x1b[31m${err instanceof Error ? err.message : String(err)}\x1b[0m\r\n\r\n`);
+      }, 50);
     }
-  }, [terminalCreateTab, terminalUpdateActiveTab, props.appInfo?.currentWorkspace?.rootPath]);
+  }, [terminalCreateTab, terminalUpdateActiveTab, props.appInfo?.currentWorkspace?.rootPath, recentWorkspaces]);
 
   useEffect(() => {
     if (!terminalMenuOpen && !shellMenuOpen) {

@@ -50,19 +50,18 @@ function systemCandidates(kind: ShellKind): string[] {
   }
 }
 
-function shellArgsFor(kind: ShellKind, programPath: string): string[] {
-  const name = path.basename(programPath, ".exe").toLowerCase();
-  switch (name) {
-    case "powershell":
-    case "pwsh":
-      return ["-NoLogo", "-NoProfile"];
-    case "cmd":
-      return [];
-    case "bash":
-      return path.basename(programPath).toLowerCase().includes("wsl") ? [] : [];
-    default:
-      return [];
+function shellArgsFor(programPath: string): string[] {
+  const name = path.basename(programPath).toLowerCase();
+  if (name.includes("powershell") || name === "pwsh.exe") {
+    return ["-NoLogo", "-NoProfile"];
+  } else if (name === "cmd.exe") {
+    return ["/q"];
+  } else if (name === "bash.exe") {
+    return ["-l"];
+  } else if (name === "wsl.exe") {
+    return [];
   }
+  return [];
 }
 
 function resolveShell(shell: string): { resolution: ShellResolution } | { error: string } {
@@ -71,22 +70,50 @@ function resolveShell(shell: string): { resolution: ShellResolution } | { error:
     return { error: `Unknown shell type: ${shell}` };
   }
 
+  // Level 1: Well-known system paths
   for (const candidate of systemCandidates(kind)) {
     if (existsSync(candidate)) {
+      console.debug(`Shell resolved to system path: ${candidate}`);
       return {
         resolution: {
           program: candidate,
-          args: shellArgsFor(kind, candidate),
+          args: shellArgsFor(candidate),
         },
       };
     }
   }
 
-  const progName = kind === "powershell" ? "powershell.exe" : kind === "cmd" ? "cmd.exe" : "bash.exe";
+  // Level 2: Rely on PATH (no pre-check, the OS will resolve or fail)
+  let progName: string;
+  let args: string[];
+
+  switch (kind) {
+    case "powershell":
+      progName = "powershell.exe";
+      args = ["-NoLogo", "-NoProfile"];
+      break;
+    case "cmd":
+      progName = "cmd.exe";
+      args = ["/q"];
+      break;
+    case "bash":
+      // For Bash, prefer WSL if Git Bash not found
+      const wslPath = path.join(system32, "wsl.exe");
+      if (existsSync(wslPath)) {
+        progName = "wsl.exe";
+        args = [];
+      } else {
+        progName = "bash.exe";
+        args = ["-l"];
+      }
+      break;
+  }
+
+  console.debug(`Shell falling back to PATH resolution: ${progName}`);
   return {
     resolution: {
       program: progName,
-      args: shellArgsFor(kind, progName),
+      args,
     },
   };
 }

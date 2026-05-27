@@ -210,7 +210,7 @@ export function TerminalPanel(props: TerminalPanelProps) {
             terminalTabs={terminalState.terminalTabs}
             activeTabId={terminalState.terminalActiveTabId}
             onToggleExpand={toggleTerminalWorkspaceExpanded}
-            onCreateTab={(wsId) => terminalCreateTab(terminalState.defaultTerminalProfile, wsId)}
+            onCreateTab={(wsId) => terminalActions.handleCreateTab(terminalState.defaultTerminalProfile, wsId)}
             onSelectTab={terminalSelectTab}
             onCloseTab={terminalCloseTab}
             onTogglePin={terminalTogglePin}

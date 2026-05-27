@@ -165,6 +165,11 @@ impl ShellNotFound {
     }
 }
 
+/// Helper to check if a shell is available on the system.
+pub fn is_shell_available(shell: ShellKind) -> bool {
+    system_candidates(shell).iter().any(|p| p.exists())
+}
+
 pub struct ShellResolver;
 
 impl ShellResolver {
@@ -176,6 +181,11 @@ impl ShellResolver {
         for candidate in system_candidates(kind) {
             if candidate.exists() {
                 let args = shell_args_for(&candidate);
+                tracing::debug!(
+                    shell = %shell,
+                    program = %candidate.to_string_lossy(),
+                    "Shell resolved to system path"
+                );
                 return Ok(ShellResolution {
                     kind,
                     program: candidate.to_string_lossy().to_string(),
@@ -190,8 +200,23 @@ impl ShellResolver {
                 ("powershell.exe", vec!["-NoLogo".to_string(), "-NoProfile".to_string()])
             }
             ShellKind::Cmd => ("cmd.exe", vec!["/q".to_string()]),
-            ShellKind::Bash => ("bash.exe", vec!["-l".to_string()]),
+            ShellKind::Bash => {
+                // For Bash, prefer WSL if Git Bash not found
+                let sys_root = std::env::var("SystemRoot").unwrap_or_else(|_| "C:\\Windows".into());
+                let sys32 = Path::new(&sys_root).join("System32");
+                let wsl_path = sys32.join("wsl.exe");
+                if wsl_path.exists() {
+                    ("wsl.exe", vec![])
+                } else {
+                    ("bash.exe", vec!["-l".to_string()])
+                }
+            }
         };
+        tracing::debug!(
+            shell = %shell,
+            program = %prog_name,
+            "Shell falling back to PATH resolution"
+        );
         Ok(ShellResolution {
             kind,
             program: prog_name.to_string(),
@@ -202,15 +227,19 @@ impl ShellResolver {
 
 fn shell_args_for(path: &Path) -> Vec<String> {
     let name = path
-        .file_stem()
+        .file_name()
         .and_then(|s| s.to_str())
-        .unwrap_or("");
-    match name {
-        "powershell" => vec!["-NoLogo".to_string(), "-NoProfile".to_string()],
-        "pwsh" => vec!["-NoLogo".to_string(), "-NoProfile".to_string()],
-        "cmd" => vec!["/q".to_string()],
-        "bash" => vec!["-l".to_string()],
-        "wsl" => vec![],
-        _ => vec![],
+        .unwrap_or("")
+        .to_lowercase();
+    if name.contains("powershell") || name == "pwsh.exe" {
+        vec!["-NoLogo".to_string(), "-NoProfile".to_string()]
+    } else if name == "cmd.exe" {
+        vec!["/q".to_string()]
+    } else if name == "bash.exe" {
+        vec!["-l".to_string()]
+    } else if name == "wsl.exe" {
+        vec![]
+    } else {
+        vec![]
     }
 }
