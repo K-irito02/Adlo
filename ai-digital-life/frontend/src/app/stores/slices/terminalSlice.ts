@@ -340,6 +340,11 @@ export const createTerminalSlice = (
     },
 
     setDefaultTerminalProfile: (profile) => {
+      try {
+        window.localStorage.setItem(TERMINAL_DEFAULT_PROFILE_KEY, JSON.stringify(profile));
+      } catch {
+        /* ignore */
+      }
       scheduleWrite(TERMINAL_DEFAULT_PROFILE_KEY, profile);
       set({ defaultTerminalProfile: profile });
     },
@@ -347,6 +352,14 @@ export const createTerminalSlice = (
     setWorkspaceDefaultTerminalProfile: (workspaceId, profile) => {
       set((state) => {
         const nextWorkspaceProfiles = { ...state.workspaceDefaultProfiles, [workspaceId]: profile };
+        try {
+          window.localStorage.setItem(
+            TERMINAL_WORKSPACE_DEFAULT_PROFILES_KEY,
+            JSON.stringify(nextWorkspaceProfiles)
+          );
+        } catch {
+          /* ignore */
+        }
         scheduleWrite(TERMINAL_WORKSPACE_DEFAULT_PROFILES_KEY, nextWorkspaceProfiles);
         return { workspaceDefaultProfiles: nextWorkspaceProfiles };
       });

@@ -65,7 +65,6 @@ export function WorkspaceTerminalEntry({
     : (workspaceDefaultProfiles[workspace.id] ?? defaultTerminalProfile);
 
 
-
   const profileLabels: Record<TerminalProfile, string> = {
     powershell: "PowerShell",
     bash: "Bash",
@@ -79,9 +78,11 @@ export function WorkspaceTerminalEntry({
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as Node;
       const menuEl = document.querySelector(`[data-menu-id="${menuId}"]`);
+      const subMenuEl = document.querySelector(`[data-menu-id="${subMenuId}"]`);
       const zone = document.querySelector(`[data-menu-zone-id="${menuId}"]`);
       if (zone?.contains(target)) return;
       if (menuEl?.contains(target)) return;
+      if (subMenuEl?.contains(target)) return;
       setMenuOpen(false);
     };
     const handleEscape = (e: KeyboardEvent) => {
@@ -158,11 +159,10 @@ export function WorkspaceTerminalEntry({
     } else {
       setWorkspaceDefaultTerminalProfile(workspace.id, profile);
     }
-    setRenderKey(prev => prev + 1);
-    setTimeout(() => {
-      closeMenu();
-    }, 50);
-  }, [isIndependent, workspace.id, setDefaultTerminalProfile, setWorkspaceDefaultTerminalProfile, closeMenu]);
+    requestAnimationFrame(() => {
+      setRenderKey(prev => prev + 1);
+    });
+  }, [isIndependent, workspace.id, setDefaultTerminalProfile, setWorkspaceDefaultTerminalProfile]);
 
   return (
     <div key={renderKey} className={`adl-multitree-entry${isIndependent ? " adl-multitree-entry--independent" : ""}${!workspace.available ? " is-unavailable" : ""}`}>
@@ -260,8 +260,10 @@ export function WorkspaceTerminalEntry({
             onMouseLeave={hideSubMenuDelayed}
           >
             <IconTerminal size={14} />
-            <span>默认为{defaultProfileLabel}终端</span>
-            <IconChevronRight size={12} decorative />
+            <span className="adl-multitree-entry__menu-item-content">默认为{defaultProfileLabel}终端</span>
+            <span className="adl-multitree-entry__menu-item-arrow">
+              <IconChevronRight size={12} decorative />
+            </span>
           </div>
         </div>,
         document.body

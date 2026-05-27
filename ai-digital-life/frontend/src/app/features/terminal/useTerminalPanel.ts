@@ -160,8 +160,6 @@ export function useTerminalPanel(props: TerminalPanelProps): UseTerminalPanelRet
     [props.commandHistory, t.terminalCommandHistory, terminalTabs]
   );
 
-  const workspaceDefaultProfiles = useAppStore((state) => state.workspaceDefaultProfiles);
-  
   const handleCreateTab = useCallback(async (profile?: TerminalProfile, workspaceId?: string) => {
     const shellMap: Record<TerminalProfile, string> = {
       powershell: "powershell",
@@ -169,14 +167,17 @@ export function useTerminalPanel(props: TerminalPanelProps): UseTerminalPanelRet
       cmd: "cmd"
     };
     
+    // 使用 getState() 获取最新值，而不是依赖闭包捕获的值
+    const { defaultTerminalProfile: currentDefault, workspaceDefaultProfiles: currentProfiles } = useAppStore.getState();
+    
     // 使用工作区专属默认终端类型，如果没有则使用全局默认
     let finalProfile: TerminalProfile;
     if (profile) {
       finalProfile = profile;
-    } else if (workspaceId && workspaceDefaultProfiles[workspaceId]) {
-      finalProfile = workspaceDefaultProfiles[workspaceId];
+    } else if (workspaceId && currentProfiles[workspaceId]) {
+      finalProfile = currentProfiles[workspaceId];
     } else {
-      finalProfile = defaultTerminalProfile;
+      finalProfile = currentDefault;
     }
     
     xtermRef.current?.clear();
@@ -231,7 +232,7 @@ export function useTerminalPanel(props: TerminalPanelProps): UseTerminalPanelRet
         xtermRef.current?.write(`\x1b[31m${err instanceof Error ? err.message : String(err)}\x1b[0m\r\n\r\n`);
       }, 50);
     }
-  }, [terminalCreateTab, terminalUpdateActiveTab, props.appInfo?.currentWorkspace?.rootPath, recentWorkspaces, workspaceDefaultProfiles, defaultTerminalProfile]);
+  }, [terminalCreateTab, terminalUpdateActiveTab, props.appInfo?.currentWorkspace?.rootPath, recentWorkspaces]);
 
   useEffect(() => {
     if (!terminalMenuOpen && !shellMenuOpen) {

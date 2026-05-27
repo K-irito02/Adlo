@@ -53,6 +53,15 @@
 - **第九轮重构洞察执行**（22 项修复：`cmLanguages` switch→Map O(1)、`save_entity` SQL 预构建消除 `format!` 分配、`presentable_recent_list` 函数拆分；RightPanel 618→106 行提取 2 个 hook、`useTerminalPanel` 54 扁平属性→4 组领域对象、`StoreState` 72 方法→8 领域接口、`MultiWorkspacePanels` 三组件去重共享容器；`workspace/lib.rs` 2361→675 行拆 15 个领域文件、`storage` schema 外部 SQL；`commands/workspace.rs` 821→370 行拆 3 文件；`mock-bridge.ts` 1252 行拆 7 个子模块；`MessageStream` CSS `content-visibility` 虚拟滚动；right-panel/ 目录 panels/editor-support/hooks 分组；StoreState 编译期类型断言；切片依赖文档化；cargo test + 183 前端测试全绿）
 - **第十轮重构洞察执行**（11 项修复：22 处 Rust `Regex::new()` → `OnceLock` 缓存；`detect_outline_family` 字符串操作→静态 HashMap O(1)；vue.rs 字节偏移切片消除二次分配；`finalize_outline_items` 单调栈 O(n)；删除 9,714 行死 CSS；`rightpanel.css` 5006→6 文件；`ChangesPanel.tsx` 1343→3 文件；`sendMessage` 拆 3 函数；cargo test + 183 前端测试全绿）
 - **多工作区文件选择修复**（解决右侧面板非当前工作区文件点击报错、不同工作区相同文件名同时高亮问题；添加 `selectedFileWorkspaceId` 状态、`openFileForWorkspace` 方法，更新 12+ 相关文件）
+- **终端工作区默认终端类型功能修复**（第十四轮）：
+  - 修复工作区头部"更多操作"菜单的子菜单功能问题（点击无效、UI不更新、刷新丢失、布局不稳定）
+  - 子菜单点击问题：在 `handleClickOutside` 中添加子菜单元素检查
+  - UI立即反映：使用 `requestAnimationFrame` 确保 Zustand 更新后再触发 React 重渲染；菜单选择后保持打开
+  - localStorage 持久化：在 `setWorkspaceDefaultTerminalProfile` 中添加同步写入
+  - useTerminalPanel 闭包问题：使用 `useAppStore.getState()` 获取最新值
+  - 菜单布局稳定：将 CSS `min-width` 改为固定 `width`；使用 Flexbox `margin-left: auto` 固定箭头图标位置；修复 `file-tree.css` 和 `files-panel.css` 两处样式定义
+  - 修改文件：terminalSlice.ts、WorkspaceTerminalEntry.tsx、useTerminalPanel.ts、file-tree.css、files-panel.css
+  - 测试验证：cargo test + 183 前端测试全部通过
 
 ### Zustand 切片模式（已完成）
 

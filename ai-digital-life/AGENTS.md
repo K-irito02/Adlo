@@ -53,6 +53,15 @@
   - **R3 ChangesPanel 暂缓**：剩余 JSX（~250 行）需传递 30+ props，耦合度高，暂缓提取
   - **R4 工作区选择分离**：核心逻辑已在前序重构完成（`switchToWorkspace` action + 配线），无需额外操作
   - **UI 复原修复**：3 处 UI 被破坏—① ComposerFooter 输入框样式丢失；② ChangesTreePanel 导航器按钮消失；③ CenterPane refs/events/effects 被误删。全部恢复并通过验证
+- **第十四轮 — 终端工作区默认终端类型功能修复**：
+  - **问题诊断与修复**：修复工作区头部"更多操作"菜单的子菜单功能问题（点击无效、UI不更新、刷新丢失、布局不稳定）
+  - **子菜单点击问题**：在 `handleClickOutside` 中添加子菜单元素检查，避免点击子菜单时被误判为"点击外部"
+  - **UI 立即反映**：使用 `requestAnimationFrame` 确保 Zustand 更新后再触发 React 重渲染；菜单选择后保持打开
+  - **localStorage 持久化**：在 `setWorkspaceDefaultTerminalProfile` 中添加同步写入，确保刷新后设置保留
+  - **useTerminalPanel 闭包问题**：在 `handleCreateTab` 中使用 `useAppStore.getState()` 获取最新值
+  - **菜单布局稳定**：将 CSS `min-width` 改为固定 `width`；使用 Flexbox `margin-left: auto` 固定箭头图标位置；修复 `file-tree.css` 和 `files-panel.css` 两处样式定义
+  - **修改文件**：terminalSlice.ts、WorkspaceTerminalEntry.tsx、useTerminalPanel.ts、file-tree.css、files-panel.css
+  - **测试验证**：cargo test + 183 前端测试全部通过
 
 **不在本目录实现**：多 Agent DAG、MCP、插件市场、云协作等 Phase 2+ 能力。
 
