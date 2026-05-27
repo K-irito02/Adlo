@@ -228,16 +228,16 @@ export function WorkspaceTerminalEntry({
               </button>
             </TooltipSimple>
             <TooltipSimple content="更多操作" placement="top">
-                <button
-                  type="button"
-                  className="adl-icon-btn adl-icon-btn--xs"
-                  data-menu-btn-id={menuId}
-                  onClick={handleMoreClick}
-                  aria-label="更多操作"
-                >
-                  <IconMoreVertical size={12} decorative />
-                </button>
-              </TooltipSimple>
+              <button
+                type="button"
+                className="adl-icon-btn adl-icon-btn--xs"
+                data-menu-btn-id={menuId}
+                onClick={handleMoreClick}
+                aria-label="更多操作"
+              >
+                <IconMoreVertical size={12} decorative />
+              </button>
+            </TooltipSimple>
           </div>
         </div>
       </div>
