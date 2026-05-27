@@ -2,6 +2,7 @@
    Right Panel — aggregated import surface
    ========================================================================== */
 @import "./rightpanel/files-panel.css";
+@import "./rightpanel/file-tree.css";
 @import "./rightpanel/changes-panel.css";
 @import "./rightpanel/editor-surface.css";
 @import "./rightpanel/diff-viewer.css";

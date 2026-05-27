@@ -50,7 +50,7 @@ export function TerminalTabBar({
   if (tabs.length === 0) return null;
 
   return (
-    <ul className="adl-tool-list">
+    <ul className="adl-tool-list adl-tool-list--terminal">
       {tabs.map((tab) => (
         <li
           key={tab.id}
@@ -92,7 +92,6 @@ export function TerminalTabBar({
                 onDoubleClick={() => onDoubleClick(tab.id, tab.title)}
               >
                 <span className="adl-tool-list__title">{tab.title}</span>
-                <small>{tab.status === "running" ? t.terminalLiveShell : tab.profile}</small>
               </button>
               <TooltipSimple content={t.close} placement="top">
                 <button

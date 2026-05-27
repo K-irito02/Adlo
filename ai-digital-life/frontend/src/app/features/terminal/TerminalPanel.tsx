@@ -36,19 +36,24 @@ export function TerminalPanel(props: TerminalPanelProps) {
     menuHandlers,
   } = useTerminalPanel(props);
 
+  const INDEPENDENT_WORKSPACE_ID = "__independent__";
+
   const visibleWorkspaces = useMemo(
     () => recentWorkspaces.filter((w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available),
     [recentWorkspaces]
   );
 
   const allTerminalExpanded = useMemo(() => {
-    return visibleWorkspaces.length > 0 && visibleWorkspaces.every((w) => terminalWorkspaceExpanded[w.id]);
+    const independentExpanded = terminalWorkspaceExpanded[INDEPENDENT_WORKSPACE_ID] !== false;
+    const allWorkspaceExpanded = visibleWorkspaces.length > 0 && visibleWorkspaces.every((w) => terminalWorkspaceExpanded[w.id]);
+    return visibleWorkspaces.length === 0 ? independentExpanded : (independentExpanded && allWorkspaceExpanded);
   }, [visibleWorkspaces, terminalWorkspaceExpanded]);
 
   const terminalNavigatorTitle = terminalState.navigatorMode === "history" ? "命令历史" : "终端";
 
   const handleExpandAllTerminal = useCallback(() => {
     const expanded: Record<string, boolean> = {};
+    expanded[INDEPENDENT_WORKSPACE_ID] = true;
     for (const ws of visibleWorkspaces) {
       expanded[ws.id] = true;
     }
@@ -56,11 +61,14 @@ export function TerminalPanel(props: TerminalPanelProps) {
   }, [visibleWorkspaces, setTerminalWorkspaceExpanded]);
 
   const handleCollapseAllTerminal = useCallback(() => {
-    setTerminalWorkspaceExpanded({});
+    const expanded: Record<string, boolean> = {};
+    expanded[INDEPENDENT_WORKSPACE_ID] = false;
+    setTerminalWorkspaceExpanded(expanded);
   }, [setTerminalWorkspaceExpanded]);
 
   const visibleTabCount = useMemo(() => {
     let count = 0;
+    count += terminalState.terminalTabs.filter(t => !t.workspaceId || t.workspaceId === INDEPENDENT_WORKSPACE_ID).length;
     for (const ws of visibleWorkspaces) {
       count += terminalState.terminalTabs.filter(t => t.workspaceId === ws.id).length;
     }
@@ -217,6 +225,16 @@ export function TerminalPanel(props: TerminalPanelProps) {
             onRefreshTree={handleRefreshAllTerminal}
             onCloseAllTabs={terminalActions.handleCloseAllTabs}
             t={props.t}
+          />
+          <div
+            className="adl-tool-navigator__resize-handle"
+            onPointerDown={terminalActions.handleNavigatorResizeStart}
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize terminal navigator"
+            aria-valuemin={180}
+            aria-valuemax={300}
+            aria-valuenow={terminalState.terminalNavigatorWidth}
           />
         </aside>
 

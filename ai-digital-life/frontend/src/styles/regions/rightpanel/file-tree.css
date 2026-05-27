@@ -387,23 +387,118 @@
   align-items: flex-start;
 }
 
-.adl-tool-list__item--terminal-tab {
-  flex-direction: row;
-  align-items: center;
-  gap: 0;
-  width: 100%;
-  padding: 2px 8px;
+/* ---------------- Terminal tree (file-tree-like visual) ---------------- */
+
+.adl-multitree--terminal {
+  padding: 0 0 var(--space-1);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.adl-multitree--terminal .adl-multitree-entry {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.adl-multitree--terminal .adl-multitree-entry:last-child {
+  border-bottom: none;
+}
+
+.adl-multitree--terminal .adl-multitree-entry__header {
+  position: relative;
   border-radius: 0;
 }
 
-.adl-tool-list__item--terminal-tab:hover {
-  background: var(--surface-hover);
+.adl-multitree--terminal .adl-multitree-entry__tree {
+  position: relative;
+  padding: 0;
 }
 
-.adl-tool-list__item--terminal-tab.is-active {
-  background: var(--surface-hover);
+.adl-multitree--terminal .adl-multitree-entry__tree::before {
+  content: "";
+  position: absolute;
+  left: 13px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: color-mix(in srgb, var(--border) 78%, transparent);
+  pointer-events: none;
 }
 
+.adl-multitree--terminal .adl-multitree-entry__actions {
+  background: transparent !important;
+}
+
+.adl-multitree--terminal .adl-tool-list--terminal {
+  padding: 0 !important;
+  gap: 1px !important;
+}
+
+.adl-multitree--terminal .adl-tool-list__item--terminal-tab {
+  position: relative;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 8px 0 14px !important;
+  box-sizing: border-box !important;
+  min-height: 28px !important;
+  border-radius: 0 !important;
+}
+
+.adl-multitree--terminal .adl-tool-list__item--terminal-tab:hover {
+  background: var(--surface-hover) !important;
+}
+
+.adl-multitree--terminal .adl-tool-list__item--terminal-tab.is-active {
+  background: var(--surface-hover) !important;
+}
+
+.adl-multitree--terminal .adl-tool-list__item--terminal-tab .adl-tool-list__item-btn {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: var(--space-1-5);
+  padding: 2px 4px !important;
+}
+
+.adl-multitree--terminal .adl-tool-list__title {
+  font-size: 12px;
+}
+
+.adl-multitree--terminal .adl-multitree-entry__empty {
+  width: 100%;
+}
+
+.adl-multitree--terminal .adl-multitree-entry__empty-btn {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 2px 4px 2px 14px !important;
+  box-sizing: border-box !important;
+  min-height: 28px !important;
+  border-radius: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  cursor: pointer !important;
+  color: var(--text-secondary) !important;
+}
+
+.adl-multitree--terminal .adl-multitree-entry__empty-btn svg:first-child {
+  margin-left: 6px;
+}
+
+.adl-multitree--terminal .adl-multitree-entry__empty-btn:hover {
+  background: var(--surface-hover) !important;
+  color: var(--text-primary) !important;
+}
+
+.adl-multitree--terminal .adl-tool-list__item--terminal-tab.is-dragging,
 .adl-tool-list__item--terminal-tab.is-dragging {
   opacity: 0.5;
   background: var(--surface-active);
@@ -431,13 +526,14 @@
   flex-direction: column;
   align-items: flex-start;
   min-width: 0;
+  min-height: inherit;
   background: none;
   border: none;
   color: var(--text-primary);
   text-align: left;
   cursor: pointer;
-  padding: 2px 4px;
-  border-radius: var(--radius-sm);
+  padding: 0 var(--space-2);
+  border-radius: 0;
 }
 
 .adl-tool-list__item-btn:hover {
@@ -913,9 +1009,28 @@
 }
 
 .adl-multitree-entry__empty {
-  padding: var(--space-2) var(--space-3);
+  padding: 0;
   font-size: var(--text-xs);
   color: var(--text-muted);
+}
+
+.adl-multitree-entry__empty-btn {
+  width: 100%;
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+.adl-multitree-entry__empty-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
 }
 
 .adl-multitree-entry__menu {

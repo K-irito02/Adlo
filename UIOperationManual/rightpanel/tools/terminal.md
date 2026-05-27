@@ -14,68 +14,49 @@
 | 选择器 | 说明 |
 |--------|------|
 | `.adl-tool-panel--terminal` | 终端面板容器 |
-| `.adl-terminal-canvas` | xterm.js 挂载容器 |
+| `.adl-terminal-canvas` | xterm.js 挂载容器（padding:4px, bg: var(--bg)）|
+| `.adl-multitree--terminal` | 终端树状列表根容器 |
+| `.adl-tool-navigator__resize-handle` | 终端导航器右侧拖拽手柄（鼠标拖拽可调整导航器宽度）|
 
 ---
 
-## 标签栏
+## 工作区终端列表
 
-> 终端多会话标签栏，支持拖拽排序、双击重命名、右键菜单等高级交互
+终端会话按工作区分组展示，采用与文件树一致的树状层级视觉语言。
 
-### 定位选择器
+### 层级结构
 
-| 优先级 | 类型 | 选择器 |
-|--------|------|--------|
-| 1 | CSS | `.adl-tool-list` (`[data-tool="terminal"]` 上下文内) |
+```
+.adl-multitree--terminal
+├── .adl-multitree-entry                                     # 工作区节点（类似目录）
+│   ├── .adl-multitree-entry__header                         # 头部行（hover 全宽灰色背景）
+│   │   ├── .adl-multitree-entry__expand                     # 折叠/展开按钮
+│   │   ├── .adl-multitree-entry__namezone                   # 名称区域（flex:1）
+│   │   │   ├── .adl-multitree-entry__name                   # 工作区名称
+│   │   │   ├── .adl-multitree-entry__count                  # 标签计数
+│   │   │   └── .adl-multitree-entry__actions                # 悬浮按钮组
+│   │   └── .adl-multitree-entry__tree                       # 子节点容器（含竖连接线）
+│   │       ├── .adl-tool-list__item--terminal-tab           # 终端标签（类似文件节点）
+│   │       └── .adl-multitree-entry__empty-btn              # 空状态"创建终端"按钮
+```
 
-### 标签项
+### 终端标签项
 
 | 选择器 | 说明 |
 |--------|------|
-| `.adl-tool-list__item--terminal-tab` | 单个标签容器（flex row） |
+| `.adl-tool-list__item--terminal-tab` | 单个终端标签（14px 缩进，flex row，24px 高） |
 | `.adl-tool-list__item-btn.is-active` | 激活标签 |
-| `.adl-tool-list__item--pinned` | 置顶标签（保持在顶部） |
-
-### 标签内操作
-
-| 选择器 | 说明 |
-|--------|------|
-| `.adl-tool-list__item-btn` | 标签选择按钮（点击切换） |
-| `.adl-tool-list__item-close` | 标签关闭按钮（`IconClose`） |
+| `.adl-tool-list__item--pinned` | 置顶标签（左侧黄色 pin 标记） |
 
 ### 交互功能
 
-#### 双击重命名
-
-双击标签进入重命名模式，输入新名称后按回车或点击外部确认。
+#### 新建终端
 
 ```javascript
-await page.dblclick('.adl-tool-list__item-btn');
-// 输入新名称
-await page.keyboard.type('我的终端');
-await page.keyboard.press('Enter');
-```
-
-#### 右键菜单
-
-右键标签显示操作菜单，包含置顶/取消置顶、重命名、删除等选项。
-
-```javascript
-// 右键打开菜单
-await page.click('.adl-tool-list__item-btn', { button: 'right' });
-// 选择菜单项
-await page.click('.adl-sidebar-menu button[aria-label="置顶"]');
-```
-
-#### 拖拽排序
-
-标签支持拖拽排序，置顶标签始终保持在顶部区域，普通标签可在下方区域排序。
-
-```javascript
-// Playwright 拖拽示例
-const source = await page.$('.adl-tool-list__item--terminal-tab:nth-child(2)');
-const target = await page.$('.adl-tool-list__item--terminal-tab:nth-child(4)');
-await source.dragTo(target);
+// 从工作区头部行点击新建按钮
+await page.click('.adl-multitree-entry__actions button[aria-label="创建终端"]');
+// 从 Shell 选择器下拉
+await page.click('button[aria-label="新建终端"]');
 ```
 
 #### 切换标签
@@ -93,21 +74,43 @@ await page.click('.adl-tool-list__item-close');
 #### 关闭所有标签
 
 ```javascript
-await page.click('button[aria-label="关闭所有终端"]');
+await page.click('button[aria-label="删除全部"]');
 ```
 
-#### 新建终端标签
+#### 双击重命名
+
+双击标签进入重命名模式，输入新名称后按回车或点击外部确认。
 
 ```javascript
-// 点击 Shell 选择按钮
-await page.click('button[aria-label="新建终端"]');
+await page.dblclick('.adl-tool-list__item-btn');
+await page.keyboard.type('我的终端');
+await page.keyboard.press('Enter');
+```
+
+#### 右键菜单
+
+右键标签显示操作菜单，包含置顶/取消置顶、重命名、删除等选项。
+
+```javascript
+await page.click('.adl-tool-list__item-btn', { button: 'right' });
+await page.click('.adl-sidebar-menu button[aria-label="置顶"]');
+```
+
+#### 拖拽排序
+
+```javascript
+const source = await page.$('.adl-tool-list__item--terminal-tab:nth-child(2)');
+const target = await page.$('.adl-tool-list__item--terminal-tab:nth-child(4)');
+await source.dragTo(target);
 ```
 
 ### 样式说明
 
-- 标签悬停/激活状态灰色背景与左右边缘贴合
-- 标签间距紧凑（1px）
-- 标签区域顶部与导航器底部分割线之间只有 1px 间距
+- 工作区头部行 hover 显示灰色背景，从导航器左边缘到右边缘全宽
+- 终端标签采用 14px 左缩进，hover/激活时灰色背景覆盖缩进区域
+- 空状态"创建终端"按钮同样 14px 缩进，hover 全宽灰色背景
+- 标签间距紧凑（1px），无 border-bottom 分隔线
+- 树连接线（`::before`）从工作区头部延伸至最后一个标签
 
 ---
 
@@ -117,9 +120,9 @@ await page.click('button[aria-label="新建终端"]');
 
 ### 定位选择器
 
-| 优先级 | 类型 | 选择器 |
-|--------|------|--------|
-| 1 | CSS | `.adl-terminal-shell-dropdown` |
+| 选择器 | 说明 |
+|--------|------|
+| `.adl-terminal-shell-dropdown` | Shell 类型下拉菜单容器 |
 
 ### 支持 Shell 类型
 
@@ -129,41 +132,18 @@ await page.click('button[aria-label="新建终端"]');
 | `cmd` | 命令提示符 |
 | `bash` | WSL Bash |
 
-### 空状态
-
-当没有终端标签时，Shell 选择按钮组居中显示在面板中央：
-
-```javascript
-const emptyButtons = await page.$$('.adl-tool-primary--terminal-empty .adl-tool-context__group--terminal-actions button');
-```
-
 ---
 
 ## 终端输入
 
 > 通过 xterm.js 直接输入（无需单独输入框）
 
-### 交互方式
-
 | 操作 | 说明 |
 |------|------|
 | 键盘输入 | 直接输入到 xterm.js，自动发送到 PTY stdin |
-| 回车 | 发送 `\r` 到 PTY，Shell 进程处理 |
+| 回车 | 发送 `\r` 到 PTY |
 | 粘贴 | 剪贴板内容发送到 PTY stdin |
 | Ctrl+C | 由 PTY 进程处理（终止进程或取消） |
-
----
-
-## 终端输出
-
-> xterm.js 实时渲染 PTY 输出
-
-### 特性
-
-- 所有输出由后端真实 Shell 进程产生（非模拟）
-- 输出通过 SSE（浏览器模式）/ Tauri Event（Tauri 模式）实时推送
-- xterm.js 自动处理 ANSI 转义序列（颜色、光标控制等）
-- 主题自动跟随应用主题切换（亮色/暗色）
 
 ---
 
@@ -172,14 +152,14 @@ const emptyButtons = await page.$$('.adl-tool-primary--terminal-empty .adl-tool-
 | 元素 | 选择器 | 说明 |
 |------|--------|------|
 | 终端面板 | `.adl-tool-panel--terminal` | 终端面板容器 |
+| 树状列表 | `.adl-multitree--terminal` | 终端树状列表根容器 |
+| 终端标签 | `.adl-tool-list__item--terminal-tab` | 单个终端会话标签 |
 | xterm 容器 | `.adl-terminal-canvas` | xterm.js 挂载容器 |
-| 标签栏 | `.adl-tool-list` | 终端会话标签列表 |
-| Shell 下拉 | `.adl-terminal-shell-dropdown` | Shell 类型选择 |
-| 关闭全部 | `button[aria-label="关闭所有终端"]` | 一键关闭所有终端 |
+| 关闭全部 | `button[aria-label="删除全部"]` | 一键关闭所有终端 |
 
 ## 注意事项
 
-1. **xterm.js 不做 local echo**：字符由后端 PTY 进程回显，网络延迟可能导致短暂显示延迟
+1. **独立终端常驻**：独立终端工作区始终显示在列表顶部，删除所有标签后头部行不消失
 2. **多标签独立会话**：每个标签对应独立 Shell 进程，切换标签不中断运行
-3. **主题同步**：xterm 主题色跟随 CSS 变量 `--bg`、`--text-primary`、`--selection`
-4. **路径真实**：CWD 为当前工作区路径（浏览器模式）或进程启动路径
+3. **xterm.js 不做 local echo**：字符由后端 PTY 进程回显
+4. **主题同步**：xterm 主题色跟随 CSS 变量 `--bg`、`--text-primary`、`--selection`

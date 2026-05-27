@@ -191,7 +191,6 @@ export function WorkspaceTerminalEntry({
           onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") handleNameClick(); }}
           aria-label={workspace.name}
         >
-          {isIndependent && <IconTerminal size={14} className="adl-multitree-entry__icon" decorative />}
           <span className="adl-multitree-entry__name" title={workspace.path}>{workspace.name}</span>
           <span className="adl-multitree-entry__count">{tabCount}</span>
 
@@ -228,8 +227,7 @@ export function WorkspaceTerminalEntry({
                 <IconPlus size={12} decorative />
               </button>
             </TooltipSimple>
-            {!isIndependent && (
-              <TooltipSimple content="更多操作" placement="top">
+            <TooltipSimple content="更多操作" placement="top">
                 <button
                   type="button"
                   className="adl-icon-btn adl-icon-btn--xs"
@@ -240,18 +238,17 @@ export function WorkspaceTerminalEntry({
                   <IconMoreVertical size={12} decorative />
                 </button>
               </TooltipSimple>
-            )}
           </div>
         </div>
       </div>
 
       {menuOpen && menuPosition ? createPortal(
         <div className="adl-multitree-entry__menu" role="menu" data-menu-id={menuId} style={{ top: menuPosition.top, left: menuPosition.left }}>
-          <button type="button" className="adl-multitree-entry__menu-item" role="menuitem" onClick={handleHideFromRightPanels}>
+          {!isIndependent && <button type="button" className="adl-multitree-entry__menu-item" role="menuitem" onClick={handleHideFromRightPanels}>
             <IconEyeOff size={14} />
             从此区域移除不显示
-          </button>
-          <div className="adl-multitree-entry__menu-sep" role="separator" />
+          </button>}
+          {!isIndependent && <div className="adl-multitree-entry__menu-sep" role="separator" />}
           <div
             ref={subMenuTriggerRef}
             className="adl-multitree-entry__menu-item adl-multitree-entry__menu-item--with-sub"
@@ -323,7 +320,7 @@ export function WorkspaceTerminalEntry({
             <div className="adl-multitree-entry__empty">
               <button
                 type="button"
-                className="adl-btn adl-btn--ghost adl-btn--sm"
+                className="adl-multitree-entry__empty-btn"
                 onClick={onCreateTab}
               >
                 <IconPlus size={12} decorative />

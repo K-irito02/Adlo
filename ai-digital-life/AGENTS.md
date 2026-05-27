@@ -54,13 +54,28 @@
   - **R4 工作区选择分离**：核心逻辑已在前序重构完成（`switchToWorkspace` action + 配线），无需额外操作
   - **UI 复原修复**：3 处 UI 被破坏—① ComposerFooter 输入框样式丢失；② ChangesTreePanel 导航器按钮消失；③ CenterPane refs/events/effects 被误删。全部恢复并通过验证
 - **第十四轮 — 终端工作区默认终端类型功能修复**：
-  - **问题诊断与修复**：修复工作区头部"更多操作"菜单的子菜单功能问题（点击无效、UI不更新、刷新丢失、布局不稳定）
-  - **子菜单点击问题**：在 `handleClickOutside` 中添加子菜单元素检查，避免点击子菜单时被误判为"点击外部"
-  - **UI 立即反映**：使用 `requestAnimationFrame` 确保 Zustand 更新后再触发 React 重渲染；菜单选择后保持打开
-  - **localStorage 持久化**：在 `setWorkspaceDefaultTerminalProfile` 中添加同步写入，确保刷新后设置保留
-  - **useTerminalPanel 闭包问题**：在 `handleCreateTab` 中使用 `useAppStore.getState()` 获取最新值
-  - **菜单布局稳定**：将 CSS `min-width` 改为固定 `width`；使用 Flexbox `margin-left: auto` 固定箭头图标位置；修复 `file-tree.css` 和 `files-panel.css` 两处样式定义
-  - **修改文件**：terminalSlice.ts、WorkspaceTerminalEntry.tsx、useTerminalPanel.ts、file-tree.css、files-panel.css
+  - 修复工作区头部"更多操作"菜单的子菜单功能问题（点击无效、UI不更新、刷新丢失、布局不稳定）
+  - 子菜单点击问题、UI 立即反映、localStorage 持久化、useTerminalPanel 闭包问题、菜单布局稳定
+  - 修改文件：terminalSlice.ts、WorkspaceTerminalEntry.tsx、useTerminalPanel.ts、file-tree.css、files-panel.css
+  - 测试验证：cargo test + 183 前端测试全部通过
+- **第十五轮 — 终端层级树状视觉优化**：
+  - **独立终端常驻**：独立终端工作区（`__independent__`）始终渲染，删除所有终端后头部行仍显示
+  - **树状层级视觉**：终端工作区使用与文件树一致的 CSS 树节点视觉语言——缩进（14px）、树连接线（`::before`）、全宽悬停背景
+  - **空状态按钮**：居中同行布局，hover 灰色背景与左右边缘贴合，直角样式
+  - **终端标签精简**：移除额外描述信息，类型名缩小至 12px，标签高度与头部行一致（24px）
+  - **独立终端专用**：删除头部行多余终端图标；始终显示"更多操作"按钮（菜单中隐藏"从此区域移除"选项）
+  - **CSS 架构**：`file-tree.css` 通过 `rightpanel.css` 导入生效（此前为孤立 CSS）；使用 `box-sizing: border-box` 实现 padding 自包含的 hover 扩展
+  - **修改文件**：file-tree.css（完整终端树 CSS）、MultiWorkspaceTerminal.tsx（添加 `adl-multitree--terminal` class）、WorkspaceTerminalEntry.tsx（条件渲染+图标删除）、rightpanel.css（添加 `@import`）
+  - **测试验证**：cargo test + 183 前端测试全部通过
+- **第十六轮 — 终端面板精细化修复**（10+ 项）：
+  - **终端导航器 resize handle**：在内联 `<aside>` 中添加 `adl-tool-navigator__resize-handle`，利用已有的 `handleNavigatorResizeStart` 回调实现导航器宽度拖拽调整（如文件/变更面板）
+  - **xterm 纯黑背景消除**：多层覆盖 xterm.js 内部 `background:#000`——`.xterm`（`transparent !important`）、`.xterm-viewport`、`.xterm-screen`、`canvas`、`.xterm-scroll-area`；padding 移至 canvas 容器以控制间隙背景为 `var(--bg)`
+  - **工作区分割线**：恢复 `border-bottom: 1px solid var(--border-subtle)` 于工作区头部行之间
+  - **独立终端树连接线**：移除 `first-child > .adl-multitree-entry__tree::before` 的 display:none，所有工作区显示连接竖线
+  - **空状态 + 图标位置**：删除 `gap`，用 `svg:first-child { margin-left: 6px }` 单独控制图标位置
+  - **hover 背景高度**：标签/空按钮 `min-height` 从 24px 提升至 28px
+  - **关闭按钮位置**：恢复 `<li>` 的 `padding: 0 8px 0 14px`（右侧 8px 内边距）避免关闭按钮太靠右
+  - **修改文件**：TerminalPanel.tsx（resize handle）、terminal-panel.css（xterm 背景+padding）、file-tree.css（分割线/hover 高度/关闭按钮/图标位置）
   - **测试验证**：cargo test + 183 前端测试全部通过
 
 **不在本目录实现**：多 Agent DAG、MCP、插件市场、云协作等 Phase 2+ 能力。

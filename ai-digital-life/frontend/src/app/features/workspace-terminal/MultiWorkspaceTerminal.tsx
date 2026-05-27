@@ -51,8 +51,6 @@ export function MultiWorkspaceTerminal({
   }, [terminalTabs]);
 
   const independentTabs = tabsByWorkspace[INDEPENDENT_WORKSPACE_ID] ?? [];
-  const hasIndependentTabs = independentTabs.length > 0;
-  const hasWorkspaceTabs = workspaces.length > 0 && workspaces.some(w => (tabsByWorkspace[w.id] ?? []).length > 0);
 
   const independentWorkspace: RecentWorkspaceEntry = {
     id: INDEPENDENT_WORKSPACE_ID,
@@ -72,87 +70,56 @@ export function MultiWorkspaceTerminal({
     onCreateTab("");
   };
 
+  const hasNoWorkspaces = workspaces.length === 0;
+  const hasNoIndependentTabs = independentTabs.length === 0;
+
   return (
-    <div className="adl-multitree">
-      {(hasIndependentTabs || hasWorkspaceTabs) && (
-        <>
-          {hasIndependentTabs && (
+    <div className="adl-multitree adl-multitree--terminal">
+      <WorkspaceTerminalEntry
+        key={INDEPENDENT_WORKSPACE_ID}
+        workspace={independentWorkspace}
+        isExpanded={expandedStates[INDEPENDENT_WORKSPACE_ID] !== false}
+        tabs={independentTabs}
+        activeTabId={activeTabId}
+        tabCount={independentTabs.length}
+        onToggleExpand={() => onToggleExpand(INDEPENDENT_WORKSPACE_ID)}
+        onCreateTab={handleCreateIndependentTab}
+        onSelectTab={onSelectTab}
+        onCloseTab={onCloseTab}
+        onTogglePin={onTogglePin}
+        onHideFromRightPanels={() => {}}
+        onRefreshTree={() => {}}
+        onCloseAllTabs={() => onCloseAllTabs?.("")}
+        isIndependent
+        t={t}
+      />
+      {workspaces.length > 0 && (
+        <MultiWorkspaceContainer
+          visibleWorkspaces={workspaces}
+          expandedState={expandedStates}
+          onToggleExpand={onToggleExpand}
+          renderContent={(workspace, isExpanded) => (
             <WorkspaceTerminalEntry
-              key={INDEPENDENT_WORKSPACE_ID}
-              workspace={independentWorkspace}
-              isExpanded={expandedStates[INDEPENDENT_WORKSPACE_ID] !== false}
-              tabs={independentTabs}
+              key={workspace.id}
+              workspace={workspace}
+              isExpanded={isExpanded}
+              tabs={tabsByWorkspace[workspace.id] ?? []}
               activeTabId={activeTabId}
-              tabCount={independentTabs.length}
-              onToggleExpand={() => onToggleExpand(INDEPENDENT_WORKSPACE_ID)}
-              onCreateTab={handleCreateIndependentTab}
+              tabCount={(tabsByWorkspace[workspace.id] ?? []).length}
+              onToggleExpand={() => onToggleExpand(workspace.id)}
+              onCreateTab={() => onCreateTab(workspace.id)}
               onSelectTab={onSelectTab}
               onCloseTab={onCloseTab}
               onTogglePin={onTogglePin}
-              onHideFromRightPanels={() => {}}
-              onRefreshTree={() => {}}
-              onCloseAllTabs={() => onCloseAllTabs?.("")}
-              isIndependent
+              onHideFromRightPanels={onHideFromRightPanels}
+              onRefreshTree={() => onRefreshTree?.()}
+              onCloseAllTabs={() => onCloseAllTabs?.(workspace.id)}
               t={t}
             />
           )}
-          {workspaces.length > 0 && (
-            <MultiWorkspaceContainer
-              visibleWorkspaces={workspaces}
-              expandedState={expandedStates}
-              onToggleExpand={onToggleExpand}
-              renderContent={(workspace, isExpanded) => (
-                <WorkspaceTerminalEntry
-                  key={workspace.id}
-                  workspace={workspace}
-                  isExpanded={isExpanded}
-                  tabs={tabsByWorkspace[workspace.id] ?? []}
-                  activeTabId={activeTabId}
-                  tabCount={(tabsByWorkspace[workspace.id] ?? []).length}
-                  onToggleExpand={() => onToggleExpand(workspace.id)}
-                  onCreateTab={() => onCreateTab(workspace.id)}
-                  onSelectTab={onSelectTab}
-                  onCloseTab={onCloseTab}
-                  onTogglePin={onTogglePin}
-                  onHideFromRightPanels={onHideFromRightPanels}
-                  onRefreshTree={() => onRefreshTree?.()}
-                  onCloseAllTabs={() => onCloseAllTabs?.(workspace.id)}
-                  t={t}
-                />
-              )}
-            />
-          )}
-        </>
+        />
       )}
-      {!hasIndependentTabs && !hasWorkspaceTabs && workspaces.length > 0 && (
-        <div className="adl-multitree">
-          <MultiWorkspaceContainer
-            visibleWorkspaces={workspaces}
-            expandedState={expandedStates}
-            onToggleExpand={onToggleExpand}
-            renderContent={(workspace, isExpanded) => (
-              <WorkspaceTerminalEntry
-                key={workspace.id}
-                workspace={workspace}
-                isExpanded={isExpanded}
-                tabs={[]}
-                activeTabId={activeTabId}
-                tabCount={0}
-                onToggleExpand={() => onToggleExpand(workspace.id)}
-                onCreateTab={() => onCreateTab(workspace.id)}
-                onSelectTab={onSelectTab}
-                onCloseTab={onCloseTab}
-                onTogglePin={onTogglePin}
-                onHideFromRightPanels={onHideFromRightPanels}
-                onRefreshTree={() => onRefreshTree?.()}
-                onCloseAllTabs={() => onCloseAllTabs?.(workspace.id)}
-                t={t}
-              />
-            )}
-          />
-        </div>
-      )}
-      {!hasIndependentTabs && !hasWorkspaceTabs && workspaces.length === 0 && (
+      {hasNoWorkspaces && hasNoIndependentTabs && (
         <div className="adl-multitree__empty">
           <p className="adl-empty-hint">{t.workspaceEmpty as string}</p>
         </div>
