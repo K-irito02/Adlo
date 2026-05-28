@@ -117,8 +117,9 @@ await page.waitForSelector('div[data-testid="changes-preview-shell"]');
 ### 前置条件
 
 - [x] 选择"变更"工具面板（`#changes-panel`）
-- [x] 当前工作区存在 Git 变更文件
 - [x] 导航器模式为"文件树"或"文件列表"（大纲模式下不显示）
+
+> 注意：即使没有变更文件，状态筛选按钮区域也会常驻显示，方便用户刷新或切换筛选状态。
 
 ### 操作
 
@@ -340,12 +341,31 @@ await page.locator('.adl-tool-context__group--files-actions .adl-tool-context__i
 
 ### 刷新按钮
 
-> 变更文件统计数字右侧的刷新按钮，同时刷新文件树和 Git 快照。
+> 变更面板支持两个层次的刷新操作：
+
+#### 全局刷新按钮
+
+> 变更文件统计数字右侧的刷新按钮，刷新所有可见工作区的 Git 快照。
 
 | 操作 | 调用 |
 |------|------|
-| 刷新文件树 | `onRefreshWorkspaceTree()` |
-| 刷新 Git 状态 | `useAppStore.getState().fetchGitStatus()` |
+| 刷新全部工作区 | `handleRefreshAllChanges()` |
+| 每个工作区调用 | `refreshGitSnapshot(workspaceId, workspacePath)` |
+
+#### 单个工作区刷新按钮
+
+> 每个工作区变更条目右侧的刷新按钮（hover 时显示），单独刷新该工作区的 Git 状态。
+
+| 操作 | 调用 |
+|------|------|
+| 刷新单个工作区 | `handleRefreshOneWorkspace(workspaceId)` |
+| 实际执行 | `refreshGitSnapshot(workspaceId, workspacePath)` |
+
+#### 刷新行为
+
+1. **加载状态**：刷新时工作区条目显示加载指示器
+2. **错误处理**：如果刷新失败，显示错误提示
+3. **状态重置**：刷新完成后加载状态自动清除
 
 ### 已移除的冗余提示
 

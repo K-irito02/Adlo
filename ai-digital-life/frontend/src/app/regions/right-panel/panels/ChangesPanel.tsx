@@ -672,7 +672,7 @@ export function ChangesPanel(props: ChangesPanelProps) {
     const state = useAppStore.getState();
     const ws = state.recentWorkspaces.find((w) => w.id === workspaceId);
     if (ws) {
-      state.loadGitSnapshot(workspaceId, ws.path);
+      state.refreshGitSnapshot(workspaceId, ws.path);
     }
   }, []);
 

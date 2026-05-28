@@ -320,7 +320,7 @@ function NavigatorContextToolbar({
           </TooltipSimple>
         </div>
       </div>
-      {hasChangeEntries && changesNavigatorMode !== "outline" ? (
+      {changesNavigatorMode !== "outline" ? (
         <div className="adl-tool-navigator__summary" aria-label={t.toolChanges}>
           <div className="adl-tool-navigator__summary-stats">
             <button
