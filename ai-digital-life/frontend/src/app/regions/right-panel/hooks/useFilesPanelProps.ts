@@ -85,13 +85,63 @@ export function useFilesPanelProps(
     [actions.notifyEditorBufferDirty, selectedFilePath]
   );
 
+  const handleOpenFile = useCallback((path: string) => {
+    void actions.openFile(path);
+  }, [actions.openFile]);
+
+  const handleOpenFileForWorkspace = useCallback((workspaceId: string, workspacePath: string, path: string) => {
+    void actions.openFileForWorkspace(workspaceId, workspacePath, path);
+  }, [actions.openFileForWorkspace]);
+
+  const handleSearch = useCallback((query: string) => {
+    void actions.searchFiles(query);
+  }, [actions.searchFiles]);
+
+  const handleRefreshWorkspaceTree = useCallback(() => {
+    void actions.refreshWorkspaceTree();
+  }, [actions.refreshWorkspaceTree]);
+
+  const handleExpandAll = useCallback(() => {
+    void actions.expandAllWorkspaceTreesInFileNav();
+  }, [actions.expandAllWorkspaceTreesInFileNav]);
+
+  const handleCollapseAll = useCallback(() => {
+    void actions.collapseAllWorkspaceTreesInFileNav();
+  }, [actions.collapseAllWorkspaceTreesInFileNav]);
+
+  const handleRefreshAll = useCallback(() => {
+    void actions.refreshAllWorkspaceTrees();
+  }, [actions.refreshAllWorkspaceTrees]);
+
+  const handleRefreshOneWorkspace = useCallback((workspaceId: string) => {
+    const ws = recentWorkspaces.find(r => r.id === workspaceId);
+    if (ws) void actions.loadWorkspaceTree(workspaceId, ws.path);
+  }, [recentWorkspaces, actions.loadWorkspaceTree]);
+
+  const handleToggleExpandInFileNav = useCallback((workspaceId: string) => {
+    const ws = recentWorkspaces.find(r => r.id === workspaceId);
+    if (ws) void actions.expandWorkspaceTreeInFileNav(workspaceId, ws.path);
+  }, [recentWorkspaces, actions.expandWorkspaceTreeInFileNav]);
+
+  const handleHideFromRightPanels = useCallback((workspaceId: string) => {
+    void actions.hideWorkspaceFromRightPanels(workspaceId);
+  }, [actions.hideWorkspaceFromRightPanels]);
+
+  const handleCreateWorkspaceFile = useCallback((relativePath: string, content?: string): Promise<string | undefined> => {
+    return actions.createWorkspaceFile(relativePath, content);
+  }, [actions.createWorkspaceFile]);
+
+  const handleCreateWorkspaceFolder = useCallback((relativePath: string): Promise<string | undefined> => {
+    return actions.createWorkspaceFolder(relativePath);
+  }, [actions.createWorkspaceFolder]);
+
   useEffect(() => () => window.clearTimeout(editorDirtyTimerRef.current), [selectedFilePath]);
 
   useEffect(() => {
     setLocalSearchQuery(searchQuery);
   }, [searchQuery]);
 
-  return {
+  return useMemo(() => ({
     t,
     appInfo,
     selectedFilePath,
@@ -114,30 +164,24 @@ export function useFilesPanelProps(
     dirtyEditorPaths,
     externalChangePath: externalFileChange?.path,
     standardEditorRef,
-    onOpenFile: (path) => void actions.openFile(path),
-    onOpenFileForWorkspace: (workspaceId, workspacePath, path) => void actions.openFileForWorkspace(workspaceId, workspacePath, path),
+    onOpenFile: handleOpenFile,
+    onOpenFileForWorkspace: handleOpenFileForWorkspace,
     onOpenFileAtLine,
     onEditorChange: handleEditorChange,
     onEditorMount: handleEditorMount,
     onDiffMount,
-    onSearch: (query) => void actions.searchFiles(query),
+    onSearch: handleSearch,
     onSearchChange: setLocalSearchQuery,
-    onRefreshWorkspaceTree: () => void actions.refreshWorkspaceTree(),
-    onExpandAll: () => void actions.expandAllWorkspaceTreesInFileNav(),
-    onCollapseAll: () => void actions.collapseAllWorkspaceTreesInFileNav(),
-    onRefreshAll: () => void actions.refreshAllWorkspaceTrees(),
-    onRefreshOneWorkspace: (workspaceId) => {
-      const ws = recentWorkspaces.find(r => r.id === workspaceId);
-      if (ws) void actions.loadWorkspaceTree(workspaceId, ws.path);
-    },
-    onToggleExpandInFileNav: (workspaceId) => {
-      const ws = recentWorkspaces.find(r => r.id === workspaceId);
-      if (ws) void actions.expandWorkspaceTreeInFileNav(workspaceId, ws.path);
-    },
-    onHideFromRightPanels: (workspaceId) => void actions.hideWorkspaceFromRightPanels(workspaceId),
-    onCreateWorkspaceFile: (relativePath, content) => actions.createWorkspaceFile(relativePath, content),
-    onCreateWorkspaceFolder: (relativePath) => actions.createWorkspaceFolder(relativePath),
-    onSetDiffLayout: onSetDiffLayout,
+    onRefreshWorkspaceTree: handleRefreshWorkspaceTree,
+    onExpandAll: handleExpandAll,
+    onCollapseAll: handleCollapseAll,
+    onRefreshAll: handleRefreshAll,
+    onRefreshOneWorkspace: handleRefreshOneWorkspace,
+    onToggleExpandInFileNav: handleToggleExpandInFileNav,
+    onHideFromRightPanels: handleHideFromRightPanels,
+    onCreateWorkspaceFile: handleCreateWorkspaceFile,
+    onCreateWorkspaceFolder: handleCreateWorkspaceFolder,
+    onSetDiffLayout,
     onJumpPatchHunk,
     onSelectPatchHunk,
     onTogglePatchHunkCollapse,
@@ -146,5 +190,16 @@ export function useFilesPanelProps(
     selectedPatchFilePath,
     selectedPatchHunkId,
     collapsedPatchHunkIds,
-  };
+  }), [
+    t, appInfo, selectedFilePath, selectedFileWorkspaceId, fileContent, filePatch, editorLanguage, diffSideBySide,
+    selectedDiagnostics, outline, workspaceTrees, recentWorkspaces, allExpanded, workspaceTreeExpandedInFileNav,
+    workspaceTreeLoading, workspaceTreeErrors, localSearchQuery, searchResults, dirtyEditorPaths,
+    externalFileChange?.path, standardEditorRef, handleOpenFile, handleOpenFileForWorkspace, onOpenFileAtLine,
+    handleEditorChange, handleEditorMount, onDiffMount, handleSearch, setLocalSearchQuery,
+    handleRefreshWorkspaceTree, handleExpandAll, handleCollapseAll, handleRefreshAll, handleRefreshOneWorkspace,
+    handleToggleExpandInFileNav, handleHideFromRightPanels, handleCreateWorkspaceFile,
+    handleCreateWorkspaceFolder, onSetDiffLayout, onJumpPatchHunk, onSelectPatchHunk,
+    onTogglePatchHunkCollapse, onSetAllPatchHunksCollapsed, activePatchSet, selectedPatchFilePath,
+    selectedPatchHunkId, collapsedPatchHunkIds
+  ]);
 }

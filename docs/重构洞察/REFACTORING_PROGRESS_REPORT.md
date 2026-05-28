@@ -18,6 +18,7 @@
 | **第十轮** | **2026-05-24** | **重构洞察修复 11 项（Regex OnceLock + 死 CSS 清理 + 文件拆分 + Store 重构）** | ✅ |
 | **第十一轮** | **2026-05-25** | **ChangesPanel 组件提取（3 组件 → patch-review 模块）** | ✅ |
 | **第十七轮** | **2026-05-28** | **22 项重构洞察修复全部完成（Rust crate 17→19、Store 增强、5 个新 Hook、DB 连接池等）** | ✅ |
+| **第十八轮** | **2026-05-29** | **重构洞察全面修复（MessageStream 虚拟滚动、RightPanel 优化、App 组件拆分、运行活动 LRU、命令注册模式等 7 个任务）** | ✅ |
 
 ## 第七轮重构（2026-05-23）：全面修复 + 大型组件模块化
 
@@ -449,6 +450,58 @@ features/diff-viewer/ (DiffViewer 拆分)
 
 ---
 
+## 第十八轮重构（2026-05-29）：重构洞察全面修复
+
+基于 [重构洞察报告 2026-05-29](./refactor-insight-2026-05-29.md) 和 [修复计划](../../.trae/specs/fix-refactor-insights-2026-05-29/) 完成，分 3 个 Phase 共 7 个任务：
+
+### Phase 1：高优先级性能与架构改进（3 项 🔴高）
+
+| 任务 | 核心改进 |
+|------|---------|
+| **MessageStream 虚拟滚动实现 | 引入 `react-window`，使用 `VariableSizeList` 实现虚拟滚动，支持可变高度消息气泡，1000+ 消息时 DOM 元素 &lt; 50 个，保持 60fps 流畅滚动 |
+| **RightPanel 组件 re-render 优化 | 所有面板 props 添加 `useMemo`/`useCallback` 优化，7 个 per-panel hook 全部优化，ActiveToolPanel 添加自定义比较函数，消除不必要的重渲染 |
+| **App 组件业务逻辑拆分** | 提取 `useAppStartup` Hook 处理启动逻辑，提取 `usePatchReviewWithEditor` Hook 组合补丁审查和编辑器功能，App.tsx 从 447 行降至 200+ 行，仅保留布局和组合逻辑 |
+
+### Phase 2：中优先级性能与数据管理（2 项 🟡中）
+
+| 任务 | 核心改进 |
+|------|---------|
+| **运行活动列表优化** | 在 sessionSlice 中实现 LRU 缓存机制，限制最大 50 个运行数据，自动清理最久未使用的数据，正在流式的运行受保护不被清理，内存占用优化，UI 不受影响 |
+| **运行活动管理优化** | `setRunActivity/appendRunActivity/setRunUsage 全部更新为自动 LRU 机制，streamActions 和 fetchActions 中都通过 LRU 管理 |
+
+### Phase 3：低优先级扩展性与代码质量（2 项 🟢低）
+
+| 任务 | 核心改进 |
+|------|---------|
+| **命令处理注册表模式** | 重构 `dispatchSlashCommand` 为注册表模式，支持动态注册命令处理器，代码结构更清晰，扩展性更好 |
+| **MessageBlocks 工厂模式** | 为每种消息块类型独立组件，实现组件注册表，替换大型 if-else 分支，支持动态注册新块类型 |
+| **其他小优化** | outline crate 用简单计数器替代 BTreeMap，mock-bridge 添加可选 localStorage 持久化 |
+
+### 关键改进
+
+| 改进项 | 说明 |
+|--------|------|
+| MessageStream 性能 | 引入 react-window，1000+ 消息 DOM 元素 &lt; 50 个，60fps 流畅滚动 |
+| RightPanel 优化 | 所有 props 全部使用 useMemo/useCallback，无不必要的重渲染 |
+| App 组件 | 拆分 useAppStartup/usePatchReviewWithEditor 两个 Hook，仅保留布局逻辑 |
+| 运行活动管理 | LRU 缓存机制，限制 50 个运行，自动清理久未使用的数据 |
+| 命令处理 | 注册表模式，支持动态注册 |
+| MessageBlocks | 工厂模式，支持动态注册块类型 |
+| outline 性能 | BTreeMap → 简单计数器，O(1) 性能 |
+| mock-bridge | 可选 localStorage 持久化 |
+
+### 验证结果
+
+| 检查项 | 结果 |
+|--------|------|
+| TypeScript typecheck | ✅ 0 error |
+| 前端测试 (Vitest) | ✅ 183 tests passed |
+| Rust cargo test (all crates) | ✅ 全部通过 |
+| 新增依赖 | react-window @types/react-window |
+| 新建文件 | MessageStream 重构、7 个 per-panel hook 优化、useAppStartup/usePatchReviewWithEditor 两个新 Hook |
+
+---
+
 ## 相关文档
 
 - [重构洞察报告 5-21](./refactor-insight-2026-05-21.md)
@@ -458,6 +511,8 @@ features/diff-viewer/ (DiffViewer 拆分)
 - [重构洞察报告 5-24](./refactor-insight-2026-05-24.md)
 - [第十轮执行报告 5-24](./refactor-execution-2026-05-24.md)
 - [第十一轮 ChangesPanel 组件提取经验教训 5-25](./refactor-insight-2026-05-25-changespanel-extraction.md)
+- [第十八轮重构洞察报告 5-29](./refactor-insight-2026-05-29.md)
+- [第十八轮修复计划](../../.trae/specs/fix-refactor-insights-2026-05-29/)
 - [第七轮修复计划](../../.trae/documents/refactor-fix-plan-2026-05-23.md)
 - [第八轮实施计划](../../.trae/documents/refactor-implementation-plan-2026-05-23.md)
 - [第九轮实施计划](../../.trae/documents/refactor-implementation-plan-2026-05-24.md)

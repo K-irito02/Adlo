@@ -230,9 +230,21 @@ export const recentWorkspaces: RecentWorkspaceEntry[] = [
 
 export let currentWorkspaceMeta: WorkspaceMeta | undefined = appInfo.currentWorkspace;
 
+export type MockBridgeState = {
+  appInfo: typeof appInfo;
+  currentWorkspaceMeta: typeof currentWorkspaceMeta;
+};
+
+export let onMockStateChange: (() => void) | undefined;
+
+export function setOnMockStateChange(callback: (() => void) | undefined): void {
+  onMockStateChange = callback;
+}
+
 export function setMockCurrentWorkspace(workspace?: WorkspaceMeta): void {
   currentWorkspaceMeta = workspace;
   appInfo.currentWorkspace = workspace;
+  onMockStateChange?.();
 }
 
 export function setActivePatchSet(patchSet: PatchSet | undefined): void {

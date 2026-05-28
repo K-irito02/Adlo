@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useAppStore } from "../../../stores/slicedStore";
 import { useAppActions } from "../../../hooks/useAppActions";
@@ -52,7 +52,31 @@ export function useChangesPanelProps(
     [actions.setHunkDecision]
   );
 
-  return {
+  const handleAcceptAllHunks = useCallback(() => {
+    void actions.acceptAllHunks();
+  }, [actions.acceptAllHunks]);
+
+  const handleRejectAllHunks = useCallback(() => {
+    void actions.rejectAllHunks();
+  }, [actions.rejectAllHunks]);
+
+  const handleOpenChangePreview = useCallback((path: string) => {
+    void actions.openChangePreview(path);
+  }, [actions.openChangePreview]);
+
+  const handleOpenFile = useCallback((path: string) => {
+    void actions.openFile(path);
+  }, [actions.openFile]);
+
+  const handleRefreshWorkspaceTree = useCallback(() => {
+    void actions.refreshWorkspaceTree();
+  }, [actions.refreshWorkspaceTree]);
+
+  const handleHideFromRightPanels = useCallback((workspaceId: string) => {
+    void actions.hideWorkspaceFromRightPanels(workspaceId);
+  }, [actions.hideWorkspaceFromRightPanels]);
+
+  return useMemo(() => ({
     t,
     appInfo,
     activePatchSet,
@@ -68,26 +92,35 @@ export function useChangesPanelProps(
     onSetHunkDecision: handleSetHunkDecision,
     onApplyPatchSet: handleApplyPatchSet,
     onRollbackPatchSet: handleRollbackPatchSet,
-    onAcceptAllHunks: () => void actions.acceptAllHunks(),
-    onRejectAllHunks: () => void actions.rejectAllHunks(),
+    onAcceptAllHunks: handleAcceptAllHunks,
+    onRejectAllHunks: handleRejectAllHunks,
     onSelectPatchFile,
-    onOpenChangePreview: (path) => void actions.openChangePreview(path),
+    onOpenChangePreview: handleOpenChangePreview,
     onSelectPatchHunk,
     onTogglePatchHunkCollapse,
     onSetAllPatchHunksCollapsed,
     onSetPatchReviewFilter,
-    onOpenFile: (path) => void actions.openFile(path),
-    onRefreshWorkspaceTree: () => void actions.refreshWorkspaceTree(),
+    onOpenFile: handleOpenFile,
+    onRefreshWorkspaceTree: handleRefreshWorkspaceTree,
     recentWorkspaces,
     workspaceChangesExpanded,
     gitSnapshot,
     gitSnapshots,
     activePatchSets,
-    onHideFromRightPanels: (workspaceId) => void actions.hideWorkspaceFromRightPanels(workspaceId),
+    onHideFromRightPanels: handleHideFromRightPanels,
     diffSideBySide,
     onSetDiffLayout,
     dirtyEditorPaths,
     externalChangePath: externalFileChange?.path,
     onJumpPatchHunk,
-  };
+  }), [
+    t, appInfo, activePatchSet, latestPatchApplication, selectedPatchFilePath, selectedChangePreviewPath,
+    selectedChangePreviewWorkspaceId, changePreview, changePreviewLoading, selectedPatchHunkId,
+    collapsedPatchHunkIds, patchReviewFilter, handleSetHunkDecision, handleApplyPatchSet,
+    handleRollbackPatchSet, handleAcceptAllHunks, handleRejectAllHunks, onSelectPatchFile,
+    handleOpenChangePreview, onSelectPatchHunk, onTogglePatchHunkCollapse, onSetAllPatchHunksCollapsed,
+    onSetPatchReviewFilter, handleOpenFile, handleRefreshWorkspaceTree, recentWorkspaces,
+    workspaceChangesExpanded, gitSnapshot, gitSnapshots, activePatchSets, handleHideFromRightPanels,
+    diffSideBySide, onSetDiffLayout, dirtyEditorPaths, externalFileChange?.path, onJumpPatchHunk
+  ]);
 }

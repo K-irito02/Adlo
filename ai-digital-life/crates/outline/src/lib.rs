@@ -1,6 +1,6 @@
 use adl_errors::AppError;
 use adl_kernel::FileOutlineItem;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::sync::OnceLock;
 
 mod brace;
@@ -137,17 +137,22 @@ fn finalize_outline_items(
         stack.push(i);
     }
 
-    let mut line_occurrences: BTreeMap<usize, usize> = BTreeMap::new();
+    let mut last_line = 0;
+    let mut occurrence = 0;
     sorted
         .into_iter()
         .enumerate()
         .map(|(i, item)| {
-            let occurrence = line_occurrences.entry(item.line).or_insert(0);
-            *occurrence += 1;
-            let id = if *occurrence == 1 {
+            if item.line == last_line {
+                occurrence += 1;
+            } else {
+                last_line = item.line;
+                occurrence = 1;
+            }
+            let id = if occurrence == 1 {
                 format!("{relative_path}:{}", item.line)
             } else {
-                format!("{relative_path}:{}:{}", item.line, *occurrence)
+                format!("{relative_path}:{}:{}", item.line, occurrence)
             };
             FileOutlineItem {
                 id,

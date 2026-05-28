@@ -11,6 +11,10 @@ import type {
 } from "@ai-digital-life/kernel";
 import type { StoreState } from "../StoreState";
 
+const MAX_ACTIVITY_PER_RUN = 500;
+const MIN_ACTIVITY_RETAIN = 400;
+const MAX_STORED_RUNS = 50;
+
 export interface SessionSlice {
   sessions: ConversationSessionRecord[];
   activeSessionId?: string;
@@ -20,6 +24,7 @@ export interface SessionSlice {
   streamingActiveRunId?: string;
   runActivityByRunId: Record<string, DigitalLifeRunActivityEventV1[]>;
   runUsageByRunId: Record<string, ModelTokenUsage | undefined>;
+  _runLastAccessTime: Record<string, number>;
 
   setSessions: (sessions: ConversationSessionRecord[]) => void;
   setActiveSessionId: (sessionId: string | undefined) => void;
@@ -37,11 +42,60 @@ export interface SessionSlice {
   clearStreaming: () => void;
 }
 
+function trimOldRuns(
+  activityMap: Record<string, DigitalLifeRunActivityEventV1[]>,
+  usageMap: Record<string, ModelTokenUsage | undefined>,
+  accessMap: Record<string, number>,
+  excludeRunIds: Set<string>
+): {
+  runActivityByRunId: Record<string, DigitalLifeRunActivityEventV1[]>;
+  runUsageByRunId: Record<string, ModelTokenUsage | undefined>;
+  _runLastAccessTime: Record<string, number>;
+} {
+  const runIds = Object.keys(activityMap);
+  if (runIds.length <= MAX_STORED_RUNS) {
+    return { runActivityByRunId: activityMap, runUsageByRunId: usageMap, _runLastAccessTime: accessMap };
+  }
+
+  const sortedRunIds = runIds
+    .filter(id => !excludeRunIds.has(id))
+    .sort((a, b) => (accessMap[a] ?? 0) - (accessMap[b] ?? 0));
+
+  const toRemove = sortedRunIds.slice(0, sortedRunIds.length - MAX_STORED_RUNS + excludeRunIds.size);
+  const toRemoveSet = new Set(toRemove);
+
+  const nextActivity: Record<string, DigitalLifeRunActivityEventV1[]> = {};
+  const nextUsage: Record<string, ModelTokenUsage | undefined> = {};
+  const nextAccess: Record<string, number> = {};
+
+  for (const id of runIds) {
+    if (!toRemoveSet.has(id)) {
+      nextActivity[id] = activityMap[id];
+      if (id in usageMap) {
+        nextUsage[id] = usageMap[id];
+      }
+      nextAccess[id] = accessMap[id] ?? Date.now();
+    }
+  }
+
+  return {
+    runActivityByRunId: nextActivity,
+    runUsageByRunId: nextUsage,
+    _runLastAccessTime: nextAccess
+  };
+}
+
+function trimActivityList(activities: DigitalLifeRunActivityEventV1[]): DigitalLifeRunActivityEventV1[] {
+  if (activities.length <= MAX_ACTIVITY_PER_RUN) {
+    return activities;
+  }
+  return activities.slice(-MIN_ACTIVITY_RETAIN);
+}
+
 export const createSessionSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
   get: () => StoreState
 ): SessionSlice => {
-  // rAF-batched streaming buffer (closure-local, not module-level)
   let _streamingRafPending = false;
   let _streamingBuffer = "";
 
@@ -51,6 +105,7 @@ export const createSessionSlice = (
   streamingAssistantText: "",
   runActivityByRunId: {},
   runUsageByRunId: {},
+  _runLastAccessTime: {},
 
   setSessions: (sessions) => set({ sessions }),
   setActiveSessionId: (activeSessionId) => set({ activeSessionId }),
@@ -103,17 +158,51 @@ export const createSessionSlice = (
     }
   },
   setStreamingRunId: (streamingActiveRunId) => set({ streamingActiveRunId }),
-  setRunActivity: (runId, activities) => set((state) => ({
-    runActivityByRunId: { ...state.runActivityByRunId, [runId]: activities }
-  })),
-  appendRunActivity: (runId, activity) => set((state) => {
-    const existing = state.runActivityByRunId[runId] ?? [];
-    const next = existing.length > 500 ? [...existing.slice(-400), activity] : [...existing, activity];
-    return { runActivityByRunId: { ...state.runActivityByRunId, [runId]: next } };
+  setRunActivity: (runId, activities) => set((state) => {
+    const now = Date.now();
+    const trimmed = trimActivityList(activities);
+    const excludeSet = new Set<string>();
+    if (state.streamingActiveRunId) excludeSet.add(state.streamingActiveRunId);
+    
+    const trimmedMaps = trimOldRuns(
+      { ...state.runActivityByRunId, [runId]: trimmed },
+      state.runUsageByRunId,
+      { ...state._runLastAccessTime, [runId]: now },
+      excludeSet
+    );
+    
+    return trimmedMaps;
   }),
-  setRunUsage: (runId, usage) => set((state) => ({
-    runUsageByRunId: { ...state.runUsageByRunId, [runId]: usage }
-  })),
+  appendRunActivity: (runId, activity) => set((state) => {
+    const now = Date.now();
+    const existing = state.runActivityByRunId[runId] ?? [];
+    const next = trimActivityList([...existing, activity]);
+    const excludeSet = new Set<string>();
+    if (state.streamingActiveRunId) excludeSet.add(state.streamingActiveRunId);
+    
+    const trimmedMaps = trimOldRuns(
+      { ...state.runActivityByRunId, [runId]: next },
+      state.runUsageByRunId,
+      { ...state._runLastAccessTime, [runId]: now },
+      excludeSet
+    );
+    
+    return trimmedMaps;
+  }),
+  setRunUsage: (runId, usage) => set((state) => {
+    const now = Date.now();
+    const excludeSet = new Set<string>();
+    if (state.streamingActiveRunId) excludeSet.add(state.streamingActiveRunId);
+    
+    const trimmedMaps = trimOldRuns(
+      state.runActivityByRunId,
+      { ...state.runUsageByRunId, [runId]: usage },
+      { ...state._runLastAccessTime, [runId]: now },
+      excludeSet
+    );
+    
+    return trimmedMaps;
+  }),
   clearStreaming: () => set({ streamingAssistantText: "", streamingActiveRunId: undefined })
   };
 };

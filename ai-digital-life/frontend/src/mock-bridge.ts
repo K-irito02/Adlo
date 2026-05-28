@@ -21,7 +21,55 @@ import {
   ptyOutputListeners,
   MAX_PTY_LISTENERS,
   setMockCurrentWorkspace,
+  setOnMockStateChange,
+  type MockBridgeState,
 } from "./mock/shared";
+
+const MOCK_BRIDGE_STORAGE_KEY = "ai-digital-life-mock-bridge-state";
+let persistenceEnabled = false;
+
+function loadPersistedState(): void {
+  if (!persistenceEnabled || typeof window === "undefined") return;
+  try {
+    const stored = localStorage.getItem(MOCK_BRIDGE_STORAGE_KEY);
+    if (stored) {
+      const state: MockBridgeState = JSON.parse(stored);
+      if (state.appInfo) Object.assign(appInfo, state.appInfo);
+      if (state.currentWorkspaceMeta) {
+        setMockCurrentWorkspace(state.currentWorkspaceMeta);
+      }
+    }
+  } catch (e) {
+    console.warn("Failed to load persisted mock bridge state", e);
+  }
+}
+
+function savePersistedState(): void {
+  if (!persistenceEnabled || typeof window === "undefined") return;
+  try {
+    const state: MockBridgeState = {
+      appInfo,
+      currentWorkspaceMeta,
+    };
+    localStorage.setItem(MOCK_BRIDGE_STORAGE_KEY, JSON.stringify(state));
+  } catch (e) {
+    console.warn("Failed to save persisted mock bridge state", e);
+  }
+}
+
+export function enableMockBridgePersistence(): void {
+  persistenceEnabled = true;
+  setOnMockStateChange(savePersistedState);
+  loadPersistedState();
+}
+
+export function disableMockBridgePersistence(): void {
+  persistenceEnabled = false;
+  setOnMockStateChange(undefined);
+  if (typeof window !== "undefined") {
+    localStorage.removeItem(MOCK_BRIDGE_STORAGE_KEY);
+  }
+}
 
 export { setMockActiveWorkspace } from "./mock/mock-workspace";
 
@@ -98,6 +146,7 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
     updatePreferences: async (patch) => {
       const nextConfig = applyPreferencePatch(appInfo.config, patch);
       appInfo.config = nextConfig;
+      onMockStateChange?.();
       return { ok: true, data: { ...appInfo, currentWorkspace: currentWorkspaceMeta } };
     }
   },

@@ -1,4 +1,4 @@
-import React, { useId } from "react";
+import React, { useId, useMemo, useCallback } from "react";
 import { BrowserPanel } from "./right-panel/panels/BrowserPanel";
 import { ChangesPanel } from "./right-panel/panels/ChangesPanel";
 import { FilesPanel } from "./right-panel/panels/FilesPanel";
@@ -41,10 +41,7 @@ export interface RightPanelProps {
   onJumpPatchHunk: (direction: PatchDirection) => void;
 }
 
-const ActiveToolPanel = React.memo(function ActiveToolPanel({
-  activeTool, idBase,
-  filesProps, changesProps, browserProps, terminalProps, auditProps, modelProps, settingsProps
-}: {
+interface ActiveToolPanelProps {
   activeTool: ToolId;
   idBase: string;
   filesProps: FilesPanelProps;
@@ -54,7 +51,26 @@ const ActiveToolPanel = React.memo(function ActiveToolPanel({
   auditProps: AuditPanelProps;
   modelProps: ModelPanelProps;
   settingsProps: SettingsPanelProps;
-}) {
+}
+
+function areActiveToolPanelPropsEqual(prevProps: ActiveToolPanelProps, nextProps: ActiveToolPanelProps) {
+  return (
+    prevProps.activeTool === nextProps.activeTool &&
+    prevProps.idBase === nextProps.idBase &&
+    prevProps.filesProps === nextProps.filesProps &&
+    prevProps.changesProps === nextProps.changesProps &&
+    prevProps.browserProps === nextProps.browserProps &&
+    prevProps.terminalProps === nextProps.terminalProps &&
+    prevProps.auditProps === nextProps.auditProps &&
+    prevProps.modelProps === nextProps.modelProps &&
+    prevProps.settingsProps === nextProps.settingsProps
+  );
+}
+
+const ActiveToolPanel = React.memo(function ActiveToolPanel({
+  activeTool, idBase,
+  filesProps, changesProps, browserProps, terminalProps, auditProps, modelProps, settingsProps
+}: ActiveToolPanelProps) {
   const panelId = `${idBase}-${activeTool}-panel`;
   const tabId = `${idBase}-${activeTool}-tab`;
   return (
@@ -78,7 +94,7 @@ const ActiveToolPanel = React.memo(function ActiveToolPanel({
       ) : null}
     </div>
   );
-});
+}, areActiveToolPanelPropsEqual);
 
 export function RightPanel(panelProps: RightPanelProps) {
   const { t, collapsed } = panelProps;
@@ -96,6 +112,20 @@ export function RightPanel(panelProps: RightPanelProps) {
 
   const panelIdBase = useId();
 
+  const handleToggleRightPanelExpanded = useCallback(() => {
+    const metrics = readLayoutMetrics();
+    if (rightPanelMode === "overlay_full") {
+      const restoredWidth = clampPanelWidthToShell(lastRestorableWidthRef.current);
+      const { nextWidth } = applyPanelGeometry(restoredWidth, { commitRestorable: true });
+      setRightPanelWidth(nextWidth);
+      return;
+    }
+    const entryWidth = rightPanelWidth >= metrics.overlayThreshold ? rightPanelWidth : clampPanelWidthToShell(rightPanelWidth);
+    lastRestorableWidthRef.current = clampPanelWidthToShell(entryWidth);
+    const { nextWidth } = applyPanelGeometry(metrics.rightMaxWidth);
+    setRightPanelWidth(nextWidth);
+  }, [rightPanelMode, rightPanelWidth, readLayoutMetrics, clampPanelWidthToShell, applyPanelGeometry, setRightPanelWidth, lastRestorableWidthRef]);
+
   return (
     <aside
       ref={panelRef}
@@ -112,19 +142,7 @@ export function RightPanel(panelProps: RightPanelProps) {
           idBase={panelIdBase}
           onSelect={setActiveRightTool}
           rightPanelExpanded={rightPanelMode === "overlay_full"}
-          onToggleRightPanelExpanded={() => {
-            const metrics = readLayoutMetrics();
-            if (rightPanelMode === "overlay_full") {
-              const restoredWidth = clampPanelWidthToShell(lastRestorableWidthRef.current);
-              const { nextWidth } = applyPanelGeometry(restoredWidth, { commitRestorable: true });
-              setRightPanelWidth(nextWidth);
-              return;
-            }
-            const entryWidth = rightPanelWidth >= metrics.overlayThreshold ? rightPanelWidth : clampPanelWidthToShell(rightPanelWidth);
-            lastRestorableWidthRef.current = clampPanelWidthToShell(entryWidth);
-            const { nextWidth } = applyPanelGeometry(metrics.rightMaxWidth);
-            setRightPanelWidth(nextWidth);
-          }}
+          onToggleRightPanelExpanded={handleToggleRightPanelExpanded}
         />
 
         <ActiveToolPanel

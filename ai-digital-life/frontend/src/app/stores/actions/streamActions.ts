@@ -45,61 +45,68 @@ function createModelStreamSubscriber(
 }
 
 function createRunActivitySubscriber(
-  set: StoreApi<StoreState>["setState"]
+  set: StoreApi<StoreState>["setState"],
+  get: () => StoreState
 ): (event: DigitalLifeRunActivityEventV1) => void {
   return (event) => {
     if (event.v !== 1) return;
-    set((state: StoreState) => {
-      const runId = event.runId;
-      const prev = state.runActivityByRunId[runId] ?? [];
-      const next =
-        prev.length > 500
-          ? [...prev.slice(-400), event]
-          : [...prev, event];
-      const usagePatch: Partial<StoreState> = {
-        runActivityByRunId: { ...state.runActivityByRunId, [runId]: next },
-      };
-      if (event.type === "model" && event.usage) {
-        usagePatch.runUsageByRunId = {
-          ...state.runUsageByRunId,
-          [runId]: event.usage,
-        };
-      }
-      return usagePatch;
-    });
+    get().appendRunActivity(event.runId, event);
+    if (event.type === "model" && event.usage) {
+      get().setRunUsage(event.runId, event.usage);
+    }
   };
 }
+
+type SlashCommandHandler = (
+  set: StoreApi<StoreState>["setState"],
+  get: () => StoreState
+) => Promise<boolean> | boolean;
+
+const slashCommandRegistry = new Map<string, SlashCommandHandler>();
+
+function registerSlashCommand(command: string, handler: SlashCommandHandler): void {
+  slashCommandRegistry.set(command, handler);
+}
+
+registerSlashCommand("/apply", async (set, get) => {
+  const ps = get().activePatchSet;
+  if (ps) {
+    await get().applyPatchSet(ps.id);
+  } else {
+    captureError(get, "当前没有可应用的补丁。");
+  }
+  return true;
+});
+
+registerSlashCommand("/rollback", async (set, get) => {
+  const ps = get().activePatchSet;
+  if (ps) {
+    await get().rollbackPatchSet(ps.id);
+  } else {
+    captureError(get, "当前没有可回滚的补丁。");
+  }
+  return true;
+});
+
+registerSlashCommand("/model", (set, get) => {
+  get().setActiveRightTool("models");
+  return true;
+});
+
+registerSlashCommand("/clear", (set, get) => {
+  captureError(get, "「/clear」尚未实现清空历史。请使用侧栏「新建会话」开始新线程，或删除当前会话。");
+  return true;
+});
 
 async function dispatchSlashCommand(
   trimmed: string,
   set: StoreApi<StoreState>["setState"],
   get: () => StoreState
 ): Promise<boolean> {
-  if (trimmed === "/apply") {
-    const ps = get().activePatchSet;
-    if (ps) {
-      await get().applyPatchSet(ps.id);
-    } else {
-      captureError(get, "当前没有可应用的补丁。");
-    }
-    return true;
-  }
-  if (trimmed === "/rollback") {
-    const ps = get().activePatchSet;
-    if (ps) {
-      await get().rollbackPatchSet(ps.id);
-    } else {
-      captureError(get, "当前没有可回滚的补丁。");
-    }
-    return true;
-  }
-  if (trimmed === "/model") {
-    get().setActiveRightTool("models");
-    return true;
-  }
-  if (trimmed === "/clear") {
-    captureError(get, "「/clear」尚未实现清空历史。请使用侧栏「新建会话」开始新线程，或删除当前会话。");
-    return true;
+  const handler = slashCommandRegistry.get(trimmed);
+  if (handler) {
+    const result = handler(set, get);
+    return result instanceof Promise ? await result : result;
   }
   return false;
 }
@@ -190,7 +197,7 @@ export function createStreamActions(set: StoreApi<StoreState>["setState"], get: 
       );
 
       const unsubscribeRunActivity = window.digitalLife.subscribeRunActivity(
-        createRunActivitySubscriber(set)
+        createRunActivitySubscriber(set, get)
       );
 
       try {

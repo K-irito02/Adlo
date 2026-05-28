@@ -6,6 +6,60 @@ import type {
 import type { StoreApi } from "zustand";
 import { captureError } from "../shared";
 
+const MAX_ACTIVITY_PER_RUN = 500;
+const MIN_ACTIVITY_RETAIN = 400;
+const MAX_STORED_RUNS = 50;
+
+function trimActivityList(activities: DigitalLifeRunActivityEventV1[]): DigitalLifeRunActivityEventV1[] {
+  if (activities.length <= MAX_ACTIVITY_PER_RUN) {
+    return activities;
+  }
+  return activities.slice(-MIN_ACTIVITY_RETAIN);
+}
+
+function trimOldRuns(
+  activityMap: Record<string, DigitalLifeRunActivityEventV1[]>,
+  usageMap: Record<string, any>,
+  accessMap: Record<string, number>,
+  excludeRunIds: Set<string>
+): {
+  runActivityByRunId: Record<string, DigitalLifeRunActivityEventV1[]>;
+  runUsageByRunId: Record<string, any>;
+  _runLastAccessTime: Record<string, number>;
+} {
+  const runIds = Object.keys(activityMap);
+  if (runIds.length <= MAX_STORED_RUNS) {
+    return { runActivityByRunId: activityMap, runUsageByRunId: usageMap, _runLastAccessTime: accessMap };
+  }
+
+  const sortedRunIds = runIds
+    .filter(id => !excludeRunIds.has(id))
+    .sort((a, b) => (accessMap[a] ?? 0) - (accessMap[b] ?? 0));
+
+  const toRemove = sortedRunIds.slice(0, sortedRunIds.length - MAX_STORED_RUNS + excludeRunIds.size);
+  const toRemoveSet = new Set(toRemove);
+
+  const nextActivity: Record<string, DigitalLifeRunActivityEventV1[]> = {};
+  const nextUsage: Record<string, any> = {};
+  const nextAccess: Record<string, number> = {};
+
+  for (const id of runIds) {
+    if (!toRemoveSet.has(id)) {
+      nextActivity[id] = activityMap[id];
+      if (id in usageMap) {
+        nextUsage[id] = usageMap[id];
+      }
+      nextAccess[id] = accessMap[id] ?? Date.now();
+    }
+  }
+
+  return {
+    runActivityByRunId: nextActivity,
+    runUsageByRunId: nextUsage,
+    _runLastAccessTime: nextAccess
+  };
+}
+
 export function createFetchActions(set: StoreApi<StoreState>["setState"], get: () => StoreState) {
   return {
     fetchIndexStatus: async () => {
@@ -60,8 +114,12 @@ export function createFetchActions(set: StoreApi<StoreState>["setState"], get: (
         const result = await window.digitalLife.task.listAuditEntries(limit);
         if (result.ok) {
           set((state: StoreState) => {
+            const now = Date.now();
             const runIdRe = /runId=([A-Za-z0-9_-]+)/;
             const nextRunActivity = { ...state.runActivityByRunId };
+            const nextAccess = { ...state._runLastAccessTime };
+            const updatedRunIds = new Set<string>();
+            
             for (let idx = 0; idx < result.data.length; idx += 1) {
               const entry = result.data[idx]!;
               const detail = entry.detail ?? "";
@@ -101,14 +159,28 @@ export function createFetchActions(set: StoreApi<StoreState>["setState"], get: (
                 };
               }
               const already = existing.some((e) => e.seq === event.seq);
-              if (!already)
-                nextRunActivity[runId] = [...existing, event].sort(
+              if (!already) {
+                nextRunActivity[runId] = trimActivityList([...existing, event].sort(
                   (a, b) => a.seq - b.seq
-                );
+                ));
+                nextAccess[runId] = now;
+                updatedRunIds.add(runId);
+              }
             }
+            
+            const excludeSet = new Set<string>();
+            if (state.streamingActiveRunId) excludeSet.add(state.streamingActiveRunId);
+            
+            const trimmedMaps = trimOldRuns(
+              nextRunActivity,
+              state.runUsageByRunId,
+              nextAccess,
+              excludeSet
+            );
+            
             return {
               auditEntries: result.data,
-              runActivityByRunId: nextRunActivity,
+              ...trimmedMaps
             };
           });
         } else {
@@ -133,12 +205,7 @@ export function createFetchActions(set: StoreApi<StoreState>["setState"], get: (
           captureError(get, result.error);
           return;
         }
-        set((state: StoreState) => ({
-          runActivityByRunId: {
-            ...state.runActivityByRunId,
-            [runId]: result.data,
-          },
-        }));
+        get().setRunActivity(runId, result.data);
       } finally {
         set({ isFetching: { ...get().isFetching, [key]: false } });
       }

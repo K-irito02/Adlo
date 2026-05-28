@@ -1,14 +1,11 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useState } from "react";
 import type { AppInfo } from "@ai-digital-life/kernel";
-import { copy, type Locale } from "./copy";
 import { useAppStore } from "./stores/slicedStore";
 import { useAppActions } from "./hooks/useAppActions";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useDragDropWorkspace } from "./hooks/useDragDropWorkspace";
-import { usePatchReview } from "./hooks/usePatchReview";
-import { useEditorReveal } from "./hooks/useEditorReveal";
-import { useThemeSync } from "./hooks/useThemeSync";
-import { useTaskCenterPolling } from "./hooks/useTaskCenterPolling";
+import { useAppStartup } from "./hooks/useAppStartup";
+import { usePatchReviewWithEditor } from "./hooks/usePatchReviewWithEditor";
 import { TitleBar } from "./regions/TitleBar";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { LeftSidebar } from "./regions/LeftSidebar";
@@ -23,67 +20,27 @@ export function App() {
   const leftCollapsed = useAppStore((state) => state.leftCollapsed);
   const rightCollapsed = useAppStore((state) => state.rightCollapsed);
   const rightPanelWidth = useAppStore((state) => state.rightPanelWidth);
-  const selectedFilePath = useAppStore((s) => s.selectedFilePath);
-  const fileLastModifiedAt = useAppStore((s) => s.fileLastModifiedAt);
   const actions = useAppActions();
 
   useDragDropWorkspace(actions);
 
-  const locale = (appInfo?.config.language ?? "zh-CN") as Locale;
-  const t = copy[locale];
-
-  const pendingRevealRef = useRef<{ path: string; line: number } | null>(null);
-  const setPendingReveal = useCallback((path: string, line: number) => {
-    pendingRevealRef.current = { path, line };
-  }, []);
-
+  const { locale, t } = useAppStartup(appInfo);
   const {
+    standardEditorRef,
     selectedPatchFilePath,
     selectedPatchHunkId,
     collapsedPatchHunkIds,
     patchReviewFilter,
-    setEditorHint,
-    activeDiagnostic,
-    setPatchReviewFilter,
+    handleOpenFileAtLine,
+    handleDiffMount,
+    handleSendSelection,
     handleSelectPatchFile,
     handleSelectPatchHunk,
     handleTogglePatchHunkCollapse,
     handleSetAllPatchHunksCollapsed,
+    setPatchReviewFilter,
     handleJumpPatchHunk,
-  } = usePatchReview(setPendingReveal);
-
-  const {
-    standardEditorRef,
-    handleOpenFileAtLine,
-    handleSendSelection,
-    handleDiffMount,
-  } = useEditorReveal(
-    selectedFilePath,
-    activeDiagnostic,
-    fileLastModifiedAt,
-    { sendMessage: actions.sendMessage, openFile: actions.openFile },
-    locale,
-    setEditorHint,
-    pendingRevealRef,
-    setPendingReveal,
-  );
-
-  useThemeSync(appInfo);
-  useTaskCenterPolling(appInfo);
-
-  useEffect(() => {
-    void window.digitalLife.window.setTitle(t.brandHoverName);
-  }, [t.brandHoverName]);
-
-  useEffect(() => {
-    void actions.bootstrap();
-  }, [actions.bootstrap]);
-
-  useEffect(() => {
-    return window.digitalLife.workspace.onFileChanged((event) => {
-      actions.markExternalFileChange(event);
-    });
-  }, [actions.markExternalFileChange]);
+  } = usePatchReviewWithEditor(locale);
 
   const handleCycleTheme = useCallback(() => {
     const mode = appInfo?.config.themeMode ?? "system";
