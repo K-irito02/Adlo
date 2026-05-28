@@ -213,7 +213,8 @@ export function BrowserPanel({ t }: BrowserPanelProps) {
     const element = primaryRef.current;
     if (!element) return;
     const updateBounds = () => {
-      const rect = element.getBoundingClientRect();
+      const rect = primaryRef.current?.getBoundingClientRect();
+      if (!rect) return;
       import("@tauri-apps/api/core").then(({ invoke }) => {
         invoke("browser_set_bounds", {
           bounds: { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
@@ -228,7 +229,7 @@ export function BrowserPanel({ t }: BrowserPanelProps) {
       resizeObserver.disconnect();
       window.removeEventListener("resize", updateBounds);
     };
-  }, []);
+  }, [primaryRef]);
 
   useEffect(() => {
     if (!isTauriShell() || !window.digitalLife?.browser) return;
