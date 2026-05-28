@@ -1,0 +1,11 @@
+[package]
+name = "adl-browser"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tauri = { workspace = true, features = ["unstable"] }

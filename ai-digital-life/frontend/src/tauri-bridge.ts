@@ -285,5 +285,31 @@ export function createTauriBridge(): DigitalLifeBridge {
       listByRunId: (runId: string, limit?: number) =>
         invokeIpc<DigitalLifeRunActivityEventV1[]>("run_activity_list_by_run_id", { runId, limit })
     }
+    ,
+    browser: {
+      navigate: (url: string) => invokeIpc<void>("browser_navigate", { url }).then(() => undefined),
+      goBack: () => invokeIpc<boolean>("browser_go_back").then((r) => r.ok && !!r.data),
+      goForward: () => invokeIpc<boolean>("browser_go_forward").then((r) => r.ok && !!r.data),
+      reload: () => invokeIpc<void>("browser_reload").then(() => undefined),
+      onUrlChanged: (listener: (url: string) => void) => {
+        let active = true;
+        let ul: UnlistenFn | undefined;
+        void listen<{ url: string }>("digital-life://browser-url-changed", (event) => {
+          if (active) {
+            listener(event.payload.url);
+          }
+        }).then((unlisten) => {
+          if (active) {
+            ul = unlisten;
+          } else {
+            void unlisten();
+          }
+        });
+        return () => {
+          active = false;
+          void ul?.();
+        };
+      },
+    }
   };
 }

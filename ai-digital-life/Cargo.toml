@@ -21,6 +21,7 @@ members = [
     "crates/model-gateway",
     "crates/change-engine",
     "crates/terminal",
+    "crates/browser",
 ]
 
 [workspace.package]
@@ -44,6 +45,7 @@ keyring = { version = "3", features = ["crypto-rust"] }
 tauri = "2"
 tauri-build = "2"
 tauri-plugin-dialog = "2"
+tauri-plugin-shell = "2"
 uuid = { version = "1", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 sha2 = "0.10"

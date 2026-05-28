@@ -23,9 +23,11 @@ adl-model-gateway = { path = "../crates/model-gateway" }
 adl-change-engine = { path = "../crates/change-engine" }
 adl-context = { path = "../crates/context" }
 adl-terminal = { path = "../crates/terminal" }
+adl-browser = { path = "../crates/browser" }
 
-tauri.workspace = true
+tauri = { workspace = true, features = ["unstable"] }
 tauri-plugin-dialog.workspace = true
+tauri-plugin-shell.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true

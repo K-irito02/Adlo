@@ -67,6 +67,14 @@
   - **CSS 架构**：`file-tree.css` 通过 `rightpanel.css` 导入生效（此前为孤立 CSS）；使用 `box-sizing: border-box` 实现 padding 自包含的 hover 扩展
   - **修改文件**：file-tree.css（完整终端树 CSS）、MultiWorkspaceTerminal.tsx（添加 `adl-multitree--terminal` class）、WorkspaceTerminalEntry.tsx（条件渲染+图标删除）、rightpanel.css（添加 `@import`）
   - **测试验证**：cargo test + 183 前端测试全部通过
+- **第十八轮 — 内置浏览器双模式实现**（2026-05-28）：
+  - **Rust 新增**：新增 `crates/browser` crate，`BrowserManager` 封装 Tauri child WebView 生命周期（8 个方法：create/destroy/navigate/goBack/goForward/reload/setBounds/eval）；注册 8 个 `#[tauri::command]` IPC 命令
+  - **前端桥接**：在 `DigitalLifeBridge` 中新增 `BrowserBridge` 子接口（navigate/goBack/goForward/reload/onUrlChanged）
+  - **双模式 iframe 降级**：浏览器预览模式使用 `<iframe>` 直连 + 前端历史栈（50 条）+ "在外部浏览器打开"浮动按钮
+  - **地址栏体验修复**：移除 `onMouseLeave` 折叠逻辑，仅通过 `onBlur` 折叠
+  - **Tauri 特有操作**：WebView 创建/销毁/边界同步通过 `safeInvoke`（`isTauriShell()` 守卫 + 动态 `import()`）
+  - **CSP 更新**：`tauri.conf.json` CSP 放宽支持外部资源（img/media/frame/connect-src）
+  - **测试验证**：cargo check + 183 前端测试全部通过
 - **第十六轮 — 终端面板精细化修复**（10+ 项）：
   - **终端导航器 resize handle**：在内联 `<aside>` 中添加 `adl-tool-navigator__resize-handle`，利用已有的 `handleNavigatorResizeStart` 回调实现导航器宽度拖拽调整（如文件/变更面板）
   - **xterm 纯黑背景消除**：多层覆盖 xterm.js 内部 `background:#000`——`.xterm`（`transparent !important`）、`.xterm-viewport`、`.xterm-screen`、`canvas`、`.xterm-scroll-area`；padding 移至 canvas 容器以控制间隙背景为 `var(--bg)`

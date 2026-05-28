@@ -198,6 +198,14 @@ export interface RunActivityBridge {
   listByRunId: (runId: string, limit?: number) => Promise<IpcResult<DigitalLifeRunActivityEventV1[]>>;
 }
 
+export interface BrowserBridge {
+  navigate: (url: string) => Promise<void>;
+  goBack: () => Promise<boolean>;
+  goForward: () => Promise<boolean>;
+  reload: () => Promise<void>;
+  onUrlChanged: (listener: (url: string) => void) => () => void;
+}
+
 export interface DigitalLifeBridge {
   subscribeModelStream: (listener: (event: DigitalLifeModelStreamEventV1) => void) => () => void;
   subscribeRunActivity: (listener: (event: DigitalLifeRunActivityEventV1) => void) => () => void;
@@ -214,4 +222,5 @@ export interface DigitalLifeBridge {
   pty: PtyBridge;
   task: TaskBridge;
   runActivity: RunActivityBridge;
+  browser: BrowserBridge;
 }

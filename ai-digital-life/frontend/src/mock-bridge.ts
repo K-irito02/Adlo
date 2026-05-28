@@ -150,6 +150,14 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
 
   runActivity: {
     listByRunId: async (_runId: string, _limit?: number) => ({ ok: true, data: [] })
+  },
+
+  browser: {
+    navigate: async () => {},
+    goBack: async () => true,
+    goForward: async () => true,
+    reload: async () => {},
+    onUrlChanged: () => () => {},
   }
 };
 

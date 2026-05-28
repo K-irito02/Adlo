@@ -12,6 +12,7 @@ mod terminal;
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_shell::init())
         .setup(|app| {
             let data_dir = setup::resolve_data_dir(app)?;
             let app_state = setup::init_app_state(data_dir)?;
@@ -94,6 +95,14 @@ fn main() {
             commands::run_activity::run_activity_list_by_run_id,
             commands::model::model_set_provider_secret,
             commands::model::model_clear_provider_secret,
+            commands::browser::browser_create,
+            commands::browser::browser_destroy,
+            commands::browser::browser_navigate,
+            commands::browser::browser_go_back,
+            commands::browser::browser_go_forward,
+            commands::browser::browser_reload,
+            commands::browser::browser_set_bounds,
+            commands::browser::browser_eval,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

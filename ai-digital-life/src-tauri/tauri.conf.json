@@ -23,7 +23,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'",
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https: http:; img-src 'self' data: https: http:; media-src 'self' https: http:; frame-src 'self' https: http:",
       "dangerousDisableAssetCspModification": false
     },
     "withGlobalTauri": false

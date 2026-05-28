@@ -375,6 +375,7 @@
   height: 100%;
   align-items: center;
   justify-content: center;
+  border-radius: 0;
 }
 
 .adl-titlebar .tooltip-trigger {
@@ -384,6 +385,8 @@
   position: relative;
   align-items: stretch;
   justify-content: center;
+  -webkit-app-region: no-drag;
+  pointer-events: auto;
 }
 
 .adl-titlebar .tooltip-trigger:has(> .adl-iconstrip__button:is(:hover, .is-open, .is-active, [aria-pressed="true"], :focus-visible))

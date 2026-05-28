@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
   IconArrowLeft,
   IconArrowRight,
+  IconCopy,
   IconFileText,
   IconLink,
   IconMoreVertical,
@@ -15,6 +16,7 @@ import { TooltipSimple } from "../../../components/Tooltip";
 import { useUiStore } from "../../../ui-store";
 import { useAppStore } from "../../../stores/slicedStore";
 import { useNavigatorResize } from "../../../hooks/useNavigatorResize";
+import { isTauriShell } from "../../../../tauri-bridge";
 import type { BrowserPanelProps } from "../types";
 
 type BrowserNavigatorMode = "bookmarks" | "history" | "search";
@@ -73,11 +75,15 @@ export function BrowserPanel({ t }: BrowserPanelProps) {
   const addressInputRef = useRef<HTMLInputElement | null>(null);
   const navigatorSearchRef = useRef<HTMLDivElement | null>(null);
   const navigatorSearchInputRef = useRef<HTMLInputElement | null>(null);
+  const primaryRef = useRef<HTMLDivElement | null>(null);
   const activeTab = useMemo(
     () => browserTabs.find((tab) => tab.id === browserActiveTabId) ?? browserTabs[0],
     [browserActiveTabId, browserTabs]
   );
   const [address, setAddress] = useState(activeTab?.url ?? "about:blank");
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const [iframeHistory, setIframeHistory] = useState<{ index: number; entries: string[] }>({ index: -1, entries: [] });
+
   const isBookmarked = browserBookmarks.some((bookmark) => bookmark.url === activeTab?.url);
   const navigatorTitle =
     navigatorMode === "bookmarks"
@@ -185,6 +191,71 @@ export function BrowserPanel({ t }: BrowserPanelProps) {
     }
   }, [navigatorMode]);
 
+  useEffect(() => {
+    const url = activeTab?.url ?? "about:blank";
+    if (isTauriShell()) {
+      import("@tauri-apps/api/core").then(({ invoke }) => {
+        invoke("browser_create", { url }).catch((err) => console.error("browser_create failed:", err));
+      });
+    }
+    return () => {
+      if (isTauriShell()) {
+        import("@tauri-apps/api/core").then(({ invoke }) => {
+          invoke("browser_destroy").catch((err) => console.error("browser_destroy failed:", err));
+        });
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!isTauriShell()) return;
+    const element = primaryRef.current;
+    if (!element) return;
+    const updateBounds = () => {
+      const rect = element.getBoundingClientRect();
+      import("@tauri-apps/api/core").then(({ invoke }) => {
+        invoke("browser_set_bounds", {
+          bounds: { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
+        }).catch((err) => console.error("browser_set_bounds failed:", err));
+      });
+    };
+    const resizeObserver = new ResizeObserver(() => updateBounds());
+    resizeObserver.observe(element);
+    window.addEventListener("resize", updateBounds);
+    updateBounds();
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", updateBounds);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isTauriShell() || !window.digitalLife?.browser) return;
+    const unlisten = window.digitalLife.browser.onUrlChanged((url: string) => {
+      setAddress(url);
+      browserNavigateActiveTab(url, activeTab?.title);
+    });
+    return () => {
+      unlisten();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const navigateBrowser = useCallback((url: string) => {
+    if (isTauriShell()) {
+      window.digitalLife?.browser?.navigate(url).catch((err) => console.error("browser_navigate failed:", err));
+    } else if (iframeRef.current) {
+      setIframeHistory((prev) => {
+        const newEntries = prev.entries.slice(0, prev.index + 1);
+        newEntries.push(url);
+        if (newEntries.length > 50) newEntries.shift();
+        return { index: newEntries.length - 1, entries: newEntries };
+      });
+      iframeRef.current.src = url;
+    }
+  }, []);
+
   const collapseAddress = () => {
     addressInputRef.current?.blur();
     setAddressExpanded(false);
@@ -194,6 +265,7 @@ export function BrowserPanel({ t }: BrowserPanelProps) {
     const input = address.trim();
     if (!input) {
       browserNavigateActiveTab("about:blank", t.browserStartPage);
+      navigateBrowser("about:blank");
       return;
     }
     const normalizedInput = input.toLowerCase();
@@ -205,9 +277,12 @@ export function BrowserPanel({ t }: BrowserPanelProps) {
     if (matchedItem) {
       browserNavigateActiveTab(matchedItem.url, matchedItem.title);
       setAddress(matchedItem.url);
+      navigateBrowser(matchedItem.url);
       return;
     }
-    browserNavigateActiveTab(normalizeBrowserUrl(input));
+    const finalUrl = normalizeBrowserUrl(input);
+    browserNavigateActiveTab(finalUrl);
+    navigateBrowser(finalUrl);
   };
 
   return (
@@ -225,12 +300,44 @@ export function BrowserPanel({ t }: BrowserPanelProps) {
             </button>
           </TooltipSimple>
           <TooltipSimple content={t.browserBack} placement="top">
-            <button type="button" className="adl-tool-context__iconbtn" disabled aria-label={t.browserBack}>
+            <button
+              type="button"
+              className="adl-tool-context__iconbtn"
+              onClick={() => {
+                if (isTauriShell()) {
+                  window.digitalLife?.browser?.goBack().catch((err) => console.error("browser_go_back failed:", err));
+                } else if (iframeRef.current) {
+                  setIframeHistory((prev) => {
+                    if (prev.index <= 0) return prev;
+                    const newIndex = prev.index - 1;
+                    iframeRef.current!.src = prev.entries[newIndex];
+                    return { ...prev, index: newIndex };
+                  });
+                }
+              }}
+              aria-label={t.browserBack}
+            >
               <IconArrowLeft size={14} decorative />
             </button>
           </TooltipSimple>
           <TooltipSimple content={t.browserForward} placement="top">
-            <button type="button" className="adl-tool-context__iconbtn" disabled aria-label={t.browserForward}>
+            <button
+              type="button"
+              className="adl-tool-context__iconbtn"
+              onClick={() => {
+                if (isTauriShell()) {
+                  window.digitalLife?.browser?.goForward().catch((err) => console.error("browser_go_forward failed:", err));
+                } else if (iframeRef.current) {
+                  setIframeHistory((prev) => {
+                    if (prev.index >= prev.entries.length - 1) return prev;
+                    const newIndex = prev.index + 1;
+                    iframeRef.current!.src = prev.entries[newIndex];
+                    return { ...prev, index: newIndex };
+                  });
+                }
+              }}
+              aria-label={t.browserForward}
+            >
               <IconArrowRight size={14} decorative />
             </button>
           </TooltipSimple>
@@ -238,7 +345,14 @@ export function BrowserPanel({ t }: BrowserPanelProps) {
             <button
               type="button"
               className="adl-tool-context__iconbtn"
-              onClick={() => browserNavigateActiveTab(activeTab?.url ?? "about:blank", activeTab?.title)}
+              onClick={() => {
+                if (isTauriShell()) {
+                  window.digitalLife?.browser?.reload().catch((err) => console.error("browser_reload failed:", err));
+                } else if (iframeRef.current?.contentWindow) {
+                  iframeRef.current.contentWindow.location.reload();
+                }
+                browserNavigateActiveTab(activeTab?.url ?? "about:blank", activeTab?.title);
+              }}
               aria-label={t.browserRefresh}
             >
               <IconRefreshCw size={14} decorative />
@@ -248,8 +362,6 @@ export function BrowserPanel({ t }: BrowserPanelProps) {
             ref={addressSearchRef}
             className={`adl-tool-search adl-tool-search--address${addressExpanded ? " is-expanded" : ""}`}
             onClick={() => setAddressExpanded(true)}
-            onMouseEnter={() => setAddressExpanded(true)}
-            onMouseLeave={collapseAddress}
           >
             <IconLink size={14} decorative className="adl-tool-search__icon adl-tool-search__icon--address" />
             <span className="adl-tool-search__preview" aria-hidden={addressExpanded}>
@@ -269,6 +381,26 @@ export function BrowserPanel({ t }: BrowserPanelProps) {
               placeholder={t.browserAddress}
               aria-label={t.browserAddress}
             />
+            <TooltipSimple content={t.browserCopyLink} placement="top">
+              <button
+                type="button"
+                className="adl-tool-search__copy"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const url = (activeTab?.url ?? address) || "about:blank";
+                  navigator.clipboard?.writeText(url).catch(() => {
+                    const textarea = document.createElement('textarea');
+                    textarea.value = url;
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textarea);
+                  });
+                }}
+              >
+                <IconCopy size={14} decorative />
+              </button>
+            </TooltipSimple>
           </label>
         </div>
         <div className="adl-tool-context__group adl-tool-context__group--files-actions">
@@ -467,10 +599,37 @@ export function BrowserPanel({ t }: BrowserPanelProps) {
           />
         </aside>
 
-        <div className="adl-tool-primary adl-tool-primary--browser-empty">
-          <div className="adl-tool-primary__scroll adl-tool-primary__scroll--browser">
-            <div className="adl-browser-canvas" aria-hidden="true" />
-          </div>
+        <div className="adl-tool-primary adl-tool-primary--browser" ref={primaryRef}>
+          <div className="adl-tool-primary__scroll adl-tool-primary__scroll--browser" />
+          {!isTauriShell() && activeTab && activeTab.url !== "about:blank" ? (
+            <>
+              <iframe
+                ref={iframeRef}
+                src={activeTab.url}
+                className="adl-browser-iframe"
+                title={activeTab.title}
+              />
+              <a
+                href={activeTab?.url ?? "about:blank"}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="adl-browser-external-btn"
+                title={t.browserOpenExternal}
+                onClick={(e) => {
+                  const url = activeTab?.url ?? "about:blank";
+                  if (isTauriShell()) {
+                    e.preventDefault();
+                    import("@tauri-apps/plugin-shell").then(({ open: shellOpen }) => shellOpen(url));
+                  } else if ((window as any).trae?.openExternal) {
+                    e.preventDefault();
+                    (window as any).trae.openExternal(url);
+                  }
+                }}
+              >
+                {t.browserOpenExternal}
+              </a>
+            </>
+          ) : null}
         </div>
       </div>
     </div>

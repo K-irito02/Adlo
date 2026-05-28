@@ -752,7 +752,7 @@ export function ChangesPanel(props: ChangesPanelProps) {
           onExpandAll={handleExpandAll}
           onCollapseAll={handleCollapseAll}
           totalChangeCount={totalChangeCount}
-          hasChangeEntries={changeEntries.length > 0}
+          hasChangeEntries={totalChangeCount > 0}
           snapshot={snapshot}
           totalChangesStats={totalChangesStats}
           canToggleNavigatorStructure={canToggleNavigatorStructure}

@@ -41,6 +41,7 @@ alwaysApply: false
 | `digital-life://terminal-stream` | 终端流式输出（旧命令执行） |
 | `digital-life://pty-output` | PTY 终端输出（会话对应） |
 | `digital-life://workspace-file-changed` | 工作区文件变更 |
+| `digital-life://browser-url-changed` | 浏览器 WebView URL 变更（Tauri 模式，通过 `on_navigation` 回调） |
 
 ## 新增命令检查清单
 

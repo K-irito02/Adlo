@@ -1,3 +1,4 @@
+use adl_browser::BrowserManager;
 use adl_config::AppConfig;
 use adl_events::EventBus;
 use adl_kernel::WorkspaceMeta;
@@ -15,5 +16,6 @@ pub struct AppState {
     pub current_workspace: Mutex<Option<WorkspaceMeta>>,
     pub editor_dirty_paths: Mutex<HashSet<String>>,
     pub pty_sessions: Arc<Mutex<SessionManager>>,
+    pub browser_manager: BrowserManager,
     pub started_at: i64,
 }

@@ -53,6 +53,7 @@ ai-digital-life/
 | `model-gateway` | DeepSeek / MiniMax 路由 + 流式 |
 | `change-engine` | patch 预览、应用、回滚、checkpoint |
 | `terminal` | 命令执行 + 流式输出 |
+| `browser` | Tauri child WebView 生命周期管理（create/destroy/navigate/goBack/goForward/reload/setBounds/eval） |
 
 ## 前端关键目录
 

@@ -72,5 +72,17 @@ commands.allow = [
   "workspace_delete_file",
   "workspace_duplicate_file",
   "workspace_get_absolute_path",
-  "workspace_move_file"
+  "workspace_move_file",
+  "workspace_get_change_preview",
+  "workspace_hide_from_right_panels",
+  "workspace_show_in_right_panels",
+  "run_activity_list_by_run_id",
+  "browser_create",
+  "browser_destroy",
+  "browser_navigate",
+  "browser_go_back",
+  "browser_go_forward",
+  "browser_reload",
+  "browser_set_bounds",
+  "browser_eval"
 ]

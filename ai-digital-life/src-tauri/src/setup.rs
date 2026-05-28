@@ -1,4 +1,5 @@
 use crate::state::AppState;
+use adl_browser::BrowserManager;
 use adl_events::EventBus;
 use adl_kernel::now_ms;
 use adl_storage::Database;
@@ -54,6 +55,7 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
         current_workspace: std::sync::Mutex::new(current_workspace),
         editor_dirty_paths: std::sync::Mutex::new(std::collections::HashSet::new()),
         pty_sessions: std::sync::Arc::new(std::sync::Mutex::new(SessionManager::new())),
+        browser_manager: BrowserManager::new(),
         started_at: now_ms(),
     })
 }

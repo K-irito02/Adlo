@@ -1,69 +1,51 @@
 # 浏览器工具面板
 
-> 内嵌浏览器面板。
+> 内置浏览器面板，支持双模式：Tauri 桌面模式使用系统 WebView，浏览器预览模式使用 `<iframe>` + 外部浏览器降级按钮。
 
 ## 容器选择器
 
 | 选择器 | 说明 |
 |--------|------|
-| `#browser-panel` | 浏览器面板容器 |
+| `.adl-tool-panel--browser` | 浏览器面板容器 |
 
 ---
 
-## 标签栏
-
-> 浏览器标签栏
+## 工具栏
 
 ### 定位选择器
 
 | 优先级 | 类型 | 选择器 |
 |--------|------|--------|
-| 1 | CSS | `.adl-browser-tabs` |
-
-### 标签项
-
-| 选择器 | 说明 |
-|--------|------|
-| `.adl-browser-tab` | 单个标签 |
-| `.adl-browser-tab.is-active` | 激活标签 |
+| 1 | CSS | `.adl-tool-context--files` |
 
 ### 操作
 
-#### 切换标签
+#### 后退
 
 ```javascript
-await page.click('.adl-browser-tab:not(.is-active)');
+await page.click('button[aria-label="后退"]');
 ```
 
-#### 关闭标签
+#### 前进
 
 ```javascript
-await page.click('.adl-browser-tab__close');
+await page.click('button[aria-label="前进"]');
 ```
 
-#### 新建标签
+#### 刷新
 
 ```javascript
-await page.click('button[aria-label="新建标签"]');
+await page.click('button[aria-label="刷新"]');
 ```
 
----
-
-## 地址栏
-
-> 浏览器地址栏
-
-### 定位选择器
-
-| 优先级 | 类型 | 选择器 |
-|--------|------|--------|
-| 1 | CSS | `.adl-browser-addressbar input` |
-
-### 操作
+#### 地址栏
 
 ```javascript
+// 展开地址栏（需要先展开才能输入）
+await page.click('.adl-tool-search--address');
+
 // 输入 URL
-await page.fill('.adl-browser-addressbar input', 'https://example.com');
+await page.fill('.adl-tool-search--address input', 'https://example.com');
 
 // 按 Enter 导航
 await page.keyboard.press('Enter');
@@ -71,16 +53,49 @@ await page.keyboard.press('Enter');
 
 ---
 
-## 浏览器内容
-
-> 内嵌浏览器内容区域
+## 导航器
 
 ### 定位选择器
 
 | 优先级 | 类型 | 选择器 |
 |--------|------|--------|
-| 1 | CSS | `.adl-browser-content` |
-| 2 | CSS | `webview` | WebView 元素 |
+| 1 | CSS | `.adl-tool-navigator` |
+
+### 标签页
+
+| 选择器 | 说明 |
+|--------|------|
+| `.adl-tool-list__item` | 书签/历史/搜索结果条目 |
+
+### 模式切换
+
+```javascript
+// 书签模式
+await page.click('button[aria-label="收藏标签"]');
+
+// 历史模式
+await page.click('button[aria-label="历史标签"]');
+
+// 搜索模式
+await page.click('button[aria-label="搜索标签"]');
+```
+
+---
+
+## 浏览器内容
+
+### 定位选择器
+
+| 模式 | 选择器 | 说明 |
+|------|--------|------|
+| Tauri 桌面 | `webview[label="adl-browser-view"]` | 系统 WebView 元素 |
+| 浏览器预览 | `.adl-browser-iframe` | iframe 元素 |
+
+### 外部浏览器打开按钮
+
+| 选择器 | 说明 |
+|--------|------|
+| `.adl-browser-external-btn` | 浏览器预览模式下使用，在新标签页打开当前 URL |
 
 ---
 
@@ -88,7 +103,7 @@ await page.keyboard.press('Enter');
 
 | 元素 | 选择器 | 说明 |
 |------|--------|------|
-| 浏览器面板 | `#browser-panel` | 浏览器面板容器 |
-| 标签栏 | `.adl-browser-tabs` | 标签栏 |
-| 地址栏 | `.adl-browser-addressbar` | 地址栏 |
-| 内容区 | `.adl-browser-content` | 浏览器内容 |
+| 浏览器面板 | `.adl-tool-panel--browser` | 浏览器面板容器 |
+| 地址栏 | `.adl-tool-search--address` | 可折叠展开的地址搜索栏 |
+| 内容区 | `.adl-tool-primary--browser` | 浏览器内容容器 |
+| 外部浏览器按钮 | `.adl-browser-external-btn` | 浏览器模式浮动降级按钮 |

@@ -388,6 +388,14 @@ export function setupPreviewBridge(): void {
         return { ok: true, data: repoMapEntriesToTree(status.data?.repoMap ?? []) };
       },
       rebuildIndex: async () => ({ ok: true, data: true })
+    },
+
+    browser: {
+      navigate: async () => {},
+      goBack: async () => true,
+      goForward: async () => true,
+      reload: async () => {},
+      onUrlChanged: () => () => {},
     }
   };
 
