@@ -197,8 +197,9 @@ export function BrowserPanel({ t }: BrowserPanelProps) {
   useEffect(() => {
     if (!isTauriShell()) return;
 
+    const id = activeTab?.id;
     const url = activeTab?.url ?? "about:blank";
-    if (url === "about:blank" || url.trim() === "") return;
+    if (!id || url === "about:blank" || url.trim() === "") return;
 
     if (webViewActiveRef.current) {
       invoke("browser_navigate", { url }).catch((err) => {
