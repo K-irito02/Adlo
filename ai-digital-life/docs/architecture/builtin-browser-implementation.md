@@ -118,7 +118,7 @@
 | 原生 tooltip 显示 | 使用项目自定义 `TooltipSimple` 组件替换 | `BrowserPanel.tsx` |
 | Tauri 模式下无法打开网站 | 移除 `webViewActive` 状态，修复 `browser_set_bounds` 调用时机 | `BrowserPanel.tsx` |
 | Tauri 模式界面无响应 | 移除 WebView 的 `.auto_resize()` 配置，防止覆盖标题栏 | `crates/browser/src/lib.rs` |
-| 变更面板"已暂存\|已修改\|未追踪"区域消失 | 修复 `hasChangeEntries` 计算逻辑，改为检查所有工作区 | `ChangesPanel.tsx` |
+| 变更面板"已暂存\|已修改\|已追踪"区域消失 | 修复 `hasChangeEntries` 计算逻辑，改为检查所有工作区 | `ChangesPanel.tsx` |
 | 标题栏按钮圆角问题 | 为 `.adl-titlebar .adl-iconstrip__button` 添加 `border-radius: 0` | `titlebar.css` |
 | Tauri 模式标题栏按钮点击不工作 | 为 `.adl-titlebar .tooltip-trigger` 添加 `-webkit-app-region: no-drag` 和 `pointer-events: auto` | `titlebar.css` |
 
@@ -138,3 +138,30 @@
 **问题**：`hasChangeEntries` 仅检查当前活动工作区，但统计数字基于所有工作区。
 **解决方案**：统一为检查 `totalChangeCount > 0`，确保显示逻辑一致。
 **关键文件**：`ChangesPanel.tsx`
+
+## 浏览器功能修复（2026-05-28）
+
+### 修复问题清单
+
+| 问题 | 根因 | 修复方案 | 文件 |
+|------|------|----------|------|
+| `browser_create` invoke 永不返回 | Tauri `#[tauri::command]` 默认运行在线程池，`window.add_child()` 在 Windows 下创建 HWND 子窗口必须在主线程 | 改为 `async` 命令，通过 `app.run_on_main_thread()` 分派到主线程，`oneshot::channel` 等待结果 | `src-tauri/src/commands/browser.rs` |
+| React Strict Mode 双重挂载导致 invoke 冲突 | 开发环境下 React 18 mount→unmount→remount，两次 `browser_create` 竞争导致 IPC 序列化混乱 | 引入 `creatingRef` 防止重复调用；`Promise.race` + 10s 超时防止无限挂起；清理时仅在真正的卸载阶段才销毁 WebView | `BrowserPanel.tsx` |
+| WebView 覆盖标题栏导致按钮失效 | `add_child` 使用 `getBoundingClientRect()` 坐标可能错误定位，WebView2 HWND 覆盖 HTML 内容 | WebView 始终创建在屏幕外 `(-10000,-10000)`，创建成功后再通过 `set_bounds` 移动到正确位置 | `crates/browser/src/lib.rs`, `BrowserPanel.tsx` |
+
+### 新增经验教训
+
+#### 9. Tauri Command 的主线程约束
+**问题**：`#[tauri::command]` 默认在线程池执行，`window.add_child()` 在 Windows 上需要创建 HWND，该操作必须在主线程（父窗口消息泵线程）上执行，否则 `CreateCoreWebView2Controller` 无限阻塞。
+**解决方案**：命令改为 `async fn`，使用 `app.run_on_main_thread()` + `tokio::sync::oneshot` 通道将创建操作分派到主线程。
+**关键文件**：`src-tauri/src/commands/browser.rs`
+
+#### 10. React Strict Mode 与 Tauri IPC 的兼容性
+**问题**：React 18 开发模式在 Strict Mode 下 mount→unmount→remount，导致两次 `invoke("browser_create")` 竞争，promise 永不 resolve/reject。
+**解决方案**：使用 `useRef` 追踪创建中的状态（`creatingRef`），防止重复调用；添加 `Promise.race` 超时保护。
+**关键文件**：`BrowserPanel.tsx`
+
+#### 11. Child WebView 初始位置策略
+**问题**：WebView2 子 HWND 无论创建在 `(0,0)/(1,1)` 还是 `(0,0)/(800,600)`，都会在瞬间覆盖父窗口的 HTML 区域，导致标题栏按钮不可点击。
+**解决方案**：始终创建在屏幕外 `(-10000,-10000)`，然后通过异步 `browser_set_bounds` 移动到正确位置。创建与定位分离避免竞态。
+**关键文件**：`crates/browser/src/lib.rs`, `BrowserPanel.tsx`

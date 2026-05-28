@@ -75,6 +75,13 @@
   - **Tauri 特有操作**：WebView 创建/销毁/边界同步通过 `safeInvoke`（`isTauriShell()` 守卫 + 动态 `import()`）
   - **CSP 更新**：`tauri.conf.json` CSP 放宽支持外部资源（img/media/frame/connect-src）
   - **测试验证**：cargo check + 183 前端测试全部通过
+- **第十九轮 — 浏览器 WebView 创建修复**（2026-05-28）：
+  - **修复 3 个关键 bug**：① Tauri Command 主线程约束：`window.add_child()` 创建 HWND 必须在主线程，改为 `async` + `run_on_main_thread()`；② React Strict Mode 双重挂载导致 invoke 永不 resolve，引入 `creatingRef` 防重入 + `Promise.race` 超时；③ WebView2 HWND 覆盖标题栏，改为屏幕外 `(-10000,-10000)` 创建后 `set_bounds` 移动
+  - **Capabilities 增强**：添加 `core:webview:allow-internal-toggle-devtools` 权限，支持 F12 调试
+  - **UI 错误可视化**：在浏览器面板中添加 IPC 错误提示，用户无需打开 DevTools 即可看到失败原因
+  - **核心原则**：child WebView 的 HWND 创建操作必须通过 `app.run_on_main_thread()` 分派到主线程；WebView 初始位置必须为屏幕外，避免覆盖父窗口 HTML 内容
+  - **修改文件**：`src-tauri/src/commands/browser.rs`（async + main thread dispatch）、`BrowserPanel.tsx`（Strict Mode 兼容 + 调试面板）、`crates/browser/src/lib.rs`（屏幕外创建）、`src-tauri/capabilities/default.json`（devtools 权限）
+  - **测试验证**：cargo check + tsc --noEmit 通过
 - **第十六轮 — 终端面板精细化修复**（10+ 项）：
   - **终端导航器 resize handle**：在内联 `<aside>` 中添加 `adl-tool-navigator__resize-handle`，利用已有的 `handleNavigatorResizeStart` 回调实现导航器宽度拖拽调整（如文件/变更面板）
   - **xterm 纯黑背景消除**：多层覆盖 xterm.js 内部 `background:#000`——`.xterm`（`transparent !important`）、`.xterm-viewport`、`.xterm-screen`、`canvas`、`.xterm-scroll-area`；padding 移至 canvas 容器以控制间隙背景为 `var(--bg)`

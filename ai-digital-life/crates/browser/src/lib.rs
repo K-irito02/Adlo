@@ -1,8 +1,9 @@
 use std::sync::Mutex;
 use tauri::Emitter;
 use tauri::Manager;
+use url::Url;
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct Bounds {
     pub x: f64,
     pub y: f64,
@@ -11,6 +12,24 @@ pub struct Bounds {
 }
 
 const BROWSER_WEBVIEW_LABEL: &str = "adl-browser-view";
+
+fn resolve_url(raw: &str) -> Result<Url, String> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() || trimmed.eq_ignore_ascii_case("about:blank") {
+        return Url::parse("data:text/html,<html><body></body></html>")
+            .map_err(|e| format!("invalid url: {e}"));
+    }
+    if let Ok(parsed) = Url::parse(trimmed) {
+        return Ok(parsed);
+    }
+    if !trimmed.contains("://") {
+        let with_scheme = format!("https://{}", trimmed);
+        if let Ok(parsed) = Url::parse(&with_scheme) {
+            return Ok(parsed);
+        }
+    }
+    Err(format!("Cannot parse URL: {}", trimmed))
+}
 
 pub struct BrowserState {
     active: bool,
@@ -50,16 +69,12 @@ impl BrowserManager {
             self.destroy(app)?;
         }
 
-        let target_url = if url.is_empty() { "about:blank" } else { url };
+        let target = resolve_url(url)?;
 
         let app_nav = app.clone();
         let webview_builder = tauri::webview::WebviewBuilder::new(
             BROWSER_WEBVIEW_LABEL,
-            tauri::WebviewUrl::External(
-                target_url
-                    .parse()
-                    .map_err(|e| format!("invalid url: {e}"))?,
-            ),
+            tauri::WebviewUrl::External(target),
         )
         .on_navigation(move |url| {
             let _ = app_nav.emit(
@@ -72,17 +87,18 @@ impl BrowserManager {
         window
             .add_child(
                 webview_builder,
-                tauri::LogicalPosition::new(0, 0),
-                tauri::LogicalSize::new(1, 1),
+                tauri::LogicalPosition::new(-10000.0, -10000.0),
+                tauri::LogicalSize::new(800.0, 600.0),
             )
             .map_err(|e| format!("failed to create webview: {e}"))?;
+
+        tracing::info!(url = url, "browser webview created off-screen");
 
         {
             let mut state = self.state.lock().map_err(|e| format!("lock error: {e}"))?;
             state.active = true;
         }
 
-        tracing::info!(url = target_url, "browser webview created");
         Ok(())
     }
 
@@ -113,13 +129,13 @@ impl BrowserManager {
             .get_webview(BROWSER_WEBVIEW_LABEL)
             .ok_or_else(|| "browser webview not found".to_string())?;
 
-        let target_url = if url.is_empty() { "about:blank" } else { url };
-        let escaped = target_url.replace('\\', "\\\\").replace('\'', "\\'");
-        webview
-            .eval(&format!("window.location.href = '{}';", escaped))
-            .map_err(|e| format!("navigate eval failed: {e}"))?;
+        let target = resolve_url(url)?;
 
-        tracing::info!(url = target_url, "browser navigate");
+        webview
+            .navigate(target)
+            .map_err(|e| format!("navigate failed: {e}"))?;
+
+        tracing::info!(url = url, "browser navigate");
         Ok(())
     }
 

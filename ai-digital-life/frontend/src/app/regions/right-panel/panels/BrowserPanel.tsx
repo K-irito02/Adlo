@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { open as shellOpen } from "@tauri-apps/plugin-shell";
 import {
   IconArrowLeft,
   IconArrowRight,
@@ -52,6 +54,8 @@ function filterBrowserItems<T extends BrowserLookupItem>(items: T[], query: stri
   });
 }
 
+const log = (msg: string) => console.log(`[Browser] ${msg}`);
+
 export function BrowserPanel({ t }: BrowserPanelProps) {
   const [navigatorMode, setNavigatorMode] = useState<BrowserNavigatorMode>("bookmarks");
   const [browserMenuOpen, setBrowserMenuOpen] = useState(false);
@@ -81,8 +85,13 @@ export function BrowserPanel({ t }: BrowserPanelProps) {
     [browserActiveTabId, browserTabs]
   );
   const [address, setAddress] = useState(activeTab?.url ?? "about:blank");
+  const [iframeLoadError, setIframeLoadError] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [iframeHistory, setIframeHistory] = useState<{ index: number; entries: string[] }>({ index: -1, entries: [] });
+  const [webViewActive, setWebViewActive] = useState(false);
+  const webViewActiveRef = useRef(false);
+  const creatingRef = useRef(false);
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
 
   const isBookmarked = browserBookmarks.some((bookmark) => bookmark.url === activeTab?.url);
   const navigatorTitle =
@@ -147,9 +156,114 @@ export function BrowserPanel({ t }: BrowserPanelProps) {
     { id: "zoom-reset", label: t.menuResetZoom, disabled: true }
   ];
 
+  const updateWebViewBounds = useCallback(() => {
+    if (!primaryRef.current || !webViewActiveRef.current) return;
+
+    const rect = primaryRef.current.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return;
+
+    const bounds = {
+      x: Math.round(rect.left),
+      y: Math.round(rect.top),
+      width: Math.round(rect.width),
+      height: Math.round(rect.height)
+    };
+
+    invoke("browser_set_bounds", { bounds }).catch(err => {
+      log(`set_bounds 失败: ${err}`);
+    });
+  }, []);
+
+  const navigateBrowser = useCallback((url: string) => {
+    if (isTauriShell()) {
+      return;
+    }
+    if (iframeRef.current) {
+      setIframeHistory((prev) => {
+        const newEntries = prev.entries.slice(0, prev.index + 1);
+        newEntries.push(url);
+        if (newEntries.length > 50) newEntries.shift();
+        return { index: newEntries.length - 1, entries: newEntries };
+      });
+      iframeRef.current.src = url;
+    }
+  }, []);
+
+  const collapseAddress = () => {
+    addressInputRef.current?.blur();
+    setAddressExpanded(false);
+  };
+
   useEffect(() => {
-    setAddress(activeTab?.url ?? "about:blank");
+    if (!isTauriShell()) return;
+
+    const url = activeTab?.url ?? "about:blank";
+    if (url === "about:blank" || url.trim() === "") return;
+
+    if (webViewActiveRef.current) {
+      invoke("browser_navigate", { url }).catch((err) => {
+        log(`navigate 失败: ${err}`);
+      });
+      return;
+    }
+
+    if (creatingRef.current) return;
+
+    creatingRef.current = true;
+
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("browser_create 超时(10s)")), 10000)
+    );
+
+    Promise.race([invoke("browser_create", { url }), timeout])
+      .then(() => {
+        webViewActiveRef.current = true;
+        creatingRef.current = false;
+        setWebViewActive(true);
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            updateWebViewBounds();
+          });
+        });
+      })
+      .catch((err) => {
+        creatingRef.current = false;
+        log(`browser_create 失败: ${err}`);
+        console.error("Failed to create browser WebView:", err);
+      });
+  }, [activeTab?.id, activeTab?.url, updateWebViewBounds]);
+
+  useEffect(() => {
+    const url = activeTab?.url ?? "about:blank";
+    setAddress(url);
+    setIframeLoadError(false);
   }, [activeTab?.url]);
+
+  useEffect(() => {
+    return () => {
+      if (webViewActiveRef.current) {
+        invoke("browser_destroy").catch(console.error);
+        webViewActiveRef.current = false;
+      }
+      resizeObserverRef.current?.disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isTauriShell() || !primaryRef.current) return;
+
+    resizeObserverRef.current = new ResizeObserver(() => {
+      if (webViewActiveRef.current) {
+        updateWebViewBounds();
+      }
+    });
+
+    resizeObserverRef.current.observe(primaryRef.current);
+
+    return () => {
+      resizeObserverRef.current?.disconnect();
+    };
+  }, [updateWebViewBounds]);
 
   useEffect(() => {
     if (!browserMenuOpen && !addressExpanded && navigatorMode !== "search") {
@@ -190,77 +304,6 @@ export function BrowserPanel({ t }: BrowserPanelProps) {
       navigatorSearchInputRef.current?.select();
     }
   }, [navigatorMode]);
-
-  useEffect(() => {
-    const url = activeTab?.url ?? "about:blank";
-    if (isTauriShell()) {
-      import("@tauri-apps/api/core").then(({ invoke }) => {
-        invoke("browser_create", { url }).catch((err) => console.error("browser_create failed:", err));
-      });
-    }
-    return () => {
-      if (isTauriShell()) {
-        import("@tauri-apps/api/core").then(({ invoke }) => {
-          invoke("browser_destroy").catch((err) => console.error("browser_destroy failed:", err));
-        });
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    if (!isTauriShell()) return;
-    const element = primaryRef.current;
-    if (!element) return;
-    const updateBounds = () => {
-      const rect = primaryRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      import("@tauri-apps/api/core").then(({ invoke }) => {
-        invoke("browser_set_bounds", {
-          bounds: { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
-        }).catch((err) => console.error("browser_set_bounds failed:", err));
-      });
-    };
-    const resizeObserver = new ResizeObserver(() => updateBounds());
-    resizeObserver.observe(element);
-    window.addEventListener("resize", updateBounds);
-    updateBounds();
-    return () => {
-      resizeObserver.disconnect();
-      window.removeEventListener("resize", updateBounds);
-    };
-  }, [primaryRef]);
-
-  useEffect(() => {
-    if (!isTauriShell() || !window.digitalLife?.browser) return;
-    const unlisten = window.digitalLife.browser.onUrlChanged((url: string) => {
-      setAddress(url);
-      browserNavigateActiveTab(url, activeTab?.title);
-    });
-    return () => {
-      unlisten();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const navigateBrowser = useCallback((url: string) => {
-    if (isTauriShell()) {
-      window.digitalLife?.browser?.navigate(url).catch((err) => console.error("browser_navigate failed:", err));
-    } else if (iframeRef.current) {
-      setIframeHistory((prev) => {
-        const newEntries = prev.entries.slice(0, prev.index + 1);
-        newEntries.push(url);
-        if (newEntries.length > 50) newEntries.shift();
-        return { index: newEntries.length - 1, entries: newEntries };
-      });
-      iframeRef.current.src = url;
-    }
-  }, []);
-
-  const collapseAddress = () => {
-    addressInputRef.current?.blur();
-    setAddressExpanded(false);
-  };
 
   const submitAddress = () => {
     const input = address.trim();
@@ -306,7 +349,7 @@ export function BrowserPanel({ t }: BrowserPanelProps) {
               className="adl-tool-context__iconbtn"
               onClick={() => {
                 if (isTauriShell()) {
-                  window.digitalLife?.browser?.goBack().catch((err) => console.error("browser_go_back failed:", err));
+                  invoke("browser_go_back").catch((err) => console.error("browser_go_back failed:", err));
                 } else if (iframeRef.current) {
                   setIframeHistory((prev) => {
                     if (prev.index <= 0) return prev;
@@ -327,7 +370,7 @@ export function BrowserPanel({ t }: BrowserPanelProps) {
               className="adl-tool-context__iconbtn"
               onClick={() => {
                 if (isTauriShell()) {
-                  window.digitalLife?.browser?.goForward().catch((err) => console.error("browser_go_forward failed:", err));
+                  invoke("browser_go_forward").catch((err) => console.error("browser_go_forward failed:", err));
                 } else if (iframeRef.current) {
                   setIframeHistory((prev) => {
                     if (prev.index >= prev.entries.length - 1) return prev;
@@ -348,7 +391,7 @@ export function BrowserPanel({ t }: BrowserPanelProps) {
               className="adl-tool-context__iconbtn"
               onClick={() => {
                 if (isTauriShell()) {
-                  window.digitalLife?.browser?.reload().catch((err) => console.error("browser_reload failed:", err));
+                  invoke("browser_reload").catch((err) => console.error("browser_reload failed:", err));
                 } else if (iframeRef.current?.contentWindow) {
                   iframeRef.current.contentWindow.location.reload();
                 }
@@ -602,35 +645,51 @@ export function BrowserPanel({ t }: BrowserPanelProps) {
 
         <div className="adl-tool-primary adl-tool-primary--browser" ref={primaryRef}>
           <div className="adl-tool-primary__scroll adl-tool-primary__scroll--browser" />
-          {!isTauriShell() && activeTab && activeTab.url !== "about:blank" ? (
+
+          {activeTab && activeTab.url !== "about:blank" ? (
             <>
-              <iframe
-                ref={iframeRef}
-                src={activeTab.url}
-                className="adl-browser-iframe"
-                title={activeTab.title}
-              />
-              <a
-                href={activeTab?.url ?? "about:blank"}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="adl-browser-external-btn"
+              {!isTauriShell() && (
+                <iframe
+                  ref={iframeRef}
+                  src={activeTab.url}
+                  className="adl-browser-iframe"
+                  title={activeTab.title}
+                  onLoad={() => setIframeLoadError(false)}
+                  onError={() => setIframeLoadError(true)}
+                />
+              )}
+
+              {!isTauriShell() && iframeLoadError && (
+                <div className="adl-browser-error-container">
+                  <p className="adl-browser-error-text">
+                    该网站无法在嵌入式视图中打开，这通常是由于网站的安全策略导致的。
+                  </p>
+                </div>
+              )}
+
+              <button
+                type="button"
+                className={`adl-browser-external-btn ${iframeLoadError ? 'adl-browser-external-btn--prominent' : ''}`}
                 title={t.browserOpenExternal}
-                onClick={(e) => {
+                onClick={() => {
                   const url = activeTab?.url ?? "about:blank";
                   if (isTauriShell()) {
-                    e.preventDefault();
-                    import("@tauri-apps/plugin-shell").then(({ open: shellOpen }) => shellOpen(url));
+                    shellOpen(url).catch(err => console.error("Failed to open external browser:", err));
                   } else if ((window as any).trae?.openExternal) {
-                    e.preventDefault();
                     (window as any).trae.openExternal(url);
+                  } else {
+                    window.open(url, "_blank", "noopener,noreferrer");
                   }
                 }}
               >
                 {t.browserOpenExternal}
-              </a>
+              </button>
             </>
-          ) : null}
+          ) : (
+            <p className="adl-empty-hint" style={{ padding: 16, textAlign: "center" }}>
+              {t.browserStartPage || "输入网址开始浏览"}
+            </p>
+          )}
         </div>
       </div>
     </div>

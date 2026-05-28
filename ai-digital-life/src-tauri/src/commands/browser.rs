@@ -1,10 +1,20 @@
 use crate::state::AppState;
 use adl_browser::Bounds;
-use tauri::State;
+use tauri::{Manager, State};
 
 #[tauri::command]
-pub fn browser_create(app: tauri::AppHandle, state: State<'_, AppState>, url: String) -> Result<(), String> {
-    state.browser_manager.create(&app, &url)
+pub async fn browser_create(app: tauri::AppHandle, url: String) -> Result<(), String> {
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    let app_inner = app.clone();
+
+    app.run_on_main_thread(move || {
+        let state = app_inner.state::<AppState>();
+        let result = state.browser_manager.create(&app_inner, &url);
+        let _ = tx.send(result);
+    })
+    .map_err(|e| format!("main thread dispatch failed: {e}"))?;
+
+    rx.await.map_err(|e| format!("creation channel error: {e}"))?
 }
 
 #[tauri::command]
