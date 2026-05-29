@@ -33,10 +33,13 @@ export function BookmarkTabDialog({
       setCreateNewFolder(false);
       setNewFolderName("");
       setLoading(false);
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (open && createNewFolder) {
       requestAnimationFrame(() => {
-        if (createNewFolder) {
-          inputRef.current?.focus();
-        }
+        inputRef.current?.focus();
       });
     }
   }, [open, createNewFolder]);

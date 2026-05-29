@@ -1,6 +1,6 @@
 import React from "react";
 import { createPortal } from "react-dom";
-import { IconPin, IconPinOff, IconEdit, IconTrash, IconGlobe, IconCopy } from "../../icons";
+import { IconPin, IconPinOff, IconEdit, IconTrash, IconGlobe, IconCopy, IconCut } from "../../icons";
 import type { CopyDict } from "../../copy";
 import type { ContextMenuState } from "./useBrowserContextMenu";
 
@@ -104,7 +104,7 @@ export function BrowserContextMenu({
         onClick={onCut}
       >
         <span className="adl-sidebar-menu__icon">
-          <IconCopy size={16} decorative />
+          <IconCut size={16} decorative />
         </span>
         <span>剪切</span>
       </button>
