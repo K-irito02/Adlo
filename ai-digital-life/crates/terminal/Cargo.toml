@@ -1,8 +1,0 @@
-[package]
-name = "adl-terminal"
-version.workspace = true
-edition.workspace = true
-
-[dependencies]
-adl-command = { path = "../command" }
-adl-pty = { path = "../pty" }

@@ -60,7 +60,6 @@ export const RIGHT_PANEL_WIDTH_KEY = "adl-ui:right-panel-width";
 export const FILES_NAVIGATOR_WIDTH_KEY = "adl-ui:files-navigator-width";
 export const CHANGES_NAVIGATOR_WIDTH_KEY = "adl-ui:changes-navigator-width";
 export const BROWSER_NAVIGATOR_WIDTH_KEY = "adl-ui:browser-navigator-width";
-const TERMINAL_NAVIGATOR_WIDTH_KEY = "adl-ui:terminal-navigator-width";
 const NAVIGATOR_COLLAPSED_KEY = "adl-ui:navigator-collapsed";
 const FILE_TREE_EXPANDED_KEY = "adl-ui:file-tree-expanded";
 const CHANGES_TREE_EXPANDED_KEY = "adl-ui:changes-tree-expanded";
@@ -72,9 +71,6 @@ const BROWSER_TABS_KEY = "adl-ui:browser-tabs";
 const BROWSER_ACTIVE_TAB_KEY = "adl-ui:browser-active-tab";
 const BROWSER_BOOKMARKS_KEY = "adl-ui:browser-bookmarks";
 const BROWSER_HISTORY_KEY = "adl-ui:browser-history";
-const TERMINAL_TABS_KEY = "adl-ui:terminal-tabs";
-const TERMINAL_ACTIVE_TAB_KEY = "adl-ui:terminal-active-tab";
-const TERMINAL_DEFAULT_PROFILE_KEY = "adl-ui:terminal-default-profile";
 const deferredJsonWriteHandles = new Map<string, number>();
 
 export const RIGHT_PANEL_WIDTH_MIN = 320;
@@ -89,9 +85,6 @@ export const DEFAULT_CHANGES_NAVIGATOR_WIDTH = 240;
 export const BROWSER_NAVIGATOR_WIDTH_MIN = 180;
 export const BROWSER_NAVIGATOR_WIDTH_MAX = 300;
 export const DEFAULT_BROWSER_NAVIGATOR_WIDTH = 240;
-const TERMINAL_NAVIGATOR_WIDTH_MIN = 180;
-const TERMINAL_NAVIGATOR_WIDTH_MAX = 300;
-const DEFAULT_TERMINAL_NAVIGATOR_WIDTH = 240;
 const TOOL_IDS: ToolId[] = ["files", "changes", "browser", "terminal", "audit", "settings", "models"];
 
 function createUiId(prefix: string): string {
@@ -290,42 +283,8 @@ function normalizeBrowserTabs(tabs: BrowserTabState[]): BrowserTabState[] {
   return tabs.length > 0 ? tabs : defaultBrowserTabs();
 }
 
-function defaultTerminalTabs(): TerminalTabState[] {
-  return [];
-}
-
-function normalizeTerminalTabs(tabs: TerminalTabState[]): TerminalTabState[] {
-  return tabs;
-}
-
-function sortTabs(tabs: TerminalTabState[]): TerminalTabState[] {
-  return [...tabs].sort((a, b) => {
-    if (a.isPinned !== b.isPinned) {
-      return a.isPinned ? -1 : 1;
-    }
-    return a.sortOrder - b.sortOrder;
-  });
-}
-
-function deriveTerminalTitle(profile: TerminalProfile, count: number): string {
-  const label = profile === "powershell" ? "PowerShell" : profile === "bash" ? "Bash" : "CMD";
-  return count > 1 ? `${label} ${count}` : label;
-}
-
 export interface UiState {
-  /** @deprecated Use uiSlice.leftCollapsed via useAppStore */
-  leftCollapsed: boolean;
-  /** @deprecated Use uiSlice.rightCollapsed via useAppStore */
-  rightCollapsed: boolean;
   activeRightTool: ToolId;
-  /** @deprecated Use uiSlice.rightPanelWidth via useAppStore */
-  rightPanelWidth: number;
-  /** @deprecated Use uiSlice.filesNavigatorWidth via useAppStore */
-  filesNavigatorWidth: number;
-  /** @deprecated Use uiSlice.changesNavigatorWidth via useAppStore */
-  changesNavigatorWidth: number;
-  /** @deprecated Use uiSlice.browserNavigatorWidth via useAppStore */
-  browserNavigatorWidth: number;
   terminalNavigatorWidth: number;
   navigatorCollapsedByTool: Record<ToolId, boolean>;
   expandedFileTreePaths: Record<string, Record<string, boolean>>;
@@ -339,12 +298,6 @@ export interface UiState {
   browserActiveTabId: string;
   browserBookmarks: BrowserBookmark[];
   browserHistory: BrowserHistoryEntry[];
-  /** @deprecated Use terminalTabs from terminalSlice (stores/slices/terminalSlice.ts) instead */
-  terminalTabs: TerminalTabState[];
-  /** @deprecated Use terminalActiveTabId from terminalSlice (stores/slices/terminalSlice.ts) instead */
-  terminalActiveTabId: string;
-  /** @deprecated Use defaultTerminalProfile from terminalSlice (stores/slices/terminalSlice.ts) instead */
-  defaultTerminalProfile: TerminalProfile;
   chatMode: ChatMode;
   contextChips: ContextChip[];
   contextMenuOpen: boolean;
@@ -355,21 +308,7 @@ export interface UiState {
   settingsSearchQuery: string;
   setActiveSettingsGroup: (group: SettingsGroupId) => void;
   setSettingsSearchQuery: (query: string) => void;
-  /** @deprecated Use uiSlice.toggleLeft via useAppStore */
-  toggleLeft: () => void;
-  /** @deprecated Use uiSlice.toggleRight via useAppStore */
-  toggleRight: () => void;
-  /** @deprecated Use uiSlice.toggleBoth via useAppStore */
-  toggleBoth: () => void;
   setActiveRightTool: (tool: ToolId) => void;
-  /** @deprecated Use uiSlice.setRightPanelWidth via useAppStore */
-  setRightPanelWidth: (width: number) => void;
-  /** @deprecated Use uiSlice.setFilesNavigatorWidth via useAppStore */
-  setFilesNavigatorWidth: (width: number) => void;
-  /** @deprecated Use uiSlice.setChangesNavigatorWidth via useAppStore */
-  setChangesNavigatorWidth: (width: number) => void;
-  /** @deprecated Use uiSlice.setBrowserNavigatorWidth via useAppStore */
-  setBrowserNavigatorWidth: (width: number) => void;
   setTerminalNavigatorWidth: (width: number) => void;
   setNavigatorCollapsed: (tool: ToolId, collapsed: boolean) => void;
   toggleNavigator: (tool: ToolId) => void;
@@ -401,64 +340,17 @@ export interface UiState {
   browserNavigateActiveTab: (url: string, title?: string) => void;
   browserToggleBookmark: (input?: { url?: string; title?: string }) => void;
   browserClearHistory: () => void;
-  /** @deprecated Use terminalCreateTab from terminalSlice (stores/slices/terminalSlice.ts) instead */
-  terminalCreateTab: (profile?: TerminalProfile) => void;
-  /** @deprecated Use terminalSelectTab from terminalSlice (stores/slices/terminalSlice.ts) instead */
-  terminalSelectTab: (tabId: string) => void;
-  /** @deprecated Use terminalCloseTab from terminalSlice (stores/slices/terminalSlice.ts) instead */
-  terminalCloseTab: (tabId: string) => void;
-  /** @deprecated Use terminalUpdateActiveTab from terminalSlice (stores/slices/terminalSlice.ts) instead */
-  terminalUpdateActiveTab: (patch: Partial<Omit<TerminalTabState, "id">>) => void;
-  /** @deprecated Use terminalUpdateTab from terminalSlice (stores/slices/terminalSlice.ts) instead */
-  terminalUpdateTab: (tabId: string, patch: Partial<Omit<TerminalTabState, "id">>) => void;
-  /** @deprecated Use terminalTogglePin from terminalSlice (stores/slices/terminalSlice.ts) instead */
-  terminalTogglePin: (tabId: string) => void;
-  /** @deprecated Use terminalReorderTabs from terminalSlice (stores/slices/terminalSlice.ts) instead */
-  terminalReorderTabs: (newOrder: TerminalTabState[]) => void;
-  /** @deprecated Use terminalCloseAllTabs from terminalSlice (stores/slices/terminalSlice.ts) instead */
-  terminalCloseAllTabs: () => void;
-  /** @deprecated Use setDefaultTerminalProfile from terminalSlice (stores/slices/terminalSlice.ts) instead */
-  setDefaultTerminalProfile: (profile: TerminalProfile) => void;
 }
 
 const initialBrowserTabs = normalizeBrowserTabs(readJson<BrowserTabState[]>(BROWSER_TABS_KEY, []));
-const initialTerminalTabs: TerminalTabState[] = [];
-try { localStorage.removeItem(TERMINAL_TABS_KEY); } catch {}
-try { localStorage.removeItem(TERMINAL_ACTIVE_TAB_KEY); } catch {}
 const initialNavigatorCollapsed = {
   ...defaultNavigatorCollapsed(),
   ...readJson<Record<ToolId, boolean>>(NAVIGATOR_COLLAPSED_KEY, defaultNavigatorCollapsed())
 };
 
 export const useUiStore = create<UiState>((set) => ({
-  leftCollapsed: readFlag(LEFT_COLLAPSED_KEY, false),
-  rightCollapsed: readFlag(RIGHT_COLLAPSED_KEY, false),
   activeRightTool: readRightTool(),
-  rightPanelWidth: readNumber(RIGHT_PANEL_WIDTH_KEY, DEFAULT_RIGHT_PANEL_WIDTH, RIGHT_PANEL_WIDTH_MIN, RIGHT_PANEL_WIDTH_MAX),
-  filesNavigatorWidth: readNumber(
-    FILES_NAVIGATOR_WIDTH_KEY,
-    DEFAULT_FILES_NAVIGATOR_WIDTH,
-    FILES_NAVIGATOR_WIDTH_MIN,
-    FILES_NAVIGATOR_WIDTH_MAX
-  ),
-  changesNavigatorWidth: readNumber(
-    CHANGES_NAVIGATOR_WIDTH_KEY,
-    DEFAULT_CHANGES_NAVIGATOR_WIDTH,
-    CHANGES_NAVIGATOR_WIDTH_MIN,
-    CHANGES_NAVIGATOR_WIDTH_MAX
-  ),
-  browserNavigatorWidth: readNumber(
-    BROWSER_NAVIGATOR_WIDTH_KEY,
-    DEFAULT_BROWSER_NAVIGATOR_WIDTH,
-    BROWSER_NAVIGATOR_WIDTH_MIN,
-    BROWSER_NAVIGATOR_WIDTH_MAX
-  ),
-  terminalNavigatorWidth: readNumber(
-    TERMINAL_NAVIGATOR_WIDTH_KEY,
-    DEFAULT_TERMINAL_NAVIGATOR_WIDTH,
-    TERMINAL_NAVIGATOR_WIDTH_MIN,
-    TERMINAL_NAVIGATOR_WIDTH_MAX
-  ),
+  terminalNavigatorWidth: 240,
   navigatorCollapsedByTool: initialNavigatorCollapsed,
   expandedFileTreePaths: readJson<Record<string, Record<string, boolean>>>(FILE_TREE_EXPANDED_KEY, {}),
   expandedChangesTreePaths: readJson<Record<string, boolean>>(CHANGES_TREE_EXPANDED_KEY, {}),
@@ -471,9 +363,6 @@ export const useUiStore = create<UiState>((set) => ({
   browserActiveTabId: readJson<string | null>(BROWSER_ACTIVE_TAB_KEY, null) ?? initialBrowserTabs[0].id,
   browserBookmarks: readJson<BrowserBookmark[]>(BROWSER_BOOKMARKS_KEY, []),
   browserHistory: readJson<BrowserHistoryEntry[]>(BROWSER_HISTORY_KEY, []),
-  terminalTabs: initialTerminalTabs,
-  terminalActiveTabId: "",
-  defaultTerminalProfile: readJson<TerminalProfile>(TERMINAL_DEFAULT_PROFILE_KEY, "powershell"),
   chatMode: "ask",
   contextChips: [],
   contextMenuOpen: false,
@@ -482,53 +371,12 @@ export const useUiStore = create<UiState>((set) => ({
   helpMenuOpen: false,
   activeSettingsGroup: "general",
   settingsSearchQuery: "",
-  toggleLeft: () =>
-    set((state) => {
-      const next = !state.leftCollapsed;
-      writeFlag(LEFT_COLLAPSED_KEY, next);
-      return { leftCollapsed: next };
-    }),
-  toggleRight: () =>
-    set((state) => {
-      const next = !state.rightCollapsed;
-      writeFlag(RIGHT_COLLAPSED_KEY, next);
-      return { rightCollapsed: next };
-    }),
-  toggleBoth: () =>
-    set((state) => {
-      const next = !(state.leftCollapsed && state.rightCollapsed);
-      writeFlag(LEFT_COLLAPSED_KEY, next);
-      writeFlag(RIGHT_COLLAPSED_KEY, next);
-      return { leftCollapsed: next, rightCollapsed: next };
-    }),
   setActiveRightTool: (tool) => {
     writeRightTool(tool);
-    set({ activeRightTool: tool, rightCollapsed: false });
+    set({ activeRightTool: tool });
   },
-  setRightPanelWidth: (width) => {
-    const next = clamp(width, RIGHT_PANEL_WIDTH_MIN, RIGHT_PANEL_WIDTH_MAX);
-    writeNumber(RIGHT_PANEL_WIDTH_KEY, next);
-    set({ rightPanelWidth: next });
-  },
-  setFilesNavigatorWidth: (width) => {
-    const next = clamp(width, FILES_NAVIGATOR_WIDTH_MIN, FILES_NAVIGATOR_WIDTH_MAX);
-    writeNumber(FILES_NAVIGATOR_WIDTH_KEY, next);
-    set({ filesNavigatorWidth: next });
-  },
-  setChangesNavigatorWidth: (width) => {
-    const next = clamp(width, CHANGES_NAVIGATOR_WIDTH_MIN, CHANGES_NAVIGATOR_WIDTH_MAX);
-    writeNumber(CHANGES_NAVIGATOR_WIDTH_KEY, next);
-    set({ changesNavigatorWidth: next });
-  },
-  setBrowserNavigatorWidth: (width) => {
-    const next = clamp(width, BROWSER_NAVIGATOR_WIDTH_MIN, BROWSER_NAVIGATOR_WIDTH_MAX);
-    writeNumber(BROWSER_NAVIGATOR_WIDTH_KEY, next);
-    set({ browserNavigatorWidth: next });
-  },
-  setTerminalNavigatorWidth: (width) => {
-    const next = clamp(width, TERMINAL_NAVIGATOR_WIDTH_MIN, TERMINAL_NAVIGATOR_WIDTH_MAX);
-    writeNumber(TERMINAL_NAVIGATOR_WIDTH_KEY, next);
-    set({ terminalNavigatorWidth: next });
+  setTerminalNavigatorWidth: (_width) => {
+    // No-op, now handled by uiSlice
   },
   setNavigatorCollapsed: (tool, collapsed) =>
     set((state) => {
@@ -750,94 +598,5 @@ export const useUiStore = create<UiState>((set) => ({
   browserClearHistory: () => {
     writeJson(BROWSER_HISTORY_KEY, []);
     set({ browserHistory: [] });
-  },
-  terminalCreateTab: (profile = "powershell") =>
-    set((state) => {
-      const existingCount = state.terminalTabs.filter((tab) => tab.profile === profile).length + 1;
-      const maxSortOrder = state.terminalTabs.length > 0 ? Math.max(...state.terminalTabs.map(t => t.sortOrder)) : 0;
-      const tab: TerminalTabState = {
-        id: createUiId("terminal"),
-        title: deriveTerminalTitle(profile, existingCount),
-        profile,
-        status: "idle",
-        isPinned: false,
-        sortOrder: maxSortOrder + 1
-      };
-      const nextTabs = sortTabs([...state.terminalTabs, tab]);
-      writeJson(TERMINAL_TABS_KEY, nextTabs);
-      writeJson(TERMINAL_ACTIVE_TAB_KEY, tab.id);
-      return { terminalTabs: nextTabs, terminalActiveTabId: tab.id };
-    }),
-  terminalSelectTab: (tabId) => {
-    writeJson(TERMINAL_ACTIVE_TAB_KEY, tabId);
-    set({ terminalActiveTabId: tabId });
-  },
-  terminalCloseTab: (tabId) =>
-    set((state) => {
-      const filtered = state.terminalTabs.filter((tab) => tab.id !== tabId);
-      const nextTabs = sortTabs(filtered);
-      const nextActive =
-        state.terminalActiveTabId === tabId
-          ? nextTabs[nextTabs.length - 1]?.id ?? ""
-          : state.terminalActiveTabId;
-      writeJson(TERMINAL_TABS_KEY, nextTabs);
-      writeJson(TERMINAL_ACTIVE_TAB_KEY, nextActive);
-      return {
-        terminalTabs: nextTabs,
-        terminalActiveTabId: nextActive
-      };
-    }),
-  terminalUpdateActiveTab: (patch) =>
-    set((state) => {
-      const nextTabs = sortTabs(state.terminalTabs.map((tab) =>
-        tab.id === state.terminalActiveTabId ? { ...tab, ...patch } : tab
-      ));
-      writeJson(TERMINAL_TABS_KEY, nextTabs);
-      return { terminalTabs: nextTabs };
-    }),
-  terminalUpdateTab: (tabId, patch) =>
-    set((state) => {
-      const nextTabs = sortTabs(state.terminalTabs.map((tab) =>
-        tab.id === tabId ? { ...tab, ...patch } : tab
-      ));
-      writeJson(TERMINAL_TABS_KEY, nextTabs);
-      return { terminalTabs: nextTabs };
-    }),
-  terminalTogglePin: (tabId) =>
-    set((state) => {
-      const nextTabs = sortTabs(state.terminalTabs.map((tab) => {
-        if (tab.id === tabId) {
-          return {
-            ...tab,
-            isPinned: !tab.isPinned,
-            pinnedAt: !tab.isPinned ? Date.now() : undefined
-          };
-        }
-        return tab;
-      }));
-      writeJson(TERMINAL_TABS_KEY, nextTabs);
-      return { terminalTabs: nextTabs };
-    }),
-  terminalReorderTabs: (newOrder) =>
-    set((state) => {
-      const pinnedTabs = newOrder.filter(t => t.isPinned);
-      const unpinnedTabs = newOrder.filter(t => !t.isPinned);
-
-      const reorderedWithSort = [...pinnedTabs, ...unpinnedTabs].map((tab, index) => ({
-        ...tab,
-        sortOrder: index
-      }));
-
-      writeJson(TERMINAL_TABS_KEY, reorderedWithSort);
-      return { terminalTabs: reorderedWithSort };
-    }),
-  terminalCloseAllTabs: () => {
-    writeJson(TERMINAL_TABS_KEY, []);
-    writeJson(TERMINAL_ACTIVE_TAB_KEY, "");
-    set({ terminalTabs: [], terminalActiveTabId: "" });
-  },
-  setDefaultTerminalProfile: (profile) => {
-    writeJson(TERMINAL_DEFAULT_PROFILE_KEY, profile);
-    set({ defaultTerminalProfile: profile });
   }
 }));

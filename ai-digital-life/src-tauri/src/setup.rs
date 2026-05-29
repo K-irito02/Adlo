@@ -3,7 +3,7 @@ use adl_browser::BrowserManager;
 use adl_events::EventBus;
 use adl_kernel::now_ms;
 use adl_storage::Database;
-use adl_terminal::session_manager::SessionManager;
+use adl_pty::SessionManager;
 use anyhow::Context;
 use std::path::PathBuf;
 use tauri::Manager;

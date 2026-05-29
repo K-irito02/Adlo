@@ -1,6 +1,7 @@
 use crate::commands::ipc;
 use crate::error::CommandError;
 use crate::state::AppState;
+use adl_command::{run_command, validation_command};
 use adl_errors::AppError;
 use adl_kernel::{IpcResult, PatchApplicationResult, PatchHunkDecision, PatchSet, PatchSetStatus};
 use adl_storage::EntityTable;
@@ -230,7 +231,7 @@ async fn apply_patch_set_inner(
     );
 
     let command_request =
-        adl_terminal::validation_command(root, &workspace.id, patch_set.run_id.clone());
+        validation_command(root, &workspace.id, patch_set.run_id.clone());
     if let Some(run_id) = &patch_set.run_id {
         if let Some(detail) = crate::commands::agent::load_run_detail(state, run_id)? {
             crate::commands::agent::save_run_detail(
@@ -240,7 +241,7 @@ async fn apply_patch_set_inner(
         }
     }
     let command_result = if let Some(request) = command_request {
-        Some(adl_terminal::run_command(root, request, Some(120)).await?)
+        Some(run_command(root, request, Some(120)).await?)
     } else {
         None
     };

@@ -10,7 +10,6 @@ import { MODEL_PROVIDER_IDS } from "../constants";
 import { WorkspaceSplitButton } from "../components/WorkspaceSplitButton";
 import {
   IconArrowUp,
-  IconBrain,
   IconFolder,
   IconFolderOpen,
   IconLightbulb,
@@ -22,10 +21,9 @@ import {
   IconStopCircle,
   IconShield
 } from "../icons";
-import { MessageBlocks } from "../MessageBlocks";
 import { ContextBuilderPopover } from "../components/conversation/ContextBuilderPopover";
-import { RunSummaryBlock } from "../components/conversation/RunSummaryBlock";
 import { ApprovalCard } from "../components/approval/ApprovalCard";
+import { MessageStream } from "../components/MessageStream";
 import { useAppStore } from "../stores/slicedStore";
 import { useAppActions } from "../hooks/useAppActions";
 import { useUiStore } from "../ui-store";
@@ -83,7 +81,6 @@ export function CenterPane({ t }: CenterPaneProps) {
   const [draft, setDraft] = useState("");
   const [hasError, setHasError] = useState(false);
   const [composerFocused, setComposerFocused] = useState(false);
-  const streamRef = useRef<HTMLDivElement | null>(null);
   const composerEditorRef = useRef<HTMLDivElement | null>(null);
   const composerInputRef = useRef<HTMLDivElement | null>(null);
   const composerCaretRef = useRef<HTMLSpanElement | null>(null);
@@ -108,15 +105,11 @@ export function CenterPane({ t }: CenterPaneProps) {
   );
 
   const messages = activeDetail?.messages ?? [];
-  const visibleMessages = useMemo(
-    () => messages.filter((message) => message.id !== "message-welcome"),
-    [messages]
-  );
 
   useEffect(() => {
     // Best-effort prefetch for replay: only when we see assistant messages with runId.
     const runIds = new Set<string>();
-    for (const msg of visibleMessages) {
+    for (const msg of messages) {
       if (msg.role === "assistant" && msg.runId) {
         runIds.add(msg.runId);
       }
@@ -124,21 +117,7 @@ export function CenterPane({ t }: CenterPaneProps) {
     runIds.forEach((runId) => {
       void fetchRunActivityByRunId(runId, 500);
     });
-  }, [fetchRunActivityByRunId, visibleMessages]);
-
-  useEffect(() => {
-    const el = streamRef.current;
-    if (!el) return;
-    if (streamingAssistantText) {
-      // Incremental streaming: 使用即时滚动避免卡顿
-      el.scrollTop = el.scrollHeight;
-    } else if (typeof el.scrollTo === "function") {
-      // 用户操作（新消息）：使用平滑滚动
-      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-    } else {
-      el.scrollTop = el.scrollHeight;
-    }
-  }, [visibleMessages.length, streamingAssistantText]);
+  }, [fetchRunActivityByRunId, messages]);
 
   const buttonState: ButtonState = useMemo(() => {
     if (streamingActiveRunId) return "stop";
@@ -247,7 +226,7 @@ export function CenterPane({ t }: CenterPaneProps) {
     window.requestAnimationFrame(updateCustomCaret);
   }, [updateCustomCaret]);
 
-  const hasMessages = visibleMessages.length > 0 || !!streamingAssistantText;
+  const hasMessages = messages.filter(m => m.id !== "message-welcome").length > 0 || !!streamingAssistantText;
 
   return (
     <section className="adl-center" aria-label={t.conversation}>
@@ -265,7 +244,7 @@ export function CenterPane({ t }: CenterPaneProps) {
       ) : null}
 
       {/* Region 8 / 9: Main stream area */}
-      <div className={`adl-center__body${!activeDetail || !hasMessages ? " adl-center__body--empty" : ""}`} ref={streamRef}>
+      <div className={`adl-center__body${!activeDetail || !hasMessages ? " adl-center__body--empty" : ""}`}>
         {!activeDetail || !hasMessages ? (
           <div className="adl-center__empty">
             <WelcomeState
@@ -278,62 +257,17 @@ export function CenterPane({ t }: CenterPaneProps) {
             />
           </div>
         ) : (
-          <div className="adl-message-stream">
-            {visibleMessages.map((messageItem) => (
-              <React.Fragment key={messageItem.id}>
-                <article className={`adl-message adl-message--${messageItem.role}`}>
-                  <header>
-                    <strong>{messageItem.role}</strong>
-                    <time>
-                      {new Date(messageItem.createdAt).toLocaleTimeString(locale, {
-                        hour: "2-digit",
-                        minute: "2-digit"
-                      })}
-                    </time>
-                  </header>
-                  <p>{messageItem.content}</p>
-                  <MessageBlocks message={messageItem} t={t} />
-                </article>
-                {messageItem.role === "assistant" && messageItem.runId ? (
-                  <RunSummaryBlock
-                    t={t}
-                    runId={messageItem.runId}
-                    run={activeRun?.run.id === messageItem.runId ? activeRun : undefined}
-                    events={runActivityByRunId[messageItem.runId] ?? []}
-                    usage={runUsageByRunId[messageItem.runId]}
-                    defaultExpanded={false}
-                  />
-                ) : null}
-              </React.Fragment>
-            ))}
-            {activeRun?.run.status === "waiting-approval" && (
-              <div className="adl-center__approval-hint">
-                <IconShield size={14} decorative />
-                <span>{t.approvalWaitingHint}</span>
-              </div>
-            )}
-            {streamingAssistantText ? (
-              <article className="adl-message adl-message--assistant adl-message--streaming">
-                <header>
-                  <strong>assistant</strong>
-                  <span className="adl-agent-status adl-agent-status--processing">
-                    <IconBrain size={12} decorative />
-                    {t.agentGenerating}
-                  </span>
-                </header>
-                <p>{streamingAssistantText}</p>
-              </article>
-            ) : null}
-            {streamingActiveRunId ? (
-              <RunSummaryBlock
-                t={t}
-                runId={streamingActiveRunId}
-                events={runActivityByRunId[streamingActiveRunId] ?? []}
-                usage={runUsageByRunId[streamingActiveRunId]}
-                defaultExpanded
-              />
-            ) : null}
-          </div>
+          <MessageStream
+            messages={messages}
+            t={t}
+            streamingText={streamingAssistantText}
+            isStreaming={!!streamingAssistantText}
+            activeRun={activeRun}
+            streamingActiveRunId={streamingActiveRunId}
+            runActivityByRunId={runActivityByRunId}
+            runUsageByRunId={runUsageByRunId}
+            locale={locale}
+          />
         )}
       </div>
 

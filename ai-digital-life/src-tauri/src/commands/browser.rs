@@ -23,6 +23,16 @@ pub fn browser_destroy(app: tauri::AppHandle, state: State<'_, AppState>) -> Res
 }
 
 #[tauri::command]
+pub fn browser_hide(app: tauri::AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+    state.browser_manager.hide(&app)
+}
+
+#[tauri::command]
+pub fn browser_show(app: tauri::AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+    state.browser_manager.show(&app)
+}
+
+#[tauri::command]
 pub fn browser_navigate(app: tauri::AppHandle, state: State<'_, AppState>, url: String) -> Result<(), String> {
     state.browser_manager.navigate(&app, &url)
 }

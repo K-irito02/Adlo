@@ -3,7 +3,7 @@ use adl_config::AppConfig;
 use adl_events::EventBus;
 use adl_kernel::WorkspaceMeta;
 use adl_storage::Database;
-use adl_terminal::session_manager::SessionManager;
+use adl_pty::SessionManager;
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};

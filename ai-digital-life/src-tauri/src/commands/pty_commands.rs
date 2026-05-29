@@ -4,7 +4,7 @@ use crate::state::AppState;
 use crate::terminal::TauriEventEmitter;
 use adl_errors::AppError;
 use adl_kernel::IpcResult;
-use adl_terminal::session_manager::PtySessionInfo;
+use adl_pty::PtySessionInfo;
 use std::path::PathBuf;
 
 #[derive(Debug, serde::Deserialize)]

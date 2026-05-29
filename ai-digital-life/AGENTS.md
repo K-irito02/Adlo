@@ -127,6 +127,15 @@
     - 创建 BookmarkTabDialog 组件，支持选择现有工作区或创建新工作区
     - CSS 添加 adl-bookmark-tab-* 样式集
     - 标签工作区支持显示其中的标签数量
+    - 收藏后自动展开目标工作区
+
+- **2026-05-30 浏览器修复**：
+  - 修复 browserSlice 初始状态为空导致切换后打不开网页（添加默认标签初始化）
+  - 修复收藏标签对话框不出现（恢复 BookmarkTabDialog，type 修复、组件拆分兼容）
+  - 修复 localStorage 异步 hydration 竞态覆盖历史记录、书签和标签状态
+  - 修复 iframe onLoad/onError 空处理导致内部链接无跳转且无错误提示
+  - 修复 Tauri child WebView 覆盖对话框（对话框打开时移 WebView 到屏幕外，关闭后恢复）
+  - 修复对话框关闭时 WebView 意外刷新（移除 creation effect 对 webViewDisabled 的依赖）
   - **类型错误修复**：
     - 修复 MessageStream.tsx 中的 react-window 问题：简化实现，移除复杂的虚拟滚动，改为普通列表
     - 修复 MessageBlocks.tsx：MessageBlock → ConversationBlock，修正类型导入

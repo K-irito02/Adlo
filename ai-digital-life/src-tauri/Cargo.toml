@@ -22,7 +22,8 @@ adl-agent-runtime = { path = "../crates/agent-runtime" }
 adl-model-gateway = { path = "../crates/model-gateway" }
 adl-change-engine = { path = "../crates/change-engine" }
 adl-context = { path = "../crates/context" }
-adl-terminal = { path = "../crates/terminal" }
+adl-pty = { path = "../crates/pty" }
+adl-command = { path = "../crates/command" }
 adl-browser = { path = "../crates/browser" }
 
 tauri = { workspace = true, features = ["unstable"] }

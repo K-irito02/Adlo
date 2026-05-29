@@ -102,6 +102,38 @@ impl BrowserManager {
         Ok(())
     }
 
+    pub fn hide(&self, app: &tauri::AppHandle) -> Result<(), String> {
+        let window = app
+            .get_window("main")
+            .ok_or_else(|| "main window not found".to_string())?;
+
+        let webview = window
+            .get_webview(BROWSER_WEBVIEW_LABEL)
+            .ok_or_else(|| "browser webview not found".to_string())?;
+
+        webview
+            .hide()
+            .map_err(|e| format!("hide failed: {e}"))?;
+
+        Ok(())
+    }
+
+    pub fn show(&self, app: &tauri::AppHandle) -> Result<(), String> {
+        let window = app
+            .get_window("main")
+            .ok_or_else(|| "main window not found".to_string())?;
+
+        let webview = window
+            .get_webview(BROWSER_WEBVIEW_LABEL)
+            .ok_or_else(|| "browser webview not found".to_string())?;
+
+        webview
+            .show()
+            .map_err(|e| format!("show failed: {e}"))?;
+
+        Ok(())
+    }
+
     pub fn destroy(&self, app: &tauri::AppHandle) -> Result<(), String> {
         let window = app
             .get_window("main")

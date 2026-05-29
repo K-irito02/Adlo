@@ -130,10 +130,10 @@ interface MessageBlocksProps {
   onViewChanges?: () => void;
 }
 
-export function MessageBlocks({ message, t, onRetryStep, onViewChanges }: MessageBlocksProps) {
+export const MessageBlocks = React.memo(function MessageBlocks({ message, t, onRetryStep, onViewChanges }: MessageBlocksProps) {
   return (
     <div className="adl-message-blocks">
       {message.blocks.map((block) => renderMessageBlock(block, t, onRetryStep, onViewChanges))}
     </div>
   );
-}
+});

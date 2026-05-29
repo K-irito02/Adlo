@@ -97,6 +97,8 @@ fn main() {
             commands::model::model_clear_provider_secret,
             commands::browser::browser_create,
             commands::browser::browser_destroy,
+            commands::browser::browser_hide,
+            commands::browser::browser_show,
             commands::browser::browser_navigate,
             commands::browser::browser_go_back,
             commands::browser::browser_go_forward,

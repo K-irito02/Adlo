@@ -31,6 +31,11 @@ export interface BrowserHistoryState {
   visitedAt: number;
 }
 
+export interface BrowserBookmark {
+  url: string;
+  title: string;
+}
+
 // Local storage keys
 const BROWSER_TABS_KEY = "adl-ui:browser-tabs";
 const BROWSER_ACTIVE_TAB_KEY = "adl-ui:browser-active-tab";
@@ -41,6 +46,7 @@ const BROWSER_TAB_FOLDERS_KEY = "adl-ui:browser-tab-folders";
 const BROWSER_VIEW_MODE_KEY = "adl-ui:browser-view-mode";
 const BROWSER_SHOW_TAB_BUTTONS_KEY = "adl-ui:browser-show-tab-buttons";
 const BROWSER_HISTORY_KEY = "adl-ui:browser-history";
+const BROWSER_BOOKMARKS_KEY = "adl-ui:browser-bookmarks";
 
 // Constants
 const BROWSER_NAVIGATOR_WIDTH_MIN = 180;
@@ -173,22 +179,57 @@ function hydrateBrowserDefaults(get: () => StoreState, set: (partial: Partial<St
   if (_defaultsHydrated) return;
   _defaultsHydrated = true;
   const doHydrate = () => {
+    const state = get();
+
     const width = readNumber(BROWSER_NAVIGATOR_WIDTH_KEY, DEFAULT_BROWSER_NAVIGATOR_WIDTH, BROWSER_NAVIGATOR_WIDTH_MIN, BROWSER_NAVIGATOR_WIDTH_MAX);
     const collapsed = {
       ...defaultNavigatorCollapsed(),
       ...readJson<Record<ToolId, boolean>>(BROWSER_NAVIGATOR_COLLAPSED_KEY, defaultNavigatorCollapsed())
     };
     const workspaceExpanded = readJson<Record<string, boolean>>(BROWSER_WORKSPACE_EXPANDED_KEY, {});
-    const tabFolders = readJson<TabFolderState[]>(BROWSER_TAB_FOLDERS_KEY, []);
-    const browserHistory = readJson<BrowserHistoryState[]>(BROWSER_HISTORY_KEY, []);
+    const persistedTabFolders = readJson<TabFolderState[]>(BROWSER_TAB_FOLDERS_KEY, []);
+
+    const tabsModified = state.browserTabs.length !== 1 ||
+      state.browserTabs[0]?.id !== defaultTab.id ||
+      state.browserTabs[0]?.url !== "about:blank";
+
+    let finalTabs = state.browserTabs;
+    let finalActiveTabId = state.browserActiveTabId;
+
+    if (!tabsModified) {
+      const persistedTabs = readJson<BrowserTabState[]>(BROWSER_TABS_KEY, []);
+      if (persistedTabs.length > 0) {
+        finalTabs = persistedTabs;
+        finalActiveTabId = readJson<string>(BROWSER_ACTIVE_TAB_KEY, "");
+        if (!finalTabs.find(t => t.id === finalActiveTabId)) {
+          finalActiveTabId = finalTabs[finalTabs.length - 1]?.id ?? defaultTab.id;
+        }
+      }
+    }
+
+    const historyModified = state.browserHistory.length > 0;
+    const finalHistory = historyModified
+      ? state.browserHistory
+      : readJson<BrowserHistoryState[]>(BROWSER_HISTORY_KEY, []);
+
+    const bookmarksModified = state.browserBookmarks.length > 0;
+    const finalBookmarks = bookmarksModified
+      ? state.browserBookmarks
+      : readJson<BrowserBookmark[]>(BROWSER_BOOKMARKS_KEY, []);
+
     const viewMode = readJson<"default" | "tree" | "list" | "all">(BROWSER_VIEW_MODE_KEY, "default");
     const showTabButtons = readJson<boolean>(BROWSER_SHOW_TAB_BUTTONS_KEY, false);
+
     set({
       browserNavigatorWidth: width,
       navigatorCollapsedByTool: collapsed,
       browserWorkspaceExpanded: workspaceExpanded,
-      browserTabFolders: tabFolders,
-      browserHistory: browserHistory,
+      browserTabFolders: persistedTabFolders,
+      browserHistory: finalHistory,
+      browserBookmarks: finalBookmarks,
+      browserTabs: finalTabs,
+      browserTabsById: buildTabsById(finalTabs),
+      browserActiveTabId: finalActiveTabId,
       browserViewMode: viewMode,
       browserShowTabButtons: showTabButtons,
     });
@@ -200,7 +241,19 @@ function hydrateBrowserDefaults(get: () => StoreState, set: (partial: Partial<St
   }
 }
 
-const initialBrowserTabs: BrowserTabState[] = [];
+function createDefaultBrowserTab(): BrowserTabState {
+  return {
+    id: createUiId("browser"),
+    workspaceId: "",
+    title: "Start Page",
+    url: "about:blank",
+    isPinned: false,
+    sortOrder: 0,
+  };
+}
+
+const defaultTab = createDefaultBrowserTab();
+const initialBrowserTabs: BrowserTabState[] = [defaultTab];
 
 // Type and slice definition
 export interface BrowserSlice {
@@ -214,6 +267,7 @@ export interface BrowserSlice {
   browserWorkspaceId: string;
   browserTabFolders: TabFolderState[];
   browserHistory: BrowserHistoryState[];
+  browserBookmarks: BrowserBookmark[];
   browserViewMode: "default" | "tree" | "list" | "all";
   browserShowTabButtons: boolean;
 
@@ -236,6 +290,7 @@ export interface BrowserSlice {
   browserDeleteTabFolder: (folderId: string) => void;
   browserAddToHistory: (url: string, title: string) => void;
   browserClearHistory: () => void;
+  browserToggleBookmark: (input?: { url?: string; title?: string }) => void;
   setBrowserViewMode: (mode: "default" | "tree" | "list" | "all") => void;
   setBrowserShowTabButtons: (show: boolean) => void;
   browserBookmarkTab: (tabId: string, folderId?: string, newFolderName?: string) => void;
@@ -249,8 +304,8 @@ export const createBrowserSlice = (
   hydrateBrowserDefaults(get, set);
   return {
     browserTabs: initialBrowserTabs,
-    browserTabsById: {},
-    browserActiveTabId: "",
+    browserTabsById: { [defaultTab.id]: defaultTab },
+    browserActiveTabId: defaultTab.id,
     browserNavigatorWidth: DEFAULT_BROWSER_NAVIGATOR_WIDTH,
     navigatorCollapsedByTool: defaultNavigatorCollapsed(),
     browserWorkspaceExpanded: {},
@@ -258,6 +313,7 @@ export const createBrowserSlice = (
     browserWorkspaceId: "",
     browserTabFolders: [],
     browserHistory: [],
+    browserBookmarks: [],
     browserViewMode: "default",
     browserShowTabButtons: false,
 
@@ -286,11 +342,25 @@ export const createBrowserSlice = (
     browserCloseTab: (tabId) =>
       set((state) => {
         const filtered = state.browserTabs.filter((tab) => tab.id !== tabId);
-        const nextTabs = sortTabs(filtered);
-        const nextActive =
+        let nextTabs = sortTabs(filtered);
+        let nextActive =
           state.browserActiveTabId === tabId
             ? nextTabs[nextTabs.length - 1]?.id ?? ""
             : state.browserActiveTabId;
+        
+        if (nextTabs.length === 0) {
+          const defaultTab: BrowserTabState = {
+            id: createUiId("browser"),
+            workspaceId: "",
+            title: "Start Page",
+            url: "about:blank",
+            isPinned: false,
+            sortOrder: 0,
+          };
+          nextTabs = [defaultTab];
+          nextActive = defaultTab.id;
+        }
+        
         scheduleWrite(BROWSER_TABS_KEY, nextTabs);
         scheduleWrite(BROWSER_ACTIVE_TAB_KEY, nextActive);
         return {
@@ -414,6 +484,20 @@ export const createBrowserSlice = (
     browserClearHistory: () => {
       scheduleWrite(BROWSER_HISTORY_KEY, []);
       set({ browserHistory: [] });
+    },
+
+    browserToggleBookmark: (input?: { url?: string; title?: string }) => {
+      set((state) => {
+        const active = state.browserTabs.find((tab) => tab.id === state.browserActiveTabId) ?? state.browserTabs[0];
+        const url = input?.url?.trim() || active?.url || "about:blank";
+        const title = input?.title?.trim() || active?.title || url;
+        const exists = state.browserBookmarks.some((bookmark) => bookmark.url === url);
+        const nextBookmarks = exists
+          ? state.browserBookmarks.filter((bookmark) => bookmark.url !== url)
+          : [...state.browserBookmarks, { url, title }];
+        scheduleWrite(BROWSER_BOOKMARKS_KEY, nextBookmarks);
+        return { browserBookmarks: nextBookmarks };
+      });
     },
 
     setBrowserNavigatorWidth: (width) => {

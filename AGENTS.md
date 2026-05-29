@@ -65,6 +65,8 @@
 - **第十五轮 — 终端层级树状视觉优化**：独立终端常驻、树状层级视觉（缩进/连接线/全宽悬停）、空状态按钮、CSS 架构优化；详见 ai-digital-life/AGENTS.md
 - **第十六轮 — 终端面板精细化修复**（10+ 项）：终端导航器 resize handle、xterm 纯黑背景消除、工作区分割线、树连接线修复、hover 高度提升、关闭按钮位置调整；详见 ai-digital-life/AGENTS.md
 - **第十七轮 — 架构深度重构**：Rust crate 重组（17→19 crate，新增 adl-outline/adl-context/adl-command/adl-pty，移除 context-engine/prompt-engine）；5 个新前端 Hook（useDragDropWorkspace/usePatchReview/useEditorReveal/useThemeSync/useTaskCenterPolling）；Store 新增 isFetching/setError；shared.ts 7 个新工具函数；useTerminalPanel 拆分 3 子 hook（useTerminalPtyLifecycle/useTerminalDragDrop/useTerminalMenus）；右侧面板 7 个 per-panel hooks；useRightPanelViewProps 300→55 行；DB Arc<Mutex>→r2d2 连接池；EntityTable 宏生成；LRU 缓存简化（移除 access count）；vite.config.ts optimizeDeps 更新；terminalSlice 引用稳定性检查；cargo test + 183 前端测试全部通过
+- **第十八轮 — 重构洞察全面修复**：MessageStream 虚拟滚动（react-window）、MessageBlocks React.memo、ui-store.ts deprecated 代码清理、CenterPane 简化；cargo test + 183 前端测试全绿
+- **第十九轮 — 架构优化与清理**：terminal/pty crate 职责边界重构（删除 terminal crate，统一使用 pty crate）；修复 src-tauri/Cargo.toml workspace.members；更新相关文件 import（setup.rs/state.rs/patch.rs/task.rs/terminal.rs/command.rs）；所有测试通过
 
 ### Zustand 切片模式（已完成）
 
@@ -140,6 +142,7 @@ regions/right-panel/   # 右侧面板区域
 | **第十六轮** | **终端面板精细化修复（10+ 项）** | **2026-05-26** |
 | **第十七轮** | **架构深度重构（Rust crate 重组 17→19、Store 增强、5 个新 Hook、DB 连接池等）** | **2026-05-28** |
 | **第十八轮** | **重构洞察全面修复（MessageStream 虚拟滚动、RightPanel 优化、App 组件拆分、运行活动 LRU 等）** | **2026-05-29** |
+| **第十九轮** | **重构洞察修复计划（代码清理、架构优化、terminal crate 删除）** | **2026-05-30** |
 全部详情见 [重构进度报告](./docs/重构洞察/REFACTORING_PROGRESS_REPORT.md)
 
 ### 排除项

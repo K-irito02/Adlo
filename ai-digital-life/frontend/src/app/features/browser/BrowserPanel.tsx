@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import {
   IconArrowLeft,
   IconArrowRight,
@@ -30,6 +31,7 @@ import { MultiWorkspaceBrowser } from "../workspace-browser";
 import { CreateTabFolderDialog } from "./CreateTabFolderDialog";
 import { BookmarkTabDialog } from "./BookmarkTabDialog";
 import { FlatTabList } from "./FlatTabList";
+import { isTauriShell } from "../../../tauri-bridge";
 import type { BrowserPanelProps } from "../../regions/right-panel/types";
 import { open as shellOpen } from "@tauri-apps/plugin-shell";
 
@@ -59,12 +61,6 @@ function handleDeleteFromContextMenu(
   };
 }
 
-declare global {
-  interface Window {
-    __TAURI__?: unknown;
-  }
-}
-
 export function BrowserPanel(props: BrowserPanelProps) {
   const { t } = props;
 
@@ -91,13 +87,14 @@ export function BrowserPanel(props: BrowserPanelProps) {
 
   const [createFolderDialogOpen, setCreateFolderDialogOpen] = useState(false);
   const [bookmarkDialogOpen, setBookmarkDialogOpen] = useState(false);
+  const isAnyDialogOpen = createFolderDialogOpen || bookmarkDialogOpen;
 
   const {
     browserState,
     browserActions,
     dragHandlers,
     menuHandlers,
-  } = useBrowserPanel(props);
+  } = useBrowserPanel(props, { webViewDisabled: isAnyDialogOpen });
 
   const INDEPENDENT_WORKSPACE_ID = "__independent__";
 
@@ -164,16 +161,27 @@ export function BrowserPanel(props: BrowserPanelProps) {
     setCreateFolderDialogOpen(false);
   }, [browserCreateTabFolder]);
 
-  const handleBookmarkTab = useCallback(async (folderId?: string, newFolderName?: string) => {
-    if (browserState.browserActiveTabId) {
-      browserBookmarkTab(browserState.browserActiveTabId, folderId, newFolderName);
-    }
-    setBookmarkDialogOpen(false);
-  }, [browserState.browserActiveTabId, browserBookmarkTab]);
+  const handleBookmarkTab = useCallback(async (folderId?: string, workspaceId?: string, newFolderName?: string) => {
+    const activeTabId = browserState.browserActiveTabId;
+    if (!activeTabId) return;
 
-  const activeTab = useMemo(() => {
-    return browserState.browserTabs.find(tab => tab.id === browserState.browserActiveTabId) || null;
-  }, [browserState.browserTabs, browserState.browserActiveTabId]);
+    if (workspaceId) {
+      const tab = browserState.browserTabs.find(t => t.id === activeTabId);
+      if (tab) {
+        browserOpenTab(tab.url, tab.title, workspaceId);
+      }
+    } else if (folderId) {
+      browserBookmarkTab(activeTabId, folderId);
+      setBrowserWorkspaceExpanded({
+        ...browserWorkspaceExpanded,
+        [folderId]: true
+      });
+    } else if (newFolderName) {
+      browserBookmarkTab(activeTabId, undefined, newFolderName);
+    }
+
+    setBookmarkDialogOpen(false);
+  }, [browserState.browserActiveTabId, browserState.browserTabs, browserBookmarkTab, browserOpenTab, browserWorkspaceExpanded, setBrowserWorkspaceExpanded]);
 
   const handleToggleTabButtons = useCallback(() => {
     if (browserShowTabButtons) {
@@ -195,8 +203,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
     if (ws) hideWorkspaceFromRightPanels(workspaceId);
   }, [recentWorkspaces, hideWorkspaceFromRightPanels]);
 
-  const isTauriShell = typeof window !== "undefined" && window.__TAURI__ !== undefined;
-
   return (
     <div className="adl-tool-panel adl-tool-panel--browser">
       <div className="adl-tool-context adl-tool-context--files" aria-label={t.toolBrowser}>
@@ -216,10 +222,8 @@ export function BrowserPanel(props: BrowserPanelProps) {
               type="button"
               className="adl-tool-context__iconbtn"
               onClick={() => {
-                if (isTauriShell) {
-                  import("@tauri-apps/api/core").then(({ invoke }) => {
-                    invoke("browser_go_back").catch((err) => console.error("browser_go_back failed:", err));
-                  }).catch(() => { /* ignore */ });
+                if (isTauriShell()) {
+                  invoke("browser_go_back").catch((err) => console.error("browser_go_back failed:", err));
                 } else if (browserState.iframeRef.current) {
                   browserState.iframeHistory.index > 0 &&
                     browserState.iframeHistory.entries[browserState.iframeHistory.index - 1] &&
@@ -236,10 +240,8 @@ export function BrowserPanel(props: BrowserPanelProps) {
               type="button"
               className="adl-tool-context__iconbtn"
               onClick={() => {
-                if (isTauriShell) {
-                  import("@tauri-apps/api/core").then(({ invoke }) => {
-                    invoke("browser_go_forward").catch((err) => console.error("browser_go_forward failed:", err));
-                  }).catch(() => { /* ignore */ });
+                if (isTauriShell()) {
+                  invoke("browser_go_forward").catch((err) => console.error("browser_go_forward failed:", err));
                 } else if (browserState.iframeRef.current) {
                   browserState.iframeHistory.index < browserState.iframeHistory.entries.length - 1 &&
                     browserState.iframeHistory.entries[browserState.iframeHistory.index + 1] &&
@@ -256,10 +258,8 @@ export function BrowserPanel(props: BrowserPanelProps) {
               type="button"
               className="adl-tool-context__iconbtn"
               onClick={() => {
-                if (isTauriShell) {
-                  import("@tauri-apps/api/core").then(({ invoke }) => {
-                    invoke("browser_reload").catch((err) => console.error("browser_reload failed:", err));
-                  }).catch(() => { /* ignore */ });
+                if (isTauriShell()) {
+                  invoke("browser_reload").catch((err) => console.error("browser_reload failed:", err));
                 } else if (browserState.iframeRef.current?.contentWindow) {
                   browserState.iframeRef.current.contentWindow.location.reload();
                 }
@@ -327,13 +327,12 @@ export function BrowserPanel(props: BrowserPanelProps) {
           </label>
         </div>
         <div className="adl-tool-context__group adl-tool-context__group--files-actions">
-          <TooltipSimple content="收藏标签" placement="top">
+          <TooltipSimple content={browserState.isBookmarked ? "取消收藏" : "收藏标签"} placement="top">
             <button 
               type="button" 
               className="adl-tool-context__iconbtn" 
               aria-label="收藏标签"
               onClick={() => setBookmarkDialogOpen(true)}
-              disabled={!browserState.browserActiveTabId}
             >
               <IconStar size={14} decorative />
             </button>
@@ -574,18 +573,18 @@ export function BrowserPanel(props: BrowserPanelProps) {
           <div className="adl-tool-primary__scroll adl-tool-primary__scroll--browser" />
           {browserState.hasActiveTab && browserState.activeTab?.url !== "about:blank" ? (
             <>
-              {!isTauriShell && browserState.activeTab && (
+              {!isTauriShell() && browserState.activeTab && (
                 <iframe
                   ref={browserState.iframeRef}
                   src={browserState.activeTab.url}
                   className="adl-browser-iframe"
                   title={browserState.activeTab.title}
-                  onLoad={() => {}}
-                  onError={() => {}}
+                  onLoad={browserActions.handleIframeLoad}
+                  onError={browserActions.handleIframeError}
                 />
               )}
 
-              {!isTauriShell && browserState.iframeLoadError && (
+              {!isTauriShell() && browserState.iframeLoadError && (
                 <div className="adl-browser-error-container">
                   <p className="adl-browser-error-text">
                     该网站无法在嵌入式视图中打开，这通常是由于网站的安全策略导致的。
@@ -599,7 +598,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
                 title={t.browserOpenExternal}
                 onClick={() => {
                   const url = browserState.activeTab?.url ?? "about:blank";
-                  if (isTauriShell) {
+                  if (isTauriShell()) {
                     shellOpen(url).catch(err => console.error("Failed to open external browser:", err));
                   } else if ((window as any).trae?.openExternal) {
                     (window as any).trae.openExternal(url);
@@ -636,8 +635,9 @@ export function BrowserPanel(props: BrowserPanelProps) {
       <BookmarkTabDialog
         open={bookmarkDialogOpen}
         t={t}
-        tab={activeTab}
+        tab={browserState.activeTab ?? null}
         folders={browserTabFolders}
+        workspaces={visibleWorkspaces}
         onBookmark={handleBookmarkTab}
         onCancel={() => setBookmarkDialogOpen(false)}
       />

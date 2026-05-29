@@ -1,27 +1,34 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { IconFolder, IconFolderPlus } from "../../icons";
+import { IconFolder, IconFolderPlus, IconFiles } from "../../icons";
 import type { TabFolderState, BrowserTabState } from "../../stores/slices/browserSlice";
 import type { CopyDict } from "../../copy";
+import type { RecentWorkspaceEntry } from "@ai-digital-life/kernel";
 
 interface BookmarkTabDialogProps {
   open: boolean;
   t: CopyDict;
   tab: BrowserTabState | null;
   folders: TabFolderState[];
-  onBookmark: (folderId?: string, newFolderName?: string) => void | Promise<void>;
+  workspaces: RecentWorkspaceEntry[];
+  onBookmark: (folderId?: string, workspaceId?: string, newFolderName?: string) => void | Promise<void>;
   onCancel: () => void;
 }
+
+type SelectionMode = "workspace" | "folder" | "new-folder";
 
 export function BookmarkTabDialog({ 
   open, 
   t, 
   tab, 
   folders, 
+  workspaces,
   onBookmark, 
   onCancel 
 }: BookmarkTabDialogProps) {
+  const [mode, setMode] = useState<SelectionMode>("folder");
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(null);
   const [createNewFolder, setCreateNewFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [loading, setLoading] = useState(false);
@@ -29,7 +36,9 @@ export function BookmarkTabDialog({
 
   useEffect(() => {
     if (open) {
+      setMode("folder");
       setSelectedFolderId(null);
+      setSelectedWorkspaceId(null);
       setCreateNewFolder(false);
       setNewFolderName("");
       setLoading(false);
@@ -47,29 +56,33 @@ export function BookmarkTabDialog({
   const handleOk = useCallback(async () => {
     setLoading(true);
     try {
-      if (createNewFolder) {
-        await onBookmark(undefined, newFolderName);
-      } else {
-        await onBookmark(selectedFolderId || undefined);
+      if (mode === "new-folder" && createNewFolder) {
+        await onBookmark(undefined, undefined, newFolderName);
+      } else if (mode === "folder" && selectedFolderId) {
+        await onBookmark(selectedFolderId, undefined);
+      } else if (mode === "workspace" && selectedWorkspaceId) {
+        await onBookmark(undefined, selectedWorkspaceId);
       }
     } finally {
       setLoading(false);
     }
-  }, [createNewFolder, newFolderName, selectedFolderId, onBookmark]);
+  }, [mode, createNewFolder, newFolderName, selectedFolderId, selectedWorkspaceId, onBookmark]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.key === "Enter" && !loading) {
-        if (createNewFolder && newFolderName.trim()) {
+        if (mode === "new-folder" && createNewFolder && newFolderName.trim()) {
           void handleOk();
-        } else if (!createNewFolder && selectedFolderId) {
+        } else if (mode === "folder" && selectedFolderId) {
+          void handleOk();
+        } else if (mode === "workspace" && selectedWorkspaceId) {
           void handleOk();
         }
       } else if (e.key === "Escape") {
         onCancel();
       }
     },
-    [handleOk, loading, onCancel, createNewFolder, newFolderName, selectedFolderId]
+    [handleOk, loading, onCancel, mode, createNewFolder, newFolderName, selectedFolderId, selectedWorkspaceId]
   );
 
   const handleBackdrop = useCallback(
@@ -81,16 +94,32 @@ export function BookmarkTabDialog({
 
   const handleSelectFolder = useCallback((folderId: string) => {
     setSelectedFolderId(folderId);
+    setSelectedWorkspaceId(null);
     setCreateNewFolder(false);
+    setMode("folder");
+  }, []);
+
+  const handleSelectWorkspace = useCallback((workspaceId: string) => {
+    setSelectedWorkspaceId(workspaceId);
+    setSelectedFolderId(null);
+    setCreateNewFolder(false);
+    setMode("workspace");
   }, []);
 
   const handleCreateNew = useCallback(() => {
     setCreateNewFolder(true);
     setSelectedFolderId(null);
+    setSelectedWorkspaceId(null);
+    setMode("new-folder");
     requestAnimationFrame(() => {
       inputRef.current?.focus();
     });
   }, []);
+
+  const isOkDisabled = loading || 
+    (mode === "new-folder" && (!createNewFolder || !newFolderName.trim())) ||
+    (mode === "folder" && !selectedFolderId) ||
+    (mode === "workspace" && !selectedWorkspaceId);
 
   if (!open || !tab) return null;
 
@@ -113,55 +142,83 @@ export function BookmarkTabDialog({
         </div>
 
         <div className="adl-bookmark-tab__options">
-          <div className="adl-bookmark-tab__section-label">选择标签工作区</div>
+          <div className="adl-bookmark-tab__section-label">选择位置</div>
           
-          {folders.length > 0 ? (
-            <div className="adl-bookmark-tab__folder-list">
-              {folders.map(folder => (
-                <button
-                  key={folder.id}
-                  type="button"
-                  className={`adl-bookmark-tab__folder-item ${
-                    selectedFolderId === folder.id ? "is-selected" : ""
-                  }`}
-                  onClick={() => handleSelectFolder(folder.id)}
-                >
-                  <IconFolder size={16} decorative />
-                  <span className="adl-bookmark-tab__folder-name">
-                    {folder.name}
-                  </span>
-                  {folder.tabs && folder.tabs.length > 0 && (
-                    <span className="adl-bookmark-tab__folder-count">
-                      {folder.tabs.length}
+          {/* Workspace selection */}
+          {workspaces.length > 0 && (
+            <div className="adl-bookmark-tab__section">
+              <div className="adl-bookmark-tab__sub-label">工作区</div>
+              <div className="adl-bookmark-tab__folder-list">
+                {workspaces.map(workspace => (
+                  <button
+                    key={workspace.id}
+                    type="button"
+                    className={`adl-bookmark-tab__folder-item ${
+                      mode === "workspace" && selectedWorkspaceId === workspace.id ? "is-selected" : ""
+                    }`}
+                    onClick={() => handleSelectWorkspace(workspace.id)}
+                  >
+                    <IconFiles size={16} decorative />
+                    <span className="adl-bookmark-tab__folder-name">
+                      {workspace.name}
                     </span>
-                  )}
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div className="adl-bookmark-tab__empty">
-              暂无标签工作区
+                  </button>
+                ))}
+              </div>
             </div>
           )}
+
+          {/* Folder selection */}
+          <div className="adl-bookmark-tab__section">
+            <div className="adl-bookmark-tab__sub-label">标签文件夹</div>
+            {folders.length > 0 ? (
+              <div className="adl-bookmark-tab__folder-list">
+                {folders.map(folder => (
+                  <button
+                    key={folder.id}
+                    type="button"
+                    className={`adl-bookmark-tab__folder-item ${
+                      mode === "folder" && selectedFolderId === folder.id ? "is-selected" : ""
+                    }`}
+                    onClick={() => handleSelectFolder(folder.id)}
+                  >
+                    <IconFolder size={16} decorative />
+                    <span className="adl-bookmark-tab__folder-name">
+                      {folder.name}
+                    </span>
+                    {folder.tabs && folder.tabs.length > 0 && (
+                      <span className="adl-bookmark-tab__folder-count">
+                        {folder.tabs.length}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="adl-bookmark-tab__empty">
+                暂无标签文件夹
+              </div>
+            )}
+          </div>
 
           <button
             type="button"
             className={`adl-bookmark-tab__create-new ${
-              createNewFolder ? "is-active" : ""
+              mode === "new-folder" && createNewFolder ? "is-active" : ""
             }`}
             onClick={handleCreateNew}
           >
             <IconFolderPlus size={16} decorative />
-            <span>创建新标签工作区</span>
+            <span>创建新标签文件夹</span>
           </button>
 
-          {createNewFolder && (
+          {mode === "new-folder" && createNewFolder && (
             <input
               ref={inputRef}
               className="adl-prompt-modal__input"
               type="text"
               value={newFolderName}
-              placeholder="输入新工作区名称"
+              placeholder="输入新文件夹名称"
               onChange={(e) => setNewFolderName(e.currentTarget.value)}
               disabled={loading}
             />
@@ -181,11 +238,7 @@ export function BookmarkTabDialog({
             type="button"
             className="adl-btn adl-btn--primary"
             onClick={() => void handleOk()}
-            disabled={
-              loading || 
-              (!createNewFolder && !selectedFolderId) || 
-              (createNewFolder && !newFolderName.trim())
-            }
+            disabled={isOkDisabled}
           >
             {loading ? "收藏中..." : "收藏"}
           </button>

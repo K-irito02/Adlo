@@ -165,3 +165,39 @@
 **问题**：WebView2 子 HWND 无论创建在 `(0,0)/(1,1)` 还是 `(0,0)/(800,600)`，都会在瞬间覆盖父窗口的 HTML 区域，导致标题栏按钮不可点击。
 **解决方案**：始终创建在屏幕外 `(-10000,-10000)`，然后通过异步 `browser_set_bounds` 移动到正确位置。创建与定位分离避免竞态。
 **关键文件**：`crates/browser/src/lib.rs`, `BrowserPanel.tsx`
+
+## 浏览器功能修复（2026-05-30）
+
+### 修复问题清单
+
+| 问题 | 根因 | 修复方案 | 文件 |
+|------|------|----------|------|
+| 浏览器模式下输入网址回车不打开网页 | `browserSlice` 初始化为空 `browserTabs: []`、`browserActiveTabId: ""`，导致 `activeTab` 为 `undefined`、`hasActiveTab` 为 `false` | 初始化默认标签 `createDefaultBrowserTab()`，并从 localStorage 水合 | `browserSlice.ts` |
+| 收藏标签按钮不可用/不显示对话框 | `BookmarkTabDialog` 组件被移除，按钮改为简单的 toggle 操作 | 恢复 `BookmarkTabDialog` 导入和渲染，新增 `handleBookmarkTab` 回调支持三种模式（工作区/已有文件夹/新建文件夹） | `BrowserPanel.tsx` |
+| 历史记录不显示 | `hydrateBrowserDefaults()` 通过 `requestIdleCallback` 异步水合，用户导航后延迟水合用 localStorage 旧数据（空数组）覆盖了内存中已有的历史记录 | 水合增加防护检查：仅当 `browserHistory`/`browserBookmarks`/`browserTabs` 仍为初始状态时才从 localStorage 覆盖 | `browserSlice.ts` |
+| 收藏标签对话框显示错误网址、收藏失败 | 同上 hydration 竞态条件；文件夹折叠看不到已收藏的标签 | 同上 hydration 竞态修复；`handleBookmarkTab` 收藏后自动展开目标文件夹 | `browserSlice.ts`, `BrowserPanel.tsx` |
+| 点击网页中链接无跳转、无错误提示 | iframe 的 `onLoad`/`onError` 处理器被设为空函数 `() => {}` | 新增 `handleIframeLoad`（重置错误 + 同源 URL 同步地址栏）和 `handleIframeError`（设置错误标志触发降级 UI） | `useBrowserPanel.ts`, `BrowserPanel.tsx` |
+| 对话框/菜单被 WebView 覆盖 | Tauri 原生 child WebView 在 OS 层级高于 HTML 元素，CSS z-index 无法控制 | 对话框打开时将 WebView 移动到屏幕外 `(-10000,-10000,1,1)`，关闭时通过 `updateWebViewBounds()` 恢复；`webViewVisibleRef` 防止 resize observer 误触恢复 | `useBrowserPanel.ts`, `BrowserPanel.tsx` |
+| 对话框关闭时网页意外刷新 | WebView 创建 effect 依赖数组包含 `webViewDisabled`，对话框关闭触发 effect 重新执行 → `browser_navigate` 导致刷新 | 从创建 effect 依赖数组中移除 `webViewDisabled`，创建 effect 仅响应 URL/标签变化 | `useBrowserPanel.ts` |
+
+### 新增经验教训
+
+#### 12. localStorage 异步水合的竞态风险
+**问题**：`hydrateBrowserDefaults()` 通过 `requestIdleCallback` 延迟执行，当用户在 hydration 完成前进行操作（导航、收藏）时，延迟的水合用 localStorage 旧数据覆盖了内存中的新状态。
+**解决方案**：在水合逻辑中检查当前状态是否已被修改（`browserHistory.length > 0`、`browserTabs` 非初始值），仅当状态仍为初始默认值时才从 localStorage 覆盖。
+**关键文件**：`browserSlice.ts`
+
+#### 13. Off-screen Bounds 策略替代 hide/show
+**问题**：Tauri `Webview::hide()`/`show()` API 在跨平台兼容性上不可靠，且 hide/show effect 与 creation effect 的依赖耦合导致 WebView 被意外重新创建。
+**解决方案**：改用已充分验证的 `browser_set_bounds` 命令，将 WebView 移到屏幕外 `(-10000,-10000,1,1)` 并在对话框关闭时通过 `updateWebViewBounds()` 恢复。同时使用 `webViewVisibleRef` 守卫防止 resize observer 在隐藏期间误触恢复。
+**关键文件**：`useBrowserPanel.ts`
+
+#### 14. 状态管理迁移（useUiStore → useAppStore/browserSlice）
+**问题**：浏览器功能从老旧的单体 `useUiStore`（Zustand）迁移到新的 `useAppStore` + `browserSlice` 时，初始状态被设为空值，导致 `activeTab` 计算为 `undefined`。
+**解决方案**：`browserSlice` 使用 `createDefaultBrowserTab()` 初始化默认标签，确保首屏即有时可用标签。
+**关键文件**：`browserSlice.ts`
+
+#### 15. iframe 事件处理器不能留空
+**问题**：iframe 的 `onLoad` 和 `onError` 被设为空函数，导致 iframe 加载失败时静默无提示（用户看到空白页面却不知道原因），且同源页面的内部导航无法同步到地址栏。
+**解决方案**：`handleIframeLoad` 重置错误状态并尝试读取 iframe URL 同步地址栏；`handleIframeError` 设置 `iframeLoadError` 触发降级 UI（含"在外部浏览器打开"按钮）。
+**关键文件**：`useBrowserPanel.ts`, `BrowserPanel.tsx`

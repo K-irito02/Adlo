@@ -1,17 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { useAppStore } from "../../stores/slicedStore";
 import { useNavigatorResize } from "../../hooks/useNavigatorResize";
 import { useBrowserDragDrop } from "./useBrowserDragDrop";
 import { useBrowserMenus } from "./useBrowserMenus";
-import { useUiStore } from "../../ui-store";
+import { isTauriShell } from "../../../tauri-bridge";
 import type { BrowserPanelProps } from "../../regions/right-panel/types";
 import type { BrowserTabState } from "../../stores/slices/browserSlice";
-
-declare global {
-  interface Window {
-    __TAURI__?: unknown;
-  }
-}
 
 export type BrowserNavigatorMode = "tabs" | "bookmarks" | "history" | "search";
 export type BrowserSearchScope = "bookmarks" | "history" | "all";
@@ -92,6 +87,8 @@ export interface UseBrowserPanelReturn {
     updateWebViewBounds: () => void;
     handleToggleBookmark: () => void;
     handleClearHistory: () => void;
+    handleIframeLoad: () => void;
+    handleIframeError: () => void;
   };
   dragHandlers: {
     handleDragStart: (e: React.DragEvent, tabId: string, isPinned: boolean) => void;
@@ -131,8 +128,9 @@ function filterBrowserItems<T extends { title: string; url: string }>(items: T[]
 
 const log = (msg: string) => console.log(`[Browser] ${msg}`);
 
-export function useBrowserPanel(props: BrowserPanelProps): UseBrowserPanelReturn {
+export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDisabled?: boolean }): UseBrowserPanelReturn {
   const { t } = props;
+  const webViewDisabled = options?.webViewDisabled ?? false;
   const [navigatorMode, setNavigatorMode] = useState<BrowserNavigatorMode>("tabs");
   const [editingTabId, setEditingTabId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -147,12 +145,16 @@ export function useBrowserPanel(props: BrowserPanelProps): UseBrowserPanelReturn
 
   const webViewActiveRef = useRef(false);
   const creatingRef = useRef(false);
+  const webViewVisibleRef = useRef(true);
+  webViewVisibleRef.current = !webViewDisabled;
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
 
   const browserTabs = useAppStore((state) => state.browserTabs);
   const browserActiveTabId = useAppStore((state) => state.browserActiveTabId);
   const browserNavigatorWidth = useAppStore((state) => state.browserNavigatorWidth);
   const navigatorCollapsedByTool = useAppStore((state) => state.navigatorCollapsedByTool);
+  const browserBookmarks = useAppStore((state) => state.browserBookmarks);
+  const browserHistory = useAppStore((state) => state.browserHistory);
 
   const browserOpenTab = useAppStore((state) => state.browserOpenTab);
   const browserSelectTab = useAppStore((state) => state.browserSelectTab);
@@ -163,8 +165,9 @@ export function useBrowserPanel(props: BrowserPanelProps): UseBrowserPanelReturn
   const browserCloseAllTabs = useAppStore((state) => state.browserCloseAllTabs);
   const setBrowserNavigatorWidth = useAppStore((state) => state.setBrowserNavigatorWidth);
   const toggleBrowserNavigator = useAppStore((state) => state.toggleBrowserNavigator);
-
-  const { browserBookmarks, browserHistory, browserNavigateActiveTab, browserToggleBookmark, browserClearHistory } = useUiStore();
+  const browserNavigateActiveTab = useAppStore((state) => state.browserNavigateActiveTab);
+  const browserToggleBookmark = useAppStore((state) => state.browserToggleBookmark);
+  const browserClearHistory = useAppStore((state) => state.browserClearHistory);
 
   const editInputRef = useRef<HTMLInputElement | null>(null);
   const browserMenuRef = useRef<HTMLDivElement | null>(null);
@@ -273,8 +276,7 @@ export function useBrowserPanel(props: BrowserPanelProps): UseBrowserPanelReturn
   }, [browserCloseAllTabs]);
 
   const navigateBrowser = useCallback((url: string) => {
-    const isTauriShell = window.__TAURI__ !== undefined;
-    if (isTauriShell) {
+    if (isTauriShell()) {
       return;
     }
     if (iframeRef.current) {
@@ -289,8 +291,8 @@ export function useBrowserPanel(props: BrowserPanelProps): UseBrowserPanelReturn
   }, []);
 
   const updateWebViewBounds = useCallback(() => {
-    const isTauriShell = window.__TAURI__ !== undefined;
-    if (!primaryRef.current || !webViewActiveRef.current || !isTauriShell) return;
+    if (!primaryRef.current || !webViewActiveRef.current || !isTauriShell()) return;
+    if (!webViewVisibleRef.current) return;
 
     const rect = primaryRef.current.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) return;
@@ -302,12 +304,8 @@ export function useBrowserPanel(props: BrowserPanelProps): UseBrowserPanelReturn
       height: Math.round(rect.height)
     };
 
-    import("@tauri-apps/api/core").then(({ invoke }) => {
-      invoke("browser_set_bounds", { bounds }).catch(err => {
-        log(`set_bounds 失败: ${err}`);
-      });
-    }).catch(() => {
-      // Ignore Tauri import errors in non-Tauri environments
+    invoke("browser_set_bounds", { bounds }).catch(err => {
+      log(`set_bounds 失败: ${err}`);
     });
   }, []);
 
@@ -338,6 +336,26 @@ export function useBrowserPanel(props: BrowserPanelProps): UseBrowserPanelReturn
   const handleToggleBookmark = useCallback(() => {
     browserToggleBookmark();
   }, [browserToggleBookmark]);
+
+  const handleIframeLoad = useCallback(() => {
+    setIframeLoadError(false);
+    try {
+      const iframeWindow = iframeRef.current?.contentWindow;
+      if (iframeWindow) {
+        const href = iframeWindow.location.href;
+        if (href && href !== "about:blank" && activeTab && href !== activeTab.url) {
+          setAddress(href);
+          browserNavigateActiveTab(href);
+        }
+      }
+    } catch {
+      /* cross-origin navigation, can't read URL */
+    }
+  }, [activeTab, browserNavigateActiveTab]);
+
+  const handleIframeError = useCallback(() => {
+    setIframeLoadError(true);
+  }, []);
 
   const handleClearHistory = useCallback(() => {
     browserClearHistory();
@@ -406,23 +424,45 @@ export function useBrowserPanel(props: BrowserPanelProps): UseBrowserPanelReturn
     const url = activeTab?.url ?? "about:blank";
     setAddress(url);
     setIframeLoadError(false);
+    
+    // 在浏览器模式下更新 iframe 历史
+    if (!isTauriShell() && url !== "about:blank") {
+      setIframeHistory((prev) => {
+        // 避免重复添加相同的 URL
+        if (prev.entries[prev.index] === url) {
+          return prev;
+        }
+        const newEntries = prev.entries.slice(0, prev.index + 1);
+        newEntries.push(url);
+        if (newEntries.length > 50) newEntries.shift();
+        return { index: newEntries.length - 1, entries: newEntries };
+      });
+    }
   }, [activeTab?.url]);
 
   useEffect(() => {
-    const isTauriShell = window.__TAURI__ !== undefined;
-    if (!isTauriShell) return;
+    if (!isTauriShell()) return;
+    if (!webViewActiveRef.current) return;
+    if (webViewDisabled) {
+      invoke("browser_set_bounds", {
+        bounds: { x: -10000, y: -10000, width: 1, height: 1 }
+      }).catch(console.error);
+    } else {
+      updateWebViewBounds();
+    }
+  }, [webViewDisabled, updateWebViewBounds]);
 
-    const id = activeTab?.id;
+  useEffect(() => {
+    if (!isTauriShell()) return;
+
+    if (webViewDisabled) return;
+
     const url = activeTab?.url ?? "about:blank";
-    if (!id || url === "about:blank" || url.trim() === "") return;
+    if (url === "about:blank" || url.trim() === "") return;
 
     if (webViewActiveRef.current) {
-      import("@tauri-apps/api/core").then(({ invoke }) => {
-        invoke("browser_navigate", { url }).catch((err) => {
-          log(`navigate 失败: ${err}`);
-        });
-      }).catch(() => {
-        // Ignore Tauri import errors in non-Tauri environments
+      invoke("browser_navigate", { url }).catch((err) => {
+        log(`navigate 失败: ${err}`);
       });
       return;
     }
@@ -431,40 +471,30 @@ export function useBrowserPanel(props: BrowserPanelProps): UseBrowserPanelReturn
     creatingRef.current = true;
 
     const timeout = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("browser_create 超时(10s)")), 10000)
-    );
+      setTimeout(() => reject(new Error("browser_create 超时(10s)")), 10000));
 
-    import("@tauri-apps/api/core").then(({ invoke }) => {
-      Promise.race([invoke("browser_create", { url }), timeout])
-        .then(() => {
-          webViewActiveRef.current = true;
-          creatingRef.current = false;
-          setWebViewActive(true);
+    Promise.race([invoke("browser_create", { url }), timeout])
+      .then(() => {
+        webViewActiveRef.current = true;
+        creatingRef.current = false;
+        setWebViewActive(true);
+        requestAnimationFrame(() => {
           requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-              updateWebViewBounds();
-            });
+            updateWebViewBounds();
           });
-        })
-        .catch((err) => {
-          creatingRef.current = false;
-          log(`browser_create 失败: ${err}`);
-          console.error("Failed to create browser WebView:", err);
         });
-    }).catch(() => {
-      // Ignore Tauri import errors in non-Tauri environments
-    });
+      })
+      .catch((err) => {
+        creatingRef.current = false;
+        log(`browser_create 失败: ${err}`);
+        console.error("Failed to create browser WebView:", err);
+      });
   }, [activeTab?.id, activeTab?.url, updateWebViewBounds]);
 
   useEffect(() => {
     return () => {
-      const isTauriShell = window.__TAURI__ !== undefined;
-      if (isTauriShell && webViewActiveRef.current) {
-        import("@tauri-apps/api/core").then(({ invoke }) => {
-          invoke("browser_destroy").catch(console.error);
-        }).catch(() => {
-          // Ignore Tauri import errors in non-Tauri environments
-        });
+      if (isTauriShell() && webViewActiveRef.current) {
+        invoke("browser_destroy").catch(console.error);
         webViewActiveRef.current = false;
       }
       resizeObserverRef.current?.disconnect();
@@ -472,8 +502,7 @@ export function useBrowserPanel(props: BrowserPanelProps): UseBrowserPanelReturn
   }, []);
 
   useEffect(() => {
-    const isTauriShell = window.__TAURI__ !== undefined;
-    if (!isTauriShell || !primaryRef.current) return;
+    if (!isTauriShell() || !primaryRef.current) return;
 
     resizeObserverRef.current = new ResizeObserver(() => {
       if (webViewActiveRef.current) {
@@ -585,6 +614,8 @@ export function useBrowserPanel(props: BrowserPanelProps): UseBrowserPanelReturn
       navigateBrowser,
       updateWebViewBounds,
       handleToggleBookmark,
+      handleIframeLoad,
+      handleIframeError,
       handleClearHistory,
     },
     dragHandlers: {

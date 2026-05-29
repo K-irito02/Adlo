@@ -1,6 +1,7 @@
 use crate::commands::ipc;
 use crate::error::CommandError;
 use crate::state::AppState;
+use adl_command::{build_request, run_command};
 use adl_errors::AppError;
 use adl_kernel::{
     CommandRequest, CommandRunResult, IpcResult,
@@ -45,7 +46,7 @@ async fn command_run_inner(
     input: CommandRunInput,
 ) -> Result<CommandRunResult, AppError> {
     let workspace = crate::commands::workspace::current_workspace(state)?;
-    let request = adl_terminal::build_request(
+    let request = build_request(
         &workspace.id,
         None,
         input.command,
@@ -84,7 +85,7 @@ async fn command_run_inner(
             approval_request: Some(approval.request),
         });
     }
-    let result = adl_terminal::run_command(
+    let result = run_command(
         std::path::Path::new(&workspace.root_path),
         request.clone(),
         None,

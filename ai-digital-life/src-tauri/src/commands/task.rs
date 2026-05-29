@@ -1,6 +1,7 @@
 use crate::commands::ipc;
 use crate::error::CommandError;
 use crate::state::AppState;
+use adl_command::run_approved_command;
 use adl_errors::AppError;
 use adl_kernel::{
     ApprovalDecision, ApprovalRecord, ApprovalRequestSummary, AuditEntry, CheckpointPayloadPreview,
@@ -286,7 +287,7 @@ async fn maybe_execute_approved_command(
         );
     }
 
-    let result = adl_terminal::run_approved_command(
+    let result = run_approved_command(
         std::path::Path::new(&workspace.root_path),
         request.clone(),
         Some(120),

@@ -1,4 +1,4 @@
-use adl_terminal::session_manager::PtyEventEmitter;
+use adl_pty::PtyEventEmitter;
 use std::sync::Arc;
 use tauri::Emitter;
 
