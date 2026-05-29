@@ -12,7 +12,7 @@ import { normalizeWorkspaceRelativePath, joinPathSegments } from "../../workspac
 import { useFileCreation, useSearchPanel } from "./hooks";
 import { FileCreationBar } from "./FileCreationBar";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
-import { RenameInput } from "../../components/RenameInput";
+import { RenameDialog } from "../../components/RenameDialog";
 import { useAppStore } from "../../stores/slicedStore";
 import type { SearchHit } from "./hooks/useSearchPanel";
 
@@ -160,7 +160,7 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
   const hasExpandableOutlineItems = defaultExpandedOutlineIds.size > 0;
   const hasExpandedOutlineItems = expandedOutlineIds.size > 0;
 
-  const navigatorTitle = navigatorMode === "tree" ? t.toolFiles : navigatorMode === "search" ? t.searchResults : t.outline;
+  const navigatorTitle = navigatorMode === "tree" ? "文件树" : navigatorMode === "search" ? t.searchResults : t.outline;
   const workspaceCount = visibleWorkspaces.length;
 
   useEffect(() => {
@@ -206,6 +206,7 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
     }
   };
 
+  const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [renamingPath, setRenamingPath] = useState<string | null>(null);
   const [deleteConfirmPath, setDeleteConfirmPath] = useState<string | null>(null);
   const contextMenuPersistRef = useRef(false);
@@ -306,6 +307,7 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
           action: (targetNode) => {
             contextMenuPersistRef.current = true;
             setRenamingPath(targetNode.path);
+            setRenameDialogOpen(true);
           }
         },
         {
@@ -327,12 +329,14 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
     if (!renamingPath) return;
     const path = renamingPath;
     setRenamingPath(null);
+    setRenameDialogOpen(false);
     clearMenuHighlightRef.current?.();
     await useAppStore.getState().renameWorkspaceFile(path, newName);
   }, [renamingPath]);
 
   const handleRenameCancel = useCallback(() => {
     setRenamingPath(null);
+    setRenameDialogOpen(false);
     clearMenuHighlightRef.current?.();
   }, []);
 
@@ -641,16 +645,16 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
           onCancel={handleDeleteCancel}
         />
       ) : null}
-      {renamingPath ? (
-        <div className="adl-rename-overlay" onClick={handleRenameCancel}>
-          <div className="adl-rename-dialog" onClick={(e) => e.stopPropagation()}>
-            <RenameInput
-              initialValue={renamingPath.split("/").pop() || ""}
-              onConfirm={handleRenameConfirm}
-              onCancel={handleRenameCancel}
-            />
-          </div>
-        </div>
+      {renameDialogOpen && renamingPath ? (
+        <RenameDialog
+          open={renameDialogOpen}
+          initialValue={renamingPath.split("/").pop() || ""}
+          title="重命名"
+          itemInfo={`当前路径: ${renamingPath}`}
+          placeholder="输入新名称"
+          onConfirm={handleRenameConfirm}
+          onCancel={handleRenameCancel}
+        />
       ) : null}
     </aside>
   );

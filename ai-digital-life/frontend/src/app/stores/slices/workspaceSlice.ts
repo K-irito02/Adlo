@@ -11,6 +11,78 @@ import type {
 import type { StoreState } from "../StoreState";
 import { queueLowPriorityRefresh } from "../shared";
 
+// Local storage keys
+const WORKSPACE_TREE_EXPANDED_KEY = "adl-ui:workspace-tree-expanded";
+const WORKSPACE_CHANGES_EXPANDED_KEY = "adl-ui:workspace-changes-expanded";
+
+// Helper functions
+function readJson<T>(key: string, fallback: T): T {
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (raw) {
+      return JSON.parse(raw) as T;
+    }
+  } catch {
+    /* ignore */
+  }
+  return fallback;
+}
+
+function writeJson(key: string, value: unknown): void {
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    /* ignore */
+  }
+}
+
+// Batch write scheduler — coalesces multiple localStorage writes into one
+const pendingWrites = new Map<string, unknown>();
+let writeScheduled = false;
+
+function scheduleWrite(key: string, value: unknown): void {
+  pendingWrites.set(key, value);
+  scheduleFlush();
+}
+
+function scheduleFlush(): void {
+  if (writeScheduled) return;
+  writeScheduled = true;
+  const flush = () => {
+    writeScheduled = false;
+    for (const [key, value] of pendingWrites) {
+      writeJson(key, value);
+    }
+    pendingWrites.clear();
+  };
+  if (typeof requestIdleCallback === "function") {
+    requestIdleCallback(flush, { timeout: 500 });
+  } else {
+    setTimeout(flush, 50);
+  }
+}
+
+// Lazy localStorage hydration — reads persisted values in idle time
+let _defaultsHydrated = false;
+
+function hydrateWorkspaceDefaults(get: () => StoreState, set: (partial: Partial<StoreState>) => void): void {
+  if (_defaultsHydrated) return;
+  _defaultsHydrated = true;
+  const doHydrate = () => {
+    const treeExpanded = readJson<Record<string, boolean>>(WORKSPACE_TREE_EXPANDED_KEY, {});
+    const changesExpanded = readJson<Record<string, boolean>>(WORKSPACE_CHANGES_EXPANDED_KEY, {});
+    set({
+      workspaceTreeExpandedInFileNav: treeExpanded,
+      workspaceChangesExpanded: changesExpanded,
+    });
+  };
+  if (typeof requestIdleCallback === "function") {
+    requestIdleCallback(doHydrate, { timeout: 1000 });
+  } else {
+    setTimeout(doHydrate, 200);
+  }
+}
+
 export interface WorkspaceSlice {
   appInfo?: AppInfo;
   recentWorkspaces: RecentWorkspaceEntry[];
@@ -47,31 +119,40 @@ export interface WorkspaceSlice {
 export const createWorkspaceSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
   get: () => StoreState
-): WorkspaceSlice => ({
-  recentWorkspaces: [],
-  workspaceTree: [],
-  workspaceTrees: {},
-  workspaceTreeLoading: {},
-  workspaceTreeErrors: {},
-  workspaceTreeExpandedInFileNav: {},
-  gitSnapshots: {},
-  workspaceChangesExpanded: {},
-  workspaceChangesTreeData: {},
-  workspaceChangesTreeLoading: {},
-  workspaceChangesTreeErrors: {},
-  workspaceContextMode: "workspace",
+): WorkspaceSlice => {
+  hydrateWorkspaceDefaults(get, set);
+  return {
+    recentWorkspaces: [],
+    workspaceTree: [],
+    workspaceTrees: {},
+    workspaceTreeLoading: {},
+    workspaceTreeErrors: {},
+    workspaceTreeExpandedInFileNav: {},
+    gitSnapshots: {},
+    workspaceChangesExpanded: {},
+    workspaceChangesTreeData: {},
+    workspaceChangesTreeLoading: {},
+    workspaceChangesTreeErrors: {},
+    workspaceContextMode: "workspace",
 
-  setAppInfo: (appInfo) => set({ appInfo }),
-  setRecentWorkspaces: (workspaces) => set({ recentWorkspaces: workspaces }),
-  setWorkspaceTree: (tree) => set({ workspaceTree: tree }),
-  setWorkspaceTrees: (trees) => set({ workspaceTrees: trees }),
-  setWorkspaceTreeLoading: (loading) => set({ workspaceTreeLoading: loading }),
-  setWorkspaceTreeErrors: (errors) => set({ workspaceTreeErrors: errors }),
-  setWorkspaceTreeExpandedInFileNav: (expanded) => set({ workspaceTreeExpandedInFileNav: expanded }),
-  setGitSnapshots: (snapshots) => set({ gitSnapshots: snapshots }),
-  setWorkspaceChangesExpanded: (expanded) => set({ workspaceChangesExpanded: expanded }),
-  setWorkspaceChangesTreeData: (data) => set({ workspaceChangesTreeData: data }),
-  setWorkspaceChangesTreeLoading: (loading) => set({ workspaceChangesTreeLoading: loading }),
-  setWorkspaceChangesTreeErrors: (errors) => set({ workspaceChangesTreeErrors: errors }),
-  setWorkspaceContextMode: (mode) => set({ workspaceContextMode: mode }),
-});
+    setAppInfo: (appInfo) => set({ appInfo }),
+    setRecentWorkspaces: (workspaces) => set({ recentWorkspaces: workspaces }),
+    setWorkspaceTree: (tree) => set({ workspaceTree: tree }),
+    setWorkspaceTrees: (trees) => set({ workspaceTrees: trees }),
+    setWorkspaceTreeLoading: (loading) => set({ workspaceTreeLoading: loading }),
+    setWorkspaceTreeErrors: (errors) => set({ workspaceTreeErrors: errors }),
+    setWorkspaceTreeExpandedInFileNav: (expanded) => {
+      scheduleWrite(WORKSPACE_TREE_EXPANDED_KEY, expanded);
+      set({ workspaceTreeExpandedInFileNav: expanded });
+    },
+    setGitSnapshots: (snapshots) => set({ gitSnapshots: snapshots }),
+    setWorkspaceChangesExpanded: (expanded) => {
+      scheduleWrite(WORKSPACE_CHANGES_EXPANDED_KEY, expanded);
+      set({ workspaceChangesExpanded: expanded });
+    },
+    setWorkspaceChangesTreeData: (data) => set({ workspaceChangesTreeData: data }),
+    setWorkspaceChangesTreeLoading: (loading) => set({ workspaceChangesTreeLoading: loading }),
+    setWorkspaceChangesTreeErrors: (errors) => set({ workspaceChangesTreeErrors: errors }),
+    setWorkspaceContextMode: (mode) => set({ workspaceContextMode: mode }),
+  };
+};

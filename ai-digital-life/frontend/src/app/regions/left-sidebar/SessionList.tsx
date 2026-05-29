@@ -3,6 +3,7 @@ import type { ReorderSessionsInput } from "@ai-digital-life/kernel";
 import type { CopyDict, Locale } from "../../copy";
 import { IconArchive, IconMoreVertical, IconPin, IconPinOff } from "../../icons";
 import { TooltipSimple } from "../../components/Tooltip";
+import { RenameDialog } from "../../components/RenameDialog";
 import { getVisibleSidebarSessions, type SidebarSessionItem } from "../../sidebarViewModel";
 import { STATUS_LABEL, StatusLamp } from "./SidebarContextMenu";
 
@@ -39,9 +40,6 @@ export interface SessionListProps {
   onDeleteSession: (sessionId: string) => void;
   onReorderSessions: (input: ReorderSessionsInput) => void;
   activeSessionId?: string;
-  renamingSessionId?: string;
-  renameDraft?: string;
-  onRenamingChange?: (sessionId: string | undefined, draft?: string) => void;
   locale: Locale;
   t: CopyDict;
   onSessionContextMenu?: (sessionId: string, x: number, y: number) => void;
@@ -63,9 +61,6 @@ export function SessionList({
   onDeleteSession,
   onReorderSessions,
   activeSessionId,
-  renamingSessionId: externalRenamingSessionId,
-  renameDraft: externalRenameDraft,
-  onRenamingChange,
   locale,
   t,
   onSessionContextMenu
@@ -76,17 +71,8 @@ export function SessionList({
   const [expandedSessionLists, setExpandedSessionLists] = useState<Record<string, boolean>>({});
   const [ephemeralVisibleSessionIds, setEphemeralVisibleSessionIds] = useState<Record<string, string[]>>({});
   const [hoveredSessionId, setHoveredSessionId] = useState<string>();
-  const [internalRenamingSessionId, setInternalRenamingSessionId] = useState<string>();
-  const [internalRenameDraft, setInternalRenameDraft] = useState("");
-
-  const renamingSessionId = externalRenamingSessionId ?? internalRenamingSessionId;
-  const renameDraft = externalRenameDraft ?? internalRenameDraft;
-  const setRenamingSessionId = onRenamingChange
-    ? (id: string | undefined) => onRenamingChange(id, id !== undefined ? "" : undefined)
-    : setInternalRenamingSessionId;
-  const setRenameDraft = onRenamingChange
-    ? (draft: string) => onRenamingChange(externalRenamingSessionId, draft)
-    : setInternalRenameDraft;
+  const [renameDialogOpen, setRenameDialogOpen] = useState(false);
+  const [sessionToRename, setSessionToRename] = useState<{ id: string; name: string } | null>(null);
 
   const dropFlashTimeoutRef = useRef<number | null>(null);
   const dragOverSessionIdRef = useRef<string | undefined>(undefined);
@@ -117,6 +103,30 @@ export function SessionList({
       setDroppedSessionId((current) => (current === sessionId ? undefined : current));
       dropFlashTimeoutRef.current = null;
     }, DROP_FLASH_DURATION_MS);
+  }, []);
+
+  const handleStartRename = useCallback(
+    (sessionId: string, sessionName: string) => {
+      setSessionToRename({ id: sessionId, name: sessionName });
+      setRenameDialogOpen(true);
+    },
+    []
+  );
+
+  const handleConfirmRename = useCallback(
+    (newName: string) => {
+      if (sessionToRename) {
+        onRenameSession(sessionToRename.id, newName);
+      }
+      setRenameDialogOpen(false);
+      setSessionToRename(null);
+    },
+    [sessionToRename, onRenameSession]
+  );
+
+  const handleCancelRename = useCallback(() => {
+    setRenameDialogOpen(false);
+    setSessionToRename(null);
   }, []);
 
   const removeEphemeralVisibleSessionId = useCallback((listKeyInner: string, sessionId: string) => {
@@ -235,6 +245,7 @@ export function SessionList({
         const isDropTarget =
           dragOverSessionId === sessionItem.session.id &&
           canReorderIntoTarget;
+        const isHighlighted = sessionToRename?.id === sessionItem.session.id;
         return (
           <li
             key={sessionItem.session.id}
@@ -271,7 +282,7 @@ export function SessionList({
             <div
               role="button"
               tabIndex={0}
-              className={`adl-session-item${sessionItem.session.id === activeSessionId ? " is-active" : ""}${dragSessionId === sessionItem.session.id ? " is-dragging" : ""}${isDropTarget ? " is-drop-target" : ""}${droppedSessionId === sessionItem.session.id ? " is-drop-flash" : ""}`}
+              className={`adl-session-item${sessionItem.session.id === activeSessionId ? " is-active" : ""}${dragSessionId === sessionItem.session.id ? " is-dragging" : ""}${isDropTarget ? " is-drop-target" : ""}${droppedSessionId === sessionItem.session.id ? " is-drop-flash" : ""}${isHighlighted ? " is-highlighted" : ""}`}
               onMouseEnter={() => setHoveredSessionId(sessionItem.session.id)}
               onMouseLeave={() => setHoveredSessionId((current) => (current === sessionItem.session.id ? undefined : current))}
               onContextMenu={(event) => {
@@ -304,8 +315,7 @@ export function SessionList({
                 if (!interactive) {
                   return;
                 }
-                setRenamingSessionId(sessionItem.session.id);
-                setRenameDraft(sessionItem.session.title);
+                handleStartRename(sessionItem.session.id, sessionItem.session.title);
               }}
             >
               {isHovered && interactive ? (
@@ -326,40 +336,11 @@ export function SessionList({
                 </span>
               )}
 
-              {renamingSessionId === sessionItem.session.id ? (
-                <input
-                  className="adl-session-item__rename"
-                  value={renameDraft}
-                  autoFocus
-                  onChange={(event) => setRenameDraft(event.target.value)}
-                  onBlur={() => {
-                    const nextValue = renameDraft.trim();
-                    if (nextValue && nextValue !== sessionItem.session.title) {
-                      onRenameSession(sessionItem.session.id, nextValue);
-                    }
-                    setRenamingSessionId(undefined);
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      const nextValue = renameDraft.trim();
-                      if (nextValue && nextValue !== sessionItem.session.title) {
-                        onRenameSession(sessionItem.session.id, nextValue);
-                      }
-                      setRenamingSessionId(undefined);
-                    }
-                    if (event.key === "Escape") {
-                      setRenamingSessionId(undefined);
-                    }
-                  }}
-                />
-              ) : (
-                <TooltipSimple content={sessionItem.session.title} placement="right">
-                  <span className="adl-session-item__title">
-                    <span className="adl-session-item__title-text">{sessionItem.session.title}</span>
-                  </span>
-                </TooltipSimple>
-              )}
+              <TooltipSimple content={sessionItem.session.title} placement="right">
+                <span className="adl-session-item__title">
+                  <span className="adl-session-item__title-text">{sessionItem.session.title}</span>
+                </span>
+              </TooltipSimple>
 
               {isHovered && interactive ? (
                 <span className="adl-session-item__actions" onClick={(event) => event.stopPropagation()}>
@@ -447,6 +428,17 @@ export function SessionList({
           },
           onTailDragLeave: undefined
         } : undefined
+      )}
+      {sessionToRename && (
+        <RenameDialog
+          open={renameDialogOpen}
+          initialValue={sessionToRename.name}
+          title="重命名会话"
+          itemInfo={`当前名称: ${sessionToRename.name}`}
+          placeholder="输入新会话名称"
+          onConfirm={handleConfirmRename}
+          onCancel={handleCancelRename}
+        />
       )}
     </>
   );

@@ -1,5 +1,5 @@
 import React from "react";
-import type { ConversationMessageRecord, MessageBlock } from "@ai-digital-life/kernel";
+import type { ConversationMessageRecord, ConversationBlock } from "@ai-digital-life/kernel";
 import type { CopyDict } from "./copy";
 import { PlanCard, type PlanStep } from "./components/agent/PlanCard";
 import { StepBlock } from "./components/agent/StepBlock";
@@ -7,7 +7,7 @@ import { ExecutionSummaryCard } from "./components/agent/ExecutionSummary";
 import { CommandOutputBlock } from "./components/terminal/CommandOutputBlock";
 import { TokenUsage } from "./components/conversation/TokenUsage";
 
-interface MessageBlockRendererProps<T extends MessageBlock = MessageBlock> {
+interface MessageBlockRendererProps<T extends ConversationBlock = ConversationBlock> {
   block: T;
   t: CopyDict;
   onRetryStep?: (stepId: string) => void;
@@ -111,7 +111,7 @@ registerMessageBlock("markdown", ({ block }) => {
 });
 
 function renderMessageBlock(
-  block: MessageBlock,
+  block: ConversationBlock,
   t: CopyDict,
   onRetryStep?: (stepId: string) => void,
   onViewChanges?: () => void

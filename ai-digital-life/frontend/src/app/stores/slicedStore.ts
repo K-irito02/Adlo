@@ -18,6 +18,7 @@ import {
   createCommandSlice,
   createClipboardSlice,
   createTerminalSlice,
+  createBrowserSlice,
 } from "./slices";
 import type {
   UISlice,
@@ -32,6 +33,7 @@ import type {
   CommandSlice,
   ClipboardSlice,
   TerminalSlice,
+  BrowserSlice,
 } from "./slices";
 import type { StoreState as FullStoreState } from "./StoreState";
 
@@ -76,6 +78,7 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
   ...createCommandSlice(set, get),       // 命令执行（latestCommandRun）
   ...createClipboardSlice(set, get),     // 剪贴板
   ...createTerminalSlice(set, get),      // 终端会话管理
+  ...createBrowserSlice(set, get),       // 浏览器标签管理
 
   // ════════════════════════════════════════════════════════
   // 根级状态

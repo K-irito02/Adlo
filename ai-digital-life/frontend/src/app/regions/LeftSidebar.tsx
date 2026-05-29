@@ -8,6 +8,7 @@ import { useUiStore } from "../ui-store";
 import { useAppStore } from "../stores/slicedStore";
 import { useAppActions } from "../hooks/useAppActions";
 import { TooltipSimple } from "../components/Tooltip";
+import { RenameDialog } from "../components/RenameDialog";
 import { SidebarContextMenu, SidebarMenuState, buildWorkspaceMenuItems, buildSessionMenuItems, exportSessionMarkdown } from "./left-sidebar/SidebarContextMenu";
 import { ResizeHandle } from "./left-sidebar/ResizeHandle";
 import { ConversationPanel } from "./left-sidebar/ConversationPanel";
@@ -44,8 +45,8 @@ export function LeftSidebar({
   );
   const [menuState, setMenuState] = useState<SidebarMenuState>();
   const [dragWorkspaceId, setDragWorkspaceId] = useState<string>();
-  const [renamingSessionId, setRenamingSessionId] = useState<string>();
-  const [renameDraft, setRenameDraft] = useState("");
+  const [renameDialogOpen, setRenameDialogOpen] = useState(false);
+  const [sessionToRename, setSessionToRename] = useState<{ id: string; name: string } | null>(null);
 
   const leftbarContentRef = useRef<HTMLDivElement | null>(null);
   const workspaceToolbarRef = useRef<HTMLDivElement | null>(null);
@@ -84,13 +85,6 @@ export function LeftSidebar({
     return items;
   }, [displayStandaloneArchivedSessions, displayStandaloneSessions, workspaceItems]);
 
-  const handleRenamingChange = (sessionId: string | undefined, draft?: string) => {
-    setRenamingSessionId(sessionId);
-    if (draft !== undefined) {
-      setRenameDraft(draft);
-    }
-  };
-
   const commonSessionProps = {
     onSelectSession: actions.selectSession,
     onPinSession: actions.pinSession,
@@ -102,9 +96,6 @@ export function LeftSidebar({
     onDeleteSession: actions.deleteSession,
     onReorderSessions: actions.reorderSessions,
     activeSessionId,
-    renamingSessionId,
-    renameDraft,
-    onRenamingChange: handleRenamingChange,
     locale,
     t
   };
@@ -228,8 +219,8 @@ export function LeftSidebar({
               <SidebarContextMenu
                 items={buildSessionMenuItems(sessionItem, t, {
                   onRename: () => {
-                    setRenamingSessionId(sessionItem.session.id);
-                    setRenameDraft(sessionItem.session.title);
+                    setSessionToRename({ id: sessionItem.session.id, name: sessionItem.session.title });
+                    setRenameDialogOpen(true);
                   },
                   onMarkRead: () => actions.markSessionRead(sessionItem.session.id),
                   onMarkUnread: () => actions.markSessionUnread(sessionItem.session.id),
@@ -248,6 +239,25 @@ export function LeftSidebar({
           })()
         ) : null
       ) : null}
+
+      {sessionToRename && (
+        <RenameDialog
+          open={renameDialogOpen}
+          initialValue={sessionToRename.name}
+          title="重命名会话"
+          itemInfo={`当前名称: ${sessionToRename.name}`}
+          placeholder="输入新会话名称"
+          onConfirm={(newName) => {
+            actions.renameSession(sessionToRename.id, newName);
+            setRenameDialogOpen(false);
+            setSessionToRename(null);
+          }}
+          onCancel={() => {
+            setRenameDialogOpen(false);
+            setSessionToRename(null);
+          }}
+        />
+      )}
 
       <ResizeHandle />
     </aside>

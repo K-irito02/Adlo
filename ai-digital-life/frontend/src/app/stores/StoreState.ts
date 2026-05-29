@@ -49,6 +49,7 @@ import type { TaskSlice } from "./slices/taskSlice";
 import type { CommandSlice } from "./slices/commandSlice";
 import type { ClipboardSlice } from "./slices/clipboardSlice";
 import type { TerminalSlice } from "./slices/terminalSlice";
+import type { BrowserSlice } from "./slices/browserSlice";
 import type {
   AppInfo,
   AppPreferencePatch,
@@ -71,7 +72,8 @@ interface StoreStateBase
     TaskSlice,
     CommandSlice,
     ClipboardSlice,
-    TerminalSlice {
+    TerminalSlice,
+    BrowserSlice {
   loading: boolean;
   error?: string;
   isFetching: Record<string, boolean>;

@@ -36,6 +36,7 @@ import { readSelectedBranch, writeSelectedBranch, getChangeKindLabel, getChangeS
 import { ChangesEmptyState } from "./ChangesEmptyState";
 import { ChangesToolbar } from "./ChangesToolbar";
 import { ChangesConfirmDialogs } from "./ChangesConfirmDialogs";
+import { RenameDialog } from "../../../components/RenameDialog";
 import { ChangesTreePanel } from "./ChangesTreePanel";
 import type { PatchFileSummary } from "../../../features/patch-review";
 import type { PatchHunkDecision } from "@ai-digital-life/kernel";
@@ -386,6 +387,7 @@ export function ChangesPanel(props: ChangesPanelProps) {
     }
   }, []);
 
+  const [changesRenameDialogOpen, setChangesRenameDialogOpen] = useState(false);
   const [changesRenamingPath, setChangesRenamingPath] = useState<string | null>(null);
   const [changesDeleteConfirmPath, setChangesDeleteConfirmPath] = useState<string | null>(null);
   const changesContextMenuPersistRef = useRef(false);
@@ -395,12 +397,14 @@ export function ChangesPanel(props: ChangesPanelProps) {
     if (!changesRenamingPath) return;
     const path = changesRenamingPath;
     setChangesRenamingPath(null);
+    setChangesRenameDialogOpen(false);
     changesClearMenuHighlightRef.current?.();
     await useAppStore.getState().renameWorkspaceFile(path, newName);
   }, [changesRenamingPath]);
 
   const handleChangesRenameCancel = useCallback(() => {
     setChangesRenamingPath(null);
+    setChangesRenameDialogOpen(false);
     changesClearMenuHighlightRef.current?.();
   }, []);
 
@@ -520,6 +524,7 @@ export function ChangesPanel(props: ChangesPanelProps) {
           action: (targetNode) => {
             changesContextMenuPersistRef.current = true;
             setChangesRenamingPath(targetNode.path);
+            setChangesRenameDialogOpen(true);
           }
         },
         {
@@ -584,7 +589,7 @@ export function ChangesPanel(props: ChangesPanelProps) {
         ? hasExpandedOutlineItems
         : false;
 
-  const changesNavigatorTitle = changesNavigatorMode === "outline" ? t.outline : changesNavigatorMode === "list" ? t.changesListView : t.toolChanges;
+  const changesNavigatorTitle = changesNavigatorMode === "outline" ? t.outline : changesNavigatorMode === "list" ? t.changesListView : "文件树";
 
   const changesTreeData = useMemo(() => {
     const result: Record<string, ChangeTreeNode[]> = {};
@@ -998,13 +1003,21 @@ export function ChangesPanel(props: ChangesPanelProps) {
       </div>
       <ChangesConfirmDialogs
         changesDeleteConfirmPath={changesDeleteConfirmPath}
-        changesRenamingPath={changesRenamingPath}
         onDeleteConfirm={handleChangesDeleteConfirm}
         onDeleteCancel={handleChangesDeleteCancel}
-        onRenameConfirm={handleChangesRenameConfirm}
-        onRenameCancel={handleChangesRenameCancel}
         t={t}
       />
+      {changesRenameDialogOpen && changesRenamingPath ? (
+        <RenameDialog
+          open={changesRenameDialogOpen}
+          initialValue={changesRenamingPath.split("/").pop() || ""}
+          title="重命名"
+          itemInfo={`当前路径: ${changesRenamingPath}`}
+          placeholder="输入新名称"
+          onConfirm={handleChangesRenameConfirm}
+          onCancel={handleChangesRenameCancel}
+        />
+      ) : null}
     </div>
   );
 }

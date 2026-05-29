@@ -410,6 +410,13 @@ export const IconArrowUp = make(
     <path d="m5 12 7-7 7 7" />
   </>
 );
+export const IconBack = make(
+  <>
+    <path d="M4 8h5a5 5 0 0 1 0 10H6" />
+    <path d="M4 16h5" />
+    <path d="M6 11l-2 2 2 2" />
+  </>
+);
 export const IconStopCircle = make(
   <>
     <circle cx="12" cy="12" r="9" />
@@ -776,5 +783,28 @@ export const IconAlignLeft = make(
     <path d="M17 18h-7" />
     <path d="M3 12h.01" />
     <path d="M3 18h.01" />
+  </>
+);
+export const IconCut = make(
+  <>
+    <circle cx="6" cy="6" r="3" />
+    <circle cx="6" cy="18" r="3" />
+    <path d="M20 4 8.91 15.09" />
+    <path d="M20 20 8.91 8.91" />
+  </>
+);
+export const IconFileTree = make(
+  <>
+    <path d="M3 3h6v4H3zM3 10h6v4H3zM3 17h6v4H3z" />
+    <path d="M11 3h8v4h-8zM11 10h8v4h-8z" />
+    <path d="M11 17h8v4h-8z" />
+  </>
+);
+export const IconLayoutList = make(
+  <>
+    <rect x="3" y="3" width="18" height="18" rx="2" />
+    <line x1="7" y1="8" x2="17" y2="8" />
+    <line x1="7" y1="12" x2="17" y2="12" />
+    <line x1="7" y1="16" x2="17" y2="16" />
   </>
 );

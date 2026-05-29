@@ -22,6 +22,7 @@ import {
   MAX_PTY_LISTENERS,
   setMockCurrentWorkspace,
   setOnMockStateChange,
+  onMockStateChange,
   type MockBridgeState,
 } from "./mock/shared";
 

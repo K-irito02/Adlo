@@ -27,6 +27,7 @@ const TERMINAL_DEFAULT_PROFILE_KEY = "adl-ui:terminal-default-profile";
 const TERMINAL_WORKSPACE_DEFAULT_PROFILES_KEY = "adl-ui:terminal-workspace-default-profiles";
 const TERMINAL_NAVIGATOR_WIDTH_KEY = "adl-ui:terminal-navigator-width";
 const TERMINAL_NAVIGATOR_COLLAPSED_KEY = "adl-ui:navigator-collapsed";
+const TERMINAL_WORKSPACE_EXPANDED_KEY = "adl-ui:terminal-workspace-expanded";
 
 // Constants
 const TERMINAL_NAVIGATOR_WIDTH_MIN = 180;
@@ -171,11 +172,13 @@ function hydrateTerminalDefaults(get: () => StoreState, set: (partial: Partial<S
       ...defaultNavigatorCollapsed(),
       ...readJson<Record<ToolId, boolean>>(TERMINAL_NAVIGATOR_COLLAPSED_KEY, defaultNavigatorCollapsed())
     };
+    const workspaceExpanded = readJson<Record<string, boolean>>(TERMINAL_WORKSPACE_EXPANDED_KEY, {});
     set({
       defaultTerminalProfile: profile,
       workspaceDefaultProfiles: workspaceProfiles,
       terminalNavigatorWidth: width,
       navigatorCollapsedByTool: collapsed,
+      terminalWorkspaceExpanded: workspaceExpanded,
     });
   };
   if (typeof requestIdleCallback === "function") {
@@ -390,8 +393,10 @@ export const createTerminalSlice = (
         return { navigatorCollapsedByTool: next };
       }),
 
-    setTerminalWorkspaceExpanded: (expanded) =>
-      set({ terminalWorkspaceExpanded: expanded }),
+    setTerminalWorkspaceExpanded: (expanded) => {
+      scheduleWrite(TERMINAL_WORKSPACE_EXPANDED_KEY, expanded);
+      set({ terminalWorkspaceExpanded: expanded });
+    },
 
     setTerminalPersisted: (persisted) =>
       set({ terminalPersisted: persisted }),

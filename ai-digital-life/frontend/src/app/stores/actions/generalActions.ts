@@ -36,33 +36,25 @@ export function createGeneralActions(set: StoreApi<StoreState>["setState"], get:
       if (requestSeq !== workspaceRequestSeq) return;
 
       const recentWorkspaces = recentResult.ok ? recentResult.data : [];
-      // 为右侧面板设置默认展开所有可见工作区
-      const visibleWorkspaces = recentWorkspaces.filter(
-        (w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available
-      );
-      const workspaceTreeExpandedInFileNav: Record<string, boolean> = {};
-      const workspaceChangesExpanded: Record<string, boolean> = {};
-      visibleWorkspaces.forEach((w) => {
-        workspaceTreeExpandedInFileNav[w.id] = true;
-        workspaceChangesExpanded[w.id] = true;
-      });
+    // 为右侧面板设置默认展开所有可见工作区
+    const visibleWorkspaces = recentWorkspaces.filter(
+      (w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available
+    );
 
-      const nextState: Partial<StoreState> = {
-        appInfo: appInfoResult.data,
-        modelHealth: modelHealthResult.ok ? modelHealthResult.data : undefined,
-        recentWorkspaces,
-        sessions: conversationState.sessions,
-        activeSessionId: conversationState.activeSessionId,
-        sessionDetails: conversationState.detail
-          ? { [conversationState.detail.session.id]: conversationState.detail }
-          : {},
-        taskCenter,
-        workspaceContextMode: workspaceContextModeFromInfo(appInfoResult.data),
-        loading: false,
-        dirtyEditorPaths: [],
-        workspaceTreeExpandedInFileNav,
-        workspaceChangesExpanded,
-      };
+    const nextState: Partial<StoreState> = {
+      appInfo: appInfoResult.data,
+      modelHealth: modelHealthResult.ok ? modelHealthResult.data : undefined,
+      recentWorkspaces,
+      sessions: conversationState.sessions,
+      activeSessionId: conversationState.activeSessionId,
+      sessionDetails: conversationState.detail
+        ? { [conversationState.detail.session.id]: conversationState.detail }
+        : {},
+      taskCenter,
+      workspaceContextMode: workspaceContextModeFromInfo(appInfoResult.data),
+      loading: false,
+      dirtyEditorPaths: [],
+    };
 
       void window.digitalLife.workspace.setEditorDirtyPaths([]);
 

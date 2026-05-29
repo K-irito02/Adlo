@@ -2310,10 +2310,6 @@
 }
 
 .adl-multitree-entry {
-  border-bottom: 1px solid var(--border-subtle);
-}
-.adl-multitree-entry:last-child {
-  border-bottom: none;
 }
 
 .adl-multitree-entry.is-dragging {

@@ -256,10 +256,11 @@
   align-items: center;
   justify-content: center;
   background: var(--bg-overlay, rgba(0, 0, 0, 0.5));
-  z-index: var(--z-modal, 1000);
+  z-index: var(--z-modal-backdrop);
 }
 
 .adl-prompt-modal__panel {
+  z-index: var(--z-modal);
   width: min(90vw, 320px);
   background: var(--surface-raised);
   border: 1px solid var(--border);
@@ -285,6 +286,15 @@
   font-size: var(--text-sm);
   font-weight: var(--font-semibold);
   color: var(--text-primary);
+}
+
+.adl-prompt-modal__item-info {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  padding: var(--space-2);
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
 }
 
 .adl-prompt-modal__input {

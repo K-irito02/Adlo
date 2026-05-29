@@ -397,11 +397,6 @@
 }
 
 .adl-multitree--terminal .adl-multitree-entry {
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.adl-multitree--terminal .adl-multitree-entry:last-child {
-  border-bottom: none;
 }
 
 .adl-multitree--terminal .adl-multitree-entry__header {
@@ -865,10 +860,12 @@
 }
 
 .adl-multitree-entry {
-  border-bottom: 1px solid var(--border-subtle);
 }
-.adl-multitree-entry:last-child {
-  border-bottom: none;
+
+.adl-multitree-entry.is-highlighted {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border-radius: var(--radius-md);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent);
 }
 
 .adl-multitree-entry.is-dragging {

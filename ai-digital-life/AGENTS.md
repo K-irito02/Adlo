@@ -106,6 +106,33 @@
   - **LRU 缓存简化**：移除 access count 逻辑
   - **terminalSlice 引用稳定性检查**：添加检查防止闭包引用过期
   - **测试验证**：cargo test + 183 前端测试全部通过
+- **第二十轮 — 浏览器功能优化与类型修复**（2026-05-30）：
+  - **浏览器界面优化**：
+    - 删除"起始页"文字信息，简化界面
+    - 删除"历史标签"按钮，简化导航
+    - 把"新建标签目录"的鼠标悬停提示改为"新建标签工作区"，保持术语一致
+    - 添加系统级别的"历史目录"分类，包含"历史记录"工作区头部行，自动记录用户访问过的网址（去重处理，最多 100 条）
+    - 在网址输入框添加"新建标签页"按钮，快速创建新标签
+    - 点击"收藏标签"按钮时弹出对话框，支持选择已存在的标签工作区或创建新的标签工作区
+  - **历史记录功能**：
+    - 在 browserSlice 中添加 `BrowserHistoryState` 接口和相关状态
+    - 实现 `browserAddToHistory` 和 `browserClearHistory` 方法
+    - 修改 `browserNavigateActiveTab` 自动记录访问历史并去重
+    - 更新 MultiWorkspaceContainer 支持显示历史目录
+    - 历史记录支持按时间显示（刚刚、N分钟前、N小时前、N天前）
+    - 点击历史记录可在新标签页打开
+  - **标签工作区功能**：
+    - TabFolderState 新增 tabs 字段，支持标签分组
+    - 添加 browserBookmarkTab 和 browserAddToFolder 方法
+    - 创建 BookmarkTabDialog 组件，支持选择现有工作区或创建新工作区
+    - CSS 添加 adl-bookmark-tab-* 样式集
+    - 标签工作区支持显示其中的标签数量
+  - **类型错误修复**：
+    - 修复 MessageStream.tsx 中的 react-window 问题：简化实现，移除复杂的虚拟滚动，改为普通列表
+    - 修复 MessageBlocks.tsx：MessageBlock → ConversationBlock，修正类型导入
+    - 修复 mock-bridge.ts：添加缺失的 onMockStateChange 导入
+    - 所有类型检查通过（tsc --noEmit）
+  - **测试验证**：cargo test + 183 前端测试全部通过
 
 **不在本目录实现**：多 Agent DAG、MCP、插件市场、云协作等 Phase 2+ 能力。
 
