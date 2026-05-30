@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { SettingsGroupId } from "@ai-digital-life/kernel";
+import { clamp, readJson, writeJson, readNumber, writeNumber, readFlag, writeFlag, createUiId } from "./stores/shared";
 
 /**
  * Renderer-only UI state.
@@ -40,18 +41,6 @@ export interface BrowserHistoryEntry {
   visitedAt: number;
 }
 
-/** @deprecated Use TerminalTabState from terminalSlice (stores/slices/terminalSlice.ts) instead */
-export interface TerminalTabState {
-  id: string;
-  title: string;
-  profile: TerminalProfile;
-  sessionId?: string;
-  status: "idle" | "running" | "terminated";
-  isPinned: boolean;
-  pinnedAt?: number;
-  sortOrder: number;
-}
-
 export const LEFT_COLLAPSED_KEY = "adl-ui:left-collapsed";
 export const RIGHT_COLLAPSED_KEY = "adl-ui:right-collapsed";
 const ACTIVE_RIGHT_TOOL_KEY = "adl-ui:active-right-tool";
@@ -87,33 +76,7 @@ export const BROWSER_NAVIGATOR_WIDTH_MAX = 300;
 export const DEFAULT_BROWSER_NAVIGATOR_WIDTH = 240;
 const TOOL_IDS: ToolId[] = ["files", "changes", "browser", "terminal", "audit", "settings", "models"];
 
-function createUiId(prefix: string): string {
-  const random = globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2, 10);
-  return `${prefix}-${random}`;
-}
 
-export function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value));
-}
-
-export function readFlag(key: string, fallback: boolean): boolean {
-  try {
-    const raw = window.localStorage.getItem(key);
-    if (raw === "1") return true;
-    if (raw === "0") return false;
-  } catch {
-    /* ignore */
-  }
-  return fallback;
-}
-
-export function writeFlag(key: string, value: boolean): void {
-  try {
-    window.localStorage.setItem(key, value ? "1" : "0");
-  } catch {
-    /* ignore */
-  }
-}
 
 function readRightTool(): ToolId {
   try {
@@ -223,45 +186,7 @@ function writeRightTool(tool: ToolId): void {
   }
 }
 
-export function readNumber(key: string, fallback: number, min: number, max: number): number {
-  try {
-    const raw = Number(window.localStorage.getItem(key));
-    if (Number.isFinite(raw)) {
-      return clamp(raw, min, max);
-    }
-  } catch {
-    /* ignore */
-  }
-  return fallback;
-}
 
-export function writeNumber(key: string, value: number): void {
-  try {
-    window.localStorage.setItem(key, String(value));
-  } catch {
-    /* ignore */
-  }
-}
-
-function readJson<T>(key: string, fallback: T): T {
-  try {
-    const raw = window.localStorage.getItem(key);
-    if (raw) {
-      return JSON.parse(raw) as T;
-    }
-  } catch {
-    /* ignore */
-  }
-  return fallback;
-}
-
-function writeJson(key: string, value: unknown): void {
-  try {
-    window.localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    /* ignore */
-  }
-}
 
 function defaultNavigatorCollapsed(): Record<ToolId, boolean> {
   return {
@@ -285,7 +210,6 @@ function normalizeBrowserTabs(tabs: BrowserTabState[]): BrowserTabState[] {
 
 export interface UiState {
   activeRightTool: ToolId;
-  terminalNavigatorWidth: number;
   navigatorCollapsedByTool: Record<ToolId, boolean>;
   expandedFileTreePaths: Record<string, Record<string, boolean>>;
   expandedChangesTreePaths: Record<string, boolean>;
@@ -309,7 +233,6 @@ export interface UiState {
   setActiveSettingsGroup: (group: SettingsGroupId) => void;
   setSettingsSearchQuery: (query: string) => void;
   setActiveRightTool: (tool: ToolId) => void;
-  setTerminalNavigatorWidth: (width: number) => void;
   setNavigatorCollapsed: (tool: ToolId, collapsed: boolean) => void;
   toggleNavigator: (tool: ToolId) => void;
   setFileTreePathExpanded: (workspaceId: string, path: string, expanded: boolean) => void;
@@ -350,7 +273,6 @@ const initialNavigatorCollapsed = {
 
 export const useUiStore = create<UiState>((set) => ({
   activeRightTool: readRightTool(),
-  terminalNavigatorWidth: 240,
   navigatorCollapsedByTool: initialNavigatorCollapsed,
   expandedFileTreePaths: readJson<Record<string, Record<string, boolean>>>(FILE_TREE_EXPANDED_KEY, {}),
   expandedChangesTreePaths: readJson<Record<string, boolean>>(CHANGES_TREE_EXPANDED_KEY, {}),
@@ -374,9 +296,6 @@ export const useUiStore = create<UiState>((set) => ({
   setActiveRightTool: (tool) => {
     writeRightTool(tool);
     set({ activeRightTool: tool });
-  },
-  setTerminalNavigatorWidth: (_width) => {
-    // No-op, now handled by uiSlice
   },
   setNavigatorCollapsed: (tool, collapsed) =>
     set((state) => {

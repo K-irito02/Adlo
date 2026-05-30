@@ -1,7 +1,7 @@
 import React from "react";
 import { IconClose } from "../../icons";
 import { TooltipSimple } from "../../components/Tooltip";
-import type { TerminalTabState } from "../../ui-store";
+import type { TerminalTabState } from "../../stores/slices/terminalSlice";
 import type { CopyDict } from "../../copy";
 
 interface TerminalTabBarProps {

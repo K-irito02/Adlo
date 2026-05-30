@@ -65,10 +65,14 @@ const RowComponent = React.memo(({
     return null;
   }
 
-  return (
-    <div style={{ ...style, height: "auto", minHeight: style.height }}>
-      <div style={{ padding: index === 0 ? 0 : "var(--space-3) 0 0 0" }}>
-        {item.type === "message" ? (
+  const padding = useMemo(() => (
+    index === 0 ? 0 : "var(--space-3) 0 0 0"
+  ), [index]);
+
+  const renderContent = useCallback(() => {
+    switch (item.type) {
+      case "message":
+        return (
           <article className={`adl-message adl-message--${item.message.role}`}>
             <header>
               <strong>{item.message.role}</strong>
@@ -82,7 +86,9 @@ const RowComponent = React.memo(({
             <p>{item.message.content}</p>
             <MessageBlocks message={item.message} t={t} />
           </article>
-        ) : item.type === "run-summary" ? (
+        );
+      case "run-summary":
+        return (
           <RunSummaryBlock
             t={t}
             runId={item.runId}
@@ -91,11 +97,15 @@ const RowComponent = React.memo(({
             usage={runUsageByRunId[item.runId]}
             defaultExpanded={false}
           />
-        ) : item.type === "approval-hint" ? (
+        );
+      case "approval-hint":
+        return (
           <div className="adl-center__approval-hint">
             <span>{t.approvalWaitingHint}</span>
           </div>
-        ) : item.type === "streaming-message" ? (
+        );
+      case "streaming-message":
+        return (
           <article className="adl-message adl-message--assistant adl-message--streaming">
             <header>
               <strong>assistant</strong>
@@ -106,7 +116,9 @@ const RowComponent = React.memo(({
             </header>
             <p>{streamingText}</p>
           </article>
-        ) : item.type === "streaming-run-summary" ? (
+        );
+      case "streaming-run-summary":
+        return (
           <RunSummaryBlock
             t={t}
             runId={item.runId}
@@ -114,10 +126,44 @@ const RowComponent = React.memo(({
             usage={runUsageByRunId[item.runId]}
             defaultExpanded
           />
-        ) : null}
+        );
+      default:
+        return null;
+    }
+  }, [item, t, activeRun, runActivityByRunId, runUsageByRunId, locale, streamingText]);
+
+  return (
+    <div style={{ ...style, height: "auto", minHeight: style.height }}>
+      <div style={{ padding }}>
+        {renderContent()}
       </div>
     </div>
   );
+}, (prevProps, nextProps) => {
+  // 优化比较，只比较真正需要变化才会重新渲染的属性
+  if (prevProps.index !== nextProps.index) return false;
+  if (prevProps.streamItems !== nextProps.streamItems) return false;
+  
+  // 只在内容真正变化时才重新渲染相关部分
+  const item = prevProps.streamItems[prevProps.index];
+  const nextItem = nextProps.streamItems[nextProps.index];
+  
+  // 如果项类型不同，必须重新渲染
+  if (!item || !nextItem || item.type !== nextItem.type) return false;
+  
+  // 对于流式文本，每次都要更新
+  if (item.type === "streaming-message" && prevProps.streamingText !== nextProps.streamingText) {
+    return false;
+  }
+  
+  // 检查其他需要变化的属性
+  if (prevProps.t !== nextProps.t) return false;
+  if (prevProps.activeRun !== nextProps.activeRun) return false;
+  if (prevProps.runActivityByRunId !== nextProps.runActivityByRunId) return false;
+  if (prevProps.runUsageByRunId !== nextProps.runUsageByRunId) return false;
+  if (prevProps.locale !== nextProps.locale) return false;
+  
+  return true;
 });
 
 RowComponent.displayName = "RowComponent";

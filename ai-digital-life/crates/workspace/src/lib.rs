@@ -4,6 +4,7 @@ pub(crate) mod fs;
 mod git;
 mod search;
 mod tree;
+mod cache;
 
 pub use fs::{
     create_file, create_folder, delete_entry, duplicate_entry, move_entry, rename_entry,

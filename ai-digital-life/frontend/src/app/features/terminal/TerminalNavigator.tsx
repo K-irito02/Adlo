@@ -3,7 +3,7 @@ import { IconFileCode, IconTerminal, IconTrash } from "../../icons";
 import { TooltipSimple } from "../../components/Tooltip";
 import type { CopyDict } from "../../copy";
 import type { TerminalNavigatorMode } from "./useTerminalPanel";
-import type { TerminalTabState } from "../../ui-store";
+import type { TerminalTabState } from "../../stores/slices/terminalSlice";
 import { TerminalTabBar } from "./TerminalTabBar";
 
 interface TerminalNavigatorProps {

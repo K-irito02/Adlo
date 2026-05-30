@@ -67,6 +67,14 @@
 - **第十七轮 — 架构深度重构**：Rust crate 重组（17→19 crate，新增 adl-outline/adl-context/adl-command/adl-pty，移除 context-engine/prompt-engine）；5 个新前端 Hook（useDragDropWorkspace/usePatchReview/useEditorReveal/useThemeSync/useTaskCenterPolling）；Store 新增 isFetching/setError；shared.ts 7 个新工具函数；useTerminalPanel 拆分 3 子 hook（useTerminalPtyLifecycle/useTerminalDragDrop/useTerminalMenus）；右侧面板 7 个 per-panel hooks；useRightPanelViewProps 300→55 行；DB Arc<Mutex>→r2d2 连接池；EntityTable 宏生成；LRU 缓存简化（移除 access count）；vite.config.ts optimizeDeps 更新；terminalSlice 引用稳定性检查；cargo test + 183 前端测试全部通过
 - **第十八轮 — 重构洞察全面修复**：MessageStream 虚拟滚动（react-window）、MessageBlocks React.memo、ui-store.ts deprecated 代码清理、CenterPane 简化；cargo test + 183 前端测试全绿
 - **第十九轮 — 架构优化与清理**：terminal/pty crate 职责边界重构（删除 terminal crate，统一使用 pty crate）；修复 src-tauri/Cargo.toml workspace.members；更新相关文件 import（setup.rs/state.rs/patch.rs/task.rs/terminal.rs/command.rs）；所有测试通过
+- **第二十轮 — 重构洞察全面修复与优化（2026-05-31）**：
+  - 清理 ui-store.ts 中的 deprecated 终端代码（TerminalTabState 类型、空实现函数等）
+  - 统一 localStorage 工具函数到 stores/shared.ts（readJson、writeJson、readNumber、writeNumber、readFlag、writeFlag、clamp、createDebouncedWrite 等）
+  - 优化 MessageStream 组件的虚拟滚动（useCallback 优化、React.memo 优化等）
+  - 统一浏览器功能状态管理到 browserSlice
+  - 优化终端 localStorage 批处理机制（通过 createDebouncedWrite 实现高效批量写入）
+  - 添加 Rust 后端文件内容缓存（workspace crate 新增 cache.rs 模块，LRU 缓存，最大 100 条目，完整单元测试）
+  - 所有 183 个前端测试 + 24 个 Rust 后端测试全部通过
 
 ### Zustand 切片模式（已完成）
 
@@ -143,6 +151,7 @@ regions/right-panel/   # 右侧面板区域
 | **第十七轮** | **架构深度重构（Rust crate 重组 17→19、Store 增强、5 个新 Hook、DB 连接池等）** | **2026-05-28** |
 | **第十八轮** | **重构洞察全面修复（MessageStream 虚拟滚动、RightPanel 优化、App 组件拆分、运行活动 LRU 等）** | **2026-05-29** |
 | **第十九轮** | **重构洞察修复计划（代码清理、架构优化、terminal crate 删除）** | **2026-05-30** |
+| **第二十轮** | **重构洞察全面修复与优化（代码清理、工具函数统一、缓存添加、性能优化）** | **2026-05-31** |
 全部详情见 [重构进度报告](./docs/重构洞察/REFACTORING_PROGRESS_REPORT.md)
 
 ### 排除项

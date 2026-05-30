@@ -1,6 +1,6 @@
 # 重构进度报告
 
-> 更新日期: 2026-05-28（第十七轮）
+> 更新日期: 2026-05-31（第二十轮）
 
 ## 完成状态
 
@@ -19,6 +19,7 @@
 | **第十一轮** | **2026-05-25** | **ChangesPanel 组件提取（3 组件 → patch-review 模块）** | ✅ |
 | **第十七轮** | **2026-05-28** | **22 项重构洞察修复全部完成（Rust crate 17→19、Store 增强、5 个新 Hook、DB 连接池等）** | ✅ |
 | **第十八轮** | **2026-05-29** | **重构洞察全面修复（MessageStream 虚拟滚动、RightPanel 优化、App 组件拆分、运行活动 LRU、命令注册模式等 7 个任务）** | ✅ |
+| **第二十轮** | **2026-05-31** | **重构洞察全面修复与优化（代码清理、工具函数统一、缓存添加、性能优化）** | ✅ |
 
 ## 第七轮重构（2026-05-23）：全面修复 + 大型组件模块化
 
@@ -499,6 +500,55 @@ features/diff-viewer/ (DiffViewer 拆分)
 | Rust cargo test (all crates) | ✅ 全部通过 |
 | 新增依赖 | react-window @types/react-window |
 | 新建文件 | MessageStream 重构、7 个 per-panel hook 优化、useAppStartup/usePatchReviewWithEditor 两个新 Hook |
+
+---
+
+## 第二十轮重构（2026-05-31）：重构洞察全面修复与优化
+
+基于 [重构洞察报告 2026-05-31](./refactor-insight-2026-05-31.md) 和 [修复计划](../../.trae/specs/fix-refactor-insights-2026-05-31/) 完成，分 3 个 Phase 共 7 个任务：
+
+### Phase 1：高优先级代码清理与工具函数统一（2 项 🔴高）
+
+| 任务 | 文件 | 核心改进 |
+|------|------|---------|
+| **清理 ui-store.ts deprecated 代码** | `ui-store.ts` | 删除过期的 TerminalTabState 类型、死代码和常量，删除重复的 localStorage 工具函数 |
+| **统一 localStorage 工具函数** | `stores/shared.ts` | 提取 8 个共享工具函数：`readJson`、`writeJson`、`readNumber`、`writeNumber`、`readFlag`、`writeFlag`、`clamp`、`createDebouncedWrite`，统一所有模块使用这些函数 |
+
+### Phase 2：中优先级性能优化与架构统一（3 项 🟡中）
+
+| 任务 | 文件 | 核心改进 |
+|------|------|---------|
+| **优化 MessageStream 组件虚拟滚动** | `MessageStream.tsx` | 添加 `useCallback` 优化渲染函数，优化 `useMemo` 依赖，添加自定义比较函数减少重渲染 |
+| **统一浏览器功能状态管理** | `browserSlice.ts` | 完成浏览器状态管理统一，使用共享工具函数 |
+| **优化终端 localStorage 批处理** | `terminalSlice.ts` | 优化批量写入调度器，使用 `createDebouncedWrite` 实现更高效的 localStorage 写入 |
+
+### Phase 3：低优先级功能增强与性能优化（2 项 🟢低）
+
+| 任务 | 文件 | 核心改进 |
+|------|------|---------|
+| **添加 Rust 后端文件内容缓存** | `workspace/src/cache.rs` | 新增 LRU 缓存模块，支持最大 100 个文件缓存，包含完整的单元测试 |
+| **运行所有测试并验证** | 所有 | 确保 183 个前端测试和 24 个 Rust 测试全部通过 |
+
+### 关键改进
+
+| 改进项 | 说明 |
+|--------|------|
+| 代码清理 | ui-store.ts 删除 deprecated 终端代码，删除重复的工具函数 |
+| 工具函数统一 | stores/shared.ts 统一所有 localStorage 工具，消除重复实现 |
+| MessageStream 优化 | 虚拟滚动性能进一步提升，减少不必要的重渲染 |
+| 浏览器状态统一 | 完成浏览器功能状态管理的统一迁移 |
+| 终端批处理优化 | localStorage 写入调度器优化，提升性能 |
+| Rust 文件缓存 | 新增 workspace/cache.rs 模块，实现完整的 LRU 缓存 |
+
+### 验证结果
+
+| 检查项 | 结果 |
+|--------|------|
+| TypeScript typecheck | ✅ 0 error |
+| 前端测试 (Vitest) | ✅ 31 files, 183 tests passed |
+| Rust cargo test (all crates) | ✅ 24 tests passed（6 ignored） |
+| Rust cargo check | ✅ 零警告 |
+| 新建文件 | `crates/workspace/src/cache.rs` |
 
 ---
 

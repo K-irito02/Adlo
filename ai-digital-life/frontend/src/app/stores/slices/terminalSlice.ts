@@ -35,54 +35,7 @@ const TERMINAL_NAVIGATOR_WIDTH_MAX = 300;
 const DEFAULT_TERMINAL_NAVIGATOR_WIDTH = 240;
 
 // Helper functions
-function createUiId(prefix: string): string {
-  const random = globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2, 10);
-  return `${prefix}-${random}`;
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value));
-}
-
-function readJson<T>(key: string, fallback: T): T {
-  try {
-    const raw = window.localStorage.getItem(key);
-    if (raw) {
-      return JSON.parse(raw) as T;
-    }
-  } catch {
-    /* ignore */
-  }
-  return fallback;
-}
-
-function writeJson(key: string, value: unknown): void {
-  try {
-    window.localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    /* ignore */
-  }
-}
-
-function readNumber(key: string, fallback: number, min: number, max: number): number {
-  try {
-    const raw = Number(window.localStorage.getItem(key));
-    if (Number.isFinite(raw)) {
-      return clamp(raw, min, max);
-    }
-  } catch {
-    /* ignore */
-  }
-  return fallback;
-}
-
-function writeNumber(key: string, value: number): void {
-  try {
-    window.localStorage.setItem(key, String(value));
-  } catch {
-    /* ignore */
-  }
-}
+import { clamp, readJson, writeJson, readNumber, writeNumber, createUiId, createDebouncedWrite } from "../shared";
 
 function deriveTerminalTitle(profile: TerminalProfile, count: number): string {
   const label = profile === "powershell" ? "PowerShell" : profile === "bash" ? "Bash" : "CMD";
@@ -123,40 +76,7 @@ function defaultNavigatorCollapsed(): Record<ToolId, boolean> {
 }
 
 // Batch write scheduler — coalesces multiple localStorage writes into one
-const pendingWrites = new Map<string, unknown>();
-const pendingNumberWrites = new Map<string, number>();
-let writeScheduled = false;
-
-function scheduleWrite(key: string, value: unknown): void {
-  pendingWrites.set(key, value);
-  scheduleFlush();
-}
-
-function scheduleNumberWrite(key: string, value: number): void {
-  pendingNumberWrites.set(key, value);
-  scheduleFlush();
-}
-
-function scheduleFlush(): void {
-  if (writeScheduled) return;
-  writeScheduled = true;
-  const flush = () => {
-    writeScheduled = false;
-    for (const [key, value] of pendingWrites) {
-      writeJson(key, value);
-    }
-    pendingWrites.clear();
-    for (const [key, value] of pendingNumberWrites) {
-      writeNumber(key, value);
-    }
-    pendingNumberWrites.clear();
-  };
-  if (typeof requestIdleCallback === "function") {
-    requestIdleCallback(flush, { timeout: 500 });
-  } else {
-    setTimeout(flush, 50);
-  }
-}
+const { scheduleWrite, scheduleNumberWrite } = createDebouncedWrite(50);
 
 // Lazy localStorage hydration — reads persisted values in idle time
 let _defaultsHydrated = false;
