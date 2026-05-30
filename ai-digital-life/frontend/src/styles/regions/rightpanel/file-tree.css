@@ -928,18 +928,38 @@
   position: relative;
 }
 
+.adl-multitree-entry__namezone::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 180px;
+  background: linear-gradient(to right, transparent 0%, #ffffff 60%, #ffffff 100%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-150) var(--ease-default);
+  z-index: 1;
+}
+
+[data-theme="dark"] .adl-multitree-entry__namezone::after {
+  background: linear-gradient(to right, transparent 0%, #000000 60%, #000000 100%);
+}
+
+.adl-multitree-entry__namezone:hover::after {
+  opacity: 1;
+}
+
+
 .adl-multitree-entry__name {
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
   font-size: var(--text-xs);
   font-weight: var(--font-medium);
   color: var(--text-primary);
-}
-.adl-multitree-entry__namezone:hover .adl-multitree-entry__name {
-  padding-right: 82px;
 }
 
 .adl-multitree-entry__count {
@@ -971,8 +991,7 @@
   pointer-events: none;
   transition: opacity var(--duration-150) var(--ease-default);
   flex-shrink: 0;
-  background: inherit;
-  padding-left: var(--space-1);
+  z-index: 2;
 }
 .adl-multitree-entry__namezone:hover .adl-multitree-entry__actions {
   opacity: 1;

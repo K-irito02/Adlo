@@ -3,8 +3,6 @@ import type { ReorderWorkspacesInput } from "@ai-digital-life/kernel";
 import type { CopyDict } from "../../copy";
 import {
   IconArchive,
-  IconChevronDown,
-  IconChevronRight,
   IconCollapseRows,
   IconExpandRows,
   IconMoreVertical,
@@ -208,19 +206,6 @@ export function WorkspaceList({
                   </span>
 
                   <div className="adl-workspace-row__actions">
-                    <TooltipSimple content={expanded ? t.collapseSessions : t.expand} placement="right">
-                      <button
-                        type="button"
-                        className="adl-icon-btn adl-icon-btn--xs"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          toggleSessionWorkspace(item.workspace.path);
-                        }}
-                        aria-label={expanded ? t.collapseSessions : t.expand}
-                      >
-                        {expanded ? <IconChevronDown size={12} decorative /> : <IconChevronRight size={12} decorative />}
-                      </button>
-                    </TooltipSimple>
                     <TooltipSimple content={t.newSession} placement="right">
                       <button
                         type="button"
