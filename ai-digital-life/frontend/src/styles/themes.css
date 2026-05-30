@@ -102,6 +102,7 @@ body,
   /* === Background Layers === */
   --bg: #f8f8f8;
   --bg-secondary: #f8f8f8;
+  --gradient-mask: #ffffff;
   --bg-strong: #ffffff;
   --bg-elevated: #f8f8f8;
   --bg-muted: rgba(34, 34, 34, 0.06);
@@ -288,6 +289,7 @@ body,
   /* === Background Layers === */
   --bg: #141414;
   --bg-secondary: #141414;
+  --gradient-mask: #000000;
   --bg-strong: #1c1c1c;
   --bg-elevated: #141414;
   --bg-muted: rgba(255, 255, 255, 0.06);

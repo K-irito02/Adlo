@@ -52,15 +52,11 @@
   right: 0;
   bottom: 0;
   width: 180px;
-  background: linear-gradient(to right, transparent 0%, #ffffff 60%, #ffffff 100%);
+  background: linear-gradient(to right, transparent 0%, var(--gradient-mask) 60%, var(--gradient-mask) 100%);
   opacity: 0;
   pointer-events: none;
   transition: opacity var(--duration-150) var(--ease-default);
   z-index: 1;
-}
-
-[data-theme="dark"] .adl-workspace-row::after {
-  background: linear-gradient(to right, transparent 0%, #000000 60%, #000000 100%);
 }
 
 .adl-workspace-row:hover::after {
