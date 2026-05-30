@@ -30,7 +30,16 @@ impl FileCache {
     pub fn get(&self, root: &Path, relative_path: &str) -> Option<WorkspaceFileDocument> {
         let key = Self::make_key(root, relative_path);
         let cache = self.cache.lock().expect("cache mutex poisoned");
-        cache.get(&key).cloned()
+        let mut lru_queue = self.lru_queue.lock().expect("lru mutex poisoned");
+        
+        if let Some(doc) = cache.get(&key) {
+            // If cache hit, remove old position and re-add to end to mark as recently used
+            lru_queue.retain(|k| k != &key);
+            lru_queue.push_back(key);
+            Some(doc.clone())
+        } else {
+            None
+        }
     }
 
     pub fn insert(&self, root: &Path, relative_path: &str, doc: WorkspaceFileDocument) {
@@ -155,5 +164,38 @@ mod tests {
         cache.clear();
         
         assert!(cache.get(&root, "test.txt").is_none());
+    }
+    
+    #[test]
+    fn cache_updates_lru_on_get() {
+        let cache = FileCache::with_max_entries(3);
+        let root = PathBuf::from("/test");
+        
+        // Insert 3 items
+        for i in 0..3 {
+            let doc = WorkspaceFileDocument {
+                path: format!("file{}.txt", i),
+                content: format!("content{}", i),
+                last_modified_at: 1000,
+            };
+            cache.insert(&root, &format!("file{}.txt", i), doc);
+        }
+        
+        // Access file0 first to make it recently used
+        cache.get(&root, "file0.txt").unwrap();
+        
+        // Insert a 4th item to trigger eviction
+        let doc4 = WorkspaceFileDocument {
+            path: "file3.txt".into(),
+            content: "content3".into(),
+            last_modified_at: 1000,
+        };
+        cache.insert(&root, "file3.txt", doc4);
+        
+        // Since file0 was accessed recently, file1 should be evicted instead
+        assert!(cache.get(&root, "file0.txt").is_some()); // Still present
+        assert!(cache.get(&root, "file1.txt").is_none()); // Should be evicted
+        assert!(cache.get(&root, "file2.txt").is_some());
+        assert!(cache.get(&root, "file3.txt").is_some());
     }
 }
