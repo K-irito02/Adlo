@@ -3,16 +3,19 @@ use std::collections::{HashMap, VecDeque};
 use std::path::Path;
 use std::sync::Mutex;
 
+#[allow(dead_code)]
 struct CacheState {
     cache: HashMap<String, WorkspaceFileDocument>,
     lru_queue: VecDeque<String>,
 }
 
+#[allow(dead_code)]
 pub struct FileCache {
     state: Mutex<CacheState>,
     max_entries: usize,
 }
 
+#[allow(dead_code)]
 impl FileCache {
     pub fn new() -> Self {
         Self::with_max_entries(100)
@@ -32,14 +35,17 @@ impl FileCache {
         let key = Self::make_key(root, relative_path);
         let mut state = self.state.lock().expect("cache mutex poisoned");
 
-        // Check if key exists and clone doc first to avoid borrow issues
-        let doc = state.cache.get(&key)?.clone();
+        // Check if key exists first
+        if !state.cache.contains_key(&key) {
+            return None;
+        }
 
-        // Update LRU queue
+        // Immediately update LRU queue first (correct semantic order)
         state.lru_queue.retain(|k| k != &key);
-        state.lru_queue.push_back(key);
+        state.lru_queue.push_back(key.clone());
 
-        Some(doc)
+        // Then get and return the document
+        state.cache.get(&key).cloned()
     }
 
     pub fn insert(&self, root: &Path, relative_path: &str, doc: WorkspaceFileDocument) {
