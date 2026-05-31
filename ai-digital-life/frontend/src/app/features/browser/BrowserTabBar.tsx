@@ -4,17 +4,7 @@ import { TooltipSimple } from "../../components/Tooltip";
 import type { BrowserTabState } from "../../stores/slices/browserSlice";
 import type { CopyDict } from "../../copy";
 import { useAppStore } from "../../stores/slicedStore";
-
-// 从URL获取网站favicon
-function getFaviconUrl(url: string): string {
-  try {
-    const urlObj = new URL(url);
-    // 使用Google的favicon服务，或者直接尝试获取网站根目录的favicon
-    return `https://www.google.com/s2/favicons?domain=${urlObj.hostname}&sz=64`;
-  } catch {
-    return "";
-  }
-}
+import { getFaviconUrl } from "../../utils/favicon";
 
 interface BrowserTabBarProps {
   tabs: BrowserTabState[];

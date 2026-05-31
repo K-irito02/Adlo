@@ -7,6 +7,7 @@ import { WorkspaceBrowserEntry } from "./WorkspaceBrowserEntry";
 import { TabFolderEntry } from "./TabFolderEntry";
 import { IconHistory } from "../../icons";
 import { TooltipSimple } from "../../components/Tooltip";
+import { getFaviconUrl } from "../../utils/favicon";
 
 export interface MultiWorkspaceBrowserProps {
   workspaces: RecentWorkspaceEntry[];
@@ -127,16 +128,6 @@ function getDisplayTitle(title: string, url: string): string {
   } catch {
     // URL 解析失败，返回原始值
     return url;
-  }
-}
-
-// 从 URL 获取 favicon
-function getFaviconUrl(url: string): string {
-  try {
-    const urlObj = new URL(url);
-    return `https://www.google.com/s2/favicons?domain=${urlObj.hostname}&sz=64`;
-  } catch {
-    return "";
   }
 }
 
