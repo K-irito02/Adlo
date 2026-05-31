@@ -13,6 +13,7 @@ import {
   IconRefreshCw,
   IconSearch,
   IconStar,
+  IconStarFilled,
   IconFoldVertical,
   IconUnfoldVertical,
   IconTrash,
@@ -20,7 +21,8 @@ import {
   IconFiles,
   IconList,
   IconLayoutList,
-  IconBack
+  IconBack,
+  IconGlobe
 } from "../../icons";
 import { TooltipSimple } from "../../components/Tooltip";
 import { useAppStore } from "../../stores/slicedStore";
@@ -31,6 +33,7 @@ import { MultiWorkspaceBrowser } from "../workspace-browser";
 import { CreateTabFolderDialog } from "./CreateTabFolderDialog";
 import { BookmarkTabDialog } from "./BookmarkTabDialog";
 import { FlatTabList } from "./FlatTabList";
+import { CustomScrollArea } from "../file-tree/CustomScrollArea";
 import { isTauriShell } from "../../../tauri-bridge";
 import type { BrowserPanelProps } from "../../regions/right-panel/types";
 import { open as shellOpen } from "@tauri-apps/plugin-shell";
@@ -48,6 +51,39 @@ function handleRenameFromContextMenu(
       }
     }
   };
+}
+
+function SearchResultItem({
+  item,
+  onClick,
+}: {
+  item: { title: string; url: string; source?: string };
+  onClick: () => void;
+}) {
+  return (
+    <div
+      className="adl-browser-search-result-item"
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === "Enter") onClick(); }}
+    >
+      <IconGlobe size={14} decorative className="adl-browser-search-result-item__icon" />
+      <div className="adl-browser-search-result-item__content">
+        <div className="adl-browser-search-result-item__title" title={item.title}>
+          {item.title}
+        </div>
+        <div className="adl-browser-search-result-item__url" title={item.url}>
+          {item.url}
+        </div>
+      </div>
+      {item.source && (
+        <div className="adl-browser-search-result-item__source">
+          {item.source}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function handleDeleteFromContextMenu(
@@ -298,15 +334,17 @@ export function BrowserPanel(props: BrowserPanelProps) {
                 className="adl-tool-search__copy"
                 onClick={(e) => {
                   e.stopPropagation();
-                  const url = (browserState.activeTab?.url ?? browserState.address) || "about:blank";
-                  navigator.clipboard?.writeText(url).catch(() => {
-                    const textarea = document.createElement('textarea');
-                    textarea.value = url;
-                    document.body.appendChild(textarea);
-                    textarea.select();
-                    document.execCommand('copy');
-                    document.body.removeChild(textarea);
-                  });
+                  const url = (browserState.activeTab?.url ?? browserState.address) || "";
+                  if (url) {
+                    navigator.clipboard?.writeText(url).catch(() => {
+                      const textarea = document.createElement('textarea');
+                      textarea.value = url;
+                      document.body.appendChild(textarea);
+                      textarea.select();
+                      document.execCommand('copy');
+                      document.body.removeChild(textarea);
+                    });
+                  }
                 }}
               >
                 <IconCopy size={14} decorative />
@@ -331,10 +369,18 @@ export function BrowserPanel(props: BrowserPanelProps) {
             <button 
               type="button" 
               className="adl-tool-context__iconbtn" 
-              aria-label="收藏标签"
-              onClick={() => setBookmarkDialogOpen(true)}
+              aria-label={browserState.isBookmarked ? "取消收藏" : "收藏标签"}
+              onClick={() => {
+                if (browserState.isBookmarked) {
+                  // 取消收藏，直接调用 toggle 而不打开对话框
+                  browserActions.handleToggleBookmark();
+                } else {
+                  // 收藏，打开对话框选择位置
+                  setBookmarkDialogOpen(true);
+                }
+              }}
             >
-              <IconStar size={14} decorative />
+              {browserState.isBookmarked ? <IconStarFilled size={14} decorative /> : <IconStar size={14} decorative />}
             </button>
           </TooltipSimple>
           <BrowserMenuDropdown
@@ -520,41 +566,67 @@ export function BrowserPanel(props: BrowserPanelProps) {
               />
             )
           ) : browserState.navigatorMode === "search" ? (
-            <div ref={browserState.navigatorSearchRef} className="adl-tool-navigator__context adl-tool-navigator__context--search adl-tool-navigator__context--search-stack">
-              <div className="adl-tool-search-scope" role="tablist" aria-label={t.browserSearchTabs}>
-                <button
-                  type="button"
-                  className={`adl-tool-search-scope__btn${browserState.searchScope === "bookmarks" ? " is-active" : ""}`}
-                  onClick={() => browserActions.setSearchScope("bookmarks")}
-                >
-                  {t.browserSearchBookmarks}
-                </button>
-                <button
-                  type="button"
-                  className={`adl-tool-search-scope__btn${browserState.searchScope === "history" ? " is-active" : ""}`}
-                  onClick={() => browserActions.setSearchScope("history")}
-                >
-                  {t.browserSearchHistory}
-                </button>
-                <button
-                  type="button"
-                  className={`adl-tool-search-scope__btn${browserState.searchScope === "all" ? " is-active" : ""}`}
-                  onClick={() => browserActions.setSearchScope("all")}
-                >
-                  {t.browserSearchAll}
-                </button>
+            <div className="adl-tool-navigator__content">
+              <div className="adl-tool-navigator__context adl-tool-navigator__context--search adl-tool-navigator__context--search-stack">
+                <div className="adl-tool-search-scope" role="tablist" aria-label={t.browserSearchTabs}>
+                  <button
+                    type="button"
+                    className={`adl-tool-search-scope__btn${browserState.searchScope === "bookmarks" ? " is-active" : ""}`}
+                    onClick={() => browserActions.setSearchScope("bookmarks")}
+                  >
+                    {t.browserSearchBookmarks}
+                  </button>
+                  <button
+                    type="button"
+                    className={`adl-tool-search-scope__btn${browserState.searchScope === "history" ? " is-active" : ""}`}
+                    onClick={() => browserActions.setSearchScope("history")}
+                  >
+                    {t.browserSearchHistory}
+                  </button>
+                  <button
+                    type="button"
+                    className={`adl-tool-search-scope__btn${browserState.searchScope === "all" ? " is-active" : ""}`}
+                    onClick={() => browserActions.setSearchScope("all")}
+                  >
+                    {t.browserSearchAll}
+                  </button>
+                </div>
+                <label className="adl-tool-search adl-tool-search--compact adl-tool-search--navigator">
+                  <IconSearch size={12} decorative />
+                  <input
+                    ref={browserState.navigatorSearchInputRef}
+                    type="search"
+                    value={browserState.navigatorQuery}
+                    onChange={(event) => browserActions.setNavigatorQuery(event.target.value)}
+                    placeholder={t.searchPlaceholder}
+                    aria-label={t.search}
+                  />
+                </label>
               </div>
-              <label className="adl-tool-search adl-tool-search--compact adl-tool-search--navigator">
-                <IconSearch size={12} decorative />
-                <input
-                  ref={browserState.navigatorSearchInputRef}
-                  type="search"
-                  value={browserState.navigatorQuery}
-                  onChange={(event) => browserActions.setNavigatorQuery(event.target.value)}
-                  placeholder={t.searchPlaceholder}
-                  aria-label={t.search}
-                />
-              </label>
+              <CustomScrollArea
+                shellClassName="adl-browser-search-results"
+                scrollClassName="adl-browser-search-results-scroll"
+                scrollbarClassName="adl-browser-search-results-scrollbar"
+                thumbClassName="adl-browser-search-results-scrollbar__thumb"
+              >
+                {browserState.searchResults.length > 0 ? (
+                  browserState.searchResults.map((item, index) => (
+                    <SearchResultItem
+                      key={`${item.url}-${index}`}
+                      item={item}
+                      onClick={() => browserOpenTab(item.url, item.title)}
+                    />
+                  ))
+                ) : browserState.navigatorQuery.trim() ? (
+                  <div className="adl-multitree__empty">
+                    <p className="adl-empty-hint">没有找到匹配的结果</p>
+                  </div>
+                ) : (
+                  <div className="adl-multitree__empty">
+                    <p className="adl-empty-hint">输入关键词搜索书签和历史记录</p>
+                  </div>
+                )}
+              </CustomScrollArea>
             </div>
           ) : null}
           <div

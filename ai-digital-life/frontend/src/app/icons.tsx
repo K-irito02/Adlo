@@ -654,6 +654,10 @@ export const IconHome = make(<path d="M3 12 12 4l9 8" />);
 export const IconStar = make(
   <path d="M12 2 15 9l7 .6-5.3 4.6 1.7 7-6.4-3.8L6.6 21l1.7-7L3 9.6 10 9z" />
 );
+
+export const IconStarFilled = make(
+  <path d="M12 2 15 9l7 .6-5.3 4.6 1.7 7-6.4-3.8L6.6 21l1.7-7L3 9.6 10 9z" fill="currentColor" />
+);
 export const IconLightbulb = make(
   <>
     <path d="M9 18h6" />

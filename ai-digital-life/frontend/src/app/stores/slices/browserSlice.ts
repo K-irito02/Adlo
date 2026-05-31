@@ -16,12 +16,26 @@ export interface BrowserTabState {
   sortOrder: number;
 }
 
+export interface BrowserTabStateUpdate {
+  workspaceId?: string;
+  title?: string;
+  url?: string;
+  isPinned?: boolean;
+  pinnedAt?: number;
+  sortOrder?: number;
+}
+
 export interface TabFolderState {
   id: string;
   name: string;
   createdAt: number;
   isUserCreated?: boolean;
   tabs?: string[]; // 存储该工作区下的标签 ID
+}
+
+export interface TabFolderStateUpdate {
+  name?: string;
+  tabs?: string[];
 }
 
 export interface BrowserHistoryState {
@@ -109,21 +123,15 @@ function hydrateBrowserDefaults(get: () => StoreState, set: (partial: Partial<St
     const workspaceExpanded = readJson<Record<string, boolean>>(BROWSER_WORKSPACE_EXPANDED_KEY, {});
     const persistedTabFolders = readJson<TabFolderState[]>(BROWSER_TAB_FOLDERS_KEY, []);
 
-    const tabsModified = state.browserTabs.length !== 1 ||
-      state.browserTabs[0]?.id !== defaultTab.id ||
-      state.browserTabs[0]?.url !== "about:blank";
-
     let finalTabs = state.browserTabs;
     let finalActiveTabId = state.browserActiveTabId;
 
-    if (!tabsModified) {
-      const persistedTabs = readJson<BrowserTabState[]>(BROWSER_TABS_KEY, []);
-      if (persistedTabs.length > 0) {
-        finalTabs = persistedTabs;
-        finalActiveTabId = readJson<string>(BROWSER_ACTIVE_TAB_KEY, "");
-        if (!finalTabs.find(t => t.id === finalActiveTabId)) {
-          finalActiveTabId = finalTabs[finalTabs.length - 1]?.id ?? defaultTab.id;
-        }
+    const persistedTabs = readJson<BrowserTabState[]>(BROWSER_TABS_KEY, []);
+    if (persistedTabs.length > 0) {
+      finalTabs = persistedTabs;
+      finalActiveTabId = readJson<string>(BROWSER_ACTIVE_TAB_KEY, "");
+      if (!finalTabs.find(t => t.id === finalActiveTabId)) {
+        finalActiveTabId = finalTabs.length > 0 ? finalTabs[finalTabs.length - 1].id : "";
       }
     }
 
@@ -161,20 +169,6 @@ function hydrateBrowserDefaults(get: () => StoreState, set: (partial: Partial<St
   }
 }
 
-function createDefaultBrowserTab(): BrowserTabState {
-  return {
-    id: createUiId("browser"),
-    workspaceId: "",
-    title: "Start Page",
-    url: "about:blank",
-    isPinned: false,
-    sortOrder: 0,
-  };
-}
-
-const defaultTab = createDefaultBrowserTab();
-const initialBrowserTabs: BrowserTabState[] = [defaultTab];
-
 // Type and slice definition
 export interface BrowserSlice {
   browserTabs: BrowserTabState[];
@@ -194,7 +188,7 @@ export interface BrowserSlice {
   browserOpenTab: (url?: string, title?: string, workspaceId?: string) => void;
   browserSelectTab: (tabId: string) => void;
   browserCloseTab: (tabId: string) => void;
-  browserUpdateTab: (tabId: string, patch: Partial<Omit<BrowserTabState, "id">>) => void;
+  browserUpdateTab: (tabId: string, patch: Partial<BrowserTabStateUpdate>) => void;
   browserTogglePin: (tabId: string) => void;
   browserReorderTabs: (newOrder: BrowserTabState[]) => void;
   browserCloseAllTabs: (workspaceId?: string) => void;
@@ -206,7 +200,7 @@ export interface BrowserSlice {
   setBrowserPersisted: (persisted: boolean) => void;
   setBrowserWorkspaceId: (workspaceId: string) => void;
   browserCreateTabFolder: (name?: string) => void;
-  browserUpdateTabFolder: (folderId: string, patch: Partial<Omit<TabFolderState, "id">>) => void;
+  browserUpdateTabFolder: (folderId: string, patch: Partial<TabFolderStateUpdate>) => void;
   browserDeleteTabFolder: (folderId: string) => void;
   browserAddToHistory: (url: string, title: string) => void;
   browserClearHistory: () => void;
@@ -223,9 +217,9 @@ export const createBrowserSlice = (
 ): BrowserSlice => {
   hydrateBrowserDefaults(get, set);
   return {
-    browserTabs: initialBrowserTabs,
-    browserTabsById: { [defaultTab.id]: defaultTab },
-    browserActiveTabId: defaultTab.id,
+    browserTabs: [],
+    browserTabsById: {},
+    browserActiveTabId: "",
     browserNavigatorWidth: DEFAULT_BROWSER_NAVIGATOR_WIDTH,
     navigatorCollapsedByTool: defaultNavigatorCollapsed(),
     browserWorkspaceExpanded: {},
@@ -244,7 +238,7 @@ export const createBrowserSlice = (
           id: createUiId("browser"),
           workspaceId,
           title: title?.trim() || "新标签页",
-          url: url?.trim() || "about:blank",
+          url: url?.trim() || "",
           isPinned: false,
           sortOrder: maxSortOrder + 1
         };
@@ -267,19 +261,6 @@ export const createBrowserSlice = (
           state.browserActiveTabId === tabId
             ? nextTabs[nextTabs.length - 1]?.id ?? ""
             : state.browserActiveTabId;
-        
-        if (nextTabs.length === 0) {
-          const defaultTab: BrowserTabState = {
-            id: createUiId("browser"),
-            workspaceId: "",
-            title: "Start Page",
-            url: "about:blank",
-            isPinned: false,
-            sortOrder: 0,
-          };
-          nextTabs = [defaultTab];
-          nextActive = defaultTab.id;
-        }
         
         scheduleWrite(BROWSER_TABS_KEY, nextTabs);
         scheduleWrite(BROWSER_ACTIVE_TAB_KEY, nextActive);
@@ -415,8 +396,24 @@ export const createBrowserSlice = (
         const nextBookmarks = exists
           ? state.browserBookmarks.filter((bookmark) => bookmark.url !== url)
           : [...state.browserBookmarks, { url, title }];
+        
+        // 如果是取消收藏，同时从所有文件夹中移除该标签
+        let nextFolders = state.browserTabFolders;
+        if (exists && active) {
+          nextFolders = state.browserTabFolders.map(folder => {
+            if (folder.tabs && folder.tabs.includes(active.id)) {
+              return {
+                ...folder,
+                tabs: folder.tabs.filter(tabId => tabId !== active.id)
+              };
+            }
+            return folder;
+          });
+          scheduleWrite(BROWSER_TAB_FOLDERS_KEY, nextFolders);
+        }
+        
         scheduleWrite(BROWSER_BOOKMARKS_KEY, nextBookmarks);
-        return { browserBookmarks: nextBookmarks };
+        return { browserBookmarks: nextBookmarks, browserTabFolders: nextFolders };
       });
     },
 
@@ -516,10 +513,21 @@ export const createBrowserSlice = (
     
     browserBookmarkTab: (tabId, folderId, newFolderName) => {
       set((state) => {
+        const tab = state.browserTabs.find(t => t.id === tabId);
+        if (!tab) return {};
+
+        const url = tab.url;
+        const title = tab.title;
+        const existsInBookmarks = state.browserBookmarks.some(b => b.url === url);
+        let nextBookmarks = state.browserBookmarks;
+
+        if (!existsInBookmarks) {
+          nextBookmarks = [...state.browserBookmarks, { url, title }];
+        }
+
         let nextFolders = [...state.browserTabFolders];
         let targetFolderId = folderId;
-        
-        // 如果没有指定 folderId 但提供了 newFolderName，则创建新文件夹
+
         if (!targetFolderId && newFolderName) {
           const folderCount = nextFolders.length;
           const folderName = newFolderName.trim() || `新建目录${folderCount + 1}`;
@@ -533,7 +541,6 @@ export const createBrowserSlice = (
           nextFolders = [...nextFolders, newFolder];
           targetFolderId = newFolder.id;
         } else if (targetFolderId) {
-          // 否则添加到现有文件夹
           nextFolders = nextFolders.map(folder => {
             if (folder.id === targetFolderId) {
               const existingTabs = folder.tabs || [];
@@ -547,9 +554,10 @@ export const createBrowserSlice = (
             return folder;
           });
         }
-        
+
         scheduleWrite(BROWSER_TAB_FOLDERS_KEY, nextFolders);
-        return { browserTabFolders: nextFolders };
+        scheduleWrite(BROWSER_BOOKMARKS_KEY, nextBookmarks);
+        return { browserTabFolders: nextFolders, browserBookmarks: nextBookmarks };
       });
     },
   };

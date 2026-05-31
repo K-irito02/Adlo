@@ -45,6 +45,101 @@ export interface MultiWorkspaceBrowserProps {
 
 const INDEPENDENT_WORKSPACE_ID = "__independent__";
 
+// 从 URL 中提取友好的网站名称
+function getDisplayTitle(title: string, url: string): string {
+  // 如果有标题且标题不是 URL 本身，使用标题
+  if (title && title.trim() && title !== url) {
+    // 检查标题是否只是 URL 或 IP 地址
+    try {
+      new URL(title);
+      // 如果标题是有效的 URL，继续处理
+    } catch {
+      // 不是 URL，直接返回标题
+      return title;
+    }
+  }
+
+  // 尝试从 URL 中提取有用信息
+  try {
+    const urlObj = new URL(url);
+    let hostname = urlObj.hostname.replace(/^www\./, "");
+    
+    // 常见域名前缀映射为更友好的名称
+    const domainMap: Record<string, string> = {
+      "github.com": "GitHub",
+      "gitlab.com": "GitLab",
+      "stackoverflow.com": "Stack Overflow",
+      "google.com": "Google",
+      "google.cn": "Google",
+      "bing.com": "Bing",
+      "baidu.com": "百度",
+      "youtube.com": "YouTube",
+      "twitter.com": "Twitter",
+      "x.com": "X (Twitter)",
+      "facebook.com": "Facebook",
+      "instagram.com": "Instagram",
+      "linkedin.com": "LinkedIn",
+      "amazon.com": "Amazon",
+      "taobao.com": "淘宝",
+      "jd.com": "京东",
+      "tmall.com": "天猫",
+      "zhihu.com": "知乎",
+      "bilibili.com": "哔哩哔哩",
+      "douyin.com": "抖音",
+      "weibo.com": "微博",
+      "qq.com": "腾讯",
+      "163.com": "网易",
+      "sina.com.cn": "新浪",
+      "csdn.net": "CSDN",
+      "juejin.cn": "掘金",
+      "zhubai.love": "竹白",
+      "rust-lang.org": "Rust 官网",
+      "react.dev": "React 官网",
+      "vuejs.org": "Vue.js 官网",
+      "npmjs.com": "npm",
+      "deno.com": "Deno",
+      "vitejs.dev": "Vite",
+      "tailwindcss.com": "Tailwind CSS",
+      "figma.com": "Figma",
+      "docs.github.com": "GitHub 文档"
+    };
+    
+    // 检查是否有精确匹配的域名
+    if (domainMap[hostname]) {
+      return domainMap[hostname];
+    }
+    
+    // 检查是否有子域名匹配
+    for (const [domain, name] of Object.entries(domainMap)) {
+      if (hostname.endsWith(domain)) {
+        return name;
+      }
+    }
+    
+    // 如果没有匹配，提取域名的主要部分（第一个点之前的部分）
+    const parts = hostname.split('.');
+    if (parts.length > 2) {
+      // 对于像 subdomain.example.com 这样的域名，取主域名
+      return parts.slice(-2).join('.');
+    }
+    
+    return hostname;
+  } catch {
+    // URL 解析失败，返回原始值
+    return url;
+  }
+}
+
+// 从 URL 获取 favicon
+function getFaviconUrl(url: string): string {
+  try {
+    const urlObj = new URL(url);
+    return `https://www.google.com/s2/favicons?domain=${urlObj.hostname}&sz=64`;
+  } catch {
+    return "";
+  }
+}
+
 function HistoryEntry({ 
   item, 
   onClick 
@@ -52,19 +147,8 @@ function HistoryEntry({
   item: BrowserHistoryState; 
   onClick: (url: string, title: string) => void; 
 }) {
-  // 格式化时间戳为相对时间
-  const formatTime = (timestamp: number) => {
-    const now = Date.now();
-    const diff = now - timestamp;
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-    
-    if (minutes < 1) return "刚刚";
-    if (minutes < 60) return `${minutes}分钟前`;
-    if (hours < 24) return `${hours}小时前`;
-    return `${days}天前`;
-  };
+  // 简化显示的标题 - 使用更好的提取逻辑
+  const displayTitle = getDisplayTitle(item.title, item.url);
 
   return (
     <div 
@@ -72,18 +156,20 @@ function HistoryEntry({
       onClick={() => onClick(item.url, item.title)}
     >
       <div className="adl-browser-history-entry__icon">
-        <IconHistory size={12} decorative />
+        {getFaviconUrl(item.url) ? (
+          <img 
+            src={getFaviconUrl(item.url)}
+            alt=""
+            className="adl-tool-list__favicon"
+          />
+        ) : (
+          <IconHistory size={12} decorative />
+        )}
       </div>
       <div className="adl-browser-history-entry__content">
-        <div className="adl-browser-history-entry__title" title={item.title}>
-          {item.title}
+        <div className="adl-browser-history-entry__title" title={item.title || item.url}>
+          {displayTitle}
         </div>
-        <div className="adl-browser-history-entry__url" title={item.url}>
-          {item.url}
-        </div>
-      </div>
-      <div className="adl-browser-history-entry__time">
-        {formatTime(item.visitedAt)}
       </div>
     </div>
   );
@@ -168,9 +254,9 @@ export function MultiWorkspaceBrowser({
               key={workspace.id}
               workspace={workspace}
               isExpanded={isExpanded}
-              tabs={tabsByWorkspace[workspace.id] ?? []}
+              tabs={tabsByWorkspace[workspace.id] || []}
               activeTabId={activeTabId}
-              tabCount={(tabsByWorkspace[workspace.id] ?? []).length}
+              tabCount={(tabsByWorkspace[workspace.id] || []).length}
               onToggleExpand={() => onToggleExpand(workspace.id)}
               onCreateTab={() => onCreateTab(workspace.id)}
               onSelectTab={onSelectTab}

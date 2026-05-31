@@ -80,7 +80,19 @@ export const MultiWorkspaceContainer = React.memo(function MultiWorkspaceContain
           <div className="adl-multitree__bucket">
             {/* 历史记录工作区头部 */}
             <div className="adl-multitree-entry">
-              <div className="adl-multitree-entry__header">
+              <div 
+                className="adl-multitree-entry__header"
+                role="button"
+                tabIndex={0}
+                aria-label="历史记录 - 点击展开/折叠"
+                onClick={() => onToggleExpand(HISTORY_FOLDER_ID)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onToggleExpand(HISTORY_FOLDER_ID);
+                  }
+                }}
+              >
                 <div className="adl-multitree-entry__expand">
                   <span className="tooltip-trigger" style={{ display: "inline-flex" }}>
                     <button
@@ -88,7 +100,10 @@ export const MultiWorkspaceContainer = React.memo(function MultiWorkspaceContain
                       className="adl-multitree-entry__expand-btn"
                       aria-label="展开"
                       aria-expanded={expandedState[HISTORY_FOLDER_ID] ?? false}
-                      onClick={() => onToggleExpand(HISTORY_FOLDER_ID)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleExpand(HISTORY_FOLDER_ID);
+                      }}
                     >
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
                         <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
@@ -96,16 +111,23 @@ export const MultiWorkspaceContainer = React.memo(function MultiWorkspaceContain
                     </button>
                   </span>
                 </div>
-                <div className="adl-multitree-entry__namezone" role="button" tabIndex={0} aria-label="历史记录">
+                <div className="adl-multitree-entry__namezone">
                   <span className="adl-multitree-entry__name">历史记录</span>
                   <span className="adl-multitree-entry__count">{browserHistory.length}</span>
                 </div>
               </div>
               {expandedState[HISTORY_FOLDER_ID] ?? false ? (
                 <div className="adl-multitree-entry__children">
-                  {browserHistory.map((item) => 
-                    renderHistoryContent ? renderHistoryContent(item) : null
-                  )}
+                  <CustomScrollArea
+                    shellClassName="adl-history-children-scroll"
+                    scrollClassName="adl-history-children-scrollarea"
+                    scrollbarClassName="adl-history-children-scrollbar"
+                    thumbClassName="adl-history-children-scrollbar__thumb"
+                  >
+                    {browserHistory.map((item) => 
+                      renderHistoryContent ? renderHistoryContent(item) : null
+                    )}
+                  </CustomScrollArea>
                 </div>
               ) : null}
             </div>

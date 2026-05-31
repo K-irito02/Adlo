@@ -60,6 +60,10 @@ export interface UseBrowserPanelReturn {
     creatingRef: React.MutableRefObject<boolean>;
     resizeObserverRef: React.MutableRefObject<ResizeObserver | null>;
     iframeRef: React.RefObject<HTMLIFrameElement | null>;
+    searchResults: Array<{ title: string; url: string; source: string }>;
+    filteredBookmarks: Array<{ title: string; url: string }>;
+    filteredHistory: Array<{ title: string; url: string }>;
+    browserBookmarks: Array<{ title: string; url: string }>;
   };
   browserActions: {
     handleCreateTab: (url?: string, title?: string, workspaceId?: string) => void;
@@ -86,6 +90,7 @@ export interface UseBrowserPanelReturn {
     navigateBrowser: (url: string) => void;
     updateWebViewBounds: () => void;
     handleToggleBookmark: () => void;
+    handleToggleBookmarkForTab: (tabId: string, url: string, title: string) => void;
     handleClearHistory: () => void;
     handleIframeLoad: () => void;
     handleIframeError: () => void;
@@ -103,7 +108,7 @@ export interface UseBrowserPanelReturn {
 
 function normalizeBrowserUrl(value: string): string {
   const input = value.trim();
-  if (!input) return "about:blank";
+  if (!input) return "";
   if (/^[a-z]+:\/\/|about:/i.test(input)) {
     return input;
   }
@@ -138,7 +143,7 @@ export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDis
   const [addressExpanded, setAddressExpanded] = useState(false);
   const [navigatorQuery, setNavigatorQuery] = useState("");
   const [searchScope, setSearchScope] = useState<BrowserSearchScope>("all");
-  const [address, setAddress] = useState("about:blank");
+  const [address, setAddress] = useState("");
   const [iframeLoadError, setIframeLoadError] = useState(false);
   const [iframeHistory, setIframeHistory] = useState<{ index: number; entries: string[] }>({ index: -1, entries: [] });
   const [webViewActive, setWebViewActive] = useState(false);
@@ -312,8 +317,6 @@ export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDis
   const submitAddress = useCallback(() => {
     const input = address.trim();
     if (!input) {
-      browserNavigateActiveTab("about:blank", t.browserStartPage);
-      navigateBrowser("about:blank");
       return;
     }
     const normalizedInput = input.toLowerCase();
@@ -331,10 +334,15 @@ export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDis
     const finalUrl = normalizeBrowserUrl(input);
     browserNavigateActiveTab(finalUrl);
     navigateBrowser(finalUrl);
-  }, [address, browserLookupIndex, browserNavigateActiveTab, navigateBrowser, t.browserStartPage]);
+  }, [address, browserLookupIndex, browserNavigateActiveTab, navigateBrowser]);
 
   const handleToggleBookmark = useCallback(() => {
     browserToggleBookmark();
+  }, [browserToggleBookmark]);
+
+  const handleToggleBookmarkForTab = useCallback((tabId: string, url: string, title: string) => {
+    // 切换特定标签页的收藏状态
+    browserToggleBookmark({ url, title });
   }, [browserToggleBookmark]);
 
   const handleIframeLoad = useCallback(() => {
@@ -346,12 +354,21 @@ export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDis
         if (href && href !== "about:blank" && activeTab && href !== activeTab.url) {
           setAddress(href);
           browserNavigateActiveTab(href);
+        } else if (href && href !== "about:blank" && activeTab) {
+          try {
+            const iframeTitle = iframeWindow.document?.title;
+            if (iframeTitle && iframeTitle !== activeTab.title) {
+              browserUpdateTab(activeTab.id, { title: iframeTitle });
+            }
+          } catch {
+            /* cross-origin, can't read title */
+          }
         }
       }
     } catch {
       /* cross-origin navigation, can't read URL */
     }
-  }, [activeTab, browserNavigateActiveTab]);
+  }, [activeTab, browserNavigateActiveTab, browserUpdateTab]);
 
   const handleIframeError = useCallback(() => {
     setIframeLoadError(true);
@@ -421,12 +438,12 @@ export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDis
   }, [editingTabId]);
 
   useEffect(() => {
-    const url = activeTab?.url ?? "about:blank";
+    const url = activeTab?.url ?? "";
     setAddress(url);
     setIframeLoadError(false);
     
     // 在浏览器模式下更新 iframe 历史
-    if (!isTauriShell() && url !== "about:blank") {
+    if (!isTauriShell() && url && url !== "") {
       setIframeHistory((prev) => {
         // 避免重复添加相同的 URL
         if (prev.entries[prev.index] === url) {
@@ -588,6 +605,10 @@ export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDis
       creatingRef,
       resizeObserverRef,
       iframeRef,
+      searchResults,
+      filteredBookmarks,
+      filteredHistory,
+      browserBookmarks,
     },
     browserActions: {
       handleCreateTab,
@@ -614,6 +635,7 @@ export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDis
       navigateBrowser,
       updateWebViewBounds,
       handleToggleBookmark,
+      handleToggleBookmarkForTab,
       handleIframeLoad,
       handleIframeError,
       handleClearHistory,

@@ -51,6 +51,12 @@ await page.fill('.adl-tool-search--address input', 'https://example.com');
 await page.keyboard.press('Enter');
 ```
 
+#### 新建标签页
+
+```javascript
+await page.click('button[aria-label="新建标签页"]');
+```
+
 ---
 
 ## 导航器
@@ -61,23 +67,38 @@ await page.keyboard.press('Enter');
 |--------|------|--------|
 | 1 | CSS | `.adl-tool-navigator` |
 
+### 多工作区布局
+
+浏览器面板采用多工作区布局，包含：
+- **工作区目录**：显示各工作区的标签
+- **自建目录**：用户自定义的标签文件夹
+- **历史目录**：自动记录的访问历史（最多 100 条，去重）
+
 ### 标签页
 
 | 选择器 | 说明 |
 |--------|------|
 | `.adl-tool-list__item` | 书签/历史/搜索结果条目 |
+| `.adl-multitree-entry__header` | 工作区/文件夹头部行 |
+| `.adl-multitree-entry__children` | 展开的子内容区域 |
+| `.adl-history-children-scroll` | 历史记录滚动容器 |
 
-### 模式切换
+### 历史记录
+
+历史记录显示在"历史目录"下，支持：
+- 自动记录访问过的网址
+- 去重处理（最多 100 条）
+- 按时间显示（刚刚、N分钟前、N小时前、N天前）
+- 点击在新标签页打开
+- 使用自定义滚动条，位于左侧（left: 6px），z-index: 3
+
+### 收藏标签
 
 ```javascript
-// 书签模式
+// 点击收藏标签按钮
 await page.click('button[aria-label="收藏标签"]');
 
-// 历史模式
-await page.click('button[aria-label="历史标签"]');
-
-// 搜索模式
-await page.click('button[aria-label="搜索标签"]');
+// 在对话框中选择工作区或创建新工作区
 ```
 
 ---
@@ -107,3 +128,5 @@ await page.click('button[aria-label="搜索标签"]');
 | 地址栏 | `.adl-tool-search--address` | 可折叠展开的地址搜索栏 |
 | 内容区 | `.adl-tool-primary--browser` | 浏览器内容容器 |
 | 外部浏览器按钮 | `.adl-browser-external-btn` | 浏览器模式浮动降级按钮 |
+| 历史记录滚动条 | `.adl-history-children-scrollbar` | 自定义滚动条，位于左侧 |
+| 滚动条滑块 | `.adl-history-children-scrollbar__thumb` | 滚动条滑块元素 |

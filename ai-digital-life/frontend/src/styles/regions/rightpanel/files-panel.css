@@ -2257,6 +2257,13 @@
   content-visibility: auto;
   contain-intrinsic-size: auto 400px;
 }
+
+.adl-multitree {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
 .adl-multitree-scroll::-webkit-scrollbar {
   width: 0;
   height: 0;
@@ -2338,6 +2345,17 @@
   justify-content: center;
   width: 28px;
   flex-shrink: 0;
+}
+
+.adl-multitree-entry__children {
+  position: relative;
+  min-height: 0;
+  flex: 1;
+  overflow: visible;
+}
+
+.adl-multitree-entry__children > .adl-history-children-scroll {
+  overflow: visible;
 }
 
 .adl-multitree-entry__expand-btn {
@@ -2544,4 +2562,61 @@
   color: var(--text-primary);
   font-weight: var(--font-semibold);
   font-size: var(--text-sm);
+}
+
+/* 历史记录子项滚动样式 */
+.adl-history-children-scroll {
+  position: relative !important;
+  min-height: 0 !important;
+  height: auto !important;
+  max-height: 300px !important;
+  overflow: visible !important;
+}
+
+.adl-history-children-scrollarea {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  height: 100% !important;
+  max-height: 300px !important;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.adl-history-children-scrollarea::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+}
+
+.adl-history-children-scrollbar {
+  position: absolute !important;
+  top: 0 !important;
+  left: 6px !important;
+  bottom: 0 !important;
+  z-index: 3 !important;
+  width: var(--adl-filetree-scrollbar-width) !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transition: opacity var(--duration-150) var(--ease-default) !important;
+}
+
+.adl-history-children-scroll.is-scrollable .adl-history-children-scrollbar {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+.adl-history-children-scrollbar__thumb {
+  position: absolute !important;
+  top: 0 !important;
+  left: 1px !important;
+  width: 3px !important;
+  min-height: 24px !important;
+  border-radius: 999px !important;
+  background: color-mix(in srgb, var(--text-muted) 34%, transparent) !important;
+}
+
+.adl-history-children-scrollbar:hover .adl-history-children-scrollbar__thumb,
+.adl-history-children-scrollbar:active .adl-history-children-scrollbar__thumb {
+  width: 5px !important;
+  background: color-mix(in srgb, var(--text-muted) 54%, transparent) !important;
 }
