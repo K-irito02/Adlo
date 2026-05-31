@@ -20,10 +20,15 @@ frontend/src/
 ├── main.tsx               # Vite/React 入口：mock 桥接、挂载根节点、全局样式
 ├── app/
 │   ├── App.tsx            # 阶段二工作区 UI 组合
-│   ├── store.ts           # Zustand 应用状态与 IPC 调用
-│   ├── theme.ts           # ThemeController 单例（与 Main 下发的 theme 同步）
-│   ├── copy.ts            # 内联文案表（与 locales 并存时可逐步收敛）
-│   └── …                  # 纯函数拆分（路径、会话加载、选区提示等）
+│   ├── stores/            # Zustand 切片合并状态管理
+│   │   ├── slicedStore.ts # 基于切片合并的完整 Store（真源）
+│   │   ├── types.ts       # 共享类型（ToolId/ChatMode/TerminalProfile 等）
+│   │   ├── slices/        # 12 个独立切片
+│   │   └── actions/       # 8 个跨切片 action 模块
+│   ├── i18n/              # 国际化拆分（25 文件 / 10 领域 / 504 keys）
+│   ├── icons/             # SVG 图标拆分（4 文件：core/file/actions/status）
+│   ├── features/          # 功能模块（file-tree/terminal/browser/diff-viewer/...）
+│   └── regions/           # 布局区域（left-sidebar/right-panel/center-pane）
 ├── styles/
 │   ├── tokens.css         # 1. Atomic CSS custom properties
 │   ├── themes.css         # 2. 5 schemes × light/dark

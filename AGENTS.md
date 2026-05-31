@@ -89,6 +89,20 @@
   - **经验教训**：CSS 像素偏差必须通过 `getBoundingClientRect()` 精确测量，不要凭视觉猜测；`outline-panel.css` 是孤立 CSS 文件不被加载；CSS 特异性冲突和加载顺序影响覆盖效果
   - **验证**：agent-browser 测量 `align:0` + TypeScript 类型检查通过
 
+- **第二十三轮 — 全面重构执行与滚动条修复（2026-06-01）**：
+  - **P1 删除死代码**：删除 `frontend/src/main.ts`（935行 vanilla JS 原型入口）
+  - **P2 i18n 拆分**：`copy.ts`（1117行）→ `app/i18n/` 25文件/10领域/504 keys，TypeScript `satisfies` 确保中英文 key 完全一致
+  - **P3 类型解耦**：`ui-store.ts` 类型迁移到 `stores/types.ts`（14个文件解耦，ToolId/ChatMode/TerminalProfile/FilesNavigatorMode/ChangesNavigatorMode/ContextChip）
+  - **P4 消除 as any**：`MessageBlocks.tsx` 11 处 `as any` → discriminated union switch-case 模式
+  - **P7 icons 拆分**：`icons.tsx`（814行）→ `app/icons/` 4文件（core/file/actions/status）+ barrel index.ts
+  - **P9 空目录清理**：删除 5 个空 features 子目录
+  - **P6 Rust Mutex 降级**：10 处 `.expect("mutex poisoned")` → `map_err` 错误传播，应用不再因 Mutex 中毒直接崩溃
+  - **P8 audit 批量写入**：Agent run 5 条独立审计写入 → Vec 批量收集 + 统一 flush
+  - **P10 browser 错误通道**：`adl-browser` 接入 `AppError`，返回 `IpcResult<T>` 参与统一错误映射
+  - **P11 React.memo**：9 个终端/浏览器子组件添加 `React.memo` 减少不必要重渲染
+  - **CSS 滚动条溢出修复**：`.adl-multitree` 添加 `position: relative`，消除右面板各导航器（文件/变更/浏览器/终端）自定义滚动条延伸到头部按钮区域的问题
+   - **验证**：TypeScript 零错误 + 183 前端测试 + 106 Rust 测试全部通过
+
 ### Zustand 切片模式（已完成）
 
 前端状态管理已重构为 Zustand 切片合并模式：
@@ -97,6 +111,7 @@
 app/stores/
 ├── slicedStore.ts          # 基于切片合并的完整 Store（真源）
 ├── StoreState.ts           # 完整 StoreState 类型接口
+├── types.ts                # 共享类型（ToolId/ChatMode/TerminalProfile/ContextChip 等）
 ├── slices/                 # 12 个独立切片（含 clipboardSlice + terminalSlice）
 │   ├── uiSlice.ts          # UI 状态
 │   ├── workspaceSlice.ts    # 工作区状态
@@ -129,7 +144,20 @@ app/features/
 ├── diff-viewer/     # 差异查看器（路由 + SideBySide + Inline + 共享扩展 + 工具函数）
 ├── preview/         # 文件预览（MarkdownPreview, DocxPreview, PdfPreview）
 ├── terminal/        # 终端面板（组合器 + useTerminalPanel hook + 7 子组件）
-└── multi-workspace/ # 多工作区共享容器（MultiWorkspaceContainer）
+├── multi-workspace/ # 多工作区共享容器（MultiWorkspaceContainer）
+├── browser/         # 浏览器面板（BrowserPanel, BrowserTabBar, 上下文菜单）
+└── workspace-*/     # 多工作区树（file-tree / changes-tree / terminal）
+
+app/i18n/            # 国际化拆分（25 文件 / 10 领域 / 504 keys，TypeScript satisfies 类型安全）
+├── zh-CN/           # 中文翻译（10 领域）
+├── en-US/           # 英文翻译（10 领域，satisfies 确保 key 与 zh-CN 完全一致）
+└── types.ts         # CopyDict / Locale 类型
+
+app/icons/           # SVG 图标拆分（4 文件 + barrel index.ts）
+├── core.tsx         # 品牌 / 窗口 / 面板 / 导航图标
+├── file.tsx         # 文件类型图标
+├── actions.tsx      # 操作按钮图标
+└── status.tsx       # 状态 / 主题 / 技术图标
 
 regions/left-sidebar/  # 左侧边栏拆分（WorkspaceList/SessionList/ConversationPanel/ResizeHandle/SidebarContextMenu）
 

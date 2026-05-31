@@ -170,6 +170,21 @@
   - **修改文件**：`file-tree.css`（+5行）
   - **验证**：agent-browser 测量确认完全对齐 + TypeScript 类型检查通过
 
+- **第二十三轮 — 全面重构执行与滚动条修复**（2026-06-01）：
+  - **P1 删除死代码**：删除 `frontend/src/main.ts`（935行 vanilla JS 原型入口）
+  - **P2 i18n 拆分**：`copy.ts`（1117行）→ `app/i18n/` 25文件/10领域/504 keys，TypeScript satisfies 确保中英文 key 完全一致
+  - **P3 类型解耦**：`ui-store.ts` 类型迁移到 `stores/types.ts`（14个文件解耦，ToolId/ChatMode/TerminalProfile 等）
+  - **P4 消除 as any**：`MessageBlocks.tsx` 11 处 as any → discriminated union switch-case
+  - **P6 Rust Mutex 降级**：10 处 `.expect("mutex poisoned")` → map_err 错误传播
+  - **P7 icons 拆分**：`icons.tsx`（814行）→ `app/icons/` 4文件（core/file/actions/status）+ barrel
+  - **P8 audit 批量写入**：Agent run 5 条独立审计写入 → Vec 批量收集 + 统一 flush
+  - **P9 空目录清理**：删除 5 个空 features 子目录
+  - **P10 browser 错误通道**：`adl-browser` 接入 AppError，统一 IpcResult 错误映射
+  - **P11 React.memo**：9 个终端/浏览器子组件添加 React.memo
+  - **CSS 滚动条修复**：`.adl-multitree` 添加 position:relative，消除右面板导航器滚动条延伸到头部按钮区域的问题
+  - **修改文件**：main.ts(删除), copy.ts(删除→i18n/), icons.tsx(删除→icons/), ui-store.ts(类型迁移), MessageBlocks.tsx(重写), agent.rs(audit批处理), browser.rs+crates(统一错误), 6×terminal/browser组件(React.memo), files-panel.css(position:relative)
+  - **验证**：TypeScript 零错误 + 183 前端测试 + 106 Rust 测试全部通过
+
 **不在本目录实现**：多 Agent DAG、MCP、插件市场、云协作等 Phase 2+ 能力。
 
 ## 安全边界
