@@ -387,18 +387,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
               </div>
             )}
             <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--utility">
-              {!browserShowTabButtons && (
-                <TooltipSimple content="新建标签目录" placement="top">
-                  <button
-                    type="button"
-                    className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-                    aria-label="新建标签目录"
-                    onClick={() => {}}
-                  >
-                    <IconFolderPlus size={14} decorative />
-                  </button>
-                </TooltipSimple>
-              )}
+
               <TooltipSimple content={browserShowTabButtons ? "清空所有已打开标签" : "删除全部目录标签"} placement="top">
                 <button
                   type="button"
