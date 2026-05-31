@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { IconTerminal } from "../../icons";
-import type { TerminalProfile } from "../../ui-store";
-import type { CopyDict } from "../../copy";
+import type { TerminalProfile } from "../../stores/types";
+import type { CopyDict } from "../../i18n";
 import type { RecentWorkspaceEntry } from "@ai-digital-life/kernel";
 
 function ShellPrefix({ profile }: { profile?: TerminalProfile }) {
@@ -29,7 +29,7 @@ interface TerminalEmptyStateProps {
   t: CopyDict;
 }
 
-export function TerminalEmptyState({ shellTypeItems, workspaces, defaultProfile, onSelectProfile, t }: TerminalEmptyStateProps) {
+export const TerminalEmptyState = React.memo(function TerminalEmptyState({ shellTypeItems, workspaces, defaultProfile, onSelectProfile, t }: TerminalEmptyStateProps) {
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string>("");
 
   const handleCreateTerminal = (profile: TerminalProfile) => {
@@ -91,4 +91,4 @@ export function TerminalEmptyState({ shellTypeItems, workspaces, defaultProfile,
       </div>
     </div>
   );
-}
+});

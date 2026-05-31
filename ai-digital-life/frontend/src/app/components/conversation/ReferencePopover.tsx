@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReferenceItem, ReferenceKind } from "@ai-digital-life/kernel";
-import type { CopyDict } from "../../copy";
+import type { CopyDict } from "../../i18n";
 import { IconFileText, IconHash, IconTerminal, IconSearch } from "../../icons";
 
 interface ReferencePopoverProps {

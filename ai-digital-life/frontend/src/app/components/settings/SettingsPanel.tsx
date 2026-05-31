@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import type { SettingsGroupId, SettingItem } from "@ai-digital-life/kernel";
-import type { CopyDict } from "../../copy";
+import type { CopyDict } from "../../i18n";
 import { IconSearch, IconSettings } from "../../icons";
 import { useUiStore } from "../../ui-store";
 import { SettingsNav } from "./SettingsNav";

@@ -5,7 +5,7 @@ import { TooltipSimple } from "../../components/Tooltip";
 import { XtermTerminal } from "../../components/terminal/XtermTerminal";
 import { countGitChanges } from "../../regions/right-panel/types";
 import type { TerminalPanelProps } from "../../regions/right-panel/types";
-import type { TerminalProfile } from "../../ui-store";
+import type { TerminalProfile } from "../../stores/types";
 import { useTerminalPanel } from "./useTerminalPanel";
 import { TerminalShellSelector } from "./TerminalShellSelector";
 import { TerminalMenuDropdown } from "./TerminalMenuDropdown";

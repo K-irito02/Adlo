@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { WorkspaceTreeNode, FileOutlineItem, RecentWorkspaceEntry } from "@ai-digital-life/kernel";
-import type { CopyDict } from "../../copy";
+import type { CopyDict } from "../../i18n";
 import { IconClipboardList, IconCopy, IconFiles, IconFilePlus, IconFolderOpen, IconFoldVertical, IconFolderPlus, IconList, IconPanelLeftClose, IconPencil, IconRefreshCw, IconReplace, IconReturn, IconSearch, IconTrash, IconUnfoldVertical, IconUpload } from "../../icons";
 import { TooltipSimple } from "../../components/Tooltip";
-import { useUiStore, type FilesNavigatorMode } from "../../ui-store";
+import { useUiStore } from "../../ui-store";
+import type { FilesNavigatorMode } from "../../stores/types";
 import { useNavigatorResize } from "../../hooks/useNavigatorResize";
 import { MultiWorkspaceFileTree } from "../../features/workspace-file-tree";
 import type { FileTreeContextMenuItem } from "../../features/file-tree";

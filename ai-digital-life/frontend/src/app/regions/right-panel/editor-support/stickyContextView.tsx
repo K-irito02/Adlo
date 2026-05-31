@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { IconArrowUp } from "../../../icons";
 import type { StickyContextModel } from "./stickyContext";
-import type { CopyDict } from "../../../copy";
+import type { CopyDict } from "../../../i18n";
 
 const AUTO_HIDE_MS = 2000;
 

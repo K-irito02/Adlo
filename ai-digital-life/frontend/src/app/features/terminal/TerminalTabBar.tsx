@@ -2,7 +2,7 @@ import React from "react";
 import { IconClose } from "../../icons";
 import { TooltipSimple } from "../../components/Tooltip";
 import type { TerminalTabState } from "../../stores/slices/terminalSlice";
-import type { CopyDict } from "../../copy";
+import type { CopyDict } from "../../i18n";
 
 interface TerminalTabBarProps {
   tabs: TerminalTabState[];
@@ -26,7 +26,7 @@ interface TerminalTabBarProps {
   t: CopyDict;
 }
 
-export function TerminalTabBar({
+export const TerminalTabBar = React.memo(function TerminalTabBar({
   tabs,
   activeTabId,
   editingTabId,
@@ -112,4 +112,4 @@ export function TerminalTabBar({
       ))}
     </ul>
   );
-}
+});

@@ -14,7 +14,7 @@ describe("copy", () => {
         configurable: true,
       });
 
-      const { copyToClipboard } = await import("./copy");
+      const { copyToClipboard } = await import("./i18n");
       const result = await copyToClipboard("test content");
 
       expect(result.ok).toBe(true);
@@ -29,7 +29,7 @@ describe("copy", () => {
         configurable: true,
       });
 
-      const { copyToClipboard } = await import("./copy");
+      const { copyToClipboard } = await import("./i18n");
       const result = await copyToClipboard("test content");
 
       expect(result.ok).toBe(false);
@@ -48,7 +48,7 @@ describe("copy", () => {
         configurable: true,
       });
 
-      const { copyMultiple } = await import("./copy");
+      const { copyMultiple } = await import("./i18n");
       const result = await copyMultiple(["line 1", "line 2", "line 3"]);
 
       expect(result.ok).toBe(true);
@@ -69,7 +69,7 @@ describe("copy", () => {
         configurable: true,
       });
 
-      const { copyMultiple } = await import("./copy");
+      const { copyMultiple } = await import("./i18n");
       const result = await copyMultiple(["line 1", "line 2"]);
 
       expect(result.ok).toBe(false);

@@ -4,13 +4,15 @@ use crate::state::AppState;
 use adl_errors::AppError;
 use adl_kernel::{
     create_id, now_ms, AgentRunDetail, AgentRunStatus, ConversationRole, ConversationScenario,
-    ConversationSendResult, DigitalLifeRunActivityEventV1, IpcResult, ModelResponse,
+    ConversationSendResult, DigitalLifeRunActivityEventV1, IpcResult, ModelResponse, RiskLevel,
 };
 use adl_storage::EntityTable;
 use tauri::Emitter;
 
 const MODEL_STREAM_CHARS: usize = 120;
 const RUN_ACTIVITY_EVENT: &str = "digital-life://run-activity";
+
+type AuditBatchEntry = (String, Option<String>, String, RiskLevel, String, Option<String>, Option<String>);
 
 fn emit_run_activity(app: &tauri::AppHandle, payload: serde_json::Value) {
     let _ = app.emit(RUN_ACTIVITY_EVENT, payload);
@@ -235,6 +237,7 @@ fn prepare_run(
     scenario: ConversationScenario,
     detail: &AgentRunDetail,
     emit_activity: impl Fn(serde_json::Value),
+    audit_batch: &mut Vec<AuditBatchEntry>,
 ) -> Result<adl_kernel::ConversationMessageRecord, AppError> {
     emit_activity(serde_json::json!({
       "type": "run-start",
@@ -248,27 +251,26 @@ fn prepare_run(
         Some(detail.run.id.clone()),
     );
     crate::commands::conversation::save_message(state, &session.workspace_id, &user_message)?;
-    let _ = crate::commands::audit::save_audit_entry(
-        state,
-        &session.workspace_id,
-        Some(&session.id),
-        "approval",
+    audit_batch.push((
+        session.workspace_id.clone(),
+        Some(session.id.clone()),
+        "approval".into(),
         adl_kernel::RiskLevel::Low,
         format!("Agent run started in {:?} mode.", scenario),
-        Some("auto"),
+        Some("auto".into()),
         Some(format!("runId={}", detail.run.id)),
-    );
+    ));
     Ok(user_message)
 }
 
 fn collect_context(
-    state: &AppState,
     workspace: &adl_kernel::WorkspaceMeta,
     input: &StartRunInput,
     detail: &AgentRunDetail,
     workspace_scope_id: &str,
     session_id: &str,
     emit_activity: impl Fn(serde_json::Value),
+    audit_batch: &mut Vec<AuditBatchEntry>,
 ) -> Result<Vec<adl_kernel::ContextEntry>, AppError> {
     let ws_ctx = adl_context::workspace_context(workspace);
     emit_activity(serde_json::json!({
@@ -294,20 +296,19 @@ fn collect_context(
                   "tokenEstimate": file_ctx.token_estimate,
                   "truncated": truncated
                 }));
-                let _ = crate::commands::audit::save_audit_entry(
-                    state,
-                    workspace_scope_id,
-                    Some(session_id),
-                    "file-read",
+                audit_batch.push((
+                    workspace_scope_id.to_string(),
+                    Some(session_id.to_string()),
+                    "file-read".into(),
                     adl_kernel::RiskLevel::Low,
                     format!("Read file context: {rel}"),
-                    Some("auto"),
+                    Some("auto".into()),
                     Some(format!(
                         "runId={}; bytes={}",
                         detail.run.id,
                         doc.content.len()
                     )),
-                );
+                ));
                 emit_activity(serde_json::json!({
                   "type": "context-added",
                   "contextType": "file",
@@ -351,16 +352,15 @@ fn collect_context(
                   "hitCount": hits.len(),
                   "samplePaths": hits.iter().take(6).map(|h| h.path.clone()).collect::<Vec<_>>(),
                 }));
-                let _ = crate::commands::audit::save_audit_entry(
-                    state,
-                    workspace_scope_id,
-                    Some(session_id),
-                    "search",
+                audit_batch.push((
+                    workspace_scope_id.to_string(),
+                    Some(session_id.to_string()),
+                    "search".into(),
                     adl_kernel::RiskLevel::Low,
                     format!("Workspace search for `{sym}` ({}) hits.", hits.len()),
-                    Some("auto"),
+                    Some("auto".into()),
                     Some(format!("runId={}", detail.run.id)),
-                );
+                ));
                 context.extend(adl_context::search_hit_contexts(&sym, &hits, 6));
             }
         }
@@ -378,6 +378,7 @@ async fn call_model(
     input: &StartRunInput,
     app: &tauri::AppHandle,
     emit_activity: impl Fn(serde_json::Value),
+    audit_batch: &mut Vec<AuditBatchEntry>,
 ) -> Result<(adl_kernel::ModelResponse, adl_kernel::ModelCallAuditRecord), AppError> {
     let messages =
         adl_agent_runtime::build_model_messages(workspace, &input.prompt, scenario, &context);
@@ -418,19 +419,18 @@ async fn call_model(
       "usage": model_response.usage,
       "reason": model_response.route.as_ref().map(|r| r.reason.clone()).unwrap_or_else(|| "primary route".into())
     }));
-    let _ = crate::commands::audit::save_audit_entry(
-        state,
-        &workspace.id,
-        Some(&session.id),
-        "model",
+    audit_batch.push((
+        workspace.id.clone(),
+        Some(session.id.clone()),
+        "model".into(),
         adl_kernel::RiskLevel::Low,
         format!(
             "Model call done: {:?}/{}",
             model_response.provider_id, model_response.model_id
         ),
-        Some("auto"),
+        Some("auto".into()),
         Some(format!("runId={}", detail.run.id)),
-    );
+    ));
     Ok((model_response, model_audit))
 }
 
@@ -516,31 +516,23 @@ fn finalize_run(
     scenario: ConversationScenario,
     user_message: adl_kernel::ConversationMessageRecord,
     emit_activity: impl Fn(serde_json::Value),
+    audit_batch: &mut Vec<AuditBatchEntry>,
 ) -> Result<ConversationSendResult, AppError> {
     let detail = adl_agent_runtime::complete_plan(detail, patch_set, scenario);
     save_run_detail(state, &detail)?;
-    let _ = crate::commands::audit::save_audit_entry(
-        state,
-        &workspace.id,
-        Some(&session.id),
-        if patch_set.is_some() {
-            "patch-apply"
-        } else {
-            "approval"
-        },
-        if patch_set.is_some() {
-            adl_kernel::RiskLevel::Medium
-        } else {
-            adl_kernel::RiskLevel::Low
-        },
+    audit_batch.push((
+        workspace.id.clone(),
+        Some(session.id.clone()),
+        if patch_set.is_some() { "patch-apply".into() } else { "approval".into() },
+        if patch_set.is_some() { adl_kernel::RiskLevel::Medium } else { adl_kernel::RiskLevel::Low },
         detail
             .run
             .summary
             .clone()
             .unwrap_or_else(|| "Agent run updated.".into()),
-        Some("auto"),
+        Some("auto".into()),
         Some(format!("runId={}", detail.run.id)),
-    );
+    ));
 
     let blocks = adl_agent_runtime::assistant_blocks(&detail, patch_set, scenario);
     let assistant_message = adl_conversation::create_message(
@@ -587,14 +579,16 @@ async fn start_run_inner(
 
     let emit_activity = make_activity_emitter(app, state,
         workspace_scope_id.clone(), session_id.clone(), detail.run.id.clone());
-    let user_message = prepare_run(state, &session, &input, scenario, &detail, &emit_activity)?;
-    let context = collect_context(state, &workspace, &input, &detail, &workspace_scope_id, &session_id, &emit_activity)?;
-    let (model_response, _model_audit) = call_model(state, &workspace, &session, scenario, context, &detail, &input, app, &emit_activity).await?;
+    let mut audit_batch: Vec<AuditBatchEntry> = Vec::with_capacity(5);
+    let user_message = prepare_run(state, &session, &input, scenario, &detail, &emit_activity, &mut audit_batch)?;
+    let context = collect_context(&workspace, &input, &detail, &workspace_scope_id, &session_id, &emit_activity, &mut audit_batch)?;
+    let (model_response, _model_audit) = call_model(state, &workspace, &session, scenario, context, &detail, &input, app, &emit_activity, &mut audit_batch).await?;
     let patch_set = generate_patches(&workspace, &input, scenario, &mut detail, state, &session, &emit_activity)?;
     let result = finalize_run(
         state, &workspace, &mut session, detail, &model_response, patch_set.as_ref(), scenario,
-        user_message, &emit_activity,
+        user_message, &emit_activity, &mut audit_batch,
     )?;
+    crate::commands::audit::batch_save_audit_entries(state, audit_batch)?;
 
     Ok(result)
 }

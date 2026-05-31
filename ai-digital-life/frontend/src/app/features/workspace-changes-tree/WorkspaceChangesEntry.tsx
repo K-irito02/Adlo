@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import type { RecentWorkspaceEntry, WorkspaceTreeNode } from "@ai-digital-life/kernel";
-import type { CopyDict } from "../../copy";
+import type { CopyDict } from "../../i18n";
 import { IconRefreshCw, IconPin, IconPinOff, IconMoreVertical, IconFolder, IconFolderOpen, IconAlertTriangle, IconLoader, IconCopy, IconEyeOff } from "../../icons";
 import { FileTree, type FileTreeContextMenuItem } from "../../features/file-tree";
 import { TooltipSimple } from "../../components/Tooltip";

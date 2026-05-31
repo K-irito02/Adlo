@@ -5,7 +5,7 @@ import {
   IconRefreshCw, IconUnfoldVertical, IconUpload
 } from "../../../icons";
 import { TooltipSimple } from "../../../components/Tooltip";
-import type { CopyDict } from "../../../copy";
+import type { CopyDict } from "../../../i18n";
 import type { ChangeFileState } from "../changesTree";
 
 interface ChangesMenuItem {

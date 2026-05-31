@@ -134,6 +134,6 @@ agent-browser snapshot -i --depth 2
 | Issue | Workaround |
 |-------|------------|
 | `find role` may not match localized names | Use `eval` with DOM traversal instead |
-| `eval` with backslashes needs double escaping | Use forward slashes `E:/path` in paths |
+| `eval` with backslashes needs double escaping | Use `E:\\path` (double backslash) in `eval`, or `E:/path` (forward slash) — both work |
 | File tree not shown after workspace open | Click refresh button first (`[aria-label=刷新]`) |
 | Session daemon keeps running after close | Use `close --all` to terminate |

@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from "react";
 import type { ReorderWorkspacesInput } from "@ai-digital-life/kernel";
-import type { CopyDict } from "../../copy";
+import type { CopyDict } from "../../i18n";
 import {
   IconArchive,
   IconCollapseRows,

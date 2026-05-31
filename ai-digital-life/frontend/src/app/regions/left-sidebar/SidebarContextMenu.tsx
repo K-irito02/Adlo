@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import type { ConversationSessionRecord, RecentWorkspaceEntry } from "@ai-digital-life/kernel";
-import type { CopyDict } from "../../copy";
+import type { CopyDict } from "../../i18n";
 import { IconArchive, IconCheck, IconCheckCheck, IconCopy, IconDownload, IconFolder, IconFolderOpen, IconMail, IconPencil, IconPin, IconPinOff, IconTrash } from "../../icons";
 import type { SessionVisualStatus, SidebarSessionItem } from "../../sidebarViewModel";
 

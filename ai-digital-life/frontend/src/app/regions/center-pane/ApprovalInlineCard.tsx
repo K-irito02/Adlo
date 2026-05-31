@@ -1,7 +1,7 @@
 import React from "react";
 import { IconMessageQuestion } from "../../icons";
 import type { ApprovalRequestSummary } from "@ai-digital-life/kernel";
-import type { CopyDict } from "../../copy";
+import type { CopyDict } from "../../i18n";
 
 export type ApprovalInlineCardProps = {
   approval: ApprovalRequestSummary;

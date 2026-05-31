@@ -5,9 +5,8 @@ import {
 import { ContextBuilderPopover } from "../../components/conversation/ContextBuilderPopover";
 import { TooltipSimple } from "../../components/Tooltip";
 import { StatusBar } from "../StatusBar";
-import type { ContextChip } from "../../ui-store";
-import type { ChatMode } from "../../ui-store";
-import type { CopyDict } from "../../copy";
+import type { ChatMode, ContextChip } from "../../stores/types";
+import type { CopyDict } from "../../i18n";
 import type {
   AgentRunDetail, GitSnapshot,
   RecentWorkspaceEntry

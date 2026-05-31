@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import type { RepoMapNode } from "@ai-digital-life/kernel";
-import type { CopyDict } from "../../copy";
+import type { CopyDict } from "../../i18n";
 import { IconChevronDown, IconChevronRight, IconFileText, IconFolder, IconMap, IconSearch } from "../../icons";
 
 interface RepoMapViewProps {

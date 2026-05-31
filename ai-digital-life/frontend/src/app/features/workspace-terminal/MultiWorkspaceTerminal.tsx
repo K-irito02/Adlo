@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import type { RecentWorkspaceEntry } from "@ai-digital-life/kernel";
-import type { CopyDict } from "../../copy";
+import type { CopyDict } from "../../i18n";
 import type { TerminalTabState } from "../../stores/slices/terminalSlice";
 import { MultiWorkspaceContainer } from "../multi-workspace/MultiWorkspaceContainer";
 import { WorkspaceTerminalEntry } from "./WorkspaceTerminalEntry";

@@ -20,7 +20,8 @@ Use this skill to start AI Digital Life on the requested runtime surface with dy
 
 - Prefer the mode the user explicitly requested; do not start both unless they asked for both or it is necessary for verification.
 - Use the root scripts above instead of `cargo tauri dev` directly. Those scripts choose a free port, boot Vite first, then pass the resolved `devUrl` into Tauri.
-- When browser preview is requested, report the emitted local URL back to the user.
+- When browser preview is requested, report the emitted local URL back to the user **as plain text** (not wrapped in backticks), so the user can click it to open in Trae IDE's built-in browser.
+- **Do NOT** use agent-browser or any other tool to open the URL after startup. Trae IDE automatically makes plain text URLs clickable in chat messages.
 - When the in-app browser plugin is usable, open the reported local URL there. If the plugin is blocked by local runtime issues, say so explicitly and keep the local preview server running.
 - When verifying desktop mode, confirm that the Tauri process is running rather than assuming startup succeeded.
 

@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import type { AppInfo } from "@ai-digital-life/kernel";
-import { copy, type Locale } from "../copy";
+import { copy, type Locale } from "../i18n";
 import { useAppActions } from "./useAppActions";
 import { useThemeSync } from "./useThemeSync";
 import { useTaskCenterPolling } from "./useTaskCenterPolling";

@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { IconFolder, IconFolderOpen, IconLightbulb, IconMessageSquare } from "../../icons";
 import { WorkspaceSplitButton } from "../../components/WorkspaceSplitButton";
 import type { RecentWorkspaceEntry } from "@ai-digital-life/kernel";
-import type { CopyDict } from "../../copy";
+import type { CopyDict } from "../../i18n";
 
 export type WelcomeStateProps = {
   t: CopyDict;

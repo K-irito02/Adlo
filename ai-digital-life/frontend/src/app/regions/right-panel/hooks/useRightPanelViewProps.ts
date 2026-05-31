@@ -16,7 +16,7 @@ function readDiffSideBySidePreference(): boolean {
 export function useRightPanelViewProps() {
   const activeRightTool = useUiStore((state) => state.activeRightTool);
   const setActiveRightTool = useUiStore((state) => state.setActiveRightTool);
-  const browserTabs = useUiStore((state) => state.browserTabs);
+  const browserTabs = useAppStore((state) => state.browserTabs);
   const terminalTabs = useAppStore((state) => state.terminalTabs);
   const dirtyEditorPaths = useAppStore(useShallow((s) => s.dirtyEditorPaths));
   const auditEntries = useAppStore(useShallow((s) => s.auditEntries));

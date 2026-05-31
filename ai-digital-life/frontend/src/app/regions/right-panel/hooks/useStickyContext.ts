@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { FileOutlineItem } from "@ai-digital-life/kernel";
-import type { CopyDict } from "../../../copy";
+import type { CopyDict } from "../../../i18n";
 import type { EditorRef } from "../../../types";
 import type { PreviewDiffVisualRange } from "../../../features/diff-viewer";
 import {

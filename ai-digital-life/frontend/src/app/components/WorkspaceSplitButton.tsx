@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import type { CopyDict } from "../copy";
+import type { CopyDict } from "../i18n";
 import {
   IconChevronRight,
   IconFolder,

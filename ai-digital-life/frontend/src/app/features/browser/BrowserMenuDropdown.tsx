@@ -9,7 +9,7 @@ import {
   IconMoreVertical
 } from "../../icons";
 import { TooltipSimple } from "../../components/Tooltip";
-import type { CopyDict } from "../../copy";
+import type { CopyDict } from "../../i18n";
 import type { BrowserMenuItem } from "./useBrowserMenus";
 
 interface BrowserMenuDropdownProps {
@@ -33,7 +33,7 @@ const menuItemIcons: Record<string, React.ReactNode> = {
   "zoom-reset": <IconRefreshCw size={14} decorative />
 };
 
-export function BrowserMenuDropdown({
+export const BrowserMenuDropdown = React.memo(function BrowserMenuDropdown({
   menuOpen,
   menuRef,
   menuItems,
@@ -85,4 +85,4 @@ export function BrowserMenuDropdown({
       ) : null}
     </div>
   );
-}
+});

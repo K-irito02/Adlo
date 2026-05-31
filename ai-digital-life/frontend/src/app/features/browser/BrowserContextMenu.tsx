@@ -1,7 +1,7 @@
 import React from "react";
 import { createPortal } from "react-dom";
 import { IconPin, IconPinOff, IconEdit, IconTrash, IconGlobe, IconCopy, IconCut } from "../../icons";
-import type { CopyDict } from "../../copy";
+import type { CopyDict } from "../../i18n";
 import type { ContextMenuState } from "./useBrowserContextMenu";
 
 interface BrowserContextMenuProps {
@@ -17,7 +17,7 @@ interface BrowserContextMenuProps {
   t: CopyDict;
 }
 
-export function BrowserContextMenu({
+export const BrowserContextMenu = React.memo(function BrowserContextMenu({
   contextMenu,
   onTogglePin,
   onRename,
@@ -132,4 +132,4 @@ export function BrowserContextMenu({
     </div>,
     document.body
   );
-}
+});

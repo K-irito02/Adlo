@@ -2,7 +2,7 @@ import React from "react";
 import { IconClose } from "../../icons";
 import { TooltipSimple } from "../../components/Tooltip";
 import type { BrowserTabState } from "../../stores/slices/browserslice";
-import type { CopyDict } from "../../copy";
+import type { CopyDict } from "../../i18n";
 import { useAppStore } from "../../stores/slicedStore";
 import { getFaviconUrl } from "../../utils/favicon";
 
@@ -28,7 +28,7 @@ interface BrowserTabBarProps {
   t: CopyDict;
 }
 
-export function BrowserTabBar({
+export const BrowserTabBar = React.memo(function BrowserTabBar({
   tabs,
   activeTabId,
   editingTabId,
@@ -144,4 +144,4 @@ export function BrowserTabBar({
       })}
     </ul>
   );
-}
+});

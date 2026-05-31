@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import type { DiagnosticSummary } from "@ai-digital-life/kernel";
-import type { Locale } from "../copy";
-import { copy } from "../copy";
+import type { Locale } from "../i18n";
+import { copy } from "../i18n";
 import { buildSelectionPrompt } from "../selectionPrompt";
 import type { EditorRef, DiffEditorRef } from "../types";
 

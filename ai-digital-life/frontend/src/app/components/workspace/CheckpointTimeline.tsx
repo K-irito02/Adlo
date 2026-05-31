@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import type { CopyDict } from "../../copy";
+import type { CopyDict } from "../../i18n";
 import { IconRefreshCw } from "../../icons";
 
 export interface Checkpoint {

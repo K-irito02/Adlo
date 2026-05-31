@@ -1,7 +1,7 @@
 import React from "react";
 import { IconMoreVertical } from "../../icons";
 import { TooltipSimple } from "../../components/Tooltip";
-import type { CopyDict } from "../../copy";
+import type { CopyDict } from "../../i18n";
 import type { TerminalMenuItem } from "./useTerminalPanel";
 
 interface TerminalMenuDropdownProps {
@@ -13,7 +13,7 @@ interface TerminalMenuDropdownProps {
   t: CopyDict;
 }
 
-export function TerminalMenuDropdown({
+export const TerminalMenuDropdown = React.memo(function TerminalMenuDropdown({
   menuOpen,
   menuRef,
   menuItems,
@@ -60,4 +60,4 @@ export function TerminalMenuDropdown({
       ) : null}
     </div>
   );
-}
+});

@@ -168,7 +168,10 @@ pub fn active_workspace_scope_id(state: &AppState) -> String {
     state
         .current_workspace
         .lock()
-        .expect("workspace mutex poisoned")
+        .unwrap_or_else(|poison| {
+            tracing::warn!("workspace mutex poisoned, recovering inner value");
+            poison.into_inner()
+        })
         .as_ref()
         .map(|workspace| workspace.id.clone())
         .unwrap_or_else(|| adl_kernel::GLOBAL_WORKSPACE_ID.to_string())

@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useState } from "react";
 import type { RecentWorkspaceEntry, WorkspaceTreeNode, ReorderWorkspacesInput } from "@ai-digital-life/kernel";
-import type { CopyDict } from "../../copy";
+import type { CopyDict } from "../../i18n";
 import type { FileTreeContextMenuItem } from "../../features/file-tree";
 import { MultiWorkspaceContainer } from "../multi-workspace/MultiWorkspaceContainer";
 import { WorkspaceChangesEntry } from "./WorkspaceChangesEntry";

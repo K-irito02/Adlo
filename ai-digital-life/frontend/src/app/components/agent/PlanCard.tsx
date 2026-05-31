@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import type { AgentStepType, RiskLevel } from "@ai-digital-life/kernel";
-import type { CopyDict } from "../../copy";
+import type { CopyDict } from "../../i18n";
 import { IconChevronDown, IconChevronRight, IconTarget } from "../../icons";
 
 export interface PlanStep {

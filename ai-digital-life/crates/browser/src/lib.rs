@@ -1,3 +1,4 @@
+use adl_errors::AppError;
 use std::sync::Mutex;
 use tauri::Emitter;
 use tauri::Manager;
@@ -13,11 +14,11 @@ pub struct Bounds {
 
 const BROWSER_WEBVIEW_LABEL: &str = "adl-browser-view";
 
-fn resolve_url(raw: &str) -> Result<Url, String> {
+fn resolve_url(raw: &str) -> Result<Url, AppError> {
     let trimmed = raw.trim();
     if trimmed.is_empty() || trimmed.eq_ignore_ascii_case("about:blank") {
         return Url::parse("data:text/html,<html><body></body></html>")
-            .map_err(|e| format!("invalid url: {e}"));
+            .map_err(|e| AppError::Internal(format!("invalid url: {e}")));
     }
     if let Ok(parsed) = Url::parse(trimmed) {
         return Ok(parsed);
@@ -28,7 +29,7 @@ fn resolve_url(raw: &str) -> Result<Url, String> {
             return Ok(parsed);
         }
     }
-    Err(format!("Cannot parse URL: {}", trimmed))
+    Err(AppError::InvalidInput(format!("Cannot parse URL: {}", trimmed)))
 }
 
 pub struct BrowserState {
@@ -60,10 +61,10 @@ impl BrowserManager {
         self.state.lock().map(|s| s.active).unwrap_or(false)
     }
 
-    pub fn create(&self, app: &tauri::AppHandle, url: &str) -> Result<(), String> {
+    pub fn create(&self, app: &tauri::AppHandle, url: &str) -> Result<(), AppError> {
         let window = app
             .get_window("main")
-            .ok_or_else(|| "main window not found".to_string())?;
+            .ok_or_else(|| AppError::Internal("main window not found".into()))?;
 
         if self.is_active() {
             self.destroy(app)?;
@@ -90,61 +91,61 @@ impl BrowserManager {
                 tauri::LogicalPosition::new(-10000.0, -10000.0),
                 tauri::LogicalSize::new(800.0, 600.0),
             )
-            .map_err(|e| format!("failed to create webview: {e}"))?;
+            .map_err(|e| AppError::Internal(format!("failed to create webview: {e}")))?;
 
         tracing::info!(url = url, "browser webview created off-screen");
 
         {
-            let mut state = self.state.lock().map_err(|e| format!("lock error: {e}"))?;
+            let mut state = self.state.lock().map_err(|e| AppError::Internal(format!("lock error: {e}")))?;
             state.active = true;
         }
 
         Ok(())
     }
 
-    pub fn hide(&self, app: &tauri::AppHandle) -> Result<(), String> {
+    pub fn hide(&self, app: &tauri::AppHandle) -> Result<(), AppError> {
         let window = app
             .get_window("main")
-            .ok_or_else(|| "main window not found".to_string())?;
+            .ok_or_else(|| AppError::Internal("main window not found".into()))?;
 
         let webview = window
             .get_webview(BROWSER_WEBVIEW_LABEL)
-            .ok_or_else(|| "browser webview not found".to_string())?;
+            .ok_or_else(|| AppError::Internal("browser webview not found".into()))?;
 
         webview
             .hide()
-            .map_err(|e| format!("hide failed: {e}"))?;
+            .map_err(|e| AppError::Internal(format!("hide failed: {e}")))?;
 
         Ok(())
     }
 
-    pub fn show(&self, app: &tauri::AppHandle) -> Result<(), String> {
+    pub fn show(&self, app: &tauri::AppHandle) -> Result<(), AppError> {
         let window = app
             .get_window("main")
-            .ok_or_else(|| "main window not found".to_string())?;
+            .ok_or_else(|| AppError::Internal("main window not found".into()))?;
 
         let webview = window
             .get_webview(BROWSER_WEBVIEW_LABEL)
-            .ok_or_else(|| "browser webview not found".to_string())?;
+            .ok_or_else(|| AppError::Internal("browser webview not found".into()))?;
 
         webview
             .show()
-            .map_err(|e| format!("show failed: {e}"))?;
+            .map_err(|e| AppError::Internal(format!("show failed: {e}")))?;
 
         Ok(())
     }
 
-    pub fn destroy(&self, app: &tauri::AppHandle) -> Result<(), String> {
+    pub fn destroy(&self, app: &tauri::AppHandle) -> Result<(), AppError> {
         let window = app
             .get_window("main")
-            .ok_or_else(|| "main window not found".to_string())?;
+            .ok_or_else(|| AppError::Internal("main window not found".into()))?;
 
         if let Some(webview) = window.get_webview(BROWSER_WEBVIEW_LABEL) {
             let _ = webview.close();
         }
 
         {
-            let mut state = self.state.lock().map_err(|e| format!("lock error: {e}"))?;
+            let mut state = self.state.lock().map_err(|e| AppError::Internal(format!("lock error: {e}")))?;
             state.active = false;
         }
 
@@ -152,107 +153,107 @@ impl BrowserManager {
         Ok(())
     }
 
-    pub fn navigate(&self, app: &tauri::AppHandle, url: &str) -> Result<(), String> {
+    pub fn navigate(&self, app: &tauri::AppHandle, url: &str) -> Result<(), AppError> {
         let window = app
             .get_window("main")
-            .ok_or_else(|| "main window not found".to_string())?;
+            .ok_or_else(|| AppError::Internal("main window not found".into()))?;
 
         let webview = window
             .get_webview(BROWSER_WEBVIEW_LABEL)
-            .ok_or_else(|| "browser webview not found".to_string())?;
+            .ok_or_else(|| AppError::Internal("browser webview not found".into()))?;
 
         let target = resolve_url(url)?;
 
         webview
             .navigate(target)
-            .map_err(|e| format!("navigate failed: {e}"))?;
+            .map_err(|e| AppError::Internal(format!("navigate failed: {e}")))?;
 
         tracing::info!(url = url, "browser navigate");
         Ok(())
     }
 
-    pub fn go_back(&self, app: &tauri::AppHandle) -> Result<bool, String> {
+    pub fn go_back(&self, app: &tauri::AppHandle) -> Result<bool, AppError> {
         let window = app
             .get_window("main")
-            .ok_or_else(|| "main window not found".to_string())?;
+            .ok_or_else(|| AppError::Internal("main window not found".into()))?;
 
         let webview = window
             .get_webview(BROWSER_WEBVIEW_LABEL)
-            .ok_or_else(|| "browser webview not found".to_string())?;
+            .ok_or_else(|| AppError::Internal("browser webview not found".into()))?;
 
         webview
             .eval("history.back()")
-            .map_err(|e| format!("go_back eval failed: {e}"))?;
+            .map_err(|e| AppError::Internal(format!("go_back eval failed: {e}")))?;
 
         Ok(true)
     }
 
-    pub fn go_forward(&self, app: &tauri::AppHandle) -> Result<bool, String> {
+    pub fn go_forward(&self, app: &tauri::AppHandle) -> Result<bool, AppError> {
         let window = app
             .get_window("main")
-            .ok_or_else(|| "main window not found".to_string())?;
+            .ok_or_else(|| AppError::Internal("main window not found".into()))?;
 
         let webview = window
             .get_webview(BROWSER_WEBVIEW_LABEL)
-            .ok_or_else(|| "browser webview not found".to_string())?;
+            .ok_or_else(|| AppError::Internal("browser webview not found".into()))?;
 
         webview
             .eval("history.forward()")
-            .map_err(|e| format!("go_forward eval failed: {e}"))?;
+            .map_err(|e| AppError::Internal(format!("go_forward eval failed: {e}")))?;
 
         Ok(true)
     }
 
-    pub fn reload(&self, app: &tauri::AppHandle) -> Result<(), String> {
+    pub fn reload(&self, app: &tauri::AppHandle) -> Result<(), AppError> {
         let window = app
             .get_window("main")
-            .ok_or_else(|| "main window not found".to_string())?;
+            .ok_or_else(|| AppError::Internal("main window not found".into()))?;
 
         let webview = window
             .get_webview(BROWSER_WEBVIEW_LABEL)
-            .ok_or_else(|| "browser webview not found".to_string())?;
+            .ok_or_else(|| AppError::Internal("browser webview not found".into()))?;
 
         webview
             .eval("location.reload()")
-            .map_err(|e| format!("reload eval failed: {e}"))?;
+            .map_err(|e| AppError::Internal(format!("reload eval failed: {e}")))?;
 
         Ok(())
     }
 
-    pub fn set_bounds(&self, app: &tauri::AppHandle, bounds: Bounds) -> Result<(), String> {
+    pub fn set_bounds(&self, app: &tauri::AppHandle, bounds: Bounds) -> Result<(), AppError> {
         let window = app
             .get_window("main")
-            .ok_or_else(|| "main window not found".to_string())?;
+            .ok_or_else(|| AppError::Internal("main window not found".into()))?;
 
         let webview = window
             .get_webview(BROWSER_WEBVIEW_LABEL)
-            .ok_or_else(|| "browser webview not found".to_string())?;
+            .ok_or_else(|| AppError::Internal("browser webview not found".into()))?;
 
         let position = tauri::LogicalPosition::new(bounds.x, bounds.y);
         let size = tauri::LogicalSize::new(bounds.width.max(1.0), bounds.height.max(1.0));
 
         webview
             .set_position(position)
-            .map_err(|e| format!("set_position failed: {e}"))?;
+            .map_err(|e| AppError::Internal(format!("set_position failed: {e}")))?;
         webview
             .set_size(size)
-            .map_err(|e| format!("set_size failed: {e}"))?;
+            .map_err(|e| AppError::Internal(format!("set_size failed: {e}")))?;
 
         Ok(())
     }
 
-    pub fn eval(&self, app: &tauri::AppHandle, script: &str) -> Result<(), String> {
+    pub fn eval(&self, app: &tauri::AppHandle, script: &str) -> Result<(), AppError> {
         let window = app
             .get_window("main")
-            .ok_or_else(|| "main window not found".to_string())?;
+            .ok_or_else(|| AppError::Internal("main window not found".into()))?;
 
         let webview = window
             .get_webview(BROWSER_WEBVIEW_LABEL)
-            .ok_or_else(|| "browser webview not found".to_string())?;
+            .ok_or_else(|| AppError::Internal("browser webview not found".into()))?;
 
         webview
             .eval(script)
-            .map_err(|e| format!("eval failed: {e}"))?;
+            .map_err(|e| AppError::Internal(format!("eval failed: {e}")))?;
 
         Ok(())
     }

@@ -1,7 +1,7 @@
 import React from "react";
 import { IconArrowLeft, IconArrowRight } from "../../icons";
 import { TooltipSimple } from "../../components/Tooltip";
-import type { CopyDict } from "../../copy";
+import type { CopyDict } from "../../i18n";
 
 interface FileHistoryNavProps {
   canGoBack: boolean;

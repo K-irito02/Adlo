@@ -2,8 +2,7 @@
  * UI 切片
  * 管理通用的 UI 状态，保持向后兼容
  */
-import { type ToolId } from "../../ui-store";
-import type { ChatMode } from "../../ui-store";
+import type { ChatMode, ToolId } from "../types";
 import type { StoreState } from "../StoreState";
 import {
   LEFT_COLLAPSED_KEY,

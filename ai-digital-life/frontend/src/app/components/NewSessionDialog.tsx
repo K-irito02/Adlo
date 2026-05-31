@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import type { CopyDict } from "../copy";
+import type { CopyDict } from "../i18n";
 
 interface NewSessionDialogProps {
   open: boolean;

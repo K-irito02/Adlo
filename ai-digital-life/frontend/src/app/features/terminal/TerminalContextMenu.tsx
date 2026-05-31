@@ -1,7 +1,7 @@
 import React from "react";
 import { createPortal } from "react-dom";
 import { IconPin, IconPinOff, IconEdit, IconTrash } from "../../icons";
-import type { CopyDict } from "../../copy";
+import type { CopyDict } from "../../i18n";
 import type { ContextMenuState } from "./useTerminalPanel";
 
 interface TerminalContextMenuProps {
@@ -13,7 +13,7 @@ interface TerminalContextMenuProps {
   t: CopyDict;
 }
 
-export function TerminalContextMenu({
+export const TerminalContextMenu = React.memo(function TerminalContextMenu({
   contextMenu,
   onTogglePin,
   onRename,
@@ -73,4 +73,4 @@ export function TerminalContextMenu({
     </div>,
     document.body
   );
-}
+});

@@ -5,7 +5,7 @@ import type {
   ModelProviderId,
   RecentWorkspaceEntry
 } from "@ai-digital-life/kernel";
-import type { CopyDict, Locale } from "../copy";
+import type { CopyDict, Locale } from "../i18n";
 import { MODEL_PROVIDER_IDS } from "../constants";
 import { WorkspaceSplitButton } from "../components/WorkspaceSplitButton";
 import {

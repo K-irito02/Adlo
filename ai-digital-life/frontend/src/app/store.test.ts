@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { copy } from "./copy";
+import { copy } from "./i18n";
 import { getCachedLru, setCachedLru } from "./stores/shared";
 
 describe("store utility functions", () => {

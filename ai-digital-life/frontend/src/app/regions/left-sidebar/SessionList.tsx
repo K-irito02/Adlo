@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { ReorderSessionsInput } from "@ai-digital-life/kernel";
-import type { CopyDict, Locale } from "../../copy";
+import type { CopyDict, Locale } from "../../i18n";
 import { IconArchive, IconMoreVertical, IconPin, IconPinOff } from "../../icons";
 import { TooltipSimple } from "../../components/Tooltip";
 import { RenameDialog } from "../../components/RenameDialog";

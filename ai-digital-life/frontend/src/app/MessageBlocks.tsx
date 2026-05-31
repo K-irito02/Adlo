@@ -1,84 +1,85 @@
 import React from "react";
-import type { ConversationMessageRecord, ConversationBlock } from "@ai-digital-life/kernel";
-import type { CopyDict } from "./copy";
+import type {
+  ConversationMessageRecord,
+  ConversationBlock,
+  PlanConversationBlock,
+  ToolCallConversationBlock,
+  PatchSummaryConversationBlock,
+  ValidationResultConversationBlock,
+  FinalSummaryConversationBlock,
+  MarkdownConversationBlock,
+  ExecutionStepConversationBlock,
+  ExecutionSummaryConversationBlock,
+  CommandOutputConversationBlock,
+} from "@ai-digital-life/kernel";
+import type { CopyDict } from "./i18n";
 import { PlanCard, type PlanStep } from "./components/agent/PlanCard";
 import { StepBlock } from "./components/agent/StepBlock";
 import { ExecutionSummaryCard } from "./components/agent/ExecutionSummary";
 import { CommandOutputBlock } from "./components/terminal/CommandOutputBlock";
-import { TokenUsage } from "./components/conversation/TokenUsage";
 
-interface MessageBlockRendererProps<T extends ConversationBlock = ConversationBlock> {
-  block: T;
-  t: CopyDict;
-  onRetryStep?: (stepId: string) => void;
-  onViewChanges?: () => void;
-}
-
-type MessageBlockRenderer = (props: MessageBlockRendererProps) => React.ReactElement | null;
-
-const messageBlockRegistry = new Map<string, MessageBlockRenderer>();
-
-function registerMessageBlock(type: string, renderer: MessageBlockRenderer): void {
-  messageBlockRegistry.set(type, renderer);
-}
-
-registerMessageBlock("plan", ({ block, t }) => {
-  const steps: PlanStep[] = (block as any).items.map((item: any) => ({
+function renderPlanBlock(block: PlanConversationBlock, t: CopyDict): React.ReactElement {
+  const steps: PlanStep[] = block.items.map((item) => ({
     id: item.id,
     title: item.title,
-    stepType: "analyze",
-    status: "pending",
+    stepType: item.status === "running" ? "analyze" : (item.status as PlanStep["stepType"] ?? "analyze"),
+    status: item.status,
   }));
-  return <PlanCard key={block.id} t={t} title={(block as any).title} steps={steps} />;
-});
+  return <PlanCard key={block.id} t={t} title={block.title} steps={steps} />;
+}
 
-registerMessageBlock("execution-step", ({ block, t, onRetryStep }) => {
-  return <StepBlock key={block.id} t={t} block={block as any} onRetry={onRetryStep} />;
-});
+function renderExecutionStepBlock(
+  block: ExecutionStepConversationBlock,
+  t: CopyDict,
+  onRetryStep?: (stepId: string) => void,
+): React.ReactElement {
+  return <StepBlock key={block.id} t={t} block={block} onRetry={onRetryStep} />;
+}
 
-registerMessageBlock("execution-summary", ({ block, t, onViewChanges }) => {
-  return <ExecutionSummaryCard key={block.id} t={t} block={block as any} onViewChanges={onViewChanges} />;
-});
+function renderExecutionSummaryBlock(
+  block: ExecutionSummaryConversationBlock,
+  t: CopyDict,
+  onViewChanges?: () => void,
+): React.ReactElement {
+  return <ExecutionSummaryCard key={block.id} t={t} block={block} onViewChanges={onViewChanges} />;
+}
 
-registerMessageBlock("command-output", ({ block, t }) => {
-  return <CommandOutputBlock key={block.id} t={t} block={block as any} />;
-});
+function renderCommandOutputBlock(block: CommandOutputConversationBlock, t: CopyDict): React.ReactElement {
+  return <CommandOutputBlock key={block.id} t={t} block={block} />;
+}
 
-registerMessageBlock("patch-summary", ({ block }) => {
-  const patchBlock = block as any;
+function renderPatchSummaryBlock(block: PatchSummaryConversationBlock): React.ReactElement {
   return (
     <section key={block.id} className="adl-block adl-block--patch">
       <h4>Patch</h4>
-      <p>{patchBlock.summary}</p>
+      <p>{block.summary}</p>
       <p>
-        {patchBlock.fileCount} files / {patchBlock.hunkCount} hunks
+        {block.fileCount} files / {block.hunkCount} hunks
       </p>
     </section>
   );
-});
+}
 
-registerMessageBlock("tool-call", ({ block }) => {
-  const toolBlock = block as any;
+function renderToolCallBlock(block: ToolCallConversationBlock): React.ReactElement {
   return (
     <section key={block.id} className="adl-block adl-block--tool">
       <h4>Tool</h4>
-      <p>{toolBlock.toolName}</p>
-      <p>{toolBlock.summary}</p>
-      <span className="adl-pill adl-pill--muted">{toolBlock.status}</span>
+      <p>{block.toolName}</p>
+      <p>{block.summary}</p>
+      <span className="adl-pill adl-pill--muted">{block.status}</span>
     </section>
   );
-});
+}
 
-registerMessageBlock("validation-result", ({ block }) => {
-  const validationBlock = block as any;
+function renderValidationResultBlock(block: ValidationResultConversationBlock): React.ReactElement {
   return (
     <section key={block.id} className="adl-block adl-block--validation">
       <h4>Validation</h4>
-      <p>{validationBlock.summary}</p>
-      <span className="adl-pill adl-pill--muted">{validationBlock.status}</span>
-      {validationBlock.diagnostics.length ? (
+      <p>{block.summary}</p>
+      <span className="adl-pill adl-pill--muted">{block.status}</span>
+      {block.diagnostics.length > 0 ? (
         <ul>
-          {validationBlock.diagnostics.map((diagnostic: any) => (
+          {block.diagnostics.map((diagnostic) => (
             <li key={diagnostic.id}>
               <strong>{diagnostic.source}</strong>
               <span>{diagnostic.path ? ` ${diagnostic.path}` : ""}</span>
@@ -90,37 +91,52 @@ registerMessageBlock("validation-result", ({ block }) => {
       ) : null}
     </section>
   );
-});
+}
 
-registerMessageBlock("final-summary", ({ block }) => {
-  const summaryBlock = block as any;
+function renderFinalSummaryBlock(block: FinalSummaryConversationBlock): React.ReactElement {
   return (
     <section key={block.id} className="adl-block adl-block--summary">
-      <p>{summaryBlock.summary}</p>
+      <p>{block.summary}</p>
     </section>
   );
-});
+}
 
-registerMessageBlock("markdown", ({ block }) => {
-  const markdownBlock = block as any;
+function renderMarkdownBlock(block: MarkdownConversationBlock): React.ReactElement {
   return (
     <section key={block.id} className="adl-block adl-block--markdown">
-      <p>{markdownBlock.text}</p>
+      <p>{block.text}</p>
     </section>
   );
-});
+}
 
 function renderMessageBlock(
   block: ConversationBlock,
   t: CopyDict,
   onRetryStep?: (stepId: string) => void,
-  onViewChanges?: () => void
+  onViewChanges?: () => void,
 ): React.ReactElement | null {
-  const renderer = messageBlockRegistry.get(block.type);
-  if (renderer) {
-    return renderer({ block, t, onRetryStep, onViewChanges });
+  switch (block.type) {
+    case "plan":
+      return renderPlanBlock(block, t);
+    case "execution-step":
+      return renderExecutionStepBlock(block, t, onRetryStep);
+    case "execution-summary":
+      return renderExecutionSummaryBlock(block, t, onViewChanges);
+    case "command-output":
+      return renderCommandOutputBlock(block, t);
+    case "patch-summary":
+      return renderPatchSummaryBlock(block);
+    case "tool-call":
+      return renderToolCallBlock(block);
+    case "validation-result":
+      return renderValidationResultBlock(block);
+    case "final-summary":
+      return renderFinalSummaryBlock(block);
+    case "markdown":
+      return renderMarkdownBlock(block);
+    default:
+      return null;
   }
-  return null;
 }
 
 interface MessageBlocksProps {

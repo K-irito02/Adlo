@@ -1,5 +1,5 @@
 import type { AppInfo, ConversationDetail } from "@ai-digital-life/kernel";
-import { copy } from "../copy";
+import { copy } from "../i18n";
 import { loadConversationState } from "../loaders";
 
 export function sessionFallbackTitle(appInfo?: AppInfo): string {

@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { IconChevronDown, IconChevronRight, IconPlus } from "../../icons";
 import { TooltipSimple } from "../../components/Tooltip";
-import type { TerminalProfile } from "../../ui-store";
-import type { CopyDict } from "../../copy";
+import type { TerminalProfile } from "../../stores/types";
+import type { CopyDict } from "../../i18n";
 import type { TerminalShellMenuItem, WorkspaceMenuItem } from "./useTerminalPanel";
 import { useAppStore } from "../../stores/slicedStore";
 
@@ -18,7 +18,7 @@ interface TerminalShellSelectorProps {
   t: CopyDict;
 }
 
-export function TerminalShellSelector({
+export const TerminalShellSelector = React.memo(function TerminalShellSelector({
   currentProfile,
   currentProfileLabel,
   menuOpen,
@@ -191,4 +191,4 @@ export function TerminalShellSelector({
       ) : null}
     </div>
   );
-}
+});

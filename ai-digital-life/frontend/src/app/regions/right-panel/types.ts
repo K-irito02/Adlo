@@ -15,7 +15,7 @@ import type {
   WorkspaceSearchHit,
   WorkspaceTreeNode
 } from "@ai-digital-life/kernel";
-import type { CopyDict } from "../../copy";
+import type { CopyDict } from "../../i18n";
 import type { EditorTabState } from "../../editorTabs";
 import type { EditorRef, DiffEditorRef } from "../../types";
 import type {

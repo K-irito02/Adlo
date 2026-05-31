@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import type { ApprovalRequestSummary, RiskLevel } from "@ai-digital-life/kernel";
-import type { CopyDict } from "../../copy";
+import type { CopyDict } from "../../i18n";
 import { IconChevronDown, IconChevronRight, IconShield } from "../../icons";
 
 interface ApprovalCardProps {

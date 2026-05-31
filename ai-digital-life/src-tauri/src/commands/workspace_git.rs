@@ -22,7 +22,7 @@ fn persist_workspace_meta(state: &AppState, meta: &WorkspaceMeta) -> Result<(), 
     *state
         .current_workspace
         .lock()
-        .expect("workspace mutex poisoned") = Some(meta.clone());
+        .map_err(|_| AppError::Internal("workspace mutex poisoned".into()))? = Some(meta.clone());
     Ok(())
 }
 

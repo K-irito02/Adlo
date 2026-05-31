@@ -1,7 +1,7 @@
 import React from "react";
 import { IconFileCode, IconTerminal, IconTrash } from "../../icons";
 import { TooltipSimple } from "../../components/Tooltip";
-import type { CopyDict } from "../../copy";
+import type { CopyDict } from "../../i18n";
 import type { TerminalNavigatorMode } from "./useTerminalPanel";
 import type { TerminalTabState } from "../../stores/slices/terminalSlice";
 import { TerminalTabBar } from "./TerminalTabBar";
@@ -38,7 +38,7 @@ interface TerminalNavigatorProps {
   t: CopyDict;
 }
 
-export function TerminalNavigator({
+export const TerminalNavigator = React.memo(function TerminalNavigator({
   navigatorMode,
   navigatorTitle,
   navigatorCount,
@@ -166,4 +166,4 @@ export function TerminalNavigator({
       />
     </aside>
   );
-}
+});

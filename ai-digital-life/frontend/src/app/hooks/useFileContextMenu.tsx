@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
-import type { CopyDict } from "../copy";
-import { copyToClipboard } from "../copy";
+import type { CopyDict } from "../i18n";
+import { copyToClipboard } from "../i18n";
 import { IconClipboardList, IconCopy, IconFiles, IconFolderOpen, IconPencil, IconTrash, IconUpload } from "../icons";
 import { joinPathSegments } from "../workspacePaths";
 import { useAppStore } from "../stores/slicedStore";

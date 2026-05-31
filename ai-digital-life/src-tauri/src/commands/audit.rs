@@ -33,6 +33,35 @@ pub fn save_audit_entry(
     Ok(entry)
 }
 
+pub fn batch_save_audit_entries(
+    state: &AppState,
+    entries: Vec<(String, Option<String>, String, RiskLevel, String, Option<String>, Option<String>)>,
+) -> Result<Vec<AuditEntry>, AppError> {
+    let mut saved = Vec::with_capacity(entries.len());
+    for (workspace_id, session_id, operation_type, risk_level, summary, decision, detail) in entries {
+        let id = create_id("audit");
+        let entry = AuditEntry {
+            id,
+            timestamp: now_ms(),
+            operation_type: operation_type.clone(),
+            summary,
+            risk_level,
+            decision: decision.clone(),
+            detail,
+        };
+        state.db.save_entity(
+            EntityTable::AuditRecords,
+            &entry.id,
+            Some(&workspace_id),
+            session_id.as_deref(),
+            Some(&operation_type),
+            &entry,
+        )?;
+        saved.push(entry);
+    }
+    Ok(saved)
+}
+
 pub fn list_audit_entries(
     state: &AppState,
     limit: Option<usize>,

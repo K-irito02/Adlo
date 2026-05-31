@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useAppStore } from "../../stores/slicedStore";
-import type { TerminalProfile } from "../../ui-store";
+import type { TerminalProfile } from "../../stores/types";
 import type { XtermTerminalHandle } from "../../components/terminal/XtermTerminal";
 
 interface PtyLifecycleParams {

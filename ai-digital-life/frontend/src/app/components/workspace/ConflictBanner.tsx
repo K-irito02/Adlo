@@ -1,5 +1,5 @@
 import React from "react";
-import type { CopyDict } from "../../copy";
+import type { CopyDict } from "../../i18n";
 import { IconAlertTriangle } from "../../icons";
 
 interface ConflictBannerProps {

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import type { AppInfo } from "@ai-digital-life/kernel";
-import type { CopyDict } from "../copy";
+import type { CopyDict } from "../i18n";
 import {
   IconClose,
   IconCopy,

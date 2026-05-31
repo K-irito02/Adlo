@@ -1,5 +1,5 @@
 import React from "react";
-import type { CopyDict } from "../../copy";
+import type { CopyDict } from "../../i18n";
 import { IconCheckCircle, IconAlertTriangle } from "../../icons";
 
 interface ValidationSummaryBarProps {

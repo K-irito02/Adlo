@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import type { ReorderSessionsInput, ReorderWorkspacesInput } from "@ai-digital-life/kernel";
-import type { CopyDict, Locale } from "../copy";
+import type { CopyDict, Locale } from "../i18n";
 import { IconArchive, IconPlug, IconSparkles } from "../icons";
 import { buildSidebarViewModel } from "../sidebarViewModel";
 import { useUiStore } from "../ui-store";

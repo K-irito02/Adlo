@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import type { RecentWorkspaceEntry } from "@ai-digital-life/kernel";
-import type { CopyDict } from "../../copy";
+import type { CopyDict } from "../../i18n";
 import type { TerminalTabState } from "../../stores/slices/terminalSlice";
-import type { TerminalProfile } from "../../ui-store";
+import type { TerminalProfile } from "../../stores/types";
 import { IconRefreshCw, IconTrash, IconPlus, IconMoreVertical, IconEyeOff, IconFolderOpen, IconFolder, IconTerminal, IconChevronRight } from "../../icons";
 import { TooltipSimple } from "../../components/Tooltip";
 import { TerminalTabBar } from "../terminal/TerminalTabBar";

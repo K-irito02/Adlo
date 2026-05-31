@@ -1,4 +1,4 @@
-import type { Locale } from "./copy";
+import type { Locale } from "./i18n";
 
 export function buildSelectionPrompt(locale: Locale, filePath: string, selection: string): string {
   if (locale === "en-US") {

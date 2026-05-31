@@ -1,6 +1,6 @@
 import React from "react";
 import type { IndexingStatus } from "@ai-digital-life/kernel";
-import type { CopyDict } from "../../copy";
+import type { CopyDict } from "../../i18n";
 import { IconCheckCircle, IconAlertTriangle } from "../../icons";
 
 interface IndexStatusProps {

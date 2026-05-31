@@ -6,7 +6,7 @@ import { useTerminalPtyLifecycle } from "./useTerminalPtyLifecycle";
 import { useTerminalDragDrop } from "./useTerminalDragDrop";
 import { useTerminalMenus } from "./useTerminalMenus";
 import type { TerminalPanelProps } from "../../regions/right-panel/types";
-import type { TerminalProfile } from "../../ui-store";
+import type { TerminalProfile } from "../../stores/types";
 import type { XtermTerminalHandle } from "../../components/terminal/XtermTerminal";
 
 export type TerminalNavigatorMode = "sessions" | "history";

@@ -6,7 +6,7 @@ import {
   IconFolder,
   IconUpload
 } from "../../icons";
-import type { CopyDict } from "../../copy";
+import type { CopyDict } from "../../i18n";
 import type { GitSnapshot, ModelProviderId } from "@ai-digital-life/kernel";
 import { MODEL_OPTIONS } from "../../constants";
 

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import type { AgentRunDetail, DigitalLifeRunActivityEventV1, ModelTokenUsage } from "@ai-digital-life/kernel";
-import type { CopyDict } from "../../copy";
+import type { CopyDict } from "../../i18n";
 import { IconChevronDown, IconChevronRight, IconClock, IconCopy } from "../../icons";
 import { TokenUsage } from "./TokenUsage";
 

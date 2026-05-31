@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { IconMoreVertical } from "../../icons";
 import { TooltipSimple } from "../../components/Tooltip";
-import type { CopyDict } from "../../copy";
+import type { CopyDict } from "../../i18n";
 
 interface FileMenuItem {
   id: string;

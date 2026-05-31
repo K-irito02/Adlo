@@ -1,5 +1,5 @@
 import { useCallback, useRef } from "react";
-import type { Locale } from "../copy";
+import type { Locale } from "../i18n";
 import { useAppStore } from "../stores/slicedStore";
 import { useAppActions } from "./useAppActions";
 import { usePatchReview } from "./usePatchReview";

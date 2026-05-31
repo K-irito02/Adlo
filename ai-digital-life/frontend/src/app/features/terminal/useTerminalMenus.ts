@@ -3,7 +3,7 @@ import { useAppStore } from "../../stores/slicedStore";
 import { terminalSelectors } from "../../stores/selectors";
 import { useTerminalContextMenu } from "./useTerminalContextMenu";
 import type { TerminalPanelProps } from "../../regions/right-panel/types";
-import type { TerminalProfile } from "../../ui-store";
+import type { TerminalProfile } from "../../stores/types";
 import type { XtermTerminalHandle } from "../../components/terminal/XtermTerminal";
 import type { TerminalMenuItem, TerminalShellMenuItem, WorkspaceMenuItem } from "./useTerminalPanel";
 

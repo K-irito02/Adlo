@@ -11,8 +11,8 @@ import {
   IconCpu
 } from "../../icons";
 import { TooltipSimple } from "../../components/Tooltip";
-import type { CopyDict } from "../../copy";
-import type { ToolId } from "../../ui-store";
+import type { CopyDict } from "../../i18n";
+import type { ToolId } from "../../stores/types";
 
 interface ToolSwitcherProps {
   t: CopyDict;

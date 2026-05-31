@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import type { CopyDict } from "../../copy";
+import type { CopyDict } from "../../i18n";
 import { IconCollapseRows, IconExpandRows, IconPlus } from "../../icons";
 import { TooltipSimple } from "../../components/Tooltip";
 import {

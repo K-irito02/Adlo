@@ -143,7 +143,7 @@ async fn apply_patch_set_inner(
         let dirty = state
             .editor_dirty_paths
             .lock()
-            .expect("editor dirty paths mutex poisoned");
+            .map_err(|_| AppError::Internal("editor dirty paths mutex poisoned".into()))?;
         for file_patch in &patch_set.file_patches {
             let norm = file_patch.relative_path.replace('\\', "/");
             if file_patch

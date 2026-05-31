@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import type { CopyDict } from "../../copy";
+import type { CopyDict } from "../../i18n";
 
 interface FileCreationBarProps {
   createTarget: "file" | "folder";

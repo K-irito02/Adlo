@@ -1,6 +1,6 @@
 import React from "react";
 import type { SettingItem } from "@ai-digital-life/kernel";
-import type { CopyDict } from "../../copy";
+import type { CopyDict } from "../../i18n";
 import { IconEye, IconEyeOff } from "../../icons";
 
 interface SettingsControlsProps {

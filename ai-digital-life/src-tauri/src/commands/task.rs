@@ -234,7 +234,7 @@ async fn maybe_execute_approved_command(
             state
                 .current_workspace
                 .lock()
-                .expect("workspace mutex poisoned")
+                .ok()?
                 .clone()
         })
         .ok_or_else(|| AppError::NotFound(format!("workspace {}", task.workspace_id)))?;
@@ -389,7 +389,7 @@ fn snapshot(state: &AppState) -> Result<TaskCenterSnapshot, AppError> {
     let current_session = if let Some(workspace) = state
         .current_workspace
         .lock()
-        .expect("workspace mutex poisoned")
+        .map_err(|_| AppError::Internal("workspace mutex poisoned".into()))?
         .clone()
     {
         let conversation_sessions: Vec<adl_kernel::ConversationSessionRecord> = state

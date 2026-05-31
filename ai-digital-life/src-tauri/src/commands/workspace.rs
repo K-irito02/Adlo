@@ -55,7 +55,7 @@ pub fn workspace_clear_current(state: tauri::State<'_, AppState>) -> IpcResult<b
         *state
             .current_workspace
             .lock()
-            .expect("workspace mutex poisoned") = None;
+            .map_err(|_| AppError::Internal("workspace mutex poisoned".into()))? = None;
         Ok(true)
     })
 }
@@ -182,7 +182,7 @@ pub fn workspace_set_editor_dirty_paths(
         let mut dirty = state
             .editor_dirty_paths
             .lock()
-            .expect("dirty path mutex poisoned");
+            .map_err(|_| AppError::Internal("dirty path mutex poisoned".into()))?;
         dirty.clear();
         dirty.extend(
             relative_paths
@@ -297,7 +297,7 @@ pub fn current_workspace(state: &AppState) -> Result<WorkspaceMeta, AppError> {
     state
         .current_workspace
         .lock()
-        .expect("workspace mutex poisoned")
+        .map_err(|_| AppError::Internal("workspace mutex poisoned".into()))?
         .clone()
         .ok_or_else(|| AppError::NotFound("active workspace".into()))
 }
@@ -317,7 +317,7 @@ fn persist_workspace_meta(state: &AppState, meta: &WorkspaceMeta) -> Result<(), 
     *state
         .current_workspace
         .lock()
-        .expect("workspace mutex poisoned") = Some(meta.clone());
+        .map_err(|_| AppError::Internal("workspace mutex poisoned".into()))? = Some(meta.clone());
     Ok(())
 }
 
@@ -348,7 +348,7 @@ pub fn latest_retrieval(state: &AppState) -> Result<Option<RetrievalSnapshot>, A
     let Some(workspace) = state
         .current_workspace
         .lock()
-        .expect("workspace mutex poisoned")
+        .map_err(|_| AppError::Internal("workspace mutex poisoned".into()))?
         .clone()
     else {
         return Ok(None);

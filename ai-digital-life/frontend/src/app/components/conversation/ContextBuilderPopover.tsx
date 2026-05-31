@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
-import type { CopyDict } from "../../copy";
-import { type ChatMode, type ContextChip } from "../../ui-store";
+import type { CopyDict } from "../../i18n";
+import type { ChatMode, ContextChip } from "../../stores/types";
 import {
   IconBookOpen,
   IconBug,

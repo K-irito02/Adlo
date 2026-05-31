@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import type { CopyDict } from "../../copy";
+import type { CopyDict } from "../../i18n";
 import { IconChevronDown, IconChevronUp, IconClose, IconFolder } from "../../icons";
-import type { ContextChip } from "../../ui-store";
+import type { ContextChip } from "../../stores/types";
 
 interface ContextSummaryBarProps {
   t: CopyDict;

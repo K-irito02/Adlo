@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import type { AuditEntry, RiskLevel } from "@ai-digital-life/kernel";
-import type { CopyDict } from "../../copy";
+import type { CopyDict } from "../../i18n";
 import { IconClock, IconFilter } from "../../icons";
 
 interface AuditPanelProps {
