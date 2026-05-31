@@ -75,6 +75,19 @@
   - 优化终端 localStorage 批处理机制（通过 createDebouncedWrite 实现高效批量写入）
   - 添加 Rust 后端文件内容缓存（workspace crate 新增 cache.rs 模块，LRU 缓存，最大 100 条目，完整单元测试）
   - 所有 183 个前端测试 + 24 个 Rust 后端测试全部通过
+- **第二十一轮 — 浏览器子目录 parentId 传递断链修复（2026-05-31）**：
+  - **问题**：从工作区头部行的"更多操作"菜单创建子目录后，子目录出现在"自建目录"而非对应的"工作区目录"下
+  - **根因**：4 层回调链（WorkspaceBrowserEntry → MultiWorkspaceBrowser → BrowserPanel → browserSlice）中，`parentId` 参数在 BrowserPanel.handleCreateTabFolder 处被丢弃，导致 `browserCreateTabFolder(name, undefined)` → addChildFolder 添加到根级
+  - **修复**：6 处代码修改——① WorkspaceBrowserEntry 类型 `() => void` → `(parentFolderId: string) => void`；② handleCreateSubFolder 传 `workspace.id`；③ MultiWorkspaceBrowser 用传入值替代闭包固定值；④ TabFolderTreeEntry 转发 parentId；⑤ BrowserPanel.handleCreateTabFolder 接收并传递 parentId；⑥ allExpanded 条件移除 `tabs.length > 0 || childFolders.length > 0` 限制
+  - **经验教训**：Trae 内置浏览器保留 localStorage，agent-browser 使用独立 Chrome 实例（全新 localStorage），两个环境测试结果可能不一致。调试多层级回调链时必须逐层确认参数传递。
+  - **测试验证**：清除 localStorage + 清除 Vite 缓存后，在 Trae 内置浏览器中验证通过
+
+- **第二十二轮 — 文档大纲连接竖线与展开/折叠按钮对齐修复（2026-06-01）**：
+  - **问题**：outline 树子级节点的 `::before` 连接竖线（`left:13px`）与 toggle 按钮中心（`20px`）偏差 7px，按钮折线箭尖未对齐竖线
+  - **根因**：row 的 `margin-inline-start: -4px` + `padding-inline-start: 8px` 使按钮起始位置在 10px 而非 4px，按钮中心实际在 20px（非直觉的 14px），此前多次猜测 1px 偏差均因未实际测量而错误
+  - **修复**：使用 agent-browser 自动化工具精确测量 `getBoundingClientRect()` 后，在 `file-tree.css` 末尾添加 `.adl-outline-tree__children .adl-outline-tree__item::before { left: 20px !important; }`，精确匹配非根节点，根级 `display:none` 不受影响
+  - **经验教训**：CSS 像素偏差必须通过 `getBoundingClientRect()` 精确测量，不要凭视觉猜测；`outline-panel.css` 是孤立 CSS 文件不被加载；CSS 特异性冲突和加载顺序影响覆盖效果
+  - **验证**：agent-browser 测量 `align:0` + TypeScript 类型检查通过
 
 ### Zustand 切片模式（已完成）
 
@@ -152,6 +165,8 @@ regions/right-panel/   # 右侧面板区域
 | **第十八轮** | **重构洞察全面修复（MessageStream 虚拟滚动、RightPanel 优化、App 组件拆分、运行活动 LRU 等）** | **2026-05-29** |
 | **第十九轮** | **重构洞察修复计划（代码清理、架构优化、terminal crate 删除）** | **2026-05-30** |
 | **第二十轮** | **重构洞察全面修复与优化（代码清理、工具函数统一、缓存添加、性能优化）** | **2026-05-31** |
+| **第二十一轮** | **浏览器子目录 parentId 传递断链修复（6 处修复 + allExpanded 展开逻辑修复）** | **2026-05-31** |
+| **第二十二轮** | **文档大纲连接竖线与展开/折叠按钮对齐修复（CSS 选择器 + agent-browser 精确测量）** | **2026-06-01** |
 全部详情见 [重构进度报告](./docs/重构洞察/REFACTORING_PROGRESS_REPORT.md)
 
 ### 排除项

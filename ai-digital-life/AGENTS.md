@@ -156,6 +156,20 @@
     - 调整 adl-multitree-entry__children 的 overflow 属性为 visible，确保滚动条可以正常显示
   - **测试验证**：cargo test + 183 前端测试全部通过
 
+- **2026-05-31 浏览器子目录 parentId 传递断链修复**：
+  - **问题**：工作区头部行"更多操作"→"创建子目录"后，子目录出现在"自建目录"分类而非对应的"工作区目录"分类下
+  - **根因**：4 层回调链中的 BrowserPanel.handleCreateTabFolder 丢弃了 parentId 参数
+  - **修复**：6 处代码修改（WorkspaceBrowserEntry 类型/传参、MultiWorkspaceBrowser 转发、TabFolderTreeEntry 转发、BrowserPanel 传递、allExpanded 展开条件修复）
+  - **修改文件**：WorkspaceBrowserEntry.tsx、MultiWorkspaceBrowser.tsx、BrowserPanel.tsx、browserSlice.ts
+  - **测试验证**：cargo test + 183 前端测试全部通过
+
+- **第二十二轮 — 文档大纲连接竖线与展开/折叠按钮对齐修复**（2026-06-01）：
+  - **问题**：文档大纲子级（depth≥2）节点的 `::before` 连接竖线在 `left: 13px`，但 toggle 按钮中心在距 `<li>` 左边缘 20px 处（受 row 的 `margin-inline-start: -4px` + `padding-inline-start: 8px` 影响），偏差 7px；根级竖线则不受影响
+  - **修复**：在 `file-tree.css` 末尾添加选择器 `.adl-outline-tree__children .adl-outline-tree__item::before { left: 20px !important; }`，精确匹配非根节点
+  - **教训**：使用 agent-browser 自动化工具通过 `getBoundingClientRect()` 精确测量像素位置；确认 `outline-panel.css` 是孤立 CSS 文件不被加载；注意 CSS 特异性冲突和加载顺序
+  - **修改文件**：`file-tree.css`（+5行）
+  - **验证**：agent-browser 测量确认完全对齐 + TypeScript 类型检查通过
+
 **不在本目录实现**：多 Agent DAG、MCP、插件市场、云协作等 Phase 2+ 能力。
 
 ## 安全边界

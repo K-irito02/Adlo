@@ -139,7 +139,49 @@ npm test - 183项测试全部通过
 
 ---
 
-## 七、未来改进建议
+## 八、后续修正（2026-06-01）
+
+### 8.1 问题
+展开/折叠按钮的折线图标箭尖与连接竖线未对齐。根级（depth=1）竖线原本应隐藏，子级（depth≥2）竖线在 `left: 13px` 处，但 toggle 按钮中心在距 `<li>` 左边缘的 **20px** 处（受 row 的 `margin-inline-start: -4px` + `padding-inline-start: 8px` 影响），偏差 **7px**。
+
+### 8.2 修复
+
+在 `file-tree.css`（最后加载的 CSS 文件）末尾添加精确选择器：
+
+```css
+/* outline 非根节点的连接竖线与展开/折叠按钮对齐 */
+.adl-outline-tree__children .adl-outline-tree__item::before {
+  left: 20px !important;
+}
+```
+
+**关键点**：
+- 选择器 `.adl-outline-tree__children .adl-outline-tree__item` 只匹配非根节点（depth≥2），根级不受影响
+- 双类选择器 + `!important` + 放末尾文件，三层保障确保不被覆盖
+- 使用 `agent-browser`（Chrome DevTools Protocol 自动化工具）精确测量像素位置
+
+### 8.3 经验教训
+
+**CSS 调试**：
+- 不要凭视觉猜测偏移值——误差可能远超预期（本例猜测 1px，实际 7px）
+- 使用浏览器自动化工具精确测量 `getBoundingClientRect()` 获取真实像素位置
+- `outline-panel.css` 是孤立 CSS 文件（不被任何 import 引用），其中的修改不生效
+- 实际加载的 CSS 链：`main.tsx → index.css → rightpanel.css → files-panel.css + file-tree.css`
+
+**CSS 特异性**：
+- 当元素有多个类名时，注意 CSS 特异性冲突和加载顺序
+- `.adl-tree-node::before`（特异性 0,1,1）被多处定义，需要 `:nth-child` 选择器或 `!important` 覆盖
+
+### 8.4 修改的文件
+- `frontend/src/styles/regions/rightpanel/file-tree.css` — 新增 5 行，添加 outline 子级连接竖线对齐规则
+
+### 8.5 验证
+- agent-browser 测量：depth=1 `display:none`（正确隐藏），depth=2 `left:20px` + `btnCenter:20px`（完全对齐）
+- TypeScript 类型检查通过
+
+---
+
+## 七、未来改进建议（原始内容）
 
 ### 7.1 CSS架构
 - 引入CSS Modules或styled-components实现样式隔离
