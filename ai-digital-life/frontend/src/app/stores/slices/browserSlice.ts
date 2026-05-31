@@ -31,6 +31,8 @@ export interface TabFolderState {
   createdAt: number;
   isUserCreated?: boolean;
   tabs?: string[]; // 存储该工作区下的标签 ID
+  children?: TabFolderState[]; // 子目录
+  parentId?: string; // 父目录 ID
 }
 
 export interface TabFolderStateUpdate {
@@ -89,6 +91,77 @@ function buildTabsById(tabs: BrowserTabState[]): Record<string, BrowserTabState>
     result[tab.id] = tab;
   }
   return result;
+}
+
+// 递归查找目录
+function findFolderById(folders: TabFolderState[], folderId: string): TabFolderState | null {
+  for (const folder of folders) {
+    if (folder.id === folderId) {
+      return folder;
+    }
+    if (folder.children) {
+      const found = findFolderById(folder.children, folderId);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+// 递归添加子目录
+function addChildFolder(folders: TabFolderState[], parentId: string | undefined, newFolder: TabFolderState): TabFolderState[] {
+  if (!parentId) {
+    return [...folders, newFolder];
+  }
+  
+  let matched = false;
+  const result = folders.map(folder => {
+    if (folder.id === parentId) {
+      matched = true;
+      return {
+        ...folder,
+        children: [...(folder.children || []), newFolder]
+      };
+    }
+    if (folder.children) {
+      const newChildren = addChildFolder(folder.children, parentId, newFolder);
+      if (newChildren !== folder.children) {
+        matched = true;
+        return { ...folder, children: newChildren };
+      }
+    }
+    return folder;
+  });
+
+  if (!matched) {
+    return [...folders, newFolder];
+  }
+  return result;
+}
+
+// 递归删除目录
+function removeFolderById(folders: TabFolderState[], folderId: string): TabFolderState[] {
+  return folders
+    .filter(folder => folder.id !== folderId)
+    .map(folder => {
+      if (folder.children) {
+        const newChildren = removeFolderById(folder.children, folderId);
+        if (newChildren !== folder.children) {
+          return { ...folder, children: newChildren };
+        }
+      }
+      return folder;
+    });
+}
+
+// 递归收集所有标签 ID
+function collectAllTabIds(folder: TabFolderState): string[] {
+  let tabIds: string[] = [...(folder.tabs || [])];
+  if (folder.children) {
+    for (const child of folder.children) {
+      tabIds = [...tabIds, ...collectAllTabIds(child)];
+    }
+  }
+  return tabIds;
 }
 
 function defaultNavigatorCollapsed(): Record<ToolId, boolean> {
@@ -199,7 +272,7 @@ export interface BrowserSlice {
   setBrowserWorkspaceExpanded: (expanded: Record<string, boolean>) => void;
   setBrowserPersisted: (persisted: boolean) => void;
   setBrowserWorkspaceId: (workspaceId: string) => void;
-  browserCreateTabFolder: (name?: string) => void;
+  browserCreateTabFolder: (name?: string, parentId?: string) => void;
   browserUpdateTabFolder: (folderId: string, patch: Partial<TabFolderStateUpdate>) => void;
   browserDeleteTabFolder: (folderId: string) => void;
   browserAddToHistory: (url: string, title: string) => void;
@@ -451,36 +524,49 @@ export const createBrowserSlice = (
     setBrowserWorkspaceId: (workspaceId) =>
       set({ browserWorkspaceId: workspaceId }),
 
-    browserCreateTabFolder: (name) =>
-      set((state) => {
-        const folderCount = state.browserTabFolders.length;
-        const folderName = name?.trim() || `新建目录${folderCount + 1}`;
-        const newFolder: TabFolderState = {
-          id: createUiId("tab-folder"),
-          name: folderName,
-          createdAt: Date.now(),
-          isUserCreated: true,
-        };
-        const nextFolders = [...state.browserTabFolders, newFolder];
-        scheduleWrite(BROWSER_TAB_FOLDERS_KEY, nextFolders);
-        return { browserTabFolders: nextFolders };
-      }),
+    browserCreateTabFolder: (name, parentId) =>
+    set((state) => {
+      const folderCount = state.browserTabFolders.length;
+      const folderName = name?.trim() || `新建目录${folderCount + 1}`;
+      const newFolder: TabFolderState = {
+        id: createUiId("tab-folder"),
+        name: folderName,
+        createdAt: Date.now(),
+        isUserCreated: true,
+        parentId: parentId,
+      };
+      const nextFolders = addChildFolder(state.browserTabFolders, parentId, newFolder);
+      scheduleWrite(BROWSER_TAB_FOLDERS_KEY, nextFolders);
+      return { browserTabFolders: nextFolders };
+    }),
 
-    browserUpdateTabFolder: (folderId, patch) =>
-      set((state) => {
-        const nextFolders = state.browserTabFolders.map((folder) =>
-          folder.id === folderId ? { ...folder, ...patch } : folder
-        );
-        scheduleWrite(BROWSER_TAB_FOLDERS_KEY, nextFolders);
-        return { browserTabFolders: nextFolders };
-      }),
+  browserUpdateTabFolder: (folderId, patch) =>
+    set((state) => {
+      const updateFolderRecursive = (folders: TabFolderState[]): TabFolderState[] => {
+        return folders.map(folder => {
+          if (folder.id === folderId) {
+            return { ...folder, ...patch };
+          }
+          if (folder.children) {
+            return {
+              ...folder,
+              children: updateFolderRecursive(folder.children)
+            };
+          }
+          return folder;
+        });
+      };
+      const nextFolders = updateFolderRecursive(state.browserTabFolders);
+      scheduleWrite(BROWSER_TAB_FOLDERS_KEY, nextFolders);
+      return { browserTabFolders: nextFolders };
+    }),
 
-    browserDeleteTabFolder: (folderId) =>
-      set((state) => {
-        const nextFolders = state.browserTabFolders.filter((folder) => folder.id !== folderId);
-        scheduleWrite(BROWSER_TAB_FOLDERS_KEY, nextFolders);
-        return { browserTabFolders: nextFolders };
-      }),
+  browserDeleteTabFolder: (folderId) =>
+    set((state) => {
+      const nextFolders = removeFolderById(state.browserTabFolders, folderId);
+      scheduleWrite(BROWSER_TAB_FOLDERS_KEY, nextFolders);
+      return { browserTabFolders: nextFolders };
+    }),
 
     setBrowserViewMode: (mode) => {
       scheduleWrite(BROWSER_VIEW_MODE_KEY, mode);

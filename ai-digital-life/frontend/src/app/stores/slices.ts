@@ -53,4 +53,4 @@ export { type ClipboardSlice, createClipboardSlice } from "./slices/clipboardSli
 export { type TerminalSlice, createTerminalSlice } from "./slices/terminalSlice";
 
 // 浏览器切片
-export { type BrowserSlice, createBrowserSlice, type BrowserTabState } from "./slices/browserSlice";
+export { type BrowserSlice, createBrowserSlice, type BrowserTabState } from "./slices/browserslice";

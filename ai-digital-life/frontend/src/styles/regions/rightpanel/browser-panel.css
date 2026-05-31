@@ -297,15 +297,6 @@
   outline: none;
 }
 
-/* ─── Multi-workspace file tree ─── */
-.adl-multitree {
-  position: relative;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-  --adl-filetree-scrollbar-width: 7px;
-}
-
 /* ─── Browser Menu Dropdown ─── */
 .adl-tool-panel--browser {
   position: relative;
@@ -375,120 +366,6 @@
   height: 1px;
   background: var(--border-subtle);
   margin: var(--space-1) 0;
-}
-
-/* ─── Browser Multi-workspace tree ─── */
-.adl-multitree--browser .adl-multitree-entry__tree {
-  position: relative;
-  padding: 0;
-}
-
-.adl-multitree--browser .adl-multitree-entry__tree::before {
-  content: "";
-  position: absolute;
-  left: 13px;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background: color-mix(in srgb, var(--border) 78%, transparent);
-  pointer-events: none;
-}
-
-.adl-multitree--browser .adl-tool-list--terminal {
-  padding: 0 !important;
-  gap: 1px !important;
-}
-
-.adl-multitree--browser .adl-tool-list__item--terminal-tab {
-  position: relative;
-  display: flex !important;
-  flex-direction: row !important;
-  align-items: center !important;
-  width: 100% !important;
-  margin: 0 !important;
-  padding: 0 8px 0 24px !important;
-  box-sizing: border-box !important;
-  min-height: 28px !important;
-  border-radius: 0 !important;
-}
-
-.adl-multitree--browser .adl-tool-list__item--terminal-tab::before {
-  content: "";
-  position: absolute;
-  left: 13px;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background: color-mix(in srgb, var(--border) 78%, transparent);
-  pointer-events: none;
-}
-
-.adl-multitree--browser .adl-tool-list__item--terminal-tab:hover {
-  background: var(--surface-hover) !important;
-}
-
-.adl-multitree--browser .adl-tool-list__item--terminal-tab.is-active {
-  background: var(--surface-hover) !important;
-}
-
-.adl-multitree--browser .adl-tool-list__item--terminal-tab .adl-tool-list__item-btn {
-  display: flex !important;
-  flex-direction: row !important;
-  align-items: center !important;
-  justify-content: flex-start !important;
-  gap: var(--space-1-5);
-  padding: 0px !important;
-  margin-left: -2px !important;
-}
-
-.adl-multitree--browser .adl-tool-list__title {
-  font-size: 12px;
-}
-
-.adl-multitree--browser .adl-multitree-entry__empty {
-  width: 100%;
-}
-
-.adl-multitree--browser .adl-multitree-entry__empty-btn {
-  display: flex !important;
-  flex-direction: row !important;
-  align-items: center !important;
-  justify-content: flex-start !important;
-  width: 100% !important;
-  margin: 0 !important;
-  padding: 2px 4px 2px 14px !important;
-  box-sizing: border-box !important;
-  min-height: 28px !important;
-  border-radius: 0 !important;
-  border: 0 !important;
-  background: transparent !important;
-  cursor: pointer !important;
-  color: var(--text-secondary) !important;
-}
-
-.adl-multitree--browser .adl-multitree-entry__empty-btn svg:first-child {
-  margin-left: 6px;
-}
-
-.adl-multitree--browser .adl-multitree-entry__empty-btn:hover {
-  background: var(--surface-hover) !important;
-  color: var(--text-primary) !important;
-}
-
-.adl-multitree--browser .adl-tool-list__item--terminal-tab.is-pinned {
-  position: relative;
-}
-
-.adl-multitree--browser .adl-tool-list__item--terminal-tab.is-pinned::before {
-  content: "";
-  position: absolute;
-  left: 2px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 3px;
-  height: 12px;
-  background: var(--yellow);
-  border-radius: 2px;
 }
 
 /* 历史记录项样式 */
@@ -811,5 +688,109 @@
 
 .adl-tool-list__item-action-btn:hover {
   color: var(--primary);
+}
+
+/* 重命名对话框样式 */
+.adl-rename-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.adl-rename-dialog {
+  background: var(--surface-raised);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  min-width: 300px;
+  box-shadow: var(--shadow-xl);
+}
+
+.adl-rename-dialog h3 {
+  margin: 0 0 var(--space-3) 0;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  font-weight: var(--font-semibold);
+}
+
+.adl-rename-dialog input {
+  width: 100%;
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input, var(--surface-subtle));
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-3);
+  box-sizing: border-box;
+}
+
+.adl-rename-dialog input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.adl-rename-dialog-buttons {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}
+
+.adl-rename-dialog-buttons button {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-subtle);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: all var(--duration-150) var(--ease-default);
+}
+
+.adl-rename-dialog-buttons button:hover {
+  background: var(--surface-hover);
+}
+
+.adl-rename-dialog-buttons button:last-child {
+  background: var(--primary);
+  color: var(--primary-text);
+  border-color: var(--primary);
+}
+
+.adl-rename-dialog-buttons button:last-child:hover {
+  background: var(--primary-hover);
+}
+
+/* 历史记录分组样式 */
+.adl-history-year-entry,
+.adl-history-month-entry,
+.adl-history-day-entry {
+  position: relative;
+}
+
+.adl-history-year-entry .adl-multitree-entry__header,
+.adl-history-month-entry .adl-multitree-entry__header,
+.adl-history-day-entry .adl-multitree-entry__header {
+  border-radius: 0;
+}
+
+/* 删除历史记录分组节点的渐变背景效果 */
+.adl-history-year-entry .adl-multitree-entry__namezone::after,
+.adl-history-month-entry .adl-multitree-entry__namezone::after,
+.adl-history-day-entry .adl-multitree-entry__namezone::after {
+  display: none !important;
+}
+
+.adl-multitree-entry__children {
+  position: relative;
+  min-height: 0;
+  flex: 1;
+  overflow: visible;
 }
 

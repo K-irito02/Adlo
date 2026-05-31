@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import type { BrowserTabState } from "../../stores/slices/browserSlice";
+import type { BrowserTabState } from "../../stores/slices/browserslice";
 
 export function useBrowserDragDrop(
   browserTabs: BrowserTabState[],

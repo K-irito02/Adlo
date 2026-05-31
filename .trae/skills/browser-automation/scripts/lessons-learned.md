@@ -267,3 +267,43 @@ agent-browser 通过 CDP 启动自己的 Chromium 进程，与 Trae IDE 的内�
 - [变更面板测试步骤清单](./changes-panel-test-checklist.md)
 - [browser-automation 规则](../../rules/browser-automation.md)
 - [agent-browser 参考文档](../references/agent-browser.md)
+- [浏览器子目录测试步骤清单](./browser-subfolder-test-checklist.md)
+
+---
+
+## 20. Trae 内置浏览器 vs agent-browser 的 localStorage 差异
+
+agent-browser 每次测试使用**全新 Chrome 实例**，localStorage 为空。Trae 内置浏览器保留前次会话的 localStorage。
+
+**导致的 bug 调试陷阱**：
+```typescript
+// agent-browser 测试时 localStorage 是空的 → 所有行为"正常"
+// Trae 内置浏览器中 localStorage 保留旧的错误数据 → 行为"异常"
+```
+
+**对策**：
+- 在 Trae 内置浏览器中测试前，先清空 localStorage：`localStorage.clear(); location.reload()`
+- 或清除 Vite 缓存（`frontend/node_modules/.vite/`）后重启 dev server
+- 两个环境测试结果不一致时，优先怀疑 localStorage 残留数据
+
+---
+
+## 21. 多层级回调链参数传递的断链调试
+
+React 组件间的回调链如果跨越 3+ 层组件，中间某一层可能丢弃参数。
+
+**典型案例（本次修复）**：
+```
+WorkspaceBrowserEntry → MultiWorkspaceBrowser → BrowserPanel → browserSlice
+```
+`parentId` 参数在前 2 层正确传递，但在 `BrowserPanel.handleCreateTabFolder` 处被丢弃（只接收了 `name`，未接收 `parentId`），导致 `browserCreateTabFolder(name, undefined)`。
+
+**调试方法**：
+1. 逐层检查每个回调签名（参数数量、类型）
+2. 检查闭包捕获的值 vs 传入的参数
+3. 确认 `.filter(f => f.parentId === workspace.id)` 中的 workspace.id 与存储的 parentId 类型一致
+4. 通过 `localStorage.getItem('adl-ui:browser-tab-folders')` 直接验证持久化数据的 parentId 值
+
+**预防措施**：
+- 回调类型签名使用对象解构模式（`({ name, parentId })`）替代位置参数，避免参数错位
+- 使用 TypeScript 的 `// @ts-expect-error` 或临时 `console.log` 确认每个中间层的参数值

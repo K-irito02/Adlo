@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import {
   IconArrowLeft,
@@ -14,8 +14,6 @@ import {
   IconSearch,
   IconStar,
   IconStarFilled,
-  IconFoldVertical,
-  IconUnfoldVertical,
   IconTrash,
   IconMoreVertical,
   IconFiles,
@@ -30,9 +28,6 @@ import { useBrowserPanel } from "./useBrowserPanel";
 import { BrowserContextMenu } from "./BrowserContextMenu";
 import { BrowserMenuDropdown } from "./BrowserMenuDropdown";
 import { MultiWorkspaceBrowser } from "../workspace-browser";
-import { CreateTabFolderDialog } from "./CreateTabFolderDialog";
-import { BookmarkTabDialog } from "./BookmarkTabDialog";
-import { FlatTabList } from "./FlatTabList";
 import { CustomScrollArea } from "../file-tree/CustomScrollArea";
 import { isTauriShell } from "../../../tauri-bridge";
 import type { BrowserPanelProps } from "../../regions/right-panel/types";
@@ -102,16 +97,9 @@ export function BrowserPanel(props: BrowserPanelProps) {
 
   const setActiveRightTool = useAppStore((state) => state.setActiveRightTool);
   const recentWorkspaces = useAppStore((state) => state.recentWorkspaces);
-  const browserWorkspaceExpanded = useAppStore((state) => state.browserWorkspaceExpanded);
-  const setBrowserWorkspaceExpanded = useAppStore((state) => state.setBrowserWorkspaceExpanded);
   const browserSelectTab = useAppStore((state) => state.browserSelectTab);
   const browserCloseTab = useAppStore((state) => state.browserCloseTab);
   const browserTogglePin = useAppStore((state) => state.browserTogglePin);
-  const hideWorkspaceFromRightPanels = useAppStore((state) => state.hideWorkspaceFromRightPanels);
-  const browserTabFolders = useAppStore((state) => state.browserTabFolders);
-  const browserCreateTabFolder = useAppStore((state) => state.browserCreateTabFolder);
-  const browserUpdateTabFolder = useAppStore((state) => state.browserUpdateTabFolder);
-  const browserDeleteTabFolder = useAppStore((state) => state.browserDeleteTabFolder);
   const browserViewMode = useAppStore((state) => state.browserViewMode);
   const browserShowTabButtons = useAppStore((state) => state.browserShowTabButtons);
   const browserHistory = useAppStore((state) => state.browserHistory);
@@ -119,31 +107,18 @@ export function BrowserPanel(props: BrowserPanelProps) {
   const setBrowserShowTabButtons = useAppStore((state) => state.setBrowserShowTabButtons);
 
   const browserOpenTab = useAppStore((state) => state.browserOpenTab);
-  const browserBookmarkTab = useAppStore((state) => state.browserBookmarkTab);
-
-  const [createFolderDialogOpen, setCreateFolderDialogOpen] = useState(false);
-  const [bookmarkDialogOpen, setBookmarkDialogOpen] = useState(false);
-  const isAnyDialogOpen = createFolderDialogOpen || bookmarkDialogOpen;
 
   const {
     browserState,
     browserActions,
     dragHandlers,
     menuHandlers,
-  } = useBrowserPanel(props, { webViewDisabled: isAnyDialogOpen });
-
-  const INDEPENDENT_WORKSPACE_ID = "__independent__";
+  } = useBrowserPanel(props);
 
   const visibleWorkspaces = useMemo(
     () => recentWorkspaces.filter((w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available),
     [recentWorkspaces]
   );
-
-  const allBrowserExpanded = useMemo(() => {
-    const allWorkspaceExpanded = visibleWorkspaces.length > 0 && visibleWorkspaces.every((w) => browserWorkspaceExpanded[w.id]);
-    const allFolderExpanded = browserTabFolders.length > 0 && browserTabFolders.every((f) => browserWorkspaceExpanded[f.id]);
-    return (visibleWorkspaces.length === 0 || allWorkspaceExpanded) && (browserTabFolders.length === 0 || allFolderExpanded);
-  }, [visibleWorkspaces, browserTabFolders, browserWorkspaceExpanded]);
 
   const openTabCount = useMemo(() => {
     return browserState.browserTabs.length;
@@ -161,64 +136,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
     return browserState.navigatorTitle;
   }, [browserShowTabButtons, browserViewMode, browserState.navigatorTitle]);
 
-  const handleExpandAllBrowser = useCallback(() => {
-    const expanded: Record<string, boolean> = {};
-    for (const ws of visibleWorkspaces) {
-      expanded[ws.id] = true;
-    }
-    for (const folder of browserTabFolders) {
-      expanded[folder.id] = true;
-    }
-    setBrowserWorkspaceExpanded(expanded);
-  }, [visibleWorkspaces, browserTabFolders, setBrowserWorkspaceExpanded]);
-
-  const handleCollapseAllBrowser = useCallback(() => {
-    const expanded: Record<string, boolean> = {};
-    setBrowserWorkspaceExpanded(expanded);
-  }, [setBrowserWorkspaceExpanded]);
-
-  const handleRefreshAllBrowser = useCallback(() => {
-    const newExpanded: Record<string, boolean> = {};
-    for (const ws of visibleWorkspaces) {
-      newExpanded[ws.id] = true;
-    }
-    setBrowserWorkspaceExpanded(newExpanded);
-  }, [visibleWorkspaces, setBrowserWorkspaceExpanded]);
-
-  const toggleBrowserWorkspaceExpanded = useCallback((id: string) => {
-    setBrowserWorkspaceExpanded({
-      ...browserWorkspaceExpanded,
-      [id]: !browserWorkspaceExpanded[id]
-    });
-  }, [browserWorkspaceExpanded, setBrowserWorkspaceExpanded]);
-
-  const handleCreateTabFolder = useCallback((name?: string) => {
-    browserCreateTabFolder(name);
-    setCreateFolderDialogOpen(false);
-  }, [browserCreateTabFolder]);
-
-  const handleBookmarkTab = useCallback(async (folderId?: string, workspaceId?: string, newFolderName?: string) => {
-    const activeTabId = browserState.browserActiveTabId;
-    if (!activeTabId) return;
-
-    if (workspaceId) {
-      const tab = browserState.browserTabs.find(t => t.id === activeTabId);
-      if (tab) {
-        browserOpenTab(tab.url, tab.title, workspaceId);
-      }
-    } else if (folderId) {
-      browserBookmarkTab(activeTabId, folderId);
-      setBrowserWorkspaceExpanded({
-        ...browserWorkspaceExpanded,
-        [folderId]: true
-      });
-    } else if (newFolderName) {
-      browserBookmarkTab(activeTabId, undefined, newFolderName);
-    }
-
-    setBookmarkDialogOpen(false);
-  }, [browserState.browserActiveTabId, browserState.browserTabs, browserBookmarkTab, browserOpenTab, browserWorkspaceExpanded, setBrowserWorkspaceExpanded]);
-
   const handleToggleTabButtons = useCallback(() => {
     if (browserShowTabButtons) {
       setBrowserShowTabButtons(false);
@@ -233,11 +150,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
     setBrowserViewMode(mode);
     setBrowserShowTabButtons(true);
   }, [setBrowserViewMode, setBrowserShowTabButtons]);
-
-  const handleHideBrowserWorkspace = useCallback((workspaceId: string) => {
-    const ws = recentWorkspaces.find(r => r.id === workspaceId);
-    if (ws) hideWorkspaceFromRightPanels(workspaceId);
-  }, [recentWorkspaces, hideWorkspaceFromRightPanels]);
 
   return (
     <div className="adl-tool-panel adl-tool-panel--browser">
@@ -371,13 +283,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
               className="adl-tool-context__iconbtn" 
               aria-label={browserState.isBookmarked ? "取消收藏" : "收藏标签"}
               onClick={() => {
-                if (browserState.isBookmarked) {
-                  // 取消收藏，直接调用 toggle 而不打开对话框
-                  browserActions.handleToggleBookmark();
-                } else {
-                  // 收藏，打开对话框选择位置
-                  setBookmarkDialogOpen(true);
-                }
+                browserActions.handleToggleBookmark();
               }}
             >
               {browserState.isBookmarked ? <IconStarFilled size={14} decorative /> : <IconStar size={14} decorative />}
@@ -401,16 +307,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
         <aside className="adl-tool-navigator" aria-label={t.toolBrowser}>
           <div className="adl-tool-navigator__context">
             <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--actions">
-              <TooltipSimple content={allBrowserExpanded ? "折叠全部" : "展开全部"} placement="top">
-                <button
-                  type="button"
-                  className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-                  onClick={allBrowserExpanded ? handleCollapseAllBrowser : handleExpandAllBrowser}
-                  aria-label={allBrowserExpanded ? "折叠全部" : "展开全部"}
-                >
-                  {allBrowserExpanded ? <IconFoldVertical size={14} decorative /> : <IconUnfoldVertical size={14} decorative />}
-                </button>
-              </TooltipSimple>
               <span className="adl-tool-navigator__context-title">{navigatorTitle}</span>
             </div>
             <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--utility">
@@ -497,7 +393,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
                     type="button"
                     className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
                     aria-label="新建标签目录"
-                    onClick={() => setCreateFolderDialogOpen(true)}
+                    onClick={() => {}}
                   >
                     <IconFolderPlus size={14} decorative />
                   </button>
@@ -516,55 +412,12 @@ export function BrowserPanel(props: BrowserPanelProps) {
             </div>
           </div>
           {browserState.navigatorMode === "tabs" ? (
-            browserViewMode !== "default" ? (
-              <FlatTabList
-                browserTabs={browserState.browserTabs}
-                workspaces={visibleWorkspaces}
-                tabFolders={browserTabFolders}
-                activeTabId={browserState.browserActiveTabId}
-                viewMode={browserViewMode}
-                onSelectTab={browserSelectTab}
-                onCloseTab={browserCloseTab}
-                onOpenInNewTab={(tab) => browserOpenTab(tab.url, tab.title)}
-                onDeleteAllTabs={browserActions.handleCloseAllTabs}
-                t={t}
-              />
-            ) : (
-              <MultiWorkspaceBrowser
-                workspaces={visibleWorkspaces}
-                tabFolders={browserTabFolders}
-                browserHistory={browserHistory}
-                expandedStates={browserWorkspaceExpanded}
-                browserTabs={browserState.browserTabs}
-                activeTabId={browserState.browserActiveTabId}
-                onToggleExpand={toggleBrowserWorkspaceExpanded}
-                onCreateTab={(wsId) => browserActions.handleCreateTab(undefined, undefined, wsId)}
-                onSelectTab={browserSelectTab}
-                onCloseTab={browserCloseTab}
-                onTogglePin={browserTogglePin}
-                onHideFromRightPanels={handleHideBrowserWorkspace}
-                onRefreshTree={handleRefreshAllBrowser}
-                onCloseAllTabs={browserActions.handleCloseAllTabs}
-                onDeleteTabFolder={browserDeleteTabFolder}
-                onRenameTabFolder={(folderId, newName) => browserUpdateTabFolder(folderId, { name: newName })}
-                onOpenHistoryItem={(url, title) => browserOpenTab(url, title)}
-                t={t}
-                editingTabId={browserState.editingTabId}
-                editValue={browserState.editValue}
-                editInputRef={browserState.editInputRef}
-                isDragging={browserState.isDragging}
-                dragOverTabId={browserState.dragOverTabId}
-                onDragStart={dragHandlers.handleDragStart}
-                onDragEnd={dragHandlers.handleDragEnd}
-                onDragOver={dragHandlers.handleDragOver}
-                onDrop={dragHandlers.handleDrop}
-                onTabContextMenu={menuHandlers.handleContextMenu}
-                onTabDoubleClick={browserActions.handleDoubleClick}
-                onEditChange={browserActions.setEditValue}
-                onEditSubmit={browserActions.handleEditSubmit}
-                onEditKeyDown={browserActions.handleEditKeyDown}
-              />
-            )
+            <MultiWorkspaceBrowser
+              workspaces={visibleWorkspaces}
+              browserTabs={browserState.browserTabs}
+              activeTabId={browserState.browserActiveTabId}
+              t={t}
+            />
           ) : browserState.navigatorMode === "search" ? (
             <div className="adl-tool-navigator__content">
               <div className="adl-tool-navigator__context adl-tool-navigator__context--search adl-tool-navigator__context--search-stack">
@@ -697,21 +550,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
         onEdit={handleRenameFromContextMenu(browserState.browserTabs, browserState.contextMenu, browserActions.handleDoubleClick)}
         onCut={() => {}}
         t={t}
-      />
-      <CreateTabFolderDialog
-        open={createFolderDialogOpen}
-        t={t}
-        onCreate={handleCreateTabFolder}
-        onCancel={() => setCreateFolderDialogOpen(false)}
-      />
-      <BookmarkTabDialog
-        open={bookmarkDialogOpen}
-        t={t}
-        tab={browserState.activeTab ?? null}
-        folders={browserTabFolders}
-        workspaces={visibleWorkspaces}
-        onBookmark={handleBookmarkTab}
-        onCancel={() => setBookmarkDialogOpen(false)}
       />
     </div>
   );

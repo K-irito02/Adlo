@@ -101,6 +101,27 @@ await page.click('button[aria-label="收藏标签"]');
 // 在对话框中选择工作区或创建新工作区
 ```
 
+### 子目录管理
+
+子目录（标签工作区）可在导航器中创建和管理：
+
+```javascript
+// 从工作区头部行更多操作菜单创建子目录
+await page.click('[data-menu-btn-id]:first-child'); // 点击更多操作
+await page.click('text=创建子目录');
+
+// 展开工作区查看子目录
+await page.click('.adl-multitree-entry__expand-btn:first-child');
+
+// 子目录下的嵌套子目录
+// 在已存在的子目录头部行上点击更多操作 → 创建子目录
+```
+
+**注意事项**：
+- 创建子目录后需手动展开工作区才能看到
+- 子目录的 `parentId` 通过 4 层回调链传递（WorkspaceBrowserEntry → MultiWorkspaceBrowser → BrowserPanel → browserSlice）
+- 清除 localStorage 后会丢失所有子目录数据
+
 ---
 
 ## 浏览器内容
