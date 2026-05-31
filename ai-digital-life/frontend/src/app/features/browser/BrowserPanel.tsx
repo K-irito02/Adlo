@@ -492,11 +492,11 @@ export function BrowserPanel(props: BrowserPanelProps) {
             )}
             <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--utility">
               {!browserShowTabButtons && (
-                <TooltipSimple content="新建标签工作区" placement="top">
+                <TooltipSimple content="新建标签目录" placement="top">
                   <button
                     type="button"
                     className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-                    aria-label="新建标签工作区"
+                    aria-label="新建标签目录"
                     onClick={() => setCreateFolderDialogOpen(true)}
                   >
                     <IconFolderPlus size={14} decorative />
