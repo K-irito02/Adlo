@@ -1127,3 +1127,8 @@
   font-weight: var(--font-semibold);
   font-size: var(--text-sm);
 }
+
+/* outline 非根节点的连接竖线与展开/折叠按钮对齐 */
+.adl-outline-tree__children .adl-outline-tree__item::before {
+  left: 20px !important;
+}
