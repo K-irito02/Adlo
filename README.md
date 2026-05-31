@@ -19,7 +19,7 @@
 - `tests/` Rust 集成测试与 E2E 目录
 - `docs/architecture/` 与 `docs/design-system/` 实现文档
 
-详细约束见 [AI Digital Life README](/E:/Programs/Obsidian/notes/ai-digital-life/README.md)。
+详细约束见 [ai-digital-life/README.md](./ai-digital-life/README.md)。
 
 ## 技术方向
 
@@ -31,8 +31,7 @@
 
 实现工作区的技术对齐与阶段细节见：
 
-- [Tech Stack Alignment](/E:/Programs/Obsidian/notes/ai-digital-life/docs/architecture/tech-stack-alignment.md)
-- [Rust Migration Plan](/E:/Programs/Obsidian/notes/ai-digital-life/docs/architecture/rust-migration-plan.md)
+- [Tech Stack Alignment](./ai-digital-life/docs/architecture/tech-stack-alignment.md)
 
 ## 开发协作
 
@@ -40,6 +39,7 @@
 
 - 子Agent 分工
 - 项目级 skills
+- 规则文件（`.agents/rules/`）
 - 分级治理 hooks
 - 路由与文档收口规则
 
