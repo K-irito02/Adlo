@@ -138,12 +138,17 @@ const changePreviewCache = new Map<string, TTLCacheEntry<CachedChangePreview>>()
 export const FILE_DOCUMENT_TTL = 5 * 60 * 1000; // 5 分钟
 export const CHANGE_PREVIEW_TTL = 1 * 60 * 1000; // 1 分钟
 
-/** 获取缓存访问器 */
-export function getFileDocumentCache() {
+/** 获取缓存访问器
+ * @deprecated 使用 getCachedFileDocument / setCachedFileDocument 代替，它们支持 TTL
+ */
+export function getFileDocumentCache(): Map<string, TTLCacheEntry<CachedFileDocument>> {
   return fileDocumentCache;
 }
 
-export function getChangePreviewCache() {
+/**
+ * @deprecated 使用 getCachedChangePreview / setCachedChangePreview 代替，它们支持 TTL
+ */
+export function getChangePreviewCache(): Map<string, TTLCacheEntry<CachedChangePreview>> {
   return changePreviewCache;
 }
 
