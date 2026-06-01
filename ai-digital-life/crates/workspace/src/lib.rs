@@ -16,6 +16,7 @@ pub use git::{
 pub use search::{search_text, search_text_async};
 pub use tree::{build_retrieval_snapshot, build_retrieval_snapshot_async, list_tree};
 
+use adl_errors::AppError;
 use adl_outline;
 use adl_kernel::FileOutlineItem;
 
@@ -25,7 +26,6 @@ pub fn outline(root: &Path, relative_path: &str) -> Result<Vec<FileOutlineItem>,
     adl_outline::outline(&doc.content, relative_path, total_lines)
 }
 
-use adl_errors::AppError;
 use adl_kernel::{
     now_ms, RecentWorkspaceEntry, WorkspaceChangeKind, WorkspaceChangePreview,
     WorkspaceChangeStatus, WorkspaceFileDocument, WorkspaceMeta, WorkspaceStatus, WorkspaceType,

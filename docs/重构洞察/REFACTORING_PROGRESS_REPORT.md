@@ -1,6 +1,6 @@
 # 重构进度报告
 
-> 更新日期: 2026-06-01（第二十四轮）
+> 更新日期: 2026-06-01（第二十六轮）
 
 ## 完成状态
 
@@ -30,6 +30,122 @@
 | **第二十二轮** | **2026-06-01** | **文档大纲连接竖线对齐修复** | ✅ |
 | **第二十三轮** | **2026-06-01** | **全面重构执行 + 滚动条溢出修复（11 项：死代码删除、i18n 拆分、类型解耦、as any 消除、icons 拆分、Mutex 降级、audit 批量写入、browser 错误通道、React.memo、滚动条修复）** | ✅ |
 | **第二十四轮** | **2026-06-01** | **浏览器标签树功能增强 + 全面板计数对齐 + CSS 清理（硬编码 i18n 修复、重复回调抽取、历史按级别删除实现、RenameDialog 替换、计数右偏移统一标准化为 --space-3、CSS 重复块清理）** | ✅ |
+| **第二十五轮** | **2026-06-01** | **重构洞察执行：消除重复、TTL 缓存优化、代码质量提升** | ✅ |
+| **第二十六轮** | **2026-06-01** | **重构洞察全量执行：31/32 项落地** | ✅ |
+
+## 第二十六轮重构（2026-06-01）：重构洞察全量执行
+
+> 详情见 [重构洞察报告](./refactor-insight-2026-06-01.md) 和 [修复计划(第一二批)](./fix-plan-2026-06-01.md)。
+
+### 安全性修复（6项）
+
+| 项 | 文件 | 说明 |
+|----|------|------|
+| F1 SQL 事务 | `storage/lib.rs`、`agent.rs` | 新增 `transaction()` + `save_entity_on_conn()` 方法，PatchSet/FilePatches/Hunks 保存包装在原子事务中 |
+| F2 SQL LIMIT 防御 | `storage/lib.rs:260` | 添加 `assert!(limit <= 1000)` 安全上限 |
+| F3 删除 locales/ | `frontend/src/locales/` | 删除 Phase 0 遗留死代码目录（246 行，0 引用） |
+| F4 删除空目录 | `right-panel/panels/hooks/` | 删除空壳目录 |
+| F23 CSS 注释 | `tokens.css:90` | 修正重复变量名 |
+| F24 use 语句位置 | `workspace/lib.rs:28` | 将 `use adl_errors::AppError` 移至文件顶 |
+
+### 锁优化（4项）
+
+| 项 | 文件 | 说明 |
+|----|------|------|
+| F5 config RwLock | `state.rs` + 5 命令文件 | `Mutex<AppConfig>` → `RwLock`，6 处 .read() + 1 处 .write() |
+| F6 workspace RwLock | `state.rs` + 6 命令文件 | `Mutex<Option<WorkspaceMeta>>` → `RwLock`，7 处 .read() + 3 处 .write() |
+| F7 browser AtomicBool | `browser/lib.rs` | 删除 `BrowserState` struct，`Mutex<bool>` → `AtomicBool` |
+| F8 events 计数器 | `events/lib.rs` | `Mutex<BTreeMap<String, usize>>` → `Arc<BTreeMap<String, AtomicUsize>>`，锁仅用于插不用于增 |
+
+### 前端性能（5项）
+
+| 项 | 文件 | 说明 |
+|----|------|------|
+| F9 useShallow | `selectors.ts` | `useAppInfo` 包装 `useShallow`（最广泛消费的 selector） |
+| F10 fetch guard | `fetchActions.ts` | 7 个 fetch 函数添加 `startFetch()` 守卫，阻止并发 IPC 请求 |
+| F11 bootstrap 并行 | `generalActions.ts` | Git status + Patch set 从串行改为 `Promise.all` 并行 |
+| F12 React.memo | `ToolSwitcher.tsx` | `React.memo(…)` + `useCallback` 包裹 7 个 Tab 按钮 |
+| F13 isFetching 优化 | `fetchActions.ts` | `refreshTaskCenter` 添加 isFetching 状态管理 |
+
+### 架构质量提升（6项）
+
+| 项 | 文件 | 说明 |
+|----|------|------|
+| F16 AuditBatchEntry | `agent.rs`、`audit.rs` | 7 元组 `(String, …, Option<String>)` → 具名 struct `AuditBatchEntry { workspace_id, session_id, ... }` |
+| F17 workspace_cmd! | `mod.rs`、`workspace.rs` | 声明宏消除 9 个命令的 boilerplate：`workspace_cmd!(&state, adl_workspace::read_file, &path)` |
+| F18 PTY cap | `useTerminalPtyLifecycle.ts` | 100KB 每会话上限，超过则从头部截断 |
+| F22 CSS will-change | `leftbar.css:518` | 移除无效 `padding-top`，仅保留 `transform` |
+| F20 polling guard | `useTaskCenterPolling.ts` | 轮询检查 isFetching 避免并发 |
+| F21 selectors | `selectors.ts` | 所有 workspace/session 选择器添加 useShallow |
+
+### Rust 改进（4项）
+
+| 项 | 文件 | 说明 |
+|----|------|------|
+| F15 Error::Io | `errors/lib.rs` | `From<io::Error>` 保留 `ErrorKind`：`"[{kind}] {message}"` |
+| F28 agent 流水线 | `agent.rs` → `agent_pipeline.rs` | 647 行 → 191 行（agent.rs）+ 441 行（agent_pipeline.rs），5 个流水线函数提取为独立模块 |
+| F29 change-engine 拆分 | `change-engine/src/` | 500 行单文件拆分为 `patch_create.rs`、`patch_apply.rs`、`validation.rs`、`language.rs` |
+| F30 级联删除 | `storage/lib.rs`、`conversation.rs` | 新增 `delete_entities_by_session()`，会话删除时级联清理关联消息 |
+| F31 CommandError.code | `error.rs` | `code: String` → `code: IpcErrorCode` 枚举（13 变体，serde SCREAMING_SNAKE_CASE） |
+| F32 耦合文档 | `browser/Cargo.toml` | 添加注释标记为 Tauri-specific wrapper |
+
+### 前端文件迁移 — F14（15 源文件 + 14 测试文件）
+
+`app/` 根层级文件迁移到合理子目录，消除架构债务：
+
+| 原位置 | 目标位置 | consumers |
+|--------|---------|-----------|
+| `MessageBlocks.tsx` | `features/conversation/` | 1 |
+| `settingsViewModel.ts` | `utils/` | 1 |
+| `selectionPrompt.ts` | `utils/` | 1 |
+| `loaders.ts` | `stores/` | 2 |
+| `composerSend.ts` | `utils/` | 2 |
+| `theme.ts` | `utils/` | 3 |
+| `workspaceScope.ts` | `utils/` | 2（含跨 app 引用到 tauri-bridge） |
+| `repoMapFromEntries.ts` | `utils/` | 2（跨 app 到 tauri-bridge + preview-bridge） |
+| `constants.ts` | `utils/` | 5 |
+| `sidebarViewModel.ts` | `utils/` | 4 |
+| `editorTabs.ts` | `utils/` | 5 |
+| `workspacePaths.ts` | `utils/` | 8 |
+| `ui-store.ts` | `stores/` | **12** |
+| `types.ts` | **合并** → `stores/types.ts` | **16** |
+| `repoMapFromTree.ts` | **删除**（死代码） | 0 |
+| `copy.test.ts` | **删除**（源文件已删） | — |
+| 9 个测试文件 | 跟随源文件迁移 | — |
+
+### OutlineTree 虚拟滚动 — F25+F26
+
+| 尝试 | 方案 | 结果 |
+|------|------|------|
+| 第一版 | react-window v2 `List` | ❌ CSS 树形连接线断裂（扁平列表破坏嵌套 `<ul>` 结构） |
+| 第二版 | `content-visibility: auto` | ✅ 保留递归 `<ul>` 渲染 + 浏览器自动虚拟化 + CustomScrollArea 自定义滚动条 |
+
+### CSS 命名体系统一 — F27
+
+**决策**：方案 B（`bg-*` 为主命名体系）
+
+| 替换 | 文件数 | 值变化 |
+|------|--------|--------|
+| `--surface-raised` → `--bg-card` | 20 | #ffffff → #fbfbfb（+4度暖） |
+| `--surface-active` → `--bg-active` | 10 | 0.08 → 0.10（+2%深度） |
+| `--surface-hover` → `--bg-hover` | 18 | 相同值 |
+| `--surface` → `--bg-elevated` | 10 | 相同值 |
+| `--surface-sunken` → `--bg-elevated` | 2 | 相同值 |
+| `--text-xs/sm/base` → `--font-size-xs/sm/base` | — | 待议（值相同，纯命名偏好） |
+
+### 经验教训
+
+1. **react-window 不适用于树形 CSS**：递归 `<ul>` 渲染的树形连接线依赖 DOM 层级结构。react-window 的扁平列表破坏了 CSS 选择器。改用 `content-visibility: auto` 实现等价性能提升而不改 DOM 结构。
+2. **Rust 内部可见性**：`pub(crate)` 在不同 crate 间不生效（如 `adl-storage` 的 `pub(crate)` 对 `src-tauri` 不可见），需改为 `pub`。
+3. **CSS Token 值一致性**：`--bg-card` 和 `--surface-raised` 值不完全一致（差 4 度白），统一命名前需确认设计意图。
+4. **Mutex→RwLock 迁移范围广**：涉及 15+ 处 `.lock()` 调用点，需逐一确认读写模式。显式区分 `.read()` 和 `.write()` 后获得正确性保证。
+5. **前端文件迁移风险**：`ui-store.ts`（12 consumers）和 `types.ts`（16 consumers）的迁移需逐文件验证 `tsc --noEmit`。批量移动文件的策略是：移动 → `tsc` 获取错误列表 → 逐文件修复。
+
+### 最终门禁
+
+- `cargo check` ✅（1 个预存在 `dead_code` 警告）
+- `npx tsc --noEmit` ✅
+- `npx vitest run` ✅（29 tests）
 
 ## 第七轮重构（2026-05-23）：全面修复 + 大型组件模块化
 

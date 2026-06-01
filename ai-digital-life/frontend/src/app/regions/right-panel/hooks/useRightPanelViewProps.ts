@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { DIFF_LAYOUT_STORAGE_KEY } from "../../../constants";
-import { useUiStore } from "../../../ui-store";
+import { DIFF_LAYOUT_STORAGE_KEY } from "../../../utils/constants";
+import { useUiStore } from "../../../stores/ui-store";
 import { countGitChanges } from "../types";
 import { useAppStore } from "../../../stores/slicedStore";
 

@@ -23,7 +23,7 @@ import {
   BROWSER_NAVIGATOR_WIDTH_MIN,
   BROWSER_NAVIGATOR_WIDTH_MAX,
   DEFAULT_BROWSER_NAVIGATOR_WIDTH,
-} from "../../ui-store";
+} from "../ui-store";
 import { readFlag, writeFlag, readNumber, writeNumber, clamp } from "../shared";
 
 export interface UISlice {

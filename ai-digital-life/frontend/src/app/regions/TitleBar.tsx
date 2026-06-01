@@ -19,7 +19,7 @@ import {
   IconSquare
 } from "../icons";
 import logoUrl from "/logo-chatgpt.png?url";
-import { useUiStore } from "../ui-store";
+import { useUiStore } from "../stores/ui-store";
 import { useAppStore } from "../stores/slicedStore";
 import { isTauriShell } from "../../tauri-bridge";
 import { TooltipSimple } from "../components/Tooltip";

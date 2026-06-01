@@ -203,7 +203,7 @@
   min-width: 260px;
   max-width: 320px;
   padding: var(--space-2);
-  background: var(--surface-raised);
+  background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-xl);
@@ -244,7 +244,7 @@
 
 .adl-context-item:hover,
 .adl-context-item.is-active {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
 }
 
 /* ---------------- Prompt Modal ---------------- */
@@ -262,7 +262,7 @@
 .adl-prompt-modal__panel {
   z-index: var(--z-modal);
   width: min(90vw, 320px);
-  background: var(--surface-raised);
+  background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-xl);
@@ -292,7 +292,7 @@
   font-size: var(--text-xs);
   color: var(--text-secondary);
   padding: var(--space-2);
-  background: var(--surface);
+  background: var(--bg-elevated);
   border-radius: var(--radius-md);
   border: 1px solid var(--border-subtle);
 }
@@ -300,7 +300,7 @@
 .adl-prompt-modal__input {
   width: 100%;
   padding: var(--space-2) var(--space-3);
-  background: var(--surface);
+  background: var(--bg-elevated);
   border: none;
   border-radius: var(--radius-md);
   color: var(--text-primary);
@@ -337,13 +337,13 @@
 }
 
 .adl-prompt-modal .adl-btn {
-  background: var(--surface);
+  background: var(--bg-elevated);
   color: var(--text-primary);
   border: none;
 }
 
 .adl-prompt-modal .adl-btn:hover:not(:disabled) {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
 }
 
 .adl-split-btn {
@@ -372,7 +372,7 @@
 }
 
 .adl-split-btn__main:hover {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
 }
 
 .adl-split-btn__main:disabled {
@@ -399,7 +399,7 @@
 }
 
 .adl-split-btn__drop:hover {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
 }
 
 .adl-split-btn__menu {
@@ -407,7 +407,7 @@
   top: 0;
   left: calc(100% + 12px);
   width: max-content;
-  background: var(--surface-raised);
+  background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow);
@@ -431,7 +431,7 @@
 }
 
 .adl-split-btn__option:hover {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
 }
 
 
@@ -461,7 +461,7 @@
 }
 
 .adl-split-btn__input:hover {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
 }
 
 .adl-split-btn__input--error {
@@ -496,7 +496,7 @@
 }
 
 .adl-split-btn__dots:hover {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
 }
 
 .adl-split-btn__settings {
@@ -507,7 +507,7 @@
   width: 260px;
   margin-top: 0;
   padding: 12px;
-  background: var(--surface-raised);
+  background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow);

@@ -10,7 +10,7 @@ import { SettingsPanel } from "../components/settings/SettingsPanel";
 import type { FilesPanelProps, ChangesPanelProps, BrowserPanelProps, TerminalPanelProps, AuditPanelProps, ModelPanelProps, SettingsPanelProps } from "./right-panel/types";
 import type { PatchDirection, PatchReviewFilter } from "../features/patch-review";
 import type { CopyDict } from "../i18n";
-import type { EditorRef, DiffEditorRef } from "../types";
+import type { EditorRef, DiffEditorRef } from "../stores/types";
 import type { ToolId } from "../stores/types";
 import { useRightPanelLayout } from "./right-panel/hooks/useRightPanelLayout";
 import { useRightPanelViewProps } from "./right-panel/hooks/useRightPanelViewProps";

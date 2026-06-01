@@ -29,7 +29,7 @@ describe("changes preview editor options", () => {
   it("uses EditorRef and DiffEditorRef types from shared types", () => {
     expect(changesPanelSource).toContain("EditorRef");
     expect(changesPanelSource).toContain("DiffEditorRef");
-    expect(changesPanelSource).toContain("from \"../../../types\"");
+    expect(changesPanelSource).toContain("from \"../../../stores/types\"");
   });
 
   it("uses sticky context helpers from CodeMirror stickyContext module", () => {

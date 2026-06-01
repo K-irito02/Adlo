@@ -3,6 +3,16 @@ use adl_errors::AppError;
 use adl_kernel::{create_id, now_ms, AuditEntry, RiskLevel};
 use adl_storage::EntityTable;
 
+pub struct AuditBatchEntry {
+    pub workspace_id: String,
+    pub session_id: Option<String>,
+    pub operation_type: String,
+    pub risk_level: RiskLevel,
+    pub summary: String,
+    pub decision: Option<String>,
+    pub detail: Option<String>,
+}
+
 pub fn save_audit_entry(
     state: &AppState,
     workspace_id: &str,
@@ -35,26 +45,26 @@ pub fn save_audit_entry(
 
 pub fn batch_save_audit_entries(
     state: &AppState,
-    entries: Vec<(String, Option<String>, String, RiskLevel, String, Option<String>, Option<String>)>,
+    entries: Vec<AuditBatchEntry>,
 ) -> Result<Vec<AuditEntry>, AppError> {
     let mut saved = Vec::with_capacity(entries.len());
-    for (workspace_id, session_id, operation_type, risk_level, summary, decision, detail) in entries {
+    for e in entries {
         let id = create_id("audit");
         let entry = AuditEntry {
             id,
             timestamp: now_ms(),
-            operation_type: operation_type.clone(),
-            summary,
-            risk_level,
-            decision: decision.clone(),
-            detail,
+            operation_type: e.operation_type.clone(),
+            summary: e.summary,
+            risk_level: e.risk_level,
+            decision: e.decision.clone(),
+            detail: e.detail,
         };
         state.db.save_entity(
             EntityTable::AuditRecords,
             &entry.id,
-            Some(&workspace_id),
-            session_id.as_deref(),
-            Some(&operation_type),
+            Some(&e.workspace_id),
+            e.session_id.as_deref(),
+            Some(&e.operation_type),
             &entry,
         )?;
         saved.push(entry);

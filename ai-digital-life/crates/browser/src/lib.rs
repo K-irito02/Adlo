@@ -1,5 +1,5 @@
 use adl_errors::AppError;
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::Emitter;
 use tauri::Manager;
 use url::Url;
@@ -32,33 +32,19 @@ fn resolve_url(raw: &str) -> Result<Url, AppError> {
     Err(AppError::InvalidInput(format!("Cannot parse URL: {}", trimmed)))
 }
 
-pub struct BrowserState {
-    active: bool,
-}
-
-impl BrowserState {
-    pub fn new() -> Self {
-        Self { active: false }
-    }
-
-    pub fn is_active(&self) -> bool {
-        self.active
-    }
-}
-
 pub struct BrowserManager {
-    state: Mutex<BrowserState>,
+    active: AtomicBool,
 }
 
 impl BrowserManager {
     pub fn new() -> Self {
         Self {
-            state: Mutex::new(BrowserState::new()),
+            active: AtomicBool::new(false),
         }
     }
 
     pub fn is_active(&self) -> bool {
-        self.state.lock().map(|s| s.active).unwrap_or(false)
+        self.active.load(Ordering::Acquire)
     }
 
     pub fn create(&self, app: &tauri::AppHandle, url: &str) -> Result<(), AppError> {
@@ -95,10 +81,7 @@ impl BrowserManager {
 
         tracing::info!(url = url, "browser webview created off-screen");
 
-        {
-            let mut state = self.state.lock().map_err(|e| AppError::Internal(format!("lock error: {e}")))?;
-            state.active = true;
-        }
+        self.active.store(true, Ordering::Release);
 
         Ok(())
     }
@@ -144,10 +127,7 @@ impl BrowserManager {
             let _ = webview.close();
         }
 
-        {
-            let mut state = self.state.lock().map_err(|e| AppError::Internal(format!("lock error: {e}")))?;
-            state.active = false;
-        }
+        self.active.store(false, Ordering::Release);
 
         tracing::info!("browser webview destroyed");
         Ok(())

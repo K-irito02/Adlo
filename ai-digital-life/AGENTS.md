@@ -29,7 +29,7 @@
 
 ### 重构历史
 
-共完成 **23 轮**迭代重构，全部详情见 [REFACTORING_PROGRESS_REPORT.md](../docs/重构洞察/REFACTORING_PROGRESS_REPORT.md)。
+共完成 **26 轮**迭代重构，全部详情见 [REFACTORING_PROGRESS_REPORT.md](../docs/重构洞察/REFACTORING_PROGRESS_REPORT.md)。
 
 | 轮次 | 日期 | 关键成果 |
 |------|------|----------|
@@ -40,6 +40,9 @@
 | 第二十一轮 | 2026-05-31 | 浏览器子目录 parentId 传递断链修复 |
 | 第二十二轮 | 2026-06-01 | 文档大纲连接竖线对齐修复 |
 | **第二十三轮** | **2026-06-01** | **全面重构：死代码删除、i18n/icons 拆分、类型解耦、as any 消除、Mutex 降级、audit 批量写入、React.memo、滚动条修复** |
+| **第二十四轮** | **2026-06-01** | **浏览器标签树三分类增强 + 全面板计数右偏移统一 + CSS 清理** |
+| **第二十五轮** | **2026-06-01** | **重构洞察执行：消除重复、TTL 缓存优化、代码质量提升** |
+| **第二十六轮** | **2026-06-01** | **重构洞察全量执行：31/32 项落地（RwLock 降级、ErrorCode 枚举化、Agent 流水线、change-engine 拆分、SQL 事务、cascade 删除、workspace_cmd! 宏、AuditBatchEntry 结构化、FileTree 迁移、SessionList React.memo、OutlineTree content-visibility、CSS bg-* 统一、fetch 去重、bootstrap 并行化、selectors 优化）** |
 
 ## 安全边界
 

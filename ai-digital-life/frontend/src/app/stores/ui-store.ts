@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { SettingsGroupId } from "@ai-digital-life/kernel";
-import { clamp, readJson, writeJson, readNumber, writeNumber, readFlag, writeFlag, createUiId } from "./stores/shared";
+import { clamp, readJson, writeJson, readNumber, writeNumber, readFlag, writeFlag, createUiId } from "./shared";
 
 /**
  * Renderer-only UI state.

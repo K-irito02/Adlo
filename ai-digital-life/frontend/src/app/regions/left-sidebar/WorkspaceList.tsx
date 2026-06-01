@@ -11,7 +11,7 @@ import {
   IconPlus
 } from "../../icons";
 import { TooltipSimple } from "../../components/Tooltip";
-import type { SidebarSessionItem, SidebarWorkspaceItem } from "../../sidebarViewModel";
+import type { SidebarSessionItem, SidebarWorkspaceItem } from "../../utils/sidebarViewModel";
 import { STATUS_LABEL, WorkspaceDirectoryIcon, buildWorkspaceTooltip, StatusLamp } from "./SidebarContextMenu";
 
 export interface WorkspaceListProps {

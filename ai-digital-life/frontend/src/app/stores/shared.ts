@@ -1,7 +1,7 @@
 import type { AppInfo, IpcResult, RecentWorkspaceEntry, WorkspaceChangePreview } from "@ai-digital-life/kernel";
 import type { StoreState } from "./StoreState";
 import type { StoreApi } from "zustand";
-import { normalizeWorkspaceRelativePath } from "../workspacePaths";
+import { normalizeWorkspaceRelativePath } from "../utils/workspacePaths";
 
 export function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));

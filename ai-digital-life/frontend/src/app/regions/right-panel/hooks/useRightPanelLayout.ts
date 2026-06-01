@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { RIGHT_PANEL_WIDTH_MIN, RIGHT_PANEL_WIDTH_MAX } from "../../../ui-store";
+import { RIGHT_PANEL_WIDTH_MIN, RIGHT_PANEL_WIDTH_MAX } from "../../../stores/ui-store";
 import { useAppStore } from "../../../stores/slicedStore";
 import { deriveRightPanelOverlayState, type RightPanelMode } from "../rightPanelLayout";
 

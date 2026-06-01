@@ -3,8 +3,8 @@ import { useShallow } from "zustand/react/shallow";
 import type { ReorderSessionsInput, ReorderWorkspacesInput } from "@ai-digital-life/kernel";
 import type { CopyDict, Locale } from "../i18n";
 import { IconArchive, IconPlug, IconSparkles } from "../icons";
-import { buildSidebarViewModel } from "../sidebarViewModel";
-import { useUiStore } from "../ui-store";
+import { buildSidebarViewModel } from "../utils/sidebarViewModel";
+import { useUiStore } from "../stores/ui-store";
 import { useAppStore } from "../stores/slicedStore";
 import { useAppActions } from "../hooks/useAppActions";
 import { TooltipSimple } from "../components/Tooltip";
@@ -14,7 +14,7 @@ import { ResizeHandle } from "./left-sidebar/ResizeHandle";
 import { ConversationPanel } from "./left-sidebar/ConversationPanel";
 import { WorkspaceList } from "./left-sidebar/WorkspaceList";
 import { SessionList } from "./left-sidebar/SessionList";
-import type { SidebarSessionItem } from "../sidebarViewModel";
+import type { SidebarSessionItem } from "../utils/sidebarViewModel";
 
 interface LeftSidebarProps {
   t: CopyDict;

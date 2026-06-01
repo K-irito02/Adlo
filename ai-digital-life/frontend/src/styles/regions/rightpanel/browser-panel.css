@@ -160,7 +160,7 @@
   min-width: 48px;
   padding: var(--space-1-5) var(--space-2);
   border-radius: var(--radius-md);
-  background: var(--surface-raised);
+  background: var(--bg-card);
   border: 1px solid transparent;
   cursor: pointer;
   text-align: center;
@@ -255,7 +255,7 @@
   padding: var(--space-1-5) var(--space-3);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
-  background: var(--surface-raised);
+  background: var(--bg-card);
   color: var(--text-primary);
   font-size: var(--text-xs);
   cursor: pointer;
@@ -265,7 +265,7 @@
 
 .adl-browser-external-btn:hover {
   opacity: 1;
-  background: var(--surface-hover);
+  background: var(--bg-hover);
 }
 
 .adl-browser-external-btn--prominent {
@@ -284,7 +284,7 @@
   z-index: 20;
   text-align: center;
   padding: var(--space-4);
-  background: var(--surface);
+  background: var(--bg-elevated);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
   max-width: 320px;
@@ -317,7 +317,7 @@
   padding: var(--space-4);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-xl);
-  background: linear-gradient(180deg, var(--surface), var(--surface-subtle));
+  background: linear-gradient(180deg, var(--bg-elevated), var(--surface-subtle));
 }
 
 .adl-browser-welcome__cards {
@@ -337,7 +337,7 @@
 }
 
 .adl-browser-card:hover {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
 }
 
 .adl-browser-preview__header {
@@ -394,7 +394,7 @@
   right: 0;
   left: auto;
   min-width: 200px;
-  background: var(--surface-raised);
+  background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
@@ -421,7 +421,7 @@
 }
 
 .adl-tool-panel--browser .adl-menu__item:hover {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
 }
 
 .adl-tool-panel--browser .adl-menu__item:disabled {
@@ -470,7 +470,7 @@
 }
 
 .adl-browser-history-entry:hover {
-  background-color: var(--surface-hover);
+  background-color: var(--bg-hover);
 }
 
 .adl-browser-history-entry__icon {
@@ -561,7 +561,7 @@
 }
 
 .adl-bookmark-tab__folder-item:hover {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
   border-color: var(--border);
 }
 
@@ -669,7 +669,7 @@
 }
 
 .adl-browser-search-result-item:hover {
-  background-color: var(--surface-hover);
+  background-color: var(--bg-hover);
 }
 
 .adl-browser-search-result-item__icon {
@@ -780,7 +780,7 @@
 }
 
 .adl-rename-dialog {
-  background: var(--surface-raised);
+  background: var(--bg-card);
   border-radius: var(--radius-md);
   padding: var(--space-4);
   min-width: 300px;
@@ -829,7 +829,7 @@
 }
 
 .adl-rename-dialog-buttons button:hover {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
 }
 
 .adl-rename-dialog-buttons button:last-child {
@@ -930,16 +930,16 @@
 }
 
 .adl-browser-entry__header:hover {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
 }
 
 .adl-browser-entry__header.is-selected {
-  background: var(--surface-active) !important;
+  background: var(--bg-active) !important;
   color: var(--text-primary) !important;
 }
 
 .adl-browser-entry__header.is-selected:hover {
-  background: var(--surface-active) !important;
+  background: var(--bg-active) !important;
   color: var(--text-primary) !important;
 }
 
@@ -1016,7 +1016,7 @@
 }
 
 .adl-browser-entry__expand-btn:hover {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
   color: var(--text-primary);
 }
 

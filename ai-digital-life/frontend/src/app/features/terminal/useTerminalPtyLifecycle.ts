@@ -3,6 +3,8 @@ import { useAppStore } from "../../stores/slicedStore";
 import type { TerminalProfile } from "../../stores/types";
 import type { XtermTerminalHandle } from "../../components/terminal/XtermTerminal";
 
+const MAX_SESSION_OUTPUT_BYTES = 100 * 1024;
+
 interface PtyLifecycleParams {
   activeTab: { sessionId?: string } | undefined;
   rootPath: string | undefined;
@@ -152,8 +154,12 @@ export function useTerminalPtyLifecycle({ activeTab, rootPath }: PtyLifecyclePar
   useEffect(() => {
     const unsub = window.digitalLife.subscribePtyOutput((event) => {
       const outputs = sessionOutputsRef.current;
-      const previous = outputs.get(event.sessionId) ?? "";
-      outputs.set(event.sessionId, previous + event.data);
+      let previous = outputs.get(event.sessionId) ?? "";
+      previous += event.data;
+      if (previous.length > MAX_SESSION_OUTPUT_BYTES) {
+        previous = previous.slice(previous.length - MAX_SESSION_OUTPUT_BYTES);
+      }
+      outputs.set(event.sessionId, previous);
       if (event.sessionId === activeTab?.sessionId) {
         xtermRef.current?.write(event.data);
       }

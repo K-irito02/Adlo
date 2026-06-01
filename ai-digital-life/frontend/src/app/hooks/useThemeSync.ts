@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import type { AppInfo } from "@ai-digital-life/kernel";
-import { themeController } from "../theme";
+import { themeController } from "../utils/theme";
 
 export function useThemeSync(appInfo: AppInfo | undefined) {
   useEffect(() => {

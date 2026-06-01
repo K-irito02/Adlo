@@ -81,7 +81,7 @@
 }
 
 .adl-sticky-context__row:hover {
-  background: color-mix(in srgb, var(--surface) 60%, transparent);
+  background: color-mix(in srgb, var(--bg-elevated) 60%, transparent);
   color: var(--text-primary);
 }
 
@@ -395,7 +395,7 @@
 }
 
 .adl-markdown-preview tbody tr:hover {
-  background: var(--surface-hover, rgba(128, 128, 128, 0.06));
+  background: var(--bg-hover, rgba(128, 128, 128, 0.06));
 }
 
 .adl-markdown-preview input[type="checkbox"] {

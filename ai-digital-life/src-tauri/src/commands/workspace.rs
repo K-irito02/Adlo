@@ -1,5 +1,8 @@
 use crate::commands::ipc;
+use crate::commands::workspace_git::persist_workspace_meta;
+use crate::error::IpcErrorCode;
 use crate::state::AppState;
+use crate::workspace_cmd;
 use adl_errors::AppError;
 use adl_kernel::{
     now_ms, FileOutlineItem, IpcResult, RetrievalSnapshot, WorkspaceChangePreview,
@@ -54,7 +57,7 @@ pub fn workspace_clear_current(state: tauri::State<'_, AppState>) -> IpcResult<b
         state.db.put_state("current_workspace", "null")?;
         *state
             .current_workspace
-            .lock()
+            .write()
             .map_err(|_| AppError::Internal("workspace mutex poisoned".into()))? = None;
         Ok(true)
     })
@@ -81,13 +84,7 @@ pub fn workspace_create_file(
     relative_path: String,
     content: String,
 ) -> IpcResult<WorkspaceFileDocument> {
-    ipc(with_workspace(&state, |workspace| {
-        adl_workspace::create_file(
-            PathBuf::from(&workspace.root_path).as_path(),
-            &relative_path,
-            &content,
-        )
-    }))
+    workspace_cmd!(&state, adl_workspace::create_file, &relative_path, &content)
 }
 
 #[tauri::command]
@@ -95,12 +92,7 @@ pub fn workspace_create_folder(
     state: tauri::State<'_, AppState>,
     relative_path: String,
 ) -> IpcResult<bool> {
-    ipc(with_workspace(&state, |workspace| {
-        adl_workspace::create_folder(
-            PathBuf::from(&workspace.root_path).as_path(),
-            &relative_path,
-        )
-    }))
+    workspace_cmd!(&state, adl_workspace::create_folder, &relative_path)
 }
 
 #[tauri::command]
@@ -108,12 +100,7 @@ pub fn workspace_read_file(
     state: tauri::State<'_, AppState>,
     relative_path: String,
 ) -> IpcResult<WorkspaceFileDocument> {
-    ipc(with_workspace(&state, |workspace| {
-        adl_workspace::read_file(
-            PathBuf::from(&workspace.root_path).as_path(),
-            &relative_path,
-        )
-    }))
+    workspace_cmd!(&state, adl_workspace::read_file, &relative_path)
 }
 
 #[tauri::command]
@@ -155,9 +142,7 @@ pub fn workspace_search(
     state: tauri::State<'_, AppState>,
     query: String,
 ) -> IpcResult<Vec<WorkspaceSearchHit>> {
-    ipc(with_workspace(&state, |workspace| {
-        adl_workspace::search_text(PathBuf::from(&workspace.root_path).as_path(), &query)
-    }))
+    workspace_cmd!(&state, adl_workspace::search_text, &query)
 }
 
 #[tauri::command]
@@ -165,12 +150,7 @@ pub fn workspace_outline(
     state: tauri::State<'_, AppState>,
     relative_path: String,
 ) -> IpcResult<Vec<FileOutlineItem>> {
-    ipc(with_workspace(&state, |workspace| {
-        adl_workspace::outline(
-            PathBuf::from(&workspace.root_path).as_path(),
-            &relative_path,
-        )
-    }))
+    workspace_cmd!(&state, adl_workspace::outline, &relative_path)
 }
 
 #[tauri::command]
@@ -213,13 +193,7 @@ pub fn workspace_rename_file(
     relative_path: String,
     new_name: String,
 ) -> IpcResult<bool> {
-    ipc(with_workspace(&state, |workspace| {
-        adl_workspace::rename_entry(
-            PathBuf::from(&workspace.root_path).as_path(),
-            &relative_path,
-            &new_name,
-        )
-    }))
+    workspace_cmd!(&state, adl_workspace::rename_entry, &relative_path, &new_name)
 }
 
 #[tauri::command]
@@ -246,7 +220,7 @@ pub fn workspace_delete_file(
             IpcResult::ok(true)
         }
         Ok(false) => IpcResult::ok(false),
-        Err(e) => IpcResult::err("DELETE_FAILED", e.to_string()),
+        Err(e) => IpcResult::err(IpcErrorCode::InternalError.to_string(), e.to_string()),
     }
 }
 
@@ -256,13 +230,7 @@ pub fn workspace_duplicate_file(
     relative_path: String,
     new_path: String,
 ) -> IpcResult<bool> {
-    ipc(with_workspace(&state, |workspace| {
-        adl_workspace::duplicate_entry(
-            PathBuf::from(&workspace.root_path).as_path(),
-            &relative_path,
-            &new_path,
-        )
-    }))
+    workspace_cmd!(&state, adl_workspace::duplicate_entry, &relative_path, &new_path)
 }
 
 #[tauri::command]
@@ -270,12 +238,7 @@ pub fn workspace_get_absolute_path(
     state: tauri::State<'_, AppState>,
     relative_path: String,
 ) -> IpcResult<String> {
-    ipc(with_workspace(&state, |workspace| {
-        adl_workspace::get_absolute_path(
-            PathBuf::from(&workspace.root_path).as_path(),
-            &relative_path,
-        )
-    }))
+    workspace_cmd!(&state, adl_workspace::get_absolute_path, &relative_path)
 }
 
 #[tauri::command]
@@ -284,39 +247,25 @@ pub fn workspace_move_file(
     relative_path: String,
     new_path: String,
 ) -> IpcResult<bool> {
-    ipc(with_workspace(&state, |workspace| {
-        adl_workspace::move_entry(
-            PathBuf::from(&workspace.root_path).as_path(),
-            &relative_path,
-            &new_path,
-        )
-    }))
+    workspace_cmd!(&state, adl_workspace::move_entry, &relative_path, &new_path)
 }
 
 pub fn current_workspace(state: &AppState) -> Result<WorkspaceMeta, AppError> {
     state
         .current_workspace
-        .lock()
+        .read()
         .map_err(|_| AppError::Internal("workspace mutex poisoned".into()))?
         .clone()
         .ok_or_else(|| AppError::NotFound("active workspace".into()))
 }
 
-fn persist_workspace_meta(state: &AppState, meta: &WorkspaceMeta) -> Result<(), AppError> {
-    state.db.save_entity(
-        EntityTable::Workspaces,
-        &meta.id,
-        Some(&meta.id),
-        None,
-        Some("ready"),
-        meta,
-    )?;
+pub fn set_current_workspace(state: &AppState, meta: &WorkspaceMeta) -> Result<(), AppError> {
     state
         .db
         .put_state("current_workspace", &serde_json::to_string(meta)?)?;
     *state
         .current_workspace
-        .lock()
+        .write()
         .map_err(|_| AppError::Internal("workspace mutex poisoned".into()))? = Some(meta.clone());
     Ok(())
 }
@@ -347,7 +296,7 @@ pub fn with_workspace<T>(
 pub fn latest_retrieval(state: &AppState) -> Result<Option<RetrievalSnapshot>, AppError> {
     let Some(workspace) = state
         .current_workspace
-        .lock()
+        .read()
         .map_err(|_| AppError::Internal("workspace mutex poisoned".into()))?
         .clone()
     else {

@@ -36,6 +36,7 @@
   min-height: 24px;
   width: calc(100% + var(--adl-outline-row-offset, 4px));
   margin: 0;
+  content-visibility: auto;
   margin-inline-start: calc(-1 * var(--adl-outline-row-offset, 4px));
   padding: 2px calc(8px + var(--adl-outline-scrollbar-width)) 2px calc(var(--adl-outline-row-offset, 4px) + 4px);
   position: relative;
@@ -78,11 +79,11 @@
 }
 
 .adl-outline-tree__item.is-hovered > .adl-outline-tree__row {
-  background: color-mix(in srgb, var(--surface-hover) 92%, transparent);
+  background: color-mix(in srgb, var(--bg-hover) 92%, transparent);
 }
 
 .adl-outline-tree__item.is-active > .adl-outline-tree__row {
-  background: color-mix(in srgb, var(--surface-hover) 85%, var(--border) 15%);
+  background: color-mix(in srgb, var(--bg-hover) 85%, var(--border) 15%);
 }
 
 .adl-outline-tree__meta {

@@ -233,7 +233,7 @@ async fn maybe_execute_approved_command(
         .or_else(|| {
             state
                 .current_workspace
-                .lock()
+                .read()
                 .ok()?
                 .clone()
         })
@@ -388,7 +388,7 @@ fn snapshot(state: &AppState) -> Result<TaskCenterSnapshot, AppError> {
     checkpoints.sort_by_key(|checkpoint| std::cmp::Reverse(checkpoint.created_at));
     let current_session = if let Some(workspace) = state
         .current_workspace
-        .lock()
+        .read()
         .map_err(|_| AppError::Internal("workspace mutex poisoned".into()))?
         .clone()
     {

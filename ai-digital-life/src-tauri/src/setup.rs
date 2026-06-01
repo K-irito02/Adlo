@@ -6,6 +6,7 @@ use adl_storage::Database;
 use adl_pty::SessionManager;
 use anyhow::Context;
 use std::path::PathBuf;
+use std::sync::RwLock;
 use tauri::Manager;
 use tracing::info;
 
@@ -50,9 +51,9 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
     Ok(AppState {
         data_dir,
         db,
-        config: std::sync::Mutex::new(config),
+        config: RwLock::new(config),
         event_bus,
-        current_workspace: std::sync::Mutex::new(current_workspace),
+        current_workspace: RwLock::new(current_workspace),
         editor_dirty_paths: std::sync::Mutex::new(std::collections::HashSet::new()),
         pty_sessions: std::sync::Arc::new(std::sync::Mutex::new(SessionManager::new())),
         browser_manager: BrowserManager::new(),
@@ -63,7 +64,7 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
 pub fn save_config(state: &AppState) -> anyhow::Result<()> {
     let config = state
         .config
-        .lock()
+        .read()
         .map_err(|_| anyhow::anyhow!("config lock poisoned"))?;
     adl_config::save(&state.data_dir, &config)?;
     Ok(())

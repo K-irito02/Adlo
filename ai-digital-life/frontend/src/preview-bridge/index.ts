@@ -18,7 +18,7 @@ import type {
 } from "@ai-digital-life/kernel";
 import { applyPreferencePatch } from "../app/utils/preferencesMerger";
 import { mockDigitalLifeBridge, setMockActiveWorkspace } from "../mock-bridge";
-import { repoMapEntriesToTree } from "../app/repoMapFromEntries";
+import { repoMapEntriesToTree } from "../app/utils/repoMapFromEntries";
 import type { DigitalLifeBridge, PtySessionInfo } from "../shared/ipc";
 import { IpcErrorCode } from "../shared/ipc";
 import { requestPreviewApi } from "./api";

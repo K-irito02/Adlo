@@ -45,7 +45,7 @@ pub enum AppError {
 
 impl From<std::io::Error> for AppError {
     fn from(e: std::io::Error) -> Self {
-        AppError::Io(e.to_string())
+        AppError::Io(format!("[{}] {}", e.kind(), e))
     }
 }
 

@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import type { ModelGatewayHealthSnapshot } from "@ai-digital-life/kernel";
 import type { CopyDict } from "../../i18n";
 import { IconChevronDown } from "../../icons";
-import { MODEL_PROVIDER_IDS } from "../../constants";
+import { MODEL_PROVIDER_IDS } from "../../utils/constants";
 import { TooltipSimple } from "../Tooltip";
 
 interface ModelSelectorProps {

@@ -58,7 +58,7 @@
 .adl-segmented button {
   padding: 2px var(--space-2);
   border: none;
-  background: var(--surface);
+  background: var(--bg-elevated);
   color: var(--text-secondary);
   font-size: 11px;
   cursor: pointer;
@@ -114,7 +114,7 @@
 
 /* Patch / run card */
 .adl-patch-card {
-  background: var(--surface);
+  background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: var(--space-3);
@@ -146,7 +146,7 @@
   padding: var(--space-3);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-xl);
-  background: linear-gradient(180deg, var(--surface-raised), var(--surface-subtle));
+  background: linear-gradient(180deg, var(--bg-card), var(--surface-subtle));
 }
 
 .adl-patch-review-summary__header,
@@ -247,7 +247,7 @@
 .adl-patch-hunk-card {
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
-  background: var(--surface-raised);
+  background: var(--bg-card);
   overflow: hidden;
 }
 
@@ -366,7 +366,7 @@
 }
 
 .adl-run-card {
-  background: var(--surface);
+  background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: var(--space-3);
@@ -440,7 +440,7 @@
   font-size: 11px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  background: var(--bg-input, var(--surface));
+  background: var(--bg-input, var(--bg-elevated));
   color: var(--text-primary);
 }
 

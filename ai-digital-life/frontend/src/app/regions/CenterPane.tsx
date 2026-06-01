@@ -6,7 +6,7 @@ import type {
   RecentWorkspaceEntry
 } from "@ai-digital-life/kernel";
 import type { CopyDict, Locale } from "../i18n";
-import { MODEL_PROVIDER_IDS } from "../constants";
+import { MODEL_PROVIDER_IDS } from "../utils/constants";
 import { WorkspaceSplitButton } from "../components/WorkspaceSplitButton";
 import {
   IconArrowUp,
@@ -26,7 +26,7 @@ import { ApprovalCard } from "../components/approval/ApprovalCard";
 import { MessageStream } from "../components/MessageStream";
 import { useAppStore } from "../stores/slicedStore";
 import { useAppActions } from "../hooks/useAppActions";
-import { useUiStore } from "../ui-store";
+import { useUiStore } from "../stores/ui-store";
 import { TooltipSimple } from "../components/Tooltip";
 import { StatusBar } from "./StatusBar";
 import { ApprovalInlineCard, WelcomeState, ComposerFooter } from "./center-pane";

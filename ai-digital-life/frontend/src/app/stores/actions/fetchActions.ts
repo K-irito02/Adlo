@@ -8,10 +8,16 @@ import type { StoreApi } from "zustand";
 import { captureError } from "../shared";
 import { trimOldRuns, trimActivityList } from "../activityUtils";
 
+function startFetch(get: () => StoreState, key: string): boolean {
+  if (get().isFetching[key]) return false;
+  return true;
+}
+
 export function createFetchActions(set: StoreApi<StoreState>["setState"], get: () => StoreState) {
   return {
     fetchIndexStatus: async () => {
       const key = "fetchIndexStatus";
+      if (!startFetch(get, key)) return;
       set({ isFetching: { ...get().isFetching, [key]: true } });
       try {
         const result = await window.digitalLife.retrieval.getStatus();
@@ -42,6 +48,7 @@ export function createFetchActions(set: StoreApi<StoreState>["setState"], get: (
 
     fetchRepoMap: async () => {
       const key = "fetchRepoMap";
+      if (!startFetch(get, key)) return;
       set({ isFetching: { ...get().isFetching, [key]: true } });
       try {
         const result = await window.digitalLife.retrieval.getRepoMap();
@@ -57,6 +64,7 @@ export function createFetchActions(set: StoreApi<StoreState>["setState"], get: (
 
     fetchAuditEntries: async (limit?: number) => {
       const key = "fetchAuditEntries";
+      if (!startFetch(get, key)) return;
       set({ isFetching: { ...get().isFetching, [key]: true } });
       try {
         const result = await window.digitalLife.task.listAuditEntries(limit);
@@ -141,10 +149,11 @@ export function createFetchActions(set: StoreApi<StoreState>["setState"], get: (
 
     fetchRunActivityByRunId: async (runId: string, limit?: number) => {
       const key = "fetchRunActivityByRunId";
+      const existing = get().runActivityByRunId[runId];
+      if (existing && existing.length > 0) return;
+      if (!startFetch(get, key)) return;
       set({ isFetching: { ...get().isFetching, [key]: true } });
       try {
-        const existing = get().runActivityByRunId[runId];
-        if (existing && existing.length > 0) return;
         const result = await window.digitalLife.runActivity.listByRunId(
           runId,
           limit
@@ -161,6 +170,7 @@ export function createFetchActions(set: StoreApi<StoreState>["setState"], get: (
 
     fetchCommandHistory: async () => {
       const key = "fetchCommandHistory";
+      if (!startFetch(get, key)) return;
       set({ isFetching: { ...get().isFetching, [key]: true } });
       try {
         const result = await window.digitalLife.command.listRecent(20);
@@ -180,16 +190,24 @@ export function createFetchActions(set: StoreApi<StoreState>["setState"], get: (
     },
 
     refreshTaskCenter: async () => {
-      const result = await window.digitalLife.task.getSnapshot();
-      if (!result.ok) {
-        captureError(get, result.error);
-        return;
+      const key = "refreshTaskCenter";
+      if (!startFetch(get, key)) return;
+      set({ isFetching: { ...get().isFetching, [key]: true } });
+      try {
+        const result = await window.digitalLife.task.getSnapshot();
+        if (!result.ok) {
+          captureError(get, result.error);
+          return;
+        }
+        set({ taskCenter: result.data });
+      } finally {
+        set({ isFetching: { ...get().isFetching, [key]: false } });
       }
-      set({ taskCenter: result.data });
     },
 
     refreshModelHealth: async () => {
       const key = "refreshModelHealth";
+      if (!startFetch(get, key)) return;
       set({ isFetching: { ...get().isFetching, [key]: true } });
       try {
         const result = await window.digitalLife.app.getModelHealth();

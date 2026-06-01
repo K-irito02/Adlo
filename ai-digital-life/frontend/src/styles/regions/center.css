@@ -238,7 +238,7 @@ select:focus-visible {
 }
 
 .adl-inline-approval {
-  background: var(--surface);
+  background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: var(--space-3);
@@ -308,7 +308,7 @@ select:focus-visible {
 
 .adl-welcome--panel {
   gap: var(--space-3);
-  background: var(--surface);
+  background: var(--bg-elevated);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
   padding: var(--space-4);
@@ -365,7 +365,7 @@ select:focus-visible {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: var(--surface-raised);
+  background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-xl);
@@ -454,7 +454,7 @@ select:focus-visible {
 }
 
 .adl-welcome__recent button:hover {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
   border-color: transparent;
 }
 
@@ -558,7 +558,7 @@ select:focus-visible {
 .adl-message {
   padding: var(--space-3);
   border-radius: var(--radius-md);
-  background: var(--surface);
+  background: var(--bg-elevated);
   border: 1px solid var(--border-subtle);
   transition: var(--theme-transition);
 }
@@ -568,7 +568,7 @@ select:focus-visible {
 }
 
 .adl-message--assistant {
-  background: var(--surface);
+  background: var(--bg-elevated);
 }
 
 .adl-message--streaming {

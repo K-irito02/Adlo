@@ -8,7 +8,7 @@ import type {
   EditorRange,
   EditorModel,
   Disposable,
-} from "../../types";
+} from "../../stores/types";
 
 function posToOffset(doc: { line(n: number): { from: number } }, line: number, col: number): number {
   const ln = doc.line(line);

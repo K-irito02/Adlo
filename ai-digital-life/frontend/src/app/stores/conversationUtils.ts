@@ -1,6 +1,6 @@
 import type { AppInfo, ConversationDetail } from "@ai-digital-life/kernel";
 import { copy } from "../i18n";
-import { loadConversationState } from "../loaders";
+import { loadConversationState } from "./loaders";
 
 export function sessionFallbackTitle(appInfo?: AppInfo): string {
   return appInfo?.config.language === "en-US" ? copy["en-US"].sessionFallback : copy["zh-CN"].sessionFallback;

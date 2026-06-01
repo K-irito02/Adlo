@@ -7,7 +7,7 @@ import { rebuildThemes } from "../editor/cmTheme";
 import { FoldTooltipOverlay } from "../editor/FoldTooltipOverlay";
 import { useFoldMarkerAutoHide } from "../editor/useFoldMarkerAutoHide";
 import { createDiffEditorRef } from "../editor/editorAdapters";
-import type { DiffEditorRef, EditorRef } from "../../types";
+import type { DiffEditorRef, EditorRef } from "../../stores/types";
 import type { PreviewDiffCollapsedRange } from "./changePreviewDiffRanges";
 import { getLanguageExtension } from "../editor/cmLanguages";
 import {

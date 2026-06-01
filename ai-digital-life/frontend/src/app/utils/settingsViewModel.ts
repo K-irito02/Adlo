@@ -5,7 +5,7 @@ import type {
   SettingItem,
   ThemeMode
 } from "@ai-digital-life/kernel";
-import type { CopyDict } from "./i18n";
+import type { CopyDict } from "../i18n";
 
 export function buildSettingsItems(t: CopyDict, appInfo?: AppInfo): SettingItem[] {
   const providers = appInfo?.config.modelPreferences.providers;

@@ -42,7 +42,7 @@
 
 ## 重构历史
 
-共完成 **24 轮**迭代重构，全部详情见 [REFACTORING_PROGRESS_REPORT.md](./docs/重构洞察/REFACTORING_PROGRESS_REPORT.md)。
+共完成 **26 轮**迭代重构，全部详情见 [REFACTORING_PROGRESS_REPORT.md](./docs/重构洞察/REFACTORING_PROGRESS_REPORT.md)。
 
 | 轮次 | 日期 | 关键成果 |
 |------|------|----------|
@@ -55,6 +55,7 @@
 | **第二十三轮** | **2026-06-01** | **全面重构：死代码删除、i18n/icons 拆分、类型解耦、as any 消除、Mutex 降级、audit 批量写入、React.memo、滚动条修复** |
 | **第二十四轮** | **2026-06-01** | **浏览器标签树三分类增强 + 全面板计数右偏移统一 + CSS 清理** |
 | **第二十五轮** | **2026-06-01** | **重构洞察执行：消除重复、TTL 缓存优化、代码质量提升** |
+| **第二十六轮** | **2026-06-01** | **重构洞察全量执行：31/32 项已落地（Mutex→RwLock 降级、ErrorCode 枚举化、Agent 流水线提取、change-engine 拆分、SQL 事务保护、级联删除、workspace_cmd! 宏、AuditBatchEntry 结构化、FileTree 迁移、SessionList React.memo、OutlineTree content-visibility、CSS 命名体系统一为 bg-*、fetch 请求去重、bootstrap 并行化、selectors 优化）** |
 
 ## AI 代理开发规则
 

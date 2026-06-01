@@ -15,7 +15,7 @@ import type { AppInfo, GitSnapshot, RecentWorkspaceEntry } from "@ai-digital-lif
 // ============================================
 export const workspaceSelectors = {
   getAppInfo: (state: StoreState) => state.appInfo,
-  useAppInfo: () => useAppStore((s) => s.appInfo),
+  useAppInfo: () => useAppStore(useShallow((s) => s.appInfo)),
   
   getCurrentWorkspace: (state: StoreState) => state.appInfo?.currentWorkspace,
   useCurrentWorkspace: () => useAppStore(useShallow((s) => s.appInfo?.currentWorkspace)),
@@ -31,7 +31,7 @@ export const workspaceSelectors = {
   useGitBranches: () => useAppStore(useShallow((s) => s.gitBranches)),
   
   getWorkspaceContextMode: (state: StoreState) => state.workspaceContextMode,
-  useWorkspaceContextMode: () => useAppStore((s) => s.workspaceContextMode),
+  useWorkspaceContextMode: () => useAppStore(useShallow((s) => s.workspaceContextMode)),
   
   getIndexingStatus: (state: StoreState) => state.indexingStatus,
   useIndexingStatus: () => useAppStore(useShallow((s) => s.indexingStatus)),
@@ -40,10 +40,10 @@ export const workspaceSelectors = {
   useRepoMap: () => useAppStore(useShallow((s) => s.repoMap)),
   
   hasCurrentWorkspace: (state: StoreState) => Boolean(state.appInfo?.currentWorkspace),
-  useHasCurrentWorkspace: () => useAppStore((s) => Boolean(s.appInfo?.currentWorkspace)),
+  useHasCurrentWorkspace: () => useAppStore(useShallow((s) => Boolean(s.appInfo?.currentWorkspace))),
   
   getWorkspaceId: (state: StoreState) => state.appInfo?.currentWorkspace?.id,
-  useWorkspaceId: () => useAppStore((s) => s.appInfo?.currentWorkspace?.id),
+  useWorkspaceId: () => useAppStore(useShallow((s) => s.appInfo?.currentWorkspace?.id)),
 };
 
 // ============================================

@@ -6,14 +6,14 @@ import type {
   DigitalLifeRunActivityEventV1,
   AppInfo,
 } from "@ai-digital-life/kernel";
-import { mapPatchToEditorTab } from "../../editorTabs";
+import { mapPatchToEditorTab } from "../../utils/editorTabs";
 import { sessionFallbackTitle, refreshConversationSlice, workspaceContextModeFromInfo } from "../conversationUtils";
 import {
   applySlashScenarioOverride,
   augmentPromptWithChips,
   chatModeToScenario,
   type MessageSendOptions,
-} from "../../composerSend";
+} from "../../utils/composerSend";
 import type { StoreApi } from "zustand";
 import { postMutationRefresh, captureError } from "../shared";
 

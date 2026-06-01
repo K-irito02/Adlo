@@ -1,4 +1,5 @@
 use crate::commands::ipc;
+use crate::commands::ipc_try;
 use crate::error::CommandError;
 use crate::state::AppState;
 use adl_errors::AppError;
@@ -167,7 +168,7 @@ pub fn conversation_archive_all_in_workspace(
 pub fn active_workspace_scope_id(state: &AppState) -> String {
     state
         .current_workspace
-        .lock()
+        .read()
         .unwrap_or_else(|poison| {
             tracing::warn!("workspace mutex poisoned, recovering inner value");
             poison.into_inner()
@@ -219,7 +220,10 @@ pub fn conversation_delete_session(
     state: tauri::State<'_, AppState>,
     session_id: String,
 ) -> IpcResult<bool> {
-    ipc(state.db.delete_entity(EntityTable::Sessions, &session_id))
+    ipc_try(|| {
+        state.db.delete_entities_by_session(EntityTable::ConversationMessages, &session_id)?;
+        state.db.delete_entity(EntityTable::Sessions, &session_id)
+    })
 }
 
 #[tauri::command]

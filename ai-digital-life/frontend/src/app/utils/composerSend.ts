@@ -1,4 +1,4 @@
-import type { ChatMode, ContextChip } from "./stores/types";
+import type { ChatMode, ContextChip } from "../stores/types";
 
 export type MessageSendOptions = {
   mode?: ChatMode;

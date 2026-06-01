@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useAppStore } from "../stores/slicedStore";
 import { useAppActions } from "./useAppActions";
-import { filterDiagnosticsForPath, findFirstDiagnostic } from "../workspacePaths";
+import { filterDiagnosticsForPath, findFirstDiagnostic } from "../utils/workspacePaths";
 import {
   findPatchFileByPath,
   getAdjacentPatchHunk,

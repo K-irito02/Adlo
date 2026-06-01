@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from "react";
 import type { ConversationSessionRecord, RecentWorkspaceEntry } from "@ai-digital-life/kernel";
 import type { CopyDict } from "../../i18n";
 import { IconArchive, IconCheck, IconCheckCheck, IconCopy, IconDownload, IconFolder, IconFolderOpen, IconMail, IconPencil, IconPin, IconPinOff, IconTrash } from "../../icons";
-import type { SessionVisualStatus, SidebarSessionItem } from "../../sidebarViewModel";
+import type { SessionVisualStatus, SidebarSessionItem } from "../../utils/sidebarViewModel";
 
 export type SidebarMenuState =
   | { type: "workspace"; workspaceId: string; x: number; y: number }

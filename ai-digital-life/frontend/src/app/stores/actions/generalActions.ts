@@ -2,9 +2,9 @@ import type { StoreState } from "../StoreState";
 import type {
   AppPreferencePatch,
 } from "@ai-digital-life/kernel";
-import { themeController } from "../../theme";
-import { createEditorTab } from "../../editorTabs";
-import { loadConversationState, loadTaskCenterState } from "../../loaders";
+import { themeController } from "../../utils/theme";
+import { createEditorTab } from "../../utils/editorTabs";
+import { loadConversationState, loadTaskCenterState } from "../loaders";
 import { workspaceContextModeFromInfo } from "../conversationUtils";
 import {
   workspaceRequestSeq,
@@ -59,7 +59,21 @@ export function createGeneralActions(set: StoreApi<StoreState>["setState"], get:
       void window.digitalLife.workspace.setEditorDirtyPaths([]);
 
       if (appInfoResult.data.currentWorkspace) {
-        const gitStatusResult = await window.digitalLife.workspace.getGitStatus();
+        const patchBlock = conversationState.detail?.messages.length
+          ? conversationState.detail.messages
+              .flatMap((message: any) => message.blocks)
+              .find((block: any) => block.type === "patch-summary")
+          : undefined;
+
+        const patchPromise =
+          patchBlock?.type === "patch-summary"
+            ? window.digitalLife.patch.getPatchSet(patchBlock.patchSetId)
+            : null;
+
+        const [gitStatusResult, patchResult] = await Promise.all([
+          window.digitalLife.workspace.getGitStatus(),
+          patchPromise,
+        ]);
         if (requestSeq !== workspaceRequestSeq) return;
 
         const gitSnapshot = gitStatusResult.ok ? gitStatusResult.data : undefined;
@@ -89,28 +103,17 @@ export function createGeneralActions(set: StoreApi<StoreState>["setState"], get:
           error: undefined,
         });
 
-        if (conversationState.detail?.messages.length) {
-          const patchBlock = conversationState.detail.messages
-            .flatMap((message: any) => message.blocks)
-            .find((block: any) => block.type === "patch-summary");
-          if (patchBlock?.type === "patch-summary") {
-            const patchResult = await window.digitalLife.patch.getPatchSet(
-              patchBlock.patchSetId
-            );
-            if (requestSeq !== workspaceRequestSeq) return;
-            if (patchResult.ok) {
-              const initialPath =
-                patchResult.data?.filePatches[0]?.relativePath;
-              set({
-                activePatchSet: patchResult.data,
-                selectedFilePath: initialPath,
-                selectedChangePreviewPath: undefined,
-                changePreview: undefined,
-                changePreviewLoading: false,
-                openTabs: initialPath ? [createEditorTab(initialPath)] : [],
-              });
-            }
-          }
+        if (patchResult?.ok) {
+          const initialPath =
+            patchResult.data?.filePatches[0]?.relativePath;
+          set({
+            activePatchSet: patchResult.data,
+            selectedFilePath: initialPath,
+            selectedChangePreviewPath: undefined,
+            changePreview: undefined,
+            changePreviewLoading: false,
+            openTabs: initialPath ? [createEditorTab(initialPath)] : [],
+          });
         }
 
         queueLowPriorityRefresh(async () => {

@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef } from "react";
 import type { DiagnosticSummary } from "@ai-digital-life/kernel";
 import type { Locale } from "../i18n";
 import { copy } from "../i18n";
-import { buildSelectionPrompt } from "../selectionPrompt";
-import type { EditorRef, DiffEditorRef } from "../types";
+import { buildSelectionPrompt } from "../utils/selectionPrompt";
+import type { EditorRef, DiffEditorRef } from "../stores/types";
 
 export function useEditorReveal(
   selectedFilePath: string | undefined,

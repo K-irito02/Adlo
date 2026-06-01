@@ -3,7 +3,7 @@ import { List, useListRef, useDynamicRowHeight } from "react-window";
 import type { ConversationMessageRecord, AgentRunDetail, ModelTokenUsage, DigitalLifeRunActivityEventV1 } from "@ai-digital-life/kernel";
 import type { CopyDict } from "../i18n";
 import { IconBrain } from "../icons";
-import { MessageBlocks } from "../MessageBlocks";
+import { MessageBlocks } from "../features/conversation/MessageBlocks";
 import { RunSummaryBlock } from "./conversation/RunSummaryBlock";
 import { copy } from "../i18n";
 

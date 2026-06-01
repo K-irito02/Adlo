@@ -1,10 +1,10 @@
 import React, { useCallback, useMemo, useRef } from "react";
 import { EditorView } from "@codemirror/view";
-import type { EditorRef, DiffEditorRef } from "../../../types";
+import type { EditorRef, DiffEditorRef } from "../../../stores/types";
 import { categorizeFile } from "../fileTypeRouter";
 import { IconEye, IconPanelLeftClose, IconReturn, IconSearch } from "../../../icons";
 import { TooltipSimple } from "../../../components/Tooltip";
-import { useUiStore } from "../../../ui-store";
+import { useUiStore } from "../../../stores/ui-store";
 import { useAppStore } from "../../../stores/slicedStore";
 import { useEditorOptions, useFileHistory } from "../hooks";
 import { FileNavigatorShell } from "../FileNavigatorShell";
@@ -12,7 +12,7 @@ import { EditorSurfaceShell } from "../EditorSurfaceShell";
 import { FileContextMenu, type FileMenuItem, type FileMenuDivider } from "../FileContextMenu";
 import { FileHistoryNav } from "../FileHistoryNav";
 import type { FilesPanelProps } from "../types";
-import { joinPathSegments } from "../../../workspacePaths";
+import { joinPathSegments } from "../../../utils/workspacePaths";
 
 export function FilesPanel(props: FilesPanelProps) {
   const {

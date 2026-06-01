@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import type { CopyDict } from "../i18n";
 import { copyToClipboard } from "../i18n";
 import { IconClipboardList, IconCopy, IconFiles, IconFolderOpen, IconPencil, IconTrash, IconUpload } from "../icons";
-import { joinPathSegments } from "../workspacePaths";
+import { joinPathSegments } from "../utils/workspacePaths";
 import { useAppStore } from "../stores/slicedStore";
 import type { FileTreeContextMenuItem, FileTreeRenderableNode } from "../features/file-tree";
 

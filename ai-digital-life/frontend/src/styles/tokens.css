@@ -87,7 +87,7 @@
 
   /* --- Shadow ---
      Shadow tokens are defined in themes.css (theme-aware: light + dark).
-     Components MUST use var(--shadow-*), var(--shadow-*) etc. */
+     Components MUST use var(--shadow-panel), var(--shadow-soft) etc. */
 
   /* --- Motion: Duration --- */
   --duration-75: 75ms;

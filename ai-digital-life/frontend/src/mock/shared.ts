@@ -16,7 +16,7 @@ import type {
 } from "@ai-digital-life/kernel";
 import { buildOutlineFromContent } from "../shared/outline";
 import { buildResumeHtml, buildResumeHtmlModified } from "../test-fixtures/resume-html";
-import { GLOBAL_WORKSPACE_ID } from "../app/workspaceScope";
+import { GLOBAL_WORKSPACE_ID } from "../app/utils/workspaceScope";
 
 export const now = Date.now();
 

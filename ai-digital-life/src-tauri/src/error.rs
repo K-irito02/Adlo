@@ -1,31 +1,70 @@
 use adl_errors::AppError;
 use serde::Serialize;
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum IpcErrorCode {
+    NotFound,
+    InvalidInput,
+    StorageError,
+    WorkspaceError,
+    ConfigError,
+    IoError,
+    MigrationError,
+    SecurityError,
+    ApprovalRequired,
+    PatchError,
+    TerminalError,
+    ModelError,
+    InternalError,
+}
+
+impl std::fmt::Display for IpcErrorCode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            Self::NotFound => "NOT_FOUND",
+            Self::InvalidInput => "INVALID_INPUT",
+            Self::StorageError => "STORAGE_ERROR",
+            Self::WorkspaceError => "WORKSPACE_ERROR",
+            Self::ConfigError => "CONFIG_ERROR",
+            Self::IoError => "IO_ERROR",
+            Self::MigrationError => "MIGRATION_ERROR",
+            Self::SecurityError => "SECURITY_ERROR",
+            Self::ApprovalRequired => "APPROVAL_REQUIRED",
+            Self::PatchError => "PATCH_ERROR",
+            Self::TerminalError => "TERMINAL_ERROR",
+            Self::ModelError => "MODEL_ERROR",
+            Self::InternalError => "INTERNAL_ERROR",
+        };
+        write!(f, "{}", s)
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct CommandError {
-    pub code: String,
+    pub code: IpcErrorCode,
     pub message: String,
 }
 
 impl From<AppError> for CommandError {
     fn from(e: AppError) -> Self {
         let code = match &e {
-            AppError::NotFound(_) => "NOT_FOUND",
-            AppError::InvalidInput(_) => "INVALID_INPUT",
-            AppError::Storage(_) => "STORAGE_ERROR",
-            AppError::Workspace(_) => "INVALID_WORKSPACE",
-            AppError::Config(_) => "CONFIG_ERROR",
-            AppError::Io(_) => "IO_ERROR",
-            AppError::Migration(_) => "MIGRATION_ERROR",
-            AppError::Security(_) => "SECURITY_ERROR",
-            AppError::ApprovalRequired(_) => "APPROVAL_REQUIRED",
-            AppError::Patch(_) => "PATCH_ERROR",
-            AppError::Terminal(_) => "TERMINAL_ERROR",
-            AppError::Model(_) => "MODEL_ERROR",
-            AppError::Internal(_) => "INTERNAL_ERROR",
+            AppError::NotFound(_) => IpcErrorCode::NotFound,
+            AppError::InvalidInput(_) => IpcErrorCode::InvalidInput,
+            AppError::Storage(_) => IpcErrorCode::StorageError,
+            AppError::Workspace(_) => IpcErrorCode::WorkspaceError,
+            AppError::Config(_) => IpcErrorCode::ConfigError,
+            AppError::Io(_) => IpcErrorCode::IoError,
+            AppError::Migration(_) => IpcErrorCode::MigrationError,
+            AppError::Security(_) => IpcErrorCode::SecurityError,
+            AppError::ApprovalRequired(_) => IpcErrorCode::ApprovalRequired,
+            AppError::Patch(_) => IpcErrorCode::PatchError,
+            AppError::Terminal(_) => IpcErrorCode::TerminalError,
+            AppError::Model(_) => IpcErrorCode::ModelError,
+            AppError::Internal(_) => IpcErrorCode::InternalError,
         };
         Self {
-            code: code.to_string(),
+            code,
             message: e.to_string(),
         }
     }
@@ -34,7 +73,7 @@ impl From<AppError> for CommandError {
 impl From<anyhow::Error> for CommandError {
     fn from(e: anyhow::Error) -> Self {
         Self {
-            code: "INTERNAL_ERROR".to_string(),
+            code: IpcErrorCode::InternalError,
             message: e.to_string(),
         }
     }
@@ -42,6 +81,6 @@ impl From<anyhow::Error> for CommandError {
 
 impl std::fmt::Display for CommandError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[{}] {}", self.code, self.message)
+        write!(f, "[{:?}] {}", self.code, self.message)
     }
 }

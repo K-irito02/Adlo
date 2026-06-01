@@ -200,7 +200,7 @@
   padding: var(--space-3) var(--space-3-5);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
-  background: var(--surface);
+  background: var(--bg-elevated);
   color: var(--text-primary);
   font-size: var(--text-sm);
   line-height: var(--leading-normal);
@@ -270,7 +270,7 @@
 
 /* -------- Card / Panel -------- */
 .card {
-  background: var(--surface);
+  background: var(--bg-elevated);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-sm);
@@ -305,7 +305,7 @@
 }
 
 .card--inset {
-  background: var(--surface-sunken);
+  background: var(--bg-elevated);
   box-shadow: none;
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
@@ -316,7 +316,7 @@
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-xl);
   padding: var(--space-3-5);
-  background: var(--surface);
+  background: var(--bg-elevated);
   display: grid;
   gap: var(--space-2);
   transition:
@@ -482,7 +482,7 @@
   background: linear-gradient(
     90deg,
     var(--bg-muted) 0%,
-    var(--surface-sunken) 50%,
+    var(--bg-elevated) 50%,
     var(--bg-muted) 100%
   );
   background-size: max(200%, calc(100vw + 100%)) 100%;
@@ -743,7 +743,7 @@
   padding: var(--space-3-5);
   border-radius: var(--radius-xl);
   border: 1px solid var(--border-subtle);
-  background: var(--surface);
+  background: var(--bg-elevated);
   transition: var(--theme-transition);
 }
 

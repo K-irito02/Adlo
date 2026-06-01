@@ -153,7 +153,7 @@
   font-family: var(--font-mono);
   font-size: 12px;
   color: var(--text-primary);
-  background: var(--surface-sunken);
+  background: var(--bg-elevated);
   overflow: auto;
   white-space: pre-wrap;
 }
@@ -215,7 +215,7 @@
 .adl-select {
   padding: var(--space-1) var(--space-1-5);
   border: 1px solid var(--border-subtle);
-  background: var(--bg-input, var(--surface));
+  background: var(--bg-input, var(--bg-elevated));
   color: var(--text-primary);
   font-size: 11px;
   border-radius: var(--radius-sm);

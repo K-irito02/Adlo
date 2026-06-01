@@ -42,7 +42,7 @@ import type {
   WorkspaceSearchHit,
   WorkspaceTreeNode
 } from "@ai-digital-life/kernel";
-import { repoMapEntriesToTree } from "./app/repoMapFromEntries";
+import { repoMapEntriesToTree } from "./app/utils/repoMapFromEntries";
 
 async function invokeIpc<T>(cmd: string, args?: Record<string, unknown>): Promise<IpcResult<T>> {
   try {

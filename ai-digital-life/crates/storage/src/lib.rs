@@ -120,15 +120,48 @@ impl Database {
         status: Option<&str>,
         value: &T,
     ) -> Result<(), AppError> {
+        let conn = self.conn()?;
+        self.save_entity_on_conn(&conn, table, id, workspace_id, session_id, status, value)
+    }
+
+    pub fn save_entity_on_conn<T: Serialize>(
+        &self,
+        conn: &rusqlite::Connection,
+        table: EntityTable,
+        id: &str,
+        workspace_id: Option<&str>,
+        session_id: Option<&str>,
+        status: Option<&str>,
+        value: &T,
+    ) -> Result<(), AppError> {
         let json = serde_json::to_string(value)?;
         let sql = get_insert_sql(table);
-        self.conn()?
-            .execute(
-                sql,
-                params![id, workspace_id, session_id, status, now_ms(), json],
-            )
-            .map_err(|e| AppError::Storage(e.to_string()))?;
+        conn.execute(
+            sql,
+            params![id, workspace_id, session_id, status, now_ms(), json],
+        )
+        .map_err(|e| AppError::Storage(e.to_string()))?;
         Ok(())
+    }
+
+    pub fn transaction<F, T>(&self, f: F) -> Result<T, AppError>
+    where
+        F: FnOnce(&rusqlite::Connection) -> Result<T, AppError>,
+    {
+        let conn = self.conn()?;
+        conn.execute_batch("BEGIN TRANSACTION")
+            .map_err(|e| AppError::Storage(e.to_string()))?;
+        match f(&conn) {
+            Ok(result) => {
+                conn.execute_batch("COMMIT")
+                    .map_err(|e| AppError::Storage(e.to_string()))?;
+                Ok(result)
+            }
+            Err(e) => {
+                let _ = conn.execute_batch("ROLLBACK");
+                Err(e)
+            }
+        }
     }
 
     pub fn save_session_optimized(
@@ -257,6 +290,7 @@ impl Database {
         }
         sql.push_str(" ORDER BY updated_at DESC");
         if let Some(limit) = limit {
+            assert!(limit <= 1000, "query limit {limit} exceeds safety cap");
             sql.push_str(&format!(" LIMIT {limit}"));
         }
 
@@ -287,6 +321,15 @@ impl Database {
             .execute(sql, params![id])
             .map_err(|e| AppError::Storage(e.to_string()))?;
         Ok(changed > 0)
+    }
+
+    pub fn delete_entities_by_session(&self, table: EntityTable, session_id: &str) -> Result<usize, AppError> {
+        let sql = format!("DELETE FROM {} WHERE session_id = ?1", table.table_name());
+        let changed = self
+            .conn()?
+            .execute(&sql, params![session_id])
+            .map_err(|e| AppError::Storage(e.to_string()))?;
+        Ok(changed)
     }
 
     /// Best-effort pruning for `run_activity_events`.

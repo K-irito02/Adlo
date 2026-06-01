@@ -116,7 +116,7 @@
 .adl-search-panel__toggle:hover,
 .adl-search-panel__toggle:focus-visible,
 .adl-search-panel__toggle.is-open {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
   color: var(--text-primary);
 }
 
@@ -154,7 +154,7 @@
 .adl-search-panel__modebtn.is-active,
 .adl-search-panel__replacebtn:hover,
 .adl-search-panel__replacebtn:focus-visible {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
   color: var(--text-primary);
 }
 
@@ -206,7 +206,7 @@
 
 .adl-tool-search-scope__btn:hover,
 .adl-tool-search-scope__btn.is-active {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
   color: var(--text-primary);
 }
 

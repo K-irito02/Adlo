@@ -35,8 +35,8 @@ describe("outline panel wiring", () => {
 
   it("wraps both trees in a dedicated scroll container", () => {
     expect(outlineTreeSource).toContain("CustomScrollArea");
-    expect(fileTreeSource).toContain("CustomScrollArea");
     expect(outlineTreeSource).toContain('shellClassName="adl-outline-tree-shell"');
+    expect(fileTreeSource).toContain("CustomScrollArea");
     expect(fileTreeSource).toContain('shellClassName="adl-filetree-shell"');
   });
 

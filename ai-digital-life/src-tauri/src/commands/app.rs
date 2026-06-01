@@ -71,7 +71,7 @@ pub fn app_get_model_health(
     crate::commands::ipc_try(|| {
         let config = state
             .config
-            .lock()
+            .read()
             .map_err(|_| AppError::Internal("config lock poisoned".into()))?;
         let gateway = adl_model_gateway::ModelGateway::new(config.model_preferences.clone())?;
         Ok(gateway.health())
@@ -87,7 +87,7 @@ pub fn app_update_preferences(
         {
             let mut config = state
                 .config
-                .lock()
+                .write()
                 .map_err(|_| AppError::Internal("config lock poisoned".into()))?;
             if let Some(language) = patch.language {
                 config.language = language;
@@ -131,7 +131,7 @@ pub fn app_update_preferences(
 pub fn build_app_info(state: &AppState) -> Result<AppInfo, AppError> {
     let config = state
         .config
-        .lock()
+        .read()
         .map_err(|_| AppError::Internal("config lock poisoned".into()))?;
     let resolved = match config.theme_mode {
         adl_kernel::ThemeMode::Light => adl_kernel::Theme::Light,
@@ -140,7 +140,7 @@ pub fn build_app_info(state: &AppState) -> Result<AppInfo, AppError> {
     };
     let current_workspace = state
         .current_workspace
-        .lock()
+        .read()
         .map_err(|_| AppError::Internal("workspace lock poisoned".into()))?
         .clone();
     Ok(AppInfo {

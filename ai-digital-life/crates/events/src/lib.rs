@@ -1,6 +1,7 @@
+use std::collections::BTreeMap;
 use std::sync::{
     atomic::{AtomicUsize, Ordering},
-    Arc, Mutex,
+    Arc,
 };
 use tokio::sync::broadcast;
 use tracing::debug;
@@ -46,7 +47,7 @@ pub enum AppEvent {
 pub struct EventBus {
     tx: broadcast::Sender<AppEvent>,
     emitted: Arc<AtomicUsize>,
-    by_type: Arc<Mutex<std::collections::BTreeMap<String, usize>>>,
+    by_type: Arc<std::sync::Mutex<BTreeMap<String, Arc<AtomicUsize>>>>,
 }
 
 impl EventBus {
@@ -55,7 +56,7 @@ impl EventBus {
         Self {
             tx,
             emitted: Arc::new(AtomicUsize::new(0)),
-            by_type: Arc::new(Mutex::new(std::collections::BTreeMap::new())),
+            by_type: Arc::new(std::sync::Mutex::new(BTreeMap::new())),
         }
     }
 
@@ -63,12 +64,17 @@ impl EventBus {
         debug!(?event, "event emitted");
         self.emitted.fetch_add(1, Ordering::Relaxed);
         let key = event.kind().to_string();
-        let mut by_type = self
-            .by_type
-            .lock()
-            .expect("event diagnostics mutex poisoned");
-        *by_type.entry(key).or_insert(0) += 1;
-        drop(by_type);
+        let counter = {
+            let mut by_type = self
+                .by_type
+                .lock()
+                .expect("event diagnostics mutex poisoned");
+            by_type
+                .entry(key)
+                .or_insert_with(|| Arc::new(AtomicUsize::new(0)))
+                .clone()
+        };
+        counter.fetch_add(1, Ordering::Relaxed);
         let _ = self.tx.send(event);
     }
 
@@ -76,14 +82,16 @@ impl EventBus {
         self.tx.subscribe()
     }
 
-    pub fn diagnostics(&self) -> (usize, std::collections::BTreeMap<String, usize>) {
-        (
-            self.emitted.load(Ordering::Relaxed),
-            self.by_type
-                .lock()
-                .expect("event diagnostics mutex poisoned")
-                .clone(),
-        )
+    pub fn diagnostics(&self) -> (usize, BTreeMap<String, usize>) {
+        let by_type = self
+            .by_type
+            .lock()
+            .expect("event diagnostics mutex poisoned");
+        let map = by_type
+            .iter()
+            .map(|(k, v)| (k.clone(), v.load(Ordering::Relaxed)))
+            .collect();
+        (self.emitted.load(Ordering::Relaxed), map)
     }
 }
 

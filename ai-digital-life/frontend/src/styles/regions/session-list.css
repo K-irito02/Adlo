@@ -85,7 +85,7 @@
 .adl-session-list__limit:hover,
 .adl-session-list__limit:focus-visible,
 .adl-session-list__limit:active {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
   color: var(--text-primary);
   outline: none;
 }
@@ -119,7 +119,7 @@
 }
 
 .adl-session-item:hover {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
   color: var(--text-primary);
 }
 
@@ -129,13 +129,13 @@
 }
 
 .adl-session-item.is-active:hover {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
 }
 
 .adl-session-item.is-dragging {
   opacity: 0.96;
   transform: scale(1.015) translateY(-2px) translateZ(0);
-  background: color-mix(in srgb, var(--surface-hover) 80%, var(--bg));
+  background: color-mix(in srgb, var(--bg-hover) 80%, var(--bg));
   box-shadow:
     0 10px 24px rgba(0, 0, 0, 0.14),
     0 0 0 1px color-mix(in srgb, var(--accent) 20%, transparent) inset;
@@ -158,14 +158,14 @@
 
 @keyframes adl-session-drop-flash {
   0% {
-    background: color-mix(in srgb, var(--accent) 18%, var(--surface-hover));
+    background: color-mix(in srgb, var(--accent) 18%, var(--bg-hover));
     box-shadow:
       0 0 0 1px color-mix(in srgb, var(--accent) 28%, transparent) inset,
       0 0 0 0 color-mix(in srgb, var(--accent) 0%, transparent);
   }
 
   35% {
-    background: color-mix(in srgb, var(--accent) 14%, var(--surface-hover));
+    background: color-mix(in srgb, var(--accent) 14%, var(--bg-hover));
     box-shadow:
       0 0 0 1px color-mix(in srgb, var(--accent) 24%, transparent) inset,
       0 8px 18px -12px color-mix(in srgb, var(--accent) 40%, transparent);
@@ -230,7 +230,7 @@
   padding: 2px 6px;
   border: 1px solid var(--accent);
   border-radius: var(--radius-sm);
-  background: var(--surface);
+  background: var(--bg-elevated);
   color: var(--text-primary);
   font-size: var(--text-xs);
 }

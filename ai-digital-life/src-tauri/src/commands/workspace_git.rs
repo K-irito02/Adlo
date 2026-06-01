@@ -7,7 +7,7 @@ use adl_kernel::{
 };
 use std::path::PathBuf;
 
-fn persist_workspace_meta(state: &AppState, meta: &WorkspaceMeta) -> Result<(), AppError> {
+pub(crate) fn persist_workspace_meta(state: &AppState, meta: &WorkspaceMeta) -> Result<(), AppError> {
     state.db.save_entity(
         adl_storage::EntityTable::Workspaces,
         &meta.id,
@@ -21,7 +21,7 @@ fn persist_workspace_meta(state: &AppState, meta: &WorkspaceMeta) -> Result<(), 
         .put_state("current_workspace", &serde_json::to_string(meta)?)?;
     *state
         .current_workspace
-        .lock()
+        .write()
         .map_err(|_| AppError::Internal("workspace mutex poisoned".into()))? = Some(meta.clone());
     Ok(())
 }

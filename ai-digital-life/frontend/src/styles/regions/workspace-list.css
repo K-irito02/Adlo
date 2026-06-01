@@ -64,11 +64,11 @@
 }
 
 .adl-workspace-row:hover {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
 }
 
 .adl-workspace-item.is-current > .adl-workspace-row:hover {
-  background: var(--surface-active, var(--surface-hover));
+  background: var(--bg-active, var(--bg-hover));
 }
 
 .adl-workspace-row__leading {
@@ -93,7 +93,7 @@
 .adl-session-item__indicator:hover,
 .adl-session-item__indicator:focus-visible,
 .adl-session-item__indicator:active {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
   color: var(--text-primary);
   outline: none;
 }
@@ -137,7 +137,7 @@
 .adl-workspace-row__indicator:hover,
 .adl-workspace-row__indicator:focus-visible,
 .adl-workspace-row__indicator:active {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
   color: var(--text-primary);
   outline: none;
 }
@@ -198,7 +198,7 @@
 .adl-workspace-row__kind--collapsed:hover,
 .adl-workspace-row__kind--collapsed:focus-visible,
 .adl-workspace-row__kind--collapsed:active {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
   color: var(--text-primary);
   outline: none;
 }
@@ -276,7 +276,7 @@
 .adl-workspace-row__pin:hover,
 .adl-workspace-row__pin:focus-visible,
 .adl-workspace-row__pin:active {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
   color: var(--text-primary);
   outline: none;
 }

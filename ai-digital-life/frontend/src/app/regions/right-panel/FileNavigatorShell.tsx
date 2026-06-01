@@ -3,13 +3,13 @@ import type { WorkspaceTreeNode, FileOutlineItem, RecentWorkspaceEntry } from "@
 import type { CopyDict } from "../../i18n";
 import { IconClipboardList, IconCopy, IconFiles, IconFilePlus, IconFolderOpen, IconFoldVertical, IconFolderPlus, IconList, IconPanelLeftClose, IconPencil, IconRefreshCw, IconReplace, IconReturn, IconSearch, IconTrash, IconUnfoldVertical, IconUpload } from "../../icons";
 import { TooltipSimple } from "../../components/Tooltip";
-import { useUiStore } from "../../ui-store";
+import { useUiStore } from "../../stores/ui-store";
 import type { FilesNavigatorMode } from "../../stores/types";
 import { useNavigatorResize } from "../../hooks/useNavigatorResize";
 import { MultiWorkspaceFileTree } from "../../features/workspace-file-tree";
 import type { FileTreeContextMenuItem } from "../../features/file-tree";
 import { OutlineTree, getDefaultExpandedOutlineIds } from "../../features/outline";
-import { normalizeWorkspaceRelativePath, joinPathSegments } from "../../workspacePaths";
+import { normalizeWorkspaceRelativePath, joinPathSegments } from "../../utils/workspacePaths";
 import { useFileCreation, useSearchPanel } from "./hooks";
 import { FileCreationBar } from "./FileCreationBar";
 import { ConfirmDialog } from "../../components/ConfirmDialog";

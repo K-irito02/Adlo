@@ -118,7 +118,7 @@
 
 .adl-menu__trigger:hover,
 .adl-menu__trigger.is-open {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
   color: var(--text-primary);
 }
 
@@ -127,7 +127,7 @@
   top: calc(100% + 2px);
   left: 0;
   min-width: 220px;
-  background: var(--surface-raised);
+  background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
@@ -153,7 +153,7 @@
 }
 
 .adl-menu__item:hover:not(:disabled) {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
 }
 
 .adl-menu__item:disabled {
@@ -239,7 +239,7 @@
 }
 
 .adl-icon-btn:hover:not(:disabled) {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
   color: var(--text-primary);
 }
 
@@ -249,7 +249,7 @@
 }
 
 .adl-icon-btn.is-toggled {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
   color: var(--text-primary);
 }
 
@@ -285,7 +285,7 @@
   font-size: var(--text-xs);
   font-weight: var(--font-medium);
   border: 1px solid var(--border);
-  background: var(--surface);
+  background: var(--bg-elevated);
   color: var(--text-primary);
   cursor: pointer;
   transition: var(--transition-colors);
@@ -293,7 +293,7 @@
 }
 
 .adl-btn:hover:not(:disabled) {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
 }
 
 .adl-btn:disabled {
@@ -317,7 +317,7 @@
 }
 
 .adl-btn--ghost:hover:not(:disabled) {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
 }
 
 .adl-btn--sm {

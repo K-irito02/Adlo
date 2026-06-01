@@ -1,5 +1,5 @@
 import React from "react";
-import { useUiStore } from "../../../ui-store";
+import { useUiStore } from "../../../stores/ui-store";
 import { useAppStore } from "../../../stores/slicedStore";
 import { MultiWorkspaceChangesTree } from "../../../features/workspace-changes-tree";
 import { OutlineTree } from "../../../features/outline";

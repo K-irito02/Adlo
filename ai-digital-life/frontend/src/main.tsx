@@ -4,7 +4,7 @@ import type { DigitalLifeBridge } from "./shared/ipc";
 import { setupPreviewBridge } from "./preview-bridge";
 import { createTauriBridge, isTauriShell } from "./tauri-bridge";
 import { App } from "./app/App";
-import { themeController } from "./app/theme";
+import { themeController } from "./app/utils/theme";
 import "./styles/index.css";
 
 if (typeof window !== "undefined" && !window.digitalLife) {

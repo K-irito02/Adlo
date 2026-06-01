@@ -58,7 +58,7 @@ import type {
   WorkspaceGitBranchCreateInput,
   WorkspaceGitBranchSwitchInput,
 } from "@ai-digital-life/kernel";
-import type { MessageSendOptions } from "../composerSend";
+import type { MessageSendOptions } from "../utils/composerSend";
 
 interface StoreStateBase
   extends UISlice,

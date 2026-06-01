@@ -177,12 +177,12 @@
 .adl-toolswitcher__expand.adl-iconstrip__button.is-active:hover,
 .adl-toolswitcher__expand.adl-iconstrip__button[aria-pressed="true"]:hover,
 .adl-toolswitcher__expand.adl-iconstrip__button:focus-visible {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
   color: var(--text-primary);
 }
 
 .adl-toolswitcher__expand.adl-iconstrip__button:active {
-  background: var(--surface-active);
+  background: var(--bg-active);
 }
 
 .adl-iconstrip__button {
@@ -212,7 +212,7 @@
 .adl-iconstrip__button.is-active,
 .adl-iconstrip__button[aria-pressed="true"],
 .adl-iconstrip__button:focus-visible {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
   color: var(--text-primary);
 }
 
@@ -262,17 +262,17 @@
 
 .adl-toolswitcher__tab:hover {
   color: var(--text-primary);
-  background: var(--surface-hover);
+  background: var(--bg-hover);
 }
 
 .adl-toolswitcher__tab.is-active {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
   color: var(--text-primary);
 }
 
 .adl-toolswitcher__tab:focus-visible {
   box-shadow: none;
-  background: var(--surface-hover);
+  background: var(--bg-hover);
   color: var(--text-primary);
 }
 
@@ -305,7 +305,7 @@
   font-size: var(--adl-iconstrip-badge-font-size);
   font-weight: var(--font-semibold);
   color: var(--text-primary);
-  background: var(--surface-active);
+  background: var(--bg-active);
   box-shadow: none;
 }
 
@@ -386,7 +386,7 @@
 
 .adl-tool-context__toggle-btn:hover:not(:disabled),
 .adl-tool-context__toggle-btn:focus-visible {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
   color: var(--text-primary);
   outline: none;
 }
@@ -500,7 +500,7 @@
 .adl-tool-context__iconbtn:focus-visible,
 .adl-tool-context__iconbtn.is-active,
 .adl-tool-context__iconbtn.is-open {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
   color: var(--text-primary);
 }
 
@@ -528,7 +528,7 @@
 
 
 .adl-split-pill.is-open {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
   color: var(--text-primary);
 }
 
@@ -613,7 +613,7 @@
 .adl-branch-pill--button:hover,
 .adl-branch-pill--button:focus-visible,
 .adl-branch-pill--button.is-open {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
   color: var(--text-primary);
 }
 
@@ -750,7 +750,7 @@
 }
 
 .adl-tool-rail__btn:hover {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
   color: var(--text-primary);
 }
 
@@ -829,7 +829,7 @@
   height: 26px;
   padding: 0 var(--space-2);
   border: 1px solid var(--border-subtle);
-  background: var(--surface-raised);
+  background: var(--bg-card);
   color: var(--text-primary);
   font-size: var(--text-xs);
 }
@@ -873,7 +873,7 @@
   min-height: 40px;
   padding: var(--space-1-5);
   border-radius: var(--radius-md);
-  background: var(--surface-raised);
+  background: var(--bg-card);
   border: 1px solid transparent;
   cursor: pointer;
   text-align: left;
@@ -1065,8 +1065,8 @@
 .adl-outline-tree__row,
 .adl-tool-list__item,
 .adl-startpage-card {
-  --adl-tree-row-hover-bg: color-mix(in srgb, var(--surface-hover) 92%, transparent);
-  --adl-tree-row-active-bg: color-mix(in srgb, var(--surface-hover) 85%, var(--border) 15%);
+  --adl-tree-row-hover-bg: color-mix(in srgb, var(--bg-hover) 92%, transparent);
+  --adl-tree-row-active-bg: color-mix(in srgb, var(--bg-hover) 85%, var(--border) 15%);
   --adl-tree-toggle-rest-bg: var(--bg);
   --adl-tree-toggle-hover-bg: var(--bg);
   --adl-tree-toggle-active-bg: transparent;
@@ -1106,14 +1106,14 @@
 .adl-tree-node.is-selected > .adl-tree-node__row,
 .adl-filetree__item.is-selected > .adl-filetree__row,
 .adl-outline-tree__item.is-selected > .adl-outline-tree__row {
-  background: var(--surface-active) !important;
+  background: var(--bg-active) !important;
   color: var(--text-primary) !important;
 }
 
 .adl-tree-node.is-context-menu-target:not(.is-selected) > .adl-tree-node__row,
 .adl-filetree__item.is-context-menu-target:not(.is-selected) > .adl-filetree__row,
 .adl-outline-tree__item.is-context-menu-target:not(.is-selected) > .adl-outline-tree__row {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
   color: var(--text-primary);
 }
 
@@ -1123,7 +1123,7 @@
 .adl-filetree__row:focus-within:not(:has(.is-selected)):not(:has(.is-context-menu-target)),
 .adl-filetree__item.is-hovered:not(.is-selected):not(.is-context-menu-target) > .adl-filetree__row,
 .adl-outline-tree__item.is-hovered:not(.is-selected):not(.is-context-menu-target) > .adl-outline-tree__row {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
   color: var(--text-primary);
 }
 
@@ -1134,7 +1134,7 @@
 .adl-tree-node.is-selected.is-context-menu-target > .adl-tree-node__row,
 .adl-filetree__item.is-selected.is-context-menu-target > .adl-filetree__row,
 .adl-outline-tree__item.is-selected.is-context-menu-target > .adl-outline-tree__row {
-  background: var(--surface-active) !important;
+  background: var(--bg-active) !important;
   color: var(--text-primary) !important;
 }
 
@@ -1295,7 +1295,7 @@
 .adl-tree-node.is-active > .adl-tree-node__row .adl-tree-node__toggle:hover,
 .adl-filetree__item.is-active > .adl-filetree__row .adl-filetree__toggle:hover,
 .adl-outline-tree__item.is-active > .adl-outline-tree__row .adl-outline-tree__toggle:hover {
-  background: color-mix(in srgb, var(--surface-hover) 78%, var(--border) 22%);
+  background: color-mix(in srgb, var(--bg-hover) 78%, var(--border) 22%);
 }
 
 .adl-tree-node__meta,
@@ -1576,16 +1576,16 @@
 }
 
 .adl-tool-list__item--terminal-tab:hover {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
 }
 
 .adl-tool-list__item--terminal-tab.is-active {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
 }
 
 .adl-tool-list__item--terminal-tab.is-dragging {
   opacity: 0.5;
-  background: var(--surface-active);
+  background: var(--bg-active);
 }
 
 .adl-tool-list__item--terminal-tab.is-pinned {
@@ -1664,7 +1664,7 @@
 
 .adl-tool-list__item-close:hover {
   color: var(--text-primary);
-  background: var(--surface-hover);
+  background: var(--bg-hover);
 }
 
 .adl-outline-tree__scroll {
@@ -1725,7 +1725,7 @@
 }
 
 .adl-outline-tree__toggle:hover {
-  background: color-mix(in srgb, var(--surface-hover) 88%, transparent);
+  background: color-mix(in srgb, var(--bg-hover) 88%, transparent);
   color: var(--text-primary);
 }
 
@@ -1785,11 +1785,11 @@
 }
 
 .adl-outline-tree__item.is-hovered > .adl-outline-tree__row {
-  background: color-mix(in srgb, var(--surface-hover) 92%, transparent);
+  background: color-mix(in srgb, var(--bg-hover) 92%, transparent);
 }
 
 .adl-outline-tree__item.is-active > .adl-outline-tree__row {
-  background: color-mix(in srgb, var(--surface-hover) 85%, var(--border) 15%);
+  background: color-mix(in srgb, var(--bg-hover) 85%, var(--border) 15%);
 }
 
 .adl-outline-tree__meta {
@@ -1909,7 +1909,7 @@
 .adl-search-panel__toggle:hover,
 .adl-search-panel__toggle:focus-visible,
 .adl-search-panel__toggle.is-open {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
   color: var(--text-primary);
 }
 
@@ -1947,7 +1947,7 @@
 .adl-search-panel__modebtn.is-active,
 .adl-search-panel__replacebtn:hover,
 .adl-search-panel__replacebtn:focus-visible {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
   color: var(--text-primary);
 }
 
@@ -2037,7 +2037,7 @@
 
 .adl-tool-primary__tabs button:hover,
 .adl-tool-primary__tabs button.is-active {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
   color: var(--text-primary);
   border-color: var(--border-subtle);
 }
@@ -2087,7 +2087,7 @@
 
 .adl-tool-search-scope__btn:hover,
 .adl-tool-search-scope__btn.is-active {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
   color: var(--text-primary);
 }
 
@@ -2151,12 +2151,12 @@
 }
 
 .adl-tool-sidebar__list button:hover {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
   color: var(--text-primary);
 }
 
 .adl-tool-sidebar__list button.is-active {
-  background: var(--surface-active, var(--surface-hover));
+  background: var(--bg-active, var(--bg-hover));
   color: var(--text-primary);
 }
 
@@ -2226,7 +2226,7 @@
 
 .adl-tool-main__tabs button[role="tab"]:hover,
 .adl-tool-main__tabs button[role="tab"].is-active {
-  background: var(--surface);
+  background: var(--bg-elevated);
   color: var(--text-primary);
 }
 
@@ -2353,7 +2353,7 @@
   cursor: pointer;
 }
 .adl-multitree-entry__header:hover {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
 }
 
 .adl-multitree-entry__expand {
@@ -2389,7 +2389,7 @@
   transition: var(--transition-colors);
 }
 .adl-multitree-entry__expand-btn:hover {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
   color: var(--text-primary);
 }
 .adl-multitree-entry__expand-btn svg {
@@ -2507,7 +2507,7 @@
   position: fixed;
   z-index: var(--z-dropdown);
   width: 176px;
-  background: var(--surface-raised);
+  background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
@@ -2531,7 +2531,7 @@
   width: 100%;
 }
 .adl-multitree-entry__menu-item:hover {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
 }
 
 .adl-multitree-entry__menu-sep {
@@ -2568,7 +2568,7 @@
 }
 
 .adl-multitree-entry__menu-item--with-sub:hover {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
 }
 .adl-multitree-entry__menu-item-label {
   flex: 1;

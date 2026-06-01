@@ -12,8 +12,8 @@ import type {
   WorkspaceMeta
 } from "@ai-digital-life/kernel";
 import type { CopyDict } from "../i18n";
-import { MODEL_PROVIDER_IDS } from "../constants";
-import { MODEL_OPTIONS } from "../constants";
+import { MODEL_PROVIDER_IDS } from "../utils/constants";
+import { MODEL_OPTIONS } from "../utils/constants";
 import {
   IconCheck,
   IconChevronRight,

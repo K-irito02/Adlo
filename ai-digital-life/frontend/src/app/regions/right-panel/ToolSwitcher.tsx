@@ -34,7 +34,7 @@ const TAB_META: Array<{ id: ToolId; shortcut: string; icon: React.ReactNode; lab
   { id: "settings", shortcut: "Ctrl+Shift+,", icon: <IconSettings size={16} decorative />, labelKey: "toolSettings" }
 ];
 
-export function ToolSwitcher({
+export const ToolSwitcher = React.memo(function ToolSwitcher({
   t,
   activeTool,
   badges,
@@ -45,7 +45,7 @@ export function ToolSwitcher({
 }: ToolSwitcherProps) {
   const [hoveredTool, setHoveredTool] = React.useState<ToolId | null>(null);
 
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>, currentTool: ToolId) => {
+  const handleKeyDown = React.useCallback((event: React.KeyboardEvent<HTMLButtonElement>, currentTool: ToolId) => {
     const currentIndex = TAB_META.findIndex((tab) => tab.id === currentTool);
     if (currentIndex === -1) {
       return;
@@ -71,7 +71,7 @@ export function ToolSwitcher({
       const nextTab = document.getElementById(`${idBase}-${nextTool.id}-tab`);
       nextTab?.focus();
     });
-  };
+  }, [onSelect, idBase]);
 
   return (
     <div className="adl-toolswitcher">
@@ -135,4 +135,4 @@ export function ToolSwitcher({
       </div>
     </div>
   );
-}
+});

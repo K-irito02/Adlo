@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from "react";
 import { useAppStore } from "../../../stores/slicedStore";
 import { useAppActions } from "../../../hooks/useAppActions";
-import { buildSettingsItems, preferencePatchFromSettingChange } from "../../../settingsViewModel";
+import { buildSettingsItems, preferencePatchFromSettingChange } from "../../../utils/settingsViewModel";
 import type { SettingsPanelProps } from "../types";
 import type { RightPanelProps } from "../../RightPanel";
 

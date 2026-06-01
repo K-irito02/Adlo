@@ -1,5 +1,5 @@
 import type { StoreState } from "../StoreState";
-import { mapPatchToEditorTab } from "../../editorTabs";
+import { mapPatchToEditorTab } from "../../utils/editorTabs";
 import type { StoreApi } from "zustand";
 import { postMutationRefresh, clearError, captureError } from "../shared";
 

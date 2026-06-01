@@ -64,8 +64,8 @@
 .adl-outline-tree__row,
 .adl-tool-list__item,
 .adl-startpage-card {
-  --adl-tree-row-hover-bg: color-mix(in srgb, var(--surface-hover) 92%, transparent);
-  --adl-tree-row-active-bg: color-mix(in srgb, var(--surface-hover) 85%, var(--border) 15%);
+  --adl-tree-row-hover-bg: color-mix(in srgb, var(--bg-hover) 92%, transparent);
+  --adl-tree-row-active-bg: color-mix(in srgb, var(--bg-hover) 85%, var(--border) 15%);
   --adl-tree-toggle-rest-bg: var(--bg);
   --adl-tree-toggle-hover-bg: var(--bg);
   --adl-tree-toggle-active-bg: transparent;
@@ -104,14 +104,14 @@
 .adl-tree-node.is-selected > .adl-tree-node__row,
 .adl-filetree__item.is-selected > .adl-filetree__row,
 .adl-outline-tree__item.is-selected > .adl-outline-tree__row {
-  background: var(--surface-active) !important;
+  background: var(--bg-active) !important;
   color: var(--text-primary) !important;
 }
 
 .adl-tree-node.is-context-menu-target:not(.is-selected) > .adl-tree-node__row,
 .adl-filetree__item.is-context-menu-target:not(.is-selected) > .adl-filetree__row,
 .adl-outline-tree__item.is-context-menu-target:not(.is-selected) > .adl-outline-tree__row {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
   color: var(--text-primary);
 }
 
@@ -120,7 +120,7 @@
 .adl-filetree__row:focus-within:not(:has(.is-selected)):not(:has(.is-context-menu-target)),
 .adl-filetree__item.is-hovered:not(.is-selected):not(.is-context-menu-target) > .adl-filetree__row,
 .adl-outline-tree__item.is-hovered:not(.is-selected):not(.is-context-menu-target) > .adl-outline-tree__row {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
   color: var(--text-primary);
 }
 
@@ -130,7 +130,7 @@
 .adl-tree-node.is-selected.is-context-menu-target > .adl-tree-node__row,
 .adl-filetree__item.is-selected.is-context-menu-target > .adl-filetree__row,
 .adl-outline-tree__item.is-selected.is-context-menu-target > .adl-outline-tree__row {
-  background: var(--surface-active) !important;
+  background: var(--bg-active) !important;
   color: var(--text-primary) !important;
 }
 
@@ -277,7 +277,7 @@
 }
 
 .adl-outline-tree__toggle:hover {
-  background: color-mix(in srgb, var(--surface-hover) 88%, transparent);
+  background: color-mix(in srgb, var(--bg-hover) 88%, transparent);
   color: var(--text-primary);
 }
 
@@ -299,7 +299,7 @@
 .adl-tree-node.is-active > .adl-tree-node__row .adl-tree-node__toggle:hover,
 .adl-filetree__item.is-active > .adl-filetree__row .adl-filetree__toggle:hover,
 .adl-outline-tree__item.is-active > .adl-outline-tree__row .adl-outline-tree__toggle:hover {
-  background: color-mix(in srgb, var(--surface-hover) 78%, var(--border) 22%);
+  background: color-mix(in srgb, var(--bg-hover) 78%, var(--border) 22%);
 }
 
 .adl-tree-node__meta,
@@ -443,11 +443,11 @@
 }
 
 .adl-multitree--terminal .adl-tool-list__item--terminal-tab:hover {
-  background: var(--surface-hover) !important;
+  background: var(--bg-hover) !important;
 }
 
 .adl-multitree--terminal .adl-tool-list__item--terminal-tab.is-active {
-  background: var(--surface-hover) !important;
+  background: var(--bg-hover) !important;
 }
 
 .adl-multitree--terminal .adl-tool-list__item--terminal-tab .adl-tool-list__item-btn {
@@ -489,14 +489,14 @@
 }
 
 .adl-multitree--terminal .adl-multitree-entry__empty-btn:hover {
-  background: var(--surface-hover) !important;
+  background: var(--bg-hover) !important;
   color: var(--text-primary) !important;
 }
 
 .adl-multitree--terminal .adl-tool-list__item--terminal-tab.is-dragging,
 .adl-tool-list__item--terminal-tab.is-dragging {
   opacity: 0.5;
-  background: var(--surface-active);
+  background: var(--bg-active);
 }
 
 .adl-tool-list__item--terminal-tab.is-pinned {
@@ -573,7 +573,7 @@
 
 .adl-tool-list__item-close:hover {
   color: var(--text-primary);
-  background: var(--surface-hover);
+  background: var(--bg-hover);
 }
 
 .adl-tool-list__item--static {
@@ -646,7 +646,7 @@
 
 .adl-tool-primary__tabs button:hover,
 .adl-tool-primary__tabs button.is-active {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
   color: var(--text-primary);
   border-color: var(--border-subtle);
 }
@@ -703,12 +703,12 @@
 }
 
 .adl-tool-sidebar__list button:hover {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
   color: var(--text-primary);
 }
 
 .adl-tool-sidebar__list button.is-active {
-  background: var(--surface-active, var(--surface-hover));
+  background: var(--bg-active, var(--bg-hover));
   color: var(--text-primary);
 }
 
@@ -778,7 +778,7 @@
 
 .adl-tool-main__tabs button[role="tab"]:hover,
 .adl-tool-main__tabs button[role="tab"].is-active {
-  background: var(--surface);
+  background: var(--bg-elevated);
   color: var(--text-primary);
 }
 
@@ -901,7 +901,7 @@
   cursor: pointer;
 }
 .adl-multitree-entry__header:hover {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
 }
 
 .adl-multitree-entry__expand {
@@ -926,7 +926,7 @@
   transition: var(--transition-colors);
 }
 .adl-multitree-entry__expand-btn:hover {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
   color: var(--text-primary);
 }
 .adl-multitree-entry__expand-btn svg {
@@ -1055,7 +1055,7 @@
   cursor: pointer;
 }
 .adl-multitree-entry__empty-btn:hover {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
   color: var(--text-primary);
 }
 
@@ -1063,7 +1063,7 @@
   position: fixed;
   z-index: var(--z-dropdown);
   width: 176px;
-  background: var(--surface-raised);
+  background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
@@ -1087,7 +1087,7 @@
   width: 100%;
 }
 .adl-multitree-entry__menu-item:hover {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
 }
 
 .adl-multitree-entry__menu-sep {
@@ -1131,7 +1131,7 @@
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 .adl-multitree-entry__menu-item--with-sub:hover {
-  background: var(--surface-hover);
+  background: var(--bg-hover);
 }
 .adl-multitree-entry__menu-item-label {
   flex: 1;

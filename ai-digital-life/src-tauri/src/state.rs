@@ -6,14 +6,14 @@ use adl_storage::Database;
 use adl_pty::SessionManager;
 use std::collections::HashSet;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 
 pub struct AppState {
     pub data_dir: PathBuf,
     pub db: Database,
-    pub config: Mutex<AppConfig>,
+    pub config: RwLock<AppConfig>,
     pub event_bus: EventBus,
-    pub current_workspace: Mutex<Option<WorkspaceMeta>>,
+    pub current_workspace: RwLock<Option<WorkspaceMeta>>,
     pub editor_dirty_paths: Mutex<HashSet<String>>,
     pub pty_sessions: Arc<Mutex<SessionManager>>,
     pub browser_manager: BrowserManager,
