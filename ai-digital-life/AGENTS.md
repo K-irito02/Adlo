@@ -23,7 +23,7 @@
 - xterm.js 交互式终端（多会话 PTY，支持 CMD / PowerShell / Bash）
 - CodeMirror 编辑器系统 + 文件预览 + 差异查看器（inline/side-by-side）
 - 内置浏览器（Tauri WebView / iframe 双模式）
-- Zustand 切片模式（12 切片 + 8 actions）+ 模块化分层（features/ + regions/）
+- Zustand 切片模式（12 切片 + 11 action 模块）+ 模块化分层（features/ + regions/）
 - CSS 设计 Token 亮暗主题 + 自定义 Tooltip + 自定义滚动条
 - i18n 国际化（10 领域 / 504 keys，TypeScript satisfies 类型安全）
 
@@ -95,10 +95,11 @@ app/stores/
 │   ├── sessionSlice.ts / editorSlice.ts / patchSlice.ts
 │   ├── searchSlice.ts / diagnosticSlice.ts / taskSlice.ts
 │   ├── commandSlice.ts / clipboardSlice.ts / terminalSlice.ts
-└── actions/                     # 8 个跨切片 action 模块
+└── actions/                     # 11 个跨切片 action 模块
     ├── workspaceActions.ts / sessionActions.ts / editorActions.ts
     ├── patchActions.ts / gitActions.ts / fetchActions.ts
-    ├── streamActions.ts / generalActions.ts
+    ├── streamActions.ts / generalActions.ts / searchActions.ts
+    ├── taskActions.ts / commandActions.ts
 ```
 
 ### 关键文件

@@ -1,4 +1,6 @@
-# 2026-05-28 重构执行总结（截至第十七轮）
+# 重构执行总结（截至第十七轮）
+
+> 第十八~二十三轮详情见 [REFACTORING_PROGRESS_REPORT.md](./REFACTORING_PROGRESS_REPORT.md)。
 
 ## 范围
 

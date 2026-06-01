@@ -869,3 +869,232 @@
   overflow: visible;
 }
 
+/* ===== Browser Tab Tree Categories ===== */
+
+.adl-browser-category {
+  margin-bottom: var(--space-2);
+}
+
+/* Text label row (工作区目录 / 自建目录 / 历史目录) */
+.adl-browser-category__label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px 8px;
+  min-height: 24px;
+  user-select: none;
+  cursor: default;
+}
+
+.adl-browser-category__label-text {
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.adl-browser-category__label-action {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.adl-browser-category__label-count {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  flex-shrink: 0;
+  min-width: 18px;
+  text-align: right;
+  margin-left: auto;
+}
+
+/* ===== Browser Tree Entry (Header row) ===== */
+
+.adl-browser-entry {
+  position: relative;
+}
+
+.adl-browser-entry__header {
+  display: flex;
+  align-items: stretch;
+  min-height: 34px;
+  cursor: default;
+  user-select: none;
+  position: relative;
+}
+
+.adl-browser-entry__header:hover {
+  background: var(--surface-hover);
+}
+
+/* Expand wrapper — matches Files feature's 28px wide hit area */
+.adl-browser-entry__expand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  flex-shrink: 0;
+}
+
+/* Gradient mask on header — matches full header height and right edge.
+   Only visible when namezone (not the expand button) is hovered. */
+.adl-browser-entry__header::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 180px;
+  background: linear-gradient(to right, transparent 0%, var(--gradient-mask) 60%, var(--gradient-mask) 100%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-150) var(--ease-default);
+  z-index: 1;
+}
+
+.adl-browser-entry__header:has(.adl-browser-entry__namezone:hover)::after {
+  opacity: 1;
+}
+
+.adl-browser-entry__namezone {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding-right: 8px;
+  cursor: pointer;
+}
+
+.adl-browser-entry__trailing {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  position: relative;
+  margin-left: auto;
+}
+
+.adl-browser-entry__count {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  flex-shrink: 0;
+  min-width: 18px;
+  text-align: right;
+}
+
+.adl-browser-entry__actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-150) var(--ease-default);
+  z-index: 2;
+}
+
+.adl-browser-entry__namezone:hover .adl-browser-entry__actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.adl-browser-entry__expand-btn {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color var(--duration-150) var(--ease-default);
+}
+
+.adl-browser-entry__expand-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.adl-browser-entry__expand-btn.is-expanded {
+  color: var(--text-primary);
+}
+
+.adl-browser-entry__name {
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--text-primary);
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.adl-browser-entry__trailing {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.adl-browser-entry__count {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  flex-shrink: 0;
+  min-width: 18px;
+  text-align: right;
+}
+
+.adl-browser-entry__actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-150) var(--ease-default);
+  z-index: 2;
+}
+
+.adl-browser-entry__namezone:hover .adl-browser-entry__actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.adl-browser-entry__tree {
+  padding-left: 0;
+}
+
+.adl-browser-entry__empty {
+  padding: 8px 8px 8px 28px;
+}
+
+/* ===== Tree Node Hover Actions ===== */
+
+.adl-browser-node__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-150) var(--ease-default);
+  margin-left: auto;
+}
+
+.adl-tree-node__row:hover .adl-browser-node__actions,
+.adl-filetree__row:hover .adl-browser-node__actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+

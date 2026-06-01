@@ -7,9 +7,11 @@ import { useBrowserMenus } from "./useBrowserMenus";
 import { isTauriShell } from "../../../tauri-bridge";
 import type { BrowserPanelProps } from "../../regions/right-panel/types";
 import type { BrowserTabState } from "../../stores/slices/browserslice";
+import type { TabFolderState } from "../../stores/slices/browserslice";
 
 export type BrowserNavigatorMode = "tabs" | "bookmarks" | "history" | "search";
 export type BrowserSearchScope = "bookmarks" | "history" | "all";
+export type BrowserTabCategoryType = "workspace" | "userFolder" | "history";
 
 export type BrowserMenuItem =
   | { id: string; separator: true }
@@ -64,6 +66,9 @@ export interface UseBrowserPanelReturn {
     filteredBookmarks: Array<{ title: string; url: string }>;
     filteredHistory: Array<{ title: string; url: string }>;
     browserBookmarks: Array<{ title: string; url: string }>;
+    browserTabFolders: TabFolderState[];
+    tabTreeExpanded: Record<string, boolean>;
+    allTreeExpanded: boolean;
   };
   browserActions: {
     handleCreateTab: (url?: string, title?: string, workspaceId?: string) => void;
@@ -94,6 +99,16 @@ export interface UseBrowserPanelReturn {
     handleClearHistory: () => void;
     handleIframeLoad: () => void;
     handleIframeError: () => void;
+    handleCreateTabInTree: (workspaceId?: string, folderId?: string) => void;
+    handleToggleTreePath: (path: string) => void;
+    handleDeleteAllChildTabs: (categoryType: string, nodePath: string) => void;
+    handleOpenAllInNewTabs: (categoryType: string, nodePath: string) => void;
+    handleRemoveFromArea: (workspaceId: string) => void;
+    handleDeleteDirectory: (folderId: string) => void;
+    handleDeleteHistoryLevel: (level: "label" | "year" | "month" | "day", nodePath: string) => void;
+    handleCreateTabFolder: () => void;
+    handleExpandAllTree: () => void;
+    handleCollapseAllTree: () => void;
   };
   dragHandlers: {
     handleDragStart: (e: React.DragEvent, tabId: string, isPinned: boolean) => void;
@@ -133,6 +148,17 @@ function filterBrowserItems<T extends { title: string; url: string }>(items: T[]
 
 const log = (msg: string) => console.log(`[Browser] ${msg}`);
 
+function findFolderByIdLocal(folders: Array<{ id: string; children?: unknown[] }>, folderId: string): { id: string; tabs?: string[] } | null {
+  for (const folder of folders) {
+    if (folder.id === folderId) return folder as { id: string; tabs?: string[] };
+    if (Array.isArray(folder.children)) {
+      const found = findFolderByIdLocal(folder.children as Array<{ id: string; children?: unknown[] }>, folderId);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
 export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDisabled?: boolean }): UseBrowserPanelReturn {
   const { t } = props;
   const webViewDisabled = options?.webViewDisabled ?? false;
@@ -160,6 +186,7 @@ export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDis
   const navigatorCollapsedByTool = useAppStore((state) => state.navigatorCollapsedByTool);
   const browserBookmarks = useAppStore((state) => state.browserBookmarks);
   const browserHistory = useAppStore((state) => state.browserHistory);
+  const recentWorkspaces = useAppStore((state) => state.recentWorkspaces);
 
   const browserOpenTab = useAppStore((state) => state.browserOpenTab);
   const browserSelectTab = useAppStore((state) => state.browserSelectTab);
@@ -173,6 +200,14 @@ export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDis
   const browserNavigateActiveTab = useAppStore((state) => state.browserNavigateActiveTab);
   const browserToggleBookmark = useAppStore((state) => state.browserToggleBookmark);
   const browserClearHistory = useAppStore((state) => state.browserClearHistory);
+  const browserTabFolders = useAppStore((state) => state.browserTabFolders);
+  const browserTabTreeExpanded = useAppStore((state) => state.browserTabTreeExpanded);
+  const browserToggleTabTreePath = useAppStore((state) => state.browserToggleTabTreePath);
+  const browserExpandAllTreePaths = useAppStore((state) => state.browserExpandAllTreePaths);
+  const browserCollapseAllTreePaths = useAppStore((state) => state.browserCollapseAllTreePaths);
+  const browserDeleteAllTabsInNode = useAppStore((state) => state.browserDeleteAllTabsInNode);
+  const browserDeleteTabFolder = useAppStore((state) => state.browserDeleteTabFolder);
+  const browserDeleteHistoryByLevel = useAppStore((state) => state.browserDeleteHistoryByLevel);
 
   const editInputRef = useRef<HTMLInputElement | null>(null);
   const browserMenuRef = useRef<HTMLDivElement | null>(null);
@@ -244,6 +279,21 @@ export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDis
                          navigatorMode === "bookmarks" ? t.browserSavedTabs :
                          navigatorMode === "history" ? t.browserHistoryTabs :
                          t.browserSearchTabs;
+
+  const allTreeExpanded = useMemo(() => {
+    const visible = recentWorkspaces.filter((w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available);
+    const wsPaths = visible.map((w) => `workspace:${w.id}`);
+    const folderPaths = browserTabFolders.filter((f) => !f.parentId).map((f) => `folder:${f.id}`);
+    const allEntryPaths = [
+      ...wsPaths,
+      ...folderPaths,
+    ];
+    if (browserHistory.length > 0) {
+      allEntryPaths.push("history:root");
+    }
+    if (allEntryPaths.length === 0) return false;
+    return allEntryPaths.every((p) => browserTabTreeExpanded[p] ?? false);
+  }, [recentWorkspaces, browserTabFolders, browserHistory, browserTabTreeExpanded]);
 
   const browserMenuItems = useMemo(() => [
     { id: "hard-reload", label: t.browserHardReload, action: () => browserNavigateActiveTab(activeTab?.url ?? "about:blank", activeTab?.title) },
@@ -377,6 +427,88 @@ export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDis
   const handleClearHistory = useCallback(() => {
     browserClearHistory();
   }, [browserClearHistory]);
+
+  const handleCreateTabInTree = useCallback((workspaceId?: string, folderId?: string) => {
+    browserOpenTab(undefined, undefined, workspaceId);
+  }, [browserOpenTab]);
+
+  const handleToggleTreePath = useCallback((path: string) => {
+    browserToggleTabTreePath(path);
+  }, [browserToggleTabTreePath]);
+
+  const handleDeleteAllChildTabs = useCallback((_categoryType: string, nodePath: string) => {
+    browserDeleteAllTabsInNode(nodePath);
+  }, [browserDeleteAllTabsInNode]);
+
+  const handleOpenAllInNewTabs = useCallback((_categoryType: string, nodePath: string) => {
+    const state = useAppStore.getState();
+    if (nodePath.startsWith("workspace:")) {
+      const wsId = nodePath.slice("workspace:".length);
+      const tabs = state.browserTabs.filter((t) => t.workspaceId === wsId);
+      tabs.forEach((tab) => browserOpenTab(tab.url, tab.title, tab.workspaceId));
+    } else if (nodePath.startsWith("folder:")) {
+      const folderId = nodePath.slice("folder:".length);
+      const folder = findFolderByIdLocal(state.browserTabFolders as Array<{ id: string; tabs?: string[]; children?: unknown[] }>, folderId);
+      if (folder?.tabs) {
+        folder.tabs.forEach((tabId) => {
+          const tab = state.browserTabs.find((t) => t.id === tabId);
+          if (tab) browserOpenTab(tab.url, tab.title, tab.workspaceId);
+        });
+      }
+    } else if (nodePath.startsWith("history:day:")) {
+      const dayDate = nodePath.slice("history:day:".length);
+      state.browserHistory
+        .filter((h) => {
+          const d = new Date(h.visitedAt);
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, "0");
+          const dy = String(d.getDate()).padStart(2, "0");
+          return `${y}-${m}-${dy}` === dayDate;
+        })
+        .forEach((h) => browserOpenTab(h.url, h.title));
+    }
+  }, [browserOpenTab]);
+
+  const handleRemoveFromArea = useCallback((workspaceId: string) => {
+    useAppStore.getState().hideWorkspaceFromRightPanels(workspaceId);
+  }, []);
+
+  const handleDeleteDirectory = useCallback((folderId: string) => {
+    if (folderId.startsWith("history:")) {
+      browserDeleteAllTabsInNode(folderId);
+    } else {
+      const actualId = folderId.startsWith("folder:") ? folderId.slice("folder:".length) : folderId;
+      browserDeleteTabFolder(actualId);
+    }
+  }, [browserDeleteTabFolder, browserDeleteAllTabsInNode]);
+
+  const handleDeleteHistoryLevel = useCallback((level: "label" | "year" | "month" | "day", nodePath: string) => {
+    browserDeleteHistoryByLevel(level, nodePath);
+  }, [browserDeleteHistoryByLevel]);
+
+  const handleCreateTabFolder = useCallback(() => {
+    useAppStore.getState().browserCreateTabFolder(undefined, undefined);
+  }, []);
+
+  const handleExpandAllTree = useCallback(() => {
+    const state = useAppStore.getState();
+    const paths: string[] = [];
+    const workspaces = state.recentWorkspaces.filter((w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available);
+    for (const ws of workspaces) {
+      paths.push(`workspace:${ws.id}`);
+    }
+    for (const folder of state.browserTabFolders) {
+      paths.push(`folder:${folder.id}`);
+    }
+    if (state.browserHistory.length > 0) {
+      paths.push("history:root");
+    }
+    browserExpandAllTreePaths(paths);
+  }, [browserExpandAllTreePaths]);
+
+  const handleCollapseAllTree = useCallback(() => {
+    browserCollapseAllTreePaths();
+  }, [browserCollapseAllTreePaths]);
 
   const {
     isDragging,
@@ -609,6 +741,9 @@ export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDis
       filteredBookmarks,
       filteredHistory,
       browserBookmarks,
+      browserTabFolders,
+      tabTreeExpanded: browserTabTreeExpanded,
+      allTreeExpanded,
     },
     browserActions: {
       handleCreateTab,
@@ -639,6 +774,16 @@ export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDis
       handleIframeLoad,
       handleIframeError,
       handleClearHistory,
+      handleCreateTabInTree,
+      handleToggleTreePath,
+      handleDeleteAllChildTabs,
+      handleOpenAllInNewTabs,
+      handleRemoveFromArea,
+      handleDeleteDirectory,
+      handleDeleteHistoryLevel,
+      handleCreateTabFolder,
+      handleExpandAllTree,
+      handleCollapseAllTree,
     },
     dragHandlers: {
       handleDragStart,

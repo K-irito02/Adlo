@@ -29,7 +29,7 @@ export const MultiWorkspaceContainer = React.memo(function MultiWorkspaceContain
       {visibleWorkspaces.length > 0 ? (
         <>
           <div className="adl-multitree-section-label" role="heading" aria-level={2}>
-            <span>&nbsp;</span>
+            <span className="adl-multitree-section-label__text">工作区目录</span>
             <span className="adl-multitree-section-label__count">{visibleWorkspaces.length}</span>
           </div>
           <div className="adl-multitree__bucket">

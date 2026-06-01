@@ -63,6 +63,8 @@ const BROWSER_VIEW_MODE_KEY = "adl-ui:browser-view-mode";
 const BROWSER_SHOW_TAB_BUTTONS_KEY = "adl-ui:browser-show-tab-buttons";
 const BROWSER_HISTORY_KEY = "adl-ui:browser-history";
 const BROWSER_BOOKMARKS_KEY = "adl-ui:browser-bookmarks";
+const BROWSER_CATEGORY_EXPANDED_KEY = "adl-ui:browser-category-expanded";
+const BROWSER_TREE_EXPANDED_KEY = "adl-ui:browser-tab-tree-expanded";
 
 // Constants
 const BROWSER_NAVIGATOR_WIDTH_MIN = 180;
@@ -220,6 +222,8 @@ function hydrateBrowserDefaults(get: () => StoreState, set: (partial: Partial<St
 
     const viewMode = readJson<"default" | "tree" | "list" | "all">(BROWSER_VIEW_MODE_KEY, "default");
     const showTabButtons = readJson<boolean>(BROWSER_SHOW_TAB_BUTTONS_KEY, false);
+    const persistedCategoryExpanded = readJson<Record<string, boolean>>(BROWSER_CATEGORY_EXPANDED_KEY, { workspace: true, userFolder: true, history: true });
+    const persistedTabTreeExpanded = readJson<Record<string, boolean>>(BROWSER_TREE_EXPANDED_KEY, {});
 
     set({
       browserNavigatorWidth: width,
@@ -233,6 +237,8 @@ function hydrateBrowserDefaults(get: () => StoreState, set: (partial: Partial<St
       browserActiveTabId: finalActiveTabId,
       browserViewMode: viewMode,
       browserShowTabButtons: showTabButtons,
+      browserCategoryExpanded: persistedCategoryExpanded,
+      browserTabTreeExpanded: persistedTabTreeExpanded,
     });
   };
   if (typeof requestIdleCallback === "function") {
@@ -257,6 +263,8 @@ export interface BrowserSlice {
   browserBookmarks: BrowserBookmark[];
   browserViewMode: "default" | "tree" | "list" | "all";
   browserShowTabButtons: boolean;
+  browserCategoryExpanded: Record<string, boolean>;
+  browserTabTreeExpanded: Record<string, boolean>;
 
   browserOpenTab: (url?: string, title?: string, workspaceId?: string) => void;
   browserSelectTab: (tabId: string) => void;
@@ -277,11 +285,17 @@ export interface BrowserSlice {
   browserDeleteTabFolder: (folderId: string) => void;
   browserAddToHistory: (url: string, title: string) => void;
   browserClearHistory: () => void;
+  browserDeleteHistoryByLevel: (level: "label" | "year" | "month" | "day", nodePath: string) => void;
   browserToggleBookmark: (input?: { url?: string; title?: string }) => void;
   setBrowserViewMode: (mode: "default" | "tree" | "list" | "all") => void;
   setBrowserShowTabButtons: (show: boolean) => void;
   browserBookmarkTab: (tabId: string, folderId?: string, newFolderName?: string) => void;
   browserAddToFolder: (tabId: string, folderId: string) => void;
+  browserSetCategoryExpanded: (categoryId: string, expanded: boolean) => void;
+  browserToggleTabTreePath: (path: string) => void;
+  browserCollapseAllTreePaths: () => void;
+  browserExpandAllTreePaths: (paths: string[]) => void;
+  browserDeleteAllTabsInNode: (nodePath: string) => void;
 }
 
 export const createBrowserSlice = (
@@ -303,6 +317,12 @@ export const createBrowserSlice = (
     browserBookmarks: [],
     browserViewMode: "default",
     browserShowTabButtons: false,
+    browserCategoryExpanded: {
+      workspace: true,
+      userFolder: true,
+      history: true,
+    },
+    browserTabTreeExpanded: {},
 
     browserOpenTab: (url?: string, title?: string, workspaceId: string = "") =>
       set((state) => {
@@ -458,6 +478,40 @@ export const createBrowserSlice = (
     browserClearHistory: () => {
       scheduleWrite(BROWSER_HISTORY_KEY, []);
       set({ browserHistory: [] });
+    },
+
+    browserDeleteHistoryByLevel: (level, nodePath) => {
+      set((state) => {
+        let filtered: BrowserHistoryState[];
+        if (level === "label") {
+          filtered = [];
+        } else if (level === "year") {
+          const year = nodePath.replace("history:year:", "");
+          filtered = state.browserHistory.filter((h) => {
+            const d = new Date(h.visitedAt);
+            return String(d.getFullYear()) !== year;
+          });
+        } else if (level === "month") {
+          const monthKey = nodePath.replace("history:month:", "");
+          filtered = state.browserHistory.filter((h) => {
+            const d = new Date(h.visitedAt);
+            const y = String(d.getFullYear());
+            const m = String(d.getMonth() + 1).padStart(2, "0");
+            return `${y}-${m}` !== monthKey;
+          });
+        } else {
+          const dayKey = nodePath.replace("history:day:", "");
+          filtered = state.browserHistory.filter((h) => {
+            const d = new Date(h.visitedAt);
+            const y = String(d.getFullYear());
+            const m = String(d.getMonth() + 1).padStart(2, "0");
+            const dy = String(d.getDate()).padStart(2, "0");
+            return `${y}-${m}-${dy}` !== dayKey;
+          });
+        }
+        scheduleWrite(BROWSER_HISTORY_KEY, filtered);
+        return { browserHistory: filtered };
+      });
     },
 
     browserToggleBookmark: (input?: { url?: string; title?: string }) => {
@@ -646,5 +700,85 @@ export const createBrowserSlice = (
         return { browserTabFolders: nextFolders, browserBookmarks: nextBookmarks };
       });
     },
+
+    browserSetCategoryExpanded: (categoryId, expanded) =>
+      set((state) => {
+        const next = { ...state.browserCategoryExpanded, [categoryId]: expanded };
+        scheduleWrite(BROWSER_CATEGORY_EXPANDED_KEY, next);
+        return { browserCategoryExpanded: next };
+      }),
+
+    browserToggleTabTreePath: (path) =>
+      set((state) => {
+        const next = { ...state.browserTabTreeExpanded, [path]: !(state.browserTabTreeExpanded[path] ?? false) };
+        scheduleWrite(BROWSER_TREE_EXPANDED_KEY, next);
+        return { browserTabTreeExpanded: next };
+      }),
+
+    browserCollapseAllTreePaths: () =>
+      set((state) => {
+        scheduleWrite(BROWSER_TREE_EXPANDED_KEY, {});
+        return { browserTabTreeExpanded: {} };
+      }),
+
+    browserExpandAllTreePaths: (paths) =>
+      set((state) => {
+        const next: Record<string, boolean> = {};
+        for (const p of paths) {
+          next[p] = true;
+        }
+        scheduleWrite(BROWSER_TREE_EXPANDED_KEY, next);
+        return { browserTabTreeExpanded: next };
+      }),
+
+    browserDeleteAllTabsInNode: (nodePath) =>
+      set((state) => {
+        // nodePath format: "workspace:{id}" | "folder:{id}" | "history:day:{date}"
+        let tabIdsToDelete: string[] = [];
+
+        if (nodePath.startsWith("workspace:")) {
+          const wsId = nodePath.slice("workspace:".length);
+          tabIdsToDelete = state.browserTabs
+            .filter((t) => t.workspaceId === wsId)
+            .map((t) => t.id);
+        } else if (nodePath.startsWith("folder:")) {
+          const folderId = nodePath.slice("folder:".length);
+          const folder = findFolderById(state.browserTabFolders, folderId);
+          if (folder) {
+            tabIdsToDelete = folder.tabs ?? [];
+          }
+        } else if (nodePath.startsWith("history:day:")) {
+          const dayDate = nodePath.slice("history:day:".length);
+          tabIdsToDelete = state.browserHistory
+            .filter((h) => {
+              const d = new Date(h.visitedAt);
+              const y = d.getFullYear();
+              const m = String(d.getMonth() + 1).padStart(2, "0");
+              const dy = String(d.getDate()).padStart(2, "0");
+              return `${y}-${m}-${dy}` === dayDate;
+            })
+            .map((h) => h.id);
+        }
+
+        if (tabIdsToDelete.length === 0) return state;
+
+        if (nodePath.startsWith("history:")) {
+          const nextHistory = state.browserHistory.filter((h) => !tabIdsToDelete.includes(h.id));
+          scheduleWrite(BROWSER_HISTORY_KEY, nextHistory);
+          return { browserHistory: nextHistory };
+        }
+
+        const nextTabs = state.browserTabs.filter((t) => !tabIdsToDelete.includes(t.id));
+        const nextActive = tabIdsToDelete.includes(state.browserActiveTabId)
+          ? nextTabs[nextTabs.length - 1]?.id ?? state.browserActiveTabId
+          : state.browserActiveTabId;
+        scheduleWrite(BROWSER_TABS_KEY, nextTabs);
+        scheduleWrite(BROWSER_ACTIVE_TAB_KEY, nextActive);
+        return {
+          browserTabs: nextTabs,
+          browserTabsById: buildTabsById(nextTabs),
+          browserActiveTabId: nextActive,
+        };
+      }),
   };
 };

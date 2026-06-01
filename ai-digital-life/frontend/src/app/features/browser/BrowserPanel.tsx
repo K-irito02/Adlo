@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import {
   IconArrowLeft,
@@ -20,14 +20,17 @@ import {
   IconList,
   IconLayoutList,
   IconBack,
-  IconGlobe
+  IconGlobe,
+  IconFoldVertical,
+  IconUnfoldVertical,
 } from "../../icons";
 import { TooltipSimple } from "../../components/Tooltip";
+import { RenameDialog } from "../../components/RenameDialog";
 import { useAppStore } from "../../stores/slicedStore";
 import { useBrowserPanel } from "./useBrowserPanel";
 import { BrowserContextMenu } from "./BrowserContextMenu";
 import { BrowserMenuDropdown } from "./BrowserMenuDropdown";
-import { MultiWorkspaceBrowser } from "../workspace-browser";
+import { BrowserTabTree } from "../browser-tree";
 import { CustomScrollArea } from "../file-tree/CustomScrollArea";
 import { isTauriShell } from "../../../tauri-bridge";
 import type { BrowserPanelProps } from "../../regions/right-panel/types";
@@ -107,6 +110,13 @@ export function BrowserPanel(props: BrowserPanelProps) {
   const setBrowserShowTabButtons = useAppStore((state) => state.setBrowserShowTabButtons);
 
   const browserOpenTab = useAppStore((state) => state.browserOpenTab);
+  const browserTabFolders = useAppStore((state) => state.browserTabFolders);
+
+  const [renameFolderState, setRenameFolderState] = useState<{ open: boolean; folderId: string; currentName: string }>({
+    open: false,
+    folderId: "",
+    currentName: "",
+  });
 
   const {
     browserState,
@@ -307,6 +317,16 @@ export function BrowserPanel(props: BrowserPanelProps) {
         <aside className="adl-tool-navigator" aria-label={t.toolBrowser}>
           <div className="adl-tool-navigator__context">
             <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--actions">
+              <TooltipSimple content={browserState.allTreeExpanded ? "全部折叠" : "全部展开"} placement="top">
+                <button
+                  type="button"
+                  className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
+                  onClick={browserState.allTreeExpanded ? browserActions.handleCollapseAllTree : browserActions.handleExpandAllTree}
+                  aria-label={browserState.allTreeExpanded ? "全部折叠" : "全部展开"}
+                >
+                  {browserState.allTreeExpanded ? <IconFoldVertical size={14} decorative /> : <IconUnfoldVertical size={14} decorative />}
+                </button>
+              </TooltipSimple>
               <span className="adl-tool-navigator__context-title">{navigatorTitle}</span>
             </div>
             <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--utility">
@@ -391,7 +411,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
                 <button
                   type="button"
                   className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-                  onClick={() => console.log('新建标签功能待实现')}
+                  onClick={() => browserActions.handleCreateTabInTree()}
                   aria-label="新建标签"
                 >
                   <IconPlus size={14} decorative />
@@ -401,7 +421,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
                 <button
                   type="button"
                   className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-                  onClick={() => console.log('新建目录功能待实现')}
+                  onClick={browserActions.handleCreateTabFolder}
                   aria-label="新建目录"
                 >
                   <IconFolderPlus size={14} decorative />
@@ -420,13 +440,42 @@ export function BrowserPanel(props: BrowserPanelProps) {
             </div>
           </div>
           {browserState.navigatorMode === "tabs" ? (
-            <MultiWorkspaceBrowser
+            <BrowserTabTree
               workspaces={visibleWorkspaces}
               browserTabs={browserState.browserTabs}
-              activeTabId={browserState.browserActiveTabId}
-              t={t}
-            />
-          ) : browserState.navigatorMode === "search" ? (
+              browserTabFolders={browserState.browserTabFolders}
+              browserHistory={browserHistory}
+              tabTreeExpanded={browserState.tabTreeExpanded}
+              onTogglePath={browserActions.handleToggleTreePath}
+              callbacks={{
+                onCreateTab: browserActions.handleCreateTabInTree,
+                onCreateFolder: browserActions.handleCreateTabFolder,
+                onDeleteAllChildTabs: browserActions.handleDeleteAllChildTabs,
+                onOpenAllInNewTabs: browserActions.handleOpenAllInNewTabs,
+                onRemoveFromArea: browserActions.handleRemoveFromArea,
+                onDeleteDirectory: browserActions.handleDeleteDirectory,
+                onRenameDirectory: (folderId: string) => {
+                  const folder = browserTabFolders.find((f) => f.id === folderId);
+                  setRenameFolderState({ open: true, folderId, currentName: folder?.name ?? "" });
+                },
+                onDeleteHistory: browserActions.handleDeleteHistoryLevel,
+                onOpenTab: (url: string, tabId?: string) => {
+                  if (tabId) {
+                    const tab = browserState.browserTabs.find((t) => t.id === tabId);
+                    if (tab) {
+                      browserSelectTab(tabId);
+                      return;
+                    }
+                  }
+                  browserOpenTab(url, undefined, undefined);
+                },
+              }}
+              labels={{
+                workspaceCategory: "工作区目录",
+                userFolderCategory: "自建目录",
+                historyCategory: "历史目录",
+              }}
+            />) : browserState.navigatorMode === "search" ? (
             <div className="adl-tool-navigator__content">
               <div className="adl-tool-navigator__context adl-tool-navigator__context--search">
                 <div className="adl-tool-navigator__summary-stats" role="tablist" aria-label={t.browserSearchTabs}>
@@ -564,6 +613,18 @@ export function BrowserPanel(props: BrowserPanelProps) {
         onEdit={handleRenameFromContextMenu(browserState.browserTabs, browserState.contextMenu, browserActions.handleDoubleClick)}
         onCut={() => {}}
         t={t}
+      />
+
+      <RenameDialog
+        open={renameFolderState.open}
+        initialValue={renameFolderState.currentName}
+        title={t.browserRenamePrompt as string}
+        placeholder={t.browserRenamePrompt as string}
+        onConfirm={(name) => {
+          useAppStore.getState().browserUpdateTabFolder(renameFolderState.folderId, { name });
+          setRenameFolderState((prev) => ({ ...prev, open: false }));
+        }}
+        onCancel={() => setRenameFolderState((prev) => ({ ...prev, open: false }))}
       />
     </div>
   );
