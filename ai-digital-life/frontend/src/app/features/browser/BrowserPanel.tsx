@@ -387,6 +387,26 @@ export function BrowserPanel(props: BrowserPanelProps) {
               </div>
             )}
             <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--utility">
+              <TooltipSimple content="新建标签" placement="top">
+                <button
+                  type="button"
+                  className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
+                  onClick={() => console.log('新建标签功能待实现')}
+                  aria-label="新建标签"
+                >
+                  <IconPlus size={14} decorative />
+                </button>
+              </TooltipSimple>
+              <TooltipSimple content="新建目录" placement="top">
+                <button
+                  type="button"
+                  className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
+                  onClick={() => console.log('新建目录功能待实现')}
+                  aria-label="新建目录"
+                >
+                  <IconFolderPlus size={14} decorative />
+                </button>
+              </TooltipSimple>
               <TooltipSimple content={browserShowTabButtons ? "清空所有已打开标签" : "删除全部目录标签"} placement="top">
                 <button
                   type="button"
@@ -408,31 +428,37 @@ export function BrowserPanel(props: BrowserPanelProps) {
             />
           ) : browserState.navigatorMode === "search" ? (
             <div className="adl-tool-navigator__content">
-              <div className="adl-tool-navigator__context adl-tool-navigator__context--search adl-tool-navigator__context--search-stack">
-                <div className="adl-tool-search-scope" role="tablist" aria-label={t.browserSearchTabs}>
+              <div className="adl-tool-navigator__context adl-tool-navigator__context--search">
+                <div className="adl-tool-navigator__summary-stats" role="tablist" aria-label={t.browserSearchTabs}>
                   <button
                     type="button"
-                    className={`adl-tool-search-scope__btn${browserState.searchScope === "bookmarks" ? " is-active" : ""}`}
+                    className={`adl-tool-navigator__summary-stat${browserState.searchScope === "bookmarks" ? " is-active" : ""}`}
                     onClick={() => browserActions.setSearchScope("bookmarks")}
+                    aria-pressed={browserState.searchScope === "bookmarks"}
+                    aria-label={t.browserSearchBookmarks}
                   >
-                    {t.browserSearchBookmarks}
+                    <span className="adl-tool-navigator__summary-label">{t.browserSearchBookmarks}</span>
                   </button>
                   <button
                     type="button"
-                    className={`adl-tool-search-scope__btn${browserState.searchScope === "history" ? " is-active" : ""}`}
+                    className={`adl-tool-navigator__summary-stat${browserState.searchScope === "history" ? " is-active" : ""}`}
                     onClick={() => browserActions.setSearchScope("history")}
+                    aria-pressed={browserState.searchScope === "history"}
+                    aria-label={t.browserSearchHistory}
                   >
-                    {t.browserSearchHistory}
+                    <span className="adl-tool-navigator__summary-label">{t.browserSearchHistory}</span>
                   </button>
                   <button
                     type="button"
-                    className={`adl-tool-search-scope__btn${browserState.searchScope === "all" ? " is-active" : ""}`}
+                    className={`adl-tool-navigator__summary-stat${browserState.searchScope === "all" ? " is-active" : ""}`}
                     onClick={() => browserActions.setSearchScope("all")}
+                    aria-pressed={browserState.searchScope === "all"}
+                    aria-label={t.browserSearchAll}
                   >
-                    {t.browserSearchAll}
+                    <span className="adl-tool-navigator__summary-label">{t.browserSearchAll}</span>
                   </button>
                 </div>
-                <label className="adl-tool-search adl-tool-search--compact adl-tool-search--navigator">
+                <label className="adl-tool-search adl-tool-search--navigator">
                   <IconSearch size={12} decorative />
                   <input
                     ref={browserState.navigatorSearchInputRef}

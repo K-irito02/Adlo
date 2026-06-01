@@ -135,6 +135,81 @@
   font-weight: var(--font-semibold);
   color: var(--text-primary);
 }
+/* 浏览器搜索区域样式 */
+.adl-tool-panel--browser .adl-tool-navigator__context--search {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1-5);
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
+  background: linear-gradient(180deg, var(--surface-subtle), transparent);
+}
+
+.adl-tool-panel--browser .adl-tool-navigator__summary-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-1-5);
+  width: 100%;
+}
+
+.adl-tool-panel--browser .adl-tool-navigator__summary-stat {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 40px;
+  min-width: 48px;
+  padding: var(--space-1-5) var(--space-2);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-align: center;
+  transition: all 120ms ease;
+}
+
+.adl-tool-panel--browser .adl-tool-navigator__summary-stat:hover {
+  background: transparent;
+  border-color: var(--border-default);
+}
+
+.adl-tool-panel--browser .adl-tool-navigator__summary-stat:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.adl-tool-panel--browser .adl-tool-navigator__summary-stat.is-active {
+  background: transparent;
+}
+
+.adl-tool-panel--browser .adl-tool-navigator__summary-label {
+  color: var(--text-muted);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.adl-tool-panel--browser .adl-tool-search--navigator {
+  width: 100%;
+  min-width: 0;
+  height: 28px;
+  padding: 0 var(--space-2);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--surface-subtle);
+  box-shadow: none;
+}
+
+.adl-tool-panel--browser .adl-tool-search--navigator:focus-within {
+  outline: none;
+  box-shadow: none;
+}
+
+.adl-tool-panel--browser .adl-tool-search--navigator input {
+  border: none;
+  background: transparent;
+  outline: none;
+  box-shadow: none;
+}
+
 .adl-tool-primary__scroll {
   flex: 1;
   min-height: 0;

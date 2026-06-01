@@ -197,7 +197,35 @@
 **解决方案**：`browserSlice` 使用 `createDefaultBrowserTab()` 初始化默认标签，确保首屏即有时可用标签。
 **关键文件**：`browserSlice.ts`
 
-#### 15. iframe 事件处理器不能留空
-**问题**：iframe 的 `onLoad` 和 `onError` 被设为空函数，导致 iframe 加载失败时静默无提示（用户看到空白页面却不知道原因），且同源页面的内部导航无法同步到地址栏。
-**解决方案**：`handleIframeLoad` 重置错误状态并尝试读取 iframe URL 同步地址栏；`handleIframeError` 设置 `iframeLoadError` 触发降级 UI（含"在外部浏览器打开"按钮）。
-**关键文件**：`useBrowserPanel.ts`, `BrowserPanel.tsx`
+## 浏览器功能修复（2026-06-01）
+
+### 修复问题清单
+
+| 问题 | 根因 | 修复方案 | 文件 |
+|------|------|----------|------|
+| 浏览器工具缺少新建标签/目录按钮 | 功能未实现 | 在"删除全部目录标签"按钮左侧添加两个占位按钮，点击时输出 console.log | `BrowserPanel.tsx`, `copy.ts` |
+| 搜索区域按钮样式与变更面板不一致 | 搜索区域使用自定义样式，未复用设计系统 | 改用 `adl-tool-navigator__summary-stat` 样式类，实现与变更面板"已暂存/已修改/未追踪"一致的 UI | `BrowserPanel.tsx`, `browser-panel.css` |
+| 搜索输入框在侧边栏收缩时被截断 | 输入框宽度硬编码，未自适应容器 | 设置 `width: 100%` + `min-width: 0`，移除硬编码宽度限制 | `browser-panel.css` |
+| 搜索输入框有描边灰线效果 | 继承了默认搜索框样式 | 设置 `border: none`、`box-shadow: none`、`background: var(--surface-subtle)` | `browser-panel.css` |
+| 搜索区域按钮文字过长 | 国际化文案过长 | 将"收藏标签搜索/历史标签搜索/全部搜索"改为"收藏/历史/全部" | `copy.ts` |
+| 搜索区域按钮布局不均匀 | flex 布局设置不当 | 使用 `grid-template-columns: repeat(3, 1fr)` 实现均匀分布 | `browser-panel.css` |
+
+### 新增经验教训
+
+#### 16. 按钮布局的 grid vs flex 选择
+**问题**：使用 `flex` + `justify-content: space-around` 时，按钮两侧会有空隙，无法完全填满容器宽度。
+**解决方案**：改用 `grid` + `grid-template-columns: repeat(3, 1fr)` 确保按钮均匀分布且填满整行。
+**关键文件**：`browser-panel.css`
+
+#### 17. 容器宽度自适应的最小宽度陷阱
+**问题**：搜索输入框在窄容器中被截断，因为 `min-width` 默认值阻止了收缩。
+**解决方案**：显式设置 `min-width: 0` 允许输入框收缩以适应容器宽度。
+**关键文件**：`browser-panel.css`
+
+### 修改文件清单
+
+| 文件 | 变更类型 | 说明 |
+|------|----------|------|
+| `frontend/src/app/features/browser/browserpanel.tsx` | 修改 | 添加新建标签/新建目录按钮；修改搜索区域按钮结构 |
+| `frontend/src/app/i18n/zh-CN/browser.ts` | 修改 | 缩短搜索范围按钮文案 |
+| `frontend/src/styles/regions/rightpanel/browser-panel.css` | 修改 | 添加搜索区域样式，修复布局和视觉问题 |

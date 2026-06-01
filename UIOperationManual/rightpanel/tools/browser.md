@@ -57,11 +57,61 @@ await page.keyboard.press('Enter');
 await page.click('button[aria-label="新建标签页"]');
 ```
 
+#### 新建标签（导航器）
+
+```javascript
+// 在导航器上下文区域点击新建标签按钮
+await page.click('button[aria-label="新建标签"]');
+```
+
+#### 新建目录（导航器）
+
+```javascript
+// 在导航器上下文区域点击新建目录按钮
+await page.click('button[aria-label="新建目录"]');
+```
+
+---
+
+## 搜索区域
+
+### 定位选择器
+
+| 优先级 | 类型 | 选择器 |
+|--------|------|--------|
+| 1 | CSS | `.adl-tool-navigator__context--search` |
+
+### 搜索范围切换
+
+搜索区域包含三个切换按钮，与变更面板样式一致：
+
+| 按钮 | aria-label | 说明 |
+|------|------------|------|
+| 收藏 | `收藏` | 搜索收藏的标签 |
+| 历史 | `历史` | 搜索历史记录 |
+| 全部 | `全部` | 搜索所有内容 |
+
+```javascript
+// 切换到收藏搜索
+await page.click('button[aria-label="收藏"]');
+
+// 切换到历史搜索
+await page.click('button[aria-label="历史"]');
+
+// 切换到全部搜索
+await page.click('button[aria-label="全部"]');
+```
+
+### 搜索输入框
+
+```javascript
+// 在搜索框中输入关键词
+await page.fill('.adl-tool-search--navigator input', '关键词');
+```
+
 ---
 
 ## 导航器
-
-### 定位选择器
 
 | 优先级 | 类型 | 选择器 |
 |--------|------|--------|
