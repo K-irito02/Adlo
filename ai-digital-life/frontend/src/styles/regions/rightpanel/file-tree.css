@@ -980,13 +980,11 @@
   font-weight: var(--font-semibold);
   color: var(--text-muted);
   line-height: 1;
-  margin-right: var(--space-1);
-  transition: opacity var(--duration-150) var(--ease-default), width var(--duration-150) var(--ease-default), margin var(--duration-150) var(--ease-default);
+  transition: opacity var(--duration-150) var(--ease-default), width var(--duration-150) var(--ease-default);
 }
 .adl-multitree-entry__namezone:hover .adl-multitree-entry__count {
   opacity: 0;
   width: 0;
-  margin: 0;
   overflow: hidden;
   pointer-events: none;
 }

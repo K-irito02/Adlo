@@ -1,6 +1,6 @@
 # 重构进度报告
 
-> 更新日期: 2026-06-01（第二十三轮）
+> 更新日期: 2026-06-01（第二十四轮）
 
 ## 完成状态
 
@@ -29,6 +29,7 @@
 | **第二十一轮** | **2026-05-31** | **浏览器子目录 parentId 传递断链修复** | ✅ |
 | **第二十二轮** | **2026-06-01** | **文档大纲连接竖线对齐修复** | ✅ |
 | **第二十三轮** | **2026-06-01** | **全面重构执行 + 滚动条溢出修复（11 项：死代码删除、i18n 拆分、类型解耦、as any 消除、icons 拆分、Mutex 降级、audit 批量写入、browser 错误通道、React.memo、滚动条修复）** | ✅ |
+| **第二十四轮** | **2026-06-01** | **浏览器标签树功能增强 + 全面板计数对齐 + CSS 清理（硬编码 i18n 修复、重复回调抽取、历史按级别删除实现、RenameDialog 替换、计数右偏移统一标准化为 --space-3、CSS 重复块清理）** | ✅ |
 
 ## 第七轮重构（2026-05-23）：全面修复 + 大型组件模块化
 
@@ -560,8 +561,45 @@ features/diff-viewer/ (DiffViewer 拆分)
 | 新建文件 | `crates/workspace/src/cache.rs` |
 
 ---
+## 第二十四轮重构（2026-06-01）：浏览器标签树功能增强 + 全面板计数对齐 + CSS 清理
 
-## 相关文档
+### 浏览器标签树 UI/UX 实现
+
+| 模块 | 文件 | 说明 |
+|------|------|------|
+| 核心类型 | `features/browser-tree/types.ts` | BrowserCategoryType、BrowserTreeNode、BrowserCategoryState |
+| 数据 Hook | `features/browser-tree/useBrowserTreeData.ts` | 三分类树构建器（工作区/自建目录/历史） |
+| 目录区组件 | `features/browser-tree/BrowserCategorySection.tsx` | 文字提示行 + 条目列表，导出 SectionCallbacks |
+| 条目入口 | `features/browser-tree/BrowserTreeEntry.tsx` | 展开头 + 内部 FileTree + 悬停按钮/菜单 |
+| 主树组件 | `features/browser-tree/BrowserTabTree.tsx` | 三分类入口组合 |
+| Store 动作 | `stores/slices/browserslice.ts` | 展开/折叠全部、按级别删除历史、路径展开切换 |
+| 面板 Hook | `features/browser/useBrowserPanel.ts` | 所有 handler 整合（创建目录、删除历史等） |
+| 面板集成 | `features/browser/browserpanel.tsx` | 新建标签/新建目录/RenameDialog/展开折叠 |
+| 重命名对话框 | `components/RenameDialog.tsx` | 统一重命名组件替代 window.prompt |
+| 国际化 | `i18n/{zh-CN,en-US}/browser.ts` | 中英文文案完整覆盖 |
+
+### 关键修复项
+
+| 问题 | 修复 |
+|------|------|
+| 目录重命名使用 `window.prompt`（硬编码中文、样式不统一） | 替换为 `RenameDialog` 组件，i18n 化 |
+| `handleCreateTabFolder` 重复定义（两次 `useAppStore.getState()`） | 提取为共享回调，传入 `isUserFolder` 参数复用 |
+| `browserDeleteHistoryByLevel` 清除全部而非按级别 | 实现 `nodePath` 级别过滤（year→all years, year/month→that month, year/month/day→that day） |
+| 四面板计数不对齐（Files/Changes/Terminal/Browser） | 统一标准化：section label padding = `--space-3`(12px)，entry count margin-right 移除，entry trailing padding-right = `--space-3` |
+| 浏览器条目名称区 padding-right: 8px 与 trailing padding 叠加 | 移除 namezone padding-right，trailing 独立控制 padding |
+| 浏览器操作按钮 `right: 0` 贴边 | 改为 `right: var(--space-2)`(8px) 对齐其他面板 |
+| browser-panel.css 三组重复类块（trailing/count/actions） | 清理重复，保留唯一定义 |
+
+### 最终对齐方案
+
+| 面板 | section label 计数 | entry header 计数 | 悬停按钮 |
+|------|-------------------|-------------------|----------|
+| Files/Changes/Terminal | `padding-right: --space-3` | `no margin`, trailing `padding-right: --space-3` | `right: --space-2` |
+| Browser | `padding-right: --space-3` | trailing `padding-right: --space-3` | `right: --space-2` |
+
+---
+
+
 
 - [重构洞察报告 5-21](./refactor-insight-2026-05-21.md)
 - [重构洞察报告 5-22](./refactor-insight-2026-05-22.md)

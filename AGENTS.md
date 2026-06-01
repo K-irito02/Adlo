@@ -36,13 +36,13 @@
 - 模型网关（含流式与取消）+ 命令治理与终端流式输出
 - CodeMirror 编辑器系统 + xterm.js 交互式终端（多会话 PTY）
 - Zustand 切片模式（12 切片 + 11 action 模块）+ 模块化分层（features/ + regions/）
-- 内置浏览器（Tauri WebView / iframe 双模式）
+- 内置浏览器（Tauri WebView / iframe 双模式 + 标签树形目录三分类）
 - 统一 IPC 错误通道（`IpcErrorCode` → `AppError` → `IpcResult`）
 - CSS 设计 Token 亮暗主题 + 自定义 Tooltip 组件
 
 ## 重构历史
 
-共完成 **23 轮**迭代重构，全部详情见 [REFACTORING_PROGRESS_REPORT.md](./docs/重构洞察/REFACTORING_PROGRESS_REPORT.md)。
+共完成 **24 轮**迭代重构，全部详情见 [REFACTORING_PROGRESS_REPORT.md](./docs/重构洞察/REFACTORING_PROGRESS_REPORT.md)。
 
 | 轮次 | 日期 | 关键成果 |
 |------|------|----------|
@@ -53,6 +53,7 @@
 | 第二十一轮 | 2026-05-31 | 浏览器子目录 parentId 传递断链修复 |
 | 第二十二轮 | 2026-06-01 | 文档大纲连接竖线对齐修复 |
 | **第二十三轮** | **2026-06-01** | **全面重构：死代码删除、i18n/icons 拆分、类型解耦、as any 消除、Mutex 降级、audit 批量写入、React.memo、滚动条修复** |
+| **第二十四轮** | **2026-06-01** | **浏览器标签树三分类增强 + 全面板计数右偏移统一 + CSS 清理** |
 
 ## AI 代理开发规则
 
