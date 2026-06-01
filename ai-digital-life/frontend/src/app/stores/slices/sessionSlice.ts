@@ -10,10 +10,7 @@ import type {
   DigitalLifeRunActivityEventV1
 } from "@ai-digital-life/kernel";
 import type { StoreState } from "../StoreState";
-
-const MAX_ACTIVITY_PER_RUN = 500;
-const MIN_ACTIVITY_RETAIN = 400;
-const MAX_STORED_RUNS = 50;
+import { trimOldRuns, trimActivityList } from "../activityUtils";
 
 export interface SessionSlice {
   sessions: ConversationSessionRecord[];
@@ -40,56 +37,6 @@ export interface SessionSlice {
   appendRunActivity: (runId: string, activity: DigitalLifeRunActivityEventV1) => void;
   setRunUsage: (runId: string, usage: ModelTokenUsage | undefined) => void;
   clearStreaming: () => void;
-}
-
-function trimOldRuns(
-  activityMap: Record<string, DigitalLifeRunActivityEventV1[]>,
-  usageMap: Record<string, ModelTokenUsage | undefined>,
-  accessMap: Record<string, number>,
-  excludeRunIds: Set<string>
-): {
-  runActivityByRunId: Record<string, DigitalLifeRunActivityEventV1[]>;
-  runUsageByRunId: Record<string, ModelTokenUsage | undefined>;
-  _runLastAccessTime: Record<string, number>;
-} {
-  const runIds = Object.keys(activityMap);
-  if (runIds.length <= MAX_STORED_RUNS) {
-    return { runActivityByRunId: activityMap, runUsageByRunId: usageMap, _runLastAccessTime: accessMap };
-  }
-
-  const sortedRunIds = runIds
-    .filter(id => !excludeRunIds.has(id))
-    .sort((a, b) => (accessMap[a] ?? 0) - (accessMap[b] ?? 0));
-
-  const toRemove = sortedRunIds.slice(0, sortedRunIds.length - MAX_STORED_RUNS + excludeRunIds.size);
-  const toRemoveSet = new Set(toRemove);
-
-  const nextActivity: Record<string, DigitalLifeRunActivityEventV1[]> = {};
-  const nextUsage: Record<string, ModelTokenUsage | undefined> = {};
-  const nextAccess: Record<string, number> = {};
-
-  for (const id of runIds) {
-    if (!toRemoveSet.has(id)) {
-      nextActivity[id] = activityMap[id];
-      if (id in usageMap) {
-        nextUsage[id] = usageMap[id];
-      }
-      nextAccess[id] = accessMap[id] ?? Date.now();
-    }
-  }
-
-  return {
-    runActivityByRunId: nextActivity,
-    runUsageByRunId: nextUsage,
-    _runLastAccessTime: nextAccess
-  };
-}
-
-function trimActivityList(activities: DigitalLifeRunActivityEventV1[]): DigitalLifeRunActivityEventV1[] {
-  if (activities.length <= MAX_ACTIVITY_PER_RUN) {
-    return activities;
-  }
-  return activities.slice(-MIN_ACTIVITY_RETAIN);
 }
 
 export const createSessionSlice = (

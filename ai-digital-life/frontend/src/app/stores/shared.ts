@@ -124,9 +124,19 @@ export type CachedFileDocument = {
 
 export type CachedChangePreview = WorkspaceChangePreview;
 
-/** 全局缓存实例 */
-const fileDocumentCache = new Map<string, CachedFileDocument>();
-const changePreviewCache = new Map<string, CachedChangePreview>();
+/** 带 TTL 的缓存条目类型 */
+type TTLCacheEntry<V> = {
+  value: V;
+  expiresAt: number; // timestamp in ms
+};
+
+/** 全局缓存实例 - 带 TTL 和 LRU 策略 */
+const fileDocumentCache = new Map<string, TTLCacheEntry<CachedFileDocument>>();
+const changePreviewCache = new Map<string, TTLCacheEntry<CachedChangePreview>>();
+
+/** TTL 配置 (毫秒) */
+export const FILE_DOCUMENT_TTL = 5 * 60 * 1000; // 5 分钟
+export const CHANGE_PREVIEW_TTL = 1 * 60 * 1000; // 1 分钟
 
 /** 获取缓存访问器 */
 export function getFileDocumentCache() {
@@ -142,6 +152,9 @@ export const FILE_DOCUMENT_CACHE_LIMIT = 32;
 export const CHANGE_PREVIEW_CACHE_LIMIT = 32;
 
 /** LRU 缓存操作 — 每次 get 时将条目移到 Map 末尾，确保最近访问的在末尾 */
+/**
+ * @deprecated 使用 getCachedFileDocument / getCachedChangePreview 代替，它们支持 TTL
+ */
 export function getCachedLru<T>(cache: Map<string, T>, key: string): T | undefined {
   const cached = cache.get(key);
   if (cached === undefined) {
@@ -152,6 +165,9 @@ export function getCachedLru<T>(cache: Map<string, T>, key: string): T | undefin
   return cached;
 }
 
+/**
+ * @deprecated 使用 setCachedFileDocument / setCachedChangePreview 代替，它们支持 TTL
+ */
 export function setCachedLru<T>(cache: Map<string, T>, key: string, value: T, limit: number): void {
   if (cache.has(key)) {
     cache.delete(key);
@@ -164,6 +180,62 @@ export function setCachedLru<T>(cache: Map<string, T>, key: string, value: T, li
     }
     cache.delete(oldest);
   }
+}
+
+/** LRU + TTL 缓存操作 — 每次 get 时将条目移到 Map 末尾，并检查过期 */
+export function getCachedLruTTL<V>(cache: Map<string, TTLCacheEntry<V>>, key: string): V | undefined {
+  const cachedEntry = cache.get(key);
+  if (cachedEntry === undefined) {
+    return undefined;
+  }
+  
+  // 检查是否过期
+  if (Date.now() > cachedEntry.expiresAt) {
+    cache.delete(key);
+    return undefined;
+  }
+  
+  // 未过期，移到末尾（LRU）
+  // 注意：JavaScript Map 没有直接移动条目的方法，delete + set 是标准做法
+  cache.delete(key);
+  cache.set(key, cachedEntry);
+  return cachedEntry.value;
+}
+
+export function setCachedLruTTL<V>(cache: Map<string, TTLCacheEntry<V>>, key: string, value: V, limit: number, ttlMs: number): void {
+  if (cache.has(key)) {
+    cache.delete(key);
+  }
+  cache.set(key, { value, expiresAt: Date.now() + ttlMs });
+  while (cache.size > limit) {
+    const oldest = cache.keys().next().value;
+    if (oldest === undefined) {
+      return;
+    }
+    cache.delete(oldest);
+  }
+}
+
+/**
+ * 文件文档缓存访问器 - 带 TTL 和 LRU
+ */
+export function getCachedFileDocument(key: string): CachedFileDocument | undefined {
+  return getCachedLruTTL(fileDocumentCache, key);
+}
+
+export function setCachedFileDocument(key: string, value: CachedFileDocument): void {
+  setCachedLruTTL(fileDocumentCache, key, value, FILE_DOCUMENT_CACHE_LIMIT, FILE_DOCUMENT_TTL);
+}
+
+/**
+ * 变更预览缓存访问器 - 带 TTL 和 LRU
+ */
+export function getCachedChangePreview(key: string): CachedChangePreview | undefined {
+  return getCachedLruTTL(changePreviewCache, key);
+}
+
+export function setCachedChangePreview(key: string, value: CachedChangePreview): void {
+  setCachedLruTTL(changePreviewCache, key, value, CHANGE_PREVIEW_CACHE_LIMIT, CHANGE_PREVIEW_TTL);
 }
 
 /** 缓存键生成 */

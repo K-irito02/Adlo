@@ -4,6 +4,7 @@
  */
 
 import { create } from "zustand";
+import { shallow } from "zustand/shallow";
 
 import {
   createUISlice,
@@ -104,8 +105,16 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
 }));
 
 // Type safety: compile-time assertion that the store satisfies StoreState
+// Uses the "never" type trick: if StoreState and actual store types don't match,
+// TypeScript will try to assign `true` to `never`, causing a compile-time error.
+// This ensures the store always matches the StoreState interface.
 type _StoreTypeCheck = ReturnType<typeof useSlicedAppStore.getState> extends StoreState ? true : never;
 const _storeTypeCheck: _StoreTypeCheck = true;
 void _storeTypeCheck;
 
 export const useAppStore = useSlicedAppStore;
+
+/**
+ * 导出 shallow 比较器供组件直接使用
+ */
+export { shallow };

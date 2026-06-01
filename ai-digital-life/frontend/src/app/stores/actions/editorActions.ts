@@ -4,23 +4,20 @@ import { buildOutlineFromContent } from "../../../shared/outline";
 import { normalizeWorkspaceRelativePath, mergeDirtyEditorPaths } from "../../workspacePaths";
 import {
   getWorkspaceScopedCacheKey,
-  getFileDocumentCache,
-  getChangePreviewCache,
   FILE_DOCUMENT_CACHE_LIMIT,
   CHANGE_PREVIEW_CACHE_LIMIT,
-  getCachedLru,
-  setCachedLru,
   getNextFileRequestSeq,
   getNextChangePreviewRequestSeq,
   fileRequestSeq,
   changePreviewRequestSeq,
   type CachedFileDocument,
+  getCachedFileDocument,
+  setCachedFileDocument,
+  getCachedChangePreview,
+  setCachedChangePreview,
 } from "../shared";
 import type { FileOutlineItem, IpcResult, WorkspaceFileDocument, WorkspaceChangePreview } from "@ai-digital-life/kernel";
 import type { StoreApi } from "zustand";
-
-const fileDocumentCache = getFileDocumentCache();
-const changePreviewCache = getChangePreviewCache();
 
 type OpenFileConfig = {
   cacheKey: string;
@@ -35,7 +32,7 @@ async function openFileGeneric(
   requestSeq: number,
   config: OpenFileConfig,
 ) {
-  const cachedDocument = getCachedLru(fileDocumentCache, config.cacheKey);
+  const cachedDocument = getCachedFileDocument(config.cacheKey);
 
   const applyDocument = (
     document: CachedFileDocument,
@@ -96,7 +93,7 @@ async function openFileGeneric(
     content: fileResult.data.content,
     lastModifiedAt: fileResult.data.lastModifiedAt,
   };
-  setCachedLru(fileDocumentCache, config.cacheKey, nextDocument, FILE_DOCUMENT_CACHE_LIMIT);
+  setCachedFileDocument(config.cacheKey, nextDocument);
   applyDocument(nextDocument, nextOutline);
 }
 
@@ -115,7 +112,7 @@ async function openChangePreviewGeneric(
 ) {
   set({ changePreviewLoading: true });
 
-  const cachedPreview = getCachedLru(changePreviewCache, config.cacheKey);
+  const cachedPreview = getCachedChangePreview(config.cacheKey);
   if (cachedPreview) {
     set({
       selectedChangePreviewPath: relativePath,
@@ -146,12 +143,7 @@ async function openChangePreviewGeneric(
     });
     return;
   }
-  setCachedLru(
-    changePreviewCache,
-    config.cacheKey,
-    result.data,
-    CHANGE_PREVIEW_CACHE_LIMIT
-  );
+  setCachedChangePreview(config.cacheKey, result.data);
   set({
     selectedChangePreviewPath: relativePath,
     selectedChangePreviewWorkspaceId: config.workspaceId,
