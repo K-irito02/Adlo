@@ -37,7 +37,7 @@ export const browserZh = {
   browserCopyLink: "复制链接",
   browserProxyNote: "部分网站可能无法正常显示，可尝试在外部浏览器打开",
   browserCategoryWorkspace: "工作区目录",
-  browserCategoryUserFolder: "自建目录",
+  browserCategoryUserFolder: "非工作区目录",
   browserCategoryHistory: "历史目录",
   browserCreateDir: "新建目录",
   browserDeleteAllChildTabs: "删除所有子标签",

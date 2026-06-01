@@ -172,6 +172,45 @@ await page.click('.adl-multitree-entry__expand-btn:first-child');
 - 子目录的 `parentId` 通过 4 层回调链传递（WorkspaceBrowserEntry → MultiWorkspaceBrowser → BrowserPanel → browserSlice）
 - 清除 localStorage 后会丢失所有子目录数据
 
+### 目录选中与交互
+
+#### 选中状态：
+- 点击顶级目录或子目录时会显示灰色背景（`--surface-active`）
+- 只有最后被点击的项会显示选中状态
+- 点击页面其他区域会取消选中状态
+
+#### 目录展开/折叠：
+- 点击顶级目录的任何位置都会触发展开/折叠（不仅仅是箭头按钮）
+- 点击子目录的箭头按钮或名称区域会触发展开/折叠
+
+#### 新建子目录功能：
+1. 首先点击选中一个目录（顶级目录或子目录）
+2. 点击导航器工具栏的"新建子目录"按钮
+3. 子目录会创建在当前选中的目录下
+
+#### 相关选择器：
+
+| 选择器 | 说明 |
+|--------|------|
+| `.adl-browser-entry__header` | 顶级目录头部行 |
+| `.adl-browser-entry__header.is-selected` | 选中的顶级目录 |
+| `.adl-filetree__item` | 子目录/文件项 |
+| `.adl-filetree__item.is-selected` | 选中的子目录/文件 |
+| `.adl-browser-entry__expand-btn` | 展开/折叠按钮 |
+
+#### 自动化示例：
+
+```javascript
+// 点击顶级目录选中并展开
+await page.click('.adl-browser-entry__header');
+
+// 点击子目录选中并展开
+await page.click('.adl-filetree__item');
+
+// 点击"新建子目录"按钮
+await page.click('button[aria-label="新建子目录"]');
+```
+
 ---
 
 ## 浏览器内容

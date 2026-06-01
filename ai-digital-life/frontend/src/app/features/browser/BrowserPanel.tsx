@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import {
   IconArrowLeft,
@@ -117,6 +117,38 @@ export function BrowserPanel(props: BrowserPanelProps) {
     folderId: "",
     currentName: "",
   });
+
+  const [selectedTreePath, setSelectedTreePath] = useState<string | null>(null);
+  const selectedTreePathRef = useRef<string | null>(null);
+
+  const handleSelectTreePath = useCallback((path: string | null) => {
+    selectedTreePathRef.current = path;
+    setSelectedTreePath(path);
+  }, []);
+
+  useEffect(() => {
+    const handleGlobalClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const clickedEntry = target.closest(".adl-browser-entry");
+      const clickedFileTreeRow = target.closest(".adl-filetree__row");
+      
+      if (clickedEntry) {
+        if (clickedFileTreeRow) {
+          const row = clickedFileTreeRow as HTMLElement;
+          const nodePath = row.dataset.path;
+          if (nodePath) {
+            handleSelectTreePath(nodePath);
+            return;
+          }
+        }
+        return;
+      }
+      
+      handleSelectTreePath(null);
+    };
+    document.addEventListener("click", handleGlobalClick);
+    return () => document.removeEventListener("click", handleGlobalClick);
+  }, [handleSelectTreePath]);
 
   const {
     browserState,
@@ -417,12 +449,23 @@ export function BrowserPanel(props: BrowserPanelProps) {
                   <IconPlus size={14} decorative />
                 </button>
               </TooltipSimple>
-              <TooltipSimple content="新建目录" placement="top">
+              <TooltipSimple content="新建子目录" placement="top">
                 <button
                   type="button"
                   className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-                  onClick={browserActions.handleCreateTabFolder}
-                  aria-label="新建目录"
+                  onClick={() => {
+                    const path = selectedTreePathRef.current;
+                    if (path && path.startsWith("folder:")) {
+                      const folderId = path.slice("folder:".length);
+                      useAppStore.getState().browserCreateTabFolder(undefined, folderId, 'folder');
+                    } else if (path && path.startsWith("workspace:")) {
+                      const wsId = path.slice("workspace:".length);
+                      useAppStore.getState().browserCreateTabFolder(undefined, wsId, 'workspace');
+                    } else {
+                      useAppStore.getState().browserCreateTabFolder(undefined, undefined, undefined);
+                    }
+                  }}
+                  aria-label="新建子目录"
                 >
                   <IconFolderPlus size={14} decorative />
                 </button>
@@ -446,6 +489,8 @@ export function BrowserPanel(props: BrowserPanelProps) {
               browserTabFolders={browserState.browserTabFolders}
               browserHistory={browserHistory}
               tabTreeExpanded={browserState.tabTreeExpanded}
+              selectedTreePath={selectedTreePath}
+              onSelectTreePath={handleSelectTreePath}
               onTogglePath={browserActions.handleToggleTreePath}
               callbacks={{
                 onCreateTab: browserActions.handleCreateTabInTree,
@@ -472,10 +517,11 @@ export function BrowserPanel(props: BrowserPanelProps) {
               }}
               labels={{
                 workspaceCategory: "工作区目录",
-                userFolderCategory: "自建目录",
+                userFolderCategory: "非工作区目录",
                 historyCategory: "历史目录",
               }}
-            />) : browserState.navigatorMode === "search" ? (
+            />
+          ) : browserState.navigatorMode === "search" ? (
             <div className="adl-tool-navigator__content">
               <div className="adl-tool-navigator__context adl-tool-navigator__context--search">
                 <div className="adl-tool-navigator__summary-stats" role="tablist" aria-label={t.browserSearchTabs}>

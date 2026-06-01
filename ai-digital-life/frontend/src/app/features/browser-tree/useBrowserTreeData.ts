@@ -35,7 +35,7 @@ function buildFolderNode(
   browserTabs: BrowserTabState[],
   depth: number = 0,
 ): BrowserTreeNode {
-  const childFolders = allFolders.filter((f) => f.parentId === folder.id);
+  const childFolders = allFolders.filter((f) => f.parentId === folder.id && (!f.parentType || f.parentType === 'folder'));
   const tabChildren: BrowserTreeNode[] = (folder.tabs ?? [])
     .map((tabId) => {
       const tab = browserTabs.find((t) => t.id === tabId);
@@ -61,6 +61,7 @@ function buildFolderNode(
 export function buildWorkspaceCategoryTree(
   workspaces: RecentWorkspaceEntry[],
   browserTabs: BrowserTabState[],
+  tabFolders: TabFolderState[],
   workspacesExpanded: Record<string, boolean>,
 ): BrowserTreeNode[] {
   return workspaces.map((ws) => {
@@ -69,11 +70,16 @@ export function buildWorkspaceCategoryTree(
       buildTabNode(tab, ws.id, `ws-${ws.id}-${tab.id}`),
     );
 
+    const wsRootFolders = tabFolders.filter((f) => f.parentType === 'workspace' && f.parentId === ws.id);
+    const folderNodes: BrowserTreeNode[] = wsRootFolders.map((folder) =>
+      buildFolderNode(folder, tabFolders, browserTabs),
+    );
+
     return {
       path: `workspace:${ws.id}`,
       name: ws.name || ws.path,
       kind: "directory",
-      children: tabNodes,
+      children: [...folderNodes, ...tabNodes],
       nodeType: "workspace",
       workspaceId: ws.id,
     };
@@ -184,9 +190,9 @@ export function useBrowserTreeData(
       label: labels.workspaceCategory,
       isExpanded: true,
       isPermanent: false,
-      nodes: buildWorkspaceCategoryTree(workspaces, browserTabs, {}),
+      nodes: buildWorkspaceCategoryTree(workspaces, browserTabs, browserTabFolders, {}),
     }),
-    [workspaces, browserTabs, labels.workspaceCategory],
+    [workspaces, browserTabs, browserTabFolders, labels.workspaceCategory],
   );
 
   const userFolderCategory: BrowserCategoryState = useMemo(

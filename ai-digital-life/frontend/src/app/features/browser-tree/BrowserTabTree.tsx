@@ -30,6 +30,8 @@ interface BrowserTabTreeProps {
   browserTabFolders: TabFolderState[];
   browserHistory: BrowserHistoryState[];
   tabTreeExpanded: Record<string, boolean>;
+  selectedTreePath: string | null;
+  onSelectTreePath: (path: string | null) => void;
   onTogglePath: (path: string) => void;
   callbacks: BrowserTabTreeCallbacks;
   labels: BrowserCategoryLabels;
@@ -41,6 +43,8 @@ export function BrowserTabTree({
   browserTabFolders,
   browserHistory,
   tabTreeExpanded,
+  selectedTreePath,
+  onSelectTreePath,
   onTogglePath,
   callbacks,
   labels,
@@ -77,15 +81,17 @@ export function BrowserTabTree({
 
   return (
     <CustomScrollArea
-      shellClassName="adl-multitree adl-multitree--browser"
-      scrollClassName="adl-multitree-scroll"
-      scrollbarClassName="adl-multitree-scrollbar"
-      thumbClassName="adl-multitree-scrollbar__thumb"
-    >
+        shellClassName="adl-multitree adl-multitree--browser"
+        scrollClassName="adl-multitree-scroll"
+        scrollbarClassName="adl-multitree-scrollbar"
+        thumbClassName="adl-multitree-scrollbar__thumb"
+      >
       <BrowserCategorySection
         category={categories.workspaceCategory}
         categoryType="workspace"
         expandedPaths={tabTreeExpanded}
+        selectedTreePath={selectedTreePath}
+        onSelectTreePath={onSelectTreePath}
         onTogglePath={onTogglePath}
         onOpenFile={handleOpenFile}
         callbacks={callbacks}
@@ -94,6 +100,8 @@ export function BrowserTabTree({
         category={categories.userFolderCategory}
         categoryType="userFolder"
         expandedPaths={tabTreeExpanded}
+        selectedTreePath={selectedTreePath}
+        onSelectTreePath={onSelectTreePath}
         onTogglePath={onTogglePath}
         onOpenFile={handleOpenFile}
         callbacks={callbacks}
@@ -103,6 +111,8 @@ export function BrowserTabTree({
         category={categories.historyCategory}
         categoryType="history"
         expandedPaths={tabTreeExpanded}
+        selectedTreePath={selectedTreePath}
+        onSelectTreePath={onSelectTreePath}
         onTogglePath={onTogglePath}
         onOpenFile={handleOpenFile}
         callbacks={callbacks}

@@ -30,6 +30,7 @@ type TreeNodeRowProps = {
   label: React.ReactNode;
   meta?: React.ReactNode;
   children?: React.ReactNode;
+  nodePath?: string;
 };
 
 export function TreeNodeRow({
@@ -61,11 +62,13 @@ export function TreeNodeRow({
   label,
   meta,
   children,
+  nodePath,
 }: TreeNodeRowProps) {
   return (
     <li
       className={`adl-tree-node${isActive ? " is-selected" : ""}${isHovered ? " is-hovered" : ""}${isContextMenuTarget ? " is-context-menu-target" : ""}${itemClassName ? ` ${itemClassName}` : ""}`}
       data-depth={depth}
+      data-path={nodePath}
       style={
         {
           "--adl-filetree-hover-offset": `${Math.max(4, rowOffset)}px`,

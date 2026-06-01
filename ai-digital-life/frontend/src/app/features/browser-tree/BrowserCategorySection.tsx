@@ -19,6 +19,8 @@ interface BrowserCategorySectionProps {
   category: BrowserCategoryState;
   categoryType: BrowserCategoryType;
   expandedPaths: Record<string, boolean>;
+  selectedTreePath: string | null;
+  onSelectTreePath: (path: string | null) => void;
   onTogglePath: (path: string) => void;
   onOpenFile: (path: string) => void;
   callbacks: SectionCallbacks;
@@ -29,6 +31,8 @@ export function BrowserCategorySection({
   category,
   categoryType,
   expandedPaths,
+  selectedTreePath,
+  onSelectTreePath,
   onTogglePath,
   onOpenFile,
   callbacks,
@@ -47,12 +51,12 @@ export function BrowserCategorySection({
         <span className="adl-browser-category__label-text">{category.label}</span>
         {onCreateFolder ? (
           <div className="adl-browser-category__label-action">
-            <TooltipSimple content="新建目录" placement="top">
+            <TooltipSimple content="新建头部目录" placement="top">
               <button
                 type="button"
                 className="adl-icon-btn adl-icon-btn--xs"
                 onClick={onCreateFolder}
-                aria-label="新建目录"
+                aria-label="新建头部目录"
               >
                 <IconFolderPlus size={12} decorative />
               </button>
@@ -71,6 +75,8 @@ export function BrowserCategorySection({
             node={node}
             categoryType={categoryType}
             expandedPaths={expandedPaths}
+            selectedTreePath={selectedTreePath}
+            onSelectTreePath={onSelectTreePath}
             onTogglePath={onTogglePath}
             onOpenFile={handleOpenFile}
             callbacks={callbacks}

@@ -168,6 +168,7 @@ function FileTreeNodeComponent<T extends FileTreeRenderableNode>({
       indentClassName={`adl-filetree__indent${flat ? " adl-filetree__indent--flat" : ""}`}
       labelContentClassName="adl-filetree__node-main"
       label={node.name}
+      nodePath={node.path}
       iconBefore={isDirectory ? undefined : (
         <span className={`adl-filetree__file-icon adl-filetree__file-icon--${fileVisual?.tone ?? "default"}`}>
           <span className="adl-filetree__file-badge" aria-hidden="true">

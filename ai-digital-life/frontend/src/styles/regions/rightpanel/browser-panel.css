@@ -922,10 +922,25 @@
   cursor: default;
   user-select: none;
   position: relative;
+  width: calc(100% + 4px);
+  margin-inline-start: -4px;
+  padding-inline-start: calc(4px);
+  border-radius: 0;
+  box-sizing: border-box;
 }
 
 .adl-browser-entry__header:hover {
   background: var(--surface-hover);
+}
+
+.adl-browser-entry__header.is-selected {
+  background: var(--surface-active) !important;
+  color: var(--text-primary) !important;
+}
+
+.adl-browser-entry__header.is-selected:hover {
+  background: var(--surface-active) !important;
+  color: var(--text-primary) !important;
 }
 
 /* Expand wrapper — matches Files feature's 28px wide hit area */

@@ -10,6 +10,8 @@ interface BrowserTreeEntryProps {
   node: BrowserTreeNode;
   categoryType: BrowserCategoryType;
   expandedPaths: Record<string, boolean>;
+  selectedTreePath: string | null;
+  onSelectTreePath: (path: string | null) => void;
   onTogglePath: (path: string) => void;
   onOpenFile: (path: string) => void;
   callbacks: SectionCallbacks;
@@ -125,10 +127,23 @@ export function BrowserTreeEntry({
   node,
   categoryType,
   expandedPaths,
+  selectedTreePath,
+  onSelectTreePath,
   onTogglePath,
   onOpenFile,
   callbacks,
 }: BrowserTreeEntryProps) {
+
+  const isSelected = selectedTreePath === node.path;
+  
+  const handleHeaderClick = useCallback(
+    () => {
+      // 点击顶级目录同时触发展开/折叠
+      onTogglePath(node.path);
+      onSelectTreePath(node.path);
+    },
+    [node.path, onSelectTreePath, onTogglePath],
+  );
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const [childMenuState, setChildMenuState] = useState<{
@@ -233,21 +248,36 @@ export function BrowserTreeEntry({
     [categoryType, callbacks],
   );
 
+  const handleChildClick = useCallback((path: string) => {
+    // 点击子目录时更新选中状态，并且触发展开/折叠
+    onSelectTreePath(path);
+    onTogglePath(path);
+  }, [onSelectTreePath, onTogglePath]);
+
+  const handleChildOpenFile = useCallback((path: string) => {
+    // 打开文件时先设置选中状态，然后再调用原有的 onOpenFile
+    onSelectTreePath(path);
+    onOpenFile(path);
+  }, [onSelectTreePath, onOpenFile]);
+
   return (
     <div className="adl-browser-entry">
-      <div className="adl-browser-entry__header">
+      <div 
+        className={`adl-browser-entry__header${isSelected ? " is-selected" : ""}`}
+        onClick={handleHeaderClick}
+      >
         <div className="adl-browser-entry__expand">
           <button
             type="button"
             className={`adl-browser-entry__expand-btn${isExpanded ? " is-expanded" : ""}`}
-            onClick={() => onTogglePath(node.path)}
+            onClick={(e) => { e.stopPropagation(); onTogglePath(node.path); }}
             aria-label={isExpanded ? "收起" : "展开"}
             aria-expanded={isExpanded}
           >
             {isExpanded ? <IconFolderOpen size={14} decorative /> : <IconFolder size={14} decorative />}
           </button>
         </div>
-        <div className="adl-browser-entry__namezone" onClick={() => onTogglePath(node.path)} onKeyDown={(e) => { if (e.key === "Enter") onTogglePath(node.path); }} role="button" tabIndex={0}>
+        <div className="adl-browser-entry__namezone" onKeyDown={(e) => { if (e.key === "Enter") onSelectTreePath(node.path); }} role="button" tabIndex={0}>
           <span className="adl-browser-entry__name" title={node.name}>{node.name}</span>
           <div className="adl-browser-entry__trailing">
             <span className="adl-browser-entry__count">{count}</span>
@@ -291,9 +321,10 @@ export function BrowserTreeEntry({
         <div className="adl-browser-entry__tree">
           <FileTree<BrowserTreeNode>
             nodes={node.children}
+            selectedFilePath={selectedTreePath ?? undefined}
             expandedPaths={expandedPaths}
-            onToggle={onTogglePath}
-            onOpenFile={onOpenFile}
+            onToggle={handleChildClick}
+            onOpenFile={handleChildOpenFile}
             renderMeta={renderChildMeta}
             expandLabel="展开"
             collapseLabel="收起"
