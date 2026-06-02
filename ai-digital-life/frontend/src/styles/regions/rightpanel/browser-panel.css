@@ -1069,13 +1069,46 @@
   gap: 2px;
   opacity: 0;
   pointer-events: none;
-  transition: opacity var(--duration-150) var(--ease-default);
-  margin-left: auto;
 }
 
 .adl-tree-node__row:hover .adl-browser-node__actions,
 .adl-filetree__row:hover .adl-browser-node__actions {
   opacity: 1;
   pointer-events: auto;
+}
+
+.adl-browser-entry__tree .adl-filetree__meta.adl-tree-node__meta--inline {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  padding: 0 8px;
+  background: var(--bg-occlusion);
+  z-index: 2;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.adl-browser-entry__tree .adl-filetree__item.is-selected > .adl-filetree__row:hover .adl-filetree__meta.adl-tree-node__meta--inline {
+  background: var(--bg-occlusion-active);
+}
+
+.adl-browser-entry__tree .adl-filetree__row:hover .adl-filetree__meta.adl-tree-node__meta--inline {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.adl-browser-entry__tree .adl-filetree__label {
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.adl-browser-entry__tree .adl-filetree__label .adl-tree-node__label-text {
+  overflow: visible;
+  text-overflow: clip;
 }
 

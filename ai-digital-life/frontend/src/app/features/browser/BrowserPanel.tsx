@@ -19,7 +19,7 @@ import {
   IconFiles,
   IconList,
   IconLayoutList,
-  IconBack,
+  IconReturn,
   IconGlobe,
   IconFoldVertical,
   IconUnfoldVertical,
@@ -363,14 +363,14 @@ export function BrowserPanel(props: BrowserPanelProps) {
             </div>
             <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--utility">
               <span className="adl-tool-navigator__context-count">{openTabCount}</span>
-              <TooltipSimple content="已打开标签" placement="top">
+              <TooltipSimple content={browserShowTabButtons ? "后退" : "已打开标签"} placement="top">
                 <button
                   type="button"
                   className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${browserShowTabButtons ? " is-active" : ""}`}
                   onClick={handleToggleTabButtons}
-                  aria-label="已打开标签"
+                  aria-label={browserShowTabButtons ? "后退" : "已打开标签"}
                 >
-                  {browserShowTabButtons ? <IconBack size={14} decorative /> : <IconList size={14} decorative />}
+                  {browserShowTabButtons ? <IconReturn size={14} decorative /> : <IconList size={14} decorative />}
                 </button>
               </TooltipSimple>
             </div>
@@ -449,27 +449,29 @@ export function BrowserPanel(props: BrowserPanelProps) {
                   <IconPlus size={14} decorative />
                 </button>
               </TooltipSimple>
-              <TooltipSimple content="新建子目录" placement="top">
-                <button
-                  type="button"
-                  className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-                  onClick={() => {
-                    const path = selectedTreePathRef.current;
-                    if (path && path.startsWith("folder:")) {
-                      const folderId = path.slice("folder:".length);
-                      useAppStore.getState().browserCreateTabFolder(undefined, folderId, 'folder');
-                    } else if (path && path.startsWith("workspace:")) {
-                      const wsId = path.slice("workspace:".length);
-                      useAppStore.getState().browserCreateTabFolder(undefined, wsId, 'workspace');
-                    } else {
-                      useAppStore.getState().browserCreateTabFolder(undefined, undefined, undefined);
-                    }
-                  }}
-                  aria-label="新建子目录"
-                >
-                  <IconFolderPlus size={14} decorative />
-                </button>
-              </TooltipSimple>
+              {!browserShowTabButtons && (
+                <TooltipSimple content="新建目录" placement="top">
+                  <button
+                    type="button"
+                    className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
+                    onClick={() => {
+                      const path = selectedTreePathRef.current;
+                      if (path && path.startsWith("folder:")) {
+                        const folderId = path.slice("folder:".length);
+                        useAppStore.getState().browserCreateTabFolder(undefined, folderId, 'folder');
+                      } else if (path && path.startsWith("workspace:")) {
+                        const wsId = path.slice("workspace:".length);
+                        useAppStore.getState().browserCreateTabFolder(undefined, wsId, 'workspace');
+                      } else {
+                        useAppStore.getState().browserCreateTabFolder(undefined, undefined, undefined);
+                      }
+                    }}
+                    aria-label="新建目录"
+                  >
+                    <IconFolderPlus size={14} decorative />
+                  </button>
+                </TooltipSimple>
+              )}
               <TooltipSimple content={browserShowTabButtons ? "清空所有已打开标签" : "删除全部目录标签"} placement="top">
                 <button
                   type="button"
@@ -494,7 +496,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
               onTogglePath={browserActions.handleToggleTreePath}
               callbacks={{
                 onCreateTab: browserActions.handleCreateTabInTree,
-                onCreateFolder: browserActions.handleCreateTabFolder,
                 onDeleteAllChildTabs: browserActions.handleDeleteAllChildTabs,
                 onOpenAllInNewTabs: browserActions.handleOpenAllInNewTabs,
                 onRemoveFromArea: browserActions.handleRemoveFromArea,

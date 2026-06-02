@@ -106,7 +106,6 @@ export interface UseBrowserPanelReturn {
     handleRemoveFromArea: (workspaceId: string) => void;
     handleDeleteDirectory: (folderId: string) => void;
     handleDeleteHistoryLevel: (level: "label" | "year" | "month" | "day", nodePath: string) => void;
-    handleCreateTabFolder: () => void;
     handleExpandAllTree: () => void;
     handleCollapseAllTree: () => void;
   };
@@ -486,10 +485,6 @@ export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDis
     browserDeleteHistoryByLevel(level, nodePath);
   }, [browserDeleteHistoryByLevel]);
 
-  const handleCreateTabFolder = useCallback(() => {
-    useAppStore.getState().browserCreateTabFolder(undefined, undefined);
-  }, []);
-
   const handleExpandAllTree = useCallback(() => {
     const state = useAppStore.getState();
     const paths: string[] = [];
@@ -781,7 +776,6 @@ export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDis
       handleRemoveFromArea,
       handleDeleteDirectory,
       handleDeleteHistoryLevel,
-      handleCreateTabFolder,
       handleExpandAllTree,
       handleCollapseAllTree,
     },

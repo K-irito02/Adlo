@@ -111,6 +111,8 @@ body,
   --bg-input: #ffffff;
   --bg-hover: rgba(34, 34, 34, 0.06);
   --bg-active: rgba(34, 34, 34, 0.1);
+  --bg-occlusion: #ebebeb;
+  --bg-occlusion-active: #e2e2e2;
 
   /* === Surface System === */
   --surface: #f8f8f8;
@@ -298,6 +300,8 @@ body,
   --bg-input: #1c1c1c;
   --bg-hover: rgba(255, 255, 255, 0.08);
   --bg-active: rgba(255, 255, 255, 0.12);
+  --bg-occlusion: #262626;
+  --bg-occlusion-active: #313131;
 
   /* === Surface System === */
   --surface: #141414;

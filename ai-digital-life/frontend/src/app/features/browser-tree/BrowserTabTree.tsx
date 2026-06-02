@@ -14,7 +14,6 @@ interface BrowserCategoryLabels {
 
 interface BrowserTabTreeCallbacks {
   onCreateTab: (workspaceId?: string, folderId?: string) => void;
-  onCreateFolder: () => void;
   onDeleteAllChildTabs: (categoryType: BrowserCategoryType, nodePath: string) => void;
   onOpenAllInNewTabs: (categoryType: BrowserCategoryType, nodePath: string) => void;
   onRemoveFromArea: (workspaceId: string) => void;
@@ -105,7 +104,6 @@ export function BrowserTabTree({
         onTogglePath={onTogglePath}
         onOpenFile={handleOpenFile}
         callbacks={callbacks}
-        onCreateFolder={callbacks.onCreateFolder}
       />
       <BrowserCategorySection
         category={categories.historyCategory}

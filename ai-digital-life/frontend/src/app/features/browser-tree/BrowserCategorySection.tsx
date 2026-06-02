@@ -1,6 +1,4 @@
 import React, { useCallback } from "react";
-import { IconFolderPlus } from "../../icons";
-import { TooltipSimple } from "../../components/Tooltip";
 import { BrowserTreeEntry } from "./BrowserTreeEntry";
 import type { BrowserCategoryState, BrowserCategoryType, BrowserTreeNode } from "./types";
 
@@ -24,7 +22,6 @@ interface BrowserCategorySectionProps {
   onTogglePath: (path: string) => void;
   onOpenFile: (path: string) => void;
   callbacks: SectionCallbacks;
-  onCreateFolder?: () => void;
 }
 
 export function BrowserCategorySection({
@@ -36,7 +33,6 @@ export function BrowserCategorySection({
   onTogglePath,
   onOpenFile,
   callbacks,
-  onCreateFolder,
 }: BrowserCategorySectionProps) {
   const handleOpenFile = useCallback(
     (path: string) => onOpenFile(path),
@@ -49,23 +45,9 @@ export function BrowserCategorySection({
     <div className="adl-browser-category">
       <div className="adl-browser-category__label">
         <span className="adl-browser-category__label-text">{category.label}</span>
-        {onCreateFolder ? (
-          <div className="adl-browser-category__label-action">
-            <TooltipSimple content="新建头部目录" placement="top">
-              <button
-                type="button"
-                className="adl-icon-btn adl-icon-btn--xs"
-                onClick={onCreateFolder}
-                aria-label="新建头部目录"
-              >
-                <IconFolderPlus size={12} decorative />
-              </button>
-            </TooltipSimple>
-          </div>
-        ) : null}
         <span className="adl-browser-category__label-count">{totalCount}</span>
       </div>
-      {(categoryType === "workspace" || categoryType === "history") && !onCreateFolder && (
+      {(categoryType === "workspace" || categoryType === "history") && (
         <div className="adl-browser-category__spacer" />
       )}
       <div className="adl-browser-category__entries">

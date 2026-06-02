@@ -192,7 +192,7 @@ export function FilesPanel(props: FilesPanelProps) {
           <TooltipSimple content={navigatorMode === "search" ? t.browserBack : t.search} placement="top">
             <button
               type="button"
-              className="adl-tool-context__iconbtn"
+              className={`adl-tool-context__iconbtn${navigatorMode === "search" ? " is-active" : ""}`}
               onClick={() => setNavigatorMode(navigatorMode === "search" ? "tree" : "search")}
               aria-label={(navigatorMode === "search" ? t.browserBack : t.search) as string}
             >
