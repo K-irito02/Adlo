@@ -15,7 +15,7 @@ alwaysApply: true
 | 连接用户现有 Chrome、坐标点击 | Browser Harness | 基于 CDP，需 Chrome 调试模式 |
 | 仅静态截图 | Playwright CLI | 轻量级，无交互能力 |
 
-> 详细用法参见 [browser-automation 技能](../skills/browser-automation/SKILL.md)
+> 详细用法参见 [browser-automation 技能](../../.opencode/skills/browser-automation/SKILL.md)
 
 ## 核心经验教训
 
@@ -212,9 +212,9 @@ agent-browser --session test close --all
 
 ## 相关文件
 
-- [browser-automation 技能](../skills/browser-automation/SKILL.md)
-- [integrated_browser 工具参考](../skills/browser-automation/references/integrated-browser.md)
+- [browser-automation 技能](../../.opencode/skills/browser-automation/SKILL.md)
+- [integrated_browser 工具参考](../../.opencode/skills/browser-automation/references/integrated-browser.md)
 - [desktop-ui-verification.md](./desktop-ui-verification.md)
 - [commands.md](./commands.md)
-- [步骤清单模板](../skills/browser-automation/scripts/_template-checklist.md)
-- [经验教训总结](../skills/browser-automation/scripts/lessons-learned.md)
+- [步骤清单模板](../../.opencode/skills/browser-automation/scripts/_template-checklist.md)
+- [经验教训总结](../../.opencode/skills/browser-automation/scripts/lessons-learned.md)

@@ -8,7 +8,7 @@
 
 | 目录 | 职责 |
 |------|------|
-| `notes/` | 规划与治理：`AGENTS.md`、`docs/`、`.agents/` |
+| 仓库根目录 | 规划与治理：`AGENTS.md`、`docs/`、`.agents/` |
 | `ai-digital-life/` | 实现工作区：Rust + Tauri 桌面应用 + WebView 前端 |
 
 ## 技术栈
@@ -110,4 +110,4 @@
 - [ai-digital-life/AGENTS.md](ai-digital-life/AGENTS.md) — 实现工作区治理
 - [FUTURE-ROADMAP.md](./FUTURE-ROADMAP.md) — 远期规划
 - [docs/development/project-engineering-constraints.md](./docs/development/project-engineering-constraints.md) — 工程约束
-- [docs/重构洞察/REFACTORING_PROGRESS_REPORT.md](./docs/重构洞察/REFACTORING_PROGRESS_REPORT.md) — 23 轮重构完整记录
+- [docs/重构洞察/REFACTORING_PROGRESS_REPORT.md](./docs/重构洞察/REFACTORING_PROGRESS_REPORT.md) — 29 轮重构完整记录

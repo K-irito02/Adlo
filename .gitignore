@@ -48,5 +48,9 @@ test-artifacts/
 # Trae auto-generated code review snapshots (pre-push review artifacts)
 trae-agentReviewBeforePushToRemote/
 
-# Windows reserved device name (causes git index errors)
-nul
+# Trae IDE regeneratable config (can be recreated from .agents/rules/ and .opencode/skills/)
+.trae/rules/
+.trae/skills/
+.trae/commands/
+.trae/documents/
+.trae/specs/

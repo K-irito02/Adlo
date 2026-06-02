@@ -26,7 +26,7 @@ alwaysApply: false
 
 ### 使用浏览器自动化工具验证
 
-> 工具选择和详细用法参见 [browser-automation.md](./browser-automation.md) 和 [browser-automation 技能](../skills/browser-automation/SKILL.md)
+> 工具选择和详细用法参见 [browser-automation.md](./browser-automation.md) 和 [browser-automation 技能](../../.opencode/skills/browser-automation/SKILL.md)
 
 ## 双端验证清单
 

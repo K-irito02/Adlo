@@ -39,9 +39,9 @@ alwaysApply: true
 - [ ] 是否需要新增持久化存储？
 - [ ] 是否需要同步文档更新？
 
-详见 [FUTURE-ROADMAP.md](../FUTURE-ROADMAP.md)
+详见 [FUTURE-ROADMAP.md](../../FUTURE-ROADMAP.md)
 
 ## 相关文件
 
-- [AGENTS.md](../AGENTS.md)
-- [FUTURE-ROADMAP.md](../FUTURE-ROADMAP.md)
+- [AGENTS.md](../../AGENTS.md)
+- [FUTURE-ROADMAP.md](../../FUTURE-ROADMAP.md)

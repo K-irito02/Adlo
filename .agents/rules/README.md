@@ -28,7 +28,7 @@ alwaysApply: true
 
 ## 新增规则
 
-1. 在 `.trae/rules/` 新增 `*.md` 文件
+1. 在 `.agents/rules/` 新增 `*.md` 文件
 2. YAML 头部必填：`description`（英文）、`alwaysApply` 或 `globs`
 3. 在上表增加一行
 

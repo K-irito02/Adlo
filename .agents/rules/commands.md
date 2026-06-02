@@ -104,7 +104,7 @@ agent-browser --session test snapshot -i
 agent-browser --session test close --all
 ```
 
-> 详细文档：[browser-automation 技能](../skills/browser-automation/SKILL.md)
+> 详细文档：[browser-automation 技能](../../.opencode/skills/browser-automation/SKILL.md)
 
 ## ⚠️ Node.js 环境变量
 
@@ -123,7 +123,7 @@ Node.js 安装路径：`D:\Program Files\nodejs`（v24.15.0）
 - [ai-digital-life/package.json](/E:/Programs/Obsidian/notes/ai-digital-life/package.json)
 - [ai-digital-life/vitest.config.ts](/E:/Programs/Obsidian/notes/ai-digital-life/vitest.config.ts)
 - [browser-automation.md](./browser-automation.md)
-- [browser-automation 技能](../skills/browser-automation/SKILL.md)
+- [browser-automation 技能](../../.opencode/skills/browser-automation/SKILL.md)
 
 ## 相关规则文件
 

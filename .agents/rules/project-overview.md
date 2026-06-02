@@ -9,7 +9,7 @@ alwaysApply: true
 
 | 目录 | 职责 |
 |------|------|
-| `notes/` | 规划与治理：文档、`AGENTS.md`、`docs/development/` |
+| 仓库根目录 | 规划与治理：文档、`AGENTS.md`、`docs/development/` |
 | `ai-digital-life/` | 实现工作区：Rust + Tauri 桌面应用 + WebView 前端 |
 
 ## 技术栈
@@ -59,7 +59,7 @@ alwaysApply: true
 | 功能模块（features/） | `ai-digital-life/frontend/src/app/features/` |
 | Vite 配置 | `ai-digital-life/frontend/vite.config.ts` |
 | 重构进度 | `docs/重构洞察/REFACTORING_PROGRESS_REPORT.md` |
-| 重构总结 | `docs/reorganization/` |
+| 重构总结 | `docs/重构洞察/` |
 
 ## 任务路由
 
