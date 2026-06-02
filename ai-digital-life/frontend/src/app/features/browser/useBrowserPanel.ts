@@ -147,6 +147,34 @@ function filterBrowserItems<T extends { title: string; url: string }>(items: T[]
 
 const log = (msg: string) => console.log(`[Browser] ${msg}`);
 
+export function computeNavigatorCount(
+  navigatorMode: BrowserNavigatorMode,
+  query: string,
+  browserTabs: BrowserTabState[],
+  browserBookmarks: Array<{ title: string; url: string }>,
+  browserHistory: Array<{ title: string; url: string; visitedAt: number }>,
+  searchResults: Array<{ title: string; url: string; source: string }>,
+  filteredBookmarks: Array<{ title: string; url: string }>,
+  filteredHistory: Array<{ title: string; url: string }>,
+): number {
+  if (navigatorMode === "tabs") {
+    return browserTabs.length;
+  }
+  if (navigatorMode === "search") {
+    return searchResults.length;
+  }
+  if (query.trim()) {
+    return navigatorMode === "bookmarks" ? filteredBookmarks.length : filteredHistory.length;
+  }
+  if (navigatorMode === "bookmarks") {
+    return browserBookmarks.length;
+  }
+  if (navigatorMode === "history") {
+    return browserHistory.length;
+  }
+  return 0;
+}
+
 function findFolderByIdLocal(folders: Array<{ id: string; children?: unknown[] }>, folderId: string): { id: string; tabs?: string[] } | null {
   for (const folder of folders) {
     if (folder.id === folderId) return folder as { id: string; tabs?: string[] };
@@ -266,15 +294,21 @@ export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDis
   }, [filteredBookmarks, filteredHistory, searchScope, t.browserHistoryTabs, t.browserSavedTabs]);
 
   const navigatorItemsCount =
-    navigatorMode === "bookmarks" ? browserBookmarks.length : 
-    navigatorMode === "history" ? browserHistory.length : 
+    navigatorMode === "bookmarks" ? browserBookmarks.length :
+    navigatorMode === "history" ? browserHistory.length :
     0;
-  const navigatorCount = navigatorMode === "tabs" ? browserTabs.length :
-                         navigatorMode === "search" ? searchResults.length : 
-                         navigatorQuery.trim() ? (navigatorMode === "bookmarks" ? filteredBookmarks.length : filteredHistory.length) : 
-                         navigatorItemsCount;
+  const navigatorCount = computeNavigatorCount(
+    navigatorMode,
+    navigatorQuery,
+    browserTabs,
+    browserBookmarks,
+    browserHistory,
+    searchResults,
+    filteredBookmarks,
+    filteredHistory,
+  );
 
-  const navigatorTitle = navigatorMode === "tabs" ? "标签目录" :
+  const navigatorTitle = navigatorMode === "tabs" ? t.browserOpenTabs :
                          navigatorMode === "bookmarks" ? t.browserSavedTabs :
                          navigatorMode === "history" ? t.browserHistoryTabs :
                          t.browserSearchTabs;

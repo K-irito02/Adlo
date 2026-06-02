@@ -1,4 +1,5 @@
 import React, { Component, type ReactNode } from "react";
+import { IconAlertTriangle } from "../icons";
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -44,7 +45,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
           textAlign: "center",
           height: "100%"
         }}>
-          <span style={{ fontSize: "24px" }}>⚠</span>
+          <IconAlertTriangle size={24} decorative className="adl-error-boundary__icon" />
           <p>该面板遇到意外错误，已降级保护。</p>
           <button
             onClick={() => this.setState({ hasError: false, error: null })}

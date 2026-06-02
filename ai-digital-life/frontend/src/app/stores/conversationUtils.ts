@@ -1,5 +1,6 @@
 import type { AppInfo, ConversationDetail } from "@ai-digital-life/kernel";
 import { copy } from "../i18n";
+import { getAppCopy as getAppCopyFromI18n } from "../i18n/getAppCopy";
 import { loadConversationState } from "./loaders";
 
 export function sessionFallbackTitle(appInfo?: AppInfo): string {
@@ -8,6 +9,10 @@ export function sessionFallbackTitle(appInfo?: AppInfo): string {
 
 export function workspaceContextModeFromInfo(appInfo?: AppInfo): "workspace" | "global" {
   return appInfo?.currentWorkspace ? "workspace" : "global";
+}
+
+export function getAppCopy(appInfo?: AppInfo) {
+  return getAppCopyFromI18n(appInfo);
 }
 
 export function hasConversationMessages(detail?: ConversationDetail): boolean {

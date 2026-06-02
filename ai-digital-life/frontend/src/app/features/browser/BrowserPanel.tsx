@@ -67,14 +67,14 @@ function SearchResultItem({
       onKeyDown={(e) => { if (e.key === "Enter") onClick(); }}
     >
       <IconGlobe size={14} decorative className="adl-browser-search-result-item__icon" />
-      <div className="adl-browser-search-result-item__content">
-        <div className="adl-browser-search-result-item__title" title={item.title}>
-          {item.title}
+        <div className="adl-browser-search-result-item__content">
+          <div className="adl-browser-search-result-item__title">
+            {item.title}
+          </div>
+          <div className="adl-browser-search-result-item__url">
+            {item.url}
+          </div>
         </div>
-        <div className="adl-browser-search-result-item__url" title={item.url}>
-          {item.url}
-        </div>
-      </div>
       {item.source && (
         <div className="adl-browser-search-result-item__source">
           {item.source}
@@ -162,9 +162,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
     [recentWorkspaces]
   );
 
-  const openTabCount = useMemo(() => {
-    return browserState.browserTabs.length;
-  }, [browserState.browserTabs]);
+  const openTabCount = browserState.navigatorCount;
 
   const navigatorTitle = useMemo(() => {
     if (browserShowTabButtons) {
@@ -630,7 +628,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
               <button
                 type="button"
                 className={`adl-browser-external-btn ${browserState.iframeLoadError ? 'adl-browser-external-btn--prominent' : ''}`}
-                title={t.browserOpenExternal}
                 onClick={() => {
                   const url = browserState.activeTab?.url ?? "about:blank";
                   if (isTauriShell()) {

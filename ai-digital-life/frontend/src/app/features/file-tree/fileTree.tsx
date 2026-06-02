@@ -41,6 +41,7 @@ export interface FileTreeProps<T extends FileTreeRenderableNode> {
   onToggle: (path: string) => void;
   onOpenFile: (relativePath: string) => void;
   renderMeta?: (node: T) => React.ReactNode;
+  renderCount?: (node: T) => React.ReactNode;
   getNodeClassName?: (node: T) => string | undefined;
   getContextMenuItems?: (node: T, multiSelectedNodes: T[]) => FileTreeContextMenuItem<T>[];
   contextMenuPersistRef?: React.MutableRefObject<boolean>;
@@ -63,6 +64,7 @@ interface FileTreeNodeProps<T extends FileTreeRenderableNode> {
   onToggle: (path: string) => void;
   onOpenFile: (relativePath: string, event: React.MouseEvent<HTMLButtonElement>) => void;
   renderMeta?: (node: T) => React.ReactNode;
+  renderCount?: (node: T) => React.ReactNode;
   getNodeClassName?: (node: T) => string | undefined;
   onShowContextMenu?: (event: React.MouseEvent<HTMLDivElement>, node: T) => void;
   onMouseEnter?: () => void;
@@ -119,6 +121,7 @@ function FileTreeNodeComponent<T extends FileTreeRenderableNode>({
   onToggle,
   onOpenFile,
   renderMeta,
+  renderCount,
   getNodeClassName,
   onShowContextMenu,
   onMouseEnter,
@@ -138,6 +141,7 @@ function FileTreeNodeComponent<T extends FileTreeRenderableNode>({
   const isExternal = node.path === externalChangePath;
   const fileVisual = isDirectory ? undefined : getFileTreeVisualSpec(node);
   const customMeta = renderMeta?.(node);
+  const customCount = renderCount?.(node);
   const nodeClassName = getNodeClassName?.(node);
 
   const handleActivate = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
@@ -176,6 +180,8 @@ function FileTreeNodeComponent<T extends FileTreeRenderableNode>({
           </span>
         </span>
       )}
+      count={customCount}
+      countClassName="adl-filetree__count"
       meta={(customMeta || isExternal || isDirty) ? (
         <>
           {customMeta}
@@ -205,6 +211,7 @@ function FileTreeNodeComponent<T extends FileTreeRenderableNode>({
               onToggle={onToggle}
               onOpenFile={onOpenFile}
               renderMeta={renderMeta}
+              renderCount={renderCount}
               getNodeClassName={getNodeClassName}
               onShowContextMenu={onShowContextMenu}
               expandLabel={expandLabel}
@@ -228,6 +235,7 @@ function areFileTreeNodePropsEqual<T extends FileTreeRenderableNode>(
     previous.onToggle !== next.onToggle ||
     previous.onOpenFile !== next.onOpenFile ||
     previous.renderMeta !== next.renderMeta ||
+    previous.renderCount !== next.renderCount ||
     previous.getNodeClassName !== next.getNodeClassName ||
     previous.onShowContextMenu !== next.onShowContextMenu ||
     previous.expandLabel !== next.expandLabel ||
@@ -391,6 +399,7 @@ export function FileTree<T extends FileTreeRenderableNode>(props: FileTreeProps<
               dirtyPaths={props.dirtyPaths}
               externalChangePath={props.externalChangePath}
               renderMeta={props.renderMeta}
+              renderCount={props.renderCount}
               getNodeClassName={props.getNodeClassName}
               flat={props.flat}
               activePath={activePath}

@@ -142,6 +142,55 @@ await page.fill('.adl-tool-search--navigator input', '关键词');
 - 点击在新标签页打开
 - 使用自定义滚动条，位于左侧（left: 6px），z-index: 3
 
+### 计数规则
+
+导航器各级节点的右端数字含义如下：
+
+| 节点类型 | 计数含义 | 示例 |
+|---------|---------|------|
+| 分类行（"工作区" / "自建" / "历史"） | 该分类下的**顶级目录数** | "工作区 3" = 3 个工作区 |
+| 顶级目录 | **直接子标签数**（不含子目录） | "前端项目 5" = 5 个直接子标签 |
+| 子目录（非历史） | **直接子节点数**（子目录 + 标签） | "Web 8" = 8 个直接子节点 |
+| 历史子目录 | **直接子节点数**（同历史子目录） | "今天 12" = 12 条今天的历史 |
+| URL 标签 / 历史条目 | **不显示计数** | （无数字） |
+
+**显示行为**：
+- 计数为 `0` 也要显示（"Web 0"），仅当节点是 `file` 类型才隐藏
+- 鼠标悬停整行时计数自动隐藏，露出"删除 / 重命名 / 移动"操作按钮
+- 顶级目录计数右偏移 `var(--space-3)`（12px），子目录计数也右偏移 `var(--space-3)` 保证像素级对齐（DOM `getBoundingClientRect().right` 实测一致）
+
+### 导航器头部计数（2026-06-02 修订）
+
+浏览器面板头部（地址栏右侧）显示的标题 + 计数随当前 `navigatorMode` 模式变化：
+
+| 模式 | 标题文案 | 计数来源 |
+|------|---------|---------|
+| `tabs` | `t.browserOpenTabs`（中文"已打开标签" / 英文"Open Tabs"） | `browserTabs.length` |
+| `bookmarks` | `t.navigatorTitleBookmarks` | `browserBookmarks.length` |
+| `history` | `t.navigatorTitleHistory` | `browserHistory.length` |
+| `search` | `t.navigatorTitleSearch` | `browserSearchResults.length`（带 query 时回退到过滤后长度） |
+
+> 历史变更：第 28 轮之前固定显示"标签目录 N"——其中 N 仅 `browserTabs.length`，与标题"标签目录"语义不一致，且对 `bookmarks/history/search` 模式不适用。现已改为模式感知，由 `useBrowserPanel.computeNavigatorCount` 纯函数计算。
+
+**自动化要点**：
+
+```javascript
+// 获取某行的计数文本
+const text = await page.locator('.adl-browser-entry__header .adl-browser-entry__trailing').textContent();
+
+// 判定行类型
+const isCategory = await page.locator('.adl-multitree-category__row').count() > 0;
+const isFile = await page.locator('.adl-filetree__item--file').count() > 0;
+```
+
+**相关选择器**：
+
+| 选择器 | 说明 |
+|--------|------|
+| `.adl-browser-entry__trailing` | 顶级目录计数容器（位于头部行右侧） |
+| `.adl-filetree__count` | 子目录/文件计数容器 |
+| `.adl-tree-node__count` | 通用树节点计数容器 |
+
 ### 收藏标签
 
 ```javascript

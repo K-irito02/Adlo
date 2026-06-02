@@ -39,6 +39,7 @@ export const browserZh = {
   browserCategoryWorkspace: "工作区目录",
   browserCategoryUserFolder: "非工作区目录",
   browserCategoryHistory: "历史目录",
+  browserOpenTabs: "已打开标签",
   browserCreateDir: "新建目录",
   browserDeleteAllChildTabs: "删除所有子标签",
   browserOpenAllInNewTabs: "全部在新标签中打开",

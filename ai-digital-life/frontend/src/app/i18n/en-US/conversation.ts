@@ -100,4 +100,12 @@ export const conversationEn = {
   validationErrors: "Errors",
   validationWarnings: "Warnings",
   validationPassed: "Passed",
+  patchesNoneApplyable: "There are no patches available to apply.",
+  patchesNoneRollback: "There are no patches available to roll back.",
+  clearCommandNotImplemented: "`/clear` is not yet implemented. Use the sidebar's \"New session\" to start a new thread, or delete the current session.",
+  composerContextPrefix: "[Context Notes]",
+  composerStructuredPlan: "Based on the current workspace and the notes above, produce a structured plan with steps and risk levels.",
+  selectionPromptZh: "请基于以下选区继续工作：\n",
+  browserDefaultTabTitle: "New tab",
+  browserNewFolderName: "New folder",
 } as const;

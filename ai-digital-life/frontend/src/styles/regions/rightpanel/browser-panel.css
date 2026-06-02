@@ -997,6 +997,29 @@
   flex-shrink: 0;
   min-width: 18px;
   text-align: right;
+  transition: opacity var(--duration-150) var(--ease-default);
+}
+
+.adl-browser-entry__namezone:hover .adl-browser-entry__count {
+  opacity: 0;
+}
+
+/* Child directory count inside FileTree — hide on row hover so action buttons take over.
+   Absolutely position so the digit right edge lands at the same X as the top-level count
+   (row padding-box right - var(--space-3)). */
+.adl-browser-entry__tree .adl-filetree__count {
+  position: absolute;
+  right: var(--space-3);
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+
+.adl-browser-entry__tree .adl-filetree__row:hover .adl-filetree__count,
+.adl-browser-entry__tree .adl-filetree__row:focus-within .adl-filetree__count {
+  opacity: 0;
 }
 
 .adl-browser-entry__expand-btn {
@@ -1100,15 +1123,5 @@
 .adl-browser-entry__tree .adl-filetree__row:hover .adl-filetree__meta.adl-tree-node__meta--inline {
   opacity: 1;
   pointer-events: auto;
-}
-
-.adl-browser-entry__tree .adl-filetree__label {
-  overflow: visible;
-  text-overflow: clip;
-}
-
-.adl-browser-entry__tree .adl-filetree__label .adl-tree-node__label-text {
-  overflow: visible;
-  text-overflow: clip;
 }
 

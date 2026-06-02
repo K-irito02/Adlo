@@ -64,7 +64,6 @@ const BROWSER_VIEW_MODE_KEY = "adl-ui:browser-view-mode";
 const BROWSER_SHOW_TAB_BUTTONS_KEY = "adl-ui:browser-show-tab-buttons";
 const BROWSER_HISTORY_KEY = "adl-ui:browser-history";
 const BROWSER_BOOKMARKS_KEY = "adl-ui:browser-bookmarks";
-const BROWSER_CATEGORY_EXPANDED_KEY = "adl-ui:browser-category-expanded";
 const BROWSER_TREE_EXPANDED_KEY = "adl-ui:browser-tab-tree-expanded";
 
 // Constants
@@ -74,6 +73,7 @@ const DEFAULT_BROWSER_NAVIGATOR_WIDTH = 240;
 
 // Helper functions
 import { clamp, readJson, writeJson, readNumber, writeNumber, createUiId, createDebouncedWrite } from "../shared";
+import { formatNewFolderNameByLocale, getAppCopy } from "../../i18n";
 
 function sortTabs(tabs: BrowserTabState[]): BrowserTabState[] {
   return [...tabs].sort((a, b) => {
@@ -170,7 +170,6 @@ function hydrateBrowserDefaults(get: () => StoreState, set: (partial: Partial<St
 
     const viewMode = readJson<"default" | "tree" | "list" | "all">(BROWSER_VIEW_MODE_KEY, "default");
     const showTabButtons = readJson<boolean>(BROWSER_SHOW_TAB_BUTTONS_KEY, false);
-    const persistedCategoryExpanded = readJson<Record<string, boolean>>(BROWSER_CATEGORY_EXPANDED_KEY, { workspace: true, userFolder: true, history: true });
     const persistedTabTreeExpanded = readJson<Record<string, boolean>>(BROWSER_TREE_EXPANDED_KEY, {});
 
     set({
@@ -185,7 +184,6 @@ function hydrateBrowserDefaults(get: () => StoreState, set: (partial: Partial<St
       browserActiveTabId: finalActiveTabId,
       browserViewMode: viewMode,
       browserShowTabButtons: showTabButtons,
-      browserCategoryExpanded: persistedCategoryExpanded,
       browserTabTreeExpanded: persistedTabTreeExpanded,
     });
   };
@@ -211,7 +209,6 @@ export interface BrowserSlice {
   browserBookmarks: BrowserBookmark[];
   browserViewMode: "default" | "tree" | "list" | "all";
   browserShowTabButtons: boolean;
-  browserCategoryExpanded: Record<string, boolean>;
   browserTabTreeExpanded: Record<string, boolean>;
 
   browserOpenTab: (url?: string, title?: string, workspaceId?: string) => void;
@@ -239,7 +236,6 @@ export interface BrowserSlice {
   setBrowserShowTabButtons: (show: boolean) => void;
   browserBookmarkTab: (tabId: string, folderId?: string, newFolderName?: string) => void;
   browserAddToFolder: (tabId: string, folderId: string) => void;
-  browserSetCategoryExpanded: (categoryId: string, expanded: boolean) => void;
   browserToggleTabTreePath: (path: string) => void;
   browserCollapseAllTreePaths: () => void;
   browserExpandAllTreePaths: (paths: string[]) => void;
@@ -265,11 +261,6 @@ export const createBrowserSlice = (
     browserBookmarks: [],
     browserViewMode: "default",
     browserShowTabButtons: false,
-    browserCategoryExpanded: {
-      workspace: true,
-      userFolder: true,
-      history: true,
-    },
     browserTabTreeExpanded: {},
 
     browserOpenTab: (url?: string, title?: string, workspaceId: string = "") =>
@@ -278,7 +269,7 @@ export const createBrowserSlice = (
         const tab: BrowserTabState = {
           id: createUiId("browser"),
           workspaceId,
-          title: title?.trim() || "新标签页",
+          title: title?.trim() || getAppCopy(state.appInfo).browserDefaultTabTitle,
           url: url?.trim() || "",
           isPinned: false,
           sortOrder: maxSortOrder + 1
@@ -529,7 +520,8 @@ export const createBrowserSlice = (
     browserCreateTabFolder: (name?: string, parentId?: string, parentType?: 'workspace' | 'folder') =>
     set((state) => {
       const folderCount = state.browserTabFolders.length;
-      const folderName = name?.trim() || `新建目录${folderCount + 1}`;
+      const locale = state.appInfo?.config.language === "en-US" ? "en-US" : "zh-CN";
+      const folderName = name?.trim() || formatNewFolderNameByLocale(locale, folderCount + 1);
       const newFolder: TabFolderState = {
         id: createUiId("tab-folder"),
         name: folderName,
@@ -612,7 +604,8 @@ export const createBrowserSlice = (
 
         if (!targetFolderId && newFolderName) {
           const folderCount = nextFolders.length;
-          const folderName = newFolderName.trim() || `新建目录${folderCount + 1}`;
+          const locale = state.appInfo?.config.language === "en-US" ? "en-US" : "zh-CN";
+          const folderName = newFolderName.trim() || formatNewFolderNameByLocale(locale, folderCount + 1);
           const newFolder: TabFolderState = {
             id: createUiId("tab-folder"),
             name: folderName,
@@ -642,13 +635,6 @@ export const createBrowserSlice = (
         return { browserTabFolders: nextFolders, browserBookmarks: nextBookmarks };
       });
     },
-
-    browserSetCategoryExpanded: (categoryId, expanded) =>
-      set((state) => {
-        const next = { ...state.browserCategoryExpanded, [categoryId]: expanded };
-        scheduleWrite(BROWSER_CATEGORY_EXPANDED_KEY, next);
-        return { browserCategoryExpanded: next };
-      }),
 
     browserToggleTabTreePath: (path) =>
       set((state) => {

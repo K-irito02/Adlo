@@ -311,6 +311,24 @@
   color: var(--warning);
 }
 
+.adl-tree-node__count,
+.adl-filetree__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 0 0 auto;
+  min-width: 18px;
+  margin-left: auto;
+  padding: 4px 8px 4px 4px;
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+  color: var(--text-muted);
+  text-align: right;
+  line-height: 1.25;
+  white-space: nowrap;
+  transition: opacity var(--duration-150) var(--ease-default);
+}
+
 .adl-filetree__meta {
   align-self: center;
 }

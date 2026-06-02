@@ -255,6 +255,26 @@ pub fn workspace_remove_from_sidebar(
     workspace_id: String,
 ) -> IpcResult<Vec<RecentWorkspaceEntry>> {
     crate::commands::ipc_try(|| {
+        // Look up the workspace's root path BEFORE purging so we can also
+        // drop the `recent_workspaces` row. After purge the workspace row
+        // is gone, so any further lookup would fail.
+        let root_path = state
+            .db
+            .load_entity::<WorkspaceMeta>(EntityTable::Workspaces, &workspace_id)?
+            .map(|m| m.root_path);
+
+        // Cascade-delete all child data + the workspace row + the
+        // recent_workspaces row in a single transaction.
+        let report = state
+            .db
+            .purge_workspace(&workspace_id, root_path.as_deref())?;
+        tracing::info!(
+            workspace_id = %report.workspace_id,
+            total_rows_deleted = report.total_rows_deleted,
+            tables_touched = report.per_table.len(),
+            "workspace data purged on remove-from-sidebar"
+        );
+
         let mut all = load_or_seed_sidebar(&state)?;
         if let Some(e) = all.iter_mut().find(|e| e.id == workspace_id) {
             e.removed_from_sidebar = true;

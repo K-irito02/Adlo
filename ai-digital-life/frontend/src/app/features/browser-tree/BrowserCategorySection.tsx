@@ -1,6 +1,6 @@
 import React, { useCallback } from "react";
 import { BrowserTreeEntry } from "./BrowserTreeEntry";
-import type { BrowserCategoryState, BrowserCategoryType, BrowserTreeNode } from "./types";
+import type { BrowserCategoryState, BrowserCategoryType } from "./types";
 
 export interface SectionCallbacks {
   onCreateTab: (workspaceId?: string, folderId?: string) => void;
@@ -22,6 +22,7 @@ interface BrowserCategorySectionProps {
   onTogglePath: (path: string) => void;
   onOpenFile: (path: string) => void;
   callbacks: SectionCallbacks;
+  counts: Map<string, number>;
 }
 
 export function BrowserCategorySection({
@@ -33,19 +34,20 @@ export function BrowserCategorySection({
   onTogglePath,
   onOpenFile,
   callbacks,
+  counts,
 }: BrowserCategorySectionProps) {
   const handleOpenFile = useCallback(
     (path: string) => onOpenFile(path),
     [onOpenFile],
   );
 
-  const totalCount = category.nodes.reduce((sum, n) => sum + countLeaves(n), 0);
+  const topLevelCount = category.nodes.length;
 
   return (
     <div className="adl-browser-category">
       <div className="adl-browser-category__label">
         <span className="adl-browser-category__label-text">{category.label}</span>
-        <span className="adl-browser-category__label-count">{totalCount}</span>
+        <span className="adl-browser-category__label-count">{topLevelCount}</span>
       </div>
       {(categoryType === "workspace" || categoryType === "history") && (
         <div className="adl-browser-category__spacer" />
@@ -62,14 +64,10 @@ export function BrowserCategorySection({
             onTogglePath={onTogglePath}
             onOpenFile={handleOpenFile}
             callbacks={callbacks}
+            counts={counts}
           />
         ))}
       </div>
     </div>
   );
-}
-
-function countLeaves(node: BrowserTreeNode): number {
-  if (node.kind === "file") return 1;
-  return node.children.reduce((sum, child) => sum + countLeaves(child), 0);
 }

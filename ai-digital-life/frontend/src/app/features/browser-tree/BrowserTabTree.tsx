@@ -94,6 +94,7 @@ export function BrowserTabTree({
         onTogglePath={onTogglePath}
         onOpenFile={handleOpenFile}
         callbacks={callbacks}
+        counts={categories.counts}
       />
       <BrowserCategorySection
         category={categories.userFolderCategory}
@@ -104,6 +105,7 @@ export function BrowserTabTree({
         onTogglePath={onTogglePath}
         onOpenFile={handleOpenFile}
         callbacks={callbacks}
+        counts={categories.counts}
       />
       <BrowserCategorySection
         category={categories.historyCategory}
@@ -114,6 +116,7 @@ export function BrowserTabTree({
         onTogglePath={onTogglePath}
         onOpenFile={handleOpenFile}
         callbacks={callbacks}
+        counts={categories.counts}
       />
     </CustomScrollArea>
   );

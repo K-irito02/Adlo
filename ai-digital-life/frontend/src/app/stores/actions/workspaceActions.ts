@@ -1,5 +1,6 @@
 import type { StoreState } from "../StoreState";
 import type { ReorderWorkspacesInput, WorkspaceTreeNode } from "@ai-digital-life/kernel";
+import type { BrowserTabState, TabFolderState } from "../slices/browserslice";
 import {
   getWorkspaceCachePrefix,
   getNextWorkspaceRequestSeq,
@@ -15,6 +16,43 @@ import {
   captureError,
 } from "../shared";
 import type { StoreApi } from "zustand";
+
+export interface BrowserCleanupResult {
+  browserTabs: BrowserTabState[];
+  browserTabsById: Record<string, BrowserTabState>;
+  browserTabFolders: TabFolderState[];
+  browserWorkspaceExpanded: Record<string, boolean>;
+  browserActiveTabId: string;
+}
+
+/**
+ * Pure helper: drop a workspace from the in-memory browser state. Used both
+ * by `cleanupRemovedWorkspaceTree` and by tests. No localStorage writes
+ * here — callers handle persistence.
+ */
+export function stripWorkspaceFromBrowserState(
+  workspaceId: string,
+  currentTabs: BrowserTabState[],
+  currentFolders: TabFolderState[],
+  currentExpanded: Record<string, boolean>,
+  currentActiveTabId: string,
+): BrowserCleanupResult {
+  const browserTabs = currentTabs.filter((t) => t.workspaceId !== workspaceId);
+  const browserTabFolders = currentFolders.filter(
+    (f) => !(f.parentType === "workspace" && f.parentId === workspaceId),
+  );
+  const browserWorkspaceExpanded: Record<string, boolean> = { ...currentExpanded };
+  delete browserWorkspaceExpanded[workspaceId];
+
+  const browserTabsById: Record<string, BrowserTabState> = {};
+  for (const t of browserTabs) browserTabsById[t.id] = t;
+
+  const browserActiveTabId = browserTabs.find((t) => t.id === currentActiveTabId)
+    ? currentActiveTabId
+    : browserTabs[browserTabs.length - 1]?.id ?? "";
+
+  return { browserTabs, browserTabsById, browserTabFolders, browserWorkspaceExpanded, browserActiveTabId };
+}
 
 export function createWorkspaceActions(set: StoreApi<StoreState>["setState"], get: () => StoreState) {
   return {
@@ -255,15 +293,48 @@ export function createWorkspaceActions(set: StoreApi<StoreState>["setState"], ge
 
     cleanupRemovedWorkspaceTree: (workspaceId: string) => {
       const state = get();
-      const { [workspaceId]: _, ...restTrees } = state.workspaceTrees;
-      const { [workspaceId]: __, ...restLoading } = state.workspaceTreeLoading;
-      const { [workspaceId]: ___, ...restErrors } = state.workspaceTreeErrors;
-      const { [workspaceId]: ____, ...restExpanded } = state.workspaceTreeExpandedInFileNav;
+      const { [workspaceId]: _omit, ...restTrees } = state.workspaceTrees;
+      const { [workspaceId]: _omitLoading, ...restLoading } = state.workspaceTreeLoading;
+      const { [workspaceId]: _omitErrors, ...restErrors } = state.workspaceTreeErrors;
+      const { [workspaceId]: _omitExpanded, ...restExpanded } = state.workspaceTreeExpandedInFileNav;
+
+      // Strip this workspace's data from the in-memory browser state so the
+      // navigator (workspace tree) and per-workspace expansion map do not
+      // retain references to a deleted workspace.
+      const cleaned = stripWorkspaceFromBrowserState(
+        workspaceId,
+        state.browserTabs,
+        state.browserTabFolders,
+        state.browserWorkspaceExpanded,
+        state.browserActiveTabId,
+      );
+
+      // Persist the filtered slices back to localStorage so the cleanup
+      // survives page reload.
+      if (typeof localStorage !== "undefined") {
+        try {
+          localStorage.setItem("adl-ui:browser-tabs", JSON.stringify(cleaned.browserTabs));
+          localStorage.setItem("adl-ui:browser-tab-folders", JSON.stringify(cleaned.browserTabFolders));
+          localStorage.setItem(
+            "adl-ui:browser-workspace-expanded",
+            JSON.stringify(cleaned.browserWorkspaceExpanded),
+          );
+          localStorage.setItem("adl-ui:browser-active-tab", JSON.stringify(cleaned.browserActiveTabId));
+        } catch {
+          /* localStorage unavailable (private mode) — in-memory state still updated */
+        }
+      }
+
       set({
         workspaceTrees: restTrees,
         workspaceTreeLoading: restLoading,
         workspaceTreeErrors: restErrors,
         workspaceTreeExpandedInFileNav: restExpanded,
+        browserTabs: cleaned.browserTabs,
+        browserTabsById: cleaned.browserTabsById,
+        browserTabFolders: cleaned.browserTabFolders,
+        browserWorkspaceExpanded: cleaned.browserWorkspaceExpanded,
+        browserActiveTabId: cleaned.browserActiveTabId,
       });
     },
 

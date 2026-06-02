@@ -1,6 +1,6 @@
 # 重构进度报告
 
-> 更新日期: 2026-06-01（第二十六轮）
+> 更新日期: 2026-06-02（第二十八轮）
 
 ## 完成状态
 
@@ -32,6 +32,157 @@
 | **第二十四轮** | **2026-06-01** | **浏览器标签树功能增强 + 全面板计数对齐 + CSS 清理（硬编码 i18n 修复、重复回调抽取、历史按级别删除实现、RenameDialog 替换、计数右偏移统一标准化为 --space-3、CSS 重复块清理）** | ✅ |
 | **第二十五轮** | **2026-06-01** | **重构洞察执行：消除重复、TTL 缓存优化、代码质量提升** | ✅ |
 | **第二十六轮** | **2026-06-01** | **重构洞察全量执行：31/32 项落地** | ✅ |
+| **第二十七轮** | **2026-06-02** | **浏览器标签树计数优化（计数语义修正 + 子目录计数右对齐 + URL 标签隐藏计数 + 长名省略号截断 + 抽出 resolveChildCount 纯函数）** | ✅ |
+| **第二十八轮** | **2026-06-02** | **四位一体治理（openTabCount 语义错位 + 工作区删除级联清理 + 死状态清理 + i18n P0 硬编码）** | ✅ |
+
+## 第二十八轮重构（2026-06-02）：四位一体治理
+
+针对四个独立但相互关联的代码债，集中治理：浏览器头部计数语义、工作区删除孤儿数据、Zustand 死状态、Store 层 i18n 硬编码。
+
+### ① openTabCount 语义错位（确认 + 修复）
+
+**问题证据**：
+- `browserpanel.tsx:165` 的 `openTabCount = browserTabs.length` 仅统计 `browserTabs` 数组（已打开 URL 标签），**不**包含 `browserTabFolders`、`browserHistory`、`browserBookmarks`
+- `useBrowserPanel.ts:277` 默认 tabs 模式下 `navigatorTitle = "标签目录"`（硬编码），标题暗示"整个树目录"
+- 用户保存 30 个目录标签 + 50 条历史，但 `browserTabs.length = 0` → 标题显示「标签目录 0」，误导
+
+**修复**：
+- 抽出 `computeNavigatorCount(mode, query, ...)` 纯函数（`useBrowserPanel.ts`）
+- 模式感知计数：tabs→`browserTabs.length`、bookmarks→`bookmarks.length`、history→`history.length`、search→`searchResults.length`（带 query fallback 到 filtered）
+- 默认 tabs 模式标题从硬编码 `"标签目录"` 改为 `t.browserOpenTabs`（新增 i18n 键）
+- browserpanel 改为消费 `browserState.navigatorCount`（消除本地 `openTabCount`，激活原本的死字段 `navigatorCount`）
+
+**测试**：`useBrowserPanel.test.ts` 新增 11 个用例（4 模式 × 2 + 边界 + 语义一致性）
+
+### ② 工作区删除级联清理（严重 bug 修复）
+
+**问题证据**：
+- `workspace_remove_from_sidebar`（`src-tauri/src/commands/workspace_sidebar.rs:252`）**只设 `removed_from_sidebar=true` 标志位**，不删除任何数据
+- 19 张含 `workspace_id` 列的子表（sessions/tasks/audit/...）全部成为孤儿
+- 前端 `cleanupRemovedWorkspaceTree`（`workspaceActions.ts:256`）只清 4 个内存 map，`browserTabs`/`browserTabFolders`/`browserWorkspaceExpanded` 等 localStorage 残留
+- `init_schema.sql` 175 行**零 FK 约束**，`PRAGMA foreign_keys=ON` 无效
+
+**修复**（分 4 层）：
+
+| 层 | 改动 | 文件 |
+|---|------|------|
+| ① Storage 原语 | 新增 `delete_entities_by_workspace(table, ws_id)`、`delete_entities_by_workspace_on_conn`、`delete_workspace_on_conn`、`delete_recent_workspace_on_conn` | `crates/storage/src/lib.rs` |
+| ② 事务级联编排 | 新增 `purge_workspace(ws_id, root_path)` —— 单一事务内级联删 18 张子表 + workspaces + recent_workspaces，返回 `WorkspacePurgeReport` | `crates/storage/src/lib.rs` |
+| ③ IPC 改造 | `workspace_remove_from_sidebar` 在事务内调用 `purge_workspace`（读 root_path → 删 → 标记 sidebar 软删） | `workspace_sidebar.rs` |
+| ④ 前端清理 | 抽出 `stripWorkspaceFromBrowserState` 纯函数；`cleanupRemovedWorkspaceTree` 同时过滤 `browserTabs`/`browserTabFolders`/`browserWorkspaceExpanded` 并持久化到 localStorage | `workspaceActions.ts` |
+
+**测试**：
+- Rust 集成测试 4 个：级联删除所有 18 张子表（+1 workspaces + 1 recent = 20 行）、幂等性、缺 root_path 不删 recent、空数据清理
+- Frontend 8 个：tabs/folders/expanded 三类数据过滤、activeTab 兜底、幂等性
+
+### ③ browserCategoryExpanded 死状态清理
+
+**问题证据**（来自 0 reader / 0 caller 全量 grep）：
+- `browserslice.ts` 7 处：常量、hydration 读、类型字段、action 签名、默认值、action 实现、set 写入
+- 配套 `browserWorkspaceExpanded` 的 `workspacesExpanded` 参数被 `buildWorkspaceCategoryTree` 接收但未使用
+
+**修复**：
+- `browserslice.ts`：7 处死代码机械删除
+- `useBrowserTreeData.ts`：`buildWorkspaceCategoryTree` 移除 `workspacesExpanded` 参数 + 调用点清理
+- `browserTreeCounts.test.ts`：测试签名同步
+
+### ④ i18n P0 + P1 硬编码修复
+
+**Store 层 P0**（6 处，影响全局）：
+
+| 文件 | 硬编码 | 修复 |
+|------|--------|------|
+| `streamActions.ts:76` | `"当前没有可应用的补丁。"` | `getAppCopy(appInfo).patchesNoneApplyable` |
+| `streamActions.ts:86` | `"当前没有可回滚的补丁。"` | `getAppCopy(appInfo).patchesNoneRollback` |
+| `streamActions.ts:97` | `"「/clear」尚未实现清空历史..."` | `getAppCopy(appInfo).clearCommandNotImplemented` |
+| `browserslice.ts:281` | `"新标签页"` | `getAppCopy(state.appInfo).browserDefaultTabTitle` |
+| `browserslice.ts:532` | `` `新建目录${folderCount+1}` `` | `formatNewFolderNameByLocale(locale, n)` |
+| `browserslice.ts:615` | 同上 | 同上 |
+| `selectionPrompt.ts:7` | `"请基于以下选区继续工作："` | `t.selectionPromptZh` |
+| `composerSend.ts:28` | `"[上下文附注]"` | `t.composerContextPrefix` |
+| `composerSend.ts:57` | `"请根据当前工作区与附注，输出结构化计划..."` | `t.composerStructuredPlan` |
+
+**新增 i18n 工具**：
+- `frontend/src/app/i18n/format.ts`：`formatNewFolderName(t, n)` / `formatNewFolderNameByLocale(locale, n)`
+- `frontend/src/app/i18n/getAppCopy.ts`：`getAppCopy(appInfo)`（已存在，重构到 i18n 模块）
+- `frontend/src/app/i18n/index.ts` 重新导出
+
+**设计系统违规 P1**（3+3 处）：
+- `BrowserTabBar.tsx:116,122` 🌐 → `IconGlobe`（SVG）
+- `ErrorBoundary.tsx:47` ⚠ → `IconAlertTriangle`（SVG）
+- `browserpanel.tsx:71,74,631` `title={...}` → 删除（按钮文本已含相同内容；div 文本不需原生 tooltip）
+
+**i18n 键增删**：
+- 新增（zh-CN + en-US 各 1 份，共 10 个键 × 2 语言 = 20 个值）：
+  `browserOpenTabs`、`patchesNoneApplyable`、`patchesNoneRollback`、`clearCommandNotImplemented`、`composerContextPrefix`、`composerStructuredPlan`、`selectionPromptZh`、`browserDefaultTabTitle`、`browserNewFolderName`
+
+### 关键决策
+
+1. **模式感知计数 vs 改标题**：选模式感知（激活死字段 `navigatorCount` + 4 模式全一致 + 测试覆盖完整）
+2. **软删 vs 硬删**：选硬删——用户期望"删除"是破坏性，restore 改为软删标志（数据已无）——接受"恢复"语义弱化
+3. **i18n 键 vs 工具函数**：参数化字符串用工具函数（`formatNewFolderName`）而非 `key(N)` 模式——保持 CopyDict 是纯字符串
+4. **emoji 替换范围**：只替换 AGENTS.md 明确禁止的 3 处，span 上的 `title=` 路径溢出是常见模式不在本轮范围
+
+### 最终门禁
+
+- `npm run typecheck` ✅
+- `npm test` ✅ 214 tests（+19 新增：11 navigatorCount + 8 cleanup）
+- `npm run build` ✅
+- `cargo test -p adl-storage` ✅ 5 tests（+4 新增：cascade/幂等/no-root/empty）
+- `cargo build --workspace` ✅
+
+
+
+## 第二十七轮重构（2026-06-02）：浏览器标签树计数优化
+
+针对第二十四轮遗留的 3 个标签树计数问题，集中修复并固化语义。
+
+### 计数语义统一（规则表）
+
+| 层级 | 计数规则 | 实现位置 |
+|------|---------|---------|
+| 分类行 | `category.nodes.length`（顶级目录数） | `BrowserCategorySection.tsx:18` |
+| 顶级目录 | `countDirectFileChildren`：直接子标签数（排除子目录及其后代） | `useBrowserTreeData.ts:6-12` |
+| 子目录 | `countDirectChildren`：直接子节点数（同类型，因为 history 是同类层级树） | `useBrowserTreeData.ts:14-16` |
+| URL 标签 / 历史条目（file 节点） | **不显示计数** | `resolveChildCount` 返回 `null` |
+
+策略分发：`getCountStrategy(categoryType)` → `history` 用 `countDirectChildren`，其它（workspace/userFolder）用 `countDirectFileChildren`。
+
+### 改动清单
+
+| 改动 | 文件 | 说明 |
+|------|------|------|
+| 抽出 `resolveChildCount(counts, childNode)` 纯函数 | `useBrowserTreeData.ts:22-27` | 单一职责：file→null，directory→count；可单测 |
+| `renderChildCount` 委托给 `resolveChildCount` | `BrowserTreeEntry.tsx:193-196` | 组件内联逻辑收敛到纯函数 |
+| 移除 label/text 的 `overflow: visible; text-overflow: clip` 覆盖 | `browser-panel.css`（删除末尾两条 override） | 恢复基础样式的 `text-overflow: ellipsis`，长名截断 |
+| 子目录计数改为 `position: absolute; right: var(--space-3)` | `browser-panel.css:1007-1018` | 数字右边缘与顶级计数严格对齐（DOM `getBoundingClientRect().right` 均为 1112px） |
+| 新增 `resolveChildCount` 3 个单测 | `browserTreeCounts.test.ts` | file→null / directory→count / missing→0 |
+
+### 关键技术细节
+
+**子目录计数对齐的精确算法**：
+- 顶级计数所在 `.adl-browser-entry__trailing` 有 `padding-right: var(--space-3)`（12px），数字右边缘 = `parent_right - 12`。
+- 子目录所在的 `.adl-filetree__row` 是 `box-sizing: border-box; width: 100% + 4px; margin-left: -4px`（向左扩展 4px，右侧与父级对齐）。
+- 因此子目录的 `right: 16px`（原值）会让数字右边缘 = `parent_right - 12` 看似正确，但实测有 4px 偏差。
+- 实测纠正：必须用 `right: var(--space-3)`（即 12px），让子目录数字右边缘 = `parent_right - 12`，与顶级完全一致。
+
+### 经验教训
+
+1. **CSS 像素级对齐必须用 DevTools 实测验证**：理论计算的"right: 16px"看似合理但实测有 4px 偏差，因为 `box-sizing: border-box` + `width: calc(100% + 4px)` + `margin-inline-start: -4px` 的组合让行实际只向左扩展、不向右扩展。最终用 `getBoundingClientRect().right` 验证后改为 `right: var(--space-3)` 才精确对齐。
+2. **JSX 条件渲染的 `0` 陷阱**：`{count ? ... : null}` 会丢失合法的 `0`。TreeNodeRow 修复为 `count !== undefined && count !== null`，确保空目录也显示 "0"。
+3. **数据 vs 渲染分层**：`useBrowserTreeData` 的 `counts: Map<path, number>` 是数据层（只存 directory 节点），`resolveChildCount` 是渲染层（file 节点返回 null 跳过渲染）。两层职责清晰分离后，单测覆盖也变简单。
+4. **CSS override 禁用继承的副作用**：`.adl-browser-entry__tree .adl-filetree__label { overflow: visible }` 在过去某个需求中被加上，但未在移除理由上留痕，导致长名溢出和计数重叠。重构时要明确每个 override 的存在理由。
+
+### 最终门禁
+
+- `npm run typecheck` ✅
+- `npm test` ✅（195 tests，新增 3 个 `resolveChildCount` 测试）
+- `npm run build` ✅
+- 视觉验证 ✅（Playwright 实测顶级/子级计数右边缘均在 1112px，URL 标签不显示计数，长名省略号截断）
+
+---
+
+## 第二十六轮重构（2026-06-01）：重构洞察全量执行
 
 ## 第二十六轮重构（2026-06-01）：重构洞察全量执行
 

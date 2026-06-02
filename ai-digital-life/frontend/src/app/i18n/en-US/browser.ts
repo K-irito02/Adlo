@@ -39,6 +39,7 @@ export const browserEn = {
   browserCategoryWorkspace: "Workspace Directory",
   browserCategoryUserFolder: "Custom Directory",
   browserCategoryHistory: "History Directory",
+  browserOpenTabs: "Open Tabs",
   browserCreateDir: "New Directory",
   browserDeleteAllChildTabs: "Delete All Child Tabs",
   browserOpenAllInNewTabs: "Open All in New Tabs",

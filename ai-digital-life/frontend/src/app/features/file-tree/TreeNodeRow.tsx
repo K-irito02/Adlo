@@ -28,6 +28,8 @@ type TreeNodeRowProps = {
   labelLeading?: React.ReactNode;
   iconBefore?: React.ReactNode;
   label: React.ReactNode;
+  count?: React.ReactNode;
+  countClassName?: string;
   meta?: React.ReactNode;
   children?: React.ReactNode;
   nodePath?: string;
@@ -60,6 +62,8 @@ export function TreeNodeRow({
   labelLeading,
   iconBefore,
   label,
+  count,
+  countClassName,
   meta,
   children,
   nodePath,
@@ -112,6 +116,11 @@ export function TreeNodeRow({
             <span className="adl-tree-node__label-text">{label}</span>
           </span>
         </button>
+        {count !== undefined && count !== null ? (
+          <span className={`adl-tree-node__count${countClassName ? ` ${countClassName}` : ""}`}>
+            {count}
+          </span>
+        ) : null}
         {meta ? (
           <span className={`adl-tree-node__meta${metaClassName ? ` ${metaClassName}` : ""}`}>
             {meta}

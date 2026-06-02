@@ -1,7 +1,31 @@
 import { useMemo } from "react";
 import type { RecentWorkspaceEntry } from "@ai-digital-life/kernel";
 import type { BrowserTabState, TabFolderState, BrowserHistoryState } from "../../stores/slices/browserslice";
-import type { BrowserCategoryState, BrowserTreeNode } from "./types";
+import type { BrowserCategoryState, BrowserCategoryType, BrowserTreeNode } from "./types";
+
+export function countDirectFileChildren(node: BrowserTreeNode): number {
+  let n = 0;
+  for (const child of node.children) {
+    if (child.kind === "file") n += 1;
+  }
+  return n;
+}
+
+export function countDirectChildren(node: BrowserTreeNode): number {
+  return node.children.length;
+}
+
+export function getCountStrategy(categoryType: BrowserCategoryType): (node: BrowserTreeNode) => number {
+  return categoryType === "history" ? countDirectChildren : countDirectFileChildren;
+}
+
+export function resolveChildCount(
+  counts: Map<string, number>,
+  childNode: BrowserTreeNode,
+): number | null {
+  if (childNode.kind === "file") return null;
+  return counts.get(childNode.path) ?? 0;
+}
 
 function buildTabNode(tab: BrowserTabState, workspaceId: string, uniqueKey: string): BrowserTreeNode {
   return {
@@ -62,7 +86,6 @@ export function buildWorkspaceCategoryTree(
   workspaces: RecentWorkspaceEntry[],
   browserTabs: BrowserTabState[],
   tabFolders: TabFolderState[],
-  workspacesExpanded: Record<string, boolean>,
 ): BrowserTreeNode[] {
   return workspaces.map((ws) => {
     const wsTabs = browserTabs.filter((t) => t.workspaceId === ws.id);
@@ -171,6 +194,7 @@ export interface UseBrowserTreeDataResult {
   workspaceCategory: BrowserCategoryState;
   userFolderCategory: BrowserCategoryState;
   historyCategory: BrowserCategoryState;
+  counts: Map<string, number>;
 }
 
 export function useBrowserTreeData(
@@ -184,15 +208,25 @@ export function useBrowserTreeData(
     historyCategory: string;
   },
 ): UseBrowserTreeDataResult {
+  const workspaceNodes = useMemo(
+    () => buildWorkspaceCategoryTree(workspaces, browserTabs, browserTabFolders),
+    [workspaces, browserTabs, browserTabFolders],
+  );
+
   const workspaceCategory: BrowserCategoryState = useMemo(
     () => ({
       id: "workspace",
       label: labels.workspaceCategory,
       isExpanded: true,
       isPermanent: false,
-      nodes: buildWorkspaceCategoryTree(workspaces, browserTabs, browserTabFolders, {}),
+      nodes: workspaceNodes,
     }),
-    [workspaces, browserTabs, browserTabFolders, labels.workspaceCategory],
+    [workspaceNodes, labels.workspaceCategory],
+  );
+
+  const userFolderNodes = useMemo(
+    () => buildUserFolderCategoryTree(browserTabFolders, browserTabs),
+    [browserTabFolders, browserTabs],
   );
 
   const userFolderCategory: BrowserCategoryState = useMemo(
@@ -201,9 +235,14 @@ export function useBrowserTreeData(
       label: labels.userFolderCategory,
       isExpanded: true,
       isPermanent: false,
-      nodes: buildUserFolderCategoryTree(browserTabFolders, browserTabs),
+      nodes: userFolderNodes,
     }),
-    [browserTabFolders, browserTabs, labels.userFolderCategory],
+    [userFolderNodes, labels.userFolderCategory],
+  );
+
+  const historyNodes = useMemo(
+    () => buildHistoryCategoryTree(browserHistory),
+    [browserHistory],
   );
 
   const historyCategory: BrowserCategoryState = useMemo(
@@ -212,10 +251,33 @@ export function useBrowserTreeData(
       label: labels.historyCategory,
       isExpanded: true,
       isPermanent: true,
-      nodes: buildHistoryCategoryTree(browserHistory),
+      nodes: historyNodes,
     }),
-    [browserHistory, labels.historyCategory],
+    [historyNodes, labels.historyCategory],
   );
 
-  return { workspaceCategory, userFolderCategory, historyCategory };
+  const counts = useMemo(() => {
+    const map = new Map<string, number>();
+    const visit = (categoryType: BrowserCategoryType, nodes: BrowserTreeNode[]) => {
+      const stack: { type: BrowserCategoryType; nodes: BrowserTreeNode[] }[] = [
+        { type: categoryType, nodes },
+      ];
+      while (stack.length > 0) {
+        const { type, nodes: items } = stack.pop()!;
+        const strategyFn = getCountStrategy(type);
+        for (const item of items) {
+          if (item.kind === "directory") {
+            map.set(item.path, strategyFn(item));
+            if (item.children.length > 0) stack.push({ type, nodes: item.children });
+          }
+        }
+      }
+    };
+    visit("workspace", workspaceNodes);
+    visit("userFolder", userFolderNodes);
+    visit("history", historyNodes);
+    return map;
+  }, [workspaceNodes, userFolderNodes, historyNodes]);
+
+  return { workspaceCategory, userFolderCategory, historyCategory, counts };
 }

@@ -7,7 +7,7 @@ import type {
   AppInfo,
 } from "@ai-digital-life/kernel";
 import { mapPatchToEditorTab } from "../../utils/editorTabs";
-import { sessionFallbackTitle, refreshConversationSlice, workspaceContextModeFromInfo } from "../conversationUtils";
+import { sessionFallbackTitle, refreshConversationSlice, workspaceContextModeFromInfo, getAppCopy } from "../conversationUtils";
 import {
   applySlashScenarioOverride,
   augmentPromptWithChips,
@@ -73,7 +73,7 @@ registerSlashCommand("/apply", async (set, get) => {
   if (ps) {
     await get().applyPatchSet(ps.id);
   } else {
-    captureError(get, "当前没有可应用的补丁。");
+    captureError(get, getAppCopy(get().appInfo).patchesNoneApplyable);
   }
   return true;
 });
@@ -83,7 +83,7 @@ registerSlashCommand("/rollback", async (set, get) => {
   if (ps) {
     await get().rollbackPatchSet(ps.id);
   } else {
-    captureError(get, "当前没有可回滚的补丁。");
+    captureError(get, getAppCopy(get().appInfo).patchesNoneRollback);
   }
   return true;
 });
@@ -94,7 +94,7 @@ registerSlashCommand("/model", (set, get) => {
 });
 
 registerSlashCommand("/clear", (set, get) => {
-  captureError(get, "「/clear」尚未实现清空历史。请使用侧栏「新建会话」开始新线程，或删除当前会话。");
+  captureError(get, getAppCopy(get().appInfo).clearCommandNotImplemented);
   return true;
 });
 
@@ -167,10 +167,12 @@ export function createStreamActions(set: StoreApi<StoreState>["setState"], get: 
 
       const mode = options?.mode ?? get().chatMode ?? "ask";
       const baseScenario = chatModeToScenario(mode);
-      const withChips = augmentPromptWithChips(content, options?.chips);
+      const locale = get().appInfo?.config.language === "en-US" ? "en-US" : "zh-CN";
+      const withChips = augmentPromptWithChips(content, options?.chips, locale);
       const { scenario, prompt } = applySlashScenarioOverride(
         withChips,
-        baseScenario
+        baseScenario,
+        locale
       );
 
       set({

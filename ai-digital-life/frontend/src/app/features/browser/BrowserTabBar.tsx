@@ -1,5 +1,5 @@
 import React from "react";
-import { IconClose } from "../../icons";
+import { IconClose, IconGlobe } from "../../icons";
 import { TooltipSimple } from "../../components/Tooltip";
 import type { BrowserTabState } from "../../stores/slices/browserslice";
 import type { CopyDict } from "../../i18n";
@@ -112,14 +112,15 @@ export const BrowserTabBar = React.memo(function BrowserTabBar({
                           const parent = (e.target as HTMLElement).parentElement;
                           if (parent) {
                             const defaultIcon = document.createElement("span");
-                            defaultIcon.className = "adl-tool-list__default-icon";
-                            defaultIcon.innerHTML = '<span style="font-size: 12px;">🌐</span>';
+                            defaultIcon.className = "adl-tool-list__default-icon adl-tool-list__default-icon--globe";
                             parent.appendChild(defaultIcon);
                           }
                         }}
                       />
                     ) : (
-                      <span className="adl-tool-list__default-icon">🌐</span>
+                      <span className="adl-tool-list__default-icon adl-tool-list__default-icon--globe">
+                        <IconGlobe size={12} decorative />
+                      </span>
                     )}
                   </div>
                   <span className="adl-tool-list__title">{tab.title}</span>

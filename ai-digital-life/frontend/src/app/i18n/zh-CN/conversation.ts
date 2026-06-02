@@ -100,4 +100,12 @@ export const conversationZh = {
   validationErrors: "错误",
   validationWarnings: "警告",
   validationPassed: "通过",
+  patchesNoneApplyable: "当前没有可应用的补丁。",
+  patchesNoneRollback: "当前没有可回滚的补丁。",
+  clearCommandNotImplemented: "「/clear」尚未实现清空历史。请使用侧栏「新建会话」开始新线程，或删除当前会话。",
+  composerContextPrefix: "[上下文附注]",
+  composerStructuredPlan: "请根据当前工作区与附注，输出结构化计划步骤与风险等级。",
+  selectionPromptZh: "请基于以下选区继续工作：\n",
+  browserDefaultTabTitle: "新标签页",
+  browserNewFolderName: "新建目录",
 } as const;

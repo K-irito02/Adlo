@@ -4,6 +4,7 @@ import { IconPlus, IconTrash, IconMoreVertical, IconFolder, IconFolderOpen } fro
 import { FileTree } from "../file-tree";
 import { TooltipSimple } from "../../components/Tooltip";
 import type { BrowserTreeNode, BrowserCategoryType } from "./types";
+import { resolveChildCount } from "./useBrowserTreeData";
 import type { SectionCallbacks } from "./BrowserCategorySection";
 
 interface BrowserTreeEntryProps {
@@ -15,6 +16,7 @@ interface BrowserTreeEntryProps {
   onTogglePath: (path: string) => void;
   onOpenFile: (path: string) => void;
   callbacks: SectionCallbacks;
+  counts: Map<string, number>;
 }
 
 function getEntryHoverButtons(nodeType: string, categoryType: BrowserCategoryType): Array<{ id: string; label: string; icon: React.ReactNode }> {
@@ -118,11 +120,6 @@ function getChildNodeMoreMenuItems(
   return [];
 }
 
-function collectLeafCount(node: BrowserTreeNode): number {
-  if (node.kind === "file") return 1;
-  return node.children.reduce((sum, child) => sum + collectLeafCount(child), 0);
-}
-
 export function BrowserTreeEntry({
   node,
   categoryType,
@@ -132,6 +129,7 @@ export function BrowserTreeEntry({
   onTogglePath,
   onOpenFile,
   callbacks,
+  counts,
 }: BrowserTreeEntryProps) {
 
   const isSelected = selectedTreePath === node.path;
@@ -188,10 +186,15 @@ export function BrowserTreeEntry({
     return () => window.removeEventListener("mousedown", handler);
   }, [childMenuState]);
 
-  const count = collectLeafCount(node);
+  const count = counts.get(node.path) ?? 0;
 
   const entryBtns = getEntryHoverButtons(node.nodeType, categoryType);
   const entryMenuItems = getEntryMoreMenuItems(node.nodeType, categoryType, node.path, callbacks);
+
+  const renderChildCount = useCallback(
+    (childNode: BrowserTreeNode) => resolveChildCount(counts, childNode),
+    [counts],
+  );
 
   const handleEntryBtnClick = useCallback(
     (buttonId: string, e: React.MouseEvent) => {
@@ -326,6 +329,7 @@ export function BrowserTreeEntry({
             onToggle={handleChildClick}
             onOpenFile={handleChildOpenFile}
             renderMeta={renderChildMeta}
+            renderCount={renderChildCount}
             expandLabel="展开"
             collapseLabel="收起"
           />
