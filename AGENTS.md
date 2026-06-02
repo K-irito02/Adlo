@@ -42,7 +42,7 @@
 
 ## 重构历史
 
-共完成 **28 轮**迭代重构，全部详情见 [REFACTORING_PROGRESS_REPORT.md](./docs/重构洞察/REFACTORING_PROGRESS_REPORT.md)。
+共完成 **29 轮**迭代重构，全部详情见 [REFACTORING_PROGRESS_REPORT.md](./docs/重构洞察/REFACTORING_PROGRESS_REPORT.md)。
 
 | 轮次 | 日期 | 关键成果 |
 |------|------|----------|
@@ -58,6 +58,7 @@
 | **第二十六轮** | **2026-06-01** | **重构洞察全量执行：31/32 项已落地（Mutex→RwLock 降级、ErrorCode 枚举化、Agent 流水线提取、change-engine 拆分、SQL 事务保护、级联删除、workspace_cmd! 宏、AuditBatchEntry 结构化、FileTree 迁移、SessionList React.memo、OutlineTree content-visibility、CSS 命名体系统一为 bg-*、fetch 请求去重、bootstrap 并行化、selectors 优化）** |
 | **第二十七轮** | **2026-06-02** | **浏览器标签树计数优化：语义统一（category=顶级目录数、顶级目录=直接子标签数、子目录=直接子节点数、URL 标签/历史条目=不显示）、子目录计数右对齐精确修复（4px 偏差→0）、`resolveChildCount` 纯函数提取（3 个新单测）、长名省略号截断恢复** |
 | **第二十八轮** | **2026-06-02** | **四位一体治理：① `openTabCount` 模式感知化（4 模式 × 11 单测）；② 工作区删除级联清理（`purge_workspace` 事务 + 18 张子表 + localStorage 残留，4 个 Rust 集成测试 + 8 个前端单测）；③ `browserCategoryExpanded` + `workspacesExpanded` 死状态清理；④ i18n P0（store 层 9 处硬编码 + 10 个新键 + `formatNewFolderName` / `getAppCopy` 工具）+ P1（3 处 emoji → SVG，3 处 native title 删除）** |
+| **第二十九轮** | **2026-06-02** | **浏览器面板计数重叠修复 + 溢出裁切体系统一：子目录`:focus-within`计数消失修复、子目录计数从`position: absolute`回退到flex流（消除4px偏差）、顶级目录名称追加`overflow:hidden`防止文本溢出、基类`text-overflow:ellipsis→clip`统一** |
 
 ## AI 代理开发规则
 

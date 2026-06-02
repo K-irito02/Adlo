@@ -1,6 +1,6 @@
 # 重构进度报告
 
-> 更新日期: 2026-06-02（第二十八轮）
+> 更新日期: 2026-06-02（第二十九轮）
 
 ## 完成状态
 
@@ -34,6 +34,64 @@
 | **第二十六轮** | **2026-06-01** | **重构洞察全量执行：31/32 项落地** | ✅ |
 | **第二十七轮** | **2026-06-02** | **浏览器标签树计数优化（计数语义修正 + 子目录计数右对齐 + URL 标签隐藏计数 + 长名省略号截断 + 抽出 resolveChildCount 纯函数）** | ✅ |
 | **第二十八轮** | **2026-06-02** | **四位一体治理（openTabCount 语义错位 + 工作区删除级联清理 + 死状态清理 + i18n P0 硬编码）** | ✅ |
+| **第二十九轮** | **2026-06-02** | **浏览器面板计数重叠修复 + 溢出裁切体系统一（:focus-within 子目录计数消失修复 + 子目录计数回退 flex 流 4px 偏差消除 + 顶级目录名称 overflow:hidden + 基类 text-overflow:ellipsis→clip 统一）** | ✅ |
+
+## 第二十九轮重构（2026-06-02）：浏览器面板计数重叠修复 + 溢出裁切体系统一
+
+针对第二十七轮引入的子目录计数对齐方案中暴露的 3 个视觉问题，统一修复并消除基类 `text-overflow` 继承隐患。
+
+### 问题 1：子目录计数点击后消失（`:focus-within`）
+
+**根因**：基类 `.adl-filetree__row` 默认有 `:focus-within` 样式让计数 `opacity: 0`，子目录行没有自己的 `:hover` 恢复机制，导致点击计数按钮后计数永久隐藏（`:focus-within` 不因 `:hover` 退出）。
+
+**修复**：移除子目录行上的 `:focus-within` 规则，计数仅通过 `:hover` 控制显隐。
+
+### 问题 2：子目录计数与名称文本重叠
+
+**根因**：子目录计数使用 `position: absolute; right: var(--space-3)` 脱离文档流，名称文本 `flex: 1` 且有 `white-space: nowrap` 可无限延伸，文本直接覆盖在计数之上。
+
+**修复**：
+- 子目录计数从 `position: absolute` 回退到 **flex 流内**（`display: flex; align-items: center; flex-shrink: 0`），宽度自然适应数字位数
+- 子目录行 `padding-inline-end` 从 8px 改为 `var(--space-3)`(12px)，与顶级目录 `trailing` 的 `padding-right` 一致，确保右对齐
+- 子目录计数 `padding-right: 0`，消除基类冗余内边距
+- 最终视觉：计数右边缘与顶级目录计数在同一像素列（`getBoundingClientRect().right` 一致）
+
+### 问题 3：顶级目录名称与计数重叠
+
+**根因**：`.adl-browser-entry__name` 拥有 `flex: 1; min-width: 0; white-space: nowrap` 但缺少 `overflow: hidden`，文本可以溢出自身盒子覆盖到 `trailing` 区域的计数上。
+
+**修复**：追加 `overflow: hidden; text-overflow: clip`，文字在名称框边界裁切，不再溢出。
+
+### 基类统一：`text-overflow: ellipsis` → `clip`
+
+`file-tree.css` 和 `files-panel.css` 中 `.adl-filetree__label` 及其子 `.adl-tree-node__label-text` 的 `text-overflow: ellipsis` 改为 `clip`：
+- **理由**：文件树/标签树的名称区之后有计数/操作按钮等额外信息，"..."省略号在末尾会与 UI 元素产生视觉冲突；纯裁切更干净
+- **层级树不受影响**：`OutlineTree` 使用独立的类名体系
+
+### 改动清单
+
+| 文件 | 行数 | 改动 |
+|------|------|------|
+| `browser-panel.css` | 24 | 移除 `:focus-within` + 子目录计数 flex 流 + 顶级 name `overflow:hidden` + `text-overflow:clip` |
+| `file-tree.css` | 4 | `.adl-filetree__label` 和 `.adl-tree-node__label-text` 的 `text-overflow: ellipsis` → `clip` |
+| `files-panel.css` | 4 | 同上 |
+
+### 关键决策
+
+1. **子目录计数回退 flex 流 vs 保持 absolute + `overflow:hidden`**：选 flex 流——absolute 方案在名称变长时虽不再重叠但计数始终在右边缘，flex 流让计数紧邻名称末尾更自然，且消除 4px 对齐偏差
+2. **`text-overflow: clip` vs `ellipsis`**：选 `clip`——文件树/标签树不是阅读型列表，"..."会与计数/按钮产生语义冲突，纯裁切减少视觉噪音
+3. **`overflow: hidden` 放在 name 上 vs namezone 上**：选 name——namezone 包含其他 UI 元素（expand-btn），`overflow: hidden` 在 namezone 上会意外裁剪展开按钮
+
+### 经验教训
+
+1. **CSS 的 `:focus-within` 副作用**：在可点击的子元素上使用 `:focus-within` 会引入永久性的状态锁定，用户点击后聚焦不主动退出，计数永久消失。交互态显隐应优先用 `:hover`。
+2. **`absolute` 定位不参与 flex 布局**：脱离文档流的元素不响应 flex 容器的 `gap` 和 `align-items`，通过 `right` 定位需要精确计算环境变量（padding、border、margin），误差累积难以维护。flex 流 + `flex-shrink: 0` 更稳定。
+3. **CSS 继承的隐性依赖**：`text-overflow` 在基类中定义为 `ellipsis`，子类覆盖非统一时出现碎片化。本次将三层 CSS（基类→顶级→子级）统一为 `clip`，消除未来出问题的断点。
+
+### 最终门禁
+
+- `npx tsc --noEmit` ✅
+- 视觉验证 ✅（Playwright 实测子目录计数右边缘与顶级一致；名称溢出不覆盖计数；点击后计数不消失；`text-overflow: clip` 生效）
 
 ## 第二十八轮重构（2026-06-02）：四位一体治理
 

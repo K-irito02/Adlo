@@ -1206,7 +1206,7 @@
   color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   line-height: 1.25;
   display: block;
   padding: 4px 8px;
@@ -1223,7 +1223,7 @@
 .adl-filetree__label .adl-tree-node__label-text {
   min-width: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   white-space: nowrap;
 }
 

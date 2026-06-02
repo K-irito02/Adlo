@@ -1004,21 +1004,19 @@
   opacity: 0;
 }
 
-/* Child directory count inside FileTree — hide on row hover so action buttons take over.
-   Absolutely position so the digit right edge lands at the same X as the top-level count
-   (row padding-box right - var(--space-3)). */
-.adl-browser-entry__tree .adl-filetree__count {
-  position: absolute;
-  right: var(--space-3);
-  top: 50%;
-  transform: translateY(-50%);
-  padding: 0;
-  margin: 0;
-  min-width: 0;
+/* Child directory count — inline in row flow so it takes natural width.
+   Set row padding-inline-end to var(--space-3) (12px) so the in-flow count's
+   right edge lands at the same X as the top-level count's right edge
+   (which sits inside trailing with padding-right: var(--space-3)). */
+.adl-browser-entry__tree .adl-filetree__row {
+  padding-inline-end: var(--space-3);
 }
 
-.adl-browser-entry__tree .adl-filetree__row:hover .adl-filetree__count,
-.adl-browser-entry__tree .adl-filetree__row:focus-within .adl-filetree__count {
+.adl-browser-entry__tree .adl-filetree__count {
+  padding-right: 0;
+}
+
+.adl-browser-entry__tree .adl-filetree__row:hover .adl-filetree__count {
   opacity: 0;
 }
 
@@ -1054,6 +1052,8 @@
   white-space: nowrap;
   flex: 1;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: clip;
 }
 
 .adl-browser-entry__actions {
