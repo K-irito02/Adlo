@@ -20,18 +20,7 @@ alwaysApply: false
 | 重构验证 | `npm --prefix frontend run typecheck` + `npm --prefix frontend test` + `cargo check --workspace` + `cargo test --workspace` |
 | **双端一致性验证** | **分别在 Tauri 桌面和浏览器模式下验证功能一致** |
 
-## 双端一致性验证
-
-所有 UI/UX 或功能变更后，必须在两种模式下验证一致性：
-
-| 验证项 | 验证方式 |
-|--------|----------|
-| 窗口控制按钮 | 两种模式均显示（Tauri 可实际操作，浏览器无操作效果） |
-| 标题栏拖拽 | Tauri 模式可拖拽，浏览器模式无拖拽效果 |
-| 拖拽打开工作区 | Tauri 模式和浏览器模式都支持拖拽文件夹打开 |
-| 文件树/变更面板 | 两种模式下功能一致（使用 `npm run dev:both` 同时验证） |
-| 主题/语言切换 | 两种模式下切换正常 |
-| 所有其他功能 | 两种模式下行为一致 |
+> 双端一致性验证项详情见 [desktop-ui-verification.md](./desktop-ui-verification.md) 和 [tauri-shell.md](./tauri-shell.md)。
 
 ## 高风险改动
 

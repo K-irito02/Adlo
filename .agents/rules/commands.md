@@ -79,32 +79,7 @@ $env:Path = "$env:USERPROFILE\.cargo\bin;$env:Path"
 
 > 系统配置了 Clash 代理 (`127.0.0.1:7890`)，执行前确保代理已开启。
 
-## 浏览器自动化
-
-> 浏览器自动化工具选择、经验教训和快速参考已迁移至 [browser-automation.md](./browser-automation.md)
-
-### integrated_browser 快速参考（Trae 内置浏览器）
-
-```powershell
-# 标准流程
-browser_navigate -url "http://localhost:5173/" -take_screenshot_afterwards true
-browser_snapshot -interactive true
-browser_click -ref "e0" -element "提交按钮"
-browser_type -ref "e1" -element "搜索框" -text "Hello" -submit true
-browser_unlock
-```
-
-### agent-browser 快速参考（终端自动化）
-
-```powershell
-agent-browser --session test open http://127.0.0.1:5173
-agent-browser --session test eval "window.digitalLife.workspace.open('E:\\path').then(() => location.reload())"
-agent-browser --session test wait 3000
-agent-browser --session test snapshot -i
-agent-browser --session test close --all
-```
-
-> 详细文档：[browser-automation 技能](../../.opencode/skills/browser-automation/SKILL.md)
+> 浏览器自动化工具选择、经验教训和快速参考见 [browser-automation.md](./browser-automation.md)。
 
 ## ⚠️ Node.js 环境变量
 
@@ -120,15 +95,5 @@ Node.js 安装路径：`D:\Program Files\nodejs`（v24.15.0）
 
 ## 相关文件
 
-- [ai-digital-life/package.json](/E:/Programs/Obsidian/notes/ai-digital-life/package.json)
-- [ai-digital-life/vitest.config.ts](/E:/Programs/Obsidian/notes/ai-digital-life/vitest.config.ts)
-- [browser-automation.md](./browser-automation.md)
+- [browser-automation.md](./browser-automation.md) — 浏览器自动化
 - [browser-automation 技能](../../.opencode/skills/browser-automation/SKILL.md)
-
-## 相关规则文件
-
-- [rust-patterns.md](./rust-patterns.md) — Rust 性能与架构模式
-- [zustand-patterns.md](./zustand-patterns.md) — Zustand 状态管理模式
-- [component-architecture.md](./component-architecture.md) — 组件拆分阈值
-- [css-architecture.md](./css-architecture.md) — CSS 架构规范
-- [error-handling.md](./error-handling.md) — 错误处理与加载状态

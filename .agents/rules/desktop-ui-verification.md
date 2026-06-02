@@ -28,38 +28,20 @@ alwaysApply: false
 
 > 工具选择和详细用法参见 [browser-automation.md](./browser-automation.md) 和 [browser-automation 技能](../../.opencode/skills/browser-automation/SKILL.md)
 
-## 双端验证清单
-
-修改以下内容后必须在两种模式下分别验证：
-
-| 验证项 | Tauri 模式 | 浏览器模式 |
-|--------|-----------|-----------|
-| 窗口控制按钮 | 显示且可用 | 显示但无实际操作效果（浏览器不支持窗口操作） |
-| 标题栏拖拽 | 可拖拽移动窗口 | 不可拖拽（浏览器无此能力） |
-| 拖拽打开工作区 | Tauri `onDragDropEvent` | HTML5 `dragover`/`drop` |
-| 主题切换 | 正常 | 正常 |
-| 语言切换 | 正常 | 正常 |
-| 文件树/变更面板 | 正常 | 正常（通过 Preview API） |
-| 终端面板 | 正常（Rust PTY） | 正常（通过 `previewTerminalService.ts` + `child_process.spawn`） |
-| 终端多会话 | 正常（多 PTY 进程） | 正常（多 `child_process.spawn` 进程） |
-| 终端 Shell 切换 | PowerShell / CMD / Bash | PowerShell / CMD / Bash |
-| 终端命令执行 | 真实 Shell 进程 | 真实 Shell 进程 |
-
 ## 验证清单
 
-修改以下内容后必须重新运行：
+修改 UI 后必须在 Tauri 桌面和浏览器模式下分别验证：
 
-- [ ] 标题栏（`.adl-ide-titlebar`）
-- [ ] 窗口控制按钮
-- [ ] 主题变量
-- [ ] Tooltip 组件
-- [ ] 原生 `title` 属性残留检查
-- [ ] 终端面板（`.adl-tool-panel--terminal`）
-- [ ] 终端多会话切换与关闭
-- [ ] 终端 Shell 类型选择（PowerShell / CMD / Bash）
-- [ ] 终端命令输入与执行
-- [ ] 终端主题同步（亮色/暗色）
-- [ ] 终端空状态居中按钮组
+| 验证项 | 差异说明 |
+|--------|----------|
+| 窗口控制按钮 | Tauri: 可实际操作; 浏览器: 仅显示 |
+| 标题栏拖拽 | Tauri: 可拖拽; 浏览器: 不可拖拽 |
+| 拖拽打开工作区 | Tauri: `onDragDropEvent`; 浏览器: HTML5 `dragover`/`drop` |
+| 主题/语言切换 | 两模式一致 |
+| 文件树/变更面板 | Tauri: Rust 后端; 浏览器: Preview API |
+| 终端面板（多会话/Shell 切换/命令执行） | Tauri: Rust PTY; 浏览器: Node.js `child_process.spawn` |
+| Tooltip 组件 / 原生 `title` 残留检查 | 两模式一致 |
+| 终端主题同步 / 空状态按钮组 | 两模式一致 |
 
 ## 相关文件
 
