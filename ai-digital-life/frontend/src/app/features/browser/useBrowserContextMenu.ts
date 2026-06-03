@@ -1,5 +1,5 @@
 import { useCallback, useState, type SetStateAction, type Dispatch } from "react";
-import type { BrowserTabState } from "../../stores/slices/browserslice";
+import type { BrowserTabState } from "../../stores/slices/browserSlice";
 
 export interface ContextMenuState {
   open: boolean;

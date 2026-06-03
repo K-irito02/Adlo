@@ -1,6 +1,6 @@
 # 重构进度报告
 
-> 更新日期: 2026-06-03（第三十轮）
+> 更新日期: 2026-06-04（第三十二轮）
 
 ## 完成状态
 
@@ -36,6 +36,8 @@
 | **第二十八轮** | **2026-06-02** | **四位一体治理（openTabCount 语义错位 + 工作区删除级联清理 + 死状态清理 + i18n P0 硬编码）** | ✅ |
 | **第二十九轮** | **2026-06-02** | **浏览器面板计数重叠修复 + 溢出裁切体系统一（:focus-within 子目录计数消失修复 + 子目录计数回退 flex 流 4px 偏差消除 + 顶级目录名称 overflow:hidden + 基类 text-overflow:ellipsis→clip 统一）** | ✅ |
 | **第三十轮** | **2026-06-03** | **浏览器面板 WebView 可见性治理（面板切换隐藏/显示 + 跨面板状态保持 + 离屏坐标从负值改为正值 + 可见性 prop 化替代 Zustand selector + ResizeObserver 守卫）** | ✅ |
+| **第三十一轮** | **2026-06-04** | **重构洞察 2026-06-03 执行（11 项：死代码删除、Promise.allSettled 修复、useShallow 纠偏、@deprecated 标注、localStorage 错误日志、CSS transition:all 修复、重复 CSS 清理、Rust 错误枚举扩展、依赖清理 15 条、JSON 损坏处理、重复构造提取）** | ✅ |
+| **第三十二轮** | **2026-06-04** | **浏览器控制台报错修复（TS1261 大小写一致性 + React 19 iframe 跨源 $$typeof SecurityError 修复）** | ✅ |
 
 ## 第三十轮重构（2026-06-03）：浏览器面板 WebView 可见性治理
 
@@ -995,6 +997,7 @@ features/diff-viewer/ (DiffViewer 拆分)
 
 
 
+- [重构洞察报告 6-03](./refactor-insight-2026-06-03.md)
 - [重构洞察报告 5-21](./refactor-insight-2026-05-21.md)
 - [重构洞察报告 5-22](./refactor-insight-2026-05-22.md)
 - [重构洞察报告 5-23](./refactor-insight-2026-05-23.md)

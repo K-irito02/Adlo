@@ -118,7 +118,7 @@ export function createGeneralActions(set: StoreApi<StoreState>["setState"], get:
 
         queueLowPriorityRefresh(async () => {
           if (requestSeq !== workspaceRequestSeq) return;
-          await Promise.allSettled([
+          const results = await Promise.allSettled([
             get().fetchIndexStatus(),
             get().fetchAuditEntries(40),
             get().fetchCommandHistory(),
@@ -127,6 +127,10 @@ export function createGeneralActions(set: StoreApi<StoreState>["setState"], get:
             ...visibleWorkspaces.map((w) => get().loadWorkspaceTree(w.id, w.path)),
             ...visibleWorkspaces.map((w) => get().loadGitSnapshot(w.id, w.path)),
           ]);
+          const errors = results.filter((r) => r.status === "rejected").map((r) => (r as PromiseRejectedResult).reason);
+          if (errors.length > 0) {
+            console.warn("[bootstrap] Low-priority refresh failures:", errors);
+          }
         });
         return;
       }

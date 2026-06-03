@@ -164,7 +164,7 @@
   border: 1px solid transparent;
   cursor: pointer;
   text-align: center;
-  transition: all 120ms ease;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
 }
 
 .adl-tool-panel--browser .adl-tool-navigator__summary-stat:hover {
@@ -555,7 +555,7 @@
   background: transparent;
   color: var(--text-primary);
   cursor: pointer;
-  transition: all var(--duration-150) var(--ease-default);
+  transition: background var(--duration-150) var(--ease-default), border-color var(--duration-150) var(--ease-default), color var(--duration-150) var(--ease-default);
   text-align: left;
   width: 100%;
 }
@@ -603,7 +603,7 @@
   background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: all var(--duration-150) var(--ease-default);
+  transition: background var(--duration-150) var(--ease-default), border-color var(--duration-150) var(--ease-default), color var(--duration-150) var(--ease-default);
   text-align: left;
   width: 100%;
   margin-bottom: var(--space-2);
@@ -825,7 +825,7 @@
   color: var(--text-primary);
   font-size: var(--text-sm);
   cursor: pointer;
-  transition: all var(--duration-150) var(--ease-default);
+  transition: background var(--duration-150) var(--ease-default), border-color var(--duration-150) var(--ease-default), color var(--duration-150) var(--ease-default);
 }
 
 .adl-rename-dialog-buttons button:hover {

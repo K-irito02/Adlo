@@ -1,5 +1,4 @@
 import React, { memo, useCallback, useEffect, useRef, useState, useMemo } from "react";
-import { flushSync } from "react-dom";
 import { IconAlertTriangle, IconCircle } from "../../icons";
 import { getFileTreeVisualSpec } from "./fileTreeVisuals";
 import { CustomScrollArea } from "./CustomScrollArea";
@@ -320,10 +319,7 @@ export function FileTree<T extends FileTreeRenderableNode>(props: FileTreeProps<
   );
 
   const handleOpenFile = useCallback((relativePath: string, event: React.MouseEvent<HTMLButtonElement>) => {
-    // 使用 flushSync 确保外部状态更新后立即重新渲染
-    flushSync(() => {
-      props.onOpenFile(relativePath);
-    });
+    props.onOpenFile(relativePath);
   }, [props.onOpenFile]);
 
   const getMultiSelectedNodes = useCallback((): T[] => {
@@ -347,9 +343,7 @@ export function FileTree<T extends FileTreeRenderableNode>(props: FileTreeProps<
       event.preventDefault();
       if (persistRef) persistRef.current = false;
 
-      flushSync(() => {
-        setContextMenuTargetPath(node.path);
-      });
+      setContextMenuTargetPath(node.path);
 
       // 计算用于上下文菜单的选中节点
       // 如果当前选中的节点包含右键点击的节点，使用当前选中
@@ -363,9 +357,7 @@ export function FileTree<T extends FileTreeRenderableNode>(props: FileTreeProps<
 
       const items = props.getContextMenuItems?.(node, multiSelectedNodes) ?? [];
       if (!items.length) {
-        flushSync(() => {
-          setContextMenuTargetPath(undefined);
-        });
+        setContextMenuTargetPath(undefined);
         return;
       }
 
@@ -432,9 +424,7 @@ export function FileTree<T extends FileTreeRenderableNode>(props: FileTreeProps<
             }))}
             position={{ x: contextMenuState.x, y: contextMenuState.y }}
             onClose={() => {
-              flushSync(() => {
-                setContextMenuTargetPath(undefined);
-              });
+              setContextMenuTargetPath(undefined);
               setContextMenuState(null);
               if (persistRef) persistRef.current = false;
             }}

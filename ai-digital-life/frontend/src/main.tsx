@@ -1,4 +1,3 @@
-import React from "react";
 import { createRoot } from "react-dom/client";
 import type { DigitalLifeBridge } from "./shared/ipc";
 import { setupPreviewBridge } from "./preview-bridge";
@@ -50,8 +49,4 @@ if (!container) {
   throw new Error("App root not found.");
 }
 
-createRoot(container).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
+createRoot(container).render(<App />);

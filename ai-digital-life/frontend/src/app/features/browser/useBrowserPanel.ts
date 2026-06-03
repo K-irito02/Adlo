@@ -6,8 +6,8 @@ import { useBrowserDragDrop } from "./useBrowserDragDrop";
 import { useBrowserMenus } from "./useBrowserMenus";
 import { isTauriShell } from "../../../tauri-bridge";
 import type { BrowserPanelProps } from "../../regions/right-panel/types";
-import type { BrowserTabState } from "../../stores/slices/browserslice";
-import type { TabFolderState } from "../../stores/slices/browserslice";
+import type { BrowserTabState } from "../../stores/slices/browserSlice";
+import type { TabFolderState } from "../../stores/slices/browserSlice";
 
 export type BrowserNavigatorMode = "tabs" | "bookmarks" | "history" | "search";
 export type BrowserSearchScope = "bookmarks" | "history" | "all";
@@ -451,6 +451,17 @@ export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDis
       /* cross-origin navigation, can't read URL */
     }
   }, [activeTab, browserNavigateActiveTab, browserUpdateTab]);
+
+  const handleIframeLoadRef = useRef(handleIframeLoad);
+  handleIframeLoadRef.current = handleIframeLoad;
+
+  useEffect(() => {
+    const node = iframeRef.current;
+    if (!node) return;
+    const handler = () => handleIframeLoadRef.current();
+    node.addEventListener("load", handler);
+    return () => node.removeEventListener("load", handler);
+  }, [activeTab?.url]);
 
   const handleIframeError = useCallback(() => {
     setIframeLoadError(true);

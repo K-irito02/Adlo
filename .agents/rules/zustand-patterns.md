@@ -13,6 +13,7 @@ alwaysApply: false
 
 ## 选择器规则
 - 从 Store 选择对象或数组时，必须使用 `useShallow`
+- 选择原始值（`boolean`、`string`、`number`）时，禁止使用 `useShallow`（增加不必要的比较开销）
 - 禁止使用对象展开选择器 `(state) => ({ a: state.a, b: state.b })`（Zustand v5 中会导致无限循环）
 - 每个组件只选择自己需要的字段，禁止选择整个 slice 或 `useAppStore()` 无参调用
 

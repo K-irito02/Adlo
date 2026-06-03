@@ -6,7 +6,7 @@
 
 | 目录 | 内容 | 文件数 |
 |------|------|--------|
-| [重构](./重构/) | 重构方法论、组件提取、执行报告、阶段性总结 | 9 |
+| [重构](./重构/) | 重构方法论、组件提取、执行报告、阶段性总结 | 11 |
 | [多工作区](./多工作区/) | 多工作区开发中的变更面板、文件树、终端、布局等经验 | 9 |
 | [浏览器](./浏览器/) | 内置浏览器实现、树形目录交互、子目录修复经验 | 3 |
 | [浏览器自动化](./浏览器自动化/) | 浏览器自动化调试记录与规则经验 | 2 |
@@ -22,6 +22,7 @@
 | [execution-lessons.md](./重构/execution-lessons.md) | 重构洞察 | 第 10 轮重构执行经验（CSS 截断、类型收窄、OnceLock 等） |
 | [refactoring-process-lessons.md](./重构/refactoring-process-lessons.md) | REFACTORING_PROGRESS_REPORT | 跨 4 轮重构的 16 条经验（CSS、React、Rust 等） |
 | [refactoring-summary-2026-06-01.md](./重构/refactoring-summary-2026-06-01.md) | 重构洞察 | 第 1-30 轮重构任务汇总与经验 |
+| [refactoring-lessons-2026-06-04.md](./重构/refactoring-lessons-2026-06-04.md) | 重构洞察 2026-06-03 执行 | React 19 iframe 事件系统陷阱、Rust 依赖删除、TS 大小写、CSS transition:all |
 | [progress-summary.md](./重构/progress-summary.md) | 重构洞察 | 第 1-17 轮重构进展汇总 |
 | [summary-2026-05-31.md](./重构/summary-2026-05-31.md) | 重构洞察 | 2026-05-31 重构总结 |
 | [summary-2026-05-30.md](./重构/summary-2026-05-30.md) | 重构洞察 | 2026-05-30 重构总结 |

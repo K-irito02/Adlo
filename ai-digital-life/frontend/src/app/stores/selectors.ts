@@ -40,10 +40,10 @@ export const workspaceSelectors = {
   useRepoMap: () => useAppStore(useShallow((s) => s.repoMap)),
   
   hasCurrentWorkspace: (state: StoreState) => Boolean(state.appInfo?.currentWorkspace),
-  useHasCurrentWorkspace: () => useAppStore(useShallow((s) => Boolean(s.appInfo?.currentWorkspace))),
-  
+  useHasCurrentWorkspace: () => useAppStore((s) => Boolean(s.appInfo?.currentWorkspace)),
+
   getWorkspaceId: (state: StoreState) => state.appInfo?.currentWorkspace?.id,
-  useWorkspaceId: () => useAppStore(useShallow((s) => s.appInfo?.currentWorkspace?.id)),
+  useWorkspaceId: () => useAppStore((s) => s.appInfo?.currentWorkspace?.id),
 };
 
 // ============================================

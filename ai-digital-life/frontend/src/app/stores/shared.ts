@@ -22,8 +22,12 @@ export function readJson<T>(key: string, fallback: T): T {
 export function writeJson(key: string, value: unknown): void {
   try {
     window.localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    /* ignore */
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "QuotaExceededError") {
+      console.warn(`[localStorage] Quota exceeded for key "${key}"`);
+    } else {
+      console.warn(`[localStorage] Failed to write key "${key}":`, err);
+    }
   }
 }
 
@@ -42,11 +46,14 @@ export function readNumber(key: string, fallback: number, min: number, max: numb
 export function writeNumber(key: string, value: number): void {
   try {
     window.localStorage.setItem(key, String(value));
-  } catch {
-    /* ignore */
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "QuotaExceededError") {
+      console.warn(`[localStorage] Quota exceeded for key "${key}"`);
+    } else {
+      console.warn(`[localStorage] Failed to write number key "${key}":`, err);
+    }
   }
 }
-
 export function readFlag(key: string, fallback: boolean): boolean {
   try {
     const raw = window.localStorage.getItem(key);
@@ -61,8 +68,12 @@ export function readFlag(key: string, fallback: boolean): boolean {
 export function writeFlag(key: string, value: boolean): void {
   try {
     window.localStorage.setItem(key, value ? "1" : "0");
-  } catch {
-    /* ignore */
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "QuotaExceededError") {
+      console.warn(`[localStorage] Quota exceeded for key "${key}"`);
+    } else {
+      console.warn(`[localStorage] Failed to write flag key "${key}":`, err);
+    }
   }
 }
 
@@ -377,7 +388,11 @@ export async function batchExpandAll(
   const toLoad = visibleEntries.filter((e) => !loadedCheck(e.id));
   for (let i = 0; i < toLoad.length; i += concurrency) {
     const batch = toLoad.slice(i, i + concurrency);
-    await Promise.allSettled(batch.map((entry) => loader(entry)));
+    const results = await Promise.allSettled(batch.map((entry) => loader(entry)));
+    const errors = results.filter((r) => r.status === "rejected").map((r) => (r as PromiseRejectedResult).reason);
+    if (errors.length > 0) {
+      console.warn("[batchExpandAll] Batch load failures:", errors);
+    }
   }
 }
 

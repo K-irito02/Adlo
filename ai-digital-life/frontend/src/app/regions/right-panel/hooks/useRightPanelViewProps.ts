@@ -16,12 +16,12 @@ function readDiffSideBySidePreference(): boolean {
 export function useRightPanelViewProps() {
   const activeRightTool = useUiStore((state) => state.activeRightTool);
   const setActiveRightTool = useUiStore((state) => state.setActiveRightTool);
-  const browserTabs = useAppStore((state) => state.browserTabs);
-  const terminalTabs = useAppStore((state) => state.terminalTabs);
+  const browserTabs = useAppStore(useShallow((state) => state.browserTabs));
+  const terminalTabs = useAppStore(useShallow((state) => state.terminalTabs));
   const dirtyEditorPaths = useAppStore(useShallow((s) => s.dirtyEditorPaths));
   const auditEntries = useAppStore(useShallow((s) => s.auditEntries));
   const gitSnapshot = useAppStore(useShallow((s) => s.gitSnapshot));
-  const appInfoForBadges = useAppStore((s) => s.appInfo);
+  const appInfoForBadges = useAppStore(useShallow((s) => s.appInfo));
 
   const [diffSideBySide, setDiffSideBySide] = useState(readDiffSideBySidePreference);
 

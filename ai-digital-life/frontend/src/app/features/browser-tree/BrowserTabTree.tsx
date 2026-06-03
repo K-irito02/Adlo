@@ -4,7 +4,7 @@ import { BrowserCategorySection } from "./BrowserCategorySection";
 import { CustomScrollArea } from "../file-tree/CustomScrollArea";
 import type { BrowserCategoryType } from "./types";
 import type { RecentWorkspaceEntry } from "@ai-digital-life/kernel";
-import type { BrowserTabState, TabFolderState, BrowserHistoryState } from "../../stores/slices/browserslice";
+import type { BrowserTabState, TabFolderState, BrowserHistoryState } from "../../stores/slices/browserSlice";
 
 interface BrowserCategoryLabels {
   workspaceCategory: string;

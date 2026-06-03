@@ -7,10 +7,15 @@ import { clamp, readJson, writeJson, readNumber, writeNumber, readFlag, writeFla
  *
  * Purely cosmetic, navigation, and local-shell behavior that does not need to
  * cross the IPC boundary lives here. Persistence is limited to localStorage.
+ *
+ * @deprecated 正在迁移至 useAppStore 的 uiSlice，新增字段请直接添加到 uiSlice
  */
 
+/** @deprecated 迁移至 app/stores/types.ts 中的同名类型 */
 export type ToolId = "files" | "changes" | "browser" | "terminal" | "audit" | "settings" | "models";
+/** @deprecated 迁移至 app/stores/types.ts 中的同名类型 */
 export type ChatMode = "plan" | "debug" | "ask";
+/** @deprecated 迁移至 app/stores/types.ts 中的同名类型 */
 export type TerminalProfile = "powershell" | "bash" | "cmd";
 export type FilesNavigatorMode = "tree" | "search" | "outline";
 export type ChangesNavigatorMode = "tree" | "list" | "outline";

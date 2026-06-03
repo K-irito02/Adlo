@@ -39,6 +39,15 @@ pub enum AppError {
     #[error("Model error: {0}")]
     Model(String),
 
+    #[error("Timeout: {0}")]
+    Timeout(String),
+
+    #[error("Rate limited: {0}")]
+    RateLimit(String),
+
+    #[error("Auth error: {0}")]
+    AuthError(String),
+
     #[error("Internal error: {0}")]
     Internal(String),
 }

@@ -7,9 +7,26 @@ use std::collections::HashMap;
 
 const RECENT_SIDEBAR_KEY: &str = "recent_workspaces_sidebar_v1";
 
+fn entry_from_workspace(meta: &WorkspaceMeta, max_order: i32) -> RecentWorkspaceEntry {
+    RecentWorkspaceEntry {
+        id: meta.id.clone(),
+        path: meta.path.clone(),
+        root_path: meta.root_path.clone(),
+        name: meta.name.clone(),
+        last_opened_at: meta.last_opened_at,
+        is_pinned: false,
+        pinned_order: 0,
+        unpinned_order: max_order + 1,
+        removed_from_sidebar: false,
+        available: true,
+        hidden_from_right_panels: false,
+    }
+}
+
 fn load_sidebar_entries(state: &AppState) -> Result<Vec<RecentWorkspaceEntry>, AppError> {
     match state.db.get_state(RECENT_SIDEBAR_KEY)? {
-        Some(json) => Ok(serde_json::from_str(&json).unwrap_or_default()),
+        Some(json) => serde_json::from_str(&json)
+            .map_err(|e| AppError::Storage(format!("corrupt sidebar data: {e}"))),
         None => Ok(Vec::new()),
     }
 }
@@ -45,19 +62,9 @@ fn seed_sidebar_from_db(state: &AppState) -> Result<Vec<RecentWorkspaceEntry>, A
     let workspaces: Vec<WorkspaceMeta> = state.db.list_entities(EntityTable::Workspaces)?;
     let mut entries = Vec::with_capacity(workspaces.len());
     for (index, workspace) in workspaces.iter().enumerate() {
-        entries.push(RecentWorkspaceEntry {
-            id: workspace.id.clone(),
-            path: workspace.path.clone(),
-            root_path: workspace.root_path.clone(),
-            name: workspace.name.clone(),
-            last_opened_at: workspace.last_opened_at,
-            is_pinned: false,
-            pinned_order: 0,
-            unpinned_order: index as i32,
-            removed_from_sidebar: false,
-            available: true,
-            hidden_from_right_panels: false,
-        });
+        let mut entry = entry_from_workspace(workspace, index as i32 - 1);
+        entry.unpinned_order = index as i32;
+        entries.push(entry);
     }
     if !entries.is_empty() {
         save_sidebar_entries(state, &entries)?;
@@ -93,19 +100,7 @@ pub(super) fn upsert_sidebar_after_open(state: &AppState, meta: &WorkspaceMeta) 
         all[i].available = true;
     } else {
         let max = unpinned_max(&all);
-        all.push(RecentWorkspaceEntry {
-            id: meta.id.clone(),
-            path: meta.path.clone(),
-            root_path: meta.root_path.clone(),
-            name: meta.name.clone(),
-            last_opened_at: meta.last_opened_at,
-            is_pinned: false,
-            pinned_order: 0,
-            unpinned_order: max + 1,
-            removed_from_sidebar: false,
-            available: true,
-            hidden_from_right_panels: false,
-        });
+        all.push(entry_from_workspace(meta, max));
     }
     save_sidebar_entries(state, &all)?;
     Ok(())
@@ -120,19 +115,7 @@ fn load_sidebar_with_meta(state: &AppState) -> Result<Vec<RecentWorkspaceEntry>,
     for w in &workspaces {
         if !all.iter().any(|e| e.id == w.id) {
             let max = unpinned_max(&all);
-            all.push(RecentWorkspaceEntry {
-                id: w.id.clone(),
-                path: w.path.clone(),
-                root_path: w.root_path.clone(),
-                name: w.name.clone(),
-                last_opened_at: w.last_opened_at,
-                is_pinned: false,
-                pinned_order: 0,
-                unpinned_order: max + 1,
-                removed_from_sidebar: false,
-                available: true,
-                hidden_from_right_panels: false,
-            });
+            all.push(entry_from_workspace(w, max));
             changed = true;
         }
     }
@@ -300,19 +283,7 @@ pub fn workspace_restore_to_sidebar(
                 .load_entity::<WorkspaceMeta>(EntityTable::Workspaces, &workspace_id)?
                 .ok_or_else(|| AppError::NotFound(format!("workspace {workspace_id}")))?;
             let max = unpinned_max(&all);
-            all.push(RecentWorkspaceEntry {
-                id: meta.id.clone(),
-                path: meta.path.clone(),
-                root_path: meta.root_path.clone(),
-                name: meta.name.clone(),
-                last_opened_at: meta.last_opened_at,
-                is_pinned: false,
-                pinned_order: 0,
-                unpinned_order: max + 1,
-                removed_from_sidebar: false,
-                available: true,
-                hidden_from_right_panels: false,
-            });
+            all.push(entry_from_workspace(&meta, max));
         }
         save_sidebar_entries(&state, &all)?;
         presentable_recent_list(&state)

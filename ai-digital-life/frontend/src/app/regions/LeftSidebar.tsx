@@ -30,7 +30,7 @@ export function LeftSidebar({
   onTriggerCreateWorkspace
 }: LeftSidebarProps) {
   const actions = useAppActions();
-  const appInfo = useAppStore((s) => s.appInfo);
+  const appInfo = useAppStore(useShallow((s) => s.appInfo));
   const recentWorkspaces = useAppStore(useShallow((s) => s.recentWorkspaces));
   const sessions = useAppStore(useShallow((s) => s.sessions));
   const activeSessionId = useAppStore((s) => s.activeSessionId);

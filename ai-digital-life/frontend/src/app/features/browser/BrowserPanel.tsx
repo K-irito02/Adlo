@@ -612,8 +612,8 @@ export function BrowserPanel(props: BrowserPanelProps) {
                   src={browserState.activeTab.url}
                   className="adl-browser-iframe"
                   title={browserState.activeTab.title}
-                  onLoad={browserActions.handleIframeLoad}
                   onError={browserActions.handleIframeError}
+                  sandbox="allow-scripts allow-forms allow-popups allow-modals allow-top-navigation"
                 />
               )}
 

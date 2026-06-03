@@ -39,7 +39,7 @@ type ButtonState = "send" | "stop" | "retry" | "waiting";
 
 export function CenterPane({ t }: CenterPaneProps) {
   const actions = useAppActions();
-  const appInfo = useAppStore((s) => s.appInfo);
+  const appInfo = useAppStore(useShallow((s) => s.appInfo));
   const activeSessionId = useAppStore((s) => s.activeSessionId);
   const sessionDetails = useAppStore(useShallow((s) => s.sessionDetails));
   const streamingAssistantText = useAppStore((s) => s.streamingAssistantText);

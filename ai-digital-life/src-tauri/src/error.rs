@@ -16,6 +16,9 @@ pub enum IpcErrorCode {
     PatchError,
     TerminalError,
     ModelError,
+    Timeout,
+    RateLimit,
+    AuthError,
     InternalError,
 }
 
@@ -34,6 +37,9 @@ impl std::fmt::Display for IpcErrorCode {
             Self::PatchError => "PATCH_ERROR",
             Self::TerminalError => "TERMINAL_ERROR",
             Self::ModelError => "MODEL_ERROR",
+            Self::Timeout => "TIMEOUT",
+            Self::RateLimit => "RATE_LIMIT",
+            Self::AuthError => "AUTH_ERROR",
             Self::InternalError => "INTERNAL_ERROR",
         };
         write!(f, "{}", s)
@@ -61,6 +67,9 @@ impl From<AppError> for CommandError {
             AppError::Patch(_) => IpcErrorCode::PatchError,
             AppError::Terminal(_) => IpcErrorCode::TerminalError,
             AppError::Model(_) => IpcErrorCode::ModelError,
+            AppError::Timeout(_) => IpcErrorCode::Timeout,
+            AppError::RateLimit(_) => IpcErrorCode::RateLimit,
+            AppError::AuthError(_) => IpcErrorCode::AuthError,
             AppError::Internal(_) => IpcErrorCode::InternalError,
         };
         Self {
@@ -81,6 +90,6 @@ impl From<anyhow::Error> for CommandError {
 
 impl std::fmt::Display for CommandError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[{:?}] {}", self.code, self.message)
+        write!(f, "[{}] {}", self.code, self.message)
     }
 }

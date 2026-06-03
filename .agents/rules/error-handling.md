@@ -20,6 +20,11 @@ alwaysApply: false
 - 禁止静默吞下 IPC 错误（`if (!result.ok) return;` 无错误记录）
 - 禁止混用不同格式的错误值（IPC `result.error.message` 和中文字符串）
 
+### localStorage 写入规范
+- `localStorage` 写入（`writeJson`/`writeNumber`/`writeFlag`）必须捕获 `QuotaExceededError` 等异常
+- 捕获的异常至少记录 `console.warn` 日志，禁止空 `catch {}`
+- 批量写入函数（如 `batchExpandAll`）的 `Promise.allSettled` 结果必须遍历检查 rejected
+
 ## 前端 Loading 状态
 
 ### isFetching 模式

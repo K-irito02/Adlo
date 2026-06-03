@@ -40,7 +40,7 @@ alwaysApply: false
 
 重构后必须执行:
 - [ ] 前端类型检查: `npm --prefix frontend run typecheck`
-- [ ] 前端测试: `npm --prefix frontend test`（183 tests 全通过）
+- [ ] 前端测试: `npm --prefix frontend test`（214 tests 全通过）
 - [ ] Rust 编译: `cargo check --workspace`
 - [ ] Rust 测试: `cargo test --workspace`（105 tests 全通过）
 - [ ] 行为回归: 确认关键用户路径无退化
