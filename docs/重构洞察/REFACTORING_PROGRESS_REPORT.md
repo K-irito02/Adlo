@@ -98,12 +98,7 @@ if (webViewActiveRef.current && isBrowserVisibleRef.current) {
 | 负值离屏坐标 (-10000,-10000) | Windows SetWindowPos 钳制 | 钳制后 WebView 出现在窗口左上角 |
 | Zustand selector 读可见性 | display:none 子树中不可靠 | React 可能跳过 display:none 子树的重渲染 |
 
-### 经验教训
-
-1. **跨平台 GUI 编程要区分 HTML 元素层和 OS 窗口层** — Tauri 原生 WebView 是 OS 子窗口，不受 CSS 控制，必须通过 IPC 命令管理。
-2. **React prop 链比 Zustand selector 更可靠** — 在涉及 `display: none`、`React.memo`、`hidden` 属性的组件树中，保证子组件收到更新的最可靠方式是将关键状态作为 prop 传递。
-3. **Windows 窗口管理的历史包袱** — `SetWindowPos` 对 `WS_CHILD` 窗口的负坐标钳制持续影响了 30 年的 Win32 应用开发，使用正值大偏移量可规避。
-4. **AB 问题的典型诱因是方案选择不当** — 多次在两个方案（hide/show vs 离屏）间切换，本质是 Tauri 子 WebView 不支持 hide/show，需要选择能稳定工作的第三方案（正值离屏 + prop 化 + 守卫）。
+> **经验总结**：Tauri 原生 WebView 是 OS 子窗口不受 CSS 控制，React prop 链比 Zustand selector 在隐藏子树中更可靠，Windows SetWindowPos 负坐标钳制需正值偏移规避。完整经验见 [知识沉淀/重构/refactoring-process-lessons.md](../../知识沉淀/重构/refactoring-process-lessons.md)
 
 ### 改动清单
 
@@ -171,11 +166,7 @@ if (webViewActiveRef.current && isBrowserVisibleRef.current) {
 2. **`text-overflow: clip` vs `ellipsis`**：选 `clip`——文件树/标签树不是阅读型列表，"..."会与计数/按钮产生语义冲突，纯裁切减少视觉噪音
 3. **`overflow: hidden` 放在 name 上 vs namezone 上**：选 name——namezone 包含其他 UI 元素（expand-btn），`overflow: hidden` 在 namezone 上会意外裁剪展开按钮
 
-### 经验教训
-
-1. **CSS 的 `:focus-within` 副作用**：在可点击的子元素上使用 `:focus-within` 会引入永久性的状态锁定，用户点击后聚焦不主动退出，计数永久消失。交互态显隐应优先用 `:hover`。
-2. **`absolute` 定位不参与 flex 布局**：脱离文档流的元素不响应 flex 容器的 `gap` 和 `align-items`，通过 `right` 定位需要精确计算环境变量（padding、border、margin），误差累积难以维护。flex 流 + `flex-shrink: 0` 更稳定。
-3. **CSS 继承的隐性依赖**：`text-overflow` 在基类中定义为 `ellipsis`，子类覆盖非统一时出现碎片化。本次将三层 CSS（基类→顶级→子级）统一为 `clip`，消除未来出问题的断点。
+> **经验总结**：CSS `:focus-within` 可锁定状态导致计数永久消失，交互态显隐应优先用 `:hover`；`absolute` 定位不参与 flex 布局，flex 流 + `flex-shrink:0` 更稳定；`text-overflow` 继承需统一避免碎片化。完整经验见 [知识沉淀/重构/refactoring-process-lessons.md](../../知识沉淀/重构/refactoring-process-lessons.md)
 
 ### 最终门禁
 
@@ -313,12 +304,7 @@ if (webViewActiveRef.current && isBrowserVisibleRef.current) {
 - 因此子目录的 `right: 16px`（原值）会让数字右边缘 = `parent_right - 12` 看似正确，但实测有 4px 偏差。
 - 实测纠正：必须用 `right: var(--space-3)`（即 12px），让子目录数字右边缘 = `parent_right - 12`，与顶级完全一致。
 
-### 经验教训
-
-1. **CSS 像素级对齐必须用 DevTools 实测验证**：理论计算的"right: 16px"看似合理但实测有 4px 偏差，因为 `box-sizing: border-box` + `width: calc(100% + 4px)` + `margin-inline-start: -4px` 的组合让行实际只向左扩展、不向右扩展。最终用 `getBoundingClientRect().right` 验证后改为 `right: var(--space-3)` 才精确对齐。
-2. **JSX 条件渲染的 `0` 陷阱**：`{count ? ... : null}` 会丢失合法的 `0`。TreeNodeRow 修复为 `count !== undefined && count !== null`，确保空目录也显示 "0"。
-3. **数据 vs 渲染分层**：`useBrowserTreeData` 的 `counts: Map<path, number>` 是数据层（只存 directory 节点），`resolveChildCount` 是渲染层（file 节点返回 null 跳过渲染）。两层职责清晰分离后，单测覆盖也变简单。
-4. **CSS override 禁用继承的副作用**：`.adl-browser-entry__tree .adl-filetree__label { overflow: visible }` 在过去某个需求中被加上，但未在移除理由上留痕，导致长名溢出和计数重叠。重构时要明确每个 override 的存在理由。
+> **经验总结**：CSS 像素级对齐必须用 DevTools 实测验证而非理论计算；JSX 条件渲染的 `0` 陷阱需用 `!== undefined && !== null` 而非 falsy 判断；数据层与渲染层分离便于单测；每个 CSS override 需明确存在理由。完整经验见 [知识沉淀/重构/refactoring-process-lessons.md](../../知识沉淀/重构/refactoring-process-lessons.md)
 
 ### 最终门禁
 
@@ -431,13 +417,7 @@ if (webViewActiveRef.current && isBrowserVisibleRef.current) {
 | `--surface-sunken` → `--bg-elevated` | 2 | 相同值 |
 | `--text-xs/sm/base` → `--font-size-xs/sm/base` | — | 待议（值相同，纯命名偏好） |
 
-### 经验教训
-
-1. **react-window 不适用于树形 CSS**：递归 `<ul>` 渲染的树形连接线依赖 DOM 层级结构。react-window 的扁平列表破坏了 CSS 选择器。改用 `content-visibility: auto` 实现等价性能提升而不改 DOM 结构。
-2. **Rust 内部可见性**：`pub(crate)` 在不同 crate 间不生效（如 `adl-storage` 的 `pub(crate)` 对 `src-tauri` 不可见），需改为 `pub`。
-3. **CSS Token 值一致性**：`--bg-card` 和 `--surface-raised` 值不完全一致（差 4 度白），统一命名前需确认设计意图。
-4. **Mutex→RwLock 迁移范围广**：涉及 15+ 处 `.lock()` 调用点，需逐一确认读写模式。显式区分 `.read()` 和 `.write()` 后获得正确性保证。
-5. **前端文件迁移风险**：`ui-store.ts`（12 consumers）和 `types.ts`（16 consumers）的迁移需逐文件验证 `tsc --noEmit`。批量移动文件的策略是：移动 → `tsc` 获取错误列表 → 逐文件修复。
+> **经验总结**：react-window 的扁平列表破坏树形 CSS 连接线，`content-visibility:auto` 是更优方案；Rust `pub(crate)` 跨 crate 不生效；Token 值统一前需确认设计意图；Mutex→RwLock 迁移需逐一确认读写模式；大规模前端文件迁移需逐文件 `tsc` 验证。完整经验见 [知识沉淀/重构/refactoring-process-lessons.md](../../知识沉淀/重构/refactoring-process-lessons.md)
 
 ### 最终门禁
 
@@ -759,7 +739,7 @@ features/diff-viewer/ (DiffViewer 拆分)
 
 ## 第十一轮重构（2026-05-25）：ChangesPanel 组件提取
 
-基于 [ChangesPanel 组件提取经验教训](./refactor-insight-2026-05-25-changespanel-extraction.md)，分 3 个 Phase 共 11 项任务完成：
+基于 [ChangesPanel 组件提取经验教训](../知识沉淀/重构/component-extraction.md)，分 3 个 Phase 共 11 项任务完成：
 
 ### Phase 1：PatchHunkCard 提取（4 项）
 
@@ -1020,8 +1000,8 @@ features/diff-viewer/ (DiffViewer 拆分)
 - [重构洞察报告 5-23](./refactor-insight-2026-05-23.md)
 - [重构洞察报告 5-23-2](./refactor-insight-2026-05-23-2.md)
 - [重构洞察报告 5-24](./refactor-insight-2026-05-24.md)
-- [第十轮执行报告 5-24](./refactor-execution-2026-05-24.md)
-- [第十一轮 ChangesPanel 组件提取经验教训 5-25](./refactor-insight-2026-05-25-changespanel-extraction.md)
+- [第十轮执行报告 5-24](../知识沉淀/重构/execution-lessons.md)
+- [第十一轮 ChangesPanel 组件提取经验教训 5-25](../知识沉淀/重构/component-extraction.md)
 - [第十八轮重构洞察报告 5-29](./refactor-insight-2026-05-29.md)
 - [第十八轮修复计划](../../.trae/specs/fix-refactor-insights-2026-05-29/)
 - [第七轮修复计划](../../.trae/documents/refactor-fix-plan-2026-05-23.md)

@@ -86,22 +86,7 @@ itemClassName={`adl-filetree__item${isDirectory ? " adl-filetree__node--director
 
 ---
 
-## 四、经验教训
-
-### 4.1 架构设计
-- **模块化CSS**：不同功能模块应有独立的样式文件或明确的类名前缀
-- **样式隔离**：共享组件应避免样式耦合，使用BEM或CSS Modules等方法论
-- **版本回滚能力**：重要样式变更前应记录当前状态，便于快速回滚
-
-### 4.2 开发流程
-- **渐进式修改**：每次只修改一个样式属性，验证后再继续
-- **双端验证**：同时检查Tauri桌面和浏览器模式
-- **自动化测试**：利用TypeScript类型检查和Vitest单元测试确保代码质量
-
-### 4.3 文档维护
-- **及时更新文档**：样式变更应同步更新相关文档
-- **记录决策过程**：保存设计决策的上下文，便于后续维护
-- **版本化文档**：文档应与代码版本保持同步
+> **经验总结**：模块化CSS隔离、渐进式修改、双端验证、及时更新文档。完整经验见 [知识沉淀/重构/styling-restoration-2026-05-27.md](../../知识沉淀/重构/styling-restoration-2026-05-27.md)
 
 ---
 
@@ -160,17 +145,7 @@ npm test - 183项测试全部通过
 - 双类选择器 + `!important` + 放末尾文件，三层保障确保不被覆盖
 - 使用 `agent-browser`（Chrome DevTools Protocol 自动化工具）精确测量像素位置
 
-### 8.3 经验教训
-
-**CSS 调试**：
-- 不要凭视觉猜测偏移值——误差可能远超预期（本例猜测 1px，实际 7px）
-- 使用浏览器自动化工具精确测量 `getBoundingClientRect()` 获取真实像素位置
-- `outline-panel.css` 是孤立 CSS 文件（不被任何 import 引用），其中的修改不生效
-- 实际加载的 CSS 链：`main.tsx → index.css → rightpanel.css → files-panel.css + file-tree.css`
-
-**CSS 特异性**：
-- 当元素有多个类名时，注意 CSS 特异性冲突和加载顺序
-- `.adl-tree-node::before`（特异性 0,1,1）被多处定义，需要 `:nth-child` 选择器或 `!important` 覆盖
+> **经验总结**：CSS 偏移不靠视觉猜测，用浏览器自动化工具精确测量；注意 CSS 加载链和特异性冲突。完整经验见 [知识沉淀/重构/styling-restoration-2026-05-27.md](../../知识沉淀/重构/styling-restoration-2026-05-27.md)
 
 ### 8.4 修改的文件
 - `frontend/src/styles/regions/rightpanel/file-tree.css` — 新增 5 行，添加 outline 子级连接竖线对齐规则

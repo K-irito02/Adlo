@@ -4,7 +4,7 @@
 
 `expectedFunctionality` 是本项目的实现蓝图。它不是对市面能力的分析，而是把产品真正落地所需的模块、阶段、边界和工程基线明确下来。
 
-> 说明：当前实际实现已经迁移为 **Rust + Tauri 2.x**。现行代码与治理真源位于 [ai-digital-life/README.md](/E:/Programs/Obsidian/notes/ai-digital-life/README.md)、[AGENTS.md](/E:/Programs/Obsidian/notes/AGENTS.md) 与 [docs/development/project-engineering-constraints.md](/E:/Programs/Obsidian/notes/docs/development/project-engineering-constraints.md)。本目录继续保留产品规划价值，但部分子文档仍带有 Electron 时代目录、进程与技术选型表述，阅读时应以现行 Rust + Tauri 文档为准。
+> 说明：当前实际实现已经迁移为 **Rust + Tauri 2.x**。现行代码与治理真源位于 [ai-digital-life/README.md](../../../ai-digital-life/README.md)、[AGENTS.md](../../../AGENTS.md) 与 [docs/development/project-engineering-constraints.md](../../../docs/development/project-engineering-constraints.md)。本目录继续保留产品规划价值，但部分子文档仍带有 Electron 时代目录、进程与技术选型表述，阅读时应以现行 Rust + Tauri 文档为准。
 
 ### 项目愿景
 

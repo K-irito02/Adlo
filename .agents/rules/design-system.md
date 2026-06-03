@@ -42,7 +42,7 @@ alwaysApply: false
 | `--surface-active` | 选中/激活态稍深底色（如菜单项 active） |
 | `--surface-raised` | 弹出层背景（菜单、popover） |
 
-详见 [tokens.md](/E:/Programs/Obsidian/notes/ai-digital-life/docs/design-system/tokens.md)。
+详见 [tokens.md](../../docs/design-system/tokens.md)。
 
 ## CodeMirror 编辑器集成
 
@@ -120,10 +120,10 @@ xterm.js 主题色从 CSS 自定义属性读取，非硬编码：
 
 ## 相关文件
 
-- [docs/design-system/README.md](/E:/Programs/Obsidian/notes/ai-digital-life/docs/design-system/README.md)
-- [design-system/tokens.ts](/E:/Programs/Obsidian/notes/ai-digital-life/frontend/src/design-system/tokens.ts)
-- [styles/themes.css](/E:/Programs/Obsidian/notes/ai-digital-life/frontend/src/styles/themes.css)
-- [styles/regions.css](/E:/Programs/Obsidian/notes/ai-digital-life/frontend/src/styles/regions.css)
+- [docs/design-system/README.md](../../docs/design-system/README.md)
+- [design-system/tokens.ts](../../ai-digital-life/frontend/src/design-system/tokens.ts)
+- [styles/themes.css](../../ai-digital-life/frontend/src/styles/themes.css)
+- [styles/regions.css](../../ai-digital-life/frontend/src/styles/regions.css)
 - [mandatory-testing.md](./mandatory-testing.md)
 
 ## CSS 架构

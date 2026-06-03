@@ -40,32 +40,32 @@
 
 | ID | 任务 | 问题来源 | 预计时间 |
 |----|------|----------|----------|
-| H1 | 消除重复代码：提取 `trimOldRuns` 和 `trimActivityList` 到共享模块 | [fetchActions.ts:13-61](file:///E:/Programs/Obsidian/notes/ai-digital-life/frontend/src/app/stores/actions/fetchActions.ts#L13-L61), [sessionSlice.ts:45-93](file:///E:/Programs/Obsidian/notes/ai-digital-life/frontend/src/app/stores/slices/sessionSlice.ts#L45-L93) | 45 分钟 |
-| H2 | 优化 Zustand store 选择器性能：引入 `shallow` 比较 | [slicedStore.ts:65-104](file:///E:/Programs/Obsidian/notes/ai-digital-life/frontend/src/app/stores/slicedStore.ts#L65-L104) | 1.5 小时 |
-| H3 | 改进全局缓存：添加 TTL 和大小限制 | [shared.ts:140-167](file:///E:/Programs/Obsidian/notes/ai-digital-life/frontend/src/app/stores/shared.ts#L140-L167) | 1.5 小时 |
+| H1 | 消除重复代码：提取 `trimOldRuns` 和 `trimActivityList` 到共享模块 | [fetchActions.ts:13-61](../../ai-digital-life/frontend/src/app/stores/actions/fetchActions.ts#L13-L61), [sessionSlice.ts:45-93](../../ai-digital-life/frontend/src/app/stores/slices/sessionSlice.ts#L45-L93) | 45 分钟 |
+| H2 | 优化 Zustand store 选择器性能：引入 `shallow` 比较 | [slicedStore.ts:65-104](../../ai-digital-life/frontend/src/app/stores/slicedStore.ts#L65-L104) | 1.5 小时 |
+| H3 | 改进全局缓存：添加 TTL 和大小限制 | [shared.ts:140-167](../../ai-digital-life/frontend/src/app/stores/shared.ts#L140-L167) | 1.5 小时 |
 
 ### 🟡 中优先级（高优先级完成后执行）
 
 | ID | 任务 | 问题来源 | 预计时间 |
 |----|------|----------|----------|
-| M1 | 统一 Action 定义组织：将 `TaskActions` 和 `CommandActions` 移至独立文件 | [StoreState.ts:31-33](file:///E:/Programs/Obsidian/notes/ai-digital-life/frontend/src/app/stores/StoreState.ts#L31-L33) | 30 分钟 |
-| M2 | 统一批量写入调度实现：复用 `shared.ts` 中的 `createDebouncedWrite` | [workspaceSlice.ts:43-63](file:///E:/Programs/Obsidian/notes/ai-digital-life/frontend/src/app/stores/slices/workspaceSlice.ts#L43-L63), [shared.ts:74-111](file:///E:/Programs/Obsidian/notes/ai-digital-life/frontend/src/app/stores/shared.ts#L74-L111) | 45 分钟 |
-| M3 | 优化 `parse_config_outline`：缓存正则表达式 | [outline/src/lib.rs:179-215](file:///E:/Programs/Obsidian/notes/ai-digital-life/crates/outline/src/lib.rs#L179-L215) | 30 分钟 |
-| M4 | 优化 `classify_profile`：改进字符串匹配 | [command/src/lib.rs:35-52](file:///E:/Programs/Obsidian/notes/ai-digital-life/crates/command/src/lib.rs#L35-L52) | 30 分钟 |
-| M5 | 改进 `define_entity_table!` 宏：减少代码膨胀 | [storage/src/lib.rs:362-417](file:///E:/Programs/Obsidian/notes/ai-digital-life/crates/storage/src/lib.rs#L362-L417) | 1 小时 |
-| M6 | 优化 `fetchAuditEntries`：使用 Map 替代数组分组 | [fetchActions.ts:120-170](file:///E:/Programs/Obsidian/notes/ai-digital-life/frontend/src/app/stores/actions/fetchActions.ts#L120-L170) | 45 分钟 |
-| M7 | 改进 `slashCommandRegistry`：考虑使用依赖注入 | [streamActions.ts:65-99](file:///E:/Programs/Obsidian/notes/ai-digital-life/frontend/src/app/stores/actions/streamActions.ts#L65-L99) | 45 分钟 |
-| M8 | 合并 `BrowserTreeEntry` 中的 useEffect 或使用 useReducer | [BrowserTreeEntry.tsx:160,179](file:///E:/Programs/Obsidian/notes/ai-digital-life/frontend/src/app/features/browser-tree/BrowserTreeEntry.tsx#L160) | 1 小时 |
-| M9 | 改进切片依赖关系文档：考虑独立设计文档 | [slices.ts:4-16](file:///E:/Programs/Obsidian/notes/ai-digital-life/frontend/src/app/stores/slices.ts#L4-L16) | 30 分钟 |
+| M1 | 统一 Action 定义组织：将 `TaskActions` 和 `CommandActions` 移至独立文件 | [StoreState.ts:31-33](../../ai-digital-life/frontend/src/app/stores/StoreState.ts#L31-L33) | 30 分钟 |
+| M2 | 统一批量写入调度实现：复用 `shared.ts` 中的 `createDebouncedWrite` | [workspaceSlice.ts:43-63](../../ai-digital-life/frontend/src/app/stores/slices/workspaceSlice.ts#L43-L63), [shared.ts:74-111](../../ai-digital-life/frontend/src/app/stores/shared.ts#L74-L111) | 45 分钟 |
+| M3 | 优化 `parse_config_outline`：缓存正则表达式 | [outline/src/lib.rs:179-215](../../ai-digital-life/crates/outline/src/lib.rs#L179-L215) | 30 分钟 |
+| M4 | 优化 `classify_profile`：改进字符串匹配 | [command/src/lib.rs:35-52](../../ai-digital-life/crates/command/src/lib.rs#L35-L52) | 30 分钟 |
+| M5 | 改进 `define_entity_table!` 宏：减少代码膨胀 | [storage/src/lib.rs:362-417](../../ai-digital-life/crates/storage/src/lib.rs#L362-L417) | 1 小时 |
+| M6 | 优化 `fetchAuditEntries`：使用 Map 替代数组分组 | [fetchActions.ts:120-170](../../ai-digital-life/frontend/src/app/stores/actions/fetchActions.ts#L120-L170) | 45 分钟 |
+| M7 | 改进 `slashCommandRegistry`：考虑使用依赖注入 | [streamActions.ts:65-99](../../ai-digital-life/frontend/src/app/stores/actions/streamActions.ts#L65-L99) | 45 分钟 |
+| M8 | 合并 `BrowserTreeEntry` 中的 useEffect 或使用 useReducer | [BrowserTreeEntry.tsx:160,179](../../ai-digital-life/frontend/src/app/features/browser-tree/BrowserTreeEntry.tsx#L160) | 1 小时 |
+| M9 | 改进切片依赖关系文档：考虑独立设计文档 | [slices.ts:4-16](../../ai-digital-life/frontend/src/app/stores/slices.ts#L4-L16) | 30 分钟 |
 
 ### 🟢 低优先级（有空时处理）
 
 | ID | 任务 | 问题来源 | 预计时间 |
 |----|------|----------|----------|
-| L1 | 优化 `detect_root`：添加路径缓存或非递归实现 | [workspace/src/lib.rs:37-62](file:///E:/Programs/Obsidian/notes/ai-digital-life/crates/workspace/src/lib.rs#L37-L62) | 30 分钟 |
-| L2 | 优化 `outline_family_map`：缓存为静态表 | [outline/src/lib.rs:54-87](file:///E:/Programs/Obsidian/notes/ai-digital-life/crates/outline/src/lib.rs#L54-L87) | 30 分钟 |
-| L3 | 改进 TypeScript 断言可读性：添加注释或使用 zod | [slicedStore.ts:107-109](file:///E:/Programs/Obsidian/notes/ai-digital-life/frontend/src/app/stores/slicedStore.ts#L107-L109) | 30 分钟 |
-| L4 | 优化 `resolve_existing_parent`：添加缓存 | [fs-ops/src/lib.rs:56-64](file:///E:/Programs/Obsidian/notes/ai-digital-life/crates/fs-ops/src/lib.rs#L56-L64) | 30 分钟 |
+| L1 | 优化 `detect_root`：添加路径缓存或非递归实现 | [workspace/src/lib.rs:37-62](../../ai-digital-life/crates/workspace/src/lib.rs#L37-L62) | 30 分钟 |
+| L2 | 优化 `outline_family_map`：缓存为静态表 | [outline/src/lib.rs:54-87](../../ai-digital-life/crates/outline/src/lib.rs#L54-L87) | 30 分钟 |
+| L3 | 改进 TypeScript 断言可读性：添加注释或使用 zod | [slicedStore.ts:107-109](../../ai-digital-life/frontend/src/app/stores/slicedStore.ts#L107-L109) | 30 分钟 |
+| L4 | 优化 `resolve_existing_parent`：添加缓存 | [fs-ops/src/lib.rs:56-64](../../ai-digital-life/crates/fs-ops/src/lib.rs#L56-L64) | 30 分钟 |
 
 ---
 
@@ -454,7 +454,7 @@
 #### 实施步骤
 
 1. **创建独立的架构文档**
-   - 位置：`ai-digital-life/docs/architecture/store-dependencies.md`
+   - 位置：`docs/architecture/store-dependencies.md`
    - 清晰记录每个 slice 的依赖关系
 
 2. **更新代码注释**
@@ -542,20 +542,20 @@
 ### 相关文件清单
 
 **前端 TypeScript**
-- [StoreState.ts](file:///E:/Programs/Obsidian/notes/ai-digital-life/frontend/src/app/stores/StoreState.ts)
-- [slicedStore.ts](file:///E:/Programs/Obsidian/notes/ai-digital-life/frontend/src/app/stores/slicedStore.ts)
-- [shared.ts](file:///E:/Programs/Obsidian/notes/ai-digital-life/frontend/src/app/stores/shared.ts)
-- [slices/sessionSlice.ts](file:///E:/Programs/Obsidian/notes/ai-digital-life/frontend/src/app/stores/slices/sessionSlice.ts)
-- [slices/workspaceSlice.ts](file:///E:/Programs/Obsidian/notes/ai-digital-life/frontend/src/app/stores/slices/workspaceSlice.ts)
-- [actions/fetchActions.ts](file:///E:/Programs/Obsidian/notes/ai-digital-life/frontend/src/app/stores/actions/fetchActions.ts)
-- [features/browser-tree/BrowserTreeEntry.tsx](file:///E:/Programs/Obsidian/notes/ai-digital-life/frontend/src/app/features/browser-tree/BrowserTreeEntry.tsx)
+- [StoreState.ts](../../ai-digital-life/frontend/src/app/stores/StoreState.ts)
+- [slicedStore.ts](../../ai-digital-life/frontend/src/app/stores/slicedStore.ts)
+- [shared.ts](../../ai-digital-life/frontend/src/app/stores/shared.ts)
+- [slices/sessionSlice.ts](../../ai-digital-life/frontend/src/app/stores/slices/sessionSlice.ts)
+- [slices/workspaceSlice.ts](../../ai-digital-life/frontend/src/app/stores/slices/workspaceSlice.ts)
+- [actions/fetchActions.ts](../../ai-digital-life/frontend/src/app/stores/actions/fetchActions.ts)
+- [features/browser-tree/BrowserTreeEntry.tsx](../../ai-digital-life/frontend/src/app/features/browser-tree/BrowserTreeEntry.tsx)
 
 **后端 Rust**
-- [storage/src/lib.rs](file:///E:/Programs/Obsidian/notes/ai-digital-life/crates/storage/src/lib.rs)
-- [workspace/src/lib.rs](file:///E:/Programs/Obsidian/notes/ai-digital-life/crates/workspace/src/lib.rs)
-- [command/src/lib.rs](file:///E:/Programs/Obsidian/notes/ai-digital-life/crates/command/src/lib.rs)
-- [outline/src/lib.rs](file:///E:/Programs/Obsidian/notes/ai-digital-life/crates/outline/src/lib.rs)
-- [fs-ops/src/lib.rs](file:///E:/Programs/Obsidian/notes/ai-digital-life/crates/fs-ops/src/lib.rs)
+- [storage/src/lib.rs](../../ai-digital-life/crates/storage/src/lib.rs)
+- [workspace/src/lib.rs](../../ai-digital-life/crates/workspace/src/lib.rs)
+- [command/src/lib.rs](../../ai-digital-life/crates/command/src/lib.rs)
+- [outline/src/lib.rs](../../ai-digital-life/crates/outline/src/lib.rs)
+- [fs-ops/src/lib.rs](../../ai-digital-life/crates/fs-ops/src/lib.rs)
 
 ---
 

@@ -31,7 +31,7 @@
 
 实现工作区的技术对齐与阶段细节见：
 
-- [Tech Stack Alignment](./ai-digital-life/docs/architecture/tech-stack-alignment.md)
+- [Tech Stack Alignment](./docs/architecture/tech-stack-alignment.md)
 
 ## 开发协作
 
@@ -47,4 +47,4 @@
 
 - `digitalLife/` 继续保留产品愿景、阶段划分和早期设计讨论
 - 当 `digitalLife/` 与 `ai-digital-life/` 或根目录治理文档冲突时，以当前 Rust + Tauri 文档为准
-- 更新架构、规则、技术栈或目录结构时，优先同步根 `AGENTS.md`、`docs/development/*` 与 `ai-digital-life/docs/architecture/*`
+- 更新架构、规则、技术栈或目录结构时，优先同步根 `AGENTS.md`、`docs/development/*` 与 `docs/architecture/*`

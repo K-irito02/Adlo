@@ -82,12 +82,13 @@
 |------|----------|
 | 项目治理规则 | `AGENTS.md`（本项目）、`.agents/rules/` |
 | 实现侧治理 | `ai-digital-life/AGENTS.md` |
-| 架构文档 | `ai-digital-life/docs/architecture/` |
-| 设计系统 | `ai-digital-life/docs/design-system/` |
+| 架构文档 | `docs/architecture/` |
+| 设计系统 | `docs/design-system/` |
 | 开发约束 | `docs/development/` |
 | IPC 契约 | `ai-digital-life/frontend/src/shared/ipc.ts` |
 | UI 测试 | `UIOperationManual/` |
 | 重构进度 | `docs/重构洞察/REFACTORING_PROGRESS_REPORT.md` |
+| 知识沉淀 | `docs/知识沉淀/` |
 
 ## 相关文档
 
@@ -95,3 +96,4 @@
 - [FUTURE-ROADMAP.md](./FUTURE-ROADMAP.md) — 远期规划
 - [docs/development/project-engineering-constraints.md](./docs/development/project-engineering-constraints.md) — 工程约束
 - [docs/重构洞察/REFACTORING_PROGRESS_REPORT.md](./docs/重构洞察/REFACTORING_PROGRESS_REPORT.md) — 30 轮重构完整记录
+- [docs/知识沉淀/README.md](./docs/知识沉淀/README.md) — 经验教训与总结索引

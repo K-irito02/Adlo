@@ -86,10 +86,10 @@
 
 迁移到真实代码仓时，以下文档必须继续保持源事实一致：
 
-- [AGENTS.md](/E:/Programs/Obsidian/notes/AGENTS.md)
-- [project-engineering-constraints.md](/E:/Programs/Obsidian/notes/docs/development/project-engineering-constraints.md)
-- [agent-topology.md](/E:/Programs/Obsidian/notes/docs/development/agent-topology.md)
-- [agent-routing.md](/E:/Programs/Obsidian/notes/docs/development/agent-routing.md)
-- [hook-policy.md](/E:/Programs/Obsidian/notes/docs/development/hook-policy.md)
+- [AGENTS.md](../../AGENTS.md)
+- [project-engineering-constraints.md](./project-engineering-constraints.md)
+- [agent-topology.md](./agent-topology.md)
+- [agent-routing.md](./agent-routing.md)
+- [hook-policy.md](./hook-policy.md)
 
 如果真实代码仓的实现约束与当前规划仓不一致，必须先更新规划仓文档，再更新实现仓文档与自动化规则。

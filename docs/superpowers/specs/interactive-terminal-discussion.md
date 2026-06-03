@@ -279,43 +279,4 @@
 
 该讨论文档中的方案二（Xterm.js + PTY）已在 Phase 2 中实施完成。
 
-### 实际实现对比
-
-| 讨论方案 | 实际实现 | 差异说明 |
-|---------|---------|----------|
-| 方案二：Xterm.js + PTY | ✅ xterm.js + 双端 PTY | 未使用 `portable-pty` crate；Tauri 模式用 Rust PTY Command，浏览器模式用 Node.js `child_process.spawn` |
-| 前端 xterm.js | ✅ `XtermTerminal.tsx` + `TerminalPanel.tsx` | 使用 `@xterm/xterm`、`@xterm/addon-fit`、`@xterm/addon-web-links` |
-| 后端 PTY | ✅ 双后端实现 | Tauri: `pty_commands.rs`；浏览器: `previewTerminalService.ts` (SSE 通信) |
-| 通信机制 | ✅ 双通道 | Tauri: Event `digital-life://pty-output`；浏览器: SSE `/__adl_preview_api__/pty/output` |
-| 会话管理 | ✅ 多会话独立 PTY | 每个 Tab 对应独立 Shell 进程 |
-| 主题同步 | ✅ MutationObserver | xterm 主题色从 CSS 变量动态读取 |
-
-### 与讨论方案的关键偏离
-
-1. **未使用 `portable-pty` crate**：浏览器模式使用 Node.js 标准库 `child_process.spawn`，Tauri 模式使用标准 Rust `std::process::Command` 封装
-2. **浏览器模式 PTY 通信使用 SSE 而非 WebSocket**：Vite 中间件天然支持 SSE，无需额外依赖
-3. **未实现 Block 模型**：命令块分割功能未实施，xterm.js 直接渲染原始 PTY 输出
-4. **未实现命令审批门控在 PTY 中**：交互式终端中未实现风险命令拦截（保留原有非交互式命令执行的门控）
-
-### 关键经验教训
-
-1. **xterm.js 不做 local echo**：所有字符回显依赖后端 PTY 进程
-2. **Mock Bridge 不可用于真实终端**：mock-bridge 的假终端无法满足用户需求，必须用真实 Shell 进程
-3. **双端架构的 PTY 实现差异**：Tauri 模式和浏览器模式需要各自独立的 PTY 后端实现，但前端 IPC 接口保持一致
-4. **Tab 切换内容恢复**：使用 `sessionOutputsRef` (Map) 存储每个 session 的输出历史，切换 Tab 时写入 xterm.js
-
-### 相关文件
-
-实现后更新/创建的文件：
-- `frontend/src/app/components/terminal/XtermTerminal.tsx`（xterm.js 封装组件）
-- `frontend/src/app/regions/right-panel/TerminalPanel.tsx`（终端面板，完全重写）
-- `frontend/dev/previewTerminalService.ts`（浏览器模式 PTY 服务，新增）
-- `frontend/src/preview-bridge.ts`（终端桥接实现，新增 PTY SSE 连接）
-- `frontend/src/mock-bridge.ts`（PTY mock 桩）
-- `frontend/src/styles/regions.css`（终端相关 CSS，新增）
-- `frontend/src/app/ui-store.ts`（终端状态重构）
-- `frontend/src/shared/ipc.ts`（`PtyOutputEvent`、`PtySessionInfo`、`pty` 命名空间）
-
----
-
-文档结束
+> 经验教训已迁移至 [知识沉淀/多工作区/interactive-terminal.md](../../知识沉淀/多工作区/interactive-terminal.md)

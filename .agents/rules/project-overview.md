@@ -21,7 +21,7 @@ alwaysApply: true
 | 功能模块组件 | `ai-digital-life/frontend/src/app/features/` |
 | 设计 Token / 主题 | `ai-digital-life/frontend/src/design-system/`、`src/styles/` |
 | 阶段/路由/治理 | 根目录 `AGENTS.md` |
-| 架构设计 | `ai-digital-life/docs/architecture/` |
+| 架构设计 | `docs/architecture/` |
 | 状态管理 / Store 变更 | `ai-digital-life/frontend/src/app/stores/` |
 
 ## 相关文件

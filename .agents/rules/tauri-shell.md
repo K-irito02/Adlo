@@ -98,5 +98,5 @@ alwaysApply: false
 
 ## 相关文件
 
-- [frontend/src/shared/ipc.ts](/E:/Programs/Obsidian/notes/ai-digital-life/frontend/src/shared/ipc.ts)
-- [src-tauri/src/commands](/E:/Programs/Obsidian/notes/ai-digital-life/src-tauri/src/commands)
+- [frontend/src/shared/ipc.ts](../../ai-digital-life/frontend/src/shared/ipc.ts)
+- [src-tauri/src/commands](../../ai-digital-life/src-tauri/src/commands)

@@ -73,7 +73,7 @@ playwright screenshot http://localhost:5173 screenshot.png
 | [references/playwright-cli.md](./references/playwright-cli.md) | 静态截图命令参考 |
 | [references/adl-project-selectors.md](./references/adl-project-selectors.md) | 项目专属 UI 选择器、元素状态定义 |
 | [scripts/changes-panel-test-checklist.md](./scripts/changes-panel-test-checklist.md) | 变更面板测试步骤清单（Agent 逐步执行） |
-| [scripts/lessons-learned.md](./scripts/lessons-learned.md) | 脚本方案经验教训总结 |
+| [知识沉淀/浏览器自动化/lessons.md](../../../docs/知识沉淀/浏览器自动化/lessons.md) | 脚本方案经验教训总结 |
 | [scripts/_template-checklist.md](./scripts/_template-checklist.md) | 步骤清单模板（新建清单时从此复制） |
 
 ---

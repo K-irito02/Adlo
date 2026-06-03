@@ -135,13 +135,7 @@ terminalCreateTab(finalProfile, workspaceId ?? "");
 
 原来的代码直接传递原始的 `profile` 参数，而不是计算好的 `finalProfile`，导致工作区默认终端类型设置没有被正确应用。
 
-## 经验教训
-
-1. **子菜单位置计算**：使用 `getBoundingClientRect()` 获取元素位置比纯CSS定位更准确，尤其是在复杂布局中
-2. **延迟关闭机制**：使用 setTimeout + clearTimeout 实现自然的菜单交互体验，用户体验更流畅
-3. **Portal渲染**：子菜单通过portal渲染到body可以避免父容器样式限制，确保正确显示
-4. **状态管理**：使用Zustand存储绑定的工作区ID和工作区默认终端类型，确保状态在组件间共享
-5. **参数传递验证**：在调用函数时，务必确认传递的是正确计算后的值，而不是原始参数
+> 经验教训已迁移至 [知识沉淀/多工作区/terminal-binding.md](../../知识沉淀/多工作区/terminal-binding.md)
 
 ## 验证结果
 

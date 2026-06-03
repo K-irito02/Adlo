@@ -7,7 +7,7 @@
 - 当前规划与设计仓库中的架构、规范、实施方案
 - 未来真实代码仓中的实现、测试、打包与发布流程
 
-本文件是对 [AGENTS.md](/E:/Programs/Obsidian/notes/AGENTS.md) 中 Agent 治理规则的补充，聚焦产品与工程落地约束，而不是开发协作拓扑本身。
+本文件是对 [AGENTS.md](../../AGENTS.md) 中 Agent 治理规则的补充，聚焦产品与工程落地约束，而不是开发协作拓扑本身。
 
 ## 技术与阶段基线
 
@@ -287,10 +287,10 @@
 
 若变更同时影响 Agent 路由、hook 策略或阶段边界，还必须同步：
 
-- [AGENTS.md](/E:/Programs/Obsidian/notes/AGENTS.md)
-- [agent-topology.md](/E:/Programs/Obsidian/notes/docs/development/agent-topology.md)
-- [agent-routing.md](/E:/Programs/Obsidian/notes/docs/development/agent-routing.md)
-- [hook-policy.md](/E:/Programs/Obsidian/notes/docs/development/hook-policy.md)
+- [AGENTS.md](../../AGENTS.md)
+- [agent-topology.md](./agent-topology.md)
+- [agent-routing.md](./agent-routing.md)
+- [hook-policy.md](./hook-policy.md)
 
 ## 禁止项补充清单
 

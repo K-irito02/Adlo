@@ -1,6 +1,6 @@
 # 第一阶段：可运行架构底座（Phase 0）
 
-> 历史说明：本目录用于保留 Phase 0 规划过程，其中部分章节仍描述 Electron 时代的 Main / Preload / Renderer 结构。当前实现已迁移为 **Rust + Tauri 2.x**；现行阶段边界、工程命令与安全约束请以 [ai-digital-life/README.md](/E:/Programs/Obsidian/notes/ai-digital-life/README.md)、[ai-digital-life/CONTRIBUTING.md](/E:/Programs/Obsidian/notes/ai-digital-life/CONTRIBUTING.md) 与 [docs/development/project-engineering-constraints.md](/E:/Programs/Obsidian/notes/docs/development/project-engineering-constraints.md) 为准。
+> 历史说明：本目录用于保留 Phase 0 规划过程，其中部分章节仍描述 Electron 时代的 Main / Preload / Renderer 结构。当前实现已迁移为 **Rust + Tauri 2.x**；现行阶段边界、工程命令与安全约束请以 [ai-digital-life/README.md](../../../ai-digital-life/README.md)、[ai-digital-life/CONTRIBUTING.md](../../../ai-digital-life/CONTRIBUTING.md) 与 [docs/development/project-engineering-constraints.md](../../../docs/development/project-engineering-constraints.md) 为准。
 
 ## 阶段定位
 

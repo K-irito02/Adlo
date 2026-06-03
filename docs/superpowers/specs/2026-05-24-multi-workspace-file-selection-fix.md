@@ -125,33 +125,7 @@ openChangePreviewForWorkspace: (
 4. 系统设置 `selectedFilePath` 和 `selectedFileWorkspaceId`
 5. 文件树组件根据这两个状态判断是否高亮
 
-## 经验教训
-
-### 1. 多工作区上下文的重要性
-- 在多工作区场景下，任何资源的标识都应该包含工作区信息
-- 不能只依赖相对路径来唯一标识资源
-- 这是一个经典的 "namespace" 问题
-
-### 2. 向后兼容设计
-- 保留了原有的 `openFile`/`openChangePreview` 方法，用于当前工作区资源
-- 新增的 `openFileForWorkspace`/`openChangePreviewForWorkspace` 用于其他工作区资源
-- 最小化破坏性变更
-
-### 3. 组件设计原则
-- 组件应该尽量简单，接收明确的 props
-- 子组件不需要知道全局状态，只需要知道 "当前资源是否选中"
-- 父组件负责判断并传递 `effectiveSelectedPath`
-
-### 4. 测试的价值
-- 重构后所有 183 个测试都通过，确保没有引入新问题
-- 这给了我们信心继续推进更多改进
-
-### 5. 终端面板天然免疫
-
-终端面板不需要类似修复，原因：
-- 每个 `TerminalTabState` 自带 `workspaceId` 字段
-- `tabsByWorkspace` 自动按工作区分组
-- 标签ID全局唯一，不存在路径冲突
+> 经验教训已迁移至 [知识沉淀/多工作区/file-selection-fix.md](../../知识沉淀/多工作区/file-selection-fix.md)
 
 ## 验证结果
 
@@ -165,5 +139,5 @@ openChangePreviewForWorkspace: (
 
 ## 相关文档
 
-- [AGENTS.md](file:///E:/Programs/Obsidian/notes/AGENTS.md) - 项目总览
-- [ai-digital-life/AGENTS.md](file:///E:/Programs/Obsidian/notes/ai-digital-life/AGENTS.md) - 实现进度
+- [AGENTS.md](../../../AGENTS.md) - 项目总览
+- [ai-digital-life/AGENTS.md](../../../ai-digital-life/AGENTS.md) - 实现进度
