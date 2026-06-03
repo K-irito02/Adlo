@@ -1,6 +1,6 @@
 # 重构进度报告
 
-> 更新日期: 2026-06-02（第二十九轮）
+> 更新日期: 2026-06-03（第三十轮）
 
 ## 完成状态
 
@@ -35,8 +35,97 @@
 | **第二十七轮** | **2026-06-02** | **浏览器标签树计数优化（计数语义修正 + 子目录计数右对齐 + URL 标签隐藏计数 + 长名省略号截断 + 抽出 resolveChildCount 纯函数）** | ✅ |
 | **第二十八轮** | **2026-06-02** | **四位一体治理（openTabCount 语义错位 + 工作区删除级联清理 + 死状态清理 + i18n P0 硬编码）** | ✅ |
 | **第二十九轮** | **2026-06-02** | **浏览器面板计数重叠修复 + 溢出裁切体系统一（:focus-within 子目录计数消失修复 + 子目录计数回退 flex 流 4px 偏差消除 + 顶级目录名称 overflow:hidden + 基类 text-overflow:ellipsis→clip 统一）** | ✅ |
+| **第三十轮** | **2026-06-03** | **浏览器面板 WebView 可见性治理（面板切换隐藏/显示 + 跨面板状态保持 + 离屏坐标从负值改为正值 + 可见性 prop 化替代 Zustand selector + ResizeObserver 守卫）** | ✅ |
 
-## 第二十九轮重构（2026-06-02）：浏览器面板计数重叠修复 + 溢出裁切体系统一
+## 第三十轮重构（2026-06-03）：浏览器面板 WebView 可见性治理
+
+原生 Tauri WebView 在面板切换时的可见性问题是一个持续多轮反复的难点，最终通过**可见性 prop 化 + 正值离屏坐标 + ResizeObserver 守卫**三管齐下解决。
+
+### 问题
+
+浏览器面板的网页显示区域（Tauri 原生 WebView）在切换功能面板后不隐藏，且收起右侧面板后依然可见；反过来修复隐藏后又导致 WebView 内容不显示或不刷新。AB 问题来回切换三次。
+
+### 根因分析
+
+| 根因 | 说明 |
+|------|------|
+| `hidden` 属性对原生 WebView 无效 | CSS `display: none` 只控制 HTML 元素，Tauri 原生 WebView 是 OS 级子窗口，不受 CSS 影响 |
+| 负坐标被 Windows 钳制 | `SetWindowPos` 对 `WS_CHILD` 窗口的负坐标做钳制到 `(0, 0)`，导致 `browser_set_bounds(-10000, -10000)` 失效 |
+| Zustand selector 跨组件订阅不可靠 | `useAppStore` 在 `display: none` 子树中可能不被 React 触发重渲染 |
+| ResizeObserver 无可见性守卫 | 面板隐藏时元素尺寸塌缩为 `0x0`，但 ResizeObserver 仍会触发并调用 `updateWebViewBounds` |
+
+### 修复方案
+
+核心从 **三个层面**确保 WebView 可见性可预测：
+
+**1. 可见性 prop 化（修复 Zustand 不可靠问题）**
+
+```
+RightPanel(activeRightTool) 
+  → useBrowserPanelProps(isVisible: activeRightTool==="browser" && !collapsed) 
+  → ActiveToolPanel(browserProps.isVisible) 
+  → BrowserPanel(isVisible prop)
+  → useBrowserPanel(props.isVisible)
+```
+
+避免在 `display: none` 子组件中用 `useAppStore` 订阅 store，改为通过 React prop 链传递 `isVisible`。
+
+**2. 正值离屏坐标（修复 Windows 坐标钳制）**
+
+```ts
+// 之前: 负坐标 → Windows 钳制到 (0,0) → WebView 始终可见
+invoke("browser_set_bounds", { bounds: { x: -10000, y: -10000, width: 1, height: 1 } })
+
+// 之后: 正坐标 32767 → 超出最大显示器物理范围 → 真正不可见
+invoke("browser_set_bounds", { bounds: { x: 32767, y: 32767, width: 1, height: 1 } })
+```
+
+**3. ResizeObserver 守卫（防止面板隐藏时误定位）**
+
+```ts
+// ResizeObserver 回调
+if (webViewActiveRef.current && isBrowserVisibleRef.current) {
+  updateWebViewBounds();
+}
+```
+
+### 关键决策
+
+| 方案 | 问题 | 被否决原因 |
+|------|------|-----------|
+| browser_hide / browser_show | Tauri v2 子 WebView 不支持 hide/show | 子 WebView 是 embedded content，非独立窗口 |
+| 条件渲染（挂载/卸载） | 每次切换都销毁 → 页面刷新 | 用户要求状态保持 |
+| 负值离屏坐标 (-10000,-10000) | Windows SetWindowPos 钳制 | 钳制后 WebView 出现在窗口左上角 |
+| Zustand selector 读可见性 | display:none 子树中不可靠 | React 可能跳过 display:none 子树的重渲染 |
+
+### 经验教训
+
+1. **跨平台 GUI 编程要区分 HTML 元素层和 OS 窗口层** — Tauri 原生 WebView 是 OS 子窗口，不受 CSS 控制，必须通过 IPC 命令管理。
+2. **React prop 链比 Zustand selector 更可靠** — 在涉及 `display: none`、`React.memo`、`hidden` 属性的组件树中，保证子组件收到更新的最可靠方式是将关键状态作为 prop 传递。
+3. **Windows 窗口管理的历史包袱** — `SetWindowPos` 对 `WS_CHILD` 窗口的负坐标钳制持续影响了 30 年的 Win32 应用开发，使用正值大偏移量可规避。
+4. **AB 问题的典型诱因是方案选择不当** — 多次在两个方案（hide/show vs 离屏）间切换，本质是 Tauri 子 WebView 不支持 hide/show，需要选择能稳定工作的第三方案（正值离屏 + prop 化 + 守卫）。
+
+### 改动清单
+
+| 文件 | 行数 | 改动 |
+|------|------|------|
+| `frontend/src/app/regions/RightPanel.tsx:90-92` | 3 | 浏览器面板从条件渲染改为 `hidden` 属性（保持挂载） |
+| `frontend/src/app/regions/right-panel/types.ts:211` | 1 | `BrowserPanelProps` 增加 `isVisible` 字段 |
+| `frontend/src/app/regions/right-panel/hooks/useBrowserPanelProps.ts:5-12` | 8 | props hook 接受 `isVisible` 参数 |
+| `frontend/src/app/features/browser/useBrowserPanel.ts:632-651` | 20 | 可见性 ref + visibility effect（离屏隐藏 + 定位显示） |
+| `frontend/src/app/features/browser/useBrowserPanel.ts:707-711` | 5 | ResizeObserver 增加 `isBrowserVisibleRef.current` 守卫 |
+| `frontend/src/app/features/browser/useBrowserPanel.ts:385` | 1 | `updateWebViewBounds` 移除多余守卫（各调用方自有守卫） |
+| `frontend/src/styles/regions/rightpanel/files-panel.css:119-121` | 3 | 死规则 `.adl-rightpanel__tool[hidden]` → 全局 `[hidden]` 兜底 |
+| `src-tauri/permissions/digital-life.toml:87-89` | 3 | 新增 `browser_hide`/`browser_show` 权限 |
+
+### 最终门禁
+
+| 检查项 | 结果 |
+|--------|------|
+| TypeScript typecheck | ✅ 0 error |
+| Rust cargo check | ✅ 0 warning |
+
+
 
 针对第二十七轮引入的子目录计数对齐方案中暴露的 3 个视觉问题，统一修复并消除基类 `text-overflow` 继承隐患。
 

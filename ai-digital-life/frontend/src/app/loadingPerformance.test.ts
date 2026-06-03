@@ -30,9 +30,9 @@ describe("loading and switching performance guards", () => {
     expect(appSource).toContain("useAppStore((state) => state.error)");
   });
 
-  it("mounts only the active right-side tool panel", () => {
+  it("renders all right-side tool panels and hides inactive ones via hidden attribute", () => {
     expect(rightPanelSource).toContain("function ActiveToolPanel");
-    expect(rightPanelSource).not.toContain("hidden={activeTool !==");
+    expect(rightPanelSource).toContain("hidden={activeTool !==");
   });
 
   it("guards async switch responses and caches editor previews in the renderer", () => {

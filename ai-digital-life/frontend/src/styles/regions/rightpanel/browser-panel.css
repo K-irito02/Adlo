@@ -375,7 +375,7 @@
 /* ─── Browser Menu Dropdown ─── */
 .adl-tool-panel--browser {
   position: relative;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .adl-tool-panel--browser .adl-tool-context {

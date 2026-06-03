@@ -116,7 +116,7 @@
   min-height: 0;
 }
 
-.adl-rightpanel__tool[hidden] {
+[hidden] {
   display: none;
 }
 

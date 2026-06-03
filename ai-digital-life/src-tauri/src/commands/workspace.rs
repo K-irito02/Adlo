@@ -259,17 +259,6 @@ pub fn current_workspace(state: &AppState) -> Result<WorkspaceMeta, AppError> {
         .ok_or_else(|| AppError::NotFound("active workspace".into()))
 }
 
-pub fn set_current_workspace(state: &AppState, meta: &WorkspaceMeta) -> Result<(), AppError> {
-    state
-        .db
-        .put_state("current_workspace", &serde_json::to_string(meta)?)?;
-    *state
-        .current_workspace
-        .write()
-        .map_err(|_| AppError::Internal("workspace mutex poisoned".into()))? = Some(meta.clone());
-    Ok(())
-}
-
 pub fn virtual_global_workspace() -> WorkspaceMeta {
     let now = now_ms();
     WorkspaceMeta {

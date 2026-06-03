@@ -84,5 +84,7 @@ commands.allow = [
   "browser_go_forward",
   "browser_reload",
   "browser_set_bounds",
-  "browser_eval"
+  "browser_eval",
+  "browser_hide",
+  "browser_show"
 ]

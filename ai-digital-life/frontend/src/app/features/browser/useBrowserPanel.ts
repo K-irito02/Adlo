@@ -214,7 +214,6 @@ export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDis
   const browserBookmarks = useAppStore((state) => state.browserBookmarks);
   const browserHistory = useAppStore((state) => state.browserHistory);
   const recentWorkspaces = useAppStore((state) => state.recentWorkspaces);
-
   const browserOpenTab = useAppStore((state) => state.browserOpenTab);
   const browserSelectTab = useAppStore((state) => state.browserSelectTab);
   const browserCloseTab = useAppStore((state) => state.browserCloseTab);
@@ -630,6 +629,27 @@ export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDis
     }
   }, [webViewDisabled, updateWebViewBounds]);
 
+  const isBrowserVisible = props.isVisible;
+  const isBrowserVisibleRef = useRef(isBrowserVisible);
+  isBrowserVisibleRef.current = isBrowserVisible;
+
+  useEffect(() => {
+    if (!isTauriShell()) return;
+    if (!webViewActiveRef.current) return;
+
+    if (isBrowserVisible) {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          updateWebViewBounds();
+        });
+      });
+    } else {
+      invoke("browser_set_bounds", {
+        bounds: { x: 32767, y: 32767, width: 1, height: 1 }
+      }).catch(console.error);
+    }
+  }, [isBrowserVisible, updateWebViewBounds, webViewActive]);
+
   useEffect(() => {
     if (!isTauriShell()) return;
 
@@ -683,7 +703,7 @@ export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDis
     if (!isTauriShell() || !primaryRef.current) return;
 
     resizeObserverRef.current = new ResizeObserver(() => {
-      if (webViewActiveRef.current) {
+      if (webViewActiveRef.current && isBrowserVisibleRef.current) {
         updateWebViewBounds();
       }
     });

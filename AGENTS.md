@@ -42,7 +42,7 @@
 
 ## 重构历史
 
-共完成 **29 轮**迭代重构，详情见 [REFACTORING_PROGRESS_REPORT.md](./docs/重构洞察/REFACTORING_PROGRESS_REPORT.md)。
+共完成 **30 轮**迭代重构，详情见 [REFACTORING_PROGRESS_REPORT.md](./docs/重构洞察/REFACTORING_PROGRESS_REPORT.md)。
 
 ## AI 代理开发规则
 
@@ -94,4 +94,4 @@
 - [ai-digital-life/AGENTS.md](ai-digital-life/AGENTS.md) — 实现工作区治理
 - [FUTURE-ROADMAP.md](./FUTURE-ROADMAP.md) — 远期规划
 - [docs/development/project-engineering-constraints.md](./docs/development/project-engineering-constraints.md) — 工程约束
-- [docs/重构洞察/REFACTORING_PROGRESS_REPORT.md](./docs/重构洞察/REFACTORING_PROGRESS_REPORT.md) — 29 轮重构完整记录
+- [docs/重构洞察/REFACTORING_PROGRESS_REPORT.md](./docs/重构洞察/REFACTORING_PROGRESS_REPORT.md) — 30 轮重构完整记录

@@ -81,17 +81,27 @@ const ActiveToolPanel = React.memo(function ActiveToolPanel({
       tabIndex={0}
       className="adl-rightpanel__tool is-active"
     >
-      {activeTool === "files" ? <FilesPanel {...filesProps} /> : null}
-      {activeTool === "changes" ? <ChangesPanel {...changesProps} /> : null}
-      {activeTool === "browser" ? <BrowserPanel {...browserProps} /> : null}
-      {activeTool === "terminal" ? <TerminalPanel {...terminalProps} /> : null}
-      {activeTool === "audit" ? <AuditPanel t={auditProps.t} entries={auditProps.auditEntries} /> : null}
-      {activeTool === "models" ? (
+      <div hidden={activeTool !== "files"} style={{ height: "100%", minHeight: 0 }}>
+        <FilesPanel {...filesProps} />
+      </div>
+      <div hidden={activeTool !== "changes"} style={{ height: "100%", minHeight: 0 }}>
+        <ChangesPanel {...changesProps} />
+      </div>
+      <div hidden={activeTool !== "browser"} style={{ height: "100%", minHeight: 0 }}>
+        <BrowserPanel {...browserProps} />
+      </div>
+      <div hidden={activeTool !== "terminal"} style={{ height: "100%", minHeight: 0 }}>
+        <TerminalPanel {...terminalProps} />
+      </div>
+      <div hidden={activeTool !== "audit"} style={{ height: "100%", minHeight: 0 }}>
+        <AuditPanel t={auditProps.t} entries={auditProps.auditEntries} />
+      </div>
+      <div hidden={activeTool !== "models"} style={{ height: "100%", minHeight: 0 }}>
         <ModelHealthPanel t={modelProps.t} modelHealth={modelProps.modelHealth} onRefresh={modelProps.onRefreshModelHealth} />
-      ) : null}
-      {activeTool === "settings" ? (
+      </div>
+      <div hidden={activeTool !== "settings"} style={{ height: "100%", minHeight: 0 }}>
         <SettingsPanel t={settingsProps.t} settings={settingsProps.settings} onChangeSetting={settingsProps.onChangeSetting} />
-      ) : null}
+      </div>
     </div>
   );
 }, areActiveToolPanelPropsEqual);
@@ -104,7 +114,7 @@ export function RightPanel(panelProps: RightPanelProps) {
 
   const filesProps = useFilesPanelProps(panelProps, diffSideBySide, onSetDiffLayout);
   const changesProps = useChangesPanelProps(panelProps, diffSideBySide, onSetDiffLayout);
-  const browserProps = useBrowserPanelProps(panelProps);
+  const browserProps = useBrowserPanelProps(panelProps, activeRightTool === "browser" && !collapsed);
   const terminalProps = useTerminalPanelProps(panelProps);
   const auditProps = useAuditPanelProps(panelProps);
   const modelProps = useModelPanelProps(panelProps);

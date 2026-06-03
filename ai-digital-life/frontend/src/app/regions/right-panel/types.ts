@@ -208,7 +208,7 @@ export type ChangesPanelProps = Pick<RightPanelViewProps,
   | "onJumpPatchHunk"
 >;
 
-export type BrowserPanelProps = Pick<RightPanelViewProps, "t">;
+export type BrowserPanelProps = Pick<RightPanelViewProps, "t"> & { isVisible: boolean };
 
 export type TerminalPanelProps = Pick<RightPanelViewProps,
   | "t"

@@ -20,6 +20,7 @@ export function useTerminalPtyLifecycle({ activeTab, rootPath }: PtyLifecyclePar
   const terminalUpdateActiveTab = useAppStore((state) => state.terminalUpdateActiveTab);
   const terminalCloseAllTabs = useAppStore((state) => state.terminalCloseAllTabs);
   const recentWorkspaces = useAppStore((state) => state.recentWorkspaces);
+  const activeRightTool = useAppStore((state) => state.activeRightTool);
 
   const handleXtermData = useCallback((data: string) => {
     if (activeTab?.sessionId) {
@@ -152,6 +153,8 @@ export function useTerminalPtyLifecycle({ activeTab, rootPath }: PtyLifecyclePar
   }, [activeTab?.sessionId, terminalUpdateActiveTab]);
 
   useEffect(() => {
+    if (activeRightTool !== "terminal") return;
+
     const unsub = window.digitalLife.subscribePtyOutput((event) => {
       const outputs = sessionOutputsRef.current;
       let previous = outputs.get(event.sessionId) ?? "";
@@ -165,7 +168,7 @@ export function useTerminalPtyLifecycle({ activeTab, rootPath }: PtyLifecyclePar
       }
     });
     return () => unsub();
-  }, [activeTab?.sessionId]);
+  }, [activeTab?.sessionId, activeRightTool]);
 
   return {
     xtermRef,

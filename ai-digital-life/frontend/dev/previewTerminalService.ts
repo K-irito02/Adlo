@@ -160,7 +160,10 @@ export async function handlePreviewTerminalApi(
   response: ServerResponse
 ): Promise<boolean> {
   const requestUrl = new URL(request.url ?? API_PREFIX, "http://127.0.0.1");
-  console.log("Terminal API request:", request.method, requestUrl.pathname);
+  const isPollingRequest = request.method === "GET" && requestUrl.pathname === `${API_PREFIX}/pty/list`;
+  if (!isPollingRequest) {
+    console.log("Terminal API request:", request.method, requestUrl.pathname);
+  }
 
   // Handle OPTIONS for CORS preflight
   if (request.method === "OPTIONS") {
