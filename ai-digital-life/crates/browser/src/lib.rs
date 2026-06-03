@@ -14,6 +14,209 @@ pub struct Bounds {
 
 const BROWSER_WEBVIEW_LABEL: &str = "adl-browser-view";
 
+/// 初始化脚本：确保所有链接点击都在当前 WebView 中打开
+const INIT_SCRIPT: &str = r#"
+(function() {
+    console.log('[ADL Browser] Initialization script loaded');
+    
+    // 安全地阻止默认行为和冒泡
+    function stopAll(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+    }
+    
+    // 检查是否是有效的网页 URL
+    function isValidWebUrl(href) {
+        if (!href || typeof href !== 'string') return false;
+        return href.startsWith('http://') || href.startsWith('https://') || href.startsWith('//');
+    }
+    
+    // 处理导航（确保在当前窗口中打开）
+    function navigateToUrl(href) {
+        console.log('[ADL Browser] Navigating to:', href);
+        if (href.startsWith('//')) {
+            window.location.href = 'https:' + href;
+        } else {
+            window.location.href = href;
+        }
+    }
+    
+    // 1. 拦截点击事件（捕获阶段，最高优先级）
+    document.addEventListener('click', function(event) {
+        let target = event.target;
+        
+        // 向上遍历查找链接
+        while (target) {
+            // 检查 a 标签
+            if (target.tagName === 'A' && target.href) {
+                const href = target.href;
+                if (isValidWebUrl(href)) {
+                    console.log('[ADL Browser] Link intercepted (click <a>):', href);
+                    stopAll(event);
+                    navigateToUrl(href);
+                    return;
+                }
+            }
+            
+            // 检查 area 标签（图片映射）
+            if (target.tagName === 'AREA' && target.href) {
+                const href = target.href;
+                if (isValidWebUrl(href)) {
+                    console.log('[ADL Browser] Link intercepted (click <area>):', href);
+                    stopAll(event);
+                    navigateToUrl(href);
+                    return;
+                }
+            }
+            
+            // 检查 onclick 属性中是否有跳转代码
+            if (target.onclick || (typeof target.getAttribute === 'function' && target.getAttribute('onclick'))) {
+                const onclickAttr = target.getAttribute('onclick');
+                if (onclickAttr && (onclickAttr.includes('location.href') || onclickAttr.includes('window.open'))) {
+                    console.log('[ADL Browser] Potential navigation via onclick detected');
+                    // 这里不直接阻止，让 window.open/location.href 的拦截器处理
+                }
+            }
+            
+            target = target.parentElement;
+        }
+    }, true);
+    
+    // 2. 拦截鼠标按下事件（在点击前拦截）
+    document.addEventListener('mousedown', function(event) {
+        let target = event.target;
+        while (target) {
+            if (target.tagName === 'A' && target.href) {
+                if (isValidWebUrl(target.href)) {
+                    console.log('[ADL Browser] Link detected (mousedown):', target.href);
+                }
+            }
+            target = target.parentElement;
+        }
+    }, true);
+    
+    // 3. 拦截键盘事件（Enter/Space 激活链接）
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Enter' || event.key === ' ') {
+            let target = event.target;
+            while (target) {
+                if (target.tagName === 'A' && target.href) {
+                    const href = target.href;
+                    if (isValidWebUrl(href)) {
+                        console.log('[ADL Browser] Link intercepted (keyboard):', href);
+                        stopAll(event);
+                        navigateToUrl(href);
+                        return;
+                    }
+                }
+                target = target.parentElement;
+            }
+        }
+    }, true);
+    
+    // 4. 重写 window.open（最全面的拦截）
+    const originalOpen = window.open;
+    window.open = function(url, name, features) {
+        console.log('[ADL Browser] window.open intercepted:', url);
+        if (url && isValidWebUrl(url)) {
+            navigateToUrl(url);
+            return null;
+        }
+        return originalOpen.apply(this, arguments);
+    };
+    
+    // 5. 拦截 location.href 赋值
+    const originalLocation = window.location;
+    let locationProxy = new Proxy(originalLocation, {
+        set: function(target, prop, value) {
+            if (prop === 'href' && typeof value === 'string' && isValidWebUrl(value)) {
+                console.log('[ADL Browser] Location.href intercepted:', value);
+                navigateToUrl(value);
+                return true; // 阻止默认赋值
+            }
+            return Reflect.set(target, prop, value);
+        }
+    });
+    // 必须将 Proxy 重新赋值给 window.location，否则拦截不会生效
+    window.location = locationProxy;
+    
+    // 6. 重写 location.assign 和 location.replace
+    const originalAssign = Location.prototype.assign;
+    const originalReplace = Location.prototype.replace;
+    
+    Location.prototype.assign = function(url) {
+        if (url && isValidWebUrl(url)) {
+            console.log('[ADL Browser] location.assign intercepted:', url);
+            navigateToUrl(url);
+            return;
+        }
+        return originalAssign.apply(this, arguments);
+    };
+    
+    Location.prototype.replace = function(url) {
+        if (url && isValidWebUrl(url)) {
+            console.log('[ADL Browser] location.replace intercepted:', url);
+            navigateToUrl(url);
+            return;
+        }
+        return originalReplace.apply(this, arguments);
+    };
+    
+    // 7. 拦截表单提交
+    document.addEventListener('submit', function(event) {
+        console.log('[ADL Browser] Form submit event observed');
+        // 表单正常提交通常我们希望保留行为
+    }, true);
+    
+    // 8. 拦截 contextmenu 事件，用于调试
+    document.addEventListener('contextmenu', function(event) {
+        let target = event.target;
+        while (target) {
+            if (target.tagName === 'A' && target.href) {
+                console.log('[ADL Browser] Right-click on link:', target.href);
+            }
+            target = target.parentElement;
+        }
+    }, true);
+    
+    // 9. 监听 DOM 变化（用于未来扩展，当前链接拦截依赖 document 级事件监听已足够）
+    try {
+        const observer = new MutationObserver(function(mutations) {
+            // 动态添加的链接会被 document 级别的 click 事件监听器自动覆盖
+            // 此处仅记录日志用于调试
+            mutations.forEach(function(mutation) {
+                if (mutation.addedNodes && mutation.addedNodes.length > 0) {
+                    console.log('[ADL Browser] DOM changed: added nodes');
+                }
+            });
+        });
+        
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+    } catch (e) {
+        console.warn('[ADL Browser] MutationObserver not available:', e);
+    }
+    
+    // 10. 为所有现有链接添加调试信息
+    try {
+        const allLinks = document.querySelectorAll('a, area');
+        allLinks.forEach(function(link, index) {
+            if (link.href) {
+                console.log('[ADL Browser] Link found [' + index + ']:', link.href);
+            }
+        });
+        console.log('[ADL Browser] Total links found:', allLinks.length);
+    } catch (e) {
+        console.warn('[ADL Browser] Error scanning links:', e);
+    }
+    
+    console.log('[ADL Browser] Initialization complete');
+})();
+"#;
+
 fn resolve_url(raw: &str) -> Result<Url, AppError> {
     let trimmed = raw.trim();
     if trimmed.is_empty() || trimmed.eq_ignore_ascii_case("about:blank") {
@@ -59,16 +262,30 @@ impl BrowserManager {
         let target = resolve_url(url)?;
 
         let app_nav = app.clone();
+        let app_handle = app.clone();
         let webview_builder = tauri::webview::WebviewBuilder::new(
             BROWSER_WEBVIEW_LABEL,
             tauri::WebviewUrl::External(target),
         )
+        .initialization_script(INIT_SCRIPT)
         .on_navigation(move |url| {
             let _ = app_nav.emit(
                 "digital-life://browser-url-changed",
                 serde_json::json!({ "url": url.to_string() }),
             );
             true
+        })
+        .on_new_window(move |url, _window_features| {
+            // 拦截新窗口请求，在当前 WebView 中打开
+            if let Some(window) = app_handle.get_window("main") {
+                if let Some(webview) = window.get_webview(BROWSER_WEBVIEW_LABEL) {
+                    if let Ok(parsed_url) = resolve_url(url.as_str()) {
+                        let _ = webview.navigate(parsed_url);
+                    }
+                }
+            }
+            // 阻止创建新窗口
+            tauri::webview::NewWindowResponse::Deny
         });
 
         window
