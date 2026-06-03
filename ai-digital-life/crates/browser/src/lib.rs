@@ -126,22 +126,9 @@ const INIT_SCRIPT: &str = r#"
         return originalOpen.apply(this, arguments);
     };
     
-    // 5. 拦截 location.href 赋值
-    const originalLocation = window.location;
-    let locationProxy = new Proxy(originalLocation, {
-        set: function(target, prop, value) {
-            if (prop === 'href' && typeof value === 'string' && isValidWebUrl(value)) {
-                console.log('[ADL Browser] Location.href intercepted:', value);
-                navigateToUrl(value);
-                return true; // 阻止默认赋值
-            }
-            return Reflect.set(target, prop, value);
-        }
-    });
-    // 必须将 Proxy 重新赋值给 window.location，否则拦截不会生效
-    window.location = locationProxy;
-    
-    // 6. 重写 location.assign 和 location.replace
+    // 5. 重写 location.assign 和 location.replace
+    // 注意：window.location 是只读属性，无法通过 Proxy 拦截 href 赋值
+    // 因此主要依赖 click 事件拦截和 window.open 拦截来处理链接导航
     const originalAssign = Location.prototype.assign;
     const originalReplace = Location.prototype.replace;
     
