@@ -150,3 +150,21 @@
 | `frontend/src/app/features/browser/browserpanel.tsx` | 修改 | 添加新建标签/新建目录按钮；修改搜索区域按钮结构 |
 | `frontend/src/app/i18n/zh-CN/browser.ts` | 修改 | 缩短搜索范围按钮文案 |
 | `frontend/src/styles/regions/rightpanel/browser-panel.css` | 修改 | 添加搜索区域样式，修复布局和视觉问题 |
+
+## 浏览器功能修复（2026-06-04）
+
+### 修复问题清单
+
+| 问题 | 根因 | 修复方案 | 文件 |
+|------|------|----------|------|
+| Tauri 模式下网页内导航地址栏不更新 | Rust 后端和 Tauri Bridge 都有事件机制，但 `useBrowserPanel` 中没有监听 URL 变化事件 | 在 `useBrowserPanel` 中新增 `useEffect` 监听 `digital-life://browser-url-changed` 事件，同步更新地址栏和标签页状态 | `useBrowserPanel.ts` |
+| useEffect 缺少依赖 | `setAddress` 未包含在依赖数组中 | 添加 `setAddress` 到依赖数组 | `useBrowserPanel.ts` |
+| window.digitalLife 类型检查 | 直接访问 `window.digitalLife.browser` 未进行空值检查 | 使用可选链操作符 `?.` 进行空值检查 | `useBrowserPanel.ts` |
+
+### 修改文件清单
+
+| 文件 | 变更类型 | 说明 |
+|------|----------|------|
+| `frontend/src/app/features/browser/useBrowserPanel.ts` | 修改 | 添加 URL 变化事件监听，同步更新地址栏和标签页 |
+
+> 详细经验教训已记录在 [知识沉淀/浏览器/browser-url-sync-fix-2026-06-04.md](../知识沉淀/浏览器/browser-url-sync-fix-2026-06-04.md)

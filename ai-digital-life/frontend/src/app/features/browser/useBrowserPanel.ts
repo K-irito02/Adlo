@@ -760,6 +760,21 @@ export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDis
     }
   }, [navigatorMode]);
 
+  // Listen to URL changes and update address bar and tab info
+  useEffect(() => {
+    if (!isTauriShell()) return;
+    
+    const browser = window.digitalLife?.browser;
+    if (!browser) return;
+    
+    const unsubscribe = browser.onUrlChanged((url) => {
+      setAddress(url);
+      browserNavigateActiveTab(url);
+    });
+    
+    return unsubscribe;
+  }, [browserNavigateActiveTab, setAddress]);
+
   return {
     browserState: {
       editInputRef,
