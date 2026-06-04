@@ -483,6 +483,7 @@ export const useUiStore = create<UiState>((set) => ({
   browserNavigateActiveTab: (url, title) =>
     set((state) => {
       const cleanUrl = url.trim() || "about:blank";
+      
       const nextTabs = state.browserTabs.map((tab) =>
         tab.id === state.browserActiveTabId
           ? {
@@ -492,6 +493,7 @@ export const useUiStore = create<UiState>((set) => ({
             }
           : tab
       );
+      
       const nextHistory = [
         {
           id: createUiId("visit"),

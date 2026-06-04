@@ -40,6 +40,10 @@ export default defineConfig({
     host: "127.0.0.1",
     port: Number.parseInt(process.env.ADL_PORT ?? process.env.PORT ?? "5173", 10),
     strictPort: false,
+    headers: {
+      // 允许 iframe 嵌入（使用现代 Content-Security-Policy 替代非标准 X-Frame-Options: ALLOWALL）
+      'Content-Security-Policy': 'frame-ancestors *'
+    }
   },
   build: {
     outDir: "dist",

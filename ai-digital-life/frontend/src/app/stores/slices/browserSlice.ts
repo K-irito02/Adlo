@@ -361,20 +361,40 @@ export const createBrowserSlice = (
 
     browserNavigateActiveTab: (url: string, title?: string) => {
       set((state) => {
-        const activeTab = state.browserTabs.find(tab => tab.id === state.browserActiveTabId);
-        if (!activeTab) {
-          return state;
+        let activeTab = state.browserTabs.find(tab => tab.id === state.browserActiveTabId);
+        let nextTabs = state.browserTabs;
+        let nextActiveTabId = state.browserActiveTabId;
+        
+        if (!activeTab || nextTabs.length === 0) {
+          // 如果没有活动标签页或没有标签页，创建一个新标签页
+          const maxSortOrder = nextTabs.length > 0 ? Math.max(...nextTabs.map(t => t.sortOrder)) : 0;
+          const newTab: BrowserTabState = {
+            id: createUiId("browser"),
+            workspaceId: "",
+            title: title?.trim() || url,
+            url,
+            isPinned: false,
+            sortOrder: maxSortOrder + 1
+          };
+          nextTabs = sortTabs([...nextTabs, newTab]);
+          nextActiveTabId = newTab.id;
+          activeTab = newTab;
+          scheduleWrite(BROWSER_TABS_KEY, nextTabs);
+          scheduleWrite(BROWSER_ACTIVE_TAB_KEY, nextActiveTabId);
+        } else {
+          // 更新现有标签页
+          nextTabs = nextTabs.map(tab => {
+            if (tab.id === state.browserActiveTabId) {
+              return {
+                ...tab,
+                url,
+                title: title || tab.title
+              };
+            }
+            return tab;
+          });
+          scheduleWrite(BROWSER_TABS_KEY, nextTabs);
         }
-        const nextTabs = state.browserTabs.map(tab => {
-          if (tab.id === state.browserActiveTabId) {
-            return {
-              ...tab,
-              url,
-              title: title || tab.title
-            };
-          }
-          return tab;
-        });
         
         // 添加到历史记录
         const newHistoryItem: BrowserHistoryState = {
@@ -388,11 +408,12 @@ export const createBrowserSlice = (
         const filteredHistory = state.browserHistory.filter(item => item.url !== url);
         const nextHistory = [newHistoryItem, ...filteredHistory].slice(0, 100); // 最多保留 100 条历史记录
         
-        scheduleWrite(BROWSER_TABS_KEY, nextTabs);
         scheduleWrite(BROWSER_HISTORY_KEY, nextHistory);
+        
         return { 
           browserTabs: nextTabs, 
           browserTabsById: buildTabsById(nextTabs),
+          browserActiveTabId: nextActiveTabId,
           browserHistory: nextHistory
         };
       });

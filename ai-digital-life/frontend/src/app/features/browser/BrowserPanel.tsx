@@ -604,7 +604,8 @@ export function BrowserPanel(props: BrowserPanelProps) {
 
         <div className="adl-tool-primary adl-tool-primary--browser" ref={browserState.primaryRef}>
           <div className="adl-tool-primary__scroll adl-tool-primary__scroll--browser" />
-          {browserState.hasActiveTab && browserState.activeTab?.url !== "about:blank" ? (
+
+          {browserState.hasActiveTab && browserState.activeTab?.url && browserState.activeTab?.url !== "about:blank" ? (
             <>
               {!isTauriShell() && browserState.activeTab && (
                 <iframe
@@ -612,8 +613,9 @@ export function BrowserPanel(props: BrowserPanelProps) {
                   src={browserState.activeTab.url}
                   className="adl-browser-iframe"
                   title={browserState.activeTab.title}
+                  onLoad={browserActions.handleIframeLoad}
                   onError={browserActions.handleIframeError}
-                  sandbox="allow-scripts allow-forms allow-popups allow-modals allow-top-navigation"
+                  sandbox="allow-scripts allow-forms allow-popups allow-modals allow-top-navigation allow-same-origin"
                 />
               )}
 
