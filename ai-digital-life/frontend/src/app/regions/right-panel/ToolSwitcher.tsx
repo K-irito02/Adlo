@@ -1,4 +1,4 @@
-import React from "react";
+import React from 'react';
 import {
   IconFiles,
   IconGitFork,
@@ -8,11 +8,11 @@ import {
   IconTerminal,
   IconShield,
   IconSettings,
-  IconCpu
-} from "../../icons";
-import { TooltipSimple } from "../../components/Tooltip";
-import type { CopyDict } from "../../i18n";
-import type { ToolId } from "../../stores/types";
+  IconCpu,
+} from '../../icons';
+import { TooltipSimple } from '../../components/Tooltip';
+import type { CopyDict } from '../../i18n';
+import type { ToolId } from '../../stores/types';
 
 interface ToolSwitcherProps {
   t: CopyDict;
@@ -24,14 +24,54 @@ interface ToolSwitcherProps {
   onToggleRightPanelExpanded: () => void;
 }
 
-const TAB_META: Array<{ id: ToolId; shortcut: string; icon: React.ReactNode; labelKey: keyof CopyDict }> = [
-  { id: "files", shortcut: "Ctrl+Shift+E", icon: <IconFiles size={16} decorative />, labelKey: "toolFiles" },
-  { id: "changes", shortcut: "Ctrl+Shift+G", icon: <IconGitFork size={16} decorative />, labelKey: "toolChanges" },
-  { id: "browser", shortcut: "Ctrl+Shift+B", icon: <IconGlobe size={16} decorative />, labelKey: "toolBrowser" },
-  { id: "terminal", shortcut: "Ctrl+Shift+`", icon: <IconTerminal size={16} decorative />, labelKey: "toolTerminal" },
-  { id: "audit", shortcut: "Ctrl+Shift+A", icon: <IconShield size={16} decorative />, labelKey: "toolAudit" },
-  { id: "models", shortcut: "Ctrl+Shift+M", icon: <IconCpu size={16} decorative />, labelKey: "toolModels" },
-  { id: "settings", shortcut: "Ctrl+Shift+,", icon: <IconSettings size={16} decorative />, labelKey: "toolSettings" }
+const TAB_META: Array<{
+  id: ToolId;
+  shortcut: string;
+  icon: React.ReactNode;
+  labelKey: keyof CopyDict;
+}> = [
+  {
+    id: 'files',
+    shortcut: 'Ctrl+Shift+E',
+    icon: <IconFiles size={16} decorative />,
+    labelKey: 'toolFiles',
+  },
+  {
+    id: 'changes',
+    shortcut: 'Ctrl+Shift+G',
+    icon: <IconGitFork size={16} decorative />,
+    labelKey: 'toolChanges',
+  },
+  {
+    id: 'browser',
+    shortcut: 'Ctrl+Shift+B',
+    icon: <IconGlobe size={16} decorative />,
+    labelKey: 'toolBrowser',
+  },
+  {
+    id: 'terminal',
+    shortcut: 'Ctrl+Shift+`',
+    icon: <IconTerminal size={16} decorative />,
+    labelKey: 'toolTerminal',
+  },
+  {
+    id: 'audit',
+    shortcut: 'Ctrl+Shift+A',
+    icon: <IconShield size={16} decorative />,
+    labelKey: 'toolAudit',
+  },
+  {
+    id: 'models',
+    shortcut: 'Ctrl+Shift+M',
+    icon: <IconCpu size={16} decorative />,
+    labelKey: 'toolModels',
+  },
+  {
+    id: 'settings',
+    shortcut: 'Ctrl+Shift+,',
+    icon: <IconSettings size={16} decorative />,
+    labelKey: 'toolSettings',
+  },
 ];
 
 export const ToolSwitcher = React.memo(function ToolSwitcher({
@@ -41,41 +81,49 @@ export const ToolSwitcher = React.memo(function ToolSwitcher({
   idBase,
   onSelect,
   rightPanelExpanded,
-  onToggleRightPanelExpanded
+  onToggleRightPanelExpanded,
 }: ToolSwitcherProps) {
   const [hoveredTool, setHoveredTool] = React.useState<ToolId | null>(null);
 
-  const handleKeyDown = React.useCallback((event: React.KeyboardEvent<HTMLButtonElement>, currentTool: ToolId) => {
-    const currentIndex = TAB_META.findIndex((tab) => tab.id === currentTool);
-    if (currentIndex === -1) {
-      return;
-    }
+  const handleKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<HTMLButtonElement>, currentTool: ToolId) => {
+      const currentIndex = TAB_META.findIndex((tab) => tab.id === currentTool);
+      if (currentIndex === -1) {
+        return;
+      }
 
-    let nextIndex = currentIndex;
-    if (event.key === "ArrowRight") {
-      nextIndex = (currentIndex + 1) % TAB_META.length;
-    } else if (event.key === "ArrowLeft") {
-      nextIndex = (currentIndex - 1 + TAB_META.length) % TAB_META.length;
-    } else if (event.key === "Home") {
-      nextIndex = 0;
-    } else if (event.key === "End") {
-      nextIndex = TAB_META.length - 1;
-    } else {
-      return;
-    }
+      let nextIndex = currentIndex;
+      if (event.key === 'ArrowRight') {
+        nextIndex = (currentIndex + 1) % TAB_META.length;
+      } else if (event.key === 'ArrowLeft') {
+        nextIndex = (currentIndex - 1 + TAB_META.length) % TAB_META.length;
+      } else if (event.key === 'Home') {
+        nextIndex = 0;
+      } else if (event.key === 'End') {
+        nextIndex = TAB_META.length - 1;
+      } else {
+        return;
+      }
 
-    event.preventDefault();
-    const nextTool = TAB_META[nextIndex];
-    onSelect(nextTool.id);
-    requestAnimationFrame(() => {
-      const nextTab = document.getElementById(`${idBase}-${nextTool.id}-tab`);
-      nextTab?.focus();
-    });
-  }, [onSelect, idBase]);
+      event.preventDefault();
+      const nextTool = TAB_META[nextIndex];
+      onSelect(nextTool.id);
+      requestAnimationFrame(() => {
+        const nextTab = document.getElementById(`${idBase}-${nextTool.id}-tab`);
+        nextTab?.focus();
+      });
+    },
+    [onSelect, idBase]
+  );
 
   return (
     <div className="adl-toolswitcher">
-      <div className="adl-toolswitcher__tabs adl-iconstrip" role="tablist" aria-label={t.toolSwitcher} aria-orientation="horizontal">
+      <div
+        className="adl-toolswitcher__tabs adl-iconstrip"
+        role="tablist"
+        aria-label={t.toolSwitcher}
+        aria-orientation="horizontal"
+      >
         {TAB_META.map((tab, index) => {
           const label = t[tab.labelKey] as string;
           const badge = badges[tab.id];
@@ -97,20 +145,24 @@ export const ToolSwitcher = React.memo(function ToolSwitcher({
                   aria-controls={panelId}
                   aria-label={label}
                   tabIndex={isActive ? 0 : -1}
-                  className={`adl-toolswitcher__tab adl-iconstrip__button${isActive ? " is-active" : ""}`}
+                  className={`adl-toolswitcher__tab adl-iconstrip__button${isActive ? ' is-active' : ''}`}
                   onClick={() => onSelect(tab.id)}
                   onKeyDown={(event) => handleKeyDown(event, tab.id)}
                   onMouseEnter={() => setHoveredTool(tab.id)}
-                  onMouseLeave={() => setHoveredTool((current) => (current === tab.id ? null : current))}
+                  onMouseLeave={() =>
+                    setHoveredTool((current) => (current === tab.id ? null : current))
+                  }
                 >
                   <span className="adl-toolswitcher__icon">{tab.icon}</span>
                   <span className="adl-toolswitcher__label">{label}</span>
-                  {badge > 0 ? <span className="adl-toolswitcher__badge adl-iconstrip__badge">{badge}</span> : null}
+                  {badge > 0 ? (
+                    <span className="adl-toolswitcher__badge adl-iconstrip__badge">{badge}</span>
+                  ) : null}
                 </button>
               </TooltipSimple>
               {index < TAB_META.length - 1 ? (
                 <span
-                  className={`adl-toolswitcher__separator adl-iconstrip__separator${shouldShowSeparator ? " is-visible" : ""}`}
+                  className={`adl-toolswitcher__separator adl-iconstrip__separator${shouldShowSeparator ? ' is-visible' : ''}`}
                   aria-hidden="true"
                 />
               ) : null}
@@ -119,16 +171,23 @@ export const ToolSwitcher = React.memo(function ToolSwitcher({
         })}
       </div>
       <div className="adl-toolswitcher__actions">
-        <TooltipSimple content={rightPanelExpanded ? t.rightPanelRestore : t.rightPanelExpand} placement="top">
+        <TooltipSimple
+          content={rightPanelExpanded ? t.rightPanelRestore : t.rightPanelExpand}
+          placement="top"
+        >
           <button
             type="button"
-            className={`adl-toolswitcher__expand adl-iconstrip__button${rightPanelExpanded ? " is-active" : ""}`}
+            className={`adl-toolswitcher__expand adl-iconstrip__button${rightPanelExpanded ? ' is-active' : ''}`}
             aria-label={rightPanelExpanded ? t.rightPanelRestore : t.rightPanelExpand}
             aria-pressed={rightPanelExpanded}
             onClick={onToggleRightPanelExpanded}
           >
             <span className="adl-toolswitcher__icon">
-              {rightPanelExpanded ? <IconPanelRightClose size={16} decorative /> : <IconPanelRight size={16} decorative />}
+              {rightPanelExpanded ? (
+                <IconPanelRightClose size={16} decorative />
+              ) : (
+                <IconPanelRight size={16} decorative />
+              )}
             </span>
           </button>
         </TooltipSimple>

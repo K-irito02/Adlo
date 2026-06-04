@@ -11,9 +11,7 @@ pub use patch_create::create_single_file_patch_set;
 pub use validation::{application_result, validation_result_from_command};
 
 use adl_errors::AppError;
-use adl_kernel::{
-    now_ms, PatchHunkDecision, PatchSet,
-};
+use adl_kernel::{now_ms, PatchHunkDecision, PatchSet};
 
 pub struct PatchProposal<'a> {
     pub workspace_id: &'a str,
@@ -50,7 +48,9 @@ pub fn set_hunk_decision(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use adl_kernel::{CommandExecutionResult, CommandProfile, CommandRequest, RiskLevel};
+    use adl_kernel::{
+        CommandExecutionResult, CommandProfile, CommandRequest, PatchSetStatus, RiskLevel,
+    };
 
     #[test]
     fn hunk_decision_updates() {
@@ -66,10 +66,7 @@ mod tests {
         });
         let hunk_id = patch.file_patches[0].hunks[0].id.clone();
         let patch = set_hunk_decision(patch, &hunk_id, PatchHunkDecision::Accepted).unwrap();
-        assert_eq!(
-            patch.file_patches[0].hunks[0].decision,
-            PatchHunkDecision::Accepted
-        );
+        assert_eq!(patch.file_patches[0].hunks[0].decision, PatchHunkDecision::Accepted);
     }
 
     #[test]
@@ -264,12 +261,7 @@ mod tests {
 
     #[test]
     fn validation_result_skipped_when_no_command() {
-        let result = validation_result_from_command(
-            "w",
-            Some("r".into()),
-            Some("ps".into()),
-            None,
-        );
+        let result = validation_result_from_command("w", Some("r".into()), Some("ps".into()), None);
         assert_eq!(result.status, "skipped");
         assert!(result.diagnostics.is_empty());
     }

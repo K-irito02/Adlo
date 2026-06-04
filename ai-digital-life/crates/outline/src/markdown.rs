@@ -16,11 +16,8 @@ pub(crate) fn parse_markdown_outline(content: &str) -> Vec<OutlineDraft> {
             continue;
         }
         let depth = trimmed.chars().take_while(|ch| *ch == '#').count().min(6);
-        let has_required_space = trimmed
-            .chars()
-            .nth(depth)
-            .map(|ch| ch.is_whitespace())
-            .unwrap_or(false);
+        let has_required_space =
+            trimmed.chars().nth(depth).map(|ch| ch.is_whitespace()).unwrap_or(false);
         if !has_required_space {
             continue;
         }

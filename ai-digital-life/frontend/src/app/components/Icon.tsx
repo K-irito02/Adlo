@@ -1,5 +1,5 @@
-import React from "react";
-import { renderIcon, type IconName, type IconSize } from "../../design-system/icons";
+import React from 'react';
+import { renderIcon, type IconName, type IconSize } from '../../design-system/icons';
 
 interface IconProps {
   name: IconName;
@@ -7,8 +7,11 @@ interface IconProps {
   className?: string;
 }
 
-export function Icon({ name, size = "md", className }: IconProps) {
+export function Icon({ name, size = 'md', className }: IconProps) {
   return (
-    <span className={className} dangerouslySetInnerHTML={{ __html: renderIcon(name, { size, decorative: true }).value }} />
+    <span
+      className={className}
+      dangerouslySetInnerHTML={{ __html: renderIcon(name, { size, decorative: true }).value }}
+    />
   );
 }

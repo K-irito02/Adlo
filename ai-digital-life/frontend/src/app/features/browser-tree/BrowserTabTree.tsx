@@ -1,10 +1,14 @@
-import React, { useCallback } from "react";
-import { useBrowserTreeData } from "./useBrowserTreeData";
-import { BrowserCategorySection } from "./BrowserCategorySection";
-import { CustomScrollArea } from "../file-tree/CustomScrollArea";
-import type { BrowserCategoryType } from "./types";
-import type { RecentWorkspaceEntry } from "@ai-digital-life/kernel";
-import type { BrowserTabState, TabFolderState, BrowserHistoryState } from "../../stores/slices/browserSlice";
+import React, { useCallback } from 'react';
+import { useBrowserTreeData } from './useBrowserTreeData';
+import { BrowserCategorySection } from './BrowserCategorySection';
+import { CustomScrollArea } from '../file-tree/CustomScrollArea';
+import type { BrowserCategoryType } from './types';
+import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
+import type {
+  BrowserTabState,
+  TabFolderState,
+  BrowserHistoryState,
+} from '../../stores/slices/browserSlice';
 
 interface BrowserCategoryLabels {
   workspaceCategory: string;
@@ -19,7 +23,7 @@ interface BrowserTabTreeCallbacks {
   onRemoveFromArea: (workspaceId: string) => void;
   onDeleteDirectory: (folderId: string) => void;
   onRenameDirectory: (folderId: string) => void;
-  onDeleteHistory: (level: "label" | "year" | "month" | "day", nodePath: string) => void;
+  onDeleteHistory: (level: 'label' | 'year' | 'month' | 'day', nodePath: string) => void;
   onOpenTab: (url: string, tabId?: string) => void;
 }
 
@@ -53,13 +57,13 @@ export function BrowserTabTree({
     browserTabs,
     browserTabFolders,
     browserHistory,
-    labels,
+    labels
   );
 
   const handleOpenFile = useCallback(
     (nodePath: string) => {
-      if (nodePath.startsWith("tab:")) {
-        const parts = nodePath.slice("tab:".length).split(":");
+      if (nodePath.startsWith('tab:')) {
+        const parts = nodePath.slice('tab:'.length).split(':');
         const tabId = parts[parts.length - 1];
         const tab = browserTabs.find((t) => t.id === tabId);
         if (tab) {
@@ -67,24 +71,24 @@ export function BrowserTabTree({
           return;
         }
       }
-      if (nodePath.startsWith("history-entry:")) {
-        const entryId = nodePath.slice("history-entry:".length);
+      if (nodePath.startsWith('history-entry:')) {
+        const entryId = nodePath.slice('history-entry:'.length);
         const histEntry = browserHistory.find((h) => h.id === entryId);
         if (histEntry) {
           callbacks.onOpenTab(histEntry.url);
         }
       }
     },
-    [browserTabs, browserHistory, callbacks],
+    [browserTabs, browserHistory, callbacks]
   );
 
   return (
     <CustomScrollArea
-        shellClassName="adl-multitree adl-multitree--browser"
-        scrollClassName="adl-multitree-scroll"
-        scrollbarClassName="adl-multitree-scrollbar"
-        thumbClassName="adl-multitree-scrollbar__thumb"
-      >
+      shellClassName="adl-multitree adl-multitree--browser"
+      scrollClassName="adl-multitree-scroll"
+      scrollbarClassName="adl-multitree-scrollbar"
+      thumbClassName="adl-multitree-scrollbar__thumb"
+    >
       <BrowserCategorySection
         category={categories.workspaceCategory}
         categoryType="workspace"

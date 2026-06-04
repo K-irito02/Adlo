@@ -1,14 +1,16 @@
-import type { AppInfo, ConversationDetail } from "@ai-digital-life/kernel";
-import { copy } from "../i18n";
-import { getAppCopy as getAppCopyFromI18n } from "../i18n/getAppCopy";
-import { loadConversationState } from "./loaders";
+import type { AppInfo, ConversationDetail } from '@ai-digital-life/kernel';
+import { copy } from '../i18n';
+import { getAppCopy as getAppCopyFromI18n } from '../i18n/getAppCopy';
+import { loadConversationState } from './loaders';
 
 export function sessionFallbackTitle(appInfo?: AppInfo): string {
-  return appInfo?.config.language === "en-US" ? copy["en-US"].sessionFallback : copy["zh-CN"].sessionFallback;
+  return appInfo?.config.language === 'en-US'
+    ? copy['en-US'].sessionFallback
+    : copy['zh-CN'].sessionFallback;
 }
 
-export function workspaceContextModeFromInfo(appInfo?: AppInfo): "workspace" | "global" {
-  return appInfo?.currentWorkspace ? "workspace" : "global";
+export function workspaceContextModeFromInfo(appInfo?: AppInfo): 'workspace' | 'global' {
+  return appInfo?.currentWorkspace ? 'workspace' : 'global';
 }
 
 export function getAppCopy(appInfo?: AppInfo) {
@@ -24,6 +26,6 @@ export async function refreshConversationSlice(activeSessionId?: string) {
   return {
     sessions: conversationState.sessions,
     activeSessionId: conversationState.activeSessionId,
-    detail: conversationState.detail
+    detail: conversationState.detail,
   };
 }

@@ -1,8 +1,8 @@
-import React from "react";
-import { IconChevronDown, IconChevronRight, IconTarget } from "../../icons";
-import { TooltipSimple } from "../../components/Tooltip";
-import type { PatchHunkSummary } from "./patchReview";
-import type { PatchHunkDecision } from "@ai-digital-life/kernel";
+import React from 'react';
+import { IconChevronDown, IconChevronRight, IconTarget } from '../../icons';
+import { TooltipSimple } from '../../components/Tooltip';
+import type { PatchHunkSummary } from './patchReview';
+import type { PatchHunkDecision } from '@ai-digital-life/kernel';
 
 export interface PatchHunkCardProps {
   summary: PatchHunkSummary;
@@ -26,22 +26,26 @@ export function PatchHunkCard({
   t,
   onTogglePatchHunkCollapse,
   onSelectPatchHunk,
-  onSetHunkDecision
+  onSetHunkDecision,
 }: PatchHunkCardProps) {
   const isSelected = summary.id === selectedPatchHunkId;
   return (
     <section
-      className={`adl-patch-hunk-card adl-patch-hunk-card--${summary.changeKind}${isSelected ? " is-selected" : ""}`}
+      className={`adl-patch-hunk-card adl-patch-hunk-card--${summary.changeKind}${isSelected ? ' is-selected' : ''}`}
     >
       <div className="adl-patch-hunk-card__summary">
         <button
           type="button"
           className="adl-patch-hunk-card__toggle"
           onClick={() => onTogglePatchHunkCollapse(summary.id)}
-          aria-expanded={summary.isCollapsed ? "false" : "true"}
+          aria-expanded={summary.isCollapsed ? 'false' : 'true'}
           aria-label={summary.isCollapsed ? t.expandDetails : t.collapseDetails}
         >
-          {summary.isCollapsed ? <IconChevronRight size={12} decorative /> : <IconChevronDown size={12} decorative />}
+          {summary.isCollapsed ? (
+            <IconChevronRight size={12} decorative />
+          ) : (
+            <IconChevronDown size={12} decorative />
+          )}
         </button>
         <button
           type="button"
@@ -57,9 +61,9 @@ export function PatchHunkCard({
             </small>
           </div>
           <span className={`adl-decision-chip adl-decision-chip--${summary.decision}`}>
-            {summary.decision === "accepted"
+            {summary.decision === 'accepted'
               ? t.approvalApproved
-              : summary.decision === "rejected"
+              : summary.decision === 'rejected'
                 ? t.approvalRejected
                 : t.approvalPendingCount}
           </span>
@@ -69,7 +73,9 @@ export function PatchHunkCard({
             type="button"
             className="adl-tool-context__iconbtn"
             onClick={() =>
-              onSelectPatchHunk(relativePath, summary.id, summary.targetLine, { activateTool: true })
+              onSelectPatchHunk(relativePath, summary.id, summary.targetLine, {
+                activateTool: true,
+              })
             }
             aria-label={t.conflictViewDiff}
           >
@@ -85,7 +91,9 @@ export function PatchHunkCard({
               type="button"
               className="adl-btn adl-btn--ghost adl-btn--sm"
               onClick={() =>
-                onSelectPatchHunk(relativePath, summary.id, summary.targetLine, { activateTool: true })
+                onSelectPatchHunk(relativePath, summary.id, summary.targetLine, {
+                  activateTool: true,
+                })
               }
             >
               {t.conflictViewDiff}
@@ -93,14 +101,14 @@ export function PatchHunkCard({
             <button
               type="button"
               className="adl-btn adl-btn--ghost adl-btn--sm"
-              onClick={() => onSetHunkDecision(summary.id, "accepted")}
+              onClick={() => onSetHunkDecision(summary.id, 'accepted')}
             >
               {t.accept}
             </button>
             <button
               type="button"
               className="adl-btn adl-btn--ghost adl-btn--sm"
-              onClick={() => onSetHunkDecision(summary.id, "rejected")}
+              onClick={() => onSetHunkDecision(summary.id, 'rejected')}
             >
               {t.reject}
             </button>

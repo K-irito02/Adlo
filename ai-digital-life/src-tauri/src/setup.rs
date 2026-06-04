@@ -2,8 +2,8 @@ use crate::state::AppState;
 use adl_browser::BrowserManager;
 use adl_events::EventBus;
 use adl_kernel::now_ms;
-use adl_storage::Database;
 use adl_pty::SessionManager;
+use adl_storage::Database;
 use anyhow::Context;
 use std::path::PathBuf;
 use std::sync::RwLock;
@@ -11,10 +11,7 @@ use tauri::Manager;
 use tracing::info;
 
 pub fn resolve_data_dir(app: &tauri::App) -> anyhow::Result<PathBuf> {
-    let dir = app
-        .path()
-        .app_data_dir()
-        .context("failed to resolve app data dir")?;
+    let dir = app.path().app_data_dir().context("failed to resolve app data dir")?;
     std::fs::create_dir_all(&dir)?;
     info!(?dir, "data directory resolved");
     Ok(dir)
@@ -62,10 +59,7 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
 }
 
 pub fn save_config(state: &AppState) -> anyhow::Result<()> {
-    let config = state
-        .config
-        .read()
-        .map_err(|_| anyhow::anyhow!("config lock poisoned"))?;
+    let config = state.config.read().map_err(|_| anyhow::anyhow!("config lock poisoned"))?;
     adl_config::save(&state.data_dir, &config)?;
     Ok(())
 }

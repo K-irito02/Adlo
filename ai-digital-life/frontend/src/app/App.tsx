@@ -1,18 +1,18 @@
-import React, { useCallback, useState } from "react";
-import type { AppInfo } from "@ai-digital-life/kernel";
-import { useAppStore } from "./stores/slicedStore";
-import { useAppActions } from "./hooks/useAppActions";
-import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
-import { useDragDropWorkspace } from "./hooks/useDragDropWorkspace";
-import { useAppStartup } from "./hooks/useAppStartup";
-import { usePatchReviewWithEditor } from "./hooks/usePatchReviewWithEditor";
-import { TitleBar } from "./regions/TitleBar";
-import { ErrorBoundary } from "./components/ErrorBoundary";
-import { LeftSidebar } from "./regions/LeftSidebar";
-import { CenterPane } from "./regions/CenterPane";
-import { RightPanel } from "./regions/RightPanel";
-import { NewSessionDialog } from "./components/NewSessionDialog";
-import { CreateWorkspaceModal } from "./components/CreateWorkspaceModal";
+import React, { useCallback, useState } from 'react';
+import type { AppInfo } from '@ai-digital-life/kernel';
+import { useAppStore } from './stores/slicedStore';
+import { useAppActions } from './hooks/useAppActions';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { useDragDropWorkspace } from './hooks/useDragDropWorkspace';
+import { useAppStartup } from './hooks/useAppStartup';
+import { usePatchReviewWithEditor } from './hooks/usePatchReviewWithEditor';
+import { TitleBar } from './regions/TitleBar';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { LeftSidebar } from './regions/LeftSidebar';
+import { CenterPane } from './regions/CenterPane';
+import { RightPanel } from './regions/RightPanel';
+import { NewSessionDialog } from './components/NewSessionDialog';
+import { CreateWorkspaceModal } from './components/CreateWorkspaceModal';
 
 export function App() {
   const error = useAppStore((state) => state.error);
@@ -43,14 +43,14 @@ export function App() {
   } = usePatchReviewWithEditor(locale);
 
   const handleCycleTheme = useCallback(() => {
-    const mode = appInfo?.config.themeMode ?? "system";
-    const next: AppInfo["config"]["themeMode"] =
-      mode === "system" ? "light" : mode === "light" ? "dark" : "system";
+    const mode = appInfo?.config.themeMode ?? 'system';
+    const next: AppInfo['config']['themeMode'] =
+      mode === 'system' ? 'light' : mode === 'light' ? 'dark' : 'system';
     void actions.updatePreferences({ themeMode: next });
   }, [appInfo?.config.themeMode, actions.updatePreferences]);
 
   const handleSelectLanguage = useCallback(
-    (language: AppInfo["config"]["language"]) => {
+    (language: AppInfo['config']['language']) => {
       void actions.updatePreferences({ language });
     },
     [actions.updatePreferences]
@@ -72,25 +72,25 @@ export function App() {
   }, [actions.openWorkspace, actions.pickWorkspaceDirectory]);
 
   const handleOpenSettings = useCallback(() => {
-    useAppStore.getState().setActiveRightTool("settings");
+    useAppStore.getState().setActiveRightTool('settings');
   }, []);
 
   const handleOpenCommandPalette = useCallback(() => {
-    useAppStore.getState().setActiveRightTool("files");
+    useAppStore.getState().setActiveRightTool('files');
   }, []);
 
   return (
     <main className="adl-shell adl-ide">
-        <TitleBar
-          t={t}
-          appInfo={appInfo}
-          onOpenSettings={handleOpenSettings}
-          onTriggerCreateWorkspace={handleTriggerCreateWorkspace}
-          onOpenFolder={handleOpenFolder}
-          onOpenCommandPalette={handleOpenCommandPalette}
-          onCycleTheme={handleCycleTheme}
-          onSelectLanguage={handleSelectLanguage}
-        />
+      <TitleBar
+        t={t}
+        appInfo={appInfo}
+        onOpenSettings={handleOpenSettings}
+        onTriggerCreateWorkspace={handleTriggerCreateWorkspace}
+        onOpenFolder={handleOpenFolder}
+        onOpenCommandPalette={handleOpenCommandPalette}
+        onCycleTheme={handleCycleTheme}
+        onSelectLanguage={handleSelectLanguage}
+      />
 
       {error ? (
         <div className="adl-banner adl-banner--error" role="alert">
@@ -99,38 +99,42 @@ export function App() {
       ) : null}
 
       <div
-        className={`adl-shell__body${leftCollapsed ? " is-left-collapsed" : ""}${rightCollapsed ? " is-right-collapsed" : ""}`}
-        style={{ "--rightpanel-width": `${rightPanelWidth}px` } as React.CSSProperties}
+        className={`adl-shell__body${leftCollapsed ? ' is-left-collapsed' : ''}${rightCollapsed ? ' is-right-collapsed' : ''}`}
+        style={{ '--rightpanel-width': `${rightPanelWidth}px` } as React.CSSProperties}
       >
-        <ErrorBoundary><LeftSidebar
-          t={t}
-          collapsed={leftCollapsed}
-          onCreateSession={() => setNewSessionDialogOpen(true)}
-          onTriggerCreateWorkspace={handleTriggerCreateWorkspace}
-        /></ErrorBoundary>
+        <ErrorBoundary>
+          <LeftSidebar
+            t={t}
+            collapsed={leftCollapsed}
+            onCreateSession={() => setNewSessionDialogOpen(true)}
+            onTriggerCreateWorkspace={handleTriggerCreateWorkspace}
+          />
+        </ErrorBoundary>
 
-        <ErrorBoundary><CenterPane
-          t={t}
-        /></ErrorBoundary>
+        <ErrorBoundary>
+          <CenterPane t={t} />
+        </ErrorBoundary>
 
-        <ErrorBoundary><RightPanel
-          t={t}
-          collapsed={rightCollapsed}
-          standardEditorRef={standardEditorRef}
-          selectedPatchFilePath={selectedPatchFilePath}
-          selectedPatchHunkId={selectedPatchHunkId}
-          collapsedPatchHunkIds={collapsedPatchHunkIds}
-          patchReviewFilter={patchReviewFilter}
-          onOpenFileAtLine={handleOpenFileAtLine}
-          onDiffMount={handleDiffMount}
-          onSendSelection={() => void handleSendSelection()}
-          onSelectPatchFile={handleSelectPatchFile}
-          onSelectPatchHunk={handleSelectPatchHunk}
-          onTogglePatchHunkCollapse={handleTogglePatchHunkCollapse}
-          onSetAllPatchHunksCollapsed={handleSetAllPatchHunksCollapsed}
-          onSetPatchReviewFilter={setPatchReviewFilter}
-          onJumpPatchHunk={handleJumpPatchHunk}
-        /></ErrorBoundary>
+        <ErrorBoundary>
+          <RightPanel
+            t={t}
+            collapsed={rightCollapsed}
+            standardEditorRef={standardEditorRef}
+            selectedPatchFilePath={selectedPatchFilePath}
+            selectedPatchHunkId={selectedPatchHunkId}
+            collapsedPatchHunkIds={collapsedPatchHunkIds}
+            patchReviewFilter={patchReviewFilter}
+            onOpenFileAtLine={handleOpenFileAtLine}
+            onDiffMount={handleDiffMount}
+            onSendSelection={() => void handleSendSelection()}
+            onSelectPatchFile={handleSelectPatchFile}
+            onSelectPatchHunk={handleSelectPatchHunk}
+            onTogglePatchHunkCollapse={handleTogglePatchHunkCollapse}
+            onSetAllPatchHunksCollapsed={handleSetAllPatchHunksCollapsed}
+            onSetPatchReviewFilter={setPatchReviewFilter}
+            onJumpPatchHunk={handleJumpPatchHunk}
+          />
+        </ErrorBoundary>
       </div>
 
       <CreateWorkspaceModal
@@ -154,7 +158,6 @@ export function App() {
         }}
         onCancel={() => setNewSessionDialogOpen(false)}
       />
-
     </main>
   );
 }

@@ -1,8 +1,8 @@
-import React from "react";
-import { IconClose } from "../../icons";
-import { TooltipSimple } from "../../components/Tooltip";
-import type { TerminalTabState } from "../../stores/slices/terminalSlice";
-import type { CopyDict } from "../../i18n";
+import React from 'react';
+import { IconClose } from '../../icons';
+import { TooltipSimple } from '../../components/Tooltip';
+import type { TerminalTabState } from '../../stores/slices/terminalSlice';
+import type { CopyDict } from '../../i18n';
 
 interface TerminalTabBarProps {
   tabs: TerminalTabState[];
@@ -45,7 +45,7 @@ export const TerminalTabBar = React.memo(function TerminalTabBar({
   onEditChange,
   onEditSubmit,
   onEditKeyDown,
-  t
+  t,
 }: TerminalTabBarProps) {
   if (tabs.length === 0) return null;
 
@@ -54,7 +54,7 @@ export const TerminalTabBar = React.memo(function TerminalTabBar({
       {tabs.map((tab) => (
         <li
           key={tab.id}
-          className={`adl-tool-list__item adl-tool-list__item--terminal-tab${isDragging && dragOverTabId === tab.id ? " is-drag-over" : ""}${tab.isPinned ? " is-pinned" : ""}`}
+          className={`adl-tool-list__item adl-tool-list__item--terminal-tab${isDragging && dragOverTabId === tab.id ? ' is-drag-over' : ''}${tab.isPinned ? ' is-pinned' : ''}`}
           draggable
           onDragStart={(e) => onDragStart(e, tab.id, tab.isPinned)}
           onDragEnd={onDragEnd}
@@ -73,21 +73,21 @@ export const TerminalTabBar = React.memo(function TerminalTabBar({
               className="adl-tool-list__item-editable-input"
               style={{
                 flex: 1,
-                background: "var(--surface)",
-                border: "1px solid var(--accent)",
-                color: "var(--text-primary)",
-                fontSize: "13px",
-                padding: "2px 6px",
-                borderRadius: "var(--radius-sm)",
-                outline: "none",
-                minWidth: 0
+                background: 'var(--surface)',
+                border: '1px solid var(--accent)',
+                color: 'var(--text-primary)',
+                fontSize: '13px',
+                padding: '2px 6px',
+                borderRadius: 'var(--radius-sm)',
+                outline: 'none',
+                minWidth: 0,
               }}
             />
           ) : (
             <>
               <button
                 type="button"
-                className={`adl-tool-list__item-btn${tab.id === activeTabId ? " is-active" : ""}`}
+                className={`adl-tool-list__item-btn${tab.id === activeTabId ? ' is-active' : ''}`}
                 onClick={() => onSelectTab(tab.id)}
                 onDoubleClick={() => onDoubleClick(tab.id, tab.title)}
               >

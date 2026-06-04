@@ -1,21 +1,43 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { WorkspaceTreeNode, FileOutlineItem, RecentWorkspaceEntry } from "@ai-digital-life/kernel";
-import type { CopyDict } from "../../i18n";
-import { IconClipboardList, IconCopy, IconFiles, IconFilePlus, IconFolderOpen, IconFoldVertical, IconFolderPlus, IconList, IconPanelLeftClose, IconPencil, IconRefreshCw, IconReplace, IconReturn, IconSearch, IconTrash, IconUnfoldVertical, IconUpload } from "../../icons";
-import { TooltipSimple } from "../../components/Tooltip";
-import { useUiStore } from "../../stores/ui-store";
-import type { FilesNavigatorMode } from "../../stores/types";
-import { useNavigatorResize } from "../../hooks/useNavigatorResize";
-import { MultiWorkspaceFileTree } from "../../features/workspace-file-tree";
-import type { FileTreeContextMenuItem } from "../../features/file-tree";
-import { OutlineTree, getDefaultExpandedOutlineIds } from "../../features/outline";
-import { normalizeWorkspaceRelativePath, joinPathSegments } from "../../utils/workspacePaths";
-import { useFileCreation, useSearchPanel } from "./hooks";
-import { FileCreationBar } from "./FileCreationBar";
-import { ConfirmDialog } from "../../components/ConfirmDialog";
-import { RenameDialog } from "../../components/RenameDialog";
-import { useAppStore } from "../../stores/slicedStore";
-import type { SearchHit } from "./hooks/useSearchPanel";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type {
+  WorkspaceTreeNode,
+  FileOutlineItem,
+  RecentWorkspaceEntry,
+} from '@ai-digital-life/kernel';
+import type { CopyDict } from '../../i18n';
+import {
+  IconClipboardList,
+  IconCopy,
+  IconFiles,
+  IconFilePlus,
+  IconFolderOpen,
+  IconFoldVertical,
+  IconFolderPlus,
+  IconList,
+  IconPanelLeftClose,
+  IconPencil,
+  IconRefreshCw,
+  IconReplace,
+  IconReturn,
+  IconSearch,
+  IconTrash,
+  IconUnfoldVertical,
+  IconUpload,
+} from '../../icons';
+import { TooltipSimple } from '../../components/Tooltip';
+import { useUiStore } from '../../stores/ui-store';
+import type { FilesNavigatorMode } from '../../stores/types';
+import { useNavigatorResize } from '../../hooks/useNavigatorResize';
+import { MultiWorkspaceFileTree } from '../../features/workspace-file-tree';
+import type { FileTreeContextMenuItem } from '../../features/file-tree';
+import { OutlineTree, getDefaultExpandedOutlineIds } from '../../features/outline';
+import { normalizeWorkspaceRelativePath, joinPathSegments } from '../../utils/workspacePaths';
+import { useFileCreation, useSearchPanel } from './hooks';
+import { FileCreationBar } from './FileCreationBar';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
+import { RenameDialog } from '../../components/RenameDialog';
+import { useAppStore } from '../../stores/slicedStore';
+import type { SearchHit } from './hooks/useSearchPanel';
 
 interface FileNavigatorShellProps {
   selectedFilePath: string | undefined;
@@ -28,9 +50,18 @@ interface FileNavigatorShellProps {
   searchResults: SearchHit[];
   externalChangePath: string | undefined;
   dirtyEditorPaths: string[];
-  appInfo: { currentWorkspace?: { name?: string; rootPath?: string; path?: string }; config?: { language?: string } } | undefined;
+  appInfo:
+    | {
+        currentWorkspace?: { name?: string; rootPath?: string; path?: string };
+        config?: { language?: string };
+      }
+    | undefined;
   onOpenFile: (relativePath: string) => void;
-  onOpenFileForWorkspace: (workspaceId: string, workspacePath: string, relativePath: string) => void;
+  onOpenFileForWorkspace: (
+    workspaceId: string,
+    workspacePath: string,
+    relativePath: string
+  ) => void;
   onOpenFileAtLine: (relativePath: string, line: number) => void;
   onSearch: (query: string) => void;
   onSearchChange: (query: string) => void;
@@ -51,17 +82,20 @@ interface FileNavigatorShellProps {
 }
 
 function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-function buildSearchPattern(query: string, options: { matchCase: boolean; wholeWord: boolean; useRegex: boolean }) {
+function buildSearchPattern(
+  query: string,
+  options: { matchCase: boolean; wholeWord: boolean; useRegex: boolean }
+) {
   if (!query) {
     return undefined;
   }
   const source = options.useRegex ? query : escapeRegExp(query);
   const wrapped = options.wholeWord ? `\\b${source}\\b` : source;
   try {
-    return new RegExp(wrapped, options.matchCase ? "g" : "gi");
+    return new RegExp(wrapped, options.matchCase ? 'g' : 'gi');
   } catch {
     return undefined;
   }
@@ -114,12 +148,15 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
 
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const activeWorkspaceId = appInfo?.currentWorkspace?.path
-    ? recentWorkspaces.find(w => w.path === appInfo.currentWorkspace?.path)?.id
+    ? recentWorkspaces.find((w) => w.path === appInfo.currentWorkspace?.path)?.id
     : undefined;
 
   const visibleWorkspaces = useMemo(
-    () => recentWorkspaces.filter((w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available),
-    [recentWorkspaces],
+    () =>
+      recentWorkspaces.filter(
+        (w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available
+      ),
+    [recentWorkspaces]
   );
 
   const fileCreation = useFileCreation({
@@ -149,11 +186,13 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
 
   const dirtyPaths = useMemo(
     () => new Set(dirtyEditorPaths.map((p) => normalizeWorkspaceRelativePath(p))),
-    [dirtyEditorPaths],
+    [dirtyEditorPaths]
   );
 
   const defaultExpandedOutlineIds = useMemo(() => getDefaultExpandedOutlineIds(outline), [outline]);
-  const [expandedOutlineIds, setExpandedOutlineIds] = useState<Set<string>>(() => defaultExpandedOutlineIds);
+  const [expandedOutlineIds, setExpandedOutlineIds] = useState<Set<string>>(
+    () => defaultExpandedOutlineIds
+  );
   useEffect(() => {
     setExpandedOutlineIds(defaultExpandedOutlineIds);
   }, [defaultExpandedOutlineIds]);
@@ -161,11 +200,12 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
   const hasExpandableOutlineItems = defaultExpandedOutlineIds.size > 0;
   const hasExpandedOutlineItems = expandedOutlineIds.size > 0;
 
-  const navigatorTitle = navigatorMode === "tree" ? "文件树" : navigatorMode === "search" ? t.searchResults : t.outline;
+  const navigatorTitle =
+    navigatorMode === 'tree' ? '文件树' : navigatorMode === 'search' ? t.searchResults : t.outline;
   const workspaceCount = visibleWorkspaces.length;
 
   useEffect(() => {
-    if (navigatorMode === "search") {
+    if (navigatorMode === 'search') {
       window.setTimeout(() => searchInputRef.current?.focus(), 0);
     }
   }, [navigatorMode]);
@@ -181,20 +221,22 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
     setExpandedOutlineIds(hasExpandedOutlineItems ? new Set() : new Set(defaultExpandedOutlineIds));
   };
 
-  const canToggleNavigatorStructure = navigatorMode === "tree"
-    ? visibleWorkspaces.length > 0
-    : navigatorMode === "outline"
-      ? hasExpandableOutlineItems
-      : false;
+  const canToggleNavigatorStructure =
+    navigatorMode === 'tree'
+      ? visibleWorkspaces.length > 0
+      : navigatorMode === 'outline'
+        ? hasExpandableOutlineItems
+        : false;
 
-  const structureToggleExpanded = navigatorMode === "tree"
-    ? allExpanded
-    : navigatorMode === "outline"
-      ? hasExpandedOutlineItems
-      : false;
+  const structureToggleExpanded =
+    navigatorMode === 'tree'
+      ? allExpanded
+      : navigatorMode === 'outline'
+        ? hasExpandedOutlineItems
+        : false;
 
   const handleToggleNavigatorStructure = () => {
-    if (navigatorMode === "tree") {
+    if (navigatorMode === 'tree') {
       if (allExpanded) {
         onCollapseAll();
       } else {
@@ -202,7 +244,7 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
       }
       return;
     }
-    if (navigatorMode === "outline") {
+    if (navigatorMode === 'outline') {
       handleToggleAllOutlineItems();
     }
   };
@@ -216,68 +258,69 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
   const copyToClipboard = useCallback(async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-    } catch {
-    }
+    } catch {}
   }, []);
 
   const getContextMenuItems = useCallback(
     (node: WorkspaceTreeNode): FileTreeContextMenuItem<WorkspaceTreeNode>[] => {
-      const isDir = node.kind === "directory";
+      const isDir = node.kind === 'directory';
       const store = useAppStore.getState();
       const hasClipboard = store.clipboardOperation !== null;
       return [
         {
-          id: "reveal",
+          id: 'reveal',
           label: isDir ? (t.fileContextRevealDir as string) : (t.fileContextReveal as string),
           icon: <IconFolderOpen size={14} />,
           action: async (targetNode) => {
             const store = useAppStore.getState();
-            const rootPath = store.appInfo?.currentWorkspace?.rootPath ?? store.appInfo?.currentWorkspace?.path;
+            const rootPath =
+              store.appInfo?.currentWorkspace?.rootPath ?? store.appInfo?.currentWorkspace?.path;
             if (!rootPath) return;
             const fullPath = joinPathSegments(rootPath, targetNode.path);
             await window.digitalLife.workspace.revealInFileManager(fullPath);
-          }
+          },
         },
-        { id: "sep1", separator: true },
+        { id: 'sep1', separator: true },
         {
-          id: "copy-full-path",
+          id: 'copy-full-path',
           label: t.fileContextCopyFullPath as string,
           icon: <IconCopy size={14} />,
           action: async (targetNode) => {
             const store = useAppStore.getState();
-            const rootPath = store.appInfo?.currentWorkspace?.rootPath ?? store.appInfo?.currentWorkspace?.path;
+            const rootPath =
+              store.appInfo?.currentWorkspace?.rootPath ?? store.appInfo?.currentWorkspace?.path;
             if (!rootPath) return;
             const fullPath = joinPathSegments(rootPath, targetNode.path);
             await copyToClipboard(fullPath);
-          }
+          },
         },
         {
-          id: "copy-relative-path",
+          id: 'copy-relative-path',
           label: t.fileContextCopyRelativePath as string,
           icon: <IconCopy size={14} />,
           action: async (targetNode) => {
             await copyToClipboard(targetNode.path);
-          }
+          },
         },
-        { id: "sep2", separator: true },
+        { id: 'sep2', separator: true },
         {
-          id: "cut",
+          id: 'cut',
           label: t.fileContextCut as string,
           icon: <IconClipboardList size={14} />,
           action: (targetNode) => {
-            store.setClipboard("cut", targetNode.path, targetNode.kind);
-          }
+            store.setClipboard('cut', targetNode.path, targetNode.kind);
+          },
         },
         {
-          id: "copy-op",
+          id: 'copy-op',
           label: t.fileContextCopy as string,
           icon: <IconCopy size={14} />,
           action: (targetNode) => {
-            store.setClipboard("copy", targetNode.path, targetNode.kind);
-          }
+            store.setClipboard('copy', targetNode.path, targetNode.kind);
+          },
         },
         {
-          id: "paste",
+          id: 'paste',
           label: t.fileContextPaste as string,
           icon: <IconUpload size={14} />,
           disabled: !hasClipboard,
@@ -285,12 +328,15 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
             const sourcePath = store.clipboardSourcePath;
             const operation = store.clipboardOperation;
             if (!sourcePath || !operation) return;
-            const targetDir = targetNode.kind === "directory" ? targetNode.path : targetNode.path.substring(0, targetNode.path.lastIndexOf("/") + 1);
-            const sourceName = sourcePath.split("/").pop() || sourcePath;
+            const targetDir =
+              targetNode.kind === 'directory'
+                ? targetNode.path
+                : targetNode.path.substring(0, targetNode.path.lastIndexOf('/') + 1);
+            const sourceName = sourcePath.split('/').pop() || sourcePath;
             const newPath = targetDir ? `${targetDir}/${sourceName}` : sourceName;
-            if (operation === "copy") {
+            if (operation === 'copy') {
               await store.duplicateWorkspaceFile(sourcePath, newPath);
-            } else if (operation === "cut") {
+            } else if (operation === 'cut') {
               if (sourcePath === newPath) {
                 store.clearClipboard();
                 return;
@@ -298,42 +344,45 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
               await store.moveWorkspaceFile(sourcePath, newPath);
             }
             store.clearClipboard();
-          }
+          },
         },
-        { id: "sep3", separator: true },
+        { id: 'sep3', separator: true },
         {
-          id: "rename",
+          id: 'rename',
           label: t.fileContextRename as string,
           icon: <IconPencil size={14} />,
           action: (targetNode) => {
             contextMenuPersistRef.current = true;
             setRenamingPath(targetNode.path);
             setRenameDialogOpen(true);
-          }
+          },
         },
         {
-          id: "delete",
+          id: 'delete',
           label: t.fileContextDelete as string,
           icon: <IconTrash size={14} />,
           danger: true,
           action: (targetNode) => {
             contextMenuPersistRef.current = true;
             setDeleteConfirmPath(targetNode.path);
-          }
-        }
+          },
+        },
       ];
     },
     [t, copyToClipboard]
   );
 
-  const handleRenameConfirm = useCallback(async (newName: string) => {
-    if (!renamingPath) return;
-    const path = renamingPath;
-    setRenamingPath(null);
-    setRenameDialogOpen(false);
-    clearMenuHighlightRef.current?.();
-    await useAppStore.getState().renameWorkspaceFile(path, newName);
-  }, [renamingPath]);
+  const handleRenameConfirm = useCallback(
+    async (newName: string) => {
+      if (!renamingPath) return;
+      const path = renamingPath;
+      setRenamingPath(null);
+      setRenameDialogOpen(false);
+      clearMenuHighlightRef.current?.();
+      await useAppStore.getState().renameWorkspaceFile(path, newName);
+    },
+    [renamingPath]
+  );
 
   const handleRenameCancel = useCallback(() => {
     setRenamingPath(null);
@@ -355,16 +404,17 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
   }, []);
 
   if (navigatorCollapsed) {
-    return (
-      <aside className="adl-tool-navigator" aria-hidden="true" />
-    );
+    return <aside className="adl-tool-navigator" aria-hidden="true" />;
   }
 
   return (
     <aside className="adl-tool-navigator" aria-label={navigatorTitle as string}>
       <div className="adl-tool-navigator__context">
         <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--actions">
-          <TooltipSimple content={structureToggleExpanded ? t.fileCollapseAll : t.fileExpandAll} placement="top">
+          <TooltipSimple
+            content={structureToggleExpanded ? t.fileCollapseAll : t.fileExpandAll}
+            placement="top"
+          >
             <button
               type="button"
               className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
@@ -372,7 +422,11 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
               aria-label={(structureToggleExpanded ? t.fileCollapseAll : t.fileExpandAll) as string}
               disabled={!canToggleNavigatorStructure}
             >
-              {structureToggleExpanded ? <IconFoldVertical size={14} decorative /> : <IconUnfoldVertical size={14} decorative />}
+              {structureToggleExpanded ? (
+                <IconFoldVertical size={14} decorative />
+              ) : (
+                <IconUnfoldVertical size={14} decorative />
+              )}
             </button>
           </TooltipSimple>
           <span className="adl-tool-navigator__context-title">{navigatorTitle as string}</span>
@@ -398,10 +452,10 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
           <TooltipSimple content={t.fileTreeView} placement="top">
             <button
               type="button"
-              className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${navigatorMode === "tree" ? " is-active" : ""}`}
-              onClick={() => setNavigatorMode("tree")}
+              className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${navigatorMode === 'tree' ? ' is-active' : ''}`}
+              onClick={() => setNavigatorMode('tree')}
               aria-label={t.fileTreeView as string}
-              aria-pressed={navigatorMode === "tree" ? "true" : "false"}
+              aria-pressed={navigatorMode === 'tree' ? 'true' : 'false'}
             >
               <IconFiles size={14} decorative />
             </button>
@@ -409,10 +463,10 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
           <TooltipSimple content="文档大纲" placement="top">
             <button
               type="button"
-              className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${navigatorMode === "outline" ? " is-active" : ""}`}
-              onClick={() => setNavigatorMode("outline")}
+              className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${navigatorMode === 'outline' ? ' is-active' : ''}`}
+              onClick={() => setNavigatorMode('outline')}
               aria-label={(outline.length > 0 ? t.outline : t.toolFiles) as string}
-              aria-pressed={navigatorMode === "outline" ? "true" : "false"}
+              aria-pressed={navigatorMode === 'outline' ? 'true' : 'false'}
             >
               <IconList size={14} decorative />
             </button>
@@ -423,7 +477,7 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
             <button
               type="button"
               className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-              onClick={() => fileCreation.startCreate("file")}
+              onClick={() => fileCreation.startCreate('file')}
               aria-label={t.fileNewFile as string}
             >
               <IconFilePlus size={14} decorative />
@@ -433,7 +487,7 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
             <button
               type="button"
               className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-              onClick={() => fileCreation.startCreate("folder")}
+              onClick={() => fileCreation.startCreate('folder')}
               aria-label={t.fileNewFolder as string}
             >
               <IconFolderPlus size={14} decorative />
@@ -450,7 +504,12 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
           isValidPath={(value) => {
             const trimmed = value.trim();
             if (!trimmed) return false;
-            if (/^[A-Za-z]:[\\/]/.test(trimmed) || trimmed.startsWith("/") || trimmed.startsWith("\\")) return false;
+            if (
+              /^[A-Za-z]:[\\/]/.test(trimmed) ||
+              trimmed.startsWith('/') ||
+              trimmed.startsWith('\\')
+            )
+              return false;
             return true;
           }}
           onPathChange={fileCreation.setCreatePathValue}
@@ -460,7 +519,7 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
         />
       ) : null}
 
-      {navigatorMode === "tree" ? (
+      {navigatorMode === 'tree' ? (
         visibleWorkspaces.length > 0 ? (
           <MultiWorkspaceFileTree
             workspaces={visibleWorkspaces}
@@ -500,7 +559,7 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
         ) : null
       ) : null}
 
-      {navigatorMode === "search" ? (
+      {navigatorMode === 'search' ? (
         <div className="adl-search-panel">
           <div className="adl-search-panel__controls">
             <label className="adl-search-panel__field adl-search-panel__field--with-actions">
@@ -510,7 +569,7 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
                 value={searchQuery}
                 onChange={(event) => onSearchChange(event.target.value)}
                 onKeyDown={(event) => {
-                  if (event.key === "Enter") {
+                  if (event.key === 'Enter') {
                     onSearch(searchQuery);
                   }
                 }}
@@ -521,8 +580,8 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
                 <TooltipSimple content={t.searchPanelMatchCase} placement="top">
                   <button
                     type="button"
-                    className={`adl-search-panel__modebtn${searchPanel.matchCase ? " is-active" : ""}`}
-                    aria-pressed={searchPanel.matchCase ? "true" : "false"}
+                    className={`adl-search-panel__modebtn${searchPanel.matchCase ? ' is-active' : ''}`}
+                    aria-pressed={searchPanel.matchCase ? 'true' : 'false'}
                     onClick={() => searchPanel.setMatchCase((v) => !v)}
                     aria-label={t.searchPanelMatchCase as string}
                   >
@@ -532,8 +591,8 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
                 <TooltipSimple content={t.searchPanelMatchWholeWord} placement="top">
                   <button
                     type="button"
-                    className={`adl-search-panel__modebtn${searchPanel.matchWholeWord ? " is-active" : ""}`}
-                    aria-pressed={searchPanel.matchWholeWord ? "true" : "false"}
+                    className={`adl-search-panel__modebtn${searchPanel.matchWholeWord ? ' is-active' : ''}`}
+                    aria-pressed={searchPanel.matchWholeWord ? 'true' : 'false'}
                     onClick={() => searchPanel.setMatchWholeWord((v) => !v)}
                     aria-label={t.searchPanelMatchWholeWord as string}
                   >
@@ -543,8 +602,8 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
                 <TooltipSimple content={t.searchPanelUseRegex} placement="top">
                   <button
                     type="button"
-                    className={`adl-search-panel__modebtn${searchPanel.useRegex ? " is-active" : ""}`}
-                    aria-pressed={searchPanel.useRegex ? "true" : "false"}
+                    className={`adl-search-panel__modebtn${searchPanel.useRegex ? ' is-active' : ''}`}
+                    aria-pressed={searchPanel.useRegex ? 'true' : 'false'}
                     onClick={() => searchPanel.setUseRegex((v) => !v)}
                     aria-label={t.searchPanelUseRegex as string}
                   >
@@ -555,10 +614,10 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
             </label>
             <button
               type="button"
-              className={`adl-search-panel__toggle${searchPanel.replaceOpen ? " is-open" : ""}`}
+              className={`adl-search-panel__toggle${searchPanel.replaceOpen ? ' is-open' : ''}`}
               onClick={() => searchPanel.setReplaceOpen((v) => !v)}
               aria-label={t.searchPanelToggleReplace as string}
-              aria-expanded={searchPanel.replaceOpen ? "true" : "false"}
+              aria-expanded={searchPanel.replaceOpen ? 'true' : 'false'}
             >
               <IconReplace size={12} decorative />
             </button>
@@ -610,7 +669,7 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
         </div>
       ) : null}
 
-      {navigatorMode === "outline" ? (
+      {navigatorMode === 'outline' ? (
         outline.length > 0 ? (
           <OutlineTree
             items={outline}
@@ -649,7 +708,7 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
       {renameDialogOpen && renamingPath ? (
         <RenameDialog
           open={renameDialogOpen}
-          initialValue={renamingPath.split("/").pop() || ""}
+          initialValue={renamingPath.split('/').pop() || ''}
           title="重命名"
           itemInfo={`当前路径: ${renamingPath}`}
           placeholder="输入新名称"

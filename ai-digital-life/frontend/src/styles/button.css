@@ -13,15 +13,12 @@
   font-weight: var(--font-semibold);
   line-height: var(--leading-tight);
   white-space: nowrap;
-  transition:
-    var(--transition-colors),
-    var(--transition-shadow),
-    var(--transition-transform);
+  transition: var(--transition-colors), var(--transition-shadow), var(--transition-transform);
   position: relative;
   isolation: isolate;
 }
 
-.btn:hover:not([disabled]):not([aria-busy="true"]) {
+.btn:hover:not([disabled]):not([aria-busy='true']) {
   background: var(--accent-hover);
 }
 
@@ -31,20 +28,20 @@
 }
 
 .btn[disabled],
-.btn[aria-disabled="true"] {
+.btn[aria-disabled='true'] {
   opacity: 0.55;
   cursor: not-allowed;
   pointer-events: none;
 }
 
-.btn[aria-busy="true"] {
+.btn[aria-busy='true'] {
   cursor: progress;
   pointer-events: none;
   color: transparent;
 }
 
-.btn[aria-busy="true"]::after {
-  content: "";
+.btn[aria-busy='true']::after {
+  content: '';
   position: absolute;
   inset: 0;
   margin: auto;

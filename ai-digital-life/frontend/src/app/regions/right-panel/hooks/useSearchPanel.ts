@@ -1,12 +1,12 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from 'react';
 
 function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function buildSearchPattern(
   query: string,
-  options: { matchCase: boolean; wholeWord: boolean; useRegex: boolean },
+  options: { matchCase: boolean; wholeWord: boolean; useRegex: boolean }
 ) {
   if (!query) {
     return undefined;
@@ -14,7 +14,7 @@ function buildSearchPattern(
   const source = options.useRegex ? query : escapeRegExp(query);
   const wrapped = options.wholeWord ? `\\b${source}\\b` : source;
   try {
-    return new RegExp(wrapped, options.matchCase ? "g" : "gi");
+    return new RegExp(wrapped, options.matchCase ? 'g' : 'gi');
   } catch {
     return undefined;
   }
@@ -53,7 +53,7 @@ function useSearchPanel(input: UseSearchPanelInput): UseSearchPanelResult {
   const [matchWholeWord, setMatchWholeWord] = useState(false);
   const [useRegex, setUseRegex] = useState(false);
   const [replaceOpen, setReplaceOpen] = useState(false);
-  const [replaceQuery, setReplaceQuery] = useState("");
+  const [replaceQuery, setReplaceQuery] = useState('');
 
   const searchPattern = useMemo(
     () =>
@@ -62,7 +62,7 @@ function useSearchPanel(input: UseSearchPanelInput): UseSearchPanelResult {
         wholeWord: matchWholeWord,
         useRegex,
       }),
-    [matchCase, matchWholeWord, input.searchQuery, useRegex],
+    [matchCase, matchWholeWord, input.searchQuery, useRegex]
   );
 
   const filteredResults = useMemo(() => {
@@ -73,8 +73,8 @@ function useSearchPanel(input: UseSearchPanelInput): UseSearchPanelResult {
       return [];
     }
     return input.searchResults.filter((result) => {
-      searchPattern.lastIndex = 0;
-      return searchPattern.test(`${result.path}\n${result.preview}`);
+      const pattern = new RegExp(searchPattern);
+      return pattern.test(`${result.path}\n${result.preview}`);
     });
   }, [searchPattern, input.searchQuery, input.searchResults]);
 

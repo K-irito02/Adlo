@@ -1,4 +1,4 @@
-import { EditorView } from "@codemirror/view";
+import { EditorView } from '@codemirror/view';
 
 export function estimateWrapColumn(view: EditorView): number | null {
   if (!view.lineWrapping) return null;

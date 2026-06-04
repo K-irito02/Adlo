@@ -1,11 +1,11 @@
-import { useEffect, useRef } from "react";
-import { EditorView } from "@codemirror/view";
+import { useEffect, useRef } from 'react';
+import { EditorView } from '@codemirror/view';
 import {
   applyAgentDecorations,
   clearAgentDecorations,
   setAgentDecorationsEnabled,
   type AgentHunkDecoration,
-} from "../editor-support/agentDecorations";
+} from '../editor-support/agentDecorations';
 
 interface UseAgentDecorationsInput {
   cmViewRef: React.MutableRefObject<EditorView | null>;
@@ -16,7 +16,10 @@ interface UseAgentDecorationsInput {
 
 function useAgentDecorations(input: UseAgentDecorationsInput) {
   const enabledRef = useRef(input.agentAnnotationsEnabled);
-  enabledRef.current = input.agentAnnotationsEnabled;
+
+  useEffect(() => {
+    enabledRef.current = input.agentAnnotationsEnabled;
+  }, [input.agentAnnotationsEnabled]);
 
   useEffect(() => {
     const view = input.cmViewRef.current;

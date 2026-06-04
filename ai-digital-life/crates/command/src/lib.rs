@@ -152,14 +152,8 @@ pub fn truncate_output(value: &str) -> String {
         return value.to_string();
     }
     let head: String = value.chars().take(MAX_CAPTURE_CHARS / 2).collect();
-    let tail: String = value
-        .chars()
-        .rev()
-        .take(MAX_CAPTURE_CHARS / 2)
-        .collect::<String>()
-        .chars()
-        .rev()
-        .collect();
+    let tail: String =
+        value.chars().rev().take(MAX_CAPTURE_CHARS / 2).collect::<String>().chars().rev().collect();
     format!("{head}\n...[output truncated]...\n{tail}")
 }
 
@@ -177,13 +171,7 @@ pub fn validation_command(
             false,
         ))
     } else if root.join("package.json").exists() {
-        Some(build_request(
-            workspace_id,
-            run_id,
-            "npm".into(),
-            vec!["test".into()],
-            false,
-        ))
+        Some(build_request(workspace_id, run_id, "npm".into(), vec!["test".into()], false))
     } else {
         None
     }
@@ -203,58 +191,31 @@ mod tests {
 
     #[test]
     fn classify_profile_build_commands() {
-        assert_eq!(
-            classify_profile("cargo", &["build".into()]),
-            CommandProfile::Build
-        );
-        assert_eq!(
-            classify_profile("cargo", &["check".into()]),
-            CommandProfile::Build
-        );
+        assert_eq!(classify_profile("cargo", &["build".into()]), CommandProfile::Build);
+        assert_eq!(classify_profile("cargo", &["check".into()]), CommandProfile::Build);
     }
 
     #[test]
     fn classify_profile_lint_commands() {
-        assert_eq!(
-            classify_profile("cargo", &["clippy".into()]),
-            CommandProfile::Lint
-        );
-        assert_eq!(
-            classify_profile("npm", &["run".into(), "lint".into()]),
-            CommandProfile::Lint
-        );
+        assert_eq!(classify_profile("cargo", &["clippy".into()]), CommandProfile::Lint);
+        assert_eq!(classify_profile("npm", &["run".into(), "lint".into()]), CommandProfile::Lint);
     }
 
     #[test]
     fn classify_profile_install_commands() {
-        assert_eq!(
-            classify_profile("npm", &["install".into()]),
-            CommandProfile::Install
-        );
-        assert_eq!(
-            classify_profile("pnpm", &["install".into()]),
-            CommandProfile::Install
-        );
+        assert_eq!(classify_profile("npm", &["install".into()]), CommandProfile::Install);
+        assert_eq!(classify_profile("pnpm", &["install".into()]), CommandProfile::Install);
         assert_eq!(
             classify_profile("pip", &["install".into(), "package".into()]),
             CommandProfile::Install
         );
-        assert_eq!(
-            classify_profile("pnpm", &["add".into()]),
-            CommandProfile::Custom
-        );
+        assert_eq!(classify_profile("pnpm", &["add".into()]), CommandProfile::Custom);
     }
 
     #[test]
     fn classify_profile_custom_commands() {
-        assert_eq!(
-            classify_profile("echo", &["hello".into()]),
-            CommandProfile::Custom
-        );
-        assert_eq!(
-            classify_profile("node", &["server.js".into()]),
-            CommandProfile::Custom
-        );
+        assert_eq!(classify_profile("echo", &["hello".into()]), CommandProfile::Custom);
+        assert_eq!(classify_profile("node", &["server.js".into()]), CommandProfile::Custom);
     }
 
     #[test]
@@ -294,22 +255,12 @@ mod tests {
 
     #[test]
     fn build_request_classifies_risk() {
-        let request = build_request(
-            "w1",
-            Some("r1".into()),
-            "cargo".into(),
-            vec!["build".into()],
-            false,
-        );
+        let request =
+            build_request("w1", Some("r1".into()), "cargo".into(), vec!["build".into()], false);
         assert_eq!(request.risk_level, RiskLevel::Low);
 
-        let install_request = build_request(
-            "w1",
-            Some("r1".into()),
-            "npm".into(),
-            vec!["install".into()],
-            false,
-        );
+        let install_request =
+            build_request("w1", Some("r1".into()), "npm".into(), vec!["install".into()], false);
         assert_eq!(install_request.risk_level, RiskLevel::Medium);
     }
 

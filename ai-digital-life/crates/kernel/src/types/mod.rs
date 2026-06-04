@@ -53,13 +53,7 @@ impl<T> IpcResult<T> {
     }
 
     pub fn err(code: impl Into<String>, message: impl Into<String>) -> Self {
-        Self::Err {
-            ok: false,
-            error: IpcError {
-                code: code.into(),
-                message: message.into(),
-            },
-        }
+        Self::Err { ok: false, error: IpcError { code: code.into(), message: message.into() } }
     }
 }
 

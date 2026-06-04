@@ -1,8 +1,8 @@
-import React, { useEffect, useRef, useState } from "react";
-import { IconFolder, IconFolderOpen, IconLightbulb, IconMessageSquare } from "../../icons";
-import { WorkspaceSplitButton } from "../../components/WorkspaceSplitButton";
-import type { RecentWorkspaceEntry } from "@ai-digital-life/kernel";
-import type { CopyDict } from "../../i18n";
+import React, { useEffect, useRef, useState } from 'react';
+import { IconFolder, IconFolderOpen, IconLightbulb, IconMessageSquare } from '../../icons';
+import { WorkspaceSplitButton } from '../../components/WorkspaceSplitButton';
+import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
+import type { CopyDict } from '../../i18n';
 
 export type WelcomeStateProps = {
   t: CopyDict;
@@ -31,8 +31,8 @@ export function WelcomeState({
         setShowActionCard(false);
       }
     };
-    document.addEventListener("mousedown", onPointerDown);
-    return () => document.removeEventListener("mousedown", onPointerDown);
+    document.addEventListener('mousedown', onPointerDown);
+    return () => document.removeEventListener('mousedown', onPointerDown);
   }, [showActionCard]);
 
   if (!hasWorkspace) {
@@ -67,7 +67,11 @@ export function WelcomeState({
             {t.newConversation}
           </button>
           <div className="adl-welcome__action-wrap" ref={actionCardRef}>
-            <button type="button" className="adl-btn adl-btn--ghost adl-btn--lg" onClick={() => setShowActionCard((v) => !v)}>
+            <button
+              type="button"
+              className="adl-btn adl-btn--ghost adl-btn--lg"
+              onClick={() => setShowActionCard((v) => !v)}
+            >
               <IconFolderOpen size={16} decorative />
               {t.welcomeOpenWorkspace}
             </button>
@@ -105,7 +109,5 @@ export function WelcomeState({
     );
   }
 
-  return (
-    <div className="adl-empty-stream" aria-hidden="true" />
-  );
+  return <div className="adl-empty-stream" aria-hidden="true" />;
 }

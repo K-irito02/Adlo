@@ -1,7 +1,7 @@
-import React from "react";
-import { IconArrowLeft, IconArrowRight } from "../../icons";
-import { TooltipSimple } from "../../components/Tooltip";
-import type { CopyDict } from "../../i18n";
+import React from 'react';
+import { IconArrowLeft, IconArrowRight } from '../../icons';
+import { TooltipSimple } from '../../components/Tooltip';
+import type { CopyDict } from '../../i18n';
 
 interface FileHistoryNavProps {
   canGoBack: boolean;
@@ -11,13 +11,7 @@ interface FileHistoryNavProps {
   t: CopyDict;
 }
 
-function FileHistoryNav({
-  canGoBack,
-  canGoForward,
-  onBack,
-  onForward,
-  t,
-}: FileHistoryNavProps) {
+function FileHistoryNav({ canGoBack, canGoForward, onBack, onForward, t }: FileHistoryNavProps) {
   return (
     <>
       <TooltipSimple content={t.browserBack as string} placement="top">

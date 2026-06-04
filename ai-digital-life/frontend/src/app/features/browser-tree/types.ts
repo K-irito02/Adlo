@@ -1,8 +1,8 @@
-import type { FileTreeRenderableNode } from "../file-tree";
+import type { FileTreeRenderableNode } from '../file-tree';
 
-export type BrowserCategoryType = "workspace" | "userFolder" | "history";
+export type BrowserCategoryType = 'workspace' | 'userFolder' | 'history';
 
-export type BrowserNodeType = "workspace" | "folder" | "year" | "month" | "day" | "tab" | "history";
+export type BrowserNodeType = 'workspace' | 'folder' | 'year' | 'month' | 'day' | 'tab' | 'history';
 
 export interface BrowserTreeNode extends FileTreeRenderableNode {
   children: BrowserTreeNode[];

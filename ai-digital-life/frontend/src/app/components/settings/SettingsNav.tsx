@@ -1,6 +1,6 @@
-import React from "react";
-import type { SettingsGroupId } from "@ai-digital-life/kernel";
-import type { CopyDict } from "../../i18n";
+import React from 'react';
+import type { SettingsGroupId } from '@ai-digital-life/kernel';
+import type { CopyDict } from '../../i18n';
 
 interface SettingsNavProps {
   t: CopyDict;
@@ -9,11 +9,11 @@ interface SettingsNavProps {
 }
 
 const GROUPS: Array<{ id: SettingsGroupId; labelKey: keyof CopyDict }> = [
-  { id: "general", labelKey: "settingsGeneral" },
-  { id: "model", labelKey: "settingsModel" },
-  { id: "agent", labelKey: "settingsAgent" },
-  { id: "workspace", labelKey: "settingsWorkspace" },
-  { id: "shortcuts", labelKey: "settingsShortcuts" },
+  { id: 'general', labelKey: 'settingsGeneral' },
+  { id: 'model', labelKey: 'settingsModel' },
+  { id: 'agent', labelKey: 'settingsAgent' },
+  { id: 'workspace', labelKey: 'settingsWorkspace' },
+  { id: 'shortcuts', labelKey: 'settingsShortcuts' },
 ];
 
 export function SettingsNav({ t, activeGroup, onSelectGroup }: SettingsNavProps) {
@@ -24,7 +24,7 @@ export function SettingsNav({ t, activeGroup, onSelectGroup }: SettingsNavProps)
           <li key={group.id}>
             <button
               type="button"
-              className={`adl-settings-nav__item${activeGroup === group.id ? " is-active" : ""}`}
+              className={`adl-settings-nav__item${activeGroup === group.id ? ' is-active' : ''}`}
               onClick={() => onSelectGroup(group.id)}
             >
               {t[group.labelKey] as string}

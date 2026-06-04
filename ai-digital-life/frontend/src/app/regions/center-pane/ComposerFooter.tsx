@@ -1,21 +1,16 @@
-import React from "react";
-import {
-  IconArrowUp, IconMic, IconPlus, IconRefreshCw, IconStopCircle
-} from "../../icons";
-import { ContextBuilderPopover } from "../../components/conversation/ContextBuilderPopover";
-import { TooltipSimple } from "../../components/Tooltip";
-import { StatusBar } from "../StatusBar";
-import type { ChatMode, ContextChip } from "../../stores/types";
-import type { CopyDict } from "../../i18n";
-import type {
-  AgentRunDetail, GitSnapshot,
-  RecentWorkspaceEntry
-} from "@ai-digital-life/kernel";
+import React from 'react';
+import { IconArrowUp, IconMic, IconPlus, IconRefreshCw, IconStopCircle } from '../../icons';
+import { ContextBuilderPopover } from '../../components/conversation/ContextBuilderPopover';
+import { TooltipSimple } from '../../components/Tooltip';
+import { StatusBar } from '../StatusBar';
+import type { ChatMode, ContextChip } from '../../stores/types';
+import type { CopyDict } from '../../i18n';
+import type { AgentRunDetail, GitSnapshot, RecentWorkspaceEntry } from '@ai-digital-life/kernel';
 
 export type ComposerFooterProps = {
   t: CopyDict;
   draft: string;
-  buttonState: "send" | "stop" | "retry" | "waiting";
+  buttonState: 'send' | 'stop' | 'retry' | 'waiting';
   chatMode: ChatMode;
   contextChips: ContextChip[];
   contextMenuOpen: boolean;
@@ -46,12 +41,35 @@ export type ComposerFooterProps = {
 
 export function ComposerFooter(props: ComposerFooterProps) {
   const {
-    t, draft, buttonState, chatMode, contextChips, contextMenuOpen,
-    setContextMenuOpen, setChatMode, addContextChip, removeContextChip,
-    onSend, onCancelStream, composerEditorRef, composerInputRef,
-    composerCaretRef, setComposerFocused, updateCustomCaret, onInput, onKeyDown,
-    appInfo, modelHealth, streamingActiveRunId, activeRun,
-    workspaceContextMode, recentWorkspaces, gitSnapshot, gitBranches, handleSelectModel, actions,
+    t,
+    draft,
+    buttonState,
+    chatMode,
+    contextChips,
+    contextMenuOpen,
+    setContextMenuOpen,
+    setChatMode,
+    addContextChip,
+    removeContextChip,
+    onSend,
+    onCancelStream,
+    composerEditorRef,
+    composerInputRef,
+    composerCaretRef,
+    setComposerFocused,
+    updateCustomCaret,
+    onInput,
+    onKeyDown,
+    appInfo,
+    modelHealth,
+    streamingActiveRunId,
+    activeRun,
+    workspaceContextMode,
+    recentWorkspaces,
+    gitSnapshot,
+    gitBranches,
+    handleSelectModel,
+    actions,
   } = props;
 
   return (
@@ -61,11 +79,7 @@ export function ComposerFooter(props: ComposerFooterProps) {
           {contextChips.map((chip) => (
             <span key={chip.id} className={`adl-chip adl-chip--${chip.kind}`}>
               <span>{chip.label}</span>
-              <button
-                type="button"
-                onClick={() => removeContextChip(chip.id)}
-                aria-label="Remove"
-              >
+              <button type="button" onClick={() => removeContextChip(chip.id)} aria-label="Remove">
                 ×
               </button>
             </span>
@@ -114,61 +128,51 @@ export function ComposerFooter(props: ComposerFooterProps) {
             onClick={() => window.requestAnimationFrame(updateCustomCaret)}
             onKeyUp={() => window.requestAnimationFrame(updateCustomCaret)}
           />
-          <span
-            ref={composerCaretRef}
-            className="adl-composer__caret"
-            aria-hidden="true"
-            hidden
-          />
+          <span ref={composerCaretRef} className="adl-composer__caret" aria-hidden="true" hidden />
         </div>
         <div className="adl-composer__right">
           <TooltipSimple content="Voice" placement="top">
-            <button
-              type="button"
-              className="adl-icon-btn"
-              aria-label="Voice"
-              disabled
-            >
+            <button type="button" className="adl-icon-btn" aria-label="Voice" disabled>
               <IconMic size={14} decorative />
             </button>
           </TooltipSimple>
-          {buttonState === "stop" ? (
-          <TooltipSimple content={t.cancelGenerate} placement="top">
-            <button
-              type="button"
-              className="adl-action-btn adl-action-btn--danger"
-              data-testid="composer-send"
-              onClick={onCancelStream}
-              aria-label={t.cancelGenerate}
-            >
-              <IconStopCircle size={16} decorative />
-            </button>
-          </TooltipSimple>
-          ) : buttonState === "retry" ? (
-          <TooltipSimple content={t.retry} placement="top">
-            <button
-              type="button"
-              className="adl-action-btn adl-action-btn--warning"
-              data-testid="composer-send"
-              onClick={onSend}
-              aria-label={t.retry}
-            >
-              <IconRefreshCw size={16} decorative />
-            </button>
-          </TooltipSimple>
+          {buttonState === 'stop' ? (
+            <TooltipSimple content={t.cancelGenerate} placement="top">
+              <button
+                type="button"
+                className="adl-action-btn adl-action-btn--danger"
+                data-testid="composer-send"
+                onClick={onCancelStream}
+                aria-label={t.cancelGenerate}
+              >
+                <IconStopCircle size={16} decorative />
+              </button>
+            </TooltipSimple>
+          ) : buttonState === 'retry' ? (
+            <TooltipSimple content={t.retry} placement="top">
+              <button
+                type="button"
+                className="adl-action-btn adl-action-btn--warning"
+                data-testid="composer-send"
+                onClick={onSend}
+                aria-label={t.retry}
+              >
+                <IconRefreshCw size={16} decorative />
+              </button>
+            </TooltipSimple>
           ) : (
-          <TooltipSimple content={t.send} placement="top">
-            <button
-              type="button"
-              className="adl-action-btn adl-action-btn--primary"
-              data-testid="composer-send"
-              onClick={onSend}
-              disabled={!draft.trim()}
-              aria-label={t.send}
-            >
-              <IconArrowUp size={16} decorative />
-            </button>
-          </TooltipSimple>
+            <TooltipSimple content={t.send} placement="top">
+              <button
+                type="button"
+                className="adl-action-btn adl-action-btn--primary"
+                data-testid="composer-send"
+                onClick={onSend}
+                disabled={!draft.trim()}
+                aria-label={t.send}
+              >
+                <IconArrowUp size={16} decorative />
+              </button>
+            </TooltipSimple>
           )}
         </div>
       </div>

@@ -1,8 +1,8 @@
-import React, { useState } from "react";
-import { renderIcon } from "../../design-system/icons";
-import { TooltipSimple } from "./Tooltip";
+import React, { useState } from 'react';
+import { renderIcon } from '../../design-system/icons';
+import { TooltipSimple } from './Tooltip';
 
-export type GitStatusType = "synced" | "dirty" | "ahead" | "behind" | "conflict" | "none";
+export type GitStatusType = 'synced' | 'dirty' | 'ahead' | 'behind' | 'conflict' | 'none';
 
 export interface StatusBarProps {
   workspaceName: string;
@@ -16,25 +16,25 @@ export interface StatusBarProps {
 }
 
 const GIT_STATUS_CONFIG: Record<GitStatusType, { label: string; dotClassName: string }> = {
-  synced: { label: "Synced", dotClassName: "statusbar__dot--synced" },
-  dirty: { label: "Uncommitted", dotClassName: "statusbar__dot--dirty" },
-  ahead: { label: "Ahead", dotClassName: "statusbar__dot--ahead" },
-  behind: { label: "Behind", dotClassName: "statusbar__dot--behind" },
-  conflict: { label: "Conflict", dotClassName: "statusbar__dot--conflict" },
-  none: { label: "No Git", dotClassName: "statusbar__dot--none" },
+  synced: { label: 'Synced', dotClassName: 'statusbar__dot--synced' },
+  dirty: { label: 'Uncommitted', dotClassName: 'statusbar__dot--dirty' },
+  ahead: { label: 'Ahead', dotClassName: 'statusbar__dot--ahead' },
+  behind: { label: 'Behind', dotClassName: 'statusbar__dot--behind' },
+  conflict: { label: 'Conflict', dotClassName: 'statusbar__dot--conflict' },
+  none: { label: 'No Git', dotClassName: 'statusbar__dot--none' },
 };
 
 const MODEL_OPTIONS = [
-  { value: "gpt-4o", label: "GPT-4o" },
-  { value: "claude-sonnet-4-20250514", label: "Claude Sonnet 4" },
-  { value: "deepseek-v3", label: "DeepSeek V3" },
+  { value: 'gpt-4o', label: 'GPT-4o' },
+  { value: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4' },
+  { value: 'deepseek-v3', label: 'DeepSeek V3' },
 ];
 
 export function StatusBar({
   workspaceName,
   workspacePath,
   gitBranch,
-  gitStatus = "none",
+  gitStatus = 'none',
   gitAheadBehind,
   currentModel,
   onModelChange,
@@ -67,7 +67,9 @@ export function StatusBar({
         >
           <span
             className="statusbar__icon"
-            dangerouslySetInnerHTML={{ __html: renderIcon("folder", { size: "xs", decorative: true }).value }}
+            dangerouslySetInnerHTML={{
+              __html: renderIcon('folder', { size: 'xs', decorative: true }).value,
+            }}
           />
           <span className="statusbar__label">{workspaceName}</span>
         </div>
@@ -80,13 +82,15 @@ export function StatusBar({
         onClick={onGitClick}
         role="button"
         tabIndex={onGitClick ? 0 : undefined}
-        aria-label={`Branch: ${gitBranch ?? "none"}`}
+        aria-label={`Branch: ${gitBranch ?? 'none'}`}
       >
         <span
           className="statusbar__icon"
-          dangerouslySetInnerHTML={{ __html: renderIcon("git-branch", { size: "xs", decorative: true }).value }}
+          dangerouslySetInnerHTML={{
+            __html: renderIcon('git-branch', { size: 'xs', decorative: true }).value,
+          }}
         />
-        <span className="statusbar__label">{gitBranch ?? "\u2014"}</span>
+        <span className="statusbar__label">{gitBranch ?? '\u2014'}</span>
         {gitAheadBehind ? (
           <span className="statusbar__branch-info">
             {gitAheadBehind.ahead > 0 ? (
@@ -109,16 +113,23 @@ export function StatusBar({
             onClick={() => setModelOpen((prev) => !prev)}
             aria-expanded={modelOpen}
             aria-haspopup="listbox"
-            aria-label={`Current model: ${currentModel ?? "Select model"}`}
+            aria-label={`Current model: ${currentModel ?? 'Select model'}`}
           >
             <span
               className="statusbar__model-icon"
-              dangerouslySetInnerHTML={{ __html: renderIcon("brain", { size: "xs", decorative: true }).value }}
+              dangerouslySetInnerHTML={{
+                __html: renderIcon('brain', { size: 'xs', decorative: true }).value,
+              }}
             />
-            <span className="statusbar__label">{currentModel ?? "Model"}</span>
+            <span className="statusbar__label">{currentModel ?? 'Model'}</span>
             <span
               className="statusbar__model-chevron"
-              dangerouslySetInnerHTML={{ __html: renderIcon(modelOpen ? "chevron-up" : "chevron-down", { size: "xs", decorative: true }).value }}
+              dangerouslySetInnerHTML={{
+                __html: renderIcon(modelOpen ? 'chevron-up' : 'chevron-down', {
+                  size: 'xs',
+                  decorative: true,
+                }).value,
+              }}
             />
           </button>
           {modelOpen && onModelChange ? (
@@ -127,7 +138,7 @@ export function StatusBar({
                 <li key={option.value} role="option" aria-selected={currentModel === option.value}>
                   <button
                     type="button"
-                    className={`statusbar__model-option${currentModel === option.value ? " statusbar__model-option--active" : ""}`}
+                    className={`statusbar__model-option${currentModel === option.value ? ' statusbar__model-option--active' : ''}`}
                     onClick={() => {
                       onModelChange(option.value);
                       setModelOpen(false);

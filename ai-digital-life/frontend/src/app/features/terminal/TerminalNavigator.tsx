@@ -1,10 +1,10 @@
-import React from "react";
-import { IconFileCode, IconTerminal, IconTrash } from "../../icons";
-import { TooltipSimple } from "../../components/Tooltip";
-import type { CopyDict } from "../../i18n";
-import type { TerminalNavigatorMode } from "./useTerminalPanel";
-import type { TerminalTabState } from "../../stores/slices/terminalSlice";
-import { TerminalTabBar } from "./TerminalTabBar";
+import React from 'react';
+import { IconFileCode, IconTerminal, IconTrash } from '../../icons';
+import { TooltipSimple } from '../../components/Tooltip';
+import type { CopyDict } from '../../i18n';
+import type { TerminalNavigatorMode } from './useTerminalPanel';
+import type { TerminalTabState } from '../../stores/slices/terminalSlice';
+import { TerminalTabBar } from './TerminalTabBar';
 
 interface TerminalNavigatorProps {
   navigatorMode: TerminalNavigatorMode;
@@ -67,7 +67,7 @@ export const TerminalNavigator = React.memo(function TerminalNavigator({
   onEditSubmit,
   onEditKeyDown,
   onResizeStart,
-  t
+  t,
 }: TerminalNavigatorProps) {
   return (
     <aside className="adl-tool-navigator" aria-label={t.toolTerminal}>
@@ -81,8 +81,8 @@ export const TerminalNavigator = React.memo(function TerminalNavigator({
         <TooltipSimple content={t.terminalSessions} placement="top">
           <button
             type="button"
-            className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${navigatorMode === "sessions" ? " is-active" : ""}`}
-            onClick={() => onModeChange("sessions")}
+            className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${navigatorMode === 'sessions' ? ' is-active' : ''}`}
+            onClick={() => onModeChange('sessions')}
             aria-label={t.terminalSessions}
           >
             <IconTerminal size={14} decorative />
@@ -91,15 +91,15 @@ export const TerminalNavigator = React.memo(function TerminalNavigator({
         <TooltipSimple content={t.terminalRecentCommands} placement="top">
           <button
             type="button"
-            className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${navigatorMode === "history" ? " is-active" : ""}`}
-            onClick={() => onModeChange("history")}
+            className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${navigatorMode === 'history' ? ' is-active' : ''}`}
+            onClick={() => onModeChange('history')}
             aria-label={t.terminalRecentCommands}
           >
             <IconFileCode size={14} decorative />
           </button>
         </TooltipSimple>
         <div className="adl-tool-context__group--spacer" />
-        {navigatorMode === "sessions" && terminalTabs.length > 0 && (
+        {navigatorMode === 'sessions' && terminalTabs.length > 0 && (
           <TooltipSimple content={t.closeAll} placement="top">
             <button
               type="button"
@@ -113,7 +113,7 @@ export const TerminalNavigator = React.memo(function TerminalNavigator({
         )}
       </div>
 
-      {navigatorMode === "sessions" ? (
+      {navigatorMode === 'sessions' ? (
         <TerminalTabBar
           tabs={terminalTabs}
           activeTabId={terminalActiveTabId}
@@ -137,7 +137,7 @@ export const TerminalNavigator = React.memo(function TerminalNavigator({
         />
       ) : null}
 
-      {navigatorMode === "history" ? (
+      {navigatorMode === 'history' ? (
         recentCommands.length ? (
           <ul className="adl-tool-list">
             {recentCommands.map((entry) => (

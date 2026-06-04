@@ -1,9 +1,9 @@
-import React, { useMemo } from "react";
-import type { RecentWorkspaceEntry } from "@ai-digital-life/kernel";
-import type { CopyDict } from "../../i18n";
-import type { TerminalTabState } from "../../stores/slices/terminalSlice";
-import { MultiWorkspaceContainer } from "../multi-workspace/MultiWorkspaceContainer";
-import { WorkspaceTerminalEntry } from "./WorkspaceTerminalEntry";
+import React, { useMemo } from 'react';
+import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
+import type { CopyDict } from '../../i18n';
+import type { TerminalTabState } from '../../stores/slices/terminalSlice';
+import { MultiWorkspaceContainer } from '../multi-workspace/MultiWorkspaceContainer';
+import { WorkspaceTerminalEntry } from './WorkspaceTerminalEntry';
 
 export interface MultiWorkspaceTerminalProps {
   workspaces: RecentWorkspaceEntry[];
@@ -21,7 +21,7 @@ export interface MultiWorkspaceTerminalProps {
   t: CopyDict;
 }
 
-const INDEPENDENT_WORKSPACE_ID = "__independent__";
+const INDEPENDENT_WORKSPACE_ID = '__independent__';
 
 export function MultiWorkspaceTerminal({
   workspaces,
@@ -55,8 +55,8 @@ export function MultiWorkspaceTerminal({
   const independentWorkspace: RecentWorkspaceEntry = {
     id: INDEPENDENT_WORKSPACE_ID,
     name: t.terminalIndependent,
-    path: "",
-    rootPath: "",
+    path: '',
+    rootPath: '',
     available: true,
     removedFromSidebar: false,
     hiddenFromRightPanels: false,
@@ -67,7 +67,7 @@ export function MultiWorkspaceTerminal({
   };
 
   const handleCreateIndependentTab = () => {
-    onCreateTab("");
+    onCreateTab('');
   };
 
   const hasNoWorkspaces = workspaces.length === 0;
@@ -89,7 +89,7 @@ export function MultiWorkspaceTerminal({
         onTogglePin={onTogglePin}
         onHideFromRightPanels={() => {}}
         onRefreshTree={() => {}}
-        onCloseAllTabs={() => onCloseAllTabs?.("")}
+        onCloseAllTabs={() => onCloseAllTabs?.('')}
         isIndependent
         t={t}
       />

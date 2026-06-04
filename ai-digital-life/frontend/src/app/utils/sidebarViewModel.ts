@@ -1,6 +1,16 @@
-import type { AppInfo, ConversationSessionRecord, RecentWorkspaceEntry, TaskCenterSnapshot } from "@ai-digital-life/kernel";
+import type {
+  AppInfo,
+  ConversationSessionRecord,
+  RecentWorkspaceEntry,
+  TaskCenterSnapshot,
+} from '@ai-digital-life/kernel';
 
-export type SessionVisualStatus = "processing" | "pending-approval" | "abnormal" | "completed" | "read";
+export type SessionVisualStatus =
+  | 'processing'
+  | 'pending-approval'
+  | 'abnormal'
+  | 'completed'
+  | 'read';
 
 export type SidebarSessionItem = {
   session: ConversationSessionRecord;
@@ -31,13 +41,19 @@ export type VisibleSidebarSessions = {
 
 export const SIDEBAR_SESSION_PREVIEW_LIMIT = 5;
 
-const STATUS_PRIORITY: SessionVisualStatus[] = ["abnormal", "pending-approval", "processing", "completed", "read"];
+const STATUS_PRIORITY: SessionVisualStatus[] = [
+  'abnormal',
+  'pending-approval',
+  'processing',
+  'completed',
+  'read',
+];
 
 function isSessionUnread(session: ConversationSessionRecord): boolean {
   if (session.manualUnread) {
     return true;
   }
-  if (typeof session.lastReadAt !== "number") {
+  if (typeof session.lastReadAt !== 'number') {
     return true;
   }
   return session.lastReadAt < session.lastMessageAt;
@@ -48,28 +64,28 @@ export function computeSessionVisualStatus(
   streamingActiveRunId: string | undefined,
   hasPendingApproval: boolean
 ): SessionVisualStatus {
-  if (session.status === "archived") {
-    return "read";
+  if (session.status === 'archived') {
+    return 'read';
   }
   if (hasPendingApproval && isSessionUnread(session)) {
-    return "pending-approval";
+    return 'pending-approval';
   }
-  if (streamingActiveRunId && session.status === "active") {
-    return "processing";
+  if (streamingActiveRunId && session.status === 'active') {
+    return 'processing';
   }
   if (session.updatedAt >= session.lastMessageAt && session.lastMessageAt >= Date.now() - 60_000) {
-    return "completed";
+    return 'completed';
   }
-  return "read";
+  return 'read';
 }
 
 function emptyStatusCounts(): Record<SessionVisualStatus, number> {
   return {
     processing: 0,
-    "pending-approval": 0,
+    'pending-approval': 0,
     abnormal: 0,
     completed: 0,
-    read: 0
+    read: 0,
   };
 }
 
@@ -94,7 +110,7 @@ export function buildSidebarViewModel(input: {
       unpinnedOrder: entries.filter((entry) => !entry.isPinned).length,
       removedFromSidebar: false,
       available: true,
-      hiddenFromRightPanels: false
+      hiddenFromRightPanels: false,
     });
   }
 
@@ -114,7 +130,7 @@ export function buildSidebarViewModel(input: {
     workspaceSessionBuckets.set(workspace.id, {
       activeSessions: [],
       archivedSessions: [],
-      statusCounts: emptyStatusCounts()
+      statusCounts: emptyStatusCounts(),
     });
   }
 
@@ -124,7 +140,7 @@ export function buildSidebarViewModel(input: {
     const item: SidebarSessionItem = {
       session,
       status: computeSessionVisualStatus(session, input.streamingActiveRunId, hasPendingApproval),
-      isUnread: isSessionUnread(session)
+      isUnread: isSessionUnread(session),
     };
     const bucket = knownWorkspaceIds.has(session.workspaceId)
       ? workspaceSessionBuckets.get(session.workspaceId)
@@ -153,7 +169,7 @@ export function buildSidebarViewModel(input: {
     const statusCounts = bucket?.statusCounts ?? emptyStatusCounts();
     const rollupStatus =
       STATUS_PRIORITY.find((status) => statusCounts[status] > 0) ??
-      (activeSessions.length > 0 ? "read" : "read");
+      (activeSessions.length > 0 ? 'read' : 'read');
 
     return {
       workspace,
@@ -161,14 +177,14 @@ export function buildSidebarViewModel(input: {
       sessions: activeSessions,
       archivedSessions,
       rollupStatus,
-      statusCounts
+      statusCounts,
     };
   });
 
   return {
     workspaces,
     standaloneSessions,
-    standaloneArchivedSessions
+    standaloneArchivedSessions,
   };
 }
 
@@ -184,6 +200,6 @@ export function getVisibleSidebarSessions(
   return {
     items: sessions.slice(0, limit),
     hiddenCount: sessions.length - limit,
-    limit
+    limit,
   };
 }

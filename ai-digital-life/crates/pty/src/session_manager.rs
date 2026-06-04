@@ -16,11 +16,15 @@ pub struct SessionManager {
     sessions: Mutex<HashMap<String, PtySessionHandle>>,
 }
 
+impl Default for SessionManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SessionManager {
     pub fn new() -> Self {
-        Self {
-            sessions: Mutex::new(HashMap::new()),
-        }
+        Self { sessions: Mutex::new(HashMap::new()) }
     }
 
     pub fn create(
@@ -31,13 +35,10 @@ impl SessionManager {
         cols: u16,
         rows: u16,
     ) -> Result<String, AppError> {
-        let resolution = ShellResolver::resolve(shell)
-            .map_err(|e| AppError::Terminal(e.message()))?;
+        let resolution =
+            ShellResolver::resolve(shell).map_err(|e| AppError::Terminal(e.message()))?;
 
-        let config = PtyConfig {
-            program: resolution.program,
-            args: resolution.args,
-        };
+        let config = PtyConfig { program: resolution.program, args: resolution.args };
         let session = PtySession::new(config, cwd, cols, rows)?;
         let session_id = session.id.clone();
         let session = Arc::new(session);
@@ -58,26 +59,17 @@ impl SessionManager {
             }
         });
 
-        let mut sessions = self
-            .sessions
-            .lock()
-            .map_err(|_| AppError::Internal("mutex poisoned".into()))?;
-        sessions.insert(
-            session_id.clone(),
-            PtySessionHandle {
-                session,
-            },
-        );
+        let mut sessions =
+            self.sessions.lock().map_err(|_| AppError::Internal("mutex poisoned".into()))?;
+        sessions.insert(session_id.clone(), PtySessionHandle { session });
 
         tracing::info!(session_id = %session_id, shell = %shell, "pty session created");
         Ok(session_id)
     }
 
     pub fn write(&self, session_id: &str, data: &str) -> Result<(), AppError> {
-        let sessions = self
-            .sessions
-            .lock()
-            .map_err(|_| AppError::Internal("mutex poisoned".into()))?;
+        let sessions =
+            self.sessions.lock().map_err(|_| AppError::Internal("mutex poisoned".into()))?;
         let handle = sessions
             .get(session_id)
             .ok_or_else(|| AppError::NotFound(format!("pty session not found: {}", session_id)))?;
@@ -85,10 +77,8 @@ impl SessionManager {
     }
 
     pub fn resize(&self, session_id: &str, cols: u16, rows: u16) -> Result<(), AppError> {
-        let sessions = self
-            .sessions
-            .lock()
-            .map_err(|_| AppError::Internal("mutex poisoned".into()))?;
+        let sessions =
+            self.sessions.lock().map_err(|_| AppError::Internal("mutex poisoned".into()))?;
         let handle = sessions
             .get(session_id)
             .ok_or_else(|| AppError::NotFound(format!("pty session not found: {}", session_id)))?;
@@ -96,10 +86,8 @@ impl SessionManager {
     }
 
     pub fn kill(&self, session_id: &str) -> Result<(), AppError> {
-        let mut sessions = self
-            .sessions
-            .lock()
-            .map_err(|_| AppError::Internal("mutex poisoned".into()))?;
+        let mut sessions =
+            self.sessions.lock().map_err(|_| AppError::Internal("mutex poisoned".into()))?;
         let handle = sessions
             .remove(session_id)
             .ok_or_else(|| AppError::NotFound(format!("pty session not found: {}", session_id)))?;
@@ -110,10 +98,8 @@ impl SessionManager {
     }
 
     pub fn list(&self) -> Result<Vec<PtySessionInfo>, AppError> {
-        let sessions = self
-            .sessions
-            .lock()
-            .map_err(|_| AppError::Internal("mutex poisoned".into()))?;
+        let sessions =
+            self.sessions.lock().map_err(|_| AppError::Internal("mutex poisoned".into()))?;
         let infos = sessions
             .iter()
             .map(|(id, handle)| PtySessionInfo {
@@ -122,12 +108,7 @@ impl SessionManager {
                 cwd: handle.session.cwd.clone(),
                 cols: handle.session.cols,
                 rows: handle.session.rows,
-                status: handle
-                    .session
-                    .status
-                    .lock()
-                    .map(|s| *s)
-                    .unwrap_or(PtyStatus::Running),
+                status: handle.session.status.lock().map(|s| *s).unwrap_or(PtyStatus::Running),
             })
             .collect();
         Ok(infos)

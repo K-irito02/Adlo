@@ -1,8 +1,8 @@
-import type { GitSnapshot } from "@ai-digital-life/kernel";
-import type { FileTreeRenderableNode } from "../../features/file-tree";
-import type { PatchChangeKind, PatchFileSummary } from "../../features/patch-review";
+import type { GitSnapshot } from '@ai-digital-life/kernel';
+import type { FileTreeRenderableNode } from '../../features/file-tree';
+import type { PatchChangeKind, PatchFileSummary } from '../../features/patch-review';
 
-export type ChangeFileState = "staged" | "modified" | "untracked" | "conflicted";
+export type ChangeFileState = 'staged' | 'modified' | 'untracked' | 'conflicted';
 
 export interface ChangeEntry {
   path: string;
@@ -27,10 +27,12 @@ interface MutableChangeTreeNode extends ChangeTreeNode {
   stateSet: Set<ChangeFileState>;
 }
 
-const STATE_PRIORITY: ChangeFileState[] = ["conflicted", "modified", "staged", "untracked"];
+const STATE_PRIORITY: ChangeFileState[] = ['conflicted', 'modified', 'staged', 'untracked'];
 
 function sortPaths(paths: Iterable<string>): string[] {
-  return [...paths].sort((left, right) => left.localeCompare(right, undefined, { sensitivity: "base" }));
+  return [...paths].sort((left, right) =>
+    left.localeCompare(right, undefined, { sensitivity: 'base' })
+  );
 }
 
 function mergeStates(current: ChangeFileState[], incoming: ChangeFileState[]): ChangeFileState[] {
@@ -46,24 +48,27 @@ function fallbackStateFromPatchSummary(summary?: PatchFileSummary): ChangeFileSt
   if (!summary) {
     return [];
   }
-  return summary.changeKind === "added" ? ["untracked"] : ["modified"];
+  return summary.changeKind === 'added' ? ['untracked'] : ['modified'];
 }
 
-export function buildChangeEntries(snapshot: GitSnapshot | undefined, patchSummaries: PatchFileSummary[]): ChangeEntry[] {
+export function buildChangeEntries(
+  snapshot: GitSnapshot | undefined,
+  patchSummaries: PatchFileSummary[]
+): ChangeEntry[] {
   const entries = new Map<string, ChangeEntry>();
   const upsert = (path: string, states: ChangeFileState[], patchSummary?: PatchFileSummary) => {
     const current = entries.get(path);
     entries.set(path, {
       path,
       states: mergeStates(current?.states ?? [], states),
-      patchSummary: patchSummary ?? current?.patchSummary
+      patchSummary: patchSummary ?? current?.patchSummary,
     });
   };
 
-  sortPaths(snapshot?.staged ?? []).forEach((path) => upsert(path, ["staged"]));
-  sortPaths(snapshot?.unstaged ?? []).forEach((path) => upsert(path, ["modified"]));
-  sortPaths(snapshot?.untracked ?? []).forEach((path) => upsert(path, ["untracked"]));
-  sortPaths(snapshot?.conflicts ?? []).forEach((path) => upsert(path, ["conflicted"]));
+  sortPaths(snapshot?.staged ?? []).forEach((path) => upsert(path, ['staged']));
+  sortPaths(snapshot?.unstaged ?? []).forEach((path) => upsert(path, ['modified']));
+  sortPaths(snapshot?.untracked ?? []).forEach((path) => upsert(path, ['untracked']));
+  sortPaths(snapshot?.conflicts ?? []).forEach((path) => upsert(path, ['conflicted']));
 
   patchSummaries.forEach((summary) => {
     upsert(summary.relativePath, fallbackStateFromPatchSummary(summary), summary);
@@ -72,11 +77,7 @@ export function buildChangeEntries(snapshot: GitSnapshot | undefined, patchSumma
   return sortPaths(entries.keys()).map((path) => entries.get(path)!);
 }
 
-function createNode(
-  path: string,
-  name: string,
-  kind: "directory" | "file"
-): MutableChangeTreeNode {
+function createNode(path: string, name: string, kind: 'directory' | 'file'): MutableChangeTreeNode {
   return {
     path,
     name,
@@ -91,7 +92,7 @@ function createNode(
     totalHunks: 0,
     changeKind: undefined,
     childMap: new Map<string, MutableChangeTreeNode>(),
-    stateSet: new Set<ChangeFileState>()
+    stateSet: new Set<ChangeFileState>(),
   };
 }
 
@@ -99,9 +100,9 @@ function finalizeNodes(nodes: MutableChangeTreeNode[]): ChangeTreeNode[] {
   return nodes
     .sort((left, right) => {
       if (left.kind !== right.kind) {
-        return left.kind === "directory" ? -1 : 1;
+        return left.kind === 'directory' ? -1 : 1;
       }
-      return left.name.localeCompare(right.name, undefined, { sensitivity: "base" });
+      return left.name.localeCompare(right.name, undefined, { sensitivity: 'base' });
     })
     .map((node) => {
       const finalizedChildren = finalizeNodes([...node.childMap.values()]);
@@ -117,7 +118,7 @@ function finalizeNodes(nodes: MutableChangeTreeNode[]): ChangeTreeNode[] {
         missing: node.missing,
         reviewedHunks: node.reviewedHunks,
         totalHunks: node.totalHunks,
-        changeKind: node.changeKind
+        changeKind: node.changeKind,
       };
     });
 }
@@ -126,12 +127,12 @@ export function buildChangeTree(entries: ChangeEntry[]): ChangeTreeNode[] {
   const roots = new Map<string, MutableChangeTreeNode>();
 
   entries.forEach((entry) => {
-    const segments = entry.path.split("/").filter(Boolean);
+    const segments = entry.path.split('/').filter(Boolean);
     if (segments.length === 0) {
       return;
     }
 
-    let currentPath = "";
+    let currentPath = '';
     let parentMap = roots;
 
     segments.forEach((segment, index) => {
@@ -139,7 +140,7 @@ export function buildChangeTree(entries: ChangeEntry[]): ChangeTreeNode[] {
       const isLeaf = index === segments.length - 1;
       let node = parentMap.get(currentPath);
       if (!node) {
-        node = createNode(currentPath, segment, isLeaf ? "file" : "directory");
+        node = createNode(currentPath, segment, isLeaf ? 'file' : 'directory');
         parentMap.set(currentPath, node);
       }
 
@@ -154,7 +155,7 @@ export function buildChangeTree(entries: ChangeEntry[]): ChangeTreeNode[] {
       if (isLeaf) {
         node.patchSummary = entry.patchSummary;
         node.changeKind = entry.patchSummary?.changeKind;
-        node.missing = entry.patchSummary?.changeKind === "deleted";
+        node.missing = entry.patchSummary?.changeKind === 'deleted';
       }
 
       parentMap = node.childMap;
@@ -168,20 +169,21 @@ export function buildFlatChangeNodes(entries: ChangeEntry[]): ChangeTreeNode[] {
   const byPath = new Map(entries.map((entry) => [entry.path, entry] as const));
   return sortPaths(entries.map((entry) => entry.path)).map((path) => {
     const entry = byPath.get(path)!;
-    const name = entry.path.split("/").filter(Boolean).pop() ?? entry.path;
+    const name = entry.path.split('/').filter(Boolean).pop() ?? entry.path;
     return {
       path: entry.path,
       name,
-      kind: "file",
+      kind: 'file',
       children: [],
       fileCount: 1,
       states: entry.states,
       primaryState: getPrimaryState(entry.states),
       patchSummary: entry.patchSummary,
-      missing: entry.patchSummary?.changeKind === "deleted",
-      reviewedHunks: (entry.patchSummary?.acceptedHunks ?? 0) + (entry.patchSummary?.rejectedHunks ?? 0),
+      missing: entry.patchSummary?.changeKind === 'deleted',
+      reviewedHunks:
+        (entry.patchSummary?.acceptedHunks ?? 0) + (entry.patchSummary?.rejectedHunks ?? 0),
       totalHunks: entry.patchSummary?.totalHunks ?? 0,
-      changeKind: entry.patchSummary?.changeKind
+      changeKind: entry.patchSummary?.changeKind,
     };
   });
 }

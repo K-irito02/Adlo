@@ -55,7 +55,8 @@
   min-height: 44px;
   height: auto;
   place-self: center;
-  padding: calc(var(--space-1) + var(--space-0-5)) var(--space-2) calc(var(--space-1) + var(--space-0-5)) var(--space-3);
+  padding: calc(var(--space-1) + var(--space-0-5)) var(--space-2)
+    calc(var(--space-1) + var(--space-0-5)) var(--space-3);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-full);
   background: var(--bg-input);
@@ -433,7 +434,6 @@
 .adl-split-btn__option:hover {
   background: var(--bg-hover);
 }
-
 
 .adl-split-btn__input-area {
   margin-top: 8px;

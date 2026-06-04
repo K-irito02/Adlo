@@ -1,7 +1,7 @@
 use adl_errors::AppError;
 use adl_kernel::WorkspaceSearchHit;
-use std::path::{Path, PathBuf};
 use std::fs;
+use std::path::{Path, PathBuf};
 
 const MAX_SEARCH_RESULTS: usize = 200;
 const CANCEL_CHECK_INTERVAL: usize = 100;
@@ -73,7 +73,9 @@ fn search_text_in_files(
 
     for file in files {
         if let Some(ch) = &mut cancel {
-            if ch.try_recv().is_ok() { break; }
+            if ch.try_recv().is_ok() {
+                break;
+            }
         }
 
         let relative = crate::tree::relative_path(root, file);

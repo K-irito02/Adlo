@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from 'react';
 
 interface PromptModalProps {
   open: boolean;
@@ -20,15 +20,17 @@ export function PromptModal({
   onCancel,
 }: PromptModalProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [value, setValue] = useState(initialValue ?? "");
+  const [value, setValue] = useState(initialValue ?? '');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (open) {
-      setValue(initialValue ?? "");
-      setLoading(false);
-      setError("");
+      requestAnimationFrame(() => {
+        setValue(initialValue ?? '');
+        setLoading(false);
+        setError('');
+      });
       requestAnimationFrame(() => {
         inputRef.current?.focus();
         inputRef.current?.select();
@@ -40,29 +42,32 @@ export function PromptModal({
     const trimmed = value.trim();
     if (!trimmed) return;
     setLoading(true);
-    setError("");
+    setError('');
     try {
       const errMsg = await onOk(trimmed);
       if (errMsg) {
         setError(errMsg);
       }
     } catch {
-      setError("操作失败，请重试");
+      setError('操作失败，请重试');
     } finally {
       setLoading(false);
     }
   }, [value, onOk]);
 
-  const handleValueChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setValue(e.currentTarget.value);
-    if (error) setError("");
-  }, [error]);
+  const handleValueChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setValue(e.currentTarget.value);
+      if (error) setError('');
+    },
+    [error]
+  );
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.key === "Enter" && !loading) {
+      if (e.key === 'Enter' && !loading) {
         void handleOk();
-      } else if (e.key === "Escape") {
+      } else if (e.key === 'Escape') {
         onCancel();
       }
     },
@@ -77,16 +82,14 @@ export function PromptModal({
         <div className="adl-prompt-modal__header">{title}</div>
         <input
           ref={inputRef}
-          className={`adl-prompt-modal__input${error ? " adl-prompt-modal__input--error" : ""}`}
+          className={`adl-prompt-modal__input${error ? ' adl-prompt-modal__input--error' : ''}`}
           type="text"
           value={value}
           placeholder={placeholder}
           onChange={handleValueChange}
           disabled={loading}
         />
-        {error ? (
-          <p className="adl-prompt-modal__error">{error}</p>
-        ) : null}
+        {error ? <p className="adl-prompt-modal__error">{error}</p> : null}
         <div className="adl-prompt-modal__actions">
           <button
             type="button"
@@ -102,7 +105,7 @@ export function PromptModal({
             onClick={() => void handleOk()}
             disabled={loading || !value.trim()}
           >
-            {loading ? "处理中..." : okLabel}
+            {loading ? '处理中...' : okLabel}
           </button>
         </div>
       </div>

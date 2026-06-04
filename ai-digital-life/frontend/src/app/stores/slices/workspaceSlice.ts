@@ -7,13 +7,13 @@ import type {
   RecentWorkspaceEntry,
   WorkspaceTreeNode,
   GitSnapshot,
-} from "@ai-digital-life/kernel";
-import type { StoreState } from "../StoreState";
-import { queueLowPriorityRefresh } from "../shared";
+} from '@ai-digital-life/kernel';
+import type { StoreState } from '../StoreState';
+import { queueLowPriorityRefresh } from '../shared';
 
 // Local storage keys
-const WORKSPACE_TREE_EXPANDED_KEY = "adl-ui:workspace-tree-expanded";
-const WORKSPACE_CHANGES_EXPANDED_KEY = "adl-ui:workspace-changes-expanded";
+const WORKSPACE_TREE_EXPANDED_KEY = 'adl-ui:workspace-tree-expanded';
+const WORKSPACE_CHANGES_EXPANDED_KEY = 'adl-ui:workspace-changes-expanded';
 
 // Helper functions
 function readJson<T>(key: string, fallback: T): T {
@@ -55,7 +55,7 @@ function scheduleFlush(): void {
     }
     pendingWrites.clear();
   };
-  if (typeof requestIdleCallback === "function") {
+  if (typeof requestIdleCallback === 'function') {
     requestIdleCallback(flush, { timeout: 500 });
   } else {
     setTimeout(flush, 50);
@@ -65,7 +65,10 @@ function scheduleFlush(): void {
 // Lazy localStorage hydration — reads persisted values in idle time
 let _defaultsHydrated = false;
 
-function hydrateWorkspaceDefaults(get: () => StoreState, set: (partial: Partial<StoreState>) => void): void {
+function hydrateWorkspaceDefaults(
+  get: () => StoreState,
+  set: (partial: Partial<StoreState>) => void
+): void {
   if (_defaultsHydrated) return;
   _defaultsHydrated = true;
   const doHydrate = () => {
@@ -76,7 +79,7 @@ function hydrateWorkspaceDefaults(get: () => StoreState, set: (partial: Partial<
       workspaceChangesExpanded: changesExpanded,
     });
   };
-  if (typeof requestIdleCallback === "function") {
+  if (typeof requestIdleCallback === 'function') {
     requestIdleCallback(doHydrate, { timeout: 1000 });
   } else {
     setTimeout(doHydrate, 200);
@@ -86,7 +89,7 @@ function hydrateWorkspaceDefaults(get: () => StoreState, set: (partial: Partial<
 export interface WorkspaceSlice {
   appInfo?: AppInfo;
   recentWorkspaces: RecentWorkspaceEntry[];
-  workspaceTree: WorkspaceTreeNode[];            // @deprecated 使用 workspaceTrees
+  workspaceTree: WorkspaceTreeNode[]; // @deprecated 使用 workspaceTrees
   workspaceTrees: Record<string, WorkspaceTreeNode[]>;
   workspaceTreeLoading: Record<string, boolean>;
   workspaceTreeErrors: Record<string, string | undefined>;
@@ -96,7 +99,7 @@ export interface WorkspaceSlice {
   workspaceChangesTreeData: Record<string, WorkspaceTreeNode[]>;
   workspaceChangesTreeLoading: Record<string, boolean>;
   workspaceChangesTreeErrors: Record<string, string | undefined>;
-  workspaceContextMode: "workspace" | "global";
+  workspaceContextMode: 'workspace' | 'global';
 
   setAppInfo: (appInfo: AppInfo | undefined) => void;
   setRecentWorkspaces: (workspaces: RecentWorkspaceEntry[]) => void;
@@ -110,7 +113,7 @@ export interface WorkspaceSlice {
   setWorkspaceChangesTreeData: (data: Record<string, WorkspaceTreeNode[]>) => void;
   setWorkspaceChangesTreeLoading: (loading: Record<string, boolean>) => void;
   setWorkspaceChangesTreeErrors: (errors: Record<string, string | undefined>) => void;
-  setWorkspaceContextMode: (mode: "workspace" | "global") => void;
+  setWorkspaceContextMode: (mode: 'workspace' | 'global') => void;
 }
 
 /**
@@ -133,7 +136,7 @@ export const createWorkspaceSlice = (
     workspaceChangesTreeData: {},
     workspaceChangesTreeLoading: {},
     workspaceChangesTreeErrors: {},
-    workspaceContextMode: "workspace",
+    workspaceContextMode: 'workspace',
 
     setAppInfo: (appInfo) => set({ appInfo }),
     setRecentWorkspaces: (workspaces) => set({ recentWorkspaces: workspaces }),

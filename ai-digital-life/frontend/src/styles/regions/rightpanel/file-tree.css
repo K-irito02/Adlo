@@ -27,7 +27,7 @@
 }
 
 .adl-tree-node::before {
-  content: "";
+  content: '';
   position: absolute;
   left: 13px;
   top: 0;
@@ -119,7 +119,8 @@
 .adl-filetree__row:hover:not(:has(.is-selected)):not(:has(.is-context-menu-target)),
 .adl-filetree__row:focus-within:not(:has(.is-selected)):not(:has(.is-context-menu-target)),
 .adl-filetree__item.is-hovered:not(.is-selected):not(.is-context-menu-target) > .adl-filetree__row,
-.adl-outline-tree__item.is-hovered:not(.is-selected):not(.is-context-menu-target) > .adl-outline-tree__row {
+.adl-outline-tree__item.is-hovered:not(.is-selected):not(.is-context-menu-target)
+  > .adl-outline-tree__row {
   background: var(--bg-hover);
   color: var(--text-primary);
 }
@@ -169,7 +170,9 @@
   text-overflow: clip;
   overflow-wrap: anywhere;
   word-break: break-word;
-  transition: background 0.12s, color 0.12s;
+  transition:
+    background 0.12s,
+    color 0.12s;
   letter-spacing: 0;
   position: relative;
   z-index: 1;
@@ -267,7 +270,9 @@
   color: var(--text-muted);
   cursor: pointer;
   border-radius: 3px;
-  transition: background 0.12s, color 0.12s;
+  transition:
+    background 0.12s,
+    color 0.12s;
 }
 
 .adl-tree-node__toggle:hover,
@@ -428,7 +433,7 @@
 }
 
 .adl-multitree--terminal .adl-multitree-entry__tree::before {
-  content: "";
+  content: '';
   position: absolute;
   left: 13px;
   top: 0;
@@ -522,7 +527,7 @@
 }
 
 .adl-tool-list__item--terminal-tab.is-pinned::before {
-  content: "";
+  content: '';
   position: absolute;
   left: 2px;
   top: 50%;
@@ -780,7 +785,7 @@
   flex: 1;
 }
 
-.adl-tool-main__tabs button[role="tab"] {
+.adl-tool-main__tabs button[role='tab'] {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
@@ -794,8 +799,8 @@
   white-space: nowrap;
 }
 
-.adl-tool-main__tabs button[role="tab"]:hover,
-.adl-tool-main__tabs button[role="tab"].is-active {
+.adl-tool-main__tabs button[role='tab']:hover,
+.adl-tool-main__tabs button[role='tab'].is-active {
   background: var(--bg-elevated);
   color: var(--text-primary);
 }
@@ -963,13 +968,18 @@
 }
 
 .adl-multitree-entry__namezone::after {
-  content: "";
+  content: '';
   position: absolute;
   top: 0;
   right: 0;
   bottom: 0;
   width: 180px;
-  background: linear-gradient(to right, transparent 0%, var(--gradient-mask) 60%, var(--gradient-mask) 100%);
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    var(--gradient-mask) 60%,
+    var(--gradient-mask) 100%
+  );
   opacity: 0;
   pointer-events: none;
   transition: opacity var(--duration-150) var(--ease-default);
@@ -979,7 +989,6 @@
 .adl-multitree-entry__namezone:hover::after {
   opacity: 1;
 }
-
 
 .adl-multitree-entry__name {
   flex: 1;
@@ -998,7 +1007,9 @@
   font-weight: var(--font-semibold);
   color: var(--text-muted);
   line-height: 1;
-  transition: opacity var(--duration-150) var(--ease-default), width var(--duration-150) var(--ease-default);
+  transition:
+    opacity var(--duration-150) var(--ease-default),
+    width var(--duration-150) var(--ease-default);
 }
 .adl-multitree-entry__namezone:hover .adl-multitree-entry__count {
   opacity: 0;

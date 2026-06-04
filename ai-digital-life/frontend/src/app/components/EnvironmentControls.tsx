@@ -1,12 +1,12 @@
-import React, { useState, useCallback, useRef, useEffect } from "react";
-import { renderIcon, type IconName } from "../../design-system/icons";
-import { TooltipSimple } from "./Tooltip";
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { renderIcon, type IconName } from '../../design-system/icons';
+import { TooltipSimple } from './Tooltip';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
 
-export type ThemeMode = "light" | "dark" | "system";
+export type ThemeMode = 'light' | 'dark' | 'system';
 
 export interface EnvironmentControlsProps {
   currentLanguage: string;
@@ -20,14 +20,14 @@ export interface EnvironmentControlsProps {
 /* ------------------------------------------------------------------ */
 
 const LANGUAGE_OPTIONS: readonly { code: string; label: string }[] = [
-  { code: "zh-CN", label: "中文" },
-  { code: "en-US", label: "EN" },
+  { code: 'zh-CN', label: '中文' },
+  { code: 'en-US', label: 'EN' },
 ] as const;
 
 const THEME_OPTIONS: readonly { value: ThemeMode; icon: IconName; label: string }[] = [
-  { value: "light", icon: "sun", label: "Light" },
-  { value: "dark", icon: "moon", label: "Dark" },
-  { value: "system", icon: "monitor", label: "System" },
+  { value: 'light', icon: 'sun', label: 'Light' },
+  { value: 'dark', icon: 'moon', label: 'Dark' },
+  { value: 'system', icon: 'monitor', label: 'System' },
 ] as const;
 
 /** Resolve the display label for a language code. */
@@ -37,12 +37,12 @@ function resolveLanguageLabel(code: string): string {
 
 /** Resolve the icon for the current theme mode. */
 function resolveThemeIcon(mode: ThemeMode): IconName {
-  return THEME_OPTIONS.find((opt) => opt.value === mode)?.icon ?? "monitor";
+  return THEME_OPTIONS.find((opt) => opt.value === mode)?.icon ?? 'monitor';
 }
 
 /** Cycle to the next theme in the order: light -> dark -> system -> light. */
 function cycleTheme(current: ThemeMode): ThemeMode {
-  const order: ThemeMode[] = ["light", "dark", "system"];
+  const order: ThemeMode[] = ['light', 'dark', 'system'];
   const idx = order.indexOf(current);
   return order[(idx + 1) % order.length];
 }
@@ -54,7 +54,7 @@ function cycleTheme(current: ThemeMode): ThemeMode {
 interface DropdownProps {
   open: boolean;
   onClose: () => void;
-  align?: "left" | "right";
+  align?: 'left' | 'right';
   children: React.ReactNode;
 }
 
@@ -62,7 +62,12 @@ interface DropdownProps {
  * Small dropdown panel used by both language and theme selectors.
  * Renders in a portal-like fixed position relative to its trigger.
  */
-function Dropdown({ open, onClose, align = "left", children }: DropdownProps): React.ReactElement | null {
+function Dropdown({
+  open,
+  onClose,
+  align = 'left',
+  children,
+}: DropdownProps): React.ReactElement | null {
   const ref = useRef<HTMLDivElement>(null);
 
   /* Close on click outside. */
@@ -73,18 +78,18 @@ function Dropdown({ open, onClose, align = "left", children }: DropdownProps): R
         onClose();
       }
     }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
   }, [open, onClose]);
 
   /* Close on Escape key. */
   useEffect(() => {
     if (!open) return;
     function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key === 'Escape') onClose();
     }
-    document.addEventListener("keydown", handleKey);
-    return () => document.removeEventListener("keydown", handleKey);
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
   }, [open, onClose]);
 
   if (!open) return null;
@@ -92,7 +97,7 @@ function Dropdown({ open, onClose, align = "left", children }: DropdownProps): R
   return (
     <div
       ref={ref}
-      className={`sidebar-env-dropdown${align === "right" ? " sidebar-env-dropdown--right" : ""}`}
+      className={`sidebar-env-dropdown${align === 'right' ? ' sidebar-env-dropdown--right' : ''}`}
       role="menu"
       aria-label="Options"
     >
@@ -147,7 +152,7 @@ export function EnvironmentControls({
       <div className="sidebar-env-controls__item">
         <button
           type="button"
-          className={`sidebar-env-btn${langDropdownOpen ? " sidebar-env-btn--open" : ""}`}
+          className={`sidebar-env-btn${langDropdownOpen ? ' sidebar-env-btn--open' : ''}`}
           onClick={handleToggleLang}
           aria-haspopup="listbox"
           aria-expanded={langDropdownOpen}
@@ -156,7 +161,7 @@ export function EnvironmentControls({
           <span
             className="sidebar-env-btn__icon"
             dangerouslySetInnerHTML={{
-              __html: renderIcon("globe", { size: "sm", decorative: true }).value,
+              __html: renderIcon('globe', { size: 'sm', decorative: true }).value,
             }}
           />
           <span className="sidebar-env-btn__label">{resolveLanguageLabel(currentLanguage)}</span>
@@ -167,7 +172,7 @@ export function EnvironmentControls({
             <button
               key={opt.code}
               type="button"
-              className={`sidebar-env-dropdown__item${opt.code === currentLanguage ? " sidebar-env-dropdown__item--active" : ""}`}
+              className={`sidebar-env-dropdown__item${opt.code === currentLanguage ? ' sidebar-env-dropdown__item--active' : ''}`}
               role="option"
               aria-selected={opt.code === currentLanguage}
               onClick={() => handleSelectLang(opt.code)}
@@ -190,7 +195,8 @@ export function EnvironmentControls({
             <span
               className="sidebar-env-btn__icon"
               dangerouslySetInnerHTML={{
-                __html: renderIcon(resolveThemeIcon(currentTheme), { size: "sm", decorative: true }).value,
+                __html: renderIcon(resolveThemeIcon(currentTheme), { size: 'sm', decorative: true })
+                  .value,
               }}
             />
           </button>

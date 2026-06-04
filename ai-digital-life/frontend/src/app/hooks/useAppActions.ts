@@ -1,5 +1,5 @@
-import { useShallow } from "zustand/react/shallow";
-import { useAppStore } from "../stores/slicedStore";
+import { useShallow } from 'zustand/react/shallow';
+import { useAppStore } from '../stores/slicedStore';
 
 export function useAppActions() {
   return useAppStore(

@@ -1,13 +1,13 @@
-import type { FileOutlineItem } from "@ai-digital-life/kernel";
-import type { EditorRef, Disposable } from "../../../stores/types";
-import type { PreviewDiffVisualRange } from "../../../features/diff-viewer";
+import type { FileOutlineItem } from '@ai-digital-life/kernel';
+import type { EditorRef, Disposable } from '../../../stores/types';
+import type { PreviewDiffVisualRange } from '../../../features/diff-viewer';
 
 const MAX_STICKY_CONTEXT_ROWS = 3;
-const DEFAULT_TOP_LABEL = "File top";
-const TOP_ENTRY_ID = "sticky-top";
+const DEFAULT_TOP_LABEL = 'File top';
+const TOP_ENTRY_ID = 'sticky-top';
 
-export type StickyContextEntryKind = FileOutlineItem["kind"] | "line" | "top";
-export type StickyContextEntryTone = "top" | "context" | "insert" | "delete" | "modified";
+export type StickyContextEntryKind = FileOutlineItem['kind'] | 'line' | 'top';
+export type StickyContextEntryTone = 'top' | 'context' | 'insert' | 'delete' | 'modified';
 
 export interface StickyContextEntry {
   id: string;
@@ -47,7 +47,9 @@ type CreateStickyContextModelInput = {
 };
 
 function clampContextRows(value: number | undefined): number {
-  const normalized = Number.isFinite(value) ? Math.floor(value ?? MAX_STICKY_CONTEXT_ROWS) : MAX_STICKY_CONTEXT_ROWS;
+  const normalized = Number.isFinite(value)
+    ? Math.floor(value ?? MAX_STICKY_CONTEXT_ROWS)
+    : MAX_STICKY_CONTEXT_ROWS;
   return Math.max(0, Math.min(MAX_STICKY_CONTEXT_ROWS, normalized));
 }
 
@@ -68,9 +70,12 @@ function resolveHeadingDepth(lineText: string | undefined): number | undefined {
   return match ? match[1].length : undefined;
 }
 
-function resolveStickyTone(line: number, diffRanges: PreviewDiffVisualRange[] | undefined): StickyContextEntryTone {
+function resolveStickyTone(
+  line: number,
+  diffRanges: PreviewDiffVisualRange[] | undefined
+): StickyContextEntryTone {
   if (!diffRanges?.length) {
-    return "context";
+    return 'context';
   }
 
   let hasInsert = false;
@@ -79,26 +84,30 @@ function resolveStickyTone(line: number, diffRanges: PreviewDiffVisualRange[] | 
     if (line < range.startLine || line > range.endLine) {
       continue;
     }
-    if (range.type === "insert") {
+    if (range.type === 'insert') {
       hasInsert = true;
-    } else if (range.type === "delete") {
+    } else if (range.type === 'delete') {
       hasDelete = true;
     }
   }
 
   if (hasInsert && hasDelete) {
-    return "modified";
+    return 'modified';
   }
   if (hasInsert) {
-    return "insert";
+    return 'insert';
   }
   if (hasDelete) {
-    return "delete";
+    return 'delete';
   }
-  return "context";
+  return 'context';
 }
 
-function buildOutlineEntries(input: BuildStickyContextEntriesInput, lines: string[], maxContextRows: number): StickyContextEntry[] {
+function buildOutlineEntries(
+  input: BuildStickyContextEntriesInput,
+  lines: string[],
+  maxContextRows: number
+): StickyContextEntry[] {
   if (input.visibleStartLine <= 1 || input.outline.length === 0 || maxContextRows === 0) {
     return [];
   }
@@ -112,20 +121,24 @@ function buildOutlineEntries(input: BuildStickyContextEntriesInput, lines: strin
       line: item.line,
       kind: item.kind,
       tone: resolveStickyTone(item.line, input.diffRanges),
-      depth: item.kind === "heading" ? resolveHeadingDepth(lines[item.line - 1]) : undefined
+      depth: item.kind === 'heading' ? resolveHeadingDepth(lines[item.line - 1]) : undefined,
     }));
 
   return entries.slice(-maxContextRows);
 }
 
-function buildFallbackLineEntries(input: BuildStickyContextEntriesInput, lines: string[], maxContextRows: number): StickyContextEntry[] {
+function buildFallbackLineEntries(
+  input: BuildStickyContextEntriesInput,
+  lines: string[],
+  maxContextRows: number
+): StickyContextEntry[] {
   if (input.visibleStartLine <= 1 || maxContextRows === 0) {
     return [];
   }
 
   const entries: StickyContextEntry[] = [];
   for (let line = Math.min(lines.length, input.visibleStartLine - 1); line >= 1; line -= 1) {
-    const text = trimStickyLabel(lines[line - 1] ?? "");
+    const text = trimStickyLabel(lines[line - 1] ?? '');
     if (!text) {
       continue;
     }
@@ -134,8 +147,8 @@ function buildFallbackLineEntries(input: BuildStickyContextEntriesInput, lines: 
       label: text,
       detail: `L${line}`,
       line,
-      kind: "line",
-      tone: resolveStickyTone(line, input.diffRanges)
+      kind: 'line',
+      tone: resolveStickyTone(line, input.diffRanges),
     });
     if (entries.length >= maxContextRows) {
       break;
@@ -145,7 +158,9 @@ function buildFallbackLineEntries(input: BuildStickyContextEntriesInput, lines: 
   return entries;
 }
 
-export function buildStickyContextEntries(input: BuildStickyContextEntriesInput): StickyContextEntry[] {
+export function buildStickyContextEntries(
+  input: BuildStickyContextEntriesInput
+): StickyContextEntry[] {
   const lines = splitLines(input.content);
   const maxContextRows = clampContextRows(input.maxContextRows);
   const outlineEntries = buildOutlineEntries(input, lines, maxContextRows);
@@ -159,18 +174,18 @@ export function createStickyContextModel(input: CreateStickyContextModelInput): 
   const topEntry: StickyContextEntry = {
     id: TOP_ENTRY_ID,
     label: input.topLabel?.trim() || DEFAULT_TOP_LABEL,
-    detail: "L1",
+    detail: 'L1',
     line: 1,
-    kind: "top",
-    tone: "top"
+    kind: 'top',
+    tone: 'top',
   };
 
   return {
-    modelId: input.modelId ?? "sticky-context",
+    modelId: input.modelId ?? 'sticky-context',
     topEntry,
     canScrollToTop: input.canScrollToTop,
     showTopEntry: input.canScrollToTop,
-    scrollToTop: () => input.onNavigateLine(1)
+    scrollToTop: () => input.onNavigateLine(1),
   };
 }
 
@@ -188,10 +203,7 @@ export function navigateToLine(editor: EditorRef | null, line: number): void {
   editor.focus();
 }
 
-export function subscribeToEditor(
-  editor: EditorRef | null,
-  callback: () => void
-): Disposable {
+export function subscribeToEditor(editor: EditorRef | null, callback: () => void): Disposable {
   if (!editor) {
     return { dispose() {} };
   }

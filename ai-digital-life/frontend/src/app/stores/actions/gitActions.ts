@@ -1,10 +1,10 @@
-import type { StoreState } from "../StoreState";
+import type { StoreState } from '../StoreState';
 import type {
   GitSnapshot,
   WorkspaceGitBranchCreateInput,
   WorkspaceGitBranchSwitchInput,
-} from "@ai-digital-life/kernel";
-import type { StoreApi } from "zustand";
+} from '@ai-digital-life/kernel';
+import type { StoreApi } from 'zustand';
 import {
   postMutationRefresh,
   batchExpandAll,
@@ -12,14 +12,14 @@ import {
   createLazyLoader,
   clearError,
   captureError,
-} from "../shared";
+} from '../shared';
 
 async function refreshAfterBranchChange(get: () => StoreState) {
   await postMutationRefresh(get);
   if (get().selectedFilePath) await get().openFile(get().selectedFilePath!);
 }
 
-export function createGitActions(set: StoreApi<StoreState>["setState"], get: () => StoreState) {
+export function createGitActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
   return {
     fetchGitStatus: async () => {
       if (!get().appInfo?.currentWorkspace) {
@@ -94,7 +94,7 @@ export function createGitActions(set: StoreApi<StoreState>["setState"], get: () 
             }
           : state.appInfo,
         gitSnapshot: result.data.gitSnapshot,
-        workspaceContextMode: "workspace" as const,
+        workspaceContextMode: 'workspace' as const,
       }));
       await refreshAfterBranchChange(get);
     },
@@ -114,14 +114,17 @@ export function createGitActions(set: StoreApi<StoreState>["setState"], get: () 
             }
           : state.appInfo,
         gitSnapshot: result.data.gitSnapshot,
-        workspaceContextMode: "workspace" as const,
+        workspaceContextMode: 'workspace' as const,
       }));
       await refreshAfterBranchChange(get);
     },
 
     loadGitSnapshot: createLazyLoader<GitSnapshot>(
       (path) => window.digitalLife.workspace.listGitStatusForWorkspace(path),
-      (s, id) => ({ hasData: !!s.gitSnapshots[id], isLoading: !!s.workspaceChangesTreeLoading[id] }),
+      (s, id) => ({
+        hasData: !!s.gitSnapshots[id],
+        isLoading: !!s.workspaceChangesTreeLoading[id],
+      }),
       (g, id) => ({
         workspaceChangesTreeLoading: { ...g().workspaceChangesTreeLoading, [id]: true },
         workspaceChangesTreeErrors: { ...g().workspaceChangesTreeErrors, [id]: undefined },
@@ -133,20 +136,26 @@ export function createGitActions(set: StoreApi<StoreState>["setState"], get: () 
       (g, id, message) => ({
         workspaceChangesTreeLoading: { ...g().workspaceChangesTreeLoading, [id]: false },
         workspaceChangesTreeErrors: { ...g().workspaceChangesTreeErrors, [id]: message },
-      }),
+      })
     )(set, get),
 
     refreshGitSnapshot: async (workspaceId: string, workspacePath: string) => {
       set({
         workspaceChangesTreeLoading: { ...get().workspaceChangesTreeLoading, [workspaceId]: true },
-        workspaceChangesTreeErrors: { ...get().workspaceChangesTreeErrors, [workspaceId]: undefined },
+        workspaceChangesTreeErrors: {
+          ...get().workspaceChangesTreeErrors,
+          [workspaceId]: undefined,
+        },
       });
       const result = await window.digitalLife.workspace.listGitStatusForWorkspace(workspacePath);
       const loading = { ...get().workspaceChangesTreeLoading, [workspaceId]: false };
       if (!result.ok) {
         set({
           workspaceChangesTreeLoading: loading,
-          workspaceChangesTreeErrors: { ...get().workspaceChangesTreeErrors, [workspaceId]: result.error.message },
+          workspaceChangesTreeErrors: {
+            ...get().workspaceChangesTreeErrors,
+            [workspaceId]: result.error.message,
+          },
         });
         return;
       }
@@ -163,7 +172,7 @@ export function createGitActions(set: StoreApi<StoreState>["setState"], get: () 
         workspaceId,
         (next) => set({ workspaceChangesExpanded: next }),
         !!state.gitSnapshots[workspaceId],
-        () => get().loadGitSnapshot(workspaceId, workspacePath),
+        () => get().loadGitSnapshot(workspaceId, workspacePath)
       );
     },
 
@@ -178,7 +187,7 @@ export function createGitActions(set: StoreApi<StoreState>["setState"], get: () 
         state.workspaceChangesExpanded,
         (next) => set({ workspaceChangesExpanded: next }),
         (entry) => get().loadGitSnapshot(entry.id, entry.path),
-        (id) => !!state.gitSnapshots[id],
+        (id) => !!state.gitSnapshots[id]
       );
     },
   };

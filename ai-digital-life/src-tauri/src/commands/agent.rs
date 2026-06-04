@@ -149,16 +149,65 @@ async fn start_run_inner(
     let mut detail =
         adl_agent_runtime::create_run(&workspace_scope_id, &session.id, &input.prompt, scenario);
 
-    let emit_activity = make_activity_emitter(app, state,
-        workspace_scope_id.clone(), session_id.clone(), detail.run.id.clone());
+    let emit_activity = make_activity_emitter(
+        app,
+        state,
+        workspace_scope_id.clone(),
+        session_id.clone(),
+        detail.run.id.clone(),
+    );
     let mut audit_batch: Vec<AuditBatchEntry> = Vec::with_capacity(5);
-    let user_message = agent_pipeline::prepare_run(state, &session, &input, scenario, &detail, &emit_activity, &mut audit_batch)?;
-    let context = agent_pipeline::collect_context(&workspace, &input, &detail, &workspace_scope_id, &session_id, &emit_activity, &mut audit_batch)?;
-    let (model_response, _model_audit) = agent_pipeline::call_model(state, &workspace, &session, scenario, context, &detail, &input, app, &emit_activity, &mut audit_batch).await?;
-    let patch_set = agent_pipeline::generate_patches(&workspace, &input, scenario, &mut detail, state, &session, &emit_activity)?;
+    let user_message = agent_pipeline::prepare_run(
+        state,
+        &session,
+        &input,
+        scenario,
+        &detail,
+        &emit_activity,
+        &mut audit_batch,
+    )?;
+    let context = agent_pipeline::collect_context(
+        &workspace,
+        &input,
+        &detail,
+        &workspace_scope_id,
+        &session_id,
+        &emit_activity,
+        &mut audit_batch,
+    )?;
+    let (model_response, _model_audit) = agent_pipeline::call_model(
+        state,
+        &workspace,
+        &session,
+        scenario,
+        context,
+        &detail,
+        &input,
+        app,
+        &emit_activity,
+        &mut audit_batch,
+    )
+    .await?;
+    let patch_set = agent_pipeline::generate_patches(
+        &workspace,
+        &input,
+        scenario,
+        &mut detail,
+        state,
+        &session,
+        &emit_activity,
+    )?;
     let result = agent_pipeline::finalize_run(
-        state, &workspace, &mut session, detail, &model_response, patch_set.as_ref(), scenario,
-        user_message, &emit_activity, &mut audit_batch,
+        state,
+        &workspace,
+        &mut session,
+        detail,
+        &model_response,
+        patch_set.as_ref(),
+        scenario,
+        user_message,
+        &emit_activity,
+        &mut audit_batch,
     )?;
     crate::commands::audit::batch_save_audit_entries(state, audit_batch)?;
 
@@ -166,9 +215,8 @@ async fn start_run_inner(
 }
 
 pub fn load_run_detail(state: &AppState, run_id: &str) -> Result<Option<AgentRunDetail>, AppError> {
-    let Some(run) = state
-        .db
-        .load_entity::<adl_kernel::AgentRunRecord>(EntityTable::AgentRuns, run_id)?
+    let Some(run) =
+        state.db.load_entity::<adl_kernel::AgentRunRecord>(EntityTable::AgentRuns, run_id)?
     else {
         return Ok(None);
     };

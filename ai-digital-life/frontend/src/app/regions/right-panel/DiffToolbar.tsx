@@ -1,6 +1,6 @@
-import React from "react";
-import { IconHash } from "../../icons";
-import type { CopyDict } from "../../i18n";
+import React from 'react';
+import { IconHash } from '../../icons';
+import type { CopyDict } from '../../i18n';
 
 interface DiffToolbarProps {
   diffSideBySide: boolean;
@@ -13,7 +13,7 @@ interface DiffToolbarProps {
   onToggleLineNumbers: () => void;
   onToggleWordWrap: () => void;
   onToggleAgentAnnotations: () => void;
-  onJumpPatchHunk: (direction: "previous" | "next") => void;
+  onJumpPatchHunk: (direction: 'previous' | 'next') => void;
   onSetAllPatchHunksCollapsed: (collapsed: boolean, relativePath?: string) => void;
   t: CopyDict;
 }
@@ -40,14 +40,14 @@ function DiffToolbar({
         <div className="adl-segmented">
           <button
             type="button"
-            aria-pressed={!diffSideBySide ? "true" : "false"}
+            aria-pressed={!diffSideBySide ? 'true' : 'false'}
             onClick={() => onSetDiffLayout(false)}
           >
             {t.diffLayoutInline as string}
           </button>
           <button
             type="button"
-            aria-pressed={diffSideBySide ? "true" : "false"}
+            aria-pressed={diffSideBySide ? 'true' : 'false'}
             onClick={() => onSetDiffLayout(true)}
           >
             {t.diffLayoutSideBySide as string}
@@ -57,7 +57,7 @@ function DiffToolbar({
       <div className="adl-diff-toolbar__group">
         <button
           type="button"
-          className={`adl-diff-toolbar__toggle${lineNumbersEnabled ? " is-active" : ""}`}
+          className={`adl-diff-toolbar__toggle${lineNumbersEnabled ? ' is-active' : ''}`}
           onClick={onToggleLineNumbers}
         >
           <IconHash size={12} decorative />
@@ -65,14 +65,14 @@ function DiffToolbar({
         </button>
         <button
           type="button"
-          className={`adl-diff-toolbar__toggle${wordWrapEnabled ? " is-active" : ""}`}
+          className={`adl-diff-toolbar__toggle${wordWrapEnabled ? ' is-active' : ''}`}
           onClick={onToggleWordWrap}
         >
           <span>{t.fileWordWrap as string}</span>
         </button>
         <button
           type="button"
-          className={`adl-diff-toolbar__toggle${agentAnnotationsEnabled ? " is-active" : ""}`}
+          className={`adl-diff-toolbar__toggle${agentAnnotationsEnabled ? ' is-active' : ''}`}
           onClick={onToggleAgentAnnotations}
         >
           <span>{t.agentChangeAnnotations as string}</span>
@@ -82,14 +82,14 @@ function DiffToolbar({
         <button
           type="button"
           className="adl-diff-toolbar__nav"
-          onClick={() => onJumpPatchHunk("previous")}
+          onClick={() => onJumpPatchHunk('previous')}
         >
           {t.patchPreviousChange as string}
         </button>
         <button
           type="button"
           className="adl-diff-toolbar__nav"
-          onClick={() => onJumpPatchHunk("next")}
+          onClick={() => onJumpPatchHunk('next')}
         >
           {t.patchNextChange as string}
         </button>

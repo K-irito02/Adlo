@@ -1,18 +1,18 @@
-import { ViewPlugin, type EditorView, type PluginValue, type ViewUpdate } from "@codemirror/view";
+import { ViewPlugin, type EditorView, type PluginValue, type ViewUpdate } from '@codemirror/view';
 
-const SCROLL_LEFT_CSS_VAR = "--adl-editor-scroll-left";
-const VISIBLE_WIDTH_CSS_VAR = "--adl-editor-visible-width";
-const CONTENT_WIDTH_CSS_VAR = "--adl-editor-content-width";
-const NO_HSCROLL_CLASS = "adl-cm-scroller--no-hscroll";
-const GUTTER_WIDTH_CSS_VAR = "--adl-editor-gutter-width";
-const HSCROLL_CLASS = "adl-cm-hscroll";
-const HSCROLL_VISIBLE_CLASS = "is-visible";
-const HSCROLL_DRAGGING_CLASS = "is-dragging";
-const HSCROLL_DOT_OFFSET_VAR = "--adl-hscroll-dot-offset";
+const SCROLL_LEFT_CSS_VAR = '--adl-editor-scroll-left';
+const VISIBLE_WIDTH_CSS_VAR = '--adl-editor-visible-width';
+const CONTENT_WIDTH_CSS_VAR = '--adl-editor-content-width';
+const NO_HSCROLL_CLASS = 'adl-cm-scroller--no-hscroll';
+const GUTTER_WIDTH_CSS_VAR = '--adl-editor-gutter-width';
+const HSCROLL_CLASS = 'adl-cm-hscroll';
+const HSCROLL_VISIBLE_CLASS = 'is-visible';
+const HSCROLL_DRAGGING_CLASS = 'is-dragging';
+const HSCROLL_DOT_OFFSET_VAR = '--adl-hscroll-dot-offset';
 const THUMB_MIN_WIDTH = 40;
 
 function formatPx(value: number): string {
-  if (!Number.isFinite(value) || value <= 0) return "0px";
+  if (!Number.isFinite(value) || value <= 0) return '0px';
   return `${value}px`;
 }
 
@@ -57,23 +57,23 @@ class ScrollLeftSyncPlugin implements PluginValue {
     this.createCustomScrollbar();
     this.syncCssPropsOnly();
     this.schedule();
-    this.view.scrollDOM.addEventListener("scroll", this.handleScroll, { passive: true });
-    this.view.scrollDOM.addEventListener("wheel", this.boundOnWheel, { passive: false });
-    this.view.scrollDOM.addEventListener("pointermove", this.boundOnScrollDOMPointerMove);
-    document.addEventListener("pointerdown", this.boundOnDocumentPointerDown);
-    document.addEventListener("pointerup", this.boundOnDocumentPointerUp);
+    this.view.scrollDOM.addEventListener('scroll', this.handleScroll, { passive: true });
+    this.view.scrollDOM.addEventListener('wheel', this.boundOnWheel, { passive: false });
+    this.view.scrollDOM.addEventListener('pointermove', this.boundOnScrollDOMPointerMove);
+    document.addEventListener('pointerdown', this.boundOnDocumentPointerDown);
+    document.addEventListener('pointerup', this.boundOnDocumentPointerUp);
     this.setupResizeObserver();
   }
 
   private createCustomScrollbar(): void {
-    const thumb = document.createElement("div");
+    const thumb = document.createElement('div');
     thumb.className = `${HSCROLL_CLASS}__thumb`;
 
-    const track = document.createElement("div");
+    const track = document.createElement('div');
     track.className = `${HSCROLL_CLASS}__track`;
     track.appendChild(thumb);
 
-    const container = document.createElement("div");
+    const container = document.createElement('div');
     container.className = HSCROLL_CLASS;
     container.appendChild(track);
 
@@ -82,8 +82,8 @@ class ScrollLeftSyncPlugin implements PluginValue {
     this.hscrollEl = container;
     this.hscrollThumb = thumb;
 
-    thumb.addEventListener("pointerdown", this.boundOnThumbPointerDown);
-    track.addEventListener("pointerdown", this.boundOnTrackPointerDown);
+    thumb.addEventListener('pointerdown', this.boundOnThumbPointerDown);
+    track.addEventListener('pointerdown', this.boundOnTrackPointerDown);
   }
 
   private onThumbPointerDown(e: PointerEvent): void {
@@ -96,9 +96,9 @@ class ScrollLeftSyncPlugin implements PluginValue {
     this.cacheDragLayout();
     this.setChunkButtonsVisibility(false);
     this.hscrollThumb!.setPointerCapture(e.pointerId);
-    this.hscrollThumb!.addEventListener("pointermove", this.boundOnPointerMove);
-    this.hscrollThumb!.addEventListener("pointerup", this.boundOnPointerUp);
-    this.hscrollThumb!.addEventListener("pointercancel", this.boundOnPointerCancel);
+    this.hscrollThumb!.addEventListener('pointermove', this.boundOnPointerMove);
+    this.hscrollThumb!.addEventListener('pointerup', this.boundOnPointerUp);
+    this.hscrollThumb!.addEventListener('pointercancel', this.boundOnPointerCancel);
   }
 
   private cacheDragLayout(): void {
@@ -118,16 +118,19 @@ class ScrollLeftSyncPlugin implements PluginValue {
     if (!this.isDragging || !this.hscrollThumb) return;
     if (this.dragMaxThumbLeft <= 0) return;
 
-    const thumbLeft = Math.max(0, Math.min(this.dragMaxThumbLeft, e.clientX - this.dragTrackLeft - this.dragStartX));
+    const thumbLeft = Math.max(
+      0,
+      Math.min(this.dragMaxThumbLeft, e.clientX - this.dragTrackLeft - this.dragStartX)
+    );
 
     const scrollLeft = (thumbLeft / this.dragMaxThumbLeft) * this.dragMaxScrollLeft;
     this.view.scrollDOM.scrollLeft = scrollLeft;
 
     this.hscrollThumb.style.left = `${thumbLeft}px`;
 
-    const mergeView = this.view.dom.closest(".cm-mergeView");
+    const mergeView = this.view.dom.closest('.cm-mergeView');
     if (mergeView) {
-      const editors = mergeView.querySelectorAll(".cm-mergeViewEditor .cm-scroller");
+      const editors = mergeView.querySelectorAll('.cm-mergeViewEditor .cm-scroller');
       for (const scroller of editors) {
         if (scroller !== this.view.scrollDOM) {
           const otherScroll = scroller as HTMLElement;
@@ -157,9 +160,9 @@ class ScrollLeftSyncPlugin implements PluginValue {
     this.isDragging = false;
     if (this.hscrollThumb) {
       this.hscrollThumb.classList.remove(HSCROLL_DRAGGING_CLASS);
-      this.hscrollThumb.removeEventListener("pointermove", this.boundOnPointerMove);
-      this.hscrollThumb.removeEventListener("pointerup", this.boundOnPointerUp);
-      this.hscrollThumb.removeEventListener("pointercancel", this.boundOnPointerCancel);
+      this.hscrollThumb.removeEventListener('pointermove', this.boundOnPointerMove);
+      this.hscrollThumb.removeEventListener('pointerup', this.boundOnPointerUp);
+      this.hscrollThumb.removeEventListener('pointercancel', this.boundOnPointerCancel);
     }
     if (!this.resizeDebounceTimer) {
       const scrollDOM = this.view.scrollDOM;
@@ -182,8 +185,8 @@ class ScrollLeftSyncPlugin implements PluginValue {
   }
 
   private onWheel(e: WheelEvent): void {
-    const wrapper = this.view.dom.closest(".adl-cm-editor-wrapper, .adl-cm-diff-viewer-wrapper");
-    const isNoWordWrap = wrapper?.classList.contains("adl-cm-no-word-wrap");
+    const wrapper = this.view.dom.closest('.adl-cm-editor-wrapper, .adl-cm-diff-viewer-wrapper');
+    const isNoWordWrap = wrapper?.classList.contains('adl-cm-no-word-wrap');
     if (!isNoWordWrap) return;
 
     const scrollDOM = this.view.scrollDOM;
@@ -227,7 +230,7 @@ class ScrollLeftSyncPlugin implements PluginValue {
   private edgeScrollSpeed: number = 0;
 
   private onScrollDOMPointerMove(e: PointerEvent): void {
-    if (document.querySelector(".adl-cm-diff-resizer--dragging")) return;
+    if (document.querySelector('.adl-cm-diff-resizer--dragging')) return;
     if (!(e.buttons & 1)) {
       this.stopEdgeScroll();
       return;
@@ -241,11 +244,11 @@ class ScrollLeftSyncPlugin implements PluginValue {
 
     if (x >= scrollerRect.width - edgeZone && x < scrollerRect.width) {
       this.edgeScrollDirection = 1;
-      this.edgeScrollSpeed = ((x - (scrollerRect.width - edgeZone)) / edgeZone);
+      this.edgeScrollSpeed = (x - (scrollerRect.width - edgeZone)) / edgeZone;
       this.startEdgeScroll();
     } else if (x <= edgeZone && x > 0) {
       this.edgeScrollDirection = -1;
-      this.edgeScrollSpeed = ((edgeZone - x) / edgeZone);
+      this.edgeScrollSpeed = (edgeZone - x) / edgeZone;
       this.startEdgeScroll();
     } else {
       this.stopEdgeScroll();
@@ -284,9 +287,9 @@ class ScrollLeftSyncPlugin implements PluginValue {
       scrollDOM.scrollLeft = Math.max(0, scrollDOM.scrollLeft - 2 - 4 * speed);
     }
 
-    const mergeView = this.view.dom.closest(".cm-mergeView");
+    const mergeView = this.view.dom.closest('.cm-mergeView');
     if (mergeView) {
-      const editors = mergeView.querySelectorAll(".cm-mergeViewEditor .cm-scroller");
+      const editors = mergeView.querySelectorAll('.cm-mergeViewEditor .cm-scroller');
       for (const scroller of editors) {
         if (scroller !== scrollDOM) {
           (scroller as HTMLElement).scrollLeft = scrollDOM.scrollLeft;
@@ -297,7 +300,7 @@ class ScrollLeftSyncPlugin implements PluginValue {
     if (this.edgeScrollRafId !== null) {
       this.edgeScrollRafId = requestAnimationFrame(this.tickEdgeScroll);
     }
-  }
+  };
 
   private syncCssPropsOnly(): void {
     const scrollDOM = this.view.scrollDOM;
@@ -318,19 +321,19 @@ class ScrollLeftSyncPlugin implements PluginValue {
     dom.style.setProperty(CONTENT_WIDTH_CSS_VAR, formatPx(contentWidth));
     scrollDOM.style.setProperty(CONTENT_WIDTH_CSS_VAR, formatPx(contentWidth));
 
-    const gutters = scrollDOM.querySelector(".cm-gutters") as HTMLElement | null;
+    const gutters = scrollDOM.querySelector('.cm-gutters') as HTMLElement | null;
     const gutterWidth = gutters?.offsetWidth ?? 0;
     dom.style.setProperty(GUTTER_WIDTH_CSS_VAR, formatPx(gutterWidth));
     scrollDOM.style.setProperty(GUTTER_WIDTH_CSS_VAR, formatPx(gutterWidth));
   }
 
   private syncOverflow(scrollDOM: HTMLElement): void {
-    const wrapper = scrollDOM.closest(".adl-cm-editor-wrapper, .adl-cm-diff-viewer-wrapper");
-    const isNoWordWrap = wrapper?.classList.contains("adl-cm-no-word-wrap");
+    const wrapper = scrollDOM.closest('.adl-cm-editor-wrapper, .adl-cm-diff-viewer-wrapper');
+    const isNoWordWrap = wrapper?.classList.contains('adl-cm-no-word-wrap');
 
     if (isNoWordWrap) {
       scrollDOM.classList.remove(NO_HSCROLL_CLASS);
-      scrollDOM.style.removeProperty("overflow-x");
+      scrollDOM.style.removeProperty('overflow-x');
       return;
     }
 
@@ -342,10 +345,10 @@ class ScrollLeftSyncPlugin implements PluginValue {
     const hasHorizontalOverflow = scrollWidth > visibleWidth;
     if (hasHorizontalOverflow) {
       scrollDOM.classList.remove(NO_HSCROLL_CLASS);
-      scrollDOM.style.removeProperty("overflow-x");
+      scrollDOM.style.removeProperty('overflow-x');
     } else {
       scrollDOM.classList.add(NO_HSCROLL_CLASS);
-      scrollDOM.style.setProperty("overflow-x", "hidden", "important");
+      scrollDOM.style.setProperty('overflow-x', 'hidden', 'important');
     }
   }
 
@@ -354,8 +357,8 @@ class ScrollLeftSyncPlugin implements PluginValue {
 
     const scrollDOM = this.view.scrollDOM;
 
-    const wrapper = scrollDOM.closest(".adl-cm-editor-wrapper, .adl-cm-diff-viewer-wrapper");
-    const isNoWordWrap = wrapper?.classList.contains("adl-cm-no-word-wrap");
+    const wrapper = scrollDOM.closest('.adl-cm-editor-wrapper, .adl-cm-diff-viewer-wrapper');
+    const isNoWordWrap = wrapper?.classList.contains('adl-cm-no-word-wrap');
 
     if (!isNoWordWrap) {
       this.hscrollEl.classList.remove(HSCROLL_VISIBLE_CLASS);
@@ -397,15 +400,15 @@ class ScrollLeftSyncPlugin implements PluginValue {
   }
 
   destroy(): void {
-    document.removeEventListener("pointerdown", this.boundOnDocumentPointerDown);
-    document.removeEventListener("pointerup", this.boundOnDocumentPointerUp);
+    document.removeEventListener('pointerdown', this.boundOnDocumentPointerDown);
+    document.removeEventListener('pointerup', this.boundOnDocumentPointerUp);
     if (this.resizeDebounceTimer !== null) {
       clearTimeout(this.resizeDebounceTimer);
       this.resizeDebounceTimer = null;
     }
-    this.view.scrollDOM.removeEventListener("scroll", this.handleScroll);
-    this.view.scrollDOM.removeEventListener("wheel", this.boundOnWheel);
-    this.view.scrollDOM.removeEventListener("pointermove", this.boundOnScrollDOMPointerMove);
+    this.view.scrollDOM.removeEventListener('scroll', this.handleScroll);
+    this.view.scrollDOM.removeEventListener('wheel', this.boundOnWheel);
+    this.view.scrollDOM.removeEventListener('pointermove', this.boundOnScrollDOMPointerMove);
     this.resizeObserver?.disconnect();
     this.resizeObserver = null;
     if (this.frame) {
@@ -415,12 +418,17 @@ class ScrollLeftSyncPlugin implements PluginValue {
     this.destroyCustomScrollbar();
     const dom = this.view.dom;
     const scrollDOM = this.view.scrollDOM;
-    for (const prop of [SCROLL_LEFT_CSS_VAR, VISIBLE_WIDTH_CSS_VAR, CONTENT_WIDTH_CSS_VAR, GUTTER_WIDTH_CSS_VAR]) {
+    for (const prop of [
+      SCROLL_LEFT_CSS_VAR,
+      VISIBLE_WIDTH_CSS_VAR,
+      CONTENT_WIDTH_CSS_VAR,
+      GUTTER_WIDTH_CSS_VAR,
+    ]) {
       dom.style.removeProperty(prop);
       scrollDOM.style.removeProperty(prop);
     }
     scrollDOM.classList.remove(NO_HSCROLL_CLASS);
-    scrollDOM.style.removeProperty("overflow-x");
+    scrollDOM.style.removeProperty('overflow-x');
     this.clearChunkButtonStyles();
   }
 
@@ -439,13 +447,13 @@ class ScrollLeftSyncPlugin implements PluginValue {
   };
 
   private setupResizeObserver(): void {
-    if (typeof ResizeObserver === "undefined") return;
+    if (typeof ResizeObserver === 'undefined') return;
     this.resizeObserver = new ResizeObserver(() => {
       this.setChunkButtonsVisibility(false);
       this.resetResizeDebounce();
       this.schedule();
     });
-    this.resizeObserver.observe(this.view.scrollDOM, { box: "content-box" });
+    this.resizeObserver.observe(this.view.scrollDOM, { box: 'content-box' });
   }
 
   private resetResizeDebounce(): void {
@@ -471,22 +479,22 @@ class ScrollLeftSyncPlugin implements PluginValue {
   }
 
   private clearChunkButtonStyles(): void {
-    const buttons = this.view.dom.querySelectorAll(".cm-chunkButtons");
+    const buttons = this.view.dom.querySelectorAll('.cm-chunkButtons');
     for (const btn of buttons) {
       const s = (btn as HTMLElement).style;
-      s.removeProperty("position");
-      s.removeProperty("top");
-      s.removeProperty("transform");
-      s.removeProperty("right");
-      s.removeProperty("inset-inline-end");
+      s.removeProperty('position');
+      s.removeProperty('top');
+      s.removeProperty('transform');
+      s.removeProperty('right');
+      s.removeProperty('inset-inline-end');
     }
     this.lastChunkPositions.clear();
   }
 
   private setChunkButtonsVisibility(visible: boolean): void {
-    const buttons = this.view.dom.querySelectorAll(".cm-deletedChunk .cm-chunkButtons");
+    const buttons = this.view.dom.querySelectorAll('.cm-deletedChunk .cm-chunkButtons');
     for (const btn of buttons) {
-      (btn as HTMLElement).style.visibility = visible ? "" : "hidden";
+      (btn as HTMLElement).style.visibility = visible ? '' : 'hidden';
     }
   }
 
@@ -513,7 +521,7 @@ class ScrollLeftSyncPlugin implements PluginValue {
     dom.style.setProperty(CONTENT_WIDTH_CSS_VAR, formatPx(contentWidth));
     scrollDOM.style.setProperty(CONTENT_WIDTH_CSS_VAR, formatPx(contentWidth));
 
-    const gutters = scrollDOM.querySelector(".cm-gutters") as HTMLElement | null;
+    const gutters = scrollDOM.querySelector('.cm-gutters') as HTMLElement | null;
     const gutterWidth = gutters?.offsetWidth ?? 0;
     dom.style.setProperty(GUTTER_WIDTH_CSS_VAR, formatPx(gutterWidth));
     scrollDOM.style.setProperty(GUTTER_WIDTH_CSS_VAR, formatPx(gutterWidth));
@@ -527,22 +535,22 @@ class ScrollLeftSyncPlugin implements PluginValue {
   }
 
   private positionChunkButtons(visibleWidth: number, scrollLeft: number): void {
-    const isNoWrap = this.view.dom.closest(".adl-cm-no-word-wrap") !== null;
-    const isInlineDiff = this.view.dom.closest(".adl-cm-diff-viewer--inline") !== null;
+    const isNoWrap = this.view.dom.closest('.adl-cm-no-word-wrap') !== null;
+    const isInlineDiff = this.view.dom.closest('.adl-cm-diff-viewer--inline') !== null;
 
-    const buttons = this.view.dom.querySelectorAll(".cm-deletedChunk .cm-chunkButtons");
+    const buttons = this.view.dom.querySelectorAll('.cm-deletedChunk .cm-chunkButtons');
 
     if (!isNoWrap || !isInlineDiff) {
       if (this.lastChunkPositions.size > 0) {
         for (const btn of buttons) {
           const s = (btn as HTMLElement).style;
-          s.removeProperty("position");
-          s.removeProperty("top");
-          s.removeProperty("transform");
-          s.removeProperty("right");
-          s.removeProperty("inset-inline-end");
-          s.removeProperty("left");
-          s.removeProperty("margin-top");
+          s.removeProperty('position');
+          s.removeProperty('top');
+          s.removeProperty('transform');
+          s.removeProperty('right');
+          s.removeProperty('inset-inline-end');
+          s.removeProperty('left');
+          s.removeProperty('margin-top');
         }
         this.lastChunkPositions.clear();
       }
@@ -577,25 +585,25 @@ class ScrollLeftSyncPlugin implements PluginValue {
       const topOffset = (lineHeight - btnHeight) / 2;
 
       const s = btnEl.style;
-      s.setProperty("position", "absolute", "important");
-      s.setProperty("top", `${topOffset}px`, "important");
-      s.removeProperty("transform");
-      s.removeProperty("margin-top");
-      s.setProperty("right", `${offset}px`, "important");
-      s.setProperty("inset-inline-end", `${offset}px`, "important");
-      s.removeProperty("left");
+      s.setProperty('position', 'absolute', 'important');
+      s.setProperty('top', `${topOffset}px`, 'important');
+      s.removeProperty('transform');
+      s.removeProperty('margin-top');
+      s.setProperty('right', `${offset}px`, 'important');
+      s.setProperty('inset-inline-end', `${offset}px`, 'important');
+      s.removeProperty('left');
     }
 
     for (const [btn] of this.lastChunkPositions) {
       if (!activeChunks.has(btn)) {
         const s = (btn as HTMLElement).style;
-        s.removeProperty("position");
-        s.removeProperty("top");
-        s.removeProperty("transform");
-        s.removeProperty("right");
-        s.removeProperty("inset-inline-end");
-        s.removeProperty("left");
-        s.removeProperty("margin-top");
+        s.removeProperty('position');
+        s.removeProperty('top');
+        s.removeProperty('transform');
+        s.removeProperty('right');
+        s.removeProperty('inset-inline-end');
+        s.removeProperty('left');
+        s.removeProperty('margin-top');
         this.lastChunkPositions.delete(btn);
       }
     }

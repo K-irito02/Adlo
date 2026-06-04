@@ -1,11 +1,11 @@
-import React, { useState, useCallback, useEffect, useRef } from "react";
-import { createPortal } from "react-dom";
-import { IconPlus, IconTrash, IconMoreVertical, IconFolder, IconFolderOpen } from "../../icons";
-import { FileTree } from "../file-tree";
-import { TooltipSimple } from "../../components/Tooltip";
-import type { BrowserTreeNode, BrowserCategoryType } from "./types";
-import { resolveChildCount } from "./useBrowserTreeData";
-import type { SectionCallbacks } from "./BrowserCategorySection";
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { IconPlus, IconTrash, IconMoreVertical, IconFolder, IconFolderOpen } from '../../icons';
+import { FileTree } from '../file-tree';
+import { TooltipSimple } from '../../components/Tooltip';
+import type { BrowserTreeNode, BrowserCategoryType } from './types';
+import { resolveChildCount } from './useBrowserTreeData';
+import type { SectionCallbacks } from './BrowserCategorySection';
 
 interface BrowserTreeEntryProps {
   node: BrowserTreeNode;
@@ -19,14 +19,17 @@ interface BrowserTreeEntryProps {
   counts: Map<string, number>;
 }
 
-function getEntryHoverButtons(nodeType: string, categoryType: BrowserCategoryType): Array<{ id: string; label: string; icon: React.ReactNode }> {
-  if (categoryType === "history") {
-    return [{ id: "more", label: "更多操作", icon: <IconMoreVertical size={12} decorative /> }];
+function getEntryHoverButtons(
+  nodeType: string,
+  categoryType: BrowserCategoryType
+): Array<{ id: string; label: string; icon: React.ReactNode }> {
+  if (categoryType === 'history') {
+    return [{ id: 'more', label: '更多操作', icon: <IconMoreVertical size={12} decorative /> }];
   }
   return [
-    { id: "create-tab", label: "新建标签", icon: <IconPlus size={12} decorative /> },
-    { id: "delete-all-tabs", label: "删除所有子标签", icon: <IconTrash size={12} decorative /> },
-    { id: "more", label: "更多操作", icon: <IconMoreVertical size={12} decorative /> },
+    { id: 'create-tab', label: '新建标签', icon: <IconPlus size={12} decorative /> },
+    { id: 'delete-all-tabs', label: '删除所有子标签', icon: <IconTrash size={12} decorative /> },
+    { id: 'more', label: '更多操作', icon: <IconMoreVertical size={12} decorative /> },
   ];
 }
 
@@ -34,35 +37,75 @@ function getEntryMoreMenuItems(
   nodeType: string,
   categoryType: BrowserCategoryType,
   nodePath: string,
-  callbacks: SectionCallbacks,
+  callbacks: SectionCallbacks
 ): Array<{ id: string; label: string; danger?: boolean; action: () => void }> {
-  if (categoryType === "history") {
+  if (categoryType === 'history') {
     return [
-      { id: "delete-history-label", label: "删除全部历史记录 · 标签", action: () => callbacks.onDeleteHistory("label", nodePath) },
-      { id: "delete-history-year", label: "删除全部历史记录 · 年", danger: true, action: () => callbacks.onDeleteHistory("year", nodePath) },
-      { id: "delete-history-month", label: "删除全部历史记录 · 月", danger: true, action: () => callbacks.onDeleteHistory("month", nodePath) },
-      { id: "delete-history-day", label: "删除全部历史记录 · 日", danger: true, action: () => callbacks.onDeleteHistory("day", nodePath) },
+      {
+        id: 'delete-history-label',
+        label: '删除全部历史记录 · 标签',
+        action: () => callbacks.onDeleteHistory('label', nodePath),
+      },
+      {
+        id: 'delete-history-year',
+        label: '删除全部历史记录 · 年',
+        danger: true,
+        action: () => callbacks.onDeleteHistory('year', nodePath),
+      },
+      {
+        id: 'delete-history-month',
+        label: '删除全部历史记录 · 月',
+        danger: true,
+        action: () => callbacks.onDeleteHistory('month', nodePath),
+      },
+      {
+        id: 'delete-history-day',
+        label: '删除全部历史记录 · 日',
+        danger: true,
+        action: () => callbacks.onDeleteHistory('day', nodePath),
+      },
     ];
   }
 
   const items: Array<{ id: string; label: string; danger?: boolean; action: () => void }> = [];
-  items.push({ id: "open-all-tabs", label: "全部在新标签中打开", action: () => callbacks.onOpenAllInNewTabs(categoryType, nodePath) });
+  items.push({
+    id: 'open-all-tabs',
+    label: '全部在新标签中打开',
+    action: () => callbacks.onOpenAllInNewTabs(categoryType, nodePath),
+  });
 
-  if (nodeType === "workspace") {
-    const wsId = nodePath.startsWith("workspace:") ? nodePath.slice("workspace:".length) : "";
-    items.push({ id: "remove-from-area", label: "从该区域移除不显示", action: () => callbacks.onRemoveFromArea(wsId) });
+  if (nodeType === 'workspace') {
+    const wsId = nodePath.startsWith('workspace:') ? nodePath.slice('workspace:'.length) : '';
+    items.push({
+      id: 'remove-from-area',
+      label: '从该区域移除不显示',
+      action: () => callbacks.onRemoveFromArea(wsId),
+    });
   }
 
-  if (nodeType === "folder" && categoryType === "userFolder") {
-    const folderId = nodePath.startsWith("folder:") ? nodePath.slice("folder:".length) : "";
-    items.push({ id: "rename", label: "重命名", action: () => callbacks.onRenameDirectory(folderId) });
+  if (nodeType === 'folder' && categoryType === 'userFolder') {
+    const folderId = nodePath.startsWith('folder:') ? nodePath.slice('folder:'.length) : '';
+    items.push({
+      id: 'rename',
+      label: '重命名',
+      action: () => callbacks.onRenameDirectory(folderId),
+    });
   }
 
-  items.push({ id: "delete-all-tabs", label: "删除所有子标签", action: () => callbacks.onDeleteAllChildTabs(categoryType, nodePath) });
+  items.push({
+    id: 'delete-all-tabs',
+    label: '删除所有子标签',
+    action: () => callbacks.onDeleteAllChildTabs(categoryType, nodePath),
+  });
 
-  if (nodeType === "folder" && categoryType === "userFolder") {
-    const folderId = nodePath.startsWith("folder:") ? nodePath.slice("folder:".length) : "";
-    items.push({ id: "delete-this-dir", label: "删除此目录", danger: true, action: () => callbacks.onDeleteDirectory(folderId) });
+  if (nodeType === 'folder' && categoryType === 'userFolder') {
+    const folderId = nodePath.startsWith('folder:') ? nodePath.slice('folder:'.length) : '';
+    items.push({
+      id: 'delete-this-dir',
+      label: '删除此目录',
+      danger: true,
+      action: () => callbacks.onDeleteDirectory(folderId),
+    });
   }
 
   return items;
@@ -70,23 +113,27 @@ function getEntryMoreMenuItems(
 
 function getChildNodeHoverButtons(
   nodeType: string,
-  categoryType: BrowserCategoryType,
+  categoryType: BrowserCategoryType
 ): Array<{ id: string; label: string; icon: React.ReactNode }> {
-  if (categoryType === "history") {
-    if (nodeType === "day") {
+  if (categoryType === 'history') {
+    if (nodeType === 'day') {
       return [
-        { id: "delete-all-tabs", label: "删除所有子标签", icon: <IconTrash size={12} decorative /> },
-        { id: "more", label: "更多操作", icon: <IconMoreVertical size={12} decorative /> },
+        {
+          id: 'delete-all-tabs',
+          label: '删除所有子标签',
+          icon: <IconTrash size={12} decorative />,
+        },
+        { id: 'more', label: '更多操作', icon: <IconMoreVertical size={12} decorative /> },
       ];
     }
     return [];
   }
 
-  if (nodeType === "folder") {
+  if (nodeType === 'folder') {
     return [
-      { id: "create-tab", label: "新建标签", icon: <IconPlus size={12} decorative /> },
-      { id: "delete-all-tabs", label: "删除所有子标签", icon: <IconTrash size={12} decorative /> },
-      { id: "more", label: "更多操作", icon: <IconMoreVertical size={12} decorative /> },
+      { id: 'create-tab', label: '新建标签', icon: <IconPlus size={12} decorative /> },
+      { id: 'delete-all-tabs', label: '删除所有子标签', icon: <IconTrash size={12} decorative /> },
+      { id: 'more', label: '更多操作', icon: <IconMoreVertical size={12} decorative /> },
     ];
   }
 
@@ -97,23 +144,49 @@ function getChildNodeMoreMenuItems(
   nodeType: string,
   categoryType: BrowserCategoryType,
   nodePath: string,
-  callbacks: SectionCallbacks,
+  callbacks: SectionCallbacks
 ): Array<{ id: string; label: string; danger?: boolean; action: () => void }> {
-  if (categoryType === "history" && nodeType === "day") {
+  if (categoryType === 'history' && nodeType === 'day') {
     return [
-      { id: "open-all-tabs", label: "全部在新标签中打开", action: () => callbacks.onOpenAllInNewTabs(categoryType, nodePath) },
-      { id: "delete-all-tabs", label: "删除所有子标签", action: () => callbacks.onDeleteAllChildTabs(categoryType, nodePath) },
-      { id: "delete-this-dir", label: "删除此目录", danger: true, action: () => callbacks.onDeleteDirectory(nodePath) },
+      {
+        id: 'open-all-tabs',
+        label: '全部在新标签中打开',
+        action: () => callbacks.onOpenAllInNewTabs(categoryType, nodePath),
+      },
+      {
+        id: 'delete-all-tabs',
+        label: '删除所有子标签',
+        action: () => callbacks.onDeleteAllChildTabs(categoryType, nodePath),
+      },
+      {
+        id: 'delete-this-dir',
+        label: '删除此目录',
+        danger: true,
+        action: () => callbacks.onDeleteDirectory(nodePath),
+      },
     ];
   }
 
-  if (nodeType === "folder") {
-    const folderId = nodePath.startsWith("folder:") ? nodePath.slice("folder:".length) : "";
+  if (nodeType === 'folder') {
+    const folderId = nodePath.startsWith('folder:') ? nodePath.slice('folder:'.length) : '';
     return [
-      { id: "open-all-tabs", label: "全部在新标签中打开", action: () => callbacks.onOpenAllInNewTabs(categoryType, nodePath) },
-      { id: "rename", label: "重命名", action: () => callbacks.onRenameDirectory(folderId) },
-      { id: "delete-all-tabs", label: "删除所有子标签", action: () => callbacks.onDeleteAllChildTabs(categoryType, nodePath) },
-      { id: "delete-this-dir", label: "删除此目录", danger: true, action: () => callbacks.onDeleteDirectory(folderId) },
+      {
+        id: 'open-all-tabs',
+        label: '全部在新标签中打开',
+        action: () => callbacks.onOpenAllInNewTabs(categoryType, nodePath),
+      },
+      { id: 'rename', label: '重命名', action: () => callbacks.onRenameDirectory(folderId) },
+      {
+        id: 'delete-all-tabs',
+        label: '删除所有子标签',
+        action: () => callbacks.onDeleteAllChildTabs(categoryType, nodePath),
+      },
+      {
+        id: 'delete-this-dir',
+        label: '删除此目录',
+        danger: true,
+        action: () => callbacks.onDeleteDirectory(folderId),
+      },
     ];
   }
 
@@ -131,17 +204,13 @@ export function BrowserTreeEntry({
   callbacks,
   counts,
 }: BrowserTreeEntryProps) {
-
   const isSelected = selectedTreePath === node.path;
-  
-  const handleHeaderClick = useCallback(
-    () => {
-      // 点击顶级目录同时触发展开/折叠
-      onTogglePath(node.path);
-      onSelectTreePath(node.path);
-    },
-    [node.path, onSelectTreePath, onTogglePath],
-  );
+
+  const handleHeaderClick = useCallback(() => {
+    // 点击顶级目录同时触发展开/折叠
+    onTogglePath(node.path);
+    onSelectTreePath(node.path);
+  }, [node.path, onSelectTreePath, onTogglePath]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const [childMenuState, setChildMenuState] = useState<{
@@ -160,17 +229,19 @@ export function BrowserTreeEntry({
     const handler = (e: MouseEvent) => {
       const target = e.target as Node;
       const menuEl = document.querySelector(`[data-menu-id="${menuId}"]`);
-      const btn = entryBtnRef.current["more"];
+      const btn = entryBtnRef.current['more'];
       if (btn?.contains(target)) return;
       if (menuEl?.contains(target)) return;
       setMenuOpen(false);
     };
-    const escHandler = (e: KeyboardEvent) => { if (e.key === "Escape") setMenuOpen(false); };
-    window.addEventListener("mousedown", handler);
-    window.addEventListener("keydown", escHandler);
+    const escHandler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false);
+    };
+    window.addEventListener('mousedown', handler);
+    window.addEventListener('keydown', escHandler);
     return () => {
-      window.removeEventListener("mousedown", handler);
-      window.removeEventListener("keydown", escHandler);
+      window.removeEventListener('mousedown', handler);
+      window.removeEventListener('keydown', escHandler);
     };
   }, [menuOpen, menuId]);
 
@@ -182,8 +253,8 @@ export function BrowserTreeEntry({
       if (menuEl?.contains(target)) return;
       setChildMenuState(null);
     };
-    window.addEventListener("mousedown", handler);
-    return () => window.removeEventListener("mousedown", handler);
+    window.addEventListener('mousedown', handler);
+    return () => window.removeEventListener('mousedown', handler);
   }, [childMenuState]);
 
   const count = counts.get(node.path) ?? 0;
@@ -193,20 +264,20 @@ export function BrowserTreeEntry({
 
   const renderChildCount = useCallback(
     (childNode: BrowserTreeNode) => resolveChildCount(counts, childNode),
-    [counts],
+    [counts]
   );
 
   const handleEntryBtnClick = useCallback(
     (buttonId: string, e: React.MouseEvent) => {
       e.stopPropagation();
       switch (buttonId) {
-        case "create-tab":
+        case 'create-tab':
           callbacks.onCreateTab(node.workspaceId, node.folderId);
           break;
-        case "delete-all-tabs":
+        case 'delete-all-tabs':
           callbacks.onDeleteAllChildTabs(categoryType, node.path);
           break;
-        case "more": {
+        case 'more': {
           const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
           setMenuPosition({ top: rect.top, left: rect.right + 4 });
           setMenuOpen((prev) => !prev);
@@ -214,7 +285,7 @@ export function BrowserTreeEntry({
         }
       }
     },
-    [callbacks, categoryType, node],
+    [callbacks, categoryType, node]
   );
 
   const renderChildMeta = useCallback(
@@ -230,12 +301,17 @@ export function BrowserTreeEntry({
                 className="adl-icon-btn adl-icon-btn--xs"
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (btn.id === "more") {
+                  if (btn.id === 'more') {
                     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                    setChildMenuState({ x: rect.right + 4, y: rect.top, nodePath: childNode.path, nodeType: childNode.nodeType });
-                  } else if (btn.id === "create-tab") {
+                    setChildMenuState({
+                      x: rect.right + 4,
+                      y: rect.top,
+                      nodePath: childNode.path,
+                      nodeType: childNode.nodeType,
+                    });
+                  } else if (btn.id === 'create-tab') {
                     callbacks.onCreateTab(childNode.workspaceId, childNode.folderId);
-                  } else if (btn.id === "delete-all-tabs") {
+                  } else if (btn.id === 'delete-all-tabs') {
                     callbacks.onDeleteAllChildTabs(categoryType, childNode.path);
                   }
                 }}
@@ -248,40 +324,62 @@ export function BrowserTreeEntry({
         </span>
       );
     },
-    [categoryType, callbacks],
+    [categoryType, callbacks]
   );
 
-  const handleChildClick = useCallback((path: string) => {
-    // 点击子目录时更新选中状态，并且触发展开/折叠
-    onSelectTreePath(path);
-    onTogglePath(path);
-  }, [onSelectTreePath, onTogglePath]);
+  const handleChildClick = useCallback(
+    (path: string) => {
+      // 点击子目录时更新选中状态，并且触发展开/折叠
+      onSelectTreePath(path);
+      onTogglePath(path);
+    },
+    [onSelectTreePath, onTogglePath]
+  );
 
-  const handleChildOpenFile = useCallback((path: string) => {
-    // 打开文件时先设置选中状态，然后再调用原有的 onOpenFile
-    onSelectTreePath(path);
-    onOpenFile(path);
-  }, [onSelectTreePath, onOpenFile]);
+  const handleChildOpenFile = useCallback(
+    (path: string) => {
+      // 打开文件时先设置选中状态，然后再调用原有的 onOpenFile
+      onSelectTreePath(path);
+      onOpenFile(path);
+    },
+    [onSelectTreePath, onOpenFile]
+  );
 
   return (
     <div className="adl-browser-entry">
-      <div 
-        className={`adl-browser-entry__header${isSelected ? " is-selected" : ""}`}
+      <div
+        className={`adl-browser-entry__header${isSelected ? ' is-selected' : ''}`}
         onClick={handleHeaderClick}
       >
         <div className="adl-browser-entry__expand">
           <button
             type="button"
-            className={`adl-browser-entry__expand-btn${isExpanded ? " is-expanded" : ""}`}
-            onClick={(e) => { e.stopPropagation(); onTogglePath(node.path); }}
-            aria-label={isExpanded ? "收起" : "展开"}
+            className={`adl-browser-entry__expand-btn${isExpanded ? ' is-expanded' : ''}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onTogglePath(node.path);
+            }}
+            aria-label={isExpanded ? '收起' : '展开'}
             aria-expanded={isExpanded}
           >
-            {isExpanded ? <IconFolderOpen size={14} decorative /> : <IconFolder size={14} decorative />}
+            {isExpanded ? (
+              <IconFolderOpen size={14} decorative />
+            ) : (
+              <IconFolder size={14} decorative />
+            )}
           </button>
         </div>
-        <div className="adl-browser-entry__namezone" onKeyDown={(e) => { if (e.key === "Enter") onSelectTreePath(node.path); }} role="button" tabIndex={0}>
-          <span className="adl-browser-entry__name" title={node.name}>{node.name}</span>
+        <div
+          className="adl-browser-entry__namezone"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') onSelectTreePath(node.path);
+          }}
+          role="button"
+          tabIndex={0}
+        >
+          <span className="adl-browser-entry__name" title={node.name}>
+            {node.name}
+          </span>
           <div className="adl-browser-entry__trailing">
             <span className="adl-browser-entry__count">{count}</span>
             <div className="adl-browser-entry__actions">
@@ -290,7 +388,9 @@ export function BrowserTreeEntry({
                   <button
                     type="button"
                     className="adl-icon-btn adl-icon-btn--xs"
-                    ref={(el) => { entryBtnRef.current[btn.id] = el; }}
+                    ref={(el) => {
+                      entryBtnRef.current[btn.id] = el;
+                    }}
                     onClick={(e) => handleEntryBtnClick(btn.id, e)}
                     aria-label={btn.label}
                   >
@@ -303,22 +403,32 @@ export function BrowserTreeEntry({
         </div>
       </div>
 
-      {menuOpen && menuPosition ? createPortal(
-        <div className="adl-multitree-entry__menu" role="menu" data-menu-id={menuId} style={{ top: menuPosition.top, left: menuPosition.left }}>
-          {entryMenuItems.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={`adl-multitree-entry__menu-item${item.danger ? " is-danger" : ""}`}
-              role="menuitem"
-              onClick={() => { item.action(); setMenuOpen(false); }}
+      {menuOpen && menuPosition
+        ? createPortal(
+            <div
+              className="adl-multitree-entry__menu"
+              role="menu"
+              data-menu-id={menuId}
+              style={{ top: menuPosition.top, left: menuPosition.left }}
             >
-              {item.label}
-            </button>
-          ))}
-        </div>,
-        document.body,
-      ) : null}
+              {entryMenuItems.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`adl-multitree-entry__menu-item${item.danger ? ' is-danger' : ''}`}
+                  role="menuitem"
+                  onClick={() => {
+                    item.action();
+                    setMenuOpen(false);
+                  }}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>,
+            document.body
+          )
+        : null}
 
       {isExpanded && node.children.length > 0 ? (
         <div className="adl-browser-entry__tree">
@@ -342,22 +452,37 @@ export function BrowserTreeEntry({
         </div>
       ) : null}
 
-      {childMenuState ? createPortal(
-        <div className="adl-multitree-entry__menu" role="menu" data-menu-id="browser-child-menu" style={{ top: childMenuState.y, left: childMenuState.x }}>
-          {getChildNodeMoreMenuItems(childMenuState.nodeType, categoryType, childMenuState.nodePath, callbacks).map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={`adl-multitree-entry__menu-item${item.danger ? " is-danger" : ""}`}
-              role="menuitem"
-              onClick={() => { item.action(); setChildMenuState(null); }}
+      {childMenuState
+        ? createPortal(
+            <div
+              className="adl-multitree-entry__menu"
+              role="menu"
+              data-menu-id="browser-child-menu"
+              style={{ top: childMenuState.y, left: childMenuState.x }}
             >
-              {item.label}
-            </button>
-          ))}
-        </div>,
-        document.body,
-      ) : null}
+              {getChildNodeMoreMenuItems(
+                childMenuState.nodeType,
+                categoryType,
+                childMenuState.nodePath,
+                callbacks
+              ).map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`adl-multitree-entry__menu-item${item.danger ? ' is-danger' : ''}`}
+                  role="menuitem"
+                  onClick={() => {
+                    item.action();
+                    setChildMenuState(null);
+                  }}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>,
+            document.body
+          )
+        : null}
     </div>
   );
 }

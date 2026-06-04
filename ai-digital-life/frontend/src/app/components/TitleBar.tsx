@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import { renderIcon, type IconName } from "../../design-system/icons";
-import { TooltipSimple } from "./Tooltip";
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { renderIcon, type IconName } from '../../design-system/icons';
+import { TooltipSimple } from './Tooltip';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -40,13 +40,13 @@ export interface TitleBarProps {
 /** Thin React wrapper around `renderIcon()` so every consumer stays consistent. */
 function TbIcon({
   name,
-  size = "sm",
+  size = 'sm',
   className,
   title,
   decorative = true,
 }: {
   name: IconName;
-  size?: "xs" | "sm" | "md" | "lg" | "xl" | "2xl";
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl';
   className?: string;
   title?: string;
   decorative?: boolean;
@@ -87,7 +87,7 @@ function MenuDropdown({ id, label, icon, children }: MenuDropdownProps) {
     if (!open) return;
 
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") close();
+      if (e.key === 'Escape') close();
     }
 
     function handleClickOutside(e: MouseEvent) {
@@ -96,12 +96,12 @@ function MenuDropdown({ id, label, icon, children }: MenuDropdownProps) {
       }
     }
 
-    document.addEventListener("keydown", handleKeyDown);
-    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('mousedown', handleClickOutside);
 
     return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [open, close]);
 
@@ -141,7 +141,7 @@ function MenuItem({ label, shortcut, disabled = false, danger = false, onClick }
   return (
     <button
       type="button"
-      className={`adl-titlebar-menu__item${danger ? " adl-titlebar-menu__item--danger" : ""}`}
+      className={`adl-titlebar-menu__item${danger ? ' adl-titlebar-menu__item--danger' : ''}`}
       role="menuitem"
       disabled={disabled}
       onClick={(e) => {
@@ -150,9 +150,7 @@ function MenuItem({ label, shortcut, disabled = false, danger = false, onClick }
       }}
     >
       <span className="adl-titlebar-menu__item-label">{label}</span>
-      {shortcut ? (
-        <span className="adl-titlebar-menu__item-shortcut">{shortcut}</span>
-      ) : null}
+      {shortcut ? <span className="adl-titlebar-menu__item-shortcut">{shortcut}</span> : null}
     </button>
   );
 }
@@ -200,8 +198,8 @@ export function TitleBar({
   /* ----------------------------------------------------------------
    *  Resolve icons that change based on visibility state.
    * ---------------------------------------------------------------- */
-  const leftIcon: IconName = leftSidebarVisible ? "panel-left-close" : "panel-left";
-  const rightIcon: IconName = rightPanelVisible ? "panel-right-close" : "panel-right";
+  const leftIcon: IconName = leftSidebarVisible ? 'panel-left-close' : 'panel-left';
+  const rightIcon: IconName = rightPanelVisible ? 'panel-right-close' : 'panel-right';
 
   /* ---------------------------------------------------------------
    *  Render
@@ -212,9 +210,7 @@ export function TitleBar({
       <div className="adl-titlebar__region adl-titlebar__region--menu">
         {/* Brand area */}
         <div className="adl-titlebar__brand">
-          <span className="pill pill--accent adl-titlebar__phase-badge">
-            {phaseLabel}
-          </span>
+          <span className="pill pill--accent adl-titlebar__phase-badge">{phaseLabel}</span>
           <span className="adl-titlebar__app-name">{appName}</span>
         </div>
 
@@ -231,12 +227,12 @@ export function TitleBar({
 
           <MenuDropdown id="view" label="View">
             <MenuItem
-              label={leftSidebarVisible ? "Hide Left Sidebar" : "Show Left Sidebar"}
+              label={leftSidebarVisible ? 'Hide Left Sidebar' : 'Show Left Sidebar'}
               shortcut="Ctrl+B"
               onClick={onToggleLeftSidebar}
             />
             <MenuItem
-              label={rightPanelVisible ? "Hide Right Panel" : "Show Right Panel"}
+              label={rightPanelVisible ? 'Hide Right Panel' : 'Show Right Panel'}
               shortcut="Ctrl+J"
               onClick={onToggleRightSidebar}
             />
@@ -272,22 +268,22 @@ export function TitleBar({
 
       {/* ======== Region 3: Panel Controls ======== */}
       <div className="adl-titlebar__region adl-titlebar__region--panels">
-        <TooltipSimple content={leftSidebarVisible ? "Hide left sidebar" : "Show left sidebar"}>
+        <TooltipSimple content={leftSidebarVisible ? 'Hide left sidebar' : 'Show left sidebar'}>
           <button
             type="button"
             className="adl-titlebar-control-btn"
-            aria-label={leftSidebarVisible ? "Hide left sidebar" : "Show left sidebar"}
+            aria-label={leftSidebarVisible ? 'Hide left sidebar' : 'Show left sidebar'}
             onClick={onToggleLeftSidebar}
           >
             <TbIcon name={leftIcon} size="sm" decorative />
           </button>
         </TooltipSimple>
 
-        <TooltipSimple content={rightPanelVisible ? "Hide right panel" : "Show right panel"}>
+        <TooltipSimple content={rightPanelVisible ? 'Hide right panel' : 'Show right panel'}>
           <button
             type="button"
             className="adl-titlebar-control-btn"
-            aria-label={rightPanelVisible ? "Hide right panel" : "Show right panel"}
+            aria-label={rightPanelVisible ? 'Hide right panel' : 'Show right panel'}
             onClick={onToggleRightSidebar}
           >
             <TbIcon name={rightIcon} size="sm" decorative />
@@ -319,11 +315,11 @@ export function TitleBar({
           </button>
         </TooltipSimple>
 
-        <TooltipSimple content={isMaximized ? "Restore" : "Maximize"}>
+        <TooltipSimple content={isMaximized ? 'Restore' : 'Maximize'}>
           <button
             type="button"
             className="adl-titlebar-control-btn"
-            aria-label={isMaximized ? "Restore" : "Maximize"}
+            aria-label={isMaximized ? 'Restore' : 'Maximize'}
             onClick={onMaximize}
           >
             {isMaximized ? (

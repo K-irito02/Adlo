@@ -1,8 +1,8 @@
-import React from "react";
-import { IconMoreVertical } from "../../icons";
-import { TooltipSimple } from "../../components/Tooltip";
-import type { CopyDict } from "../../i18n";
-import type { TerminalMenuItem } from "./useTerminalPanel";
+import React from 'react';
+import { IconMoreVertical } from '../../icons';
+import { TooltipSimple } from '../../components/Tooltip';
+import type { CopyDict } from '../../i18n';
+import type { TerminalMenuItem } from './useTerminalPanel';
 
 interface TerminalMenuDropdownProps {
   menuOpen: boolean;
@@ -19,14 +19,14 @@ export const TerminalMenuDropdown = React.memo(function TerminalMenuDropdown({
   menuItems,
   onToggle,
   onClose,
-  t
+  t,
 }: TerminalMenuDropdownProps) {
   return (
     <div ref={menuRef} className="adl-menu adl-file-context__menu">
       <TooltipSimple content={t.terminalMoreActions} placement="top">
         <button
           type="button"
-          className={`adl-tool-context__iconbtn${menuOpen ? " is-open" : ""}`}
+          className={`adl-tool-context__iconbtn${menuOpen ? ' is-open' : ''}`}
           onClick={onToggle}
           aria-label={t.terminalMoreActions}
           aria-haspopup="menu"
@@ -38,7 +38,7 @@ export const TerminalMenuDropdown = React.memo(function TerminalMenuDropdown({
       {menuOpen ? (
         <div className="adl-menu__dropdown adl-file-context__dropdown" role="menu">
           {menuItems.map((item) =>
-            "separator" in item ? (
+            'separator' in item ? (
               <div key={item.id} className="adl-menu__sep" role="separator" />
             ) : (
               <button

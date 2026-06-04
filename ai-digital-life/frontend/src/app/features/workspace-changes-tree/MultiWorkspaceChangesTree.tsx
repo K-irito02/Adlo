@@ -1,10 +1,14 @@
-import React, { useCallback, useMemo, useState } from "react";
-import type { RecentWorkspaceEntry, WorkspaceTreeNode, ReorderWorkspacesInput } from "@ai-digital-life/kernel";
-import type { CopyDict } from "../../i18n";
-import type { FileTreeContextMenuItem } from "../../features/file-tree";
-import { MultiWorkspaceContainer } from "../multi-workspace/MultiWorkspaceContainer";
-import { WorkspaceChangesEntry } from "./WorkspaceChangesEntry";
-import { moveIdWithinBucket } from "../../utils/dragUtils";
+import React, { useCallback, useMemo, useState } from 'react';
+import type {
+  RecentWorkspaceEntry,
+  WorkspaceTreeNode,
+  ReorderWorkspacesInput,
+} from '@ai-digital-life/kernel';
+import type { CopyDict } from '../../i18n';
+import type { FileTreeContextMenuItem } from '../../features/file-tree';
+import { MultiWorkspaceContainer } from '../multi-workspace/MultiWorkspaceContainer';
+import { WorkspaceChangesEntry } from './WorkspaceChangesEntry';
+import { moveIdWithinBucket } from '../../utils/dragUtils';
 
 export interface MultiWorkspaceChangesTreeProps {
   workspaces: RecentWorkspaceEntry[];
@@ -65,12 +69,12 @@ export function MultiWorkspaceChangesTree({
 
   const pinnedIds = useMemo(
     () => workspaces.filter((w) => w.isPinned).map((w) => w.id),
-    [workspaces],
+    [workspaces]
   );
 
   const unpinnedIds = useMemo(
     () => workspaces.filter((w) => !w.isPinned).map((w) => w.id),
-    [workspaces],
+    [workspaces]
   );
 
   const handleDrop = useCallback(
@@ -91,7 +95,7 @@ export function MultiWorkspaceChangesTree({
       onReorderWorkspaces({ pinnedIds: finalPinnedIds, unpinnedIds: finalUnpinnedIds });
       setDragWorkspaceId(undefined);
     },
-    [dragWorkspaceId, pinnedIds, unpinnedIds, onReorderWorkspaces],
+    [dragWorkspaceId, pinnedIds, unpinnedIds, onReorderWorkspaces]
   );
 
   const renderContent = useCallback(
@@ -100,7 +104,7 @@ export function MultiWorkspaceChangesTree({
       return (
         <div
           key={workspace.id}
-          className={`adl-multitree-entry${dragWorkspaceId === workspace.id ? " is-dragging" : ""}`}
+          className={`adl-multitree-entry${dragWorkspaceId === workspace.id ? ' is-dragging' : ''}`}
           draggable
           onDragStart={() => setDragWorkspaceId(workspace.id)}
           onDragOver={(e) => e.preventDefault()}
@@ -160,7 +164,7 @@ export function MultiWorkspaceChangesTree({
       t,
       handleDrop,
       renderMeta,
-    ],
+    ]
   );
 
   if (workspaces.length === 0) {

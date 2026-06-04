@@ -1,6 +1,6 @@
-import React, { useCallback } from "react";
-import { BrowserTreeEntry } from "./BrowserTreeEntry";
-import type { BrowserCategoryState, BrowserCategoryType } from "./types";
+import React, { useCallback } from 'react';
+import { BrowserTreeEntry } from './BrowserTreeEntry';
+import type { BrowserCategoryState, BrowserCategoryType } from './types';
 
 export interface SectionCallbacks {
   onCreateTab: (workspaceId?: string, folderId?: string) => void;
@@ -9,7 +9,7 @@ export interface SectionCallbacks {
   onRemoveFromArea: (workspaceId: string) => void;
   onDeleteDirectory: (folderId: string) => void;
   onRenameDirectory: (folderId: string) => void;
-  onDeleteHistory: (level: "label" | "year" | "month" | "day", nodePath: string) => void;
+  onDeleteHistory: (level: 'label' | 'year' | 'month' | 'day', nodePath: string) => void;
   onOpenTab: (url: string, tabId?: string) => void;
 }
 
@@ -36,10 +36,7 @@ export function BrowserCategorySection({
   callbacks,
   counts,
 }: BrowserCategorySectionProps) {
-  const handleOpenFile = useCallback(
-    (path: string) => onOpenFile(path),
-    [onOpenFile],
-  );
+  const handleOpenFile = useCallback((path: string) => onOpenFile(path), [onOpenFile]);
 
   const topLevelCount = category.nodes.length;
 
@@ -49,7 +46,7 @@ export function BrowserCategorySection({
         <span className="adl-browser-category__label-text">{category.label}</span>
         <span className="adl-browser-category__label-count">{topLevelCount}</span>
       </div>
-      {(categoryType === "workspace" || categoryType === "history") && (
+      {(categoryType === 'workspace' || categoryType === 'history') && (
         <div className="adl-browser-category__spacer" />
       )}
       <div className="adl-browser-category__entries">

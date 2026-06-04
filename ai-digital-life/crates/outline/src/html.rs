@@ -99,27 +99,25 @@ pub(crate) fn parse_html_outline(content: &str) -> Vec<OutlineDraft> {
                 .map(|value| value.as_str().to_ascii_lowercase())
                 .unwrap_or_default();
             let attrs = captures.get(2).map(|value| value.as_str()).unwrap_or("");
-            let self_closing = captures
-                .get(3)
-                .map(|value| !value.as_str().is_empty())
-                .unwrap_or(false)
-                || matches!(
-                    tag.as_str(),
-                    "area"
-                        | "base"
-                        | "br"
-                        | "col"
-                        | "embed"
-                        | "hr"
-                        | "img"
-                        | "input"
-                        | "link"
-                        | "meta"
-                        | "param"
-                        | "source"
-                        | "track"
-                        | "wbr"
-                );
+            let self_closing =
+                captures.get(3).map(|value| !value.as_str().is_empty()).unwrap_or(false)
+                    || matches!(
+                        tag.as_str(),
+                        "area"
+                            | "base"
+                            | "br"
+                            | "col"
+                            | "embed"
+                            | "hr"
+                            | "img"
+                            | "input"
+                            | "link"
+                            | "meta"
+                            | "param"
+                            | "source"
+                            | "track"
+                            | "wbr"
+                    );
             let is_closing = raw.starts_with("</");
             if is_closing {
                 while let Some(current) = tag_stack.pop() {

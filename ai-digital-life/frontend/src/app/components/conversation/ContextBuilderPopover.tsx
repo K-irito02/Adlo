@@ -1,6 +1,6 @@
-import React, { useEffect, useRef } from "react";
-import type { CopyDict } from "../../i18n";
-import type { ChatMode, ContextChip } from "../../stores/types";
+import React, { useEffect, useRef } from 'react';
+import type { CopyDict } from '../../i18n';
+import type { ChatMode, ContextChip } from '../../stores/types';
 import {
   IconBookOpen,
   IconBug,
@@ -12,8 +12,8 @@ import {
   IconLink,
   IconMessageQuestion,
   IconPlug,
-  IconSparkles
-} from "../../icons";
+  IconSparkles,
+} from '../../icons';
 
 export function ContextBuilderPopover({
   t,
@@ -21,7 +21,7 @@ export function ContextBuilderPopover({
   onClose,
   chatMode,
   onSelectMode,
-  onAddChip
+  onAddChip,
 }: {
   t: CopyDict;
   open: boolean;
@@ -36,8 +36,8 @@ export function ContextBuilderPopover({
     const handler = (e: MouseEvent) => {
       if (!ref.current?.contains(e.target as Node)) onClose();
     };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
   }, [open, onClose]);
 
   if (!open) return null;
@@ -45,15 +45,20 @@ export function ContextBuilderPopover({
   const uid = () => `ctx-${Math.random().toString(36).slice(2, 10)}`;
 
   return (
-    <div ref={ref} className="adl-context-popover" role="dialog" aria-label={t.contextBuilderHeading}>
+    <div
+      ref={ref}
+      className="adl-context-popover"
+      role="dialog"
+      aria-label={t.contextBuilderHeading}
+    >
       <header>{t.contextBuilderHeading}</header>
       <section>
         <h5>{t.contextGroupModes}</h5>
         <button
           type="button"
-          className={`adl-context-item${chatMode === "plan" ? " is-active" : ""}`}
+          className={`adl-context-item${chatMode === 'plan' ? ' is-active' : ''}`}
           onClick={() => {
-            onSelectMode("plan");
+            onSelectMode('plan');
             onClose();
           }}
         >
@@ -62,9 +67,9 @@ export function ContextBuilderPopover({
         </button>
         <button
           type="button"
-          className={`adl-context-item${chatMode === "debug" ? " is-active" : ""}`}
+          className={`adl-context-item${chatMode === 'debug' ? ' is-active' : ''}`}
           onClick={() => {
-            onSelectMode("debug");
+            onSelectMode('debug');
             onClose();
           }}
         >
@@ -73,9 +78,9 @@ export function ContextBuilderPopover({
         </button>
         <button
           type="button"
-          className={`adl-context-item${chatMode === "ask" ? " is-active" : ""}`}
+          className={`adl-context-item${chatMode === 'ask' ? ' is-active' : ''}`}
           onClick={() => {
-            onSelectMode("ask");
+            onSelectMode('ask');
             onClose();
           }}
         >
@@ -89,7 +94,7 @@ export function ContextBuilderPopover({
           type="button"
           className="adl-context-item"
           onClick={() => {
-            onAddChip({ id: uid(), kind: "model", label: t.contextAddModel });
+            onAddChip({ id: uid(), kind: 'model', label: t.contextAddModel });
             onClose();
           }}
         >
@@ -100,7 +105,7 @@ export function ContextBuilderPopover({
           type="button"
           className="adl-context-item"
           onClick={() => {
-            onAddChip({ id: uid(), kind: "skill", label: t.contextAddSkill });
+            onAddChip({ id: uid(), kind: 'skill', label: t.contextAddSkill });
             onClose();
           }}
         >
@@ -111,7 +116,7 @@ export function ContextBuilderPopover({
           type="button"
           className="adl-context-item"
           onClick={() => {
-            onAddChip({ id: uid(), kind: "mcp", label: t.contextAddMcp });
+            onAddChip({ id: uid(), kind: 'mcp', label: t.contextAddMcp });
             onClose();
           }}
         >
@@ -122,7 +127,7 @@ export function ContextBuilderPopover({
           type="button"
           className="adl-context-item"
           onClick={() => {
-            onAddChip({ id: uid(), kind: "file", label: t.contextAddImage });
+            onAddChip({ id: uid(), kind: 'file', label: t.contextAddImage });
             onClose();
           }}
         >
@@ -136,7 +141,7 @@ export function ContextBuilderPopover({
           type="button"
           className="adl-context-item"
           onClick={() => {
-            onAddChip({ id: uid(), kind: "file", label: t.contextAddFile });
+            onAddChip({ id: uid(), kind: 'file', label: t.contextAddFile });
             onClose();
           }}
         >
@@ -147,7 +152,7 @@ export function ContextBuilderPopover({
           type="button"
           className="adl-context-item"
           onClick={() => {
-            onAddChip({ id: uid(), kind: "doc", label: t.contextAddDoc });
+            onAddChip({ id: uid(), kind: 'doc', label: t.contextAddDoc });
             onClose();
           }}
         >
@@ -158,7 +163,7 @@ export function ContextBuilderPopover({
           type="button"
           className="adl-context-item"
           onClick={() => {
-            onAddChip({ id: uid(), kind: "url", label: t.contextAddUrl });
+            onAddChip({ id: uid(), kind: 'url', label: t.contextAddUrl });
             onClose();
           }}
         >
@@ -169,7 +174,7 @@ export function ContextBuilderPopover({
           type="button"
           className="adl-context-item"
           onClick={() => {
-            onAddChip({ id: uid(), kind: "codebase", label: t.contextAddCodebase });
+            onAddChip({ id: uid(), kind: 'codebase', label: t.contextAddCodebase });
             onClose();
           }}
         >

@@ -15,12 +15,12 @@
   box-shadow: var(--tooltip-shadow);
 }
 
-.tooltip[data-state="open"] {
+.tooltip[data-state='open'] {
   transition: opacity var(--duration-150) var(--ease-enter);
   opacity: 1;
 }
 
-.tooltip[data-state="closed"] {
+.tooltip[data-state='closed'] {
   transition: opacity var(--duration-100) var(--ease-exit);
   opacity: 0;
   pointer-events: none;
@@ -35,24 +35,24 @@
   clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
 }
 
-.tooltip[data-side="top"] .tooltip__arrow {
+.tooltip[data-side='top'] .tooltip__arrow {
   bottom: -7px;
   left: calc(50% - 4px);
   transform: rotate(180deg);
 }
 
-.tooltip[data-side="bottom"] .tooltip__arrow {
+.tooltip[data-side='bottom'] .tooltip__arrow {
   top: -7px;
   left: calc(50% - 4px);
 }
 
-.tooltip[data-side="left"] .tooltip__arrow {
+.tooltip[data-side='left'] .tooltip__arrow {
   right: -6px;
   top: calc(50% - 4px);
   transform: rotate(90deg);
 }
 
-.tooltip[data-side="right"] .tooltip__arrow {
+.tooltip[data-side='right'] .tooltip__arrow {
   left: -6px;
   top: calc(50% - 4px);
   transform: rotate(-90deg);
@@ -101,11 +101,11 @@
     transition: none !important;
   }
 
-  .tooltip[data-state="open"] {
+  .tooltip[data-state='open'] {
     opacity: 1;
   }
 
-  .tooltip[data-state="closed"] {
+  .tooltip[data-state='closed'] {
     opacity: 0;
   }
 }

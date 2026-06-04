@@ -1,13 +1,13 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useShallow } from "zustand/react/shallow";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import type {
   ApprovalRequestSummary,
   ModelProviderId,
-  RecentWorkspaceEntry
-} from "@ai-digital-life/kernel";
-import type { CopyDict, Locale } from "../i18n";
-import { MODEL_PROVIDER_IDS } from "../utils/constants";
-import { WorkspaceSplitButton } from "../components/WorkspaceSplitButton";
+  RecentWorkspaceEntry,
+} from '@ai-digital-life/kernel';
+import type { CopyDict, Locale } from '../i18n';
+import { MODEL_PROVIDER_IDS } from '../utils/constants';
+import { WorkspaceSplitButton } from '../components/WorkspaceSplitButton';
 import {
   IconArrowUp,
   IconFolder,
@@ -19,23 +19,23 @@ import {
   IconPlus,
   IconRefreshCw,
   IconStopCircle,
-  IconShield
-} from "../icons";
-import { ContextBuilderPopover } from "../components/conversation/ContextBuilderPopover";
-import { ApprovalCard } from "../components/approval/ApprovalCard";
-import { MessageStream } from "../components/MessageStream";
-import { useAppStore } from "../stores/slicedStore";
-import { useAppActions } from "../hooks/useAppActions";
-import { useUiStore } from "../stores/ui-store";
-import { TooltipSimple } from "../components/Tooltip";
-import { StatusBar } from "./StatusBar";
-import { ApprovalInlineCard, WelcomeState, ComposerFooter } from "./center-pane";
+  IconShield,
+} from '../icons';
+import { ContextBuilderPopover } from '../components/conversation/ContextBuilderPopover';
+import { ApprovalCard } from '../components/approval/ApprovalCard';
+import { MessageStream } from '../components/MessageStream';
+import { useAppStore } from '../stores/slicedStore';
+import { useAppActions } from '../hooks/useAppActions';
+import { useUiStore } from '../stores/ui-store';
+import { TooltipSimple } from '../components/Tooltip';
+import { StatusBar } from './StatusBar';
+import { ApprovalInlineCard, WelcomeState, ComposerFooter } from './center-pane';
 
 interface CenterPaneProps {
   t: CopyDict;
 }
 
-type ButtonState = "send" | "stop" | "retry" | "waiting";
+type ButtonState = 'send' | 'stop' | 'retry' | 'waiting';
 
 export function CenterPane({ t }: CenterPaneProps) {
   const actions = useAppActions();
@@ -54,20 +54,22 @@ export function CenterPane({ t }: CenterPaneProps) {
   const gitBranches = useAppStore(useShallow((s) => s.gitBranches));
   const recentWorkspaces = useAppStore(useShallow((s) => s.recentWorkspaces));
   const fetchRunActivityByRunId = useAppStore((state) => state.fetchRunActivityByRunId);
-  const locale = (appInfo?.config.language ?? "zh-CN") as Locale;
+  const locale = (appInfo?.config.language ?? 'zh-CN') as Locale;
   const hasWorkspace = !!appInfo?.currentWorkspace;
   const activeDetail = activeSessionId ? sessionDetails[activeSessionId] : undefined;
 
   const handleSelectModel = useCallback(
     (providerId: ModelProviderId, modelId?: string) => {
-      const patch: Record<ModelProviderId, { priority?: number; enabled?: boolean; modelId?: string }> =
-        {} as Record<ModelProviderId, { priority?: number; enabled?: boolean; modelId?: string }>;
+      const patch: Record<
+        ModelProviderId,
+        { priority?: number; enabled?: boolean; modelId?: string }
+      > = {} as Record<ModelProviderId, { priority?: number; enabled?: boolean; modelId?: string }>;
       for (const id of MODEL_PROVIDER_IDS) {
         if (id === providerId) {
           patch[id] = {
             priority: 1,
             enabled: true,
-            ...(modelId ? { modelId } : {})
+            ...(modelId ? { modelId } : {}),
           };
         } else {
           patch[id] = { priority: 2 };
@@ -78,7 +80,7 @@ export function CenterPane({ t }: CenterPaneProps) {
     [actions.updatePreferences]
   );
 
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState('');
   const [hasError, setHasError] = useState(false);
   const [composerFocused, setComposerFocused] = useState(false);
   const composerEditorRef = useRef<HTMLDivElement | null>(null);
@@ -91,7 +93,7 @@ export function CenterPane({ t }: CenterPaneProps) {
     setChatMode,
     setContextMenuOpen,
     addContextChip,
-    removeContextChip
+    removeContextChip,
   } = useUiStore(
     useShallow((state) => ({
       chatMode: state.chatMode,
@@ -100,7 +102,7 @@ export function CenterPane({ t }: CenterPaneProps) {
       setChatMode: state.setChatMode,
       setContextMenuOpen: state.setContextMenuOpen,
       addContextChip: state.addContextChip,
-      removeContextChip: state.removeContextChip
+      removeContextChip: state.removeContextChip,
     }))
   );
 
@@ -110,7 +112,7 @@ export function CenterPane({ t }: CenterPaneProps) {
     // Best-effort prefetch for replay: only when we see assistant messages with runId.
     const runIds = new Set<string>();
     for (const msg of messages) {
-      if (msg.role === "assistant" && msg.runId) {
+      if (msg.role === 'assistant' && msg.runId) {
         runIds.add(msg.runId);
       }
     }
@@ -120,9 +122,9 @@ export function CenterPane({ t }: CenterPaneProps) {
   }, [fetchRunActivityByRunId, messages]);
 
   const buttonState: ButtonState = useMemo(() => {
-    if (streamingActiveRunId) return "stop";
-    if (hasError) return "retry";
-    return "send";
+    if (streamingActiveRunId) return 'stop';
+    if (hasError) return 'retry';
+    return 'send';
   }, [hasError, streamingActiveRunId]);
 
   const handleSend = useCallback(async () => {
@@ -130,7 +132,7 @@ export function CenterPane({ t }: CenterPaneProps) {
     if (!content) return;
     try {
       setHasError(false);
-      setDraft("");
+      setDraft('');
       await actions.sendMessage(content, { mode: chatMode, chips: contextChips });
     } catch {
       setHasError(true);
@@ -163,8 +165,8 @@ export function CenterPane({ t }: CenterPaneProps) {
     const range = selection.getRangeAt(0).cloneRange();
     const rect = range.getBoundingClientRect();
 
-    if ((rect.width === 0 && rect.height === 0) || !(editor.textContent ?? "").length) {
-      caret.style.left = "0px";
+    if ((rect.width === 0 && rect.height === 0) || !(editor.textContent ?? '').length) {
+      caret.style.left = '0px';
       caret.style.top = `${Math.max(0, (editorWrapRect.height - lineHeight) / 2) + caretOffset}px`;
       caret.style.height = `${caretHeight}px`;
       caret.hidden = false;
@@ -191,25 +193,25 @@ export function CenterPane({ t }: CenterPaneProps) {
     if (!composerFocused) return;
 
     const syncCaret = () => window.requestAnimationFrame(updateCustomCaret);
-    document.addEventListener("selectionchange", syncCaret);
-    window.addEventListener("resize", syncCaret);
+    document.addEventListener('selectionchange', syncCaret);
+    window.addEventListener('resize', syncCaret);
 
     syncCaret();
     return () => {
-      document.removeEventListener("selectionchange", syncCaret);
-      window.removeEventListener("resize", syncCaret);
+      document.removeEventListener('selectionchange', syncCaret);
+      window.removeEventListener('resize', syncCaret);
     };
   }, [composerFocused, updateCustomCaret]);
 
   const onKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
-      if (event.key === "Enter") {
+      if (event.key === 'Enter') {
         event.preventDefault();
-        if (!event.shiftKey && buttonState === "send") {
+        if (!event.shiftKey && buttonState === 'send') {
           void handleSend();
         }
       }
-      if (event.key === "Escape" && streamingActiveRunId) {
+      if (event.key === 'Escape' && streamingActiveRunId) {
         event.preventDefault();
         actions.cancelActiveStream();
       }
@@ -217,16 +219,20 @@ export function CenterPane({ t }: CenterPaneProps) {
     [actions.cancelActiveStream, buttonState, handleSend, streamingActiveRunId]
   );
 
-  const onInput = useCallback((event: React.FormEvent<HTMLDivElement>) => {
-    const normalized = (event.currentTarget.textContent ?? "").replace(/\s*[\r\n]+\s*/g, " ");
-    if (event.currentTarget.textContent !== normalized) {
-      event.currentTarget.textContent = normalized;
-    }
-    setDraft(normalized);
-    window.requestAnimationFrame(updateCustomCaret);
-  }, [updateCustomCaret]);
+  const onInput = useCallback(
+    (event: React.FormEvent<HTMLDivElement>) => {
+      const normalized = (event.currentTarget.textContent ?? '').replace(/\s*[\r\n]+\s*/g, ' ');
+      if (event.currentTarget.textContent !== normalized) {
+        event.currentTarget.textContent = normalized;
+      }
+      setDraft(normalized);
+      window.requestAnimationFrame(updateCustomCaret);
+    },
+    [updateCustomCaret]
+  );
 
-  const hasMessages = messages.filter(m => m.id !== "message-welcome").length > 0 || !!streamingAssistantText;
+  const hasMessages =
+    messages.filter((m) => m.id !== 'message-welcome').length > 0 || !!streamingAssistantText;
 
   return (
     <section className="adl-center" aria-label={t.conversation}>
@@ -244,7 +250,9 @@ export function CenterPane({ t }: CenterPaneProps) {
       ) : null}
 
       {/* Region 8 / 9: Main stream area */}
-      <div className={`adl-center__body${!activeDetail || !hasMessages ? " adl-center__body--empty" : ""}`}>
+      <div
+        className={`adl-center__body${!activeDetail || !hasMessages ? ' adl-center__body--empty' : ''}`}
+      >
         {!activeDetail || !hasMessages ? (
           <div className="adl-center__empty">
             <WelcomeState
@@ -303,7 +311,6 @@ export function CenterPane({ t }: CenterPaneProps) {
         handleSelectModel={handleSelectModel}
         actions={actions}
       />
-
     </section>
   );
 }

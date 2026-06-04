@@ -14,7 +14,9 @@
   opacity: 0;
   pointer-events: none;
   border-right-width: 0;
-  transition: width 100ms var(--ease-default) 50ms, opacity 50ms var(--ease-exit);
+  transition:
+    width 100ms var(--ease-default) 50ms,
+    opacity 50ms var(--ease-exit);
 }
 .adl-tool-primary__terminal-bar input {
   flex: 1;
@@ -346,7 +348,15 @@
   padding: 1em 1.15em;
   font-size: var(--text-sm, 13px);
   line-height: 1.65;
-  font-family: var(--font-mono, 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'SF Mono', Consolas, monospace);
+  font-family: var(
+    --font-mono,
+    'Cascadia Code',
+    'Fira Code',
+    'JetBrains Mono',
+    'SF Mono',
+    Consolas,
+    monospace
+  );
 }
 
 .adl-markdown-preview pre code {
@@ -362,7 +372,15 @@
   padding: 0.15em 0.4em;
   border-radius: var(--radius-sm, 3px);
   font-size: 0.875em;
-  font-family: var(--font-mono, 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'SF Mono', Consolas, monospace);
+  font-family: var(
+    --font-mono,
+    'Cascadia Code',
+    'Fira Code',
+    'JetBrains Mono',
+    'SF Mono',
+    Consolas,
+    monospace
+  );
   color: var(--editor-syntax-string, var(--accent, var(--primary)));
 }
 
@@ -398,7 +416,7 @@
   background: var(--bg-hover, rgba(128, 128, 128, 0.06));
 }
 
-.adl-markdown-preview input[type="checkbox"] {
+.adl-markdown-preview input[type='checkbox'] {
   margin-right: 0.5em;
   accent-color: var(--accent, var(--primary));
   transform: scale(1.1);
@@ -412,8 +430,6 @@
 }
 
 /* Syntax highlighting moved to editor-surface.css (deduplicated) */
-
-
 
 .adl-tool-main__scroll--terminal {
   padding: 0;

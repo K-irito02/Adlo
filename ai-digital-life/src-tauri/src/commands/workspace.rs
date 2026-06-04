@@ -24,9 +24,7 @@ pub fn workspace_open(
         let (meta, _recent) =
             adl_workspace::open_workspace(PathBuf::from(workspace_path).as_path())?;
         persist_workspace_meta(&state, &meta)?;
-        state
-            .event_bus
-            .emit(adl_events::AppEvent::WorkspaceOpened(meta.id.clone()));
+        state.event_bus.emit(adl_events::AppEvent::WorkspaceOpened(meta.id.clone()));
 
         let snapshot = adl_workspace::build_retrieval_snapshot(
             &meta.id,
@@ -41,11 +39,7 @@ pub fn workspace_open(
             &snapshot,
         )?;
         let _ = app.emit("digital-life://retrieval-status", &snapshot);
-        state
-            .event_bus
-            .emit(adl_events::AppEvent::RetrievalStatusChanged(
-                meta.id.clone(),
-            ));
+        state.event_bus.emit(adl_events::AppEvent::RetrievalStatusChanged(meta.id.clone()));
         super::workspace_sidebar::upsert_sidebar_after_open(&state, &meta)?;
         Ok(meta)
     })
@@ -69,9 +63,7 @@ pub fn workspace_pick_directory(app: tauri::AppHandle) -> IpcResult<Option<Strin
     let result = match path {
         Some(fp) => match fp.into_path() {
             Ok(pb) => Ok(Some(pb.to_string_lossy().to_string())),
-            Err(e) => Err(AppError::Workspace(format!(
-                "failed to resolve folder path: {e}"
-            ))),
+            Err(e) => Err(AppError::Workspace(format!("failed to resolve folder path: {e}"))),
         },
         None => Ok(None),
     };
@@ -164,11 +156,7 @@ pub fn workspace_set_editor_dirty_paths(
             .lock()
             .map_err(|_| AppError::Internal("dirty path mutex poisoned".into()))?;
         dirty.clear();
-        dirty.extend(
-            relative_paths
-                .into_iter()
-                .map(|path| path.replace('\\', "/")),
-        );
+        dirty.extend(relative_paths.into_iter().map(|path| path.replace('\\', "/")));
         Ok(true)
     })
 }
@@ -179,10 +167,7 @@ pub fn workspace_emit_file_changed(
     path: String,
     last_modified_at: i64,
 ) -> IpcResult<bool> {
-    let event = WorkspaceFileChangedEvent {
-        path,
-        last_modified_at,
-    };
+    let event = WorkspaceFileChangedEvent { path, last_modified_at };
     let _ = app.emit("digital-life://workspace-file-changed", event);
     IpcResult::ok(true)
 }
@@ -203,19 +188,13 @@ pub fn workspace_delete_file(
     relative_path: String,
 ) -> IpcResult<bool> {
     let succeeded = with_workspace(&state, |workspace| {
-        adl_workspace::delete_entry(
-            PathBuf::from(&workspace.root_path).as_path(),
-            &relative_path,
-        )
+        adl_workspace::delete_entry(PathBuf::from(&workspace.root_path).as_path(), &relative_path)
     });
     match succeeded {
         Ok(true) => {
             let _ = app.emit(
                 "digital-life://workspace-file-changed",
-                WorkspaceFileChangedEvent {
-                    path: relative_path,
-                    last_modified_at: now_ms(),
-                },
+                WorkspaceFileChangedEvent { path: relative_path, last_modified_at: now_ms() },
             );
             IpcResult::ok(true)
         }
@@ -291,8 +270,5 @@ pub fn latest_retrieval(state: &AppState) -> Result<Option<RetrievalSnapshot>, A
     else {
         return Ok(None);
     };
-    state
-        .db
-        .load_entity(EntityTable::RetrievalSnapshots, &workspace.id)
+    state.db.load_entity(EntityTable::RetrievalSnapshots, &workspace.id)
 }
-

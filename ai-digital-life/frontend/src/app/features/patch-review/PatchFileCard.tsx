@@ -1,9 +1,9 @@
-import React from "react";
-import { IconFileText } from "../../icons";
-import { getChangeKindLabel } from "../../regions/right-panel/ChangesPanel/utils";
-import { PatchHunkCard } from "./PatchHunkCard";
-import type { PatchFileSummary } from "./patchReview";
-import type { PatchHunkDecision } from "@ai-digital-life/kernel";
+import React from 'react';
+import { IconFileText } from '../../icons';
+import { getChangeKindLabel } from '../../regions/right-panel/ChangesPanel/utils';
+import { PatchHunkCard } from './PatchHunkCard';
+import type { PatchFileSummary } from './patchReview';
+import type { PatchHunkDecision } from '@ai-digital-life/kernel';
 
 export interface PatchFileCardProps {
   summary: PatchFileSummary;
@@ -34,7 +34,7 @@ export function PatchFileCard({
   onSelectPatchFile,
   onTogglePatchHunkCollapse,
   onSelectPatchHunk,
-  onSetHunkDecision
+  onSetHunkDecision,
 }: PatchFileCardProps) {
   const isActiveFile = summary.relativePath === activeSummary?.relativePath;
   return (
@@ -42,7 +42,7 @@ export function PatchFileCard({
       ref={(element) => {
         activeCardRef.current[summary.relativePath] = element;
       }}
-      className={`adl-patch-file-card${isActiveFile ? " is-active" : ""}`}
+      className={`adl-patch-file-card${isActiveFile ? ' is-active' : ''}`}
     >
       <header className="adl-patch-file-card__header">
         <button
@@ -52,7 +52,7 @@ export function PatchFileCard({
             onSelectPatchFile(summary.relativePath, {
               activateTool: true,
               line: summary.hunks[0]?.targetLine,
-              hunkId: summary.hunks[0]?.id
+              hunkId: summary.hunks[0]?.id,
             })
           }
         >

@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
-import { EditorView } from "@codemirror/view";
-import { estimateWrapColumn } from "../editor-support/cmWrapColumn";
-import type { EditorRef } from "../../../stores/types";
+import { useEffect, useState } from 'react';
+import { EditorView } from '@codemirror/view';
+import { estimateWrapColumn } from '../editor-support/cmWrapColumn';
+import type { EditorRef } from '../../../stores/types';
 
 interface UseWrapColumnInput {
   getStickySourceEditor: () => EditorRef | null;
@@ -40,14 +40,14 @@ function useWrapColumn(input: UseWrapColumnInput): number | null {
     }
 
     const disposable = editor.onDidLayoutChange?.(schedule);
-    window.addEventListener("resize", schedule);
+    window.addEventListener('resize', schedule);
 
     return () => {
       if (frame) {
         cancelAnimationFrame(frame);
       }
       disposable?.dispose();
-      window.removeEventListener("resize", schedule);
+      window.removeEventListener('resize', schedule);
     };
   }, [
     input.diffSideBySide,

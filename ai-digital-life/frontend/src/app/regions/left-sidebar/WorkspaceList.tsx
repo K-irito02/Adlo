@@ -1,6 +1,6 @@
-import React, { useCallback, useState } from "react";
-import type { ReorderWorkspacesInput } from "@ai-digital-life/kernel";
-import type { CopyDict } from "../../i18n";
+import React, { useCallback, useState } from 'react';
+import type { ReorderWorkspacesInput } from '@ai-digital-life/kernel';
+import type { CopyDict } from '../../i18n';
 import {
   IconArchive,
   IconCollapseRows,
@@ -8,11 +8,16 @@ import {
   IconMoreVertical,
   IconPin,
   IconPinOff,
-  IconPlus
-} from "../../icons";
-import { TooltipSimple } from "../../components/Tooltip";
-import type { SidebarSessionItem, SidebarWorkspaceItem } from "../../utils/sidebarViewModel";
-import { STATUS_LABEL, WorkspaceDirectoryIcon, buildWorkspaceTooltip, StatusLamp } from "./SidebarContextMenu";
+  IconPlus,
+} from '../../icons';
+import { TooltipSimple } from '../../components/Tooltip';
+import type { SidebarSessionItem, SidebarWorkspaceItem } from '../../utils/sidebarViewModel';
+import {
+  STATUS_LABEL,
+  WorkspaceDirectoryIcon,
+  buildWorkspaceTooltip,
+  StatusLamp,
+} from './SidebarContextMenu';
 
 export interface WorkspaceListProps {
   t: CopyDict;
@@ -32,12 +37,17 @@ export interface WorkspaceListProps {
   onContextMenu: (workspaceId: string, x: number, y: number) => void;
   renderSessionRows: (
     sessionItems: SidebarSessionItem[],
-    options: { listKey: string; workspaceId?: string; interactive?: boolean; allowStandaloneReorder?: boolean }
+    options: {
+      listKey: string;
+      workspaceId?: string;
+      interactive?: boolean;
+      allowStandaloneReorder?: boolean;
+    }
   ) => React.ReactNode;
   workspaceToolbarRef: React.RefObject<HTMLDivElement | null>;
 }
 
-import { moveIdWithinBucket } from "../../utils/dragUtils";
+import { moveIdWithinBucket } from '../../utils/dragUtils';
 
 export function WorkspaceList({
   t,
@@ -65,7 +75,9 @@ export function WorkspaceList({
       if (!dragWorkspaceId || dragWorkspaceId === targetWorkspaceId) {
         return;
       }
-      const bucketItems = workspaceItems.filter((item) => item.workspace.isPinned === isPinnedBucket).map((item) => item.workspace.id);
+      const bucketItems = workspaceItems
+        .filter((item) => item.workspace.isPinned === isPinnedBucket)
+        .map((item) => item.workspace.id);
       if (!bucketItems.includes(dragWorkspaceId)) {
         return;
       }
@@ -89,7 +101,9 @@ export function WorkspaceList({
           <span className="adl-section-toolbar__label">{t.projects}</span>
           <TooltipSimple
             content={
-              workspaceItems.every((item) => expandedSessionWorkspaces[item.workspace.path] ?? item.isCurrent)
+              workspaceItems.every(
+                (item) => expandedSessionWorkspaces[item.workspace.path] ?? item.isCurrent
+              )
                 ? t.collapseSessions
                 : t.expand
             }
@@ -99,21 +113,30 @@ export function WorkspaceList({
               type="button"
               className="adl-icon-btn adl-icon-btn--xs"
               onClick={() => {
-                const allExpanded = workspaceItems.every((item) => expandedSessionWorkspaces[item.workspace.path] ?? item.isCurrent);
+                const allExpanded = workspaceItems.every(
+                  (item) => expandedSessionWorkspaces[item.workspace.path] ?? item.isCurrent
+                );
                 for (const item of workspaceItems) {
                   const shouldBeExpanded = !allExpanded;
-                  if (shouldBeExpanded !== (expandedSessionWorkspaces[item.workspace.path] ?? item.isCurrent)) {
+                  if (
+                    shouldBeExpanded !==
+                    (expandedSessionWorkspaces[item.workspace.path] ?? item.isCurrent)
+                  ) {
                     toggleSessionWorkspace(item.workspace.path);
                   }
                 }
               }}
               aria-label={
-                workspaceItems.every((item) => expandedSessionWorkspaces[item.workspace.path] ?? item.isCurrent)
+                workspaceItems.every(
+                  (item) => expandedSessionWorkspaces[item.workspace.path] ?? item.isCurrent
+                )
                   ? t.collapseSessions
                   : t.expand
               }
             >
-              {workspaceItems.every((item) => expandedSessionWorkspaces[item.workspace.path] ?? item.isCurrent) ? (
+              {workspaceItems.every(
+                (item) => expandedSessionWorkspaces[item.workspace.path] ?? item.isCurrent
+              ) ? (
                 <IconCollapseRows size={14} decorative />
               ) : (
                 <IconExpandRows size={14} decorative />
@@ -122,14 +145,21 @@ export function WorkspaceList({
           </TooltipSimple>
         </div>
         <TooltipSimple content={t.quickNewWorkspace} placement="right">
-          <button type="button" className="adl-icon-btn adl-icon-btn--xs" onClick={onTriggerCreateWorkspace} aria-label={t.quickNewWorkspace}>
+          <button
+            type="button"
+            className="adl-icon-btn adl-icon-btn--xs"
+            onClick={onTriggerCreateWorkspace}
+            aria-label={t.quickNewWorkspace}
+          >
             <IconPlus size={14} decorative />
           </button>
         </TooltipSimple>
       </div>
 
       <ul className="adl-workspace-list" role="tree">
-        {workspaceItems.length === 0 ? <li className="adl-empty-hint">{t.workspaceEmpty}</li> : null}
+        {workspaceItems.length === 0 ? (
+          <li className="adl-empty-hint">{t.workspaceEmpty}</li>
+        ) : null}
         {workspaceItems.map((item) => {
           const expanded = expandedSessionWorkspaces[item.workspace.path] ?? item.isCurrent;
           const workspaceStatusLabel = t[STATUS_LABEL[item.rollupStatus]] as string;
@@ -137,7 +167,7 @@ export function WorkspaceList({
           return (
             <li
               key={item.workspace.id}
-              className={`adl-workspace-item${item.isCurrent ? " is-current" : ""}`}
+              className={`adl-workspace-item${item.isCurrent ? ' is-current' : ''}`}
               draggable
               onDragStart={() => setDragWorkspaceId(item.workspace.id)}
               onDragOver={(event) => event.preventDefault()}
@@ -162,11 +192,22 @@ export function WorkspaceList({
                 <span className="adl-workspace-row__leading">
                   {expanded ? (
                     <TooltipSimple content={t.workspaces} placement="right">
-                      <WorkspaceDirectoryIcon expanded status={item.rollupStatus} title={workspaceStatusLabel} />
+                      <WorkspaceDirectoryIcon
+                        expanded
+                        status={item.rollupStatus}
+                        title={workspaceStatusLabel}
+                      />
                     </TooltipSimple>
                   ) : (
-                    <TooltipSimple content={buildWorkspaceTooltip(t, item.statusCounts)} placement="right">
-                      <WorkspaceDirectoryIcon expanded={false} status={item.rollupStatus} title={workspaceStatusLabel} />
+                    <TooltipSimple
+                      content={buildWorkspaceTooltip(t, item.statusCounts)}
+                      placement="right"
+                    >
+                      <WorkspaceDirectoryIcon
+                        expanded={false}
+                        status={item.rollupStatus}
+                        title={workspaceStatusLabel}
+                      />
                     </TooltipSimple>
                   )}
                 </span>
@@ -190,17 +231,26 @@ export function WorkspaceList({
 
                 <div className="adl-workspace-row__tail">
                   <span className="adl-workspace-row__secondary">
-                    <TooltipSimple content={item.workspace.isPinned ? t.sessionMenuUnpin : t.sessionMenuPin} placement="right">
+                    <TooltipSimple
+                      content={item.workspace.isPinned ? t.sessionMenuUnpin : t.sessionMenuPin}
+                      placement="right"
+                    >
                       <button
                         type="button"
                         className="adl-workspace-row__pin"
                         onClick={(event) => {
                           event.stopPropagation();
-                          item.workspace.isPinned ? onUnpinWorkspace(item.workspace.id) : onPinWorkspace(item.workspace.id);
+                          item.workspace.isPinned
+                            ? onUnpinWorkspace(item.workspace.id)
+                            : onPinWorkspace(item.workspace.id);
                         }}
                         aria-label={item.workspace.isPinned ? t.sessionMenuUnpin : t.sessionMenuPin}
                       >
-                        {item.workspace.isPinned ? <IconPinOff size={12} decorative /> : <IconPin size={12} decorative />}
+                        {item.workspace.isPinned ? (
+                          <IconPinOff size={12} decorative />
+                        ) : (
+                          <IconPin size={12} decorative />
+                        )}
                       </button>
                     </TooltipSimple>
                   </span>
@@ -243,12 +293,21 @@ export function WorkspaceList({
               {expanded ? (
                 <div className="adl-session-wrapper">
                   <ul className="adl-session-list" role="group">
-                    {item.sessions.length === 0 ? <li className="adl-empty-hint adl-empty-hint--nested">{t.sessionEmpty}</li> : null}
-                    {renderSessionRows(item.sessions, { listKey: `workspace:${item.workspace.id}`, workspaceId: item.workspace.id })}
+                    {item.sessions.length === 0 ? (
+                      <li className="adl-empty-hint adl-empty-hint--nested">{t.sessionEmpty}</li>
+                    ) : null}
+                    {renderSessionRows(item.sessions, {
+                      listKey: `workspace:${item.workspace.id}`,
+                      workspaceId: item.workspace.id,
+                    })}
                   </ul>
 
                   {item.archivedSessions.length > 0 ? (
-                    <details className="adl-archive" open={archiveOpen} onToggle={(event) => setArchiveOpen(event.currentTarget.open)}>
+                    <details
+                      className="adl-archive"
+                      open={archiveOpen}
+                      onToggle={(event) => setArchiveOpen(event.currentTarget.open)}
+                    >
                       <summary>
                         <IconArchive size={12} decorative />
                         <span>{t.sessionMenuArchive}</span>
@@ -266,7 +325,9 @@ export function WorkspaceList({
                                 <StatusLamp status="read" title={t.statusRead} />
                               </span>
                               <span className="adl-session-item__title">
-                                <span className="adl-session-item__title-text">{sessionItem.session.title}</span>
+                                <span className="adl-session-item__title-text">
+                                  {sessionItem.session.title}
+                                </span>
                               </span>
                             </button>
                           </li>

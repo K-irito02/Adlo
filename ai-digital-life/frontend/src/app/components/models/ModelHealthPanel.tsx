@@ -1,7 +1,7 @@
-import React, { useState } from "react";
-import type { ModelGatewayHealthSnapshot } from "@ai-digital-life/kernel";
-import type { CopyDict } from "../../i18n";
-import { IconCheckCircle, IconAlertTriangle, IconRefreshCw } from "../../icons";
+import React, { useState } from 'react';
+import type { ModelGatewayHealthSnapshot } from '@ai-digital-life/kernel';
+import type { CopyDict } from '../../i18n';
+import { IconCheckCircle, IconAlertTriangle, IconRefreshCw } from '../../icons';
 
 interface ModelHealthPanelProps {
   t: CopyDict;
@@ -10,7 +10,12 @@ interface ModelHealthPanelProps {
   onTestConnection?: (providerId: string) => void;
 }
 
-export function ModelHealthPanel({ t, modelHealth, onRefresh, onTestConnection }: ModelHealthPanelProps) {
+export function ModelHealthPanel({
+  t,
+  modelHealth,
+  onRefresh,
+  onTestConnection,
+}: ModelHealthPanelProps) {
   const [testingId, setTestingId] = useState<string | null>(null);
 
   const providers = modelHealth?.providers ?? [];
@@ -27,9 +32,15 @@ export function ModelHealthPanel({ t, modelHealth, onRefresh, onTestConnection }
         {providers.map((provider) => (
           <li key={provider.providerId} className="adl-model-health__provider">
             <div className="adl-model-health__info">
-              {provider.healthy ? <IconCheckCircle size={14} decorative /> : <IconAlertTriangle size={14} decorative />}
+              {provider.healthy ? (
+                <IconCheckCircle size={14} decorative />
+              ) : (
+                <IconAlertTriangle size={14} decorative />
+              )}
               <span className="adl-model-health__name">{provider.providerId}</span>
-              <span className={`adl-chip adl-chip--xs ${provider.healthy ? "adl-chip--success" : "adl-chip--danger"}`}>
+              <span
+                className={`adl-chip adl-chip--xs ${provider.healthy ? 'adl-chip--success' : 'adl-chip--danger'}`}
+              >
                 {provider.healthy ? t.modelOnline : t.modelOffline}
               </span>
             </div>
@@ -50,9 +61,7 @@ export function ModelHealthPanel({ t, modelHealth, onRefresh, onTestConnection }
             )}
           </li>
         ))}
-        {providers.length === 0 && (
-          <li className="adl-empty-hint">{t.noResults}</li>
-        )}
+        {providers.length === 0 && <li className="adl-empty-hint">{t.noResults}</li>}
       </ul>
     </div>
   );

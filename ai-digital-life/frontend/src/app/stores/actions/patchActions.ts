@@ -1,11 +1,15 @@
-import type { StoreState } from "../StoreState";
-import { mapPatchToEditorTab } from "../../utils/editorTabs";
-import type { StoreApi } from "zustand";
-import { postMutationRefresh, clearError, captureError } from "../shared";
+import type { StoreState } from '../StoreState';
+import { mapPatchToEditorTab } from '../../utils/editorTabs';
+import type { StoreApi } from 'zustand';
+import { postMutationRefresh, clearError, captureError } from '../shared';
 
-export function createPatchActions(set: StoreApi<StoreState>["setState"], get: () => StoreState) {
+export function createPatchActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
   return {
-    setHunkDecision: async (patchSetId: string, hunkId: string, decision: "pending" | "accepted" | "rejected") => {
+    setHunkDecision: async (
+      patchSetId: string,
+      hunkId: string,
+      decision: 'pending' | 'accepted' | 'rejected'
+    ) => {
       clearError(get);
       const result = await window.digitalLife.patch.setHunkDecision({
         patchSetId,
@@ -31,7 +35,7 @@ export function createPatchActions(set: StoreApi<StoreState>["setState"], get: (
         latestPatchApplication: result.data,
         latestCommandRun: result.data.commandResult
           ? {
-              status: "completed",
+              status: 'completed',
               taskId: result.data.commandResult.request.id,
               request: result.data.commandResult.request,
               result: result.data.commandResult,
@@ -52,7 +56,8 @@ export function createPatchActions(set: StoreApi<StoreState>["setState"], get: (
           },
         }));
       }
-      const filePath = (result.data.repairPatchSet ?? result.data.patchSet).filePatches[0]?.relativePath;
+      const filePath = (result.data.repairPatchSet ?? result.data.patchSet).filePatches[0]
+        ?.relativePath;
       if (filePath) await get().openFile(filePath);
       const runId = result.data.patchSet.runId;
       if (runId) {
@@ -90,8 +95,8 @@ export function createPatchActions(set: StoreApi<StoreState>["setState"], get: (
       if (!patchSet) return;
       for (const filePatch of patchSet.filePatches) {
         for (const hunk of filePatch.hunks) {
-          if (hunk.decision !== "accepted")
-            await get().setHunkDecision(patchSet.id, hunk.id, "accepted");
+          if (hunk.decision !== 'accepted')
+            await get().setHunkDecision(patchSet.id, hunk.id, 'accepted');
         }
       }
     },
@@ -101,8 +106,8 @@ export function createPatchActions(set: StoreApi<StoreState>["setState"], get: (
       if (!patchSet) return;
       for (const filePatch of patchSet.filePatches) {
         for (const hunk of filePatch.hunks) {
-          if (hunk.decision !== "rejected")
-            await get().setHunkDecision(patchSet.id, hunk.id, "rejected");
+          if (hunk.decision !== 'rejected')
+            await get().setHunkDecision(patchSet.id, hunk.id, 'rejected');
         }
       }
     },

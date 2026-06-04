@@ -1,8 +1,8 @@
-import React, { useEffect, useRef } from "react";
-import type { CopyDict } from "../../i18n";
+import React, { useEffect, useRef } from 'react';
+import type { CopyDict } from '../../i18n';
 
 interface FileCreationBarProps {
-  createTarget: "file" | "folder";
+  createTarget: 'file' | 'folder';
   createPathValue: string;
   createInputRef: React.RefObject<HTMLInputElement | null>;
   isValidPath: (value: string) => boolean;
@@ -22,7 +22,7 @@ function FileCreationBar({
   onCancel,
   t,
 }: FileCreationBarProps) {
-  const prevTargetRef = useRef<"file" | "folder" | null>(null);
+  const prevTargetRef = useRef<'file' | 'folder' | null>(null);
 
   useEffect(() => {
     if (prevTargetRef.current !== createTarget) {
@@ -34,7 +34,7 @@ function FileCreationBar({
     }
   }, [createTarget, createInputRef]);
 
-  const isFile = createTarget === "file";
+  const isFile = createTarget === 'file';
 
   return (
     <div className="adl-tool-navigator__createbar">
@@ -45,11 +45,11 @@ function FileCreationBar({
         value={createPathValue}
         onChange={(event) => onPathChange(event.target.value)}
         onKeyDown={(event) => {
-          if (event.key === "Enter") {
+          if (event.key === 'Enter') {
             event.preventDefault();
             void onSubmit();
           }
-          if (event.key === "Escape") {
+          if (event.key === 'Escape') {
             event.preventDefault();
             onCancel();
           }
@@ -64,11 +64,7 @@ function FileCreationBar({
       >
         {(isFile ? t.fileNewFile : t.fileNewFolder) as string}
       </button>
-      <button
-        type="button"
-        className="adl-btn adl-btn--ghost adl-btn--sm"
-        onClick={onCancel}
-      >
+      <button type="button" className="adl-btn adl-btn--ghost adl-btn--sm" onClick={onCancel}>
         {t.cancel as string}
       </button>
     </div>

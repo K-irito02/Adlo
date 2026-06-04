@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import type { EditorView } from "@codemirror/view";
-import { foldable, foldedRanges } from "@codemirror/language";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import type { EditorView } from '@codemirror/view';
+import { foldable, foldedRanges } from '@codemirror/language';
 
 interface TooltipState {
   text: string;
@@ -11,7 +11,7 @@ interface TooltipState {
 interface PositionState {
   left: number;
   top: number;
-  side: "right" | "left";
+  side: 'right' | 'left';
 }
 
 interface FoldTooltipOverlayProps {
@@ -66,20 +66,24 @@ function computeTooltipText(view: EditorView, lineNum: number, isClosed: boolean
   return `折叠至${endLine}行`;
 }
 
-function computePosition(triggerRect: DOMRect, tooltipWidth: number, tooltipHeight: number): PositionState {
+function computePosition(
+  triggerRect: DOMRect,
+  tooltipWidth: number,
+  tooltipHeight: number
+): PositionState {
   const offset = 4;
   const viewportW = window.innerWidth;
   const viewportH = window.innerHeight;
   const padding = 4;
 
-  let side: "right" | "left" = "right";
+  let side: 'right' | 'left' = 'right';
   const rightPos = triggerRect.right + offset;
   if (rightPos + tooltipWidth > viewportW - padding) {
-    side = "left";
+    side = 'left';
   }
 
   let left: number;
-  if (side === "right") {
+  if (side === 'right') {
     left = rightPos;
     if (left < padding) left = padding;
   } else {
@@ -123,7 +127,7 @@ export function FoldTooltipOverlay({ view }: FoldTooltipOverlayProps) {
   useEffect(() => {
     if (!view) return;
 
-    const gutter = view.dom.querySelector(".cm-foldGutter") as HTMLElement | null;
+    const gutter = view.dom.querySelector('.cm-foldGutter') as HTMLElement | null;
     const content = view.contentDOM;
     if (!gutter || !content) return;
 
@@ -131,11 +135,11 @@ export function FoldTooltipOverlay({ view }: FoldTooltipOverlayProps) {
       for (const mutation of mutations) {
         for (const node of mutation.addedNodes) {
           if (node instanceof HTMLElement) {
-            if (node.matches?.(".cm-foldPlaceholder")) {
-              node.removeAttribute("title");
+            if (node.matches?.('.cm-foldPlaceholder')) {
+              node.removeAttribute('title');
             }
-            node.querySelectorAll?.(".cm-foldPlaceholder").forEach((el) => {
-              el.removeAttribute("title");
+            node.querySelectorAll?.('.cm-foldPlaceholder').forEach((el) => {
+              el.removeAttribute('title');
             });
           }
         }
@@ -143,16 +147,16 @@ export function FoldTooltipOverlay({ view }: FoldTooltipOverlayProps) {
     });
     observer.observe(content, { childList: true, subtree: true });
 
-    content.querySelectorAll(".cm-foldPlaceholder").forEach((el) => {
-      el.removeAttribute("title");
+    content.querySelectorAll('.cm-foldPlaceholder').forEach((el) => {
+      el.removeAttribute('title');
     });
 
     const handleMouseOver = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
 
-      const gutterEl = target.closest(".cm-gutterElement") as HTMLElement | null;
+      const gutterEl = target.closest('.cm-gutterElement') as HTMLElement | null;
       if (gutterEl) {
-        const marker = gutterEl.querySelector(".adl-cm-fold-marker") as HTMLElement | null;
+        const marker = gutterEl.querySelector('.adl-cm-fold-marker') as HTMLElement | null;
         if (marker) {
           if (hideTimerRef.current !== null) {
             clearTimeout(hideTimerRef.current);
@@ -162,7 +166,7 @@ export function FoldTooltipOverlay({ view }: FoldTooltipOverlayProps) {
           const lineNum = getLineFromGutterElement(view, gutterEl);
           if (lineNum === null) return;
 
-          const isClosed = marker.classList.contains("adl-cm-fold-marker--closed");
+          const isClosed = marker.classList.contains('adl-cm-fold-marker--closed');
           const text = computeTooltipText(view, lineNum, isClosed);
           if (!text) return;
 
@@ -172,9 +176,9 @@ export function FoldTooltipOverlay({ view }: FoldTooltipOverlayProps) {
         }
       }
 
-      const placeholder = target.closest(".cm-foldPlaceholder") as HTMLElement | null;
+      const placeholder = target.closest('.cm-foldPlaceholder') as HTMLElement | null;
       if (placeholder) {
-        placeholder.removeAttribute("title");
+        placeholder.removeAttribute('title');
 
         if (hideTimerRef.current !== null) {
           clearTimeout(hideTimerRef.current);
@@ -195,13 +199,13 @@ export function FoldTooltipOverlay({ view }: FoldTooltipOverlayProps) {
     const handleMouseOut = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
 
-      const gutterEl = target.closest(".cm-gutterElement") as HTMLElement | null;
-      if (gutterEl && gutterEl.querySelector(".adl-cm-fold-marker")) {
+      const gutterEl = target.closest('.cm-gutterElement') as HTMLElement | null;
+      if (gutterEl && gutterEl.querySelector('.adl-cm-fold-marker')) {
         scheduleHide();
         return;
       }
 
-      const placeholder = target.closest(".cm-foldPlaceholder") as HTMLElement | null;
+      const placeholder = target.closest('.cm-foldPlaceholder') as HTMLElement | null;
       if (placeholder) {
         scheduleHide();
       }
@@ -211,17 +215,17 @@ export function FoldTooltipOverlay({ view }: FoldTooltipOverlayProps) {
       hide();
     };
 
-    gutter.addEventListener("mouseover", handleMouseOver);
-    gutter.addEventListener("mouseout", handleMouseOut);
-    content.addEventListener("mouseover", handleMouseOver);
-    content.addEventListener("mouseout", handleMouseOut);
+    gutter.addEventListener('mouseover', handleMouseOver);
+    gutter.addEventListener('mouseout', handleMouseOut);
+    content.addEventListener('mouseover', handleMouseOver);
+    content.addEventListener('mouseout', handleMouseOut);
 
     return () => {
       observer.disconnect();
-      gutter.removeEventListener("mouseover", handleMouseOver);
-      gutter.removeEventListener("mouseout", handleMouseOut);
-      content.removeEventListener("mouseover", handleMouseOver);
-      content.removeEventListener("mouseout", handleMouseOut);
+      gutter.removeEventListener('mouseover', handleMouseOver);
+      gutter.removeEventListener('mouseout', handleMouseOut);
+      content.removeEventListener('mouseover', handleMouseOver);
+      content.removeEventListener('mouseout', handleMouseOut);
       if (hideTimerRef.current !== null) {
         clearTimeout(hideTimerRef.current);
         hideTimerRef.current = null;
@@ -241,16 +245,16 @@ export function FoldTooltipOverlay({ view }: FoldTooltipOverlayProps) {
 
   const isVisible = tooltipState !== null && position !== null;
 
-  const side = position?.side ?? "right";
+  const side = position?.side ?? 'right';
   const style: React.CSSProperties = position
-    ? { position: "fixed", left: position.left, top: position.top }
-    : { position: "fixed", left: -9999, top: -9999, visibility: "hidden" };
+    ? { position: 'fixed', left: position.left, top: position.top }
+    : { position: 'fixed', left: -9999, top: -9999, visibility: 'hidden' };
 
   return createPortal(
     <div
       ref={tooltipRef}
       role="tooltip"
-      data-state={isVisible ? "open" : "closed"}
+      data-state={isVisible ? 'open' : 'closed'}
       data-side={side}
       className="tooltip"
       style={style}

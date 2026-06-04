@@ -1,8 +1,8 @@
-import type { StoreState } from "../StoreState";
-import type { StoreApi } from "zustand";
-import { postMutationRefresh, clearError, captureError } from "../shared";
+import type { StoreState } from '../StoreState';
+import type { StoreApi } from 'zustand';
+import { postMutationRefresh, clearError, captureError } from '../shared';
 
-export function createCommandActions(set: StoreApi<StoreState>["setState"], get: () => StoreState) {
+export function createCommandActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
   return {
     runCommand: async (command: string, argsText: string) => {
       if (!command.trim()) return;

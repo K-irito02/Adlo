@@ -41,10 +41,7 @@ fn single_agent_patch_preview_apply_and_rollback_flow() {
     let rolled_back = adl_change_engine::rollback_patch_set(applied, &root).unwrap();
     let restored = std::fs::read_to_string(root.join("src/lib.rs")).unwrap();
     assert_eq!(restored, "pub fn answer() -> i32 { 42 }\n");
-    assert!(matches!(
-        rolled_back.status,
-        adl_kernel::PatchSetStatus::RolledBack
-    ));
+    assert!(matches!(rolled_back.status, adl_kernel::PatchSetStatus::RolledBack));
 
     let _ = std::fs::remove_dir_all(root);
 }

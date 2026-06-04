@@ -1,1 +1,1 @@
-export { BrowserPanel } from "../../../features/browser";
+export { BrowserPanel } from '../../../features/browser';

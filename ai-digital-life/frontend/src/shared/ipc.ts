@@ -37,26 +37,26 @@ import type {
   WorkspaceGitBranchSwitchInput,
   WorkspaceTreeNode,
   WorkspaceSearchHit,
-  WorkspaceMeta
-} from "@ai-digital-life/kernel";
+  WorkspaceMeta,
+} from '@ai-digital-life/kernel';
 
 export enum IpcErrorCode {
-  NOT_FOUND = "NOT_FOUND",
-  INVALID_INPUT = "INVALID_INPUT",
-  STORAGE_ERROR = "STORAGE_ERROR",
-  WORKSPACE_ERROR = "WORKSPACE_ERROR",
-  CONFIG_ERROR = "CONFIG_ERROR",
-  IO_ERROR = "IO_ERROR",
-  MIGRATION_ERROR = "MIGRATION_ERROR",
-  SECURITY_ERROR = "SECURITY_ERROR",
-  APPROVAL_REQUIRED = "APPROVAL_REQUIRED",
-  PATCH_ERROR = "PATCH_ERROR",
-  TERMINAL_ERROR = "TERMINAL_ERROR",
-  MODEL_ERROR = "MODEL_ERROR",
-  INTERNAL_ERROR = "INTERNAL_ERROR",
-  NETWORK_ERROR = "NETWORK_ERROR",
-  INVOKE_ERROR = "INVOKE_ERROR",
-  PREVIEW_API_ERROR = "PREVIEW_API_ERROR",
+  NOT_FOUND = 'NOT_FOUND',
+  INVALID_INPUT = 'INVALID_INPUT',
+  STORAGE_ERROR = 'STORAGE_ERROR',
+  WORKSPACE_ERROR = 'WORKSPACE_ERROR',
+  CONFIG_ERROR = 'CONFIG_ERROR',
+  IO_ERROR = 'IO_ERROR',
+  MIGRATION_ERROR = 'MIGRATION_ERROR',
+  SECURITY_ERROR = 'SECURITY_ERROR',
+  APPROVAL_REQUIRED = 'APPROVAL_REQUIRED',
+  PATCH_ERROR = 'PATCH_ERROR',
+  TERMINAL_ERROR = 'TERMINAL_ERROR',
+  MODEL_ERROR = 'MODEL_ERROR',
+  INTERNAL_ERROR = 'INTERNAL_ERROR',
+  NETWORK_ERROR = 'NETWORK_ERROR',
+  INVOKE_ERROR = 'INVOKE_ERROR',
+  PREVIEW_API_ERROR = 'PREVIEW_API_ERROR',
 }
 
 export function createIpcError(code: IpcErrorCode, message: string) {
@@ -69,7 +69,7 @@ export interface PtySessionInfo {
   cwd: string;
   cols: number;
   rows: number;
-  status: "Running" | "Terminated";
+  status: 'Running' | 'Terminated';
   output?: string;
 }
 
@@ -116,9 +116,15 @@ export interface WorkspaceBridge {
   createFile: (relativePath: string, content?: string) => Promise<IpcResult<WorkspaceFileDocument>>;
   createFolder: (relativePath: string) => Promise<IpcResult<boolean>>;
   readFile: (relativePath: string) => Promise<IpcResult<WorkspaceFileDocument>>;
-  readFileForWorkspace: (workspacePath: string, relativePath: string) => Promise<IpcResult<WorkspaceFileDocument>>;
+  readFileForWorkspace: (
+    workspacePath: string,
+    relativePath: string
+  ) => Promise<IpcResult<WorkspaceFileDocument>>;
   getChangePreview: (relativePath: string) => Promise<IpcResult<WorkspaceChangePreview>>;
-  getChangePreviewForWorkspace: (workspacePath: string, relativePath: string) => Promise<IpcResult<WorkspaceChangePreview>>;
+  getChangePreviewForWorkspace: (
+    workspacePath: string,
+    relativePath: string
+  ) => Promise<IpcResult<WorkspaceChangePreview>>;
   listTree: () => Promise<IpcResult<WorkspaceTreeNode[]>>;
   search: (query: string) => Promise<IpcResult<WorkspaceSearchHit[]>>;
   outline: (relativePath: string) => Promise<IpcResult<FileOutlineItem[]>>;
@@ -131,8 +137,12 @@ export interface WorkspaceBridge {
   moveFile: (relativePath: string, newPath: string) => Promise<IpcResult<boolean>>;
   getGitStatus: () => Promise<IpcResult<GitSnapshot>>;
   listGitBranches: () => Promise<IpcResult<GitBranchSummary[]>>;
-  switchGitBranch: (input: WorkspaceGitBranchSwitchInput) => Promise<IpcResult<WorkspaceGitBranchChangeResult>>;
-  createGitBranch: (input: WorkspaceGitBranchCreateInput) => Promise<IpcResult<WorkspaceGitBranchChangeResult>>;
+  switchGitBranch: (
+    input: WorkspaceGitBranchSwitchInput
+  ) => Promise<IpcResult<WorkspaceGitBranchChangeResult>>;
+  createGitBranch: (
+    input: WorkspaceGitBranchCreateInput
+  ) => Promise<IpcResult<WorkspaceGitBranchChangeResult>>;
 }
 
 export interface RetrievalBridge {
@@ -142,24 +152,41 @@ export interface RetrievalBridge {
 }
 
 export interface ConversationBridge {
-  createSession: (title?: string, workspaceId?: string) => Promise<IpcResult<ConversationSessionRecord>>;
+  createSession: (
+    title?: string,
+    workspaceId?: string
+  ) => Promise<IpcResult<ConversationSessionRecord>>;
   listSessions: () => Promise<IpcResult<ConversationSessionRecord[]>>;
   getSession: (sessionId: string) => Promise<IpcResult<ConversationDetail | undefined>>;
-  renameSession: (input: { sessionId: string; title: string }) => Promise<IpcResult<ConversationSessionRecord>>;
+  renameSession: (input: {
+    sessionId: string;
+    title: string;
+  }) => Promise<IpcResult<ConversationSessionRecord>>;
   pinSession: (sessionId: string) => Promise<IpcResult<ConversationSessionRecord>>;
   unpinSession: (sessionId: string) => Promise<IpcResult<ConversationSessionRecord>>;
   reorderSessions: (input: ReorderSessionsInput) => Promise<IpcResult<ConversationSessionRecord[]>>;
-  markSessionRead: (input: { sessionId: string; readAt?: number }) => Promise<IpcResult<ConversationSessionRecord>>;
+  markSessionRead: (input: {
+    sessionId: string;
+    readAt?: number;
+  }) => Promise<IpcResult<ConversationSessionRecord>>;
   markSessionUnread: (sessionId: string) => Promise<IpcResult<ConversationSessionRecord>>;
   archiveSession: (sessionId: string) => Promise<IpcResult<ConversationSessionRecord>>;
   archiveAllInWorkspace: () => Promise<IpcResult<ConversationSessionRecord[]>>;
   deleteSession: (sessionId: string) => Promise<IpcResult<boolean>>;
-  sendMessage: (input: { sessionId: string; content: string; scenario?: "chat" | "plan" | "code-edit" }) => Promise<IpcResult<ConversationSendResult>>;
+  sendMessage: (input: {
+    sessionId: string;
+    content: string;
+    scenario?: 'chat' | 'plan' | 'code-edit';
+  }) => Promise<IpcResult<ConversationSendResult>>;
   cancelMessage: (runId: string) => Promise<IpcResult<AgentRunDetail | undefined>>;
 }
 
 export interface AgentBridge {
-  startRun: (input: { sessionId: string; prompt: string; scenario?: "chat" | "plan" | "code-edit" }) => Promise<IpcResult<ConversationSendResult>>;
+  startRun: (input: {
+    sessionId: string;
+    prompt: string;
+    scenario?: 'chat' | 'plan' | 'code-edit';
+  }) => Promise<IpcResult<ConversationSendResult>>;
   getRun: (runId: string) => Promise<IpcResult<AgentRunDetail | undefined>>;
   retryRun: (runId: string) => Promise<IpcResult<AgentRunDetail | undefined>>;
   abortRun: (runId: string) => Promise<IpcResult<AgentRunDetail | undefined>>;
@@ -167,18 +194,31 @@ export interface AgentBridge {
 
 export interface PatchBridge {
   getPatchSet: (patchSetId: string) => Promise<IpcResult<PatchSet | undefined>>;
-  setHunkDecision: (input: { patchSetId: string; hunkId: string; decision: "pending" | "accepted" | "rejected" }) => Promise<IpcResult<PatchSet>>;
+  setHunkDecision: (input: {
+    patchSetId: string;
+    hunkId: string;
+    decision: 'pending' | 'accepted' | 'rejected';
+  }) => Promise<IpcResult<PatchSet>>;
   applyPatchSet: (patchSetId: string) => Promise<IpcResult<PatchApplicationResult>>;
   rollbackPatchSet: (patchSetId: string) => Promise<IpcResult<PatchSet>>;
 }
 
 export interface CommandBridge {
-  run: (input: { command: string; args: string[]; shell?: boolean }) => Promise<IpcResult<CommandRunResult>>;
+  run: (input: {
+    command: string;
+    args: string[];
+    shell?: boolean;
+  }) => Promise<IpcResult<CommandRunResult>>;
   listRecent: (limit?: number) => Promise<IpcResult<CommandRequest[]>>;
 }
 
 export interface PtyBridge {
-  create: (input: { shell?: string; cwd?: string; cols: number; rows: number }) => Promise<IpcResult<{ sessionId: string }>>;
+  create: (input: {
+    shell?: string;
+    cwd?: string;
+    cols: number;
+    rows: number;
+  }) => Promise<IpcResult<{ sessionId: string }>>;
   input: (sessionId: string, data: string) => Promise<IpcResult<boolean>>;
   resize: (sessionId: string, cols: number, rows: number) => Promise<IpcResult<boolean>>;
   kill: (sessionId: string) => Promise<IpcResult<boolean>>;
@@ -188,14 +228,23 @@ export interface PtyBridge {
 export interface TaskBridge {
   getSnapshot: () => Promise<IpcResult<TaskCenterSnapshot>>;
   listPendingApprovals?: () => Promise<IpcResult<ApprovalRequestSummary[]>>;
-  getCheckpointPreview: (checkpointId: string) => Promise<IpcResult<CheckpointPayloadPreview | undefined>>;
+  getCheckpointPreview: (
+    checkpointId: string
+  ) => Promise<IpcResult<CheckpointPayloadPreview | undefined>>;
   restoreCheckpoint: (checkpointId: string) => Promise<IpcResult<TaskCenterSnapshot>>;
-  decideApproval: (input: { approvalId: string; decision: "approved" | "rejected"; reason?: string }) => Promise<IpcResult<TaskCenterSnapshot>>;
+  decideApproval: (input: {
+    approvalId: string;
+    decision: 'approved' | 'rejected';
+    reason?: string;
+  }) => Promise<IpcResult<TaskCenterSnapshot>>;
   listAuditEntries: (limit?: number) => Promise<IpcResult<AuditEntry[]>>;
 }
 
 export interface RunActivityBridge {
-  listByRunId: (runId: string, limit?: number) => Promise<IpcResult<DigitalLifeRunActivityEventV1[]>>;
+  listByRunId: (
+    runId: string,
+    limit?: number
+  ) => Promise<IpcResult<DigitalLifeRunActivityEventV1[]>>;
 }
 
 export interface BrowserBridge {
@@ -209,7 +258,9 @@ export interface BrowserBridge {
 export interface DigitalLifeBridge {
   subscribeModelStream: (listener: (event: DigitalLifeModelStreamEventV1) => void) => () => void;
   subscribeRunActivity: (listener: (event: DigitalLifeRunActivityEventV1) => void) => () => void;
-  subscribeTerminalStream: (listener: (event: DigitalLifeTerminalStreamEventV1) => void) => () => void;
+  subscribeTerminalStream: (
+    listener: (event: DigitalLifeTerminalStreamEventV1) => void
+  ) => () => void;
   subscribePtyOutput: (listener: (event: PtyOutputEvent) => void) => () => void;
   window: WindowBridge;
   app: AppBridge;

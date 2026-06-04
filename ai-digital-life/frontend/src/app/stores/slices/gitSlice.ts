@@ -6,9 +6,9 @@ import type {
   GitSnapshot,
   GitBranchSummary,
   WorkspaceGitBranchCreateInput,
-  WorkspaceGitBranchSwitchInput
-} from "@ai-digital-life/kernel";
-import type { StoreState } from "../StoreState";
+  WorkspaceGitBranchSwitchInput,
+} from '@ai-digital-life/kernel';
+import type { StoreState } from '../StoreState';
 
 export interface GitSlice {
   gitSnapshot?: GitSnapshot;
@@ -27,5 +27,5 @@ export const createGitSlice = (
 
   setGitSnapshot: (snapshot) => set({ gitSnapshot: snapshot }),
   setGitBranches: (branches) => set({ gitBranches: branches }),
-  clearGitState: () => set({ gitSnapshot: undefined, gitBranches: [] })
+  clearGitState: () => set({ gitSnapshot: undefined, gitBranches: [] }),
 });

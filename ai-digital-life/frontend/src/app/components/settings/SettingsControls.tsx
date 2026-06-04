@@ -1,7 +1,7 @@
-import React from "react";
-import type { SettingItem } from "@ai-digital-life/kernel";
-import type { CopyDict } from "../../i18n";
-import { IconEye, IconEyeOff } from "../../icons";
+import React from 'react';
+import type { SettingItem } from '@ai-digital-life/kernel';
+import type { CopyDict } from '../../i18n';
+import { IconEye, IconEyeOff } from '../../icons';
 
 interface SettingsControlsProps {
   t: CopyDict;
@@ -30,7 +30,7 @@ function ToggleControl({ item, onChange }: { item: SettingItem; onChange: (v: bo
       type="button"
       role="switch"
       aria-checked={checked}
-      className={`adl-settings-toggle${checked ? " is-on" : ""}`}
+      className={`adl-settings-toggle${checked ? ' is-on' : ''}`}
       onClick={() => onChange(!checked)}
     >
       <span className="adl-settings-toggle__track">
@@ -48,7 +48,9 @@ function SelectControl({ item, onChange }: { item: SettingItem; onChange: (v: st
       onChange={(e) => onChange(e.target.value)}
     >
       {item.options?.map((opt) => (
-        <option key={opt.value} value={opt.value}>{opt.label}</option>
+        <option key={opt.value} value={opt.value}>
+          {opt.label}
+        </option>
       ))}
     </select>
   );
@@ -60,7 +62,7 @@ function InputControl({ item, onChange }: { item: SettingItem; onChange: (v: str
       type="text"
       className="adl-settings-input"
       value={String(item.value)}
-      readOnly={item.type === "readonly"}
+      readOnly={item.type === 'readonly'}
       onChange={(e) => onChange(e.target.value)}
     />
   );
@@ -71,12 +73,17 @@ function PasswordControl({ item, onChange }: { item: SettingItem; onChange: (v: 
   return (
     <div className="adl-settings-password">
       <input
-        type={visible ? "text" : "password"}
+        type={visible ? 'text' : 'password'}
         className="adl-settings-input"
         value={String(item.value)}
         onChange={(e) => onChange(e.target.value)}
       />
-      <button type="button" className="adl-icon-btn adl-icon-btn--xs" onClick={() => setVisible((v) => !v)} aria-label="Toggle visibility">
+      <button
+        type="button"
+        className="adl-icon-btn adl-icon-btn--xs"
+        onClick={() => setVisible((v) => !v)}
+        aria-label="Toggle visibility"
+      >
         {visible ? <IconEyeOff size={14} decorative /> : <IconEye size={14} decorative />}
       </button>
     </div>
@@ -93,15 +100,25 @@ export function SettingsControls({ t, items, onChange, searchQuery }: SettingsCo
       {items.map((item) => (
         <div key={item.id} className="adl-settings-row">
           <div className="adl-settings-row__label">
-            <span>{highlightMatch(item.label, searchQuery ?? "")}</span>
-            {item.description && <small>{highlightMatch(item.description, searchQuery ?? "")}</small>}
+            <span>{highlightMatch(item.label, searchQuery ?? '')}</span>
+            {item.description && (
+              <small>{highlightMatch(item.description, searchQuery ?? '')}</small>
+            )}
           </div>
           <div className="adl-settings-row__control">
-            {item.type === "toggle" && <ToggleControl item={item} onChange={(v) => onChange(item.id, v)} />}
-            {item.type === "select" && <SelectControl item={item} onChange={(v) => onChange(item.id, v)} />}
-            {item.type === "input" && <InputControl item={item} onChange={(v) => onChange(item.id, v)} />}
-            {item.type === "password" && <PasswordControl item={item} onChange={(v) => onChange(item.id, v)} />}
-            {item.type === "readonly" && <InputControl item={item} onChange={() => {}} />}
+            {item.type === 'toggle' && (
+              <ToggleControl item={item} onChange={(v) => onChange(item.id, v)} />
+            )}
+            {item.type === 'select' && (
+              <SelectControl item={item} onChange={(v) => onChange(item.id, v)} />
+            )}
+            {item.type === 'input' && (
+              <InputControl item={item} onChange={(v) => onChange(item.id, v)} />
+            )}
+            {item.type === 'password' && (
+              <PasswordControl item={item} onChange={(v) => onChange(item.id, v)} />
+            )}
+            {item.type === 'readonly' && <InputControl item={item} onChange={() => {}} />}
           </div>
         </div>
       ))}

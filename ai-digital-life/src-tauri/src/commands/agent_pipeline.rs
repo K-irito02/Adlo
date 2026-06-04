@@ -1,8 +1,6 @@
 use crate::state::AppState;
 use adl_errors::AppError;
-use adl_kernel::{
-    AgentRunDetail, ConversationScenario, ConversationSendResult, ModelResponse,
-};
+use adl_kernel::{AgentRunDetail, ConversationScenario, ConversationSendResult, ModelResponse};
 use adl_storage::EntityTable;
 use tauri::Emitter;
 
@@ -12,12 +10,12 @@ use crate::commands::conversation;
 
 const MODEL_STREAM_CHARS: usize = 120;
 
-pub(crate) fn emit_model_stream_events(app: &tauri::AppHandle, run_id: &str, response: &ModelResponse) {
-    let reason = response
-        .route
-        .as_ref()
-        .map(|r| r.reason.as_str())
-        .unwrap_or("primary route");
+pub(crate) fn emit_model_stream_events(
+    app: &tauri::AppHandle,
+    run_id: &str,
+    response: &ModelResponse,
+) {
+    let reason = response.route.as_ref().map(|r| r.reason.as_str()).unwrap_or("primary route");
     let _ = app.emit(
         "digital-life://model-stream",
         serde_json::json!({
@@ -174,11 +172,7 @@ pub(crate) fn collect_context(
                     risk_level: adl_kernel::RiskLevel::Low,
                     summary: format!("Read file context: {rel}"),
                     decision: Some("auto".into()),
-                    detail: Some(format!(
-                        "runId={}; bytes={}",
-                        detail.run.id,
-                        doc.content.len()
-                    )),
+                    detail: Some(format!("runId={}; bytes={}", detail.run.id, doc.content.len())),
                 });
                 emit_activity(serde_json::json!({
                   "type": "context-added",
@@ -239,6 +233,7 @@ pub(crate) fn collect_context(
     Ok(adl_context::sort_context(context))
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn call_model(
     state: &AppState,
     workspace: &adl_kernel::WorkspaceMeta,
@@ -254,31 +249,19 @@ pub(crate) async fn call_model(
     let messages =
         adl_agent_runtime::build_model_messages(workspace, &input.prompt, scenario, &context);
     let gateway = {
-        let config = state
-            .config
-            .read()
-            .map_err(|_| AppError::Internal("config lock poisoned".into()))?;
+        let config =
+            state.config.read().map_err(|_| AppError::Internal("config lock poisoned".into()))?;
         adl_model_gateway::ModelGateway::new(config.model_preferences.clone())?
     };
     let (model_response, model_audit) = gateway
-        .chat(
-            &workspace.id,
-            &session.id,
-            Some(detail.run.id.clone()),
-            scenario,
-            messages,
-        )
+        .chat(&workspace.id, &session.id, Some(detail.run.id.clone()), scenario, messages)
         .await;
     state.db.save_entity(
         EntityTable::ModelCallAudit,
         &model_audit.id,
         Some(&workspace.id),
         Some(&session.id),
-        Some(if model_response.synthetic {
-            "synthetic"
-        } else {
-            "ok"
-        }),
+        Some(if model_response.synthetic { "synthetic" } else { "ok" }),
         &model_audit,
     )?;
     emit_model_stream_events(app, &detail.run.id, &model_response);
@@ -383,6 +366,7 @@ pub(crate) fn generate_patches(
     Ok(patch_set)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn finalize_run(
     state: &AppState,
     workspace: &adl_kernel::WorkspaceMeta,
@@ -401,12 +385,12 @@ pub(crate) fn finalize_run(
         workspace_id: workspace.id.clone(),
         session_id: Some(session.id.clone()),
         operation_type: if patch_set.is_some() { "patch-apply".into() } else { "approval".into() },
-        risk_level: if patch_set.is_some() { adl_kernel::RiskLevel::Medium } else { adl_kernel::RiskLevel::Low },
-        summary: detail
-            .run
-            .summary
-            .clone()
-            .unwrap_or_else(|| "Agent run updated.".into()),
+        risk_level: if patch_set.is_some() {
+            adl_kernel::RiskLevel::Medium
+        } else {
+            adl_kernel::RiskLevel::Low
+        },
+        summary: detail.run.summary.clone().unwrap_or_else(|| "Agent run updated.".into()),
         decision: Some("auto".into()),
         detail: Some(format!("runId={}", detail.run.id)),
     });
@@ -422,9 +406,7 @@ pub(crate) fn finalize_run(
     conversation::save_message(state, &workspace.id, &assistant_message)?;
     adl_conversation::touch_session(session, assistant_message.created_at);
     conversation::save_session(state, session)?;
-    state
-        .event_bus
-        .emit(adl_events::AppEvent::AgentRunChanged(detail.run.id.clone()));
+    state.event_bus.emit(adl_events::AppEvent::AgentRunChanged(detail.run.id.clone()));
 
     emit_activity(serde_json::json!({
       "type": "run-done",

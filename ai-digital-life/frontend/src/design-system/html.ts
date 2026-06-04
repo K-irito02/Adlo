@@ -13,7 +13,7 @@
  * with `raw(value)` to opt out of escaping.
  */
 
-const RAW_HTML = Symbol.for("ai-digital-life.raw-html");
+const RAW_HTML = Symbol.for('ai-digital-life.raw-html');
 
 export interface RawHtml {
   readonly [RAW_HTML]: true;
@@ -25,31 +25,31 @@ export function raw(value: string): RawHtml {
 }
 
 export function isRaw(value: unknown): value is RawHtml {
-  return Boolean(value) && typeof value === "object" && (value as RawHtml)[RAW_HTML] === true;
+  return Boolean(value) && typeof value === 'object' && (value as RawHtml)[RAW_HTML] === true;
 }
 
 export function escapeHtml(value: unknown): string {
   if (value === null || value === undefined || value === false) {
-    return "";
+    return '';
   }
 
   return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
 }
 
 export type Renderable = string | number | boolean | null | undefined | RawHtml | Renderable[];
 
 function renderValue(value: Renderable): string {
   if (value === null || value === undefined || value === false) {
-    return "";
+    return '';
   }
 
   if (Array.isArray(value)) {
-    return value.map(renderValue).join("");
+    return value.map(renderValue).join('');
   }
 
   if (isRaw(value)) {
@@ -64,7 +64,7 @@ function renderValue(value: Renderable): string {
  * Returns a `RawHtml` so nested templates compose cleanly.
  */
 export function html(strings: TemplateStringsArray, ...values: Renderable[]): RawHtml {
-  let out = "";
+  let out = '';
   strings.forEach((segment, index) => {
     out += segment;
     if (index < values.length) {
@@ -92,7 +92,7 @@ export function classNames(
   for (const input of inputs) {
     if (!input) continue;
 
-    if (typeof input === "string") {
+    if (typeof input === 'string') {
       out.push(input);
       continue;
     }
@@ -102,7 +102,7 @@ export function classNames(
     }
   }
 
-  return out.join(" ");
+  return out.join(' ');
 }
 
 /**
@@ -110,9 +110,9 @@ export function classNames(
  * Used by status bar and storage tiles.
  */
 export function formatBytes(bytes: number, fractionDigits = 1): string {
-  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
 
-  const units = ["B", "KB", "MB", "GB", "TB"];
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
   const exponent = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
   const value = bytes / Math.pow(1024, exponent);
   return `${value.toFixed(fractionDigits)} ${units[exponent]}`;

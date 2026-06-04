@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState } from 'react';
 
 interface EditorOptionsConfig {
   readOnly: boolean;
@@ -37,7 +37,7 @@ function useEditorOptions(): UseEditorOptionsResult {
         lineNumbersEnabled,
         wordWrapEnabled,
       }),
-    [lineNumbersEnabled, wordWrapEnabled],
+    [lineNumbersEnabled, wordWrapEnabled]
   );
 
   const diffOptions = useMemo(
@@ -47,7 +47,7 @@ function useEditorOptions(): UseEditorOptionsResult {
         lineNumbersEnabled,
         wordWrapEnabled,
       }),
-    [lineNumbersEnabled, wordWrapEnabled],
+    [lineNumbersEnabled, wordWrapEnabled]
   );
 
   return {

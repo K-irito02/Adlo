@@ -2,11 +2,11 @@
  * 终端切片
  * 管理终端标签页、会话等状态
  */
-import type { StoreState } from "../StoreState";
+import type { StoreState } from '../StoreState';
 
 // 本地类型定义，消除对 ui-store 的跨 store 依赖
-export type TerminalProfile = "powershell" | "bash" | "cmd";
-export type ToolId = "files" | "changes" | "browser" | "terminal" | "audit" | "settings" | "models";
+export type TerminalProfile = 'powershell' | 'bash' | 'cmd';
+export type ToolId = 'files' | 'changes' | 'browser' | 'terminal' | 'audit' | 'settings' | 'models';
 
 export interface TerminalTabState {
   id: string;
@@ -14,20 +14,20 @@ export interface TerminalTabState {
   title: string;
   profile: TerminalProfile;
   sessionId?: string;
-  status: "idle" | "running" | "terminated";
+  status: 'idle' | 'running' | 'terminated';
   isPinned: boolean;
   pinnedAt?: number;
   sortOrder: number;
 }
 
 // Local storage keys
-const TERMINAL_TABS_KEY = "adl-ui:terminal-tabs";
-const TERMINAL_ACTIVE_TAB_KEY = "adl-ui:terminal-active-tab";
-const TERMINAL_DEFAULT_PROFILE_KEY = "adl-ui:terminal-default-profile";
-const TERMINAL_WORKSPACE_DEFAULT_PROFILES_KEY = "adl-ui:terminal-workspace-default-profiles";
-const TERMINAL_NAVIGATOR_WIDTH_KEY = "adl-ui:terminal-navigator-width";
-const TERMINAL_NAVIGATOR_COLLAPSED_KEY = "adl-ui:navigator-collapsed";
-const TERMINAL_WORKSPACE_EXPANDED_KEY = "adl-ui:terminal-workspace-expanded";
+const TERMINAL_TABS_KEY = 'adl-ui:terminal-tabs';
+const TERMINAL_ACTIVE_TAB_KEY = 'adl-ui:terminal-active-tab';
+const TERMINAL_DEFAULT_PROFILE_KEY = 'adl-ui:terminal-default-profile';
+const TERMINAL_WORKSPACE_DEFAULT_PROFILES_KEY = 'adl-ui:terminal-workspace-default-profiles';
+const TERMINAL_NAVIGATOR_WIDTH_KEY = 'adl-ui:terminal-navigator-width';
+const TERMINAL_NAVIGATOR_COLLAPSED_KEY = 'adl-ui:navigator-collapsed';
+const TERMINAL_WORKSPACE_EXPANDED_KEY = 'adl-ui:terminal-workspace-expanded';
 
 // Constants
 const TERMINAL_NAVIGATOR_WIDTH_MIN = 180;
@@ -35,10 +35,18 @@ const TERMINAL_NAVIGATOR_WIDTH_MAX = 300;
 const DEFAULT_TERMINAL_NAVIGATOR_WIDTH = 240;
 
 // Helper functions
-import { clamp, readJson, writeJson, readNumber, writeNumber, createUiId, createDebouncedWrite } from "../shared";
+import {
+  clamp,
+  readJson,
+  writeJson,
+  readNumber,
+  writeNumber,
+  createUiId,
+  createDebouncedWrite,
+} from '../shared';
 
 function deriveTerminalTitle(profile: TerminalProfile, count: number): string {
-  const label = profile === "powershell" ? "PowerShell" : profile === "bash" ? "Bash" : "CMD";
+  const label = profile === 'powershell' ? 'PowerShell' : profile === 'bash' ? 'Bash' : 'CMD';
   return count > 1 ? `${label} ${count}` : label;
 }
 
@@ -71,7 +79,7 @@ function defaultNavigatorCollapsed(): Record<ToolId, boolean> {
     terminal: false,
     audit: false,
     settings: false,
-    models: false
+    models: false,
   };
 }
 
@@ -81,18 +89,35 @@ const { scheduleWrite, scheduleNumberWrite } = createDebouncedWrite(50);
 // Lazy localStorage hydration — reads persisted values in idle time
 let _defaultsHydrated = false;
 
-function hydrateTerminalDefaults(get: () => StoreState, set: (partial: Partial<StoreState>) => void): void {
+function hydrateTerminalDefaults(
+  get: () => StoreState,
+  set: (partial: Partial<StoreState>) => void
+): void {
   if (_defaultsHydrated) return;
   _defaultsHydrated = true;
   const doHydrate = () => {
-    const profile = readJson<TerminalProfile>(TERMINAL_DEFAULT_PROFILE_KEY, "powershell");
-    const workspaceProfiles = readJson<Record<string, TerminalProfile>>(TERMINAL_WORKSPACE_DEFAULT_PROFILES_KEY, {});
-    const width = readNumber(TERMINAL_NAVIGATOR_WIDTH_KEY, DEFAULT_TERMINAL_NAVIGATOR_WIDTH, TERMINAL_NAVIGATOR_WIDTH_MIN, TERMINAL_NAVIGATOR_WIDTH_MAX);
+    const profile = readJson<TerminalProfile>(TERMINAL_DEFAULT_PROFILE_KEY, 'powershell');
+    const workspaceProfiles = readJson<Record<string, TerminalProfile>>(
+      TERMINAL_WORKSPACE_DEFAULT_PROFILES_KEY,
+      {}
+    );
+    const width = readNumber(
+      TERMINAL_NAVIGATOR_WIDTH_KEY,
+      DEFAULT_TERMINAL_NAVIGATOR_WIDTH,
+      TERMINAL_NAVIGATOR_WIDTH_MIN,
+      TERMINAL_NAVIGATOR_WIDTH_MAX
+    );
     const collapsed = {
       ...defaultNavigatorCollapsed(),
-      ...readJson<Record<ToolId, boolean>>(TERMINAL_NAVIGATOR_COLLAPSED_KEY, defaultNavigatorCollapsed())
+      ...readJson<Record<ToolId, boolean>>(
+        TERMINAL_NAVIGATOR_COLLAPSED_KEY,
+        defaultNavigatorCollapsed()
+      ),
     };
-    const workspaceExpanded = readJson<Record<string, boolean>>(TERMINAL_WORKSPACE_EXPANDED_KEY, {});
+    const workspaceExpanded = readJson<Record<string, boolean>>(
+      TERMINAL_WORKSPACE_EXPANDED_KEY,
+      {}
+    );
     set({
       defaultTerminalProfile: profile,
       workspaceDefaultProfiles: workspaceProfiles,
@@ -101,7 +126,7 @@ function hydrateTerminalDefaults(get: () => StoreState, set: (partial: Partial<S
       terminalWorkspaceExpanded: workspaceExpanded,
     });
   };
-  if (typeof requestIdleCallback === "function") {
+  if (typeof requestIdleCallback === 'function') {
     requestIdleCallback(doHydrate, { timeout: 1000 });
   } else {
     setTimeout(doHydrate, 200);
@@ -126,8 +151,8 @@ export interface TerminalSlice {
   terminalCreateTab: (profile?: TerminalProfile, workspaceId?: string) => void;
   terminalSelectTab: (tabId: string) => void;
   terminalCloseTab: (tabId: string) => void;
-  terminalUpdateActiveTab: (patch: Partial<Omit<TerminalTabState, "id">>) => void;
-  terminalUpdateTab: (tabId: string, patch: Partial<Omit<TerminalTabState, "id">>) => void;
+  terminalUpdateActiveTab: (patch: Partial<Omit<TerminalTabState, 'id'>>) => void;
+  terminalUpdateTab: (tabId: string, patch: Partial<Omit<TerminalTabState, 'id'>>) => void;
   terminalTogglePin: (tabId: string) => void;
   terminalReorderTabs: (newOrder: TerminalTabState[]) => void;
   terminalCloseAllTabs: () => void;
@@ -149,16 +174,16 @@ export const createTerminalSlice = (
   return {
     terminalTabs: initialTerminalTabs,
     terminalTabsById: {},
-    terminalActiveTabId: "",
-    defaultTerminalProfile: "powershell",
+    terminalActiveTabId: '',
+    defaultTerminalProfile: 'powershell',
     workspaceDefaultProfiles: {},
     terminalNavigatorWidth: DEFAULT_TERMINAL_NAVIGATOR_WIDTH,
     navigatorCollapsedByTool: defaultNavigatorCollapsed(),
     terminalWorkspaceExpanded: {},
     terminalPersisted: false,
-    terminalWorkspaceId: "",
+    terminalWorkspaceId: '',
 
-    terminalCreateTab: (profile: TerminalProfile | undefined, workspaceId = "") =>
+    terminalCreateTab: (profile: TerminalProfile | undefined, workspaceId = '') =>
       set((state) => {
         // 使用工作区专属默认终端类型，如果没有则使用全局默认
         let finalProfile: TerminalProfile;
@@ -169,21 +194,29 @@ export const createTerminalSlice = (
         } else {
           finalProfile = state.defaultTerminalProfile;
         }
-        const existingCount = state.terminalTabs.filter((tab) => tab.profile === finalProfile).length + 1;
-        const maxSortOrder = state.terminalTabs.length > 0 ? Math.max(...state.terminalTabs.map(t => t.sortOrder)) : 0;
+        const existingCount =
+          state.terminalTabs.filter((tab) => tab.profile === finalProfile).length + 1;
+        const maxSortOrder =
+          state.terminalTabs.length > 0
+            ? Math.max(...state.terminalTabs.map((t) => t.sortOrder))
+            : 0;
         const tab: TerminalTabState = {
-          id: createUiId("terminal"),
+          id: createUiId('terminal'),
           workspaceId,
           title: deriveTerminalTitle(finalProfile, existingCount),
           profile: finalProfile,
-          status: "idle",
+          status: 'idle',
           isPinned: false,
-          sortOrder: maxSortOrder + 1
+          sortOrder: maxSortOrder + 1,
         };
         const nextTabs = sortTabs([...state.terminalTabs, tab]);
         scheduleWrite(TERMINAL_TABS_KEY, nextTabs);
         scheduleWrite(TERMINAL_ACTIVE_TAB_KEY, tab.id);
-        return { terminalTabs: nextTabs, terminalTabsById: buildTabsById(nextTabs), terminalActiveTabId: tab.id };
+        return {
+          terminalTabs: nextTabs,
+          terminalTabsById: buildTabsById(nextTabs),
+          terminalActiveTabId: tab.id,
+        };
       }),
 
     terminalSelectTab: (tabId) => {
@@ -197,47 +230,51 @@ export const createTerminalSlice = (
         const nextTabs = sortTabs(filtered);
         const nextActive =
           state.terminalActiveTabId === tabId
-            ? nextTabs[nextTabs.length - 1]?.id ?? ""
+            ? (nextTabs[nextTabs.length - 1]?.id ?? '')
             : state.terminalActiveTabId;
         scheduleWrite(TERMINAL_TABS_KEY, nextTabs);
         scheduleWrite(TERMINAL_ACTIVE_TAB_KEY, nextActive);
         return {
           terminalTabs: nextTabs,
           terminalTabsById: buildTabsById(nextTabs),
-          terminalActiveTabId: nextActive
+          terminalActiveTabId: nextActive,
         };
       }),
 
     terminalUpdateActiveTab: (patch) =>
       set((state) => {
-        const nextTabs = sortTabs(state.terminalTabs.map((tab) =>
-          tab.id === state.terminalActiveTabId ? { ...tab, ...patch } : tab
-        ));
+        const nextTabs = sortTabs(
+          state.terminalTabs.map((tab) =>
+            tab.id === state.terminalActiveTabId ? { ...tab, ...patch } : tab
+          )
+        );
         scheduleWrite(TERMINAL_TABS_KEY, nextTabs);
         return { terminalTabs: nextTabs, terminalTabsById: buildTabsById(nextTabs) };
       }),
 
     terminalUpdateTab: (tabId, patch) =>
       set((state) => {
-        const nextTabs = sortTabs(state.terminalTabs.map((tab) =>
-          tab.id === tabId ? { ...tab, ...patch } : tab
-        ));
+        const nextTabs = sortTabs(
+          state.terminalTabs.map((tab) => (tab.id === tabId ? { ...tab, ...patch } : tab))
+        );
         scheduleWrite(TERMINAL_TABS_KEY, nextTabs);
         return { terminalTabs: nextTabs, terminalTabsById: buildTabsById(nextTabs) };
       }),
 
     terminalTogglePin: (tabId) =>
       set((state) => {
-        const nextTabs = sortTabs(state.terminalTabs.map((tab) => {
-          if (tab.id === tabId) {
-            return {
-              ...tab,
-              isPinned: !tab.isPinned,
-              pinnedAt: !tab.isPinned ? Date.now() : undefined
-            };
-          }
-          return tab;
-        }));
+        const nextTabs = sortTabs(
+          state.terminalTabs.map((tab) => {
+            if (tab.id === tabId) {
+              return {
+                ...tab,
+                isPinned: !tab.isPinned,
+                pinnedAt: !tab.isPinned ? Date.now() : undefined,
+              };
+            }
+            return tab;
+          })
+        );
         scheduleWrite(TERMINAL_TABS_KEY, nextTabs);
         return { terminalTabs: nextTabs, terminalTabsById: buildTabsById(nextTabs) };
       }),
@@ -246,22 +283,25 @@ export const createTerminalSlice = (
       set((state) => {
         if (state.terminalTabs === newOrder) return state;
 
-        const pinnedTabs = newOrder.filter(t => t.isPinned);
-        const unpinnedTabs = newOrder.filter(t => !t.isPinned);
+        const pinnedTabs = newOrder.filter((t) => t.isPinned);
+        const unpinnedTabs = newOrder.filter((t) => !t.isPinned);
 
         const reorderedWithSort = [...pinnedTabs, ...unpinnedTabs].map((tab, index) => ({
           ...tab,
-          sortOrder: index
+          sortOrder: index,
         }));
 
         scheduleWrite(TERMINAL_TABS_KEY, reorderedWithSort);
-        return { terminalTabs: reorderedWithSort, terminalTabsById: buildTabsById(reorderedWithSort) };
+        return {
+          terminalTabs: reorderedWithSort,
+          terminalTabsById: buildTabsById(reorderedWithSort),
+        };
       }),
 
     terminalCloseAllTabs: () => {
       scheduleWrite(TERMINAL_TABS_KEY, []);
-      scheduleWrite(TERMINAL_ACTIVE_TAB_KEY, "");
-      set({ terminalTabs: [], terminalTabsById: {}, terminalActiveTabId: "" });
+      scheduleWrite(TERMINAL_ACTIVE_TAB_KEY, '');
+      set({ terminalTabs: [], terminalTabsById: {}, terminalActiveTabId: '' });
     },
 
     setDefaultTerminalProfile: (profile) => {
@@ -300,7 +340,7 @@ export const createTerminalSlice = (
       set((state) => {
         const next = {
           ...state.navigatorCollapsedByTool,
-          terminal: !(state.navigatorCollapsedByTool.terminal ?? false)
+          terminal: !(state.navigatorCollapsedByTool.terminal ?? false),
         };
         scheduleWrite(TERMINAL_NAVIGATOR_COLLAPSED_KEY, next);
         return { navigatorCollapsedByTool: next };
@@ -318,10 +358,8 @@ export const createTerminalSlice = (
       set({ terminalWorkspaceExpanded: expanded });
     },
 
-    setTerminalPersisted: (persisted) =>
-      set({ terminalPersisted: persisted }),
+    setTerminalPersisted: (persisted) => set({ terminalPersisted: persisted }),
 
-    setTerminalWorkspaceId: (workspaceId) =>
-      set({ terminalWorkspaceId: workspaceId })
+    setTerminalWorkspaceId: (workspaceId) => set({ terminalWorkspaceId: workspaceId }),
   };
 };

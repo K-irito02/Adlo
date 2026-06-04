@@ -48,9 +48,7 @@ fn sanitize_brace_line(line_text: &str) -> String {
     let string_regex = STRING_REGEX.get_or_init(|| {
         Regex::new(r#""(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`"#).unwrap()
     });
-    let comment_regex = COMMENT_REGEX.get_or_init(|| {
-        Regex::new(r"//.*$|/\*.*?\*/").unwrap()
-    });
+    let comment_regex = COMMENT_REGEX.get_or_init(|| Regex::new(r"//.*$|/\*.*?\*/").unwrap());
     let without_strings = string_regex.replace_all(line_text, "\"\"");
     comment_regex.replace_all(&without_strings, "").into_owned()
 }
@@ -68,18 +66,11 @@ pub(crate) fn parse_brace_outline(content: &str) -> Vec<OutlineDraft> {
             brace_depth.saturating_sub(count_leading_closers(&sanitized, &['}', ']']));
         for (regex, kind) in brace_matchers().iter() {
             if let Some(captures) = regex.captures(trimmed) {
-                let label = captures
-                    .get(1)
-                    .map(|value| value.as_str().trim())
-                    .unwrap_or("");
+                let label = captures.get(1).map(|value| value.as_str().trim()).unwrap_or("");
                 if label.is_empty() {
                     continue;
                 }
-                let lowered = label
-                    .rsplit("::")
-                    .next()
-                    .unwrap_or(label)
-                    .to_ascii_lowercase();
+                let lowered = label.rsplit("::").next().unwrap_or(label).to_ascii_lowercase();
                 if (*kind == "function" || *kind == "method")
                     && BLOCK_KEYWORDS.contains(&lowered.as_str())
                 {

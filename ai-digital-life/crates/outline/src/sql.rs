@@ -9,7 +9,9 @@ fn create_table_regex() -> &'static Regex {
 
 fn create_other_regex() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r#"(?i)^create\s+(view|index|function|procedure)\s+([A-Za-z0-9_."]+)"#).unwrap())
+    RE.get_or_init(|| {
+        Regex::new(r#"(?i)^create\s+(view|index|function|procedure)\s+([A-Za-z0-9_."]+)"#).unwrap()
+    })
 }
 
 fn alter_table_regex() -> &'static Regex {

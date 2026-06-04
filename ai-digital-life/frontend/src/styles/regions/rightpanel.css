@@ -1,10 +1,11 @@
 /* ==========================================================================
    Right Panel — aggregated import surface
    ========================================================================== */
-@import "./rightpanel/files-panel.css";
-@import "./rightpanel/file-tree.css";
-@import "./rightpanel/changes-panel.css";
-@import "./rightpanel/editor-surface.css";
-@import "./rightpanel/diff-viewer.css";
-@import "./rightpanel/browser-panel.css";
-@import "./rightpanel/terminal-panel.css";
+@import './rightpanel/files-panel.css';
+@import './rightpanel/file-tree.css';
+@import './rightpanel/changes-panel.css';
+@import './rightpanel/editor-surface.css';
+@import './rightpanel/cm-overrides.css';
+@import './rightpanel/diff-viewer.css';
+@import './rightpanel/browser-panel.css';
+@import './rightpanel/terminal-panel.css';

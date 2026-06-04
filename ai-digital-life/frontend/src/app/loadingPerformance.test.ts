@@ -53,6 +53,6 @@ describe("loading and switching performance guards", () => {
   it("keeps cache limits module-scoped and makes file preview defaults explicit", () => {
     expect(sharedSource).toMatch(/export const FILE_DOCUMENT_CACHE_LIMIT = 32;/);
     expect(sharedSource).toMatch(/export const CHANGE_PREVIEW_CACHE_LIMIT = 32;/);
-    expect(filesPanelSource).toContain('filePreviewModeByPath[selectedFilePath] ?? (fileCategory === "markdown")');
+    expect(filesPanelSource).toContain('s.filePreviewModeByPath[selectedFilePath] ?? fileCategory === \'markdown\'');
   });
 });

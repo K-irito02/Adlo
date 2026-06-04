@@ -1,5 +1,5 @@
-import type { FileOutlineItem } from "@ai-digital-life/kernel";
-import { buildOutlineFromContent } from "../../../shared/outline";
+import type { FileOutlineItem } from '@ai-digital-life/kernel';
+import { buildOutlineFromContent } from '../../../shared/outline';
 
 export type OutlineNode = FileOutlineItem & {
   children: OutlineNode[];
@@ -22,7 +22,7 @@ export function buildOutlineTree(items: FileOutlineItem[]): OutlineNode[] {
     const node: OutlineNode = {
       ...item,
       depth,
-      children: []
+      children: [],
     };
 
     while (stack.length > 0 && Math.max(1, stack[stack.length - 1]!.depth ?? 1) >= depth) {

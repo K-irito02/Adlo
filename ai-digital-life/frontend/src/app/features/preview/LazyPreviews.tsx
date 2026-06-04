@@ -1,20 +1,22 @@
-import React, { Suspense } from "react";
+import React, { Suspense } from 'react';
 
 const LazyMarkdownPreview = React.lazy(() =>
-  import("./MarkdownPreview").then((m) => ({ default: m.MarkdownPreview }))
+  import('./MarkdownPreview').then((m) => ({ default: m.MarkdownPreview }))
 );
 const LazyDocxPreview = React.lazy(() =>
-  import("./DocxPreview").then((m) => ({ default: m.DocxPreview }))
+  import('./DocxPreview').then((m) => ({ default: m.DocxPreview }))
 );
 const LazyPdfPreview = React.lazy(() =>
-  import("./PdfPreview").then((m) => ({ default: m.PdfPreview }))
+  import('./PdfPreview').then((m) => ({ default: m.PdfPreview }))
 );
 
-export type { MarkdownPreviewProps } from "./MarkdownPreview";
-export type { DocxPreviewProps } from "./DocxPreview";
-export type { PdfPreviewProps } from "./PdfPreview";
+export type { MarkdownPreviewProps } from './MarkdownPreview';
+export type { DocxPreviewProps } from './DocxPreview';
+export type { PdfPreviewProps } from './PdfPreview';
 
-export function LazyMarkdownPreviewWrapper(props: React.ComponentProps<typeof LazyMarkdownPreview>) {
+export function LazyMarkdownPreviewWrapper(
+  props: React.ComponentProps<typeof LazyMarkdownPreview>
+) {
   return (
     <Suspense fallback={null}>
       <LazyMarkdownPreview {...props} />

@@ -40,12 +40,16 @@ pub async fn pty_create(
             },
         };
         let shell = input.shell.unwrap_or_else(|| "powershell".to_string());
-        let sessions = state.pty_sessions.lock().map_err(|_| {
-            AppError::Internal("pty_sessions mutex poisoned".into())
-        })?;
+        let sessions = state
+            .pty_sessions
+            .lock()
+            .map_err(|_| AppError::Internal("pty_sessions mutex poisoned".into()))?;
         let session_id = sessions.create(
             TauriEventEmitter::new(app.clone()).into_arc(),
-            &shell, &cwd, input.cols, input.rows,
+            &shell,
+            &cwd,
+            input.cols,
+            input.rows,
         )?;
         Ok(PtyCreateResult { session_id })
     })();
@@ -59,9 +63,10 @@ pub async fn pty_input(
     data: String,
 ) -> Result<IpcResult<bool>, CommandError> {
     let result: Result<bool, AppError> = (|| {
-        let sessions = state.pty_sessions.lock().map_err(|_| {
-            AppError::Internal("pty_sessions mutex poisoned".into())
-        })?;
+        let sessions = state
+            .pty_sessions
+            .lock()
+            .map_err(|_| AppError::Internal("pty_sessions mutex poisoned".into()))?;
         sessions.write(&session_id, &data)?;
         Ok(true)
     })();
@@ -76,9 +81,10 @@ pub async fn pty_resize(
     rows: u16,
 ) -> Result<IpcResult<bool>, CommandError> {
     let result: Result<bool, AppError> = (|| {
-        let sessions = state.pty_sessions.lock().map_err(|_| {
-            AppError::Internal("pty_sessions mutex poisoned".into())
-        })?;
+        let sessions = state
+            .pty_sessions
+            .lock()
+            .map_err(|_| AppError::Internal("pty_sessions mutex poisoned".into()))?;
         sessions.resize(&session_id, cols, rows)?;
         Ok(true)
     })();
@@ -91,9 +97,10 @@ pub async fn pty_kill(
     session_id: String,
 ) -> Result<IpcResult<bool>, CommandError> {
     let result: Result<bool, AppError> = (|| {
-        let sessions = state.pty_sessions.lock().map_err(|_| {
-            AppError::Internal("pty_sessions mutex poisoned".into())
-        })?;
+        let sessions = state
+            .pty_sessions
+            .lock()
+            .map_err(|_| AppError::Internal("pty_sessions mutex poisoned".into()))?;
         sessions.kill(&session_id)?;
         Ok(true)
     })();
@@ -101,12 +108,11 @@ pub async fn pty_kill(
 }
 
 #[tauri::command]
-pub fn pty_list(
-    state: tauri::State<'_, AppState>,
-) -> IpcResult<Vec<PtySessionInfo>> {
-    let sessions = state.pty_sessions.lock().map_err(|_| {
-        AppError::Internal("pty_sessions mutex poisoned".into())
-    });
+pub fn pty_list(state: tauri::State<'_, AppState>) -> IpcResult<Vec<PtySessionInfo>> {
+    let sessions = state
+        .pty_sessions
+        .lock()
+        .map_err(|_| AppError::Internal("pty_sessions mutex poisoned".into()));
     match sessions {
         Ok(s) => ipc(s.list()),
         Err(e) => ipc::<Vec<PtySessionInfo>>(Err(e)),

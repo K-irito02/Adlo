@@ -1,18 +1,18 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 function buildDefaultCreationPath(
   selectedFilePath: string | undefined,
-  fallbackName: string,
+  fallbackName: string
 ): string {
-  const normalized = selectedFilePath ?? "";
+  const normalized = selectedFilePath ?? '';
   if (!normalized) {
     return fallbackName;
   }
-  const segments = normalized.split("/").filter(Boolean);
+  const segments = normalized.split('/').filter(Boolean);
   if (segments.length <= 1) {
     return fallbackName;
   }
-  return `${segments.slice(0, -1).join("/")}/${fallbackName}`;
+  return `${segments.slice(0, -1).join('/')}/${fallbackName}`;
 }
 
 function normalizeCreationPath(input: string): string | undefined {
@@ -20,19 +20,15 @@ function normalizeCreationPath(input: string): string | undefined {
   if (!trimmed) {
     return undefined;
   }
-  if (
-    /^[A-Za-z]:[\\/]/.test(trimmed) ||
-    trimmed.startsWith("/") ||
-    trimmed.startsWith("\\")
-  ) {
+  if (/^[A-Za-z]:[\\/]/.test(trimmed) || trimmed.startsWith('/') || trimmed.startsWith('\\')) {
     return undefined;
   }
-  const normalized = trimmed.replace(/\\/g, "/");
-  const segments = normalized.split("/").filter(Boolean);
-  if (segments.length === 0 || segments.some((s) => s === "." || s === "..")) {
+  const normalized = trimmed.replace(/\\/g, '/');
+  const segments = normalized.split('/').filter(Boolean);
+  if (segments.length === 0 || segments.some((s) => s === '.' || s === '..')) {
     return undefined;
   }
-  return segments.join("/");
+  return segments.join('/');
 }
 
 interface UseFileCreationInput {
@@ -44,18 +40,18 @@ interface UseFileCreationInput {
 }
 
 interface UseFileCreationResult {
-  createTarget: "file" | "folder" | null;
+  createTarget: 'file' | 'folder' | null;
   createPathValue: string;
   createInputRef: React.RefObject<HTMLInputElement | null>;
-  startCreate: (target: "file" | "folder") => void;
+  startCreate: (target: 'file' | 'folder') => void;
   cancelCreate: () => void;
   submitCreate: () => Promise<void>;
   setCreatePathValue: (value: string) => void;
 }
 
 function useFileCreation(input: UseFileCreationInput): UseFileCreationResult {
-  const [createTarget, setCreateTarget] = useState<"file" | "folder" | null>(null);
-  const [createPathValue, setCreatePathValue] = useState("");
+  const [createTarget, setCreateTarget] = useState<'file' | 'folder' | null>(null);
+  const [createPathValue, setCreatePathValue] = useState('');
   const createInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -69,21 +65,21 @@ function useFileCreation(input: UseFileCreationInput): UseFileCreationResult {
   }, [createTarget]);
 
   const startCreate = useCallback(
-    (target: "file" | "folder") => {
+    (target: 'file' | 'folder') => {
       setCreateTarget(target);
       setCreatePathValue(
         buildDefaultCreationPath(
           input.selectedFilePath,
-          target === "file" ? "untitled.md" : "new-folder",
-        ),
+          target === 'file' ? 'untitled.md' : 'new-folder'
+        )
       );
     },
-    [input.selectedFilePath],
+    [input.selectedFilePath]
   );
 
   const cancelCreate = useCallback(() => {
     setCreateTarget(null);
-    setCreatePathValue("");
+    setCreatePathValue('');
   }, []);
 
   const submitCreate = useCallback(async () => {
@@ -94,7 +90,7 @@ function useFileCreation(input: UseFileCreationInput): UseFileCreationResult {
     if (!relativePath) {
       return;
     }
-    if (createTarget === "file") {
+    if (createTarget === 'file') {
       const created = await input.onCreateWorkspaceFile(relativePath);
       if (created) {
         input.expandFileTreePathChain(created);

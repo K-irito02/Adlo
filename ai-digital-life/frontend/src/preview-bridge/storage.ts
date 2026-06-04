@@ -1,11 +1,14 @@
-import type { RecentWorkspaceEntry } from "@ai-digital-life/kernel";
+import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
 
-const PREVIEW_RECENT_STORAGE_KEY = "adl.preview.recent-workspaces.v1";
-const PREVIEW_PREFERENCES_STORAGE_KEY = "adl.preview.preferences.v1";
-const PREVIEW_ACTIVE_WORKSPACE_STORAGE_KEY = "adl.preview.active-workspace.v1";
+const PREVIEW_RECENT_STORAGE_KEY = 'adl.preview.recent-workspaces.v1';
+const PREVIEW_PREFERENCES_STORAGE_KEY = 'adl.preview.preferences.v1';
+const PREVIEW_ACTIVE_WORKSPACE_STORAGE_KEY = 'adl.preview.active-workspace.v1';
 
-type PreviewPreferenceState = Pick<AppInfo["config"], "language" | "themeMode" | "resolvedTheme" | "modelPreferences">;
-import type { AppInfo } from "@ai-digital-life/kernel";
+type PreviewPreferenceState = Pick<
+  AppInfo['config'],
+  'language' | 'themeMode' | 'resolvedTheme' | 'modelPreferences'
+>;
+import type { AppInfo } from '@ai-digital-life/kernel';
 
 export function loadRecentWorkspaces(): RecentWorkspaceEntry[] {
   try {
@@ -37,7 +40,7 @@ export function updateRecentWorkspaces(
     pinnedOrder: 0,
     unpinnedOrder: index,
     removedFromSidebar: false,
-    available: true
+    available: true,
   }));
   persistRecentWorkspaces(normalized);
   return normalized;
@@ -48,7 +51,7 @@ export function loadPreviewPreferences(): Partial<PreviewPreferenceState> {
     const raw = window.localStorage.getItem(PREVIEW_PREFERENCES_STORAGE_KEY);
     if (!raw) return {};
     const parsed = JSON.parse(raw) as Partial<PreviewPreferenceState>;
-    return parsed && typeof parsed === "object" ? parsed : {};
+    return parsed && typeof parsed === 'object' ? parsed : {};
   } catch {
     return {};
   }
@@ -62,7 +65,7 @@ export function persistPreviewPreferences(config: PreviewPreferenceState) {
         language: config.language,
         themeMode: config.themeMode,
         resolvedTheme: config.resolvedTheme,
-        modelPreferences: config.modelPreferences
+        modelPreferences: config.modelPreferences,
       } satisfies PreviewPreferenceState)
     );
   } catch {

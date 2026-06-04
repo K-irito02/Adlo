@@ -7,7 +7,10 @@ use adl_kernel::{
 };
 use std::path::PathBuf;
 
-pub(crate) fn persist_workspace_meta(state: &AppState, meta: &WorkspaceMeta) -> Result<(), AppError> {
+pub(crate) fn persist_workspace_meta(
+    state: &AppState,
+    meta: &WorkspaceMeta,
+) -> Result<(), AppError> {
     state.db.save_entity(
         adl_storage::EntityTable::Workspaces,
         &meta.id,
@@ -16,9 +19,7 @@ pub(crate) fn persist_workspace_meta(state: &AppState, meta: &WorkspaceMeta) -> 
         Some("ready"),
         meta,
     )?;
-    state
-        .db
-        .put_state("current_workspace", &serde_json::to_string(meta)?)?;
+    state.db.put_state("current_workspace", &serde_json::to_string(meta)?)?;
     *state
         .current_workspace
         .write()
@@ -87,10 +88,7 @@ pub fn workspace_switch_git_branch(
             branch_name,
             input.allow_stash,
         )?;
-        let current_branch = git_snapshot
-            .branch
-            .clone()
-            .unwrap_or_else(|| branch_name.to_string());
+        let current_branch = git_snapshot.branch.clone().unwrap_or_else(|| branch_name.to_string());
         let updated_workspace =
             update_workspace_after_git_change(&state, &workspace, git_snapshot.clone())?;
         Ok(WorkspaceGitBranchChangeResult {
@@ -120,10 +118,7 @@ pub fn workspace_create_git_branch(
             input.base_branch.as_deref(),
             input.allow_stash,
         )?;
-        let current_branch = git_snapshot
-            .branch
-            .clone()
-            .unwrap_or_else(|| branch_name.to_string());
+        let current_branch = git_snapshot.branch.clone().unwrap_or_else(|| branch_name.to_string());
         let updated_workspace =
             update_workspace_after_git_change(&state, &workspace, git_snapshot.clone())?;
         Ok(WorkspaceGitBranchChangeResult {

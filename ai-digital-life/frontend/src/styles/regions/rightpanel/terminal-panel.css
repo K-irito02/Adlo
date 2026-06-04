@@ -1,4 +1,3 @@
-
 .adl-tool-panel--terminal {
   position: relative;
   overflow: visible;
@@ -56,8 +55,6 @@
   position: relative;
   background: var(--bg);
 }
-
-
 
 .adl-tool-context__group--terminal-actions {
   display: flex;

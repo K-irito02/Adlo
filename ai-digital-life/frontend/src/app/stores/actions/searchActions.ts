@@ -1,10 +1,10 @@
-import type { StoreState } from "../StoreState";
-import { createDebouncedSearch } from "../shared";
-import type { StoreApi } from "zustand";
+import type { StoreState } from '../StoreState';
+import { createDebouncedSearch } from '../shared';
+import type { StoreApi } from 'zustand';
 
 const debouncedSearch = createDebouncedSearch(300);
 
-export function createSearchActions(set: StoreApi<StoreState>["setState"], get: () => StoreState) {
+export function createSearchActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
   return {
     searchFiles: async (query: string) => {
       set({ searchQuery: query });

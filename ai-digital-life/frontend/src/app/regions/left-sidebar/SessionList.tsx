@@ -1,11 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ReorderSessionsInput } from "@ai-digital-life/kernel";
-import type { CopyDict, Locale } from "../../i18n";
-import { RenameDialog } from "../../components/RenameDialog";
-import { getVisibleSidebarSessions, type SidebarSessionItem } from "../../utils/sidebarViewModel";
-import SessionListRow from "./SessionListRow";
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import type { ReorderSessionsInput } from '@ai-digital-life/kernel';
+import type { CopyDict, Locale } from '../../i18n';
+import { RenameDialog } from '../../components/RenameDialog';
+import { getVisibleSidebarSessions, type SidebarSessionItem } from '../../utils/sidebarViewModel';
+import SessionListRow from './SessionListRow';
 
-import { moveIdWithinBucket, moveIdToBucketEnd, moveIdAfterTarget } from "../../utils/dragUtils";
+import { moveIdWithinBucket, moveIdToBucketEnd, moveIdAfterTarget } from '../../utils/dragUtils';
 
 const DROP_FLASH_DURATION_MS = 900;
 
@@ -18,7 +18,9 @@ function mergeEphemeralVisibleSessions(
     return visibleItems;
   }
   const visibleIds = new Set(visibleItems.map((item) => item.session.id));
-  const extras = allItems.filter((item) => ephemeralIds.includes(item.session.id) && !visibleIds.has(item.session.id));
+  const extras = allItems.filter(
+    (item) => ephemeralIds.includes(item.session.id) && !visibleIds.has(item.session.id)
+  );
   return [...visibleItems, ...extras];
 }
 
@@ -61,55 +63,52 @@ export function SessionList({
   activeSessionId,
   locale,
   t,
-  onSessionContextMenu
+  onSessionContextMenu,
 }: SessionListProps) {
   const [dragSessionId, setDragSessionId] = useState<string>();
   const [dragOverSessionId, setDragOverSessionId] = useState<string>();
   const [droppedSessionId, setDroppedSessionId] = useState<string>();
   const [expandedSessionLists, setExpandedSessionLists] = useState<Record<string, boolean>>({});
-  const [ephemeralVisibleSessionIds, setEphemeralVisibleSessionIds] = useState<Record<string, string[]>>({});
+  const [ephemeralVisibleSessionIds, setEphemeralVisibleSessionIds] = useState<
+    Record<string, string[]>
+  >({});
   const [hoveredSessionId, setHoveredSessionId] = useState<string>();
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [sessionToRename, setSessionToRename] = useState<{ id: string; name: string } | null>(null);
 
-  const dropFlashTimeoutRef = useRef<number | null>(null);
-  const dragOverSessionIdRef = useRef<string | undefined>(undefined);
+  const [dropFlashTimer, setDropFlashTimer] = useState<number | null>(null);
 
   useEffect(() => {
     return () => {
-      if (dropFlashTimeoutRef.current) {
-        window.clearTimeout(dropFlashTimeoutRef.current);
-        dropFlashTimeoutRef.current = null;
+      if (dropFlashTimer !== null) {
+        window.clearTimeout(dropFlashTimer);
       }
     };
-  }, []);
+  }, [dropFlashTimer]);
 
   const setDragOverSessionTarget = useCallback((nextSessionId: string | undefined) => {
-    if (dragOverSessionIdRef.current === nextSessionId) {
-      return;
-    }
-    dragOverSessionIdRef.current = nextSessionId;
     setDragOverSessionId(nextSessionId);
   }, []);
 
-  const flashDroppedSession = useCallback((sessionId: string) => {
-    if (dropFlashTimeoutRef.current) {
-      window.clearTimeout(dropFlashTimeoutRef.current);
-    }
-    setDroppedSessionId(sessionId);
-    dropFlashTimeoutRef.current = window.setTimeout(() => {
-      setDroppedSessionId((current) => (current === sessionId ? undefined : current));
-      dropFlashTimeoutRef.current = null;
-    }, DROP_FLASH_DURATION_MS);
-  }, []);
-
-  const handleStartRename = useCallback(
-    (sessionId: string, sessionName: string) => {
-      setSessionToRename({ id: sessionId, name: sessionName });
-      setRenameDialogOpen(true);
+  const flashDroppedSession = useCallback(
+    (sessionId: string) => {
+      if (dropFlashTimer !== null) {
+        window.clearTimeout(dropFlashTimer);
+      }
+      setDroppedSessionId(sessionId);
+      const id = window.setTimeout(() => {
+        setDroppedSessionId((current) => (current === sessionId ? undefined : current));
+        setDropFlashTimer(null);
+      }, DROP_FLASH_DURATION_MS);
+      setDropFlashTimer(id);
     },
-    []
+    [dropFlashTimer]
   );
+
+  const handleStartRename = useCallback((sessionId: string, sessionName: string) => {
+    setSessionToRename({ id: sessionId, name: sessionName });
+    setRenameDialogOpen(true);
+  }, []);
 
   const handleConfirmRename = useCallback(
     (newName: string) => {
@@ -134,7 +133,7 @@ export function SessionList({
       }
       return {
         ...current,
-        [listKeyInner]: (current[listKeyInner] ?? []).filter((id) => id !== sessionId)
+        [listKeyInner]: (current[listKeyInner] ?? []).filter((id) => id !== sessionId),
       };
     });
   }, []);
@@ -162,7 +161,14 @@ export function SessionList({
       setDragSessionId(undefined);
       setDragOverSessionTarget(undefined);
     },
-    [dragSessionId, flashDroppedSession, onReorderSessions, sessionItems, setDragOverSessionTarget, workspaceId]
+    [
+      dragSessionId,
+      flashDroppedSession,
+      onReorderSessions,
+      sessionItems,
+      setDragOverSessionTarget,
+      workspaceId,
+    ]
   );
 
   const handleSessionDropAfterVisibleTarget = useCallback(
@@ -188,7 +194,14 @@ export function SessionList({
       setDragSessionId(undefined);
       setDragOverSessionTarget(undefined);
     },
-    [dragSessionId, flashDroppedSession, onReorderSessions, sessionItems, setDragOverSessionTarget, workspaceId]
+    [
+      dragSessionId,
+      flashDroppedSession,
+      onReorderSessions,
+      sessionItems,
+      setDragOverSessionTarget,
+      workspaceId,
+    ]
   );
 
   const handleSessionDropToBucketEnd = useCallback(
@@ -214,81 +227,114 @@ export function SessionList({
       setDragSessionId(undefined);
       setDragOverSessionTarget(undefined);
     },
-    [dragSessionId, flashDroppedSession, onReorderSessions, sessionItems, setDragOverSessionTarget, workspaceId]
+    [
+      dragSessionId,
+      flashDroppedSession,
+      onReorderSessions,
+      sessionItems,
+      setDragOverSessionTarget,
+      workspaceId,
+    ]
   );
 
   const expanded = expandedSessionLists[listKey] ?? false;
   const tailDropTargetId = `${listKey}::tail`;
-  const visibleSessions = getVisibleSidebarSessions(sessionItems, expanded);
-  const visibleItems = expanded
-    ? visibleSessions.items
-    : mergeEphemeralVisibleSessions(sessionItems, visibleSessions.items, ephemeralVisibleSessionIds[listKey] ?? []);
+  const visibleItems = useMemo(() => {
+    const visibleSessions = getVisibleSidebarSessions(sessionItems, expanded);
+    return expanded
+      ? visibleSessions.items
+      : mergeEphemeralVisibleSessions(
+          sessionItems,
+          visibleSessions.items,
+          ephemeralVisibleSessionIds[listKey] ?? []
+        );
+  }, [sessionItems, expanded, listKey, ephemeralVisibleSessionIds]);
   const hiddenCount = Math.max(0, sessionItems.length - visibleItems.length);
   const canReorder = interactive && (Boolean(workspaceId) || Boolean(allowStandaloneReorder));
-  const draggedSessionItem = dragSessionId ? sessionItems.find((item) => item.session.id === dragSessionId) : undefined;
+  const draggedSessionItem = dragSessionId
+    ? sessionItems.find((item) => item.session.id === dragSessionId)
+    : undefined;
   const lastVisibleInBucket = draggedSessionItem
-    ? [...visibleItems].reverse().find((item) => item.session.isPinned === draggedSessionItem.session.isPinned)
+    ? [...visibleItems]
+        .reverse()
+        .find((item) => item.session.isPinned === draggedSessionItem.session.isPinned)
     : undefined;
 
+  const canDropTail = canReorder && !!draggedSessionItem;
+
   const renderedItems = useMemo(
-    () => visibleItems.map((sessionItem) => {
-      const isHovered = hoveredSessionId === sessionItem.session.id;
-      const canReorderIntoTarget =
-        Boolean(draggedSessionItem) &&
-        draggedSessionItem?.session.id !== sessionItem.session.id &&
-        draggedSessionItem?.session.isPinned === sessionItem.session.isPinned &&
-        (Boolean(workspaceId) || Boolean(allowStandaloneReorder));
-      const isDropTarget =
-        dragOverSessionId === sessionItem.session.id &&
-        canReorderIntoTarget;
-      const isHighlighted = sessionToRename?.id === sessionItem.session.id;
-      return (
-        <SessionListRow
-          key={sessionItem.session.id}
-          sessionItem={sessionItem}
-          activeSessionId={activeSessionId}
-          droppedSessionId={droppedSessionId}
-          isDropTarget={isDropTarget}
-          isHighlighted={isHighlighted}
-          isHovered={isHovered}
-          canReorder={canReorder}
-          canReorderIntoTarget={canReorderIntoTarget}
-          draggedSessionItem={draggedSessionItem}
-          workspaceId={workspaceId}
-          interactive={interactive}
-          locale={locale}
-          t={t}
-          onSelectSession={onSelectSession}
-          onPinSession={onPinSession}
-          onUnpinSession={onUnpinSession}
-          onArchiveSession={onArchiveSession}
-          onSessionContextMenu={onSessionContextMenu}
-          handleStartRename={handleStartRename}
-          handleSessionDrop={handleSessionDrop}
-          setHoveredSessionId={setHoveredSessionId}
-          setDragSessionId={setDragSessionId}
-          setDragOverSessionTarget={setDragOverSessionTarget}
-        />
-      );
-    }),
+    () =>
+      visibleItems.map((sessionItem) => {
+        const isHovered = hoveredSessionId === sessionItem.session.id;
+        const canReorderIntoTarget =
+          Boolean(draggedSessionItem) &&
+          draggedSessionItem?.session.id !== sessionItem.session.id &&
+          draggedSessionItem?.session.isPinned === sessionItem.session.isPinned &&
+          (Boolean(workspaceId) || Boolean(allowStandaloneReorder));
+        const isDropTarget = dragOverSessionId === sessionItem.session.id && canReorderIntoTarget;
+        const isHighlighted = sessionToRename?.id === sessionItem.session.id;
+        return (
+          <SessionListRow
+            key={sessionItem.session.id}
+            sessionItem={sessionItem}
+            activeSessionId={activeSessionId}
+            droppedSessionId={droppedSessionId}
+            isDropTarget={isDropTarget}
+            isHighlighted={isHighlighted}
+            isHovered={isHovered}
+            canReorder={canReorder}
+            canReorderIntoTarget={canReorderIntoTarget}
+            draggedSessionItem={draggedSessionItem}
+            workspaceId={workspaceId}
+            interactive={interactive}
+            locale={locale}
+            t={t}
+            onSelectSession={onSelectSession}
+            onPinSession={onPinSession}
+            onUnpinSession={onUnpinSession}
+            onArchiveSession={onArchiveSession}
+            onSessionContextMenu={onSessionContextMenu}
+            handleStartRename={handleStartRename}
+            handleSessionDrop={handleSessionDrop}
+            setHoveredSessionId={setHoveredSessionId}
+            setDragSessionId={setDragSessionId}
+            setDragOverSessionTarget={setDragOverSessionTarget}
+          />
+        );
+      }),
     [
-      visibleItems, hoveredSessionId, draggedSessionItem, canReorder,
-      sessionToRename, dragOverSessionId, activeSessionId, droppedSessionId,
-      workspaceId, interactive, locale, t,
+      visibleItems,
+      hoveredSessionId,
+      draggedSessionItem,
+      canReorder,
+      sessionToRename,
+      dragOverSessionId,
+      activeSessionId,
+      droppedSessionId,
+      workspaceId,
+      interactive,
+      locale,
+      t,
       allowStandaloneReorder,
-      onSelectSession, onPinSession, onUnpinSession,
-      onArchiveSession, onSessionContextMenu,
-      handleStartRename, handleSessionDrop,
-      setHoveredSessionId, setDragSessionId, setDragOverSessionTarget,
+      onSelectSession,
+      onPinSession,
+      onUnpinSession,
+      onArchiveSession,
+      onSessionContextMenu,
+      handleStartRename,
+      handleSessionDrop,
+      setHoveredSessionId,
+      setDragSessionId,
+      setDragOverSessionTarget,
     ]
   );
 
   return (
     <>
       {renderedItems}
-      {canReorder && draggedSessionItem ? (
+      {canDropTail && !!draggedSessionItem ? (
         <li
-          className={`adl-session-row adl-session-row--tail${dragOverSessionId === tailDropTargetId ? " is-drop-target is-reorderable-target" : ""}`}
+          className={`adl-session-row adl-session-row--tail${dragOverSessionId === tailDropTargetId ? ' is-drop-target is-reorderable-target' : ''}`}
           onDragOver={(event) => {
             event.preventDefault();
             if (lastVisibleInBucket) {
@@ -308,28 +354,31 @@ export function SessionList({
         expanded,
         t,
         setExpandedSessionLists,
-        canReorder && draggedSessionItem ? {
-          canDropToTail: true,
-          isTailDropTarget: dragOverSessionId === tailDropTargetId,
-          onTailDragOver: (event: React.DragEvent<HTMLLIElement>) => {
-            event.preventDefault();
-            setDragOverSessionTarget(tailDropTargetId);
-          },
-          onTailDrop: () => {
-            const shouldDropAfterVisibleTail = !expanded && hiddenCount > 0 && lastVisibleInBucket;
-            if (workspaceId) {
-              if (shouldDropAfterVisibleTail) {
-                handleSessionDropAfterVisibleTarget(
-                  lastVisibleInBucket.session.id,
-                  draggedSessionItem.session.isPinned
-                );
-              } else {
-                handleSessionDropToBucketEnd(draggedSessionItem.session.isPinned);
-              }
+        canDropTail && !!draggedSessionItem
+          ? {
+              canDropToTail: true,
+              isTailDropTarget: dragOverSessionId === tailDropTargetId,
+              onTailDragOver: (event: React.DragEvent<HTMLLIElement>) => {
+                event.preventDefault();
+                setDragOverSessionTarget(tailDropTargetId);
+              },
+              onTailDrop: () => {
+                const shouldDropAfterVisibleTail =
+                  !expanded && hiddenCount > 0 && lastVisibleInBucket;
+                if (workspaceId) {
+                  if (shouldDropAfterVisibleTail) {
+                    handleSessionDropAfterVisibleTarget(
+                      lastVisibleInBucket.session.id,
+                      draggedSessionItem.session.isPinned
+                    );
+                  } else {
+                    handleSessionDropToBucketEnd(draggedSessionItem.session.isPinned);
+                  }
+                }
+              },
+              onTailDragLeave: undefined,
             }
-          },
-          onTailDragLeave: undefined
-        } : undefined
+          : undefined
       )}
       {sessionToRename && (
         <RenameDialog
@@ -366,7 +415,7 @@ function renderSessionLimitControl(
 
   return (
     <li
-      className={`adl-session-list__limit-item${options?.canDropToTail ? " adl-session-row adl-session-row--tail adl-session-row--tail-control adl-session-row--reorder-zone" : ""}${options?.isTailDropTarget ? " is-drop-target is-reorderable-target" : ""}`}
+      className={`adl-session-list__limit-item${options?.canDropToTail ? ' adl-session-row adl-session-row--tail adl-session-row--tail-control adl-session-row--reorder-zone' : ''}${options?.isTailDropTarget ? ' is-drop-target is-reorderable-target' : ''}`}
       onDragOver={options?.onTailDragOver}
       onDragLeave={options?.onTailDragLeave}
       onDrop={options?.onTailDrop}
@@ -377,7 +426,7 @@ function renderSessionLimitControl(
         onClick={() =>
           setExpandedSessionLists((current) => ({
             ...current,
-            [listKey]: !expanded
+            [listKey]: !expanded,
           }))
         }
       >

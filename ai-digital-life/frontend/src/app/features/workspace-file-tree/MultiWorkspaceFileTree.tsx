@@ -1,10 +1,14 @@
-import React, { useCallback, useMemo, useState } from "react";
-import type { RecentWorkspaceEntry, WorkspaceTreeNode, ReorderWorkspacesInput } from "@ai-digital-life/kernel";
-import type { CopyDict } from "../../i18n";
-import type { FileTreeContextMenuItem } from "../../features/file-tree";
-import { MultiWorkspaceContainer } from "../multi-workspace/MultiWorkspaceContainer";
-import { WorkspaceFileTreeEntry } from "./WorkspaceFileTreeEntry";
-import { moveIdWithinBucket } from "../../utils/dragUtils";
+import React, { useCallback, useMemo, useState } from 'react';
+import type {
+  RecentWorkspaceEntry,
+  WorkspaceTreeNode,
+  ReorderWorkspacesInput,
+} from '@ai-digital-life/kernel';
+import type { CopyDict } from '../../i18n';
+import type { FileTreeContextMenuItem } from '../../features/file-tree';
+import { MultiWorkspaceContainer } from '../multi-workspace/MultiWorkspaceContainer';
+import { WorkspaceFileTreeEntry } from './WorkspaceFileTreeEntry';
+import { moveIdWithinBucket } from '../../utils/dragUtils';
 
 export interface MultiWorkspaceFileTreeProps {
   workspaces: RecentWorkspaceEntry[];
@@ -26,15 +30,17 @@ export interface MultiWorkspaceFileTreeProps {
   onHideFromRightPanels: (workspaceId: string) => void;
   onToggleFileTreePath: (workspaceId: string, path: string) => void;
   onOpenFile: (relativePath: string) => void;
-  onOpenFileForWorkspace: (workspaceId: string, workspacePath: string, relativePath: string) => void;
+  onOpenFileForWorkspace: (
+    workspaceId: string,
+    workspacePath: string,
+    relativePath: string
+  ) => void;
   onReorderWorkspaces: (input: ReorderWorkspacesInput) => void;
   getContextMenuItems: (node: WorkspaceTreeNode) => FileTreeContextMenuItem<WorkspaceTreeNode>[];
   contextMenuPersistRef: React.MutableRefObject<boolean>;
   clearMenuHighlightRef: React.MutableRefObject<(() => void) | undefined>;
   t: CopyDict;
 }
-
-
 
 export function MultiWorkspaceFileTree({
   workspaces,
@@ -67,12 +73,12 @@ export function MultiWorkspaceFileTree({
 
   const pinnedIds = useMemo(
     () => workspaces.filter((w) => w.isPinned).map((w) => w.id),
-    [workspaces],
+    [workspaces]
   );
 
   const unpinnedIds = useMemo(
     () => workspaces.filter((w) => !w.isPinned).map((w) => w.id),
-    [workspaces],
+    [workspaces]
   );
 
   const handleDrop = useCallback(
@@ -93,21 +99,21 @@ export function MultiWorkspaceFileTree({
       onReorderWorkspaces({ pinnedIds: finalPinnedIds, unpinnedIds: finalUnpinnedIds });
       setDragWorkspaceId(undefined);
     },
-    [dragWorkspaceId, pinnedIds, unpinnedIds, onReorderWorkspaces],
+    [dragWorkspaceId, pinnedIds, unpinnedIds, onReorderWorkspaces]
   );
 
   const renderContent = useCallback(
     (workspace: RecentWorkspaceEntry, isExpanded: boolean) => {
       const isPinned = workspace.isPinned;
-      
+
       const handleOpenFile = (relativePath: string) => {
         onOpenFileForWorkspace(workspace.id, workspace.path, relativePath);
       };
-      
+
       return (
         <div
           key={workspace.id}
-          className={`adl-multitree-entry${dragWorkspaceId === workspace.id ? " is-dragging" : ""}`}
+          className={`adl-multitree-entry${dragWorkspaceId === workspace.id ? ' is-dragging' : ''}`}
           draggable
           onDragStart={() => setDragWorkspaceId(workspace.id)}
           onDragOver={(e) => e.preventDefault()}
@@ -167,7 +173,7 @@ export function MultiWorkspaceFileTree({
       clearMenuHighlightRef,
       t,
       handleDrop,
-    ],
+    ]
   );
 
   if (workspaces.length === 0) {

@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, useCallback } from "react";
-import type { CopyDict } from "../i18n";
+import { useEffect, useRef, useState, useCallback } from 'react';
+import type { CopyDict } from '../i18n';
 
 interface NewSessionDialogProps {
   open: boolean;
@@ -10,16 +10,14 @@ interface NewSessionDialogProps {
 
 export function NewSessionDialog({ open, t, onCreate, onCancel }: NewSessionDialogProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [value, setValue] = useState("");
+  const [value, setValue] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (open) {
-      setValue("");
+      setValue('');
       setLoading(false);
-      requestAnimationFrame(() => {
-        inputRef.current?.focus();
-      });
+      inputRef.current?.focus();
     }
   }, [open]);
 
@@ -36,9 +34,9 @@ export function NewSessionDialog({ open, t, onCreate, onCancel }: NewSessionDial
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.key === "Enter" && !loading) {
+      if (e.key === 'Enter' && !loading) {
         void handleOk();
-      } else if (e.key === "Escape") {
+      } else if (e.key === 'Escape') {
         onCancel();
       }
     },
@@ -49,7 +47,12 @@ export function NewSessionDialog({ open, t, onCreate, onCancel }: NewSessionDial
 
   return (
     <div className="adl-prompt-modal" onKeyDown={handleKeyDown}>
-      <div className="adl-prompt-modal__panel" role="dialog" aria-modal="true" aria-label={t.newSessionTitle}>
+      <div
+        className="adl-prompt-modal__panel"
+        role="dialog"
+        aria-modal="true"
+        aria-label={t.newSessionTitle}
+      >
         <div className="adl-prompt-modal__header">{t.newSessionTitle}</div>
         <input
           ref={inputRef}

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, forwardRef, ForwardedRef } from "react";
+import React, { useCallback, useEffect, useRef, forwardRef, ForwardedRef } from 'react';
 
 type CustomScrollAreaProps = {
   shellClassName: string;
@@ -18,7 +18,7 @@ export const CustomScrollArea = forwardRef(function CustomScrollArea(
     scrollClassName,
     scrollbarClassName,
     thumbClassName,
-    children
+    children,
   }: CustomScrollAreaProps,
   ref: ForwardedRef<HTMLDivElement>
 ) {
@@ -37,14 +37,17 @@ export const CustomScrollArea = forwardRef(function CustomScrollArea(
     }
     const maxScrollTop = scroll.scrollHeight - scroll.clientHeight;
     const isScrollable = maxScrollTop > 1;
-    root.classList.toggle("is-scrollable", isScrollable);
+    root.classList.toggle('is-scrollable', isScrollable);
     if (!isScrollable) {
-      thumb.style.height = "0px";
-      thumb.style.transform = "translateY(0px)";
+      thumb.style.height = '0px';
+      thumb.style.transform = 'translateY(0px)';
       return;
     }
     const trackHeight = scroll.clientHeight;
-    const thumbHeight = Math.max(24, Math.round((scroll.clientHeight / scroll.scrollHeight) * trackHeight));
+    const thumbHeight = Math.max(
+      24,
+      Math.round((scroll.clientHeight / scroll.scrollHeight) * trackHeight)
+    );
     const maxThumbTop = Math.max(1, trackHeight - thumbHeight);
     const thumbTop = Math.round((scroll.scrollTop / maxScrollTop) * maxThumbTop);
     thumb.style.height = `${thumbHeight}px`;
@@ -68,8 +71,9 @@ export const CustomScrollArea = forwardRef(function CustomScrollArea(
     };
 
     scheduleUpdate();
-    scroll.addEventListener("scroll", scheduleUpdate, { passive: true });
-    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(scheduleUpdate) : null;
+    scroll.addEventListener('scroll', scheduleUpdate, { passive: true });
+    const observer =
+      typeof ResizeObserver !== 'undefined' ? new ResizeObserver(scheduleUpdate) : null;
     observer?.observe(scroll);
     if (scroll.firstElementChild) {
       observer?.observe(scroll.firstElementChild);
@@ -78,56 +82,60 @@ export const CustomScrollArea = forwardRef(function CustomScrollArea(
       if (rafId) {
         window.cancelAnimationFrame(rafId);
       }
-      scroll.removeEventListener("scroll", scheduleUpdate);
+      scroll.removeEventListener('scroll', scheduleUpdate);
       observer?.disconnect();
     };
   }, [updateScrollbar]);
 
-  const handleScrollbarPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    const scroll = scrollRef.current;
-    const thumb = scrollbarThumbRef.current;
-    if (!scroll || !thumb || scroll.scrollHeight <= scroll.clientHeight) {
-      return;
-    }
-    event.preventDefault();
-    const track = event.currentTarget;
-    track.setPointerCapture(event.pointerId);
-    const trackRect = track.getBoundingClientRect();
-    const thumbRect = thumb.getBoundingClientRect();
-    const pointerInsideThumb = event.clientY >= thumbRect.top && event.clientY <= thumbRect.bottom;
-    const thumbOffset = pointerInsideThumb ? event.clientY - thumbRect.top : thumbRect.height / 2;
-
-    const applyClientY = (clientY: number) => {
-      const maxScrollTop = scroll.scrollHeight - scroll.clientHeight;
-      const maxThumbTop = Math.max(1, trackRect.height - thumbRect.height);
-      const nextThumbTop = clamp(clientY - trackRect.top - thumbOffset, 0, maxThumbTop);
-      scroll.scrollTop = Math.round((nextThumbTop / maxThumbTop) * maxScrollTop);
-      updateScrollbar();
-    };
-
-    applyClientY(event.clientY);
-
-    const handleMove = (moveEvent: PointerEvent) => applyClientY(moveEvent.clientY);
-    const cleanup = (upEvent: PointerEvent) => {
-      if (track.hasPointerCapture(upEvent.pointerId)) {
-        track.releasePointerCapture(upEvent.pointerId);
+  const handleScrollbarPointerDown = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const scroll = scrollRef.current;
+      const thumb = scrollbarThumbRef.current;
+      if (!scroll || !thumb || scroll.scrollHeight <= scroll.clientHeight) {
+        return;
       }
-      track.removeEventListener("pointermove", handleMove);
-      track.removeEventListener("pointerup", cleanup);
-      track.removeEventListener("pointercancel", cleanup);
-      track.removeEventListener("lostpointercapture", cleanup);
-    };
+      event.preventDefault();
+      const track = event.currentTarget;
+      track.setPointerCapture(event.pointerId);
+      const trackRect = track.getBoundingClientRect();
+      const thumbRect = thumb.getBoundingClientRect();
+      const pointerInsideThumb =
+        event.clientY >= thumbRect.top && event.clientY <= thumbRect.bottom;
+      const thumbOffset = pointerInsideThumb ? event.clientY - thumbRect.top : thumbRect.height / 2;
 
-    track.addEventListener("pointermove", handleMove);
-    track.addEventListener("pointerup", cleanup);
-    track.addEventListener("pointercancel", cleanup);
-    track.addEventListener("lostpointercapture", cleanup);
-  }, [updateScrollbar]);
+      const applyClientY = (clientY: number) => {
+        const maxScrollTop = scroll.scrollHeight - scroll.clientHeight;
+        const maxThumbTop = Math.max(1, trackRect.height - thumbRect.height);
+        const nextThumbTop = clamp(clientY - trackRect.top - thumbOffset, 0, maxThumbTop);
+        scroll.scrollTop = Math.round((nextThumbTop / maxThumbTop) * maxScrollTop);
+        updateScrollbar();
+      };
+
+      applyClientY(event.clientY);
+
+      const handleMove = (moveEvent: PointerEvent) => applyClientY(moveEvent.clientY);
+      const cleanup = (upEvent: PointerEvent) => {
+        if (track.hasPointerCapture(upEvent.pointerId)) {
+          track.releasePointerCapture(upEvent.pointerId);
+        }
+        track.removeEventListener('pointermove', handleMove);
+        track.removeEventListener('pointerup', cleanup);
+        track.removeEventListener('pointercancel', cleanup);
+        track.removeEventListener('lostpointercapture', cleanup);
+      };
+
+      track.addEventListener('pointermove', handleMove);
+      track.addEventListener('pointerup', cleanup);
+      track.addEventListener('pointercancel', cleanup);
+      track.addEventListener('lostpointercapture', cleanup);
+    },
+    [updateScrollbar]
+  );
 
   useEffect(() => {
     // Forward the ref to the scrolling container
     if (ref) {
-      if (typeof ref === "function") {
+      if (typeof ref === 'function') {
         ref(scrollRef.current);
       } else {
         ref.current = scrollRef.current;

@@ -1,13 +1,13 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
-import { IconArrowUp } from "../../../icons";
-import type { StickyContextModel } from "./stickyContext";
-import type { CopyDict } from "../../../i18n";
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { IconArrowUp } from '../../../icons';
+import type { StickyContextModel } from './stickyContext';
+import type { CopyDict } from '../../../i18n';
 
 const AUTO_HIDE_MS = 2000;
 
 type StickyContextProps = {
   model: StickyContextModel;
-  "data-testid"?: string;
+  'data-testid'?: string;
   t: CopyDict;
 };
 
@@ -35,7 +35,6 @@ export function StickyContext(props: StickyContextProps) {
 
   useEffect(() => {
     if (!props.model.showTopEntry) {
-      setIsVisible(true);
       clearHideTimer();
       return;
     }
@@ -64,8 +63,8 @@ export function StickyContext(props: StickyContextProps) {
 
   return (
     <div
-      className={`adl-sticky-context${isVisible ? "" : " is-hidden"}`}
-      data-testid={props["data-testid"]}
+      className={`adl-sticky-context${isVisible ? '' : ' is-hidden'}`}
+      data-testid={props['data-testid']}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >

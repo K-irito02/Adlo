@@ -1,6 +1,6 @@
-import { useEffect } from "react";
-import type { AppInfo } from "@ai-digital-life/kernel";
-import { useAppActions } from "./useAppActions";
+import { useEffect } from 'react';
+import type { AppInfo } from '@ai-digital-life/kernel';
+import { useAppActions } from './useAppActions';
 
 export function useTaskCenterPolling(appInfo: AppInfo | undefined) {
   const actions = useAppActions();

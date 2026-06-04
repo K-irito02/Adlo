@@ -19,7 +19,7 @@
 }
 
 .adl-session-row::before {
-  content: "";
+  content: '';
   position: absolute;
   left: 10px;
   right: 10px;

@@ -1,17 +1,17 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import { useAppStore } from "../../stores/slicedStore";
-import { useNavigatorResize } from "../../hooks/useNavigatorResize";
-import { useBrowserDragDrop } from "./useBrowserDragDrop";
-import { useBrowserMenus } from "./useBrowserMenus";
-import { isTauriShell } from "../../../tauri-bridge";
-import type { BrowserPanelProps } from "../../regions/right-panel/types";
-import type { BrowserTabState } from "../../stores/slices/browserSlice";
-import type { TabFolderState } from "../../stores/slices/browserSlice";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
+import { useAppStore } from '../../stores/slicedStore';
+import { useNavigatorResize } from '../../hooks/useNavigatorResize';
+import { useBrowserDragDrop } from './useBrowserDragDrop';
+import { useBrowserMenus } from './useBrowserMenus';
+import { isTauriShell } from '../../../tauri-bridge';
+import type { BrowserPanelProps } from '../../regions/right-panel/types';
+import type { BrowserTabState } from '../../stores/slices/browserSlice';
+import type { TabFolderState } from '../../stores/slices/browserSlice';
 
-export type BrowserNavigatorMode = "tabs" | "bookmarks" | "history" | "search";
-export type BrowserSearchScope = "bookmarks" | "history" | "all";
-export type BrowserTabCategoryType = "workspace" | "userFolder" | "history";
+export type BrowserNavigatorMode = 'tabs' | 'bookmarks' | 'history' | 'search';
+export type BrowserSearchScope = 'bookmarks' | 'history' | 'all';
+export type BrowserTabCategoryType = 'workspace' | 'userFolder' | 'history';
 
 export type BrowserMenuItem =
   | { id: string; separator: true }
@@ -105,7 +105,7 @@ export interface UseBrowserPanelReturn {
     handleOpenAllInNewTabs: (categoryType: string, nodePath: string) => void;
     handleRemoveFromArea: (workspaceId: string) => void;
     handleDeleteDirectory: (folderId: string) => void;
-    handleDeleteHistoryLevel: (level: "label" | "year" | "month" | "day", nodePath: string) => void;
+    handleDeleteHistoryLevel: (level: 'label' | 'year' | 'month' | 'day', nodePath: string) => void;
     handleExpandAllTree: () => void;
     handleCollapseAllTree: () => void;
   };
@@ -122,7 +122,7 @@ export interface UseBrowserPanelReturn {
 
 function normalizeBrowserUrl(value: string): string {
   const input = value.trim();
-  if (!input) return "";
+  if (!input) return '';
   if (/^[a-z]+:\/\/|about:/i.test(input)) {
     return input;
   }
@@ -133,7 +133,10 @@ function looksLikeUrl(value: string): boolean {
   return /^(about:|[a-z]+:\/\/)/i.test(value) || /[./:]/.test(value);
 }
 
-function filterBrowserItems<T extends { title: string; url: string }>(items: T[], query: string): T[] {
+function filterBrowserItems<T extends { title: string; url: string }>(
+  items: T[],
+  query: string
+): T[] {
   const normalizedQuery = query.trim().toLowerCase();
   if (!normalizedQuery) {
     return items;
@@ -155,57 +158,72 @@ export function computeNavigatorCount(
   browserHistory: Array<{ title: string; url: string; visitedAt: number }>,
   searchResults: Array<{ title: string; url: string; source: string }>,
   filteredBookmarks: Array<{ title: string; url: string }>,
-  filteredHistory: Array<{ title: string; url: string }>,
+  filteredHistory: Array<{ title: string; url: string }>
 ): number {
-  if (navigatorMode === "tabs") {
+  if (navigatorMode === 'tabs') {
     return browserTabs.length;
   }
-  if (navigatorMode === "search") {
+  if (navigatorMode === 'search') {
     return searchResults.length;
   }
   if (query.trim()) {
-    return navigatorMode === "bookmarks" ? filteredBookmarks.length : filteredHistory.length;
+    return navigatorMode === 'bookmarks' ? filteredBookmarks.length : filteredHistory.length;
   }
-  if (navigatorMode === "bookmarks") {
+  if (navigatorMode === 'bookmarks') {
     return browserBookmarks.length;
   }
-  if (navigatorMode === "history") {
+  if (navigatorMode === 'history') {
     return browserHistory.length;
   }
   return 0;
 }
 
-function findFolderByIdLocal(folders: Array<{ id: string; children?: unknown[] }>, folderId: string): { id: string; tabs?: string[] } | null {
+function findFolderByIdLocal(
+  folders: Array<{ id: string; children?: unknown[] }>,
+  folderId: string
+): { id: string; tabs?: string[] } | null {
   for (const folder of folders) {
     if (folder.id === folderId) return folder as { id: string; tabs?: string[] };
     if (Array.isArray(folder.children)) {
-      const found = findFolderByIdLocal(folder.children as Array<{ id: string; children?: unknown[] }>, folderId);
+      const found = findFolderByIdLocal(
+        folder.children as Array<{ id: string; children?: unknown[] }>,
+        folderId
+      );
       if (found) return found;
     }
   }
   return null;
 }
 
-export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDisabled?: boolean }): UseBrowserPanelReturn {
+export function useBrowserPanel(
+  props: BrowserPanelProps,
+  options?: { webViewDisabled?: boolean }
+): UseBrowserPanelReturn {
   const { t } = props;
   const webViewDisabled = options?.webViewDisabled ?? false;
-  const [navigatorMode, setNavigatorMode] = useState<BrowserNavigatorMode>("tabs");
+  const [navigatorMode, setNavigatorMode] = useState<BrowserNavigatorMode>('tabs');
   const [editingTabId, setEditingTabId] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState("");
+  const [editValue, setEditValue] = useState('');
   const [browserMenuOpen, setBrowserMenuOpen] = useState(false);
   const [addressExpanded, setAddressExpanded] = useState(false);
-  const [navigatorQuery, setNavigatorQuery] = useState("");
-  const [searchScope, setSearchScope] = useState<BrowserSearchScope>("all");
-  const [address, setAddress] = useState("");
+  const [navigatorQuery, setNavigatorQuery] = useState('');
+  const [searchScope, setSearchScope] = useState<BrowserSearchScope>('all');
+  const [address, setAddress] = useState('');
   const [iframeLoadError, setIframeLoadError] = useState(false);
-  const [iframeHistory, setIframeHistory] = useState<{ index: number; entries: string[] }>({ index: -1, entries: [] });
+  const [iframeHistory, setIframeHistory] = useState<{ index: number; entries: string[] }>({
+    index: -1,
+    entries: [],
+  });
   const [webViewActive, setWebViewActive] = useState(false);
 
   const webViewActiveRef = useRef(false);
   const creatingRef = useRef(false);
   const webViewVisibleRef = useRef(true);
-  webViewVisibleRef.current = !webViewDisabled;
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
+
+  useEffect(() => {
+    webViewVisibleRef.current = !webViewDisabled;
+  }, [webViewDisabled]);
 
   const browserTabs = useAppStore((state) => state.browserTabs);
   const browserActiveTabId = useAppStore((state) => state.browserActiveTabId);
@@ -254,31 +272,39 @@ export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDis
 
   const quickLinks = useMemo(
     () => [
-      { title: t.browserLocalPreview, url: "http://localhost:5173/" },
-      { title: t.browserBlankTab, url: "about:blank" }
+      { title: t.browserLocalPreview, url: 'http://localhost:5173/' },
+      { title: t.browserBlankTab, url: 'about:blank' },
     ],
     [t.browserBlankTab, t.browserLocalPreview]
   );
 
   const browserLookupIndex = useMemo(() => {
     const seen = new Set<string>();
-    return [...quickLinks, ...browserBookmarks, ...browserHistory, ...browserTabs].filter((item) => {
-      const key = `${item.title}::${item.url}`;
-      if (seen.has(key)) {
-        return false;
+    return [...quickLinks, ...browserBookmarks, ...browserHistory, ...browserTabs].filter(
+      (item) => {
+        const key = `${item.title}::${item.url}`;
+        if (seen.has(key)) {
+          return false;
+        }
+        seen.add(key);
+        return true;
       }
-      seen.add(key);
-      return true;
-    });
+    );
   }, [browserBookmarks, browserHistory, browserTabs, quickLinks]);
 
-  const filteredBookmarks = useMemo(() => filterBrowserItems(browserBookmarks, navigatorQuery), [browserBookmarks, navigatorQuery]);
-  const filteredHistory = useMemo(() => filterBrowserItems(browserHistory, navigatorQuery), [browserHistory, navigatorQuery]);
+  const filteredBookmarks = useMemo(
+    () => filterBrowserItems(browserBookmarks, navigatorQuery),
+    [browserBookmarks, navigatorQuery]
+  );
+  const filteredHistory = useMemo(
+    () => filterBrowserItems(browserHistory, navigatorQuery),
+    [browserHistory, navigatorQuery]
+  );
   const searchResults = useMemo(() => {
-    if (searchScope === "bookmarks") {
+    if (searchScope === 'bookmarks') {
       return filteredBookmarks.map((item) => ({ ...item, source: t.browserSavedTabs }));
     }
-    if (searchScope === "history") {
+    if (searchScope === 'history') {
       return filteredHistory.map((item) => ({ ...item, source: t.browserHistoryTabs }));
     }
     const merged = new Map<string, { title: string; url: string; source: string }>();
@@ -293,9 +319,11 @@ export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDis
   }, [filteredBookmarks, filteredHistory, searchScope, t.browserHistoryTabs, t.browserSavedTabs]);
 
   const navigatorItemsCount =
-    navigatorMode === "bookmarks" ? browserBookmarks.length :
-    navigatorMode === "history" ? browserHistory.length :
-    0;
+    navigatorMode === 'bookmarks'
+      ? browserBookmarks.length
+      : navigatorMode === 'history'
+        ? browserHistory.length
+        : 0;
   const navigatorCount = computeNavigatorCount(
     navigatorMode,
     navigatorQuery,
@@ -304,63 +332,89 @@ export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDis
     browserHistory,
     searchResults,
     filteredBookmarks,
-    filteredHistory,
+    filteredHistory
   );
 
-  const navigatorTitle = navigatorMode === "tabs" ? t.browserOpenTabs :
-                         navigatorMode === "bookmarks" ? t.browserSavedTabs :
-                         navigatorMode === "history" ? t.browserHistoryTabs :
-                         t.browserSearchTabs;
+  const navigatorTitle =
+    navigatorMode === 'tabs'
+      ? t.browserOpenTabs
+      : navigatorMode === 'bookmarks'
+        ? t.browserSavedTabs
+        : navigatorMode === 'history'
+          ? t.browserHistoryTabs
+          : t.browserSearchTabs;
 
   const allTreeExpanded = useMemo(() => {
-    const visible = recentWorkspaces.filter((w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available);
+    const visible = recentWorkspaces.filter(
+      (w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available
+    );
     const wsPaths = visible.map((w) => `workspace:${w.id}`);
     const folderPaths = browserTabFolders.filter((f) => !f.parentId).map((f) => `folder:${f.id}`);
-    const allEntryPaths = [
-      ...wsPaths,
-      ...folderPaths,
-    ];
+    const allEntryPaths = [...wsPaths, ...folderPaths];
     if (browserHistory.length > 0) {
-      allEntryPaths.push("history:root");
+      allEntryPaths.push('history:root');
     }
     if (allEntryPaths.length === 0) return false;
     return allEntryPaths.every((p) => browserTabTreeExpanded[p] ?? false);
   }, [recentWorkspaces, browserTabFolders, browserHistory, browserTabTreeExpanded]);
 
-  const browserMenuItems = useMemo(() => [
-    { id: "hard-reload", label: t.browserHardReload, action: () => browserNavigateActiveTab(activeTab?.url ?? "about:blank", activeTab?.title) },
-    { id: "copy-url", label: t.browserCopyCurrentUrl, action: () => void navigator.clipboard?.writeText(activeTab?.url ?? "about:blank") },
-    { id: "sep-1", separator: true as const },
-    { id: "clear-history", label: t.browserClearHistory, action: browserClearHistory },
-    { id: "clear-cookies", label: t.browserClearCookies, disabled: true },
-    { id: "clear-cache", label: t.browserClearCache, disabled: true },
-    { id: "devtools", label: t.browserDeveloperTools, disabled: true },
-    { id: "sep-2", separator: true as const },
-    { id: "zoom-in", label: t.menuZoomIn, disabled: true },
-    { id: "zoom-out", label: t.menuZoomOut, disabled: true },
-    { id: "zoom-reset", label: t.menuResetZoom, disabled: true }
-  ], [activeTab, browserClearHistory, t]);
+  const browserMenuItems = useMemo(
+    () => [
+      {
+        id: 'hard-reload',
+        label: t.browserHardReload,
+        action: () => browserNavigateActiveTab(activeTab?.url ?? 'about:blank', activeTab?.title),
+      },
+      {
+        id: 'copy-url',
+        label: t.browserCopyCurrentUrl,
+        action: () => void navigator.clipboard?.writeText(activeTab?.url ?? 'about:blank'),
+      },
+      { id: 'sep-1', separator: true as const },
+      { id: 'clear-history', label: t.browserClearHistory, action: browserClearHistory },
+      { id: 'clear-cookies', label: t.browserClearCookies, disabled: true },
+      { id: 'clear-cache', label: t.browserClearCache, disabled: true },
+      { id: 'devtools', label: t.browserDeveloperTools, disabled: true },
+      { id: 'sep-2', separator: true as const },
+      { id: 'zoom-in', label: t.menuZoomIn, disabled: true },
+      { id: 'zoom-out', label: t.menuZoomOut, disabled: true },
+      { id: 'zoom-reset', label: t.menuResetZoom, disabled: true },
+    ],
+    [activeTab, browserClearHistory, t]
+  );
 
   const handleDoubleClick = useCallback((tabId: string, title: string) => {
     setEditValue(title);
     setEditingTabId(tabId);
   }, []);
 
-  const handleCreateTab = useCallback((url?: string, title?: string, workspaceId?: string) => {
-    browserOpenTab(url, title, workspaceId);
-  }, [browserOpenTab]);
+  const handleCreateTab = useCallback(
+    (url?: string, title?: string, workspaceId?: string) => {
+      browserOpenTab(url, title, workspaceId);
+    },
+    [browserOpenTab]
+  );
 
-  const handleSelectTab = useCallback((tabId: string) => {
-    browserSelectTab(tabId);
-  }, [browserSelectTab]);
+  const handleSelectTab = useCallback(
+    (tabId: string) => {
+      browserSelectTab(tabId);
+    },
+    [browserSelectTab]
+  );
 
-  const handleCloseTab = useCallback((tabId: string) => {
-    browserCloseTab(tabId);
-  }, [browserCloseTab]);
+  const handleCloseTab = useCallback(
+    (tabId: string) => {
+      browserCloseTab(tabId);
+    },
+    [browserCloseTab]
+  );
 
-  const handleCloseAllTabs = useCallback((workspaceId?: string) => {
-    browserCloseAllTabs(workspaceId);
-  }, [browserCloseAllTabs]);
+  const handleCloseAllTabs = useCallback(
+    (workspaceId?: string) => {
+      browserCloseAllTabs(workspaceId);
+    },
+    [browserCloseAllTabs]
+  );
 
   const navigateBrowser = useCallback((url: string) => {
     if (isTauriShell()) {
@@ -388,10 +442,10 @@ export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDis
       x: Math.round(rect.left),
       y: Math.round(rect.top),
       width: Math.round(rect.width),
-      height: Math.round(rect.height)
+      height: Math.round(rect.height),
     };
 
-    invoke("browser_set_bounds", { bounds }).catch(err => {
+    invoke('browser_set_bounds', { bounds }).catch((err) => {
       log(`set_bounds 失败: ${err}`);
     });
   }, []);
@@ -403,9 +457,16 @@ export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDis
     }
     const normalizedInput = input.toLowerCase();
     const matchedItem =
-      browserLookupIndex.find((item) => item.title.toLowerCase() === normalizedInput || item.url.toLowerCase() === normalizedInput) ??
+      browserLookupIndex.find(
+        (item) =>
+          item.title.toLowerCase() === normalizedInput || item.url.toLowerCase() === normalizedInput
+      ) ??
       (!looksLikeUrl(input)
-        ? browserLookupIndex.find((item) => item.title.toLowerCase().includes(normalizedInput) || item.url.toLowerCase().includes(normalizedInput))
+        ? browserLookupIndex.find(
+            (item) =>
+              item.title.toLowerCase().includes(normalizedInput) ||
+              item.url.toLowerCase().includes(normalizedInput)
+          )
         : undefined);
     if (matchedItem) {
       browserNavigateActiveTab(matchedItem.url, matchedItem.title);
@@ -422,10 +483,13 @@ export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDis
     browserToggleBookmark();
   }, [browserToggleBookmark]);
 
-  const handleToggleBookmarkForTab = useCallback((tabId: string, url: string, title: string) => {
-    // 切换特定标签页的收藏状态
-    browserToggleBookmark({ url, title });
-  }, [browserToggleBookmark]);
+  const handleToggleBookmarkForTab = useCallback(
+    (tabId: string, url: string, title: string) => {
+      // 切换特定标签页的收藏状态
+      browserToggleBookmark({ url, title });
+    },
+    [browserToggleBookmark]
+  );
 
   const handleIframeLoad = useCallback(() => {
     setIframeLoadError(false);
@@ -433,10 +497,10 @@ export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDis
       const iframeWindow = iframeRef.current?.contentWindow;
       if (iframeWindow) {
         const href = iframeWindow.location.href;
-        if (href && href !== "about:blank" && activeTab && href !== activeTab.url) {
+        if (href && href !== 'about:blank' && activeTab && href !== activeTab.url) {
           setAddress(href);
           browserNavigateActiveTab(href);
-        } else if (href && href !== "about:blank" && activeTab) {
+        } else if (href && href !== 'about:blank' && activeTab) {
           try {
             const iframeTitle = iframeWindow.document?.title;
             if (iframeTitle && iframeTitle !== activeTab.title) {
@@ -453,14 +517,17 @@ export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDis
   }, [activeTab, browserNavigateActiveTab, browserUpdateTab]);
 
   const handleIframeLoadRef = useRef(handleIframeLoad);
-  handleIframeLoadRef.current = handleIframeLoad;
+
+  useEffect(() => {
+    handleIframeLoadRef.current = handleIframeLoad;
+  }, [handleIframeLoad]);
 
   useEffect(() => {
     const node = iframeRef.current;
     if (!node) return;
     const handler = () => handleIframeLoadRef.current();
-    node.addEventListener("load", handler);
-    return () => node.removeEventListener("load", handler);
+    node.addEventListener('load', handler);
+    return () => node.removeEventListener('load', handler);
   }, [activeTab?.url]);
 
   const handleIframeError = useCallback(() => {
@@ -471,68 +538,93 @@ export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDis
     browserClearHistory();
   }, [browserClearHistory]);
 
-  const handleCreateTabInTree = useCallback((workspaceId?: string, folderId?: string) => {
-    browserOpenTab(undefined, undefined, workspaceId);
-  }, [browserOpenTab]);
+  const handleCreateTabInTree = useCallback(
+    (workspaceId?: string, folderId?: string) => {
+      browserOpenTab(undefined, undefined, workspaceId);
+    },
+    [browserOpenTab]
+  );
 
-  const handleToggleTreePath = useCallback((path: string) => {
-    browserToggleTabTreePath(path);
-  }, [browserToggleTabTreePath]);
+  const handleToggleTreePath = useCallback(
+    (path: string) => {
+      browserToggleTabTreePath(path);
+    },
+    [browserToggleTabTreePath]
+  );
 
-  const handleDeleteAllChildTabs = useCallback((_categoryType: string, nodePath: string) => {
-    browserDeleteAllTabsInNode(nodePath);
-  }, [browserDeleteAllTabsInNode]);
+  const handleDeleteAllChildTabs = useCallback(
+    (_categoryType: string, nodePath: string) => {
+      browserDeleteAllTabsInNode(nodePath);
+    },
+    [browserDeleteAllTabsInNode]
+  );
 
-  const handleOpenAllInNewTabs = useCallback((_categoryType: string, nodePath: string) => {
-    const state = useAppStore.getState();
-    if (nodePath.startsWith("workspace:")) {
-      const wsId = nodePath.slice("workspace:".length);
-      const tabs = state.browserTabs.filter((t) => t.workspaceId === wsId);
-      tabs.forEach((tab) => browserOpenTab(tab.url, tab.title, tab.workspaceId));
-    } else if (nodePath.startsWith("folder:")) {
-      const folderId = nodePath.slice("folder:".length);
-      const folder = findFolderByIdLocal(state.browserTabFolders as Array<{ id: string; tabs?: string[]; children?: unknown[] }>, folderId);
-      if (folder?.tabs) {
-        folder.tabs.forEach((tabId) => {
-          const tab = state.browserTabs.find((t) => t.id === tabId);
-          if (tab) browserOpenTab(tab.url, tab.title, tab.workspaceId);
-        });
+  const handleOpenAllInNewTabs = useCallback(
+    (_categoryType: string, nodePath: string) => {
+      const state = useAppStore.getState();
+      if (nodePath.startsWith('workspace:')) {
+        const wsId = nodePath.slice('workspace:'.length);
+        const tabs = state.browserTabs.filter((t) => t.workspaceId === wsId);
+        tabs.forEach((tab) => browserOpenTab(tab.url, tab.title, tab.workspaceId));
+      } else if (nodePath.startsWith('folder:')) {
+        const folderId = nodePath.slice('folder:'.length);
+        const folder = findFolderByIdLocal(
+          state.browserTabFolders as Array<{ id: string; tabs?: string[]; children?: unknown[] }>,
+          folderId
+        );
+        if (folder?.tabs) {
+          folder.tabs.forEach((tabId) => {
+            const tab = state.browserTabs.find((t) => t.id === tabId);
+            if (tab) browserOpenTab(tab.url, tab.title, tab.workspaceId);
+          });
+        }
+      } else if (nodePath.startsWith('history:day:')) {
+        const dayDate = nodePath.slice('history:day:'.length);
+        state.browserHistory
+          .filter((h) => {
+            const d = new Date(h.visitedAt);
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const dy = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${dy}` === dayDate;
+          })
+          .forEach((h) => browserOpenTab(h.url, h.title));
       }
-    } else if (nodePath.startsWith("history:day:")) {
-      const dayDate = nodePath.slice("history:day:".length);
-      state.browserHistory
-        .filter((h) => {
-          const d = new Date(h.visitedAt);
-          const y = d.getFullYear();
-          const m = String(d.getMonth() + 1).padStart(2, "0");
-          const dy = String(d.getDate()).padStart(2, "0");
-          return `${y}-${m}-${dy}` === dayDate;
-        })
-        .forEach((h) => browserOpenTab(h.url, h.title));
-    }
-  }, [browserOpenTab]);
+    },
+    [browserOpenTab]
+  );
 
   const handleRemoveFromArea = useCallback((workspaceId: string) => {
     useAppStore.getState().hideWorkspaceFromRightPanels(workspaceId);
   }, []);
 
-  const handleDeleteDirectory = useCallback((folderId: string) => {
-    if (folderId.startsWith("history:")) {
-      browserDeleteAllTabsInNode(folderId);
-    } else {
-      const actualId = folderId.startsWith("folder:") ? folderId.slice("folder:".length) : folderId;
-      browserDeleteTabFolder(actualId);
-    }
-  }, [browserDeleteTabFolder, browserDeleteAllTabsInNode]);
+  const handleDeleteDirectory = useCallback(
+    (folderId: string) => {
+      if (folderId.startsWith('history:')) {
+        browserDeleteAllTabsInNode(folderId);
+      } else {
+        const actualId = folderId.startsWith('folder:')
+          ? folderId.slice('folder:'.length)
+          : folderId;
+        browserDeleteTabFolder(actualId);
+      }
+    },
+    [browserDeleteTabFolder, browserDeleteAllTabsInNode]
+  );
 
-  const handleDeleteHistoryLevel = useCallback((level: "label" | "year" | "month" | "day", nodePath: string) => {
-    browserDeleteHistoryByLevel(level, nodePath);
-  }, [browserDeleteHistoryByLevel]);
+  const handleDeleteHistoryLevel = useCallback(
+    (level: 'label' | 'year' | 'month' | 'day', nodePath: string) => {
+      browserDeleteHistoryByLevel(level, nodePath);
+    },
+    [browserDeleteHistoryByLevel]
+  );
 
   const handleExpandAllTree = useCallback(() => {
     const state = useAppStore.getState();
     const paths: string[] = [];
-    const workspaces = state.recentWorkspaces.filter((w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available);
+    const workspaces = state.recentWorkspaces.filter(
+      (w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available
+    );
     for (const ws of workspaces) {
       paths.push(`workspace:${ws.id}`);
     }
@@ -540,7 +632,7 @@ export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDis
       paths.push(`folder:${folder.id}`);
     }
     if (state.browserHistory.length > 0) {
-      paths.push("history:root");
+      paths.push('history:root');
     }
     browserExpandAllTreePaths(paths);
   }, [browserExpandAllTreePaths]);
@@ -549,14 +641,8 @@ export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDis
     browserCollapseAllTreePaths();
   }, [browserCollapseAllTreePaths]);
 
-  const {
-    isDragging,
-    dragOverTabId,
-    handleDragStart,
-    handleDragEnd,
-    handleDragOver,
-    handleDrop,
-  } = useBrowserDragDrop(browserTabs, browserReorderTabs);
+  const { isDragging, dragOverTabId, handleDragStart, handleDragEnd, handleDragOver, handleDrop } =
+    useBrowserDragDrop(browserTabs, browserReorderTabs);
 
   const {
     contextMenu,
@@ -572,16 +658,19 @@ export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDis
     handleDoubleClick,
   });
 
-  const toggleNavigator = useCallback((tool: string) => {
-    if (tool === "browser") {
-      toggleBrowserNavigator();
-    }
-  }, [toggleBrowserNavigator]);
+  const toggleNavigator = useCallback(
+    (tool: string) => {
+      if (tool === 'browser') {
+        toggleBrowserNavigator();
+      }
+    },
+    [toggleBrowserNavigator]
+  );
 
   const { handlePointerDown: handleNavigatorResizeStart } = useNavigatorResize({
     onWidthCommit: setBrowserNavigatorWidth,
     minWidth: 180,
-    maxWidth: 300
+    maxWidth: 300,
   });
 
   const handleEditSubmit = useCallback(() => {
@@ -589,17 +678,20 @@ export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDis
       browserUpdateTab(editingTabId, { title: editValue.trim() });
     }
     setEditingTabId(null);
-    setEditValue("");
+    setEditValue('');
   }, [editingTabId, editValue, browserUpdateTab]);
 
-  const handleEditKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      handleEditSubmit();
-    } else if (e.key === "Escape") {
-      setEditingTabId(null);
-      setEditValue("");
-    }
-  }, [handleEditSubmit]);
+  const handleEditKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        handleEditSubmit();
+      } else if (e.key === 'Escape') {
+        setEditingTabId(null);
+        setEditValue('');
+      }
+    },
+    [handleEditSubmit]
+  );
 
   useEffect(() => {
     if (editingTabId && editInputRef.current) {
@@ -609,21 +701,25 @@ export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDis
   }, [editingTabId]);
 
   useEffect(() => {
-    const url = activeTab?.url ?? "";
-    setAddress(url);
-    setIframeLoadError(false);
-    
+    const url = activeTab?.url ?? '';
+    requestAnimationFrame(() => {
+      setAddress(url);
+      setIframeLoadError(false);
+    });
+
     // 在浏览器模式下更新 iframe 历史
-    if (!isTauriShell() && url && url !== "") {
-      setIframeHistory((prev) => {
-        // 避免重复添加相同的 URL
-        if (prev.entries[prev.index] === url) {
-          return prev;
-        }
-        const newEntries = prev.entries.slice(0, prev.index + 1);
-        newEntries.push(url);
-        if (newEntries.length > 50) newEntries.shift();
-        return { index: newEntries.length - 1, entries: newEntries };
+    if (!isTauriShell() && url && url !== '') {
+      requestAnimationFrame(() => {
+        setIframeHistory((prev) => {
+          // 避免重复添加相同的 URL
+          if (prev.entries[prev.index] === url) {
+            return prev;
+          }
+          const newEntries = prev.entries.slice(0, prev.index + 1);
+          newEntries.push(url);
+          if (newEntries.length > 50) newEntries.shift();
+          return { index: newEntries.length - 1, entries: newEntries };
+        });
       });
     }
   }, [activeTab?.url]);
@@ -632,8 +728,8 @@ export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDis
     if (!isTauriShell()) return;
     if (!webViewActiveRef.current) return;
     if (webViewDisabled) {
-      invoke("browser_set_bounds", {
-        bounds: { x: -10000, y: -10000, width: 1, height: 1 }
+      invoke('browser_set_bounds', {
+        bounds: { x: -10000, y: -10000, width: 1, height: 1 },
       }).catch(console.error);
     } else {
       updateWebViewBounds();
@@ -642,7 +738,10 @@ export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDis
 
   const isBrowserVisible = props.isVisible;
   const isBrowserVisibleRef = useRef(isBrowserVisible);
-  isBrowserVisibleRef.current = isBrowserVisible;
+
+  useEffect(() => {
+    isBrowserVisibleRef.current = isBrowserVisible;
+  }, [isBrowserVisible]);
 
   useEffect(() => {
     if (!isTauriShell()) return;
@@ -655,8 +754,8 @@ export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDis
         });
       });
     } else {
-      invoke("browser_set_bounds", {
-        bounds: { x: 32767, y: 32767, width: 1, height: 1 }
+      invoke('browser_set_bounds', {
+        bounds: { x: 32767, y: 32767, width: 1, height: 1 },
       }).catch(console.error);
     }
   }, [isBrowserVisible, updateWebViewBounds, webViewActive]);
@@ -666,11 +765,11 @@ export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDis
 
     if (webViewDisabled) return;
 
-    const url = activeTab?.url ?? "about:blank";
-    if (url === "about:blank" || url.trim() === "") return;
+    const url = activeTab?.url ?? 'about:blank';
+    if (url === 'about:blank' || url.trim() === '') return;
 
     if (webViewActiveRef.current) {
-      invoke("browser_navigate", { url }).catch((err) => {
+      invoke('browser_navigate', { url }).catch((err) => {
         log(`navigate 失败: ${err}`);
       });
       return;
@@ -680,9 +779,10 @@ export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDis
     creatingRef.current = true;
 
     const timeout = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("browser_create 超时(10s)")), 10000));
+      setTimeout(() => reject(new Error('browser_create 超时(10s)')), 10000)
+    );
 
-    Promise.race([invoke("browser_create", { url }), timeout])
+    Promise.race([invoke('browser_create', { url }), timeout])
       .then(() => {
         webViewActiveRef.current = true;
         creatingRef.current = false;
@@ -696,14 +796,14 @@ export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDis
       .catch((err) => {
         creatingRef.current = false;
         log(`browser_create 失败: ${err}`);
-        console.error("Failed to create browser WebView:", err);
+        console.error('Failed to create browser WebView:', err);
       });
   }, [activeTab?.id, activeTab?.url, updateWebViewBounds]);
 
   useEffect(() => {
     return () => {
       if (isTauriShell() && webViewActiveRef.current) {
-        invoke("browser_destroy").catch(console.error);
+        invoke('browser_destroy').catch(console.error);
         webViewActiveRef.current = false;
       }
       resizeObserverRef.current?.disconnect();
@@ -727,7 +827,7 @@ export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDis
   }, [updateWebViewBounds]);
 
   useEffect(() => {
-    if (!browserMenuOpen && !addressExpanded && navigatorMode !== "search") {
+    if (!browserMenuOpen && !addressExpanded && navigatorMode !== 'search') {
       return;
     }
     const handlePointerDown = (event: MouseEvent) => {
@@ -738,12 +838,12 @@ export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDis
       if (!addressSearchRef.current?.contains(target)) {
         setAddressExpanded(false);
       }
-      if (navigatorMode === "search" && !navigatorSearchRef.current?.contains(target)) {
-        setNavigatorMode("bookmarks");
+      if (navigatorMode === 'search' && !navigatorSearchRef.current?.contains(target)) {
+        setNavigatorMode('bookmarks');
       }
     };
-    document.addEventListener("mousedown", handlePointerDown);
-    return () => document.removeEventListener("mousedown", handlePointerDown);
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => document.removeEventListener('mousedown', handlePointerDown);
   }, [addressExpanded, browserMenuOpen, navigatorMode]);
 
   useEffect(() => {
@@ -754,7 +854,7 @@ export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDis
   }, [addressExpanded]);
 
   useEffect(() => {
-    if (navigatorMode === "search") {
+    if (navigatorMode === 'search') {
       navigatorSearchInputRef.current?.focus();
       navigatorSearchInputRef.current?.select();
     }
@@ -763,15 +863,15 @@ export function useBrowserPanel(props: BrowserPanelProps, options?: { webViewDis
   // Listen to URL changes and update address bar and tab info
   useEffect(() => {
     if (!isTauriShell()) return;
-    
+
     const browser = window.digitalLife?.browser;
     if (!browser) return;
-    
+
     const unsubscribe = browser.onUrlChanged((url) => {
       setAddress(url);
       browserNavigateActiveTab(url);
     });
-    
+
     return unsubscribe;
   }, [browserNavigateActiveTab, setAddress]);
 

@@ -16,10 +16,24 @@ fn ignored_dirs() -> &'static HashSet<&'static str> {
     static IGNORED_DIRS: OnceLock<HashSet<&'static str>> = OnceLock::new();
     IGNORED_DIRS.get_or_init(|| {
         HashSet::from([
-            ".git", "target", "node_modules", "dist", "build",
-            ".next", ".cache", "__pycache__", ".venv", "vendor",
-            ".idea", ".vscode", ".svelte-kit", ".turbo",
-            "coverage", ".nyc_output", "out", ".tox",
+            ".git",
+            "target",
+            "node_modules",
+            "dist",
+            "build",
+            ".next",
+            ".cache",
+            "__pycache__",
+            ".venv",
+            "vendor",
+            ".idea",
+            ".vscode",
+            ".svelte-kit",
+            ".turbo",
+            "coverage",
+            ".nyc_output",
+            "out",
+            ".tox",
         ])
     })
 }
@@ -122,7 +136,8 @@ pub fn build_retrieval_snapshot(
     root: &Path,
 ) -> Result<RetrievalSnapshot, AppError> {
     let started = now_ms();
-    let (files, extensions, repo_map) = collect_retrieval_data(root, crate::DEFAULT_MAX_FILE_BYTES)?;
+    let (files, extensions, repo_map) =
+        collect_retrieval_data(root, crate::DEFAULT_MAX_FILE_BYTES)?;
     let mut top_extensions: Vec<_> = extensions
         .into_iter()
         .map(|(extension, count)| RetrievalFileTypeCount { extension, count })
@@ -161,6 +176,7 @@ pub fn build_retrieval_snapshot(
     })
 }
 
+#[allow(clippy::type_complexity)]
 fn collect_retrieval_data(
     root: &Path,
     max_file_bytes: u64,
@@ -168,7 +184,14 @@ fn collect_retrieval_data(
     let mut files = Vec::new();
     let mut extensions: BTreeMap<String, i32> = BTreeMap::new();
     let mut repo_map = Vec::new();
-    collect_retrieval_inner(root, root, max_file_bytes, &mut files, &mut extensions, &mut repo_map)?;
+    collect_retrieval_inner(
+        root,
+        root,
+        max_file_bytes,
+        &mut files,
+        &mut extensions,
+        &mut repo_map,
+    )?;
     repo_map.truncate(200);
     Ok((files, extensions, repo_map))
 }
@@ -190,16 +213,10 @@ fn collect_retrieval_inner(
         }
         let relative = relative_path(root, &path);
         if path.is_dir() {
-            repo_map.push(RepoMapEntry {
-                path: relative,
-                r#type: "directory".to_string(),
-            });
+            repo_map.push(RepoMapEntry { path: relative, r#type: "directory".to_string() });
             collect_retrieval_inner(root, &path, max_file_bytes, files, extensions, repo_map)?;
         } else if path.is_file() {
-            repo_map.push(RepoMapEntry {
-                path: relative.clone(),
-                r#type: "file".to_string(),
-            });
+            repo_map.push(RepoMapEntry { path: relative.clone(), r#type: "file".to_string() });
             if files.len() < MAX_COLLECTED_FILES
                 && adl_fs_ops::read_text_file(root, &relative, max_file_bytes).is_ok()
             {
@@ -227,14 +244,19 @@ pub async fn build_retrieval_snapshot_async(
     let (files, top_extensions, repo_map) = tokio::task::spawn_blocking({
         let r = root_owned.clone();
         move || {
-            let (files, extensions, repo_map) = collect_retrieval_data(&r, crate::DEFAULT_MAX_FILE_BYTES)?;
+            let (files, extensions, repo_map) =
+                collect_retrieval_data(&r, crate::DEFAULT_MAX_FILE_BYTES)?;
             let mut top_extensions: Vec<_> = extensions
                 .into_iter()
                 .map(|(extension, count)| RetrievalFileTypeCount { extension, count })
                 .collect();
             top_extensions.sort_by_key(|entry| std::cmp::Reverse(entry.count));
             top_extensions.truncate(12);
-            Ok::<(Vec<PathBuf>, Vec<RetrievalFileTypeCount>, Vec<RepoMapEntry>), AppError>((files, top_extensions, repo_map))
+            Ok::<(Vec<PathBuf>, Vec<RetrievalFileTypeCount>, Vec<RepoMapEntry>), AppError>((
+                files,
+                top_extensions,
+                repo_map,
+            ))
         }
     })
     .await
@@ -280,7 +302,10 @@ pub async fn build_retrieval_snapshot_async(
     })
 }
 
-pub(crate) fn collect_text_files(root: &Path, max_file_bytes: u64) -> Result<Vec<PathBuf>, AppError> {
+pub(crate) fn collect_text_files(
+    root: &Path,
+    max_file_bytes: u64,
+) -> Result<Vec<PathBuf>, AppError> {
     let mut files = Vec::new();
     collect_text_files_inner(root, root, max_file_bytes, &mut files)?;
     Ok(files)
@@ -313,7 +338,13 @@ fn collect_text_files_inner_int(
             continue;
         }
         if path.is_dir() {
-            collect_text_files_inner_int(root, &path, max_file_bytes, files, extensions.as_deref_mut())?;
+            collect_text_files_inner_int(
+                root,
+                &path,
+                max_file_bytes,
+                files,
+                extensions.as_deref_mut(),
+            )?;
         } else if path.is_file() {
             let relative = relative_path(root, &path);
             if adl_fs_ops::read_text_file(root, &relative, max_file_bytes).is_ok() {
@@ -337,8 +368,5 @@ fn should_ignore(name: &str) -> bool {
 }
 
 pub(crate) fn relative_path(root: &Path, path: &Path) -> String {
-    path.strip_prefix(root)
-        .unwrap_or(path)
-        .to_string_lossy()
-        .replace('\\', "/")
+    path.strip_prefix(root).unwrap_or(path).to_string_lossy().replace('\\', "/")
 }

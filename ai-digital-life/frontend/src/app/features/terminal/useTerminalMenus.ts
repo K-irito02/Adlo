@@ -1,14 +1,18 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useAppStore } from "../../stores/slicedStore";
-import { terminalSelectors } from "../../stores/selectors";
-import { useTerminalContextMenu } from "./useTerminalContextMenu";
-import type { TerminalPanelProps } from "../../regions/right-panel/types";
-import type { TerminalProfile } from "../../stores/types";
-import type { XtermTerminalHandle } from "../../components/terminal/XtermTerminal";
-import type { TerminalMenuItem, TerminalShellMenuItem, WorkspaceMenuItem } from "./useTerminalPanel";
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useAppStore } from '../../stores/slicedStore';
+import { terminalSelectors } from '../../stores/selectors';
+import { useTerminalContextMenu } from './useTerminalContextMenu';
+import type { TerminalPanelProps } from '../../regions/right-panel/types';
+import type { TerminalProfile } from '../../stores/types';
+import type { XtermTerminalHandle } from '../../components/terminal/XtermTerminal';
+import type {
+  TerminalMenuItem,
+  TerminalShellMenuItem,
+  WorkspaceMenuItem,
+} from './useTerminalPanel';
 
 interface TerminalMenusParams {
-  t: TerminalPanelProps["t"];
+  t: TerminalPanelProps['t'];
   xtermRef: React.RefObject<XtermTerminalHandle | null>;
   activeTab: { sessionId?: string } | undefined;
   handleCloseTab: (tabId: string) => void;
@@ -16,7 +20,14 @@ interface TerminalMenusParams {
   handleKill: () => void;
 }
 
-export function useTerminalMenus({ t, xtermRef, activeTab, handleCloseTab, handleDoubleClick, handleKill }: TerminalMenusParams) {
+export function useTerminalMenus({
+  t,
+  xtermRef,
+  activeTab,
+  handleCloseTab,
+  handleDoubleClick,
+  handleKill,
+}: TerminalMenusParams) {
   const [terminalMenuOpen, setTerminalMenuOpen] = useState(false);
   const [shellMenuOpen, setShellMenuOpen] = useState(false);
 
@@ -44,20 +55,26 @@ export function useTerminalMenus({ t, xtermRef, activeTab, handleCloseTab, handl
   }, []);
 
   const handlePaste = useCallback(() => {
-    navigator.clipboard.readText().then((text) => {
-      if (activeTab?.sessionId) {
-        window.digitalLife.pty.input(activeTab.sessionId, text);
-      }
-    }).catch(() => {});
-  }, [activeTab?.sessionId]);
+    navigator.clipboard
+      .readText()
+      .then((text) => {
+        if (activeTab?.sessionId) {
+          window.digitalLife.pty.input(activeTab.sessionId, text);
+        }
+      })
+      .catch(() => {});
+  }, [activeTab]);
 
   const handleClear = useCallback(() => {
     xtermRef.current?.clear();
   }, []);
 
-  const updateProfile = useCallback((profile: TerminalProfile) => {
-    setDefaultTerminalProfile(profile);
-  }, [setDefaultTerminalProfile]);
+  const updateProfile = useCallback(
+    (profile: TerminalProfile) => {
+      setDefaultTerminalProfile(profile);
+    },
+    [setDefaultTerminalProfile]
+  );
 
   useEffect(() => {
     if (!terminalMenuOpen && !shellMenuOpen) {
@@ -72,45 +89,56 @@ export function useTerminalMenus({ t, xtermRef, activeTab, handleCloseTab, handl
         setShellMenuOpen(false);
       }
     };
-    document.addEventListener("mousedown", handlePointerDown);
-    return () => document.removeEventListener("mousedown", handlePointerDown);
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => document.removeEventListener('mousedown', handlePointerDown);
   }, [shellMenuOpen, terminalMenuOpen]);
 
   const terminalMenuItems: TerminalMenuItem[] = [
-    { id: "copy", label: t.terminalCopy, action: handleCopy },
-    { id: "paste", label: t.terminalPaste, action: handlePaste },
-    { id: "clear", label: t.terminalClear, action: handleClear },
-    { id: "sep-1", separator: true },
-    { id: "kill", label: t.terminalKillProcess, action: handleKill }
+    { id: 'copy', label: t.terminalCopy, action: handleCopy },
+    { id: 'paste', label: t.terminalPaste, action: handlePaste },
+    { id: 'clear', label: t.terminalClear, action: handleClear },
+    { id: 'sep-1', separator: true },
+    { id: 'kill', label: t.terminalKillProcess, action: handleKill },
   ];
 
   const workspaceMenuItems = useMemo(() => {
     const items: WorkspaceMenuItem[] = [
-      { id: "workspace-independent", label: t.terminalIndependent, workspaceId: "" }
+      { id: 'workspace-independent', label: t.terminalIndependent, workspaceId: '' },
     ];
-    const validWorkspaces = recentWorkspaces.filter(w => !w.removedFromSidebar && w.available);
+    const validWorkspaces = recentWorkspaces.filter((w) => !w.removedFromSidebar && w.available);
     for (const ws of validWorkspaces) {
       items.push({
         id: `workspace-${ws.id}`,
         label: ws.name,
-        workspaceId: ws.id
+        workspaceId: ws.id,
       });
     }
     return items;
   }, [recentWorkspaces, t.terminalIndependent]);
 
   const shellMenuItems: TerminalShellMenuItem[] = [
-    { id: "workspace-section", label: t.terminalBindWorkspace, hasSubMenu: true, subMenu: workspaceMenuItems },
-    { id: "sep-1", separator: true },
-    { id: "powershell", label: "PowerShell", profile: "powershell", action: () => updateProfile("powershell") },
-    { id: "bash", label: "Bash", profile: "bash", action: () => updateProfile("bash") },
-    { id: "cmd", label: "CMD", profile: "cmd", action: () => updateProfile("cmd") }
+    {
+      id: 'workspace-section',
+      label: t.terminalBindWorkspace,
+      hasSubMenu: true,
+      subMenu: workspaceMenuItems,
+    },
+    { id: 'sep-1', separator: true },
+    {
+      id: 'powershell',
+      label: 'PowerShell',
+      profile: 'powershell',
+      action: () => updateProfile('powershell'),
+    },
+    { id: 'bash', label: 'Bash', profile: 'bash', action: () => updateProfile('bash') },
+    { id: 'cmd', label: 'CMD', profile: 'cmd', action: () => updateProfile('cmd') },
   ];
 
   const shellTypeItems = useMemo(
-    () => shellMenuItems.filter((item) => "profile" in item) as Array<
-      TerminalShellMenuItem & { label: string; profile: TerminalProfile }
-    >,
+    () =>
+      shellMenuItems.filter((item) => 'profile' in item) as Array<
+        TerminalShellMenuItem & { label: string; profile: TerminalProfile }
+      >,
     [shellMenuItems]
   );
 

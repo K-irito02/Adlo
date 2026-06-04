@@ -42,17 +42,13 @@ pub const MIGRATIONS: &[Migration] = &[
             CREATE INDEX idx_sessions_unpinned ON sessions(workspace_id, is_pinned, unpinned_order DESC);
             CREATE INDEX idx_sessions_archived ON sessions(workspace_id, archived_at);
         "#,
-    }
+    },
 ];
 
 pub fn current_version(db: &Database) -> Result<i64, AppError> {
     let conn = db.conn()?;
     let version: i64 = conn
-        .query_row(
-            "SELECT COALESCE(MAX(version), 0) FROM schema_version",
-            [],
-            |r| r.get(0),
-        )
+        .query_row("SELECT COALESCE(MAX(version), 0) FROM schema_version", [], |r| r.get(0))
         .map_err(|e| AppError::Migration(e.to_string()))?;
     Ok(version)
 }
@@ -69,11 +65,7 @@ pub fn run_pending(db: &Database) -> Result<(), AppError> {
             "INSERT INTO schema_version (version) VALUES (?1)",
             &[&m.version as &dyn rusqlite::types::ToSql],
         )?;
-        info!(
-            version = m.version,
-            desc = m.description,
-            "migration applied"
-        );
+        info!(version = m.version, desc = m.description, "migration applied");
     }
     Ok(())
 }
@@ -84,7 +76,8 @@ mod tests {
 
     #[test]
     fn current_version_returns_zero_when_no_migrations() {
-        let path = std::env::temp_dir().join(format!("adl-migration-test-{}.db", uuid::Uuid::new_v4()));
+        let path =
+            std::env::temp_dir().join(format!("adl-migration-test-{}.db", uuid::Uuid::new_v4()));
         let _ = std::fs::remove_file(&path);
         let db = adl_storage::Database::open(&path).unwrap();
         db.init_schema().unwrap();
@@ -95,7 +88,8 @@ mod tests {
 
     #[test]
     fn current_version_returns_max_applied_version() {
-        let path = std::env::temp_dir().join(format!("adl-migration-test-{}.db", uuid::Uuid::new_v4()));
+        let path =
+            std::env::temp_dir().join(format!("adl-migration-test-{}.db", uuid::Uuid::new_v4()));
         let _ = std::fs::remove_file(&path);
         let db = adl_storage::Database::open(&path).unwrap();
         db.init_schema().unwrap();
@@ -116,7 +110,8 @@ mod tests {
 
     #[test]
     fn run_pending_applies_pending_migrations() {
-        let path = std::env::temp_dir().join(format!("adl-migration-test-{}.db", uuid::Uuid::new_v4()));
+        let path =
+            std::env::temp_dir().join(format!("adl-migration-test-{}.db", uuid::Uuid::new_v4()));
         let _ = std::fs::remove_file(&path);
         let db = adl_storage::Database::open(&path).unwrap();
         db.init_schema().unwrap();
@@ -129,7 +124,8 @@ mod tests {
 
     #[test]
     fn run_pending_is_idempotent() {
-        let path = std::env::temp_dir().join(format!("adl-migration-test-{}.db", uuid::Uuid::new_v4()));
+        let path =
+            std::env::temp_dir().join(format!("adl-migration-test-{}.db", uuid::Uuid::new_v4()));
         let _ = std::fs::remove_file(&path);
         let db = adl_storage::Database::open(&path).unwrap();
         db.init_schema().unwrap();
@@ -148,6 +144,9 @@ mod tests {
         assert_eq!(m1.description, "Initial schema");
         let m2 = &MIGRATIONS[1];
         assert_eq!(m2.version, 2);
-        assert_eq!(m2.description, "Add dedicated columns to sessions table for efficient querying");
+        assert_eq!(
+            m2.description,
+            "Add dedicated columns to sessions table for efficient querying"
+        );
     }
 }

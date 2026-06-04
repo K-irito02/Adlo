@@ -1,12 +1,12 @@
-import React from "react";
-import { IconMessageQuestion } from "../../icons";
-import type { ApprovalRequestSummary } from "@ai-digital-life/kernel";
-import type { CopyDict } from "../../i18n";
+import React from 'react';
+import { IconMessageQuestion } from '../../icons';
+import type { ApprovalRequestSummary } from '@ai-digital-life/kernel';
+import type { CopyDict } from '../../i18n';
 
 export type ApprovalInlineCardProps = {
   approval: ApprovalRequestSummary;
   t: CopyDict;
-  onDecide: (id: string, decision: "approved" | "rejected") => void;
+  onDecide: (id: string, decision: 'approved' | 'rejected') => void;
 };
 
 export function ApprovalInlineCard({ approval, t, onDecide }: ApprovalInlineCardProps) {
@@ -29,14 +29,14 @@ export function ApprovalInlineCard({ approval, t, onDecide }: ApprovalInlineCard
         <button
           type="button"
           className="adl-btn adl-btn--primary adl-btn--sm"
-          onClick={() => onDecide(approval.id, "approved")}
+          onClick={() => onDecide(approval.id, 'approved')}
         >
           {t.approve}
         </button>
         <button
           type="button"
           className="adl-btn adl-btn--ghost adl-btn--sm"
-          onClick={() => onDecide(approval.id, "rejected")}
+          onClick={() => onDecide(approval.id, 'rejected')}
         >
           {t.rejectApproval}
         </button>

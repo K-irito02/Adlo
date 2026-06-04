@@ -1,5 +1,5 @@
-import React from "react";
-import { make } from "./helper";
+import React from 'react';
+import { make } from './helper';
 
 export const IconCheckCircle = make(
   <>

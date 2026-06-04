@@ -1,5 +1,7 @@
 use adl_errors::AppError;
-use adl_kernel::{create_id, now_ms, CheckpointRecord, PatchHunkDecision, PatchSet, PatchSetStatus};
+use adl_kernel::{
+    create_id, now_ms, CheckpointRecord, PatchHunkDecision, PatchSet, PatchSetStatus,
+};
 use std::path::Path;
 
 pub fn set_hunk_decision(
@@ -28,10 +30,7 @@ pub fn apply_patch_set(
     root: &Path,
     checkpoints_dir: &Path,
 ) -> Result<(PatchSet, CheckpointRecord), AppError> {
-    if !matches!(
-        patch_set.status,
-        PatchSetStatus::Ready | PatchSetStatus::Failed
-    ) {
+    if !matches!(patch_set.status, PatchSetStatus::Ready | PatchSetStatus::Failed) {
         return Err(AppError::Patch(format!(
             "patch set is not ready to apply: {:?}",
             patch_set.status
@@ -42,10 +41,7 @@ pub fn apply_patch_set(
         .file_patches
         .iter()
         .filter(|file_patch| {
-            file_patch
-                .hunks
-                .iter()
-                .any(|hunk| hunk.decision == PatchHunkDecision::Accepted)
+            file_patch.hunks.iter().any(|hunk| hunk.decision == PatchHunkDecision::Accepted)
         })
         .map(|file_patch| file_patch.relative_path.clone())
         .collect::<Vec<_>>();
@@ -88,11 +84,7 @@ pub fn apply_patch_set(
     patch_set.status = PatchSetStatus::Applying;
     patch_set.checkpoint_id = Some(checkpoint_id);
     for file_patch in &patch_set.file_patches {
-        if file_patch
-            .hunks
-            .iter()
-            .any(|hunk| hunk.decision == PatchHunkDecision::Accepted)
-        {
+        if file_patch.hunks.iter().any(|hunk| hunk.decision == PatchHunkDecision::Accepted) {
             adl_fs_ops::atomic_write(root, &file_patch.relative_path, &file_patch.after_content)?;
         }
     }

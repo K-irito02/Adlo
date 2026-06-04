@@ -4,12 +4,13 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
-  memo
-} from "react";
-import { createPortal } from "react-dom";
-import type { Placement, Alignment } from "../utils/tooltipPosition";
-import { useTooltip, type UseTooltipOptions, type UseTooltipReturn } from "../hooks/useTooltip";
+  memo,
+} from 'react';
+import { createPortal } from 'react-dom';
+import type { Placement, Alignment } from '../utils/tooltipPosition';
+import { useTooltip, type UseTooltipOptions, type UseTooltipReturn } from '../hooks/useTooltip';
 
 interface TooltipContextValue extends UseTooltipReturn {
   dismissible: boolean;
@@ -21,7 +22,7 @@ const TooltipContext = createContext<TooltipContextValue | null>(null);
 function useTooltipContext(): TooltipContextValue {
   const ctx = useContext(TooltipContext);
   if (!ctx) {
-    throw new Error("Tooltip components must be used within a <Tooltip> provider");
+    throw new Error('Tooltip components must be used within a <Tooltip> provider');
   }
   return ctx;
 }
@@ -29,7 +30,7 @@ function useTooltipContext(): TooltipContextValue {
 export interface TooltipProps {
   children: React.ReactNode;
   defaultPlacement?: Placement;
-  trigger?: UseTooltipOptions["trigger"];
+  trigger?: UseTooltipOptions['trigger'];
   showDelay?: number;
   hideDelay?: number;
   open?: boolean;
@@ -43,17 +44,17 @@ export interface TooltipProps {
 
 export function Tooltip({
   children,
-  defaultPlacement = "top",
-  trigger = "hover",
+  defaultPlacement = 'top',
+  trigger = 'hover',
   showDelay,
   hideDelay,
   open,
   onOpenChange,
   maxWidth = 240,
   sideOffset,
-  align = "center",
+  align = 'center',
   dismissible = false,
-  showArrow = true
+  showArrow = true,
 }: TooltipProps) {
   const tooltip = useTooltip({
     trigger,
@@ -64,23 +65,19 @@ export function Tooltip({
     onOpenChange,
     sideOffset,
     align,
-    maxWidth
+    maxWidth,
   });
 
   const contextValue = useMemo<TooltipContextValue>(
     () => ({
       ...tooltip,
       dismissible,
-      showArrow
+      showArrow,
     }),
     [tooltip, dismissible, showArrow]
   );
 
-  return (
-    <TooltipContext.Provider value={contextValue}>
-      {children}
-    </TooltipContext.Provider>
-  );
+  return <TooltipContext.Provider value={contextValue}>{children}</TooltipContext.Provider>;
 }
 
 export interface TooltipTriggerProps {
@@ -89,8 +86,14 @@ export interface TooltipTriggerProps {
 }
 
 export function TooltipTrigger({ children, asChild = false }: TooltipTriggerProps) {
-  const { triggerRef, handleTriggerEnter, handleTriggerLeave, handleTriggerFocus, handleTriggerBlur, handleClick } =
-    useTooltipContext();
+  const {
+    triggerRef,
+    handleTriggerEnter,
+    handleTriggerLeave,
+    handleTriggerFocus,
+    handleTriggerBlur,
+    handleClick,
+  } = useTooltipContext();
 
   const child = React.Children.only(children) as React.ReactElement<Record<string, unknown>>;
 
@@ -100,65 +103,74 @@ export function TooltipTrigger({ children, asChild = false }: TooltipTriggerProp
     const props: Record<string, unknown> = {
       onMouseEnter: (e: React.MouseEvent) => {
         handleTriggerEnter();
-        (childProps.onMouseEnter as ((e: React.MouseEvent) => void))?.(e);
+        (childProps.onMouseEnter as (e: React.MouseEvent) => void)?.(e);
       },
       onMouseLeave: (e: React.MouseEvent) => {
         handleTriggerLeave();
-        (childProps.onMouseLeave as ((e: React.MouseEvent) => void))?.(e);
+        (childProps.onMouseLeave as (e: React.MouseEvent) => void)?.(e);
       },
       onFocus: (e: React.FocusEvent) => {
         handleTriggerFocus();
-        (childProps.onFocus as ((e: React.FocusEvent) => void))?.(e);
+        (childProps.onFocus as (e: React.FocusEvent) => void)?.(e);
       },
       onBlur: (e: React.FocusEvent) => {
         handleTriggerBlur();
-        (childProps.onBlur as ((e: React.FocusEvent) => void))?.(e);
+        (childProps.onBlur as (e: React.FocusEvent) => void)?.(e);
       },
       onClick: (e: React.MouseEvent) => {
         handleClick(e);
-        (childProps.onClick as ((e: React.MouseEvent) => void))?.(e);
-      }
+        (childProps.onClick as (e: React.MouseEvent) => void)?.(e);
+      },
     };
 
-    if (!asChild || typeof child.type === "string") {
+    if (!asChild || typeof child.type === 'string') {
       props.ref = triggerRef;
     }
 
     return props;
-  }, [childProps, child.type, asChild, triggerRef, handleTriggerEnter, handleTriggerLeave, handleTriggerFocus, handleTriggerBlur, handleClick]);
+  }, [
+    childProps,
+    child.type,
+    asChild,
+    triggerRef,
+    handleTriggerEnter,
+    handleTriggerLeave,
+    handleTriggerFocus,
+    handleTriggerBlur,
+    handleClick,
+  ]);
 
-  if (asChild && typeof child.type !== "string") {
-    return cloneElementWithRef(child, mergedProps, triggerRef);
-  }
+  const asChildActive = asChild && typeof child.type !== 'string';
+  const existingRefContainer = useRef<React.Ref<HTMLElement> | undefined>(undefined);
 
-  return (
-    <span ref={triggerRef} className="tooltip-trigger" style={{ display: "inline-flex" }}>
-      {React.cloneElement(child, mergedProps)}
-    </span>
-  );
-}
-
-function cloneElementWithRef(
-  element: React.ReactElement<Record<string, unknown>>,
-  props: Record<string, unknown>,
-  ref: React.RefCallback<HTMLElement>
-): React.ReactElement {
-  const elementProps = element.props as Record<string, unknown>;
-  const existingRef = elementProps.ref as React.Ref<HTMLElement> | undefined;
+  useEffect(() => {
+    existingRefContainer.current = asChildActive
+      ? (child.props as Record<string, unknown>).ref as React.Ref<HTMLElement> | undefined
+      : undefined;
+  }, [asChildActive, child]);
 
   const mergedRef = useCallback(
     (node: HTMLElement | null) => {
-      if (typeof existingRef === "function") {
+      const existingRef = existingRefContainer.current;
+      if (typeof existingRef === 'function') {
         existingRef(node);
-      } else if (existingRef && typeof existingRef === "object") {
+      } else if (existingRef && typeof existingRef === 'object') {
         (existingRef as React.MutableRefObject<HTMLElement | null>).current = node;
       }
-      ref(node);
+      triggerRef(node);
     },
-    [existingRef, ref]
+    [triggerRef]
   );
 
-  return React.cloneElement(element, { ...props, ref: mergedRef } as Record<string, unknown>);
+  if (asChildActive) {
+    return React.cloneElement(child, { ...mergedProps, ref: mergedRef } as Record<string, unknown>);
+  }
+
+  return (
+    <span ref={triggerRef} className="tooltip-trigger" style={{ display: 'inline-flex' }}>
+      {React.cloneElement(child, mergedProps)}
+    </span>
+  );
 }
 
 export interface TooltipContentProps {
@@ -183,12 +195,12 @@ const TooltipContentInner = memo(function TooltipContentInner({
   dismissible,
   showArrow,
   className,
-  id
+  id,
 }: {
   children: React.ReactNode;
   side?: Placement;
   placement: Placement;
-  position: import("../utils/tooltipPosition").PositionResult | null;
+  position: import('../utils/tooltipPosition').PositionResult | null;
   isOpen: boolean;
   tooltipRef: React.RefCallback<HTMLElement>;
   close: () => void;
@@ -209,16 +221,16 @@ const TooltipContentInner = memo(function TooltipContentInner({
     <div
       role="tooltip"
       id={id}
-      data-state={isOpen ? "open" : "closed"}
+      data-state={isOpen ? 'open' : 'closed'}
       data-side={effectiveSide}
       data-testid="tooltip-content"
       ref={tooltipRef}
-      className={`tooltip ${className ?? ""}`}
+      className={`tooltip ${className ?? ''}`}
       style={{
-        position: "fixed",
+        position: 'fixed',
         left,
         top,
-        pointerEvents: isOpen ? "auto" : "none"
+        pointerEvents: isOpen ? 'auto' : 'none',
       }}
       onMouseEnter={handleTooltipEnter}
       onMouseLeave={handleTooltipLeave}
@@ -228,13 +240,11 @@ const TooltipContentInner = memo(function TooltipContentInner({
           className="tooltip__arrow"
           style={{
             left: position.arrowX != null ? `${position.arrowX}px` : undefined,
-            top: position.arrowY != null ? `${position.arrowY}px` : undefined
+            top: position.arrowY != null ? `${position.arrowY}px` : undefined,
           }}
         />
       )}
-      <span className="tooltip__content">
-        {children}
-      </span>
+      <span className="tooltip__content">{children}</span>
       {dismissible && (
         <button
           type="button"
@@ -245,15 +255,26 @@ const TooltipContentInner = memo(function TooltipContentInner({
             close();
           }}
         >
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M1 1L9 9M9 1L1 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          <svg
+            width="10"
+            height="10"
+            viewBox="0 0 10 10"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M1 1L9 9M9 1L1 9"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+            />
           </svg>
         </button>
       )}
     </div>
   );
 
-  if (typeof document === "undefined") return null;
+  if (typeof document === 'undefined') return null;
 
   return createPortal(content, document.body);
 });
@@ -264,7 +285,7 @@ export function TooltipContent({
   align: contentAlign,
   sideOffset: contentSideOffset,
   className,
-  id
+  id,
 }: TooltipContentProps) {
   const {
     tooltipRef,
@@ -275,14 +296,14 @@ export function TooltipContent({
     handleTooltipEnter,
     handleTooltipLeave,
     dismissible,
-    showArrow
+    showArrow,
   } = useTooltipContext();
 
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     if (isOpen && !mounted) {
-      setMounted(true);
+      requestAnimationFrame(() => setMounted(true));
     }
   }, [isOpen, mounted]);
 
@@ -322,7 +343,7 @@ export interface TooltipSimpleProps {
   sideOffset?: number;
   showDelay?: number;
   hideDelay?: number;
-  trigger?: UseTooltipOptions["trigger"];
+  trigger?: UseTooltipOptions['trigger'];
   dismissible?: boolean;
   showArrow?: boolean;
   maxWidth?: number;
@@ -347,7 +368,7 @@ export function TooltipSimple({
   className,
   open,
   onOpenChange,
-  id
+  id,
 }: TooltipSimpleProps) {
   return (
     <Tooltip

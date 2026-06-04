@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type {
   AgentRunDetail,
   AppInfo,
@@ -9,11 +9,11 @@ import type {
   RecentWorkspaceEntry,
   WorkspaceGitBranchCreateInput,
   WorkspaceGitBranchSwitchInput,
-  WorkspaceMeta
-} from "@ai-digital-life/kernel";
-import type { CopyDict } from "../i18n";
-import { MODEL_PROVIDER_IDS } from "../utils/constants";
-import { MODEL_OPTIONS } from "../utils/constants";
+  WorkspaceMeta,
+} from '@ai-digital-life/kernel';
+import type { CopyDict } from '../i18n';
+import { MODEL_PROVIDER_IDS } from '../utils/constants';
+import { MODEL_OPTIONS } from '../utils/constants';
 import {
   IconCheck,
   IconChevronRight,
@@ -21,16 +21,24 @@ import {
   IconFolderOpen,
   IconGitBranch,
   IconPlus,
-  IconUpload
-} from "../icons";
-import { TooltipSimple } from "../components/Tooltip";
-import { WorkspaceSplitButton } from "../components/WorkspaceSplitButton";
-import { modelLabel, gitIcon, gitStatusLabel, modelHealthLabel, modelHealthTone, isDirtyWorktree, type GitStatus } from "./StatusBar/utils";
+  IconUpload,
+} from '../icons';
+import { TooltipSimple } from '../components/Tooltip';
+import { WorkspaceSplitButton } from '../components/WorkspaceSplitButton';
+import {
+  modelLabel,
+  gitIcon,
+  gitStatusLabel,
+  modelHealthLabel,
+  modelHealthTone,
+  isDirtyWorktree,
+  type GitStatus,
+} from './StatusBar/utils';
 
-type OpenMenu = "workspace" | "branch" | "model" | undefined;
+type OpenMenu = 'workspace' | 'branch' | 'model' | undefined;
 type PendingBranchAction =
-  | { kind: "switch"; input: WorkspaceGitBranchSwitchInput }
-  | { kind: "create"; input: WorkspaceGitBranchCreateInput };
+  | { kind: 'switch'; input: WorkspaceGitBranchSwitchInput }
+  | { kind: 'create'; input: WorkspaceGitBranchCreateInput };
 
 interface StatusBarProps {
   t: CopyDict;
@@ -42,7 +50,7 @@ interface StatusBarProps {
   modelHealth?: ModelGatewayHealthSnapshot;
   isStreaming: boolean;
   activeRun?: AgentRunDetail;
-  workspaceContextMode: "workspace" | "global";
+  workspaceContextMode: 'workspace' | 'global';
   onSelectModel: (providerId: ModelProviderId, modelId?: string) => void;
   onOpenWorkspace: (workspacePath: string) => Promise<{ ok: boolean; error?: string }>;
   onClearWorkspaceContext: () => Promise<void>;
@@ -71,30 +79,30 @@ export function StatusBar({
   onRefreshGitBranches,
   onSwitchGitBranch,
   onCreateGitBranch,
-  inline = false
+  inline = false,
 }: StatusBarProps) {
   const [openMenu, setOpenMenu] = useState<OpenMenu>();
-  const [branchDraft, setBranchDraft] = useState("");
-  const [baseBranchDraft, setBaseBranchDraft] = useState("");
+  const [branchDraft, setBranchDraft] = useState('');
+  const [baseBranchDraft, setBaseBranchDraft] = useState('');
   const [baseBranchMenuOpen, setBaseBranchMenuOpen] = useState(false);
   const [pendingBranchAction, setPendingBranchAction] = useState<PendingBranchAction>();
   const rootRef = useRef<HTMLDivElement>(null);
   const baseBranchMenuWrapRef = useRef<HTMLDivElement>(null);
-  const ContainerTag = inline ? "div" : "footer";
+  const ContainerTag = inline ? 'div' : 'footer';
   const effectiveGitSnapshot = gitSnapshot ?? currentWorkspace?.gitSnapshot;
-  const currentBranch = effectiveGitSnapshot?.branch ?? "main";
+  const currentBranch = effectiveGitSnapshot?.branch ?? 'main';
   const hasWorkspace = Boolean(currentWorkspace);
   const hasDirtyChanges = isDirtyWorktree(effectiveGitSnapshot);
 
   const gitStatus: GitStatus = !effectiveGitSnapshot?.isRepo
-    ? "no-repo"
+    ? 'no-repo'
     : effectiveGitSnapshot.conflicts.length > 0
-      ? "conflict"
+      ? 'conflict'
       : effectiveGitSnapshot.ahead && effectiveGitSnapshot.ahead > 0
-        ? "unpushed"
+        ? 'unpushed'
         : hasDirtyChanges
-          ? "dirty"
-          : "synced";
+          ? 'dirty'
+          : 'synced';
 
   const activeProvider = useMemo(() => {
     const providers = appInfo?.config.modelPreferences.providers;
@@ -110,16 +118,15 @@ export function StatusBar({
     return modelHealth?.providers.find((provider) => provider.providerId === activeProvider.id);
   }, [activeProvider, modelHealth?.providers]);
 
-  const activeModelLabel = useMemo(() => {
-    if (!activeProvider?.id) return "—";
-    return modelLabel(activeProvider.id as ModelProviderId, activeProvider.modelId);
-  }, [activeProvider?.id, activeProvider?.modelId]);
+  const activeModelLabel = !activeProvider?.id
+    ? '—'
+    : modelLabel(activeProvider.id as ModelProviderId, activeProvider.modelId);
 
   const workspaceStatusLabel = useMemo(() => {
     if (currentWorkspace) {
       return currentWorkspace.name;
     }
-    return workspaceContextMode === "global" ? t.conversations : t.workspaceLabel;
+    return workspaceContextMode === 'global' ? t.conversations : t.workspaceLabel;
   }, [currentWorkspace, t.conversations, t.workspaceLabel, workspaceContextMode]);
 
   const workspaceStatusHint = useMemo(() => {
@@ -141,17 +148,17 @@ export function StatusBar({
       }
     };
     const onEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
+      if (event.key === 'Escape') {
         setOpenMenu(undefined);
         setPendingBranchAction(undefined);
         setBaseBranchMenuOpen(false);
       }
     };
-    document.addEventListener("mousedown", onPointerDown);
-    document.addEventListener("keydown", onEscape);
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onEscape);
     return () => {
-      document.removeEventListener("mousedown", onPointerDown);
-      document.removeEventListener("keydown", onEscape);
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onEscape);
     };
   }, [openMenu]);
 
@@ -164,12 +171,12 @@ export function StatusBar({
         setBaseBranchMenuOpen(false);
       }
     };
-    document.addEventListener("mousedown", onPointerDown);
-    return () => document.removeEventListener("mousedown", onPointerDown);
+    document.addEventListener('mousedown', onPointerDown);
+    return () => document.removeEventListener('mousedown', onPointerDown);
   }, [baseBranchMenuOpen]);
 
   useEffect(() => {
-    if (openMenu === "branch" && hasWorkspace) {
+    if (openMenu === 'branch' && hasWorkspace) {
       void onRefreshGitBranches();
     }
   }, [hasWorkspace, onRefreshGitBranches, openMenu]);
@@ -184,8 +191,8 @@ export function StatusBar({
     await onCreateGitBranch(input);
     setPendingBranchAction(undefined);
     setOpenMenu(undefined);
-    setBranchDraft("");
-    setBaseBranchDraft("");
+    setBranchDraft('');
+    setBaseBranchDraft('');
   };
 
   const handleSubmitCreateBranch = async () => {
@@ -196,16 +203,14 @@ export function StatusBar({
     const input: WorkspaceGitBranchCreateInput = {
       branchName,
       baseBranch: baseBranchDraft.trim() || undefined,
-      allowStash: false
+      allowStash: false,
     };
     const requiresStash =
-      hasDirtyChanges &&
-      Boolean(input.baseBranch) &&
-      input.baseBranch !== currentBranch;
+      hasDirtyChanges && Boolean(input.baseBranch) && input.baseBranch !== currentBranch;
     if (requiresStash) {
       setPendingBranchAction({
-        kind: "create",
-        input: { ...input, allowStash: true }
+        kind: 'create',
+        input: { ...input, allowStash: true },
       });
       return;
     }
@@ -222,9 +227,9 @@ export function StatusBar({
   return (
     <ContainerTag
       ref={rootRef}
-      className={`adl-statusbar${inline ? " adl-statusbar--inline" : ""}`}
-      role={inline ? "group" : "contentinfo"}
-      aria-label={inline ? "Conversation status" : undefined}
+      className={`adl-statusbar${inline ? ' adl-statusbar--inline' : ''}`}
+      role={inline ? 'group' : 'contentinfo'}
+      aria-label={inline ? 'Conversation status' : undefined}
     >
       <TooltipSimple content={gitStatusLabel(t, gitStatus)} placement="top">
         <button type="button" className="adl-statusbar__item adl-statusbar__item--readonly">
@@ -240,14 +245,16 @@ export function StatusBar({
           <button
             type="button"
             className="adl-statusbar__item"
-            onClick={() => setOpenMenu((current) => (current === "workspace" ? undefined : "workspace"))}
+            onClick={() =>
+              setOpenMenu((current) => (current === 'workspace' ? undefined : 'workspace'))
+            }
             aria-haspopup="dialog"
           >
             <IconFolderOpen size={12} decorative />
             <span>{workspaceStatusLabel}</span>
           </button>
         </TooltipSimple>
-        {openMenu === "workspace" ? (
+        {openMenu === 'workspace' ? (
           <div className="adl-statusbar__menu adl-statusbar__menu--workspace" role="dialog">
             <div className="adl-statusbar__menu-section">
               <strong className="adl-statusbar__menu-title">{t.workspaceLabel}</strong>
@@ -266,7 +273,7 @@ export function StatusBar({
                     <button
                       key={workspace.id}
                       type="button"
-                      className={`adl-statusbar__menu-option${currentWorkspace?.id === workspace.id ? " is-active" : ""}`}
+                      className={`adl-statusbar__menu-option${currentWorkspace?.id === workspace.id ? ' is-active' : ''}`}
                       onClick={() => {
                         onOpenWorkspace(workspace.path);
                         setOpenMenu(undefined);
@@ -284,11 +291,11 @@ export function StatusBar({
               <strong className="adl-statusbar__menu-subtitle">{t.workspaceOpenTitle}</strong>
 
               <WorkspaceSplitButton
-              t={t}
-              onPickWorkspaceDirectory={onPickWorkspaceDirectory}
-              onOpenWorkspace={onOpenWorkspace}
-              onClose={() => setOpenMenu(undefined)}
-            />
+                t={t}
+                onPickWorkspaceDirectory={onPickWorkspaceDirectory}
+                onOpenWorkspace={onOpenWorkspace}
+                onClose={() => setOpenMenu(undefined)}
+              />
             </div>
 
             <div className="adl-statusbar__menu-section">
@@ -302,7 +309,9 @@ export function StatusBar({
                 }}
               >
                 <span className="adl-statusbar__menu-option-main">{t.workspaceGlobalMode}</span>
-                <span className="adl-statusbar__menu-option-sub">{t.workspaceStatusGlobalHint}</span>
+                <span className="adl-statusbar__menu-option-sub">
+                  {t.workspaceStatusGlobalHint}
+                </span>
               </button>
             </div>
           </div>
@@ -319,7 +328,10 @@ export function StatusBar({
           <button
             type="button"
             className="adl-statusbar__item"
-            onClick={() => hasWorkspace && setOpenMenu((current) => (current === "branch" ? undefined : "branch"))}
+            onClick={() =>
+              hasWorkspace &&
+              setOpenMenu((current) => (current === 'branch' ? undefined : 'branch'))
+            }
             aria-haspopup="dialog"
             disabled={!hasWorkspace}
           >
@@ -327,7 +339,7 @@ export function StatusBar({
             <span>{hasWorkspace ? currentBranch : t.branchGlobalLabel}</span>
           </button>
         </TooltipSimple>
-        {openMenu === "branch" && hasWorkspace ? (
+        {openMenu === 'branch' && hasWorkspace ? (
           <div className="adl-statusbar__menu adl-statusbar__menu--branch" role="dialog">
             <div className="adl-statusbar__menu-section">
               <strong className="adl-statusbar__menu-title">{t.gitSummaryBranch}</strong>
@@ -336,14 +348,16 @@ export function StatusBar({
 
             {pendingBranchAction ? (
               <div className="adl-statusbar__menu-section adl-statusbar__menu-section--warning">
-                <strong className="adl-statusbar__menu-subtitle">{t.branchStashConfirmTitle}</strong>
+                <strong className="adl-statusbar__menu-subtitle">
+                  {t.branchStashConfirmTitle}
+                </strong>
                 <p className="adl-statusbar__menu-hint">{t.branchStashConfirmBody}</p>
                 <div className="adl-statusbar__menu-actions">
                   <button
                     type="button"
                     className="adl-btn adl-btn--primary adl-btn--sm"
                     onClick={() =>
-                      void (pendingBranchAction.kind === "switch"
+                      void (pendingBranchAction.kind === 'switch'
                         ? handleSwitchBranch(pendingBranchAction.input)
                         : handleCreateBranch(pendingBranchAction.input))
                     }
@@ -369,19 +383,19 @@ export function StatusBar({
                   <button
                     key={branch.name}
                     type="button"
-                    className={`adl-statusbar__menu-option${branch.isCurrent ? " is-active" : ""}`}
+                    className={`adl-statusbar__menu-option${branch.isCurrent ? ' is-active' : ''}`}
                     onClick={() => {
                       if (branch.isCurrent) {
                         return;
                       }
                       const input: WorkspaceGitBranchSwitchInput = {
                         branchName: branch.name,
-                        allowStash: false
+                        allowStash: false,
                       };
                       if (hasDirtyChanges) {
                         setPendingBranchAction({
-                          kind: "switch",
-                          input: { ...input, allowStash: true }
+                          kind: 'switch',
+                          input: { ...input, allowStash: true },
                         });
                         return;
                       }
@@ -416,17 +430,23 @@ export function StatusBar({
                     <IconChevronRight size={14} decorative />
                   </button>
                   {baseBranchMenuOpen ? (
-                    <div className="adl-statusbar__submenu" role="menu" aria-label={t.branchCreateFromCurrent}>
+                    <div
+                      className="adl-statusbar__submenu"
+                      role="menu"
+                      aria-label={t.branchCreateFromCurrent}
+                    >
                       <button
                         type="button"
                         role="menuitem"
-                        className={`adl-statusbar__menu-option${!baseBranchDraft.trim() ? " is-active" : ""}`}
+                        className={`adl-statusbar__menu-option${!baseBranchDraft.trim() ? ' is-active' : ''}`}
                         onClick={() => {
-                          setBaseBranchDraft("");
+                          setBaseBranchDraft('');
                           setBaseBranchMenuOpen(false);
                         }}
                       >
-                        <span className="adl-statusbar__menu-option-main">{t.branchCreateFromCurrent}</span>
+                        <span className="adl-statusbar__menu-option-main">
+                          {t.branchCreateFromCurrent}
+                        </span>
                         {!baseBranchDraft.trim() ? <IconCheck size={14} decorative /> : null}
                       </button>
                       {gitBranches.map((branch) => (
@@ -434,14 +454,16 @@ export function StatusBar({
                           key={branch.name}
                           type="button"
                           role="menuitem"
-                          className={`adl-statusbar__menu-option${baseBranchDraft === branch.name ? " is-active" : ""}`}
+                          className={`adl-statusbar__menu-option${baseBranchDraft === branch.name ? ' is-active' : ''}`}
                           onClick={() => {
                             setBaseBranchDraft(branch.name);
                             setBaseBranchMenuOpen(false);
                           }}
                         >
                           <span className="adl-statusbar__menu-option-main">{branch.name}</span>
-                          {baseBranchDraft === branch.name ? <IconCheck size={14} decorative /> : null}
+                          {baseBranchDraft === branch.name ? (
+                            <IconCheck size={14} decorative />
+                          ) : null}
                         </button>
                       ))}
                     </div>
@@ -471,14 +493,17 @@ export function StatusBar({
         <button
           type="button"
           className="adl-statusbar__item adl-statusbar__model-trigger"
-          onClick={() => setOpenMenu((current) => (current === "model" ? undefined : "model"))}
+          onClick={() => setOpenMenu((current) => (current === 'model' ? undefined : 'model'))}
           aria-haspopup="menu"
         >
           <span>{t.modelLabel}</span>
           <TooltipSimple content={activeModelLabel} placement="top">
             <strong className="adl-statusbar__model-name">{activeModelLabel}</strong>
           </TooltipSimple>
-          <TooltipSimple content={modelHealthLabel(t, activeProviderHealth?.healthy)} placement="top">
+          <TooltipSimple
+            content={modelHealthLabel(t, activeProviderHealth?.healthy)}
+            placement="top"
+          >
             <span
               className={`adl-statusbar__model-dot adl-statusbar__model-dot--${modelHealthTone(activeProviderHealth?.healthy)}`}
               aria-label={modelHealthLabel(t, activeProviderHealth?.healthy)}
@@ -486,10 +511,12 @@ export function StatusBar({
             />
           </TooltipSimple>
         </button>
-        {openMenu === "model" ? (
+        {openMenu === 'model' ? (
           <div className="adl-statusbar__menu adl-statusbar__menu--model" role="menu">
             {MODEL_PROVIDER_IDS.flatMap((providerId) => {
-              const health = modelHealth?.providers.find((provider) => provider.providerId === providerId);
+              const health = modelHealth?.providers.find(
+                (provider) => provider.providerId === providerId
+              );
               const preference = appInfo?.config.modelPreferences.providers[providerId];
               if (!preference) return [];
 
@@ -500,13 +527,14 @@ export function StatusBar({
                 : [configured, ...baseOptions];
 
               return options.map((option) => {
-                const isActive = providerId === activeProvider?.id && option.id === activeProvider.modelId;
+                const isActive =
+                  providerId === activeProvider?.id && option.id === activeProvider.modelId;
                 return (
                   <button
                     key={`${providerId}:${option.id}`}
                     type="button"
                     role="menuitem"
-                    className={`adl-statusbar__menu-option${isActive ? " is-active" : ""}`}
+                    className={`adl-statusbar__menu-option${isActive ? ' is-active' : ''}`}
                     onClick={() => {
                       onSelectModel(providerId, option.id);
                       setOpenMenu(undefined);

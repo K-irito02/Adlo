@@ -1,6 +1,6 @@
-import React from "react";
-import type { RecentWorkspaceEntry } from "@ai-digital-life/kernel";
-import { CustomScrollArea } from "../file-tree/CustomScrollArea";
+import React from 'react';
+import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
+import { CustomScrollArea } from '../file-tree/CustomScrollArea';
 
 export interface MultiWorkspaceContainerProps {
   visibleWorkspaces: RecentWorkspaceEntry[];

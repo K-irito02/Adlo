@@ -1,9 +1,9 @@
-import { useCallback, useMemo } from "react";
-import { useShallow } from "zustand/react/shallow";
-import { useAppStore } from "../../../stores/slicedStore";
-import { useAppActions } from "../../../hooks/useAppActions";
-import type { ChangesPanelProps } from "../types";
-import type { RightPanelProps } from "../../RightPanel";
+import { useCallback, useMemo } from 'react';
+import { useShallow } from 'zustand/react/shallow';
+import { useAppStore } from '../../../stores/slicedStore';
+import { useAppActions } from '../../../hooks/useAppActions';
+import type { ChangesPanelProps } from '../types';
+import type { RightPanelProps } from '../../RightPanel';
 
 export function useChangesPanelProps(
   panelProps: RightPanelProps,
@@ -12,10 +12,16 @@ export function useChangesPanelProps(
 ): ChangesPanelProps {
   const {
     t,
-    selectedPatchFilePath, selectedPatchHunkId, collapsedPatchHunkIds,
+    selectedPatchFilePath,
+    selectedPatchHunkId,
+    collapsedPatchHunkIds,
     patchReviewFilter,
-    onSelectPatchFile, onSelectPatchHunk, onTogglePatchHunkCollapse,
-    onSetAllPatchHunksCollapsed, onSetPatchReviewFilter, onJumpPatchHunk
+    onSelectPatchFile,
+    onSelectPatchHunk,
+    onTogglePatchHunkCollapse,
+    onSetAllPatchHunksCollapsed,
+    onSetPatchReviewFilter,
+    onJumpPatchHunk,
   } = panelProps;
 
   const actions = useAppActions();
@@ -45,7 +51,7 @@ export function useChangesPanelProps(
   }, [actions.rollbackPatchSet]);
 
   const handleSetHunkDecision = useCallback(
-    (hunkId: string, decision: "pending" | "accepted" | "rejected") => {
+    (hunkId: string, decision: 'pending' | 'accepted' | 'rejected') => {
       const currentPatchSet = useAppStore.getState().activePatchSet;
       if (currentPatchSet) void actions.setHunkDecision(currentPatchSet.id, hunkId, decision);
     },
@@ -60,67 +66,107 @@ export function useChangesPanelProps(
     void actions.rejectAllHunks();
   }, [actions.rejectAllHunks]);
 
-  const handleOpenChangePreview = useCallback((path: string) => {
-    void actions.openChangePreview(path);
-  }, [actions.openChangePreview]);
+  const handleOpenChangePreview = useCallback(
+    (path: string) => {
+      void actions.openChangePreview(path);
+    },
+    [actions.openChangePreview]
+  );
 
-  const handleOpenFile = useCallback((path: string) => {
-    void actions.openFile(path);
-  }, [actions.openFile]);
+  const handleOpenFile = useCallback(
+    (path: string) => {
+      void actions.openFile(path);
+    },
+    [actions.openFile]
+  );
 
   const handleRefreshWorkspaceTree = useCallback(() => {
     void actions.refreshWorkspaceTree();
   }, [actions.refreshWorkspaceTree]);
 
-  const handleHideFromRightPanels = useCallback((workspaceId: string) => {
-    void actions.hideWorkspaceFromRightPanels(workspaceId);
-  }, [actions.hideWorkspaceFromRightPanels]);
+  const handleHideFromRightPanels = useCallback(
+    (workspaceId: string) => {
+      void actions.hideWorkspaceFromRightPanels(workspaceId);
+    },
+    [actions.hideWorkspaceFromRightPanels]
+  );
 
-  return useMemo(() => ({
-    t,
-    appInfo,
-    activePatchSet,
-    latestPatchApplication,
-    selectedPatchFilePath,
-    selectedChangePreviewPath,
-    selectedChangePreviewWorkspaceId,
-    changePreview,
-    changePreviewLoading,
-    selectedPatchHunkId,
-    collapsedPatchHunkIds,
-    patchReviewFilter,
-    onSetHunkDecision: handleSetHunkDecision,
-    onApplyPatchSet: handleApplyPatchSet,
-    onRollbackPatchSet: handleRollbackPatchSet,
-    onAcceptAllHunks: handleAcceptAllHunks,
-    onRejectAllHunks: handleRejectAllHunks,
-    onSelectPatchFile,
-    onOpenChangePreview: handleOpenChangePreview,
-    onSelectPatchHunk,
-    onTogglePatchHunkCollapse,
-    onSetAllPatchHunksCollapsed,
-    onSetPatchReviewFilter,
-    onOpenFile: handleOpenFile,
-    onRefreshWorkspaceTree: handleRefreshWorkspaceTree,
-    recentWorkspaces,
-    workspaceChangesExpanded,
-    gitSnapshot,
-    gitSnapshots,
-    activePatchSets,
-    onHideFromRightPanels: handleHideFromRightPanels,
-    diffSideBySide,
-    onSetDiffLayout,
-    dirtyEditorPaths,
-    externalChangePath: externalFileChange?.path,
-    onJumpPatchHunk,
-  }), [
-    t, appInfo, activePatchSet, latestPatchApplication, selectedPatchFilePath, selectedChangePreviewPath,
-    selectedChangePreviewWorkspaceId, changePreview, changePreviewLoading, selectedPatchHunkId,
-    collapsedPatchHunkIds, patchReviewFilter, handleSetHunkDecision, handleApplyPatchSet,
-    handleRollbackPatchSet, handleAcceptAllHunks, handleRejectAllHunks, onSelectPatchFile,
-    handleOpenChangePreview, onSelectPatchHunk, onTogglePatchHunkCollapse, onSetAllPatchHunksCollapsed,
-    onSetPatchReviewFilter, handleOpenFile, handleRefreshWorkspaceTree, recentWorkspaces,
-    workspaceChangesExpanded, gitSnapshot, gitSnapshots, activePatchSets, handleHideFromRightPanels,
-    diffSideBySide, onSetDiffLayout, dirtyEditorPaths, externalFileChange?.path, onJumpPatchHunk
-  ]);
+  return useMemo(
+    () => ({
+      t,
+      appInfo,
+      activePatchSet,
+      latestPatchApplication,
+      selectedPatchFilePath,
+      selectedChangePreviewPath,
+      selectedChangePreviewWorkspaceId,
+      changePreview,
+      changePreviewLoading,
+      selectedPatchHunkId,
+      collapsedPatchHunkIds,
+      patchReviewFilter,
+      onSetHunkDecision: handleSetHunkDecision,
+      onApplyPatchSet: handleApplyPatchSet,
+      onRollbackPatchSet: handleRollbackPatchSet,
+      onAcceptAllHunks: handleAcceptAllHunks,
+      onRejectAllHunks: handleRejectAllHunks,
+      onSelectPatchFile,
+      onOpenChangePreview: handleOpenChangePreview,
+      onSelectPatchHunk,
+      onTogglePatchHunkCollapse,
+      onSetAllPatchHunksCollapsed,
+      onSetPatchReviewFilter,
+      onOpenFile: handleOpenFile,
+      onRefreshWorkspaceTree: handleRefreshWorkspaceTree,
+      recentWorkspaces,
+      workspaceChangesExpanded,
+      gitSnapshot,
+      gitSnapshots,
+      activePatchSets,
+      onHideFromRightPanels: handleHideFromRightPanels,
+      diffSideBySide,
+      onSetDiffLayout,
+      dirtyEditorPaths,
+      externalChangePath: externalFileChange?.path,
+      onJumpPatchHunk,
+    }),
+    [
+      t,
+      appInfo,
+      activePatchSet,
+      latestPatchApplication,
+      selectedPatchFilePath,
+      selectedChangePreviewPath,
+      selectedChangePreviewWorkspaceId,
+      changePreview,
+      changePreviewLoading,
+      selectedPatchHunkId,
+      collapsedPatchHunkIds,
+      patchReviewFilter,
+      handleSetHunkDecision,
+      handleApplyPatchSet,
+      handleRollbackPatchSet,
+      handleAcceptAllHunks,
+      handleRejectAllHunks,
+      onSelectPatchFile,
+      handleOpenChangePreview,
+      onSelectPatchHunk,
+      onTogglePatchHunkCollapse,
+      onSetAllPatchHunksCollapsed,
+      onSetPatchReviewFilter,
+      handleOpenFile,
+      handleRefreshWorkspaceTree,
+      recentWorkspaces,
+      workspaceChangesExpanded,
+      gitSnapshot,
+      gitSnapshots,
+      activePatchSets,
+      handleHideFromRightPanels,
+      diffSideBySide,
+      onSetDiffLayout,
+      dirtyEditorPaths,
+      externalFileChange?.path,
+      onJumpPatchHunk,
+    ]
+  );
 }

@@ -1,14 +1,23 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
-import { createPortal } from "react-dom";
-import type { RecentWorkspaceEntry } from "@ai-digital-life/kernel";
-import type { CopyDict } from "../../i18n";
-import type { TerminalTabState } from "../../stores/slices/terminalSlice";
-import type { TerminalProfile } from "../../stores/types";
-import { IconRefreshCw, IconTrash, IconPlus, IconMoreVertical, IconEyeOff, IconFolderOpen, IconFolder, IconTerminal, IconChevronRight } from "../../icons";
-import { TooltipSimple } from "../../components/Tooltip";
-import { TerminalTabBar } from "../terminal/TerminalTabBar";
-import { useAppStore } from "../../stores/slicedStore";
-
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
+import type { CopyDict } from '../../i18n';
+import type { TerminalTabState } from '../../stores/slices/terminalSlice';
+import type { TerminalProfile } from '../../stores/types';
+import {
+  IconRefreshCw,
+  IconTrash,
+  IconPlus,
+  IconMoreVertical,
+  IconEyeOff,
+  IconFolderOpen,
+  IconFolder,
+  IconTerminal,
+  IconChevronRight,
+} from '../../icons';
+import { TooltipSimple } from '../../components/Tooltip';
+import { TerminalTabBar } from '../terminal/TerminalTabBar';
+import { useAppStore } from '../../stores/slicedStore';
 
 export interface WorkspaceTerminalEntryProps {
   workspace: RecentWorkspaceEntry;
@@ -48,7 +57,9 @@ export function WorkspaceTerminalEntry({
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const [subHover, setSubHover] = useState(false);
-  const [subMenuPosition, setSubMenuPosition] = useState<{ top: number; left: number } | null>(null);
+  const [subMenuPosition, setSubMenuPosition] = useState<{ top: number; left: number } | null>(
+    null
+  );
   const [renderKey, setRenderKey] = useState(0);
   const menuId = `ws-term-menu-${workspace.id}`;
   const subMenuId = `ws-term-submenu-${workspace.id}`;
@@ -56,19 +67,20 @@ export function WorkspaceTerminalEntry({
   const defaultTerminalProfile = useAppStore((state) => state.defaultTerminalProfile);
   const workspaceDefaultProfiles = useAppStore((state) => state.workspaceDefaultProfiles);
   const setDefaultTerminalProfile = useAppStore((state) => state.setDefaultTerminalProfile);
-  const setWorkspaceDefaultTerminalProfile = useAppStore((state) => state.setWorkspaceDefaultTerminalProfile);
+  const setWorkspaceDefaultTerminalProfile = useAppStore(
+    (state) => state.setWorkspaceDefaultTerminalProfile
+  );
   const subHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 使用工作区专属默认终端类型，如果没有则使用全局默认
-  const currentProfile = isIndependent 
-    ? defaultTerminalProfile 
+  const currentProfile = isIndependent
+    ? defaultTerminalProfile
     : (workspaceDefaultProfiles[workspace.id] ?? defaultTerminalProfile);
 
-
   const profileLabels: Record<TerminalProfile, string> = {
-    powershell: "PowerShell",
-    bash: "Bash",
-    cmd: "CMD",
+    powershell: 'PowerShell',
+    bash: 'Bash',
+    cmd: 'CMD',
   };
 
   const defaultProfileLabel = profileLabels[currentProfile];
@@ -86,18 +98,18 @@ export function WorkspaceTerminalEntry({
       setMenuOpen(false);
     };
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setMenuOpen(false);
+      if (e.key === 'Escape') setMenuOpen(false);
     };
     const handleScroll = () => {
       setMenuOpen(false);
     };
-    window.addEventListener("mousedown", handleClickOutside);
-    window.addEventListener("keydown", handleEscape);
-    window.addEventListener("scroll", handleScroll, true);
+    window.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('keydown', handleEscape);
+    window.addEventListener('scroll', handleScroll, true);
     return () => {
-      window.removeEventListener("mousedown", handleClickOutside);
-      window.removeEventListener("keydown", handleEscape);
-      window.removeEventListener("scroll", handleScroll, true);
+      window.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('keydown', handleEscape);
+      window.removeEventListener('scroll', handleScroll, true);
     };
   }, [menuOpen, menuId]);
 
@@ -153,31 +165,41 @@ export function WorkspaceTerminalEntry({
     onHideFromRightPanels(workspace.id);
   }, [onHideFromRightPanels, workspace.id, closeMenu]);
 
-  const handleSelectDefaultProfile = useCallback((profile: TerminalProfile) => {
-    if (isIndependent) {
-      setDefaultTerminalProfile(profile);
-    } else {
-      setWorkspaceDefaultTerminalProfile(workspace.id, profile);
-    }
-    requestAnimationFrame(() => {
-      setRenderKey(prev => prev + 1);
-    });
-  }, [isIndependent, workspace.id, setDefaultTerminalProfile, setWorkspaceDefaultTerminalProfile]);
+  const handleSelectDefaultProfile = useCallback(
+    (profile: TerminalProfile) => {
+      if (isIndependent) {
+        setDefaultTerminalProfile(profile);
+      } else {
+        setWorkspaceDefaultTerminalProfile(workspace.id, profile);
+      }
+      requestAnimationFrame(() => {
+        setRenderKey((prev) => prev + 1);
+      });
+    },
+    [isIndependent, workspace.id, setDefaultTerminalProfile, setWorkspaceDefaultTerminalProfile]
+  );
 
   return (
-    <div key={renderKey} className={`adl-multitree-entry${isIndependent ? " adl-multitree-entry--independent" : ""}${!workspace.available ? " is-unavailable" : ""}`}>
+    <div
+      key={renderKey}
+      className={`adl-multitree-entry${isIndependent ? ' adl-multitree-entry--independent' : ''}${!workspace.available ? ' is-unavailable' : ''}`}
+    >
       <div className="adl-multitree-entry__header" data-menu-zone-id={menuId}>
         <div className="adl-multitree-entry__expand">
-          <TooltipSimple content={isExpanded ? "收起" : "展开"} placement="top">
+          <TooltipSimple content={isExpanded ? '收起' : '展开'} placement="top">
             <button
               type="button"
-              className={`adl-multitree-entry__expand-btn${isExpanded ? " is-expanded" : ""}`}
+              className={`adl-multitree-entry__expand-btn${isExpanded ? ' is-expanded' : ''}`}
               onClick={onToggleExpand}
-              aria-label={isExpanded ? "收起" : "展开"}
+              aria-label={isExpanded ? '收起' : '展开'}
               aria-expanded={isExpanded}
               disabled={!workspace.available}
             >
-              {isExpanded ? <IconFolderOpen size={14} decorative /> : <IconFolder size={14} decorative />}
+              {isExpanded ? (
+                <IconFolderOpen size={14} decorative />
+              ) : (
+                <IconFolder size={14} decorative />
+              )}
             </button>
           </TooltipSimple>
         </div>
@@ -188,10 +210,14 @@ export function WorkspaceTerminalEntry({
           tabIndex={0}
           onClick={handleNameClick}
           onContextMenu={isIndependent ? undefined : handleNameContextMenu}
-          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") handleNameClick(); }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') handleNameClick();
+          }}
           aria-label={workspace.name}
         >
-          <span className="adl-multitree-entry__name" title={workspace.path}>{workspace.name}</span>
+          <span className="adl-multitree-entry__name" title={workspace.path}>
+            {workspace.name}
+          </span>
           <span className="adl-multitree-entry__count">{tabCount}</span>
 
           <div className="adl-multitree-entry__actions">
@@ -200,7 +226,10 @@ export function WorkspaceTerminalEntry({
                 <button
                   type="button"
                   className="adl-icon-btn adl-icon-btn--xs"
-                  onClick={(e) => { e.stopPropagation(); onRefreshTree(); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRefreshTree();
+                  }}
                   aria-label="刷新"
                 >
                   <IconRefreshCw size={12} decorative />
@@ -211,7 +240,10 @@ export function WorkspaceTerminalEntry({
               <button
                 type="button"
                 className="adl-icon-btn adl-icon-btn--xs"
-                onClick={(e) => { e.stopPropagation(); onCloseAllTabs(); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCloseAllTabs();
+                }}
                 aria-label="删除全部"
               >
                 <IconTrash size={12} decorative />
@@ -221,7 +253,10 @@ export function WorkspaceTerminalEntry({
               <button
                 type="button"
                 className="adl-icon-btn adl-icon-btn--xs"
-                onClick={(e) => { e.stopPropagation(); onCreateTab(); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCreateTab();
+                }}
                 aria-label="创建终端"
               >
                 <IconPlus size={12} decorative />
@@ -242,62 +277,84 @@ export function WorkspaceTerminalEntry({
         </div>
       </div>
 
-      {menuOpen && menuPosition ? createPortal(
-        <div className="adl-multitree-entry__menu" role="menu" data-menu-id={menuId} style={{ top: menuPosition.top, left: menuPosition.left }}>
-          {!isIndependent && <button type="button" className="adl-multitree-entry__menu-item" role="menuitem" onClick={handleHideFromRightPanels}>
-            <IconEyeOff size={14} />
-            从此区域移除不显示
-          </button>}
-          {!isIndependent && <div className="adl-multitree-entry__menu-sep" role="separator" />}
-          <div
-            ref={subMenuTriggerRef}
-            className="adl-multitree-entry__menu-item adl-multitree-entry__menu-item--with-sub"
-            data-sub-menu-id={subMenuId}
-            onMouseEnter={showSubMenu}
-            onMouseLeave={hideSubMenuDelayed}
-          >
-            <IconTerminal size={14} />
-            <span className="adl-multitree-entry__menu-item-content">默认为{defaultProfileLabel}终端</span>
-            <span className="adl-multitree-entry__menu-item-arrow">
-              <IconChevronRight size={12} decorative />
-            </span>
-          </div>
-        </div>,
-        document.body
-      ) : null}
-
-      {menuOpen && subHover && subMenuPosition ? createPortal(
-        <div
-          className="adl-multitree-entry__menu adl-multitree-entry__menu--sub"
-          role="menu"
-          data-menu-id={subMenuId}
-          style={{ top: subMenuPosition.top, left: subMenuPosition.left }}
-          onMouseEnter={showSubMenu}
-          onMouseLeave={hideSubMenuDelayed}
-        >
-          {(["powershell", "bash", "cmd"] as TerminalProfile[]).map((profile) => (
-            <button
-              key={profile}
-              type="button"
-              className={`adl-multitree-entry__menu-item${profile === currentProfile ? " is-active" : ""}`}
-              role="menuitemradio"
-              aria-checked={profile === currentProfile}
-              onClick={() => handleSelectDefaultProfile(profile)}
+      {menuOpen && menuPosition
+        ? createPortal(
+            <div
+              className="adl-multitree-entry__menu"
+              role="menu"
+              data-menu-id={menuId}
+              style={{ top: menuPosition.top, left: menuPosition.left }}
             >
-              <span className="adl-multitree-entry__menu-item-label">{profileLabels[profile]}</span>
-              {profile === currentProfile ? <span className="adl-multitree-entry__menu-item-check">√</span> : null}
-            </button>
-          ))}
-        </div>,
-        document.body
-      ) : null}
+              {!isIndependent && (
+                <button
+                  type="button"
+                  className="adl-multitree-entry__menu-item"
+                  role="menuitem"
+                  onClick={handleHideFromRightPanels}
+                >
+                  <IconEyeOff size={14} />
+                  从此区域移除不显示
+                </button>
+              )}
+              {!isIndependent && <div className="adl-multitree-entry__menu-sep" role="separator" />}
+              <div
+                ref={subMenuTriggerRef}
+                className="adl-multitree-entry__menu-item adl-multitree-entry__menu-item--with-sub"
+                data-sub-menu-id={subMenuId}
+                onMouseEnter={showSubMenu}
+                onMouseLeave={hideSubMenuDelayed}
+              >
+                <IconTerminal size={14} />
+                <span className="adl-multitree-entry__menu-item-content">
+                  默认为{defaultProfileLabel}终端
+                </span>
+                <span className="adl-multitree-entry__menu-item-arrow">
+                  <IconChevronRight size={12} decorative />
+                </span>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
+
+      {menuOpen && subHover && subMenuPosition
+        ? createPortal(
+            <div
+              className="adl-multitree-entry__menu adl-multitree-entry__menu--sub"
+              role="menu"
+              data-menu-id={subMenuId}
+              style={{ top: subMenuPosition.top, left: subMenuPosition.left }}
+              onMouseEnter={showSubMenu}
+              onMouseLeave={hideSubMenuDelayed}
+            >
+              {(['powershell', 'bash', 'cmd'] as TerminalProfile[]).map((profile) => (
+                <button
+                  key={profile}
+                  type="button"
+                  className={`adl-multitree-entry__menu-item${profile === currentProfile ? ' is-active' : ''}`}
+                  role="menuitemradio"
+                  aria-checked={profile === currentProfile}
+                  onClick={() => handleSelectDefaultProfile(profile)}
+                >
+                  <span className="adl-multitree-entry__menu-item-label">
+                    {profileLabels[profile]}
+                  </span>
+                  {profile === currentProfile ? (
+                    <span className="adl-multitree-entry__menu-item-check">√</span>
+                  ) : null}
+                </button>
+              ))}
+            </div>,
+            document.body
+          )
+        : null}
 
       {isExpanded ? (
         <div className="adl-multitree-entry__tree">
           {tabs.length > 0 ? (
             <TerminalTabBar
               tabs={tabs}
-              activeTabId={activeTabId ?? ""}
+              activeTabId={activeTabId ?? ''}
               editingTabId={null}
               editValue=""
               editInputRef={{ current: null }}

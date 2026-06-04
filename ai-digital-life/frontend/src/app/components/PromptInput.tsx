@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Icon } from "./Icon";
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Icon } from './Icon';
 
 interface PromptInputProps {
   value: string;
@@ -24,10 +24,10 @@ export function PromptInput({
   value,
   onChange,
   onSubmit,
-  placeholder = "向 AI 助手提问...",
+  placeholder = '向 AI 助手提问...',
   disabled = false,
   attachments = [],
-  onRemoveAttachment
+  onRemoveAttachment,
 }: PromptInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -36,7 +36,7 @@ export function PromptInput({
   const adjustHeight = useCallback(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
-    textarea.style.height = "auto";
+    textarea.style.height = 'auto';
     const newHeight = Math.min(Math.max(textarea.scrollHeight, MIN_HEIGHT), MAX_HEIGHT);
     textarea.style.height = `${newHeight}px`;
   }, []);
@@ -54,7 +54,7 @@ export function PromptInput({
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (e.key === "Enter" && !e.shiftKey) {
+      if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         if (value.trim() && !disabled) {
           onSubmit();
@@ -94,7 +94,7 @@ export function PromptInput({
   return (
     <div
       ref={containerRef}
-      className={`prompt-input${isDragOver ? " prompt-input--dragover" : ""}${disabled ? " prompt-input--disabled" : ""}`}
+      className={`prompt-input${isDragOver ? ' prompt-input--dragover' : ''}${disabled ? ' prompt-input--disabled' : ''}`}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}
@@ -106,7 +106,9 @@ export function PromptInput({
             <span key={`${attachment.name}-${index}`} className="prompt-input__attachment-chip">
               <Icon name="file-text" size="xs" />
               <span className="prompt-input__attachment-name">{attachment.name}</span>
-              <span className="prompt-input__attachment-size">{formatFileSize(attachment.size)}</span>
+              <span className="prompt-input__attachment-size">
+                {formatFileSize(attachment.size)}
+              </span>
               {onRemoveAttachment && (
                 <button
                   type="button"

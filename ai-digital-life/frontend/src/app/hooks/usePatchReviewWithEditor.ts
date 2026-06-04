@@ -1,9 +1,9 @@
-import { useCallback, useRef } from "react";
-import type { Locale } from "../i18n";
-import { useAppStore } from "../stores/slicedStore";
-import { useAppActions } from "./useAppActions";
-import { usePatchReview } from "./usePatchReview";
-import { useEditorReveal } from "./useEditorReveal";
+import { useCallback, useRef } from 'react';
+import type { Locale } from '../i18n';
+import { useAppStore } from '../stores/slicedStore';
+import { useAppActions } from './useAppActions';
+import { usePatchReview } from './usePatchReview';
+import { useEditorReveal } from './useEditorReveal';
 
 export function usePatchReviewWithEditor(locale: Locale) {
   const selectedFilePath = useAppStore((s) => s.selectedFilePath);
@@ -30,21 +30,17 @@ export function usePatchReviewWithEditor(locale: Locale) {
     handleJumpPatchHunk,
   } = usePatchReview(setPendingReveal);
 
-  const {
-    standardEditorRef,
-    handleOpenFileAtLine,
-    handleSendSelection,
-    handleDiffMount,
-  } = useEditorReveal(
-    selectedFilePath,
-    activeDiagnostic,
-    fileLastModifiedAt,
-    { sendMessage: actions.sendMessage, openFile: actions.openFile },
-    locale,
-    setEditorHint,
-    pendingRevealRef,
-    setPendingReveal,
-  );
+  const { standardEditorRef, handleOpenFileAtLine, handleSendSelection, handleDiffMount } =
+    useEditorReveal(
+      selectedFilePath,
+      activeDiagnostic,
+      fileLastModifiedAt,
+      { sendMessage: actions.sendMessage, openFile: actions.openFile },
+      locale,
+      setEditorHint,
+      pendingRevealRef,
+      setPendingReveal
+    );
 
   return {
     standardEditorRef,

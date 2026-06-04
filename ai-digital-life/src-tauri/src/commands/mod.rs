@@ -7,18 +7,18 @@ pub mod command;
 pub mod conversation;
 pub mod model;
 pub mod patch;
+pub mod platform;
 pub mod pty_commands;
 pub mod retrieval;
 pub mod run_activity;
 pub mod task;
-pub mod platform;
 pub mod workspace;
 pub mod workspace_git;
 pub mod workspace_sidebar;
 
+use crate::error::CommandError;
 use adl_errors::AppError;
 use adl_kernel::IpcResult;
-use crate::error::CommandError;
 
 pub fn ipc<T>(result: Result<T, AppError>) -> IpcResult<T> {
     match result {

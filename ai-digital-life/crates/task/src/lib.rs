@@ -26,9 +26,7 @@ pub fn assess_command_risk(command: &str, args: &[String], shell: bool) -> RiskL
         || command_lower == "npm"
         || command_lower == "pnpm"
         || (command_lower == "cargo"
-            && args
-                .iter()
-                .any(|arg| matches!(arg.as_str(), "install" | "publish")))
+            && args.iter().any(|arg| matches!(arg.as_str(), "install" | "publish")))
     {
         RiskLevel::Medium
     } else {
@@ -95,11 +93,7 @@ pub fn make_approval(task: &TaskRecord, title: impl Into<String>) -> ApprovalRec
         title: title.into(),
         description: task.description.clone(),
         risk_level: risk,
-        impact: task
-            .operations
-            .iter()
-            .filter_map(|operation| operation.target.clone())
-            .collect(),
+        impact: task.operations.iter().filter_map(|operation| operation.target.clone()).collect(),
         reversible: task.operations.iter().all(|operation| operation.reversible),
         created_at: now,
         expires_at: None,
@@ -121,11 +115,8 @@ pub fn make_approval(task: &TaskRecord, title: impl Into<String>) -> ApprovalRec
 }
 
 pub fn task_summary(task: &TaskRecord) -> TaskSummary {
-    let risk = task
-        .operations
-        .first()
-        .map(|operation| operation.risk_level)
-        .unwrap_or(RiskLevel::Low);
+    let risk =
+        task.operations.first().map(|operation| operation.risk_level).unwrap_or(RiskLevel::Low);
     TaskSummary {
         id: task.id.clone(),
         title: task.r#type.clone(),
@@ -176,18 +167,12 @@ mod tests {
 
     #[test]
     fn shell_commands_are_high_risk() {
-        assert_eq!(
-            assess_command_risk("pwsh", &["rm -rf x".into()], true),
-            RiskLevel::High
-        );
+        assert_eq!(assess_command_risk("pwsh", &["rm -rf x".into()], true), RiskLevel::High);
     }
 
     #[test]
     fn install_is_medium_risk() {
-        assert_eq!(
-            assess_command_risk("npm", &["install".into()], false),
-            RiskLevel::Medium
-        );
+        assert_eq!(assess_command_risk("npm", &["install".into()], false), RiskLevel::Medium);
     }
 
     #[test]
@@ -200,10 +185,7 @@ mod tests {
             assess_command_risk("git", &["reset".into(), "--hard".into()], false),
             RiskLevel::High
         );
-        assert_eq!(
-            assess_command_risk("git", &["reset".into()], false),
-            RiskLevel::Low
-        );
+        assert_eq!(assess_command_risk("git", &["reset".into()], false), RiskLevel::Low);
     }
 
     #[test]
@@ -232,50 +214,26 @@ mod tests {
 
     #[test]
     fn assess_command_risk_npm_commands() {
-        assert_eq!(
-            assess_command_risk("npm", &[], false),
-            RiskLevel::Medium
-        );
-        assert_eq!(
-            assess_command_risk("pnpm", &[], false),
-            RiskLevel::Medium
-        );
-        assert_eq!(
-            assess_command_risk("npm", &["start".into()], false),
-            RiskLevel::Medium
-        );
+        assert_eq!(assess_command_risk("npm", &[], false), RiskLevel::Medium);
+        assert_eq!(assess_command_risk("pnpm", &[], false), RiskLevel::Medium);
+        assert_eq!(assess_command_risk("npm", &["start".into()], false), RiskLevel::Medium);
     }
 
     #[test]
     fn assess_command_risk_cargo_install() {
-        assert_eq!(
-            assess_command_risk("cargo", &["install".into()], false),
-            RiskLevel::Medium
-        );
-        assert_eq!(
-            assess_command_risk("cargo", &["publish".into()], false),
-            RiskLevel::Medium
-        );
-        assert_eq!(
-            assess_command_risk("cargo", &["build".into()], false),
-            RiskLevel::Low
-        );
+        assert_eq!(assess_command_risk("cargo", &["install".into()], false), RiskLevel::Medium);
+        assert_eq!(assess_command_risk("cargo", &["publish".into()], false), RiskLevel::Medium);
+        assert_eq!(assess_command_risk("cargo", &["build".into()], false), RiskLevel::Low);
     }
 
     #[test]
     fn assess_command_risk_install_subcommand() {
-        assert_eq!(
-            assess_command_risk("pip", &["install".into()], false),
-            RiskLevel::Medium
-        );
+        assert_eq!(assess_command_risk("pip", &["install".into()], false), RiskLevel::Medium);
         assert_eq!(
             assess_command_risk("pip", &["install".into(), "package".into()], false),
             RiskLevel::Medium
         );
-        assert_eq!(
-            assess_command_risk("go", &["get".into()], false),
-            RiskLevel::Low
-        );
+        assert_eq!(assess_command_risk("go", &["get".into()], false), RiskLevel::Low);
     }
 
     #[test]

@@ -1,8 +1,8 @@
-import type { FilePatch, PatchHunk, PatchHunkDecision, PatchSet } from "@ai-digital-life/kernel";
+import type { FilePatch, PatchHunk, PatchHunkDecision, PatchSet } from '@ai-digital-life/kernel';
 
-export type PatchChangeKind = "added" | "modified" | "deleted";
-export type PatchReviewFilter = "all" | "pending" | "accepted" | "rejected";
-export type PatchDirection = "previous" | "next";
+export type PatchChangeKind = 'added' | 'modified' | 'deleted';
+export type PatchReviewFilter = 'all' | 'pending' | 'accepted' | 'rejected';
+export type PatchDirection = 'previous' | 'next';
 
 export interface PatchReviewState {
   selectedPatchFilePath?: string;
@@ -39,7 +39,7 @@ export interface PatchFileSummary {
   hunks: PatchHunkSummary[];
 }
 
-const REVIEW_FILTER_ORDER: PatchReviewFilter[] = ["all", "pending", "accepted", "rejected"];
+const REVIEW_FILTER_ORDER: PatchReviewFilter[] = ['all', 'pending', 'accepted', 'rejected'];
 
 export function isPatchReviewFilter(value: string): value is PatchReviewFilter {
   return REVIEW_FILTER_ORDER.includes(value as PatchReviewFilter);
@@ -47,12 +47,12 @@ export function isPatchReviewFilter(value: string): value is PatchReviewFilter {
 
 export function derivePatchHunkChangeKind(hunk: PatchHunk): PatchChangeKind {
   if (hunk.oldLines === 0 && hunk.newLines > 0) {
-    return "added";
+    return 'added';
   }
   if (hunk.newLines === 0 && hunk.oldLines > 0) {
-    return "deleted";
+    return 'deleted';
   }
-  return "modified";
+  return 'modified';
 }
 
 export function derivePatchFileChangeKind(filePatch: FilePatch): PatchChangeKind {
@@ -60,7 +60,7 @@ export function derivePatchFileChangeKind(filePatch: FilePatch): PatchChangeKind
   if (kinds.size === 1) {
     return [...kinds][0]!;
   }
-  return "modified";
+  return 'modified';
 }
 
 export function getPatchHunkTargetLine(hunk: PatchHunk, contextLines = 3): number {
@@ -71,11 +71,14 @@ export function getPatchHunkTargetLine(hunk: PatchHunk, contextLines = 3): numbe
 export function getPatchHunkLineSpan(hunk: PatchHunk): { oldEnd: number; newEnd: number } {
   return {
     oldEnd: Math.max(hunk.oldStart, hunk.oldStart + Math.max(hunk.oldLines, 1) - 1),
-    newEnd: Math.max(hunk.newStart, hunk.newStart + Math.max(hunk.newLines, 1) - 1)
+    newEnd: Math.max(hunk.newStart, hunk.newStart + Math.max(hunk.newLines, 1) - 1),
   };
 }
 
-export function summarizePatchHunk(hunk: PatchHunk, collapsedHunkIds: string[] = []): PatchHunkSummary {
+export function summarizePatchHunk(
+  hunk: PatchHunk,
+  collapsedHunkIds: string[] = []
+): PatchHunkSummary {
   const span = getPatchHunkLineSpan(hunk);
   return {
     id: hunk.id,
@@ -90,17 +93,24 @@ export function summarizePatchHunk(hunk: PatchHunk, collapsedHunkIds: string[] =
     newEnd: span.newEnd,
     oldLines: hunk.oldLines,
     newLines: hunk.newLines,
-    isCollapsed: collapsedHunkIds.includes(hunk.id)
+    isCollapsed: collapsedHunkIds.includes(hunk.id),
   };
 }
 
-export function summarizePatchFile(filePatch: FilePatch, collapsedHunkIds: string[] = []): PatchFileSummary {
+export function summarizePatchFile(
+  filePatch: FilePatch,
+  collapsedHunkIds: string[] = []
+): PatchFileSummary {
   const hunks = filePatch.hunks.map((hunk) => summarizePatchHunk(hunk, collapsedHunkIds));
-  const acceptedHunks = hunks.filter((hunk) => hunk.decision === "accepted").length;
-  const rejectedHunks = hunks.filter((hunk) => hunk.decision === "rejected").length;
+  const acceptedHunks = hunks.filter((hunk) => hunk.decision === 'accepted').length;
+  const rejectedHunks = hunks.filter((hunk) => hunk.decision === 'rejected').length;
   const pendingHunks = hunks.length - acceptedHunks - rejectedHunks;
   const dominantDecision =
-    pendingHunks > 0 ? "pending" : rejectedHunks > 0 && acceptedHunks === 0 ? "rejected" : "accepted";
+    pendingHunks > 0
+      ? 'pending'
+      : rejectedHunks > 0 && acceptedHunks === 0
+        ? 'rejected'
+        : 'accepted';
 
   return {
     relativePath: filePatch.relativePath,
@@ -111,33 +121,44 @@ export function summarizePatchFile(filePatch: FilePatch, collapsedHunkIds: strin
     pendingHunks,
     dominantDecision,
     reviewedRatio: hunks.length === 0 ? 1 : (acceptedHunks + rejectedHunks) / hunks.length,
-    hunks
+    hunks,
   };
 }
 
-export function summarizePatchSet(patchSet?: PatchSet, collapsedHunkIds: string[] = []): PatchFileSummary[] {
-  return patchSet?.filePatches.map((filePatch) => summarizePatchFile(filePatch, collapsedHunkIds)) ?? [];
+export function summarizePatchSet(
+  patchSet?: PatchSet,
+  collapsedHunkIds: string[] = []
+): PatchFileSummary[] {
+  return (
+    patchSet?.filePatches.map((filePatch) => summarizePatchFile(filePatch, collapsedHunkIds)) ?? []
+  );
 }
 
 export function filterPatchFileSummaries(
   summaries: PatchFileSummary[],
   filter: PatchReviewFilter
 ): PatchFileSummary[] {
-  if (filter === "all") {
+  if (filter === 'all') {
     return summaries;
   }
   return summaries
     .map((summary) => ({
       ...summary,
-      hunks: summary.hunks.filter((hunk) => hunk.decision === filter)
+      hunks: summary.hunks.filter((hunk) => hunk.decision === filter),
     }))
     .filter((summary) => summary.hunks.length > 0);
 }
 
-export function findPatchFileByPath(patchSet: PatchSet | undefined, relativePath?: string): FilePatch | undefined {
+export function findPatchFileByPath(
+  patchSet: PatchSet | undefined,
+  relativePath?: string
+): FilePatch | undefined {
   if (!patchSet) return undefined;
   if (!relativePath) return patchSet.filePatches[0];
-  return patchSet.filePatches.find((filePatch) => filePatch.relativePath === relativePath) ?? patchSet.filePatches[0];
+  return (
+    patchSet.filePatches.find((filePatch) => filePatch.relativePath === relativePath) ??
+    patchSet.filePatches[0]
+  );
 }
 
 export function flattenPatchHunks(patchSet?: PatchSet): PatchHunk[] {
@@ -152,13 +173,13 @@ export function getAdjacentPatchHunk(
   const flattened = flattenPatchHunks(patchSet);
   if (flattened.length === 0) return undefined;
   if (!selectedHunkId) {
-    return direction === "previous" ? flattened[flattened.length - 1] : flattened[0];
+    return direction === 'previous' ? flattened[flattened.length - 1] : flattened[0];
   }
   const currentIndex = flattened.findIndex((hunk) => hunk.id === selectedHunkId);
   if (currentIndex < 0) {
-    return direction === "previous" ? flattened[flattened.length - 1] : flattened[0];
+    return direction === 'previous' ? flattened[flattened.length - 1] : flattened[0];
   }
-  const nextIndex = direction === "previous" ? currentIndex - 1 : currentIndex + 1;
+  const nextIndex = direction === 'previous' ? currentIndex - 1 : currentIndex + 1;
   if (nextIndex < 0 || nextIndex >= flattened.length) {
     return flattened[currentIndex];
   }
@@ -188,14 +209,19 @@ export function setCollapsedHunksForFile(
   return collapsedHunkIds.filter((hunkId) => !fileHunkIds.has(hunkId));
 }
 
-export function countReviewedHunks(patchSet?: PatchSet): { total: number; accepted: number; rejected: number; pending: number } {
+export function countReviewedHunks(patchSet?: PatchSet): {
+  total: number;
+  accepted: number;
+  rejected: number;
+  pending: number;
+} {
   const hunks = flattenPatchHunks(patchSet);
-  const accepted = hunks.filter((hunk) => hunk.decision === "accepted").length;
-  const rejected = hunks.filter((hunk) => hunk.decision === "rejected").length;
+  const accepted = hunks.filter((hunk) => hunk.decision === 'accepted').length;
+  const rejected = hunks.filter((hunk) => hunk.decision === 'rejected').length;
   return {
     total: hunks.length,
     accepted,
     rejected,
-    pending: hunks.length - accepted - rejected
+    pending: hunks.length - accepted - rejected,
   };
 }

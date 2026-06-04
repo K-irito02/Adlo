@@ -30,11 +30,7 @@ pub(crate) fn parse_yaml_outline(content: &str) -> Vec<OutlineDraft> {
             .take_while(|ch| ch.is_whitespace())
             .map(|ch| if ch == '\t' { 2 } else { 1 })
             .sum();
-        while indent_stack
-            .last()
-            .copied()
-            .is_some_and(|value| indent <= value)
-        {
+        while indent_stack.last().copied().is_some_and(|value| indent <= value) {
             indent_stack.pop();
         }
         if let Some(captures) = list_key_regex().captures(trimmed) {
@@ -48,10 +44,7 @@ pub(crate) fn parse_yaml_outline(content: &str) -> Vec<OutlineDraft> {
             continue;
         }
         if let Some(captures) = key_regex().captures(trimmed) {
-            let suffix = captures
-                .get(2)
-                .map(|value| value.as_str().trim())
-                .unwrap_or("");
+            let suffix = captures.get(2).map(|value| value.as_str().trim()).unwrap_or("");
             if !suffix.is_empty()
                 && suffix != "|"
                 && suffix != ">"
@@ -62,11 +55,7 @@ pub(crate) fn parse_yaml_outline(content: &str) -> Vec<OutlineDraft> {
             }
             indent_stack.push(indent);
             drafts.push(OutlineDraft {
-                label: captures[1]
-                    .trim()
-                    .trim_matches('"')
-                    .trim_matches('\'')
-                    .to_string(),
+                label: captures[1].trim().trim_matches('"').trim_matches('\'').to_string(),
                 kind: "heading".to_string(),
                 line: index + 1,
                 depth: indent_stack.len(),

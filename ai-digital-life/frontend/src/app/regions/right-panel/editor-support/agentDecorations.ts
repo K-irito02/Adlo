@@ -1,6 +1,6 @@
-import { StateField, StateEffect, type Extension } from "@codemirror/state";
-import { Decoration, type DecorationSet, EditorView } from "@codemirror/view";
-import type { Range } from "@codemirror/state";
+import { StateField, StateEffect, type Extension } from '@codemirror/state';
+import { Decoration, type DecorationSet, EditorView } from '@codemirror/view';
+import type { Range } from '@codemirror/state';
 import {
   AGENT_DECO_DELETE_BLOCK_CLASS,
   AGENT_DECO_INSERT_CLASS,
@@ -8,13 +8,13 @@ import {
   AGENT_DECO_MODIFY_CLASS,
   AGENT_DECO_MODIFY_BLOCK_CLASS,
   AGENT_DECO_DELETE_CLASS,
-} from "../../../features/editor/cmTheme";
+} from '../../../features/editor/cmTheme';
 
 export type AgentHunkDecoration = {
   startLine: number;
   endLine: number;
-  changeKind: "added" | "modified" | "deleted";
-  decision: "pending" | "accepted" | "rejected";
+  changeKind: 'added' | 'modified' | 'deleted';
+  decision: 'pending' | 'accepted' | 'rejected';
   isSelected?: boolean;
   hunkId: string;
 };
@@ -24,27 +24,27 @@ export const toggleAgentDecorations = StateEffect.define<boolean>();
 
 function getLineDecoClass(hunk: AgentHunkDecoration): string {
   const kindClass =
-    hunk.changeKind === "added"
+    hunk.changeKind === 'added'
       ? AGENT_DECO_INSERT_BLOCK_CLASS
-      : hunk.changeKind === "deleted"
+      : hunk.changeKind === 'deleted'
         ? AGENT_DECO_DELETE_BLOCK_CLASS
         : AGENT_DECO_MODIFY_BLOCK_CLASS;
   const decisionClass = `adl-agent-deco--${hunk.decision}`;
-  const selectedClass = hunk.isSelected ? "adl-agent-deco--selected" : "";
+  const selectedClass = hunk.isSelected ? 'adl-agent-deco--selected' : '';
   return `${kindClass} ${decisionClass} ${selectedClass}`.trim();
 }
 
 function getContentDecoClass(hunk: AgentHunkDecoration): string {
-  return hunk.changeKind === "added"
+  return hunk.changeKind === 'added'
     ? AGENT_DECO_INSERT_CLASS
-    : hunk.changeKind === "deleted"
+    : hunk.changeKind === 'deleted'
       ? AGENT_DECO_DELETE_CLASS
       : AGENT_DECO_MODIFY_CLASS;
 }
 
 function buildLineDecorations(
   state: { doc: { line(n: number): { from: number; to: number }; lines: number } },
-  hunks: AgentHunkDecoration[],
+  hunks: AgentHunkDecoration[]
 ): DecorationSet {
   const decorations: Range<Decoration>[] = [];
   if (state.doc.lines === 0) return Decoration.none;
@@ -57,7 +57,9 @@ function buildLineDecorations(
       const lineInfo = state.doc.line(line);
       decorations.push(Decoration.line({ class: getLineDecoClass(hunk) }).range(lineInfo.from));
       if (lineInfo.from < lineInfo.to) {
-        decorations.push(Decoration.mark({ class: getContentDecoClass(hunk) }).range(lineInfo.from, lineInfo.to));
+        decorations.push(
+          Decoration.mark({ class: getContentDecoClass(hunk) }).range(lineInfo.from, lineInfo.to)
+        );
       }
     }
   }
@@ -84,14 +86,11 @@ const agentDecorationField = StateField.define<AgentDecorationState>({
   },
 });
 
-const agentLineDecorations = EditorView.decorations.compute(
-  [agentDecorationField],
-  (state) => {
-    const { hunks, enabled } = state.field(agentDecorationField);
-    if (!enabled || hunks.length === 0) return Decoration.none;
-    return buildLineDecorations(state, hunks);
-  },
-);
+const agentLineDecorations = EditorView.decorations.compute([agentDecorationField], (state) => {
+  const { hunks, enabled } = state.field(agentDecorationField);
+  if (!enabled || hunks.length === 0) return Decoration.none;
+  return buildLineDecorations(state, hunks);
+});
 
 export function getAgentDecorationExtensions(): Extension[] {
   return [agentDecorationField, agentLineDecorations];

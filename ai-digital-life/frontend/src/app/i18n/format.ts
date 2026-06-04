@@ -1,5 +1,5 @@
-import type { CopyDict, Locale } from "./types";
-import { copy } from "./types";
+import type { CopyDict, Locale } from './types';
+import { copy } from './types';
 
 export function formatNewFolderName(t: CopyDict, index: number): string {
   return `${t.browserNewFolderName}${index}`;

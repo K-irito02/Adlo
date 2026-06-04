@@ -1,7 +1,14 @@
-import React, { useMemo, useState } from "react";
-import type { RepoMapNode } from "@ai-digital-life/kernel";
-import type { CopyDict } from "../../i18n";
-import { IconChevronDown, IconChevronRight, IconFileText, IconFolder, IconMap, IconSearch } from "../../icons";
+import React, { useMemo, useState } from 'react';
+import type { RepoMapNode } from '@ai-digital-life/kernel';
+import type { CopyDict } from '../../i18n';
+import {
+  IconChevronDown,
+  IconChevronRight,
+  IconFileText,
+  IconFolder,
+  IconMap,
+  IconSearch,
+} from '../../icons';
 
 interface RepoMapViewProps {
   t: CopyDict;
@@ -11,20 +18,24 @@ interface RepoMapViewProps {
 function RepoMapNodeItem({ node, depth }: { node: RepoMapNode; depth: number }) {
   const [expanded, setExpanded] = useState(depth < 1);
   const hasChildren = node.children.length > 0;
-  const isDir = node.kind === "directory";
+  const isDir = node.kind === 'directory';
 
   return (
     <li className="adl-repomap__node">
       <div
         className="adl-repomap__row"
         style={{ paddingLeft: `${depth * 16 + 4}px` }}
-        role={hasChildren ? "button" : undefined}
+        role={hasChildren ? 'button' : undefined}
         tabIndex={hasChildren ? 0 : undefined}
         onClick={hasChildren ? () => setExpanded((v) => !v) : undefined}
-        onKeyDown={hasChildren ? (e) => e.key === "Enter" && setExpanded((v) => !v) : undefined}
+        onKeyDown={hasChildren ? (e) => e.key === 'Enter' && setExpanded((v) => !v) : undefined}
       >
         {hasChildren ? (
-          expanded ? <IconChevronDown size={12} decorative /> : <IconChevronRight size={12} decorative />
+          expanded ? (
+            <IconChevronDown size={12} decorative />
+          ) : (
+            <IconChevronRight size={12} decorative />
+          )
         ) : (
           <span className="adl-repomap__spacer" />
         )}
@@ -47,7 +58,7 @@ function RepoMapNodeItem({ node, depth }: { node: RepoMapNode; depth: number }) 
 }
 
 export function RepoMapView({ t, nodes }: RepoMapViewProps) {
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState('');
 
   const filtered = useMemo(() => {
     if (!query.trim()) return nodes;

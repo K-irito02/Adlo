@@ -14,9 +14,7 @@ pub fn normalize_relative_path(path: &str) -> Result<PathBuf, AppError> {
     let normalized = path.replace('\\', "/");
     let candidate = Path::new(&normalized);
     if candidate.is_absolute() {
-        return Err(AppError::Security(
-            "absolute paths are not accepted here".into(),
-        ));
+        return Err(AppError::Security("absolute paths are not accepted here".into()));
     }
     let mut clean = PathBuf::new();
     for component in candidate.components() {
@@ -24,9 +22,7 @@ pub fn normalize_relative_path(path: &str) -> Result<PathBuf, AppError> {
             Component::Normal(part) => clean.push(part),
             Component::CurDir => {}
             Component::ParentDir | Component::RootDir | Component::Prefix(_) => {
-                return Err(AppError::Security(format!(
-                    "path escapes workspace boundary: {path}"
-                )));
+                return Err(AppError::Security(format!("path escapes workspace boundary: {path}")));
             }
         }
     }
@@ -40,11 +36,8 @@ pub fn resolve_workspace_path(root: &Path, relative_path: &str) -> Result<PathBu
     let relative = normalize_relative_path(relative_path)?;
     let joined = root.join(relative);
     let parent = joined.parent().unwrap_or(&root);
-    let canonical_parent = if parent.exists() {
-        parent.canonicalize()?
-    } else {
-        resolve_existing_parent(parent)?
-    };
+    let canonical_parent =
+        if parent.exists() { parent.canonicalize()? } else { resolve_existing_parent(parent)? };
     if !canonical_parent.starts_with(&root) {
         return Err(AppError::Security(format!(
             "path escapes workspace boundary: {relative_path}"
@@ -91,9 +84,7 @@ pub fn atomic_write(root: &Path, relative_path: &str, content: &str) -> Result<(
     }
     let tmp = path.with_extension(format!(
         "{}.tmp",
-        path.extension()
-            .and_then(|value| value.to_str())
-            .unwrap_or("adl")
+        path.extension().and_then(|value| value.to_str()).unwrap_or("adl")
     ));
     fs::write(&tmp, content.as_bytes())?;
     fs::rename(&tmp, &path)?;
@@ -152,18 +143,12 @@ pub fn create_checkpoint_payload(
 
     let preview = CheckpointPayloadPreview {
         checkpoint_id: checkpoint_id.to_string(),
-        manifest_path: checkpoint_dir
-            .join("manifest.json")
-            .to_string_lossy()
-            .to_string(),
+        manifest_path: checkpoint_dir.join("manifest.json").to_string_lossy().to_string(),
         root_path: Some(root.to_string_lossy().to_string()),
         asset_count: assets.len(),
         assets,
     };
-    fs::write(
-        &preview.manifest_path,
-        serde_json::to_string_pretty(&preview)?,
-    )?;
+    fs::write(&preview.manifest_path, serde_json::to_string_pretty(&preview)?)?;
     Ok(preview)
 }
 
@@ -176,9 +161,7 @@ pub fn read_checkpoint_preview(
         return Ok(None);
     }
     let content = fs::read_to_string(path)?;
-    serde_json::from_str(&content)
-        .map_err(AppError::from)
-        .map(Some)
+    serde_json::from_str(&content).map_err(AppError::from).map(Some)
 }
 
 pub fn restore_checkpoint_payload(
@@ -192,11 +175,7 @@ pub fn restore_checkpoint_payload(
         .as_ref()
         .ok_or_else(|| AppError::InvalidInput("checkpoint has no root path".into()))?;
     let root = Path::new(root);
-    for asset in preview
-        .assets
-        .iter()
-        .filter(|asset| asset.status == "captured")
-    {
+    for asset in preview.assets.iter().filter(|asset| asset.status == "captured") {
         if let Some(snapshot_path) = &asset.snapshot_path {
             let target = resolve_workspace_path(root, &asset.path)?;
             if let Some(parent) = target.parent() {

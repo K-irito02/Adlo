@@ -15,7 +15,7 @@ describe("outline panel wiring", () => {
     expect(fileNavigatorShellSource).toContain("OutlineTree");
     expect(editorSurfaceShellSource).toContain("handleRevealPreviewLine");
     expect(editorSurfaceShellSource).toContain("data-source-line");
-    expect(fileNavigatorShellSource).toContain('setNavigatorMode("tree")');
+    expect(fileNavigatorShellSource).toContain("setNavigatorMode('tree')");
     expect(fileNavigatorShellSource).toContain("handleToggleAllOutlineItems");
     expect(fileNavigatorShellSource).toContain("expandedIds={expandedOutlineIds}");
   });
@@ -48,7 +48,7 @@ describe("outline panel wiring", () => {
   });
 
   it("tracks active file tree path directly from external props", () => {
-    expect(fileTreeSource).toContain("const activePath = props.selectedFilePath;");
+    expect(fileTreeSource).toContain("const activePath = selectedFilePath;");
     expect(fileTreeSource).toContain("isActive={isSelected}");
   });
 });

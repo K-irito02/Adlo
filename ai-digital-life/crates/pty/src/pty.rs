@@ -32,12 +32,7 @@ pub struct PtyConfig {
 }
 
 impl PtySession {
-    pub fn new(
-        config: PtyConfig,
-        cwd: &str,
-        cols: u16,
-        rows: u16,
-    ) -> Result<Self, AppError> {
+    pub fn new(config: PtyConfig, cwd: &str, cols: u16, rows: u16) -> Result<Self, AppError> {
         let pty_system = NativePtySystem::default();
         let size = PtySize { rows, cols, pixel_width: 0, pixel_height: 0 };
         let pair = pty_system
@@ -60,7 +55,9 @@ impl PtySession {
             .try_clone_reader()
             .map_err(|e| AppError::Terminal(format!("failed to clone pty reader: {}", e)))?;
 
-        let writer = pair.master.take_writer()
+        let writer = pair
+            .master
+            .take_writer()
             .map_err(|e| AppError::Terminal(format!("failed to take pty writer: {}", e)))?;
 
         let shell_label = std::path::Path::new(&config.program)
@@ -83,19 +80,9 @@ impl PtySession {
     }
 
     #[deprecated(note = "use PtySession::new() + PtyConfig instead")]
-    pub fn create(
-        shell: &str,
-        cwd: &str,
-        cols: u16,
-        rows: u16,
-    ) -> Result<Self, AppError> {
+    pub fn create(shell: &str, cwd: &str, cols: u16, rows: u16) -> Result<Self, AppError> {
         let pty_system = NativePtySystem::default();
-        let size = PtySize {
-            rows,
-            cols,
-            pixel_width: 0,
-            pixel_height: 0,
-        };
+        let size = PtySize { rows, cols, pixel_width: 0, pixel_height: 0 };
         let pair = pty_system
             .openpty(size)
             .map_err(|e| AppError::Terminal(format!("failed to open pty: {}", e)))?;
@@ -131,7 +118,9 @@ impl PtySession {
             .try_clone_reader()
             .map_err(|e| AppError::Terminal(format!("failed to clone pty reader: {}", e)))?;
 
-        let writer = pair.master.take_writer()
+        let writer = pair
+            .master
+            .take_writer()
             .map_err(|e| AppError::Terminal(format!("failed to take pty writer: {}", e)))?;
 
         Ok(Self {
@@ -149,44 +138,32 @@ impl PtySession {
     }
 
     pub fn read_output(&self, buf: &mut [u8]) -> Result<usize, AppError> {
-        let mut reader = self
-            .output_reader
-            .lock()
-            .map_err(|_| AppError::Internal("mutex poisoned".into()))?;
+        let mut reader =
+            self.output_reader.lock().map_err(|_| AppError::Internal("mutex poisoned".into()))?;
         match reader.as_mut() {
-            Some(r) => r
-                .read(buf)
-                .map_err(|e| AppError::Terminal(format!("pty read error: {}", e))),
+            Some(r) => {
+                r.read(buf).map_err(|e| AppError::Terminal(format!("pty read error: {}", e)))
+            }
             None => Ok(0),
         }
     }
 
     pub fn write_input(&self, data: &[u8]) -> Result<(), AppError> {
-        let mut writer = self
-            .writer
-            .lock()
-            .map_err(|_| AppError::Internal("mutex poisoned".into()))?;
+        let mut writer =
+            self.writer.lock().map_err(|_| AppError::Internal("mutex poisoned".into()))?;
         match writer.as_mut() {
-            Some(w) => w
-                .write_all(data)
-                .map_err(|e| AppError::Terminal(format!("pty write error: {}", e))),
+            Some(w) => {
+                w.write_all(data).map_err(|e| AppError::Terminal(format!("pty write error: {}", e)))
+            }
             None => Err(AppError::Terminal("pty writer not available".into())),
         }
     }
 
     pub fn resize(&self, cols: u16, rows: u16) -> Result<(), AppError> {
-        let master = self
-            .master
-            .lock()
-            .map_err(|_| AppError::Internal("mutex poisoned".into()))?;
+        let master = self.master.lock().map_err(|_| AppError::Internal("mutex poisoned".into()))?;
         match master.as_ref() {
             Some(m) => {
-                let size = PtySize {
-                    rows,
-                    cols,
-                    pixel_width: 0,
-                    pixel_height: 0,
-                };
+                let size = PtySize { rows, cols, pixel_width: 0, pixel_height: 0 };
                 m.resize(size)
                     .map_err(|e| AppError::Terminal(format!("pty resize error: {}", e)))?;
                 Ok(())
@@ -196,10 +173,8 @@ impl PtySession {
     }
 
     pub fn kill(&self) -> Result<(), AppError> {
-        let mut status = self
-            .status
-            .lock()
-            .map_err(|_| AppError::Internal("mutex poisoned".into()))?;
+        let mut status =
+            self.status.lock().map_err(|_| AppError::Internal("mutex poisoned".into()))?;
         if *status == PtyStatus::Terminated {
             return Ok(());
         }
@@ -217,28 +192,19 @@ impl PtySession {
     }
 
     pub fn is_running(&self) -> bool {
-        self.status
-            .lock()
-            .map(|s| *s == PtyStatus::Running)
-            .unwrap_or(false)
+        self.status.lock().map(|s| *s == PtyStatus::Running).unwrap_or(false)
     }
 
     pub fn try_wait(&self) -> Result<Option<u32>, AppError> {
-        let mut child = self
-            .child
-            .lock()
-            .map_err(|_| AppError::Internal("mutex poisoned".into()))?;
+        let mut child =
+            self.child.lock().map_err(|_| AppError::Internal("mutex poisoned".into()))?;
         match child.as_mut() {
             Some(c) => {
                 let exit = c
                     .try_wait()
                     .map_err(|e| AppError::Terminal(format!("pty try_wait error: {}", e)))?;
                 if let Some(status) = exit {
-                    let code = if status.success() {
-                        0
-                    } else {
-                        status.exit_code() as u32
-                    };
+                    let code = if status.success() { 0 } else { status.exit_code() };
                     Ok(Some(code))
                 } else {
                     Ok(None)

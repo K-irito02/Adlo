@@ -47,9 +47,8 @@ pub fn conversation_create_session(
 ) -> IpcResult<ConversationSessionRecord> {
     crate::commands::ipc_try(|| {
         let workspace_id = workspace_id.unwrap_or_else(|| active_workspace_scope_id(&state));
-        let existing: Vec<ConversationSessionRecord> = state
-            .db
-            .list_entities_by_workspace(EntityTable::Sessions, &workspace_id)?;
+        let existing: Vec<ConversationSessionRecord> =
+            state.db.list_entities_by_workspace(EntityTable::Sessions, &workspace_id)?;
         let session = adl_conversation::create_session(&workspace_id, title, existing.len() as i32);
         state.db.save_entity(
             EntityTable::Sessions,
@@ -152,9 +151,8 @@ pub fn conversation_archive_all_in_workspace(
 ) -> IpcResult<Vec<ConversationSessionRecord>> {
     crate::commands::ipc_try(|| {
         let workspace_id = active_workspace_scope_id(&state);
-        let mut sessions: Vec<ConversationSessionRecord> = state
-            .db
-            .list_entities_by_workspace(EntityTable::Sessions, &workspace_id)?;
+        let mut sessions: Vec<ConversationSessionRecord> =
+            state.db.list_entities_by_workspace(EntityTable::Sessions, &workspace_id)?;
         for session in &mut sessions {
             session.status = "archived".into();
             session.archived_at = Some(adl_kernel::now_ms());
@@ -184,9 +182,8 @@ pub fn conversation_reorder_sessions(
     input: ReorderSessionsInput,
 ) -> IpcResult<Vec<ConversationSessionRecord>> {
     crate::commands::ipc_try(|| {
-        let mut sessions: Vec<ConversationSessionRecord> = state
-            .db
-            .list_entities_by_workspace(EntityTable::Sessions, &input.workspace_id)?;
+        let mut sessions: Vec<ConversationSessionRecord> =
+            state.db.list_entities_by_workspace(EntityTable::Sessions, &input.workspace_id)?;
         for session in &mut sessions {
             if let Some(order) = input.pinned_ids.iter().position(|id| id == &session.id) {
                 session.is_pinned = true;
@@ -204,11 +201,7 @@ pub fn conversation_reorder_sessions(
         sessions.sort_by_key(|session| {
             (
                 !session.is_pinned,
-                if session.is_pinned {
-                    session.pinned_order
-                } else {
-                    session.unpinned_order
-                },
+                if session.is_pinned { session.pinned_order } else { session.unpinned_order },
             )
         });
         Ok(sessions)
@@ -272,15 +265,13 @@ pub fn get_session_detail(
     state: &AppState,
     session_id: &str,
 ) -> Result<Option<ConversationDetail>, AppError> {
-    let Some(session) = state
-        .db
-        .load_entity::<ConversationSessionRecord>(EntityTable::Sessions, session_id)?
+    let Some(session) =
+        state.db.load_entity::<ConversationSessionRecord>(EntityTable::Sessions, session_id)?
     else {
         return Ok(None);
     };
-    let mut messages: Vec<ConversationMessageRecord> = state
-        .db
-        .list_entities_by_session(EntityTable::ConversationMessages, session_id)?;
+    let mut messages: Vec<ConversationMessageRecord> =
+        state.db.list_entities_by_session(EntityTable::ConversationMessages, session_id)?;
     messages.sort_by_key(|message| message.created_at);
     Ok(Some(ConversationDetail { session, messages }))
 }

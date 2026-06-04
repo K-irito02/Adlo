@@ -6,9 +6,9 @@ import type {
   AuditEntry,
   IndexingStatus,
   ModelGatewayHealthSnapshot,
-  RepoMapNode
-} from "@ai-digital-life/kernel";
-import type { StoreState } from "../StoreState";
+  RepoMapNode,
+} from '@ai-digital-life/kernel';
+import type { StoreState } from '../StoreState';
 
 export interface DiagnosticSlice {
   auditEntries: AuditEntry[];
@@ -32,16 +32,18 @@ export const createDiagnosticSlice = (
   repoMap: [],
 
   setAuditEntries: (entries) => set({ auditEntries: entries }),
-  appendAuditEntries: (entries) => set((state) => ({
-    auditEntries: [...state.auditEntries, ...entries]
-  })),
+  appendAuditEntries: (entries) =>
+    set((state) => ({
+      auditEntries: [...state.auditEntries, ...entries],
+    })),
   setModelHealth: (health) => set({ modelHealth: health }),
   setIndexingStatus: (status) => set({ indexingStatus: status }),
   setRepoMap: (map) => set({ repoMap: map }),
-  clearDiagnosticState: () => set({
-    auditEntries: [],
-    modelHealth: undefined,
-    indexingStatus: undefined,
-    repoMap: []
-  })
+  clearDiagnosticState: () =>
+    set({
+      auditEntries: [],
+      modelHealth: undefined,
+      indexingStatus: undefined,
+      repoMap: [],
+    }),
 });

@@ -1,4 +1,8 @@
-import type { ConversationDetail, ConversationSessionRecord, TaskCenterSnapshot } from "@ai-digital-life/kernel";
+import type {
+  ConversationDetail,
+  ConversationSessionRecord,
+  TaskCenterSnapshot,
+} from '@ai-digital-life/kernel';
 
 export async function loadTaskCenterState(): Promise<TaskCenterSnapshot | undefined> {
   const result = await window.digitalLife.task.getSnapshot();
@@ -20,7 +24,9 @@ export async function loadConversationState(sessionId?: string): Promise<{
 
   const activeId = sessionId ?? sessionsResult.data[0]?.id;
 
-  const detailResult = activeId ? await window.digitalLife.conversation.getSession(activeId) : undefined;
+  const detailResult = activeId
+    ? await window.digitalLife.conversation.getSession(activeId)
+    : undefined;
   if (detailResult && !detailResult.ok) {
     throw new Error(detailResult.error.message);
   }
@@ -28,6 +34,6 @@ export async function loadConversationState(sessionId?: string): Promise<{
   return {
     sessions: sessionsResult.data,
     activeSessionId: activeId,
-    detail: detailResult?.data
+    detail: detailResult?.data,
   };
 }

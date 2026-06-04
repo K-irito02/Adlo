@@ -134,6 +134,12 @@ importers:
       eslint-plugin-prettier:
         specifier: ^5.5.6
         version: 5.5.6(eslint-config-prettier@10.1.8(eslint@9.39.4))(eslint@9.39.4)(prettier@3.8.3)
+      eslint-plugin-react-hooks:
+        specifier: ^5.0.0
+        version: 5.0.0(eslint@9.39.4)
+      eslint-plugin-react-refresh:
+        specifier: ^0.4.0
+        version: 0.4.26(eslint@9.39.4)
       globals:
         specifier: ^17.6.0
         version: 17.6.0
@@ -1273,6 +1279,17 @@ packages:
         optional: true
       eslint-config-prettier:
         optional: true
+
+  eslint-plugin-react-hooks@5.0.0:
+    resolution: {integrity: sha512-hIOwI+5hYGpJEc4uPRmz2ulCjAGD/N13Lukkh8cLV0i2IRk/bdZDYjgLVHj+U9Z704kLIdIO6iueGvxNur0sgw==, tarball: https://registry.npmmirror.com/eslint-plugin-react-hooks/-/eslint-plugin-react-hooks-5.0.0.tgz}
+    engines: {node: '>=10'}
+    peerDependencies:
+      eslint: ^3.0.0 || ^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0-0 || ^9.0.0
+
+  eslint-plugin-react-refresh@0.4.26:
+    resolution: {integrity: sha512-1RETEylht2O6FM/MvgnyvT+8K21wLqDNg4qD51Zj3guhjt433XbnnkVttHMyaVyAFD03QSV4LPS5iE3VQmO7XQ==, tarball: https://registry.npmmirror.com/eslint-plugin-react-refresh/-/eslint-plugin-react-refresh-0.4.26.tgz}
+    peerDependencies:
+      eslint: '>=8.40'
 
   eslint-scope@8.4.0:
     resolution: {integrity: sha512-sNXOfKCn74rt8RICKMvJS7XKV/Xk9kA7DyJr8mJik3S7Cwgy3qlkkmyS2uQB3jiJg6VNdZd/pDBJu0nvG2NlTg==, tarball: https://registry.npmmirror.com/eslint-scope/-/eslint-scope-8.4.0.tgz}
@@ -3419,6 +3436,14 @@ snapshots:
       synckit: 0.11.13
     optionalDependencies:
       eslint-config-prettier: 10.1.8(eslint@9.39.4)
+
+  eslint-plugin-react-hooks@5.0.0(eslint@9.39.4):
+    dependencies:
+      eslint: 9.39.4
+
+  eslint-plugin-react-refresh@0.4.26(eslint@9.39.4):
+    dependencies:
+      eslint: 9.39.4
 
   eslint-scope@8.4.0:
     dependencies:

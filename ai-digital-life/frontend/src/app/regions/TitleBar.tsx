@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import { useShallow } from "zustand/react/shallow";
-import type { AppInfo } from "@ai-digital-life/kernel";
-import type { CopyDict } from "../i18n";
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
+import type { AppInfo } from '@ai-digital-life/kernel';
+import type { CopyDict } from '../i18n';
 import {
   IconClose,
   IconCopy,
@@ -16,13 +16,13 @@ import {
   IconSearch,
   IconSettings,
   IconSun,
-  IconSquare
-} from "../icons";
-import logoUrl from "/logo-chatgpt.png?url";
-import { useUiStore } from "../stores/ui-store";
-import { useAppStore } from "../stores/slicedStore";
-import { isTauriShell } from "../../tauri-bridge";
-import { TooltipSimple } from "../components/Tooltip";
+  IconSquare,
+} from '../icons';
+import logoUrl from '/logo-chatgpt.png?url';
+import { useUiStore } from '../stores/ui-store';
+import { useAppStore } from '../stores/slicedStore';
+import { isTauriShell } from '../../tauri-bridge';
+import { TooltipSimple } from '../components/Tooltip';
 
 interface TitleBarProps {
   t: CopyDict;
@@ -32,25 +32,25 @@ interface TitleBarProps {
   onOpenFolder: () => void;
   onOpenCommandPalette: () => void;
   onCycleTheme: () => void;
-  onSelectLanguage: (language: AppInfo["config"]["language"]) => void;
+  onSelectLanguage: (language: AppInfo['config']['language']) => void;
 }
 
-function ThemeIcon({ mode }: { mode: AppInfo["config"]["themeMode"] | undefined }) {
+function ThemeIcon({ mode }: { mode: AppInfo['config']['themeMode'] | undefined }) {
   switch (mode) {
-    case "dark":
+    case 'dark':
       return <IconMoon size={16} decorative />;
-    case "light":
+    case 'light':
       return <IconSun size={16} decorative />;
     default:
       return <IconMonitor size={16} decorative />;
   }
 }
 
-function LanguageIcon({ language }: { language: AppInfo["config"]["language"] | undefined }) {
+function LanguageIcon({ language }: { language: AppInfo['config']['language'] | undefined }) {
   switch (language) {
-    case "en-US":
+    case 'en-US':
       return <IconLangEn size={16} decorative />;
-    case "zh-CN":
+    case 'zh-CN':
     default:
       return <IconLangZh size={16} decorative />;
   }
@@ -71,7 +71,7 @@ function MenuDropdown({
   open,
   items,
   onToggle,
-  onClose
+  onClose,
 }: {
   id: string;
   label: string;
@@ -89,15 +89,15 @@ function MenuDropdown({
         onClose();
       }
     };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
   }, [open, onClose]);
 
   return (
     <div ref={wrapperRef} className="adl-menu" data-menu-id={id}>
       <button
         type="button"
-        className={`adl-menu__trigger adl-iconstrip__button adl-iconstrip__button--label${open ? " is-open" : ""}`}
+        className={`adl-menu__trigger adl-iconstrip__button adl-iconstrip__button--label${open ? ' is-open' : ''}`}
         onClick={onToggle}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -141,16 +141,10 @@ export function TitleBar({
   onOpenFolder,
   onOpenCommandPalette,
   onCycleTheme,
-  onSelectLanguage
+  onSelectLanguage,
 }: TitleBarProps) {
   const [isMaximized, setIsMaximized] = useState(false);
-  const {
-    leftCollapsed,
-    rightCollapsed,
-    toggleLeft,
-    toggleRight,
-    toggleBoth,
-  } = useAppStore(
+  const { leftCollapsed, rightCollapsed, toggleLeft, toggleRight, toggleBoth } = useAppStore(
     useShallow((state) => ({
       leftCollapsed: state.leftCollapsed,
       rightCollapsed: state.rightCollapsed,
@@ -166,7 +160,7 @@ export function TitleBar({
     setFileMenuOpen,
     setViewMenuOpen,
     setHelpMenuOpen,
-    closeAllMenus
+    closeAllMenus,
   } = useUiStore(
     useShallow((state) => ({
       fileMenuOpen: state.fileMenuOpen,
@@ -175,11 +169,11 @@ export function TitleBar({
       setFileMenuOpen: state.setFileMenuOpen,
       setViewMenuOpen: state.setViewMenuOpen,
       setHelpMenuOpen: state.setHelpMenuOpen,
-      closeAllMenus: state.closeAllMenus
+      closeAllMenus: state.closeAllMenus,
     }))
   );
-  const language = appInfo?.config.language ?? "zh-CN";
-  const nextLanguage = language === "zh-CN" ? "en-US" : "zh-CN";
+  const language = appInfo?.config.language ?? 'zh-CN';
+  const nextLanguage = language === 'zh-CN' ? 'en-US' : 'zh-CN';
 
   useEffect(() => {
     if (!isTauriShell()) return;
@@ -219,41 +213,80 @@ export function TitleBar({
   }, []);
 
   const zoomBy = useCallback((delta: number) => {
-    const current = parseFloat(getComputedStyle(document.documentElement).zoom || "1");
+    const current = parseFloat(getComputedStyle(document.documentElement).zoom || '1');
     const next = Math.max(0.5, Math.min(2, (Number.isFinite(current) ? current : 1) + delta));
     document.documentElement.style.zoom = String(next);
   }, []);
   const resetZoom = useCallback(() => {
-    document.documentElement.style.zoom = "1";
+    document.documentElement.style.zoom = '1';
   }, []);
 
   const fileItems: MenuItem[] = [
-    { id: "new-ws", label: t.menuNewWorkspace, shortcut: "Ctrl+N", action: onTriggerCreateWorkspace },
-    { id: "open-folder", label: t.menuOpenFolder, shortcut: "Ctrl+O", action: onOpenFolder },
-    { id: "new-terminal", label: t.menuNewTerminal, shortcut: "Ctrl+Shift+`", action: () => useUiStore.getState().setActiveRightTool("terminal") },
-    { id: "new-browser", label: t.menuNewBrowser, action: () => useUiStore.getState().setActiveRightTool("browser") },
-    { id: "editor-window", label: t.menuOpenEditorWindow, action: () => useUiStore.getState().setActiveRightTool("files") },
-    { id: "sep-1", label: "", separator: true },
-    { id: "exit", label: t.menuExit, shortcut: "Alt+F4", action: handleClose }
+    {
+      id: 'new-ws',
+      label: t.menuNewWorkspace,
+      shortcut: 'Ctrl+N',
+      action: onTriggerCreateWorkspace,
+    },
+    { id: 'open-folder', label: t.menuOpenFolder, shortcut: 'Ctrl+O', action: onOpenFolder },
+    {
+      id: 'new-terminal',
+      label: t.menuNewTerminal,
+      shortcut: 'Ctrl+Shift+`',
+      action: () => useUiStore.getState().setActiveRightTool('terminal'),
+    },
+    {
+      id: 'new-browser',
+      label: t.menuNewBrowser,
+      action: () => useUiStore.getState().setActiveRightTool('browser'),
+    },
+    {
+      id: 'editor-window',
+      label: t.menuOpenEditorWindow,
+      action: () => useUiStore.getState().setActiveRightTool('files'),
+    },
+    { id: 'sep-1', label: '', separator: true },
+    { id: 'exit', label: t.menuExit, shortcut: 'Alt+F4', action: handleClose },
   ];
 
   const viewItems: MenuItem[] = [
-    { id: "diff-view", label: t.menuDiffView, action: () => useUiStore.getState().setActiveRightTool("changes") },
-    { id: "browser-view", label: t.menuBrowserView, action: () => useUiStore.getState().setActiveRightTool("browser") },
-    { id: "file-view", label: t.menuFileView, action: () => useUiStore.getState().setActiveRightTool("files") },
-    { id: "terminal-view", label: t.menuTerminalView, action: () => useUiStore.getState().setActiveRightTool("terminal") },
-    { id: "sep-1", label: "", separator: true },
-    { id: "zoom-in", label: t.menuZoomIn, shortcut: "Ctrl++", action: () => zoomBy(0.1) },
-    { id: "zoom-out", label: t.menuZoomOut, shortcut: "Ctrl+-", action: () => zoomBy(-0.1) },
-    { id: "zoom-reset", label: t.menuResetZoom, shortcut: "Ctrl+0", action: resetZoom },
-    { id: "sep-2", label: "", separator: true },
-    { id: "settings", label: t.menuSettings, shortcut: "Ctrl+,", action: onOpenSettings }
+    {
+      id: 'diff-view',
+      label: t.menuDiffView,
+      action: () => useUiStore.getState().setActiveRightTool('changes'),
+    },
+    {
+      id: 'browser-view',
+      label: t.menuBrowserView,
+      action: () => useUiStore.getState().setActiveRightTool('browser'),
+    },
+    {
+      id: 'file-view',
+      label: t.menuFileView,
+      action: () => useUiStore.getState().setActiveRightTool('files'),
+    },
+    {
+      id: 'terminal-view',
+      label: t.menuTerminalView,
+      action: () => useUiStore.getState().setActiveRightTool('terminal'),
+    },
+    { id: 'sep-1', label: '', separator: true },
+    { id: 'zoom-in', label: t.menuZoomIn, shortcut: 'Ctrl++', action: () => zoomBy(0.1) },
+    { id: 'zoom-out', label: t.menuZoomOut, shortcut: 'Ctrl+-', action: () => zoomBy(-0.1) },
+    { id: 'zoom-reset', label: t.menuResetZoom, shortcut: 'Ctrl+0', action: resetZoom },
+    { id: 'sep-2', label: '', separator: true },
+    { id: 'settings', label: t.menuSettings, shortcut: 'Ctrl+,', action: onOpenSettings },
   ];
 
   const helpItems: MenuItem[] = [
-    { id: "palette", label: t.menuCommandPalette, shortcut: "Ctrl+Shift+P", action: onOpenCommandPalette },
-    { id: "shortcuts", label: t.menuShortcuts, shortcut: "Ctrl+K Ctrl+S", action: () => {} },
-    { id: "license", label: t.menuLicense, action: () => {} }
+    {
+      id: 'palette',
+      label: t.menuCommandPalette,
+      shortcut: 'Ctrl+Shift+P',
+      action: onOpenCommandPalette,
+    },
+    { id: 'shortcuts', label: t.menuShortcuts, shortcut: 'Ctrl+K Ctrl+S', action: () => {} },
+    { id: 'license', label: t.menuLicense, action: () => {} },
   ];
 
   return (
@@ -262,7 +295,12 @@ export function TitleBar({
         <div className="adl-titlebar__brand-slot" data-tauri-drag-region>
           <h1 className="adl-titlebar__brand">
             <TooltipSimple content={t.brandHoverName} placement="bottom">
-              <img src={logoUrl} alt={t.landingTitle} className="adl-titlebar__logo" draggable={false} />
+              <img
+                src={logoUrl}
+                alt={t.landingTitle}
+                className="adl-titlebar__logo"
+                draggable={false}
+              />
             </TooltipSimple>
           </h1>
         </div>
@@ -305,7 +343,11 @@ export function TitleBar({
       </div>
       <div className="adl-titlebar__drag" aria-hidden="true" data-tauri-drag-region />
       <div className="adl-titlebar__right">
-        <div className="adl-titlebar__action-group adl-iconstrip" role="group" aria-label="Titlebar actions">
+        <div
+          className="adl-titlebar__action-group adl-iconstrip"
+          role="group"
+          aria-label="Titlebar actions"
+        >
           <TooltipSimple content={t.theme} placement="bottom">
             <button
               type="button"
@@ -321,7 +363,7 @@ export function TitleBar({
               type="button"
               className="adl-icon-btn adl-iconstrip__button"
               onClick={() => onSelectLanguage(nextLanguage)}
-              aria-label={`${t.language}: ${nextLanguage === "zh-CN" ? "中文" : "EN"}`}
+              aria-label={`${t.language}: ${nextLanguage === 'zh-CN' ? '中文' : 'EN'}`}
             >
               <LanguageIcon language={language} />
             </button>
@@ -337,7 +379,11 @@ export function TitleBar({
             </button>
           </TooltipSimple>
         </div>
-        <div className="adl-titlebar__panel-group adl-iconstrip" role="group" aria-label="Panel controls">
+        <div
+          className="adl-titlebar__panel-group adl-iconstrip"
+          role="group"
+          aria-label="Panel controls"
+        >
           <TooltipSimple content={t.panelToggleBoth} placement="bottom">
             <button
               type="button"
@@ -371,38 +417,49 @@ export function TitleBar({
             </button>
           </TooltipSimple>
         </div>
-        <div className="adl-titlebar__window-group adl-iconstrip" role="group" aria-label="Window controls">
-            <TooltipSimple content={t.windowMinimize} placement="bottom">
-              <button
-                type="button"
-                className="adl-icon-btn adl-iconstrip__button adl-iconstrip__button--window adl-window-btn"
-                onClick={handleMinimize}
-                aria-label={t.windowMinimize}
-              >
-                <IconMinus size={14} decorative />
-              </button>
-            </TooltipSimple>
-            <TooltipSimple content={isMaximized ? t.windowRestore : t.windowMaximize} placement="bottom">
-              <button
-                type="button"
-                className="adl-icon-btn adl-iconstrip__button adl-iconstrip__button--window adl-window-btn"
-                onClick={handleMaximize}
-                aria-label={isMaximized ? t.windowRestore : t.windowMaximize}
-              >
-                {isMaximized ? <IconCopy size={14} decorative /> : <IconSquare size={12} decorative />}
-              </button>
-            </TooltipSimple>
-            <TooltipSimple content={t.windowClose} placement="bottom">
-              <button
-                type="button"
-                className="adl-icon-btn adl-iconstrip__button adl-iconstrip__button--window adl-window-btn adl-window-btn--close"
-                onClick={handleClose}
-                aria-label={t.windowClose}
-              >
-                <IconClose size={14} decorative />
-              </button>
-            </TooltipSimple>
-          </div>
+        <div
+          className="adl-titlebar__window-group adl-iconstrip"
+          role="group"
+          aria-label="Window controls"
+        >
+          <TooltipSimple content={t.windowMinimize} placement="bottom">
+            <button
+              type="button"
+              className="adl-icon-btn adl-iconstrip__button adl-iconstrip__button--window adl-window-btn"
+              onClick={handleMinimize}
+              aria-label={t.windowMinimize}
+            >
+              <IconMinus size={14} decorative />
+            </button>
+          </TooltipSimple>
+          <TooltipSimple
+            content={isMaximized ? t.windowRestore : t.windowMaximize}
+            placement="bottom"
+          >
+            <button
+              type="button"
+              className="adl-icon-btn adl-iconstrip__button adl-iconstrip__button--window adl-window-btn"
+              onClick={handleMaximize}
+              aria-label={isMaximized ? t.windowRestore : t.windowMaximize}
+            >
+              {isMaximized ? (
+                <IconCopy size={14} decorative />
+              ) : (
+                <IconSquare size={12} decorative />
+              )}
+            </button>
+          </TooltipSimple>
+          <TooltipSimple content={t.windowClose} placement="bottom">
+            <button
+              type="button"
+              className="adl-icon-btn adl-iconstrip__button adl-iconstrip__button--window adl-window-btn adl-window-btn--close"
+              onClick={handleClose}
+              aria-label={t.windowClose}
+            >
+              <IconClose size={14} decorative />
+            </button>
+          </TooltipSimple>
+        </div>
       </div>
     </header>
   );

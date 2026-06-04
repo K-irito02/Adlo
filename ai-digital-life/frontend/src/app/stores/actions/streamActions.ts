@@ -1,42 +1,45 @@
-import type { StoreState } from "../StoreState";
+import type { StoreState } from '../StoreState';
 import type {
   ConversationMessageRecord,
   ConversationSendResult,
   DigitalLifeModelStreamEventV1,
   DigitalLifeRunActivityEventV1,
   AppInfo,
-} from "@ai-digital-life/kernel";
-import { mapPatchToEditorTab } from "../../utils/editorTabs";
-import { sessionFallbackTitle, refreshConversationSlice, workspaceContextModeFromInfo, getAppCopy } from "../conversationUtils";
+} from '@ai-digital-life/kernel';
+import { mapPatchToEditorTab } from '../../utils/editorTabs';
+import {
+  sessionFallbackTitle,
+  refreshConversationSlice,
+  workspaceContextModeFromInfo,
+  getAppCopy,
+} from '../conversationUtils';
 import {
   applySlashScenarioOverride,
   augmentPromptWithChips,
   chatModeToScenario,
   type MessageSendOptions,
-} from "../../utils/composerSend";
-import type { StoreApi } from "zustand";
-import { postMutationRefresh, captureError } from "../shared";
+} from '../../utils/composerSend';
+import type { StoreApi } from 'zustand';
+import { postMutationRefresh, captureError } from '../shared';
 
 function createModelStreamSubscriber(
-  set: StoreApi<StoreState>["setState"]
+  set: StoreApi<StoreState>['setState']
 ): (event: DigitalLifeModelStreamEventV1) => void {
   return (event) => {
     if (event.v !== 1) return;
     set((state: StoreState) => {
-      if (event.type === "route")
-        return { streamingActiveRunId: event.runId };
-      if (event.type === "delta") {
+      if (event.type === 'route') return { streamingActiveRunId: event.runId };
+      if (event.type === 'delta') {
         const nextRunId = state.streamingActiveRunId ?? event.runId;
-        if (state.streamingActiveRunId && event.runId !== state.streamingActiveRunId)
-          return state;
+        if (state.streamingActiveRunId && event.runId !== state.streamingActiveRunId) return state;
         return {
           streamingActiveRunId: nextRunId,
           streamingAssistantText: state.streamingAssistantText + event.text,
         };
       }
-      if (event.type === "done")
+      if (event.type === 'done')
         return {
-          streamingAssistantText: "",
+          streamingAssistantText: '',
           streamingActiveRunId: undefined,
         };
       return state;
@@ -45,20 +48,20 @@ function createModelStreamSubscriber(
 }
 
 function createRunActivitySubscriber(
-  set: StoreApi<StoreState>["setState"],
+  set: StoreApi<StoreState>['setState'],
   get: () => StoreState
 ): (event: DigitalLifeRunActivityEventV1) => void {
   return (event) => {
     if (event.v !== 1) return;
     get().appendRunActivity(event.runId, event);
-    if (event.type === "model" && event.usage) {
+    if (event.type === 'model' && event.usage) {
       get().setRunUsage(event.runId, event.usage);
     }
   };
 }
 
 type SlashCommandHandler = (
-  set: StoreApi<StoreState>["setState"],
+  set: StoreApi<StoreState>['setState'],
   get: () => StoreState
 ) => Promise<boolean> | boolean;
 
@@ -68,7 +71,7 @@ function registerSlashCommand(command: string, handler: SlashCommandHandler): vo
   slashCommandRegistry.set(command, handler);
 }
 
-registerSlashCommand("/apply", async (set, get) => {
+registerSlashCommand('/apply', async (set, get) => {
   const ps = get().activePatchSet;
   if (ps) {
     await get().applyPatchSet(ps.id);
@@ -78,7 +81,7 @@ registerSlashCommand("/apply", async (set, get) => {
   return true;
 });
 
-registerSlashCommand("/rollback", async (set, get) => {
+registerSlashCommand('/rollback', async (set, get) => {
   const ps = get().activePatchSet;
   if (ps) {
     await get().rollbackPatchSet(ps.id);
@@ -88,19 +91,19 @@ registerSlashCommand("/rollback", async (set, get) => {
   return true;
 });
 
-registerSlashCommand("/model", (set, get) => {
-  get().setActiveRightTool("models");
+registerSlashCommand('/model', (set, get) => {
+  get().setActiveRightTool('models');
   return true;
 });
 
-registerSlashCommand("/clear", (set, get) => {
+registerSlashCommand('/clear', (set, get) => {
   captureError(get, getAppCopy(get().appInfo).clearCommandNotImplemented);
   return true;
 });
 
 async function dispatchSlashCommand(
   trimmed: string,
-  set: StoreApi<StoreState>["setState"],
+  set: StoreApi<StoreState>['setState'],
   get: () => StoreState
 ): Promise<boolean> {
   const handler = slashCommandRegistry.get(trimmed);
@@ -115,7 +118,7 @@ async function refreshAfterSend(
   sessionId: string,
   result: { data: ConversationSendResult },
   nextAppInfo: AppInfo | undefined,
-  set: StoreApi<StoreState>["setState"],
+  set: StoreApi<StoreState>['setState'],
   get: () => StoreState
 ) {
   const conversationState = await refreshConversationSlice(sessionId);
@@ -126,11 +129,9 @@ async function refreshAfterSend(
     activeSessionId: conversationState.activeSessionId,
     activeRun: result.data.runDetail,
     activePatchSet: result.data.patchSet,
-    openTabs:
-      result.data.patchSet?.filePatches.map(mapPatchToEditorTab) ??
-      get().openTabs,
+    openTabs: result.data.patchSet?.filePatches.map(mapPatchToEditorTab) ?? get().openTabs,
     selectedFilePath: result.data.patchSet?.filePatches[0]?.relativePath,
-    streamingAssistantText: "",
+    streamingAssistantText: '',
     streamingActiveRunId: undefined,
     workspaceContextMode: workspaceContextModeFromInfo(nextAppInfo),
   };
@@ -156,7 +157,7 @@ async function refreshAfterSend(
   }
 }
 
-export function createStreamActions(set: StoreApi<StoreState>["setState"], get: () => StoreState) {
+export function createStreamActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
   return {
     sendMessage: async (content: string, options?: MessageSendOptions) => {
       if (!content.trim()) return;
@@ -165,18 +166,14 @@ export function createStreamActions(set: StoreApi<StoreState>["setState"], get: 
       const isHandled = await dispatchSlashCommand(trimmed, set, get);
       if (isHandled) return;
 
-      const mode = options?.mode ?? get().chatMode ?? "ask";
+      const mode = options?.mode ?? get().chatMode ?? 'ask';
       const baseScenario = chatModeToScenario(mode);
-      const locale = get().appInfo?.config.language === "en-US" ? "en-US" : "zh-CN";
+      const locale = get().appInfo?.config.language === 'en-US' ? 'en-US' : 'zh-CN';
       const withChips = augmentPromptWithChips(content, options?.chips, locale);
-      const { scenario, prompt } = applySlashScenarioOverride(
-        withChips,
-        baseScenario,
-        locale
-      );
+      const { scenario, prompt } = applySlashScenarioOverride(withChips, baseScenario, locale);
 
       set({
-        streamingAssistantText: "",
+        streamingAssistantText: '',
         streamingActiveRunId: undefined,
         error: undefined,
       });
@@ -194,9 +191,7 @@ export function createStreamActions(set: StoreApi<StoreState>["setState"], get: 
         sessionId = created.data.id;
       }
 
-      const unsubscribe = window.digitalLife.subscribeModelStream(
-        createModelStreamSubscriber(set)
-      );
+      const unsubscribe = window.digitalLife.subscribeModelStream(createModelStreamSubscriber(set));
 
       const unsubscribeRunActivity = window.digitalLife.subscribeRunActivity(
         createRunActivitySubscriber(set, get)
@@ -223,7 +218,7 @@ export function createStreamActions(set: StoreApi<StoreState>["setState"], get: 
         const hadStreaming = get().streamingAssistantText;
         if (hadStreaming) {
           set({
-            streamingAssistantText: "",
+            streamingAssistantText: '',
             streamingActiveRunId: undefined,
           });
         }

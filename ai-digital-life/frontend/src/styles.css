@@ -1,4 +1,4 @@
 /* Legacy stylesheet retained as a thin shim.
    The active design system lives in `./styles/index.css`.
    Future code MUST import the design system entry instead. */
-@import "./styles/index.css";
+@import './styles/index.css';

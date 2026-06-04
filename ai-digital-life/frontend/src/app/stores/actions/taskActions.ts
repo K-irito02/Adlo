@@ -1,10 +1,10 @@
-import type { StoreState } from "../StoreState";
-import type { StoreApi } from "zustand";
-import { postMutationRefresh, clearError, captureError } from "../shared";
+import type { StoreState } from '../StoreState';
+import type { StoreApi } from 'zustand';
+import { postMutationRefresh, clearError, captureError } from '../shared';
 
-export function createTaskActions(set: StoreApi<StoreState>["setState"], get: () => StoreState) {
+export function createTaskActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
   return {
-    decideApproval: async (approvalId: string, decision: "approved" | "rejected") => {
+    decideApproval: async (approvalId: string, decision: 'approved' | 'rejected') => {
       clearError(get);
       const result = await window.digitalLife.task.decideApproval({
         approvalId,
@@ -23,9 +23,7 @@ export function createTaskActions(set: StoreApi<StoreState>["setState"], get: ()
 
     restoreCheckpoint: async (checkpointId: string) => {
       clearError(get);
-      const result = await window.digitalLife.task.restoreCheckpoint(
-        checkpointId
-      );
+      const result = await window.digitalLife.task.restoreCheckpoint(checkpointId);
       if (!result.ok) {
         captureError(get, result.error);
         return;

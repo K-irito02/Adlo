@@ -81,11 +81,7 @@ pub fn patch_rollback_patch_set(
                 patch_set_id: patch_set.id.clone(),
                 file_count: Some(patch_set.file_patches.len()),
                 hunk_count: Some(
-                    patch_set
-                        .file_patches
-                        .iter()
-                        .map(|f| f.hunks.len())
-                        .sum::<usize>(),
+                    patch_set.file_patches.iter().map(|f| f.hunks.len()).sum::<usize>(),
                 ),
             };
             let _ = state.db.save_entity(
@@ -146,10 +142,7 @@ async fn apply_patch_set_inner(
             .map_err(|_| AppError::Internal("editor dirty paths mutex poisoned".into()))?;
         for file_patch in &patch_set.file_patches {
             let norm = file_patch.relative_path.replace('\\', "/");
-            if file_patch
-                .hunks
-                .iter()
-                .any(|h| h.decision == PatchHunkDecision::Accepted)
+            if file_patch.hunks.iter().any(|h| h.decision == PatchHunkDecision::Accepted)
                 && dirty.contains(&norm)
             {
                 return Err(AppError::Patch(format!(
@@ -169,13 +162,7 @@ async fn apply_patch_set_inner(
             phase: "applied".into(),
             patch_set_id: patch_set.id.clone(),
             file_count: Some(patch_set.file_patches.len()),
-            hunk_count: Some(
-                patch_set
-                    .file_patches
-                    .iter()
-                    .map(|f| f.hunks.len())
-                    .sum::<usize>(),
-            ),
+            hunk_count: Some(patch_set.file_patches.iter().map(|f| f.hunks.len()).sum::<usize>()),
         };
         let _ = state.db.save_entity(
             EntityTable::RunActivityEvents,
@@ -230,8 +217,7 @@ async fn apply_patch_set_inner(
         Some(format!("checkpointId={}", checkpoint.id)),
     );
 
-    let command_request =
-        validation_command(root, &workspace.id, patch_set.run_id.clone());
+    let command_request = validation_command(root, &workspace.id, patch_set.run_id.clone());
     if let Some(run_id) = &patch_set.run_id {
         if let Some(detail) = crate::commands::agent::load_run_detail(state, run_id)? {
             crate::commands::agent::save_run_detail(

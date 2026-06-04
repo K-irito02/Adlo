@@ -34,9 +34,7 @@ pub(crate) fn parse_vue_outline(content: &str) -> Vec<OutlineDraft> {
         let start_line = index + 1;
         let end_tag = format!("</{section}>");
         let mut end_index = index + 1;
-        while end_index < lines.len()
-            && !lines[end_index].to_ascii_lowercase().contains(&end_tag)
-        {
+        while end_index < lines.len() && !lines[end_index].to_ascii_lowercase().contains(&end_tag) {
             end_index += 1;
         }
 

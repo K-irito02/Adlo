@@ -1,6 +1,6 @@
-import { EditorView } from "@codemirror/view";
-import { EditorSelection } from "@codemirror/state";
-import { MergeView } from "@codemirror/merge";
+import { EditorView } from '@codemirror/view';
+import { EditorSelection } from '@codemirror/state';
+import { MergeView } from '@codemirror/merge';
 import type {
   EditorRef,
   DiffEditorRef,
@@ -8,14 +8,21 @@ import type {
   EditorRange,
   EditorModel,
   Disposable,
-} from "../../stores/types";
+} from '../../stores/types';
 
-function posToOffset(doc: { line(n: number): { from: number } }, line: number, col: number): number {
+function posToOffset(
+  doc: { line(n: number): { from: number } },
+  line: number,
+  col: number
+): number {
   const ln = doc.line(line);
   return ln.from + col - 1;
 }
 
-function offsetToLineCol(doc: { lineAt(pos: number): { number: number; from: number } }, offset: number): { lineNumber: number; column: number } {
+function offsetToLineCol(
+  doc: { lineAt(pos: number): { number: number; from: number } },
+  offset: number
+): { lineNumber: number; column: number } {
   const ln = doc.lineAt(offset);
   return { lineNumber: ln.number, column: offset - ln.from + 1 };
 }
@@ -71,7 +78,7 @@ export class CodeMirrorEditorRef implements EditorRef {
   revealLineInCenter(lineNumber: number): void {
     const line = this.view.state.doc.line(lineNumber);
     this.view.dispatch({
-      effects: EditorView.scrollIntoView(line.from, { y: "center" }),
+      effects: EditorView.scrollIntoView(line.from, { y: 'center' }),
     });
   }
 
@@ -80,7 +87,7 @@ export class CodeMirrorEditorRef implements EditorRef {
     const endLine = this.view.state.doc.line(endLineNumber);
     const range = EditorSelection.range(startLine.from, endLine.to);
     this.view.dispatch({
-      effects: EditorView.scrollIntoView(range, { y: "center" }),
+      effects: EditorView.scrollIntoView(range, { y: 'center' }),
     });
   }
 
@@ -121,10 +128,10 @@ export class CodeMirrorEditorRef implements EditorRef {
 
   onDidScrollChange(listener: () => void): Disposable {
     const target = this.view.scrollDOM;
-    target.addEventListener("scroll", listener);
+    target.addEventListener('scroll', listener);
     return {
       dispose() {
-        target.removeEventListener("scroll", listener);
+        target.removeEventListener('scroll', listener);
       },
     };
   }
@@ -157,7 +164,11 @@ export class CodeMirrorEditorRef implements EditorRef {
   }
 
   setSelection?(selection: EditorSelectionType): void {
-    const anchor = posToOffset(this.view.state.doc, selection.startLineNumber, selection.startColumn);
+    const anchor = posToOffset(
+      this.view.state.doc,
+      selection.startLineNumber,
+      selection.startColumn
+    );
     const head = posToOffset(this.view.state.doc, selection.endLineNumber, selection.endColumn);
     this.view.dispatch({
       selection: { anchor, head },

@@ -48,11 +48,17 @@ pub async fn capture_git_snapshot_async(root: &Path) -> GitSnapshot {
         run_git_with_timeout(root, &["rev-parse", "--short", "HEAD"]),
         capture_git_paths_with_fallback_async(root, &["diff", "--name-only", "--cached", "-z"]),
         capture_git_paths_with_fallback_async(root, &["diff", "--name-only", "-z"]),
-        capture_git_paths_with_fallback_async(root, &["ls-files", "--others", "--exclude-standard", "-z"]),
-        capture_git_paths_with_fallback_async(root, &["diff", "--name-only", "--diff-filter=U", "-z"]),
+        capture_git_paths_with_fallback_async(
+            root,
+            &["ls-files", "--others", "--exclude-standard", "-z"]
+        ),
+        capture_git_paths_with_fallback_async(
+            root,
+            &["diff", "--name-only", "--diff-filter=U", "-z"]
+        ),
     );
-    let branch = branch_raw.and_then(|s| first_non_empty_line(s));
-    let head = head_raw.and_then(|s| first_non_empty_line(s));
+    let branch = branch_raw.and_then(first_non_empty_line);
+    let head = head_raw.and_then(first_non_empty_line);
     GitSnapshot {
         is_repo: is_repo_check || branch.is_some() || head.is_some(),
         branch,
@@ -82,19 +88,13 @@ pub fn list_git_branches(root: &Path) -> Result<Vec<GitBranchSummary>, AppError>
         .lines()
         .map(str::trim)
         .filter(|line| !line.is_empty())
-        .map(|name| GitBranchSummary {
-            name: name.to_string(),
-            is_current: name == current_branch,
-        })
+        .map(|name| GitBranchSummary { name: name.to_string(), is_current: name == current_branch })
         .collect();
     if branches.is_empty() {
         return Err(AppError::Workspace("no local branches found".into()));
     }
     branches.sort_by(|left, right| {
-        right
-            .is_current
-            .cmp(&left.is_current)
-            .then_with(|| left.name.cmp(&right.name))
+        right.is_current.cmp(&left.is_current).then_with(|| left.name.cmp(&right.name))
     });
     Ok(branches)
 }
@@ -106,9 +106,7 @@ pub fn switch_git_branch(
 ) -> Result<(GitSnapshot, bool, Option<String>), AppError> {
     let snapshot = capture_git_snapshot(root);
     if !snapshot.is_repo {
-        return Err(AppError::Workspace(
-            "active workspace is not a Git repository".into(),
-        ));
+        return Err(AppError::Workspace("active workspace is not a Git repository".into()));
     }
     let previous_branch = snapshot.branch.clone();
     let should_stash = git_has_local_changes(&snapshot);
@@ -132,18 +130,14 @@ pub fn create_git_branch(
 ) -> Result<(GitSnapshot, bool, Option<String>), AppError> {
     let snapshot = capture_git_snapshot(root);
     if !snapshot.is_repo {
-        return Err(AppError::Workspace(
-            "active workspace is not a Git repository".into(),
-        ));
+        return Err(AppError::Workspace("active workspace is not a Git repository".into()));
     }
     let previous_branch = snapshot.branch.clone();
     let current_branch = previous_branch
         .clone()
         .ok_or_else(|| AppError::Workspace("failed to resolve current branch".into()))?;
-    let base_branch = base_branch
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .unwrap_or(&current_branch);
+    let base_branch =
+        base_branch.map(str::trim).filter(|value| !value.is_empty()).unwrap_or(&current_branch);
     let should_stash = base_branch != current_branch && git_has_local_changes(&snapshot);
     if should_stash && !allow_stash {
         return Err(AppError::InvalidInput(
@@ -161,11 +155,7 @@ pub fn create_git_branch(
 }
 
 fn run_git(root: &Path, args: &[&str]) -> Option<String> {
-    let output = Command::new("git")
-        .args(args)
-        .current_dir(root)
-        .output()
-        .ok()?;
+    let output = Command::new("git").args(args).current_dir(root).output().ok()?;
     if output.status.success() {
         Some(String::from_utf8_lossy(&output.stdout).trim().to_string())
     } else {
@@ -178,11 +168,8 @@ async fn run_git_with_timeout(root: &Path, args: &[&str]) -> Option<String> {
     let args_owned: Vec<String> = args.iter().map(|s| s.to_string()).collect();
     let result = tokio_timeout(Duration::from_secs(GIT_TIMEOUT_SECS), async move {
         tokio::task::spawn_blocking(move || {
-            let output = Command::new("git")
-                .args(&args_owned)
-                .current_dir(&root_owned)
-                .output()
-                .ok()?;
+            let output =
+                Command::new("git").args(&args_owned).current_dir(&root_owned).output().ok()?;
             if output.status.success() {
                 Some(String::from_utf8_lossy(&output.stdout).trim().to_string())
             } else {
@@ -197,11 +184,7 @@ async fn run_git_with_timeout(root: &Path, args: &[&str]) -> Option<String> {
 }
 
 fn run_git_bytes(root: &Path, args: &[&str]) -> Option<Vec<u8>> {
-    let output = Command::new("git")
-        .args(args)
-        .current_dir(root)
-        .output()
-        .ok()?;
+    let output = Command::new("git").args(args).current_dir(root).output().ok()?;
     if output.status.success() {
         Some(output.stdout)
     } else {
@@ -278,25 +261,12 @@ pub(crate) fn git_file_exists(root: &Path, relative_path: &str) -> Result<bool, 
 
 fn stash_workspace_changes(root: &Path) -> Result<(), AppError> {
     let message = format!("adl-auto-stash-{}", now_ms());
-    run_git_required(
-        root,
-        &[
-            "stash",
-            "push",
-            "--include-untracked",
-            "--message",
-            &message,
-        ],
-    )?;
+    run_git_required(root, &["stash", "push", "--include-untracked", "--message", &message])?;
     Ok(())
 }
 
 fn first_non_empty_line(value: String) -> Option<String> {
-    value
-        .lines()
-        .map(str::trim)
-        .find(|line| !line.is_empty())
-        .map(ToOwned::to_owned)
+    value.lines().map(str::trim).find(|line| !line.is_empty()).map(ToOwned::to_owned)
 }
 
 async fn capture_git_paths_with_fallback_async(root: &Path, args: &[&str]) -> Vec<String> {
@@ -304,7 +274,11 @@ async fn capture_git_paths_with_fallback_async(root: &Path, args: &[&str]) -> Ve
     let args_owned: Vec<String> = args.iter().map(|s| s.to_string()).collect();
     tokio_timeout(Duration::from_secs(GIT_TIMEOUT_SECS), async move {
         tokio::task::spawn_blocking(move || {
-            capture_git_paths_with_fallback(&root_owned, &args_owned.iter().map(|s| s.as_str()).collect::<Vec<&str>>(), &args_owned.join(" "))
+            capture_git_paths_with_fallback(
+                &root_owned,
+                &args_owned.iter().map(|s| s.as_str()).collect::<Vec<&str>>(),
+                &args_owned.join(" "),
+            )
         })
         .await
         .unwrap_or_default()

@@ -1,10 +1,10 @@
-import React, { useCallback, useMemo, useState } from "react";
-import { TooltipSimple } from "./Tooltip";
-import { Icon } from "./Icon";
+import React, { useCallback, useMemo, useState } from 'react';
+import { TooltipSimple } from './Tooltip';
+import { Icon } from './Icon';
 
 interface MessageBubbleProps {
   id: string;
-  role: "user" | "assistant";
+  role: 'user' | 'assistant';
   content: string;
   timestamp?: string;
 }
@@ -15,22 +15,23 @@ export function MessageBubble({ id, role, content, timestamp }: MessageBubblePro
   const [isHovered, setIsHovered] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const canEdit = useMemo(() => {
-    if (role !== "user" || !timestamp) return false;
-    const messageTime = new Date(timestamp).getTime();
-    const now = Date.now();
-    return now - messageTime < EDIT_WINDOW_MS;
-  }, [role, timestamp]);
+  const handleEdit = useCallback(() => {
+    if (!timestamp) return;
+    if (Date.now() - new Date(timestamp).getTime() >= EDIT_WINDOW_MS) return;
+    // TODO: implement edit logic
+  }, [timestamp]);
 
   const formattedTime = useMemo(() => {
-    if (!timestamp) return "";
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    if (!timestamp) return '';
     try {
       return new Date(timestamp).toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit"
+        hour: '2-digit',
+        minute: '2-digit',
       });
     } catch {
-      return "";
+      return '';
     }
   }, [timestamp]);
 
@@ -44,7 +45,7 @@ export function MessageBubble({ id, role, content, timestamp }: MessageBubblePro
     }
   }, [content]);
 
-  const isUser = role === "user";
+  const isUser = role === 'user';
 
   return (
     <article
@@ -78,10 +79,7 @@ export function MessageBubble({ id, role, content, timestamp }: MessageBubblePro
 
         {formattedTime && (
           <TooltipSimple content={timestamp} placement="top">
-            <time
-              className="message-bubble__timestamp"
-              dateTime={timestamp}
-            >
+            <time className="message-bubble__timestamp" dateTime={timestamp}>
               {formattedTime}
             </time>
           </TooltipSimple>
@@ -89,18 +87,14 @@ export function MessageBubble({ id, role, content, timestamp }: MessageBubblePro
 
         {isHovered && (
           <div className="message-bubble__actions" role="toolbar" aria-label="消息操作">
-            <TooltipSimple content={copied ? "已复制" : "复制"} placement="top">
+            <TooltipSimple content={copied ? '已复制' : '复制'} placement="top">
               <button
                 type="button"
                 className="message-bubble__action-btn"
                 onClick={handleCopy}
-                aria-label={copied ? "已复制到剪贴板" : "复制消息内容"}
+                aria-label={copied ? '已复制到剪贴板' : '复制消息内容'}
               >
-                {copied ? (
-                  <Icon name="check" size="xs" />
-                ) : (
-                  <Icon name="copy" size="xs" />
-                )}
+                {copied ? <Icon name="check" size="xs" /> : <Icon name="copy" size="xs" />}
               </button>
             </TooltipSimple>
 
@@ -116,11 +110,12 @@ export function MessageBubble({ id, role, content, timestamp }: MessageBubblePro
               </TooltipSimple>
             )}
 
-            {canEdit && (
+            {isUser && (
               <TooltipSimple content="编辑消息" placement="top">
                 <button
                   type="button"
                   className="message-bubble__action-btn"
+                  onClick={handleEdit}
                   aria-label="编辑此消息"
                 >
                   <Icon name="pencil" size="xs" />

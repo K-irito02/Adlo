@@ -1,32 +1,32 @@
 // Browser-compatible replacements for Node.js crypto and path
 
-export const APP_NAME = "AI Digital Life";
-export const APP_VERSION = "0.1.0";
-export const APP_STATE_SCHEMA_VERSION = "1";
-export const APPROVAL_POLICY_MODE = "manual";
-export const GLOBAL_WORKSPACE_ID = "__global__";
+export const APP_NAME = 'AI Digital Life';
+export const APP_VERSION = '0.1.0';
+export const APP_STATE_SCHEMA_VERSION = '1';
+export const APPROVAL_POLICY_MODE = 'manual';
+export const GLOBAL_WORKSPACE_ID = '__global__';
 
 export const EVENT_NAMES = {
-  appInitialized: "app.initialized",
-  appShutdown: "app.shutdown",
-  configChanged: "config.changed",
-  workspaceOpened: "workspace.opened",
-  workspaceClosed: "workspace.closed",
-  sessionRestored: "session.restored",
-  retrievalStatusChanged: "retrieval.status-changed",
-  taskUpserted: "task.upserted",
-  approvalRequested: "approval.requested",
-  approvalDecided: "approval.decided"
+  appInitialized: 'app.initialized',
+  appShutdown: 'app.shutdown',
+  configChanged: 'config.changed',
+  workspaceOpened: 'workspace.opened',
+  workspaceClosed: 'workspace.closed',
+  sessionRestored: 'session.restored',
+  retrievalStatusChanged: 'retrieval.status-changed',
+  taskUpserted: 'task.upserted',
+  approvalRequested: 'approval.requested',
+  approvalDecided: 'approval.decided',
 } as const;
 
 export const ERROR_CODES = {
-  invalidInput: "INVALID_INPUT",
-  invalidWorkspace: "INVALID_WORKSPACE",
-  notFound: "NOT_FOUND",
-  stateReadFailed: "STATE_READ_FAILED",
-  stateWriteFailed: "STATE_WRITE_FAILED",
-  workerUnavailable: "WORKER_UNAVAILABLE",
-  internal: "INTERNAL_ERROR"
+  invalidInput: 'INVALID_INPUT',
+  invalidWorkspace: 'INVALID_WORKSPACE',
+  notFound: 'NOT_FOUND',
+  stateReadFailed: 'STATE_READ_FAILED',
+  stateWriteFailed: 'STATE_WRITE_FAILED',
+  workerUnavailable: 'WORKER_UNAVAILABLE',
+  internal: 'INTERNAL_ERROR',
 } as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];
@@ -100,11 +100,11 @@ export function resultErr<E>(error: E): Result<never, E> {
   return { success: false, error };
 }
 
-export type ThemeMode = "light" | "dark" | "system";
-export type ResolvedTheme = "light" | "dark";
-export type LanguageCode = "zh-CN" | "en-US";
-export type LogLevel = "debug" | "info" | "warn" | "error";
-export type ModelProviderId = "deepseek" | "minimax";
+export type ThemeMode = 'light' | 'dark' | 'system';
+export type ResolvedTheme = 'light' | 'dark';
+export type LanguageCode = 'zh-CN' | 'en-US';
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+export type ModelProviderId = 'deepseek' | 'minimax';
 
 export interface ModelProviderPreference {
   enabled: boolean;
@@ -153,8 +153,14 @@ export interface RecentWorkspaceEntry {
   hiddenFromRightPanels: boolean;
 }
 
-export type WorkspaceType = "node" | "python" | "java" | "go" | "rust" | "unknown";
-export type WorkspaceStatus = "initializing" | "ready" | "indexing" | "degraded" | "error" | "closed";
+export type WorkspaceType = 'node' | 'python' | 'java' | 'go' | 'rust' | 'unknown';
+export type WorkspaceStatus =
+  | 'initializing'
+  | 'ready'
+  | 'indexing'
+  | 'degraded'
+  | 'error'
+  | 'closed';
 
 export interface GitSnapshot {
   isRepo: boolean;
@@ -206,7 +212,7 @@ export interface WorkspaceGitBranchChangeResult {
   stashedChanges: boolean;
 }
 
-export type SessionStatus = "active" | "paused" | "completed" | "archived";
+export type SessionStatus = 'active' | 'paused' | 'completed' | 'archived';
 
 export interface SessionSummary {
   lastUserIntent?: string;
@@ -247,10 +253,10 @@ export interface LogEntrySummary {
   };
 }
 
-export type HealthStatus = "healthy" | "degraded" | "unavailable";
+export type HealthStatus = 'healthy' | 'degraded' | 'unavailable';
 
 export interface HealthComponent {
-  name: "main" | "worker" | "storage" | "recovery" | "migration" | "models";
+  name: 'main' | 'worker' | 'storage' | 'recovery' | 'migration' | 'models';
   status: HealthStatus;
   detail: string;
   updatedAt: number;
@@ -269,13 +275,13 @@ export interface RuntimeLifecycleSnapshot {
 }
 
 export interface MigrationDiagnostics {
-  change: "none" | "upgrade";
+  change: 'none' | 'upgrade';
   fromVersion?: string;
   toVersion: string;
   backupPath?: string;
   executedScripts: Array<{
     scriptId: string;
-    status: "pending" | "running" | "completed" | "failed" | "rolled-back";
+    status: 'pending' | 'running' | 'completed' | 'failed' | 'rolled-back';
     error?: string;
   }>;
 }
@@ -297,7 +303,7 @@ export interface RuntimeDiagnosticsSnapshot {
   }>;
 }
 
-export type RetrievalStatus = "idle" | "running" | "completed" | "failed";
+export type RetrievalStatus = 'idle' | 'running' | 'completed' | 'failed';
 
 export interface RetrievalFileTypeCount {
   extension: string;
@@ -306,7 +312,7 @@ export interface RetrievalFileTypeCount {
 
 export interface RepoMapEntry {
   path: string;
-  type: "file" | "directory";
+  type: 'file' | 'directory';
 }
 
 export interface RetrievalSnapshot {
@@ -332,16 +338,16 @@ export interface AppInfo {
 }
 
 export type TaskStatus =
-  | "pending"
-  | "waiting-approval"
-  | "approved"
-  | "running"
-  | "completed"
-  | "failed"
-  | "rejected"
-  | "rolled-back";
+  | 'pending'
+  | 'waiting-approval'
+  | 'approved'
+  | 'running'
+  | 'completed'
+  | 'failed'
+  | 'rejected'
+  | 'rolled-back';
 
-export type RiskLevel = "low" | "medium" | "high";
+export type RiskLevel = 'low' | 'medium' | 'high';
 
 export interface TaskOperation {
   kind: string;
@@ -358,7 +364,7 @@ export interface TaskRecord {
   type: string;
   description: string;
   status: TaskStatus;
-  priority: "low" | "medium" | "high" | "critical";
+  priority: 'low' | 'medium' | 'high' | 'critical';
   operations: TaskOperation[];
   approvalId?: string;
   checkpointId?: string;
@@ -399,7 +405,7 @@ export interface ApprovalRecord {
   runId?: string;
   riskLevel: RiskLevel;
   request: ApprovalRequestSummary;
-  decision?: "approved" | "rejected" | "timeout";
+  decision?: 'approved' | 'rejected' | 'timeout';
   reason?: string;
   approvedBy?: string;
   createdAt: number;
@@ -409,7 +415,7 @@ export interface ApprovalRecord {
 
 export interface AuditRecord {
   id: string;
-  entityType: "task" | "approval" | "workspace" | "session";
+  entityType: 'task' | 'approval' | 'workspace' | 'session';
   entityId: string;
   action: string;
   detail: string;
@@ -420,7 +426,7 @@ export interface CheckpointRecord {
   id: string;
   sessionId: string;
   workspaceId: string;
-  type: "approval-anchor" | "workspace-open" | "retrieval-anchor";
+  type: 'approval-anchor' | 'workspace-open' | 'retrieval-anchor';
   description: string;
   manifest: Record<string, unknown>;
   createdAt: number;
@@ -428,8 +434,8 @@ export interface CheckpointRecord {
 
 export interface CheckpointPayloadAsset {
   path: string;
-  kind: "file" | "directory";
-  status: "captured" | "missing";
+  kind: 'file' | 'directory';
+  status: 'captured' | 'missing';
   size?: number;
   snapshotPath?: string;
 }
@@ -443,7 +449,7 @@ export interface CheckpointPayloadPreview {
 }
 
 export interface ApprovalPolicySummary {
-  mode: "manual";
+  mode: 'manual';
   summary: string;
   highRiskRules: string[];
 }
@@ -456,18 +462,18 @@ export interface TaskCenterSnapshot {
   latestCheckpoint?: CheckpointRecord;
 }
 
-export type ConversationRole = "system" | "user" | "assistant" | "tool";
+export type ConversationRole = 'system' | 'user' | 'assistant' | 'tool';
 export type ConversationBlockType =
-  | "markdown"
-  | "plan"
-  | "tool-call"
-  | "approval"
-  | "patch-summary"
-  | "validation-result"
-  | "final-summary"
-  | "execution-step"
-  | "execution-summary"
-  | "command-output";
+  | 'markdown'
+  | 'plan'
+  | 'tool-call'
+  | 'approval'
+  | 'patch-summary'
+  | 'validation-result'
+  | 'final-summary'
+  | 'execution-step'
+  | 'execution-summary'
+  | 'command-output';
 
 export interface ConversationBlockBase {
   id: string;
@@ -475,37 +481,37 @@ export interface ConversationBlockBase {
 }
 
 export interface MarkdownConversationBlock extends ConversationBlockBase {
-  type: "markdown";
+  type: 'markdown';
   text: string;
 }
 
 export interface PlanConversationBlock extends ConversationBlockBase {
-  type: "plan";
+  type: 'plan';
   title: string;
   items: Array<{
     id: string;
     title: string;
     detail?: string;
-    status: "pending" | "running" | "completed" | "failed";
+    status: 'pending' | 'running' | 'completed' | 'failed';
   }>;
 }
 
 export interface ToolCallConversationBlock extends ConversationBlockBase {
-  type: "tool-call";
+  type: 'tool-call';
   toolName: string;
   summary: string;
-  status: "pending" | "running" | "completed" | "failed";
+  status: 'pending' | 'running' | 'completed' | 'failed';
 }
 
 export interface ApprovalConversationBlock extends ConversationBlockBase {
-  type: "approval";
+  type: 'approval';
   title: string;
   riskLevel: RiskLevel;
   summary: string;
 }
 
 export interface PatchSummaryConversationBlock extends ConversationBlockBase {
-  type: "patch-summary";
+  type: 'patch-summary';
   patchSetId: string;
   summary: string;
   fileCount: number;
@@ -513,14 +519,14 @@ export interface PatchSummaryConversationBlock extends ConversationBlockBase {
 }
 
 export interface ValidationResultConversationBlock extends ConversationBlockBase {
-  type: "validation-result";
+  type: 'validation-result';
   summary: string;
-  status: "passed" | "failed" | "skipped";
+  status: 'passed' | 'failed' | 'skipped';
   diagnostics: DiagnosticSummary[];
 }
 
 export interface FinalSummaryConversationBlock extends ConversationBlockBase {
-  type: "final-summary";
+  type: 'final-summary';
   summary: string;
 }
 
@@ -540,7 +546,7 @@ export interface ConversationSessionRecord {
   id: string;
   workspaceId: string;
   title: string;
-  status: "active" | "archived";
+  status: 'active' | 'archived';
   isPinned: boolean;
   pinnedOrder: number;
   unpinnedOrder: number;
@@ -553,7 +559,7 @@ export interface ConversationSessionRecord {
   lastMessageAt: number;
 }
 
-export type SidebarOrderBucket = "pinned" | "unpinned";
+export type SidebarOrderBucket = 'pinned' | 'unpinned';
 
 export interface ReorderWorkspacesInput {
   pinnedIds: string[];
@@ -589,14 +595,14 @@ export interface ConversationSendResult {
   patchSet?: PatchSet;
 }
 
-export type ConversationScenario = "chat" | "plan" | "code-edit";
+export type ConversationScenario = 'chat' | 'plan' | 'code-edit';
 
 export interface ModelDescriptor {
   providerId: ModelProviderId;
   modelId: string;
   displayName: string;
   priority: number;
-  capabilities: Array<"chat" | "stream" | "code">;
+  capabilities: Array<'chat' | 'stream' | 'code'>;
 }
 
 export interface ModelChatMessage {
@@ -629,19 +635,19 @@ export interface ModelResponse {
 
 /** Main 鈫?Renderer: versioned model stream envelope (no secrets). */
 export type DigitalLifeModelStreamEventV1 =
-  | { v: 1; runId: string; seq: number; type: "delta"; text: string }
+  | { v: 1; runId: string; seq: number; type: 'delta'; text: string }
   | {
       v: 1;
       runId: string;
       seq: number;
-      type: "route";
+      type: 'route';
       providerId: ModelProviderId;
       modelId: string;
       reason: string;
     }
-  | { v: 1; runId: string; seq: number; type: "usage"; usage: ModelTokenUsage }
-  | { v: 1; runId: string; seq: number; type: "error"; message: string }
-  | { v: 1; runId: string; seq: number; type: "done" };
+  | { v: 1; runId: string; seq: number; type: 'usage'; usage: ModelTokenUsage }
+  | { v: 1; runId: string; seq: number; type: 'error'; message: string }
+  | { v: 1; runId: string; seq: number; type: 'done' };
 
 /** Main → Renderer: versioned agent run activity stream (debug/audit friendly; no chain-of-thought). */
 export type DigitalLifeRunActivityEventV1 =
@@ -650,7 +656,7 @@ export type DigitalLifeRunActivityEventV1 =
       runId: string;
       seq: number;
       ts: number;
-      type: "run-start";
+      type: 'run-start';
       scenario: ConversationScenario;
     }
   | {
@@ -658,8 +664,8 @@ export type DigitalLifeRunActivityEventV1 =
       runId: string;
       seq: number;
       ts: number;
-      type: "context-added";
-      contextType: ContextEntry["type"] | "symbol";
+      type: 'context-added';
+      contextType: ContextEntry['type'] | 'symbol';
       label: string;
       path?: string;
       tokenEstimate?: number;
@@ -670,7 +676,7 @@ export type DigitalLifeRunActivityEventV1 =
       runId: string;
       seq: number;
       ts: number;
-      type: "file-read";
+      type: 'file-read';
       path: string;
       bytes?: number;
       tokenEstimate?: number;
@@ -681,7 +687,7 @@ export type DigitalLifeRunActivityEventV1 =
       runId: string;
       seq: number;
       ts: number;
-      type: "search";
+      type: 'search';
       query: string;
       hitCount?: number;
       samplePaths?: string[];
@@ -691,8 +697,8 @@ export type DigitalLifeRunActivityEventV1 =
       runId: string;
       seq: number;
       ts: number;
-      type: "command";
-      phase: "start" | "done";
+      type: 'command';
+      phase: 'start' | 'done';
       command: string;
       args?: string[];
       exitCode?: number;
@@ -702,8 +708,8 @@ export type DigitalLifeRunActivityEventV1 =
       runId: string;
       seq: number;
       ts: number;
-      type: "patch";
-      phase: "proposed" | "applied" | "rolled-back";
+      type: 'patch';
+      phase: 'proposed' | 'applied' | 'rolled-back';
       patchSetId: string;
       fileCount?: number;
       hunkCount?: number;
@@ -713,10 +719,10 @@ export type DigitalLifeRunActivityEventV1 =
       runId: string;
       seq: number;
       ts: number;
-      type: "approval";
-      phase: "requested" | "decided";
+      type: 'approval';
+      phase: 'requested' | 'decided';
       approvalId: string;
-      decision?: "approved" | "rejected" | "timeout" | "auto";
+      decision?: 'approved' | 'rejected' | 'timeout' | 'auto';
       reason?: string;
     }
   | {
@@ -724,16 +730,16 @@ export type DigitalLifeRunActivityEventV1 =
       runId: string;
       seq: number;
       ts: number;
-      type: "model";
-      phase: "route" | "done" | "error";
+      type: 'model';
+      phase: 'route' | 'done' | 'error';
       providerId?: ModelProviderId;
       modelId?: string;
       reason?: string;
       usage?: ModelTokenUsage;
       message?: string;
     }
-  | { v: 1; runId: string; seq: number; ts: number; type: "error"; message: string }
-  | { v: 1; runId: string; seq: number; ts: number; type: "run-done"; status: AgentRunStatus };
+  | { v: 1; runId: string; seq: number; ts: number; type: 'error'; message: string }
+  | { v: 1; runId: string; seq: number; ts: number; type: 'run-done'; status: AgentRunStatus };
 
 export interface RunActivityEventRecord {
   id: string;
@@ -777,21 +783,21 @@ export interface ModelGatewayHealthSnapshot {
 
 export interface PromptRule {
   id: string;
-  kind: "platform" | "project" | "session" | "workflow-phase" | "tool-contract" | "output-contract";
+  kind: 'platform' | 'project' | 'session' | 'workflow-phase' | 'tool-contract' | 'output-contract';
   content: string;
 }
 
 export interface ContextEntry {
   id: string;
-  type: "file" | "search-hit" | "outline" | "diagnostic" | "message";
+  type: 'file' | 'search-hit' | 'outline' | 'diagnostic' | 'message';
   label: string;
   content: string;
   tokenEstimate: number;
   path?: string;
 }
 
-export type PatchHunkDecision = "pending" | "accepted" | "rejected";
-export type PatchSetStatus = "draft" | "ready" | "applying" | "applied" | "failed" | "rolled-back";
+export type PatchHunkDecision = 'pending' | 'accepted' | 'rejected';
+export type PatchSetStatus = 'draft' | 'ready' | 'applying' | 'applied' | 'failed' | 'rolled-back';
 
 export interface PatchHunk {
   id: string;
@@ -833,24 +839,24 @@ export interface PatchSet {
 }
 
 export type AgentRunStatus =
-  | "draft"
-  | "planning"
-  | "ready"
-  | "executing"
-  | "waiting-approval"
-  | "applying"
-  | "verifying"
-  | "succeeded"
-  | "failed"
-  | "rolled-back"
-  | "aborted";
+  | 'draft'
+  | 'planning'
+  | 'ready'
+  | 'executing'
+  | 'waiting-approval'
+  | 'applying'
+  | 'verifying'
+  | 'succeeded'
+  | 'failed'
+  | 'rolled-back'
+  | 'aborted';
 
 export interface AgentPlanStep {
   id: string;
   runId: string;
   title: string;
   detail?: string;
-  status: "pending" | "running" | "completed" | "failed";
+  status: 'pending' | 'running' | 'completed' | 'failed';
   createdAt: number;
   updatedAt: number;
 }
@@ -874,7 +880,7 @@ export interface AgentRunDetail {
   steps: AgentPlanStep[];
 }
 
-export type CommandProfile = "build" | "test" | "lint" | "install" | "custom";
+export type CommandProfile = 'build' | 'test' | 'lint' | 'install' | 'custom';
 
 export interface CommandRequest {
   id: string;
@@ -901,7 +907,7 @@ export interface CommandExecutionResult {
 }
 
 export interface CommandRunResult {
-  status: "completed" | "waiting-approval";
+  status: 'completed' | 'waiting-approval';
   taskId: string;
   request: CommandRequest;
   result?: CommandExecutionResult;
@@ -910,29 +916,34 @@ export interface CommandRunResult {
 
 /** Main 鈫?Renderer: versioned terminal stream (no env vars or secrets). */
 export type DigitalLifeTerminalStreamEventV1 =
-  | { v: 1; executionId: string; seq: number; type: "stdout"; text: string }
-  | { v: 1; executionId: string; seq: number; type: "stderr"; text: string }
+  | { v: 1; executionId: string; seq: number; type: 'stdout'; text: string }
+  | { v: 1; executionId: string; seq: number; type: 'stderr'; text: string }
   | {
       v: 1;
       executionId: string;
       seq: number;
-      type: "done";
+      type: 'done';
       exitCode: number | null;
       success: boolean;
       summary: string;
       signal?: string;
     }
-  | { v: 1; executionId: string; seq: number; type: "error"; message: string };
+  | { v: 1; executionId: string; seq: number; type: 'error'; message: string };
 
 /** Result of starting a governed terminal stream (approval gate same as `command:run`). */
 export type CommandRunStreamStart =
-  | { mode: "waiting-approval"; taskId: string; request: CommandRequest; approvalRequest: ApprovalRequestSummary }
-  | { mode: "started"; executionId: string; taskId: string; request: CommandRequest };
+  | {
+      mode: 'waiting-approval';
+      taskId: string;
+      request: CommandRequest;
+      approvalRequest: ApprovalRequestSummary;
+    }
+  | { mode: 'started'; executionId: string; taskId: string; request: CommandRequest };
 
 export interface DiagnosticSummary {
   id: string;
-  source: "typescript" | "vite" | "eslint" | "vitest" | "jest" | "system";
-  severity: "info" | "warning" | "error";
+  source: 'typescript' | 'vite' | 'eslint' | 'vitest' | 'jest' | 'system';
+  severity: 'info' | 'warning' | 'error';
   message: string;
   path?: string;
   line?: number;
@@ -944,7 +955,7 @@ export interface ValidationResult {
   workspaceId: string;
   runId?: string;
   patchSetId?: string;
-  status: "passed" | "failed" | "skipped";
+  status: 'passed' | 'failed' | 'skipped';
   summary: string;
   diagnostics: DiagnosticSummary[];
   createdAt: number;
@@ -970,8 +981,8 @@ export interface WorkspaceFileDocument {
   lastModifiedAt: number;
 }
 
-export type WorkspaceChangeKind = "added" | "modified" | "deleted";
-export type WorkspaceChangeStatus = "staged" | "modified" | "untracked" | "conflicted";
+export type WorkspaceChangeKind = 'added' | 'modified' | 'deleted';
+export type WorkspaceChangeStatus = 'staged' | 'modified' | 'untracked' | 'conflicted';
 
 export interface WorkspaceChangePreview {
   path: string;
@@ -991,14 +1002,25 @@ export interface WorkspaceFileChangedEvent {
 export interface WorkspaceTreeNode {
   path: string;
   name: string;
-  kind: "file" | "directory";
+  kind: 'file' | 'directory';
   children: WorkspaceTreeNode[];
 }
 
 export interface FileOutlineItem {
   id: string;
   label: string;
-  kind: "function" | "class" | "interface" | "type" | "const" | "heading" | "variable" | "method" | "property" | "enum" | "enum-member";
+  kind:
+    | 'function'
+    | 'class'
+    | 'interface'
+    | 'type'
+    | 'const'
+    | 'heading'
+    | 'variable'
+    | 'method'
+    | 'property'
+    | 'enum'
+    | 'enum-member';
   line: number;
   endLine?: number;
   depth?: number;
@@ -1011,7 +1033,7 @@ export interface ToolInvocationRecord {
   runId: string;
   toolName: string;
   summary: string;
-  status: "pending" | "running" | "completed" | "failed";
+  status: 'pending' | 'running' | 'completed' | 'failed';
   createdAt: number;
   updatedAt: number;
 }
@@ -1026,7 +1048,7 @@ export function defaultWindowState(): WindowState {
   return {
     width: 1280,
     height: 800,
-    isMaximized: false
+    isMaximized: false,
   };
 }
 
@@ -1034,16 +1056,16 @@ export function defaultAppState(): AppStateV1 {
   return {
     schemaVersion: APP_STATE_SCHEMA_VERSION,
     recentWorkspaces: [],
-    windowState: defaultWindowState()
+    windowState: defaultWindowState(),
   };
 }
 
 export function normalizePath(inputPath: string): string {
-  return inputPath.replace(/\\/g, "/").replace(/\/+/g, "/");
+  return inputPath.replace(/\\/g, '/').replace(/\/+/g, '/');
 }
 
 export function isChildPath(parentPath: string, childPath: string): boolean {
-  const normParent = normalizePath(parentPath).replace(/\/$/, "") + "/";
+  const normParent = normalizePath(parentPath).replace(/\/$/, '') + '/';
   const normChild = normalizePath(childPath);
   return normChild.startsWith(normParent) && normChild !== normParent;
 }
@@ -1054,7 +1076,7 @@ export function createWorkspaceId(workspacePath: string): string {
   for (let i = 0; i < normalized.length; i++) {
     hash = ((hash << 5) - hash + normalized.charCodeAt(i)) | 0;
   }
-  return Math.abs(hash).toString(16).padStart(8, "0");
+  return Math.abs(hash).toString(16).padStart(8, '0');
 }
 
 export function createId(prefix?: string): string {
@@ -1069,18 +1091,20 @@ export function sleep(delayMs: number): Promise<void> {
 }
 
 export function sanitizeSensitiveData<T>(value: T): T {
-  const sensitiveKeys = ["token", "apiKey", "password", "authorization", "secret"];
+  const sensitiveKeys = ['token', 'apiKey', 'password', 'authorization', 'secret'];
 
   function walk(input: unknown): unknown {
     if (Array.isArray(input)) {
       return input.map((item) => walk(item));
     }
 
-    if (input && typeof input === "object") {
+    if (input && typeof input === 'object') {
       return Object.fromEntries(
         Object.entries(input as Record<string, unknown>).map(([key, childValue]) => {
-          if (sensitiveKeys.some((candidate) => key.toLowerCase().includes(candidate.toLowerCase()))) {
-            return [key, "[REDACTED]"];
+          if (
+            sensitiveKeys.some((candidate) => key.toLowerCase().includes(candidate.toLowerCase()))
+          ) {
+            return [key, '[REDACTED]'];
           }
 
           return [key, walk(childValue)];
@@ -1098,31 +1122,31 @@ export function toUserMessage(error: unknown): IpcError {
   if (error instanceof AppError) {
     return {
       code: error.code,
-      message: error.message
+      message: error.message,
     };
   }
 
   if (error instanceof Error) {
     return {
       code: ERROR_CODES.internal,
-      message: error.message
+      message: error.message,
     };
   }
 
   return {
     code: ERROR_CODES.internal,
-    message: "Unknown error."
+    message: 'Unknown error.',
   };
 }
 
-export type AgentStepType = "analyze" | "search" | "read" | "edit" | "command" | "verify";
+export type AgentStepType = 'analyze' | 'search' | 'read' | 'edit' | 'command' | 'verify';
 
 export interface ExecutionStepConversationBlock extends ConversationBlockBase {
-  type: "execution-step";
+  type: 'execution-step';
   stepId: string;
   title: string;
   stepType: AgentStepType;
-  status: "pending" | "running" | "completed" | "failed";
+  status: 'pending' | 'running' | 'completed' | 'failed';
   summary?: string;
   error?: string;
   riskLevel?: RiskLevel;
@@ -1131,13 +1155,13 @@ export interface ExecutionStepConversationBlock extends ConversationBlockBase {
     toolName: string;
     inputSummary: string;
     outputSummary?: string;
-    status: "pending" | "running" | "completed" | "failed";
+    status: 'pending' | 'running' | 'completed' | 'failed';
   }>;
 }
 
 export interface ExecutionSummaryConversationBlock extends ConversationBlockBase {
-  type: "execution-summary";
-  status: "succeeded" | "failed" | "rolled-back";
+  type: 'execution-summary';
+  status: 'succeeded' | 'failed' | 'rolled-back';
   filesModified: string[];
   commandsExecuted: string[];
   validationPassed?: number;
@@ -1147,7 +1171,7 @@ export interface ExecutionSummaryConversationBlock extends ConversationBlockBase
 }
 
 export interface CommandOutputConversationBlock extends ConversationBlockBase {
-  type: "command-output";
+  type: 'command-output';
   command: string;
   args: string[];
   exitCode: number | null;
@@ -1156,7 +1180,7 @@ export interface CommandOutputConversationBlock extends ConversationBlockBase {
   truncated: boolean;
 }
 
-export type IndexingState = "idle" | "indexing" | "indexed" | "error";
+export type IndexingState = 'idle' | 'indexing' | 'indexed' | 'error';
 
 export interface IndexingStatus {
   state: IndexingState;
@@ -1170,7 +1194,7 @@ export interface IndexingStatus {
 export interface RepoMapNode {
   path: string;
   name: string;
-  kind: "file" | "directory";
+  kind: 'file' | 'directory';
   fileCount: number;
   primaryLanguage?: string;
   children: RepoMapNode[];
@@ -1179,28 +1203,40 @@ export interface RepoMapNode {
 export interface AuditEntry {
   id: string;
   timestamp: number;
-  operationType: "command" | "file-write" | "file-delete" | "patch-apply" | "patch-rollback" | "approval";
+  operationType:
+    | 'command'
+    | 'file-write'
+    | 'file-delete'
+    | 'patch-apply'
+    | 'patch-rollback'
+    | 'approval';
   summary: string;
   riskLevel: RiskLevel;
-  decision?: "approved" | "rejected" | "auto";
+  decision?: 'approved' | 'rejected' | 'auto';
   detail?: string;
 }
 
-export type SettingsGroupId = "general" | "model" | "agent" | "workspace" | "shortcuts";
+export type SettingsGroupId = 'general' | 'model' | 'agent' | 'workspace' | 'shortcuts';
 
 export interface SettingItem {
   id: string;
   groupId: SettingsGroupId;
   label: string;
   description?: string;
-  type: "toggle" | "select" | "input" | "password" | "readonly";
+  type: 'toggle' | 'select' | 'input' | 'password' | 'readonly';
   value: string | boolean | number;
   options?: Array<{ value: string; label: string }>;
 }
 
-export type GitFileStatus = "modified" | "added" | "deleted" | "untracked" | "conflicted" | "unchanged";
+export type GitFileStatus =
+  | 'modified'
+  | 'added'
+  | 'deleted'
+  | 'untracked'
+  | 'conflicted'
+  | 'unchanged';
 
-export type SlashCommandId = "plan" | "edit" | "fix" | "explain" | "test" | "review";
+export type SlashCommandId = 'plan' | 'edit' | 'fix' | 'explain' | 'test' | 'review';
 
 export interface SlashCommand {
   id: SlashCommandId;
@@ -1208,7 +1244,7 @@ export interface SlashCommand {
   description: string;
 }
 
-export type ReferenceKind = "file" | "symbol" | "terminal" | "selection";
+export type ReferenceKind = 'file' | 'symbol' | 'terminal' | 'selection';
 
 export interface ReferenceItem {
   id: string;

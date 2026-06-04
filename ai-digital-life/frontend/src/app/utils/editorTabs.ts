@@ -1,4 +1,4 @@
-import type { FilePatch } from "@ai-digital-life/kernel";
+import type { FilePatch } from '@ai-digital-life/kernel';
 
 export type EditorTabState = {
   id: string;
@@ -11,7 +11,7 @@ export function createEditorTab(filePath: string): EditorTabState {
   return {
     id: filePath,
     path: filePath,
-    title: segments[segments.length - 1] ?? filePath
+    title: segments[segments.length - 1] ?? filePath,
   };
 }
 

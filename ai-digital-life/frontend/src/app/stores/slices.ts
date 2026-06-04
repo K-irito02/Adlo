@@ -17,40 +17,40 @@
  */
 
 // UI 切片
-export { type UISlice, createUISlice } from "./slices/uiSlice";
+export { type UISlice, createUISlice } from './slices/uiSlice';
 
 // 工作区切片
-export { type WorkspaceSlice, createWorkspaceSlice } from "./slices/workspaceSlice";
+export { type WorkspaceSlice, createWorkspaceSlice } from './slices/workspaceSlice';
 
 // Git 切片
-export { type GitSlice, createGitSlice } from "./slices/gitSlice";
+export { type GitSlice, createGitSlice } from './slices/gitSlice';
 
 // 会话切片
-export { type SessionSlice, createSessionSlice } from "./slices/sessionSlice";
+export { type SessionSlice, createSessionSlice } from './slices/sessionSlice';
 
 // 编辑器切片
-export { type EditorSlice, createEditorSlice } from "./slices/editorSlice";
+export { type EditorSlice, createEditorSlice } from './slices/editorSlice';
 
 // 补丁切片
-export { type PatchSlice, createPatchSlice } from "./slices/patchSlice";
+export { type PatchSlice, createPatchSlice } from './slices/patchSlice';
 
 // 搜索切片
-export { type SearchSlice, createSearchSlice } from "./slices/searchSlice";
+export { type SearchSlice, createSearchSlice } from './slices/searchSlice';
 
 // 诊断切片
-export { type DiagnosticSlice, createDiagnosticSlice } from "./slices/diagnosticSlice";
+export { type DiagnosticSlice, createDiagnosticSlice } from './slices/diagnosticSlice';
 
 // 任务切片
-export { type TaskSlice, createTaskSlice } from "./slices/taskSlice";
+export { type TaskSlice, createTaskSlice } from './slices/taskSlice';
 
 // 命令切片
-export { type CommandSlice, createCommandSlice } from "./slices/commandSlice";
+export { type CommandSlice, createCommandSlice } from './slices/commandSlice';
 
 // 剪贴板切片
-export { type ClipboardSlice, createClipboardSlice } from "./slices/clipboardSlice";
+export { type ClipboardSlice, createClipboardSlice } from './slices/clipboardSlice';
 
 // 终端切片
-export { type TerminalSlice, createTerminalSlice } from "./slices/terminalSlice";
+export { type TerminalSlice, createTerminalSlice } from './slices/terminalSlice';
 
 // 浏览器切片
-export { type BrowserSlice, createBrowserSlice, type BrowserTabState } from "./slices/browserSlice";
+export { type BrowserSlice, createBrowserSlice, type BrowserTabState } from './slices/browserSlice';

@@ -1,9 +1,12 @@
-import { useCallback, useMemo } from "react";
-import { useAppStore } from "../../../stores/slicedStore";
-import { useAppActions } from "../../../hooks/useAppActions";
-import { buildSettingsItems, preferencePatchFromSettingChange } from "../../../utils/settingsViewModel";
-import type { SettingsPanelProps } from "../types";
-import type { RightPanelProps } from "../../RightPanel";
+import { useCallback, useMemo } from 'react';
+import { useAppStore } from '../../../stores/slicedStore';
+import { useAppActions } from '../../../hooks/useAppActions';
+import {
+  buildSettingsItems,
+  preferencePatchFromSettingChange,
+} from '../../../utils/settingsViewModel';
+import type { SettingsPanelProps } from '../types';
+import type { RightPanelProps } from '../../RightPanel';
 
 export function useSettingsPanelProps(panelProps: RightPanelProps): SettingsPanelProps {
   const { t } = panelProps;

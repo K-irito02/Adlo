@@ -4,4 +4,6 @@ pub mod shell_resolver;
 
 pub use pty::{PtyConfig, PtySession, PtyStatus};
 pub use session_manager::{PtyEventEmitter, PtySessionHandle, PtySessionInfo, SessionManager};
-pub use shell_resolver::{is_shell_available, ShellKind, ShellNotFound, ShellResolution, ShellResolver};
+pub use shell_resolver::{
+    is_shell_available, ShellKind, ShellNotFound, ShellResolution, ShellResolver,
+};

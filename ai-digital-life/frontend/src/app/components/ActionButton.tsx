@@ -1,10 +1,10 @@
-import React, { useMemo } from "react";
-import { type IconName } from "../../design-system/icons";
-import { TooltipSimple } from "./Tooltip";
-import { Icon } from "./Icon";
+import React, { useMemo } from 'react';
+import { type IconName } from '../../design-system/icons';
+import { TooltipSimple } from './Tooltip';
+import { Icon } from './Icon';
 
 interface ActionButtonProps {
-  state: "idle" | "generating" | "error" | "waiting";
+  state: 'idle' | 'generating' | 'error' | 'waiting';
   hasContent: boolean;
   onSend: () => void;
   onStop: () => void;
@@ -20,62 +20,69 @@ interface ButtonAppearance {
 }
 
 const APPEARANCE_MAP: Record<
-  "idle-empty" | "idle-ready" | "generating" | "error" | "waiting",
+  'idle-empty' | 'idle-ready' | 'generating' | 'error' | 'waiting',
   (props: ActionButtonProps) => ButtonAppearance
 > = {
-  "idle-empty": () => ({
-    icon: "arrow-up",
-    label: "发送",
-    className: "action-btn action-btn--idle action-btn--empty",
+  'idle-empty': () => ({
+    icon: 'arrow-up',
+    label: '发送',
+    className: 'action-btn action-btn--idle action-btn--empty',
     isDisabled: true,
-    onClick: () => {}
+    onClick: () => {},
   }),
-  "idle-ready": ({ onSend }) => ({
-    icon: "arrow-up",
-    label: "发送消息",
-    className: "action-btn action-btn--idle action-btn--ready",
+  'idle-ready': ({ onSend }) => ({
+    icon: 'arrow-up',
+    label: '发送消息',
+    className: 'action-btn action-btn--idle action-btn--ready',
     isDisabled: false,
-    onClick: onSend
+    onClick: onSend,
   }),
   generating: ({ onStop }) => ({
-    icon: "stop-circle",
-    label: "停止生成",
-    className: "action-btn action-btn--generating",
+    icon: 'stop-circle',
+    label: '停止生成',
+    className: 'action-btn action-btn--generating',
     isDisabled: false,
-    onClick: onStop
+    onClick: onStop,
   }),
   error: ({ onRetry }) => ({
-    icon: "rotate-ccw",
-    label: "重试",
-    className: "action-btn action-btn--error",
+    icon: 'rotate-ccw',
+    label: '重试',
+    className: 'action-btn action-btn--error',
     isDisabled: false,
-    onClick: onRetry
+    onClick: onRetry,
   }),
   waiting: () => ({
-    icon: "loader-2",
-    label: "等待中...",
-    className: "action-btn action-btn--waiting",
+    icon: 'loader-2',
+    label: '等待中...',
+    className: 'action-btn action-btn--waiting',
     isDisabled: true,
-    onClick: () => {}
-  })
+    onClick: () => {},
+  }),
 };
 
 type AppearanceKey = keyof typeof APPEARANCE_MAP;
 
-function getAppearanceKey(state: ActionButtonProps["state"], hasContent: boolean): AppearanceKey {
-  if (state === "idle") return hasContent ? "idle-ready" : "idle-empty";
-  if (state === "generating") return "generating";
-  if (state === "error") return "error";
-  return "waiting";
+function getAppearanceKey(state: ActionButtonProps['state'], hasContent: boolean): AppearanceKey {
+  if (state === 'idle') return hasContent ? 'idle-ready' : 'idle-empty';
+  if (state === 'generating') return 'generating';
+  if (state === 'error') return 'error';
+  return 'waiting';
 }
 
 export function ActionButton({ state, hasContent, onSend, onStop, onRetry }: ActionButtonProps) {
   const appearance = useMemo<ButtonAppearance>(
-    () => APPEARANCE_MAP[getAppearanceKey(state, hasContent)]({ state, hasContent, onSend, onStop, onRetry }),
+    () =>
+      APPEARANCE_MAP[getAppearanceKey(state, hasContent)]({
+        state,
+        hasContent,
+        onSend,
+        onStop,
+        onRetry,
+      }),
     [state, hasContent, onSend, onStop, onRetry]
   );
 
-  const isSpinning = state === "error" || state === "waiting";
+  const isSpinning = state === 'error' || state === 'waiting';
 
   return (
     <TooltipSimple content={appearance.label} placement="top">
@@ -88,7 +95,7 @@ export function ActionButton({ state, hasContent, onSend, onStop, onRetry }: Act
         data-action-state={state}
         data-testid="action-button"
       >
-        <span className={`action-btn__icon${isSpinning ? " action-btn__icon--spin" : ""}`}>
+        <span className={`action-btn__icon${isSpinning ? ' action-btn__icon--spin' : ''}`}>
           <Icon name={appearance.icon} size="md" />
         </span>
       </button>

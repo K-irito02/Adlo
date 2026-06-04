@@ -1,14 +1,15 @@
-import type { Extension } from "@codemirror/state";
-import type { DiffEditorRef, EditorRef } from "../../stores/types";
-import type { PreviewDiffCollapsedRange } from "./changePreviewDiffRanges";
-import { SideBySideDiffViewer } from "./SideBySideDiffViewer";
-import { InlineDiffViewer } from "./InlineDiffViewer";
+import { memo } from 'react';
+import type { Extension } from '@codemirror/state';
+import type { DiffEditorRef, EditorRef } from '../../stores/types';
+import type { PreviewDiffCollapsedRange } from './changePreviewDiffRanges';
+import { SideBySideDiffViewer } from './SideBySideDiffViewer';
+import { InlineDiffViewer } from './InlineDiffViewer';
 
 export type DiffViewerProps = {
   original: string;
   modified: string;
   language?: string;
-  theme?: "light" | "dark";
+  theme?: 'light' | 'dark';
   locale?: string;
   sideBySide?: boolean;
   collapseUnchanged?: boolean;
@@ -21,12 +22,31 @@ export type DiffViewerProps = {
   onCollapsedUnchangedRangesChange?: (ranges: PreviewDiffCollapsedRange[]) => void;
 };
 
-export function DiffViewer({
+function areDiffViewerPropsEqual(prev: DiffViewerProps, next: DiffViewerProps) {
+  return (
+    prev.original === next.original &&
+    prev.modified === next.modified &&
+    prev.language === next.language &&
+    prev.theme === next.theme &&
+    prev.locale === next.locale &&
+    prev.sideBySide === next.sideBySide &&
+    prev.collapseUnchanged === next.collapseUnchanged &&
+    prev.readOnly === next.readOnly &&
+    prev.lineNumbers === next.lineNumbers &&
+    prev.wordWrap === next.wordWrap &&
+    prev.fileKey === next.fileKey &&
+    prev.onMount === next.onMount &&
+    prev.extensions === next.extensions &&
+    prev.onCollapsedUnchangedRangesChange === next.onCollapsedUnchangedRangesChange
+  );
+}
+
+export const DiffViewer = memo(function DiffViewer({
   original,
   modified,
-  language = "plaintext",
-  theme = "dark",
-  locale = "en-US",
+  language = 'plaintext',
+  theme = 'dark',
+  locale = 'en-US',
   sideBySide = false,
   collapseUnchanged = true,
   readOnly = true,
@@ -37,7 +57,7 @@ export function DiffViewer({
   extensions: extraExtensions = [],
   onCollapsedUnchangedRangesChange,
 }: DiffViewerProps) {
-  const resolvedLocale = locale || "en-US";
+  const resolvedLocale = locale || 'en-US';
   const child = sideBySide ? (
     <SideBySideDiffViewer
       original={original}
@@ -73,4 +93,4 @@ export function DiffViewer({
   );
 
   return child;
-}
+}, areDiffViewerPropsEqual);

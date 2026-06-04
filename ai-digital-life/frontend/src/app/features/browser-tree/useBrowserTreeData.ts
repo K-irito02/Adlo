@@ -1,12 +1,16 @@
-import { useMemo } from "react";
-import type { RecentWorkspaceEntry } from "@ai-digital-life/kernel";
-import type { BrowserTabState, TabFolderState, BrowserHistoryState } from "../../stores/slices/browserSlice";
-import type { BrowserCategoryState, BrowserCategoryType, BrowserTreeNode } from "./types";
+import { useMemo } from 'react';
+import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
+import type {
+  BrowserTabState,
+  TabFolderState,
+  BrowserHistoryState,
+} from '../../stores/slices/browserSlice';
+import type { BrowserCategoryState, BrowserCategoryType, BrowserTreeNode } from './types';
 
 export function countDirectFileChildren(node: BrowserTreeNode): number {
   let n = 0;
   for (const child of node.children) {
-    if (child.kind === "file") n += 1;
+    if (child.kind === 'file') n += 1;
   }
   return n;
 }
@@ -15,25 +19,31 @@ export function countDirectChildren(node: BrowserTreeNode): number {
   return node.children.length;
 }
 
-export function getCountStrategy(categoryType: BrowserCategoryType): (node: BrowserTreeNode) => number {
-  return categoryType === "history" ? countDirectChildren : countDirectFileChildren;
+export function getCountStrategy(
+  categoryType: BrowserCategoryType
+): (node: BrowserTreeNode) => number {
+  return categoryType === 'history' ? countDirectChildren : countDirectFileChildren;
 }
 
 export function resolveChildCount(
   counts: Map<string, number>,
-  childNode: BrowserTreeNode,
+  childNode: BrowserTreeNode
 ): number | null {
-  if (childNode.kind === "file") return null;
+  if (childNode.kind === 'file') return null;
   return counts.get(childNode.path) ?? 0;
 }
 
-function buildTabNode(tab: BrowserTabState, workspaceId: string, uniqueKey: string): BrowserTreeNode {
+function buildTabNode(
+  tab: BrowserTabState,
+  workspaceId: string,
+  uniqueKey: string
+): BrowserTreeNode {
   return {
     path: `tab:${workspaceId}:${tab.id}`,
-    name: tab.title || "无标题",
-    kind: "file",
+    name: tab.title || '无标题',
+    kind: 'file',
     children: [],
-    nodeType: "tab",
+    nodeType: 'tab',
     tabId: tab.id,
     url: tab.url,
     workspaceId,
@@ -44,9 +54,9 @@ function buildHistoryLeafNode(entry: BrowserHistoryState, uniqueKey: string): Br
   return {
     path: `history-entry:${entry.id}`,
     name: entry.title || entry.url,
-    kind: "file",
+    kind: 'file',
     children: [],
-    nodeType: "history",
+    nodeType: 'history',
     tabId: entry.id,
     url: entry.url,
     visitedAt: entry.visitedAt,
@@ -57,9 +67,11 @@ function buildFolderNode(
   folder: TabFolderState,
   allFolders: TabFolderState[],
   browserTabs: BrowserTabState[],
-  depth: number = 0,
+  depth: number = 0
 ): BrowserTreeNode {
-  const childFolders = allFolders.filter((f) => f.parentId === folder.id && (!f.parentType || f.parentType === 'folder'));
+  const childFolders = allFolders.filter(
+    (f) => f.parentId === folder.id && (!f.parentType || f.parentType === 'folder')
+  );
   const tabChildren: BrowserTreeNode[] = (folder.tabs ?? [])
     .map((tabId) => {
       const tab = browserTabs.find((t) => t.id === tabId);
@@ -69,15 +81,15 @@ function buildFolderNode(
     .filter(Boolean) as BrowserTreeNode[];
 
   const folderChildren: BrowserTreeNode[] = childFolders.map((child) =>
-    buildFolderNode(child, allFolders, browserTabs, depth + 1),
+    buildFolderNode(child, allFolders, browserTabs, depth + 1)
   );
 
   return {
     path: `folder:${folder.id}`,
     name: folder.name,
-    kind: "directory",
+    kind: 'directory',
     children: [...folderChildren, ...tabChildren],
-    nodeType: "folder",
+    nodeType: 'folder',
     folderId: folder.id,
   };
 }
@@ -85,25 +97,27 @@ function buildFolderNode(
 export function buildWorkspaceCategoryTree(
   workspaces: RecentWorkspaceEntry[],
   browserTabs: BrowserTabState[],
-  tabFolders: TabFolderState[],
+  tabFolders: TabFolderState[]
 ): BrowserTreeNode[] {
   return workspaces.map((ws) => {
     const wsTabs = browserTabs.filter((t) => t.workspaceId === ws.id);
     const tabNodes: BrowserTreeNode[] = wsTabs.map((tab) =>
-      buildTabNode(tab, ws.id, `ws-${ws.id}-${tab.id}`),
+      buildTabNode(tab, ws.id, `ws-${ws.id}-${tab.id}`)
     );
 
-    const wsRootFolders = tabFolders.filter((f) => f.parentType === 'workspace' && f.parentId === ws.id);
+    const wsRootFolders = tabFolders.filter(
+      (f) => f.parentType === 'workspace' && f.parentId === ws.id
+    );
     const folderNodes: BrowserTreeNode[] = wsRootFolders.map((folder) =>
-      buildFolderNode(folder, tabFolders, browserTabs),
+      buildFolderNode(folder, tabFolders, browserTabs)
     );
 
     return {
       path: `workspace:${ws.id}`,
       name: ws.name || ws.path,
-      kind: "directory",
+      kind: 'directory',
       children: [...folderNodes, ...tabNodes],
-      nodeType: "workspace",
+      nodeType: 'workspace',
       workspaceId: ws.id,
     };
   });
@@ -111,24 +125,20 @@ export function buildWorkspaceCategoryTree(
 
 export function buildUserFolderCategoryTree(
   tabFolders: TabFolderState[],
-  browserTabs: BrowserTabState[],
+  browserTabs: BrowserTabState[]
 ): BrowserTreeNode[] {
   const rootFolders = tabFolders.filter((f) => !f.parentId);
-  return rootFolders.map((folder) =>
-    buildFolderNode(folder, tabFolders, browserTabs),
-  );
+  return rootFolders.map((folder) => buildFolderNode(folder, tabFolders, browserTabs));
 }
 
-export function buildHistoryCategoryTree(
-  history: BrowserHistoryState[],
-): BrowserTreeNode[] {
+export function buildHistoryCategoryTree(history: BrowserHistoryState[]): BrowserTreeNode[] {
   const groupMap = new Map<string, Map<string, Map<string, BrowserHistoryState[]>>>();
 
   for (const entry of history) {
     const d = new Date(entry.visitedAt);
     const year = String(d.getFullYear());
-    const month = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
 
     if (!groupMap.has(year)) groupMap.set(year, new Map());
     const yearMap = groupMap.get(year)!;
@@ -146,9 +156,9 @@ export function buildHistoryCategoryTree(
     const yearNode: BrowserTreeNode = {
       path: `history:year:${year}`,
       name: `${year}年`,
-      kind: "directory",
+      kind: 'directory',
       children: [],
-      nodeType: "year",
+      nodeType: 'year',
     };
 
     const sortedMonths = [...yearMap.keys()].sort((a, b) => Number(b) - Number(a));
@@ -157,9 +167,9 @@ export function buildHistoryCategoryTree(
       const monthNode: BrowserTreeNode = {
         path: `history:month:${year}-${month}`,
         name: `${Number(month)}月`,
-        kind: "directory",
+        kind: 'directory',
         children: [],
-        nodeType: "month",
+        nodeType: 'month',
       };
 
       const sortedDays = [...monthMap.keys()].sort((a, b) => Number(b) - Number(a));
@@ -168,9 +178,9 @@ export function buildHistoryCategoryTree(
         const dayNode: BrowserTreeNode = {
           path: `history:day:${year}-${month}-${day}`,
           name: `${Number(day)}日`,
-          kind: "directory",
+          kind: 'directory',
           children: entries.map((entry) => buildHistoryLeafNode(entry, entry.id)),
-          nodeType: "day",
+          nodeType: 'day',
         };
         monthNode.children.push(dayNode);
       }
@@ -180,11 +190,11 @@ export function buildHistoryCategoryTree(
   }
 
   const historyRoot: BrowserTreeNode = {
-    path: "history:root",
-    name: "历史记录",
-    kind: "directory",
+    path: 'history:root',
+    name: '历史记录',
+    kind: 'directory',
     children: result,
-    nodeType: "history",
+    nodeType: 'history',
   };
 
   return [historyRoot];
@@ -206,54 +216,51 @@ export function useBrowserTreeData(
     workspaceCategory: string;
     userFolderCategory: string;
     historyCategory: string;
-  },
+  }
 ): UseBrowserTreeDataResult {
   const workspaceNodes = useMemo(
     () => buildWorkspaceCategoryTree(workspaces, browserTabs, browserTabFolders),
-    [workspaces, browserTabs, browserTabFolders],
+    [workspaces, browserTabs, browserTabFolders]
   );
 
   const workspaceCategory: BrowserCategoryState = useMemo(
     () => ({
-      id: "workspace",
+      id: 'workspace',
       label: labels.workspaceCategory,
       isExpanded: true,
       isPermanent: false,
       nodes: workspaceNodes,
     }),
-    [workspaceNodes, labels.workspaceCategory],
+    [workspaceNodes, labels.workspaceCategory]
   );
 
   const userFolderNodes = useMemo(
     () => buildUserFolderCategoryTree(browserTabFolders, browserTabs),
-    [browserTabFolders, browserTabs],
+    [browserTabFolders, browserTabs]
   );
 
   const userFolderCategory: BrowserCategoryState = useMemo(
     () => ({
-      id: "userFolder",
+      id: 'userFolder',
       label: labels.userFolderCategory,
       isExpanded: true,
       isPermanent: false,
       nodes: userFolderNodes,
     }),
-    [userFolderNodes, labels.userFolderCategory],
+    [userFolderNodes, labels.userFolderCategory]
   );
 
-  const historyNodes = useMemo(
-    () => buildHistoryCategoryTree(browserHistory),
-    [browserHistory],
-  );
+  const historyNodes = useMemo(() => buildHistoryCategoryTree(browserHistory), [browserHistory]);
 
   const historyCategory: BrowserCategoryState = useMemo(
     () => ({
-      id: "history",
+      id: 'history',
       label: labels.historyCategory,
       isExpanded: true,
       isPermanent: true,
       nodes: historyNodes,
     }),
-    [historyNodes, labels.historyCategory],
+    [historyNodes, labels.historyCategory]
   );
 
   const counts = useMemo(() => {
@@ -266,16 +273,16 @@ export function useBrowserTreeData(
         const { type, nodes: items } = stack.pop()!;
         const strategyFn = getCountStrategy(type);
         for (const item of items) {
-          if (item.kind === "directory") {
+          if (item.kind === 'directory') {
             map.set(item.path, strategyFn(item));
             if (item.children.length > 0) stack.push({ type, nodes: item.children });
           }
         }
       }
     };
-    visit("workspace", workspaceNodes);
-    visit("userFolder", userFolderNodes);
-    visit("history", historyNodes);
+    visit('workspace', workspaceNodes);
+    visit('userFolder', userFolderNodes);
+    visit('history', historyNodes);
     return map;
   }, [workspaceNodes, userFolderNodes, historyNodes]);
 

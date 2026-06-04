@@ -9,6 +9,7 @@
 | [重构](./重构/) | 重构方法论、组件提取、执行报告、阶段性总结 | 11 |
 | [多工作区](./多工作区/) | 多工作区开发中的变更面板、文件树、终端、布局等经验 | 9 |
 | [浏览器](./浏览器/) | 内置浏览器实现、树形目录交互、子目录修复经验 | 3 |
+| [代码质量](./代码质量/) | 全量代码质量检测与修复经验 | 1 |
 | [浏览器自动化](./浏览器自动化/) | 浏览器自动化调试记录与规则经验 | 2 |
 
 ## 索引
@@ -51,6 +52,12 @@
 | [browser-tree-fix.md](./浏览器/browser-tree-fix.md) | development/browser-tree-fix | 树形目录选择与交互修复（4 条经验） |
 | [browser-subdirectory-fix.md](./浏览器/browser-subdirectory-fix.md) | development/browser-subdirectory-fix | 子目录导航修复（4 条经验） |
 | [browser-navigate-fix-2026-06-04.md](./浏览器/browser-navigate-fix-2026-06-04.md) | 2026-06-04 修复执行 | 浏览器模式下 URL 无法加载修复（无活动标签页创建逻辑、调试经验与调试手段） |
+
+### 代码质量
+
+| 文件 | 来源 | 说明 |
+|------|------|------|
+| [code-quality-detection-and-fix.md](./代码质量/code-quality-detection-and-fix.md) | 全仓库代码质量检测与修复执行 | 7 条经验（React 19 hooks、React.memo、CodeMirror 重建、Rust clippy 等） |
 
 ### 浏览器自动化
 

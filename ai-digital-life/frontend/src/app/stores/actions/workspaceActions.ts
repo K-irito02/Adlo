@@ -1,6 +1,6 @@
-import type { StoreState } from "../StoreState";
-import type { ReorderWorkspacesInput, WorkspaceTreeNode } from "@ai-digital-life/kernel";
-import type { BrowserTabState, TabFolderState } from "../slices/browserSlice";
+import type { StoreState } from '../StoreState';
+import type { ReorderWorkspacesInput, WorkspaceTreeNode } from '@ai-digital-life/kernel';
+import type { BrowserTabState, TabFolderState } from '../slices/browserSlice';
 import {
   getWorkspaceCachePrefix,
   getNextWorkspaceRequestSeq,
@@ -14,8 +14,8 @@ import {
   createLazyLoader,
   clearError,
   captureError,
-} from "../shared";
-import type { StoreApi } from "zustand";
+} from '../shared';
+import type { StoreApi } from 'zustand';
 
 export interface BrowserCleanupResult {
   browserTabs: BrowserTabState[];
@@ -35,11 +35,11 @@ export function stripWorkspaceFromBrowserState(
   currentTabs: BrowserTabState[],
   currentFolders: TabFolderState[],
   currentExpanded: Record<string, boolean>,
-  currentActiveTabId: string,
+  currentActiveTabId: string
 ): BrowserCleanupResult {
   const browserTabs = currentTabs.filter((t) => t.workspaceId !== workspaceId);
   const browserTabFolders = currentFolders.filter(
-    (f) => !(f.parentType === "workspace" && f.parentId === workspaceId),
+    (f) => !(f.parentType === 'workspace' && f.parentId === workspaceId)
   );
   const browserWorkspaceExpanded: Record<string, boolean> = { ...currentExpanded };
   delete browserWorkspaceExpanded[workspaceId];
@@ -49,19 +49,25 @@ export function stripWorkspaceFromBrowserState(
 
   const browserActiveTabId = browserTabs.find((t) => t.id === currentActiveTabId)
     ? currentActiveTabId
-    : browserTabs[browserTabs.length - 1]?.id ?? "";
+    : (browserTabs[browserTabs.length - 1]?.id ?? '');
 
-  return { browserTabs, browserTabsById, browserTabFolders, browserWorkspaceExpanded, browserActiveTabId };
+  return {
+    browserTabs,
+    browserTabsById,
+    browserTabFolders,
+    browserWorkspaceExpanded,
+    browserActiveTabId,
+  };
 }
 
-export function createWorkspaceActions(set: StoreApi<StoreState>["setState"], get: () => StoreState) {
+export function createWorkspaceActions(
+  set: StoreApi<StoreState>['setState'],
+  get: () => StoreState
+) {
   return {
     renameWorkspaceFile: async (relativePath: string, newName: string) => {
       clearError(get);
-      const result = await window.digitalLife.workspace.renameFile(
-        relativePath,
-        newName
-      );
+      const result = await window.digitalLife.workspace.renameFile(relativePath, newName);
       if (!result.ok) {
         captureError(get, result.error);
         return;
@@ -69,9 +75,9 @@ export function createWorkspaceActions(set: StoreApi<StoreState>["setState"], ge
       await get().refreshWorkspaceTree();
       const currentPath = get().selectedFilePath;
       if (currentPath) {
-        const parts = currentPath.split("/");
+        const parts = currentPath.split('/');
         parts[parts.length - 1] = newName;
-        const newPath = parts.join("/");
+        const newPath = parts.join('/');
         if (currentPath === relativePath) {
           await get().openFile(newPath);
         }
@@ -98,10 +104,7 @@ export function createWorkspaceActions(set: StoreApi<StoreState>["setState"], ge
 
     moveWorkspaceFile: async (relativePath: string, newPath: string) => {
       clearError(get);
-      const result = await window.digitalLife.workspace.moveFile(
-        relativePath,
-        newPath
-      );
+      const result = await window.digitalLife.workspace.moveFile(relativePath, newPath);
       if (!result.ok) {
         captureError(get, result.error);
         return;
@@ -130,8 +133,7 @@ export function createWorkspaceActions(set: StoreApi<StoreState>["setState"], ge
       getNextSessionRequestSeq();
       clearError(get);
       const result = await window.digitalLife.workspace.open(workspacePath);
-      if (requestSeq !== workspaceRequestSeq)
-        return { ok: false, error: "Request superseded" };
+      if (requestSeq !== workspaceRequestSeq) return { ok: false, error: 'Request superseded' };
       if (!result.ok) {
         captureError(get, result.error);
         return { ok: false, error: result.error.message };
@@ -188,9 +190,7 @@ export function createWorkspaceActions(set: StoreApi<StoreState>["setState"], ge
 
     removeWorkspaceFromSidebar: async (workspaceId: string) => {
       clearError(get);
-      const result = await window.digitalLife.workspace.removeFromSidebar(
-        workspaceId
-      );
+      const result = await window.digitalLife.workspace.removeFromSidebar(workspaceId);
       if (!result.ok) {
         captureError(get, result.error);
         return;
@@ -215,9 +215,7 @@ export function createWorkspaceActions(set: StoreApi<StoreState>["setState"], ge
 
     revealWorkspaceInFileManager: async (workspacePath: string) => {
       clearError(get);
-      const result = await window.digitalLife.workspace.revealInFileManager(
-        workspacePath
-      );
+      const result = await window.digitalLife.workspace.revealInFileManager(workspacePath);
       if (!result.ok) captureError(get, result.error);
     },
 
@@ -253,7 +251,7 @@ export function createWorkspaceActions(set: StoreApi<StoreState>["setState"], ge
       (g, id, message) => ({
         workspaceTreeLoading: { ...g().workspaceTreeLoading, [id]: false },
         workspaceTreeErrors: { ...g().workspaceTreeErrors, [id]: message },
-      }),
+      })
     )(set, get),
 
     toggleWorkspaceTreeInFileNav: (workspaceId: string) => {
@@ -273,7 +271,7 @@ export function createWorkspaceActions(set: StoreApi<StoreState>["setState"], ge
         workspaceId,
         (next) => set({ workspaceTreeExpandedInFileNav: next }),
         !!state.workspaceTrees[workspaceId],
-        () => get().loadWorkspaceTree(workspaceId, workspacePath),
+        () => get().loadWorkspaceTree(workspaceId, workspacePath)
       );
     },
 
@@ -296,7 +294,8 @@ export function createWorkspaceActions(set: StoreApi<StoreState>["setState"], ge
       const { [workspaceId]: _omit, ...restTrees } = state.workspaceTrees;
       const { [workspaceId]: _omitLoading, ...restLoading } = state.workspaceTreeLoading;
       const { [workspaceId]: _omitErrors, ...restErrors } = state.workspaceTreeErrors;
-      const { [workspaceId]: _omitExpanded, ...restExpanded } = state.workspaceTreeExpandedInFileNav;
+      const { [workspaceId]: _omitExpanded, ...restExpanded } =
+        state.workspaceTreeExpandedInFileNav;
 
       // Strip this workspace's data from the in-memory browser state so the
       // navigator (workspace tree) and per-workspace expansion map do not
@@ -306,20 +305,26 @@ export function createWorkspaceActions(set: StoreApi<StoreState>["setState"], ge
         state.browserTabs,
         state.browserTabFolders,
         state.browserWorkspaceExpanded,
-        state.browserActiveTabId,
+        state.browserActiveTabId
       );
 
       // Persist the filtered slices back to localStorage so the cleanup
       // survives page reload.
-      if (typeof localStorage !== "undefined") {
+      if (typeof localStorage !== 'undefined') {
         try {
-          localStorage.setItem("adl-ui:browser-tabs", JSON.stringify(cleaned.browserTabs));
-          localStorage.setItem("adl-ui:browser-tab-folders", JSON.stringify(cleaned.browserTabFolders));
+          localStorage.setItem('adl-ui:browser-tabs', JSON.stringify(cleaned.browserTabs));
           localStorage.setItem(
-            "adl-ui:browser-workspace-expanded",
-            JSON.stringify(cleaned.browserWorkspaceExpanded),
+            'adl-ui:browser-tab-folders',
+            JSON.stringify(cleaned.browserTabFolders)
           );
-          localStorage.setItem("adl-ui:browser-active-tab", JSON.stringify(cleaned.browserActiveTabId));
+          localStorage.setItem(
+            'adl-ui:browser-workspace-expanded',
+            JSON.stringify(cleaned.browserWorkspaceExpanded)
+          );
+          localStorage.setItem(
+            'adl-ui:browser-active-tab',
+            JSON.stringify(cleaned.browserActiveTabId)
+          );
         } catch {
           /* localStorage unavailable (private mode) — in-memory state still updated */
         }
@@ -366,7 +371,7 @@ export function createWorkspaceActions(set: StoreApi<StoreState>["setState"], ge
         state.workspaceTreeExpandedInFileNav,
         (next) => set({ workspaceTreeExpandedInFileNav: next }),
         (entry) => get().loadWorkspaceTree(entry.id, entry.path),
-        (id) => !!state.workspaceTrees[id],
+        (id) => !!state.workspaceTrees[id]
       );
     },
 

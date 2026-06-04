@@ -3,10 +3,7 @@ use crate::error::CommandError;
 use crate::state::AppState;
 use adl_command::{build_request, run_command};
 use adl_errors::AppError;
-use adl_kernel::{
-    CommandRequest, CommandRunResult, IpcResult,
-    RiskLevel, TaskOperation,
-};
+use adl_kernel::{CommandRequest, CommandRunResult, IpcResult, RiskLevel, TaskOperation};
 use adl_storage::EntityTable;
 
 #[derive(Debug, serde::Deserialize)]
@@ -46,13 +43,8 @@ async fn command_run_inner(
     input: CommandRunInput,
 ) -> Result<CommandRunResult, AppError> {
     let workspace = crate::commands::workspace::current_workspace(state)?;
-    let request = build_request(
-        &workspace.id,
-        None,
-        input.command,
-        input.args,
-        input.shell.unwrap_or(false),
-    );
+    let request =
+        build_request(&workspace.id, None, input.command, input.args, input.shell.unwrap_or(false));
     state.db.save_entity(
         EntityTable::CommandRequests,
         &request.id,
@@ -69,11 +61,7 @@ async fn command_run_inner(
             Some("command"),
             "approval",
             request.risk_level,
-            format!(
-                "Command requires approval: {} {}",
-                request.command,
-                request.args.join(" ")
-            ),
+            format!("Command requires approval: {} {}", request.command, request.args.join(" ")),
             None,
             Some(format!("taskId={}", task.id)),
         );
@@ -85,22 +73,14 @@ async fn command_run_inner(
             approval_request: Some(approval.request),
         });
     }
-    let result = run_command(
-        std::path::Path::new(&workspace.root_path),
-        request.clone(),
-        None,
-    )
-    .await?;
+    let result =
+        run_command(std::path::Path::new(&workspace.root_path), request.clone(), None).await?;
     state.db.save_entity(
         EntityTable::CommandExecutions,
         &result.request.id,
         Some(&workspace.id),
         None,
-        Some(if result.success {
-            "completed"
-        } else {
-            "failed"
-        }),
+        Some(if result.success { "completed" } else { "failed" }),
         &result,
     )?;
     let _ = crate::commands::audit::save_audit_entry(
@@ -111,11 +91,7 @@ async fn command_run_inner(
         request.risk_level,
         result.summary.clone(),
         Some("auto"),
-        Some(format!(
-            "command={} {}",
-            request.command,
-            request.args.join(" ")
-        )),
+        Some(format!("command={} {}", request.command, request.args.join(" "))),
     );
     Ok(CommandRunResult {
         status: "completed".into(),
@@ -139,12 +115,8 @@ fn approval_for_command(
         risk_level: request.risk_level,
         reversible: false,
     };
-    let mut task = adl_task::make_task(
-        workspace_id,
-        "command",
-        "Command requires approval.",
-        operation,
-    );
+    let mut task =
+        adl_task::make_task(workspace_id, "command", "Command requires approval.", operation);
     let approval = adl_task::make_approval(&task, "Command execution approval");
     let mut approval = approval;
     approval.run_id = request.run_id.clone();

@@ -1,17 +1,17 @@
-import React, { useEffect, useRef, useState } from "react";
-import * as pdfjsLib from "pdfjs-dist";
+import React, { useEffect, useRef, useState } from 'react';
+import * as pdfjsLib from 'pdfjs-dist';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-  "pdfjs-dist/build/pdf.worker.min.mjs",
-  import.meta.url,
+  'pdfjs-dist/build/pdf.worker.min.mjs',
+  import.meta.url
 ).toString();
 
 export type PdfPreviewProps = {
   data: ArrayBuffer;
-  theme?: "light" | "dark";
+  theme?: 'light' | 'dark';
 };
 
-export function PdfPreview({ data, theme = "dark" }: PdfPreviewProps) {
+export function PdfPreview({ data, theme = 'dark' }: PdfPreviewProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [numPages, setNumPages] = useState(0);
@@ -35,7 +35,7 @@ export function PdfPreview({ data, theme = "dark" }: PdfPreviewProps) {
         canvas.width = viewport.width;
         canvas.height = viewport.height;
 
-        const ctx = canvas.getContext("2d");
+        const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
         await page.render({ canvas, canvasContext: ctx, viewport }).promise;
@@ -47,7 +47,9 @@ export function PdfPreview({ data, theme = "dark" }: PdfPreviewProps) {
     }
 
     renderPage();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [data, currentPage]);
 
   if (error) {
@@ -69,7 +71,9 @@ export function PdfPreview({ data, theme = "dark" }: PdfPreviewProps) {
           >
             ‹
           </button>
-          <span>{currentPage} / {numPages}</span>
+          <span>
+            {currentPage} / {numPages}
+          </span>
           <button
             disabled={currentPage >= numPages}
             onClick={() => setCurrentPage((p) => Math.min(numPages, p + 1))}

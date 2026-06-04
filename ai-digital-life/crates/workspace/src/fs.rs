@@ -10,9 +10,7 @@ pub fn create_file(
 ) -> Result<WorkspaceFileDocument, AppError> {
     let path = adl_fs_ops::resolve_workspace_path(root, relative_path)?;
     if path.exists() {
-        return Err(AppError::InvalidInput(format!(
-            "file already exists: {relative_path}"
-        )));
+        return Err(AppError::InvalidInput(format!("file already exists: {relative_path}")));
     }
     adl_fs_ops::atomic_write(root, relative_path, content)?;
     Ok(WorkspaceFileDocument {
@@ -25,9 +23,7 @@ pub fn create_file(
 pub fn create_folder(root: &Path, relative_path: &str) -> Result<bool, AppError> {
     let path = adl_fs_ops::resolve_workspace_path(root, relative_path)?;
     if path.exists() {
-        return Err(AppError::InvalidInput(format!(
-            "path already exists: {relative_path}"
-        )));
+        return Err(AppError::InvalidInput(format!("path already exists: {relative_path}")));
     }
     fs::create_dir_all(path)?;
     Ok(true)
@@ -38,23 +34,16 @@ pub fn rename_entry(root: &Path, relative_path: &str, new_name: &str) -> Result<
         return Err(AppError::InvalidInput("new name is required".into()));
     }
     if new_name.contains('/') || new_name.contains('\\') {
-        return Err(AppError::InvalidInput(
-            "new name must not contain path separators".into(),
-        ));
+        return Err(AppError::InvalidInput("new name must not contain path separators".into()));
     }
     let src = adl_fs_ops::resolve_workspace_path(root, relative_path)?;
     if !src.exists() {
-        return Err(AppError::NotFound(format!(
-            "path not found: {relative_path}"
-        )));
+        return Err(AppError::NotFound(format!("path not found: {relative_path}")));
     }
     let parent = src.parent().unwrap_or(root);
     let dst = parent.join(new_name);
     if dst.exists() {
-        return Err(AppError::InvalidInput(format!(
-            "target already exists: {}",
-            new_name
-        )));
+        return Err(AppError::InvalidInput(format!("target already exists: {}", new_name)));
     }
     fs::rename(&src, &dst)?;
     Ok(true)
@@ -63,13 +52,10 @@ pub fn rename_entry(root: &Path, relative_path: &str, new_name: &str) -> Result<
 pub fn delete_entry(root: &Path, relative_path: &str) -> Result<bool, AppError> {
     let path = adl_fs_ops::resolve_workspace_path(root, relative_path)?;
     if !path.exists() {
-        return Err(AppError::NotFound(format!(
-            "path not found: {relative_path}"
-        )));
+        return Err(AppError::NotFound(format!("path not found: {relative_path}")));
     }
-    trash::delete(&path).map_err(|e| {
-        AppError::InvalidInput(format!("failed to move to trash: {e}"))
-    })?;
+    trash::delete(&path)
+        .map_err(|e| AppError::InvalidInput(format!("failed to move to trash: {e}")))?;
     Ok(true)
 }
 
@@ -94,14 +80,8 @@ fn resolve_conflict_path(dst: &Path) -> PathBuf {
         return dst.to_path_buf();
     }
     let parent = dst.parent().unwrap_or(Path::new(""));
-    let stem = dst
-        .file_stem()
-        .map(|s| s.to_string_lossy().to_string())
-        .unwrap_or_default();
-    let ext = dst
-        .extension()
-        .map(|s| format!(".{}", s.to_string_lossy()))
-        .unwrap_or_default();
+    let stem = dst.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
+    let ext = dst.extension().map(|s| format!(".{}", s.to_string_lossy())).unwrap_or_default();
     for i in 1..100 {
         let candidate = parent.join(format!("{stem}-copy{i}{ext}"));
         if !candidate.exists() {
@@ -118,9 +98,7 @@ pub fn duplicate_entry(
 ) -> Result<bool, AppError> {
     let src = adl_fs_ops::resolve_workspace_path(root, src_relative_path)?;
     if !src.exists() {
-        return Err(AppError::NotFound(format!(
-            "source not found: {src_relative_path}"
-        )));
+        return Err(AppError::NotFound(format!("source not found: {src_relative_path}")));
     }
     let dst = resolve_conflict_path(&adl_fs_ops::resolve_workspace_path(root, dst_relative_path)?);
     if let Some(parent) = dst.parent() {
@@ -141,15 +119,11 @@ pub fn move_entry(
 ) -> Result<bool, AppError> {
     let src = adl_fs_ops::resolve_workspace_path(root, src_relative_path)?;
     if !src.exists() {
-        return Err(AppError::NotFound(format!(
-            "source not found: {src_relative_path}"
-        )));
+        return Err(AppError::NotFound(format!("source not found: {src_relative_path}")));
     }
     let dst = adl_fs_ops::resolve_workspace_path(root, dst_relative_path)?;
     if dst.exists() {
-        return Err(AppError::InvalidInput(format!(
-            "target already exists: {dst_relative_path}"
-        )));
+        return Err(AppError::InvalidInput(format!("target already exists: {dst_relative_path}")));
     }
     if let Some(parent) = dst.parent() {
         fs::create_dir_all(parent)?;

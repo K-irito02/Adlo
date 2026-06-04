@@ -1,6 +1,6 @@
-import { useCallback } from "react";
-import type { CopyDict } from "../i18n";
-import { WorkspaceSplitButton } from "./WorkspaceSplitButton";
+import { useCallback } from 'react';
+import type { CopyDict } from '../i18n';
+import { WorkspaceSplitButton } from './WorkspaceSplitButton';
 
 interface CreateWorkspaceModalProps {
   open: boolean;
@@ -15,7 +15,7 @@ export function CreateWorkspaceModal({
   t,
   onPickWorkspaceDirectory,
   onOpenWorkspace,
-  onClose
+  onClose,
 }: CreateWorkspaceModalProps) {
   const handleBackdrop = useCallback(
     (e: React.MouseEvent) => {
@@ -27,8 +27,19 @@ export function CreateWorkspaceModal({
   if (!open) return null;
 
   return (
-    <div className="adl-prompt-modal" onClick={handleBackdrop} onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}>
-      <div className="adl-prompt-modal__panel adl-prompt-modal__panel--wide" role="dialog" aria-modal="true" aria-label={t.workspaceNewTitle}>
+    <div
+      className="adl-prompt-modal"
+      onClick={handleBackdrop}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') onClose();
+      }}
+    >
+      <div
+        className="adl-prompt-modal__panel adl-prompt-modal__panel--wide"
+        role="dialog"
+        aria-modal="true"
+        aria-label={t.workspaceNewTitle}
+      >
         <div className="adl-prompt-modal__header">{t.workspaceNewTitle}</div>
         <div className="adl-prompt-modal__body">
           <div className="adl-statusbar__menu-section">

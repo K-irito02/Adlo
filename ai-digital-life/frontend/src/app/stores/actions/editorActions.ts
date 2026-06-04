@@ -1,7 +1,7 @@
-import type { StoreState } from "../StoreState";
-import { createEditorTab } from "../../utils/editorTabs";
-import { buildOutlineFromContent } from "../../../shared/outline";
-import { normalizeWorkspaceRelativePath, mergeDirtyEditorPaths } from "../../utils/workspacePaths";
+import type { StoreState } from '../StoreState';
+import { createEditorTab } from '../../utils/editorTabs';
+import { buildOutlineFromContent } from '../../../shared/outline';
+import { normalizeWorkspaceRelativePath, mergeDirtyEditorPaths } from '../../utils/workspacePaths';
 import {
   getWorkspaceScopedCacheKey,
   FILE_DOCUMENT_CACHE_LIMIT,
@@ -15,9 +15,14 @@ import {
   setCachedFileDocument,
   getCachedChangePreview,
   setCachedChangePreview,
-} from "../shared";
-import type { FileOutlineItem, IpcResult, WorkspaceFileDocument, WorkspaceChangePreview } from "@ai-digital-life/kernel";
-import type { StoreApi } from "zustand";
+} from '../shared';
+import type {
+  FileOutlineItem,
+  IpcResult,
+  WorkspaceFileDocument,
+  WorkspaceChangePreview,
+} from '@ai-digital-life/kernel';
+import type { StoreApi } from 'zustand';
 
 type OpenFileConfig = {
   cacheKey: string;
@@ -26,20 +31,16 @@ type OpenFileConfig = {
 };
 
 async function openFileGeneric(
-  set: StoreApi<StoreState>["setState"],
+  set: StoreApi<StoreState>['setState'],
   get: () => StoreState,
   relativePath: string,
   requestSeq: number,
-  config: OpenFileConfig,
+  config: OpenFileConfig
 ) {
   const cachedDocument = getCachedFileDocument(config.cacheKey);
 
-  const applyDocument = (
-    document: CachedFileDocument,
-    outlineOverride?: FileOutlineItem[]
-  ) => {
-    const nextOutline =
-      outlineOverride ?? buildOutlineFromContent(document.content, relativePath);
+  const applyDocument = (document: CachedFileDocument, outlineOverride?: FileOutlineItem[]) => {
+    const nextOutline = outlineOverride ?? buildOutlineFromContent(document.content, relativePath);
     const norm = normalizeWorkspaceRelativePath(relativePath);
     set((state: StoreState) => {
       const nextDirty = state.dirtyEditorPaths.filter(
@@ -56,9 +57,7 @@ async function openFileGeneric(
         fileContent: document.content,
         fileLastModifiedAt: document.lastModifiedAt,
         externalFileChange:
-          state.externalFileChange?.path === relativePath
-            ? undefined
-            : state.externalFileChange,
+          state.externalFileChange?.path === relativePath ? undefined : state.externalFileChange,
         outline: nextOutline,
         dirtyEditorPaths: nextDirty,
       };
@@ -85,10 +84,7 @@ async function openFileGeneric(
     set({ error: fileResult.error.message });
     return;
   }
-  const nextOutline = buildOutlineFromContent(
-    fileResult.data.content,
-    relativePath
-  );
+  const nextOutline = buildOutlineFromContent(fileResult.data.content, relativePath);
   const nextDocument: CachedFileDocument = {
     content: fileResult.data.content,
     lastModifiedAt: fileResult.data.lastModifiedAt,
@@ -104,11 +100,11 @@ type OpenChangePreviewConfig = {
 };
 
 async function openChangePreviewGeneric(
-  set: StoreApi<StoreState>["setState"],
+  set: StoreApi<StoreState>['setState'],
   get: () => StoreState,
   relativePath: string,
   requestSeq: number,
-  config: OpenChangePreviewConfig,
+  config: OpenChangePreviewConfig
 ) {
   set({ changePreviewLoading: true });
 
@@ -136,10 +132,7 @@ async function openChangePreviewGeneric(
       selectedChangePreviewPath: relativePath,
       selectedChangePreviewWorkspaceId: config.workspaceId,
       changePreviewLoading: false,
-      changePreview:
-        get().changePreview?.path === relativePath
-          ? undefined
-          : get().changePreview,
+      changePreview: get().changePreview?.path === relativePath ? undefined : get().changePreview,
     });
     return;
   }
@@ -153,7 +146,7 @@ async function openChangePreviewGeneric(
   });
 }
 
-export function createEditorActions(set: StoreApi<StoreState>["setState"], get: () => StoreState) {
+export function createEditorActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
   return {
     openFile: async (relativePath: string) => {
       await openFileGeneric(set, get, relativePath, getNextFileRequestSeq(), {
@@ -163,11 +156,16 @@ export function createEditorActions(set: StoreApi<StoreState>["setState"], get: 
       });
     },
 
-    openFileForWorkspace: async (workspaceId: string, workspacePath: string, relativePath: string) => {
+    openFileForWorkspace: async (
+      workspaceId: string,
+      workspacePath: string,
+      relativePath: string
+    ) => {
       await openFileGeneric(set, get, relativePath, getNextFileRequestSeq(), {
         cacheKey: `${workspacePath}:${relativePath}`,
         workspaceId,
-        readFile: () => window.digitalLife.workspace.readFileForWorkspace(workspacePath, relativePath),
+        readFile: () =>
+          window.digitalLife.workspace.readFileForWorkspace(workspacePath, relativePath),
       });
     },
 
@@ -182,25 +180,20 @@ export function createEditorActions(set: StoreApi<StoreState>["setState"], get: 
     openChangePreviewForWorkspace: async (workspacePath: string, relativePath: string) => {
       await openChangePreviewGeneric(set, get, relativePath, getNextChangePreviewRequestSeq(), {
         cacheKey: getWorkspaceScopedCacheKey(get().appInfo, `${workspacePath}:${relativePath}`),
-        workspaceId: get().recentWorkspaces.find(w => w.path === workspacePath)?.id,
-        getPreview: () => window.digitalLife.workspace.getChangePreviewForWorkspace(workspacePath, relativePath),
+        workspaceId: get().recentWorkspaces.find((w) => w.path === workspacePath)?.id,
+        getPreview: () =>
+          window.digitalLife.workspace.getChangePreviewForWorkspace(workspacePath, relativePath),
       });
     },
 
-    createWorkspaceFile: async (relativePath: string, content = "") => {
-      const result = await window.digitalLife.workspace.createFile(
-        relativePath,
-        content
-      );
+    createWorkspaceFile: async (relativePath: string, content = '') => {
+      const result = await window.digitalLife.workspace.createFile(relativePath, content);
       if (!result.ok) {
         set({ error: result.error.message });
         return undefined;
       }
       await get().refreshWorkspaceTree();
-      const nextOutline = buildOutlineFromContent(
-        result.data.content,
-        relativePath
-      );
+      const nextOutline = buildOutlineFromContent(result.data.content, relativePath);
       const norm = normalizeWorkspaceRelativePath(relativePath);
       set((state: StoreState) => {
         const nextDirty = state.dirtyEditorPaths.filter(
@@ -216,9 +209,7 @@ export function createEditorActions(set: StoreApi<StoreState>["setState"], get: 
           fileContent: result.data.content,
           fileLastModifiedAt: result.data.lastModifiedAt,
           externalFileChange:
-            state.externalFileChange?.path === relativePath
-              ? undefined
-              : state.externalFileChange,
+            state.externalFileChange?.path === relativePath ? undefined : state.externalFileChange,
           outline: nextOutline,
           dirtyEditorPaths: nextDirty,
         };
@@ -227,9 +218,7 @@ export function createEditorActions(set: StoreApi<StoreState>["setState"], get: 
     },
 
     createWorkspaceFolder: async (relativePath: string) => {
-      const result = await window.digitalLife.workspace.createFolder(
-        relativePath
-      );
+      const result = await window.digitalLife.workspace.createFolder(relativePath);
       if (!result.ok) {
         set({ error: result.error.message });
         return undefined;
@@ -239,18 +228,22 @@ export function createEditorActions(set: StoreApi<StoreState>["setState"], get: 
       return relativePath;
     },
 
-    markExternalFileChange: ({ path, lastModifiedAt }: { path: string; lastModifiedAt: number }) => {
-      const selected = normalizeWorkspaceRelativePath(
-        get().selectedFilePath ?? ""
-      );
+    markExternalFileChange: ({
+      path,
+      lastModifiedAt,
+    }: {
+      path: string;
+      lastModifiedAt: number;
+    }) => {
+      const selected = normalizeWorkspaceRelativePath(get().selectedFilePath ?? '');
       const incoming = normalizeWorkspaceRelativePath(path);
       if (!selected || selected !== incoming) return;
       if (
-        typeof get().fileLastModifiedAt === "number" &&
+        typeof get().fileLastModifiedAt === 'number' &&
         get().fileLastModifiedAt === lastModifiedAt
       )
         return;
-      console.info("[workspace] external file changed", {
+      console.info('[workspace] external file changed', {
         path: incoming,
         lastModifiedAt,
       });
@@ -266,11 +259,7 @@ export function createEditorActions(set: StoreApi<StoreState>["setState"], get: 
 
     notifyEditorBufferDirty: (relativePath: string, isDirty: boolean) => {
       set((state: StoreState) => {
-        const nextDirty = mergeDirtyEditorPaths(
-          state.dirtyEditorPaths,
-          relativePath,
-          isDirty
-        );
+        const nextDirty = mergeDirtyEditorPaths(state.dirtyEditorPaths, relativePath, isDirty);
         void window.digitalLife.workspace.setEditorDirtyPaths(nextDirty);
         return { dirtyEditorPaths: nextDirty };
       });

@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, useCallback } from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 
 interface RenameDialogProps {
   open: boolean;
@@ -14,20 +14,22 @@ interface RenameDialogProps {
 export function RenameDialog({
   open,
   initialValue,
-  title = "重命名",
-  placeholder = "输入新名称",
+  title = '重命名',
+  placeholder = '输入新名称',
   itemInfo,
   onConfirm,
   onCancel,
 }: RenameDialogProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [value, setValue] = useState("");
+  const [value, setValue] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (open) {
-      setValue(initialValue);
-      setLoading(false);
+      requestAnimationFrame(() => {
+        setValue(initialValue);
+        setLoading(false);
+      });
       requestAnimationFrame(() => {
         inputRef.current?.focus();
         inputRef.current?.select();
@@ -51,9 +53,9 @@ export function RenameDialog({
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.key === "Enter" && !loading) {
+      if (e.key === 'Enter' && !loading) {
         void handleOk();
-      } else if (e.key === "Escape") {
+      } else if (e.key === 'Escape') {
         onCancel();
       }
     },
@@ -70,16 +72,10 @@ export function RenameDialog({
   if (!open) return null;
 
   return createPortal(
-    <div
-      className="adl-prompt-modal"
-      onKeyDown={handleKeyDown}
-      onClick={handleBackdrop}
-    >
+    <div className="adl-prompt-modal" onKeyDown={handleKeyDown} onClick={handleBackdrop}>
       <div className="adl-prompt-modal__panel" role="dialog" aria-modal="true" aria-label={title}>
         <div className="adl-prompt-modal__header">{title}</div>
-        {itemInfo && (
-          <div className="adl-prompt-modal__item-info">{itemInfo}</div>
-        )}
+        {itemInfo && <div className="adl-prompt-modal__item-info">{itemInfo}</div>}
         <input
           ref={inputRef}
           className="adl-prompt-modal__input"
@@ -104,7 +100,7 @@ export function RenameDialog({
             onClick={() => void handleOk()}
             disabled={loading}
           >
-            {loading ? "确认中..." : "确认"}
+            {loading ? '确认中...' : '确认'}
           </button>
         </div>
       </div>

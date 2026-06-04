@@ -1,20 +1,26 @@
-import React, { useMemo, useRef, useState } from "react";
-import { useShallow } from "zustand/react/shallow";
-import type { ReorderSessionsInput, ReorderWorkspacesInput } from "@ai-digital-life/kernel";
-import type { CopyDict, Locale } from "../i18n";
-import { IconArchive, IconPlug, IconSparkles } from "../icons";
-import { buildSidebarViewModel } from "../utils/sidebarViewModel";
-import { useUiStore } from "../stores/ui-store";
-import { useAppStore } from "../stores/slicedStore";
-import { useAppActions } from "../hooks/useAppActions";
-import { TooltipSimple } from "../components/Tooltip";
-import { RenameDialog } from "../components/RenameDialog";
-import { SidebarContextMenu, SidebarMenuState, buildWorkspaceMenuItems, buildSessionMenuItems, exportSessionMarkdown } from "./left-sidebar/SidebarContextMenu";
-import { ResizeHandle } from "./left-sidebar/ResizeHandle";
-import { ConversationPanel } from "./left-sidebar/ConversationPanel";
-import { WorkspaceList } from "./left-sidebar/WorkspaceList";
-import { SessionList } from "./left-sidebar/SessionList";
-import type { SidebarSessionItem } from "../utils/sidebarViewModel";
+import React, { useMemo, useRef, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
+import type { ReorderSessionsInput, ReorderWorkspacesInput } from '@ai-digital-life/kernel';
+import type { CopyDict, Locale } from '../i18n';
+import { IconArchive, IconPlug, IconSparkles } from '../icons';
+import { buildSidebarViewModel } from '../utils/sidebarViewModel';
+import { useUiStore } from '../stores/ui-store';
+import { useAppStore } from '../stores/slicedStore';
+import { useAppActions } from '../hooks/useAppActions';
+import { TooltipSimple } from '../components/Tooltip';
+import { RenameDialog } from '../components/RenameDialog';
+import {
+  SidebarContextMenu,
+  SidebarMenuState,
+  buildWorkspaceMenuItems,
+  buildSessionMenuItems,
+  exportSessionMarkdown,
+} from './left-sidebar/SidebarContextMenu';
+import { ResizeHandle } from './left-sidebar/ResizeHandle';
+import { ConversationPanel } from './left-sidebar/ConversationPanel';
+import { WorkspaceList } from './left-sidebar/WorkspaceList';
+import { SessionList } from './left-sidebar/SessionList';
+import type { SidebarSessionItem } from '../utils/sidebarViewModel';
 
 interface LeftSidebarProps {
   t: CopyDict;
@@ -27,7 +33,7 @@ export function LeftSidebar({
   t,
   collapsed,
   onCreateSession,
-  onTriggerCreateWorkspace
+  onTriggerCreateWorkspace,
 }: LeftSidebarProps) {
   const actions = useAppActions();
   const appInfo = useAppStore(useShallow((s) => s.appInfo));
@@ -36,11 +42,11 @@ export function LeftSidebar({
   const activeSessionId = useAppStore((s) => s.activeSessionId);
   const streamingActiveRunId = useAppStore((s) => s.streamingActiveRunId);
   const taskCenter = useAppStore(useShallow((s) => s.taskCenter));
-  const locale = (appInfo?.config.language ?? "zh-CN") as Locale;
+  const locale = (appInfo?.config.language ?? 'zh-CN') as Locale;
   const { expandedSessionWorkspaces, toggleSessionWorkspace } = useUiStore(
     useShallow((state) => ({
       expandedSessionWorkspaces: state.expandedSessionWorkspaces,
-      toggleSessionWorkspace: state.toggleSessionWorkspace
+      toggleSessionWorkspace: state.toggleSessionWorkspace,
     }))
   );
   const [menuState, setMenuState] = useState<SidebarMenuState>();
@@ -58,7 +64,7 @@ export function LeftSidebar({
         recentWorkspaces,
         sessions,
         streamingActiveRunId,
-        taskCenter
+        taskCenter,
       }),
     [appInfo, recentWorkspaces, sessions, streamingActiveRunId, taskCenter]
   );
@@ -97,18 +103,21 @@ export function LeftSidebar({
     onReorderSessions: actions.reorderSessions,
     activeSessionId,
     locale,
-    t
+    t,
   };
 
   return (
     <aside
-      className={`adl-leftbar${collapsed ? " adl-leftbar--collapsed" : ""}`}
+      className={`adl-leftbar${collapsed ? ' adl-leftbar--collapsed' : ''}`}
       aria-label="Workspace and session navigator"
       aria-hidden={collapsed}
     >
       <div className="adl-leftbar__content" ref={leftbarContentRef}>
         <section className="adl-leftbar__quick">
-          <TooltipSimple content={`${t.quickSkills} · ${t.quickSkillsComingSoon}`} placement="right">
+          <TooltipSimple
+            content={`${t.quickSkills} · ${t.quickSkillsComingSoon}`}
+            placement="right"
+          >
             <button type="button" className="adl-quick-btn" disabled>
               <IconSparkles size={16} decorative />
               <span className="adl-quick-btn__label">{t.quickSkills}</span>
@@ -138,7 +147,9 @@ export function LeftSidebar({
           onCreateSession={onCreateSession}
           onTriggerCreateWorkspace={onTriggerCreateWorkspace}
           onSelectSession={actions.selectSession}
-          onContextMenu={(workspaceId, x, y) => setMenuState({ type: "workspace", workspaceId, x, y })}
+          onContextMenu={(workspaceId, x, y) =>
+            setMenuState({ type: 'workspace', workspaceId, x, y })
+          }
           renderSessionRows={(sessionItems, options) => (
             <SessionList
               sessionItems={sessionItems}
@@ -147,7 +158,9 @@ export function LeftSidebar({
               interactive={options.interactive}
               allowStandaloneReorder={options.allowStandaloneReorder}
               {...commonSessionProps}
-              onSessionContextMenu={(sessionId, x, y) => setMenuState({ type: "session", sessionId, x, y })}
+              onSessionContextMenu={(sessionId, x, y) =>
+                setMenuState({ type: 'session', sessionId, x, y })
+              }
             />
           )}
           workspaceToolbarRef={workspaceToolbarRef}
@@ -160,13 +173,17 @@ export function LeftSidebar({
           workspaceToolbarRef={workspaceToolbarRef}
         >
           <ul className="adl-session-list adl-session-list--standalone" role="list">
-            {displayStandaloneSessions.length === 0 ? <li className="adl-empty-hint">{t.conversationEmpty}</li> : null}
+            {displayStandaloneSessions.length === 0 ? (
+              <li className="adl-empty-hint">{t.conversationEmpty}</li>
+            ) : null}
             <SessionList
               sessionItems={displayStandaloneSessions}
               listKey="standalone"
               allowStandaloneReorder={false}
               {...commonSessionProps}
-              onSessionContextMenu={(sessionId, x, y) => setMenuState({ type: "session", sessionId, x, y })}
+              onSessionContextMenu={(sessionId, x, y) =>
+                setMenuState({ type: 'session', sessionId, x, y })
+              }
             />
           </ul>
           {displayStandaloneArchivedSessions.length > 0 ? (
@@ -182,7 +199,9 @@ export function LeftSidebar({
                   listKey="standalone-archive"
                   interactive={false}
                   {...commonSessionProps}
-                  onSessionContextMenu={(sessionId, x, y) => setMenuState({ type: "session", sessionId, x, y })}
+                  onSessionContextMenu={(sessionId, x, y) =>
+                    setMenuState({ type: 'session', sessionId, x, y })
+                  }
                 />
               </ul>
             </details>
@@ -190,55 +209,63 @@ export function LeftSidebar({
         </ConversationPanel>
       </div>
 
-      {menuState ? (
-        menuState.type === "workspace" ? (
-          (() => {
-            const workspace = workspaceItems.find((item) => item.workspace.id === menuState.workspaceId);
-            const sessionIds = workspaceItems.find((item) => item.workspace.id === menuState.workspaceId)?.sessions.map((item) => item.session.id) ?? [];
-            return workspace ? (
-              <SidebarContextMenu
-                items={buildWorkspaceMenuItems(workspace.workspace, sessionIds, t, {
-                  onPinWorkspace: actions.pinWorkspace,
-                  onUnpinWorkspace: actions.unpinWorkspace,
-                  onMarkAllSessionsRead: actions.markAllSessionsRead,
-                  onArchiveAllSessions: actions.archiveAllSessions,
-                  onRemoveWorkspace: actions.removeWorkspaceFromSidebar,
-                  onRevealWorkspace: actions.revealWorkspaceInFileManager,
-                  onShowInRightPanels: actions.showWorkspaceInRightPanels
-                })}
-                x={menuState.x}
-                y={menuState.y}
-                onClose={() => setMenuState(undefined)}
-              />
-            ) : null;
-          })()
-        ) : sessionItemsById.has(menuState.sessionId) ? (
-          (() => {
-            const sessionItem = sessionItemsById.get(menuState.sessionId)!;
-            return (
-              <SidebarContextMenu
-                items={buildSessionMenuItems(sessionItem, t, {
-                  onRename: () => {
-                    setSessionToRename({ id: sessionItem.session.id, name: sessionItem.session.title });
-                    setRenameDialogOpen(true);
-                  },
-                  onMarkRead: () => actions.markSessionRead(sessionItem.session.id),
-                  onMarkUnread: () => actions.markSessionUnread(sessionItem.session.id),
-                  onArchive: () => actions.archiveSession(sessionItem.session.id),
-                  onCopyId: () => void navigator.clipboard?.writeText(sessionItem.session.id),
-                  onExport: () => void exportSessionMarkdown(sessionItem.session),
-                  onPin: () => actions.pinSession(sessionItem.session.id),
-                  onUnpin: () => actions.unpinSession(sessionItem.session.id),
-                  onDelete: () => actions.deleteSession(sessionItem.session.id)
-                })}
-                x={menuState.x}
-                y={menuState.y}
-                onClose={() => setMenuState(undefined)}
-              />
-            );
-          })()
-        ) : null
-      ) : null}
+      {menuState
+        ? menuState.type === 'workspace'
+          ? (() => {
+              const workspace = workspaceItems.find(
+                (item) => item.workspace.id === menuState.workspaceId
+              );
+              const sessionIds =
+                workspaceItems
+                  .find((item) => item.workspace.id === menuState.workspaceId)
+                  ?.sessions.map((item) => item.session.id) ?? [];
+              return workspace ? (
+                <SidebarContextMenu
+                  items={buildWorkspaceMenuItems(workspace.workspace, sessionIds, t, {
+                    onPinWorkspace: actions.pinWorkspace,
+                    onUnpinWorkspace: actions.unpinWorkspace,
+                    onMarkAllSessionsRead: actions.markAllSessionsRead,
+                    onArchiveAllSessions: actions.archiveAllSessions,
+                    onRemoveWorkspace: actions.removeWorkspaceFromSidebar,
+                    onRevealWorkspace: actions.revealWorkspaceInFileManager,
+                    onShowInRightPanels: actions.showWorkspaceInRightPanels,
+                  })}
+                  x={menuState.x}
+                  y={menuState.y}
+                  onClose={() => setMenuState(undefined)}
+                />
+              ) : null;
+            })()
+          : sessionItemsById.has(menuState.sessionId)
+            ? (() => {
+                const sessionItem = sessionItemsById.get(menuState.sessionId)!;
+                return (
+                  <SidebarContextMenu
+                    items={buildSessionMenuItems(sessionItem, t, {
+                      onRename: () => {
+                        setSessionToRename({
+                          id: sessionItem.session.id,
+                          name: sessionItem.session.title,
+                        });
+                        setRenameDialogOpen(true);
+                      },
+                      onMarkRead: () => actions.markSessionRead(sessionItem.session.id),
+                      onMarkUnread: () => actions.markSessionUnread(sessionItem.session.id),
+                      onArchive: () => actions.archiveSession(sessionItem.session.id),
+                      onCopyId: () => void navigator.clipboard?.writeText(sessionItem.session.id),
+                      onExport: () => void exportSessionMarkdown(sessionItem.session),
+                      onPin: () => actions.pinSession(sessionItem.session.id),
+                      onUnpin: () => actions.unpinSession(sessionItem.session.id),
+                      onDelete: () => actions.deleteSession(sessionItem.session.id),
+                    })}
+                    x={menuState.x}
+                    y={menuState.y}
+                    onClose={() => setMenuState(undefined)}
+                  />
+                );
+              })()
+            : null
+        : null}
 
       {sessionToRename && (
         <RenameDialog

@@ -21,7 +21,7 @@
 
 .adl-titlebar > *,
 .adl-titlebar button,
-.adl-titlebar [role="menu"],
+.adl-titlebar [role='menu'],
 .adl-titlebar .adl-titlebar__left,
 .adl-titlebar .adl-titlebar__right {
   -webkit-app-region: no-drag;
@@ -31,7 +31,7 @@
   -webkit-app-region: drag;
 }
 
-[data-shell="browser"] .adl-titlebar [data-tauri-drag-region] {
+[data-shell='browser'] .adl-titlebar [data-tauri-drag-region] {
   -webkit-app-region: no-drag;
   cursor: default;
 }
@@ -368,7 +368,6 @@
   border-color: transparent;
 }
 
-
 .adl-titlebar .adl-iconstrip__button {
   display: inline-flex;
   align-self: stretch;
@@ -389,9 +388,14 @@
   pointer-events: auto;
 }
 
-.adl-titlebar .tooltip-trigger:has(> .adl-iconstrip__button:is(:hover, .is-open, .is-active, [aria-pressed="true"], :focus-visible))
-  + .tooltip-trigger:has(> .adl-iconstrip__button:is(:hover, .is-open, .is-active, [aria-pressed="true"], :focus-visible))::before {
-  content: "";
+.adl-titlebar
+  .tooltip-trigger:has(
+    > .adl-iconstrip__button:is(:hover, .is-open, .is-active, [aria-pressed='true'], :focus-visible)
+  )
+  + .tooltip-trigger:has(
+    > .adl-iconstrip__button:is(:hover, .is-open, .is-active, [aria-pressed='true'], :focus-visible)
+  )::before {
+  content: '';
   position: absolute;
   left: 0;
   top: 7px;

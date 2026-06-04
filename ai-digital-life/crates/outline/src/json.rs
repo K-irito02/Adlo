@@ -19,10 +19,7 @@ pub(crate) fn parse_json_outline(content: &str) -> Vec<OutlineDraft> {
         let effective_depth =
             brace_depth.saturating_sub(count_leading_closers(&sanitized, &['}', ']']));
         if let Some(captures) = key_regex().captures(trimmed) {
-            let value = captures
-                .get(2)
-                .map(|capture| capture.as_str().trim())
-                .unwrap_or("");
+            let value = captures.get(2).map(|capture| capture.as_str().trim()).unwrap_or("");
             if value.is_empty() || value.starts_with('{') || value.starts_with('[') {
                 drafts.push(OutlineDraft {
                     label: captures[1].to_string(),

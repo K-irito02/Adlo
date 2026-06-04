@@ -2,11 +2,8 @@
  * 补丁切片
  * 管理补丁集、应用结果等状态
  */
-import type {
-  PatchSet,
-  PatchApplicationResult
-} from "@ai-digital-life/kernel";
-import type { StoreState } from "../StoreState";
+import type { PatchSet, PatchApplicationResult } from '@ai-digital-life/kernel';
+import type { StoreState } from '../StoreState';
 
 export interface PatchSlice {
   activePatchSet?: PatchSet;
@@ -27,5 +24,6 @@ export const createPatchSlice = (
   setActivePatchSet: (patchSet) => set({ activePatchSet: patchSet }),
   setActivePatchSets: (patchSets) => set({ activePatchSets: patchSets }),
   setLatestPatchApplication: (result) => set({ latestPatchApplication: result }),
-  clearPatchState: () => set({ activePatchSet: undefined, activePatchSets: {}, latestPatchApplication: undefined })
+  clearPatchState: () =>
+    set({ activePatchSet: undefined, activePatchSets: {}, latestPatchApplication: undefined }),
 });

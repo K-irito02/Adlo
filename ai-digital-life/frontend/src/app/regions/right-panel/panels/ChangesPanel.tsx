@@ -1,46 +1,83 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { EditorView } from "@codemirror/view";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { EditorView } from '@codemirror/view';
 import {
-  IconChevronDown, IconChevronRight, IconClipboardList, IconCopy,
-  IconFiles, IconFileText, IconFolderOpen, IconPencil,
-  IconTarget, IconTrash, IconUpload
-} from "../../../icons";
-import { TooltipSimple } from "../../../components/Tooltip";
-import { useAppStore } from "../../../stores/slicedStore";
-import { useShallow } from "zustand/react/shallow";
-import type { StoreState } from "../../../stores/StoreState";
-import { useUiStore } from "../../../stores/ui-store";
-import { countGitChanges } from "../types";
-import { joinPathSegments, normalizeWorkspaceRelativePath, detectEditorLanguage } from "../../../utils/workspacePaths";
-import type { ChangesPanelProps } from "../types";
-import type { WorkspaceTreeNode, ReorderWorkspacesInput } from "@ai-digital-life/kernel";
-import { countReviewedHunks, filterPatchFileSummaries, summarizePatchFile, summarizePatchSet } from "../../../features/patch-review";
-import { PatchReviewSummary, PatchFileCard } from "../../../features/patch-review";
-import { DiffToolbar } from "../DiffToolbar";
-import { StickyContext } from "../editor-support/stickyContextView";
-import { useStickyContext, useEditorOptions } from "../hooks";
-import { buildChangeEntries, buildChangeTree, buildFlatChangeNodes, type ChangeFileState, type ChangeTreeNode } from "../changesTree";
-import { type PreviewDiffCollapsedRange, computePreviewDiffVisualRanges } from "../../../features/diff-viewer";
-import { collectDirectoryPaths, FileTree, type FileTreeContextMenuItem } from "../../../features/file-tree";
-import { categorizeFile } from "../fileTypeRouter";
-import { DiffViewer } from "../../../features/diff-viewer";
-import { CodeEditor } from "../../../features/editor";
-import { LazyMarkdownPreviewWrapper } from "../../../features/preview";
-import type { EditorRef, DiffEditorRef } from "../../../stores/types";
-import { CodeMirrorEditorRef } from "../../../features/editor";
-import { estimateWrapColumn } from "../editor-support/cmWrapColumn";
-import { navigateToLine } from "../editor-support/stickyContext";
-import { buildOutlineFromContent, getDefaultExpandedOutlineIds } from "../../../features/outline";
-import { readSelectedBranch, writeSelectedBranch, getChangeKindLabel, getChangeStatusLabel, getPrimaryBadge, getEditorView } from "../ChangesPanel/utils";
-import { ChangesEmptyState } from "./ChangesEmptyState";
-import { ChangesToolbar } from "./ChangesToolbar";
-import { ChangesConfirmDialogs } from "./ChangesConfirmDialogs";
-import { RenameDialog } from "../../../components/RenameDialog";
-import { ChangesTreePanel } from "./ChangesTreePanel";
-import type { PatchFileSummary } from "../../../features/patch-review";
-import type { PatchHunkDecision } from "@ai-digital-life/kernel";
+  IconChevronDown,
+  IconChevronRight,
+  IconClipboardList,
+  IconCopy,
+  IconFiles,
+  IconFileText,
+  IconFolderOpen,
+  IconPencil,
+  IconTarget,
+  IconTrash,
+  IconUpload,
+} from '../../../icons';
+import { TooltipSimple } from '../../../components/Tooltip';
+import { useAppStore } from '../../../stores/slicedStore';
+import { useShallow } from 'zustand/react/shallow';
+import type { StoreState } from '../../../stores/StoreState';
+import { useUiStore } from '../../../stores/ui-store';
+import { countGitChanges } from '../types';
+import {
+  joinPathSegments,
+  normalizeWorkspaceRelativePath,
+  detectEditorLanguage,
+} from '../../../utils/workspacePaths';
+import type { ChangesPanelProps } from '../types';
+import type { WorkspaceTreeNode, ReorderWorkspacesInput } from '@ai-digital-life/kernel';
+import {
+  countReviewedHunks,
+  filterPatchFileSummaries,
+  summarizePatchFile,
+  summarizePatchSet,
+} from '../../../features/patch-review';
+import { PatchReviewSummary, PatchFileCard } from '../../../features/patch-review';
+import { DiffToolbar } from '../DiffToolbar';
+import { StickyContext } from '../editor-support/stickyContextView';
+import { useStickyContext, useEditorOptions } from '../hooks';
+import {
+  buildChangeEntries,
+  buildChangeTree,
+  buildFlatChangeNodes,
+  type ChangeFileState,
+  type ChangeTreeNode,
+} from '../changesTree';
+import {
+  type PreviewDiffCollapsedRange,
+  computePreviewDiffVisualRanges,
+} from '../../../features/diff-viewer';
+import {
+  collectDirectoryPaths,
+  FileTree,
+  type FileTreeContextMenuItem,
+} from '../../../features/file-tree';
+import { categorizeFile } from '../fileTypeRouter';
+import { DiffViewer } from '../../../features/diff-viewer';
+import { CodeEditor } from '../../../features/editor';
+import { LazyMarkdownPreviewWrapper } from '../../../features/preview';
+import type { EditorRef, DiffEditorRef } from '../../../stores/types';
+import { CodeMirrorEditorRef } from '../../../features/editor';
+import { estimateWrapColumn } from '../editor-support/cmWrapColumn';
+import { navigateToLine } from '../editor-support/stickyContext';
+import { buildOutlineFromContent, getDefaultExpandedOutlineIds } from '../../../features/outline';
+import {
+  readSelectedBranch,
+  writeSelectedBranch,
+  getChangeKindLabel,
+  getChangeStatusLabel,
+  getPrimaryBadge,
+  getEditorView,
+} from '../ChangesPanel/utils';
+import { ChangesEmptyState } from './ChangesEmptyState';
+import { ChangesToolbar } from './ChangesToolbar';
+import { ChangesConfirmDialogs } from './ChangesConfirmDialogs';
+import { RenameDialog } from '../../../components/RenameDialog';
+import { ChangesTreePanel } from './ChangesTreePanel';
+import type { PatchFileSummary } from '../../../features/patch-review';
+import type { PatchHunkDecision } from '@ai-digital-life/kernel';
 
-const FALLBACK_BRANCHES = ["main", "develop", "release/0.1.0", "feature/right-panel"];
+const FALLBACK_BRANCHES = ['main', 'develop', 'release/0.1.0', 'feature/right-panel'];
 
 export function ChangesPanel(props: ChangesPanelProps) {
   const {
@@ -89,13 +126,23 @@ export function ChangesPanel(props: ChangesPanelProps) {
   const expandChangesTreePathChain = useUiStore((state) => state.expandChangesTreePathChain);
   const collapseAllChangesTreePaths = useUiStore((state) => state.collapseAllChangesTreePaths);
   const snapshot = props.gitSnapshot ?? appInfo?.currentWorkspace?.gitSnapshot;
-  const workspaceChangesTreeLoading = useAppStore(useShallow((state: StoreState) => state.workspaceChangesTreeLoading));
-  const workspaceChangesTreeErrors = useAppStore(useShallow((state: StoreState) => state.workspaceChangesTreeErrors));
+  const workspaceChangesTreeLoading = useAppStore(
+    useShallow((state: StoreState) => state.workspaceChangesTreeLoading)
+  );
+  const workspaceChangesTreeErrors = useAppStore(
+    useShallow((state: StoreState) => state.workspaceChangesTreeErrors)
+  );
   const pinWorkspace = useAppStore((s) => s.pinWorkspace);
   const unpinWorkspace = useAppStore((s) => s.unpinWorkspace);
-  const onPinWorkspace = useCallback((workspaceId: string) => void pinWorkspace(workspaceId), [pinWorkspace]);
-  const onUnpinWorkspace = useCallback((workspaceId: string) => void unpinWorkspace(workspaceId), [unpinWorkspace]);
-  const fallbackBranch = snapshot?.branch ?? "main";
+  const onPinWorkspace = useCallback(
+    (workspaceId: string) => void pinWorkspace(workspaceId),
+    [pinWorkspace]
+  );
+  const onUnpinWorkspace = useCallback(
+    (workspaceId: string) => void unpinWorkspace(workspaceId),
+    [unpinWorkspace]
+  );
+  const fallbackBranch = snapshot?.branch ?? 'main';
   const [selectedBranch, setSelectedBranch] = useState(() => readSelectedBranch(fallbackBranch));
   const [lineNumbersEnabled, setLineNumbersEnabled] = useState(true);
   const [wordWrapEnabled, setWordWrapEnabled] = useState(true);
@@ -106,9 +153,13 @@ export function ChangesPanel(props: ChangesPanelProps) {
   const [editorReady, setEditorReady] = useState(0);
   const [changePreviewWrapColumn, setChangePreviewWrapColumn] = useState<number | null>(null);
   const [forceExpandUnchangedDiff, setForceExpandUnchangedDiff] = useState(false);
-  const [collapsedUnchangedDiffRanges, setCollapsedUnchangedDiffRanges] = useState<PreviewDiffCollapsedRange[]>([]);
+  const [collapsedUnchangedDiffRanges, setCollapsedUnchangedDiffRanges] = useState<
+    PreviewDiffCollapsedRange[]
+  >([]);
   const [pendingOutlineRevealLine, setPendingOutlineRevealLine] = useState<number | null>(null);
-  const [changesStatusFilter, setChangesStatusFilter] = useState<Set<ChangeFileState>>(() => new Set());
+  const [changesStatusFilter, setChangesStatusFilter] = useState<Set<ChangeFileState>>(
+    () => new Set()
+  );
   const validation = latestPatchApplication?.validation;
   const reviewCounts = useMemo(() => countReviewedHunks(activePatchSet), [activePatchSet]);
   const patchSummaries = useMemo(
@@ -119,73 +170,96 @@ export function ChangesPanel(props: ChangesPanelProps) {
     () => filterPatchFileSummaries(patchSummaries, patchReviewFilter),
     [patchSummaries, patchReviewFilter]
   );
-  const activeSummary = filteredPatchSummaries.find((summary) => summary.relativePath === selectedPatchFilePath) ?? filteredPatchSummaries[0];
-  const changeEntries = useMemo(() => buildChangeEntries(snapshot, patchSummaries), [patchSummaries, snapshot]);
+  const activeSummary =
+    filteredPatchSummaries.find((summary) => summary.relativePath === selectedPatchFilePath) ??
+    filteredPatchSummaries[0];
+  const changeEntries = useMemo(
+    () => buildChangeEntries(snapshot, patchSummaries),
+    [patchSummaries, snapshot]
+  );
   const filteredChangeEntries = useMemo(() => {
     if (changesStatusFilter.size === 0 || changesStatusFilter.size === 3) return changeEntries;
-    return changeEntries.filter((entry) => entry.states.some((state) => changesStatusFilter.has(state)));
+    return changeEntries.filter((entry) =>
+      entry.states.some((state) => changesStatusFilter.has(state))
+    );
   }, [changeEntries, changesStatusFilter]);
   const treeNodes = useMemo(() => buildChangeTree(filteredChangeEntries), [filteredChangeEntries]);
-  const flatNodes = useMemo(() => buildFlatChangeNodes(filteredChangeEntries), [filteredChangeEntries]);
+  const flatNodes = useMemo(
+    () => buildFlatChangeNodes(filteredChangeEntries),
+    [filteredChangeEntries]
+  );
   const directoryPaths = useMemo(() => collectDirectoryPaths(treeNodes), [treeNodes]);
   const hasExpandedDirectories = useMemo(
     () => directoryPaths.some((pathValue) => expandedPaths[pathValue]),
     [directoryPaths, expandedPaths]
   );
-  const navigatorSelectedPath = activeSummary?.relativePath ?? selectedPatchFilePath ?? selectedChangePreviewPath;
+  const navigatorSelectedPath =
+    activeSummary?.relativePath ?? selectedPatchFilePath ?? selectedChangePreviewPath;
   const changePreviewLanguage = useMemo(
     () => detectEditorLanguage(changePreview?.path),
     [changePreview?.path]
   );
   const changePreviewDiffRanges = useMemo(
-    () => changePreview
-      ? computePreviewDiffVisualRanges(changePreview.baseContent, changePreview.currentContent)
-      : [],
+    () =>
+      changePreview
+        ? computePreviewDiffVisualRanges(changePreview.baseContent, changePreview.currentContent)
+        : [],
     [changePreview]
   );
   const collapseUnchangedDiff = !forceExpandUnchangedDiff;
   const changeOutline = useMemo(
-    () => changePreview ? buildOutlineFromContent(changePreview.currentContent, changePreview.path) : [],
+    () =>
+      changePreview
+        ? buildOutlineFromContent(changePreview.currentContent, changePreview.path)
+        : [],
     [changePreview]
   );
-  const defaultExpandedOutlineIds = useMemo(() => getDefaultExpandedOutlineIds(changeOutline), [changeOutline]);
-  const [expandedOutlineIds, setExpandedOutlineIds] = useState<Set<string>>(() => defaultExpandedOutlineIds);
+  const defaultExpandedOutlineIds = useMemo(
+    () => getDefaultExpandedOutlineIds(changeOutline),
+    [changeOutline]
+  );
+  const [expandedOutlineIds, setExpandedOutlineIds] = useState<Set<string>>(
+    () => defaultExpandedOutlineIds
+  );
   useEffect(() => {
     setExpandedOutlineIds(defaultExpandedOutlineIds);
   }, [defaultExpandedOutlineIds]);
 
   const hasExpandableOutlineItems = defaultExpandedOutlineIds.size > 0;
   const hasExpandedOutlineItems = expandedOutlineIds.size > 0;
-  const changePreviewTheme = appInfo?.config.resolvedTheme === "dark" ? "dark" as const : "light" as const;
-  const changePreviewLocale = appInfo?.config.language ?? "zh-CN";
-  const diffExtensions = useMemo(() => [
-  ], []);
+  const changePreviewTheme =
+    appInfo?.config.resolvedTheme === 'dark' ? ('dark' as const) : ('light' as const);
+  const changePreviewLocale = appInfo?.config.language ?? 'zh-CN';
+  const diffExtensions = useMemo(() => [], []);
   const branchOptions = useMemo(() => {
     const options = new Set<string>([fallbackBranch, ...FALLBACK_BRANCHES]);
     return [...options];
   }, [fallbackBranch]);
-  const changesMenuItems = useMemo(() => [
-    {
-      id: "line-numbers",
-      label: t.fileLineNumbers,
-      checked: lineNumbersEnabled,
-      action: () => setLineNumbersEnabled((value) => !value)
-    },
-    {
-      id: "word-wrap",
-      label: t.fileWordWrap,
-      checked: wordWrapEnabled,
-      action: () => setWordWrapEnabled((value) => !value)
-    },
-    { id: "sep-display", separator: true },
-    { id: "stage-all", label: t.changesStageAll, disabled: true },
-    { id: "unstage-all", label: t.changesUnstageAll, disabled: true },
-    { id: "commit", label: t.changesCommit, disabled: true },
-    { id: "push", label: t.changesPush, disabled: true },
-    { id: "pull", label: t.changesPull, disabled: true },
-    { id: "sep-1", separator: true },
-    { id: "discard-all", label: t.changesDiscardAll, disabled: true }
-  ], [t, lineNumbersEnabled, wordWrapEnabled]);
+  const changesMenuItems = useMemo(
+    () => [
+      {
+        id: 'line-numbers',
+        label: t.fileLineNumbers,
+        checked: lineNumbersEnabled,
+        action: () => setLineNumbersEnabled((value) => !value),
+      },
+      {
+        id: 'word-wrap',
+        label: t.fileWordWrap,
+        checked: wordWrapEnabled,
+        action: () => setWordWrapEnabled((value) => !value),
+      },
+      { id: 'sep-display', separator: true },
+      { id: 'stage-all', label: t.changesStageAll, disabled: true },
+      { id: 'unstage-all', label: t.changesUnstageAll, disabled: true },
+      { id: 'commit', label: t.changesCommit, disabled: true },
+      { id: 'push', label: t.changesPush, disabled: true },
+      { id: 'pull', label: t.changesPull, disabled: true },
+      { id: 'sep-1', separator: true },
+      { id: 'discard-all', label: t.changesDiscardAll, disabled: true },
+    ],
+    [t, lineNumbersEnabled, wordWrapEnabled]
+  );
 
   useEffect(() => {
     if (!branchOptions.includes(selectedBranch)) {
@@ -211,7 +285,7 @@ export function ChangesPanel(props: ChangesPanelProps) {
     if (!activeSummary?.relativePath) {
       return;
     }
-    activeCardRef.current[activeSummary.relativePath]?.scrollIntoView({ block: "nearest" });
+    activeCardRef.current[activeSummary.relativePath]?.scrollIntoView({ block: 'nearest' });
   }, [activeSummary?.relativePath]);
 
   const handleDiffMount = useCallback((editor: DiffEditorRef | EditorRef) => {
@@ -222,7 +296,7 @@ export function ChangesPanel(props: ChangesPanelProps) {
   const getModifiedEditor = useCallback((): EditorRef | null => {
     const ref = editorRef.current;
     if (!ref) return null;
-    if ("getModifiedEditor" in ref) {
+    if ('getModifiedEditor' in ref) {
       return (ref as DiffEditorRef).getModifiedEditor();
     }
     return ref as EditorRef;
@@ -254,27 +328,34 @@ export function ChangesPanel(props: ChangesPanelProps) {
     }
 
     const layoutDisposable = editor.onDidLayoutChange?.(scheduleWrapColumnUpdate);
-    window.addEventListener("resize", scheduleWrapColumnUpdate);
+    window.addEventListener('resize', scheduleWrapColumnUpdate);
     return () => {
       if (frame) {
         cancelAnimationFrame(frame);
       }
       layoutDisposable?.dispose();
-      window.removeEventListener("resize", scheduleWrapColumnUpdate);
+      window.removeEventListener('resize', scheduleWrapColumnUpdate);
     };
   }, [editorReady, getModifiedEditor, props.diffSideBySide, wordWrapEnabled]);
 
   const handleRevealPreviewLine = (line: number): boolean => {
-    const target = changesPreviewEditorShellRef.current?.querySelector<HTMLElement>(`[data-source-line="${line}"]`);
+    const target = changesPreviewEditorShellRef.current?.querySelector<HTMLElement>(
+      `[data-source-line="${line}"]`
+    );
     if (!target) {
       return false;
     }
-    target.scrollIntoView({ block: "start", behavior: "smooth" });
+    target.scrollIntoView({ block: 'start', behavior: 'smooth' });
     return true;
   };
 
   const handleRevealOutlineLine = (line: number) => {
-    if (previewEnabled && changePreview && categorizeFile(changePreview.path) === "markdown" && handleRevealPreviewLine(line)) {
+    if (
+      previewEnabled &&
+      changePreview &&
+      categorizeFile(changePreview.path) === 'markdown' &&
+      handleRevealPreviewLine(line)
+    ) {
       return;
     }
     if (previewEnabled) {
@@ -294,9 +375,16 @@ export function ChangesPanel(props: ChangesPanelProps) {
     }
     navigateToLine(getModifiedEditor(), pendingOutlineRevealLine);
     setPendingOutlineRevealLine(null);
-  }, [editorReady, forceExpandUnchangedDiff, getModifiedEditor, pendingOutlineRevealLine, previewEnabled, props.diffSideBySide]);
+  }, [
+    editorReady,
+    forceExpandUnchangedDiff,
+    getModifiedEditor,
+    pendingOutlineRevealLine,
+    previewEnabled,
+    props.diffSideBySide,
+  ]);
 
-  const changePreviewContent = changePreview?.currentContent ?? "";
+  const changePreviewContent = changePreview?.currentContent ?? '';
 
   const stickyContextModel = useStickyContext({
     selectedFilePath: changePreview?.path,
@@ -318,8 +406,11 @@ export function ChangesPanel(props: ChangesPanelProps) {
   }, [activePatchSet, selectedPatchFilePath]);
 
   const activePatchFileSummary = useMemo(
-    () => (activeFilePatchFromSet ? summarizePatchFile(activeFilePatchFromSet, collapsedPatchHunkIds) : undefined),
-    [activeFilePatchFromSet, collapsedPatchHunkIds],
+    () =>
+      activeFilePatchFromSet
+        ? summarizePatchFile(activeFilePatchFromSet, collapsedPatchHunkIds)
+        : undefined,
+    [activeFilePatchFromSet, collapsedPatchHunkIds]
   );
 
   const handleToggleAllDirectories = () => {
@@ -339,7 +430,7 @@ export function ChangesPanel(props: ChangesPanelProps) {
     setExpandedOutlineIds(hasExpandedOutlineItems ? new Set() : new Set(defaultExpandedOutlineIds));
   };
   const handleToggleNavigatorStructure = () => {
-    if (changesNavigatorMode === "tree" || changesNavigatorMode === "list") {
+    if (changesNavigatorMode === 'tree' || changesNavigatorMode === 'list') {
       if (allChangesExpanded) {
         handleCollapseAll();
       } else {
@@ -347,7 +438,7 @@ export function ChangesPanel(props: ChangesPanelProps) {
       }
       return;
     }
-    if (changesNavigatorMode === "outline") {
+    if (changesNavigatorMode === 'outline') {
       handleToggleAllOutlineItems();
       return;
     }
@@ -365,25 +456,28 @@ export function ChangesPanel(props: ChangesPanelProps) {
     });
   }, []);
 
-  const handleSelectNavigatorNode = useCallback((workspacePath: string, relativePath: string) => {
-    const patchSet = activePatchSets[workspacePath] ?? activePatchSet;
-    const summaries = patchSet ? summarizePatchSet(patchSet, collapsedPatchHunkIds) : [];
-    const patchSummary = summaries.find((summary) => summary.relativePath === relativePath);
-    if (patchSummary) {
-      onSelectPatchFile(relativePath, {
-        line: patchSummary.hunks[0]?.targetLine,
-        hunkId: patchSummary.hunks[0]?.id
-      });
-      return;
-    }
-    useAppStore.getState().openChangePreviewForWorkspace(workspacePath, relativePath);
-  }, [activePatchSet, activePatchSets, collapsedPatchHunkIds, onSelectPatchFile]);
+  const handleSelectNavigatorNode = useCallback(
+    (workspacePath: string, relativePath: string) => {
+      const s = useAppStore.getState();
+      const patchSet = s.activePatchSets[workspacePath] ?? s.activePatchSet;
+      const summaries = patchSet ? summarizePatchSet(patchSet, collapsedPatchHunkIds) : [];
+      const patchSummary = summaries.find((summary) => summary.relativePath === relativePath);
+      if (patchSummary) {
+        onSelectPatchFile(relativePath, {
+          line: patchSummary.hunks[0]?.targetLine,
+          hunkId: patchSummary.hunks[0]?.id,
+        });
+        return;
+      }
+      s.openChangePreviewForWorkspace(workspacePath, relativePath);
+    },
+    [collapsedPatchHunkIds, onSelectPatchFile]
+  );
 
   const copyToClipboard = useCallback(async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-    } catch {
-    }
+    } catch {}
   }, []);
 
   const [changesRenameDialogOpen, setChangesRenameDialogOpen] = useState(false);
@@ -392,14 +486,17 @@ export function ChangesPanel(props: ChangesPanelProps) {
   const changesContextMenuPersistRef = useRef(false);
   const changesClearMenuHighlightRef = useRef<(() => void) | undefined>(undefined);
 
-  const handleChangesRenameConfirm = useCallback(async (newName: string) => {
-    if (!changesRenamingPath) return;
-    const path = changesRenamingPath;
-    setChangesRenamingPath(null);
-    setChangesRenameDialogOpen(false);
-    changesClearMenuHighlightRef.current?.();
-    await useAppStore.getState().renameWorkspaceFile(path, newName);
-  }, [changesRenamingPath]);
+  const handleChangesRenameConfirm = useCallback(
+    async (newName: string) => {
+      if (!changesRenamingPath) return;
+      const path = changesRenamingPath;
+      setChangesRenamingPath(null);
+      setChangesRenameDialogOpen(false);
+      changesClearMenuHighlightRef.current?.();
+      await useAppStore.getState().renameWorkspaceFile(path, newName);
+    },
+    [changesRenamingPath]
+  );
 
   const handleChangesRenameCancel = useCallback(() => {
     setChangesRenamingPath(null);
@@ -422,23 +519,23 @@ export function ChangesPanel(props: ChangesPanelProps) {
 
   const getContextMenuItems = useCallback(
     (node: ChangeTreeNode): FileTreeContextMenuItem<ChangeTreeNode>[] => {
-      if (node.kind !== "file") {
+      if (node.kind !== 'file') {
         return [];
       }
-      const isDeleted = node.patchSummary?.changeKind === "deleted";
+      const isDeleted = node.patchSummary?.changeKind === 'deleted';
       const store = useAppStore.getState();
       const hasClipboard = store.clipboardOperation !== null;
       return [
         {
-          id: "open-in-files",
+          id: 'open-in-files',
           label: t.fileContextOpenWith as string,
           icon: <IconFiles size={14} />,
           disabled: isDeleted,
-          action: (targetNode) => onOpenFile(targetNode.path)
+          action: (targetNode) => onOpenFile(targetNode.path),
         },
-        { id: "sep0", separator: true },
+        { id: 'sep0', separator: true },
         {
-          id: "reveal",
+          id: 'reveal',
           label: t.fileContextReveal as string,
           icon: <IconFolderOpen size={14} />,
           disabled: isDeleted,
@@ -449,11 +546,11 @@ export function ChangesPanel(props: ChangesPanelProps) {
             if (!rootPath) return;
             const fullPath = joinPathSegments(rootPath, targetNode.path);
             await window.digitalLife.workspace.revealInFileManager(fullPath);
-          }
+          },
         },
-        { id: "sep1", separator: true },
+        { id: 'sep1', separator: true },
         {
-          id: "copy-full-path",
+          id: 'copy-full-path',
           label: t.fileContextCopyFullPath as string,
           icon: <IconCopy size={14} />,
           action: async (targetNode) => {
@@ -463,35 +560,35 @@ export function ChangesPanel(props: ChangesPanelProps) {
             if (!rootPath) return;
             const fullPath = joinPathSegments(rootPath, targetNode.path);
             await copyToClipboard(fullPath);
-          }
+          },
         },
         {
-          id: "copy-relative-path",
+          id: 'copy-relative-path',
           label: t.fileContextCopyRelativePath as string,
           icon: <IconCopy size={14} />,
           action: async (targetNode) => {
             await copyToClipboard(targetNode.path);
-          }
+          },
         },
-        { id: "sep2", separator: true },
+        { id: 'sep2', separator: true },
         {
-          id: "cut",
+          id: 'cut',
           label: t.fileContextCut as string,
           icon: <IconClipboardList size={14} />,
           action: (targetNode) => {
-            store.setClipboard("cut", targetNode.path, targetNode.kind);
-          }
+            store.setClipboard('cut', targetNode.path, targetNode.kind);
+          },
         },
         {
-          id: "copy-op",
+          id: 'copy-op',
           label: t.fileContextCopy as string,
           icon: <IconCopy size={14} />,
           action: (targetNode) => {
-            store.setClipboard("copy", targetNode.path, targetNode.kind);
-          }
+            store.setClipboard('copy', targetNode.path, targetNode.kind);
+          },
         },
         {
-          id: "paste",
+          id: 'paste',
           label: t.fileContextPaste as string,
           icon: <IconUpload size={14} />,
           disabled: !hasClipboard,
@@ -499,12 +596,15 @@ export function ChangesPanel(props: ChangesPanelProps) {
             const sourcePath = store.clipboardSourcePath;
             const operation = store.clipboardOperation;
             if (!sourcePath || !operation) return;
-            const targetDir = targetNode.kind === "directory" ? targetNode.path : targetNode.path.substring(0, targetNode.path.lastIndexOf("/") + 1);
-            const sourceName = sourcePath.split("/").pop() || sourcePath;
+            const targetDir =
+              targetNode.kind === 'directory'
+                ? targetNode.path
+                : targetNode.path.substring(0, targetNode.path.lastIndexOf('/') + 1);
+            const sourceName = sourcePath.split('/').pop() || sourcePath;
             const newPath = targetDir ? `${targetDir}/${sourceName}` : sourceName;
-            if (operation === "copy") {
+            if (operation === 'copy') {
               await store.duplicateWorkspaceFile(sourcePath, newPath);
-            } else if (operation === "cut") {
+            } else if (operation === 'cut') {
               if (sourcePath === newPath) {
                 store.clearClipboard();
                 return;
@@ -512,11 +612,11 @@ export function ChangesPanel(props: ChangesPanelProps) {
               await store.moveWorkspaceFile(sourcePath, newPath);
             }
             store.clearClipboard();
-          }
+          },
         },
-        { id: "sep3", separator: true },
+        { id: 'sep3', separator: true },
         {
-          id: "rename",
+          id: 'rename',
           label: t.fileContextRename as string,
           icon: <IconPencil size={14} />,
           disabled: isDeleted,
@@ -524,10 +624,10 @@ export function ChangesPanel(props: ChangesPanelProps) {
             changesContextMenuPersistRef.current = true;
             setChangesRenamingPath(targetNode.path);
             setChangesRenameDialogOpen(true);
-          }
+          },
         },
         {
-          id: "delete",
+          id: 'delete',
           label: t.fileContextDelete as string,
           icon: <IconTrash size={14} />,
           danger: true,
@@ -535,60 +635,78 @@ export function ChangesPanel(props: ChangesPanelProps) {
           action: (targetNode) => {
             changesContextMenuPersistRef.current = true;
             setChangesDeleteConfirmPath(targetNode.path);
-          }
-        }
+          },
+        },
       ];
     },
     [onOpenFile, t, copyToClipboard]
   );
 
-  const renderNavigatorMeta = useCallback((node: WorkspaceTreeNode) => {
-    const changeNode = node as ChangeTreeNode;
-    const primaryBadge = getPrimaryBadge(changeNode);
-    return (
-      <>
-        {primaryBadge ? (
-          <span className={`adl-filetree__status-badge adl-filetree__status-badge--${primaryBadge.tone}`}>
-            {primaryBadge.label}
+  const renderNavigatorMeta = useCallback(
+    (node: WorkspaceTreeNode) => {
+      const changeNode = node as ChangeTreeNode;
+      const primaryBadge = getPrimaryBadge(changeNode);
+      return (
+        <>
+          {primaryBadge ? (
+            <span
+              className={`adl-filetree__status-badge adl-filetree__status-badge--${primaryBadge.tone}`}
+            >
+              {primaryBadge.label}
+            </span>
+          ) : null}
+          <span className="adl-filetree__count-badge">
+            {changeNode.kind === 'directory'
+              ? changeNode.fileCount
+              : changeNode.totalHunks > 0
+                ? `${changeNode.reviewedHunks}/${changeNode.totalHunks}`
+                : '1'}
           </span>
-        ) : null}
-        <span className="adl-filetree__count-badge">
-          {changeNode.kind === "directory" ? changeNode.fileCount : changeNode.totalHunks > 0 ? `${changeNode.reviewedHunks}/${changeNode.totalHunks}` : "1"}
-        </span>
-      </>
-    );
-  }, [getPrimaryBadge]);
-
-  const activeWorkspaceId = useMemo(() => {
-    if (!appInfo?.currentWorkspace?.path) return undefined;
-    return recentWorkspaces.find((w) => w.path === appInfo.currentWorkspace?.path)?.id;
-  }, [appInfo?.currentWorkspace?.path, recentWorkspaces]);
-
-  const visibleWorkspaces = useMemo(
-    () => recentWorkspaces.filter((w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available),
-    [recentWorkspaces],
+        </>
+      );
+    },
+    [getPrimaryBadge]
   );
 
-  const allChangesExpanded = useMemo(() => {
-    return visibleWorkspaces.length > 0 && visibleWorkspaces.every((w) => workspaceChangesExpanded[w.id]);
-  }, [visibleWorkspaces, workspaceChangesExpanded]);
+  const activeWorkspaceId =
+    appInfo?.currentWorkspace?.path
+      ? recentWorkspaces.find((w) => w.path === appInfo.currentWorkspace?.path)?.id
+      : undefined;
 
-  const canToggleNavigatorStructure = changesNavigatorMode === "tree"
-    ? visibleWorkspaces.length > 0
-    : changesNavigatorMode === "list"
+  const visibleWorkspaces = useMemo(
+    () =>
+      recentWorkspaces.filter(
+        (w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available
+      ),
+    [recentWorkspaces]
+  );
+
+  const allChangesExpanded =
+    visibleWorkspaces.length > 0 && visibleWorkspaces.every((w) => workspaceChangesExpanded[w.id]);
+
+  const canToggleNavigatorStructure =
+    changesNavigatorMode === 'tree'
       ? visibleWorkspaces.length > 0
-      : changesNavigatorMode === "outline"
-        ? hasExpandableOutlineItems
-        : false;
-  const structureToggleExpanded = changesNavigatorMode === "tree"
-    ? allChangesExpanded
-    : changesNavigatorMode === "list"
+      : changesNavigatorMode === 'list'
+        ? visibleWorkspaces.length > 0
+        : changesNavigatorMode === 'outline'
+          ? hasExpandableOutlineItems
+          : false;
+  const structureToggleExpanded =
+    changesNavigatorMode === 'tree'
       ? allChangesExpanded
-      : changesNavigatorMode === "outline"
-        ? hasExpandedOutlineItems
-        : false;
+      : changesNavigatorMode === 'list'
+        ? allChangesExpanded
+        : changesNavigatorMode === 'outline'
+          ? hasExpandedOutlineItems
+          : false;
 
-  const changesNavigatorTitle = changesNavigatorMode === "outline" ? t.outline : changesNavigatorMode === "list" ? t.changesListView : "文件树";
+  const changesNavigatorTitle =
+    changesNavigatorMode === 'outline'
+      ? t.outline
+      : changesNavigatorMode === 'list'
+        ? t.changesListView
+        : '文件树';
 
   const changesTreeData = useMemo(() => {
     const result: Record<string, ChangeTreeNode[]> = {};
@@ -598,10 +716,13 @@ export function ChangesPanel(props: ChangesPanelProps) {
         const patchSet = activePatchSets[wsId];
         const patchSummaries = patchSet ? summarizePatchSet(patchSet, collapsedPatchHunkIds) : [];
         const entries = snapshot ? buildChangeEntries(snapshot, patchSummaries) : [];
-        const filtered = changesStatusFilter.size > 0 && changesStatusFilter.size < 3
-          ? entries.filter((entry) => entry.states.some((state) => changesStatusFilter.has(state)))
-          : entries;
-        if (changesNavigatorMode === "tree") {
+        const filtered =
+          changesStatusFilter.size > 0 && changesStatusFilter.size < 3
+            ? entries.filter((entry) =>
+                entry.states.some((state) => changesStatusFilter.has(state))
+              )
+            : entries;
+        if (changesNavigatorMode === 'tree') {
           result[wsId] = buildChangeTree(filtered);
         } else {
           result[wsId] = buildFlatChangeNodes(filtered);
@@ -609,14 +730,25 @@ export function ChangesPanel(props: ChangesPanelProps) {
       }
     }
     return result;
-  }, [workspaceChangesExpanded, gitSnapshots, activePatchSets, collapsedPatchHunkIds, changesNavigatorMode, changesStatusFilter]);
+  }, [
+    workspaceChangesExpanded,
+    gitSnapshots,
+    activePatchSets,
+    collapsedPatchHunkIds,
+    changesNavigatorMode,
+    changesStatusFilter,
+  ]);
 
   const changeCounts = useMemo(() => {
     const result: Record<string, number> = {};
     for (const ws of visibleWorkspaces) {
       const snapshot = gitSnapshots[ws.id];
       if (snapshot) {
-        result[ws.id] = snapshot.staged.length + snapshot.unstaged.length + snapshot.untracked.length + snapshot.conflicts.length;
+        result[ws.id] =
+          snapshot.staged.length +
+          snapshot.unstaged.length +
+          snapshot.untracked.length +
+          snapshot.conflicts.length;
       } else {
         result[ws.id] = 0;
       }
@@ -653,7 +785,7 @@ export function ChangesPanel(props: ChangesPanelProps) {
 
   const dirtyPathsSet = useMemo(
     () => new Set(props.dirtyEditorPaths.map((p) => normalizeWorkspaceRelativePath(p))),
-    [props.dirtyEditorPaths],
+    [props.dirtyEditorPaths]
   );
 
   const handleToggleExpand = useCallback((workspaceId: string) => {
@@ -680,9 +812,12 @@ export function ChangesPanel(props: ChangesPanelProps) {
     }
   }, []);
 
-  const handleToggleFileTreePath = useCallback((workspaceId: string, path: string) => {
-    toggleChangesTreePath(path);
-  }, [toggleChangesTreePath]);
+  const handleToggleFileTreePath = useCallback(
+    (workspaceId: string, path: string) => {
+      toggleChangesTreePath(path);
+    },
+    [toggleChangesTreePath]
+  );
 
   const handleReorderWorkspaces = useCallback((input: ReorderWorkspacesInput) => {
     useAppStore.getState().reorderWorkspaces(input);
@@ -705,7 +840,7 @@ export function ChangesPanel(props: ChangesPanelProps) {
         placement="top"
         t={t}
         navigatorCollapsed={navigatorCollapsed}
-        onToggleNavigator={() => toggleNavigator("changes")}
+        onToggleNavigator={() => toggleNavigator('changes')}
         branchOptions={branchOptions}
         selectedBranch={selectedBranch}
         onSelectBranch={handleSelectBranch}
@@ -719,8 +854,8 @@ export function ChangesPanel(props: ChangesPanelProps) {
       />
 
       <div
-        className={`adl-tool-surface adl-tool-surface--files${navigatorCollapsed ? " is-navigator-collapsed" : ""}`}
-        style={{ "--adl-files-nav-width": `${changesNavigatorWidth}px` } as React.CSSProperties}
+        className={`adl-tool-surface adl-tool-surface--files${navigatorCollapsed ? ' is-navigator-collapsed' : ''}`}
+        style={{ '--adl-files-nav-width': `${changesNavigatorWidth}px` } as React.CSSProperties}
       >
         <ChangesTreePanel
           t={t}
@@ -774,15 +909,19 @@ export function ChangesPanel(props: ChangesPanelProps) {
           hasVisibleWorkspaces={visibleWorkspaces.length > 0}
         />
 
-        <div className={`adl-tool-primary${activePatchSet ? " adl-tool-primary--scrollable" : ""}`}>
+        <div className={`adl-tool-primary${activePatchSet ? ' adl-tool-primary--scrollable' : ''}`}>
           {activePatchSet ? (
             <div className="adl-tool-primary__scroll adl-tool-primary__scroll--changes">
               {validation ? (
                 <div className="adl-banner adl-banner--info">
                   <strong>{validation.status}</strong>
                   <span>{validation.summary}</span>
-                  {latestPatchApplication?.rolledBack ? <span className="adl-chip adl-chip--warning">{t.changesRolledBack}</span> : null}
-                  {latestPatchApplication?.patchSet.status === "applied" ? <span className="adl-chip adl-chip--success">{t.changesApplied}</span> : null}
+                  {latestPatchApplication?.rolledBack ? (
+                    <span className="adl-chip adl-chip--warning">{t.changesRolledBack}</span>
+                  ) : null}
+                  {latestPatchApplication?.patchSet.status === 'applied' ? (
+                    <span className="adl-chip adl-chip--success">{t.changesApplied}</span>
+                  ) : null}
                 </div>
               ) : null}
 
@@ -826,12 +965,18 @@ export function ChangesPanel(props: ChangesPanelProps) {
                         lineNumbersEnabled={changesEditorOptions.lineNumbersEnabled}
                         wordWrapEnabled={changesEditorOptions.wordWrapEnabled}
                         agentAnnotationsEnabled={changesEditorOptions.agentAnnotationsEnabled}
-                        hasCollapsedHunks={!!activePatchFileSummary.hunks.some((h) => h.isCollapsed)}
+                        hasCollapsedHunks={
+                          !!activePatchFileSummary.hunks.some((h) => h.isCollapsed)
+                        }
                         activePatchRelativePath={selectedPatchFilePath}
                         onSetDiffLayout={props.onSetDiffLayout}
-                        onToggleLineNumbers={() => changesEditorOptions.setLineNumbersEnabled((v) => !v)}
+                        onToggleLineNumbers={() =>
+                          changesEditorOptions.setLineNumbersEnabled((v) => !v)
+                        }
                         onToggleWordWrap={() => changesEditorOptions.setWordWrapEnabled((v) => !v)}
-                        onToggleAgentAnnotations={() => changesEditorOptions.setAgentAnnotationsEnabled((v) => !v)}
+                        onToggleAgentAnnotations={() =>
+                          changesEditorOptions.setAgentAnnotationsEnabled((v) => !v)
+                        }
                         onJumpPatchHunk={props.onJumpPatchHunk}
                         onSetAllPatchHunksCollapsed={props.onSetAllPatchHunksCollapsed}
                         t={t}
@@ -842,9 +987,10 @@ export function ChangesPanel(props: ChangesPanelProps) {
                             <strong>{activePatchFileSummary.relativePath}</strong>
                             <small>
                               {activePatchFileSummary.totalHunks}
-                              {" · "}
-                              {activePatchFileSummary.acceptedHunks + activePatchFileSummary.rejectedHunks}
-                              {"/"}
+                              {' · '}
+                              {activePatchFileSummary.acceptedHunks +
+                                activePatchFileSummary.rejectedHunks}
+                              {'/'}
                               {activePatchFileSummary.totalHunks}
                             </small>
                           </div>
@@ -853,13 +999,18 @@ export function ChangesPanel(props: ChangesPanelProps) {
                           {activePatchFileSummary.hunks.map((hunk, index) => (
                             <div
                               key={hunk.id}
-                              className={`adl-diff-hunk-pill adl-diff-hunk-pill--${hunk.changeKind}${selectedPatchHunkId === hunk.id ? " is-active" : ""}`}
+                              className={`adl-diff-hunk-pill adl-diff-hunk-pill--${hunk.changeKind}${selectedPatchHunkId === hunk.id ? ' is-active' : ''}`}
                             >
                               <button
                                 type="button"
                                 className="adl-diff-hunk-pill__main"
                                 onClick={() =>
-                                  onSelectPatchHunk(activeFilePatchFromSet.relativePath, hunk.id, hunk.targetLine, { activateTool: false })
+                                  onSelectPatchHunk(
+                                    activeFilePatchFromSet.relativePath,
+                                    hunk.id,
+                                    hunk.targetLine,
+                                    { activateTool: false }
+                                  )
                                 }
                               >
                                 <span className="adl-diff-hunk-pill__index">{index + 1}</span>
@@ -867,13 +1018,15 @@ export function ChangesPanel(props: ChangesPanelProps) {
                                   <strong>{hunk.preview}</strong>
                                   <small>
                                     {hunk.newStart || hunk.oldStart}
-                                    {hunk.isCollapsed ? ` · ${t.expandDetails}` : ""}
+                                    {hunk.isCollapsed ? ` · ${t.expandDetails}` : ''}
                                   </small>
                                 </span>
-                                <span className={`adl-decision-chip adl-decision-chip--${hunk.decision}`}>
-                                  {hunk.decision === "accepted"
+                                <span
+                                  className={`adl-decision-chip adl-decision-chip--${hunk.decision}`}
+                                >
+                                  {hunk.decision === 'accepted'
                                     ? t.approvalApproved
-                                    : hunk.decision === "rejected"
+                                    : hunk.decision === 'rejected'
                                       ? t.approvalRejected
                                       : t.approvalPendingCount}
                                 </span>
@@ -885,7 +1038,9 @@ export function ChangesPanel(props: ChangesPanelProps) {
                                   event.stopPropagation();
                                   onTogglePatchHunkCollapse(hunk.id);
                                 }}
-                                aria-label={(hunk.isCollapsed ? t.expandDetails : t.collapseDetails) as string}
+                                aria-label={
+                                  (hunk.isCollapsed ? t.expandDetails : t.collapseDetails) as string
+                                }
                               >
                                 {hunk.isCollapsed ? (
                                   <IconChevronRight size={12} decorative />
@@ -916,10 +1071,19 @@ export function ChangesPanel(props: ChangesPanelProps) {
                       </div>
                     </div>
                   ) : null}
-                  <button data-testid="patch-apply" type="button" className="adl-btn adl-btn--primary" onClick={onApplyPatchSet}>
+                  <button
+                    data-testid="patch-apply"
+                    type="button"
+                    className="adl-btn adl-btn--primary"
+                    onClick={onApplyPatchSet}
+                  >
                     {t.applyPatch}
                   </button>
-                  <button type="button" className="adl-btn adl-btn--ghost" onClick={onRollbackPatchSet}>
+                  <button
+                    type="button"
+                    className="adl-btn adl-btn--ghost"
+                    onClick={onRollbackPatchSet}
+                  >
                     {t.rollbackPatch}
                   </button>
                   <button
@@ -945,8 +1109,12 @@ export function ChangesPanel(props: ChangesPanelProps) {
                 <div className="adl-banner adl-banner--info">
                   <strong>{validation.status}</strong>
                   <span>{validation.summary}</span>
-                  {latestPatchApplication?.rolledBack ? <span className="adl-chip adl-chip--warning">{t.changesRolledBack}</span> : null}
-                  {latestPatchApplication?.patchSet.status === "applied" ? <span className="adl-chip adl-chip--success">{t.changesApplied}</span> : null}
+                  {latestPatchApplication?.rolledBack ? (
+                    <span className="adl-chip adl-chip--warning">{t.changesRolledBack}</span>
+                  ) : null}
+                  {latestPatchApplication?.patchSet.status === 'applied' ? (
+                    <span className="adl-chip adl-chip--success">{t.changesApplied}</span>
+                  ) : null}
                 </div>
               ) : null}
               <div
@@ -954,9 +1122,12 @@ export function ChangesPanel(props: ChangesPanelProps) {
                 className="adl-tool-editor adl-tool-editor--changes"
                 data-testid="changes-preview-shell"
               >
-                {previewEnabled && categorizeFile(changePreview.path) === "markdown" ? (
+                {previewEnabled && categorizeFile(changePreview.path) === 'markdown' ? (
                   <div className="adl-tool-editor__surface adl-tool-editor__surface--preview">
-                    <LazyMarkdownPreviewWrapper content={changePreview.currentContent} theme={changePreviewTheme} />
+                    <LazyMarkdownPreviewWrapper
+                      content={changePreview.currentContent}
+                      theme={changePreviewTheme}
+                    />
                   </div>
                 ) : previewEnabled ? (
                   <div className="adl-tool-editor__surface">
@@ -973,7 +1144,13 @@ export function ChangesPanel(props: ChangesPanelProps) {
                   </div>
                 ) : (
                   <div className="adl-tool-editor__surface">
-                    {stickyContextModel ? <StickyContext data-testid="changes-sticky-context" model={stickyContextModel} t={t} /> : null}
+                    {stickyContextModel ? (
+                      <StickyContext
+                        data-testid="changes-sticky-context"
+                        model={stickyContextModel}
+                        t={t}
+                      />
+                    ) : null}
                     <DiffViewer
                       original={changePreview.baseContent}
                       modified={changePreview.currentContent}
@@ -993,11 +1170,9 @@ export function ChangesPanel(props: ChangesPanelProps) {
                 )}
               </div>
             </>
-          ) : changePreviewLoading ? null : (
-            totalChangeCount === 0 ? (
-              <ChangesEmptyState hasWorkspaces={visibleWorkspaces.length > 0} />
-            ) : null
-          )}
+          ) : changePreviewLoading ? null : totalChangeCount === 0 ? (
+            <ChangesEmptyState hasWorkspaces={visibleWorkspaces.length > 0} />
+          ) : null}
         </div>
       </div>
       <ChangesConfirmDialogs
@@ -1009,7 +1184,7 @@ export function ChangesPanel(props: ChangesPanelProps) {
       {changesRenameDialogOpen && changesRenamingPath ? (
         <RenameDialog
           open={changesRenameDialogOpen}
-          initialValue={changesRenamingPath.split("/").pop() || ""}
+          initialValue={changesRenamingPath.split('/').pop() || ''}
           title="重命名"
           itemInfo={`当前路径: ${changesRenamingPath}`}
           placeholder="输入新名称"

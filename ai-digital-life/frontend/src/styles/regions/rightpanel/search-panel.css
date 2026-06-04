@@ -10,7 +10,6 @@
   background: var(--bg-input, var(--surface-subtle));
 }
 
-
 .adl-tool-search--navigator {
   width: 100%;
   min-width: 0;

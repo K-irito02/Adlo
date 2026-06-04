@@ -3,57 +3,57 @@ import type {
   LanguageCode,
   ModelProviderId,
   SettingItem,
-  ThemeMode
-} from "@ai-digital-life/kernel";
-import type { CopyDict } from "../i18n";
+  ThemeMode,
+} from '@ai-digital-life/kernel';
+import type { CopyDict } from '../i18n';
 
 export function buildSettingsItems(t: CopyDict, appInfo?: AppInfo): SettingItem[] {
   const providers = appInfo?.config.modelPreferences.providers;
   const items: SettingItem[] = [
     {
-      id: "language",
-      groupId: "general",
+      id: 'language',
+      groupId: 'general',
       label: t.settingsLanguage,
       description: t.language,
-      type: "select",
-      value: appInfo?.config.language ?? "zh-CN",
+      type: 'select',
+      value: appInfo?.config.language ?? 'zh-CN',
       options: [
-        { value: "zh-CN", label: "中文" },
-        { value: "en-US", label: "English" }
-      ]
+        { value: 'zh-CN', label: '中文' },
+        { value: 'en-US', label: 'English' },
+      ],
     },
     {
-      id: "themeMode",
-      groupId: "general",
+      id: 'themeMode',
+      groupId: 'general',
       label: t.settingsTheme,
       description: t.theme,
-      type: "select",
-      value: appInfo?.config.themeMode ?? "system",
+      type: 'select',
+      value: appInfo?.config.themeMode ?? 'system',
       options: [
-        { value: "system", label: t.themeSystem },
-        { value: "light", label: t.themeLight },
-        { value: "dark", label: t.themeDark }
-      ]
+        { value: 'system', label: t.themeSystem },
+        { value: 'light', label: t.themeLight },
+        { value: 'dark', label: t.themeDark },
+      ],
     },
     {
-      id: "approvalMode",
-      groupId: "agent",
+      id: 'approvalMode',
+      groupId: 'agent',
       label: t.settingsAutoApproval,
       description: t.approvalPolicy,
-      type: "readonly",
-      value: "manual"
+      type: 'readonly',
+      value: 'manual',
     },
     {
-      id: "workspacePath",
-      groupId: "workspace",
+      id: 'workspacePath',
+      groupId: 'workspace',
       label: t.workspaceLabel,
       description: t.openWorkspace,
-      type: "readonly",
-      value: appInfo?.currentWorkspace?.rootPath ?? "-"
-    }
+      type: 'readonly',
+      value: appInfo?.currentWorkspace?.rootPath ?? '-',
+    },
   ];
 
-  for (const providerId of (["deepseek", "minimax"] as ModelProviderId[])) {
+  for (const providerId of ['deepseek', 'minimax'] as ModelProviderId[]) {
     const provider = providers?.[providerId];
     if (!provider) {
       continue;
@@ -61,27 +61,27 @@ export function buildSettingsItems(t: CopyDict, appInfo?: AppInfo): SettingItem[
     items.push(
       {
         id: `model:${providerId}:enabled`,
-        groupId: "model",
+        groupId: 'model',
         label: `${providerId} ${t.providerEnabled}`,
         description: t.modelSelector,
-        type: "toggle",
-        value: provider.enabled
+        type: 'toggle',
+        value: provider.enabled,
       },
       {
         id: `model:${providerId}:priority`,
-        groupId: "model",
+        groupId: 'model',
         label: `${providerId} ${t.providerPriority}`,
         description: t.modelSettings,
-        type: "input",
-        value: provider.priority
+        type: 'input',
+        value: provider.priority,
       },
       {
         id: `model:${providerId}:modelId`,
-        groupId: "model",
+        groupId: 'model',
         label: `${providerId} ${t.providerModelId}`,
         description: t.modelSettings,
-        type: "input",
-        value: provider.modelId
+        type: 'input',
+        value: provider.modelId,
       }
     );
   }
@@ -101,29 +101,29 @@ export function preferencePatchFromSettingChange(
       >;
     }
   | undefined {
-  if (id === "language") {
+  if (id === 'language') {
     return { language: value as LanguageCode };
   }
-  if (id === "themeMode") {
+  if (id === 'themeMode') {
     return { themeMode: value as ThemeMode };
   }
-  if (!id.startsWith("model:")) {
+  if (!id.startsWith('model:')) {
     return undefined;
   }
 
-  const [, providerIdRaw, field] = id.split(":");
+  const [, providerIdRaw, field] = id.split(':');
   const providerId = providerIdRaw as ModelProviderId;
-  if (field === "enabled") {
+  if (field === 'enabled') {
     return { modelPreferences: { [providerId]: { enabled: Boolean(value) } } };
   }
-  if (field === "priority") {
+  if (field === 'priority') {
     const parsed = Number(value);
     if (!Number.isFinite(parsed)) {
       return undefined;
     }
     return { modelPreferences: { [providerId]: { priority: parsed } } };
   }
-  if (field === "modelId") {
+  if (field === 'modelId') {
     return { modelPreferences: { [providerId]: { modelId: String(value) } } };
   }
   return undefined;

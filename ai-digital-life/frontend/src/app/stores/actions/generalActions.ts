@@ -1,18 +1,13 @@
-import type { StoreState } from "../StoreState";
-import type {
-  AppPreferencePatch,
-} from "@ai-digital-life/kernel";
-import { themeController } from "../../utils/theme";
-import { createEditorTab } from "../../utils/editorTabs";
-import { loadConversationState, loadTaskCenterState } from "../loaders";
-import { workspaceContextModeFromInfo } from "../conversationUtils";
-import {
-  workspaceRequestSeq,
-  queueLowPriorityRefresh,
-} from "../shared";
-import type { StoreApi } from "zustand";
+import type { StoreState } from '../StoreState';
+import type { AppPreferencePatch } from '@ai-digital-life/kernel';
+import { themeController } from '../../utils/theme';
+import { createEditorTab } from '../../utils/editorTabs';
+import { loadConversationState, loadTaskCenterState } from '../loaders';
+import { workspaceContextModeFromInfo } from '../conversationUtils';
+import { workspaceRequestSeq, queueLowPriorityRefresh } from '../shared';
+import type { StoreApi } from 'zustand';
 
-export function createGeneralActions(set: StoreApi<StoreState>["setState"], get: () => StoreState) {
+export function createGeneralActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
   return {
     bootstrap: async () => {
       const requestSeq = workspaceRequestSeq;
@@ -36,25 +31,25 @@ export function createGeneralActions(set: StoreApi<StoreState>["setState"], get:
       if (requestSeq !== workspaceRequestSeq) return;
 
       const recentWorkspaces = recentResult.ok ? recentResult.data : [];
-    // 为右侧面板设置默认展开所有可见工作区
-    const visibleWorkspaces = recentWorkspaces.filter(
-      (w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available
-    );
+      // 为右侧面板设置默认展开所有可见工作区
+      const visibleWorkspaces = recentWorkspaces.filter(
+        (w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available
+      );
 
-    const nextState: Partial<StoreState> = {
-      appInfo: appInfoResult.data,
-      modelHealth: modelHealthResult.ok ? modelHealthResult.data : undefined,
-      recentWorkspaces,
-      sessions: conversationState.sessions,
-      activeSessionId: conversationState.activeSessionId,
-      sessionDetails: conversationState.detail
-        ? { [conversationState.detail.session.id]: conversationState.detail }
-        : {},
-      taskCenter,
-      workspaceContextMode: workspaceContextModeFromInfo(appInfoResult.data),
-      loading: false,
-      dirtyEditorPaths: [],
-    };
+      const nextState: Partial<StoreState> = {
+        appInfo: appInfoResult.data,
+        modelHealth: modelHealthResult.ok ? modelHealthResult.data : undefined,
+        recentWorkspaces,
+        sessions: conversationState.sessions,
+        activeSessionId: conversationState.activeSessionId,
+        sessionDetails: conversationState.detail
+          ? { [conversationState.detail.session.id]: conversationState.detail }
+          : {},
+        taskCenter,
+        workspaceContextMode: workspaceContextModeFromInfo(appInfoResult.data),
+        loading: false,
+        dirtyEditorPaths: [],
+      };
 
       void window.digitalLife.workspace.setEditorDirtyPaths([]);
 
@@ -62,11 +57,11 @@ export function createGeneralActions(set: StoreApi<StoreState>["setState"], get:
         const patchBlock = conversationState.detail?.messages.length
           ? conversationState.detail.messages
               .flatMap((message: any) => message.blocks)
-              .find((block: any) => block.type === "patch-summary")
+              .find((block: any) => block.type === 'patch-summary')
           : undefined;
 
         const patchPromise =
-          patchBlock?.type === "patch-summary"
+          patchBlock?.type === 'patch-summary'
             ? window.digitalLife.patch.getPatchSet(patchBlock.patchSetId)
             : null;
 
@@ -104,8 +99,7 @@ export function createGeneralActions(set: StoreApi<StoreState>["setState"], get:
         });
 
         if (patchResult?.ok) {
-          const initialPath =
-            patchResult.data?.filePatches[0]?.relativePath;
+          const initialPath = patchResult.data?.filePatches[0]?.relativePath;
           set({
             activePatchSet: patchResult.data,
             selectedFilePath: initialPath,
@@ -127,9 +121,11 @@ export function createGeneralActions(set: StoreApi<StoreState>["setState"], get:
             ...visibleWorkspaces.map((w) => get().loadWorkspaceTree(w.id, w.path)),
             ...visibleWorkspaces.map((w) => get().loadGitSnapshot(w.id, w.path)),
           ]);
-          const errors = results.filter((r) => r.status === "rejected").map((r) => (r as PromiseRejectedResult).reason);
+          const errors = results
+            .filter((r) => r.status === 'rejected')
+            .map((r) => (r as PromiseRejectedResult).reason);
           if (errors.length > 0) {
-            console.warn("[bootstrap] Low-priority refresh failures:", errors);
+            console.warn('[bootstrap] Low-priority refresh failures:', errors);
           }
         });
         return;
@@ -153,7 +149,7 @@ export function createGeneralActions(set: StoreApi<StoreState>["setState"], get:
         gitSnapshot: undefined,
         gitSnapshots: {},
         gitBranches: [],
-        searchQuery: "",
+        searchQuery: '',
         searchResults: [],
         externalFileChange: undefined,
       });
@@ -176,7 +172,5 @@ export function createGeneralActions(set: StoreApi<StoreState>["setState"], get:
       }));
       if (patch.modelPreferences) await get().refreshModelHealth();
     },
-
-
   };
 }

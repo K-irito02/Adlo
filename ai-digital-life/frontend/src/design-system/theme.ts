@@ -11,16 +11,16 @@
  * constructing it for tests.
  */
 
-export type ThemeMode = "light" | "dark" | "system";
-export type ResolvedTheme = "light" | "dark";
+export type ThemeMode = 'light' | 'dark' | 'system';
+export type ResolvedTheme = 'light' | 'dark';
 
 export function isThemeMode(value: unknown): value is ThemeMode {
-  return value === "light" || value === "dark" || value === "system";
+  return value === 'light' || value === 'dark' || value === 'system';
 }
 
 export function resolveThemeMode(mode: ThemeMode, prefersDark: boolean): ResolvedTheme {
-  if (mode === "system") {
-    return prefersDark ? "dark" : "light";
+  if (mode === 'system') {
+    return prefersDark ? 'dark' : 'light';
   }
   return mode;
 }
@@ -44,37 +44,40 @@ export class ThemeController {
   private readonly systemDarkQuery: MediaQueryList | null;
   private readonly listeners = new Set<ThemeChangeListener>();
 
-  private currentThemeMode: ThemeMode = "system";
-  private currentResolvedTheme: ResolvedTheme = "light";
+  private currentThemeMode: ThemeMode = 'system';
+  private currentResolvedTheme: ResolvedTheme = 'light';
   private readonly handleSystemChange: () => void;
 
   constructor(options: ThemeControllerOptions = {}) {
-    this.root = options.root ?? (typeof document !== "undefined" ? document.documentElement : undefined);
+    this.root =
+      options.root ?? (typeof document !== 'undefined' ? document.documentElement : undefined);
     this.systemDarkQuery =
-      options.systemDarkQuery === undefined && typeof window !== "undefined" && typeof window.matchMedia === "function"
-        ? window.matchMedia("(prefers-color-scheme: dark)")
+      options.systemDarkQuery === undefined &&
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function'
+        ? window.matchMedia('(prefers-color-scheme: dark)')
         : (options.systemDarkQuery ?? null);
-    this.currentResolvedTheme = this.systemDarkQuery?.matches ? "dark" : "light";
+    this.currentResolvedTheme = this.systemDarkQuery?.matches ? 'dark' : 'light';
 
     this.handleSystemChange = () => {
-      if (this.currentThemeMode === "system") {
-        this.applyResolvedTheme(this.systemDarkQuery?.matches ? "dark" : "light");
+      if (this.currentThemeMode === 'system') {
+        this.applyResolvedTheme(this.systemDarkQuery?.matches ? 'dark' : 'light');
       }
     };
 
-    this.systemDarkQuery?.addEventListener?.("change", this.handleSystemChange);
+    this.systemDarkQuery?.addEventListener?.('change', this.handleSystemChange);
   }
 
   /** Detach system listeners (call from tests / window unload). */
   dispose(): void {
-    this.systemDarkQuery?.removeEventListener?.("change", this.handleSystemChange);
+    this.systemDarkQuery?.removeEventListener?.('change', this.handleSystemChange);
     this.listeners.clear();
   }
 
   getState(): ThemeState {
     return {
       themeMode: this.currentThemeMode,
-      resolvedTheme: this.currentResolvedTheme
+      resolvedTheme: this.currentResolvedTheme,
     };
   }
 
@@ -92,10 +95,10 @@ export class ThemeController {
 
     const nextResolved =
       input.resolvedTheme ??
-      (this.currentThemeMode === "system"
+      (this.currentThemeMode === 'system'
         ? this.systemDarkQuery?.matches
-          ? "dark"
-          : "light"
+          ? 'dark'
+          : 'light'
         : this.currentThemeMode);
 
     this.applyResolvedTheme(nextResolved);

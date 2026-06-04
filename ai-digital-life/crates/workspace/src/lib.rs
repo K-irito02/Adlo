@@ -1,14 +1,12 @@
 //! Workspace detection, lightweight indexing, search, and git snapshots.
 
+mod cache;
 pub(crate) mod fs;
 mod git;
 mod search;
 mod tree;
-mod cache;
 
-pub use fs::{
-    create_file, create_folder, delete_entry, duplicate_entry, move_entry, rename_entry,
-};
+pub use fs::{create_file, create_folder, delete_entry, duplicate_entry, move_entry, rename_entry};
 pub use git::{
     capture_git_snapshot, capture_git_snapshot_async, create_git_branch, git_has_local_changes,
     list_git_branches, switch_git_branch,
@@ -17,7 +15,6 @@ pub use search::{search_text, search_text_async};
 pub use tree::{build_retrieval_snapshot, build_retrieval_snapshot_async, list_tree};
 
 use adl_errors::AppError;
-use adl_outline;
 use adl_kernel::FileOutlineItem;
 
 pub fn outline(root: &Path, relative_path: &str) -> Result<Vec<FileOutlineItem>, AppError> {
@@ -56,22 +53,13 @@ pub fn detect_root(input: &Path) -> Result<PathBuf, AppError> {
         }
     }
 
-    input
-        .canonicalize()
-        .map_err(|e| AppError::Workspace(format!("invalid workspace path: {e}")))
+    input.canonicalize().map_err(|e| AppError::Workspace(format!("invalid workspace path: {e}")))
 }
 
 fn is_project_root(path: &Path) -> bool {
-    [
-        ".git",
-        "Cargo.toml",
-        "package.json",
-        "pyproject.toml",
-        "go.mod",
-        "pom.xml",
-    ]
-    .iter()
-    .any(|marker| path.join(marker).exists())
+    [".git", "Cargo.toml", "package.json", "pyproject.toml", "go.mod", "pom.xml"]
+        .iter()
+        .any(|marker| path.join(marker).exists())
 }
 
 pub fn workspace_type(root: &Path) -> WorkspaceType {
@@ -161,36 +149,20 @@ pub fn read_change_preview(
 ) -> Result<WorkspaceChangePreview, AppError> {
     let snapshot = crate::git::capture_git_snapshot(root);
     if !snapshot.is_repo {
-        return Err(AppError::Workspace(
-            "active workspace is not a Git repository".into(),
-        ));
+        return Err(AppError::Workspace("active workspace is not a Git repository".into()));
     }
 
     let normalized_path = relative_path.replace('\\', "/");
-    let status = if snapshot
-        .conflicts
-        .iter()
-        .any(|path| path == &normalized_path)
-    {
+    let status = if snapshot.conflicts.iter().any(|path| path == &normalized_path) {
         WorkspaceChangeStatus::Conflicted
-    } else if snapshot
-        .untracked
-        .iter()
-        .any(|path| path == &normalized_path)
-    {
+    } else if snapshot.untracked.iter().any(|path| path == &normalized_path) {
         WorkspaceChangeStatus::Untracked
-    } else if snapshot
-        .unstaged
-        .iter()
-        .any(|path| path == &normalized_path)
-    {
+    } else if snapshot.unstaged.iter().any(|path| path == &normalized_path) {
         WorkspaceChangeStatus::Modified
     } else if snapshot.staged.iter().any(|path| path == &normalized_path) {
         WorkspaceChangeStatus::Staged
     } else {
-        return Err(AppError::NotFound(format!(
-            "change preview for {normalized_path}"
-        )));
+        return Err(AppError::NotFound(format!("change preview for {normalized_path}")));
     };
 
     let absolute_path = adl_fs_ops::resolve_workspace_path(root, &normalized_path)?;
@@ -208,7 +180,8 @@ pub fn read_change_preview(
     };
 
     let base_content = crate::git::git_show_file(root, &normalized_path)?.unwrap_or_default();
-    let base_exists = !base_content.is_empty() || crate::git::git_file_exists(root, &normalized_path)?;
+    let base_exists =
+        !base_content.is_empty() || crate::git::git_file_exists(root, &normalized_path)?;
     let change_kind = match (base_exists, current_exists) {
         (false, true) => WorkspaceChangeKind::Added,
         (true, false) => WorkspaceChangeKind::Deleted,
@@ -243,11 +216,7 @@ mod tests {
             .current_dir(dir)
             .status()
             .expect("git should be available for workspace tests");
-        assert!(
-            status.success(),
-            "git command failed: git {}",
-            args.join(" ")
-        );
+        assert!(status.success(), "git command failed: git {}", args.join(" "));
     }
 
     fn init_git_repo(dir: &Path) {
@@ -329,10 +298,8 @@ mod tests {
 
     #[test]
     fn markdown_outline_ignores_fenced_headings_and_closing_hashes() {
-        let dir = std::env::temp_dir().join(format!(
-            "adl-workspace-outline-fence-{}",
-            uuid::Uuid::new_v4()
-        ));
+        let dir = std::env::temp_dir()
+            .join(format!("adl-workspace-outline-fence-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(
             dir.join("README.md"),
@@ -353,10 +320,8 @@ mod tests {
 
     #[test]
     fn code_outline_builds_nested_brace_symbols() {
-        let dir = std::env::temp_dir().join(format!(
-            "adl-workspace-outline-brace-{}",
-            uuid::Uuid::new_v4()
-        ));
+        let dir = std::env::temp_dir()
+            .join(format!("adl-workspace-outline-brace-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(dir.join("src")).unwrap();
         std::fs::write(
             dir.join("src/runtime.ts"),
@@ -382,10 +347,8 @@ mod tests {
 
     #[test]
     fn code_outline_supports_python_yaml_and_vue_structures() {
-        let dir = std::env::temp_dir().join(format!(
-            "adl-workspace-outline-structured-{}",
-            uuid::Uuid::new_v4()
-        ));
+        let dir = std::env::temp_dir()
+            .join(format!("adl-workspace-outline-structured-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(dir.join("app")).unwrap();
         std::fs::write(
             dir.join("app/main.py"),
@@ -408,29 +371,15 @@ mod tests {
         let vue_items = outline(&dir, "app/HeroCard.vue").unwrap();
 
         assert_eq!(
-            py_items
-                .iter()
-                .map(|item| (item.label.as_str(), item.depth))
-                .collect::<Vec<_>>(),
+            py_items.iter().map(|item| (item.label.as_str(), item.depth)).collect::<Vec<_>>(),
             vec![("App", Some(1)), ("run", Some(2)), ("inner", Some(3))]
         );
         assert_eq!(
-            yaml_items
-                .iter()
-                .map(|item| (item.label.as_str(), item.depth))
-                .collect::<Vec<_>>(),
-            vec![
-                ("server", Some(1)),
-                ("http", Some(2)),
-                ("routes", Some(3)),
-                ("- path", Some(4))
-            ]
+            yaml_items.iter().map(|item| (item.label.as_str(), item.depth)).collect::<Vec<_>>(),
+            vec![("server", Some(1)), ("http", Some(2)), ("routes", Some(3)), ("- path", Some(4))]
         );
         assert_eq!(
-            vue_items
-                .iter()
-                .map(|item| (item.label.as_str(), item.depth))
-                .collect::<Vec<_>>(),
+            vue_items.iter().map(|item| (item.label.as_str(), item.depth)).collect::<Vec<_>>(),
             vec![
                 ("template", Some(1)),
                 ("section#hero", Some(2)),
@@ -449,10 +398,8 @@ mod tests {
     #[test]
     #[ignore = "requires git in PATH"]
     fn reads_deleted_change_preview_from_head() {
-        let dir = std::env::temp_dir().join(format!(
-            "adl-workspace-change-preview-{}",
-            uuid::Uuid::new_v4()
-        ));
+        let dir = std::env::temp_dir()
+            .join(format!("adl-workspace-change-preview-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(dir.join("resume")).unwrap();
         init_git_repo(&dir);
         std::fs::write(dir.join("resume/index.html"), "<h1>resume</h1>\n").unwrap();
@@ -645,7 +592,8 @@ mod tests {
 
     #[test]
     fn search_text_returns_empty_for_no_matches() {
-        let dir = std::env::temp_dir().join(format!("adl-ws-search-empty-{}", uuid::Uuid::new_v4()));
+        let dir =
+            std::env::temp_dir().join(format!("adl-ws-search-empty-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("test.txt"), "hello world").unwrap();
 
@@ -657,7 +605,8 @@ mod tests {
 
     #[test]
     fn search_text_ignores_empty_query() {
-        let dir = std::env::temp_dir().join(format!("adl-ws-search-empty-q-{}", uuid::Uuid::new_v4()));
+        let dir =
+            std::env::temp_dir().join(format!("adl-ws-search-empty-q-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("test.txt"), "hello world").unwrap();
 
@@ -669,7 +618,8 @@ mod tests {
 
     #[test]
     fn search_text_limits_results() {
-        let dir = std::env::temp_dir().join(format!("adl-ws-search-limit-{}", uuid::Uuid::new_v4()));
+        let dir =
+            std::env::temp_dir().join(format!("adl-ws-search-limit-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
         for i in 0..300 {
             std::fs::write(dir.join(format!("file{}.txt", i)), "hello world").unwrap();

@@ -226,11 +226,15 @@ pub struct BrowserManager {
     active: AtomicBool,
 }
 
+impl Default for BrowserManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BrowserManager {
     pub fn new() -> Self {
-        Self {
-            active: AtomicBool::new(false),
-        }
+        Self { active: AtomicBool::new(false) }
     }
 
     pub fn is_active(&self) -> bool {
@@ -299,9 +303,7 @@ impl BrowserManager {
             .get_webview(BROWSER_WEBVIEW_LABEL)
             .ok_or_else(|| AppError::Internal("browser webview not found".into()))?;
 
-        webview
-            .hide()
-            .map_err(|e| AppError::Internal(format!("hide failed: {e}")))?;
+        webview.hide().map_err(|e| AppError::Internal(format!("hide failed: {e}")))?;
 
         Ok(())
     }
@@ -315,9 +317,7 @@ impl BrowserManager {
             .get_webview(BROWSER_WEBVIEW_LABEL)
             .ok_or_else(|| AppError::Internal("browser webview not found".into()))?;
 
-        webview
-            .show()
-            .map_err(|e| AppError::Internal(format!("show failed: {e}")))?;
+        webview.show().map_err(|e| AppError::Internal(format!("show failed: {e}")))?;
 
         Ok(())
     }
@@ -419,9 +419,7 @@ impl BrowserManager {
         webview
             .set_position(position)
             .map_err(|e| AppError::Internal(format!("set_position failed: {e}")))?;
-        webview
-            .set_size(size)
-            .map_err(|e| AppError::Internal(format!("set_size failed: {e}")))?;
+        webview.set_size(size).map_err(|e| AppError::Internal(format!("set_size failed: {e}")))?;
 
         Ok(())
     }
@@ -435,9 +433,7 @@ impl BrowserManager {
             .get_webview(BROWSER_WEBVIEW_LABEL)
             .ok_or_else(|| AppError::Internal("browser webview not found".into()))?;
 
-        webview
-            .eval(script)
-            .map_err(|e| AppError::Internal(format!("eval failed: {e}")))?;
+        webview.eval(script).map_err(|e| AppError::Internal(format!("eval failed: {e}")))?;
 
         Ok(())
     }

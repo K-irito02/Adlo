@@ -1,5 +1,5 @@
-import React from "react";
-import type { PatchReviewFilter } from "./patchReview";
+import React from 'react';
+import type { PatchReviewFilter } from './patchReview';
 
 export interface PatchReviewSummaryProps {
   activePatchSet: { title: string; summary: string };
@@ -27,7 +27,9 @@ export function PatchReviewSummary({
           <strong>{activePatchSet.title}</strong>
           <p>{activePatchSet.summary}</p>
         </div>
-        <span className="adl-chip adl-chip--info">{reviewCounts.total} {t.changesSummaryPatchFiles}</span>
+        <span className="adl-chip adl-chip--info">
+          {reviewCounts.total} {t.changesSummaryPatchFiles}
+        </span>
       </header>
 
       <div className="adl-patch-review-summary__stats">
@@ -47,28 +49,36 @@ export function PatchReviewSummary({
 
       <div className="adl-patch-review-summary__actions">
         <div className="adl-segmented" role="tablist" aria-label={t.validationSummary}>
-          {(["all", "pending", "accepted", "rejected"] as const).map((filter) => (
+          {(['all', 'pending', 'accepted', 'rejected'] as const).map((filter) => (
             <button
               key={filter}
               type="button"
-              aria-pressed={patchReviewFilter === filter ? "true" : "false"}
+              aria-pressed={patchReviewFilter === filter ? 'true' : 'false'}
               onClick={() => onSetPatchReviewFilter(filter)}
             >
-              {filter === "all"
+              {filter === 'all'
                 ? t.auditFilterAll
-                : filter === "pending"
+                : filter === 'pending'
                   ? t.approvalPendingCount
-                  : filter === "accepted"
+                  : filter === 'accepted'
                     ? t.approvalApproved
                     : t.approvalRejected}
             </button>
           ))}
         </div>
         <div className="adl-patch-review-summary__batch">
-          <button type="button" className="adl-btn adl-btn--ghost adl-btn--sm" onClick={onAcceptAllHunks}>
+          <button
+            type="button"
+            className="adl-btn adl-btn--ghost adl-btn--sm"
+            onClick={onAcceptAllHunks}
+          >
             {t.batchAcceptAll}
           </button>
-          <button type="button" className="adl-btn adl-btn--ghost adl-btn--sm" onClick={onRejectAllHunks}>
+          <button
+            type="button"
+            className="adl-btn adl-btn--ghost adl-btn--sm"
+            onClick={onRejectAllHunks}
+          >
             {t.batchRejectAll}
           </button>
         </div>

@@ -2,8 +2,8 @@
  * UI 切片
  * 管理通用的 UI 状态，保持向后兼容
  */
-import type { ChatMode, ToolId } from "../types";
-import type { StoreState } from "../StoreState";
+import type { ChatMode, ToolId } from '../types';
+import type { StoreState } from '../StoreState';
 import {
   LEFT_COLLAPSED_KEY,
   RIGHT_COLLAPSED_KEY,
@@ -23,8 +23,8 @@ import {
   BROWSER_NAVIGATOR_WIDTH_MIN,
   BROWSER_NAVIGATOR_WIDTH_MAX,
   DEFAULT_BROWSER_NAVIGATOR_WIDTH,
-} from "../ui-store";
-import { readFlag, writeFlag, readNumber, writeNumber, clamp } from "../shared";
+} from '../ui-store';
+import { readFlag, writeFlag, readNumber, writeNumber, clamp } from '../shared';
 
 export interface UISlice {
   activeRightTool: ToolId;
@@ -60,13 +60,33 @@ export const createUISlice = (
   get: () => StoreState
 ): UISlice => ({
   activeRightTool: 'files',
-  chatMode: "ask",
+  chatMode: 'ask',
   leftCollapsed: readFlag(LEFT_COLLAPSED_KEY, false),
   rightCollapsed: readFlag(RIGHT_COLLAPSED_KEY, false),
-  rightPanelWidth: readNumber(RIGHT_PANEL_WIDTH_KEY, DEFAULT_RIGHT_PANEL_WIDTH, RIGHT_PANEL_WIDTH_MIN, RIGHT_PANEL_WIDTH_MAX),
-  filesNavigatorWidth: readNumber(FILES_NAVIGATOR_WIDTH_KEY, DEFAULT_FILES_NAVIGATOR_WIDTH, FILES_NAVIGATOR_WIDTH_MIN, FILES_NAVIGATOR_WIDTH_MAX),
-  changesNavigatorWidth: readNumber(CHANGES_NAVIGATOR_WIDTH_KEY, DEFAULT_CHANGES_NAVIGATOR_WIDTH, CHANGES_NAVIGATOR_WIDTH_MIN, CHANGES_NAVIGATOR_WIDTH_MAX),
-  browserNavigatorWidth: readNumber(BROWSER_NAVIGATOR_WIDTH_KEY, DEFAULT_BROWSER_NAVIGATOR_WIDTH, BROWSER_NAVIGATOR_WIDTH_MIN, BROWSER_NAVIGATOR_WIDTH_MAX),
+  rightPanelWidth: readNumber(
+    RIGHT_PANEL_WIDTH_KEY,
+    DEFAULT_RIGHT_PANEL_WIDTH,
+    RIGHT_PANEL_WIDTH_MIN,
+    RIGHT_PANEL_WIDTH_MAX
+  ),
+  filesNavigatorWidth: readNumber(
+    FILES_NAVIGATOR_WIDTH_KEY,
+    DEFAULT_FILES_NAVIGATOR_WIDTH,
+    FILES_NAVIGATOR_WIDTH_MIN,
+    FILES_NAVIGATOR_WIDTH_MAX
+  ),
+  changesNavigatorWidth: readNumber(
+    CHANGES_NAVIGATOR_WIDTH_KEY,
+    DEFAULT_CHANGES_NAVIGATOR_WIDTH,
+    CHANGES_NAVIGATOR_WIDTH_MIN,
+    CHANGES_NAVIGATOR_WIDTH_MAX
+  ),
+  browserNavigatorWidth: readNumber(
+    BROWSER_NAVIGATOR_WIDTH_KEY,
+    DEFAULT_BROWSER_NAVIGATOR_WIDTH,
+    BROWSER_NAVIGATOR_WIDTH_MIN,
+    BROWSER_NAVIGATOR_WIDTH_MAX
+  ),
   isFetching: {},
 
   setActiveRightTool: (tool) => set({ activeRightTool: tool }),

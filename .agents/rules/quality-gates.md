@@ -50,6 +50,17 @@ alwaysApply: false
 - [ ] 前端测试: `pnpm --dir frontend run test`（214 tests 全通过）
 - [ ] 行为回归: 确认关键用户路径无退化
 
+## 代码质量四维门禁（clippy + fmt + tsc + eslint）
+
+| 检查项 | 命令 |
+|--------|------|
+| Rust Lint | `cargo clippy --workspace --all-targets -- -D warnings` |
+| Rust 格式 | `cargo fmt --all -- --check` |
+| 前端类型检查 | `cd frontend && npx tsc --noEmit` |
+| 前端 Lint | `cd frontend && npx eslint .` |
+
+> **set-state-in-effect 修复规范**：禁止使用 `requestAnimationFrame` 等异步包装绕过 React 18/19 StrictMode 双重调用检测。正确做法是使用 `useRef` 守卫配合 cleanup 清理函数，或重构为不可变状态更新。`requestAnimationFrame` 反模式会导致时序竞争、测试 flaky 和内存泄漏。
+
 ## 相关文件
 
 - [mandatory-testing.md](./mandatory-testing.md)

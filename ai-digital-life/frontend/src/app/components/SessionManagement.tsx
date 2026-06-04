@@ -1,6 +1,6 @@
-import React, { useState, useCallback, useMemo } from "react";
-import { renderIcon, type IconName } from "../../design-system/icons";
-import { TooltipSimple } from "./Tooltip";
+import React, { useState, useCallback, useMemo } from 'react';
+import { renderIcon, type IconName } from '../../design-system/icons';
+import { TooltipSimple } from './Tooltip';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -10,14 +10,14 @@ export interface SessionItem {
   id: string;
   title: string;
   updatedAt: string;
-  status?: "active" | "pending" | "error" | "done";
+  status?: 'active' | 'pending' | 'error' | 'done';
 }
 
 export interface WorkspaceTab {
   id: string;
   name: string;
   isActive: boolean;
-  status?: "active" | "pending" | "error" | "done";
+  status?: 'active' | 'pending' | 'error' | 'done';
   isPinned?: boolean;
 }
 
@@ -35,23 +35,23 @@ export interface SessionManagementProps {
 /*  Status helpers                                                     */
 /* ------------------------------------------------------------------ */
 
-type ItemStatus = NonNullable<SessionItem["status"]>;
+type ItemStatus = NonNullable<SessionItem['status']>;
 
 const STATUS_DOT_COLOR: Record<ItemStatus, string> = {
-  active: "var(--success)",
-  pending: "var(--warning)",
-  error: "var(--danger)",
-  done: "var(--text-disabled)",
+  active: 'var(--success)',
+  pending: 'var(--warning)',
+  error: 'var(--danger)',
+  done: 'var(--text-disabled)',
 };
 
 /** Return the highest-priority status color for a workspace (error > active > pending > done). */
 function resolveWorkspaceStatusColor(workspace: WorkspaceTab): string {
-  if (!workspace.status) return "var(--text-disabled)";
-  const priority: ItemStatus[] = ["error", "active", "pending", "done"];
+  if (!workspace.status) return 'var(--text-disabled)';
+  const priority: ItemStatus[] = ['error', 'active', 'pending', 'done'];
   for (const s of priority) {
     if (workspace.status === s) return STATUS_DOT_COLOR[s];
   }
-  return "var(--text-disabled)";
+  return 'var(--text-disabled)';
 }
 
 /** Format an ISO timestamp into a short relative/localized string. */
@@ -62,15 +62,15 @@ function formatTimestamp(iso: string): string {
     const diffMs = now.getTime() - date.getTime();
     const diffMin = Math.floor(diffMs / 60000);
 
-    if (diffMin < 1) return "just now";
+    if (diffMin < 1) return 'just now';
     if (diffMin < 60) return `${diffMin}m ago`;
 
     const diffHr = Math.floor(diffMin / 60);
     if (diffHr < 24) return `${diffHr}h ago`;
 
-    return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   } catch {
-    return "";
+    return '';
   }
 }
 
@@ -89,15 +89,17 @@ function WorkspaceItem({ workspace, onSelect }: WorkspaceItemProps) {
   return (
     <button
       type="button"
-      className={`sidebar-workspace-tab${workspace.isActive ? " sidebar-workspace-tab--active" : ""}`}
+      className={`sidebar-workspace-tab${workspace.isActive ? ' sidebar-workspace-tab--active' : ''}`}
       onClick={() => onSelect(workspace.id)}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      aria-current={workspace.isActive ? "true" : undefined}
+      aria-current={workspace.isActive ? 'true' : undefined}
     >
       <span
         className="sidebar-workspace-tab__icon"
-        dangerouslySetInnerHTML={{ __html: renderIcon("folder", { size: "sm", decorative: true }).value }}
+        dangerouslySetInnerHTML={{
+          __html: renderIcon('folder', { size: 'sm', decorative: true }).value,
+        }}
       />
       <span className="sidebar-workspace-tab__name">
         <TooltipSimple content={workspace.name} placement="right">
@@ -111,13 +113,13 @@ function WorkspaceItem({ workspace, onSelect }: WorkspaceItemProps) {
       />
 
       {/* Hover actions */}
-      <span className={`sidebar-workspace-tab__actions${hovered ? " is-visible" : ""}`}>
+      <span className={`sidebar-workspace-tab__actions${hovered ? ' is-visible' : ''}`}>
         {workspace.isPinned ? (
           <TooltipSimple content="Pinned" placement="top">
             <span
               className="sidebar-workspace-tab__action"
               dangerouslySetInnerHTML={{
-                __html: renderIcon("pin", { size: "xs", decorative: true }).value,
+                __html: renderIcon('pin', { size: 'xs', decorative: true }).value,
               }}
             />
           </TooltipSimple>
@@ -126,7 +128,7 @@ function WorkspaceItem({ workspace, onSelect }: WorkspaceItemProps) {
             <span
               className="sidebar-workspace-tab__action"
               dangerouslySetInnerHTML={{
-                __html: renderIcon("pin", { size: "xs", decorative: true }).value,
+                __html: renderIcon('pin', { size: 'xs', decorative: true }).value,
               }}
             />
           </TooltipSimple>
@@ -135,7 +137,7 @@ function WorkspaceItem({ workspace, onSelect }: WorkspaceItemProps) {
           <span
             className="sidebar-workspace-tab__action"
             dangerouslySetInnerHTML={{
-              __html: renderIcon("more-vertical", { size: "xs", decorative: true }).value,
+              __html: renderIcon('more-vertical', { size: 'xs', decorative: true }).value,
             }}
           />
         </TooltipSimple>
@@ -151,14 +153,14 @@ interface SessionItemProps {
 }
 
 function SessionItemEl({ session, isActive, onSelect }: SessionItemProps) {
-  const statusColor = session.status ? STATUS_DOT_COLOR[session.status] : "var(--text-disabled)";
+  const statusColor = session.status ? STATUS_DOT_COLOR[session.status] : 'var(--text-disabled)';
 
   return (
     <button
       type="button"
-      className={`sidebar-session-item${isActive ? " sidebar-session-item--active" : ""}`}
+      className={`sidebar-session-item${isActive ? ' sidebar-session-item--active' : ''}`}
       onClick={() => onSelect(session.id)}
-      aria-current={isActive ? "true" : undefined}
+      aria-current={isActive ? 'true' : undefined}
     >
       <span
         className="sidebar-session-item__dot"
@@ -211,10 +213,7 @@ export function SessionManagement({
   }, []);
 
   /** Determine the active workspace ID for indenting sessions. */
-  const activeWorkspaceId = useMemo(
-    () => workspaces.find((w) => w.isActive)?.id,
-    [workspaces]
-  );
+  const activeWorkspaceId = useMemo(() => workspaces.find((w) => w.isActive)?.id, [workspaces]);
 
   return (
     <div className="sidebar-session-mgmt" role="region" aria-label="Session management">
@@ -229,9 +228,9 @@ export function SessionManagement({
             aria-label="Toggle workspaces"
           >
             <span
-              className={`sidebar-section__chevron${workspacesCollapsed ? " is-collapsed" : ""}`}
+              className={`sidebar-section__chevron${workspacesCollapsed ? ' is-collapsed' : ''}`}
               dangerouslySetInnerHTML={{
-                __html: renderIcon("chevron-right", { size: "xs", decorative: true }).value,
+                __html: renderIcon('chevron-right', { size: 'xs', decorative: true }).value,
               }}
             />
             <span className="sidebar-section__title">Workspaces</span>
@@ -245,7 +244,7 @@ export function SessionManagement({
             >
               <span
                 dangerouslySetInnerHTML={{
-                  __html: renderIcon("plus", { size: "xs", decorative: true }).value,
+                  __html: renderIcon('plus', { size: 'xs', decorative: true }).value,
                 }}
               />
             </button>
@@ -277,9 +276,9 @@ export function SessionManagement({
             aria-label="Toggle sessions"
           >
             <span
-              className={`sidebar-section__chevron${sessionsCollapsed ? " is-collapsed" : ""}`}
+              className={`sidebar-section__chevron${sessionsCollapsed ? ' is-collapsed' : ''}`}
               dangerouslySetInnerHTML={{
-                __html: renderIcon("chevron-right", { size: "xs", decorative: true }).value,
+                __html: renderIcon('chevron-right', { size: 'xs', decorative: true }).value,
               }}
             />
             <span className="sidebar-section__title">Sessions</span>
@@ -293,7 +292,7 @@ export function SessionManagement({
             >
               <span
                 dangerouslySetInnerHTML={{
-                  __html: renderIcon("plus", { size: "xs", decorative: true }).value,
+                  __html: renderIcon('plus', { size: 'xs', decorative: true }).value,
                 }}
               />
             </button>
@@ -305,7 +304,7 @@ export function SessionManagement({
             className="sidebar-section__list sidebar-session-list"
             role="listbox"
             aria-label="Sessions"
-            style={activeWorkspaceId ? { paddingLeft: "16px" } : undefined}
+            style={activeWorkspaceId ? { paddingLeft: '16px' } : undefined}
           >
             {sessions.map((session) => (
               <li key={session.id}>
@@ -316,9 +315,7 @@ export function SessionManagement({
                 />
               </li>
             ))}
-            {sessions.length === 0 && (
-              <li className="sidebar-section__empty">No sessions yet</li>
-            )}
+            {sessions.length === 0 && <li className="sidebar-section__empty">No sessions yet</li>}
           </ul>
         )}
       </div>

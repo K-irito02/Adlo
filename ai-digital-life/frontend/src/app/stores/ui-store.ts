@@ -1,6 +1,15 @@
-import { create } from "zustand";
-import type { SettingsGroupId } from "@ai-digital-life/kernel";
-import { clamp, readJson, writeJson, readNumber, writeNumber, readFlag, writeFlag, createUiId } from "./shared";
+import { create } from 'zustand';
+import type { SettingsGroupId } from '@ai-digital-life/kernel';
+import {
+  clamp,
+  readJson,
+  writeJson,
+  readNumber,
+  writeNumber,
+  readFlag,
+  writeFlag,
+  createUiId,
+} from './shared';
 
 /**
  * Renderer-only UI state.
@@ -12,17 +21,17 @@ import { clamp, readJson, writeJson, readNumber, writeNumber, readFlag, writeFla
  */
 
 /** @deprecated 迁移至 app/stores/types.ts 中的同名类型 */
-export type ToolId = "files" | "changes" | "browser" | "terminal" | "audit" | "settings" | "models";
+export type ToolId = 'files' | 'changes' | 'browser' | 'terminal' | 'audit' | 'settings' | 'models';
 /** @deprecated 迁移至 app/stores/types.ts 中的同名类型 */
-export type ChatMode = "plan" | "debug" | "ask";
+export type ChatMode = 'plan' | 'debug' | 'ask';
 /** @deprecated 迁移至 app/stores/types.ts 中的同名类型 */
-export type TerminalProfile = "powershell" | "bash" | "cmd";
-export type FilesNavigatorMode = "tree" | "search" | "outline";
-export type ChangesNavigatorMode = "tree" | "list" | "outline";
+export type TerminalProfile = 'powershell' | 'bash' | 'cmd';
+export type FilesNavigatorMode = 'tree' | 'search' | 'outline';
+export type ChangesNavigatorMode = 'tree' | 'list' | 'outline';
 
 export interface ContextChip {
   id: string;
-  kind: "file" | "doc" | "url" | "codebase" | "skill" | "model" | "mcp";
+  kind: 'file' | 'doc' | 'url' | 'codebase' | 'skill' | 'model' | 'mcp';
   label: string;
   detail?: string;
 }
@@ -46,25 +55,25 @@ export interface BrowserHistoryEntry {
   visitedAt: number;
 }
 
-export const LEFT_COLLAPSED_KEY = "adl-ui:left-collapsed";
-export const RIGHT_COLLAPSED_KEY = "adl-ui:right-collapsed";
-const ACTIVE_RIGHT_TOOL_KEY = "adl-ui:active-right-tool";
-const SESSION_TABS_EXPANDED_KEY = "adl-ui:session-tabs-expanded";
-export const RIGHT_PANEL_WIDTH_KEY = "adl-ui:right-panel-width";
-export const FILES_NAVIGATOR_WIDTH_KEY = "adl-ui:files-navigator-width";
-export const CHANGES_NAVIGATOR_WIDTH_KEY = "adl-ui:changes-navigator-width";
-export const BROWSER_NAVIGATOR_WIDTH_KEY = "adl-ui:browser-navigator-width";
-const NAVIGATOR_COLLAPSED_KEY = "adl-ui:navigator-collapsed";
-const FILE_TREE_EXPANDED_KEY = "adl-ui:file-tree-expanded";
-const CHANGES_TREE_EXPANDED_KEY = "adl-ui:changes-tree-expanded";
-const FILES_NAVIGATOR_MODE_KEY = "adl-ui:files-navigator-mode";
-const FILE_PREVIEW_MODE_KEY = "adl-ui:file-preview-mode";
-const CHANGES_PREVIEW_ENABLED_KEY = "adl-ui:changes-preview-enabled";
-const CHANGES_NAVIGATOR_MODE_KEY = "adl-ui:changes-navigator-mode";
-const BROWSER_TABS_KEY = "adl-ui:browser-tabs";
-const BROWSER_ACTIVE_TAB_KEY = "adl-ui:browser-active-tab";
-const BROWSER_BOOKMARKS_KEY = "adl-ui:browser-bookmarks";
-const BROWSER_HISTORY_KEY = "adl-ui:browser-history";
+export const LEFT_COLLAPSED_KEY = 'adl-ui:left-collapsed';
+export const RIGHT_COLLAPSED_KEY = 'adl-ui:right-collapsed';
+const ACTIVE_RIGHT_TOOL_KEY = 'adl-ui:active-right-tool';
+const SESSION_TABS_EXPANDED_KEY = 'adl-ui:session-tabs-expanded';
+export const RIGHT_PANEL_WIDTH_KEY = 'adl-ui:right-panel-width';
+export const FILES_NAVIGATOR_WIDTH_KEY = 'adl-ui:files-navigator-width';
+export const CHANGES_NAVIGATOR_WIDTH_KEY = 'adl-ui:changes-navigator-width';
+export const BROWSER_NAVIGATOR_WIDTH_KEY = 'adl-ui:browser-navigator-width';
+const NAVIGATOR_COLLAPSED_KEY = 'adl-ui:navigator-collapsed';
+const FILE_TREE_EXPANDED_KEY = 'adl-ui:file-tree-expanded';
+const CHANGES_TREE_EXPANDED_KEY = 'adl-ui:changes-tree-expanded';
+const FILES_NAVIGATOR_MODE_KEY = 'adl-ui:files-navigator-mode';
+const FILE_PREVIEW_MODE_KEY = 'adl-ui:file-preview-mode';
+const CHANGES_PREVIEW_ENABLED_KEY = 'adl-ui:changes-preview-enabled';
+const CHANGES_NAVIGATOR_MODE_KEY = 'adl-ui:changes-navigator-mode';
+const BROWSER_TABS_KEY = 'adl-ui:browser-tabs';
+const BROWSER_ACTIVE_TAB_KEY = 'adl-ui:browser-active-tab';
+const BROWSER_BOOKMARKS_KEY = 'adl-ui:browser-bookmarks';
+const BROWSER_HISTORY_KEY = 'adl-ui:browser-history';
 const deferredJsonWriteHandles = new Map<string, number>();
 
 export const RIGHT_PANEL_WIDTH_MIN = 320;
@@ -79,32 +88,46 @@ export const DEFAULT_CHANGES_NAVIGATOR_WIDTH = 240;
 export const BROWSER_NAVIGATOR_WIDTH_MIN = 180;
 export const BROWSER_NAVIGATOR_WIDTH_MAX = 300;
 export const DEFAULT_BROWSER_NAVIGATOR_WIDTH = 240;
-const TOOL_IDS: ToolId[] = ["files", "changes", "browser", "terminal", "audit", "settings", "models"];
-
-
+const TOOL_IDS: ToolId[] = [
+  'files',
+  'changes',
+  'browser',
+  'terminal',
+  'audit',
+  'settings',
+  'models',
+];
 
 function readRightTool(): ToolId {
   try {
     const raw = window.localStorage.getItem(ACTIVE_RIGHT_TOOL_KEY);
-    if (raw === "files" || raw === "changes" || raw === "browser" || raw === "terminal" || raw === "audit" || raw === "settings" || raw === "models") {
+    if (
+      raw === 'files' ||
+      raw === 'changes' ||
+      raw === 'browser' ||
+      raw === 'terminal' ||
+      raw === 'audit' ||
+      raw === 'settings' ||
+      raw === 'models'
+    ) {
       return raw;
     }
   } catch {
     /* ignore */
   }
-  return "files";
+  return 'files';
 }
 
 function readChangesNavigatorMode(): ChangesNavigatorMode {
   try {
     const raw = window.localStorage.getItem(CHANGES_NAVIGATOR_MODE_KEY);
-    if (raw === "tree" || raw === "list" || raw === "outline") {
+    if (raw === 'tree' || raw === 'list' || raw === 'outline') {
       return raw;
     }
   } catch {
     /* ignore */
   }
-  return "tree";
+  return 'tree';
 }
 
 function writeChangesNavigatorMode(mode: ChangesNavigatorMode): void {
@@ -118,13 +141,13 @@ function writeChangesNavigatorMode(mode: ChangesNavigatorMode): void {
 function readFilesNavigatorMode(): FilesNavigatorMode {
   try {
     const raw = window.localStorage.getItem(FILES_NAVIGATOR_MODE_KEY);
-    if (raw === "tree" || raw === "search" || raw === "outline") {
+    if (raw === 'tree' || raw === 'search' || raw === 'outline') {
       return raw;
     }
   } catch {
     /* ignore */
   }
-  return "tree";
+  return 'tree';
 }
 
 function writeFilesNavigatorMode(mode: FilesNavigatorMode): void {
@@ -160,15 +183,21 @@ export function setTreePathExpandedInState(
   return { ...current, [path]: expanded };
 }
 
-export function toggleTreePathExpandedInState(current: TreeExpansionState, path: string): TreeExpansionState {
+export function toggleTreePathExpandedInState(
+  current: TreeExpansionState,
+  path: string
+): TreeExpansionState {
   return { ...current, [path]: !(current[path] ?? false) };
 }
 
-export function expandTreePathChainInState(current: TreeExpansionState, path: string): TreeExpansionState {
+export function expandTreePathChainInState(
+  current: TreeExpansionState,
+  path: string
+): TreeExpansionState {
   let next = current;
   let changed = false;
-  const segments = path.split("/").filter(Boolean);
-  let currentPath = "";
+  const segments = path.split('/').filter(Boolean);
+  let currentPath = '';
   for (let index = 0; index < segments.length - 1; index += 1) {
     currentPath = currentPath ? `${currentPath}/${segments[index]}` : segments[index];
     if (next[currentPath]) {
@@ -191,8 +220,6 @@ function writeRightTool(tool: ToolId): void {
   }
 }
 
-
-
 function defaultNavigatorCollapsed(): Record<ToolId, boolean> {
   return {
     files: false,
@@ -201,12 +228,12 @@ function defaultNavigatorCollapsed(): Record<ToolId, boolean> {
     terminal: false,
     audit: false,
     settings: false,
-    models: false
+    models: false,
   };
 }
 
 function defaultBrowserTabs(): BrowserTabState[] {
-  return [{ id: createUiId("browser"), title: "Start Page", url: "about:blank" }];
+  return [{ id: createUiId('browser'), title: 'Start Page', url: 'about:blank' }];
 }
 
 function normalizeBrowserTabs(tabs: BrowserTabState[]): BrowserTabState[] {
@@ -273,31 +300,35 @@ export interface UiState {
 const initialBrowserTabs = normalizeBrowserTabs(readJson<BrowserTabState[]>(BROWSER_TABS_KEY, []));
 const initialNavigatorCollapsed = {
   ...defaultNavigatorCollapsed(),
-  ...readJson<Record<ToolId, boolean>>(NAVIGATOR_COLLAPSED_KEY, defaultNavigatorCollapsed())
+  ...readJson<Record<ToolId, boolean>>(NAVIGATOR_COLLAPSED_KEY, defaultNavigatorCollapsed()),
 };
 
 export const useUiStore = create<UiState>((set) => ({
   activeRightTool: readRightTool(),
   navigatorCollapsedByTool: initialNavigatorCollapsed,
-  expandedFileTreePaths: readJson<Record<string, Record<string, boolean>>>(FILE_TREE_EXPANDED_KEY, {}),
+  expandedFileTreePaths: readJson<Record<string, Record<string, boolean>>>(
+    FILE_TREE_EXPANDED_KEY,
+    {}
+  ),
   expandedChangesTreePaths: readJson<Record<string, boolean>>(CHANGES_TREE_EXPANDED_KEY, {}),
   filesNavigatorMode: readFilesNavigatorMode(),
   filePreviewModeByPath: readJson<Record<string, boolean>>(FILE_PREVIEW_MODE_KEY, {}),
-  changesPreviewEnabled: readFlag(CHANGES_PREVIEW_ENABLED_KEY, false),
+  changesPreviewEnabled: readFlag(CHANGES_PREVIEW_ENABLED_KEY, true),
   changesNavigatorMode: readChangesNavigatorMode(),
   expandedSessionWorkspaces: readJson<Record<string, boolean>>(SESSION_TABS_EXPANDED_KEY, {}),
   browserTabs: initialBrowserTabs,
-  browserActiveTabId: readJson<string | null>(BROWSER_ACTIVE_TAB_KEY, null) ?? initialBrowserTabs[0].id,
+  browserActiveTabId:
+    readJson<string | null>(BROWSER_ACTIVE_TAB_KEY, null) ?? initialBrowserTabs[0].id,
   browserBookmarks: readJson<BrowserBookmark[]>(BROWSER_BOOKMARKS_KEY, []),
   browserHistory: readJson<BrowserHistoryEntry[]>(BROWSER_HISTORY_KEY, []),
-  chatMode: "ask",
+  chatMode: 'ask',
   contextChips: [],
   contextMenuOpen: false,
   fileMenuOpen: false,
   viewMenuOpen: false,
   helpMenuOpen: false,
-  activeSettingsGroup: "general",
-  settingsSearchQuery: "",
+  activeSettingsGroup: 'general',
+  settingsSearchQuery: '',
   setActiveRightTool: (tool) => {
     writeRightTool(tool);
     set({ activeRightTool: tool });
@@ -312,7 +343,7 @@ export const useUiStore = create<UiState>((set) => ({
     set((state) => {
       const next = {
         ...state.navigatorCollapsedByTool,
-        [tool]: !(state.navigatorCollapsedByTool[tool] ?? false)
+        [tool]: !(state.navigatorCollapsedByTool[tool] ?? false),
       };
       writeJson(NAVIGATOR_COLLAPSED_KEY, next);
       return { navigatorCollapsedByTool: next };
@@ -423,38 +454,38 @@ export const useUiStore = create<UiState>((set) => ({
       fileMenuOpen: open,
       viewMenuOpen: false,
       helpMenuOpen: false,
-      contextMenuOpen: false
+      contextMenuOpen: false,
     }),
   setViewMenuOpen: (open) =>
     set({
       viewMenuOpen: open,
       fileMenuOpen: false,
       helpMenuOpen: false,
-      contextMenuOpen: false
+      contextMenuOpen: false,
     }),
   setHelpMenuOpen: (open) =>
     set({
       helpMenuOpen: open,
       fileMenuOpen: false,
       viewMenuOpen: false,
-      contextMenuOpen: false
+      contextMenuOpen: false,
     }),
   closeAllMenus: () =>
     set({
       fileMenuOpen: false,
       viewMenuOpen: false,
       helpMenuOpen: false,
-      contextMenuOpen: false
+      contextMenuOpen: false,
     }),
   setActiveSettingsGroup: (group) => set({ activeSettingsGroup: group }),
   setSettingsSearchQuery: (query) => set({ settingsSearchQuery: query }),
   browserOpenTab: (input) =>
     set((state) => {
       const tab: BrowserTabState = {
-        id: createUiId("browser"),
-        title: input?.title?.trim() || "Start Page",
-        url: input?.url?.trim() || "about:blank",
-        pinned: input?.pinned ?? false
+        id: createUiId('browser'),
+        title: input?.title?.trim() || 'Start Page',
+        url: input?.url?.trim() || 'about:blank',
+        pinned: input?.pinned ?? false,
       };
       const nextTabs = [...state.browserTabs, tab];
       writeJson(BROWSER_TABS_KEY, nextTabs);
@@ -471,37 +502,37 @@ export const useUiStore = create<UiState>((set) => ({
       const nextTabs = normalizeBrowserTabs(filtered);
       const nextActive =
         state.browserActiveTabId === tabId
-          ? nextTabs[Math.max(0, filtered.length - 1)]?.id ?? nextTabs[0].id
+          ? (nextTabs[Math.max(0, filtered.length - 1)]?.id ?? nextTabs[0].id)
           : state.browserActiveTabId;
       writeJson(BROWSER_TABS_KEY, nextTabs);
       writeJson(BROWSER_ACTIVE_TAB_KEY, nextActive);
       return {
         browserTabs: nextTabs,
-        browserActiveTabId: nextActive
+        browserActiveTabId: nextActive,
       };
     }),
   browserNavigateActiveTab: (url, title) =>
     set((state) => {
-      const cleanUrl = url.trim() || "about:blank";
-      
+      const cleanUrl = url.trim() || 'about:blank';
+
       const nextTabs = state.browserTabs.map((tab) =>
         tab.id === state.browserActiveTabId
           ? {
               ...tab,
               url: cleanUrl,
-              title: title?.trim() || (cleanUrl === "about:blank" ? "Start Page" : cleanUrl)
+              title: title?.trim() || (cleanUrl === 'about:blank' ? 'Start Page' : cleanUrl),
             }
           : tab
       );
-      
+
       const nextHistory = [
         {
-          id: createUiId("visit"),
+          id: createUiId('visit'),
           url: cleanUrl,
           title: title?.trim() || cleanUrl,
-          visitedAt: Date.now()
+          visitedAt: Date.now(),
         },
-        ...state.browserHistory
+        ...state.browserHistory,
       ].slice(0, 24);
       writeJson(BROWSER_TABS_KEY, nextTabs);
       writeJson(BROWSER_HISTORY_KEY, nextHistory);
@@ -524,5 +555,5 @@ export const useUiStore = create<UiState>((set) => ({
   browserClearHistory: () => {
     writeJson(BROWSER_HISTORY_KEY, []);
     set({ browserHistory: [] });
-  }
+  },
 }));

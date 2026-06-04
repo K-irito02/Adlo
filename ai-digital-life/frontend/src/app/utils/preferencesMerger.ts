@@ -1,4 +1,8 @@
-import type { AppPreferencePatch, ConfigSnapshot, ModelProviderPreference } from "@ai-digital-life/kernel";
+import type {
+  AppPreferencePatch,
+  ConfigSnapshot,
+  ModelProviderPreference,
+} from '@ai-digital-life/kernel';
 
 export function applyPreferencePatch(
   config: ConfigSnapshot,
@@ -11,13 +15,14 @@ export function applyPreferencePatch(
   }
   if (patch.themeMode) {
     nextConfig.themeMode = patch.themeMode;
-    nextConfig.resolvedTheme = patch.themeMode === "dark" ? "dark" : "light";
+    nextConfig.resolvedTheme = patch.themeMode === 'dark' ? 'dark' : 'light';
   }
   if (patch.modelPreferences) {
     const nextProviders = { ...nextConfig.modelPreferences.providers };
-    for (const [providerId, providerPatch] of Object.entries(
-      patch.modelPreferences
-    ) as [string, Partial<ModelProviderPreference>][]) {
+    for (const [providerId, providerPatch] of Object.entries(patch.modelPreferences) as [
+      string,
+      Partial<ModelProviderPreference>,
+    ][]) {
       const key = providerId as keyof typeof nextProviders;
       if (key in nextProviders) {
         nextProviders[key] = {

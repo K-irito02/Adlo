@@ -116,9 +116,7 @@ impl Database {
         sql: &str,
         params: &[&dyn rusqlite::types::ToSql],
     ) -> Result<usize, AppError> {
-        self.conn()?
-            .execute(sql, params)
-            .map_err(|e| AppError::Storage(e.to_string()))
+        self.conn()?.execute(sql, params).map_err(|e| AppError::Storage(e.to_string()))
     }
 
     pub fn init_schema(&self) -> Result<(), AppError> {
@@ -144,11 +142,7 @@ impl Database {
 
     pub fn get_state(&self, key: &str) -> Result<Option<String>, AppError> {
         self.conn()?
-            .query_row(
-                "SELECT value FROM app_state WHERE key = ?1",
-                params![key],
-                |row| row.get(0),
-            )
+            .query_row("SELECT value FROM app_state WHERE key = ?1", params![key], |row| row.get(0))
             .optional()
             .map_err(|e| AppError::Storage(e.to_string()))
     }
@@ -178,11 +172,8 @@ impl Database {
     ) -> Result<(), AppError> {
         let json = serde_json::to_string(value)?;
         let sql = get_insert_sql(table);
-        conn.execute(
-            sql,
-            params![id, workspace_id, session_id, status, now_ms(), json],
-        )
-        .map_err(|e| AppError::Storage(e.to_string()))?;
+        conn.execute(sql, params![id, workspace_id, session_id, status, now_ms(), json])
+            .map_err(|e| AppError::Storage(e.to_string()))?;
         Ok(())
     }
 
@@ -191,12 +182,10 @@ impl Database {
         F: FnOnce(&rusqlite::Connection) -> Result<T, AppError>,
     {
         let conn = self.conn()?;
-        conn.execute_batch("BEGIN TRANSACTION")
-            .map_err(|e| AppError::Storage(e.to_string()))?;
+        conn.execute_batch("BEGIN TRANSACTION").map_err(|e| AppError::Storage(e.to_string()))?;
         match f(&conn) {
             Ok(result) => {
-                conn.execute_batch("COMMIT")
-                    .map_err(|e| AppError::Storage(e.to_string()))?;
+                conn.execute_batch("COMMIT").map_err(|e| AppError::Storage(e.to_string()))?;
                 Ok(result)
             }
             Err(e) => {
@@ -215,7 +204,8 @@ impl Database {
         let title = value.get("title").and_then(|v| v.as_str()).unwrap_or("");
         let is_pinned = value.get("isPinned").and_then(|v| v.as_bool()).unwrap_or(false) as i32;
         let pinned_order = value.get("pinnedOrder").and_then(|v| v.as_i64()).unwrap_or(0) as i32;
-        let unpinned_order = value.get("unpinnedOrder").and_then(|v| v.as_i64()).unwrap_or(0) as i32;
+        let unpinned_order =
+            value.get("unpinnedOrder").and_then(|v| v.as_i64()).unwrap_or(0) as i32;
         let archived_at = value.get("archivedAt").and_then(|v| v.as_i64());
         let created_at = value.get("createdAt").and_then(|v| v.as_i64());
         let last_read_at = value.get("lastReadAt").and_then(|v| v.as_i64());
@@ -252,17 +242,13 @@ impl Database {
         include_archived: bool,
     ) -> Result<Vec<String>, AppError> {
         let conn = self.conn()?;
-        let mut sql = String::from(
-            "SELECT id FROM sessions WHERE workspace_id = ?1"
-        );
+        let mut sql = String::from("SELECT id FROM sessions WHERE workspace_id = ?1");
         if !include_archived {
             sql.push_str(" AND archived_at IS NULL");
         }
         sql.push_str(" ORDER BY is_pinned DESC, pinned_order ASC, unpinned_order DESC");
 
-        let mut stmt = conn
-            .prepare(&sql)
-            .map_err(|e| AppError::Storage(e.to_string()))?;
+        let mut stmt = conn.prepare(&sql).map_err(|e| AppError::Storage(e.to_string()))?;
         let ids: Vec<String> = stmt
             .query_map(params![workspace_id], |row| row.get(0))
             .map_err(|e| AppError::Storage(e.to_string()))?
@@ -282,8 +268,7 @@ impl Database {
             .query_row(sql, params![id], |row| row.get(0))
             .optional()
             .map_err(|e| AppError::Storage(e.to_string()))?;
-        json.map(|value| serde_json::from_str(&value).map_err(AppError::from))
-            .transpose()
+        json.map(|value| serde_json::from_str(&value).map_err(AppError::from)).transpose()
     }
 
     pub fn list_entities<T: DeserializeOwned>(
@@ -337,9 +322,7 @@ impl Database {
         }
 
         let conn = self.conn()?;
-        let mut stmt = conn
-            .prepare(&sql)
-            .map_err(|e| AppError::Storage(e.to_string()))?;
+        let mut stmt = conn.prepare(&sql).map_err(|e| AppError::Storage(e.to_string()))?;
         let rows = if let Some((_, value)) = filter {
             stmt.query_map(params![value], |row| row.get::<_, String>(0))
                 .map_err(|e| AppError::Storage(e.to_string()))?
@@ -351,21 +334,21 @@ impl Database {
                 .collect::<Result<Vec<_>, _>>()
                 .map_err(|e| AppError::Storage(e.to_string()))?
         };
-        rows.into_iter()
-            .map(|json| serde_json::from_str(&json).map_err(AppError::from))
-            .collect()
+        rows.into_iter().map(|json| serde_json::from_str(&json).map_err(AppError::from)).collect()
     }
 
     pub fn delete_entity(&self, table: EntityTable, id: &str) -> Result<bool, AppError> {
         let sql = get_delete_by_id_sql(table);
-        let changed = self
-            .conn()?
-            .execute(sql, params![id])
-            .map_err(|e| AppError::Storage(e.to_string()))?;
+        let changed =
+            self.conn()?.execute(sql, params![id]).map_err(|e| AppError::Storage(e.to_string()))?;
         Ok(changed > 0)
     }
 
-    pub fn delete_entities_by_session(&self, table: EntityTable, session_id: &str) -> Result<usize, AppError> {
+    pub fn delete_entities_by_session(
+        &self,
+        table: EntityTable,
+        session_id: &str,
+    ) -> Result<usize, AppError> {
         let sql = format!("DELETE FROM {} WHERE session_id = ?1", table.table_name());
         let changed = self
             .conn()?
@@ -426,10 +409,7 @@ impl Database {
         root_path: &str,
     ) -> Result<usize, AppError> {
         let changed = conn
-            .execute(
-                "DELETE FROM recent_workspaces WHERE root_path = ?1",
-                params![root_path],
-            )
+            .execute("DELETE FROM recent_workspaces WHERE root_path = ?1", params![root_path])
             .map_err(|e| AppError::Storage(e.to_string()))?;
         Ok(changed)
     }
@@ -524,10 +504,8 @@ impl Database {
         workspace_id: &str,
         root_path: Option<&str>,
     ) -> Result<WorkspacePurgeReport, AppError> {
-        let mut report = WorkspacePurgeReport {
-            workspace_id: workspace_id.to_string(),
-            ..Default::default()
-        };
+        let mut report =
+            WorkspacePurgeReport { workspace_id: workspace_id.to_string(), ..Default::default() };
 
         self.transaction(|conn| {
             for table in WORKSPACE_SCOPED_TABLES {
@@ -585,33 +563,33 @@ define_entity_table! {
 }
 
 fn get_insert_sql(table: EntityTable) -> &'static str {
-    static INSERT_SQLS: [OnceLock<String>; ENTITY_TABLE_COUNT] = [const { OnceLock::new() }; ENTITY_TABLE_COUNT];
+    static INSERT_SQLS: [OnceLock<String>; ENTITY_TABLE_COUNT] =
+        [const { OnceLock::new() }; ENTITY_TABLE_COUNT];
     let idx = table.index();
-    INSERT_SQLS[idx].get_or_init(|| {
-        INSERT_SQL_TEMPLATE.replace("{table}", table.table_name())
-    })
+    INSERT_SQLS[idx].get_or_init(|| INSERT_SQL_TEMPLATE.replace("{table}", table.table_name()))
 }
 
 fn get_select_all_sql(table: EntityTable) -> &'static str {
-    static SELECT_ALL_SQLS: [OnceLock<String>; ENTITY_TABLE_COUNT] = [const { OnceLock::new() }; ENTITY_TABLE_COUNT];
+    static SELECT_ALL_SQLS: [OnceLock<String>; ENTITY_TABLE_COUNT] =
+        [const { OnceLock::new() }; ENTITY_TABLE_COUNT];
     let idx = table.index();
     SELECT_ALL_SQLS[idx].get_or_init(|| format!("SELECT json FROM {}", table.table_name()))
 }
 
 fn get_select_by_id_sql(table: EntityTable) -> &'static str {
-    static SELECT_BY_ID_SQLS: [OnceLock<String>; ENTITY_TABLE_COUNT] = [const { OnceLock::new() }; ENTITY_TABLE_COUNT];
+    static SELECT_BY_ID_SQLS: [OnceLock<String>; ENTITY_TABLE_COUNT] =
+        [const { OnceLock::new() }; ENTITY_TABLE_COUNT];
     let idx = table.index();
-    SELECT_BY_ID_SQLS[idx].get_or_init(|| {
-        format!("SELECT json FROM {} WHERE id = ?1", table.table_name())
-    })
+    SELECT_BY_ID_SQLS[idx]
+        .get_or_init(|| format!("SELECT json FROM {} WHERE id = ?1", table.table_name()))
 }
 
 fn get_delete_by_id_sql(table: EntityTable) -> &'static str {
-    static DELETE_BY_ID_SQLS: [OnceLock<String>; ENTITY_TABLE_COUNT] = [const { OnceLock::new() }; ENTITY_TABLE_COUNT];
+    static DELETE_BY_ID_SQLS: [OnceLock<String>; ENTITY_TABLE_COUNT] =
+        [const { OnceLock::new() }; ENTITY_TABLE_COUNT];
     let idx = table.index();
-    DELETE_BY_ID_SQLS[idx].get_or_init(|| {
-        format!("DELETE FROM {} WHERE id = ?1", table.table_name())
-    })
+    DELETE_BY_ID_SQLS[idx]
+        .get_or_init(|| format!("DELETE FROM {} WHERE id = ?1", table.table_name()))
 }
 
 #[cfg(test)]
@@ -647,19 +625,12 @@ mod tests {
             "INSERT INTO {table} (id, workspace_id, session_id, status, updated_at, json) VALUES (?1, ?2, NULL, NULL, ?3, ?4)"
         );
         let json = format!("{{\"id\":\"{id}\",\"workspace_id\":\"{ws_id}\"}}");
-        db.execute(
-            &sql,
-            &[&id as &dyn rusqlite::types::ToSql, &ws_id, &0i64, &json],
-        )
-        .unwrap();
+        db.execute(&sql, &[&id as &dyn rusqlite::types::ToSql, &ws_id, &0i64, &json]).unwrap();
     }
 
     fn count_rows(db: &Database, table: &str, ws_id: &str) -> i64 {
         let sql = format!("SELECT COUNT(*) FROM {table} WHERE workspace_id = ?1");
-        db.conn()
-            .unwrap()
-            .query_row(&sql, rusqlite::params![ws_id], |r| r.get(0))
-            .unwrap()
+        db.conn().unwrap().query_row(&sql, rusqlite::params![ws_id], |r| r.get(0)).unwrap()
     }
 
     #[test]
@@ -686,11 +657,24 @@ mod tests {
 
         // Seed A with 1 row in each child table
         let child_tables = [
-            "retrieval_snapshots", "tasks", "approvals", "audit_records",
-            "checkpoints", "conversation_messages", "agent_runs", "agent_steps",
-            "tool_invocations", "patch_sets", "file_patches", "patch_hunks",
-            "command_requests", "command_executions", "validation_results",
-            "model_preferences", "model_call_audit", "run_activity_events",
+            "retrieval_snapshots",
+            "tasks",
+            "approvals",
+            "audit_records",
+            "checkpoints",
+            "conversation_messages",
+            "agent_runs",
+            "agent_steps",
+            "tool_invocations",
+            "patch_sets",
+            "file_patches",
+            "patch_hunks",
+            "command_requests",
+            "command_executions",
+            "validation_results",
+            "model_preferences",
+            "model_call_audit",
+            "run_activity_events",
         ];
         for t in child_tables {
             seed_workspace_child(&db, t, &format!("a-{t}-1"), "ws-a");

@@ -1,6 +1,6 @@
-import React from "react";
-import type { RecentWorkspaceEntry } from "@ai-digital-life/kernel";
-import type { BrowserTabState, TabFolderState } from "../../stores/slices/browserSlice";
+import React from 'react';
+import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
+import type { BrowserTabState, TabFolderState } from '../../stores/slices/browserSlice';
 
 export interface MultiWorkspaceBrowserProps {
   workspaces: RecentWorkspaceEntry[];
@@ -20,9 +20,7 @@ export function MultiWorkspaceBrowser({
     <div className="adl-multitree adl-multitree--browser">
       <div className="adl-multitree__empty">
         <p className="adl-empty-hint">
-          {browserTabs.length > 0
-            ? `共 ${browserTabs.length} 个标签`
-            : t?.workspaceEmpty ?? ""}
+          {browserTabs.length > 0 ? `共 ${browserTabs.length} 个标签` : (t?.workspaceEmpty ?? '')}
         </p>
       </div>
     </div>

@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { type IconName } from "../../design-system/icons";
-import { TooltipSimple } from "./Tooltip";
-import { Icon } from "./Icon";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type IconName } from '../../design-system/icons';
+import { TooltipSimple } from './Tooltip';
+import { Icon } from './Icon';
 
 interface ContextBuilderProps {
   onAddContext: (type: string, value?: string) => void;
@@ -12,25 +12,25 @@ interface ContextItem {
   type: string;
   label: string;
   icon: IconName;
-  section: "mode" | "model" | "reference";
+  section: 'mode' | 'model' | 'reference';
 }
 
 const CONTEXT_ITEMS: ContextItem[] = [
-  { type: "plan", label: "规划模式", icon: "clipboard-list", section: "mode" },
-  { type: "debug", label: "调试模式", icon: "bug", section: "mode" },
-  { type: "ask", label: "问答模式", icon: "message-circle-question", section: "mode" },
-  { type: "model", label: "模型选择", icon: "cpu", section: "model" },
-  { type: "skills", label: "技能库", icon: "sparkles", section: "model" },
-  { type: "mcp", label: "MCP 服务", icon: "plug", section: "model" },
-  { type: "@file", label: "引用文件", icon: "file-text", section: "reference" },
-  { type: "@doc", label: "引用文档", icon: "book-open", section: "reference" },
-  { type: "@url", label: "引用链接", icon: "link", section: "reference" },
-  { type: "@codebase", label: "代码库上下文", icon: "database", section: "reference" }
+  { type: 'plan', label: '规划模式', icon: 'clipboard-list', section: 'mode' },
+  { type: 'debug', label: '调试模式', icon: 'bug', section: 'mode' },
+  { type: 'ask', label: '问答模式', icon: 'message-circle-question', section: 'mode' },
+  { type: 'model', label: '模型选择', icon: 'cpu', section: 'model' },
+  { type: 'skills', label: '技能库', icon: 'sparkles', section: 'model' },
+  { type: 'mcp', label: 'MCP 服务', icon: 'plug', section: 'model' },
+  { type: '@file', label: '引用文件', icon: 'file-text', section: 'reference' },
+  { type: '@doc', label: '引用文档', icon: 'book-open', section: 'reference' },
+  { type: '@url', label: '引用链接', icon: 'link', section: 'reference' },
+  { type: '@codebase', label: '代码库上下文', icon: 'database', section: 'reference' },
 ];
 
 export function ContextBuilder({ onAddContext, activeContexts = [] }: ContextBuilderProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -41,32 +41,36 @@ export function ContextBuilder({ onAddContext, activeContexts = [] }: ContextBui
     if (!isOpen) return;
 
     function handleClickOutside(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node) && !buttonRef.current?.contains(e.target as Node)) {
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(e.target as Node) &&
+        !buttonRef.current?.contains(e.target as Node)
+      ) {
         setIsOpen(false);
-        setSearchQuery("");
+        setSearchQuery('');
         setFocusedIndex(-1);
       }
     }
 
     function handleEscape(e: KeyboardEvent) {
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         setIsOpen(false);
-        setSearchQuery("");
+        setSearchQuery('');
         setFocusedIndex(-1);
         buttonRef.current?.focus();
       }
     }
 
-    document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("keydown", handleEscape);
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
 
     if (searchInputRef.current) {
       searchInputRef.current.focus();
     }
 
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("keydown", handleEscape);
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
     };
   }, [isOpen]);
 
@@ -74,9 +78,7 @@ export function ContextBuilder({ onAddContext, activeContexts = [] }: ContextBui
     if (!searchQuery.trim()) return CONTEXT_ITEMS;
     const q = searchQuery.toLowerCase();
     return CONTEXT_ITEMS.filter(
-      (item) =>
-        item.label.toLowerCase().includes(q) ||
-        item.type.toLowerCase().includes(q)
+      (item) => item.label.toLowerCase().includes(q) || item.type.toLowerCase().includes(q)
     );
   }, [searchQuery]);
 
@@ -90,15 +92,15 @@ export function ContextBuilder({ onAddContext, activeContexts = [] }: ContextBui
   }, [filteredItems]);
 
   const SECTION_LABELS: Record<string, string> = {
-    mode: "模式",
-    model: "模型与技能",
-    reference: "上下文引用"
+    mode: '模式',
+    model: '模型与技能',
+    reference: '上下文引用',
   };
 
   const handleToggle = useCallback(() => {
     setIsOpen((prev) => !prev);
     if (!isOpen) {
-      setSearchQuery("");
+      setSearchQuery('');
       setFocusedIndex(-1);
     }
   }, [isOpen]);
@@ -107,7 +109,7 @@ export function ContextBuilder({ onAddContext, activeContexts = [] }: ContextBui
     (item: ContextItem) => {
       onAddContext(item.type);
       setIsOpen(false);
-      setSearchQuery("");
+      setSearchQuery('');
       setFocusedIndex(-1);
       buttonRef.current?.focus();
     },
@@ -119,25 +121,25 @@ export function ContextBuilder({ onAddContext, activeContexts = [] }: ContextBui
       const flatItems = filteredItems;
 
       switch (e.key) {
-        case "ArrowDown":
+        case 'ArrowDown':
           e.preventDefault();
           setFocusedIndex((prev) => (prev < flatItems.length - 1 ? prev + 1 : prev));
           break;
-        case "ArrowUp":
+        case 'ArrowUp':
           e.preventDefault();
           setFocusedIndex((prev) => (prev > 0 ? prev - 1 : -1));
           break;
-        case "Enter":
+        case 'Enter':
           e.preventDefault();
           if (focusedIndex >= 0 && focusedIndex < flatItems.length) {
             handleSelectItem(flatItems[focusedIndex]);
           }
           break;
-        case "Home":
+        case 'Home':
           e.preventDefault();
           setFocusedIndex(0);
           break;
-        case "End":
+        case 'End':
           e.preventDefault();
           setFocusedIndex(flatItems.length - 1);
           break;
@@ -158,7 +160,7 @@ export function ContextBuilder({ onAddContext, activeContexts = [] }: ContextBui
         <button
           ref={buttonRef}
           type="button"
-          className={`context-builder__trigger${isOpen ? " context-builder__trigger--open" : ""}`}
+          className={`context-builder__trigger${isOpen ? ' context-builder__trigger--open' : ''}`}
           onClick={handleToggle}
           aria-expanded={isOpen}
           aria-haspopup="listbox"

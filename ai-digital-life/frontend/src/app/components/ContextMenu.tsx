@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from "react";
-import { createPortal } from "react-dom";
+import React, { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 
 export interface ContextMenuItem {
   id: string;
@@ -27,15 +27,15 @@ export function ContextMenu({ items, position, onClose }: ContextMenuProps) {
       }
     };
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
+      if (event.key === 'Escape') {
         onClose();
       }
     };
-    window.addEventListener("mousedown", handlePointer);
-    window.addEventListener("keydown", handleEscape);
+    window.addEventListener('mousedown', handlePointer);
+    window.addEventListener('keydown', handleEscape);
     return () => {
-      window.removeEventListener("mousedown", handlePointer);
-      window.removeEventListener("keydown", handleEscape);
+      window.removeEventListener('mousedown', handlePointer);
+      window.removeEventListener('keydown', handleEscape);
     };
   }, [onClose]);
 
@@ -58,7 +58,7 @@ export function ContextMenu({ items, position, onClose }: ContextMenuProps) {
             key={item.id}
             type="button"
             role="menuitem"
-            className={`adl-sidebar-menu__item${item.danger ? " is-danger" : ""}`}
+            className={`adl-sidebar-menu__item${item.danger ? ' is-danger' : ''}`}
             disabled={item.disabled}
             tabIndex={item.disabled ? -1 : 0}
             autoFocus={nonSeparatorItems.indexOf(item) === firstItemIndex}
@@ -68,9 +68,7 @@ export function ContextMenu({ items, position, onClose }: ContextMenuProps) {
               onClose();
             }}
           >
-            {item.icon ? (
-              <span className="adl-sidebar-menu__icon">{item.icon}</span>
-            ) : null}
+            {item.icon ? <span className="adl-sidebar-menu__icon">{item.icon}</span> : null}
             <span>{item.label}</span>
           </button>
         );

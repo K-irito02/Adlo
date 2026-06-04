@@ -3,7 +3,7 @@
  * 用于管理会话活动和 run 数据的修剪逻辑
  */
 
-import type { DigitalLifeRunActivityEventV1, ModelTokenUsage } from "@ai-digital-life/kernel";
+import type { DigitalLifeRunActivityEventV1, ModelTokenUsage } from '@ai-digital-life/kernel';
 
 // 常量配置
 export const MAX_ACTIVITY_PER_RUN = 500;
@@ -15,7 +15,9 @@ export const MAX_STORED_RUNS = 50;
  * @param activities 活动列表
  * @returns 修剪后的活动列表
  */
-export function trimActivityList(activities: DigitalLifeRunActivityEventV1[]): DigitalLifeRunActivityEventV1[] {
+export function trimActivityList(
+  activities: DigitalLifeRunActivityEventV1[]
+): DigitalLifeRunActivityEventV1[] {
   if (activities.length <= MAX_ACTIVITY_PER_RUN) {
     return activities;
   }
@@ -42,14 +44,21 @@ export function trimOldRuns(
 } {
   const runIds = Object.keys(activityMap);
   if (runIds.length <= MAX_STORED_RUNS) {
-    return { runActivityByRunId: activityMap, runUsageByRunId: usageMap, _runLastAccessTime: accessMap };
+    return {
+      runActivityByRunId: activityMap,
+      runUsageByRunId: usageMap,
+      _runLastAccessTime: accessMap,
+    };
   }
 
   const sortedRunIds = runIds
-    .filter(id => !excludeRunIds.has(id))
+    .filter((id) => !excludeRunIds.has(id))
     .sort((a, b) => (accessMap[a] ?? 0) - (accessMap[b] ?? 0));
 
-  const toRemove = sortedRunIds.slice(0, sortedRunIds.length - MAX_STORED_RUNS + excludeRunIds.size);
+  const toRemove = sortedRunIds.slice(
+    0,
+    sortedRunIds.length - MAX_STORED_RUNS + excludeRunIds.size
+  );
   const toRemoveSet = new Set(toRemove);
 
   const nextActivity: Record<string, DigitalLifeRunActivityEventV1[]> = {};
@@ -69,6 +78,6 @@ export function trimOldRuns(
   return {
     runActivityByRunId: nextActivity,
     runUsageByRunId: nextUsage,
-    _runLastAccessTime: nextAccess
+    _runLastAccessTime: nextAccess,
   };
 }

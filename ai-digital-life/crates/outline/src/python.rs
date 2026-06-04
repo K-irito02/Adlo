@@ -25,11 +25,7 @@ pub(crate) fn parse_python_outline(content: &str) -> Vec<OutlineDraft> {
             .take_while(|ch| ch.is_whitespace())
             .map(|ch| if ch == '\t' { 4 } else { 1 })
             .sum();
-        while indent_stack
-            .last()
-            .copied()
-            .is_some_and(|value| indent <= value)
-        {
+        while indent_stack.last().copied().is_some_and(|value| indent <= value) {
             indent_stack.pop();
         }
         if let Some(captures) = class_regex().captures(trimmed) {

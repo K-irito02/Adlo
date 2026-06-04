@@ -1,7 +1,7 @@
-import React, { useState } from "react";
-import type { CopyDict } from "../../i18n";
-import { IconChevronDown, IconChevronUp, IconClose, IconFolder } from "../../icons";
-import type { ContextChip } from "../../stores/types";
+import React, { useState } from 'react';
+import type { CopyDict } from '../../i18n';
+import { IconChevronDown, IconChevronUp, IconClose, IconFolder } from '../../icons';
+import type { ContextChip } from '../../stores/types';
 
 interface ContextSummaryBarProps {
   t: CopyDict;
@@ -11,12 +11,18 @@ interface ContextSummaryBarProps {
   onRemoveChip: (id: string) => void;
 }
 
-export function ContextSummaryBar({ t, workspaceName, chips, tokenEstimate, onRemoveChip }: ContextSummaryBarProps) {
+export function ContextSummaryBar({
+  t,
+  workspaceName,
+  chips,
+  tokenEstimate,
+  onRemoveChip,
+}: ContextSummaryBarProps) {
   const [expanded, setExpanded] = useState(false);
 
   if (!workspaceName && chips.length === 0) return null;
 
-  const fileCount = chips.filter((c) => c.kind === "file").length;
+  const fileCount = chips.filter((c) => c.kind === 'file').length;
 
   return (
     <div className="adl-context-bar">
@@ -41,7 +47,11 @@ export function ContextSummaryBar({ t, workspaceName, chips, tokenEstimate, onRe
             ~{tokenEstimate.toLocaleString()} {t.contextSummaryTokens}
           </span>
         )}
-        {expanded ? <IconChevronUp size={14} decorative /> : <IconChevronDown size={14} decorative />}
+        {expanded ? (
+          <IconChevronUp size={14} decorative />
+        ) : (
+          <IconChevronDown size={14} decorative />
+        )}
       </button>
 
       {expanded && chips.length > 0 && (

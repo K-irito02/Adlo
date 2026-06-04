@@ -1,5 +1,5 @@
-import React, { Component, type ReactNode } from "react";
-import { IconAlertTriangle } from "../icons";
+import React, { Component, type ReactNode } from 'react';
+import { IconAlertTriangle } from '../icons';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -23,7 +23,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
-    console.error("ErrorBoundary caught:", error, errorInfo);
+    console.error('ErrorBoundary caught:', error, errorInfo);
     this.props.onError?.(error, errorInfo);
   }
 
@@ -33,30 +33,34 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         return this.props.fallback;
       }
       return (
-        <div className="adl-error-boundary" role="alert" style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "32px",
-          gap: "12px",
-          color: "var(--text-secondary, #888)",
-          fontSize: "13px",
-          textAlign: "center",
-          height: "100%"
-        }}>
+        <div
+          className="adl-error-boundary"
+          role="alert"
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '32px',
+            gap: '12px',
+            color: 'var(--text-secondary, #888)',
+            fontSize: '13px',
+            textAlign: 'center',
+            height: '100%',
+          }}
+        >
           <IconAlertTriangle size={24} decorative className="adl-error-boundary__icon" />
           <p>该面板遇到意外错误，已降级保护。</p>
           <button
             onClick={() => this.setState({ hasError: false, error: null })}
             style={{
-              background: "var(--surface-hover, #333)",
-              color: "var(--text-primary, #fff)",
-              border: "1px solid var(--border, #444)",
-              borderRadius: "6px",
-              padding: "6px 16px",
-              cursor: "pointer",
-              fontSize: "12px"
+              background: 'var(--surface-hover, #333)',
+              color: 'var(--text-primary, #fff)',
+              border: '1px solid var(--border, #444)',
+              borderRadius: '6px',
+              padding: '6px 16px',
+              cursor: 'pointer',
+              fontSize: '12px',
             }}
           >
             重试

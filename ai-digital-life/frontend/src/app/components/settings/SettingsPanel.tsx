@@ -1,10 +1,10 @@
-import React, { useMemo } from "react";
-import type { SettingsGroupId, SettingItem } from "@ai-digital-life/kernel";
-import type { CopyDict } from "../../i18n";
-import { IconSearch, IconSettings } from "../../icons";
-import { useUiStore } from "../../stores/ui-store";
-import { SettingsNav } from "./SettingsNav";
-import { SettingsControls } from "./SettingsControls";
+import React, { useMemo } from 'react';
+import type { SettingsGroupId, SettingItem } from '@ai-digital-life/kernel';
+import type { CopyDict } from '../../i18n';
+import { IconSearch, IconSettings } from '../../icons';
+import { useUiStore } from '../../stores/ui-store';
+import { SettingsNav } from './SettingsNav';
+import { SettingsControls } from './SettingsControls';
 
 interface SettingsPanelProps {
   t: CopyDict;
@@ -52,7 +52,12 @@ export function SettingsPanel({ t, settings, onChangeSetting }: SettingsPanelPro
           <SettingsNav t={t} activeGroup={activeGroup} onSelectGroup={setActiveGroup} />
         )}
         <div className="adl-settings-panel__content">
-          <SettingsControls t={t} items={filtered} onChange={onChangeSetting} searchQuery={searchQuery} />
+          <SettingsControls
+            t={t}
+            items={filtered}
+            onChange={onChangeSetting}
+            searchQuery={searchQuery}
+          />
         </div>
       </div>
     </div>

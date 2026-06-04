@@ -65,14 +65,8 @@ impl EventBus {
         self.emitted.fetch_add(1, Ordering::Relaxed);
         let key = event.kind().to_string();
         let counter = {
-            let mut by_type = self
-                .by_type
-                .lock()
-                .expect("event diagnostics mutex poisoned");
-            by_type
-                .entry(key)
-                .or_insert_with(|| Arc::new(AtomicUsize::new(0)))
-                .clone()
+            let mut by_type = self.by_type.lock().expect("event diagnostics mutex poisoned");
+            by_type.entry(key).or_insert_with(|| Arc::new(AtomicUsize::new(0))).clone()
         };
         counter.fetch_add(1, Ordering::Relaxed);
         let _ = self.tx.send(event);
@@ -83,14 +77,8 @@ impl EventBus {
     }
 
     pub fn diagnostics(&self) -> (usize, BTreeMap<String, usize>) {
-        let by_type = self
-            .by_type
-            .lock()
-            .expect("event diagnostics mutex poisoned");
-        let map = by_type
-            .iter()
-            .map(|(k, v)| (k.clone(), v.load(Ordering::Relaxed)))
-            .collect();
+        let by_type = self.by_type.lock().expect("event diagnostics mutex poisoned");
+        let map = by_type.iter().map(|(k, v)| (k.clone(), v.load(Ordering::Relaxed))).collect();
         (self.emitted.load(Ordering::Relaxed), map)
     }
 }

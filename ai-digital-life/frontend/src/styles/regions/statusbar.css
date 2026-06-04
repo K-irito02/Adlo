@@ -219,7 +219,8 @@
 
   .adl-composer__inner {
     min-height: 42px;
-    padding: calc(var(--space-1) + var(--space-0-5)) var(--space-1-5) calc(var(--space-1) + var(--space-0-5)) var(--space-2);
+    padding: calc(var(--space-1) + var(--space-0-5)) var(--space-1-5)
+      calc(var(--space-1) + var(--space-0-5)) var(--space-2);
     border-radius: var(--radius-full);
   }
 
@@ -403,7 +404,9 @@
   background: var(--surface-subtle);
 }
 
-.adl-statusbar__menu--workspace .adl-statusbar__menu-option--global .adl-statusbar__menu-option-main {
+.adl-statusbar__menu--workspace
+  .adl-statusbar__menu-option--global
+  .adl-statusbar__menu-option-main {
   font-size: var(--text-sm);
   font-weight: var(--font-semibold);
 }
@@ -675,7 +678,7 @@
   box-shadow: none;
 }
 
-.adl-statusbar__submenu-trigger[aria-expanded="true"] {
+.adl-statusbar__submenu-trigger[aria-expanded='true'] {
   background: var(--surface-subtle);
 }
 

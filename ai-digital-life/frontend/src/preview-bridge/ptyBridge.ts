@@ -1,6 +1,6 @@
-import type { PtyOutputEvent } from "../shared/ipc";
-import type { PtySessionInfo } from "../shared/ipc";
-import { requestPreviewApi } from "./api";
+import type { PtyOutputEvent } from '../shared/ipc';
+import type { PtySessionInfo } from '../shared/ipc';
+import { requestPreviewApi } from './api';
 
 const MAX_PTY_LISTENERS = 32;
 
@@ -17,19 +17,19 @@ export function createPtyBridge() {
 
     ptyPollingInterval = window.setInterval(async () => {
       try {
-        const result = await requestPreviewApi<PtySessionInfo[]>("/pty/list");
+        const result = await requestPreviewApi<PtySessionInfo[]>('/pty/list');
 
         if (result.ok) {
           const sessions = result.data;
           for (const session of sessions) {
             if (session.output) {
-              const lastOutput = sessionOutputBuffers.get(session.sessionId) || "";
+              const lastOutput = sessionOutputBuffers.get(session.sessionId) || '';
               if (session.output !== lastOutput) {
                 const newOutput = session.output.slice(lastOutput.length);
                 if (newOutput) {
                   const event: PtyOutputEvent = {
                     sessionId: session.sessionId,
-                    data: newOutput
+                    data: newOutput,
                   };
                   ptyOutputListeners.forEach((fn) => fn(event));
                 }
@@ -39,7 +39,7 @@ export function createPtyBridge() {
           }
         }
       } catch (e) {
-        console.warn("PTY polling error", e);
+        console.warn('PTY polling error', e);
       }
     }, 100);
   }
@@ -47,7 +47,7 @@ export function createPtyBridge() {
   return {
     subscribePtyOutput: (listener: (event: PtyOutputEvent) => void) => {
       if (ptyOutputListeners.size >= MAX_PTY_LISTENERS) {
-        console.warn("preview-bridge: PTY listener limit reached, dropping oldest listener");
+        console.warn('preview-bridge: PTY listener limit reached, dropping oldest listener');
         const oldest = ptyOutputListeners.values().next().value;
         if (oldest) ptyOutputListeners.delete(oldest);
       }
@@ -69,29 +69,33 @@ export function createPtyBridge() {
 
     pty: {
       create: async (input: { shell?: string; cwd?: string; cols: number; rows: number }) =>
-        requestPreviewApi<{ sessionId: string }>("/pty/create", {
-          method: "POST",
-          body: JSON.stringify({ shell: input.shell, cwd: input.cwd, cols: input.cols, rows: input.rows })
+        requestPreviewApi<{ sessionId: string }>('/pty/create', {
+          method: 'POST',
+          body: JSON.stringify({
+            shell: input.shell,
+            cwd: input.cwd,
+            cols: input.cols,
+            rows: input.rows,
+          }),
         }),
       input: async (sessionId: string, data: string) =>
-        requestPreviewApi<boolean>("/pty/input", {
-          method: "POST",
-          body: JSON.stringify({ sessionId, data })
+        requestPreviewApi<boolean>('/pty/input', {
+          method: 'POST',
+          body: JSON.stringify({ sessionId, data }),
         }),
       resize: async (sessionId: string, cols: number, rows: number) =>
-        requestPreviewApi<boolean>("/pty/resize", {
-          method: "POST",
-          body: JSON.stringify({ sessionId, cols, rows })
+        requestPreviewApi<boolean>('/pty/resize', {
+          method: 'POST',
+          body: JSON.stringify({ sessionId, cols, rows }),
         }),
       kill: async (sessionId: string) => {
         sessionOutputBuffers.delete(sessionId);
-        return requestPreviewApi<boolean>("/pty/kill", {
-          method: "POST",
-          body: JSON.stringify({ sessionId })
+        return requestPreviewApi<boolean>('/pty/kill', {
+          method: 'POST',
+          body: JSON.stringify({ sessionId }),
         });
       },
-      list: async () =>
-        requestPreviewApi<PtySessionInfo[]>("/pty/list")
-    }
+      list: async () => requestPreviewApi<PtySessionInfo[]>('/pty/list'),
+    },
   };
 }

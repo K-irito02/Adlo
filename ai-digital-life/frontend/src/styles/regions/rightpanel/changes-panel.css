@@ -64,7 +64,7 @@
   cursor: pointer;
 }
 
-.adl-segmented button[aria-pressed="true"] {
+.adl-segmented button[aria-pressed='true'] {
   background: var(--accent);
   color: var(--text-inverse);
 }
@@ -205,7 +205,6 @@
   display: grid;
   gap: var(--space-3);
 }
-
 
 .adl-patch-file-card.is-active {
   border-color: var(--editor-current-hunk-ring);

@@ -115,7 +115,7 @@
   color: var(--text-primary);
 }
 
-.nav__item[aria-current="page"] {
+.nav__item[aria-current='page'] {
   background: var(--accent-soft);
   color: var(--accent);
 }

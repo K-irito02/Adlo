@@ -9,12 +9,15 @@ fn ps_function_regex() -> &'static Regex {
 
 fn sh_function_regex() -> &'static Regex {
     static SH_FUNCTION_REGEX: OnceLock<Regex> = OnceLock::new();
-    SH_FUNCTION_REGEX.get_or_init(|| Regex::new(r"^(?:function\s+)?([A-Za-z_][\w-]*)\s*\(\)\s*\{").unwrap())
+    SH_FUNCTION_REGEX
+        .get_or_init(|| Regex::new(r"^(?:function\s+)?([A-Za-z_][\w-]*)\s*\(\)\s*\{").unwrap())
 }
 
 fn ps_block_regex() -> &'static Regex {
     static PS_BLOCK_REGEX: OnceLock<Regex> = OnceLock::new();
-    PS_BLOCK_REGEX.get_or_init(|| Regex::new(r"(?i)^(if|foreach|for|while|switch|try|catch|finally|class|enum)\b").unwrap())
+    PS_BLOCK_REGEX.get_or_init(|| {
+        Regex::new(r"(?i)^(if|foreach|for|while|switch|try|catch|finally|class|enum)\b").unwrap()
+    })
 }
 
 fn sh_block_regex() -> &'static Regex {

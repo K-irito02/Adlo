@@ -10,9 +10,7 @@
   color: var(--text-primary);
   font-size: var(--text-sm);
   line-height: var(--leading-normal);
-  transition:
-    var(--transition-colors),
-    var(--transition-shadow);
+  transition: var(--transition-colors), var(--transition-shadow);
 }
 
 .input:hover,
@@ -29,8 +27,8 @@
   outline: 0;
 }
 
-.input[aria-invalid="true"],
-.textarea[aria-invalid="true"] {
+.input[aria-invalid='true'],
+.textarea[aria-invalid='true'] {
   border-color: var(--danger);
 }
 

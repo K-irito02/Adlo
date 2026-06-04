@@ -1,36 +1,36 @@
-import type { StoreState } from "../StoreState";
+import type { StoreState } from '../StoreState';
 import type {
   DigitalLifeRunActivityEventV1,
   IndexingStatus,
   ModelTokenUsage,
-} from "@ai-digital-life/kernel";
-import type { StoreApi } from "zustand";
-import { captureError } from "../shared";
-import { trimOldRuns, trimActivityList } from "../activityUtils";
+} from '@ai-digital-life/kernel';
+import type { StoreApi } from 'zustand';
+import { captureError } from '../shared';
+import { trimOldRuns, trimActivityList } from '../activityUtils';
 
 function startFetch(get: () => StoreState, key: string): boolean {
   if (get().isFetching[key]) return false;
   return true;
 }
 
-export function createFetchActions(set: StoreApi<StoreState>["setState"], get: () => StoreState) {
+export function createFetchActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
   return {
     fetchIndexStatus: async () => {
-      const key = "fetchIndexStatus";
+      const key = 'fetchIndexStatus';
       if (!startFetch(get, key)) return;
       set({ isFetching: { ...get().isFetching, [key]: true } });
       try {
         const result = await window.digitalLife.retrieval.getStatus();
         if (result.ok && result.data) {
           const snap = result.data;
-          const stateMap: Record<string, IndexingStatus["state"]> = {
-            idle: "idle",
-            running: "indexing",
-            completed: "indexed",
-            failed: "error",
+          const stateMap: Record<string, IndexingStatus['state']> = {
+            idle: 'idle',
+            running: 'indexing',
+            completed: 'indexed',
+            failed: 'error',
           };
           const status: IndexingStatus = {
-            state: stateMap[snap.status] ?? "idle",
+            state: stateMap[snap.status] ?? 'idle',
             scannedFiles: snap.scannedFiles,
             totalFiles: snap.scannedFiles,
             excludedFiles: snap.scannedFiles - snap.indexedTextFiles,
@@ -47,7 +47,7 @@ export function createFetchActions(set: StoreApi<StoreState>["setState"], get: (
     },
 
     fetchRepoMap: async () => {
-      const key = "fetchRepoMap";
+      const key = 'fetchRepoMap';
       if (!startFetch(get, key)) return;
       set({ isFetching: { ...get().isFetching, [key]: true } });
       try {
@@ -63,7 +63,7 @@ export function createFetchActions(set: StoreApi<StoreState>["setState"], get: (
     },
 
     fetchAuditEntries: async (limit?: number) => {
-      const key = "fetchAuditEntries";
+      const key = 'fetchAuditEntries';
       if (!startFetch(get, key)) return;
       set({ isFetching: { ...get().isFetching, [key]: true } });
       try {
@@ -75,10 +75,10 @@ export function createFetchActions(set: StoreApi<StoreState>["setState"], get: (
             const nextRunActivity = { ...state.runActivityByRunId };
             const nextAccess = { ...state._runLastAccessTime };
             const updatedRunIds = new Set<string>();
-            
+
             for (let idx = 0; idx < result.data.length; idx += 1) {
               const entry = result.data[idx]!;
-              const detail = entry.detail ?? "";
+              const detail = entry.detail ?? '';
               const match = detail.match(runIdRe);
               if (!match) continue;
               const runId = match[1]!;
@@ -92,51 +92,49 @@ export function createFetchActions(set: StoreApi<StoreState>["setState"], get: (
               };
               let event: DigitalLifeRunActivityEventV1;
               const op = entry.operationType as unknown as string;
-              if (op === "file-read") {
-                const path =
-                  entry.summary.split(":").slice(1).join(":").trim() ||
-                  entry.summary;
-                event = { ...base, type: "file-read", path };
-              } else if (op === "search") {
+              if (op === 'file-read') {
+                const path = entry.summary.split(':').slice(1).join(':').trim() || entry.summary;
+                event = { ...base, type: 'file-read', path };
+              } else if (op === 'search') {
                 const q = entry.summary.match(/`([^`]+)`/)?.[1] ?? entry.summary;
-                event = { ...base, type: "search", query: q };
-              } else if (op === "model") {
+                event = { ...base, type: 'search', query: q };
+              } else if (op === 'model') {
                 event = {
                   ...base,
-                  type: "model",
-                  phase: "done",
+                  type: 'model',
+                  phase: 'done',
                   message: entry.summary,
                 };
               } else {
                 event = {
                   ...base,
-                  type: "error" as const,
+                  type: 'error' as const,
                   message: `${op}: ${entry.summary}`,
                 };
               }
               const already = existing.some((e) => e.seq === event.seq);
               if (!already) {
-                nextRunActivity[runId] = trimActivityList([...existing, event].sort(
-                  (a, b) => a.seq - b.seq
-                ));
+                nextRunActivity[runId] = trimActivityList(
+                  [...existing, event].sort((a, b) => a.seq - b.seq)
+                );
                 nextAccess[runId] = now;
                 updatedRunIds.add(runId);
               }
             }
-            
+
             const excludeSet = new Set<string>();
             if (state.streamingActiveRunId) excludeSet.add(state.streamingActiveRunId);
-            
+
             const trimmedMaps = trimOldRuns(
               nextRunActivity,
               state.runUsageByRunId,
               nextAccess,
               excludeSet
             );
-            
+
             return {
               auditEntries: result.data,
-              ...trimmedMaps
+              ...trimmedMaps,
             };
           });
         } else {
@@ -148,16 +146,13 @@ export function createFetchActions(set: StoreApi<StoreState>["setState"], get: (
     },
 
     fetchRunActivityByRunId: async (runId: string, limit?: number) => {
-      const key = "fetchRunActivityByRunId";
+      const key = 'fetchRunActivityByRunId';
       const existing = get().runActivityByRunId[runId];
       if (existing && existing.length > 0) return;
       if (!startFetch(get, key)) return;
       set({ isFetching: { ...get().isFetching, [key]: true } });
       try {
-        const result = await window.digitalLife.runActivity.listByRunId(
-          runId,
-          limit
-        );
+        const result = await window.digitalLife.runActivity.listByRunId(runId, limit);
         if (!result.ok) {
           captureError(get, result.error);
           return;
@@ -169,16 +164,15 @@ export function createFetchActions(set: StoreApi<StoreState>["setState"], get: (
     },
 
     fetchCommandHistory: async () => {
-      const key = "fetchCommandHistory";
+      const key = 'fetchCommandHistory';
       if (!startFetch(get, key)) return;
       set({ isFetching: { ...get().isFetching, [key]: true } });
       try {
         const result = await window.digitalLife.command.listRecent(20);
         if (result.ok) {
           set({
-            commandHistory: result.data.map(
-              (item: { command: string; args: string[] }) =>
-                `${item.command} ${item.args.join(" ")}`.trim()
+            commandHistory: result.data.map((item: { command: string; args: string[] }) =>
+              `${item.command} ${item.args.join(' ')}`.trim()
             ),
           });
         } else {
@@ -190,7 +184,7 @@ export function createFetchActions(set: StoreApi<StoreState>["setState"], get: (
     },
 
     refreshTaskCenter: async () => {
-      const key = "refreshTaskCenter";
+      const key = 'refreshTaskCenter';
       if (!startFetch(get, key)) return;
       set({ isFetching: { ...get().isFetching, [key]: true } });
       try {
@@ -206,7 +200,7 @@ export function createFetchActions(set: StoreApi<StoreState>["setState"], get: (
     },
 
     refreshModelHealth: async () => {
-      const key = "refreshModelHealth";
+      const key = 'refreshModelHealth';
       if (!startFetch(get, key)) return;
       set({ isFetching: { ...get().isFetching, [key]: true } });
       try {

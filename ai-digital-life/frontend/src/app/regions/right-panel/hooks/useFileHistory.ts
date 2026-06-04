@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 export interface FileHistoryState {
   canGoBack: boolean;
@@ -9,7 +9,7 @@ export interface FileHistoryState {
 
 function useFileHistory(
   currentFilePath: string | undefined,
-  onOpenFile: (path: string) => void,
+  onOpenFile: (path: string) => void
 ): FileHistoryState {
   const [fileHistory, setFileHistory] = useState<string[]>([]);
   const [fileHistoryIndex, setFileHistoryIndex] = useState(-1);
@@ -35,13 +35,11 @@ function useFileHistory(
   }, [currentFilePath, fileHistoryIndex]);
 
   const canGoBack = fileHistoryIndex > 0;
-  const canGoForward =
-    fileHistoryIndex >= 0 && fileHistoryIndex < fileHistory.length - 1;
+  const canGoForward = fileHistoryIndex >= 0 && fileHistoryIndex < fileHistory.length - 1;
 
   const navigate = useCallback(
-    (direction: "back" | "forward") => {
-      const nextIndex =
-        direction === "back" ? fileHistoryIndex - 1 : fileHistoryIndex + 1;
+    (direction: 'back' | 'forward') => {
+      const nextIndex = direction === 'back' ? fileHistoryIndex - 1 : fileHistoryIndex + 1;
       const nextPath = fileHistory[nextIndex];
       if (!nextPath) {
         return;
@@ -50,14 +48,14 @@ function useFileHistory(
       setFileHistoryIndex(nextIndex);
       onOpenFile(nextPath);
     },
-    [fileHistory, fileHistoryIndex, onOpenFile],
+    [fileHistory, fileHistoryIndex, onOpenFile]
   );
 
   return {
     canGoBack,
     canGoForward,
-    navigateBack: () => navigate("back"),
-    navigateForward: () => navigate("forward"),
+    navigateBack: () => navigate('back'),
+    navigateForward: () => navigate('forward'),
   };
 }
 

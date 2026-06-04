@@ -35,9 +35,7 @@ fn save_sidebar_entries(
     state: &AppState,
     entries: &[RecentWorkspaceEntry],
 ) -> Result<(), AppError> {
-    state
-        .db
-        .put_state(RECENT_SIDEBAR_KEY, &serde_json::to_string(entries)?)?;
+    state.db.put_state(RECENT_SIDEBAR_KEY, &serde_json::to_string(entries)?)?;
     Ok(())
 }
 
@@ -50,12 +48,7 @@ fn load_or_seed_sidebar(state: &AppState) -> Result<Vec<RecentWorkspaceEntry>, A
 }
 
 fn unpinned_max(entries: &[RecentWorkspaceEntry]) -> i32 {
-    entries
-        .iter()
-        .filter(|e| !e.is_pinned)
-        .map(|e| e.unpinned_order)
-        .max()
-        .unwrap_or(-1)
+    entries.iter().filter(|e| !e.is_pinned).map(|e| e.unpinned_order).max().unwrap_or(-1)
 }
 
 fn seed_sidebar_from_db(state: &AppState) -> Result<Vec<RecentWorkspaceEntry>, AppError> {
@@ -89,7 +82,10 @@ fn merge_workspace_meta_into_sidebar(
     }
 }
 
-pub(super) fn upsert_sidebar_after_open(state: &AppState, meta: &WorkspaceMeta) -> Result<(), AppError> {
+pub(super) fn upsert_sidebar_after_open(
+    state: &AppState,
+    meta: &WorkspaceMeta,
+) -> Result<(), AppError> {
     let mut all = load_or_seed_sidebar(state)?;
     if let Some(i) = all.iter().position(|e| e.id == meta.id) {
         all[i].path = meta.path.clone();
@@ -125,13 +121,8 @@ fn load_sidebar_with_meta(state: &AppState) -> Result<Vec<RecentWorkspaceEntry>,
     Ok(all)
 }
 
-fn sort_and_filter_presentable(
-    entries: Vec<RecentWorkspaceEntry>,
-) -> Vec<RecentWorkspaceEntry> {
-    let mut visible: Vec<_> = entries
-        .into_iter()
-        .filter(|e| !e.removed_from_sidebar)
-        .collect();
+fn sort_and_filter_presentable(entries: Vec<RecentWorkspaceEntry>) -> Vec<RecentWorkspaceEntry> {
+    let mut visible: Vec<_> = entries.into_iter().filter(|e| !e.removed_from_sidebar).collect();
     visible.sort_by(|a, b| match (a.is_pinned, b.is_pinned) {
         (true, true) => a.pinned_order.cmp(&b.pinned_order),
         (false, false) => a.unpinned_order.cmp(&b.unpinned_order),
@@ -248,9 +239,7 @@ pub fn workspace_remove_from_sidebar(
 
         // Cascade-delete all child data + the workspace row + the
         // recent_workspaces row in a single transaction.
-        let report = state
-            .db
-            .purge_workspace(&workspace_id, root_path.as_deref())?;
+        let report = state.db.purge_workspace(&workspace_id, root_path.as_deref())?;
         tracing::info!(
             workspace_id = %report.workspace_id,
             total_rows_deleted = report.total_rows_deleted,

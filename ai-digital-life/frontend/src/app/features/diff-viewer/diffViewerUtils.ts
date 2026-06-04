@@ -1,8 +1,8 @@
-import { getChunks } from "@codemirror/merge";
-import type { EditorState } from "@codemirror/state";
-import { initScrollbarWidth } from "./scrollbarWidth";
-import type { PreviewDiffCollapsedRange } from "./changePreviewDiffRanges";
-import type { ScrollSyncMetrics, MergeChunk } from "./sharedExtensions";
+import { getChunks } from '@codemirror/merge';
+import type { EditorState } from '@codemirror/state';
+import { initScrollbarWidth } from './scrollbarWidth';
+import type { PreviewDiffCollapsedRange } from './changePreviewDiffRanges';
+import type { ScrollSyncMetrics, MergeChunk } from './sharedExtensions';
 
 initScrollbarWidth();
 
@@ -32,7 +32,7 @@ export function syncHorizontalScroll(source: HTMLElement, target: HTMLElement): 
 
 export function buildCollapsedUnchangedRanges(input: {
   chunks: readonly MergeChunk[];
-  doc: EditorState["doc"];
+  doc: EditorState['doc'];
   margin?: number;
   minSize?: number;
   expandedLines?: ReadonlySet<number>;
@@ -46,9 +46,7 @@ export function buildCollapsedUnchangedRanges(input: {
   for (let index = 0; ; index += 1) {
     const chunk = index < input.chunks.length ? input.chunks[index] : null;
     const collapseFrom = index > 0 ? prevLine + margin : 1;
-    const collapseTo = chunk
-      ? input.doc.lineAt(chunk.fromB).number - 1 - margin
-      : input.doc.lines;
+    const collapseTo = chunk ? input.doc.lineAt(chunk.fromB).number - 1 - margin : input.doc.lines;
     const lineCount = collapseTo - collapseFrom + 1;
     if (
       lineCount >= minSize &&

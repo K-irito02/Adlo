@@ -1,34 +1,37 @@
-import { useEffect } from "react";
-import { isTauriShell } from "../../tauri-bridge";
+import { useEffect } from 'react';
+import { isTauriShell } from '../../tauri-bridge';
 
-export function useDragDropWorkspace(
-  actions: { openWorkspace: (path: string) => Promise<{ ok: boolean; error?: string }> }
-) {
+export function useDragDropWorkspace(actions: {
+  openWorkspace: (path: string) => Promise<{ ok: boolean; error?: string }>;
+}) {
   useEffect(() => {
     if (!isTauriShell()) return;
     let unlisten: undefined | (() => void);
 
     void (async () => {
       try {
-        const mod = await import("@tauri-apps/api/window");
+        const mod = await import('@tauri-apps/api/window');
         const win = mod.getCurrentWindow();
-        unlisten = await (win as unknown as { onDragDropEvent: (cb: (e: unknown) => void) => Promise<() => void> }).onDragDropEvent(
-          (e: unknown) => {
-            const payload = (e as Record<string, any>)?.payload ?? e;
-            const type = (payload as Record<string, any>)?.type ?? (payload as Record<string, any>)?.event ?? (payload as Record<string, any>)?.kind;
-            if (type !== "drop") return;
-            const paths: string[] =
-              (payload as Record<string, any>)?.paths ??
-              (payload as Record<string, any>)?.data?.paths ??
-              (payload as Record<string, any>)?.files ??
-              (payload as Record<string, any>)?.data?.files ??
-              [];
-            const first = Array.isArray(paths) ? paths[0] : undefined;
-            if (first && typeof first === "string") {
-              void actions.openWorkspace(first);
-            }
+        unlisten = await (
+          win as unknown as { onDragDropEvent: (cb: (e: unknown) => void) => Promise<() => void> }
+        ).onDragDropEvent((e: unknown) => {
+          const payload = (e as Record<string, any>)?.payload ?? e;
+          const type =
+            (payload as Record<string, any>)?.type ??
+            (payload as Record<string, any>)?.event ??
+            (payload as Record<string, any>)?.kind;
+          if (type !== 'drop') return;
+          const paths: string[] =
+            (payload as Record<string, any>)?.paths ??
+            (payload as Record<string, any>)?.data?.paths ??
+            (payload as Record<string, any>)?.files ??
+            (payload as Record<string, any>)?.data?.files ??
+            [];
+          const first = Array.isArray(paths) ? paths[0] : undefined;
+          if (first && typeof first === 'string') {
+            void actions.openWorkspace(first);
           }
-        );
+        });
       } catch {
         // Best-effort: drag-drop open is only available in Tauri shell.
       }
@@ -49,7 +52,7 @@ export function useDragDropWorkspace(
     const handleDragOver = (event: DragEvent) => {
       event.preventDefault();
       if (event.dataTransfer) {
-        event.dataTransfer.dropEffect = "link";
+        event.dataTransfer.dropEffect = 'link';
       }
     };
 
@@ -82,11 +85,11 @@ export function useDragDropWorkspace(
       }
     };
 
-    document.addEventListener("dragover", handleDragOver);
-    document.addEventListener("drop", handleDrop);
+    document.addEventListener('dragover', handleDragOver);
+    document.addEventListener('drop', handleDrop);
     return () => {
-      document.removeEventListener("dragover", handleDragOver);
-      document.removeEventListener("drop", handleDrop);
+      document.removeEventListener('dragover', handleDragOver);
+      document.removeEventListener('drop', handleDrop);
     };
   }, [actions.openWorkspace]);
 }

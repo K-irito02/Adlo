@@ -1,23 +1,23 @@
-import React from "react";
-import { renderIcon, type IconName } from "../../design-system/icons";
-import { TooltipSimple } from "./Tooltip";
+import React from 'react';
+import { renderIcon, type IconName } from '../../design-system/icons';
+import { TooltipSimple } from './Tooltip';
 
 export interface QuickActionsProps {
   /** Identifier of the currently active action (for visual highlight). */
   activeAction?: string;
   /** MCP server connection status, drives the status dot color. */
-  mcpStatus?: "connected" | "partial" | "error" | "none";
+  mcpStatus?: 'connected' | 'partial' | 'error' | 'none';
   onSkillsClick: () => void;
   onMcpClick: () => void;
   onNewWorkspace: () => void;
 }
 
 /** Map MCP status to a CSS-compatible color variable fragment for the status dot. */
-const MCP_STATUS_COLOR: Record<NonNullable<QuickActionsProps["mcpStatus"]>, string> = {
-  connected: "var(--success)",
-  partial: "var(--warning)",
-  error: "var(--danger)",
-  none: "var(--text-disabled)",
+const MCP_STATUS_COLOR: Record<NonNullable<QuickActionsProps['mcpStatus']>, string> = {
+  connected: 'var(--success)',
+  partial: 'var(--warning)',
+  error: 'var(--danger)',
+  none: 'var(--text-disabled)',
 };
 
 interface ActionButtonProps {
@@ -34,13 +34,15 @@ function ActionButton({ icon, label, tooltip, isActive, onClick, statusDot }: Ac
     <TooltipSimple content={tooltip} placement="right">
       <button
         type="button"
-        className={`sidebar-quick-action${isActive ? " sidebar-quick-action--active" : ""}`}
+        className={`sidebar-quick-action${isActive ? ' sidebar-quick-action--active' : ''}`}
         aria-label={tooltip}
         onClick={onClick}
       >
         <span
           className="sidebar-quick-action__icon"
-          dangerouslySetInnerHTML={{ __html: renderIcon(icon, { size: "sm", decorative: true }).value }}
+          dangerouslySetInnerHTML={{
+            __html: renderIcon(icon, { size: 'sm', decorative: true }).value,
+          }}
         />
         {statusDot ? (
           <span
@@ -62,7 +64,7 @@ function ActionButton({ icon, label, tooltip, isActive, onClick, statusDot }: Ac
  */
 export function QuickActions({
   activeAction,
-  mcpStatus = "none",
+  mcpStatus = 'none',
   onSkillsClick,
   onMcpClick,
   onNewWorkspace,
@@ -73,14 +75,14 @@ export function QuickActions({
         icon="sparkles"
         label="skills"
         tooltip="Skills"
-        isActive={activeAction === "skills"}
+        isActive={activeAction === 'skills'}
         onClick={onSkillsClick}
       />
       <ActionButton
         icon="plug"
         label="mcp"
         tooltip="MCP Servers"
-        isActive={activeAction === "mcp"}
+        isActive={activeAction === 'mcp'}
         onClick={onMcpClick}
         statusDot={MCP_STATUS_COLOR[mcpStatus]}
       />

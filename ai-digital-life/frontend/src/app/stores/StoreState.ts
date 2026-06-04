@@ -37,19 +37,19 @@
  * - `error?: string` — 全局错误消息
  */
 
-import type { UISlice } from "./slices/uiSlice";
-import type { WorkspaceSlice } from "./slices/workspaceSlice";
-import type { GitSlice } from "./slices/gitSlice";
-import type { SessionSlice } from "./slices/sessionSlice";
-import type { EditorSlice } from "./slices/editorSlice";
-import type { PatchSlice } from "./slices/patchSlice";
-import type { SearchSlice } from "./slices/searchSlice";
-import type { DiagnosticSlice } from "./slices/diagnosticSlice";
-import type { TaskSlice } from "./slices/taskSlice";
-import type { CommandSlice } from "./slices/commandSlice";
-import type { ClipboardSlice } from "./slices/clipboardSlice";
-import type { TerminalSlice } from "./slices/terminalSlice";
-import type { BrowserSlice } from "./slices/browserSlice";
+import type { UISlice } from './slices/uiSlice';
+import type { WorkspaceSlice } from './slices/workspaceSlice';
+import type { GitSlice } from './slices/gitSlice';
+import type { SessionSlice } from './slices/sessionSlice';
+import type { EditorSlice } from './slices/editorSlice';
+import type { PatchSlice } from './slices/patchSlice';
+import type { SearchSlice } from './slices/searchSlice';
+import type { DiagnosticSlice } from './slices/diagnosticSlice';
+import type { TaskSlice } from './slices/taskSlice';
+import type { CommandSlice } from './slices/commandSlice';
+import type { ClipboardSlice } from './slices/clipboardSlice';
+import type { TerminalSlice } from './slices/terminalSlice';
+import type { BrowserSlice } from './slices/browserSlice';
 import type {
   AppInfo,
   AppPreferencePatch,
@@ -57,11 +57,12 @@ import type {
   ReorderWorkspacesInput,
   WorkspaceGitBranchCreateInput,
   WorkspaceGitBranchSwitchInput,
-} from "@ai-digital-life/kernel";
-import type { MessageSendOptions } from "../utils/composerSend";
+} from '@ai-digital-life/kernel';
+import type { MessageSendOptions } from '../utils/composerSend';
 
 interface StoreStateBase
-  extends UISlice,
+  extends
+    UISlice,
     WorkspaceSlice,
     GitSlice,
     SessionSlice,
@@ -126,7 +127,11 @@ interface SessionActions {
 
 interface EditorActions {
   openFile: (relativePath: string) => Promise<void>;
-  openFileForWorkspace: (workspaceId: string, workspacePath: string, relativePath: string) => Promise<void>;
+  openFileForWorkspace: (
+    workspaceId: string,
+    workspacePath: string,
+    relativePath: string
+  ) => Promise<void>;
   openChangePreview: (relativePath: string) => Promise<void>;
   openChangePreviewForWorkspace: (workspacePath: string, relativePath: string) => Promise<void>;
   markExternalFileChange: (input: { path: string; lastModifiedAt: number }) => void;
@@ -146,7 +151,11 @@ interface GitActions {
 }
 
 interface PatchActions {
-  setHunkDecision: (patchSetId: string, hunkId: string, decision: "pending" | "accepted" | "rejected") => Promise<void>;
+  setHunkDecision: (
+    patchSetId: string,
+    hunkId: string,
+    decision: 'pending' | 'accepted' | 'rejected'
+  ) => Promise<void>;
   applyPatchSet: (patchSetId: string) => Promise<void>;
   rollbackPatchSet: (patchSetId: string) => Promise<void>;
   acceptAllHunks: () => Promise<void>;
@@ -160,7 +169,7 @@ interface SearchActions {
 
 interface TaskActions {
   refreshTaskCenter: () => Promise<void>;
-  decideApproval: (approvalId: string, decision: "approved" | "rejected") => Promise<void>;
+  decideApproval: (approvalId: string, decision: 'approved' | 'rejected') => Promise<void>;
   fetchRunActivityByRunId: (runId: string, limit?: number) => Promise<void>;
 }
 
@@ -178,7 +187,8 @@ interface DataFetchActions {
 }
 
 export interface StoreState
-  extends StoreStateBase,
+  extends
+    StoreStateBase,
     WorkspaceActions,
     SessionActions,
     EditorActions,

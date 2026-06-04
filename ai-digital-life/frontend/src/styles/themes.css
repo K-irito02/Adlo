@@ -98,7 +98,7 @@ body,
    - Shell goal: most structural surfaces share one calm background
 */
 :root,
-[data-theme="light"] {
+[data-theme='light'] {
   /* === Background Layers === */
   --bg: #f8f8f8;
   --bg-secondary: #f8f8f8;
@@ -179,18 +179,10 @@ body,
   /* === Shadow System (light) === */
   --shadow-none: none;
   --shadow-sm: 0 1px 2px 0 rgba(34, 34, 34, 0.05);
-  --shadow:
-    0 1px 3px 0 rgba(34, 34, 34, 0.1),
-    0 1px 2px -1px rgba(34, 34, 34, 0.06);
-  --shadow-md:
-    0 4px 6px -1px rgba(34, 34, 34, 0.1),
-    0 2px 4px -2px rgba(34, 34, 34, 0.06);
-  --shadow-lg:
-    0 10px 15px -3px rgba(34, 34, 34, 0.1),
-    0 4px 6px -4px rgba(34, 34, 34, 0.05);
-  --shadow-xl:
-    0 20px 25px -5px rgba(34, 34, 34, 0.1),
-    0 8px 10px -6px rgba(34, 34, 34, 0.05);
+  --shadow: 0 1px 3px 0 rgba(34, 34, 34, 0.1), 0 1px 2px -1px rgba(34, 34, 34, 0.06);
+  --shadow-md: 0 4px 6px -1px rgba(34, 34, 34, 0.1), 0 2px 4px -2px rgba(34, 34, 34, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(34, 34, 34, 0.1), 0 4px 6px -4px rgba(34, 34, 34, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(34, 34, 34, 0.1), 0 8px 10px -6px rgba(34, 34, 34, 0.05);
   --shadow-2xl: 0 25px 50px -12px rgba(34, 34, 34, 0.25);
   --shadow-inner: inset 0 2px 4px 0 rgba(34, 34, 34, 0.05);
   --shadow-soft: 0 1px 0 rgba(34, 34, 34, 0.04);
@@ -270,8 +262,8 @@ body,
   --border: var(--border-default);
 
   /* === Horizontal Scrollbar (dot indicator) === */
-  --hscroll-thumb-bg: rgba(0, 0, 0, 1.0);
-  --hscroll-thumb-hover-bg: rgba(0, 0, 0, 0.40);
+  --hscroll-thumb-bg: rgba(0, 0, 0, 1);
+  --hscroll-thumb-hover-bg: rgba(0, 0, 0, 0.4);
   --hscroll-thumb-dragging-bg: rgba(0, 0, 0, 0.55);
   --hscroll-thumb-shadow: 0 0 3px rgba(0, 0, 0, 0.25);
   --hscroll-thumb-hover-shadow: 0 0 5px rgba(0, 0, 0, 0.18);
@@ -287,7 +279,7 @@ body,
    - Hint/Placeholder: RGB(98,98,98) → optimized to #707070 for WCAG
    - Shell goal: most structural surfaces share one calm background
 */
-[data-theme="dark"] {
+[data-theme='dark'] {
   /* === Background Layers === */
   --bg: #141414;
   --bg-secondary: #141414;
@@ -368,18 +360,10 @@ body,
   /* === Shadow System (dark) === */
   --shadow-none: none;
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
-  --shadow:
-    0 1px 3px 0 rgba(0, 0, 0, 0.3),
-    0 1px 2px -1px rgba(0, 0, 0, 0.2);
-  --shadow-md:
-    0 4px 6px -1px rgba(0, 0, 0, 0.3),
-    0 2px 4px -2px rgba(0, 0, 0, 0.2);
-  --shadow-lg:
-    0 10px 15px -3px rgba(0, 0, 0, 0.35),
-    0 4px 6px -4px rgba(0, 0, 0, 0.2);
-  --shadow-xl:
-    0 20px 25px -5px rgba(0, 0, 0, 0.4),
-    0 8px 10px -6px rgba(0, 0, 0, 0.25);
+  --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 1px 2px -1px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.35), 0 4px 6px -4px rgba(0, 0, 0, 0.2);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.25);
   --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
   --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.25);
   --shadow-soft: 0 1px 0 rgba(0, 0, 0, 0.15);
@@ -464,7 +448,7 @@ body,
   --tooltip-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 
   /* === Horizontal Scrollbar (dot indicator) === */
-  --hscroll-thumb-bg: rgba(255, 255, 255, 1.0);
+  --hscroll-thumb-bg: rgba(255, 255, 255, 1);
   --hscroll-thumb-hover-bg: rgba(255, 255, 255, 0.52);
   --hscroll-thumb-dragging-bg: rgba(255, 255, 255, 0.68);
   --hscroll-thumb-shadow: 0 0 4px rgba(255, 255, 255, 0.35);
@@ -480,7 +464,7 @@ body,
     --border-default: rgba(34, 34, 34, 0.5);
     --focus-ring-width: 4px;
   }
-  [data-theme="dark"] {
+  [data-theme='dark'] {
     --border-subtle: rgba(255, 255, 255, 0.35);
     --border-default: rgba(255, 255, 255, 0.55);
     --focus-ring-width: 4px;

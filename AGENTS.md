@@ -28,7 +28,7 @@
 | Phase | 状态 | 范围 |
 |-------|------|------|
 | Phase 0 | ✅ 已完成 | 架构底座、桌面壳层、安全边界、基础设施 |
-| Phase 1 | 🚧 进行中 | 交互式 MVP、模型接入、上下文、变更预览 |
+| Phase 1 | 🚧 进行中 | 交互式 MVP、模型接入、上下文、变更预览（代码质量四维门禁已完成） |
 | Phase 2 | ✅ 已完成切片 | 单 Agent 薄切片、终端流式输出 |
 
 ## 已实现功能
@@ -41,10 +41,11 @@
 - 内置浏览器（Tauri WebView / iframe 双模式 + 标签树形目录三分类）
 - 统一 IPC 错误通道（`IpcErrorCode` → `AppError` → `IpcResult`）
 - CSS 设计 Token 亮暗主题 + 自定义 Tooltip 组件
+- 代码质量四维门禁（clippy + fmt + tsc + eslint，0 errors）
 
 ## 重构历史
 
-共完成 **30 轮**迭代重构，详情见 [REFACTORING_PROGRESS_REPORT.md](./docs/重构洞察/REFACTORING_PROGRESS_REPORT.md)。
+共完成 **34 轮**迭代重构，详情见 [REFACTORING_PROGRESS_REPORT.md](./docs/重构洞察/REFACTORING_PROGRESS_REPORT.md)。
 
 ## AI 代理开发规则
 
@@ -87,6 +88,8 @@
 | 前端 Lint | ESLint v9 flat config | `ai-digital-life/frontend/eslint.config.js` |
 | 前端格式 | Prettier | `ai-digital-life/frontend/.prettierrc` |
 | 跨编辑器 | EditorConfig | `.editorconfig` |
+| Rust Lint 执行命令 | `cargo clippy --workspace --all-targets` | |
+| 前端全量检查执行命令 | `cd frontend && npx eslint . && npx tsc --noEmit` | |
 
 ## 真源定位
 
@@ -107,5 +110,5 @@
 - [ai-digital-life/AGENTS.md](ai-digital-life/AGENTS.md) — 实现工作区治理
 - [FUTURE-ROADMAP.md](./FUTURE-ROADMAP.md) — 远期规划
 - [docs/development/project-engineering-constraints.md](./docs/development/project-engineering-constraints.md) — 工程约束
-- [docs/重构洞察/REFACTORING_PROGRESS_REPORT.md](./docs/重构洞察/REFACTORING_PROGRESS_REPORT.md) — 30 轮重构完整记录
+- [docs/重构洞察/REFACTORING_PROGRESS_REPORT.md](./docs/重构洞察/REFACTORING_PROGRESS_REPORT.md) — 34 轮重构完整记录
 - [docs/知识沉淀/README.md](./docs/知识沉淀/README.md) — 经验教训与总结索引

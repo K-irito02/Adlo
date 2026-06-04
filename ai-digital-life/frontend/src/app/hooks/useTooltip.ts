@@ -1,13 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   type Placement,
   type Alignment,
   computePosition,
-  type PositionResult
-} from "../utils/tooltipPosition";
+  type PositionResult,
+} from '../utils/tooltipPosition';
 
 export interface UseTooltipOptions {
-  trigger?: "hover" | "focus" | "click" | "manual";
+  trigger?: 'hover' | 'focus' | 'click' | 'manual';
   defaultPlacement?: Placement;
   showDelay?: number;
   hideDelay?: number;
@@ -47,8 +47,8 @@ function globalScrollResizeHandler() {
 function registerScrollResizeCallback(callback: () => void): void {
   scrollResizeCallbacks.add(callback);
   if (!globalListenerAttached) {
-    window.addEventListener("scroll", globalScrollResizeHandler, { passive: true });
-    window.addEventListener("resize", globalScrollResizeHandler, { passive: true });
+    window.addEventListener('scroll', globalScrollResizeHandler, { passive: true });
+    window.addEventListener('resize', globalScrollResizeHandler, { passive: true });
     globalListenerAttached = true;
   }
 }
@@ -56,22 +56,22 @@ function registerScrollResizeCallback(callback: () => void): void {
 function unregisterScrollResizeCallback(callback: () => void): void {
   scrollResizeCallbacks.delete(callback);
   if (scrollResizeCallbacks.size === 0 && globalListenerAttached) {
-    window.removeEventListener("scroll", globalScrollResizeHandler);
-    window.removeEventListener("resize", globalScrollResizeHandler);
+    window.removeEventListener('scroll', globalScrollResizeHandler);
+    window.removeEventListener('resize', globalScrollResizeHandler);
     globalListenerAttached = false;
   }
 }
 
 export function useTooltip(options: UseTooltipOptions = {}): UseTooltipReturn {
   const {
-    trigger = "hover",
-    defaultPlacement = "top",
+    trigger = 'hover',
+    defaultPlacement = 'top',
     showDelay = DEFAULT_SHOW_DELAY,
     hideDelay = DEFAULT_HIDE_DELAY,
     open: controlledOpen,
     onOpenChange,
     sideOffset = 8,
-    align = "center"
+    align = 'center',
   } = options;
 
   const isControlled = controlledOpen !== undefined;
@@ -104,7 +104,7 @@ export function useTooltip(options: UseTooltipOptions = {}): UseTooltipReturn {
       tooltipRect: { width: tooltipRect.width, height: tooltipRect.height },
       placement: defaultPlacement,
       alignment: align,
-      offset: sideOffset
+      offset: sideOffset,
     });
 
     setPosition(result);
@@ -171,13 +171,13 @@ export function useTooltip(options: UseTooltipOptions = {}): UseTooltipReturn {
   }, [hideDelay, clearTimers, setOpen]);
 
   const handleTriggerEnter = useCallback(() => {
-    if (trigger !== "hover") return;
+    if (trigger !== 'hover') return;
     isPointerInTooltipRef.current = false;
     startShowTimer();
   }, [trigger, startShowTimer]);
 
   const handleTriggerLeave = useCallback(() => {
-    if (trigger !== "hover") return;
+    if (trigger !== 'hover') return;
     startHideTimer();
   }, [trigger, startHideTimer]);
 
@@ -192,18 +192,18 @@ export function useTooltip(options: UseTooltipOptions = {}): UseTooltipReturn {
   }, [startHideTimer]);
 
   const handleTriggerFocus = useCallback(() => {
-    if (trigger !== "focus") return;
+    if (trigger !== 'focus') return;
     startShowTimer();
   }, [trigger, startShowTimer]);
 
   const handleTriggerBlur = useCallback(() => {
-    if (trigger !== "focus") return;
+    if (trigger !== 'focus') return;
     startHideTimer();
   }, [trigger, startHideTimer]);
 
   const handleClick = useCallback(
     (_e: React.MouseEvent) => {
-      if (trigger !== "click") return;
+      if (trigger !== 'click') return;
       setOpen(!isOpen);
     },
     [trigger, isOpen, setOpen]
@@ -231,7 +231,11 @@ export function useTooltip(options: UseTooltipOptions = {}): UseTooltipReturn {
     const triggerEl = triggerElRef.current;
     if (!triggerEl) return;
 
-    const instanceListeners: { target: EventTarget; type: string; handler: EventListenerOrEventListenerObject }[] = [];
+    const instanceListeners: {
+      target: EventTarget;
+      type: string;
+      handler: EventListenerOrEventListenerObject;
+    }[] = [];
 
     const resizeObserver = new ResizeObserver(() => {
       if (isOpen) {
@@ -257,20 +261,24 @@ export function useTooltip(options: UseTooltipOptions = {}): UseTooltipReturn {
     while (scrollParent && scrollParent !== document.body) {
       if (
         scrollParent instanceof HTMLElement &&
-        (getComputedStyle(scrollParent).overflowY === "auto" ||
-          getComputedStyle(scrollParent).overflowY === "scroll" ||
-          getComputedStyle(scrollParent).overflowX === "auto" ||
-          getComputedStyle(scrollParent).overflowX === "scroll")
+        (getComputedStyle(scrollParent).overflowY === 'auto' ||
+          getComputedStyle(scrollParent).overflowY === 'scroll' ||
+          getComputedStyle(scrollParent).overflowX === 'auto' ||
+          getComputedStyle(scrollParent).overflowX === 'scroll')
       ) {
-        scrollParent.addEventListener("scroll", handleScrollResize, { passive: true });
-        instanceListeners.push({ target: scrollParent, type: "scroll", handler: handleScrollResize });
+        scrollParent.addEventListener('scroll', handleScrollResize, { passive: true });
+        instanceListeners.push({
+          target: scrollParent,
+          type: 'scroll',
+          handler: handleScrollResize,
+        });
       }
       scrollParent = scrollParent.parentElement;
     }
 
     const handleKeyDown = ((e: Event) => {
       const ke = e as KeyboardEvent;
-      if (ke.key === "Escape" && isOpen) {
+      if (ke.key === 'Escape' && isOpen) {
         ke.preventDefault();
         ke.stopPropagation();
         close();
@@ -279,8 +287,8 @@ export function useTooltip(options: UseTooltipOptions = {}): UseTooltipReturn {
     }) as EventListener;
 
     if (isOpen) {
-      document.addEventListener("keydown", handleKeyDown);
-      instanceListeners.push({ target: document, type: "keydown", handler: handleKeyDown });
+      document.addEventListener('keydown', handleKeyDown);
+      instanceListeners.push({ target: document, type: 'keydown', handler: handleKeyDown });
     }
 
     return () => {
@@ -315,6 +323,6 @@ export function useTooltip(options: UseTooltipOptions = {}): UseTooltipReturn {
     handleTooltipLeave,
     handleTriggerFocus,
     handleTriggerBlur,
-    handleClick
+    handleClick,
   };
 }

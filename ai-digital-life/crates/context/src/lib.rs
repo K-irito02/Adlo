@@ -1,6 +1,9 @@
 //! Context selection and prompt assembly for agent requests.
 
-use adl_kernel::{create_id, estimate_tokens, ContextEntry, FileOutlineItem, PromptRule, WorkspaceMeta, WorkspaceSearchHit, ConversationScenario};
+use adl_kernel::{
+    create_id, estimate_tokens, ContextEntry, ConversationScenario, FileOutlineItem, PromptRule,
+    WorkspaceMeta, WorkspaceSearchHit,
+};
 
 // ── Context selection (from context-engine) ──
 
@@ -9,19 +12,15 @@ pub fn trim_to_token_budget(content: &str, max_tokens: usize) -> String {
         return content.to_string();
     }
     let max_chars = max_tokens.saturating_mul(4);
-    let head_end = content
-        .char_indices()
-        .nth(max_chars / 2)
-        .map(|(i, _)| i)
-        .unwrap_or(content.len());
+    let head_end =
+        content.char_indices().nth(max_chars / 2).map(|(i, _)| i).unwrap_or(content.len());
     let split_idx = content
         .char_indices()
         .nth_back(max_chars.saturating_sub(1) / 2)
         .map(|(i, _)| i)
         .unwrap_or(content.len());
     let trim_msg = "\n...[context trimmed]...\n";
-    let mut result =
-        String::with_capacity(head_end + trim_msg.len() + (content.len() - split_idx));
+    let mut result = String::with_capacity(head_end + trim_msg.len() + (content.len() - split_idx));
     result.push_str(&content[..head_end]);
     result.push_str(trim_msg);
     result.push_str(&content[split_idx..]);
@@ -102,10 +101,8 @@ pub fn search_hit_contexts(
     hits.iter()
         .take(max_hits)
         .map(|hit| {
-            let content = format!(
-                "Search hit for `{query}`\n{}:{}\n{}",
-                hit.path, hit.line, hit.preview
-            );
+            let content =
+                format!("Search hit for `{query}`\n{}:{}\n{}", hit.path, hit.line, hit.preview);
             ContextEntry {
                 id: create_id("ctx"),
                 r#type: "search-hit".into(),

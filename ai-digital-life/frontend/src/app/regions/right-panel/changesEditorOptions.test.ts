@@ -6,7 +6,7 @@ const changesPanelSource = readFileSync(new URL("../../../../src/app/regions/rig
 describe("changes preview editor options", () => {
   it("uses DiffViewer component instead of Monaco DiffEditor", () => {
     expect(changesPanelSource).toContain("DiffViewer");
-    expect(changesPanelSource).toContain('from "../../../features/diff-viewer"');
+    expect(changesPanelSource).toContain("from '../../../features/diff-viewer'");
     expect(changesPanelSource).not.toContain("@monaco-editor/react");
   });
 
@@ -20,8 +20,8 @@ describe("changes preview editor options", () => {
 
   it("uses simple dark/light theme string instead of Monaco theme constants", () => {
     expect(changesPanelSource).toContain("changePreviewTheme");
-    expect(changesPanelSource).toContain('"dark"');
-    expect(changesPanelSource).toContain('"light"');
+    expect(changesPanelSource).toContain("'dark'");
+    expect(changesPanelSource).toContain("'light'");
     expect(changesPanelSource).not.toContain("MONACO_THEME_DARK");
     expect(changesPanelSource).not.toContain("MONACO_THEME_LIGHT");
   });
@@ -29,7 +29,7 @@ describe("changes preview editor options", () => {
   it("uses EditorRef and DiffEditorRef types from shared types", () => {
     expect(changesPanelSource).toContain("EditorRef");
     expect(changesPanelSource).toContain("DiffEditorRef");
-    expect(changesPanelSource).toContain("from \"../../../stores/types\"");
+    expect(changesPanelSource).toContain("from '../../../stores/types'");
   });
 
   it("uses sticky context helpers from CodeMirror stickyContext module", () => {
@@ -37,7 +37,7 @@ describe("changes preview editor options", () => {
 
     expect(useStickyContextSource).toContain("getVisibleStartLine");
     expect(useStickyContextSource).toContain("navigateToLine");
-    expect(useStickyContextSource).toContain("from \"../editor-support/stickyContext\"");
+    expect(useStickyContextSource).toContain("from '../editor-support/stickyContext'");
   });
 
   it("passes readOnly, lineNumbers, wordWrap, and sideBySide as DiffViewer props", () => {

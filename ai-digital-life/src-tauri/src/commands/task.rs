@@ -29,13 +29,9 @@ pub fn task_list_pending_approvals(
     state: tauri::State<'_, AppState>,
 ) -> IpcResult<Vec<ApprovalRequestSummary>> {
     crate::commands::ipc_try(|| {
-        let approvals: Vec<ApprovalRecord> = state
-            .db
-            .list_entities_by_status(EntityTable::Approvals, "pending")?;
-        Ok(approvals
-            .into_iter()
-            .map(|approval| approval.request)
-            .collect())
+        let approvals: Vec<ApprovalRecord> =
+            state.db.list_entities_by_status(EntityTable::Approvals, "pending")?;
+        Ok(approvals.into_iter().map(|approval| approval.request).collect())
     })
 }
 
@@ -80,9 +76,8 @@ async fn decide_approval_inner(
         }),
         &approval,
     )?;
-    if let Some(mut task) = state
-        .db
-        .load_entity::<TaskRecord>(EntityTable::Tasks, &approval.task_id)?
+    if let Some(mut task) =
+        state.db.load_entity::<TaskRecord>(EntityTable::Tasks, &approval.task_id)?
     {
         task.status = match input.decision {
             ApprovalDecision::Approved => TaskStatus::Approved,
@@ -113,10 +108,7 @@ async fn decide_approval_inner(
         Some("approval"),
         "approval",
         approval.risk_level,
-        format!(
-            "Approval {} was {:?}.",
-            approval.request.title, input.decision
-        ),
+        format!("Approval {} was {:?}.", approval.request.title, input.decision),
         Some(match input.decision {
             ApprovalDecision::Approved => "approved",
             ApprovalDecision::Rejected => "rejected",
@@ -196,9 +188,8 @@ pub fn task_restore_checkpoint(
             &state.data_dir.join("state").join("checkpoints"),
             &checkpoint_id,
         )?;
-        if let Some(checkpoint) = state
-            .db
-            .load_entity::<CheckpointRecord>(EntityTable::Checkpoints, &checkpoint_id)?
+        if let Some(checkpoint) =
+            state.db.load_entity::<CheckpointRecord>(EntityTable::Checkpoints, &checkpoint_id)?
         {
             let _ = crate::commands::audit::save_audit_entry(
                 &state,
@@ -230,13 +221,7 @@ async fn maybe_execute_approved_command(
     let workspace = state
         .db
         .load_entity::<WorkspaceMeta>(EntityTable::Workspaces, &task.workspace_id)?
-        .or_else(|| {
-            state
-                .current_workspace
-                .read()
-                .ok()?
-                .clone()
-        })
+        .or_else(|| state.current_workspace.read().ok()?.clone())
         .ok_or_else(|| AppError::NotFound(format!("workspace {}", task.workspace_id)))?;
     task.status = TaskStatus::Running;
     task.started_at = Some(adl_kernel::now_ms());
@@ -298,18 +283,10 @@ async fn maybe_execute_approved_command(
         &result.request.id,
         Some(&workspace.id),
         Some(&task.session_id),
-        Some(if result.success {
-            "completed"
-        } else {
-            "failed"
-        }),
+        Some(if result.success { "completed" } else { "failed" }),
         &result,
     )?;
-    task.status = if result.success {
-        TaskStatus::Completed
-    } else {
-        TaskStatus::Failed
-    };
+    task.status = if result.success { TaskStatus::Completed } else { TaskStatus::Failed };
     task.result_json = Some(serde_json::to_string(&result)?);
     task.completed_at = Some(adl_kernel::now_ms());
     task.updated_at = adl_kernel::now_ms();
@@ -318,11 +295,7 @@ async fn maybe_execute_approved_command(
         &task.id,
         Some(&task.workspace_id),
         Some(&task.session_id),
-        Some(if result.success {
-            "completed"
-        } else {
-            "failed"
-        }),
+        Some(if result.success { "completed" } else { "failed" }),
         task,
     )?;
     let _ = crate::commands::audit::save_audit_entry(
@@ -333,11 +306,7 @@ async fn maybe_execute_approved_command(
         request.risk_level,
         result.summary.clone(),
         Some("approved"),
-        Some(format!(
-            "command={} {}",
-            request.command,
-            request.args.join(" ")
-        )),
+        Some(format!("command={} {}", request.command, request.args.join(" "))),
     );
 
     if let Some(run_id) = &request.run_id {
@@ -392,9 +361,8 @@ fn snapshot(state: &AppState) -> Result<TaskCenterSnapshot, AppError> {
         .map_err(|_| AppError::Internal("workspace mutex poisoned".into()))?
         .clone()
     {
-        let conversation_sessions: Vec<adl_kernel::ConversationSessionRecord> = state
-            .db
-            .list_entities_by_workspace(EntityTable::Sessions, &workspace.id)?;
+        let conversation_sessions: Vec<adl_kernel::ConversationSessionRecord> =
+            state.db.list_entities_by_workspace(EntityTable::Sessions, &workspace.id)?;
         conversation_sessions
             .into_iter()
             .filter(|session| session.status != "archived")
@@ -421,10 +389,7 @@ fn snapshot(state: &AppState) -> Result<TaskCenterSnapshot, AppError> {
     };
     Ok(TaskCenterSnapshot {
         tasks: tasks.iter().map(adl_task::task_summary).collect(),
-        pending_approvals: approvals
-            .into_iter()
-            .map(|approval| approval.request)
-            .collect(),
+        pending_approvals: approvals.into_iter().map(|approval| approval.request).collect(),
         policy: adl_task::default_policy(),
         current_session,
         latest_checkpoint: checkpoints.into_iter().next(),

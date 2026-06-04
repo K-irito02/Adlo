@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-use super::TimestampMs;
 use super::conversation::{ApprovalRequestSummary, RiskLevel};
+use super::TimestampMs;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -62,11 +62,7 @@ pub struct CommandRunResult {
 #[serde(rename_all = "camelCase", tag = "mode")]
 pub enum CommandRunStreamStart {
     #[serde(rename_all = "camelCase")]
-    Started {
-        execution_id: String,
-        task_id: String,
-        request: CommandRequest,
-    },
+    Started { execution_id: String, task_id: String, request: CommandRequest },
     #[serde(rename_all = "camelCase")]
     WaitingApproval {
         task_id: String,

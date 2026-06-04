@@ -1,31 +1,52 @@
-import React, { useEffect, useRef } from "react";
-import type { ConversationSessionRecord, RecentWorkspaceEntry } from "@ai-digital-life/kernel";
-import type { CopyDict } from "../../i18n";
-import { IconArchive, IconCheck, IconCheckCheck, IconCopy, IconDownload, IconFolder, IconFolderOpen, IconMail, IconPencil, IconPin, IconPinOff, IconTrash } from "../../icons";
-import type { SessionVisualStatus, SidebarSessionItem } from "../../utils/sidebarViewModel";
+import React, { useEffect, useRef } from 'react';
+import type { ConversationSessionRecord, RecentWorkspaceEntry } from '@ai-digital-life/kernel';
+import type { CopyDict } from '../../i18n';
+import {
+  IconArchive,
+  IconCheck,
+  IconCheckCheck,
+  IconCopy,
+  IconDownload,
+  IconFolder,
+  IconFolderOpen,
+  IconMail,
+  IconPencil,
+  IconPin,
+  IconPinOff,
+  IconTrash,
+} from '../../icons';
+import type { SessionVisualStatus, SidebarSessionItem } from '../../utils/sidebarViewModel';
 
 export type SidebarMenuState =
-  | { type: "workspace"; workspaceId: string; x: number; y: number }
-  | { type: "session"; sessionId: string; x: number; y: number };
+  | { type: 'workspace'; workspaceId: string; x: number; y: number }
+  | { type: 'session'; sessionId: string; x: number; y: number };
 
 export const STATUS_LABEL: Record<SessionVisualStatus, keyof CopyDict> = {
-  processing: "statusProcessing",
-  "pending-approval": "statusPendingApproval",
-  abnormal: "statusAbnormal",
-  completed: "statusCompleted",
-  read: "statusRead"
+  processing: 'statusProcessing',
+  'pending-approval': 'statusPendingApproval',
+  abnormal: 'statusAbnormal',
+  completed: 'statusCompleted',
+  read: 'statusRead',
 };
 
-const WORKSPACE_STATUS_ORDER: SessionVisualStatus[] = ["abnormal", "pending-approval", "processing", "completed", "read"];
+const WORKSPACE_STATUS_ORDER: SessionVisualStatus[] = [
+  'abnormal',
+  'pending-approval',
+  'processing',
+  'completed',
+  'read',
+];
 
 export function StatusLamp({ status, title }: { status: SessionVisualStatus; title: string }) {
-  return <span className={`adl-status-lamp adl-status-lamp--${status}`} role="img" aria-label={title} />;
+  return (
+    <span className={`adl-status-lamp adl-status-lamp--${status}`} role="img" aria-label={title} />
+  );
 }
 
 export function WorkspaceDirectoryIcon({
   expanded,
   status,
-  title
+  title,
 }: {
   expanded: boolean;
   status: SessionVisualStatus;
@@ -33,7 +54,10 @@ export function WorkspaceDirectoryIcon({
 }) {
   if (expanded) {
     return (
-      <span className="adl-workspace-row__kind adl-workspace-row__kind--expanded" aria-hidden="true">
+      <span
+        className="adl-workspace-row__kind adl-workspace-row__kind--expanded"
+        aria-hidden="true"
+      >
         <IconFolderOpen size={12} decorative />
       </span>
     );
@@ -50,23 +74,32 @@ export function WorkspaceDirectoryIcon({
   );
 }
 
-export function buildWorkspaceTooltip(t: CopyDict, counts: Record<SessionVisualStatus, number>): string {
+export function buildWorkspaceTooltip(
+  t: CopyDict,
+  counts: Record<SessionVisualStatus, number>
+): string {
   const parts = WORKSPACE_STATUS_ORDER.filter((status) => counts[status] > 0).map(
     (status) => `${t[STATUS_LABEL[status]]}: ${counts[status]}`
   );
-  return parts.join(" · ") || (t[STATUS_LABEL.read] as string);
+  return parts.join(' · ') || (t[STATUS_LABEL.read] as string);
 }
 
 export async function exportSessionMarkdown(session: ConversationSessionRecord): Promise<void> {
   const result = await window.digitalLife.conversation.getSession(session.id);
   const messages = result.ok && result.data ? result.data.messages : [];
-  const markdown = [`# ${session.title}`, "", `- Session ID: ${session.id}`, `- Updated: ${new Date(session.updatedAt).toISOString()}`, ""];
+  const markdown = [
+    `# ${session.title}`,
+    '',
+    `- Session ID: ${session.id}`,
+    `- Updated: ${new Date(session.updatedAt).toISOString()}`,
+    '',
+  ];
   for (const message of messages) {
-    markdown.push(`## ${message.role}`, "", message.content, "");
+    markdown.push(`## ${message.role}`, '', message.content, '');
   }
-  const blob = new Blob([markdown.join("\n")], { type: "text/markdown;charset=utf-8" });
+  const blob = new Blob([markdown.join('\n')], { type: 'text/markdown;charset=utf-8' });
   const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
+  const anchor = document.createElement('a');
   anchor.href = url;
   anchor.download = `${session.title || session.id}.md`;
   anchor.click();
@@ -85,7 +118,7 @@ export function SidebarContextMenu({
   items,
   x,
   y,
-  onClose
+  onClose,
 }: {
   items: SidebarMenuItem[];
   x: number;
@@ -101,31 +134,26 @@ export function SidebarContextMenu({
       }
     };
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
+      if (event.key === 'Escape') {
         onClose();
       }
     };
-    window.addEventListener("mousedown", handlePointer);
-    window.addEventListener("keydown", handleEscape);
+    window.addEventListener('mousedown', handlePointer);
+    window.addEventListener('keydown', handleEscape);
     return () => {
-      window.removeEventListener("mousedown", handlePointer);
-      window.removeEventListener("keydown", handleEscape);
+      window.removeEventListener('mousedown', handlePointer);
+      window.removeEventListener('keydown', handleEscape);
     };
   }, [onClose]);
 
   return (
-    <div
-      ref={ref}
-      className="adl-sidebar-menu"
-      role="menu"
-      style={{ left: x, top: y }}
-    >
+    <div ref={ref} className="adl-sidebar-menu" role="menu" style={{ left: x, top: y }}>
       {items.map((item) => (
         <button
           key={item.id}
           type="button"
           role="menuitem"
-          className={`adl-sidebar-menu__item${item.danger ? " is-danger" : ""}`}
+          className={`adl-sidebar-menu__item${item.danger ? ' is-danger' : ''}`}
           onClick={() => {
             item.action();
             onClose();
@@ -157,43 +185,50 @@ export function buildWorkspaceMenuItems(
 ): SidebarMenuItem[] {
   const items: SidebarMenuItem[] = [
     {
-      id: "pin",
+      id: 'pin',
       label: workspace.isPinned ? t.sessionMenuUnpin : t.sessionMenuPin,
-      icon: workspace.isPinned ? <IconPinOff size={14} decorative /> : <IconPin size={14} decorative />,
-      action: () => (workspace.isPinned ? callbacks.onUnpinWorkspace(workspace.id) : callbacks.onPinWorkspace(workspace.id))
+      icon: workspace.isPinned ? (
+        <IconPinOff size={14} decorative />
+      ) : (
+        <IconPin size={14} decorative />
+      ),
+      action: () =>
+        workspace.isPinned
+          ? callbacks.onUnpinWorkspace(workspace.id)
+          : callbacks.onPinWorkspace(workspace.id),
     },
     {
-      id: "mark-read",
+      id: 'mark-read',
       label: t.sessionMenuMarkRead,
       icon: <IconCheckCheck size={14} decorative />,
-      action: () => callbacks.onMarkAllSessionsRead(sessionIds)
+      action: () => callbacks.onMarkAllSessionsRead(sessionIds),
     },
     {
-      id: "archive-all",
+      id: 'archive-all',
       label: t.sessionMenuArchive,
       icon: <IconArchive size={14} decorative />,
-      action: () => callbacks.onArchiveAllSessions()
+      action: () => callbacks.onArchiveAllSessions(),
     },
     {
-      id: "remove",
+      id: 'remove',
       label: t.sessionMenuRemove,
       icon: <IconTrash size={14} decorative />,
-      action: () => callbacks.onRemoveWorkspace(workspace.id)
+      action: () => callbacks.onRemoveWorkspace(workspace.id),
     },
     {
-      id: "reveal",
+      id: 'reveal',
       label: t.sessionMenuRevealFolder,
       icon: <IconFolderOpen size={14} decorative />,
-      action: () => callbacks.onRevealWorkspace(workspace.path)
-    }
+      action: () => callbacks.onRevealWorkspace(workspace.path),
+    },
   ];
 
   if (workspace.hiddenFromRightPanels && !workspace.removedFromSidebar) {
     items.push({
-      id: "show-in-right-panels",
+      id: 'show-in-right-panels',
       label: t.showInRightPanels,
       icon: <IconFolderOpen size={14} decorative />,
-      action: () => callbacks.onShowInRightPanels(workspace.id)
+      action: () => callbacks.onShowInRightPanels(workspace.id),
     });
   }
 
@@ -220,48 +255,55 @@ export function buildSessionMenuItems(
   const session = sessionItem.session;
   return [
     {
-      id: "rename",
+      id: 'rename',
       label: t.sessionMenuRename,
       icon: <IconPencil size={14} decorative />,
-      action: () => callbacks.onRename()
+      action: () => callbacks.onRename(),
     },
     {
-      id: "read-state",
+      id: 'read-state',
       label: sessionItem.isUnread ? t.sessionMenuMarkRead : t.sessionMenuMarkUnread,
-      icon: sessionItem.isUnread ? <IconCheck size={14} decorative /> : <IconMail size={14} decorative />,
-      action: () =>
-        sessionItem.isUnread ? callbacks.onMarkRead() : callbacks.onMarkUnread()
+      icon: sessionItem.isUnread ? (
+        <IconCheck size={14} decorative />
+      ) : (
+        <IconMail size={14} decorative />
+      ),
+      action: () => (sessionItem.isUnread ? callbacks.onMarkRead() : callbacks.onMarkUnread()),
     },
     {
-      id: "archive",
+      id: 'archive',
       label: t.sessionMenuArchive,
       icon: <IconArchive size={14} decorative />,
-      action: () => callbacks.onArchive()
+      action: () => callbacks.onArchive(),
     },
     {
-      id: "copy-id",
+      id: 'copy-id',
       label: t.sessionMenuCopyId,
       icon: <IconCopy size={14} decorative />,
-      action: () => callbacks.onCopyId()
+      action: () => callbacks.onCopyId(),
     },
     {
-      id: "export",
+      id: 'export',
       label: t.sessionMenuExport,
       icon: <IconDownload size={14} decorative />,
-      action: () => callbacks.onExport()
+      action: () => callbacks.onExport(),
     },
     {
-      id: "pin",
+      id: 'pin',
       label: session.isPinned ? t.sessionMenuUnpin : t.sessionMenuPin,
-      icon: session.isPinned ? <IconPinOff size={14} decorative /> : <IconPin size={14} decorative />,
-      action: () => (session.isPinned ? callbacks.onUnpin() : callbacks.onPin())
+      icon: session.isPinned ? (
+        <IconPinOff size={14} decorative />
+      ) : (
+        <IconPin size={14} decorative />
+      ),
+      action: () => (session.isPinned ? callbacks.onUnpin() : callbacks.onPin()),
     },
     {
-      id: "delete",
+      id: 'delete',
       label: t.sessionMenuDelete,
       icon: <IconTrash size={14} decorative />,
       danger: true,
-      action: () => callbacks.onDelete()
-    }
+      action: () => callbacks.onDelete(),
+    },
   ];
 }

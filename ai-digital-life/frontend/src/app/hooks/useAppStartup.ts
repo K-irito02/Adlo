@@ -1,9 +1,9 @@
-import { useEffect } from "react";
-import type { AppInfo } from "@ai-digital-life/kernel";
-import { copy, type Locale } from "../i18n";
-import { useAppActions } from "./useAppActions";
-import { useThemeSync } from "./useThemeSync";
-import { useTaskCenterPolling } from "./useTaskCenterPolling";
+import { useEffect } from 'react';
+import type { AppInfo } from '@ai-digital-life/kernel';
+import { copy, type Locale } from '../i18n';
+import { useAppActions } from './useAppActions';
+import { useThemeSync } from './useThemeSync';
+import { useTaskCenterPolling } from './useTaskCenterPolling';
 
 export function useAppStartup(appInfo: AppInfo | undefined) {
   const actions = useAppActions();
@@ -11,7 +11,7 @@ export function useAppStartup(appInfo: AppInfo | undefined) {
   useThemeSync(appInfo);
   useTaskCenterPolling(appInfo);
 
-  const locale = (appInfo?.config.language ?? "zh-CN") as Locale;
+  const locale = (appInfo?.config.language ?? 'zh-CN') as Locale;
   const t = copy[locale];
 
   useEffect(() => {

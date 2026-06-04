@@ -2,12 +2,9 @@
  * 编辑器切片
  * 管理编辑器标签页、文件内容、大纲等状态
  */
-import type {
-  FileOutlineItem,
-  WorkspaceChangePreview
-} from "@ai-digital-life/kernel";
-import type { StoreState } from "../StoreState";
-import { type EditorTabState } from "../../utils/editorTabs";
+import type { FileOutlineItem, WorkspaceChangePreview } from '@ai-digital-life/kernel';
+import type { StoreState } from '../StoreState';
+import { type EditorTabState } from '../../utils/editorTabs';
 
 export interface EditorSlice {
   openTabs: EditorTabState[];
@@ -52,16 +49,21 @@ export const createEditorSlice = (
   dirtyEditorPaths: [],
 
   setOpenTabs: (tabs) => set({ openTabs: tabs }),
-  addOpenTab: (tab) => set((state) => ({
-    openTabs: state.openTabs.some(t => t.path === tab.path) ? state.openTabs : [...state.openTabs, tab]
-  })),
-  removeOpenTab: (path) => set((state) => ({
-    openTabs: state.openTabs.filter(t => t.path !== path)
-  })),
+  addOpenTab: (tab) =>
+    set((state) => ({
+      openTabs: state.openTabs.some((t) => t.path === tab.path)
+        ? state.openTabs
+        : [...state.openTabs, tab],
+    })),
+  removeOpenTab: (path) =>
+    set((state) => ({
+      openTabs: state.openTabs.filter((t) => t.path !== path),
+    })),
   setSelectedFilePath: (selectedFilePath) => set({ selectedFilePath }),
   setSelectedFileWorkspaceId: (selectedFileWorkspaceId) => set({ selectedFileWorkspaceId }),
   setSelectedChangePreviewPath: (selectedChangePreviewPath) => set({ selectedChangePreviewPath }),
-  setSelectedChangePreviewWorkspaceId: (selectedChangePreviewWorkspaceId) => set({ selectedChangePreviewWorkspaceId }),
+  setSelectedChangePreviewWorkspaceId: (selectedChangePreviewWorkspaceId) =>
+    set({ selectedChangePreviewWorkspaceId }),
   setChangePreview: (changePreview) => set({ changePreview }),
   setChangePreviewLoading: (loading) => set({ changePreviewLoading: loading }),
   setFileContent: (fileContent) => set({ fileContent }),
@@ -69,29 +71,36 @@ export const createEditorSlice = (
   setExternalFileChange: (externalFileChange) => set({ externalFileChange }),
   setOutline: (outline) => set({ outline }),
   setDirtyEditorPaths: (paths) => set({ dirtyEditorPaths: paths }),
-  addDirtyPath: (path) => set((state) => {
-    const norm = path.toLowerCase().replace(/\\/g, '/');
-    if (state.dirtyEditorPaths.some(p => p.toLowerCase().replace(/\\/g, '/') === norm)) {
-      return state;
-    }
-    return { dirtyEditorPaths: [...state.dirtyEditorPaths, path] };
-  }),
-  removeDirtyPath: (path) => set((state) => {
-    const norm = path.toLowerCase().replace(/\\/g, '/');
-    return { dirtyEditorPaths: state.dirtyEditorPaths.filter(p => p.toLowerCase().replace(/\\/g, '/') !== norm) };
-  }),
-  clearEditorState: () => set({
-    openTabs: [],
-    selectedFilePath: undefined,
-    selectedFileWorkspaceId: undefined,
-    selectedChangePreviewPath: undefined,
-    selectedChangePreviewWorkspaceId: undefined,
-    changePreview: undefined,
-    changePreviewLoading: false,
-    fileContent: undefined,
-    fileLastModifiedAt: undefined,
-    externalFileChange: undefined,
-    outline: [],
-    dirtyEditorPaths: []
-  })
+  addDirtyPath: (path) =>
+    set((state) => {
+      const norm = path.toLowerCase().replace(/\\/g, '/');
+      if (state.dirtyEditorPaths.some((p) => p.toLowerCase().replace(/\\/g, '/') === norm)) {
+        return state;
+      }
+      return { dirtyEditorPaths: [...state.dirtyEditorPaths, path] };
+    }),
+  removeDirtyPath: (path) =>
+    set((state) => {
+      const norm = path.toLowerCase().replace(/\\/g, '/');
+      return {
+        dirtyEditorPaths: state.dirtyEditorPaths.filter(
+          (p) => p.toLowerCase().replace(/\\/g, '/') !== norm
+        ),
+      };
+    }),
+  clearEditorState: () =>
+    set({
+      openTabs: [],
+      selectedFilePath: undefined,
+      selectedFileWorkspaceId: undefined,
+      selectedChangePreviewPath: undefined,
+      selectedChangePreviewWorkspaceId: undefined,
+      changePreview: undefined,
+      changePreviewLoading: false,
+      fileContent: undefined,
+      fileLastModifiedAt: undefined,
+      externalFileChange: undefined,
+      outline: [],
+      dirtyEditorPaths: [],
+    }),
 });

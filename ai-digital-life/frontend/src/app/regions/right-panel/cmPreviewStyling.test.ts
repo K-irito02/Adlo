@@ -28,11 +28,10 @@ function extractCssBlock(css: string, selector: string) {
 }
 
 describe("CodeMirror preview styling", () => {
-  it("uses the custom theme as the only syntax highlight source", () => {
-    expect(codeEditorSource).toContain("getThemeExtension(theme)");
+  it("uses oneDark as base and custom theme for both mode overrides", () => {
+    expect(codeEditorSource).toContain('theme="dark"');
+    expect(codeEditorSource).toContain('getThemeExtension(theme)');
     expect(sharedExtensionsSource).toContain("getThemeExtension");
-    expect(codeEditorSource).not.toContain("defaultHighlightStyle");
-    expect(diffViewerSource).not.toContain("defaultHighlightStyle");
   });
 
   it("renders diff state with quiet line backgrounds instead of vertical status rails", () => {
@@ -55,9 +54,9 @@ describe("CodeMirror preview styling", () => {
     expect(regionsCssSource).not.toContain(".adl-tool-editor .adl-agent-gutter");
     expect(regionsCssSource).not.toContain(".adl-agent-gutter-marker");
     expect(cmThemeSource).not.toContain("AGENT_GUTTER_INSERT_CLASS");
-    expect(cmThemeSource).toContain('borderRight: "1px solid var(--border-subtle)"');
-    expect(cmThemeSource).toContain('paddingRight: "0"');
-    expect(cmThemeSource).toContain('outline: "none"');
+    expect(cmThemeSource).toContain("borderRight: '1px solid var(--border-subtle)'");
+    expect(cmThemeSource).toContain("paddingRight: '0'");
+    expect(cmThemeSource).toContain("outline: 'none'");
   });
 
   it("keeps diff gutter rows vertically aligned with content rows", () => {

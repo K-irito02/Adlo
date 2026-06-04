@@ -1,10 +1,10 @@
 export type PreviewDiffRange = {
   startLine: number;
   endLine: number;
-  type: "insert" | "delete";
+  type: 'insert' | 'delete';
 };
 
-export type PreviewDiffVisualTone = "base" | "strong" | "block";
+export type PreviewDiffVisualTone = 'base' | 'strong' | 'block';
 
 export type PreviewDiffVisualRange = PreviewDiffRange & {
   tone: PreviewDiffVisualTone;
@@ -109,7 +109,7 @@ function getVisualLineCount(line: string, wrapColumn?: number | null): number {
 function createInternalRange(input: {
   startLine: number;
   endLine: number;
-  type: "insert" | "delete";
+  type: 'insert' | 'delete';
   blockId: number;
   contentLines: string[];
   sourceStartLine: number;
@@ -122,7 +122,7 @@ function createInternalRange(input: {
     type: input.type,
     blockId: input.blockId,
     hasOppositeInBlock: input.hasOppositeInBlock,
-    contentColumns: getMaxColumns(input.contentLines, input.sourceStartLine, input.sourceEndLine)
+    contentColumns: getMaxColumns(input.contentLines, input.sourceStartLine, input.sourceEndLine),
   };
 }
 
@@ -137,28 +137,34 @@ function computeFallbackRanges(baseLines: string[], currentLines: string[]): Int
   const hasOppositeInBlock = insertedLines > 0 && deletedLines > 0;
 
   if (deletedLines > 0) {
-    appendInternalRange(ranges, createInternalRange({
-      startLine: anchorLine,
-      endLine: anchorLine,
-      type: "delete",
-      blockId: 1,
-      contentLines: baseLines,
-      sourceStartLine: prefix + 1,
-      sourceEndLine: baseLines.length - suffix,
-      hasOppositeInBlock
-    }));
+    appendInternalRange(
+      ranges,
+      createInternalRange({
+        startLine: anchorLine,
+        endLine: anchorLine,
+        type: 'delete',
+        blockId: 1,
+        contentLines: baseLines,
+        sourceStartLine: prefix + 1,
+        sourceEndLine: baseLines.length - suffix,
+        hasOppositeInBlock,
+      })
+    );
   }
   if (insertedLines > 0) {
-    appendInternalRange(ranges, createInternalRange({
-      startLine: anchorLine,
-      endLine: Math.max(anchorLine, prefix + insertedLines),
-      type: "insert",
-      blockId: 1,
-      contentLines: currentLines,
-      sourceStartLine: prefix + 1,
-      sourceEndLine: currentLines.length - suffix,
-      hasOppositeInBlock
-    }));
+    appendInternalRange(
+      ranges,
+      createInternalRange({
+        startLine: anchorLine,
+        endLine: Math.max(anchorLine, prefix + insertedLines),
+        type: 'insert',
+        blockId: 1,
+        contentLines: currentLines,
+        sourceStartLine: prefix + 1,
+        sourceEndLine: currentLines.length - suffix,
+        hasOppositeInBlock,
+      })
+    );
   }
 
   return ranges;
@@ -176,7 +182,11 @@ function getCommonPrefixLength(baseLines: string[], currentLines: string[]): num
   return prefix;
 }
 
-function getCommonSuffixLength(baseLines: string[], currentLines: string[], prefix: number): number {
+function getCommonSuffixLength(
+  baseLines: string[],
+  currentLines: string[],
+  prefix: number
+): number {
   let suffix = 0;
   while (
     suffix + prefix < baseLines.length &&
@@ -192,34 +202,41 @@ function getVisualLineTotal(lines: string[], wrapColumn?: number | null): number
   return lines.reduce((total, line) => total + getVisualLineCount(line, wrapColumn), 0);
 }
 
-function computeInternalDiffRanges(baseContent: string, currentContent: string): InternalDiffRange[] {
+function computeInternalDiffRanges(
+  baseContent: string,
+  currentContent: string
+): InternalDiffRange[] {
   const baseLines = splitLines(baseContent);
   const currentLines = splitLines(currentContent);
 
   if (baseLines.length === 0 && currentLines.length === 0) return [];
   if (baseLines.length === 0) {
-    return [createInternalRange({
-      startLine: 1,
-      endLine: Math.max(1, currentLines.length),
-      type: "insert",
-      blockId: 1,
-      contentLines: currentLines,
-      sourceStartLine: 1,
-      sourceEndLine: currentLines.length,
-      hasOppositeInBlock: false
-    })];
+    return [
+      createInternalRange({
+        startLine: 1,
+        endLine: Math.max(1, currentLines.length),
+        type: 'insert',
+        blockId: 1,
+        contentLines: currentLines,
+        sourceStartLine: 1,
+        sourceEndLine: currentLines.length,
+        hasOppositeInBlock: false,
+      }),
+    ];
   }
   if (currentLines.length === 0) {
-    return [createInternalRange({
-      startLine: 1,
-      endLine: 1,
-      type: "delete",
-      blockId: 1,
-      contentLines: baseLines,
-      sourceStartLine: 1,
-      sourceEndLine: baseLines.length,
-      hasOppositeInBlock: false
-    })];
+    return [
+      createInternalRange({
+        startLine: 1,
+        endLine: 1,
+        type: 'delete',
+        blockId: 1,
+        contentLines: baseLines,
+        sourceStartLine: 1,
+        sourceEndLine: baseLines.length,
+        hasOppositeInBlock: false,
+      }),
+    ];
   }
 
   if (baseLines.length * currentLines.length > MAX_EXACT_DIFF_CELLS) {
@@ -232,9 +249,10 @@ function computeInternalDiffRanges(baseContent: string, currentContent: string):
 
   for (let i = baseLines.length - 1; i >= 0; i -= 1) {
     for (let j = currentLines.length - 1; j >= 0; j -= 1) {
-      dp[i][j] = baseLines[i] === currentLines[j]
-        ? dp[i + 1][j + 1] + 1
-        : Math.max(dp[i + 1][j], dp[i][j + 1]);
+      dp[i][j] =
+        baseLines[i] === currentLines[j]
+          ? dp[i + 1][j + 1] + 1
+          : Math.max(dp[i + 1][j], dp[i][j + 1]);
     }
   }
 
@@ -257,9 +275,7 @@ function computeInternalDiffRanges(baseContent: string, currentContent: string):
     let deleteStartLine = 0;
     let deleteEndLine = 0;
 
-    while (
-      i < baseLines.length || j < currentLines.length
-    ) {
+    while (i < baseLines.length || j < currentLines.length) {
       if (i < baseLines.length && j < currentLines.length && baseLines[i] === currentLines[j]) {
         break;
       }
@@ -284,28 +300,34 @@ function computeInternalDiffRanges(baseContent: string, currentContent: string):
     const hasOppositeInBlock = hasInsert && hasDelete;
 
     if (insertStartLine > 0) {
-      appendInternalRange(ranges, createInternalRange({
-        startLine: insertStartLine,
-        endLine: insertEndLine,
-        type: "insert",
-        blockId,
-        contentLines: currentLines,
-        sourceStartLine: insertStartLine,
-        sourceEndLine: insertEndLine,
-        hasOppositeInBlock
-      }));
+      appendInternalRange(
+        ranges,
+        createInternalRange({
+          startLine: insertStartLine,
+          endLine: insertEndLine,
+          type: 'insert',
+          blockId,
+          contentLines: currentLines,
+          sourceStartLine: insertStartLine,
+          sourceEndLine: insertEndLine,
+          hasOppositeInBlock,
+        })
+      );
     }
     if (hasDelete) {
-      appendInternalRange(ranges, createInternalRange({
-        startLine: anchorLine,
-        endLine: anchorLine,
-        type: "delete",
-        blockId,
-        contentLines: baseLines,
-        sourceStartLine: deleteStartLine,
-        sourceEndLine: deleteEndLine,
-        hasOppositeInBlock
-      }));
+      appendInternalRange(
+        ranges,
+        createInternalRange({
+          startLine: anchorLine,
+          endLine: anchorLine,
+          type: 'delete',
+          blockId,
+          contentLines: baseLines,
+          sourceStartLine: deleteStartLine,
+          sourceEndLine: deleteEndLine,
+          hasOppositeInBlock,
+        })
+      );
     }
   }
 
@@ -316,29 +338,37 @@ function toPreviewDiffRange(range: InternalDiffRange): PreviewDiffRange {
   return {
     startLine: range.startLine,
     endLine: range.endLine,
-    type: range.type
+    type: range.type,
   };
 }
 
 function getVisualTone(range: InternalDiffRange): PreviewDiffVisualTone {
   const lineCount = Math.max(1, range.endLine - range.startLine + 1);
-  if (range.hasOppositeInBlock) return "strong";
-  if (lineCount >= BLOCK_TONE_LINE_THRESHOLD) return "block";
-  return "base";
+  if (range.hasOppositeInBlock) return 'strong';
+  if (lineCount >= BLOCK_TONE_LINE_THRESHOLD) return 'block';
+  return 'base';
 }
 
-export function computePreviewDiffRanges(baseContent: string, currentContent: string): PreviewDiffRange[] {
+export function computePreviewDiffRanges(
+  baseContent: string,
+  currentContent: string
+): PreviewDiffRange[] {
   const ranges: PreviewDiffRange[] = [];
-  computeInternalDiffRanges(baseContent, currentContent).forEach((range) => appendRange(ranges, toPreviewDiffRange(range)));
+  computeInternalDiffRanges(baseContent, currentContent).forEach((range) =>
+    appendRange(ranges, toPreviewDiffRange(range))
+  );
   return ranges;
 }
 
-export function computePreviewDiffVisualRanges(baseContent: string, currentContent: string): PreviewDiffVisualRange[] {
+export function computePreviewDiffVisualRanges(
+  baseContent: string,
+  currentContent: string
+): PreviewDiffVisualRange[] {
   return computeInternalDiffRanges(baseContent, currentContent).map((range) => ({
     startLine: range.startLine,
     endLine: range.endLine,
     type: range.type,
     tone: getVisualTone(range),
-    contentColumns: range.contentColumns
+    contentColumns: range.contentColumns,
   }));
 }

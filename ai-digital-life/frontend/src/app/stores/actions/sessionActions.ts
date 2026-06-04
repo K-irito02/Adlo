@@ -1,20 +1,20 @@
-import type { StoreState } from "../StoreState";
-import type { IpcResult, ReorderSessionsInput } from "@ai-digital-life/kernel";
-import { sessionFallbackTitle, refreshConversationSlice } from "../conversationUtils";
-import {
-  getNextSessionRequestSeq,
-  sessionRequestSeq,
-} from "../shared";
-import type { StoreApi } from "zustand";
+import type { StoreState } from '../StoreState';
+import type { IpcResult, ReorderSessionsInput } from '@ai-digital-life/kernel';
+import { sessionFallbackTitle, refreshConversationSlice } from '../conversationUtils';
+import { getNextSessionRequestSeq, sessionRequestSeq } from '../shared';
+import type { StoreApi } from 'zustand';
 
 async function sessionMutate<T>(
   get: () => StoreState,
-  set: StoreApi<StoreState>["setState"],
+  set: StoreApi<StoreState>['setState'],
   sessionId: string,
   ipcCall: (sessionId: string) => Promise<IpcResult<T>>
 ) {
   const result = await ipcCall(sessionId);
-  if (!result.ok) { set({ error: result.error.message }); return; }
+  if (!result.ok) {
+    set({ error: result.error.message });
+    return;
+  }
   const conversationState = await refreshConversationSlice(get().activeSessionId);
   set((state: StoreState) => ({
     sessions: conversationState.sessions,
@@ -24,7 +24,7 @@ async function sessionMutate<T>(
   }));
 }
 
-export function createSessionActions(set: StoreApi<StoreState>["setState"], get: () => StoreState) {
+export function createSessionActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
   return {
     createSession: async (workspaceId?: string) => {
       const result = await window.digitalLife.conversation.createSession(
@@ -51,9 +51,9 @@ export function createSessionActions(set: StoreApi<StoreState>["setState"], get:
     switchToWorkspace: async (workspaceId: string, workspacePath: string) => {
       const state = get();
       const workspaceSessions = state.sessions.filter(
-        s => s.workspaceId === workspaceId && !s.archivedAt
+        (s) => s.workspaceId === workspaceId && !s.archivedAt
       );
-      
+
       if (workspaceSessions.length > 0) {
         const recentSession = [...workspaceSessions].sort(
           (a, b) => (b.lastMessageAt || 0) - (a.lastMessageAt || 0)
@@ -67,9 +67,7 @@ export function createSessionActions(set: StoreApi<StoreState>["setState"], get:
     selectSession: async (sessionId: string) => {
       const requestSeq = getNextSessionRequestSeq();
       set({ activeSessionId: sessionId, error: undefined });
-      const markReadResult = await window.digitalLife.conversation.markSessionRead(
-        { sessionId }
-      );
+      const markReadResult = await window.digitalLife.conversation.markSessionRead({ sessionId });
       if (requestSeq !== sessionRequestSeq) return;
       if (!markReadResult.ok) {
         set({ error: markReadResult.error.message });
@@ -114,40 +112,49 @@ export function createSessionActions(set: StoreApi<StoreState>["setState"], get:
     },
 
     pinSession: async (sessionId: string) => {
-      await sessionMutate(get, set, sessionId, (id) => window.digitalLife.conversation.pinSession(id));
+      await sessionMutate(get, set, sessionId, (id) =>
+        window.digitalLife.conversation.pinSession(id)
+      );
     },
 
     unpinSession: async (sessionId: string) => {
-      await sessionMutate(get, set, sessionId, (id) => window.digitalLife.conversation.unpinSession(id));
+      await sessionMutate(get, set, sessionId, (id) =>
+        window.digitalLife.conversation.unpinSession(id)
+      );
     },
 
     markSessionRead: async (sessionId: string) => {
-      await sessionMutate(get, set, sessionId, (id) => window.digitalLife.conversation.markSessionRead({ sessionId: id }));
+      await sessionMutate(get, set, sessionId, (id) =>
+        window.digitalLife.conversation.markSessionRead({ sessionId: id })
+      );
     },
 
     markSessionUnread: async (sessionId: string) => {
-      await sessionMutate(get, set, sessionId, (id) => window.digitalLife.conversation.markSessionUnread(id));
+      await sessionMutate(get, set, sessionId, (id) =>
+        window.digitalLife.conversation.markSessionUnread(id)
+      );
     },
 
     archiveSession: async (sessionId: string) => {
-      await sessionMutate(get, set, sessionId, (id) => window.digitalLife.conversation.archiveSession(id));
+      await sessionMutate(get, set, sessionId, (id) =>
+        window.digitalLife.conversation.archiveSession(id)
+      );
     },
 
     archiveAllSessions: async () => {
-      const result =
-        await window.digitalLife.conversation.archiveAllInWorkspace();
+      const result = await window.digitalLife.conversation.archiveAllInWorkspace();
       if (!result.ok) {
         set({ error: result.error.message });
         return;
       }
-      const conversationState = await refreshConversationSlice(
-        get().activeSessionId
-      );
+      const conversationState = await refreshConversationSlice(get().activeSessionId);
       set({ sessions: conversationState.sessions });
     },
 
     deleteSession: async (sessionId: string) => {
-      await sessionMutate(get, set, sessionId, (id) => window.digitalLife.conversation.deleteSession(id));
+      await sessionMutate(get, set, sessionId, (id) =>
+        window.digitalLife.conversation.deleteSession(id)
+      );
     },
 
     reorderSessions: async (input: ReorderSessionsInput) => {
@@ -170,9 +177,7 @@ export function createSessionActions(set: StoreApi<StoreState>["setState"], get:
         set({ error: failure.error.message });
         return;
       }
-      const conversationState = await refreshConversationSlice(
-        get().activeSessionId
-      );
+      const conversationState = await refreshConversationSlice(get().activeSessionId);
       set({ sessions: conversationState.sessions });
     },
   };

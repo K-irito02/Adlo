@@ -72,19 +72,13 @@ impl From<AppError> for CommandError {
             AppError::AuthError(_) => IpcErrorCode::AuthError,
             AppError::Internal(_) => IpcErrorCode::InternalError,
         };
-        Self {
-            code,
-            message: e.to_string(),
-        }
+        Self { code, message: e.to_string() }
     }
 }
 
 impl From<anyhow::Error> for CommandError {
     fn from(e: anyhow::Error) -> Self {
-        Self {
-            code: IpcErrorCode::InternalError,
-            message: e.to_string(),
-        }
+        Self { code: IpcErrorCode::InternalError, message: e.to_string() }
     }
 }
 

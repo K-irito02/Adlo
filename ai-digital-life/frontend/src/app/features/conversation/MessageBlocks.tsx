@@ -1,4 +1,4 @@
-import React from "react";
+import React from 'react';
 import type {
   ConversationMessageRecord,
   ConversationBlock,
@@ -11,18 +11,19 @@ import type {
   ExecutionStepConversationBlock,
   ExecutionSummaryConversationBlock,
   CommandOutputConversationBlock,
-} from "@ai-digital-life/kernel";
-import type { CopyDict } from "../../i18n";
-import { PlanCard, type PlanStep } from "../../components/agent/PlanCard";
-import { StepBlock } from "../../components/agent/StepBlock";
-import { ExecutionSummaryCard } from "../../components/agent/ExecutionSummary";
-import { CommandOutputBlock } from "../../components/terminal/CommandOutputBlock";
+} from '@ai-digital-life/kernel';
+import type { CopyDict } from '../../i18n';
+import { PlanCard, type PlanStep } from '../../components/agent/PlanCard';
+import { StepBlock } from '../../components/agent/StepBlock';
+import { ExecutionSummaryCard } from '../../components/agent/ExecutionSummary';
+import { CommandOutputBlock } from '../../components/terminal/CommandOutputBlock';
 
 function renderPlanBlock(block: PlanConversationBlock, t: CopyDict): React.ReactElement {
   const steps: PlanStep[] = block.items.map((item) => ({
     id: item.id,
     title: item.title,
-    stepType: item.status === "running" ? "analyze" : (item.status as PlanStep["stepType"] ?? "analyze"),
+    stepType:
+      item.status === 'running' ? 'analyze' : ((item.status as PlanStep['stepType']) ?? 'analyze'),
     status: item.status,
   }));
   return <PlanCard key={block.id} t={t} title={block.title} steps={steps} />;
@@ -31,7 +32,7 @@ function renderPlanBlock(block: PlanConversationBlock, t: CopyDict): React.React
 function renderExecutionStepBlock(
   block: ExecutionStepConversationBlock,
   t: CopyDict,
-  onRetryStep?: (stepId: string) => void,
+  onRetryStep?: (stepId: string) => void
 ): React.ReactElement {
   return <StepBlock key={block.id} t={t} block={block} onRetry={onRetryStep} />;
 }
@@ -39,12 +40,15 @@ function renderExecutionStepBlock(
 function renderExecutionSummaryBlock(
   block: ExecutionSummaryConversationBlock,
   t: CopyDict,
-  onViewChanges?: () => void,
+  onViewChanges?: () => void
 ): React.ReactElement {
   return <ExecutionSummaryCard key={block.id} t={t} block={block} onViewChanges={onViewChanges} />;
 }
 
-function renderCommandOutputBlock(block: CommandOutputConversationBlock, t: CopyDict): React.ReactElement {
+function renderCommandOutputBlock(
+  block: CommandOutputConversationBlock,
+  t: CopyDict
+): React.ReactElement {
   return <CommandOutputBlock key={block.id} t={t} block={block} />;
 }
 
@@ -82,8 +86,8 @@ function renderValidationResultBlock(block: ValidationResultConversationBlock): 
           {block.diagnostics.map((diagnostic) => (
             <li key={diagnostic.id}>
               <strong>{diagnostic.source}</strong>
-              <span>{diagnostic.path ? ` ${diagnostic.path}` : ""}</span>
-              <span>{diagnostic.line ? `:${diagnostic.line}` : ""}</span>
+              <span>{diagnostic.path ? ` ${diagnostic.path}` : ''}</span>
+              <span>{diagnostic.line ? `:${diagnostic.line}` : ''}</span>
               <span> {diagnostic.message}</span>
             </li>
           ))}
@@ -113,26 +117,26 @@ function renderMessageBlock(
   block: ConversationBlock,
   t: CopyDict,
   onRetryStep?: (stepId: string) => void,
-  onViewChanges?: () => void,
+  onViewChanges?: () => void
 ): React.ReactElement | null {
   switch (block.type) {
-    case "plan":
+    case 'plan':
       return renderPlanBlock(block, t);
-    case "execution-step":
+    case 'execution-step':
       return renderExecutionStepBlock(block, t, onRetryStep);
-    case "execution-summary":
+    case 'execution-summary':
       return renderExecutionSummaryBlock(block, t, onViewChanges);
-    case "command-output":
+    case 'command-output':
       return renderCommandOutputBlock(block, t);
-    case "patch-summary":
+    case 'patch-summary':
       return renderPatchSummaryBlock(block);
-    case "tool-call":
+    case 'tool-call':
       return renderToolCallBlock(block);
-    case "validation-result":
+    case 'validation-result':
       return renderValidationResultBlock(block);
-    case "final-summary":
+    case 'final-summary':
       return renderFinalSummaryBlock(block);
-    case "markdown":
+    case 'markdown':
       return renderMarkdownBlock(block);
     default:
       return null;
@@ -146,7 +150,12 @@ interface MessageBlocksProps {
   onViewChanges?: () => void;
 }
 
-export const MessageBlocks = React.memo(function MessageBlocks({ message, t, onRetryStep, onViewChanges }: MessageBlocksProps) {
+export const MessageBlocks = React.memo(function MessageBlocks({
+  message,
+  t,
+  onRetryStep,
+  onViewChanges,
+}: MessageBlocksProps) {
   return (
     <div className="adl-message-blocks">
       {message.blocks.map((block) => renderMessageBlock(block, t, onRetryStep, onViewChanges))}

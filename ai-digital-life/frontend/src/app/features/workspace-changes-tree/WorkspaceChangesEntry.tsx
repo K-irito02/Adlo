@@ -1,10 +1,21 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { createPortal } from "react-dom";
-import type { RecentWorkspaceEntry, WorkspaceTreeNode } from "@ai-digital-life/kernel";
-import type { CopyDict } from "../../i18n";
-import { IconRefreshCw, IconPin, IconPinOff, IconMoreVertical, IconFolder, IconFolderOpen, IconAlertTriangle, IconLoader, IconCopy, IconEyeOff } from "../../icons";
-import { FileTree, type FileTreeContextMenuItem } from "../../features/file-tree";
-import { TooltipSimple } from "../../components/Tooltip";
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
+import type { RecentWorkspaceEntry, WorkspaceTreeNode } from '@ai-digital-life/kernel';
+import type { CopyDict } from '../../i18n';
+import {
+  IconRefreshCw,
+  IconPin,
+  IconPinOff,
+  IconMoreVertical,
+  IconFolder,
+  IconFolderOpen,
+  IconAlertTriangle,
+  IconLoader,
+  IconCopy,
+  IconEyeOff,
+} from '../../icons';
+import { FileTree, type FileTreeContextMenuItem } from '../../features/file-tree';
+import { TooltipSimple } from '../../components/Tooltip';
 
 export interface WorkspaceChangesEntryProps {
   workspace: RecentWorkspaceEntry;
@@ -84,18 +95,18 @@ export function WorkspaceChangesEntry({
       setMenuOpen(false);
     };
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setMenuOpen(false);
+      if (e.key === 'Escape') setMenuOpen(false);
     };
     const handleScroll = () => {
       setMenuOpen(false);
     };
-    window.addEventListener("mousedown", handleClickOutside);
-    window.addEventListener("keydown", handleEscape);
-    window.addEventListener("scroll", handleScroll, true);
+    window.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('keydown', handleEscape);
+    window.addEventListener('scroll', handleScroll, true);
     return () => {
-      window.removeEventListener("mousedown", handleClickOutside);
-      window.removeEventListener("keydown", handleEscape);
-      window.removeEventListener("scroll", handleScroll, true);
+      window.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('keydown', handleEscape);
+      window.removeEventListener('scroll', handleScroll, true);
     };
   }, [menuOpen, menuId]);
 
@@ -126,8 +137,7 @@ export function WorkspaceChangesEntry({
   const copyToClipboard = useCallback(async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-    } catch {
-    }
+    } catch {}
   }, []);
 
   const handleCopyFullPath = useCallback(async () => {
@@ -153,47 +163,70 @@ export function WorkspaceChangesEntry({
   const isPinned = workspace.isPinned;
 
   return (
-    <div className={`adl-multitree-entry${isCurrent ? " is-current" : ""}${!workspace.available ? " is-unavailable" : ""}`}>
+    <div
+      className={`adl-multitree-entry${isCurrent ? ' is-current' : ''}${!workspace.available ? ' is-unavailable' : ''}`}
+    >
       <div className="adl-multitree-entry__header">
         <div className="adl-multitree-entry__expand">
-          <TooltipSimple content={isExpanded ? "收起" : "展开"} placement="top">
+          <TooltipSimple content={isExpanded ? '收起' : '展开'} placement="top">
             <button
               type="button"
-              className={`adl-multitree-entry__expand-btn${isExpanded ? " is-expanded" : ""}`}
+              className={`adl-multitree-entry__expand-btn${isExpanded ? ' is-expanded' : ''}`}
               onClick={onToggleExpand}
               aria-label={isExpanded ? collapseLabel : expandLabel}
               aria-expanded={isExpanded}
               disabled={!workspace.available}
             >
-              {isExpanded ? <IconFolderOpen size={14} decorative /> : <IconFolder size={14} decorative />}
+              {isExpanded ? (
+                <IconFolderOpen size={14} decorative />
+              ) : (
+                <IconFolder size={14} decorative />
+              )}
             </button>
           </TooltipSimple>
         </div>
 
-        <div className="adl-multitree-entry__namezone" role="button" tabIndex={0} onClick={handleNameClick} onContextMenu={handleNameContextMenu} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") handleNameClick(); }} aria-label={workspace.name}>
-          <span className="adl-multitree-entry__name" title={workspace.path}>{workspace.name}</span>
+        <div
+          className="adl-multitree-entry__namezone"
+          role="button"
+          tabIndex={0}
+          onClick={handleNameClick}
+          onContextMenu={handleNameContextMenu}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') handleNameClick();
+          }}
+          aria-label={workspace.name}
+        >
+          <span className="adl-multitree-entry__name" title={workspace.path}>
+            {workspace.name}
+          </span>
 
           <span className="adl-multitree-entry__count">{changeCount}</span>
 
           <div className="adl-multitree-entry__actions">
-
             <TooltipSimple content="刷新" placement="top">
               <button
                 type="button"
                 className="adl-icon-btn adl-icon-btn--xs"
-                onClick={(e) => { e.stopPropagation(); onRefreshTree(); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRefreshTree();
+                }}
                 aria-label="刷新"
               >
                 <IconRefreshCw size={12} decorative />
               </button>
             </TooltipSimple>
 
-            <TooltipSimple content={isPinned ? "取消置顶" : "置顶"} placement="top">
+            <TooltipSimple content={isPinned ? '取消置顶' : '置顶'} placement="top">
               <button
                 type="button"
                 className="adl-icon-btn adl-icon-btn--xs"
-                onClick={(e) => { e.stopPropagation(); isPinned ? onUnpinWorkspace(workspace.id) : onPinWorkspace(workspace.id); }}
-                aria-label={isPinned ? "取消置顶" : "置顶"}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  isPinned ? onUnpinWorkspace(workspace.id) : onPinWorkspace(workspace.id);
+                }}
+                aria-label={isPinned ? '取消置顶' : '置顶'}
               >
                 {isPinned ? <IconPinOff size={12} decorative /> : <IconPin size={12} decorative />}
               </button>
@@ -214,28 +247,55 @@ export function WorkspaceChangesEntry({
         </div>
       </div>
 
-      {menuOpen && menuPosition ? createPortal(
-        <div className="adl-multitree-entry__menu" role="menu" data-menu-id={menuId} style={{ top: menuPosition.top, left: menuPosition.left }}>
-          <button type="button" className="adl-multitree-entry__menu-item" role="menuitem" onClick={handleHideFromRightPanels}>
-            <IconEyeOff size={14} />
-            从此区域移除不显示
-          </button>
-          <button type="button" className="adl-multitree-entry__menu-item" role="menuitem" onClick={handleRevealInFileManager}>
-            <IconFolderOpen size={14} />
-            {t.sessionMenuRevealFolder as string}
-          </button>
-          <div className="adl-multitree-entry__menu-sep" role="separator" />
-          <button type="button" className="adl-multitree-entry__menu-item" role="menuitem" onClick={handleCopyFullPath}>
-            <IconCopy size={14} />
-            复制完整路径
-          </button>
-          <button type="button" className="adl-multitree-entry__menu-item" role="menuitem" onClick={handleCopyRelativePath}>
-            <IconCopy size={14} />
-            复制相对路径
-          </button>
-        </div>,
-        document.body
-      ) : null}
+      {menuOpen && menuPosition
+        ? createPortal(
+            <div
+              className="adl-multitree-entry__menu"
+              role="menu"
+              data-menu-id={menuId}
+              style={{ top: menuPosition.top, left: menuPosition.left }}
+            >
+              <button
+                type="button"
+                className="adl-multitree-entry__menu-item"
+                role="menuitem"
+                onClick={handleHideFromRightPanels}
+              >
+                <IconEyeOff size={14} />
+                从此区域移除不显示
+              </button>
+              <button
+                type="button"
+                className="adl-multitree-entry__menu-item"
+                role="menuitem"
+                onClick={handleRevealInFileManager}
+              >
+                <IconFolderOpen size={14} />
+                {t.sessionMenuRevealFolder as string}
+              </button>
+              <div className="adl-multitree-entry__menu-sep" role="separator" />
+              <button
+                type="button"
+                className="adl-multitree-entry__menu-item"
+                role="menuitem"
+                onClick={handleCopyFullPath}
+              >
+                <IconCopy size={14} />
+                复制完整路径
+              </button>
+              <button
+                type="button"
+                className="adl-multitree-entry__menu-item"
+                role="menuitem"
+                onClick={handleCopyRelativePath}
+              >
+                <IconCopy size={14} />
+                复制相对路径
+              </button>
+            </div>,
+            document.body
+          )
+        : null}
 
       {isExpanded ? (
         <div className="adl-multitree-entry__tree">

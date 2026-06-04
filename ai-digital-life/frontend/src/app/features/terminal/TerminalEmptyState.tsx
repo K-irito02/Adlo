@@ -1,22 +1,19 @@
-import React, { useState } from "react";
-import { IconTerminal } from "../../icons";
-import type { TerminalProfile } from "../../stores/types";
-import type { CopyDict } from "../../i18n";
-import type { RecentWorkspaceEntry } from "@ai-digital-life/kernel";
+import React, { useState } from 'react';
+import { IconTerminal } from '../../icons';
+import type { TerminalProfile } from '../../stores/types';
+import type { CopyDict } from '../../i18n';
+import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
 
 function ShellPrefix({ profile }: { profile?: TerminalProfile }) {
   const map: Record<string, { text: string; color: string }> = {
-    powershell: { text: "PS", color: "var(--green, #4ade80)" },
-    cmd: { text: ">", color: "var(--blue, #60a5fa)" },
-    bash: { text: "$", color: "var(--yellow, #facc15)" },
+    powershell: { text: 'PS', color: 'var(--green, #4ade80)' },
+    cmd: { text: '>', color: 'var(--blue, #60a5fa)' },
+    bash: { text: '$', color: 'var(--yellow, #facc15)' },
   };
-  const entry = map[profile ?? "powershell"];
+  const entry = map[profile ?? 'powershell'];
   return (
-    <span
-      className="adl-terminal-empty__prefix"
-      style={{ color: entry?.color }}
-    >
-      {entry?.text ?? "$"}
+    <span className="adl-terminal-empty__prefix" style={{ color: entry?.color }}>
+      {entry?.text ?? '$'}
     </span>
   );
 }
@@ -29,8 +26,14 @@ interface TerminalEmptyStateProps {
   t: CopyDict;
 }
 
-export const TerminalEmptyState = React.memo(function TerminalEmptyState({ shellTypeItems, workspaces, defaultProfile, onSelectProfile, t }: TerminalEmptyStateProps) {
-  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string>("");
+export const TerminalEmptyState = React.memo(function TerminalEmptyState({
+  shellTypeItems,
+  workspaces,
+  defaultProfile,
+  onSelectProfile,
+  t,
+}: TerminalEmptyStateProps) {
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string>('');
 
   const handleCreateTerminal = (profile: TerminalProfile) => {
     onSelectProfile(profile, selectedWorkspaceId);
@@ -44,7 +47,8 @@ export const TerminalEmptyState = React.memo(function TerminalEmptyState({ shell
           <span>{t.terminalPanel}</span>
         </div>
         <p className="adl-terminal-empty__text">
-          {t.noOpenTerminalSessions}<br />
+          {t.noOpenTerminalSessions}
+          <br />
           {t.selectShellType}
         </p>
         <div className="adl-terminal-empty__items">
@@ -65,18 +69,18 @@ export const TerminalEmptyState = React.memo(function TerminalEmptyState({ shell
           <div className="adl-terminal-empty__workspace-items">
             <button
               type="button"
-              className={`adl-terminal-empty__workspace-item${selectedWorkspaceId === "" ? " is-active" : ""}`}
-              onClick={() => setSelectedWorkspaceId("")}
+              className={`adl-terminal-empty__workspace-item${selectedWorkspaceId === '' ? ' is-active' : ''}`}
+              onClick={() => setSelectedWorkspaceId('')}
             >
               <span>{t.terminalIndependent}</span>
             </button>
             {workspaces
-              .filter(w => !w.removedFromSidebar && w.available)
+              .filter((w) => !w.removedFromSidebar && w.available)
               .map((workspace) => (
                 <button
                   key={workspace.id}
                   type="button"
-                  className={`adl-terminal-empty__workspace-item${selectedWorkspaceId === workspace.id ? " is-active" : ""}`}
+                  className={`adl-terminal-empty__workspace-item${selectedWorkspaceId === workspace.id ? ' is-active' : ''}`}
                   onClick={() => setSelectedWorkspaceId(workspace.id)}
                   title={workspace.path}
                 >
@@ -85,9 +89,7 @@ export const TerminalEmptyState = React.memo(function TerminalEmptyState({ shell
               ))}
           </div>
         </div>
-        <p className="adl-terminal-empty__footer">
-          {t.clickToCreateOrUseToolbar}
-        </p>
+        <p className="adl-terminal-empty__footer">{t.clickToCreateOrUseToolbar}</p>
       </div>
     </div>
   );

@@ -14,22 +14,18 @@ pub fn create_run(
 ) -> AgentRunDetail {
     let now = now_ms();
     let run_id = create_id("run");
-    let steps = [
-        "Understand request",
-        "Collect context",
-        "Generate patch preview",
-    ]
-    .into_iter()
-    .map(|title| AgentPlanStep {
-        id: create_id("step"),
-        run_id: run_id.clone(),
-        title: title.into(),
-        detail: Some("Single-agent thin-slice step.".into()),
-        status: "pending".into(),
-        created_at: now,
-        updated_at: now,
-    })
-    .collect();
+    let steps = ["Understand request", "Collect context", "Generate patch preview"]
+        .into_iter()
+        .map(|title| AgentPlanStep {
+            id: create_id("step"),
+            run_id: run_id.clone(),
+            title: title.into(),
+            detail: Some("Single-agent thin-slice step.".into()),
+            status: "pending".into(),
+            created_at: now,
+            updated_at: now,
+        })
+        .collect();
     AgentRunDetail {
         run: AgentRunRecord {
             id: run_id,
@@ -116,10 +112,8 @@ pub fn complete_after_patch(
     detail.run.completed_at = Some(now);
     if rolled_back {
         detail.run.status = AgentRunStatus::RolledBack;
-        detail.run.summary = Some(format!(
-            "Validation failed and changes were rolled back: {}",
-            validation.summary
-        ));
+        detail.run.summary =
+            Some(format!("Validation failed and changes were rolled back: {}", validation.summary));
         return detail;
     }
     detail.run.status = if validation.status == "failed" {
@@ -128,15 +122,9 @@ pub fn complete_after_patch(
         AgentRunStatus::Succeeded
     };
     detail.run.summary = Some(match validation.status.as_str() {
-        "passed" => format!(
-            "Patch applied and validation passed: {}",
-            validation.summary
-        ),
+        "passed" => format!("Patch applied and validation passed: {}", validation.summary),
         "skipped" => "Patch applied; no validation command was selected.".into(),
-        _ => format!(
-            "Patch applied but validation failed: {}",
-            validation.summary
-        ),
+        _ => format!("Patch applied but validation failed: {}", validation.summary),
     });
     detail
 }
@@ -153,10 +141,7 @@ pub fn build_model_messages(
             role: adl_kernel::ConversationRole::System,
             content: format!("Workspace: {} ({})", workspace.name, workspace.root_path),
         },
-        ModelChatMessage {
-            role: adl_kernel::ConversationRole::User,
-            content: prompt,
-        },
+        ModelChatMessage { role: adl_kernel::ConversationRole::User, content: prompt },
     ]
 }
 
@@ -193,10 +178,7 @@ pub fn target_file_from_prompt(prompt: &str) -> Option<String> {
 pub fn target_symbol_from_prompt(prompt: &str) -> Option<String> {
     prompt.split_whitespace().find_map(|token| {
         let t = token.trim_matches(|ch: char| ch == '`' || ch == ',' || ch == '.' || ch == ')');
-        t.strip_prefix("@symbol:")
-            .map(str::trim)
-            .filter(|s| !s.is_empty())
-            .map(String::from)
+        t.strip_prefix("@symbol:").map(str::trim).filter(|s| !s.is_empty()).map(String::from)
     })
 }
 
@@ -273,10 +255,7 @@ pub fn assistant_blocks(
             _ => "本轮无补丁输出。".into(),
         }
     };
-    blocks.push(ConversationBlock::FinalSummary {
-        id: create_id("block"),
-        summary: final_text,
-    });
+    blocks.push(ConversationBlock::FinalSummary { id: create_id("block"), summary: final_text });
     blocks
 }
 
@@ -302,12 +281,7 @@ mod tests {
 
     #[test]
     fn completes_patch_run_after_rollback() {
-        let detail = create_run(
-            "w",
-            "s",
-            "edit @file:src/lib.rs",
-            ConversationScenario::CodeEdit,
-        );
+        let detail = create_run("w", "s", "edit @file:src/lib.rs", ConversationScenario::CodeEdit);
         let validation = ValidationResult {
             id: "validation_1".into(),
             workspace_id: "w".into(),

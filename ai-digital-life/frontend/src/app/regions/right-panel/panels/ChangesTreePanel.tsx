@@ -1,14 +1,14 @@
-import React from "react";
-import { useUiStore } from "../../../stores/ui-store";
-import { useAppStore } from "../../../stores/slicedStore";
-import { MultiWorkspaceChangesTree } from "../../../features/workspace-changes-tree";
-import { OutlineTree } from "../../../features/outline";
-import { useNavigatorResize } from "../../../hooks/useNavigatorResize";
-import { ChangesToolbar } from "./ChangesToolbar";
-import type { WorkspaceTreeNode, ReorderWorkspacesInput } from "@ai-digital-life/kernel";
-import type { ChangeTreeNode } from "../changesTree";
+import React from 'react';
+import { useUiStore } from '../../../stores/ui-store';
+import { useAppStore } from '../../../stores/slicedStore';
+import { MultiWorkspaceChangesTree } from '../../../features/workspace-changes-tree';
+import { OutlineTree } from '../../../features/outline';
+import { useNavigatorResize } from '../../../hooks/useNavigatorResize';
+import { ChangesToolbar } from './ChangesToolbar';
+import type { WorkspaceTreeNode, ReorderWorkspacesInput } from '@ai-digital-life/kernel';
+import type { ChangeTreeNode } from '../changesTree';
 
-type ChangeFileState = "staged" | "modified" | "untracked" | "conflicted";
+type ChangeFileState = 'staged' | 'modified' | 'untracked' | 'conflicted';
 
 interface TreeDataProps {
   t: any;
@@ -51,8 +51,8 @@ interface TreeCallbacks {
 
 interface NavigatorStateProps {
   hasExpandedDirectories: boolean;
-  changesNavigatorMode: "tree" | "list" | "outline";
-  onChangeNavigatorMode: (mode: "tree" | "list" | "outline") => void;
+  changesNavigatorMode: 'tree' | 'list' | 'outline';
+  onChangeNavigatorMode: (mode: 'tree' | 'list' | 'outline') => void;
   allChangesExpanded: boolean;
   totalChangeCount: number;
   hasChangeEntries: boolean;
@@ -72,25 +72,55 @@ export type ChangesTreePanelProps = TreeDataProps & TreeCallbacks & NavigatorSta
 
 export function ChangesTreePanel(props: ChangesTreePanelProps) {
   const {
-    t, visibleWorkspaces, activeWorkspaceId,
-    workspaceChangesExpanded, changeCounts, changesTreeData,
-    workspaceChangesTreeLoading, workspaceChangesTreeErrors,
-    navigatorSelectedPath, selectedChangePreviewWorkspaceId,
-    expandedPathsByWs, dirtyPathsSet, externalChangePath,
-    onToggleExpand, onRefreshOne, onPinWorkspace, onUnpinWorkspace,
-    onHideFromRightPanels, onToggleFileTreePath, onOpenChangePreview,
-    onReorderWorkspaces, getContextMenuItems, contextMenuPersistRef,
-    clearMenuHighlightRef, renderMeta,
-    onToggleAllDirectories, hasExpandedDirectories,
-    changesNavigatorMode, onChangeNavigatorMode,
-    allChangesExpanded, onExpandAll, onCollapseAll,
-    totalChangeCount, hasChangeEntries, snapshot,
+    t,
+    visibleWorkspaces,
+    activeWorkspaceId,
+    workspaceChangesExpanded,
+    changeCounts,
+    changesTreeData,
+    workspaceChangesTreeLoading,
+    workspaceChangesTreeErrors,
+    navigatorSelectedPath,
+    selectedChangePreviewWorkspaceId,
+    expandedPathsByWs,
+    dirtyPathsSet,
+    externalChangePath,
+    onToggleExpand,
+    onRefreshOne,
+    onPinWorkspace,
+    onUnpinWorkspace,
+    onHideFromRightPanels,
+    onToggleFileTreePath,
+    onOpenChangePreview,
+    onReorderWorkspaces,
+    getContextMenuItems,
+    contextMenuPersistRef,
+    clearMenuHighlightRef,
+    renderMeta,
+    onToggleAllDirectories,
+    hasExpandedDirectories,
+    changesNavigatorMode,
+    onChangeNavigatorMode,
+    allChangesExpanded,
+    onExpandAll,
+    onCollapseAll,
+    totalChangeCount,
+    hasChangeEntries,
+    snapshot,
     totalChangesStats,
-    canToggleNavigatorStructure, structureToggleExpanded,
-    onToggleStructure, changesNavigatorTitle,
-    changeOutline, expandedOutlineIds, onExpandedOutlineIdsChange,
-    handleRevealOutlineLine, changesStatusFilter, onStatusFilterClick,
-    changeEntries, onRefreshAll, hasVisibleWorkspaces,
+    canToggleNavigatorStructure,
+    structureToggleExpanded,
+    onToggleStructure,
+    changesNavigatorTitle,
+    changeOutline,
+    expandedOutlineIds,
+    onExpandedOutlineIdsChange,
+    handleRevealOutlineLine,
+    changesStatusFilter,
+    onStatusFilterClick,
+    changeEntries,
+    onRefreshAll,
+    hasVisibleWorkspaces,
   } = props;
 
   const changesNavigatorWidth = useAppStore((state) => state.changesNavigatorWidth);
@@ -99,7 +129,7 @@ export function ChangesTreePanel(props: ChangesTreePanelProps) {
   const { handlePointerDown: handleNavigatorResizeStart } = useNavigatorResize({
     onWidthCommit: setChangesNavigatorWidth,
     minWidth: 180,
-    maxWidth: 300
+    maxWidth: 300,
   });
 
   return (
@@ -125,7 +155,7 @@ export function ChangesTreePanel(props: ChangesTreePanelProps) {
         structureToggleExpanded={structureToggleExpanded}
         onToggleStructure={onToggleStructure}
       />
-      {changesNavigatorMode === "outline" ? (
+      {changesNavigatorMode === 'outline' ? (
         changeOutline.length > 0 ? (
           <OutlineTree
             items={changeOutline}

@@ -1,10 +1,10 @@
-import React from "react";
-import type { ReorderSessionsInput } from "@ai-digital-life/kernel";
-import type { CopyDict } from "../../i18n";
-import { IconArchive, IconMoreVertical, IconPin, IconPinOff } from "../../icons";
-import { TooltipSimple } from "../../components/Tooltip";
-import type { SidebarSessionItem } from "../../utils/sidebarViewModel";
-import { STATUS_LABEL, StatusLamp } from "./SidebarContextMenu";
+import React from 'react';
+import type { ReorderSessionsInput } from '@ai-digital-life/kernel';
+import type { CopyDict } from '../../i18n';
+import { IconArchive, IconMoreVertical, IconPin, IconPinOff } from '../../icons';
+import { TooltipSimple } from '../../components/Tooltip';
+import type { SidebarSessionItem } from '../../utils/sidebarViewModel';
+import { STATUS_LABEL, StatusLamp } from './SidebarContextMenu';
 
 interface SessionListRowProps {
   sessionItem: SidebarSessionItem;
@@ -60,12 +60,12 @@ const SessionListRow = React.memo(function SessionListRow({
   return (
     <li
       key={sessionItem.session.id}
-      className={`adl-session-row${draggedSessionItem?.session.id === sessionItem.session.id ? " is-dragging" : ""}${isDropTarget ? " is-drop-target" : ""}${canReorderIntoTarget ? " is-reorderable-target" : ""}`}
+      className={`adl-session-row${draggedSessionItem?.session.id === sessionItem.session.id ? ' is-dragging' : ''}${isDropTarget ? ' is-drop-target' : ''}${canReorderIntoTarget ? ' is-reorderable-target' : ''}`}
       draggable={canReorder}
       onDragStart={(event) => {
         if (interactive) {
-          event.dataTransfer.effectAllowed = "move";
-          event.dataTransfer.setData("text/plain", sessionItem.session.id);
+          event.dataTransfer.effectAllowed = 'move';
+          event.dataTransfer.setData('text/plain', sessionItem.session.id);
           setDragSessionId(sessionItem.session.id);
           setDragOverSessionTarget(undefined);
         }
@@ -93,9 +93,13 @@ const SessionListRow = React.memo(function SessionListRow({
       <div
         role="button"
         tabIndex={0}
-        className={`adl-session-item${sessionItem.session.id === activeSessionId ? " is-active" : ""}${draggedSessionItem?.session.id === sessionItem.session.id ? " is-dragging" : ""}${isDropTarget ? " is-drop-target" : ""}${droppedSessionId === sessionItem.session.id ? " is-drop-flash" : ""}${isHighlighted ? " is-highlighted" : ""}`}
+        className={`adl-session-item${sessionItem.session.id === activeSessionId ? ' is-active' : ''}${draggedSessionItem?.session.id === sessionItem.session.id ? ' is-dragging' : ''}${isDropTarget ? ' is-drop-target' : ''}${droppedSessionId === sessionItem.session.id ? ' is-drop-flash' : ''}${isHighlighted ? ' is-highlighted' : ''}`}
         onMouseEnter={() => setHoveredSessionId(sessionItem.session.id)}
-        onMouseLeave={() => setHoveredSessionId((current) => (current === sessionItem.session.id ? undefined : current))}
+        onMouseLeave={() =>
+          setHoveredSessionId((current) =>
+            current === sessionItem.session.id ? undefined : current
+          )
+        }
         onContextMenu={(event) => {
           if (!interactive) {
             return;
@@ -117,7 +121,7 @@ const SessionListRow = React.memo(function SessionListRow({
           if (event.target !== event.currentTarget) {
             return;
           }
-          if (event.key === "Enter" || event.key === " ") {
+          if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault();
             onSelectSession(sessionItem.session.id);
           }
@@ -136,14 +140,26 @@ const SessionListRow = React.memo(function SessionListRow({
             aria-label={sessionItem.session.isPinned ? t.sessionMenuUnpin : t.sessionMenuPin}
             onClick={(event) => {
               event.stopPropagation();
-              sessionItem.session.isPinned ? onUnpinSession(sessionItem.session.id) : onPinSession(sessionItem.session.id);
+              sessionItem.session.isPinned
+                ? onUnpinSession(sessionItem.session.id)
+                : onPinSession(sessionItem.session.id);
             }}
           >
-            {sessionItem.session.isPinned ? <IconPinOff size={12} decorative /> : <IconPin size={12} decorative />}
+            {sessionItem.session.isPinned ? (
+              <IconPinOff size={12} decorative />
+            ) : (
+              <IconPin size={12} decorative />
+            )}
           </button>
         ) : (
-          <span className="adl-session-item__indicator adl-session-item__indicator--static" aria-hidden="true">
-            <StatusLamp status={sessionItem.status} title={(t[STATUS_LABEL[sessionItem.status]] as string)} />
+          <span
+            className="adl-session-item__indicator adl-session-item__indicator--static"
+            aria-hidden="true"
+          >
+            <StatusLamp
+              status={sessionItem.status}
+              title={t[STATUS_LABEL[sessionItem.status]] as string}
+            />
           </span>
         )}
 
@@ -184,10 +200,10 @@ const SessionListRow = React.memo(function SessionListRow({
         ) : (
           <span className="adl-session-item__meta">
             {new Date(sessionItem.session.updatedAt).toLocaleString(locale, {
-              hour: "2-digit",
-              minute: "2-digit",
-              month: "2-digit",
-              day: "2-digit"
+              hour: '2-digit',
+              minute: '2-digit',
+              month: '2-digit',
+              day: '2-digit',
             })}
           </span>
         )}

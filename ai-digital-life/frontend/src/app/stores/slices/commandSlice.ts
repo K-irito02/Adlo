@@ -2,8 +2,8 @@
  * 命令切片
  * 管理命令历史和最新命令执行结果
  */
-import type { CommandRunResult } from "@ai-digital-life/kernel";
-import type { StoreState } from "../StoreState";
+import type { CommandRunResult } from '@ai-digital-life/kernel';
+import type { StoreState } from '../StoreState';
 
 export interface CommandSlice {
   latestCommandRun?: CommandRunResult;
@@ -23,8 +23,9 @@ export const createCommandSlice = (
 
   setLatestCommandRun: (result) => set({ latestCommandRun: result }),
   setCommandHistory: (history) => set({ commandHistory: history }),
-  appendCommandToHistory: (command) => set((state) => ({
-    commandHistory: [...state.commandHistory, command].slice(-50)
-  })),
-  clearCommandState: () => set({ latestCommandRun: undefined, commandHistory: [] })
+  appendCommandToHistory: (command) =>
+    set((state) => ({
+      commandHistory: [...state.commandHistory, command].slice(-50),
+    })),
+  clearCommandState: () => set({ latestCommandRun: undefined, commandHistory: [] }),
 });

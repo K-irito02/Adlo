@@ -1,8 +1,8 @@
-import React, { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
-import { Terminal } from "@xterm/xterm";
-import { FitAddon } from "@xterm/addon-fit";
-import { WebLinksAddon } from "@xterm/addon-web-links";
-import "@xterm/xterm/css/xterm.css";
+import React, { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
+import { Terminal } from '@xterm/xterm';
+import { FitAddon } from '@xterm/addon-fit';
+import { WebLinksAddon } from '@xterm/addon-web-links';
+import '@xterm/xterm/css/xterm.css';
 
 export interface XtermTerminalHandle {
   write(data: string): void;
@@ -30,60 +30,64 @@ export const XtermTerminal = forwardRef<XtermTerminalHandle, XtermTerminalProps>
     onDataRef.current = onData;
     onResizeRef.current = onResize;
 
-    useImperativeHandle(ref, () => ({
-      write(data: string) {
-        const sanitized = data.replace(/\x7f/g, "");
-        const terminal = terminalRef.current;
-        if (terminal) {
-          terminal.write(sanitized);
-          setTimeout(() => {
-            terminal.scrollToBottom();
-          }, 0);
-          if (isFirstWriteRef.current) {
-            isFirstWriteRef.current = false;
+    useImperativeHandle(
+      ref,
+      () => ({
+        write(data: string) {
+          const sanitized = data.replace(/\x7f/g, '');
+          const terminal = terminalRef.current;
+          if (terminal) {
+            terminal.write(sanitized);
+            setTimeout(() => {
+              terminal.scrollToBottom();
+            }, 0);
+            if (isFirstWriteRef.current) {
+              isFirstWriteRef.current = false;
+            }
           }
-        }
-      },
-      clear() {
-        const terminal = terminalRef.current;
-        if (terminal) {
-          terminal.clear();
-          setTimeout(() => {
-            terminal.scrollToBottom();
-          }, 0);
-        }
-      },
-      focus() {
-        const terminal = terminalRef.current;
-        if (terminal) {
-          terminal.focus();
-        }
-      },
-      getSelection() {
-        const terminal = terminalRef.current;
-        return terminal?.getSelection() ?? "";
-      },
-      resize() {
-        const addon = fitAddonRef.current;
-        const terminal = terminalRef.current;
-        if (addon && terminal) {
-          addon.fit();
-          const dims = addon.proposeDimensions();
-          if (dims) {
-            onResizeRef.current?.(dims.cols, dims.rows);
+        },
+        clear() {
+          const terminal = terminalRef.current;
+          if (terminal) {
+            terminal.clear();
+            setTimeout(() => {
+              terminal.scrollToBottom();
+            }, 0);
           }
-          setTimeout(() => {
+        },
+        focus() {
+          const terminal = terminalRef.current;
+          if (terminal) {
+            terminal.focus();
+          }
+        },
+        getSelection() {
+          const terminal = terminalRef.current;
+          return terminal?.getSelection() ?? '';
+        },
+        resize() {
+          const addon = fitAddonRef.current;
+          const terminal = terminalRef.current;
+          if (addon && terminal) {
+            addon.fit();
+            const dims = addon.proposeDimensions();
+            if (dims) {
+              onResizeRef.current?.(dims.cols, dims.rows);
+            }
+            setTimeout(() => {
+              terminal.scrollToBottom();
+            }, 0);
+          }
+        },
+        scrollToBottom() {
+          const terminal = terminalRef.current;
+          if (terminal) {
             terminal.scrollToBottom();
-          }, 0);
-        }
-      },
-      scrollToBottom() {
-        const terminal = terminalRef.current;
-        if (terminal) {
-          terminal.scrollToBottom();
-        }
-      }
-    }), []);
+          }
+        },
+      }),
+      []
+    );
 
     useEffect(() => {
       const container = containerRef.current;
@@ -97,19 +101,28 @@ export const XtermTerminal = forwardRef<XtermTerminalHandle, XtermTerminalProps>
       const terminal = new Terminal({
         cursorBlink: true,
         fontSize: 13,
-        fontFamily: "Cascadia Code, Fira Code, Consolas, monospace",
+        fontFamily: 'Cascadia Code, Fira Code, Consolas, monospace',
         theme: {
-          background: getComputedStyle(document.documentElement).getPropertyValue("--bg").trim() || "#1e1e1e",
-          foreground: getComputedStyle(document.documentElement).getPropertyValue("--text-primary").trim() || "#d4d4d4",
-          cursor: getComputedStyle(document.documentElement).getPropertyValue("--text-primary").trim() || "#d4d4d4",
-          selectionBackground: getComputedStyle(document.documentElement).getPropertyValue("--selection").trim() || "#264f78",
-          selectionInactiveBackground: getComputedStyle(document.documentElement).getPropertyValue("--selection").trim() || "#264f78"
+          background:
+            getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() || '#1e1e1e',
+          foreground:
+            getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() ||
+            '#d4d4d4',
+          cursor:
+            getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() ||
+            '#d4d4d4',
+          selectionBackground:
+            getComputedStyle(document.documentElement).getPropertyValue('--selection').trim() ||
+            '#264f78',
+          selectionInactiveBackground:
+            getComputedStyle(document.documentElement).getPropertyValue('--selection').trim() ||
+            '#264f78',
         },
         allowProposedApi: true,
         scrollback: 1000,
         scrollSensitivity: 1,
         disableStdin: false,
-        cursorStyle: "bar",
+        cursorStyle: 'bar',
         cursorWidth: 1,
       });
 
@@ -125,7 +138,7 @@ export const XtermTerminal = forwardRef<XtermTerminalHandle, XtermTerminalProps>
             onResizeRef.current?.(dims.cols, dims.rows);
           }
         } catch (e) {
-          console.warn("Initial fit failed", e);
+          console.warn('Initial fit failed', e);
         }
       };
 
@@ -145,7 +158,7 @@ export const XtermTerminal = forwardRef<XtermTerminalHandle, XtermTerminalProps>
       terminalRef.current = terminal;
 
       let resizeTimeout: ReturnType<typeof setTimeout> | null = null;
-      
+
       const handleResize = () => {
         if (resizeTimeout) {
           clearTimeout(resizeTimeout);
@@ -162,7 +175,7 @@ export const XtermTerminal = forwardRef<XtermTerminalHandle, XtermTerminalProps>
               }
             }
           } catch (e) {
-            console.warn("Resize failed", e);
+            console.warn('Resize failed', e);
           }
         }, 100);
       };
@@ -179,9 +192,14 @@ export const XtermTerminal = forwardRef<XtermTerminalHandle, XtermTerminalProps>
       resizeObserver.observe(container);
 
       const themeObserver = new MutationObserver(() => {
-        const bg = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim() || "#1e1e1e";
-        const fg = getComputedStyle(document.documentElement).getPropertyValue("--text-primary").trim() || "#d4d4d4";
-        const sel = getComputedStyle(document.documentElement).getPropertyValue("--selection").trim() || "#264f78";
+        const bg =
+          getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() || '#1e1e1e';
+        const fg =
+          getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() ||
+          '#d4d4d4';
+        const sel =
+          getComputedStyle(document.documentElement).getPropertyValue('--selection').trim() ||
+          '#264f78';
         terminal.options.theme = {
           background: bg,
           foreground: fg,
@@ -192,7 +210,7 @@ export const XtermTerminal = forwardRef<XtermTerminalHandle, XtermTerminalProps>
       });
       themeObserver.observe(document.documentElement, {
         attributes: true,
-        attributeFilter: ["data-theme"],
+        attributeFilter: ['data-theme'],
       });
 
       return () => {
@@ -211,11 +229,11 @@ export const XtermTerminal = forwardRef<XtermTerminalHandle, XtermTerminalProps>
       <div
         ref={containerRef}
         className={className}
-        style={{ 
-          position: "relative", 
-          overflow: "hidden",
-          width: "100%",
-          height: "100%",
+        style={{
+          position: 'relative',
+          overflow: 'hidden',
+          width: '100%',
+          height: '100%',
         }}
       />
     );

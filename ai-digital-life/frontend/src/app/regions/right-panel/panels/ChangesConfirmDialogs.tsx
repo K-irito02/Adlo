@@ -1,5 +1,5 @@
-import React, { useCallback } from "react";
-import { ConfirmDialog } from "../../../components/ConfirmDialog";
+import React, { useCallback } from 'react';
+import { ConfirmDialog } from '../../../components/ConfirmDialog';
 
 export type ChangesConfirmDialogsProps = {
   changesDeleteConfirmPath: string | null;

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef } from 'react';
 
 interface RenameInputProps {
   initialValue: string;
@@ -15,14 +15,14 @@ export function RenameInput({ initialValue, onConfirm, onCancel }: RenameInputPr
   }, []);
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Enter") {
+    if (event.key === 'Enter') {
       const value = ref.current?.value.trim();
       if (value && value !== initialValue) {
         onConfirm(value);
       } else {
         onCancel();
       }
-    } else if (event.key === "Escape") {
+    } else if (event.key === 'Escape') {
       onCancel();
     }
   };

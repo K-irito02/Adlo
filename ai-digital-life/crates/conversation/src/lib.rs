@@ -93,17 +93,9 @@ mod tests {
 
     #[test]
     fn create_message_user_role() {
-        let blocks = vec![ConversationBlock::Markdown {
-            id: "test-block-1".into(),
-            text: "Hello".into(),
-        }];
-        let msg = create_message(
-            "sess-1",
-            ConversationRole::User,
-            "Hello",
-            blocks.clone(),
-            None,
-        );
+        let blocks =
+            vec![ConversationBlock::Markdown { id: "test-block-1".into(), text: "Hello".into() }];
+        let msg = create_message("sess-1", ConversationRole::User, "Hello", blocks.clone(), None);
         assert_eq!(msg.session_id, "sess-1");
         assert_eq!(msg.role, ConversationRole::User);
         assert_eq!(msg.content, "Hello");
@@ -131,13 +123,8 @@ mod tests {
 
     #[test]
     fn create_message_system_role() {
-        let msg = create_message(
-            "sess-1",
-            ConversationRole::System,
-            "You are helpful.",
-            vec![],
-            None,
-        );
+        let msg =
+            create_message("sess-1", ConversationRole::System, "You are helpful.", vec![], None);
         assert_eq!(msg.role, ConversationRole::System);
     }
 

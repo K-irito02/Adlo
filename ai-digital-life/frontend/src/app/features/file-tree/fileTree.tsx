@@ -1,34 +1,36 @@
-import React, { memo, useCallback, useEffect, useRef, useState, useMemo } from "react";
-import { IconAlertTriangle, IconCircle } from "../../icons";
-import { getFileTreeVisualSpec } from "./fileTreeVisuals";
-import { CustomScrollArea } from "./CustomScrollArea";
-import { TreeNodeRow } from "./TreeNodeRow";
-import { ContextMenu, type ContextMenuItem } from "../../components/ContextMenu";
+import React, { memo, useCallback, useEffect, useRef, useState, useMemo } from 'react';
+import { IconAlertTriangle, IconCircle } from '../../icons';
+import { getFileTreeVisualSpec } from './fileTreeVisuals';
+import { CustomScrollArea } from './CustomScrollArea';
+import { TreeNodeRow } from './TreeNodeRow';
+import { ContextMenu, type ContextMenuItem } from '../../components/ContextMenu';
 
 export interface FileTreeRenderableNode {
   path: string;
   name: string;
-  kind: "directory" | "file";
+  kind: 'directory' | 'file';
   children: FileTreeRenderableNode[];
 }
 
-export type FileTreeContextMenuItem<T extends FileTreeRenderableNode> = {
-  id: string;
-  label?: string;
-  icon?: React.ReactNode;
-  disabled?: boolean;
-  danger?: boolean;
-  separator?: true;
-  action?: (node: T, multiSelectedNodes: T[]) => void;
-} | {
-  id: string;
-  label: string;
-  icon?: React.ReactNode;
-  disabled?: boolean;
-  danger?: boolean;
-  separator?: false;
-  action?: (node: T, multiSelectedNodes: T[]) => void;
-};
+export type FileTreeContextMenuItem<T extends FileTreeRenderableNode> =
+  | {
+      id: string;
+      label?: string;
+      icon?: React.ReactNode;
+      disabled?: boolean;
+      danger?: boolean;
+      separator?: true;
+      action?: (node: T, multiSelectedNodes: T[]) => void;
+    }
+  | {
+      id: string;
+      label: string;
+      icon?: React.ReactNode;
+      disabled?: boolean;
+      danger?: boolean;
+      separator?: false;
+      action?: (node: T, multiSelectedNodes: T[]) => void;
+    };
 
 export interface FileTreeProps<T extends FileTreeRenderableNode> {
   nodes: T[];
@@ -81,7 +83,7 @@ export function collectDirectoryPaths<T extends FileTreeRenderableNode>(nodes: T
   const paths: string[] = [];
   const visit = (items: T[]) => {
     items.forEach((item) => {
-      if (item.kind === "directory") {
+      if (item.kind === 'directory') {
         paths.push(item.path);
         if (item.children.length > 0) {
           visit(item.children as T[]);
@@ -127,9 +129,9 @@ function FileTreeNodeComponent<T extends FileTreeRenderableNode>({
   onMouseLeave,
   expandLabel,
   collapseLabel,
-  flat
+  flat,
 }: FileTreeNodeProps<T>) {
-  const isDirectory = node.kind === "directory";
+  const isDirectory = node.kind === 'directory';
   const isExpanded = expandedPaths[node.path] ?? false;
   const isActive = node.path === activePath;
   const isMultiSelected = selectedPaths.has(node.path);
@@ -143,18 +145,21 @@ function FileTreeNodeComponent<T extends FileTreeRenderableNode>({
   const customCount = renderCount?.(node);
   const nodeClassName = getNodeClassName?.(node);
 
-  const handleActivate = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
-    if (isDirectory) {
-      onToggle(node.path);
-    } else {
-      onOpenFile(node.path, event);
-    }
-  }, [isDirectory, node.path, onToggle, onOpenFile]);
+  const handleActivate = useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>) => {
+      if (isDirectory) {
+        onToggle(node.path);
+      } else {
+        onOpenFile(node.path, event);
+      }
+    },
+    [isDirectory, node.path, onToggle, onOpenFile]
+  );
 
   return (
     <TreeNodeRow
       depth={depth + 1}
-      rowOffset={(depth * 48) + 4}
+      rowOffset={depth * 48 + 4}
       hasChildren={isDirectory}
       isExpanded={isExpanded}
       isActive={isSelected}
@@ -164,30 +169,38 @@ function FileTreeNodeComponent<T extends FileTreeRenderableNode>({
       collapseLabel={collapseLabel}
       onToggle={isDirectory ? () => onToggle(node.path) : undefined}
       onActivate={handleActivate}
-      itemClassName={`adl-filetree__item${isDirectory ? " adl-filetree__node--directory" : " adl-filetree__node--file"}${nodeClassName ? ` ${nodeClassName}` : ""}`}
+      itemClassName={`adl-filetree__item${isDirectory ? ' adl-filetree__node--directory' : ' adl-filetree__node--file'}${nodeClassName ? ` ${nodeClassName}` : ''}`}
       rowClassName="adl-filetree__row"
       labelClassName="adl-filetree__label"
       toggleClassName="adl-filetree__toggle"
-      indentClassName={`adl-filetree__indent${flat ? " adl-filetree__indent--flat" : ""}`}
+      indentClassName={`adl-filetree__indent${flat ? ' adl-filetree__indent--flat' : ''}`}
       labelContentClassName="adl-filetree__node-main"
       label={node.name}
       nodePath={node.path}
-      iconBefore={isDirectory ? undefined : (
-        <span className={`adl-filetree__file-icon adl-filetree__file-icon--${fileVisual?.tone ?? "default"}`}>
-          <span className="adl-filetree__file-badge" aria-hidden="true">
-            {fileVisual?.label ?? "FILE"}
+      iconBefore={
+        isDirectory ? undefined : (
+          <span
+            className={`adl-filetree__file-icon adl-filetree__file-icon--${fileVisual?.tone ?? 'default'}`}
+          >
+            <span className="adl-filetree__file-badge" aria-hidden="true">
+              {fileVisual?.label ?? 'FILE'}
+            </span>
           </span>
-        </span>
-      )}
+        )
+      }
       count={customCount}
       countClassName="adl-filetree__count"
-      meta={(customMeta || isExternal || isDirty) ? (
-        <>
-          {customMeta}
-          {isExternal ? <IconAlertTriangle size={12} decorative /> : null}
-          {isDirty ? <IconCircle size={12} decorative className="adl-filetree__dirty-dot" /> : null}
-        </>
-      ) : undefined}
+      meta={
+        customMeta || isExternal || isDirty ? (
+          <>
+            {customMeta}
+            {isExternal ? <IconAlertTriangle size={12} decorative /> : null}
+            {isDirty ? (
+              <IconCircle size={12} decorative className="adl-filetree__dirty-dot" />
+            ) : null}
+          </>
+        ) : undefined
+      }
       metaClassName="adl-filetree__meta adl-tree-node__meta--inline"
       onContextMenu={onShowContextMenu ? (event) => onShowContextMenu(event, node) : undefined}
       onLabelMouseEnter={onMouseEnter}
@@ -259,7 +272,7 @@ function areFileTreeNodePropsEqual<T extends FileTreeRenderableNode>(
   if ((previous.hoveredPath === path) !== (next.hoveredPath === path)) {
     return false;
   }
-  if (previous.node.kind === "directory") {
+  if (previous.node.kind === 'directory') {
     const previousContainsSelected = isPathInSubtree(path, previous.activePath);
     const nextContainsSelected = isPathInSubtree(path, next.activePath);
     if (previousContainsSelected !== nextContainsSelected) {
@@ -279,9 +292,29 @@ function areFileTreeNodePropsEqual<T extends FileTreeRenderableNode>(
   return true;
 }
 
-const MemoizedFileTreeNode = memo(FileTreeNodeComponent, areFileTreeNodePropsEqual) as typeof FileTreeNodeComponent;
+const MemoizedFileTreeNode = memo(
+  FileTreeNodeComponent,
+  areFileTreeNodePropsEqual
+) as typeof FileTreeNodeComponent;
 
-export function FileTree<T extends FileTreeRenderableNode>(props: FileTreeProps<T>) {
+export function FileTree<T extends FileTreeRenderableNode>({
+  nodes,
+  selectedFilePath,
+  expandedPaths,
+  dirtyPaths,
+  externalChangePath,
+  onToggle,
+  onOpenFile,
+  renderMeta,
+  renderCount,
+  getNodeClassName,
+  getContextMenuItems,
+  contextMenuPersistRef,
+  clearMenuHighlightRef,
+  expandLabel = 'Expand',
+  collapseLabel = 'Collapse',
+  flat,
+}: FileTreeProps<T>) {
   const [contextMenuState, setContextMenuState] = useState<{
     x: number;
     y: number;
@@ -290,53 +323,64 @@ export function FileTree<T extends FileTreeRenderableNode>(props: FileTreeProps<
     multiSelectedNodes: T[];
   } | null>(null);
   const [contextMenuTargetPath, setContextMenuTargetPath] = useState<string | undefined>(undefined);
-  const persistRef = props.contextMenuPersistRef;
+  const persistRef = contextMenuPersistRef;
   const highlightedPath = contextMenuTargetPath;
-  
+
   // 完全依赖外部状态，不维护本地选中状态
-  const activePath = props.selectedFilePath;
-  const selectedPaths = useMemo((): Set<string> => 
-    activePath ? new Set([activePath]) : new Set(),
+  const activePath = selectedFilePath;
+  const selectedPaths = useMemo(
+    (): Set<string> => (activePath ? new Set([activePath]) : new Set()),
     [activePath]
   );
   const [hoveredPath, setHoveredPath] = useState<string | undefined>(undefined);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
-  const clearHighlightRef = useRef<(() => void)>(() => setContextMenuTargetPath(undefined));
-  clearHighlightRef.current = () => setContextMenuTargetPath(undefined);
-  if (props.clearMenuHighlightRef) {
-    props.clearMenuHighlightRef.current = clearHighlightRef.current;
-  }
+  const clearContextMenu = useCallback(() => setContextMenuTargetPath(undefined), []);
+  const clearHighlightRef = useRef(clearContextMenu);
 
-  const getAllNodePaths = useMemo(() => collectAllNodePaths(props.nodes), [props.nodes]);
+  useEffect(() => {
+    clearHighlightRef.current = clearContextMenu;
+    if (clearMenuHighlightRef) {
+      clearMenuHighlightRef.current = clearContextMenu;
+    }
+    return () => {
+      if (clearMenuHighlightRef) {
+        clearMenuHighlightRef.current = undefined;
+      }
+    };
+  }, [clearContextMenu, clearMenuHighlightRef]);
+
+  const getAllNodePaths = useMemo(() => collectAllNodePaths(nodes), [nodes]);
 
   const handleToggleDirectory = useCallback(
     (path: string) => {
-      // 直接调用外部函数
-      props.onToggle(path);
+      onToggle(path);
     },
-    [props.onToggle]
+    [onToggle]
   );
 
-  const handleOpenFile = useCallback((relativePath: string, event: React.MouseEvent<HTMLButtonElement>) => {
-    props.onOpenFile(relativePath);
-  }, [props.onOpenFile]);
+  const handleOpenFile = useCallback(
+    (relativePath: string, event: React.MouseEvent<HTMLButtonElement>) => {
+      onOpenFile(relativePath);
+    },
+    [onOpenFile]
+  );
 
   const getMultiSelectedNodes = useCallback((): T[] => {
-    const nodes: T[] = [];
+    const collected: T[] = [];
     const visit = (items: T[]) => {
       items.forEach((item) => {
         if (selectedPaths.has(item.path)) {
-          nodes.push(item);
+          collected.push(item);
         }
         if (item.children.length > 0) {
           visit(item.children as T[]);
         }
       });
     };
-    visit(props.nodes);
-    return nodes;
-  }, [props.nodes, selectedPaths]);
+    visit(nodes);
+    return collected;
+  }, [nodes, selectedPaths]);
 
   const handleShowContextMenu = useCallback(
     (event: React.MouseEvent<HTMLDivElement>, node: T) => {
@@ -345,9 +389,6 @@ export function FileTree<T extends FileTreeRenderableNode>(props: FileTreeProps<
 
       setContextMenuTargetPath(node.path);
 
-      // 计算用于上下文菜单的选中节点
-      // 如果当前选中的节点包含右键点击的节点，使用当前选中
-      // 否则，只使用右键点击的节点
       let multiSelectedNodes: T[];
       if (selectedPaths.has(node.path)) {
         multiSelectedNodes = getMultiSelectedNodes();
@@ -355,7 +396,7 @@ export function FileTree<T extends FileTreeRenderableNode>(props: FileTreeProps<
         multiSelectedNodes = [node];
       }
 
-      const items = props.getContextMenuItems?.(node, multiSelectedNodes) ?? [];
+      const items = getContextMenuItems?.(node, multiSelectedNodes) ?? [];
       if (!items.length) {
         setContextMenuTargetPath(undefined);
         return;
@@ -369,7 +410,7 @@ export function FileTree<T extends FileTreeRenderableNode>(props: FileTreeProps<
         multiSelectedNodes,
       });
     },
-    [props.getContextMenuItems, persistRef, getMultiSelectedNodes, selectedPaths]
+    [getContextMenuItems, persistRef, getMultiSelectedNodes, selectedPaths]
   );
 
   return (
@@ -382,54 +423,56 @@ export function FileTree<T extends FileTreeRenderableNode>(props: FileTreeProps<
         ref={scrollAreaRef}
       >
         <ul className="adl-filetree adl-tree-root" role="tree">
-          {props.nodes.map((node) => (
+          {nodes.map((node) => (
             <MemoizedFileTreeNode<T>
               key={node.path}
               node={node}
               depth={0}
-              expandedPaths={props.expandedPaths}
-              dirtyPaths={props.dirtyPaths}
-              externalChangePath={props.externalChangePath}
-              renderMeta={props.renderMeta}
-              renderCount={props.renderCount}
-              getNodeClassName={props.getNodeClassName}
-              flat={props.flat}
+              expandedPaths={expandedPaths}
+              dirtyPaths={dirtyPaths}
+              externalChangePath={externalChangePath}
+              renderMeta={renderMeta}
+              renderCount={renderCount}
+              getNodeClassName={getNodeClassName}
+              flat={flat}
               activePath={activePath}
               selectedPaths={selectedPaths}
               highlightedPath={highlightedPath}
               hoveredPath={hoveredPath}
               onToggle={handleToggleDirectory}
               onOpenFile={handleOpenFile}
-              onShowContextMenu={props.getContextMenuItems ? handleShowContextMenu : undefined}
+              onShowContextMenu={getContextMenuItems ? handleShowContextMenu : undefined}
               onMouseEnter={() => setHoveredPath(node.path)}
               onMouseLeave={() => setHoveredPath(undefined)}
-              expandLabel={props.expandLabel ?? "Expand"}
-              collapseLabel={props.collapseLabel ?? "Collapse"}
+              expandLabel={expandLabel}
+              collapseLabel={collapseLabel}
             />
           ))}
         </ul>
       </CustomScrollArea>
-      {contextMenuState
-        ? <ContextMenu
-            items={contextMenuState.items.map((item) => ({
-              id: item.id,
-              label: item.label,
-              icon: item.icon,
-              disabled: item.disabled,
-              danger: item.danger,
-              separator: item.separator,
-              action: item.action ? () => {
-                item.action!(contextMenuState.node, contextMenuState.multiSelectedNodes);
-              } : undefined
-            }))}
-            position={{ x: contextMenuState.x, y: contextMenuState.y }}
-            onClose={() => {
-              setContextMenuTargetPath(undefined);
-              setContextMenuState(null);
-              if (persistRef) persistRef.current = false;
-            }}
-          />
-        : null}
+      {contextMenuState ? (
+        <ContextMenu
+          items={contextMenuState.items.map((item) => ({
+            id: item.id,
+            label: item.label,
+            icon: item.icon,
+            disabled: item.disabled,
+            danger: item.danger,
+            separator: item.separator,
+            action: item.action
+              ? () => {
+                  item.action!(contextMenuState.node, contextMenuState.multiSelectedNodes);
+                }
+              : undefined,
+          }))}
+          position={{ x: contextMenuState.x, y: contextMenuState.y }}
+          onClose={() => {
+            setContextMenuTargetPath(undefined);
+            setContextMenuState(null);
+            if (persistRef) persistRef.current = false;
+          }}
+        />
+      ) : null}
     </>
   );
 }

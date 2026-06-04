@@ -7,10 +7,10 @@ import type {
   ConversationSessionRecord,
   AgentRunDetail,
   ModelTokenUsage,
-  DigitalLifeRunActivityEventV1
-} from "@ai-digital-life/kernel";
-import type { StoreState } from "../StoreState";
-import { trimOldRuns, trimActivityList } from "../activityUtils";
+  DigitalLifeRunActivityEventV1,
+} from '@ai-digital-life/kernel';
+import type { StoreState } from '../StoreState';
+import { trimOldRuns, trimActivityList } from '../activityUtils';
 
 export interface SessionSlice {
   sessions: ConversationSessionRecord[];
@@ -44,112 +44,118 @@ export const createSessionSlice = (
   get: () => StoreState
 ): SessionSlice => {
   let _streamingRafPending = false;
-  let _streamingBuffer = "";
+  let _streamingBuffer = '';
 
   return {
-  sessions: [],
-  sessionDetails: {},
-  streamingAssistantText: "",
-  runActivityByRunId: {},
-  runUsageByRunId: {},
-  _runLastAccessTime: {},
+    sessions: [],
+    sessionDetails: {},
+    streamingAssistantText: '',
+    runActivityByRunId: {},
+    runUsageByRunId: {},
+    _runLastAccessTime: {},
 
-  setSessions: (sessions) => set({ sessions }),
-  setActiveSessionId: (activeSessionId) => set({ activeSessionId }),
-  setSessionDetail: (sessionId, detail) => set((state) => ({
-    sessionDetails: { ...state.sessionDetails, [sessionId]: detail }
-  })),
-  setSessionDetails: (details) => set((state) => ({
-    sessionDetails: { ...state.sessionDetails, ...details }
-  })),
-  removeSessionDetail: (sessionId) => set((state) => {
-    const next = { ...state.sessionDetails };
-    delete next[sessionId];
-    return { sessionDetails: next };
-  }),
-  setActiveRun: (activeRun) => set({ activeRun }),
-  setStreamingText: (streamingAssistantText) => set({ streamingAssistantText }),
-  appendStreamingText: (text) => {
-    _streamingBuffer += text;
-    if (_streamingBuffer.length > 10240) {
-      const batch = _streamingBuffer;
-      _streamingBuffer = "";
-      _streamingRafPending = false;
+    setSessions: (sessions) => set({ sessions }),
+    setActiveSessionId: (activeSessionId) => set({ activeSessionId }),
+    setSessionDetail: (sessionId, detail) =>
       set((state) => ({
-        streamingAssistantText: state.streamingAssistantText + batch
-      }));
-      return;
-    }
-    if (!_streamingRafPending) {
-      _streamingRafPending = true;
-      requestAnimationFrame(() => {
-        _streamingRafPending = false;
+        sessionDetails: { ...state.sessionDetails, [sessionId]: detail },
+      })),
+    setSessionDetails: (details) =>
+      set((state) => ({
+        sessionDetails: { ...state.sessionDetails, ...details },
+      })),
+    removeSessionDetail: (sessionId) =>
+      set((state) => {
+        const next = { ...state.sessionDetails };
+        delete next[sessionId];
+        return { sessionDetails: next };
+      }),
+    setActiveRun: (activeRun) => set({ activeRun }),
+    setStreamingText: (streamingAssistantText) => set({ streamingAssistantText }),
+    appendStreamingText: (text) => {
+      _streamingBuffer += text;
+      if (_streamingBuffer.length > 10240) {
         const batch = _streamingBuffer;
-        _streamingBuffer = "";
-        if (batch) {
-          set((state) => ({
-            streamingAssistantText: state.streamingAssistantText + batch
-          }));
-        }
-      });
-    }
-  },
-  flushStreamingText: () => {
-    if (_streamingBuffer) {
-      const batch = _streamingBuffer;
-      _streamingBuffer = "";
-      _streamingRafPending = false;
-      set((state) => ({
-        streamingAssistantText: state.streamingAssistantText + batch
-      }));
-    }
-  },
-  setStreamingRunId: (streamingActiveRunId) => set({ streamingActiveRunId }),
-  setRunActivity: (runId, activities) => set((state) => {
-    const now = Date.now();
-    const trimmed = trimActivityList(activities);
-    const excludeSet = new Set<string>();
-    if (state.streamingActiveRunId) excludeSet.add(state.streamingActiveRunId);
-    
-    const trimmedMaps = trimOldRuns(
-      { ...state.runActivityByRunId, [runId]: trimmed },
-      state.runUsageByRunId,
-      { ...state._runLastAccessTime, [runId]: now },
-      excludeSet
-    );
-    
-    return trimmedMaps;
-  }),
-  appendRunActivity: (runId, activity) => set((state) => {
-    const now = Date.now();
-    const existing = state.runActivityByRunId[runId] ?? [];
-    const next = trimActivityList([...existing, activity]);
-    const excludeSet = new Set<string>();
-    if (state.streamingActiveRunId) excludeSet.add(state.streamingActiveRunId);
-    
-    const trimmedMaps = trimOldRuns(
-      { ...state.runActivityByRunId, [runId]: next },
-      state.runUsageByRunId,
-      { ...state._runLastAccessTime, [runId]: now },
-      excludeSet
-    );
-    
-    return trimmedMaps;
-  }),
-  setRunUsage: (runId, usage) => set((state) => {
-    const now = Date.now();
-    const excludeSet = new Set<string>();
-    if (state.streamingActiveRunId) excludeSet.add(state.streamingActiveRunId);
-    
-    const trimmedMaps = trimOldRuns(
-      state.runActivityByRunId,
-      { ...state.runUsageByRunId, [runId]: usage },
-      { ...state._runLastAccessTime, [runId]: now },
-      excludeSet
-    );
-    
-    return trimmedMaps;
-  }),
-  clearStreaming: () => set({ streamingAssistantText: "", streamingActiveRunId: undefined })
+        _streamingBuffer = '';
+        _streamingRafPending = false;
+        set((state) => ({
+          streamingAssistantText: state.streamingAssistantText + batch,
+        }));
+        return;
+      }
+      if (!_streamingRafPending) {
+        _streamingRafPending = true;
+        requestAnimationFrame(() => {
+          _streamingRafPending = false;
+          const batch = _streamingBuffer;
+          _streamingBuffer = '';
+          if (batch) {
+            set((state) => ({
+              streamingAssistantText: state.streamingAssistantText + batch,
+            }));
+          }
+        });
+      }
+    },
+    flushStreamingText: () => {
+      if (_streamingBuffer) {
+        const batch = _streamingBuffer;
+        _streamingBuffer = '';
+        _streamingRafPending = false;
+        set((state) => ({
+          streamingAssistantText: state.streamingAssistantText + batch,
+        }));
+      }
+    },
+    setStreamingRunId: (streamingActiveRunId) => set({ streamingActiveRunId }),
+    setRunActivity: (runId, activities) =>
+      set((state) => {
+        const now = Date.now();
+        const trimmed = trimActivityList(activities);
+        const excludeSet = new Set<string>();
+        if (state.streamingActiveRunId) excludeSet.add(state.streamingActiveRunId);
+
+        const trimmedMaps = trimOldRuns(
+          { ...state.runActivityByRunId, [runId]: trimmed },
+          state.runUsageByRunId,
+          { ...state._runLastAccessTime, [runId]: now },
+          excludeSet
+        );
+
+        return trimmedMaps;
+      }),
+    appendRunActivity: (runId, activity) =>
+      set((state) => {
+        const now = Date.now();
+        const existing = state.runActivityByRunId[runId] ?? [];
+        const next = trimActivityList([...existing, activity]);
+        const excludeSet = new Set<string>();
+        if (state.streamingActiveRunId) excludeSet.add(state.streamingActiveRunId);
+
+        const trimmedMaps = trimOldRuns(
+          { ...state.runActivityByRunId, [runId]: next },
+          state.runUsageByRunId,
+          { ...state._runLastAccessTime, [runId]: now },
+          excludeSet
+        );
+
+        return trimmedMaps;
+      }),
+    setRunUsage: (runId, usage) =>
+      set((state) => {
+        const now = Date.now();
+        const excludeSet = new Set<string>();
+        if (state.streamingActiveRunId) excludeSet.add(state.streamingActiveRunId);
+
+        const trimmedMaps = trimOldRuns(
+          state.runActivityByRunId,
+          { ...state.runUsageByRunId, [runId]: usage },
+          { ...state._runLastAccessTime, [runId]: now },
+          excludeSet
+        );
+
+        return trimmedMaps;
+      }),
+    clearStreaming: () => set({ streamingAssistantText: '', streamingActiveRunId: undefined }),
   };
 };

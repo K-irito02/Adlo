@@ -1,5 +1,7 @@
 use crate::PatchProposal;
-use adl_kernel::{create_id, now_ms, FilePatch, PatchHunk, PatchHunkDecision, PatchSet, PatchSetStatus};
+use adl_kernel::{
+    create_id, now_ms, FilePatch, PatchHunk, PatchHunkDecision, PatchSet, PatchSetStatus,
+};
 
 pub fn create_single_file_patch_set(proposal: PatchProposal<'_>) -> PatchSet {
     let now = now_ms();

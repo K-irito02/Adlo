@@ -1,18 +1,18 @@
-import type { DigitalLifeBridge, PtyOutputEvent } from "./shared/ipc";
-import { applyPreferencePatch } from "./app/utils/preferencesMerger";
+import type { DigitalLifeBridge, PtyOutputEvent } from './shared/ipc';
+import { applyPreferencePatch } from './app/utils/preferencesMerger';
 import type {
   AuditEntry,
   CommandRequest,
   CommandRunResult,
   ConversationSendResult,
   ModelGatewayHealthSnapshot,
-} from "@ai-digital-life/kernel";
-import { mockWorkspace, setMockActiveWorkspace } from "./mock/mock-workspace";
-import { mockRetrieval } from "./mock/mock-retrieval";
-import { mockConversation } from "./mock/mock-conversation";
-import { mockPatch } from "./mock/mock-patch";
-import { mockPty } from "./mock/mock-terminal";
-import { mockTask } from "./mock/mock-task";
+} from '@ai-digital-life/kernel';
+import { mockWorkspace, setMockActiveWorkspace } from './mock/mock-workspace';
+import { mockRetrieval } from './mock/mock-retrieval';
+import { mockConversation } from './mock/mock-conversation';
+import { mockPatch } from './mock/mock-patch';
+import { mockPty } from './mock/mock-terminal';
+import { mockTask } from './mock/mock-task';
 import {
   appInfo,
   activeRun,
@@ -24,13 +24,13 @@ import {
   setOnMockStateChange,
   onMockStateChange,
   type MockBridgeState,
-} from "./mock/shared";
+} from './mock/shared';
 
-const MOCK_BRIDGE_STORAGE_KEY = "ai-digital-life-mock-bridge-state";
+const MOCK_BRIDGE_STORAGE_KEY = 'ai-digital-life-mock-bridge-state';
 let persistenceEnabled = false;
 
 function loadPersistedState(): void {
-  if (!persistenceEnabled || typeof window === "undefined") return;
+  if (!persistenceEnabled || typeof window === 'undefined') return;
   try {
     const stored = localStorage.getItem(MOCK_BRIDGE_STORAGE_KEY);
     if (stored) {
@@ -41,12 +41,12 @@ function loadPersistedState(): void {
       }
     }
   } catch (e) {
-    console.warn("Failed to load persisted mock bridge state", e);
+    console.warn('Failed to load persisted mock bridge state', e);
   }
 }
 
 function savePersistedState(): void {
-  if (!persistenceEnabled || typeof window === "undefined") return;
+  if (!persistenceEnabled || typeof window === 'undefined') return;
   try {
     const state: MockBridgeState = {
       appInfo,
@@ -54,7 +54,7 @@ function savePersistedState(): void {
     };
     localStorage.setItem(MOCK_BRIDGE_STORAGE_KEY, JSON.stringify(state));
   } catch (e) {
-    console.warn("Failed to save persisted mock bridge state", e);
+    console.warn('Failed to save persisted mock bridge state', e);
   }
 }
 
@@ -67,16 +67,16 @@ export function enableMockBridgePersistence(): void {
 export function disableMockBridgePersistence(): void {
   persistenceEnabled = false;
   setOnMockStateChange(undefined);
-  if (typeof window !== "undefined") {
+  if (typeof window !== 'undefined') {
     localStorage.removeItem(MOCK_BRIDGE_STORAGE_KEY);
   }
 }
 
-export { setMockActiveWorkspace } from "./mock/mock-workspace";
+export { setMockActiveWorkspace } from './mock/mock-workspace';
 
 const subscribePtyOutput = (listener: (event: PtyOutputEvent) => void) => {
   if (ptyOutputListeners.size >= MAX_PTY_LISTENERS) {
-    console.warn("mock-bridge: PTY listener limit reached, dropping oldest listener");
+    console.warn('mock-bridge: PTY listener limit reached, dropping oldest listener');
     const oldest = ptyOutputListeners.values().next().value;
     if (oldest) ptyOutputListeners.delete(oldest);
   }
@@ -101,23 +101,46 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
       } catch {
         // ignore
       }
-    }
+    },
   },
 
   app: {
-    getInfo: async () => ({ ok: true, data: { ...appInfo, currentWorkspace: currentWorkspaceMeta } }),
+    getInfo: async () => ({
+      ok: true,
+      data: { ...appInfo, currentWorkspace: currentWorkspaceMeta },
+    }),
     getHealth: async () => ({
       ok: true,
       data: {
         timestamp: Date.now(),
         components: [
-          { name: "main", status: "healthy", detail: "Tauri backend ready", updatedAt: Date.now() },
-          { name: "worker", status: "healthy", detail: "Background runtime ready", updatedAt: Date.now() },
-          { name: "storage", status: "healthy", detail: "SQLite state ready", updatedAt: Date.now() },
-          { name: "recovery", status: "healthy", detail: "No recovery required", updatedAt: Date.now() },
-          { name: "migration", status: "healthy", detail: "No migration pending", updatedAt: Date.now() }
-        ]
-      }
+          { name: 'main', status: 'healthy', detail: 'Tauri backend ready', updatedAt: Date.now() },
+          {
+            name: 'worker',
+            status: 'healthy',
+            detail: 'Background runtime ready',
+            updatedAt: Date.now(),
+          },
+          {
+            name: 'storage',
+            status: 'healthy',
+            detail: 'SQLite state ready',
+            updatedAt: Date.now(),
+          },
+          {
+            name: 'recovery',
+            status: 'healthy',
+            detail: 'No recovery required',
+            updatedAt: Date.now(),
+          },
+          {
+            name: 'migration',
+            status: 'healthy',
+            detail: 'No migration pending',
+            updatedAt: Date.now(),
+          },
+        ],
+      },
     }),
     getDiagnostics: async () => ({
       ok: true,
@@ -125,23 +148,23 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
         lifecycle: {
           currentStartedAt: Date.now() - 60_000,
           lastShutdownWasClean: true,
-          recoveredFromCrash: false
+          recoveredFromCrash: false,
         },
         migration: {
-          change: "none",
-          toVersion: "0.1.0",
-          executedScripts: []
+          change: 'none',
+          toVersion: '0.1.0',
+          executedScripts: [],
         },
         events: {
           emitted: 3,
           byType: {
-            "app.initialized": 1,
-            "workspace.opened": 1,
-            "task.upserted": 1
-          }
+            'app.initialized': 1,
+            'workspace.opened': 1,
+            'task.upserted': 1,
+          },
         },
-        recentErrors: []
-      }
+        recentErrors: [],
+      },
     }),
     getModelHealth: async () => ({ ok: true, data: modelHealth }),
     updatePreferences: async (patch) => {
@@ -149,7 +172,7 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
       appInfo.config = nextConfig;
       onMockStateChange?.();
       return { ok: true, data: { ...appInfo, currentWorkspace: currentWorkspaceMeta } };
-    }
+    },
   },
 
   workspace: mockWorkspace,
@@ -165,7 +188,7 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
     },
     getRun: async () => ({ ok: true, data: activeRun }),
     retryRun: async () => ({ ok: true, data: activeRun }),
-    abortRun: async () => ({ ok: true, data: activeRun })
+    abortRun: async () => ({ ok: true, data: activeRun }),
   },
 
   patch: mockPatch,
@@ -174,24 +197,24 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
     run: async (input) => ({
       ok: true,
       data: {
-        status: input.command.includes("install") ? "waiting-approval" : "completed",
+        status: input.command.includes('install') ? 'waiting-approval' : 'completed',
         taskId: `task-command-${Date.now()}`,
         request: {
           id: `command-${Date.now()}`,
-          workspaceId: currentWorkspaceMeta?.id ?? "global",
-          profile: input.command.includes("install") ? "install" : "custom",
+          workspaceId: currentWorkspaceMeta?.id ?? 'global',
+          profile: input.command.includes('install') ? 'install' : 'custom',
           command: input.command,
           args: input.args,
           shell: input.shell ?? false,
-          riskLevel: input.command.includes("install") ? "high" : "medium",
-          createdAt: Date.now()
-        }
-      } satisfies CommandRunResult
+          riskLevel: input.command.includes('install') ? 'high' : 'medium',
+          createdAt: Date.now(),
+        },
+      } satisfies CommandRunResult,
     }),
     listRecent: async (_limit?: number): Promise<{ ok: true; data: CommandRequest[] }> => ({
       ok: true,
-      data: []
-    })
+      data: [],
+    }),
   },
 
   pty: mockPty,
@@ -199,7 +222,7 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
   task: mockTask,
 
   runActivity: {
-    listByRunId: async (_runId: string, _limit?: number) => ({ ok: true, data: [] })
+    listByRunId: async (_runId: string, _limit?: number) => ({ ok: true, data: [] }),
   },
 
   browser: {
@@ -208,11 +231,11 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
     goForward: async () => true,
     reload: async () => {},
     onUrlChanged: () => () => {},
-  }
+  },
 };
 
 export function setupMockBridge(): void {
-  if (typeof window !== "undefined" && !window.digitalLife) {
+  if (typeof window !== 'undefined' && !window.digitalLife) {
     (window as { digitalLife?: DigitalLifeBridge }).digitalLife = mockDigitalLifeBridge;
   }
 }

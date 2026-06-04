@@ -1,11 +1,11 @@
-export type { PatchReviewState } from "./patchReview";
+export type { PatchReviewState } from './patchReview';
 export type {
   PatchChangeKind,
   PatchReviewFilter,
   PatchDirection,
   PatchHunkSummary,
   PatchFileSummary,
-} from "./patchReview";
+} from './patchReview';
 export {
   isPatchReviewFilter,
   derivePatchHunkChangeKind,
@@ -22,11 +22,11 @@ export {
   toggleCollapsedHunkId,
   setCollapsedHunksForFile,
   countReviewedHunks,
-} from "./patchReview";
+} from './patchReview';
 
-export { PatchHunkCard } from "./PatchHunkCard";
-export type { PatchHunkCardProps } from "./PatchHunkCard";
-export { PatchFileCard } from "./PatchFileCard";
-export type { PatchFileCardProps } from "./PatchFileCard";
-export { PatchReviewSummary } from "./PatchReviewSummary";
-export type { PatchReviewSummaryProps } from "./PatchReviewSummary";
+export { PatchHunkCard } from './PatchHunkCard';
+export type { PatchHunkCardProps } from './PatchHunkCard';
+export { PatchFileCard } from './PatchFileCard';
+export type { PatchFileCardProps } from './PatchFileCard';
+export { PatchReviewSummary } from './PatchReviewSummary';
+export type { PatchReviewSummaryProps } from './PatchReviewSummary';

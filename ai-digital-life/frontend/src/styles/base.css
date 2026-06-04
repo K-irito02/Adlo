@@ -40,12 +40,12 @@ body {
 
 /* Each theme provides a tailored radial backdrop. Avoid scroll-thrash by
    enabling a fallback background colour first. */
-[data-theme="light"] body {
+[data-theme='light'] body {
   /* Minimal canvas: flat tone with a whisper of depth (no heavy gradients) */
   background: var(--bg);
 }
 
-[data-theme="dark"] body {
+[data-theme='dark'] body {
   background: var(--bg);
 }
 

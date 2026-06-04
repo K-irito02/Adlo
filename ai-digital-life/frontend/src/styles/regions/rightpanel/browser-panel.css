@@ -164,7 +164,10 @@
   border: 1px solid transparent;
   cursor: pointer;
   text-align: center;
-  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
 }
 
 .adl-tool-panel--browser .adl-tool-navigator__summary-stat:hover {
@@ -459,7 +462,7 @@
 }
 
 .adl-browser-history-entry::before {
-  content: "";
+  content: '';
   position: absolute;
   left: 13px;
   top: 0;
@@ -555,7 +558,10 @@
   background: transparent;
   color: var(--text-primary);
   cursor: pointer;
-  transition: background var(--duration-150) var(--ease-default), border-color var(--duration-150) var(--ease-default), color var(--duration-150) var(--ease-default);
+  transition:
+    background var(--duration-150) var(--ease-default),
+    border-color var(--duration-150) var(--ease-default),
+    color var(--duration-150) var(--ease-default);
   text-align: left;
   width: 100%;
 }
@@ -603,7 +609,10 @@
   background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: background var(--duration-150) var(--ease-default), border-color var(--duration-150) var(--ease-default), color var(--duration-150) var(--ease-default);
+  transition:
+    background var(--duration-150) var(--ease-default),
+    border-color var(--duration-150) var(--ease-default),
+    color var(--duration-150) var(--ease-default);
   text-align: left;
   width: 100%;
   margin-bottom: var(--space-2);
@@ -825,7 +834,10 @@
   color: var(--text-primary);
   font-size: var(--text-sm);
   cursor: pointer;
-  transition: background var(--duration-150) var(--ease-default), border-color var(--duration-150) var(--ease-default), color var(--duration-150) var(--ease-default);
+  transition:
+    background var(--duration-150) var(--ease-default),
+    border-color var(--duration-150) var(--ease-default),
+    color var(--duration-150) var(--ease-default);
 }
 
 .adl-rename-dialog-buttons button:hover {
@@ -955,13 +967,18 @@
 /* Gradient mask on header — matches full header height and right edge.
    Only visible when namezone (not the expand button) is hovered. */
 .adl-browser-entry__header::after {
-  content: "";
+  content: '';
   position: absolute;
   top: 0;
   right: 0;
   bottom: 0;
   width: 180px;
-  background: linear-gradient(to right, transparent 0%, var(--gradient-mask) 60%, var(--gradient-mask) 100%);
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    var(--gradient-mask) 60%,
+    var(--gradient-mask) 100%
+  );
   opacity: 0;
   pointer-events: none;
   transition: opacity var(--duration-150) var(--ease-default);
@@ -1116,7 +1133,10 @@
   pointer-events: none;
 }
 
-.adl-browser-entry__tree .adl-filetree__item.is-selected > .adl-filetree__row:hover .adl-filetree__meta.adl-tree-node__meta--inline {
+.adl-browser-entry__tree
+  .adl-filetree__item.is-selected
+  > .adl-filetree__row:hover
+  .adl-filetree__meta.adl-tree-node__meta--inline {
   background: var(--bg-occlusion-active);
 }
 
@@ -1124,4 +1144,3 @@
   opacity: 1;
   pointer-events: auto;
 }
-

@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-use super::TimestampMs;
 use super::agent::AgentRunStatus;
 use super::config::ModelProviderId;
 use super::conversation::{ConversationRole, ConversationScenario};
+use super::TimestampMs;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -45,13 +45,7 @@ pub struct ModelResponse {
 #[serde(tag = "type", rename_all = "kebab-case")]
 pub enum DigitalLifeRunActivityEventV1 {
     #[serde(rename_all = "camelCase")]
-    RunStart {
-        v: i32,
-        run_id: String,
-        seq: i64,
-        ts: TimestampMs,
-        scenario: ConversationScenario,
-    },
+    RunStart { v: i32, run_id: String, seq: i64, ts: TimestampMs, scenario: ConversationScenario },
     #[serde(rename_all = "camelCase")]
     ContextAdded {
         v: i32,
@@ -132,21 +126,9 @@ pub enum DigitalLifeRunActivityEventV1 {
         message: Option<String>,
     },
     #[serde(rename_all = "camelCase")]
-    Error {
-        v: i32,
-        run_id: String,
-        seq: i64,
-        ts: TimestampMs,
-        message: String,
-    },
+    Error { v: i32, run_id: String, seq: i64, ts: TimestampMs, message: String },
     #[serde(rename_all = "camelCase")]
-    RunDone {
-        v: i32,
-        run_id: String,
-        seq: i64,
-        ts: TimestampMs,
-        status: AgentRunStatus,
-    },
+    RunDone { v: i32, run_id: String, seq: i64, ts: TimestampMs, status: AgentRunStatus },
 }
 
 impl DigitalLifeRunActivityEventV1 {

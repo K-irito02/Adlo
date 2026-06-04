@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useRef } from "react";
-import type { DiagnosticSummary } from "@ai-digital-life/kernel";
-import type { Locale } from "../i18n";
-import { copy } from "../i18n";
-import { buildSelectionPrompt } from "../utils/selectionPrompt";
-import type { EditorRef, DiffEditorRef } from "../stores/types";
+import { useCallback, useEffect, useRef } from 'react';
+import type { DiagnosticSummary } from '@ai-digital-life/kernel';
+import type { Locale } from '../i18n';
+import { copy } from '../i18n';
+import { buildSelectionPrompt } from '../utils/selectionPrompt';
+import type { EditorRef, DiffEditorRef } from '../stores/types';
 
 export function useEditorReveal(
   selectedFilePath: string | undefined,
@@ -16,7 +16,7 @@ export function useEditorReveal(
   locale: Locale,
   setEditorHint: (hint: string | undefined) => void,
   pendingRevealRef: React.MutableRefObject<{ path: string; line: number } | null>,
-  setPendingReveal: (path: string, line: number) => void,
+  setPendingReveal: (path: string, line: number) => void
 ) {
   const standardEditorRef = useRef<EditorRef | null>(null);
   const diffEditorRef = useRef<EditorRef | DiffEditorRef | null>(null);
@@ -26,7 +26,8 @@ export function useEditorReveal(
   useEffect(() => {
     if (!activeDiagnostic?.line) return;
     const raw = diffEditorRef.current ?? standardEditorRef.current;
-    const editor = raw && "getModifiedEditor" in raw ? (raw as DiffEditorRef).getModifiedEditor() : raw;
+    const editor =
+      raw && 'getModifiedEditor' in raw ? (raw as DiffEditorRef).getModifiedEditor() : raw;
     if (!editor) return;
     editor.revealLineInCenter(activeDiagnostic.line);
     editor.setPosition({ lineNumber: activeDiagnostic.line, column: 1 });
@@ -38,7 +39,8 @@ export function useEditorReveal(
     if (!pending) return;
     if (!selectedFilePath || selectedFilePath !== pending.path) return;
     const raw = diffEditorRef.current ?? standardEditorRef.current;
-    const editor = raw && "getModifiedEditor" in raw ? (raw as DiffEditorRef).getModifiedEditor() : raw;
+    const editor =
+      raw && 'getModifiedEditor' in raw ? (raw as DiffEditorRef).getModifiedEditor() : raw;
     if (!editor) return;
     editor.revealLineInCenter(pending.line);
     editor.setPosition({ lineNumber: pending.line, column: 1 });
@@ -48,7 +50,8 @@ export function useEditorReveal(
 
   const handleSendSelection = useCallback(async () => {
     const raw = diffEditorRef.current ?? standardEditorRef.current;
-    const editor = raw && "getModifiedEditor" in raw ? (raw as DiffEditorRef).getModifiedEditor() : raw;
+    const editor =
+      raw && 'getModifiedEditor' in raw ? (raw as DiffEditorRef).getModifiedEditor() : raw;
     const selection = editor?.getSelection();
     const model = editor?.getModel();
     if (!selection || !model || !selectedFilePath) {

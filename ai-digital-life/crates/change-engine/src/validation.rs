@@ -1,4 +1,6 @@
-use adl_kernel::{create_id, now_ms, DiagnosticSummary, PatchApplicationResult, PatchSet, ValidationResult};
+use adl_kernel::{
+    create_id, now_ms, DiagnosticSummary, PatchApplicationResult, PatchSet, ValidationResult,
+};
 
 pub fn validation_result_from_command(
     workspace_id: &str,

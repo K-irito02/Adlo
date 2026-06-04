@@ -1,61 +1,54 @@
-import React, { useCallback, useMemo, useRef } from "react";
-import { EditorView } from "@codemirror/view";
-import { CodeEditor, saveEditorState } from "../../features/editor";
-import { DiffViewer } from "../../features/diff-viewer";
+import React, { useCallback, useMemo, useRef } from 'react';
+import { EditorView } from '@codemirror/view';
+import { CodeEditor, saveEditorState } from '../../features/editor';
+import { DiffViewer } from '../../features/diff-viewer';
 import {
   getAgentDecorationExtensions,
   type AgentHunkDecoration,
-} from "./editor-support/agentDecorations";
-import { categorizeFile, type FileCategory } from "./fileTypeRouter";
-import { LazyMarkdownPreviewWrapper } from "../../features/preview";
-import type { EditorRef, DiffEditorRef } from "../../stores/types";
-import { useUiStore } from "../../stores/ui-store";
-import { StickyContext } from "./editor-support/stickyContextView";
-import { DiffToolbar } from "./DiffToolbar";
+} from './editor-support/agentDecorations';
+import { categorizeFile, type FileCategory } from './fileTypeRouter';
+import { LazyMarkdownPreviewWrapper } from '../../features/preview';
+import type { EditorRef, DiffEditorRef } from '../../stores/types';
+import { useUiStore } from '../../stores/ui-store';
+import { StickyContext } from './editor-support/stickyContextView';
+import { DiffToolbar } from './DiffToolbar';
 import {
   derivePatchHunkChangeKind,
   getPatchHunkTargetLine,
   summarizePatchFile,
   type PatchHunkSummary,
-} from "../../features/patch-review";
-import {
-  useStickyContext,
-  useWrapColumn,
-  useAgentDecorations,
-  useEditorStateCache,
-} from "./hooks";
-import type { UseEditorOptionsResult } from "./hooks";
-import type { PreviewDiffVisualRange } from "../../features/diff-viewer";
-import {
-  IconChevronDown,
-  IconChevronRight,
-} from "../../icons";
-import type { RightPanelViewProps } from "./types";
+} from '../../features/patch-review';
+import { useStickyContext, useWrapColumn, useAgentDecorations, useEditorStateCache } from './hooks';
+import type { UseEditorOptionsResult } from './hooks';
+import type { PreviewDiffVisualRange } from '../../features/diff-viewer';
+import { IconChevronDown, IconChevronRight } from '../../icons';
+import type { RightPanelViewProps } from './types';
 
-interface EditorSurfaceShellProps extends Pick<RightPanelViewProps,
-  | "selectedFilePath"
-  | "fileContent"
-  | "filePatch"
-  | "editorLanguage"
-  | "diagnostics"
-  | "editorHint"
-  | "outline"
-  | "activePatchSet"
-  | "selectedPatchFilePath"
-  | "selectedPatchHunkId"
-  | "collapsedPatchHunkIds"
-  | "onEditorChange"
-  | "onEditorMount"
-  | "onDiffMount"
-  | "onSetDiffLayout"
-  | "onJumpPatchHunk"
-  | "onSelectPatchHunk"
-  | "onTogglePatchHunkCollapse"
-  | "onSetAllPatchHunksCollapsed"
-  | "onOpenFileAtLine"
-  | "t"
+interface EditorSurfaceShellProps extends Pick<
+  RightPanelViewProps,
+  | 'selectedFilePath'
+  | 'fileContent'
+  | 'filePatch'
+  | 'editorLanguage'
+  | 'diagnostics'
+  | 'editorHint'
+  | 'outline'
+  | 'activePatchSet'
+  | 'selectedPatchFilePath'
+  | 'selectedPatchHunkId'
+  | 'collapsedPatchHunkIds'
+  | 'onEditorChange'
+  | 'onEditorMount'
+  | 'onDiffMount'
+  | 'onSetDiffLayout'
+  | 'onJumpPatchHunk'
+  | 'onSelectPatchHunk'
+  | 'onTogglePatchHunkCollapse'
+  | 'onSetAllPatchHunksCollapsed'
+  | 'onOpenFileAtLine'
+  | 't'
 > {
-  resolvedTheme: "dark" | "light";
+  resolvedTheme: 'dark' | 'light';
   resolvedLocale: string;
   diffSideBySide: boolean;
   getStickySourceEditor: () => EditorRef | null;
@@ -67,44 +60,48 @@ interface EditorSurfaceShellProps extends Pick<RightPanelViewProps,
 }
 
 function buildStickyDiffRangesFromHunks(
-  hunks: NonNullable<ReturnType<typeof summarizePatchFile>>["hunks"]
+  hunks: NonNullable<ReturnType<typeof summarizePatchFile>>['hunks']
 ): PreviewDiffVisualRange[] {
   return hunks.flatMap((hunk) => {
     const anchorLine = Math.max(1, hunk.newStart || hunk.oldStart || 1);
     const lineSpan = Math.max(1, hunk.newLines || hunk.oldLines || 1);
-    if (hunk.changeKind === "added") {
-      return [{
-        startLine: anchorLine,
-        endLine: anchorLine + lineSpan - 1,
-        type: "insert" as const,
-        tone: "strong" as const,
-        contentColumns: 1
-      }];
+    if (hunk.changeKind === 'added') {
+      return [
+        {
+          startLine: anchorLine,
+          endLine: anchorLine + lineSpan - 1,
+          type: 'insert' as const,
+          tone: 'strong' as const,
+          contentColumns: 1,
+        },
+      ];
     }
-    if (hunk.changeKind === "deleted") {
-      return [{
-        startLine: anchorLine,
-        endLine: anchorLine,
-        type: "delete" as const,
-        tone: "base" as const,
-        contentColumns: 1
-      }];
+    if (hunk.changeKind === 'deleted') {
+      return [
+        {
+          startLine: anchorLine,
+          endLine: anchorLine,
+          type: 'delete' as const,
+          tone: 'base' as const,
+          contentColumns: 1,
+        },
+      ];
     }
     return [
       {
         startLine: anchorLine,
         endLine: anchorLine + lineSpan - 1,
-        type: "insert" as const,
-        tone: "strong" as const,
-        contentColumns: 1
+        type: 'insert' as const,
+        tone: 'strong' as const,
+        contentColumns: 1,
       },
       {
         startLine: anchorLine,
         endLine: anchorLine + lineSpan - 1,
-        type: "delete" as const,
-        tone: "base" as const,
-        contentColumns: 1
-      }
+        type: 'delete' as const,
+        tone: 'base' as const,
+        contentColumns: 1,
+      },
     ];
   });
 }
@@ -135,7 +132,7 @@ function EditorSurfaceShell(props: EditorSurfaceShellProps) {
   const fileCategory = useMemo(() => categorizeFile(selectedFilePath), [selectedFilePath]);
 
   const previewEnabled = selectedFilePath
-    ? (filePreviewModeByPath[selectedFilePath] ?? (fileCategory === "markdown"))
+    ? (filePreviewModeByPath[selectedFilePath] ?? fileCategory === 'markdown')
     : false;
 
   const setPreviewEnabled = useCallback(
@@ -143,7 +140,7 @@ function EditorSurfaceShell(props: EditorSurfaceShellProps) {
       if (!selectedFilePath) return;
       setFilePreviewModeForPath(selectedFilePath, enabled);
     },
-    [selectedFilePath, setFilePreviewModeForPath],
+    [selectedFilePath, setFilePreviewModeForPath]
   );
 
   const hasActivePatch = !!(filePatch && filePatch.relativePath === selectedFilePath);
@@ -151,18 +148,24 @@ function EditorSurfaceShell(props: EditorSurfaceShellProps) {
   const activeFilePatch = useMemo(() => {
     if (!props.activePatchSet || !props.selectedPatchFilePath) return undefined;
     return props.activePatchSet.filePatches.find(
-      (c) => c.relativePath === props.selectedPatchFilePath,
+      (c) => c.relativePath === props.selectedPatchFilePath
     );
   }, [props.activePatchSet, props.selectedPatchFilePath]);
 
   const activeFilePatchSummary = useMemo(
-    () => (activeFilePatch ? summarizePatchFile(activeFilePatch, props.collapsedPatchHunkIds) : undefined),
-    [activeFilePatch, props.collapsedPatchHunkIds],
+    () =>
+      activeFilePatch
+        ? summarizePatchFile(activeFilePatch, props.collapsedPatchHunkIds)
+        : undefined,
+    [activeFilePatch, props.collapsedPatchHunkIds]
   );
 
   const stickyDiffRanges = useMemo(
-    () => (activeFilePatchSummary ? buildStickyDiffRangesFromHunks(activeFilePatchSummary.hunks) : undefined),
-    [activeFilePatchSummary],
+    () =>
+      activeFilePatchSummary
+        ? buildStickyDiffRangesFromHunks(activeFilePatchSummary.hunks)
+        : undefined,
+    [activeFilePatchSummary]
   );
 
   const agentHunkDecorations = useMemo<AgentHunkDecoration[]>(() => {
@@ -176,28 +179,25 @@ function EditorSurfaceShell(props: EditorSurfaceShellProps) {
         startLine,
         endLine,
         changeKind,
-        decision: (
-          hunk.decision === "accepted" ? "accepted" :
-          hunk.decision === "rejected" ? "rejected" :
-          "pending"
-        ) as "accepted" | "rejected" | "pending",
+        decision: (hunk.decision === 'accepted'
+          ? 'accepted'
+          : hunk.decision === 'rejected'
+            ? 'rejected'
+            : 'pending') as 'accepted' | 'rejected' | 'pending',
         isSelected: props.selectedPatchHunkId === hunk.id,
         hunkId: hunk.id,
       };
     });
   }, [activeFilePatch, props.selectedPatchHunkId, selectedFilePath]);
 
-  const editorExtensions = useMemo(() => [
-    ...getAgentDecorationExtensions(),
-  ], []);
+  const editorExtensions = useMemo(() => [...getAgentDecorationExtensions()], []);
 
-  const diffEditorExtensions = useMemo(() => [
-    ...getAgentDecorationExtensions(),
-  ], []);
+  const diffEditorExtensions = useMemo(() => [...getAgentDecorationExtensions()], []);
 
-  const stickyContextContent = filePatch && filePatch.relativePath === selectedFilePath
-    ? (filePatch.afterContent ?? "")
-    : (fileContent ?? "");
+  const stickyContextContent =
+    filePatch && filePatch.relativePath === selectedFilePath
+      ? (filePatch.afterContent ?? '')
+      : (fileContent ?? '');
 
   const stickyContextModel = useStickyContext({
     selectedFilePath,
@@ -234,36 +234,37 @@ function EditorSurfaceShell(props: EditorSurfaceShellProps) {
       standardEditorRef.current = editor;
       props.onEditorMount(editor);
     },
-    [props.onEditorMount, cmViewRef, standardEditorRef],
+    [props.onEditorMount, cmViewRef, standardEditorRef]
   );
 
   const handleDiffEditorMount = useCallback(
     (editor: DiffEditorRef | EditorRef) => {
       localDiffEditorRef.current = editor;
       let editorRef: EditorRef;
-      if ("getModifiedEditor" in editor) {
-        editorRef = (editor as DiffEditorRef).getModifiedEditor() ?? (editor as unknown as EditorRef);
+      if ('getModifiedEditor' in editor) {
+        editorRef =
+          (editor as DiffEditorRef).getModifiedEditor() ?? (editor as unknown as EditorRef);
       } else {
         editorRef = editor as unknown as EditorRef;
       }
       props.onDiffMount(editorRef);
     },
-    [props.onDiffMount, localDiffEditorRef],
+    [props.onDiffMount, localDiffEditorRef]
   );
 
   const hasCollapsedHunks = !!activeFilePatchSummary?.hunks.some((h) => h.isCollapsed);
 
   const handleRevealPreviewLine = (line: number): boolean => {
     const target = editorSurfaceRef.current?.querySelector<HTMLElement>(
-      `[data-source-line="${line}"]`,
+      `[data-source-line="${line}"]`
     );
     if (!target) return false;
-    target.scrollIntoView({ block: "start", behavior: "smooth" });
+    target.scrollIntoView({ block: 'start', behavior: 'smooth' });
     return true;
   };
 
   const handleRevealLine = (line: number) => {
-    if (fileCategory === "markdown" && previewEnabled && handleRevealPreviewLine(line)) {
+    if (fileCategory === 'markdown' && previewEnabled && handleRevealPreviewLine(line)) {
       return;
     }
     const editor = getStickySourceEditor();
@@ -303,9 +304,9 @@ function EditorSurfaceShell(props: EditorSurfaceShellProps) {
                 <strong>{activeFilePatchSummary.relativePath}</strong>
                 <small>
                   {activeFilePatchSummary.totalHunks}
-                  {" · "}
+                  {' · '}
                   {activeFilePatchSummary.acceptedHunks + activeFilePatchSummary.rejectedHunks}
-                  {"/"}
+                  {'/'}
                   {activeFilePatchSummary.totalHunks}
                 </small>
               </div>
@@ -316,7 +317,7 @@ function EditorSurfaceShell(props: EditorSurfaceShellProps) {
                   <div
                     key={hunk.id}
                     className={`adl-diff-hunk-pill adl-diff-hunk-pill--${hunk.changeKind}${
-                      props.selectedPatchHunkId === hunk.id ? " is-active" : ""
+                      props.selectedPatchHunkId === hunk.id ? ' is-active' : ''
                     }`}
                   >
                     <button
@@ -327,7 +328,7 @@ function EditorSurfaceShell(props: EditorSurfaceShellProps) {
                           activeFilePatch!.relativePath,
                           hunk.id,
                           hunk.targetLine,
-                          { activateTool: false },
+                          { activateTool: false }
                         )
                       }
                     >
@@ -336,13 +337,13 @@ function EditorSurfaceShell(props: EditorSurfaceShellProps) {
                         <strong>{hunk.preview}</strong>
                         <small>
                           {hunk.newStart || hunk.oldStart}
-                          {hunk.isCollapsed ? ` · ${t.expandDetails}` : ""}
+                          {hunk.isCollapsed ? ` · ${t.expandDetails}` : ''}
                         </small>
                       </span>
                       <span className={`adl-decision-chip adl-decision-chip--${hunk.decision}`}>
-                        {hunk.decision === "accepted"
+                        {hunk.decision === 'accepted'
                           ? t.approvalApproved
-                          : hunk.decision === "rejected"
+                          : hunk.decision === 'rejected'
                             ? t.approvalRejected
                             : t.approvalPendingCount}
                       </span>
@@ -365,18 +366,14 @@ function EditorSurfaceShell(props: EditorSurfaceShellProps) {
                       )}
                     </button>
                   </div>
-                ),
+                )
               )}
             </div>
           </div>
         ) : null}
         <div ref={editorSurfaceRef} className="adl-tool-editor__surface">
           {stickyContextModel ? (
-            <StickyContext
-              data-testid="files-sticky-context"
-              model={stickyContextModel}
-              t={t}
-            />
+            <StickyContext data-testid="files-sticky-context" model={stickyContextModel} t={t} />
           ) : null}
           <DiffViewer
             original={filePatch.beforeContent}
@@ -398,18 +395,18 @@ function EditorSurfaceShell(props: EditorSurfaceShellProps) {
     );
   }
 
-  if (fileCategory === "markdown" && previewEnabled) {
+  if (fileCategory === 'markdown' && previewEnabled) {
     return (
       <div
         ref={editorSurfaceRef}
         className="adl-tool-editor__surface adl-tool-editor__surface--preview"
       >
-        <LazyMarkdownPreviewWrapper content={fileContent ?? ""} theme={resolvedTheme} />
+        <LazyMarkdownPreviewWrapper content={fileContent ?? ''} theme={resolvedTheme} />
       </div>
     );
   }
 
-  if (fileCategory === "docx") {
+  if (fileCategory === 'docx') {
     return (
       <div
         ref={editorSurfaceRef}
@@ -436,7 +433,7 @@ function EditorSurfaceShell(props: EditorSurfaceShellProps) {
     );
   }
 
-  if (fileCategory === "pdf") {
+  if (fileCategory === 'pdf') {
     return (
       <div
         ref={editorSurfaceRef}
@@ -464,7 +461,7 @@ function EditorSurfaceShell(props: EditorSurfaceShellProps) {
     );
   }
 
-  if (fileCategory === "binary") {
+  if (fileCategory === 'binary') {
     return (
       <div
         ref={editorSurfaceRef}
@@ -495,14 +492,10 @@ function EditorSurfaceShell(props: EditorSurfaceShellProps) {
   return (
     <div ref={editorSurfaceRef} className="adl-tool-editor__surface">
       {stickyContextModel ? (
-        <StickyContext
-          data-testid="files-sticky-context"
-          model={stickyContextModel}
-          t={t}
-        />
+        <StickyContext data-testid="files-sticky-context" model={stickyContextModel} t={t} />
       ) : null}
       <CodeEditor
-        value={fileContent ?? ""}
+        value={fileContent ?? ''}
         language={editorLanguage}
         theme={resolvedTheme}
         locale={resolvedLocale}

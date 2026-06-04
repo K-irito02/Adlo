@@ -17,8 +17,8 @@ function extractThemeSection(css: string, marker: string, nextMarker: string | n
 
 describe("changes preview highlight theming", () => {
   it("uses accent-based find-match colors instead of warning yellow in both themes", () => {
-    const lightTheme = extractThemeSection(themeCss, '[data-theme="light"] {', '[data-theme="dark"] {');
-    const darkTheme = extractThemeSection(themeCss, '[data-theme="dark"] {', null);
+    const lightTheme = extractThemeSection(themeCss, "[data-theme='light'] {", "[data-theme='dark'] {");
+    const darkTheme = extractThemeSection(themeCss, "[data-theme='dark'] {", null);
 
     expect(lightTheme).toContain("--editor-findMatch: rgba(37, 99, 235, 0.18);");
     expect(lightTheme).toContain("--editor-findMatch-highlight: rgba(37, 99, 235, 0.1);");

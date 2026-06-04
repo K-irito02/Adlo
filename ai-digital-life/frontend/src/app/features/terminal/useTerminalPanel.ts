@@ -1,15 +1,15 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useAppStore } from "../../stores/slicedStore";
-import { terminalSelectors } from "../../stores/selectors";
-import { useNavigatorResize } from "../../hooks/useNavigatorResize";
-import { useTerminalPtyLifecycle } from "./useTerminalPtyLifecycle";
-import { useTerminalDragDrop } from "./useTerminalDragDrop";
-import { useTerminalMenus } from "./useTerminalMenus";
-import type { TerminalPanelProps } from "../../regions/right-panel/types";
-import type { TerminalProfile } from "../../stores/types";
-import type { XtermTerminalHandle } from "../../components/terminal/XtermTerminal";
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useAppStore } from '../../stores/slicedStore';
+import { terminalSelectors } from '../../stores/selectors';
+import { useNavigatorResize } from '../../hooks/useNavigatorResize';
+import { useTerminalPtyLifecycle } from './useTerminalPtyLifecycle';
+import { useTerminalDragDrop } from './useTerminalDragDrop';
+import { useTerminalMenus } from './useTerminalMenus';
+import type { TerminalPanelProps } from '../../regions/right-panel/types';
+import type { TerminalProfile } from '../../stores/types';
+import type { XtermTerminalHandle } from '../../components/terminal/XtermTerminal';
 
-export type TerminalNavigatorMode = "sessions" | "history";
+export type TerminalNavigatorMode = 'sessions' | 'history';
 
 export type TerminalMenuItem =
   | { id: string; separator: true }
@@ -24,7 +24,13 @@ export interface WorkspaceMenuItem {
 export type TerminalShellMenuItem =
   | { id: string; separator: true }
   | { id: string; label: string; profile?: TerminalProfile; action: () => void }
-  | { id: string; label: string; hasSubMenu: true; subMenu: WorkspaceMenuItem[]; action?: () => void };
+  | {
+      id: string;
+      label: string;
+      hasSubMenu: true;
+      subMenu: WorkspaceMenuItem[];
+      action?: () => void;
+    };
 
 export interface ContextMenuState {
   open: boolean;
@@ -101,9 +107,9 @@ export interface UseTerminalPanelReturn {
 
 export function useTerminalPanel(props: TerminalPanelProps): UseTerminalPanelReturn {
   const { t } = props;
-  const [navigatorMode, setNavigatorMode] = useState<TerminalNavigatorMode>("sessions");
+  const [navigatorMode, setNavigatorMode] = useState<TerminalNavigatorMode>('sessions');
   const [editingTabId, setEditingTabId] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState("");
+  const [editValue, setEditValue] = useState('');
 
   const navigatorCollapsed = terminalSelectors.useNavigatorCollapsedByTool().terminal;
   const terminalTabs = terminalSelectors.useTerminalTabs();
@@ -125,25 +131,22 @@ export function useTerminalPanel(props: TerminalPanelProps): UseTerminalPanelRet
 
   const hasActiveTab = activeTab != null;
 
-  const recentCommands = useMemo(
-    () => {
-      if (props.commandHistory.length > 0) {
-        return props.commandHistory.map((entry, index) => ({
-          id: `history-${index}`,
-          label: entry,
-          title: entry.split(" ")[0] || t.terminalCommandHistory
-        }));
-      }
-      return terminalTabs
-        .map((tab) => ({
-          id: tab.id,
-          label: tab.title,
-          title: tab.title
-        }))
-        .filter((entry) => entry.label);
-    },
-    [props.commandHistory, t.terminalCommandHistory, terminalTabs]
-  );
+  const recentCommands = useMemo(() => {
+    if (props.commandHistory.length > 0) {
+      return props.commandHistory.map((entry, index) => ({
+        id: `history-${index}`,
+        label: entry,
+        title: entry.split(' ')[0] || t.terminalCommandHistory,
+      }));
+    }
+    return terminalTabs
+      .map((tab) => ({
+        id: tab.id,
+        label: tab.title,
+        title: tab.title,
+      }))
+      .filter((entry) => entry.label);
+  }, [props.commandHistory, t.terminalCommandHistory, terminalTabs]);
 
   const rootPath = props.appInfo?.currentWorkspace?.rootPath;
 
@@ -164,14 +167,8 @@ export function useTerminalPanel(props: TerminalPanelProps): UseTerminalPanelRet
     handleKill,
   } = useTerminalPtyLifecycle({ activeTab, rootPath });
 
-  const {
-    isDragging,
-    dragOverTabId,
-    handleDragStart,
-    handleDragEnd,
-    handleDragOver,
-    handleDrop,
-  } = useTerminalDragDrop(terminalTabs, terminalReorderTabs);
+  const { isDragging, dragOverTabId, handleDragStart, handleDragEnd, handleDragOver, handleDrop } =
+    useTerminalDragDrop(terminalTabs, terminalReorderTabs);
 
   const {
     terminalMenuOpen,
@@ -199,40 +196,48 @@ export function useTerminalPanel(props: TerminalPanelProps): UseTerminalPanelRet
     handleKill,
   });
 
-  const toggleNavigator = useCallback((tool: string) => {
-    if (tool === "terminal") {
-      toggleTerminalNavigator();
-    }
-  }, [toggleTerminalNavigator]);
+  const toggleNavigator = useCallback(
+    (tool: string) => {
+      if (tool === 'terminal') {
+        toggleTerminalNavigator();
+      }
+    },
+    [toggleTerminalNavigator]
+  );
 
   const { handlePointerDown: handleNavigatorResizeStart } = useNavigatorResize({
     onWidthCommit: setTerminalNavigatorWidth,
     minWidth: 180,
-    maxWidth: 300
+    maxWidth: 300,
   });
 
-  const navigatorTitle = navigatorMode === "sessions" ? t.terminalSessions : t.terminalRecentCommands;
-  const navigatorCount = navigatorMode === "sessions" ? terminalTabs.length : recentCommands.length;
+  const navigatorTitle =
+    navigatorMode === 'sessions' ? t.terminalSessions : t.terminalRecentCommands;
+  const navigatorCount = navigatorMode === 'sessions' ? terminalTabs.length : recentCommands.length;
 
   const currentProfile = defaultTerminalProfile;
-  const currentProfileLabel = currentProfile === "powershell" ? "PowerShell" : currentProfile === "bash" ? "Bash" : "CMD";
+  const currentProfileLabel =
+    currentProfile === 'powershell' ? 'PowerShell' : currentProfile === 'bash' ? 'Bash' : 'CMD';
 
   const handleEditSubmit = useCallback(() => {
     if (editingTabId && editValue.trim()) {
       terminalUpdateTab(editingTabId, { title: editValue.trim() });
     }
     setEditingTabId(null);
-    setEditValue("");
+    setEditValue('');
   }, [editingTabId, editValue, terminalUpdateTab]);
 
-  const handleEditKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      handleEditSubmit();
-    } else if (e.key === "Escape") {
-      setEditingTabId(null);
-      setEditValue("");
-    }
-  }, [handleEditSubmit]);
+  const handleEditKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        handleEditSubmit();
+      } else if (e.key === 'Escape') {
+        setEditingTabId(null);
+        setEditValue('');
+      }
+    },
+    [handleEditSubmit]
+  );
 
   useEffect(() => {
     if (editingTabId && editInputRef.current) {

@@ -1,15 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import type { FileOutlineItem } from "@ai-digital-life/kernel";
-import type { CopyDict } from "../../../i18n";
-import type { EditorRef } from "../../../stores/types";
-import type { PreviewDiffVisualRange } from "../../../features/diff-viewer";
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { FileOutlineItem } from '@ai-digital-life/kernel';
+import type { CopyDict } from '../../../i18n';
+import type { EditorRef } from '../../../stores/types';
+import type { PreviewDiffVisualRange } from '../../../features/diff-viewer';
 import {
   buildStickyContextEntries,
   createStickyContextModel,
   getVisibleStartLine,
   navigateToLine,
   type StickyContextModel,
-} from "../editor-support/stickyContext";
+} from '../editor-support/stickyContext';
 
 interface UseStickyContextInput {
   selectedFilePath: string | undefined;
@@ -25,27 +25,26 @@ interface UseStickyContextInput {
 
 function useStickyContext(input: UseStickyContextInput): StickyContextModel | null {
   const [model, setModel] = useState<StickyContextModel | null>(null);
-  const frameRef = useRef<number | null>(null);
-  const contentKeyRef = useRef("");
+  const contentKeyRef = useRef('');
   const editorRefCache = useRef<(() => EditorRef | null) | null>(null);
   const scrollSeqRef = useRef(0);
 
-  editorRefCache.current = input.getStickySourceEditor;
+  useEffect(() => {
+    editorRefCache.current = input.getStickySourceEditor;
+  }, [input.getStickySourceEditor]);
 
   const refresh = useCallback(() => {
     const getEditor = editorRefCache.current;
     scrollSeqRef.current += 1;
     if (!input.selectedFilePath) {
-      contentKeyRef.current = "";
+      contentKeyRef.current = '';
       setModel(null);
       return;
     }
 
     const editor = getEditor?.() ?? null;
     const visibleStartLine =
-      getVisibleStartLine(editor) ??
-      editor?.getSelection?.()?.startLineNumber ??
-      1;
+      getVisibleStartLine(editor) ?? editor?.getSelection?.()?.startLineNumber ?? 1;
     const scrollTop = editor?.getScrollTop() ?? 0;
     const canScrollToTop = scrollTop > 0;
 
@@ -59,7 +58,7 @@ function useStickyContext(input: UseStickyContextInput): StickyContextModel | nu
 
     const contentKey = `${input.selectedFilePath}:${visibleStartLine}:${entries
       .map((e) => `${e.line}:${e.kind}:${e.tone}`)
-      .join("|")}:${canScrollToTop}`;
+      .join('|')}:${canScrollToTop}`;
 
     contentKeyRef.current = contentKey;
 
@@ -69,7 +68,7 @@ function useStickyContext(input: UseStickyContextInput): StickyContextModel | nu
         canScrollToTop,
         onNavigateLine: (line) => navigateToLine(input.getStickySourceEditor(), line),
         topLabel: input.t.stickyContextTop as string,
-      }),
+      })
     );
   }, [
     input.selectedFilePath,
@@ -81,52 +80,32 @@ function useStickyContext(input: UseStickyContextInput): StickyContextModel | nu
 
   useEffect(() => {
     const getEditor = () => editorRefCache.current?.() ?? null;
-    const queue = () => {
-      if (frameRef.current !== null) {
-        return;
-      }
-      frameRef.current = window.requestAnimationFrame(() => {
-        frameRef.current = null;
-        refresh();
-      });
-    };
 
-    if (!input.selectedFilePath) {
-      contentKeyRef.current = "";
-      setModel(null);
-      return;
-    }
-
-    queue();
+    refresh();
+    if (!input.selectedFilePath) return;
     const editor = getEditor();
     if (!editor) {
       return;
     }
 
     const disposables = [
-      editor.onDidScrollChange?.(queue),
-      editor.onDidChangeHiddenAreas?.(queue),
-      editor.onDidLayoutChange?.(queue),
+      editor.onDidScrollChange?.(refresh),
+      editor.onDidChangeHiddenAreas?.(refresh),
+      editor.onDidLayoutChange?.(refresh),
     ].filter(Boolean) as Array<{ dispose(): void }>;
 
     const shell = input.editorSurfaceRef.current;
     const observer =
-      shell && typeof ResizeObserver !== "undefined"
-        ? new ResizeObserver(() => queue())
-        : null;
+      shell && typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => refresh()) : null;
     if (observer && shell) {
       observer.observe(shell);
     }
 
-    window.addEventListener("resize", queue);
+    window.addEventListener('resize', refresh);
     return () => {
       disposables.forEach((d) => d.dispose());
       observer?.disconnect();
-      window.removeEventListener("resize", queue);
-      if (frameRef.current !== null) {
-        window.cancelAnimationFrame(frameRef.current);
-        frameRef.current = null;
-      }
+      window.removeEventListener('resize', refresh);
     };
   }, [
     refresh,

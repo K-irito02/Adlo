@@ -1,10 +1,10 @@
-import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import { IconChevronDown, IconChevronRight, IconPlus } from "../../icons";
-import { TooltipSimple } from "../../components/Tooltip";
-import type { TerminalProfile } from "../../stores/types";
-import type { CopyDict } from "../../i18n";
-import type { TerminalShellMenuItem, WorkspaceMenuItem } from "./useTerminalPanel";
-import { useAppStore } from "../../stores/slicedStore";
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { IconChevronDown, IconChevronRight, IconPlus } from '../../icons';
+import { TooltipSimple } from '../../components/Tooltip';
+import type { TerminalProfile } from '../../stores/types';
+import type { CopyDict } from '../../i18n';
+import type { TerminalShellMenuItem, WorkspaceMenuItem } from './useTerminalPanel';
+import { useAppStore } from '../../stores/slicedStore';
 
 interface TerminalShellSelectorProps {
   currentProfile: TerminalProfile;
@@ -27,7 +27,7 @@ export const TerminalShellSelector = React.memo(function TerminalShellSelector({
   onCreateTab,
   onToggle,
   onSelect,
-  t
+  t,
 }: TerminalShellSelectorProps) {
   const [activeSubMenuId, setActiveSubMenuId] = useState<string | null>(null);
   const subMenuRef = useRef<HTMLDivElement | null>(null);
@@ -38,7 +38,7 @@ export const TerminalShellSelector = React.memo(function TerminalShellSelector({
 
   const boundWorkspace = useMemo(() => {
     if (!terminalWorkspaceId) return null;
-    return recentWorkspaces.find(w => w.id === terminalWorkspaceId);
+    return recentWorkspaces.find((w) => w.id === terminalWorkspaceId);
   }, [terminalWorkspaceId, recentWorkspaces]);
 
   const boundWorkspaceLabel = useMemo(() => {
@@ -60,8 +60,8 @@ export const TerminalShellSelector = React.memo(function TerminalShellSelector({
       }
     };
     if (activeSubMenuId) {
-      document.addEventListener("mousedown", handleClickOutside);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [activeSubMenuId, menuRef]);
 
@@ -93,14 +93,17 @@ export const TerminalShellSelector = React.memo(function TerminalShellSelector({
     setActiveSubMenuId(null);
   }, []);
 
-  const handleWorkspaceSelect = useCallback((workspaceId: string) => {
-    setTerminalWorkspaceId(workspaceId);
-    setActiveSubMenuId(null);
-  }, [setTerminalWorkspaceId]);
+  const handleWorkspaceSelect = useCallback(
+    (workspaceId: string) => {
+      setTerminalWorkspaceId(workspaceId);
+      setActiveSubMenuId(null);
+    },
+    [setTerminalWorkspaceId]
+  );
 
   return (
     <div ref={menuRef} className="adl-menu adl-file-context__menu">
-      <div className={`adl-split-pill${menuOpen ? " is-open" : ""}`}>
+      <div className={`adl-split-pill${menuOpen ? ' is-open' : ''}`}>
         <TooltipSimple content={t.menuNewTerminal} placement="top">
           <button
             type="button"
@@ -115,28 +118,33 @@ export const TerminalShellSelector = React.memo(function TerminalShellSelector({
         <TooltipSimple content={boundWorkspaceLabel} placement="top">
           <button
             type="button"
-            className={`adl-split-pill__toggle${menuOpen ? " is-open" : ""}`}
+            className={`adl-split-pill__toggle${menuOpen ? ' is-open' : ''}`}
             onClick={onToggle}
             aria-label={t.shellTypeSelect}
             aria-haspopup="menu"
             aria-expanded={menuOpen}
           >
             <span className="adl-split-pill__workspace-label" title={boundWorkspaceLabel}>
-              {boundWorkspaceLabel.length > 12 ? boundWorkspaceLabel.substring(0, 12) + "..." : boundWorkspaceLabel}
+              {boundWorkspaceLabel.length > 12
+                ? boundWorkspaceLabel.substring(0, 12) + '...'
+                : boundWorkspaceLabel}
             </span>
             <IconChevronDown size={12} decorative />
           </button>
         </TooltipSimple>
       </div>
       {menuOpen ? (
-        <div className="adl-menu__dropdown adl-file-context__dropdown adl-terminal-shell-dropdown" role="menu">
+        <div
+          className="adl-menu__dropdown adl-file-context__dropdown adl-terminal-shell-dropdown"
+          role="menu"
+        >
           {menuItems.map((item) =>
-            "separator" in item ? (
+            'separator' in item ? (
               <div key={item.id} className="adl-menu__sep" role="separator" />
-            ) : "hasSubMenu" in item ? (
+            ) : 'hasSubMenu' in item ? (
               <div
                 key={item.id}
-                className={`adl-menu__item adl-menu__item--has-sub${activeSubMenuId === item.id ? " is-open" : ""}`}
+                className={`adl-menu__item adl-menu__item--has-sub${activeSubMenuId === item.id ? ' is-open' : ''}`}
                 onMouseEnter={() => handleMouseEnterSubMenu(item.id)}
                 onMouseLeave={handleMouseLeaveSubMenu}
               >
@@ -155,7 +163,7 @@ export const TerminalShellSelector = React.memo(function TerminalShellSelector({
                         key={subItem.id}
                         type="button"
                         role="menuitem"
-                        className={`adl-menu__item${subItem.workspaceId === terminalWorkspaceId ? " is-active" : ""}`}
+                        className={`adl-menu__item${subItem.workspaceId === terminalWorkspaceId ? ' is-active' : ''}`}
                         onClick={() => handleWorkspaceSelect(subItem.workspaceId)}
                         title={subItem.label}
                       >

@@ -13,11 +13,11 @@ import type {
   RepoMapNode,
   SettingItem,
   WorkspaceSearchHit,
-  WorkspaceTreeNode
-} from "@ai-digital-life/kernel";
-import type { CopyDict } from "../../i18n";
-import type { EditorTabState } from "../../utils/editorTabs";
-import type { EditorRef, DiffEditorRef } from "../../stores/types";
+  WorkspaceTreeNode,
+} from '@ai-digital-life/kernel';
+import type { CopyDict } from '../../i18n';
+import type { EditorTabState } from '../../utils/editorTabs';
+import type { EditorRef, DiffEditorRef } from '../../stores/types';
 import type {
   PatchChangeKind,
   PatchDirection,
@@ -25,7 +25,7 @@ import type {
   PatchHunkSummary,
   PatchReviewFilter,
   PatchReviewState,
-} from "../../features/patch-review";
+} from '../../features/patch-review';
 
 export interface RightPanelViewProps {
   t: CopyDict;
@@ -50,7 +50,7 @@ export interface RightPanelViewProps {
     message: string;
     path?: string;
     line?: number;
-    severity: "error" | "warning" | "info";
+    severity: 'error' | 'warning' | 'info';
   }>;
   editorHint?: string;
   outline: FileOutlineItem[];
@@ -73,7 +73,11 @@ export interface RightPanelViewProps {
   dirtyEditorPaths: string[];
   standardEditorRef: React.MutableRefObject<EditorRef | null>;
   onOpenFile: (relativePath: string) => void;
-  onOpenFileForWorkspace: (workspaceId: string, workspacePath: string, relativePath: string) => void;
+  onOpenFileForWorkspace: (
+    workspaceId: string,
+    workspacePath: string,
+    relativePath: string
+  ) => void;
   onOpenChangePreview: (relativePath: string) => void;
   onOpenChangePreviewForWorkspace: (workspacePath: string, relativePath: string) => void;
   onOpenFileAtLine: (relativePath: string, line: number) => void;
@@ -95,13 +99,21 @@ export interface RightPanelViewProps {
   selectedPatchHunkId?: string;
   collapsedPatchHunkIds: string[];
   patchReviewFilter: PatchReviewFilter;
-  onSetHunkDecision: (hunkId: string, decision: "pending" | "accepted" | "rejected") => void;
+  onSetHunkDecision: (hunkId: string, decision: 'pending' | 'accepted' | 'rejected') => void;
   onApplyPatchSet: () => void;
   onRollbackPatchSet: () => void;
   onAcceptAllHunks: () => void;
   onRejectAllHunks: () => void;
-  onSelectPatchFile: (relativePath: string, options?: { activateTool?: boolean; line?: number; hunkId?: string }) => void;
-  onSelectPatchHunk: (relativePath: string, hunkId: string, line: number, options?: { activateTool?: boolean }) => void;
+  onSelectPatchFile: (
+    relativePath: string,
+    options?: { activateTool?: boolean; line?: number; hunkId?: string }
+  ) => void;
+  onSelectPatchHunk: (
+    relativePath: string,
+    hunkId: string,
+    line: number,
+    options?: { activateTool?: boolean }
+  ) => void;
   onTogglePatchHunkCollapse: (hunkId: string) => void;
   onSetAllPatchHunksCollapsed: (collapsed: boolean, relativePath?: string) => void;
   onSetPatchReviewFilter: (filter: PatchReviewFilter) => void;
@@ -118,131 +130,131 @@ export interface RightPanelViewProps {
   latestCommandRun?: CommandRunResult;
 }
 
-export type FilesPanelProps = Pick<RightPanelViewProps,
-  | "t"
-  | "appInfo"
-  | "selectedFilePath"
-  | "selectedFileWorkspaceId"
-  | "fileContent"
-  | "filePatch"
-  | "editorLanguage"
-  | "diffSideBySide"
-  | "diagnostics"
-  | "editorHint"
-  | "outline"
-  | "workspaceTrees"
-  | "recentWorkspaces"
-  | "allExpanded"
-  | "workspaceTreeExpandedInFileNav"
-  | "workspaceTreeLoading"
-  | "workspaceTreeErrors"
-  | "searchQuery"
-  | "searchResults"
-  | "dirtyEditorPaths"
-  | "externalChangePath"
-  | "standardEditorRef"
-  | "onOpenFile"
-  | "onOpenFileForWorkspace"
-  | "onOpenFileAtLine"
-  | "onEditorChange"
-  | "onEditorMount"
-  | "onDiffMount"
-  | "onSearch"
-  | "onSearchChange"
-  | "onRefreshWorkspaceTree"
-  | "onExpandAll"
-  | "onCollapseAll"
-  | "onRefreshAll"
-  | "onRefreshOneWorkspace"
-  | "onToggleExpandInFileNav"
-  | "onHideFromRightPanels"
-  | "onCreateWorkspaceFile"
-  | "onCreateWorkspaceFolder"
-  | "onSetDiffLayout"
-  | "onJumpPatchHunk"
-  | "onSelectPatchHunk"
-  | "onTogglePatchHunkCollapse"
-  | "onSetAllPatchHunksCollapsed"
-  | "activePatchSet"
-  | "selectedPatchFilePath"
-  | "selectedPatchHunkId"
-  | "collapsedPatchHunkIds"
+export type FilesPanelProps = Pick<
+  RightPanelViewProps,
+  | 't'
+  | 'appInfo'
+  | 'selectedFilePath'
+  | 'selectedFileWorkspaceId'
+  | 'fileContent'
+  | 'filePatch'
+  | 'editorLanguage'
+  | 'diffSideBySide'
+  | 'diagnostics'
+  | 'editorHint'
+  | 'outline'
+  | 'workspaceTrees'
+  | 'recentWorkspaces'
+  | 'allExpanded'
+  | 'workspaceTreeExpandedInFileNav'
+  | 'workspaceTreeLoading'
+  | 'workspaceTreeErrors'
+  | 'searchQuery'
+  | 'searchResults'
+  | 'dirtyEditorPaths'
+  | 'externalChangePath'
+  | 'standardEditorRef'
+  | 'onOpenFile'
+  | 'onOpenFileForWorkspace'
+  | 'onOpenFileAtLine'
+  | 'onEditorChange'
+  | 'onEditorMount'
+  | 'onDiffMount'
+  | 'onSearch'
+  | 'onSearchChange'
+  | 'onRefreshWorkspaceTree'
+  | 'onExpandAll'
+  | 'onCollapseAll'
+  | 'onRefreshAll'
+  | 'onRefreshOneWorkspace'
+  | 'onToggleExpandInFileNav'
+  | 'onHideFromRightPanels'
+  | 'onCreateWorkspaceFile'
+  | 'onCreateWorkspaceFolder'
+  | 'onSetDiffLayout'
+  | 'onJumpPatchHunk'
+  | 'onSelectPatchHunk'
+  | 'onTogglePatchHunkCollapse'
+  | 'onSetAllPatchHunksCollapsed'
+  | 'activePatchSet'
+  | 'selectedPatchFilePath'
+  | 'selectedPatchHunkId'
+  | 'collapsedPatchHunkIds'
 >;
 
-export type ChangesPanelProps = Pick<RightPanelViewProps,
-  | "t"
-  | "appInfo"
-  | "activePatchSet"
-  | "latestPatchApplication"
-  | "selectedPatchFilePath"
-  | "selectedChangePreviewPath"
-  | "selectedChangePreviewWorkspaceId"
-  | "changePreview"
-  | "changePreviewLoading"
-  | "selectedPatchHunkId"
-  | "collapsedPatchHunkIds"
-  | "patchReviewFilter"
-  | "onSetHunkDecision"
-  | "onApplyPatchSet"
-  | "onRollbackPatchSet"
-  | "onAcceptAllHunks"
-  | "onRejectAllHunks"
-  | "onSelectPatchFile"
-  | "onOpenChangePreview"
-  | "onSelectPatchHunk"
-  | "onTogglePatchHunkCollapse"
-  | "onSetAllPatchHunksCollapsed"
-  | "onSetPatchReviewFilter"
-  | "onOpenFile"
-  | "onRefreshWorkspaceTree"
-  | "recentWorkspaces"
-  | "workspaceChangesExpanded"
-  | "gitSnapshot"
-  | "gitSnapshots"
-  | "activePatchSets"
-  | "onHideFromRightPanels"
-  | "diffSideBySide"
-  | "onSetDiffLayout"
-  | "dirtyEditorPaths"
-  | "externalChangePath"
-  | "onJumpPatchHunk"
+export type ChangesPanelProps = Pick<
+  RightPanelViewProps,
+  | 't'
+  | 'appInfo'
+  | 'activePatchSet'
+  | 'latestPatchApplication'
+  | 'selectedPatchFilePath'
+  | 'selectedChangePreviewPath'
+  | 'selectedChangePreviewWorkspaceId'
+  | 'changePreview'
+  | 'changePreviewLoading'
+  | 'selectedPatchHunkId'
+  | 'collapsedPatchHunkIds'
+  | 'patchReviewFilter'
+  | 'onSetHunkDecision'
+  | 'onApplyPatchSet'
+  | 'onRollbackPatchSet'
+  | 'onAcceptAllHunks'
+  | 'onRejectAllHunks'
+  | 'onSelectPatchFile'
+  | 'onOpenChangePreview'
+  | 'onSelectPatchHunk'
+  | 'onTogglePatchHunkCollapse'
+  | 'onSetAllPatchHunksCollapsed'
+  | 'onSetPatchReviewFilter'
+  | 'onOpenFile'
+  | 'onRefreshWorkspaceTree'
+  | 'recentWorkspaces'
+  | 'workspaceChangesExpanded'
+  | 'gitSnapshot'
+  | 'gitSnapshots'
+  | 'activePatchSets'
+  | 'onHideFromRightPanels'
+  | 'diffSideBySide'
+  | 'onSetDiffLayout'
+  | 'dirtyEditorPaths'
+  | 'externalChangePath'
+  | 'onJumpPatchHunk'
 >;
 
-export type BrowserPanelProps = Pick<RightPanelViewProps, "t"> & { isVisible: boolean };
+export type BrowserPanelProps = Pick<RightPanelViewProps, 't'> & { isVisible: boolean };
 
-export type TerminalPanelProps = Pick<RightPanelViewProps,
-  | "t"
-  | "latestCommandRun"
-  | "commandHistory"
-  | "appInfo"
+export type TerminalPanelProps = Pick<
+  RightPanelViewProps,
+  't' | 'latestCommandRun' | 'commandHistory' | 'appInfo'
 >;
 
-export type AuditPanelProps = Pick<RightPanelViewProps, "t" | "auditEntries">;
+export type AuditPanelProps = Pick<RightPanelViewProps, 't' | 'auditEntries'>;
 
-export type ModelPanelProps = Pick<RightPanelViewProps,
-  | "t"
-  | "modelHealth"
-  | "onRefreshModelHealth"
+export type ModelPanelProps = Pick<
+  RightPanelViewProps,
+  't' | 'modelHealth' | 'onRefreshModelHealth'
 >;
 
-export type SettingsPanelProps = Pick<RightPanelViewProps,
-  | "t"
-  | "settings"
-  | "onChangeSetting"
->;
+export type SettingsPanelProps = Pick<RightPanelViewProps, 't' | 'settings' | 'onChangeSetting'>;
 
 export function countGitChanges(snapshot?: GitSnapshot): number {
   if (!snapshot) {
     return 0;
   }
-  return snapshot.staged.length + snapshot.unstaged.length + snapshot.untracked.length + snapshot.conflicts.length;
+  return (
+    snapshot.staged.length +
+    snapshot.unstaged.length +
+    snapshot.untracked.length +
+    snapshot.conflicts.length
+  );
 }
 
 export function getPathSegments(pathValue?: string): string[] {
-  return pathValue?.split("/").filter(Boolean) ?? [];
+  return pathValue?.split('/').filter(Boolean) ?? [];
 }
 
 export function getDisplayPathName(pathValue?: string): string {
   const segments = getPathSegments(pathValue);
-  return segments[segments.length - 1] ?? "";
+  return segments[segments.length - 1] ?? '';
 }

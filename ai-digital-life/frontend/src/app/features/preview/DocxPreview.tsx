@@ -1,13 +1,13 @@
-import React, { useEffect, useState } from "react";
-import mammoth from "mammoth";
+import React, { useEffect, useState } from 'react';
+import mammoth from 'mammoth';
 
 export type DocxPreviewProps = {
   data: ArrayBuffer;
-  theme?: "light" | "dark";
+  theme?: 'light' | 'dark';
 };
 
-export function DocxPreview({ data, theme = "dark" }: DocxPreviewProps) {
-  const [html, setHtml] = useState<string>("");
+export function DocxPreview({ data, theme = 'dark' }: DocxPreviewProps) {
+  const [html, setHtml] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -16,7 +16,7 @@ export function DocxPreview({ data, theme = "dark" }: DocxPreviewProps) {
       .then((result) => {
         setHtml(result.value);
         if (result.messages.length > 0) {
-          console.warn("DOCX conversion warnings:", result.messages);
+          console.warn('DOCX conversion warnings:', result.messages);
         }
       })
       .catch((err) => {

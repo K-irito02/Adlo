@@ -22,7 +22,11 @@ pub(crate) struct OutlineDraft {
     pub(crate) depth: usize,
 }
 
-pub fn outline(content: &str, relative_path: &str, total_lines: usize) -> Result<Vec<FileOutlineItem>, AppError> {
+pub fn outline(
+    content: &str,
+    relative_path: &str,
+    total_lines: usize,
+) -> Result<Vec<FileOutlineItem>, AppError> {
     let drafts = match detect_outline_family(relative_path) {
         "markdown" => markdown::parse_markdown_outline(content),
         "python" => python::parse_python_outline(content),
@@ -38,11 +42,7 @@ pub fn outline(content: &str, relative_path: &str, total_lines: usize) -> Result
         "none" => Vec::new(),
         _ => brace::parse_brace_outline(content),
     };
-    Ok(finalize_outline_items(
-        drafts,
-        &relative_path.replace('\\', "/"),
-        total_lines,
-    ))
+    Ok(finalize_outline_items(drafts, &relative_path.replace('\\', "/"), total_lines))
 }
 
 fn clean_markdown_heading_label(value: &str) -> &str {
@@ -87,25 +87,16 @@ fn outline_family_map() -> &'static HashMap<&'static str, &'static str> {
 }
 
 pub(crate) fn detect_outline_family(relative_path: &str) -> &'static str {
-    let file_name = relative_path
-        .rsplit(&['/', '\\'][..])
-        .next()
-        .unwrap_or(relative_path)
-        .to_ascii_lowercase();
+    let file_name =
+        relative_path.rsplit(&['/', '\\'][..]).next().unwrap_or(relative_path).to_ascii_lowercase();
 
     if file_name == "dockerfile" {
         return "shell";
     }
 
-    let extension = file_name
-        .rsplit_once('.')
-        .map(|(_, ext)| ext)
-        .unwrap_or(file_name.as_str());
+    let extension = file_name.rsplit_once('.').map(|(_, ext)| ext).unwrap_or(file_name.as_str());
 
-    outline_family_map()
-        .get(extension)
-        .copied()
-        .unwrap_or("brace")
+    outline_family_map().get(extension).copied().unwrap_or("brace")
 }
 
 fn finalize_outline_items(
@@ -186,11 +177,7 @@ fn parse_config_outline(content: &str) -> Vec<OutlineDraft> {
         }
         if let Some(captures) = config_section_regex().captures(trimmed) {
             let label = captures[1].trim().to_string();
-            current_section_depth = label
-                .split('.')
-                .filter(|part| !part.is_empty())
-                .count()
-                .max(1);
+            current_section_depth = label.split('.').filter(|part| !part.is_empty()).count().max(1);
             drafts.push(OutlineDraft {
                 label,
                 kind: "heading".to_string(),
@@ -219,9 +206,5 @@ pub(crate) fn count_chars(value: &str, chars: &[char]) -> usize {
 }
 
 pub(crate) fn count_leading_closers(value: &str, closers: &[char]) -> usize {
-    value
-        .trim_start()
-        .chars()
-        .take_while(|ch| closers.contains(ch))
-        .count()
+    value.trim_start().chars().take_while(|ch| closers.contains(ch)).count()
 }

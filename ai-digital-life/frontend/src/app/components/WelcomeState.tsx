@@ -1,9 +1,9 @@
-import React, { useCallback, useRef, useState } from "react";
-import { type IconName } from "../../design-system/icons";
-import { Icon } from "./Icon";
+import React, { useCallback, useRef, useState } from 'react';
+import { type IconName } from '../../design-system/icons';
+import { Icon } from './Icon';
 
 interface WelcomeStateProps {
-  variant: "no-workspace" | "no-session";
+  variant: 'no-workspace' | 'no-session';
   recentWorkspaces?: Array<{ path: string; name: string }>;
   onOpenWorkspace: () => void;
   onSelectRecentWorkspace: (path: string) => void;
@@ -11,17 +11,17 @@ interface WelcomeStateProps {
 }
 
 const SUGGESTIONS = [
-  "帮我理解这个项目的架构",
-  "修复登录页面的 bug",
-  "为这个模块添加单元测试",
-  "优化数据库查询性能",
-  "解释这段代码的作用"
+  '帮我理解这个项目的架构',
+  '修复登录页面的 bug',
+  '为这个模块添加单元测试',
+  '优化数据库查询性能',
+  '解释这段代码的作用',
 ];
 
 const TIPS = [
-  { icon: "folder-open" as IconName, text: "将文件夹拖入窗口即可打开" },
-  { icon: "keyboard" as IconName, text: "按 Ctrl+O 快速打开工作空间" },
-  { icon: "globe" as IconName, text: "支持从 GitHub 克隆远程仓库" }
+  { icon: 'folder-open' as IconName, text: '将文件夹拖入窗口即可打开' },
+  { icon: 'keyboard' as IconName, text: '按 Ctrl+O 快速打开工作空间' },
+  { icon: 'globe' as IconName, text: '支持从 GitHub 克隆远程仓库' },
 ];
 
 export function WelcomeState({
@@ -29,9 +29,9 @@ export function WelcomeState({
   recentWorkspaces = [],
   onOpenWorkspace,
   onSelectRecentWorkspace,
-  onSuggestion
+  onSuggestion,
 }: WelcomeStateProps) {
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const filteredWorkspaces = searchQuery.trim()
@@ -51,14 +51,14 @@ export function WelcomeState({
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent, path: string) => {
-      if (e.key === "Enter") {
+      if (e.key === 'Enter') {
         onSelectRecentWorkspace(path);
       }
     },
     [onSelectRecentWorkspace]
   );
 
-  if (variant === "no-session") {
+  if (variant === 'no-session') {
     return (
       <div className="welcome-state">
         <div className="welcome-state__icon welcome-state__icon--session">
@@ -90,11 +90,7 @@ export function WelcomeState({
       <h2 className="welcome-state__title">打开工作空间</h2>
       <p className="welcome-state__description">选择一个项目目录开始</p>
 
-      <button
-        type="button"
-        className="welcome-state__primary-btn"
-        onClick={onOpenWorkspace}
-      >
+      <button type="button" className="welcome-state__primary-btn" onClick={onOpenWorkspace}>
         <Icon name="folder-open" size="sm" />
         打开工作空间
       </button>

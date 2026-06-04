@@ -1,7 +1,7 @@
-import React, { useEffect, useRef, useState } from "react";
-import { IconMoreVertical } from "../../icons";
-import { TooltipSimple } from "../../components/Tooltip";
-import type { CopyDict } from "../../i18n";
+import React, { useEffect, useRef, useState } from 'react';
+import { IconMoreVertical } from '../../icons';
+import { TooltipSimple } from '../../components/Tooltip';
+import type { CopyDict } from '../../i18n';
 
 interface FileMenuItem {
   id: string;
@@ -41,8 +41,8 @@ function FileContextMenu({ menuItems, t, checkState }: FileContextMenuProps) {
         setOpen(false);
       }
     };
-    document.addEventListener("mousedown", handlePointerDown);
-    return () => document.removeEventListener("mousedown", handlePointerDown);
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => document.removeEventListener('mousedown', handlePointerDown);
   }, [open]);
 
   return (
@@ -50,11 +50,11 @@ function FileContextMenu({ menuItems, t, checkState }: FileContextMenuProps) {
       <TooltipSimple content={t.fileMoreActions as string} placement="top">
         <button
           type="button"
-          className={`adl-tool-context__iconbtn${open ? " is-open" : ""}`}
+          className={`adl-tool-context__iconbtn${open ? ' is-open' : ''}`}
           onClick={() => setOpen((v) => !v)}
           aria-label={t.fileMoreActions as string}
           aria-haspopup="menu"
-          aria-expanded={open ? "true" : "false"}
+          aria-expanded={open ? 'true' : 'false'}
         >
           <IconMoreVertical size={14} decorative />
         </button>
@@ -62,7 +62,7 @@ function FileContextMenu({ menuItems, t, checkState }: FileContextMenuProps) {
       {open ? (
         <div className="adl-menu__dropdown adl-file-context__dropdown" role="menu">
           {menuItems.map((item) =>
-            "separator" in item ? (
+            'separator' in item ? (
               <div key={item.id} className="adl-menu__sep" role="separator" />
             ) : (
               <button
@@ -70,18 +70,18 @@ function FileContextMenu({ menuItems, t, checkState }: FileContextMenuProps) {
                 type="button"
                 role="menuitemcheckbox"
                 aria-checked={
-                  item.id === "line-numbers"
+                  item.id === 'line-numbers'
                     ? checkState.lineNumbersEnabled
-                      ? "true"
-                      : "false"
-                    : item.id === "word-wrap"
+                      ? 'true'
+                      : 'false'
+                    : item.id === 'word-wrap'
                       ? checkState.wordWrapEnabled
-                        ? "true"
-                        : "false"
-                      : item.id === "agent-annotations"
+                        ? 'true'
+                        : 'false'
+                      : item.id === 'agent-annotations'
                         ? checkState.agentAnnotationsEnabled
-                          ? "true"
-                          : "false"
+                          ? 'true'
+                          : 'false'
                         : undefined
                 }
                 className="adl-menu__item"
@@ -94,11 +94,9 @@ function FileContextMenu({ menuItems, t, checkState }: FileContextMenuProps) {
                 }}
               >
                 <span>{item.label}</span>
-                {item.shortcut ? (
-                  <span className="adl-menu__shortcut">{item.shortcut}</span>
-                ) : null}
+                {item.shortcut ? <span className="adl-menu__shortcut">{item.shortcut}</span> : null}
               </button>
-            ),
+            )
           )}
         </div>
       ) : null}

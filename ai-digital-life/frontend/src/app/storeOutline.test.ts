@@ -5,7 +5,7 @@ describe("store outline wiring", () => {
   const editorSource = readFileSync(new URL("./stores/actions/editorActions.ts", import.meta.url), "utf8");
 
   it("builds file outlines from loaded content through the shared parser", () => {
-    expect(editorSource).toContain('from "../../../shared/outline"');
+    expect(editorSource).toContain("from '../../../shared/outline'");
     const outlineOccurrences = (editorSource.match(/buildOutlineFromContent/g) ?? []).length;
     expect(outlineOccurrences).toBeGreaterThanOrEqual(3);
   });

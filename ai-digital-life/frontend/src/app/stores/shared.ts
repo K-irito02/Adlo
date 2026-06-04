@@ -1,7 +1,12 @@
-import type { AppInfo, IpcResult, RecentWorkspaceEntry, WorkspaceChangePreview } from "@ai-digital-life/kernel";
-import type { StoreState } from "./StoreState";
-import type { StoreApi } from "zustand";
-import { normalizeWorkspaceRelativePath } from "../utils/workspacePaths";
+import type {
+  AppInfo,
+  IpcResult,
+  RecentWorkspaceEntry,
+  WorkspaceChangePreview,
+} from '@ai-digital-life/kernel';
+import type { StoreState } from './StoreState';
+import type { StoreApi } from 'zustand';
+import { normalizeWorkspaceRelativePath } from '../utils/workspacePaths';
 
 export function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -23,7 +28,7 @@ export function writeJson(key: string, value: unknown): void {
   try {
     window.localStorage.setItem(key, JSON.stringify(value));
   } catch (err) {
-    if (err instanceof DOMException && err.name === "QuotaExceededError") {
+    if (err instanceof DOMException && err.name === 'QuotaExceededError') {
       console.warn(`[localStorage] Quota exceeded for key "${key}"`);
     } else {
       console.warn(`[localStorage] Failed to write key "${key}":`, err);
@@ -47,7 +52,7 @@ export function writeNumber(key: string, value: number): void {
   try {
     window.localStorage.setItem(key, String(value));
   } catch (err) {
-    if (err instanceof DOMException && err.name === "QuotaExceededError") {
+    if (err instanceof DOMException && err.name === 'QuotaExceededError') {
       console.warn(`[localStorage] Quota exceeded for key "${key}"`);
     } else {
       console.warn(`[localStorage] Failed to write number key "${key}":`, err);
@@ -57,8 +62,8 @@ export function writeNumber(key: string, value: number): void {
 export function readFlag(key: string, fallback: boolean): boolean {
   try {
     const raw = window.localStorage.getItem(key);
-    if (raw === "1") return true;
-    if (raw === "0") return false;
+    if (raw === '1') return true;
+    if (raw === '0') return false;
   } catch {
     /* ignore */
   }
@@ -67,9 +72,9 @@ export function readFlag(key: string, fallback: boolean): boolean {
 
 export function writeFlag(key: string, value: boolean): void {
   try {
-    window.localStorage.setItem(key, value ? "1" : "0");
+    window.localStorage.setItem(key, value ? '1' : '0');
   } catch (err) {
-    if (err instanceof DOMException && err.name === "QuotaExceededError") {
+    if (err instanceof DOMException && err.name === 'QuotaExceededError') {
       console.warn(`[localStorage] Quota exceeded for key "${key}"`);
     } else {
       console.warn(`[localStorage] Failed to write flag key "${key}":`, err);
@@ -111,7 +116,7 @@ export function createDebouncedWrite(waitMs: number) {
       }
       pendingNumberWrites.clear();
     };
-    if (typeof requestIdleCallback === "function") {
+    if (typeof requestIdleCallback === 'function') {
       requestIdleCallback(flush, { timeout: 500 });
     } else {
       setTimeout(flush, waitMs);
@@ -199,18 +204,21 @@ export function setCachedLru<T>(cache: Map<string, T>, key: string, value: T, li
 }
 
 /** LRU + TTL 缓存操作 — 每次 get 时将条目移到 Map 末尾，并检查过期 */
-export function getCachedLruTTL<V>(cache: Map<string, TTLCacheEntry<V>>, key: string): V | undefined {
+export function getCachedLruTTL<V>(
+  cache: Map<string, TTLCacheEntry<V>>,
+  key: string
+): V | undefined {
   const cachedEntry = cache.get(key);
   if (cachedEntry === undefined) {
     return undefined;
   }
-  
+
   // 检查是否过期
   if (Date.now() > cachedEntry.expiresAt) {
     cache.delete(key);
     return undefined;
   }
-  
+
   // 未过期，移到末尾（LRU）
   // 注意：JavaScript Map 没有直接移动条目的方法，delete + set 是标准做法
   cache.delete(key);
@@ -218,7 +226,13 @@ export function getCachedLruTTL<V>(cache: Map<string, TTLCacheEntry<V>>, key: st
   return cachedEntry.value;
 }
 
-export function setCachedLruTTL<V>(cache: Map<string, TTLCacheEntry<V>>, key: string, value: V, limit: number, ttlMs: number): void {
+export function setCachedLruTTL<V>(
+  cache: Map<string, TTLCacheEntry<V>>,
+  key: string,
+  value: V,
+  limit: number,
+  ttlMs: number
+): void {
   if (cache.has(key)) {
     cache.delete(key);
   }
@@ -256,10 +270,13 @@ export function setCachedChangePreview(key: string, value: CachedChangePreview):
 
 /** 缓存键生成 */
 export function getWorkspaceCachePrefix(appInfo?: AppInfo): string {
-  return appInfo?.currentWorkspace?.id ?? "global";
+  return appInfo?.currentWorkspace?.id ?? 'global';
 }
 
-export function getWorkspaceScopedCacheKey(appInfo: AppInfo | undefined, relativePath: string): string {
+export function getWorkspaceScopedCacheKey(
+  appInfo: AppInfo | undefined,
+  relativePath: string
+): string {
   return `${getWorkspaceCachePrefix(appInfo)}:${normalizeWorkspaceRelativePath(relativePath)}`;
 }
 
@@ -287,11 +304,11 @@ export function clearError(get: () => StoreState): void {
 /** 捕获错误并设置到全局错误状态 */
 export function captureError(get: () => StoreState, error: unknown): void {
   const message =
-    typeof error === "string"
+    typeof error === 'string'
       ? error
       : error instanceof Error
         ? error.message
-        : error && typeof error === "object" && "message" in error
+        : error && typeof error === 'object' && 'message' in error
           ? String((error as { message: string }).message)
           : String(error);
   get().setError(message);
@@ -304,10 +321,14 @@ export function setError(get: () => StoreState, message: string): void {
 
 /** 低优先级刷新辅助（使用微任务队列，比 setTimeout(0) 更早执行） */
 export function queueLowPriorityRefresh(refresh: () => Promise<void>): void {
-  if (typeof queueMicrotask === "function") {
-    queueMicrotask(() => { void refresh(); });
+  if (typeof queueMicrotask === 'function') {
+    queueMicrotask(() => {
+      void refresh();
+    });
   } else {
-    window.setTimeout(() => { void refresh(); }, 0);
+    window.setTimeout(() => {
+      void refresh();
+    }, 0);
   }
 }
 
@@ -362,9 +383,11 @@ export async function postMutationRefresh(get: () => StoreState): Promise<void> 
     get().fetchCommandHistory(),
     get().fetchGitStatus(),
   ]).then((results) => {
-    const errors = results.filter((r) => r.status === "rejected").map((r) => (r as PromiseRejectedResult).reason);
+    const errors = results
+      .filter((r) => r.status === 'rejected')
+      .map((r) => (r as PromiseRejectedResult).reason);
     if (errors.length > 0) {
-      console.warn("[postMutationRefresh] Some refreshes failed:", errors);
+      console.warn('[postMutationRefresh] Some refreshes failed:', errors);
     }
   });
 }
@@ -389,9 +412,11 @@ export async function batchExpandAll(
   for (let i = 0; i < toLoad.length; i += concurrency) {
     const batch = toLoad.slice(i, i + concurrency);
     const results = await Promise.allSettled(batch.map((entry) => loader(entry)));
-    const errors = results.filter((r) => r.status === "rejected").map((r) => (r as PromiseRejectedResult).reason);
+    const errors = results
+      .filter((r) => r.status === 'rejected')
+      .map((r) => (r as PromiseRejectedResult).reason);
     if (errors.length > 0) {
-      console.warn("[batchExpandAll] Batch load failures:", errors);
+      console.warn('[batchExpandAll] Batch load failures:', errors);
     }
   }
 }
@@ -401,7 +426,7 @@ export async function expandSingle(
   workspaceId: string,
   setExpanded: (next: Record<string, boolean>) => void,
   hasData: boolean,
-  loadData: () => Promise<void>,
+  loadData: () => Promise<void>
 ): Promise<void> {
   if (currentExpanded[workspaceId]) {
     setExpanded({
@@ -424,11 +449,11 @@ export function createLazyLoader<T>(
   getGuardState: (state: StoreState, id: string) => { hasData: boolean; isLoading: boolean },
   getInitialState: (get_: () => StoreState, id: string) => Partial<StoreState>,
   getSuccessState: (get_: () => StoreState, id: string, data: T) => Partial<StoreState>,
-  getErrorState: (get_: () => StoreState, id: string, message: string) => Partial<StoreState>,
+  getErrorState: (get_: () => StoreState, id: string, message: string) => Partial<StoreState>
 ) {
-  return function(
-    set: StoreApi<StoreState>["setState"],
-    get_: () => StoreState,
+  return function (
+    set: StoreApi<StoreState>['setState'],
+    get_: () => StoreState
   ): (workspaceId: string, workspacePath: string) => Promise<void> {
     return async (workspaceId: string, workspacePath: string) => {
       const state = get_();

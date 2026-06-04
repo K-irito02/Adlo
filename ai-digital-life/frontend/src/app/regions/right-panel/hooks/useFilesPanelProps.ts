@@ -1,12 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useShallow } from "zustand/react/shallow";
-import { useAppStore } from "../../../stores/slicedStore";
-import { useAppActions } from "../../../hooks/useAppActions";
-import { findPatchFileByPath } from "../../../features/patch-review";
-import { filterDiagnosticsForPath, detectEditorLanguage } from "../../../utils/workspacePaths";
-import type { FilesPanelProps } from "../types";
-import type { RightPanelProps } from "../../RightPanel";
-import type { EditorRef } from "../../../stores/types";
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
+import { useAppStore } from '../../../stores/slicedStore';
+import { useAppActions } from '../../../hooks/useAppActions';
+import { findPatchFileByPath } from '../../../features/patch-review';
+import { filterDiagnosticsForPath, detectEditorLanguage } from '../../../utils/workspacePaths';
+import type { FilesPanelProps } from '../types';
+import type { RightPanelProps } from '../../RightPanel';
+import type { EditorRef } from '../../../stores/types';
 
 export function useFilesPanelProps(
   panelProps: RightPanelProps,
@@ -14,10 +14,18 @@ export function useFilesPanelProps(
   onSetDiffLayout: (sideBySide: boolean) => void
 ): FilesPanelProps {
   const {
-    t, standardEditorRef, onOpenFileAtLine, onDiffMount,
-    selectedPatchFilePath, selectedPatchHunkId, collapsedPatchHunkIds,
-    onSelectPatchFile, onSelectPatchHunk, onTogglePatchHunkCollapse,
-    onSetAllPatchHunksCollapsed, onJumpPatchHunk
+    t,
+    standardEditorRef,
+    onOpenFileAtLine,
+    onDiffMount,
+    selectedPatchFilePath,
+    selectedPatchHunkId,
+    collapsedPatchHunkIds,
+    onSelectPatchFile,
+    onSelectPatchHunk,
+    onTogglePatchHunkCollapse,
+    onSetAllPatchHunksCollapsed,
+    onJumpPatchHunk,
   } = panelProps;
 
   const actions = useAppActions();
@@ -29,7 +37,9 @@ export function useFilesPanelProps(
   const outline = useAppStore(useShallow((s) => s.outline));
   const workspaceTrees = useAppStore(useShallow((s) => s.workspaceTrees));
   const recentWorkspaces = useAppStore(useShallow((s) => s.recentWorkspaces));
-  const workspaceTreeExpandedInFileNav = useAppStore(useShallow((s) => s.workspaceTreeExpandedInFileNav));
+  const workspaceTreeExpandedInFileNav = useAppStore(
+    useShallow((s) => s.workspaceTreeExpandedInFileNav)
+  );
   const workspaceTreeLoading = useAppStore(useShallow((s) => s.workspaceTreeLoading));
   const workspaceTreeErrors = useAppStore(useShallow((s) => s.workspaceTreeErrors));
   const searchQuery = useAppStore((s) => s.searchQuery);
@@ -42,8 +52,10 @@ export function useFilesPanelProps(
   const editorDirtyTimerRef = useRef<number | undefined>(undefined);
 
   const allExpanded = useMemo(() => {
-    const visible = recentWorkspaces.filter(w => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available);
-    return visible.length > 0 && visible.every(w => workspaceTreeExpandedInFileNav[w.id]);
+    const visible = recentWorkspaces.filter(
+      (w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available
+    );
+    return visible.length > 0 && visible.every((w) => workspaceTreeExpandedInFileNav[w.id]);
   }, [recentWorkspaces, workspaceTreeExpandedInFileNav]);
 
   const filePatch = useMemo(() => {
@@ -52,7 +64,11 @@ export function useFilesPanelProps(
   }, [activePatchSet, selectedFilePath, selectedPatchFilePath]);
 
   const selectedDiagnostics = useMemo(
-    () => filterDiagnosticsForPath(latestPatchApplication?.validation?.diagnostics ?? [], selectedFilePath),
+    () =>
+      filterDiagnosticsForPath(
+        latestPatchApplication?.validation?.diagnostics ?? [],
+        selectedFilePath
+      ),
     [selectedFilePath, latestPatchApplication?.validation?.diagnostics]
   );
 
@@ -77,25 +93,34 @@ export function useFilesPanelProps(
       window.clearTimeout(editorDirtyTimerRef.current);
       editorDirtyTimerRef.current = window.setTimeout(() => {
         if (useAppStore.getState().selectedFilePath !== pathAtEdit) return;
-        const baseline = useAppStore.getState().fileContent ?? "";
-        const dirty = (value ?? "") !== baseline;
+        const baseline = useAppStore.getState().fileContent ?? '';
+        const dirty = (value ?? '') !== baseline;
         actions.notifyEditorBufferDirty(pathAtEdit, dirty);
       }, 300);
     },
     [actions.notifyEditorBufferDirty, selectedFilePath]
   );
 
-  const handleOpenFile = useCallback((path: string) => {
-    void actions.openFile(path);
-  }, [actions.openFile]);
+  const handleOpenFile = useCallback(
+    (path: string) => {
+      void actions.openFile(path);
+    },
+    [actions.openFile]
+  );
 
-  const handleOpenFileForWorkspace = useCallback((workspaceId: string, workspacePath: string, path: string) => {
-    void actions.openFileForWorkspace(workspaceId, workspacePath, path);
-  }, [actions.openFileForWorkspace]);
+  const handleOpenFileForWorkspace = useCallback(
+    (workspaceId: string, workspacePath: string, path: string) => {
+      void actions.openFileForWorkspace(workspaceId, workspacePath, path);
+    },
+    [actions.openFileForWorkspace]
+  );
 
-  const handleSearch = useCallback((query: string) => {
-    void actions.searchFiles(query);
-  }, [actions.searchFiles]);
+  const handleSearch = useCallback(
+    (query: string) => {
+      void actions.searchFiles(query);
+    },
+    [actions.searchFiles]
+  );
 
   const handleRefreshWorkspaceTree = useCallback(() => {
     void actions.refreshWorkspaceTree();
@@ -113,27 +138,42 @@ export function useFilesPanelProps(
     void actions.refreshAllWorkspaceTrees();
   }, [actions.refreshAllWorkspaceTrees]);
 
-  const handleRefreshOneWorkspace = useCallback((workspaceId: string) => {
-    const ws = recentWorkspaces.find(r => r.id === workspaceId);
-    if (ws) void actions.loadWorkspaceTree(workspaceId, ws.path);
-  }, [recentWorkspaces, actions.loadWorkspaceTree]);
+  const handleRefreshOneWorkspace = useCallback(
+    (workspaceId: string) => {
+      const ws = recentWorkspaces.find((r) => r.id === workspaceId);
+      if (ws) void actions.loadWorkspaceTree(workspaceId, ws.path);
+    },
+    [recentWorkspaces, actions.loadWorkspaceTree]
+  );
 
-  const handleToggleExpandInFileNav = useCallback((workspaceId: string) => {
-    const ws = recentWorkspaces.find(r => r.id === workspaceId);
-    if (ws) void actions.expandWorkspaceTreeInFileNav(workspaceId, ws.path);
-  }, [recentWorkspaces, actions.expandWorkspaceTreeInFileNav]);
+  const handleToggleExpandInFileNav = useCallback(
+    (workspaceId: string) => {
+      const ws = recentWorkspaces.find((r) => r.id === workspaceId);
+      if (ws) void actions.expandWorkspaceTreeInFileNav(workspaceId, ws.path);
+    },
+    [recentWorkspaces, actions.expandWorkspaceTreeInFileNav]
+  );
 
-  const handleHideFromRightPanels = useCallback((workspaceId: string) => {
-    void actions.hideWorkspaceFromRightPanels(workspaceId);
-  }, [actions.hideWorkspaceFromRightPanels]);
+  const handleHideFromRightPanels = useCallback(
+    (workspaceId: string) => {
+      void actions.hideWorkspaceFromRightPanels(workspaceId);
+    },
+    [actions.hideWorkspaceFromRightPanels]
+  );
 
-  const handleCreateWorkspaceFile = useCallback((relativePath: string, content?: string): Promise<string | undefined> => {
-    return actions.createWorkspaceFile(relativePath, content);
-  }, [actions.createWorkspaceFile]);
+  const handleCreateWorkspaceFile = useCallback(
+    (relativePath: string, content?: string): Promise<string | undefined> => {
+      return actions.createWorkspaceFile(relativePath, content);
+    },
+    [actions.createWorkspaceFile]
+  );
 
-  const handleCreateWorkspaceFolder = useCallback((relativePath: string): Promise<string | undefined> => {
-    return actions.createWorkspaceFolder(relativePath);
-  }, [actions.createWorkspaceFolder]);
+  const handleCreateWorkspaceFolder = useCallback(
+    (relativePath: string): Promise<string | undefined> => {
+      return actions.createWorkspaceFolder(relativePath);
+    },
+    [actions.createWorkspaceFolder]
+  );
 
   useEffect(() => () => window.clearTimeout(editorDirtyTimerRef.current), [selectedFilePath]);
 
@@ -141,65 +181,106 @@ export function useFilesPanelProps(
     setLocalSearchQuery(searchQuery);
   }, [searchQuery]);
 
-  return useMemo(() => ({
-    t,
-    appInfo,
-    selectedFilePath,
-    selectedFileWorkspaceId,
-    fileContent,
-    filePatch,
-    editorLanguage,
-    diffSideBySide,
-    diagnostics: selectedDiagnostics,
-    editorHint,
-    outline,
-    workspaceTrees,
-    recentWorkspaces,
-    allExpanded,
-    workspaceTreeExpandedInFileNav,
-    workspaceTreeLoading,
-    workspaceTreeErrors,
-    searchQuery: localSearchQuery,
-    searchResults,
-    dirtyEditorPaths,
-    externalChangePath: externalFileChange?.path,
+  const baseProps = useMemo(
+    () => ({
+      t,
+      appInfo,
+      selectedFilePath,
+      selectedFileWorkspaceId,
+      fileContent,
+      filePatch,
+      editorLanguage,
+      diffSideBySide,
+      diagnostics: selectedDiagnostics,
+      editorHint,
+      outline,
+      workspaceTrees,
+      recentWorkspaces,
+      allExpanded,
+      workspaceTreeExpandedInFileNav,
+      workspaceTreeLoading,
+      workspaceTreeErrors,
+      searchQuery: localSearchQuery,
+      searchResults,
+      dirtyEditorPaths,
+      externalChangePath: externalFileChange?.path,
+      onOpenFile: handleOpenFile,
+      onOpenFileForWorkspace: handleOpenFileForWorkspace,
+      onOpenFileAtLine,
+      onDiffMount,
+      onSearch: handleSearch,
+      onSearchChange: setLocalSearchQuery,
+      onRefreshWorkspaceTree: handleRefreshWorkspaceTree,
+      onExpandAll: handleExpandAll,
+      onCollapseAll: handleCollapseAll,
+      onRefreshAll: handleRefreshAll,
+      onRefreshOneWorkspace: handleRefreshOneWorkspace,
+      onToggleExpandInFileNav: handleToggleExpandInFileNav,
+      onHideFromRightPanels: handleHideFromRightPanels,
+      onCreateWorkspaceFile: handleCreateWorkspaceFile,
+      onCreateWorkspaceFolder: handleCreateWorkspaceFolder,
+      onSetDiffLayout,
+      onJumpPatchHunk,
+      onSelectPatchHunk,
+      onTogglePatchHunkCollapse,
+      onSetAllPatchHunksCollapsed,
+      activePatchSet,
+      selectedPatchFilePath,
+      selectedPatchHunkId,
+      collapsedPatchHunkIds,
+    }),
+    [
+      t,
+      appInfo,
+      selectedFilePath,
+      selectedFileWorkspaceId,
+      fileContent,
+      filePatch,
+      editorLanguage,
+      diffSideBySide,
+      selectedDiagnostics,
+      outline,
+      workspaceTrees,
+      recentWorkspaces,
+      allExpanded,
+      workspaceTreeExpandedInFileNav,
+      workspaceTreeLoading,
+      workspaceTreeErrors,
+      localSearchQuery,
+      searchResults,
+      dirtyEditorPaths,
+      externalFileChange?.path,
+      handleOpenFile,
+      handleOpenFileForWorkspace,
+      onOpenFileAtLine,
+      onDiffMount,
+      handleSearch,
+      setLocalSearchQuery,
+      handleRefreshWorkspaceTree,
+      handleExpandAll,
+      handleCollapseAll,
+      handleRefreshAll,
+      handleRefreshOneWorkspace,
+      handleToggleExpandInFileNav,
+      handleHideFromRightPanels,
+      handleCreateWorkspaceFile,
+      handleCreateWorkspaceFolder,
+      onSetDiffLayout,
+      onJumpPatchHunk,
+      onSelectPatchHunk,
+      onTogglePatchHunkCollapse,
+      onSetAllPatchHunksCollapsed,
+      activePatchSet,
+      selectedPatchFilePath,
+      selectedPatchHunkId,
+      collapsedPatchHunkIds,
+    ]
+  );
+
+  return {
+    ...baseProps,
     standardEditorRef,
-    onOpenFile: handleOpenFile,
-    onOpenFileForWorkspace: handleOpenFileForWorkspace,
-    onOpenFileAtLine,
     onEditorChange: handleEditorChange,
     onEditorMount: handleEditorMount,
-    onDiffMount,
-    onSearch: handleSearch,
-    onSearchChange: setLocalSearchQuery,
-    onRefreshWorkspaceTree: handleRefreshWorkspaceTree,
-    onExpandAll: handleExpandAll,
-    onCollapseAll: handleCollapseAll,
-    onRefreshAll: handleRefreshAll,
-    onRefreshOneWorkspace: handleRefreshOneWorkspace,
-    onToggleExpandInFileNav: handleToggleExpandInFileNav,
-    onHideFromRightPanels: handleHideFromRightPanels,
-    onCreateWorkspaceFile: handleCreateWorkspaceFile,
-    onCreateWorkspaceFolder: handleCreateWorkspaceFolder,
-    onSetDiffLayout,
-    onJumpPatchHunk,
-    onSelectPatchHunk,
-    onTogglePatchHunkCollapse,
-    onSetAllPatchHunksCollapsed,
-    activePatchSet,
-    selectedPatchFilePath,
-    selectedPatchHunkId,
-    collapsedPatchHunkIds,
-  }), [
-    t, appInfo, selectedFilePath, selectedFileWorkspaceId, fileContent, filePatch, editorLanguage, diffSideBySide,
-    selectedDiagnostics, outline, workspaceTrees, recentWorkspaces, allExpanded, workspaceTreeExpandedInFileNav,
-    workspaceTreeLoading, workspaceTreeErrors, localSearchQuery, searchResults, dirtyEditorPaths,
-    externalFileChange?.path, standardEditorRef, handleOpenFile, handleOpenFileForWorkspace, onOpenFileAtLine,
-    handleEditorChange, handleEditorMount, onDiffMount, handleSearch, setLocalSearchQuery,
-    handleRefreshWorkspaceTree, handleExpandAll, handleCollapseAll, handleRefreshAll, handleRefreshOneWorkspace,
-    handleToggleExpandInFileNav, handleHideFromRightPanels, handleCreateWorkspaceFile,
-    handleCreateWorkspaceFolder, onSetDiffLayout, onJumpPatchHunk, onSelectPatchHunk,
-    onTogglePatchHunkCollapse, onSetAllPatchHunksCollapsed, activePatchSet, selectedPatchFilePath,
-    selectedPatchHunkId, collapsedPatchHunkIds
-  ]);
+  };
 }

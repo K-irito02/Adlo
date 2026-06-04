@@ -3,8 +3,8 @@
 use adl_errors::AppError;
 use adl_kernel::{
     create_id, estimate_tokens, now_ms, ConversationScenario, ModelCallAuditRecord,
-    ModelChatMessage, ModelGatewayHealthSnapshot, ModelPreferences, ModelProviderId,
-    ModelResponse, ModelRouteDecision, ModelTokenUsage, ProviderHealthStatus,
+    ModelChatMessage, ModelGatewayHealthSnapshot, ModelPreferences, ModelProviderId, ModelResponse,
+    ModelRouteDecision, ModelTokenUsage, ProviderHealthStatus,
 };
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -26,10 +26,7 @@ impl ModelGateway {
             .timeout(Duration::from_secs(60))
             .build()
             .map_err(|e| AppError::Model(e.to_string()))?;
-        Ok(Self {
-            client,
-            preferences,
-        })
+        Ok(Self { client, preferences })
     }
 
     pub fn preferences(&self) -> &ModelPreferences {
@@ -48,10 +45,7 @@ impl ModelGateway {
         let route = self.route_chain();
         let route_meta = ModelRouteDecision {
             reason: "provider priority and enabled state".into(),
-            chain: route
-                .iter()
-                .map(|provider| provider.as_str().to_string())
-                .collect(),
+            chain: route.iter().map(|provider| provider.as_str().to_string()).collect(),
             synthetic: None,
         };
 
@@ -155,10 +149,7 @@ impl ModelGateway {
                 }
             })
             .collect();
-        ModelGatewayHealthSnapshot {
-            checked_at,
-            providers,
-        }
+        ModelGatewayHealthSnapshot { checked_at, providers }
     }
 
     fn route_chain(&self) -> Vec<ModelProviderId> {
@@ -170,10 +161,7 @@ impl ModelGateway {
             .map(|(provider, pref)| (*provider, pref.priority))
             .collect::<Vec<_>>();
         providers.sort_by_key(|(_, priority)| *priority);
-        providers
-            .into_iter()
-            .map(|(provider, _)| provider)
-            .collect()
+        providers.into_iter().map(|(provider, _)| provider).collect()
     }
 
     async fn call_provider(
@@ -184,8 +172,7 @@ impl ModelGateway {
     ) -> Result<ModelResponse, AppError> {
         let api_key = tokio::task::spawn_blocking(move || get_provider_secret(provider))
             .await
-            .map_err(|e| AppError::Security(e.to_string()))?
-            .map_err(|e| e)?;
+            .map_err(|e| AppError::Security(e.to_string()))??;
         let url = match provider {
             ModelProviderId::Deepseek => format!("{DEEPSEEK_BASE_URL}/chat/completions"),
             ModelProviderId::Minimax => format!("{MINIMAX_BASE_URL}/v1/chat/completions"),
@@ -221,15 +208,12 @@ impl ModelGateway {
                 response.status()
             )));
         }
-        let body: ChatCompletionResponse = response
-            .json()
-            .await
-            .map_err(|e| AppError::Model(e.to_string()))?;
-        let content = body
-            .choices
-            .first()
-            .map(|choice| choice.message.content.clone())
-            .ok_or_else(|| AppError::Model(format!("API returned empty choices array (model={model_id})")))?;
+        let body: ChatCompletionResponse =
+            response.json().await.map_err(|e| AppError::Model(e.to_string()))?;
+        let content =
+            body.choices.first().map(|choice| choice.message.content.clone()).ok_or_else(|| {
+                AppError::Model(format!("API returned empty choices array (model={model_id})"))
+            })?;
         Ok(ModelResponse {
             provider_id: provider,
             model_id: body.model.unwrap_or_else(|| model_id.into()),
@@ -294,10 +278,8 @@ fn deterministic_fallback(messages: &[ModelChatMessage], error: Option<&str>) ->
 }
 
 fn estimate_usage(messages: &[ModelChatMessage]) -> ModelTokenUsage {
-    let prompt_tokens = messages
-        .iter()
-        .map(|message| estimate_tokens(&message.content))
-        .sum::<usize>() as u32;
+    let prompt_tokens =
+        messages.iter().map(|message| estimate_tokens(&message.content)).sum::<usize>() as u32;
     ModelTokenUsage {
         prompt_tokens: Some(prompt_tokens),
         completion_tokens: Some(64),
@@ -331,10 +313,7 @@ fn audit_record(input: AuditInput<'_>) -> ModelCallAuditRecord {
         scenario: input.scenario,
         route_meta: input.route_meta,
         prompt_tokens: input.usage.as_ref().and_then(|usage| usage.prompt_tokens),
-        completion_tokens: input
-            .usage
-            .as_ref()
-            .and_then(|usage| usage.completion_tokens),
+        completion_tokens: input.usage.as_ref().and_then(|usage| usage.completion_tokens),
         latency_ms: input.started.elapsed().as_millis() as i64,
         error: input.error,
         streamed: false,

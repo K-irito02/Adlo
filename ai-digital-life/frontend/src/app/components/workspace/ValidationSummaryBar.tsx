@@ -1,6 +1,6 @@
-import React from "react";
-import type { CopyDict } from "../../i18n";
-import { IconCheckCircle, IconAlertTriangle } from "../../icons";
+import React from 'react';
+import type { CopyDict } from '../../i18n';
+import { IconCheckCircle, IconAlertTriangle } from '../../icons';
 
 interface ValidationSummaryBarProps {
   t: CopyDict;
@@ -11,7 +11,14 @@ interface ValidationSummaryBarProps {
   onClickWarnings?: () => void;
 }
 
-export function ValidationSummaryBar({ t, passed, warnings, errors, onClickErrors, onClickWarnings }: ValidationSummaryBarProps) {
+export function ValidationSummaryBar({
+  t,
+  passed,
+  warnings,
+  errors,
+  onClickErrors,
+  onClickWarnings,
+}: ValidationSummaryBarProps) {
   if (passed === 0 && warnings === 0 && errors === 0) return null;
 
   return (

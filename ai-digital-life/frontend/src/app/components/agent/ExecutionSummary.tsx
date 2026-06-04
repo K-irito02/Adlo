@@ -1,7 +1,7 @@
-import React from "react";
-import type { ExecutionSummaryConversationBlock } from "@ai-digital-life/kernel";
-import type { CopyDict } from "../../i18n";
-import { IconCheckCircle, IconAlertTriangle, IconRefreshCw } from "../../icons";
+import React from 'react';
+import type { ExecutionSummaryConversationBlock } from '@ai-digital-life/kernel';
+import type { CopyDict } from '../../i18n';
+import { IconCheckCircle, IconAlertTriangle, IconRefreshCw } from '../../icons';
 
 interface ExecutionSummaryProps {
   t: CopyDict;
@@ -9,28 +9,34 @@ interface ExecutionSummaryProps {
   onViewChanges?: () => void;
 }
 
-function statusLabel(t: CopyDict, status: ExecutionSummaryConversationBlock["status"]): string {
+function statusLabel(t: CopyDict, status: ExecutionSummaryConversationBlock['status']): string {
   const map: Record<typeof status, keyof CopyDict> = {
-    succeeded: "executionSucceeded",
-    failed: "executionFailed",
-    "rolled-back": "executionRolledBack",
+    succeeded: 'executionSucceeded',
+    failed: 'executionFailed',
+    'rolled-back': 'executionRolledBack',
   };
   return t[map[status]] as string;
 }
 
-function statusIcon(status: ExecutionSummaryConversationBlock["status"]) {
+function statusIcon(status: ExecutionSummaryConversationBlock['status']) {
   switch (status) {
-    case "succeeded": return <IconCheckCircle size={16} decorative />;
-    case "failed": return <IconAlertTriangle size={16} decorative />;
-    case "rolled-back": return <IconRefreshCw size={16} decorative />;
+    case 'succeeded':
+      return <IconCheckCircle size={16} decorative />;
+    case 'failed':
+      return <IconAlertTriangle size={16} decorative />;
+    case 'rolled-back':
+      return <IconRefreshCw size={16} decorative />;
   }
 }
 
-function statusChipClass(status: ExecutionSummaryConversationBlock["status"]): string {
+function statusChipClass(status: ExecutionSummaryConversationBlock['status']): string {
   switch (status) {
-    case "succeeded": return "adl-chip--success";
-    case "failed": return "adl-chip--danger";
-    case "rolled-back": return "adl-chip--warning";
+    case 'succeeded':
+      return 'adl-chip--success';
+    case 'failed':
+      return 'adl-chip--danger';
+    case 'rolled-back':
+      return 'adl-chip--warning';
   }
 }
 
@@ -50,7 +56,9 @@ export function ExecutionSummaryCard({ t, block, onViewChanges }: ExecutionSumma
           <div className="adl-execution-summary__section">
             <strong>{t.filesModified}</strong>
             <ul>
-              {block.filesModified.map((f) => <li key={f}>{f}</li>)}
+              {block.filesModified.map((f) => (
+                <li key={f}>{f}</li>
+              ))}
             </ul>
           </div>
         )}
@@ -59,7 +67,9 @@ export function ExecutionSummaryCard({ t, block, onViewChanges }: ExecutionSumma
           <div className="adl-execution-summary__section">
             <strong>{t.commandsExecuted}</strong>
             <ul>
-              {block.commandsExecuted.map((c, i) => <li key={i}>{c}</li>)}
+              {block.commandsExecuted.map((c, i) => (
+                <li key={i}>{c}</li>
+              ))}
             </ul>
           </div>
         )}
@@ -92,7 +102,11 @@ export function ExecutionSummaryCard({ t, block, onViewChanges }: ExecutionSumma
 
       {onViewChanges && (
         <footer className="adl-execution-summary__footer">
-          <button type="button" className="adl-btn adl-btn--ghost adl-btn--sm" onClick={onViewChanges}>
+          <button
+            type="button"
+            className="adl-btn adl-btn--ghost adl-btn--sm"
+            onClick={onViewChanges}
+          >
             {t.viewChanges}
           </button>
         </footer>

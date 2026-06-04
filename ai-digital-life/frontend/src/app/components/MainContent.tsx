@@ -1,36 +1,36 @@
-import React, { useCallback } from "react";
-import { WelcomeState, type WelcomeStateProps } from "./WelcomeState";
-import { MessageStream, type MessageStreamProps } from "./MessageStream";
-import { Composer, type ComposerProps } from "./Composer";
+import React, { useCallback } from 'react';
+import { WelcomeState, type WelcomeStateProps } from './WelcomeState';
+import { MessageStream, type MessageStreamProps } from './MessageStream';
+import { Composer, type ComposerProps } from './Composer';
 
 interface MainContentProps {
   hasWorkspace: boolean;
   hasActiveSession: boolean;
-  messages: MessageStreamProps["messages"];
+  messages: MessageStreamProps['messages'];
   streamingText?: string;
   isStreaming: boolean;
   input: string;
   onInputChange: (value: string) => void;
   onSubmit: () => void;
-  actionState: ComposerProps["actionState"];
+  actionState: ComposerProps['actionState'];
   onSend: () => void;
   onStop: () => void;
   onRetry: () => void;
-  recentWorkspaces?: WelcomeStateProps["recentWorkspaces"];
+  recentWorkspaces?: WelcomeStateProps['recentWorkspaces'];
   onOpenWorkspace: () => void;
-  onSelectRecentWorkspace: WelcomeStateProps["onSelectRecentWorkspace"];
-  onSuggestion?: WelcomeStateProps["onSuggestion"];
-  activeContexts?: ComposerProps["activeContexts"];
-  onAddContext?: ComposerProps["onAddContext"];
-  attachments?: ComposerProps["attachments"];
-  onRemoveAttachment?: ComposerProps["onRemoveAttachment"];
+  onSelectRecentWorkspace: WelcomeStateProps['onSelectRecentWorkspace'];
+  onSuggestion?: WelcomeStateProps['onSuggestion'];
+  activeContexts?: ComposerProps['activeContexts'];
+  onAddContext?: ComposerProps['onAddContext'];
+  attachments?: ComposerProps['attachments'];
+  onRemoveAttachment?: ComposerProps['onRemoveAttachment'];
 }
 
 export function MainContent({
   hasWorkspace,
   hasActiveSession,
   messages,
-  streamingText = "",
+  streamingText = '',
   isStreaming,
   input,
   onInputChange,
@@ -46,7 +46,7 @@ export function MainContent({
   activeContexts = [],
   onAddContext,
   attachments,
-  onRemoveAttachment
+  onRemoveAttachment,
 }: MainContentProps) {
   const handleSuggestionClick = useCallback(
     (text: string) => {

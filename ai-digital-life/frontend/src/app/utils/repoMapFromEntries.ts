@@ -1,4 +1,4 @@
-import type { RepoMapEntry, RepoMapNode } from "@ai-digital-life/kernel";
+import type { RepoMapEntry, RepoMapNode } from '@ai-digital-life/kernel';
 
 type MutableRepoMapNode = RepoMapNode & { children: MutableRepoMapNode[] };
 
@@ -6,23 +6,23 @@ function createDirectoryNode(path: string, name: string): MutableRepoMapNode {
   return {
     path,
     name,
-    kind: "directory",
+    kind: 'directory',
     fileCount: 0,
-    children: []
+    children: [],
   };
 }
 
 function sortTree(nodes: MutableRepoMapNode[]): RepoMapNode[] {
   nodes.sort((left, right) => {
     if (left.kind !== right.kind) {
-      return left.kind === "directory" ? -1 : 1;
+      return left.kind === 'directory' ? -1 : 1;
     }
-    return left.name.localeCompare(right.name, undefined, { sensitivity: "base" });
+    return left.name.localeCompare(right.name, undefined, { sensitivity: 'base' });
   });
 
   return nodes.map((node) => ({
     ...node,
-    children: sortTree(node.children)
+    children: sortTree(node.children),
   }));
 }
 
@@ -37,12 +37,12 @@ export function repoMapEntriesToTree(entries: RepoMapEntry[]): RepoMapNode[] {
       return existing;
     }
 
-    const segments = path.split("/").filter(Boolean);
+    const segments = path.split('/').filter(Boolean);
     const name = segments[segments.length - 1] ?? path;
     const node = createDirectoryNode(path, name);
     directories.set(path, node);
 
-    const parentPath = segments.slice(0, -1).join("/");
+    const parentPath = segments.slice(0, -1).join('/');
     if (parentPath) {
       const parent = ensureDirectory(parentPath);
       if (!parent.children.some((child) => child.path === node.path)) {
@@ -56,21 +56,21 @@ export function repoMapEntriesToTree(entries: RepoMapEntry[]): RepoMapNode[] {
   };
 
   for (const entry of entries) {
-    const normalizedPath = entry.path.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
+    const normalizedPath = entry.path.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
     if (!normalizedPath) {
       continue;
     }
-    const segments = normalizedPath.split("/").filter(Boolean);
+    const segments = normalizedPath.split('/').filter(Boolean);
     if (segments.length === 0) {
       continue;
     }
 
-    const parentPath = segments.slice(0, -1).join("/");
+    const parentPath = segments.slice(0, -1).join('/');
     if (parentPath) {
       ensureDirectory(parentPath);
     }
 
-    if (entry.type === "directory") {
+    if (entry.type === 'directory') {
       ensureDirectory(normalizedPath);
       continue;
     }
@@ -78,9 +78,9 @@ export function repoMapEntriesToTree(entries: RepoMapEntry[]): RepoMapNode[] {
     const fileNode: MutableRepoMapNode = {
       path: normalizedPath,
       name: segments[segments.length - 1],
-      kind: "file",
+      kind: 'file',
       fileCount: 0,
-      children: []
+      children: [],
     };
     if (!parentPath) {
       if (!root.some((child) => child.path === fileNode.path)) {
@@ -95,7 +95,7 @@ export function repoMapEntriesToTree(entries: RepoMapEntry[]): RepoMapNode[] {
   }
 
   const countFiles = (node: MutableRepoMapNode): number => {
-    if (node.kind === "file") {
+    if (node.kind === 'file') {
       return 1;
     }
     const total = node.children.reduce((sum, child) => sum + countFiles(child), 0);

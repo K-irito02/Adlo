@@ -13,6 +13,8 @@
 | 包管理 | pnpm（前端）/ Cargo（Rust） |
 | Rust 质量 | `cargo clippy` + `cargo fmt` + `rustfmt.toml` + `clippy.toml` |
 | 前端质量 | ESLint v9（flat config）+ Prettier + TypeScript-ESLint + React Hooks plugin |
+| Rust Lint 执行命令 | `cargo clippy --workspace --all-targets` | |
+| 前端全量检查执行命令 | `cd frontend && npx eslint . && npx tsc --noEmit` | |
 
 ## 当前阶段
 

@@ -1,13 +1,9 @@
-import React, { useRef, useState } from "react";
-import type { CopyDict } from "../i18n";
-import {
-  IconChevronRight,
-  IconFolder,
-  IconFolderOpen
-} from "../icons";
-import { TooltipSimple } from "./Tooltip";
+import React, { useRef, useState } from 'react';
+import type { CopyDict } from '../i18n';
+import { IconChevronRight, IconFolder, IconFolderOpen } from '../icons';
+import { TooltipSimple } from './Tooltip';
 
-export type WorkspaceActionMode = "pick" | "open" | "create";
+export type WorkspaceActionMode = 'pick' | 'open' | 'create';
 
 interface WorkspaceSplitButtonProps {
   t: CopyDict;
@@ -24,20 +20,21 @@ export function WorkspaceSplitButton({
   onOpenWorkspace,
   onClose,
   initialMode,
-  persistMode = true
+  persistMode = true,
 }: WorkspaceSplitButtonProps) {
   const [actionMode, setActionMode] = useState<WorkspaceActionMode>(() => {
     if (initialMode) return initialMode;
-    const saved = typeof localStorage !== "undefined" ? localStorage.getItem("adl_workspace_menu_mode") : null;
-    return (saved === "pick" || saved === "open" || saved === "create") ? saved : "pick";
+    const saved =
+      typeof localStorage !== 'undefined' ? localStorage.getItem('adl_workspace_menu_mode') : null;
+    return saved === 'pick' || saved === 'open' || saved === 'create' ? saved : 'pick';
   });
-  const [actionDraft, setActionDraft] = useState("");
-  const [actionError, setActionError] = useState("");
+  const [actionDraft, setActionDraft] = useState('');
+  const [actionError, setActionError] = useState('');
   const [defaultCreateDir, setDefaultCreateDir] = useState(() => {
-    if (typeof localStorage === "undefined") return "";
-    return localStorage.getItem("adl_workspace_default_create_dir") || "";
+    if (typeof localStorage === 'undefined') return '';
+    return localStorage.getItem('adl_workspace_default_create_dir') || '';
   });
-  const [createDirDraft, setCreateDirDraft] = useState("");
+  const [createDirDraft, setCreateDirDraft] = useState('');
   const [splitMenuOpen, setSplitMenuOpen] = useState(false);
   const [settingPanelOpen, setSettingPanelOpen] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -60,7 +57,7 @@ export function WorkspaceSplitButton({
     const normalized = path.trim();
     if (!normalized) return;
     setProcessing(true);
-    setActionError("");
+    setActionError('');
     try {
       const result = await onOpenWorkspace(normalized);
       if (!result.ok) {
@@ -77,12 +74,12 @@ export function WorkspaceSplitButton({
     const trimmed = input.trim();
     if (!trimmed) return;
     setProcessing(true);
-    setActionError("");
+    setActionError('');
     try {
       const isSimpleName = !/[\\/]/.test(trimmed);
       let resolvedPath: string;
       if (isSimpleName && defaultCreateDir) {
-        resolvedPath = `${defaultCreateDir.replace(/\\/g, "/").replace(/\/+$/, "")}/${trimmed}`;
+        resolvedPath = `${defaultCreateDir.replace(/\\/g, '/').replace(/\/+$/, '')}/${trimmed}`;
       } else {
         resolvedPath = trimmed;
       }
@@ -99,28 +96,30 @@ export function WorkspaceSplitButton({
 
   const handleSplitMainAction = () => {
     if (processing) return;
-    if (actionMode === "pick") {
+    if (actionMode === 'pick') {
       void handlePickDirectory();
-    } else if (actionMode === "open") {
+    } else if (actionMode === 'open') {
       void handleOpenWorkspaceByPath(actionDraft);
-    } else if (actionMode === "create") {
+    } else if (actionMode === 'create') {
       void handleCreateWorkspace(actionDraft);
     }
   };
 
   const handleActionModeChange = (mode: WorkspaceActionMode) => {
     setActionMode(mode);
-    setActionError("");
+    setActionError('');
     setSettingPanelOpen(false);
     setSplitMenuOpen(false);
     if (persistMode) {
-      try { localStorage.setItem("adl_workspace_menu_mode", mode); } catch {}
+      try {
+        localStorage.setItem('adl_workspace_menu_mode', mode);
+      } catch {}
     }
   };
 
   const handleSplitDropEnter = () => {
     if (splitHoverTimer.current) clearTimeout(splitHoverTimer.current);
-    setActionError("");
+    setActionError('');
     setSettingPanelOpen(false);
     setSplitMenuOpen(true);
   };
@@ -159,21 +158,17 @@ export function WorkspaceSplitButton({
 
   return (
     <>
-      <div className="adl-split-btn" style={{ position: "relative" }}>
+      <div className="adl-split-btn" style={{ position: 'relative' }}>
         <button
           type="button"
           className="adl-split-btn__main"
           onClick={handleSplitMainAction}
           disabled={processing}
         >
-          {actionMode === "create" ? (
-            <IconFolder size={14} />
-          ) : (
-            <IconFolderOpen size={14} />
-          )}
-          {actionMode === "pick" && t.workspacePickDirectory}
-          {actionMode === "open" && t.workspaceOpenFolder}
-          {actionMode === "create" && t.workspaceCreateFolder}
+          {actionMode === 'create' ? <IconFolder size={14} /> : <IconFolderOpen size={14} />}
+          {actionMode === 'pick' && t.workspacePickDirectory}
+          {actionMode === 'open' && t.workspaceOpenFolder}
+          {actionMode === 'create' && t.workspaceCreateFolder}
         </button>
         <button
           type="button"
@@ -192,24 +187,33 @@ export function WorkspaceSplitButton({
           >
             <button
               type="button"
-              className={`adl-split-btn__option${actionMode === "pick" ? " is-active" : ""}`}
-              onClick={() => { handleActionModeChange("pick"); setSplitMenuOpen(false); }}
+              className={`adl-split-btn__option${actionMode === 'pick' ? ' is-active' : ''}`}
+              onClick={() => {
+                handleActionModeChange('pick');
+                setSplitMenuOpen(false);
+              }}
             >
               <IconFolderOpen size={14} />
               <span>{t.workspacePickDirectory}</span>
             </button>
             <button
               type="button"
-              className={`adl-split-btn__option${actionMode === "open" ? " is-active" : ""}`}
-              onClick={() => { handleActionModeChange("open"); setSplitMenuOpen(false); }}
+              className={`adl-split-btn__option${actionMode === 'open' ? ' is-active' : ''}`}
+              onClick={() => {
+                handleActionModeChange('open');
+                setSplitMenuOpen(false);
+              }}
             >
               <IconFolderOpen size={14} />
               <span>{t.workspaceOpenFolder}</span>
             </button>
             <button
               type="button"
-              className={`adl-split-btn__option${actionMode === "create" ? " is-active" : ""}`}
-              onClick={() => { handleActionModeChange("create"); setSplitMenuOpen(false); }}
+              className={`adl-split-btn__option${actionMode === 'create' ? ' is-active' : ''}`}
+              onClick={() => {
+                handleActionModeChange('create');
+                setSplitMenuOpen(false);
+              }}
             >
               <IconFolder size={14} />
               <span>{t.workspaceCreateFolder}</span>
@@ -218,30 +222,40 @@ export function WorkspaceSplitButton({
         ) : null}
       </div>
 
-      {actionMode === "open" ? (
+      {actionMode === 'open' ? (
         <div className="adl-split-btn__input-area">
           <div className="adl-split-btn__input-row">
             <input
-              className={`adl-split-btn__input${actionError ? " adl-split-btn__input--error" : ""}`}
+              className={`adl-split-btn__input${actionError ? ' adl-split-btn__input--error' : ''}`}
               value={actionDraft}
-              onChange={(e) => { setActionDraft(e.currentTarget.value); if (actionError) setActionError(""); }}
+              onChange={(e) => {
+                setActionDraft(e.currentTarget.value);
+                if (actionError) setActionError('');
+              }}
               placeholder={t.workspaceOpenInputPlaceholder}
-              onKeyDown={(e) => { if (e.key === "Enter") handleOpenWorkspaceByPath(actionDraft); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleOpenWorkspaceByPath(actionDraft);
+              }}
             />
           </div>
           {actionError ? <p className="adl-split-btn__error">{actionError}</p> : null}
         </div>
       ) : null}
 
-      {actionMode === "create" ? (
-        <div className="adl-split-btn__input-area" style={{ position: "relative" }}>
+      {actionMode === 'create' ? (
+        <div className="adl-split-btn__input-area" style={{ position: 'relative' }}>
           <div className="adl-split-btn__input-row">
             <input
-              className={`adl-split-btn__input${actionError ? " adl-split-btn__input--error" : ""}`}
+              className={`adl-split-btn__input${actionError ? ' adl-split-btn__input--error' : ''}`}
               value={actionDraft}
-              onChange={(e) => { setActionDraft(e.currentTarget.value); if (actionError) setActionError(""); }}
+              onChange={(e) => {
+                setActionDraft(e.currentTarget.value);
+                if (actionError) setActionError('');
+              }}
               placeholder={t.workspaceCreateInputPlaceholder}
-              onKeyDown={(e) => { if (e.key === "Enter") handleCreateWorkspace(actionDraft); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleCreateWorkspace(actionDraft);
+              }}
             />
             <button
               type="button"
@@ -262,17 +276,21 @@ export function WorkspaceSplitButton({
               onMouseEnter={handleSettingsPanelEnter}
               onMouseLeave={handleSettingsPanelLeave}
             >
-              <strong className="adl-split-btn__settings-title">{t.workspaceCreateDefaultDir}</strong>
+              <strong className="adl-split-btn__settings-title">
+                {t.workspaceCreateDefaultDir}
+              </strong>
               <div className="adl-split-btn__input-row">
                 <input
                   className="adl-split-btn__input"
                   value={createDirDraft}
                   onChange={(e) => {
-                     const val = e.currentTarget.value;
-                     setCreateDirDraft(val);
-                     setDefaultCreateDir(val);
-                     try { localStorage.setItem("adl_workspace_default_create_dir", val); } catch {}
-                   }}
+                    const val = e.currentTarget.value;
+                    setCreateDirDraft(val);
+                    setDefaultCreateDir(val);
+                    try {
+                      localStorage.setItem('adl_workspace_default_create_dir', val);
+                    } catch {}
+                  }}
                   placeholder={t.workspacePlaceholder}
                 />
                 <button
@@ -281,10 +299,12 @@ export function WorkspaceSplitButton({
                   onClick={() => {
                     void onPickWorkspaceDirectory().then((path) => {
                       if (path) {
-                         setCreateDirDraft(path);
-                         setDefaultCreateDir(path);
-                         try { localStorage.setItem("adl_workspace_default_create_dir", path); } catch {}
-                       }
+                        setCreateDirDraft(path);
+                        setDefaultCreateDir(path);
+                        try {
+                          localStorage.setItem('adl_workspace_default_create_dir', path);
+                        } catch {}
+                      }
                     });
                   }}
                 >
@@ -292,11 +312,24 @@ export function WorkspaceSplitButton({
                 </button>
               </div>
               <div className="adl-split-btn__settings-desc">
-                <p><strong>{t.workspaceCreateDirDescName}</strong></p>
-                <p>{t.workspaceCreateDirDescNameDetail.replace("{name}", "my-project").replace("{path}", defaultCreateDir ? `${defaultCreateDir}/my-project` : "默认目录/my-project")}</p>
-                <p><strong>{t.workspaceCreateDirDescFull}</strong></p>
+                <p>
+                  <strong>{t.workspaceCreateDirDescName}</strong>
+                </p>
+                <p>
+                  {t.workspaceCreateDirDescNameDetail
+                    .replace('{name}', 'my-project')
+                    .replace(
+                      '{path}',
+                      defaultCreateDir ? `${defaultCreateDir}/my-project` : '默认目录/my-project'
+                    )}
+                </p>
+                <p>
+                  <strong>{t.workspaceCreateDirDescFull}</strong>
+                </p>
                 <p>{t.workspaceCreateDirDescFullDetail}</p>
-                <p><strong>{t.workspaceCreateDirDescExists}</strong></p>
+                <p>
+                  <strong>{t.workspaceCreateDirDescExists}</strong>
+                </p>
                 <p>{t.workspaceCreateDirDescExistsDetail}</p>
               </div>
             </div>

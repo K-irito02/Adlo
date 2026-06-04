@@ -1,4 +1,4 @@
-import React from "react";
+import React from 'react';
 import {
   IconFolderPlus,
   IconPlus,
@@ -6,11 +6,11 @@ import {
   IconRefreshCw,
   IconCpu,
   IconSearch,
-  IconMoreVertical
-} from "../../icons";
-import { TooltipSimple } from "../../components/Tooltip";
-import type { CopyDict } from "../../i18n";
-import type { BrowserMenuItem } from "./useBrowserMenus";
+  IconMoreVertical,
+} from '../../icons';
+import { TooltipSimple } from '../../components/Tooltip';
+import type { CopyDict } from '../../i18n';
+import type { BrowserMenuItem } from './useBrowserMenus';
 
 interface BrowserMenuDropdownProps {
   menuOpen: boolean;
@@ -22,15 +22,15 @@ interface BrowserMenuDropdownProps {
 }
 
 const menuItemIcons: Record<string, React.ReactNode> = {
-  "new-tab-folder": <IconFolderPlus size={14} decorative />,
-  "new-tab": <IconPlus size={14} decorative />,
-  "clear-history": <IconTrash size={14} decorative />,
-  "clear-cookies": <IconTrash size={14} decorative />,
-  "clear-cache": <IconTrash size={14} decorative />,
-  "devtools": <IconCpu size={14} decorative />,
-  "zoom-in": <IconSearch size={14} decorative />,
-  "zoom-out": <IconSearch size={14} decorative />,
-  "zoom-reset": <IconRefreshCw size={14} decorative />
+  'new-tab-folder': <IconFolderPlus size={14} decorative />,
+  'new-tab': <IconPlus size={14} decorative />,
+  'clear-history': <IconTrash size={14} decorative />,
+  'clear-cookies': <IconTrash size={14} decorative />,
+  'clear-cache': <IconTrash size={14} decorative />,
+  devtools: <IconCpu size={14} decorative />,
+  'zoom-in': <IconSearch size={14} decorative />,
+  'zoom-out': <IconSearch size={14} decorative />,
+  'zoom-reset': <IconRefreshCw size={14} decorative />,
 };
 
 export const BrowserMenuDropdown = React.memo(function BrowserMenuDropdown({
@@ -46,7 +46,7 @@ export const BrowserMenuDropdown = React.memo(function BrowserMenuDropdown({
       <TooltipSimple content="更多操作" placement="top">
         <button
           type="button"
-          className={`adl-tool-context__iconbtn${menuOpen ? " is-open" : ""}`}
+          className={`adl-tool-context__iconbtn${menuOpen ? ' is-open' : ''}`}
           onClick={onToggle}
           aria-label="更多操作"
           aria-haspopup="menu"
@@ -58,7 +58,7 @@ export const BrowserMenuDropdown = React.memo(function BrowserMenuDropdown({
       {menuOpen ? (
         <div className="adl-menu__dropdown adl-file-context__dropdown" role="menu">
           {menuItems.map((item) =>
-            "separator" in item ? (
+            'separator' in item ? (
               <div key={item.id} className="adl-menu__sep" role="separator" />
             ) : (
               <button
@@ -73,9 +73,7 @@ export const BrowserMenuDropdown = React.memo(function BrowserMenuDropdown({
                 }}
               >
                 {menuItemIcons[item.id] && (
-                  <span className="adl-menu__item-icon">
-                    {menuItemIcons[item.id]}
-                  </span>
+                  <span className="adl-menu__item-icon">{menuItemIcons[item.id]}</span>
                 )}
                 <span>{item.label}</span>
               </button>
