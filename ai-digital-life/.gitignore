@@ -2,7 +2,6 @@
 /target/
 **/target/
 /target-codex*/
-Cargo.lock
 
 # Tauri
 /src-tauri/target/

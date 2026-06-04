@@ -1,5 +1,5 @@
 ---
-description: Tests, typecheck, migration, and pre-merge quality gates
+description: Tests, typecheck, lint, format, migration, and pre-merge quality gates
 globs: ai-digital-life/tests/**,ai-digital-life/frontend/**,ai-digital-life/crates/**,ai-digital-life/src-tauri/**
 alwaysApply: false
 ---
@@ -11,13 +11,14 @@ alwaysApply: false
 | 检查项 | 命令 |
 |--------|------|
 | Rust 格式 | `cargo fmt --all -- --check` |
-| Rust lint | `cargo clippy --workspace --all-targets -- -D warnings` |
-| Rust 检查 | `cargo check --workspace` |
+| Rust Lint | `cargo clippy --workspace --all-targets -- -D warnings` |
+| Rust 编译 | `cargo check --workspace` |
 | Rust 测试 | `cargo test --workspace` |
-| 前端类型 | `npm --prefix frontend run typecheck` |
-| 前端测试 | `npm --prefix frontend test` |
-| Rust Clippy | `cargo clippy -- -D warnings` |
-| 重构验证 | `npm --prefix frontend run typecheck` + `npm --prefix frontend test` + `cargo check --workspace` + `cargo test --workspace` |
+| 前端 Lint | `pnpm --dir frontend run lint` |
+| 前端格式 | `pnpm --dir frontend run format:check` |
+| 前端类型 | `pnpm --dir frontend run typecheck` |
+| 前端测试 | `pnpm --dir frontend run test` |
+| **重构验证** | `pnpm --dir frontend run typecheck` + `pnpm --dir frontend run test` + `cargo check --workspace` + `cargo test --workspace` |
 | **双端一致性验证** | **分别在 Tauri 桌面和浏览器模式下验证功能一致** |
 
 > 双端一致性验证项详情见 [desktop-ui-verification.md](./desktop-ui-verification.md) 和 [tauri-shell.md](./tauri-shell.md)。
@@ -39,10 +40,14 @@ alwaysApply: false
 ## 重构门禁
 
 重构后必须执行:
-- [ ] 前端类型检查: `npm --prefix frontend run typecheck`
-- [ ] 前端测试: `npm --prefix frontend test`（214 tests 全通过）
+- [ ] Rust 格式: `cargo fmt --all -- --check`
+- [ ] Rust Lint: `cargo clippy --workspace --all-targets -- -D warnings`
 - [ ] Rust 编译: `cargo check --workspace`
 - [ ] Rust 测试: `cargo test --workspace`（105 tests 全通过）
+- [ ] 前端 Lint: `pnpm --dir frontend run lint`
+- [ ] 前端格式: `pnpm --dir frontend run format:check`
+- [ ] 前端类型检查: `pnpm --dir frontend run typecheck`
+- [ ] 前端测试: `pnpm --dir frontend run test`（214 tests 全通过）
 - [ ] 行为回归: 确认关键用户路径无退化
 
 ## 相关文件

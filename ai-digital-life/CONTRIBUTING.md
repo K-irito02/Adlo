@@ -10,12 +10,19 @@
 
 提交前至少完成：
 
+### Rust 端
+
 - `cargo fmt --all -- --check`
 - `cargo clippy --workspace --all-targets -- -D warnings`
 - `cargo check --workspace`
 - `cargo test --workspace`
-- `npm --prefix frontend run typecheck`
-- `npm --prefix frontend test`
+
+### 前端
+
+- `pnpm --dir frontend run lint`
+- `pnpm --dir frontend run format:check`
+- `pnpm --dir frontend run typecheck`
+- `pnpm --dir frontend run test`
 
 涉及 Tauri 启动链路、SQLite、恢复流程或后台 `tokio::spawn` 任务变更时，补一条 `cargo tauri dev` 启动烟测说明。
 

@@ -10,7 +10,9 @@
 | 前端 | React 19 + Vite + Zustand + TypeScript + CodeMirror 6 + xterm.js |
 | 桥接 | `#[tauri::command]` + `@tauri-apps/api` |
 | 打包 | `cargo tauri build` |
-| 包管理 | npm（前端）/ Cargo（Rust） |
+| 包管理 | pnpm（前端）/ Cargo（Rust） |
+| Rust 质量 | `cargo clippy` + `cargo fmt` + `rustfmt.toml` + `clippy.toml` |
+| 前端质量 | ESLint v9（flat config）+ Prettier + TypeScript-ESLint + React Hooks plugin |
 
 ## 当前阶段
 

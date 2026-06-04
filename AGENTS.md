@@ -20,6 +20,8 @@
 | 前端 | React 19 + Vite + Zustand + TypeScript + xterm.js |
 | 桥接 | `#[tauri::command]` + `@tauri-apps/api` |
 | 持久化 | SQLite（`rusqlite`，后端） |
+| Rust 代码质量 | Clippy（`clippy.toml` 自定义配置）+ rustfmt（`rustfmt.toml` 自定义配置） |
+| 前端代码质量 | ESLint v9 flat config + Prettier + TypeScript-ESLint + eslint-plugin-react-hooks |
 
 ## 当前阶段
 
@@ -75,6 +77,16 @@
 | `data-shell="tauri|browser"` | HTML 根元素属性，CSS 适配 |
 
 新增 IPC 方法必须同步实现 `tauri-bridge.ts` / `preview-bridge/` / `mock-bridge.ts`。
+
+## 代码质量
+
+| 检查项 | 工具 | 配置位置 |
+|--------|------|----------|
+| Rust 格式 | `cargo fmt`（rustfmt） | `ai-digital-life/rustfmt.toml` |
+| Rust Lint | `cargo clippy` | `ai-digital-life/clippy.toml` |
+| 前端 Lint | ESLint v9 flat config | `ai-digital-life/frontend/eslint.config.js` |
+| 前端格式 | Prettier | `ai-digital-life/frontend/.prettierrc` |
+| 跨编辑器 | EditorConfig | `.editorconfig` |
 
 ## 真源定位
 

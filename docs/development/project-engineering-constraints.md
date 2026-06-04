@@ -317,4 +317,5 @@
 - 配置 schema 校验与迁移测试
 - SQLite 迁移验收脚本
 - `cargo clippy --workspace -- -D warnings` 与 `cargo fmt --check` 阻断
+- `pnpm --dir frontend run lint` 与 `pnpm --dir frontend run format:check` 阻断
 - 发布前双语与三态主题 smoke checklist

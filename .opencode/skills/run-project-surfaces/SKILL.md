@@ -10,11 +10,11 @@ Use this skill to start AI Digital Life on the requested runtime surface with dy
 ## Trigger Mapping
 
 - In-app browser preview only:
-  Run `npm run dev:browser` from `E:\Programs\Obsidian\notes\ai-digital-life`.
+  Run `pnpm run dev:browser` from `E:\Programs\Obsidian\notes\ai-digital-life`.
 - External desktop app only:
-  Run `npm run dev:tauri` from `E:\Programs\Obsidian\notes\ai-digital-life`.
+  Run `pnpm run dev:tauri` from `E:\Programs\Obsidian\notes\ai-digital-life`.
 - Both browser preview and desktop app:
-  Run `npm run dev:both` from `E:\Programs\Obsidian\notes\ai-digital-life`.
+  Run `pnpm run dev:both` from `E:\Programs\Obsidian\notes\ai-digital-life`.
 
 ## Rules
 

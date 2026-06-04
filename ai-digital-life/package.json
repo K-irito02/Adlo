@@ -8,15 +8,19 @@
     "dev:both": "node ./scripts/run-project-surface.mjs both",
     "dev:tauri": "node ./scripts/run-project-surface.mjs tauri",
     "build": "cargo tauri build",
-    "frontend:dev": "npm --prefix frontend run dev",
-    "frontend:build": "npm --prefix frontend run build",
-    "frontend:typecheck": "npm --prefix frontend run typecheck",
-    "frontend:test": "npm --prefix frontend test",
+    "frontend:dev": "pnpm --dir frontend run dev",
+    "frontend:build": "pnpm --dir frontend run build",
+    "frontend:typecheck": "pnpm --dir frontend run typecheck",
+    "frontend:test": "pnpm --dir frontend run test",
     "cargo:check": "cargo check --workspace",
     "cargo:clippy": "cargo clippy --workspace --all-targets -- -D warnings",
     "cargo:test": "cargo test --workspace",
     "cargo:fmt": "cargo fmt --all",
     "cargo:fmt:check": "cargo fmt --all -- --check",
-    "check:all": "npm run cargo:fmt:check && npm run cargo:clippy && npm run cargo:check && npm run cargo:test && npm run frontend:typecheck"
+    "frontend:lint": "pnpm --dir frontend run lint",
+    "frontend:lint:fix": "pnpm --dir frontend run lint:fix",
+    "frontend:format": "pnpm --dir frontend run format",
+    "frontend:format:check": "pnpm --dir frontend run format:check",
+    "check:all": "pnpm run cargo:fmt:check && pnpm run cargo:clippy && pnpm run cargo:check && pnpm run cargo:test && pnpm run frontend:lint && pnpm run frontend:format:check && pnpm run frontend:typecheck"
   }
 }

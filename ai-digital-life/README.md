@@ -121,11 +121,14 @@ cargo check --workspace
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 cargo fmt --all
+cargo fmt --all -- --check
 
 # 前端
 npm --prefix frontend install
-npm --prefix frontend run dev
+npm --prefix frontend dev
 npm --prefix frontend test
+npm --prefix frontend run lint
+npm --prefix frontend run format:check
 
 # 联合开发（Tauri + 前端 dev server）
 npm run dev            # Tauri 桌面应用

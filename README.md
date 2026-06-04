@@ -28,6 +28,8 @@
 - tokio + rusqlite + serde + tracing
 - React 19 + Vite + Zustand
 - Cargo workspace + 前端 `npm --prefix frontend`
+- ESLint v9 + Prettier（前端代码质量）
+- Clippy + rustfmt（Rust 代码质量）
 
 实现工作区的技术对齐与阶段细节见：
 

@@ -32,9 +32,13 @@ alwaysApply: true
 
 | 步骤 | 命令 |
 |------|------|
-| 1. Rust 测试 | `cargo test --workspace` |
-| 2. 前端类型检查 | `npm --prefix frontend run typecheck` |
-| 3. 前端测试 | `npm --prefix frontend test` |
+| 0. 前端 Lint | `pnpm --dir frontend run lint` |
+| 1. 前端格式检查 | `pnpm --dir frontend run format:check` |
+| 2. Rust 格式检查 | `cargo fmt --all -- --check` |
+| 3. Rust Lint | `cargo clippy --workspace --all-targets -- -D warnings` |
+| 4. Rust 测试 | `cargo test --workspace` |
+| 5. 前端类型检查 | `pnpm --dir frontend run typecheck` |
+| 6. 前端测试 | `pnpm --dir frontend run test` |
 
 ## 测试范围
 
@@ -47,9 +51,9 @@ alwaysApply: true
 
 ## 禁止行为
 
-- ❌ 跳过测试直接提交
-- ❌ 只运行部分测试忽略失败
-- ❌ 类型检查有错误仍继续
+- 跳过测试直接提交
+- 只运行部分测试忽略失败
+- 类型检查有错误仍继续
 
 ## 测试失败处理
 

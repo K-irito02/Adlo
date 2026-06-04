@@ -24,12 +24,6 @@ coverage/
 *.log
 npm-debug.log*
 
-# AI Digital Life runtime
-ai-digital-life/apps/desktop/dist/
-ai-digital-life/packages/*/dist/
-ai-digital-life/workers/*/dist/
-ai-digital-life/.turbo/
-
 # Environment
 .env
 .env.local

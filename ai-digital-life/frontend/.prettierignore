@@ -1,0 +1,31 @@
+# Build outputs
+dist
+dist-ssr
+
+# Dependencies
+node_modules
+.pnp
+.pnp.js
+
+# IDE
+.vscode
+.idea
+
+# Test & Mock
+**/*.test.ts
+**/*.test.tsx
+e2e/**
+src/test-fixtures/**
+src/mock/**
+
+# Types
+src/types/**
+*.d.ts
+
+# Config files
+*.config.ts
+*.config.js
+
+# Misc
+.DS_Store
+*.log
