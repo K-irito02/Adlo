@@ -47,13 +47,13 @@ export function App() {
     const next: AppInfo['config']['themeMode'] =
       mode === 'system' ? 'light' : mode === 'light' ? 'dark' : 'system';
     void actions.updatePreferences({ themeMode: next });
-  }, [appInfo?.config.themeMode, actions.updatePreferences]);
+  }, [appInfo?.config.themeMode, actions]);
 
   const handleSelectLanguage = useCallback(
     (language: AppInfo['config']['language']) => {
       void actions.updatePreferences({ language });
     },
-    [actions.updatePreferences]
+    [actions]
   );
 
   const [createWorkspaceModalOpen, setCreateWorkspaceModalOpen] = useState(false);
@@ -69,7 +69,7 @@ export function App() {
     void actions.pickWorkspaceDirectory().then((picked) => {
       if (picked) void actions.openWorkspace(picked);
     });
-  }, [actions.openWorkspace, actions.pickWorkspaceDirectory]);
+  }, [actions]);
 
   const handleOpenSettings = useCallback(() => {
     useAppStore.getState().setActiveRightTool('settings');

@@ -61,7 +61,6 @@ export function MultiWorkspaceFileTree({
   onUnpinWorkspace,
   onHideFromRightPanels,
   onToggleFileTreePath,
-  onOpenFile,
   onOpenFileForWorkspace,
   onReorderWorkspaces,
   getContextMenuItems,

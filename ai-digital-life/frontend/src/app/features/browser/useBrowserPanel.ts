@@ -236,7 +236,6 @@ export function useBrowserPanel(
   const browserSelectTab = useAppStore((state) => state.browserSelectTab);
   const browserCloseTab = useAppStore((state) => state.browserCloseTab);
   const browserUpdateTab = useAppStore((state) => state.browserUpdateTab);
-  const browserTogglePin = useAppStore((state) => state.browserTogglePin);
   const browserReorderTabs = useAppStore((state) => state.browserReorderTabs);
   const browserCloseAllTabs = useAppStore((state) => state.browserCloseAllTabs);
   const setBrowserNavigatorWidth = useAppStore((state) => state.setBrowserNavigatorWidth);
@@ -318,12 +317,6 @@ export function useBrowserPanel(
     return [...merged.values()];
   }, [filteredBookmarks, filteredHistory, searchScope, t.browserHistoryTabs, t.browserSavedTabs]);
 
-  const navigatorItemsCount =
-    navigatorMode === 'bookmarks'
-      ? browserBookmarks.length
-      : navigatorMode === 'history'
-        ? browserHistory.length
-        : 0;
   const navigatorCount = computeNavigatorCount(
     navigatorMode,
     navigatorQuery,
@@ -378,9 +371,9 @@ export function useBrowserPanel(
       { id: 'sep-2', separator: true as const },
       { id: 'zoom-in', label: t.menuZoomIn, disabled: true },
       { id: 'zoom-out', label: t.menuZoomOut, disabled: true },
-      { id: 'zoom-reset', label: t.menuResetZoom, disabled: true },
+      { id: 'zoom-reset', label: t.menuZoomReset, disabled: true },
     ],
-    [activeTab, browserClearHistory, t]
+    [activeTab, browserClearHistory, browserNavigateActiveTab, t]
   );
 
   const handleDoubleClick = useCallback((tabId: string, title: string) => {
@@ -539,7 +532,7 @@ export function useBrowserPanel(
   }, [browserClearHistory]);
 
   const handleCreateTabInTree = useCallback(
-    (workspaceId?: string, folderId?: string) => {
+    (workspaceId?: string, _folderId?: string) => {
       browserOpenTab(undefined, undefined, workspaceId);
     },
     [browserOpenTab]
@@ -798,7 +791,7 @@ export function useBrowserPanel(
         log(`browser_create 失败: ${err}`);
         console.error('Failed to create browser WebView:', err);
       });
-  }, [activeTab?.id, activeTab?.url, updateWebViewBounds]);
+  }, [activeTab?.id, activeTab?.url, updateWebViewBounds, webViewDisabled]);
 
   useEffect(() => {
     return () => {

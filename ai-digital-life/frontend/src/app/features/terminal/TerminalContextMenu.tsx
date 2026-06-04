@@ -18,7 +18,6 @@ export const TerminalContextMenu = React.memo(function TerminalContextMenu({
   onTogglePin,
   onRename,
   onDelete,
-  onClose,
   t,
 }: TerminalContextMenuProps) {
   if (!contextMenu.open) return null;

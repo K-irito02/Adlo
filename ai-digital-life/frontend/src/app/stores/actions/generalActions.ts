@@ -1,5 +1,10 @@
 import type { StoreState } from '../StoreState';
-import type { AppPreferencePatch } from '@ai-digital-life/kernel';
+import type {
+  AppPreferencePatch,
+  ConversationMessageRecord,
+  ConversationBlock,
+  GitSnapshot,
+} from '@ai-digital-life/kernel';
 import { themeController } from '../../utils/theme';
 import { createEditorTab } from '../../utils/editorTabs';
 import { loadConversationState, loadTaskCenterState } from '../loaders';
@@ -56,8 +61,8 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
       if (appInfoResult.data.currentWorkspace) {
         const patchBlock = conversationState.detail?.messages.length
           ? conversationState.detail.messages
-              .flatMap((message: any) => message.blocks)
-              .find((block: any) => block.type === 'patch-summary')
+              .flatMap((message: ConversationMessageRecord) => message.blocks)
+              .find((block: ConversationBlock) => block.type === 'patch-summary')
           : undefined;
 
         const patchPromise =
@@ -72,7 +77,7 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
         if (requestSeq !== workspaceRequestSeq) return;
 
         const gitSnapshot = gitStatusResult.ok ? gitStatusResult.data : undefined;
-        const gitSnapshots: Record<string, any> = {};
+        const gitSnapshots: Record<string, GitSnapshot> = {};
         if (gitSnapshot && appInfoResult.data.currentWorkspace) {
           gitSnapshots[appInfoResult.data.currentWorkspace.id] = gitSnapshot;
         }

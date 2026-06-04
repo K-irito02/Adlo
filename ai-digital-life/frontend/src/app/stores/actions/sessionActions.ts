@@ -48,7 +48,7 @@ export function createSessionActions(set: StoreApi<StoreState>['setState'], get:
       }));
     },
 
-    switchToWorkspace: async (workspaceId: string, workspacePath: string) => {
+    switchToWorkspace: async (workspaceId: string, _workspacePath: string) => {
       const state = get();
       const workspaceSessions = state.sessions.filter(
         (s) => s.workspaceId === workspaceId && !s.archivedAt

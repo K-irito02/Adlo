@@ -1,10 +1,10 @@
 import React from 'react';
-import type { ReorderSessionsInput } from '@ai-digital-life/kernel';
 import type { CopyDict } from '../../i18n';
 import { IconArchive, IconMoreVertical, IconPin, IconPinOff } from '../../icons';
 import { TooltipSimple } from '../../components/Tooltip';
 import type { SidebarSessionItem } from '../../utils/sidebarViewModel';
-import { STATUS_LABEL, StatusLamp } from './SidebarContextMenu';
+import { STATUS_LABEL } from './SidebarContextMenu.utils';
+import { StatusLamp } from './SidebarContextMenu';
 
 interface SessionListRowProps {
   sessionItem: SidebarSessionItem;
@@ -140,9 +140,11 @@ const SessionListRow = React.memo(function SessionListRow({
             aria-label={sessionItem.session.isPinned ? t.sessionMenuUnpin : t.sessionMenuPin}
             onClick={(event) => {
               event.stopPropagation();
-              sessionItem.session.isPinned
-                ? onUnpinSession(sessionItem.session.id)
-                : onPinSession(sessionItem.session.id);
+              if (sessionItem.session.isPinned) {
+                onUnpinSession(sessionItem.session.id);
+              } else {
+                onPinSession(sessionItem.session.id);
+              }
             }}
           >
             {sessionItem.session.isPinned ? (

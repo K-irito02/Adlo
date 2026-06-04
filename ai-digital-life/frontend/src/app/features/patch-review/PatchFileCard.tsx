@@ -4,13 +4,14 @@ import { getChangeKindLabel } from '../../regions/right-panel/ChangesPanel/utils
 import { PatchHunkCard } from './PatchHunkCard';
 import type { PatchFileSummary } from './patchReview';
 import type { PatchHunkDecision } from '@ai-digital-life/kernel';
+import type { CopyDict } from '../../i18n';
 
 export interface PatchFileCardProps {
   summary: PatchFileSummary;
   activeSummary: PatchFileSummary | undefined;
   activeCardRef: React.MutableRefObject<Record<string, HTMLElement | null>>;
   selectedPatchHunkId: string | undefined;
-  t: any;
+  t: CopyDict;
   onSelectPatchFile: (
     relativePath: string,
     options?: { activateTool: boolean; line?: number; hunkId?: string }

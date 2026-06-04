@@ -21,7 +21,6 @@ export function useFilesPanelProps(
     selectedPatchFilePath,
     selectedPatchHunkId,
     collapsedPatchHunkIds,
-    onSelectPatchFile,
     onSelectPatchHunk,
     onTogglePatchHunkCollapse,
     onSetAllPatchHunksCollapsed,
@@ -98,52 +97,52 @@ export function useFilesPanelProps(
         actions.notifyEditorBufferDirty(pathAtEdit, dirty);
       }, 300);
     },
-    [actions.notifyEditorBufferDirty, selectedFilePath]
+    [actions, selectedFilePath]
   );
 
   const handleOpenFile = useCallback(
     (path: string) => {
       void actions.openFile(path);
     },
-    [actions.openFile]
+    [actions]
   );
 
   const handleOpenFileForWorkspace = useCallback(
     (workspaceId: string, workspacePath: string, path: string) => {
       void actions.openFileForWorkspace(workspaceId, workspacePath, path);
     },
-    [actions.openFileForWorkspace]
+    [actions]
   );
 
   const handleSearch = useCallback(
     (query: string) => {
       void actions.searchFiles(query);
     },
-    [actions.searchFiles]
+    [actions]
   );
 
   const handleRefreshWorkspaceTree = useCallback(() => {
     void actions.refreshWorkspaceTree();
-  }, [actions.refreshWorkspaceTree]);
+  }, [actions]);
 
   const handleExpandAll = useCallback(() => {
     void actions.expandAllWorkspaceTreesInFileNav();
-  }, [actions.expandAllWorkspaceTreesInFileNav]);
+  }, [actions]);
 
   const handleCollapseAll = useCallback(() => {
     void actions.collapseAllWorkspaceTreesInFileNav();
-  }, [actions.collapseAllWorkspaceTreesInFileNav]);
+  }, [actions]);
 
   const handleRefreshAll = useCallback(() => {
     void actions.refreshAllWorkspaceTrees();
-  }, [actions.refreshAllWorkspaceTrees]);
+  }, [actions]);
 
   const handleRefreshOneWorkspace = useCallback(
     (workspaceId: string) => {
       const ws = recentWorkspaces.find((r) => r.id === workspaceId);
       if (ws) void actions.loadWorkspaceTree(workspaceId, ws.path);
     },
-    [recentWorkspaces, actions.loadWorkspaceTree]
+    [recentWorkspaces, actions]
   );
 
   const handleToggleExpandInFileNav = useCallback(
@@ -151,28 +150,28 @@ export function useFilesPanelProps(
       const ws = recentWorkspaces.find((r) => r.id === workspaceId);
       if (ws) void actions.expandWorkspaceTreeInFileNav(workspaceId, ws.path);
     },
-    [recentWorkspaces, actions.expandWorkspaceTreeInFileNav]
+    [recentWorkspaces, actions]
   );
 
   const handleHideFromRightPanels = useCallback(
     (workspaceId: string) => {
       void actions.hideWorkspaceFromRightPanels(workspaceId);
     },
-    [actions.hideWorkspaceFromRightPanels]
+    [actions]
   );
 
   const handleCreateWorkspaceFile = useCallback(
     (relativePath: string, content?: string): Promise<string | undefined> => {
       return actions.createWorkspaceFile(relativePath, content);
     },
-    [actions.createWorkspaceFile]
+    [actions]
   );
 
   const handleCreateWorkspaceFolder = useCallback(
     (relativePath: string): Promise<string | undefined> => {
       return actions.createWorkspaceFolder(relativePath);
     },
-    [actions.createWorkspaceFolder]
+    [actions]
   );
 
   useEffect(() => () => window.clearTimeout(editorDirtyTimerRef.current), [selectedFilePath]);
@@ -232,6 +231,7 @@ export function useFilesPanelProps(
     [
       t,
       appInfo,
+      editorHint,
       selectedFilePath,
       selectedFileWorkspaceId,
       fileContent,

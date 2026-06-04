@@ -47,7 +47,6 @@ export function WorkspaceTerminalEntry({
   onCreateTab,
   onSelectTab,
   onCloseTab,
-  onTogglePin,
   onHideFromRightPanels,
   onRefreshTree,
   onCloseAllTabs,
@@ -111,7 +110,7 @@ export function WorkspaceTerminalEntry({
       window.removeEventListener('keydown', handleEscape);
       window.removeEventListener('scroll', handleScroll, true);
     };
-  }, [menuOpen, menuId]);
+  }, [menuOpen, menuId, subMenuId]);
 
   const handleNameClick = () => {
     onToggleExpand();

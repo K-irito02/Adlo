@@ -36,7 +36,7 @@ export function resolveChildCount(
 function buildTabNode(
   tab: BrowserTabState,
   workspaceId: string,
-  uniqueKey: string
+  _uniqueKey: string
 ): BrowserTreeNode {
   return {
     path: `tab:${workspaceId}:${tab.id}`,
@@ -50,7 +50,7 @@ function buildTabNode(
   };
 }
 
-function buildHistoryLeafNode(entry: BrowserHistoryState, uniqueKey: string): BrowserTreeNode {
+function buildHistoryLeafNode(entry: BrowserHistoryState, _uniqueKey: string): BrowserTreeNode {
   return {
     path: `history-entry:${entry.id}`,
     name: entry.title || entry.url,

@@ -1,13 +1,7 @@
 import type { DigitalLifeBridge, PtyOutputEvent } from './shared/ipc';
 import { applyPreferencePatch } from './app/utils/preferencesMerger';
-import type {
-  AuditEntry,
-  CommandRequest,
-  CommandRunResult,
-  ConversationSendResult,
-  ModelGatewayHealthSnapshot,
-} from '@ai-digital-life/kernel';
-import { mockWorkspace, setMockActiveWorkspace } from './mock/mock-workspace';
+import type { CommandRequest, CommandRunResult } from '@ai-digital-life/kernel';
+import { mockWorkspace } from './mock/mock-workspace';
 import { mockRetrieval } from './mock/mock-retrieval';
 import { mockConversation } from './mock/mock-conversation';
 import { mockPatch } from './mock/mock-patch';

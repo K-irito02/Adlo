@@ -3,12 +3,13 @@ import { IconChevronDown, IconChevronRight, IconTarget } from '../../icons';
 import { TooltipSimple } from '../../components/Tooltip';
 import type { PatchHunkSummary } from './patchReview';
 import type { PatchHunkDecision } from '@ai-digital-life/kernel';
+import type { CopyDict } from '../../i18n';
 
 export interface PatchHunkCardProps {
   summary: PatchHunkSummary;
   relativePath: string;
   selectedPatchHunkId: string | undefined;
-  t: any;
+  t: CopyDict;
   onTogglePatchHunkCollapse: (hunkId: string) => void;
   onSelectPatchHunk: (
     relativePath: string,

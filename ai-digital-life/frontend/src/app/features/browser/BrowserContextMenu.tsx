@@ -35,7 +35,7 @@ export const BrowserContextMenu = React.memo(function BrowserContextMenu({
   onOpenInCurrentTab,
   onEdit,
   onCut,
-  t,
+  t: _t,
 }: BrowserContextMenuProps) {
   if (!contextMenu.open) return null;
 

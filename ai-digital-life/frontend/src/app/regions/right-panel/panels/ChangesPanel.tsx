@@ -1,24 +1,19 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { EditorView } from '@codemirror/view';
 import {
   IconChevronDown,
   IconChevronRight,
   IconClipboardList,
   IconCopy,
   IconFiles,
-  IconFileText,
   IconFolderOpen,
   IconPencil,
-  IconTarget,
   IconTrash,
   IconUpload,
 } from '../../../icons';
-import { TooltipSimple } from '../../../components/Tooltip';
 import { useAppStore } from '../../../stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import type { StoreState } from '../../../stores/StoreState';
 import { useUiStore } from '../../../stores/ui-store';
-import { countGitChanges } from '../types';
 import {
   joinPathSegments,
   normalizeWorkspaceRelativePath,
@@ -47,25 +42,18 @@ import {
   type PreviewDiffCollapsedRange,
   computePreviewDiffVisualRanges,
 } from '../../../features/diff-viewer';
-import {
-  collectDirectoryPaths,
-  FileTree,
-  type FileTreeContextMenuItem,
-} from '../../../features/file-tree';
+import { collectDirectoryPaths, type FileTreeContextMenuItem } from '../../../features/file-tree';
 import { categorizeFile } from '../fileTypeRouter';
 import { DiffViewer } from '../../../features/diff-viewer';
 import { CodeEditor } from '../../../features/editor';
 import { LazyMarkdownPreviewWrapper } from '../../../features/preview';
 import type { EditorRef, DiffEditorRef } from '../../../stores/types';
-import { CodeMirrorEditorRef } from '../../../features/editor';
 import { estimateWrapColumn } from '../editor-support/cmWrapColumn';
 import { navigateToLine } from '../editor-support/stickyContext';
 import { buildOutlineFromContent, getDefaultExpandedOutlineIds } from '../../../features/outline';
 import {
   readSelectedBranch,
   writeSelectedBranch,
-  getChangeKindLabel,
-  getChangeStatusLabel,
   getPrimaryBadge,
   getEditorView,
 } from '../ChangesPanel/utils';
@@ -74,8 +62,6 @@ import { ChangesToolbar } from './ChangesToolbar';
 import { ChangesConfirmDialogs } from './ChangesConfirmDialogs';
 import { RenameDialog } from '../../../components/RenameDialog';
 import { ChangesTreePanel } from './ChangesTreePanel';
-import type { PatchFileSummary } from '../../../features/patch-review';
-import type { PatchHunkDecision } from '@ai-digital-life/kernel';
 
 const FALLBACK_BRANCHES = ['main', 'develop', 'release/0.1.0', 'feature/right-panel'];
 
@@ -99,13 +85,11 @@ export function ChangesPanel(props: ChangesPanelProps) {
     onAcceptAllHunks,
     onRejectAllHunks,
     onSelectPatchFile,
-    onOpenChangePreview,
     onSelectPatchHunk,
     onTogglePatchHunkCollapse,
     onSetAllPatchHunksCollapsed,
     onSetPatchReviewFilter,
     onOpenFile,
-    onRefreshWorkspaceTree,
     recentWorkspaces,
     workspaceChangesExpanded,
     gitSnapshots,
@@ -115,7 +99,6 @@ export function ChangesPanel(props: ChangesPanelProps) {
   const navigatorCollapsed = useUiStore((state) => state.navigatorCollapsedByTool.changes);
   const toggleNavigator = useUiStore((state) => state.toggleNavigator);
   const changesNavigatorWidth = useAppStore((state) => state.changesNavigatorWidth);
-  const setChangesNavigatorWidth = useAppStore((state) => state.setChangesNavigatorWidth);
   const changesNavigatorMode = useUiStore((state) => state.changesNavigatorMode);
   const setChangesNavigatorMode = useUiStore((state) => state.setChangesNavigatorMode);
   const previewEnabled = useUiStore((state) => state.changesPreviewEnabled);
@@ -151,9 +134,9 @@ export function ChangesPanel(props: ChangesPanelProps) {
   const editorRef = useRef<DiffEditorRef | EditorRef | null>(null);
   const changesDiffViewerRef = useRef<HTMLDivElement | null>(null);
   const [editorReady, setEditorReady] = useState(0);
-  const [changePreviewWrapColumn, setChangePreviewWrapColumn] = useState<number | null>(null);
+  const [_changePreviewWrapColumn, setChangePreviewWrapColumn] = useState<number | null>(null);
   const [forceExpandUnchangedDiff, setForceExpandUnchangedDiff] = useState(false);
-  const [collapsedUnchangedDiffRanges, setCollapsedUnchangedDiffRanges] = useState<
+  const [_collapsedUnchangedDiffRanges, setCollapsedUnchangedDiffRanges] = useState<
     PreviewDiffCollapsedRange[]
   >([]);
   const [pendingOutlineRevealLine, setPendingOutlineRevealLine] = useState<number | null>(null);
@@ -184,10 +167,6 @@ export function ChangesPanel(props: ChangesPanelProps) {
     );
   }, [changeEntries, changesStatusFilter]);
   const treeNodes = useMemo(() => buildChangeTree(filteredChangeEntries), [filteredChangeEntries]);
-  const flatNodes = useMemo(
-    () => buildFlatChangeNodes(filteredChangeEntries),
-    [filteredChangeEntries]
-  );
   const directoryPaths = useMemo(() => collectDirectoryPaths(treeNodes), [treeNodes]);
   const hasExpandedDirectories = useMemo(
     () => directoryPaths.some((pathValue) => expandedPaths[pathValue]),
@@ -642,36 +621,32 @@ export function ChangesPanel(props: ChangesPanelProps) {
     [onOpenFile, t, copyToClipboard]
   );
 
-  const renderNavigatorMeta = useCallback(
-    (node: WorkspaceTreeNode) => {
-      const changeNode = node as ChangeTreeNode;
-      const primaryBadge = getPrimaryBadge(changeNode);
-      return (
-        <>
-          {primaryBadge ? (
-            <span
-              className={`adl-filetree__status-badge adl-filetree__status-badge--${primaryBadge.tone}`}
-            >
-              {primaryBadge.label}
-            </span>
-          ) : null}
-          <span className="adl-filetree__count-badge">
-            {changeNode.kind === 'directory'
-              ? changeNode.fileCount
-              : changeNode.totalHunks > 0
-                ? `${changeNode.reviewedHunks}/${changeNode.totalHunks}`
-                : '1'}
+  const renderNavigatorMeta = useCallback((node: WorkspaceTreeNode) => {
+    const changeNode = node as ChangeTreeNode;
+    const primaryBadge = getPrimaryBadge(changeNode);
+    return (
+      <>
+        {primaryBadge ? (
+          <span
+            className={`adl-filetree__status-badge adl-filetree__status-badge--${primaryBadge.tone}`}
+          >
+            {primaryBadge.label}
           </span>
-        </>
-      );
-    },
-    [getPrimaryBadge]
-  );
+        ) : null}
+        <span className="adl-filetree__count-badge">
+          {changeNode.kind === 'directory'
+            ? changeNode.fileCount
+            : changeNode.totalHunks > 0
+              ? `${changeNode.reviewedHunks}/${changeNode.totalHunks}`
+              : '1'}
+        </span>
+      </>
+    );
+  }, []);
 
-  const activeWorkspaceId =
-    appInfo?.currentWorkspace?.path
-      ? recentWorkspaces.find((w) => w.path === appInfo.currentWorkspace?.path)?.id
-      : undefined;
+  const activeWorkspaceId = appInfo?.currentWorkspace?.path
+    ? recentWorkspaces.find((w) => w.path === appInfo.currentWorkspace?.path)?.id
+    : undefined;
 
   const visibleWorkspaces = useMemo(
     () =>
@@ -863,7 +838,7 @@ export function ChangesPanel(props: ChangesPanelProps) {
           activeWorkspaceId={activeWorkspaceId}
           workspaceChangesExpanded={workspaceChangesExpanded}
           changeCounts={changeCounts}
-          changesTreeData={changesTreeData as any}
+          changesTreeData={changesTreeData}
           workspaceChangesTreeLoading={workspaceChangesTreeLoading}
           workspaceChangesTreeErrors={workspaceChangesTreeErrors}
           navigatorSelectedPath={navigatorSelectedPath}
@@ -879,7 +854,7 @@ export function ChangesPanel(props: ChangesPanelProps) {
           onToggleFileTreePath={handleToggleFileTreePath}
           onOpenChangePreview={handleSelectNavigatorNode}
           onReorderWorkspaces={handleReorderWorkspaces}
-          getContextMenuItems={getContextMenuItems as any}
+          getContextMenuItems={getContextMenuItems}
           contextMenuPersistRef={changesContextMenuPersistRef}
           clearMenuHighlightRef={changesClearMenuHighlightRef}
           renderMeta={renderNavigatorMeta}

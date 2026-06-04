@@ -11,5 +11,5 @@ export function useTaskCenterPolling(appInfo: AppInfo | undefined) {
       void actions.refreshTaskCenter();
     }, 5000);
     return () => window.clearInterval(timer);
-  }, [appInfo?.currentWorkspace, actions.refreshTaskCenter]);
+  }, [appInfo?.currentWorkspace, actions, actions.refreshTaskCenter]);
 }

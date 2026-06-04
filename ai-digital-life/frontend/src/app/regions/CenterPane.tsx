@@ -1,35 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import type {
-  ApprovalRequestSummary,
-  ModelProviderId,
-  RecentWorkspaceEntry,
-} from '@ai-digital-life/kernel';
+import type { ModelProviderId } from '@ai-digital-life/kernel';
 import type { CopyDict, Locale } from '../i18n';
 import { MODEL_PROVIDER_IDS } from '../utils/constants';
-import { WorkspaceSplitButton } from '../components/WorkspaceSplitButton';
-import {
-  IconArrowUp,
-  IconFolder,
-  IconFolderOpen,
-  IconLightbulb,
-  IconMessageQuestion,
-  IconMessageSquare,
-  IconMic,
-  IconPlus,
-  IconRefreshCw,
-  IconStopCircle,
-  IconShield,
-} from '../icons';
-import { ContextBuilderPopover } from '../components/conversation/ContextBuilderPopover';
 import { ApprovalCard } from '../components/approval/ApprovalCard';
 import { MessageStream } from '../components/MessageStream';
 import { useAppStore } from '../stores/slicedStore';
 import { useAppActions } from '../hooks/useAppActions';
 import { useUiStore } from '../stores/ui-store';
-import { TooltipSimple } from '../components/Tooltip';
-import { StatusBar } from './StatusBar';
-import { ApprovalInlineCard, WelcomeState, ComposerFooter } from './center-pane';
+import { WelcomeState, ComposerFooter } from './center-pane';
 
 interface CenterPaneProps {
   t: CopyDict;
@@ -77,7 +56,7 @@ export function CenterPane({ t }: CenterPaneProps) {
       }
       void actions.updatePreferences({ modelPreferences: patch });
     },
-    [actions.updatePreferences]
+    [actions]
   );
 
   const [draft, setDraft] = useState('');
@@ -106,7 +85,7 @@ export function CenterPane({ t }: CenterPaneProps) {
     }))
   );
 
-  const messages = activeDetail?.messages ?? [];
+  const messages = useMemo(() => activeDetail?.messages ?? [], [activeDetail]);
 
   useEffect(() => {
     // Best-effort prefetch for replay: only when we see assistant messages with runId.
@@ -137,7 +116,7 @@ export function CenterPane({ t }: CenterPaneProps) {
     } catch {
       setHasError(true);
     }
-  }, [actions.sendMessage, chatMode, contextChips, draft]);
+  }, [actions, chatMode, contextChips, draft]);
 
   const updateCustomCaret = useCallback(() => {
     const editor = composerInputRef.current;
@@ -216,7 +195,7 @@ export function CenterPane({ t }: CenterPaneProps) {
         actions.cancelActiveStream();
       }
     },
-    [actions.cancelActiveStream, buttonState, handleSend, streamingActiveRunId]
+    [actions, buttonState, handleSend, streamingActiveRunId]
   );
 
   const onInput = useCallback(

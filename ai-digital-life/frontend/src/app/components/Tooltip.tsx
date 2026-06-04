@@ -145,7 +145,7 @@ export function TooltipTrigger({ children, asChild = false }: TooltipTriggerProp
 
   useEffect(() => {
     existingRefContainer.current = asChildActive
-      ? (child.props as Record<string, unknown>).ref as React.Ref<HTMLElement> | undefined
+      ? ((child.props as Record<string, unknown>).ref as React.Ref<HTMLElement> | undefined)
       : undefined;
   }, [asChildActive, child]);
 
@@ -282,8 +282,8 @@ const TooltipContentInner = memo(function TooltipContentInner({
 export function TooltipContent({
   children,
   side,
-  align: contentAlign,
-  sideOffset: contentSideOffset,
+  align: _contentAlign,
+  sideOffset: _contentSideOffset,
   className,
   id,
 }: TooltipContentProps) {

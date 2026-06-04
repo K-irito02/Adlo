@@ -14,15 +14,7 @@ import type {
 import type { CopyDict } from '../i18n';
 import { MODEL_PROVIDER_IDS } from '../utils/constants';
 import { MODEL_OPTIONS } from '../utils/constants';
-import {
-  IconCheck,
-  IconChevronRight,
-  IconFolder,
-  IconFolderOpen,
-  IconGitBranch,
-  IconPlus,
-  IconUpload,
-} from '../icons';
+import { IconCheck, IconChevronRight, IconFolderOpen, IconGitBranch, IconPlus } from '../icons';
 import { TooltipSimple } from '../components/Tooltip';
 import { WorkspaceSplitButton } from '../components/WorkspaceSplitButton';
 import {
@@ -69,8 +61,8 @@ export function StatusBar({
   gitSnapshot,
   gitBranches,
   modelHealth,
-  isStreaming,
-  activeRun,
+  isStreaming: _isStreaming,
+  activeRun: _activeRun,
   workspaceContextMode,
   onSelectModel,
   onOpenWorkspace,

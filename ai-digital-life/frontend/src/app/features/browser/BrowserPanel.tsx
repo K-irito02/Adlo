@@ -6,7 +6,6 @@ import {
   IconCopy,
   IconFolder,
   IconFolderPlus,
-  IconHistory,
   IconLink,
   IconPanelLeftClose,
   IconPlus,
@@ -15,7 +14,6 @@ import {
   IconStar,
   IconStarFilled,
   IconTrash,
-  IconMoreVertical,
   IconFiles,
   IconList,
   IconLayoutList,
@@ -94,11 +92,8 @@ export function BrowserPanel(props: BrowserPanelProps) {
 
   const isBrowserVisible = props.isVisible ?? false;
 
-  const setActiveRightTool = useAppStore((state) => state.setActiveRightTool);
   const recentWorkspaces = useAppStore((state) => state.recentWorkspaces);
   const browserSelectTab = useAppStore((state) => state.browserSelectTab);
-  const browserCloseTab = useAppStore((state) => state.browserCloseTab);
-  const browserTogglePin = useAppStore((state) => state.browserTogglePin);
   const browserViewMode = useAppStore((state) => state.browserViewMode);
   const browserShowTabButtons = useAppStore((state) => state.browserShowTabButtons);
   const browserHistory = useAppStore((state) => state.browserHistory);
@@ -181,8 +176,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
       iframeHistory,
     },
     browserActions,
-    dragHandlers,
-    menuHandlers,
   } = useBrowserPanel(props);
 
   const visibleWorkspaces = useMemo(
@@ -251,12 +244,12 @@ export function BrowserPanel(props: BrowserPanelProps) {
                   invoke('browser_go_back').catch((err) =>
                     console.error('browser_go_back failed:', err)
                   );
-                } else if (iframeRef.current) {
+                } else if (
+                  iframeRef.current &&
                   iframeHistory.index > 0 &&
-                    iframeHistory.entries[iframeHistory.index - 1] &&
-                    browserActions.navigateBrowser(
-                      iframeHistory.entries[iframeHistory.index - 1]
-                    );
+                  iframeHistory.entries[iframeHistory.index - 1]
+                ) {
+                  browserActions.navigateBrowser(iframeHistory.entries[iframeHistory.index - 1]);
                 }
               }}
               aria-label={t.browserBack}
@@ -273,13 +266,12 @@ export function BrowserPanel(props: BrowserPanelProps) {
                   invoke('browser_go_forward').catch((err) =>
                     console.error('browser_go_forward failed:', err)
                   );
-                } else if (iframeRef.current) {
-                  iframeHistory.index <
-                    iframeHistory.entries.length - 1 &&
-                    iframeHistory.entries[iframeHistory.index + 1] &&
-                    browserActions.navigateBrowser(
-                      iframeHistory.entries[iframeHistory.index + 1]
-                    );
+                } else if (
+                  iframeRef.current &&
+                  iframeHistory.index < iframeHistory.entries.length - 1 &&
+                  iframeHistory.entries[iframeHistory.index + 1]
+                ) {
+                  browserActions.navigateBrowser(iframeHistory.entries[iframeHistory.index + 1]);
                 }
               }}
               aria-label={t.browserForward}
@@ -369,10 +361,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
           </label>
         </div>
         <div className="adl-tool-context__group adl-tool-context__group--files-actions">
-          <TooltipSimple
-            content={isBookmarked ? '取消收藏' : '收藏标签'}
-            placement="top"
-          >
+          <TooltipSimple content={isBookmarked ? '取消收藏' : '收藏标签'} placement="top">
             <button
               type="button"
               className="adl-tool-context__iconbtn"
@@ -410,10 +399,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
         <aside className="adl-tool-navigator" aria-label={t.toolBrowser}>
           <div className="adl-tool-navigator__context">
             <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--actions">
-              <TooltipSimple
-                content={allTreeExpanded ? '全部折叠' : '全部展开'}
-                placement="top"
-              >
+              <TooltipSimple content={allTreeExpanded ? '全部折叠' : '全部展开'} placement="top">
                 <button
                   type="button"
                   className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
@@ -701,9 +687,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
         <div className="adl-tool-primary adl-tool-primary--browser" ref={primaryRef}>
           <div className="adl-tool-primary__scroll adl-tool-primary__scroll--browser" />
 
-          {hasActiveTab &&
-          activeTab?.url &&
-          activeTab?.url !== 'about:blank' ? (
+          {hasActiveTab && activeTab?.url && activeTab?.url !== 'about:blank' ? (
             <>
               {!isTauriShell() && activeTab && isBrowserVisible && (
                 <iframe
@@ -734,10 +718,13 @@ export function BrowserPanel(props: BrowserPanelProps) {
                     shellOpen(url).catch((err) =>
                       console.error('Failed to open external browser:', err)
                     );
-                  } else if ((window as any).trae?.openExternal) {
-                    (window as any).trae.openExternal(url);
                   } else {
-                    window.open(url, '_blank', 'noopener,noreferrer');
+                    const w = window as { trae?: { openExternal: (url: string) => void } };
+                    if (w.trae?.openExternal) {
+                      w.trae.openExternal(url);
+                    } else {
+                      window.open(url, '_blank', 'noopener,noreferrer');
+                    }
                   }
                 }}
               >
@@ -756,10 +743,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
           contextMenu,
           browserActions.handleDoubleClick
         )}
-        onDelete={handleDeleteFromContextMenu(
-          contextMenu,
-          browserActions.handleCloseTab
-        )}
+        onDelete={handleDeleteFromContextMenu(contextMenu, browserActions.handleCloseTab)}
         onCopyUrl={browserActions.handleCopyUrl}
         onOpenInNewTab={browserActions.handleOpenInNewTab}
         onOpenInCurrentTab={browserActions.handleOpenInCurrentTab}

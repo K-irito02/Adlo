@@ -41,7 +41,7 @@ export interface EditorSlice {
 
 export const createEditorSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
-  get: () => StoreState
+  _get: () => StoreState
 ): EditorSlice => ({
   openTabs: [],
   outline: [],

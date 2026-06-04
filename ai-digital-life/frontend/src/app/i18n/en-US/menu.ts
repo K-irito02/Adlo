@@ -14,6 +14,7 @@ export const menuEn = {
   menuTerminalView: 'Terminal View',
   menuZoomIn: 'Zoom In',
   menuZoomOut: 'Zoom Out',
+  menuZoomReset: 'Reset Zoom',
   menuResetZoom: 'Reset Zoom',
   menuSettings: 'Settings',
   menuCommandPalette: 'Command Palette',

@@ -58,7 +58,7 @@ interface ChangesToolbarNavigatorProps {
   changesStatusFilter: Set<ChangeFileState>;
   onStatusFilterClick: (filter: ChangeFileState) => void;
   hasChangeEntries: boolean;
-  snapshot?: { staged: any[]; unstaged: any[]; untracked: any[] };
+  snapshot?: { staged: string[]; unstaged: string[]; untracked: string[] };
   totalChangesStats?: { staged: number; unstaged: number; untracked: number };
   canToggleNavigatorStructure: boolean;
   structureToggleExpanded: boolean;
@@ -255,18 +255,18 @@ function TopToolbar({
 
 function NavigatorContextToolbar({
   t,
-  allChangesExpanded,
-  onExpandAll,
-  onCollapseAll,
+  allChangesExpanded: _allChangesExpanded,
+  onExpandAll: _onExpandAll,
+  onCollapseAll: _onCollapseAll,
   changesNavigatorTitle,
   totalChangeCount,
-  hasVisibleWorkspaces,
+  hasVisibleWorkspaces: _hasVisibleWorkspaces,
   onRefreshAll,
   changesNavigatorMode,
   onSetNavigatorMode,
   changesStatusFilter,
   onStatusFilterClick,
-  hasChangeEntries,
+  hasChangeEntries: _hasChangeEntries,
   snapshot,
   totalChangesStats,
   canToggleNavigatorStructure,

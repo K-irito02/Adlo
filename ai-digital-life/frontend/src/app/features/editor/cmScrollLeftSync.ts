@@ -190,7 +190,6 @@ class ScrollLeftSyncPlugin implements PluginValue {
     if (!isNoWordWrap) return;
 
     const scrollDOM = this.view.scrollDOM;
-    const contentDOM = this.view.contentDOM;
     const contentWidth = scrollDOM.scrollWidth;
     const visibleWidth = scrollDOM.clientWidth;
     if (contentWidth <= visibleWidth) return;
@@ -304,7 +303,6 @@ class ScrollLeftSyncPlugin implements PluginValue {
 
   private syncCssPropsOnly(): void {
     const scrollDOM = this.view.scrollDOM;
-    const contentDOM = this.view.contentDOM;
     const dom = this.view.dom;
 
     const scrollLeft = scrollDOM.scrollLeft;
@@ -534,7 +532,7 @@ class ScrollLeftSyncPlugin implements PluginValue {
     }
   }
 
-  private positionChunkButtons(visibleWidth: number, scrollLeft: number): void {
+  private positionChunkButtons(visibleWidth: number, _scrollLeft: number): void {
     const isNoWrap = this.view.dom.closest('.adl-cm-no-word-wrap') !== null;
     const isInlineDiff = this.view.dom.closest('.adl-cm-diff-viewer--inline') !== null;
 

@@ -29,7 +29,6 @@ interface TerminalEmptyStateProps {
 export const TerminalEmptyState = React.memo(function TerminalEmptyState({
   shellTypeItems,
   workspaces,
-  defaultProfile,
   onSelectProfile,
   t,
 }: TerminalEmptyStateProps) {

@@ -1,12 +1,12 @@
-import React, { useCallback, useMemo, useRef } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { EditorView } from '@codemirror/view';
-import { CodeEditor, saveEditorState } from '../../features/editor';
+import { CodeEditor } from '../../features/editor';
 import { DiffViewer } from '../../features/diff-viewer';
 import {
   getAgentDecorationExtensions,
   type AgentHunkDecoration,
 } from './editor-support/agentDecorations';
-import { categorizeFile, type FileCategory } from './fileTypeRouter';
+import { categorizeFile } from './fileTypeRouter';
 import { LazyMarkdownPreviewWrapper } from '../../features/preview';
 import type { EditorRef, DiffEditorRef } from '../../stores/types';
 import { useUiStore } from '../../stores/ui-store';
@@ -14,7 +14,6 @@ import { StickyContext } from './editor-support/stickyContextView';
 import { DiffToolbar } from './DiffToolbar';
 import {
   derivePatchHunkChangeKind,
-  getPatchHunkTargetLine,
   summarizePatchFile,
   type PatchHunkSummary,
 } from '../../features/patch-review';
@@ -123,25 +122,18 @@ function EditorSurfaceShell(props: EditorSurfaceShellProps) {
     editorSurfaceRef,
     standardEditorRef,
     editorOptions,
+    onEditorMount,
+    onDiffMount,
     t,
   } = props;
 
   const filePreviewModeByPath = useUiStore((s) => s.filePreviewModeByPath);
-  const setFilePreviewModeForPath = useUiStore((s) => s.setFilePreviewModeForPath);
 
   const fileCategory = useMemo(() => categorizeFile(selectedFilePath), [selectedFilePath]);
 
   const previewEnabled = selectedFilePath
     ? (filePreviewModeByPath[selectedFilePath] ?? fileCategory === 'markdown')
     : false;
-
-  const setPreviewEnabled = useCallback(
-    (enabled: boolean) => {
-      if (!selectedFilePath) return;
-      setFilePreviewModeForPath(selectedFilePath, enabled);
-    },
-    [selectedFilePath, setFilePreviewModeForPath]
-  );
 
   const hasActivePatch = !!(filePatch && filePatch.relativePath === selectedFilePath);
 
@@ -232,9 +224,9 @@ function EditorSurfaceShell(props: EditorSurfaceShellProps) {
       const domNode = editor.getDomNode?.();
       cmViewRef.current = domNode ? (EditorView.findFromDOM(domNode) ?? null) : null;
       standardEditorRef.current = editor;
-      props.onEditorMount(editor);
+      onEditorMount(editor);
     },
-    [props.onEditorMount, cmViewRef, standardEditorRef]
+    [onEditorMount, cmViewRef, standardEditorRef]
   );
 
   const handleDiffEditorMount = useCallback(
@@ -247,33 +239,12 @@ function EditorSurfaceShell(props: EditorSurfaceShellProps) {
       } else {
         editorRef = editor as unknown as EditorRef;
       }
-      props.onDiffMount(editorRef);
+      onDiffMount(editorRef);
     },
-    [props.onDiffMount, localDiffEditorRef]
+    [onDiffMount, localDiffEditorRef]
   );
 
   const hasCollapsedHunks = !!activeFilePatchSummary?.hunks.some((h) => h.isCollapsed);
-
-  const handleRevealPreviewLine = (line: number): boolean => {
-    const target = editorSurfaceRef.current?.querySelector<HTMLElement>(
-      `[data-source-line="${line}"]`
-    );
-    if (!target) return false;
-    target.scrollIntoView({ block: 'start', behavior: 'smooth' });
-    return true;
-  };
-
-  const handleRevealLine = (line: number) => {
-    if (fileCategory === 'markdown' && previewEnabled && handleRevealPreviewLine(line)) {
-      return;
-    }
-    const editor = getStickySourceEditor();
-    if (editor) {
-      editor.revealLineInCenter(line);
-      editor.setPosition({ lineNumber: line, column: 1 });
-      editor.focus();
-    }
-  };
 
   if (!selectedFilePath) {
     return editorHint ? <p className="adl-tool-hint">{editorHint}</p> : null;

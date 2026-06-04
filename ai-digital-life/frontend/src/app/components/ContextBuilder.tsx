@@ -197,7 +197,7 @@ export function ContextBuilder({ onAddContext, activeContexts = [] }: ContextBui
             {Object.entries(groupedItems).map(([section, items]) => (
               <div key={section} className="context-builder__group">
                 <span className="context-builder__group-label">{SECTION_LABELS[section]}</span>
-                {items.map((item, idx) => (
+                {items.map((item, _idx) => (
                   <button
                     key={item.type}
                     ref={(el) => {

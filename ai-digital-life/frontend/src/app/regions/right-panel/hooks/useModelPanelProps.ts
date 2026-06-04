@@ -11,7 +11,7 @@ export function useModelPanelProps(panelProps: RightPanelProps): ModelPanelProps
 
   const handleRefreshModelHealth = useCallback(() => {
     void actions.refreshModelHealth();
-  }, [actions.refreshModelHealth]);
+  }, [actions]);
 
   return useMemo(
     () => ({

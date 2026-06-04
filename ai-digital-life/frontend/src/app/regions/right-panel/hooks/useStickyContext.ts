@@ -70,13 +70,7 @@ function useStickyContext(input: UseStickyContextInput): StickyContextModel | nu
         topLabel: input.t.stickyContextTop as string,
       })
     );
-  }, [
-    input.selectedFilePath,
-    input.content,
-    input.outline,
-    input.stickyDiffRanges,
-    input.t.stickyContextTop,
-  ]);
+  }, [input]);
 
   useEffect(() => {
     const getEditor = () => editorRefCache.current?.() ?? null;

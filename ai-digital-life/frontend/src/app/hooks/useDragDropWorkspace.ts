@@ -15,17 +15,18 @@ export function useDragDropWorkspace(actions: {
         unlisten = await (
           win as unknown as { onDragDropEvent: (cb: (e: unknown) => void) => Promise<() => void> }
         ).onDragDropEvent((e: unknown) => {
-          const payload = (e as Record<string, any>)?.payload ?? e;
+          const payload = (e as Record<string, unknown>)?.payload ?? e;
+          const pl = payload as Record<string, unknown>;
           const type =
-            (payload as Record<string, any>)?.type ??
-            (payload as Record<string, any>)?.event ??
-            (payload as Record<string, any>)?.kind;
+            (pl?.type as string | undefined) ??
+            (pl?.event as string | undefined) ??
+            (pl?.kind as string | undefined);
           if (type !== 'drop') return;
           const paths: string[] =
-            (payload as Record<string, any>)?.paths ??
-            (payload as Record<string, any>)?.data?.paths ??
-            (payload as Record<string, any>)?.files ??
-            (payload as Record<string, any>)?.data?.files ??
+            (pl?.paths as string[] | undefined) ??
+            ((pl?.data as Record<string, unknown> | undefined)?.paths as string[] | undefined) ??
+            (pl?.files as string[] | undefined) ??
+            ((pl?.data as Record<string, unknown> | undefined)?.files as string[] | undefined) ??
             [];
           const first = Array.isArray(paths) ? paths[0] : undefined;
           if (first && typeof first === 'string') {
@@ -44,7 +45,7 @@ export function useDragDropWorkspace(actions: {
         /* ignore */
       }
     };
-  }, [actions.openWorkspace]);
+  }, [actions, actions.openWorkspace]);
 
   useEffect(() => {
     if (isTauriShell()) return;
@@ -91,5 +92,5 @@ export function useDragDropWorkspace(actions: {
       document.removeEventListener('dragover', handleDragOver);
       document.removeEventListener('drop', handleDrop);
     };
-  }, [actions.openWorkspace]);
+  }, [actions, actions.openWorkspace]);
 }

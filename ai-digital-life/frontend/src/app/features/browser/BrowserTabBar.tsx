@@ -47,7 +47,7 @@ export const BrowserTabBar = React.memo(function BrowserTabBar({
   onEditChange,
   onEditSubmit,
   onEditKeyDown,
-  t,
+  t: _t,
 }: BrowserTabBarProps) {
   const browserBookmarks = useAppStore((state) => state.browserBookmarks);
 

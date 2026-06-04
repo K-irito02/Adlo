@@ -1,6 +1,5 @@
 import type { StoreState } from '../StoreState';
 import type {
-  ConversationMessageRecord,
   ConversationSendResult,
   DigitalLifeModelStreamEventV1,
   DigitalLifeRunActivityEventV1,

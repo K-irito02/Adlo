@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import type { SettingsGroupId, SettingItem } from '@ai-digital-life/kernel';
+import type { SettingItem } from '@ai-digital-life/kernel';
 import type { CopyDict } from '../../i18n';
 import { IconSearch, IconSettings } from '../../icons';
 import { useUiStore } from '../../stores/ui-store';

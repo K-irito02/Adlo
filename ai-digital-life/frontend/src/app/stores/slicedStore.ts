@@ -21,21 +21,6 @@ import {
   createTerminalSlice,
   createBrowserSlice,
 } from './slices';
-import type {
-  UISlice,
-  WorkspaceSlice,
-  GitSlice,
-  SessionSlice,
-  EditorSlice,
-  PatchSlice,
-  SearchSlice,
-  DiagnosticSlice,
-  TaskSlice,
-  CommandSlice,
-  ClipboardSlice,
-  TerminalSlice,
-  BrowserSlice,
-} from './slices';
 import type { StoreState as FullStoreState } from './StoreState';
 
 import {

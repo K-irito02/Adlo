@@ -1,4 +1,4 @@
-import React, { useId, useMemo, useCallback } from 'react';
+import React, { useId, useCallback } from 'react';
 import { BrowserPanel } from './right-panel/panels/BrowserPanel';
 import { ChangesPanel } from './right-panel/panels/ChangesPanel';
 import { FilesPanel } from './right-panel/panels/FilesPanel';

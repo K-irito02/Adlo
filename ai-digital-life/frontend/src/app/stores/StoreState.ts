@@ -51,7 +51,6 @@ import type { ClipboardSlice } from './slices/clipboardSlice';
 import type { TerminalSlice } from './slices/terminalSlice';
 import type { BrowserSlice } from './slices/browserSlice';
 import type {
-  AppInfo,
   AppPreferencePatch,
   ReorderSessionsInput,
   ReorderWorkspacesInput,

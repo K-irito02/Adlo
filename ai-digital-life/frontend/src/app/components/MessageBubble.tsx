@@ -23,8 +23,6 @@ export function MessageBubble({ id, role, content, timestamp }: MessageBubblePro
   }, [timestamp]);
 
   const formattedTime = useMemo(() => {
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-
     if (!timestamp) return '';
     try {
       return new Date(timestamp).toLocaleTimeString([], {

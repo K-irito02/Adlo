@@ -211,10 +211,6 @@ export function FoldTooltipOverlay({ view }: FoldTooltipOverlayProps) {
       }
     };
 
-    const handleScroll = () => {
-      hide();
-    };
-
     gutter.addEventListener('mouseover', handleMouseOver);
     gutter.addEventListener('mouseout', handleMouseOut);
     content.addEventListener('mouseover', handleMouseOver);

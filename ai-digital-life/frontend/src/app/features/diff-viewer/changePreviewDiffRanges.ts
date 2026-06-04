@@ -67,45 +67,6 @@ function appendInternalRange(ranges: InternalDiffRange[], next: InternalDiffRang
   ranges.push(next);
 }
 
-function appendVisualRange(ranges: PreviewDiffVisualRange[], next: PreviewDiffVisualRange) {
-  const previous = ranges[ranges.length - 1];
-  if (
-    previous &&
-    previous.type === next.type &&
-    previous.tone === next.tone &&
-    previous.contentColumns === next.contentColumns &&
-    previous.endLine + 1 >= next.startLine
-  ) {
-    previous.endLine = Math.max(previous.endLine, next.endLine);
-    return;
-  }
-  ranges.push(next);
-}
-
-function getVisualColumns(line: string, wrapColumn?: number | null): number[] {
-  if (!wrapColumn || wrapColumn <= 0) {
-    return [line.length];
-  }
-
-  const columns: number[] = [];
-  const normalizedWrapColumn = Math.max(1, Math.floor(wrapColumn));
-  let remaining = line.length;
-  if (remaining === 0) {
-    return [0];
-  }
-
-  while (remaining > normalizedWrapColumn) {
-    columns.push(normalizedWrapColumn);
-    remaining -= normalizedWrapColumn;
-  }
-  columns.push(remaining);
-  return columns;
-}
-
-function getVisualLineCount(line: string, wrapColumn?: number | null): number {
-  return getVisualColumns(line, wrapColumn).length;
-}
-
 function createInternalRange(input: {
   startLine: number;
   endLine: number;
@@ -196,10 +157,6 @@ function getCommonSuffixLength(
     suffix += 1;
   }
   return suffix;
-}
-
-function getVisualLineTotal(lines: string[], wrapColumn?: number | null): number {
-  return lines.reduce((total, line) => total + getVisualLineCount(line, wrapColumn), 0);
 }
 
 function computeInternalDiffRanges(

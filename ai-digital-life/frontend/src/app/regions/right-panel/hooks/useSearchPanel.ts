@@ -83,7 +83,7 @@ function useSearchPanel(input: UseSearchPanelInput): UseSearchPanelResult {
       return;
     }
     input.onReplace(input.fileContent.replace(searchPattern, replaceQuery));
-  }, [input.fileContent, searchPattern, replaceOpen, replaceQuery, input.onReplace]);
+  }, [input, searchPattern, replaceOpen, replaceQuery]);
 
   return {
     matchCase,

@@ -261,9 +261,10 @@ export function useRightPanelLayout(collapsed: boolean) {
 
   useEffect(() => {
     syncOverlayClasses(rightPanelMode);
+    const panelEl = panelRef.current;
     return () => {
-      const shellBody = panelRef.current?.closest('.adl-shell__body') as HTMLElement | null;
-      const panel = panelRef.current;
+      const shellBody = panelEl?.closest('.adl-shell__body') as HTMLElement | null;
+      const panel = panelEl;
       if (!shellBody || !panel) return;
       shellBody.classList.remove('is-rightpanel-overlay-active');
       shellBody.classList.remove('is-rightpanel-overlay-expanded');

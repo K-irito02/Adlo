@@ -1,15 +1,6 @@
 import { create } from 'zustand';
 import type { SettingsGroupId } from '@ai-digital-life/kernel';
-import {
-  clamp,
-  readJson,
-  writeJson,
-  readNumber,
-  writeNumber,
-  readFlag,
-  writeFlag,
-  createUiId,
-} from './shared';
+import { readJson, writeJson, readFlag, writeFlag, createUiId } from './shared';
 
 /**
  * Renderer-only UI state.
@@ -88,15 +79,6 @@ export const DEFAULT_CHANGES_NAVIGATOR_WIDTH = 240;
 export const BROWSER_NAVIGATOR_WIDTH_MIN = 180;
 export const BROWSER_NAVIGATOR_WIDTH_MAX = 300;
 export const DEFAULT_BROWSER_NAVIGATOR_WIDTH = 240;
-const TOOL_IDS: ToolId[] = [
-  'files',
-  'changes',
-  'browser',
-  'terminal',
-  'audit',
-  'settings',
-  'models',
-];
 
 function readRightTool(): ToolId {
   try {

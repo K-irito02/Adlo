@@ -3,54 +3,12 @@ import { IconAlertTriangle, IconCircle } from '../../icons';
 import { getFileTreeVisualSpec } from './fileTreeVisuals';
 import { CustomScrollArea } from './CustomScrollArea';
 import { TreeNodeRow } from './TreeNodeRow';
-import { ContextMenu, type ContextMenuItem } from '../../components/ContextMenu';
-
-export interface FileTreeRenderableNode {
-  path: string;
-  name: string;
-  kind: 'directory' | 'file';
-  children: FileTreeRenderableNode[];
-}
-
-export type FileTreeContextMenuItem<T extends FileTreeRenderableNode> =
-  | {
-      id: string;
-      label?: string;
-      icon?: React.ReactNode;
-      disabled?: boolean;
-      danger?: boolean;
-      separator?: true;
-      action?: (node: T, multiSelectedNodes: T[]) => void;
-    }
-  | {
-      id: string;
-      label: string;
-      icon?: React.ReactNode;
-      disabled?: boolean;
-      danger?: boolean;
-      separator?: false;
-      action?: (node: T, multiSelectedNodes: T[]) => void;
-    };
-
-export interface FileTreeProps<T extends FileTreeRenderableNode> {
-  nodes: T[];
-  selectedFilePath?: string;
-  selectedFileWorkspaceId?: string;
-  expandedPaths: Record<string, boolean>;
-  dirtyPaths?: Set<string>;
-  externalChangePath?: string;
-  onToggle: (path: string) => void;
-  onOpenFile: (relativePath: string) => void;
-  renderMeta?: (node: T) => React.ReactNode;
-  renderCount?: (node: T) => React.ReactNode;
-  getNodeClassName?: (node: T) => string | undefined;
-  getContextMenuItems?: (node: T, multiSelectedNodes: T[]) => FileTreeContextMenuItem<T>[];
-  contextMenuPersistRef?: React.MutableRefObject<boolean>;
-  clearMenuHighlightRef?: React.MutableRefObject<(() => void) | undefined>;
-  expandLabel?: string;
-  collapseLabel?: string;
-  flat?: boolean;
-}
+import { ContextMenu } from '../../components/ContextMenu';
+import type {
+  FileTreeRenderableNode,
+  FileTreeProps,
+  FileTreeContextMenuItem,
+} from './fileTree.utils';
 
 interface FileTreeNodeProps<T extends FileTreeRenderableNode> {
   node: T;
@@ -77,36 +35,6 @@ interface FileTreeNodeProps<T extends FileTreeRenderableNode> {
 
 function isPathInSubtree(rootPath: string, path: string | undefined): boolean {
   return !!path && (path === rootPath || path.startsWith(`${rootPath}/`));
-}
-
-export function collectDirectoryPaths<T extends FileTreeRenderableNode>(nodes: T[]): string[] {
-  const paths: string[] = [];
-  const visit = (items: T[]) => {
-    items.forEach((item) => {
-      if (item.kind === 'directory') {
-        paths.push(item.path);
-        if (item.children.length > 0) {
-          visit(item.children as T[]);
-        }
-      }
-    });
-  };
-  visit(nodes);
-  return paths;
-}
-
-function collectAllNodePaths<T extends FileTreeRenderableNode>(nodes: T[]): string[] {
-  const paths: string[] = [];
-  const visit = (items: T[]) => {
-    items.forEach((item) => {
-      paths.push(item.path);
-      if (item.children.length > 0) {
-        visit(item.children as T[]);
-      }
-    });
-  };
-  visit(nodes);
-  return paths;
 }
 
 function FileTreeNodeComponent<T extends FileTreeRenderableNode>({
@@ -350,8 +278,6 @@ export function FileTree<T extends FileTreeRenderableNode>({
     };
   }, [clearContextMenu, clearMenuHighlightRef]);
 
-  const getAllNodePaths = useMemo(() => collectAllNodePaths(nodes), [nodes]);
-
   const handleToggleDirectory = useCallback(
     (path: string) => {
       onToggle(path);
@@ -360,7 +286,7 @@ export function FileTree<T extends FileTreeRenderableNode>({
   );
 
   const handleOpenFile = useCallback(
-    (relativePath: string, event: React.MouseEvent<HTMLButtonElement>) => {
+    (relativePath: string, _event: React.MouseEvent<HTMLButtonElement>) => {
       onOpenFile(relativePath);
     },
     [onOpenFile]

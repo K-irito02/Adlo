@@ -8,7 +8,6 @@
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from './slicedStore';
 import type { StoreState } from './StoreState';
-import type { AppInfo, GitSnapshot, RecentWorkspaceEntry } from '@ai-digital-life/kernel';
 
 // ============================================
 // 工作区相关的选择器

@@ -12,12 +12,8 @@ import {
 } from '../../icons';
 import { TooltipSimple } from '../../components/Tooltip';
 import type { SidebarSessionItem, SidebarWorkspaceItem } from '../../utils/sidebarViewModel';
-import {
-  STATUS_LABEL,
-  WorkspaceDirectoryIcon,
-  buildWorkspaceTooltip,
-  StatusLamp,
-} from './SidebarContextMenu';
+import { STATUS_LABEL, buildWorkspaceTooltip } from './SidebarContextMenu.utils';
+import { WorkspaceDirectoryIcon, StatusLamp } from './SidebarContextMenu';
 
 export interface WorkspaceListProps {
   t: CopyDict;
@@ -57,7 +53,7 @@ export function WorkspaceList({
   dragWorkspaceId,
   setDragWorkspaceId,
   onReorderWorkspaces,
-  onOpenWorkspace,
+  onOpenWorkspace: _onOpenWorkspace,
   onSwitchToWorkspace,
   onPinWorkspace,
   onUnpinWorkspace,
@@ -240,9 +236,11 @@ export function WorkspaceList({
                         className="adl-workspace-row__pin"
                         onClick={(event) => {
                           event.stopPropagation();
-                          item.workspace.isPinned
-                            ? onUnpinWorkspace(item.workspace.id)
-                            : onPinWorkspace(item.workspace.id);
+                          if (item.workspace.isPinned) {
+                            onUnpinWorkspace(item.workspace.id);
+                          } else {
+                            onPinWorkspace(item.workspace.id);
+                          }
                         }}
                         aria-label={item.workspace.isPinned ? t.sessionMenuUnpin : t.sessionMenuPin}
                       >

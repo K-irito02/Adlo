@@ -11,7 +11,7 @@ export interface ClipboardSlice {
 
 export const createClipboardSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
-  get: () => StoreState
+  _get: () => StoreState
 ): ClipboardSlice => ({
   clipboardOperation: null,
   clipboardSourcePath: null,

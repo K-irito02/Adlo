@@ -5,6 +5,3 @@ newline_style = "Auto"
 use_small_heuristics = "Max"
 reorder_imports = true
 reorder_modules = true
-normalize_comments = true
-wrap_comments = false
-format_strings = false

@@ -39,7 +39,7 @@ export const BrowserMenuDropdown = React.memo(function BrowserMenuDropdown({
   menuItems,
   onToggle,
   onClose,
-  t,
+  t: _t,
 }: BrowserMenuDropdownProps) {
   return (
     <div ref={menuRef} className="adl-menu adl-file-context__menu">

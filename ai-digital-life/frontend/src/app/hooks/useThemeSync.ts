@@ -10,5 +10,5 @@ export function useThemeSync(appInfo: AppInfo | undefined) {
       resolvedTheme: appInfo.config.resolvedTheme,
     });
     themeController.hydrate();
-  }, [appInfo?.config.themeMode, appInfo?.config.resolvedTheme]);
+  }, [appInfo, appInfo?.config.themeMode, appInfo?.config.resolvedTheme]);
 }

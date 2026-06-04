@@ -10,7 +10,7 @@ const LazyPdfPreview = React.lazy(() =>
   import('./PdfPreview').then((m) => ({ default: m.PdfPreview }))
 );
 
-export type { MarkdownPreviewProps } from './MarkdownPreview';
+export type { MarkdownPreviewProps } from './markdownPreviewUtils';
 export type { DocxPreviewProps } from './DocxPreview';
 export type { PdfPreviewProps } from './PdfPreview';
 

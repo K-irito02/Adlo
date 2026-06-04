@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React from 'react';
 import { ConfirmDialog } from '../../../components/ConfirmDialog';
 
 export type ChangesConfirmDialogsProps = {

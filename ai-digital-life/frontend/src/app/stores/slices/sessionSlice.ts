@@ -41,7 +41,7 @@ export interface SessionSlice {
 
 export const createSessionSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
-  get: () => StoreState
+  _get: () => StoreState
 ): SessionSlice => {
   let _streamingRafPending = false;
   let _streamingBuffer = '';

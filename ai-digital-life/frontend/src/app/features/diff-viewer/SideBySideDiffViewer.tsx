@@ -2,7 +2,6 @@ import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from '
 import type { Extension } from '@codemirror/state';
 import { EditorView, lineNumbers } from '@codemirror/view';
 import { MergeView, uncollapseUnchanged } from '@codemirror/merge';
-import { syntaxTree } from '@codemirror/language';
 import { createFoldGutterExtension } from '../editor/cmFoldGutter';
 import { rebuildThemes } from '../editor/cmTheme';
 import { FoldTooltipOverlay } from '../editor/FoldTooltipOverlay';
@@ -71,11 +70,13 @@ export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
 
   useEffect(() => {
     let cancelled = false;
-    getLanguageExtension(language).then((exts) => {
-      if (!cancelled) setLangExtensions(exts);
-    }).catch((err) => {
-      console.error(`[DiffViewer] failed to load language "${language}":`, err);
-    });
+    getLanguageExtension(language)
+      .then((exts) => {
+        if (!cancelled) setLangExtensions(exts);
+      })
+      .catch((err) => {
+        console.error(`[DiffViewer] failed to load language "${language}":`, err);
+      });
     return () => {
       cancelled = true;
     };

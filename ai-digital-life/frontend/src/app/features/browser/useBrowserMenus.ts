@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAppStore } from '../../stores/slicedStore';
 import { useBrowserContextMenu } from './useBrowserContextMenu';
 import type { BrowserPanelProps } from '../../regions/right-panel/types';
@@ -35,7 +35,7 @@ export interface UseBrowserMenusReturn {
 
 export function useBrowserMenus({
   t,
-  activeTab,
+  activeTab: _activeTab,
   handleCloseTab,
   handleDoubleClick,
 }: {
@@ -92,7 +92,7 @@ export function useBrowserMenus({
     if (!contextMenu.open) {
       return;
     }
-    const handlePointerDown = (event: MouseEvent) => {
+    const handlePointerDown = (_event: MouseEvent) => {
       setContextMenu((prev) => ({ ...prev, open: false }));
     };
     document.addEventListener('mousedown', handlePointerDown);

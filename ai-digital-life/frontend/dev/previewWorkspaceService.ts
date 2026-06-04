@@ -1,8 +1,8 @@
-import fsSync from "node:fs";
-import fs from "node:fs/promises";
-import path from "node:path";
-import { spawn } from "node:child_process";
-import type { IncomingMessage, ServerResponse } from "node:http";
+import fsSync from 'node:fs';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { spawn } from 'node:child_process';
+import type { IncomingMessage, ServerResponse } from 'node:http';
 import type {
   FileOutlineItem,
   GitBranchSummary,
@@ -20,9 +20,9 @@ import type {
   WorkspaceMeta,
   WorkspaceSearchHit,
   WorkspaceTreeNode,
-  WorkspaceType
-} from "../src/kernel/index";
-import { buildOutlineFromContent } from "../src/shared/outline";
+  WorkspaceType,
+} from '../src/kernel/index';
+import { buildOutlineFromContent } from '../src/shared/outline';
 
 const DEFAULT_MAX_FILE_BYTES = 1024 * 1024;
 const MAX_SEARCH_RESULTS = 200;
@@ -30,34 +30,42 @@ const MAX_TREE_DEPTH = 64;
 const MAX_TREE_NODES = 200_000;
 const MAX_COLLECTED_FILES = 50_000;
 const GIT_TIMEOUT_MS = 30_000;
-const IGNORED_DIRS = new Set([".git", "target", "node_modules", "dist", "build", ".next", ".cache"]);
-const ROOT_MARKERS = [".git", "Cargo.toml", "package.json", "pyproject.toml", "go.mod", "pom.xml"];
-const API_PREFIX = "/__adl_preview_api__";
-const GIT_CANDIDATE_PATHS = process.platform === "win32"
-  ? [
-      "C:\\Program Files\\Git\\bin\\git.exe",
-      "C:\\Program Files\\Git\\cmd\\git.exe",
-    ]
-  : [];
+const IGNORED_DIRS = new Set([
+  '.git',
+  'target',
+  'node_modules',
+  'dist',
+  'build',
+  '.next',
+  '.cache',
+]);
+const ROOT_MARKERS = ['.git', 'Cargo.toml', 'package.json', 'pyproject.toml', 'go.mod', 'pom.xml'];
+const API_PREFIX = '/__adl_preview_api__';
+const GIT_CANDIDATE_PATHS =
+  process.platform === 'win32'
+    ? ['C:\\Program Files\\Git\\bin\\git.exe', 'C:\\Program Files\\Git\\cmd\\git.exe']
+    : [];
 
-const WIN_SYSTEM_DIRS = process.platform === "win32"
-  ? [
-      "C:\\Windows\\System32",
-      "C:\\Windows\\System32\\WindowsPowerShell\\v1.0",
-      "C:\\Windows\\SysWOW64",
-      "C:\\Windows\\SysWOW64\\WindowsPowerShell\\v1.0",
-      "C:\\Windows",
-    ]
-  : [];
+const WIN_SYSTEM_DIRS =
+  process.platform === 'win32'
+    ? [
+        'C:\\Windows\\System32',
+        'C:\\Windows\\System32\\WindowsPowerShell\\v1.0',
+        'C:\\Windows\\SysWOW64',
+        'C:\\Windows\\SysWOW64\\WindowsPowerShell\\v1.0',
+        'C:\\Windows',
+      ]
+    : [];
 
-const CSC_CANDIDATE_PATHS = process.platform === "win32"
-  ? [
-      "C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe",
-      "C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\csc.exe",
-    ]
-  : [];
+const CSC_CANDIDATE_PATHS =
+  process.platform === 'win32'
+    ? [
+        'C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe',
+        'C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\csc.exe',
+      ]
+    : [];
 
-const PICKER_CS_PATH = path.join(__dirname, "picker", "FolderPicker.cs");
+const PICKER_CS_PATH = path.join(__dirname, 'picker', 'FolderPicker.cs');
 
 interface ModuleState {
   gitBinary: string;
@@ -65,7 +73,7 @@ interface ModuleState {
 }
 
 const moduleState: ModuleState = {
-  gitBinary: "git",
+  gitBinary: 'git',
   gitResolved: false,
 };
 
@@ -74,13 +82,13 @@ async function resolveGitBinary(): Promise<string> {
 
   const probe = (cmd: string): Promise<boolean> =>
     new Promise((resolve) => {
-      const child = spawn(cmd, ["--version"], { windowsHide: true, stdio: "ignore" });
-      child.on("error", () => resolve(false));
-      child.on("close", (code) => resolve(code === 0));
+      const child = spawn(cmd, ['--version'], { windowsHide: true, stdio: 'ignore' });
+      child.on('error', () => resolve(false));
+      child.on('close', (code) => resolve(code === 0));
     });
 
-  if (await probe("git")) {
-    moduleState.gitBinary = "git";
+  if (await probe('git')) {
+    moduleState.gitBinary = 'git';
     moduleState.gitResolved = true;
     return moduleState.gitBinary;
   }
@@ -100,9 +108,9 @@ async function resolveGitBinary(): Promise<string> {
 async function resolveWindowsBinary(name: string): Promise<string> {
   const probe = (cmd: string): Promise<boolean> =>
     new Promise((resolve) => {
-      const child = spawn(cmd, ["//?//"], { windowsHide: true, stdio: "ignore" });
-      child.on("error", () => resolve(false));
-      child.on("close", () => resolve(true));
+      const child = spawn(cmd, ['//?//'], { windowsHide: true, stdio: 'ignore' });
+      child.on('error', () => resolve(false));
+      child.on('close', () => resolve(true));
     });
 
   if (await probe(name)) {
@@ -131,7 +139,7 @@ function ok<T>(data: T): IpcResult<T> {
   return { ok: true, data };
 }
 
-function fail<T>(message: string, code = "PREVIEW_WORKSPACE_ERROR"): IpcResult<T> {
+function fail<T>(message: string, code = 'PREVIEW_WORKSPACE_ERROR'): IpcResult<T> {
   return { ok: false, error: { code, message } };
 }
 
@@ -140,7 +148,7 @@ function nowMs(): number {
 }
 
 function normalizePath(value: string): string {
-  return value.replace(/\\/g, "/");
+  return value.replace(/\\/g, '/');
 }
 
 async function pathExists(targetPath: string): Promise<boolean> {
@@ -173,22 +181,26 @@ async function detectWorkspaceRoot(inputPath: string): Promise<string> {
 
 async function inferWorkspaceType(rootPath: string): Promise<WorkspaceType> {
   const markers: Array<[string, WorkspaceType]> = [
-    ["Cargo.toml", "rust"],
-    ["package.json", "node"],
-    ["pyproject.toml", "python"],
-    ["requirements.txt", "python"],
-    ["go.mod", "go"],
-    ["pom.xml", "java"],
-    ["build.gradle", "java"]
+    ['Cargo.toml', 'rust'],
+    ['package.json', 'node'],
+    ['pyproject.toml', 'python'],
+    ['requirements.txt', 'python'],
+    ['go.mod', 'go'],
+    ['pom.xml', 'java'],
+    ['build.gradle', 'java'],
   ];
   for (const [marker, workspaceType] of markers) {
-    if (ROOT_MARKERS.includes(marker) || marker === "requirements.txt" || marker === "build.gradle") {
+    if (
+      ROOT_MARKERS.includes(marker) ||
+      marker === 'requirements.txt' ||
+      marker === 'build.gradle'
+    ) {
       if (await pathExists(path.join(rootPath, marker))) {
         return workspaceType;
       }
     }
   }
-  return "unknown";
+  return 'unknown';
 }
 
 function createWorkspaceId(rootPath: string): string {
@@ -197,7 +209,7 @@ function createWorkspaceId(rootPath: string): string {
   for (let index = 0; index < normalized.length; index += 1) {
     hash = ((hash << 5) - hash + normalized.charCodeAt(index)) | 0;
   }
-  return `workspace_${Math.abs(hash).toString(16).padStart(8, "0")}`;
+  return `workspace_${Math.abs(hash).toString(16).padStart(8, '0')}`;
 }
 
 function relativePath(rootPath: string, targetPath: string): string {
@@ -208,7 +220,10 @@ function resolveWorkspacePath(rootPath: string, relativeTarget: string): string 
   const resolved = path.resolve(rootPath, relativeTarget);
   const normalizedRoot = `${path.resolve(rootPath)}${path.sep}`;
   const normalizedResolved = path.resolve(resolved);
-  if (normalizedResolved !== path.resolve(rootPath) && !normalizedResolved.startsWith(normalizedRoot)) {
+  if (
+    normalizedResolved !== path.resolve(rootPath) &&
+    !normalizedResolved.startsWith(normalizedRoot)
+  ) {
     throw new Error(`path escapes workspace: ${relativeTarget}`);
   }
   return normalizedResolved;
@@ -216,9 +231,15 @@ function resolveWorkspacePath(rootPath: string, relativeTarget: string): string 
 
 async function listTree(rootPath: string): Promise<WorkspaceTreeNode[]> {
   let remaining = MAX_TREE_NODES;
-  return listTreeInner(rootPath, rootPath, 0, () => remaining, (next) => {
-    remaining = next;
-  });
+  return listTreeInner(
+    rootPath,
+    rootPath,
+    0,
+    () => remaining,
+    (next) => {
+      remaining = next;
+    }
+  );
 }
 
 async function listTreeInner(
@@ -259,8 +280,8 @@ async function listTreeInner(
       nodes.push({
         path: nodePath,
         name: entry.name,
-        kind: "directory",
-        children: await listTreeInner(rootPath, entryPath, depth + 1, getRemaining, setRemaining)
+        kind: 'directory',
+        children: await listTreeInner(rootPath, entryPath, depth + 1, getRemaining, setRemaining),
       });
       continue;
     }
@@ -269,17 +290,17 @@ async function listTreeInner(
       nodes.push({
         path: nodePath,
         name: entry.name,
-        kind: "file",
-        children: []
+        kind: 'file',
+        children: [],
       });
     }
   }
 
   nodes.sort((left, right) => {
     if (left.kind !== right.kind) {
-      return left.kind === "directory" ? -1 : 1;
+      return left.kind === 'directory' ? -1 : 1;
     }
-    return left.name.localeCompare(right.name, undefined, { sensitivity: "base" });
+    return left.name.localeCompare(right.name, undefined, { sensitivity: 'base' });
   });
   return nodes;
 }
@@ -290,18 +311,18 @@ async function readFile(rootPath: string, relativeTarget: string): Promise<Works
   if (stats.size > DEFAULT_MAX_FILE_BYTES) {
     throw new Error(`file too large: ${relativeTarget}`);
   }
-  const content = await fs.readFile(absolutePath, "utf8");
+  const content = await fs.readFile(absolutePath, 'utf8');
   return {
     path: normalizePath(relativeTarget),
     content,
-    lastModifiedAt: stats.mtimeMs
+    lastModifiedAt: stats.mtimeMs,
   };
 }
 
 async function createFile(
   rootPath: string,
   relativeTarget: string,
-  content = ""
+  content = ''
 ): Promise<WorkspaceFileDocument> {
   const absolutePath = resolveWorkspacePath(rootPath, relativeTarget);
   let stats;
@@ -317,7 +338,7 @@ async function createFile(
     throw new Error(`file already exists: ${relativeTarget}`);
   }
   await fs.mkdir(path.dirname(absolutePath), { recursive: true });
-  await fs.writeFile(absolutePath, content, "utf8");
+  await fs.writeFile(absolutePath, content, 'utf8');
   return readFile(rootPath, relativeTarget);
 }
 
@@ -339,7 +360,11 @@ async function createFolder(rootPath: string, relativeTarget: string): Promise<b
   return true;
 }
 
-async function collectTextFiles(rootPath: string, currentPath: string, results: string[]): Promise<void> {
+async function collectTextFiles(
+  rootPath: string,
+  currentPath: string,
+  results: string[]
+): Promise<void> {
   let entries;
   try {
     entries = await fs.readdir(currentPath, { withFileTypes: true });
@@ -369,7 +394,7 @@ async function collectTextFiles(rootPath: string, currentPath: string, results: 
       continue;
     }
     try {
-      await fs.readFile(entryPath, "utf8");
+      await fs.readFile(entryPath, 'utf8');
       results.push(entryPath);
     } catch {
       continue;
@@ -386,7 +411,7 @@ async function searchText(rootPath: string, query: string): Promise<WorkspaceSea
   const needle = query.toLowerCase();
   const hits: WorkspaceSearchHit[] = [];
   for (const filePath of files) {
-    const content = await fs.readFile(filePath, "utf8");
+    const content = await fs.readFile(filePath, 'utf8');
     const workspaceRelativePath = relativePath(rootPath, filePath);
     const lines = content.split(/\r?\n/);
     for (let index = 0; index < lines.length; index += 1) {
@@ -396,7 +421,7 @@ async function searchText(rootPath: string, query: string): Promise<WorkspaceSea
       hits.push({
         path: workspaceRelativePath,
         line: index + 1,
-        preview: lines[index].trim().slice(0, 240)
+        preview: lines[index].trim().slice(0, 240),
       });
       if (hits.length >= MAX_SEARCH_RESULTS) {
         return hits;
@@ -415,16 +440,16 @@ async function runGit(rootPath: string, args: string[]): Promise<string | undefi
   const gitBin = await resolveGitBinary();
   return new Promise((resolve) => {
     const child = spawn(gitBin, args, { cwd: rootPath, windowsHide: true });
-    let stdout = "";
+    let stdout = '';
     let timer: NodeJS.Timeout | undefined;
-    child.stdout.on("data", (chunk) => {
+    child.stdout.on('data', (chunk) => {
       stdout += String(chunk);
     });
-    child.on("error", () => {
+    child.on('error', () => {
       if (timer) clearTimeout(timer);
       resolve(undefined);
     });
-    child.on("close", (code) => {
+    child.on('close', (code) => {
       if (timer) clearTimeout(timer);
       resolve(code === 0 ? stdout.trim() : undefined);
     });
@@ -437,12 +462,12 @@ async function runGit(rootPath: string, args: string[]): Promise<string | undefi
 
 async function captureGitSnapshot(rootPath: string): Promise<GitSnapshot> {
   const [branch, head, staged, unstaged, untracked, conflicts] = await Promise.all([
-    runGit(rootPath, ["branch", "--show-current"]),
-    runGit(rootPath, ["rev-parse", "--short", "HEAD"]),
-    runGitNullSeparated(rootPath, ["diff", "--name-only", "--cached", "-z"]),
-    runGitNullSeparated(rootPath, ["diff", "--name-only", "-z"]),
-    runGitNullSeparated(rootPath, ["ls-files", "--others", "--exclude-standard", "-z"]),
-    runGitNullSeparated(rootPath, ["diff", "--name-only", "--diff-filter=U", "-z"])
+    runGit(rootPath, ['branch', '--show-current']),
+    runGit(rootPath, ['rev-parse', '--short', 'HEAD']),
+    runGitNullSeparated(rootPath, ['diff', '--name-only', '--cached', '-z']),
+    runGitNullSeparated(rootPath, ['diff', '--name-only', '-z']),
+    runGitNullSeparated(rootPath, ['ls-files', '--others', '--exclude-standard', '-z']),
+    runGitNullSeparated(rootPath, ['diff', '--name-only', '--diff-filter=U', '-z']),
   ]);
 
   return {
@@ -455,7 +480,7 @@ async function captureGitSnapshot(rootPath: string): Promise<GitSnapshot> {
     unstaged,
     untracked,
     conflicts,
-    capturedAt: nowMs()
+    capturedAt: nowMs(),
   };
 }
 
@@ -464,11 +489,11 @@ async function runGitBytes(rootPath: string, args: string[]): Promise<Buffer | u
   return new Promise((resolve) => {
     const child = spawn(gitBin, args, { cwd: rootPath, windowsHide: true });
     const chunks: Buffer[] = [];
-    child.stdout.on("data", (chunk) => {
+    child.stdout.on('data', (chunk) => {
       chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
     });
-    child.on("error", () => resolve(undefined));
-    child.on("close", (code) => resolve(code === 0 ? Buffer.concat(chunks) : undefined));
+    child.on('error', () => resolve(undefined));
+    child.on('close', (code) => resolve(code === 0 ? Buffer.concat(chunks) : undefined));
   });
 }
 
@@ -478,8 +503,8 @@ async function runGitNullSeparated(rootPath: string, args: string[]): Promise<st
     return [];
   }
   return stdout
-    .toString("utf8")
-    .split("\0")
+    .toString('utf8')
+    .split('\0')
     .filter((value) => value.length > 0)
     .map((value) => normalizePath(value));
 }
@@ -487,38 +512,41 @@ async function runGitNullSeparated(rootPath: string, args: string[]): Promise<st
 async function gitHeadFileExists(rootPath: string, relativeTarget: string): Promise<boolean> {
   const gitBin = await resolveGitBinary();
   return new Promise((resolve) => {
-    const child = spawn(gitBin, ["cat-file", "-e", `HEAD:${normalizePath(relativeTarget)}`], {
+    const child = spawn(gitBin, ['cat-file', '-e', `HEAD:${normalizePath(relativeTarget)}`], {
       cwd: rootPath,
-      windowsHide: true
+      windowsHide: true,
     });
-    child.on("error", () => resolve(false));
-    child.on("close", (code) => resolve(code === 0));
+    child.on('error', () => resolve(false));
+    child.on('close', (code) => resolve(code === 0));
   });
 }
 
 async function gitShowFile(rootPath: string, relativeTarget: string): Promise<string | undefined> {
-  const stdout = await runGitBytes(rootPath, ["show", `HEAD:${normalizePath(relativeTarget)}`]);
+  const stdout = await runGitBytes(rootPath, ['show', `HEAD:${normalizePath(relativeTarget)}`]);
   if (stdout && stdout.byteLength > DEFAULT_MAX_FILE_BYTES) {
     throw new Error(`git blob is too large to preview: ${normalizePath(relativeTarget)}`);
   }
-  return stdout ? stdout.toString("utf8") : undefined;
+  return stdout ? stdout.toString('utf8') : undefined;
 }
 
-async function readChangePreview(rootPath: string, relativeTarget: string): Promise<WorkspaceChangePreview> {
+async function readChangePreview(
+  rootPath: string,
+  relativeTarget: string
+): Promise<WorkspaceChangePreview> {
   const snapshot = await captureGitSnapshot(rootPath);
   if (!snapshot.isRepo) {
-    throw new Error("active workspace is not a Git repository");
+    throw new Error('active workspace is not a Git repository');
   }
 
   const normalizedTarget = normalizePath(relativeTarget);
   const status = snapshot.conflicts.includes(normalizedTarget)
-    ? "conflicted"
+    ? 'conflicted'
     : snapshot.untracked.includes(normalizedTarget)
-      ? "untracked"
+      ? 'untracked'
       : snapshot.unstaged.includes(normalizedTarget)
-        ? "modified"
+        ? 'modified'
         : snapshot.staged.includes(normalizedTarget)
-          ? "staged"
+          ? 'staged'
           : undefined;
 
   if (!status) {
@@ -537,9 +565,10 @@ async function readChangePreview(rootPath: string, relativeTarget: string): Prom
   }
 
   const currentExists = stats?.isFile() ?? false;
-  const currentContent = currentExists ? await fs.readFile(absolutePath, "utf8") : "";
+  const currentContent = currentExists ? await fs.readFile(absolutePath, 'utf8') : '';
   const baseContent = await gitShowFile(rootPath, normalizedTarget);
-  const baseExists = typeof baseContent === "string" ? true : await gitHeadFileExists(rootPath, normalizedTarget);
+  const baseExists =
+    typeof baseContent === 'string' ? true : await gitHeadFileExists(rootPath, normalizedTarget);
 
   if (!baseExists && !currentExists) {
     throw new Error(`change preview source is unavailable: ${normalizedTarget}`);
@@ -547,52 +576,57 @@ async function readChangePreview(rootPath: string, relativeTarget: string): Prom
 
   return {
     path: normalizedTarget,
-    changeKind: !baseExists ? "added" : !currentExists ? "deleted" : "modified",
+    changeKind: !baseExists ? 'added' : !currentExists ? 'deleted' : 'modified',
     status,
     baseExists,
     currentExists,
-    baseContent: baseContent ?? "",
-    currentContent
+    baseContent: baseContent ?? '',
+    currentContent,
   };
 }
 
 async function listGitBranches(rootPath: string): Promise<GitBranchSummary[]> {
   const [currentBranch, branchesOutput] = await Promise.all([
-    runGit(rootPath, ["branch", "--show-current"]),
-    runGit(rootPath, ["branch", "--format=%(refname:short)"])
+    runGit(rootPath, ['branch', '--show-current']),
+    runGit(rootPath, ['branch', '--format=%(refname:short)']),
   ]);
   const current = currentBranch?.trim();
-  const branches = (branchesOutput ?? "")
+  const branches = (branchesOutput ?? '')
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean)
     .map((name) => ({ name, isCurrent: name === current }));
   if (!branches.length) {
-    throw new Error("no local branches found");
+    throw new Error('no local branches found');
   }
-  branches.sort((left, right) => Number(right.isCurrent) - Number(left.isCurrent) || left.name.localeCompare(right.name));
+  branches.sort(
+    (left, right) =>
+      Number(right.isCurrent) - Number(left.isCurrent) || left.name.localeCompare(right.name)
+  );
   return branches;
 }
 
 async function runGitRequired(rootPath: string, args: string[]): Promise<string> {
   const output = await runGit(rootPath, args);
-  if (typeof output === "string") {
+  if (typeof output === 'string') {
     return output;
   }
-  throw new Error(`git command failed: git ${args.join(" ")}`);
+  throw new Error(`git command failed: git ${args.join(' ')}`);
 }
 
 function hasLocalGitChanges(snapshot: GitSnapshot): boolean {
-  return snapshot.staged.length > 0 || snapshot.unstaged.length > 0 || snapshot.untracked.length > 0;
+  return (
+    snapshot.staged.length > 0 || snapshot.unstaged.length > 0 || snapshot.untracked.length > 0
+  );
 }
 
 async function stashWorkspaceChanges(rootPath: string): Promise<void> {
   await runGitRequired(rootPath, [
-    "stash",
-    "push",
-    "--include-untracked",
-    "--message",
-    `adl-preview-auto-stash-${Date.now()}`
+    'stash',
+    'push',
+    '--include-untracked',
+    '--message',
+    `adl-preview-auto-stash-${Date.now()}`,
   ]);
 }
 
@@ -605,11 +639,11 @@ async function updateWorkspaceMetaForBranchChange(rootPath: string): Promise<Wor
     rootPath: root,
     name: path.basename(root) || root,
     type: await inferWorkspaceType(root),
-    status: "ready",
+    status: 'ready',
     gitSnapshot: await captureGitSnapshot(root),
     createdAt: currentTime,
     updatedAt: currentTime,
-    lastOpenedAt: currentTime
+    lastOpenedAt: currentTime,
   };
 }
 
@@ -619,27 +653,27 @@ async function switchGitBranch(
 ): Promise<WorkspaceGitBranchChangeResult> {
   const snapshot = await captureGitSnapshot(rootPath);
   if (!snapshot.isRepo) {
-    throw new Error("active workspace is not a Git repository");
+    throw new Error('active workspace is not a Git repository');
   }
   const branchName = input.branchName.trim();
   if (!branchName) {
-    throw new Error("branchName is required");
+    throw new Error('branchName is required');
   }
   const stashedChanges = hasLocalGitChanges(snapshot);
   if (stashedChanges && !input.allowStash) {
-    throw new Error("Dirty worktree requires explicit stash confirmation.");
+    throw new Error('Dirty worktree requires explicit stash confirmation.');
   }
   if (stashedChanges) {
     await stashWorkspaceChanges(rootPath);
   }
-  await runGitRequired(rootPath, ["switch", branchName]);
+  await runGitRequired(rootPath, ['switch', branchName]);
   const workspace = await updateWorkspaceMetaForBranchChange(rootPath);
   return {
     workspace,
     gitSnapshot: workspace.gitSnapshot!,
     previousBranch: snapshot.branch,
     currentBranch: workspace.gitSnapshot?.branch ?? branchName,
-    stashedChanges
+    stashedChanges,
   };
 }
 
@@ -649,44 +683,47 @@ async function createGitBranch(
 ): Promise<WorkspaceGitBranchChangeResult> {
   const snapshot = await captureGitSnapshot(rootPath);
   if (!snapshot.isRepo) {
-    throw new Error("active workspace is not a Git repository");
+    throw new Error('active workspace is not a Git repository');
   }
   const branchName = input.branchName.trim();
   if (!branchName) {
-    throw new Error("branchName is required");
+    throw new Error('branchName is required');
   }
   const currentBranch = snapshot.branch;
   if (!currentBranch) {
-    throw new Error("failed to resolve current branch");
+    throw new Error('failed to resolve current branch');
   }
   const baseBranch = input.baseBranch?.trim() || currentBranch;
   const stashedChanges = baseBranch !== currentBranch && hasLocalGitChanges(snapshot);
   if (stashedChanges && !input.allowStash) {
-    throw new Error("Dirty worktree requires explicit stash confirmation.");
+    throw new Error('Dirty worktree requires explicit stash confirmation.');
   }
   if (stashedChanges) {
     await stashWorkspaceChanges(rootPath);
   }
   if (baseBranch !== currentBranch) {
-    await runGitRequired(rootPath, ["switch", baseBranch]);
+    await runGitRequired(rootPath, ['switch', baseBranch]);
   }
-  await runGitRequired(rootPath, ["switch", "-c", branchName]);
+  await runGitRequired(rootPath, ['switch', '-c', branchName]);
   const workspace = await updateWorkspaceMetaForBranchChange(rootPath);
   return {
     workspace,
     gitSnapshot: workspace.gitSnapshot!,
     previousBranch: snapshot.branch,
     currentBranch: workspace.gitSnapshot?.branch ?? branchName,
-    stashedChanges
+    stashedChanges,
   };
 }
 
-async function buildRetrievalSnapshot(workspaceId: string, rootPath: string): Promise<RetrievalSnapshot> {
+async function buildRetrievalSnapshot(
+  workspaceId: string,
+  rootPath: string
+): Promise<RetrievalSnapshot> {
   const files: string[] = [];
   await collectTextFiles(rootPath, rootPath, files);
   const extensionCounts = new Map<string, number>();
   for (const filePath of files) {
-    const extension = path.extname(filePath) || "[none]";
+    const extension = path.extname(filePath) || '[none]';
     extensionCounts.set(extension, (extensionCounts.get(extension) ?? 0) + 1);
   }
   const topExtensions: RetrievalFileTypeCount[] = Array.from(extensionCounts.entries())
@@ -710,7 +747,7 @@ async function buildRetrievalSnapshot(workspaceId: string, rootPath: string): Pr
   return {
     workspaceId,
     rootPath,
-    status: "completed",
+    status: 'completed',
     scannedFiles: files.length,
     indexedTextFiles: files.length,
     startedAt: nowMs(),
@@ -718,7 +755,7 @@ async function buildRetrievalSnapshot(workspaceId: string, rootPath: string): Pr
     completedAt: nowMs(),
     lastError: undefined,
     topExtensions,
-    repoMap
+    repoMap,
   };
 }
 
@@ -737,11 +774,11 @@ async function openWorkspace(workspacePath: string): Promise<PreviewWorkspacePay
     rootPath,
     name,
     type: await inferWorkspaceType(rootPath),
-    status: "ready",
+    status: 'ready',
     gitSnapshot,
     createdAt: currentTime,
     updatedAt: currentTime,
-    lastOpenedAt: currentTime
+    lastOpenedAt: currentTime,
   };
   const recent: RecentWorkspaceEntry = {
     id,
@@ -753,13 +790,17 @@ async function openWorkspace(workspacePath: string): Promise<PreviewWorkspacePay
     pinnedOrder: 0,
     unpinnedOrder: 0,
     removedFromSidebar: false,
-    available: true
+    available: true,
   };
   const retrieval = await buildRetrievalSnapshot(id, rootPath);
   return { meta, recent, retrieval };
 }
 
-async function renameFile(rootPath: string, relativePath: string, newName: string): Promise<boolean> {
+async function renameFile(
+  rootPath: string,
+  relativePath: string,
+  newName: string
+): Promise<boolean> {
   const src = resolveWorkspacePath(rootPath, relativePath);
   if (!fsSync.existsSync(src)) {
     throw new Error(`path not found: ${relativePath}`);
@@ -778,20 +819,27 @@ async function deleteFileEntry(rootPath: string, relativePath: string): Promise<
   if (!fsSync.existsSync(target)) {
     throw new Error(`path not found: ${relativePath}`);
   }
-  if (process.platform === "win32") {
+  if (process.platform === 'win32') {
     const psPath = target.replace(/'/g, "''");
     const isDir = fsSync.statSync(target).isDirectory();
-    const method = isDir ? "DeleteDirectory" : "DeleteFile";
-    const args = isDir ? `'${psPath}','OnlyErrorDialogs','SendToRecycleBin'` : `'${psPath}','OnlyErrorDialogs','SendToRecycleBin'`;
+    const method = isDir ? 'DeleteDirectory' : 'DeleteFile';
+    const args = isDir
+      ? `'${psPath}','OnlyErrorDialogs','SendToRecycleBin'`
+      : `'${psPath}','OnlyErrorDialogs','SendToRecycleBin'`;
     await new Promise<void>((resolve, reject) => {
-      const child = spawn("powershell", [
-        "-NoProfile",
-        "-Command",
-        `Add-Type -AssemblyName Microsoft.VisualBasic; [Microsoft.VisualBasic.FileIO.FileSystem]::${method}(${args})`
-      ], { windowsHide: true });
-      child.on("error", reject);
-      child.on("close", (code) => {
-        if (code === 0) resolve(); else reject(new Error(`PowerShell exit code ${code}`));
+      const child = spawn(
+        'powershell',
+        [
+          '-NoProfile',
+          '-Command',
+          `Add-Type -AssemblyName Microsoft.VisualBasic; [Microsoft.VisualBasic.FileIO.FileSystem]::${method}(${args})`,
+        ],
+        { windowsHide: true }
+      );
+      child.on('error', reject);
+      child.on('close', (code) => {
+        if (code === 0) resolve();
+        else reject(new Error(`PowerShell exit code ${code}`));
       });
     });
   } else {
@@ -804,7 +852,11 @@ async function deleteFileEntry(rootPath: string, relativePath: string): Promise<
   return true;
 }
 
-async function duplicateFile(rootPath: string, srcRelativePath: string, dstRelativePath: string): Promise<boolean> {
+async function duplicateFile(
+  rootPath: string,
+  srcRelativePath: string,
+  dstRelativePath: string
+): Promise<boolean> {
   const src = resolveWorkspacePath(rootPath, srcRelativePath);
   if (!fsSync.existsSync(src)) {
     throw new Error(`source not found: ${srcRelativePath}`);
@@ -852,33 +904,34 @@ async function getAbsolutePath(rootPath: string, relativePath: string): Promise<
 }
 
 async function revealInFileManager(targetPath: string): Promise<boolean> {
-  const normalizedPath = process.platform === "win32" ? targetPath.replace(/\//g, "\\") : targetPath;
+  const normalizedPath =
+    process.platform === 'win32' ? targetPath.replace(/\//g, '\\') : targetPath;
   const absolutePath = path.resolve(normalizedPath);
   if (!fsSync.existsSync(absolutePath)) {
     throw new Error(`path does not exist: ${targetPath}`);
   }
 
-  if (process.platform === "win32") {
+  if (process.platform === 'win32') {
     await new Promise<void>((resolve, reject) => {
-      const child = spawn("cmd.exe", ["/c", "start", "", "explorer", `/select,${absolutePath}`], {
+      const child = spawn('cmd.exe', ['/c', 'start', '', 'explorer', `/select,${absolutePath}`], {
         windowsHide: false,
         detached: true,
         shell: false,
       });
-      child.on("error", (err) => {
-        console.error("Explorer spawn error:", err);
+      child.on('error', (err) => {
+        console.error('Explorer spawn error:', err);
         reject(err);
       });
-      child.on("spawn", () => resolve());
+      child.on('spawn', () => resolve());
     });
     return true;
   }
 
-  const cmd = process.platform === "darwin" ? "open" : "xdg-open";
+  const cmd = process.platform === 'darwin' ? 'open' : 'xdg-open';
   await new Promise<void>((resolve, reject) => {
     const child = spawn(cmd, [absolutePath], { windowsHide: true });
-    child.on("error", reject);
-    child.on("spawn", () => resolve());
+    child.on('error', reject);
+    child.on('spawn', () => resolve());
   });
   return true;
 }
@@ -892,13 +945,15 @@ async function compileFolderPicker(): Promise<string | undefined> {
   if (!fsSync.existsSync(PICKER_CS_PATH)) {
     return undefined;
   }
-  const outputExe = PICKER_CS_PATH.replace(/\.cs$/, ".exe");
+  const outputExe = PICKER_CS_PATH.replace(/\.cs$/, '.exe');
   for (const csc of CSC_CANDIDATE_PATHS) {
     if (!fsSync.existsSync(csc)) continue;
     const success = await new Promise<boolean>((resolve) => {
-      const child = spawn(csc, ["/nologo", "/target:exe", `/out:${outputExe}`, PICKER_CS_PATH], { windowsHide: true });
-      child.on("error", () => resolve(false));
-      child.on("close", (code) => resolve(code === 0));
+      const child = spawn(csc, ['/nologo', '/target:exe', `/out:${outputExe}`, PICKER_CS_PATH], {
+        windowsHide: true,
+      });
+      child.on('error', () => resolve(false));
+      child.on('close', (code) => resolve(code === 0));
     });
     if (success && fsSync.existsSync(outputExe)) {
       compiledPickerExe = outputExe;
@@ -913,12 +968,14 @@ async function runFolderPickerCsharp(exe: string): Promise<string | undefined> {
     const child = spawn(exe, [], {
       windowsHide: true,
       detached: true,
-      stdio: ["ignore", "pipe", "pipe"],
+      stdio: ['ignore', 'pipe', 'pipe'],
     });
-    let stdout = "";
-    child.stdout.on("data", (chunk) => { stdout += String(chunk); });
-    child.on("error", () => resolve(undefined));
-    child.on("close", (code) => {
+    let stdout = '';
+    child.stdout.on('data', (chunk) => {
+      stdout += String(chunk);
+    });
+    child.on('error', () => resolve(undefined));
+    child.on('close', (code) => {
       const selected = stdout.trim();
       resolve(code === 0 && selected ? selected : undefined);
     });
@@ -926,7 +983,7 @@ async function runFolderPickerCsharp(exe: string): Promise<string | undefined> {
 }
 
 async function runFolderPickerPowerShell(): Promise<string | undefined> {
-  const psPath = await resolveWindowsBinary("powershell.exe");
+  const psPath = await resolveWindowsBinary('powershell.exe');
   const psScript = [
     'Add-Type -AssemblyName System.Windows.Forms',
     '$d = New-Object System.Windows.Forms.FolderBrowserDialog',
@@ -935,17 +992,19 @@ async function runFolderPickerPowerShell(): Promise<string | undefined> {
     'if ($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {',
     '  [Console]::Write($d.SelectedPath)',
     '}',
-  ].join("; ");
+  ].join('; ');
 
   return new Promise((resolve) => {
-    const child = spawn(psPath, [
-      "-NoProfile", "-Sta",
-      "-Command", psScript,
-    ], { windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
-    let stdout = "";
-    child.stdout.on("data", (chunk) => { stdout += String(chunk); });
-    child.on("error", () => resolve(undefined));
-    child.on("close", () => {
+    const child = spawn(psPath, ['-NoProfile', '-Sta', '-Command', psScript], {
+      windowsHide: true,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let stdout = '';
+    child.stdout.on('data', (chunk) => {
+      stdout += String(chunk);
+    });
+    child.on('error', () => resolve(undefined));
+    child.on('close', () => {
       const selected = stdout.trim();
       resolve(selected || undefined);
     });
@@ -953,7 +1012,7 @@ async function runFolderPickerPowerShell(): Promise<string | undefined> {
 }
 
 async function pickDirectory(): Promise<string | undefined> {
-  if (process.platform === "win32") {
+  if (process.platform === 'win32') {
     const exe = await compileFolderPicker();
     if (exe) {
       return runFolderPickerCsharp(exe);
@@ -961,20 +1020,24 @@ async function pickDirectory(): Promise<string | undefined> {
     return runFolderPickerPowerShell();
   }
 
-  if (process.platform === "darwin") {
+  if (process.platform === 'darwin') {
     return new Promise((resolve) => {
-      const child = spawn("osascript", [
-        "-e",
-        'set chosenFolder to choose folder with prompt "Select workspace folder"',
-        "-e",
-        "POSIX path of chosenFolder",
-      ], { windowsHide: true });
-      let stdout = "";
-      child.stdout.on("data", (chunk) => {
+      const child = spawn(
+        'osascript',
+        [
+          '-e',
+          'set chosenFolder to choose folder with prompt "Select workspace folder"',
+          '-e',
+          'POSIX path of chosenFolder',
+        ],
+        { windowsHide: true }
+      );
+      let stdout = '';
+      child.stdout.on('data', (chunk) => {
         stdout += String(chunk);
       });
-      child.on("error", () => resolve(undefined));
-      child.on("close", (code) => {
+      child.on('error', () => resolve(undefined));
+      child.on('close', (code) => {
         if (code !== 0) {
           resolve(undefined);
           return;
@@ -986,13 +1049,17 @@ async function pickDirectory(): Promise<string | undefined> {
   }
 
   return new Promise((resolve) => {
-    const child = spawn("zenity", ["--file-selection", "--directory", "--title=Select workspace folder"], { windowsHide: true });
-    let stdout = "";
-    child.stdout.on("data", (chunk) => {
+    const child = spawn(
+      'zenity',
+      ['--file-selection', '--directory', '--title=Select workspace folder'],
+      { windowsHide: true }
+    );
+    let stdout = '';
+    child.stdout.on('data', (chunk) => {
       stdout += String(chunk);
     });
-    child.on("error", () => resolve(undefined));
-    child.on("close", (code) => {
+    child.on('error', () => resolve(undefined));
+    child.on('close', (code) => {
       if (code !== 0) {
         resolve(undefined);
         return;
@@ -1011,12 +1078,12 @@ async function readBody(request: IncomingMessage): Promise<unknown> {
   if (chunks.length === 0) {
     return undefined;
   }
-  return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  return JSON.parse(Buffer.concat(chunks).toString('utf8'));
 }
 
 function writeJson(response: ServerResponse, payload: HandlerResult) {
   response.statusCode = payload.ok ? 200 : 400;
-  response.setHeader("Content-Type", "application/json; charset=utf-8");
+  response.setHeader('Content-Type', 'application/json; charset=utf-8');
   response.end(JSON.stringify(payload));
 }
 
@@ -1028,154 +1095,225 @@ export async function handlePreviewWorkspaceApi(
   request: IncomingMessage,
   response: ServerResponse
 ): Promise<boolean> {
-  const requestUrl = new URL(request.url ?? API_PREFIX, "http://127.0.0.1");
+  const requestUrl = new URL(request.url ?? API_PREFIX, 'http://127.0.0.1');
   if (!isPreviewWorkspaceApiRequest(requestUrl.pathname)) {
     return false;
   }
 
   try {
-    if (request.method === "POST" && requestUrl.pathname === `${API_PREFIX}/workspace/open`) {
+    if (request.method === 'POST' && requestUrl.pathname === `${API_PREFIX}/workspace/open`) {
       const body = (await readBody(request)) as { workspacePath?: string } | undefined;
       if (!body?.workspacePath?.trim()) {
-        writeJson(response, fail("workspacePath is required", "INVALID_INPUT"));
+        writeJson(response, fail('workspacePath is required', 'INVALID_INPUT'));
         return true;
       }
       writeJson(response, ok(await openWorkspace(body.workspacePath.trim())));
       return true;
     }
 
-    if (request.method === "POST" && requestUrl.pathname === `${API_PREFIX}/workspace/pick-directory`) {
+    if (
+      request.method === 'POST' &&
+      requestUrl.pathname === `${API_PREFIX}/workspace/pick-directory`
+    ) {
       const selectedPath = await pickDirectory();
       writeJson(response, ok(selectedPath));
       return true;
     }
 
-    if (request.method === "POST" && requestUrl.pathname === `${API_PREFIX}/workspace/reveal`) {
+    if (request.method === 'POST' && requestUrl.pathname === `${API_PREFIX}/workspace/reveal`) {
       const body = (await readBody(request)) as { path?: string } | undefined;
       if (!body?.path?.trim()) {
-        writeJson(response, fail("path is required", "INVALID_INPUT"));
+        writeJson(response, fail('path is required', 'INVALID_INPUT'));
         return true;
       }
       writeJson(response, ok(await revealInFileManager(body.path.trim())));
       return true;
     }
 
-    if (request.method === "GET" && requestUrl.pathname === `${API_PREFIX}/workspace/app-directory`) {
+    if (
+      request.method === 'GET' &&
+      requestUrl.pathname === `${API_PREFIX}/workspace/app-directory`
+    ) {
       writeJson(response, ok(process.cwd()));
       return true;
     }
 
-    if (request.method === "POST" && requestUrl.pathname === `${API_PREFIX}/workspace/create-file`) {
+    if (
+      request.method === 'POST' &&
+      requestUrl.pathname === `${API_PREFIX}/workspace/create-file`
+    ) {
       const body = (await readBody(request)) as
         | { rootPath?: string; relativePath?: string; content?: string }
         | undefined;
       if (!body?.rootPath?.trim() || !body?.relativePath?.trim()) {
-        writeJson(response, fail("rootPath and relativePath are required", "INVALID_INPUT"));
+        writeJson(response, fail('rootPath and relativePath are required', 'INVALID_INPUT'));
         return true;
       }
       writeJson(
         response,
-        ok(await createFile(body.rootPath.trim(), body.relativePath.trim(), body.content ?? ""))
+        ok(await createFile(body.rootPath.trim(), body.relativePath.trim(), body.content ?? ''))
       );
       return true;
     }
 
-    if (request.method === "POST" && requestUrl.pathname === `${API_PREFIX}/workspace/create-folder`) {
-      const body = (await readBody(request)) as { rootPath?: string; relativePath?: string } | undefined;
+    if (
+      request.method === 'POST' &&
+      requestUrl.pathname === `${API_PREFIX}/workspace/create-folder`
+    ) {
+      const body = (await readBody(request)) as
+        | { rootPath?: string; relativePath?: string }
+        | undefined;
       if (!body?.rootPath?.trim() || !body?.relativePath?.trim()) {
-        writeJson(response, fail("rootPath and relativePath are required", "INVALID_INPUT"));
+        writeJson(response, fail('rootPath and relativePath are required', 'INVALID_INPUT'));
         return true;
       }
       writeJson(response, ok(await createFolder(body.rootPath.trim(), body.relativePath.trim())));
       return true;
     }
 
-    if (request.method === "POST" && requestUrl.pathname === `${API_PREFIX}/workspace/rename-file`) {
-      const body = (await readBody(request)) as { rootPath?: string; relativePath?: string; newName?: string } | undefined;
+    if (
+      request.method === 'POST' &&
+      requestUrl.pathname === `${API_PREFIX}/workspace/rename-file`
+    ) {
+      const body = (await readBody(request)) as
+        | { rootPath?: string; relativePath?: string; newName?: string }
+        | undefined;
       if (!body?.rootPath?.trim() || !body?.relativePath?.trim() || !body?.newName?.trim()) {
-        writeJson(response, fail("rootPath, relativePath, and newName are required", "INVALID_INPUT"));
+        writeJson(
+          response,
+          fail('rootPath, relativePath, and newName are required', 'INVALID_INPUT')
+        );
         return true;
       }
-      writeJson(response, ok(await renameFile(body.rootPath.trim(), body.relativePath.trim(), body.newName.trim())));
+      writeJson(
+        response,
+        ok(await renameFile(body.rootPath.trim(), body.relativePath.trim(), body.newName.trim()))
+      );
       return true;
     }
 
-    if (request.method === "POST" && requestUrl.pathname === `${API_PREFIX}/workspace/delete-file`) {
-      const body = (await readBody(request)) as { rootPath?: string; relativePath?: string } | undefined;
+    if (
+      request.method === 'POST' &&
+      requestUrl.pathname === `${API_PREFIX}/workspace/delete-file`
+    ) {
+      const body = (await readBody(request)) as
+        | { rootPath?: string; relativePath?: string }
+        | undefined;
       if (!body?.rootPath?.trim() || !body?.relativePath?.trim()) {
-        writeJson(response, fail("rootPath and relativePath are required", "INVALID_INPUT"));
+        writeJson(response, fail('rootPath and relativePath are required', 'INVALID_INPUT'));
         return true;
       }
-      writeJson(response, ok(await deleteFileEntry(body.rootPath.trim(), body.relativePath.trim())));
+      writeJson(
+        response,
+        ok(await deleteFileEntry(body.rootPath.trim(), body.relativePath.trim()))
+      );
       return true;
     }
 
-    if (request.method === "POST" && requestUrl.pathname === `${API_PREFIX}/workspace/duplicate-file`) {
-      const body = (await readBody(request)) as { rootPath?: string; srcRelativePath?: string; dstRelativePath?: string } | undefined;
-      if (!body?.rootPath?.trim() || !body?.srcRelativePath?.trim() || !body?.dstRelativePath?.trim()) {
-        writeJson(response, fail("rootPath, srcRelativePath, and dstRelativePath are required", "INVALID_INPUT"));
+    if (
+      request.method === 'POST' &&
+      requestUrl.pathname === `${API_PREFIX}/workspace/duplicate-file`
+    ) {
+      const body = (await readBody(request)) as
+        | { rootPath?: string; srcRelativePath?: string; dstRelativePath?: string }
+        | undefined;
+      if (
+        !body?.rootPath?.trim() ||
+        !body?.srcRelativePath?.trim() ||
+        !body?.dstRelativePath?.trim()
+      ) {
+        writeJson(
+          response,
+          fail('rootPath, srcRelativePath, and dstRelativePath are required', 'INVALID_INPUT')
+        );
         return true;
       }
-      writeJson(response, ok(await duplicateFile(body.rootPath.trim(), body.srcRelativePath.trim(), body.dstRelativePath.trim())));
+      writeJson(
+        response,
+        ok(
+          await duplicateFile(
+            body.rootPath.trim(),
+            body.srcRelativePath.trim(),
+            body.dstRelativePath.trim()
+          )
+        )
+      );
       return true;
     }
 
-    if (request.method === "POST" && requestUrl.pathname === `${API_PREFIX}/workspace/move-file`) {
-      const body = (await readBody(request)) as { rootPath?: string; relativePath?: string; newPath?: string } | undefined;
+    if (request.method === 'POST' && requestUrl.pathname === `${API_PREFIX}/workspace/move-file`) {
+      const body = (await readBody(request)) as
+        | { rootPath?: string; relativePath?: string; newPath?: string }
+        | undefined;
       if (!body?.rootPath?.trim() || !body?.relativePath?.trim() || !body?.newPath?.trim()) {
-        writeJson(response, fail("rootPath, relativePath, and newPath are required", "INVALID_INPUT"));
+        writeJson(
+          response,
+          fail('rootPath, relativePath, and newPath are required', 'INVALID_INPUT')
+        );
         return true;
       }
-      writeJson(response, ok(await moveFile(body.rootPath.trim(), body.relativePath.trim(), body.newPath.trim())));
+      writeJson(
+        response,
+        ok(await moveFile(body.rootPath.trim(), body.relativePath.trim(), body.newPath.trim()))
+      );
       return true;
     }
 
-    const rootPath = requestUrl.searchParams.get("rootPath");
+    const rootPath = requestUrl.searchParams.get('rootPath');
     if (!rootPath?.trim()) {
-      writeJson(response, fail("rootPath is required", "INVALID_INPUT"));
+      writeJson(response, fail('rootPath is required', 'INVALID_INPUT'));
       return true;
     }
 
-    if (request.method === "GET" && requestUrl.pathname === `${API_PREFIX}/workspace/tree`) {
+    if (request.method === 'GET' && requestUrl.pathname === `${API_PREFIX}/workspace/tree`) {
       writeJson(response, ok(await listTree(rootPath)));
       return true;
     }
-    if (request.method === "GET" && requestUrl.pathname === `${API_PREFIX}/workspace/file`) {
-      const relativeTarget = requestUrl.searchParams.get("relativePath");
+    if (request.method === 'GET' && requestUrl.pathname === `${API_PREFIX}/workspace/file`) {
+      const relativeTarget = requestUrl.searchParams.get('relativePath');
       if (!relativeTarget?.trim()) {
-        writeJson(response, fail("relativePath is required", "INVALID_INPUT"));
+        writeJson(response, fail('relativePath is required', 'INVALID_INPUT'));
         return true;
       }
       writeJson(response, ok(await readFile(rootPath, relativeTarget)));
       return true;
     }
-    if (request.method === "GET" && requestUrl.pathname === `${API_PREFIX}/workspace/change-preview`) {
-      const relativeTarget = requestUrl.searchParams.get("relativePath");
+    if (
+      request.method === 'GET' &&
+      requestUrl.pathname === `${API_PREFIX}/workspace/change-preview`
+    ) {
+      const relativeTarget = requestUrl.searchParams.get('relativePath');
       if (!relativeTarget?.trim()) {
-        writeJson(response, fail("relativePath is required", "INVALID_INPUT"));
+        writeJson(response, fail('relativePath is required', 'INVALID_INPUT'));
         return true;
       }
       writeJson(response, ok(await readChangePreview(rootPath, relativeTarget)));
       return true;
     }
-    if (request.method === "GET" && requestUrl.pathname === `${API_PREFIX}/workspace/search`) {
-      writeJson(response, ok(await searchText(rootPath, requestUrl.searchParams.get("query") ?? "")));
+    if (request.method === 'GET' && requestUrl.pathname === `${API_PREFIX}/workspace/search`) {
+      writeJson(
+        response,
+        ok(await searchText(rootPath, requestUrl.searchParams.get('query') ?? ''))
+      );
       return true;
     }
-    if (request.method === "GET" && requestUrl.pathname === `${API_PREFIX}/workspace/outline`) {
-      const relativeTarget = requestUrl.searchParams.get("relativePath");
+    if (request.method === 'GET' && requestUrl.pathname === `${API_PREFIX}/workspace/outline`) {
+      const relativeTarget = requestUrl.searchParams.get('relativePath');
       if (!relativeTarget?.trim()) {
-        writeJson(response, fail("relativePath is required", "INVALID_INPUT"));
+        writeJson(response, fail('relativePath is required', 'INVALID_INPUT'));
         return true;
       }
       writeJson(response, ok(await outline(rootPath, relativeTarget)));
       return true;
     }
-    if (request.method === "GET" && requestUrl.pathname === `${API_PREFIX}/workspace/git-status`) {
+    if (request.method === 'GET' && requestUrl.pathname === `${API_PREFIX}/workspace/git-status`) {
       writeJson(response, ok(await captureGitSnapshot(rootPath)));
       return true;
     }
-    if (request.method === "GET" && requestUrl.pathname === `${API_PREFIX}/workspace/git-branches`) {
+    if (
+      request.method === 'GET' &&
+      requestUrl.pathname === `${API_PREFIX}/workspace/git-branches`
+    ) {
       try {
         writeJson(response, ok(await listGitBranches(rootPath)));
       } catch {
@@ -1183,35 +1321,41 @@ export async function handlePreviewWorkspaceApi(
       }
       return true;
     }
-    if (request.method === "POST" && requestUrl.pathname === `${API_PREFIX}/workspace/git-switch`) {
+    if (request.method === 'POST' && requestUrl.pathname === `${API_PREFIX}/workspace/git-switch`) {
       const body = (await readBody(request)) as WorkspaceGitBranchSwitchInput | undefined;
       if (!body) {
-        writeJson(response, fail("branch switch payload is required", "INVALID_INPUT"));
+        writeJson(response, fail('branch switch payload is required', 'INVALID_INPUT'));
         return true;
       }
       writeJson(response, ok(await switchGitBranch(rootPath, body)));
       return true;
     }
-    if (request.method === "POST" && requestUrl.pathname === `${API_PREFIX}/workspace/git-create-branch`) {
+    if (
+      request.method === 'POST' &&
+      requestUrl.pathname === `${API_PREFIX}/workspace/git-create-branch`
+    ) {
       const body = (await readBody(request)) as WorkspaceGitBranchCreateInput | undefined;
       if (!body) {
-        writeJson(response, fail("branch creation payload is required", "INVALID_INPUT"));
+        writeJson(response, fail('branch creation payload is required', 'INVALID_INPUT'));
         return true;
       }
       writeJson(response, ok(await createGitBranch(rootPath, body)));
       return true;
     }
-    if (request.method === "GET" && requestUrl.pathname === `${API_PREFIX}/workspace/absolute-path`) {
-      const relativePath = requestUrl.searchParams.get("relativePath");
+    if (
+      request.method === 'GET' &&
+      requestUrl.pathname === `${API_PREFIX}/workspace/absolute-path`
+    ) {
+      const relativePath = requestUrl.searchParams.get('relativePath');
       if (!relativePath?.trim()) {
-        writeJson(response, fail("relativePath is required", "INVALID_INPUT"));
+        writeJson(response, fail('relativePath is required', 'INVALID_INPUT'));
         return true;
       }
       writeJson(response, ok(await getAbsolutePath(rootPath, relativePath)));
       return true;
     }
-    if (request.method === "GET" && requestUrl.pathname === `${API_PREFIX}/retrieval/status`) {
-      const workspaceId = requestUrl.searchParams.get("workspaceId") ?? createWorkspaceId(rootPath);
+    if (request.method === 'GET' && requestUrl.pathname === `${API_PREFIX}/retrieval/status`) {
+      const workspaceId = requestUrl.searchParams.get('workspaceId') ?? createWorkspaceId(rootPath);
       writeJson(response, ok(await buildRetrievalSnapshot(workspaceId, rootPath)));
       return true;
     }
@@ -1221,6 +1365,6 @@ export async function handlePreviewWorkspaceApi(
     return true;
   }
 
-  writeJson(response, fail("unsupported preview workspace route", "NOT_FOUND"));
+  writeJson(response, fail('unsupported preview workspace route', 'NOT_FOUND'));
   return true;
 }

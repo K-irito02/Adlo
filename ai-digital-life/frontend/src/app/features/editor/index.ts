@@ -1,10 +1,6 @@
-export {
-  CodeEditor,
-  saveEditorState,
-  getSavedEditorState,
-  clearEditorStateCache,
-} from './CodeEditor';
+export { CodeEditor } from './CodeEditor';
 export type { CodeEditorProps } from './CodeEditor';
+export { saveEditorState, getSavedEditorState, clearEditorStateCache } from './editorStateCache';
 
 export {
   CodeMirrorEditorRef,

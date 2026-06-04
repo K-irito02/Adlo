@@ -1,18 +1,25 @@
 import React from 'react';
-import { useUiStore } from '../../../stores/ui-store';
 import { useAppStore } from '../../../stores/slicedStore';
 import { MultiWorkspaceChangesTree } from '../../../features/workspace-changes-tree';
 import { OutlineTree } from '../../../features/outline';
 import { useNavigatorResize } from '../../../hooks/useNavigatorResize';
 import { ChangesToolbar } from './ChangesToolbar';
-import type { WorkspaceTreeNode, ReorderWorkspacesInput } from '@ai-digital-life/kernel';
-import type { ChangeTreeNode } from '../changesTree';
+import type {
+  WorkspaceTreeNode,
+  ReorderWorkspacesInput,
+  GitSnapshot,
+  RecentWorkspaceEntry,
+  FileOutlineItem,
+} from '@ai-digital-life/kernel';
+import type { ChangeTreeNode, ChangeEntry } from '../changesTree';
+import type { CopyDict } from '../../../i18n';
+import type { FileTreeContextMenuItem } from '../../../features/file-tree';
 
 type ChangeFileState = 'staged' | 'modified' | 'untracked' | 'conflicted';
 
 interface TreeDataProps {
-  t: any;
-  visibleWorkspaces: any[];
+  t: CopyDict;
+  visibleWorkspaces: RecentWorkspaceEntry[];
   activeWorkspaceId: string | undefined;
   workspaceChangesExpanded: Record<string, boolean>;
   changeCounts: Record<string, number>;
@@ -35,7 +42,7 @@ interface TreeCallbacks {
   onToggleFileTreePath: (workspaceId: string, path: string) => void;
   onOpenChangePreview: (workspacePath: string, relativePath: string) => void;
   onReorderWorkspaces: (input: ReorderWorkspacesInput) => void;
-  getContextMenuItems: (node: ChangeTreeNode) => any[];
+  getContextMenuItems: (node: ChangeTreeNode) => FileTreeContextMenuItem<ChangeTreeNode>[];
   contextMenuPersistRef: React.MutableRefObject<boolean>;
   clearMenuHighlightRef: React.MutableRefObject<(() => void) | undefined>;
   renderMeta: (node: WorkspaceTreeNode) => React.ReactNode;
@@ -56,15 +63,15 @@ interface NavigatorStateProps {
   allChangesExpanded: boolean;
   totalChangeCount: number;
   hasChangeEntries: boolean;
-  snapshot: any;
+  snapshot: GitSnapshot | undefined;
   totalChangesStats?: { staged: number; unstaged: number; untracked: number };
   canToggleNavigatorStructure: boolean;
   structureToggleExpanded: boolean;
   changesNavigatorTitle: string;
-  changeOutline: any[];
+  changeOutline: FileOutlineItem[];
   expandedOutlineIds: Set<string>;
   changesStatusFilter: Set<ChangeFileState>;
-  changeEntries: any[];
+  changeEntries: ChangeEntry[];
   hasVisibleWorkspaces: boolean;
 }
 
@@ -97,8 +104,6 @@ export function ChangesTreePanel(props: ChangesTreePanelProps) {
     contextMenuPersistRef,
     clearMenuHighlightRef,
     renderMeta,
-    onToggleAllDirectories,
-    hasExpandedDirectories,
     changesNavigatorMode,
     onChangeNavigatorMode,
     allChangesExpanded,
@@ -118,7 +123,6 @@ export function ChangesTreePanel(props: ChangesTreePanelProps) {
     handleRevealOutlineLine,
     changesStatusFilter,
     onStatusFilterClick,
-    changeEntries,
     onRefreshAll,
     hasVisibleWorkspaces,
   } = props;
@@ -190,7 +194,11 @@ export function ChangesTreePanel(props: ChangesTreePanelProps) {
           onToggleFileTreePath={onToggleFileTreePath}
           onOpenChangePreview={onOpenChangePreview}
           onReorderWorkspaces={onReorderWorkspaces}
-          getContextMenuItems={getContextMenuItems as any}
+          getContextMenuItems={
+            getContextMenuItems as unknown as (
+              node: WorkspaceTreeNode
+            ) => FileTreeContextMenuItem<WorkspaceTreeNode>[]
+          }
           contextMenuPersistRef={contextMenuPersistRef}
           clearMenuHighlightRef={clearMenuHighlightRef}
           t={t}

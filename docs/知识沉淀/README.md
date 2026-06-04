@@ -8,8 +8,8 @@
 |------|------|--------|
 | [重构](./重构/) | 重构方法论、组件提取、执行报告、阶段性总结 | 11 |
 | [多工作区](./多工作区/) | 多工作区开发中的变更面板、文件树、终端、布局等经验 | 9 |
-| [浏览器](./浏览器/) | 内置浏览器实现、树形目录交互、子目录修复经验 | 3 |
-| [代码质量](./代码质量/) | 全量代码质量检测与修复经验 | 1 |
+| [浏览器](./浏览器/) | 内置浏览器实现、树形目录交互、子目录修复经验 | 6 |
+| [代码质量](./代码质量/) | 全量代码质量检测与修复经验 | 2 |
 | [浏览器自动化](./浏览器自动化/) | 浏览器自动化调试记录与规则经验 | 2 |
 
 ## 索引
@@ -49,15 +49,18 @@
 | 文件 | 来源 | 说明 |
 |------|------|------|
 | [builtin-browser.md](./浏览器/builtin-browser.md) | architecture/builtin-browser-implementation | 内置浏览器实现 16 条经验（Tauri 差异、WebView 生命周期、布局等） |
+| [browser-link-interception.md](./浏览器/browser-link-interception.md) | 浏览器实现 | 浏览器链接拦截处理经验 |
 | [browser-tree-fix.md](./浏览器/browser-tree-fix.md) | development/browser-tree-fix | 树形目录选择与交互修复（4 条经验） |
 | [browser-subdirectory-fix.md](./浏览器/browser-subdirectory-fix.md) | development/browser-subdirectory-fix | 子目录导航修复（4 条经验） |
 | [browser-navigate-fix-2026-06-04.md](./浏览器/browser-navigate-fix-2026-06-04.md) | 2026-06-04 修复执行 | 浏览器模式下 URL 无法加载修复（无活动标签页创建逻辑、调试经验与调试手段） |
+| [browser-url-sync-fix-2026-06-04.md](./浏览器/browser-url-sync-fix-2026-06-04.md) | 2026-06-04 修复执行 | 浏览器 URL 同步修复经验 |
 
 ### 代码质量
 
 | 文件 | 来源 | 说明 |
 |------|------|------|
 | [code-quality-detection-and-fix.md](./代码质量/code-quality-detection-and-fix.md) | 全仓库代码质量检测与修复执行 | 7 条经验（React 19 hooks、React.memo、CodeMirror 重建、Rust clippy 等） |
+| [eslint-prettier-ts-cleanup-2026-06-04.md](./代码质量/eslint-prettier-ts-cleanup-2026-06-04.md) | 四维门禁清零执行 | 6 条经验（`_param` 解构陷阱、`any`→具体类型级联错误、组件拆分、图书馆接等） |
 
 ### 浏览器自动化
 

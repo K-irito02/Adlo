@@ -696,7 +696,6 @@ function parseVue(content: string): OutlineDraft[] {
     }
 
     const section = match[1].toLowerCase();
-    const attrs = match[2] ?? '';
     const startLine = index + 1;
     const endTag = new RegExp(`</${section}>`, 'i');
     let endIndex = index + 1;

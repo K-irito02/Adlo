@@ -5,7 +5,17 @@ import { TooltipSimple } from '../../components/Tooltip';
 import { StatusBar } from '../StatusBar';
 import type { ChatMode, ContextChip } from '../../stores/types';
 import type { CopyDict } from '../../i18n';
-import type { AgentRunDetail, GitSnapshot, RecentWorkspaceEntry } from '@ai-digital-life/kernel';
+import type {
+  AgentRunDetail,
+  GitSnapshot,
+  RecentWorkspaceEntry,
+  AppInfo,
+  GitBranchSummary,
+  ModelGatewayHealthSnapshot,
+  ModelProviderId,
+  WorkspaceGitBranchSwitchInput,
+  WorkspaceGitBranchCreateInput,
+} from '@ai-digital-life/kernel';
 
 export type ComposerFooterProps = {
   t: CopyDict;
@@ -27,16 +37,23 @@ export type ComposerFooterProps = {
   updateCustomCaret: () => void;
   onInput: (event: React.FormEvent<HTMLDivElement>) => void;
   onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => void;
-  appInfo: any;
-  modelHealth: any;
+  appInfo: AppInfo | undefined;
+  modelHealth: ModelGatewayHealthSnapshot | undefined;
   streamingActiveRunId: string | undefined;
   activeRun: AgentRunDetail | undefined;
-  workspaceContextMode: any;
+  workspaceContextMode: 'workspace' | 'global';
   recentWorkspaces: RecentWorkspaceEntry[];
   gitSnapshot: GitSnapshot | undefined;
-  gitBranches: any[];
-  handleSelectModel: (providerId: any, modelId?: string) => void;
-  actions: any;
+  gitBranches: GitBranchSummary[];
+  handleSelectModel: (providerId: ModelProviderId, modelId?: string) => void;
+  actions: {
+    openWorkspace: (workspacePath: string) => Promise<{ ok: boolean; error?: string }>;
+    clearWorkspaceContext: () => Promise<void>;
+    pickWorkspaceDirectory: () => Promise<string | undefined>;
+    fetchGitBranches: () => Promise<void>;
+    switchGitBranch: (input: WorkspaceGitBranchSwitchInput) => Promise<void>;
+    createGitBranch: (input: WorkspaceGitBranchCreateInput) => Promise<void>;
+  };
 };
 
 export function ComposerFooter(props: ComposerFooterProps) {

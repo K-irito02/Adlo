@@ -31,7 +31,11 @@ export function gutterHoverSync(): Extension {
       const pos = view.posAtDOM(line, 0);
       if (pos < 0) return;
       let lineNumber = 0;
-      try { lineNumber = view.state.doc.lineAt(pos).number; } catch { return; }
+      try {
+        lineNumber = view.state.doc.lineAt(pos).number;
+      } catch {
+        return;
+      }
       if (lineNumber < 1) return;
 
       const gutters = editor.querySelector('.cm-gutters') as HTMLElement | null;
@@ -63,7 +67,7 @@ export function gutterHoverSync(): Extension {
       const elRect = targetEl.getBoundingClientRect();
 
       overlay.style.position = 'absolute';
-      overlay.style.top = (elRect.top - guttersRect.top) + 'px';
+      overlay.style.top = elRect.top - guttersRect.top + 'px';
       overlay.style.left = '0';
       overlay.style.right = '0';
       overlay.style.height = elRect.height + 'px';

@@ -58,7 +58,6 @@ export function WorkspaceFileTreeEntry({
   dirtyPaths,
   externalChangePath,
   onToggleExpand,
-  onOpenWorkspace,
   onPinWorkspace,
   onUnpinWorkspace,
   onHideFromRightPanels,
@@ -221,7 +220,11 @@ export function WorkspaceFileTreeEntry({
                 className="adl-icon-btn adl-icon-btn--xs"
                 onClick={(e) => {
                   e.stopPropagation();
-                  isPinned ? onUnpinWorkspace(workspace.id) : onPinWorkspace(workspace.id);
+                  if (isPinned) {
+                    onUnpinWorkspace(workspace.id);
+                  } else {
+                    onPinWorkspace(workspace.id);
+                  }
                 }}
                 aria-label={isPinned ? '取消置顶' : '置顶'}
               >

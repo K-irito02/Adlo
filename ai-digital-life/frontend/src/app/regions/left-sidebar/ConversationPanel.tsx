@@ -6,8 +6,8 @@ import {
   readConversationPanelHeight,
   writeConversationPanelHeight,
   clampConversationPanelHeight,
-  ConversationResizeHandle,
-} from './ResizeHandle';
+} from './ResizeHandle.utils';
+import { ConversationResizeHandle } from './ResizeHandle';
 
 const MIN_CONVERSATION_PANEL_HEIGHT = 120;
 const MAX_CONVERSATION_PANEL_HEIGHT = 9_999;

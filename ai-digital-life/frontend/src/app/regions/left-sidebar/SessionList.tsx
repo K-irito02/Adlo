@@ -56,9 +56,9 @@ export function SessionList({
   onUnpinSession,
   onRenameSession,
   onArchiveSession,
-  onMarkSessionRead,
-  onMarkSessionUnread,
-  onDeleteSession,
+  onMarkSessionRead: _onMarkSessionRead,
+  onMarkSessionUnread: _onMarkSessionUnread,
+  onDeleteSession: _onDeleteSession,
   onReorderSessions,
   activeSessionId,
   locale,
@@ -69,9 +69,6 @@ export function SessionList({
   const [dragOverSessionId, setDragOverSessionId] = useState<string>();
   const [droppedSessionId, setDroppedSessionId] = useState<string>();
   const [expandedSessionLists, setExpandedSessionLists] = useState<Record<string, boolean>>({});
-  const [ephemeralVisibleSessionIds, setEphemeralVisibleSessionIds] = useState<
-    Record<string, string[]>
-  >({});
   const [hoveredSessionId, setHoveredSessionId] = useState<string>();
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [sessionToRename, setSessionToRename] = useState<{ id: string; name: string } | null>(null);
@@ -124,18 +121,6 @@ export function SessionList({
   const handleCancelRename = useCallback(() => {
     setRenameDialogOpen(false);
     setSessionToRename(null);
-  }, []);
-
-  const removeEphemeralVisibleSessionId = useCallback((listKeyInner: string, sessionId: string) => {
-    setEphemeralVisibleSessionIds((current) => {
-      if (!(current[listKeyInner] ?? []).includes(sessionId)) {
-        return current;
-      }
-      return {
-        ...current,
-        [listKeyInner]: (current[listKeyInner] ?? []).filter((id) => id !== sessionId),
-      };
-    });
   }, []);
 
   const handleSessionDrop = useCallback(
@@ -243,12 +228,8 @@ export function SessionList({
     const visibleSessions = getVisibleSidebarSessions(sessionItems, expanded);
     return expanded
       ? visibleSessions.items
-      : mergeEphemeralVisibleSessions(
-          sessionItems,
-          visibleSessions.items,
-          ephemeralVisibleSessionIds[listKey] ?? []
-        );
-  }, [sessionItems, expanded, listKey, ephemeralVisibleSessionIds]);
+      : mergeEphemeralVisibleSessions(sessionItems, visibleSessions.items, []);
+  }, [sessionItems, expanded]);
   const hiddenCount = Math.max(0, sessionItems.length - visibleItems.length);
   const canReorder = interactive && (Boolean(workspaceId) || Boolean(allowStandaloneReorder));
   const draggedSessionItem = dragSessionId

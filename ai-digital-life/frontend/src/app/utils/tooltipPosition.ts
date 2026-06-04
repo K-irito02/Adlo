@@ -140,7 +140,6 @@ export function computePosition(options: TooltipPositionOptions): PositionResult
   } = options;
 
   const currentPlacement = placement;
-  const result: PositionResult = { x: 0, y: 0, placement: currentPlacement };
 
   function calculate(placementToUse: Placement): PositionResult {
     const localResult: PositionResult = { x: 0, y: 0, placement: placementToUse };
@@ -165,13 +164,10 @@ export function computePosition(options: TooltipPositionOptions): PositionResult
     }
 
     const isHorizontal = placementToUse === 'top' || placementToUse === 'bottom';
-    const mainAxisSize = isHorizontal ? tooltipRect.height : tooltipRect.width;
     const crossAxisSize = isHorizontal ? tooltipRect.width : tooltipRect.height;
 
-    const mainAxis = isHorizontal ? 'y' : 'x';
     const crossAxis = isHorizontal ? 'x' : 'y';
 
-    const mainCoord = getMainAxisCoord(localResult, placementToUse);
     const crossCoord = getCrossAxisCoord(localResult, placementToUse);
 
     if (!fitsInViewport(crossCoord, crossAxisSize, crossAxis as 'x' | 'y', viewportPadding)) {

@@ -65,14 +65,14 @@ export function useEditorReveal(
     }
     setEditorHint(undefined);
     await actions.sendMessage(buildSelectionPrompt(locale, selectedFilePath, selectedText));
-  }, [locale, selectedFilePath, actions.sendMessage, t.noSelection, setEditorHint]);
+  }, [locale, selectedFilePath, actions, t.noSelection, setEditorHint]);
 
   const handleOpenFileAtLine = useCallback(
     (relativePath: string, line: number) => {
       setPendingReveal(relativePath, line);
       void actions.openFile(relativePath);
     },
-    [actions.openFile, setPendingReveal]
+    [actions, setPendingReveal]
   );
 
   const handleDiffMount = useCallback((editor: EditorRef | DiffEditorRef) => {

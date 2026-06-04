@@ -59,11 +59,13 @@ export const InlineDiffViewer = memo(function InlineDiffViewer({
 
   useEffect(() => {
     let cancelled = false;
-    getLanguageExtension(language).then((exts) => {
-      if (!cancelled) setLangExtensions(exts);
-    }).catch((err) => {
-      console.error(`[DiffViewer] failed to load language "${language}":`, err);
-    });
+    getLanguageExtension(language)
+      .then((exts) => {
+        if (!cancelled) setLangExtensions(exts);
+      })
+      .catch((err) => {
+        console.error(`[DiffViewer] failed to load language "${language}":`, err);
+      });
     return () => {
       cancelled = true;
     };

@@ -10,16 +10,6 @@ interface AuditPanelProps {
 
 type AuditFilter = 'all' | AuditEntry['operationType'];
 
-const FILTER_OPTIONS: Array<{ value: AuditFilter; labelKey: keyof CopyDict }> = [
-  { value: 'all', labelKey: 'auditFilterAll' },
-  { value: 'command', labelKey: 'auditFilterCommand' },
-  { value: 'file-write', labelKey: 'auditFilterFile' },
-  { value: 'file-delete', labelKey: 'auditFilterFile' },
-  { value: 'patch-apply', labelKey: 'auditFilterPatch' },
-  { value: 'patch-rollback', labelKey: 'auditFilterPatch' },
-  { value: 'approval', labelKey: 'auditFilterApproval' },
-];
-
 const UNIQUE_FILTERS: Array<{ value: AuditFilter; labelKey: keyof CopyDict }> = [
   { value: 'all', labelKey: 'auditFilterAll' },
   { value: 'command', labelKey: 'auditFilterCommand' },

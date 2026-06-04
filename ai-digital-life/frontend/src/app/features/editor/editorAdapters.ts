@@ -136,7 +136,7 @@ export class CodeMirrorEditorRef implements EditorRef {
     };
   }
 
-  onDidChangeHiddenAreas?(listener: () => void): Disposable {
+  onDidChangeHiddenAreas?(_listener: () => void): Disposable {
     return { dispose() {} };
   }
 
@@ -229,7 +229,7 @@ export class CodeMirrorDiffEditorRef implements DiffEditorRef {
   }
 
   updateOptions(opts: unknown): void {
-    this.mergeView.reconfigure(opts as any);
+    this.mergeView.reconfigure(opts as Parameters<typeof this.mergeView.reconfigure>[0]);
   }
 }
 

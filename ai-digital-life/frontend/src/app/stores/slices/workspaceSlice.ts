@@ -9,7 +9,6 @@ import type {
   GitSnapshot,
 } from '@ai-digital-life/kernel';
 import type { StoreState } from '../StoreState';
-import { queueLowPriorityRefresh } from '../shared';
 
 // Local storage keys
 const WORKSPACE_TREE_EXPANDED_KEY = 'adl-ui:workspace-tree-expanded';

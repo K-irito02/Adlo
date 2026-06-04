@@ -29,7 +29,14 @@ interface ActionButtonProps {
   statusDot?: string;
 }
 
-function ActionButton({ icon, label, tooltip, isActive, onClick, statusDot }: ActionButtonProps) {
+function ActionButton({
+  icon,
+  label: _label,
+  tooltip,
+  isActive,
+  onClick,
+  statusDot,
+}: ActionButtonProps) {
   return (
     <TooltipSimple content={tooltip} placement="right">
       <button

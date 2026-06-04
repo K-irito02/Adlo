@@ -16,7 +16,7 @@ export interface SearchSlice {
 
 export const createSearchSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
-  get: () => StoreState
+  _get: () => StoreState
 ): SearchSlice => ({
   searchQuery: '',
   searchResults: [],

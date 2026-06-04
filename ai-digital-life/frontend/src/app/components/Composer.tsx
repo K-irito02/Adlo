@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React from 'react';
 import { ContextBuilder, type ContextBuilderProps } from './ContextBuilder';
 import { PromptInput, type PromptInputProps } from './PromptInput';
 import { ActionButton, type ActionButtonProps } from './ActionButton';

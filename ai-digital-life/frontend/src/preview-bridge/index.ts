@@ -19,7 +19,7 @@ import type {
 import { applyPreferencePatch } from '../app/utils/preferencesMerger';
 import { mockDigitalLifeBridge, setMockActiveWorkspace } from '../mock-bridge';
 import { repoMapEntriesToTree } from '../app/utils/repoMapFromEntries';
-import type { DigitalLifeBridge, PtySessionInfo } from '../shared/ipc';
+import type { DigitalLifeBridge } from '../shared/ipc';
 import { IpcErrorCode } from '../shared/ipc';
 import { requestPreviewApi } from './api';
 import {

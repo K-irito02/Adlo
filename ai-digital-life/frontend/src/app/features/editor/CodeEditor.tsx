@@ -37,49 +37,9 @@ export type CodeEditorProps = {
   extensions?: Extension[];
 };
 
-const stateCache = new Map<string, { state: EditorState; timestamp: number }>();
-const STATE_CACHE_MAX_SIZE = 20;
-const STATE_CACHE_TTL = 5 * 60 * 1000;
 const lineNumbersCompartment = new Compartment();
 const wordWrapCompartment = new Compartment();
 const foldGutterCompartment = new Compartment();
-
-function pruneStateCache() {
-  const now = Date.now();
-  for (const [key, entry] of stateCache) {
-    if (now - entry.timestamp > STATE_CACHE_TTL) {
-      stateCache.delete(key);
-    }
-  }
-  if (stateCache.size > STATE_CACHE_MAX_SIZE) {
-    const entries = [...stateCache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
-    const toRemove = entries.slice(0, entries.length - STATE_CACHE_MAX_SIZE);
-    for (const [key] of toRemove) {
-      stateCache.delete(key);
-    }
-  }
-}
-
-export function saveEditorState(filePath: string, view: EditorView | null) {
-  if (!view || !filePath) return;
-  pruneStateCache();
-  stateCache.set(filePath, { state: view.state, timestamp: Date.now() });
-}
-
-export function getSavedEditorState(filePath: string): EditorState | null {
-  const entry = stateCache.get(filePath);
-  if (!entry) return null;
-  entry.timestamp = Date.now();
-  return entry.state;
-}
-
-export function clearEditorStateCache(filePath?: string) {
-  if (filePath) {
-    stateCache.delete(filePath);
-  } else {
-    stateCache.clear();
-  }
-}
 
 export function CodeEditor({
   value,
@@ -102,11 +62,13 @@ export function CodeEditor({
 
   useEffect(() => {
     let cancelled = false;
-    getLanguageExtension(language).then((exts) => {
-      if (!cancelled) setLangExtensions(exts);
-    }).catch((err) => {
-      console.error(`[CodeEditor] failed to load language extension for "${language}":`, err);
-    });
+    getLanguageExtension(language)
+      .then((exts) => {
+        if (!cancelled) setLangExtensions(exts);
+      })
+      .catch((err) => {
+        console.error(`[CodeEditor] failed to load language extension for "${language}":`, err);
+      });
     return () => {
       cancelled = true;
     };
@@ -137,14 +99,11 @@ export function CodeEditor({
     return exts;
   }, [langExtensions, readOnly, lineNumbersEnabled, wordWrap, locale]);
 
-  const allExtensions = useMemo<Extension[]>(
-    () => {
-      const exts: Extension[] = [...baseExtensions, ...extraExtensions];
-      exts.push(...(getThemeExtension(theme) as Extension[]));
-      return exts;
-    },
-    [theme, baseExtensions, extraExtensions]
-  );
+  const allExtensions = useMemo<Extension[]>(() => {
+    const exts: Extension[] = [...baseExtensions, ...extraExtensions];
+    exts.push(...(getThemeExtension(theme) as Extension[]));
+    return exts;
+  }, [theme, baseExtensions, extraExtensions]);
 
   const handleCreateEditorView = useCallback(
     (view: EditorView) => {

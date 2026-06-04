@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { SlashCommand, SlashCommandId } from '@ai-digital-life/kernel';
+import type { SlashCommand } from '@ai-digital-life/kernel';
 import type { CopyDict } from '../../i18n';
 
 interface SlashCommandPopoverProps {

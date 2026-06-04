@@ -32,6 +32,7 @@ export function useKeyboardShortcuts(
   }, [
     setNewSessionDialogOpen,
     setCreateWorkspaceModalOpen,
+    actions,
     actions.openWorkspace,
     actions.pickWorkspaceDirectory,
   ]);

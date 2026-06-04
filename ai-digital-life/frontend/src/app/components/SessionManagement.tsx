@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { renderIcon, type IconName } from '../../design-system/icons';
+import { renderIcon } from '../../design-system/icons';
 import { TooltipSimple } from './Tooltip';
 
 /* ------------------------------------------------------------------ */

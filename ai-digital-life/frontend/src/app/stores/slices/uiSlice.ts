@@ -57,7 +57,7 @@ export interface UISlice {
  */
 export const createUISlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
-  get: () => StoreState
+  _get: () => StoreState
 ): UISlice => ({
   activeRightTool: 'files',
   chatMode: 'ask',

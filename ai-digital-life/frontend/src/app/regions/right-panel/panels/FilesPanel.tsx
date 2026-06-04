@@ -45,7 +45,6 @@ export function FilesPanel(props: FilesPanelProps) {
     onDiffMount,
     onSearch,
     onSearchChange,
-    onRefreshWorkspaceTree,
     onExpandAll,
     onCollapseAll,
     onRefreshAll,
@@ -127,12 +126,12 @@ export function FilesPanel(props: FilesPanelProps) {
     return activePatchSet.filePatches.find((c) => c.relativePath === selectedPatchFilePath);
   }, [activePatchSet, selectedPatchFilePath]);
 
-  const handleCopyPath = async (value?: string) => {
+  const handleCopyPath = useCallback(async (value?: string) => {
     if (!value) return;
     try {
       await navigator.clipboard.writeText(value);
     } catch {}
-  };
+  }, []);
 
   const handleNavigateLine = useCallback(
     (line: number) => {
@@ -195,9 +194,8 @@ export function FilesPanel(props: FilesPanelProps) {
       selectedFilePath,
       selectedAbsolutePath,
       filePatch,
-      editorOptions.lineNumbersEnabled,
-      editorOptions.wordWrapEnabled,
-      editorOptions.agentAnnotationsEnabled,
+      editorOptions,
+
       activeFilePatch,
       handleCopyPath,
     ]

@@ -35,15 +35,7 @@ const TERMINAL_NAVIGATOR_WIDTH_MAX = 300;
 const DEFAULT_TERMINAL_NAVIGATOR_WIDTH = 240;
 
 // Helper functions
-import {
-  clamp,
-  readJson,
-  writeJson,
-  readNumber,
-  writeNumber,
-  createUiId,
-  createDebouncedWrite,
-} from '../shared';
+import { clamp, readJson, readNumber, createUiId, createDebouncedWrite } from '../shared';
 
 function deriveTerminalTitle(profile: TerminalProfile, count: number): string {
   const label = profile === 'powershell' ? 'PowerShell' : profile === 'bash' ? 'Bash' : 'CMD';
@@ -57,10 +49,6 @@ function sortTabs(tabs: TerminalTabState[]): TerminalTabState[] {
     }
     return a.sortOrder - b.sortOrder;
   });
-}
-
-function normalizeTerminalTabs(tabs: TerminalTabState[]): TerminalTabState[] {
-  return tabs;
 }
 
 function buildTabsById(tabs: TerminalTabState[]): Record<string, TerminalTabState> {

@@ -71,15 +71,7 @@ const BROWSER_NAVIGATOR_WIDTH_MAX = 300;
 const DEFAULT_BROWSER_NAVIGATOR_WIDTH = 240;
 
 // Helper functions
-import {
-  clamp,
-  readJson,
-  writeJson,
-  readNumber,
-  writeNumber,
-  createUiId,
-  createDebouncedWrite,
-} from '../shared';
+import { clamp, readJson, readNumber, createUiId, createDebouncedWrite } from '../shared';
 import { formatNewFolderNameByLocale, getAppCopy } from '../../i18n';
 
 function sortTabs(tabs: BrowserTabState[]): BrowserTabState[] {
@@ -89,10 +81,6 @@ function sortTabs(tabs: BrowserTabState[]): BrowserTabState[] {
     }
     return a.sortOrder - b.sortOrder;
   });
-}
-
-function normalizeBrowserTabs(tabs: BrowserTabState[]): BrowserTabState[] {
-  return tabs;
 }
 
 function buildTabsById(tabs: BrowserTabState[]): Record<string, BrowserTabState> {
@@ -724,13 +712,13 @@ export const createBrowserSlice = (
       }),
 
     browserCollapseAllTreePaths: () =>
-      set((state) => {
+      set((_state) => {
         scheduleWrite(BROWSER_TREE_EXPANDED_KEY, {});
         return { browserTabTreeExpanded: {} };
       }),
 
     browserExpandAllTreePaths: (paths) =>
-      set((state) => {
+      set((_state) => {
         const next: Record<string, boolean> = {};
         for (const p of paths) {
           next[p] = true;

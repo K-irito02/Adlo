@@ -52,7 +52,7 @@ export function useTerminalMenus({
     if (selection) {
       navigator.clipboard.writeText(selection).catch(() => {});
     }
-  }, []);
+  }, [xtermRef]);
 
   const handlePaste = useCallback(() => {
     navigator.clipboard
@@ -67,7 +67,7 @@ export function useTerminalMenus({
 
   const handleClear = useCallback(() => {
     xtermRef.current?.clear();
-  }, []);
+  }, [xtermRef]);
 
   const updateProfile = useCallback(
     (profile: TerminalProfile) => {
@@ -116,23 +116,26 @@ export function useTerminalMenus({
     return items;
   }, [recentWorkspaces, t.terminalIndependent]);
 
-  const shellMenuItems: TerminalShellMenuItem[] = [
-    {
-      id: 'workspace-section',
-      label: t.terminalBindWorkspace,
-      hasSubMenu: true,
-      subMenu: workspaceMenuItems,
-    },
-    { id: 'sep-1', separator: true },
-    {
-      id: 'powershell',
-      label: 'PowerShell',
-      profile: 'powershell',
-      action: () => updateProfile('powershell'),
-    },
-    { id: 'bash', label: 'Bash', profile: 'bash', action: () => updateProfile('bash') },
-    { id: 'cmd', label: 'CMD', profile: 'cmd', action: () => updateProfile('cmd') },
-  ];
+  const shellMenuItems: TerminalShellMenuItem[] = useMemo(
+    () => [
+      {
+        id: 'workspace-section',
+        label: t.terminalBindWorkspace,
+        hasSubMenu: true,
+        subMenu: workspaceMenuItems,
+      },
+      { id: 'sep-1', separator: true },
+      {
+        id: 'powershell',
+        label: 'PowerShell',
+        profile: 'powershell',
+        action: () => updateProfile('powershell'),
+      },
+      { id: 'bash', label: 'Bash', profile: 'bash', action: () => updateProfile('bash') },
+      { id: 'cmd', label: 'CMD', profile: 'cmd', action: () => updateProfile('cmd') },
+    ],
+    [t, workspaceMenuItems, updateProfile]
+  );
 
   const shellTypeItems = useMemo(
     () =>

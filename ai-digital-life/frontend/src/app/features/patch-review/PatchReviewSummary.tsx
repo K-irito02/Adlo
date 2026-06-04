@@ -1,5 +1,6 @@
 import React from 'react';
 import type { PatchReviewFilter } from './patchReview';
+import type { CopyDict } from '../../i18n';
 
 export interface PatchReviewSummaryProps {
   activePatchSet: { title: string; summary: string };
@@ -8,7 +9,7 @@ export interface PatchReviewSummaryProps {
   onSetPatchReviewFilter: (filter: PatchReviewFilter) => void;
   onAcceptAllHunks: () => void;
   onRejectAllHunks: () => void;
-  t: any;
+  t: CopyDict;
 }
 
 export function PatchReviewSummary({

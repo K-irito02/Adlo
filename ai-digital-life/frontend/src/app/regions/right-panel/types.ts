@@ -18,14 +18,7 @@ import type {
 import type { CopyDict } from '../../i18n';
 import type { EditorTabState } from '../../utils/editorTabs';
 import type { EditorRef, DiffEditorRef } from '../../stores/types';
-import type {
-  PatchChangeKind,
-  PatchDirection,
-  PatchFileSummary,
-  PatchHunkSummary,
-  PatchReviewFilter,
-  PatchReviewState,
-} from '../../features/patch-review';
+import type { PatchDirection, PatchReviewFilter } from '../../features/patch-review';
 
 export interface RightPanelViewProps {
   t: CopyDict;

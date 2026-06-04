@@ -22,7 +22,7 @@ export function useSettingsPanelProps(panelProps: RightPanelProps): SettingsPane
         void actions.updatePreferences(patch);
       }
     },
-    [actions.updatePreferences]
+    [actions]
   );
 
   return {

@@ -43,52 +43,52 @@ export function useChangesPanelProps(
   const handleApplyPatchSet = useCallback(() => {
     const currentPatchSet = useAppStore.getState().activePatchSet;
     if (currentPatchSet) void actions.applyPatchSet(currentPatchSet.id);
-  }, [actions.applyPatchSet]);
+  }, [actions]);
 
   const handleRollbackPatchSet = useCallback(() => {
     const currentPatchSet = useAppStore.getState().activePatchSet;
     if (currentPatchSet) void actions.rollbackPatchSet(currentPatchSet.id);
-  }, [actions.rollbackPatchSet]);
+  }, [actions]);
 
   const handleSetHunkDecision = useCallback(
     (hunkId: string, decision: 'pending' | 'accepted' | 'rejected') => {
       const currentPatchSet = useAppStore.getState().activePatchSet;
       if (currentPatchSet) void actions.setHunkDecision(currentPatchSet.id, hunkId, decision);
     },
-    [actions.setHunkDecision]
+    [actions]
   );
 
   const handleAcceptAllHunks = useCallback(() => {
     void actions.acceptAllHunks();
-  }, [actions.acceptAllHunks]);
+  }, [actions]);
 
   const handleRejectAllHunks = useCallback(() => {
     void actions.rejectAllHunks();
-  }, [actions.rejectAllHunks]);
+  }, [actions]);
 
   const handleOpenChangePreview = useCallback(
     (path: string) => {
       void actions.openChangePreview(path);
     },
-    [actions.openChangePreview]
+    [actions]
   );
 
   const handleOpenFile = useCallback(
     (path: string) => {
       void actions.openFile(path);
     },
-    [actions.openFile]
+    [actions]
   );
 
   const handleRefreshWorkspaceTree = useCallback(() => {
     void actions.refreshWorkspaceTree();
-  }, [actions.refreshWorkspaceTree]);
+  }, [actions]);
 
   const handleHideFromRightPanels = useCallback(
     (workspaceId: string) => {
       void actions.hideWorkspaceFromRightPanels(workspaceId);
     },
-    [actions.hideWorkspaceFromRightPanels]
+    [actions]
   );
 
   return useMemo(

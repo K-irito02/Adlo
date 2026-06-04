@@ -1,6 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import type { ReorderSessionsInput, ReorderWorkspacesInput } from '@ai-digital-life/kernel';
 import type { CopyDict, Locale } from '../i18n';
 import { IconArchive, IconPlug, IconSparkles } from '../icons';
 import { buildSidebarViewModel } from '../utils/sidebarViewModel';
@@ -9,13 +8,13 @@ import { useAppStore } from '../stores/slicedStore';
 import { useAppActions } from '../hooks/useAppActions';
 import { TooltipSimple } from '../components/Tooltip';
 import { RenameDialog } from '../components/RenameDialog';
+import { SidebarContextMenu } from './left-sidebar/SidebarContextMenu';
+import type { SidebarMenuState } from './left-sidebar/SidebarContextMenu.utils';
 import {
-  SidebarContextMenu,
-  SidebarMenuState,
   buildWorkspaceMenuItems,
   buildSessionMenuItems,
   exportSessionMarkdown,
-} from './left-sidebar/SidebarContextMenu';
+} from './left-sidebar/SidebarContextMenu.utils';
 import { ResizeHandle } from './left-sidebar/ResizeHandle';
 import { ConversationPanel } from './left-sidebar/ConversationPanel';
 import { WorkspaceList } from './left-sidebar/WorkspaceList';

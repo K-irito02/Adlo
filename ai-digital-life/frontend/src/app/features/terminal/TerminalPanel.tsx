@@ -11,7 +11,6 @@ import {
 } from '../../icons';
 import { TooltipSimple } from '../../components/Tooltip';
 import { XtermTerminal } from '../../components/terminal/XtermTerminal';
-import { countGitChanges } from '../../regions/right-panel/types';
 import type { TerminalPanelProps } from '../../regions/right-panel/types';
 import type { TerminalProfile } from '../../stores/types';
 import { useTerminalPanel } from './useTerminalPanel';
@@ -19,7 +18,6 @@ import { TerminalShellSelector } from './TerminalShellSelector';
 import { TerminalMenuDropdown } from './TerminalMenuDropdown';
 import { TerminalContextMenu } from './TerminalContextMenu';
 import { MultiWorkspaceTerminal } from '../workspace-terminal';
-import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
 
 export function TerminalPanel(props: TerminalPanelProps) {
   const { t, latestCommandRun } = props;
@@ -28,13 +26,12 @@ export function TerminalPanel(props: TerminalPanelProps) {
   const recentWorkspaces = useAppStore((s) => s.recentWorkspaces);
   const terminalWorkspaceExpanded = useAppStore((s) => s.terminalWorkspaceExpanded);
   const setTerminalWorkspaceExpanded = useAppStore((s) => s.setTerminalWorkspaceExpanded);
-  const terminalCreateTab = useAppStore((s) => s.terminalCreateTab);
   const terminalSelectTab = useAppStore((s) => s.terminalSelectTab);
   const terminalCloseTab = useAppStore((s) => s.terminalCloseTab);
   const terminalTogglePin = useAppStore((s) => s.terminalTogglePin);
   const hideWorkspaceFromRightPanels = useAppStore((s) => s.hideWorkspaceFromRightPanels);
 
-  const { terminalState, terminalActions, dragHandlers, menuHandlers } = useTerminalPanel(props);
+  const { terminalState, terminalActions } = useTerminalPanel(props);
   const {
     activeTab,
     hasActiveTab,

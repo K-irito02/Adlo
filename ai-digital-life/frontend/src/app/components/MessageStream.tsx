@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useMemo, useCallback, useState } from 'react';
 import { List, useListRef, useDynamicRowHeight } from 'react-window';
+import type { ListProps } from 'react-window';
 import type {
   ConversationMessageRecord,
   AgentRunDetail,
@@ -45,7 +46,7 @@ const RowComponent = React.memo(
   ({
     index,
     style,
-    ariaAttributes,
+    ariaAttributes: _ariaAttributes,
     streamItems,
     t,
     activeRun,
@@ -56,7 +57,7 @@ const RowComponent = React.memo(
   }: {
     index: number;
     style: React.CSSProperties;
-    ariaAttributes: any;
+    ariaAttributes: { 'aria-posinset': number; 'aria-setsize': number; role: 'listitem' };
     streamItems: StreamItem[];
     t: CopyDict;
     activeRun?: AgentRunDetail;
@@ -248,7 +249,7 @@ export function MessageStream({
   const handleRowsRendered = useCallback(
     (
       visibleRows: { startIndex: number; stopIndex: number },
-      allRows: { startIndex: number; stopIndex: number }
+      _allRows: { startIndex: number; stopIndex: number }
     ) => {
       if (streamItems.length > 0) {
         wasAtBottomRef.current = visibleRows.stopIndex >= streamItems.length - 1;
@@ -283,7 +284,7 @@ export function MessageStream({
       <List
         listRef={listRef}
         style={{ height: containerHeight, width: '100%' }}
-        rowComponent={RowComponent as any}
+        rowComponent={RowComponent as unknown as ListProps<RowProps>['rowComponent']}
         rowCount={streamItems.length}
         rowHeight={dynamicRowHeight}
         overscanCount={5}

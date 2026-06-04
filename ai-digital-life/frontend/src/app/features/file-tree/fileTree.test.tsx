@@ -1,7 +1,8 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { FileTree, type FileTreeRenderableNode } from "./fileTree";
+import { FileTree } from "./fileTree";
+import type { FileTreeRenderableNode } from "./fileTree.utils";
 
 describe("FileTree", () => {
   it("renders the shared tree row chrome inside the dedicated scroll wrapper", () => {

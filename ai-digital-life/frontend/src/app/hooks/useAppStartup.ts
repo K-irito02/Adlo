@@ -20,13 +20,13 @@ export function useAppStartup(appInfo: AppInfo | undefined) {
 
   useEffect(() => {
     void actions.bootstrap();
-  }, [actions.bootstrap]);
+  }, [actions, actions.bootstrap]);
 
   useEffect(() => {
     return window.digitalLife.workspace.onFileChanged((event) => {
       actions.markExternalFileChange(event);
     });
-  }, [actions.markExternalFileChange]);
+  }, [actions, actions.markExternalFileChange]);
 
   return {
     locale,

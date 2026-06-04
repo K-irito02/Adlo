@@ -118,7 +118,7 @@ export function usePatchReview(setPendingReveal: (path: string, line: number) =>
         void actions.openFile(relativePath);
       }
     },
-    [activePatchSet, actions.openFile, setActiveRightTool, setPendingReveal]
+    [activePatchSet, actions, setActiveRightTool, setPendingReveal]
   );
 
   const handleSelectPatchHunk = useCallback(
@@ -131,7 +131,7 @@ export function usePatchReview(setPendingReveal: (path: string, line: number) =>
         void actions.openFile(relativePath);
       }
     },
-    [actions.openFile, setActiveRightTool, setPendingReveal]
+    [actions, setActiveRightTool, setPendingReveal]
   );
 
   const handleTogglePatchHunkCollapse = useCallback((hunkId: string) => {

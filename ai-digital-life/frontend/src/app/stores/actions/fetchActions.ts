@@ -1,9 +1,5 @@
 import type { StoreState } from '../StoreState';
-import type {
-  DigitalLifeRunActivityEventV1,
-  IndexingStatus,
-  ModelTokenUsage,
-} from '@ai-digital-life/kernel';
+import type { DigitalLifeRunActivityEventV1, IndexingStatus } from '@ai-digital-life/kernel';
 import type { StoreApi } from 'zustand';
 import { captureError } from '../shared';
 import { trimOldRuns, trimActivityList } from '../activityUtils';

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { renderMarkdownPreviewHtml } from "./MarkdownPreview";
+import { renderMarkdownPreviewHtml } from "./markdownPreviewUtils";
 
 describe("MarkdownPreview", () => {
   it("adds source-line anchors to rendered headings", () => {

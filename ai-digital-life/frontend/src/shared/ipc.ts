@@ -15,7 +15,6 @@ import type {
   DigitalLifeRunActivityEventV1,
   GitSnapshot,
   HealthSnapshot,
-  IndexingStatus,
   IpcResult,
   ModelGatewayHealthSnapshot,
   PatchApplicationResult,

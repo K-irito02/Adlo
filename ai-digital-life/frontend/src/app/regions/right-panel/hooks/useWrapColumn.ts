@@ -49,12 +49,7 @@ function useWrapColumn(input: UseWrapColumnInput): number | null {
       disposable?.dispose();
       window.removeEventListener('resize', schedule);
     };
-  }, [
-    input.diffSideBySide,
-    input.getStickySourceEditor,
-    input.selectedFilePath,
-    input.wordWrapEnabled,
-  ]);
+  }, [input]);
 
   return wrapColumn;
 }

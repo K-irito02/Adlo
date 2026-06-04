@@ -14,6 +14,7 @@ export const menuZh = {
   menuTerminalView: '终端查看',
   menuZoomIn: '放大',
   menuZoomOut: '缩小',
+  menuZoomReset: '重置缩放',
   menuResetZoom: '重置缩放',
   menuSettings: '设置',
   menuCommandPalette: '命令面板',
