@@ -796,6 +796,12 @@ async function openWorkspace(workspacePath: string): Promise<PreviewWorkspacePay
   return { meta, recent, retrieval };
 }
 
+async function writeDebugLogs(rootPath: string, content: string): Promise<boolean> {
+  const logFile = path.resolve(rootPath, 'debug-logs-browser.txt');
+  await fs.writeFile(logFile, content, 'utf8');
+  return true;
+}
+
 async function renameFile(
   rootPath: string,
   relativePath: string,
@@ -1131,10 +1137,29 @@ export async function handlePreviewWorkspaceApi(
     }
 
     if (
+      request.method === 'POST' &&
+      requestUrl.pathname === `${API_PREFIX}/workspace/write-debug-logs`
+    ) {
+      const body = (await readBody(request)) as
+        | { rootPath?: string; content?: string }
+        | undefined;
+      if (!body?.rootPath?.trim()) {
+        writeJson(response, fail('rootPath is required', 'INVALID_INPUT'));
+        return true;
+      }
+      writeJson(
+        response,
+        ok(await writeDebugLogs(body.rootPath.trim(), body.content ?? ''))
+      );
+      return true;
+    }
+
+    if (
       request.method === 'GET' &&
       requestUrl.pathname === `${API_PREFIX}/workspace/app-directory`
     ) {
-      writeJson(response, ok(process.cwd()));
+      const appDirectory = path.resolve(process.cwd(), '../../');
+      writeJson(response, ok(appDirectory));
       return true;
     }
 

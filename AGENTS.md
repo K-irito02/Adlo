@@ -47,6 +47,47 @@
 
 共完成 **34 轮**迭代重构，详情见 [REFACTORING_PROGRESS_REPORT.md](./docs/重构洞察/REFACTORING_PROGRESS_REPORT.md)。
 
+## 调试工具
+
+### 调试日志收集器（开发环境永久保留）
+
+| 功能 | 说明 |
+|------|------|
+| 收集器 | 拦截所有 `console` 输出（log、warn、error、info、debug） |
+| 复制按钮 | 页面右上角可拖拽"复制调试日志"按钮 |
+| 自动写入 | Tauri 模式下自动写入 `debug-logs.txt`，浏览器模式自动写入 `debug-logs-browser.txt` |
+| 防抖写入 | 日志写入间隔 500ms，避免频繁 IO 操作 |
+| 无限循环防护 | 防止写入过程中产生新日志导致的无限递归 |
+
+**文件位置**：
+- 前端入口：`frontend/src/main.tsx`
+- 收集器实现：`frontend/src/app/utils/debugLogCollector.ts`
+- 后端命令：`src-tauri/src/commands/app.rs` → `write_debug_logs_to_project`
+- 浏览器模式后端：`frontend/dev/previewWorkspaceService.ts` → `writeDebugLogs`
+
+**日志文件位置**：项目根目录（固定路径）
+- Tauri 模式：`debug-logs.txt`
+- 浏览器模式：`debug-logs-browser.txt`
+
+**使用方式**：
+1. 点击"复制调试日志"按钮复制到剪贴板
+2. 或直接查看项目根目录的日志文件
+3. 控制台可执行 `__exportDebugLogs()` 手动导出
+4. 控制台可执行 `__clearDebugLogs()` 清除日志
+5. 控制台可执行 `__restoreConsole()` 恢复原始 console 行为
+
+**日志格式**：`[ISO时间戳] [日志级别] 消息内容`
+
+**全局 API**：
+- `__getDebugLogs()` - 获取结构化日志数组
+- `__exportDebugLogs()` - 导出日志为文本
+- `__clearDebugLogs()` - 清除所有日志
+- `__restoreConsole()` - 恢复原始 console 行为
+
+### 调试面板
+
+右下角绿色调试面板显示组件级状态信息（格式：`key:value`）。
+
 ## AI 代理开发规则
 
 项目规则文件位于 `.agents/rules/`，AI 代理在操作本项目时必须遵守：

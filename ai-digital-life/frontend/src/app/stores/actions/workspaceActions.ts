@@ -139,6 +139,7 @@ export function createWorkspaceActions(
         return { ok: false, error: result.error.message };
       }
       await get().bootstrap();
+      
       return { ok: true };
     },
 

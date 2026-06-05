@@ -1,29 +1,25 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { EditorState } from "@codemirror/state";
-import type { Extension } from "@codemirror/state";
-import { EditorView, lineNumbers } from "@codemirror/view";
-import { unifiedMergeView, uncollapseUnchanged } from "@codemirror/merge";
-import { createFoldGutterExtension } from "../editor/cmFoldGutter";
-import { rebuildThemes } from "../editor/cmTheme";
-import { FoldTooltipOverlay } from "../editor/FoldTooltipOverlay";
-import { useFoldMarkerAutoHide } from "../editor/useFoldMarkerAutoHide";
-import { createEditorRef } from "../editor/editorAdapters";
-import type { DiffEditorRef, EditorRef } from "../../stores/types";
-import type { PreviewDiffCollapsedRange } from "./changePreviewDiffRanges";
-import { getLanguageExtension } from "../editor/cmLanguages";
+import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { EditorState } from '@codemirror/state';
+import type { Extension } from '@codemirror/state';
+import { EditorView, lineNumbers } from '@codemirror/view';
+import { unifiedMergeView, uncollapseUnchanged } from '@codemirror/merge';
+import { createFoldGutterExtension } from '../editor/cmFoldGutter';
+import { FoldTooltipOverlay } from '../editor/FoldTooltipOverlay';
+import { useFoldMarkerAutoHide } from '../editor/useFoldMarkerAutoHide';
+import { createEditorRef } from '../editor/editorAdapters';
+import type { DiffEditorRef, EditorRef } from '../../stores/types';
+import type { PreviewDiffCollapsedRange } from './changePreviewDiffRanges';
+import { getLanguageExtension, getLanguageExtensionSync } from '../editor/cmLanguages';
 import {
   buildSharedExtensions,
   lineNumbersCompartment,
   wordWrapCompartment,
   foldGutterCompartment,
   COLLAPSE_UNCHANGED_CONFIG,
-} from "./sharedExtensions";
-import {
-  buildCollapsedUnchangedRanges,
-  getMergeChunks,
-} from "./diffViewerUtils";
+} from './sharedExtensions';
+import { buildCollapsedUnchangedRanges, getMergeChunks } from './diffViewerUtils';
 
-export function InlineDiffViewer({
+export const InlineDiffViewer = memo(function InlineDiffViewer({
   original,
   modified,
   language,
@@ -41,7 +37,7 @@ export function InlineDiffViewer({
   original: string;
   modified: string;
   language: string;
-  theme: "light" | "dark";
+  theme: 'light' | 'dark';
   locale: string;
   readOnly: boolean;
   lineNumbersEnabled: boolean;
@@ -55,27 +51,51 @@ export function InlineDiffViewer({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
   const [editorView, setEditorView] = useState<EditorView | null>(null);
-  const [langExtensions, setLangExtensions] = useState<Extension[]>([]);
+  const [langExtensions, setLangExtensions] = useState<Extension[]>(() =>
+    getLanguageExtensionSync(language)
+  );
+  const [editorReady, setEditorReady] = useState(false);
   const expandedCollapsedLinesRef = useRef<Set<number>>(new Set());
   const wrapperRef = useRef<HTMLDivElement | null>(null);
-  const foldMarkerState = useFoldMarkerAutoHide(wrapperRef.current, fileKey ?? original + modified);
+  const foldMarkerState = useFoldMarkerAutoHide(wrapperRef, fileKey ?? original + modified);
 
+  // 先加载语言扩展，完成后才允许创建编辑器
   useEffect(() => {
     let cancelled = false;
-    getLanguageExtension(language).then((exts) => {
-      if (!cancelled) setLangExtensions(exts);
-    });
-    return () => { cancelled = true; };
+    getLanguageExtension(language)
+      .then((exts) => {
+        if (!cancelled) {
+          setLangExtensions(exts);
+          setEditorReady(true);
+        }
+      })
+      .catch((err) => {
+        console.error(`[DiffViewer] failed to load language "${language}":`, err);
+        setEditorReady(true);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [language]);
 
-  const extensions = useMemo<Extension[]>(() => {
-    const base = buildSharedExtensions(language, theme, readOnly, lineNumbersEnabled, wordWrap, locale, langExtensions);
+  // 扩展配置 - 语言扩展直接包含在内
+  const staticExtensions = useMemo<Extension[]>(() => {
+    const base = buildSharedExtensions(
+      language,
+      theme,
+      readOnly,
+      lineNumbersEnabled,
+      wordWrap,
+      locale,
+      langExtensions
+    );
     return [
       ...base,
       ...extraExtensions,
       EditorView.updateListener.of((update) => {
         if (!onCollapsedUnchangedRangesChange) return;
-        const expandedLines = update.transactions.flatMap((transaction) => transaction.effects)
+        const expandedLines = update.transactions
+          .flatMap((transaction) => transaction.effects)
           .filter((effect) => effect.is(uncollapseUnchanged))
           .map((effect) => update.state.doc.lineAt(effect.value).number);
         if (expandedLines.length > 0) {
@@ -86,11 +106,13 @@ export function InlineDiffViewer({
           return;
         }
         if (expandedLines.length > 0 || update.docChanged) {
-          onCollapsedUnchangedRangesChange(buildCollapsedUnchangedRanges({
-            chunks: getMergeChunks(update.state),
-            doc: update.state.doc,
-            expandedLines: expandedCollapsedLinesRef.current,
-          }));
+          onCollapsedUnchangedRangesChange(
+            buildCollapsedUnchangedRanges({
+              chunks: getMergeChunks(update.state),
+              doc: update.state.doc,
+              expandedLines: expandedCollapsedLinesRef.current,
+            })
+          );
         }
       }),
       unifiedMergeView({
@@ -108,27 +130,28 @@ export function InlineDiffViewer({
     lineNumbersEnabled,
     wordWrap,
     locale,
+    langExtensions,
     original,
     collapseUnchanged,
     extraExtensions,
     onCollapsedUnchangedRangesChange,
-    langExtensions,
   ]);
 
+  // 只有在语言加载完成后才创建编辑器
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!editorReady || !containerRef.current) return;
 
     if (viewRef.current) {
       viewRef.current.destroy();
       viewRef.current = null;
     }
 
-    containerRef.current.innerHTML = "";
+    containerRef.current.innerHTML = '';
     expandedCollapsedLinesRef.current = new Set();
 
     const state = EditorState.create({
       doc: modified,
-      extensions,
+      extensions: staticExtensions,
     });
 
     const view = new EditorView({
@@ -138,10 +161,14 @@ export function InlineDiffViewer({
 
     viewRef.current = view;
     setEditorView(view);
+
     if (onCollapsedUnchangedRangesChange) {
       onCollapsedUnchangedRangesChange(
         collapseUnchanged
-          ? buildCollapsedUnchangedRanges({ chunks: getMergeChunks(view.state), doc: view.state.doc })
+          ? buildCollapsedUnchangedRanges({
+              chunks: getMergeChunks(view.state),
+              doc: view.state.doc,
+            })
           : []
       );
     }
@@ -158,7 +185,16 @@ export function InlineDiffViewer({
       setEditorView(null);
       onCollapsedUnchangedRangesChange?.([]);
     };
-  }, [original, modified, extensions, collapseUnchanged, onCollapsedUnchangedRangesChange, onMount]);
+  }, [
+    editorReady,
+    language,
+    original,
+    modified,
+    staticExtensions,
+    collapseUnchanged,
+    onCollapsedUnchangedRangesChange,
+    onMount,
+  ]);
 
   useEffect(() => {
     const view = viewRef.current;
@@ -173,22 +209,20 @@ export function InlineDiffViewer({
     view.requestMeasure();
   }, [lineNumbersEnabled, wordWrap]);
 
-  useEffect(() => {
-    rebuildThemes();
-  }, [theme]);
-
   return (
     <div
       ref={wrapperRef}
-      className={`adl-cm-diff-viewer-wrapper${wordWrap ? " adl-cm-word-wrap" : " adl-cm-no-word-wrap"}`}
+      className={`adl-cm-diff-viewer-wrapper${wordWrap ? ' adl-cm-word-wrap' : ' adl-cm-no-word-wrap'}`}
       data-fold-marker-state={foldMarkerState}
-      style={{ position: "relative", width: "100%", height: "100%" }}
+      style={{ position: 'relative', width: '100%', height: '100%' }}
     >
       <div
         ref={containerRef}
         className="adl-cm-diff-viewer adl-cm-diff-viewer--inline"
+        data-dl-lang={language}
+        data-dl-exts={langExtensions.length}
       />
       <FoldTooltipOverlay view={editorView} />
     </div>
   );
-}
+});

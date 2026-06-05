@@ -174,9 +174,19 @@ export function ChangesPanel(props: ChangesPanelProps) {
   );
   const navigatorSelectedPath =
     activeSummary?.relativePath ?? selectedPatchFilePath ?? selectedChangePreviewPath;
+  const activeFilePatchFromSet = useMemo(() => {
+    if (!activePatchSet || !selectedPatchFilePath) return undefined;
+    const patch = activePatchSet.filePatches.find((p) => p.relativePath === selectedPatchFilePath);
+    return patch;
+  }, [activePatchSet, selectedPatchFilePath]);
   const changePreviewLanguage = useMemo(
-    () => detectEditorLanguage(changePreview?.path),
-    [changePreview?.path]
+    () => {
+      const filePath = activeFilePatchFromSet?.relativePath ?? changePreview?.path;
+      const fallbackLang = activeFilePatchFromSet?.language;
+      const lang = detectEditorLanguage(filePath, fallbackLang);
+      return lang;
+    },
+    [changePreview?.path, activeFilePatchFromSet]
   );
   const changePreviewDiffRanges = useMemo(
     () =>
@@ -185,7 +195,6 @@ export function ChangesPanel(props: ChangesPanelProps) {
         : [],
     [changePreview]
   );
-  const collapseUnchangedDiff = !forceExpandUnchangedDiff;
   const changeOutline = useMemo(
     () =>
       changePreview
@@ -365,24 +374,34 @@ export function ChangesPanel(props: ChangesPanelProps) {
 
   const changePreviewContent = changePreview?.currentContent ?? '';
 
-  const stickyContextModel = useStickyContext({
-    selectedFilePath: changePreview?.path,
-    content: changePreviewContent,
-    outline: changeOutline,
-    getStickySourceEditor: getModifiedEditor,
-    wordWrapEnabled,
-    diffSideBySide: props.diffSideBySide,
-    editorSurfaceRef: changesPreviewEditorShellRef,
-    stickyDiffRanges: changePreviewDiffRanges,
-    t,
-  });
+  const stickyContextInput = useMemo(
+    () => ({
+      selectedFilePath: changePreview?.path,
+      content: changePreviewContent,
+      outline: changeOutline,
+      getStickySourceEditor: getModifiedEditor,
+      wordWrapEnabled,
+      diffSideBySide: props.diffSideBySide,
+      editorSurfaceRef: changesPreviewEditorShellRef,
+      stickyDiffRanges: changePreviewDiffRanges,
+      t,
+    }),
+    [
+      changePreview?.path,
+      changePreviewContent,
+      changeOutline,
+      getModifiedEditor,
+      wordWrapEnabled,
+      props.diffSideBySide,
+      changesPreviewEditorShellRef,
+      changePreviewDiffRanges,
+      t,
+    ]
+  );
+
+  const stickyContextModel = useStickyContext(stickyContextInput);
 
   const changesEditorOptions = useEditorOptions();
-
-  const activeFilePatchFromSet = useMemo(() => {
-    if (!activePatchSet || !selectedPatchFilePath) return undefined;
-    return activePatchSet.filePatches.find((p) => p.relativePath === selectedPatchFilePath);
-  }, [activePatchSet, selectedPatchFilePath]);
 
   const activePatchFileSummary = useMemo(
     () =>
@@ -1133,7 +1152,7 @@ export function ChangesPanel(props: ChangesPanelProps) {
                       theme={changePreviewTheme}
                       locale={changePreviewLocale}
                       sideBySide={props.diffSideBySide}
-                      collapseUnchanged={collapseUnchangedDiff}
+                      collapseUnchanged={false}
                       readOnly={true}
                       lineNumbers={lineNumbersEnabled}
                       wordWrap={wordWrapEnabled}

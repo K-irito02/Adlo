@@ -6,6 +6,7 @@ use adl_kernel::{
     HealthSnapshot, HealthStatus, IpcResult, LogEntrySummary, MigrationDiagnostics,
     ModelGatewayHealthSnapshot, RuntimeDiagnosticsSnapshot, RuntimeLifecycleSnapshot, APP_NAME,
 };
+use tauri::Manager;
 
 #[tauri::command]
 pub fn app_get_info(state: tauri::State<'_, AppState>) -> IpcResult<AppInfo> {
@@ -157,4 +158,67 @@ pub fn build_app_info(state: &AppState) -> Result<AppInfo, AppError> {
             message: "Backend ready.".into(),
         }],
     })
+}
+
+/// 写入调试日志到当前项目目录
+#[tauri::command]
+pub fn write_debug_logs_to_project(
+    state: tauri::State<AppState>,
+    content: String,
+) -> Result<(), String> {
+    use std::fs;
+    use std::path::PathBuf;
+
+    // 获取当前工作区
+    let workspace_guard = state.current_workspace.read().map_err(|e| e.to_string())?;
+    let Some(workspace) = workspace_guard.as_ref() else {
+        return Err("No workspace open".to_string());
+    };
+
+    // 日志文件路径: 项目根目录/debug-logs.txt
+    use std::path::Path;
+    let log_file: PathBuf = Path::new(&workspace.root_path).join("debug-logs.txt");
+
+    // 写入文件（覆盖）
+    fs::write(&log_file, content).map_err(|e| e.to_string())?;
+
+    tracing::info!("Debug logs written to project: {:?}", log_file);
+    Ok(())
+}
+
+/// 写入调试日志到文件
+#[tauri::command]
+pub fn write_debug_logs(app: tauri::AppHandle, content: String) -> Result<(), String> {
+    use std::fs;
+    use std::path::PathBuf;
+
+    // 获取应用数据目录
+    let log_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?
+        .join("debug-logs");
+
+    // 创建目录（如果不存在）
+    fs::create_dir_all(&log_dir).map_err(|e| e.to_string())?;
+
+    // 生成文件名（时间戳）
+    let timestamp = chrono_lite_timestamp();
+    let log_file: PathBuf = log_dir.join(format!("debug-{}.log", timestamp));
+
+    // 写入文件
+    fs::write(&log_file, content).map_err(|e| e.to_string())?;
+
+    tracing::info!("Debug logs written to: {:?}", log_file);
+    Ok(())
+}
+
+fn chrono_lite_timestamp() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let duration = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default();
+    let secs = duration.as_secs();
+    let millis = duration.subsec_millis();
+    format!("{}-{}", secs, millis)
 }

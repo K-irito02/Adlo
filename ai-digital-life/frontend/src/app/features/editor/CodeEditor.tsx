@@ -1,25 +1,32 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import CodeMirror from "@uiw/react-codemirror";
-import { EditorView, lineNumbers, highlightActiveLineGutter, highlightActiveLine, keymap } from "@codemirror/view";
-import type { Extension } from "@codemirror/state";
-import { EditorState, Compartment } from "@codemirror/state";
-import { history } from "@codemirror/commands";
-import { indentOnInput, bracketMatching } from "@codemirror/language";
-import { search } from "@codemirror/search";
-import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
-import type { EditorRef } from "../../stores/types";
-import { createEditorRef } from "./editorAdapters";
-import { getThemeExtension, rebuildThemes, getPhrasesExtension } from "./cmTheme";
-import { getLanguageExtension } from "./cmLanguages";
-import { createFoldGutterExtension } from "./cmFoldGutter";
-import { FoldTooltipOverlay } from "./FoldTooltipOverlay";
-import { scrollLeftSyncExtension } from "./cmScrollLeftSync";
-import { useFoldMarkerAutoHide } from "./useFoldMarkerAutoHide";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import CodeMirror from '@uiw/react-codemirror';
+import {
+  EditorView,
+  lineNumbers,
+  highlightActiveLineGutter,
+  highlightActiveLine,
+  keymap,
+} from '@codemirror/view';
+import { gutterHoverSync } from './gutterHoverSync';
+import type { Extension } from '@codemirror/state';
+import { EditorState, Compartment } from '@codemirror/state';
+import { history } from '@codemirror/commands';
+import { indentOnInput, bracketMatching } from '@codemirror/language';
+import { search } from '@codemirror/search';
+import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
+import type { EditorRef } from '../../stores/types';
+import { createEditorRef } from './editorAdapters';
+import { getThemeExtension, getPhrasesExtension } from './cmTheme';
+import { getLanguageExtension } from './cmLanguages';
+import { createFoldGutterExtension } from './cmFoldGutter';
+import { FoldTooltipOverlay } from './FoldTooltipOverlay';
+import { scrollLeftSyncExtension } from './cmScrollLeftSync';
+import { useFoldMarkerAutoHide } from './useFoldMarkerAutoHide';
 
 export type CodeEditorProps = {
   value: string;
   language?: string;
-  theme?: "light" | "dark";
+  theme?: 'light' | 'dark';
   locale?: string;
   readOnly?: boolean;
   lineNumbers?: boolean;
@@ -30,55 +37,15 @@ export type CodeEditorProps = {
   extensions?: Extension[];
 };
 
-const stateCache = new Map<string, { state: EditorState; timestamp: number }>();
-const STATE_CACHE_MAX_SIZE = 20;
-const STATE_CACHE_TTL = 5 * 60 * 1000;
 const lineNumbersCompartment = new Compartment();
 const wordWrapCompartment = new Compartment();
 const foldGutterCompartment = new Compartment();
 
-function pruneStateCache() {
-  const now = Date.now();
-  for (const [key, entry] of stateCache) {
-    if (now - entry.timestamp > STATE_CACHE_TTL) {
-      stateCache.delete(key);
-    }
-  }
-  if (stateCache.size > STATE_CACHE_MAX_SIZE) {
-    const entries = [...stateCache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
-    const toRemove = entries.slice(0, entries.length - STATE_CACHE_MAX_SIZE);
-    for (const [key] of toRemove) {
-      stateCache.delete(key);
-    }
-  }
-}
-
-export function saveEditorState(filePath: string, view: EditorView | null) {
-  if (!view || !filePath) return;
-  pruneStateCache();
-  stateCache.set(filePath, { state: view.state, timestamp: Date.now() });
-}
-
-export function getSavedEditorState(filePath: string): EditorState | null {
-  const entry = stateCache.get(filePath);
-  if (!entry) return null;
-  entry.timestamp = Date.now();
-  return entry.state;
-}
-
-export function clearEditorStateCache(filePath?: string) {
-  if (filePath) {
-    stateCache.delete(filePath);
-  } else {
-    stateCache.clear();
-  }
-}
-
 export function CodeEditor({
   value,
-  language = "plaintext",
-  theme = "dark",
-  locale = "en-US",
+  language = 'plaintext',
+  theme = 'dark',
+  locale = 'en-US',
   readOnly = false,
   lineNumbers: lineNumbersEnabled = true,
   wordWrap = false,
@@ -95,13 +62,19 @@ export function CodeEditor({
 
   useEffect(() => {
     let cancelled = false;
-    getLanguageExtension(language).then((exts) => {
-      if (!cancelled) setLangExtensions(exts);
-    });
-    return () => { cancelled = true; };
+    getLanguageExtension(language)
+      .then((exts) => {
+        if (!cancelled) setLangExtensions(exts);
+      })
+      .catch((err) => {
+        console.error(`[CodeEditor] failed to load language extension for "${language}":`, err);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [language]);
 
-  const foldMarkerState = useFoldMarkerAutoHide(wrapperRef.current, fileKey ?? value);
+  const foldMarkerState = useFoldMarkerAutoHide(wrapperRef, fileKey ?? value);
 
   const baseExtensions = useMemo<Extension[]>(() => {
     const gutterEnabled = lineNumbersEnabled;
@@ -118,17 +91,19 @@ export function CodeEditor({
       foldGutterCompartment.of(gutterEnabled ? createFoldGutterExtension() : []),
       wordWrapCompartment.of(wordWrap ? EditorView.lineWrapping : []),
       scrollLeftSyncExtension,
+      gutterHoverSync(),
       EditorState.readOnly.of(readOnly),
       ...langExtensions,
-      getPhrasesExtension(locale || "en-US"),
+      getPhrasesExtension(locale || 'en-US'),
     ];
     return exts;
   }, [langExtensions, readOnly, lineNumbersEnabled, wordWrap, locale]);
 
-  const allExtensions = useMemo<Extension[]>(
-    () => [...baseExtensions, ...extraExtensions],
-    [baseExtensions, extraExtensions],
-  );
+  const allExtensions = useMemo<Extension[]>(() => {
+    const exts: Extension[] = [...baseExtensions, ...extraExtensions];
+    exts.push(...(getThemeExtension(theme) as Extension[]));
+    return exts;
+  }, [theme, baseExtensions, extraExtensions]);
 
   const handleCreateEditorView = useCallback(
     (view: EditorView) => {
@@ -139,7 +114,7 @@ export function CodeEditor({
       }
       mountedRef.current = true;
     },
-    [onMount],
+    [onMount]
   );
 
   const handleChange = useCallback(
@@ -148,14 +123,8 @@ export function CodeEditor({
         onChange(val);
       }
     },
-    [onChange],
+    [onChange]
   );
-
-  useEffect(() => {
-    if (viewRef.current) {
-      rebuildThemes();
-    }
-  }, [theme]);
 
   useEffect(() => {
     const view = viewRef.current;
@@ -172,14 +141,14 @@ export function CodeEditor({
   return (
     <div
       ref={wrapperRef}
-      className={`adl-cm-editor-wrapper${wordWrap ? " adl-cm-word-wrap" : " adl-cm-no-word-wrap"}`}
+      className={`adl-cm-editor-wrapper${wordWrap ? ' adl-cm-word-wrap' : ' adl-cm-no-word-wrap'}`}
       data-fold-marker-state={foldMarkerState}
-      style={{ position: "relative", width: "100%", height: "100%" }}
+      style={{ position: 'relative', width: '100%', height: '100%' }}
     >
       <CodeMirror
         value={value}
         extensions={allExtensions}
-        theme={getThemeExtension(theme)}
+        theme="dark"
         onChange={handleChange}
         onCreateEditor={handleCreateEditorView}
         className="adl-cm-editor"

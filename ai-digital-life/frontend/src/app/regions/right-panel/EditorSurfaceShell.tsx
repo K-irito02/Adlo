@@ -191,17 +191,32 @@ function EditorSurfaceShell(props: EditorSurfaceShellProps) {
       ? (filePatch.afterContent ?? '')
       : (fileContent ?? '');
 
-  const stickyContextModel = useStickyContext({
-    selectedFilePath,
-    content: stickyContextContent,
-    outline,
-    getStickySourceEditor,
-    wordWrapEnabled: editorOptions.wordWrapEnabled,
-    diffSideBySide,
-    editorSurfaceRef,
-    stickyDiffRanges,
-    t,
-  });
+  const stickyContextInput = useMemo(
+    () => ({
+      selectedFilePath,
+      content: stickyContextContent,
+      outline,
+      getStickySourceEditor,
+      wordWrapEnabled: editorOptions.wordWrapEnabled,
+      diffSideBySide,
+      editorSurfaceRef,
+      stickyDiffRanges,
+      t,
+    }),
+    [
+      selectedFilePath,
+      stickyContextContent,
+      outline,
+      getStickySourceEditor,
+      editorOptions.wordWrapEnabled,
+      diffSideBySide,
+      editorSurfaceRef,
+      stickyDiffRanges,
+      t,
+    ]
+  );
+
+  const stickyContextModel = useStickyContext(stickyContextInput);
 
   useWrapColumn({
     getStickySourceEditor,

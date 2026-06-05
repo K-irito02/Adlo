@@ -25,6 +25,8 @@ fn main() {
             commands::app::app_get_diagnostics,
             commands::app::app_get_model_health,
             commands::app::app_update_preferences,
+            commands::app::write_debug_logs,
+            commands::app::write_debug_logs_to_project,
             commands::workspace::workspace_open,
             commands::workspace::workspace_clear_current,
             commands::workspace::workspace_pick_directory,

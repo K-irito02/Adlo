@@ -1,30 +1,29 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { Extension } from "@codemirror/state";
-import { EditorView, lineNumbers } from "@codemirror/view";
-import { MergeView, uncollapseUnchanged } from "@codemirror/merge";
-import { createFoldGutterExtension } from "../editor/cmFoldGutter";
-import { rebuildThemes } from "../editor/cmTheme";
-import { FoldTooltipOverlay } from "../editor/FoldTooltipOverlay";
-import { useFoldMarkerAutoHide } from "../editor/useFoldMarkerAutoHide";
-import { createDiffEditorRef } from "../editor/editorAdapters";
-import type { DiffEditorRef, EditorRef } from "../../stores/types";
-import type { PreviewDiffCollapsedRange } from "./changePreviewDiffRanges";
-import { getLanguageExtension } from "../editor/cmLanguages";
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { Extension } from '@codemirror/state';
+import { EditorView, lineNumbers } from '@codemirror/view';
+import { MergeView, uncollapseUnchanged } from '@codemirror/merge';
+import { createFoldGutterExtension } from '../editor/cmFoldGutter';
+import { FoldTooltipOverlay } from '../editor/FoldTooltipOverlay';
+import { useFoldMarkerAutoHide } from '../editor/useFoldMarkerAutoHide';
+import { createDiffEditorRef } from '../editor/editorAdapters';
+import type { DiffEditorRef, EditorRef } from '../../stores/types';
+import type { PreviewDiffCollapsedRange } from './changePreviewDiffRanges';
+import { getLanguageExtension, getLanguageExtensionSync } from '../editor/cmLanguages';
 import {
   buildSharedExtensions,
   lineNumbersCompartment,
   wordWrapCompartment,
   foldGutterCompartment,
   COLLAPSE_UNCHANGED_CONFIG,
-} from "./sharedExtensions";
+} from './sharedExtensions';
 import {
   syncHorizontalScroll,
   buildCollapsedUnchangedRanges,
   syncScrollPosition,
   getMergeChunks,
-} from "./diffViewerUtils";
+} from './diffViewerUtils';
 
-export function SideBySideDiffViewer({
+export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
   original,
   modified,
   language,
@@ -42,7 +41,7 @@ export function SideBySideDiffViewer({
   original: string;
   modified: string;
   language: string;
-  theme: "light" | "dark";
+  theme: 'light' | 'dark';
   locale: string;
   readOnly: boolean;
   lineNumbersEnabled: boolean;
@@ -65,37 +64,67 @@ export function SideBySideDiffViewer({
   } | null>(null);
   const expandedCollapsedLinesRef = useRef<Set<number>>(new Set());
   const wrapperRef = useRef<HTMLDivElement | null>(null);
-  const foldMarkerState = useFoldMarkerAutoHide(wrapperRef.current, fileKey ?? original + modified);
-  const [langExtensions, setLangExtensions] = useState<Extension[]>([]);
+  const foldMarkerState = useFoldMarkerAutoHide(wrapperRef, fileKey ?? original + modified);
+  const [langExtensions, setLangExtensions] = useState<Extension[]>(() =>
+    getLanguageExtensionSync(language)
+  );
+  const [editorReady, setEditorReady] = useState(false);
 
+  // 先加载语言扩展，完成后才允许创建编辑器
   useEffect(() => {
     let cancelled = false;
-    getLanguageExtension(language).then((exts) => {
-      if (!cancelled) setLangExtensions(exts);
-    });
-    return () => { cancelled = true; };
+    getLanguageExtension(language)
+      .then((exts) => {
+        if (!cancelled) {
+          setLangExtensions(exts);
+          setEditorReady(true);
+        }
+      })
+      .catch((err) => {
+        console.error(`[DiffViewer] failed to load language "${language}":`, err);
+        setEditorReady(true);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [language]);
 
+  // 扩展配置 - 语言扩展直接包含在内
   const sharedExts = useMemo(
-    () => buildSharedExtensions(language, theme, readOnly, lineNumbersEnabled, wordWrap, locale, langExtensions),
-    [language, theme, readOnly, lineNumbersEnabled, wordWrap, locale, langExtensions],
+    () =>
+      buildSharedExtensions(
+        language,
+        theme,
+        readOnly,
+        lineNumbersEnabled,
+        wordWrap,
+        locale,
+        langExtensions
+      ),
+    [language, theme, readOnly, lineNumbersEnabled, wordWrap, locale, langExtensions]
   );
 
-  const emitCollapsedUnchangedRanges = useCallback((view: EditorView) => {
-    if (!onCollapsedUnchangedRangesChange) return;
-    if (!collapseUnchanged) {
-      onCollapsedUnchangedRangesChange([]);
-      return;
-    }
-    onCollapsedUnchangedRangesChange(buildCollapsedUnchangedRanges({
-      chunks: getMergeChunks(view.state),
-      doc: view.state.doc,
-      expandedLines: expandedCollapsedLinesRef.current,
-    }));
-  }, [collapseUnchanged, onCollapsedUnchangedRangesChange]);
+  const emitCollapsedUnchangedRanges = useCallback(
+    (view: EditorView) => {
+      if (!onCollapsedUnchangedRangesChange) return;
+      if (!collapseUnchanged) {
+        onCollapsedUnchangedRangesChange([]);
+        return;
+      }
+      onCollapsedUnchangedRangesChange(
+        buildCollapsedUnchangedRanges({
+          chunks: getMergeChunks(view.state),
+          doc: view.state.doc,
+          expandedLines: expandedCollapsedLinesRef.current,
+        })
+      );
+    },
+    [collapseUnchanged, onCollapsedUnchangedRangesChange]
+  );
 
+  // 只有在语言加载完成后才创建编辑器
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!editorReady || !containerRef.current) return;
 
     if (mergeViewRef.current) {
       mergeViewRef.current.destroy();
@@ -110,7 +139,8 @@ export function SideBySideDiffViewer({
       ...sharedExts,
       ...extraExtensions,
       EditorView.updateListener.of((update) => {
-        const expandedLines = update.transactions.flatMap((transaction) => transaction.effects)
+        const expandedLines = update.transactions
+          .flatMap((transaction) => transaction.effects)
           .filter((effect) => effect.is(uncollapseUnchanged))
           .map((effect) => update.state.doc.lineAt(effect.value).number);
         if (expandedLines.length > 0) {
@@ -151,31 +181,31 @@ export function SideBySideDiffViewer({
     };
     scrollHandlersRef.current = { handleScrollA, handleScrollB };
 
-    mv.a.scrollDOM.addEventListener("scroll", handleScrollA, { passive: true });
-    mv.b.scrollDOM.addEventListener("scroll", handleScrollB, { passive: true });
+    mv.a.scrollDOM.addEventListener('scroll', handleScrollA, { passive: true });
+    mv.b.scrollDOM.addEventListener('scroll', handleScrollB, { passive: true });
 
-    const editorsContainer = mv.dom.querySelector<HTMLElement>(".cm-mergeViewEditors");
-    const resizerEl = document.createElement("div");
+    const editorsContainer = mv.dom.querySelector<HTMLElement>('.cm-mergeViewEditors');
+    const resizerEl = document.createElement('div');
     let resizerCleanup: (() => void) | null = null;
     const wrapperB = mv.b.dom?.parentNode as HTMLElement | null;
     if (editorsContainer && wrapperB && editorsContainer.contains(wrapperB)) {
       const wrapperA = mv.a.dom.parentNode as HTMLElement;
-      resizerEl.className = "adl-cm-diff-resizer";
+      resizerEl.className = 'adl-cm-diff-resizer';
       editorsContainer.insertBefore(resizerEl, wrapperB);
 
-      const SAVED_RATIO_KEY = "adl-diff-resizer-ratio";
+      const SAVED_RATIO_KEY = 'adl-diff-resizer-ratio';
       const MIN_WIDTH = 200;
       const resizerWidth = 6;
-      let ratio = parseFloat(localStorage.getItem(SAVED_RATIO_KEY) ?? "0.5");
+      let ratio = parseFloat(localStorage.getItem(SAVED_RATIO_KEY) ?? '0.5');
       if (Number.isNaN(ratio) || ratio <= 0 || ratio >= 1) ratio = 0.5;
 
       const applyRatio = (totalWidth: number) => {
         const avail = totalWidth - resizerWidth;
         const widthA = Math.max(MIN_WIDTH, Math.min(avail - MIN_WIDTH, avail * ratio));
-        wrapperA.style.flex = "none";
+        wrapperA.style.flex = 'none';
         wrapperA.style.width = `${widthA}px`;
-        wrapperB.style.flex = "1 1 0";
-        wrapperB.style.width = "auto";
+        wrapperB.style.flex = '1 1 0';
+        wrapperB.style.width = 'auto';
       };
 
       const applyCurrentRatio = () => {
@@ -189,9 +219,9 @@ export function SideBySideDiffViewer({
         const startWidthA = wrapperA.offsetWidth;
         const totalWidth = editorsContainer.offsetWidth;
 
-        resizerEl.classList.add("adl-cm-diff-resizer--dragging");
-        document.body.style.cursor = "col-resize";
-        document.body.style.userSelect = "none";
+        resizerEl.classList.add('adl-cm-diff-resizer--dragging');
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
 
         const onMove = (currentX: number) => {
           const deltaX = currentX - startX;
@@ -199,20 +229,20 @@ export function SideBySideDiffViewer({
           const newWidthA = Math.max(MIN_WIDTH, Math.min(avail - MIN_WIDTH, startWidthA + deltaX));
           ratio = newWidthA / avail;
           localStorage.setItem(SAVED_RATIO_KEY, ratio.toString());
-          wrapperA.style.flex = "none";
+          wrapperA.style.flex = 'none';
           wrapperA.style.width = `${newWidthA}px`;
-          wrapperB.style.flex = "1 1 0";
-          wrapperB.style.width = "auto";
+          wrapperB.style.flex = '1 1 0';
+          wrapperB.style.width = 'auto';
         };
 
         const onEnd = () => {
-          resizerEl.classList.remove("adl-cm-diff-resizer--dragging");
-          document.body.style.cursor = "";
-          document.body.style.userSelect = "";
-          document.removeEventListener("mousemove", onMouseMove);
-          document.removeEventListener("mouseup", onMouseUp);
-          document.removeEventListener("touchmove", onTouchMove);
-          document.removeEventListener("touchend", onTouchEnd);
+          resizerEl.classList.remove('adl-cm-diff-resizer--dragging');
+          document.body.style.cursor = '';
+          document.body.style.userSelect = '';
+          document.removeEventListener('mousemove', onMouseMove);
+          document.removeEventListener('mouseup', onMouseUp);
+          document.removeEventListener('touchmove', onTouchMove);
+          document.removeEventListener('touchend', onTouchEnd);
         };
 
         const onMouseMove = (moveEvent: MouseEvent) => {
@@ -225,10 +255,10 @@ export function SideBySideDiffViewer({
         };
         const onTouchEnd = () => onEnd();
 
-        document.addEventListener("mousemove", onMouseMove);
-        document.addEventListener("mouseup", onMouseUp);
-        document.addEventListener("touchmove", onTouchMove, { passive: false });
-        document.addEventListener("touchend", onTouchEnd);
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+        document.addEventListener('touchmove', onTouchMove, { passive: false });
+        document.addEventListener('touchend', onTouchEnd);
       };
 
       const onResizerMouseDown = (e: MouseEvent) => {
@@ -241,15 +271,15 @@ export function SideBySideDiffViewer({
         startResize(e.touches[0].clientX);
       };
 
-      resizerEl.addEventListener("mousedown", onResizerMouseDown);
-      resizerEl.addEventListener("touchstart", onResizerTouchStart, { passive: false });
+      resizerEl.addEventListener('mousedown', onResizerMouseDown);
+      resizerEl.addEventListener('touchstart', onResizerTouchStart, { passive: false });
 
       const resizeObserver = new ResizeObserver(applyCurrentRatio);
       resizeObserver.observe(editorsContainer);
 
       resizerCleanup = () => {
-        resizerEl.removeEventListener("mousedown", onResizerMouseDown);
-        resizerEl.removeEventListener("touchstart", onResizerTouchStart);
+        resizerEl.removeEventListener('mousedown', onResizerMouseDown);
+        resizerEl.removeEventListener('touchstart', onResizerTouchStart);
         resizeObserver.disconnect();
       };
     }
@@ -267,8 +297,14 @@ export function SideBySideDiffViewer({
 
     return () => {
       if (mergeViewRef.current && scrollHandlersRef.current) {
-        mergeViewRef.current.a.scrollDOM.removeEventListener("scroll", scrollHandlersRef.current.handleScrollA);
-        mergeViewRef.current.b.scrollDOM.removeEventListener("scroll", scrollHandlersRef.current.handleScrollB);
+        mergeViewRef.current.a.scrollDOM.removeEventListener(
+          'scroll',
+          scrollHandlersRef.current.handleScrollA
+        );
+        mergeViewRef.current.b.scrollDOM.removeEventListener(
+          'scroll',
+          scrollHandlersRef.current.handleScrollB
+        );
         scrollHandlersRef.current = null;
       }
       if (resizerCleanup) {
@@ -286,6 +322,8 @@ export function SideBySideDiffViewer({
       onCollapsedUnchangedRangesChange?.([]);
     };
   }, [
+    editorReady,
+    language,
     original,
     modified,
     sharedExts,
@@ -315,23 +353,21 @@ export function SideBySideDiffViewer({
     mv.b.requestMeasure();
   }, [lineNumbersEnabled, wordWrap]);
 
-  useEffect(() => {
-    rebuildThemes();
-  }, [theme]);
-
   return (
     <div
       ref={wrapperRef}
-      className={`adl-cm-diff-viewer-wrapper${wordWrap ? " adl-cm-word-wrap" : " adl-cm-no-word-wrap"}`}
+      className={`adl-cm-diff-viewer-wrapper${wordWrap ? ' adl-cm-word-wrap' : ' adl-cm-no-word-wrap'}`}
       data-fold-marker-state={foldMarkerState}
-      style={{ position: "relative", width: "100%", height: "100%" }}
+      style={{ position: 'relative', width: '100%', height: '100%' }}
     >
       <div
         ref={containerRef}
         className="adl-cm-diff-viewer adl-cm-diff-viewer--side-by-side"
+        data-dl-lang={language}
+        data-dl-exts={langExtensions.length}
       />
       <FoldTooltipOverlay view={editorViewA} />
       <FoldTooltipOverlay view={editorViewB} />
     </div>
   );
-}
+});
