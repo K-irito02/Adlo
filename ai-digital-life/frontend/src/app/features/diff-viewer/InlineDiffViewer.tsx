@@ -1,26 +1,29 @@
-import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
-import { EditorState } from '@codemirror/state';
-import type { Extension } from '@codemirror/state';
-import { EditorView, lineNumbers } from '@codemirror/view';
-import { unifiedMergeView, uncollapseUnchanged } from '@codemirror/merge';
-import { createFoldGutterExtension } from '../editor/cmFoldGutter';
-import { rebuildThemes } from '../editor/cmTheme';
-import { FoldTooltipOverlay } from '../editor/FoldTooltipOverlay';
-import { useFoldMarkerAutoHide } from '../editor/useFoldMarkerAutoHide';
-import { createEditorRef } from '../editor/editorAdapters';
-import type { DiffEditorRef, EditorRef } from '../../stores/types';
-import type { PreviewDiffCollapsedRange } from './changePreviewDiffRanges';
-import { getLanguageExtension } from '../editor/cmLanguages';
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { EditorState } from "@codemirror/state";
+import type { Extension } from "@codemirror/state";
+import { EditorView, lineNumbers } from "@codemirror/view";
+import { unifiedMergeView, uncollapseUnchanged } from "@codemirror/merge";
+import { createFoldGutterExtension } from "../editor/cmFoldGutter";
+import { rebuildThemes } from "../editor/cmTheme";
+import { FoldTooltipOverlay } from "../editor/FoldTooltipOverlay";
+import { useFoldMarkerAutoHide } from "../editor/useFoldMarkerAutoHide";
+import { createEditorRef } from "../editor/editorAdapters";
+import type { DiffEditorRef, EditorRef } from "../../stores/types";
+import type { PreviewDiffCollapsedRange } from "./changePreviewDiffRanges";
+import { getLanguageExtension } from "../editor/cmLanguages";
 import {
   buildSharedExtensions,
   lineNumbersCompartment,
   wordWrapCompartment,
   foldGutterCompartment,
   COLLAPSE_UNCHANGED_CONFIG,
-} from './sharedExtensions';
-import { buildCollapsedUnchangedRanges, getMergeChunks } from './diffViewerUtils';
+} from "./sharedExtensions";
+import {
+  buildCollapsedUnchangedRanges,
+  getMergeChunks,
+} from "./diffViewerUtils";
 
-export const InlineDiffViewer = memo(function InlineDiffViewer({
+export function InlineDiffViewer({
   original,
   modified,
   language,
@@ -38,7 +41,7 @@ export const InlineDiffViewer = memo(function InlineDiffViewer({
   original: string;
   modified: string;
   language: string;
-  theme: 'light' | 'dark';
+  theme: "light" | "dark";
   locale: string;
   readOnly: boolean;
   lineNumbersEnabled: boolean;
@@ -55,39 +58,24 @@ export const InlineDiffViewer = memo(function InlineDiffViewer({
   const [langExtensions, setLangExtensions] = useState<Extension[]>([]);
   const expandedCollapsedLinesRef = useRef<Set<number>>(new Set());
   const wrapperRef = useRef<HTMLDivElement | null>(null);
-  const foldMarkerState = useFoldMarkerAutoHide(wrapperRef, fileKey ?? original + modified);
+  const foldMarkerState = useFoldMarkerAutoHide(wrapperRef.current, fileKey ?? original + modified);
 
   useEffect(() => {
     let cancelled = false;
-    getLanguageExtension(language)
-      .then((exts) => {
-        if (!cancelled) setLangExtensions(exts);
-      })
-      .catch((err) => {
-        console.error(`[DiffViewer] failed to load language "${language}":`, err);
-      });
-    return () => {
-      cancelled = true;
-    };
+    getLanguageExtension(language).then((exts) => {
+      if (!cancelled) setLangExtensions(exts);
+    });
+    return () => { cancelled = true; };
   }, [language]);
 
   const extensions = useMemo<Extension[]>(() => {
-    const base = buildSharedExtensions(
-      language,
-      theme,
-      readOnly,
-      lineNumbersEnabled,
-      wordWrap,
-      locale,
-      langExtensions
-    );
+    const base = buildSharedExtensions(language, theme, readOnly, lineNumbersEnabled, wordWrap, locale, langExtensions);
     return [
       ...base,
       ...extraExtensions,
       EditorView.updateListener.of((update) => {
         if (!onCollapsedUnchangedRangesChange) return;
-        const expandedLines = update.transactions
-          .flatMap((transaction) => transaction.effects)
+        const expandedLines = update.transactions.flatMap((transaction) => transaction.effects)
           .filter((effect) => effect.is(uncollapseUnchanged))
           .map((effect) => update.state.doc.lineAt(effect.value).number);
         if (expandedLines.length > 0) {
@@ -98,13 +86,11 @@ export const InlineDiffViewer = memo(function InlineDiffViewer({
           return;
         }
         if (expandedLines.length > 0 || update.docChanged) {
-          onCollapsedUnchangedRangesChange(
-            buildCollapsedUnchangedRanges({
-              chunks: getMergeChunks(update.state),
-              doc: update.state.doc,
-              expandedLines: expandedCollapsedLinesRef.current,
-            })
-          );
+          onCollapsedUnchangedRangesChange(buildCollapsedUnchangedRanges({
+            chunks: getMergeChunks(update.state),
+            doc: update.state.doc,
+            expandedLines: expandedCollapsedLinesRef.current,
+          }));
         }
       }),
       unifiedMergeView({
@@ -125,8 +111,8 @@ export const InlineDiffViewer = memo(function InlineDiffViewer({
     original,
     collapseUnchanged,
     extraExtensions,
-    langExtensions,
     onCollapsedUnchangedRangesChange,
+    langExtensions,
   ]);
 
   useEffect(() => {
@@ -137,7 +123,7 @@ export const InlineDiffViewer = memo(function InlineDiffViewer({
       viewRef.current = null;
     }
 
-    containerRef.current.innerHTML = '';
+    containerRef.current.innerHTML = "";
     expandedCollapsedLinesRef.current = new Set();
 
     const state = EditorState.create({
@@ -155,10 +141,7 @@ export const InlineDiffViewer = memo(function InlineDiffViewer({
     if (onCollapsedUnchangedRangesChange) {
       onCollapsedUnchangedRangesChange(
         collapseUnchanged
-          ? buildCollapsedUnchangedRanges({
-              chunks: getMergeChunks(view.state),
-              doc: view.state.doc,
-            })
+          ? buildCollapsedUnchangedRanges({ chunks: getMergeChunks(view.state), doc: view.state.doc })
           : []
       );
     }
@@ -175,14 +158,7 @@ export const InlineDiffViewer = memo(function InlineDiffViewer({
       setEditorView(null);
       onCollapsedUnchangedRangesChange?.([]);
     };
-  }, [
-    original,
-    modified,
-    extensions,
-    collapseUnchanged,
-    onCollapsedUnchangedRangesChange,
-    onMount,
-  ]);
+  }, [original, modified, extensions, collapseUnchanged, onCollapsedUnchangedRangesChange, onMount]);
 
   useEffect(() => {
     const view = viewRef.current;
@@ -204,12 +180,15 @@ export const InlineDiffViewer = memo(function InlineDiffViewer({
   return (
     <div
       ref={wrapperRef}
-      className={`adl-cm-diff-viewer-wrapper${wordWrap ? ' adl-cm-word-wrap' : ' adl-cm-no-word-wrap'}`}
+      className={`adl-cm-diff-viewer-wrapper${wordWrap ? " adl-cm-word-wrap" : " adl-cm-no-word-wrap"}`}
       data-fold-marker-state={foldMarkerState}
-      style={{ position: 'relative', width: '100%', height: '100%' }}
+      style={{ position: "relative", width: "100%", height: "100%" }}
     >
-      <div ref={containerRef} className="adl-cm-diff-viewer adl-cm-diff-viewer--inline" />
+      <div
+        ref={containerRef}
+        className="adl-cm-diff-viewer adl-cm-diff-viewer--inline"
+      />
       <FoldTooltipOverlay view={editorView} />
     </div>
   );
-});
+}

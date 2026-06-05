@@ -1,35 +1,35 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from "react";
 
-export type FoldMarkerState = 'hidden' | 'visible';
+export type FoldMarkerState = "hidden" | "visible";
 
 const REVEAL_DURATION_MS = 1000;
 const HIDE_DELAY_MS = 300;
 
 function findGutters(container: HTMLElement): HTMLElement[] {
-  return Array.from(container.querySelectorAll('.cm-foldGutter'));
+  return Array.from(container.querySelectorAll(".cm-foldGutter"));
 }
 
 function bindGutterListeners(
   gutters: HTMLElement[],
-  handlers: { onEnter: () => void; onLeave: () => void }
+  handlers: { onEnter: () => void; onLeave: () => void },
 ): () => void {
   for (const gutter of gutters) {
-    gutter.addEventListener('mouseenter', handlers.onEnter);
-    gutter.addEventListener('mouseleave', handlers.onLeave);
+    gutter.addEventListener("mouseenter", handlers.onEnter);
+    gutter.addEventListener("mouseleave", handlers.onLeave);
   }
   return () => {
     for (const gutter of gutters) {
-      gutter.removeEventListener('mouseenter', handlers.onEnter);
-      gutter.removeEventListener('mouseleave', handlers.onLeave);
+      gutter.removeEventListener("mouseenter", handlers.onEnter);
+      gutter.removeEventListener("mouseleave", handlers.onLeave);
     }
   };
 }
 
 export function useFoldMarkerAutoHide(
-  containerRef: React.RefObject<HTMLElement | null>,
-  fileKey: string
+  containerEl: HTMLElement | null,
+  fileKey: string,
 ): FoldMarkerState {
-  const [state, setState] = useState<FoldMarkerState>('hidden');
+  const [state, setState] = useState<FoldMarkerState>("hidden");
   const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hideDelayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isHoveringRef = useRef(false);
@@ -48,7 +48,7 @@ export function useFoldMarkerAutoHide(
 
   const show = useCallback(() => {
     clearTimers();
-    setState('visible');
+    setState("visible");
   }, [clearTimers]);
 
   const scheduleHide = useCallback(() => {
@@ -57,26 +57,25 @@ export function useFoldMarkerAutoHide(
     }
     hideDelayTimerRef.current = setTimeout(() => {
       if (!isHoveringRef.current) {
-        setState('hidden');
+        setState("hidden");
       }
     }, HIDE_DELAY_MS);
   }, []);
 
   useEffect(() => {
-    setState('visible');
+    show();
     revealTimerRef.current = setTimeout(() => {
       if (!isHoveringRef.current) {
-        setState('hidden');
+        setState("hidden");
       }
     }, REVEAL_DURATION_MS);
     return () => {
       clearTimers();
     };
-  }, [fileKey, clearTimers]);
+  }, [fileKey, show, clearTimers]);
 
   useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
+    if (!containerEl) return;
 
     const handlers = {
       onEnter: () => {
@@ -89,19 +88,22 @@ export function useFoldMarkerAutoHide(
       },
     };
 
-    const rebind = (): void => {
-      const gutters = findGutters(el);
-      if (gutters.length === 0) return;
-      if (cleanupRef.current) cleanupRef.current();
+    const tryBind = (): boolean => {
+      const gutters = findGutters(containerEl!);
+      if (gutters.length === 0) return false;
       cleanupRef.current = bindGutterListeners(gutters, handlers);
+      return true;
     };
 
-    // Initial bind + keep observer alive to re-bind after CodeMirror
-    // reconfigure (async language load → StateEffect.reconfigure →
-    // old .cm-foldGutter elements destroyed, new ones created).
-    rebind();
-    const observer = new MutationObserver(() => rebind());
-    observer.observe(el, { childList: true, subtree: true });
+    if (tryBind()) return cleanupRef.current!;
+
+    const observer = new MutationObserver(() => {
+      if (tryBind()) {
+        observer.disconnect();
+      }
+    });
+
+    observer.observe(containerEl, { childList: true, subtree: true });
 
     return () => {
       observer.disconnect();
@@ -110,7 +112,7 @@ export function useFoldMarkerAutoHide(
         cleanupRef.current = null;
       }
     };
-  }, [containerRef, fileKey, show, scheduleHide]);
+  }, [containerEl, fileKey, show, scheduleHide]);
 
   return state;
 }
