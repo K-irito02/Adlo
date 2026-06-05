@@ -53,7 +53,7 @@ interface StatusBarProps {
   inline?: boolean;
 }
 
-export function StatusBar({
+const StatusBar = React.memo(function StatusBar({
   t,
   appInfo,
   currentWorkspace,
@@ -551,4 +551,6 @@ export function StatusBar({
       </div>
     </ContainerTag>
   );
-}
+});
+
+export { StatusBar };

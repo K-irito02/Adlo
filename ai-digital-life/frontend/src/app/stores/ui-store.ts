@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { SettingsGroupId } from '@ai-digital-life/kernel';
+import type { ToolId, ChatMode, TerminalProfile } from './types';
 import { readJson, writeJson, readFlag, writeFlag, createUiId } from './shared';
 
 /**
@@ -11,12 +12,8 @@ import { readJson, writeJson, readFlag, writeFlag, createUiId } from './shared';
  * @deprecated 正在迁移至 useAppStore 的 uiSlice，新增字段请直接添加到 uiSlice
  */
 
-/** @deprecated 迁移至 app/stores/types.ts 中的同名类型 */
-export type ToolId = 'files' | 'changes' | 'browser' | 'terminal' | 'audit' | 'settings' | 'models';
-/** @deprecated 迁移至 app/stores/types.ts 中的同名类型 */
-export type ChatMode = 'plan' | 'debug' | 'ask';
-/** @deprecated 迁移至 app/stores/types.ts 中的同名类型 */
-export type TerminalProfile = 'powershell' | 'bash' | 'cmd';
+/** @deprecated 已迁移至 ./types */
+export type { ToolId, ChatMode, TerminalProfile };
 export type FilesNavigatorMode = 'tree' | 'search' | 'outline';
 export type ChangesNavigatorMode = 'tree' | 'list' | 'outline';
 
@@ -285,6 +282,9 @@ const initialNavigatorCollapsed = {
   ...readJson<Record<ToolId, boolean>>(NAVIGATOR_COLLAPSED_KEY, defaultNavigatorCollapsed()),
 };
 
+/**
+ * @deprecated 正在迁移至 useAppStore 的 uiSlice，新增字段请直接添加到 uiSlice
+ */
 export const useUiStore = create<UiState>((set) => ({
   activeRightTool: readRightTool(),
   navigatorCollapsedByTool: initialNavigatorCollapsed,

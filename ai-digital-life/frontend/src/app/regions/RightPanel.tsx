@@ -140,7 +140,7 @@ const ActiveToolPanel = React.memo(function ActiveToolPanel({
   );
 }, areActiveToolPanelPropsEqual);
 
-export function RightPanel(panelProps: RightPanelProps) {
+const RightPanel = React.memo(function RightPanel(panelProps: RightPanelProps) {
   const { t, collapsed } = panelProps;
 
   const { activeRightTool, setActiveRightTool, badges, diffSideBySide, onSetDiffLayout } =
@@ -232,4 +232,6 @@ export function RightPanel(panelProps: RightPanelProps) {
       </div>
     </aside>
   );
-}
+});
+
+export { RightPanel };

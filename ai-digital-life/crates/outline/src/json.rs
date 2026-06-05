@@ -1,4 +1,4 @@
-use crate::{count_chars, count_leading_closers, OutlineDraft};
+use crate::{count_leading_closers, update_brace_depth, OutlineDraft};
 use regex::Regex;
 use std::sync::OnceLock;
 
@@ -29,9 +29,7 @@ pub(crate) fn parse_json_outline(content: &str) -> Vec<OutlineDraft> {
                 });
             }
         }
-        brace_depth = brace_depth
-            .saturating_add(count_chars(&sanitized, &['{', '[']))
-            .saturating_sub(count_chars(&sanitized, &['}', ']']));
+        brace_depth = update_brace_depth(brace_depth, &sanitized);
     }
     drafts
 }

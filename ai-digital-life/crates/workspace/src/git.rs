@@ -272,12 +272,13 @@ fn first_non_empty_line(value: String) -> Option<String> {
 async fn capture_git_paths_with_fallback_async(root: &Path, args: &[&str]) -> Vec<String> {
     let root_owned = root.to_path_buf();
     let args_owned: Vec<String> = args.iter().map(|s| s.to_string()).collect();
+    let command_name = args_owned.join(" ");
     tokio_timeout(Duration::from_secs(GIT_TIMEOUT_SECS), async move {
         tokio::task::spawn_blocking(move || {
             capture_git_paths_with_fallback(
                 &root_owned,
-                &args_owned.iter().map(|s| s.as_str()).collect::<Vec<&str>>(),
-                &args_owned.join(" "),
+                &args_owned.iter().map(String::as_str).collect::<Vec<&str>>(),
+                &command_name,
             )
         })
         .await

@@ -1,4 +1,4 @@
-use crate::OutlineDraft;
+use crate::{calc_indent, OutlineDraft};
 use regex::Regex;
 use std::sync::OnceLock;
 
@@ -25,11 +25,7 @@ pub(crate) fn parse_yaml_outline(content: &str) -> Vec<OutlineDraft> {
         if trimmed.is_empty() || trimmed.starts_with('#') {
             continue;
         }
-        let indent = line_text
-            .chars()
-            .take_while(|ch| ch.is_whitespace())
-            .map(|ch| if ch == '\t' { 2 } else { 1 })
-            .sum();
+        let indent = calc_indent(line_text, 2);
         while indent_stack.last().copied().is_some_and(|value| indent <= value) {
             indent_stack.pop();
         }

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { copy } from "./i18n";
-import { getCachedLru, setCachedLru } from "./stores/shared";
+import { getCachedLruTTL, setCachedLruTTL } from "./stores/shared";
 
 describe("store utility functions", () => {
   describe("sessionFallbackTitle", () => {
@@ -50,27 +50,27 @@ describe("store utility functions", () => {
   });
 
   describe("LRU cache helpers", () => {
-    it("getCachedLru returns undefined for missing key", () => {
-      const cache = new Map<string, number>();
-      const result = getCachedLru(cache, "missing");
+    it("getCachedLruTTL returns undefined for missing key", () => {
+      const cache = new Map<string, { value: number; expiresAt: number }>();
+      const result = getCachedLruTTL(cache, "missing");
       expect(result).toBeUndefined();
     });
 
-    it("getCachedLru returns and promotes entry", () => {
-      const cache = new Map<string, number>();
-      cache.set("key1", 1);
-      cache.set("key2", 2);
-      const result = getCachedLru(cache, "key1");
+    it("getCachedLruTTL returns and promotes entry", () => {
+      const cache = new Map<string, { value: number; expiresAt: number }>();
+      cache.set("key1", { value: 1, expiresAt: Date.now() + 60000 });
+      cache.set("key2", { value: 2, expiresAt: Date.now() + 60000 });
+      const result = getCachedLruTTL(cache, "key1");
       expect(result).toBe(1);
     });
 
-    it("setCachedLru respects limit", () => {
-      const cache = new Map<string, number>();
+    it("setCachedLruTTL respects limit", () => {
+      const cache = new Map<string, { value: number; expiresAt: number }>();
       const limit = 3;
-      setCachedLru(cache, "1", 1, limit);
-      setCachedLru(cache, "2", 2, limit);
-      setCachedLru(cache, "3", 3, limit);
-      setCachedLru(cache, "4", 4, limit);
+      setCachedLruTTL(cache, "1", 1, limit, 60000);
+      setCachedLruTTL(cache, "2", 2, limit, 60000);
+      setCachedLruTTL(cache, "3", 3, limit, 60000);
+      setCachedLruTTL(cache, "4", 4, limit, 60000);
       expect(cache.size).toBeLessThanOrEqual(limit);
     });
   });

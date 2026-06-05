@@ -1,0 +1,229 @@
+.adl-checkpoint-timeline {
+  padding: var(--space-3);
+}
+.adl-checkpoint-timeline__title {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  margin: 0 0 var(--space-2);
+}
+.adl-checkpoint-timeline__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  border-left: 2px solid var(--border-subtle);
+  margin-left: var(--space-2);
+}
+.adl-checkpoint-timeline__item {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  position: relative;
+}
+.adl-checkpoint-timeline__dot {
+  position: absolute;
+  left: calc(-1 * var(--space-2) - 5px);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border-default);
+}
+.adl-checkpoint-timeline__item.is-current .adl-checkpoint-timeline__dot {
+  background: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+.adl-checkpoint-timeline__content {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 1;
+  padding-left: var(--space-3);
+  font-size: var(--font-size-sm);
+}
+.adl-checkpoint-timeline__time {
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+}
+.adl-checkpoint-timeline__confirm {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-xs);
+}
+
+.adl-conflict-banner {
+  background: color-mix(in srgb, var(--warning) 8%, transparent);
+  border: 1px solid var(--warning);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  margin: var(--space-2) 0;
+}
+.adl-conflict-banner__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  color: var(--warning);
+  margin-bottom: var(--space-2);
+}
+.adl-conflict-banner__files {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--space-2);
+}
+.adl-conflict-banner__files li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-1) 0;
+  font-size: var(--font-size-sm);
+}
+.adl-conflict-banner__actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.adl-validation-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-elevated);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-xs);
+}
+.adl-validation-bar__title {
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.adl-validation-bar__count {
+  cursor: pointer;
+}
+
+.adl-index-status {
+  padding: var(--space-2) 0;
+}
+.adl-index-status__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.adl-index-status__pulse {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: adl-pulse 1.5s ease-in-out infinite;
+}
+.adl-index-status__bar {
+  height: 3px;
+  background: var(--bg-elevated);
+  border-radius: 2px;
+  margin: var(--space-1) 0;
+  overflow: hidden;
+}
+.adl-index-status__fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+.adl-index-status__meta {
+  display: flex;
+  gap: var(--space-3);
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+.adl-index-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+  font-size: var(--font-size-xs);
+}
+.adl-index-bar__info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.adl-repomap {
+  padding: var(--space-3);
+}
+.adl-repomap__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.adl-repomap__header h4 {
+  margin: 0;
+  font-size: var(--font-size-sm);
+}
+.adl-repomap__search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  background: var(--bg-elevated);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-2);
+}
+.adl-repomap__input {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: var(--font-size-xs);
+  outline: none;
+}
+.adl-repomap__tree {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.adl-repomap__children {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.adl-repomap__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) 0;
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  border-radius: var(--radius-sm);
+}
+.adl-repomap__row:hover {
+  background: var(--bg-hover);
+}
+.adl-repomap__spacer {
+  width: 12px;
+}
+.adl-repomap__name {
+  flex: 1;
+}
+.adl-repomap__count {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.adl-git-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+.adl-git-summary__sep {
+  width: 1px;
+  height: 12px;
+  background: var(--border-subtle);
+}

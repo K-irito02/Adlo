@@ -1,0 +1,45 @@
+.adl-command-block {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin: var(--space-2) 0;
+}
+.adl-command-block__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-elevated);
+  font-size: var(--font-size-sm);
+}
+.adl-command-block__cmd {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+}
+.adl-command-block__stdout,
+.adl-command-block__stderr {
+  padding: var(--space-2) var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin: 0;
+  max-height: 300px;
+  overflow-y: auto;
+}
+.adl-command-block__stdout {
+  color: var(--text-primary);
+}
+.adl-command-block__stderr {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 5%, transparent);
+}
+.adl-command-block__expand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+}

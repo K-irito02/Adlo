@@ -80,7 +80,7 @@ fn list_tree_inner(
             }
         };
         let path = entry.path();
-        let name = entry.file_name().to_string_lossy().to_string();
+        let name = entry.file_name().to_string_lossy().into_owned();
         if should_ignore(&name) {
             continue;
         }
@@ -163,7 +163,7 @@ pub fn build_retrieval_snapshot(
     );
     Ok(RetrievalSnapshot {
         workspace_id: workspace_id.to_string(),
-        root_path: root.to_string_lossy().to_string(),
+        root_path: root.to_string_lossy().into_owned(),
         status: RetrievalStatusV1::Completed,
         scanned_files: files.len(),
         indexed_text_files: files.len(),
@@ -207,7 +207,7 @@ fn collect_retrieval_inner(
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
         let path = entry.path();
-        let name = entry.file_name().to_string_lossy().to_string();
+        let name = entry.file_name().to_string_lossy().into_owned();
         if should_ignore(&name) {
             continue;
         }
@@ -265,7 +265,7 @@ pub async fn build_retrieval_snapshot_async(
     if cancellation.try_recv().is_ok() {
         return Ok(RetrievalSnapshot {
             workspace_id: workspace_id.to_string(),
-            root_path: root.to_string_lossy().to_string(),
+            root_path: root.to_string_lossy().into_owned(),
             status: RetrievalStatusV1::Cancelled,
             scanned_files: files.len(),
             indexed_text_files: files.len(),
@@ -289,7 +289,7 @@ pub async fn build_retrieval_snapshot_async(
 
     Ok(RetrievalSnapshot {
         workspace_id: workspace_id.to_string(),
-        root_path: root.to_string_lossy().to_string(),
+        root_path: root.to_string_lossy().into_owned(),
         status: RetrievalStatusV1::Completed,
         scanned_files: files.len(),
         indexed_text_files: files.len(),
@@ -333,7 +333,7 @@ fn collect_text_files_inner_int(
         }
         let entry = entry?;
         let path = entry.path();
-        let name = entry.file_name().to_string_lossy().to_string();
+        let name = entry.file_name().to_string_lossy().into_owned();
         if should_ignore(&name) {
             continue;
         }

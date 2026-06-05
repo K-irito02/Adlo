@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import type { AppInfo } from '@ai-digital-life/kernel';
 import type { CopyDict } from '../i18n';
@@ -133,7 +133,7 @@ function MenuDropdown({
   );
 }
 
-export function TitleBar({
+const TitleBar = React.memo(function TitleBar({
   t,
   appInfo,
   onOpenSettings,
@@ -221,7 +221,7 @@ export function TitleBar({
     document.documentElement.style.zoom = '1';
   }, []);
 
-  const fileItems: MenuItem[] = [
+  const fileItems: MenuItem[] = useMemo(() => [
     {
       id: 'new-ws',
       label: t.menuNewWorkspace,
@@ -247,9 +247,9 @@ export function TitleBar({
     },
     { id: 'sep-1', label: '', separator: true },
     { id: 'exit', label: t.menuExit, shortcut: 'Alt+F4', action: handleClose },
-  ];
+  ], [t, onTriggerCreateWorkspace, onOpenFolder, handleClose]);
 
-  const viewItems: MenuItem[] = [
+  const viewItems: MenuItem[] = useMemo(() => [
     {
       id: 'diff-view',
       label: t.menuDiffView,
@@ -276,9 +276,9 @@ export function TitleBar({
     { id: 'zoom-reset', label: t.menuResetZoom, shortcut: 'Ctrl+0', action: resetZoom },
     { id: 'sep-2', label: '', separator: true },
     { id: 'settings', label: t.menuSettings, shortcut: 'Ctrl+,', action: onOpenSettings },
-  ];
+  ], [t, zoomBy, resetZoom, onOpenSettings]);
 
-  const helpItems: MenuItem[] = [
+  const helpItems: MenuItem[] = useMemo(() => [
     {
       id: 'palette',
       label: t.menuCommandPalette,
@@ -287,7 +287,7 @@ export function TitleBar({
     },
     { id: 'shortcuts', label: t.menuShortcuts, shortcut: 'Ctrl+K Ctrl+S', action: () => {} },
     { id: 'license', label: t.menuLicense, action: () => {} },
-  ];
+  ], [t, onOpenCommandPalette]);
 
   return (
     <header className="adl-titlebar" role="banner">
@@ -463,4 +463,6 @@ export function TitleBar({
       </div>
     </header>
   );
-}
+});
+
+export { TitleBar };

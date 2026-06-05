@@ -13,8 +13,8 @@ describe("outline panel wiring", () => {
 
   it("uses the shared outline tree in the files panel", () => {
     expect(fileNavigatorShellSource).toContain("OutlineTree");
-    expect(editorSurfaceShellSource).toContain("handleRevealPreviewLine");
-    expect(editorSurfaceShellSource).toContain("data-source-line");
+    expect(editorSurfaceShellSource).toContain("useStickyContext");
+    expect(editorSurfaceShellSource).toContain("StickyContext");
     expect(fileNavigatorShellSource).toContain("setNavigatorMode('tree')");
     expect(fileNavigatorShellSource).toContain("handleToggleAllOutlineItems");
     expect(fileNavigatorShellSource).toContain("expandedIds={expandedOutlineIds}");
@@ -29,8 +29,8 @@ describe("outline panel wiring", () => {
   });
 
   it("uses the shared outline parser in preview workspace mode", () => {
-    expect(previewWorkspaceServiceSource).toContain('from "../src/shared/outline"');
-    expect(previewWorkspaceServiceSource).toContain("return buildOutlineFromContent(document.content");
+    expect(previewWorkspaceServiceSource).toContain("from '../src/shared/outline'");
+    expect(previewWorkspaceServiceSource).toContain("return buildOutlineFromContent(");
   });
 
   it("wraps both trees in a dedicated scroll container", () => {

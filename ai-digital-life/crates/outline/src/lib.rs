@@ -208,3 +208,16 @@ pub(crate) fn count_chars(value: &str, chars: &[char]) -> usize {
 pub(crate) fn count_leading_closers(value: &str, closers: &[char]) -> usize {
     value.trim_start().chars().take_while(|ch| closers.contains(ch)).count()
 }
+
+pub(crate) fn calc_indent(line: &str, tab_width: usize) -> usize {
+    line.chars()
+        .take_while(|ch| ch.is_whitespace())
+        .map(|ch| if ch == '\t' { tab_width } else { 1 })
+        .sum()
+}
+
+pub(crate) fn update_brace_depth(depth: usize, line: &str) -> usize {
+    depth
+        .saturating_add(count_chars(line, &['{', '[']))
+        .saturating_sub(count_chars(line, &['}', ']']))
+}

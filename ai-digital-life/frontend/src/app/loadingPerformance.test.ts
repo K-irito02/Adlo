@@ -42,7 +42,7 @@ describe("loading and switching performance guards", () => {
     expect(sharedSource).toContain("changePreviewRequestSeq");
     expect(sharedSource).toContain("CachedFileDocument");
     expect(sharedSource).toContain("CachedChangePreview");
-    expect(sharedSource).toContain("setCachedLru");
+    expect(sharedSource).toContain("setCachedLruTTL");
   });
 
   it("keeps hot sidebar and file search paths allocation conscious", () => {

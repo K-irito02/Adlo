@@ -317,7 +317,9 @@ impl Database {
         }
         sql.push_str(" ORDER BY updated_at DESC");
         if let Some(limit) = limit {
-            assert!(limit <= 1000, "query limit {limit} exceeds safety cap");
+            if limit > 1000 {
+                return Err(AppError::InvalidInput(format!("query limit {limit} exceeds safety cap")));
+            }
             sql.push_str(&format!(" LIMIT {limit}"));
         }
 

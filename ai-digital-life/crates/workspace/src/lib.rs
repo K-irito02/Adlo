@@ -1,6 +1,5 @@
 //! Workspace detection, lightweight indexing, search, and git snapshots.
 
-mod cache;
 pub(crate) mod fs;
 mod git;
 mod search;
@@ -116,11 +115,11 @@ pub fn open_workspace(input: &Path) -> Result<(WorkspaceMeta, RecentWorkspaceEnt
 }
 
 pub fn stable_workspace_id(root: &Path) -> String {
+    use std::hash::{Hash, Hasher};
     let normalized = root.to_string_lossy().replace('\\', "/").to_lowercase();
-    let mut hash: u32 = 0;
-    for byte in normalized.bytes() {
-        hash = hash.wrapping_mul(31).wrapping_add(byte as u32);
-    }
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    normalized.hash(&mut hasher);
+    let hash = hasher.finish() as u32;
     format!("workspace_{hash:08x}")
 }
 

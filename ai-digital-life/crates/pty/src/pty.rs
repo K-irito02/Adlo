@@ -79,64 +79,6 @@ impl PtySession {
         })
     }
 
-    #[deprecated(note = "use PtySession::new() + PtyConfig instead")]
-    pub fn create(shell: &str, cwd: &str, cols: u16, rows: u16) -> Result<Self, AppError> {
-        let pty_system = NativePtySystem::default();
-        let size = PtySize { rows, cols, pixel_width: 0, pixel_height: 0 };
-        let pair = pty_system
-            .openpty(size)
-            .map_err(|e| AppError::Terminal(format!("failed to open pty: {}", e)))?;
-
-        let (program, args): (&str, Vec<&str>) = match shell {
-            "bash" => {
-                #[cfg(windows)]
-                {
-                    ("wsl", vec!["bash", "-l"])
-                }
-                #[cfg(not(windows))]
-                {
-                    ("bash", vec!["-l"])
-                }
-            }
-            "cmd" => ("cmd", vec![]),
-            _ => ("powershell", vec![]),
-        };
-
-        let mut cmd = CommandBuilder::new(program);
-        if !args.is_empty() {
-            cmd.args(&args);
-        }
-        cmd.cwd(cwd);
-
-        let child = pair
-            .slave
-            .spawn_command(cmd)
-            .map_err(|e| AppError::Terminal(format!("failed to spawn shell: {}", e)))?;
-
-        let reader = pair
-            .master
-            .try_clone_reader()
-            .map_err(|e| AppError::Terminal(format!("failed to clone pty reader: {}", e)))?;
-
-        let writer = pair
-            .master
-            .take_writer()
-            .map_err(|e| AppError::Terminal(format!("failed to take pty writer: {}", e)))?;
-
-        Ok(Self {
-            id: create_id("pty"),
-            shell: shell.to_string(),
-            cwd: cwd.to_string(),
-            master: Mutex::new(Some(pair.master)),
-            child: Mutex::new(Some(child)),
-            output_reader: Mutex::new(Some(reader)),
-            writer: Mutex::new(Some(writer)),
-            cols,
-            rows,
-            status: Mutex::new(PtyStatus::Running),
-        })
-    }
-
     pub fn read_output(&self, buf: &mut [u8]) -> Result<usize, AppError> {
         let mut reader =
             self.output_reader.lock().map_err(|_| AppError::Internal("mutex poisoned".into()))?;

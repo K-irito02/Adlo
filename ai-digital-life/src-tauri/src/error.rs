@@ -78,7 +78,26 @@ impl From<AppError> for CommandError {
 
 impl From<anyhow::Error> for CommandError {
     fn from(e: anyhow::Error) -> Self {
-        Self { code: IpcErrorCode::InternalError, message: e.to_string() }
+        let msg = e.to_string();
+        let lower = msg.to_ascii_lowercase();
+        let code = if lower.contains("database") || lower.contains("sqlite") || lower.contains("db ") {
+            IpcErrorCode::StorageError
+        } else if lower.contains("not found") || lower.contains("no such") || lower.contains("does not exist") {
+            IpcErrorCode::NotFound
+        } else if lower.contains("permission") || lower.contains("denied") || lower.contains("access") {
+            IpcErrorCode::SecurityError
+        } else if lower.contains("timeout") || lower.contains("timed out") {
+            IpcErrorCode::Timeout
+        } else if lower.contains("rate limit") || lower.contains("rate_limit") || lower.contains("too many") {
+            IpcErrorCode::RateLimit
+        } else if lower.contains("auth") || lower.contains("unauthorized") || lower.contains("token") {
+            IpcErrorCode::AuthError
+        } else if lower.contains("io error") || lower.contains("no such file") || lower.contains("permission denied (os error)") {
+            IpcErrorCode::IoError
+        } else {
+            IpcErrorCode::InternalError
+        };
+        Self { code, message: msg }
     }
 }
 

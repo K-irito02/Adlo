@@ -1,5 +1,15 @@
 import type { Extension } from '@codemirror/state';
 
+const yamlLoader: () => Promise<Extension[]> = async () => {
+  const { yaml } = await import('@codemirror/lang-yaml');
+  return [yaml()];
+};
+
+const htmlLoader: () => Promise<Extension[]> = async () => {
+  const { html } = await import('@codemirror/lang-html');
+  return [html()];
+};
+
 const languageLoaders: Record<string, () => Promise<Extension[]>> = {
   typescript: async () => {
     const { javascript } = await import('@codemirror/lang-javascript');
@@ -13,22 +23,10 @@ const languageLoaders: Record<string, () => Promise<Extension[]>> = {
     const { json } = await import('@codemirror/lang-json');
     return [json()];
   },
-  yaml: async () => {
-    const { yaml } = await import('@codemirror/lang-yaml');
-    return [yaml()];
-  },
-  config: async () => {
-    const { yaml } = await import('@codemirror/lang-yaml');
-    return [yaml()];
-  },
-  html: async () => {
-    const { html } = await import('@codemirror/lang-html');
-    return [html()];
-  },
-  vue: async () => {
-    const { html } = await import('@codemirror/lang-html');
-    return [html()];
-  },
+  yaml: yamlLoader,
+  config: yamlLoader,
+  html: htmlLoader,
+  vue: htmlLoader,
   css: async () => {
     const { css } = await import('@codemirror/lang-css');
     return [css()];

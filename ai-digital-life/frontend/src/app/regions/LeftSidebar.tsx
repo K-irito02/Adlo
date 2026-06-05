@@ -28,19 +28,23 @@ interface LeftSidebarProps {
   onTriggerCreateWorkspace: () => void;
 }
 
-export function LeftSidebar({
+const LeftSidebar = React.memo(function LeftSidebar({
   t,
   collapsed,
   onCreateSession,
   onTriggerCreateWorkspace,
 }: LeftSidebarProps) {
   const actions = useAppActions();
-  const appInfo = useAppStore(useShallow((s) => s.appInfo));
-  const recentWorkspaces = useAppStore(useShallow((s) => s.recentWorkspaces));
-  const sessions = useAppStore(useShallow((s) => s.sessions));
-  const activeSessionId = useAppStore((s) => s.activeSessionId);
-  const streamingActiveRunId = useAppStore((s) => s.streamingActiveRunId);
-  const taskCenter = useAppStore(useShallow((s) => s.taskCenter));
+  const { appInfo, recentWorkspaces, sessions, activeSessionId, streamingActiveRunId, taskCenter } = useAppStore(
+    useShallow((s) => ({
+      appInfo: s.appInfo,
+      recentWorkspaces: s.recentWorkspaces,
+      sessions: s.sessions,
+      activeSessionId: s.activeSessionId,
+      streamingActiveRunId: s.streamingActiveRunId,
+      taskCenter: s.taskCenter,
+    }))
+  );
   const locale = (appInfo?.config.language ?? 'zh-CN') as Locale;
   const { expandedSessionWorkspaces, toggleSessionWorkspace } = useUiStore(
     useShallow((state) => ({
@@ -90,7 +94,7 @@ export function LeftSidebar({
     return items;
   }, [displayStandaloneArchivedSessions, displayStandaloneSessions, workspaceItems]);
 
-  const commonSessionProps = {
+  const commonSessionProps = useMemo(() => ({
     onSelectSession: actions.selectSession,
     onPinSession: actions.pinSession,
     onUnpinSession: actions.unpinSession,
@@ -103,7 +107,7 @@ export function LeftSidebar({
     activeSessionId,
     locale,
     t,
-  };
+  }), [actions, activeSessionId, locale, t]);
 
   return (
     <aside
@@ -288,4 +292,6 @@ export function LeftSidebar({
       <ResizeHandle />
     </aside>
   );
-}
+});
+
+export { LeftSidebar };

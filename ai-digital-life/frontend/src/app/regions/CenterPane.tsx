@@ -16,23 +16,53 @@ interface CenterPaneProps {
 
 type ButtonState = 'send' | 'stop' | 'retry' | 'waiting';
 
-export function CenterPane({ t }: CenterPaneProps) {
+const CenterPane = React.memo(function CenterPane({ t }: CenterPaneProps) {
   const actions = useAppActions();
-  const appInfo = useAppStore(useShallow((s) => s.appInfo));
-  const activeSessionId = useAppStore((s) => s.activeSessionId);
-  const sessionDetails = useAppStore(useShallow((s) => s.sessionDetails));
-  const streamingAssistantText = useAppStore((s) => s.streamingAssistantText);
-  const streamingActiveRunId = useAppStore((s) => s.streamingActiveRunId);
-  const activeRun = useAppStore(useShallow((s) => s.activeRun));
-  const runActivityByRunId = useAppStore(useShallow((s) => s.runActivityByRunId));
-  const runUsageByRunId = useAppStore(useShallow((s) => s.runUsageByRunId));
-  const modelHealth = useAppStore(useShallow((s) => s.modelHealth));
-  const taskCenter = useAppStore(useShallow((s) => s.taskCenter));
-  const workspaceContextMode = useAppStore((s) => s.workspaceContextMode);
-  const gitSnapshot = useAppStore(useShallow((s) => s.gitSnapshot));
-  const gitBranches = useAppStore(useShallow((s) => s.gitBranches));
-  const recentWorkspaces = useAppStore(useShallow((s) => s.recentWorkspaces));
-  const fetchRunActivityByRunId = useAppStore((state) => state.fetchRunActivityByRunId);
+  const {
+    activeSessionId,
+    streamingAssistantText,
+    streamingActiveRunId,
+    workspaceContextMode,
+  } = useAppStore(
+    useShallow((s) => ({
+      activeSessionId: s.activeSessionId,
+      streamingAssistantText: s.streamingAssistantText,
+      streamingActiveRunId: s.streamingActiveRunId,
+      workspaceContextMode: s.workspaceContextMode,
+    }))
+  );
+  const {
+    appInfo,
+    sessionDetails,
+    activeRun,
+    runActivityByRunId,
+    runUsageByRunId,
+    modelHealth,
+  } = useAppStore(
+    useShallow((s) => ({
+      appInfo: s.appInfo,
+      sessionDetails: s.sessionDetails,
+      activeRun: s.activeRun,
+      runActivityByRunId: s.runActivityByRunId,
+      runUsageByRunId: s.runUsageByRunId,
+      modelHealth: s.modelHealth,
+    }))
+  );
+  const {
+    taskCenter,
+    gitSnapshot,
+    gitBranches,
+    recentWorkspaces,
+    fetchRunActivityByRunId,
+  } = useAppStore(
+    useShallow((s) => ({
+      taskCenter: s.taskCenter,
+      gitSnapshot: s.gitSnapshot,
+      gitBranches: s.gitBranches,
+      recentWorkspaces: s.recentWorkspaces,
+      fetchRunActivityByRunId: s.fetchRunActivityByRunId,
+    }))
+  );
   const locale = (appInfo?.config.language ?? 'zh-CN') as Locale;
   const hasWorkspace = !!appInfo?.currentWorkspace;
   const activeDetail = activeSessionId ? sessionDetails[activeSessionId] : undefined;
@@ -292,4 +322,6 @@ export function CenterPane({ t }: CenterPaneProps) {
       />
     </section>
   );
-}
+});
+
+export { CenterPane };

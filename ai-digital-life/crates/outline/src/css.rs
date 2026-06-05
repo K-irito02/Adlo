@@ -1,4 +1,4 @@
-use crate::{count_chars, OutlineDraft};
+use crate::{update_brace_depth, OutlineDraft};
 
 pub(crate) fn parse_css_outline(content: &str) -> Vec<OutlineDraft> {
     let mut drafts = Vec::new();
@@ -19,9 +19,7 @@ pub(crate) fn parse_css_outline(content: &str) -> Vec<OutlineDraft> {
                 });
             }
         }
-        brace_depth = brace_depth
-            .saturating_add(count_chars(line_text, &['{']))
-            .saturating_sub(count_chars(line_text, &['}']));
+        brace_depth = update_brace_depth(brace_depth, line_text);
     }
     drafts
 }

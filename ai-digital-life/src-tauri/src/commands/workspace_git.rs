@@ -88,16 +88,7 @@ pub fn workspace_switch_git_branch(
             branch_name,
             input.allow_stash,
         )?;
-        let current_branch = git_snapshot.branch.clone().unwrap_or_else(|| branch_name.to_string());
-        let updated_workspace =
-            update_workspace_after_git_change(&state, &workspace, git_snapshot.clone())?;
-        Ok(WorkspaceGitBranchChangeResult {
-            workspace: updated_workspace,
-            git_snapshot,
-            previous_branch,
-            current_branch,
-            stashed_changes,
-        })
+        build_branch_change_result(&state, &workspace, git_snapshot, previous_branch, stashed_changes, branch_name)
     })
 }
 
@@ -118,15 +109,26 @@ pub fn workspace_create_git_branch(
             input.base_branch.as_deref(),
             input.allow_stash,
         )?;
-        let current_branch = git_snapshot.branch.clone().unwrap_or_else(|| branch_name.to_string());
-        let updated_workspace =
-            update_workspace_after_git_change(&state, &workspace, git_snapshot.clone())?;
-        Ok(WorkspaceGitBranchChangeResult {
-            workspace: updated_workspace,
-            git_snapshot,
-            previous_branch,
-            current_branch,
-            stashed_changes,
-        })
+        build_branch_change_result(&state, &workspace, git_snapshot, previous_branch, stashed_changes, branch_name)
+    })
+}
+
+fn build_branch_change_result(
+    state: &AppState,
+    workspace: &WorkspaceMeta,
+    git_snapshot: GitSnapshot,
+    previous_branch: Option<String>,
+    stashed_changes: bool,
+    branch_name: &str,
+) -> Result<WorkspaceGitBranchChangeResult, AppError> {
+    let current_branch = git_snapshot.branch.clone().unwrap_or_else(|| branch_name.to_string());
+    let updated_workspace =
+        update_workspace_after_git_change(state, workspace, git_snapshot.clone())?;
+    Ok(WorkspaceGitBranchChangeResult {
+        workspace: updated_workspace,
+        git_snapshot,
+        previous_branch,
+        current_branch,
+        stashed_changes,
     })
 }

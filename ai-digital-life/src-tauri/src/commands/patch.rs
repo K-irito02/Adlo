@@ -5,7 +5,6 @@ use adl_command::{run_command, validation_command};
 use adl_errors::AppError;
 use adl_kernel::{IpcResult, PatchApplicationResult, PatchHunkDecision, PatchSet, PatchSetStatus};
 use adl_storage::EntityTable;
-use tauri::Emitter;
 
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -70,61 +69,53 @@ pub fn patch_rollback_patch_set(
             None,
         );
         if let Some(run_id) = &patch_set.run_id {
-            let ts = adl_kernel::now_ms();
-            let seq = crate::run_activity_seq::next_run_activity_seq(ts);
-            let event = adl_kernel::DigitalLifeRunActivityEventV1::Patch {
-                v: 1,
-                run_id: run_id.clone(),
-                seq,
-                ts,
-                phase: "rolled-back".into(),
-                patch_set_id: patch_set.id.clone(),
-                file_count: Some(patch_set.file_patches.len()),
-                hunk_count: Some(
-                    patch_set.file_patches.iter().map(|f| f.hunks.len()).sum::<usize>(),
-                ),
-            };
-            let _ = state.db.save_entity(
-                EntityTable::RunActivityEvents,
-                &adl_kernel::create_id("runact"),
-                Some(&workspace.id),
-                Some(&patch_set.session_id),
-                Some(run_id),
-                &event,
-            );
-            let _ = app.emit(
-                "digital-life://run-activity",
-                adl_events::run_activity_event(
-                    run_id,
-                    seq,
-                    ts,
-                    "patch",
-                    serde_json::json!({
-                        "phase": "rolled-back",
-                        "patchSetId": patch_set.id,
-                        "fileCount": patch_set.file_patches.len(),
-                        "hunkCount": patch_set.file_patches.iter().map(|f| f.hunks.len()).sum::<usize>()
-                    }),
-                ),
-            );
-            if let Some(detail) = crate::commands::agent::load_run_detail(&state, run_id)? {
-                let validation = adl_kernel::ValidationResult {
-                    id: adl_kernel::create_id("validation"),
-                    workspace_id: workspace.id.clone(),
-                    run_id: Some(run_id.clone()),
-                    patch_set_id: Some(patch_set.id.clone()),
-                    status: "failed".into(),
-                    summary: "User requested rollback.".into(),
-                    diagnostics: vec![],
-                    created_at: adl_kernel::now_ms(),
-                };
-                let detail = adl_agent_runtime::complete_after_patch(detail, &validation, true);
-                crate::commands::agent::save_run_detail(&state, &detail)?;
-            }
+            emit_patch_rollback_activity(&app, &state, &workspace, &patch_set, run_id);
         }
         save_patch_set(&state, &patch_set)?;
         Ok(patch_set)
     })
+}
+
+fn emit_patch_rollback_activity(
+    app: &tauri::AppHandle,
+    state: &AppState,
+    workspace: &adl_kernel::WorkspaceMeta,
+    patch_set: &PatchSet,
+    run_id: &str,
+) {
+    let ts = adl_kernel::now_ms();
+    let seq = crate::run_activity_seq::next_run_activity_seq(ts);
+    let event = adl_kernel::DigitalLifeRunActivityEventV1::Patch {
+        v: 1,
+        run_id: run_id.to_string(),
+        seq,
+        ts,
+        phase: "rolled-back".into(),
+        patch_set_id: patch_set.id.clone(),
+        file_count: Some(patch_set.file_patches.len()),
+        hunk_count: Some(patch_set.file_patches.iter().map(|f| f.hunks.len()).sum::<usize>()),
+    };
+    let payload = serde_json::json!({
+        "phase": "rolled-back",
+        "patchSetId": patch_set.id,
+        "fileCount": patch_set.file_patches.len(),
+        "hunkCount": patch_set.file_patches.iter().map(|f| f.hunks.len()).sum::<usize>()
+    });
+    crate::commands::save_and_emit_run_activity(state, app, &workspace.id, &patch_set.session_id, run_id, &event, "patch", seq, ts, payload);
+    if let Ok(Some(detail)) = crate::commands::agent::load_run_detail(state, run_id) {
+        let validation = adl_kernel::ValidationResult {
+            id: adl_kernel::create_id("validation"),
+            workspace_id: workspace.id.clone(),
+            run_id: Some(run_id.to_string()),
+            patch_set_id: Some(patch_set.id.clone()),
+            status: "failed".into(),
+            summary: "User requested rollback.".into(),
+            diagnostics: vec![],
+            created_at: adl_kernel::now_ms(),
+        };
+        let detail = adl_agent_runtime::complete_after_patch(detail, &validation, true);
+        let _ = crate::commands::agent::save_run_detail(state, &detail);
+    }
 }
 
 async fn apply_patch_set_inner(
@@ -135,67 +126,12 @@ async fn apply_patch_set_inner(
     let patch_set = require_patch_set(state, patch_set_id)?;
     let workspace = crate::commands::workspace::current_workspace(state)?;
     let root = std::path::Path::new(&workspace.root_path);
-    {
-        let dirty = state
-            .editor_dirty_paths
-            .lock()
-            .map_err(|_| AppError::Internal("editor dirty paths mutex poisoned".into()))?;
-        for file_patch in &patch_set.file_patches {
-            let norm = file_patch.relative_path.replace('\\', "/");
-            if file_patch.hunks.iter().any(|h| h.decision == PatchHunkDecision::Accepted)
-                && dirty.contains(&norm)
-            {
-                return Err(AppError::Patch(format!(
-                    "编辑器中有未保存修改，无法应用补丁：{norm}。请先保存或放弃更改。"
-                )));
-            }
-        }
-    }
-    if let Some(run_id) = &patch_set.run_id {
-        let ts = adl_kernel::now_ms();
-        let seq = crate::run_activity_seq::next_run_activity_seq(ts);
-        let event = adl_kernel::DigitalLifeRunActivityEventV1::Patch {
-            v: 1,
-            run_id: run_id.clone(),
-            seq,
-            ts,
-            phase: "applied".into(),
-            patch_set_id: patch_set.id.clone(),
-            file_count: Some(patch_set.file_patches.len()),
-            hunk_count: Some(patch_set.file_patches.iter().map(|f| f.hunks.len()).sum::<usize>()),
-        };
-        let _ = state.db.save_entity(
-            EntityTable::RunActivityEvents,
-            &adl_kernel::create_id("runact"),
-            Some(&workspace.id),
-            Some(&patch_set.session_id),
-            Some(run_id),
-            &event,
-        );
-        let _ = app.emit(
-            "digital-life://run-activity",
-            adl_events::run_activity_event(
-                run_id,
-                seq,
-                ts,
-                "patch",
-                serde_json::json!({
-                    "phase": "applied",
-                    "patchSetId": patch_set.id,
-                    "fileCount": patch_set.file_patches.len(),
-                    "hunkCount": patch_set.file_patches.iter().map(|f| f.hunks.len()).sum::<usize>()
-                }),
-            ),
-        );
-        if let Some(detail) = crate::commands::agent::load_run_detail(state, run_id)? {
-            crate::commands::agent::save_run_detail(
-                state,
-                &adl_agent_runtime::mark_applying(detail),
-            )?;
-        }
-    }
+
+    validate_patch_set(state, &patch_set)?;
+    emit_patch_apply_event(app, state, &workspace, &patch_set)?;
+
     let checkpoints_dir = state.data_dir.join("state").join("checkpoints");
-    let (mut patch_set, checkpoint) =
+    let (patch_set, checkpoint) =
         adl_change_engine::apply_patch_set(patch_set, root, &checkpoints_dir)?;
     state.db.save_entity(
         EntityTable::Checkpoints,
@@ -217,6 +153,70 @@ async fn apply_patch_set_inner(
         Some(format!("checkpointId={}", checkpoint.id)),
     );
 
+    save_and_verify_patch(state, app, &workspace, patch_set, root).await
+}
+
+fn validate_patch_set(state: &AppState, patch_set: &PatchSet) -> Result<(), AppError> {
+    let dirty = state
+        .editor_dirty_paths
+        .lock()
+        .map_err(|_| AppError::Internal("editor dirty paths mutex poisoned".into()))?;
+    for file_patch in &patch_set.file_patches {
+        let norm = file_patch.relative_path.replace('\\', "/");
+        if file_patch.hunks.iter().any(|h| h.decision == PatchHunkDecision::Accepted)
+            && dirty.contains(&norm)
+        {
+            return Err(AppError::Patch(format!(
+                "编辑器中有未保存修改，无法应用补丁：{norm}。请先保存或放弃更改。"
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn emit_patch_apply_event(
+    app: &tauri::AppHandle,
+    state: &AppState,
+    workspace: &adl_kernel::WorkspaceMeta,
+    patch_set: &PatchSet,
+) -> Result<(), AppError> {
+    if let Some(run_id) = &patch_set.run_id {
+        let ts = adl_kernel::now_ms();
+        let seq = crate::run_activity_seq::next_run_activity_seq(ts);
+        let event = adl_kernel::DigitalLifeRunActivityEventV1::Patch {
+            v: 1,
+            run_id: run_id.to_string(),
+            seq,
+            ts,
+            phase: "applied".into(),
+            patch_set_id: patch_set.id.clone(),
+            file_count: Some(patch_set.file_patches.len()),
+            hunk_count: Some(patch_set.file_patches.iter().map(|f| f.hunks.len()).sum::<usize>()),
+        };
+        let payload = serde_json::json!({
+            "phase": "applied",
+            "patchSetId": patch_set.id,
+            "fileCount": patch_set.file_patches.len(),
+            "hunkCount": patch_set.file_patches.iter().map(|f| f.hunks.len()).sum::<usize>()
+        });
+        crate::commands::save_and_emit_run_activity(state, app, &workspace.id, &patch_set.session_id, run_id, &event, "patch", seq, ts, payload);
+        if let Some(detail) = crate::commands::agent::load_run_detail(state, run_id)? {
+            crate::commands::agent::save_run_detail(
+                state,
+                &adl_agent_runtime::mark_applying(detail),
+            )?;
+        }
+    }
+    Ok(())
+}
+
+async fn save_and_verify_patch(
+    state: &AppState,
+    _app: &tauri::AppHandle,
+    workspace: &adl_kernel::WorkspaceMeta,
+    mut patch_set: PatchSet,
+    root: &std::path::Path,
+) -> Result<PatchApplicationResult, AppError> {
     let command_request = validation_command(root, &workspace.id, patch_set.run_id.clone());
     if let Some(run_id) = &patch_set.run_id {
         if let Some(detail) = crate::commands::agent::load_run_detail(state, run_id)? {

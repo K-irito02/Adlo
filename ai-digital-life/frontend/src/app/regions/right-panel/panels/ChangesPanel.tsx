@@ -65,7 +65,7 @@ import { ChangesTreePanel } from './ChangesTreePanel';
 
 const FALLBACK_BRANCHES = ['main', 'develop', 'release/0.1.0', 'feature/right-panel'];
 
-export function ChangesPanel(props: ChangesPanelProps) {
+const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) {
   const {
     t,
     appInfo,
@@ -96,14 +96,18 @@ export function ChangesPanel(props: ChangesPanelProps) {
     activePatchSets,
     onHideFromRightPanels,
   } = props;
-  const navigatorCollapsed = useUiStore((state) => state.navigatorCollapsedByTool.changes);
+  const { navigatorCollapsed, changesNavigatorMode, previewEnabled, expandedPaths } = useUiStore(
+    useShallow((state) => ({
+      navigatorCollapsed: state.navigatorCollapsedByTool.changes,
+      changesNavigatorMode: state.changesNavigatorMode,
+      previewEnabled: state.changesPreviewEnabled,
+      expandedPaths: state.expandedChangesTreePaths,
+    }))
+  );
   const toggleNavigator = useUiStore((state) => state.toggleNavigator);
   const changesNavigatorWidth = useAppStore((state) => state.changesNavigatorWidth);
-  const changesNavigatorMode = useUiStore((state) => state.changesNavigatorMode);
   const setChangesNavigatorMode = useUiStore((state) => state.setChangesNavigatorMode);
-  const previewEnabled = useUiStore((state) => state.changesPreviewEnabled);
   const setPreviewEnabled = useUiStore((state) => state.setChangesPreviewEnabled);
-  const expandedPaths = useUiStore((state) => state.expandedChangesTreePaths);
   const toggleChangesTreePath = useUiStore((state) => state.toggleChangesTreePath);
   const setChangesTreePathExpanded = useUiStore((state) => state.setChangesTreePathExpanded);
   const expandChangesTreePathChain = useUiStore((state) => state.expandChangesTreePathChain);
@@ -1185,4 +1189,6 @@ export function ChangesPanel(props: ChangesPanelProps) {
       ) : null}
     </div>
   );
-}
+});
+
+export { ChangesPanel };
