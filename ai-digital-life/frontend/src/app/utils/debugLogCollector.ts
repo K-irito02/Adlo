@@ -46,7 +46,12 @@ const originalDebug = console.debug;
  */
 function safeStringify(value: unknown): string {
   if (typeof value === 'string') return value;
-  if (typeof value === 'number' || typeof value === 'boolean' || value === null || value === undefined) {
+  if (
+    typeof value === 'number' ||
+    typeof value === 'boolean' ||
+    value === null ||
+    value === undefined
+  ) {
     return String(value);
   }
   try {
@@ -167,9 +172,9 @@ async function writeLogsToProjectFile() {
       await writeLogsToProjectFileBrowser(logContent);
     }
   } catch (err) {
-      // 静默失败，但至少输出到原始 console，避免干扰正常调试
-      originalError('[DebugLogCollector] Failed to write logs:', err);
-    } finally {
+    // 静默失败，但至少输出到原始 console，避免干扰正常调试
+    originalError('[DebugLogCollector] Failed to write logs:', err);
+  } finally {
     isWriting = false;
   }
 }

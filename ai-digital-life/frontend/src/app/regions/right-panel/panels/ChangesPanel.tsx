@@ -179,15 +179,12 @@ export function ChangesPanel(props: ChangesPanelProps) {
     const patch = activePatchSet.filePatches.find((p) => p.relativePath === selectedPatchFilePath);
     return patch;
   }, [activePatchSet, selectedPatchFilePath]);
-  const changePreviewLanguage = useMemo(
-    () => {
-      const filePath = activeFilePatchFromSet?.relativePath ?? changePreview?.path;
-      const fallbackLang = activeFilePatchFromSet?.language;
-      const lang = detectEditorLanguage(filePath, fallbackLang);
-      return lang;
-    },
-    [changePreview?.path, activeFilePatchFromSet]
-  );
+  const changePreviewLanguage = useMemo(() => {
+    const filePath = activeFilePatchFromSet?.relativePath ?? changePreview?.path;
+    const fallbackLang = activeFilePatchFromSet?.language;
+    const lang = detectEditorLanguage(filePath, fallbackLang);
+    return lang;
+  }, [changePreview?.path, activeFilePatchFromSet]);
   const changePreviewDiffRanges = useMemo(
     () =>
       changePreview

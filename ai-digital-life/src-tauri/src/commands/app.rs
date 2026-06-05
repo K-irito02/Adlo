@@ -193,11 +193,7 @@ pub fn write_debug_logs(app: tauri::AppHandle, content: String) -> Result<(), St
     use std::path::PathBuf;
 
     // 获取应用数据目录
-    let log_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| e.to_string())?
-        .join("debug-logs");
+    let log_dir = app.path().app_data_dir().map_err(|e| e.to_string())?.join("debug-logs");
 
     // 创建目录（如果不存在）
     fs::create_dir_all(&log_dir).map_err(|e| e.to_string())?;
@@ -215,9 +211,7 @@ pub fn write_debug_logs(app: tauri::AppHandle, content: String) -> Result<(), St
 
 fn chrono_lite_timestamp() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
-    let duration = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default();
+    let duration = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
     let secs = duration.as_secs();
     let millis = duration.subsec_millis();
     format!("{}-{}", secs, millis)
