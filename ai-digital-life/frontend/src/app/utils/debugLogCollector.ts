@@ -27,7 +27,7 @@ const LOG_WRITE_DEBOUNCE_MS = 500; // 防抖延迟 500ms
 // ============================================
 
 const debugLogs: LogEntry[] = [];
-let writeTimeoutId: number | null = null;
+let writeTimeoutId: ReturnType<typeof setTimeout> | null = null;
 let isWriting = false;
 
 // 保存原始 console 方法
@@ -99,7 +99,7 @@ function debouncedWriteLogs() {
   writeTimeoutId = setTimeout(() => {
     void writeLogsToProjectFile();
     writeTimeoutId = null;
-  }, LOG_WRITE_DEBOUNCE_MS) as unknown as number;
+  }, LOG_WRITE_DEBOUNCE_MS);
 }
 
 /**
