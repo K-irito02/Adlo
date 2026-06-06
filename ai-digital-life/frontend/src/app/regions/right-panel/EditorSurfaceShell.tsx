@@ -368,7 +368,7 @@ function EditorSurfaceShell(props: EditorSurfaceShellProps) {
             theme={resolvedTheme}
             locale={resolvedLocale}
             sideBySide={diffSideBySide}
-            collapseUnchanged={false}
+            collapseUnchanged={true}
             fileKey={selectedFilePath}
             readOnly={editorOptions.diffOptions.readOnly}
             lineNumbers={editorOptions.diffOptions.lineNumbers}

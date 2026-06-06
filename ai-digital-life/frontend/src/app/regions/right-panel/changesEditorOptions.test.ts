@@ -50,6 +50,6 @@ describe("changes preview editor options", () => {
   it("expands unchanged diff sections before outline navigation", () => {
     expect(changesPanelSource).toContain("forceExpandUnchangedDiff");
     expect(changesPanelSource).toContain("pendingOutlineRevealLine");
-    expect(changesPanelSource).toContain("collapseUnchanged={false}");
+    expect(changesPanelSource).toContain("collapseUnchanged={true}");
   });
 });

@@ -3,17 +3,17 @@
   background: transparent !important;
 }
 
-/* === Block level (5%): faint full-width background for changed blocks === */
+/* === Block level: full-width background for changed blocks === */
 /* Side-by-side: A=deleted side red, B=inserted side green */
 .adl-cm-diff-viewer--side-by-side .cm-merge-a .cm-changedLine {
-  background-color: rgba(239, 68, 68, 0.05) !important;
+  background-color: var(--editor-diff-remove-bg) !important;
 }
 .adl-cm-diff-viewer--side-by-side .cm-merge-b .cm-changedLine {
-  background-color: rgba(34, 197, 94, 0.05) !important;
+  background-color: var(--editor-diff-insert-bg) !important;
 }
-/* Inline mode: neutral gray for deleted chunk blocks */
+/* Inline mode: deleted chunk blocks */
 .adl-cm-diff-viewer--inline .cm-deletedChunk {
-  background-color: rgba(128, 128, 128, 0.05) !important;
+  background-color: var(--editor-diff-remove-bg) !important;
 }
 
 /* Suppress other merge baseTheme decorations */
@@ -22,7 +22,7 @@
   background: transparent !important;
 }
 
-/* === Line level (12%): full-width continuous block backgrounds via :has() === */
+/* === Line level: full-width continuous block backgrounds via :has() === */
 /* .cm-insertedLine/.cm-deletedLine are Decoration.mark() <ins>/<del> inline
    elements that only wrap changed text ranges, NOT the full line. Setting
    display:block on them breaks CM6's inline layout. Instead, we suppress
@@ -37,7 +37,9 @@
   background-color: var(--editor-diff-insert-bg) !important;
 }
 
-.adl-cm-diff-viewer .cm-line:has(.cm-deletedLine) {
+.adl-cm-diff-viewer .cm-line:has(.cm-deletedLine),
+.adl-cm-diff-viewer .cm-line:has(.cm-changedLine),
+.adl-cm-diff-viewer--inline .cm-deletedChunk .cm-line {
   background-color: var(--editor-diff-remove-bg) !important;
 }
 
@@ -202,10 +204,10 @@
 
 /* Side-by-side A side (deleted) - vertical bar + background */
 /* Dark red vertical bar (60% opacity) */
-/* Base state: 10% opacity (visible) */
+/* Base state: gutter-bg CSS variable */
 .adl-cm-diff-viewer--side-by-side .cm-merge-a .cm-changedLineGutter {
   border-left: 3px solid rgba(239, 68, 68, 0.6) !important;
-  background-color: rgba(239, 68, 68, 0.10) !important;
+  background-color: var(--editor-diff-remove-gutter-bg) !important;
   margin-left: -3px !important;
   padding-left: 3px !important;
 }
@@ -230,10 +232,10 @@
 
 /* Side-by-side B side (inserted) - vertical bar + background */
 /* Dark green vertical bar (60% opacity) */
-/* Base state: 10% opacity (visible) */
+/* Base state: gutter-bg CSS variable */
 .adl-cm-diff-viewer--side-by-side .cm-merge-b .cm-changedLineGutter {
   border-left: 3px solid rgba(34, 197, 94, 0.6) !important;
-  background-color: rgba(34, 197, 94, 0.10) !important;
+  background-color: var(--editor-diff-insert-gutter-bg) !important;
   margin-left: -3px !important;
   padding-left: 3px !important;
 }
@@ -254,10 +256,10 @@
 }
 
 /* Inline mode: deleted lines */
-/* Base state: 10% opacity (visible) */
+/* Base state: gutter-bg CSS variable */
 .adl-cm-diff-viewer--inline .cm-deletedLineGutter {
   border-left: 3px solid rgba(239, 68, 68, 0.6) !important;
-  background-color: rgba(239, 68, 68, 0.10) !important;
+  background-color: var(--editor-diff-remove-gutter-bg) !important;
   margin-left: -3px !important;
   padding-left: 3px !important;
 }
@@ -278,10 +280,10 @@
 }
 
 /* Inline mode: inserted lines */
-/* Base state: 10% opacity (visible) */
+/* Base state: gutter-bg CSS variable */
 .adl-cm-diff-viewer--inline .cm-changedLineGutter {
   border-left: 3px solid rgba(34, 197, 94, 0.6) !important;
-  background-color: rgba(34, 197, 94, 0.10) !important;
+  background-color: var(--editor-diff-insert-gutter-bg) !important;
   margin-left: -3px !important;
   padding-left: 3px !important;
 }

@@ -280,9 +280,9 @@ await page.locator('.adl-tool-context__group--files-actions .adl-tool-context__i
 
 | 视觉元素 | 真实来源 | 含义 | 作用 |
 |----------|----------|------|------|
-| 淡绿色整块背景 | `--editor-diff-insert-bg-block` / `--editor-diff-insert-bg` 语义层 | 当前区域属于新增或修改块 | 先给出块级范围感，帮助快速扫描变更分布 |
-| 稍深绿色整行背景 | `.cm-insertedLine` / `.cm-changedLine` 与 agent line decoration | 这一行本身是实际变更行 | 把“变更块范围”与“真正发生变化的行”区分开 |
-| 淡红色整行/整块背景 | `--editor-diff-remove-bg-block` / `--editor-diff-remove-bg` | 删除范围或删除行 | 让删除信息与新增信息在阅读上立即分离 |
+| 绿色背景 | `--editor-diff-insert-bg` | 新增或修改行 | 快速扫描变更分布 |
+| 红色背景 | `--editor-diff-remove-bg` | 删除行 | 让删除信息与新增信息在阅读上立即分离 |
+| 行号区背景 | `--editor-diff-insert-gutter-bg` / `--editor-diff-remove-gutter-bg` | 行号区变更行标识（比内容区稍深，形成视觉层次） | 辅助定位变更行位置 |
 | 行内更亮的绿色底部高亮线 | CodeMirror merge 的行内 changed-text 语义 | 该变更行内部还有更细的词/字符级差异 | 在长行内快速定位真正改动的片段 |
 | 选中 hunk 的浅蓝描边 | `--editor-current-hunk-ring` | 当前聚焦的补丁块 | 辅助键盘导航、接受/拒绝操作和上下文跟踪 |
 | 并排 Diff 渐变分隔层 | `.adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-mergeViewEditor:first-child::after` | 左右版本边界 + 左侧退后右侧浮出 | 透明→背景色的水平渐变（6px 宽），模拟"左低右高"的卡片分层感 |
@@ -380,19 +380,19 @@ await page.locator('.adl-tool-context__group--files-actions .adl-tool-context__i
 
 | token | 含义 |
 |-------|------|
-| `--editor-diff-insert-bg` | 新增/修改行的基础绿色背景 |
-| `--editor-diff-remove-bg` | 删除行的基础红色背景 |
-| `--editor-diff-insert-bg-strong` | 更强一级的新增强调 |
-| `--editor-diff-remove-bg-strong` | 更强一级的删除强调 |
-| `--editor-diff-insert-bg-block` | 新增/修改块级范围背景 |
-| `--editor-diff-remove-bg-block` | 删除块级范围背景 |
+| `--editor-diff-insert-bg` | 新增/修改行的绿色背景（内容区） |
+| `--editor-diff-remove-bg` | 删除行的红色背景（内容区） |
+| `--editor-diff-insert-gutter-bg` | 新增/修改行号区背景（比内容区深，形成层级） |
+| `--editor-diff-remove-gutter-bg` | 删除行号区背景（比内容区深，形成层级） |
+| `--editor-diff-insert-hover` | 新增行悬停/激活态背景 |
+| `--editor-diff-remove-hover` | 删除行悬停/激活态背景 |
 | `--editor-selection` | 修改或选中文本的中性浅蓝强调 |
 | `--editor-current-hunk-ring` | 当前聚焦 hunk 的环形描边 |
 
 ### 注意事项
 
-1. Diff 的主语义在正文区，gutter 只保留基础行号定位。
-2. 绿色/红色的深浅差异用于表达“范围”与“实际变更行”的层级，不表示不同审批状态。
+1. Diff 的主语义在正文区，gutter 只保留基础行号定位和稍深的变更行标识。
+2. green/red 深浅层级：内容区（18-20%）< 行号区（28-30%）< 悬停态（35%），依次加深形成视觉层次。
 3. 若未来要进一步降噪，优先考虑收弱行内底部高亮线，而不是重新引回 gutter 状态条。
 
 ---
