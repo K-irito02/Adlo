@@ -215,8 +215,8 @@ body,
   --editor-indentGuide-active: rgba(34, 34, 34, 0.22);
   --editor-whitespace: rgba(34, 34, 34, 0.12);
 
-  --editor-diff-insert-bg: rgba(34, 197, 94, 0.12);
-  --editor-diff-remove-bg: rgba(239, 68, 68, 0.12);
+  --editor-diff-insert-bg: rgba(34, 197, 94, 0.22);
+  --editor-diff-remove-bg: rgba(239, 68, 68, 0.22);
 
   --editor-hunk-header-bg: rgba(34, 34, 34, 0.04);
   --editor-hunk-header-border: rgba(34, 34, 34, 0.08);

@@ -41,6 +41,30 @@
   background-color: var(--editor-diff-remove-bg) !important;
 }
 
+/* === Hover state: deepen the diff background instead of gray overlay === */
+/* Side-by-side A side (deleted lines): only apply to changed lines */
+.adl-cm-diff-viewer.adl-cm-diff-viewer--side-by-side .cm-merge-a .cm-line:hover:has(.cm-changedLine),
+.adl-cm-diff-viewer.adl-cm-diff-viewer--side-by-side .cm-merge-a .cm-line.cm-activeLine:has(.cm-changedLine) {
+  background-color: rgba(239, 68, 68, 0.35) !important;
+}
+/* Side-by-side B side (inserted lines) */
+.adl-cm-diff-viewer.adl-cm-diff-viewer--side-by-side .cm-merge-b .cm-line:hover:has(.cm-insertedLine),
+.adl-cm-diff-viewer.adl-cm-diff-viewer--side-by-side .cm-merge-b .cm-line.cm-activeLine:has(.cm-insertedLine) {
+  background-color: rgba(34, 197, 94, 0.35) !important;
+}
+/* Inline mode - inserted lines */
+.adl-cm-diff-viewer.adl-cm-diff-viewer--inline .cm-line:hover:has(.cm-insertedLine),
+.adl-cm-diff-viewer.adl-cm-diff-viewer--inline .cm-line.cm-activeLine:has(.cm-insertedLine) {
+  background-color: rgba(34, 197, 94, 0.35) !important;
+}
+/* Inline mode - deleted lines (including deleted chunks) */
+.adl-cm-diff-viewer.adl-cm-diff-viewer--inline .cm-line:hover:has(.cm-deletedLine),
+.adl-cm-diff-viewer.adl-cm-diff-viewer--inline .cm-line.cm-activeLine:has(.cm-deletedLine),
+.adl-cm-diff-viewer.adl-cm-diff-viewer--inline .cm-deletedChunk .cm-line:hover,
+.adl-cm-diff-viewer.adl-cm-diff-viewer--inline .cm-deletedChunk .cm-line.cm-activeLine {
+  background-color: rgba(239, 68, 68, 0.35) !important;
+}
+
 /* Word wrap ON: CodeMirror's cm-lineWrapping class handles wrapping.
    .cm-editor { overflow: hidden } contains everything. */
 
@@ -103,12 +127,207 @@
 .adl-cm-diff-viewer .cm-merge-gutter {
   min-width: 0;
   width: 22px;
+  border: none !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-top: none !important;
+  border-bottom: none !important;
+  background: transparent !important;
 }
 
 .adl-cm-diff-viewer .cm-merge-gutter .cm-gutterElement {
   padding: 0;
   justify-content: center;
   font-weight: 700;
+  border: none !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-top: none !important;
+  border-bottom: none !important;
+  background: transparent !important;
+}
+
+/* ====================================================
+   FINAL SOLUTION FOR GUTTER ISSUES
+   ==================================================== */
+
+/* === 1. CHANGE GUTTER POSITION - LEFTMOST VERTICAL BAR === */
+.adl-cm-diff-viewer .cm-gutters {
+  position: relative;
+}
+
+.adl-cm-diff-viewer .cm-changeGutter {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  z-index: 20;
+  width: 100%;
+  min-width: 60px;
+}
+
+/* === 2. ACTIVE LINE GUTTER - EXTEND TO COVER ENTIRE AREA === */
+.adl-cm-diff-viewer .cm-activeLineGutter {
+  margin-left: -3px !important;
+  padding-left: 3px !important;
+  position: relative;
+  z-index: 15;
+}
+
+/* === 3. ACTIVE LINE - GRAY BACKGROUND (only for normal lines) === */
+/* For normal lines without changes, show gray background */
+.adl-cm-diff-viewer .cm-activeLineGutter:not(.cm-changedLineGutter):not(.cm-deletedLineGutter) {
+  background-color: var(--editor-lineHighlight) !important;
+}
+
+/* === 3.5 NORMAL LINE HOVER - GRAY BACKGROUND === */
+/* For normal lines without changes, show gray hover background */
+.adl-cm-diff-viewer .cm-gutterElement:not(.cm-changedLineGutter):not(.cm-deletedLineGutter):hover,
+.adl-cm-diff-viewer .cm-gutterElement:not(.cm-changedLineGutter):not(.cm-deletedLineGutter).adl-temp-gutter-hover {
+  background-color: var(--editor-hover-bg) !important;
+  margin-left: -3px !important;
+  padding-left: 3px !important;
+  position: relative;
+  z-index: 15;
+}
+
+/* === Important: Ensure changed line gutters show their colors when content line is hovered === */
+.adl-cm-diff-viewer .cm-changedLineGutter,
+.adl-cm-diff-viewer .cm-deletedLineGutter {
+  /* These will be overridden by more specific rules below */
+}
+
+/* === 4. CHANGED LINE GUTTER - VERTICAL BAR + BACKGROUND === */
+/* These styles must override the activeLineGutter styles above */
+
+/* Side-by-side A side (deleted) - vertical bar + background */
+/* Dark red vertical bar (60% opacity) */
+/* Base state: 10% opacity (visible) */
+.adl-cm-diff-viewer--side-by-side .cm-merge-a .cm-changedLineGutter {
+  border-left: 3px solid rgba(239, 68, 68, 0.6) !important;
+  background-color: rgba(239, 68, 68, 0.10) !important;
+  margin-left: -3px !important;
+  padding-left: 3px !important;
+}
+
+/* Side-by-side A side (deleted) - active/hover state: 35% opacity (deeper, same as content line) */
+.adl-cm-diff-viewer--side-by-side .cm-merge-a .cm-changedLineGutter.cm-activeLineGutter,
+.adl-cm-diff-viewer--side-by-side .cm-merge-a .cm-deletedLineGutter.cm-activeLineGutter {
+  background-color: rgba(239, 68, 68, 0.35) !important;
+}
+
+/* Side-by-side A side (deleted) - hover state */
+.adl-cm-diff-viewer--side-by-side .cm-merge-a .cm-changedLineGutter:hover,
+.adl-cm-diff-viewer--side-by-side .cm-merge-a .cm-deletedLineGutter:hover,
+.adl-cm-diff-viewer--side-by-side .cm-merge-a .cm-changedLineGutter.adl-temp-gutter-hover,
+.adl-cm-diff-viewer--side-by-side .cm-merge-a .cm-deletedLineGutter.adl-temp-gutter-hover {
+  background-color: rgba(239, 68, 68, 0.35) !important;
+  margin-left: -3px !important;
+  padding-left: 3px !important;
+  position: relative;
+  z-index: 15;
+}
+
+/* Side-by-side B side (inserted) - vertical bar + background */
+/* Dark green vertical bar (60% opacity) */
+/* Base state: 10% opacity (visible) */
+.adl-cm-diff-viewer--side-by-side .cm-merge-b .cm-changedLineGutter {
+  border-left: 3px solid rgba(34, 197, 94, 0.6) !important;
+  background-color: rgba(34, 197, 94, 0.10) !important;
+  margin-left: -3px !important;
+  padding-left: 3px !important;
+}
+
+/* Side-by-side B side (inserted) - active/hover state: 35% opacity (deeper, same as content line) */
+.adl-cm-diff-viewer--side-by-side .cm-merge-b .cm-changedLineGutter.cm-activeLineGutter {
+  background-color: rgba(34, 197, 94, 0.35) !important;
+}
+
+/* Side-by-side B side (inserted) - hover state */
+.adl-cm-diff-viewer--side-by-side .cm-merge-b .cm-changedLineGutter:hover,
+.adl-cm-diff-viewer--side-by-side .cm-merge-b .cm-changedLineGutter.adl-temp-gutter-hover {
+  background-color: rgba(34, 197, 94, 0.35) !important;
+  margin-left: -3px !important;
+  padding-left: 3px !important;
+  position: relative;
+  z-index: 15;
+}
+
+/* Inline mode: deleted lines */
+/* Base state: 10% opacity (visible) */
+.adl-cm-diff-viewer--inline .cm-deletedLineGutter {
+  border-left: 3px solid rgba(239, 68, 68, 0.6) !important;
+  background-color: rgba(239, 68, 68, 0.10) !important;
+  margin-left: -3px !important;
+  padding-left: 3px !important;
+}
+
+/* Inline mode: deleted lines - active state: 35% opacity (deeper, same as content line) */
+.adl-cm-diff-viewer--inline .cm-deletedLineGutter.cm-activeLineGutter {
+  background-color: rgba(239, 68, 68, 0.35) !important;
+}
+
+/* Inline mode: deleted lines - hover state */
+.adl-cm-diff-viewer--inline .cm-deletedLineGutter:hover,
+.adl-cm-diff-viewer--inline .cm-deletedLineGutter.adl-temp-gutter-hover {
+  background-color: rgba(239, 68, 68, 0.35) !important;
+  margin-left: -3px !important;
+  padding-left: 3px !important;
+  position: relative;
+  z-index: 15;
+}
+
+/* Inline mode: inserted lines */
+/* Base state: 10% opacity (visible) */
+.adl-cm-diff-viewer--inline .cm-changedLineGutter {
+  border-left: 3px solid rgba(34, 197, 94, 0.6) !important;
+  background-color: rgba(34, 197, 94, 0.10) !important;
+  margin-left: -3px !important;
+  padding-left: 3px !important;
+}
+
+/* Inline mode: inserted lines - active state: 35% opacity (deeper, same as content line) */
+.adl-cm-diff-viewer--inline .cm-changedLineGutter.cm-activeLineGutter {
+  background-color: rgba(34, 197, 94, 0.35) !important;
+}
+
+/* Inline mode: inserted lines - hover state */
+.adl-cm-diff-viewer--inline .cm-changedLineGutter:hover,
+.adl-cm-diff-viewer--inline .cm-changedLineGutter.adl-temp-gutter-hover {
+  background-color: rgba(34, 197, 94, 0.35) !important;
+  margin-left: -3px !important;
+  padding-left: 3px !important;
+  position: relative;
+  z-index: 15;
+}
+
+/* === Gutter Hover Overlay Styles === */
+/* Overlay covers entire gutter width for hover effect */
+.adl-cm-diff-viewer .adl-gutter-hover-overlay {
+  /* Ensure it covers from left edge to right edge */
+  left: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+  z-index: 25 !important;
+}
+
+/* 移除 mergeView 或 mergeViewEditors 可能带来的默认边框 */
+.adl-cm-diff-viewer .cm-mergeView,
+.adl-cm-diff-viewer .cm-mergeViewEditors,
+.adl-cm-diff-viewer .cm-mergeViewEditor {
+  border: none !important;
+  border-left: none !important;
+  border-right: none !important;
+}
+
+/* 移除任何可能的渐变背景或边框 */
+.adl-cm-diff-viewer .cm-merge-gutter,
+.adl-cm-diff-viewer .cm-merge-gutter .cm-gutterElement {
+  background-image: none !important;
+  box-shadow: none !important;
 }
 
 /* === 字符级别（对角条纹纹理，内容宽度） === */
@@ -213,7 +432,7 @@
 }
 
 /* Merge controls (Accept/Reject buttons) in inline unified merge view */
-/* .cm-deletedChunk must NOT use position:relative — that creates a positioning
+/* .cm-deletedChunk must NOT be position:relative — that creates a positioning
    context that breaks CodeMirror's auto-scroll detection during text selection drags.
    Instead, chunkButtons use float:right for positioning.
 

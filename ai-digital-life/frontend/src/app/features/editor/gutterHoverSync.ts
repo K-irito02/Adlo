@@ -1,21 +1,15 @@
 import { EditorView } from '@codemirror/view';
 import type { Extension } from '@codemirror/state';
 
-const OVERLAY_CLASS = 'adl-gutter-hover-overlay';
-
-/** Read a CSS variable value from the document root. */
-function getCssVar(name: string): string {
-  if (typeof document === 'undefined') return '';
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-}
+const TEMP_HOVER_CLASS = 'adl-temp-gutter-hover';
+const TEMP_NORMAL_HOVER_ATTR = 'data-adl-temp-hover';
 
 /**
  * CodeMirror extension that highlights the gutter line number when the
  * mouse hovers over the corresponding content line.
  *
- * Uses an absolutely-positioned overlay <div> inside .cm-gutters to paint
- * the hover background. This completely avoids all CSS conflict issues
- * with CodeMirror's own gutter element styling.
+ * OVERLAY APPROACH: Instead of modifying gutter elements, create an
+ * overlay element that covers the entire gutter row.
  */
 export function gutterHoverSync(): Extension {
   return EditorView.domEventHandlers({
@@ -27,67 +21,99 @@ export function gutterHoverSync(): Extension {
       const editor = line.closest('.cm-editor');
       if (!editor) return;
 
-      // Resolve the document line number
-      const pos = view.posAtDOM(line, 0);
-      if (pos < 0) return;
-      let lineNumber = 0;
-      try {
-        lineNumber = view.state.doc.lineAt(pos).number;
-      } catch {
-        return;
-      }
-      if (lineNumber < 1) return;
-
       const gutters = editor.querySelector('.cm-gutters') as HTMLElement | null;
       if (!gutters) return;
-      const lineNumbers = gutters.querySelector('.cm-lineNumbers') as HTMLElement | null;
-      if (!lineNumbers) return;
 
-      // Remove any existing overlay
-      const existing = gutters.querySelector(`.${OVERLAY_CLASS}`);
-      if (existing) existing.remove();
+      // First, remove any existing overlay
+      const existingOverlay = gutters.querySelector('.adl-gutter-hover-overlay');
+      if (existingOverlay) existingOverlay.remove();
 
-      // Find the matching gutter element to get its vertical position
-      const targetStr = String(lineNumber);
-      const allEls = lineNumbers.querySelectorAll<HTMLElement>(':scope > .cm-gutterElement');
+      // Check if this is a changed line
+      const isChangedLine = line.classList.contains('cm-changedLine') ||
+                           line.classList.contains('cm-deletedLine') ||
+                           line.classList.contains('cm-insertedLine') ||
+                           line.closest('.cm-deletedChunk') !== null;
+
+      // Get the vertical position of the hovered content line
+      const lineRect = line.getBoundingClientRect();
+      const guttersRect = gutters.getBoundingClientRect();
+      
+      // Find the matching line number gutter element to get exact position
+      const lineNumbersGutter = gutters.querySelector('.cm-lineNumbers') as HTMLElement | null;
       let targetEl: HTMLElement | null = null;
-      for (const el of allEls) {
-        if (el.textContent?.trim() === targetStr) {
-          targetEl = el;
-          break;
+      if (lineNumbersGutter) {
+        const gutterEls = lineNumbersGutter.querySelectorAll<HTMLElement>(':scope > .cm-gutterElement');
+        for (const gutterEl of gutterEls) {
+          const gutterRect = gutterEl.getBoundingClientRect();
+          const tolerance = 1;
+          const overlaps = !(gutterRect.bottom - tolerance < lineRect.top || 
+                            gutterRect.top + tolerance > lineRect.bottom);
+          if (overlaps) {
+            targetEl = gutterEl;
+            break;
+          }
         }
       }
+      
       if (!targetEl) return;
-
-      // Create an overlay that covers the full gutter area for this line
+      
+      const targetRect = targetEl.getBoundingClientRect();
+      
+      // Create overlay that covers the entire gutter width at this line
       const overlay = document.createElement('div');
-      overlay.className = OVERLAY_CLASS;
-
-      const guttersRect = gutters.getBoundingClientRect();
-      const elRect = targetEl.getBoundingClientRect();
-
+      overlay.className = 'adl-gutter-hover-overlay';
       overlay.style.position = 'absolute';
-      overlay.style.top = elRect.top - guttersRect.top + 'px';
+      overlay.style.top = (targetRect.top - guttersRect.top) + 'px';
       overlay.style.left = '0';
       overlay.style.right = '0';
-      overlay.style.height = elRect.height + 'px';
+      overlay.style.height = targetRect.height + 'px';
       overlay.style.pointerEvents = 'none';
-      overlay.style.zIndex = '-1';
-
-      const bg = getCssVar('--editor-hover-bg');
-      if (bg) overlay.style.backgroundColor = bg;
-
-      // Ensure the overlay is inside the gutters stacking context
+      overlay.style.zIndex = '25';
+      
+      // Determine background color
+      let bgColor: string;
+      if (isChangedLine) {
+        // Check which side we're on for correct color
+        const mergeViewEditor = editor.closest('.cm-mergeViewEditor');
+        if (mergeViewEditor) {
+          const parentContainer = mergeViewEditor.parentElement;
+          if (parentContainer?.classList.contains('cm-merge-a')) {
+            bgColor = 'rgba(239, 68, 68, 0.35)';
+          } else if (parentContainer?.classList.contains('cm-merge-b')) {
+            bgColor = 'rgba(34, 197, 94, 0.35)';
+          } else {
+            // Inline mode
+            const deletedChunk = line.closest('.cm-deletedChunk');
+            bgColor = deletedChunk ? 'rgba(239, 68, 68, 0.35)' : 'rgba(34, 197, 94, 0.35)';
+          }
+        } else {
+          // Fallback
+          const deletedChunk = line.closest('.cm-deletedChunk');
+          bgColor = deletedChunk ? 'rgba(239, 68, 68, 0.35)' : 'rgba(34, 197, 94, 0.35)';
+        }
+      } else {
+        // Normal line
+        bgColor = getComputedStyle(document.documentElement)
+          .getPropertyValue('--editor-hover-bg')
+          .trim() || 'rgba(255, 255, 255, 0.08)';
+      }
+      
+      overlay.style.backgroundColor = bgColor;
+      
+      // Ensure gutters have position: relative
       if (getComputedStyle(gutters).position === 'static') {
         gutters.style.position = 'relative';
       }
-
+      
       gutters.appendChild(overlay);
     },
 
     mouseout(_event, _view) {
       if (typeof document === 'undefined') return;
-      document.querySelectorAll(`.${OVERLAY_CLASS}`).forEach((el) => el.remove());
+      // Remove all temporary hover effects
+      document.querySelectorAll('.adl-gutter-hover-overlay').forEach(el => {
+        el.remove();
+      });
     },
   });
 }

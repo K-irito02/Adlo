@@ -166,6 +166,42 @@
   background-color: var(--editor-hover-bg) !important;
 }
 
+/* Exclude diff changed lines from generic hover — deepen the diff background on hover */
+.adl-cm-diff-viewer .cm-line:hover:has(.cm-insertedLine) {
+  background-color: rgba(34, 197, 94, 0.35) !important;
+}
+.adl-cm-diff-viewer .cm-line:hover:has(.cm-deletedLine) {
+  background-color: rgba(239, 68, 68, 0.35) !important;
+}
+.adl-cm-diff-viewer .cm-line:hover:has(.cm-changedLine) {
+  background-color: rgba(239, 68, 68, 0.35) !important;
+}
+/* Inline mode deleted chunk - the entire chunk is deleted, so all its lines need hover effect */
+.adl-cm-diff-viewer.adl-cm-diff-viewer--inline .cm-deletedChunk .cm-line:hover {
+  background-color: rgba(239, 68, 68, 0.35) !important;
+}
+.adl-cm-diff-viewer .cm-deletedChunk .cm-line:hover {
+  background-color: rgba(239, 68, 68, 0.35) !important;
+}
+
+/* Exclude active changed lines from generic active — deepen the diff background */
+.adl-cm-diff-viewer .cm-line.cm-activeLine:has(.cm-insertedLine) {
+  background-color: rgba(34, 197, 94, 0.35) !important;
+}
+.adl-cm-diff-viewer .cm-line.cm-activeLine:has(.cm-deletedLine) {
+  background-color: rgba(239, 68, 68, 0.35) !important;
+}
+.adl-cm-diff-viewer .cm-line.cm-activeLine:has(.cm-changedLine) {
+  background-color: rgba(239, 68, 68, 0.35) !important;
+}
+/* Inline mode deleted chunk active line */
+.adl-cm-diff-viewer.adl-cm-diff-viewer--inline .cm-deletedChunk .cm-line.cm-activeLine {
+  background-color: rgba(239, 68, 68, 0.35) !important;
+}
+.adl-cm-diff-viewer .cm-deletedChunk .cm-line.cm-activeLine {
+  background-color: rgba(239, 68, 68, 0.35) !important;
+}
+
 /* Gutter hover overlay is managed by JS (gutterHoverSync.ts) */
 
 /* Active line highlight — consistent between content and gutter */
@@ -174,8 +210,9 @@
   background-color: var(--editor-lineHighlight) !important;
 }
 
-.adl-cm-editor .cm-activeLineGutter,
-.adl-cm-diff-viewer .cm-activeLineGutter {
+/* Active line gutter in diff viewer is handled by diff-viewer.css with specific colors
+   for inserted/deleted lines. Only apply generic highlight to regular editor. */
+.adl-cm-editor .cm-activeLineGutter {
   background-color: var(--editor-lineHighlight) !important;
 }
 
