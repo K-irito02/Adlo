@@ -4,6 +4,15 @@ import type { Extension } from '@codemirror/state';
 const TEMP_HOVER_CLASS = 'adl-temp-gutter-hover';
 const TEMP_NORMAL_HOVER_ATTR = 'data-adl-temp-hover';
 
+/** Read a CSS custom property from :root, with a fallback value. */
+function cssVar(name: string, fallback: string): string {
+  try {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 /**
  * CodeMirror extension that highlights the gutter line number when the
  * mouse hovers over the corresponding content line.
@@ -70,32 +79,21 @@ export function gutterHoverSync(): Extension {
       overlay.style.pointerEvents = 'none';
       overlay.style.zIndex = '25';
       
-      // Determine background color
+      // Determine background color using CSS custom properties
       let bgColor: string;
       if (isChangedLine) {
-        // Check which side we're on for correct color
         const mergeViewEditor = editor.closest('.cm-mergeViewEditor');
-        if (mergeViewEditor) {
-          const parentContainer = mergeViewEditor.parentElement;
-          if (parentContainer?.classList.contains('cm-merge-a')) {
-            bgColor = 'rgba(239, 68, 68, 0.35)';
-          } else if (parentContainer?.classList.contains('cm-merge-b')) {
-            bgColor = 'rgba(34, 197, 94, 0.35)';
-          } else {
-            // Inline mode
-            const deletedChunk = line.closest('.cm-deletedChunk');
-            bgColor = deletedChunk ? 'rgba(239, 68, 68, 0.35)' : 'rgba(34, 197, 94, 0.35)';
-          }
-        } else {
-          // Fallback
-          const deletedChunk = line.closest('.cm-deletedChunk');
-          bgColor = deletedChunk ? 'rgba(239, 68, 68, 0.35)' : 'rgba(34, 197, 94, 0.35)';
-        }
+        const isDeleted = mergeViewEditor
+          ? mergeViewEditor.parentElement?.classList.contains('cm-merge-a')
+          : false;
+        const deletedChunk = line.closest('.cm-deletedChunk');
+        const isRemoveSide = isDeleted || !!deletedChunk;
+
+        bgColor = isRemoveSide
+          ? cssVar('--editor-diff-remove-hover', 'rgba(239, 68, 68, 0.35)')
+          : cssVar('--editor-diff-insert-hover', 'rgba(34, 197, 94, 0.35)');
       } else {
-        // Normal line
-        bgColor = getComputedStyle(document.documentElement)
-          .getPropertyValue('--editor-hover-bg')
-          .trim() || 'rgba(255, 255, 255, 0.08)';
+        bgColor = cssVar('--editor-hover-bg', 'rgba(255, 255, 255, 0.08)');
       }
       
       overlay.style.backgroundColor = bgColor;

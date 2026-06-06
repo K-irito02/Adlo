@@ -45,24 +45,24 @@
 /* Side-by-side A side (deleted lines): only apply to changed lines */
 .adl-cm-diff-viewer.adl-cm-diff-viewer--side-by-side .cm-merge-a .cm-line:hover:has(.cm-changedLine),
 .adl-cm-diff-viewer.adl-cm-diff-viewer--side-by-side .cm-merge-a .cm-line.cm-activeLine:has(.cm-changedLine) {
-  background-color: rgba(239, 68, 68, 0.35) !important;
+  background-color: var(--editor-diff-remove-hover) !important;
 }
 /* Side-by-side B side (inserted lines) */
 .adl-cm-diff-viewer.adl-cm-diff-viewer--side-by-side .cm-merge-b .cm-line:hover:has(.cm-insertedLine),
 .adl-cm-diff-viewer.adl-cm-diff-viewer--side-by-side .cm-merge-b .cm-line.cm-activeLine:has(.cm-insertedLine) {
-  background-color: rgba(34, 197, 94, 0.35) !important;
+  background-color: var(--editor-diff-insert-hover) !important;
 }
 /* Inline mode - inserted lines */
 .adl-cm-diff-viewer.adl-cm-diff-viewer--inline .cm-line:hover:has(.cm-insertedLine),
 .adl-cm-diff-viewer.adl-cm-diff-viewer--inline .cm-line.cm-activeLine:has(.cm-insertedLine) {
-  background-color: rgba(34, 197, 94, 0.35) !important;
+  background-color: var(--editor-diff-insert-hover) !important;
 }
 /* Inline mode - deleted lines (including deleted chunks) */
 .adl-cm-diff-viewer.adl-cm-diff-viewer--inline .cm-line:hover:has(.cm-deletedLine),
 .adl-cm-diff-viewer.adl-cm-diff-viewer--inline .cm-line.cm-activeLine:has(.cm-deletedLine),
 .adl-cm-diff-viewer.adl-cm-diff-viewer--inline .cm-deletedChunk .cm-line:hover,
 .adl-cm-diff-viewer.adl-cm-diff-viewer--inline .cm-deletedChunk .cm-line.cm-activeLine {
-  background-color: rgba(239, 68, 68, 0.35) !important;
+  background-color: var(--editor-diff-remove-hover) !important;
 }
 
 /* Word wrap ON: CodeMirror's cm-lineWrapping class handles wrapping.
@@ -213,7 +213,7 @@
 /* Side-by-side A side (deleted) - active/hover state: 35% opacity (deeper, same as content line) */
 .adl-cm-diff-viewer--side-by-side .cm-merge-a .cm-changedLineGutter.cm-activeLineGutter,
 .adl-cm-diff-viewer--side-by-side .cm-merge-a .cm-deletedLineGutter.cm-activeLineGutter {
-  background-color: rgba(239, 68, 68, 0.35) !important;
+  background-color: var(--editor-diff-remove-hover) !important;
 }
 
 /* Side-by-side A side (deleted) - hover state */
@@ -221,7 +221,7 @@
 .adl-cm-diff-viewer--side-by-side .cm-merge-a .cm-deletedLineGutter:hover,
 .adl-cm-diff-viewer--side-by-side .cm-merge-a .cm-changedLineGutter.adl-temp-gutter-hover,
 .adl-cm-diff-viewer--side-by-side .cm-merge-a .cm-deletedLineGutter.adl-temp-gutter-hover {
-  background-color: rgba(239, 68, 68, 0.35) !important;
+  background-color: var(--editor-diff-remove-hover) !important;
   margin-left: -3px !important;
   padding-left: 3px !important;
   position: relative;
@@ -240,13 +240,13 @@
 
 /* Side-by-side B side (inserted) - active/hover state: 35% opacity (deeper, same as content line) */
 .adl-cm-diff-viewer--side-by-side .cm-merge-b .cm-changedLineGutter.cm-activeLineGutter {
-  background-color: rgba(34, 197, 94, 0.35) !important;
+  background-color: var(--editor-diff-insert-hover) !important;
 }
 
 /* Side-by-side B side (inserted) - hover state */
 .adl-cm-diff-viewer--side-by-side .cm-merge-b .cm-changedLineGutter:hover,
 .adl-cm-diff-viewer--side-by-side .cm-merge-b .cm-changedLineGutter.adl-temp-gutter-hover {
-  background-color: rgba(34, 197, 94, 0.35) !important;
+  background-color: var(--editor-diff-insert-hover) !important;
   margin-left: -3px !important;
   padding-left: 3px !important;
   position: relative;
@@ -264,13 +264,13 @@
 
 /* Inline mode: deleted lines - active state: 35% opacity (deeper, same as content line) */
 .adl-cm-diff-viewer--inline .cm-deletedLineGutter.cm-activeLineGutter {
-  background-color: rgba(239, 68, 68, 0.35) !important;
+  background-color: var(--editor-diff-remove-hover) !important;
 }
 
 /* Inline mode: deleted lines - hover state */
 .adl-cm-diff-viewer--inline .cm-deletedLineGutter:hover,
 .adl-cm-diff-viewer--inline .cm-deletedLineGutter.adl-temp-gutter-hover {
-  background-color: rgba(239, 68, 68, 0.35) !important;
+  background-color: var(--editor-diff-remove-hover) !important;
   margin-left: -3px !important;
   padding-left: 3px !important;
   position: relative;
@@ -288,13 +288,13 @@
 
 /* Inline mode: inserted lines - active state: 35% opacity (deeper, same as content line) */
 .adl-cm-diff-viewer--inline .cm-changedLineGutter.cm-activeLineGutter {
-  background-color: rgba(34, 197, 94, 0.35) !important;
+  background-color: var(--editor-diff-insert-hover) !important;
 }
 
 /* Inline mode: inserted lines - hover state */
 .adl-cm-diff-viewer--inline .cm-changedLineGutter:hover,
 .adl-cm-diff-viewer--inline .cm-changedLineGutter.adl-temp-gutter-hover {
-  background-color: rgba(34, 197, 94, 0.35) !important;
+  background-color: var(--editor-diff-insert-hover) !important;
   margin-left: -3px !important;
   padding-left: 3px !important;
   position: relative;
