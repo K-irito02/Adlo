@@ -151,7 +151,7 @@
   min-width: 54px;
   gap: 0;
   background-color: var(--editor-gutter-bg) !important;
-  border-right: 1px solid var(--border-subtle) !important;
+  border-right: 1px solid var(--editor-gutter-border) !important;
 }
 
 .adl-cm-editor .cm-line,

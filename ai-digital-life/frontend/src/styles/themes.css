@@ -204,10 +204,10 @@ body,
   --editor-cursor: var(--text-primary);
   --editor-selection: rgba(37, 99, 235, 0.18);
   --editor-selection-inactive: rgba(37, 99, 235, 0.12);
-  --editor-lineHighlight: rgba(34, 34, 34, 0.03);
+  --editor-lineHighlight: rgba(34, 34, 34, 0.06);
   --editor-findMatch: rgba(37, 99, 235, 0.18);
   --editor-findMatch-highlight: rgba(37, 99, 235, 0.1);
-  --editor-hover-bg: var(--bg-card);
+  --editor-hover-bg: rgba(34, 34, 34, 0.05);
   --editor-hover-border: var(--border-default);
   --editor-widget-bg: var(--bg-card);
   --editor-widget-border: var(--border-default);
@@ -255,6 +255,7 @@ body,
   --editor-syntax-emphasis: #a626a4;
   --editor-syntax-link: #1d4ed8;
   --editor-gutter-bg: var(--bg-elevated);
+  --editor-gutter-border: rgba(34, 34, 34, 0.15);
   --editor-lineHighlight-border: rgba(0, 0, 0, 0.06);
   --editor-fold-placeholder: rgba(0, 0, 0, 0.08);
 
@@ -385,10 +386,10 @@ body,
   --editor-cursor: var(--text-primary);
   --editor-selection: rgba(96, 165, 250, 0.22);
   --editor-selection-inactive: rgba(96, 165, 250, 0.14);
-  --editor-lineHighlight: rgba(255, 255, 255, 0.035);
+  --editor-lineHighlight: rgba(255, 255, 255, 0.08);
   --editor-findMatch: rgba(96, 165, 250, 0.2);
   --editor-findMatch-highlight: rgba(96, 165, 250, 0.12);
-  --editor-hover-bg: var(--bg-card);
+  --editor-hover-bg: rgba(255, 255, 255, 0.07);
   --editor-hover-border: var(--border-default);
   --editor-widget-bg: var(--bg-card);
   --editor-widget-border: var(--border-default);
@@ -436,6 +437,7 @@ body,
   --editor-syntax-emphasis: #c678dd;
   --editor-syntax-link: #61afef;
   --editor-gutter-bg: var(--bg-elevated);
+  --editor-gutter-border: rgba(255, 255, 255, 0.15);
   --editor-lineHighlight-border: rgba(255, 255, 255, 0.07);
   --editor-fold-placeholder: rgba(255, 255, 255, 0.1);
 
