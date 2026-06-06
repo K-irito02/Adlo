@@ -11,7 +11,7 @@ import { gutterHoverSync } from './gutterHoverSync';
 import type { Extension } from '@codemirror/state';
 import { EditorState, Compartment } from '@codemirror/state';
 import { history } from '@codemirror/commands';
-import { indentOnInput, bracketMatching } from '@codemirror/language';
+import { indentOnInput, bracketMatching, codeFolding } from '@codemirror/language';
 import { search } from '@codemirror/search';
 import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
 import type { EditorRef } from '../../stores/types';
@@ -88,6 +88,7 @@ export function CodeEditor({
       search(),
       closeBrackets(),
       keymap.of(closeBracketsKeymap),
+      codeFolding(),
       foldGutterCompartment.of(gutterEnabled ? createFoldGutterExtension() : []),
       wordWrapCompartment.of(wordWrap ? EditorView.lineWrapping : []),
       scrollLeftSyncExtension,

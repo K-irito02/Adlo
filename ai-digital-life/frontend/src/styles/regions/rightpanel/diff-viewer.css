@@ -166,6 +166,11 @@
   z-index: 20;
   width: 100%;
   min-width: 60px;
+  pointer-events: none;
+}
+
+.adl-cm-diff-viewer .cm-changeGutter .cm-gutterElement {
+  pointer-events: auto;
 }
 
 /* === 2. ACTIVE LINE GUTTER - EXTEND TO COVER ENTIRE AREA === */
@@ -182,16 +187,7 @@
   background-color: var(--editor-lineHighlight) !important;
 }
 
-/* === 3.5 NORMAL LINE HOVER - GRAY BACKGROUND === */
-/* For normal lines without changes, show gray hover background */
-.adl-cm-diff-viewer .cm-gutterElement:not(.cm-changedLineGutter):not(.cm-deletedLineGutter):hover,
-.adl-cm-diff-viewer .cm-gutterElement:not(.cm-changedLineGutter):not(.cm-deletedLineGutter).adl-temp-gutter-hover {
-  background-color: var(--editor-hover-bg) !important;
-  margin-left: -3px !important;
-  padding-left: 3px !important;
-  position: relative;
-  z-index: 15;
-}
+/* === 3.5 NORMAL LINE HOVER - handled by adl-gutter-hover-overlay (FoldTooltipOverlay) === */
 
 /* === Important: Ensure changed line gutters show their colors when content line is hovered === */
 .adl-cm-diff-viewer .cm-changedLineGutter,

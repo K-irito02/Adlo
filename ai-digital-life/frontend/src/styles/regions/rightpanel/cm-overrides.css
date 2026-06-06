@@ -320,19 +320,19 @@
 }
 
 .adl-cm-editor-wrapper .cm-foldGutter:hover .adl-cm-fold-marker,
-.adl-cm-diff-viewer-wrapper .cm-foldGutter:hover .adl-cm-fold-marker {
+.adl-cm-diff-viewer-wrapper .cm-foldGutter:hover .adl-cm-fold-marker,
+.adl-cm-editor-wrapper .cm-gutters:hover .cm-foldGutter .adl-cm-fold-marker,
+.adl-cm-diff-viewer-wrapper .cm-gutters:hover .cm-foldGutter .adl-cm-fold-marker {
   opacity: 0.6;
   pointer-events: auto;
 }
 
-.adl-cm-editor-wrapper .cm-foldGutter .adl-cm-fold-marker:hover,
-.adl-cm-diff-viewer-wrapper .cm-foldGutter .adl-cm-fold-marker:hover {
+.adl-cm-editor-wrapper .cm-foldGutter .adl-cm-fold-marker:hover {
   opacity: 1;
 }
 
-/* Hover background highlight using box-shadow (pseudo-elements are used by chevron) */
-.adl-cm-editor-wrapper .cm-foldGutter .cm-gutterElement .adl-cm-fold-marker:hover,
-.adl-cm-diff-viewer-wrapper .cm-foldGutter .cm-gutterElement .adl-cm-fold-marker:hover {
+/* Hover background highlight - only for regular editor (fold overlay handles diff-viewer) */
+.adl-cm-editor-wrapper .cm-foldGutter .cm-gutterElement .adl-cm-fold-marker:hover {
   box-shadow: 0 0 0 4px var(--ring-neutral);
   border-radius: 4px;
 }

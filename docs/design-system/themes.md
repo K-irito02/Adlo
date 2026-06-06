@@ -45,7 +45,7 @@ Misc: `--focus-ring`, `--shadow-soft`, `--shadow-inset-highlight`, `--shadow-pan
 - When an embedded editor requires a programmatic theme definition, that theme should be treated as an implementation mirror of the design tokens rather than a separate visual system.
 - Programmatic editor themes must be registered with resolved color literals (`#RRGGBB`, `#RRGGBBAA`, or concrete `rgb/rgba` values accepted by the target API). Raw CSS custom-property references and CSS keyword colors should be normalized before registration.
 - Transparent editor states should be expressed using the target API's accepted transparent literal, not by assuming browser CSS parsing rules apply inside the programmatic theme layer.
-- Fold gutter tooltips use `FoldTooltipOverlay` (a CodeMirror 6 extension) to render tooltip content via React portal to `document.body`. This replaces the earlier approach of relying on native `title` attributes for gutter hover guidance, and is the standard mechanism for all editor-area tooltips.
+- Fold gutter tooltips use `FoldTooltipOverlay` (a React portal component) to render tooltip content to `document.body`. Fold events use capture-phase `document.addEventListener` to bypass CodeMirror MergeView's internal `stopPropagation()`. Gutter hover highlights use a `position: fixed` overlay covering the full gutter width, driven by `mousemove` + `requestAnimationFrame`.
 
 ## Mode resolution
 
