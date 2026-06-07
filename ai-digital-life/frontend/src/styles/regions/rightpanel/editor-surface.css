@@ -402,23 +402,7 @@
   pointer-events: auto;
 }
 
-.adl-cm-editor-wrapper .cm-foldGutter .adl-cm-fold-marker:hover {
-  opacity: 1;
-}
 
-/* Active (click) effect */
-.adl-cm-editor-wrapper .cm-foldGutter .adl-cm-fold-marker:active,
-.adl-cm-diff-viewer-wrapper .cm-foldGutter .adl-cm-fold-marker:active {
-  transform: scale(0.9);
-}
-
-/* Focus-visible ring for keyboard navigation */
-.adl-cm-editor-wrapper .cm-foldGutter .adl-cm-fold-marker:focus-visible,
-.adl-cm-diff-viewer-wrapper .cm-foldGutter .adl-cm-fold-marker:focus-visible {
-  outline: 2px solid var(--accent, #4a9eff);
-  outline-offset: 2px;
-  border-radius: 2px;
-}
 
 .adl-cm-editor .cm-collapsedLines {
   margin: var(--space-1) var(--space-3) !important;
