@@ -406,12 +406,6 @@
   opacity: 1;
 }
 
-/* Hover background highlight - only for regular editor (fold overlay handles diff-viewer) */
-.adl-cm-editor-wrapper .cm-foldGutter .cm-gutterElement .adl-cm-fold-marker:hover {
-  box-shadow: 0 0 0 4px var(--ring-neutral);
-  border-radius: 4px;
-}
-
 /* Active (click) effect */
 .adl-cm-editor-wrapper .cm-foldGutter .adl-cm-fold-marker:active,
 .adl-cm-diff-viewer-wrapper .cm-foldGutter .adl-cm-fold-marker:active {

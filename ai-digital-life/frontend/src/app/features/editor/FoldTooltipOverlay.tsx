@@ -344,7 +344,8 @@ export function FoldTooltipOverlay({ view }: FoldTooltipOverlayProps) {
         tooltipVisibleRef.current = true;
         setTooltipState({ text: result.text, rect: result.rect });
       } else if (tooltipVisibleRef.current) {
-        scheduleHide();
+        if (hideTimerRef.current !== null) { clearTimeout(hideTimerRef.current); hideTimerRef.current = null; }
+        hide();
       }
     };
 

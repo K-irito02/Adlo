@@ -61,6 +61,42 @@
 - **现象**：点击折叠后 overlay 背景消失
 - **修复**：改为 `requestAnimationFrame(repositionOverlay)` 通过保存的最近鼠标事件重新定位
 
+### 10. Tooltip 在行号区域移动时延迟消失 (Phase 4)
+
+- **现象**：鼠标从有折叠图标的行号区域移到无折叠图标的行号区域时，tooltip 延迟 150ms 才消失，感觉粘滞
+- **根因**：`handleMouseMove` 中当 `computeTooltipFromEvent` 返回 null（无折叠标记行）时调用 `scheduleHide()`，该方法有 150ms 延迟，适用于 mouseleave 场景但不适用于行间切换场景
+- **修复**：在 `else if (tooltipVisibleRef.current)` 分支中，直接取消 hideTimer 并立即调用 `hide()`，不再延迟
+- **关键代码**：
+  ```typescript
+  } else if (tooltipVisibleRef.current) {
+    if (hideTimerRef.current !== null) { clearTimeout(hideTimerRef.current); hideTimerRef.current = null; }
+    hide();
+  }
+  ```
+- **文件**：`FoldTooltipOverlay.tsx`
+
+### 11. 文件面板折叠图标灰色圆背景 (Phase 4)
+
+- **现象**：鼠标悬停在文件面板的"展开/折叠"图标按钮上时，图标背后出现圆形灰色背景。变更面板无此效果
+- **根因**：CSS 规则 `box-shadow: 0 0 0 4px var(--ring-neutral)` + `border-radius: 4px` 在 `cm-overrides.css` 和 `editor-surface.css` 两个文件中**同时存在**（重复定义），首次修复只删除了 `cm-overrides.css` 的副本，漏掉了 `editor-surface.css` 中的真正生效规则
+- **修复**：从两个 CSS 文件中删除该规则
+- **教训**：CSS 规则可能分散在多个文件中。删除某效果时必须全局搜索确认无残留副本。`grep` 或 `ripgrep` 搜索应作为删除前的验证步骤
+- **文件**：`cm-overrides.css`, `editor-surface.css`
+
+### 12. 折叠占位符 "..." 无灰色背景 (Phase 4)
+
+- **现象**：代码折叠后在内容区域显示的 "..." 图标按钮没有灰色背景效果
+- **根因**：`.cm-foldPlaceholder` 的背景色由 `cmTheme.ts` 通过 CSS 变量 `--editor-fold-placeholder` 设置（暗色 `rgba(255,255,255,0.1)` / 亮色 `rgba(0,0,0,0.08)`），过于透明几乎不可见，且无 hover 样式
+- **修复**：在 `cm-overrides.css` 中用 `--editor-hover-bg` 覆盖背景色，并改为常驻显示（不依赖 hover）：
+  ```css
+  .adl-cm-editor .cm-foldPlaceholder {
+    background-color: var(--editor-hover-bg) !important;
+    cursor: pointer;
+  }
+  ```
+- **注意**：使用 `!important` 是因为 `cmTheme.ts` 通过 CodeMirror EditorTheme 设置的样式优先级高于纯 CSS，必须用 `!important` 覆盖
+- **文件**：`cm-overrides.css`
+
 ## 核心技术架构
 
 ```
@@ -91,8 +127,8 @@ FoldTooltipOverlay 组件
 | `CodeEditor.tsx` | 添加 `codeFolding()` | 1 行增长 |
 | `gutterHoverSync.ts` | 内容行 hover → gutter 高亮 | 独立，未改动 |
 | `diff-viewer.css` | `.cm-changeGutter: pointer-events: none` | 2 行变更 |
-| `cm-overrides.css` | 移除 diff-viewer 中 fold marker hover | 减少 ~4 行 |
-| `editor-surface.css` | 移除 diff-viewer 中 fold marker hover | 减少 ~4 行 |
+| `cm-overrides.css` | 移除 fold marker box-shadow + 添加 .cm-foldPlaceholder 背景 | ~4 行变更 |
+| `editor-surface.css` | 移除 fold marker box-shadow（重复规则） | 减少 ~4 行 |
 
 ## 经验教训
 
@@ -122,6 +158,14 @@ FoldTooltipOverlay 组件
 
 > 第 3 轮修复后才开始通过 `console.log` 加调试日志，导致前 3 轮盲目猜测。后续应先在关键路径添加日志，根据运行时证据决策。
 
+### 7. CSS 规则分散在多个文件中
+
+> 文件面板和变更面板的编辑器 CSS 规则同时定义在 `cm-overrides.css` 和 `editor-surface.css` 两个文件中。第 11 次修复（删除 fold marker box-shadow）只删除了 `cm-overrides.css` 的副本，漏掉了 `editor-surface.css` 的真正生效规则。删除 CSS 效果前应全局搜索确认无残留副本。
+
+### 8. Tooltip 延迟的适用场景区分
+
+> `scheduleHide()` 的 150ms 延迟仅适用于 `mouseleave`（鼠标离开编辑器容器）场景，作为避免闪烁的安全缓冲。当鼠标在同一容器内切换到无折叠标记的行时，应直接 `hide()` 而不延迟。事件处理函数需要区分"离开目标区域"和"移动到相邻区域"两种场景。
+
 ## 最终效果验证
 
 - ✅ 变更行折叠图标可点击展开/折叠
@@ -136,4 +180,7 @@ FoldTooltipOverlay 组件
 - ✅ 红绿边界 Tooltip 位置正确
 - ✅ 点击折叠后背景保持不消失
 - ✅ Tooltip 行号提示准确（不丢失 `}` 行）
-- ✅ 测试 213/214 通过（1 个预存失败与本次改动无关）
+- ✅ Tooltip 在行号区域行间切换时立即消失，无延迟
+- ✅ 文件面板折叠图标悬停无圆形灰色背景（与变更面板一致）
+- ✅ "..." 折叠占位符常驻灰色背景，非仅 hover 时显示
+- ✅ 测试 214/214 通过
