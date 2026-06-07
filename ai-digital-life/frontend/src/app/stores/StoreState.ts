@@ -49,7 +49,7 @@ import type { TaskSlice } from './slices/taskSlice';
 import type { CommandSlice } from './slices/commandSlice';
 import type { ClipboardSlice } from './slices/clipboardSlice';
 import type { TerminalSlice } from './slices/terminalSlice';
-import type { BrowserSlice } from './slices/browserslice';
+import type { BrowserSlice } from './slices/browserSlice';
 import type {
   AppPreferencePatch,
   ReorderSessionsInput,

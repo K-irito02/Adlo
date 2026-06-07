@@ -4,7 +4,7 @@ import type {
   BrowserTabState,
   TabFolderState,
   BrowserHistoryState,
-} from '../../stores/slices/browserslice';
+} from '../../stores/slices/browserSlice';
 import type { BrowserCategoryState, BrowserCategoryType, BrowserTreeNode } from './types';
 
 export function countDirectFileChildren(node: BrowserTreeNode): number {

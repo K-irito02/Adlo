@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useAppStore } from '../../stores/slicedStore';
 import { useBrowserContextMenu } from './useBrowserContextMenu';
 import type { BrowserPanelProps } from '../../regions/right-panel/types';
-import type { BrowserTabState } from '../../stores/slices/browserslice';
+import type { BrowserTabState } from '../../stores/slices/browserSlice';
 
 export type BrowserNavigatorMode = 'tabs' | 'bookmarks' | 'history';
 

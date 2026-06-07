@@ -1,6 +1,6 @@
 import React from 'react';
 import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
-import type { BrowserTabState, TabFolderState } from '../../stores/slices/browserslice';
+import type { BrowserTabState, TabFolderState } from '../../stores/slices/browserSlice';
 import type { CopyDict } from '../../i18n';
 
 export interface MultiWorkspaceBrowserProps {
