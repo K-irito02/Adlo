@@ -133,7 +133,7 @@ function computeTooltipFromPlaceholder(view: EditorView, placeholder: HTMLElemen
   foldedRanges(view.state).between(0, view.state.doc.length, (_from, _to) => {
     const startLine = view.state.doc.lineAt(_from).number;
     const e = view.state.doc.lineAt(_to).number;
-    if (lineNum >= startLine && lineNum <= e && e > endLine) {
+    if (lineNum >= startLine && lineNum <= e) {
       endLine = e;
     }
   });
