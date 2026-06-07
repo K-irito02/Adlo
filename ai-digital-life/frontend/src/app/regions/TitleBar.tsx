@@ -19,7 +19,6 @@ import {
   IconSquare,
 } from '../icons';
 import logoUrl from '/logo-chatgpt.png?url';
-import { useUiStore } from '../stores/ui-store';
 import { useAppStore } from '../stores/slicedStore';
 import { isTauriShell } from '../../tauri-bridge';
 import { TooltipSimple } from '../components/Tooltip';
@@ -161,7 +160,8 @@ const TitleBar = React.memo(function TitleBar({
     setViewMenuOpen,
     setHelpMenuOpen,
     closeAllMenus,
-  } = useUiStore(
+    setActiveRightTool,
+  } = useAppStore(
     useShallow((state) => ({
       fileMenuOpen: state.fileMenuOpen,
       viewMenuOpen: state.viewMenuOpen,
@@ -170,6 +170,7 @@ const TitleBar = React.memo(function TitleBar({
       setViewMenuOpen: state.setViewMenuOpen,
       setHelpMenuOpen: state.setHelpMenuOpen,
       closeAllMenus: state.closeAllMenus,
+      setActiveRightTool: state.setActiveRightTool,
     }))
   );
   const language = appInfo?.config.language ?? 'zh-CN';
@@ -234,22 +235,22 @@ const TitleBar = React.memo(function TitleBar({
         id: 'new-terminal',
         label: t.menuNewTerminal,
         shortcut: 'Ctrl+Shift+`',
-        action: () => useUiStore.getState().setActiveRightTool('terminal'),
+        action: () => setActiveRightTool('terminal'),
       },
       {
         id: 'new-browser',
         label: t.menuNewBrowser,
-        action: () => useUiStore.getState().setActiveRightTool('browser'),
+        action: () => setActiveRightTool('browser'),
       },
       {
         id: 'editor-window',
         label: t.menuOpenEditorWindow,
-        action: () => useUiStore.getState().setActiveRightTool('files'),
+        action: () => setActiveRightTool('files'),
       },
       { id: 'sep-1', label: '', separator: true },
       { id: 'exit', label: t.menuExit, shortcut: 'Alt+F4', action: handleClose },
     ],
-    [t, onTriggerCreateWorkspace, onOpenFolder, handleClose]
+    [t, onTriggerCreateWorkspace, onOpenFolder, handleClose, setActiveRightTool]
   );
 
   const viewItems: MenuItem[] = useMemo(
@@ -257,22 +258,22 @@ const TitleBar = React.memo(function TitleBar({
       {
         id: 'diff-view',
         label: t.menuDiffView,
-        action: () => useUiStore.getState().setActiveRightTool('changes'),
+        action: () => setActiveRightTool('changes'),
       },
       {
         id: 'browser-view',
         label: t.menuBrowserView,
-        action: () => useUiStore.getState().setActiveRightTool('browser'),
+        action: () => setActiveRightTool('browser'),
       },
       {
         id: 'file-view',
         label: t.menuFileView,
-        action: () => useUiStore.getState().setActiveRightTool('files'),
+        action: () => setActiveRightTool('files'),
       },
       {
         id: 'terminal-view',
         label: t.menuTerminalView,
-        action: () => useUiStore.getState().setActiveRightTool('terminal'),
+        action: () => setActiveRightTool('terminal'),
       },
       { id: 'sep-1', label: '', separator: true },
       { id: 'zoom-in', label: t.menuZoomIn, shortcut: 'Ctrl++', action: () => zoomBy(0.1) },
@@ -281,7 +282,7 @@ const TitleBar = React.memo(function TitleBar({
       { id: 'sep-2', label: '', separator: true },
       { id: 'settings', label: t.menuSettings, shortcut: 'Ctrl+,', action: onOpenSettings },
     ],
-    [t, zoomBy, resetZoom, onOpenSettings]
+    [t, zoomBy, resetZoom, onOpenSettings, setActiveRightTool]
   );
 
   const helpItems: MenuItem[] = useMemo(

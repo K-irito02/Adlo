@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { DIFF_LAYOUT_STORAGE_KEY } from '../../../utils/constants';
-import { useUiStore } from '../../../stores/ui-store';
+
 import { countGitChanges } from '../types';
 import { useAppStore } from '../../../stores/slicedStore';
 
@@ -14,8 +14,8 @@ function readDiffSideBySidePreference(): boolean {
 }
 
 export function useRightPanelViewProps() {
-  const activeRightTool = useUiStore((state) => state.activeRightTool);
-  const setActiveRightTool = useUiStore((state) => state.setActiveRightTool);
+  const activeRightTool = useAppStore((state) => state.activeRightTool);
+  const setActiveRightTool = useAppStore((state) => state.setActiveRightTool);
   const browserTabs = useAppStore(useShallow((state) => state.browserTabs));
   const terminalTabs = useAppStore(useShallow((state) => state.terminalTabs));
   const dirtyEditorPaths = useAppStore(useShallow((s) => s.dirtyEditorPaths));

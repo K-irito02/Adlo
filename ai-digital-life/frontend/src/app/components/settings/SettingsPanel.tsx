@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import type { SettingItem } from '@ai-digital-life/kernel';
 import type { CopyDict } from '../../i18n';
 import { IconSearch, IconSettings } from '../../icons';
-import { useUiStore } from '../../stores/ui-store';
+import { useAppStore } from '../../stores/slicedStore';
 import { SettingsNav } from './SettingsNav';
 import { SettingsControls } from './SettingsControls';
 
@@ -13,10 +13,10 @@ interface SettingsPanelProps {
 }
 
 export function SettingsPanel({ t, settings, onChangeSetting }: SettingsPanelProps) {
-  const activeGroup = useUiStore((s) => s.activeSettingsGroup);
-  const setActiveGroup = useUiStore((s) => s.setActiveSettingsGroup);
-  const searchQuery = useUiStore((s) => s.settingsSearchQuery);
-  const setSearchQuery = useUiStore((s) => s.setSettingsSearchQuery);
+  const activeGroup = useAppStore((s) => s.activeSettingsGroup);
+  const setActiveGroup = useAppStore((s) => s.setActiveSettingsGroup);
+  const searchQuery = useAppStore((s) => s.settingsSearchQuery);
+  const setSearchQuery = useAppStore((s) => s.setSettingsSearchQuery);
 
   const filtered = useMemo(() => {
     let items = settings;

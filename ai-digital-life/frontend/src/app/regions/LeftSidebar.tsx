@@ -3,7 +3,6 @@ import { useShallow } from 'zustand/react/shallow';
 import type { CopyDict, Locale } from '../i18n';
 import { IconArchive, IconPlug, IconSparkles } from '../icons';
 import { buildSidebarViewModel } from '../utils/sidebarViewModel';
-import { useUiStore } from '../stores/ui-store';
 import { useAppStore } from '../stores/slicedStore';
 import { useAppActions } from '../hooks/useAppActions';
 import { TooltipSimple } from '../components/Tooltip';
@@ -35,7 +34,7 @@ const LeftSidebar = React.memo(function LeftSidebar({
   onTriggerCreateWorkspace,
 }: LeftSidebarProps) {
   const actions = useAppActions();
-  const { appInfo, recentWorkspaces, sessions, activeSessionId, streamingActiveRunId, taskCenter } =
+  const { appInfo, recentWorkspaces, sessions, activeSessionId, streamingActiveRunId, taskCenter, expandedSessionWorkspaces, toggleSessionWorkspace } =
     useAppStore(
       useShallow((s) => ({
         appInfo: s.appInfo,
@@ -44,15 +43,11 @@ const LeftSidebar = React.memo(function LeftSidebar({
         activeSessionId: s.activeSessionId,
         streamingActiveRunId: s.streamingActiveRunId,
         taskCenter: s.taskCenter,
+        expandedSessionWorkspaces: s.expandedSessionWorkspaces,
+        toggleSessionWorkspace: s.toggleSessionWorkspace,
       }))
     );
   const locale = (appInfo?.config.language ?? 'zh-CN') as Locale;
-  const { expandedSessionWorkspaces, toggleSessionWorkspace } = useUiStore(
-    useShallow((state) => ({
-      expandedSessionWorkspaces: state.expandedSessionWorkspaces,
-      toggleSessionWorkspace: state.toggleSessionWorkspace,
-    }))
-  );
   const [menuState, setMenuState] = useState<SidebarMenuState>();
   const [dragWorkspaceId, setDragWorkspaceId] = useState<string>();
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);

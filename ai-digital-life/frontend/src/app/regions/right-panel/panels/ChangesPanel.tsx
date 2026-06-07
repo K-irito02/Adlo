@@ -13,7 +13,7 @@ import {
 import { useAppStore } from '../../../stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import type { StoreState } from '../../../stores/StoreState';
-import { useUiStore } from '../../../stores/ui-store';
+
 import {
   joinPathSegments,
   normalizeWorkspaceRelativePath,
@@ -96,22 +96,22 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
     activePatchSets,
     onHideFromRightPanels,
   } = props;
-  const { navigatorCollapsed, changesNavigatorMode, previewEnabled, expandedPaths } = useUiStore(
+  const { navigatorCollapsed, changesNavigatorMode, previewEnabled, expandedPaths, toggleNavigator, changesNavigatorWidth, setChangesNavigatorMode, setPreviewEnabled, toggleChangesTreePath, setChangesTreePathExpanded, expandChangesTreePathChain, collapseAllChangesTreePaths } = useAppStore(
     useShallow((state) => ({
-      navigatorCollapsed: state.navigatorCollapsedByTool.changes,
+      navigatorCollapsed: state.navigatorCollapsedByTool?.changes ?? false,
       changesNavigatorMode: state.changesNavigatorMode,
       previewEnabled: state.changesPreviewEnabled,
       expandedPaths: state.expandedChangesTreePaths,
+      toggleNavigator: state.toggleNavigator,
+      changesNavigatorWidth: state.changesNavigatorWidth,
+      setChangesNavigatorMode: state.setChangesNavigatorMode,
+      setPreviewEnabled: state.setChangesPreviewEnabled,
+      toggleChangesTreePath: state.toggleChangesTreePath,
+      setChangesTreePathExpanded: state.setChangesTreePathExpanded,
+      expandChangesTreePathChain: state.expandChangesTreePathChain,
+      collapseAllChangesTreePaths: state.collapseAllChangesTreePaths,
     }))
   );
-  const toggleNavigator = useUiStore((state) => state.toggleNavigator);
-  const changesNavigatorWidth = useAppStore((state) => state.changesNavigatorWidth);
-  const setChangesNavigatorMode = useUiStore((state) => state.setChangesNavigatorMode);
-  const setPreviewEnabled = useUiStore((state) => state.setChangesPreviewEnabled);
-  const toggleChangesTreePath = useUiStore((state) => state.toggleChangesTreePath);
-  const setChangesTreePathExpanded = useUiStore((state) => state.setChangesTreePathExpanded);
-  const expandChangesTreePathChain = useUiStore((state) => state.expandChangesTreePathChain);
-  const collapseAllChangesTreePaths = useUiStore((state) => state.collapseAllChangesTreePaths);
   const snapshot = props.gitSnapshot ?? appInfo?.currentWorkspace?.gitSnapshot;
   const workspaceChangesTreeLoading = useAppStore(
     useShallow((state: StoreState) => state.workspaceChangesTreeLoading)

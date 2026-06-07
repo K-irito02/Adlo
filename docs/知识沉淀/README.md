@@ -29,6 +29,7 @@
 | [summary-2026-05-30.md](./重构/summary-2026-05-30.md) | 重构洞察 | 2026-05-30 重构总结 |
 | [terminal-fix-2026-05-22.md](./重构/terminal-fix-2026-05-22.md) | 重构洞察 | 终端功能修复总结 |
 | [styling-restoration-2026-05-27.md](./重构/styling-restoration-2026-05-27.md) | 重构洞察 | 文件树大纲样式恢复经验 |
+| [ui-store-migration-2026-06-07.md](./重构/ui-store-migration-2026-06-07.md) | 2026-06-07 重构 | UI Store 迁移与代码重构经验（状态迁移、组件更新、性能优化） |
 
 ### 多工作区
 

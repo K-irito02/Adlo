@@ -10,6 +10,25 @@ export interface ContextChip {
   label: string;
   detail?: string;
 }
+
+export interface BrowserTabState {
+  id: string;
+  title: string;
+  url: string;
+  pinned?: boolean;
+}
+
+export interface BrowserBookmark {
+  url: string;
+  title: string;
+}
+
+export interface BrowserHistoryEntry {
+  id: string;
+  url: string;
+  title: string;
+  visitedAt: number;
+}
 export type EditorPosition = {
   lineNumber: number;
   column: number;

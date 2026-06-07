@@ -4,7 +4,6 @@ import type { EditorRef, DiffEditorRef } from '../../../stores/types';
 import { categorizeFile } from '../fileTypeRouter';
 import { IconEye, IconPanelLeftClose, IconReturn, IconSearch } from '../../../icons';
 import { TooltipSimple } from '../../../components/Tooltip';
-import { useUiStore } from '../../../stores/ui-store';
 import { useAppStore } from '../../../stores/slicedStore';
 import { useEditorOptions, useFileHistory } from '../hooks';
 import { FileNavigatorShell } from '../FileNavigatorShell';
@@ -70,11 +69,11 @@ export function FilesPanel(props: FilesPanelProps) {
 
   const localDiffEditorRef = useRef<DiffEditorRef | EditorRef | null>(null);
 
-  const setFilePreviewModeForPath = useUiStore((s) => s.setFilePreviewModeForPath);
-  const navigatorCollapsed = useUiStore((s) => s.navigatorCollapsedByTool.files);
-  const toggleNavigator = useUiStore((s) => s.toggleNavigator);
-  const navigatorMode = useUiStore((s) => s.filesNavigatorMode);
-  const setNavigatorMode = useUiStore((s) => s.setFilesNavigatorMode);
+  const setFilePreviewModeForPath = useAppStore((s) => s.setFilePreviewModeForPath);
+  const navigatorCollapsed = useAppStore((s) => s.navigatorCollapsedByTool.files);
+  const toggleNavigator = useAppStore((s) => s.toggleNavigator);
+  const navigatorMode = useAppStore((s) => s.filesNavigatorMode);
+  const setNavigatorMode = useAppStore((s) => s.setFilesNavigatorMode);
   const filesNavigatorWidth = useAppStore((s) => s.filesNavigatorWidth);
 
   const editorOptions = useEditorOptions();
@@ -97,7 +96,7 @@ export function FilesPanel(props: FilesPanelProps) {
   }, [hasActivePatch, props.standardEditorRef]);
 
   const fileCategory = useMemo(() => categorizeFile(selectedFilePath), [selectedFilePath]);
-  const previewEnabled = useUiStore(
+  const previewEnabled = useAppStore(
     useCallback(
       (s) =>
         selectedFilePath

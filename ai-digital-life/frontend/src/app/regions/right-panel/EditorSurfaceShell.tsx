@@ -9,7 +9,7 @@ import {
 import { categorizeFile } from './fileTypeRouter';
 import { LazyMarkdownPreviewWrapper } from '../../features/preview';
 import type { EditorRef, DiffEditorRef } from '../../stores/types';
-import { useUiStore } from '../../stores/ui-store';
+import { useAppStore } from '../../stores/slicedStore';
 import { StickyContext } from './editor-support/stickyContextView';
 import { DiffToolbar } from './DiffToolbar';
 import {
@@ -127,7 +127,7 @@ function EditorSurfaceShell(props: EditorSurfaceShellProps) {
     t,
   } = props;
 
-  const filePreviewModeByPath = useUiStore((s) => s.filePreviewModeByPath);
+  const filePreviewModeByPath = useAppStore((s) => s.filePreviewModeByPath);
 
   const fileCategory = useMemo(() => categorizeFile(selectedFilePath), [selectedFilePath]);
 

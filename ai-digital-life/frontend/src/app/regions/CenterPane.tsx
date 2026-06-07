@@ -7,7 +7,7 @@ import { ApprovalCard } from '../components/approval/ApprovalCard';
 import { MessageStream } from '../components/MessageStream';
 import { useAppStore } from '../stores/slicedStore';
 import { useAppActions } from '../hooks/useAppActions';
-import { useUiStore } from '../stores/ui-store';
+
 import { WelcomeState, ComposerFooter } from './center-pane';
 
 interface CenterPaneProps {
@@ -88,7 +88,7 @@ const CenterPane = React.memo(function CenterPane({ t }: CenterPaneProps) {
     setContextMenuOpen,
     addContextChip,
     removeContextChip,
-  } = useUiStore(
+  } = useAppStore(
     useShallow((state) => ({
       chatMode: state.chatMode,
       contextChips: state.contextChips,

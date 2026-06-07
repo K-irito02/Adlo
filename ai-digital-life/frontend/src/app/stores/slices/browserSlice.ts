@@ -234,6 +234,8 @@ export interface BrowserSlice {
   setBrowserNavigatorWidth: (width: number) => void;
   toggleBrowserNavigator: () => void;
   setBrowserNavigatorCollapsed: (collapsed: boolean) => void;
+  setNavigatorCollapsed: (tool: ToolId, collapsed: boolean) => void;
+  toggleNavigator: (tool: ToolId) => void;
   setBrowserWorkspaceExpanded: (expanded: Record<string, boolean>) => void;
   setBrowserPersisted: (persisted: boolean) => void;
   setBrowserWorkspaceId: (workspaceId: string) => void;
@@ -559,6 +561,21 @@ export const createBrowserSlice = (
     setBrowserNavigatorCollapsed: (collapsed) =>
       set((state) => {
         const next = { ...state.navigatorCollapsedByTool, browser: collapsed };
+        scheduleWrite(BROWSER_NAVIGATOR_COLLAPSED_KEY, next);
+        return { navigatorCollapsedByTool: next };
+      }),
+    setNavigatorCollapsed: (tool, collapsed) =>
+      set((state) => {
+        const next = { ...state.navigatorCollapsedByTool, [tool]: collapsed };
+        scheduleWrite(BROWSER_NAVIGATOR_COLLAPSED_KEY, next);
+        return { navigatorCollapsedByTool: next };
+      }),
+    toggleNavigator: (tool) =>
+      set((state) => {
+        const next = {
+          ...state.navigatorCollapsedByTool,
+          [tool]: !(state.navigatorCollapsedByTool[tool] ?? false),
+        };
         scheduleWrite(BROWSER_NAVIGATOR_COLLAPSED_KEY, next);
         return { navigatorCollapsedByTool: next };
       }),

@@ -10,6 +10,7 @@ use adl_kernel::{
 };
 use adl_storage::EntityTable;
 
+/// 审批决策输入
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApprovalDecisionInput {
@@ -18,11 +19,13 @@ pub struct ApprovalDecisionInput {
     pub reason: Option<String>,
 }
 
+/// 获取任务中心快照
 #[tauri::command]
 pub fn task_get_snapshot(state: tauri::State<'_, AppState>) -> IpcResult<TaskCenterSnapshot> {
     ipc(snapshot(&state))
 }
 
+/// 列出待审批请求
 #[tauri::command]
 pub fn task_list_pending_approvals(
     state: tauri::State<'_, AppState>,
@@ -34,6 +37,7 @@ pub fn task_list_pending_approvals(
     })
 }
 
+/// 列出审计条目
 #[tauri::command]
 pub fn task_list_audit_entries(
     state: tauri::State<'_, AppState>,
@@ -42,6 +46,7 @@ pub fn task_list_audit_entries(
     ipc(crate::commands::audit::list_audit_entries(&state, limit))
 }
 
+/// 处理审批决策
 #[tauri::command]
 pub async fn task_decide_approval(
     app: tauri::AppHandle,
@@ -51,6 +56,7 @@ pub async fn task_decide_approval(
     Ok(ipc(decide_approval_inner(&app, &state, input).await))
 }
 
+/// 审批决策的内部实现
 async fn decide_approval_inner(
     app: &tauri::AppHandle,
     state: &AppState,
@@ -108,6 +114,7 @@ async fn decide_approval_inner(
     snapshot(state)
 }
 
+/// 保存审批决策
 fn save_approval_decision(
     state: &AppState,
     approval: &mut ApprovalRecord,
@@ -131,6 +138,7 @@ fn save_approval_decision(
     )
 }
 
+/// 发射审批已决定事件
 fn emit_approval_decided_event(
     app: &tauri::AppHandle,
     state: &AppState,
@@ -181,6 +189,7 @@ fn emit_approval_decided_event(
     Ok(())
 }
 
+/// 获取检查点预览
 #[tauri::command]
 pub fn task_get_checkpoint_preview(
     state: tauri::State<'_, AppState>,
@@ -192,6 +201,7 @@ pub fn task_get_checkpoint_preview(
     ))
 }
 
+/// 恢复检查点
 #[tauri::command]
 pub fn task_restore_checkpoint(
     state: tauri::State<'_, AppState>,
@@ -220,6 +230,7 @@ pub fn task_restore_checkpoint(
     })
 }
 
+/// 可能执行已批准的命令（仅当任务包含 command.run 操作时）
 async fn maybe_execute_approved_command(
     app: &tauri::AppHandle,
     state: &AppState,
@@ -253,10 +264,12 @@ async fn maybe_execute_approved_command(
     Ok(())
 }
 
+/// 反序列化命令请求
 fn deserialize_command(params: &serde_json::Value) -> Result<CommandRequest, AppError> {
     Ok(serde_json::from_value(params.clone())?)
 }
 
+/// 为任务加载工作区
 fn load_workspace_for_task(state: &AppState, task: &TaskRecord) -> Result<WorkspaceMeta, AppError> {
     state
         .db
@@ -265,6 +278,7 @@ fn load_workspace_for_task(state: &AppState, task: &TaskRecord) -> Result<Worksp
         .ok_or_else(|| AppError::NotFound(format!("workspace {}", task.workspace_id)))
 }
 
+/// 更新任务状态为运行中
 fn update_task_to_running(state: &AppState, task: &mut TaskRecord) -> Result<(), AppError> {
     task.status = TaskStatus::Running;
     task.started_at = Some(adl_kernel::now_ms());
@@ -279,13 +293,16 @@ fn update_task_to_running(state: &AppState, task: &mut TaskRecord) -> Result<(),
     )
 }
 
-fn emit_run_activity_start_event(
+/// 发射运行活动事件的辅助函数，用于统一处理 start 和 done 事件
+fn emit_command_activity_event(
     app: &tauri::AppHandle,
     state: &AppState,
     workspace: &WorkspaceMeta,
     task: &TaskRecord,
     request: &CommandRequest,
     run_id: &str,
+    phase: &str,
+    exit_code: Option<i32>,
 ) {
     let ts = adl_kernel::now_ms();
     let seq = crate::run_activity_seq::next_run_activity_seq(ts);
@@ -294,16 +311,22 @@ fn emit_run_activity_start_event(
         run_id: run_id.to_string(),
         seq,
         ts,
-        phase: "start".into(),
+        phase: phase.into(),
         command: request.command.clone(),
         args: Some(request.args.clone()),
-        exit_code: None,
+        exit_code,
     };
-    let payload = serde_json::json!({
-        "phase": "start",
+    
+    let mut payload = serde_json::json!({
+        "phase": phase,
         "command": request.command,
         "args": request.args,
     });
+    
+    if let Some(code) = exit_code {
+        payload["exitCode"] = serde_json::json!(code);
+    }
+    
     crate::commands::save_and_emit_run_activity(
         state,
         app,
@@ -318,6 +341,19 @@ fn emit_run_activity_start_event(
     );
 }
 
+/// 发射命令运行开始事件
+fn emit_run_activity_start_event(
+    app: &tauri::AppHandle,
+    state: &AppState,
+    workspace: &WorkspaceMeta,
+    task: &TaskRecord,
+    request: &CommandRequest,
+    run_id: &str,
+) {
+    emit_command_activity_event(app, state, workspace, task, request, run_id, "start", None);
+}
+
+/// 发射命令运行完成事件
 fn emit_run_activity_done_event(
     app: &tauri::AppHandle,
     state: &AppState,
@@ -327,38 +363,10 @@ fn emit_run_activity_done_event(
     run_id: &str,
     result: &CommandExecutionResult,
 ) {
-    let ts = adl_kernel::now_ms();
-    let seq = crate::run_activity_seq::next_run_activity_seq(ts);
-    let event = adl_kernel::DigitalLifeRunActivityEventV1::Command {
-        v: 1,
-        run_id: run_id.to_string(),
-        seq,
-        ts,
-        phase: "done".into(),
-        command: request.command.clone(),
-        args: Some(request.args.clone()),
-        exit_code: result.exit_code,
-    };
-    let payload = serde_json::json!({
-        "phase": "done",
-        "command": request.command,
-        "args": request.args,
-        "exitCode": result.exit_code,
-    });
-    crate::commands::save_and_emit_run_activity(
-        state,
-        app,
-        &workspace.id,
-        &task.session_id,
-        run_id,
-        &event,
-        "command",
-        seq,
-        ts,
-        payload,
-    );
+    emit_command_activity_event(app, state, workspace, task, request, run_id, "done", result.exit_code);
 }
 
+/// 保存命令执行结果
 fn save_command_result(
     state: &AppState,
     task: &mut TaskRecord,
@@ -399,6 +407,7 @@ fn save_command_result(
     Ok(())
 }
 
+/// 获取任务中心快照
 fn snapshot(state: &AppState) -> Result<TaskCenterSnapshot, AppError> {
     let tasks: Vec<TaskRecord> = state.db.list_entities(EntityTable::Tasks)?;
     let mut approvals: Vec<ApprovalRecord> = state.db.list_entities(EntityTable::Approvals)?;

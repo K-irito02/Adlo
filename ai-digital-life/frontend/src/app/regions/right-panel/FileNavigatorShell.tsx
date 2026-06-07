@@ -22,7 +22,6 @@ import {
   IconUpload,
 } from '../../icons';
 import { TooltipSimple } from '../../components/Tooltip';
-import { useUiStore } from '../../stores/ui-store';
 import { useNavigatorResize } from '../../hooks/useNavigatorResize';
 import { MultiWorkspaceFileTree } from '../../features/workspace-file-tree';
 import type { FileTreeContextMenuItem } from '../../features/file-tree';
@@ -112,14 +111,14 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
     t,
   } = props;
 
-  const navigatorMode = useUiStore((s) => s.filesNavigatorMode);
-  const setNavigatorMode = useUiStore((s) => s.setFilesNavigatorMode);
-  const navigatorCollapsed = useUiStore((s) => s.navigatorCollapsedByTool.files);
+  const navigatorMode = useAppStore((s) => s.filesNavigatorMode);
+  const setNavigatorMode = useAppStore((s) => s.setFilesNavigatorMode);
+  const navigatorCollapsed = useAppStore((s) => s.navigatorCollapsedByTool.files);
   const filesNavigatorWidth = useAppStore((s) => s.filesNavigatorWidth);
-  const expandedPaths = useUiStore((s) => s.expandedFileTreePaths);
-  const setFileTreePathExpanded = useUiStore((s) => s.setFileTreePathExpanded);
-  const toggleFileTreePath = useUiStore((s) => s.toggleFileTreePath);
-  const expandFileTreePathChain = useUiStore((s) => s.expandFileTreePathChain);
+  const expandedPaths = useAppStore((s) => s.expandedFileTreePaths);
+  const setFileTreePathExpanded = useAppStore((s) => s.setFileTreePathExpanded);
+  const toggleFileTreePath = useAppStore((s) => s.toggleFileTreePath);
+  const expandFileTreePathChain = useAppStore((s) => s.expandFileTreePathChain);
 
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const activeWorkspaceId = appInfo?.currentWorkspace?.path
