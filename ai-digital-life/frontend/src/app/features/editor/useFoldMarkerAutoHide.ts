@@ -1,12 +1,21 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import type { EditorView } from '@codemirror/view';
+import { forceParsing } from '@codemirror/language';
+import { foldGutterCompartment } from '../diff-viewer/sharedExtensions';
+import { createFoldGutterExtension } from './cmFoldGutter';
 
 export type FoldMarkerState = 'hidden' | 'visible';
 
 const REVEAL_DURATION_MS = 1000;
 const HIDE_DELAY_MS = 300;
+const POLL_INTERVAL_MS = 100;
+const FORCE_PARSE_TIMEOUT_MS = 1500;
+const MAX_FORCE_PARSE_ATTEMPTS = 60;
+const MAX_VISIBLE_DURATION_MS = 5000;
 
-function findGutters(container: HTMLElement): HTMLElement[] {
-  return Array.from(container.querySelectorAll('.cm-foldGutter'));
+function hasFoldGutterMarkers(container: HTMLElement): boolean {
+  const marker = container.querySelector<HTMLElement>('.cm-foldGutter > .cm-gutterElement:nth-child(n+2) .adl-cm-fold-marker');
+  return marker !== null;
 }
 
 function bindGutterListeners(
@@ -27,13 +36,18 @@ function bindGutterListeners(
 
 export function useFoldMarkerAutoHide(
   containerRef: React.RefObject<HTMLElement | null>,
-  fileKey: string
+  fileKey: string,
+  editorView?: EditorView | null
 ): FoldMarkerState {
   const [state, setState] = useState<FoldMarkerState>('hidden');
   const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hideDelayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isHoveringRef = useRef(false);
-  const cleanupRef = useRef<(() => void) | null>(null);
+  const listenerCleanupRef = useRef<(() => void) | null>(null);
+  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pollCountRef = useRef(0);
+  const revealingRef = useRef(false);
+  const maxVisibleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearTimers = useCallback(() => {
     if (revealTimerRef.current !== null) {
@@ -44,6 +58,16 @@ export function useFoldMarkerAutoHide(
       clearTimeout(hideDelayTimerRef.current);
       hideDelayTimerRef.current = null;
     }
+    if (pollTimerRef.current !== null) {
+      clearTimeout(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+    if (maxVisibleTimerRef.current !== null) {
+      clearTimeout(maxVisibleTimerRef.current);
+      maxVisibleTimerRef.current = null;
+    }
+    pollCountRef.current = 0;
+    revealingRef.current = false;
   }, []);
 
   const show = useCallback(() => {
@@ -62,17 +86,89 @@ export function useFoldMarkerAutoHide(
     }, HIDE_DELAY_MS);
   }, []);
 
-  useEffect(() => {
-    setState('visible');
+  const startRevealTimer = useCallback(() => {
+    if (revealingRef.current) return;
+    revealingRef.current = true;
+    if (revealTimerRef.current !== null) {
+      clearTimeout(revealTimerRef.current);
+    }
     revealTimerRef.current = setTimeout(() => {
       if (!isHoveringRef.current) {
         setState('hidden');
       }
     }, REVEAL_DURATION_MS);
+  }, []);
+
+  useEffect(() => {
+    setState('visible');
+    revealingRef.current = false;
+    pollCountRef.current = 0;
+
+    maxVisibleTimerRef.current = setTimeout(() => {
+      if (!revealingRef.current) {
+        setState('hidden');
+      }
+    }, MAX_VISIBLE_DURATION_MS);
+
+    const el = containerRef.current;
+    const view = editorView ?? null;
+
+    if (el && hasFoldGutterMarkers(el)) {
+      startRevealTimer();
+      return () => { clearTimers(); };
+    }
+
+    let markerObserver: MutationObserver | null = null;
+    if (el) {
+      markerObserver = new MutationObserver(() => {
+        if (hasFoldGutterMarkers(el) && !revealingRef.current) {
+          startRevealTimer();
+          markerObserver?.disconnect();
+          if (pollTimerRef.current !== null) {
+            clearTimeout(pollTimerRef.current);
+            pollTimerRef.current = null;
+          }
+          pollCountRef.current = 0;
+        }
+      });
+      markerObserver.observe(el, { childList: true, subtree: true });
+    }
+
+    const poll = () => {
+      pollCountRef.current++;
+
+      if (el && hasFoldGutterMarkers(el)) {
+        if (!revealingRef.current) {
+          startRevealTimer();
+        }
+        markerObserver?.disconnect();
+        return;
+      }
+
+      if (view) {
+        forceParsing(view, view.state.doc.length, FORCE_PARSE_TIMEOUT_MS);
+        view.dispatch({
+          effects: foldGutterCompartment.reconfigure(createFoldGutterExtension()),
+        });
+      }
+
+      if (pollCountRef.current >= MAX_FORCE_PARSE_ATTEMPTS) {
+        markerObserver?.disconnect();
+        if (!revealingRef.current) {
+          setState('hidden');
+        }
+        return;
+      }
+
+      pollTimerRef.current = setTimeout(poll, POLL_INTERVAL_MS);
+    };
+    poll(); // start polling immediately
+
     return () => {
+      markerObserver?.disconnect();
       clearTimers();
     };
-  }, [fileKey, clearTimers]);
+  }, [fileKey, containerRef, editorView, clearTimers, startRevealTimer]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -89,25 +185,30 @@ export function useFoldMarkerAutoHide(
       },
     };
 
-    const rebind = (): void => {
-      const gutters = findGutters(el);
-      if (gutters.length === 0) return;
-      if (cleanupRef.current) cleanupRef.current();
-      cleanupRef.current = bindGutterListeners(gutters, handlers);
-    };
+    const gutters = Array.from(el.querySelectorAll<HTMLElement>('.cm-foldGutter'));
+    if (gutters.length > 0) {
+      listenerCleanupRef.current = bindGutterListeners(gutters, handlers);
+    }
 
-    // Initial bind + keep observer alive to re-bind after CodeMirror
-    // reconfigure (async language load → StateEffect.reconfigure →
-    // old .cm-foldGutter elements destroyed, new ones created).
-    rebind();
-    const observer = new MutationObserver(() => rebind());
-    observer.observe(el, { childList: true, subtree: true });
+    const gutterObserver = new MutationObserver(() => {
+      const newGutters = Array.from(el.querySelectorAll<HTMLElement>('.cm-foldGutter'));
+      const currentCount = gutters.length;
+      if (newGutters.length !== currentCount || newGutters.some((g, i) => g.children.length !== gutters[i]?.children.length)) {
+        if (listenerCleanupRef.current) listenerCleanupRef.current();
+        gutters.length = 0;
+        gutters.push(...newGutters);
+        if (gutters.length > 0) {
+          listenerCleanupRef.current = bindGutterListeners(gutters, handlers);
+        }
+      }
+    });
+    gutterObserver.observe(el, { childList: true, subtree: true });
 
     return () => {
-      observer.disconnect();
-      if (cleanupRef.current) {
-        cleanupRef.current();
-        cleanupRef.current = null;
+      gutterObserver.disconnect();
+      if (listenerCleanupRef.current) {
+        listenerCleanupRef.current();
+        listenerCleanupRef.current = null;
       }
     };
   }, [containerRef, fileKey, show, scheduleHide]);

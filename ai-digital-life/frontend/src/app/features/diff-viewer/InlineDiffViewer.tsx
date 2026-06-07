@@ -57,7 +57,7 @@ export const InlineDiffViewer = memo(function InlineDiffViewer({
   const [editorReady, setEditorReady] = useState(false);
   const expandedCollapsedLinesRef = useRef<Set<number>>(new Set());
   const wrapperRef = useRef<HTMLDivElement | null>(null);
-  const foldMarkerState = useFoldMarkerAutoHide(wrapperRef, fileKey ?? original + modified);
+  const foldMarkerState = useFoldMarkerAutoHide(wrapperRef, fileKey ?? original + modified, editorView);
 
   // 先加载语言扩展，完成后才允许创建编辑器
   useEffect(() => {

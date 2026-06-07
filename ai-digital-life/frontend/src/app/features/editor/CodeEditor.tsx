@@ -74,7 +74,7 @@ export function CodeEditor({
     };
   }, [language]);
 
-  const foldMarkerState = useFoldMarkerAutoHide(wrapperRef, fileKey ?? value);
+  const foldMarkerState = useFoldMarkerAutoHide(wrapperRef, fileKey ?? value, editorView);
 
   const baseExtensions = useMemo<Extension[]>(() => {
     const gutterEnabled = lineNumbersEnabled;

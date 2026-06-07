@@ -64,7 +64,7 @@ export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
   } | null>(null);
   const expandedCollapsedLinesRef = useRef<Set<number>>(new Set());
   const wrapperRef = useRef<HTMLDivElement | null>(null);
-  const foldMarkerState = useFoldMarkerAutoHide(wrapperRef, fileKey ?? original + modified);
+  const foldMarkerState = useFoldMarkerAutoHide(wrapperRef, fileKey ?? original + modified, editorViewA || editorViewB);
   const [langExtensions, setLangExtensions] = useState<Extension[]>(() =>
     getLanguageExtensionSync(language)
   );

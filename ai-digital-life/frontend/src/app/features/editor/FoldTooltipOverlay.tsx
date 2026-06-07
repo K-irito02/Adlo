@@ -118,6 +118,31 @@ function computeTooltipText(view: EditorView, lineNum: number, isClosed: boolean
   return `折叠至${endLine}行`;
 }
 
+/** Compute tooltip for a .cm-foldPlaceholder element in the content area.
+ *  The placeholder appears when code is folded, so the tooltip always says "展开至N行". */
+function computeTooltipFromPlaceholder(view: EditorView, placeholder: HTMLElement): { text: string; rect: DOMRect } | null {
+  const placeholderRect = placeholder.getBoundingClientRect();
+  const pos = view.posAtCoords({ x: placeholderRect.left + placeholderRect.width / 2, y: placeholderRect.top + placeholderRect.height / 2 });
+  if (pos === null) return null;
+
+  const lineNum = view.state.doc.lineAt(pos).number;
+  if (lineNum > view.state.doc.lines) return null;
+  if (!isLineFolded(view, lineNum)) return null;
+
+  let endLine = lineNum;
+  foldedRanges(view.state).between(0, view.state.doc.length, (_from, _to) => {
+    const startLine = view.state.doc.lineAt(_from).number;
+    const e = view.state.doc.lineAt(_to).number;
+    if (lineNum >= startLine && lineNum <= e && e > endLine) {
+      endLine = e;
+    }
+  });
+
+  const text = `展开至${endLine}行`;
+  const rect = new DOMRect(placeholderRect.left, placeholderRect.top, placeholderRect.width, placeholderRect.height);
+  return { text, rect };
+}
+
 function getFoldStartRange(view: EditorView, lineNum: number): { from: number; to: number } | null {
   let result: { from: number; to: number } | null = null;
   foldedRanges(view.state).between(0, view.state.doc.length, (_from, _to) => {
@@ -326,9 +351,27 @@ export function FoldTooltipOverlay({ view }: FoldTooltipOverlayProps) {
       lastMouseEventRef.current = e;
       if (!editorDom.contains(e.target as HTMLElement)) return;
 
-      if (!(e.target as HTMLElement).closest('.cm-gutters')) {
+      const target = e.target as HTMLElement;
+
+      if (!target.closest('.cm-gutters')) {
         if (rafId) cancelAnimationFrame(rafId);
         updateGutterHoverOverlay(view, null);
+
+        const placeholder = target.closest('.cm-foldPlaceholder') as HTMLElement | null;
+        if (placeholder) {
+          const result = computeTooltipFromPlaceholder(view, placeholder);
+          if (result) {
+            if (hideTimerRef.current !== null) { clearTimeout(hideTimerRef.current); hideTimerRef.current = null; }
+            tooltipVisibleRef.current = true;
+            setTooltipState({ text: result.text, rect: result.rect });
+            return;
+          }
+        }
+
+        if (tooltipVisibleRef.current) {
+          if (hideTimerRef.current !== null) { clearTimeout(hideTimerRef.current); hideTimerRef.current = null; }
+          hide();
+        }
         return;
       }
 

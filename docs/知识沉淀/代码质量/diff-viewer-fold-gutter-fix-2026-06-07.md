@@ -2,7 +2,7 @@
 
 ## 问题概述
 
-本次修复解决了变更查看器（Diff Viewer）行号区域折叠/展开功能的完整性问题，涵盖折叠图标渲染、点击交互、Tooltip 提示、行号区域悬停高亮等模块。
+本次修复解决变更查看器（Diff Viewer）行号区域折叠/展开功能的完整性问题，涵盖折叠图标渲染、点击交互、Tooltip 提示、行号区域悬停高亮等模块。共 **15 项修复**，涉及 **8 个源代码文件** 和 **2 个 CSS 文件**。
 
 ## 解决的问题清单
 
@@ -18,27 +18,24 @@
 - **现象**：自定义 gutter 上的 `click`/`mousedown` 事件无法被 `EditorView.domEventHandlers` 捕获
 - **根因**：MergeView 内部 gutter 处理器调用了 `stopPropagation()`，阻止事件冒泡到 `view.dom`
 - **修复**：使用 `document.addEventListener('mousedown', handler, true)` 在捕获阶段拦截事件
-- **经验**：MergeView 上下文中，`mouseover` 不受影响但 `mousedown`/`click` 需要捕获阶段
 
 ### 3. 未变更行无功能 (Phase 3)
 
 - **现象**：只有变更行支持折叠，未变更行无 Tooltip 和点击效果
-- **根因**：`.cm-changeGutter` 以 `position: absolute; width: 100%; height: 100%; z-index: 20` 覆盖整个 gutter 区域。对于未变更行（无子元素），鼠标事件目标为 `.cm-changeGutter` 容器本身，`closest('.cm-gutterElement')` 返回 `null`
-- **修复**：新增 `getLineNumberFromEvent()` 回退到 `view.posAtCoords(event.clientX, event.clientY)` 通过坐标间接查行号
-- **补充**：添加 CSS `pointer-events: none` 到 `.cm-changeGutter` 容器，让事件穿透
+- **根因**：`.cm-changeGutter` 以 `position: absolute; width: 100%; height: 100%; z-index: 20` 覆盖整个 gutter 区域，拦截了鼠标事件
+- **修复**：`getLineNumberFromEvent()` 回退到 `view.posAtCoords()` 通过坐标查行号；添加 CSS `pointer-events: none` 到 `.cm-changeGutter`
 
 ### 4. 灰色背景铺满整行 (Phase 3)
 
 - **现象**：行号区域灰色背景分为左右两块（行号列、折叠列各一块）
-- **修复**：用 `position: fixed` 的 `adl-gutter-hover-overlay` div 覆盖整个 `.cm-gutters` 宽度
-- **经验**：`position: absolute` 在 flex 容器的 `z-index` stacking 中不可靠，`position: fixed` 脱离容器层叠上下文
+- **修复**：用 `position: fixed` 的 overlay 覆盖整个 `.cm-gutters` 宽度
+- **经验**：`position: absolute` 在 flex 容器的 `z-index` stacking 中不可靠
 
 ### 5. Tooltip 行号不准确 (Phase 4)
 
-- **现象**：Tooltip 提示的折叠/展开行数总是少一行（如 `}` 行不计入）
+- **现象**：Tooltip 提示的折叠/展开行数总是少一行
 - **根因**：`foldable()` 返回的 `to` 是独占的，旧代码 `range.to - 1` 丢弃了独占行
 - **修复**：直接使用 `doc.lineAt(range.to).number`，不再 `-1`
-- **文件**：`FoldTooltipOverlay.tsx` 中 `computeTooltipText` 函数
 
 ### 6. 删除行异常触发折叠 (Phase 4)
 
@@ -47,140 +44,134 @@
 
 ### 7. 折叠占位行误触发 (Phase 4)
 
-- **现象**：收起无变更行的 `.cm-collapsedLines` 行（折叠占位符）也会触发 Tooltip 和折叠
-- **修复**：新增 `getGutterRowAtY()` 函数检查 `.cm-foldGutter` 该行是否有 `.adl-cm-fold-marker` 图标元素，无图标则跳过
+- **现象**：收起无变更行的 `.cm-collapsedLines` 行也会触发 Tooltip 和折叠
+- **修复**：新增 `getGutterRowAtY()` 函数检查 `.cm-foldGutter` 该行是否有折叠标记，无则跳过
 
 ### 8. 红绿边界 Tooltip 位置偏移 (Phase 4)
 
 - **现象**：绿色变更行上的 tooltip 显示在相邻红色行位置
-- **根因**：`view.lineBlockAtHeight()` 在侧边模式下 gutter 子元素高度为 0 时，Y 坐标映射到错误行块
-- **修复**：统一使用 `getGutterRowAtY()` 通过 `.cm-lineNumbers > .cm-gutterElement` 的 `getBoundingClientRect()` DOM 坐标定位
+- **修复**：统一使用 `getGutterRowAtY()` 通过 DOM 元素 `getBoundingClientRect()` 定位
 
 ### 9. 点击折叠后灰色背景消失 (Phase 4)
 
 - **现象**：点击折叠后 overlay 背景消失
-- **修复**：改为 `requestAnimationFrame(repositionOverlay)` 通过保存的最近鼠标事件重新定位
+- **修复**：改为 `requestAnimationFrame(repositionOverlay)` 通过最近鼠标事件重新定位
 
-### 10. Tooltip 在行号区域移动时延迟消失 (Phase 4)
+### 10. Tooltip 行间切换延迟 (Phase 4)
 
-- **现象**：鼠标从有折叠图标的行号区域移到无折叠图标的行号区域时，tooltip 延迟 150ms 才消失，感觉粘滞
-- **根因**：`handleMouseMove` 中当 `computeTooltipFromEvent` 返回 null（无折叠标记行）时调用 `scheduleHide()`，该方法有 150ms 延迟，适用于 mouseleave 场景但不适用于行间切换场景
-- **修复**：在 `else if (tooltipVisibleRef.current)` 分支中，直接取消 hideTimer 并立即调用 `hide()`，不再延迟
-- **关键代码**：
-  ```typescript
-  } else if (tooltipVisibleRef.current) {
-    if (hideTimerRef.current !== null) { clearTimeout(hideTimerRef.current); hideTimerRef.current = null; }
-    hide();
-  }
-  ```
-- **文件**：`FoldTooltipOverlay.tsx`
+- **现象**：鼠标从有折叠图标的行切换到无折叠图标的行时，tooltip 延迟 150ms 才消失
+- **根因**：`handleMouseMove` 在无折叠标记的行调用 `scheduleHide()`，该函数有 150ms 延迟
+- **修复**：行间切换直接 `hide()` 不延迟；150ms 仅保留给 `mouseleave` 场景
 
 ### 11. 文件面板折叠图标灰色圆背景 (Phase 4)
 
-- **现象**：鼠标悬停在文件面板的"展开/折叠"图标按钮上时，图标背后出现圆形灰色背景。变更面板无此效果
-- **根因**：CSS 规则 `box-shadow: 0 0 0 4px var(--ring-neutral)` + `border-radius: 4px` 在 `cm-overrides.css` 和 `editor-surface.css` 两个文件中**同时存在**（重复定义），首次修复只删除了 `cm-overrides.css` 的副本，漏掉了 `editor-surface.css` 中的真正生效规则
-- **修复**：从两个 CSS 文件中删除该规则
-- **教训**：CSS 规则可能分散在多个文件中。删除某效果时必须全局搜索确认无残留副本。`grep` 或 `ripgrep` 搜索应作为删除前的验证步骤
-- **文件**：`cm-overrides.css`, `editor-surface.css`
+- **现象**：文件面板的折叠图标悬停时有圆形灰色背景，变更面板没有
+- **根因**：CSS 规则 `box-shadow: 0 0 0 4px var(--ring-neutral)` 在 `cm-overrides.css` 和 `editor-surface.css` 两个文件中同时存在
+- **修复**：从两个文件中删除该规则
+- **教训**：CSS 规则可能跨文件重复，删除前应全局搜索确认
 
 ### 12. 折叠占位符 "..." 无灰色背景 (Phase 4)
 
-- **现象**：代码折叠后在内容区域显示的 "..." 图标按钮没有灰色背景效果
-- **根因**：`.cm-foldPlaceholder` 的背景色由 `cmTheme.ts` 通过 CSS 变量 `--editor-fold-placeholder` 设置（暗色 `rgba(255,255,255,0.1)` / 亮色 `rgba(0,0,0,0.08)`），过于透明几乎不可见，且无 hover 样式
-- **修复**：在 `cm-overrides.css` 中用 `--editor-hover-bg` 覆盖背景色，并改为常驻显示（不依赖 hover）：
-  ```css
-  .adl-cm-editor .cm-foldPlaceholder {
-    background-color: var(--editor-hover-bg) !important;
-    cursor: pointer;
-  }
-  ```
-- **注意**：使用 `!important` 是因为 `cmTheme.ts` 通过 CodeMirror EditorTheme 设置的样式优先级高于纯 CSS，必须用 `!important` 覆盖
-- **文件**：`cm-overrides.css`
+- **现象**：代码折叠后在内容区域显示的 "..." 图标按钮没有灰色背景
+- **修复**：用 `!important` 覆盖 CodeMirror EditorTheme 的 `--editor-fold-placeholder` 背景色
+
+### 13. 内容区域 "..." 无 Tooltip (Phase 5)
+
+- **现象**：鼠标悬停在 "..." 折叠占位符上没有 Tooltip 提示
+- **根因**：`handleMouseMove` 在鼠标离开 gutter 区域时直接 return，完全不检查内容区域的 `.cm-foldPlaceholder`
+- **修复**：新增 `computeTooltipFromPlaceholder()` 函数，`handleMouseMove` 在 gutter 外先检查 `.cm-foldPlaceholder`
+- **文件**：`FoldTooltipOverlay.tsx`
+
+### 14. 折叠标记首次打开不显示 — DOM 检测失效 (Phase 5)
+
+- **现象**：首次打开第一个变更文件时，行号区域的折叠标记不出现；第二个文件正常
+- **根因**（第一层）：`lineMarker()` 在 gutter 初次渲染时被调用，但此时语法树未解析完成，`foldable()` 对**所有行都返回 null**。语法树解析完成后，gutter 不会自动重渲染，`lineMarker()` 不再被调用，折叠标记永不出现在 DOM 中。MutationObserver 无法检测到从未发生过的事件
+- **修复**（第一层）：使用 CodeMirror `forceParsing()` API 强制解析语法树并触发重渲染
+- **经验**：DOM-only 检测（MutationObserver）在某些场景下不可靠，需要结合 CodeMirror API
+
+### 15. 折叠标记首次打开不显示 — forceParsing 不触发重渲染 (Phase 5)
+
+- **现象**：即使调用了 `forceParsing()`，折叠标记仍然不出现
+- **根因**（第二层）：`forceParsing` 内部检查 `success != syntaxTree(state)`。由于 parse context 的 `this.tree = done` 是**直接修改对象引用**，`success` 和 `syntaxTree(state)` 指向同一对象，比较**永远为 false**，`view.dispatch({})` **永远不会执行**。同时，`syntaxTreeAvailable()` 对 stream parser 立即返回 `true`（仅检查浅层树），无法反应深层解析进度
+- **修复**（最终）：使用 `foldGutterCompartment.reconfigure(createFoldGutterExtension())` 在每次 poll 中**强制重建整个 fold gutter**。`Compartment.reconfigure` 销毁旧 gutter 并创建新 gutter，此时语法树已解析完成，`lineMarker()` 返回正确结果
+- **文件**：`useFoldMarkerAutoHide.ts`
 
 ## 核心技术架构
 
 ```
+useFoldMarkerAutoHide Hook
+├── state: 'hidden' | 'visible' (通过 data-fold-marker-state 控制 CSS)
+├── 组件挂载 → setState('visible') + 5s 最大可见计时器
+├── ① 立即检测 → hasFoldGutterMarkers() 检查 DOM
+├── ② MutationObserver → 检测 DOM 变化
+├── ③ 轮询 (300ms) → forceParsing + foldGutterCompartment.reconfigure
+└── gutter 鼠标监听 → mouseenter 立即显示, mouseleave 延迟 300ms 隐藏
+
 FoldTooltipOverlay 组件
-├── 事件层 (effect hook)
-│   ├── mousemove → updateGutterHoverOverlay() ← 覆盖全宽灰色背景
-│   ├── mousemove → computeTooltipFromEvent() ← 仅在折叠列显示 Tooltip
-│   ├── mouseleave → 清除 overlay
-│   └── mousedown (capture:true) → handleGutterFold() ← 捕获阶段绕过 stopPropagation
-│
-├── getGutterRowAtY() ← 统一函数，从 .cm-lineNumbers 取行号位、从 .cm-foldGutter 取图标状态
-│
-├── FoldTooltipOverlay → body portal
-│   └── tooltip span
-│
-└── adl-gutter-hover-overlay → body
-    └── position: fixed, 覆盖整个 gutter 宽度
+├── mousemove → updateGutterHoverOverlay() ← position:fixed 灰色背景
+├── mousemove → computeTooltipFromEvent() ← gutter 折叠标记 tooltip
+├── mousemove → computeTooltipFromPlaceholder() ← 内容区 "..." tooltip
+├── mouseleave → 清除 overlay + 150ms 延迟隐藏 tooltip
+└── mousedown (capture:true) → handleGutterFold() ← 绕过 MergeView stopPropagation
+
+cmFoldGutter 扩展
+├── lineMarker() → foldable() 依赖语法树, 异步解析后才返回有效标记
+└── initialSpacer → always-present 占位, 必须用 :nth-child(n+2) 排除
 ```
 
 ### 关键文件映射
 
 | 文件 | 职责 | 行数 |
 |------|------|------|
-| `FoldTooltipOverlay.tsx` | 核心交互组件，~430 行 | 事件 + 逻辑 + UI |
-| `cmFoldGutter.ts` | 纯视觉折叠 gutter，~45 行 | GutterMarker 实现 |
-| `cmLineNumberFold.ts` | 已删除，功能合并到 FoldTooltipOverlay | — |
-| `sharedExtensions.ts` | 添加 `codeFolding()` | 1 行增长 |
-| `CodeEditor.tsx` | 添加 `codeFolding()` | 1 行增长 |
+| `FoldTooltipOverlay.tsx` | 折叠 Tooltip + 悬停高亮 + 点击处理 | ~430 行 |
+| `useFoldMarkerAutoHide.ts` | 折叠标记自动隐藏 Hook | ~220 行 |
+| `cmFoldGutter.ts` | 自定义折叠 gutter GutterMarker | ~45 行 |
+| `sharedExtensions.ts` | `codeFolding()` + `foldGutterCompartment` | — |
 | `gutterHoverSync.ts` | 内容行 hover → gutter 高亮 | 独立，未改动 |
-| `diff-viewer.css` | `.cm-changeGutter: pointer-events: none` | 2 行变更 |
-| `cm-overrides.css` | 移除 fold marker box-shadow + 添加 .cm-foldPlaceholder 背景 | ~4 行变更 |
-| `editor-surface.css` | 移除 fold marker box-shadow（重复规则） | 减少 ~4 行 |
+| `cm-overrides.css` 等 | 折叠标记样式、auto-hide | — |
 
-## 经验教训
+## 关键教训
 
 ### 1. MergeView 中 gutter 事件必须使用捕获阶段
 
-> MergeView 内部在 gutter DOM 元素上挂载了 `mousedown` 处理器，并在其中调用 `stopPropagation()`。自定义 gutter 扩展如果使用 `EditorView.domEventHandlers` 的 `click`/`mousedown`，将永远无法收到事件。
->
-> **方案**：`document.addEventListener('mousedown', handler, true)` 在捕获阶段拦截。
-
 ### 2. 自定义 gutter 需要额外提供 codeFolding()
-
-> `foldGutter()` 内部自动包含 `codeFolding()`。替换为自定义 `gutter()` + `GutterMarker` 后必须显式添加 `codeFolding()`，否则 `foldEffect`/`unfoldEffect` 空操作。
 
 ### 3. DOM 优先于 CodeMirror 行块计算
 
-> `view.lineBlockAtHeight()` 和 `view.posAtCoords()` 在特定布局（侧边模式、折叠区域、0高度元素）下不可靠。直接遍历 `.cm-lineNumbers > .cm-gutterElement` 的 `getBoundingClientRect()` 始终精确。
-
 ### 4. Overlay 方案优于元素样式修改
-
-> 为单个 gutter 列修改背景色会产生对齐缺口。采用 `position: fixed` overlay 覆盖整个 `.cm-gutters` 区域，脱离所有层叠上下文，一次覆盖全部列。
 
 ### 5. WeakMap 缓存 DOM 引用
 
-> `overlayCache = new WeakMap<HTMLElement, HTMLElement>()` 以 `.cm-gutters` 为 key 缓存 overlay 元素，当视图变化时自动垃圾回收，无需手动管理生命周期。
+### 6. forceParsing() 触发重渲染的局限性
 
-### 6. 调试日志先于修复
+> `forceParsing()` 内部比较 `success != syntaxTree(state)`。由于 parse context 的 `this.tree = done` 是直接修改对象引用，`success` 和 `syntaxTree(state)` 恒为同一对象，比较永远为 false，`view.dispatch({})` 永远不会执行。依赖 `forceParsing` 触发 gutter 重渲染不可靠。
+>
+> **方案**：`foldGutterCompartment.reconfigure(createFoldGutterExtension())` 强制重建完整 gutter。
 
-> 第 3 轮修复后才开始通过 `console.log` 加调试日志，导致前 3 轮盲目猜测。后续应先在关键路径添加日志，根据运行时证据决策。
+### 7. Compartment.reconfigure 强制 gutter 重建
 
-### 7. CSS 规则分散在多个文件中
+> `EditorView.dispatch({ effects: foldGutterCompartment.reconfigure(createFoldGutterExtension()) })` 触发完整的插件生命周期：销毁旧 gutter → 销毁所有 DOM 元素 → 创建新 gutter → 重新调用 `lineMarker()`。这是语法树异步解析后确保折叠标记出现的可靠方案。消耗可接受（非动画循环中 300ms 间隔）。
 
-> 文件面板和变更面板的编辑器 CSS 规则同时定义在 `cm-overrides.css` 和 `editor-surface.css` 两个文件中。第 11 次修复（删除 fold marker box-shadow）只删除了 `cm-overrides.css` 的副本，漏掉了 `editor-surface.css` 的真正生效规则。删除 CSS 效果前应全局搜索确认无残留副本。
+### 8. syntaxTreeAvailable() 对 stream parser 不可靠
 
-### 8. Tooltip 延迟的适用场景区分
+> `syntaxTreeAvailable(view.state)` 对 stream/增量式解析器立即返回 `true`，不反映深层解析进度。应轮询 DOM 或使用 `forceParsing(view, doc.length, 1000)` 指定完整文档长度 + 长超时。
 
-> `scheduleHide()` 的 150ms 延迟仅适用于 `mouseleave`（鼠标离开编辑器容器）场景，作为避免闪烁的安全缓冲。当鼠标在同一容器内切换到无折叠标记的行时，应直接 `hide()` 而不延迟。事件处理函数需要区分"离开目标区域"和"移动到相邻区域"两种场景。
+### 9. 轮询 + MutationObserver 双保险
+
+> 单一检测机制不可靠。最终方案使用三层检测：① 快速 DOM 检查（初始渲染已有标记时） ② MutationObserver（后续 DOM 变化时） ③ 定时轮询 + `forceParsing` + `foldGutterCompartment.reconfigure`（兜底）。三者任意一个触发即可正确显示折叠标记。
 
 ## 最终效果验证
 
-- ✅ 变更行折叠图标可点击展开/折叠
-- ✅ 未变更行折叠图标可点击展开/折叠
-- ✅ 鼠标悬停折叠图标列显示 Tooltip（"折叠至N行"/"展开至N行"）
-- ✅ Tooltip 位置固定，不会因鼠标位置偏移
+- ✅ 变更行/未变更行折叠图标可点击展开/折叠
+- ✅ 鼠标悬停折叠图标列显示 Tooltip
 - ✅ 行号区域灰色背景铺满整个 gutter 宽度
-- ✅ 灰色背景不会为折叠图标让位
-- ✅ 折叠后 overlay 高度跟随文档布局变化
 - ✅ 删除行（红色）无折叠功能和 Tooltip
 - ✅ 收起无变更行占位符无折叠功能和 Tooltip
-- ✅ 红绿边界 Tooltip 位置正确
-- ✅ 点击折叠后背景保持不消失
-- ✅ Tooltip 行号提示准确（不丢失 `}` 行）
-- ✅ Tooltip 在行号区域行间切换时立即消失，无延迟
-- ✅ 文件面板折叠图标悬停无圆形灰色背景（与变更面板一致）
-- ✅ "..." 折叠占位符常驻灰色背景，非仅 hover 时显示
+- ✅ Tooltip 行号提示准确
+- ✅ Tooltip 行间切换立即消失无延迟
+- ✅ Tooltip 鼠标离开编辑器 150ms 后消失
+- ✅ 文件面板折叠图标悬停无圆形灰色背景
+- ✅ "..." 折叠占位符常驻灰色背景 + Tooltip 提示
+- ✅ "展开/折叠"图标首次打开出现 → 1秒自动消失
+- ✅ 鼠标悬停行号区域时图标始终可见
 - ✅ 测试 214/214 通过
