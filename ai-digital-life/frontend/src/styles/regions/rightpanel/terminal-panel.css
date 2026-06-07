@@ -3,16 +3,6 @@
   overflow: visible;
 }
 
-.adl-tool-panel--terminal .adl-tool-context {
-  position: relative;
-  z-index: 4;
-  overflow: visible;
-}
-
-.adl-tool-panel--terminal .adl-file-context__menu {
-  position: relative;
-}
-
 .adl-terminal-shell-dropdown {
   width: 150px !important;
   min-width: 150px !important;

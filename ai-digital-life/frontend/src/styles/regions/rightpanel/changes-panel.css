@@ -17,17 +17,6 @@
   overflow: visible;
 }
 
-.adl-tool-panel--changes .adl-file-context__menu {
-  position: relative;
-}
-
-.adl-tool-panel--changes .adl-file-context__dropdown {
-  width: 176px;
-  min-width: 176px;
-  max-width: 176px;
-  z-index: 6;
-}
-
 .adl-tool-panel--changes .adl-file-context__dropdown .tooltip-trigger {
   display: block;
 }
