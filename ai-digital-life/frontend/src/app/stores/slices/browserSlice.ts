@@ -530,7 +530,7 @@ export const createBrowserSlice = (
           browser: !(state.navigatorCollapsedByTool?.browser ?? false),
         };
         scheduleWrite(BROWSER_NAVIGATOR_COLLAPSED_KEY, next);
-        // 可以直接设置，因为在合并后的 store 中，所有状态都是可访问的
+        // 可以设置 navigatorCollapsedByTool，因为在合并后的 store 中，这个字段是存在的
         return { navigatorCollapsedByTool: next };
       }),
 
@@ -538,7 +538,7 @@ export const createBrowserSlice = (
       set((state) => {
         const next = { ...state.navigatorCollapsedByTool, browser: collapsed };
         scheduleWrite(BROWSER_NAVIGATOR_COLLAPSED_KEY, next);
-        // 可以直接设置，因为在合并后的 store 中，所有状态都是可访问的
+        // 可以设置 navigatorCollapsedByTool，因为在合并后的 store 中，这个字段是存在的
         return { navigatorCollapsedByTool: next };
       }),
 
