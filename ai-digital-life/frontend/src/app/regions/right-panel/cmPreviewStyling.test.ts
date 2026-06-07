@@ -54,7 +54,7 @@ describe("CodeMirror preview styling", () => {
     expect(regionsCssSource).not.toContain(".adl-tool-editor .adl-agent-gutter");
     expect(regionsCssSource).not.toContain(".adl-agent-gutter-marker");
     expect(cmThemeSource).not.toContain("AGENT_GUTTER_INSERT_CLASS");
-    expect(cmThemeSource).toContain("borderRight: '1px solid var(--border-subtle)'");
+    expect(cmThemeSource).toContain("borderRight: `1px solid ${c.gutterBorder}`");
     expect(cmThemeSource).toContain("paddingRight: '0'");
     expect(cmThemeSource).toContain("outline: 'none'");
   });

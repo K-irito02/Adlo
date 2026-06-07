@@ -1,6 +1,7 @@
 import React from 'react';
 import { useAppStore } from '../../../stores/slicedStore';
 import { MultiWorkspaceChangesTree } from '../../../features/workspace-changes-tree';
+import { CustomScrollArea } from '../../../features/file-tree/CustomScrollArea';
 import { OutlineTree } from '../../../features/outline';
 import { useNavigatorResize } from '../../../hooks/useNavigatorResize';
 import { ChangesToolbar } from './ChangesToolbar';
@@ -175,38 +176,45 @@ export function ChangesTreePanel(props: ChangesTreePanelProps) {
           <p className="adl-empty-hint">{t.noDiagnostics as string}</p>
         )
       ) : (
-        <MultiWorkspaceChangesTree
-          workspaces={visibleWorkspaces}
-          activeWorkspaceId={activeWorkspaceId}
-          expandedStates={workspaceChangesExpanded}
-          treeData={changesTreeData as Record<string, WorkspaceTreeNode[]>}
-          loadingStates={workspaceChangesTreeLoading}
-          errorStates={workspaceChangesTreeErrors}
-          selectedChangePreviewPath={navigatorSelectedPath}
-          selectedChangePreviewWorkspaceId={selectedChangePreviewWorkspaceId}
-          expandedPaths={expandedPathsByWs}
-          dirtyPaths={dirtyPathsSet}
-          externalChangePath={externalChangePath}
-          onToggleExpand={onToggleExpand}
-          onRefreshOne={onRefreshOne}
-          onPinWorkspace={onPinWorkspace}
-          onUnpinWorkspace={onUnpinWorkspace}
-          changeCounts={changeCounts}
-          onHideFromRightPanels={onHideFromRightPanels}
-          onToggleFileTreePath={onToggleFileTreePath}
-          onOpenChangePreview={onOpenChangePreview}
-          onReorderWorkspaces={onReorderWorkspaces}
-          getContextMenuItems={
-            getContextMenuItems as unknown as (
-              node: WorkspaceTreeNode
-            ) => FileTreeContextMenuItem<WorkspaceTreeNode>[]
-          }
-          contextMenuPersistRef={contextMenuPersistRef}
-          clearMenuHighlightRef={clearMenuHighlightRef}
-          t={t}
-          renderMeta={renderMeta}
-          renderCount={renderCount}
-        />
+        <CustomScrollArea
+          shellClassName="adl-multitree"
+          scrollClassName="adl-multitree-scroll"
+          scrollbarClassName="adl-multitree-scrollbar"
+          thumbClassName="adl-multitree-scrollbar__thumb"
+        >
+          <MultiWorkspaceChangesTree
+            workspaces={visibleWorkspaces}
+            activeWorkspaceId={activeWorkspaceId}
+            expandedStates={workspaceChangesExpanded}
+            treeData={changesTreeData as Record<string, WorkspaceTreeNode[]>}
+            loadingStates={workspaceChangesTreeLoading}
+            errorStates={workspaceChangesTreeErrors}
+            selectedChangePreviewPath={navigatorSelectedPath}
+            selectedChangePreviewWorkspaceId={selectedChangePreviewWorkspaceId}
+            expandedPaths={expandedPathsByWs}
+            dirtyPaths={dirtyPathsSet}
+            externalChangePath={externalChangePath}
+            onToggleExpand={onToggleExpand}
+            onRefreshOne={onRefreshOne}
+            onPinWorkspace={onPinWorkspace}
+            onUnpinWorkspace={onUnpinWorkspace}
+            changeCounts={changeCounts}
+            onHideFromRightPanels={onHideFromRightPanels}
+            onToggleFileTreePath={onToggleFileTreePath}
+            onOpenChangePreview={onOpenChangePreview}
+            onReorderWorkspaces={onReorderWorkspaces}
+            getContextMenuItems={
+              getContextMenuItems as unknown as (
+                node: WorkspaceTreeNode
+              ) => FileTreeContextMenuItem<WorkspaceTreeNode>[]
+            }
+            contextMenuPersistRef={contextMenuPersistRef}
+            clearMenuHighlightRef={clearMenuHighlightRef}
+            t={t}
+            renderMeta={renderMeta}
+            renderCount={renderCount}
+          />
+        </CustomScrollArea>
       )}
       <div
         className="adl-tool-navigator__resize-handle"

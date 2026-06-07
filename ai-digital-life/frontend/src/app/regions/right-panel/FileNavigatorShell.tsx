@@ -26,6 +26,7 @@ import { useUiStore } from '../../stores/ui-store';
 import { useNavigatorResize } from '../../hooks/useNavigatorResize';
 import { MultiWorkspaceFileTree } from '../../features/workspace-file-tree';
 import type { FileTreeContextMenuItem } from '../../features/file-tree';
+import { CustomScrollArea } from '../../features/file-tree/CustomScrollArea';
 import { OutlineTree, getDefaultExpandedOutlineIds } from '../../features/outline';
 import { normalizeWorkspaceRelativePath, joinPathSegments } from '../../utils/workspacePaths';
 import { useFileCreation, useSearchPanel } from './hooks';
@@ -495,41 +496,48 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
 
       {navigatorMode === 'tree' ? (
         visibleWorkspaces.length > 0 ? (
-          <MultiWorkspaceFileTree
-            workspaces={visibleWorkspaces}
-            activeWorkspaceId={activeWorkspaceId}
-            treeData={workspaceTrees}
-            loadingStates={workspaceTreeLoading}
-            errorStates={workspaceTreeErrors}
-            expandedStates={workspaceTreeExpandedInFileNav}
-            selectedFilePath={selectedFilePath}
-            selectedFileWorkspaceId={selectedFileWorkspaceId}
-            expandedPaths={expandedPaths}
-            dirtyPaths={dirtyPaths}
-            externalChangePath={externalChangePath}
-            onToggleExpand={onToggleExpandInFileNav}
-            onRefreshOne={onRefreshOneWorkspace}
-            onOpenWorkspace={(path: string) => {
-              useAppStore.getState().openWorkspace(path);
-            }}
-            onPinWorkspace={(workspaceId: string) => {
-              useAppStore.getState().pinWorkspace(workspaceId);
-            }}
-            onUnpinWorkspace={(workspaceId: string) => {
-              useAppStore.getState().unpinWorkspace(workspaceId);
-            }}
-            onHideFromRightPanels={onHideFromRightPanels}
-            onToggleFileTreePath={toggleFileTreePath}
-            onOpenFile={onOpenFile}
-            onOpenFileForWorkspace={onOpenFileForWorkspace}
-            onReorderWorkspaces={(input) => {
-              useAppStore.getState().reorderWorkspaces(input);
-            }}
-            getContextMenuItems={getContextMenuItems}
-            contextMenuPersistRef={contextMenuPersistRef}
-            clearMenuHighlightRef={clearMenuHighlightRef}
-            t={t}
-          />
+          <CustomScrollArea
+            shellClassName="adl-multitree"
+            scrollClassName="adl-multitree-scroll"
+            scrollbarClassName="adl-multitree-scrollbar"
+            thumbClassName="adl-multitree-scrollbar__thumb"
+          >
+            <MultiWorkspaceFileTree
+              workspaces={visibleWorkspaces}
+              activeWorkspaceId={activeWorkspaceId}
+              treeData={workspaceTrees}
+              loadingStates={workspaceTreeLoading}
+              errorStates={workspaceTreeErrors}
+              expandedStates={workspaceTreeExpandedInFileNav}
+              selectedFilePath={selectedFilePath}
+              selectedFileWorkspaceId={selectedFileWorkspaceId}
+              expandedPaths={expandedPaths}
+              dirtyPaths={dirtyPaths}
+              externalChangePath={externalChangePath}
+              onToggleExpand={onToggleExpandInFileNav}
+              onRefreshOne={onRefreshOneWorkspace}
+              onOpenWorkspace={(path: string) => {
+                useAppStore.getState().openWorkspace(path);
+              }}
+              onPinWorkspace={(workspaceId: string) => {
+                useAppStore.getState().pinWorkspace(workspaceId);
+              }}
+              onUnpinWorkspace={(workspaceId: string) => {
+                useAppStore.getState().unpinWorkspace(workspaceId);
+              }}
+              onHideFromRightPanels={onHideFromRightPanels}
+              onToggleFileTreePath={toggleFileTreePath}
+              onOpenFile={onOpenFile}
+              onOpenFileForWorkspace={onOpenFileForWorkspace}
+              onReorderWorkspaces={(input) => {
+                useAppStore.getState().reorderWorkspaces(input);
+              }}
+              getContextMenuItems={getContextMenuItems}
+              contextMenuPersistRef={contextMenuPersistRef}
+              clearMenuHighlightRef={clearMenuHighlightRef}
+              t={t}
+            />
+          </CustomScrollArea>
         ) : null
       ) : null}
 
