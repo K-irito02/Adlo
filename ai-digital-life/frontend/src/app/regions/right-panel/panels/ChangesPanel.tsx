@@ -643,25 +643,26 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
 
   const renderNavigatorMeta = useCallback((node: WorkspaceTreeNode) => {
     const changeNode = node as ChangeTreeNode;
-    const primaryBadge = getPrimaryBadge(changeNode);
     return (
-      <>
-        {primaryBadge ? (
-          <span
-            className={`adl-filetree__status-badge adl-filetree__status-badge--${primaryBadge.tone}`}
-          >
-            {primaryBadge.label}
-          </span>
-        ) : null}
-        <span className="adl-filetree__count-badge">
-          {changeNode.kind === 'directory'
-            ? changeNode.fileCount
-            : changeNode.totalHunks > 0
-              ? `${changeNode.reviewedHunks}/${changeNode.totalHunks}`
-              : '1'}
-        </span>
-      </>
+      <span className="adl-filetree__count-badge">
+        {changeNode.kind === 'directory'
+          ? changeNode.fileCount
+          : changeNode.totalHunks > 0
+            ? `${changeNode.reviewedHunks}/${changeNode.totalHunks}`
+            : '1'}
+      </span>
     );
+  }, []);
+
+  const renderNavigatorCount = useCallback((node: WorkspaceTreeNode) => {
+    const changeNode = node as ChangeTreeNode;
+    const primaryBadge = getPrimaryBadge(changeNode);
+    // 使用 badge 样式，但确保字母右边缘与顶级目录变更统计对齐
+    return primaryBadge ? (
+      <span className={`adl-filetree__status-badge adl-filetree__status-badge--${primaryBadge.tone}`}>
+        {primaryBadge.label}
+      </span>
+    ) : null;
   }, []);
 
   const activeWorkspaceId = appInfo?.currentWorkspace?.path
@@ -878,6 +879,7 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
           contextMenuPersistRef={changesContextMenuPersistRef}
           clearMenuHighlightRef={changesClearMenuHighlightRef}
           renderMeta={renderNavigatorMeta}
+          renderCount={renderNavigatorCount}
           onToggleAllDirectories={handleToggleAllDirectories}
           hasExpandedDirectories={hasExpandedDirectories}
           changesNavigatorMode={changesNavigatorMode}

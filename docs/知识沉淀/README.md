@@ -43,6 +43,7 @@
 | [file-selection-fix.md](./多工作区/file-selection-fix.md) | Superpowers Specs | 文件选择修复经验 |
 | [terminal-binding.md](./多工作区/terminal-binding.md) | Superpowers Specs | 终端工作区绑定改进经验 |
 | [interactive-terminal.md](./多工作区/interactive-terminal.md) | Superpowers Specs | 交互式终端讨论总结 |
+| [changes-panel-alignment-fix.md](./多工作区/changes-panel-alignment-fix.md) | 2026-06-07 UI 优化 | 变更面板文件行对齐优化（组件拆分、CSS 间距调整） |
 
 ### 浏览器
 

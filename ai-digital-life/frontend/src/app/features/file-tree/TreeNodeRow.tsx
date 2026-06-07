@@ -125,14 +125,14 @@ export function TreeNodeRow({
             <span className="adl-tree-node__label-text">{label}</span>
           </span>
         </button>
-        {count !== undefined && count !== null ? (
-          <span className={`adl-tree-node__count${countClassName ? ` ${countClassName}` : ''}`}>
-            {count}
-          </span>
-        ) : null}
         {meta ? (
           <span className={`adl-tree-node__meta${metaClassName ? ` ${metaClassName}` : ''}`}>
             {meta}
+          </span>
+        ) : null}
+        {count !== undefined && count !== null ? (
+          <span className={`adl-tree-node__count${countClassName ? ` ${countClassName}` : ''}`}>
+            {count}
           </span>
         ) : null}
       </div>

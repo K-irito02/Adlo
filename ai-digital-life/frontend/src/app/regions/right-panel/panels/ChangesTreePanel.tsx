@@ -46,6 +46,7 @@ interface TreeCallbacks {
   contextMenuPersistRef: React.MutableRefObject<boolean>;
   clearMenuHighlightRef: React.MutableRefObject<(() => void) | undefined>;
   renderMeta: (node: WorkspaceTreeNode) => React.ReactNode;
+  renderCount?: (node: WorkspaceTreeNode) => React.ReactNode;
   onToggleAllDirectories: () => void;
   onExpandAll: () => void;
   onCollapseAll: () => void;
@@ -104,6 +105,7 @@ export function ChangesTreePanel(props: ChangesTreePanelProps) {
     contextMenuPersistRef,
     clearMenuHighlightRef,
     renderMeta,
+    renderCount,
     changesNavigatorMode,
     onChangeNavigatorMode,
     allChangesExpanded,
@@ -203,6 +205,7 @@ export function ChangesTreePanel(props: ChangesTreePanelProps) {
           clearMenuHighlightRef={clearMenuHighlightRef}
           t={t}
           renderMeta={renderMeta}
+          renderCount={renderCount}
         />
       )}
       <div

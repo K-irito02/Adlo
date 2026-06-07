@@ -36,6 +36,7 @@ export interface MultiWorkspaceChangesTreeProps {
   clearMenuHighlightRef: React.MutableRefObject<(() => void) | undefined>;
   t: CopyDict;
   renderMeta?: (node: WorkspaceTreeNode) => React.ReactNode;
+  renderCount?: (node: WorkspaceTreeNode) => React.ReactNode;
 }
 
 export function MultiWorkspaceChangesTree({
@@ -64,6 +65,7 @@ export function MultiWorkspaceChangesTree({
   clearMenuHighlightRef,
   t,
   renderMeta,
+  renderCount,
 }: MultiWorkspaceChangesTreeProps) {
   const [dragWorkspaceId, setDragWorkspaceId] = useState<string | undefined>(undefined);
 
@@ -137,6 +139,7 @@ export function MultiWorkspaceChangesTree({
             collapseLabel={t.collapseDetails as string}
             t={t}
             renderMeta={renderMeta}
+            renderCount={renderCount}
           />
         </div>
       );
@@ -166,6 +169,7 @@ export function MultiWorkspaceChangesTree({
       t,
       handleDrop,
       renderMeta,
+      renderCount,
     ]
   );
 

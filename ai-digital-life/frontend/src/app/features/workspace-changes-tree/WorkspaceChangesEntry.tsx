@@ -44,6 +44,7 @@ export interface WorkspaceChangesEntryProps {
   collapseLabel: string;
   t: CopyDict;
   renderMeta?: (node: WorkspaceTreeNode) => React.ReactNode;
+  renderCount?: (node: WorkspaceTreeNode) => React.ReactNode;
 }
 
 export function WorkspaceChangesEntry({
@@ -73,6 +74,7 @@ export function WorkspaceChangesEntry({
   collapseLabel,
   t,
   renderMeta,
+  renderCount,
 }: WorkspaceChangesEntryProps) {
   const effectiveSelectedPath = useMemo(() => {
     if (selectedChangePreviewWorkspaceId === workspace.id) {
@@ -328,6 +330,7 @@ export function WorkspaceChangesEntry({
               expandLabel={expandLabel}
               collapseLabel={collapseLabel}
               renderMeta={renderMeta}
+              renderCount={renderCount}
             />
           ) : (
             <div className="adl-multitree-entry__empty">

@@ -60,6 +60,28 @@ await page.waitForSelector('div[data-testid="changes-preview-shell"]');
 | `.adl-filetree__label` | 文件 / 文件夹名称按钮 |
 | `.adl-filetree__toggle` | 文件夹收起 / 展开按钮 |
 | `.adl-filetree__item.is-active` | 当前点击选中节点 |
+| `.adl-filetree__meta` | 元数据容器（变更字母类型） |
+| `.adl-filetree__count` | 统计数字容器 |
+| `.adl-filetree__status-badge` | 变更字母类型 badge（A/D/M） |
+| `.adl-filetree__count-badge` | 统计数字 badge |
+| `.adl-multitree-entry__count` | 顶级目录变更统计数字 |
+
+### 文件行右侧元素结构
+
+```text
+.adl-filetree__row
+├── .adl-filetree__label (文件名)
+├── .adl-filetree__meta
+│   └── .adl-filetree__status-badge (变更类型: A/D/M)
+└── .adl-filetree__count
+    └── .adl-filetree__count-badge (统计数字)
+```
+
+### 样式约定
+
+- `.adl-filetree__row` 的 `padding-inline-end` 控制右侧边距
+- `.adl-filetree__meta` 与 `.adl-filetree__count` 之间通过 `gap: 2px` 控制间距
+- 顶级目录使用 `.adl-multitree-entry__count`，与文件行的变更统计共用同一右侧边距基准
 
 ### 文件列表
 
