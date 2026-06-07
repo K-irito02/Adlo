@@ -394,15 +394,9 @@
   pointer-events: auto;
 }
 
-.adl-cm-editor-wrapper .cm-foldGutter:hover .adl-cm-fold-marker,
-.adl-cm-diff-viewer-wrapper .cm-foldGutter:hover .adl-cm-fold-marker,
-.adl-cm-editor-wrapper .cm-gutters:hover .cm-foldGutter .adl-cm-fold-marker,
-.adl-cm-diff-viewer-wrapper .cm-gutters:hover .cm-foldGutter .adl-cm-fold-marker {
-  opacity: 0.6;
-  pointer-events: auto;
-}
-
-
+/* Fold marker interaction states (:hover, :active, :focus-visible)
+   are consolidated in cm-overrides.css — this file only manages
+   base layout and auto-hide visibility. */
 
 .adl-cm-editor .cm-collapsedLines {
   margin: var(--space-1) var(--space-3) !important;
