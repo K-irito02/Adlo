@@ -471,8 +471,10 @@
 }
 
 .adl-tool-navigator__summary-stat {
-  display: grid;
-  grid-template-rows: auto auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   gap: 4px;
   min-height: 40px;
   padding: var(--space-1-5);
@@ -480,7 +482,7 @@
   background: var(--bg-card);
   border: 1px solid transparent;
   cursor: pointer;
-  text-align: left;
+  text-align: center;
   font-family: inherit;
   font-size: inherit;
   color: inherit;
@@ -508,7 +510,7 @@
   color: var(--text-muted);
   font-size: 10px;
   white-space: nowrap;
-  text-align: left;
+  text-align: center;
 }
 
 .adl-tool-navigator__summary-code {
@@ -537,8 +539,8 @@
 .adl-tool-navigator__summary-value {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 2px;
-  justify-self: start;
 }
 
 .adl-tool-navigator__resize-handle {

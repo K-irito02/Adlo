@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { stripWorkspaceFromBrowserState } from "./workspaceActions";
-import type { BrowserTabState, TabFolderState } from "../slices/browserSlice";
+import type { BrowserTabState, TabFolderState } from "../slices/browserslice";
 
 function makeTab(id: string, workspaceId: string): BrowserTabState {
   return { id, title: id, url: `https://${id}.example`, workspaceId, isPinned: false, sortOrder: 0 };

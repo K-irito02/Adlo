@@ -6,8 +6,8 @@ import { useBrowserDragDrop } from './useBrowserDragDrop';
 import { useBrowserMenus } from './useBrowserMenus';
 import { isTauriShell } from '../../../tauri-bridge';
 import type { BrowserPanelProps } from '../../regions/right-panel/types';
-import type { BrowserTabState } from '../../stores/slices/browserSlice';
-import type { TabFolderState } from '../../stores/slices/browserSlice';
+import type { BrowserTabState } from '../../stores/slices/browserslice';
+import type { TabFolderState } from '../../stores/slices/browserslice';
 
 export type BrowserNavigatorMode = 'tabs' | 'bookmarks' | 'history' | 'search';
 export type BrowserSearchScope = 'bookmarks' | 'history' | 'all';

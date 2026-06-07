@@ -1,6 +1,6 @@
 import type { StoreState } from '../StoreState';
 import type { ReorderWorkspacesInput, WorkspaceTreeNode } from '@ai-digital-life/kernel';
-import type { BrowserTabState, TabFolderState } from '../slices/browserSlice';
+import type { BrowserTabState, TabFolderState } from '../slices/browserslice';
 import {
   getWorkspaceCachePrefix,
   getNextWorkspaceRequestSeq,

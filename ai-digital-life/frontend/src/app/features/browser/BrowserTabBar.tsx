@@ -1,7 +1,7 @@
 import React from 'react';
 import { IconClose, IconGlobe } from '../../icons';
 import { TooltipSimple } from '../../components/Tooltip';
-import type { BrowserTabState } from '../../stores/slices/browserSlice';
+import type { BrowserTabState } from '../../stores/slices/browserslice';
 import type { CopyDict } from '../../i18n';
 import { useAppStore } from '../../stores/slicedStore';
 import { getFaviconUrl } from '../../utils/favicon';

@@ -8,7 +8,7 @@ import type {
   BrowserTabState,
   TabFolderState,
   BrowserHistoryState,
-} from '../../stores/slices/browserSlice';
+} from '../../stores/slices/browserslice';
 
 interface BrowserCategoryLabels {
   workspaceCategory: string;
