@@ -61,8 +61,8 @@ pub fn estimate_tokens(text: &str) -> usize {
             )
         })
         .count();
-    let weighted = cjk_count * 8 + (total - cjk_count) * 1;
-    std::cmp::max(1, (weighted + 3) / 4)
+    let weighted = cjk_count * 8 + (total - cjk_count);
+    std::cmp::max(1, weighted.div_ceil(4))
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

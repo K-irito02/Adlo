@@ -35,16 +35,17 @@ const LeftSidebar = React.memo(function LeftSidebar({
   onTriggerCreateWorkspace,
 }: LeftSidebarProps) {
   const actions = useAppActions();
-  const { appInfo, recentWorkspaces, sessions, activeSessionId, streamingActiveRunId, taskCenter } = useAppStore(
-    useShallow((s) => ({
-      appInfo: s.appInfo,
-      recentWorkspaces: s.recentWorkspaces,
-      sessions: s.sessions,
-      activeSessionId: s.activeSessionId,
-      streamingActiveRunId: s.streamingActiveRunId,
-      taskCenter: s.taskCenter,
-    }))
-  );
+  const { appInfo, recentWorkspaces, sessions, activeSessionId, streamingActiveRunId, taskCenter } =
+    useAppStore(
+      useShallow((s) => ({
+        appInfo: s.appInfo,
+        recentWorkspaces: s.recentWorkspaces,
+        sessions: s.sessions,
+        activeSessionId: s.activeSessionId,
+        streamingActiveRunId: s.streamingActiveRunId,
+        taskCenter: s.taskCenter,
+      }))
+    );
   const locale = (appInfo?.config.language ?? 'zh-CN') as Locale;
   const { expandedSessionWorkspaces, toggleSessionWorkspace } = useUiStore(
     useShallow((state) => ({
@@ -94,20 +95,23 @@ const LeftSidebar = React.memo(function LeftSidebar({
     return items;
   }, [displayStandaloneArchivedSessions, displayStandaloneSessions, workspaceItems]);
 
-  const commonSessionProps = useMemo(() => ({
-    onSelectSession: actions.selectSession,
-    onPinSession: actions.pinSession,
-    onUnpinSession: actions.unpinSession,
-    onRenameSession: actions.renameSession,
-    onArchiveSession: actions.archiveSession,
-    onMarkSessionRead: actions.markSessionRead,
-    onMarkSessionUnread: actions.markSessionUnread,
-    onDeleteSession: actions.deleteSession,
-    onReorderSessions: actions.reorderSessions,
-    activeSessionId,
-    locale,
-    t,
-  }), [actions, activeSessionId, locale, t]);
+  const commonSessionProps = useMemo(
+    () => ({
+      onSelectSession: actions.selectSession,
+      onPinSession: actions.pinSession,
+      onUnpinSession: actions.unpinSession,
+      onRenameSession: actions.renameSession,
+      onArchiveSession: actions.archiveSession,
+      onMarkSessionRead: actions.markSessionRead,
+      onMarkSessionUnread: actions.markSessionUnread,
+      onDeleteSession: actions.deleteSession,
+      onReorderSessions: actions.reorderSessions,
+      activeSessionId,
+      locale,
+      t,
+    }),
+    [actions, activeSessionId, locale, t]
+  );
 
   return (
     <aside

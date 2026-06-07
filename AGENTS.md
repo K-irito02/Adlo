@@ -49,11 +49,11 @@
 
 ## 调试工具
 
-### 调试日志收集器（开发环境永久保留）
+### 调试日志收起器（开发环境永久保留 — 最高优先级调试手段）
 
 | 功能 | 说明 |
 |------|------|
-| 收集器 | 拦截所有 `console` 输出（log、warn、error、info、debug） |
+| 日志收起器 | 拦截所有 `console` 输出（log、warn、error、info、debug），自动收起存储 |
 | 复制按钮 | 页面右上角可拖拽"复制调试日志"按钮 |
 | 自动写入 | Tauri 模式下自动写入 `debug-logs.txt`，浏览器模式自动写入 `debug-logs-browser.txt` |
 | 防抖写入 | 日志写入间隔 500ms，避免频繁 IO 操作 |
@@ -76,7 +76,7 @@
 4. 控制台可执行 `__clearDebugLogs()` 清除日志
 5. 控制台可执行 `__restoreConsole()` 恢复原始 console 行为
 
-**日志格式**：`[ISO时间戳] [日志级别] 消息内容`
+**日志格式**：`[北京时间 yyyy-MM-dd HH:mm:ss.ms] [日志级别] 消息内容`
 
 **全局 API**：
 - `__getDebugLogs()` - 获取结构化日志数组

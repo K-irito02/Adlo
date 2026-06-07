@@ -659,7 +659,9 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
     const primaryBadge = getPrimaryBadge(changeNode);
     // 使用 badge 样式，但确保字母右边缘与顶级目录变更统计对齐
     return primaryBadge ? (
-      <span className={`adl-filetree__status-badge adl-filetree__status-badge--${primaryBadge.tone}`}>
+      <span
+        className={`adl-filetree__status-badge adl-filetree__status-badge--${primaryBadge.tone}`}
+      >
         {primaryBadge.label}
       </span>
     ) : null;

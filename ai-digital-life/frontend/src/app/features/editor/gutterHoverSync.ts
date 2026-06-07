@@ -1,9 +1,6 @@
 import { EditorView } from '@codemirror/view';
 import type { Extension } from '@codemirror/state';
 
-const TEMP_HOVER_CLASS = 'adl-temp-gutter-hover';
-const TEMP_NORMAL_HOVER_ATTR = 'data-adl-temp-hover';
-
 /** Read a CSS custom property from :root, with a fallback value. */
 function cssVar(name: string, fallback: string): string {
   try {
@@ -22,7 +19,7 @@ function cssVar(name: string, fallback: string): string {
  */
 export function gutterHoverSync(): Extension {
   return EditorView.domEventHandlers({
-    mouseover(event, view) {
+    mouseover(event, _view) {
       const target = event.target as HTMLElement;
       const line = target.closest('.cm-line') as HTMLElement | null;
       if (!line) return;
@@ -38,47 +35,52 @@ export function gutterHoverSync(): Extension {
       if (existingOverlay) existingOverlay.remove();
 
       // Check if this is a changed line
-      const isChangedLine = line.classList.contains('cm-changedLine') ||
-                           line.classList.contains('cm-deletedLine') ||
-                           line.classList.contains('cm-insertedLine') ||
-                           line.closest('.cm-deletedChunk') !== null;
+      const isChangedLine =
+        line.classList.contains('cm-changedLine') ||
+        line.classList.contains('cm-deletedLine') ||
+        line.classList.contains('cm-insertedLine') ||
+        line.closest('.cm-deletedChunk') !== null;
 
       // Get the vertical position of the hovered content line
       const lineRect = line.getBoundingClientRect();
       const guttersRect = gutters.getBoundingClientRect();
-      
+
       // Find the matching line number gutter element to get exact position
       const lineNumbersGutter = gutters.querySelector('.cm-lineNumbers') as HTMLElement | null;
       let targetEl: HTMLElement | null = null;
       if (lineNumbersGutter) {
-        const gutterEls = lineNumbersGutter.querySelectorAll<HTMLElement>(':scope > .cm-gutterElement');
+        const gutterEls = lineNumbersGutter.querySelectorAll<HTMLElement>(
+          ':scope > .cm-gutterElement'
+        );
         for (const gutterEl of gutterEls) {
           const gutterRect = gutterEl.getBoundingClientRect();
           const tolerance = 1;
-          const overlaps = !(gutterRect.bottom - tolerance < lineRect.top || 
-                            gutterRect.top + tolerance > lineRect.bottom);
+          const overlaps = !(
+            gutterRect.bottom - tolerance < lineRect.top ||
+            gutterRect.top + tolerance > lineRect.bottom
+          );
           if (overlaps) {
             targetEl = gutterEl;
             break;
           }
         }
       }
-      
+
       if (!targetEl) return;
-      
+
       const targetRect = targetEl.getBoundingClientRect();
-      
+
       // Create overlay that covers the entire gutter width at this line
       const overlay = document.createElement('div');
       overlay.className = 'adl-gutter-hover-overlay';
       overlay.style.position = 'absolute';
-      overlay.style.top = (targetRect.top - guttersRect.top) + 'px';
+      overlay.style.top = targetRect.top - guttersRect.top + 'px';
       overlay.style.left = '0';
       overlay.style.right = '0';
       overlay.style.height = targetRect.height + 'px';
       overlay.style.pointerEvents = 'none';
       overlay.style.zIndex = '25';
-      
+
       // Determine background color using CSS custom properties
       let bgColor: string;
       if (isChangedLine) {
@@ -95,21 +97,21 @@ export function gutterHoverSync(): Extension {
       } else {
         bgColor = cssVar('--editor-hover-bg', 'rgba(255, 255, 255, 0.08)');
       }
-      
+
       overlay.style.backgroundColor = bgColor;
-      
+
       // Ensure gutters have position: relative
       if (getComputedStyle(gutters).position === 'static') {
         gutters.style.position = 'relative';
       }
-      
+
       gutters.appendChild(overlay);
     },
 
     mouseout(_event, _view) {
       if (typeof document === 'undefined') return;
       // Remove all temporary hover effects
-      document.querySelectorAll('.adl-gutter-hover-overlay').forEach(el => {
+      document.querySelectorAll('.adl-gutter-hover-overlay').forEach((el) => {
         el.remove();
       });
     },

@@ -73,6 +73,22 @@ function argsToString(args: unknown[]): string {
 // ============================================
 
 /**
+ * 生成北京时间（CST, UTC+8）的时间戳字符串
+ */
+function getCSTTimestamp(): string {
+  const now = new Date();
+  const cst = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+  const year = cst.getUTCFullYear();
+  const month = String(cst.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(cst.getUTCDate()).padStart(2, '0');
+  const hours = String(cst.getUTCHours()).padStart(2, '0');
+  const minutes = String(cst.getUTCMinutes()).padStart(2, '0');
+  const seconds = String(cst.getUTCSeconds()).padStart(2, '0');
+  const ms = String(cst.getUTCMilliseconds()).padStart(3, '0');
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.${ms}`;
+}
+
+/**
  * 收集单条日志
  */
 function collectLog(level: LogEntry['level'], ...args: unknown[]) {
@@ -80,7 +96,7 @@ function collectLog(level: LogEntry['level'], ...args: unknown[]) {
   if (isWriting) return;
 
   debugLogs.push({
-    timestamp: new Date().toISOString(),
+    timestamp: getCSTTimestamp(),
     level,
     args,
   });

@@ -23,21 +23,25 @@ export function createFoldGutterExtension() {
   return gutter({
     class: 'cm-foldGutter',
     lineMarker(view, line) {
-      const lineNum = view.state.doc.lineAt(line.from).number;
+      try {
+        const lineNum = view.state.doc.lineAt(line.from).number;
 
-      const range = foldable(view.state, line.from, line.to);
-      if (range) return new FoldMarker(true);
+        const range = foldable(view.state, line.from, line.to);
+        if (range) return new FoldMarker(true);
 
-      let found = false;
-      foldedRanges(view.state).between(0, view.state.doc.length, (from, to) => {
-        const startLine = view.state.doc.lineAt(from).number;
-        if (lineNum === startLine) {
-          found = true;
-        }
-      });
-      if (found) return new FoldMarker(false);
+        let found = false;
+        foldedRanges(view.state).between(0, view.state.doc.length, (from, _to) => {
+          const startLine = view.state.doc.lineAt(from).number;
+          if (lineNum === startLine) {
+            found = true;
+          }
+        });
+        if (found) return new FoldMarker(false);
 
-      return null;
+        return null;
+      } catch {
+        return null;
+      }
     },
     initialSpacer: () => new FoldMarker(true),
   });

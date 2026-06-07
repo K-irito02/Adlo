@@ -37,6 +37,7 @@ pub fn ipc_try<T>(f: impl FnOnce() -> Result<T, AppError>) -> IpcResult<T> {
     ipc(f())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn save_and_emit_run_activity(
     state: &AppState,
     app: &tauri::AppHandle,
@@ -57,7 +58,10 @@ pub(crate) fn save_and_emit_run_activity(
         Some(run_id),
         event,
     );
-    let _ = app.emit("digital-life://run-activity", adl_events::run_activity_event(run_id, seq, ts, event_type, extra));
+    let _ = app.emit(
+        "digital-life://run-activity",
+        adl_events::run_activity_event(run_id, seq, ts, event_type, extra),
+    );
 }
 
 #[macro_export]

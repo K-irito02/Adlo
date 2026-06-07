@@ -61,7 +61,10 @@ function isLineFoldable(view: EditorView, lineNum: number): boolean {
 
 /** Get the .cm-lineNumbers .cm-gutterElement and .cm-foldGutter .cm-gutterElement
  *  at the given Y coordinate. Returns { rowRect, hasFoldMarker }. */
-function getGutterRowAtY(gutters: HTMLElement, clientY: number): { rowRect: DOMRect | null; hasFoldMarker: boolean } {
+function getGutterRowAtY(
+  gutters: HTMLElement,
+  clientY: number
+): { rowRect: DOMRect | null; hasFoldMarker: boolean } {
   const lineNumbers = gutters.querySelector('.cm-lineNumbers') as HTMLElement | null;
   const foldGutter = gutters.querySelector('.cm-foldGutter') as HTMLElement | null;
 
@@ -89,7 +92,10 @@ function getGutterRowAtY(gutters: HTMLElement, clientY: number): { rowRect: DOMR
     }
   }
 
-  return { rowRect: lineNumEl ? lineNumEl.getBoundingClientRect() : null, hasFoldMarker: hasMarker };
+  return {
+    rowRect: lineNumEl ? lineNumEl.getBoundingClientRect() : null,
+    hasFoldMarker: hasMarker,
+  };
 }
 
 function computeTooltipText(view: EditorView, lineNum: number, isClosed: boolean): string | null {
@@ -120,9 +126,15 @@ function computeTooltipText(view: EditorView, lineNum: number, isClosed: boolean
 
 /** Compute tooltip for a .cm-foldPlaceholder element in the content area.
  *  The placeholder appears when code is folded, so the tooltip always says "展开至N行". */
-function computeTooltipFromPlaceholder(view: EditorView, placeholder: HTMLElement): { text: string; rect: DOMRect } | null {
+function computeTooltipFromPlaceholder(
+  view: EditorView,
+  placeholder: HTMLElement
+): { text: string; rect: DOMRect } | null {
   const placeholderRect = placeholder.getBoundingClientRect();
-  const pos = view.posAtCoords({ x: placeholderRect.left + placeholderRect.width / 2, y: placeholderRect.top + placeholderRect.height / 2 });
+  const pos = view.posAtCoords({
+    x: placeholderRect.left + placeholderRect.width / 2,
+    y: placeholderRect.top + placeholderRect.height / 2,
+  });
   if (pos === null) return null;
 
   const lineNum = view.state.doc.lineAt(pos).number;
@@ -139,7 +151,12 @@ function computeTooltipFromPlaceholder(view: EditorView, placeholder: HTMLElemen
   });
 
   const text = `展开至${endLine}行`;
-  const rect = new DOMRect(placeholderRect.left, placeholderRect.top, placeholderRect.width, placeholderRect.height);
+  const rect = new DOMRect(
+    placeholderRect.left,
+    placeholderRect.top,
+    placeholderRect.width,
+    placeholderRect.height
+  );
   return { text, rect };
 }
 
@@ -152,7 +169,11 @@ function getFoldStartRange(view: EditorView, lineNum: number): { from: number; t
   return result;
 }
 
-function computePosition(triggerRect: DOMRect, tooltipWidth: number, tooltipHeight: number): PositionState {
+function computePosition(
+  triggerRect: DOMRect,
+  tooltipWidth: number,
+  tooltipHeight: number
+): PositionState {
   const offset = 4;
   const viewportW = window.innerWidth;
   const viewportH = window.innerHeight;
@@ -193,13 +214,15 @@ function handleGutterFold(view: EditorView, event: MouseEvent): boolean {
   const foldRange = getFoldStartRange(view, lineNum);
   if (foldRange) {
     view.dispatch({ effects: unfoldEffect.of(foldRange) });
-    event.preventDefault(); event.stopPropagation();
+    event.preventDefault();
+    event.stopPropagation();
     return true;
   }
   const range = foldable(view.state, docLine.from, docLine.to);
   if (range) {
     view.dispatch({ effects: foldEffect.of(range) });
-    event.preventDefault(); event.stopPropagation();
+    event.preventDefault();
+    event.stopPropagation();
     return true;
   }
   return false;
@@ -210,7 +233,10 @@ function handleGutterFold(view: EditorView, event: MouseEvent): boolean {
 /** Compute tooltip state for gutter hover.
  *  Tooltip position is anchored to the fold gutter column.
  *  Uses DOM .cm-lineNumbers > .cm-gutterElement for pixel-perfect row positioning. */
-function computeTooltipFromEvent(view: EditorView, event: MouseEvent): { text: string; rect: DOMRect } | null {
+function computeTooltipFromEvent(
+  view: EditorView,
+  event: MouseEvent
+): { text: string; rect: DOMRect } | null {
   const target = event.target as HTMLElement;
   if (target.closest('.cm-deletedLineGutter')) return null;
 
@@ -257,19 +283,28 @@ function updateGutterHoverOverlay(view: EditorView, event: MouseEvent | null): v
   let overlay = overlayCache.get(gutters) ?? null;
 
   if (!event) {
-    if (overlay) { overlay.remove(); overlayCache.delete(gutters); }
+    if (overlay) {
+      overlay.remove();
+      overlayCache.delete(gutters);
+    }
     return;
   }
 
   const target = event.target as HTMLElement;
   if (target.closest('.cm-deletedLineGutter')) {
-    if (overlay) { overlay.remove(); overlayCache.delete(gutters); }
+    if (overlay) {
+      overlay.remove();
+      overlayCache.delete(gutters);
+    }
     return;
   }
 
-  const { rowRect, hasFoldMarker } = getGutterRowAtY(gutters, event.clientY);
+  const { rowRect } = getGutterRowAtY(gutters, event.clientY);
   if (!rowRect) {
-    if (overlay) { overlay.remove(); overlayCache.delete(gutters); }
+    if (overlay) {
+      overlay.remove();
+      overlayCache.delete(gutters);
+    }
     return;
   }
 
@@ -303,9 +338,13 @@ export function FoldTooltipOverlay({ view }: FoldTooltipOverlayProps) {
   const lastMouseEventRef = useRef<MouseEvent | null>(null);
 
   const hide = useCallback(() => {
-    if (hideTimerRef.current !== null) { clearTimeout(hideTimerRef.current); hideTimerRef.current = null; }
+    if (hideTimerRef.current !== null) {
+      clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
     tooltipVisibleRef.current = false;
-    setTooltipState(null); setPosition(null);
+    setTooltipState(null);
+    setPosition(null);
   }, []);
 
   const scheduleHide = useCallback(() => {
@@ -335,7 +374,9 @@ export function FoldTooltipOverlay({ view }: FoldTooltipOverlayProps) {
         for (const node of mutation.addedNodes) {
           if (node instanceof HTMLElement) {
             if (node.matches?.('.cm-foldPlaceholder')) node.removeAttribute('title');
-            node.querySelectorAll?.('.cm-foldPlaceholder').forEach((el) => el.removeAttribute('title'));
+            node
+              .querySelectorAll?.('.cm-foldPlaceholder')
+              .forEach((el) => el.removeAttribute('title'));
           }
         }
       }
@@ -361,7 +402,10 @@ export function FoldTooltipOverlay({ view }: FoldTooltipOverlayProps) {
         if (placeholder) {
           const result = computeTooltipFromPlaceholder(view, placeholder);
           if (result) {
-            if (hideTimerRef.current !== null) { clearTimeout(hideTimerRef.current); hideTimerRef.current = null; }
+            if (hideTimerRef.current !== null) {
+              clearTimeout(hideTimerRef.current);
+              hideTimerRef.current = null;
+            }
             tooltipVisibleRef.current = true;
             setTooltipState({ text: result.text, rect: result.rect });
             return;
@@ -369,7 +413,10 @@ export function FoldTooltipOverlay({ view }: FoldTooltipOverlayProps) {
         }
 
         if (tooltipVisibleRef.current) {
-          if (hideTimerRef.current !== null) { clearTimeout(hideTimerRef.current); hideTimerRef.current = null; }
+          if (hideTimerRef.current !== null) {
+            clearTimeout(hideTimerRef.current);
+            hideTimerRef.current = null;
+          }
           hide();
         }
         return;
@@ -383,11 +430,17 @@ export function FoldTooltipOverlay({ view }: FoldTooltipOverlayProps) {
 
       const result = computeTooltipFromEvent(view, e);
       if (result) {
-        if (hideTimerRef.current !== null) { clearTimeout(hideTimerRef.current); hideTimerRef.current = null; }
+        if (hideTimerRef.current !== null) {
+          clearTimeout(hideTimerRef.current);
+          hideTimerRef.current = null;
+        }
         tooltipVisibleRef.current = true;
         setTooltipState({ text: result.text, rect: result.rect });
       } else if (tooltipVisibleRef.current) {
-        if (hideTimerRef.current !== null) { clearTimeout(hideTimerRef.current); hideTimerRef.current = null; }
+        if (hideTimerRef.current !== null) {
+          clearTimeout(hideTimerRef.current);
+          hideTimerRef.current = null;
+        }
         hide();
       }
     };
@@ -411,10 +464,15 @@ export function FoldTooltipOverlay({ view }: FoldTooltipOverlayProps) {
         return;
       }
 
-      const placeholder = (e.target as HTMLElement).closest('.cm-foldPlaceholder') as HTMLElement | null;
+      const placeholder = (e.target as HTMLElement).closest(
+        '.cm-foldPlaceholder'
+      ) as HTMLElement | null;
       if (placeholder) {
         const rect = placeholder.getBoundingClientRect();
-        const pos = view.posAtCoords({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+        const pos = view.posAtCoords({
+          x: rect.left + rect.width / 2,
+          y: rect.top + rect.height / 2,
+        });
         if (pos !== null) {
           let targetRange: { from: number; to: number } | null = null;
           foldedRanges(view.state).between(0, view.state.doc.length, (from, to) => {
@@ -443,9 +501,12 @@ export function FoldTooltipOverlay({ view }: FoldTooltipOverlayProps) {
       editorDom.removeEventListener('mousemove', handleMouseMove);
       editorDom.removeEventListener('mouseleave', handleMouseLeave);
       document.removeEventListener('mousedown', captureMouseDown, true);
-      if (hideTimerRef.current !== null) { clearTimeout(hideTimerRef.current); hideTimerRef.current = null; }
+      if (hideTimerRef.current !== null) {
+        clearTimeout(hideTimerRef.current);
+        hideTimerRef.current = null;
+      }
     };
-  }, [view, scheduleHide]);
+  }, [view, scheduleHide, hide]);
 
   useEffect(() => {
     if (!view) return;

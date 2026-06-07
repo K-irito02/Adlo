@@ -402,11 +402,11 @@ body,
   --editor-whitespace: rgba(255, 255, 255, 0.14);
 
   --editor-diff-insert-bg: rgba(74, 222, 128, 0.18);
-  --editor-diff-remove-bg: rgba(248, 113, 113, 0.20);
+  --editor-diff-remove-bg: rgba(248, 113, 113, 0.2);
   --editor-diff-insert-hover: rgba(74, 222, 128, 0.35);
   --editor-diff-remove-hover: rgba(248, 113, 113, 0.35);
-  --editor-diff-insert-gutter-bg: rgba(74, 222, 128, 0.30);
-  --editor-diff-remove-gutter-bg: rgba(248, 113, 113, 0.30);
+  --editor-diff-insert-gutter-bg: rgba(74, 222, 128, 0.3);
+  --editor-diff-remove-gutter-bg: rgba(248, 113, 113, 0.3);
 
   --editor-hunk-header-bg: rgba(255, 255, 255, 0.045);
   --editor-hunk-header-border: rgba(255, 255, 255, 0.09);

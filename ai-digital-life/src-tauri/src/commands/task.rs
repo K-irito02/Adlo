@@ -5,8 +5,8 @@ use adl_command::run_approved_command;
 use adl_errors::AppError;
 use adl_kernel::{
     ApprovalDecision, ApprovalRecord, ApprovalRequestSummary, AuditEntry, CheckpointPayloadPreview,
-    CheckpointRecord, CommandExecutionResult, CommandRequest, IpcResult, TaskCenterSnapshot, TaskRecord, TaskStatus,
-    WorkspaceMeta,
+    CheckpointRecord, CommandExecutionResult, CommandRequest, IpcResult, TaskCenterSnapshot,
+    TaskRecord, TaskStatus, WorkspaceMeta,
 };
 use adl_storage::EntityTable;
 
@@ -166,7 +166,18 @@ fn emit_approval_decided_event(
         "decision": decision_str,
         "reason": approval.reason
     });
-    crate::commands::save_and_emit_run_activity(state, app, &approval.workspace_id, &task_session_id, run_id, &event, "approval", seq, ts, payload);
+    crate::commands::save_and_emit_run_activity(
+        state,
+        app,
+        &approval.workspace_id,
+        &task_session_id,
+        run_id,
+        &event,
+        "approval",
+        seq,
+        ts,
+        payload,
+    );
     Ok(())
 }
 
@@ -293,7 +304,18 @@ fn emit_run_activity_start_event(
         "command": request.command,
         "args": request.args,
     });
-    crate::commands::save_and_emit_run_activity(state, app, &workspace.id, &task.session_id, run_id, &event, "command", seq, ts, payload);
+    crate::commands::save_and_emit_run_activity(
+        state,
+        app,
+        &workspace.id,
+        &task.session_id,
+        run_id,
+        &event,
+        "command",
+        seq,
+        ts,
+        payload,
+    );
 }
 
 fn emit_run_activity_done_event(
@@ -323,9 +345,19 @@ fn emit_run_activity_done_event(
         "args": request.args,
         "exitCode": result.exit_code,
     });
-    crate::commands::save_and_emit_run_activity(state, app, &workspace.id, &task.session_id, run_id, &event, "command", seq, ts, payload);
+    crate::commands::save_and_emit_run_activity(
+        state,
+        app,
+        &workspace.id,
+        &task.session_id,
+        run_id,
+        &event,
+        "command",
+        seq,
+        ts,
+        payload,
+    );
 }
-
 
 fn save_command_result(
     state: &AppState,
@@ -366,8 +398,6 @@ fn save_command_result(
     );
     Ok(())
 }
-
-
 
 fn snapshot(state: &AppState) -> Result<TaskCenterSnapshot, AppError> {
     let tasks: Vec<TaskRecord> = state.db.list_entities(EntityTable::Tasks)?;

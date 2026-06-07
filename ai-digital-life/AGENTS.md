@@ -116,13 +116,13 @@ app/stores/
 
 | 功能 | 说明 |
 |------|------|
-| 收集器 | `frontend/src/app/utils/debugLogCollector.ts`，拦截所有 console 输出 |
+| 日志收起器 | `frontend/src/app/utils/debugLogCollector.ts`，拦截所有 console 输出，自动收起存储 |
 | 复制按钮 | 页面右上角可拖拽"复制调试日志"按钮 |
 | 自动写入 | Tauri 模式 `debug-logs.txt`，浏览器模式 `debug-logs-browser.txt`（均写入项目根目录） |
 | 后端命令 | `src-tauri/src/commands/app.rs` → `write_debug_logs_to_project` |
 | 浏览器后端 | `frontend/dev/previewWorkspaceService.ts` → `writeDebugLogs` |
 
-详见 [仓库根 AGENTS.md](../AGENTS.md#调试工具)。
+**优先级**：调试日志收起器是最高优先级的调试手段，遇到 UI/交互问题时优先使用。详见 [仓库根 AGENTS.md](../AGENTS.md#调试工具)。
 
 ## 相关文件
 

@@ -14,7 +14,9 @@ const MAX_FORCE_PARSE_ATTEMPTS = 60;
 const MAX_VISIBLE_DURATION_MS = 5000;
 
 function hasFoldGutterMarkers(container: HTMLElement): boolean {
-  const marker = container.querySelector<HTMLElement>('.cm-foldGutter > .cm-gutterElement:nth-child(n+2) .adl-cm-fold-marker');
+  const marker = container.querySelector<HTMLElement>(
+    '.cm-foldGutter > .cm-gutterElement:nth-child(n+2) .adl-cm-fold-marker'
+  );
   return marker !== null;
 }
 
@@ -115,7 +117,6 @@ export function useFoldMarkerAutoHide(
 
     if (el && hasFoldGutterMarkers(el)) {
       startRevealTimer();
-      return () => { clearTimers(); };
     }
 
     let markerObserver: MutationObserver | null = null;
@@ -141,15 +142,15 @@ export function useFoldMarkerAutoHide(
         if (!revealingRef.current) {
           startRevealTimer();
         }
-        markerObserver?.disconnect();
-        return;
       }
 
       if (view) {
-        forceParsing(view, view.state.doc.length, FORCE_PARSE_TIMEOUT_MS);
-        view.dispatch({
-          effects: foldGutterCompartment.reconfigure(createFoldGutterExtension()),
-        });
+        const doReconfigure = () => {
+          view.dispatch({
+            effects: foldGutterCompartment.reconfigure(createFoldGutterExtension()),
+          });
+        };
+        Promise.resolve(forceParsing(view, view.state.doc.length, FORCE_PARSE_TIMEOUT_MS)).then(doReconfigure);
       }
 
       if (pollCountRef.current >= MAX_FORCE_PARSE_ATTEMPTS) {
@@ -162,7 +163,7 @@ export function useFoldMarkerAutoHide(
 
       pollTimerRef.current = setTimeout(poll, POLL_INTERVAL_MS);
     };
-    poll(); // start polling immediately
+    poll();
 
     return () => {
       markerObserver?.disconnect();
@@ -193,7 +194,10 @@ export function useFoldMarkerAutoHide(
     const gutterObserver = new MutationObserver(() => {
       const newGutters = Array.from(el.querySelectorAll<HTMLElement>('.cm-foldGutter'));
       const currentCount = gutters.length;
-      if (newGutters.length !== currentCount || newGutters.some((g, i) => g.children.length !== gutters[i]?.children.length)) {
+      if (
+        newGutters.length !== currentCount ||
+        newGutters.some((g, i) => g.children.length !== gutters[i]?.children.length)
+      ) {
         if (listenerCleanupRef.current) listenerCleanupRef.current();
         gutters.length = 0;
         gutters.push(...newGutters);

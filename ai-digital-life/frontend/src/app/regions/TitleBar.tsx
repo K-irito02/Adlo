@@ -221,73 +221,82 @@ const TitleBar = React.memo(function TitleBar({
     document.documentElement.style.zoom = '1';
   }, []);
 
-  const fileItems: MenuItem[] = useMemo(() => [
-    {
-      id: 'new-ws',
-      label: t.menuNewWorkspace,
-      shortcut: 'Ctrl+N',
-      action: onTriggerCreateWorkspace,
-    },
-    { id: 'open-folder', label: t.menuOpenFolder, shortcut: 'Ctrl+O', action: onOpenFolder },
-    {
-      id: 'new-terminal',
-      label: t.menuNewTerminal,
-      shortcut: 'Ctrl+Shift+`',
-      action: () => useUiStore.getState().setActiveRightTool('terminal'),
-    },
-    {
-      id: 'new-browser',
-      label: t.menuNewBrowser,
-      action: () => useUiStore.getState().setActiveRightTool('browser'),
-    },
-    {
-      id: 'editor-window',
-      label: t.menuOpenEditorWindow,
-      action: () => useUiStore.getState().setActiveRightTool('files'),
-    },
-    { id: 'sep-1', label: '', separator: true },
-    { id: 'exit', label: t.menuExit, shortcut: 'Alt+F4', action: handleClose },
-  ], [t, onTriggerCreateWorkspace, onOpenFolder, handleClose]);
+  const fileItems: MenuItem[] = useMemo(
+    () => [
+      {
+        id: 'new-ws',
+        label: t.menuNewWorkspace,
+        shortcut: 'Ctrl+N',
+        action: onTriggerCreateWorkspace,
+      },
+      { id: 'open-folder', label: t.menuOpenFolder, shortcut: 'Ctrl+O', action: onOpenFolder },
+      {
+        id: 'new-terminal',
+        label: t.menuNewTerminal,
+        shortcut: 'Ctrl+Shift+`',
+        action: () => useUiStore.getState().setActiveRightTool('terminal'),
+      },
+      {
+        id: 'new-browser',
+        label: t.menuNewBrowser,
+        action: () => useUiStore.getState().setActiveRightTool('browser'),
+      },
+      {
+        id: 'editor-window',
+        label: t.menuOpenEditorWindow,
+        action: () => useUiStore.getState().setActiveRightTool('files'),
+      },
+      { id: 'sep-1', label: '', separator: true },
+      { id: 'exit', label: t.menuExit, shortcut: 'Alt+F4', action: handleClose },
+    ],
+    [t, onTriggerCreateWorkspace, onOpenFolder, handleClose]
+  );
 
-  const viewItems: MenuItem[] = useMemo(() => [
-    {
-      id: 'diff-view',
-      label: t.menuDiffView,
-      action: () => useUiStore.getState().setActiveRightTool('changes'),
-    },
-    {
-      id: 'browser-view',
-      label: t.menuBrowserView,
-      action: () => useUiStore.getState().setActiveRightTool('browser'),
-    },
-    {
-      id: 'file-view',
-      label: t.menuFileView,
-      action: () => useUiStore.getState().setActiveRightTool('files'),
-    },
-    {
-      id: 'terminal-view',
-      label: t.menuTerminalView,
-      action: () => useUiStore.getState().setActiveRightTool('terminal'),
-    },
-    { id: 'sep-1', label: '', separator: true },
-    { id: 'zoom-in', label: t.menuZoomIn, shortcut: 'Ctrl++', action: () => zoomBy(0.1) },
-    { id: 'zoom-out', label: t.menuZoomOut, shortcut: 'Ctrl+-', action: () => zoomBy(-0.1) },
-    { id: 'zoom-reset', label: t.menuResetZoom, shortcut: 'Ctrl+0', action: resetZoom },
-    { id: 'sep-2', label: '', separator: true },
-    { id: 'settings', label: t.menuSettings, shortcut: 'Ctrl+,', action: onOpenSettings },
-  ], [t, zoomBy, resetZoom, onOpenSettings]);
+  const viewItems: MenuItem[] = useMemo(
+    () => [
+      {
+        id: 'diff-view',
+        label: t.menuDiffView,
+        action: () => useUiStore.getState().setActiveRightTool('changes'),
+      },
+      {
+        id: 'browser-view',
+        label: t.menuBrowserView,
+        action: () => useUiStore.getState().setActiveRightTool('browser'),
+      },
+      {
+        id: 'file-view',
+        label: t.menuFileView,
+        action: () => useUiStore.getState().setActiveRightTool('files'),
+      },
+      {
+        id: 'terminal-view',
+        label: t.menuTerminalView,
+        action: () => useUiStore.getState().setActiveRightTool('terminal'),
+      },
+      { id: 'sep-1', label: '', separator: true },
+      { id: 'zoom-in', label: t.menuZoomIn, shortcut: 'Ctrl++', action: () => zoomBy(0.1) },
+      { id: 'zoom-out', label: t.menuZoomOut, shortcut: 'Ctrl+-', action: () => zoomBy(-0.1) },
+      { id: 'zoom-reset', label: t.menuResetZoom, shortcut: 'Ctrl+0', action: resetZoom },
+      { id: 'sep-2', label: '', separator: true },
+      { id: 'settings', label: t.menuSettings, shortcut: 'Ctrl+,', action: onOpenSettings },
+    ],
+    [t, zoomBy, resetZoom, onOpenSettings]
+  );
 
-  const helpItems: MenuItem[] = useMemo(() => [
-    {
-      id: 'palette',
-      label: t.menuCommandPalette,
-      shortcut: 'Ctrl+Shift+P',
-      action: onOpenCommandPalette,
-    },
-    { id: 'shortcuts', label: t.menuShortcuts, shortcut: 'Ctrl+K Ctrl+S', action: () => {} },
-    { id: 'license', label: t.menuLicense, action: () => {} },
-  ], [t, onOpenCommandPalette]);
+  const helpItems: MenuItem[] = useMemo(
+    () => [
+      {
+        id: 'palette',
+        label: t.menuCommandPalette,
+        shortcut: 'Ctrl+Shift+P',
+        action: onOpenCommandPalette,
+      },
+      { id: 'shortcuts', label: t.menuShortcuts, shortcut: 'Ctrl+K Ctrl+S', action: () => {} },
+      { id: 'license', label: t.menuLicense, action: () => {} },
+    ],
+    [t, onOpenCommandPalette]
+  );
 
   return (
     <header className="adl-titlebar" role="banner">

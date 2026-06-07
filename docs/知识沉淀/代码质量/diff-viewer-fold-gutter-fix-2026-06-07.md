@@ -2,7 +2,7 @@
 
 ## 问题概述
 
-本次修复解决变更查看器（Diff Viewer）行号区域折叠/展开功能的完整性问题，涵盖折叠图标渲染、点击交互、Tooltip 提示、行号区域悬停高亮等模块。共 **16 项修复**，涉及 **8 个源代码文件** 和 **2 个 CSS 文件**。
+本次修复解决变更查看器（Diff Viewer）行号区域折叠/展开功能的完整性问题，涵盖折叠图标渲染、点击交互、Tooltip 提示、行号区域悬停高亮等模块。共 **17 项修复**，涉及 **8 个源代码文件** 和 **3 个 CSS 文件**。
 
 ## 解决的问题清单
 
@@ -82,26 +82,38 @@
 - **修复**：新增 `computeTooltipFromPlaceholder()` 函数，`handleMouseMove` 在 gutter 外先检查 `.cm-foldPlaceholder`
 - **文件**：`FoldTooltipOverlay.tsx`
 
-### 14. 折叠标记首次打开不显示 — DOM 检测失效 (Phase 5)
+### 14. 折叠标记首次打开不显示 — 语法树未解析 (Phase 5)
 
 - **现象**：首次打开第一个变更文件时，行号区域的折叠标记不出现；第二个文件正常
-- **根因**（第一层）：`lineMarker()` 在 gutter 初次渲染时被调用，但此时语法树未解析完成，`foldable()` 对**所有行都返回 null**。语法树解析完成后，gutter 不会自动重渲染，`lineMarker()` 不再被调用，折叠标记永不出现在 DOM 中。MutationObserver 无法检测到从未发生过的事件
-- **修复**（第一层）：使用 CodeMirror `forceParsing()` API 强制解析语法树并触发重渲染
-- **经验**：DOM-only 检测（MutationObserver）在某些场景下不可靠，需要结合 CodeMirror API
+- **根因**（第一层）：`lineMarker()` 在 gutter 初次渲染时被调用，但此时语法树未解析完成，`foldable()` 对所有行都返回 null。语法树解析完成后，gutter 不会自动重渲染，`lineMarker()` 不再被调用
+- **修复**（第一层）：使用 `foldGutterCompartment.reconfigure(createFoldGutterExtension())` 在每次 poll 中强制重建整个 fold gutter
 
 ### 15. 折叠标记首次打开不显示 — forceParsing 不触发重渲染 (Phase 5)
 
 - **现象**：即使调用了 `forceParsing()`，折叠标记仍然不出现
-- **根因**（第二层）：`forceParsing` 内部检查 `success != syntaxTree(state)`。由于 parse context 的 `this.tree = done` 是**直接修改对象引用**，`success` 和 `syntaxTree(state)` 指向同一对象，比较**永远为 false**，`view.dispatch({})` **永远不会执行**。同时，`syntaxTreeAvailable()` 对 stream parser 立即返回 `true`（仅检查浅层树），无法反应深层解析进度
-- **修复**（最终）：使用 `foldGutterCompartment.reconfigure(createFoldGutterExtension())` 在每次 poll 中**强制重建整个 fold gutter**。`Compartment.reconfigure` 销毁旧 gutter 并创建新 gutter，此时语法树已解析完成，`lineMarker()` 返回正确结果
+- **根因**（第二层）：`forceParsing` 内部检查 `success != syntaxTree(state)`。由于 parse context 的 `this.tree = done` 是直接修改对象引用，`success` 和 `syntaxTree(state)` 指向同一对象，比较永远为 false，`view.dispatch({})` 永远不会执行
+- **修复**（最终）：使用 `foldGutterCompartment.reconfigure(createFoldGutterExtension())` 强制重建完整 gutter。同时 `syntaxTreeAvailable()` 对 stream parser 不可靠，需轮询 DOM 或使用 `forceParsing(view, doc.length, 1000)` 指定完整文档长度 + 长超时
 - **文件**：`useFoldMarkerAutoHide.ts`
 
 ### 16. 内容区域 "..." 点击需要两次才能展开 (Phase 6)
 
 - **现象**：点击 gutter 折叠图标后，再去点击内容区域的 "..." 占位符展开时，第一次点击仅是恢复编辑器焦点，第二次才真正触发展开
-- **根因**：`captureMouseDown` 在捕获阶段处理 gutter 点击时调用了 `handleGutterFold()`，其中 `stopPropagation()` 阻止了事件传播到 CodeMirror 的默认事件处理器，导致编辑器失去焦点上下文。CodeMirror 对 ".cm-foldPlaceholder" 的展开依赖编辑器焦点，第一次点击仅触发焦点恢复，第二次才通过 CodeMirror 的 onClick 触发展开
+- **根因**：`captureMouseDown` 在捕获阶段处理 gutter 点击时调用了 `handleGutterFold()`，其中 `stopPropagation()` 阻止了事件传播到 CodeMirror 的默认事件处理器，导致编辑器失去焦点上下文。CodeMirror 对 ".cm-foldPlaceholder" 的展开依赖编辑器焦点
 - **修复**：在 `captureMouseDown` 中直接检测 `.cm-foldPlaceholder` 点击，手动通过 `view.dispatch({ effects: unfoldEffect.of(targetRange) })` 展开，绕过 CodeMirror 的焦点依赖
 - **文件**：`FoldTooltipOverlay.tsx`
+
+### 17. 变更行折叠标记首次打开不显示 — 早期退出 + forceParsing 时序 (Phase 6)
+
+- **现象**：变更行（红/绿）的折叠标记首次打开不显示，无变更行正常
+- **根因**（两个独立 bug）：
+  - Bug A — 早期退出：`useFoldMarkerAutoHide` 的 useEffect 中 `hasFoldGutterMarkers(el)` 检测到 spacer + 1 个标记（无变更行）后 `return` 提前退出，poll 从未启动，导致 `forceParsing` + `reconfigure` 永不被调用，变更行无法获得标记
+  - Bug B — 时序错误：`forceParsing()` 返回 Promise（异步解析），但代码不 await 直接同步执行 `reconfigure`，`lineMarker()` 在 Lezer 语法树还未解析到深层行区域时运行，`foldable()` 对这些行返回 null
+- **修复**：
+  - 移除早期退出，发现标记后仅 `startRevealTimer()` 不 `return`
+  - `Promise.resolve(forceParsing(view, doc.length, timeout)).then(doReconfigure)` 确保语法树解析完成后再重建 gutter
+  - `lineMarker` 添加 try-catch 防止异常导致 gutter 整体中断
+- **文件**：`useFoldMarkerAutoHide.ts`, `cmFoldGutter.ts`, `diff-viewer.css`
+- **教训**：React Hooks 中 `return` 提前退出可能导致副作用永不被执行。轮询逻辑中已检测到标记后的 early return 是安全优化，但在此场景恰是 bug
 
 ## 核心技术架构
 
@@ -111,7 +123,8 @@ useFoldMarkerAutoHide Hook
 ├── 组件挂载 → setState('visible') + 5s 最大可见计时器
 ├── ① 立即检测 → hasFoldGutterMarkers() 检查 DOM
 ├── ② MutationObserver → 检测 DOM 变化
-├── ③ 轮询 (300ms) → forceParsing + foldGutterCompartment.reconfigure
+├── ③ 轮询 (100ms) → forceParsing + foldGutterCompartment.reconfigure
+│   └── Promise.resolve(forceParsing).then(reconfigure) ← await 语法树解析
 └── gutter 鼠标监听 → mouseenter 立即显示, mouseleave 延迟 300ms 隐藏
 
 FoldTooltipOverlay 组件
@@ -125,7 +138,13 @@ FoldTooltipOverlay 组件
 
 cmFoldGutter 扩展
 ├── lineMarker() → foldable() 依赖语法树, 异步解析后才返回有效标记
+├── try-catch 防止异常中断 gutter 渲染
 └── initialSpacer → always-present 占位, 必须用 :nth-child(n+2) 排除
+
+CSS 层级 (diff-viewer.css)
+├── z-index 20 → .cm-changeGutter (变更指示栏, position:absolute, width:100%)
+├── z-index 21 → .cm-foldGutter (折叠标记, position:relative)
+└── z-index 25 → .adl-gutter-hover-overlay (悬停高亮, position:fixed)
 ```
 
 ### 关键文件映射
@@ -134,10 +153,11 @@ cmFoldGutter 扩展
 |------|------|------|
 | `FoldTooltipOverlay.tsx` | 折叠 Tooltip + 悬停高亮 + 点击处理 | ~430 行 |
 | `useFoldMarkerAutoHide.ts` | 折叠标记自动隐藏 Hook | ~220 行 |
-| `cmFoldGutter.ts` | 自定义折叠 gutter GutterMarker | ~45 行 |
+| `cmFoldGutter.ts` | 自定义折叠 gutter GutterMarker | ~48 行 |
 | `sharedExtensions.ts` | `codeFolding()` + `foldGutterCompartment` | — |
 | `gutterHoverSync.ts` | 内容行 hover → gutter 高亮 | 独立，未改动 |
-| `cm-overrides.css` 等 | 折叠标记样式、auto-hide | — |
+| `diff-viewer.css` | 变更栏 + 折叠栏 z-index 层级 | — |
+| `cm-overrides.css` / `editor-surface.css` | 折叠标记样式、auto-hide | — |
 
 ## 关键教训
 
@@ -159,21 +179,35 @@ cmFoldGutter 扩展
 
 ### 7. Compartment.reconfigure 强制 gutter 重建
 
-> `EditorView.dispatch({ effects: foldGutterCompartment.reconfigure(createFoldGutterExtension()) })` 触发完整的插件生命周期：销毁旧 gutter → 销毁所有 DOM 元素 → 创建新 gutter → 重新调用 `lineMarker()`。这是语法树异步解析后确保折叠标记出现的可靠方案。消耗可接受（非动画循环中 300ms 间隔）。
+> `EditorView.dispatch({ effects: foldGutterCompartment.reconfigure(createFoldGutterExtension()) })` 触发完整的插件生命周期：销毁旧 gutter → 销毁所有 DOM 元素 → 创建新 gutter → 重新调用 `lineMarker()`。这是语法树异步解析后确保折叠标记出现的可靠方案。
 
 ### 8. syntaxTreeAvailable() 对 stream parser 不可靠
 
 > `syntaxTreeAvailable(view.state)` 对 stream/增量式解析器立即返回 `true`，不反映深层解析进度。应轮询 DOM 或使用 `forceParsing(view, doc.length, 1000)` 指定完整文档长度 + 长超时。
 
-### 9. 轮询 + MutationObserver 双保险
+### 9. 轮询 + MutationObserver + forceParsing 三层检测
 
-> 单一检测机制不可靠。最终方案使用三层检测：① 快速 DOM 检查（初始渲染已有标记时） ② MutationObserver（后续 DOM 变化时） ③ 定时轮询 + `forceParsing` + `foldGutterCompartment.reconfigure`（兜底）。三者任意一个触发即可正确显示折叠标记。
+> 单一检测机制不可靠。最终方案使用三层检测：① 快速 DOM 检查（初始渲染已有标记时） ② MutationObserver（后续 DOM 变化时） ③ 定时轮询 + `forceParsing` + `foldGutterCompartment.reconfigure`（兜底）。
 
 ### 10. 捕获阶段事件处理 + preventDefault 导致焦点问题
 
-> `document.addEventListener('mousedown', handler, true)` 在捕获阶段拦截事件后调用 `preventDefault()` + `stopPropagation()`，**阻止了事件到达 CodeMirror 的默认事件处理器**，导致编辑器丢失焦点上下文。CodeMirror 后续依赖焦点的事件（如 `.cm-foldPlaceholder` 的 `onClick`）需要**额外一次点击恢复焦点**才能正常触发。
+> `document.addEventListener('mousedown', handler, true)` 在捕获阶段拦截事件后调用 `preventDefault()` + `stopPropagation()`，阻止了事件到达 CodeMirror 的默认事件处理器，导致编辑器丢失焦点上下文。方案：在同一个 `captureMouseDown` 处理器中同时处理 gutter 点击和 `.cm-foldPlaceholder` 展开，对占位符点击手动 `view.dispatch({ effects: unfoldEffect })`。
+
+### 11. React Hook 早期返回导致副作用中断
+
+> `useEffect` 中 `if (condition) { action; return cleanup; }` 的 early return 模式会导致后续所有副作用（poll、MutationObserver、事件绑定）永不执行。即使检测到的条件只是"部分满足"（如只有无变更行的标记），也应确保容错路径继续执行。在本场景中，`hasFoldGutterMarkers` 检测到 apenas 无变更行的标记就 early return，导致 poll 永不被调用，变更行无法获得标记。
 >
-> **方案**：在同一个 `captureMouseDown` 处理器中同时处理 `handleGutterFold`（gutter 区域）和 `.cm-foldPlaceholder` 展开（内容区域），对占位符点击直接用 `view.dispatch({ effects: unfoldEffect.of(targetRange) })` 手动展开，不从 CodeMirror 的默认事件路径经过。
+> **方案**：移除 early return，检测到标记后仅触发展示逻辑，不中断注册剩余的检测/重建机制。
+
+### 12. forceParsing 返回 Promise 需 await 再执行依赖操作
+
+> `forceParsing()` 返回 `Promise<void> | false`。当返回 Promise 时表示语法树正在后台异步解析，Promise resolve 后才解析完毕。依赖语法树的操作（如 `foldable()`）必须在 Promise resolve 后执行。使用 `Promise.resolve(forceParsing(...)).then(() => reconfigure)` 确保正确时序。
+
+### 13. 变更栏 z-index 遮盖折叠标记
+
+> `.cm-changeGutter` 以 `position: absolute; z-index: 20; width: 100%` 覆盖整个 gutter 区域，其内部变更行 gutter 元素的背景色会遮盖下方 `.cm-foldGutter` 的折叠标记。折叠标记 DOM 元素存在但不可见。
+>
+> **方案**：`.cm-foldGutter { position: relative; z-index: 21; }` 使用 `!important` 防止被覆盖。
 
 ## 最终效果验证
 
@@ -190,4 +224,6 @@ cmFoldGutter 扩展
 - ✅ "展开/折叠"图标首次打开出现 → 1秒自动消失
 - ✅ 鼠标悬停行号区域时图标始终可见
 - ✅ 点击 "..." 折叠占位符一次立即展开，无需二次点击
+- ✅ 变更行折叠标记首次打开正常显示
+- ✅ 无变更行折叠标记首次打开正常显示
 - ✅ 测试 214/214 通过

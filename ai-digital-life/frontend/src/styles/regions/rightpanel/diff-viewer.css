@@ -45,13 +45,21 @@
 
 /* === Hover state: deepen the diff background instead of gray overlay === */
 /* Side-by-side A side (deleted lines): only apply to changed lines */
-.adl-cm-diff-viewer.adl-cm-diff-viewer--side-by-side .cm-merge-a .cm-line:hover:has(.cm-changedLine),
-.adl-cm-diff-viewer.adl-cm-diff-viewer--side-by-side .cm-merge-a .cm-line.cm-activeLine:has(.cm-changedLine) {
+.adl-cm-diff-viewer.adl-cm-diff-viewer--side-by-side
+  .cm-merge-a
+  .cm-line:hover:has(.cm-changedLine),
+.adl-cm-diff-viewer.adl-cm-diff-viewer--side-by-side
+  .cm-merge-a
+  .cm-line.cm-activeLine:has(.cm-changedLine) {
   background-color: var(--editor-diff-remove-hover) !important;
 }
 /* Side-by-side B side (inserted lines) */
-.adl-cm-diff-viewer.adl-cm-diff-viewer--side-by-side .cm-merge-b .cm-line:hover:has(.cm-insertedLine),
-.adl-cm-diff-viewer.adl-cm-diff-viewer--side-by-side .cm-merge-b .cm-line.cm-activeLine:has(.cm-insertedLine) {
+.adl-cm-diff-viewer.adl-cm-diff-viewer--side-by-side
+  .cm-merge-b
+  .cm-line:hover:has(.cm-insertedLine),
+.adl-cm-diff-viewer.adl-cm-diff-viewer--side-by-side
+  .cm-merge-b
+  .cm-line.cm-activeLine:has(.cm-insertedLine) {
   background-color: var(--editor-diff-insert-hover) !important;
 }
 /* Inline mode - inserted lines */
@@ -171,6 +179,11 @@
 
 .adl-cm-diff-viewer .cm-changeGutter .cm-gutterElement {
   pointer-events: auto;
+}
+
+.adl-cm-diff-viewer .cm-foldGutter {
+  position: relative !important;
+  z-index: 21 !important;
 }
 
 /* === 2. ACTIVE LINE GUTTER - EXTEND TO COVER ENTIRE AREA === */

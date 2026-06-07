@@ -18,51 +18,36 @@ type ButtonState = 'send' | 'stop' | 'retry' | 'waiting';
 
 const CenterPane = React.memo(function CenterPane({ t }: CenterPaneProps) {
   const actions = useAppActions();
-  const {
-    activeSessionId,
-    streamingAssistantText,
-    streamingActiveRunId,
-    workspaceContextMode,
-  } = useAppStore(
-    useShallow((s) => ({
-      activeSessionId: s.activeSessionId,
-      streamingAssistantText: s.streamingAssistantText,
-      streamingActiveRunId: s.streamingActiveRunId,
-      workspaceContextMode: s.workspaceContextMode,
-    }))
-  );
-  const {
-    appInfo,
-    sessionDetails,
-    activeRun,
-    runActivityByRunId,
-    runUsageByRunId,
-    modelHealth,
-  } = useAppStore(
-    useShallow((s) => ({
-      appInfo: s.appInfo,
-      sessionDetails: s.sessionDetails,
-      activeRun: s.activeRun,
-      runActivityByRunId: s.runActivityByRunId,
-      runUsageByRunId: s.runUsageByRunId,
-      modelHealth: s.modelHealth,
-    }))
-  );
-  const {
-    taskCenter,
-    gitSnapshot,
-    gitBranches,
-    recentWorkspaces,
-    fetchRunActivityByRunId,
-  } = useAppStore(
-    useShallow((s) => ({
-      taskCenter: s.taskCenter,
-      gitSnapshot: s.gitSnapshot,
-      gitBranches: s.gitBranches,
-      recentWorkspaces: s.recentWorkspaces,
-      fetchRunActivityByRunId: s.fetchRunActivityByRunId,
-    }))
-  );
+  const { activeSessionId, streamingAssistantText, streamingActiveRunId, workspaceContextMode } =
+    useAppStore(
+      useShallow((s) => ({
+        activeSessionId: s.activeSessionId,
+        streamingAssistantText: s.streamingAssistantText,
+        streamingActiveRunId: s.streamingActiveRunId,
+        workspaceContextMode: s.workspaceContextMode,
+      }))
+    );
+  const { appInfo, sessionDetails, activeRun, runActivityByRunId, runUsageByRunId, modelHealth } =
+    useAppStore(
+      useShallow((s) => ({
+        appInfo: s.appInfo,
+        sessionDetails: s.sessionDetails,
+        activeRun: s.activeRun,
+        runActivityByRunId: s.runActivityByRunId,
+        runUsageByRunId: s.runUsageByRunId,
+        modelHealth: s.modelHealth,
+      }))
+    );
+  const { taskCenter, gitSnapshot, gitBranches, recentWorkspaces, fetchRunActivityByRunId } =
+    useAppStore(
+      useShallow((s) => ({
+        taskCenter: s.taskCenter,
+        gitSnapshot: s.gitSnapshot,
+        gitBranches: s.gitBranches,
+        recentWorkspaces: s.recentWorkspaces,
+        fetchRunActivityByRunId: s.fetchRunActivityByRunId,
+      }))
+    );
   const locale = (appInfo?.config.language ?? 'zh-CN') as Locale;
   const hasWorkspace = !!appInfo?.currentWorkspace;
   const activeDetail = activeSessionId ? sessionDetails[activeSessionId] : undefined;

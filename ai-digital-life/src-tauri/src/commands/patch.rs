@@ -101,7 +101,18 @@ fn emit_patch_rollback_activity(
         "fileCount": patch_set.file_patches.len(),
         "hunkCount": patch_set.file_patches.iter().map(|f| f.hunks.len()).sum::<usize>()
     });
-    crate::commands::save_and_emit_run_activity(state, app, &workspace.id, &patch_set.session_id, run_id, &event, "patch", seq, ts, payload);
+    crate::commands::save_and_emit_run_activity(
+        state,
+        app,
+        &workspace.id,
+        &patch_set.session_id,
+        run_id,
+        &event,
+        "patch",
+        seq,
+        ts,
+        payload,
+    );
     if let Ok(Some(detail)) = crate::commands::agent::load_run_detail(state, run_id) {
         let validation = adl_kernel::ValidationResult {
             id: adl_kernel::create_id("validation"),
@@ -199,7 +210,18 @@ fn emit_patch_apply_event(
             "fileCount": patch_set.file_patches.len(),
             "hunkCount": patch_set.file_patches.iter().map(|f| f.hunks.len()).sum::<usize>()
         });
-        crate::commands::save_and_emit_run_activity(state, app, &workspace.id, &patch_set.session_id, run_id, &event, "patch", seq, ts, payload);
+        crate::commands::save_and_emit_run_activity(
+            state,
+            app,
+            &workspace.id,
+            &patch_set.session_id,
+            run_id,
+            &event,
+            "patch",
+            seq,
+            ts,
+            payload,
+        );
         if let Some(detail) = crate::commands::agent::load_run_detail(state, run_id)? {
             crate::commands::agent::save_run_detail(
                 state,

@@ -88,7 +88,14 @@ pub fn workspace_switch_git_branch(
             branch_name,
             input.allow_stash,
         )?;
-        build_branch_change_result(&state, &workspace, git_snapshot, previous_branch, stashed_changes, branch_name)
+        build_branch_change_result(
+            &state,
+            &workspace,
+            git_snapshot,
+            previous_branch,
+            stashed_changes,
+            branch_name,
+        )
     })
 }
 
@@ -109,7 +116,14 @@ pub fn workspace_create_git_branch(
             input.base_branch.as_deref(),
             input.allow_stash,
         )?;
-        build_branch_change_result(&state, &workspace, git_snapshot, previous_branch, stashed_changes, branch_name)
+        build_branch_change_result(
+            &state,
+            &workspace,
+            git_snapshot,
+            previous_branch,
+            stashed_changes,
+            branch_name,
+        )
     })
 }
 
