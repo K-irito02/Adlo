@@ -404,9 +404,30 @@ export function FoldTooltipOverlay({ view }: FoldTooltipOverlayProps) {
 
     const captureMouseDown = (e: MouseEvent) => {
       if (!editorDom.contains(e.target as HTMLElement)) return;
-      if (!(e.target as HTMLElement).closest('.cm-gutters')) return;
-      handleGutterFold(view, e);
-      requestAnimationFrame(() => repositionRef.current());
+
+      if ((e.target as HTMLElement).closest('.cm-gutters')) {
+        handleGutterFold(view, e);
+        requestAnimationFrame(() => repositionRef.current());
+        return;
+      }
+
+      const placeholder = (e.target as HTMLElement).closest('.cm-foldPlaceholder') as HTMLElement | null;
+      if (placeholder) {
+        const rect = placeholder.getBoundingClientRect();
+        const pos = view.posAtCoords({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+        if (pos !== null) {
+          let targetRange: { from: number; to: number } | null = null;
+          foldedRanges(view.state).between(0, view.state.doc.length, (from, to) => {
+            if (pos >= from && pos <= to) targetRange = { from, to };
+          });
+          if (targetRange) {
+            view.dispatch({ effects: unfoldEffect.of(targetRange) });
+            e.preventDefault();
+            e.stopPropagation();
+            requestAnimationFrame(() => repositionRef.current());
+          }
+        }
+      }
     };
 
     editorDom.addEventListener('mousemove', handleMouseMove);

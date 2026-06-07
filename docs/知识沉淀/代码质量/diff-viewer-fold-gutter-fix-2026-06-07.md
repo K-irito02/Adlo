@@ -2,7 +2,7 @@
 
 ## 问题概述
 
-本次修复解决变更查看器（Diff Viewer）行号区域折叠/展开功能的完整性问题，涵盖折叠图标渲染、点击交互、Tooltip 提示、行号区域悬停高亮等模块。共 **15 项修复**，涉及 **8 个源代码文件** 和 **2 个 CSS 文件**。
+本次修复解决变更查看器（Diff Viewer）行号区域折叠/展开功能的完整性问题，涵盖折叠图标渲染、点击交互、Tooltip 提示、行号区域悬停高亮等模块。共 **16 项修复**，涉及 **8 个源代码文件** 和 **2 个 CSS 文件**。
 
 ## 解决的问题清单
 
@@ -96,6 +96,13 @@
 - **修复**（最终）：使用 `foldGutterCompartment.reconfigure(createFoldGutterExtension())` 在每次 poll 中**强制重建整个 fold gutter**。`Compartment.reconfigure` 销毁旧 gutter 并创建新 gutter，此时语法树已解析完成，`lineMarker()` 返回正确结果
 - **文件**：`useFoldMarkerAutoHide.ts`
 
+### 16. 内容区域 "..." 点击需要两次才能展开 (Phase 6)
+
+- **现象**：点击 gutter 折叠图标后，再去点击内容区域的 "..." 占位符展开时，第一次点击仅是恢复编辑器焦点，第二次才真正触发展开
+- **根因**：`captureMouseDown` 在捕获阶段处理 gutter 点击时调用了 `handleGutterFold()`，其中 `stopPropagation()` 阻止了事件传播到 CodeMirror 的默认事件处理器，导致编辑器失去焦点上下文。CodeMirror 对 ".cm-foldPlaceholder" 的展开依赖编辑器焦点，第一次点击仅触发焦点恢复，第二次才通过 CodeMirror 的 onClick 触发展开
+- **修复**：在 `captureMouseDown` 中直接检测 `.cm-foldPlaceholder` 点击，手动通过 `view.dispatch({ effects: unfoldEffect.of(targetRange) })` 展开，绕过 CodeMirror 的焦点依赖
+- **文件**：`FoldTooltipOverlay.tsx`
+
 ## 核心技术架构
 
 ```
@@ -112,7 +119,9 @@ FoldTooltipOverlay 组件
 ├── mousemove → computeTooltipFromEvent() ← gutter 折叠标记 tooltip
 ├── mousemove → computeTooltipFromPlaceholder() ← 内容区 "..." tooltip
 ├── mouseleave → 清除 overlay + 150ms 延迟隐藏 tooltip
-└── mousedown (capture:true) → handleGutterFold() ← 绕过 MergeView stopPropagation
+└── mousedown (capture:true)
+    ├── .cm-gutters 内 → handleGutterFold() ← 绕过 MergeView stopPropagation
+    └── .cm-foldPlaceholder → unfoldEffect + preventDefault ← 绕过 CM 焦点依赖
 
 cmFoldGutter 扩展
 ├── lineMarker() → foldable() 依赖语法树, 异步解析后才返回有效标记
@@ -160,6 +169,12 @@ cmFoldGutter 扩展
 
 > 单一检测机制不可靠。最终方案使用三层检测：① 快速 DOM 检查（初始渲染已有标记时） ② MutationObserver（后续 DOM 变化时） ③ 定时轮询 + `forceParsing` + `foldGutterCompartment.reconfigure`（兜底）。三者任意一个触发即可正确显示折叠标记。
 
+### 10. 捕获阶段事件处理 + preventDefault 导致焦点问题
+
+> `document.addEventListener('mousedown', handler, true)` 在捕获阶段拦截事件后调用 `preventDefault()` + `stopPropagation()`，**阻止了事件到达 CodeMirror 的默认事件处理器**，导致编辑器丢失焦点上下文。CodeMirror 后续依赖焦点的事件（如 `.cm-foldPlaceholder` 的 `onClick`）需要**额外一次点击恢复焦点**才能正常触发。
+>
+> **方案**：在同一个 `captureMouseDown` 处理器中同时处理 `handleGutterFold`（gutter 区域）和 `.cm-foldPlaceholder` 展开（内容区域），对占位符点击直接用 `view.dispatch({ effects: unfoldEffect.of(targetRange) })` 手动展开，不从 CodeMirror 的默认事件路径经过。
+
 ## 最终效果验证
 
 - ✅ 变更行/未变更行折叠图标可点击展开/折叠
@@ -174,4 +189,5 @@ cmFoldGutter 扩展
 - ✅ "..." 折叠占位符常驻灰色背景 + Tooltip 提示
 - ✅ "展开/折叠"图标首次打开出现 → 1秒自动消失
 - ✅ 鼠标悬停行号区域时图标始终可见
+- ✅ 点击 "..." 折叠占位符一次立即展开，无需二次点击
 - ✅ 测试 214/214 通过
