@@ -2,10 +2,25 @@
  * UI 切片
  * 管理通用的 UI 状态，保持向后兼容
  */
-import type { ChatMode, ToolId, FilesNavigatorMode, ChangesNavigatorMode, ContextChip } from '../types';
+import type {
+  ChatMode,
+  ToolId,
+  FilesNavigatorMode,
+  ChangesNavigatorMode,
+  ContextChip,
+} from '../types';
 import type { SettingsGroupId } from '@ai-digital-life/kernel';
 import type { StoreState } from '../StoreState';
-import { readFlag, writeFlag, readNumber, writeNumber, readJson, writeJson, clamp, createDebouncedWrite, createUiId } from '../shared';
+import {
+  readFlag,
+  writeFlag,
+  readNumber,
+  writeNumber,
+  readJson,
+  writeJson,
+  clamp,
+  createDebouncedWrite,
+} from '../shared';
 
 // Local storage keys and constants
 export const LEFT_COLLAPSED_KEY = 'adl-ui:left-collapsed';
@@ -14,6 +29,7 @@ export const RIGHT_PANEL_WIDTH_KEY = 'adl-ui:right-panel-width';
 export const FILES_NAVIGATOR_WIDTH_KEY = 'adl-ui:files-navigator-width';
 export const CHANGES_NAVIGATOR_WIDTH_KEY = 'adl-ui:changes-navigator-width';
 export const BROWSER_NAVIGATOR_WIDTH_KEY = 'adl-ui:browser-navigator-width';
+export const BROWSER_NAVIGATOR_COLLAPSED_KEY = 'adl-ui:navigator-collapsed';
 export const FILE_TREE_EXPANDED_KEY = 'adl-ui:file-tree-expanded';
 export const CHANGES_TREE_EXPANDED_KEY = 'adl-ui:changes-tree-expanded';
 export const FILES_NAVIGATOR_MODE_KEY = 'adl-ui:files-navigator-mode';
@@ -37,12 +53,24 @@ export const BROWSER_NAVIGATOR_WIDTH_MIN = 180;
 export const BROWSER_NAVIGATOR_WIDTH_MAX = 300;
 export const DEFAULT_BROWSER_NAVIGATOR_WIDTH = 240;
 
+function defaultNavigatorCollapsed(): Record<ToolId, boolean> {
+  return {
+    files: false,
+    changes: false,
+    browser: false,
+    terminal: false,
+    audit: false,
+    settings: false,
+    models: false,
+  };
+}
+
 type TreeExpansionState = Record<string, boolean>;
 type FileTreeExpansionState = Record<string, TreeExpansionState>;
 type FilePreviewModeState = Record<string, boolean>;
 
 // Batch write scheduler
-const { scheduleWrite, scheduleNumberWrite } = createDebouncedWrite(50);
+const { scheduleWrite } = createDebouncedWrite(50);
 
 // Lazy localStorage hydration
 let _defaultsHydrated = false;
@@ -54,7 +82,7 @@ function hydrateUIDefaults(
   if (_defaultsHydrated) return;
   _defaultsHydrated = true;
   const doHydrate = () => {
-    const state = get();
+    const _state = get();
     const activeRightTool = readRightTool();
     const expandedFileTreePaths = readJson<FileTreeExpansionState>(FILE_TREE_EXPANDED_KEY, {});
     const expandedChangesTreePaths = readJson<TreeExpansionState>(CHANGES_TREE_EXPANDED_KEY, {});
@@ -62,8 +90,18 @@ function hydrateUIDefaults(
     const changesNavigatorMode = readChangesNavigatorMode();
     const filePreviewModeByPath = readJson<FilePreviewModeState>(FILE_PREVIEW_MODE_KEY, {});
     const changesPreviewEnabled = readFlag(CHANGES_PREVIEW_ENABLED_KEY, true);
-    const expandedSessionWorkspaces = readJson<Record<string, boolean>>(SESSION_TABS_EXPANDED_KEY, {});
-    
+    const expandedSessionWorkspaces = readJson<Record<string, boolean>>(
+      SESSION_TABS_EXPANDED_KEY,
+      {}
+    );
+    const navigatorCollapsedByTool = {
+      ...defaultNavigatorCollapsed(),
+      ...readJson<Record<ToolId, boolean>>(
+        BROWSER_NAVIGATOR_COLLAPSED_KEY,
+        defaultNavigatorCollapsed()
+      ),
+    };
+
     set({
       activeRightTool,
       expandedFileTreePaths,
@@ -73,6 +111,7 @@ function hydrateUIDefaults(
       filePreviewModeByPath,
       changesPreviewEnabled,
       expandedSessionWorkspaces,
+      navigatorCollapsedByTool,
     });
   };
   if (typeof requestIdleCallback === 'function') {
@@ -168,10 +207,7 @@ function toggleTreePathExpandedInState(
   return { ...current, [path]: !(current[path] ?? false) };
 }
 
-function expandTreePathChainInState(
-  current: TreeExpansionState,
-  path: string
-): TreeExpansionState {
+function expandTreePathChainInState(current: TreeExpansionState, path: string): TreeExpansionState {
   let next = current;
   let changed = false;
   const segments = path.split('/').filter(Boolean);
@@ -214,6 +250,7 @@ export interface UISlice {
   helpMenuOpen: boolean;
   activeSettingsGroup: SettingsGroupId;
   settingsSearchQuery: string;
+  navigatorCollapsedByTool: Record<ToolId, boolean>;
 
   setActiveRightTool: (tool: ToolId) => void;
   setChatMode: (mode: ChatMode) => void;
@@ -251,6 +288,8 @@ export interface UISlice {
   closeAllMenus: () => void;
   setActiveSettingsGroup: (group: SettingsGroupId) => void;
   setSettingsSearchQuery: (query: string) => void;
+  setNavigatorCollapsed: (tool: ToolId, collapsed: boolean) => void;
+  toggleNavigator: (tool: ToolId) => void;
 }
 
 /**
@@ -261,7 +300,7 @@ export const createUISlice = (
   _get: () => StoreState
 ): UISlice => {
   hydrateUIDefaults(_get, set);
-  
+
   return {
     activeRightTool: 'files',
     chatMode: 'ask',
@@ -306,6 +345,7 @@ export const createUISlice = (
     helpMenuOpen: false,
     activeSettingsGroup: 'general',
     settingsSearchQuery: '',
+    navigatorCollapsedByTool: defaultNavigatorCollapsed(),
 
     setActiveRightTool: (tool) => {
       writeRightTool(tool);
@@ -365,7 +405,7 @@ export const createUISlice = (
       }));
     },
     setError: (message) => set({ error: message }),
-    
+
     setFileTreePathExpanded: (workspaceId, path, expanded) =>
       set((state) => {
         const current = state.expandedFileTreePaths[workspaceId] ?? {};
@@ -496,5 +536,20 @@ export const createUISlice = (
       }),
     setActiveSettingsGroup: (group) => set({ activeSettingsGroup: group }),
     setSettingsSearchQuery: (query) => set({ settingsSearchQuery: query }),
+    setNavigatorCollapsed: (tool, collapsed) =>
+      set((state) => {
+        const next = { ...state.navigatorCollapsedByTool, [tool]: collapsed };
+        scheduleWrite(BROWSER_NAVIGATOR_COLLAPSED_KEY, next);
+        return { navigatorCollapsedByTool: next };
+      }),
+    toggleNavigator: (tool) =>
+      set((state) => {
+        const next = {
+          ...state.navigatorCollapsedByTool,
+          [tool]: !(state.navigatorCollapsedByTool[tool] ?? false),
+        };
+        scheduleWrite(BROWSER_NAVIGATOR_COLLAPSED_KEY, next);
+        return { navigatorCollapsedByTool: next };
+      }),
   };
 };

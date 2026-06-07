@@ -34,19 +34,27 @@ const LeftSidebar = React.memo(function LeftSidebar({
   onTriggerCreateWorkspace,
 }: LeftSidebarProps) {
   const actions = useAppActions();
-  const { appInfo, recentWorkspaces, sessions, activeSessionId, streamingActiveRunId, taskCenter, expandedSessionWorkspaces, toggleSessionWorkspace } =
-    useAppStore(
-      useShallow((s) => ({
-        appInfo: s.appInfo,
-        recentWorkspaces: s.recentWorkspaces,
-        sessions: s.sessions,
-        activeSessionId: s.activeSessionId,
-        streamingActiveRunId: s.streamingActiveRunId,
-        taskCenter: s.taskCenter,
-        expandedSessionWorkspaces: s.expandedSessionWorkspaces,
-        toggleSessionWorkspace: s.toggleSessionWorkspace,
-      }))
-    );
+  const {
+    appInfo,
+    recentWorkspaces,
+    sessions,
+    activeSessionId,
+    streamingActiveRunId,
+    taskCenter,
+    expandedSessionWorkspaces,
+    toggleSessionWorkspace,
+  } = useAppStore(
+    useShallow((s) => ({
+      appInfo: s.appInfo,
+      recentWorkspaces: s.recentWorkspaces,
+      sessions: s.sessions,
+      activeSessionId: s.activeSessionId,
+      streamingActiveRunId: s.streamingActiveRunId,
+      taskCenter: s.taskCenter,
+      expandedSessionWorkspaces: s.expandedSessionWorkspaces,
+      toggleSessionWorkspace: s.toggleSessionWorkspace,
+    }))
+  );
   const locale = (appInfo?.config.language ?? 'zh-CN') as Locale;
   const [menuState, setMenuState] = useState<SidebarMenuState>();
   const [dragWorkspaceId, setDragWorkspaceId] = useState<string>();

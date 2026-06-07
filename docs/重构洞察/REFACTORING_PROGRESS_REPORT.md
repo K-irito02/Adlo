@@ -1,6 +1,6 @@
 # 重构进度报告
 
-> 更新日期: 2026-06-07（第三十六轮）
+> 更新日期: 2026-06-08（第三十七轮）
 
 ## 完成状态
 
@@ -42,6 +42,7 @@
 | **第三十四轮** | **2026-06-04** | **代码质量修复回滚（requestAnimationFrame 反模式移除、InlineDiffViewer 双重创建修复、DiffViewer React.memo 包装、handleSelectNavigatorNode 陈闭包修复）** | ✅ |
 | **第三十五轮** | **2026-06-04** | **四维门禁清零收尾（ESLint 200+ warnings→0、TypeScript 16 errors→0、i18n 缺失 key 补充、prettier 格式化、`_param` 解构重命名修复、ComposerFooter 类型对齐、react-window rowComponent 类型校正）** | ✅ |
 | **第三十六轮** | **2026-06-07** | **UI Store 迁移与代码重构（ui-store.ts 完全迁移到 uiSlice.ts、10 个组件更新、task.rs 大函数拆分、删除废弃代码、98 Rust 测试 + 214 前端测试全通过）** | ✅ |
+| **第三十七轮** | **2026-06-08** | **Navigator 方法重构与警告清理（toggleNavigator/setNavigatorCollapsed 移动到 uiSlice、ESLint 警告全清理、保持向后兼容包装器）** | ✅ |
 
 ## 说明
 

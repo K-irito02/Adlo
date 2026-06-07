@@ -84,10 +84,9 @@ export function gutterHoverSync(): Extension {
       // Determine background color using CSS custom properties
       let bgColor: string;
       if (isChangedLine) {
-        const mergeViewEditor = editor.closest('.cm-mergeViewEditor');
-        const isDeleted = mergeViewEditor
-          ? mergeViewEditor.parentElement?.classList.contains('cm-merge-a')
-          : false;
+        // .cm-merge-a / .cm-merge-b are set via EditorView.editorAttributes,
+        // which means they are on .cm-editor, NOT on .cm-mergeViewEditor
+        const isDeleted = editor.classList.contains('cm-merge-a');
         const deletedChunk = line.closest('.cm-deletedChunk');
         const isRemoveSide = isDeleted || !!deletedChunk;
 

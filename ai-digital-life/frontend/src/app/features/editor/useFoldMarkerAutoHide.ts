@@ -150,7 +150,9 @@ export function useFoldMarkerAutoHide(
             effects: foldGutterCompartment.reconfigure(createFoldGutterExtension()),
           });
         };
-        Promise.resolve(forceParsing(view, view.state.doc.length, FORCE_PARSE_TIMEOUT_MS)).then(doReconfigure);
+        Promise.resolve(forceParsing(view, view.state.doc.length, FORCE_PARSE_TIMEOUT_MS)).then(
+          doReconfigure
+        );
       }
 
       if (pollCountRef.current >= MAX_FORCE_PARSE_ATTEMPTS) {

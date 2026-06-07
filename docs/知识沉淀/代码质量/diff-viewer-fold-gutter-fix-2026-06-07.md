@@ -155,7 +155,7 @@ CSS 层级 (diff-viewer.css)
 | `useFoldMarkerAutoHide.ts` | 折叠标记自动隐藏 Hook | ~220 行 |
 | `cmFoldGutter.ts` | 自定义折叠 gutter GutterMarker | ~48 行 |
 | `sharedExtensions.ts` | `codeFolding()` + `foldGutterCompartment` | — |
-| `gutterHoverSync.ts` | 内容行 hover → gutter 高亮 | 独立，未改动 |
+| `gutterHoverSync.ts` | 内容行 hover → gutter 高亮（2026-06-08 修复颜色判断） | — |
 | `diff-viewer.css` | 变更栏 + 折叠栏 z-index 层级 | — |
 | `cm-overrides.css` / `editor-surface.css` | 折叠标记样式、auto-hide | — |
 

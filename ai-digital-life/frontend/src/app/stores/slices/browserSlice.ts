@@ -3,7 +3,7 @@
  * 管理浏览器标签页等状态
  */
 import type { StoreState } from '../StoreState';
-import type { ToolId } from '../types';
+import { BROWSER_NAVIGATOR_COLLAPSED_KEY } from './uiSlice';
 
 export interface BrowserTabState {
   id: string;
@@ -56,7 +56,6 @@ export interface BrowserBookmark {
 const BROWSER_TABS_KEY = 'adl-ui:browser-tabs';
 const BROWSER_ACTIVE_TAB_KEY = 'adl-ui:browser-active-tab';
 const BROWSER_NAVIGATOR_WIDTH_KEY = 'adl-ui:browser-navigator-width';
-const BROWSER_NAVIGATOR_COLLAPSED_KEY = 'adl-ui:navigator-collapsed';
 const BROWSER_WORKSPACE_EXPANDED_KEY = 'adl-ui:browser-workspace-expanded';
 const BROWSER_TAB_FOLDERS_KEY = 'adl-ui:browser-tab-folders';
 const BROWSER_VIEW_MODE_KEY = 'adl-ui:browser-view-mode';
@@ -109,18 +108,6 @@ function collectAllDescendantFolderIds(folders: TabFolderState[], parentId: stri
   return result;
 }
 
-function defaultNavigatorCollapsed(): Record<ToolId, boolean> {
-  return {
-    files: false,
-    changes: false,
-    browser: false,
-    terminal: false,
-    audit: false,
-    settings: false,
-    models: false,
-  };
-}
-
 // Batch write scheduler — coalesces multiple localStorage writes into one
 const { scheduleWrite, scheduleNumberWrite } = createDebouncedWrite(50);
 
@@ -142,13 +129,6 @@ function hydrateBrowserDefaults(
       BROWSER_NAVIGATOR_WIDTH_MIN,
       BROWSER_NAVIGATOR_WIDTH_MAX
     );
-    const collapsed = {
-      ...defaultNavigatorCollapsed(),
-      ...readJson<Record<ToolId, boolean>>(
-        BROWSER_NAVIGATOR_COLLAPSED_KEY,
-        defaultNavigatorCollapsed()
-      ),
-    };
     const workspaceExpanded = readJson<Record<string, boolean>>(BROWSER_WORKSPACE_EXPANDED_KEY, {});
     const persistedTabFolders = readJson<TabFolderState[]>(BROWSER_TAB_FOLDERS_KEY, []);
 
@@ -186,7 +166,6 @@ function hydrateBrowserDefaults(
 
     set({
       browserNavigatorWidth: width,
-      navigatorCollapsedByTool: collapsed,
       browserWorkspaceExpanded: workspaceExpanded,
       browserTabFolders: persistedTabFolders,
       browserHistory: finalHistory,
@@ -212,7 +191,6 @@ export interface BrowserSlice {
   browserTabsById: Record<string, BrowserTabState>;
   browserActiveTabId: string;
   browserNavigatorWidth: number;
-  navigatorCollapsedByTool: Record<ToolId, boolean>;
   browserWorkspaceExpanded: Record<string, boolean>;
   browserPersisted: boolean;
   browserWorkspaceId: string;
@@ -234,8 +212,6 @@ export interface BrowserSlice {
   setBrowserNavigatorWidth: (width: number) => void;
   toggleBrowserNavigator: () => void;
   setBrowserNavigatorCollapsed: (collapsed: boolean) => void;
-  setNavigatorCollapsed: (tool: ToolId, collapsed: boolean) => void;
-  toggleNavigator: (tool: ToolId) => void;
   setBrowserWorkspaceExpanded: (expanded: Record<string, boolean>) => void;
   setBrowserPersisted: (persisted: boolean) => void;
   setBrowserWorkspaceId: (workspaceId: string) => void;
@@ -273,7 +249,6 @@ export const createBrowserSlice = (
     browserTabsById: {},
     browserActiveTabId: '',
     browserNavigatorWidth: DEFAULT_BROWSER_NAVIGATOR_WIDTH,
-    navigatorCollapsedByTool: defaultNavigatorCollapsed(),
     browserWorkspaceExpanded: {},
     browserPersisted: false,
     browserWorkspaceId: '',
@@ -552,9 +527,10 @@ export const createBrowserSlice = (
       set((state) => {
         const next = {
           ...state.navigatorCollapsedByTool,
-          browser: !(state.navigatorCollapsedByTool.browser ?? false),
+          browser: !(state.navigatorCollapsedByTool?.browser ?? false),
         };
         scheduleWrite(BROWSER_NAVIGATOR_COLLAPSED_KEY, next);
+        // 可以直接设置，因为在合并后的 store 中，所有状态都是可访问的
         return { navigatorCollapsedByTool: next };
       }),
 
@@ -562,21 +538,7 @@ export const createBrowserSlice = (
       set((state) => {
         const next = { ...state.navigatorCollapsedByTool, browser: collapsed };
         scheduleWrite(BROWSER_NAVIGATOR_COLLAPSED_KEY, next);
-        return { navigatorCollapsedByTool: next };
-      }),
-    setNavigatorCollapsed: (tool, collapsed) =>
-      set((state) => {
-        const next = { ...state.navigatorCollapsedByTool, [tool]: collapsed };
-        scheduleWrite(BROWSER_NAVIGATOR_COLLAPSED_KEY, next);
-        return { navigatorCollapsedByTool: next };
-      }),
-    toggleNavigator: (tool) =>
-      set((state) => {
-        const next = {
-          ...state.navigatorCollapsedByTool,
-          [tool]: !(state.navigatorCollapsedByTool[tool] ?? false),
-        };
-        scheduleWrite(BROWSER_NAVIGATOR_COLLAPSED_KEY, next);
+        // 可以直接设置，因为在合并后的 store 中，所有状态都是可访问的
         return { navigatorCollapsedByTool: next };
       }),
 

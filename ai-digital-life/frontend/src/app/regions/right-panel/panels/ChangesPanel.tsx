@@ -96,7 +96,20 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
     activePatchSets,
     onHideFromRightPanels,
   } = props;
-  const { navigatorCollapsed, changesNavigatorMode, previewEnabled, expandedPaths, toggleNavigator, changesNavigatorWidth, setChangesNavigatorMode, setPreviewEnabled, toggleChangesTreePath, setChangesTreePathExpanded, expandChangesTreePathChain, collapseAllChangesTreePaths } = useAppStore(
+  const {
+    navigatorCollapsed,
+    changesNavigatorMode,
+    previewEnabled,
+    expandedPaths,
+    toggleNavigator,
+    changesNavigatorWidth,
+    setChangesNavigatorMode,
+    setPreviewEnabled,
+    toggleChangesTreePath,
+    setChangesTreePathExpanded,
+    expandChangesTreePathChain,
+    collapseAllChangesTreePaths,
+  } = useAppStore(
     useShallow((state) => ({
       navigatorCollapsed: state.navigatorCollapsedByTool?.changes ?? false,
       changesNavigatorMode: state.changesNavigatorMode,
