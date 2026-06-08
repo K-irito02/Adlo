@@ -1,15 +1,19 @@
 //! Workspace detection, lightweight indexing, search, and git snapshots.
 
+pub(crate) mod detect;
 pub(crate) mod fs;
 mod git;
+pub(crate) mod preview;
 mod search;
 mod tree;
 
+pub use detect::{detect_root, open_workspace, stable_workspace_id, workspace_type};
 pub use fs::{create_file, create_folder, delete_entry, duplicate_entry, move_entry, rename_entry};
 pub use git::{
     capture_git_snapshot, capture_git_snapshot_async, create_git_branch, git_has_local_changes,
     list_git_branches, switch_git_branch,
 };
+pub use preview::read_change_preview;
 pub use search::{search_text, search_text_async};
 pub use tree::{build_retrieval_snapshot, build_retrieval_snapshot_async, list_tree};
 
@@ -22,106 +26,10 @@ pub fn outline(root: &Path, relative_path: &str) -> Result<Vec<FileOutlineItem>,
     adl_outline::outline(&doc.content, relative_path, total_lines)
 }
 
-use adl_kernel::{
-    now_ms, RecentWorkspaceEntry, WorkspaceChangeKind, WorkspaceChangePreview,
-    WorkspaceChangeStatus, WorkspaceFileDocument, WorkspaceMeta, WorkspaceStatus, WorkspaceType,
-};
-use std::path::{Path, PathBuf};
+use adl_kernel::WorkspaceFileDocument;
+use std::path::Path;
 
 pub(crate) const DEFAULT_MAX_FILE_BYTES: u64 = 1024 * 1024;
-
-pub fn detect_root(input: &Path) -> Result<PathBuf, AppError> {
-    let start = input
-        .canonicalize()
-        .map_err(|e| AppError::Workspace(format!("invalid workspace path: {e}")))?;
-    let mut current = if start.is_file() {
-        start
-            .parent()
-            .ok_or_else(|| AppError::Workspace("file has no parent".into()))?
-            .to_path_buf()
-    } else {
-        start
-    };
-
-    loop {
-        if is_project_root(&current) {
-            return Ok(current);
-        }
-        if !current.pop() {
-            break;
-        }
-    }
-
-    input.canonicalize().map_err(|e| AppError::Workspace(format!("invalid workspace path: {e}")))
-}
-
-fn is_project_root(path: &Path) -> bool {
-    [".git", "Cargo.toml", "package.json", "pyproject.toml", "go.mod", "pom.xml"]
-        .iter()
-        .any(|marker| path.join(marker).exists())
-}
-
-pub fn workspace_type(root: &Path) -> WorkspaceType {
-    if root.join("Cargo.toml").exists() {
-        WorkspaceType::Rust
-    } else if root.join("package.json").exists() {
-        WorkspaceType::Node
-    } else if root.join("pyproject.toml").exists() || root.join("requirements.txt").exists() {
-        WorkspaceType::Python
-    } else if root.join("go.mod").exists() {
-        WorkspaceType::Go
-    } else if root.join("pom.xml").exists() || root.join("build.gradle").exists() {
-        WorkspaceType::Java
-    } else {
-        WorkspaceType::Unknown
-    }
-}
-
-pub fn open_workspace(input: &Path) -> Result<(WorkspaceMeta, RecentWorkspaceEntry), AppError> {
-    let root = detect_root(input)?;
-    let now = now_ms();
-    let name = root
-        .file_name()
-        .map(|value| value.to_string_lossy().to_string())
-        .unwrap_or_else(|| "workspace".to_string());
-    let id = stable_workspace_id(&root);
-    let root_path = root.to_string_lossy().to_string();
-    let meta = WorkspaceMeta {
-        id: id.clone(),
-        path: root_path.clone(),
-        root_path: root_path.clone(),
-        name: name.clone(),
-        r#type: workspace_type(&root),
-        status: WorkspaceStatus::Ready,
-        git_snapshot: Some(crate::git::capture_git_snapshot(&root)),
-        created_at: now,
-        updated_at: now,
-        last_opened_at: now,
-    };
-    let recent = RecentWorkspaceEntry {
-        id,
-        path: root_path.clone(),
-        root_path,
-        name,
-        last_opened_at: now,
-        is_pinned: false,
-        pinned_order: 0,
-        unpinned_order: 0,
-        removed_from_sidebar: false,
-        available: true,
-        hidden_from_right_panels: false,
-    };
-    Ok((meta, recent))
-}
-
-pub fn stable_workspace_id(root: &Path) -> String {
-    use std::hash::{Hash, Hasher};
-    let normalized = root.to_string_lossy().replace('\\', "/").to_lowercase();
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    normalized.hash(&mut hasher);
-    let hash = hasher.finish() as u32;
-    format!("workspace_{hash:08x}")
-}
 
 pub fn read_file(root: &Path, relative_path: &str) -> Result<WorkspaceFileDocument, AppError> {
     let path = adl_fs_ops::resolve_workspace_path(root, relative_path)?;
@@ -142,71 +50,13 @@ pub fn get_absolute_path(root: &Path, relative_path: &str) -> Result<String, App
     Ok(absolute.to_string_lossy().replace('\\', "/"))
 }
 
-pub fn read_change_preview(
-    root: &Path,
-    relative_path: &str,
-) -> Result<WorkspaceChangePreview, AppError> {
-    let snapshot = crate::git::capture_git_snapshot(root);
-    if !snapshot.is_repo {
-        return Err(AppError::Workspace("active workspace is not a Git repository".into()));
-    }
-
-    let normalized_path = relative_path.replace('\\', "/");
-    let status = if snapshot.conflicts.iter().any(|path| path == &normalized_path) {
-        WorkspaceChangeStatus::Conflicted
-    } else if snapshot.untracked.iter().any(|path| path == &normalized_path) {
-        WorkspaceChangeStatus::Untracked
-    } else if snapshot.unstaged.iter().any(|path| path == &normalized_path) {
-        WorkspaceChangeStatus::Modified
-    } else if snapshot.staged.iter().any(|path| path == &normalized_path) {
-        WorkspaceChangeStatus::Staged
-    } else {
-        return Err(AppError::NotFound(format!("change preview for {normalized_path}")));
-    };
-
-    let absolute_path = adl_fs_ops::resolve_workspace_path(root, &normalized_path)?;
-    if absolute_path.is_dir() {
-        return Err(AppError::InvalidInput(format!(
-            "change preview requires a file path: {normalized_path}"
-        )));
-    }
-
-    let current_exists = absolute_path.is_file();
-    let current_content = if current_exists {
-        adl_fs_ops::read_text_file(root, &normalized_path, DEFAULT_MAX_FILE_BYTES)?
-    } else {
-        String::new()
-    };
-
-    let base_content = crate::git::git_show_file(root, &normalized_path)?.unwrap_or_default();
-    let base_exists =
-        !base_content.is_empty() || crate::git::git_file_exists(root, &normalized_path)?;
-    let change_kind = match (base_exists, current_exists) {
-        (false, true) => WorkspaceChangeKind::Added,
-        (true, false) => WorkspaceChangeKind::Deleted,
-        _ => WorkspaceChangeKind::Modified,
-    };
-
-    if !base_exists && !current_exists {
-        return Err(AppError::NotFound(format!(
-            "change preview source is unavailable: {normalized_path}"
-        )));
-    }
-
-    Ok(WorkspaceChangePreview {
-        path: normalized_path,
-        change_kind,
-        status,
-        base_exists,
-        current_exists,
-        base_content,
-        current_content,
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use adl_kernel::{
+        WorkspaceChangeKind, WorkspaceChangeStatus, WorkspaceType,
+    };
+    use std::path::Path;
     use std::process::Command;
 
     fn run_git_test(dir: &Path, args: &[&str]) {

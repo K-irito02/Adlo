@@ -1,6 +1,6 @@
 # 重构进度报告
 
-> 更新日期: 2026-06-08（第三十七轮）
+> 更新日期: 2026-06-08（第三十九轮）
 
 ## 完成状态
 
@@ -43,6 +43,8 @@
 | **第三十五轮** | **2026-06-04** | **四维门禁清零收尾（ESLint 200+ warnings→0、TypeScript 16 errors→0、i18n 缺失 key 补充、prettier 格式化、`_param` 解构重命名修复、ComposerFooter 类型对齐、react-window rowComponent 类型校正）** | ✅ |
 | **第三十六轮** | **2026-06-07** | **UI Store 迁移与代码重构（ui-store.ts 完全迁移到 uiSlice.ts、10 个组件更新、task.rs 大函数拆分、删除废弃代码、98 Rust 测试 + 214 前端测试全通过）** | ✅ |
 | **第三十七轮** | **2026-06-08** | **Navigator 方法重构与警告清理（toggleNavigator/setNavigatorCollapsed 移动到 uiSlice、ESLint 警告全清理、保持向后兼容包装器）** | ✅ |
+| **第三十八轮** | **2026-06-08** | **低风险修复（死代码删除、useShallow 补充、command→task 依赖倒置、store 订阅提取、anyhow 字符串匹配修复）** | ✅ |
+| **第三十九轮** | **2026-06-08** | **核心重构（PTY Mutex 合并、3 个 mini crate 合并入 kernel、ChangesPanel 拆分 PatchReviewSection+DiffEditorSection、storage/lib.rs 拆 5 子模块、workspace/lib.rs 拆 detect+preview）** | ✅ |
 
 ## 说明
 
