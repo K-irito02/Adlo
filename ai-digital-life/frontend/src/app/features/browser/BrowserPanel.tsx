@@ -31,6 +31,7 @@ import { BrowserMenuDropdown } from './BrowserMenuDropdown';
 import { BrowserTabTree } from '../browser-tree';
 import { CustomScrollArea } from '../file-tree/CustomScrollArea';
 import { isTauriShell } from '../../../tauri-bridge';
+import { BrowserLandingPage } from './browser-landing';
 import type { BrowserPanelProps } from '../../regions/right-panel/types';
 import { open as shellOpen } from '@tauri-apps/plugin-shell';
 
@@ -687,7 +688,14 @@ export function BrowserPanel(props: BrowserPanelProps) {
         <div className="adl-tool-primary adl-tool-primary--browser" ref={primaryRef}>
           <div className="adl-tool-primary__scroll adl-tool-primary__scroll--browser" />
 
-          {hasActiveTab && activeTab?.url && activeTab?.url !== 'about:blank' ? (
+          {(!hasActiveTab || !activeTab?.url || activeTab?.url === 'about:blank') ? (
+            <BrowserLandingPage
+              t={t}
+              onOpenUrl={(url: string) => {
+                browserOpenTab(url, undefined, undefined);
+              }}
+            />
+          ) : (
             <>
               {!isTauriShell() && activeTab && isBrowserVisible && (
                 <iframe
@@ -731,7 +739,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
                 {t.browserOpenExternal}
               </button>
             </>
-          ) : null}
+          )}
         </div>
       </div>
 

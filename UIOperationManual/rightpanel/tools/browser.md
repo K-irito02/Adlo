@@ -264,6 +264,85 @@ await page.click('button[aria-label="新建子目录"]');
 
 ## 浏览器内容
 
+### 空标签引导页（Landing Page）
+
+当没有活跃标签页或 URL 为 `about:blank` 时，显示空标签引导页。
+
+#### 容器选择器
+
+| 选择器 | 说明 |
+|--------|------|
+| `.adl-browser-landing` | 引导页容器 |
+| `.adl-browser-landing__content` | 内容区域 |
+| `.adl-browser-landing__footer` | 底部工具栏 |
+
+#### 快捷导航
+
+| 选择器 | 说明 |
+|--------|------|
+| `.adl-shortcut-grid__items` | 网格容器 |
+| `.adl-shortcut-card` | 快捷站点卡片（48×48px） |
+| `.adl-shortcut-card--drag-over` | 拖拽悬停状态 |
+| `.adl-shortcut-card__add-placeholder` | 虚线"+"占位卡片 |
+
+```javascript
+// 添加快捷站点（点击占位卡片或底部"管理快捷站点"）
+await page.click('.adl-shortcut-card__add-placeholder');
+
+// 通过对话框输入
+await page.fill('.adl-prompt-modal__input:first-of-type', 'GitHub');
+await page.fill('.adl-prompt-modal__input:nth-of-type(2)', 'https://github.com');
+await page.click('button:has-text("添加")');
+
+// 右键菜单：重命名 / 删除
+await page.click('.adl-shortcut-card', { button: 'right' });
+await page.click('.adl-sidebar-menu__item:has-text("重命名")');
+```
+
+#### 本地端口
+
+| 选择器 | 说明 |
+|--------|------|
+| `.adl-local-port-section__items` | 端口卡片容器 |
+| `.adl-local-port-card` | 端口卡片 |
+| `.adl-local-port-card__add-placeholder` | 手动添加占位 |
+| `.adl-local-port-section__refresh` | 刷新按钮 |
+
+```javascript
+// 手动添加端口
+await page.click('.adl-local-port-card__add-placeholder');
+await page.fill('.adl-prompt-modal__input:first-of-type', 'My App');
+await page.fill('.adl-prompt-modal__input:nth-of-type(2)', '3000');
+await page.click('button:has-text("添加")');
+
+// 右键菜单：重命名 / 删除
+await page.click('.adl-local-port-card', { button: 'right' });
+await page.click('.adl-sidebar-menu__item:has-text("删除")');
+```
+
+#### 自定义背景
+
+```javascript
+// 打开背景设置对话框
+await page.click('button:has-text("自定义背景")');
+
+// 切换模式
+await page.click('button:has-text("图片")');
+await page.click('button:has-text("视频")');
+
+// 选择文件
+await page.click('.adl-bg-settings__upload-zone');
+
+// 应用设置
+await page.click('button:has-text("应用")');
+```
+
+#### 底部工具栏
+
+| 选择器 | 说明 |
+|--------|------|
+| `.adl-browser-landing__footer-btn` | 底部操作按钮（自定义背景 / 管理快捷站点） |
+
 ### WebView 生命周期（面板切换行为）
 
 浏览器面板使用原生 Tauri WebView（桌面模式）或 `<iframe>`（浏览器模式）。面板切换时的 WebView 行为如下：

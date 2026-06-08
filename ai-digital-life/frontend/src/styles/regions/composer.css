@@ -337,6 +337,22 @@
   gap: var(--space-2);
 }
 
+.adl-prompt-modal__actions--fill {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.adl-prompt-modal__actions--fill .adl-btn {
+  width: 100%;
+  text-align: center;
+  justify-content: center;
+}
+
+.adl-btn--square {
+  border-radius: 0 !important;
+}
+
 .adl-prompt-modal .adl-btn {
   background: var(--bg-elevated);
   color: var(--text-primary);

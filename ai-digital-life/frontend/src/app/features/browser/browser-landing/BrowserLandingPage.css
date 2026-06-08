@@ -1,0 +1,51 @@
+.adl-browser-landing {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.adl-browser-landing__content {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 800px;
+  padding: 40px;
+}
+
+.adl-browser-landing__footer {
+  position: absolute;
+  bottom: 24px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+
+.adl-browser-landing__footer-btn {
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+}
+
+.adl-browser-landing__footer-btn:hover {
+  color: var(--text-secondary);
+  background: var(--bg-hover);
+}
+
+.adl-browser-landing__footer-divider {
+  width: 1px;
+  height: 12px;
+  background: var(--border-subtle);
+}

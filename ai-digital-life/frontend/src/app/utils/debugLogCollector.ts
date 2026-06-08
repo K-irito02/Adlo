@@ -244,6 +244,19 @@ function interceptConsole() {
 }
 
 /**
+ * 拦截全局运行时错误
+ */
+function interceptGlobalErrors() {
+  window.addEventListener('error', (event) => {
+    collectLog('error', `[UncaughtError] ${event.message} (${event.filename}:${event.lineno}:${event.colno})`);
+  });
+  window.addEventListener('unhandledrejection', (event) => {
+    const reason = event.reason instanceof Error ? event.reason.message : String(event.reason);
+    collectLog('error', `[UnhandledRejection] ${reason}`);
+  });
+}
+
+/**
  * 恢复原始 console
  */
 function restoreConsole() {
@@ -299,7 +312,18 @@ function createDraggableCopyButton() {
     e.stopPropagation();
     try {
       const logs = exportLogsAsText();
-      await navigator.clipboard.writeText(logs);
+      try {
+        await navigator.clipboard.writeText(logs);
+      } catch {
+        const textarea = document.createElement('textarea');
+        textarea.value = logs;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
       btn.textContent = '已复制!';
       btn.style.background = '#4caf50';
       setTimeout(() => {
@@ -372,6 +396,8 @@ function createDraggableCopyButton() {
 if (typeof window !== 'undefined') {
   // 拦截 console
   interceptConsole();
+  // 拦截全局错误
+  interceptGlobalErrors();
 
   // 暴露 API 到全局
   const global = window as unknown as Record<string, unknown>;

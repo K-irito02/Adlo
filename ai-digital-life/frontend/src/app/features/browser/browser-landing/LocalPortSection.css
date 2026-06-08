@@ -1,0 +1,127 @@
+.adl-local-port-section {
+  margin-bottom: 24px;
+}
+
+.adl-local-port-section__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.adl-local-port-section__title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.adl-local-port-section__refresh {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  font-size: 13px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background var(--duration-100);
+  line-height: 1;
+}
+
+.adl-local-port-section__refresh:hover {
+  background: var(--bg-hover);
+}
+
+.adl-local-port-section__refresh:active {
+  background: var(--bg-active);
+}
+
+.adl-local-port-section__hint {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.adl-local-port-section__items {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.adl-local-port-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  cursor: pointer;
+  transition: box-shadow var(--duration-150);
+  user-select: none;
+}
+
+.adl-local-port-card:hover {
+  box-shadow: var(--shadow-sm);
+  border-color: var(--border-default);
+}
+
+.adl-local-port-card--drag-over {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.adl-local-port-card__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-success);
+}
+
+.adl-local-port-card__address {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adl-local-port-card__label {
+  font-size: 11px;
+  color: var(--text-muted);
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adl-local-port-card__add-placeholder {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  border: 2px dashed var(--border-strong);
+  cursor: pointer;
+  opacity: 0.4;
+  transition: opacity var(--duration-150);
+}
+
+.adl-local-port-card__add-placeholder:hover {
+  opacity: 0.7;
+}
+
+.adl-local-port-card__add-icon {
+  font-size: 18px;
+  color: var(--text-muted);
+}
+
+.adl-local-port-card__add-text {
+  font-size: 12px;
+  color: var(--text-muted);
+}
