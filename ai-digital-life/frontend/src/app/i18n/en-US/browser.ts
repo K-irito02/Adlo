@@ -72,6 +72,7 @@ export const browserEn = {
   browserAddPortName: 'Name',
   browserAddPortDefaultLabel: 'localhost:{port}',
   browserAddPortLabel: 'Port number',
+  browserAddPortInvalid: 'Please enter a valid port number (1-65535)',
   browserAddPortPlaceholder: 'e.g. 3000',
   browserAddPortTitle: 'Add port',
   browserCancel: 'Cancel',

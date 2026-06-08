@@ -32,7 +32,7 @@ export function AddManualPortDialog({ open, t, onConfirm, onCancel }: AddManualP
     }
     const num = Number.parseInt(trimmedPort, 10);
     if (Number.isNaN(num) || num < 1 || num > 65535) {
-      setError('请输入有效的端口号 (1-65535)');
+      setError(t.browserAddPortInvalid || 'Invalid port number (1-65535)');
       return;
     }
     onConfirm(num, label.trim() || undefined);
@@ -61,7 +61,10 @@ export function AddManualPortDialog({ open, t, onConfirm, onCancel }: AddManualP
   return createPortal(
     <div className="adl-prompt-modal" onKeyDown={handleKeyDown} onClick={handleBackdrop}>
       <div className="adl-prompt-modal__panel" role="dialog" aria-modal="true" aria-label={t.browserAddPortTitle}>
-        <div className="adl-prompt-modal__header">{t.browserAddPortTitle}</div>
+        <div className="adl-prompt-modal__header">
+          {t.browserAddPortTitle}
+          <button type="button" className="adl-prompt-modal__header-close" onClick={onCancel} aria-label="Close">✕</button>
+        </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '0 0 8px' }}>
           <div>
             <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 4 }}>

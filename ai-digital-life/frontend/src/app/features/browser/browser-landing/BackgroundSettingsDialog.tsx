@@ -84,7 +84,10 @@ export function BackgroundSettingsDialog({ open, t, onClose }: BackgroundSetting
   return createPortal(
     <div className="adl-prompt-modal" onKeyDown={handleKeyDown} onClick={handleBackdrop}>
       <div className="adl-prompt-modal__panel adl-bg-settings" role="dialog" aria-modal="true" aria-label={t.browserBgSettings}>
-        <div className="adl-prompt-modal__header">{t.browserBgSettings}</div>
+        <div className="adl-prompt-modal__header">
+          {t.browserBgSettings}
+          <button type="button" className="adl-prompt-modal__header-close" onClick={onClose} aria-label="Close">✕</button>
+        </div>
 
         <div style={{ padding: 0 }}>
           <div className="adl-bg-settings__section">

@@ -212,7 +212,7 @@ export function BrowserLandingPage({ t, onOpenUrl }: BrowserLandingPageProps) {
           {t.browserCustomBg}
         </button>
         <span className="adl-browser-landing__footer-divider" />
-        <button type="button" className="adl-browser-landing__footer-btn">
+        <button type="button" className="adl-browser-landing__footer-btn" onClick={handleAddClick}>
           {t.browserManageShortcuts}
         </button>
       </div>
@@ -260,8 +260,13 @@ export function BrowserLandingPage({ t, onOpenUrl }: BrowserLandingPageProps) {
 
       {renamePortId && (
         <div className="adl-prompt-modal" onClick={() => { setRenamePortId(null); setRenamePortValue(''); }}>
-          <div className="adl-prompt-modal__panel" role="dialog" aria-modal="true" aria-label={t.browserRename}>
-            <div className="adl-prompt-modal__header">{t.browserRename}</div>
+          <div className="adl-prompt-modal__panel" role="dialog" aria-modal="true" aria-label={t.browserRename}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="adl-prompt-modal__header">
+              {t.browserRename}
+              <button type="button" className="adl-prompt-modal__header-close" onClick={() => { setRenamePortId(null); setRenamePortValue(''); }} aria-label="Close">✕</button>
+            </div>
             <div style={{ padding: '0 0 8px' }}>
               <input
                 className="adl-prompt-modal__input"

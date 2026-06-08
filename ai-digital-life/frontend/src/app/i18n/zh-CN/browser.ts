@@ -71,6 +71,7 @@ export const browserZh = {
   browserAddPortName: '名称',
   browserAddPortDefaultLabel: 'localhost:{port}',
   browserAddPortLabel: '端口号',
+  browserAddPortInvalid: '请输入有效的端口号 (1-65535)',
   browserAddPortPlaceholder: '例如：3000',
   browserAddPortTitle: '添加端口',
   browserCancel: '取消',
