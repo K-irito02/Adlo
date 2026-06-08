@@ -22,6 +22,7 @@ export function useChangesPanelProps(
     onSetAllPatchHunksCollapsed,
     onSetPatchReviewFilter,
     onJumpPatchHunk,
+    onDiffMount,
   } = panelProps;
 
   const actions = useAppActions();
@@ -129,11 +130,13 @@ export function useChangesPanelProps(
       dirtyEditorPaths,
       externalChangePath: externalFileChange?.path,
       onJumpPatchHunk,
+      onDiffMount,
     }),
     [
       t,
       appInfo,
       activePatchSet,
+      onDiffMount,
       latestPatchApplication,
       selectedPatchFilePath,
       selectedChangePreviewPath,

@@ -1,7 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  IconChevronDown,
-  IconChevronRight,
   IconClipboardList,
   IconCopy,
   IconFiles,
@@ -12,23 +10,9 @@ import {
 } from '../../../icons';
 import { useAppStore } from '../../../stores/slicedStore';
 
-import {
-  joinPathSegments,
-  normalizeWorkspaceRelativePath,
-  detectEditorLanguage,
-} from '../../../utils/workspacePaths';
+import { joinPathSegments, normalizeWorkspaceRelativePath } from '../../../utils/workspacePaths';
 import type { ChangesPanelProps } from '../types';
 import type { WorkspaceTreeNode, ReorderWorkspacesInput } from '@ai-digital-life/kernel';
-import {
-  countReviewedHunks,
-  filterPatchFileSummaries,
-  summarizePatchFile,
-  summarizePatchSet,
-} from '../../../features/patch-review';
-import { PatchReviewSummary, PatchFileCard } from '../../../features/patch-review';
-import { DiffToolbar } from '../DiffToolbar';
-import { StickyContext } from '../editor-support/stickyContextView';
-import { useStickyContext, useEditorOptions } from '../hooks';
 import {
   buildChangeEntries,
   buildChangeTree,
@@ -36,18 +20,8 @@ import {
   type ChangeFileState,
   type ChangeTreeNode,
 } from '../changesTree';
-import {
-  type PreviewDiffCollapsedRange,
-  computePreviewDiffVisualRanges,
-} from '../../../features/diff-viewer';
 import { collectDirectoryPaths, type FileTreeContextMenuItem } from '../../../features/file-tree';
-import { categorizeFile } from '../fileTypeRouter';
-import { DiffViewer } from '../../../features/diff-viewer';
-import { CodeEditor } from '../../../features/editor';
-import { LazyMarkdownPreviewWrapper } from '../../../features/preview';
 import type { EditorRef, DiffEditorRef } from '../../../stores/types';
-import { estimateWrapColumn } from '../editor-support/cmWrapColumn';
-import { navigateToLine } from '../editor-support/stickyContext';
 import { buildOutlineFromContent, getDefaultExpandedOutlineIds } from '../../../features/outline';
 import {
   readSelectedBranch,
@@ -55,11 +29,13 @@ import {
   getPrimaryBadge,
   getEditorView,
 } from '../ChangesPanel/utils';
-import { ChangesEmptyState } from './ChangesEmptyState';
+import { summarizePatchSet } from '../../../features/patch-review';
 import { ChangesToolbar } from './ChangesToolbar';
 import { ChangesConfirmDialogs } from './ChangesConfirmDialogs';
 import { RenameDialog } from '../../../components/RenameDialog';
 import { ChangesTreePanel } from './ChangesTreePanel';
+import { PatchReviewSection } from './PatchReviewSection';
+import { DiffEditorSection } from './DiffEditorSection';
 import { useChangesPanelStore } from './useChangesPanelStore';
 
 const FALLBACK_BRANCHES = ['main', 'develop', 'release/0.1.0', 'feature/right-panel'];
@@ -118,33 +94,14 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
   const [selectedBranch, setSelectedBranch] = useState(() => readSelectedBranch(fallbackBranch));
   const [lineNumbersEnabled, setLineNumbersEnabled] = useState(true);
   const [wordWrapEnabled, setWordWrapEnabled] = useState(true);
-  const activeCardRef = useRef<Record<string, HTMLElement | null>>({});
-  const changesPreviewEditorShellRef = useRef<HTMLDivElement | null>(null);
   const editorRef = useRef<DiffEditorRef | EditorRef | null>(null);
-  const changesDiffViewerRef = useRef<HTMLDivElement | null>(null);
-  const [editorReady, setEditorReady] = useState(0);
-  const [_changePreviewWrapColumn, setChangePreviewWrapColumn] = useState<number | null>(null);
-  const [forceExpandUnchangedDiff, setForceExpandUnchangedDiff] = useState(false);
-  const [_collapsedUnchangedDiffRanges, setCollapsedUnchangedDiffRanges] = useState<
-    PreviewDiffCollapsedRange[]
-  >([]);
-  const [pendingOutlineRevealLine, setPendingOutlineRevealLine] = useState<number | null>(null);
   const [changesStatusFilter, setChangesStatusFilter] = useState<Set<ChangeFileState>>(
     () => new Set()
   );
-  const validation = latestPatchApplication?.validation;
-  const reviewCounts = useMemo(() => countReviewedHunks(activePatchSet), [activePatchSet]);
   const patchSummaries = useMemo(
     () => summarizePatchSet(activePatchSet, collapsedPatchHunkIds),
     [activePatchSet, collapsedPatchHunkIds]
   );
-  const filteredPatchSummaries = useMemo(
-    () => filterPatchFileSummaries(patchSummaries, patchReviewFilter),
-    [patchSummaries, patchReviewFilter]
-  );
-  const activeSummary =
-    filteredPatchSummaries.find((summary) => summary.relativePath === selectedPatchFilePath) ??
-    filteredPatchSummaries[0];
   const changeEntries = useMemo(
     () => buildChangeEntries(snapshot, patchSummaries),
     [patchSummaries, snapshot]
@@ -161,26 +118,7 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
     () => directoryPaths.some((pathValue) => expandedPaths[pathValue]),
     [directoryPaths, expandedPaths]
   );
-  const navigatorSelectedPath =
-    activeSummary?.relativePath ?? selectedPatchFilePath ?? selectedChangePreviewPath;
-  const activeFilePatchFromSet = useMemo(() => {
-    if (!activePatchSet || !selectedPatchFilePath) return undefined;
-    const patch = activePatchSet.filePatches.find((p) => p.relativePath === selectedPatchFilePath);
-    return patch;
-  }, [activePatchSet, selectedPatchFilePath]);
-  const changePreviewLanguage = useMemo(() => {
-    const filePath = activeFilePatchFromSet?.relativePath ?? changePreview?.path;
-    const fallbackLang = activeFilePatchFromSet?.language;
-    const lang = detectEditorLanguage(filePath, fallbackLang);
-    return lang;
-  }, [changePreview?.path, activeFilePatchFromSet]);
-  const changePreviewDiffRanges = useMemo(
-    () =>
-      changePreview
-        ? computePreviewDiffVisualRanges(changePreview.baseContent, changePreview.currentContent)
-        : [],
-    [changePreview]
-  );
+  const navigatorSelectedPath = selectedPatchFilePath ?? selectedChangePreviewPath;
   const changeOutline = useMemo(
     () =>
       changePreview
@@ -201,10 +139,6 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
 
   const hasExpandableOutlineItems = defaultExpandedOutlineIds.size > 0;
   const hasExpandedOutlineItems = expandedOutlineIds.size > 0;
-  const changePreviewTheme =
-    appInfo?.config.resolvedTheme === 'dark' ? ('dark' as const) : ('light' as const);
-  const changePreviewLocale = appInfo?.config.language ?? 'zh-CN';
-  const diffExtensions = useMemo(() => [], []);
   const branchOptions = useMemo(() => {
     const options = new Set<string>([fallbackBranch, ...FALLBACK_BRANCHES]);
     return [...options];
@@ -249,22 +183,8 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
     expandChangesTreePathChain(navigatorSelectedPath);
   }, [expandChangesTreePathChain, navigatorSelectedPath]);
 
-  useEffect(() => {
-    setForceExpandUnchangedDiff(false);
-    setCollapsedUnchangedDiffRanges([]);
-    setPendingOutlineRevealLine(null);
-  }, [changePreview?.path, selectedChangePreviewPath, selectedPatchFilePath]);
-
-  useEffect(() => {
-    if (!activeSummary?.relativePath) {
-      return;
-    }
-    activeCardRef.current[activeSummary.relativePath]?.scrollIntoView({ block: 'nearest' });
-  }, [activeSummary?.relativePath]);
-
   const handleDiffMount = useCallback((editor: DiffEditorRef | EditorRef) => {
     editorRef.current = editor;
-    setEditorReady((v) => v + 1);
   }, []);
 
   const getModifiedEditor = useCallback((): EditorRef | null => {
@@ -276,125 +196,20 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
     return ref as EditorRef;
   }, []);
 
-  useEffect(() => {
-    let frame = 0;
-    const updateWrapColumn = () => {
-      const view = getEditorView(getModifiedEditor());
-      setChangePreviewWrapColumn(wordWrapEnabled && view ? estimateWrapColumn(view) : null);
-    };
-    const scheduleWrapColumnUpdate = () => {
-      if (frame) {
-        cancelAnimationFrame(frame);
+  const handleRevealOutlineLine = useCallback(
+    (_line: number) => {
+      const editor = getModifiedEditor();
+      if (editor) {
+        const view = getEditorView(editor);
+        if (view) {
+          view.dispatch({
+            effects: [],
+            scrollIntoView: true,
+          });
+        }
       }
-      frame = requestAnimationFrame(() => {
-        frame = 0;
-        updateWrapColumn();
-      });
-    };
-
-    scheduleWrapColumnUpdate();
-    const editor = getModifiedEditor();
-    if (!editor) {
-      if (frame) {
-        cancelAnimationFrame(frame);
-      }
-      return;
-    }
-
-    const layoutDisposable = editor.onDidLayoutChange?.(scheduleWrapColumnUpdate);
-    window.addEventListener('resize', scheduleWrapColumnUpdate);
-    return () => {
-      if (frame) {
-        cancelAnimationFrame(frame);
-      }
-      layoutDisposable?.dispose();
-      window.removeEventListener('resize', scheduleWrapColumnUpdate);
-    };
-  }, [editorReady, getModifiedEditor, props.diffSideBySide, wordWrapEnabled]);
-
-  const handleRevealPreviewLine = (line: number): boolean => {
-    const target = changesPreviewEditorShellRef.current?.querySelector<HTMLElement>(
-      `[data-source-line="${line}"]`
-    );
-    if (!target) {
-      return false;
-    }
-    target.scrollIntoView({ block: 'start', behavior: 'smooth' });
-    return true;
-  };
-
-  const handleRevealOutlineLine = (line: number) => {
-    if (
-      previewEnabled &&
-      changePreview &&
-      categorizeFile(changePreview.path) === 'markdown' &&
-      handleRevealPreviewLine(line)
-    ) {
-      return;
-    }
-    if (previewEnabled) {
-      navigateToLine(getModifiedEditor(), line);
-      return;
-    }
-    if (!forceExpandUnchangedDiff) {
-      setPendingOutlineRevealLine(line);
-      setForceExpandUnchangedDiff(true);
-      return;
-    }
-    navigateToLine(getModifiedEditor(), line);
-  };
-  useEffect(() => {
-    if (pendingOutlineRevealLine === null || previewEnabled || !forceExpandUnchangedDiff) {
-      return;
-    }
-    navigateToLine(getModifiedEditor(), pendingOutlineRevealLine);
-    setPendingOutlineRevealLine(null);
-  }, [
-    editorReady,
-    forceExpandUnchangedDiff,
-    getModifiedEditor,
-    pendingOutlineRevealLine,
-    previewEnabled,
-    props.diffSideBySide,
-  ]);
-
-  const changePreviewContent = changePreview?.currentContent ?? '';
-
-  const stickyContextInput = useMemo(
-    () => ({
-      selectedFilePath: changePreview?.path,
-      content: changePreviewContent,
-      outline: changeOutline,
-      getStickySourceEditor: getModifiedEditor,
-      wordWrapEnabled,
-      diffSideBySide: props.diffSideBySide,
-      editorSurfaceRef: changesPreviewEditorShellRef,
-      stickyDiffRanges: changePreviewDiffRanges,
-      t,
-    }),
-    [
-      changePreview?.path,
-      changePreviewContent,
-      changeOutline,
-      getModifiedEditor,
-      wordWrapEnabled,
-      props.diffSideBySide,
-      changesPreviewEditorShellRef,
-      changePreviewDiffRanges,
-      t,
-    ]
-  );
-
-  const stickyContextModel = useStickyContext(stickyContextInput);
-
-  const changesEditorOptions = useEditorOptions();
-
-  const activePatchFileSummary = useMemo(
-    () =>
-      activeFilePatchFromSet
-        ? summarizePatchFile(activeFilePatchFromSet, collapsedPatchHunkIds)
-        : undefined,
-    [activeFilePatchFromSet, collapsedPatchHunkIds]
+    },
+    [getModifiedEditor]
   );
 
   const handleToggleAllDirectories = () => {
@@ -895,268 +710,45 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
 
         <div className={`adl-tool-primary${activePatchSet ? ' adl-tool-primary--scrollable' : ''}`}>
           {activePatchSet ? (
-            <div className="adl-tool-primary__scroll adl-tool-primary__scroll--changes">
-              {validation ? (
-                <div className="adl-banner adl-banner--info">
-                  <strong>{validation.status}</strong>
-                  <span>{validation.summary}</span>
-                  {latestPatchApplication?.rolledBack ? (
-                    <span className="adl-chip adl-chip--warning">{t.changesRolledBack}</span>
-                  ) : null}
-                  {latestPatchApplication?.patchSet.status === 'applied' ? (
-                    <span className="adl-chip adl-chip--success">{t.changesApplied}</span>
-                  ) : null}
-                </div>
-              ) : null}
-
-              <>
-                <PatchReviewSummary
-                  activePatchSet={activePatchSet}
-                  reviewCounts={reviewCounts}
-                  patchReviewFilter={patchReviewFilter}
-                  onSetPatchReviewFilter={onSetPatchReviewFilter}
-                  onAcceptAllHunks={onAcceptAllHunks}
-                  onRejectAllHunks={onRejectAllHunks}
-                  t={t}
-                />
-
-                {filteredPatchSummaries.length > 0 ? (
-                  <div className="adl-patch-review-files">
-                    {filteredPatchSummaries.map((summary) => (
-                      <PatchFileCard
-                        key={summary.relativePath}
-                        summary={summary}
-                        activeSummary={activeSummary}
-                        activeCardRef={activeCardRef}
-                        selectedPatchHunkId={selectedPatchHunkId}
-                        t={t}
-                        onSelectPatchFile={onSelectPatchFile}
-                        onTogglePatchHunkCollapse={onTogglePatchHunkCollapse}
-                        onSelectPatchHunk={onSelectPatchHunk}
-                        onSetHunkDecision={onSetHunkDecision}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <p className="adl-empty-hint">{t.noPatch}</p>
-                )}
-
-                <div className="adl-patch-card__footer">
-                  {activeFilePatchFromSet && activePatchFileSummary ? (
-                    <div className="adl-tool-editor" ref={changesDiffViewerRef}>
-                      <DiffToolbar
-                        diffSideBySide={props.diffSideBySide}
-                        lineNumbersEnabled={changesEditorOptions.lineNumbersEnabled}
-                        wordWrapEnabled={changesEditorOptions.wordWrapEnabled}
-                        agentAnnotationsEnabled={changesEditorOptions.agentAnnotationsEnabled}
-                        hasCollapsedHunks={
-                          !!activePatchFileSummary.hunks.some((h) => h.isCollapsed)
-                        }
-                        activePatchRelativePath={selectedPatchFilePath}
-                        onSetDiffLayout={props.onSetDiffLayout}
-                        onToggleLineNumbers={() =>
-                          changesEditorOptions.setLineNumbersEnabled((v) => !v)
-                        }
-                        onToggleWordWrap={() => changesEditorOptions.setWordWrapEnabled((v) => !v)}
-                        onToggleAgentAnnotations={() =>
-                          changesEditorOptions.setAgentAnnotationsEnabled((v) => !v)
-                        }
-                        onJumpPatchHunk={props.onJumpPatchHunk}
-                        onSetAllPatchHunksCollapsed={props.onSetAllPatchHunksCollapsed}
-                        t={t}
-                      />
-                      <div className="adl-diff-hunk-strip" aria-label={t.patchReview as string}>
-                        <div className="adl-diff-hunk-strip__header">
-                          <div>
-                            <strong>{activePatchFileSummary.relativePath}</strong>
-                            <small>
-                              {activePatchFileSummary.totalHunks}
-                              {' · '}
-                              {activePatchFileSummary.acceptedHunks +
-                                activePatchFileSummary.rejectedHunks}
-                              {'/'}
-                              {activePatchFileSummary.totalHunks}
-                            </small>
-                          </div>
-                        </div>
-                        <div className="adl-diff-hunk-strip__list">
-                          {activePatchFileSummary.hunks.map((hunk, index) => (
-                            <div
-                              key={hunk.id}
-                              className={`adl-diff-hunk-pill adl-diff-hunk-pill--${hunk.changeKind}${selectedPatchHunkId === hunk.id ? ' is-active' : ''}`}
-                            >
-                              <button
-                                type="button"
-                                className="adl-diff-hunk-pill__main"
-                                onClick={() =>
-                                  onSelectPatchHunk(
-                                    activeFilePatchFromSet.relativePath,
-                                    hunk.id,
-                                    hunk.targetLine,
-                                    { activateTool: false }
-                                  )
-                                }
-                              >
-                                <span className="adl-diff-hunk-pill__index">{index + 1}</span>
-                                <span className="adl-diff-hunk-pill__body">
-                                  <strong>{hunk.preview}</strong>
-                                  <small>
-                                    {hunk.newStart || hunk.oldStart}
-                                    {hunk.isCollapsed ? ` · ${t.expandDetails}` : ''}
-                                  </small>
-                                </span>
-                                <span
-                                  className={`adl-decision-chip adl-decision-chip--${hunk.decision}`}
-                                >
-                                  {hunk.decision === 'accepted'
-                                    ? t.approvalApproved
-                                    : hunk.decision === 'rejected'
-                                      ? t.approvalRejected
-                                      : t.approvalPendingCount}
-                                </span>
-                              </button>
-                              <button
-                                type="button"
-                                className="adl-diff-hunk-pill__toggle"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  onTogglePatchHunkCollapse(hunk.id);
-                                }}
-                                aria-label={
-                                  (hunk.isCollapsed ? t.expandDetails : t.collapseDetails) as string
-                                }
-                              >
-                                {hunk.isCollapsed ? (
-                                  <IconChevronRight size={12} decorative />
-                                ) : (
-                                  <IconChevronDown size={12} decorative />
-                                )}
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="adl-tool-editor__surface">
-                        <DiffViewer
-                          original={activeFilePatchFromSet.beforeContent}
-                          modified={activeFilePatchFromSet.afterContent}
-                          language={changePreviewLanguage}
-                          theme={changePreviewTheme}
-                          locale={changePreviewLocale}
-                          sideBySide={props.diffSideBySide}
-                          collapseUnchanged={true}
-                          fileKey={selectedPatchFilePath}
-                          readOnly={changesEditorOptions.diffOptions.readOnly}
-                          lineNumbers={changesEditorOptions.diffOptions.lineNumbers}
-                          wordWrap={changesEditorOptions.diffOptions.wordWrap}
-                          onMount={handleDiffMount}
-                          extensions={diffExtensions}
-                        />
-                      </div>
-                    </div>
-                  ) : null}
-                  <button
-                    data-testid="patch-apply"
-                    type="button"
-                    className="adl-btn adl-btn--primary"
-                    onClick={onApplyPatchSet}
-                  >
-                    {t.applyPatch}
-                  </button>
-                  <button
-                    type="button"
-                    className="adl-btn adl-btn--ghost"
-                    onClick={onRollbackPatchSet}
-                  >
-                    {t.rollbackPatch}
-                  </button>
-                  <button
-                    type="button"
-                    className="adl-btn adl-btn--ghost"
-                    onClick={() => onSetAllPatchHunksCollapsed(false, activeSummary?.relativePath)}
-                  >
-                    {t.fileExpandAll}
-                  </button>
-                  <button
-                    type="button"
-                    className="adl-btn adl-btn--ghost"
-                    onClick={() => onSetAllPatchHunksCollapsed(true, activeSummary?.relativePath)}
-                  >
-                    {t.fileCollapseAll}
-                  </button>
-                </div>
-              </>
-            </div>
-          ) : changePreview ? (
-            <>
-              {validation ? (
-                <div className="adl-banner adl-banner--info">
-                  <strong>{validation.status}</strong>
-                  <span>{validation.summary}</span>
-                  {latestPatchApplication?.rolledBack ? (
-                    <span className="adl-chip adl-chip--warning">{t.changesRolledBack}</span>
-                  ) : null}
-                  {latestPatchApplication?.patchSet.status === 'applied' ? (
-                    <span className="adl-chip adl-chip--success">{t.changesApplied}</span>
-                  ) : null}
-                </div>
-              ) : null}
-              <div
-                ref={changesPreviewEditorShellRef}
-                className="adl-tool-editor adl-tool-editor--changes"
-                data-testid="changes-preview-shell"
-              >
-                {previewEnabled && categorizeFile(changePreview.path) === 'markdown' ? (
-                  <div className="adl-tool-editor__surface adl-tool-editor__surface--preview">
-                    <LazyMarkdownPreviewWrapper
-                      content={changePreview.currentContent}
-                      theme={changePreviewTheme}
-                    />
-                  </div>
-                ) : previewEnabled ? (
-                  <div className="adl-tool-editor__surface">
-                    <CodeEditor
-                      value={changePreview.currentContent}
-                      language={changePreviewLanguage}
-                      theme={changePreviewTheme}
-                      locale={changePreviewLocale}
-                      readOnly={true}
-                      lineNumbers={lineNumbersEnabled}
-                      wordWrap={wordWrapEnabled}
-                      onMount={handleDiffMount}
-                    />
-                  </div>
-                ) : (
-                  <div className="adl-tool-editor__surface">
-                    {stickyContextModel ? (
-                      <StickyContext
-                        data-testid="changes-sticky-context"
-                        model={stickyContextModel}
-                        t={t}
-                      />
-                    ) : null}
-                    <DiffViewer
-                      original={changePreview.baseContent}
-                      modified={changePreview.currentContent}
-                      language={changePreviewLanguage}
-                      theme={changePreviewTheme}
-                      locale={changePreviewLocale}
-                      sideBySide={props.diffSideBySide}
-                      collapseUnchanged={true}
-                      readOnly={true}
-                      lineNumbers={lineNumbersEnabled}
-                      wordWrap={wordWrapEnabled}
-                      onMount={handleDiffMount}
-                      extensions={diffExtensions}
-                      onCollapsedUnchangedRangesChange={setCollapsedUnchangedDiffRanges}
-                    />
-                  </div>
-                )}
-              </div>
-            </>
-          ) : changePreviewLoading ? null : totalChangeCount === 0 ? (
-            <ChangesEmptyState hasWorkspaces={visibleWorkspaces.length > 0} />
-          ) : null}
+            <PatchReviewSection
+              t={t}
+              activePatchSet={activePatchSet}
+              selectedPatchFilePath={selectedPatchFilePath}
+              selectedPatchHunkId={selectedPatchHunkId}
+              collapsedPatchHunkIds={collapsedPatchHunkIds}
+              patchReviewFilter={patchReviewFilter}
+              diffSideBySide={props.diffSideBySide}
+              latestPatchApplication={latestPatchApplication}
+              appInfo={appInfo}
+              onSetHunkDecision={onSetHunkDecision}
+              onApplyPatchSet={onApplyPatchSet}
+              onRollbackPatchSet={onRollbackPatchSet}
+              onAcceptAllHunks={onAcceptAllHunks}
+              onRejectAllHunks={onRejectAllHunks}
+              onSelectPatchFile={onSelectPatchFile}
+              onSelectPatchHunk={onSelectPatchHunk}
+              onTogglePatchHunkCollapse={onTogglePatchHunkCollapse}
+              onSetAllPatchHunksCollapsed={onSetAllPatchHunksCollapsed}
+              onSetPatchReviewFilter={onSetPatchReviewFilter}
+              onJumpPatchHunk={props.onJumpPatchHunk}
+              onDiffMount={handleDiffMount}
+            />
+          ) : (
+            <DiffEditorSection
+              t={t}
+              changePreview={changePreview}
+              changePreviewLoading={changePreviewLoading}
+              diffSideBySide={props.diffSideBySide}
+              latestPatchApplication={latestPatchApplication}
+              appInfo={appInfo}
+              totalChangeCount={totalChangeCount}
+              visibleWorkspacesLength={visibleWorkspaces.length}
+              previewEnabled={previewEnabled}
+              lineNumbersEnabled={lineNumbersEnabled}
+              wordWrapEnabled={wordWrapEnabled}
+              onDiffMount={handleDiffMount}
+            />
+          )}
         </div>
       </div>
       <ChangesConfirmDialogs

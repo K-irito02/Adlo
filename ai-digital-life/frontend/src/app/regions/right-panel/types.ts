@@ -179,6 +179,7 @@ export type ChangesPanelProps = Pick<
   RightPanelViewProps,
   | 't'
   | 'appInfo'
+  | 'onDiffMount'
   | 'activePatchSet'
   | 'latestPatchApplication'
   | 'selectedPatchFilePath'
