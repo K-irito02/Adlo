@@ -263,8 +263,8 @@ await page.waitForSelector('div[data-testid="changes-preview-shell"]');
 ### 行为约定
 
 1. 变更大纲基于 `changePreview.currentContent` 生成，只反映当前修改侧内容。
-2. 在内联 Diff 和并排 Diff 中，点击大纲项前会自动展开“无变更行自动收起”的上下文，再跳到修改侧对应行。
-3. 在 Markdown 预览模式下，点击大纲项优先滚动到预览正文标题；在代码预览 / Diff 模式下，跳转到代码视图对应行。
+2. 在内联 Diff 和并排 Diff 中，点击大纲项前通过 `findCollapsedSectionStart` 找到包含目标行的折叠区域，以折叠区域**首行位置**调用 `uncollapseUnchanged` 展开上下文，再跳到修改侧对应行。并排模式下同时对 A（原始）和 B（修改）侧展开。
+3. 在 Markdown 预览模式下，点击大纲项优先滚动到预览正文标题（通过 `[data-source-line="N"]` DOM 选择器）；在代码预览 / Diff 模式下，跳转到代码视图对应行。
 4. 变更大纲与文件大纲共用同一套树形组件和自绘滚动壳，滑块 hover / active 效果一致。
 
 ---

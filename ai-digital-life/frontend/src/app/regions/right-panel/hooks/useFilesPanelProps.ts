@@ -140,7 +140,7 @@ export function useFilesPanelProps(
   const handleRefreshOneWorkspace = useCallback(
     (workspaceId: string) => {
       const ws = recentWorkspaces.find((r) => r.id === workspaceId);
-      if (ws) void actions.loadWorkspaceTree(workspaceId, ws.path);
+      if (ws) void actions.refreshOneWorkspaceTree(workspaceId, ws.path);
     },
     [recentWorkspaces, actions]
   );

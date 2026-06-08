@@ -24,7 +24,6 @@ describe("outline panel wiring", () => {
     expect(changesTreePanelSource).toContain("MultiWorkspaceChangesTree");
     expect(changesPanelSource).toContain("buildOutlineFromContent(changePreview.currentContent");
     expect(changesPanelSource).toContain("handleRevealOutlineLine");
-    expect(changesPanelSource).toContain("setForceExpandUnchangedDiff(true)");
     expect(changesPanelSource).toContain("handleToggleAllOutlineItems");
   });
 

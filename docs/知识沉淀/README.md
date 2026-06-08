@@ -11,7 +11,7 @@
 | [浏览器](./浏览器/) | 内置浏览器实现、空标签引导页、树形目录交互等经验 | 7 |
 | [代码质量](./代码质量/) | 全量代码质量检测与修复经验 | 7 |
 | [浏览器自动化](./浏览器自动化/) | 浏览器自动化调试记录与规则经验 | 2 |
-| [交互优化](./交互优化/) | 跨功能面板的交互/UX 问题修复经验 | 2 |
+| [交互优化](./交互优化/) | 跨功能面板的交互/UX 问题修复经验 | 3 |
 
 ## 索引
 
@@ -84,3 +84,4 @@
 |------|------|------|
 | [right-click-menu-positioning.md](./交互优化/right-click-menu-positioning.md) | 2026-06-08 修复执行 | 右键菜单跟随鼠标位置修复（4 条经验：定位方式选择、FileTree 机制复用、条件守卫遗漏） |
 | [rename-dialog-standardization-2026-06-08.md](./交互优化/rename-dialog-standardization-2026-06-08.md) | 2026-06-08 UI 优化 | 重命名弹窗交互标准化（直角按钮、✕ 关闭按钮、i18n 标题简洁化） |
+| [outline-navigation-and-refresh-fix-2026-06-09.md](./交互优化/outline-navigation-and-refresh-fix-2026-06-09.md) | 2026-06-09 修复执行 | 大纲导航折叠展开修复（`uncollapseUnchanged` 传参陷阱）+ 刷新按钮绕过懒加载守卫 |

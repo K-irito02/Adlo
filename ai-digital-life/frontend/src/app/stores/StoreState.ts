@@ -92,6 +92,7 @@ interface WorkspaceActions {
   createWorkspaceFolder: (relativePath: string) => Promise<string | undefined>;
   refreshWorkspaceTree: () => Promise<void>;
   loadWorkspaceTree: (workspaceId: string, workspacePath: string) => Promise<void>;
+  refreshOneWorkspaceTree: (workspaceId: string, workspacePath: string) => Promise<void>;
   toggleWorkspaceTreeInFileNav: (workspaceId: string) => void;
   expandWorkspaceTreeInFileNav: (workspaceId: string, workspacePath: string) => Promise<void>;
   refreshAllWorkspaceTrees: () => Promise<void>;

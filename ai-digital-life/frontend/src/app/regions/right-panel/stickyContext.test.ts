@@ -98,8 +98,9 @@ describe("sticky context panel wiring", () => {
   });
 
   it("renders sticky context above the changes preview surface", () => {
-    expect(changesPanelSource).toContain("StickyContext");
-    expect(changesPanelSource).toContain('data-testid="changes-sticky-context"');
+    const diffEditorSectionSource = readFileSync(new URL("./panels/DiffEditorSection.tsx", import.meta.url), "utf8");
+    expect(diffEditorSectionSource).toContain("StickyContext");
+    expect(diffEditorSectionSource).toContain('data-testid="changes-sticky-context"');
     expect(useStickyContextSource).toContain("buildStickyContextEntries");
     expect(useStickyContextSource).toContain("createStickyContextModel");
   });

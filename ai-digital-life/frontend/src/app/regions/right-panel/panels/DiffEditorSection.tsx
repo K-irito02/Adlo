@@ -28,6 +28,7 @@ interface DiffEditorSectionProps extends Pick<
   previewEnabled: boolean;
   lineNumbersEnabled: boolean;
   wordWrapEnabled: boolean;
+  previewContainerRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 const DiffEditorSection = React.memo(function DiffEditorSection({
@@ -43,9 +44,19 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
   lineNumbersEnabled,
   wordWrapEnabled,
   onDiffMount,
+  previewContainerRef,
 }: DiffEditorSectionProps) {
-  const changesPreviewEditorShellRef = useRef<HTMLDivElement | null>(null);
+  const localPreviewShellRef = useRef<HTMLDivElement | null>(null);
   const localEditorRef = useRef<DiffEditorRef | EditorRef | null>(null);
+  const setPreviewShellRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      localPreviewShellRef.current = el;
+      if (previewContainerRef) {
+        (previewContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+      }
+    },
+    [previewContainerRef]
+  );
   const [_collapsedUnchangedDiffRanges, setCollapsedUnchangedDiffRanges] = useState<
     PreviewDiffCollapsedRange[]
   >([]);
@@ -101,7 +112,7 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
       outline,
       wordWrapEnabled,
       diffSideBySide,
-      editorSurfaceRef: changesPreviewEditorShellRef,
+      editorSurfaceRef: localPreviewShellRef,
       stickyDiffRanges: changePreviewDiffRanges,
       getStickySourceEditor,
       t,
@@ -112,7 +123,7 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
       outline,
       wordWrapEnabled,
       diffSideBySide,
-      changesPreviewEditorShellRef,
+      localPreviewShellRef,
       changePreviewDiffRanges,
       getStickySourceEditor,
       t,
@@ -145,7 +156,7 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
         </div>
       ) : null}
       <div
-        ref={changesPreviewEditorShellRef}
+        ref={setPreviewShellRef}
         className="adl-tool-editor adl-tool-editor--changes"
         data-testid="changes-preview-shell"
       >

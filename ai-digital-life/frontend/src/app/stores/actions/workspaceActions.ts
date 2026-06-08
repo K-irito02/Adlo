@@ -276,6 +276,29 @@ export function createWorkspaceActions(
       );
     },
 
+    refreshOneWorkspaceTree: async (workspaceId: string, workspacePath: string) => {
+      set({
+        workspaceTreeLoading: { ...get().workspaceTreeLoading, [workspaceId]: true },
+        workspaceTreeErrors: { ...get().workspaceTreeErrors, [workspaceId]: undefined },
+      });
+      const result = await window.digitalLife.workspace.listTreeForWorkspace(workspacePath);
+      const loading = { ...get().workspaceTreeLoading, [workspaceId]: false };
+      if (!result.ok) {
+        set({
+          workspaceTreeLoading: loading,
+          workspaceTreeErrors: {
+            ...get().workspaceTreeErrors,
+            [workspaceId]: result.error.message,
+          },
+        });
+        return;
+      }
+      set({
+        workspaceTrees: { ...get().workspaceTrees, [workspaceId]: result.data },
+        workspaceTreeLoading: loading,
+      });
+    },
+
     refreshAllWorkspaceTrees: async () => {
       const state = get();
       const expandedIds = Object.entries(state.workspaceTreeExpandedInFileNav)
@@ -285,7 +308,7 @@ export function createWorkspaceActions(
         expandedIds.map((id) => {
           const ws = state.recentWorkspaces.find((r) => r.id === id);
           if (!ws) return Promise.resolve();
-          return get().loadWorkspaceTree(id, ws.path);
+          return get().refreshOneWorkspaceTree(id, ws.path);
         })
       );
     },

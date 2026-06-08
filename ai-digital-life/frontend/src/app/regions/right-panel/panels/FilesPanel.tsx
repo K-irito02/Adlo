@@ -134,14 +134,28 @@ export function FilesPanel(props: FilesPanelProps) {
 
   const handleNavigateLine = useCallback(
     (line: number) => {
+      // For markdown preview mode, use DOM-based scrolling directly
+      // (stale editor ref may exist from edit mode, but no CodeMirror is visible)
+      if (fileCategory === 'markdown' && previewEnabled) {
+        if (editorSurfaceRef.current) {
+          const heading = editorSurfaceRef.current.querySelector(
+            `[data-source-line="${line}"]`
+          ) as HTMLElement | null;
+          if (heading) {
+            heading.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }
+        return;
+      }
       const editor = getStickySourceEditor();
       if (editor) {
         editor.revealLineInCenter?.(line);
         editor.setPosition?.({ lineNumber: line, column: 1 });
         editor.focus?.();
+        return;
       }
     },
-    [getStickySourceEditor]
+    [getStickySourceEditor, fileCategory, previewEnabled, editorSurfaceRef]
   );
 
   const fileMenuItems: (FileMenuItem | FileMenuDivider)[] = useMemo(

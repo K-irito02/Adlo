@@ -23,16 +23,13 @@ import {
 import { collectDirectoryPaths, type FileTreeContextMenuItem } from '../../../features/file-tree';
 import type { EditorRef, DiffEditorRef } from '../../../stores/types';
 import { buildOutlineFromContent, getDefaultExpandedOutlineIds } from '../../../features/outline';
-import {
-  readSelectedBranch,
-  writeSelectedBranch,
-  getPrimaryBadge,
-  getEditorView,
-} from '../ChangesPanel/utils';
+import { readSelectedBranch, writeSelectedBranch, getPrimaryBadge } from '../ChangesPanel/utils';
 import { summarizePatchSet } from '../../../features/patch-review';
 import { ChangesToolbar } from './ChangesToolbar';
 import { ChangesConfirmDialogs } from './ChangesConfirmDialogs';
 import { RenameDialog } from '../../../components/RenameDialog';
+import { EditorView } from '@codemirror/view';
+import { getChunks, uncollapseUnchanged } from '@codemirror/merge';
 import { ChangesTreePanel } from './ChangesTreePanel';
 import { PatchReviewSection } from './PatchReviewSection';
 import { DiffEditorSection } from './DiffEditorSection';
@@ -95,6 +92,7 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
   const [lineNumbersEnabled, setLineNumbersEnabled] = useState(true);
   const [wordWrapEnabled, setWordWrapEnabled] = useState(true);
   const editorRef = useRef<DiffEditorRef | EditorRef | null>(null);
+  const changesPreviewContainerRef = useRef<HTMLDivElement | null>(null);
   const [changesStatusFilter, setChangesStatusFilter] = useState<Set<ChangeFileState>>(
     () => new Set()
   );
@@ -196,20 +194,72 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
     return ref as EditorRef;
   }, []);
 
+  /** Find the `from` document position of the collapsed unchanged section
+   *  containing `targetLine`, or null if not inside any collapsed section. */
+  const findCollapsedSectionStart = useCallback(
+    (view: EditorView, targetLine: number): number | null => {
+      const margin = 3;
+      const minSize = 4;
+      const chunks = getChunks(view.state)?.chunks ?? [];
+      let prevLine = 1;
+      for (let i = 0; ; i++) {
+        const chunk = i < chunks.length ? chunks[i] : null;
+        const collapseFrom = i > 0 ? prevLine + margin : 1;
+        const collapseTo = chunk
+          ? view.state.doc.lineAt(chunk.fromB).number - 1 - margin
+          : view.state.doc.lines;
+        const lineCount = collapseTo - collapseFrom + 1;
+        if (lineCount >= minSize && collapseFrom <= targetLine && targetLine <= collapseTo) {
+          return view.state.doc.line(collapseFrom).from;
+        }
+        if (!chunk) break;
+        prevLine = view.state.doc.lineAt(Math.min(view.state.doc.length, chunk.toB)).number;
+      }
+      return null;
+    },
+    []
+  );
+
   const handleRevealOutlineLine = useCallback(
-    (_line: number) => {
+    (line: number) => {
       const editor = getModifiedEditor();
       if (editor) {
-        const view = getEditorView(editor);
+        const view = editor.getView?.() as EditorView | undefined;
         if (view) {
-          view.dispatch({
-            effects: [],
-            scrollIntoView: true,
-          });
+          const collapseFrom = findCollapsedSectionStart(view, line);
+          if (collapseFrom !== null) {
+            view.dispatch({ effects: uncollapseUnchanged.of(collapseFrom) });
+          }
+        }
+        // Also uncollapse on the original side for side-by-side mode
+        const diffRef = editorRef.current;
+        if (diffRef && 'getOriginalEditor' in diffRef) {
+          const originalEditor = (diffRef as DiffEditorRef).getOriginalEditor();
+          const originalView = originalEditor?.getView?.() as EditorView | undefined;
+          if (originalView) {
+            const originalCollapseFrom = findCollapsedSectionStart(originalView, line);
+            if (originalCollapseFrom !== null) {
+              originalView.dispatch({ effects: uncollapseUnchanged.of(originalCollapseFrom) });
+            }
+          }
+        }
+        editor.revealLineInCenter?.(line);
+        editor.setPosition?.({ lineNumber: line, column: 1 });
+        editor.focus?.();
+        return;
+      }
+      // Fallback for markdown preview mode: scroll to heading in DOM
+      const container = changesPreviewContainerRef.current;
+      if (container) {
+        const heading = container.querySelector(
+          `[data-source-line="${line}"]`
+        ) as HTMLElement | null;
+        if (heading) {
+          heading.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
       }
     },
-    [getModifiedEditor]
+    [getModifiedEditor, findCollapsedSectionStart]
   );
 
   const handleToggleAllDirectories = () => {
@@ -747,6 +797,7 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
               lineNumbersEnabled={lineNumbersEnabled}
               wordWrapEnabled={wordWrapEnabled}
               onDiffMount={handleDiffMount}
+              previewContainerRef={changesPreviewContainerRef}
             />
           )}
         </div>

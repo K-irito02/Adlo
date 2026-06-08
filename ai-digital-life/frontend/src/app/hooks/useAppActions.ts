@@ -39,6 +39,7 @@ export function useAppActions() {
       toggleWorkspaceTreeInFileNav: state.toggleWorkspaceTreeInFileNav,
       expandWorkspaceTreeInFileNav: state.expandWorkspaceTreeInFileNav,
       refreshAllWorkspaceTrees: state.refreshAllWorkspaceTrees,
+      refreshOneWorkspaceTree: state.refreshOneWorkspaceTree,
       cleanupRemovedWorkspaceTree: state.cleanupRemovedWorkspaceTree,
       hideWorkspaceFromRightPanels: state.hideWorkspaceFromRightPanels,
       showWorkspaceInRightPanels: state.showWorkspaceInRightPanels,

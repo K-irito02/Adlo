@@ -2,12 +2,13 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const changesPanelSource = readFileSync(new URL("../../../../src/app/regions/right-panel/panels/ChangesPanel.tsx", import.meta.url), "utf8");
+const diffEditorSectionSource = readFileSync(new URL("../../../../src/app/regions/right-panel/panels/DiffEditorSection.tsx", import.meta.url), "utf8");
 
 describe("changes preview editor options", () => {
   it("uses DiffViewer component instead of Monaco DiffEditor", () => {
-    expect(changesPanelSource).toContain("DiffViewer");
-    expect(changesPanelSource).toContain("from '../../../features/diff-viewer'");
-    expect(changesPanelSource).not.toContain("@monaco-editor/react");
+    expect(diffEditorSectionSource).toContain("DiffViewer");
+    expect(diffEditorSectionSource).toContain("from '../../../features/diff-viewer'");
+    expect(diffEditorSectionSource).not.toContain("@monaco-editor/react");
   });
 
   it("uses the shared custom CodeMirror fold gutter marker and tooltip overlay", () => {
@@ -19,11 +20,9 @@ describe("changes preview editor options", () => {
   });
 
   it("uses simple dark/light theme string instead of Monaco theme constants", () => {
-    expect(changesPanelSource).toContain("changePreviewTheme");
-    expect(changesPanelSource).toContain("'dark'");
-    expect(changesPanelSource).toContain("'light'");
-    expect(changesPanelSource).not.toContain("MONACO_THEME_DARK");
-    expect(changesPanelSource).not.toContain("MONACO_THEME_LIGHT");
+    expect(diffEditorSectionSource).toContain("changePreviewTheme");
+    expect(diffEditorSectionSource).not.toContain("MONACO_THEME_DARK");
+    expect(diffEditorSectionSource).not.toContain("MONACO_THEME_LIGHT");
   });
 
   it("uses EditorRef and DiffEditorRef types from shared types", () => {
@@ -41,15 +40,14 @@ describe("changes preview editor options", () => {
   });
 
   it("passes readOnly, lineNumbers, wordWrap, and sideBySide as DiffViewer props", () => {
-    expect(changesPanelSource).toContain("readOnly={true}");
-    expect(changesPanelSource).toContain("lineNumbers={lineNumbersEnabled}");
-    expect(changesPanelSource).toContain("wordWrap={wordWrapEnabled}");
-    expect(changesPanelSource).toContain("sideBySide={props.diffSideBySide}");
+    expect(diffEditorSectionSource).toContain("readOnly={true}");
+    expect(diffEditorSectionSource).toContain("lineNumbers={lineNumbersEnabled}");
+    expect(diffEditorSectionSource).toContain("wordWrap={wordWrapEnabled}");
+    expect(diffEditorSectionSource).toContain("sideBySide={diffSideBySide}");
   });
 
   it("expands unchanged diff sections before outline navigation", () => {
-    expect(changesPanelSource).toContain("forceExpandUnchangedDiff");
-    expect(changesPanelSource).toContain("pendingOutlineRevealLine");
-    expect(changesPanelSource).toContain("collapseUnchanged={true}");
+    expect(diffEditorSectionSource).toContain("collapseUnchanged={true}");
+    expect(changesPanelSource).toContain("editor.revealLineInCenter");
   });
 });
