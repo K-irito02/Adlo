@@ -11,16 +11,24 @@ pub enum PtyStatus {
     Terminated,
 }
 
+struct PtyControl {
+    master: Option<Box<dyn portable_pty::MasterPty + Send>>,
+    child: Option<Box<dyn portable_pty::Child + Send>>,
+}
+
+struct PtyIo {
+    reader: Option<Box<dyn Read + Send>>,
+    writer: Option<Box<dyn Write + Send>>,
+}
+
 pub struct PtySession {
     pub id: String,
     pub shell: String,
     pub cwd: String,
     pub cols: u16,
     pub rows: u16,
-    master: Mutex<Option<Box<dyn portable_pty::MasterPty + Send>>>,
-    child: Mutex<Option<Box<dyn portable_pty::Child + Send>>>,
-    output_reader: Mutex<Option<Box<dyn Read + Send>>>,
-    writer: Mutex<Option<Box<dyn Write + Send>>>,
+    control: Mutex<PtyControl>,
+    io: Mutex<PtyIo>,
     pub status: Mutex<PtyStatus>,
 }
 
@@ -69,10 +77,8 @@ impl PtySession {
             id: create_id("pty"),
             shell: shell_label,
             cwd: cwd.to_string(),
-            master: Mutex::new(Some(pair.master)),
-            child: Mutex::new(Some(child)),
-            output_reader: Mutex::new(Some(reader)),
-            writer: Mutex::new(Some(writer)),
+            control: Mutex::new(PtyControl { master: Some(pair.master), child: Some(child) }),
+            io: Mutex::new(PtyIo { reader: Some(reader), writer: Some(writer) }),
             cols,
             rows,
             status: Mutex::new(PtyStatus::Running),
@@ -80,9 +86,9 @@ impl PtySession {
     }
 
     pub fn read_output(&self, buf: &mut [u8]) -> Result<usize, AppError> {
-        let mut reader =
-            self.output_reader.lock().map_err(|_| AppError::Internal("mutex poisoned".into()))?;
-        match reader.as_mut() {
+        let mut io =
+            self.io.lock().map_err(|_| AppError::Internal("mutex poisoned".into()))?;
+        match io.reader.as_mut() {
             Some(r) => {
                 r.read(buf).map_err(|e| AppError::Terminal(format!("pty read error: {}", e)))
             }
@@ -91,9 +97,9 @@ impl PtySession {
     }
 
     pub fn write_input(&self, data: &[u8]) -> Result<(), AppError> {
-        let mut writer =
-            self.writer.lock().map_err(|_| AppError::Internal("mutex poisoned".into()))?;
-        match writer.as_mut() {
+        let mut io =
+            self.io.lock().map_err(|_| AppError::Internal("mutex poisoned".into()))?;
+        match io.writer.as_mut() {
             Some(w) => {
                 w.write_all(data).map_err(|e| AppError::Terminal(format!("pty write error: {}", e)))
             }
@@ -102,8 +108,9 @@ impl PtySession {
     }
 
     pub fn resize(&self, cols: u16, rows: u16) -> Result<(), AppError> {
-        let master = self.master.lock().map_err(|_| AppError::Internal("mutex poisoned".into()))?;
-        match master.as_ref() {
+        let control =
+            self.control.lock().map_err(|_| AppError::Internal("mutex poisoned".into()))?;
+        match control.master.as_ref() {
             Some(m) => {
                 let size = PtySize { rows, cols, pixel_width: 0, pixel_height: 0 };
                 m.resize(size)
@@ -121,15 +128,16 @@ impl PtySession {
             return Ok(());
         }
         *status = PtyStatus::Terminated;
+        drop(status);
 
-        let _ = self.child.lock().map(|mut c| {
-            if let Some(child) = c.as_mut() {
-                let _ = child.kill();
-            }
-            c.take()
-        });
-        let _ = self.master.lock().map(|mut m| m.take());
-        let _ = self.writer.lock().map(|mut w| w.take());
+        let mut control =
+            self.control.lock().map_err(|_| AppError::Internal("mutex poisoned".into()))?;
+        if let Some(child) = control.child.as_mut() {
+            let _ = child.kill();
+        }
+        control.child.take();
+        control.master.take();
+        let _ = self.io.lock().map(|mut io| io.writer.take());
         Ok(())
     }
 
@@ -138,9 +146,9 @@ impl PtySession {
     }
 
     pub fn try_wait(&self) -> Result<Option<u32>, AppError> {
-        let mut child =
-            self.child.lock().map_err(|_| AppError::Internal("mutex poisoned".into()))?;
-        match child.as_mut() {
+        let mut control =
+            self.control.lock().map_err(|_| AppError::Internal("mutex poisoned".into()))?;
+        match control.child.as_mut() {
             Some(c) => {
                 let exit = c
                     .try_wait()
