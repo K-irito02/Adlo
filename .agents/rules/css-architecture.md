@@ -25,6 +25,7 @@ alwaysApply: false
 - 内容可能变化的容器使用固定 `width`，禁止仅设置 `min-width`
 - 图标或徽标元素使用 `margin-left: auto` 固定在容器右侧，而非绝对定位
 - 禁止对动态列表项使用不同的高度或间距（导致布局抖动）
+- 占位/添加状态元素的 `border-width` 必须与真实元素一致（`box-sizing: border-box` 下边框厚度影响总尺寸），仅改变 `border-style` 为 `dashed` 即可视觉区分
 
 ## 性能相关
 - 超过 50 项的滚动列表：使用 `content-visibility: auto` 延迟渲染屏外内容

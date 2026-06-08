@@ -88,7 +88,7 @@
 | 图标 | 32×32 px 圆形，首字母占位 |
 | 名称 | 卡片下方 10px 字号，`text-overflow: ellipsis` |
 | 悬停提示 | `title` 属性原生提示，显示完整名称 |
-| 添加占位 | 48×48 虚线框 + 下方"添加"文字 |
+| 添加占位 | 48×48 1px 虚线框 + 下方"添加"文字 |
 
 ### 本地端口卡片
 
@@ -96,6 +96,7 @@
 |------|------|
 | 地址 | 13px 加粗，`max-width: 140px`，省略号截断 |
 | 标签 | 11px 灰色，`max-width: 80px`，省略号截断 |
+| 添加占位 | 内联 1px 虚线框，`padding: 8px 14px`，与真实卡片一致 |
 | 悬停提示 | `title` 属性显示完整 `host:port (label)` |
 | 刷新按钮 | 20×20 px，常态透明，hover 时显示背景 |
 
@@ -139,3 +140,20 @@ BrowserLandingPage
 | 右键菜单 | 重命名 / 删除 | 重命名 / 删除 |
 | 拖拽 | 排序持久化 | 排序持久化 |
 | 悬停 | title 提示名称 | title 提示完整地址 |
+
+## 后续修复
+
+### 虚线占位符边框厚度一致性（2026-06-08）
+
+**问题**：空标签引导页的"添加端口"和"添加快捷站点"虚线占位框使用 `border: 2px dashed`，而真实卡片使用 `border: 1px solid`。全局 `box-sizing: border-box` 下，本地端口占位框比真实卡片高约 2px（额外 1px 上下边框），快捷站点占位框尽管 `height: 48px` 固定，内容区域也被挤压了 2px。
+
+**修复**：两处占位符边框均改为 `border: 1px dashed`，保持虚线视觉区分的同时确保尺寸一致。
+
+**修改文件**：
+- `frontend/src/app/features/browser/browser-landing/LocalPortSection.css` — `.adl-local-port-card__add-placeholder`
+- `frontend/src/app/features/browser/browser-landing/ShortcutGrid.css` — `.adl-shortcut-card__add-placeholder`
+
+**经验教训**：
+- 占位元素的边框厚度必须与真实元素一致，否则 `box-sizing: border-box` 下尺寸会偏移
+- 用 `dashed` 代替 `solid` 已足够提供视觉区分，无需加厚边框
+- 添加状态元素应复用真实元素的 padding/metrics，仅改变 border-style 和 opacity

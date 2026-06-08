@@ -108,8 +108,7 @@ export function WorkspaceFileTreeEntry({
   const handleNameContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    setMenuPosition({ top: rect.top, left: rect.right + 4 });
+    setMenuPosition({ top: e.clientY, left: e.clientX + 4 });
     setMenuOpen(true);
   };
 

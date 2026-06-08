@@ -11,6 +11,7 @@
 | [浏览器](./浏览器/) | 内置浏览器实现、空标签引导页、树形目录交互等经验 | 7 |
 | [代码质量](./代码质量/) | 全量代码质量检测与修复经验 | 7 |
 | [浏览器自动化](./浏览器自动化/) | 浏览器自动化调试记录与规则经验 | 2 |
+| [交互优化](./交互优化/) | 跨功能面板的交互/UX 问题修复经验 | 1 |
 
 ## 索引
 
@@ -58,7 +59,7 @@
 | [browser-subdirectory-fix.md](./浏览器/browser-subdirectory-fix.md) | development/browser-subdirectory-fix | 子目录导航修复（4 条经验） |
 | [browser-navigate-fix-2026-06-04.md](./浏览器/browser-navigate-fix-2026-06-04.md) | 2026-06-04 修复执行 | 浏览器模式下 URL 无法加载修复（无活动标签页创建逻辑、调试经验与调试手段） |
 | [browser-url-sync-fix-2026-06-04.md](./浏览器/browser-url-sync-fix-2026-06-04.md) | 2026-06-04 修复执行 | 浏览器 URL 同步修复经验 |
-| [browser-landing-page-2026-06-08.md](./浏览器/browser-landing-page-2026-06-08.md) | 2026-06-08 新功能 | 浏览器空标签引导页实现总结（端口扫描、UI 标准、组件架构） |
+| [browser-landing-page-2026-06-08.md](./浏览器/browser-landing-page-2026-06-08.md) | 2026-06-08 新功能 + 后续修复 | 浏览器空标签引导页实现总结（端口扫描、UI 标准、组件架构）+ 虚线占位符边框一致性修复 |
 
 ### 代码质量
 
@@ -76,3 +77,9 @@
 |------|------|------|
 | [lessons.md](./浏览器自动化/lessons.md) | .opencode/skills/... | 21 条浏览器自动化调试记录（跨平台路径、Rust 工具链、CSS 优先级等） |
 | [rules-lessons.md](./浏览器自动化/rules-lessons.md) | .agents/rules/browser-automation | 浏览器自动化规则 10 条经验 |
+
+### 交互优化
+
+| 文件 | 来源 | 说明 |
+|------|------|------|
+| [right-click-menu-positioning.md](./交互优化/right-click-menu-positioning.md) | 2026-06-08 修复执行 | 右键菜单跟随鼠标位置修复（4 条经验：定位方式选择、FileTree 机制复用、条件守卫遗漏） |

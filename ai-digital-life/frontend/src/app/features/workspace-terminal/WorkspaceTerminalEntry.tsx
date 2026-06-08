@@ -119,8 +119,7 @@ export function WorkspaceTerminalEntry({
   const handleNameContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    setMenuPosition({ top: rect.top, left: rect.right + 4 });
+    setMenuPosition({ top: e.clientY, left: e.clientX + 4 });
     setMenuOpen(true);
   };
 
@@ -208,7 +207,7 @@ export function WorkspaceTerminalEntry({
           role="button"
           tabIndex={0}
           onClick={handleNameClick}
-          onContextMenu={isIndependent ? undefined : handleNameContextMenu}
+          onContextMenu={handleNameContextMenu}
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') handleNameClick();
           }}

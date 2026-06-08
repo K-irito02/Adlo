@@ -224,6 +224,13 @@ export function BrowserTreeEntry({
   const menuId = `browser-entry-menu-${node.path}`;
   const entryBtnRef = useRef<{ [key: string]: HTMLButtonElement | null }>({});
 
+  const handleHeaderContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setMenuPosition({ top: e.clientY, left: e.clientX + 4 });
+    setMenuOpen(true);
+  }, [setMenuPosition, setMenuOpen]);
+
   useEffect(() => {
     if (!menuOpen) return;
     const handler = (e: MouseEvent) => {
@@ -338,11 +345,28 @@ export function BrowserTreeEntry({
 
   const handleChildOpenFile = useCallback(
     (path: string) => {
-      // 打开文件时先设置选中状态，然后再调用原有的 onOpenFile
       onSelectTreePath(path);
       onOpenFile(path);
     },
     [onSelectTreePath, onOpenFile]
+  );
+
+  const handleChildContextMenu = useCallback(
+    (childNode: BrowserTreeNode) => {
+      const items = getChildNodeMoreMenuItems(
+        childNode.nodeType,
+        categoryType,
+        childNode.path,
+        callbacks
+      );
+      return items.map((item) => ({
+        id: item.id,
+        label: item.label,
+        danger: item.danger,
+        action: () => item.action(),
+      }));
+    },
+    [categoryType, callbacks]
   );
 
   return (
@@ -350,6 +374,7 @@ export function BrowserTreeEntry({
       <div
         className={`adl-browser-entry__header${isSelected ? ' is-selected' : ''}`}
         onClick={handleHeaderClick}
+        onContextMenu={handleHeaderContextMenu}
       >
         <div className="adl-browser-entry__expand">
           <button
@@ -440,6 +465,7 @@ export function BrowserTreeEntry({
             onOpenFile={handleChildOpenFile}
             renderMeta={renderChildMeta}
             renderCount={renderChildCount}
+            getContextMenuItems={handleChildContextMenu}
             expandLabel="展开"
             collapseLabel="收起"
           />

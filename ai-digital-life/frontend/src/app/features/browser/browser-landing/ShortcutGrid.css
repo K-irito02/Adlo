@@ -98,7 +98,7 @@
   align-items: center;
   justify-content: center;
   border-radius: var(--radius);
-  border: 2px dashed var(--border-strong);
+  border: 1px dashed var(--border-strong);
   cursor: pointer;
   opacity: 0.45;
   transition: opacity var(--duration-150);

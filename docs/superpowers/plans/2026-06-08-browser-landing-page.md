@@ -1,6 +1,8 @@
 # 浏览器空标签引导页 实施计划
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+>
+> **实施后修正**：占位符虚线边框在实施后从 `2px dashed` 调整为 `1px dashed`，以保持与真实卡片一致的尺寸（`box-sizing: border-box` 下边框厚度影响总尺寸）。见 [知识沉淀/浏览器/browser-landing-page-2026-06-08.md](../知识沉淀/浏览器/browser-landing-page-2026-06-08.md#虚线占位符边框厚度一致性2026-06-08)。
 
 **Goal:** 实现浏览器空标签引导页，包含快捷导航、本地端口、自定义背景三大功能模块
 
@@ -567,7 +569,7 @@ export function ShortcutCard({
   gap: 6px;
   padding: 16px 8px 12px;
   border-radius: var(--radius-md);
-  border: 2px dashed var(--border-strong);
+  border: 1px dashed var(--border-strong);
   cursor: pointer;
   opacity: 0.5;
   transition: opacity var(--duration-150);
@@ -941,7 +943,7 @@ export function AddShortcutDialog({
   gap: 8px;
   padding: 8px 14px;
   border-radius: var(--radius);
-  border: 2px dashed var(--border-strong);
+  border: 1px dashed var(--border-strong);
   cursor: pointer;
   opacity: 0.4;
   transition: opacity var(--duration-150);
