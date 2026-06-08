@@ -1,3 +1,4 @@
+pub mod command_risk;
 pub mod types;
 
 pub use types::*; // 保留向后兼容的 flat re-export

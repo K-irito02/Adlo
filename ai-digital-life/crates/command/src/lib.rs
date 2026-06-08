@@ -18,7 +18,7 @@ pub fn build_request(
     args: Vec<String>,
     shell: bool,
 ) -> CommandRequest {
-    let risk = adl_task::assess_command_risk(&command, &args, shell);
+    let risk = adl_kernel::command_risk::assess_command_risk(&command, &args, shell);
     CommandRequest {
         id: create_id("command"),
         workspace_id: workspace_id.to_string(),
