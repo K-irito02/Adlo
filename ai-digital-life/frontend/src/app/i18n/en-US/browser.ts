@@ -76,6 +76,7 @@ export const browserEn = {
   browserAddPortPlaceholder: 'e.g. 3000',
   browserAddPortTitle: 'Add port',
   browserCancel: 'Cancel',
+  browserClose: 'Close',
   browserCustomBg: 'Custom background',
   browserManageShortcuts: 'Manage shortcuts',
   browserBgSettings: 'Custom background',

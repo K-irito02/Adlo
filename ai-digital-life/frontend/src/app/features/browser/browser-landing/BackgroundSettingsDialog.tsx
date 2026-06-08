@@ -86,7 +86,7 @@ export function BackgroundSettingsDialog({ open, t, onClose }: BackgroundSetting
       <div className="adl-prompt-modal__panel adl-bg-settings" role="dialog" aria-modal="true" aria-label={t.browserBgSettings}>
         <div className="adl-prompt-modal__header">
           {t.browserBgSettings}
-          <button type="button" className="adl-prompt-modal__header-close" onClick={onClose} aria-label="Close">✕</button>
+          <button type="button" className="adl-prompt-modal__header-close" onClick={onClose} aria-label={t.browserClose}>✕</button>
         </div>
 
         <div style={{ padding: 0 }}>

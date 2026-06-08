@@ -75,6 +75,7 @@ export const browserZh = {
   browserAddPortPlaceholder: '例如：3000',
   browserAddPortTitle: '添加端口',
   browserCancel: '取消',
+  browserClose: '关闭',
   browserCustomBg: '自定义背景',
   browserManageShortcuts: '管理快捷站点',
   browserBgSettings: '自定义背景',

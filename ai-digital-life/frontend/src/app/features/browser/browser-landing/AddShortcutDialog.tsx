@@ -72,7 +72,7 @@ export function AddShortcutDialog({
       <div className="adl-prompt-modal__panel" role="dialog" aria-modal="true" aria-label={mode === 'add' ? t.browserAddShortcutTitle : t.browserRenameShortcutTitle}>
         <div className="adl-prompt-modal__header">
           {mode === 'add' ? t.browserAddShortcutTitle : t.browserRenameShortcutTitle}
-          <button type="button" className="adl-prompt-modal__header-close" onClick={onCancel} aria-label="Close">✕</button>
+          <button type="button" className="adl-prompt-modal__header-close" onClick={onCancel} aria-label={t.browserClose}>✕</button>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 0 8px' }}>
           <div>

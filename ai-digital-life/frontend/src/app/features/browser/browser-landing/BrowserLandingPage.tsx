@@ -265,7 +265,7 @@ export function BrowserLandingPage({ t, onOpenUrl }: BrowserLandingPageProps) {
           >
             <div className="adl-prompt-modal__header">
               {t.browserRename}
-              <button type="button" className="adl-prompt-modal__header-close" onClick={() => { setRenamePortId(null); setRenamePortValue(''); }} aria-label="Close">✕</button>
+              <button type="button" className="adl-prompt-modal__header-close" onClick={() => { setRenamePortId(null); setRenamePortValue(''); }} aria-label={t.browserClose}>✕</button>
             </div>
             <div style={{ padding: '0 0 8px' }}>
               <input

@@ -63,7 +63,7 @@ export function AddManualPortDialog({ open, t, onConfirm, onCancel }: AddManualP
       <div className="adl-prompt-modal__panel" role="dialog" aria-modal="true" aria-label={t.browserAddPortTitle}>
         <div className="adl-prompt-modal__header">
           {t.browserAddPortTitle}
-          <button type="button" className="adl-prompt-modal__header-close" onClick={onCancel} aria-label="Close">✕</button>
+          <button type="button" className="adl-prompt-modal__header-close" onClick={onCancel} aria-label={t.browserClose}>✕</button>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '0 0 8px' }}>
           <div>
