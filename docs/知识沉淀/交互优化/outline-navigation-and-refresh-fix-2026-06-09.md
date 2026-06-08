@@ -6,7 +6,7 @@
 1. 变更面板差异查看器中，文档大纲导航无法展开折叠的未变更区域
 2. 文件面板 / 变更面板 / 编辑器表面的刷新按钮被懒加载守卫阻挡
 3. 文件面板 Markdown 预览中大纲导航使用已卸载的编辑器引用
-4. 变更面板 Markdown 预览缺少大纲导航 DOM 回退
+4. 变更面板 Markdown 预览中大纲导航 DOM 回退是死代码（从未被执行）
 
 ## 根因分析
 
@@ -53,11 +53,37 @@ update(deco, tr) {
 
 **修复**：添加 `fileCategory === 'markdown' && previewEnabled` 守卫，Markdown/预览组合下直接通过 DOM 选择器 `[data-source-line="N"]` 滚动到标题，跳过编辑器引用。
 
-### 问题 4：变更面板 Markdown 预览缺少 DOM 回退
+### 问题 4：变更面板 Markdown 预览中大纲导航 DOM 回退是死代码
 
-`ChangesPanel.tsx` 的大纲导航只实现了编辑器跳转，没有为 Markdown 预览提供 DOM 滚动回退。
+`ChangesPanel.tsx` 的 `handleRevealOutlineLine` 原本将 DOM 回退放在编辑器跳转之后，作为 fallback：
 
-**修复**：添加 `changesPreviewContainerRef` DOM 引用，通过 `DiffEditorSection` 回调 ref 暴露预览容器，在编辑器跳转不可用时回退到 `querySelector('[data-source-line="N"]')` DOM 滚动。
+```
+getModifiedEditor() → 返回陈旧但非 null 的 EditorRef（DiffViewer 已销毁）
+  ↓
+if (editor) → true，进入编辑器路径
+  ↓
+editor.getView?.() → undefined（View 已销毁）
+editor.revealLineInCenter?.(line) → 静默无操作（?. 吞掉错误）
+  ↓
+return  ← 始终 return，DOM 回退永远执行不到
+```
+
+`getModifiedEditor()` 返回的 `EditorRef` 指向已销毁的 DiffViewer。虽然 `?.` 操作符能避免崩溃，但也导致编辑器路径被"静默跳过"而不报错，最终提前 `return`，DOM 回退成为死代码。
+
+**修复**：使用与 `FilesPanel.tsx` 相同的防护逻辑——在编辑器跳转前先判断是否处于 Markdown 预览模式，是则直接 DOM 滚动，不走编辑器路径。同时移除多余的嵌套保护层，确保两条路径互斥且唯一：
+
+```typescript
+// 先判断 Markdown 预览
+if (changePreview && categorizeFile(changePreview.path) === 'markdown' && previewEnabled) {
+  // DOM 滚动 → return
+}
+// 再判断编辑器
+const editor = getModifiedEditor();
+if (editor) {
+  // 编辑器导航
+}
+// 不再有 fallback（两个条件是互斥的）
+```
 
 ## 教训
 

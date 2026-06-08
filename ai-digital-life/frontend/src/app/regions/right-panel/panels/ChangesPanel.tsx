@@ -25,6 +25,7 @@ import type { EditorRef, DiffEditorRef } from '../../../stores/types';
 import { buildOutlineFromContent, getDefaultExpandedOutlineIds } from '../../../features/outline';
 import { readSelectedBranch, writeSelectedBranch, getPrimaryBadge } from '../ChangesPanel/utils';
 import { summarizePatchSet } from '../../../features/patch-review';
+import { categorizeFile } from '../fileTypeRouter';
 import { ChangesToolbar } from './ChangesToolbar';
 import { ChangesConfirmDialogs } from './ChangesConfirmDialogs';
 import { RenameDialog } from '../../../components/RenameDialog';
@@ -206,7 +207,7 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
         const chunk = i < chunks.length ? chunks[i] : null;
         const collapseFrom = i > 0 ? prevLine + margin : 1;
         const collapseTo = chunk
-          ? view.state.doc.lineAt(chunk.fromB).number - 1 - margin
+          ? Math.max(view.state.doc.lineAt(chunk.fromB).number - 1 - margin, collapseFrom)
           : view.state.doc.lines;
         const lineCount = collapseTo - collapseFrom + 1;
         if (lineCount >= minSize && collapseFrom <= targetLine && targetLine <= collapseTo) {
@@ -222,6 +223,20 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
 
   const handleRevealOutlineLine = useCallback(
     (line: number) => {
+      // Markdown preview mode: use DOM-based scrolling directly.
+      // DiffViewer is unmounted → editor ref is stale → must skip editor path.
+      if (changePreview && categorizeFile(changePreview.path) === 'markdown' && previewEnabled) {
+        const container = changesPreviewContainerRef.current;
+        if (container) {
+          const heading = container.querySelector(
+            `[data-source-line="${line}"]`
+          ) as HTMLElement | null;
+          if (heading) {
+            heading.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }
+        return;
+      }
       const editor = getModifiedEditor();
       if (editor) {
         const view = editor.getView?.() as EditorView | undefined;
@@ -246,20 +261,9 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
         editor.revealLineInCenter?.(line);
         editor.setPosition?.({ lineNumber: line, column: 1 });
         editor.focus?.();
-        return;
-      }
-      // Fallback for markdown preview mode: scroll to heading in DOM
-      const container = changesPreviewContainerRef.current;
-      if (container) {
-        const heading = container.querySelector(
-          `[data-source-line="${line}"]`
-        ) as HTMLElement | null;
-        if (heading) {
-          heading.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
       }
     },
-    [getModifiedEditor, findCollapsedSectionStart]
+    [getModifiedEditor, findCollapsedSectionStart, changePreview, previewEnabled]
   );
 
   const handleToggleAllDirectories = () => {

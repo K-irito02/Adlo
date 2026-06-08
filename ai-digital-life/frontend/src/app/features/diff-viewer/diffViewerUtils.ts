@@ -46,7 +46,9 @@ export function buildCollapsedUnchangedRanges(input: {
   for (let index = 0; ; index += 1) {
     const chunk = index < input.chunks.length ? input.chunks[index] : null;
     const collapseFrom = index > 0 ? prevLine + margin : 1;
-    const collapseTo = chunk ? input.doc.lineAt(chunk.fromB).number - 1 - margin : input.doc.lines;
+    const collapseTo = chunk
+      ? Math.max(input.doc.lineAt(chunk.fromB).number - 1 - margin, collapseFrom)
+      : input.doc.lines;
     const lineCount = collapseTo - collapseFrom + 1;
     if (
       lineCount >= minSize &&

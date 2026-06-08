@@ -45,7 +45,7 @@
 | **第三十七轮** | **2026-06-08** | **Navigator 方法重构与警告清理（toggleNavigator/setNavigatorCollapsed 移动到 uiSlice、ESLint 警告全清理、保持向后兼容包装器）** | ✅ |
 | **第三十八轮** | **2026-06-08** | **低风险修复（死代码删除、useShallow 补充、command→task 依赖倒置、store 订阅提取、anyhow 字符串匹配修复）** | ✅ |
 | **第三十九轮** | **2026-06-08** | **核心重构（PTY Mutex 合并、3 个 mini crate 合并入 kernel、ChangesPanel 拆分 PatchReviewSection+DiffEditorSection、storage/lib.rs 拆 5 子模块、workspace/lib.rs 拆 detect+preview）** | ✅ |
-| **第四十轮** | **2026-06-09** | **大纲导航折叠展开修复 + 刷新按钮绕过懒加载守卫 + Markdown 预览 DOM 回退 + 知识沉淀更新 + 清理临时文件** | ✅ |
+| **第四十轮** | **2026-06-09** | **大纲导航折叠展开修复 + 刷新按钮绕过懒加载守卫 + Markdown 预览 DOM 导航死代码消除 + `collapseTo` 负值防护 + 知识沉淀更新 + 清理临时文件** | ✅ |
 
 ## 说明
 
