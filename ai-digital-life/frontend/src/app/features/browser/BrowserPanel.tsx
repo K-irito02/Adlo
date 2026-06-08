@@ -25,6 +25,7 @@ import {
 import { TooltipSimple } from '../../components/Tooltip';
 import { RenameDialog } from '../../components/RenameDialog';
 import { ToastContainer, type ToastType } from '../../components/Toast';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../../stores/slicedStore';
 import { useBrowserPanel } from './useBrowserPanel';
 import { BrowserContextMenu } from './BrowserContextMenu';
@@ -94,11 +95,11 @@ export function BrowserPanel(props: BrowserPanelProps) {
 
   const isBrowserVisible = props.isVisible ?? false;
 
-  const recentWorkspaces = useAppStore((state) => state.recentWorkspaces);
+  const recentWorkspaces = useAppStore(useShallow((state) => state.recentWorkspaces));
   const browserSelectTab = useAppStore((state) => state.browserSelectTab);
   const browserViewMode = useAppStore((state) => state.browserViewMode);
   const browserShowTabButtons = useAppStore((state) => state.browserShowTabButtons);
-  const browserHistory = useAppStore((state) => state.browserHistory);
+  const browserHistory = useAppStore(useShallow((state) => state.browserHistory));
   const setBrowserViewMode = useAppStore((state) => state.setBrowserViewMode);
   const setBrowserShowTabButtons = useAppStore((state) => state.setBrowserShowTabButtons);
 
