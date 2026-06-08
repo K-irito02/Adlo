@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import type { BackgroundConfig, BackgroundMode, BackgroundFit } from '../../../stores/slices/browserSlice';
+import type { BackgroundMode, BackgroundFit } from '../../../stores/slices/browserSlice';
 import { useAppStore } from '../../../stores/slicedStore';
 import './BackgroundSettingsDialog.css';
 
@@ -83,16 +83,32 @@ export function BackgroundSettingsDialog({ open, t, onClose }: BackgroundSetting
 
   return createPortal(
     <div className="adl-prompt-modal" onKeyDown={handleKeyDown} onClick={handleBackdrop}>
-      <div className="adl-prompt-modal__panel adl-bg-settings" role="dialog" aria-modal="true" aria-label={t.browserBgSettings}>
+      <div
+        className="adl-prompt-modal__panel adl-bg-settings"
+        role="dialog"
+        aria-modal="true"
+        aria-label={t.browserBgSettings}
+      >
         <div className="adl-prompt-modal__header">
           {t.browserBgSettings}
-          <button type="button" className="adl-prompt-modal__header-close" onClick={onClose} aria-label={t.browserClose}>✕</button>
+          <button
+            type="button"
+            className="adl-prompt-modal__header-close"
+            onClick={onClose}
+            aria-label={t.browserClose}
+          >
+            ✕
+          </button>
         </div>
 
         <div style={{ padding: 0 }}>
           <div className="adl-bg-settings__section">
             <label className="adl-bg-settings__label">
-              {mode === 'default' ? t.browserBgModeDefault : mode === 'image' ? t.browserBgModeImage : t.browserBgModeVideo}
+              {mode === 'default'
+                ? t.browserBgModeDefault
+                : mode === 'image'
+                  ? t.browserBgModeImage
+                  : t.browserBgModeVideo}
             </label>
             <div className="adl-bg-settings__mode-group">
               {(['default', 'image', 'video'] as const).map((m) => (
@@ -102,7 +118,11 @@ export function BackgroundSettingsDialog({ open, t, onClose }: BackgroundSetting
                   className={`adl-bg-settings__mode-btn${mode === m ? ' is-active' : ''}`}
                   onClick={() => setMode(m)}
                 >
-                  {m === 'default' ? t.browserBgModeDefault : m === 'image' ? t.browserBgModeImage : t.browserBgModeVideo}
+                  {m === 'default'
+                    ? t.browserBgModeDefault
+                    : m === 'image'
+                      ? t.browserBgModeImage
+                      : t.browserBgModeVideo}
                 </button>
               ))}
             </div>
@@ -114,7 +134,11 @@ export function BackgroundSettingsDialog({ open, t, onClose }: BackgroundSetting
               <input
                 ref={fileInputRef}
                 type="file"
-                accept={mode === 'video' ? 'video/mp4,video/webm' : 'image/jpeg,image/png,image/gif,image/webp'}
+                accept={
+                  mode === 'video'
+                    ? 'video/mp4,video/webm'
+                    : 'image/jpeg,image/png,image/gif,image/webp'
+                }
                 style={{ display: 'none' }}
                 onChange={handleFileSelect}
               />
@@ -123,14 +147,20 @@ export function BackgroundSettingsDialog({ open, t, onClose }: BackgroundSetting
                   className="adl-bg-settings__preview"
                   style={{
                     backgroundImage: mode === 'image' ? `url(${filePath})` : undefined,
-                    backgroundSize: fit === 'cover' ? 'cover' : fit === 'contain' ? 'contain' : 'auto',
+                    backgroundSize:
+                      fit === 'cover' ? 'cover' : fit === 'contain' ? 'contain' : 'auto',
                     backgroundRepeat: fit === 'repeat' ? 'repeat' : 'no-repeat',
                   }}
                 >
                   {mode === 'video' && (
                     <video
                       src={filePath}
-                      style={{ width: '100%', height: '100%', objectFit: fit === 'cover' ? 'cover' : fit === 'contain' ? 'contain' : 'none' }}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit:
+                          fit === 'cover' ? 'cover' : fit === 'contain' ? 'contain' : 'none',
+                      }}
                       autoPlay
                       loop
                       muted
@@ -139,7 +169,15 @@ export function BackgroundSettingsDialog({ open, t, onClose }: BackgroundSetting
                   )}
                 </div>
               ) : (
-                <div className="adl-bg-settings__upload-zone" onClick={handleDropZoneClick} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter') handleDropZoneClick(); }}>
+                <div
+                  className="adl-bg-settings__upload-zone"
+                  onClick={handleDropZoneClick}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleDropZoneClick();
+                  }}
+                >
                   <div className="adl-bg-settings__upload-icon">📁</div>
                   <div className="adl-bg-settings__upload-text">{t.browserBgUploadHint}</div>
                   <div className="adl-bg-settings__upload-hint">{t.browserBgFileTypes}</div>
@@ -159,7 +197,11 @@ export function BackgroundSettingsDialog({ open, t, onClose }: BackgroundSetting
                     className={`adl-bg-settings__fill-btn${fit === f ? ' is-active' : ''}`}
                     onClick={() => setFit(f)}
                   >
-                    {f === 'cover' ? t.browserBgFillCover : f === 'contain' ? t.browserBgFillContain : t.browserBgFillRepeat}
+                    {f === 'cover'
+                      ? t.browserBgFillCover
+                      : f === 'contain'
+                        ? t.browserBgFillContain
+                        : t.browserBgFillRepeat}
                   </button>
                 ))}
               </div>
@@ -167,10 +209,18 @@ export function BackgroundSettingsDialog({ open, t, onClose }: BackgroundSetting
           )}
 
           <div className="adl-bg-settings__actions adl-prompt-modal__actions--fill">
-            <button type="button" className="adl-btn adl-btn--ghost adl-btn--square" onClick={handleReset}>
+            <button
+              type="button"
+              className="adl-btn adl-btn--ghost adl-btn--square"
+              onClick={handleReset}
+            >
               {t.browserBgResetDefault}
             </button>
-            <button type="button" className="adl-btn adl-btn--primary adl-btn--square" onClick={handleApply}>
+            <button
+              type="button"
+              className="adl-btn adl-btn--primary adl-btn--square"
+              onClick={handleApply}
+            >
               {t.browserBgApply}
             </button>
           </div>

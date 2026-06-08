@@ -29,7 +29,9 @@
   font-size: 13px;
   background: transparent;
   color: var(--text-primary);
-  transition: border-color var(--duration-150), background var(--duration-150);
+  transition:
+    border-color var(--duration-150),
+    background var(--duration-150);
 }
 
 .adl-bg-settings__mode-btn.is-active {
@@ -92,7 +94,9 @@
   cursor: pointer;
   background: transparent;
   color: var(--text-primary);
-  transition: border-color var(--duration-150), background var(--duration-150);
+  transition:
+    border-color var(--duration-150),
+    background var(--duration-150);
 }
 
 .adl-bg-settings__fill-btn.is-active {

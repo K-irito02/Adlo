@@ -3,7 +3,7 @@ import type { ShortcutSite } from '../../../stores/slices/browserSlice';
 
 interface ShortcutCardProps {
   site: ShortcutSite;
-  index: number;
+  _index: number;
   isDragOver: boolean;
   onDragStart: (e: React.DragEvent, id: string) => void;
   onDragOver: (e: React.DragEvent, id: string) => void;
@@ -15,7 +15,7 @@ interface ShortcutCardProps {
 
 export function ShortcutCard({
   site,
-  index,
+  _index,
   isDragOver,
   onDragStart,
   onDragOver,
@@ -81,7 +81,9 @@ export function ShortcutCard({
           {site.icon ? (
             <img src={site.icon} alt="" className="adl-shortcut-card__icon-img" />
           ) : (
-            <span className="adl-shortcut-card__icon-placeholder">{site.name.charAt(0).toUpperCase()}</span>
+            <span className="adl-shortcut-card__icon-placeholder">
+              {site.name.charAt(0).toUpperCase()}
+            </span>
           )}
         </div>
       </div>

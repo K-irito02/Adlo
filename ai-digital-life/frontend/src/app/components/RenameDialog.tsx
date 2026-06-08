@@ -74,7 +74,17 @@ export function RenameDialog({
   return createPortal(
     <div className="adl-prompt-modal" onKeyDown={handleKeyDown} onClick={handleBackdrop}>
       <div className="adl-prompt-modal__panel" role="dialog" aria-modal="true" aria-label={title}>
-        <div className="adl-prompt-modal__header">{title}</div>
+        <div className="adl-prompt-modal__header">
+          {title}
+          <button
+            type="button"
+            className="adl-prompt-modal__header-close"
+            onClick={onCancel}
+            aria-label="关闭"
+          >
+            ✕
+          </button>
+        </div>
         {itemInfo && <div className="adl-prompt-modal__item-info">{itemInfo}</div>}
         <input
           ref={inputRef}
@@ -88,7 +98,7 @@ export function RenameDialog({
         <div className="adl-prompt-modal__actions">
           <button
             type="button"
-            className="adl-btn adl-btn--ghost"
+            className="adl-btn adl-btn--ghost adl-btn--square"
             onClick={onCancel}
             disabled={loading}
           >
@@ -96,7 +106,7 @@ export function RenameDialog({
           </button>
           <button
             type="button"
-            className="adl-btn adl-btn--primary"
+            className="adl-btn adl-btn--primary adl-btn--square"
             onClick={() => void handleOk()}
             disabled={loading}
           >

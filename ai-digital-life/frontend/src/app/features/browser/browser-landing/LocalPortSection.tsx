@@ -14,12 +14,16 @@ interface LocalPortSectionProps {
 
 const SCAN_API = '/__adl_preview_api__/browser/scan-ports';
 
-export function LocalPortSection({ t, onOpenUrl, onAddManualPort, onContextMenu }: LocalPortSectionProps) {
+export function LocalPortSection({
+  t,
+  onOpenUrl,
+  onAddManualPort,
+  onContextMenu,
+}: LocalPortSectionProps) {
   const browserLocalPorts = useAppStore((state) => state.browserLocalPorts);
   const browserPortScanning = useAppStore((state) => state.browserPortScanning);
   const browserSetLocalPorts = useAppStore((state) => state.browserSetLocalPorts);
   const browserReorderLocalPorts = useAppStore((state) => state.browserReorderLocalPorts);
-  const browserDeleteLocalPort = useAppStore((state) => state.browserDeleteLocalPort);
   const browserSetPortScanning = useAppStore((state) => state.browserSetPortScanning);
 
   const [dragOverPortId, setDragOverPortId] = useState<string | null>(null);
@@ -52,9 +56,7 @@ export function LocalPortSection({ t, onOpenUrl, onAddManualPort, onContextMenu 
 
       const existingKeys = new Set(browserLocalPorts.map((p) => `${p.host}:${p.port}`));
       const maxSortOrder =
-        browserLocalPorts.length > 0
-          ? Math.max(...browserLocalPorts.map((p) => p.sortOrder))
-          : 0;
+        browserLocalPorts.length > 0 ? Math.max(...browserLocalPorts.map((p) => p.sortOrder)) : 0;
 
       const newPorts = discovered
         .filter((p) => !existingKeys.has(`${p.host}:${p.port}`))
@@ -181,7 +183,11 @@ export function LocalPortSection({ t, onOpenUrl, onAddManualPort, onContextMenu 
             <span className="adl-local-port-card__address" title={`${port.host}:${port.port}`}>
               {port.host}:{port.port}
             </span>
-            {port.label && <span className="adl-local-port-card__label" title={port.label}>{port.label}</span>}
+            {port.label && (
+              <span className="adl-local-port-card__label" title={port.label}>
+                {port.label}
+              </span>
+            )}
           </div>
         ))}
         <div

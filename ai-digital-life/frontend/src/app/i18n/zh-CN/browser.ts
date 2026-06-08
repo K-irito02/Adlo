@@ -51,7 +51,7 @@ export const browserZh = {
   browserDeleteHistoryDay: '删除全部历史记录 · 日',
   browserNoContent: '暂无内容',
   browserTabDir: '标签目录',
-  browserRenamePrompt: '请输入新目录名称',
+  browserRenamePrompt: '重命名',
 
   // 空标签引导页
   browserShortcuts: '快捷导航',

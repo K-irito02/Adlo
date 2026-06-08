@@ -316,17 +316,17 @@ fn emit_command_activity_event(
         args: Some(request.args.clone()),
         exit_code,
     };
-    
+
     let mut payload = serde_json::json!({
         "phase": phase,
         "command": request.command,
         "args": request.args,
     });
-    
+
     if let Some(code) = exit_code {
         payload["exitCode"] = serde_json::json!(code);
     }
-    
+
     crate::commands::save_and_emit_run_activity(
         state,
         app,
@@ -363,7 +363,16 @@ fn emit_run_activity_done_event(
     run_id: &str,
     result: &CommandExecutionResult,
 ) {
-    emit_command_activity_event(app, state, workspace, task, request, run_id, "done", result.exit_code);
+    emit_command_activity_event(
+        app,
+        state,
+        workspace,
+        task,
+        request,
+        run_id,
+        "done",
+        result.exit_code,
+    );
 }
 
 /// 保存命令执行结果

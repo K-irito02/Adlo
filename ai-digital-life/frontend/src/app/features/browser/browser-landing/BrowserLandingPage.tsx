@@ -12,10 +12,9 @@ import './BrowserLandingPage.css';
 
 interface BrowserLandingPageProps {
   t: Record<string, string>;
-  onOpenUrl: (url: string) => void;
 }
 
-export function BrowserLandingPage({ t, onOpenUrl }: BrowserLandingPageProps) {
+export function BrowserLandingPage({ t }: BrowserLandingPageProps) {
   const browserBgConfig = useAppStore((state) => state.browserBgConfig);
   const browserOpenTab = useAppStore((state) => state.browserOpenTab);
   const browserAddShortcut = useAppStore((state) => state.browserAddShortcut);
@@ -80,21 +79,15 @@ export function BrowserLandingPage({ t, onOpenUrl }: BrowserLandingPageProps) {
     setRenameSite(null);
   }, []);
 
-  const handleShortcutContextMenu = useCallback(
-    (e: React.MouseEvent, site: ShortcutSite) => {
-      e.preventDefault();
-      setShortcutMenu({ open: true, x: e.clientX, y: e.clientY, site });
-    },
-    []
-  );
+  const handleShortcutContextMenu = useCallback((e: React.MouseEvent, site: ShortcutSite) => {
+    e.preventDefault();
+    setShortcutMenu({ open: true, x: e.clientX, y: e.clientY, site });
+  }, []);
 
-  const handlePortContextMenu = useCallback(
-    (e: React.MouseEvent, port: LocalPort) => {
-      e.preventDefault();
-      setPortMenu({ open: true, x: e.clientX, y: e.clientY, port });
-    },
-    []
-  );
+  const handlePortContextMenu = useCallback((e: React.MouseEvent, port: LocalPort) => {
+    e.preventDefault();
+    setPortMenu({ open: true, x: e.clientX, y: e.clientY, port });
+  }, []);
 
   const handleContextMenuClose = useCallback(() => {
     setShortcutMenu({ open: false, x: 0, y: 0, site: null });
@@ -259,13 +252,33 @@ export function BrowserLandingPage({ t, onOpenUrl }: BrowserLandingPageProps) {
       )}
 
       {renamePortId && (
-        <div className="adl-prompt-modal" onClick={() => { setRenamePortId(null); setRenamePortValue(''); }}>
-          <div className="adl-prompt-modal__panel" role="dialog" aria-modal="true" aria-label={t.browserRename}
+        <div
+          className="adl-prompt-modal"
+          onClick={() => {
+            setRenamePortId(null);
+            setRenamePortValue('');
+          }}
+        >
+          <div
+            className="adl-prompt-modal__panel"
+            role="dialog"
+            aria-modal="true"
+            aria-label={t.browserRename}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="adl-prompt-modal__header">
               {t.browserRename}
-              <button type="button" className="adl-prompt-modal__header-close" onClick={() => { setRenamePortId(null); setRenamePortValue(''); }} aria-label={t.browserClose}>✕</button>
+              <button
+                type="button"
+                className="adl-prompt-modal__header-close"
+                onClick={() => {
+                  setRenamePortId(null);
+                  setRenamePortValue('');
+                }}
+                aria-label={t.browserClose}
+              >
+                ✕
+              </button>
             </div>
             <div style={{ padding: '0 0 8px' }}>
               <input
@@ -278,10 +291,21 @@ export function BrowserLandingPage({ t, onOpenUrl }: BrowserLandingPageProps) {
               />
             </div>
             <div className="adl-prompt-modal__actions adl-prompt-modal__actions--fill">
-              <button type="button" className="adl-btn adl-btn--ghost adl-btn--square" onClick={() => { setRenamePortId(null); setRenamePortValue(''); }}>
+              <button
+                type="button"
+                className="adl-btn adl-btn--ghost adl-btn--square"
+                onClick={() => {
+                  setRenamePortId(null);
+                  setRenamePortValue('');
+                }}
+              >
                 {t.browserCancel}
               </button>
-              <button type="button" className="adl-btn adl-btn--primary adl-btn--square" onClick={handleRenamePortSubmit}>
+              <button
+                type="button"
+                className="adl-btn adl-btn--primary adl-btn--square"
+                onClick={handleRenamePortSubmit}
+              >
                 {t.browserSave}
               </button>
             </div>

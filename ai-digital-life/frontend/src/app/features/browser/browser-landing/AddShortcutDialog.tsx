@@ -38,9 +38,7 @@ export function AddShortcutDialog({
     if (mode === 'add') {
       const trimmedUrl = url.trim();
       if (!trimmedUrl) return;
-      const finalUrl = /^https?:\/\//i.test(trimmedUrl)
-        ? trimmedUrl
-        : `https://${trimmedUrl}`;
+      const finalUrl = /^https?:\/\//i.test(trimmedUrl) ? trimmedUrl : `https://${trimmedUrl}`;
       onConfirm(trimmedName, finalUrl);
     } else {
       onConfirm(trimmedName, '');
@@ -69,14 +67,33 @@ export function AddShortcutDialog({
 
   return createPortal(
     <div className="adl-prompt-modal" onKeyDown={handleKeyDown} onClick={handleBackdrop}>
-      <div className="adl-prompt-modal__panel" role="dialog" aria-modal="true" aria-label={mode === 'add' ? t.browserAddShortcutTitle : t.browserRenameShortcutTitle}>
+      <div
+        className="adl-prompt-modal__panel"
+        role="dialog"
+        aria-modal="true"
+        aria-label={mode === 'add' ? t.browserAddShortcutTitle : t.browserRenameShortcutTitle}
+      >
         <div className="adl-prompt-modal__header">
           {mode === 'add' ? t.browserAddShortcutTitle : t.browserRenameShortcutTitle}
-          <button type="button" className="adl-prompt-modal__header-close" onClick={onCancel} aria-label={t.browserClose}>✕</button>
+          <button
+            type="button"
+            className="adl-prompt-modal__header-close"
+            onClick={onCancel}
+            aria-label={t.browserClose}
+          >
+            ✕
+          </button>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 0 8px' }}>
           <div>
-            <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 4 }}>
+            <div
+              style={{
+                fontSize: 12,
+                fontWeight: 500,
+                color: 'var(--text-secondary)',
+                marginBottom: 4,
+              }}
+            >
               {t.browserShortcutName}
             </div>
             <input
@@ -89,7 +106,14 @@ export function AddShortcutDialog({
           </div>
           {mode === 'add' && (
             <div>
-              <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 4 }}>
+              <div
+                style={{
+                  fontSize: 12,
+                  fontWeight: 500,
+                  color: 'var(--text-secondary)',
+                  marginBottom: 4,
+                }}
+              >
                 {t.browserShortcutUrl}
               </div>
               <input
@@ -105,7 +129,11 @@ export function AddShortcutDialog({
           )}
         </div>
         <div className="adl-prompt-modal__actions adl-prompt-modal__actions--fill">
-          <button type="button" className="adl-btn adl-btn--ghost adl-btn--square" onClick={onCancel}>
+          <button
+            type="button"
+            className="adl-btn adl-btn--ghost adl-btn--square"
+            onClick={onCancel}
+          >
             {t.browserCancel}
           </button>
           <button

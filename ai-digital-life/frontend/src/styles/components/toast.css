@@ -23,7 +23,9 @@
   border-radius: 4px;
   box-shadow: var(--shadow-md);
   opacity: 0;
-  transition: transform var(--duration-300) var(--ease-spring), opacity var(--duration-200) var(--ease-enter);
+  transition:
+    transform var(--duration-300) var(--ease-spring),
+    opacity var(--duration-200) var(--ease-enter);
   pointer-events: none;
 }
 

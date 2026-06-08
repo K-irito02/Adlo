@@ -70,7 +70,7 @@ export function ShortcutGrid({ t, onOpenUrl, onAddClick, onContextMenu }: Shortc
           <ShortcutCard
             key={site.id}
             site={site}
-            index={site.sortOrder}
+            _index={site.sortOrder}
             isDragOver={dragOverId === site.id}
             onDragStart={handleDragStart}
             onDragOver={handleDragOver}

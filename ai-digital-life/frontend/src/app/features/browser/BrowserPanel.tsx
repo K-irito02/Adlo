@@ -117,7 +117,9 @@ export function BrowserPanel(props: BrowserPanelProps) {
   const [selectedTreePath, setSelectedTreePath] = useState<string | null>(null);
   const selectedTreePathRef = useRef<string | null>(null);
 
-  const [toastMessages, setToastMessages] = useState<Array<{ id: string; message: string; type?: ToastType; source?: string }>>([]);
+  const [toastMessages, setToastMessages] = useState<
+    Array<{ id: string; message: string; type?: ToastType; source?: string }>
+  >([]);
 
   const showToast = useCallback((message: string, type?: ToastType, source?: string) => {
     const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -707,13 +709,8 @@ export function BrowserPanel(props: BrowserPanelProps) {
         <div className="adl-tool-primary adl-tool-primary--browser" ref={primaryRef}>
           <div className="adl-tool-primary__scroll adl-tool-primary__scroll--browser" />
 
-          {(!hasActiveTab || !activeTab?.url || activeTab?.url === 'about:blank') ? (
-            <BrowserLandingPage
-              t={t}
-              onOpenUrl={(url: string) => {
-                browserOpenTab(url, undefined, undefined);
-              }}
-            />
+          {!hasActiveTab || !activeTab?.url || activeTab?.url === 'about:blank' ? (
+            <BrowserLandingPage t={t} />
           ) : (
             <>
               {!isTauriShell() && activeTab && isBrowserVisible && (

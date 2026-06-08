@@ -257,7 +257,10 @@ export interface BrowserSlice {
   // 本地端口方法
   browserSetLocalPorts: (ports: LocalPort[]) => void;
   browserAddManualPort: (port: number, label?: string) => string;
-  browserUpdateLocalPort: (id: string, patch: Partial<Pick<LocalPort, 'label' | 'sortOrder'>>) => void;
+  browserUpdateLocalPort: (
+    id: string,
+    patch: Partial<Pick<LocalPort, 'label' | 'sortOrder'>>
+  ) => void;
   browserDeleteLocalPort: (id: string) => void;
   browserReorderLocalPorts: (ids: string[]) => void;
   browserSetPortScanning: (scanning: boolean) => void;
@@ -611,9 +614,7 @@ export const createBrowserSlice = (
 
     browserRenameShortcut: (id, name) =>
       set((state) => {
-        const nextShortcuts = state.browserShortcuts.map((s) =>
-          s.id === id ? { ...s, name } : s
-        );
+        const nextShortcuts = state.browserShortcuts.map((s) => (s.id === id ? { ...s, name } : s));
         scheduleWrite(BROWSER_SHORTCUTS_KEY, nextShortcuts);
         return { browserShortcuts: nextShortcuts };
       }),
@@ -640,7 +641,7 @@ export const createBrowserSlice = (
       }),
 
     browserSetLocalPorts: (ports) =>
-      set((state) => {
+      set(() => {
         const withSort = ports.map((p, idx) => ({ ...p, sortOrder: p.sortOrder ?? idx }));
         scheduleWrite(BROWSER_LOCAL_PORTS_KEY, withSort);
         return { browserLocalPorts: withSort };

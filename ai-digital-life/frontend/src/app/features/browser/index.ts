@@ -13,4 +13,10 @@ export type {
   ContextMenuState,
   UseBrowserPanelReturn,
 } from './useBrowserPanel';
-export type { ShortcutSite, LocalPort, BackgroundConfig, BackgroundMode, BackgroundFit } from '../../stores/slices/browserSlice';
+export type {
+  ShortcutSite,
+  LocalPort,
+  BackgroundConfig,
+  BackgroundMode,
+  BackgroundFit,
+} from '../../stores/slices/browserSlice';

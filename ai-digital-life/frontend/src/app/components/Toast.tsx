@@ -29,16 +29,17 @@ const TOAST_ICONS: Record<ToastType, IconName> = {
   error: 'x-circle',
 };
 
-const TOAST_COLORS: Record<ToastType, string> = {
-  success: 'adl-toast--success',
-  warning: 'adl-toast--warning',
-  error: 'adl-toast--error',
-};
-
 // 自定义圆形警告图标 SVG（圆形里带感叹号）
-const WARNING_ICON_SVG = '<svg class="adl-toast__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
+const WARNING_ICON_SVG =
+  '<svg class="adl-toast__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
 
-export function Toast({ message, type = 'warning', duration = 3000, position = 0, onClose }: ToastProps) {
+export function Toast({
+  message,
+  type = 'warning',
+  duration = 3000,
+  position = 0,
+  onClose,
+}: ToastProps) {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
@@ -52,7 +53,10 @@ export function Toast({ message, type = 'warning', duration = 3000, position = 0
     return () => clearTimeout(timer);
   }, [duration, onClose]);
 
-  const iconHtml = type === 'warning' ? WARNING_ICON_SVG : renderIcon(TOAST_ICONS[type], { size: 'sm', decorative: true }).value;
+  const iconHtml =
+    type === 'warning'
+      ? WARNING_ICON_SVG
+      : renderIcon(TOAST_ICONS[type], { size: 'sm', decorative: true }).value;
   const top = TOAST_BASE_TOP + position * (TOAST_HEIGHT + TOAST_GAP);
 
   return createPortal(

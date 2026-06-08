@@ -224,12 +224,15 @@ export function BrowserTreeEntry({
   const menuId = `browser-entry-menu-${node.path}`;
   const entryBtnRef = useRef<{ [key: string]: HTMLButtonElement | null }>({});
 
-  const handleHeaderContextMenu = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setMenuPosition({ top: e.clientY, left: e.clientX + 4 });
-    setMenuOpen(true);
-  }, [setMenuPosition, setMenuOpen]);
+  const handleHeaderContextMenu = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setMenuPosition({ top: e.clientY, left: e.clientX + 4 });
+      setMenuOpen(true);
+    },
+    [setMenuPosition, setMenuOpen]
+  );
 
   useEffect(() => {
     if (!menuOpen) return;

@@ -52,7 +52,7 @@ export const browserEn = {
   browserDeleteHistoryDay: 'Delete All History · Days',
   browserNoContent: 'No content',
   browserTabDir: 'Tab Directory',
-  browserRenamePrompt: 'Please enter a new directory name',
+  browserRenamePrompt: 'Rename',
 
   // Landing page
   browserShortcuts: 'Shortcuts',

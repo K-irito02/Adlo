@@ -178,8 +178,10 @@ await page.locator('.adl-tool-context__group--files-actions .adl-tool-context__i
 | `.adl-tree-node.is-context-menu-target` | 当前右键选中的树节点（悬停高亮） |
 | `.adl-confirm-overlay` | 删除确认对话框遮罩 |
 | `.adl-confirm-dialog` | 删除确认对话框 |
-| `.adl-rename-dialog` | 重命名输入框容器 |
-| `.adl-rename-input` | 重命名输入框 |
+| `.adl-prompt-modal` | 重命名弹窗遮罩（`RenameDialog` 组件） |
+| `.adl-prompt-modal__panel` | 重命名弹窗面板 |
+| `.adl-prompt-modal__input` | 重命名输入框 |
+| `.adl-prompt-modal__header-close` | 重命名弹窗 ✕ 关闭按钮 |
 
 ### 菜单项
 
@@ -192,7 +194,7 @@ await page.locator('.adl-tool-context__group--files-actions .adl-tool-context__i
 | 剪切 | 标记文件待剪切（存入剪贴板切片） |
 | 复制 | 标记文件待复制（存入剪贴板切片） |
 | 粘贴 | 粘贴已剪切/复制的文件到目标目录（自动处理同名冲突 `-copyN`） |
-| 重命名 | 弹出内联输入框，Enter 确认 / Escape 取消 |
+| 重命名 | 弹出 RenameDialog 弹窗（`.adl-prompt-modal`），Enter 确认 / Escape 取消 |
 | 删除 | 弹出确认对话框，确认后移至系统回收站 |
 
 ### 操作
@@ -221,9 +223,12 @@ await page.locator('.adl-filetree__label').filter({ hasText: 'old-name.ts' }).cl
 await page.waitForSelector('.adl-sidebar-menu');
 // 点击重命名项（不含 is-danger 的最后一个分组项）
 await page.locator('.adl-sidebar-menu__item').filter({ hasText: '重命名' }).click();
-await page.waitForSelector('.adl-rename-input');
-await page.fill('.adl-rename-input', 'new-name.ts');
-await page.press('.adl-rename-input', 'Enter');
+await page.waitForSelector('.adl-prompt-modal');
+// 清空并输入新名称（输入框已自动聚焦并全选）
+await page.fill('.adl-prompt-modal__input', 'new-name.ts');
+// 点击确认按钮或按 Enter
+await page.click('.adl-btn--primary.adl-btn--square');
+// 或: await page.press('.adl-prompt-modal__input', 'Enter');
 ```
 
 ### 切换连续性约定

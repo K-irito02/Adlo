@@ -248,7 +248,10 @@ function interceptConsole() {
  */
 function interceptGlobalErrors() {
   window.addEventListener('error', (event) => {
-    collectLog('error', `[UncaughtError] ${event.message} (${event.filename}:${event.lineno}:${event.colno})`);
+    collectLog(
+      'error',
+      `[UncaughtError] ${event.message} (${event.filename}:${event.lineno}:${event.colno})`
+    );
   });
   window.addEventListener('unhandledrejection', (event) => {
     const reason = event.reason instanceof Error ? event.reason.message : String(event.reason);

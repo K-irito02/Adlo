@@ -135,6 +135,27 @@ xterm.js 主题色从 CSS 自定义属性读取，非硬编码：
 - 删除组件时必须同步删除其专属 CSS
 - 内容可变容器使用固定 `width`，禁止仅设置 `min-width`
 
+## Prompt Modal（弹窗对话框）
+
+| 组件 | 文件 | 说明 |
+|------|------|------|
+| `RenameDialog` | `frontend/src/app/components/RenameDialog.tsx` | 重命名弹出框，用于文件/变更/浏览器/会话 |
+
+### 样式规范
+
+| 规则 | 说明 |
+|------|------|
+| 容器 | `.adl-prompt-modal` / `.adl-prompt-modal__panel`，使用 `createPortal` 渲染到 `document.body` |
+| 标题栏 | `.adl-prompt-modal__header` 右侧必须含 `✕` 关闭按钮（`.adl-prompt-modal__header-close`） |
+| 按钮 | 底部操作按钮必须使用 `adl-btn--square` 实现**直角**外观 |
+| 输入框 | `.adl-prompt-modal__input`，圆角输入框 |
+
+### 约束
+
+- 所有 `RenameDialog` 实例（文件/变更/浏览器/会话共用同一组件）统一直角按钮和 ✕ 关闭按钮
+- 浏览器专用的 `AddShortcutDialog`、端口重命名 dialog 也遵循相同规范
+- 取消/确认按钮依次排列，取消使用 `adl-btn--ghost`，确认使用 `adl-btn--primary`
+
 ## React 性能模式
 
 详细组件拆分、Hook 提取阈值见 [component-architecture.md](./component-architecture.md)

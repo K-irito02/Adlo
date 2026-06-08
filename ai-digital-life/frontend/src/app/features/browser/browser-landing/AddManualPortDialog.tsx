@@ -25,6 +25,7 @@ export function AddManualPortDialog({ open, t, onConfirm, onCancel }: AddManualP
     }
   }, [open]);
 
+  /* eslint-disable react-hooks/exhaustive-deps */
   const handleConfirm = useCallback(() => {
     const trimmedPort = port.trim();
     if (!trimmedPort) {
@@ -37,6 +38,7 @@ export function AddManualPortDialog({ open, t, onConfirm, onCancel }: AddManualP
     }
     onConfirm(num, label.trim() || undefined);
   }, [port, label, onConfirm]);
+  /* eslint-enable react-hooks/exhaustive-deps */
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -60,14 +62,33 @@ export function AddManualPortDialog({ open, t, onConfirm, onCancel }: AddManualP
 
   return createPortal(
     <div className="adl-prompt-modal" onKeyDown={handleKeyDown} onClick={handleBackdrop}>
-      <div className="adl-prompt-modal__panel" role="dialog" aria-modal="true" aria-label={t.browserAddPortTitle}>
+      <div
+        className="adl-prompt-modal__panel"
+        role="dialog"
+        aria-modal="true"
+        aria-label={t.browserAddPortTitle}
+      >
         <div className="adl-prompt-modal__header">
           {t.browserAddPortTitle}
-          <button type="button" className="adl-prompt-modal__header-close" onClick={onCancel} aria-label={t.browserClose}>✕</button>
+          <button
+            type="button"
+            className="adl-prompt-modal__header-close"
+            onClick={onCancel}
+            aria-label={t.browserClose}
+          >
+            ✕
+          </button>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '0 0 8px' }}>
           <div>
-            <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 4 }}>
+            <div
+              style={{
+                fontSize: 12,
+                fontWeight: 500,
+                color: 'var(--text-secondary)',
+                marginBottom: 4,
+              }}
+            >
               {t.browserAddPortName}
             </div>
             <input
@@ -78,7 +99,14 @@ export function AddManualPortDialog({ open, t, onConfirm, onCancel }: AddManualP
             />
           </div>
           <div>
-            <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 4 }}>
+            <div
+              style={{
+                fontSize: 12,
+                fontWeight: 500,
+                color: 'var(--text-secondary)',
+                marginBottom: 4,
+              }}
+            >
               {t.browserAddPortLabel}
             </div>
             <input
@@ -95,7 +123,11 @@ export function AddManualPortDialog({ open, t, onConfirm, onCancel }: AddManualP
           {error && <p className="adl-prompt-modal__error">{error}</p>}
         </div>
         <div className="adl-prompt-modal__actions adl-prompt-modal__actions--fill">
-          <button type="button" className="adl-btn adl-btn--ghost adl-btn--square" onClick={onCancel}>
+          <button
+            type="button"
+            className="adl-btn adl-btn--ghost adl-btn--square"
+            onClick={onCancel}
+          >
             {t.browserCancel}
           </button>
           <button
