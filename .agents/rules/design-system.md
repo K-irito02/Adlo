@@ -13,7 +13,7 @@ alwaysApply: false
 | 颜色 | CSS 自定义属性 `var(--…)`，禁止硬编码 |
 | 图标 | SVG 格式，继承 `currentColor`，禁止 emoji |
 | 窗口 | 最小宽度 640px |
-| Tooltip | 禁止原生 `title`，必须使用 `TooltipSimple` |
+| Tooltip | 必须统一使用一种 Tooltip 方案，禁止混合使用多种方案 |
 
 ## Tooltip 组件
 

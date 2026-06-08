@@ -1,0 +1,63 @@
+/* ==========================================================================
+   Toast Notification
+   --------------------------------------------------------------------------
+   - Minimal flat style (user selected)
+   - Top-drop animation (user selected)
+   - Slight rounded corners (4px)
+   - Icon + text layout (vertically aligned)
+   - Three types: success (green), warning (orange), error (red)
+   ========================================================================== */
+
+.adl-toast {
+  position: fixed;
+  left: 50%;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  transform: translateX(-50%) translateY(-100%);
+  z-index: var(--z-toast);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  box-shadow: var(--shadow-md);
+  opacity: 0;
+  transition: transform var(--duration-300) var(--ease-spring), opacity var(--duration-200) var(--ease-enter);
+  pointer-events: none;
+}
+
+.adl-toast--visible {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.adl-toast svg,
+.adl-toast__icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  vertical-align: middle;
+}
+
+.adl-toast--success svg,
+.adl-toast--success .adl-toast__icon {
+  color: var(--color-success);
+}
+
+.adl-toast--warning svg,
+.adl-toast--warning .adl-toast__icon {
+  color: var(--color-warning);
+}
+
+.adl-toast--error svg,
+.adl-toast--error .adl-toast__icon {
+  color: var(--color-danger);
+}
+
+.adl-toast__message {
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  white-space: nowrap;
+}

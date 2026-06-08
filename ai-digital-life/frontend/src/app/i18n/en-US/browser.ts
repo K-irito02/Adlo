@@ -56,7 +56,7 @@ export const browserEn = {
 
   // Landing page
   browserShortcuts: 'Shortcuts',
-  browserAddShortcut: 'Add',
+  browserAddShortcut: 'Add shortcut',
   browserShortcutName: 'Site name',
   browserShortcutUrl: 'Site URL',
   browserAddShortcutTitle: 'Add shortcut site',
@@ -67,7 +67,7 @@ export const browserEn = {
   browserLocalPorts: 'Local ports',
   browserRefreshPorts: 'Refresh',
   browserPortScanning: 'Scanning...',
-  browserPortScanHint: 'Auto-scan on first load \u00B7 Refresh to rescan',
+  browserPortScanHint: 'Auto-scan on first load · Refresh to rescan',
   browserAddManualPort: 'Add port',
   browserAddPortName: 'Name',
   browserAddPortDefaultLabel: 'localhost:{port}',
@@ -78,7 +78,7 @@ export const browserEn = {
   browserCancel: 'Cancel',
   browserClose: 'Close',
   browserCustomBg: 'Custom background',
-  browserManageShortcuts: 'Manage shortcuts',
+  browserManageShortcuts: 'Add shortcut',
   browserBgSettings: 'Custom background',
   browserBgModeDefault: 'Default',
   browserBgModeImage: 'Image',

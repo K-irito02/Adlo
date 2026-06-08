@@ -24,6 +24,7 @@ import {
 } from '../../icons';
 import { TooltipSimple } from '../../components/Tooltip';
 import { RenameDialog } from '../../components/RenameDialog';
+import { ToastContainer, type ToastType } from '../../components/Toast';
 import { useAppStore } from '../../stores/slicedStore';
 import { useBrowserPanel } from './useBrowserPanel';
 import { BrowserContextMenu } from './BrowserContextMenu';
@@ -115,6 +116,17 @@ export function BrowserPanel(props: BrowserPanelProps) {
 
   const [selectedTreePath, setSelectedTreePath] = useState<string | null>(null);
   const selectedTreePathRef = useRef<string | null>(null);
+
+  const [toastMessages, setToastMessages] = useState<Array<{ id: string; message: string; type?: ToastType; source?: string }>>([]);
+
+  const showToast = useCallback((message: string, type?: ToastType, source?: string) => {
+    const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    setToastMessages((prev) => [...prev, { id, message, type, source }]);
+  }, []);
+
+  const removeToast = useCallback((id: string) => {
+    setToastMessages((prev) => prev.filter((t) => t.id !== id));
+  }, []);
 
   const handleSelectTreePath = useCallback((path: string | null) => {
     selectedTreePathRef.current = path;
@@ -509,7 +521,14 @@ export function BrowserPanel(props: BrowserPanelProps) {
                 <button
                   type="button"
                   className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-                  onClick={() => browserActions.handleCreateTabInTree()}
+                  onClick={() => {
+                    const path = selectedTreePathRef.current;
+                    if (!path || (!path.startsWith('folder:') && !path.startsWith('workspace:'))) {
+                      showToast('请先选择一个目录', 'warning');
+                      return;
+                    }
+                    browserActions.handleCreateTabInTree();
+                  }}
                   aria-label="新建标签"
                 >
                   <IconPlus size={14} decorative />
@@ -775,6 +794,8 @@ export function BrowserPanel(props: BrowserPanelProps) {
         }}
         onCancel={() => setRenameFolderState((prev) => ({ ...prev, open: false }))}
       />
+
+      <ToastContainer toasts={toastMessages} onRemove={removeToast} />
     </div>
   );
 }

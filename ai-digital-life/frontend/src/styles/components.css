@@ -15,6 +15,7 @@
 @import './components/workspace-status.css';
 @import './components/settings.css';
 @import './components/model-selector.css';
+@import './components/toast.css';
 
 /* -------- Icon -------- */
 .icon {

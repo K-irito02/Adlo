@@ -247,7 +247,78 @@ The stylesheet also ships ready-to-use classes that helpers don't expose yet but
 - `.tooltip__arrow` — CSS-only arrow via `clip-path: polygon(50% 0%, 0% 100%, 100% 100%)` (upward triangle), rotated per `data-side` attribute.
 - `.tooltip__content` — content wrapper with `white-space: pre-line`.
 - `.tooltip__close` — dismiss button for `dismissible` mode.
-- `.toast-region`, `.toast` — top-right notification stack with `toast-in` animation.
+
+## Toast Notification
+
+React API: `Toast` and `ToastContainer` from `frontend/src/app/components/Toast.tsx`.
+
+```tsx
+// Single toast
+<Toast message="保存成功" type="success" duration={3000} onClose={() => {}} />
+
+// Toast container with source grouping
+<ToastContainer 
+  toasts={[
+    { id: '1', message: '操作完成', type: 'success', source: 'browser' },
+    { id: '2', message: '保存成功', type: 'success', source: 'editor' }
+  ]} 
+  onRemove={(id) => {}} 
+/>
+```
+
+### Toast Types
+
+| Type | Icon | Color | Use Case |
+|------|------|-------|----------|
+| `success` | Circle + checkmark (`check-circle`) | `var(--color-success)` (green) | Success confirmations |
+| `warning` | Circle + exclamation (`check-circle` with custom SVG) | `var(--color-warning)` (orange) | Warnings, prompts |
+| `error` | Circle + cross (`x-circle`) | `var(--color-danger)` (red) | Error messages |
+
+### Design Specifications
+
+| Feature | Value |
+|---------|-------|
+| Position | Fixed, top center (`top: 24px`) |
+| Animation | Top-drop with spring easing (`var(--ease-spring)`) |
+| Duration | 300ms enter, 300ms exit |
+| Background | `var(--bg-card)` |
+| Border | `1px solid var(--border-default)` |
+| Border radius | `4px` (slight rounded corners) |
+| Shadow | `var(--shadow-md)` |
+| Padding | `var(--space-2) var(--space-3)` |
+| Font size | `var(--text-xs)` |
+| Icon size | 16×16px |
+| Gap | `var(--space-2)` between icon and text |
+| Stacking | Multiple toasts stack vertically with 8px gap, first toast at top: 24px |
+| Source grouping | Same source toasts stay at same position, replacing each other |
+
+### Stacking Layout
+
+| Parameter | Value |
+|-----------|-------|
+| Base top | 24px |
+| Toast height | ~40px |
+| Gap between toasts | 8px |
+| Calculation | `top = 24 + position * (40 + 8)` |
+
+**Source-based Stacking Logic:**
+- Toasts with the same `source` value stay at the same fixed position
+- Toasts with different `source` values stack vertically in order of appearance
+- `source` can be any string identifier (e.g. 'browser', 'editor', 'terminal')
+- When a toast is removed, remaining toasts automatically adjust positions
+
+### Source Grouping Example
+
+```typescript
+// Same source (same position)
+showToast('First warning', 'warning', 'browser') // position 0
+showToast('Another warning', 'warning', 'browser') // same position 0
+
+// Different sources (stack)
+showToast('Browser error', 'error', 'browser')     // position 0
+showToast('Editor saved', 'success', 'editor')    // position 1
+showToast('Terminal ready', 'success', 'terminal') // position 2
+```
 
 ### Tooltip design
 

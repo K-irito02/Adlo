@@ -55,7 +55,7 @@ export const browserZh = {
 
   // 空标签引导页
   browserShortcuts: '快捷导航',
-  browserAddShortcut: '添加',
+  browserAddShortcut: '添加快捷站点',
   browserShortcutName: '站点名称',
   browserShortcutUrl: '站点网址',
   browserAddShortcutTitle: '添加快捷站点',
@@ -77,7 +77,7 @@ export const browserZh = {
   browserCancel: '取消',
   browserClose: '关闭',
   browserCustomBg: '自定义背景',
-  browserManageShortcuts: '管理快捷站点',
+  browserManageShortcuts: '添加快捷站点',
   browserBgSettings: '自定义背景',
   browserBgModeDefault: '默认',
   browserBgModeImage: '图片',

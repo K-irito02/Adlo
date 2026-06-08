@@ -213,7 +213,7 @@ export function BrowserLandingPage({ t, onOpenUrl }: BrowserLandingPageProps) {
         </button>
         <span className="adl-browser-landing__footer-divider" />
         <button type="button" className="adl-browser-landing__footer-btn" onClick={handleAddClick}>
-          {t.browserManageShortcuts}
+          {t.browserAddShortcut}
         </button>
       </div>
 

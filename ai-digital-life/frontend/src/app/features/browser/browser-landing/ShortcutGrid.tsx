@@ -80,14 +80,13 @@ export function ShortcutGrid({ t, onOpenUrl, onAddClick, onContextMenu }: Shortc
             onClick={handleCardClick}
           />
         ))}
-        <div
-          className="adl-shortcut-card-wrap"
-        >
+        <div className="adl-shortcut-card-wrap">
           <div
             className="adl-shortcut-card__add-placeholder"
             onClick={onAddClick}
             role="button"
             tabIndex={0}
+            title={t.browserAddShortcutTitle}
             onKeyDown={(e) => {
               if (e.key === 'Enter') onAddClick();
             }}
