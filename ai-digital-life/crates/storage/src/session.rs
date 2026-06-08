@@ -26,9 +26,10 @@ impl Database {
                 "INSERT OR REPLACE INTO sessions
                  (id, workspace_id, session_id, status, updated_at, json,
                   title, is_pinned, pinned_order, unpinned_order, archived_at, created_at, last_read_at)
-                 VALUES (?1, ?2, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
                 params![
                     id,
+                    workspace_id,
                     workspace_id,
                     "active",
                     now_ms(),
@@ -39,7 +40,7 @@ impl Database {
                     unpinned_order,
                     archived_at,
                     created_at,
-                    last_read_at
+                    last_read_at,
                 ],
             )
             .map_err(|e| AppError::Storage(e.to_string()))?;
