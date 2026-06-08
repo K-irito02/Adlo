@@ -109,7 +109,7 @@ fn make_activity_emitter<'a>(
                         _ => None,
                     })
                     .unwrap_or_else(|| "error".into());
-                adl_events::run_activity_event(
+                adl_kernel::events::run_activity_event(
                     &run_id,
                     seq,
                     ts,
@@ -117,7 +117,7 @@ fn make_activity_emitter<'a>(
                     serde_json::Value::Object(obj),
                 )
             }
-            other => adl_events::run_activity_event(
+            other => adl_kernel::events::run_activity_event(
                 &run_id,
                 seq,
                 ts,

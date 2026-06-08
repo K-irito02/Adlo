@@ -1,4 +1,7 @@
 pub mod command_risk;
+pub mod config;
+pub mod events;
+pub mod logger;
 pub mod types;
 
 pub use types::*; // 保留向后兼容的 flat re-export

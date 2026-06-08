@@ -1,7 +1,5 @@
 use adl_browser::BrowserManager;
-use adl_config::AppConfig;
-use adl_events::EventBus;
-use adl_kernel::WorkspaceMeta;
+use adl_kernel::{config::AppConfig, events::EventBus, WorkspaceMeta};
 use adl_pty::SessionManager;
 use adl_storage::Database;
 use std::collections::HashSet;

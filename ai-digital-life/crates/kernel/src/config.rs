@@ -1,5 +1,5 @@
+use crate::types::{ModelPreferences, ThemeMode};
 use adl_errors::AppError;
-use adl_kernel::{ModelPreferences, ThemeMode};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
@@ -41,9 +41,7 @@ pub fn load(data_dir: &Path) -> Result<AppConfig, AppError> {
     let content = std::fs::read_to_string(&path)
         .map_err(|e| AppError::Config(format!("Failed to read config: {e}")))?;
     serde_json::from_str(&content).map_err(|e| {
-        AppError::Config(format!(
-            "Failed to parse config; falling back requires a valid rewrite: {e}"
-        ))
+        AppError::Config(format!("Failed to parse config; falling back requires a valid rewrite: {e}"))
     })
 }
 

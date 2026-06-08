@@ -60,7 +60,7 @@ pub(crate) fn save_and_emit_run_activity(
     );
     let _ = app.emit(
         "digital-life://run-activity",
-        adl_events::run_activity_event(run_id, seq, ts, event_type, extra),
+        adl_kernel::events::run_activity_event(run_id, seq, ts, event_type, extra),
     );
 }
 

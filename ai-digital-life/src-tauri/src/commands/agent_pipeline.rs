@@ -406,7 +406,7 @@ pub(crate) fn finalize_run(
     conversation::save_message(state, &workspace.id, &assistant_message)?;
     adl_conversation::touch_session(session, assistant_message.created_at);
     conversation::save_session(state, session)?;
-    state.event_bus.emit(adl_events::AppEvent::AgentRunChanged(detail.run.id.clone()));
+    state.event_bus.emit(adl_kernel::events::AppEvent::AgentRunChanged(detail.run.id.clone()));
 
     emit_activity(serde_json::json!({
       "type": "run-done",

@@ -53,16 +53,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "adl-config"
-version = "0.1.0"
-dependencies = [
- "adl-errors",
- "adl-kernel",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "adl-context"
 version = "0.1.0"
 dependencies = [
@@ -90,15 +80,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "adl-events"
-version = "0.1.0"
-dependencies = [
- "serde_json",
- "tokio",
- "tracing",
-]
-
-[[package]]
 name = "adl-fs-ops"
 version = "0.1.0"
 dependencies = [
@@ -112,18 +93,14 @@ dependencies = [
 name = "adl-kernel"
 version = "0.1.0"
 dependencies = [
+ "adl-errors",
  "chrono",
  "serde",
  "serde_json",
- "uuid",
-]
-
-[[package]]
-name = "adl-logger"
-version = "0.1.0"
-dependencies = [
+ "tokio",
  "tracing",
  "tracing-subscriber",
+ "uuid",
 ]
 
 [[package]]
@@ -245,14 +222,11 @@ dependencies = [
  "adl-browser",
  "adl-change-engine",
  "adl-command",
- "adl-config",
  "adl-context",
  "adl-conversation",
  "adl-errors",
- "adl-events",
  "adl-fs-ops",
  "adl-kernel",
- "adl-logger",
  "adl-migration",
  "adl-model-gateway",
  "adl-pty",

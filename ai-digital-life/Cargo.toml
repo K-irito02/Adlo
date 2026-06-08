@@ -2,10 +2,7 @@
 resolver = "2"
 members = [
     "crates/kernel",
-    "crates/config",
     "crates/errors",
-    "crates/events",
-    "crates/logger",
     "crates/migration",
     "crates/storage",
     "crates/workspace",

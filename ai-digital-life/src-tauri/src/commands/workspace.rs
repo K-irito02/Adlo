@@ -24,7 +24,7 @@ pub fn workspace_open(
         let (meta, _recent) =
             adl_workspace::open_workspace(PathBuf::from(workspace_path).as_path())?;
         persist_workspace_meta(&state, &meta)?;
-        state.event_bus.emit(adl_events::AppEvent::WorkspaceOpened(meta.id.clone()));
+        state.event_bus.emit(adl_kernel::events::AppEvent::WorkspaceOpened(meta.id.clone()));
 
         let snapshot = adl_workspace::build_retrieval_snapshot(
             &meta.id,
@@ -39,7 +39,7 @@ pub fn workspace_open(
             &snapshot,
         )?;
         let _ = app.emit("digital-life://retrieval-status", &snapshot);
-        state.event_bus.emit(adl_events::AppEvent::RetrievalStatusChanged(meta.id.clone()));
+        state.event_bus.emit(adl_kernel::events::AppEvent::RetrievalStatusChanged(meta.id.clone()));
         super::workspace_sidebar::upsert_sidebar_after_open(&state, &meta)?;
         Ok(meta)
     })

@@ -121,7 +121,7 @@ pub fn app_update_preferences(
         }
 
         crate::setup::save_config(&state).map_err(|e| AppError::Config(e.to_string()))?;
-        state.event_bus.emit(adl_events::AppEvent::ConfigChanged);
+        state.event_bus.emit(adl_kernel::events::AppEvent::ConfigChanged);
         build_app_info(&state)
     })
 }

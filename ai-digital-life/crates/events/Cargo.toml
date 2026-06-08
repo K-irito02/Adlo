@@ -1,9 +1,0 @@
-[package]
-name = "adl-events"
-version.workspace = true
-edition.workspace = true
-
-[dependencies]
-serde_json.workspace = true
-tokio.workspace = true
-tracing.workspace = true
