@@ -11,8 +11,6 @@ import {
   IconUpload,
 } from '../../../icons';
 import { useAppStore } from '../../../stores/slicedStore';
-import { useShallow } from 'zustand/react/shallow';
-import type { StoreState } from '../../../stores/StoreState';
 
 import {
   joinPathSegments,
@@ -62,6 +60,7 @@ import { ChangesToolbar } from './ChangesToolbar';
 import { ChangesConfirmDialogs } from './ChangesConfirmDialogs';
 import { RenameDialog } from '../../../components/RenameDialog';
 import { ChangesTreePanel } from './ChangesTreePanel';
+import { useChangesPanelStore } from './useChangesPanelStore';
 
 const FALLBACK_BRANCHES = ['main', 'develop', 'release/0.1.0', 'feature/right-panel'];
 
@@ -109,39 +108,12 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
     setChangesTreePathExpanded,
     expandChangesTreePathChain,
     collapseAllChangesTreePaths,
-  } = useAppStore(
-    useShallow((state) => ({
-      navigatorCollapsed: state.navigatorCollapsedByTool?.changes ?? false,
-      changesNavigatorMode: state.changesNavigatorMode,
-      previewEnabled: state.changesPreviewEnabled,
-      expandedPaths: state.expandedChangesTreePaths,
-      toggleNavigator: state.toggleNavigator,
-      changesNavigatorWidth: state.changesNavigatorWidth,
-      setChangesNavigatorMode: state.setChangesNavigatorMode,
-      setPreviewEnabled: state.setChangesPreviewEnabled,
-      toggleChangesTreePath: state.toggleChangesTreePath,
-      setChangesTreePathExpanded: state.setChangesTreePathExpanded,
-      expandChangesTreePathChain: state.expandChangesTreePathChain,
-      collapseAllChangesTreePaths: state.collapseAllChangesTreePaths,
-    }))
-  );
+    workspaceChangesTreeLoading,
+    workspaceChangesTreeErrors,
+    onPinWorkspace,
+    onUnpinWorkspace,
+  } = useChangesPanelStore();
   const snapshot = props.gitSnapshot ?? appInfo?.currentWorkspace?.gitSnapshot;
-  const workspaceChangesTreeLoading = useAppStore(
-    useShallow((state: StoreState) => state.workspaceChangesTreeLoading)
-  );
-  const workspaceChangesTreeErrors = useAppStore(
-    useShallow((state: StoreState) => state.workspaceChangesTreeErrors)
-  );
-  const pinWorkspace = useAppStore((s) => s.pinWorkspace);
-  const unpinWorkspace = useAppStore((s) => s.unpinWorkspace);
-  const onPinWorkspace = useCallback(
-    (workspaceId: string) => void pinWorkspace(workspaceId),
-    [pinWorkspace]
-  );
-  const onUnpinWorkspace = useCallback(
-    (workspaceId: string) => void unpinWorkspace(workspaceId),
-    [unpinWorkspace]
-  );
   const fallbackBranch = snapshot?.branch ?? 'main';
   const [selectedBranch, setSelectedBranch] = useState(() => readSelectedBranch(fallbackBranch));
   const [lineNumbersEnabled, setLineNumbersEnabled] = useState(true);
