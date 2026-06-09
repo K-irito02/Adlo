@@ -4,6 +4,7 @@ use adl_kernel::{AgentRunDetail, ConversationScenario, ConversationSendResult, M
 use adl_storage::EntityTable;
 use tauri::Emitter;
 
+use super::agent_pipeline_types::{CallModelContext, FinalizeRunContext};
 use super::audit::AuditBatchEntry;
 use crate::commands::agent::StartRunInput;
 use crate::commands::conversation;
@@ -233,39 +234,29 @@ pub(crate) fn collect_context(
     Ok(adl_context::sort_context(context))
 }
 
-#[allow(clippy::too_many_arguments)]
-pub(crate) async fn call_model(
-    state: &AppState,
-    workspace: &adl_kernel::WorkspaceMeta,
-    session: &adl_kernel::ConversationSessionRecord,
-    scenario: ConversationScenario,
-    context: Vec<adl_kernel::ContextEntry>,
-    detail: &AgentRunDetail,
-    input: &StartRunInput,
-    app: &tauri::AppHandle,
-    emit_activity: impl Fn(serde_json::Value),
-    audit_batch: &mut Vec<AuditBatchEntry>,
+pub(crate) async fn call_model<F: Fn(serde_json::Value)>(
+    ctx: CallModelContext<'_, F>,
 ) -> Result<(adl_kernel::ModelResponse, adl_kernel::ModelCallAuditRecord), AppError> {
     let messages =
-        adl_agent_runtime::build_model_messages(workspace, &input.prompt, scenario, &context);
+        adl_agent_runtime::build_model_messages(ctx.workspace, &ctx.input.prompt, ctx.scenario, &ctx.context);
     let gateway = {
         let config =
-            state.config.read().map_err(|_| AppError::Internal("config lock poisoned".into()))?;
+            ctx.state.config.read().map_err(|_| AppError::Internal("config lock poisoned".into()))?;
         adl_model_gateway::ModelGateway::new(config.model_preferences.clone())?
     };
     let (model_response, model_audit) = gateway
-        .chat(&workspace.id, &session.id, Some(detail.run.id.clone()), scenario, messages)
+        .chat(&ctx.workspace.id, &ctx.session.id, Some(ctx.detail.run.id.clone()), ctx.scenario, messages)
         .await;
-    state.db.save_entity(
+    ctx.state.db.save_entity(
         EntityTable::ModelCallAudit,
         &model_audit.id,
-        Some(&workspace.id),
-        Some(&session.id),
+        Some(&ctx.workspace.id),
+        Some(&ctx.session.id),
         Some(if model_response.synthetic { "synthetic" } else { "ok" }),
         &model_audit,
     )?;
-    emit_model_stream_events(app, &detail.run.id, &model_response);
-    emit_activity(serde_json::json!({
+    emit_model_stream_events(ctx.app, &ctx.detail.run.id, &model_response);
+    (ctx.emit_activity)(serde_json::json!({
       "type": "model",
       "phase": "done",
       "providerId": model_response.provider_id,
@@ -273,9 +264,9 @@ pub(crate) async fn call_model(
       "usage": model_response.usage,
       "reason": model_response.route.as_ref().map(|r| r.reason.clone()).unwrap_or_else(|| "primary route".into())
     }));
-    audit_batch.push(AuditBatchEntry {
-        workspace_id: workspace.id.clone(),
-        session_id: Some(session.id.clone()),
+    ctx.audit_batch.push(AuditBatchEntry {
+        workspace_id: ctx.workspace.id.clone(),
+        session_id: Some(ctx.session.id.clone()),
         operation_type: "model".into(),
         risk_level: adl_kernel::RiskLevel::Low,
         summary: format!(
@@ -283,7 +274,7 @@ pub(crate) async fn call_model(
             model_response.provider_id, model_response.model_id
         ),
         decision: Some("auto".into()),
-        detail: Some(format!("runId={}", detail.run.id)),
+        detail: Some(format!("runId={}", ctx.detail.run.id)),
     });
     Ok((model_response, model_audit))
 }
@@ -366,26 +357,16 @@ pub(crate) fn generate_patches(
     Ok(patch_set)
 }
 
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn finalize_run(
-    state: &AppState,
-    workspace: &adl_kernel::WorkspaceMeta,
-    session: &mut adl_kernel::ConversationSessionRecord,
-    detail: AgentRunDetail,
-    model_response: &adl_kernel::ModelResponse,
-    patch_set: Option<&adl_kernel::PatchSet>,
-    scenario: ConversationScenario,
-    user_message: adl_kernel::ConversationMessageRecord,
-    emit_activity: impl Fn(serde_json::Value),
-    audit_batch: &mut Vec<AuditBatchEntry>,
+pub(crate) fn finalize_run<F: Fn(serde_json::Value)>(
+    ctx: FinalizeRunContext<'_, F>,
 ) -> Result<ConversationSendResult, AppError> {
-    let detail = adl_agent_runtime::complete_plan(detail, patch_set, scenario);
-    crate::commands::agent::save_run_detail(state, &detail)?;
-    audit_batch.push(AuditBatchEntry {
-        workspace_id: workspace.id.clone(),
-        session_id: Some(session.id.clone()),
-        operation_type: if patch_set.is_some() { "patch-apply".into() } else { "approval".into() },
-        risk_level: if patch_set.is_some() {
+    let detail = adl_agent_runtime::complete_plan(ctx.detail, ctx.patch_set, ctx.scenario);
+    crate::commands::agent::save_run_detail(ctx.state, &detail)?;
+    ctx.audit_batch.push(AuditBatchEntry {
+        workspace_id: ctx.workspace.id.clone(),
+        session_id: Some(ctx.session.id.clone()),
+        operation_type: if ctx.patch_set.is_some() { "patch-apply".into() } else { "approval".into() },
+        risk_level: if ctx.patch_set.is_some() {
             adl_kernel::RiskLevel::Medium
         } else {
             adl_kernel::RiskLevel::Low
@@ -395,29 +376,29 @@ pub(crate) fn finalize_run(
         detail: Some(format!("runId={}", detail.run.id)),
     });
 
-    let blocks = adl_agent_runtime::assistant_blocks(&detail, patch_set, scenario);
+    let blocks = adl_agent_runtime::assistant_blocks(&detail, ctx.patch_set, ctx.scenario);
     let assistant_message = adl_conversation::create_message(
-        &session.id,
+        &ctx.session.id,
         adl_kernel::ConversationRole::Assistant,
-        model_response.content.clone(),
+        ctx.model_response.content.clone(),
         blocks,
         Some(detail.run.id.clone()),
     );
-    conversation::save_message(state, &workspace.id, &assistant_message)?;
-    adl_conversation::touch_session(session, assistant_message.created_at);
-    conversation::save_session(state, session)?;
-    state.event_bus.emit(adl_kernel::events::AppEvent::AgentRunChanged(detail.run.id.clone()));
+    conversation::save_message(ctx.state, &ctx.workspace.id, &assistant_message)?;
+    adl_conversation::touch_session(ctx.session, assistant_message.created_at);
+    conversation::save_session(ctx.state, ctx.session)?;
+    ctx.state.event_bus.emit(adl_kernel::events::AppEvent::AgentRunChanged(detail.run.id.clone()));
 
-    emit_activity(serde_json::json!({
+    (ctx.emit_activity)(serde_json::json!({
       "type": "run-done",
       "status": detail.run.status
     }));
 
     Ok(ConversationSendResult {
-        session: session.clone(),
-        user_message,
+        session: ctx.session.clone(),
+        user_message: ctx.user_message,
         assistant_message,
         run_detail: detail,
-        patch_set: patch_set.cloned(),
+        patch_set: ctx.patch_set.cloned(),
     })
 }

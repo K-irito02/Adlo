@@ -1,4 +1,5 @@
 use crate::commands::ipc;
+use crate::commands::RunActivityContext;
 use crate::error::CommandError;
 use crate::state::AppState;
 use adl_command::{run_command, validation_command};
@@ -101,18 +102,18 @@ fn emit_patch_rollback_activity(
         "fileCount": patch_set.file_patches.len(),
         "hunkCount": patch_set.file_patches.iter().map(|f| f.hunks.len()).sum::<usize>()
     });
-    crate::commands::save_and_emit_run_activity(
+    crate::commands::save_and_emit_run_activity(RunActivityContext {
         state,
         app,
-        &workspace.id,
-        &patch_set.session_id,
+        workspace_id: &workspace.id,
+        session_id: &patch_set.session_id,
         run_id,
-        &event,
-        "patch",
+        event: &event,
+        event_type: "patch",
         seq,
         ts,
-        payload,
-    );
+        extra: payload,
+    });
     if let Ok(Some(detail)) = crate::commands::agent::load_run_detail(state, run_id) {
         let validation = adl_kernel::ValidationResult {
             id: adl_kernel::create_id("validation"),
@@ -210,18 +211,18 @@ fn emit_patch_apply_event(
             "fileCount": patch_set.file_patches.len(),
             "hunkCount": patch_set.file_patches.iter().map(|f| f.hunks.len()).sum::<usize>()
         });
-        crate::commands::save_and_emit_run_activity(
+        crate::commands::save_and_emit_run_activity(RunActivityContext {
             state,
             app,
-            &workspace.id,
-            &patch_set.session_id,
+            workspace_id: &workspace.id,
+            session_id: &patch_set.session_id,
             run_id,
-            &event,
-            "patch",
+            event: &event,
+            event_type: "patch",
             seq,
             ts,
-            payload,
-        );
+            extra: payload,
+        });
         if let Some(detail) = crate::commands::agent::load_run_detail(state, run_id)? {
             crate::commands::agent::save_run_detail(
                 state,

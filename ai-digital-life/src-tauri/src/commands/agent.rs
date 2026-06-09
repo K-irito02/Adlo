@@ -1,6 +1,7 @@
 use crate::commands::agent_pipeline;
 use crate::commands::audit::AuditBatchEntry;
 use crate::commands::ipc;
+use crate::commands::{CallModelContext, FinalizeRunContext};
 use crate::error::CommandError;
 use crate::state::AppState;
 use adl_errors::AppError;
@@ -176,16 +177,18 @@ async fn start_run_inner(
         &mut audit_batch,
     )?;
     let (model_response, _model_audit) = agent_pipeline::call_model(
-        state,
-        &workspace,
-        &session,
-        scenario,
-        context,
-        &detail,
-        &input,
-        app,
-        &emit_activity,
-        &mut audit_batch,
+        CallModelContext {
+            state,
+            workspace: &workspace,
+            session: &session,
+            scenario,
+            context,
+            detail: &detail,
+            input: &input,
+            app,
+            emit_activity: &emit_activity,
+            audit_batch: &mut audit_batch,
+        },
     )
     .await?;
     let patch_set = agent_pipeline::generate_patches(
@@ -198,16 +201,18 @@ async fn start_run_inner(
         &emit_activity,
     )?;
     let result = agent_pipeline::finalize_run(
-        state,
-        &workspace,
-        &mut session,
-        detail,
-        &model_response,
-        patch_set.as_ref(),
-        scenario,
-        user_message,
-        &emit_activity,
-        &mut audit_batch,
+        FinalizeRunContext {
+            state,
+            workspace: &workspace,
+            session: &mut session,
+            detail,
+            model_response: &model_response,
+            patch_set: patch_set.as_ref(),
+            scenario,
+            user_message,
+            emit_activity: &emit_activity,
+            audit_batch: &mut audit_batch,
+        },
     )?;
     crate::commands::audit::batch_save_audit_entries(state, audit_batch)?;
 

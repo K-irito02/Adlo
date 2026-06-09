@@ -1,5 +1,6 @@
 pub mod agent;
 pub mod agent_pipeline;
+pub mod agent_pipeline_types;
 pub mod app;
 pub mod audit;
 pub mod browser;
@@ -17,11 +18,12 @@ pub mod workspace_git;
 pub mod workspace_sidebar;
 
 use crate::error::CommandError;
-use crate::state::AppState;
 use adl_errors::AppError;
 use adl_kernel::IpcResult;
 use adl_storage::EntityTable;
 use tauri::Emitter;
+
+pub use self::agent_pipeline_types::{CallModelContext, FinalizeRunContext, RunActivityContext};
 
 pub fn ipc<T>(result: Result<T, AppError>) -> IpcResult<T> {
     match result {
@@ -37,30 +39,20 @@ pub fn ipc_try<T>(f: impl FnOnce() -> Result<T, AppError>) -> IpcResult<T> {
     ipc(f())
 }
 
-#[allow(clippy::too_many_arguments)]
 pub(crate) fn save_and_emit_run_activity(
-    state: &AppState,
-    app: &tauri::AppHandle,
-    workspace_id: &str,
-    session_id: &str,
-    run_id: &str,
-    event: &adl_kernel::DigitalLifeRunActivityEventV1,
-    event_type: &str,
-    seq: i64,
-    ts: i64,
-    extra: serde_json::Value,
+    ctx: RunActivityContext<'_>,
 ) {
-    let _ = state.db.save_entity(
+    let _ = ctx.state.db.save_entity(
         EntityTable::RunActivityEvents,
         &adl_kernel::create_id("runact"),
-        Some(workspace_id),
-        Some(session_id),
-        Some(run_id),
-        event,
+        Some(ctx.workspace_id),
+        Some(ctx.session_id),
+        Some(ctx.run_id),
+        ctx.event,
     );
-    let _ = app.emit(
+    let _ = ctx.app.emit(
         "digital-life://run-activity",
-        adl_kernel::events::run_activity_event(run_id, seq, ts, event_type, extra),
+        adl_kernel::events::run_activity_event(ctx.run_id, ctx.seq, ctx.ts, ctx.event_type, ctx.extra),
     );
 }
 

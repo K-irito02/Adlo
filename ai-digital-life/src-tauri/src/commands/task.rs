@@ -1,4 +1,5 @@
 use crate::commands::ipc;
+use crate::commands::RunActivityContext;
 use crate::error::CommandError;
 use crate::state::AppState;
 use adl_command::run_approved_command;
@@ -174,18 +175,18 @@ fn emit_approval_decided_event(
         "decision": decision_str,
         "reason": approval.reason
     });
-    crate::commands::save_and_emit_run_activity(
+    crate::commands::save_and_emit_run_activity(RunActivityContext {
         state,
         app,
-        &approval.workspace_id,
-        &task_session_id,
+        workspace_id: &approval.workspace_id,
+        session_id: &task_session_id,
         run_id,
-        &event,
-        "approval",
+        event: &event,
+        event_type: "approval",
         seq,
         ts,
-        payload,
-    );
+        extra: payload,
+    });
     Ok(())
 }
 
@@ -327,18 +328,18 @@ fn emit_command_activity_event(
         payload["exitCode"] = serde_json::json!(code);
     }
 
-    crate::commands::save_and_emit_run_activity(
+    crate::commands::save_and_emit_run_activity(RunActivityContext {
         state,
         app,
-        &workspace.id,
-        &task.session_id,
+        workspace_id: &workspace.id,
+        session_id: &task.session_id,
         run_id,
-        &event,
-        "command",
+        event: &event,
+        event_type: "command",
         seq,
         ts,
-        payload,
-    );
+        extra: payload,
+    });
 }
 
 /// 发射命令运行开始事件
