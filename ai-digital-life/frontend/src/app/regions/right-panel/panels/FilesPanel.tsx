@@ -13,7 +13,7 @@ import { FileHistoryNav } from '../FileHistoryNav';
 import type { FilesPanelProps } from '../types';
 import { joinPathSegments } from '../../../utils/workspacePaths';
 
-export function FilesPanel(props: FilesPanelProps) {
+const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
   const {
     t,
     appInfo,
@@ -398,4 +398,6 @@ export function FilesPanel(props: FilesPanelProps) {
       </div>
     </div>
   );
-}
+});
+
+export { FilesPanel };

@@ -77,7 +77,7 @@ interface FileNavigatorShellProps {
   t: CopyDict;
 }
 
-function FileNavigatorShell(props: FileNavigatorShellProps) {
+const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNavigatorShellProps) {
   const {
     selectedFilePath,
     selectedFileWorkspaceId,
@@ -699,7 +699,7 @@ function FileNavigatorShell(props: FileNavigatorShellProps) {
       ) : null}
     </aside>
   );
-}
+});
 
 export { FileNavigatorShell };
 export type { FileNavigatorShellProps };

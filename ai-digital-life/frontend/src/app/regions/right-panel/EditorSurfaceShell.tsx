@@ -105,7 +105,7 @@ function buildStickyDiffRangesFromHunks(
   });
 }
 
-function EditorSurfaceShell(props: EditorSurfaceShellProps) {
+const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorSurfaceShellProps) {
   const {
     selectedFilePath,
     fileContent,
@@ -495,7 +495,7 @@ function EditorSurfaceShell(props: EditorSurfaceShellProps) {
       />
     </div>
   );
-}
+});
 
 export { EditorSurfaceShell };
 export type { EditorSurfaceShellProps };
