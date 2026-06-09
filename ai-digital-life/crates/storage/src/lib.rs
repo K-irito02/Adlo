@@ -2,6 +2,7 @@ mod connection;
 mod crud;
 mod entity_table;
 mod purge;
+pub mod repository;
 mod session;
 
 pub use connection::Database;

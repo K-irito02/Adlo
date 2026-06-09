@@ -6,8 +6,8 @@ edition.workspace = true
 [dependencies]
 adl-kernel = { path = "../kernel" }
 adl-errors = { path = "../errors" }
+adl-credential = { path = "../credential" }
 reqwest.workspace = true
 tokio.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-keyring.workspace = true

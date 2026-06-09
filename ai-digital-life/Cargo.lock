@@ -71,6 +71,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "adl-credential"
+version = "0.1.0"
+dependencies = [
+ "adl-errors",
+ "dirs 5.0.1",
+ "hex",
+ "keyring",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "adl-errors"
 version = "0.1.0"
 dependencies = [
@@ -119,9 +134,9 @@ dependencies = [
 name = "adl-model-gateway"
 version = "0.1.0"
 dependencies = [
+ "adl-credential",
  "adl-errors",
  "adl-kernel",
- "keyring",
  "reqwest 0.12.28",
  "serde",
  "serde_json",

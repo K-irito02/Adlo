@@ -232,27 +232,18 @@ impl ModelGateway {
 }
 
 pub fn set_provider_secret(provider: ModelProviderId, secret: &str) -> Result<(), AppError> {
-    keyring::Entry::new(KEYRING_SERVICE, provider.as_str())
-        .map_err(|e| AppError::Security(e.to_string()))?
-        .set_password(secret)
-        .map_err(|e| AppError::Security(e.to_string()))
+    let store = adl_credential::CredentialStore::new(KEYRING_SERVICE, provider.as_str());
+    store.set_password(secret)
 }
 
 pub fn clear_provider_secret(provider: ModelProviderId) -> Result<(), AppError> {
-    let entry = keyring::Entry::new(KEYRING_SERVICE, provider.as_str())
-        .map_err(|e| AppError::Security(e.to_string()))?;
-    match entry.delete_credential() {
-        Ok(()) => Ok(()),
-        Err(keyring::Error::NoEntry) => Ok(()),
-        Err(e) => Err(AppError::Security(e.to_string())),
-    }
+    let store = adl_credential::CredentialStore::new(KEYRING_SERVICE, provider.as_str());
+    store.delete_password()
 }
 
 pub fn get_provider_secret(provider: ModelProviderId) -> Result<String, AppError> {
-    keyring::Entry::new(KEYRING_SERVICE, provider.as_str())
-        .map_err(|e| AppError::Security(e.to_string()))?
-        .get_password()
-        .map_err(|e| AppError::Security(e.to_string()))
+    let store = adl_credential::CredentialStore::new(KEYRING_SERVICE, provider.as_str());
+    store.get_password()
 }
 
 fn default_model(provider: ModelProviderId) -> &'static str {

@@ -17,7 +17,8 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css,md}\""
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
+    "check:i18n": "tsx scripts/check-i18n-coverage.ts"
   },
   "dependencies": {
     "@codemirror/lang-cpp": "^6.0.3",
@@ -70,6 +71,7 @@
     "node-pty": "^1.1.0",
     "prettier": "^3.8.3",
     "rollup-plugin-visualizer": "^7.0.1",
+    "tsx": "^4.22.4",
     "typescript": "^5.6.0",
     "typescript-eslint": "^8.60.1",
     "vite": "^6.0.0",
