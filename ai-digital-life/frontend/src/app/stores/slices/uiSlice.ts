@@ -11,6 +11,7 @@ import type {
 } from '../types';
 import type { SettingsGroupId } from '@ai-digital-life/kernel';
 import type { StoreState } from '../StoreState';
+import { BROWSER_NAVIGATOR_COLLAPSED_KEY } from '../constants';
 import {
   readFlag,
   writeFlag,
@@ -29,7 +30,6 @@ export const RIGHT_PANEL_WIDTH_KEY = 'adl-ui:right-panel-width';
 export const FILES_NAVIGATOR_WIDTH_KEY = 'adl-ui:files-navigator-width';
 export const CHANGES_NAVIGATOR_WIDTH_KEY = 'adl-ui:changes-navigator-width';
 export const BROWSER_NAVIGATOR_WIDTH_KEY = 'adl-ui:browser-navigator-width';
-export const BROWSER_NAVIGATOR_COLLAPSED_KEY = 'adl-ui:navigator-collapsed';
 export const FILE_TREE_EXPANDED_KEY = 'adl-ui:file-tree-expanded';
 export const CHANGES_TREE_EXPANDED_KEY = 'adl-ui:changes-tree-expanded';
 export const FILES_NAVIGATOR_MODE_KEY = 'adl-ui:files-navigator-mode';

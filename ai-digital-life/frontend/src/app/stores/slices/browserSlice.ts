@@ -3,7 +3,7 @@
  * 管理浏览器标签页等状态
  */
 import type { StoreState } from '../StoreState';
-import { BROWSER_NAVIGATOR_COLLAPSED_KEY } from './uiSlice';
+import { BROWSER_NAVIGATOR_COLLAPSED_KEY } from '../constants';
 
 export interface BrowserTabState {
   id: string;
