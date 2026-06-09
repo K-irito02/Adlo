@@ -19,6 +19,7 @@ pub enum IpcErrorCode {
     Timeout,
     RateLimit,
     AuthError,
+    NetworkError,
     InternalError,
 }
 
@@ -40,6 +41,7 @@ impl std::fmt::Display for IpcErrorCode {
             Self::Timeout => "TIMEOUT",
             Self::RateLimit => "RATE_LIMIT",
             Self::AuthError => "AUTH_ERROR",
+            Self::NetworkError => "NETWORK_ERROR",
             Self::InternalError => "INTERNAL_ERROR",
         };
         write!(f, "{}", s)
@@ -75,6 +77,7 @@ fn app_error_to_code(e: &AppError) -> IpcErrorCode {
         AppError::Timeout(_) => IpcErrorCode::Timeout,
         AppError::RateLimit(_) => IpcErrorCode::RateLimit,
         AppError::AuthError(_) => IpcErrorCode::AuthError,
+        AppError::Network(_) => IpcErrorCode::NetworkError,
         AppError::Internal(_) => IpcErrorCode::InternalError,
     }
 }
@@ -128,6 +131,7 @@ mod tests {
             (AppError::Timeout("x".into()), IpcErrorCode::Timeout),
             (AppError::RateLimit("x".into()), IpcErrorCode::RateLimit),
             (AppError::AuthError("x".into()), IpcErrorCode::AuthError),
+            (AppError::Network("x".into()), IpcErrorCode::NetworkError),
             (AppError::Internal("x".into()), IpcErrorCode::InternalError),
         ];
         for (err, expected) in cases {

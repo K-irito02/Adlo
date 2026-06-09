@@ -4,6 +4,7 @@ pub mod agent_pipeline_types;
 pub mod app;
 pub mod audit;
 pub mod browser;
+pub mod ci;
 pub mod command;
 pub mod conversation;
 pub mod model;

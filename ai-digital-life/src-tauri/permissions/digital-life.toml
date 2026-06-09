@@ -86,5 +86,10 @@ commands.allow = [
   "browser_set_bounds",
   "browser_eval",
   "browser_hide",
-  "browser_show"
+  "browser_show",
+  "ci_get_status",
+  "ci_get_status_without_token",
+  "ci_set_access_token",
+  "ci_clear_access_token",
+  "ci_has_access_token"
 ]

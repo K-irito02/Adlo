@@ -33,6 +33,16 @@ export type CheckpointPayloadPreview = { checkpointId: string, manifestPath: str
 
 export type CheckpointRecord = { id: string, sessionId: string, workspaceId: string, type: string, description: string, manifest: JsonValue, createdAt: bigint, };
 
+export type CiJobSummary = { jobId: bigint, runId: bigint, name: string, status: string, conclusion: string | null, startedAt: string | null, completedAt: string | null, htmlUrl: string | null, stepResults: Array<CiStepSummary>, };
+
+export type CiRepoConfig = { owner: string, repo: string, branch: string, workflowId: string | null, accessToken: string | null, };
+
+export type CiStatusSnapshot = { repo: string, branch: string, latestRun: CiWorkflowRunSummary | null, jobs: Array<CiJobSummary>, logs: string | null, capturedAtMs: bigint, error: string | null, };
+
+export type CiStepSummary = { name: string, status: string, conclusion: string | null, startedAt: string | null, completedAt: string | null, };
+
+export type CiWorkflowRunSummary = { runId: bigint, name: string, status: string, conclusion: string | null, headSha: string, headBranch: string, htmlUrl: string, runStartedAt: string | null, updatedAt: string | null, actor: string | null, event: string | null, };
+
 export type CommandExecutionResult = { request: CommandRequest, exitCode: number | null, signal: string | null, stdout: string, stderr: string, summary: string, success: boolean, startedAt: bigint, completedAt: bigint, };
 
 export type CommandProfile = "build" | "test" | "lint" | "install" | "custom";

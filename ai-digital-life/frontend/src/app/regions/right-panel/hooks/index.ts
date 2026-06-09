@@ -22,3 +22,4 @@ export { useTerminalPanelProps } from './useTerminalPanelProps';
 export { useAuditPanelProps } from './useAuditPanelProps';
 export { useModelPanelProps } from './useModelPanelProps';
 export { useSettingsPanelProps } from './useSettingsPanelProps';
+export { useCIPanelProps } from './useCIPanelProps';

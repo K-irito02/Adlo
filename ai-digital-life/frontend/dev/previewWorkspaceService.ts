@@ -4,6 +4,11 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type {
+  CiJobSummary,
+  CiRepoConfig,
+  CiStatusSnapshot,
+  CiStepSummary,
+  CiWorkflowRunSummary,
   FileOutlineItem,
   GitBranchSummary,
   GitSnapshot,
@@ -45,6 +50,9 @@ const GIT_CANDIDATE_PATHS =
   process.platform === 'win32'
     ? ['C:\\Program Files\\Git\\bin\\git.exe', 'C:\\Program Files\\Git\\cmd\\git.exe']
     : [];
+
+// CI token storage (dev server side, complements client-side localStorage)
+let ciAccessToken: string = '';
 
 const WIN_SYSTEM_DIRS =
   process.platform === 'win32'
@@ -1279,6 +1287,47 @@ export async function handlePreviewWorkspaceApi(
       return true;
     }
 
+    if (request.method === 'GET' && requestUrl.pathname === `${API_PREFIX}/ci/status`) {
+      const owner = requestUrl.searchParams.get('owner') ?? '';
+      const repo = requestUrl.searchParams.get('repo') ?? '';
+      const branch = requestUrl.searchParams.get('branch') ?? 'main';
+      const token = request.headers.get('X-CI-Access-Token') ?? '';
+      if (!owner.trim() || !repo.trim()) {
+        writeJson(response, fail('owner and repo are required', 'INVALID_INPUT'));
+        return true;
+      }
+      const snapshot = await fetchCiStatus(owner, repo, branch, token);
+      writeJson(response, ok(snapshot));
+      return true;
+    }
+
+    // CI token management endpoints
+    if (request.method === 'POST' && requestUrl.pathname === `${API_PREFIX}/ci/set-access-token`) {
+      let body = '';
+      try {
+        for await (const chunk of request) {
+          body += chunk;
+        }
+        const { token } = JSON.parse(body);
+        ciAccessToken = typeof token === 'string' ? token.trim() : '';
+        writeJson(response, ok(true));
+      } catch {
+        writeJson(response, fail('invalid request body', 'INVALID_INPUT'));
+      }
+      return true;
+    }
+
+    if (request.method === 'POST' && requestUrl.pathname === `${API_PREFIX}/ci/clear-access-token`) {
+      ciAccessToken = '';
+      writeJson(response, ok(true));
+      return true;
+    }
+
+    if (request.method === 'GET' && requestUrl.pathname === `${API_PREFIX}/ci/has-access-token`) {
+      writeJson(response, ok(ciAccessToken.length > 0));
+      return true;
+    }
+
     const rootPath = requestUrl.searchParams.get('rootPath');
     if (!rootPath?.trim()) {
       writeJson(response, fail('rootPath is required', 'INVALID_INPUT'));
@@ -1387,4 +1436,147 @@ export async function handlePreviewWorkspaceApi(
 
   writeJson(response, fail('unsupported preview workspace route', 'NOT_FOUND'));
   return true;
+}
+
+interface CiWorkflowRunRaw {
+  id: number;
+  name: string;
+  status: string;
+  conclusion: string | null;
+  head_sha: string;
+  head_branch: string;
+  html_url: string;
+  run_started_at: string | null;
+  updated_at: string | null;
+  event: string | null;
+  actor: { login: string } | null;
+}
+
+interface CiJobsResponse {
+  total_count: number;
+  jobs: Array<{
+    id: number;
+    run_id: number;
+    name: string;
+    status: string;
+    conclusion: string | null;
+    started_at: string | null;
+    completed_at: string | null;
+    html_url: string | null;
+    steps?: Array<{
+      name: string;
+      status: string;
+      conclusion: string | null;
+      started_at: string | null;
+      completed_at: string | null;
+    }>;
+  }>;
+}
+
+async function fetchCiStatus(
+  owner: string,
+  repo: string,
+  branch: string,
+  token: string
+): Promise<CiStatusSnapshot> {
+  const apiBase = 'https://api.github.com';
+  const headers: Record<string, string> = {
+    Accept: 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28',
+    'User-Agent': 'ai-digital-life-dev-server',
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  try {
+    const runsUrl = `${apiBase}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(
+      repo
+    )}/actions/runs?branch=${encodeURIComponent(branch)}&per_page=1&page=1`;
+    const runsResponse = await fetch(runsUrl, { headers });
+    if (!runsResponse.ok) {
+      return buildEmptySnapshot(owner, repo, branch, `GitHub API ${runsResponse.status}`);
+    }
+    const runsData = (await runsResponse.json()) as {
+      total_count: number;
+      workflow_runs: CiWorkflowRunRaw[];
+    };
+    const run = runsData.workflow_runs?.[0];
+    if (!run) {
+      return buildEmptySnapshot(owner, repo, branch, null);
+    }
+
+    let jobs: CiJobSummary[] = [];
+    try {
+      const jobsUrl = `${apiBase}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(
+        repo
+      )}/actions/runs/${run.id}/jobs?per_page=100`;
+      const jobsResponse = await fetch(jobsUrl, { headers });
+      if (jobsResponse.ok) {
+        const jobsData = (await jobsResponse.json()) as CiJobsResponse;
+        jobs = jobsData.jobs.map((job) => ({
+          jobId: job.id,
+          runId: job.run_id,
+          name: job.name,
+          status: job.status,
+          conclusion: job.conclusion,
+          startedAt: job.started_at,
+          completedAt: job.completed_at,
+          htmlUrl: job.html_url,
+          stepResults:
+            job.steps?.map((step) => ({
+              name: step.name,
+              status: step.status,
+              conclusion: step.conclusion,
+              startedAt: step.started_at,
+              completedAt: step.completed_at,
+            })) ?? [],
+        }));
+      }
+    } catch {
+      // ignore jobs fetch errors
+    }
+
+    return {
+      repo: `${owner}/${repo}`,
+      branch,
+      latestRun: {
+        runId: run.id,
+        name: run.name,
+        status: run.status,
+        conclusion: run.conclusion,
+        headSha: run.head_sha,
+        headBranch: run.head_branch,
+        htmlUrl: run.html_url,
+        runStartedAt: run.run_started_at,
+        updatedAt: run.updated_at,
+        actor: run.actor?.login ?? null,
+        event: run.event,
+      },
+      jobs,
+      logs: null,
+      capturedAtMs: Date.now(),
+      error: null,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return buildEmptySnapshot(owner, repo, branch, message);
+  }
+}
+
+function buildEmptySnapshot(
+  owner: string,
+  repo: string,
+  branch: string,
+  error: string | null
+): CiStatusSnapshot {
+  return {
+    repo: `${owner}/${repo}`,
+    branch,
+    latestRun: null,
+    jobs: [],
+    logs: null,
+    capturedAtMs: Date.now(),
+    error,
+  };
 }

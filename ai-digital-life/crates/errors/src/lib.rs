@@ -48,6 +48,9 @@ pub enum AppError {
     #[error("Auth error: {0}")]
     AuthError(String),
 
+    #[error("Network error: {0}")]
+    Network(String),
+
     #[error("Internal error: {0}")]
     Internal(String),
 }

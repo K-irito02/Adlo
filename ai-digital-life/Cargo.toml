@@ -17,6 +17,7 @@ members = [
     "crates/model-gateway",
     "crates/change-engine",
     "crates/browser",
+    "crates/ci-status",
     "crates/credential",
     "src-tauri",
 ]

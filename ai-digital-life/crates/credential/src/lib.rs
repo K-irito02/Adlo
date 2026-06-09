@@ -6,6 +6,10 @@ use std::path::PathBuf;
 
 const CREDENTIALS_SUBDIR: &str = "ai-digital-life/credentials";
 
+const DEFAULT_SERVICE: &str = "ai-digital-life";
+/// CI access token 在凭证系统中的账号名
+pub const CI_CREDENTIAL_ACCOUNT: &str = "ci-access-token";
+
 pub struct CredentialStore {
     service: String,
     account: String,
@@ -115,6 +119,40 @@ impl CredentialStore {
         }
     }
 }
+
+// ============ CI Access Token 专用便捷 API ============
+
+/// 设置 CI access token
+///
+/// 优先写入系统钥匙串（服务名 `ai-digital-life`，账号名 `ci-access-token`）。
+/// 若系统钥匙串不可用，自动降级到加密文件存储。
+pub fn set_ci_access_token(token: &str) -> Result<(), AppError> {
+    if token.is_empty() {
+        delete_ci_access_token()?;
+        return Ok(());
+    }
+    CredentialStore::new(DEFAULT_SERVICE, CI_CREDENTIAL_ACCOUNT)
+        .set_password(token)?;
+    Ok(())
+}
+
+/// 读取 CI access token（如果不存在则返回 `None`）
+pub fn get_ci_access_token() -> Option<String> {
+    let store = CredentialStore::new(DEFAULT_SERVICE, CI_CREDENTIAL_ACCOUNT);
+    match store.get_password() {
+        Ok(v) => Some(v),
+        Err(_) => None,
+    }
+}
+
+/// 删除 CI access token
+pub fn delete_ci_access_token() -> Result<(), AppError> {
+    CredentialStore::new(DEFAULT_SERVICE, CI_CREDENTIAL_ACCOUNT)
+        .delete_password()?;
+    Ok(())
+}
+
+// =========================================================
 
 fn encrypted_path(config_dir: &Path, service: &str, account: &str) -> PathBuf {
     config_dir.join(CREDENTIALS_SUBDIR).join(format!("{}.{}.enc", service, account))

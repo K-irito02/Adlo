@@ -50,6 +50,7 @@ import type { CommandSlice } from './slices/commandSlice';
 import type { ClipboardSlice } from './slices/clipboardSlice';
 import type { TerminalSlice } from './slices/terminalSlice';
 import type { BrowserSlice } from './slices/browserSlice';
+import type { CiSlice } from './slices/ciSlice';
 import type {
   AppPreferencePatch,
   ReorderSessionsInput,
@@ -73,7 +74,8 @@ interface StoreStateBase
     CommandSlice,
     ClipboardSlice,
     TerminalSlice,
-    BrowserSlice {
+    BrowserSlice,
+    CiSlice {
   loading: boolean;
   error?: string;
   isFetching: Record<string, boolean>;

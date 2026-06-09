@@ -43,6 +43,7 @@ export function useRightPanelViewProps() {
       audit: auditEntries.length,
       models: 0,
       settings: 0,
+      ci: 0,
     }),
     [
       dirtyEditorPaths.length,

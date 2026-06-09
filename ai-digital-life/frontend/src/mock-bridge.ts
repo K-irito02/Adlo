@@ -226,6 +226,70 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
     reload: async () => {},
     onUrlChanged: () => () => {},
   },
+
+  ci: {
+    getStatus: async (config) => ({
+      ok: true,
+      data: {
+        repo: `${config.owner}/${config.repo}`,
+        branch: config.branch,
+        latestRun: null,
+        jobs: [],
+        logs: null,
+        capturedAtMs: Date.now(),
+        error: null,
+      },
+    }),
+    getStatusWithoutToken: async (owner, repo, branch) => ({
+      ok: true,
+      data: {
+        repo: `${owner}/${repo}`,
+        branch,
+        latestRun: null,
+        jobs: [],
+        logs: null,
+        capturedAtMs: Date.now(),
+        error: null,
+      },
+    }),
+    setAccessToken: async (token: string) => {
+      if (typeof window !== 'undefined') {
+        try {
+          if (token.length > 0) {
+            window.localStorage.setItem('adl-ui:ci-access-token', token);
+          } else {
+            window.localStorage.removeItem('adl-ui:ci-access-token');
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+      return { ok: true, data: true };
+    },
+    clearAccessToken: async () => {
+      if (typeof window !== 'undefined') {
+        try {
+          window.localStorage.removeItem('adl-ui:ci-access-token');
+        } catch {
+          /* ignore */
+        }
+      }
+      return { ok: true, data: true };
+    },
+    hasAccessToken: async () => {
+      if (typeof window !== 'undefined') {
+        try {
+          return {
+            ok: true,
+            data: !!window.localStorage.getItem('adl-ui:ci-access-token')?.length,
+          };
+        } catch {
+          return { ok: true, data: false };
+        }
+      }
+      return { ok: true, data: false };
+    },
+  },
 };
 
 export function setupMockBridge(): void {

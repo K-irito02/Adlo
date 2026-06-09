@@ -20,6 +20,7 @@ import {
   createClipboardSlice,
   createTerminalSlice,
   createBrowserSlice,
+  createCiSlice,
 } from './slices';
 import type { StoreState as FullStoreState } from './StoreState';
 
@@ -65,6 +66,7 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
   ...createClipboardSlice(set, get), // 剪贴板
   ...createTerminalSlice(set, get), // 终端会话管理
   ...createBrowserSlice(set, get), // 浏览器标签管理
+  ...createCiSlice(set, get), // CI 状态（GitHub Actions）
 
   // ════════════════════════════════════════════════════════
   // 根级状态

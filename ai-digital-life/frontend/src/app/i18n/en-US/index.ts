@@ -8,6 +8,7 @@ import { browserEn } from './browser';
 import { approvalEn } from './approval';
 import { modelsEn } from './models';
 import { commonEn } from './common';
+import { ciEn } from './ci';
 
 export const enUS = {
   ...menuEn,
@@ -20,4 +21,5 @@ export const enUS = {
   ...approvalEn,
   ...modelsEn,
   ...commonEn,
+  ...ciEn,
 } as const;

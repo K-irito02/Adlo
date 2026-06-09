@@ -42,6 +42,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "adl-ci-status"
+version = "0.1.0"
+dependencies = [
+ "adl-errors",
+ "adl-kernel",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "adl-command"
 version = "0.1.0"
 dependencies = [
@@ -237,9 +250,11 @@ dependencies = [
  "adl-agent-runtime",
  "adl-browser",
  "adl-change-engine",
+ "adl-ci-status",
  "adl-command",
  "adl-context",
  "adl-conversation",
+ "adl-credential",
  "adl-errors",
  "adl-fs-ops",
  "adl-kernel",

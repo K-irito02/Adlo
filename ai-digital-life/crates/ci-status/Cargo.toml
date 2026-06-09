@@ -1,0 +1,20 @@
+[package]
+name = "adl-ci-status"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+name = "adl_ci_status"
+path = "src/lib.rs"
+
+[dependencies]
+adl-kernel = { path = "../kernel" }
+adl-errors = { path = "../errors" }
+serde.workspace = true
+serde_json.workspace = true
+reqwest.workspace = true
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "sync", "time"] }
+tracing.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

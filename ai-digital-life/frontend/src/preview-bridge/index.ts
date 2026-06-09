@@ -497,6 +497,47 @@ export function setupPreviewBridge(): void {
       reload: async () => {},
       onUrlChanged: () => () => {},
     },
+    ci: {
+      getStatus: async (config: { owner: string; repo: string; branch: string; workflowId?: string | null; accessToken?: string | null }) => {
+        const param = new URLSearchParams();
+        param.set('owner', config.owner);
+        param.set('repo', config.repo);
+        param.set('branch', config.branch);
+        const token = typeof config.accessToken === 'string' ? config.accessToken.trim() : '';
+        const headers: Record<string, string> = {};
+        if (token) {
+          headers['X-CI-Access-Token'] = token;
+        }
+        return requestPreviewApi<import('../shared/ipc').CiStatusSnapshot>(
+          `/ci/status?${param.toString()}`,
+          { headers }
+        );
+      },
+      getStatusWithoutToken: async (owner: string, repo: string, branch: string) => {
+        const param = new URLSearchParams();
+        param.set('owner', owner);
+        param.set('repo', repo);
+        param.set('branch', branch);
+        return requestPreviewApi<import('../shared/ipc').CiStatusSnapshot>(
+          `/ci/status?${param.toString()}`
+        );
+      },
+      setAccessToken: async (token: string) => {
+        return requestPreviewApi<boolean>('/ci/set-access-token', {
+          method: 'POST',
+          body: JSON.stringify({ token }),
+          headers: { 'Content-Type': 'application/json' },
+        });
+      },
+      clearAccessToken: async () => {
+        return requestPreviewApi<boolean>('/ci/clear-access-token', {
+          method: 'POST',
+        });
+      },
+      hasAccessToken: async () => {
+        return requestPreviewApi<boolean>('/ci/has-access-token');
+      },
+    },
   };
 
   (window as { digitalLife: DigitalLifeBridge }).digitalLife = previewBridge;

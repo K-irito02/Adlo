@@ -1,4 +1,5 @@
 pub mod agent;
+pub mod ci;
 pub mod command;
 pub mod config;
 pub mod conversation;
@@ -6,6 +7,7 @@ pub mod model;
 pub mod workspace;
 
 pub use agent::*;
+pub use ci::*;
 pub use command::*;
 pub use config::*;
 pub use conversation::*;

@@ -8,6 +8,7 @@ import { browserZh } from './browser';
 import { approvalZh } from './approval';
 import { modelsZh } from './models';
 import { commonZh } from './common';
+import { ciZh } from './ci';
 
 export const zhCN = {
   ...menuZh,
@@ -20,4 +21,5 @@ export const zhCN = {
   ...approvalZh,
   ...modelsZh,
   ...commonZh,
+  ...ciZh,
 } as const;

@@ -54,3 +54,6 @@ export { type TerminalSlice, createTerminalSlice } from './slices/terminalSlice'
 
 // 浏览器切片
 export { type BrowserSlice, createBrowserSlice, type BrowserTabState } from './slices/browserSlice';
+
+// CI 切片
+export { type CiSlice, createCiSlice } from './slices/ciSlice';

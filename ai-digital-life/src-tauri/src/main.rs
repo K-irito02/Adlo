@@ -107,6 +107,11 @@ fn main() {
             commands::browser::browser_reload,
             commands::browser::browser_set_bounds,
             commands::browser::browser_eval,
+            commands::ci::ci_get_status,
+            commands::ci::ci_get_status_without_token,
+            commands::ci::ci_set_access_token,
+            commands::ci::ci_clear_access_token,
+            commands::ci::ci_has_access_token,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

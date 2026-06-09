@@ -62,6 +62,7 @@ function defaultNavigatorCollapsed(): Record<ToolId, boolean> {
     audit: false,
     settings: false,
     models: false,
+    ci: false,
   };
 }
 

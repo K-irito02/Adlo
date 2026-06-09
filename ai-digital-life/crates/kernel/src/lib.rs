@@ -9,6 +9,7 @@ pub use types::*; // 保留向后兼容的 flat re-export
 // 按 domain 分组 re-export，提高类型可发现性
 pub mod domain {
     pub use crate::types::agent::*;
+    pub use crate::types::ci::*;
     pub use crate::types::command::*;
     pub use crate::types::config::*;
     pub use crate::types::conversation::*;

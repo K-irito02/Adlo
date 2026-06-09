@@ -273,4 +273,69 @@ export interface DigitalLifeBridge {
   task: TaskBridge;
   runActivity: RunActivityBridge;
   browser: BrowserBridge;
+  ci: CIBridge;
+}
+
+export interface CIBridge {
+  getStatus: (config: CiRepoConfig) => Promise<IpcResult<CiStatusSnapshot>>;
+  getStatusWithoutToken: (
+    owner: string,
+    repo: string,
+    branch: string
+  ) => Promise<IpcResult<CiStatusSnapshot>>;
+  setAccessToken: (token: string) => Promise<IpcResult<boolean>>;
+  clearAccessToken: () => Promise<IpcResult<boolean>>;
+  hasAccessToken: () => Promise<IpcResult<boolean>>;
+}
+
+export interface CiRepoConfig {
+  owner: string;
+  repo: string;
+  branch: string;
+  workflowId?: string | null;
+  accessToken?: string | null;
+}
+
+export interface CiWorkflowRunSummary {
+  runId: number;
+  name: string;
+  status: string;
+  conclusion: string | null;
+  headSha: string;
+  headBranch: string;
+  htmlUrl: string;
+  runStartedAt: string | null;
+  updatedAt: string | null;
+  actor: string | null;
+  event: string | null;
+}
+
+export interface CiJobSummary {
+  jobId: number;
+  runId: number;
+  name: string;
+  status: string;
+  conclusion: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  htmlUrl: string | null;
+  stepResults: CiStepSummary[];
+}
+
+export interface CiStepSummary {
+  name: string;
+  status: string;
+  conclusion: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+}
+
+export interface CiStatusSnapshot {
+  repo: string;
+  branch: string;
+  latestRun: CiWorkflowRunSummary | null;
+  jobs: CiJobSummary[];
+  logs: string | null;
+  capturedAtMs: number;
+  error: string | null;
 }

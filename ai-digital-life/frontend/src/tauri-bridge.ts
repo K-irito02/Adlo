@@ -345,5 +345,19 @@ export function createTauriBridge(): DigitalLifeBridge {
         };
       },
     },
+    ci: {
+      getStatus: (config) =>
+        invokeIpc<import('./shared/ipc').CiStatusSnapshot>('ci_get_status', { config }),
+      getStatusWithoutToken: (owner, repo, branch) =>
+        invokeIpc<import('./shared/ipc').CiStatusSnapshot>('ci_get_status_without_token', {
+          owner,
+          repo,
+          branch,
+        }),
+      setAccessToken: (token: string) =>
+        invokeIpc<boolean>('ci_set_access_token', { token }),
+      clearAccessToken: () => invokeIpc<boolean>('ci_clear_access_token'),
+      hasAccessToken: () => invokeIpc<boolean>('ci_has_access_token'),
+    },
   };
 }
