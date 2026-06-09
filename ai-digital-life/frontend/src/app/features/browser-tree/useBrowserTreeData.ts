@@ -67,7 +67,8 @@ function buildFolderNode(
   folder: TabFolderState,
   allFolders: TabFolderState[],
   browserTabs: BrowserTabState[],
-  depth: number = 0
+  depth: number = 0,
+  parentWorkspaceId?: string
 ): BrowserTreeNode {
   const childFolders = allFolders.filter(
     (f) => f.parentId === folder.id && (!f.parentType || f.parentType === 'folder')
@@ -81,7 +82,7 @@ function buildFolderNode(
     .filter(Boolean) as BrowserTreeNode[];
 
   const folderChildren: BrowserTreeNode[] = childFolders.map((child) =>
-    buildFolderNode(child, allFolders, browserTabs, depth + 1)
+    buildFolderNode(child, allFolders, browserTabs, depth + 1, parentWorkspaceId)
   );
 
   return {
@@ -91,6 +92,7 @@ function buildFolderNode(
     children: [...folderChildren, ...tabChildren],
     nodeType: 'folder',
     folderId: folder.id,
+    workspaceId: parentWorkspaceId,
   };
 }
 
@@ -109,7 +111,7 @@ export function buildWorkspaceCategoryTree(
       (f) => f.parentType === 'workspace' && f.parentId === ws.id
     );
     const folderNodes: BrowserTreeNode[] = wsRootFolders.map((folder) =>
-      buildFolderNode(folder, tabFolders, browserTabs)
+      buildFolderNode(folder, tabFolders, browserTabs, 0, ws.id)
     );
 
     return {

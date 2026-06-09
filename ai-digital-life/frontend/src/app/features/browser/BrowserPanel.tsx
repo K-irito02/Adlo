@@ -37,6 +37,19 @@ import { BrowserLandingPage, CreateTabDialog } from './browser-landing';
 import type { BrowserPanelProps } from '../../regions/right-panel/types';
 import { open as shellOpen } from '@tauri-apps/plugin-shell';
 
+function resolveFolderWorkspaceId(
+  folderId: string,
+  folders: Array<{ id: string; parentId?: string; parentType?: 'workspace' | 'folder' }>
+): string | undefined {
+  const folder = folders.find((f) => f.id === folderId);
+  if (!folder) return undefined;
+  if (folder.parentType === 'workspace') return folder.parentId;
+  if (folder.parentType === 'folder' && folder.parentId) {
+    return resolveFolderWorkspaceId(folder.parentId, folders);
+  }
+  return undefined;
+}
+
 function handleRenameFromContextMenu(
   browserTabs: Array<{ id: string; title: string }>,
   contextMenu: { tabId: string | null },
@@ -554,8 +567,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
                       wsId = path.slice('workspace:'.length);
                     } else if (path.startsWith('folder:')) {
                       const fid = path.slice('folder:'.length);
-                      const folder = browserTabFolders.find((f) => f.id === fid);
-                      if (folder?.parentType === 'workspace') wsId = folder.parentId;
+                      wsId = resolveFolderWorkspaceId(fid, browserTabFolders);
                     }
                     setCreateTabDialog({ open: true, workspaceId: wsId });
                   }}

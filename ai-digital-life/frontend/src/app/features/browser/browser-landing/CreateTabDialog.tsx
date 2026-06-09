@@ -9,15 +9,29 @@ interface CreateTabDialogProps {
   onCancel: () => void;
 }
 
+function isValidBrowserUrl(input: string): boolean {
+  const trimmed = input.trim();
+  if (!trimmed) return false;
+  const normalized = /^[a-z]+:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  try {
+    new URL(normalized);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function CreateTabDialog({ open, t, onConfirm, onCancel }: CreateTabDialogProps) {
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
+  const [urlError, setUrlError] = useState('');
   const nameRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open) {
       setName('');
       setUrl('');
+      setUrlError('');
       requestAnimationFrame(() => nameRef.current?.focus());
     }
   }, [open]);
@@ -27,9 +41,18 @@ export function CreateTabDialog({ open, t, onConfirm, onCancel }: CreateTabDialo
     if (!trimmedName) return;
     const trimmedUrl = url.trim();
     if (!trimmedUrl) return;
+    if (!isValidBrowserUrl(trimmedUrl)) {
+      setUrlError(t.browserAddPortInvalid);
+      return;
+    }
     const finalUrl = /^https?:\/\//i.test(trimmedUrl) ? trimmedUrl : `https://${trimmedUrl}`;
     onConfirm(trimmedName, finalUrl);
-  }, [name, url, onConfirm]);
+  }, [name, url, onConfirm, t.browserAddPortInvalid]);
+
+  const handleUrlChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setUrl(e.currentTarget.value);
+    setUrlError('');
+  }, []);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -100,12 +123,13 @@ export function CreateTabDialog({ open, t, onConfirm, onCancel }: CreateTabDialo
               {t.browserTabUrl}
             </div>
             <input
-              className="adl-prompt-modal__input"
+              className={`adl-prompt-modal__input${urlError ? ' adl-prompt-modal__input--error' : ''}`}
               type="text"
               value={url}
-              onChange={(e) => setUrl(e.currentTarget.value)}
+              onChange={handleUrlChange}
               placeholder={t.browserTabUrl}
             />
+            {urlError && <p className="adl-prompt-modal__error">{urlError}</p>}
           </div>
         </div>
         <div className="adl-prompt-modal__actions adl-prompt-modal__actions--fill">
