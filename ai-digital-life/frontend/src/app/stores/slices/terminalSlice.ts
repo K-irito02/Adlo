@@ -3,10 +3,7 @@
  * 管理终端标签页、会话等状态
  */
 import type { StoreState } from '../StoreState';
-
-// 本地类型定义，消除对 ui-store 的跨 store 依赖
-export type TerminalProfile = 'powershell' | 'bash' | 'cmd';
-export type ToolId = 'files' | 'changes' | 'browser' | 'terminal' | 'audit' | 'settings' | 'models';
+import type { TerminalProfile, ToolId } from '../types';
 
 export interface TerminalTabState {
   id: string;
