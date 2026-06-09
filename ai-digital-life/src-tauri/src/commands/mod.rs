@@ -73,3 +73,52 @@ macro_rules! workspace_cmd {
         })
     };
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use adl_kernel::IpcResult;
+
+    #[test]
+    fn ipc_ok_wraps_data() {
+        let result: IpcResult<i32> = ipc(Ok(42));
+        match result {
+            IpcResult::Ok { ok: true, data: 42 } => {}
+            other => panic!("expected Ok(42), got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn ipc_err_wraps_error() {
+        let result: IpcResult<i32> = ipc(Err(AppError::NotFound("test".into())));
+        match result {
+            IpcResult::Err { ok: false, error } => {
+                assert_eq!(error.code, "NOT_FOUND");
+                assert!(error.message.contains("test"));
+            }
+            other => panic!("expected Err, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn ipc_try_closure_ok() {
+        let result: IpcResult<String> = ipc_try(|| Ok("hello".into()));
+        match result {
+            IpcResult::Ok { ok: true, data } => {
+                assert_eq!(data, "hello");
+            }
+            other => panic!("expected Ok, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn ipc_try_closure_err() {
+        let result: IpcResult<i32> = ipc_try(|| Err(AppError::Internal("fail".into())));
+        match result {
+            IpcResult::Err { ok: false, error } => {
+                assert_eq!(error.code, "INTERNAL_ERROR");
+            }
+            other => panic!("expected Err, got {other:?}"),
+        }
+    }
+}

@@ -465,3 +465,49 @@ fn snapshot(state: &AppState) -> Result<TaskCenterSnapshot, AppError> {
         latest_checkpoint: checkpoints.into_iter().next(),
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn deserialize_params_valid_json() {
+        let params = serde_json::json!({
+            "id": "cmd-1",
+            "workspaceId": "ws-1",
+            "runId": null,
+            "profile": "custom",
+            "command": "echo hello",
+            "args": [],
+            "shell": false,
+            "riskLevel": "low",
+            "createdAt": 0
+        });
+        let result = deserialize_params(params).unwrap();
+        assert_eq!(result.id, "cmd-1");
+        assert_eq!(result.command, "echo hello");
+    }
+
+    #[test]
+    fn deserialize_params_missing_field() {
+        let params = serde_json::json!({ "id": "cmd-2" });
+        let result = deserialize_params(params);
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), AppError::Internal(_)));
+    }
+
+    #[test]
+    fn deserialize_params_empty_object() {
+        let params = serde_json::json!({});
+        let result = deserialize_params(params);
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), AppError::Internal(_)));
+    }
+
+    #[test]
+    fn deserialize_params_consumes_value() {
+        let mut params = serde_json::json!({"id":"cmd-3","workspaceId":"ws-1","runId":null,"profile":"custom","command":"ls","args":[],"shell":false,"riskLevel":"low","createdAt":0});
+        let _ = deserialize_params(std::mem::take(&mut params));
+        assert_eq!(params, serde_json::Value::Null);
+    }
+}

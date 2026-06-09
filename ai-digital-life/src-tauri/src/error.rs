@@ -1,7 +1,7 @@
 use adl_errors::AppError;
 use serde::Serialize;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum IpcErrorCode {
     NotFound,
@@ -103,5 +103,57 @@ impl From<anyhow::Error> for CommandError {
 impl std::fmt::Display for CommandError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "[{}] {}", self.code, self.message)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn app_error_to_code_maps_all_variants() {
+        let cases = vec![
+            (AppError::NotFound("x".into()), IpcErrorCode::NotFound),
+            (AppError::InvalidInput("x".into()), IpcErrorCode::InvalidInput),
+            (AppError::Storage("x".into()), IpcErrorCode::StorageError),
+            (AppError::Workspace("x".into()), IpcErrorCode::WorkspaceError),
+            (AppError::Config("x".into()), IpcErrorCode::ConfigError),
+            (AppError::Io("x".into()), IpcErrorCode::IoError),
+            (AppError::Migration("x".into()), IpcErrorCode::MigrationError),
+            (AppError::Security("x".into()), IpcErrorCode::SecurityError),
+            (AppError::ApprovalRequired("x".into()), IpcErrorCode::ApprovalRequired),
+            (AppError::Patch("x".into()), IpcErrorCode::PatchError),
+            (AppError::Terminal("x".into()), IpcErrorCode::TerminalError),
+            (AppError::Model("x".into()), IpcErrorCode::ModelError),
+            (AppError::Timeout("x".into()), IpcErrorCode::Timeout),
+            (AppError::RateLimit("x".into()), IpcErrorCode::RateLimit),
+            (AppError::AuthError("x".into()), IpcErrorCode::AuthError),
+            (AppError::Internal("x".into()), IpcErrorCode::InternalError),
+        ];
+        for (err, expected) in cases {
+            assert_eq!(app_error_to_code(&err), expected, "mismatch for {err}");
+        }
+    }
+
+    #[test]
+    fn ipc_error_code_display_formats_correctly() {
+        assert_eq!(IpcErrorCode::NotFound.to_string(), "NOT_FOUND");
+        assert_eq!(IpcErrorCode::InternalError.to_string(), "INTERNAL_ERROR");
+        assert_eq!(IpcErrorCode::AuthError.to_string(), "AUTH_ERROR");
+    }
+
+    #[test]
+    fn command_error_from_app_error_contains_message() {
+        let err = CommandError::from(AppError::NotFound("workspace".into()));
+        assert_eq!(err.code, IpcErrorCode::NotFound);
+        assert!(err.message.contains("workspace"));
+    }
+
+    #[test]
+    fn command_error_display_format() {
+        let err = CommandError::from(AppError::InvalidInput("bad param".into()));
+        let display = err.to_string();
+        assert!(display.starts_with("[INVALID_INPUT]"));
+        assert!(display.contains("bad param"));
     }
 }
