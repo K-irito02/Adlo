@@ -29,13 +29,13 @@
 - xterm.js 交互式终端（多会话 PTY，支持 CMD / PowerShell / Bash）
 - CodeMirror 编辑器系统 + 文件预览 + 差异查看器（inline/side-by-side）
 - 内置浏览器（Tauri WebView / iframe 双模式）
-- Zustand 切片模式（12 切片 + 11 action 模块）+ 模块化分层（features/ + regions/）
+- Zustand 切片模式（13 切片 + 11 action 模块）+ 模块化分层（features/ + regions/）
 - CSS 设计 Token 亮暗主题 + 自定义 Tooltip + 自定义滚动条
 - i18n 国际化（10 领域 / 529 keys，TypeScript satisfies 类型安全）
 
 ### 重构历史
 
-共完成 **39 轮**迭代重构，详情见 [根目录 AGENTS.md](../AGENTS.md#重构历史)。
+共完成 **42 轮**迭代重构，详情见 [根目录 AGENTS.md](../AGENTS.md#重构历史)。
 
 ## 安全边界
 
@@ -86,11 +86,12 @@ app/stores/
 ├── types.ts                     # 共享类型（ToolId/ChatMode/TerminalProfile/ContextChip）
 ├── shared.ts                    # 共享工具函数
 ├── selectors.ts                 # 性能选择器（useShallow）
-├── slices/                      # 12 个独立切片
+├── slices/                      # 13 个独立切片
 │   ├── uiSlice.ts / workspaceSlice.ts / gitSlice.ts
 │   ├── sessionSlice.ts / editorSlice.ts / patchSlice.ts
 │   ├── searchSlice.ts / diagnosticSlice.ts / taskSlice.ts
 │   ├── commandSlice.ts / clipboardSlice.ts / terminalSlice.ts
+│   ├── browserSlice.ts
 └── actions/                     # 11 个跨切片 action 模块
     ├── workspaceActions.ts / sessionActions.ts / editorActions.ts
     ├── patchActions.ts / gitActions.ts / fetchActions.ts
@@ -105,7 +106,7 @@ app/stores/
 | `frontend/src/app/stores/slicedStore.ts` | 切片合并 Store（真源） |
 | `frontend/src/app/stores/StoreState.ts` | 完整类型接口 |
 | `frontend/src/app/stores/selectors.ts` | 性能选择器（useShallow） |
-| `frontend/src/utils/preferencesMerger.ts` | 模型配置合并共享函数 |
+| `frontend/src/shared/preferencesMerger.ts` | 模型配置合并共享函数（桥接层使用） |
 
 ## 文档入口
 

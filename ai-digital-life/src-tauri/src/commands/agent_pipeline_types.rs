@@ -1,10 +1,11 @@
-use adl_kernel::{
-    AgentRunDetail, ContextEntry, ConversationMessageRecord, ConversationScenario,
-    ConversationSessionRecord, DigitalLifeRunActivityEventV1, ModelResponse, PatchSet, WorkspaceMeta,
-};
 use crate::commands::agent::StartRunInput;
 use crate::commands::audit::AuditBatchEntry;
 use crate::state::AppState;
+use adl_kernel::{
+    AgentRunDetail, ContextEntry, ConversationMessageRecord, ConversationScenario,
+    ConversationSessionRecord, DigitalLifeRunActivityEventV1, ModelResponse, PatchSet,
+    WorkspaceMeta,
+};
 
 pub struct CallModelContext<'a, F: Fn(serde_json::Value)> {
     pub state: &'a AppState,

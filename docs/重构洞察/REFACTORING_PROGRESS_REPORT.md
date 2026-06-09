@@ -1,6 +1,6 @@
 # 重构进度报告
 
-> 更新日期: 2026-06-09（第四十轮）
+> 更新日期: 2026-06-09（第四十二轮）
 
 ## 完成状态
 
@@ -46,6 +46,8 @@
 | **第三十八轮** | **2026-06-08** | **低风险修复（死代码删除、useShallow 补充、command→task 依赖倒置、store 订阅提取、anyhow 字符串匹配修复）** | ✅ |
 | **第三十九轮** | **2026-06-08** | **核心重构（PTY Mutex 合并、3 个 mini crate 合并入 kernel、ChangesPanel 拆分 PatchReviewSection+DiffEditorSection、storage/lib.rs 拆 5 子模块、workspace/lib.rs 拆 detect+preview）** | ✅ |
 | **第四十轮** | **2026-06-09** | **大纲导航折叠展开修复 + 刷新按钮绕过懒加载守卫 + Markdown 预览 DOM 导航死代码消除 + `collapseTo` 负值防护 + 知识沉淀更新 + 清理临时文件** | ✅ |
+| **第四十一轮** | **2026-06-09** | **残余架构清理（删除死代码 TitleBar/StatusBar、切片耦合解耦、bridge 层级越界修复、React.memo 包装、Rust 上下文结构体提取）** | ✅ |
+| **第四十二轮** | **2026-06-09** | **Clone 消除 + 命令层测试 + package.json 修复（deserialize_params std::mem::take、12 单元测试、@types 移至 devDependencies）** | ✅ |
 
 ## 说明
 

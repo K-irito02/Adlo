@@ -86,8 +86,7 @@ impl PtySession {
     }
 
     pub fn read_output(&self, buf: &mut [u8]) -> Result<usize, AppError> {
-        let mut io =
-            self.io.lock().map_err(|_| AppError::Internal("mutex poisoned".into()))?;
+        let mut io = self.io.lock().map_err(|_| AppError::Internal("mutex poisoned".into()))?;
         match io.reader.as_mut() {
             Some(r) => {
                 r.read(buf).map_err(|e| AppError::Terminal(format!("pty read error: {}", e)))
@@ -97,8 +96,7 @@ impl PtySession {
     }
 
     pub fn write_input(&self, data: &[u8]) -> Result<(), AppError> {
-        let mut io =
-            self.io.lock().map_err(|_| AppError::Internal("mutex poisoned".into()))?;
+        let mut io = self.io.lock().map_err(|_| AppError::Internal("mutex poisoned".into()))?;
         match io.writer.as_mut() {
             Some(w) => {
                 w.write_all(data).map_err(|e| AppError::Terminal(format!("pty write error: {}", e)))

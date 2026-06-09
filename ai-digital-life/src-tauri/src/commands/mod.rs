@@ -39,9 +39,7 @@ pub fn ipc_try<T>(f: impl FnOnce() -> Result<T, AppError>) -> IpcResult<T> {
     ipc(f())
 }
 
-pub(crate) fn save_and_emit_run_activity(
-    ctx: RunActivityContext<'_>,
-) {
+pub(crate) fn save_and_emit_run_activity(ctx: RunActivityContext<'_>) {
     let _ = ctx.state.db.save_entity(
         EntityTable::RunActivityEvents,
         &adl_kernel::create_id("runact"),
@@ -52,7 +50,13 @@ pub(crate) fn save_and_emit_run_activity(
     );
     let _ = ctx.app.emit(
         "digital-life://run-activity",
-        adl_kernel::events::run_activity_event(ctx.run_id, ctx.seq, ctx.ts, ctx.event_type, ctx.extra),
+        adl_kernel::events::run_activity_event(
+            ctx.run_id,
+            ctx.seq,
+            ctx.ts,
+            ctx.event_type,
+            ctx.extra,
+        ),
     );
 }
 

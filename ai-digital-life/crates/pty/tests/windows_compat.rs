@@ -75,16 +75,9 @@ mod windows_pty_tests {
         let output_str = String::from_utf8_lossy(&output);
 
         let line_count = output_str.lines().count();
-        assert!(
-            line_count >= 900,
-            "Expected at least 900 lines, got {} lines",
-            line_count,
-        );
+        assert!(line_count >= 900, "Expected at least 900 lines, got {} lines", line_count,);
 
-        assert!(
-            output_str.contains("Line 500"),
-            "Expected 'Line 500' in large output",
-        );
+        assert!(output_str.contains("Line 500"), "Expected 'Line 500' in large output",);
 
         child.wait().expect("wait for child failed");
     }

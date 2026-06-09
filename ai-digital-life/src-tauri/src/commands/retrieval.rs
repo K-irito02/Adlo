@@ -32,7 +32,9 @@ pub fn retrieval_rebuild_index(
             &snapshot,
         )?;
         let _ = app.emit("digital-life://retrieval-status", &snapshot);
-        state.event_bus.emit(adl_kernel::events::AppEvent::RetrievalStatusChanged(workspace.id.clone()));
+        state
+            .event_bus
+            .emit(adl_kernel::events::AppEvent::RetrievalStatusChanged(workspace.id.clone()));
         Ok(true)
     })
 }

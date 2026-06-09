@@ -69,12 +69,7 @@ impl<'a> WorkspaceRepository<'a> {
         }
     }
 
-    pub fn upsert_recent(
-        &self,
-        root_path: &str,
-        name: &str,
-        json: &str,
-    ) -> Result<(), AppError> {
+    pub fn upsert_recent(&self, root_path: &str, name: &str, json: &str) -> Result<(), AppError> {
         let now = now_ms().to_string();
         self.db.execute(
             "INSERT OR REPLACE INTO recent_workspaces (root_path, name, last_opened, json) \
@@ -112,10 +107,8 @@ mod tests {
         let db = temp_db("upsert-list");
         let repo = WorkspaceRepository::new(&db);
 
-        repo.upsert_recent("/tmp/a", "Workspace A", r#"{"key":"a"}"#)
-            .unwrap();
-        repo.upsert_recent("/tmp/b", "Workspace B", r#"{"key":"b"}"#)
-            .unwrap();
+        repo.upsert_recent("/tmp/a", "Workspace A", r#"{"key":"a"}"#).unwrap();
+        repo.upsert_recent("/tmp/b", "Workspace B", r#"{"key":"b"}"#).unwrap();
 
         let rows = repo.list_recent().unwrap();
         assert_eq!(rows.len(), 2);
@@ -132,8 +125,7 @@ mod tests {
         let db = temp_db("find-root");
         let repo = WorkspaceRepository::new(&db);
 
-        repo.upsert_recent("/tmp/find-me", "Find Me", r#"{"id":"find"}"#)
-            .unwrap();
+        repo.upsert_recent("/tmp/find-me", "Find Me", r#"{"id":"find"}"#).unwrap();
 
         let found = repo.find_by_root("/tmp/find-me").unwrap();
         assert!(found.is_some());

@@ -237,15 +237,28 @@ pub(crate) fn collect_context(
 pub(crate) async fn call_model<F: Fn(serde_json::Value)>(
     ctx: CallModelContext<'_, F>,
 ) -> Result<(adl_kernel::ModelResponse, adl_kernel::ModelCallAuditRecord), AppError> {
-    let messages =
-        adl_agent_runtime::build_model_messages(ctx.workspace, &ctx.input.prompt, ctx.scenario, &ctx.context);
+    let messages = adl_agent_runtime::build_model_messages(
+        ctx.workspace,
+        &ctx.input.prompt,
+        ctx.scenario,
+        &ctx.context,
+    );
     let gateway = {
-        let config =
-            ctx.state.config.read().map_err(|_| AppError::Internal("config lock poisoned".into()))?;
+        let config = ctx
+            .state
+            .config
+            .read()
+            .map_err(|_| AppError::Internal("config lock poisoned".into()))?;
         adl_model_gateway::ModelGateway::new(config.model_preferences.clone())?
     };
     let (model_response, model_audit) = gateway
-        .chat(&ctx.workspace.id, &ctx.session.id, Some(ctx.detail.run.id.clone()), ctx.scenario, messages)
+        .chat(
+            &ctx.workspace.id,
+            &ctx.session.id,
+            Some(ctx.detail.run.id.clone()),
+            ctx.scenario,
+            messages,
+        )
         .await;
     ctx.state.db.save_entity(
         EntityTable::ModelCallAudit,
@@ -365,7 +378,11 @@ pub(crate) fn finalize_run<F: Fn(serde_json::Value)>(
     ctx.audit_batch.push(AuditBatchEntry {
         workspace_id: ctx.workspace.id.clone(),
         session_id: Some(ctx.session.id.clone()),
-        operation_type: if ctx.patch_set.is_some() { "patch-apply".into() } else { "approval".into() },
+        operation_type: if ctx.patch_set.is_some() {
+            "patch-apply".into()
+        } else {
+            "approval".into()
+        },
         risk_level: if ctx.patch_set.is_some() {
             adl_kernel::RiskLevel::Medium
         } else {

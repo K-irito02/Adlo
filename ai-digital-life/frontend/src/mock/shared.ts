@@ -1,5 +1,5 @@
 import type { PtyOutputEvent } from "../shared/ipc";
-import { applyPreferencePatch } from "../app/utils/preferencesMerger";
+import { applyPreferencePatch } from "../shared/preferencesMerger";
 import type {
   AgentRunDetail,
   AppInfo,

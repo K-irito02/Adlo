@@ -53,9 +53,7 @@ pub fn get_absolute_path(root: &Path, relative_path: &str) -> Result<String, App
 #[cfg(test)]
 mod tests {
     use super::*;
-    use adl_kernel::{
-        WorkspaceChangeKind, WorkspaceChangeStatus, WorkspaceType,
-    };
+    use adl_kernel::{WorkspaceChangeKind, WorkspaceChangeStatus, WorkspaceType};
     use std::path::Path;
     use std::process::Command;
 

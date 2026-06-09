@@ -37,7 +37,7 @@
 - 工作区与对话管理 + 补丁预览/应用/回滚
 - 模型网关（含流式与取消）+ 命令治理与终端流式输出
 - CodeMirror 编辑器系统 + xterm.js 交互式终端（多会话 PTY）
-- Zustand 切片模式（12 切片 + 11 action 模块）+ 模块化分层（features/ + regions/）
+- Zustand 切片模式（13 切片 + 11 action 模块）+ 模块化分层（features/ + regions/）
 - 内置浏览器（Tauri WebView / iframe 双模式 + 标签树形目录三分类）
 - 统一 IPC 错误通道（`IpcErrorCode` → `AppError` → `IpcResult`）
 - CSS 设计 Token 亮暗主题 + 自定义 Tooltip 组件
@@ -45,7 +45,7 @@
 
 ## 重构历史
 
-共完成 **39 轮**迭代重构，详情见 [REFACTORING_PROGRESS_REPORT.md](./docs/重构洞察/REFACTORING_PROGRESS_REPORT.md)。
+共完成 **42 轮**迭代重构，详情见 [REFACTORING_PROGRESS_REPORT.md](./docs/重构洞察/REFACTORING_PROGRESS_REPORT.md)。
 
 ## 调试工具
 
