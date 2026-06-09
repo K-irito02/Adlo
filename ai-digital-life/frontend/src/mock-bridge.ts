@@ -1,5 +1,5 @@
 import type { DigitalLifeBridge, PtyOutputEvent } from './shared/ipc';
-import { applyPreferencePatch } from './app/utils/preferencesMerger';
+import { applyPreferencePatch } from './shared/preferencesMerger';
 import type { CommandRequest, CommandRunResult } from '@ai-digital-life/kernel';
 import { mockWorkspace } from './mock/mock-workspace';
 import { mockRetrieval } from './mock/mock-retrieval';

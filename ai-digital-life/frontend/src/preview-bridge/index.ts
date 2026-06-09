@@ -16,9 +16,9 @@ import type {
   WorkspaceGitBranchCreateInput,
   WorkspaceGitBranchSwitchInput,
 } from '@ai-digital-life/kernel';
-import { applyPreferencePatch } from '../app/utils/preferencesMerger';
+import { applyPreferencePatch } from '../shared/preferencesMerger';
 import { mockDigitalLifeBridge, setMockActiveWorkspace } from '../mock-bridge';
-import { repoMapEntriesToTree } from '../app/utils/repoMapFromEntries';
+import { repoMapEntriesToTree } from '../shared/repoMapFromEntries';
 import type { DigitalLifeBridge } from '../shared/ipc';
 import { IpcErrorCode } from '../shared/ipc';
 import { requestPreviewApi } from './api';
