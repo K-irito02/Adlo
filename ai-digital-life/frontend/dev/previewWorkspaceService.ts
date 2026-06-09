@@ -1317,7 +1317,10 @@ export async function handlePreviewWorkspaceApi(
       return true;
     }
 
-    if (request.method === 'POST' && requestUrl.pathname === `${API_PREFIX}/ci/clear-access-token`) {
+    if (
+      request.method === 'POST' &&
+      requestUrl.pathname === `${API_PREFIX}/ci/clear-access-token`
+    ) {
       ciAccessToken = '';
       writeJson(response, ok(true));
       return true;

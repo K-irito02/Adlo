@@ -2,4 +2,20 @@ cognitive-complexity-threshold = 25
 too-many-arguments-threshold = 8
 too-many-lines-threshold = 500
 disallowed-names = ["foo", "bar", "baz", "qux"]
-doc-valid-idents = ["iOS", "macOS", "Linux", "Windows", "SQLite", "SQL", "WebView", "Tauri", "IPC", "CLI", "MVP", "PTY", "CSS", "HTML", "DOM", "API", "JSON", "XML", "YAML", "Regex", "URI", "UUID"]
+doc-valid-idents = [
+    "iOS", "macOS", "Linux", "Windows",
+    "SQLite", "SQL",
+    "WebView", "Tauri",
+    "IPC", "CLI", "MVP", "PTY",
+    "CSS", "HTML", "DOM",
+    "API", "JSON", "XML", "YAML", "Regex", "URI", "UUID",
+    "OpenCode", "DigitalLife", "ADL",
+    "Zustand", "CodeMirror", "Xterm",
+    "Serde", "Tokio", "Rusqlite", "Anyhow", "Thiserror",
+    "TauriCommand", "IpcResult", "IpcErrorCode", "AppError",
+    "Prettier", "ESLint", "Clippy", "Rustfmt",
+    "EditorConfig",
+    "PhantomData",
+    "GitHub", "Git", "CI",
+]
+msrv = "1.77"

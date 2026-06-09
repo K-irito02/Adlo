@@ -29,7 +29,7 @@ import { categorizeFile } from '../fileTypeRouter';
 import { ChangesToolbar } from './ChangesToolbar';
 import { ChangesConfirmDialogs } from './ChangesConfirmDialogs';
 import { RenameDialog } from '../../../components/RenameDialog';
-import { EditorView } from '@codemirror/view';
+import { type EditorView } from '@codemirror/view';
 import { getChunks, uncollapseUnchanged } from '@codemirror/merge';
 import { ChangesTreePanel } from './ChangesTreePanel';
 import { PatchReviewSection } from './PatchReviewSection';

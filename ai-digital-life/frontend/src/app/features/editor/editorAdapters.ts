@@ -1,6 +1,6 @@
 import { EditorView } from '@codemirror/view';
 import { EditorSelection } from '@codemirror/state';
-import { MergeView } from '@codemirror/merge';
+import { type MergeView } from '@codemirror/merge';
 import type {
   EditorRef,
   DiffEditorRef,

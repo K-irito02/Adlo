@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import type React from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { EditorView } from '@codemirror/view';
 import { forceParsing } from '@codemirror/language';
 import { foldGutterCompartment } from '../diff-viewer/sharedExtensions';

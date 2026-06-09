@@ -131,24 +131,19 @@ pub fn set_ci_access_token(token: &str) -> Result<(), AppError> {
         delete_ci_access_token()?;
         return Ok(());
     }
-    CredentialStore::new(DEFAULT_SERVICE, CI_CREDENTIAL_ACCOUNT)
-        .set_password(token)?;
+    CredentialStore::new(DEFAULT_SERVICE, CI_CREDENTIAL_ACCOUNT).set_password(token)?;
     Ok(())
 }
 
 /// 读取 CI access token（如果不存在则返回 `None`）
 pub fn get_ci_access_token() -> Option<String> {
     let store = CredentialStore::new(DEFAULT_SERVICE, CI_CREDENTIAL_ACCOUNT);
-    match store.get_password() {
-        Ok(v) => Some(v),
-        Err(_) => None,
-    }
+    store.get_password().ok()
 }
 
 /// 删除 CI access token
 pub fn delete_ci_access_token() -> Result<(), AppError> {
-    CredentialStore::new(DEFAULT_SERVICE, CI_CREDENTIAL_ACCOUNT)
-        .delete_password()?;
+    CredentialStore::new(DEFAULT_SERVICE, CI_CREDENTIAL_ACCOUNT).delete_password()?;
     Ok(())
 }
 

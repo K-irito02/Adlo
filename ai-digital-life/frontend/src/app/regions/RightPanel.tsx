@@ -101,7 +101,7 @@ const ActiveToolPanel = React.memo(function ActiveToolPanel({
   auditProps,
   modelProps,
   settingsProps,
-  ciProps,
+  ciProps: _ciProps,
 }: ActiveToolPanelProps) {
   const panelId = `${idBase}-${activeTool}-panel`;
   const tabId = `${idBase}-${activeTool}-tab`;

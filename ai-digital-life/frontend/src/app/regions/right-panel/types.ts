@@ -1,6 +1,7 @@
 import type {
   AppInfo,
   AuditEntry,
+  CiStatusSnapshot,
   CommandRunResult,
   FileOutlineItem,
   FilePatch,
@@ -237,7 +238,7 @@ export type CIPanelProps = {
   accessToken: string;
   loading: boolean;
   error: string | null;
-  snapshot: import('@ai-digital-life/kernel').CiStatusSnapshot | null;
+  snapshot: CiStatusSnapshot | null;
   onRefresh: () => void;
   onConfigChange: (owner: string, repo: string, branch: string, token: string) => void;
   onClearToken: () => void;

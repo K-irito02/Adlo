@@ -15,7 +15,8 @@ type CiTab = 'status' | 'help';
 export function CIPanel() {
   const [activeTab, setActiveTab] = useState<CiTab>('status');
   const [showTooltip, setShowTooltip] = useState(false);
-  const { config, accessToken, loading, error, snapshot, onRefresh, onConfigChange, onClearToken } = useCIPanelProps();
+  const { config, accessToken, loading, error, snapshot, onRefresh, onConfigChange, onClearToken } =
+    useCIPanelProps();
   const appInfo = workspaceSelectors.useAppInfo();
   const copy = getAppCopy(appInfo);
 
@@ -50,8 +51,8 @@ export function CIPanel() {
               title="快速帮助"
             >
               <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
-                <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
-                <path d="M6.5 5.5a1 1 0 1 1 2 0 1 1 0 0 1-2 0zm.25 3.25a.25.25 0 0 1 .25.25v.25h.25a.25.25 0 0 1 0 .5H6.5a.25.25 0 0 1-.25-.25v-.25a.25.25 0 0 1 .25-.25h.25z"/>
+                <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z" />
+                <path d="M6.5 5.5a1 1 0 1 1 2 0 1 1 0 0 1-2 0zm.25 3.25a.25.25 0 0 1 .25.25v.25h.25a.25.25 0 0 1 0 .5H6.5a.25.25 0 0 1-.25-.25v-.25a.25.25 0 0 1 .25-.25h.25z" />
               </svg>
             </button>
           )}

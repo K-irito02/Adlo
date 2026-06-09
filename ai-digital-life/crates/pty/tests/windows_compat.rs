@@ -39,7 +39,7 @@ mod windows_pty_tests {
             .expect("openpty failed");
 
         let mut cmd = CommandBuilder::new("cmd");
-        cmd.args(&["/c", "echo", "你好 world 🎉"]);
+        cmd.args(["/c", "echo", "你好 world 🎉"]);
         let mut child = pair.slave.spawn_command(cmd).expect("spawn command failed");
 
         let reader = pair.master.try_clone_reader().expect("clone reader failed");
@@ -65,7 +65,7 @@ mod windows_pty_tests {
             .expect("openpty failed");
 
         let mut cmd = CommandBuilder::new("cmd");
-        cmd.args(&["/c", "for /l %i in (1,1,1000) do echo Line %i"]);
+        cmd.args(["/c", "for /l %i in (1,1,1000) do echo Line %i"]);
         let mut child = pair.slave.spawn_command(cmd).expect("spawn command failed");
 
         let reader = pair.master.try_clone_reader().expect("clone reader failed");
@@ -90,7 +90,7 @@ mod windows_pty_tests {
             .expect("openpty failed");
 
         let mut cmd = CommandBuilder::new("powershell");
-        cmd.args(&["-Command", "Write-Output 'Hello from PowerShell'"]);
+        cmd.args(["-Command", "Write-Output 'Hello from PowerShell'"]);
         let mut child = pair.slave.spawn_command(cmd).expect("spawn command failed");
 
         let reader = pair.master.try_clone_reader().expect("clone reader failed");
@@ -116,7 +116,7 @@ mod windows_pty_tests {
             .expect("openpty failed");
 
         let mut cmd = CommandBuilder::new("cmd");
-        cmd.args(&["/c", "exit /b 42"]);
+        cmd.args(["/c", "exit /b 42"]);
         let mut child = pair.slave.spawn_command(cmd).expect("spawn command failed");
 
         let reader = pair.master.try_clone_reader().expect("clone reader failed");

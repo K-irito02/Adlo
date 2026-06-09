@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type React from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useAppStore } from '../../stores/slicedStore';
 import { useNavigatorResize } from '../../hooks/useNavigatorResize';
@@ -266,7 +267,7 @@ export function useBrowserPanel(
     [browserActiveTabId, browserTabs]
   );
 
-  const hasActiveTab = activeTab != null;
+  const hasActiveTab = activeTab !== null;
   const isBookmarked = browserBookmarks.some((bookmark) => bookmark.url === activeTab?.url);
 
   const quickLinks = useMemo(

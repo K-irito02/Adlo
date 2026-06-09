@@ -96,19 +96,13 @@ impl CiStatusClient {
     }
 
     fn build_auth_header(&self, token: &Option<String>) -> Option<reqwest::header::HeaderValue> {
-        token
-            .as_ref()
-            .filter(|t| !t.is_empty())
-            .and_then(|t| {
-                let value = format!("Bearer {t}");
-                reqwest::header::HeaderValue::from_str(&value).ok()
-            })
+        token.as_ref().filter(|t| !t.is_empty()).and_then(|t| {
+            let value = format!("Bearer {t}");
+            reqwest::header::HeaderValue::from_str(&value).ok()
+        })
     }
 
-    pub async fn fetch_status(
-        &self,
-        config: &CiRepoConfig,
-    ) -> Result<CiStatusSnapshot, AppError> {
+    pub async fn fetch_status(&self, config: &CiRepoConfig) -> Result<CiStatusSnapshot, AppError> {
         let run = self.fetch_latest_run(config).await?;
         let run_id = run.run_id;
         let jobs = self.fetch_jobs(config, run_id).await?;
@@ -135,11 +129,8 @@ impl CiStatusClient {
             repo = config.repo
         );
 
-        let mut query_params = vec![
-            ("branch", config.branch.as_str()),
-            ("per_page", "5"),
-            ("page", "1"),
-        ];
+        let mut query_params =
+            vec![("branch", config.branch.as_str()), ("per_page", "5"), ("page", "1")];
         if let Some(workflow_id) = &config.workflow_id {
             query_params.push(("workflow_id", workflow_id.as_str()));
         }
@@ -150,20 +141,13 @@ impl CiStatusClient {
             req = req.header(reqwest::header::AUTHORIZATION, auth);
         }
 
-        let response = req
-            .send()
-            .await
-            .map_err(|e| AppError::Network(format!("fetch runs failed: {e}")))?;
+        let response =
+            req.send().await.map_err(|e| AppError::Network(format!("fetch runs failed: {e}")))?;
 
         if !response.status().is_success() {
             let status = response.status();
-            let body = response
-                .text()
-                .await
-                .unwrap_or_else(|_| "<no body>".to_string());
-            return Err(AppError::Network(format!(
-                "GitHub API returned {status}: {body}"
-            )));
+            let body = response.text().await.unwrap_or_else(|_| "<no body>".to_string());
+            return Err(AppError::Network(format!("GitHub API returned {status}: {body}")));
         }
 
         let parsed: GitHubRunsResponse = response
@@ -171,11 +155,9 @@ impl CiStatusClient {
             .await
             .map_err(|e| AppError::Config(format!("parse runs failed: {e}")))?;
 
-        let run = parsed
-            .workflow_runs
-            .into_iter()
-            .next()
-            .ok_or_else(|| AppError::NotFound(format!("no workflow runs on branch {}", config.branch)))?;
+        let run = parsed.workflow_runs.into_iter().next().ok_or_else(|| {
+            AppError::NotFound(format!("no workflow runs on branch {}", config.branch))
+        })?;
 
         Ok(CiWorkflowRunSummary {
             run_id: run.id,
@@ -208,20 +190,13 @@ impl CiStatusClient {
             req = req.header(reqwest::header::AUTHORIZATION, auth);
         }
 
-        let response = req
-            .send()
-            .await
-            .map_err(|e| AppError::Network(format!("fetch jobs failed: {e}")))?;
+        let response =
+            req.send().await.map_err(|e| AppError::Network(format!("fetch jobs failed: {e}")))?;
 
         if !response.status().is_success() {
             let status = response.status();
-            let body = response
-                .text()
-                .await
-                .unwrap_or_else(|_| "<no body>".to_string());
-            return Err(AppError::Network(format!(
-                "GitHub API returned {status}: {body}"
-            )));
+            let body = response.text().await.unwrap_or_else(|_| "<no body>".to_string());
+            return Err(AppError::Network(format!("GitHub API returned {status}: {body}")));
         }
 
         let parsed: GitHubJobsResponse = response
@@ -257,11 +232,7 @@ impl CiStatusClient {
             .collect())
     }
 
-    async fn fetch_run_logs(
-        &self,
-        config: &CiRepoConfig,
-        run_id: u64,
-    ) -> Result<String, AppError> {
+    async fn fetch_run_logs(&self, config: &CiRepoConfig, run_id: u64) -> Result<String, AppError> {
         let url = format!(
             "{GITHUB_API_BASE}/repos/{owner}/{repo}/actions/runs/{run_id}/logs",
             owner = config.owner,
@@ -273,21 +244,14 @@ impl CiStatusClient {
             req = req.header(reqwest::header::AUTHORIZATION, auth);
         }
 
-        let response = req
-            .send()
-            .await
-            .map_err(|e| AppError::Network(format!("fetch logs failed: {e}")))?;
+        let response =
+            req.send().await.map_err(|e| AppError::Network(format!("fetch logs failed: {e}")))?;
 
         let status = response.status();
-        let content = response
-            .text()
-            .await
-            .unwrap_or_else(|_| "<failed to read body>".to_string());
+        let content = response.text().await.unwrap_or_else(|_| "<failed to read body>".to_string());
 
         if !status.is_success() {
-            return Err(AppError::Network(format!(
-                "logs API returned {status}: {content}"
-            )));
+            return Err(AppError::Network(format!("logs API returned {status}: {content}")));
         }
 
         if content.trim().is_empty() {
@@ -299,10 +263,7 @@ impl CiStatusClient {
         // decompress it. For simplicity, just indicate availability.
         // "PK" is the zip file magic number (zip/jar/xlsx/etc.)
         let preview = if content.as_bytes().starts_with(b"PK") || content.len() > 20_000 {
-            format!(
-                "({} bytes - view the full log at GitHub)",
-                content.len()
-            )
+            format!("({} bytes - view the full log at GitHub)", content.len())
         } else {
             content
         };

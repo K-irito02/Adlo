@@ -1,5 +1,5 @@
-import { EditorState } from '@codemirror/state';
-import { EditorView } from '@codemirror/view';
+import { type EditorState } from '@codemirror/state';
+import { type EditorView } from '@codemirror/view';
 
 const stateCache = new Map<string, { state: EditorState; timestamp: number }>();
 const STATE_CACHE_MAX_SIZE = 20;

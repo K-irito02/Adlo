@@ -80,7 +80,7 @@ function summarizeEvent(event: DigitalLifeRunActivityEventV1): string {
   }
   if (event.type === 'patch') {
     const counts =
-      event.fileCount != null || event.hunkCount != null
+      event.fileCount !== null || event.hunkCount !== null
         ? ` (${event.fileCount ?? '?'} files / ${event.hunkCount ?? '?'} hunks)`
         : '';
     return `${event.phase}: ${event.patchSetId}${counts}`;

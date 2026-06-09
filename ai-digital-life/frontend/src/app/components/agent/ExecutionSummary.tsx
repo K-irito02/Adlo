@@ -74,16 +74,16 @@ export function ExecutionSummaryCard({ t, block, onViewChanges }: ExecutionSumma
           </div>
         )}
 
-        {(block.validationPassed != null || block.validationFailed != null) && (
+        {(block.validationPassed !== null || block.validationFailed !== null) && (
           <div className="adl-execution-summary__section">
             <strong>{t.validationResults}</strong>
             <div className="adl-execution-summary__counts">
-              {block.validationPassed != null && (
+              {block.validationPassed !== null && (
                 <span className="adl-chip adl-chip--success adl-chip--xs">
                   {t.passedCount}: {block.validationPassed}
                 </span>
               )}
-              {block.validationFailed != null && (
+              {block.validationFailed !== null && (
                 <span className="adl-chip adl-chip--danger adl-chip--xs">
                   {t.failedCount}: {block.validationFailed}
                 </span>

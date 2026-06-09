@@ -129,7 +129,7 @@ export function useTerminalPanel(props: TerminalPanelProps): UseTerminalPanelRet
     [terminalActiveTabId, terminalTabs]
   );
 
-  const hasActiveTab = activeTab != null;
+  const hasActiveTab = activeTab !== null;
 
   const recentCommands = useMemo(() => {
     if (props.commandHistory.length > 0) {

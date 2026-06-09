@@ -1,6 +1,7 @@
 import type {
   AppInfo,
   AppPreferencePatch,
+  CiStatusSnapshot,
   GitBranchSummary,
   GitSnapshot,
   IpcResult,
@@ -498,7 +499,13 @@ export function setupPreviewBridge(): void {
       onUrlChanged: () => () => {},
     },
     ci: {
-      getStatus: async (config: { owner: string; repo: string; branch: string; workflowId?: string | null; accessToken?: string | null }) => {
+      getStatus: async (config: {
+        owner: string;
+        repo: string;
+        branch: string;
+        workflowId?: string | null;
+        accessToken?: string | null;
+      }) => {
         const param = new URLSearchParams();
         param.set('owner', config.owner);
         param.set('repo', config.repo);
@@ -508,19 +515,14 @@ export function setupPreviewBridge(): void {
         if (token) {
           headers['X-CI-Access-Token'] = token;
         }
-        return requestPreviewApi<import('../shared/ipc').CiStatusSnapshot>(
-          `/ci/status?${param.toString()}`,
-          { headers }
-        );
+        return requestPreviewApi<CiStatusSnapshot>(`/ci/status?${param.toString()}`, { headers });
       },
       getStatusWithoutToken: async (owner: string, repo: string, branch: string) => {
         const param = new URLSearchParams();
         param.set('owner', owner);
         param.set('repo', repo);
         param.set('branch', branch);
-        return requestPreviewApi<import('../shared/ipc').CiStatusSnapshot>(
-          `/ci/status?${param.toString()}`
-        );
+        return requestPreviewApi<CiStatusSnapshot>(`/ci/status?${param.toString()}`);
       },
       setAccessToken: async (token: string) => {
         return requestPreviewApi<boolean>('/ci/set-access-token', {

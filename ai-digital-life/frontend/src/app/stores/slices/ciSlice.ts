@@ -11,6 +11,7 @@
  */
 import type { CiJobSummary, CiStatusSnapshot, CiRepoConfig } from '@ai-digital-life/kernel';
 import type { StoreState } from '../StoreState';
+import type { DigitalLifeBridge } from '../../../shared/ipc';
 import { createDebouncedWrite } from '../shared';
 
 // Local storage keys
@@ -21,13 +22,15 @@ const CI_AUTO_REFRESH_ON_PUSH_KEY = 'adl-ui:ci-auto-refresh-on-push';
 // Batch write scheduler — coalesces multiple localStorage writes into one
 const { scheduleWrite } = createDebouncedWrite(50);
 
-function getBridge(): any {
+function getBridge(): DigitalLifeBridge | null {
   if (typeof window === 'undefined') return null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const w = window as any;
-  return w.digitalLife ?? null;
+  return (w.digitalLife as DigitalLifeBridge | undefined) ?? null;
 }
 
 function isTauriMode(): boolean {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const w = window as any;
   return typeof w !== 'undefined' && !!w.__TAURI_INTERNALS__;
 }

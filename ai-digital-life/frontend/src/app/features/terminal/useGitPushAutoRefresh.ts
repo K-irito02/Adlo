@@ -25,6 +25,7 @@ export function useGitPushAutoRefresh() {
   const notifyGitPushed = useAppStore((s) => s.notifyGitPushed);
 
   useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const win = window as any;
     if (!win.digitalLife?.subscribePtyOutput) {
       return;

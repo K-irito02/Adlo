@@ -62,8 +62,13 @@ export default tseslint.config(
       ],
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/no-unused-expressions': 'warn',
+      '@typescript-eslint/consistent-type-imports': [
+        'warn',
+        { prefer: 'type-imports', fixStyle: 'inline-type-imports' },
+      ],
 
       // General - warn level
+      'eqeqeq': ['warn', 'smart'],
       'prefer-const': 'warn',
       'no-case-declarations': 'warn',
 

@@ -76,7 +76,13 @@ const TAB_META: Array<{
     id: 'ci',
     shortcut: 'Ctrl+Shift+Q',
     icon: (
-      <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" style={{ display: 'block' }}>
+      <svg
+        viewBox="0 0 16 16"
+        width="16"
+        height="16"
+        fill="currentColor"
+        style={{ display: 'block' }}
+      >
         <path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0zm3.5 5.5a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h1zm-5 0a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h1zM8 8a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5H7a.5.5 0 0 1-.5-.5v-1A.5.5 0 0 1 7 8h1z" />
       </svg>
     ),

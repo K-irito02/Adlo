@@ -15,7 +15,7 @@ import { getThemeExtension, getPhrasesExtension } from '../editor/cmTheme';
 import { createFoldGutterExtension } from '../editor/cmFoldGutter';
 import { gutterHoverSync } from '../editor/gutterHoverSync';
 import { scrollLeftSyncExtension } from '../editor/cmScrollLeftSync';
-import { getChunks } from '@codemirror/merge';
+import { type getChunks } from '@codemirror/merge';
 
 export const lineNumbersCompartment = new Compartment();
 export const wordWrapCompartment = new Compartment();

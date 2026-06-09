@@ -1,11 +1,14 @@
 # Build outputs
 dist
 dist-ssr
+target/
 
 # Dependencies
 node_modules
 .pnp
 .pnp.js
+pnpm-lock.yaml
+Cargo.lock
 
 # IDE
 .vscode
@@ -21,6 +24,9 @@ src/mock/**
 # Types
 src/types/**
 *.d.ts
+
+# Dev bridges (ESLint aligned)
+dev/
 
 # Config files
 *.config.ts

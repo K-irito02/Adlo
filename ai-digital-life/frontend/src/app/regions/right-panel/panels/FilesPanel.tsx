@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useRef } from 'react';
-import { EditorView } from '@codemirror/view';
+import { type EditorView } from '@codemirror/view';
 import type { EditorRef, DiffEditorRef } from '../../../stores/types';
 import { categorizeFile } from '../fileTypeRouter';
 import { IconEye, IconPanelLeftClose, IconReturn, IconSearch } from '../../../icons';

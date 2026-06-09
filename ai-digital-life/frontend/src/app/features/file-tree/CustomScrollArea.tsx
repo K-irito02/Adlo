@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, forwardRef, ForwardedRef } from 'react';
+import React, { useCallback, useEffect, useRef, forwardRef, type ForwardedRef } from 'react';
 
 type CustomScrollAreaProps = {
   shellClassName: string;

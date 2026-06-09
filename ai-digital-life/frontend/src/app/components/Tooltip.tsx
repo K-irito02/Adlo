@@ -9,7 +9,7 @@ import React, {
   memo,
 } from 'react';
 import { createPortal } from 'react-dom';
-import type { Placement, Alignment } from '../utils/tooltipPosition';
+import type { Placement, Alignment, PositionResult } from '../utils/tooltipPosition';
 import { useTooltip, type UseTooltipOptions, type UseTooltipReturn } from '../hooks/useTooltip';
 
 interface TooltipContextValue extends UseTooltipReturn {
@@ -200,7 +200,7 @@ const TooltipContentInner = memo(function TooltipContentInner({
   children: React.ReactNode;
   side?: Placement;
   placement: Placement;
-  position: import('../utils/tooltipPosition').PositionResult | null;
+  position: PositionResult | null;
   isOpen: boolean;
   tooltipRef: React.RefCallback<HTMLElement>;
   close: () => void;
@@ -239,8 +239,8 @@ const TooltipContentInner = memo(function TooltipContentInner({
         <span
           className="tooltip__arrow"
           style={{
-            left: position.arrowX != null ? `${position.arrowX}px` : undefined,
-            top: position.arrowY != null ? `${position.arrowY}px` : undefined,
+            left: position.arrowX !== null ? `${position.arrowX}px` : undefined,
+            top: position.arrowY !== null ? `${position.arrowY}px` : undefined,
           }}
         />
       )}

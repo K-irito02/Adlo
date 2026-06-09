@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { EditorView } from '@codemirror/view';
+import { type EditorView } from '@codemirror/view';
 import { saveEditorState } from '../../../features/editor';
 
 function useEditorStateCache(
