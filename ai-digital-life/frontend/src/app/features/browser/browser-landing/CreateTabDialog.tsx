@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { IconClose } from '../../../icons';
 
 interface CreateTabDialogProps {
   open: boolean;
@@ -63,7 +64,7 @@ export function CreateTabDialog({ open, t, onConfirm, onCancel }: CreateTabDialo
             onClick={onCancel}
             aria-label={t.browserClose}
           >
-            ✕
+            <IconClose size={14} decorative />
           </button>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 0 8px' }}>
@@ -103,9 +104,6 @@ export function CreateTabDialog({ open, t, onConfirm, onCancel }: CreateTabDialo
               type="text"
               value={url}
               onChange={(e) => setUrl(e.currentTarget.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleConfirm();
-              }}
               placeholder={t.browserTabUrl}
             />
           </div>

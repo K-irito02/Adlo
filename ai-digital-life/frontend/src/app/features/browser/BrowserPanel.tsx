@@ -138,10 +138,12 @@ export function BrowserPanel(props: BrowserPanelProps) {
 
   const handleCreateTabConfirm = useCallback(
     (name: string, url: string) => {
-      browserOpenTab(url, name, createTabDialog.workspaceId);
-      setCreateTabDialog({ open: false });
+      setCreateTabDialog((prev) => {
+        browserOpenTab(url, name, prev.workspaceId);
+        return { open: false };
+      });
     },
-    [browserOpenTab, createTabDialog.workspaceId]
+    [browserOpenTab]
   );
 
   const handleCreateTabCancel = useCallback(() => {
