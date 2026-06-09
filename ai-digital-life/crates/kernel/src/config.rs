@@ -2,8 +2,10 @@ use crate::types::{ModelPreferences, ThemeMode};
 use adl_errors::AppError;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
+use ts_rs::TS;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
 pub struct AppConfig {
     pub language: String,
     pub theme_mode: ThemeMode,

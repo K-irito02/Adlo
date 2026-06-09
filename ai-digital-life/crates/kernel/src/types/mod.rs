@@ -13,6 +13,7 @@ pub use model::*;
 pub use workspace::*;
 
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 use uuid::Uuid;
 
 pub const APP_NAME: &str = "AI Digital Life";
@@ -65,14 +66,16 @@ pub fn estimate_tokens(text: &str) -> usize {
     std::cmp::max(1, weighted.div_ceil(4))
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
 #[serde(rename_all = "camelCase")]
 pub struct IpcError {
     pub code: String,
     pub message: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
 #[serde(untagged)]
 pub enum IpcResult<T> {
     Ok { ok: bool, data: T },

@@ -7,6 +7,7 @@ edition.workspace = true
 adl-errors = { path = "../errors" }
 serde.workspace = true
 serde_json.workspace = true
+ts-rs = { version = "10", features = ["serde-compat", "serde-json-impl"] }
 uuid.workspace = true
 chrono.workspace = true
 tokio.workspace = true

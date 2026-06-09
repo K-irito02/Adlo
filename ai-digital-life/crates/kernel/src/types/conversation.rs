@@ -1,9 +1,11 @@
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use super::agent::{AgentRunDetail, PatchSet};
 use super::TimestampMs;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
 #[serde(rename_all = "kebab-case")]
 pub enum SessionStatus {
     Active,
@@ -12,7 +14,8 @@ pub enum SessionStatus {
     Archived,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, TS)]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
 #[serde(rename_all = "camelCase")]
 pub struct SessionSummary {
     pub last_user_intent: Option<String>,
@@ -22,7 +25,8 @@ pub struct SessionSummary {
     pub notes: Option<Vec<String>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
 #[serde(rename_all = "camelCase")]
 pub struct SessionMeta {
     pub id: String,
@@ -35,7 +39,8 @@ pub struct SessionMeta {
     pub updated_at: TimestampMs,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
 #[serde(rename_all = "kebab-case")]
 pub enum TaskStatus {
     Pending,
@@ -48,7 +53,8 @@ pub enum TaskStatus {
     RolledBack,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
 #[serde(rename_all = "lowercase")]
 pub enum RiskLevel {
     Low,
@@ -56,7 +62,8 @@ pub enum RiskLevel {
     High,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
 #[serde(rename_all = "camelCase")]
 pub struct TaskOperation {
     pub kind: String,
@@ -66,7 +73,8 @@ pub struct TaskOperation {
     pub reversible: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
 #[serde(rename_all = "camelCase")]
 pub struct TaskRecord {
     pub id: String,
@@ -87,7 +95,8 @@ pub struct TaskRecord {
     pub completed_at: Option<TimestampMs>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
 #[serde(rename_all = "camelCase")]
 pub struct TaskSummary {
     pub id: String,
@@ -99,7 +108,8 @@ pub struct TaskSummary {
     pub detail: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
 #[serde(rename_all = "camelCase")]
 pub struct ApprovalRequestSummary {
     pub id: String,
@@ -113,7 +123,8 @@ pub struct ApprovalRequestSummary {
     pub expires_at: Option<TimestampMs>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
 #[serde(rename_all = "lowercase")]
 pub enum ApprovalDecision {
     Approved,
@@ -121,7 +132,8 @@ pub enum ApprovalDecision {
     Timeout,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
 #[serde(rename_all = "camelCase")]
 pub struct ApprovalRecord {
     pub id: String,
@@ -138,7 +150,8 @@ pub struct ApprovalRecord {
     pub expires_at: Option<TimestampMs>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
 #[serde(rename_all = "camelCase")]
 pub struct AuditRecord {
     pub id: String,
@@ -149,7 +162,8 @@ pub struct AuditRecord {
     pub created_at: TimestampMs,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
 #[serde(rename_all = "camelCase")]
 pub struct AuditEntry {
     pub id: String,
@@ -161,7 +175,8 @@ pub struct AuditEntry {
     pub detail: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
 #[serde(rename_all = "camelCase")]
 pub struct CheckpointRecord {
     pub id: String,
@@ -173,7 +188,8 @@ pub struct CheckpointRecord {
     pub created_at: TimestampMs,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
 #[serde(rename_all = "camelCase")]
 pub struct CheckpointPayloadAsset {
     pub path: String,
@@ -183,7 +199,8 @@ pub struct CheckpointPayloadAsset {
     pub snapshot_path: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
 #[serde(rename_all = "camelCase")]
 pub struct CheckpointPayloadPreview {
     pub checkpoint_id: String,
@@ -193,7 +210,8 @@ pub struct CheckpointPayloadPreview {
     pub assets: Vec<CheckpointPayloadAsset>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
 #[serde(rename_all = "camelCase")]
 pub struct ApprovalPolicySummary {
     pub mode: String,
@@ -201,7 +219,8 @@ pub struct ApprovalPolicySummary {
     pub high_risk_rules: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
 #[serde(rename_all = "camelCase")]
 pub struct TaskCenterSnapshot {
     pub tasks: Vec<TaskSummary>,
@@ -211,7 +230,8 @@ pub struct TaskCenterSnapshot {
     pub latest_checkpoint: Option<CheckpointRecord>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
 #[serde(rename_all = "lowercase")]
 pub enum ConversationRole {
     System,
@@ -220,7 +240,8 @@ pub enum ConversationRole {
     Tool,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
 #[serde(rename_all = "kebab-case")]
 pub enum ConversationScenario {
     Chat,
@@ -228,7 +249,8 @@ pub enum ConversationScenario {
     CodeEdit,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
 #[serde(tag = "type", rename_all = "kebab-case")]
 pub enum ConversationBlock {
     Markdown {
@@ -271,7 +293,8 @@ pub enum ConversationBlock {
     },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
 #[serde(rename_all = "camelCase")]
 pub struct PlanConversationItem {
     pub id: String,
@@ -280,7 +303,8 @@ pub struct PlanConversationItem {
     pub status: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
 #[serde(rename_all = "camelCase")]
 pub struct ConversationSessionRecord {
     pub id: String,
@@ -299,7 +323,8 @@ pub struct ConversationSessionRecord {
     pub last_message_at: TimestampMs,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
 #[serde(rename_all = "camelCase")]
 pub struct ConversationMessageRecord {
     pub id: String,
@@ -311,14 +336,16 @@ pub struct ConversationMessageRecord {
     pub created_at: TimestampMs,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
 #[serde(rename_all = "camelCase")]
 pub struct ConversationDetail {
     pub session: ConversationSessionRecord,
     pub messages: Vec<ConversationMessageRecord>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
 #[serde(rename_all = "camelCase")]
 pub struct ConversationSendResult {
     pub session: ConversationSessionRecord,
@@ -328,7 +355,8 @@ pub struct ConversationSendResult {
     pub patch_set: Option<PatchSet>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
 #[serde(rename_all = "camelCase")]
 pub struct DiagnosticSummary {
     pub id: String,
