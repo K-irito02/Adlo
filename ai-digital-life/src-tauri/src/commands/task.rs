@@ -237,13 +237,13 @@ async fn maybe_execute_approved_command(
     state: &AppState,
     task: &mut TaskRecord,
 ) -> Result<(), AppError> {
-    let Some(operation) = task.operations.first() else {
+    let Some(operation) = task.operations.first_mut() else {
         return Ok(());
     };
     if operation.kind != "command.run" {
         return Ok(());
     }
-    let request: CommandRequest = deserialize_command(&operation.params)?;
+    let request: CommandRequest = deserialize_params(std::mem::take(&mut operation.params))?;
     let workspace = load_workspace_for_task(state, task)?;
     update_task_to_running(state, task)?;
 
@@ -266,8 +266,8 @@ async fn maybe_execute_approved_command(
 }
 
 /// 反序列化命令请求
-fn deserialize_command(params: &serde_json::Value) -> Result<CommandRequest, AppError> {
-    Ok(serde_json::from_value(params.clone())?)
+fn deserialize_params(params: serde_json::Value) -> Result<CommandRequest, AppError> {
+    Ok(serde_json::from_value(params)?)
 }
 
 /// 为任务加载工作区
