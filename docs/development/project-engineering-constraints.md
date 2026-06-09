@@ -22,7 +22,7 @@
 - 错误处理：`thiserror`（库 crate） + `anyhow`（应用层）
 - 文件监听：`notify`
 - HTTP 客户端：`reqwest`
-- 凭据存储：`keyring`
+- 凭据存储：`crates/credential/`（keyring + 加密文件降级）
 - 前端：`React 19 + Vite + Zustand + TypeScript`（运行在 Tauri WebView）
 - 桥接：`#[tauri::command]` + `@tauri-apps/api` 的 `invoke()` / `listen()`
 - 打包：`cargo tauri build`
@@ -207,7 +207,7 @@
 - `tauri.conf.json` 必须显式声明 `app.security.csp`，`withGlobalTauri` 默认关闭
 - Tauri Command 采用 capability 白名单（`src-tauri/capabilities/*.json`）、类型化 contract 和显式输入校验
 - WebView 发起的危险动作必须进入审批、确认或风险分级流程
-- 密钥、令牌、凭据必须进入 OS 凭据存储（`keyring` crate），不得进入普通配置、快照或日志
+- 密钥、令牌、凭据必须通过 `crates/credential/` 存储（keyring 优先，加密文件降级），不得进入普通配置、快照或日志
 - `tauri-plugin-fs` / `tauri-plugin-shell` / `tauri-plugin-http` 必须配置 scope 限制，禁止 `"all"` / `"**"` 通配
 - 文件系统写入必须显式限定作用域，禁止无边界任意路径写入
 - 命令执行能力必须最小化、可审计、可拒绝、可回放上下文

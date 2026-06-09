@@ -102,7 +102,7 @@
 
 - WebView 直接触达系统能力（必须通过 Tauri Command）
 - 低层 crate 依赖高层 crate
-- 凭据写入普通配置或日志（必须使用 OS keyring）
+- 凭据写入普通配置或日志（必须通过 `crates/credential/` 存储）
 - 混合使用多种 Tooltip 方案（必须统一使用一种 Tooltip 方案）
 - UI/UX 或功能变更后跳过红绿测试
 - 在 capability 文件中使用 `"all"` / `"**"` 通配权限
@@ -131,6 +131,7 @@
 | 跨编辑器 | EditorConfig | `.editorconfig` |
 | Rust Lint 执行命令 | `cargo clippy --workspace --all-targets` | |
 | 前端全量检查执行命令 | `cd frontend && npx eslint . && npx tsc --noEmit` | |
+| CI/CD | GitHub Actions | `.github/workflows/quality-gates.yml` |
 
 ## 真源定位
 
@@ -145,6 +146,8 @@
 | UI 测试 | `UIOperationManual/` |
 | 重构进度 | `docs/重构洞察/REFACTORING_PROGRESS_REPORT.md` |
 | 知识沉淀 | `docs/知识沉淀/` |
+| CI/CD | `.github/workflows/` |
+| 凭据存储 | `ai-digital-life/crates/credential/` |
 
 ## 相关文档
 

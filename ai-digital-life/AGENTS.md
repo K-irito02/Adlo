@@ -15,6 +15,8 @@
 | 前端质量 | ESLint v9（flat config）+ Prettier + TypeScript-ESLint + React Hooks plugin |
 | Rust Lint 执行命令 | `cargo clippy --workspace --all-targets` | |
 | 前端全量检查执行命令 | `cd frontend && npx eslint . && npx tsc --noEmit` | |
+| CI/CD | GitHub Actions | `.github/workflows/quality-gates.yml` |
+| 凭据存储 | `crates/credential/`（keyring + 加密文件降级） | `ai-digital-life/Cargo.toml` |
 
 ## 当前阶段
 

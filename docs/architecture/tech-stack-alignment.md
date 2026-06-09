@@ -18,7 +18,7 @@
 | 错误处理      | `thiserror`（库）+ `anyhow`（应用层）              | 自定义 TS Error                       |
 | 文件监听      | `notify`                                   | `chokidar`                         |
 | HTTP 客户端  | `reqwest`                                  | Node `fetch`                       |
-| 凭据存储      | `keyring`                                  | 普通配置（不安全）                          |
+| 凭据存储      | `keyring` + 加密文件回退                    | 普通配置（不安全）                          |
 | 进程执行      | `tokio::process` / `std::process::Command` | Node `child_process`               |
 | 前端框架      | React 19 + Vite + Zustand + TypeScript     | （保留）                               |
 | 桥接        | `#[tauri::command]` + `@tauri-apps/api`    | `ipcMain.handle` + `contextBridge` |
@@ -108,12 +108,12 @@
 - 跨平台文件监听，是 Rust 生态对 `chokidar` 的标准替代
 - 与 `tokio` 配合可以做事件去抖与批处理
 
-### keyring
+### keyring + credential fallback
 
-已采用。理由：
+已采用（`crates/credential/`）。理由：
 
-- 跨平台访问 OS 凭据存储（Windows Credential Manager / macOS Keychain / Linux Secret Service）
-- 满足「密钥不进入普通配置或日志」的安全基线
+- 双轨架构：优先使用 OS keyring（Windows Credential Manager / macOS Keychain / Linux Secret Service），失败时降级到加密文件（AES-256-GCM，密钥派生自机器指纹）
+- 满足「密钥不进入普通配置或日志」的安全基线，同时保证 Linux 无 D-Bus 环境和 CI 下可用
 
 ### tauri-driver / WebDriver
 

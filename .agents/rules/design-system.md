@@ -50,8 +50,34 @@ alwaysApply: false
 |------|------|------|
 | `CodeEditor` | `frontend/src/app/features/editor/CodeEditor.tsx` | CodeMirror 6 编辑器封装，支持语言扩展、主题同步、行号/换行/折叠 |
 | `DiffViewer` | `frontend/src/app/features/diff-viewer/DiffViewer.tsx` | 差异查看器（合并视图/并排视图），支持未改块折叠 |
+| `cmFoldGutter` | `frontend/src/app/features/editor/cmFoldGutter.ts` | 自定义折叠 gutter 扩展（GutterMarker），替代内置 foldGutter() 以移除内建事件处理 |
+| `FoldTooltipOverlay` | `frontend/src/app/features/editor/FoldTooltipOverlay.tsx` | 折叠工具提示 + Gutter 悬停高亮 + 折叠/展开点击处理。使用捕获阶段 `document.addEventListener` 绕过 MergeView 的 `stopPropagation`。同时处理 `.cm-foldPlaceholder` 展开绕过 CM 焦点依赖 |
+| `useFoldMarkerAutoHide` | `frontend/src/app/features/editor/useFoldMarkerAutoHide.ts` | 折叠标记自动隐藏 Hook。三层检测：DOM 检查、MutationObserver、轮询 + Promise.resolve(forceParsing).then(reconfigure) |
 | `cmTheme` | `frontend/src/app/features/editor/cmTheme.ts` | 主题同步：从 CSS 自定义属性读取颜色，支持亮暗主题动态切换 |
 | `cmScrollLeftSync` | `frontend/src/app/features/editor/cmScrollLeftSync.ts` | 自定义水平滚动条，支持边缘滚动、Diff 双编辑器同步 |
+| `gutterHoverSync` | `frontend/src/app/features/editor/gutterHoverSync.ts` | 内容行悬停 → gutter 高亮同步，使用绝对定位 overlay |
+
+### MergeView 事件约束
+
+在 `@codemirror/merge` (MergeView) 上下文中，gutter DOM 元素上的 `mousedown`/`click` 事件会被 MergeView 内部处理器调用 `stopPropagation()` 拦截，无法通过 `EditorView.domEventHandlers` 或常规冒泡监听捕获。必须使用捕获阶段：`document.addEventListener('mousedown', handler, true)`。
+
+### `codeFolding()` 依赖
+
+自定义 gutter（`gutter()` + `GutterMarker`）需要显式添加 `codeFolding()` 扩展（来自 `@codemirror/language`）。内置 `foldGutter()` 隐式包含它，自定义实现不包含。
+
+### Fold gutter 异步渲染
+
+`lineMarker()` 依赖异步解析的语法树。初次渲染时 `foldable()` 可能返回 null。语法树解析完成后 gutter 不自动重渲染。需使用 `foldGutterCompartment.reconfigure(createFoldGutterExtension())` 强制重建。
+
+注意 `forceParsing()` 返回 Promise（异步解析），必须 `Promise.resolve(forceParsing(...)).then(reconfigure)` 确保语法树解析完成后再重建 gutter。参看 `useFoldMarkerAutoHide.ts` 中的三层检测机制。
+
+### Fold gutter 变更行遮盖
+
+在 Diff Viewer 中，`.cm-changeGutter` 以 `position: absolute; z-index: 20; width: 100%` 覆盖整个 gutter 区域，其内部变更行 gutter 元素的背景色会遮盖下方 `.cm-foldGutter` 的折叠标记。需设置 `.cm-foldGutter { position: relative; z-index: 21 !important; }` 使折叠标记浮现在变更栏之上。
+
+### Gutter hover 高亮方案
+
+使用 `position: fixed` overlay 元素（直接挂载到 `document.body`）覆盖整个 `.cm-gutters` 区域，通过 `mousemove` + `requestAnimationFrame` 驱动位置更新。避免为每个 gutter 列独立设置背景色导致的对齐缺口。
 
 ### 依赖管理约束
 
@@ -134,27 +160,6 @@ xterm.js 主题色从 CSS 自定义属性读取，非硬编码：
 - 单个 CSS 文件 > 1000 行必须拆分
 - 删除组件时必须同步删除其专属 CSS
 - 内容可变容器使用固定 `width`，禁止仅设置 `min-width`
-
-## Prompt Modal（弹窗对话框）
-
-| 组件 | 文件 | 说明 |
-|------|------|------|
-| `RenameDialog` | `frontend/src/app/components/RenameDialog.tsx` | 重命名弹出框，用于文件/变更/浏览器/会话 |
-
-### 样式规范
-
-| 规则 | 说明 |
-|------|------|
-| 容器 | `.adl-prompt-modal` / `.adl-prompt-modal__panel`，使用 `createPortal` 渲染到 `document.body` |
-| 标题栏 | `.adl-prompt-modal__header` 右侧必须含 `✕` 关闭按钮（`.adl-prompt-modal__header-close`） |
-| 按钮 | 底部操作按钮必须使用 `adl-btn--square` 实现**直角**外观 |
-| 输入框 | `.adl-prompt-modal__input`，圆角输入框 |
-
-### 约束
-
-- 所有 `RenameDialog` 实例（文件/变更/浏览器/会话共用同一组件）统一直角按钮和 ✕ 关闭按钮
-- 浏览器专用的 `AddShortcutDialog`、端口重命名 dialog 也遵循相同规范
-- 取消/确认按钮依次排列，取消使用 `adl-btn--ghost`，确认使用 `adl-btn--primary`
 
 ## React 性能模式
 

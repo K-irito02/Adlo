@@ -53,6 +53,19 @@ alwaysApply: true
 
 满足条件后方可实施。
 
+## 调试工具使用
+
+**调试日志收起器是最高优先级的调试手段**，遇到 UI/交互问题时优先使用，而非直接尝试 browser automation：
+
+1. 在代码中添加 `console.log/warn/error/info/debug` 输出调试信息（无需特殊前缀）
+2. 应用启动后，页面右上角会出现可拖拽的"复制调试日志"按钮
+3. 点击该按钮将全部日志复制到剪贴板，或直接查看项目根目录日志文件：
+   - Tauri 模式：`debug-logs.txt`
+   - 浏览器模式：`debug-logs-browser.txt`
+4. 控制台可执行 `__clearDebugLogs()` 清除旧日志，`__exportDebugLogs()` 手动导出
+
+详见 [AGENTS.md](../../AGENTS.md#调试工具)。
+
 ## 相关文件
 
 - [mandatory-testing.md](./mandatory-testing.md) — 测试要求
