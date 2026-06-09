@@ -64,6 +64,33 @@ await page.click('button[aria-label="新建标签页"]');
 await page.click('button[aria-label="新建标签"]');
 ```
 
+**新建标签对话框**（v2026-06-09 新增）：
+
+点击"新建标签"按钮后，弹出 `CreateTabDialog`（Portal → `document.body`），含两个输入项：
+
+| 字段 | 选择器 | 填写内容 |
+|------|--------|----------|
+| 标签名称 | `.adl-prompt-modal__input:first-of-type` | 标签显示名称 |
+| 网址 | `.adl-prompt-modal__input:nth-of-type(2)` | 目标网址（自动补 `https://`） |
+
+```javascript
+// 通过对话框创建标签
+await page.fill('.adl-prompt-modal__input:first-of-type', 'GitHub');
+await page.fill('.adl-prompt-modal__input:nth-of-type(2)', 'github.com');
+await page.click('button:has-text("新建标签")');
+```
+
+**触发入口**（两处一致，均弹出同一对话框）：
+
+| 触发位置 | 选择器 | 说明 |
+|----------|--------|------|
+| 导航器工具栏 | `button[aria-label="新建标签"]` | 需先选中一个目录，否则 toast 提示 |
+| 树目录悬停按钮 | `.adl-browser-entry .adl-icon-btn[aria-label="新建标签"]` | 目录头部行 hover 时出现的"+"按钮 |
+
+**取消操作**：点击"取消"按钮、按 Esc 键、或点击遮罩层，均关闭对话框且不创建标签。
+
+**计数行为**：仅在用户点击"新建标签"确认后才调用 `browserOpenTab`，`navigatorCount` 仅反映真实创建数。取消操作不增加计数。
+
 #### 新建目录（导航器）
 
 ```javascript

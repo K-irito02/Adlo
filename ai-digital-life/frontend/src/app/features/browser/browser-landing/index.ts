@@ -1,5 +1,6 @@
 export { BrowserLandingPage } from './BrowserLandingPage';
 export { AddShortcutDialog } from './AddShortcutDialog';
+export { CreateTabDialog } from './CreateTabDialog';
 export { AddManualPortDialog } from './AddManualPortDialog';
 export { BackgroundSettingsDialog } from './BackgroundSettingsDialog';
 export { BackgroundLayer } from './BackgroundLayer';

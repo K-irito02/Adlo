@@ -28,7 +28,7 @@
 - 命令治理与终端流式输出
 - xterm.js 交互式终端（多会话 PTY，支持 CMD / PowerShell / Bash）
 - CodeMirror 编辑器系统 + 文件预览 + 差异查看器（inline/side-by-side）
-- 内置浏览器（Tauri WebView / iframe 双模式）
+- 内置浏览器（Tauri WebView / iframe 双模式 + 新建标签对话框）
 - Zustand 切片模式（13 切片 + 11 action 模块）+ 模块化分层（features/ + regions/）
 - CSS 设计 Token 亮暗主题 + 自定义 Tooltip + 自定义滚动条
 - i18n 国际化（10 领域 / 529 keys，TypeScript satisfies 类型安全）

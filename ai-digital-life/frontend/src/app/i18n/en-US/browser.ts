@@ -54,6 +54,10 @@ export const browserEn = {
   browserTabDir: 'Tab Directory',
   browserRenamePrompt: 'Rename',
 
+  // Create tab dialog
+  browserTabName: 'Tab name',
+  browserTabUrl: 'URL',
+
   // Landing page
   browserShortcuts: 'Shortcuts',
   browserAddShortcut: 'Add shortcut',

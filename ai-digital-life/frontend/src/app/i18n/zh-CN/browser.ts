@@ -53,6 +53,10 @@ export const browserZh = {
   browserTabDir: '标签目录',
   browserRenamePrompt: '重命名',
 
+  // 新建标签对话框
+  browserTabName: '标签名称',
+  browserTabUrl: '网址',
+
   // 空标签引导页
   browserShortcuts: '快捷导航',
   browserAddShortcut: '添加快捷站点',

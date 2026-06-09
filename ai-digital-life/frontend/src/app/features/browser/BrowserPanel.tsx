@@ -33,7 +33,7 @@ import { BrowserMenuDropdown } from './BrowserMenuDropdown';
 import { BrowserTabTree } from '../browser-tree';
 import { CustomScrollArea } from '../file-tree/CustomScrollArea';
 import { isTauriShell } from '../../../tauri-bridge';
-import { BrowserLandingPage } from './browser-landing';
+import { BrowserLandingPage, CreateTabDialog } from './browser-landing';
 import type { BrowserPanelProps } from '../../regions/right-panel/types';
 import { open as shellOpen } from '@tauri-apps/plugin-shell';
 
@@ -129,6 +129,23 @@ export function BrowserPanel(props: BrowserPanelProps) {
 
   const removeToast = useCallback((id: string) => {
     setToastMessages((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  const [createTabDialog, setCreateTabDialog] = useState<{
+    open: boolean;
+    workspaceId?: string;
+  }>({ open: false });
+
+  const handleCreateTabConfirm = useCallback(
+    (name: string, url: string) => {
+      browserOpenTab(url, name, createTabDialog.workspaceId);
+      setCreateTabDialog({ open: false });
+    },
+    [browserOpenTab, createTabDialog.workspaceId]
+  );
+
+  const handleCreateTabCancel = useCallback(() => {
+    setCreateTabDialog({ open: false });
   }, []);
 
   const handleSelectTreePath = useCallback((path: string | null) => {
@@ -530,7 +547,15 @@ export function BrowserPanel(props: BrowserPanelProps) {
                       showToast('请先选择一个目录', 'warning');
                       return;
                     }
-                    browserActions.handleCreateTabInTree();
+                    let wsId: string | undefined;
+                    if (path.startsWith('workspace:')) {
+                      wsId = path.slice('workspace:'.length);
+                    } else if (path.startsWith('folder:')) {
+                      const fid = path.slice('folder:'.length);
+                      const folder = browserTabFolders.find((f) => f.id === fid);
+                      if (folder?.parentType === 'workspace') wsId = folder.parentId;
+                    }
+                    setCreateTabDialog({ open: true, workspaceId: wsId });
                   }}
                   aria-label="新建标签"
                 >
@@ -590,7 +615,9 @@ export function BrowserPanel(props: BrowserPanelProps) {
               onSelectTreePath={handleSelectTreePath}
               onTogglePath={browserActions.handleToggleTreePath}
               callbacks={{
-                onCreateTab: browserActions.handleCreateTabInTree,
+                onCreateTab: (workspaceId?: string, _folderId?: string) => {
+                  setCreateTabDialog({ open: true, workspaceId });
+                },
                 onDeleteAllChildTabs: browserActions.handleDeleteAllChildTabs,
                 onOpenAllInNewTabs: browserActions.handleOpenAllInNewTabs,
                 onRemoveFromArea: browserActions.handleRemoveFromArea,
@@ -779,6 +806,13 @@ export function BrowserPanel(props: BrowserPanelProps) {
         )}
         onCut={() => {}}
         t={t}
+      />
+
+      <CreateTabDialog
+        open={createTabDialog.open}
+        t={t}
+        onConfirm={handleCreateTabConfirm}
+        onCancel={handleCreateTabCancel}
       />
 
       <RenameDialog
