@@ -199,9 +199,10 @@ impl CiStatusClient {
             return Err(AppError::Network(format!("logs API returned {status}")));
         }
 
-        let content = response.bytes().await.map_err(|e| {
-            AppError::Network(format!("read log body failed: {e}"))
-        })?;
+        let content = response
+            .bytes()
+            .await
+            .map_err(|e| AppError::Network(format!("read log body failed: {e}")))?;
 
         if content.is_empty() || content.len() < 4 {
             return Ok(HashMap::new());
@@ -209,8 +210,7 @@ impl CiStatusClient {
 
         // Verify ZIP header
         if !content.starts_with(b"PK\x03\x04") {
-            let preview =
-                String::from_utf8_lossy(&content[..content.len().min(200)]).to_string();
+            let preview = String::from_utf8_lossy(&content[..content.len().min(200)]).to_string();
             warn!("logs response is not a ZIP (starts with {:?})", preview);
             return Ok(HashMap::new());
         }
@@ -225,9 +225,8 @@ impl CiStatusClient {
 
         let run_id_prefix = format!("{run_id}/");
         for i in 0..archive.len() {
-            let mut file = archive.by_index(i).map_err(|e| {
-                AppError::Config(format!("zip entry {i}: {e}"))
-            })?;
+            let mut file =
+                archive.by_index(i).map_err(|e| AppError::Config(format!("zip entry {i}: {e}")))?;
 
             let full_path = file.name().to_string();
 
@@ -247,11 +246,8 @@ impl CiStatusClient {
             let step_file = relative[slash_pos + 1..].to_string();
 
             // Extract step number from filename (e.g., "1_Set up job.txt" → 1)
-            let step_num = step_file
-                .split('_')
-                .next()
-                .and_then(|s| s.parse::<u32>().ok())
-                .unwrap_or(0);
+            let step_num =
+                step_file.split('_').next().and_then(|s| s.parse::<u32>().ok()).unwrap_or(0);
 
             let mut text = String::new();
             if let Err(e) = std::io::Read::read_to_string(&mut file, &mut text) {
@@ -286,10 +282,7 @@ impl CiStatusClient {
         }
 
         // Fetch jobs to map job_name → job_id
-        let jobs = match self.fetch_jobs(config, run_id).await {
-            Ok(j) => j,
-            Err(_) => Vec::new(),
-        };
+        let jobs: Vec<CiJobSummary> = self.fetch_jobs(config, run_id).await.unwrap_or_default();
 
         let mut result: HashMap<u64, String> = HashMap::new();
         let name_to_id: HashMap<&str, u64> =
@@ -301,7 +294,8 @@ impl CiStatusClient {
             } else {
                 // Unmatched job — try case-insensitive fallback
                 let lower = job_name.to_lowercase();
-                let matched_id = jobs.iter().find(|j| j.name.to_lowercase() == lower).map(|j| j.job_id);
+                let matched_id =
+                    jobs.iter().find(|j| j.name.to_lowercase() == lower).map(|j| j.job_id);
                 if let Some(job_id) = matched_id {
                     result.insert(job_id, log_text.clone());
                 } else {

@@ -13,8 +13,8 @@ export function QQPanel() {
             <path d="M8 4a4 4 0 0 0-4 4v10a4 4 0 0 0 4 4h3v5a1 1 0 0 0 1.7.72L18.42 22H24a4 4 0 0 0 4-4V8a4 4 0 0 0-4-4H8z" />
           </svg>
         </div>
-        <h3 className="adl-communicate__placeholder-title">QQ</h3>
-        <p className="adl-communicate__placeholder-desc">QQ 消息集成即将推出，敬请期待</p>
+        <h3 className="adl-communicate__placeholder-title">{copy.communicateQQTitle}</h3>
+        <p className="adl-communicate__placeholder-desc">{copy.communicateQQDesc}</p>
       </div>
     </div>
   );

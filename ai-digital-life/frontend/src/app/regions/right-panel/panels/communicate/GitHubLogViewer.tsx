@@ -2,6 +2,7 @@ import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { List, useListRef } from 'react-window';
 import { useAppStore } from '../../../../stores/slicedStore';
 import type { CiJobSummary } from '@ai-digital-life/kernel';
+import type { DigitalLifeBridge } from '../../../../../shared/ipc';
 import { AnsiUp } from 'ansi_up';
 
 const ansiUp = new AnsiUp();
@@ -32,7 +33,7 @@ export function GitHubLogViewer({ snapshot, config }: GitHubLogViewerProps) {
   const [collapsed, setCollapsed] = useState(true);
   const listRef = useListRef(null);
 
-  const jobs = snapshot?.jobs ?? [];
+  const jobs = useMemo(() => snapshot?.jobs ?? [], [snapshot?.jobs]);
 
   useEffect(() => {
     if (selectedLogJobId === null && jobs.length > 0) {
@@ -40,7 +41,7 @@ export function GitHubLogViewer({ snapshot, config }: GitHubLogViewerProps) {
     }
   }, [jobs, selectedLogJobId, setSelectedLogJobId]);
 
-  const bridge = (window as any).digitalLife;
+  const bridge = (window as unknown as { digitalLife: DigitalLifeBridge }).digitalLife;
 
   useEffect(() => {
     if (selectedLogJobId === null || !config.owner || !config.repo) return;
@@ -58,8 +59,14 @@ export function GitHubLogViewer({ snapshot, config }: GitHubLogViewerProps) {
       try {
         if (bridge?.github?.getJobLogs) {
           const result = await bridge.github.getJobLogs(
-            { owner: config.owner, repo: config.repo, branch: config.branch, accessToken: ciAccessToken || null, workflowId: null },
-            runId,
+            {
+              owner: config.owner,
+              repo: config.repo,
+              branch: config.branch,
+              accessToken: ciAccessToken || null,
+              workflowId: null,
+            },
+            runId
           );
           if (cancelled) return;
           if (result.ok) {
@@ -68,9 +75,9 @@ export function GitHubLogViewer({ snapshot, config }: GitHubLogViewerProps) {
             setLogError(result.error?.message ?? '获取日志失败');
           }
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (!cancelled) {
-          setLogError(err?.message ?? String(err));
+          setLogError(err instanceof Error ? err.message : String(err));
         }
       } finally {
         if (!cancelled) {
@@ -82,9 +89,21 @@ export function GitHubLogViewer({ snapshot, config }: GitHubLogViewerProps) {
     return () => {
       cancelled = true;
     };
-  }, [selectedLogJobId, config.owner, config.repo, config.branch, jobs, cachedJobLogs, setCachedJobLogs, setLogLoading, setLogError, bridge, ciAccessToken]);
+  }, [
+    selectedLogJobId,
+    config.owner,
+    config.repo,
+    config.branch,
+    jobs,
+    cachedJobLogs,
+    setCachedJobLogs,
+    setLogLoading,
+    setLogError,
+    bridge,
+    ciAccessToken,
+  ]);
 
-  const currentLogText = selectedLogJobId !== null ? cachedJobLogs[selectedLogJobId] ?? '' : '';
+  const currentLogText = selectedLogJobId !== null ? (cachedJobLogs[selectedLogJobId] ?? '') : '';
 
   const lines = useMemo(() => {
     if (!currentLogText) return [];
@@ -92,7 +111,12 @@ export function GitHubLogViewer({ snapshot, config }: GitHubLogViewerProps) {
   }, [currentLogText]);
 
   const processedLines = useMemo(() => {
-    const result: Array<{ type: 'line' | 'blank-collapse'; text: string; lineNum: number; blankCount?: number }> = [];
+    const result: Array<{
+      type: 'line' | 'blank-collapse';
+      text: string;
+      lineNum: number;
+      blankCount?: number;
+    }> = [];
     let blankRun = 0;
     const maxBlank = MAX_BLANK_LINES;
     for (let i = 0; i < lines.length; i++) {
@@ -130,25 +154,33 @@ export function GitHubLogViewer({ snapshot, config }: GitHubLogViewerProps) {
     if (matches.length > 0 && listRef.current) {
       listRef.current.scrollToRow({ align: 'smart', behavior: 'auto', index: matches[0] });
     }
-  }, [searchQuery, processedLines]);
+  }, [searchQuery, processedLines, listRef]);
 
   const goToPrevMatch = useCallback(() => {
     if (searchMatches.length === 0) return;
     const newIdx = (searchMatchIndex - 1 + searchMatches.length) % searchMatches.length;
     setSearchMatchIndex(newIdx);
     if (listRef.current) {
-      listRef.current.scrollToRow({ align: 'smart', behavior: 'auto', index: searchMatches[newIdx] });
+      listRef.current.scrollToRow({
+        align: 'smart',
+        behavior: 'auto',
+        index: searchMatches[newIdx],
+      });
     }
-  }, [searchMatches, searchMatchIndex]);
+  }, [searchMatches, searchMatchIndex, listRef]);
 
   const goToNextMatch = useCallback(() => {
     if (searchMatches.length === 0) return;
     const newIdx = (searchMatchIndex + 1) % searchMatches.length;
     setSearchMatchIndex(newIdx);
     if (listRef.current) {
-      listRef.current.scrollToRow({ align: 'smart', behavior: 'auto', index: searchMatches[newIdx] });
+      listRef.current.scrollToRow({
+        align: 'smart',
+        behavior: 'auto',
+        index: searchMatches[newIdx],
+      });
     }
-  }, [searchMatches, searchMatchIndex]);
+  }, [searchMatches, searchMatchIndex, listRef]);
 
   const renderLine = useCallback((text: string) => {
     const html = ansiUp.ansi_to_html(text);
@@ -157,16 +189,19 @@ export function GitHubLogViewer({ snapshot, config }: GitHubLogViewerProps) {
     let className = 'adl-logviewer__line';
     if (hasError) className += ' adl-logviewer__line--error';
     else if (hasWarning) className += ' adl-logviewer__line--warning';
-    return (
-      <span
-        className={className}
-        dangerouslySetInnerHTML={{ __html: html }}
-      />
-    );
+    return <span className={className} dangerouslySetInnerHTML={{ __html: html }} />;
   }, []);
 
   const Row = useCallback(
-    ({ index, style, ariaAttributes }: { index: number; style: React.CSSProperties; ariaAttributes: { 'aria-posinset': number; 'aria-setsize': number; role: 'listitem' } }) => {
+    ({
+      index,
+      style,
+      ariaAttributes,
+    }: {
+      index: number;
+      style: React.CSSProperties;
+      ariaAttributes: { 'aria-posinset': number; 'aria-setsize': number; role: 'listitem' };
+    }) => {
       const item = processedLines[index];
       if (!item) return null;
 
@@ -174,10 +209,7 @@ export function GitHubLogViewer({ snapshot, config }: GitHubLogViewerProps) {
         return (
           <div style={{ ...style, display: 'flex', alignItems: 'center' }}>
             <span className="adl-logviewer__line-num" style={{ width: 60, flexShrink: 0 }} />
-            <span
-              className="adl-logviewer__blank-collapse"
-              onClick={() => setCollapsed(false)}
-            >
+            <span className="adl-logviewer__blank-collapse" onClick={() => setCollapsed(false)}>
               [{item.blankCount ?? 0} 行空白 — 点击展开]
             </span>
           </div>
@@ -198,7 +230,7 @@ export function GitHubLogViewer({ snapshot, config }: GitHubLogViewerProps) {
         </div>
       );
     },
-    [processedLines, searchMatches, searchMatchIndex, searchQuery, renderLine],
+    [processedLines, searchMatches, searchMatchIndex, searchQuery, renderLine]
   );
 
   const htmlUrl = snapshot?.latestRun?.htmlUrl;
@@ -253,11 +285,7 @@ export function GitHubLogViewer({ snapshot, config }: GitHubLogViewerProps) {
           </div>
 
           <label className="adl-logviewer__toggle-label">
-            <input
-              type="checkbox"
-              checked={collapsed}
-              onChange={() => setCollapsed(!collapsed)}
-            />
+            <input type="checkbox" checked={collapsed} onChange={() => setCollapsed(!collapsed)} />
             <span>折叠空白</span>
           </label>
         </div>
@@ -291,7 +319,12 @@ export function GitHubLogViewer({ snapshot, config }: GitHubLogViewerProps) {
           <div className="adl-github__empty">
             <p>暂无日志数据</p>
             {htmlUrl && (
-              <a className="adl-github__link" href={htmlUrl} target="_blank" rel="noopener noreferrer">
+              <a
+                className="adl-github__link"
+                href={htmlUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 在 GitHub 查看完整日志
               </a>
             )}

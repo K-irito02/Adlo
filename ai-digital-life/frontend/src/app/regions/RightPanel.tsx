@@ -30,7 +30,6 @@ import { useTerminalPanelProps } from './right-panel/hooks/useTerminalPanelProps
 import { useAuditPanelProps } from './right-panel/hooks/useAuditPanelProps';
 import { useModelPanelProps } from './right-panel/hooks/useModelPanelProps';
 import { useSettingsPanelProps } from './right-panel/hooks/useSettingsPanelProps';
-import { useCommunicationPanelProps } from './right-panel/hooks/useCommunicationPanelProps';
 
 export interface RightPanelProps {
   t: CopyDict;

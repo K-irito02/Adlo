@@ -58,13 +58,14 @@ export interface CommunicateSlice {
 
 function getBridge(): DigitalLifeBridge | null {
   if (typeof window === 'undefined') return null;
-  const w = window as any;
-  return (w.digitalLife as DigitalLifeBridge | undefined) ?? null;
+  return (window as unknown as { digitalLife: DigitalLifeBridge | undefined }).digitalLife ?? null;
 }
 
 function isTauriMode(): boolean {
-  const w = window as any;
-  return typeof w !== 'undefined' && !!w.__TAURI_INTERNALS__;
+  return (
+    typeof window !== 'undefined' &&
+    !!(window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__
+  );
 }
 
 let _defaultsHydrated = false;
@@ -121,7 +122,12 @@ async function hydrateCommunicateDefaults(): Promise<{
 
   let token = '';
   const bridge = getBridge();
-  if (isTauriMode() && bridge && bridge.github && typeof bridge.github.hasAccessToken === 'function') {
+  if (
+    isTauriMode() &&
+    bridge &&
+    bridge.github &&
+    typeof bridge.github.hasAccessToken === 'function'
+  ) {
     try {
       const hasResult = await bridge.github.hasAccessToken();
       if (hasResult && hasResult.ok && hasResult.data) {
@@ -147,11 +153,23 @@ async function hydrateCommunicateDefaults(): Promise<{
   let navigatorCollapsed = false;
   try {
     const storedPlatform = window.localStorage.getItem(ACTIVE_PLATFORM_KEY);
-    if (storedPlatform === 'github' || storedPlatform === 'feishu' || storedPlatform === 'qq' || storedPlatform === 'wechat' || storedPlatform === 'email') {
+    if (
+      storedPlatform === 'github' ||
+      storedPlatform === 'feishu' ||
+      storedPlatform === 'qq' ||
+      storedPlatform === 'wechat' ||
+      storedPlatform === 'email'
+    ) {
       activePlatform = storedPlatform as PlatformId;
     }
     const storedSection = window.localStorage.getItem(ACTIVE_GITHUB_SECTION_KEY);
-    if (storedSection === 'overview' || storedSection === 'workflows' || storedSection === 'jobs' || storedSection === 'settings' || storedSection === 'help') {
+    if (
+      storedSection === 'overview' ||
+      storedSection === 'workflows' ||
+      storedSection === 'jobs' ||
+      storedSection === 'settings' ||
+      storedSection === 'help'
+    ) {
       activeGitHubSection = storedSection as GitHubSection;
     }
     navigatorCollapsed = window.localStorage.getItem(COMMUNICATE_NAVIGATOR_COLLAPSED_KEY) === '1';
@@ -168,16 +186,18 @@ export const createCommunicateSlice = (
   _get: () => StoreState
 ): CommunicateSlice => {
   if (typeof window !== 'undefined') {
-    void hydrateCommunicateDefaults().then(({ config, token, autoRefresh, activePlatform, activeGitHubSection, navigatorCollapsed }) => {
-      set({
-        ciConfig: config,
-        ciAccessToken: token,
-        ciAutoRefreshOnPush: autoRefresh,
-        activePlatform,
-        activeGitHubSection,
-        communicateNavigatorCollapsed: navigatorCollapsed,
-      });
-    });
+    void hydrateCommunicateDefaults().then(
+      ({ config, token, autoRefresh, activePlatform, activeGitHubSection, navigatorCollapsed }) => {
+        set({
+          ciConfig: config,
+          ciAccessToken: token,
+          ciAutoRefreshOnPush: autoRefresh,
+          activePlatform,
+          activeGitHubSection,
+          communicateNavigatorCollapsed: navigatorCollapsed,
+        });
+      }
+    );
   }
 
   return {

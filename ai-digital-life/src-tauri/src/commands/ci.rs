@@ -67,10 +67,7 @@ pub async fn ci_has_access_token() -> IpcResult<bool> {
 
 /// 获取指定 Workflow Run 的 Job 日志（解压 ZIP，返回 job_id → log_text 映射）
 #[tauri::command]
-pub async fn ci_get_job_logs(
-    config: CiRepoConfig,
-    run_id: u64,
-) -> IpcResult<CiJobLogMap> {
+pub async fn ci_get_job_logs(config: CiRepoConfig, run_id: u64) -> IpcResult<CiJobLogMap> {
     ipc(async move {
         let client = CiStatusClient::new();
         let access_token = match &config.access_token {

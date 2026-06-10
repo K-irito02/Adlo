@@ -96,7 +96,10 @@ function JobRow({ job, onViewLogs }: { job: CiJobSummary; onViewLogs: (jobId: nu
         <button
           type="button"
           className="adl-github__log-btn"
-          onClick={(e) => { e.stopPropagation(); onViewLogs(job.jobId); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onViewLogs(job.jobId);
+          }}
           title="查看日志"
         >
           <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
@@ -152,7 +155,14 @@ function OverviewView({
   if (!snapshot) {
     return (
       <div className="adl-github__empty">
-        <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <svg
+          viewBox="0 0 24 24"
+          width="32"
+          height="32"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+        >
           <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2" />
         </svg>
         <p>{copy.ciConfigToQuery}</p>
@@ -226,7 +236,14 @@ function OverviewView({
         </>
       ) : (
         <div className="adl-github__empty">
-          <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" strokeWidth="1.5">
+          <svg
+            viewBox="0 0 24 24"
+            width="32"
+            height="32"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+          >
             <circle cx="12" cy="12" r="10" />
             <path d="M12 6v6l4 2" />
           </svg>
@@ -272,7 +289,13 @@ function WorkflowsView({ snapshot }: { snapshot: CiStatusSnapshot | null }) {
   );
 }
 
-function JobsView({ snapshot, onViewLogs }: { snapshot: CiStatusSnapshot | null; onViewLogs: (jobId: number) => void }) {
+function JobsView({
+  snapshot,
+  onViewLogs,
+}: {
+  snapshot: CiStatusSnapshot | null;
+  onViewLogs: (jobId: number) => void;
+}) {
   if (!snapshot?.jobs?.length) {
     return (
       <div className="adl-github__empty">
@@ -296,7 +319,6 @@ function JobsView({ snapshot, onViewLogs }: { snapshot: CiStatusSnapshot | null;
 }
 
 function SettingsView({
-  config,
   accessToken,
   error,
   ownerInput,
@@ -313,7 +335,6 @@ function SettingsView({
   onApply,
   onClearToken,
 }: {
-  config: { owner: string; repo: string; branch: string };
   accessToken: string;
   error: string | null;
   ownerInput: string;
@@ -664,17 +685,11 @@ function getNavItems(section: GitHubSection, snapshot: CiStatusSnapshot | null):
         ? ['最近运行', ...snapshot.jobs.slice(0, 5).map((j) => j.name)]
         : ['暂无数据'];
     case 'workflows':
-      return snapshot?.jobs?.length
-        ? snapshot.jobs.map((j) => j.name)
-        : ['暂无 Workflow'];
+      return snapshot?.jobs?.length ? snapshot.jobs.map((j) => j.name) : ['暂无 Workflow'];
     case 'jobs':
-      return snapshot?.jobs?.length
-        ? snapshot.jobs.map((j) => j.name)
-        : ['暂无 Job'];
+      return snapshot?.jobs?.length ? snapshot.jobs.map((j) => j.name) : ['暂无 Job'];
     case 'logs':
-      return snapshot?.jobs?.length
-        ? snapshot.jobs.map((j) => j.name)
-        : ['暂无日志'];
+      return snapshot?.jobs?.length ? snapshot.jobs.map((j) => j.name) : ['暂无日志'];
     case 'settings':
       return ['仓库配置', 'Token 管理'];
     case 'help':
@@ -688,12 +703,14 @@ export function GitHubPanel() {
   const { config, accessToken, loading, error, snapshot, onConfigChange, onClearToken } =
     useCIPanelProps();
 
-  const activeGitHubSection = useAppStore((s: { activeGitHubSection: GitHubSection }) => s.activeGitHubSection);
+  const activeGitHubSection = useAppStore(
+    (s: { activeGitHubSection: GitHubSection }) => s.activeGitHubSection
+  );
   const setActiveGitHubSection = useAppStore(
-    (s: { setActiveGitHubSection: (section: GitHubSection) => void }) => s.setActiveGitHubSection,
+    (s: { setActiveGitHubSection: (section: GitHubSection) => void }) => s.setActiveGitHubSection
   );
   const setSelectedLogJobId = useAppStore(
-    (s: { setSelectedLogJobId: (id: number | null) => void }) => s.setSelectedLogJobId,
+    (s: { setSelectedLogJobId: (id: number | null) => void }) => s.setSelectedLogJobId
   );
 
   const appInfo = workspaceSelectors.useAppInfo();
@@ -720,7 +737,7 @@ export function GitHubPanel() {
       ownerInput.trim(),
       repoInput.trim(),
       branchInput.trim() || 'main',
-      tokenInput.trim(),
+      tokenInput.trim()
     );
   };
 
@@ -794,7 +811,13 @@ export function GitHubPanel() {
     switch (activeGitHubSection) {
       case 'overview':
         return (
-          <OverviewView snapshot={snapshot} loading={loading} branch={config.branch} copy={copy} onViewLogs={handleViewLogs} />
+          <OverviewView
+            snapshot={snapshot}
+            loading={loading}
+            branch={config.branch}
+            copy={copy}
+            onViewLogs={handleViewLogs}
+          />
         );
       case 'workflows':
         return <WorkflowsView snapshot={snapshot} />;
@@ -803,7 +826,6 @@ export function GitHubPanel() {
       case 'settings':
         return (
           <SettingsView
-            config={config}
             accessToken={accessToken}
             error={error}
             ownerInput={ownerInput}

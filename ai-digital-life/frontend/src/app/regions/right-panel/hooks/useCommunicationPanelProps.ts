@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback } from 'react';
 import { useAppStore } from '../../../stores/slicedStore';
 import { useGitPushAutoRefresh } from '../../../features/terminal/useGitPushAutoRefresh';
 import type { PlatformId, GitHubSection } from '../../../stores/slices/communicateSlice';

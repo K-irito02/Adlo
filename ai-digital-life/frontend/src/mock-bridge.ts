@@ -292,7 +292,7 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
     getJobLogs: async (_config, _runId) => ({
       ok: true,
       data: {
-        1: "[2024-01-01T00:00:00Z] Mock log line 1\n[2024-01-01T00:00:01Z] Mock log line 2\n",
+        1: '[2024-01-01T00:00:00Z] Mock log line 1\n[2024-01-01T00:00:01Z] Mock log line 2\n',
       },
     }),
   },
@@ -362,7 +362,7 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
     getJobLogs: async (_config, _runId) => ({
       ok: true,
       data: {
-        1: "[2024-01-01T00:00:00Z] Mock log line 1\n[2024-01-01T00:00:01Z] Mock log line 2\n",
+        1: '[2024-01-01T00:00:00Z] Mock log line 1\n[2024-01-01T00:00:01Z] Mock log line 2\n',
       },
     }),
   },

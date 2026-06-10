@@ -74,8 +74,7 @@ export function CommunicationPanel() {
     <div className="adl-communicate">
       <div className="adl-communicate__platform-tabs" role="tablist">
         {PLATFORM_TABS.map((tab, index) => {
-          const isHighlighted =
-            activePlatform === tab.id || hoveredPlatform === tab.id;
+          const isHighlighted = activePlatform === tab.id || hoveredPlatform === tab.id;
           const nextTab = PLATFORM_TABS[index + 1];
           const shouldShowSeparator =
             !!nextTab &&
