@@ -64,5 +64,5 @@ export function useVirtualList<T>(
     const endIndex = Math.min(total, startIndex + visibleCount);
     const offsetY = startIndex * itemHeight;
     return { startIndex, endIndex, offsetY };
-  }, [items.length, scrollTop, viewportHeight, itemHeight, overscan]);
+  }, [items, scrollTop, viewportHeight, itemHeight, overscan]);
 }
