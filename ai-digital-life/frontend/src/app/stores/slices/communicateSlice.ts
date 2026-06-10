@@ -53,8 +53,6 @@ export interface GitHubTreeNode {
   workspaceId?: string;
 }
 
-export type GitHubCategoryType = 'ci-workspace';
-
 export interface CommunicateSlice {
   activePlatform: PlatformId;
   activeGitHubSection: GitHubSection;
