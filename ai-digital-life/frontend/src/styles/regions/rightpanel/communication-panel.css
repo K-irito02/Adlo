@@ -247,7 +247,9 @@
   color: var(--text-tertiary);
   cursor: pointer;
   flex-shrink: 0;
-  transition: color 0.15s, background 0.15s;
+  transition:
+    color 0.15s,
+    background 0.15s;
 }
 
 .adl-github__log-btn:hover {
@@ -256,23 +258,57 @@
 }
 
 /* ANSI classes */
-.ansi_up .ansi-black { color: #000; }
-.ansi_up .ansi-red { color: #e74c3c; }
-.ansi_up .ansi-green { color: #27ae60; }
-.ansi_up .ansi-yellow { color: #f39c12; }
-.ansi_up .ansi-blue { color: #3498db; }
-.ansi_up .ansi-magenta { color: #9b59b6; }
-.ansi_up .ansi-cyan { color: #1abc9c; }
-.ansi_up .ansi-white { color: #bdc3c7; }
-.ansi_up .ansi-bright-black { color: #555; }
-.ansi_up .ansi-bright-red { color: #e74c3c; }
-.ansi_up .ansi-bright-green { color: #2ecc71; }
-.ansi_up .ansi-bright-yellow { color: #f1c40f; }
-.ansi_up .ansi-bright-blue { color: #3498db; }
-.ansi_up .ansi-bright-magenta { color: #9b59b6; }
-.ansi_up .ansi-bright-cyan { color: #1abc9c; }
-.ansi_up .ansi-bright-white { color: #ecf0f1; }
-.ansi_up .ansi-bold { font-weight: bold; }
+.ansi_up .ansi-black {
+  color: #000;
+}
+.ansi_up .ansi-red {
+  color: #e74c3c;
+}
+.ansi_up .ansi-green {
+  color: #27ae60;
+}
+.ansi_up .ansi-yellow {
+  color: #f39c12;
+}
+.ansi_up .ansi-blue {
+  color: #3498db;
+}
+.ansi_up .ansi-magenta {
+  color: #9b59b6;
+}
+.ansi_up .ansi-cyan {
+  color: #1abc9c;
+}
+.ansi_up .ansi-white {
+  color: #bdc3c7;
+}
+.ansi_up .ansi-bright-black {
+  color: #555;
+}
+.ansi_up .ansi-bright-red {
+  color: #e74c3c;
+}
+.ansi_up .ansi-bright-green {
+  color: #2ecc71;
+}
+.ansi_up .ansi-bright-yellow {
+  color: #f1c40f;
+}
+.ansi_up .ansi-bright-blue {
+  color: #3498db;
+}
+.ansi_up .ansi-bright-magenta {
+  color: #9b59b6;
+}
+.ansi_up .ansi-bright-cyan {
+  color: #1abc9c;
+}
+.ansi_up .ansi-bright-white {
+  color: #ecf0f1;
+}
+.ansi_up .ansi-bold {
+  font-weight: bold;
+}
 
 .adl-communicate__surface {
   flex: 1;
@@ -288,7 +324,9 @@
   border-right: 1px solid var(--border);
   flex-shrink: 0;
   overflow: hidden;
-  transition: width 0.15s ease, opacity 0.15s ease;
+  transition:
+    width 0.15s ease,
+    opacity 0.15s ease;
 }
 
 .adl-communicate__navigator.is-collapsed {
@@ -317,7 +355,9 @@
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  transition: color 0.15s, background 0.15s;
+  transition:
+    color 0.15s,
+    background 0.15s;
   text-align: left;
 }
 
@@ -623,8 +663,12 @@
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* ─── GitHub Tree Navigator ─── */
@@ -764,7 +808,9 @@
   color: var(--text-secondary);
   cursor: pointer;
   border-radius: 3px;
-  transition: transform 0.15s, color 0.15s;
+  transition:
+    transform 0.15s,
+    color 0.15s;
 }
 
 .adl-github-entry__expand-btn:hover {
