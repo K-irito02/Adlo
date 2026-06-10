@@ -16,7 +16,7 @@ export const modelsEn = {
   tokenBudget: 'Token budget',
   toolModels: 'Models',
   toolSettings: 'Settings',
-  toolCi: 'CI',
+  toolCommunicate: 'Communication',
   settingsGeneral: 'General',
   settingsModel: 'Models',
   settingsAgent: 'Agent',

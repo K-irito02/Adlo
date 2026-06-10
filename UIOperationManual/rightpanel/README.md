@@ -37,6 +37,7 @@
 | `audit` | 审计 | [tools/audit.md](./tools/audit.md) | 操作审计日志 |
 | `models` | 模型 | [tools/models.md](./tools/models.md) | 模型健康监控 |
 | `settings` | 设置 | [tools/settings.md](./tools/settings.md) | 应用设置 |
+| `communicate` | 通信 | [tools/communicate.md](./tools/communicate.md) | 多平台消息集成（GitHub CI / 飞书 / QQ / 微信 / 邮箱） |
 
 ## 容器选择器
 

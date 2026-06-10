@@ -112,6 +112,7 @@ fn main() {
             commands::ci::ci_set_access_token,
             commands::ci::ci_clear_access_token,
             commands::ci::ci_has_access_token,
+            commands::ci::ci_get_job_logs,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

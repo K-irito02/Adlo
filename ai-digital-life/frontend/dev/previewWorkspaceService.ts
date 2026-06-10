@@ -1301,6 +1301,113 @@ export async function handlePreviewWorkspaceApi(
       return true;
     }
 
+    // POST /ci/status/job-logs - fetch and extract job logs
+    if (request.method === 'POST' && requestUrl.pathname === `${API_PREFIX}/ci/status/job-logs`) {
+      let body = '';
+      try {
+        for await (const chunk of request) {
+          body += chunk;
+        }
+        const { config, runId } = JSON.parse(body);
+        if (!config?.owner || !config?.repo || !runId) {
+          writeJson(response, fail('Missing required params', 'INVALID_PARAMS'));
+          return true;
+        }
+
+        const GITHUB_API = `https://api.github.com`;
+        const url = `${GITHUB_API}/repos/${config.owner}/${config.repo}/actions/runs/${runId}/logs`;
+
+        const headers: Record<string, string> = {
+          Accept: 'application/vnd.github+json',
+          'X-GitHub-Api-Version': '2022-11-28',
+          'User-Agent': 'ai-digital-life-ci-client',
+        };
+        if (config.accessToken) {
+          headers['Authorization'] = `Bearer ${config.accessToken}`;
+        }
+
+        const ghResponse = await fetch(url, { headers });
+        if (!ghResponse.ok) {
+          writeJson(response, fail(`GitHub API returned ${ghResponse.status}`, 'API_ERROR'));
+          return true;
+        }
+
+        const zipBuffer = Buffer.from(await ghResponse.arrayBuffer());
+
+        if (zipBuffer.length < 4 || zipBuffer.toString('utf8', 0, 4) !== 'PK\u0003\u0004') {
+          writeJson(response, ok({}));
+          return true;
+        }
+
+        const AdmZip = require('adm-zip');
+        const zip = new AdmZip(zipBuffer);
+        const entries = zip.getEntries();
+
+        const runIdPrefix = `${runId}/`;
+        const byJobName: Record<string, Array<{ num: number; text: string }>> = {};
+
+        for (const entry of entries) {
+          if (entry.isDirectory) continue;
+
+          let relative = entry.entryName;
+          if (relative.startsWith(runIdPrefix)) {
+            relative = relative.slice(runIdPrefix.length);
+          }
+
+          const slashPos = relative.indexOf('/');
+          if (slashPos === -1) continue;
+
+          const jobName = relative.slice(0, slashPos);
+          const stepFile = relative.slice(slashPos + 1);
+
+          const stepNum = parseInt(stepFile.split('_')[0], 10) || 0;
+          const text = entry.getData().toString('utf8');
+
+          if (!byJobName[jobName]) byJobName[jobName] = [];
+          byJobName[jobName].push({ num: stepNum, text });
+        }
+
+        const merged: Record<string, string> = {};
+        for (const [name, steps] of Object.entries(byJobName)) {
+          steps.sort((a, b) => a.num - b.num);
+          merged[name] = steps.map((s) => s.text).join('');
+        }
+
+        const jobsUrl = `${GITHUB_API}/repos/${config.owner}/${config.repo}/actions/runs/${runId}/jobs?per_page=100`;
+        const ghJobsResponse = await fetch(jobsUrl, { headers });
+        const jobsData = (await ghJobsResponse.json()) as {
+          jobs: Array<{ id: number; name: string }>;
+        };
+
+        const nameToId: Record<string, number> = {};
+        for (const job of jobsData.jobs || []) {
+          nameToId[job.name] = job.id;
+        }
+
+        const result: Record<number, string> = {};
+        for (const [jobName, logText] of Object.entries(merged)) {
+          // Direct name match first
+          const directId = nameToId[jobName];
+          if (directId) {
+            result[directId] = logText;
+            continue;
+          }
+          // Case-insensitive fallback — iterate jobs array directly
+          const fallbackJob = (jobsData.jobs || []).find(
+            (j) => j.name.toLowerCase() === jobName.toLowerCase()
+          );
+          if (fallbackJob) {
+            result[fallbackJob.id] = logText;
+          }
+        }
+
+        writeJson(response, ok(result));
+      } catch (error: any) {
+        writeJson(response, fail(error?.message ?? String(error), 'INTERNAL'));
+      }
+      return true;
+    }
+
     // CI token management endpoints
     if (request.method === 'POST' && requestUrl.pathname === `${API_PREFIX}/ci/set-access-token`) {
       let body = '';

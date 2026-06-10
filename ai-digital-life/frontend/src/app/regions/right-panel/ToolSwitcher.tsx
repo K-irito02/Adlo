@@ -73,8 +73,8 @@ const TAB_META: Array<{
     labelKey: 'toolSettings',
   },
   {
-    id: 'ci',
-    shortcut: 'Ctrl+Shift+Q',
+    id: 'communicate',
+    shortcut: 'Ctrl+Shift+C',
     icon: (
       <svg
         viewBox="0 0 16 16"
@@ -83,10 +83,11 @@ const TAB_META: Array<{
         fill="currentColor"
         style={{ display: 'block' }}
       >
-        <path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0zm3.5 5.5a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h1zm-5 0a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h1zM8 8a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5H7a.5.5 0 0 1-.5-.5v-1A.5.5 0 0 1 7 8h1z" />
+        <path d="M2 4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H9l-3 3v-3H4a2 2 0 0 1-2-2V4zm2-1a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1h3v2.5L9.5 10H12a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H4z" />
+        <path d="M5 5.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 0 1h-1a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5z" />
       </svg>
     ),
-    labelKey: 'toolCi',
+    labelKey: 'toolCommunicate',
   },
 ];
 

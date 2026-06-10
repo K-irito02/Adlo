@@ -91,5 +91,6 @@ commands.allow = [
   "ci_get_status_without_token",
   "ci_set_access_token",
   "ci_clear_access_token",
-  "ci_has_access_token"
+  "ci_has_access_token",
+  "ci_get_job_logs"
 ]

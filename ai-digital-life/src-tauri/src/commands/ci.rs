@@ -1,6 +1,6 @@
 use crate::commands::ipc;
 use adl_ci_status::CiStatusClient;
-use adl_kernel::{CiRepoConfig, CiStatusSnapshot, IpcResult};
+use adl_kernel::{CiJobLogMap, CiRepoConfig, CiStatusSnapshot, IpcResult};
 
 #[tauri::command]
 pub async fn ci_get_status(config: CiRepoConfig) -> IpcResult<CiStatusSnapshot> {
@@ -63,4 +63,25 @@ pub async fn ci_clear_access_token() -> IpcResult<bool> {
 #[tauri::command]
 pub async fn ci_has_access_token() -> IpcResult<bool> {
     ipc(async move { Ok(adl_credential::get_ci_access_token().is_some()) }.await)
+}
+
+/// 获取指定 Workflow Run 的 Job 日志（解压 ZIP，返回 job_id → log_text 映射）
+#[tauri::command]
+pub async fn ci_get_job_logs(
+    config: CiRepoConfig,
+    run_id: u64,
+) -> IpcResult<CiJobLogMap> {
+    ipc(async move {
+        let client = CiStatusClient::new();
+        let access_token = match &config.access_token {
+            Some(t) if !t.trim().is_empty() => Some(t.clone()),
+            _ => adl_credential::get_ci_access_token(),
+        };
+        let effective_config = CiRepoConfig { access_token, ..config };
+        client
+            .fetch_job_logs(&effective_config, run_id)
+            .await
+            .map_err(|e| adl_errors::AppError::Network(format!("fetch job logs: {e}")))
+    }
+    .await)
 }

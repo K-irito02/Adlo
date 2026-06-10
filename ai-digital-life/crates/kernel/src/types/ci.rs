@@ -55,6 +55,8 @@ pub struct CiStepSummary {
     pub completed_at: Option<String>,
 }
 
+pub type CiJobLogMap = std::collections::HashMap<u64, String>;
+
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
 #[serde(rename_all = "camelCase")]

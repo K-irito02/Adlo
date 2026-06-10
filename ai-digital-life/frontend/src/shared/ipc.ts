@@ -273,10 +273,11 @@ export interface DigitalLifeBridge {
   task: TaskBridge;
   runActivity: RunActivityBridge;
   browser: BrowserBridge;
-  ci: CIBridge;
+  github: GitHubBridge;
+  ci: GitHubBridge;
 }
 
-export interface CIBridge {
+export interface GitHubBridge {
   getStatus: (config: CiRepoConfig) => Promise<IpcResult<CiStatusSnapshot>>;
   getStatusWithoutToken: (
     owner: string,
@@ -286,6 +287,7 @@ export interface CIBridge {
   setAccessToken: (token: string) => Promise<IpcResult<boolean>>;
   clearAccessToken: () => Promise<IpcResult<boolean>>;
   hasAccessToken: () => Promise<IpcResult<boolean>>;
+  getJobLogs: (config: CiRepoConfig, runId: number) => Promise<IpcResult<Record<number, string>>>;
 }
 
 export interface CiRepoConfig {

@@ -34,6 +34,14 @@ export function useRightPanelViewProps() {
     }
   }, []);
 
+  const ciSnapshot = useAppStore((state) => state.ciSnapshot);
+
+  const communicateBadge = useMemo(() => {
+    if (!ciSnapshot?.latestRun) return 0;
+    const c = ciSnapshot.latestRun.conclusion;
+    return c === 'failure' || c === 'cancelled' ? 1 : 0;
+  }, [ciSnapshot]);
+
   const badges = useMemo(
     () => ({
       files: dirtyEditorPaths.length,
@@ -44,6 +52,7 @@ export function useRightPanelViewProps() {
       models: 0,
       settings: 0,
       ci: 0,
+      communicate: communicateBadge,
     }),
     [
       dirtyEditorPaths.length,
@@ -52,6 +61,7 @@ export function useRightPanelViewProps() {
       browserTabs.length,
       terminalTabs.length,
       auditEntries.length,
+      communicateBadge,
     ]
   );
 

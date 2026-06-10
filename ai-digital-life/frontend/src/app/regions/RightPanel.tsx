@@ -7,7 +7,7 @@ import { ToolSwitcher } from './right-panel/ToolSwitcher';
 import { AuditPanel } from '../components/approval/AuditPanel';
 import { ModelHealthPanel } from '../components/models/ModelHealthPanel';
 import { SettingsPanel } from '../components/settings/SettingsPanel';
-import { CIPanel } from './right-panel/panels/CIPanel';
+import { CommunicationPanel } from './right-panel/panels/CommunicationPanel';
 import type {
   FilesPanelProps,
   ChangesPanelProps,
@@ -16,7 +16,6 @@ import type {
   AuditPanelProps,
   ModelPanelProps,
   SettingsPanelProps,
-  CIPanelProps,
 } from './right-panel/types';
 import type { PatchDirection, PatchReviewFilter } from '../features/patch-review';
 import type { CopyDict } from '../i18n';
@@ -31,7 +30,7 @@ import { useTerminalPanelProps } from './right-panel/hooks/useTerminalPanelProps
 import { useAuditPanelProps } from './right-panel/hooks/useAuditPanelProps';
 import { useModelPanelProps } from './right-panel/hooks/useModelPanelProps';
 import { useSettingsPanelProps } from './right-panel/hooks/useSettingsPanelProps';
-import { useCIPanelProps } from './right-panel/hooks/useCIPanelProps';
+import { useCommunicationPanelProps } from './right-panel/hooks/useCommunicationPanelProps';
 
 export interface RightPanelProps {
   t: CopyDict;
@@ -70,7 +69,6 @@ interface ActiveToolPanelProps {
   auditProps: AuditPanelProps;
   modelProps: ModelPanelProps;
   settingsProps: SettingsPanelProps;
-  ciProps: CIPanelProps;
 }
 
 function areActiveToolPanelPropsEqual(
@@ -86,8 +84,7 @@ function areActiveToolPanelPropsEqual(
     prevProps.terminalProps === nextProps.terminalProps &&
     prevProps.auditProps === nextProps.auditProps &&
     prevProps.modelProps === nextProps.modelProps &&
-    prevProps.settingsProps === nextProps.settingsProps &&
-    prevProps.ciProps === nextProps.ciProps
+    prevProps.settingsProps === nextProps.settingsProps
   );
 }
 
@@ -101,7 +98,6 @@ const ActiveToolPanel = React.memo(function ActiveToolPanel({
   auditProps,
   modelProps,
   settingsProps,
-  ciProps: _ciProps,
 }: ActiveToolPanelProps) {
   const panelId = `${idBase}-${activeTool}-panel`;
   const tabId = `${idBase}-${activeTool}-tab`;
@@ -142,8 +138,8 @@ const ActiveToolPanel = React.memo(function ActiveToolPanel({
           onChangeSetting={settingsProps.onChangeSetting}
         />
       </div>
-      <div hidden={activeTool !== 'ci'} style={{ height: '100%', minHeight: 0 }}>
-        <CIPanel />
+      <div hidden={activeTool !== 'communicate'} style={{ height: '100%', minHeight: 0 }}>
+        <CommunicationPanel />
       </div>
     </div>
   );
@@ -176,7 +172,6 @@ const RightPanel = React.memo(function RightPanel(panelProps: RightPanelProps) {
   const auditProps = useAuditPanelProps(panelProps);
   const modelProps = useModelPanelProps(panelProps);
   const settingsProps = useSettingsPanelProps(panelProps);
-  const ciProps = useCIPanelProps();
 
   const panelIdBase = useId();
 
@@ -238,7 +233,6 @@ const RightPanel = React.memo(function RightPanel(panelProps: RightPanelProps) {
           auditProps={auditProps}
           modelProps={modelProps}
           settingsProps={settingsProps}
-          ciProps={ciProps}
         />
       </div>
     </aside>

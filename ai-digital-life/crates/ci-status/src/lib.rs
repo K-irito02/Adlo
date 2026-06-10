@@ -2,11 +2,17 @@ use adl_errors::AppError;
 use adl_kernel::{
     CiJobSummary, CiRepoConfig, CiStatusSnapshot, CiStepSummary, CiWorkflowRunSummary,
 };
+use lru::LruCache;
 use serde::Deserialize;
+use std::collections::HashMap;
+use std::io::Cursor;
+use std::num::NonZeroUsize;
 use std::time::Duration;
+use tracing::warn;
 
 const GITHUB_API_BASE: &str = "https://api.github.com";
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
+const MAX_LOG_SIZE_PER_JOB: usize = 5 * 1024 * 1024; // 5MB per job
 
 #[derive(Deserialize, Debug)]
 struct GitHubWorkflowRun {
@@ -60,8 +66,31 @@ struct GitHubJobsResponse {
     jobs: Vec<GitHubJob>,
 }
 
+/// In-memory cache for extracted log data.
+/// key: run_id, value: map of job_id → log_text
+/// Uses `lru::LruCache` for O(1) get/insert with automatic LRU eviction.
+struct CiLogCache {
+    inner: LruCache<u64, HashMap<u64, String>>,
+}
+
+impl CiLogCache {
+    fn new(max_entries: usize) -> Self {
+        let cap = NonZeroUsize::new(max_entries.max(1)).unwrap_or(NonZeroUsize::MIN);
+        Self { inner: LruCache::new(cap) }
+    }
+
+    fn get(&mut self, run_id: &u64) -> Option<&HashMap<u64, String>> {
+        self.inner.get(run_id)
+    }
+
+    fn insert(&mut self, run_id: u64, logs: HashMap<u64, String>) {
+        self.inner.put(run_id, logs);
+    }
+}
+
 pub struct CiStatusClient {
     http: reqwest::Client,
+    log_cache: tokio::sync::Mutex<CiLogCache>,
 }
 
 impl Default for CiStatusClient {
@@ -92,7 +121,7 @@ impl CiStatusClient {
             .build()
             .unwrap_or_else(|_| reqwest::Client::new());
 
-        Self { http }
+        Self { http, log_cache: tokio::sync::Mutex::new(CiLogCache::new(10)) }
     }
 
     fn build_auth_header(&self, token: &Option<String>) -> Option<reqwest::header::HeaderValue> {
@@ -106,17 +135,182 @@ impl CiStatusClient {
         let run = self.fetch_latest_run(config).await?;
         let run_id = run.run_id;
         let jobs = self.fetch_jobs(config, run_id).await?;
-        let logs = self.fetch_run_logs(config, run_id).await.ok();
 
         Ok(CiStatusSnapshot {
             repo: format!("{}/{}", config.owner, config.repo),
             branch: config.branch.clone(),
             latest_run: Some(run),
             jobs,
-            logs,
+            logs: None,
             captured_at_ms: adl_kernel::now_ms(),
             error: None,
         })
+    }
+
+    /// Fetch job logs for a given run. Returns a map of job_id → log text.
+    /// Results are cached in-memory keyed by run_id.
+    pub async fn fetch_job_logs(
+        &self,
+        config: &CiRepoConfig,
+        run_id: u64,
+    ) -> Result<HashMap<u64, String>, AppError> {
+        // Check cache first
+        {
+            let mut cache = self.log_cache.lock().await;
+            if let Some(cached) = cache.get(&run_id) {
+                return Ok(cached.clone());
+            }
+        }
+
+        // Fetch and extract
+        let raw_logs = self.fetch_and_extract_logs(config, run_id).await?;
+
+        // Cache the result
+        {
+            let mut cache = self.log_cache.lock().await;
+            cache.insert(run_id, raw_logs.clone());
+        }
+
+        Ok(raw_logs)
+    }
+
+    /// Download the ZIP from GitHub, decompress it, and return job_id → log_text.
+    async fn fetch_and_extract_logs(
+        &self,
+        config: &CiRepoConfig,
+        run_id: u64,
+    ) -> Result<HashMap<u64, String>, AppError> {
+        let url = format!(
+            "{GITHUB_API_BASE}/repos/{owner}/{repo}/actions/runs/{run_id}/logs",
+            owner = config.owner,
+            repo = config.repo
+        );
+
+        let mut req = self.http.get(&url);
+        if let Some(auth) = self.build_auth_header(&config.access_token) {
+            req = req.header(reqwest::header::AUTHORIZATION, auth);
+        }
+
+        let response =
+            req.send().await.map_err(|e| AppError::Network(format!("fetch logs failed: {e}")))?;
+
+        let status = response.status();
+        if !status.is_success() {
+            return Err(AppError::Network(format!("logs API returned {status}")));
+        }
+
+        let content = response.bytes().await.map_err(|e| {
+            AppError::Network(format!("read log body failed: {e}"))
+        })?;
+
+        if content.is_empty() || content.len() < 4 {
+            return Ok(HashMap::new());
+        }
+
+        // Verify ZIP header
+        if !content.starts_with(b"PK\x03\x04") {
+            let preview =
+                String::from_utf8_lossy(&content[..content.len().min(200)]).to_string();
+            warn!("logs response is not a ZIP (starts with {:?})", preview);
+            return Ok(HashMap::new());
+        }
+
+        // Decompress ZIP in memory
+        let cursor = Cursor::new(content.to_vec());
+        let mut archive =
+            zip::ZipArchive::new(cursor).map_err(|e| AppError::Config(format!("zip open: {e}")))?;
+
+        // Extract by job_name directory
+        let mut by_job_name: HashMap<String, Vec<(u32, String)>> = HashMap::new();
+
+        let run_id_prefix = format!("{run_id}/");
+        for i in 0..archive.len() {
+            let mut file = archive.by_index(i).map_err(|e| {
+                AppError::Config(format!("zip entry {i}: {e}"))
+            })?;
+
+            let full_path = file.name().to_string();
+
+            // Strip run_id prefix to get job_name/step_filename
+            let relative = if let Some(rest) = full_path.strip_prefix(&run_id_prefix) {
+                rest
+            } else {
+                // Some ZIPs don't have run_id prefix; try without
+                &full_path
+            };
+
+            // Split "job_name/step_number_step_name.txt"
+            let Some(slash_pos) = relative.find('/') else {
+                continue;
+            };
+            let job_name = relative[..slash_pos].to_string();
+            let step_file = relative[slash_pos + 1..].to_string();
+
+            // Extract step number from filename (e.g., "1_Set up job.txt" → 1)
+            let step_num = step_file
+                .split('_')
+                .next()
+                .and_then(|s| s.parse::<u32>().ok())
+                .unwrap_or(0);
+
+            let mut text = String::new();
+            if let Err(e) = std::io::Read::read_to_string(&mut file, &mut text) {
+                warn!("skip unreadable entry {full_path}: {e}");
+                continue;
+            }
+
+            by_job_name.entry(job_name).or_default().push((step_num, text));
+        }
+
+        // Sort steps by step number within each job and concatenate
+        let mut merged: HashMap<String, String> = HashMap::new();
+        for (name, mut steps) in by_job_name {
+            steps.sort_by_key(|(num, _)| *num);
+            let mut combined = String::new();
+            let mut total_len = 0usize;
+            for (_, text) in &steps {
+                let remaining = MAX_LOG_SIZE_PER_JOB.saturating_sub(total_len);
+                if remaining == 0 {
+                    break;
+                }
+                let chunk = if text.len() > remaining {
+                    // Take from end (keep latest logs)
+                    &text[text.len() - remaining..]
+                } else {
+                    text.as_str()
+                };
+                combined.push_str(chunk);
+                total_len += chunk.len();
+            }
+            merged.insert(name, combined);
+        }
+
+        // Fetch jobs to map job_name → job_id
+        let jobs = match self.fetch_jobs(config, run_id).await {
+            Ok(j) => j,
+            Err(_) => Vec::new(),
+        };
+
+        let mut result: HashMap<u64, String> = HashMap::new();
+        let name_to_id: HashMap<&str, u64> =
+            jobs.iter().map(|j| (j.name.as_str(), j.job_id)).collect();
+
+        for (job_name, log_text) in &merged {
+            if let Some(&job_id) = name_to_id.get(job_name.as_str()) {
+                result.insert(job_id, log_text.clone());
+            } else {
+                // Unmatched job — try case-insensitive fallback
+                let lower = job_name.to_lowercase();
+                let matched_id = jobs.iter().find(|j| j.name.to_lowercase() == lower).map(|j| j.job_id);
+                if let Some(job_id) = matched_id {
+                    result.insert(job_id, log_text.clone());
+                } else {
+                    warn!("no matching CiJobSummary for ZIP directory: {job_name}");
+                }
+            }
+        }
+
+        Ok(result)
     }
 
     async fn fetch_latest_run(
@@ -230,44 +424,6 @@ impl CiStatusClient {
                     .collect(),
             })
             .collect())
-    }
-
-    async fn fetch_run_logs(&self, config: &CiRepoConfig, run_id: u64) -> Result<String, AppError> {
-        let url = format!(
-            "{GITHUB_API_BASE}/repos/{owner}/{repo}/actions/runs/{run_id}/logs",
-            owner = config.owner,
-            repo = config.repo
-        );
-
-        let mut req = self.http.get(&url);
-        if let Some(auth) = self.build_auth_header(&config.access_token) {
-            req = req.header(reqwest::header::AUTHORIZATION, auth);
-        }
-
-        let response =
-            req.send().await.map_err(|e| AppError::Network(format!("fetch logs failed: {e}")))?;
-
-        let status = response.status();
-        let content = response.text().await.unwrap_or_else(|_| "<failed to read body>".to_string());
-
-        if !status.is_success() {
-            return Err(AppError::Network(format!("logs API returned {status}: {content}")));
-        }
-
-        if content.trim().is_empty() {
-            return Ok("(empty)".to_string());
-        }
-
-        // Logs endpoint returns a redirect to a signed S3 URL with a zip.
-        // We follow redirects, but the content is binary. So we try to
-        // decompress it. For simplicity, just indicate availability.
-        // "PK" is the zip file magic number (zip/jar/xlsx/etc.)
-        let preview = if content.as_bytes().starts_with(b"PK") || content.len() > 20_000 {
-            format!("({} bytes - view the full log at GitHub)", content.len())
-        } else {
-            content
-        };
-        Ok(preview)
     }
 }
 

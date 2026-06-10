@@ -92,6 +92,7 @@ app/stores/
 │   ├── searchSlice.ts / diagnosticSlice.ts / taskSlice.ts
 │   ├── commandSlice.ts / clipboardSlice.ts / terminalSlice.ts
 │   ├── browserSlice.ts
+│   └── communicateSlice.ts          # 通信面板（GitHub CI / 飞书 / QQ / 微信 / 邮箱）
 └── actions/                     # 11 个跨切片 action 模块
     ├── workspaceActions.ts / sessionActions.ts / editorActions.ts
     ├── patchActions.ts / gitActions.ts / fetchActions.ts

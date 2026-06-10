@@ -57,3 +57,11 @@ export { type BrowserSlice, createBrowserSlice, type BrowserTabState } from './s
 
 // CI 切片
 export { type CiSlice, createCiSlice } from './slices/ciSlice';
+
+// 通信切片
+export {
+  type CommunicateSlice,
+  type PlatformId,
+  type GitHubSection,
+  createCommunicateSlice,
+} from './slices/communicateSlice';

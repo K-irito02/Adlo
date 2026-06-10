@@ -6,7 +6,8 @@ export type ToolId =
   | 'audit'
   | 'settings'
   | 'models'
-  | 'ci';
+  | 'ci'
+  | 'communicate';
 export type ChatMode = 'plan' | 'debug' | 'ask';
 export type TerminalProfile = 'powershell' | 'bash' | 'cmd';
 export type FilesNavigatorMode = 'tree' | 'search' | 'outline';

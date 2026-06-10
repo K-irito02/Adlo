@@ -16,7 +16,7 @@ export const modelsZh = {
   tokenBudget: 'Token 预算',
   toolModels: '模型',
   toolSettings: '设置',
-  toolCi: 'CI',
+  toolCommunicate: '通信',
   settingsGeneral: '通用',
   settingsModel: '模型',
   settingsAgent: 'Agent',

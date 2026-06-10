@@ -3,4 +3,4 @@ export { ChangesEmptyState } from './ChangesEmptyState';
 export { ChangesConfirmDialogs } from './ChangesConfirmDialogs';
 export { ChangesTreePanel } from './ChangesTreePanel';
 export { ChangesPanel } from './ChangesPanel';
-export { CIPanel } from './CIPanel';
+export { CommunicationPanel } from './CommunicationPanel';
