@@ -70,9 +70,47 @@
 | 错误 | 显示错误消息（网络异常 / API 错误 / 认证失败） |
 | 正常 | 显示 CI 状态或日志内容 |
 
+### 树形导航器
+
+`.adl-tool-navigator` 内包含 GitHub CI 的树形目录结构：
+
+| 区域 | 选择器 | 说明 |
+|------|--------|------|
+| 导航器容器 | `.adl-tool-surface--github .adl-tool-navigator` | 左侧导航栏 |
+| 分类标签 | `.adl-github-category__label` | 工作区目录 / 非工作区目录 |
+| 顶级条目 | `.adl-browser-entry__header` | 工作区或用户目录标题行（文档图标 + 名称 + 计数） |
+| 展开按钮 | `.adl-browser-entry__expand-btn` | 点击展开/折叠子条目，IconFolder/IconFolderOpen |
+| 计数 | `.adl-browser-entry__count` | 子条目数量 |
+| 操作按钮 | `.adl-browser-entry__actions` | 顶级目录悬停出现：IconTrash（删除CI配置及数据）+ IconSettings（设置） |
+| 子条目区 | `.adl-browser-entry__tree` | 使用 FileTree 组件渲染 |
+| 子条目行 | `.adl-filetree__row` | 含连接线（CSS 伪元素 `::before`） |
+| 子条目文件图标 | `.adl-github-entry__icon` | Overview/Workflows/Jobs/Logs 的自定义 SVG |
+| 子条目文件夹菜单 | `.adl-browser-node__actions` | 嵌套目录悬停出现，按钮顺序同上 |
+| 子条目右键菜单 | `.adl-multitree-entry__menu` | 右键菜单：删除CI配置及数据 + 重命名 |
+
+### 交互规则
+
+| 场景 | 行为 |
+|------|------|
+| 点击顶级目录 | 展开/折叠子条目 + 选中高亮 |
+| 点击子目录 | 展开/折叠 + 选中高亮 |
+| 点击子文件（Overview 等） | 选中 + 右侧内容区切换对应视图 |
+| 悬停顶级目录 | 计数渐隐 → 操作按钮渐显 |
+| 悬停子目录 | 计数渐隐 → 操作按钮在 `.adl-filetree__meta` 中渐显 |
+| 点击顶级目录「设置」 | 打开 CI 配置对话框（Owner/Repo/Branch/Token） |
+| 点击子目录「设置」 | 工作区子目录 → 打开 CI 配置对话框；用户目录子目录 → 打开 RenameDialog |
+| 点击「删除CI配置及数据」 | 删除目录及其关联数据 |
+| 右键菜单 | 删除CI配置及数据（危险项）+ 重命名（启动 RenameDialog） |
+
+### 按钮顺序
+
+所有目录的操作按钮顺序固定为：**IconTrash（删除CI配置及数据）→ IconSettings（设置）**
+
 ## 注意事项
 
 1. **Token 安全**：Token 保存在浏览器 localStorage 或 Tauri 系统钥匙串，不发送到第三方服务器
 2. **日志获取**：GitHub API 返回 ZIP 压缩包，后端解压后按 Job 分组返回
 3. **缓存策略**：后端 LRU 缓存（10 个 Run），前端会话级缓存（页面刷新重置）
 4. **图标规范**：所有图标使用 SVG 格式，禁止 emoji
+5. **重命名规范**：禁止使用 `window.prompt`，必须使用 `RenameDialog` 组件
+6. **FileTree 集成**：子条目必须通过 FileTree 渲染以获取连接线，禁止递归自渲染

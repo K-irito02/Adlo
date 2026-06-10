@@ -1,52 +1,78 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback } from 'react';
 import { useAppStore } from '../../../stores/slicedStore';
 import { useGitPushAutoRefresh } from '../../../features/terminal/useGitPushAutoRefresh';
-import type { CIPanelProps } from '../types';
+import type { CiStatusSnapshot } from '@ai-digital-life/kernel';
+import type { GitWorkspaceCiConfig } from '../../../stores/slices/communicateSlice';
 
-export function useCIPanelProps(): CIPanelProps {
+export interface UseCIPanelPropsResult {
+  gitHubWorkspaceConfigs: Record<string, GitWorkspaceCiConfig>;
+  accessToken: string;
+  loading: boolean;
+  error: string | null;
+  snapshot: CiStatusSnapshot | null;
+  onSaveWorkspaceConfig: (
+    workspaceId: string,
+    owner: string,
+    repo: string,
+    branch: string,
+    token: string
+  ) => void;
+  onRemoveWorkspaceConfig: (workspaceId: string) => void;
+  onRefreshWorkspace: (workspaceId: string) => void;
+}
+
+export function useCIPanelProps(): UseCIPanelPropsResult {
   useGitPushAutoRefresh();
 
-  const ciConfig = useAppStore((s) => s.ciConfig);
+  const gitHubWorkspaceConfigs = useAppStore((s) => s.gitHubWorkspaceConfigs);
   const ciAccessToken = useAppStore((s) => s.ciAccessToken);
   const ciLoading = useAppStore((s) => s.ciLoading);
   const ciError = useAppStore((s) => s.ciError);
   const ciSnapshot = useAppStore((s) => s.ciSnapshot);
-  const refreshCiStatus = useAppStore((s) => s.refreshCiStatus);
-  const setCiConfig = useAppStore((s) => s.setCiConfig);
+  const setGitHubWorkspaceConfig = useAppStore((s) => s.setGitHubWorkspaceConfig);
+  const removeGitHubWorkspaceConfig = useAppStore((s) => s.removeGitHubWorkspaceConfig);
+  const refreshCiStatusForWorkspace = useAppStore((s) => s.refreshCiStatusForWorkspace);
   const setCiAccessToken = useAppStore((s) => s.setCiAccessToken);
-  const clearCiAccessToken = useAppStore((s) => s.clearCiAccessToken);
 
-  const onRefresh = useCallback(() => {
-    void refreshCiStatus();
-  }, [refreshCiStatus]);
-
-  const onConfigChange = useCallback(
-    (owner: string, repo: string, branch: string, token: string) => {
-      setCiConfig({ owner, repo, branch, workflowId: null, accessToken: null });
+  const onSaveWorkspaceConfig = useCallback(
+    (workspaceId: string, owner: string, repo: string, branch: string, token: string) => {
+      const config: GitWorkspaceCiConfig = {
+        owner,
+        repo,
+        branch: branch || 'main',
+        workflowId: null,
+        accessToken: token || null,
+        configured: !!(owner && repo),
+      };
+      setGitHubWorkspaceConfig(workspaceId, config);
       void setCiAccessToken(token);
-      void refreshCiStatus();
+      void refreshCiStatusForWorkspace(workspaceId);
     },
-    [setCiConfig, setCiAccessToken, refreshCiStatus]
+    [setGitHubWorkspaceConfig, setCiAccessToken, refreshCiStatusForWorkspace]
   );
 
-  const onClearToken = useCallback(() => {
-    void clearCiAccessToken();
-  }, [clearCiAccessToken]);
+  const onRemoveWorkspaceConfig = useCallback(
+    (workspaceId: string) => {
+      removeGitHubWorkspaceConfig(workspaceId);
+    },
+    [removeGitHubWorkspaceConfig]
+  );
 
-  useEffect(() => {
-    if (ciConfig.owner && ciConfig.repo) {
-      void refreshCiStatus();
-    }
-  }, [ciConfig.owner, ciConfig.repo, refreshCiStatus]);
+  const onRefreshWorkspace = useCallback(
+    (workspaceId: string) => {
+      void refreshCiStatusForWorkspace(workspaceId);
+    },
+    [refreshCiStatusForWorkspace]
+  );
 
   return {
-    config: ciConfig,
+    gitHubWorkspaceConfigs,
     accessToken: ciAccessToken,
     loading: ciLoading,
     error: ciError,
     snapshot: ciSnapshot,
-    onRefresh,
-    onConfigChange,
-    onClearToken,
+    onSaveWorkspaceConfig,
+    onRemoveWorkspaceConfig,
+    onRefreshWorkspace,
   };
 }

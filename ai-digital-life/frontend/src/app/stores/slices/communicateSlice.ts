@@ -1,7 +1,7 @@
 import type { CiJobSummary, CiStatusSnapshot, CiRepoConfig } from '@ai-digital-life/kernel';
 import type { StoreState } from '../StoreState';
 import type { DigitalLifeBridge } from '../../../shared/ipc';
-import { createDebouncedWrite } from '../shared';
+import { createDebouncedWrite, createUiId } from '../shared';
 
 const CI_CONFIG_KEY = 'adl-ui:ci-config';
 const CI_ACCESS_TOKEN_KEY = 'adl-ui:ci-access-token';
@@ -20,6 +20,40 @@ export interface PlatformState {
   loading: boolean;
   error: string | null;
 }
+
+/** Per-workspace CI configuration */
+export interface GitWorkspaceCiConfig {
+  owner: string;
+  repo: string;
+  branch: string;
+  workflowId: string | null;
+  accessToken: string | null;
+  /** Whether this workspace has been configured */
+  configured: boolean;
+}
+
+export interface GitHubCiFolderState {
+  id: string;
+  name: string;
+  createdAt: number;
+  parentId?: string;
+  parentType?: 'workspace' | 'folder';
+}
+
+/** GitHub tree node types */
+export type GitHubTreeNodeType = 'workspace' | 'overview' | 'workflows' | 'jobs' | 'logs';
+
+/** GitHub tree node (for displaying in the navigator) */
+export interface GitHubTreeNode {
+  path: string;
+  name: string;
+  kind: 'directory' | 'file';
+  children: GitHubTreeNode[];
+  nodeType: GitHubTreeNodeType;
+  workspaceId?: string;
+}
+
+export type GitHubCategoryType = 'ci-workspace';
 
 export interface CommunicateSlice {
   activePlatform: PlatformId;
@@ -54,6 +88,37 @@ export interface CommunicateSlice {
   setCachedJobLogs: (logs: Record<number, string>) => void;
   setLogLoading: (loading: boolean) => void;
   setLogError: (error: string | null) => void;
+
+  /** Per-workspace CI configs keyed by workspaceId */
+  gitHubWorkspaceConfigs: Record<string, GitWorkspaceCiConfig>;
+  /** Tree expansion state for GitHub navigator */
+  gitHubTreeExpanded: Record<string, boolean>;
+  /** Whether the workspace tree is fully expanded */
+  gitHubAllTreeExpanded: boolean;
+  /** Selected tree path in GitHub navigator */
+  selectedGitHubTreePath: string | null;
+  /** Active CI workspace ID (which workspace's CI is shown) */
+  activeCiWorkspaceId: string | null;
+  /** Active sub-section within the selected workspace */
+  activeWorkspaceSection: 'overview' | 'workflows' | 'jobs' | 'logs' | 'help';
+  /** User-created CI folders (non-workspace directories with CI sub-entries) */
+  gitHubCiFolders: GitHubCiFolderState[];
+
+  // New actions
+  setGitHubWorkspaceConfig: (workspaceId: string, config: GitWorkspaceCiConfig) => void;
+  removeGitHubWorkspaceConfig: (workspaceId: string) => void;
+  clearAllGitHubWorkspaceConfigs: () => void;
+  setGitHubTreeExpanded: (expanded: Record<string, boolean>) => void;
+  toggleGitHubTreePath: (path: string) => void;
+  expandAllGitHubTree: () => void;
+  collapseAllGitHubTree: () => void;
+  setSelectedGitHubTreePath: (path: string | null) => void;
+  setActiveCiWorkspaceId: (workspaceId: string | null) => void;
+  setActiveWorkspaceSection: (section: 'overview' | 'workflows' | 'jobs' | 'logs') => void;
+  refreshCiStatusForWorkspace: (workspaceId: string) => Promise<void>;
+  gitHubCreateFolder: (parentId?: string, parentType?: 'workspace' | 'folder') => void;
+  gitHubDeleteFolder: (folderId: string) => void;
+  gitHubRenameFolder: (folderId: string, name: string) => void;
 }
 
 function getBridge(): DigitalLifeBridge | null {
@@ -225,6 +290,14 @@ export const createCommunicateSlice = (
     logLoading: false,
     logError: null,
 
+    gitHubWorkspaceConfigs: {},
+    gitHubTreeExpanded: {},
+    gitHubAllTreeExpanded: false,
+    selectedGitHubTreePath: null,
+    activeCiWorkspaceId: null,
+    activeWorkspaceSection: 'overview',
+    gitHubCiFolders: [],
+
     setActivePlatform: (platform) => {
       set({ activePlatform: platform });
       if (typeof window !== 'undefined') {
@@ -365,7 +438,14 @@ export const createCommunicateSlice = (
 
     notifyGitPushed: () => {
       const state = _get();
-      if (state.ciAutoRefreshOnPush && state.ciConfig.owner && state.ciConfig.repo) {
+      if (!state.ciAutoRefreshOnPush) return;
+      for (const [wsId, config] of Object.entries(state.gitHubWorkspaceConfigs)) {
+        if (config.configured) {
+          void state.refreshCiStatusForWorkspace(wsId);
+        }
+      }
+      // Also refresh legacy single-workspace config if present
+      if (state.ciConfig.owner && state.ciConfig.repo) {
         void state.refreshCiStatus();
       }
     },
@@ -397,5 +477,134 @@ export const createCommunicateSlice = (
     setLogLoading: (loading) => set({ logLoading: loading }),
 
     setLogError: (error) => set({ logError: error }),
+
+    setGitHubWorkspaceConfig: (workspaceId, config) => {
+      set((state) => ({
+        gitHubWorkspaceConfigs: { ...state.gitHubWorkspaceConfigs, [workspaceId]: config },
+      }));
+    },
+
+    removeGitHubWorkspaceConfig: (workspaceId) => {
+      set((state) => {
+        const next = { ...state.gitHubWorkspaceConfigs };
+        delete next[workspaceId];
+        return { gitHubWorkspaceConfigs: next };
+      });
+    },
+
+    clearAllGitHubWorkspaceConfigs: () => {
+      set({ gitHubWorkspaceConfigs: {}, activeCiWorkspaceId: null, selectedGitHubTreePath: null });
+    },
+
+    setGitHubTreeExpanded: (expanded) => set({ gitHubTreeExpanded: expanded }),
+
+    toggleGitHubTreePath: (path) => {
+      set((state) => ({
+        gitHubTreeExpanded: {
+          ...state.gitHubTreeExpanded,
+          [path]: !state.gitHubTreeExpanded[path],
+        },
+      }));
+    },
+
+    expandAllGitHubTree: () => {
+      set((state) => {
+        const paths: Record<string, boolean> = {};
+        for (const ws of state.recentWorkspaces) {
+          paths[`github-workspace:${ws.id}`] = true;
+        }
+        for (const folder of state.gitHubCiFolders) {
+          paths[`github-folder:${folder.id}`] = true;
+        }
+        return { gitHubTreeExpanded: paths };
+      });
+    },
+
+    collapseAllGitHubTree: () => set({ gitHubTreeExpanded: {} }),
+
+    setSelectedGitHubTreePath: (path) => set({ selectedGitHubTreePath: path }),
+
+    setActiveCiWorkspaceId: (workspaceId) => set({ activeCiWorkspaceId: workspaceId }),
+
+    setActiveWorkspaceSection: (section) => set({ activeWorkspaceSection: section }),
+
+    gitHubCreateFolder: (parentId, parentType) => {
+      set((state) => {
+        const folderCount = state.gitHubCiFolders.length;
+        const newFolder: GitHubCiFolderState = {
+          id: createUiId('gh-ci-folder'),
+          name: `目录 ${folderCount + 1}`,
+          createdAt: Date.now(),
+          parentId,
+          parentType,
+        };
+        const nextFolders = [...state.gitHubCiFolders, newFolder];
+        const parentPath = parentId
+          ? parentType === 'workspace'
+            ? `github-workspace:${parentId}`
+            : `github-folder:${parentId}`
+          : null;
+        const nextExpanded = parentPath
+          ? { ...state.gitHubTreeExpanded, [parentPath]: true }
+          : state.gitHubTreeExpanded;
+        return { gitHubCiFolders: nextFolders, gitHubTreeExpanded: nextExpanded };
+      });
+    },
+
+    gitHubDeleteFolder: (folderId) => {
+      set((state) => {
+        const idsToDelete = new Set<string>([folderId]);
+        const findDescendants = (parentId: string) => {
+          for (const f of state.gitHubCiFolders) {
+            if (f.parentId === parentId && !idsToDelete.has(f.id)) {
+              idsToDelete.add(f.id);
+              findDescendants(f.id);
+            }
+          }
+        };
+        findDescendants(folderId);
+        const nextFolders = state.gitHubCiFolders.filter((f) => !idsToDelete.has(f.id));
+        return { gitHubCiFolders: nextFolders };
+      });
+    },
+
+    gitHubRenameFolder: (folderId, name) => {
+      set((state) => ({
+        gitHubCiFolders: state.gitHubCiFolders.map((f) => (f.id === folderId ? { ...f, name } : f)),
+      }));
+    },
+
+    refreshCiStatusForWorkspace: async (workspaceId) => {
+      const state = _get();
+      const config = state.gitHubWorkspaceConfigs[workspaceId];
+      if (!config || !config.configured) {
+        set({ ciError: '请先配置仓库 owner 和 repo' });
+        return;
+      }
+      set({ ciLoading: true, ciError: null });
+      try {
+        const bridge = getBridge();
+        if (!bridge || !bridge.github) {
+          set({ ciError: 'bridge not ready', ciLoading: false });
+          return;
+        }
+        const token = isTauriMode() ? null : (config.accessToken ?? '');
+        const result = await bridge.github.getStatus({
+          owner: config.owner,
+          repo: config.repo,
+          branch: config.branch,
+          workflowId: config.workflowId,
+          accessToken: token,
+        });
+        if (result.ok) {
+          set({ ciSnapshot: result.data, ciJobs: result.data.jobs ?? [], ciLoading: false });
+        } else {
+          set({ ciError: result.error?.message ?? '获取 CI 状态失败', ciLoading: false });
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        set({ ciError: message, ciLoading: false });
+      }
+    },
   };
 };

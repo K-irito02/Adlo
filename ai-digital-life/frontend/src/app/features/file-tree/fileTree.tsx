@@ -24,6 +24,7 @@ interface FileTreeNodeProps<T extends FileTreeRenderableNode> {
   onOpenFile: (relativePath: string, event: React.MouseEvent<HTMLButtonElement>) => void;
   renderMeta?: (node: T) => React.ReactNode;
   renderCount?: (node: T) => React.ReactNode;
+  renderIconBefore?: (node: T) => React.ReactNode;
   getNodeClassName?: (node: T) => string | undefined;
   onShowContextMenu?: (event: React.MouseEvent<HTMLDivElement>, node: T) => void;
   onMouseEnter?: () => void;
@@ -51,6 +52,7 @@ function FileTreeNodeComponent<T extends FileTreeRenderableNode>({
   onOpenFile,
   renderMeta,
   renderCount,
+  renderIconBefore,
   getNodeClassName,
   onShowContextMenu,
   onMouseEnter,
@@ -71,6 +73,7 @@ function FileTreeNodeComponent<T extends FileTreeRenderableNode>({
   const fileVisual = isDirectory ? undefined : getFileTreeVisualSpec(node);
   const customMeta = renderMeta?.(node);
   const customCount = renderCount?.(node);
+  const customIconBefore = renderIconBefore?.(node);
   const nodeClassName = getNodeClassName?.(node);
 
   const handleActivate = useCallback(
@@ -106,7 +109,9 @@ function FileTreeNodeComponent<T extends FileTreeRenderableNode>({
       label={node.name}
       nodePath={node.path}
       iconBefore={
-        isDirectory ? undefined : (
+        isDirectory ? undefined : customIconBefore ? (
+          customIconBefore
+        ) : (
           <span
             className={`adl-filetree__file-icon adl-filetree__file-icon--${fileVisual?.tone ?? 'default'}`}
           >
@@ -152,6 +157,7 @@ function FileTreeNodeComponent<T extends FileTreeRenderableNode>({
               onOpenFile={onOpenFile}
               renderMeta={renderMeta}
               renderCount={renderCount}
+              renderIconBefore={renderIconBefore}
               getNodeClassName={getNodeClassName}
               onShowContextMenu={onShowContextMenu}
               expandLabel={expandLabel}
@@ -176,6 +182,7 @@ function areFileTreeNodePropsEqual<T extends FileTreeRenderableNode>(
     previous.onOpenFile !== next.onOpenFile ||
     previous.renderMeta !== next.renderMeta ||
     previous.renderCount !== next.renderCount ||
+    previous.renderIconBefore !== next.renderIconBefore ||
     previous.getNodeClassName !== next.getNodeClassName ||
     previous.onShowContextMenu !== next.onShowContextMenu ||
     previous.expandLabel !== next.expandLabel ||
@@ -235,6 +242,7 @@ export function FileTree<T extends FileTreeRenderableNode>({
   onOpenFile,
   renderMeta,
   renderCount,
+  renderIconBefore,
   getNodeClassName,
   getContextMenuItems,
   contextMenuPersistRef,
@@ -359,6 +367,7 @@ export function FileTree<T extends FileTreeRenderableNode>({
               externalChangePath={externalChangePath}
               renderMeta={renderMeta}
               renderCount={renderCount}
+              renderIconBefore={renderIconBefore}
               getNodeClassName={getNodeClassName}
               flat={flat}
               activePath={activePath}

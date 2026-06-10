@@ -1,14 +1,23 @@
-/**
- * GitHub 面板 — 继承原 CIPanelStatus 逻辑，重构为
- * nav-button + navigator-content + primary 三栏布局
- */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import type { CiJobSummary, CiStatusSnapshot } from '@ai-digital-life/kernel';
-import { useCIPanelProps } from '../../hooks/useCIPanelProps';
+import {
+  IconFoldVertical,
+  IconUnfoldVertical,
+  IconRefreshCw,
+  IconTrash,
+  IconClose,
+  IconFiles,
+  IconList,
+  IconFolderPlus,
+} from '../../../../icons';
+import { TooltipSimple } from '../../../../components/Tooltip';
 import { useAppStore } from '../../../../stores/slicedStore';
+import { useCIPanelProps } from '../../hooks/useCIPanelProps';
 import { workspaceSelectors } from '../../../../stores/selectors';
 import { getAppCopy } from '../../../../i18n';
-import type { GitHubSection } from '../../../../stores/slices/communicateSlice';
+import { GitHubTree } from '../../../../features/github-tree/GitHubTree';
+import type { SectionCallbacks } from '../../../../features/github-tree/GitHubCategorySection';
 import { GitHubLogViewer } from './GitHubLogViewer';
 
 function formatDuration(start?: string | null, end?: string | null): string {
@@ -318,136 +327,6 @@ function JobsView({
   );
 }
 
-function SettingsView({
-  accessToken,
-  error,
-  ownerInput,
-  repoInput,
-  branchInput,
-  tokenInput,
-  tokenVisible,
-  copy,
-  onOwnerChange,
-  onRepoChange,
-  onBranchChange,
-  onTokenChange,
-  onToggleToken,
-  onApply,
-  onClearToken,
-}: {
-  accessToken: string;
-  error: string | null;
-  ownerInput: string;
-  repoInput: string;
-  branchInput: string;
-  tokenInput: string;
-  tokenVisible: boolean;
-  copy: Record<string, string>;
-  onOwnerChange: (v: string) => void;
-  onRepoChange: (v: string) => void;
-  onBranchChange: (v: string) => void;
-  onTokenChange: (v: string) => void;
-  onToggleToken: () => void;
-  onApply: () => void;
-  onClearToken: () => void;
-}) {
-  return (
-    <div>
-      <div className="adl-github__config">
-        <div className="adl-github__config-row">
-          <input
-            className="adl-input adl-input--sm"
-            placeholder={copy.ciOwnerPlaceholder}
-            value={ownerInput}
-            onChange={(e) => onOwnerChange(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && onApply()}
-          />
-          <span className="adl-github__config-sep">/</span>
-          <input
-            className="adl-input adl-input--sm"
-            placeholder={copy.ciRepoPlaceholder}
-            value={repoInput}
-            onChange={(e) => onRepoChange(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && onApply()}
-          />
-        </div>
-        <div className="adl-github__config-row">
-          <input
-            className="adl-input adl-input--sm"
-            placeholder={copy.ciBranchPlaceholder}
-            value={branchInput}
-            onChange={(e) => onBranchChange(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && onApply()}
-          />
-          <button
-            type="button"
-            className="adl-btn adl-btn--primary adl-btn--sm"
-            onClick={onApply}
-            disabled={!ownerInput.trim() || !repoInput.trim()}
-          >
-            {copy.ciQueryButton}
-          </button>
-        </div>
-        <div className="adl-github__config-row">
-          <input
-            className="adl-input adl-input--sm"
-            placeholder={copy.ciTokenPlaceholder}
-            type={tokenVisible ? 'text' : 'password'}
-            value={tokenInput}
-            onChange={(e) => onTokenChange(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && onApply()}
-          />
-          <button
-            type="button"
-            className="adl-btn adl-btn--ghost adl-btn--sm"
-            onClick={onToggleToken}
-            title={tokenVisible ? '隐藏' : '显示'}
-          >
-            <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
-              {tokenVisible ? (
-                <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.75 1.034-1.246 1.571C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z" />
-              ) : (
-                <>
-                  <path d="M13.359 11.238C15.06 9.72 16 8 16 8s-3-5.5-8-5.5a7.028 7.028 0 0 0-2.79.588l.77.771A5.944 5.944 0 0 1 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.134 13.134 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.75 1.034-1.246 1.571-.389.422-.816.812-1.27 1.145l.242.234z" />
-                  <path d="M3.588 4.243A7.025 7.025 0 0 0 1.172 6.66 13.133 13.133 0 0 0 0 8s3 5.5 8 5.5c2.024 0 3.743-.685 5.022-1.714l.707.707a.5.5 0 1 0 .707-.707l-12-12a.5.5 0 1 0-.707.707l1.86 1.86zM2.063 9.675A12.3 12.3 0 0 0 1.172 8a13.134 13.134 0 0 1 2.298-2.649l.735.735A6.68 6.68 0 0 0 2.99 9.782c.33.475.744.98 1.258 1.444C5.332 12.332 7.12 13.5 9 13.5c1.15 0 2.187-.353 3.06-.942l.656.656a6.535 6.535 0 0 1-1.582.938c-.337.135-.664.243-.97.318l.737.737a.5.5 0 1 1-.707.707l-12-12a.5.5 0 1 1 .707-.707l2.152 2.152z" />
-                </>
-              )}
-            </svg>
-          </button>
-          {accessToken && (
-            <button
-              type="button"
-              className="adl-btn adl-btn--ghost adl-btn--sm"
-              onClick={onClearToken}
-              title="清除 Token"
-            >
-              <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
-                <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z" />
-                <path
-                  fillRule="evenodd"
-                  d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"
-                />
-              </svg>
-            </button>
-          )}
-        </div>
-        <div className="adl-github__token-hint adl-text--xs adl-text--secondary">
-          Token 仅保存在浏览器本地，不会上传至服务器
-        </div>
-      </div>
-
-      {error && (
-        <div className="adl-github__error">
-          <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
-            <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 12a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm1-4a1 1 0 0 1-2 0V6a1 1 0 0 1 2 0v3z" />
-          </svg>
-          <span>{error}</span>
-        </div>
-      )}
-    </div>
-  );
-}
-
 function HelpView({ copy }: { copy: Record<string, string> }) {
   return (
     <div style={{ padding: 12 }}>
@@ -678,209 +557,500 @@ function HelpView({ copy }: { copy: Record<string, string> }) {
   );
 }
 
-function getNavItems(section: GitHubSection, snapshot: CiStatusSnapshot | null): string[] {
-  switch (section) {
-    case 'overview':
-      return snapshot?.jobs?.length
-        ? ['最近运行', ...snapshot.jobs.slice(0, 5).map((j) => j.name)]
-        : ['暂无数据'];
-    case 'workflows':
-      return snapshot?.jobs?.length ? snapshot.jobs.map((j) => j.name) : ['暂无 Workflow'];
-    case 'jobs':
-      return snapshot?.jobs?.length ? snapshot.jobs.map((j) => j.name) : ['暂无 Job'];
-    case 'logs':
-      return snapshot?.jobs?.length ? snapshot.jobs.map((j) => j.name) : ['暂无日志'];
-    case 'settings':
-      return ['仓库配置', 'Token 管理'];
-    case 'help':
-      return ['基础使用', '进阶概念', 'Token 配置'];
-    default:
-      return [];
+function GitHubSettingsDialog({
+  open,
+  workspaceName,
+  initialOwner,
+  initialRepo,
+  initialBranch,
+  error,
+  copy,
+  onSave,
+  onCancel,
+}: {
+  open: boolean;
+  workspaceName: string;
+  initialOwner: string;
+  initialRepo: string;
+  initialBranch: string;
+  error: string | null;
+  copy: Record<string, string>;
+  onSave: (owner: string, repo: string, branch: string, token: string) => void;
+  onCancel: () => void;
+}) {
+  const [owner, setOwner] = useState(initialOwner);
+  const [repo, setRepo] = useState(initialRepo);
+  const [branch, setBranch] = useState(initialBranch);
+  const [token, setToken] = useState('');
+  const [tokenVisible, setTokenVisible] = useState(false);
+
+  const prevInitialOwnerRef = useRef(initialOwner);
+  if (initialOwner !== prevInitialOwnerRef.current) {
+    prevInitialOwnerRef.current = initialOwner;
+    setOwner(initialOwner);
+    setRepo(initialRepo);
+    setBranch(initialBranch);
+    setToken('');
   }
+
+  if (!open) return null;
+
+  return createPortal(
+    <div className="adl-dialog-overlay" onClick={onCancel}>
+      <div className="adl-dialog" onClick={(e) => e.stopPropagation()}>
+        <div className="adl-dialog__header">
+          <h3 className="adl-dialog__title">配置 CI - {workspaceName}</h3>
+          <button type="button" className="adl-dialog__close" onClick={onCancel}>
+            <IconClose size={14} decorative />
+          </button>
+        </div>
+        <div className="adl-dialog__body">
+          <div className="adl-github__config">
+            <div className="adl-github__config-row">
+              <input
+                className="adl-input adl-input--sm"
+                placeholder={copy.ciOwnerPlaceholder}
+                value={owner}
+                onChange={(e) => setOwner(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && onSave(owner, repo, branch, token)}
+              />
+              <span className="adl-github__config-sep">/</span>
+              <input
+                className="adl-input adl-input--sm"
+                placeholder={copy.ciRepoPlaceholder}
+                value={repo}
+                onChange={(e) => setRepo(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && onSave(owner, repo, branch, token)}
+              />
+            </div>
+            <div className="adl-github__config-row">
+              <input
+                className="adl-input adl-input--sm"
+                placeholder={copy.ciBranchPlaceholder}
+                value={branch}
+                onChange={(e) => setBranch(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && onSave(owner, repo, branch, token)}
+              />
+            </div>
+            <div className="adl-github__config-row">
+              <input
+                className="adl-input adl-input--sm"
+                placeholder={copy.ciTokenPlaceholder}
+                type={tokenVisible ? 'text' : 'password'}
+                value={token}
+                onChange={(e) => setToken(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && onSave(owner, repo, branch, token)}
+              />
+              <button
+                type="button"
+                className="adl-btn adl-btn--ghost adl-btn--sm"
+                onClick={() => setTokenVisible((v) => !v)}
+                title={tokenVisible ? '隐藏' : '显示'}
+              >
+                <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
+                  {tokenVisible ? (
+                    <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.75 1.034-1.246 1.571C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z" />
+                  ) : (
+                    <>
+                      <path d="M13.359 11.238C15.06 9.72 16 8 16 8s-3-5.5-8-5.5a7.028 7.028 0 0 0-2.79.588l.77.771A5.944 5.944 0 0 1 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.134 13.134 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.75 1.034-1.246 1.571-.389.422-.816.812-1.27 1.145l.242.234z" />
+                      <path d="M3.588 4.243A7.025 7.025 0 0 0 1.172 6.66 13.133 13.133 0 0 0 0 8s3 5.5 8 5.5c2.024 0 3.743-.685 5.022-1.714l.707.707a.5.5 0 1 0 .707-.707l-12-12a.5.5 0 1 0-.707.707l1.86 1.86zM2.063 9.675A12.3 12.3 0 0 0 1.172 8a13.134 13.134 0 0 1 2.298-2.649l.735.735A6.68 6.68 0 0 0 2.99 9.782c.33.475.744.98 1.258 1.444C5.332 12.332 7.12 13.5 9 13.5c1.15 0 2.187-.353 3.06-.942l.656.656a6.535 6.535 0 0 1-1.582.938c-.337.135-.664.243-.97.318l.737.737a.5.5 0 1 1-.707.707l-12-12a.5.5 0 1 1 .707-.707l2.152 2.152z" />
+                    </>
+                  )}
+                </svg>
+              </button>
+            </div>
+            <div className="adl-github__token-hint adl-text--xs adl-text--secondary">
+              Token 仅保存在浏览器本地，不会上传至服务器
+            </div>
+          </div>
+          {error && (
+            <div className="adl-github__error">
+              <span>{error}</span>
+            </div>
+          )}
+        </div>
+        <div className="adl-dialog__footer">
+          <button type="button" className="adl-btn adl-btn--ghost adl-btn--sm" onClick={onCancel}>
+            取消
+          </button>
+          <button
+            type="button"
+            className="adl-btn adl-btn--primary adl-btn--sm"
+            onClick={() => onSave(owner, repo, branch, token)}
+            disabled={!owner.trim() || !repo.trim()}
+          >
+            保存并查询
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
 }
 
 export function GitHubPanel() {
-  const { config, accessToken, loading, error, snapshot, onConfigChange, onClearToken } =
-    useCIPanelProps();
+  const {
+    gitHubWorkspaceConfigs,
+    loading,
+    error: ciError,
+    onSaveWorkspaceConfig,
+    onRemoveWorkspaceConfig,
+    onRefreshWorkspace,
+  } = useCIPanelProps();
 
-  const activeGitHubSection = useAppStore(
-    (s: { activeGitHubSection: GitHubSection }) => s.activeGitHubSection
+  const gitHubTreeExpanded = useAppStore((s) => s.gitHubTreeExpanded);
+  const gitHubAllTreeExpanded = useAppStore((s) => s.gitHubAllTreeExpanded);
+  const selectedGitHubTreePath = useAppStore((s) => s.selectedGitHubTreePath);
+  const activeCiWorkspaceId = useAppStore((s) => s.activeCiWorkspaceId);
+  const activeWorkspaceSection = useAppStore((s) => s.activeWorkspaceSection);
+  const communicateNavigatorCollapsed = useAppStore((s) => s.communicateNavigatorCollapsed);
+  const workspaces = useAppStore((s) => s.recentWorkspaces);
+  const ciSnapshot = useAppStore((s) => s.ciSnapshot);
+
+  const toggleGitHubTreePath = useAppStore((s) => s.toggleGitHubTreePath);
+  const expandAllGitHubTree = useAppStore((s) => s.expandAllGitHubTree);
+  const collapseAllGitHubTree = useAppStore((s) => s.collapseAllGitHubTree);
+  const setSelectedGitHubTreePath = useAppStore((s) => s.setSelectedGitHubTreePath);
+  const setActiveCiWorkspaceId = useAppStore((s) => s.setActiveCiWorkspaceId);
+  const setActiveWorkspaceSection = useAppStore((s) => s.setActiveWorkspaceSection);
+  const clearAllGitHubWorkspaceConfigs = useAppStore((s) => s.clearAllGitHubWorkspaceConfigs);
+  const setSelectedLogJobId = useAppStore((s) => s.setSelectedLogJobId);
+  const gitHubCiFolders = useAppStore((s) => s.gitHubCiFolders);
+  const gitHubCreateFolder = useAppStore((s) => s.gitHubCreateFolder);
+
+  const selectedTreePathRef = useRef<string | null>(null);
+  const [showHelp, setShowHelp] = useState(false);
+  const [gitHubViewMode, setGitHubViewMode] = useState<'tree' | 'list'>('tree');
+  const [settingsWorkspaceId, setSettingsWorkspaceId] = useState<string | null>(null);
+
+  const handleSelectTreePath = useCallback(
+    (path: string | null) => {
+      selectedTreePathRef.current = path ?? null;
+      setSelectedGitHubTreePath(path);
+      setShowHelp(false);
+      if (path?.startsWith('github-workspace:')) {
+        const parts = path.split(':');
+        const wsId = parts[1];
+        if (wsId) {
+          setActiveCiWorkspaceId(wsId);
+        }
+      }
+    },
+    [setSelectedGitHubTreePath, setActiveCiWorkspaceId]
   );
-  const setActiveGitHubSection = useAppStore(
-    (s: { setActiveGitHubSection: (section: GitHubSection) => void }) => s.setActiveGitHubSection
-  );
-  const setSelectedLogJobId = useAppStore(
-    (s: { setSelectedLogJobId: (id: number | null) => void }) => s.setSelectedLogJobId
-  );
+
+  useEffect(() => {
+    const handleGlobalClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const clickedEntry = target.closest('.adl-browser-entry');
+      const clickedFileTreeRow = target.closest('.adl-filetree__row');
+
+      if (clickedEntry) {
+        if (clickedFileTreeRow) {
+          const row = clickedFileTreeRow as HTMLElement;
+          const nodePath = row.dataset.path;
+          if (nodePath) {
+            handleSelectTreePath(nodePath);
+            return;
+          }
+        }
+        return;
+      }
+
+      handleSelectTreePath(null);
+    };
+    document.addEventListener('click', handleGlobalClick);
+    return () => document.removeEventListener('click', handleGlobalClick);
+  }, [handleSelectTreePath]);
 
   const appInfo = workspaceSelectors.useAppInfo();
   const copy = getAppCopy(appInfo);
 
-  const [ownerInput, setOwnerInput] = useState(config.owner);
-  const [repoInput, setRepoInput] = useState(config.repo);
-  const [branchInput, setBranchInput] = useState(config.branch);
-  const [tokenInput, setTokenInput] = useState(accessToken);
-  const [tokenVisible, setTokenVisible] = useState(false);
+  const activeConfig = activeCiWorkspaceId ? gitHubWorkspaceConfigs[activeCiWorkspaceId] : null;
+  const visibleWorkspaces = workspaces;
 
-  useEffect(() => {
-    setOwnerInput(config.owner);
-    setRepoInput(config.repo);
-    setBranchInput(config.branch);
-  }, [config.owner, config.repo, config.branch]);
+  const handleTogglePath = useCallback(
+    (path: string) => {
+      toggleGitHubTreePath(path);
+    },
+    [toggleGitHubTreePath]
+  );
 
-  useEffect(() => {
-    setTokenInput(accessToken);
-  }, [accessToken]);
+  const handleCreateFolder = useCallback(() => {
+    const path = selectedTreePathRef.current;
+    if (path?.startsWith('github-folder:')) {
+      const folderId = path.slice('github-folder:'.length);
+      gitHubCreateFolder(folderId, 'folder');
+    } else if (path?.startsWith('github-workspace:')) {
+      const wsId = path.slice('github-workspace:'.length);
+      gitHubCreateFolder(wsId, 'workspace');
+    } else {
+      gitHubCreateFolder(undefined, undefined);
+    }
+  }, [gitHubCreateFolder]);
 
-  const handleApply = () => {
-    onConfigChange(
-      ownerInput.trim(),
-      repoInput.trim(),
-      branchInput.trim() || 'main',
-      tokenInput.trim()
-    );
-  };
+  const handleViewLogs = useCallback(
+    (jobId: number) => {
+      setSelectedLogJobId(jobId);
+      setActiveWorkspaceSection('logs');
+    },
+    [setSelectedLogJobId, setActiveWorkspaceSection]
+  );
 
-  const handleViewLogs = (jobId: number) => {
-    setSelectedLogJobId(jobId);
-    setActiveGitHubSection('logs');
-  };
+  const handleClearAll = useCallback(() => {
+    if (window.confirm('确定删除所有工作区的 CI 配置及数据？')) {
+      clearAllGitHubWorkspaceConfigs();
+    }
+  }, [clearAllGitHubWorkspaceConfigs]);
 
-  const sections: Array<{ id: GitHubSection; label: string; icon: React.ReactNode }> = [
-    {
-      id: 'overview',
-      label: 'Overview',
-      icon: (
-        <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
-          <path d="M2 2h5v5H2V2zm0 7h5v5H2V9zm7-7h5v5H9V2zm0 7h5v5H9V9z" />
-        </svg>
-      ),
-    },
-    {
-      id: 'workflows',
-      label: 'Workflows',
-      icon: (
-        <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
-          <path d="M8 1a.5.5 0 0 1 .5.5v6h6a.5.5 0 0 1 0 1h-6v6a.5.5 0 0 1-1 0v-6h-6a.5.5 0 0 1 0-1h6v-6A.5.5 0 0 1 8 1z" />
-        </svg>
-      ),
-    },
-    {
-      id: 'jobs',
-      label: 'Jobs',
-      icon: (
-        <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
-          <path d="M2 4.5A1.5 1.5 0 0 1 3.5 3h9A1.5 1.5 0 0 1 14 4.5v7a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 11.5v-7zM3.5 4a.5.5 0 0 0-.5.5v7a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 .5-.5v-7a.5.5 0 0 0-.5-.5h-9z" />
-          <path d="M4.5 6.5a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5z" />
-        </svg>
-      ),
-    },
-    {
-      id: 'logs',
-      label: 'Logs',
-      icon: (
-        <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
-          <path d="M2 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H2zm1 3h10v1H3V4zm0 3h10v1H3V7zm0 3h7v1H3v-1z" />
-        </svg>
-      ),
-    },
-    {
-      id: 'settings',
-      label: 'Settings',
-      icon: (
-        <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
-          <path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492zM5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0z" />
-          <path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52l-.094-.319zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 8.93l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 0 0 3.06 4.377l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.115l.094-.319z" />
-        </svg>
-      ),
-    },
-    {
-      id: 'help',
-      label: 'Help',
-      icon: (
-        <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
-          <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zM7 5.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 0 1h-.5v2h.5a.5.5 0 0 1 0 1H7a.5.5 0 0 1-.5-.5v-2.5a.5.5 0 0 1 .5-.5zm1 5a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1z" />
-        </svg>
-      ),
-    },
-  ];
+  const handleRefreshAll = useCallback(() => {
+    for (const wsId of Object.keys(gitHubWorkspaceConfigs)) {
+      if (gitHubWorkspaceConfigs[wsId].configured) {
+        onRefreshWorkspace(wsId);
+      }
+    }
+  }, [gitHubWorkspaceConfigs, onRefreshWorkspace]);
 
-  const navItems = getNavItems(activeGitHubSection, snapshot);
+  const sectionCallbacks: SectionCallbacks = useMemo(
+    () => ({
+      onSelectWorkspace: (workspaceId) => {
+        setSelectedGitHubTreePath(`github-workspace:${workspaceId}`);
+        setActiveCiWorkspaceId(workspaceId);
+        setActiveWorkspaceSection('overview');
+        setShowHelp(false);
+      },
+      onSelectSection: (workspaceId, section) => {
+        setSelectedGitHubTreePath(`github-workspace:${workspaceId}:${section}`);
+        setActiveCiWorkspaceId(workspaceId);
+        setActiveWorkspaceSection(section);
+        setShowHelp(false);
+      },
+      onDeleteWorkspaceConfig: (workspaceId) => {
+        onRemoveWorkspaceConfig(workspaceId);
+      },
+      onOpenSettings: (workspaceId) => {
+        setSettingsWorkspaceId(workspaceId);
+      },
+      onRefreshWorkspace: (workspaceId) => {
+        onRefreshWorkspace(workspaceId);
+        setActiveCiWorkspaceId(workspaceId);
+      },
+    }),
+    [
+      setSelectedGitHubTreePath,
+      setActiveCiWorkspaceId,
+      setActiveWorkspaceSection,
+      onRemoveWorkspaceConfig,
+      onRefreshWorkspace,
+    ]
+  );
+
+  const settingsConfig = settingsWorkspaceId ? gitHubWorkspaceConfigs[settingsWorkspaceId] : null;
+  const settingsInitialOwner = settingsConfig?.owner ?? '';
+  const settingsInitialRepo = settingsConfig?.repo ?? '';
+  const settingsInitialBranch = settingsConfig?.branch ?? 'main';
+
+  const handleSettingsSave = useCallback(
+    (owner: string, repo: string, branch: string, token: string) => {
+      if (settingsWorkspaceId) {
+        onSaveWorkspaceConfig(settingsWorkspaceId, owner, repo, branch, token);
+        setSettingsWorkspaceId(null);
+      }
+    },
+    [settingsWorkspaceId, onSaveWorkspaceConfig]
+  );
+
+  const handleSettingsCancel = useCallback(() => {
+    setSettingsWorkspaceId(null);
+  }, []);
 
   const renderPrimary = () => {
-    switch (activeGitHubSection) {
+    if (showHelp) {
+      return <HelpView copy={copy} />;
+    }
+
+    if (activeWorkspaceSection === 'help') {
+      return <HelpView copy={copy} />;
+    }
+
+    if (!activeCiWorkspaceId || !activeConfig) {
+      return (
+        <div className="adl-github__empty">
+          <p>请选择一个工作区查看 CI 状态</p>
+        </div>
+      );
+    }
+
+    switch (activeWorkspaceSection) {
       case 'overview':
         return (
           <OverviewView
-            snapshot={snapshot}
+            snapshot={ciSnapshot}
             loading={loading}
-            branch={config.branch}
+            branch={activeConfig.branch}
             copy={copy}
             onViewLogs={handleViewLogs}
           />
         );
       case 'workflows':
-        return <WorkflowsView snapshot={snapshot} />;
+        return <WorkflowsView snapshot={ciSnapshot} />;
       case 'jobs':
-        return <JobsView snapshot={snapshot} onViewLogs={handleViewLogs} />;
-      case 'settings':
+        return <JobsView snapshot={ciSnapshot} onViewLogs={handleViewLogs} />;
+      case 'logs':
         return (
-          <SettingsView
-            accessToken={accessToken}
-            error={error}
-            ownerInput={ownerInput}
-            repoInput={repoInput}
-            branchInput={branchInput}
-            tokenInput={tokenInput}
-            tokenVisible={tokenVisible}
-            copy={copy}
-            onOwnerChange={setOwnerInput}
-            onRepoChange={setRepoInput}
-            onBranchChange={setBranchInput}
-            onTokenChange={setTokenInput}
-            onToggleToken={() => setTokenVisible((v) => !v)}
-            onApply={handleApply}
-            onClearToken={onClearToken}
+          <GitHubLogViewer
+            snapshot={ciSnapshot}
+            config={{
+              owner: activeConfig.owner,
+              repo: activeConfig.repo,
+              branch: activeConfig.branch,
+            }}
           />
         );
-      case 'help':
-        return <HelpView copy={copy} />;
-      case 'logs':
-        return <GitHubLogViewer snapshot={snapshot} config={config} />;
     }
   };
 
   return (
-    <div className="adl-communicate__surface">
-      <div className="adl-communicate__navigator">
-        <div className="adl-communicate__nav-buttons">
-          {sections.map((sec) => (
-            <button
-              key={sec.id}
-              type="button"
-              className={`adl-communicate__nav-btn${activeGitHubSection === sec.id ? ' is-active' : ''}`}
-              onClick={() => setActiveGitHubSection(sec.id)}
-            >
-              <span>{sec.icon}</span>
-              <span>{sec.label}</span>
-            </button>
-          ))}
-        </div>
-
-        <div className="adl-communicate__nav-content">
-          <div className="adl-github__nav-list">
-            {navItems.map((item, i) => (
-              <div key={i} className="adl-github__nav-item">
-                {item}
-              </div>
-            ))}
+    <>
+      <div
+        className={`adl-tool-surface adl-tool-surface--github${communicateNavigatorCollapsed ? ' is-navigator-collapsed' : ''}`}
+        style={{ '--adl-files-nav-width': '200px' } as React.CSSProperties}
+      >
+        <aside className="adl-tool-navigator" aria-label="GitHub CI">
+          <div className="adl-tool-navigator__context">
+            <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--actions">
+              <TooltipSimple
+                content={gitHubAllTreeExpanded ? '全部折叠' : '全部展开'}
+                placement="top"
+              >
+                <button
+                  type="button"
+                  className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
+                  onClick={gitHubAllTreeExpanded ? collapseAllGitHubTree : expandAllGitHubTree}
+                  aria-label={gitHubAllTreeExpanded ? '全部折叠' : '全部展开'}
+                >
+                  {gitHubAllTreeExpanded ? (
+                    <IconFoldVertical size={14} decorative />
+                  ) : (
+                    <IconUnfoldVertical size={14} decorative />
+                  )}
+                </button>
+              </TooltipSimple>
+              <span className="adl-tool-navigator__context-title">
+                {gitHubViewMode === 'tree' ? '文件树' : '目录列表'}
+              </span>
+            </div>
+            <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--utility">
+              <span className="adl-tool-navigator__context-count">{visibleWorkspaces.length}</span>
+              <TooltipSimple content="刷新全部" placement="top">
+                <button
+                  type="button"
+                  className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
+                  onClick={handleRefreshAll}
+                  aria-label="刷新全部"
+                >
+                  <IconRefreshCw size={14} decorative />
+                </button>
+              </TooltipSimple>
+            </div>
           </div>
+          <div className="adl-tool-navigator__context adl-tool-navigator__context--secondary">
+            <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--actions">
+              <TooltipSimple content="文件树" placement="top">
+                <button
+                  type="button"
+                  className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${gitHubViewMode === 'tree' ? ' is-active' : ''}`}
+                  onClick={() => setGitHubViewMode('tree')}
+                  aria-label="文件树"
+                  aria-pressed={gitHubViewMode === 'tree'}
+                >
+                  <IconFiles size={14} decorative />
+                </button>
+              </TooltipSimple>
+              <TooltipSimple content="目录列表" placement="top">
+                <button
+                  type="button"
+                  className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${gitHubViewMode === 'list' ? ' is-active' : ''}`}
+                  onClick={() => setGitHubViewMode('list')}
+                  aria-label="目录列表"
+                  aria-pressed={gitHubViewMode === 'list'}
+                >
+                  <IconList size={14} decorative />
+                </button>
+              </TooltipSimple>
+            </div>
+            <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--utility">
+              <TooltipSimple content="新建目录" placement="top">
+                <button
+                  type="button"
+                  className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
+                  onClick={handleCreateFolder}
+                  aria-label="新建目录"
+                >
+                  <IconFolderPlus size={14} decorative />
+                </button>
+              </TooltipSimple>
+              <TooltipSimple content="删除全部目录CI配置及数据" placement="top">
+                <button
+                  type="button"
+                  className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
+                  onClick={handleClearAll}
+                  aria-label="删除全部目录CI配置及数据"
+                >
+                  <IconTrash size={14} decorative />
+                </button>
+              </TooltipSimple>
+              <TooltipSimple content="Help" placement="top">
+                <button
+                  type="button"
+                  className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
+                  onClick={() => setShowHelp(true)}
+                  aria-label="Help"
+                >
+                  <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
+                    <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zM7 5.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 0 1h-.5v2h.5a.5.5 0 0 1 0 1H7a.5.5 0 0 1-.5-.5v-2.5a.5.5 0 0 1 .5-.5zm1 5a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1z" />
+                  </svg>
+                </button>
+              </TooltipSimple>
+            </div>
+          </div>
+          <GitHubTree
+            workspaces={workspaces}
+            gitHubWorkspaceConfigs={gitHubWorkspaceConfigs}
+            gitHubCiFolders={gitHubCiFolders}
+            gitHubTreeExpanded={gitHubTreeExpanded}
+            selectedTreePath={selectedGitHubTreePath}
+            onSelectTreePath={handleSelectTreePath}
+            onTogglePath={handleTogglePath}
+            callbacks={sectionCallbacks}
+            labels={{
+              ciWorkspaceCategory: '工作区目录',
+              userFolderCategory: '非工作区目录',
+            }}
+            gitHubViewMode={gitHubViewMode}
+          />
+        </aside>
+
+        <div className="adl-tool-primary adl-tool-primary--github">
+          <div className="adl-tool-primary__scroll">{renderPrimary()}</div>
         </div>
       </div>
 
-      <div className="adl-communicate__primary">
-        <div className="adl-communicate__primary-scroll">{renderPrimary()}</div>
-      </div>
-    </div>
+      {settingsWorkspaceId && (
+        <GitHubSettingsDialog
+          open={settingsWorkspaceId !== null}
+          workspaceName={
+            workspaces.find((w) => w.id === settingsWorkspaceId)?.name ?? settingsWorkspaceId
+          }
+          initialOwner={settingsInitialOwner}
+          initialRepo={settingsInitialRepo}
+          initialBranch={settingsInitialBranch}
+          error={ciError}
+          copy={copy}
+          onSave={handleSettingsSave}
+          onCancel={handleSettingsCancel}
+        />
+      )}
+    </>
   );
 }

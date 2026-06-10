@@ -1101,6 +1101,15 @@
   padding: 8px 8px 8px 28px;
 }
 
+.adl-github-entry__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
 /* ===== Tree Node Hover Actions ===== */
 
 .adl-browser-node__actions {
@@ -1119,14 +1128,12 @@
 
 .adl-browser-entry__tree .adl-filetree__meta.adl-tree-node__meta--inline {
   position: absolute;
-  right: 0;
-  top: 0;
-  bottom: 0;
+  right: var(--space-2);
+  top: 50%;
+  transform: translateY(-50%);
   display: flex;
   align-items: center;
-  justify-content: flex-end;
   gap: 2px;
-  padding: 0 8px;
   background: var(--bg-occlusion);
   z-index: 2;
   opacity: 0;
