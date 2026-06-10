@@ -331,21 +331,15 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
     [handleStartRename]
   );
 
-  const handleChildMenuClick = useCallback(
-    (action: () => void) => {
-      action();
-      setChildMenuState(null);
-    },
-    []
-  );
+  const handleChildMenuClick = useCallback((action: () => void) => {
+    action();
+    setChildMenuState(null);
+  }, []);
 
-  const handleMenuClick = useCallback(
-    (action: () => void) => {
-      action();
-      setMenuOpen(false);
-    },
-    []
-  );
+  const handleMenuClick = useCallback((action: () => void) => {
+    action();
+    setMenuOpen(false);
+  }, []);
 
   return (
     <div className="adl-browser-entry">

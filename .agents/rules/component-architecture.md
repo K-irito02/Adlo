@@ -44,6 +44,34 @@ features/{domain}/
 - 结合 `React.memo` 避免同时挂载所有面板
 - 每个面板通过独立 hook 从 Store 选择所需字段，禁止透传大 props 对象
 
+## 虚拟化与列表性能
+
+### 列表项数量阈值
+- N < 50：普通渲染（无需优化）
+- 50 ≤ N < 500：`React.memo` + `useCallback`
+- N ≥ 500：虚拟化（`useVirtualList` 或同等方案）
+
+### useVirtualList 规范
+- 容器引用使用 `useRef<HTMLDivElement>`
+- 初始渲染使用完整列表（SSR/测试环境 `viewportHeight === 0` 时）
+- itemHeight 使用固定值（推荐 28px），禁止动态高度
+- 滚动监听使用 `requestAnimationFrame` 节流
+- `ResizeObserver` 监听容器尺寸变化
+
+### React.memo 使用规则
+- 列表项组件（行组件）默认包裹 `React.memo`
+- props 仅包含原语或稳定引用（避免内联对象/函数）
+- 事件处理函数使用 `useCallback` 包装并依赖稳定值
+- 字符串 key 必须稳定（使用 id 而非数组索引）
+- 禁止对非列表项过度包裹（增加比较开销）
+
+### 子 Hook 拆分示例
+```
+useBrowserPanel.ts → useBrowserNavigation.ts + useBrowserUrlState.ts + useBrowserMenus.ts
+              └─→ useBrowserDragDrop.ts + useBrowserContextMenu.ts
+```
+拆分边界：每个 hook 处理一个关注点（导航、URL、菜单、拖拽、上下文菜单）
+
 ## 禁止项
 - 禁止单文件包含多个不相关的组件（除非是简单的子组件）
 - 禁止在 `App.tsx` 或根布局组件中内联业务逻辑（必须提取到 hook）

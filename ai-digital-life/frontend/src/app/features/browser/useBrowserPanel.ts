@@ -282,8 +282,8 @@ export function useBrowserPanel(
       browserDeleteAllTabsInNode: state.browserDeleteAllTabsInNode,
       browserDeleteTabFolder: state.browserDeleteTabFolder,
       browserDeleteHistoryByLevel: state.browserDeleteHistoryByLevel,
-    })
-  ));
+    }))
+  );
 
   const editInputRef = useRef<HTMLInputElement | null>(null);
   const browserMenuRef = useRef<HTMLDivElement | null>(null);

@@ -175,7 +175,11 @@ export const BrowserToolbar = React.memo(function BrowserToolbar(props: BrowserT
             aria-label={isBookmarked ? '取消收藏' : '收藏标签'}
             onClick={onToggleBookmark}
           >
-            {isBookmarked ? <IconStarFilled size={14} decorative /> : <IconStar size={14} decorative />}
+            {isBookmarked ? (
+              <IconStarFilled size={14} decorative />
+            ) : (
+              <IconStar size={14} decorative />
+            )}
           </button>
         </TooltipSimple>
         <BrowserMenuDropdown

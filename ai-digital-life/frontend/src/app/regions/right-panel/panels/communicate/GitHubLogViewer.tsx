@@ -22,15 +22,16 @@ export function GitHubLogViewer({ snapshot, config }: GitHubLogViewerProps) {
   const cachedJobLogs = useAppStore(useShallow((s) => s.cachedJobLogs));
   const logLoading = useAppStore((s) => s.logLoading);
   const logError = useAppStore((s) => s.logError);
-  const { setSelectedLogJobId, setCachedJobLogs, setLogLoading, setLogError, ciAccessToken } = useAppStore(
-    useShallow((s) => ({
-      setSelectedLogJobId: s.setSelectedLogJobId,
-      setCachedJobLogs: s.setCachedJobLogs,
-      setLogLoading: s.setLogLoading,
-      setLogError: s.setLogError,
-      ciAccessToken: s.ciAccessToken,
-    }))
-  );
+  const { setSelectedLogJobId, setCachedJobLogs, setLogLoading, setLogError, ciAccessToken } =
+    useAppStore(
+      useShallow((s) => ({
+        setSelectedLogJobId: s.setSelectedLogJobId,
+        setCachedJobLogs: s.setCachedJobLogs,
+        setLogLoading: s.setLogLoading,
+        setLogError: s.setLogError,
+        ciAccessToken: s.ciAccessToken,
+      }))
+    );
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchMatchIndex, setSearchMatchIndex] = useState(0);

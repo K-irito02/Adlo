@@ -118,15 +118,19 @@ export function useTerminalPanel(props: TerminalPanelProps): UseTerminalPanelRet
   const defaultTerminalProfile = terminalSelectors.useDefaultTerminalProfile();
   const terminalNavigatorWidth = terminalSelectors.useTerminalNavigatorWidth();
 
-  const { terminalUpdateTab, terminalReorderTabs, setTerminalNavigatorWidth, toggleTerminalNavigator } =
-    useAppStore(
-      useShallow((state) => ({
-        terminalUpdateTab: state.terminalUpdateTab,
-        terminalReorderTabs: state.terminalReorderTabs,
-        setTerminalNavigatorWidth: state.setTerminalNavigatorWidth,
-        toggleTerminalNavigator: state.toggleTerminalNavigator,
-      }))
-    );
+  const {
+    terminalUpdateTab,
+    terminalReorderTabs,
+    setTerminalNavigatorWidth,
+    toggleTerminalNavigator,
+  } = useAppStore(
+    useShallow((state) => ({
+      terminalUpdateTab: state.terminalUpdateTab,
+      terminalReorderTabs: state.terminalReorderTabs,
+      setTerminalNavigatorWidth: state.setTerminalNavigatorWidth,
+      toggleTerminalNavigator: state.toggleTerminalNavigator,
+    }))
+  );
 
   const editInputRef = useRef<HTMLInputElement | null>(null);
 

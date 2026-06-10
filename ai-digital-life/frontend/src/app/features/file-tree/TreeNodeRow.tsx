@@ -75,12 +75,14 @@ export function TreeNodeRow({
       className={`adl-tree-node${isActive ? ' is-selected' : ''}${isHovered ? ' is-hovered' : ''}${isContextMenuTarget ? ' is-context-menu-target' : ''}${itemClassName ? ` ${itemClassName}` : ''}`}
       data-depth={depth}
       data-path={nodePath}
-      style={{
-        '--adl-filetree-hover-offset': `${Math.max(4, rowOffset)}px`,
-        '--adl-tree-row-offset': `${Math.max(4, rowOffset)}px`,
-        '--adl-outline-row-offset': `${Math.max(4, rowOffset)}px`,
-        ...style,
-      } as React.CSSProperties}
+      style={
+        {
+          '--adl-filetree-hover-offset': `${Math.max(4, rowOffset)}px`,
+          '--adl-tree-row-offset': `${Math.max(4, rowOffset)}px`,
+          '--adl-outline-row-offset': `${Math.max(4, rowOffset)}px`,
+          ...style,
+        } as React.CSSProperties
+      }
       role="treeitem"
       aria-expanded={hasChildren ? (isExpanded ? 'true' : 'false') : undefined}
     >

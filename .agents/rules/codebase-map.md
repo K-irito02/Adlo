@@ -82,7 +82,7 @@ app/stores/
 ├── conversationUtils.ts         # 会话工具函数
 ├── index.ts                     # 模块索引
 │
-├── slices/                      # 11 个 Zustand 切片
+├── slices/                      # 13 个 Zustand 切片
 │   ├── uiSlice.ts               # UI 状态（侧边栏、工具栏）
 │   ├── workspaceSlice.ts        # 工作区状态
 │   ├── gitSlice.ts              # Git 状态
@@ -93,7 +93,9 @@ app/stores/
 │   ├── diagnosticSlice.ts       # 诊断状态
 │   ├── taskSlice.ts             # 任务状态
 │   ├── commandSlice.ts          # 命令状态
-│   └── clipboardSlice.ts        # 剪贴板状态
+│   ├── clipboardSlice.ts        # 剪贴板状态
+│   ├── browserSlice.ts          # 浏览器标签管理
+│   └── communicateSlice.ts      # 通信面板（GitHub CI / 飞书 / QQ / 微信 / 邮箱）
 │
 ├── actions/                     # 9 个跨切片 action 模块
 │   ├── workspaceActions.ts      # 工作区操作

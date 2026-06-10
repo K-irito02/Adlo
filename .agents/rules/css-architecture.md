@@ -32,6 +32,31 @@ alwaysApply: false
 - 动画和过渡仅使用 `transform` 和 `opacity`，避免触发 layout/paint（使用 `will-change` 提示浏览器）
 - 禁止使用 `*` 选择器或深度嵌套选择器（>3 层）
 
+## 虚拟化列表的 CSS 要求
+
+### 虚拟列表容器
+```css
+.adl-filetree-scroll {
+  position: relative;
+  overflow-y: auto;
+  height: 100%;
+}
+
+.adl-filetree-scrollbar {
+  /* 自定义滚动条叠加在内容上，不占布局空间 */
+}
+```
+
+### 行高一致性
+- 虚拟化列表的所有行必须使用固定高度
+- 默认行高：28px（与 `useVirtualList` 的 `itemHeight` 参数一致）
+- 禁止使用 `padding-top`/`padding-bottom` 变化导致行高不一致
+
+### content-visibility 使用限制
+- 50-200 项：`content-visibility: auto` 足够
+- 200+ 项：必须使用虚拟化替代
+- content-visibility 在某些浏览器下存在渲染 bug，优先使用虚拟列表
+
 ## 禁止项
 - 禁止使用 `!important`（除非覆盖第三方库样式）
 - 禁止硬编码颜色值（hex、rgb、hsl 等）

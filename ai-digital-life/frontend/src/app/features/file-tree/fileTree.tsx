@@ -1,4 +1,12 @@
-import React, { memo, useCallback, useEffect, useRef, useState, useMemo, type RefObject } from 'react';
+import React, {
+  memo,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useMemo,
+  type RefObject,
+} from 'react';
 import { IconAlertTriangle, IconCircle } from '../../icons';
 import { getFileTreeVisualSpec } from './fileTreeVisuals';
 import { CustomScrollArea } from './CustomScrollArea';

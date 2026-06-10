@@ -31,6 +31,53 @@ alwaysApply: false
 - slice 接口和创建函数分别导出：`export interface XxxSlice { ... }` + `export function createXxxSlice(...)`
 - 新增 slice 必须在 `StoreState.ts` 中注册
 
+## 选择器反模式检查表
+
+### 错误示例（必须避免）
+```tsx
+// ❌ 全量订阅（最大粒度）
+const state = useAppStore();
+
+// ❌ 每次渲染创建新对象（无 useShallow）
+const { tabs, activeTabId } = useAppStore((s) => ({
+  tabs: s.browserTabs,
+  activeTabId: s.browserActiveTabId,
+}));
+
+// ❌ 跨切片大对象选择器
+const props = useAppStore((s) => ({
+  a: s.a,
+  b: s.b,
+  c: s.c,
+  d: s.d,
+  // ... 10+ 字段
+}));
+```
+
+### 正确示例（推荐模式）
+```tsx
+// ✅ 单一字段（无需 useShallow）
+const browserTabs = useAppStore((s) => s.browserTabs);
+
+// ✅ 多字段（必须 useShallow）
+const { browserTabs, browserActiveTabId } = useAppStore(
+  useShallow((s) => ({
+    browserTabs: s.browserTabs,
+    browserActiveTabId: s.browserActiveTabId,
+  }))
+);
+
+// ✅ 非响应式读取（回调中）
+const profile = useAppStore.getState().defaultTerminalProfile;
+```
+
+### 选择器优化审查清单（每次修改组件后）
+- [ ] 是否存在 `useAppStore()` 无参调用？
+- [ ] 对象/数组选择器是否使用了 `useShallow`？
+- [ ] 是否选择了不必要的 slice 级别字段？
+- [ ] 回调闭包内是否应改用 `getState()`？
+- [ ] 频繁更新的字段（如 `isFetching`）是否与低频字段分离？
+
 ## 禁止项
 - 禁止 `set: any` 类型
 - 禁止在组件渲染路径中直接调用 `localStorage.setItem()`

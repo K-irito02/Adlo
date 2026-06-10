@@ -54,6 +54,33 @@ alwaysApply: false
 - 至少记录 `console.warn` 输出所有 rejection reason
 - 可恢复的批量刷新失败不阻塞 UI，但需有日志可追踪
 
+## IPC 桥接层契约一致性
+
+### 三端对齐原则
+- Tauri bridge：真实实现（`invoke()`）
+- Mock bridge：开发/测试模拟（`mock-bridge.ts`）
+- Preview bridge：浏览器预览模式（`preview-bridge/index.ts`）
+
+### 一致性检查清单（新增/修改 IPC 方法后）
+- [ ] 接口定义在 `shared/ipc.ts` 更新
+- [ ] 三个桥接层同步实现
+- [ ] 返回类型统一为 `IpcResult<T>`
+- [ ] 错误类型使用 `AppError` 而非裸 `string`
+- [ ] 添加 JSDoc 注释说明功能、参数、返回值
+- [ ] 对应测试文件中 mock 同步更新
+
+### 方法签名对齐示例
+```ts
+// 接口定义（shared/ipc.ts）
+interface WorkspaceBridge {
+  reorder(input: ReorderWorkspacesInput): Promise<IpcResult<WorkspaceSummary[]>>;
+}
+
+// 三个实现都必须使用相同参数类型
+// 不允许：reorder(input: { pinnedIds: string[]; unpinnedIds: string[] })
+// 必须使用：reorder(input: ReorderWorkspacesInput)
+```
+
 ## 禁止项
 - 禁止 `try { ... } catch {}` 空 catch 块
 - 禁止 `if (!result.ok) return;` 无错误记录

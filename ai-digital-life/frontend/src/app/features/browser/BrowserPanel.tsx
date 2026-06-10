@@ -116,6 +116,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
     }))
   );
   const recentWorkspaces = useAppStore(useShallow((state) => state.recentWorkspaces));
+  const browserHistory = useAppStore(useShallow((state) => state.browserHistory));
 
   const [renameFolderState, setRenameFolderState] = useState<{
     open: boolean;
@@ -498,7 +499,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
               workspaces={visibleWorkspaces}
               browserTabs={browserTabs}
               browserTabFolders={browserTabFolders}
-              browserHistory={useAppStore(useShallow((state) => state.browserHistory))}
+              browserHistory={browserHistory}
               tabTreeExpanded={tabTreeExpanded}
               selectedTreePath={selectedTreePath}
               onSelectTreePath={handleSelectTreePath}
