@@ -14,8 +14,13 @@ function readDiffSideBySidePreference(): boolean {
 }
 
 export function useRightPanelViewProps() {
-  const activeRightTool = useAppStore((state) => state.activeRightTool);
-  const setActiveRightTool = useAppStore((state) => state.setActiveRightTool);
+  const { activeRightTool, setActiveRightTool, ciSnapshot } = useAppStore(
+    useShallow((state) => ({
+      activeRightTool: state.activeRightTool,
+      setActiveRightTool: state.setActiveRightTool,
+      ciSnapshot: state.ciSnapshot,
+    }))
+  );
   const browserTabs = useAppStore(useShallow((state) => state.browserTabs));
   const terminalTabs = useAppStore(useShallow((state) => state.terminalTabs));
   const dirtyEditorPaths = useAppStore(useShallow((s) => s.dirtyEditorPaths));
@@ -33,8 +38,6 @@ export function useRightPanelViewProps() {
       /* ignore */
     }
   }, []);
-
-  const ciSnapshot = useAppStore((state) => state.ciSnapshot);
 
   const communicateBadge = useMemo(() => {
     if (!ciSnapshot?.latestRun) return 0;

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useAppStore } from '../../stores/slicedStore';
+import { useShallow } from 'zustand/react/shallow';
 import type { TerminalProfile } from '../../stores/types';
 import type { XtermTerminalHandle } from '../../components/terminal/XtermTerminal';
 
@@ -14,13 +15,25 @@ export function useTerminalPtyLifecycle({ activeTab, rootPath }: PtyLifecyclePar
   const xtermRef = useRef<XtermTerminalHandle | null>(null);
   const sessionOutputsRef = useRef<Map<string, string>>(new Map());
 
-  const terminalCreateTab = useAppStore((state) => state.terminalCreateTab);
-  const terminalSelectTab = useAppStore((state) => state.terminalSelectTab);
-  const terminalCloseTab = useAppStore((state) => state.terminalCloseTab);
-  const terminalUpdateActiveTab = useAppStore((state) => state.terminalUpdateActiveTab);
-  const terminalCloseAllTabs = useAppStore((state) => state.terminalCloseAllTabs);
-  const recentWorkspaces = useAppStore((state) => state.recentWorkspaces);
-  const activeRightTool = useAppStore((state) => state.activeRightTool);
+  const {
+    terminalCreateTab,
+    terminalSelectTab,
+    terminalCloseTab,
+    terminalUpdateActiveTab,
+    terminalCloseAllTabs,
+    recentWorkspaces,
+    activeRightTool,
+  } = useAppStore(
+    useShallow((state) => ({
+      terminalCreateTab: state.terminalCreateTab,
+      terminalSelectTab: state.terminalSelectTab,
+      terminalCloseTab: state.terminalCloseTab,
+      terminalUpdateActiveTab: state.terminalUpdateActiveTab,
+      terminalCloseAllTabs: state.terminalCloseAllTabs,
+      recentWorkspaces: state.recentWorkspaces,
+      activeRightTool: state.activeRightTool,
+    }))
+  );
 
   const handleXtermData = useCallback(
     (data: string) => {

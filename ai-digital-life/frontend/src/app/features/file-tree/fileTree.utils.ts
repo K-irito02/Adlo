@@ -63,3 +63,25 @@ export function collectDirectoryPaths<T extends FileTreeRenderableNode>(nodes: T
   visit(nodes);
   return paths;
 }
+
+export interface FlattenedTreeNode<T extends FileTreeRenderableNode> {
+  node: T;
+  depth: number;
+}
+
+export function flattenVisibleNodes<T extends FileTreeRenderableNode>(
+  nodes: T[],
+  expandedPaths: Record<string, boolean>
+): FlattenedTreeNode<T>[] {
+  const result: FlattenedTreeNode<T>[] = [];
+  const visit = (items: T[], depth: number) => {
+    for (const item of items) {
+      result.push({ node: item, depth });
+      if (item.kind === 'directory' && expandedPaths[item.path] && item.children.length > 0) {
+        visit(item.children as T[], depth + 1);
+      }
+    }
+  };
+  visit(nodes, 0);
+  return result;
+}

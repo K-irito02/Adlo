@@ -26,7 +26,7 @@ export function useChangesPanelProps(
   } = panelProps;
 
   const actions = useAppActions();
-  const appInfo = useAppStore((s) => s.appInfo);
+  const appInfo = useAppStore(useShallow((s) => s.appInfo));
   const activePatchSet = useAppStore(useShallow((s) => s.activePatchSet));
   const latestPatchApplication = useAppStore(useShallow((s) => s.latestPatchApplication));
   const selectedChangePreviewPath = useAppStore((s) => s.selectedChangePreviewPath);

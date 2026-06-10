@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo } from 'react';
 import { useAppStore } from '../../stores/slicedStore';
+import { useShallow } from 'zustand/react/shallow';
 import {
   IconFiles,
   IconFileCode,
@@ -22,14 +23,27 @@ import { MultiWorkspaceTerminal } from '../workspace-terminal';
 export function TerminalPanel(props: TerminalPanelProps) {
   const { t, latestCommandRun } = props;
 
-  const setActiveRightTool = useAppStore((state) => state.setActiveRightTool);
-  const recentWorkspaces = useAppStore((s) => s.recentWorkspaces);
-  const terminalWorkspaceExpanded = useAppStore((s) => s.terminalWorkspaceExpanded);
-  const setTerminalWorkspaceExpanded = useAppStore((s) => s.setTerminalWorkspaceExpanded);
-  const terminalSelectTab = useAppStore((s) => s.terminalSelectTab);
-  const terminalCloseTab = useAppStore((s) => s.terminalCloseTab);
-  const terminalTogglePin = useAppStore((s) => s.terminalTogglePin);
-  const hideWorkspaceFromRightPanels = useAppStore((s) => s.hideWorkspaceFromRightPanels);
+  const {
+    setActiveRightTool,
+    recentWorkspaces,
+    terminalWorkspaceExpanded,
+    setTerminalWorkspaceExpanded,
+    terminalSelectTab,
+    terminalCloseTab,
+    terminalTogglePin,
+    hideWorkspaceFromRightPanels,
+  } = useAppStore(
+    useShallow((s) => ({
+      setActiveRightTool: s.setActiveRightTool,
+      recentWorkspaces: s.recentWorkspaces,
+      terminalWorkspaceExpanded: s.terminalWorkspaceExpanded,
+      setTerminalWorkspaceExpanded: s.setTerminalWorkspaceExpanded,
+      terminalSelectTab: s.terminalSelectTab,
+      terminalCloseTab: s.terminalCloseTab,
+      terminalTogglePin: s.terminalTogglePin,
+      hideWorkspaceFromRightPanels: s.hideWorkspaceFromRightPanels,
+    }))
+  );
 
   const { terminalState, terminalActions } = useTerminalPanel(props);
   const {

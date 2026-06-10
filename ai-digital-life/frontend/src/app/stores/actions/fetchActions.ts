@@ -11,6 +11,13 @@ function startFetch(get: () => StoreState, key: string): boolean {
 
 export function createFetchActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
   return {
+    /**
+     * [fetchIndexStatus - 获取文件索引状态]
+     * @writes diagnosticSlice.indexingStatus
+     * @see shared/ipc.ts → retrieval.getStatus
+     * @see mock-bridge.ts → retrieval.getStatus
+     * @see preview-bridge/index.ts → retrieval.getStatus
+     */
     fetchIndexStatus: async () => {
       const key = 'fetchIndexStatus';
       if (!startFetch(get, key)) return;
@@ -42,6 +49,13 @@ export function createFetchActions(set: StoreApi<StoreState>['setState'], get: (
       }
     },
 
+    /**
+     * [fetchRepoMap - 获取代码仓库结构图]
+     * @writes diagnosticSlice.repoMap
+     * @see shared/ipc.ts → retrieval.getRepoMap
+     * @see mock-bridge.ts → retrieval.getRepoMap
+     * @see preview-bridge/index.ts → retrieval.getRepoMap
+     */
     fetchRepoMap: async () => {
       const key = 'fetchRepoMap';
       if (!startFetch(get, key)) return;
@@ -58,6 +72,14 @@ export function createFetchActions(set: StoreApi<StoreState>['setState'], get: (
       }
     },
 
+    /**
+     * [fetchAuditEntries - 获取审计日志条目，用于构建运行活动时间线]
+     * @reads store.runActivityByRunId, store._runLastAccessTime, store.streamingActiveRunId
+     * @writes store.auditEntries, store.runActivityByRunId, store._runLastAccessTime
+     * @see shared/ipc.ts → task.listAuditEntries
+     * @see mock-bridge.ts → task.listAuditEntries
+     * @see preview-bridge/index.ts → task.listAuditEntries
+     */
     fetchAuditEntries: async (limit?: number) => {
       const key = 'fetchAuditEntries';
       if (!startFetch(get, key)) return;
@@ -141,6 +163,14 @@ export function createFetchActions(set: StoreApi<StoreState>['setState'], get: (
       }
     },
 
+    /**
+     * [fetchRunActivityByRunId - 按运行 ID 获取运行活动日志]
+     * @reads store.runActivityByRunId
+     * @writes store.runActivityByRunId (通过 setRunActivity)
+     * @see shared/ipc.ts → runActivity.listByRunId
+     * @see mock-bridge.ts → runActivity.listByRunId
+     * @see preview-bridge/index.ts → runActivity.listByRunId
+     */
     fetchRunActivityByRunId: async (runId: string, limit?: number) => {
       const key = 'fetchRunActivityByRunId';
       const existing = get().runActivityByRunId[runId];
@@ -159,6 +189,13 @@ export function createFetchActions(set: StoreApi<StoreState>['setState'], get: (
       }
     },
 
+    /**
+     * [fetchCommandHistory - 获取命令执行历史]
+     * @writes commandSlice.commandHistory
+     * @see shared/ipc.ts → command.listRecent
+     * @see mock-bridge.ts → command.listRecent
+     * @see preview-bridge/index.ts → command.listRecent
+     */
     fetchCommandHistory: async () => {
       const key = 'fetchCommandHistory';
       if (!startFetch(get, key)) return;
@@ -179,6 +216,13 @@ export function createFetchActions(set: StoreApi<StoreState>['setState'], get: (
       }
     },
 
+    /**
+     * [refreshTaskCenter - 刷新任务中心状态]
+     * @writes taskSlice.taskCenter
+     * @see shared/ipc.ts → task.getSnapshot
+     * @see mock-bridge.ts → task.getSnapshot
+     * @see preview-bridge/index.ts → task.getSnapshot
+     */
     refreshTaskCenter: async () => {
       const key = 'refreshTaskCenter';
       if (!startFetch(get, key)) return;
@@ -195,6 +239,13 @@ export function createFetchActions(set: StoreApi<StoreState>['setState'], get: (
       }
     },
 
+    /**
+     * [refreshModelHealth - 刷新模型健康状态]
+     * @writes store.modelHealth
+     * @see shared/ipc.ts → app.getModelHealth
+     * @see mock-bridge.ts → app.getModelHealth
+     * @see preview-bridge/index.ts → app.getModelHealth
+     */
     refreshModelHealth: async () => {
       const key = 'refreshModelHealth';
       if (!startFetch(get, key)) return;

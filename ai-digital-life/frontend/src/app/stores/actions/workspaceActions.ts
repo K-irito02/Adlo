@@ -65,6 +65,15 @@ export function createWorkspaceActions(
   get: () => StoreState
 ) {
   return {
+    /**
+     * [renameWorkspaceFile - 重命名工作区中的文件]
+     * @reads editorSlice.selectedFilePath
+     * @writes workspaceSlice.workspaceTrees (通过 refreshWorkspaceTree)
+     * @writes editorSlice.selectedFilePath, editorSlice.fileContent, editorSlice.openTabs (通过 openFile)
+     * @see shared/ipc.ts → workspace.renameFile
+     * @see mock-bridge.ts → workspace.renameFile
+     * @see preview-bridge/index.ts → workspace.renameFile
+     */
     renameWorkspaceFile: async (relativePath: string, newName: string) => {
       clearError(get);
       const result = await window.digitalLife.workspace.renameFile(relativePath, newName);
@@ -84,6 +93,15 @@ export function createWorkspaceActions(
       }
     },
 
+    /**
+     * [deleteWorkspaceFile - 删除工作区中的文件]
+     * @reads editorSlice.selectedFilePath, editorSlice.openTabs
+     * @writes workspaceSlice.workspaceTrees (通过 refreshWorkspaceTree)
+     * @writes editorSlice.selectedFilePath, editorSlice.fileContent, editorSlice.openTabs
+     * @see shared/ipc.ts → workspace.deleteFile
+     * @see mock-bridge.ts → workspace.deleteFile
+     * @see preview-bridge/index.ts → workspace.deleteFile
+     */
     deleteWorkspaceFile: async (relativePath: string) => {
       clearError(get);
       const result = await window.digitalLife.workspace.deleteFile(relativePath);
@@ -102,6 +120,13 @@ export function createWorkspaceActions(
       }
     },
 
+    /**
+     * [moveWorkspaceFile - 移动工作区中的文件]
+     * @writes workspaceSlice.workspaceTrees (通过 refreshWorkspaceTree)
+     * @see shared/ipc.ts → workspace.moveFile
+     * @see mock-bridge.ts → workspace.moveFile
+     * @see preview-bridge/index.ts → workspace.moveFile
+     */
     moveWorkspaceFile: async (relativePath: string, newPath: string) => {
       clearError(get);
       const result = await window.digitalLife.workspace.moveFile(relativePath, newPath);
@@ -112,6 +137,13 @@ export function createWorkspaceActions(
       await get().refreshWorkspaceTree();
     },
 
+    /**
+     * [duplicateWorkspaceFile - 复制工作区中的文件]
+     * @writes workspaceSlice.workspaceTrees (通过 refreshWorkspaceTree)
+     * @see shared/ipc.ts → workspace.duplicateFile
+     * @see mock-bridge.ts → workspace.duplicateFile
+     * @see preview-bridge/index.ts → workspace.duplicateFile
+     */
     duplicateWorkspaceFile: async (srcRelativePath: string, dstRelativePath: string) => {
       clearError(get);
       const result = await window.digitalLife.workspace.duplicateFile(
@@ -125,6 +157,14 @@ export function createWorkspaceActions(
       await get().refreshWorkspaceTree();
     },
 
+    /**
+     * [openWorkspace - 打开指定路径的工作区]
+     * @reads workspaceSlice.appInfo
+     * @writes (通过 bootstrap) 完整的应用状态
+     * @see shared/ipc.ts → workspace.open
+     * @see mock-bridge.ts → workspace.open
+     * @see preview-bridge/index.ts → workspace.open
+     */
     openWorkspace: async (workspacePath: string) => {
       const requestSeq = getNextWorkspaceRequestSeq();
       clearWorkspaceCaches(getWorkspaceCachePrefix(get().appInfo));
@@ -143,6 +183,14 @@ export function createWorkspaceActions(
       return { ok: true };
     },
 
+    /**
+     * [clearWorkspaceContext - 清除当前工作区上下文]
+     * @reads workspaceSlice.appInfo
+     * @writes (通过 bootstrap) 完整的应用状态
+     * @see shared/ipc.ts → workspace.clearCurrent
+     * @see mock-bridge.ts → workspace.clearCurrent
+     * @see preview-bridge/index.ts → workspace.clearCurrent
+     */
     clearWorkspaceContext: async () => {
       const requestSeq = getNextWorkspaceRequestSeq();
       clearWorkspaceCaches(getWorkspaceCachePrefix(get().appInfo));
@@ -159,6 +207,14 @@ export function createWorkspaceActions(
       await get().bootstrap();
     },
 
+    /**
+     * [pickWorkspaceDirectory - 弹出目录选择器选择工作区目录]
+     * @reads — 无
+     * @writes — 无
+     * @see shared/ipc.ts → workspace.pickDirectory
+     * @see mock-bridge.ts → workspace.pickDirectory
+     * @see preview-bridge/index.ts → workspace.pickDirectory
+     */
     pickWorkspaceDirectory: async () => {
       clearError(get);
       const result = await window.digitalLife.workspace.pickDirectory();
@@ -169,6 +225,13 @@ export function createWorkspaceActions(
       return result.data?.trim() || undefined;
     },
 
+    /**
+     * [pinWorkspace - 置顶工作区]
+     * @writes workspaceSlice.recentWorkspaces
+     * @see shared/ipc.ts → workspace.pin
+     * @see mock-bridge.ts → workspace.pin
+     * @see preview-bridge/index.ts → workspace.pin
+     */
     pinWorkspace: async (workspaceId: string) => {
       clearError(get);
       const result = await window.digitalLife.workspace.pin(workspaceId);
@@ -179,6 +242,13 @@ export function createWorkspaceActions(
       set({ recentWorkspaces: result.data });
     },
 
+    /**
+     * [unpinWorkspace - 取消置顶工作区]
+     * @writes workspaceSlice.recentWorkspaces
+     * @see shared/ipc.ts → workspace.unpin
+     * @see mock-bridge.ts → workspace.unpin
+     * @see preview-bridge/index.ts → workspace.unpin
+     */
     unpinWorkspace: async (workspaceId: string) => {
       clearError(get);
       const result = await window.digitalLife.workspace.unpin(workspaceId);
@@ -189,6 +259,14 @@ export function createWorkspaceActions(
       set({ recentWorkspaces: result.data });
     },
 
+    /**
+     * [removeWorkspaceFromSidebar - 从侧边栏移除工作区]
+     * @reads workspaceSlice.appInfo
+     * @writes workspaceSlice.recentWorkspaces, workspaceSlice.workspaceTrees, browserSlice.browserTabs (通过 cleanupRemovedWorkspaceTree)
+     * @see shared/ipc.ts → workspace.removeFromSidebar
+     * @see mock-bridge.ts → workspace.removeFromSidebar
+     * @see preview-bridge/index.ts → workspace.removeFromSidebar
+     */
     removeWorkspaceFromSidebar: async (workspaceId: string) => {
       clearError(get);
       const result = await window.digitalLife.workspace.removeFromSidebar(workspaceId);
@@ -204,6 +282,13 @@ export function createWorkspaceActions(
       }
     },
 
+    /**
+     * [reorderWorkspaces - 重新排序工作区列表]
+     * @writes workspaceSlice.recentWorkspaces
+     * @see shared/ipc.ts → workspace.reorder
+     * @see mock-bridge.ts → workspace.reorder
+     * @see preview-bridge/index.ts → workspace.reorder
+     */
     reorderWorkspaces: async (input: ReorderWorkspacesInput) => {
       clearError(get);
       const result = await window.digitalLife.workspace.reorder(input);
@@ -214,12 +299,28 @@ export function createWorkspaceActions(
       set({ recentWorkspaces: result.data });
     },
 
+    /**
+     * [revealWorkspaceInFileManager - 在系统文件管理器中显示工作区目录]
+     * @reads — 无
+     * @writes — 无
+     * @see shared/ipc.ts → workspace.revealInFileManager
+     * @see mock-bridge.ts → workspace.revealInFileManager
+     * @see preview-bridge/index.ts → workspace.revealInFileManager
+     */
     revealWorkspaceInFileManager: async (workspacePath: string) => {
       clearError(get);
       const result = await window.digitalLife.workspace.revealInFileManager(workspacePath);
       if (!result.ok) captureError(get, result.error);
     },
 
+    /**
+     * [refreshWorkspaceTree - 刷新当前工作区的文件树]
+     * @reads workspaceSlice.appInfo, workspaceSlice.workspaceTrees
+     * @writes workspaceSlice.workspaceTrees
+     * @see shared/ipc.ts → workspace.listTree
+     * @see mock-bridge.ts → workspace.listTree
+     * @see preview-bridge/index.ts → workspace.listTree
+     */
     refreshWorkspaceTree: async () => {
       clearError(get);
       const result = await window.digitalLife.workspace.listTree();
@@ -238,6 +339,14 @@ export function createWorkspaceActions(
       }
     },
 
+    /**
+     * [loadWorkspaceTree - 懒加载指定工作区的文件树]
+     * @reads workspaceSlice.workspaceTrees, workspaceSlice.workspaceTreeLoading
+     * @writes workspaceSlice.workspaceTrees, workspaceSlice.workspaceTreeLoading, workspaceSlice.workspaceTreeErrors
+     * @see shared/ipc.ts → workspace.listTreeForWorkspace
+     * @see mock-bridge.ts → workspace.listTreeForWorkspace
+     * @see preview-bridge/index.ts → workspace.listTreeForWorkspace
+     */
     loadWorkspaceTree: createLazyLoader<WorkspaceTreeNode[]>(
       (path) => window.digitalLife.workspace.listTreeForWorkspace(path),
       (s, id) => ({ hasData: !!s.workspaceTrees[id], isLoading: !!s.workspaceTreeLoading[id] }),
@@ -255,6 +364,12 @@ export function createWorkspaceActions(
       })
     )(set, get),
 
+    /**
+     * [toggleWorkspaceTreeInFileNav - 切换工作区在文件导航中的展开状态]
+     * @reads workspaceSlice.workspaceTreeExpandedInFileNav
+     * @writes workspaceSlice.workspaceTreeExpandedInFileNav
+     * @see — 无桥接调用
+     */
     toggleWorkspaceTreeInFileNav: (workspaceId: string) => {
       const current = get().workspaceTreeExpandedInFileNav;
       set({
@@ -265,6 +380,14 @@ export function createWorkspaceActions(
       });
     },
 
+    /**
+     * [expandWorkspaceTreeInFileNav - 展开指定工作区的文件树]
+     * @reads workspaceSlice.workspaceTreeExpandedInFileNav, workspaceSlice.workspaceTrees
+     * @writes workspaceSlice.workspaceTreeExpandedInFileNav, workspaceSlice.workspaceTrees (通过 loadWorkspaceTree)
+     * @see shared/ipc.ts → workspace.listTreeForWorkspace (通过 loadWorkspaceTree)
+     * @see mock-bridge.ts → workspace.listTreeForWorkspace (通过 loadWorkspaceTree)
+     * @see preview-bridge/index.ts → workspace.listTreeForWorkspace (通过 loadWorkspaceTree)
+     */
     expandWorkspaceTreeInFileNav: async (workspaceId: string, workspacePath: string) => {
       const state = get();
       await expandSingle(
@@ -276,6 +399,14 @@ export function createWorkspaceActions(
       );
     },
 
+    /**
+     * [refreshOneWorkspaceTree - 刷新单个工作区的文件树]
+     * @reads workspaceSlice.workspaceTreeLoading, workspaceSlice.workspaceTreeErrors, workspaceSlice.workspaceTrees
+     * @writes workspaceSlice.workspaceTreeLoading, workspaceSlice.workspaceTreeErrors, workspaceSlice.workspaceTrees
+     * @see shared/ipc.ts → workspace.listTreeForWorkspace
+     * @see mock-bridge.ts → workspace.listTreeForWorkspace
+     * @see preview-bridge/index.ts → workspace.listTreeForWorkspace
+     */
     refreshOneWorkspaceTree: async (workspaceId: string, workspacePath: string) => {
       set({
         workspaceTreeLoading: { ...get().workspaceTreeLoading, [workspaceId]: true },
@@ -299,6 +430,14 @@ export function createWorkspaceActions(
       });
     },
 
+    /**
+     * [refreshAllWorkspaceTrees - 刷新所有已展开工作区的文件树]
+     * @reads workspaceSlice.workspaceTreeExpandedInFileNav, workspaceSlice.recentWorkspaces
+     * @writes workspaceSlice.workspaceTreeLoading, workspaceSlice.workspaceTreeErrors, workspaceSlice.workspaceTrees (通过 refreshOneWorkspaceTree)
+     * @see shared/ipc.ts → workspace.listTreeForWorkspace (通过 refreshOneWorkspaceTree)
+     * @see mock-bridge.ts → workspace.listTreeForWorkspace (通过 refreshOneWorkspaceTree)
+     * @see preview-bridge/index.ts → workspace.listTreeForWorkspace (通过 refreshOneWorkspaceTree)
+     */
     refreshAllWorkspaceTrees: async () => {
       const state = get();
       const expandedIds = Object.entries(state.workspaceTreeExpandedInFileNav)
@@ -313,6 +452,12 @@ export function createWorkspaceActions(
       );
     },
 
+    /**
+     * [cleanupRemovedWorkspaceTree - 清理已移除工作区的状态缓存]
+     * @reads workspaceSlice.workspaceTrees, workspaceSlice.workspaceTreeLoading, workspaceSlice.workspaceTreeErrors, workspaceSlice.workspaceTreeExpandedInFileNav, browserSlice.browserTabs, browserSlice.browserTabFolders, browserSlice.browserWorkspaceExpanded, browserSlice.browserActiveTabId
+     * @writes workspaceSlice.workspaceTrees, workspaceSlice.workspaceTreeLoading, workspaceSlice.workspaceTreeErrors, workspaceSlice.workspaceTreeExpandedInFileNav, browserSlice.browserTabs, browserSlice.browserTabsById, browserSlice.browserTabFolders, browserSlice.browserWorkspaceExpanded, browserSlice.browserActiveTabId
+     * @see — 无桥接调用 (本地内存清理)
+     */
     cleanupRemovedWorkspaceTree: (workspaceId: string) => {
       const state = get();
       const { [workspaceId]: _omit, ...restTrees } = state.workspaceTrees;
@@ -367,6 +512,13 @@ export function createWorkspaceActions(
       });
     },
 
+    /**
+     * [hideWorkspaceFromRightPanels - 从右侧面板隐藏工作区]
+     * @writes workspaceSlice.recentWorkspaces, workspaceSlice.workspaceTrees (通过 cleanupRemovedWorkspaceTree), browserSlice.browserTabs (通过 cleanupRemovedWorkspaceTree)
+     * @see shared/ipc.ts → workspace.hideFromRightPanels
+     * @see mock-bridge.ts → workspace.hideFromRightPanels
+     * @see preview-bridge/index.ts → workspace.hideFromRightPanels
+     */
     hideWorkspaceFromRightPanels: async (workspaceId: string) => {
       clearError(get);
       const result = await window.digitalLife.workspace.hideFromRightPanels(workspaceId);
@@ -378,6 +530,13 @@ export function createWorkspaceActions(
       get().cleanupRemovedWorkspaceTree(workspaceId);
     },
 
+    /**
+     * [showWorkspaceInRightPanels - 在右侧面板显示工作区]
+     * @writes workspaceSlice.recentWorkspaces
+     * @see shared/ipc.ts → workspace.showFromRightPanels
+     * @see mock-bridge.ts → workspace.showFromRightPanels
+     * @see preview-bridge/index.ts → workspace.showFromRightPanels
+     */
     showWorkspaceInRightPanels: async (workspaceId: string) => {
       clearError(get);
       const result = await window.digitalLife.workspace.showInRightPanels(workspaceId);
@@ -388,6 +547,14 @@ export function createWorkspaceActions(
       set({ recentWorkspaces: result.data });
     },
 
+    /**
+     * [expandAllWorkspaceTreesInFileNav - 展开文件导航中所有工作区的文件树]
+     * @reads workspaceSlice.recentWorkspaces, workspaceSlice.workspaceTreeExpandedInFileNav, workspaceSlice.workspaceTrees
+     * @writes workspaceSlice.workspaceTreeExpandedInFileNav, workspaceSlice.workspaceTrees (通过 loadWorkspaceTree)
+     * @see shared/ipc.ts → workspace.listTreeForWorkspace (通过 loadWorkspaceTree)
+     * @see mock-bridge.ts → workspace.listTreeForWorkspace (通过 loadWorkspaceTree)
+     * @see preview-bridge/index.ts → workspace.listTreeForWorkspace (通过 loadWorkspaceTree)
+     */
     expandAllWorkspaceTreesInFileNav: async () => {
       const state = get();
       await batchExpandAll(
@@ -399,6 +566,12 @@ export function createWorkspaceActions(
       );
     },
 
+    /**
+     * [collapseAllWorkspaceTreesInFileNav - 折叠文件导航中所有工作区的文件树]
+     * @reads — 无
+     * @writes workspaceSlice.workspaceTreeExpandedInFileNav
+     * @see — 无桥接调用
+     */
     collapseAllWorkspaceTreesInFileNav: () => {
       set({ workspaceTreeExpandedInFileNav: {} });
     },

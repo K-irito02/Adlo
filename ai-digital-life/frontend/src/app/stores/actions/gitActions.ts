@@ -21,6 +21,14 @@ async function refreshAfterBranchChange(get: () => StoreState) {
 
 export function createGitActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
   return {
+    /**
+     * [fetchGitStatus - 获取当前工作区的 Git 状态快照]
+     * @reads workspaceSlice.appInfo, editorSlice.selectedChangePreviewPath
+     * @writes gitSlice.gitSnapshot, workspaceSlice.appInfo (gitSnapshot 字段), editorSlice.selectedChangePreviewPath, editorSlice.changePreview, editorSlice.changePreviewLoading
+     * @see shared/ipc.ts → workspace.getGitStatus
+     * @see mock-bridge.ts → workspace.getGitStatus
+     * @see preview-bridge/index.ts → workspace.getGitStatus
+     */
     fetchGitStatus: async () => {
       if (!get().appInfo?.currentWorkspace) {
         set({
@@ -66,6 +74,14 @@ export function createGitActions(set: StoreApi<StoreState>['setState'], get: () 
       }
     },
 
+    /**
+     * [fetchGitBranches - 获取 Git 分支列表]
+     * @reads workspaceSlice.appInfo
+     * @writes gitSlice.gitBranches
+     * @see shared/ipc.ts → workspace.listGitBranches
+     * @see mock-bridge.ts → workspace.listGitBranches
+     * @see preview-bridge/index.ts → workspace.listGitBranches
+     */
     fetchGitBranches: async () => {
       if (!get().appInfo?.currentWorkspace) {
         set({ gitBranches: [] });
@@ -79,6 +95,13 @@ export function createGitActions(set: StoreApi<StoreState>['setState'], get: () 
       set({ error: undefined, gitBranches: result.data });
     },
 
+    /**
+     * [switchGitBranch - 切换 Git 分支]
+     * @writes workspaceSlice.appInfo, gitSlice.gitSnapshot, workspaceSlice.workspaceContextMode
+     * @see shared/ipc.ts → workspace.switchGitBranch
+     * @see mock-bridge.ts → workspace.switchGitBranch
+     * @see preview-bridge/index.ts → workspace.switchGitBranch
+     */
     switchGitBranch: async (input: WorkspaceGitBranchSwitchInput) => {
       clearError(get);
       const result = await window.digitalLife.workspace.switchGitBranch(input);
@@ -99,6 +122,13 @@ export function createGitActions(set: StoreApi<StoreState>['setState'], get: () 
       await refreshAfterBranchChange(get);
     },
 
+    /**
+     * [createGitBranch - 创建并切换到新 Git 分支]
+     * @writes workspaceSlice.appInfo, gitSlice.gitSnapshot, workspaceSlice.workspaceContextMode
+     * @see shared/ipc.ts → workspace.createGitBranch
+     * @see mock-bridge.ts → workspace.createGitBranch
+     * @see preview-bridge/index.ts → workspace.createGitBranch
+     */
     createGitBranch: async (input: WorkspaceGitBranchCreateInput) => {
       clearError(get);
       const result = await window.digitalLife.workspace.createGitBranch(input);
@@ -119,6 +149,14 @@ export function createGitActions(set: StoreApi<StoreState>['setState'], get: () 
       await refreshAfterBranchChange(get);
     },
 
+    /**
+     * [loadGitSnapshot - 懒加载指定工作区的 Git 状态快照]
+     * @reads gitSlice.gitSnapshots, gitSlice.workspaceChangesTreeLoading
+     * @writes gitSlice.gitSnapshots, gitSlice.workspaceChangesTreeLoading, gitSlice.workspaceChangesTreeErrors
+     * @see shared/ipc.ts → workspace.listGitStatusForWorkspace
+     * @see mock-bridge.ts → workspace.listGitStatusForWorkspace
+     * @see preview-bridge/index.ts → workspace.listGitStatusForWorkspace
+     */
     loadGitSnapshot: createLazyLoader<GitSnapshot>(
       (path) => window.digitalLife.workspace.listGitStatusForWorkspace(path),
       (s, id) => ({
@@ -139,6 +177,14 @@ export function createGitActions(set: StoreApi<StoreState>['setState'], get: () 
       })
     )(set, get),
 
+    /**
+     * [refreshGitSnapshot - 刷新单个工作区的 Git 状态快照]
+     * @reads gitSlice.workspaceChangesTreeLoading, gitSlice.workspaceChangesTreeErrors
+     * @writes gitSlice.gitSnapshots, gitSlice.workspaceChangesTreeLoading, gitSlice.workspaceChangesTreeErrors
+     * @see shared/ipc.ts → workspace.listGitStatusForWorkspace
+     * @see mock-bridge.ts → workspace.listGitStatusForWorkspace
+     * @see preview-bridge/index.ts → workspace.listGitStatusForWorkspace
+     */
     refreshGitSnapshot: async (workspaceId: string, workspacePath: string) => {
       set({
         workspaceChangesTreeLoading: { ...get().workspaceChangesTreeLoading, [workspaceId]: true },
@@ -165,6 +211,14 @@ export function createGitActions(set: StoreApi<StoreState>['setState'], get: () 
       });
     },
 
+    /**
+     * [expandWorkspaceChangesInFileNav - 展开文件导航中工作区的变更列表]
+     * @reads gitSlice.workspaceChangesExpanded, gitSlice.gitSnapshots
+     * @writes gitSlice.workspaceChangesExpanded, gitSlice.gitSnapshots (通过 loadGitSnapshot)
+     * @see shared/ipc.ts → workspace.listGitStatusForWorkspace (通过 loadGitSnapshot)
+     * @see mock-bridge.ts → workspace.listGitStatusForWorkspace (通过 loadGitSnapshot)
+     * @see preview-bridge/index.ts → workspace.listGitStatusForWorkspace (通过 loadGitSnapshot)
+     */
     expandWorkspaceChangesInFileNav: async (workspaceId: string, workspacePath: string) => {
       const state = get();
       await expandSingle(
@@ -176,10 +230,24 @@ export function createGitActions(set: StoreApi<StoreState>['setState'], get: () 
       );
     },
 
+    /**
+     * [collapseAllWorkspaceChanges - 折叠所有工作区的变更列表]
+     * @reads — 无
+     * @writes gitSlice.workspaceChangesExpanded
+     * @see — 无桥接调用
+     */
     collapseAllWorkspaceChanges: () => {
       set({ workspaceChangesExpanded: {} });
     },
 
+    /**
+     * [expandAllWorkspaceChanges - 展开文件导航中所有工作区的变更列表]
+     * @reads workspaceSlice.recentWorkspaces, gitSlice.workspaceChangesExpanded, gitSlice.gitSnapshots
+     * @writes gitSlice.workspaceChangesExpanded, gitSlice.gitSnapshots (通过 loadGitSnapshot)
+     * @see shared/ipc.ts → workspace.listGitStatusForWorkspace (通过 loadGitSnapshot)
+     * @see mock-bridge.ts → workspace.listGitStatusForWorkspace (通过 loadGitSnapshot)
+     * @see preview-bridge/index.ts → workspace.listGitStatusForWorkspace (通过 loadGitSnapshot)
+     */
     expandAllWorkspaceChanges: async () => {
       const state = get();
       await batchExpandAll(

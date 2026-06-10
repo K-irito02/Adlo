@@ -42,10 +42,16 @@
 - 统一 IPC 错误通道（`IpcErrorCode` → `AppError` → `IpcResult`）
 - CSS 设计 Token 亮暗主题 + 自定义 Tooltip 组件
 - 代码质量四维门禁（clippy + fmt + tsc + eslint，0 errors）
+- 文件树虚拟化渲染（`useVirtualList` hook，支持上万节点流畅滚动）
+- 浏览器面板渐进式拆分（`BrowserToolbar.tsx`、`useBrowserNavigation.ts`、`useBrowserUrlState.ts`）
+- React.lazy 延迟加载（CodeMirror 编辑器、DiffViewer、终端面板、预览组件从首屏 bundle 分离）
+- useShallow 选择器优化（所有对象/数组订阅使用浅比较，避免无效重渲染）
+- 列表项 React.memo 优化 + useCallback 事件引用稳定化
+- IPC 契约文档注释（`shared/ipc.ts` 所有接口和方法添加 JSDoc）
 
 ## 重构历史
 
-共完成 **42 轮**迭代重构，详情见 [REFACTORING_PROGRESS_REPORT.md](./docs/重构洞察/REFACTORING_PROGRESS_REPORT.md)。
+共完成 **55 轮**迭代重构，详情见 [REFACTORING_PROGRESS_REPORT.md](./docs/重构洞察/REFACTORING_PROGRESS_REPORT.md)。
 
 ## 调试工具
 

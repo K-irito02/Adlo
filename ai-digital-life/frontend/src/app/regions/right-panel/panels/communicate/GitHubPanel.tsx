@@ -13,6 +13,7 @@ import {
 } from '../../../../icons';
 import { TooltipSimple } from '../../../../components/Tooltip';
 import { useAppStore } from '../../../../stores/slicedStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useCIPanelProps } from '../../hooks/useCIPanelProps';
 import { workspaceSelectors } from '../../../../stores/selectors';
 import { getAppCopy } from '../../../../i18n';
@@ -698,25 +699,51 @@ export function GitHubPanel() {
     onRefreshWorkspace,
   } = useCIPanelProps();
 
-  const gitHubTreeExpanded = useAppStore((s) => s.gitHubTreeExpanded);
-  const gitHubAllTreeExpanded = useAppStore((s) => s.gitHubAllTreeExpanded);
-  const selectedGitHubTreePath = useAppStore((s) => s.selectedGitHubTreePath);
-  const activeCiWorkspaceId = useAppStore((s) => s.activeCiWorkspaceId);
-  const activeWorkspaceSection = useAppStore((s) => s.activeWorkspaceSection);
-  const communicateNavigatorCollapsed = useAppStore((s) => s.communicateNavigatorCollapsed);
-  const workspaces = useAppStore((s) => s.recentWorkspaces);
-  const ciSnapshot = useAppStore((s) => s.ciSnapshot);
+  const {
+    gitHubTreeExpanded,
+    gitHubAllTreeExpanded,
+    selectedGitHubTreePath,
+    activeCiWorkspaceId,
+    activeWorkspaceSection,
+    communicateNavigatorCollapsed,
+  } = useAppStore(
+    useShallow((s) => ({
+      gitHubTreeExpanded: s.gitHubTreeExpanded,
+      gitHubAllTreeExpanded: s.gitHubAllTreeExpanded,
+      selectedGitHubTreePath: s.selectedGitHubTreePath,
+      activeCiWorkspaceId: s.activeCiWorkspaceId,
+      activeWorkspaceSection: s.activeWorkspaceSection,
+      communicateNavigatorCollapsed: s.communicateNavigatorCollapsed,
+    }))
+  );
+  const workspaces = useAppStore(useShallow((s) => s.recentWorkspaces));
+  const ciSnapshot = useAppStore(useShallow((s) => s.ciSnapshot));
 
-  const toggleGitHubTreePath = useAppStore((s) => s.toggleGitHubTreePath);
-  const expandAllGitHubTree = useAppStore((s) => s.expandAllGitHubTree);
-  const collapseAllGitHubTree = useAppStore((s) => s.collapseAllGitHubTree);
-  const setSelectedGitHubTreePath = useAppStore((s) => s.setSelectedGitHubTreePath);
-  const setActiveCiWorkspaceId = useAppStore((s) => s.setActiveCiWorkspaceId);
-  const setActiveWorkspaceSection = useAppStore((s) => s.setActiveWorkspaceSection);
-  const clearAllGitHubWorkspaceConfigs = useAppStore((s) => s.clearAllGitHubWorkspaceConfigs);
-  const setSelectedLogJobId = useAppStore((s) => s.setSelectedLogJobId);
-  const gitHubCiFolders = useAppStore((s) => s.gitHubCiFolders);
-  const gitHubCreateFolder = useAppStore((s) => s.gitHubCreateFolder);
+  const {
+    toggleGitHubTreePath,
+    expandAllGitHubTree,
+    collapseAllGitHubTree,
+    setSelectedGitHubTreePath,
+    setActiveCiWorkspaceId,
+    setActiveWorkspaceSection,
+    clearAllGitHubWorkspaceConfigs,
+    setSelectedLogJobId,
+    gitHubCiFolders,
+    gitHubCreateFolder,
+  } = useAppStore(
+    useShallow((s) => ({
+      toggleGitHubTreePath: s.toggleGitHubTreePath,
+      expandAllGitHubTree: s.expandAllGitHubTree,
+      collapseAllGitHubTree: s.collapseAllGitHubTree,
+      setSelectedGitHubTreePath: s.setSelectedGitHubTreePath,
+      setActiveCiWorkspaceId: s.setActiveCiWorkspaceId,
+      setActiveWorkspaceSection: s.setActiveWorkspaceSection,
+      clearAllGitHubWorkspaceConfigs: s.clearAllGitHubWorkspaceConfigs,
+      setSelectedLogJobId: s.setSelectedLogJobId,
+      gitHubCiFolders: s.gitHubCiFolders,
+      gitHubCreateFolder: s.gitHubCreateFolder,
+    }))
+  );
 
   const selectedTreePathRef = useRef<string | null>(null);
   const [showHelp, setShowHelp] = useState(false);

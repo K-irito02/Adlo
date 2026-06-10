@@ -17,9 +17,13 @@ export function usePatchReview(setPendingReveal: (path: string, line: number) =>
   const activePatchSet = useAppStore(useShallow((s) => s.activePatchSet));
   const selectedFilePath = useAppStore((s) => s.selectedFilePath);
   const latestPatchApplication = useAppStore(useShallow((s) => s.latestPatchApplication));
-  const rightCollapsed = useAppStore((state) => state.rightCollapsed);
-  const activeRightTool = useAppStore((state) => state.activeRightTool);
-  const setActiveRightTool = useAppStore((state) => state.setActiveRightTool);
+  const { rightCollapsed, activeRightTool, setActiveRightTool } = useAppStore(
+    useShallow((state) => ({
+      rightCollapsed: state.rightCollapsed,
+      activeRightTool: state.activeRightTool,
+      setActiveRightTool: state.setActiveRightTool,
+    }))
+  );
   const actions = useAppActions();
 
   const [editorHint, setEditorHint] = useState<string>();

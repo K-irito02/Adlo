@@ -1,5 +1,6 @@
 import { useCallback, useState, useMemo } from 'react';
 import { useAppStore } from '../../../stores/slicedStore';
+import { useShallow } from 'zustand/react/shallow';
 import { BackgroundLayer } from './BackgroundLayer';
 import { ShortcutGrid } from './ShortcutGrid';
 import { LocalPortSection } from './LocalPortSection';
@@ -15,14 +16,27 @@ interface BrowserLandingPageProps {
 }
 
 export function BrowserLandingPage({ t }: BrowserLandingPageProps) {
-  const browserBgConfig = useAppStore((state) => state.browserBgConfig);
-  const browserOpenTab = useAppStore((state) => state.browserOpenTab);
-  const browserAddShortcut = useAppStore((state) => state.browserAddShortcut);
-  const browserRenameShortcut = useAppStore((state) => state.browserRenameShortcut);
-  const browserDeleteShortcut = useAppStore((state) => state.browserDeleteShortcut);
-  const browserAddManualPort = useAppStore((state) => state.browserAddManualPort);
-  const browserDeleteLocalPort = useAppStore((state) => state.browserDeleteLocalPort);
-  const browserUpdateLocalPort = useAppStore((state) => state.browserUpdateLocalPort);
+  const {
+    browserBgConfig,
+    browserOpenTab,
+    browserAddShortcut,
+    browserRenameShortcut,
+    browserDeleteShortcut,
+    browserAddManualPort,
+    browserDeleteLocalPort,
+    browserUpdateLocalPort,
+  } = useAppStore(
+    useShallow((state) => ({
+      browserBgConfig: state.browserBgConfig,
+      browserOpenTab: state.browserOpenTab,
+      browserAddShortcut: state.browserAddShortcut,
+      browserRenameShortcut: state.browserRenameShortcut,
+      browserDeleteShortcut: state.browserDeleteShortcut,
+      browserAddManualPort: state.browserAddManualPort,
+      browserDeleteLocalPort: state.browserDeleteLocalPort,
+      browserUpdateLocalPort: state.browserUpdateLocalPort,
+    }))
+  );
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<'add' | 'rename'>('add');

@@ -1,7 +1,5 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { lazy, Suspense, useCallback, useMemo } from 'react';
 import { EditorView } from '@codemirror/view';
-import { CodeEditor } from '../../features/editor';
-import { DiffViewer } from '../../features/diff-viewer';
 import {
   getAgentDecorationExtensions,
   type AgentHunkDecoration,
@@ -10,6 +8,7 @@ import { categorizeFile } from './fileTypeRouter';
 import { LazyMarkdownPreviewWrapper } from '../../features/preview';
 import type { EditorRef, DiffEditorRef } from '../../stores/types';
 import { useAppStore } from '../../stores/slicedStore';
+import { useShallow } from 'zustand/react/shallow';
 import { StickyContext } from './editor-support/stickyContextView';
 import { DiffToolbar } from './DiffToolbar';
 import {
@@ -22,6 +21,13 @@ import type { UseEditorOptionsResult } from './hooks';
 import type { PreviewDiffVisualRange } from '../../features/diff-viewer';
 import { IconChevronDown, IconChevronRight } from '../../icons';
 import type { RightPanelViewProps } from './types';
+
+const CodeEditor = lazy(() =>
+  import('../../features/editor').then((m) => ({ default: m.CodeEditor }))
+);
+const DiffViewer = lazy(() =>
+  import('../../features/diff-viewer').then((m) => ({ default: m.DiffViewer }))
+);
 
 interface EditorSurfaceShellProps extends Pick<
   RightPanelViewProps,
@@ -127,7 +133,7 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
     t,
   } = props;
 
-  const filePreviewModeByPath = useAppStore((s) => s.filePreviewModeByPath);
+  const filePreviewModeByPath = useAppStore(useShallow((s) => s.filePreviewModeByPath));
 
   const fileCategory = useMemo(() => categorizeFile(selectedFilePath), [selectedFilePath]);
 
@@ -361,21 +367,23 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
           {stickyContextModel ? (
             <StickyContext data-testid="files-sticky-context" model={stickyContextModel} t={t} />
           ) : null}
-          <DiffViewer
-            original={filePatch.beforeContent}
-            modified={filePatch.afterContent}
-            language={editorLanguage}
-            theme={resolvedTheme}
-            locale={resolvedLocale}
-            sideBySide={diffSideBySide}
-            collapseUnchanged={true}
-            fileKey={selectedFilePath}
-            readOnly={editorOptions.diffOptions.readOnly}
-            lineNumbers={editorOptions.diffOptions.lineNumbers}
-            wordWrap={editorOptions.diffOptions.wordWrap}
-            onMount={handleDiffEditorMount}
-            extensions={diffEditorExtensions}
-          />
+          <Suspense fallback={null}>
+            <DiffViewer
+              original={filePatch.beforeContent}
+              modified={filePatch.afterContent}
+              language={editorLanguage}
+              theme={resolvedTheme}
+              locale={resolvedLocale}
+              sideBySide={diffSideBySide}
+              collapseUnchanged={true}
+              fileKey={selectedFilePath}
+              readOnly={editorOptions.diffOptions.readOnly}
+              lineNumbers={editorOptions.diffOptions.lineNumbers}
+              wordWrap={editorOptions.diffOptions.wordWrap}
+              onMount={handleDiffEditorMount}
+              extensions={diffEditorExtensions}
+            />
+          </Suspense>
         </div>
       </>
     );
@@ -480,19 +488,21 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
       {stickyContextModel ? (
         <StickyContext data-testid="files-sticky-context" model={stickyContextModel} t={t} />
       ) : null}
-      <CodeEditor
-        value={fileContent ?? ''}
-        language={editorLanguage}
-        theme={resolvedTheme}
-        locale={resolvedLocale}
-        readOnly={previewEnabled || editorOptions.standardOptions.readOnly}
-        lineNumbers={editorOptions.standardOptions.lineNumbers}
-        wordWrap={editorOptions.standardOptions.wordWrap}
-        fileKey={selectedFilePath}
-        onChange={props.onEditorChange}
-        onMount={handleStandardEditorMount}
-        extensions={editorExtensions}
-      />
+      <Suspense fallback={null}>
+        <CodeEditor
+          value={fileContent ?? ''}
+          language={editorLanguage}
+          theme={resolvedTheme}
+          locale={resolvedLocale}
+          readOnly={previewEnabled || editorOptions.standardOptions.readOnly}
+          lineNumbers={editorOptions.standardOptions.lineNumbers}
+          wordWrap={editorOptions.standardOptions.wordWrap}
+          fileKey={selectedFilePath}
+          onChange={props.onEditorChange}
+          onMount={handleStandardEditorMount}
+          extensions={editorExtensions}
+        />
+      </Suspense>
     </div>
   );
 });

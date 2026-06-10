@@ -47,7 +47,7 @@ export interface WorkspaceChangesEntryProps {
   renderCount?: (node: WorkspaceTreeNode) => React.ReactNode;
 }
 
-export function WorkspaceChangesEntry({
+export const WorkspaceChangesEntry = React.memo(function WorkspaceChangesEntry({
   workspace,
   isCurrent,
   isExpanded,
@@ -112,23 +112,23 @@ export function WorkspaceChangesEntry({
     };
   }, [menuOpen, menuId]);
 
-  const handleNameClick = () => {
+  const handleNameClick = useCallback(() => {
     onToggleExpand();
-  };
+  }, [onToggleExpand]);
 
-  const handleNameContextMenu = (e: React.MouseEvent) => {
+  const handleNameContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setMenuPosition({ top: e.clientY, left: e.clientX + 4 });
     setMenuOpen(true);
-  };
+  }, []);
 
-  const handleMoreClick = (e: React.MouseEvent) => {
+  const handleMoreClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     setMenuPosition({ top: rect.top, left: rect.right + 4 });
     setMenuOpen((prev) => !prev);
-  };
+  }, []);
 
   const closeMenu = useCallback(() => {
     setMenuOpen(false);
@@ -163,6 +163,33 @@ export function WorkspaceChangesEntry({
 
   const isPinned = workspace.isPinned;
 
+  const handleNameKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') handleNameClick();
+    },
+    [handleNameClick]
+  );
+
+  const handleRefreshClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onRefreshTree();
+    },
+    [onRefreshTree]
+  );
+
+  const handlePinClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (isPinned) {
+        onUnpinWorkspace(workspace.id);
+      } else {
+        onPinWorkspace(workspace.id);
+      }
+    },
+    [isPinned, onPinWorkspace, onUnpinWorkspace, workspace.id]
+  );
+
   return (
     <div
       className={`adl-multitree-entry${isCurrent ? ' is-current' : ''}${!workspace.available ? ' is-unavailable' : ''}`}
@@ -193,9 +220,7 @@ export function WorkspaceChangesEntry({
           tabIndex={0}
           onClick={handleNameClick}
           onContextMenu={handleNameContextMenu}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') handleNameClick();
-          }}
+          onKeyDown={handleNameKeyDown}
           aria-label={workspace.name}
         >
           <span className="adl-multitree-entry__name" title={workspace.path}>
@@ -209,10 +234,7 @@ export function WorkspaceChangesEntry({
               <button
                 type="button"
                 className="adl-icon-btn adl-icon-btn--xs"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onRefreshTree();
-                }}
+                onClick={handleRefreshClick}
                 aria-label="刷新"
               >
                 <IconRefreshCw size={12} decorative />
@@ -223,14 +245,7 @@ export function WorkspaceChangesEntry({
               <button
                 type="button"
                 className="adl-icon-btn adl-icon-btn--xs"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (isPinned) {
-                    onUnpinWorkspace(workspace.id);
-                  } else {
-                    onPinWorkspace(workspace.id);
-                  }
-                }}
+                onClick={handlePinClick}
                 aria-label={isPinned ? '取消置顶' : '置顶'}
               >
                 {isPinned ? <IconPinOff size={12} decorative /> : <IconPin size={12} decorative />}
@@ -340,4 +355,4 @@ export function WorkspaceChangesEntry({
       ) : null}
     </div>
   );
-}
+});

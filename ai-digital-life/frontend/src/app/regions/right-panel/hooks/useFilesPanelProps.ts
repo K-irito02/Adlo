@@ -28,7 +28,7 @@ export function useFilesPanelProps(
   } = panelProps;
 
   const actions = useAppActions();
-  const appInfo = useAppStore((s) => s.appInfo);
+  const appInfo = useAppStore(useShallow((s) => s.appInfo));
   const selectedFilePath = useAppStore((s) => s.selectedFilePath);
   const selectedFileWorkspaceId = useAppStore((s) => s.selectedFileWorkspaceId);
   const fileContent = useAppStore((s) => s.fileContent);

@@ -3,6 +3,7 @@ import type { SettingItem } from '@ai-digital-life/kernel';
 import type { CopyDict } from '../../i18n';
 import { IconSearch, IconSettings } from '../../icons';
 import { useAppStore } from '../../stores/slicedStore';
+import { useShallow } from 'zustand/react/shallow';
 import { SettingsNav } from './SettingsNav';
 import { SettingsControls } from './SettingsControls';
 
@@ -13,10 +14,14 @@ interface SettingsPanelProps {
 }
 
 export function SettingsPanel({ t, settings, onChangeSetting }: SettingsPanelProps) {
-  const activeGroup = useAppStore((s) => s.activeSettingsGroup);
-  const setActiveGroup = useAppStore((s) => s.setActiveSettingsGroup);
-  const searchQuery = useAppStore((s) => s.settingsSearchQuery);
-  const setSearchQuery = useAppStore((s) => s.setSettingsSearchQuery);
+  const { activeGroup, setActiveGroup, searchQuery, setSearchQuery } = useAppStore(
+    useShallow((s) => ({
+      activeGroup: s.activeSettingsGroup,
+      setActiveGroup: s.setActiveSettingsGroup,
+      searchQuery: s.settingsSearchQuery,
+      setSearchQuery: s.setSettingsSearchQuery,
+    }))
+  );
 
   const filtered = useMemo(() => {
     let items = settings;

@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../../../stores/slicedStore';
 import { useAppActions } from '../../../hooks/useAppActions';
 import {
@@ -10,7 +11,7 @@ import type { RightPanelProps } from '../../RightPanel';
 
 export function useSettingsPanelProps(panelProps: RightPanelProps): SettingsPanelProps {
   const { t } = panelProps;
-  const appInfo = useAppStore((s) => s.appInfo);
+  const appInfo = useAppStore(useShallow((s) => s.appInfo));
   const actions = useAppActions();
 
   const settings = useMemo(() => buildSettingsItems(t, appInfo), [appInfo, t]);

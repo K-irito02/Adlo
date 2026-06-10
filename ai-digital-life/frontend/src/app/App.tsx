@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import type { AppInfo } from '@ai-digital-life/kernel';
 import { useAppStore } from './stores/slicedStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppActions } from './hooks/useAppActions';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useDragDropWorkspace } from './hooks/useDragDropWorkspace';
@@ -16,10 +17,14 @@ import { CreateWorkspaceModal } from './components/CreateWorkspaceModal';
 
 export function App() {
   const error = useAppStore((state) => state.error);
-  const appInfo = useAppStore((s) => s.appInfo);
-  const leftCollapsed = useAppStore((state) => state.leftCollapsed);
-  const rightCollapsed = useAppStore((state) => state.rightCollapsed);
-  const rightPanelWidth = useAppStore((state) => state.rightPanelWidth);
+  const { appInfo, leftCollapsed, rightCollapsed, rightPanelWidth } = useAppStore(
+    useShallow((state) => ({
+      appInfo: state.appInfo,
+      leftCollapsed: state.leftCollapsed,
+      rightCollapsed: state.rightCollapsed,
+      rightPanelWidth: state.rightPanelWidth,
+    }))
+  );
   const actions = useAppActions();
 
   useDragDropWorkspace(actions);

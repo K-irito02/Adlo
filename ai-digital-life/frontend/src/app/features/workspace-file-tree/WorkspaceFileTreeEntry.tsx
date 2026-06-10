@@ -45,7 +45,7 @@ export interface WorkspaceFileTreeEntryProps {
   t: CopyDict;
 }
 
-export function WorkspaceFileTreeEntry({
+export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry({
   workspace,
   isCurrent,
   isExpanded,
@@ -58,6 +58,7 @@ export function WorkspaceFileTreeEntry({
   dirtyPaths,
   externalChangePath,
   onToggleExpand,
+  onOpenWorkspace,
   onPinWorkspace,
   onUnpinWorkspace,
   onHideFromRightPanels,
@@ -101,23 +102,23 @@ export function WorkspaceFileTreeEntry({
     };
   }, [menuOpen, menuId]);
 
-  const handleNameClick = () => {
+  const handleNameClick = useCallback(() => {
     onToggleExpand();
-  };
+  }, [onToggleExpand]);
 
-  const handleNameContextMenu = (e: React.MouseEvent) => {
+  const handleNameContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setMenuPosition({ top: e.clientY, left: e.clientX + 4 });
     setMenuOpen(true);
-  };
+  }, []);
 
-  const handleMoreClick = (e: React.MouseEvent) => {
+  const handleMoreClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     setMenuPosition({ top: rect.top, left: rect.right + 4 });
     setMenuOpen((prev) => !prev);
-  };
+  }, []);
 
   const closeMenu = useCallback(() => {
     setMenuOpen(false);
@@ -151,6 +152,33 @@ export function WorkspaceFileTreeEntry({
   }, [onHideFromRightPanels, workspace.id, closeMenu]);
 
   const isPinned = workspace.isPinned;
+
+  const handleRefreshClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onRefreshTree();
+    },
+    [onRefreshTree]
+  );
+
+  const handlePinClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (isPinned) {
+        onUnpinWorkspace(workspace.id);
+      } else {
+        onPinWorkspace(workspace.id);
+      }
+    },
+    [isPinned, onPinWorkspace, onUnpinWorkspace, workspace.id]
+  );
+
+  const handleNameKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') handleNameClick();
+    },
+    [handleNameClick]
+  );
 
   const effectiveSelectedPath = useMemo(() => {
     if (selectedFileWorkspaceId === workspace.id) {
@@ -189,9 +217,7 @@ export function WorkspaceFileTreeEntry({
           tabIndex={0}
           onClick={handleNameClick}
           onContextMenu={handleNameContextMenu}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') handleNameClick();
-          }}
+          onKeyDown={handleNameKeyDown}
           aria-label={workspace.name}
         >
           <span className="adl-multitree-entry__name" title={workspace.path}>
@@ -203,10 +229,7 @@ export function WorkspaceFileTreeEntry({
               <button
                 type="button"
                 className="adl-icon-btn adl-icon-btn--xs"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onRefreshTree();
-                }}
+                onClick={handleRefreshClick}
                 aria-label="刷新"
               >
                 <IconRefreshCw size={12} decorative />
@@ -217,14 +240,7 @@ export function WorkspaceFileTreeEntry({
               <button
                 type="button"
                 className="adl-icon-btn adl-icon-btn--xs"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (isPinned) {
-                    onUnpinWorkspace(workspace.id);
-                  } else {
-                    onPinWorkspace(workspace.id);
-                  }
-                }}
+                onClick={handlePinClick}
                 aria-label={isPinned ? '取消置顶' : '置顶'}
               >
                 {isPinned ? <IconPinOff size={12} decorative /> : <IconPin size={12} decorative />}
@@ -332,4 +348,4 @@ export function WorkspaceFileTreeEntry({
       ) : null}
     </div>
   );
-}
+});

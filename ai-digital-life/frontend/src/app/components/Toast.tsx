@@ -45,12 +45,18 @@ export function Toast({
   useEffect(() => {
     requestAnimationFrame(() => setIsVisible(true));
 
+    let hideTimer: ReturnType<typeof setTimeout> | null = null;
     const timer = setTimeout(() => {
       setIsVisible(false);
-      setTimeout(onClose, 300);
+      hideTimer = setTimeout(onClose, 300);
     }, duration);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      if (hideTimer !== null) {
+        clearTimeout(hideTimer);
+      }
+    };
   }, [duration, onClose]);
 
   const iconHtml =

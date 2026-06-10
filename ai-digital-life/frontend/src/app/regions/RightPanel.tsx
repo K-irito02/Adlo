@@ -1,13 +1,32 @@
-import React, { useId, useCallback } from 'react';
-import { BrowserPanel } from './right-panel/panels/BrowserPanel';
-import { ChangesPanel } from './right-panel/panels/ChangesPanel';
-import { FilesPanel } from './right-panel/panels/FilesPanel';
-import { TerminalPanel } from '../features/terminal';
+import React, { lazy, Suspense, useId, useCallback } from 'react';
 import { ToolSwitcher } from './right-panel/ToolSwitcher';
-import { AuditPanel } from '../components/approval/AuditPanel';
-import { ModelHealthPanel } from '../components/models/ModelHealthPanel';
-import { SettingsPanel } from '../components/settings/SettingsPanel';
-import { CommunicationPanel } from './right-panel/panels/CommunicationPanel';
+
+const FilesPanel = lazy(() =>
+  import('./right-panel/panels/FilesPanel').then((m) => ({ default: m.FilesPanel }))
+);
+const ChangesPanel = lazy(() =>
+  import('./right-panel/panels/ChangesPanel').then((m) => ({ default: m.ChangesPanel }))
+);
+const BrowserPanel = lazy(() =>
+  import('./right-panel/panels/BrowserPanel').then((m) => ({ default: m.BrowserPanel }))
+);
+const TerminalPanel = lazy(() =>
+  import('../features/terminal').then((m) => ({ default: m.TerminalPanel }))
+);
+const AuditPanel = lazy(() =>
+  import('../components/approval/AuditPanel').then((m) => ({ default: m.AuditPanel }))
+);
+const ModelHealthPanel = lazy(() =>
+  import('../components/models/ModelHealthPanel').then((m) => ({ default: m.ModelHealthPanel }))
+);
+const SettingsPanel = lazy(() =>
+  import('../components/settings/SettingsPanel').then((m) => ({ default: m.SettingsPanel }))
+);
+const CommunicationPanel = lazy(() =>
+  import('./right-panel/panels/CommunicationPanel').then((m) => ({
+    default: m.CommunicationPanel,
+  }))
+);
 import type {
   FilesPanelProps,
   ChangesPanelProps,
@@ -87,6 +106,10 @@ function areActiveToolPanelPropsEqual(
   );
 }
 
+function PanelSkeleton() {
+  return null;
+}
+
 const ActiveToolPanel = React.memo(function ActiveToolPanel({
   activeTool,
   idBase,
@@ -109,36 +132,52 @@ const ActiveToolPanel = React.memo(function ActiveToolPanel({
       className="adl-rightpanel__tool is-active"
     >
       <div hidden={activeTool !== 'files'} style={{ height: '100%', minHeight: 0 }}>
-        <FilesPanel {...filesProps} />
+        <Suspense fallback={<PanelSkeleton />}>
+          <FilesPanel {...filesProps} />
+        </Suspense>
       </div>
       <div hidden={activeTool !== 'changes'} style={{ height: '100%', minHeight: 0 }}>
-        <ChangesPanel {...changesProps} />
+        <Suspense fallback={<PanelSkeleton />}>
+          <ChangesPanel {...changesProps} />
+        </Suspense>
       </div>
       <div hidden={activeTool !== 'browser'} style={{ height: '100%', minHeight: 0 }}>
-        <BrowserPanel {...browserProps} />
+        <Suspense fallback={<PanelSkeleton />}>
+          <BrowserPanel {...browserProps} />
+        </Suspense>
       </div>
       <div hidden={activeTool !== 'terminal'} style={{ height: '100%', minHeight: 0 }}>
-        <TerminalPanel {...terminalProps} />
+        <Suspense fallback={<PanelSkeleton />}>
+          <TerminalPanel {...terminalProps} />
+        </Suspense>
       </div>
       <div hidden={activeTool !== 'audit'} style={{ height: '100%', minHeight: 0 }}>
-        <AuditPanel t={auditProps.t} entries={auditProps.auditEntries} />
+        <Suspense fallback={<PanelSkeleton />}>
+          <AuditPanel t={auditProps.t} entries={auditProps.auditEntries} />
+        </Suspense>
       </div>
       <div hidden={activeTool !== 'models'} style={{ height: '100%', minHeight: 0 }}>
-        <ModelHealthPanel
-          t={modelProps.t}
-          modelHealth={modelProps.modelHealth}
-          onRefresh={modelProps.onRefreshModelHealth}
-        />
+        <Suspense fallback={<PanelSkeleton />}>
+          <ModelHealthPanel
+            t={modelProps.t}
+            modelHealth={modelProps.modelHealth}
+            onRefresh={modelProps.onRefreshModelHealth}
+          />
+        </Suspense>
       </div>
       <div hidden={activeTool !== 'settings'} style={{ height: '100%', minHeight: 0 }}>
-        <SettingsPanel
-          t={settingsProps.t}
-          settings={settingsProps.settings}
-          onChangeSetting={settingsProps.onChangeSetting}
-        />
+        <Suspense fallback={<PanelSkeleton />}>
+          <SettingsPanel
+            t={settingsProps.t}
+            settings={settingsProps.settings}
+            onChangeSetting={settingsProps.onChangeSetting}
+          />
+        </Suspense>
       </div>
       <div hidden={activeTool !== 'communicate'} style={{ height: '100%', minHeight: 0 }}>
-        <CommunicationPanel />
+        <Suspense fallback={<PanelSkeleton />}>
+          <CommunicationPanel />
+        </Suspense>
       </div>
     </div>
   );

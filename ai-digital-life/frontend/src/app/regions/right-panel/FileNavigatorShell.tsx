@@ -33,6 +33,7 @@ import { FileCreationBar } from './FileCreationBar';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { RenameDialog } from '../../components/RenameDialog';
 import { useAppStore } from '../../stores/slicedStore';
+import { useShallow } from 'zustand/react/shallow';
 import type { SearchHit } from './hooks/useSearchPanel';
 
 interface FileNavigatorShellProps {
@@ -111,14 +112,26 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
     t,
   } = props;
 
-  const navigatorMode = useAppStore((s) => s.filesNavigatorMode);
-  const setNavigatorMode = useAppStore((s) => s.setFilesNavigatorMode);
-  const navigatorCollapsed = useAppStore((s) => s.navigatorCollapsedByTool.files);
-  const filesNavigatorWidth = useAppStore((s) => s.filesNavigatorWidth);
-  const expandedPaths = useAppStore((s) => s.expandedFileTreePaths);
-  const setFileTreePathExpanded = useAppStore((s) => s.setFileTreePathExpanded);
-  const toggleFileTreePath = useAppStore((s) => s.toggleFileTreePath);
-  const expandFileTreePathChain = useAppStore((s) => s.expandFileTreePathChain);
+  const {
+    navigatorMode,
+    setNavigatorMode,
+    navigatorCollapsed,
+    filesNavigatorWidth,
+    setFileTreePathExpanded,
+    toggleFileTreePath,
+    expandFileTreePathChain,
+  } = useAppStore(
+    useShallow((s) => ({
+      navigatorMode: s.filesNavigatorMode,
+      setNavigatorMode: s.setFilesNavigatorMode,
+      navigatorCollapsed: s.navigatorCollapsedByTool.files,
+      filesNavigatorWidth: s.filesNavigatorWidth,
+      setFileTreePathExpanded: s.setFileTreePathExpanded,
+      toggleFileTreePath: s.toggleFileTreePath,
+      expandFileTreePathChain: s.expandFileTreePathChain,
+    }))
+  );
+  const expandedPaths = useAppStore(useShallow((s) => s.expandedFileTreePaths));
 
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const activeWorkspaceId = appInfo?.currentWorkspace?.path
@@ -180,7 +193,8 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
 
   useEffect(() => {
     if (navigatorMode === 'search') {
-      window.setTimeout(() => searchInputRef.current?.focus(), 0);
+      const timer = window.setTimeout(() => searchInputRef.current?.focus(), 0);
+      return () => window.clearTimeout(timer);
     }
   }, [navigatorMode]);
 

@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { List, useListRef } from 'react-window';
 import { useAppStore } from '../../../../stores/slicedStore';
+import { useShallow } from 'zustand/react/shallow';
 import type { CiJobSummary } from '@ai-digital-life/kernel';
 import type { DigitalLifeBridge } from '../../../../../shared/ipc';
 import { AnsiUp } from 'ansi_up';
@@ -18,14 +19,18 @@ const MAX_BLANK_LINES = 50;
 
 export function GitHubLogViewer({ snapshot, config }: GitHubLogViewerProps) {
   const selectedLogJobId = useAppStore((s) => s.selectedLogJobId);
-  const cachedJobLogs = useAppStore((s) => s.cachedJobLogs);
+  const cachedJobLogs = useAppStore(useShallow((s) => s.cachedJobLogs));
   const logLoading = useAppStore((s) => s.logLoading);
   const logError = useAppStore((s) => s.logError);
-  const setSelectedLogJobId = useAppStore((s) => s.setSelectedLogJobId);
-  const setCachedJobLogs = useAppStore((s) => s.setCachedJobLogs);
-  const setLogLoading = useAppStore((s) => s.setLogLoading);
-  const setLogError = useAppStore((s) => s.setLogError);
-  const ciAccessToken = useAppStore((s) => s.ciAccessToken);
+  const { setSelectedLogJobId, setCachedJobLogs, setLogLoading, setLogError, ciAccessToken } = useAppStore(
+    useShallow((s) => ({
+      setSelectedLogJobId: s.setSelectedLogJobId,
+      setCachedJobLogs: s.setCachedJobLogs,
+      setLogLoading: s.setLogLoading,
+      setLogError: s.setLogError,
+      ciAccessToken: s.ciAccessToken,
+    }))
+  );
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchMatchIndex, setSearchMatchIndex] = useState(0);

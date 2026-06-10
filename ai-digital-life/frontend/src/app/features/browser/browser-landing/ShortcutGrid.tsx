@@ -1,5 +1,6 @@
 import { useCallback, useState, useMemo } from 'react';
 import { useAppStore } from '../../../stores/slicedStore';
+import { useShallow } from 'zustand/react/shallow';
 import type { ShortcutSite } from '../../../stores/slices/browserSlice';
 import { ShortcutCard } from './ShortcutCard';
 import './ShortcutGrid.css';
@@ -12,8 +13,12 @@ interface ShortcutGridProps {
 }
 
 export function ShortcutGrid({ t, onOpenUrl, onAddClick, onContextMenu }: ShortcutGridProps) {
-  const browserShortcuts = useAppStore((state) => state.browserShortcuts);
-  const browserReorderShortcuts = useAppStore((state) => state.browserReorderShortcuts);
+  const { browserShortcuts, browserReorderShortcuts } = useAppStore(
+    useShallow((state) => ({
+      browserShortcuts: state.browserShortcuts,
+      browserReorderShortcuts: state.browserReorderShortcuts,
+    }))
+  );
 
   const [dragOverId, setDragOverId] = useState<string | null>(null);
 

@@ -7,7 +7,7 @@ import type { RightPanelProps } from '../../RightPanel';
 export function useTerminalPanelProps(panelProps: RightPanelProps): TerminalPanelProps {
   const latestCommandRun = useAppStore(useShallow((s) => s.latestCommandRun));
   const commandHistory = useAppStore(useShallow((s) => s.commandHistory));
-  const appInfo = useAppStore((s) => s.appInfo);
+  const appInfo = useAppStore(useShallow((s) => s.appInfo));
 
   return useMemo(
     () => ({

@@ -1,26 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
 import {
-  IconArrowLeft,
-  IconArrowRight,
-  IconCopy,
-  IconFolder,
   IconFolderPlus,
-  IconLink,
-  IconPanelLeftClose,
+  IconFolder,
   IconPlus,
-  IconRefreshCw,
-  IconSearch,
-  IconStar,
-  IconStarFilled,
   IconTrash,
-  IconFiles,
+  IconSearch,
   IconList,
   IconLayoutList,
   IconReturn,
-  IconGlobe,
   IconFoldVertical,
   IconUnfoldVertical,
+  IconGlobe,
 } from '../../icons';
 import { TooltipSimple } from '../../components/Tooltip';
 import { RenameDialog } from '../../components/RenameDialog';
@@ -28,8 +18,10 @@ import { ToastContainer, type ToastType } from '../../components/Toast';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../../stores/slicedStore';
 import { useBrowserPanel } from './useBrowserPanel';
+import { useBrowserNavigation } from './useBrowserNavigation';
+import { useBrowserUrlState } from './useBrowserUrlState';
 import { BrowserContextMenu } from './BrowserContextMenu';
-import { BrowserMenuDropdown } from './BrowserMenuDropdown';
+import { BrowserToolbar } from './BrowserToolbar';
 import { BrowserTabTree } from '../browser-tree';
 import { CustomScrollArea } from '../file-tree/CustomScrollArea';
 import { isTauriShell } from '../../../tauri-bridge';
@@ -65,6 +57,17 @@ function handleRenameFromContextMenu(
   };
 }
 
+function handleDeleteFromContextMenu(
+  contextMenu: { tabId: string | null },
+  handleCloseTab: (tabId: string) => void
+): () => void {
+  return () => {
+    if (contextMenu.tabId) {
+      handleCloseTab(contextMenu.tabId);
+    }
+  };
+}
+
 function SearchResultItem({
   item,
   onClick,
@@ -92,31 +95,27 @@ function SearchResultItem({
   );
 }
 
-function handleDeleteFromContextMenu(
-  contextMenu: { tabId: string | null },
-  handleCloseTab: (tabId: string) => void
-): () => void {
-  return () => {
-    if (contextMenu.tabId) {
-      handleCloseTab(contextMenu.tabId);
-    }
-  };
-}
-
 export function BrowserPanel(props: BrowserPanelProps) {
   const { t } = props;
 
   const isBrowserVisible = props.isVisible ?? false;
 
+  const {
+    browserOpenTab,
+    browserViewMode,
+    browserShowTabButtons,
+    setBrowserViewMode,
+    setBrowserShowTabButtons,
+  } = useAppStore(
+    useShallow((state) => ({
+      browserOpenTab: state.browserOpenTab,
+      browserViewMode: state.browserViewMode,
+      browserShowTabButtons: state.browserShowTabButtons,
+      setBrowserViewMode: state.setBrowserViewMode,
+      setBrowserShowTabButtons: state.setBrowserShowTabButtons,
+    }))
+  );
   const recentWorkspaces = useAppStore(useShallow((state) => state.recentWorkspaces));
-  const browserSelectTab = useAppStore((state) => state.browserSelectTab);
-  const browserViewMode = useAppStore((state) => state.browserViewMode);
-  const browserShowTabButtons = useAppStore((state) => state.browserShowTabButtons);
-  const browserHistory = useAppStore(useShallow((state) => state.browserHistory));
-  const setBrowserViewMode = useAppStore((state) => state.setBrowserViewMode);
-  const setBrowserShowTabButtons = useAppStore((state) => state.setBrowserShowTabButtons);
-
-  const browserOpenTab = useAppStore((state) => state.browserOpenTab);
 
   const [renameFolderState, setRenameFolderState] = useState<{
     open: boolean;
@@ -266,175 +265,51 @@ export function BrowserPanel(props: BrowserPanelProps) {
     [setBrowserViewMode, setBrowserShowTabButtons]
   );
 
+  const { handleGoBack, handleGoForward, handleReload } = useBrowserNavigation({
+    iframeRef,
+    iframeHistory,
+    navigateBrowser: browserActions.navigateBrowser,
+  });
+
+  const urlState = useBrowserUrlState({
+    address,
+    addressExpanded,
+    addressSearchRef,
+    addressInputRef,
+    setAddress: browserActions.setAddress,
+    setAddressExpanded: browserActions.setAddressExpanded,
+    submitAddress: browserActions.submitAddress,
+    activeTabUrl: activeTab?.url,
+  });
+
   return (
     <div className="adl-tool-panel adl-tool-panel--browser">
-      <div className="adl-tool-context adl-tool-context--files" aria-label={t.toolBrowser}>
-        <div className="adl-tool-context__group adl-tool-context__group--grow adl-tool-context__group--files">
-          <TooltipSimple
-            content={navigatorCollapsed ? t.panelToggleRight : t.panelToggleLeft}
-            placement="top"
-          >
-            <button
-              type="button"
-              className="adl-tool-context__iconbtn adl-tool-context__iconbtn--leading"
-              onClick={() => browserActions.toggleNavigator('browser')}
-              aria-label={navigatorCollapsed ? t.panelToggleRight : t.panelToggleLeft}
-            >
-              <IconPanelLeftClose size={14} decorative />
-            </button>
-          </TooltipSimple>
-          <TooltipSimple content={t.browserBack} placement="top">
-            <button
-              type="button"
-              className="adl-tool-context__iconbtn"
-              onClick={() => {
-                if (isTauriShell()) {
-                  invoke('browser_go_back').catch((err) =>
-                    console.error('browser_go_back failed:', err)
-                  );
-                } else if (
-                  iframeRef.current &&
-                  iframeHistory.index > 0 &&
-                  iframeHistory.entries[iframeHistory.index - 1]
-                ) {
-                  browserActions.navigateBrowser(iframeHistory.entries[iframeHistory.index - 1]);
-                }
-              }}
-              aria-label={t.browserBack}
-            >
-              <IconArrowLeft size={14} decorative />
-            </button>
-          </TooltipSimple>
-          <TooltipSimple content={t.browserForward} placement="top">
-            <button
-              type="button"
-              className="adl-tool-context__iconbtn"
-              onClick={() => {
-                if (isTauriShell()) {
-                  invoke('browser_go_forward').catch((err) =>
-                    console.error('browser_go_forward failed:', err)
-                  );
-                } else if (
-                  iframeRef.current &&
-                  iframeHistory.index < iframeHistory.entries.length - 1 &&
-                  iframeHistory.entries[iframeHistory.index + 1]
-                ) {
-                  browserActions.navigateBrowser(iframeHistory.entries[iframeHistory.index + 1]);
-                }
-              }}
-              aria-label={t.browserForward}
-            >
-              <IconArrowRight size={14} decorative />
-            </button>
-          </TooltipSimple>
-          <TooltipSimple content={t.browserRefresh} placement="top">
-            <button
-              type="button"
-              className="adl-tool-context__iconbtn"
-              onClick={() => {
-                if (isTauriShell()) {
-                  invoke('browser_reload').catch((err) =>
-                    console.error('browser_reload failed:', err)
-                  );
-                } else if (iframeRef.current?.contentWindow) {
-                  iframeRef.current.contentWindow.location.reload();
-                }
-              }}
-              aria-label={t.browserRefresh}
-            >
-              <IconRefreshCw size={14} decorative />
-            </button>
-          </TooltipSimple>
-          <label
-            ref={addressSearchRef}
-            className={`adl-tool-search adl-tool-search--address${addressExpanded ? ' is-expanded' : ''}`}
-            onClick={() => browserActions.setAddressExpanded(true)}
-          >
-            <IconLink
-              size={14}
-              decorative
-              className="adl-tool-search__icon adl-tool-search__icon--address"
-            />
-            <span className="adl-tool-search__preview" aria-hidden={addressExpanded}>
-              {address.trim()}
-            </span>
-            <input
-              ref={addressInputRef}
-              type="search"
-              value={address}
-              onChange={(event) => browserActions.setAddress(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  browserActions.submitAddress();
-                }
-              }}
-              onBlur={() => browserActions.setAddressExpanded(false)}
-              placeholder={t.browserAddress}
-              aria-label={t.browserAddress}
-            />
-            <TooltipSimple content={t.browserCopyLink} placement="top">
-              <button
-                type="button"
-                className="adl-tool-search__copy"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const url = (activeTab?.url ?? address) || '';
-                  if (url) {
-                    navigator.clipboard?.writeText(url).catch(() => {
-                      const textarea = document.createElement('textarea');
-                      textarea.value = url;
-                      document.body.appendChild(textarea);
-                      textarea.select();
-                      document.execCommand('copy');
-                      document.body.removeChild(textarea);
-                    });
-                  }
-                }}
-              >
-                <IconCopy size={14} decorative />
-              </button>
-            </TooltipSimple>
-            <TooltipSimple content="新建标签页" placement="top">
-              <button
-                type="button"
-                className="adl-tool-search__copy"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  browserOpenTab();
-                }}
-              >
-                <IconPlus size={14} decorative />
-              </button>
-            </TooltipSimple>
-          </label>
-        </div>
-        <div className="adl-tool-context__group adl-tool-context__group--files-actions">
-          <TooltipSimple content={isBookmarked ? '取消收藏' : '收藏标签'} placement="top">
-            <button
-              type="button"
-              className="adl-tool-context__iconbtn"
-              aria-label={isBookmarked ? '取消收藏' : '收藏标签'}
-              onClick={() => {
-                browserActions.handleToggleBookmark();
-              }}
-            >
-              {isBookmarked ? (
-                <IconStarFilled size={14} decorative />
-              ) : (
-                <IconStar size={14} decorative />
-              )}
-            </button>
-          </TooltipSimple>
-          <BrowserMenuDropdown
-            menuOpen={browserMenuOpen}
-            menuRef={browserMenuRef}
-            menuItems={browserMenuItems}
-            onToggle={() => browserActions.setBrowserMenuOpen((value) => !value)}
-            onClose={() => browserActions.setBrowserMenuOpen(false)}
-            t={t}
-          />
-        </div>
-      </div>
+      <BrowserToolbar
+        t={t}
+        navigatorCollapsed={navigatorCollapsed}
+        address={urlState.address}
+        addressExpanded={urlState.addressExpanded}
+        addressSearchRef={urlState.addressSearchRef}
+        addressInputRef={urlState.addressInputRef}
+        activeTab={activeTab}
+        isBookmarked={isBookmarked}
+        browserMenuOpen={browserMenuOpen}
+        browserMenuRef={browserMenuRef}
+        browserMenuItems={browserMenuItems}
+        onToggleNavigator={() => browserActions.toggleNavigator('browser')}
+        onGoBack={handleGoBack}
+        onGoForward={handleGoForward}
+        onReload={handleReload}
+        onAddressChange={urlState.handleAddressChange}
+        onAddressKeyDown={urlState.handleAddressKeyDown}
+        onAddressBlur={urlState.handleAddressBlur}
+        onSearchClick={urlState.handleSearchClick}
+        onCopyUrl={urlState.handleCopyUrl}
+        onNewTab={() => browserOpenTab()}
+        onToggleBookmark={browserActions.handleToggleBookmark}
+        onToggleBrowserMenu={() => browserActions.setBrowserMenuOpen((value) => !value)}
+        onCloseBrowserMenu={() => browserActions.setBrowserMenuOpen(false)}
+      />
 
       <div
         className={`adl-tool-surface adl-tool-surface--files${navigatorCollapsed ? ' is-navigator-collapsed' : ''}`}
@@ -499,7 +374,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
                     aria-label="文件树"
                     aria-pressed={browserViewMode === 'tree' ? 'true' : 'false'}
                   >
-                    <IconFiles size={14} decorative />
+                    <IconFolder size={14} decorative />
                   </button>
                 </TooltipSimple>
                 <TooltipSimple content="文件列表" placement="top">
@@ -623,7 +498,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
               workspaces={visibleWorkspaces}
               browserTabs={browserTabs}
               browserTabFolders={browserTabFolders}
-              browserHistory={browserHistory}
+              browserHistory={useAppStore(useShallow((state) => state.browserHistory))}
               tabTreeExpanded={tabTreeExpanded}
               selectedTreePath={selectedTreePath}
               onSelectTreePath={handleSelectTreePath}
@@ -645,7 +520,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
                   if (tabId) {
                     const tab = browserTabs.find((t) => t.id === tabId);
                     if (tab) {
-                      browserSelectTab(tabId);
+                      useAppStore.getState().browserSelectTab(tabId);
                       return;
                     }
                   }

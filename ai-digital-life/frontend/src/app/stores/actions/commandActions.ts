@@ -4,6 +4,13 @@ import { postMutationRefresh, clearError, captureError } from '../shared';
 
 export function createCommandActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
   return {
+    /**
+     * [runCommand - 在工作区上下文中执行 shell 命令]
+     * @writes commandSlice.latestCommandRun
+     * @see shared/ipc.ts → command.run
+     * @see mock-bridge.ts → command.run
+     * @see preview-bridge/index.ts → command.run
+     */
     runCommand: async (command: string, argsText: string) => {
       if (!command.trim()) return;
       clearError(get);

@@ -27,10 +27,11 @@ function FileCreationBar({
   useEffect(() => {
     if (prevTargetRef.current !== createTarget) {
       prevTargetRef.current = createTarget;
-      window.setTimeout(() => {
+      const timer = window.setTimeout(() => {
         createInputRef.current?.focus();
         createInputRef.current?.select();
       }, 0);
+      return () => window.clearTimeout(timer);
     }
   }, [createTarget, createInputRef]);
 

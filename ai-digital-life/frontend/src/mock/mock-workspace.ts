@@ -2,6 +2,7 @@ import type { WorkspaceBridge } from "../shared/ipc";
 import type {
   GitBranchSummary,
   GitSnapshot,
+  ReorderWorkspacesInput,
   WorkspaceChangePreview,
   WorkspaceGitBranchChangeResult,
   WorkspaceGitBranchCreateInput,
@@ -63,7 +64,7 @@ export const mockWorkspace: WorkspaceBridge = {
     }
     return { ok: true, data: recentWorkspaces };
   },
-  reorder: async () => ({ ok: true, data: recentWorkspaces }),
+  reorder: async (_input: ReorderWorkspacesInput) => ({ ok: true, data: recentWorkspaces }),
   removeFromSidebar: async (workspaceId: string) => {
     const entry = recentWorkspaces.find((item) => item.id === workspaceId);
     if (entry) {

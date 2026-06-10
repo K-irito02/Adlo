@@ -34,6 +34,7 @@
 | [ui-store-migration-2026-06-07.md](./重构/ui-store-migration-2026-06-07.md) | 2026-06-07 重构 | UI Store 迁移与代码重构经验（状态迁移、组件更新、性能优化） |
 | [uiSliceNavigatorRefactor-2026-06-08.md](./重构/uiSliceNavigatorRefactor-2026-06-08.md) | 2026-06-08 重构 | Navigator 方法移动到 uiSlice 经验（单一职责原则、向后兼容、警告清理） |
 | [residual-architecture-cleanup-2026-06-09.md](./重构/residual-architecture-cleanup-2026-06-09.md) | 2026-06-09 重构洞察执行 | Phase 41-42 残余架构清理 8 领域经验（bridge 下沉、React.memo、Rust 结构体、clone 消除、命令层测试、@types 分类） |
+| [performance-optimization-lessons-2026-06-11.md](./重构/performance-optimization-lessons-2026-06-11.md) | 2026-06-11 重构洞察执行 | 性能优化经验总结（虚拟化、memo、选择器、代码分割、内存泄漏） |
 
 ### 多工作区
 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { RIGHT_PANEL_WIDTH_MIN, RIGHT_PANEL_WIDTH_MAX } from '../../../stores/slices/uiSlice';
 import { useAppStore } from '../../../stores/slicedStore';
+import { useShallow } from 'zustand/react/shallow';
 import { deriveRightPanelOverlayState, type RightPanelMode } from '../rightPanelLayout';
 
 interface RightPanelLayoutMetrics {
@@ -12,9 +13,13 @@ interface RightPanelLayoutMetrics {
 }
 
 export function useRightPanelLayout(collapsed: boolean) {
-  const leftCollapsed = useAppStore((state) => state.leftCollapsed);
-  const rightPanelWidth = useAppStore((state) => state.rightPanelWidth);
-  const setRightPanelWidth = useAppStore((state) => state.setRightPanelWidth);
+  const { leftCollapsed, rightPanelWidth, setRightPanelWidth } = useAppStore(
+    useShallow((state) => ({
+      leftCollapsed: state.leftCollapsed,
+      rightPanelWidth: state.rightPanelWidth,
+      setRightPanelWidth: state.setRightPanelWidth,
+    }))
+  );
 
   const panelRef = useRef<HTMLElement | null>(null);
   const resizeFrameRef = useRef<number | null>(null);

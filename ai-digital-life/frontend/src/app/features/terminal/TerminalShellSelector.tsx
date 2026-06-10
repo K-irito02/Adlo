@@ -5,6 +5,7 @@ import type { TerminalProfile } from '../../stores/types';
 import type { CopyDict } from '../../i18n';
 import type { TerminalShellMenuItem, WorkspaceMenuItem } from './useTerminalPanel';
 import { useAppStore } from '../../stores/slicedStore';
+import { useShallow } from 'zustand/react/shallow';
 
 interface TerminalShellSelectorProps {
   currentProfile: TerminalProfile;
@@ -32,9 +33,13 @@ export const TerminalShellSelector = React.memo(function TerminalShellSelector({
   const [activeSubMenuId, setActiveSubMenuId] = useState<string | null>(null);
   const subMenuRef = useRef<HTMLDivElement | null>(null);
 
-  const terminalWorkspaceId = useAppStore((s) => s.terminalWorkspaceId);
-  const setTerminalWorkspaceId = useAppStore((s) => s.setTerminalWorkspaceId);
-  const recentWorkspaces = useAppStore((s) => s.recentWorkspaces);
+  const { terminalWorkspaceId, setTerminalWorkspaceId, recentWorkspaces } = useAppStore(
+    useShallow((s) => ({
+      terminalWorkspaceId: s.terminalWorkspaceId,
+      setTerminalWorkspaceId: s.setTerminalWorkspaceId,
+      recentWorkspaces: s.recentWorkspaces,
+    }))
+  );
 
   const boundWorkspace = useMemo(() => {
     if (!terminalWorkspaceId) return null;
@@ -66,6 +71,15 @@ export const TerminalShellSelector = React.memo(function TerminalShellSelector({
   }, [activeSubMenuId, menuRef]);
 
   const leaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (leaveTimerRef.current !== null) {
+        clearTimeout(leaveTimerRef.current);
+        leaveTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const handleMouseEnterSubMenu = useCallback((itemId: string) => {
     if (leaveTimerRef.current) {

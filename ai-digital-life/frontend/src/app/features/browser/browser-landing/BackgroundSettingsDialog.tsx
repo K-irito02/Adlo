@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import type { BackgroundMode, BackgroundFit } from '../../../stores/slices/browserSlice';
 import { useAppStore } from '../../../stores/slicedStore';
+import { useShallow } from 'zustand/react/shallow';
 import './BackgroundSettingsDialog.css';
 
 interface BackgroundSettingsDialogProps {
@@ -11,9 +12,13 @@ interface BackgroundSettingsDialogProps {
 }
 
 export function BackgroundSettingsDialog({ open, t, onClose }: BackgroundSettingsDialogProps) {
-  const browserBgConfig = useAppStore((state) => state.browserBgConfig);
-  const browserSetBgConfig = useAppStore((state) => state.browserSetBgConfig);
-  const browserResetBgConfig = useAppStore((state) => state.browserResetBgConfig);
+  const { browserBgConfig, browserSetBgConfig, browserResetBgConfig } = useAppStore(
+    useShallow((state) => ({
+      browserBgConfig: state.browserBgConfig,
+      browserSetBgConfig: state.browserSetBgConfig,
+      browserResetBgConfig: state.browserResetBgConfig,
+    }))
+  );
 
   const [mode, setMode] = useState<BackgroundMode>(browserBgConfig.mode);
   const [fit, setFit] = useState<BackgroundFit>(browserBgConfig.fit);

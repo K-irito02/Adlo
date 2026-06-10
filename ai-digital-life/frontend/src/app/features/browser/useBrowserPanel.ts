@@ -2,6 +2,7 @@ import type React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useAppStore } from '../../stores/slicedStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useNavigatorResize } from '../../hooks/useNavigatorResize';
 import { useBrowserDragDrop } from './useBrowserDragDrop';
 import { useBrowserMenus } from './useBrowserMenus';
@@ -226,32 +227,63 @@ export function useBrowserPanel(
     webViewVisibleRef.current = !webViewDisabled;
   }, [webViewDisabled]);
 
-  const browserTabs = useAppStore((state) => state.browserTabs);
-  const browserActiveTabId = useAppStore((state) => state.browserActiveTabId);
-  const browserNavigatorWidth = useAppStore((state) => state.browserNavigatorWidth);
-  const navigatorCollapsedByTool = useAppStore((state) => state.navigatorCollapsedByTool);
-  const browserBookmarks = useAppStore((state) => state.browserBookmarks);
-  const browserHistory = useAppStore((state) => state.browserHistory);
-  const recentWorkspaces = useAppStore((state) => state.recentWorkspaces);
-  const browserOpenTab = useAppStore((state) => state.browserOpenTab);
-  const browserSelectTab = useAppStore((state) => state.browserSelectTab);
-  const browserCloseTab = useAppStore((state) => state.browserCloseTab);
-  const browserUpdateTab = useAppStore((state) => state.browserUpdateTab);
-  const browserReorderTabs = useAppStore((state) => state.browserReorderTabs);
-  const browserCloseAllTabs = useAppStore((state) => state.browserCloseAllTabs);
-  const setBrowserNavigatorWidth = useAppStore((state) => state.setBrowserNavigatorWidth);
-  const toggleBrowserNavigator = useAppStore((state) => state.toggleBrowserNavigator);
-  const browserNavigateActiveTab = useAppStore((state) => state.browserNavigateActiveTab);
-  const browserToggleBookmark = useAppStore((state) => state.browserToggleBookmark);
-  const browserClearHistory = useAppStore((state) => state.browserClearHistory);
-  const browserTabFolders = useAppStore((state) => state.browserTabFolders);
-  const browserTabTreeExpanded = useAppStore((state) => state.browserTabTreeExpanded);
-  const browserToggleTabTreePath = useAppStore((state) => state.browserToggleTabTreePath);
-  const browserExpandAllTreePaths = useAppStore((state) => state.browserExpandAllTreePaths);
-  const browserCollapseAllTreePaths = useAppStore((state) => state.browserCollapseAllTreePaths);
-  const browserDeleteAllTabsInNode = useAppStore((state) => state.browserDeleteAllTabsInNode);
-  const browserDeleteTabFolder = useAppStore((state) => state.browserDeleteTabFolder);
-  const browserDeleteHistoryByLevel = useAppStore((state) => state.browserDeleteHistoryByLevel);
+  const {
+    browserTabs,
+    browserActiveTabId,
+    browserNavigatorWidth,
+    navigatorCollapsedByTool,
+    browserBookmarks,
+    browserHistory,
+    recentWorkspaces,
+    browserOpenTab,
+    browserSelectTab,
+    browserCloseTab,
+    browserUpdateTab,
+    browserReorderTabs,
+    browserCloseAllTabs,
+    setBrowserNavigatorWidth,
+    toggleBrowserNavigator,
+    browserNavigateActiveTab,
+    browserToggleBookmark,
+    browserClearHistory,
+    browserTabFolders,
+    browserTabTreeExpanded,
+    browserToggleTabTreePath,
+    browserExpandAllTreePaths,
+    browserCollapseAllTreePaths,
+    browserDeleteAllTabsInNode,
+    browserDeleteTabFolder,
+    browserDeleteHistoryByLevel,
+  } = useAppStore(
+    useShallow((state) => ({
+      browserTabs: state.browserTabs,
+      browserActiveTabId: state.browserActiveTabId,
+      browserNavigatorWidth: state.browserNavigatorWidth,
+      navigatorCollapsedByTool: state.navigatorCollapsedByTool,
+      browserBookmarks: state.browserBookmarks,
+      browserHistory: state.browserHistory,
+      recentWorkspaces: state.recentWorkspaces,
+      browserOpenTab: state.browserOpenTab,
+      browserSelectTab: state.browserSelectTab,
+      browserCloseTab: state.browserCloseTab,
+      browserUpdateTab: state.browserUpdateTab,
+      browserReorderTabs: state.browserReorderTabs,
+      browserCloseAllTabs: state.browserCloseAllTabs,
+      setBrowserNavigatorWidth: state.setBrowserNavigatorWidth,
+      toggleBrowserNavigator: state.toggleBrowserNavigator,
+      browserNavigateActiveTab: state.browserNavigateActiveTab,
+      browserToggleBookmark: state.browserToggleBookmark,
+      browserClearHistory: state.browserClearHistory,
+      browserTabFolders: state.browserTabFolders,
+      browserTabTreeExpanded: state.browserTabTreeExpanded,
+      browserToggleTabTreePath: state.browserToggleTabTreePath,
+      browserExpandAllTreePaths: state.browserExpandAllTreePaths,
+      browserCollapseAllTreePaths: state.browserCollapseAllTreePaths,
+      browserDeleteAllTabsInNode: state.browserDeleteAllTabsInNode,
+      browserDeleteTabFolder: state.browserDeleteTabFolder,
+      browserDeleteHistoryByLevel: state.browserDeleteHistoryByLevel,
+    })
+  ));
 
   const editInputRef = useRef<HTMLInputElement | null>(null);
   const browserMenuRef = useRef<HTMLDivElement | null>(null);

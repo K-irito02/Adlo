@@ -1,10 +1,13 @@
 export { FileTree } from './fileTree';
-export { collectDirectoryPaths } from './fileTree.utils';
+export { collectDirectoryPaths, flattenVisibleNodes } from './fileTree.utils';
 export type {
   FileTreeProps,
   FileTreeRenderableNode,
   FileTreeContextMenuItem,
+  FlattenedTreeNode,
 } from './fileTree.utils';
 export { getFileTreeVisualSpec } from './fileTreeVisuals';
 export { CustomScrollArea } from './CustomScrollArea';
 export { TreeNodeRow } from './TreeNodeRow';
+export { useVirtualList } from './hooks/useVirtualList';
+export type { VirtualListResult } from './hooks/useVirtualList';

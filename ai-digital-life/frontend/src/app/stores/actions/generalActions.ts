@@ -14,6 +14,14 @@ import type { StoreApi } from 'zustand';
 
 export function createGeneralActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
   return {
+    /**
+     * [bootstrap - 启动应用，获取工作区信息、会话、任务中心、Git 状态和补丁]
+     * @reads — 无（冷启动）
+     * @writes workspaceSlice.appInfo, workspaceSlice.modelHealth, workspaceSlice.recentWorkspaces, sessionSlice.sessions, sessionSlice.activeSessionId, sessionSlice.sessionDetails, taskSlice.taskCenter, workspaceSlice.workspaceContextMode, gitSlice.gitSnapshot, gitSlice.gitSnapshots, patchSlice.activePatchSet, editorSlice.selectedFilePath, editorSlice.openTabs, editorSlice.dirtyEditorPaths, editorSlice.externalFileChange, editorSlice.changePreview, editorSlice.changePreviewLoading, diagnosticSlice.indexingStatus, diagnosticSlice.repoMap, commandSlice.commandHistory, searchSlice.searchQuery, searchSlice.searchResults
+     * @see shared/ipc.ts → app.getInfo, workspace.listRecent, app.getModelHealth, workspace.getGitStatus, patch.getPatchSet, retrieval.getStatus, retrieval.getRepoMap, task.listAuditEntries, command.listRecent, workspace.listTree, workspace.listGitStatusForWorkspace
+     * @see mock-bridge.ts → app.getInfo, workspace.listRecent, app.getModelHealth, workspace.getGitStatus, patch.getPatchSet, retrieval.getStatus, retrieval.getRepoMap, task.listAuditEntries, command.listRecent, workspace.listTree, workspace.listGitStatusForWorkspace
+     * @see preview-bridge/index.ts → app.getInfo, workspace.listRecent, app.getModelHealth, workspace.getGitStatus, patch.getPatchSet, retrieval.getStatus, retrieval.getRepoMap, task.listAuditEntries, command.listRecent, workspace.listTree, workspace.listGitStatusForWorkspace
+     */
     bootstrap: async () => {
       const requestSeq = workspaceRequestSeq;
 
@@ -160,6 +168,14 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
       });
     },
 
+    /**
+     * [updatePreferences - 更新应用偏好设置（主题、语言、模型选择等）]
+     * @reads workspaceSlice.appInfo
+     * @writes workspaceSlice.appInfo, sessionSlice.sessions, workspaceSlice.modelHealth (如有模型变更)
+     * @see shared/ipc.ts → app.updatePreferences, app.getModelHealth
+     * @see mock-bridge.ts → app.updatePreferences, app.getModelHealth
+     * @see preview-bridge/index.ts → app.updatePreferences, app.getModelHealth
+     */
     updatePreferences: async (patch: AppPreferencePatch) => {
       const result = await window.digitalLife.app.updatePreferences(patch);
       if (!result.ok) {

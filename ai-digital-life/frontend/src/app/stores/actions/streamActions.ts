@@ -158,6 +158,14 @@ async function refreshAfterSend(
 
 export function createStreamActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
   return {
+    /**
+     * [sendMessage - 发送 AI 对话消息，支持流式响应、补丁应用和快捷命令]
+     * @reads workspaceSlice.appInfo, sessionSlice.activeSessionId
+     * @writes store.streamingAssistantText, store.streamingActiveRunId, store.appInfo, sessionSlice.sessions, sessionSlice.activeSessionId, store.activeRun, patchSlice.activePatchSet, editorSlice.openTabs, editorSlice.selectedFilePath, workspaceSlice.workspaceContextMode
+     * @see shared/ipc.ts → conversation.createSession, conversation.sendMessage, app.getInfo, patch.getPatchSet, patch.applyPatchSet, subscribeModelStream, subscribeRunActivity
+     * @see mock-bridge.ts → conversation.createSession, conversation.sendMessage, app.getInfo, patch.getPatchSet, patch.applyPatchSet, subscribeModelStream, subscribeRunActivity
+     * @see preview-bridge/index.ts → conversation.createSession, conversation.sendMessage, app.getInfo, patch.getPatchSet, patch.applyPatchSet, subscribeModelStream, subscribeRunActivity
+     */
     sendMessage: async (content: string, options?: MessageSendOptions) => {
       if (!content.trim()) return;
       const trimmed = content.trim();
@@ -224,6 +232,14 @@ export function createStreamActions(set: StoreApi<StoreState>['setState'], get: 
       }
     },
 
+    /**
+     * [cancelActiveStream - 取消当前运行中的 AI 流式请求]
+     * @reads store.streamingActiveRunId
+     * @writes — (通过后端取消间接更新)
+     * @see shared/ipc.ts → conversation.cancelMessage
+     * @see mock-bridge.ts → conversation.cancelMessage
+     * @see preview-bridge/index.ts → conversation.cancelMessage
+     */
     cancelActiveStream: async () => {
       const runId = get().streamingActiveRunId;
       if (!runId) return;

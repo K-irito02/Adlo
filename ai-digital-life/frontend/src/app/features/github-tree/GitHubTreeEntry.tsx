@@ -5,6 +5,7 @@ import { FileTree } from '../file-tree';
 import { TooltipSimple } from '../../components/Tooltip';
 import { RenameDialog } from '../../components/RenameDialog';
 import { useAppStore } from '../../stores/slicedStore';
+import { useShallow } from 'zustand/react/shallow';
 import type { GitHubTreeNode, GitHubCategoryType } from './types';
 import type { SectionCallbacks } from './GitHubCategorySection';
 
@@ -67,7 +68,7 @@ function getChildNodeMoreMenuItems(
   ];
 }
 
-export function GitHubTreeEntry({
+export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
   node,
   categoryType: _categoryType,
   expandedPaths,
@@ -90,8 +91,12 @@ export function GitHubTreeEntry({
   const menuId = `github-entry-menu-${node.path}`;
   const count = node.children.length;
 
-  const gitHubDeleteFolder = useAppStore((s) => s.gitHubDeleteFolder);
-  const gitHubRenameFolder = useAppStore((s) => s.gitHubRenameFolder);
+  const { gitHubDeleteFolder, gitHubRenameFolder } = useAppStore(
+    useShallow((s) => ({
+      gitHubDeleteFolder: s.gitHubDeleteFolder,
+      gitHubRenameFolder: s.gitHubRenameFolder,
+    }))
+  );
 
   const [renameFolderState, setRenameFolderState] = useState<{
     folderId: string;
@@ -279,6 +284,69 @@ export function GitHubTreeEntry({
     [handleStartRename]
   );
 
+  const handleExpandBtnClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onTogglePath(node.path);
+    },
+    [onTogglePath, node.path]
+  );
+
+  const handleNameKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter') onSelectTreePath(node.path);
+    },
+    [onSelectTreePath, node.path]
+  );
+
+  const handleWorkspaceConfigClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      callbacks.onDeleteWorkspaceConfig(node.workspaceId!);
+    },
+    [callbacks, node.workspaceId]
+  );
+
+  const handleOpenSettingsClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      callbacks.onOpenSettings(node.workspaceId!);
+    },
+    [callbacks, node.workspaceId]
+  );
+
+  const handleDeleteFolderClick = useCallback(
+    (e: React.MouseEvent, folderId: string) => {
+      e.stopPropagation();
+      gitHubDeleteFolder(folderId);
+    },
+    [gitHubDeleteFolder]
+  );
+
+  const handleStartRenameClick = useCallback(
+    (e: React.MouseEvent, folderId: string, name: string) => {
+      e.stopPropagation();
+      handleStartRename(folderId, name);
+    },
+    [handleStartRename]
+  );
+
+  const handleChildMenuClick = useCallback(
+    (action: () => void) => {
+      action();
+      setChildMenuState(null);
+    },
+    []
+  );
+
+  const handleMenuClick = useCallback(
+    (action: () => void) => {
+      action();
+      setMenuOpen(false);
+    },
+    []
+  );
+
   return (
     <div className="adl-browser-entry">
       <div
@@ -290,10 +358,7 @@ export function GitHubTreeEntry({
           <button
             type="button"
             className={`adl-browser-entry__expand-btn${isExpanded ? ' is-expanded' : ''}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              onTogglePath(node.path);
-            }}
+            onClick={handleExpandBtnClick}
             aria-label={isExpanded ? '收起' : '展开'}
             aria-expanded={isExpanded}
           >
@@ -306,9 +371,7 @@ export function GitHubTreeEntry({
         </div>
         <div
           className="adl-browser-entry__namezone"
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') onSelectTreePath(node.path);
-          }}
+          onKeyDown={handleNameKeyDown}
           role="button"
           tabIndex={0}
         >
@@ -324,10 +387,7 @@ export function GitHubTreeEntry({
                     <button
                       type="button"
                       className="adl-icon-btn adl-icon-btn--xs"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        callbacks.onDeleteWorkspaceConfig(node.workspaceId!);
-                      }}
+                      onClick={handleWorkspaceConfigClick}
                       aria-label="删除CI配置及数据"
                     >
                       <IconTrash size={12} decorative />
@@ -337,10 +397,7 @@ export function GitHubTreeEntry({
                     <button
                       type="button"
                       className="adl-icon-btn adl-icon-btn--xs"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        callbacks.onOpenSettings(node.workspaceId!);
-                      }}
+                      onClick={handleOpenSettingsClick}
                       aria-label="设置"
                     >
                       <IconSettings size={12} decorative />
@@ -358,10 +415,7 @@ export function GitHubTreeEntry({
                         <button
                           type="button"
                           className="adl-icon-btn adl-icon-btn--xs"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            gitHubDeleteFolder(folderId);
-                          }}
+                          onClick={(e) => handleDeleteFolderClick(e, folderId)}
                           aria-label="删除CI配置及数据"
                         >
                           <IconTrash size={12} decorative />
@@ -371,10 +425,7 @@ export function GitHubTreeEntry({
                         <button
                           type="button"
                           className="adl-icon-btn adl-icon-btn--xs"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleStartRename(folderId, node.name);
-                          }}
+                          onClick={(e) => handleStartRenameClick(e, folderId, node.name)}
                           aria-label="设置"
                         >
                           <IconSettings size={12} decorative />
@@ -402,10 +453,7 @@ export function GitHubTreeEntry({
                   type="button"
                   className={`adl-multitree-entry__menu-item${item.danger ? ' is-danger' : ''}`}
                   role="menuitem"
-                  onClick={() => {
-                    item.action();
-                    setMenuOpen(false);
-                  }}
+                  onClick={() => handleMenuClick(item.action)}
                 >
                   {item.label}
                 </button>
@@ -458,10 +506,7 @@ export function GitHubTreeEntry({
                   type="button"
                   className={`adl-multitree-entry__menu-item${item.danger ? ' is-danger' : ''}`}
                   role="menuitem"
-                  onClick={() => {
-                    item.action();
-                    setChildMenuState(null);
-                  }}
+                  onClick={() => handleChildMenuClick(item.action)}
                 >
                   {item.label}
                 </button>
@@ -480,4 +525,4 @@ export function GitHubTreeEntry({
       />
     </div>
   );
-}
+});

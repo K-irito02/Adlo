@@ -1,13 +1,18 @@
 import { useCallback, useRef } from 'react';
 import type { Locale } from '../i18n';
 import { useAppStore } from '../stores/slicedStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppActions } from './useAppActions';
 import { usePatchReview } from './usePatchReview';
 import { useEditorReveal } from './useEditorReveal';
 
 export function usePatchReviewWithEditor(locale: Locale) {
-  const selectedFilePath = useAppStore((s) => s.selectedFilePath);
-  const fileLastModifiedAt = useAppStore((s) => s.fileLastModifiedAt);
+  const { selectedFilePath, fileLastModifiedAt } = useAppStore(
+    useShallow((s) => ({
+      selectedFilePath: s.selectedFilePath,
+      fileLastModifiedAt: s.fileLastModifiedAt,
+    }))
+  );
   const actions = useAppActions();
 
   const pendingRevealRef = useRef<{ path: string; line: number } | null>(null);

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '../../../stores/slicedStore';
+import { useShallow } from 'zustand/react/shallow';
 import { createUiId } from '../../../stores/shared';
 import { isTauriShell } from '../../../../tauri-bridge';
 import type { LocalPort } from '../../../stores/slices/browserSlice';
@@ -20,11 +21,21 @@ export function LocalPortSection({
   onAddManualPort,
   onContextMenu,
 }: LocalPortSectionProps) {
-  const browserLocalPorts = useAppStore((state) => state.browserLocalPorts);
-  const browserPortScanning = useAppStore((state) => state.browserPortScanning);
-  const browserSetLocalPorts = useAppStore((state) => state.browserSetLocalPorts);
-  const browserReorderLocalPorts = useAppStore((state) => state.browserReorderLocalPorts);
-  const browserSetPortScanning = useAppStore((state) => state.browserSetPortScanning);
+  const {
+    browserLocalPorts,
+    browserPortScanning,
+    browserSetLocalPorts,
+    browserReorderLocalPorts,
+    browserSetPortScanning,
+  } = useAppStore(
+    useShallow((state) => ({
+      browserLocalPorts: state.browserLocalPorts,
+      browserPortScanning: state.browserPortScanning,
+      browserSetLocalPorts: state.browserSetLocalPorts,
+      browserReorderLocalPorts: state.browserReorderLocalPorts,
+      browserSetPortScanning: state.browserSetPortScanning,
+    }))
+  );
 
   const [dragOverPortId, setDragOverPortId] = useState<string | null>(null);
   const scanningRef = useRef(false);

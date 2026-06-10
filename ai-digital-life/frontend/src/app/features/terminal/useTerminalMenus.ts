@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '../../stores/slicedStore';
+import { useShallow } from 'zustand/react/shallow';
 import { terminalSelectors } from '../../stores/selectors';
 import { useTerminalContextMenu } from './useTerminalContextMenu';
 import type { TerminalPanelProps } from '../../regions/right-panel/types';
@@ -35,9 +36,13 @@ export function useTerminalMenus({
   const shellMenuRef = useRef<HTMLDivElement | null>(null);
 
   const terminalTabs = terminalSelectors.useTerminalTabs();
-  const terminalTogglePin = useAppStore((state) => state.terminalTogglePin);
-  const setDefaultTerminalProfile = useAppStore((state) => state.setDefaultTerminalProfile);
-  const recentWorkspaces = useAppStore((state) => state.recentWorkspaces);
+  const { terminalTogglePin, setDefaultTerminalProfile, recentWorkspaces } = useAppStore(
+    useShallow((state) => ({
+      terminalTogglePin: state.terminalTogglePin,
+      setDefaultTerminalProfile: state.setDefaultTerminalProfile,
+      recentWorkspaces: state.recentWorkspaces,
+    }))
+  );
 
   const {
     contextMenu,

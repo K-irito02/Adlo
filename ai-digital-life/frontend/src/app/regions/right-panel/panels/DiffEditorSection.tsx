@@ -1,17 +1,23 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { lazy, Suspense, useCallback, useMemo, useRef, useState } from 'react';
 import type { ChangesPanelProps } from '../types';
 import type { DiffEditorRef, EditorRef } from '../../../stores/types';
 
 import { detectEditorLanguage } from '../../../utils/workspacePaths';
 import { categorizeFile } from '../fileTypeRouter';
-import { DiffViewer, computePreviewDiffVisualRanges } from '../../../features/diff-viewer';
+import { computePreviewDiffVisualRanges } from '../../../features/diff-viewer';
 import type { PreviewDiffCollapsedRange } from '../../../features/diff-viewer';
-import { CodeEditor } from '../../../features/editor';
 import { LazyMarkdownPreviewWrapper } from '../../../features/preview';
 import { StickyContext } from '../editor-support/stickyContextView';
 import { useStickyContext } from '../hooks';
 import { buildOutlineFromContent } from '../../../features/outline';
 import { ChangesEmptyState } from './ChangesEmptyState';
+
+const CodeEditor = lazy(() =>
+  import('../../../features/editor').then((m) => ({ default: m.CodeEditor }))
+);
+const DiffViewer = lazy(() =>
+  import('../../../features/diff-viewer').then((m) => ({ default: m.DiffViewer }))
+);
 
 interface DiffEditorSectionProps extends Pick<
   ChangesPanelProps,
@@ -169,16 +175,18 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
           </div>
         ) : previewEnabled ? (
           <div className="adl-tool-editor__surface">
-            <CodeEditor
-              value={changePreview.currentContent}
-              language={changePreviewLanguage}
-              theme={changePreviewTheme}
-              locale={changePreviewLocale}
-              readOnly={true}
-              lineNumbers={lineNumbersEnabled}
-              wordWrap={wordWrapEnabled}
-              onMount={handleEditorMount}
-            />
+            <Suspense fallback={null}>
+              <CodeEditor
+                value={changePreview.currentContent}
+                language={changePreviewLanguage}
+                theme={changePreviewTheme}
+                locale={changePreviewLocale}
+                readOnly={true}
+                lineNumbers={lineNumbersEnabled}
+                wordWrap={wordWrapEnabled}
+                onMount={handleEditorMount}
+              />
+            </Suspense>
           </div>
         ) : (
           <div className="adl-tool-editor__surface">
@@ -189,21 +197,23 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
                 t={t}
               />
             ) : null}
-            <DiffViewer
-              original={changePreview.baseContent}
-              modified={changePreview.currentContent}
-              language={changePreviewLanguage}
-              theme={changePreviewTheme}
-              locale={changePreviewLocale}
-              sideBySide={diffSideBySide}
-              collapseUnchanged={true}
-              readOnly={true}
-              lineNumbers={lineNumbersEnabled}
-              wordWrap={wordWrapEnabled}
-              onMount={handleEditorMount}
-              extensions={diffExtensions}
-              onCollapsedUnchangedRangesChange={setCollapsedUnchangedDiffRanges}
-            />
+            <Suspense fallback={null}>
+              <DiffViewer
+                original={changePreview.baseContent}
+                modified={changePreview.currentContent}
+                language={changePreviewLanguage}
+                theme={changePreviewTheme}
+                locale={changePreviewLocale}
+                sideBySide={diffSideBySide}
+                collapseUnchanged={true}
+                readOnly={true}
+                lineNumbers={lineNumbersEnabled}
+                wordWrap={wordWrapEnabled}
+                onMount={handleEditorMount}
+                extensions={diffExtensions}
+                onCollapsedUnchangedRangesChange={setCollapsedUnchangedDiffRanges}
+              />
+            </Suspense>
           </div>
         )}
       </div>

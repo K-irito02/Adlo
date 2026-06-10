@@ -5,6 +5,7 @@ import { categorizeFile } from '../fileTypeRouter';
 import { IconEye, IconPanelLeftClose, IconReturn, IconSearch } from '../../../icons';
 import { TooltipSimple } from '../../../components/Tooltip';
 import { useAppStore } from '../../../stores/slicedStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useEditorOptions, useFileHistory } from '../hooks';
 import { FileNavigatorShell } from '../FileNavigatorShell';
 import { EditorSurfaceShell } from '../EditorSurfaceShell';
@@ -69,12 +70,23 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
 
   const localDiffEditorRef = useRef<DiffEditorRef | EditorRef | null>(null);
 
-  const setFilePreviewModeForPath = useAppStore((s) => s.setFilePreviewModeForPath);
-  const navigatorCollapsed = useAppStore((s) => s.navigatorCollapsedByTool.files);
-  const toggleNavigator = useAppStore((s) => s.toggleNavigator);
-  const navigatorMode = useAppStore((s) => s.filesNavigatorMode);
-  const setNavigatorMode = useAppStore((s) => s.setFilesNavigatorMode);
-  const filesNavigatorWidth = useAppStore((s) => s.filesNavigatorWidth);
+  const {
+    setFilePreviewModeForPath,
+    navigatorCollapsed,
+    toggleNavigator,
+    navigatorMode,
+    setNavigatorMode,
+    filesNavigatorWidth,
+  } = useAppStore(
+    useShallow((s) => ({
+      setFilePreviewModeForPath: s.setFilePreviewModeForPath,
+      navigatorCollapsed: s.navigatorCollapsedByTool.files,
+      toggleNavigator: s.toggleNavigator,
+      navigatorMode: s.filesNavigatorMode,
+      setNavigatorMode: s.setFilesNavigatorMode,
+      filesNavigatorWidth: s.filesNavigatorWidth,
+    }))
+  );
 
   const editorOptions = useEditorOptions();
   const fileHistory = useFileHistory(selectedFilePath, onOpenFile);

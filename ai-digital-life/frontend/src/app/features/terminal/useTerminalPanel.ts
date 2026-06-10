@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '../../stores/slicedStore';
+import { useShallow } from 'zustand/react/shallow';
 import { terminalSelectors } from '../../stores/selectors';
 import { useNavigatorResize } from '../../hooks/useNavigatorResize';
 import { useTerminalPtyLifecycle } from './useTerminalPtyLifecycle';
@@ -117,10 +118,15 @@ export function useTerminalPanel(props: TerminalPanelProps): UseTerminalPanelRet
   const defaultTerminalProfile = terminalSelectors.useDefaultTerminalProfile();
   const terminalNavigatorWidth = terminalSelectors.useTerminalNavigatorWidth();
 
-  const terminalUpdateTab = useAppStore((state) => state.terminalUpdateTab);
-  const terminalReorderTabs = useAppStore((state) => state.terminalReorderTabs);
-  const setTerminalNavigatorWidth = useAppStore((state) => state.setTerminalNavigatorWidth);
-  const toggleTerminalNavigator = useAppStore((state) => state.toggleTerminalNavigator);
+  const { terminalUpdateTab, terminalReorderTabs, setTerminalNavigatorWidth, toggleTerminalNavigator } =
+    useAppStore(
+      useShallow((state) => ({
+        terminalUpdateTab: state.terminalUpdateTab,
+        terminalReorderTabs: state.terminalReorderTabs,
+        setTerminalNavigatorWidth: state.setTerminalNavigatorWidth,
+        toggleTerminalNavigator: state.toggleTerminalNavigator,
+      }))
+    );
 
   const editInputRef = useRef<HTMLInputElement | null>(null);
 

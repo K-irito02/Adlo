@@ -5,6 +5,13 @@ import { postMutationRefresh, clearError, captureError } from '../shared';
 
 export function createPatchActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
   return {
+    /**
+     * [setHunkDecision - 设置补丁块的接受/拒绝/待定决策]
+     * @writes patchSlice.activePatchSet
+     * @see shared/ipc.ts → patch.setHunkDecision
+     * @see mock-bridge.ts → patch.setHunkDecision
+     * @see preview-bridge/index.ts → patch.setHunkDecision
+     */
     setHunkDecision: async (
       patchSetId: string,
       hunkId: string,
@@ -23,6 +30,14 @@ export function createPatchActions(set: StoreApi<StoreState>['setState'], get: (
       set({ activePatchSet: result.data });
     },
 
+    /**
+     * [applyPatchSet - 应用补丁集，将变更写入文件系统]
+     * @reads sessionSlice.activeSessionId
+     * @writes patchSlice.activePatchSet, patchSlice.latestPatchApplication, commandSlice.latestCommandRun, editorSlice.openTabs, sessionSlice.sessionDetails
+     * @see shared/ipc.ts → patch.applyPatchSet, conversation.getSession, agent.getRun
+     * @see mock-bridge.ts → patch.applyPatchSet, conversation.getSession, agent.getRun
+     * @see preview-bridge/index.ts → patch.applyPatchSet, conversation.getSession, agent.getRun
+     */
     applyPatchSet: async (patchSetId: string) => {
       clearError(get);
       const result = await window.digitalLife.patch.applyPatchSet(patchSetId);
@@ -67,6 +82,13 @@ export function createPatchActions(set: StoreApi<StoreState>['setState'], get: (
       await postMutationRefresh(get);
     },
 
+    /**
+     * [rollbackPatchSet - 回滚补丁集，撤销文件变更]
+     * @writes patchSlice.activePatchSet, editorSlice.openTabs
+     * @see shared/ipc.ts → patch.rollbackPatchSet, agent.getRun
+     * @see mock-bridge.ts → patch.rollbackPatchSet, agent.getRun
+     * @see preview-bridge/index.ts → patch.rollbackPatchSet, agent.getRun
+     */
     rollbackPatchSet: async (patchSetId: string) => {
       clearError(get);
       const result = await window.digitalLife.patch.rollbackPatchSet(patchSetId);
@@ -90,6 +112,14 @@ export function createPatchActions(set: StoreApi<StoreState>['setState'], get: (
       await get().fetchGitStatus();
     },
 
+    /**
+     * [acceptAllHunks - 接受当前补丁集中的所有块]
+     * @reads patchSlice.activePatchSet
+     * @writes patchSlice.activePatchSet (通过 setHunkDecision)
+     * @see shared/ipc.ts → patch.setHunkDecision (通过 setHunkDecision)
+     * @see mock-bridge.ts → patch.setHunkDecision (通过 setHunkDecision)
+     * @see preview-bridge/index.ts → patch.setHunkDecision (通过 setHunkDecision)
+     */
     acceptAllHunks: async () => {
       const patchSet = get().activePatchSet;
       if (!patchSet) return;
@@ -101,6 +131,14 @@ export function createPatchActions(set: StoreApi<StoreState>['setState'], get: (
       }
     },
 
+    /**
+     * [rejectAllHunks - 拒绝当前补丁集中的所有块]
+     * @reads patchSlice.activePatchSet
+     * @writes patchSlice.activePatchSet (通过 setHunkDecision)
+     * @see shared/ipc.ts → patch.setHunkDecision (通过 setHunkDecision)
+     * @see mock-bridge.ts → patch.setHunkDecision (通过 setHunkDecision)
+     * @see preview-bridge/index.ts → patch.setHunkDecision (通过 setHunkDecision)
+     */
     rejectAllHunks: async () => {
       const patchSet = get().activePatchSet;
       if (!patchSet) return;

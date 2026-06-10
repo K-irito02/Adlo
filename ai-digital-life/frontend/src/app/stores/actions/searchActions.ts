@@ -6,6 +6,13 @@ const debouncedSearch = createDebouncedSearch(300);
 
 export function createSearchActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
   return {
+    /**
+     * [searchFiles - 在工作区搜索文件/内容]
+     * @writes searchSlice.searchQuery, searchSlice.searchResults
+     * @see shared/ipc.ts → workspace.search
+     * @see mock-bridge.ts → workspace.search
+     * @see preview-bridge/index.ts → workspace.search
+     */
     searchFiles: async (query: string) => {
       set({ searchQuery: query });
       if (!query.trim()) {

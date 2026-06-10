@@ -193,7 +193,7 @@ function getChildNodeMoreMenuItems(
   return [];
 }
 
-export function BrowserTreeEntry({
+export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
   node,
   categoryType,
   expandedPaths,
@@ -372,6 +372,37 @@ export function BrowserTreeEntry({
     [categoryType, callbacks]
   );
 
+  const handleExpandBtnClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onTogglePath(node.path);
+    },
+    [onTogglePath, node.path]
+  );
+
+  const handleNameKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter') onSelectTreePath(node.path);
+    },
+    [onSelectTreePath, node.path]
+  );
+
+  const handleMenuItemClick = useCallback(
+    (action: () => void) => () => {
+      action();
+      setMenuOpen(false);
+    },
+    []
+  );
+
+  const handleChildMenuClick = useCallback(
+    (action: () => void) => () => {
+      action();
+      setChildMenuState(null);
+    },
+    []
+  );
+
   return (
     <div className="adl-browser-entry">
       <div
@@ -383,10 +414,7 @@ export function BrowserTreeEntry({
           <button
             type="button"
             className={`adl-browser-entry__expand-btn${isExpanded ? ' is-expanded' : ''}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              onTogglePath(node.path);
-            }}
+            onClick={handleExpandBtnClick}
             aria-label={isExpanded ? '收起' : '展开'}
             aria-expanded={isExpanded}
           >
@@ -399,9 +427,7 @@ export function BrowserTreeEntry({
         </div>
         <div
           className="adl-browser-entry__namezone"
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') onSelectTreePath(node.path);
-          }}
+          onKeyDown={handleNameKeyDown}
           role="button"
           tabIndex={0}
         >
@@ -445,10 +471,7 @@ export function BrowserTreeEntry({
                   type="button"
                   className={`adl-multitree-entry__menu-item${item.danger ? ' is-danger' : ''}`}
                   role="menuitem"
-                  onClick={() => {
-                    item.action();
-                    setMenuOpen(false);
-                  }}
+                  onClick={handleMenuItemClick(item.action)}
                 >
                   {item.label}
                 </button>
@@ -500,10 +523,7 @@ export function BrowserTreeEntry({
                   type="button"
                   className={`adl-multitree-entry__menu-item${item.danger ? ' is-danger' : ''}`}
                   role="menuitem"
-                  onClick={() => {
-                    item.action();
-                    setChildMenuState(null);
-                  }}
+                  onClick={handleChildMenuClick(item.action)}
                 >
                   {item.label}
                 </button>
@@ -514,4 +534,4 @@ export function BrowserTreeEntry({
         : null}
     </div>
   );
-}
+});

@@ -58,10 +58,11 @@ function useFileCreation(input: UseFileCreationInput): UseFileCreationResult {
     if (!createTarget) {
       return;
     }
-    window.setTimeout(() => {
+    const timer = window.setTimeout(() => {
       createInputRef.current?.focus();
       createInputRef.current?.select();
     }, 0);
+    return () => window.clearTimeout(timer);
   }, [createTarget]);
 
   const startCreate = useCallback(

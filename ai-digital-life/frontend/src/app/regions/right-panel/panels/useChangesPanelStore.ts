@@ -39,8 +39,12 @@ export function useChangesPanelStore() {
   const workspaceChangesTreeErrors = useAppStore(
     useShallow((state: StoreState) => state.workspaceChangesTreeErrors)
   );
-  const pinWorkspace = useAppStore((s) => s.pinWorkspace);
-  const unpinWorkspace = useAppStore((s) => s.unpinWorkspace);
+  const { pinWorkspace, unpinWorkspace } = useAppStore(
+    useShallow((s) => ({
+      pinWorkspace: s.pinWorkspace,
+      unpinWorkspace: s.unpinWorkspace,
+    }))
+  );
   const onPinWorkspace = useCallback(
     (workspaceId: string) => void pinWorkspace(workspaceId),
     [pinWorkspace]

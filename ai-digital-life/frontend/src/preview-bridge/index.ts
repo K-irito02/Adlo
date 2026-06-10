@@ -6,6 +6,7 @@ import type {
   GitSnapshot,
   IpcResult,
   RecentWorkspaceEntry,
+  ReorderWorkspacesInput,
   RepoMapNode,
   RetrievalSnapshot,
   WorkspaceChangePreview,
@@ -227,7 +228,7 @@ export function setupPreviewBridge(): void {
         persistRecentWorkspaces(recentWorkspaces);
         return { ok: true, data: recentWorkspaces };
       },
-      reorder: async (input: { pinnedIds: string[]; unpinnedIds: string[] }) => {
+      reorder: async (input: ReorderWorkspacesInput) => {
         const { pinnedIds, unpinnedIds } = input;
         recentWorkspaces = recentWorkspaces.map((w) => {
           const pinnedIndex = pinnedIds.indexOf(w.id);

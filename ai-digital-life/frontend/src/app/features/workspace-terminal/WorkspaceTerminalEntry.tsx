@@ -18,6 +18,7 @@ import {
 import { TooltipSimple } from '../../components/Tooltip';
 import { TerminalTabBar } from '../terminal/TerminalTabBar';
 import { useAppStore } from '../../stores/slicedStore';
+import { useShallow } from 'zustand/react/shallow';
 
 export interface WorkspaceTerminalEntryProps {
   workspace: RecentWorkspaceEntry;
@@ -37,7 +38,7 @@ export interface WorkspaceTerminalEntryProps {
   t: CopyDict;
 }
 
-export function WorkspaceTerminalEntry({
+export const WorkspaceTerminalEntry = React.memo(function WorkspaceTerminalEntry({
   workspace,
   isExpanded,
   tabs,
@@ -63,13 +64,29 @@ export function WorkspaceTerminalEntry({
   const menuId = `ws-term-menu-${workspace.id}`;
   const subMenuId = `ws-term-submenu-${workspace.id}`;
   const subMenuTriggerRef = useRef<HTMLDivElement | null>(null);
-  const defaultTerminalProfile = useAppStore((state) => state.defaultTerminalProfile);
-  const workspaceDefaultProfiles = useAppStore((state) => state.workspaceDefaultProfiles);
-  const setDefaultTerminalProfile = useAppStore((state) => state.setDefaultTerminalProfile);
-  const setWorkspaceDefaultTerminalProfile = useAppStore(
-    (state) => state.setWorkspaceDefaultTerminalProfile
+  const {
+    defaultTerminalProfile,
+    workspaceDefaultProfiles,
+    setDefaultTerminalProfile,
+    setWorkspaceDefaultTerminalProfile,
+  } = useAppStore(
+    useShallow((state) => ({
+      defaultTerminalProfile: state.defaultTerminalProfile,
+      workspaceDefaultProfiles: state.workspaceDefaultProfiles,
+      setDefaultTerminalProfile: state.setDefaultTerminalProfile,
+      setWorkspaceDefaultTerminalProfile: state.setWorkspaceDefaultTerminalProfile,
+    }))
   );
   const subHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (subHideTimerRef.current !== null) {
+        clearTimeout(subHideTimerRef.current);
+        subHideTimerRef.current = null;
+      }
+    };
+  }, []);
 
   // 使用工作区专属默认终端类型，如果没有则使用全局默认
   const currentProfile = isIndependent
@@ -112,16 +129,16 @@ export function WorkspaceTerminalEntry({
     };
   }, [menuOpen, menuId, subMenuId]);
 
-  const handleNameClick = () => {
+  const handleNameClick = useCallback(() => {
     onToggleExpand();
-  };
+  }, [onToggleExpand]);
 
-  const handleNameContextMenu = (e: React.MouseEvent) => {
+  const handleNameContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setMenuPosition({ top: e.clientY, left: e.clientX + 4 });
     setMenuOpen(true);
-  };
+  }, []);
 
   const showSubMenu = useCallback(() => {
     if (subHideTimerRef.current) {
@@ -149,14 +166,14 @@ export function WorkspaceTerminalEntry({
     setSubHover(false);
   }, []);
 
-  const handleMoreClick = (e: React.MouseEvent) => {
+  const handleMoreClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     if (subHideTimerRef.current) clearTimeout(subHideTimerRef.current);
     setSubHover(false);
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     setMenuPosition({ top: rect.top, left: rect.right + 4 });
     setMenuOpen((prev) => !prev);
-  };
+  }, []);
 
   const handleHideFromRightPanels = useCallback(() => {
     closeMenu();
@@ -175,6 +192,37 @@ export function WorkspaceTerminalEntry({
       });
     },
     [isIndependent, workspace.id, setDefaultTerminalProfile, setWorkspaceDefaultTerminalProfile]
+  );
+
+  const handleNameKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') handleNameClick();
+    },
+    [handleNameClick]
+  );
+
+  const handleRefreshClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onRefreshTree();
+    },
+    [onRefreshTree]
+  );
+
+  const handleCloseAllTabsClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onCloseAllTabs();
+    },
+    [onCloseAllTabs]
+  );
+
+  const handleCreateTabClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onCreateTab();
+    },
+    [onCreateTab]
   );
 
   return (
@@ -208,9 +256,7 @@ export function WorkspaceTerminalEntry({
           tabIndex={0}
           onClick={handleNameClick}
           onContextMenu={handleNameContextMenu}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') handleNameClick();
-          }}
+          onKeyDown={handleNameKeyDown}
           aria-label={workspace.name}
         >
           <span className="adl-multitree-entry__name" title={workspace.path}>
@@ -224,10 +270,7 @@ export function WorkspaceTerminalEntry({
                 <button
                   type="button"
                   className="adl-icon-btn adl-icon-btn--xs"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onRefreshTree();
-                  }}
+                  onClick={handleRefreshClick}
                   aria-label="刷新"
                 >
                   <IconRefreshCw size={12} decorative />
@@ -238,10 +281,7 @@ export function WorkspaceTerminalEntry({
               <button
                 type="button"
                 className="adl-icon-btn adl-icon-btn--xs"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onCloseAllTabs();
-                }}
+                onClick={handleCloseAllTabsClick}
                 aria-label="删除全部"
               >
                 <IconTrash size={12} decorative />
@@ -251,10 +291,7 @@ export function WorkspaceTerminalEntry({
               <button
                 type="button"
                 className="adl-icon-btn adl-icon-btn--xs"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onCreateTab();
-                }}
+                onClick={handleCreateTabClick}
                 aria-label="创建终端"
               >
                 <IconPlus size={12} decorative />
@@ -387,4 +424,4 @@ export function WorkspaceTerminalEntry({
       ) : null}
     </div>
   );
-}
+});
