@@ -1,52 +1,32 @@
 # AI 数字生命
 
-这是 `AI数字生命` 的规划与治理工作区，根目录以架构约束、阶段边界、协作规则和文档同步为主。
+AI 数字生命桌面应用的规划与治理仓库。
 
-## 当前状态
+## 仓库结构
 
-- `ai-digital-life/` 是当前实际的 Phase 0 代码工作区
-- `digitalLife/` 保留较早期的功能规格、阶段规划与实现笔记，其中部分子文档仍是 Electron 时代方案
-- `.agents/` 维护项目级 Agent、skills、hooks 与 manifests
-- `docs/development/` 维护开发协作与治理说明
+| 目录 | 职责 |
+|------|------|
+| [ai-digital-life/](./ai-digital-life/) | 实现工作区：Rust + Tauri 2.x 桌面应用 |
+| [docs/](./docs/) | 架构设计、开发约束、知识沉淀 |
+| [.agents/rules/](./.agents/rules/) | AI 代理规则（自动同步到 `.trae/rules/`） |
+| [UIOperationManual/](./UIOperationManual/) | UI 元素定位手册（浏览器自动化测试用） |
+| [.opencode/skills/](./.opencode/skills/) | AI 代理技能包 |
 
-## 实现工作区
+## 快速入口
 
-`ai-digital-life/` 当前包含：
+- [AGENTS.md](./AGENTS.md) — 项目治理规则、Phase 划分、禁止项、真源定位
+- [ai-digital-life/README.md](./ai-digital-life/README.md) — 实现工作区快速开始
+- [ai-digital-life/AGENTS.md](./ai-digital-life/AGENTS.md) — 技术栈、功能清单、Store 架构
+- [FUTURE-ROADMAP.md](./FUTURE-ROADMAP.md) — 远期规划
+- [docs/知识沉淀/README.md](./docs/知识沉淀/README.md) — 经验教训索引
 
-- `src-tauri/` Tauri 2.x Rust 入口、commands 与 capabilities
-- `crates/` Cargo workspace 业务 crate
-- `frontend/` React 19 + Vite + Zustand WebView 前端
-- `tests/` Rust 集成测试与 E2E 目录
-- `docs/architecture/` 与 `docs/design-system/` 实现文档
+## 技术栈摘要
 
-详细约束见 [ai-digital-life/README.md](./ai-digital-life/README.md)。
+| 层级 | 技术 |
+|------|------|
+| 桌面框架 | Tauri 2.x |
+| 后端 | Rust + tokio + rusqlite |
+| 前端 | React 19 + Vite + Zustand + TypeScript |
+| 包管理 | pnpm（前端）/ Cargo（Rust） |
 
-## 技术方向
-
-- Rust（stable）
-- Tauri 2.x
-- tokio + rusqlite + serde + tracing
-- React 19 + Vite + Zustand
-- Cargo workspace + 前端 `npm --prefix frontend`
-- ESLint v9 + Prettier（前端代码质量）
-- Clippy + rustfmt（Rust 代码质量）
-
-实现工作区的技术对齐与阶段细节见：
-
-- [Tech Stack Alignment](./docs/architecture/tech-stack-alignment.md)
-
-## 开发协作
-
-仓库已引入项目级 `AGENTS.md` 与 `.agents/` 体系，用于约束协作边界：
-
-- 子Agent 分工
-- 项目级 skills
-- 规则文件（`.agents/rules/`）
-- 分级治理 hooks
-- 路由与文档收口规则
-
-## 规划文档说明
-
-- `digitalLife/` 继续保留产品愿景、阶段划分和早期设计讨论
-- 当 `digitalLife/` 与 `ai-digital-life/` 或根目录治理文档冲突时，以当前 Rust + Tauri 文档为准
-- 更新架构、规则、技术栈或目录结构时，优先同步根 `AGENTS.md`、`docs/development/*` 与 `docs/architecture/*`
+详情见 [ai-digital-life/AGENTS.md](./ai-digital-life/AGENTS.md)。

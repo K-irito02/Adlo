@@ -16,7 +16,7 @@
 - keyring (credential storage)
 
 **Prerequisite reading for implementer:**
-- `digitalLife/技术栈评估与优化.md` — 完整分析文档
+- ~~`digitalLife/技术栈评估与优化.md`~~ （目录已归档删除）
 - `src-tauri/src/commands/` — Tauri 命令模式
 - `frontend/src/app/features/preview/markdownPreviewUtils.ts` — markdown-it + highlight.js 使用
 - `frontend/src/app/features/editor/cmLanguages.ts` — CodeMirror 动态加载模式（参考）

@@ -2,7 +2,7 @@
 
 This is the canonical design-system reference for the **AI Digital Life** desktop renderer.
 
-The design intent originates in [`digitalLife/aiFunction-Implementation/stageOne-UI`](../../../digitalLife/aiFunction-Implementation/stageOne-UI/) (Phase 0 specification). This folder is the **implementation contract**: anything the renderer ships must match the rules below, and any spec change must update both.
+The design intent originates in the Phase 0 specification (stageOne). This folder is the **implementation contract**: anything the renderer ships must match the rules below, and any spec change must update both.
 
 ## Goals
 

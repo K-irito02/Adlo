@@ -11,22 +11,7 @@
 
 ## 技术与阶段基线
 
-当前默认技术基线：
-
-- 后端语言：`Rust (stable)`
-- 桌面框架：`Tauri 2.x`
-- 异步运行时：`tokio`
-- 持久化：`SQLite via rusqlite`
-- 序列化：`serde` / `serde_json`
-- 日志：`tracing` + `tracing-subscriber`
-- 错误处理：`thiserror`（库 crate） + `anyhow`（应用层）
-- 文件监听：`notify`
-- HTTP 客户端：`reqwest`
-- 凭据存储：`crates/credential/`（keyring + 加密文件降级）
-- 前端：`React 19 + Vite + Zustand + TypeScript`（运行在 Tauri WebView）
-- 桥接：`#[tauri::command]` + `@tauri-apps/api` 的 `invoke()` / `listen()`
-- 打包：`cargo tauri build`
-- 包管理：Rust 端 `Cargo workspace`；前端 `pnpm`（推荐）或 `npm`
+当前技术基线见 [ai-digital-life/AGENTS.md](../../ai-digital-life/AGENTS.md#技术栈) 的技术栈表。
 
 当前阶段边界：
 

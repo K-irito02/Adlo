@@ -4,7 +4,7 @@
 
 ## Current Result
 
-The current `ai-digital-life` workspace now satisfies the runnable `stageOne` Phase 0 baseline defined in `digitalLife/aiFunction-Implementation/stageOne`.
+The current `ai-digital-life` workspace now satisfies the runnable `stageOne` Phase 0 baseline defined in the original specification (archived in `docs/superpowers/`).
 
 This means the repository now has:
 

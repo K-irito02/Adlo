@@ -4,7 +4,7 @@
    - Spacing / Typography / Radius / Shadow / Motion / Z-index / Breakpoints
    - All tokens are CSS Custom Properties, semantic names only.
    - Components MUST consume these tokens; raw values are not allowed.
-   - Token vocabulary mirrors digitalLife/aiFunction-Implementation/stageOne-UI
+   - Token vocabulary mirrors stageOne design spec
    ========================================================================== */
 
 :root {

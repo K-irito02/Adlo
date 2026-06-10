@@ -35,7 +35,7 @@
 
 ### 重构历史
 
-共完成 **55 轮**迭代重构，详情见 [根目录 AGENTS.md](../AGENTS.md#重构历史)。
+共完成 **55 轮**迭代重构，完整记录见 [根目录 AGENTS.md](../AGENTS.md#重构历史)。
 
 ## 安全边界
 
@@ -48,17 +48,7 @@
 
 ## 双端一致性
 
-应用同时运行于 Tauri 桌面和浏览器模式，所有功能必须双端可用。
-
-| 检测方式 | 说明 |
-|----------|------|
-| `isTauriShell()` | 运行时环境检测 |
-| `data-shell="tauri\|browser"` | HTML 根元素属性，CSS 适配用 |
-
-新增 IPC 方法时，必须同步实现：
-- `tauri-bridge.ts`（Tauri 模式）
-- `preview-bridge/`（浏览器模式，Vite Preview API）
-- `mock-bridge.ts`（纯内存回退）
+应用同时运行于 Tauri 桌面和浏览器模式，所有功能必须双端可用。双端一致性规范见 [根目录 AGENTS.md](../AGENTS.md#双端一致性)。
 
 ## 命令规范
 

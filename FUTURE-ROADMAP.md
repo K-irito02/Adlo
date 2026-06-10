@@ -119,4 +119,4 @@ const FUTURE_FEATURES = {
 
 - [AGENTS.md](./AGENTS.md)
 - [ai-digital-life/AGENTS.md](./ai-digital-life/AGENTS.md)
-- [phase-boundary.md](./.agents/rules/phase-boundary.md)
+- [phase-boundary.md](./.trae/rules/phase-boundary.md)
