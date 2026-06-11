@@ -19,9 +19,15 @@ import {
   createCommandSlice,
   createClipboardSlice,
   createTerminalSlice,
+  createBrowserTabsSlice,
+  createBrowserBookmarkSlice,
+  createBrowserHistorySlice,
+  createBrowserFoldersSlice,
+  createBrowserLandingSlice,
   createBrowserSlice,
   createCiSlice,
   createCommunicateSlice,
+  createGitHubSlice,
 } from './slices';
 import type { StoreState as FullStoreState } from './StoreState';
 
@@ -52,7 +58,7 @@ type StoreState = FullStoreState;
 // 合并所有切片并添加跨切片的 actions
 export const useSlicedAppStore = create<StoreState>((set, get) => ({
   // ════════════════════════════════════════════════════════
-  // 状态切片（12 个）— 纯状态 + 切片内 actions
+  // 状态切片（17 个）— 纯状态 + 切片内 actions
   // ════════════════════════════════════════════════════════
   ...createUISlice(set, get), // UI 状态（侧边栏、工具栏、聊天模式）
   ...createWorkspaceSlice(set, get), // 工作区状态（appInfo, workspaceTree）
@@ -66,9 +72,15 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
   ...createCommandSlice(set, get), // 命令执行（latestCommandRun）
   ...createClipboardSlice(set, get), // 剪贴板
   ...createTerminalSlice(set, get), // 终端会话管理
-  ...createBrowserSlice(set, get), // 浏览器标签管理
+  ...createBrowserTabsSlice(set, get), // 浏览器标签页
+  ...createBrowserBookmarkSlice(set, get), // 浏览器书签
+  ...createBrowserHistorySlice(set, get), // 浏览器历史记录
+  ...createBrowserFoldersSlice(set, get), // 浏览器标签文件夹
+  ...createBrowserLandingSlice(set, get), // 浏览器落地页（快捷站点、端口、背景）
+  ...createBrowserSlice(set, get), // 浏览器核心状态（导航栏、视图模式、持久化）
   ...createCiSlice(set, get), // CI 状态（GitHub Actions）
   ...createCommunicateSlice(set, get), // 通信状态（多平台）
+  ...createGitHubSlice(set, get), // GitHub CI 专有状态
 
   // ════════════════════════════════════════════════════════
   // 根级状态

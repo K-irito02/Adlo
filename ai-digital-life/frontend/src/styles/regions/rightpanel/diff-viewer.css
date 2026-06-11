@@ -462,9 +462,9 @@
 }
 
 .adl-cm-diff-viewer--inline .cm-deletedChunk .cm-chunkButtons button[name='accept'] {
-  background: #2a2 !important;
+  background: var(--diff-accept-bg) !important;
   border: none !important;
-  color: #fff !important;
+  color: var(--diff-btn-text) !important;
   cursor: pointer !important;
   margin: 0 2px !important;
   border-radius: 3px !important;
@@ -475,9 +475,9 @@
 }
 
 .adl-cm-diff-viewer--inline .cm-deletedChunk .cm-chunkButtons button[name='reject'] {
-  background: #d43 !important;
+  background: var(--diff-reject-bg) !important;
   border: none !important;
-  color: #fff !important;
+  color: var(--diff-btn-text) !important;
   cursor: pointer !important;
   margin: 0 2px !important;
   border-radius: 3px !important;
@@ -493,9 +493,9 @@
 
 /* Side-by-side merge controls */
 .adl-cm-diff-viewer--side-by-side .cm-merge-revert button {
-  background: #49d !important;
+  background: var(--diff-revert-bg) !important;
   border: none !important;
-  color: #fff !important;
+  color: var(--diff-btn-text) !important;
   cursor: pointer !important;
   border-radius: 3px !important;
   padding: 2px 8px !important;

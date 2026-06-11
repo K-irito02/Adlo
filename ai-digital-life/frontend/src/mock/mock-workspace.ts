@@ -1,9 +1,11 @@
+import { IpcErrorCode } from "../shared/ipc";
 import type { WorkspaceBridge } from "../shared/ipc";
 import type {
   GitBranchSummary,
   GitSnapshot,
   ReorderWorkspacesInput,
   WorkspaceChangePreview,
+  WorkspaceFileChangedEvent,
   WorkspaceGitBranchChangeResult,
   WorkspaceGitBranchCreateInput,
   WorkspaceGitBranchSwitchInput,
@@ -48,7 +50,7 @@ export const mockWorkspace: WorkspaceBridge = {
   },
   pickDirectory: async () => ({
     ok: false,
-    error: { code: "UNSUPPORTED", message: "Directory picker is unavailable in the mock bridge." }
+    error: { code: IpcErrorCode.INTERNAL_ERROR, message: "Directory picker is unavailable in the mock bridge." }
   }),
   pin: async (workspaceId: string) => {
     const entry = recentWorkspaces.find((item) => item.id === workspaceId);
@@ -323,5 +325,5 @@ export const mockWorkspace: WorkspaceBridge = {
     };
     return { ok: true, data: result };
   },
-  onFileChanged: () => () => undefined
+  onFileChanged: (listener: (event: WorkspaceFileChangedEvent) => void) => () => {}
 };

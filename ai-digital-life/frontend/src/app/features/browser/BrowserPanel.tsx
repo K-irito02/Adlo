@@ -17,9 +17,14 @@ import { RenameDialog } from '../../components/RenameDialog';
 import { ToastContainer, type ToastType } from '../../components/Toast';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../../stores/slicedStore';
-import { useBrowserPanel } from './useBrowserPanel';
+import { useBrowserTabs, computeNavigatorCount } from './useBrowserTabs';
+import type { BrowserNavigatorMode } from './useBrowserTabs';
+import { useBrowserWebView } from './useBrowserWebView';
+import { useBrowserSearch } from './useBrowserSearch';
+import { useBrowserTreeActions } from './useBrowserTreeActions';
 import { useBrowserNavigation } from './useBrowserNavigation';
 import { useBrowserUrlState } from './useBrowserUrlState';
+import { useBrowserMenus } from './useBrowserMenus';
 import { BrowserContextMenu } from './BrowserContextMenu';
 import { BrowserToolbar } from './BrowserToolbar';
 import { BrowserTabTree } from '../browser-tree';
@@ -28,6 +33,7 @@ import { isTauriShell } from '../../../tauri-bridge';
 import { BrowserLandingPage, CreateTabDialog } from './browser-landing';
 import type { BrowserPanelProps } from '../../regions/right-panel/types';
 import { open as shellOpen } from '@tauri-apps/plugin-shell';
+import { useNavigatorResize } from '../../hooks/useNavigatorResize';
 
 function resolveFolderWorkspaceId(
   folderId: string,
@@ -112,6 +118,12 @@ export function BrowserPanel(props: BrowserPanelProps) {
     browserShowTabButtons,
     setBrowserViewMode,
     setBrowserShowTabButtons,
+    browserNavigatorWidth,
+    navigatorCollapsedByTool,
+    setBrowserNavigatorWidth,
+    toggleBrowserNavigator,
+    browserNavigateActiveTab,
+    browserUpdateTab,
   } = useAppStore(
     useShallow((state) => ({
       browserOpenTab: state.browserOpenTab,
@@ -119,10 +131,25 @@ export function BrowserPanel(props: BrowserPanelProps) {
       browserShowTabButtons: state.browserShowTabButtons,
       setBrowserViewMode: state.setBrowserViewMode,
       setBrowserShowTabButtons: state.setBrowserShowTabButtons,
+      browserNavigatorWidth: state.browserNavigatorWidth,
+      navigatorCollapsedByTool: state.navigatorCollapsedByTool,
+      setBrowserNavigatorWidth: state.setBrowserNavigatorWidth,
+      toggleBrowserNavigator: state.toggleBrowserNavigator,
+      browserNavigateActiveTab: state.browserNavigateActiveTab,
+      browserUpdateTab: state.browserUpdateTab,
     }))
   );
   const recentWorkspaces = useAppStore(useShallow((state) => state.recentWorkspaces));
+  const browserBookmarks = useAppStore(useShallow((state) => state.browserBookmarks));
   const browserHistory = useAppStore(useShallow((state) => state.browserHistory));
+
+  const navigatorCollapsed = navigatorCollapsedByTool.browser ?? false;
+
+  const [navigatorMode, setNavigatorMode] = useState<BrowserNavigatorMode>('tabs');
+  const [address, setAddress] = useState('');
+  const [addressExpanded, setAddressExpanded] = useState(false);
+  const addressSearchRef = useRef<HTMLLabelElement | null>(null);
+  const addressInputRef = useRef<HTMLInputElement | null>(null);
 
   const [renameFolderState, setRenameFolderState] = useState<{
     open: boolean;
@@ -199,38 +226,184 @@ export function BrowserPanel(props: BrowserPanelProps) {
   }, [handleSelectTreePath]);
 
   const {
-    browserState: {
-      addressSearchRef,
-      addressExpanded,
-      addressInputRef,
-      address,
-      navigatorCollapsed,
-      navigatorCount,
-      navigatorTitle: rawNavigatorTitle,
-      activeTab,
-      isBookmarked,
-      browserMenuOpen,
-      browserMenuRef,
-      browserMenuItems,
-      navigatorMode,
-      contextMenu,
-      browserTabs,
-      browserTabFolders,
-      tabTreeExpanded,
-      browserNavigatorWidth,
-      allTreeExpanded,
-      navigatorQuery,
-      searchScope,
-      navigatorSearchInputRef,
-      searchResults,
-      iframeRef,
-      iframeLoadError,
-      hasActiveTab,
-      primaryRef,
-      iframeHistory,
+    activeTab,
+    hasActiveTab,
+    isBookmarked,
+    browserTabs,
+    editingTabId,
+    editValue,
+    editInputRef,
+    handleDoubleClick,
+    handleCreateTab,
+    handleSelectTab,
+    handleCloseTab,
+    handleCloseAllTabs,
+    handleEditSubmit,
+    handleEditKeyDown,
+    handleToggleBookmark,
+    setEditValue,
+    setEditingTabId,
+  } = useBrowserTabs();
+
+  const {
+    iframeLoadError,
+    setIframeLoadError,
+    iframeHistory,
+    setIframeHistory,
+    iframeRef,
+    primaryRef,
+    navigateBrowser,
+    updateWebViewBounds,
+    handleIframeLoad,
+    handleIframeError,
+  } = useBrowserWebView({
+    activeTab,
+    webViewDisabled: false,
+    isVisible: isBrowserVisible,
+    setAddress,
+    browserNavigateActiveTab,
+    browserUpdateTab,
+  });
+
+  const {
+    navigatorQuery,
+    setNavigatorQuery,
+    searchScope,
+    setSearchScope,
+    navigatorSearchRef,
+    navigatorSearchInputRef,
+    searchResults,
+  } = useBrowserSearch({
+    t,
+    browserBookmarks,
+    browserHistory,
+    browserTabs,
+  });
+
+  const {
+    browserTabFolders,
+    tabTreeExpanded,
+    allTreeExpanded,
+    handleCreateTabInTree,
+    handleToggleTreePath,
+    handleDeleteAllChildTabs,
+    handleOpenAllInNewTabs,
+    handleRemoveFromArea,
+    handleDeleteDirectory,
+    handleDeleteHistoryLevel,
+    handleExpandAllTree,
+    handleCollapseAllTree,
+  } = useBrowserTreeActions();
+
+  const {
+    browserMenuOpen,
+    setBrowserMenuOpen,
+    browserMenuRef,
+    contextMenu,
+    handleTogglePin,
+    handleCopyUrlFromMenu,
+    handleOpenInNewTab,
+    handleOpenInCurrentTab,
+  } = useBrowserMenus({
+    t,
+    activeTab,
+    handleCloseTab,
+    handleDoubleClick,
+  });
+
+  const browserMenuItems = useMemo(
+    () => [
+      {
+        id: 'hard-reload',
+        label: t.browserHardReload,
+        action: () => browserNavigateActiveTab(activeTab?.url ?? 'about:blank', activeTab?.title),
+      },
+      {
+        id: 'copy-url',
+        label: t.browserCopyCurrentUrl,
+        action: () => void navigator.clipboard?.writeText(activeTab?.url ?? 'about:blank'),
+      },
+      { id: 'sep-1', separator: true as const },
+      { id: 'clear-history', label: t.browserClearHistory, action: () => useAppStore.getState().browserClearHistory() },
+      { id: 'clear-cookies', label: t.browserClearCookies, disabled: true },
+      { id: 'clear-cache', label: t.browserClearCache, disabled: true },
+      { id: 'devtools', label: t.browserDeveloperTools, disabled: true },
+      { id: 'sep-2', separator: true as const },
+      { id: 'zoom-in', label: t.menuZoomIn, disabled: true },
+      { id: 'zoom-out', label: t.menuZoomOut, disabled: true },
+      { id: 'zoom-reset', label: t.menuZoomReset, disabled: true },
+    ],
+    [activeTab, browserNavigateActiveTab, t]
+  );
+
+  const { handlePointerDown: handleNavigatorResizeStart } = useNavigatorResize({
+    onWidthCommit: setBrowserNavigatorWidth,
+    minWidth: 180,
+    maxWidth: 300,
+  });
+
+  const toggleNavigator = useCallback(
+    (tool: string) => {
+      if (tool === 'browser') {
+        toggleBrowserNavigator();
+      }
     },
-    browserActions,
-  } = useBrowserPanel(props);
+    [toggleBrowserNavigator]
+  );
+
+  const submitAddress = useCallback(() => {
+    const input = address.trim();
+    if (!input) {
+      return;
+    }
+    const normalizedInput = input.toLowerCase();
+    const store = useAppStore.getState();
+    const bookmarks = store.browserBookmarks;
+    const history = store.browserHistory;
+    const tabs = store.browserTabs;
+
+    const quickLinks = [
+      { title: t.browserLocalPreview, url: 'http://localhost:5173/' },
+      { title: t.browserBlankTab, url: 'about:blank' },
+    ];
+
+    const seen = new Set<string>();
+    const browserLookupIndex = [...quickLinks, ...bookmarks, ...history, ...tabs].filter(
+      (item) => {
+        const key = `${item.title}::${item.url}`;
+        if (seen.has(key)) {
+          return false;
+        }
+        seen.add(key);
+        return true;
+      }
+    );
+
+    const matchedItem =
+      browserLookupIndex.find(
+        (item) =>
+          item.title.toLowerCase() === normalizedInput || item.url.toLowerCase() === normalizedInput
+      ) ??
+      (!(/^(about:|[a-z]+:\/\/)/i.test(input) || /[./:]/.test(input))
+        ? browserLookupIndex.find(
+            (item) =>
+              item.title.toLowerCase().includes(normalizedInput) ||
+              item.url.toLowerCase().includes(normalizedInput)
+          )
+        : undefined);
+    if (matchedItem) {
+      browserNavigateActiveTab(matchedItem.url, matchedItem.title);
+      setAddress(matchedItem.url);
+      navigateBrowser(matchedItem.url);
+      return;
+    }
+    const normalizedValue = input.trim();
+    const finalUrl = /^[a-z]+:\/\/|about:/i.test(normalizedValue)
+      ? normalizedValue
+      : `https://${normalizedValue}`;
+    browserNavigateActiveTab(finalUrl);
+    navigateBrowser(finalUrl);
+  }, [address, browserNavigateActiveTab, navigateBrowser, t.browserBlankTab, t.browserLocalPreview]);
 
   const visibleWorkspaces = useMemo(
     () =>
@@ -240,7 +413,27 @@ export function BrowserPanel(props: BrowserPanelProps) {
     [recentWorkspaces]
   );
 
+  const navigatorCount = computeNavigatorCount(
+    navigatorMode,
+    navigatorQuery,
+    browserTabs,
+    browserBookmarks,
+    browserHistory,
+    searchResults,
+    [],
+    []
+  );
+
   const openTabCount = navigatorCount;
+
+  const rawNavigatorTitle =
+    navigatorMode === 'tabs'
+      ? t.browserOpenTabs
+      : navigatorMode === 'bookmarks'
+        ? t.browserSavedTabs
+        : navigatorMode === 'history'
+          ? t.browserHistoryTabs
+          : t.browserSearchTabs;
 
   const navigatorTitle = useMemo(() => {
     if (browserShowTabButtons) {
@@ -275,7 +468,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
   const { handleGoBack, handleGoForward, handleReload } = useBrowserNavigation({
     iframeRef,
     iframeHistory,
-    navigateBrowser: browserActions.navigateBrowser,
+    navigateBrowser,
   });
 
   const urlState = useBrowserUrlState({
@@ -283,11 +476,69 @@ export function BrowserPanel(props: BrowserPanelProps) {
     addressExpanded,
     addressSearchRef,
     addressInputRef,
-    setAddress: browserActions.setAddress,
-    setAddressExpanded: browserActions.setAddressExpanded,
-    submitAddress: browserActions.submitAddress,
+    setAddress,
+    setAddressExpanded,
+    submitAddress,
     activeTabUrl: activeTab?.url,
   });
+
+  useEffect(() => {
+    const url = activeTab?.url ?? '';
+    requestAnimationFrame(() => {
+      setAddress(url);
+      setIframeLoadError(false);
+    });
+
+    if (!isTauriShell() && url && url !== '') {
+      requestAnimationFrame(() => {
+        setIframeHistory((prev) => {
+          if (prev.entries[prev.index] === url) {
+            return prev;
+          }
+          const newEntries = prev.entries.slice(0, prev.index + 1);
+          newEntries.push(url);
+          if (newEntries.length > 50) {
+            newEntries.shift();
+          }
+          return { index: newEntries.length - 1, entries: newEntries };
+        });
+      });
+    }
+  }, [activeTab?.url, setAddress, setIframeLoadError, setIframeHistory]);
+
+  useEffect(() => {
+    if (!browserMenuOpen && !addressExpanded && navigatorMode !== 'search') {
+      return;
+    }
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (!browserMenuRef.current?.contains(target)) {
+        setBrowserMenuOpen(false);
+      }
+      if (!addressSearchRef.current?.contains(target)) {
+        setAddressExpanded(false);
+      }
+      if (navigatorMode === 'search' && !navigatorSearchRef.current?.contains(target)) {
+        setNavigatorMode('bookmarks');
+      }
+    };
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => document.removeEventListener('mousedown', handlePointerDown);
+  }, [addressExpanded, browserMenuOpen, browserMenuRef, addressSearchRef, navigatorMode, navigatorSearchRef, setBrowserMenuOpen, setAddressExpanded, setNavigatorMode]);
+
+  useEffect(() => {
+    if (addressExpanded) {
+      addressInputRef.current?.focus();
+      addressInputRef.current?.select();
+    }
+  }, [addressExpanded, addressInputRef]);
+
+  useEffect(() => {
+    if (navigatorMode === 'search') {
+      navigatorSearchInputRef.current?.focus();
+      navigatorSearchInputRef.current?.select();
+    }
+  }, [navigatorMode, navigatorSearchInputRef]);
 
   return (
     <div className="adl-tool-panel adl-tool-panel--browser">
@@ -303,7 +554,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
         browserMenuOpen={browserMenuOpen}
         browserMenuRef={browserMenuRef}
         browserMenuItems={browserMenuItems}
-        onToggleNavigator={() => browserActions.toggleNavigator('browser')}
+        onToggleNavigator={() => toggleNavigator('browser')}
         onGoBack={handleGoBack}
         onGoForward={handleGoForward}
         onReload={handleReload}
@@ -313,9 +564,9 @@ export function BrowserPanel(props: BrowserPanelProps) {
         onSearchClick={urlState.handleSearchClick}
         onCopyUrl={urlState.handleCopyUrl}
         onNewTab={() => browserOpenTab()}
-        onToggleBookmark={browserActions.handleToggleBookmark}
-        onToggleBrowserMenu={() => browserActions.setBrowserMenuOpen((value) => !value)}
-        onCloseBrowserMenu={() => browserActions.setBrowserMenuOpen(false)}
+        onToggleBookmark={handleToggleBookmark}
+        onToggleBrowserMenu={() => setBrowserMenuOpen((value) => !value)}
+        onCloseBrowserMenu={() => setBrowserMenuOpen(false)}
       />
 
       <div
@@ -335,8 +586,8 @@ export function BrowserPanel(props: BrowserPanelProps) {
                   className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
                   onClick={
                     allTreeExpanded
-                      ? browserActions.handleCollapseAllTree
-                      : browserActions.handleExpandAllTree
+                      ? handleCollapseAllTree
+                      : handleExpandAllTree
                   }
                   aria-label={allTreeExpanded ? '全部折叠' : '全部展开'}
                 >
@@ -413,7 +664,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
                   <button
                     type="button"
                     className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${navigatorMode === 'tabs' ? ' is-active' : ''}`}
-                    onClick={() => browserActions.setNavigatorMode('tabs')}
+                    onClick={() => setNavigatorMode('tabs')}
                     aria-label="标签目录"
                     aria-pressed={navigatorMode === 'tabs' ? 'true' : 'false'}
                   >
@@ -424,7 +675,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
                   <button
                     type="button"
                     className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${navigatorMode === 'search' ? ' is-active' : ''}`}
-                    onClick={() => browserActions.setNavigatorMode('search')}
+                    onClick={() => setNavigatorMode('search')}
                     aria-label={t.browserSearchTabs}
                     aria-pressed={navigatorMode === 'search' ? 'true' : 'false'}
                   >
@@ -492,7 +743,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
                 <button
                   type="button"
                   className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-                  onClick={() => browserActions.handleCloseAllTabs()}
+                  onClick={() => handleCloseAllTabs()}
                   aria-label={browserShowTabButtons ? '清空所有已打开标签' : '删除全部目录标签'}
                 >
                   <IconTrash size={14} decorative />
@@ -509,20 +760,20 @@ export function BrowserPanel(props: BrowserPanelProps) {
               tabTreeExpanded={tabTreeExpanded}
               selectedTreePath={selectedTreePath}
               onSelectTreePath={handleSelectTreePath}
-              onTogglePath={browserActions.handleToggleTreePath}
+              onTogglePath={handleToggleTreePath}
               callbacks={{
                 onCreateTab: (workspaceId?: string, _folderId?: string) => {
                   setCreateTabDialog({ open: true, workspaceId });
                 },
-                onDeleteAllChildTabs: browserActions.handleDeleteAllChildTabs,
-                onOpenAllInNewTabs: browserActions.handleOpenAllInNewTabs,
-                onRemoveFromArea: browserActions.handleRemoveFromArea,
-                onDeleteDirectory: browserActions.handleDeleteDirectory,
+                onDeleteAllChildTabs: handleDeleteAllChildTabs,
+                onOpenAllInNewTabs: handleOpenAllInNewTabs,
+                onRemoveFromArea: handleRemoveFromArea,
+                onDeleteDirectory: handleDeleteDirectory,
                 onRenameDirectory: (folderId: string) => {
                   const folder = browserTabFolders.find((f) => f.id === folderId);
                   setRenameFolderState({ open: true, folderId, currentName: folder?.name ?? '' });
                 },
-                onDeleteHistory: browserActions.handleDeleteHistoryLevel,
+                onDeleteHistory: handleDeleteHistoryLevel,
                 onOpenTab: (url: string, tabId?: string) => {
                   if (tabId) {
                     const tab = browserTabs.find((t) => t.id === tabId);
@@ -551,7 +802,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
                   <button
                     type="button"
                     className={`adl-tool-navigator__summary-stat${searchScope === 'bookmarks' ? ' is-active' : ''}`}
-                    onClick={() => browserActions.setSearchScope('bookmarks')}
+                    onClick={() => setSearchScope('bookmarks')}
                     aria-pressed={searchScope === 'bookmarks'}
                     aria-label={t.browserSearchBookmarks}
                   >
@@ -562,7 +813,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
                   <button
                     type="button"
                     className={`adl-tool-navigator__summary-stat${searchScope === 'history' ? ' is-active' : ''}`}
-                    onClick={() => browserActions.setSearchScope('history')}
+                    onClick={() => setSearchScope('history')}
                     aria-pressed={searchScope === 'history'}
                     aria-label={t.browserSearchHistory}
                   >
@@ -573,7 +824,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
                   <button
                     type="button"
                     className={`adl-tool-navigator__summary-stat${searchScope === 'all' ? ' is-active' : ''}`}
-                    onClick={() => browserActions.setSearchScope('all')}
+                    onClick={() => setSearchScope('all')}
                     aria-pressed={searchScope === 'all'}
                     aria-label={t.browserSearchAll}
                   >
@@ -586,7 +837,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
                     ref={navigatorSearchInputRef}
                     type="search"
                     value={navigatorQuery}
-                    onChange={(event) => browserActions.setNavigatorQuery(event.target.value)}
+                    onChange={(event) => setNavigatorQuery(event.target.value)}
                     placeholder={t.searchPlaceholder}
                     aria-label={t.search}
                   />
@@ -620,7 +871,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
           ) : null}
           <div
             className="adl-tool-navigator__resize-handle"
-            onPointerDown={browserActions.handleNavigatorResizeStart}
+            onPointerDown={handleNavigatorResizeStart}
             role="separator"
             aria-orientation="vertical"
             aria-label="Resize browser navigator"
@@ -643,8 +894,8 @@ export function BrowserPanel(props: BrowserPanelProps) {
                   src={activeTab.url}
                   className="adl-browser-iframe"
                   title={activeTab.title}
-                  onLoad={browserActions.handleIframeLoad}
-                  onError={browserActions.handleIframeError}
+                  onLoad={handleIframeLoad}
+                  onError={handleIframeError}
                   sandbox="allow-scripts allow-forms allow-popups allow-modals allow-top-navigation allow-same-origin"
                 />
               )}
@@ -685,20 +936,20 @@ export function BrowserPanel(props: BrowserPanelProps) {
 
       <BrowserContextMenu
         contextMenu={contextMenu}
-        onTogglePin={browserActions.handleTogglePin}
+        onTogglePin={handleTogglePin}
         onRename={handleRenameFromContextMenu(
           browserTabs,
           contextMenu,
-          browserActions.handleDoubleClick
+          handleDoubleClick
         )}
-        onDelete={handleDeleteFromContextMenu(contextMenu, browserActions.handleCloseTab)}
-        onCopyUrl={browserActions.handleCopyUrl}
-        onOpenInNewTab={browserActions.handleOpenInNewTab}
-        onOpenInCurrentTab={browserActions.handleOpenInCurrentTab}
+        onDelete={handleDeleteFromContextMenu(contextMenu, handleCloseTab)}
+        onCopyUrl={handleCopyUrlFromMenu}
+        onOpenInNewTab={handleOpenInNewTab}
+        onOpenInCurrentTab={handleOpenInCurrentTab}
         onEdit={handleRenameFromContextMenu(
           browserTabs,
           contextMenu,
-          browserActions.handleDoubleClick
+          handleDoubleClick
         )}
         onCut={() => {}}
         t={t}

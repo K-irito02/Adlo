@@ -6,7 +6,7 @@ import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
 import type {
   GitWorkspaceCiConfig,
   GitHubCiFolderState,
-} from '../../stores/slices/communicateSlice';
+} from '../../stores/slices/githubSlice';
 
 interface GitHubTreeProps {
   workspaces: RecentWorkspaceEntry[];

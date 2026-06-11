@@ -29,13 +29,13 @@
 - xterm.js 交互式终端（多会话 PTY，支持 CMD / PowerShell / Bash）
 - CodeMirror 编辑器系统 + 文件预览 + 差异查看器（inline/side-by-side）
 - 内置浏览器（Tauri WebView / iframe 双模式 + 新建标签对话框）
-- Zustand 切片模式（13 切片 + 11 action 模块）+ 模块化分层（features/ + regions/）
+- Zustand 切片模式（18 切片 + 11 action 模块）+ 模块化分层（features/ + regions/）
 - CSS 设计 Token 亮暗主题 + 自定义 Tooltip + 自定义滚动条
 - i18n 国际化（10 领域 / 529 keys，TypeScript satisfies 类型安全）
 
 ### 重构历史
 
-共完成 **55 轮**迭代重构，完整记录见 [根目录 AGENTS.md](../AGENTS.md#重构历史)。
+共完成 **60 轮**迭代重构，完整记录见 [根目录 AGENTS.md](../AGENTS.md#重构历史)。
 
 ## 安全边界
 
@@ -76,13 +76,19 @@ app/stores/
 ├── types.ts                     # 共享类型（ToolId/ChatMode/TerminalProfile/ContextChip）
 ├── shared.ts                    # 共享工具函数
 ├── selectors.ts                 # 性能选择器（useShallow）
-├── slices/                      # 13 个独立切片
+├── slices/                      # 18 个独立切片（含 5 浏览器子切片 + GitHub 切片）
 │   ├── uiSlice.ts / workspaceSlice.ts / gitSlice.ts
 │   ├── sessionSlice.ts / editorSlice.ts / patchSlice.ts
 │   ├── searchSlice.ts / diagnosticSlice.ts / taskSlice.ts
 │   ├── commandSlice.ts / clipboardSlice.ts / terminalSlice.ts
-│   ├── browserSlice.ts
-│   └── communicateSlice.ts          # 通信面板（GitHub CI / 飞书 / QQ / 微信 / 邮箱）
+│   ├── browserSlice.ts              # 浏览器核心（导航布局、持久化、跨领域）
+│   ├── browserTabsSlice.ts          # 浏览器标签页
+│   ├── browserBookmarkSlice.ts      # 浏览器书签
+│   ├── browserHistorySlice.ts       # 浏览器历史记录
+│   ├── browserFoldersSlice.ts       # 浏览器标签文件夹
+│   ├── browserLandingSlice.ts       # 浏览器着陆页（快捷站点、端口、背景）
+│   ├── communicateSlice.ts          # 通信面板共享状态
+│   └── githubSlice.ts               # GitHub CI 专有状态
 └── actions/                     # 11 个跨切片 action 模块
     ├── workspaceActions.ts / sessionActions.ts / editorActions.ts
     ├── patchActions.ts / gitActions.ts / fetchActions.ts

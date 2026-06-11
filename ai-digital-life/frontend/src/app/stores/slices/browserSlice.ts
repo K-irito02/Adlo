@@ -1,87 +1,41 @@
 /**
- * 浏览器标签切片
- * 管理浏览器标签页等状态
+ * 浏览器切片（精简核心层）
+ * 包含：核心导航状态、持久化标志、工作区ID
+ *
+ * 子切片在 slicedStore.ts 中独立注册，本切片不内部组合。
+ * BrowserSlice 类型定义自身字段，所有子切片类型单独注册。
  */
 import type { StoreState } from '../StoreState';
+import { clamp, readJson, readNumber, createUiId, createDebouncedWrite } from '../shared';
 import { BROWSER_NAVIGATOR_COLLAPSED_KEY } from '../constants';
 
-export interface BrowserTabState {
-  id: string;
-  workspaceId: string;
-  title: string;
-  url: string;
-  isPinned: boolean;
-  pinnedAt?: number;
-  sortOrder: number;
-}
+import type { BrowserTabState, BrowserTabStateUpdate } from './browserTabsSlice';
+import type { BrowserBookmark } from './browserBookmarkSlice';
+import type { BrowserHistoryState } from './browserHistorySlice';
+import type { TabFolderState } from './browserFoldersSlice';
+import type { ShortcutSite, LocalPort, BackgroundConfig, BackgroundMode, BackgroundFit } from './browserLandingSlice';
 
-export interface BrowserTabStateUpdate {
-  workspaceId?: string;
-  title?: string;
-  url?: string;
-  isPinned?: boolean;
-  pinnedAt?: number;
-  sortOrder?: number;
-}
+export type {
+  BrowserTabState,
+  BrowserTabStateUpdate,
+} from './browserTabsSlice';
+export type {
+  BrowserBookmark,
+} from './browserBookmarkSlice';
+export type {
+  BrowserHistoryState,
+} from './browserHistorySlice';
+export type {
+  TabFolderState,
+} from './browserFoldersSlice';
+export type {
+  ShortcutSite,
+  LocalPort,
+  BackgroundConfig,
+  BackgroundMode,
+  BackgroundFit,
+} from './browserLandingSlice';
 
-export interface TabFolderState {
-  id: string;
-  name: string;
-  createdAt: number;
-  isUserCreated?: boolean;
-  tabs?: string[];
-  children?: TabFolderState[];
-  parentId?: string;
-  parentType?: 'workspace' | 'folder';
-}
-
-export interface TabFolderStateUpdate {
-  name?: string;
-  tabs?: string[];
-}
-
-export interface BrowserHistoryState {
-  id: string;
-  title: string;
-  url: string;
-  visitedAt: number;
-}
-
-export interface BrowserBookmark {
-  url: string;
-  title: string;
-}
-
-export interface ShortcutSite {
-  id: string;
-  name: string;
-  url: string;
-  icon?: string;
-  sortOrder: number;
-  createdAt: number;
-}
-
-export interface LocalPort {
-  id: string;
-  host: string;
-  port: number;
-  label?: string;
-  isAutoDiscovered: boolean;
-  lastAliveAt: number;
-  sortOrder: number;
-}
-
-export type BackgroundMode = 'default' | 'image' | 'video';
-export type BackgroundFit = 'cover' | 'contain' | 'repeat';
-
-export interface BackgroundConfig {
-  mode: BackgroundMode;
-  filePath?: string;
-  fit: BackgroundFit;
-  fileName?: string;
-}
-
-// Local storage keys
 const BROWSER_TABS_KEY = 'adl-ui:browser-tabs';
 const BROWSER_ACTIVE_TAB_KEY = 'adl-ui:browser-active-tab';
 const BROWSER_NAVIGATOR_WIDTH_KEY = 'adl-ui:browser-navigator-width';
@@ -96,23 +50,11 @@ const BROWSER_LOCAL_PORTS_KEY = 'adl-ui:browser-local-ports';
 const BROWSER_BG_CONFIG_KEY = 'adl-ui:browser-bg-config';
 const BROWSER_TREE_EXPANDED_KEY = 'adl-ui:browser-tab-tree-expanded';
 
-// Constants
 const BROWSER_NAVIGATOR_WIDTH_MIN = 180;
 const BROWSER_NAVIGATOR_WIDTH_MAX = 300;
 const DEFAULT_BROWSER_NAVIGATOR_WIDTH = 240;
 
-// Helper functions
-import { clamp, readJson, readNumber, createUiId, createDebouncedWrite } from '../shared';
-import { formatNewFolderNameByLocale, getAppCopy } from '../../i18n';
-
-function sortTabs(tabs: BrowserTabState[]): BrowserTabState[] {
-  return [...tabs].sort((a, b) => {
-    if (a.isPinned !== b.isPinned) {
-      return a.isPinned ? -1 : 1;
-    }
-    return a.sortOrder - b.sortOrder;
-  });
-}
+const { scheduleWrite, scheduleNumberWrite } = createDebouncedWrite(50);
 
 function buildTabsById(tabs: BrowserTabState[]): Record<string, BrowserTabState> {
   const result: Record<string, BrowserTabState> = {};
@@ -122,28 +64,6 @@ function buildTabsById(tabs: BrowserTabState[]): Record<string, BrowserTabState>
   return result;
 }
 
-// 查找目录（扁平化存储）
-function findFolderById(folders: TabFolderState[], folderId: string): TabFolderState | null {
-  return folders.find((folder) => folder.id === folderId) || null;
-}
-
-// 收集所有子孙文件夹的 ID（用于级联删除）
-function collectAllDescendantFolderIds(folders: TabFolderState[], parentId: string): string[] {
-  const result: string[] = [];
-  // 直接子文件夹
-  const directChildren = folders.filter((f) => f.parentId === parentId);
-  for (const child of directChildren) {
-    result.push(child.id);
-    // 递归收集孙子文件夹
-    result.push(...collectAllDescendantFolderIds(folders, child.id));
-  }
-  return result;
-}
-
-// Batch write scheduler — coalesces multiple localStorage writes into one
-const { scheduleWrite, scheduleNumberWrite } = createDebouncedWrite(50);
-
-// Lazy localStorage hydration — reads persisted values in idle time
 let _defaultsHydrated = false;
 
 function hydrateBrowserDefaults(
@@ -230,83 +150,21 @@ function hydrateBrowserDefaults(
   }
 }
 
-// Type and slice definition
 export interface BrowserSlice {
-  browserTabs: BrowserTabState[];
-  browserTabsById: Record<string, BrowserTabState>;
-  browserActiveTabId: string;
   browserNavigatorWidth: number;
-  browserWorkspaceExpanded: Record<string, boolean>;
-  browserPersisted: boolean;
-  browserWorkspaceId: string;
-  browserTabFolders: TabFolderState[];
-  browserHistory: BrowserHistoryState[];
-  browserBookmarks: BrowserBookmark[];
   browserViewMode: 'default' | 'tree' | 'list' | 'all';
   browserShowTabButtons: boolean;
-  browserTabTreeExpanded: Record<string, boolean>;
-  browserShortcuts: ShortcutSite[];
-  browserLocalPorts: LocalPort[];
-  browserBgConfig: BackgroundConfig;
-  browserPortScanning: boolean;
+  browserPersisted: boolean;
+  browserWorkspaceId: string;
 
-  // 快捷站点方法
-  browserAddShortcut: (site: Omit<ShortcutSite, 'id' | 'sortOrder' | 'createdAt'>) => string;
-  browserRenameShortcut: (id: string, name: string) => void;
-  browserDeleteShortcut: (id: string) => void;
-  browserReorderShortcuts: (ids: string[]) => void;
-
-  // 本地端口方法
-  browserSetLocalPorts: (ports: LocalPort[]) => void;
-  browserAddManualPort: (port: number, label?: string) => string;
-  browserUpdateLocalPort: (
-    id: string,
-    patch: Partial<Pick<LocalPort, 'label' | 'sortOrder'>>
-  ) => void;
-  browserDeleteLocalPort: (id: string) => void;
-  browserReorderLocalPorts: (ids: string[]) => void;
-  browserSetPortScanning: (scanning: boolean) => void;
-
-  // 背景配置方法
-  browserSetBgConfig: (config: BackgroundConfig) => void;
-  browserResetBgConfig: () => void;
-
-  browserOpenTab: (url?: string, title?: string, workspaceId?: string) => void;
-  browserSelectTab: (tabId: string) => void;
-  browserCloseTab: (tabId: string) => void;
-  browserUpdateTab: (tabId: string, patch: Partial<BrowserTabStateUpdate>) => void;
-  browserTogglePin: (tabId: string) => void;
-  browserReorderTabs: (newOrder: BrowserTabState[]) => void;
-  browserCloseAllTabs: (workspaceId?: string) => void;
   browserNavigateActiveTab: (url: string, title?: string) => void;
   setBrowserNavigatorWidth: (width: number) => void;
   toggleBrowserNavigator: () => void;
   setBrowserNavigatorCollapsed: (collapsed: boolean) => void;
-  setBrowserWorkspaceExpanded: (expanded: Record<string, boolean>) => void;
-  setBrowserPersisted: (persisted: boolean) => void;
-  setBrowserWorkspaceId: (workspaceId: string) => void;
-  browserCreateTabFolder: (
-    name?: string,
-    parentId?: string,
-    parentType?: 'workspace' | 'folder'
-  ) => void;
-  browserUpdateTabFolder: (folderId: string, patch: Partial<TabFolderStateUpdate>) => void;
-  browserDeleteTabFolder: (folderId: string) => void;
-  browserAddToHistory: (url: string, title: string) => void;
-  browserClearHistory: () => void;
-  browserDeleteHistoryByLevel: (
-    level: 'label' | 'year' | 'month' | 'day',
-    nodePath: string
-  ) => void;
-  browserToggleBookmark: (input?: { url?: string; title?: string }) => void;
   setBrowserViewMode: (mode: 'default' | 'tree' | 'list' | 'all') => void;
   setBrowserShowTabButtons: (show: boolean) => void;
-  browserBookmarkTab: (tabId: string, folderId?: string, newFolderName?: string) => void;
-  browserAddToFolder: (tabId: string, folderId: string) => void;
-  browserToggleTabTreePath: (path: string) => void;
-  browserCollapseAllTreePaths: () => void;
-  browserExpandAllTreePaths: (paths: string[]) => void;
-  browserDeleteAllTabsInNode: (nodePath: string) => void;
+  setBrowserPersisted: (persisted: boolean) => void;
+  setBrowserWorkspaceId: (workspaceId: string) => void;
 }
 
 export const createBrowserSlice = (
@@ -315,135 +173,12 @@ export const createBrowserSlice = (
 ): BrowserSlice => {
   hydrateBrowserDefaults(get, set);
   return {
-    browserTabs: [],
-    browserTabsById: {},
-    browserActiveTabId: '',
+
     browserNavigatorWidth: DEFAULT_BROWSER_NAVIGATOR_WIDTH,
-    browserWorkspaceExpanded: {},
-    browserPersisted: false,
-    browserWorkspaceId: '',
-    browserTabFolders: [],
-    browserHistory: [],
-    browserBookmarks: [],
     browserViewMode: 'default',
     browserShowTabButtons: false,
-    browserTabTreeExpanded: {},
-    browserShortcuts: [],
-    browserLocalPorts: [],
-    browserBgConfig: { mode: 'default', fit: 'cover' },
-    browserPortScanning: false,
-
-    browserOpenTab: (url?: string, title?: string, workspaceId: string = '') =>
-      set((state) => {
-        const maxSortOrder =
-          state.browserTabs.length > 0 ? Math.max(...state.browserTabs.map((t) => t.sortOrder)) : 0;
-        const tab: BrowserTabState = {
-          id: createUiId('browser'),
-          workspaceId,
-          title: title?.trim() || getAppCopy(state.appInfo).browserDefaultTabTitle,
-          url: url?.trim() || '',
-          isPinned: false,
-          sortOrder: maxSortOrder + 1,
-        };
-        const nextTabs = sortTabs([...state.browserTabs, tab]);
-        scheduleWrite(BROWSER_TABS_KEY, nextTabs);
-        scheduleWrite(BROWSER_ACTIVE_TAB_KEY, tab.id);
-        return {
-          browserTabs: nextTabs,
-          browserTabsById: buildTabsById(nextTabs),
-          browserActiveTabId: tab.id,
-        };
-      }),
-
-    browserSelectTab: (tabId) => {
-      scheduleWrite(BROWSER_ACTIVE_TAB_KEY, tabId);
-      set({ browserActiveTabId: tabId });
-    },
-
-    browserCloseTab: (tabId) =>
-      set((state) => {
-        const filtered = state.browserTabs.filter((tab) => tab.id !== tabId);
-        const nextTabs = sortTabs(filtered);
-        const nextActive =
-          state.browserActiveTabId === tabId
-            ? (nextTabs[nextTabs.length - 1]?.id ?? '')
-            : state.browserActiveTabId;
-
-        scheduleWrite(BROWSER_TABS_KEY, nextTabs);
-        scheduleWrite(BROWSER_ACTIVE_TAB_KEY, nextActive);
-        return {
-          browserTabs: nextTabs,
-          browserTabsById: buildTabsById(nextTabs),
-          browserActiveTabId: nextActive,
-        };
-      }),
-
-    browserUpdateTab: (tabId, patch) =>
-      set((state) => {
-        const nextTabs = sortTabs(
-          state.browserTabs.map((tab) => (tab.id === tabId ? { ...tab, ...patch } : tab))
-        );
-        scheduleWrite(BROWSER_TABS_KEY, nextTabs);
-        return { browserTabs: nextTabs, browserTabsById: buildTabsById(nextTabs) };
-      }),
-
-    browserTogglePin: (tabId) =>
-      set((state) => {
-        const nextTabs = sortTabs(
-          state.browserTabs.map((tab) => {
-            if (tab.id === tabId) {
-              return {
-                ...tab,
-                isPinned: !tab.isPinned,
-                pinnedAt: !tab.isPinned ? Date.now() : undefined,
-              };
-            }
-            return tab;
-          })
-        );
-        scheduleWrite(BROWSER_TABS_KEY, nextTabs);
-        return { browserTabs: nextTabs, browserTabsById: buildTabsById(nextTabs) };
-      }),
-
-    browserReorderTabs: (newOrder) =>
-      set((state) => {
-        if (state.browserTabs === newOrder) {
-          return state;
-        }
-
-        const pinnedTabs = newOrder.filter((t) => t.isPinned);
-        const unpinnedTabs = newOrder.filter((t) => !t.isPinned);
-
-        const reorderedWithSort = [...pinnedTabs, ...unpinnedTabs].map((tab, index) => ({
-          ...tab,
-          sortOrder: index,
-        }));
-
-        scheduleWrite(BROWSER_TABS_KEY, reorderedWithSort);
-        return {
-          browserTabs: reorderedWithSort,
-          browserTabsById: buildTabsById(reorderedWithSort),
-        };
-      }),
-
-    browserCloseAllTabs: (workspaceId) => {
-      set((state) => {
-        let nextTabs: BrowserTabState[];
-        if (workspaceId) {
-          nextTabs = state.browserTabs.filter((tab) => tab.workspaceId !== workspaceId);
-        } else {
-          nextTabs = [];
-        }
-        const nextActive = nextTabs.length > 0 ? nextTabs[nextTabs.length - 1].id : '';
-        scheduleWrite(BROWSER_TABS_KEY, nextTabs);
-        scheduleWrite(BROWSER_ACTIVE_TAB_KEY, nextActive);
-        return {
-          browserTabs: nextTabs,
-          browserTabsById: buildTabsById(nextTabs),
-          browserActiveTabId: nextActive,
-        };
-      });
-    },
+    browserPersisted: false,
+    browserWorkspaceId: '',
 
     browserNavigateActiveTab: (url: string, title?: string) => {
       set((state) => {
@@ -452,7 +187,6 @@ export const createBrowserSlice = (
         let nextActiveTabId = state.browserActiveTabId;
 
         if (!activeTab || nextTabs.length === 0) {
-          // 如果没有活动标签页或没有标签页，创建一个新标签页
           const maxSortOrder =
             nextTabs.length > 0 ? Math.max(...nextTabs.map((t) => t.sortOrder)) : 0;
           const newTab: BrowserTabState = {
@@ -463,13 +197,12 @@ export const createBrowserSlice = (
             isPinned: false,
             sortOrder: maxSortOrder + 1,
           };
-          nextTabs = sortTabs([...nextTabs, newTab]);
+          nextTabs = [...nextTabs, newTab];
           nextActiveTabId = newTab.id;
           activeTab = newTab;
           scheduleWrite(BROWSER_TABS_KEY, nextTabs);
           scheduleWrite(BROWSER_ACTIVE_TAB_KEY, nextActiveTabId);
         } else {
-          // 更新现有标签页
           nextTabs = nextTabs.map((tab) => {
             if (tab.id === state.browserActiveTabId) {
               return {
@@ -483,7 +216,6 @@ export const createBrowserSlice = (
           scheduleWrite(BROWSER_TABS_KEY, nextTabs);
         }
 
-        // 添加到历史记录
         const newHistoryItem: BrowserHistoryState = {
           id: createUiId('history'),
           url,
@@ -491,9 +223,8 @@ export const createBrowserSlice = (
           visitedAt: Date.now(),
         };
 
-        // 避免重复的历史记录
         const filteredHistory = state.browserHistory.filter((item) => item.url !== url);
-        const nextHistory = [newHistoryItem, ...filteredHistory].slice(0, 100); // 最多保留 100 条历史记录
+        const nextHistory = [newHistoryItem, ...filteredHistory].slice(0, 100);
 
         scheduleWrite(BROWSER_HISTORY_KEY, nextHistory);
 
@@ -504,218 +235,6 @@ export const createBrowserSlice = (
           browserHistory: nextHistory,
         };
       });
-    },
-
-    browserAddToHistory: (url: string, title: string) => {
-      set((state) => {
-        // 避免重复的历史记录
-        const filteredHistory = state.browserHistory.filter((item) => item.url !== url);
-        const newHistoryItem: BrowserHistoryState = {
-          id: createUiId('history'),
-          url,
-          title: title || url,
-          visitedAt: Date.now(),
-        };
-        const nextHistory = [newHistoryItem, ...filteredHistory].slice(0, 100); // 最多保留 100 条历史记录
-        scheduleWrite(BROWSER_HISTORY_KEY, nextHistory);
-        return { browserHistory: nextHistory };
-      });
-    },
-
-    browserClearHistory: () => {
-      scheduleWrite(BROWSER_HISTORY_KEY, []);
-      set({ browserHistory: [] });
-    },
-
-    browserDeleteHistoryByLevel: (level, nodePath) => {
-      set((state) => {
-        let filtered: BrowserHistoryState[];
-        if (level === 'label') {
-          filtered = [];
-        } else if (level === 'year') {
-          const year = nodePath.replace('history:year:', '');
-          filtered = state.browserHistory.filter((h) => {
-            const d = new Date(h.visitedAt);
-            return String(d.getFullYear()) !== year;
-          });
-        } else if (level === 'month') {
-          const monthKey = nodePath.replace('history:month:', '');
-          filtered = state.browserHistory.filter((h) => {
-            const d = new Date(h.visitedAt);
-            const y = String(d.getFullYear());
-            const m = String(d.getMonth() + 1).padStart(2, '0');
-            return `${y}-${m}` !== monthKey;
-          });
-        } else {
-          const dayKey = nodePath.replace('history:day:', '');
-          filtered = state.browserHistory.filter((h) => {
-            const d = new Date(h.visitedAt);
-            const y = String(d.getFullYear());
-            const m = String(d.getMonth() + 1).padStart(2, '0');
-            const dy = String(d.getDate()).padStart(2, '0');
-            return `${y}-${m}-${dy}` !== dayKey;
-          });
-        }
-        scheduleWrite(BROWSER_HISTORY_KEY, filtered);
-        return { browserHistory: filtered };
-      });
-    },
-
-    browserToggleBookmark: (input?: { url?: string; title?: string }) => {
-      set((state) => {
-        const active =
-          state.browserTabs.find((tab) => tab.id === state.browserActiveTabId) ??
-          state.browserTabs[0];
-        const url = input?.url?.trim() || active?.url || 'about:blank';
-        const title = input?.title?.trim() || active?.title || url;
-        const exists = state.browserBookmarks.some((bookmark) => bookmark.url === url);
-        const nextBookmarks = exists
-          ? state.browserBookmarks.filter((bookmark) => bookmark.url !== url)
-          : [...state.browserBookmarks, { url, title }];
-
-        // 如果是取消收藏，同时从所有文件夹中移除该标签
-        let nextFolders = state.browserTabFolders;
-        if (exists && active) {
-          nextFolders = state.browserTabFolders.map((folder) => {
-            if (folder.tabs && folder.tabs.includes(active.id)) {
-              return {
-                ...folder,
-                tabs: folder.tabs.filter((tabId) => tabId !== active.id),
-              };
-            }
-            return folder;
-          });
-          scheduleWrite(BROWSER_TAB_FOLDERS_KEY, nextFolders);
-        }
-
-        scheduleWrite(BROWSER_BOOKMARKS_KEY, nextBookmarks);
-        return { browserBookmarks: nextBookmarks, browserTabFolders: nextFolders };
-      });
-    },
-
-    browserAddShortcut: (site) => {
-      let id = '';
-      set((state) => {
-        const maxSortOrder =
-          state.browserShortcuts.length > 0
-            ? Math.max(...state.browserShortcuts.map((s) => s.sortOrder))
-            : 0;
-        id = createUiId('shortcut');
-        const newSite: ShortcutSite = {
-          id,
-          name: site.name,
-          url: site.url,
-          icon: site.icon,
-          sortOrder: maxSortOrder + 1,
-          createdAt: Date.now(),
-        };
-        const nextShortcuts = [...state.browserShortcuts, newSite];
-        scheduleWrite(BROWSER_SHORTCUTS_KEY, nextShortcuts);
-        return { browserShortcuts: nextShortcuts };
-      });
-      return id;
-    },
-
-    browserRenameShortcut: (id, name) =>
-      set((state) => {
-        const nextShortcuts = state.browserShortcuts.map((s) => (s.id === id ? { ...s, name } : s));
-        scheduleWrite(BROWSER_SHORTCUTS_KEY, nextShortcuts);
-        return { browserShortcuts: nextShortcuts };
-      }),
-
-    browserDeleteShortcut: (id) =>
-      set((state) => {
-        const nextShortcuts = state.browserShortcuts.filter((s) => s.id !== id);
-        scheduleWrite(BROWSER_SHORTCUTS_KEY, nextShortcuts);
-        return { browserShortcuts: nextShortcuts };
-      }),
-
-    browserReorderShortcuts: (ids) =>
-      set((state) => {
-        const idSet = new Set(ids);
-        const remaining = state.browserShortcuts.filter((s) => idSet.has(s.id));
-        const other = state.browserShortcuts.filter((s) => !idSet.has(s.id));
-        const ordered = ids.map((id, idx) => {
-          const site = remaining.find((s) => s.id === id)!;
-          return { ...site, sortOrder: idx };
-        });
-        const nextShortcuts = [...ordered, ...other];
-        scheduleWrite(BROWSER_SHORTCUTS_KEY, nextShortcuts);
-        return { browserShortcuts: nextShortcuts };
-      }),
-
-    browserSetLocalPorts: (ports) =>
-      set(() => {
-        const withSort = ports.map((p, idx) => ({ ...p, sortOrder: p.sortOrder ?? idx }));
-        scheduleWrite(BROWSER_LOCAL_PORTS_KEY, withSort);
-        return { browserLocalPorts: withSort };
-      }),
-
-    browserAddManualPort: (port, label) => {
-      let id = '';
-      set((state) => {
-        const maxSortOrder =
-          state.browserLocalPorts.length > 0
-            ? Math.max(...state.browserLocalPorts.map((p) => p.sortOrder))
-            : 0;
-        id = createUiId('localport');
-        const newPort: LocalPort = {
-          id,
-          host: 'localhost',
-          port,
-          label,
-          isAutoDiscovered: false,
-          lastAliveAt: Date.now(),
-          sortOrder: maxSortOrder + 1,
-        };
-        const nextPorts = [...state.browserLocalPorts, newPort];
-        scheduleWrite(BROWSER_LOCAL_PORTS_KEY, nextPorts);
-        return { browserLocalPorts: nextPorts };
-      });
-      return id;
-    },
-
-    browserDeleteLocalPort: (id) =>
-      set((state) => {
-        const nextPorts = state.browserLocalPorts.filter((p) => p.id !== id);
-        scheduleWrite(BROWSER_LOCAL_PORTS_KEY, nextPorts);
-        return { browserLocalPorts: nextPorts };
-      }),
-
-    browserUpdateLocalPort: (id, patch) =>
-      set((state) => {
-        const nextPorts = state.browserLocalPorts.map((p) =>
-          p.id === id ? { ...p, ...patch } : p
-        );
-        scheduleWrite(BROWSER_LOCAL_PORTS_KEY, nextPorts);
-        return { browserLocalPorts: nextPorts };
-      }),
-
-    browserReorderLocalPorts: (ids) =>
-      set((state) => {
-        const idSet = new Set(ids);
-        const remaining = state.browserLocalPorts.filter((p) => idSet.has(p.id));
-        const other = state.browserLocalPorts.filter((p) => !idSet.has(p.id));
-        const ordered = ids.map((id, idx) => {
-          const port = remaining.find((p) => p.id === id)!;
-          return { ...port, sortOrder: idx };
-        });
-        const nextPorts = [...ordered, ...other];
-        scheduleWrite(BROWSER_LOCAL_PORTS_KEY, nextPorts);
-        return { browserLocalPorts: nextPorts };
-      }),
-
-    browserSetPortScanning: (scanning) => set({ browserPortScanning: scanning }),
-
-    browserSetBgConfig: (config) => {
-      scheduleWrite(BROWSER_BG_CONFIG_KEY, config);
-      set({ browserBgConfig: config });
-    },
-
-    browserResetBgConfig: () => {
-      const defaultConfig: BackgroundConfig = { mode: 'default', fit: 'cover' };
-      scheduleWrite(BROWSER_BG_CONFIG_KEY, defaultConfig);
-      set({ browserBgConfig: defaultConfig });
     },
 
     setBrowserNavigatorWidth: (width) => {
@@ -731,7 +250,6 @@ export const createBrowserSlice = (
           browser: !(state.navigatorCollapsedByTool?.browser ?? false),
         };
         scheduleWrite(BROWSER_NAVIGATOR_COLLAPSED_KEY, next);
-        // 可以设置 navigatorCollapsedByTool，因为在合并后的 store 中，这个字段是存在的
         return { navigatorCollapsedByTool: next };
       }),
 
@@ -739,65 +257,7 @@ export const createBrowserSlice = (
       set((state) => {
         const next = { ...state.navigatorCollapsedByTool, browser: collapsed };
         scheduleWrite(BROWSER_NAVIGATOR_COLLAPSED_KEY, next);
-        // 可以设置 navigatorCollapsedByTool，因为在合并后的 store 中，这个字段是存在的
         return { navigatorCollapsedByTool: next };
-      }),
-
-    setBrowserWorkspaceExpanded: (expanded) => {
-      scheduleWrite(BROWSER_WORKSPACE_EXPANDED_KEY, expanded);
-      set({ browserWorkspaceExpanded: expanded });
-    },
-
-    setBrowserPersisted: (persisted) => set({ browserPersisted: persisted }),
-
-    setBrowserWorkspaceId: (workspaceId) => set({ browserWorkspaceId: workspaceId }),
-
-    browserCreateTabFolder: (
-      name?: string,
-      parentId?: string,
-      parentType?: 'workspace' | 'folder'
-    ) =>
-      set((state) => {
-        const folderCount = state.browserTabFolders.length;
-        const locale = state.appInfo?.config.language === 'en-US' ? 'en-US' : 'zh-CN';
-        const folderName = name?.trim() || formatNewFolderNameByLocale(locale, folderCount + 1);
-        const newFolder: TabFolderState = {
-          id: createUiId('tab-folder'),
-          name: folderName,
-          createdAt: Date.now(),
-          isUserCreated: true,
-          parentId: parentId,
-          parentType: parentType as 'workspace' | 'folder' | undefined,
-        };
-        const resultFolders = [...state.browserTabFolders, newFolder];
-        scheduleWrite(BROWSER_TAB_FOLDERS_KEY, resultFolders);
-        return { browserTabFolders: resultFolders };
-      }),
-
-    browserUpdateTabFolder: (folderId, patch) =>
-      set((state) => {
-        const nextFolders = state.browserTabFolders.map((folder) => {
-          if (folder.id === folderId) {
-            return { ...folder, ...patch };
-          }
-          return folder;
-        });
-        scheduleWrite(BROWSER_TAB_FOLDERS_KEY, nextFolders);
-        return { browserTabFolders: nextFolders };
-      }),
-
-    browserDeleteTabFolder: (folderId) =>
-      set((state) => {
-        // 收集需要删除的文件夹 ID（包括当前文件夹及其所有子孙文件夹）
-        const idsToDelete = [
-          folderId,
-          ...collectAllDescendantFolderIds(state.browserTabFolders, folderId),
-        ];
-        const nextFolders = state.browserTabFolders.filter(
-          (folder) => !idsToDelete.includes(folder.id)
-        );
-        scheduleWrite(BROWSER_TAB_FOLDERS_KEY, nextFolders);
-        return { browserTabFolders: nextFolders };
       }),
 
     setBrowserViewMode: (mode) => {
@@ -810,153 +270,8 @@ export const createBrowserSlice = (
       set({ browserShowTabButtons: show });
     },
 
-    browserAddToFolder: (tabId, folderId) => {
-      set((state) => {
-        const nextFolders = state.browserTabFolders.map((folder) => {
-          if (folder.id === folderId) {
-            const existingTabs = folder.tabs || [];
-            if (!existingTabs.includes(tabId)) {
-              return {
-                ...folder,
-                tabs: [...existingTabs, tabId],
-              };
-            }
-          }
-          return folder;
-        });
-        scheduleWrite(BROWSER_TAB_FOLDERS_KEY, nextFolders);
-        return { browserTabFolders: nextFolders };
-      });
-    },
+    setBrowserPersisted: (persisted) => set({ browserPersisted: persisted }),
 
-    browserBookmarkTab: (tabId, folderId, newFolderName) => {
-      set((state) => {
-        const tab = state.browserTabs.find((t) => t.id === tabId);
-        if (!tab) {
-          return {};
-        }
-
-        const url = tab.url;
-        const title = tab.title;
-        const existsInBookmarks = state.browserBookmarks.some((b) => b.url === url);
-        let nextBookmarks = state.browserBookmarks;
-
-        if (!existsInBookmarks) {
-          nextBookmarks = [...state.browserBookmarks, { url, title }];
-        }
-
-        let nextFolders = [...state.browserTabFolders];
-        let targetFolderId = folderId;
-
-        if (!targetFolderId && newFolderName) {
-          const folderCount = nextFolders.length;
-          const locale = state.appInfo?.config.language === 'en-US' ? 'en-US' : 'zh-CN';
-          const folderName =
-            newFolderName.trim() || formatNewFolderNameByLocale(locale, folderCount + 1);
-          const newFolder: TabFolderState = {
-            id: createUiId('tab-folder'),
-            name: folderName,
-            createdAt: Date.now(),
-            isUserCreated: true,
-            tabs: [tabId],
-          };
-          nextFolders = [...nextFolders, newFolder];
-          targetFolderId = newFolder.id;
-        } else if (targetFolderId) {
-          nextFolders = nextFolders.map((folder) => {
-            if (folder.id === targetFolderId) {
-              const existingTabs = folder.tabs || [];
-              if (!existingTabs.includes(tabId)) {
-                return {
-                  ...folder,
-                  tabs: [...existingTabs, tabId],
-                };
-              }
-            }
-            return folder;
-          });
-        }
-
-        scheduleWrite(BROWSER_TAB_FOLDERS_KEY, nextFolders);
-        scheduleWrite(BROWSER_BOOKMARKS_KEY, nextBookmarks);
-        return { browserTabFolders: nextFolders, browserBookmarks: nextBookmarks };
-      });
-    },
-
-    browserToggleTabTreePath: (path) =>
-      set((state) => {
-        const next = {
-          ...state.browserTabTreeExpanded,
-          [path]: !(state.browserTabTreeExpanded[path] ?? false),
-        };
-        scheduleWrite(BROWSER_TREE_EXPANDED_KEY, next);
-        return { browserTabTreeExpanded: next };
-      }),
-
-    browserCollapseAllTreePaths: () =>
-      set((_state) => {
-        scheduleWrite(BROWSER_TREE_EXPANDED_KEY, {});
-        return { browserTabTreeExpanded: {} };
-      }),
-
-    browserExpandAllTreePaths: (paths) =>
-      set((_state) => {
-        const next: Record<string, boolean> = {};
-        for (const p of paths) {
-          next[p] = true;
-        }
-        scheduleWrite(BROWSER_TREE_EXPANDED_KEY, next);
-        return { browserTabTreeExpanded: next };
-      }),
-
-    browserDeleteAllTabsInNode: (nodePath) =>
-      set((state) => {
-        // nodePath format: "workspace:{id}" | "folder:{id}" | "history:day:{date}"
-        let tabIdsToDelete: string[] = [];
-
-        if (nodePath.startsWith('workspace:')) {
-          const wsId = nodePath.slice('workspace:'.length);
-          tabIdsToDelete = state.browserTabs.filter((t) => t.workspaceId === wsId).map((t) => t.id);
-        } else if (nodePath.startsWith('folder:')) {
-          const folderId = nodePath.slice('folder:'.length);
-          const folder = findFolderById(state.browserTabFolders, folderId);
-          if (folder) {
-            tabIdsToDelete = folder.tabs ?? [];
-          }
-        } else if (nodePath.startsWith('history:day:')) {
-          const dayDate = nodePath.slice('history:day:'.length);
-          tabIdsToDelete = state.browserHistory
-            .filter((h) => {
-              const d = new Date(h.visitedAt);
-              const y = d.getFullYear();
-              const m = String(d.getMonth() + 1).padStart(2, '0');
-              const dy = String(d.getDate()).padStart(2, '0');
-              return `${y}-${m}-${dy}` === dayDate;
-            })
-            .map((h) => h.id);
-        }
-
-        if (tabIdsToDelete.length === 0) {
-          return state;
-        }
-
-        if (nodePath.startsWith('history:')) {
-          const nextHistory = state.browserHistory.filter((h) => !tabIdsToDelete.includes(h.id));
-          scheduleWrite(BROWSER_HISTORY_KEY, nextHistory);
-          return { browserHistory: nextHistory };
-        }
-
-        const nextTabs = state.browserTabs.filter((t) => !tabIdsToDelete.includes(t.id));
-        const nextActive = tabIdsToDelete.includes(state.browserActiveTabId)
-          ? (nextTabs[nextTabs.length - 1]?.id ?? state.browserActiveTabId)
-          : state.browserActiveTabId;
-        scheduleWrite(BROWSER_TABS_KEY, nextTabs);
-        scheduleWrite(BROWSER_ACTIVE_TAB_KEY, nextActive);
-        return {
-          browserTabs: nextTabs,
-          browserTabsById: buildTabsById(nextTabs),
-          browserActiveTabId: nextActive,
-        };
-      }),
+    setBrowserWorkspaceId: (workspaceId) => set({ browserWorkspaceId: workspaceId }),
   };
 };

@@ -2,17 +2,15 @@ export { BrowserPanel } from './browserpanel';
 export { BrowserTabBar } from './BrowserTabBar';
 export { BrowserContextMenu } from './BrowserContextMenu';
 export { BrowserMenuDropdown } from './BrowserMenuDropdown';
-export { useBrowserPanel } from './useBrowserPanel';
 export { useBrowserMenus } from './useBrowserMenus';
 export { useBrowserContextMenu } from './useBrowserContextMenu';
 export { useBrowserDragDrop } from './useBrowserDragDrop';
+export { useBrowserTabs, computeNavigatorCount } from './useBrowserTabs';
+export { useBrowserWebView } from './useBrowserWebView';
+export { useBrowserSearch } from './useBrowserSearch';
+export { useBrowserTreeActions } from './useBrowserTreeActions';
 export { BrowserLandingPage } from './browser-landing';
-export type {
-  BrowserNavigatorMode,
-  BrowserMenuItem,
-  ContextMenuState,
-  UseBrowserPanelReturn,
-} from './useBrowserPanel';
+export type { BrowserNavigatorMode } from './useBrowserTabs';
 export type {
   ShortcutSite,
   LocalPort,

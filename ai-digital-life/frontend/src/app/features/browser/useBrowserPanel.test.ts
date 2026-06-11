@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeNavigatorCount } from "./useBrowserPanel";
+import { computeNavigatorCount } from "./useBrowserTabs";
 
 function makeTab(id: string) {
   return { id, title: id, url: `https://${id}.example`, workspaceId: "ws-1", isPinned: false, sortOrder: 0 };

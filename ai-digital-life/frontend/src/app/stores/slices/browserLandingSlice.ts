@@ -1,0 +1,195 @@
+import type { StoreState } from '../StoreState';
+import { createUiId, createDebouncedWrite } from '../shared';
+
+export interface ShortcutSite {
+  id: string;
+  name: string;
+  url: string;
+  icon?: string;
+  sortOrder: number;
+  createdAt: number;
+}
+
+export interface LocalPort {
+  id: string;
+  host: string;
+  port: number;
+  label?: string;
+  isAutoDiscovered: boolean;
+  lastAliveAt: number;
+  sortOrder: number;
+}
+
+export type BackgroundMode = 'default' | 'image' | 'video';
+export type BackgroundFit = 'cover' | 'contain' | 'repeat';
+
+export interface BackgroundConfig {
+  mode: BackgroundMode;
+  filePath?: string;
+  fit: BackgroundFit;
+  fileName?: string;
+}
+
+const BROWSER_SHORTCUTS_KEY = 'adl-ui:browser-shortcuts';
+const BROWSER_LOCAL_PORTS_KEY = 'adl-ui:browser-local-ports';
+const BROWSER_BG_CONFIG_KEY = 'adl-ui:browser-bg-config';
+
+const { scheduleWrite } = createDebouncedWrite(50);
+
+export interface BrowserLandingSlice {
+  browserShortcuts: ShortcutSite[];
+  browserLocalPorts: LocalPort[];
+  browserPortScanning: boolean;
+  browserBgConfig: BackgroundConfig;
+
+  browserAddShortcut: (site: Omit<ShortcutSite, 'id' | 'sortOrder' | 'createdAt'>) => string;
+  browserRenameShortcut: (id: string, name: string) => void;
+  browserDeleteShortcut: (id: string) => void;
+  browserReorderShortcuts: (ids: string[]) => void;
+  browserSetLocalPorts: (ports: LocalPort[]) => void;
+  browserAddManualPort: (port: number, label?: string) => string;
+  browserUpdateLocalPort: (
+    id: string,
+    patch: Partial<Pick<LocalPort, 'label' | 'sortOrder'>>
+  ) => void;
+  browserDeleteLocalPort: (id: string) => void;
+  browserReorderLocalPorts: (ids: string[]) => void;
+  browserSetPortScanning: (scanning: boolean) => void;
+  browserSetBgConfig: (config: BackgroundConfig) => void;
+  browserResetBgConfig: () => void;
+}
+
+export const createBrowserLandingSlice = (
+  set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
+  _get: () => StoreState
+): BrowserLandingSlice => ({
+  browserShortcuts: [],
+  browserLocalPorts: [],
+  browserPortScanning: false,
+  browserBgConfig: { mode: 'default', fit: 'cover' },
+
+  browserAddShortcut: (site) => {
+    let id = '';
+    set((state) => {
+      const maxSortOrder =
+        state.browserShortcuts.length > 0
+          ? Math.max(...state.browserShortcuts.map((s) => s.sortOrder))
+          : 0;
+      id = createUiId('shortcut');
+      const newSite: ShortcutSite = {
+        id,
+        name: site.name,
+        url: site.url,
+        icon: site.icon,
+        sortOrder: maxSortOrder + 1,
+        createdAt: Date.now(),
+      };
+      const nextShortcuts = [...state.browserShortcuts, newSite];
+      scheduleWrite(BROWSER_SHORTCUTS_KEY, nextShortcuts);
+      return { browserShortcuts: nextShortcuts };
+    });
+    return id;
+  },
+
+  browserRenameShortcut: (id, name) =>
+    set((state) => {
+      const nextShortcuts = state.browserShortcuts.map((s) => (s.id === id ? { ...s, name } : s));
+      scheduleWrite(BROWSER_SHORTCUTS_KEY, nextShortcuts);
+      return { browserShortcuts: nextShortcuts };
+    }),
+
+  browserDeleteShortcut: (id) =>
+    set((state) => {
+      const nextShortcuts = state.browserShortcuts.filter((s) => s.id !== id);
+      scheduleWrite(BROWSER_SHORTCUTS_KEY, nextShortcuts);
+      return { browserShortcuts: nextShortcuts };
+    }),
+
+  browserReorderShortcuts: (ids) =>
+    set((state) => {
+      const idSet = new Set(ids);
+      const remaining = state.browserShortcuts.filter((s) => idSet.has(s.id));
+      const other = state.browserShortcuts.filter((s) => !idSet.has(s.id));
+      const ordered = ids.map((id, idx) => {
+        const site = remaining.find((s) => s.id === id)!;
+        return { ...site, sortOrder: idx };
+      });
+      const nextShortcuts = [...ordered, ...other];
+      scheduleWrite(BROWSER_SHORTCUTS_KEY, nextShortcuts);
+      return { browserShortcuts: nextShortcuts };
+    }),
+
+  browserSetLocalPorts: (ports) =>
+    set(() => {
+      const withSort = ports.map((p, idx) => ({ ...p, sortOrder: p.sortOrder ?? idx }));
+      scheduleWrite(BROWSER_LOCAL_PORTS_KEY, withSort);
+      return { browserLocalPorts: withSort };
+    }),
+
+  browserAddManualPort: (port, label) => {
+    let id = '';
+    set((state) => {
+      const maxSortOrder =
+        state.browserLocalPorts.length > 0
+          ? Math.max(...state.browserLocalPorts.map((p) => p.sortOrder))
+          : 0;
+      id = createUiId('localport');
+      const newPort: LocalPort = {
+        id,
+        host: 'localhost',
+        port,
+        label,
+        isAutoDiscovered: false,
+        lastAliveAt: Date.now(),
+        sortOrder: maxSortOrder + 1,
+      };
+      const nextPorts = [...state.browserLocalPorts, newPort];
+      scheduleWrite(BROWSER_LOCAL_PORTS_KEY, nextPorts);
+      return { browserLocalPorts: nextPorts };
+    });
+    return id;
+  },
+
+  browserDeleteLocalPort: (id) =>
+    set((state) => {
+      const nextPorts = state.browserLocalPorts.filter((p) => p.id !== id);
+      scheduleWrite(BROWSER_LOCAL_PORTS_KEY, nextPorts);
+      return { browserLocalPorts: nextPorts };
+    }),
+
+  browserUpdateLocalPort: (id, patch) =>
+    set((state) => {
+      const nextPorts = state.browserLocalPorts.map((p) =>
+        p.id === id ? { ...p, ...patch } : p
+      );
+      scheduleWrite(BROWSER_LOCAL_PORTS_KEY, nextPorts);
+      return { browserLocalPorts: nextPorts };
+    }),
+
+  browserReorderLocalPorts: (ids) =>
+    set((state) => {
+      const idSet = new Set(ids);
+      const remaining = state.browserLocalPorts.filter((p) => idSet.has(p.id));
+      const other = state.browserLocalPorts.filter((p) => !idSet.has(p.id));
+      const ordered = ids.map((id, idx) => {
+        const port = remaining.find((p) => p.id === id)!;
+        return { ...port, sortOrder: idx };
+      });
+      const nextPorts = [...ordered, ...other];
+      scheduleWrite(BROWSER_LOCAL_PORTS_KEY, nextPorts);
+      return { browserLocalPorts: nextPorts };
+    }),
+
+  browserSetPortScanning: (scanning) => set({ browserPortScanning: scanning }),
+
+  browserSetBgConfig: (config) => {
+    scheduleWrite(BROWSER_BG_CONFIG_KEY, config);
+    set({ browserBgConfig: config });
+  },
+
+  browserResetBgConfig: () => {
+    const defaultConfig: BackgroundConfig = { mode: 'default', fit: 'cover' };
+    scheduleWrite(BROWSER_BG_CONFIG_KEY, defaultConfig);
+    set({ browserBgConfig: defaultConfig });
+  },
+});

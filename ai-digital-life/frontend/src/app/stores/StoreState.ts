@@ -49,9 +49,15 @@ import type { TaskSlice } from './slices/taskSlice';
 import type { CommandSlice } from './slices/commandSlice';
 import type { ClipboardSlice } from './slices/clipboardSlice';
 import type { TerminalSlice } from './slices/terminalSlice';
+import type { BrowserTabsSlice } from './slices/browserTabsSlice';
+import type { BrowserBookmarkSlice } from './slices/browserBookmarkSlice';
+import type { BrowserHistorySlice } from './slices/browserHistorySlice';
+import type { BrowserFoldersSlice } from './slices/browserFoldersSlice';
+import type { BrowserLandingSlice } from './slices/browserLandingSlice';
 import type { BrowserSlice } from './slices/browserSlice';
 import type { CiSlice } from './slices/ciSlice';
 import type { CommunicateSlice } from './slices/communicateSlice';
+import type { GitHubSlice } from './slices/githubSlice';
 import type {
   AppPreferencePatch,
   ReorderSessionsInput,
@@ -75,9 +81,15 @@ interface StoreStateBase
     CommandSlice,
     ClipboardSlice,
     TerminalSlice,
+    BrowserTabsSlice,
+    BrowserBookmarkSlice,
+    BrowserHistorySlice,
+    BrowserFoldersSlice,
+    BrowserLandingSlice,
     BrowserSlice,
     CiSlice,
-    CommunicateSlice {
+    CommunicateSlice,
+    GitHubSlice {
   loading: boolean;
   error?: string;
   isFetching: Record<string, boolean>;

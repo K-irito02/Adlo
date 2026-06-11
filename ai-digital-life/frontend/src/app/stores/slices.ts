@@ -52,8 +52,44 @@ export { type ClipboardSlice, createClipboardSlice } from './slices/clipboardSli
 // 终端切片
 export { type TerminalSlice, createTerminalSlice } from './slices/terminalSlice';
 
-// 浏览器切片
-export { type BrowserSlice, createBrowserSlice, type BrowserTabState } from './slices/browserSlice';
+// 浏览器切片 — 5 个子切片
+export {
+  type BrowserTabsSlice,
+  type BrowserTabState,
+  type BrowserTabStateUpdate,
+  createBrowserTabsSlice,
+} from './slices/browserTabsSlice';
+export {
+  type BrowserBookmarkSlice,
+  type BrowserBookmark,
+  createBrowserBookmarkSlice,
+} from './slices/browserBookmarkSlice';
+export {
+  type BrowserHistorySlice,
+  type BrowserHistoryState,
+  createBrowserHistorySlice,
+} from './slices/browserHistorySlice';
+export {
+  type BrowserFoldersSlice,
+  type TabFolderState,
+  type TabFolderStateUpdate,
+  createBrowserFoldersSlice,
+} from './slices/browserFoldersSlice';
+export {
+  type BrowserLandingSlice,
+  type ShortcutSite,
+  type LocalPort,
+  type BackgroundConfig,
+  type BackgroundMode,
+  type BackgroundFit,
+  createBrowserLandingSlice,
+} from './slices/browserLandingSlice';
+
+// 浏览器切片 — 核心层（组合所有子切片）
+export {
+  type BrowserSlice,
+  createBrowserSlice,
+} from './slices/browserSlice';
 
 // CI 切片
 export { type CiSlice, createCiSlice } from './slices/ciSlice';
@@ -62,6 +98,14 @@ export { type CiSlice, createCiSlice } from './slices/ciSlice';
 export {
   type CommunicateSlice,
   type PlatformId,
-  type GitHubSection,
   createCommunicateSlice,
 } from './slices/communicateSlice';
+
+// GitHub 切片
+export {
+  type GitHubSlice,
+  type GitHubSection,
+  type GitWorkspaceCiConfig,
+  type GitHubCiFolderState,
+  createGitHubSlice,
+} from './slices/githubSlice';

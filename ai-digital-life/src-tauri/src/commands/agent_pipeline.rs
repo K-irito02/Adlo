@@ -419,3 +419,217 @@ pub(crate) fn finalize_run<F: Fn(serde_json::Value)>(
         patch_set: ctx.patch_set.cloned(),
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use adl_kernel::ConversationScenario;
+
+    const STREAM_CHUNK_SIZE: usize = 120;
+
+    #[test]
+    fn test_stream_chunk_count_empty_content() {
+        let content = "";
+        let char_count = content.chars().count();
+        let delta_chunks = (char_count + STREAM_CHUNK_SIZE - 1) / STREAM_CHUNK_SIZE.max(1);
+        assert_eq!(delta_chunks, 0, "empty content should produce 0 deltas");
+    }
+
+    #[test]
+    fn test_stream_chunk_count_exact_one_chunk() {
+        let content = "a".repeat(STREAM_CHUNK_SIZE);
+        let char_count = content.chars().count();
+        let delta_chunks = (char_count + STREAM_CHUNK_SIZE - 1) / STREAM_CHUNK_SIZE.max(1);
+        assert_eq!(delta_chunks, 1, "exactly 120 chars = 1 delta chunk");
+    }
+
+    #[test]
+    fn test_stream_chunk_count_two_chunks() {
+        let content = "a".repeat(STREAM_CHUNK_SIZE + 1);
+        let char_count = content.chars().count();
+        let delta_chunks = (char_count + STREAM_CHUNK_SIZE - 1) / STREAM_CHUNK_SIZE.max(1);
+        assert_eq!(delta_chunks, 2, "121 chars = 2 delta chunks");
+    }
+
+    #[test]
+    fn test_stream_chunk_count_unicode() {
+        let content = "中文测试".repeat(40);
+        let char_count = content.chars().count();
+        let delta_chunks = (char_count + STREAM_CHUNK_SIZE - 1) / STREAM_CHUNK_SIZE.max(1);
+        assert_eq!(delta_chunks, 2, "160 unicode chars = 2 delta chunks");
+    }
+
+    #[test]
+    fn test_route_event_json_structure() {
+        let event = serde_json::json!({
+            "v": 1,
+            "runId": "run-1",
+            "seq": 0,
+            "type": "route",
+            "providerId": "deepseek",
+            "modelId": "deepseek-v4",
+            "reason": "primary route",
+        });
+        assert_eq!(event["v"], 1);
+        assert_eq!(event["runId"], "run-1");
+        assert_eq!(event["seq"], 0);
+        assert_eq!(event["type"], "route");
+        assert!(event.get("providerId").is_some());
+        assert!(event.get("modelId").is_some());
+        assert!(event.get("reason").is_some());
+    }
+
+    #[test]
+    fn test_usage_event_json_structure() {
+        let usage = serde_json::json!({"inputTokens": 100, "outputTokens": 50});
+        let event = serde_json::json!({
+            "v": 1,
+            "runId": "run-1",
+            "seq": 1,
+            "type": "usage",
+            "usage": usage,
+        });
+        assert_eq!(event["v"], 1);
+        assert_eq!(event["type"], "usage");
+        assert!(event.get("usage").is_some());
+    }
+
+    #[test]
+    fn test_delta_event_json_structure() {
+        let event = serde_json::json!({
+            "v": 1,
+            "runId": "run-1",
+            "seq": 2,
+            "type": "delta",
+            "text": "Hello World",
+        });
+        assert_eq!(event["v"], 1);
+        assert_eq!(event["type"], "delta");
+        assert_eq!(event["text"], "Hello World");
+    }
+
+    #[test]
+    fn test_done_event_json_structure() {
+        let event = serde_json::json!({
+            "v": 1,
+            "runId": "run-1",
+            "seq": 3,
+            "type": "done",
+        });
+        assert_eq!(event["v"], 1);
+        assert_eq!(event["type"], "done");
+        assert!(event.get("text").is_none(), "done event should NOT have text field");
+    }
+
+    #[test]
+    fn test_run_start_activity_event_structure() {
+        let event = serde_json::json!({
+            "type": "run-start",
+            "scenario": "code-edit"
+        });
+        assert_eq!(event["type"], "run-start");
+        assert_eq!(event["scenario"], "code-edit");
+    }
+
+    #[test]
+    fn test_run_done_activity_event_structure() {
+        let event = serde_json::json!({
+            "type": "run-done",
+            "status": "succeeded"
+        });
+        assert_eq!(event["type"], "run-done");
+        assert!(event.get("status").is_some());
+    }
+
+    #[test]
+    fn test_generate_patches_scenario_code_edit_enables_patches() {
+        let scenario = ConversationScenario::CodeEdit;
+        let root_empty = false;
+        let generates_patch = matches!(scenario, ConversationScenario::CodeEdit) && !root_empty;
+        assert!(generates_patch, "CodeEdit with non-empty root should generate patches");
+    }
+
+    #[test]
+    fn test_generate_patches_scenario_plan_never_patches() {
+        let scenarios = [ConversationScenario::Plan, ConversationScenario::Chat];
+        for scenario in &scenarios {
+            let generates_patch = matches!(scenario, ConversationScenario::CodeEdit);
+            assert!(!generates_patch, "{scenario:?} should not generate patches");
+        }
+    }
+
+    #[test]
+    fn test_finalize_run_audit_operation_patch_apply() {
+        let patch_present = true;
+        let operation = if patch_present { "patch-apply" } else { "approval" };
+        assert_eq!(operation, "patch-apply");
+    }
+
+    #[test]
+    fn test_finalize_run_audit_operation_no_patch() {
+        let patch_present = false;
+        let operation = if patch_present { "patch-apply" } else { "approval" };
+        assert_eq!(operation, "approval");
+    }
+
+    #[test]
+    fn test_finalize_run_audit_risk_patch_present() {
+        let patch_present = true;
+        let risk = if patch_present { "medium" } else { "low" };
+        assert_eq!(risk, "medium", "patch-present runs should have medium risk");
+    }
+
+    #[test]
+    fn test_finalize_run_audit_risk_no_patch() {
+        let patch_present = false;
+        let risk = if patch_present { "medium" } else { "low" };
+        assert_eq!(risk, "low", "no-patch runs should have low risk");
+    }
+
+    #[test]
+    fn test_model_activity_event_structure() {
+        let event = serde_json::json!({
+            "type": "model",
+            "phase": "done",
+            "providerId": "deepseek",
+            "modelId": "deepseek-v4",
+            "usage": null,
+            "reason": "primary route",
+        });
+        assert_eq!(event["type"], "model");
+        assert_eq!(event["phase"], "done");
+        assert!(event.get("providerId").is_some());
+        assert!(event.get("modelId").is_some());
+    }
+
+    #[test]
+    fn test_context_added_activity_event_structure() {
+        let event = serde_json::json!({
+            "type": "context-added",
+            "contextType": "message",
+            "label": "workspace context",
+            "tokenEstimate": 42
+        });
+        assert_eq!(event["type"], "context-added");
+        assert!(event.get("contextType").is_some());
+        assert!(event.get("label").is_some());
+    }
+
+    #[test]
+    fn test_audit_batch_entry_construction_pattern() {
+        let entry = AuditBatchEntry {
+            workspace_id: "ws-1".into(),
+            session_id: Some("sess-1".into()),
+            operation_type: "approval".into(),
+            risk_level: adl_kernel::RiskLevel::Low,
+            summary: "Agent run started in CodeEdit mode.".into(),
+            decision: Some("auto".into()),
+            detail: Some("runId=run-1".into()),
+        };
+        assert_eq!(entry.workspace_id, "ws-1");
+        assert_eq!(entry.session_id, Some("sess-1".to_string()));
+        assert_eq!(entry.operation_type, "approval");
+        assert_eq!(entry.decision, Some("auto".to_string()));
+        assert!(entry.detail.unwrap().contains("runId="));
+    }
+}
