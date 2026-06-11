@@ -20,7 +20,7 @@ import { useAppStore } from '../../stores/slicedStore';
 import { useBrowserTabs, computeNavigatorCount } from './useBrowserTabs';
 import type { BrowserNavigatorMode } from './useBrowserTabs';
 import { useBrowserWebView } from './useBrowserWebView';
-import { useBrowserSearch } from './useBrowserSearch';
+import { useBrowserSearch, findInBrowserLookupIndex } from './useBrowserSearch';
 import { useBrowserTreeActions } from './useBrowserTreeActions';
 import { useBrowserNavigation } from './useBrowserNavigation';
 import { useBrowserUrlState } from './useBrowserUrlState';
@@ -273,6 +273,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
     navigatorSearchRef,
     navigatorSearchInputRef,
     searchResults,
+    browserLookupIndex,
   } = useBrowserSearch({
     t,
     browserBookmarks,
@@ -356,41 +357,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
     if (!input) {
       return;
     }
-    const normalizedInput = input.toLowerCase();
-    const store = useAppStore.getState();
-    const bookmarks = store.browserBookmarks;
-    const history = store.browserHistory;
-    const tabs = store.browserTabs;
-
-    const quickLinks = [
-      { title: t.browserLocalPreview, url: 'http://localhost:5173/' },
-      { title: t.browserBlankTab, url: 'about:blank' },
-    ];
-
-    const seen = new Set<string>();
-    const browserLookupIndex = [...quickLinks, ...bookmarks, ...history, ...tabs].filter(
-      (item) => {
-        const key = `${item.title}::${item.url}`;
-        if (seen.has(key)) {
-          return false;
-        }
-        seen.add(key);
-        return true;
-      }
-    );
-
-    const matchedItem =
-      browserLookupIndex.find(
-        (item) =>
-          item.title.toLowerCase() === normalizedInput || item.url.toLowerCase() === normalizedInput
-      ) ??
-      (!(/^(about:|[a-z]+:\/\/)/i.test(input) || /[./:]/.test(input))
-        ? browserLookupIndex.find(
-            (item) =>
-              item.title.toLowerCase().includes(normalizedInput) ||
-              item.url.toLowerCase().includes(normalizedInput)
-          )
-        : undefined);
+    const matchedItem = findInBrowserLookupIndex(browserLookupIndex, input);
     if (matchedItem) {
       browserNavigateActiveTab(matchedItem.url, matchedItem.title);
       setAddress(matchedItem.url);
@@ -403,7 +370,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
       : `https://${normalizedValue}`;
     browserNavigateActiveTab(finalUrl);
     navigateBrowser(finalUrl);
-  }, [address, browserNavigateActiveTab, navigateBrowser, t.browserBlankTab, t.browserLocalPreview]);
+  }, [address, browserLookupIndex, browserNavigateActiveTab, navigateBrowser]);
 
   const visibleWorkspaces = useMemo(
     () =>

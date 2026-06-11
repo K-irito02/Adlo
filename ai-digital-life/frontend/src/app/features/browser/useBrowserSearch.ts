@@ -19,6 +19,28 @@ function filterBrowserItems<T extends { title: string; url: string }>(
   });
 }
 
+export function findInBrowserLookupIndex(
+  browserLookupIndex: Array<{ title: string; url: string }>,
+  input: string
+): { title: string; url: string } | undefined {
+  const normalizedInput = input.toLowerCase();
+  const exactMatch = browserLookupIndex.find(
+    (item) =>
+      item.title.toLowerCase() === normalizedInput || item.url.toLowerCase() === normalizedInput
+  );
+  if (exactMatch) return exactMatch;
+
+  const looksLikeUrl = /^(about:|[a-z]+:\/\/)/i.test(input) || /[./:]/.test(input);
+  if (!looksLikeUrl) {
+    return browserLookupIndex.find(
+      (item) =>
+        item.title.toLowerCase().includes(normalizedInput) ||
+        item.url.toLowerCase().includes(normalizedInput)
+    );
+  }
+  return undefined;
+}
+
 interface UseBrowserSearchOptions {
   t: BrowserPanelProps['t'];
   browserBookmarks: Array<{ title: string; url: string }>;
