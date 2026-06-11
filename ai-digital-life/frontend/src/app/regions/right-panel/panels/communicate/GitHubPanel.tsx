@@ -87,6 +87,7 @@ function MenuHintItem({ label, hint, onClick }: MenuHintItemProps) {
             document.body.appendChild(arrow);
             document.body.appendChild(arrowBorder);
 
+            subCardsRef.current = [];
             subCardsRef.current.push(card, arrow, arrowBorder);
           }
         }}
