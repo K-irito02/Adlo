@@ -251,6 +251,8 @@
   right: var(--space-3);
   top: 50%;
   transform: translateY(-50%);
+  background: var(--bg-card);
+  z-index: 1;
 }
 
 .adl-menu-item__hint:hover {

@@ -27,6 +27,11 @@ alwaysApply: false
 - 禁止对动态列表项使用不同的高度或间距（导致布局抖动）
 - 占位/添加状态元素的 `border-width` 必须与真实元素一致（`box-sizing: border-box` 下边框厚度影响总尺寸），仅改变 `border-style` 为 `dashed` 即可视觉区分
 
+## 绝对定位与悬停隔离
+- 父级 `:hover` 背景会穿透绝对定位子元素（子元素背景透明时），导致子元素区域显示父级 hover 背景
+- 如需隔离，给子元素显式设置遮罩背景（如 `var(--bg-card)`）+ `z-index` 以覆盖父级 hover 背景
+- 子元素自身的 `:hover` 背景不受此限制，可直接设置
+
 ## 性能相关
 - 超过 50 项的滚动列表：使用 `content-visibility: auto` 延迟渲染屏外内容
 - 动画和过渡仅使用 `transform` 和 `opacity`，避免触发 layout/paint（使用 `will-change` 提示浏览器）

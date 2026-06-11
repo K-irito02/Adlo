@@ -67,9 +67,39 @@ Chrome 130+ 实现了 CSS Positioned Layout 规范变更：
 | `frontend/src/styles/regions/rightpanel/file-operations.css` | 移除 `.adl-menu-hint-card` 系列类，新增 `.adl-sub-hint-card`/`__arrow`/`__arrow-border` |
 | `frontend/src/app/regions/right-panel/panels/communicate/GitHubPanel.tsx` | `MenuHintItem` 组件完全重写，使用独立 fixed 元素替代伪元素箭头 |
 
+## 子序列修复
+
+### 1. 内存泄漏：组件卸载时动态 DOM 元素残留
+
+**问题**：`MenuHintItem` 在 `onMouseEnter` 中创建 `div` 元素 `appendChild` 到 `document.body`，但只在 `onMouseLeave` 时移除。若用户在悬停状态下跳转页面（组件卸载），这些元素永久残留。
+
+**修复**：
+- 使用 `useRef<HTMLDivElement[]>` 存储所有动态元素引用
+- 添加 `useEffect` 清理函数，组件卸载时 `remove()` 所有元素
+- `onMouseEnter` 先清空再 `push`，避免数组累积已清除的历史元素
+
+### 2. 快速多次悬停引用丢失
+
+**问题**：`subCardsRef.current = [card, arrow, arrowBorder]` 每次赋值替换数组，如果 `onMouseEnter` 在 `onMouseLeave` 之前再次触发，旧引用丢失无法清理。
+
+**修复**：改为 `subCardsRef.current = []; subCardsRef.current.push(card, arrow, arrowBorder)`，既不累积历史元素，又不丢失未清理的引用。
+
+### 3. "!" 悬浮按钮父级 hover 背景透入
+
+**问题**：父级 `.adl-multitree-entry__menu-item:hover` 的 `background: var(--bg-hover)` 覆盖整个菜单项，包括右侧绝对定位的 `!` 区域。用户悬停菜单文字时 `!` 显示灰色背景，误以为 `!` 有独立功能。
+
+**修复**：
+- 给 `.adl-menu-item__hint` 添加 `background: var(--bg-card)` + `z-index: 1`，自身背景遮住父级 hover
+- 保留 `.adl-menu-item__hint:hover` 背景（直接悬停 `!` 时仍有效）
+
+**效果**：悬停菜单文本 → `!` 区域不受波及；直接悬停 `!` → 正常显示灰色背景 + 高亮文字。
+
 ## 经验教训
 
 1. **CSS 三角形方向测试**：不要凭直觉判断 `border-left`/`border-right` 的指向，应通过浏览器 DevTools 实际验证
 2. **`position: fixed` 包含块**：Chrome 130+ 后不再为 `position: absolute` 后代创建包含块，需用 `transform` 或改用独立元素
 3. **伪元素定位不可靠**：`::before`/`::after` 在 `position: fixed` 父元素中的 `position: absolute` 行为受浏览器版本和 CSS 规范影响，跨浏览器不一致
 4. **独立 `position: fixed` 元素最可靠**：每个元素独立定位，无包含块依赖，兼容性好
+5. **动态 DOM 元素必须绑定组件生命周期**：手动 `appendChild` 到 `document.body` 的元素必须通过 `useEffect` 清理函数确保卸载时移除，不能仅依赖事件驱动移除
+6. **`useRef` 作为元素引用容器优于 DOM 自定义属性**：组件级 `useRef<HTMLElement[]>` 不受 React 生命周期事件影响，可在任何时机安全清理，且不污染 DOM 节点
+7. **父级 hover 背景穿透绝对定位子元素**：`position: absolute` 子元素背景透明时，父级 hover 背景会透入；需给子元素显式设置遮罩背景（如 `var(--bg-card)`）以隔离父级视觉影响

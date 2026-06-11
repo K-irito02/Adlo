@@ -90,7 +90,7 @@
 | [right-click-menu-positioning.md](./交互优化/right-click-menu-positioning.md) | 2026-06-08 修复执行 | 右键菜单跟随鼠标位置修复（4 条经验：定位方式选择、FileTree 机制复用、条件守卫遗漏） |
 | [rename-dialog-standardization-2026-06-08.md](./交互优化/rename-dialog-standardization-2026-06-08.md) | 2026-06-08 UI 优化 | 重命名弹窗交互标准化（直角按钮、✕ 关闭按钮、i18n 标题简洁化） |
 | [outline-navigation-and-refresh-fix-2026-06-09.md](./交互优化/outline-navigation-and-refresh-fix-2026-06-09.md) | 2026-06-09 修复执行 | 大纲导航折叠展开修复（`uncollapseUnchanged` 传参陷阱）+ 刷新按钮绕过懒加载守卫 |
-| [hint-card-arrow-positioning-fix-2026-06-11.md](./交互优化/hint-card-arrow-positioning-fix-2026-06-11.md) | 2026-06-11 修复执行 | Hint Card 子卡片箭头定位修复（CSS 三角形方向、`position:fixed` 包含块变更、独立 fixed 元素方案） |
+| [hint-card-arrow-positioning-fix-2026-06-11.md](./交互优化/hint-card-arrow-positioning-fix-2026-06-11.md) | 2026-06-11 修复执行 | Hint Card 子卡片箭头定位修复 + 动态 DOM 内存泄漏 + 父级 hover 背景隔离 + "!" 按钮交互优化 |
 
 ### CI 监控
 

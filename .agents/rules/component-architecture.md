@@ -72,6 +72,11 @@ useBrowserPanel.ts → useBrowserNavigation.ts + useBrowserUrlState.ts + useBrow
 ```
 拆分边界：每个 hook 处理一个关注点（导航、URL、菜单、拖拽、上下文菜单）
 
+## DOM 生命周期管理
+- 手动 `appendChild` 到 `document.body` 的动态 DOM 元素必须绑定到组件生命周期（通过 `useEffect` 清理函数移除），禁止仅依赖事件驱动移除
+- 使用 `useRef<HTMLElement[]>`（而非 DOM 自定义属性）存储动态元素引用，确保组件卸载时安全清理所有元素
+- 每次创建新元素前先清空引用数组再 push，防止数组累积已清除的历史元素，同时避免丢失未清理引用
+
 ## 禁止项
 - 禁止单文件包含多个不相关的组件（除非是简单的子组件）
 - 禁止在 `App.tsx` 或根布局组件中内联业务逻辑（必须提取到 hook）
