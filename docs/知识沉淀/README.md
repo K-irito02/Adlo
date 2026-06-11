@@ -11,7 +11,7 @@
 | [浏览器](./浏览器/) | 内置浏览器实现、空标签引导页、树形目录交互等经验 | 8 |
 | [代码质量](./代码质量/) | 全量代码质量检测与修复经验 | 9 |
 | [浏览器自动化](./浏览器自动化/) | 浏览器自动化调试记录与规则经验 | 2 |
-| [交互优化](./交互优化/) | 跨功能面板的交互/UX 问题修复经验 | 3 |
+| [交互优化](./交互优化/) | 跨功能面板的交互/UX 问题修复经验 | 6 |
 | [CI 监控](./CI监控/) | GitHub Actions CI 状态监控模块经验（Token 安全、双端一致性、类型系统、树形目录交互） | 3 |
 
 ## 索引
@@ -91,6 +91,8 @@
 | [rename-dialog-standardization-2026-06-08.md](./交互优化/rename-dialog-standardization-2026-06-08.md) | 2026-06-08 UI 优化 | 重命名弹窗交互标准化（直角按钮、✕ 关闭按钮、i18n 标题简洁化） |
 | [outline-navigation-and-refresh-fix-2026-06-09.md](./交互优化/outline-navigation-and-refresh-fix-2026-06-09.md) | 2026-06-09 修复执行 | 大纲导航折叠展开修复（`uncollapseUnchanged` 传参陷阱）+ 刷新按钮绕过懒加载守卫 |
 | [hint-card-arrow-positioning-fix-2026-06-11.md](./交互优化/hint-card-arrow-positioning-fix-2026-06-11.md) | 2026-06-11 修复执行 | Hint Card 子卡片箭头定位修复 + 动态 DOM 内存泄漏 + 父级 hover 背景隔离 + "!" 按钮交互优化 |
+| [file-tree-virtualized-connecting-lines-fix-2026-06-11.md](./交互优化/file-tree-virtualized-connecting-lines-fix-2026-06-11.md) | 2026-06-11 修复执行 | 虚拟化文件树垂直连接线与悬停高亮修复（`::before` 溢出、`--adl-tree-indent` 缩进、JS 悬停传播） |
+| [outline-connecting-lines-alignment-fix-2026-06-11.md](./交互优化/outline-connecting-lines-alignment-fix-2026-06-11.md) | 2026-06-11 修复执行 | 大纲树竖线对齐修复（递归树 `::before` 无需 `--adl-tree-indent`、叶子节点隐藏竖线、死代码 `outline-panel.css` 删除） |
 
 ### CI 监控
 

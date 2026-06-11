@@ -110,7 +110,7 @@ await source.dragTo(target);
 - 终端标签采用 14px 左缩进，hover/激活时灰色背景覆盖缩进区域
 - 空状态"创建终端"按钮同样 14px 缩进，hover 全宽灰色背景
 - 标签间距紧凑（1px），无 border-bottom 分隔线
-- 树连接线（`::before`）从工作区头部延伸至最后一个标签
+- 树连接线（`::before`，通过 `--adl-trunk-height` 变量溢出实现动态高度）从工作区头部延伸至最后一个标签
 
 ---
 

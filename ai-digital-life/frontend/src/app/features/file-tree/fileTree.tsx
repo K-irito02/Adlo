@@ -45,6 +45,8 @@ interface VirtualNodeProps<T extends FileTreeRenderableNode> {
   collapseLabel: string;
   flat?: boolean;
   style: React.CSSProperties;
+  trunkHeight?: number;
+  hoveredDescendantPaths?: Set<string>;
 }
 
 function VirtualNodeComponent<T extends FileTreeRenderableNode>({
@@ -69,6 +71,8 @@ function VirtualNodeComponent<T extends FileTreeRenderableNode>({
   collapseLabel,
   flat,
   style,
+  trunkHeight,
+  hoveredDescendantPaths,
 }: VirtualNodeProps<T>) {
   const { node, depth } = flatNode;
   const isDirectory = node.kind === 'directory';
@@ -85,6 +89,10 @@ function VirtualNodeComponent<T extends FileTreeRenderableNode>({
   const customCount = renderCount?.(node);
   const customIconBefore = renderIconBefore?.(node);
   const nodeClassName = getNodeClassName?.(node);
+  const isHoveredDescendant = hoveredDescendantPaths?.has(flatNode.node.path) ?? false;
+  const itemStyle: React.CSSProperties = trunkHeight
+    ? { ...style, '--adl-trunk-height': `${trunkHeight}px` }
+    : style;
 
   return (
     <TreeNodeRow
@@ -105,7 +113,7 @@ function VirtualNodeComponent<T extends FileTreeRenderableNode>({
           onOpenFile(node.path);
         }
       }}
-      itemClassName={`adl-filetree__item${isDirectory ? ' adl-filetree__node--directory' : ' adl-filetree__node--file'}${nodeClassName ? ` ${nodeClassName}` : ''}`}
+      itemClassName={`adl-filetree__item${isDirectory ? ' adl-filetree__node--directory' : ' adl-filetree__node--file'}${nodeClassName ? ` ${nodeClassName}` : ''}${isHoveredDescendant ? ' is-hovered-by-ancestor' : ''}`}
       rowClassName="adl-filetree__row"
       labelClassName="adl-filetree__label"
       toggleClassName="adl-filetree__toggle"
@@ -143,7 +151,7 @@ function VirtualNodeComponent<T extends FileTreeRenderableNode>({
       onContextMenu={onShowContextMenu ? (event) => onShowContextMenu(event, node) : undefined}
       onLabelMouseEnter={onMouseEnter}
       onLabelMouseLeave={onMouseLeave}
-      style={style}
+      style={itemStyle}
     />
   );
 }
@@ -208,6 +216,37 @@ export function FileTree<T extends FileTreeRenderableNode>({
   );
 
   const totalHeight = flatNodes.length * VIRTUAL_ITEM_HEIGHT;
+
+  const trunkHeightMap: Record<string, number> = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (let i = 0; i < flatNodes.length; i++) {
+      const { node, depth } = flatNodes[i];
+      if (node.kind !== 'directory') continue;
+      let descendantCount = 0;
+      for (let j = i + 1; j < flatNodes.length; j++) {
+        if (flatNodes[j].depth <= depth) break;
+        descendantCount++;
+      }
+      if (descendantCount > 0) {
+        map[node.path] = (descendantCount + 1) * VIRTUAL_ITEM_HEIGHT;
+      }
+    }
+    return map;
+  }, [flatNodes]);
+
+  const hoveredDescendantPaths: Set<string> | undefined = useMemo(() => {
+    if (!hoveredPath) return undefined;
+    const set = new Set<string>();
+    const hoveredIndex = flatNodes.findIndex(fn => fn.node.path === hoveredPath);
+    if (hoveredIndex === -1) return undefined;
+    const hoveredDepth = flatNodes[hoveredIndex].depth;
+    for (let i = hoveredIndex + 1; i < flatNodes.length; i++) {
+      const fn = flatNodes[i];
+      if (fn.depth <= hoveredDepth) break;
+      set.add(fn.node.path);
+    }
+    return set;
+  }, [flatNodes, hoveredPath]);
 
   const { startIndex, endIndex } = useVirtualList(
     scrollAreaRef as RefObject<HTMLElement>,
@@ -328,6 +367,8 @@ export function FileTree<T extends FileTreeRenderableNode>({
                 expandLabel={expandLabel}
                 collapseLabel={collapseLabel}
                 flat={flat}
+                trunkHeight={trunkHeightMap[flatNode.node.path]}
+                hoveredDescendantPaths={hoveredDescendantPaths}
                 style={{
                   position: 'absolute',
                   top: absoluteIndex * VIRTUAL_ITEM_HEIGHT,

@@ -37,6 +37,54 @@ alwaysApply: false
 - 动画和过渡仅使用 `transform` 和 `opacity`，避免触发 layout/paint（使用 `will-change` 提示浏览器）
 - 禁止使用 `*` 选择器或深度嵌套选择器（>3 层）
 
+## CSS 文件加载顺序与去重
+
+- 同一优先级的选择器在多个 CSS 文件中定义时，加载顺序靠后者覆盖前者
+- **禁止在多个 CSS 文件中定义相同选择器的完整规则**（`file-tree.css` 是树样式的唯一真源；`files-panel.css` 只应包含 `file-tree.css` 没有的面板级样式）
+- 定期检查跨文件的选择器重复，移除死代码；未在 import 链中出现的 CSS 文件其内所有规则均为死代码
+
+## 虚拟化树形列表的 CSS 模式
+
+### 动态缩进（`--adl-tree-indent`）
+
+虚拟化树的所有节点为扁平 `<li>`，通过 JS 在每个 `<li>` 上设置 `--adl-tree-indent: (depth-1)*14px` 实现层级感知：
+
+```css
+/* 树干线水平位置随深度右移 */
+.adl-filetree__item::before {
+  left: calc(18px + var(--adl-tree-indent, 0px));
+}
+
+/* 行 padding 随深度右移 */
+.adl-filetree__row {
+  padding-inline-start: calc(8px + var(--adl-filetree-hover-offset) + var(--adl-tree-indent, 0px));
+}
+```
+
+### 树干线溢出（`--adl-trunk-height`）
+
+老旧递归树使用 `::before { top: 0; bottom: 0 }` 跨越父 `<li>` 到达子项。虚拟化树无法使用此模式，改用溢出的 `::before`：
+
+```css
+.adl-filetree__item::before {
+  /* 不再是 top:0; bottom:0 */
+  height: var(--adl-trunk-height, 28px);
+  bottom: auto;      /* 向下溢出 28px 边界 */
+}
+```
+
+JS 计算每个展开目录的 `--adl-trunk-height: (visibleDescendants + 1) * 28px`。文件节点隐藏 `::before`，树干线由父目录的溢出 `::before` 提供。
+
+### 悬停传播（扁平列表限制）
+
+CSS 兄弟选择器 `~` 无法跨越扁平列表的兄弟节点。目录悬停高亮传播必须通过 JS 计算：
+
+```typescript
+// 从悬停目录在 flatNodes 中的索引向后扫描
+// 收集直到遇到 depth ≤ 悬停节点 depth 的项
+// 后代节点获得 is-hovered-by-ancestor 类
+```
+
 ## 虚拟化列表的 CSS 要求
 
 ### 虚拟列表容器

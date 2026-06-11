@@ -106,6 +106,30 @@ await page.click('button[aria-label="刷新全部"]');
 await page.click('button[aria-label="新建文件"]');
 ```
 
+### 文件树节点（虚拟化 FileTree）
+
+> 文件面板与变更面板共用同一套虚拟化 FileTree 组件。所有 `.adl-filetree` 选择器在 [变更面板的「文件树」节](./changes.md#文件树) 中有完整定义。
+
+#### CSS 变量
+
+| 变量 | 计算方式 | 作用 |
+|------|----------|------|
+| `--adl-tree-indent` | `(depth - 1) × 14px`，注入每个 `<li>` | 缩进 + `::before` 水平位置 |
+| `--adl-trunk-height` | `(visibleDescendants + 1) × 28px`，注入展开目录的 `<li>` | 垂直连接线溢出 28px 到达最后一个子项 |
+| `--adl-filetree-hover-offset` | 滚动条宽度（自适应） | 行 padding 右偏移，保持 hover 全宽 |
+
+#### 树干线溢出原理
+
+展开目录的 `::before` 使用 `height: var(--adl-trunk-height); bottom: auto` 替代 `top:0; bottom:0`，溢出父 `<li>` 边界在下方子项区域绘制连续竖线。文件节点隐藏 `::before`，树干线由其父目录的溢出 `::before` 提供。
+
+#### 悬停传播
+
+| 类 | 说明 |
+|----|------|
+| `.is-hovered-by-ancestor` | 悬停目录时，所有可见后代节点获得此类，触发 `.adl-filetree__toggle` 图标高亮（`color: var(--text-primary)`） |
+
+计算逻辑：JS 从悬停目录在 `flatNodes` 中向后扫描，收集深度更大的所有可见后代。
+
 ---
 
 ## 搜索

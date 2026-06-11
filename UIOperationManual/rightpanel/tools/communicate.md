@@ -83,7 +83,7 @@
 | 计数 | `.adl-browser-entry__count` | 子条目数量 |
 | 操作按钮 | `.adl-browser-entry__actions` | 顶级目录悬停出现：IconTrash（删除CI配置及数据）+ IconSettings（设置） |
 | 子条目区 | `.adl-browser-entry__tree` | 使用 FileTree 组件渲染 |
-| 子条目行 | `.adl-filetree__row` | 含连接线（CSS 伪元素 `::before`） |
+| 子条目行 | `.adl-filetree__row` | 含连接线（CSS 伪元素 `::before`，通过 `--adl-trunk-height` 变量溢出实现动态高度） |
 | 子条目文件图标 | `.adl-github-entry__icon` | Overview/Workflows/Jobs/Logs 的自定义 SVG |
 | 子条目文件夹菜单 | `.adl-browser-node__actions` | 嵌套目录悬停出现，按钮顺序同上 |
 | 子条目右键菜单 | `.adl-multitree-entry__menu` | 右键菜单：删除CI配置及数据 + 重命名 |

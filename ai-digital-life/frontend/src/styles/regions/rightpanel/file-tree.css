@@ -29,19 +29,26 @@
 .adl-tree-node::before {
   content: '';
   position: absolute;
-  left: 13px;
+  left: calc(13px + var(--adl-tree-indent, 0px));
   top: 0;
   bottom: 0;
   width: 1px;
   background: color-mix(in srgb, var(--border) 78%, transparent);
 }
 
-.adl-tree-root > .adl-tree-node::before {
-  display: none;
+.adl-filetree__item::before {
+  left: calc(18px + var(--adl-tree-indent, 0px));
+  height: var(--adl-trunk-height, 28px);
+  bottom: auto;
 }
 
-.adl-filetree__item::before {
-  left: 18px;
+.adl-outline-tree__item::before {
+  left: 16px;
+  top: 13px;
+}
+
+.adl-outline-tree__item:not([aria-expanded])::before {
+  display: none;
 }
 
 .adl-filetree__node--file::before {
@@ -85,11 +92,10 @@
   isolation: isolate;
 }
 
-.adl-filetree__row,
-.adl-outline-tree__row {
+.adl-filetree__row {
   width: calc(100% + var(--adl-filetree-hover-offset));
   margin-inline-start: calc(-1 * var(--adl-filetree-hover-offset));
-  padding-inline-start: calc(8px + var(--adl-filetree-hover-offset));
+  padding-inline-start: calc(8px + var(--adl-filetree-hover-offset) + var(--adl-tree-indent, 0px));
   padding-inline-end: 7px;
   border-radius: 0;
 }
@@ -393,7 +399,8 @@
 }
 
 .adl-filetree__item.is-hovered .adl-filetree__toggle,
-.adl-filetree__item.is-active .adl-filetree__toggle {
+.adl-filetree__item.is-active .adl-filetree__toggle,
+.adl-filetree__item.is-hovered-by-ancestor .adl-filetree__toggle {
   color: var(--text-primary);
 }
 
@@ -1172,7 +1179,4 @@
   font-size: var(--text-sm);
 }
 
-/* outline 非根节点的连接竖线与展开/折叠按钮对齐 */
-.adl-outline-tree__children .adl-outline-tree__item::before {
-  left: 20px !important;
-}
+/* outline ::before 固定 left:16px（非根节点省略 --adl-tree-indent，因为 <li> 已被 <ul> padding-left 位移） */
