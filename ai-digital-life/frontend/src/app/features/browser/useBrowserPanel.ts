@@ -124,7 +124,9 @@ export interface UseBrowserPanelReturn {
 
 function normalizeBrowserUrl(value: string): string {
   const input = value.trim();
-  if (!input) return '';
+  if (!input) {
+    return '';
+  }
   if (/^[a-z]+:\/\/|about:/i.test(input)) {
     return input;
   }
@@ -185,13 +187,17 @@ function findFolderByIdLocal(
   folderId: string
 ): { id: string; tabs?: string[] } | null {
   for (const folder of folders) {
-    if (folder.id === folderId) return folder as { id: string; tabs?: string[] };
+    if (folder.id === folderId) {
+      return folder as { id: string; tabs?: string[] };
+    }
     if (Array.isArray(folder.children)) {
       const found = findFolderByIdLocal(
         folder.children as Array<{ id: string; children?: unknown[] }>,
         folderId
       );
-      if (found) return found;
+      if (found) {
+        return found;
+      }
     }
   }
   return null;
@@ -380,7 +386,9 @@ export function useBrowserPanel(
     if (browserHistory.length > 0) {
       allEntryPaths.push('history:root');
     }
-    if (allEntryPaths.length === 0) return false;
+    if (allEntryPaths.length === 0) {
+      return false;
+    }
     return allEntryPaths.every((p) => browserTabTreeExpanded[p] ?? false);
   }, [recentWorkspaces, browserTabFolders, browserHistory, browserTabTreeExpanded]);
 
@@ -450,7 +458,9 @@ export function useBrowserPanel(
       setIframeHistory((prev) => {
         const newEntries = prev.entries.slice(0, prev.index + 1);
         newEntries.push(url);
-        if (newEntries.length > 50) newEntries.shift();
+        if (newEntries.length > 50) {
+          newEntries.shift();
+        }
         return { index: newEntries.length - 1, entries: newEntries };
       });
       iframeRef.current.src = url;
@@ -458,11 +468,17 @@ export function useBrowserPanel(
   }, []);
 
   const updateWebViewBounds = useCallback(() => {
-    if (!primaryRef.current || !webViewActiveRef.current || !isTauriShell()) return;
-    if (!webViewVisibleRef.current) return;
+    if (!primaryRef.current || !webViewActiveRef.current || !isTauriShell()) {
+      return;
+    }
+    if (!webViewVisibleRef.current) {
+      return;
+    }
 
     const rect = primaryRef.current.getBoundingClientRect();
-    if (rect.width <= 0 || rect.height <= 0) return;
+    if (rect.width <= 0 || rect.height <= 0) {
+      return;
+    }
 
     const bounds = {
       x: Math.round(rect.left),
@@ -550,7 +566,9 @@ export function useBrowserPanel(
 
   useEffect(() => {
     const node = iframeRef.current;
-    if (!node) return;
+    if (!node) {
+      return;
+    }
     const handler = () => handleIframeLoadRef.current();
     node.addEventListener('load', handler);
     return () => node.removeEventListener('load', handler);
@@ -601,7 +619,9 @@ export function useBrowserPanel(
         if (folder?.tabs) {
           folder.tabs.forEach((tabId) => {
             const tab = state.browserTabs.find((t) => t.id === tabId);
-            if (tab) browserOpenTab(tab.url, tab.title, tab.workspaceId);
+            if (tab) {
+              browserOpenTab(tab.url, tab.title, tab.workspaceId);
+            }
           });
         }
       } else if (nodePath.startsWith('history:day:')) {
@@ -743,7 +763,9 @@ export function useBrowserPanel(
           }
           const newEntries = prev.entries.slice(0, prev.index + 1);
           newEntries.push(url);
-          if (newEntries.length > 50) newEntries.shift();
+          if (newEntries.length > 50) {
+            newEntries.shift();
+          }
           return { index: newEntries.length - 1, entries: newEntries };
         });
       });
@@ -751,8 +773,12 @@ export function useBrowserPanel(
   }, [activeTab?.url]);
 
   useEffect(() => {
-    if (!isTauriShell()) return;
-    if (!webViewActiveRef.current) return;
+    if (!isTauriShell()) {
+      return;
+    }
+    if (!webViewActiveRef.current) {
+      return;
+    }
     if (webViewDisabled) {
       invoke('browser_set_bounds', {
         bounds: { x: -10000, y: -10000, width: 1, height: 1 },
@@ -770,8 +796,12 @@ export function useBrowserPanel(
   }, [isBrowserVisible]);
 
   useEffect(() => {
-    if (!isTauriShell()) return;
-    if (!webViewActiveRef.current) return;
+    if (!isTauriShell()) {
+      return;
+    }
+    if (!webViewActiveRef.current) {
+      return;
+    }
 
     if (isBrowserVisible) {
       requestAnimationFrame(() => {
@@ -787,12 +817,18 @@ export function useBrowserPanel(
   }, [isBrowserVisible, updateWebViewBounds, webViewActive]);
 
   useEffect(() => {
-    if (!isTauriShell()) return;
+    if (!isTauriShell()) {
+      return;
+    }
 
-    if (webViewDisabled) return;
+    if (webViewDisabled) {
+      return;
+    }
 
     const url = activeTab?.url ?? 'about:blank';
-    if (url === 'about:blank' || url.trim() === '') return;
+    if (url === 'about:blank' || url.trim() === '') {
+      return;
+    }
 
     if (webViewActiveRef.current) {
       invoke('browser_navigate', { url }).catch((err) => {
@@ -801,7 +837,9 @@ export function useBrowserPanel(
       return;
     }
 
-    if (creatingRef.current) return;
+    if (creatingRef.current) {
+      return;
+    }
     creatingRef.current = true;
 
     const timeout = new Promise<never>((_, reject) =>
@@ -837,7 +875,9 @@ export function useBrowserPanel(
   }, []);
 
   useEffect(() => {
-    if (!isTauriShell() || !primaryRef.current) return;
+    if (!isTauriShell() || !primaryRef.current) {
+      return;
+    }
 
     resizeObserverRef.current = new ResizeObserver(() => {
       if (webViewActiveRef.current && isBrowserVisibleRef.current) {
@@ -888,10 +928,14 @@ export function useBrowserPanel(
 
   // Listen to URL changes and update address bar and tab info
   useEffect(() => {
-    if (!isTauriShell()) return;
+    if (!isTauriShell()) {
+      return;
+    }
 
     const browser = window.digitalLife?.browser;
-    if (!browser) return;
+    if (!browser) {
+      return;
+    }
 
     const unsubscribe = browser.onUrlChanged((url) => {
       setAddress(url);

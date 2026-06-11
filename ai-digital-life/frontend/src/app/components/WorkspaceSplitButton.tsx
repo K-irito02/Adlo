@@ -23,7 +23,9 @@ export function WorkspaceSplitButton({
   persistMode = true,
 }: WorkspaceSplitButtonProps) {
   const [actionMode, setActionMode] = useState<WorkspaceActionMode>(() => {
-    if (initialMode) return initialMode;
+    if (initialMode) {
+      return initialMode;
+    }
     const saved =
       typeof localStorage !== 'undefined' ? localStorage.getItem('adl_workspace_menu_mode') : null;
     return saved === 'pick' || saved === 'open' || saved === 'create' ? saved : 'pick';
@@ -31,7 +33,9 @@ export function WorkspaceSplitButton({
   const [actionDraft, setActionDraft] = useState('');
   const [actionError, setActionError] = useState('');
   const [defaultCreateDir, setDefaultCreateDir] = useState(() => {
-    if (typeof localStorage === 'undefined') return '';
+    if (typeof localStorage === 'undefined') {
+      return '';
+    }
     return localStorage.getItem('adl_workspace_default_create_dir') || '';
   });
   const [createDirDraft, setCreateDirDraft] = useState('');
@@ -45,7 +49,9 @@ export function WorkspaceSplitButton({
     setProcessing(true);
     try {
       const selectedPath = await onPickWorkspaceDirectory();
-      if (!selectedPath) return;
+      if (!selectedPath) {
+        return;
+      }
       await onOpenWorkspace(selectedPath);
       onClose?.();
     } finally {
@@ -55,7 +61,9 @@ export function WorkspaceSplitButton({
 
   const handleOpenWorkspaceByPath = async (path: string) => {
     const normalized = path.trim();
-    if (!normalized) return;
+    if (!normalized) {
+      return;
+    }
     setProcessing(true);
     setActionError('');
     try {
@@ -72,7 +80,9 @@ export function WorkspaceSplitButton({
 
   const handleCreateWorkspace = async (input: string) => {
     const trimmed = input.trim();
-    if (!trimmed) return;
+    if (!trimmed) {
+      return;
+    }
     setProcessing(true);
     setActionError('');
     try {
@@ -95,7 +105,9 @@ export function WorkspaceSplitButton({
   };
 
   const handleSplitMainAction = () => {
-    if (processing) return;
+    if (processing) {
+      return;
+    }
     if (actionMode === 'pick') {
       void handlePickDirectory();
     } else if (actionMode === 'open') {
@@ -118,19 +130,25 @@ export function WorkspaceSplitButton({
   };
 
   const handleSplitDropEnter = () => {
-    if (splitHoverTimer.current) clearTimeout(splitHoverTimer.current);
+    if (splitHoverTimer.current) {
+      clearTimeout(splitHoverTimer.current);
+    }
     setActionError('');
     setSettingPanelOpen(false);
     setSplitMenuOpen(true);
   };
 
   const handleSplitDropLeave = () => {
-    if (splitHoverTimer.current) clearTimeout(splitHoverTimer.current);
+    if (splitHoverTimer.current) {
+      clearTimeout(splitHoverTimer.current);
+    }
     splitHoverTimer.current = setTimeout(() => setSplitMenuOpen(false), 300);
   };
 
   const handleSplitMenuEnter = () => {
-    if (splitHoverTimer.current) clearTimeout(splitHoverTimer.current);
+    if (splitHoverTimer.current) {
+      clearTimeout(splitHoverTimer.current);
+    }
   };
 
   const handleSplitMenuLeave = () => {
@@ -138,18 +156,24 @@ export function WorkspaceSplitButton({
   };
 
   const handleSettingsEnter = () => {
-    if (settingsHoverTimer.current) clearTimeout(settingsHoverTimer.current);
+    if (settingsHoverTimer.current) {
+      clearTimeout(settingsHoverTimer.current);
+    }
     setCreateDirDraft(defaultCreateDir);
     setSettingPanelOpen(true);
   };
 
   const handleSettingsLeave = () => {
-    if (settingsHoverTimer.current) clearTimeout(settingsHoverTimer.current);
+    if (settingsHoverTimer.current) {
+      clearTimeout(settingsHoverTimer.current);
+    }
     settingsHoverTimer.current = setTimeout(() => setSettingPanelOpen(false), 300);
   };
 
   const handleSettingsPanelEnter = () => {
-    if (settingsHoverTimer.current) clearTimeout(settingsHoverTimer.current);
+    if (settingsHoverTimer.current) {
+      clearTimeout(settingsHoverTimer.current);
+    }
   };
 
   const handleSettingsPanelLeave = () => {
@@ -230,11 +254,15 @@ export function WorkspaceSplitButton({
               value={actionDraft}
               onChange={(e) => {
                 setActionDraft(e.currentTarget.value);
-                if (actionError) setActionError('');
+                if (actionError) {
+                  setActionError('');
+                }
               }}
               placeholder={t.workspaceOpenInputPlaceholder}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') handleOpenWorkspaceByPath(actionDraft);
+                if (e.key === 'Enter') {
+                  handleOpenWorkspaceByPath(actionDraft);
+                }
               }}
             />
           </div>
@@ -250,11 +278,15 @@ export function WorkspaceSplitButton({
               value={actionDraft}
               onChange={(e) => {
                 setActionDraft(e.currentTarget.value);
-                if (actionError) setActionError('');
+                if (actionError) {
+                  setActionError('');
+                }
               }}
               placeholder={t.workspaceCreateInputPlaceholder}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') handleCreateWorkspace(actionDraft);
+                if (e.key === 'Enter') {
+                  handleCreateWorkspace(actionDraft);
+                }
               }}
             />
             <button

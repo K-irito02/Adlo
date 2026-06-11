@@ -116,14 +116,20 @@ const CenterPane = React.memo(function CenterPane({ t }: CenterPaneProps) {
   }, [fetchRunActivityByRunId, messages]);
 
   const buttonState: ButtonState = useMemo(() => {
-    if (streamingActiveRunId) return 'stop';
-    if (hasError) return 'retry';
+    if (streamingActiveRunId) {
+      return 'stop';
+    }
+    if (hasError) {
+      return 'retry';
+    }
     return 'send';
   }, [hasError, streamingActiveRunId]);
 
   const handleSend = useCallback(async () => {
     const content = draft.trim();
-    if (!content) return;
+    if (!content) {
+      return;
+    }
     try {
       setHasError(false);
       setDraft('');
@@ -137,7 +143,9 @@ const CenterPane = React.memo(function CenterPane({ t }: CenterPaneProps) {
     const editor = composerInputRef.current;
     const editorWrap = composerEditorRef.current;
     const caret = composerCaretRef.current;
-    if (!editor || !editorWrap || !caret) return;
+    if (!editor || !editorWrap || !caret) {
+      return;
+    }
 
     const selection = window.getSelection();
     if (
@@ -175,7 +183,9 @@ const CenterPane = React.memo(function CenterPane({ t }: CenterPaneProps) {
 
   useEffect(() => {
     const el = composerInputRef.current;
-    if (!el) return;
+    if (!el) {
+      return;
+    }
     const nextValue = draft;
     if (el.textContent !== nextValue) {
       el.textContent = nextValue;
@@ -184,7 +194,9 @@ const CenterPane = React.memo(function CenterPane({ t }: CenterPaneProps) {
   }, [draft, updateCustomCaret]);
 
   useEffect(() => {
-    if (!composerFocused) return;
+    if (!composerFocused) {
+      return;
+    }
 
     const syncCaret = () => window.requestAnimationFrame(updateCustomCaret);
     document.addEventListener('selectionchange', syncCaret);

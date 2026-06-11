@@ -22,17 +22,25 @@ export function gutterHoverSync(): Extension {
     mouseover(event, _view) {
       const target = event.target as HTMLElement;
       const line = target.closest('.cm-line') as HTMLElement | null;
-      if (!line) return;
+      if (!line) {
+        return;
+      }
 
       const editor = line.closest('.cm-editor');
-      if (!editor) return;
+      if (!editor) {
+        return;
+      }
 
       const gutters = editor.querySelector('.cm-gutters') as HTMLElement | null;
-      if (!gutters) return;
+      if (!gutters) {
+        return;
+      }
 
       // First, remove any existing overlay
       const existingOverlay = gutters.querySelector('.adl-gutter-hover-overlay');
-      if (existingOverlay) existingOverlay.remove();
+      if (existingOverlay) {
+        existingOverlay.remove();
+      }
 
       // Check if this is a changed line
       const isChangedLine =
@@ -66,7 +74,9 @@ export function gutterHoverSync(): Extension {
         }
       }
 
-      if (!targetEl) return;
+      if (!targetEl) {
+        return;
+      }
 
       const targetRect = targetEl.getBoundingClientRect();
 
@@ -108,7 +118,9 @@ export function gutterHoverSync(): Extension {
     },
 
     mouseout(_event, _view) {
-      if (typeof document === 'undefined') return;
+      if (typeof document === 'undefined') {
+        return;
+      }
       // Remove all temporary hover effects
       document.querySelectorAll('.adl-gutter-hover-overlay').forEach((el) => {
         el.remove();

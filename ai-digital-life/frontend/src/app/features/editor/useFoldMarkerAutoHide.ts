@@ -90,7 +90,9 @@ export function useFoldMarkerAutoHide(
   }, []);
 
   const startRevealTimer = useCallback(() => {
-    if (revealingRef.current) return;
+    if (revealingRef.current) {
+      return;
+    }
     revealingRef.current = true;
     if (revealTimerRef.current !== null) {
       clearTimeout(revealTimerRef.current);
@@ -176,7 +178,9 @@ export function useFoldMarkerAutoHide(
 
   useEffect(() => {
     const el = containerRef.current;
-    if (!el) return;
+    if (!el) {
+      return;
+    }
 
     const handlers = {
       onEnter: () => {
@@ -201,7 +205,9 @@ export function useFoldMarkerAutoHide(
         newGutters.length !== currentCount ||
         newGutters.some((g, i) => g.children.length !== gutters[i]?.children.length)
       ) {
-        if (listenerCleanupRef.current) listenerCleanupRef.current();
+        if (listenerCleanupRef.current) {
+          listenerCleanupRef.current();
+        }
         gutters.length = 0;
         gutters.push(...newGutters);
         if (gutters.length > 0) {

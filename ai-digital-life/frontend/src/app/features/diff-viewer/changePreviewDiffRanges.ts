@@ -1,8 +1,8 @@
-export type PreviewDiffRange = {
+export interface PreviewDiffRange {
   startLine: number;
   endLine: number;
   type: 'insert' | 'delete';
-};
+}
 
 export type PreviewDiffVisualTone = 'base' | 'strong' | 'block';
 
@@ -11,10 +11,10 @@ export type PreviewDiffVisualRange = PreviewDiffRange & {
   contentColumns: number;
 };
 
-export type PreviewDiffCollapsedRange = {
+export interface PreviewDiffCollapsedRange {
   startLine: number;
   endLine: number;
-};
+}
 
 const MAX_EXACT_DIFF_CELLS = 2_000_000;
 const BLOCK_TONE_LINE_THRESHOLD = 8;
@@ -26,7 +26,9 @@ type InternalDiffRange = PreviewDiffRange & {
 };
 
 function splitLines(content: string): string[] {
-  if (!content) return [];
+  if (!content) {
+    return [];
+  }
   return content.split(/\r\n|\r|\n/);
 }
 
@@ -42,7 +44,9 @@ function appendRange(ranges: PreviewDiffRange[], next: PreviewDiffRange) {
 function getMaxColumns(lines: string[], startLine: number, endLine: number): number {
   const startIndex = Math.max(0, startLine - 1);
   const endIndex = Math.min(lines.length - 1, endLine - 1);
-  if (endIndex < startIndex) return 0;
+  if (endIndex < startIndex) {
+    return 0;
+  }
 
   let maxColumns = 0;
   for (let index = startIndex; index <= endIndex; index += 1) {
@@ -166,7 +170,9 @@ function computeInternalDiffRanges(
   const baseLines = splitLines(baseContent);
   const currentLines = splitLines(currentContent);
 
-  if (baseLines.length === 0 && currentLines.length === 0) return [];
+  if (baseLines.length === 0 && currentLines.length === 0) {
+    return [];
+  }
   if (baseLines.length === 0) {
     return [
       createInternalRange({
@@ -301,8 +307,12 @@ function toPreviewDiffRange(range: InternalDiffRange): PreviewDiffRange {
 
 function getVisualTone(range: InternalDiffRange): PreviewDiffVisualTone {
   const lineCount = Math.max(1, range.endLine - range.startLine + 1);
-  if (range.hasOppositeInBlock) return 'strong';
-  if (lineCount >= BLOCK_TONE_LINE_THRESHOLD) return 'block';
+  if (range.hasOppositeInBlock) {
+    return 'strong';
+  }
+  if (lineCount >= BLOCK_TONE_LINE_THRESHOLD) {
+    return 'block';
+  }
   return 'base';
 }
 

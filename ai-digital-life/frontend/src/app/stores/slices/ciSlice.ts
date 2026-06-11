@@ -23,7 +23,9 @@ const CI_AUTO_REFRESH_ON_PUSH_KEY = 'adl-ui:ci-auto-refresh-on-push';
 const { scheduleWrite } = createDebouncedWrite(50);
 
 function getBridge(): DigitalLifeBridge | null {
-  if (typeof window === 'undefined') return null;
+  if (typeof window === 'undefined') {
+    return null;
+  }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const w = window as any;
   return (w.digitalLife as DigitalLifeBridge | undefined) ?? null;
@@ -71,8 +73,11 @@ async function hydrateCiDefaults(): Promise<{
       }
     }
     const rawFlag = window.localStorage.getItem(CI_AUTO_REFRESH_ON_PUSH_KEY);
-    if (rawFlag === '0') autoRefresh = false;
-    else if (rawFlag === '1') autoRefresh = true;
+    if (rawFlag === '0') {
+      autoRefresh = false;
+    } else if (rawFlag === '1') {
+      autoRefresh = true;
+    }
   } catch {
     /* ignore */
   }

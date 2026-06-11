@@ -61,10 +61,14 @@ export function RepoMapView({ t, nodes }: RepoMapViewProps) {
   const [query, setQuery] = useState('');
 
   const filtered = useMemo(() => {
-    if (!query.trim()) return nodes;
+    if (!query.trim()) {
+      return nodes;
+    }
     const lower = query.toLowerCase();
     function matchNode(node: RepoMapNode): boolean {
-      if (node.name.toLowerCase().includes(lower)) return true;
+      if (node.name.toLowerCase().includes(lower)) {
+        return true;
+      }
       return node.children.some(matchNode);
     }
     return nodes.filter(matchNode);

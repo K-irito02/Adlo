@@ -11,7 +11,9 @@ interface CommandOutputBlockProps {
 const MAX_COLLAPSED_LINES = 5;
 
 function exitCodeClass(code: number | null): string {
-  if (code === null) return 'adl-chip--muted';
+  if (code === null) {
+    return 'adl-chip--muted';
+  }
   return code === 0 ? 'adl-chip--success' : 'adl-chip--danger';
 }
 

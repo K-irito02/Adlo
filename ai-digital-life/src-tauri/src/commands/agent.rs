@@ -117,7 +117,7 @@ fn make_activity_emitter<'a>(
                     &event_type,
                     serde_json::Value::Object(obj),
                 )
-            }
+            },
             other => adl_kernel::events::run_activity_event(
                 &run_id,
                 seq,

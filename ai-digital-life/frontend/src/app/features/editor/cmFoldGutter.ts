@@ -27,7 +27,9 @@ export function createFoldGutterExtension() {
         const lineNum = view.state.doc.lineAt(line.from).number;
 
         const range = foldable(view.state, line.from, line.to);
-        if (range) return new FoldMarker(true);
+        if (range) {
+          return new FoldMarker(true);
+        }
 
         let found = false;
         foldedRanges(view.state).between(0, view.state.doc.length, (from, _to) => {
@@ -36,7 +38,9 @@ export function createFoldGutterExtension() {
             found = true;
           }
         });
-        if (found) return new FoldMarker(false);
+        if (found) {
+          return new FoldMarker(false);
+        }
 
         return null;
       } catch {

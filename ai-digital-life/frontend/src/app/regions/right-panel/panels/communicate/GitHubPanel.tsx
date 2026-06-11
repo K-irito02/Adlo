@@ -34,7 +34,7 @@ function MenuHintItem({ label, hint, onClick }: MenuHintItemProps) {
 
   useEffect(() => {
     return () => {
-      subCardsRef.current.forEach(el => el.remove());
+      subCardsRef.current.forEach((el) => el.remove());
       subCardsRef.current = [];
     };
   }, []);
@@ -93,7 +93,7 @@ function MenuHintItem({ label, hint, onClick }: MenuHintItemProps) {
         }}
         onMouseLeave={(e) => {
           e.stopPropagation();
-          subCardsRef.current.forEach(el => el.remove());
+          subCardsRef.current.forEach((el) => el.remove());
           subCardsRef.current = [];
           const button = (e.target as HTMLElement).closest('button');
           const originalTitle = button?.getAttribute('data-original-title');
@@ -110,23 +110,37 @@ function MenuHintItem({ label, hint, onClick }: MenuHintItemProps) {
 }
 
 function formatDuration(start?: string | null, end?: string | null): string {
-  if (!start) return '—';
+  if (!start) {
+    return '—';
+  }
   const s = new Date(start).getTime();
   const e = end ? new Date(end).getTime() : Date.now();
   const secs = Math.round((e - s) / 1000);
-  if (secs < 60) return `${secs}s`;
+  if (secs < 60) {
+    return `${secs}s`;
+  }
   const mins = Math.floor(secs / 60);
   const rem = secs % 60;
-  if (mins < 60) return `${mins}m ${rem}s`;
+  if (mins < 60) {
+    return `${mins}m ${rem}s`;
+  }
   const hrs = Math.floor(mins / 60);
   return `${hrs}h ${mins % 60}m`;
 }
 
 function statusColor(conclusion: string | null, status: string): string {
-  if (conclusion === 'success') return 'var(--success)';
-  if (conclusion === 'failure' || conclusion === 'cancelled') return 'var(--danger)';
-  if (conclusion === 'skipped') return 'var(--text-tertiary)';
-  if (status === 'in_progress' || status === 'queued') return 'var(--warning)';
+  if (conclusion === 'success') {
+    return 'var(--success)';
+  }
+  if (conclusion === 'failure' || conclusion === 'cancelled') {
+    return 'var(--danger)';
+  }
+  if (conclusion === 'skipped') {
+    return 'var(--text-tertiary)';
+  }
+  if (status === 'in_progress' || status === 'queued') {
+    return 'var(--warning)';
+  }
   return 'var(--text-secondary)';
 }
 
@@ -151,7 +165,9 @@ function formatCommit(sha: string): string {
 }
 
 function formatTime(iso?: string | null): string {
-  if (!iso) return '—';
+  if (!iso) {
+    return '—';
+  }
   try {
     return new Intl.DateTimeFormat('zh-CN', {
       month: '2-digit',
@@ -682,7 +698,9 @@ function GitHubSettingsDialog({
     setToken('');
   }
 
-  if (!open) return null;
+  if (!open) {
+    return null;
+  }
 
   return createPortal(
     <div className="adl-dialog-overlay" onClick={onCancel}>
@@ -814,7 +832,6 @@ export function GitHubPanel() {
     setSelectedGitHubTreePath,
     setActiveCiWorkspaceId,
     setActiveWorkspaceSection,
-    clearAllGitHubWorkspaceConfigs,
     setSelectedLogJobId,
     gitHubCiFolders,
     gitHubCreateFolder,
@@ -832,7 +849,6 @@ export function GitHubPanel() {
       setSelectedGitHubTreePath: s.setSelectedGitHubTreePath,
       setActiveCiWorkspaceId: s.setActiveCiWorkspaceId,
       setActiveWorkspaceSection: s.setActiveWorkspaceSection,
-      clearAllGitHubWorkspaceConfigs: s.clearAllGitHubWorkspaceConfigs,
       setSelectedLogJobId: s.setSelectedLogJobId,
       gitHubCiFolders: s.gitHubCiFolders,
       gitHubCreateFolder: s.gitHubCreateFolder,
@@ -852,7 +868,6 @@ export function GitHubPanel() {
   const [settingsFolderId, setSettingsFolderId] = useState<string | null>(null);
   const [deleteMenuOpen, setDeleteMenuOpen] = useState(false);
   const deleteButtonRef = useRef<HTMLButtonElement>(null);
-  const [deleteMenuHovering, setDeleteMenuHovering] = useState(false);
   const deleteMenuTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [deleteTooltipOpen, setDeleteTooltipOpen] = useState(false);
 
@@ -951,12 +966,6 @@ export function GitHubPanel() {
     [setSelectedLogJobId, setActiveWorkspaceSection]
   );
 
-  const handleClearAll = useCallback(() => {
-    if (window.confirm('确定删除所有工作区的 CI 配置及数据？')) {
-      clearAllGitHubWorkspaceConfigs();
-    }
-  }, [clearAllGitHubWorkspaceConfigs]);
-
   const handleRefreshAll = useCallback(() => {
     for (const wsId of Object.keys(gitHubWorkspaceConfigs)) {
       if (gitHubWorkspaceConfigs[wsId].configured) {
@@ -994,7 +1003,7 @@ export function GitHubPanel() {
         onRefreshWorkspace(workspaceId);
         setActiveCiWorkspaceId(workspaceId);
       },
-      onDeleteFolderConfig: (folderId) => {
+      onDeleteFolderConfig: (_folderId) => {
         // This is handled via the store action at the tree entry level;
         // we expose it here if needed via callbacks.
       },
@@ -1021,9 +1030,9 @@ export function GitHubPanel() {
   const settingsInitialRepo = settingsConfig?.repo ?? '';
   const settingsInitialBranch = settingsConfig?.branch ?? 'main';
   const settingsName = settingsWorkspaceId
-    ? workspaces.find((w) => w.id === settingsWorkspaceId)?.name ?? settingsWorkspaceId
+    ? (workspaces.find((w) => w.id === settingsWorkspaceId)?.name ?? settingsWorkspaceId)
     : settingsFolderId
-      ? gitHubCiFolders.find((f) => f.id === settingsFolderId)?.name ?? settingsFolderId
+      ? (gitHubCiFolders.find((f) => f.id === settingsFolderId)?.name ?? settingsFolderId)
       : '';
 
   const handleSettingsSave = useCallback(
@@ -1189,12 +1198,10 @@ export function GitHubPanel() {
                 onClick={(e) => e.preventDefault()}
                 onMouseEnter={() => {
                   clearDeleteMenuTimer();
-                  setDeleteMenuHovering(true);
                   setDeleteMenuOpen(true);
                   setDeleteTooltipOpen(true);
                 }}
                 onMouseLeave={() => {
-                  setDeleteMenuHovering(false);
                   // 延迟检查，确保鼠标不在菜单上
                   deleteMenuTimerRef.current = setTimeout(() => {
                     if (!isMouseOverDeleteUI()) {
@@ -1213,7 +1220,6 @@ export function GitHubPanel() {
                   onOpenChange={(open) => {
                     clearDeleteMenuTimer();
                     if (open) {
-                      setDeleteMenuHovering(true);
                       setDeleteMenuOpen(true);
                     }
                   }}
@@ -1229,11 +1235,9 @@ export function GitHubPanel() {
                       data-menu-id="github-delete-all-menu"
                       onMouseEnter={() => {
                         clearDeleteMenuTimer();
-                        setDeleteMenuHovering(true);
                         setDeleteTooltipOpen(true);
                       }}
                       onMouseLeave={() => {
-                        setDeleteMenuHovering(false);
                         // 延迟检查，确保鼠标不在按钮或 tooltip 上
                         deleteMenuTimerRef.current = setTimeout(() => {
                           if (!isMouseOverDeleteUI()) {

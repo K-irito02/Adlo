@@ -35,9 +35,15 @@ export function getChangeStatusLabel(
   status: NonNullable<RightPanelViewProps['changePreview']>['status'],
   t: RightPanelViewProps['t']
 ) {
-  if (status === 'staged') return t.changesStaged;
-  if (status === 'untracked') return t.changesUntracked;
-  if (status === 'conflicted') return t.changesConflicts;
+  if (status === 'staged') {
+    return t.changesStaged;
+  }
+  if (status === 'untracked') {
+    return t.changesUntracked;
+  }
+  if (status === 'conflicted') {
+    return t.changesConflicts;
+  }
   return t.changesModified;
 }
 
@@ -67,7 +73,9 @@ export function getPrimaryBadge(node: ChangeTreeNode): { label: string; tone: st
 }
 
 export function getEditorView(editorRef: EditorRef | null): EditorView | null {
-  if (!editorRef) return null;
+  if (!editorRef) {
+    return null;
+  }
   if (editorRef instanceof CodeMirrorEditorRef) {
     return editorRef.getView();
   }

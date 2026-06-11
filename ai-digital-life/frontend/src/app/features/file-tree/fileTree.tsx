@@ -221,10 +221,14 @@ export function FileTree<T extends FileTreeRenderableNode>({
     const map: Record<string, number> = {};
     for (let i = 0; i < flatNodes.length; i++) {
       const { node, depth } = flatNodes[i];
-      if (node.kind !== 'directory') continue;
+      if (node.kind !== 'directory') {
+        continue;
+      }
       let descendantCount = 0;
       for (let j = i + 1; j < flatNodes.length; j++) {
-        if (flatNodes[j].depth <= depth) break;
+        if (flatNodes[j].depth <= depth) {
+          break;
+        }
         descendantCount++;
       }
       if (descendantCount > 0) {
@@ -235,14 +239,20 @@ export function FileTree<T extends FileTreeRenderableNode>({
   }, [flatNodes]);
 
   const hoveredDescendantPaths: Set<string> | undefined = useMemo(() => {
-    if (!hoveredPath) return undefined;
+    if (!hoveredPath) {
+      return undefined;
+    }
     const set = new Set<string>();
-    const hoveredIndex = flatNodes.findIndex(fn => fn.node.path === hoveredPath);
-    if (hoveredIndex === -1) return undefined;
+    const hoveredIndex = flatNodes.findIndex((fn) => fn.node.path === hoveredPath);
+    if (hoveredIndex === -1) {
+      return undefined;
+    }
     const hoveredDepth = flatNodes[hoveredIndex].depth;
     for (let i = hoveredIndex + 1; i < flatNodes.length; i++) {
       const fn = flatNodes[i];
-      if (fn.depth <= hoveredDepth) break;
+      if (fn.depth <= hoveredDepth) {
+        break;
+      }
       set.add(fn.node.path);
     }
     return set;
@@ -293,7 +303,9 @@ export function FileTree<T extends FileTreeRenderableNode>({
   const handleShowContextMenu = useCallback(
     (event: React.MouseEvent<HTMLDivElement>, node: T) => {
       event.preventDefault();
-      if (contextMenuPersistRef) contextMenuPersistRef.current = false;
+      if (contextMenuPersistRef) {
+        contextMenuPersistRef.current = false;
+      }
 
       setContextMenuTargetPath(node.path);
 
@@ -400,7 +412,9 @@ export function FileTree<T extends FileTreeRenderableNode>({
           onClose={() => {
             setContextMenuTargetPath(undefined);
             setContextMenuState(null);
-            if (contextMenuPersistRef) contextMenuPersistRef.current = false;
+            if (contextMenuPersistRef) {
+              contextMenuPersistRef.current = false;
+            }
           }}
         />
       ) : null}

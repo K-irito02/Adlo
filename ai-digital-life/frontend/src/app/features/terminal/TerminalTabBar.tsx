@@ -47,7 +47,9 @@ export const TerminalTabBar = React.memo(function TerminalTabBar({
   onEditKeyDown,
   t,
 }: TerminalTabBarProps) {
-  if (tabs.length === 0) return null;
+  if (tabs.length === 0) {
+    return null;
+  }
 
   return (
     <ul className="adl-tool-list adl-tool-list--terminal">

@@ -98,7 +98,9 @@ const StatusBar = React.memo(function StatusBar({
 
   const activeProvider = useMemo(() => {
     const providers = appInfo?.config.modelPreferences.providers;
-    if (!providers) return undefined;
+    if (!providers) {
+      return undefined;
+    }
     return Object.entries(providers)
       .map(([id, value]) => ({ id, ...value }))
       .filter((provider) => provider.enabled)
@@ -106,7 +108,9 @@ const StatusBar = React.memo(function StatusBar({
   }, [appInfo?.config.modelPreferences.providers]);
 
   const activeProviderHealth = useMemo(() => {
-    if (!activeProvider) return undefined;
+    if (!activeProvider) {
+      return undefined;
+    }
     return modelHealth?.providers.find((provider) => provider.providerId === activeProvider.id);
   }, [activeProvider, modelHealth?.providers]);
 
@@ -510,7 +514,9 @@ const StatusBar = React.memo(function StatusBar({
                 (provider) => provider.providerId === providerId
               );
               const preference = appInfo?.config.modelPreferences.providers[providerId];
-              if (!preference) return [];
+              if (!preference) {
+                return [];
+              }
 
               const configured = { id: preference.modelId, label: preference.modelId };
               const baseOptions = MODEL_OPTIONS[providerId] ?? [];

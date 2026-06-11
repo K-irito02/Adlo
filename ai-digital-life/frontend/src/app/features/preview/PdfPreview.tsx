@@ -6,10 +6,10 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
   import.meta.url
 ).toString();
 
-export type PdfPreviewProps = {
+export interface PdfPreviewProps {
   data: ArrayBuffer;
   theme?: 'light' | 'dark';
-};
+}
 
 export function PdfPreview({ data, theme = 'dark' }: PdfPreviewProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -23,20 +23,28 @@ export function PdfPreview({ data, theme = 'dark' }: PdfPreviewProps) {
     async function renderPage() {
       try {
         const pdf = await pdfjsLib.getDocument({ data }).promise;
-        if (cancelled) return;
+        if (cancelled) {
+          return;
+        }
         setNumPages(pdf.numPages);
         const page = await pdf.getPage(currentPage);
-        if (cancelled) return;
+        if (cancelled) {
+          return;
+        }
 
         const canvas = canvasRef.current;
-        if (!canvas) return;
+        if (!canvas) {
+          return;
+        }
 
         const viewport = page.getViewport({ scale: 1.5 });
         canvas.width = viewport.width;
         canvas.height = viewport.height;
 
         const ctx = canvas.getContext('2d');
-        if (!ctx) return;
+        if (!ctx) {
+          return;
+        }
 
         await page.render({ canvas, canvasContext: ctx, viewport }).promise;
       } catch (err) {

@@ -5,11 +5,11 @@ export type OutlineNode = FileOutlineItem & {
   children: OutlineNode[];
 };
 
-export type VisibleOutlineNode = {
+export interface VisibleOutlineNode {
   item: OutlineNode;
   depth: number;
   hasChildren: boolean;
-};
+}
 
 export { buildOutlineFromContent };
 

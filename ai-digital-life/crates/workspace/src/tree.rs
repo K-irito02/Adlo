@@ -65,7 +65,7 @@ fn list_tree_inner(
                 "failed to read directory for workspace tree"
             );
             return Ok(vec![]);
-        }
+        },
     };
     for entry in entries {
         let entry = match entry {
@@ -77,7 +77,7 @@ fn list_tree_inner(
                     "failed to read directory entry for workspace tree"
                 );
                 continue;
-            }
+            },
         };
         let path = entry.path();
         let name = entry.file_name().to_string_lossy().into_owned();

@@ -46,10 +46,14 @@ const STATUS_DOT_COLOR: Record<ItemStatus, string> = {
 
 /** Return the highest-priority status color for a workspace (error > active > pending > done). */
 function resolveWorkspaceStatusColor(workspace: WorkspaceTab): string {
-  if (!workspace.status) return 'var(--text-disabled)';
+  if (!workspace.status) {
+    return 'var(--text-disabled)';
+  }
   const priority: ItemStatus[] = ['error', 'active', 'pending', 'done'];
   for (const s of priority) {
-    if (workspace.status === s) return STATUS_DOT_COLOR[s];
+    if (workspace.status === s) {
+      return STATUS_DOT_COLOR[s];
+    }
   }
   return 'var(--text-disabled)';
 }
@@ -62,11 +66,17 @@ function formatTimestamp(iso: string): string {
     const diffMs = now.getTime() - date.getTime();
     const diffMin = Math.floor(diffMs / 60000);
 
-    if (diffMin < 1) return 'just now';
-    if (diffMin < 60) return `${diffMin}m ago`;
+    if (diffMin < 1) {
+      return 'just now';
+    }
+    if (diffMin < 60) {
+      return `${diffMin}m ago`;
+    }
 
     const diffHr = Math.floor(diffMin / 60);
-    if (diffHr < 24) return `${diffHr}h ago`;
+    if (diffHr < 24) {
+      return `${diffHr}h ago`;
+    }
 
     return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   } catch {

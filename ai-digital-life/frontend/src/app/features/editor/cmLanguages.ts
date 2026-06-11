@@ -73,9 +73,13 @@ export function getLanguageExtensionSync(languageId: string): Extension[] {
 
 export async function getLanguageExtension(languageId: string): Promise<Extension[]> {
   const cached = extensionCache.get(languageId);
-  if (cached) return cached;
+  if (cached) {
+    return cached;
+  }
   const loader = languageLoaders[languageId];
-  if (!loader) return [];
+  if (!loader) {
+    return [];
+  }
   const extensions = await loader();
   extensionCache.set(languageId, extensions);
   return extensions;

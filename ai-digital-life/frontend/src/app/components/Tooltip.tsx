@@ -274,7 +274,9 @@ const TooltipContentInner = memo(function TooltipContentInner({
     </div>
   );
 
-  if (typeof document === 'undefined') return null;
+  if (typeof document === 'undefined') {
+    return null;
+  }
 
   return createPortal(content, document.body);
 });
@@ -314,7 +316,9 @@ export function TooltipContent({
     }
   }, [isOpen, mounted]);
 
-  if (!isOpen && !mounted) return null;
+  if (!isOpen && !mounted) {
+    return null;
+  }
 
   return (
     <TooltipContentInner

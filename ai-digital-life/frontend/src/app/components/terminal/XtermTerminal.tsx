@@ -91,7 +91,9 @@ export const XtermTerminal = forwardRef<XtermTerminalHandle, XtermTerminalProps>
 
     useEffect(() => {
       const container = containerRef.current;
-      if (!container) return;
+      if (!container) {
+        return;
+      }
 
       const fitAddon = new FitAddon();
       fitAddonRef.current = fitAddon;

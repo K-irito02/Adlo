@@ -51,7 +51,9 @@ export const BrowserTabBar = React.memo(function BrowserTabBar({
 }: BrowserTabBarProps) {
   const browserBookmarks = useAppStore((state) => state.browserBookmarks);
 
-  if (tabs.length === 0) return null;
+  if (tabs.length === 0) {
+    return null;
+  }
 
   return (
     <ul className="adl-tool-list adl-tool-list--terminal">

@@ -45,7 +45,9 @@ function scheduleWrite(key: string, value: unknown): void {
 }
 
 function scheduleFlush(): void {
-  if (writeScheduled) return;
+  if (writeScheduled) {
+    return;
+  }
   writeScheduled = true;
   const flush = () => {
     writeScheduled = false;
@@ -68,7 +70,9 @@ function hydrateWorkspaceDefaults(
   get: () => StoreState,
   set: (partial: Partial<StoreState>) => void
 ): void {
-  if (_defaultsHydrated) return;
+  if (_defaultsHydrated) {
+    return;
+  }
   _defaultsHydrated = true;
   const doHydrate = () => {
     const treeExpanded = readJson<Record<string, boolean>>(WORKSPACE_TREE_EXPANDED_KEY, {});

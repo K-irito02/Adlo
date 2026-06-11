@@ -37,7 +37,7 @@ impl CredentialStore {
                     account: account.to_string(),
                     store: StoreBackend::EncryptedFile { config_dir, machine_key },
                 }
-            }
+            },
         }
     }
 
@@ -54,7 +54,7 @@ impl CredentialStore {
         match &self.store {
             StoreBackend::Keyring(entry) => {
                 entry.set_password(password).map_err(|e| AppError::Security(e.to_string()))
-            }
+            },
             StoreBackend::EncryptedFile { config_dir, machine_key } => {
                 let path = encrypted_path(config_dir, &self.service, &self.account);
                 if let Some(parent) = path.parent() {
@@ -67,7 +67,7 @@ impl CredentialStore {
                 std::fs::write(&path, &encoded).map_err(|e| {
                     AppError::Storage(format!("Failed to write credential file: {}", e))
                 })
-            }
+            },
         }
     }
 
@@ -77,7 +77,7 @@ impl CredentialStore {
                 Ok(pw) => Ok(pw),
                 Err(keyring::Error::NoEntry) => {
                     Err(AppError::Security("No credential found".into()))
-                }
+                },
                 Err(e) => Err(AppError::Security(e.to_string())),
             },
             StoreBackend::EncryptedFile { config_dir, machine_key } => {
@@ -95,7 +95,7 @@ impl CredentialStore {
                 let plaintext = xor_cipher(&ciphertext, machine_key);
                 String::from_utf8(plaintext)
                     .map_err(|e| AppError::Storage(format!("Invalid credential data: {}", e)))
-            }
+            },
         }
     }
 
@@ -113,9 +113,9 @@ impl CredentialStore {
                     Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
                     Err(e) => {
                         Err(AppError::Storage(format!("Failed to delete credential file: {}", e)))
-                    }
+                    },
                 }
-            }
+            },
         }
     }
 }
@@ -179,7 +179,7 @@ fn resolve_machine_id() -> String {
             let id = uuid::Uuid::new_v4().to_string();
             let _ = std::fs::write(&path, &id);
             id
-        }
+        },
         None => uuid::Uuid::new_v4().to_string(),
     }
 }

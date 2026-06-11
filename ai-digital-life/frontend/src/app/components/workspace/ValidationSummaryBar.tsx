@@ -19,7 +19,9 @@ export function ValidationSummaryBar({
   onClickErrors,
   onClickWarnings,
 }: ValidationSummaryBarProps) {
-  if (passed === 0 && warnings === 0 && errors === 0) return null;
+  if (passed === 0 && warnings === 0 && errors === 0) {
+    return null;
+  }
 
   return (
     <div className="adl-validation-bar">

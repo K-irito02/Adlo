@@ -58,7 +58,9 @@ export function useFilesPanelProps(
   }, [recentWorkspaces, workspaceTreeExpandedInFileNav]);
 
   const filePatch = useMemo(() => {
-    if (!activePatchSet) return undefined;
+    if (!activePatchSet) {
+      return undefined;
+    }
     return findPatchFileByPath(activePatchSet, selectedPatchFilePath ?? selectedFilePath);
   }, [activePatchSet, selectedFilePath, selectedPatchFilePath]);
 
@@ -88,10 +90,14 @@ export function useFilesPanelProps(
   const handleEditorChange = useCallback(
     (value: string | undefined) => {
       const pathAtEdit = selectedFilePath;
-      if (!pathAtEdit) return;
+      if (!pathAtEdit) {
+        return;
+      }
       window.clearTimeout(editorDirtyTimerRef.current);
       editorDirtyTimerRef.current = window.setTimeout(() => {
-        if (useAppStore.getState().selectedFilePath !== pathAtEdit) return;
+        if (useAppStore.getState().selectedFilePath !== pathAtEdit) {
+          return;
+        }
         const baseline = useAppStore.getState().fileContent ?? '';
         const dirty = (value ?? '') !== baseline;
         actions.notifyEditorBufferDirty(pathAtEdit, dirty);
@@ -140,7 +146,9 @@ export function useFilesPanelProps(
   const handleRefreshOneWorkspace = useCallback(
     (workspaceId: string) => {
       const ws = recentWorkspaces.find((r) => r.id === workspaceId);
-      if (ws) void actions.refreshOneWorkspaceTree(workspaceId, ws.path);
+      if (ws) {
+        void actions.refreshOneWorkspaceTree(workspaceId, ws.path);
+      }
     },
     [recentWorkspaces, actions]
   );
@@ -148,7 +156,9 @@ export function useFilesPanelProps(
   const handleToggleExpandInFileNav = useCallback(
     (workspaceId: string) => {
       const ws = recentWorkspaces.find((r) => r.id === workspaceId);
-      if (ws) void actions.expandWorkspaceTreeInFileNav(workspaceId, ws.path);
+      if (ws) {
+        void actions.expandWorkspaceTreeInFileNav(workspaceId, ws.path);
+      }
     },
     [recentWorkspaces, actions]
   );

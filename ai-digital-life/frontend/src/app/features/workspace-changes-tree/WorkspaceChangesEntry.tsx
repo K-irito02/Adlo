@@ -87,17 +87,25 @@ export const WorkspaceChangesEntry = React.memo(function WorkspaceChangesEntry({
   const menuId = `ws-changes-menu-${workspace.id}`;
 
   useEffect(() => {
-    if (!menuOpen) return;
+    if (!menuOpen) {
+      return;
+    }
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as Node;
       const menuEl = document.querySelector(`[data-menu-id="${menuId}"]`);
       const btn = document.querySelector(`[data-menu-btn-id="${menuId}"]`);
-      if (btn?.contains(target)) return;
-      if (menuEl?.contains(target)) return;
+      if (btn?.contains(target)) {
+        return;
+      }
+      if (menuEl?.contains(target)) {
+        return;
+      }
       setMenuOpen(false);
     };
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setMenuOpen(false);
+      if (e.key === 'Escape') {
+        setMenuOpen(false);
+      }
     };
     const handleScroll = () => {
       setMenuOpen(false);
@@ -165,7 +173,9 @@ export const WorkspaceChangesEntry = React.memo(function WorkspaceChangesEntry({
 
   const handleNameKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter' || e.key === ' ') handleNameClick();
+      if (e.key === 'Enter' || e.key === ' ') {
+        handleNameClick();
+      }
     },
     [handleNameClick]
   );

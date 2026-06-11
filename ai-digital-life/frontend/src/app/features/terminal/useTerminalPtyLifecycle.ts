@@ -190,7 +190,9 @@ export function useTerminalPtyLifecycle({ activeTab, rootPath }: PtyLifecyclePar
   }, [activeTab?.sessionId, terminalUpdateActiveTab]);
 
   useEffect(() => {
-    if (activeRightTool !== 'terminal') return;
+    if (activeRightTool !== 'terminal') {
+      return;
+    }
 
     const unsub = window.digitalLife.subscribePtyOutput((event) => {
       const outputs = sessionOutputsRef.current;

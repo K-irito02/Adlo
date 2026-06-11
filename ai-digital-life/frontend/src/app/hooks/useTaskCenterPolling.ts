@@ -6,7 +6,9 @@ export function useTaskCenterPolling(appInfo: AppInfo | undefined) {
   const actions = useAppActions();
 
   useEffect(() => {
-    if (!appInfo?.currentWorkspace) return;
+    if (!appInfo?.currentWorkspace) {
+      return;
+    }
     const timer = window.setInterval(() => {
       void actions.refreshTaskCenter();
     }, 5000);

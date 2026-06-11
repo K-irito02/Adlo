@@ -45,7 +45,9 @@ export function stripWorkspaceFromBrowserState(
   delete browserWorkspaceExpanded[workspaceId];
 
   const browserTabsById: Record<string, BrowserTabState> = {};
-  for (const t of browserTabs) browserTabsById[t.id] = t;
+  for (const t of browserTabs) {
+    browserTabsById[t.id] = t;
+  }
 
   const browserActiveTabId = browserTabs.find((t) => t.id === currentActiveTabId)
     ? currentActiveTabId
@@ -173,7 +175,9 @@ export function createWorkspaceActions(
       getNextSessionRequestSeq();
       clearError(get);
       const result = await window.digitalLife.workspace.open(workspacePath);
-      if (requestSeq !== workspaceRequestSeq) return { ok: false, error: 'Request superseded' };
+      if (requestSeq !== workspaceRequestSeq) {
+        return { ok: false, error: 'Request superseded' };
+      }
       if (!result.ok) {
         captureError(get, result.error);
         return { ok: false, error: result.error.message };
@@ -199,7 +203,9 @@ export function createWorkspaceActions(
       getNextSessionRequestSeq();
       clearError(get);
       const result = await window.digitalLife.workspace.clearCurrent();
-      if (requestSeq !== workspaceRequestSeq) return;
+      if (requestSeq !== workspaceRequestSeq) {
+        return;
+      }
       if (!result.ok) {
         captureError(get, result.error);
         return;
@@ -310,7 +316,9 @@ export function createWorkspaceActions(
     revealWorkspaceInFileManager: async (workspacePath: string) => {
       clearError(get);
       const result = await window.digitalLife.workspace.revealInFileManager(workspacePath);
-      if (!result.ok) captureError(get, result.error);
+      if (!result.ok) {
+        captureError(get, result.error);
+      }
     },
 
     /**
@@ -446,7 +454,9 @@ export function createWorkspaceActions(
       await Promise.allSettled(
         expandedIds.map((id) => {
           const ws = state.recentWorkspaces.find((r) => r.id === id);
-          if (!ws) return Promise.resolve();
+          if (!ws) {
+            return Promise.resolve();
+          }
           return get().refreshOneWorkspaceTree(id, ws.path);
         })
       );

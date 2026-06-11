@@ -10,7 +10,9 @@ import type { BrowserCategoryState, BrowserCategoryType, BrowserTreeNode } from 
 export function countDirectFileChildren(node: BrowserTreeNode): number {
   let n = 0;
   for (const child of node.children) {
-    if (child.kind === 'file') n += 1;
+    if (child.kind === 'file') {
+      n += 1;
+    }
   }
   return n;
 }
@@ -29,7 +31,9 @@ export function resolveChildCount(
   counts: Map<string, number>,
   childNode: BrowserTreeNode
 ): number | null {
-  if (childNode.kind === 'file') return null;
+  if (childNode.kind === 'file') {
+    return null;
+  }
   return counts.get(childNode.path) ?? 0;
 }
 
@@ -76,7 +80,9 @@ function buildFolderNode(
   const tabChildren: BrowserTreeNode[] = (folder.tabs ?? [])
     .map((tabId) => {
       const tab = browserTabs.find((t) => t.id === tabId);
-      if (!tab) return null;
+      if (!tab) {
+        return null;
+      }
       return buildTabNode(tab, tab.workspaceId, `folder-${folder.id}-${tabId}`);
     })
     .filter(Boolean) as BrowserTreeNode[];
@@ -142,11 +148,17 @@ export function buildHistoryCategoryTree(history: BrowserHistoryState[]): Browse
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
 
-    if (!groupMap.has(year)) groupMap.set(year, new Map());
+    if (!groupMap.has(year)) {
+      groupMap.set(year, new Map());
+    }
     const yearMap = groupMap.get(year)!;
-    if (!yearMap.has(month)) yearMap.set(month, new Map());
+    if (!yearMap.has(month)) {
+      yearMap.set(month, new Map());
+    }
     const monthMap = yearMap.get(month)!;
-    if (!monthMap.has(day)) monthMap.set(day, []);
+    if (!monthMap.has(day)) {
+      monthMap.set(day, []);
+    }
     monthMap.get(day)!.push(entry);
   }
 
@@ -277,7 +289,9 @@ export function useBrowserTreeData(
         for (const item of items) {
           if (item.kind === 'directory') {
             map.set(item.path, strategyFn(item));
-            if (item.children.length > 0) stack.push({ type, nodes: item.children });
+            if (item.children.length > 0) {
+              stack.push({ type, nodes: item.children });
+            }
           }
         }
       }

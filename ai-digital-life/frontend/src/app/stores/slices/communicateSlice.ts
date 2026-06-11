@@ -136,7 +136,9 @@ export interface CommunicateSlice {
 }
 
 function getBridge(): DigitalLifeBridge | null {
-  if (typeof window === 'undefined') return null;
+  if (typeof window === 'undefined') {
+    return null;
+  }
   return (window as unknown as { digitalLife: DigitalLifeBridge | undefined }).digitalLife ?? null;
 }
 
@@ -193,8 +195,11 @@ async function hydrateCommunicateDefaults(): Promise<{
       }
     }
     const rawFlag = window.localStorage.getItem(CI_AUTO_REFRESH_ON_PUSH_KEY);
-    if (rawFlag === '0') autoRefresh = false;
-    else if (rawFlag === '1') autoRefresh = true;
+    if (rawFlag === '0') {
+      autoRefresh = false;
+    } else if (rawFlag === '1') {
+      autoRefresh = true;
+    }
   } catch {
     /* ignore */
   }
@@ -452,7 +457,9 @@ export const createCommunicateSlice = (
 
     notifyGitPushed: () => {
       const state = _get();
-      if (!state.ciAutoRefreshOnPush) return;
+      if (!state.ciAutoRefreshOnPush) {
+        return;
+      }
       for (const [wsId, config] of Object.entries(state.gitHubWorkspaceConfigs)) {
         if (config.configured) {
           void state.refreshCiStatusForWorkspace(wsId);

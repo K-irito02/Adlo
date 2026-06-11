@@ -11,7 +11,9 @@ interface CreateTabDialogProps {
 
 function isValidBrowserUrl(input: string): boolean {
   const trimmed = input.trim();
-  if (!trimmed) return false;
+  if (!trimmed) {
+    return false;
+  }
   const normalized = /^[a-z]+:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
   try {
     new URL(normalized);
@@ -38,9 +40,13 @@ export function CreateTabDialog({ open, t, onConfirm, onCancel }: CreateTabDialo
 
   const handleConfirm = useCallback(() => {
     const trimmedName = name.trim();
-    if (!trimmedName) return;
+    if (!trimmedName) {
+      return;
+    }
     const trimmedUrl = url.trim();
-    if (!trimmedUrl) return;
+    if (!trimmedUrl) {
+      return;
+    }
     if (!isValidBrowserUrl(trimmedUrl)) {
       setUrlError(t.browserAddPortInvalid);
       return;
@@ -56,20 +62,27 @@ export function CreateTabDialog({ open, t, onConfirm, onCancel }: CreateTabDialo
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter') handleConfirm();
-      else if (e.key === 'Escape') onCancel();
+      if (e.key === 'Enter') {
+        handleConfirm();
+      } else if (e.key === 'Escape') {
+        onCancel();
+      }
     },
     [handleConfirm, onCancel]
   );
 
   const handleBackdrop = useCallback(
     (e: React.MouseEvent) => {
-      if (e.target === e.currentTarget) onCancel();
+      if (e.target === e.currentTarget) {
+        onCancel();
+      }
     },
     [onCancel]
   );
 
-  if (!open) return null;
+  if (!open) {
+    return null;
+  }
 
   return createPortal(
     <div className="adl-prompt-modal" onKeyDown={handleKeyDown} onClick={handleBackdrop}>

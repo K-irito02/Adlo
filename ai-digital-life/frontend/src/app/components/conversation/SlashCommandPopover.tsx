@@ -26,13 +26,19 @@ export function SlashCommandPopover({ t, open, onSelect, onClose }: SlashCommand
   const commands = useMemo(() => buildCommands(t), [t]);
 
   useEffect(() => {
-    if (open) requestAnimationFrame(() => setActiveIndex(0));
+    if (open) {
+      requestAnimationFrame(() => setActiveIndex(0));
+    }
   }, [open]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      return;
+    }
     const handler = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) onClose();
+      if (!ref.current?.contains(e.target as Node)) {
+        onClose();
+      }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -58,7 +64,9 @@ export function SlashCommandPopover({ t, open, onSelect, onClose }: SlashCommand
     [activeIndex, commands, onClose, onSelect]
   );
 
-  if (!open) return null;
+  if (!open) {
+    return null;
+  }
 
   return (
     <div

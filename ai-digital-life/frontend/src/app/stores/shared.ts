@@ -62,8 +62,12 @@ export function writeNumber(key: string, value: number): void {
 export function readFlag(key: string, fallback: boolean): boolean {
   try {
     const raw = window.localStorage.getItem(key);
-    if (raw === '1') return true;
-    if (raw === '0') return false;
+    if (raw === '1') {
+      return true;
+    }
+    if (raw === '0') {
+      return false;
+    }
   } catch {
     /* ignore */
   }
@@ -103,7 +107,9 @@ export function createDebouncedWrite(waitMs: number) {
   }
 
   function scheduleFlush(): void {
-    if (writeScheduled) return;
+    if (writeScheduled) {
+      return;
+    }
     writeScheduled = true;
     const flush = () => {
       writeScheduled = false;
@@ -133,18 +139,18 @@ export let fileRequestSeq = 0;
 export let changePreviewRequestSeq = 0;
 
 /** 缓存类型定义 */
-export type CachedFileDocument = {
+export interface CachedFileDocument {
   content: string;
   lastModifiedAt: number;
-};
+}
 
 export type CachedChangePreview = WorkspaceChangePreview;
 
 /** 带 TTL 的缓存条目类型 */
-type TTLCacheEntry<V> = {
+interface TTLCacheEntry<V> {
   value: V;
   expiresAt: number; // timestamp in ms
-};
+}
 
 /** 全局缓存实例 - 带 TTL 和 LRU 策略 */
 const fileDocumentCache = new Map<string, TTLCacheEntry<CachedFileDocument>>();
@@ -361,7 +367,9 @@ export function resetRequestSeqs() {
 export function createDebouncedSearch(ms: number) {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const debounced = (query: string, doSearch: () => Promise<void>) => {
-    if (timer) clearTimeout(timer);
+    if (timer) {
+      clearTimeout(timer);
+    }
     timer = setTimeout(() => {
       timer = undefined;
       void doSearch();
@@ -458,7 +466,9 @@ export function createLazyLoader<T>(
     return async (workspaceId: string, workspacePath: string) => {
       const state = get_();
       const guard = getGuardState(state, workspaceId);
-      if (guard.hasData && !guard.isLoading) return;
+      if (guard.hasData && !guard.isLoading) {
+        return;
+      }
       set(getInitialState(get_, workspaceId));
       const result = await fetchFn(workspacePath);
       if (!result.ok) {

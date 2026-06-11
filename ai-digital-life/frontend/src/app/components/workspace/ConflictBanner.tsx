@@ -17,7 +17,9 @@ export function ConflictBanner({
   onKeep,
   onViewDiff,
 }: ConflictBannerProps) {
-  if (conflictPaths.length === 0) return null;
+  if (conflictPaths.length === 0) {
+    return null;
+  }
 
   return (
     <div className="adl-conflict-banner" role="alert">

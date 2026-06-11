@@ -74,7 +74,9 @@ export function ShortcutCard({
         role="button"
         tabIndex={0}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') handleClick();
+          if (e.key === 'Enter') {
+            handleClick();
+          }
         }}
       >
         <div className="adl-shortcut-card__icon">

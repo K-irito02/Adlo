@@ -17,7 +17,9 @@ export async function copyMultiple(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   for (const item of items) {
     const result = await copyToClipboard(item);
-    if (!result.ok) return result;
+    if (!result.ok) {
+      return result;
+    }
   }
   return { ok: true };
 }

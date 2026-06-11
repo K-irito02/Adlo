@@ -81,7 +81,9 @@ function hydrateUIDefaults(
   get: () => StoreState,
   set: (partial: Partial<StoreState>) => void
 ): void {
-  if (_defaultsHydrated) return;
+  if (_defaultsHydrated) {
+    return;
+  }
   _defaultsHydrated = true;
   const doHydrate = () => {
     const _state = get();

@@ -7,7 +7,9 @@ function flattenKeys(obj: object, prefix = ''): Set<string> {
     const dottedKey = prefix ? `${prefix}.${key}` : key;
     if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
       const nested = flattenKeys(value, dottedKey);
-      for (const k of nested) keys.add(k);
+      for (const k of nested) {
+        keys.add(k);
+      }
     } else {
       keys.add(dottedKey);
     }
@@ -29,11 +31,15 @@ if (exitCode === 0) {
   console.log(`❌ zh-CN (${zhKeys.size} keys) 与 en-US (${enKeys.size} keys) 存在差异`);
   if (missingInEn.length > 0) {
     console.log(`\n缺失于 en-US (${missingInEn.length}):`);
-    for (const key of missingInEn) console.log(`  - ${key}`);
+    for (const key of missingInEn) {
+      console.log(`  - ${key}`);
+    }
   }
   if (missingInZh.length > 0) {
     console.log(`\n缺失于 zh-CN (${missingInZh.length}):`);
-    for (const key of missingInZh) console.log(`  - ${key}`);
+    for (const key of missingInZh) {
+      console.log(`  - ${key}`);
+    }
   }
 }
 

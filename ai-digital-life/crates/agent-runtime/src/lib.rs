@@ -62,19 +62,19 @@ pub fn complete_plan(
                 "Patch preview is ready for review; apply from the changes panel when satisfied."
                     .into(),
             );
-        }
+        },
         (ConversationScenario::Plan | ConversationScenario::Chat, false) => {
             detail.run.status = AgentRunStatus::Succeeded;
             detail.run.completed_at = Some(now);
             detail.run.summary = Some("Model response complete (no patch in this run).".into());
-        }
+        },
         (ConversationScenario::CodeEdit, false) => {
             detail.run.status = AgentRunStatus::Ready;
             detail.run.summary = Some(
                 "No @file target was parsed; add @file:path to propose a patch, or use Plan/Ask mode."
                     .into(),
             );
-        }
+        },
     }
     detail.run.updated_at = now;
     detail
@@ -251,7 +251,7 @@ pub fn assistant_blocks(
             ConversationScenario::CodeEdit => {
                 "未生成补丁：请使用 @file:相对路径 指向工作区文件，或切换到「规划/问答」模式。"
                     .into()
-            }
+            },
             _ => "本轮无补丁输出。".into(),
         }
     };

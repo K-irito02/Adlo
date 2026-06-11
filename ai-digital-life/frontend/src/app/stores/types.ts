@@ -38,40 +38,40 @@ export interface BrowserHistoryEntry {
   title: string;
   visitedAt: number;
 }
-export type EditorPosition = {
+export interface EditorPosition {
   lineNumber: number;
   column: number;
-};
+}
 
-export type EditorSelection = {
+export interface EditorSelection {
   startLineNumber: number;
   startColumn: number;
   endLineNumber: number;
   endColumn: number;
-};
+}
 
-export type EditorRange = {
+export interface EditorRange {
   startLineNumber: number;
   startColumn: number;
   endLineNumber: number;
   endColumn: number;
-};
+}
 
-export type EditorModel = {
+export interface EditorModel {
   getValueInRange: (range: EditorRange) => string;
   getLineCount: () => number;
   getLineMaxColumn?: (lineNumber: number) => number;
-};
+}
 
-export type Disposable = {
+export interface Disposable {
   dispose(): void;
-};
+}
 
-export type ScrollState = {
+export interface ScrollState {
   scrollTop: number;
   scrollHeight: number;
   clientHeight: number;
-};
+}
 
 export interface EditorRef {
   getSelection(): EditorSelection | null;

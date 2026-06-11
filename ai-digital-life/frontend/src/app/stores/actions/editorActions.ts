@@ -22,11 +22,11 @@ import type {
 } from '@ai-digital-life/kernel';
 import type { StoreApi } from 'zustand';
 
-type OpenFileConfig = {
+interface OpenFileConfig {
   cacheKey: string;
   workspaceId: string | undefined;
   readFile: () => Promise<IpcResult<WorkspaceFileDocument>>;
-};
+}
 
 async function openFileGeneric(
   set: StoreApi<StoreState>['setState'],
@@ -77,7 +77,9 @@ async function openFileGeneric(
   }
 
   const fileResult = await config.readFile();
-  if (requestSeq !== fileRequestSeq) return;
+  if (requestSeq !== fileRequestSeq) {
+    return;
+  }
   if (!fileResult.ok) {
     set({ error: fileResult.error.message });
     return;
@@ -91,11 +93,11 @@ async function openFileGeneric(
   applyDocument(nextDocument, nextOutline);
 }
 
-type OpenChangePreviewConfig = {
+interface OpenChangePreviewConfig {
   cacheKey: string;
   workspaceId: string | undefined;
   getPreview: () => Promise<IpcResult<WorkspaceChangePreview>>;
-};
+}
 
 async function openChangePreviewGeneric(
   set: StoreApi<StoreState>['setState'],
@@ -124,7 +126,9 @@ async function openChangePreviewGeneric(
   });
 
   const result = await config.getPreview();
-  if (requestSeq !== changePreviewRequestSeq) return;
+  if (requestSeq !== changePreviewRequestSeq) {
+    return;
+  }
   if (!result.ok) {
     set({
       selectedChangePreviewPath: relativePath,
@@ -286,12 +290,15 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
     }) => {
       const selected = normalizeWorkspaceRelativePath(get().selectedFilePath ?? '');
       const incoming = normalizeWorkspaceRelativePath(path);
-      if (!selected || selected !== incoming) return;
+      if (!selected || selected !== incoming) {
+        return;
+      }
       if (
         typeof get().fileLastModifiedAt === 'number' &&
         get().fileLastModifiedAt === lastModifiedAt
-      )
+      ) {
         return;
+      }
       console.info('[workspace] external file changed', {
         path: incoming,
         lastModifiedAt,

@@ -13,7 +13,9 @@ import { MODEL_OPTIONS } from '../../utils/constants';
 export type GitStatus = 'synced' | 'dirty' | 'unpushed' | 'conflict' | 'no-repo';
 
 export function modelLabel(providerId: ModelProviderId, modelId?: string): string {
-  if (!modelId) return '—';
+  if (!modelId) {
+    return '—';
+  }
   const option = (MODEL_OPTIONS[providerId] ?? []).find((candidate) => candidate.id === modelId);
   return option?.label ?? modelId;
 }

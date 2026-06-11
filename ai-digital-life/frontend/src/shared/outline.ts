@@ -1,11 +1,11 @@
 import type { FileOutlineItem } from '@ai-digital-life/kernel';
 
-type OutlineDraft = {
+interface OutlineDraft {
   label: string;
   kind: FileOutlineItem['kind'];
   line: number;
   depth: number;
-};
+}
 
 type OutlineFamily =
   | 'markdown'
@@ -122,27 +122,48 @@ function detectOutlineFamily(relativePath: string): OutlineFamily {
   const fileName = fileNameOf(relativePath).toLowerCase();
   const extension = extensionOf(relativePath);
 
-  if (extension === 'md' || extension === 'markdown') return 'markdown';
-  if (extension === 'py') return 'python';
-  if (extension === 'yaml' || extension === 'yml') return 'yaml';
-  if (extension === 'json') return 'json';
-  if (extension === 'html' || extension === 'htm' || extension === 'xml' || extension === 'svg')
+  if (extension === 'md' || extension === 'markdown') {
+    return 'markdown';
+  }
+  if (extension === 'py') {
+    return 'python';
+  }
+  if (extension === 'yaml' || extension === 'yml') {
+    return 'yaml';
+  }
+  if (extension === 'json') {
+    return 'json';
+  }
+  if (extension === 'html' || extension === 'htm' || extension === 'xml' || extension === 'svg') {
     return 'html';
-  if (extension === 'css' || extension === 'scss' || extension === 'less') return 'css';
-  if (extension === 'vue') return 'vue';
+  }
+  if (extension === 'css' || extension === 'scss' || extension === 'less') {
+    return 'css';
+  }
+  if (extension === 'vue') {
+    return 'vue';
+  }
   if (
     extension === 'sh' ||
     extension === 'bash' ||
     extension === 'zsh' ||
     extension === 'fish' ||
     fileName === 'dockerfile'
-  )
+  ) {
     return 'shell';
-  if (extension === 'ps1') return 'powershell';
-  if (extension === 'sql') return 'sql';
-  if (extension === 'toml' || extension === 'ini' || extension === 'cfg' || extension === 'conf')
+  }
+  if (extension === 'ps1') {
+    return 'powershell';
+  }
+  if (extension === 'sql') {
+    return 'sql';
+  }
+  if (extension === 'toml' || extension === 'ini' || extension === 'cfg' || extension === 'conf') {
     return 'config';
-  if (extension === 'db' || extension === 'sqlite' || extension === 'sqlite3') return 'none';
+  }
+  if (extension === 'db' || extension === 'sqlite' || extension === 'sqlite3') {
+    return 'none';
+  }
   if (
     ['ts', 'tsx', 'js', 'jsx', 'mjs', 'cjs'].includes(extension) &&
     (fileName.includes('.config.') || fileName.endsWith('.rc.js') || fileName.endsWith('.rc.ts'))
@@ -165,8 +186,12 @@ function finalizeItems(
   totalLines: number
 ): FileOutlineItem[] {
   const sorted = [...drafts].sort((left, right) => {
-    if (left.line !== right.line) return left.line - right.line;
-    if (left.depth !== right.depth) return left.depth - right.depth;
+    if (left.line !== right.line) {
+      return left.line - right.line;
+    }
+    if (left.depth !== right.depth) {
+      return left.depth - right.depth;
+    }
     return left.label.localeCompare(right.label);
   });
   const normalizedPath = normalizePath(relativePath);
@@ -215,7 +240,9 @@ function sanitizeBraceLine(lineText: string): string {
 function countLeadingClosers(value: string, closers: string): number {
   let count = 0;
   for (const char of value.trimStart()) {
-    if (!closers.includes(char)) break;
+    if (!closers.includes(char)) {
+      break;
+    }
     count += 1;
   }
   return count;
@@ -224,7 +251,9 @@ function countLeadingClosers(value: string, closers: string): number {
 function countChars(value: string, chars: string): number {
   let count = 0;
   for (const char of value) {
-    if (chars.includes(char)) count += 1;
+    if (chars.includes(char)) {
+      count += 1;
+    }
   }
   return count;
 }
@@ -235,7 +264,9 @@ function pushMarkdownOutline(content: string): OutlineDraft[] {
   return content.split(/\r?\n/).flatMap((lineText, index) => {
     const line = index + 1;
     const trimmed = lineText.trimStart();
-    if (!trimmed) return [];
+    if (!trimmed) {
+      return [];
+    }
 
     if (trimmed.startsWith('```') || trimmed.startsWith('~~~')) {
       inFence = !inFence;
@@ -248,7 +279,9 @@ function pushMarkdownOutline(content: string): OutlineDraft[] {
         return [];
       }
       const label = cleanMarkdownHeadingLabel(trimmed.slice(hashes.length));
-      if (!label) return [];
+      if (!label) {
+        return [];
+      }
       return [{ label, kind: 'heading', line, depth: hashes.length }];
     }
 
@@ -374,7 +407,9 @@ function parseBraceLanguage(
   return content.split(/\r?\n/).flatMap((lineText, index) => {
     const line = index + 1;
     const trimmed = lineText.trim();
-    if (!trimmed || trimmed.startsWith('//') || trimmed.startsWith('*')) return [];
+    if (!trimmed || trimmed.startsWith('//') || trimmed.startsWith('*')) {
+      return [];
+    }
 
     const sanitized = sanitizeBraceLine(lineText);
     const effectiveBraceDepth = Math.max(0, braceDepth - countLeadingClosers(sanitized, '}]'));
@@ -383,10 +418,14 @@ function parseBraceLanguage(
     for (const matcher of BRACE_MATCHERS) {
       const match = trimmed.match(matcher.pattern);
       const label = match?.[1]?.trim();
-      if (!label) continue;
+      if (!label) {
+        continue;
+      }
       if (matcher.kind === 'function' || matcher.kind === 'method') {
         const keyword = label.split('::').pop()?.toLowerCase() ?? '';
-        if (BLOCK_KEYWORDS.has(keyword)) continue;
+        if (BLOCK_KEYWORDS.has(keyword)) {
+          continue;
+        }
       }
       if (
         (matcher.kind === 'function' || matcher.kind === 'method') &&
@@ -434,7 +473,9 @@ function parsePython(content: string): OutlineDraft[] {
   content.split(/\r?\n/).forEach((lineText, index) => {
     const line = index + 1;
     const trimmed = lineText.trim();
-    if (!trimmed || trimmed.startsWith('#')) return;
+    if (!trimmed || trimmed.startsWith('#')) {
+      return;
+    }
     const indent = lineText.match(/^\s*/)?.[0]?.replace(/\t/g, '    ').length ?? 0;
     while (indentStack.length > 0 && indent <= indentStack[indentStack.length - 1]!) {
       indentStack.pop();
@@ -461,7 +502,9 @@ function parseYaml(content: string): OutlineDraft[] {
   return content.split(/\r?\n/).flatMap((lineText, index) => {
     const line = index + 1;
     const trimmed = lineText.trim();
-    if (!trimmed || trimmed.startsWith('#')) return [];
+    if (!trimmed || trimmed.startsWith('#')) {
+      return [];
+    }
     const indent = lineText.match(/^\s*/)?.[0]?.replace(/\t/g, '  ').length ?? 0;
     while (indentStack.length > 0 && indent <= indentStack[indentStack.length - 1]!) {
       indentStack.pop();
@@ -524,7 +567,9 @@ function parseConfig(content: string): OutlineDraft[] {
   return content.split(/\r?\n/).flatMap((lineText, index) => {
     const line = index + 1;
     const trimmed = lineText.trim();
-    if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith(';')) return [];
+    if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith(';')) {
+      return [];
+    }
 
     const sectionMatch = trimmed.match(/^\[([^\]]+)\]$/);
     if (sectionMatch?.[1]) {
@@ -569,7 +614,9 @@ function parseJson(content: string): OutlineDraft[] {
   return content.split(/\r?\n/).flatMap((lineText, index) => {
     const line = index + 1;
     const trimmed = lineText.trim();
-    if (!trimmed) return [];
+    if (!trimmed) {
+      return [];
+    }
     const sanitized = stripQuotedText(lineText);
     const effectiveDepth = Math.max(0, braceDepth - countLeadingClosers(sanitized, '}]'));
     const keyMatch = trimmed.match(/^"([^"]+)"\s*:\s*(.*)$/);
@@ -595,14 +642,20 @@ function parseJson(content: string): OutlineDraft[] {
 
 function formatHtmlTagLabel(tag: string, attrs: string): string {
   const id = attrs.match(/\sid=["']([^"']+)["']/i)?.[1];
-  if (id) return `${tag}#${id}`;
+  if (id) {
+    return `${tag}#${id}`;
+  }
   const className = attrs
     .match(/\sclass=["']([^"']+)["']/i)?.[1]
     ?.split(/\s+/)
     .filter(Boolean)[0];
-  if (className) return `${tag}.${className}`;
+  if (className) {
+    return `${tag}.${className}`;
+  }
   const name = attrs.match(/\s(?:name|role)=["']([^"']+)["']/i)?.[1];
-  if (name) return `${tag}[${name}]`;
+  if (name) {
+    return `${tag}[${name}]`;
+  }
   return tag;
 }
 
@@ -634,7 +687,9 @@ function parseHtml(content: string): OutlineDraft[] {
       if (isClosing) {
         while (tagStack.length > 0) {
           const current = tagStack.pop();
-          if (current === tag) break;
+          if (current === tag) {
+            break;
+          }
         }
         continue;
       }
@@ -662,7 +717,9 @@ function parseCss(content: string): OutlineDraft[] {
   return content.split(/\r?\n/).flatMap((lineText, index) => {
     const line = index + 1;
     const trimmed = lineText.trim();
-    if (!trimmed || trimmed.startsWith('/*') || trimmed.startsWith('*')) return [];
+    if (!trimmed || trimmed.startsWith('/*') || trimmed.startsWith('*')) {
+      return [];
+    }
     const sanitized = lineText.replace(/\/\*.*?\*\//g, '');
     const items: OutlineDraft[] = [];
     const openIndex = sanitized.indexOf('{');
@@ -737,7 +794,9 @@ function parseShell(content: string, family: 'shell' | 'powershell'): OutlineDra
   return content.split(/\r?\n/).flatMap((lineText, index) => {
     const line = index + 1;
     const trimmed = lineText.trim();
-    if (!trimmed || trimmed.startsWith('#')) return [];
+    if (!trimmed || trimmed.startsWith('#')) {
+      return [];
+    }
     const items: OutlineDraft[] = [];
 
     if (trimmed.startsWith('}') || /^(fi|done|esac)\b/.test(trimmed)) {
@@ -778,7 +837,9 @@ function parseSql(content: string): OutlineDraft[] {
   for (const [index, lineText] of content.split(/\r?\n/).entries()) {
     const line = index + 1;
     const trimmed = lineText.trim();
-    if (!trimmed || trimmed.startsWith('--')) continue;
+    if (!trimmed || trimmed.startsWith('--')) {
+      continue;
+    }
 
     const createTableMatch = trimmed.match(/^create\s+table\s+([A-Za-z0-9_."]+)/i);
     if (createTableMatch?.[1]) {

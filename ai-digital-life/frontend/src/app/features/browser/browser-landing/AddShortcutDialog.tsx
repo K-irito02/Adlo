@@ -34,10 +34,14 @@ export function AddShortcutDialog({
 
   const handleConfirm = useCallback(() => {
     const trimmedName = name.trim();
-    if (!trimmedName) return;
+    if (!trimmedName) {
+      return;
+    }
     if (mode === 'add') {
       const trimmedUrl = url.trim();
-      if (!trimmedUrl) return;
+      if (!trimmedUrl) {
+        return;
+      }
       const finalUrl = /^https?:\/\//i.test(trimmedUrl) ? trimmedUrl : `https://${trimmedUrl}`;
       onConfirm(trimmedName, finalUrl);
     } else {
@@ -58,12 +62,16 @@ export function AddShortcutDialog({
 
   const handleBackdrop = useCallback(
     (e: React.MouseEvent) => {
-      if (e.target === e.currentTarget) onCancel();
+      if (e.target === e.currentTarget) {
+        onCancel();
+      }
     },
     [onCancel]
   );
 
-  if (!open) return null;
+  if (!open) {
+    return null;
+  }
 
   return createPortal(
     <div className="adl-prompt-modal" onKeyDown={handleKeyDown} onClick={handleBackdrop}>
@@ -122,7 +130,9 @@ export function AddShortcutDialog({
                 value={url}
                 onChange={(e) => setUrl(e.currentTarget.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleConfirm();
+                  if (e.key === 'Enter') {
+                    handleConfirm();
+                  }
                 }}
               />
             </div>

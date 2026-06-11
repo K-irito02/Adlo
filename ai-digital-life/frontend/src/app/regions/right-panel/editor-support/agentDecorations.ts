@@ -10,14 +10,14 @@ import {
   AGENT_DECO_DELETE_CLASS,
 } from '../../../features/editor/cmTheme';
 
-export type AgentHunkDecoration = {
+export interface AgentHunkDecoration {
   startLine: number;
   endLine: number;
   changeKind: 'added' | 'modified' | 'deleted';
   decision: 'pending' | 'accepted' | 'rejected';
   isSelected?: boolean;
   hunkId: string;
-};
+}
 
 export const setAgentDecorations = StateEffect.define<AgentHunkDecoration[]>();
 export const toggleAgentDecorations = StateEffect.define<boolean>();
@@ -47,11 +47,15 @@ function buildLineDecorations(
   hunks: AgentHunkDecoration[]
 ): DecorationSet {
   const decorations: Range<Decoration>[] = [];
-  if (state.doc.lines === 0) return Decoration.none;
+  if (state.doc.lines === 0) {
+    return Decoration.none;
+  }
   for (const hunk of hunks) {
     const fromLine = Math.max(1, hunk.startLine);
     const toLine = Math.max(fromLine, hunk.endLine);
-    if (fromLine > state.doc.lines) continue;
+    if (fromLine > state.doc.lines) {
+      continue;
+    }
     const boundedToLine = Math.min(toLine, state.doc.lines);
     for (let line = fromLine; line <= boundedToLine; line += 1) {
       const lineInfo = state.doc.line(line);
@@ -66,10 +70,10 @@ function buildLineDecorations(
   return Decoration.set(decorations, true);
 }
 
-type AgentDecorationState = {
+interface AgentDecorationState {
   hunks: AgentHunkDecoration[];
   enabled: boolean;
-};
+}
 
 const agentDecorationField = StateField.define<AgentDecorationState>({
   create: () => ({ hunks: [], enabled: true }),
@@ -88,7 +92,9 @@ const agentDecorationField = StateField.define<AgentDecorationState>({
 
 const agentLineDecorations = EditorView.decorations.compute([agentDecorationField], (state) => {
   const { hunks, enabled } = state.field(agentDecorationField);
-  if (!enabled || hunks.length === 0) return Decoration.none;
+  if (!enabled || hunks.length === 0) {
+    return Decoration.none;
+  }
   return buildLineDecorations(state, hunks);
 });
 

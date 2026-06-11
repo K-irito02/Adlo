@@ -25,22 +25,29 @@ function createModelStreamSubscriber(
   set: StoreApi<StoreState>['setState']
 ): (event: DigitalLifeModelStreamEventV1) => void {
   return (event) => {
-    if (event.v !== 1) return;
+    if (event.v !== 1) {
+      return;
+    }
     set((state: StoreState) => {
-      if (event.type === 'route') return { streamingActiveRunId: event.runId };
+      if (event.type === 'route') {
+        return { streamingActiveRunId: event.runId };
+      }
       if (event.type === 'delta') {
         const nextRunId = state.streamingActiveRunId ?? event.runId;
-        if (state.streamingActiveRunId && event.runId !== state.streamingActiveRunId) return state;
+        if (state.streamingActiveRunId && event.runId !== state.streamingActiveRunId) {
+          return state;
+        }
         return {
           streamingActiveRunId: nextRunId,
           streamingAssistantText: state.streamingAssistantText + event.text,
         };
       }
-      if (event.type === 'done')
+      if (event.type === 'done') {
         return {
           streamingAssistantText: '',
           streamingActiveRunId: undefined,
         };
+      }
       return state;
     });
   };
@@ -51,7 +58,9 @@ function createRunActivitySubscriber(
   get: () => StoreState
 ): (event: DigitalLifeRunActivityEventV1) => void {
   return (event) => {
-    if (event.v !== 1) return;
+    if (event.v !== 1) {
+      return;
+    }
     get().appendRunActivity(event.runId, event);
     if (event.type === 'model' && event.usage) {
       get().setRunUsage(event.runId, event.usage);
@@ -167,11 +176,15 @@ export function createStreamActions(set: StoreApi<StoreState>['setState'], get: 
      * @see preview-bridge/index.ts → conversation.createSession, conversation.sendMessage, app.getInfo, patch.getPatchSet, patch.applyPatchSet, subscribeModelStream, subscribeRunActivity
      */
     sendMessage: async (content: string, options?: MessageSendOptions) => {
-      if (!content.trim()) return;
+      if (!content.trim()) {
+        return;
+      }
       const trimmed = content.trim();
 
       const isHandled = await dispatchSlashCommand(trimmed, set, get);
-      if (isHandled) return;
+      if (isHandled) {
+        return;
+      }
 
       const mode = options?.mode ?? get().chatMode ?? 'ask';
       const baseScenario = chatModeToScenario(mode);
@@ -242,9 +255,13 @@ export function createStreamActions(set: StoreApi<StoreState>['setState'], get: 
      */
     cancelActiveStream: async () => {
       const runId = get().streamingActiveRunId;
-      if (!runId) return;
+      if (!runId) {
+        return;
+      }
       const result = await window.digitalLife.conversation.cancelMessage(runId);
-      if (!result.ok) captureError(get, result.error);
+      if (!result.ok) {
+        captureError(get, result.error);
+      }
     },
   };
 }

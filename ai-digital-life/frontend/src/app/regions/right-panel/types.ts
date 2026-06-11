@@ -233,7 +233,7 @@ export type ModelPanelProps = Pick<
 
 export type SettingsPanelProps = Pick<RightPanelViewProps, 't' | 'settings' | 'onChangeSetting'>;
 
-export type CIPanelProps = {
+export interface CIPanelProps {
   config: { owner: string; repo: string; branch: string };
   accessToken: string;
   loading: boolean;
@@ -242,7 +242,7 @@ export type CIPanelProps = {
   onRefresh: () => void;
   onConfigChange: (owner: string, repo: string, branch: string, token: string) => void;
   onClearToken: () => void;
-};
+}
 
 export function countGitChanges(snapshot?: GitSnapshot): number {
   if (!snapshot) {

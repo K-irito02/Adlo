@@ -91,10 +91,10 @@ impl ModelGateway {
                         },
                         audit,
                     );
-                }
+                },
                 Err(error) => {
                     last_error = Some(error.to_string());
-                }
+                },
             }
         }
 

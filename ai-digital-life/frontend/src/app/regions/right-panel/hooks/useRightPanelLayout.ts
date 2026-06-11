@@ -35,7 +35,9 @@ export function useRightPanelLayout(collapsed: boolean) {
       const shell =
         shellBody ?? (panelRef.current?.closest('.adl-shell__body') as HTMLElement | null) ?? null;
       const panel = panelRef.current;
-      if (!shell || !panel) return;
+      if (!shell || !panel) {
+        return;
+      }
       const overlayState = deriveRightPanelOverlayState(mode, collapsed);
       shell.classList.toggle('is-rightpanel-overlay-active', overlayState.overlayActive);
       shell.classList.toggle('is-rightpanel-overlay-expanded', overlayState.overlayExpanded);
@@ -270,7 +272,9 @@ export function useRightPanelLayout(collapsed: boolean) {
     return () => {
       const shellBody = panelEl?.closest('.adl-shell__body') as HTMLElement | null;
       const panel = panelEl;
-      if (!shellBody || !panel) return;
+      if (!shellBody || !panel) {
+        return;
+      }
       shellBody.classList.remove('is-rightpanel-overlay-active');
       shellBody.classList.remove('is-rightpanel-overlay-expanded');
       panel.classList.remove('adl-rightpanel--overlay-active');

@@ -73,11 +73,15 @@ export function createPatchActions(set: StoreApi<StoreState>['setState'], get: (
       }
       const filePath = (result.data.repairPatchSet ?? result.data.patchSet).filePatches[0]
         ?.relativePath;
-      if (filePath) await get().openFile(filePath);
+      if (filePath) {
+        await get().openFile(filePath);
+      }
       const runId = result.data.patchSet.runId;
       if (runId) {
         const run = await window.digitalLife.agent.getRun(runId);
-        if (run.ok) set({ activeRun: run.data });
+        if (run.ok) {
+          set({ activeRun: run.data });
+        }
       }
       await postMutationRefresh(get);
     },
@@ -101,11 +105,15 @@ export function createPatchActions(set: StoreApi<StoreState>['setState'], get: (
         openTabs: result.data.filePatches.map(mapPatchToEditorTab),
       });
       const filePath = result.data.filePatches[0]?.relativePath;
-      if (filePath) await get().openFile(filePath);
+      if (filePath) {
+        await get().openFile(filePath);
+      }
       const runId = result.data.runId;
       if (runId) {
         const run = await window.digitalLife.agent.getRun(runId);
-        if (run.ok) set({ activeRun: run.data });
+        if (run.ok) {
+          set({ activeRun: run.data });
+        }
       }
       await get().refreshTaskCenter();
       await get().fetchAuditEntries(40);
@@ -122,11 +130,14 @@ export function createPatchActions(set: StoreApi<StoreState>['setState'], get: (
      */
     acceptAllHunks: async () => {
       const patchSet = get().activePatchSet;
-      if (!patchSet) return;
+      if (!patchSet) {
+        return;
+      }
       for (const filePatch of patchSet.filePatches) {
         for (const hunk of filePatch.hunks) {
-          if (hunk.decision !== 'accepted')
+          if (hunk.decision !== 'accepted') {
             await get().setHunkDecision(patchSet.id, hunk.id, 'accepted');
+          }
         }
       }
     },
@@ -141,11 +152,14 @@ export function createPatchActions(set: StoreApi<StoreState>['setState'], get: (
      */
     rejectAllHunks: async () => {
       const patchSet = get().activePatchSet;
-      if (!patchSet) return;
+      if (!patchSet) {
+        return;
+      }
       for (const filePatch of patchSet.filePatches) {
         for (const hunk of filePatch.hunks) {
-          if (hunk.decision !== 'rejected')
+          if (hunk.decision !== 'rejected') {
             await get().setHunkDecision(patchSet.id, hunk.id, 'rejected');
+          }
         }
       }
     },

@@ -31,20 +31,20 @@ export interface StickyContextProvider {
   getModel: () => StickyContextModel | null;
 }
 
-type BuildStickyContextEntriesInput = {
+interface BuildStickyContextEntriesInput {
   content: string;
   outline: FileOutlineItem[];
   visibleStartLine: number;
   maxContextRows?: number;
   diffRanges?: PreviewDiffVisualRange[];
-};
+}
 
-type CreateStickyContextModelInput = {
+interface CreateStickyContextModelInput {
   canScrollToTop: boolean;
   onNavigateLine: (line: number) => void;
   topLabel?: string;
   modelId?: string;
-};
+}
 
 function clampContextRows(value: number | undefined): number {
   const normalized = Number.isFinite(value)

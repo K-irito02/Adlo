@@ -3,11 +3,11 @@ import { IconMessageQuestion } from '../../icons';
 import type { ApprovalRequestSummary } from '@ai-digital-life/kernel';
 import type { CopyDict } from '../../i18n';
 
-export type ApprovalInlineCardProps = {
+export interface ApprovalInlineCardProps {
   approval: ApprovalRequestSummary;
   t: CopyDict;
   onDecide: (id: string, decision: 'approved' | 'rejected') => void;
-};
+}
 
 export function ApprovalInlineCard({ approval, t, onDecide }: ApprovalInlineCardProps) {
   return (

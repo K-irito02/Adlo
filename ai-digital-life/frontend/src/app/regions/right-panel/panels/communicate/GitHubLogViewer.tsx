@@ -50,10 +50,14 @@ export function GitHubLogViewer({ snapshot, config }: GitHubLogViewerProps) {
   const bridge = (window as unknown as { digitalLife: DigitalLifeBridge }).digitalLife;
 
   useEffect(() => {
-    if (selectedLogJobId === null || !config.owner || !config.repo) return;
+    if (selectedLogJobId === null || !config.owner || !config.repo) {
+      return;
+    }
     const selectedJob = jobs.find((j) => j.jobId === selectedLogJobId);
     const runId = selectedJob?.runId;
-    if (!runId) return;
+    if (!runId) {
+      return;
+    }
     if (cachedJobLogs[selectedLogJobId]) {
       setLogLoading(false);
       return;
@@ -74,7 +78,9 @@ export function GitHubLogViewer({ snapshot, config }: GitHubLogViewerProps) {
             },
             runId
           );
-          if (cancelled) return;
+          if (cancelled) {
+            return;
+          }
           if (result.ok) {
             setCachedJobLogs(result.data);
           } else {
@@ -112,7 +118,9 @@ export function GitHubLogViewer({ snapshot, config }: GitHubLogViewerProps) {
   const currentLogText = selectedLogJobId !== null ? (cachedJobLogs[selectedLogJobId] ?? '') : '';
 
   const lines = useMemo(() => {
-    if (!currentLogText) return [];
+    if (!currentLogText) {
+      return [];
+    }
     return currentLogText.split('\n');
   }, [currentLogText]);
 
@@ -163,7 +171,9 @@ export function GitHubLogViewer({ snapshot, config }: GitHubLogViewerProps) {
   }, [searchQuery, processedLines, listRef]);
 
   const goToPrevMatch = useCallback(() => {
-    if (searchMatches.length === 0) return;
+    if (searchMatches.length === 0) {
+      return;
+    }
     const newIdx = (searchMatchIndex - 1 + searchMatches.length) % searchMatches.length;
     setSearchMatchIndex(newIdx);
     if (listRef.current) {
@@ -176,7 +186,9 @@ export function GitHubLogViewer({ snapshot, config }: GitHubLogViewerProps) {
   }, [searchMatches, searchMatchIndex, listRef]);
 
   const goToNextMatch = useCallback(() => {
-    if (searchMatches.length === 0) return;
+    if (searchMatches.length === 0) {
+      return;
+    }
     const newIdx = (searchMatchIndex + 1) % searchMatches.length;
     setSearchMatchIndex(newIdx);
     if (listRef.current) {
@@ -193,8 +205,11 @@ export function GitHubLogViewer({ snapshot, config }: GitHubLogViewerProps) {
     const hasError = /\berror\b|\bfail(?:ed|ure)?\b|FAILURE/i.test(text);
     const hasWarning = /\bwarn(?:ing)?\b/i.test(text);
     let className = 'adl-logviewer__line';
-    if (hasError) className += ' adl-logviewer__line--error';
-    else if (hasWarning) className += ' adl-logviewer__line--warning';
+    if (hasError) {
+      className += ' adl-logviewer__line--error';
+    } else if (hasWarning) {
+      className += ' adl-logviewer__line--warning';
+    }
     return <span className={className} dangerouslySetInnerHTML={{ __html: html }} />;
   }, []);
 
@@ -209,7 +224,9 @@ export function GitHubLogViewer({ snapshot, config }: GitHubLogViewerProps) {
       ariaAttributes: { 'aria-posinset': number; 'aria-setsize': number; role: 'listitem' };
     }) => {
       const item = processedLines[index];
-      if (!item) return null;
+      if (!item) {
+        return null;
+      }
 
       if (item.type === 'blank-collapse') {
         return (

@@ -16,7 +16,9 @@ import {
 
 async function refreshAfterBranchChange(get: () => StoreState) {
   await postMutationRefresh(get);
-  if (get().selectedFilePath) await get().openFile(get().selectedFilePath!);
+  if (get().selectedFilePath) {
+    await get().openFile(get().selectedFilePath!);
+  }
 }
 
 export function createGitActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
@@ -55,7 +57,9 @@ export function createGitActions(set: StoreApi<StoreState>['setState'], get: () 
               : state.appInfo,
         }));
         const selectedChangePreviewPath = get().selectedChangePreviewPath;
-        if (!selectedChangePreviewPath) return;
+        if (!selectedChangePreviewPath) {
+          return;
+        }
         const changedPaths = new Set([
           ...result.data.staged,
           ...result.data.unstaged,

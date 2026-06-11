@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useRef, forwardRef, type ForwardedRef } from 'react';
 
-type CustomScrollAreaProps = {
+interface CustomScrollAreaProps {
   shellClassName: string;
   scrollClassName: string;
   scrollbarClassName: string;
   thumbClassName: string;
   children: React.ReactNode;
-};
+}
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));

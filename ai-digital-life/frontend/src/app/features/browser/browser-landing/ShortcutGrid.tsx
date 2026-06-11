@@ -44,12 +44,16 @@ export function ShortcutGrid({ t, onOpenUrl, onAddClick, onContextMenu }: Shortc
     (_e: React.DragEvent, targetId: string) => {
       setDragOverId(null);
       const draggedId = _e.dataTransfer.getData('text/plain');
-      if (!draggedId || draggedId === targetId) return;
+      if (!draggedId || draggedId === targetId) {
+        return;
+      }
 
       const ids = sortedShortcuts.map((s) => s.id);
       const fromIdx = ids.indexOf(draggedId);
       const toIdx = ids.indexOf(targetId);
-      if (fromIdx === -1 || toIdx === -1) return;
+      if (fromIdx === -1 || toIdx === -1) {
+        return;
+      }
 
       ids.splice(fromIdx, 1);
       ids.splice(toIdx, 0, draggedId);
@@ -93,7 +97,9 @@ export function ShortcutGrid({ t, onOpenUrl, onAddClick, onContextMenu }: Shortc
             tabIndex={0}
             title={t.browserAddShortcutTitle}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') onAddClick();
+              if (e.key === 'Enter') {
+                onAddClick();
+              }
             }}
           >
             <span className="adl-shortcut-card__add-icon">+</span>

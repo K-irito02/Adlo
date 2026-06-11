@@ -1,12 +1,12 @@
 import React from 'react';
 import { ConfirmDialog } from '../../../components/ConfirmDialog';
 
-export type ChangesConfirmDialogsProps = {
+export interface ChangesConfirmDialogsProps {
   changesDeleteConfirmPath: string | null;
   onDeleteConfirm: () => void;
   onDeleteCancel: () => void;
   t: Record<string, string>;
-};
+}
 
 export function ChangesConfirmDialogs({
   changesDeleteConfirmPath,

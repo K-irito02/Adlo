@@ -20,7 +20,9 @@ export const TerminalContextMenu = React.memo(function TerminalContextMenu({
   onDelete,
   t,
 }: TerminalContextMenuProps) {
-  if (!contextMenu.open) return null;
+  if (!contextMenu.open) {
+    return null;
+  }
 
   return createPortal(
     <div

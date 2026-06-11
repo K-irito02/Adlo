@@ -12,8 +12,6 @@ export default tseslint.config(
       'dist',
       'node_modules',
       '.vite',
-      '**/*.test.ts',
-      '**/*.test.tsx',
       'dev/**',
       'e2e/**',
       'src/test-fixtures/**',
@@ -35,7 +33,6 @@ export default tseslint.config(
       ecmaVersion: 2022,
       globals: globals.browser,
       parserOptions: {
-        ecmaVersion: 'latest',
         ecmaFeatures: { jsx: true },
         sourceType: 'module',
       },
@@ -48,14 +45,12 @@ export default tseslint.config(
     rules: {
       'prettier/prettier': 'warn',
 
-      // React Hooks (recommended rules)
       ...reactHooks.configs.recommended.rules,
       'react-refresh/only-export-components': [
         'warn',
         { allowConstantExport: true },
       ],
 
-      // TypeScript - warn level for existing codebase migration
       '@typescript-eslint/no-unused-vars': [
         'warn',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
@@ -66,18 +61,30 @@ export default tseslint.config(
         'warn',
         { prefer: 'type-imports', fixStyle: 'inline-type-imports' },
       ],
+      '@typescript-eslint/consistent-type-definitions': ['warn', 'interface'],
+      '@typescript-eslint/no-require-imports': 'error',
+      '@typescript-eslint/no-empty-object-type': 'error',
+      '@typescript-eslint/prefer-function-type': 'warn',
 
-      // General - warn level
       'eqeqeq': ['warn', 'smart'],
       'prefer-const': 'warn',
       'no-case-declarations': 'warn',
+      'curly': ['warn', 'all'],
 
-      // Off - intentional project choices
       '@typescript-eslint/explicit-module-boundary-types': 'off',
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/no-non-null-assertion': 'off',
       'no-useless-escape': 'off',
       'no-empty': 'off',
+    },
+  },
+  {
+    files: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-non-null-assertion': 'off',
+      '@typescript-eslint/no-empty-object-type': 'off',
+      '@typescript-eslint/no-require-imports': 'off',
     },
   },
 );

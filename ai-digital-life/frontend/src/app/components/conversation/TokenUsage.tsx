@@ -11,7 +11,9 @@ interface TokenUsageProps {
 export function TokenUsage({ t, usage }: TokenUsageProps) {
   const [expanded, setExpanded] = useState(false);
 
-  if (!usage) return null;
+  if (!usage) {
+    return null;
+  }
   const total = usage.totalTokens ?? (usage.promptTokens ?? 0) + (usage.completionTokens ?? 0);
 
   return (

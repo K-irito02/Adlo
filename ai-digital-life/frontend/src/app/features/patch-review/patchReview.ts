@@ -153,8 +153,12 @@ export function findPatchFileByPath(
   patchSet: PatchSet | undefined,
   relativePath?: string
 ): FilePatch | undefined {
-  if (!patchSet) return undefined;
-  if (!relativePath) return patchSet.filePatches[0];
+  if (!patchSet) {
+    return undefined;
+  }
+  if (!relativePath) {
+    return patchSet.filePatches[0];
+  }
   return (
     patchSet.filePatches.find((filePatch) => filePatch.relativePath === relativePath) ??
     patchSet.filePatches[0]
@@ -171,7 +175,9 @@ export function getAdjacentPatchHunk(
   direction: PatchDirection
 ): PatchHunk | undefined {
   const flattened = flattenPatchHunks(patchSet);
-  if (flattened.length === 0) return undefined;
+  if (flattened.length === 0) {
+    return undefined;
+  }
   if (!selectedHunkId) {
     return direction === 'previous' ? flattened[flattened.length - 1] : flattened[0];
   }

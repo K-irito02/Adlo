@@ -20,10 +20,10 @@ pub fn normalize_relative_path(path: &str) -> Result<PathBuf, AppError> {
     for component in candidate.components() {
         match component {
             Component::Normal(part) => clean.push(part),
-            Component::CurDir => {}
+            Component::CurDir => {},
             Component::ParentDir | Component::RootDir | Component::Prefix(_) => {
                 return Err(AppError::Security(format!("path escapes workspace boundary: {path}")));
-            }
+            },
         }
     }
     Ok(clean)

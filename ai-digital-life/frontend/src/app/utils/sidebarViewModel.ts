@@ -12,32 +12,32 @@ export type SessionVisualStatus =
   | 'completed'
   | 'read';
 
-export type SidebarSessionItem = {
+export interface SidebarSessionItem {
   session: ConversationSessionRecord;
   status: SessionVisualStatus;
   isUnread: boolean;
-};
+}
 
-export type SidebarWorkspaceItem = {
+export interface SidebarWorkspaceItem {
   workspace: RecentWorkspaceEntry;
   isCurrent: boolean;
   sessions: SidebarSessionItem[];
   archivedSessions: SidebarSessionItem[];
   rollupStatus: SessionVisualStatus;
   statusCounts: Record<SessionVisualStatus, number>;
-};
+}
 
-export type SidebarViewModel = {
+export interface SidebarViewModel {
   workspaces: SidebarWorkspaceItem[];
   standaloneSessions: SidebarSessionItem[];
   standaloneArchivedSessions: SidebarSessionItem[];
-};
+}
 
-export type VisibleSidebarSessions = {
+export interface VisibleSidebarSessions {
   items: SidebarSessionItem[];
   hiddenCount: number;
   limit: number;
-};
+}
 
 export const SIDEBAR_SESSION_PREVIEW_LIMIT = 5;
 

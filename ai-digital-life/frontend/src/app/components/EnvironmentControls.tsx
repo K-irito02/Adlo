@@ -72,7 +72,9 @@ function Dropdown({
 
   /* Close on click outside. */
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      return;
+    }
     function handleClick(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
         onClose();
@@ -84,15 +86,21 @@ function Dropdown({
 
   /* Close on Escape key. */
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      return;
+    }
     function handleKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') {
+        onClose();
+      }
     }
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open) {
+    return null;
+  }
 
   return (
     <div

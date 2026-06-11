@@ -145,15 +145,21 @@ const RowComponent = React.memo(
   },
   (prevProps, nextProps) => {
     // 优化比较，只比较真正需要变化才会重新渲染的属性
-    if (prevProps.index !== nextProps.index) return false;
-    if (prevProps.streamItems !== nextProps.streamItems) return false;
+    if (prevProps.index !== nextProps.index) {
+      return false;
+    }
+    if (prevProps.streamItems !== nextProps.streamItems) {
+      return false;
+    }
 
     // 只在内容真正变化时才重新渲染相关部分
     const item = prevProps.streamItems[prevProps.index];
     const nextItem = nextProps.streamItems[nextProps.index];
 
     // 如果项类型不同，必须重新渲染
-    if (!item || !nextItem || item.type !== nextItem.type) return false;
+    if (!item || !nextItem || item.type !== nextItem.type) {
+      return false;
+    }
 
     // 对于流式文本，每次都要更新
     if (item.type === 'streaming-message' && prevProps.streamingText !== nextProps.streamingText) {
@@ -161,11 +167,21 @@ const RowComponent = React.memo(
     }
 
     // 检查其他需要变化的属性
-    if (prevProps.t !== nextProps.t) return false;
-    if (prevProps.activeRun !== nextProps.activeRun) return false;
-    if (prevProps.runActivityByRunId !== nextProps.runActivityByRunId) return false;
-    if (prevProps.runUsageByRunId !== nextProps.runUsageByRunId) return false;
-    if (prevProps.locale !== nextProps.locale) return false;
+    if (prevProps.t !== nextProps.t) {
+      return false;
+    }
+    if (prevProps.activeRun !== nextProps.activeRun) {
+      return false;
+    }
+    if (prevProps.runActivityByRunId !== nextProps.runActivityByRunId) {
+      return false;
+    }
+    if (prevProps.runUsageByRunId !== nextProps.runUsageByRunId) {
+      return false;
+    }
+    if (prevProps.locale !== nextProps.locale) {
+      return false;
+    }
 
     return true;
   }
@@ -234,7 +250,9 @@ export function MessageStream({
   );
 
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!containerRef.current) {
+      return;
+    }
 
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {

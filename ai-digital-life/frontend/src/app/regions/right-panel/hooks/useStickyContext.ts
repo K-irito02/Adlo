@@ -76,7 +76,9 @@ function useStickyContext(input: UseStickyContextInput): StickyContextModel | nu
     const getEditor = () => editorRefCache.current?.() ?? null;
 
     refresh();
-    if (!input.selectedFilePath) return;
+    if (!input.selectedFilePath) {
+      return;
+    }
     const editor = getEditor();
     if (!editor) {
       return;

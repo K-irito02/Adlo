@@ -32,15 +32,21 @@ export function ContextBuilderPopover({
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      return;
+    }
     const handler = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) onClose();
+      if (!ref.current?.contains(e.target as Node)) {
+        onClose();
+      }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open) {
+    return null;
+  }
 
   const uid = () => `ctx-${Math.random().toString(36).slice(2, 10)}`;
 

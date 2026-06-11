@@ -92,12 +92,16 @@ export function useTooltip(options: UseTooltipOptions = {}): UseTooltipReturn {
   const updatePosition = useCallback(() => {
     const triggerEl = triggerElRef.current;
     const tooltipEl = tooltipElRef.current;
-    if (!triggerEl || !tooltipEl) return;
+    if (!triggerEl || !tooltipEl) {
+      return;
+    }
 
     const triggerRect = triggerEl.getBoundingClientRect();
     const tooltipRect = tooltipEl.getBoundingClientRect();
 
-    if (tooltipRect.width === 0 || tooltipRect.height === 0) return;
+    if (tooltipRect.width === 0 || tooltipRect.height === 0) {
+      return;
+    }
 
     const result = computePosition({
       triggerRect,
@@ -112,7 +116,9 @@ export function useTooltip(options: UseTooltipOptions = {}): UseTooltipReturn {
   }, [defaultPlacement, align, sideOffset]);
 
   const scheduleUpdatePosition = useCallback(() => {
-    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+    }
     rafRef.current = requestAnimationFrame(() => {
       updatePosition();
       rafRef.current = null;
@@ -171,13 +177,17 @@ export function useTooltip(options: UseTooltipOptions = {}): UseTooltipReturn {
   }, [hideDelay, clearTimers, setOpen]);
 
   const handleTriggerEnter = useCallback(() => {
-    if (trigger !== 'hover') return;
+    if (trigger !== 'hover') {
+      return;
+    }
     isPointerInTooltipRef.current = false;
     startShowTimer();
   }, [trigger, startShowTimer]);
 
   const handleTriggerLeave = useCallback(() => {
-    if (trigger !== 'hover') return;
+    if (trigger !== 'hover') {
+      return;
+    }
     startHideTimer();
   }, [trigger, startHideTimer]);
 
@@ -192,18 +202,24 @@ export function useTooltip(options: UseTooltipOptions = {}): UseTooltipReturn {
   }, [startHideTimer]);
 
   const handleTriggerFocus = useCallback(() => {
-    if (trigger !== 'focus') return;
+    if (trigger !== 'focus') {
+      return;
+    }
     startShowTimer();
   }, [trigger, startShowTimer]);
 
   const handleTriggerBlur = useCallback(() => {
-    if (trigger !== 'focus') return;
+    if (trigger !== 'focus') {
+      return;
+    }
     startHideTimer();
   }, [trigger, startHideTimer]);
 
   const handleClick = useCallback(
     (_e: React.MouseEvent) => {
-      if (trigger !== 'click') return;
+      if (trigger !== 'click') {
+        return;
+      }
       setOpen(!isOpen);
     },
     [trigger, isOpen, setOpen]
@@ -229,7 +245,9 @@ export function useTooltip(options: UseTooltipOptions = {}): UseTooltipReturn {
 
   useEffect(() => {
     const triggerEl = triggerElRef.current;
-    if (!triggerEl) return;
+    if (!triggerEl) {
+      return;
+    }
 
     const instanceListeners: {
       target: EventTarget;

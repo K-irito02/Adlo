@@ -80,7 +80,9 @@ function hydrateTerminalDefaults(
   get: () => StoreState,
   set: (partial: Partial<StoreState>) => void
 ): void {
-  if (_defaultsHydrated) return;
+  if (_defaultsHydrated) {
+    return;
+  }
   _defaultsHydrated = true;
   const doHydrate = () => {
     const profile = readJson<TerminalProfile>(TERMINAL_DEFAULT_PROFILE_KEY, 'powershell');
@@ -268,7 +270,9 @@ export const createTerminalSlice = (
 
     terminalReorderTabs: (newOrder) =>
       set((state) => {
-        if (state.terminalTabs === newOrder) return state;
+        if (state.terminalTabs === newOrder) {
+          return state;
+        }
 
         const pinnedTabs = newOrder.filter((t) => t.isPinned);
         const unpinnedTabs = newOrder.filter((t) => !t.isPinned);

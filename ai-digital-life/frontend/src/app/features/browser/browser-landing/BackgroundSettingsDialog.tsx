@@ -37,7 +37,9 @@ export function BackgroundSettingsDialog({ open, t, onClose }: BackgroundSetting
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.currentTarget.files?.[0];
-    if (!file) return;
+    if (!file) {
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -70,19 +72,25 @@ export function BackgroundSettingsDialog({ open, t, onClose }: BackgroundSetting
 
   const handleBackdrop = useCallback(
     (e: React.MouseEvent) => {
-      if (e.target === e.currentTarget) onClose();
+      if (e.target === e.currentTarget) {
+        onClose();
+      }
     },
     [onClose]
   );
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') {
+        onClose();
+      }
     },
     [onClose]
   );
 
-  if (!open) return null;
+  if (!open) {
+    return null;
+  }
 
   const isCustomMode = mode === 'image' || mode === 'video';
 
@@ -180,7 +188,9 @@ export function BackgroundSettingsDialog({ open, t, onClose }: BackgroundSetting
                   role="button"
                   tabIndex={0}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleDropZoneClick();
+                    if (e.key === 'Enter') {
+                      handleDropZoneClick();
+                    }
                   }}
                 >
                   <div className="adl-bg-settings__upload-icon">📁</div>

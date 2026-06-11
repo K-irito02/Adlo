@@ -72,7 +72,9 @@ export function App() {
 
   const handleOpenFolder = useCallback(() => {
     void actions.pickWorkspaceDirectory().then((picked) => {
-      if (picked) void actions.openWorkspace(picked);
+      if (picked) {
+        void actions.openWorkspace(picked);
+      }
     });
   }, [actions]);
 
@@ -157,7 +159,9 @@ export function App() {
           await actions.createSession();
           if (name) {
             const currentId = useAppStore.getState().activeSessionId;
-            if (currentId) await actions.renameSession(currentId, name);
+            if (currentId) {
+              await actions.renameSession(currentId, name);
+            }
           }
           setNewSessionDialogOpen(false);
         }}

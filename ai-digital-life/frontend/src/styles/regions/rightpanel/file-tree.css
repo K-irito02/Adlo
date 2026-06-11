@@ -184,6 +184,21 @@
   z-index: 1;
 }
 
+.adl-outline-tree__item .adl-outline-tree__label {
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--text-primary);
+}
+
+.adl-outline-tree__item[data-depth='1'] .adl-outline-tree__label {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.adl-outline-tree__item[data-depth='2'] .adl-outline-tree__label {
+  font-weight: 550;
+}
+
 .adl-tree-node__label-content,
 .adl-filetree__node-main,
 .adl-tool-list__title {
@@ -321,6 +336,36 @@
   gap: 2px;
   color: var(--warning);
   padding-right: 0;
+}
+
+.adl-outline-tree__meta {
+  color: var(--warning);
+  font-size: 10.5px;
+  font-family: var(--font-mono);
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0;
+  pointer-events: none;
+  padding: 2px 0 2px 8px;
+  background: var(--bg);
+  box-shadow: var(--shadow-panel-sm);
+  transition: opacity 0.12s ease;
+  z-index: 2;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  line-height: 1;
+}
+
+.adl-outline-tree__meta-dot {
+  margin-inline: 2px;
+}
+
+.adl-outline-tree__item.is-hovered > .adl-outline-tree__row .adl-outline-tree__meta {
+  opacity: 0.82;
 }
 
 .adl-tree-node__count,

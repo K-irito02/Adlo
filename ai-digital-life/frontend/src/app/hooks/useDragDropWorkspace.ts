@@ -5,7 +5,9 @@ export function useDragDropWorkspace(actions: {
   openWorkspace: (path: string) => Promise<{ ok: boolean; error?: string }>;
 }) {
   useEffect(() => {
-    if (!isTauriShell()) return;
+    if (!isTauriShell()) {
+      return;
+    }
     let unlisten: undefined | (() => void);
 
     void (async () => {
@@ -21,7 +23,9 @@ export function useDragDropWorkspace(actions: {
             (pl?.type as string | undefined) ??
             (pl?.event as string | undefined) ??
             (pl?.kind as string | undefined);
-          if (type !== 'drop') return;
+          if (type !== 'drop') {
+            return;
+          }
           const paths: string[] =
             (pl?.paths as string[] | undefined) ??
             ((pl?.data as Record<string, unknown> | undefined)?.paths as string[] | undefined) ??
@@ -48,7 +52,9 @@ export function useDragDropWorkspace(actions: {
   }, [actions, actions.openWorkspace]);
 
   useEffect(() => {
-    if (isTauriShell()) return;
+    if (isTauriShell()) {
+      return;
+    }
 
     const handleDragOver = (event: DragEvent) => {
       event.preventDefault();
@@ -59,9 +65,13 @@ export function useDragDropWorkspace(actions: {
 
     const handleDrop = (event: DragEvent) => {
       event.preventDefault();
-      if (!event.dataTransfer) return;
+      if (!event.dataTransfer) {
+        return;
+      }
       const items = event.dataTransfer.items;
-      if (!items || items.length === 0) return;
+      if (!items || items.length === 0) {
+        return;
+      }
       for (let i = 0; i < items.length; i++) {
         const entry = items[i].webkitGetAsEntry?.();
         if (entry && entry.isDirectory) {

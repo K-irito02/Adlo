@@ -40,7 +40,9 @@ function stepTypeLabel(t: CopyDict, type: AgentStepType): string {
 }
 
 function riskClass(level?: RiskLevel): string {
-  if (!level) return '';
+  if (!level) {
+    return '';
+  }
   return ` adl-plan-card__risk--${level}`;
 }
 

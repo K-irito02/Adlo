@@ -37,7 +37,9 @@ export const BrowserContextMenu = React.memo(function BrowserContextMenu({
   onCut,
   t: _t,
 }: BrowserContextMenuProps) {
-  if (!contextMenu.open) return null;
+  if (!contextMenu.open) {
+    return null;
+  }
 
   return createPortal(
     <div

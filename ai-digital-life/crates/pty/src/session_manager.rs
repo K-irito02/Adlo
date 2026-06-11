@@ -53,7 +53,7 @@ impl SessionManager {
                     Ok(n) => {
                         let data = String::from_utf8_lossy(&buf[..n]).to_string();
                         emitter.emit_output(&sid, &data);
-                    }
+                    },
                     Err(_) => break,
                 }
             }

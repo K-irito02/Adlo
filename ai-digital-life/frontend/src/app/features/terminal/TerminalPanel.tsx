@@ -135,7 +135,9 @@ export function TerminalPanel(props: TerminalPanelProps) {
   const handleHideTerminalWorkspace = useCallback(
     (workspaceId: string) => {
       const ws = recentWorkspaces.find((r) => r.id === workspaceId);
-      if (ws) hideWorkspaceFromRightPanels(workspaceId);
+      if (ws) {
+        hideWorkspaceFromRightPanels(workspaceId);
+      }
     },
     [recentWorkspaces, hideWorkspaceFromRightPanels]
   );

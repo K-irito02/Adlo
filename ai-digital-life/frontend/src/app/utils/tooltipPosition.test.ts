@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { computePosition, Placement, Alignment } from "./tooltipPosition";
+import { computePosition, type Alignment } from "./tooltipPosition";
 
 function createMockDOMRect(overrides: Partial<DOMRect> = {}): DOMRect {
   return {

@@ -235,17 +235,25 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
   );
 
   useEffect(() => {
-    if (!menuOpen) return;
+    if (!menuOpen) {
+      return;
+    }
     const handler = (e: MouseEvent) => {
       const target = e.target as Node;
       const menuEl = document.querySelector(`[data-menu-id="${menuId}"]`);
       const btn = entryBtnRef.current['more'];
-      if (btn?.contains(target)) return;
-      if (menuEl?.contains(target)) return;
+      if (btn?.contains(target)) {
+        return;
+      }
+      if (menuEl?.contains(target)) {
+        return;
+      }
       setMenuOpen(false);
     };
     const escHandler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setMenuOpen(false);
+      if (e.key === 'Escape') {
+        setMenuOpen(false);
+      }
     };
     window.addEventListener('mousedown', handler);
     window.addEventListener('keydown', escHandler);
@@ -256,11 +264,15 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
   }, [menuOpen, menuId]);
 
   useEffect(() => {
-    if (!childMenuState) return;
+    if (!childMenuState) {
+      return;
+    }
     const handler = (e: MouseEvent) => {
       const target = e.target as Node;
       const menuEl = document.querySelector(`[data-menu-id="browser-child-menu"]`);
-      if (menuEl?.contains(target)) return;
+      if (menuEl?.contains(target)) {
+        return;
+      }
       setChildMenuState(null);
     };
     window.addEventListener('mousedown', handler);
@@ -301,7 +313,9 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
   const renderChildMeta = useCallback(
     (childNode: BrowserTreeNode) => {
       const btns = getChildNodeHoverButtons(childNode.nodeType, categoryType);
-      if (btns.length === 0) return null;
+      if (btns.length === 0) {
+        return null;
+      }
       return (
         <span className="adl-browser-node__actions">
           {btns.map((btn) => (
@@ -382,7 +396,9 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
 
   const handleNameKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter') onSelectTreePath(node.path);
+      if (e.key === 'Enter') {
+        onSelectTreePath(node.path);
+      }
     },
     [onSelectTreePath, node.path]
   );

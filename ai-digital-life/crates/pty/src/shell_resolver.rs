@@ -192,7 +192,7 @@ impl ShellResolver {
         let (prog_name, args) = match kind {
             ShellKind::PowerShell => {
                 ("powershell.exe", vec!["-NoLogo".to_string(), "-NoProfile".to_string()])
-            }
+            },
             ShellKind::Cmd => ("cmd.exe", vec!["/q".to_string()]),
             ShellKind::Bash => {
                 let sys_root = std::env::var("SystemRoot").unwrap_or_else(|_| "C:\\Windows".into());
@@ -203,7 +203,7 @@ impl ShellResolver {
                 } else {
                     ("bash.exe", vec!["-l".to_string()])
                 }
-            }
+            },
         };
         tracing::debug!(
             shell = %shell,

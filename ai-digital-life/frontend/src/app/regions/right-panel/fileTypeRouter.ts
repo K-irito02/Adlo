@@ -86,7 +86,9 @@ const BINARY_EXTENSIONS = new Set([
 ]);
 
 export function categorizeFile(filePath: string | undefined): FileCategory {
-  if (!filePath) return 'text';
+  if (!filePath) {
+    return 'text';
+  }
   const segments = filePath.split('/');
   const fileName = segments[segments.length - 1] ?? '';
   const dotIndex = fileName.lastIndexOf('.');
@@ -97,15 +99,26 @@ export function categorizeFile(filePath: string | undefined): FileCategory {
       lowerName === 'makefile' ||
       lowerName === 'license' ||
       lowerName === '.gitignore'
-    )
+    ) {
       return 'code';
+    }
     return 'text';
   }
   const ext = fileName.slice(dotIndex + 1).toLowerCase();
-  if (MARKDOWN_EXTENSIONS.has(ext)) return 'markdown';
-  if (ext === 'docx' || ext === 'doc') return 'docx';
-  if (ext === 'pdf') return 'pdf';
-  if (CODE_EXTENSIONS.has(ext)) return 'code';
-  if (BINARY_EXTENSIONS.has(ext)) return 'binary';
+  if (MARKDOWN_EXTENSIONS.has(ext)) {
+    return 'markdown';
+  }
+  if (ext === 'docx' || ext === 'doc') {
+    return 'docx';
+  }
+  if (ext === 'pdf') {
+    return 'pdf';
+  }
+  if (CODE_EXTENSIONS.has(ext)) {
+    return 'code';
+  }
+  if (BINARY_EXTENSIONS.has(ext)) {
+    return 'binary';
+  }
   return 'text';
 }

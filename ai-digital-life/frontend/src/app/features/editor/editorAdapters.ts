@@ -60,7 +60,9 @@ export class CodeMirrorEditorRef implements EditorRef {
 
   getSelection(): EditorSelectionType | null {
     const sel = this.view.state.selection.main;
-    if (!sel) return null;
+    if (!sel) {
+      return null;
+    }
     const start = offsetToLineCol(this.view.state.doc, sel.from);
     const end = offsetToLineCol(this.view.state.doc, sel.to);
     return {

@@ -41,12 +41,16 @@ export function AuditPanel({ t, entries }: AuditPanelProps) {
   const [filter, setFilter] = useState<AuditFilter>('all');
 
   const filtered = useMemo(() => {
-    if (filter === 'all') return entries;
+    if (filter === 'all') {
+      return entries;
+    }
     return entries.filter((e) => {
-      if (filter === 'file-write')
+      if (filter === 'file-write') {
         return e.operationType === 'file-write' || e.operationType === 'file-delete';
-      if (filter === 'patch-apply')
+      }
+      if (filter === 'patch-apply') {
         return e.operationType === 'patch-apply' || e.operationType === 'patch-rollback';
+      }
       return e.operationType === filter;
     });
   }, [entries, filter]);

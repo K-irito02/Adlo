@@ -25,7 +25,9 @@ export function useNavigatorResize({
       target.setPointerCapture(event.pointerId);
 
       const navigator = target.closest<HTMLElement>('.adl-tool-navigator');
-      if (!navigator) return;
+      if (!navigator) {
+        return;
+      }
 
       const startX = event.clientX;
       const startWidth = navigator.offsetWidth;
@@ -33,7 +35,9 @@ export function useNavigatorResize({
       body.classList.add('adl-is-resizing');
 
       const handleMove = (moveEvent: PointerEvent) => {
-        if (rafRef.current) return;
+        if (rafRef.current) {
+          return;
+        }
         rafRef.current = window.requestAnimationFrame(() => {
           rafRef.current = 0;
           const delta = moveEvent.clientX - startX;

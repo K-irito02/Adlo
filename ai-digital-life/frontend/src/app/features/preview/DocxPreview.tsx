@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import mammoth from 'mammoth';
 
-export type DocxPreviewProps = {
+export interface DocxPreviewProps {
   data: ArrayBuffer;
   theme?: 'light' | 'dark';
-};
+}
 
 export function DocxPreview({ data, theme = 'dark' }: DocxPreviewProps) {
   const [html, setHtml] = useState<string>('');

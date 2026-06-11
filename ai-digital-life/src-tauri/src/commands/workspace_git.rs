@@ -57,7 +57,7 @@ pub fn workspace_get_git_status(
                     PathBuf::from(&workspace.root_path).as_path(),
                 ))
             }));
-        }
+        },
     };
     let snapshot = adl_workspace::capture_git_snapshot(path.as_path());
     ipc(Ok(snapshot))

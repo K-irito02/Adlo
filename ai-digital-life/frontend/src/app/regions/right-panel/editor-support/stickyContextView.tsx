@@ -5,11 +5,11 @@ import type { CopyDict } from '../../../i18n';
 
 const AUTO_HIDE_MS = 2000;
 
-type StickyContextProps = {
+interface StickyContextProps {
   model: StickyContextModel;
   'data-testid'?: string;
   t: CopyDict;
-};
+}
 
 export function StickyContext(props: StickyContextProps) {
   const [isVisible, setIsVisible] = useState(true);

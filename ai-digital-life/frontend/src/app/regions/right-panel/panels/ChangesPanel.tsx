@@ -106,7 +106,9 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
     [patchSummaries, snapshot]
   );
   const filteredChangeEntries = useMemo(() => {
-    if (changesStatusFilter.size === 0 || changesStatusFilter.size === 3) return changeEntries;
+    if (changesStatusFilter.size === 0 || changesStatusFilter.size === 3) {
+      return changeEntries;
+    }
     return changeEntries.filter((entry) =>
       entry.states.some((state) => changesStatusFilter.has(state))
     );
@@ -188,7 +190,9 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
 
   const getModifiedEditor = useCallback((): EditorRef | null => {
     const ref = editorRef.current;
-    if (!ref) return null;
+    if (!ref) {
+      return null;
+    }
     if ('getModifiedEditor' in ref) {
       return (ref as DiffEditorRef).getModifiedEditor();
     }
@@ -213,7 +217,9 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
         if (lineCount >= minSize && collapseFrom <= targetLine && targetLine <= collapseTo) {
           return view.state.doc.line(collapseFrom).from;
         }
-        if (!chunk) break;
+        if (!chunk) {
+          break;
+        }
         prevLine = view.state.doc.lineAt(Math.min(view.state.doc.length, chunk.toB)).number;
       }
       return null;
@@ -341,7 +347,9 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
 
   const handleChangesRenameConfirm = useCallback(
     async (newName: string) => {
-      if (!changesRenamingPath) return;
+      if (!changesRenamingPath) {
+        return;
+      }
       const path = changesRenamingPath;
       setChangesRenamingPath(null);
       setChangesRenameDialogOpen(false);
@@ -358,7 +366,9 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
   }, []);
 
   const handleChangesDeleteConfirm = useCallback(async () => {
-    if (!changesDeleteConfirmPath) return;
+    if (!changesDeleteConfirmPath) {
+      return;
+    }
     const path = changesDeleteConfirmPath;
     setChangesDeleteConfirmPath(null);
     changesClearMenuHighlightRef.current?.();
@@ -396,7 +406,9 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
             const store = useAppStore.getState();
             const appInfo = store.appInfo;
             const rootPath = appInfo?.currentWorkspace?.rootPath ?? appInfo?.currentWorkspace?.path;
-            if (!rootPath) return;
+            if (!rootPath) {
+              return;
+            }
             const fullPath = joinPathSegments(rootPath, targetNode.path);
             await window.digitalLife.workspace.revealInFileManager(fullPath);
           },
@@ -410,7 +422,9 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
             const store = useAppStore.getState();
             const appInfo = store.appInfo;
             const rootPath = appInfo?.currentWorkspace?.rootPath ?? appInfo?.currentWorkspace?.path;
-            if (!rootPath) return;
+            if (!rootPath) {
+              return;
+            }
             const fullPath = joinPathSegments(rootPath, targetNode.path);
             await copyToClipboard(fullPath);
           },
@@ -448,7 +462,9 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
           action: async (targetNode) => {
             const sourcePath = store.clipboardSourcePath;
             const operation = store.clipboardOperation;
-            if (!sourcePath || !operation) return;
+            if (!sourcePath || !operation) {
+              return;
+            }
             const targetDir =
               targetNode.kind === 'directory'
                 ? targetNode.path

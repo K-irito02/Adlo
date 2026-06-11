@@ -13,7 +13,9 @@ import type { AppInfo } from '@ai-digital-life/kernel';
 export function loadRecentWorkspaces(): RecentWorkspaceEntry[] {
   try {
     const raw = window.localStorage.getItem(PREVIEW_RECENT_STORAGE_KEY);
-    if (!raw) return [];
+    if (!raw) {
+      return [];
+    }
     const parsed = JSON.parse(raw) as RecentWorkspaceEntry[];
     return Array.isArray(parsed) ? parsed : [];
   } catch {
@@ -49,7 +51,9 @@ export function updateRecentWorkspaces(
 export function loadPreviewPreferences(): Partial<PreviewPreferenceState> {
   try {
     const raw = window.localStorage.getItem(PREVIEW_PREFERENCES_STORAGE_KEY);
-    if (!raw) return {};
+    if (!raw) {
+      return {};
+    }
     const parsed = JSON.parse(raw) as Partial<PreviewPreferenceState>;
     return parsed && typeof parsed === 'object' ? parsed : {};
   } catch {

@@ -120,7 +120,9 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
 
   const setPreviewEnabled = useCallback(
     (enabled: boolean) => {
-      if (!selectedFilePath) return;
+      if (!selectedFilePath) {
+        return;
+      }
       setFilePreviewModeForPath(selectedFilePath, enabled);
     },
     [selectedFilePath, setFilePreviewModeForPath]
@@ -128,17 +130,23 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
 
   const selectedAbsolutePath = useMemo(() => {
     const rootPath = appInfo?.currentWorkspace?.rootPath ?? appInfo?.currentWorkspace?.path;
-    if (!rootPath || !selectedFilePath) return undefined;
+    if (!rootPath || !selectedFilePath) {
+      return undefined;
+    }
     return joinPathSegments(rootPath, selectedFilePath);
   }, [appInfo?.currentWorkspace?.path, appInfo?.currentWorkspace?.rootPath, selectedFilePath]);
 
   const activeFilePatch = useMemo(() => {
-    if (!activePatchSet || !selectedPatchFilePath) return undefined;
+    if (!activePatchSet || !selectedPatchFilePath) {
+      return undefined;
+    }
     return activePatchSet.filePatches.find((c) => c.relativePath === selectedPatchFilePath);
   }, [activePatchSet, selectedPatchFilePath]);
 
   const handleCopyPath = useCallback(async (value?: string) => {
-    if (!value) return;
+    if (!value) {
+      return;
+    }
     try {
       await navigator.clipboard.writeText(value);
     } catch {}

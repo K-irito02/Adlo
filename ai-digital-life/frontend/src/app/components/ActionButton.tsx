@@ -63,9 +63,15 @@ const APPEARANCE_MAP: Record<
 type AppearanceKey = keyof typeof APPEARANCE_MAP;
 
 function getAppearanceKey(state: ActionButtonProps['state'], hasContent: boolean): AppearanceKey {
-  if (state === 'idle') return hasContent ? 'idle-ready' : 'idle-empty';
-  if (state === 'generating') return 'generating';
-  if (state === 'error') return 'error';
+  if (state === 'idle') {
+    return hasContent ? 'idle-ready' : 'idle-empty';
+  }
+  if (state === 'generating') {
+    return 'generating';
+  }
+  if (state === 'error') {
+    return 'error';
+  }
   return 'waiting';
 }
 

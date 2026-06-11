@@ -151,10 +151,14 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
     onCreateWorkspaceFile,
     onCreateWorkspaceFolder,
     expandFileTreePathChain: (path: string) => {
-      if (activeWorkspaceId) expandFileTreePathChain(activeWorkspaceId, path);
+      if (activeWorkspaceId) {
+        expandFileTreePathChain(activeWorkspaceId, path);
+      }
     },
     setFileTreePathExpanded: (path: string, expanded: boolean) => {
-      if (activeWorkspaceId) setFileTreePathExpanded(activeWorkspaceId, path, expanded);
+      if (activeWorkspaceId) {
+        setFileTreePathExpanded(activeWorkspaceId, path, expanded);
+      }
     },
   });
 
@@ -205,7 +209,9 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
   }, [expandFileTreePathChain, selectedFilePath, activeWorkspaceId]);
 
   const handleToggleAllOutlineItems = () => {
-    if (!hasExpandableOutlineItems) return;
+    if (!hasExpandableOutlineItems) {
+      return;
+    }
     setExpandedOutlineIds(hasExpandedOutlineItems ? new Set() : new Set(defaultExpandedOutlineIds));
   };
 
@@ -263,7 +269,9 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
             const store = useAppStore.getState();
             const rootPath =
               store.appInfo?.currentWorkspace?.rootPath ?? store.appInfo?.currentWorkspace?.path;
-            if (!rootPath) return;
+            if (!rootPath) {
+              return;
+            }
             const fullPath = joinPathSegments(rootPath, targetNode.path);
             await window.digitalLife.workspace.revealInFileManager(fullPath);
           },
@@ -277,7 +285,9 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
             const store = useAppStore.getState();
             const rootPath =
               store.appInfo?.currentWorkspace?.rootPath ?? store.appInfo?.currentWorkspace?.path;
-            if (!rootPath) return;
+            if (!rootPath) {
+              return;
+            }
             const fullPath = joinPathSegments(rootPath, targetNode.path);
             await copyToClipboard(fullPath);
           },
@@ -315,7 +325,9 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
           action: async (targetNode) => {
             const sourcePath = store.clipboardSourcePath;
             const operation = store.clipboardOperation;
-            if (!sourcePath || !operation) return;
+            if (!sourcePath || !operation) {
+              return;
+            }
             const targetDir =
               targetNode.kind === 'directory'
                 ? targetNode.path
@@ -362,7 +374,9 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
 
   const handleRenameConfirm = useCallback(
     async (newName: string) => {
-      if (!renamingPath) return;
+      if (!renamingPath) {
+        return;
+      }
       const path = renamingPath;
       setRenamingPath(null);
       setRenameDialogOpen(false);
@@ -379,7 +393,9 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
   }, []);
 
   const handleDeleteConfirm = useCallback(async () => {
-    if (!deleteConfirmPath) return;
+    if (!deleteConfirmPath) {
+      return;
+    }
     const path = deleteConfirmPath;
     setDeleteConfirmPath(null);
     clearMenuHighlightRef.current?.();
@@ -491,13 +507,16 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
           createInputRef={fileCreation.createInputRef}
           isValidPath={(value) => {
             const trimmed = value.trim();
-            if (!trimmed) return false;
+            if (!trimmed) {
+              return false;
+            }
             if (
               /^[A-Za-z]:[\\/]/.test(trimmed) ||
               trimmed.startsWith('/') ||
               trimmed.startsWith('\\')
-            )
+            ) {
               return false;
+            }
             return true;
           }}
           onPathChange={fileCreation.setCreatePathValue}

@@ -88,7 +88,7 @@ describe("stickyContext helpers", () => {
 describe("sticky context panel wiring", () => {
   const editorSurfaceShellSource = readFileSync(new URL("./EditorSurfaceShell.tsx", import.meta.url), "utf8");
   const useStickyContextSource = readFileSync(new URL("./hooks/useStickyContext.ts", import.meta.url), "utf8");
-  const changesPanelSource = readFileSync(new URL("./panels/ChangesPanel.tsx", import.meta.url), "utf8");
+  const _changesPanelSource = readFileSync(new URL("./panels/ChangesPanel.tsx", import.meta.url), "utf8");
 
   it("renders sticky context above the files editor surface in both editor modes", () => {
     expect(editorSurfaceShellSource).toContain("StickyContext");

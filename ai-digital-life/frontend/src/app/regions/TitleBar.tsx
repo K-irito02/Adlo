@@ -82,7 +82,9 @@ function MenuDropdown({
   const wrapperRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      return;
+    }
     const handler = (event: MouseEvent) => {
       if (!wrapperRef.current?.contains(event.target as Node)) {
         onClose();
@@ -177,12 +179,16 @@ const TitleBar = React.memo(function TitleBar({
   const nextLanguage = language === 'zh-CN' ? 'en-US' : 'zh-CN';
 
   useEffect(() => {
-    if (!isTauriShell()) return;
+    if (!isTauriShell()) {
+      return;
+    }
     let cancelled = false;
     const syncMaximized = async () => {
       try {
         const next = await window.digitalLife.window.isMaximized();
-        if (!cancelled) setIsMaximized(next);
+        if (!cancelled) {
+          setIsMaximized(next);
+        }
       } catch {
         /* ignore */
       }
@@ -196,11 +202,15 @@ const TitleBar = React.memo(function TitleBar({
   }, []);
 
   const handleMinimize = useCallback(() => {
-    if (!isTauriShell()) return;
+    if (!isTauriShell()) {
+      return;
+    }
     void window.digitalLife.window.minimize();
   }, []);
   const handleMaximize = useCallback(async () => {
-    if (!isTauriShell()) return;
+    if (!isTauriShell()) {
+      return;
+    }
     await window.digitalLife.window.maximize();
     try {
       setIsMaximized(await window.digitalLife.window.isMaximized());
@@ -209,7 +219,9 @@ const TitleBar = React.memo(function TitleBar({
     }
   }, []);
   const handleClose = useCallback(() => {
-    if (!isTauriShell()) return;
+    if (!isTauriShell()) {
+      return;
+    }
     void window.digitalLife.window.close();
   }, []);
 

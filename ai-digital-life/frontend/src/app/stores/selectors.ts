@@ -56,13 +56,17 @@ export const sessionSelectors = {
 
   getActiveSession: (state: StoreState) => {
     const activeId = state.activeSessionId;
-    if (!activeId) return undefined;
+    if (!activeId) {
+      return undefined;
+    }
     return state.sessionDetails[activeId];
   },
   useActiveSession: () =>
     useAppStore(
       useShallow((s) => {
-        if (!s.activeSessionId) return undefined;
+        if (!s.activeSessionId) {
+          return undefined;
+        }
         return s.sessionDetails[s.activeSessionId];
       })
     ),
@@ -263,13 +267,17 @@ export const combinedSelectors = {
     ),
 
   getCurrentFileTab: (state: StoreState) => {
-    if (!state.selectedFilePath) return undefined;
+    if (!state.selectedFilePath) {
+      return undefined;
+    }
     return state.openTabs.find((tab) => tab.path === state.selectedFilePath);
   },
   useCurrentFileTab: () =>
     useAppStore(
       useShallow((s) => {
-        if (!s.selectedFilePath) return undefined;
+        if (!s.selectedFilePath) {
+          return undefined;
+        }
         return s.openTabs.find((tab) => tab.path === s.selectedFilePath);
       })
     ),

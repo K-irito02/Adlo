@@ -43,9 +43,15 @@ export function usePatchReview(setPendingReveal: (path: string, line: number) =>
   );
 
   useEffect(() => {
-    if (!activePatchSet) return;
-    if (rightCollapsed) return;
-    if (activeRightTool === 'changes') return;
+    if (!activePatchSet) {
+      return;
+    }
+    if (rightCollapsed) {
+      return;
+    }
+    if (activeRightTool === 'changes') {
+      return;
+    }
     setActiveRightTool('changes');
   }, [activePatchSet, activeRightTool, rightCollapsed, setActiveRightTool]);
 
@@ -93,7 +99,9 @@ export function usePatchReview(setPendingReveal: (path: string, line: number) =>
   }, [activePatchSet, selectedFilePath, selectedPatchFilePath]);
 
   useEffect(() => {
-    if (!activePatchSet || !selectedFilePath) return;
+    if (!activePatchSet || !selectedFilePath) {
+      return;
+    }
     if (
       activePatchSet.filePatches.some(
         (filePatchItem) => filePatchItem.relativePath === selectedFilePath
@@ -158,7 +166,9 @@ export function usePatchReview(setPendingReveal: (path: string, line: number) =>
   const handleJumpPatchHunk = useCallback(
     (direction: PatchDirection) => {
       const nextHunk = getAdjacentPatchHunk(activePatchSet, selectedPatchHunkId, direction);
-      if (!nextHunk) return;
+      if (!nextHunk) {
+        return;
+      }
       handleSelectPatchHunk(nextHunk.relativePath, nextHunk.id, getPatchHunkTargetLine(nextHunk), {
         activateTool: true,
       });

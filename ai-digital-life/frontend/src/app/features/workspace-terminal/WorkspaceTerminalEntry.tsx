@@ -102,19 +102,29 @@ export const WorkspaceTerminalEntry = React.memo(function WorkspaceTerminalEntry
   const defaultProfileLabel = profileLabels[currentProfile];
 
   useEffect(() => {
-    if (!menuOpen) return;
+    if (!menuOpen) {
+      return;
+    }
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as Node;
       const menuEl = document.querySelector(`[data-menu-id="${menuId}"]`);
       const subMenuEl = document.querySelector(`[data-menu-id="${subMenuId}"]`);
       const zone = document.querySelector(`[data-menu-zone-id="${menuId}"]`);
-      if (zone?.contains(target)) return;
-      if (menuEl?.contains(target)) return;
-      if (subMenuEl?.contains(target)) return;
+      if (zone?.contains(target)) {
+        return;
+      }
+      if (menuEl?.contains(target)) {
+        return;
+      }
+      if (subMenuEl?.contains(target)) {
+        return;
+      }
       setMenuOpen(false);
     };
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setMenuOpen(false);
+      if (e.key === 'Escape') {
+        setMenuOpen(false);
+      }
     };
     const handleScroll = () => {
       setMenuOpen(false);
@@ -153,14 +163,18 @@ export const WorkspaceTerminalEntry = React.memo(function WorkspaceTerminalEntry
   }, []);
 
   const hideSubMenuDelayed = useCallback(() => {
-    if (subHideTimerRef.current) clearTimeout(subHideTimerRef.current);
+    if (subHideTimerRef.current) {
+      clearTimeout(subHideTimerRef.current);
+    }
     subHideTimerRef.current = setTimeout(() => {
       setSubHover(false);
     }, 150);
   }, []);
 
   const closeMenu = useCallback(() => {
-    if (subHideTimerRef.current) clearTimeout(subHideTimerRef.current);
+    if (subHideTimerRef.current) {
+      clearTimeout(subHideTimerRef.current);
+    }
     setMenuOpen(false);
     setMenuPosition(null);
     setSubHover(false);
@@ -168,7 +182,9 @@ export const WorkspaceTerminalEntry = React.memo(function WorkspaceTerminalEntry
 
   const handleMoreClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    if (subHideTimerRef.current) clearTimeout(subHideTimerRef.current);
+    if (subHideTimerRef.current) {
+      clearTimeout(subHideTimerRef.current);
+    }
     setSubHover(false);
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     setMenuPosition({ top: rect.top, left: rect.right + 4 });
@@ -196,7 +212,9 @@ export const WorkspaceTerminalEntry = React.memo(function WorkspaceTerminalEntry
 
   const handleNameKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter' || e.key === ' ') handleNameClick();
+      if (e.key === 'Enter' || e.key === ' ') {
+        handleNameClick();
+      }
     },
     [handleNameClick]
   );

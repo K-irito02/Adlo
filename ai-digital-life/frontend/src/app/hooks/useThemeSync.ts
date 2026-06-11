@@ -4,7 +4,9 @@ import { themeController } from '../utils/theme';
 
 export function useThemeSync(appInfo: AppInfo | undefined) {
   useEffect(() => {
-    if (!appInfo) return;
+    if (!appInfo) {
+      return;
+    }
     themeController.setTheme({
       mode: appInfo.config.themeMode,
       resolvedTheme: appInfo.config.resolvedTheme,

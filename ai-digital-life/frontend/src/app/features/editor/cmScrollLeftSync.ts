@@ -12,7 +12,9 @@ const HSCROLL_DOT_OFFSET_VAR = '--adl-hscroll-dot-offset';
 const THUMB_MIN_WIDTH = 40;
 
 function formatPx(value: number): string {
-  if (!Number.isFinite(value) || value <= 0) return '0px';
+  if (!Number.isFinite(value) || value <= 0) {
+    return '0px';
+  }
   return `${value}px`;
 }
 
@@ -102,7 +104,9 @@ class ScrollLeftSyncPlugin implements PluginValue {
   }
 
   private cacheDragLayout(): void {
-    if (!this.hscrollEl || !this.hscrollThumb) return;
+    if (!this.hscrollEl || !this.hscrollThumb) {
+      return;
+    }
     const scrollDOM = this.view.scrollDOM;
     const trackRect = this.hscrollEl.getBoundingClientRect();
     this.dragTrackLeft = trackRect.left;
@@ -115,8 +119,12 @@ class ScrollLeftSyncPlugin implements PluginValue {
   }
 
   private onPointerMove(e: PointerEvent): void {
-    if (!this.isDragging || !this.hscrollThumb) return;
-    if (this.dragMaxThumbLeft <= 0) return;
+    if (!this.isDragging || !this.hscrollThumb) {
+      return;
+    }
+    if (this.dragMaxThumbLeft <= 0) {
+      return;
+    }
 
     const thumbLeft = Math.max(
       0,
@@ -145,14 +153,18 @@ class ScrollLeftSyncPlugin implements PluginValue {
   }
 
   private onPointerUp(): void {
-    if (!this.isDragging) return;
+    if (!this.isDragging) {
+      return;
+    }
     this.stopEdgeScroll();
     this.endDrag();
     this.schedule();
   }
 
   private onPointerCancel(): void {
-    if (!this.isDragging) return;
+    if (!this.isDragging) {
+      return;
+    }
     this.endDrag();
   }
 
@@ -173,7 +185,9 @@ class ScrollLeftSyncPlugin implements PluginValue {
   }
 
   private onTrackPointerDown(e: PointerEvent): void {
-    if (e.target === this.hscrollThumb || !this.hscrollEl) return;
+    if (e.target === this.hscrollThumb || !this.hscrollEl) {
+      return;
+    }
     const trackRect = this.hscrollEl.getBoundingClientRect();
     const clickX = e.clientX - trackRect.left;
     const scrollDOM = this.view.scrollDOM;
@@ -187,12 +201,16 @@ class ScrollLeftSyncPlugin implements PluginValue {
   private onWheel(e: WheelEvent): void {
     const wrapper = this.view.dom.closest('.adl-cm-editor-wrapper, .adl-cm-diff-viewer-wrapper');
     const isNoWordWrap = wrapper?.classList.contains('adl-cm-no-word-wrap');
-    if (!isNoWordWrap) return;
+    if (!isNoWordWrap) {
+      return;
+    }
 
     const scrollDOM = this.view.scrollDOM;
     const contentWidth = scrollDOM.scrollWidth;
     const visibleWidth = scrollDOM.clientWidth;
-    if (contentWidth <= visibleWidth) return;
+    if (contentWidth <= visibleWidth) {
+      return;
+    }
 
     let delta = 0;
     if (e.deltaX !== 0) {
@@ -201,7 +219,9 @@ class ScrollLeftSyncPlugin implements PluginValue {
       delta = e.deltaY;
     }
 
-    if (delta === 0) return;
+    if (delta === 0) {
+      return;
+    }
 
     e.preventDefault();
     scrollDOM.scrollLeft += delta;
@@ -229,12 +249,16 @@ class ScrollLeftSyncPlugin implements PluginValue {
   private edgeScrollSpeed: number = 0;
 
   private onScrollDOMPointerMove(e: PointerEvent): void {
-    if (document.querySelector('.adl-cm-diff-resizer--dragging')) return;
+    if (document.querySelector('.adl-cm-diff-resizer--dragging')) {
+      return;
+    }
     if (!(e.buttons & 1)) {
       this.stopEdgeScroll();
       return;
     }
-    if (this.isDragging) return;
+    if (this.isDragging) {
+      return;
+    }
 
     const scrollDOM = this.view.scrollDOM;
     const scrollerRect = scrollDOM.getBoundingClientRect();
@@ -255,7 +279,9 @@ class ScrollLeftSyncPlugin implements PluginValue {
   }
 
   private startEdgeScroll(): void {
-    if (this.edgeScrollRafId !== null) return;
+    if (this.edgeScrollRafId !== null) {
+      return;
+    }
     this.edgeScrollRafId = requestAnimationFrame(this.tickEdgeScroll);
   }
 
@@ -351,7 +377,9 @@ class ScrollLeftSyncPlugin implements PluginValue {
   }
 
   private updateCustomScrollbar(): void {
-    if (!this.hscrollEl || !this.hscrollThumb) return;
+    if (!this.hscrollEl || !this.hscrollThumb) {
+      return;
+    }
 
     const scrollDOM = this.view.scrollDOM;
 
@@ -379,7 +407,9 @@ class ScrollLeftSyncPlugin implements PluginValue {
     this.hscrollEl.style.right = `${scrollbarWidth}px`;
 
     const trackWidth = this.hscrollEl.offsetWidth;
-    if (trackWidth <= 0) return;
+    if (trackWidth <= 0) {
+      return;
+    }
 
     const maxScrollLeft = Math.max(0, scrollWidth - visibleWidth);
     const thumbWidth = Math.max(THUMB_MIN_WIDTH, (visibleWidth / scrollWidth) * trackWidth);
@@ -440,12 +470,16 @@ class ScrollLeftSyncPlugin implements PluginValue {
   }
 
   private handleScroll = (): void => {
-    if (this.isDragging) return;
+    if (this.isDragging) {
+      return;
+    }
     this.schedule();
   };
 
   private setupResizeObserver(): void {
-    if (typeof ResizeObserver === 'undefined') return;
+    if (typeof ResizeObserver === 'undefined') {
+      return;
+    }
     this.resizeObserver = new ResizeObserver(() => {
       this.setChunkButtonsVisibility(false);
       this.resetResizeDebounce();
@@ -459,7 +493,9 @@ class ScrollLeftSyncPlugin implements PluginValue {
       clearTimeout(this.resizeDebounceTimer);
     }
     this.resizeDebounceTimer = setTimeout(() => {
-      if (this.isDragging || this.isPointerDown) return;
+      if (this.isDragging || this.isPointerDown) {
+        return;
+      }
       this.resizeDebounceTimer = null;
       const scrollDOM = this.view.scrollDOM;
       const scrollerStyle = getComputedStyle(scrollDOM);
@@ -469,7 +505,9 @@ class ScrollLeftSyncPlugin implements PluginValue {
   }
 
   private schedule(): void {
-    if (this.frame) return;
+    if (this.frame) {
+      return;
+    }
     this.frame = requestAnimationFrame(() => {
       this.frame = 0;
       this.sync();
@@ -565,7 +603,9 @@ class ScrollLeftSyncPlugin implements PluginValue {
 
     for (const btn of buttons) {
       const chunk = btn.parentElement;
-      if (!chunk) continue;
+      if (!chunk) {
+        continue;
+      }
       activeChunks.add(btn);
 
       const btnEl = btn as HTMLElement;
@@ -576,7 +616,9 @@ class ScrollLeftSyncPlugin implements PluginValue {
 
       const offsetKey = `${offset}px`;
 
-      if (this.lastChunkPositions.get(btn) === offsetKey) continue;
+      if (this.lastChunkPositions.get(btn) === offsetKey) {
+        continue;
+      }
       this.lastChunkPositions.set(btn, offsetKey);
 
       const btnHeight = btnEl.offsetHeight;

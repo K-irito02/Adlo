@@ -90,7 +90,7 @@ impl PtySession {
         match io.reader.as_mut() {
             Some(r) => {
                 r.read(buf).map_err(|e| AppError::Terminal(format!("pty read error: {}", e)))
-            }
+            },
             None => Ok(0),
         }
     }
@@ -100,7 +100,7 @@ impl PtySession {
         match io.writer.as_mut() {
             Some(w) => {
                 w.write_all(data).map_err(|e| AppError::Terminal(format!("pty write error: {}", e)))
-            }
+            },
             None => Err(AppError::Terminal("pty writer not available".into())),
         }
     }
@@ -114,7 +114,7 @@ impl PtySession {
                 m.resize(size)
                     .map_err(|e| AppError::Terminal(format!("pty resize error: {}", e)))?;
                 Ok(())
-            }
+            },
             None => Err(AppError::Terminal("pty master not available".into())),
         }
     }
@@ -157,7 +157,7 @@ impl PtySession {
                 } else {
                     Ok(None)
                 }
-            }
+            },
             None => Ok(Some(0)),
         }
     }

@@ -29,9 +29,15 @@ type EventGroup =
   | 'other';
 
 function formatDurationMs(ms: number): string {
-  if (!Number.isFinite(ms) || ms <= 0) return '—';
-  if (ms < 1000) return `${Math.round(ms)}ms`;
-  if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;
+  if (!Number.isFinite(ms) || ms <= 0) {
+    return '—';
+  }
+  if (ms < 1000) {
+    return `${Math.round(ms)}ms`;
+  }
+  if (ms < 60_000) {
+    return `${(ms / 1000).toFixed(1)}s`;
+  }
   return `${(ms / 60_000).toFixed(1)}m`;
 }
 
@@ -126,14 +132,18 @@ export function RunSummaryBlock({
   const [filter, setFilter] = useState<EventGroup | 'all'>('all');
 
   const durationLabel = useMemo(() => {
-    if (!run) return '—';
+    if (!run) {
+      return '—';
+    }
     const started = run.run.createdAt ?? 0;
     const done = run.run.completedAt ?? run.run.updatedAt ?? 0;
     return formatDurationMs(Math.max(0, done - started));
   }, [run]);
 
   const header = useMemo(() => {
-    if (!run) return `${runId} · ${durationLabel}`;
+    if (!run) {
+      return `${runId} · ${durationLabel}`;
+    }
     const status = run.run.status;
     const scenario = run.run.scenario;
     return `${scenario} · ${status} · ${durationLabel}`;
@@ -242,7 +252,9 @@ export function RunSummaryBlock({
             <div className="adl-run-summary__groups">
               {(Object.keys(grouped) as EventGroup[]).map((groupId) => {
                 const items = grouped[groupId];
-                if (!items.length) return null;
+                if (!items.length) {
+                  return null;
+                }
                 return (
                   <section key={groupId} className="adl-run-summary__group">
                     <header className="adl-run-summary__group-header">

@@ -38,7 +38,9 @@ export function ContextBuilder({ onAddContext, activeContexts = [] }: ContextBui
   const itemRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      return;
+    }
 
     function handleClickOutside(e: MouseEvent) {
       if (
@@ -75,7 +77,9 @@ export function ContextBuilder({ onAddContext, activeContexts = [] }: ContextBui
   }, [isOpen]);
 
   const filteredItems = useMemo(() => {
-    if (!searchQuery.trim()) return CONTEXT_ITEMS;
+    if (!searchQuery.trim()) {
+      return CONTEXT_ITEMS;
+    }
     const q = searchQuery.toLowerCase();
     return CONTEXT_ITEMS.filter(
       (item) => item.label.toLowerCase().includes(q) || item.type.toLowerCase().includes(q)
@@ -85,7 +89,9 @@ export function ContextBuilder({ onAddContext, activeContexts = [] }: ContextBui
   const groupedItems = useMemo(() => {
     const groups: Record<string, ContextItem[]> = {};
     for (const item of filteredItems) {
-      if (!groups[item.section]) groups[item.section] = [];
+      if (!groups[item.section]) {
+        groups[item.section] = [];
+      }
       groups[item.section].push(item);
     }
     return groups;

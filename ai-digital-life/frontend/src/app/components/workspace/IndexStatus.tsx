@@ -34,16 +34,24 @@ function stateColorClass(state: IndexingStatus['state']): string {
 }
 
 function formatLastIndexed(t: CopyDict, timestamp?: number): string {
-  if (!timestamp) return '';
+  if (!timestamp) {
+    return '';
+  }
   const elapsed = Date.now() - timestamp;
   const minutes = Math.floor(elapsed / 60_000);
-  if (minutes < 1) return `${t.indexLastTime}: <1m`;
-  if (minutes < 60) return `${t.indexLastTime}: ${minutes}m`;
+  if (minutes < 1) {
+    return `${t.indexLastTime}: <1m`;
+  }
+  if (minutes < 60) {
+    return `${t.indexLastTime}: ${minutes}m`;
+  }
   return `${t.indexLastTime}: ${Math.floor(minutes / 60)}h`;
 }
 
 export function IndexStatusIndicator({ t, status, compact }: IndexStatusProps) {
-  if (!status) return null;
+  if (!status) {
+    return null;
+  }
 
   if (compact) {
     return (
@@ -93,7 +101,9 @@ export function IndexStatusIndicator({ t, status, compact }: IndexStatusProps) {
 }
 
 export function IndexStatusBar({ t, status, onRebuild }: IndexStatusProps) {
-  if (!status) return null;
+  if (!status) {
+    return null;
+  }
 
   const coverage =
     status.totalFiles > 0 ? Math.round((status.scannedFiles / status.totalFiles) * 100) : 0;

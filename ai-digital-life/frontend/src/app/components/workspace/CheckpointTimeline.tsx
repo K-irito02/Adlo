@@ -18,7 +18,9 @@ interface CheckpointTimelineProps {
 export function CheckpointTimeline({ t, checkpoints, onRestore }: CheckpointTimelineProps) {
   const [confirmId, setConfirmId] = useState<string | null>(null);
 
-  if (checkpoints.length === 0) return null;
+  if (checkpoints.length === 0) {
+    return null;
+  }
 
   return (
     <div className="adl-checkpoint-timeline">

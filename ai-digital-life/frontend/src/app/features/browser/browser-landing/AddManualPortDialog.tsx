@@ -53,12 +53,16 @@ export function AddManualPortDialog({ open, t, onConfirm, onCancel }: AddManualP
 
   const handleBackdrop = useCallback(
     (e: React.MouseEvent) => {
-      if (e.target === e.currentTarget) onCancel();
+      if (e.target === e.currentTarget) {
+        onCancel();
+      }
     },
     [onCancel]
   );
 
-  if (!open) return null;
+  if (!open) {
+    return null;
+  }
 
   return createPortal(
     <div className="adl-prompt-modal" onKeyDown={handleKeyDown} onClick={handleBackdrop}>
@@ -116,7 +120,9 @@ export function AddManualPortDialog({ open, t, onConfirm, onCancel }: AddManualP
               value={port}
               onChange={(e) => {
                 setPort(e.currentTarget.value);
-                if (error) setError('');
+                if (error) {
+                  setError('');
+                }
               }}
             />
           </div>

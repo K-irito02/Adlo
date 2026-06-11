@@ -2,11 +2,11 @@ import type { ChatMode, ContextChip } from '../stores/types';
 import type { Locale } from '../i18n';
 import { copy } from '../i18n';
 
-export type MessageSendOptions = {
+export interface MessageSendOptions {
   mode?: ChatMode;
   chips?: ContextChip[];
   locale?: Locale;
-};
+}
 
 /** Maps UI 规划/问答/调试 to backend `ConversationScenario`. */
 export function chatModeToScenario(mode: ChatMode): 'chat' | 'plan' | 'code-edit' {

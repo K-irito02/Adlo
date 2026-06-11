@@ -4,14 +4,14 @@ import { WorkspaceSplitButton } from '../../components/WorkspaceSplitButton';
 import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
 import type { CopyDict } from '../../i18n';
 
-export type WelcomeStateProps = {
+export interface WelcomeStateProps {
   t: CopyDict;
   hasWorkspace: boolean;
   recentWorkspaces: RecentWorkspaceEntry[];
   onOpenWorkspace: (path: string) => Promise<{ ok: boolean; error?: string }>;
   onPickWorkspaceDirectory: () => Promise<string | undefined>;
   onCreateSession: () => void;
-};
+}
 
 export function WelcomeState({
   t,
@@ -25,7 +25,9 @@ export function WelcomeState({
   const actionCardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!showActionCard) return;
+    if (!showActionCard) {
+      return;
+    }
     const onPointerDown = (event: MouseEvent) => {
       if (actionCardRef.current && !actionCardRef.current.contains(event.target as Node)) {
         setShowActionCard(false);

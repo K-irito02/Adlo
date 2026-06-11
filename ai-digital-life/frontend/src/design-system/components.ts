@@ -45,7 +45,9 @@ const SIZE_CLASS: Record<ButtonSize, string> = {
 };
 
 function dataAttrs(map?: Record<string, string>): string {
-  if (!map) return '';
+  if (!map) {
+    return '';
+  }
   return Object.entries(map)
     .map(([key, value]) => ` data-${key}="${escapeAttr(value)}"`)
     .join('');

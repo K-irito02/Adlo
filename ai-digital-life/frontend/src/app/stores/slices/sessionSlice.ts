@@ -113,7 +113,9 @@ export const createSessionSlice = (
         const now = Date.now();
         const trimmed = trimActivityList(activities);
         const excludeSet = new Set<string>();
-        if (state.streamingActiveRunId) excludeSet.add(state.streamingActiveRunId);
+        if (state.streamingActiveRunId) {
+          excludeSet.add(state.streamingActiveRunId);
+        }
 
         const trimmedMaps = trimOldRuns(
           { ...state.runActivityByRunId, [runId]: trimmed },
@@ -130,7 +132,9 @@ export const createSessionSlice = (
         const existing = state.runActivityByRunId[runId] ?? [];
         const next = trimActivityList([...existing, activity]);
         const excludeSet = new Set<string>();
-        if (state.streamingActiveRunId) excludeSet.add(state.streamingActiveRunId);
+        if (state.streamingActiveRunId) {
+          excludeSet.add(state.streamingActiveRunId);
+        }
 
         const trimmedMaps = trimOldRuns(
           { ...state.runActivityByRunId, [runId]: next },
@@ -145,7 +149,9 @@ export const createSessionSlice = (
       set((state) => {
         const now = Date.now();
         const excludeSet = new Set<string>();
-        if (state.streamingActiveRunId) excludeSet.add(state.streamingActiveRunId);
+        if (state.streamingActiveRunId) {
+          excludeSet.add(state.streamingActiveRunId);
+        }
 
         const trimmedMaps = trimOldRuns(
           state.runActivityByRunId,

@@ -34,8 +34,12 @@ function resolveFolderWorkspaceId(
   folders: Array<{ id: string; parentId?: string; parentType?: 'workspace' | 'folder' }>
 ): string | undefined {
   const folder = folders.find((f) => f.id === folderId);
-  if (!folder) return undefined;
-  if (folder.parentType === 'workspace') return folder.parentId;
+  if (!folder) {
+    return undefined;
+  }
+  if (folder.parentType === 'workspace') {
+    return folder.parentId;
+  }
   if (folder.parentType === 'folder' && folder.parentId) {
     return resolveFolderWorkspaceId(folder.parentId, folders);
   }
@@ -82,7 +86,9 @@ function SearchResultItem({
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
-        if (e.key === 'Enter') onClick();
+        if (e.key === 'Enter') {
+          onClick();
+        }
       }}
     >
       <IconGlobe size={14} decorative className="adl-browser-search-result-item__icon" />

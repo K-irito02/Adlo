@@ -91,13 +91,17 @@ export function createSessionActions(set: StoreApi<StoreState>['setState'], get:
       const requestSeq = getNextSessionRequestSeq();
       set({ activeSessionId: sessionId, error: undefined });
       const markReadResult = await window.digitalLife.conversation.markSessionRead({ sessionId });
-      if (requestSeq !== sessionRequestSeq) return;
+      if (requestSeq !== sessionRequestSeq) {
+        return;
+      }
       if (!markReadResult.ok) {
         set({ error: markReadResult.error.message });
         return;
       }
       const conversationState = await refreshConversationSlice(sessionId);
-      if (requestSeq !== sessionRequestSeq) return;
+      if (requestSeq !== sessionRequestSeq) {
+        return;
+      }
       set((state: StoreState) => ({
         sessions: conversationState.sessions,
         activeSessionId: conversationState.activeSessionId,

@@ -12,7 +12,9 @@ export function getMergeChunks(state: EditorState): readonly MergeChunk[] {
 
 export function computeSyncedScrollTop(input: ScrollSyncMetrics): number {
   const sourceMax = Math.max(0, input.sourceScrollHeight - input.sourceClientHeight);
-  if (sourceMax <= 0) return 0;
+  if (sourceMax <= 0) {
+    return 0;
+  }
   const targetMax = Math.max(0, input.targetScrollHeight - input.targetClientHeight);
   const ratio = Math.max(0, Math.min(input.sourceScrollTop, sourceMax)) / sourceMax;
   return ratio * targetMax;
@@ -25,7 +27,9 @@ export function syncHorizontalScroll(source: HTMLElement, target: HTMLElement): 
     return;
   }
   const targetMax = Math.max(0, target.scrollWidth - target.clientWidth);
-  if (targetMax <= 0) return;
+  if (targetMax <= 0) {
+    return;
+  }
   const ratio = Math.max(0, Math.min(source.scrollLeft, sourceMax)) / sourceMax;
   target.scrollLeft = ratio * targetMax;
 }
@@ -56,7 +60,9 @@ export function buildCollapsedUnchangedRanges(input: {
     ) {
       ranges.push({ startLine: collapseFrom, endLine: collapseTo });
     }
-    if (!chunk) break;
+    if (!chunk) {
+      break;
+    }
     prevLine = input.doc.lineAt(Math.min(input.doc.length, chunk.toB)).number;
   }
 

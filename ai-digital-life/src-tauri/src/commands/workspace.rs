@@ -110,7 +110,7 @@ pub fn workspace_get_change_preview(
                     &relative_path,
                 )
             }));
-        }
+        },
     };
     let preview = adl_workspace::read_change_preview(root.as_path(), &relative_path);
     ipc(preview)
@@ -197,7 +197,7 @@ pub fn workspace_delete_file(
                 WorkspaceFileChangedEvent { path: relative_path, last_modified_at: now_ms() },
             );
             IpcResult::ok(true)
-        }
+        },
         Ok(false) => IpcResult::ok(false),
         Err(e) => IpcResult::err(IpcErrorCode::InternalError.to_string(), e.to_string()),
     }

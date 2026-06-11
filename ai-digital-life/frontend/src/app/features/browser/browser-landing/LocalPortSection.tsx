@@ -46,7 +46,9 @@ export function LocalPortSection({
   );
 
   const scanPorts = useCallback(async () => {
-    if (scanningRef.current) return;
+    if (scanningRef.current) {
+      return;
+    }
     scanningRef.current = true;
     browserSetPortScanning(true);
 
@@ -118,12 +120,16 @@ export function LocalPortSection({
     (_e: React.DragEvent, targetId: string) => {
       setDragOverPortId(null);
       const draggedId = _e.dataTransfer.getData('text/plain');
-      if (!draggedId || draggedId === targetId) return;
+      if (!draggedId || draggedId === targetId) {
+        return;
+      }
 
       const ids = sortedPorts.map((p) => p.id);
       const fromIdx = ids.indexOf(draggedId);
       const toIdx = ids.indexOf(targetId);
-      if (fromIdx === -1 || toIdx === -1) return;
+      if (fromIdx === -1 || toIdx === -1) {
+        return;
+      }
 
       ids.splice(fromIdx, 1);
       ids.splice(toIdx, 0, draggedId);
@@ -187,7 +193,9 @@ export function LocalPortSection({
             role="button"
             tabIndex={0}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') handlePortClick(port);
+              if (e.key === 'Enter') {
+                handlePortClick(port);
+              }
             }}
           >
             <span className="adl-local-port-card__dot" />
@@ -208,7 +216,9 @@ export function LocalPortSection({
           tabIndex={0}
           title={t.browserAddManualPort}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') onAddManualPort();
+            if (e.key === 'Enter') {
+              onAddManualPort();
+            }
           }}
         >
           <span className="adl-local-port-card__add-icon">+</span>

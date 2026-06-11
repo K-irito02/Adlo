@@ -40,7 +40,9 @@ export function PromptModal({
 
   const handleOk = useCallback(async () => {
     const trimmed = value.trim();
-    if (!trimmed) return;
+    if (!trimmed) {
+      return;
+    }
     setLoading(true);
     setError('');
     try {
@@ -58,7 +60,9 @@ export function PromptModal({
   const handleValueChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       setValue(e.currentTarget.value);
-      if (error) setError('');
+      if (error) {
+        setError('');
+      }
     },
     [error]
   );
@@ -74,7 +78,9 @@ export function PromptModal({
     [handleOk, loading, onCancel]
   );
 
-  if (!open) return null;
+  if (!open) {
+    return null;
+  }
 
   return (
     <div className="adl-prompt-modal" onKeyDown={handleKeyDown}>

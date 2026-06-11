@@ -23,7 +23,7 @@ fn read_all_output(mut reader: Box<dyn Read + Send>, timeout: Duration) -> Vec<u
         Err(_) => {
             eprintln!("read_all_output timed out after {:?}", timeout);
             Vec::new()
-        }
+        },
     }
 }
 

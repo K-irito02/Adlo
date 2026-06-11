@@ -25,10 +25,10 @@ hljs.registerLanguage('xml', xml);
 hljs.registerLanguage('html', xml);
 hljs.registerLanguage('css', css);
 
-export type MarkdownPreviewProps = {
+export interface MarkdownPreviewProps {
   content: string;
   theme?: 'light' | 'dark';
-};
+}
 
 function escapeHtml(str: string): string {
   return str

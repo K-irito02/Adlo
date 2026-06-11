@@ -90,7 +90,9 @@ export function classNames(
   const out: string[] = [];
 
   for (const input of inputs) {
-    if (!input) continue;
+    if (!input) {
+      continue;
+    }
 
     if (typeof input === 'string') {
       out.push(input);
@@ -98,7 +100,9 @@ export function classNames(
     }
 
     for (const [key, value] of Object.entries(input)) {
-      if (value) out.push(key);
+      if (value) {
+        out.push(key);
+      }
     }
   }
 
@@ -110,7 +114,9 @@ export function classNames(
  * Used by status bar and storage tiles.
  */
 export function formatBytes(bytes: number, fractionDigits = 1): string {
-  if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
+  if (!Number.isFinite(bytes) || bytes <= 0) {
+    return '0 B';
+  }
 
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
   const exponent = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));

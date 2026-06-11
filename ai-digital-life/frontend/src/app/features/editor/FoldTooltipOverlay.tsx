@@ -26,12 +26,16 @@ function getLineNumberFromEvent(view: EditorView, event: MouseEvent): number | n
   if (gutterEl) {
     const rect = gutterEl.getBoundingClientRect();
     const pos = view.posAtCoords({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
-    if (pos !== null) return view.state.doc.lineAt(pos).number;
+    if (pos !== null) {
+      return view.state.doc.lineAt(pos).number;
+    }
   }
   const guttersEl = target.closest('.cm-gutters') as HTMLElement | null;
   if (guttersEl) {
     const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
-    if (pos !== null) return view.state.doc.lineAt(pos).number;
+    if (pos !== null) {
+      return view.state.doc.lineAt(pos).number;
+    }
   }
   return null;
 }
@@ -41,20 +45,28 @@ function isLineFolded(view: EditorView, lineNum: number): boolean {
   foldedRanges(view.state).between(0, view.state.doc.length, (_from, _to) => {
     const startLine = view.state.doc.lineAt(_from).number;
     const endLine = view.state.doc.lineAt(_to).number;
-    if (lineNum >= startLine && lineNum <= endLine) result = true;
+    if (lineNum >= startLine && lineNum <= endLine) {
+      result = true;
+    }
   });
   return result;
 }
 
 function isLineFoldable(view: EditorView, lineNum: number): boolean {
   const doc = view.state.doc;
-  if (lineNum > doc.lines) return false;
+  if (lineNum > doc.lines) {
+    return false;
+  }
   const line = doc.line(lineNum);
-  if (foldable(view.state, line.from, line.to)) return true;
+  if (foldable(view.state, line.from, line.to)) {
+    return true;
+  }
   let found = false;
   foldedRanges(view.state).between(0, doc.length, (_from, _to) => {
     const startLine = doc.lineAt(_from).number;
-    if (lineNum === startLine) found = true;
+    if (lineNum === startLine) {
+      found = true;
+    }
   });
   return found;
 }
@@ -100,7 +112,9 @@ function getGutterRowAtY(
 
 function computeTooltipText(view: EditorView, lineNum: number, isClosed: boolean): string | null {
   const doc = view.state.doc;
-  if (lineNum > doc.lines) return null;
+  if (lineNum > doc.lines) {
+    return null;
+  }
 
   if (isClosed) {
     let result: string | null = null;
@@ -116,10 +130,14 @@ function computeTooltipText(view: EditorView, lineNum: number, isClosed: boolean
 
   const line = doc.line(lineNum);
   const range = foldable(view.state, line.from, line.to);
-  if (!range) return null;
+  if (!range) {
+    return null;
+  }
 
   const endLine = doc.lineAt(range.to).number;
-  if (endLine <= lineNum) return null;
+  if (endLine <= lineNum) {
+    return null;
+  }
 
   return `折叠至${endLine}行`;
 }
@@ -135,11 +153,17 @@ function computeTooltipFromPlaceholder(
     x: placeholderRect.left + placeholderRect.width / 2,
     y: placeholderRect.top + placeholderRect.height / 2,
   });
-  if (pos === null) return null;
+  if (pos === null) {
+    return null;
+  }
 
   const lineNum = view.state.doc.lineAt(pos).number;
-  if (lineNum > view.state.doc.lines) return null;
-  if (!isLineFolded(view, lineNum)) return null;
+  if (lineNum > view.state.doc.lines) {
+    return null;
+  }
+  if (!isLineFolded(view, lineNum)) {
+    return null;
+  }
 
   let endLine = lineNum;
   foldedRanges(view.state).between(0, view.state.doc.length, (_from, _to) => {
@@ -164,7 +188,9 @@ function getFoldStartRange(view: EditorView, lineNum: number): { from: number; t
   let result: { from: number; to: number } | null = null;
   foldedRanges(view.state).between(0, view.state.doc.length, (_from, _to) => {
     const startLine = view.state.doc.lineAt(_from).number;
-    if (lineNum === startLine) result = { from: _from, to: _to };
+    if (lineNum === startLine) {
+      result = { from: _from, to: _to };
+    }
   });
   return result;
 }
@@ -180,18 +206,28 @@ function computePosition(
   const padding = 4;
   let side: 'right' | 'left' = 'right';
   const rightPos = triggerRect.right + offset;
-  if (rightPos + tooltipWidth > viewportW - padding) side = 'left';
+  if (rightPos + tooltipWidth > viewportW - padding) {
+    side = 'left';
+  }
   let left: number;
   if (side === 'right') {
     left = rightPos;
-    if (left < padding) left = padding;
+    if (left < padding) {
+      left = padding;
+    }
   } else {
     left = triggerRect.left - tooltipWidth - offset;
-    if (left < padding) left = padding;
+    if (left < padding) {
+      left = padding;
+    }
   }
   let top = triggerRect.top;
-  if (top + tooltipHeight > viewportH - padding) top = viewportH - tooltipHeight - padding;
-  if (top < padding) top = padding;
+  if (top + tooltipHeight > viewportH - padding) {
+    top = viewportH - tooltipHeight - padding;
+  }
+  if (top < padding) {
+    top = padding;
+  }
   return { left, top, side };
 }
 
@@ -199,17 +235,27 @@ function computePosition(
 
 function handleGutterFold(view: EditorView, event: MouseEvent): boolean {
   const target = event.target as HTMLElement;
-  if (target.closest('.cm-deletedLineGutter')) return false;
+  if (target.closest('.cm-deletedLineGutter')) {
+    return false;
+  }
 
   const gutters = target.closest('.cm-gutters') as HTMLElement | null;
-  if (!gutters) return false;
+  if (!gutters) {
+    return false;
+  }
   const { hasFoldMarker } = getGutterRowAtY(gutters, event.clientY);
-  if (!hasFoldMarker) return false;
+  if (!hasFoldMarker) {
+    return false;
+  }
 
   const lineNum = getLineNumberFromEvent(view, event);
-  if (lineNum === null) return false;
+  if (lineNum === null) {
+    return false;
+  }
   const doc = view.state.doc;
-  if (lineNum > doc.lines) return false;
+  if (lineNum > doc.lines) {
+    return false;
+  }
   const docLine = doc.line(lineNum);
   const foldRange = getFoldStartRange(view, lineNum);
   if (foldRange) {
@@ -238,27 +284,45 @@ function computeTooltipFromEvent(
   event: MouseEvent
 ): { text: string; rect: DOMRect } | null {
   const target = event.target as HTMLElement;
-  if (target.closest('.cm-deletedLineGutter')) return null;
+  if (target.closest('.cm-deletedLineGutter')) {
+    return null;
+  }
 
   const gutters = target.closest('.cm-gutters') as HTMLElement | null;
-  if (!gutters) return null;
+  if (!gutters) {
+    return null;
+  }
 
   const { rowRect, hasFoldMarker } = getGutterRowAtY(gutters, event.clientY);
-  if (!rowRect) return null;
-  if (!hasFoldMarker) return null;
+  if (!rowRect) {
+    return null;
+  }
+  if (!hasFoldMarker) {
+    return null;
+  }
 
   const lineNum = getLineNumberFromEvent(view, event);
-  if (lineNum === null) return null;
-  if (lineNum > view.state.doc.lines) return null;
-  if (!isLineFoldable(view, lineNum)) return null;
+  if (lineNum === null) {
+    return null;
+  }
+  if (lineNum > view.state.doc.lines) {
+    return null;
+  }
+  if (!isLineFoldable(view, lineNum)) {
+    return null;
+  }
 
   const isClosed = isLineFolded(view, lineNum);
   const text = computeTooltipText(view, lineNum, isClosed);
-  if (!text) return null;
+  if (!text) {
+    return null;
+  }
 
   const foldGutter = gutters.querySelector('.cm-foldGutter') as HTMLElement | null;
   const foldGutterRect = foldGutter?.getBoundingClientRect();
-  if (!foldGutterRect) return null;
+  if (!foldGutterRect) {
+    return null;
+  }
 
   const rect = new DOMRect(foldGutterRect.left, rowRect.top, foldGutterRect.width, rowRect.height);
   return { text, rect };
@@ -278,7 +342,9 @@ function cssVar(name: string, fallback: string): string {
 
 function updateGutterHoverOverlay(view: EditorView, event: MouseEvent | null): void {
   const gutters = view.dom.querySelector('.cm-gutters') as HTMLElement | null;
-  if (!gutters) return;
+  if (!gutters) {
+    return;
+  }
 
   let overlay = overlayCache.get(gutters) ?? null;
 
@@ -348,12 +414,16 @@ export function FoldTooltipOverlay({ view }: FoldTooltipOverlayProps) {
   }, []);
 
   const scheduleHide = useCallback(() => {
-    if (hideTimerRef.current !== null) clearTimeout(hideTimerRef.current);
+    if (hideTimerRef.current !== null) {
+      clearTimeout(hideTimerRef.current);
+    }
     hideTimerRef.current = setTimeout(hide, 150);
   }, [hide]);
 
   const repositionOverlay = useCallback(() => {
-    if (!view) return;
+    if (!view) {
+      return;
+    }
     const me = lastMouseEventRef.current;
     if (me && (me.target as HTMLElement).closest?.('.cm-gutters')) {
       updateGutterHoverOverlay(view, me);
@@ -364,7 +434,9 @@ export function FoldTooltipOverlay({ view }: FoldTooltipOverlayProps) {
   repositionRef.current = repositionOverlay;
 
   useEffect(() => {
-    if (!view) return;
+    if (!view) {
+      return;
+    }
 
     const editorDom = view.dom;
     const content = view.contentDOM;
@@ -373,7 +445,9 @@ export function FoldTooltipOverlay({ view }: FoldTooltipOverlayProps) {
       for (const mutation of mutations) {
         for (const node of mutation.addedNodes) {
           if (node instanceof HTMLElement) {
-            if (node.matches?.('.cm-foldPlaceholder')) node.removeAttribute('title');
+            if (node.matches?.('.cm-foldPlaceholder')) {
+              node.removeAttribute('title');
+            }
             node
               .querySelectorAll?.('.cm-foldPlaceholder')
               .forEach((el) => el.removeAttribute('title'));
@@ -390,12 +464,16 @@ export function FoldTooltipOverlay({ view }: FoldTooltipOverlayProps) {
 
     const handleMouseMove = (e: MouseEvent) => {
       lastMouseEventRef.current = e;
-      if (!editorDom.contains(e.target as HTMLElement)) return;
+      if (!editorDom.contains(e.target as HTMLElement)) {
+        return;
+      }
 
       const target = e.target as HTMLElement;
 
       if (!target.closest('.cm-gutters')) {
-        if (rafId) cancelAnimationFrame(rafId);
+        if (rafId) {
+          cancelAnimationFrame(rafId);
+        }
         updateGutterHoverOverlay(view, null);
 
         const placeholder = target.closest('.cm-foldPlaceholder') as HTMLElement | null;
@@ -422,7 +500,9 @@ export function FoldTooltipOverlay({ view }: FoldTooltipOverlayProps) {
         return;
       }
 
-      if (rafId) cancelAnimationFrame(rafId);
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+      }
       rafId = requestAnimationFrame(() => {
         updateGutterHoverOverlay(view, e);
         rafId = 0;
@@ -446,17 +526,25 @@ export function FoldTooltipOverlay({ view }: FoldTooltipOverlayProps) {
     };
 
     const handleMouseLeave = (e: MouseEvent) => {
-      if (!editorDom.contains(e.target as HTMLElement)) return;
+      if (!editorDom.contains(e.target as HTMLElement)) {
+        return;
+      }
       const related = e.relatedTarget as HTMLElement | null;
-      if (related && editorDom.contains(related)) return;
+      if (related && editorDom.contains(related)) {
+        return;
+      }
       lastMouseEventRef.current = null;
-      if (rafId) cancelAnimationFrame(rafId);
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+      }
       updateGutterHoverOverlay(view, null);
       scheduleHide();
     };
 
     const captureMouseDown = (e: MouseEvent) => {
-      if (!editorDom.contains(e.target as HTMLElement)) return;
+      if (!editorDom.contains(e.target as HTMLElement)) {
+        return;
+      }
 
       if ((e.target as HTMLElement).closest('.cm-gutters')) {
         handleGutterFold(view, e);
@@ -476,7 +564,9 @@ export function FoldTooltipOverlay({ view }: FoldTooltipOverlayProps) {
         if (pos !== null) {
           let targetRange: { from: number; to: number } | null = null;
           foldedRanges(view.state).between(0, view.state.doc.length, (from, to) => {
-            if (pos >= from && pos <= to) targetRange = { from, to };
+            if (pos >= from && pos <= to) {
+              targetRange = { from, to };
+            }
           });
           if (targetRange) {
             view.dispatch({ effects: unfoldEffect.of(targetRange) });
@@ -493,7 +583,9 @@ export function FoldTooltipOverlay({ view }: FoldTooltipOverlayProps) {
     document.addEventListener('mousedown', captureMouseDown, true);
 
     return () => {
-      if (rafId) cancelAnimationFrame(rafId);
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+      }
       observer.disconnect();
       updateGutterHoverOverlay(view, null);
       tooltipVisibleRef.current = false;
@@ -509,11 +601,15 @@ export function FoldTooltipOverlay({ view }: FoldTooltipOverlayProps) {
   }, [view, scheduleHide, hide]);
 
   useEffect(() => {
-    if (!view) return;
+    if (!view) {
+      return;
+    }
     const editorDom = view.dom;
     const handleScroll = () => {
       const gutters = editorDom.querySelector('.cm-gutters') as HTMLElement | null;
-      if (!gutters) return;
+      if (!gutters) {
+        return;
+      }
       const overlay = overlayCache.get(gutters);
       if (overlay) {
         const guttersRect = gutters.getBoundingClientRect();
@@ -526,7 +622,9 @@ export function FoldTooltipOverlay({ view }: FoldTooltipOverlayProps) {
   }, [view]);
 
   useLayoutEffect(() => {
-    if (!tooltipState || !tooltipRef.current) return;
+    if (!tooltipState || !tooltipRef.current) {
+      return;
+    }
     const tooltipRect = tooltipRef.current.getBoundingClientRect();
     const pos = computePosition(tooltipState.rect, tooltipRect.width, tooltipRect.height);
     setPosition(pos);

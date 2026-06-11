@@ -13,7 +13,9 @@ export const AGENT_DECO_DELETE_BLOCK_CLASS = 'adl-cm-agent-block-delete';
 function normalizeHexColor(value: string): string | undefined {
   const normalized = value.trim();
   const match = normalized.match(/^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i);
-  if (!match) return undefined;
+  if (!match) {
+    return undefined;
+  }
   const hex = match[1];
   if (hex.length === 3 || hex.length === 4) {
     return `#${hex
@@ -36,7 +38,9 @@ function normalizeRgbColor(value: string): string | undefined {
     .match(
       /^rgba?\(\s*(\d{1,3})(?:\s*,\s*|\s+)(\d{1,3})(?:\s*,\s*|\s+)(\d{1,3})(?:(?:\s*,\s*|\s*\/\s*)([\d.]+%?))?\s*\)$/i
     );
-  if (!match) return undefined;
+  if (!match) {
+    return undefined;
+  }
   const [, rRaw, gRaw, bRaw, alphaRaw] = match;
   const r = Number.parseInt(rRaw, 10);
   const g = Number.parseInt(gRaw, 10);
@@ -55,9 +59,13 @@ function normalizeRgbColor(value: string): string | undefined {
 }
 
 function normalizeColor(value: string | undefined): string | undefined {
-  if (!value) return undefined;
+  if (!value) {
+    return undefined;
+  }
   const trimmed = value.trim();
-  if (!trimmed) return undefined;
+  if (!trimmed) {
+    return undefined;
+  }
   if (trimmed.toLowerCase() === 'transparent') {
     return '#00000000';
   }
@@ -65,7 +73,9 @@ function normalizeColor(value: string | undefined): string | undefined {
 }
 
 function readThemeColor(theme: 'light' | 'dark', name: string): string | undefined {
-  if (typeof document === 'undefined') return undefined;
+  if (typeof document === 'undefined') {
+    return undefined;
+  }
 
   const html = document.documentElement;
   const originalTheme = html.getAttribute('data-theme');

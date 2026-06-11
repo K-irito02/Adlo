@@ -23,7 +23,7 @@ import { FoldTooltipOverlay } from './FoldTooltipOverlay';
 import { scrollLeftSyncExtension } from './cmScrollLeftSync';
 import { useFoldMarkerAutoHide } from './useFoldMarkerAutoHide';
 
-export type CodeEditorProps = {
+export interface CodeEditorProps {
   value: string;
   language?: string;
   theme?: 'light' | 'dark';
@@ -35,7 +35,7 @@ export type CodeEditorProps = {
   onChange?: (value: string) => void;
   onMount?: (editor: EditorRef) => void;
   extensions?: Extension[];
-};
+}
 
 const lineNumbersCompartment = new Compartment();
 const wordWrapCompartment = new Compartment();
@@ -64,7 +64,9 @@ export function CodeEditor({
     let cancelled = false;
     getLanguageExtension(language)
       .then((exts) => {
-        if (!cancelled) setLangExtensions(exts);
+        if (!cancelled) {
+          setLangExtensions(exts);
+        }
       })
       .catch((err) => {
         console.error(`[CodeEditor] failed to load language extension for "${language}":`, err);
@@ -129,7 +131,9 @@ export function CodeEditor({
 
   useEffect(() => {
     const view = viewRef.current;
-    if (!view) return;
+    if (!view) {
+      return;
+    }
     view.dispatch({
       effects: [
         lineNumbersCompartment.reconfigure(lineNumbersEnabled ? lineNumbers() : []),

@@ -16,14 +16,20 @@ export function MessageBubble({ id, role, content, timestamp }: MessageBubblePro
   const [copied, setCopied] = useState(false);
 
   const handleEdit = useCallback(() => {
-    if (!timestamp) return;
+    if (!timestamp) {
+      return;
+    }
     const now = Date.now();
-    if (now - new Date(timestamp).getTime() >= EDIT_WINDOW_MS) return;
+    if (now - new Date(timestamp).getTime() >= EDIT_WINDOW_MS) {
+      return;
+    }
     // TODO: implement edit logic
   }, [timestamp]);
 
   const formattedTime = useMemo(() => {
-    if (!timestamp) return '';
+    if (!timestamp) {
+      return '';
+    }
     try {
       return new Date(timestamp).toLocaleTimeString([], {
         hour: '2-digit',

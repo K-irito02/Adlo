@@ -32,7 +32,7 @@ pub fn ipc<T>(result: Result<T, AppError>) -> IpcResult<T> {
         Err(error) => {
             let cmd_err = CommandError::from(error);
             IpcResult::err(cmd_err.code.to_string(), cmd_err.message)
-        }
+        },
     }
 }
 
@@ -88,7 +88,7 @@ mod tests {
     fn ipc_ok_wraps_data() {
         let result: IpcResult<i32> = ipc(Ok(42));
         match result {
-            IpcResult::Ok { ok: true, data: 42 } => {}
+            IpcResult::Ok { ok: true, data: 42 } => {},
             other => panic!("expected Ok(42), got {other:?}"),
         }
     }
@@ -100,7 +100,7 @@ mod tests {
             IpcResult::Err { ok: false, error } => {
                 assert_eq!(error.code, "NOT_FOUND");
                 assert!(error.message.contains("test"));
-            }
+            },
             other => panic!("expected Err, got {other:?}"),
         }
     }
@@ -111,7 +111,7 @@ mod tests {
         match result {
             IpcResult::Ok { ok: true, data } => {
                 assert_eq!(data, "hello");
-            }
+            },
             other => panic!("expected Ok, got {other:?}"),
         }
     }
@@ -122,7 +122,7 @@ mod tests {
         match result {
             IpcResult::Err { ok: false, error } => {
                 assert_eq!(error.code, "INTERNAL_ERROR");
-            }
+            },
             other => panic!("expected Err, got {other:?}"),
         }
     }

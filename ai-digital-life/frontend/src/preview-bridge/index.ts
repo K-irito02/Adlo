@@ -35,11 +35,11 @@ import {
 } from './storage';
 import { createPtyBridge } from './ptyBridge';
 
-type PreviewWorkspaceOpenPayload = {
+interface PreviewWorkspaceOpenPayload {
   meta: WorkspaceMeta;
   recent: RecentWorkspaceEntry;
   retrieval: RetrievalSnapshot;
-};
+}
 
 function createBaseAppInfo(): AppInfo {
   const savedPreferences = loadPreviewPreferences();
@@ -125,7 +125,9 @@ export function setupPreviewBridge(): void {
       return;
     }
     const savedWorkspacePath = loadActiveWorkspacePath();
-    if (!savedWorkspacePath) return;
+    if (!savedWorkspacePath) {
+      return;
+    }
     restoreCurrentWorkspacePromise = (async () => {
       const result = await openWorkspaceFromPreviewApi(savedWorkspacePath);
       if (!result.ok) {
@@ -189,7 +191,9 @@ export function setupPreviewBridge(): void {
         const result = await requestPreviewApi<string | undefined>('/workspace/pick-directory', {
           method: 'POST',
         });
-        if (!result.ok) return { ok: true, data: undefined };
+        if (!result.ok) {
+          return { ok: true, data: undefined };
+        }
         return { ok: true, data: result.data };
       },
       pin: async (workspaceId: string) => {
@@ -233,8 +237,12 @@ export function setupPreviewBridge(): void {
         recentWorkspaces = recentWorkspaces.map((w) => {
           const pinnedIndex = pinnedIds.indexOf(w.id);
           const unpinnedIndex = unpinnedIds.indexOf(w.id);
-          if (pinnedIndex !== -1) return { ...w, isPinned: true, pinnedOrder: pinnedIndex };
-          if (unpinnedIndex !== -1) return { ...w, isPinned: false, unpinnedOrder: unpinnedIndex };
+          if (pinnedIndex !== -1) {
+            return { ...w, isPinned: true, pinnedOrder: pinnedIndex };
+          }
+          if (unpinnedIndex !== -1) {
+            return { ...w, isPinned: false, unpinnedOrder: unpinnedIndex };
+          }
           return w;
         });
         persistRecentWorkspaces(recentWorkspaces);
@@ -276,33 +284,36 @@ export function setupPreviewBridge(): void {
           body: JSON.stringify({ path: workspacePath }),
         }),
       createFile: async (relativePath: string, content = '') => {
-        if (!currentWorkspace)
+        if (!currentWorkspace) {
           return {
             ok: false,
             error: { code: IpcErrorCode.NOT_FOUND, message: 'active workspace' },
           };
+        }
         return requestPreviewApi<WorkspaceFileDocument>('/workspace/create-file', {
           method: 'POST',
           body: JSON.stringify({ rootPath: currentWorkspace.rootPath, relativePath, content }),
         });
       },
       createFolder: async (relativePath: string) => {
-        if (!currentWorkspace)
+        if (!currentWorkspace) {
           return {
             ok: false,
             error: { code: IpcErrorCode.NOT_FOUND, message: 'active workspace' },
           };
+        }
         return requestPreviewApi<boolean>('/workspace/create-folder', {
           method: 'POST',
           body: JSON.stringify({ rootPath: currentWorkspace.rootPath, relativePath }),
         });
       },
       readFile: async (relativePath: string) => {
-        if (!currentWorkspace)
+        if (!currentWorkspace) {
           return {
             ok: false,
             error: { code: IpcErrorCode.NOT_FOUND, message: 'active workspace' },
           };
+        }
         const params = new URLSearchParams({ rootPath: currentWorkspace.rootPath, relativePath });
         return requestPreviewApi<WorkspaceFileDocument>(`/workspace/file?${params.toString()}`);
       },
@@ -311,11 +322,12 @@ export function setupPreviewBridge(): void {
         return requestPreviewApi<WorkspaceFileDocument>(`/workspace/file?${params.toString()}`);
       },
       getChangePreview: async (relativePath: string) => {
-        if (!currentWorkspace)
+        if (!currentWorkspace) {
           return {
             ok: false,
             error: { code: IpcErrorCode.NOT_FOUND, message: 'active workspace' },
           };
+        }
         const params = new URLSearchParams({ rootPath: currentWorkspace.rootPath, relativePath });
         return requestPreviewApi<WorkspaceChangePreview>(
           `/workspace/change-preview?${params.toString()}`
@@ -328,48 +340,57 @@ export function setupPreviewBridge(): void {
         );
       },
       listTree: async () => {
-        if (!currentWorkspace) return { ok: true, data: [] as WorkspaceTreeNode[] };
+        if (!currentWorkspace) {
+          return { ok: true, data: [] as WorkspaceTreeNode[] };
+        }
         const params = new URLSearchParams({ rootPath: currentWorkspace.rootPath });
         return requestPreviewApi<WorkspaceTreeNode[]>(`/workspace/tree?${params.toString()}`);
       },
       search: async (query: string) => {
-        if (!currentWorkspace) return { ok: true, data: [] as WorkspaceSearchHit[] };
+        if (!currentWorkspace) {
+          return { ok: true, data: [] as WorkspaceSearchHit[] };
+        }
         const params = new URLSearchParams({ rootPath: currentWorkspace.rootPath, query });
         return requestPreviewApi<WorkspaceSearchHit[]>(`/workspace/search?${params.toString()}`);
       },
       outline: async (relativePath: string) => {
-        if (!currentWorkspace) return { ok: true, data: [] };
+        if (!currentWorkspace) {
+          return { ok: true, data: [] };
+        }
         const params = new URLSearchParams({ rootPath: currentWorkspace.rootPath, relativePath });
         return requestPreviewApi(`/workspace/outline?${params.toString()}`);
       },
       renameFile: async (relativePath: string, newName: string) => {
-        if (!currentWorkspace)
+        if (!currentWorkspace) {
           return {
             ok: false,
             error: { code: IpcErrorCode.NOT_FOUND, message: 'active workspace' },
           };
+        }
         return requestPreviewApi<boolean>('/workspace/rename-file', {
           method: 'POST',
           body: JSON.stringify({ rootPath: currentWorkspace.rootPath, relativePath, newName }),
         });
       },
       deleteFile: async (relativePath: string) => {
-        if (!currentWorkspace)
+        if (!currentWorkspace) {
           return {
             ok: false,
             error: { code: IpcErrorCode.NOT_FOUND, message: 'active workspace' },
           };
+        }
         return requestPreviewApi<boolean>('/workspace/delete-file', {
           method: 'POST',
           body: JSON.stringify({ rootPath: currentWorkspace.rootPath, relativePath }),
         });
       },
       duplicateFile: async (srcRelativePath: string, dstRelativePath: string) => {
-        if (!currentWorkspace)
+        if (!currentWorkspace) {
           return {
             ok: false,
             error: { code: IpcErrorCode.NOT_FOUND, message: 'active workspace' },
           };
+        }
         return requestPreviewApi<boolean>('/workspace/duplicate-file', {
           method: 'POST',
           body: JSON.stringify({
@@ -380,20 +401,22 @@ export function setupPreviewBridge(): void {
         });
       },
       getAbsolutePath: async (relativePath: string) => {
-        if (!currentWorkspace)
+        if (!currentWorkspace) {
           return {
             ok: false,
             error: { code: IpcErrorCode.NOT_FOUND, message: 'active workspace' },
           };
+        }
         const params = new URLSearchParams({ rootPath: currentWorkspace.rootPath, relativePath });
         return requestPreviewApi<string>(`/workspace/absolute-path?${params.toString()}`);
       },
       moveFile: async (relativePath: string, newPath: string) => {
-        if (!currentWorkspace)
+        if (!currentWorkspace) {
           return {
             ok: false,
             error: { code: IpcErrorCode.NOT_FOUND, message: 'active workspace' },
           };
+        }
         return requestPreviewApi<boolean>('/workspace/move-file', {
           method: 'POST',
           body: JSON.stringify({ rootPath: currentWorkspace.rootPath, relativePath, newPath }),
@@ -419,22 +442,24 @@ export function setupPreviewBridge(): void {
         return requestPreviewApi<GitSnapshot>(`/workspace/git-status?${params.toString()}`);
       },
       listGitBranches: async () => {
-        if (!currentWorkspace)
+        if (!currentWorkspace) {
           return {
             ok: false,
             error: { code: IpcErrorCode.NOT_FOUND, message: 'active workspace' },
           };
+        }
         const params = new URLSearchParams({ rootPath: currentWorkspace.rootPath });
         return requestPreviewApi<GitBranchSummary[]>(
           `/workspace/git-branches?${params.toString()}`
         );
       },
       switchGitBranch: async (input: WorkspaceGitBranchSwitchInput) => {
-        if (!currentWorkspace)
+        if (!currentWorkspace) {
           return {
             ok: false,
             error: { code: IpcErrorCode.NOT_FOUND, message: 'active workspace' },
           };
+        }
         const result = await requestPreviewApi<WorkspaceGitBranchChangeResult>(
           '/workspace/git-switch',
           {
@@ -449,11 +474,12 @@ export function setupPreviewBridge(): void {
         return result;
       },
       createGitBranch: async (input: WorkspaceGitBranchCreateInput) => {
-        if (!currentWorkspace)
+        if (!currentWorkspace) {
           return {
             ok: false,
             error: { code: IpcErrorCode.NOT_FOUND, message: 'active workspace' },
           };
+        }
         const result = await requestPreviewApi<WorkspaceGitBranchChangeResult>(
           '/workspace/git-create-branch',
           {
@@ -471,7 +497,9 @@ export function setupPreviewBridge(): void {
 
     retrieval: {
       getStatus: async () => {
-        if (!currentWorkspace) return { ok: true, data: undefined };
+        if (!currentWorkspace) {
+          return { ok: true, data: undefined };
+        }
         const params = new URLSearchParams({
           rootPath: currentWorkspace.rootPath,
           workspaceId: currentWorkspace.id,
@@ -479,14 +507,18 @@ export function setupPreviewBridge(): void {
         const result = await requestPreviewApi<RetrievalSnapshot>(
           `/retrieval/status?${params.toString()}`
         );
-        if (result.ok) retrievalStatus = result.data;
+        if (result.ok) {
+          retrievalStatus = result.data;
+        }
         return result.ok ? { ok: true, data: result.data } : result;
       },
       getRepoMap: async (): Promise<IpcResult<RepoMapNode[]>> => {
         const status = retrievalStatus
           ? ({ ok: true, data: retrievalStatus } satisfies IpcResult<RetrievalSnapshot>)
           : await previewBridge.retrieval.getStatus();
-        if (!status.ok) return status;
+        if (!status.ok) {
+          return status;
+        }
         return { ok: true, data: repoMapEntriesToTree(status.data?.repoMap ?? []) };
       },
       rebuildIndex: async () => ({ ok: true, data: true }),

@@ -46,7 +46,9 @@ function useFileContextMenu<T extends FileTreeRenderableNode>({
 
   const handleRenameConfirm = useCallback(
     async (newName: string) => {
-      if (!renamingPath) return;
+      if (!renamingPath) {
+        return;
+      }
       const path = renamingPath;
       setRenamingPath(null);
       clearMenuHighlightRef.current?.();
@@ -61,7 +63,9 @@ function useFileContextMenu<T extends FileTreeRenderableNode>({
   }, []);
 
   const handleDeleteConfirm = useCallback(async () => {
-    if (!deleteConfirmPath) return;
+    if (!deleteConfirmPath) {
+      return;
+    }
     const path = deleteConfirmPath;
     setDeleteConfirmPath(null);
     clearMenuHighlightRef.current?.();
@@ -112,7 +116,9 @@ function useFileContextMenu<T extends FileTreeRenderableNode>({
             const store = useAppStore.getState();
             const rootPath =
               store.appInfo?.currentWorkspace?.rootPath ?? store.appInfo?.currentWorkspace?.path;
-            if (!rootPath) return;
+            if (!rootPath) {
+              return;
+            }
             const fullPath = joinPathSegments(rootPath, targetNode.path);
             await window.digitalLife.workspace.revealInFileManager(fullPath);
           },
@@ -126,7 +132,9 @@ function useFileContextMenu<T extends FileTreeRenderableNode>({
             const store = useAppStore.getState();
             const rootPath =
               store.appInfo?.currentWorkspace?.rootPath ?? store.appInfo?.currentWorkspace?.path;
-            if (!rootPath) return;
+            if (!rootPath) {
+              return;
+            }
             const fullPath = joinPathSegments(rootPath, targetNode.path);
             await copyToClipboard(fullPath);
           },
@@ -164,7 +172,9 @@ function useFileContextMenu<T extends FileTreeRenderableNode>({
           action: async (targetNode) => {
             const sourcePath = store.clipboardSourcePath;
             const operation = store.clipboardOperation;
-            if (!sourcePath || !operation) return;
+            if (!sourcePath || !operation) {
+              return;
+            }
             const targetDir =
               targetNode.kind === 'directory'
                 ? targetNode.path

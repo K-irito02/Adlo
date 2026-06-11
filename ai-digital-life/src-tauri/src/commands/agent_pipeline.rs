@@ -316,10 +316,10 @@ pub(crate) fn generate_patches(
                         &input.prompt,
                         &document,
                     ))
-                }
+                },
                 None => None,
             }
-        }
+        },
         ConversationScenario::CodeEdit
         | ConversationScenario::Plan
         | ConversationScenario::Chat => None,

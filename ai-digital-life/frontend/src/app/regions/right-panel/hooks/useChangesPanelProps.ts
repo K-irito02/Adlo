@@ -43,18 +43,24 @@ export function useChangesPanelProps(
 
   const handleApplyPatchSet = useCallback(() => {
     const currentPatchSet = useAppStore.getState().activePatchSet;
-    if (currentPatchSet) void actions.applyPatchSet(currentPatchSet.id);
+    if (currentPatchSet) {
+      void actions.applyPatchSet(currentPatchSet.id);
+    }
   }, [actions]);
 
   const handleRollbackPatchSet = useCallback(() => {
     const currentPatchSet = useAppStore.getState().activePatchSet;
-    if (currentPatchSet) void actions.rollbackPatchSet(currentPatchSet.id);
+    if (currentPatchSet) {
+      void actions.rollbackPatchSet(currentPatchSet.id);
+    }
   }, [actions]);
 
   const handleSetHunkDecision = useCallback(
     (hunkId: string, decision: 'pending' | 'accepted' | 'rejected') => {
       const currentPatchSet = useAppStore.getState().activePatchSet;
-      if (currentPatchSet) void actions.setHunkDecision(currentPatchSet.id, hunkId, decision);
+      if (currentPatchSet) {
+        void actions.setHunkDecision(currentPatchSet.id, hunkId, decision);
+      }
     },
     [actions]
   );

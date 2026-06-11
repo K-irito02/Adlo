@@ -1,6 +1,12 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { IconTrash, IconSettings, IconFolder, IconFolderOpen, IconRefreshCw, IconMoreVertical } from '../../icons';
+import {
+  IconSettings,
+  IconFolder,
+  IconFolderOpen,
+  IconRefreshCw,
+  IconMoreVertical,
+} from '../../icons';
 import { FileTree } from '../file-tree';
 import { TooltipSimple } from '../../components/Tooltip';
 import { RenameDialog } from '../../components/RenameDialog';
@@ -55,7 +61,9 @@ function getChildNodeMoreMenuItems(
   onDeleteConfigAndData: () => void,
   onSettings: () => void
 ): Array<{ id: string; label: string; danger?: boolean; action: () => void }> {
-  if (nodeType !== 'folder') return [];
+  if (nodeType !== 'folder') {
+    return [];
+  }
   const folderId = nodePath.startsWith('github-folder:')
     ? nodePath.slice('github-folder:'.length)
     : '';
@@ -164,15 +172,21 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
   }, []);
 
   useEffect(() => {
-    if (!menuOpen) return;
+    if (!menuOpen) {
+      return;
+    }
     const handler = (e: MouseEvent) => {
       const target = e.target as Node;
       const menuEl = document.querySelector(`[data-menu-id="${menuId}"]`);
-      if (menuEl?.contains(target)) return;
+      if (menuEl?.contains(target)) {
+        return;
+      }
       setMenuOpen(false);
     };
     const escHandler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setMenuOpen(false);
+      if (e.key === 'Escape') {
+        setMenuOpen(false);
+      }
     };
     window.addEventListener('mousedown', handler);
     window.addEventListener('keydown', escHandler);
@@ -183,11 +197,15 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
   }, [menuOpen, menuId]);
 
   useEffect(() => {
-    if (!childMenuState) return;
+    if (!childMenuState) {
+      return;
+    }
     const handler = (e: MouseEvent) => {
       const target = e.target as Node;
       const menuEl = document.querySelector(`[data-menu-id="github-child-menu"]`);
-      if (menuEl?.contains(target)) return;
+      if (menuEl?.contains(target)) {
+        return;
+      }
       setChildMenuState(null);
     };
     window.addEventListener('mousedown', handler);
@@ -296,7 +314,9 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
   })();
 
   const renderChildCount = useCallback((childNode: GitHubTreeNode) => {
-    if (childNode.kind === 'directory') return childNode.children.length;
+    if (childNode.kind === 'directory') {
+      return childNode.children.length;
+    }
     return undefined;
   }, []);
 
@@ -319,20 +339,13 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
 
   const renderChildMeta = useCallback(
     (childNode: GitHubTreeNode) => {
-      if (childNode.nodeType !== 'folder') return null;
+      if (childNode.nodeType !== 'folder') {
+        return null;
+      }
       const childFolderId = childNode.path.startsWith('github-folder:')
         ? childNode.path.slice('github-folder:'.length)
         : '';
       const isUnderWorkspace = !!node.workspaceId;
-
-      const handleOpenChildMenu = useCallback(
-        (e: React.MouseEvent) => {
-          e.stopPropagation();
-          setMenuPosition({ top: e.clientY, left: e.clientX + 4 });
-          setMenuOpen(true);
-        },
-        []
-      );
 
       return (
         <span className="adl-browser-node__actions">
@@ -457,7 +470,14 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
         action: () => item.action(),
       }));
     },
-    [categoryType, handleStartRename, clearCiState, callbacks, node.workspaceId, gitHubDeleteFolderConfig]
+    [
+      categoryType,
+      handleStartRename,
+      clearCiState,
+      callbacks,
+      node.workspaceId,
+      gitHubDeleteFolderConfig,
+    ]
   );
 
   const handleExpandBtnClick = useCallback(
@@ -470,41 +490,11 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
 
   const handleNameKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter') onSelectTreePath(node.path);
+      if (e.key === 'Enter') {
+        onSelectTreePath(node.path);
+      }
     },
     [onSelectTreePath, node.path]
-  );
-
-  const handleWorkspaceConfigClick = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      callbacks.onDeleteWorkspaceConfig(node.workspaceId!);
-    },
-    [callbacks, node.workspaceId]
-  );
-
-  const handleOpenSettingsClick = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      callbacks.onOpenSettings(node.workspaceId!);
-    },
-    [callbacks, node.workspaceId]
-  );
-
-  const handleDeleteFolderClick = useCallback(
-    (e: React.MouseEvent, folderId: string) => {
-      e.stopPropagation();
-      gitHubDeleteFolderConfig(folderId);
-    },
-    [gitHubDeleteFolderConfig]
-  );
-
-  const handleStartRenameClick = useCallback(
-    (e: React.MouseEvent, folderId: string, name: string) => {
-      e.stopPropagation();
-      handleStartRename(folderId, name);
-    },
-    [handleStartRename]
   );
 
   const handleChildMenuClick = useCallback((action: () => void) => {
@@ -614,9 +604,9 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
               className="adl-multitree-entry__menu"
               role="menu"
               data-menu-id={menuId}
-              style={{ 
+              style={{
                 position: 'fixed',
-                top: menuPosition.top, 
+                top: menuPosition.top,
                 left: menuPosition.left,
                 width: '176px',
                 zIndex: 9999,
@@ -668,9 +658,9 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
               className="adl-multitree-entry__menu"
               role="menu"
               data-menu-id="github-child-menu"
-              style={{ 
+              style={{
                 position: 'fixed',
-                top: childMenuState.y, 
+                top: childMenuState.y,
                 left: childMenuState.x,
                 width: '176px',
                 zIndex: 9999,

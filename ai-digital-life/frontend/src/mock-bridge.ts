@@ -24,12 +24,16 @@ const MOCK_BRIDGE_STORAGE_KEY = 'ai-digital-life-mock-bridge-state';
 let persistenceEnabled = false;
 
 function loadPersistedState(): void {
-  if (!persistenceEnabled || typeof window === 'undefined') return;
+  if (!persistenceEnabled || typeof window === 'undefined') {
+    return;
+  }
   try {
     const stored = localStorage.getItem(MOCK_BRIDGE_STORAGE_KEY);
     if (stored) {
       const state: MockBridgeState = JSON.parse(stored);
-      if (state.appInfo) Object.assign(appInfo, state.appInfo);
+      if (state.appInfo) {
+        Object.assign(appInfo, state.appInfo);
+      }
       if (state.currentWorkspaceMeta) {
         setMockCurrentWorkspace(state.currentWorkspaceMeta);
       }
@@ -40,7 +44,9 @@ function loadPersistedState(): void {
 }
 
 function savePersistedState(): void {
-  if (!persistenceEnabled || typeof window === 'undefined') return;
+  if (!persistenceEnabled || typeof window === 'undefined') {
+    return;
+  }
   try {
     const state: MockBridgeState = {
       appInfo,
@@ -72,7 +78,9 @@ const subscribePtyOutput = (listener: (event: PtyOutputEvent) => void) => {
   if (ptyOutputListeners.size >= MAX_PTY_LISTENERS) {
     console.warn('mock-bridge: PTY listener limit reached, dropping oldest listener');
     const oldest = ptyOutputListeners.values().next().value;
-    if (oldest) ptyOutputListeners.delete(oldest);
+    if (oldest) {
+      ptyOutputListeners.delete(oldest);
+    }
   }
   ptyOutputListeners.add(listener);
   return () => void ptyOutputListeners.delete(listener);

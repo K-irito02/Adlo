@@ -124,7 +124,9 @@ export class ThemeController {
   }
 
   private applyToRoot(): void {
-    if (!this.root) return;
+    if (!this.root) {
+      return;
+    }
     this.root.dataset.theme = this.currentResolvedTheme;
   }
 

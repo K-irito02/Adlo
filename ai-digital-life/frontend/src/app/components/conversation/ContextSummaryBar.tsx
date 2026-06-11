@@ -20,7 +20,9 @@ export function ContextSummaryBar({
 }: ContextSummaryBarProps) {
   const [expanded, setExpanded] = useState(false);
 
-  if (!workspaceName && chips.length === 0) return null;
+  if (!workspaceName && chips.length === 0) {
+    return null;
+  }
 
   const fileCount = chips.filter((c) => c.kind === 'file').length;
 

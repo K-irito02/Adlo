@@ -81,7 +81,9 @@ const PatchReviewSection = React.memo(function PatchReviewSection(props: PatchRe
     filteredPatchSummaries[0];
 
   const activeFilePatchFromSet = useMemo(() => {
-    if (!activePatchSet || !selectedPatchFilePath) return undefined;
+    if (!activePatchSet || !selectedPatchFilePath) {
+      return undefined;
+    }
     return activePatchSet.filePatches.find((p) => p.relativePath === selectedPatchFilePath);
   }, [activePatchSet, selectedPatchFilePath]);
 
@@ -107,7 +109,9 @@ const PatchReviewSection = React.memo(function PatchReviewSection(props: PatchRe
   const diffExtensions = useMemo(() => [], []);
   const validation = latestPatchApplication?.validation;
 
-  if (!activePatchSet) return null;
+  if (!activePatchSet) {
+    return null;
+  }
 
   return (
     <div className="adl-tool-primary__scroll adl-tool-primary__scroll--changes">

@@ -96,7 +96,9 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
 
   const getStickySourceEditor = useCallback(() => {
     const ref = localEditorRef.current;
-    if (!ref) return null;
+    if (!ref) {
+      return null;
+    }
     if ('getModifiedEditor' in ref) {
       return (ref as DiffEditorRef).getModifiedEditor();
     }
@@ -140,7 +142,9 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
   const diffExtensions = useMemo(() => [], []);
 
   if (!changePreview) {
-    if (changePreviewLoading) return null;
+    if (changePreviewLoading) {
+      return null;
+    }
     if (totalChangeCount === 0) {
       return <ChangesEmptyState hasWorkspaces={visibleWorkspacesLength > 0} />;
     }

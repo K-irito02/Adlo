@@ -40,7 +40,9 @@ export function useRightPanelViewProps() {
   }, []);
 
   const communicateBadge = useMemo(() => {
-    if (!ciSnapshot?.latestRun) return 0;
+    if (!ciSnapshot?.latestRun) {
+      return 0;
+    }
     const c = ciSnapshot.latestRun.conclusion;
     return c === 'failure' || c === 'cancelled' ? 1 : 0;
   }, [ciSnapshot]);

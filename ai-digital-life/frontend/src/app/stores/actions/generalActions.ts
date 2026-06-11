@@ -30,7 +30,9 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
         window.digitalLife.workspace.listRecent(),
         window.digitalLife.app.getModelHealth(),
       ]);
-      if (requestSeq !== workspaceRequestSeq) return;
+      if (requestSeq !== workspaceRequestSeq) {
+        return;
+      }
 
       if (!appInfoResult.ok) {
         set({ loading: false, error: appInfoResult.error.message });
@@ -41,7 +43,9 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
         loadConversationState(),
         loadTaskCenterState(),
       ]);
-      if (requestSeq !== workspaceRequestSeq) return;
+      if (requestSeq !== workspaceRequestSeq) {
+        return;
+      }
 
       const recentWorkspaces = recentResult.ok ? recentResult.data : [];
       // 为右侧面板设置默认展开所有可见工作区
@@ -82,7 +86,9 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
           window.digitalLife.workspace.getGitStatus(),
           patchPromise,
         ]);
-        if (requestSeq !== workspaceRequestSeq) return;
+        if (requestSeq !== workspaceRequestSeq) {
+          return;
+        }
 
         const gitSnapshot = gitStatusResult.ok ? gitStatusResult.data : undefined;
         const gitSnapshots: Record<string, GitSnapshot> = {};
@@ -124,7 +130,9 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
         }
 
         queueLowPriorityRefresh(async () => {
-          if (requestSeq !== workspaceRequestSeq) return;
+          if (requestSeq !== workspaceRequestSeq) {
+            return;
+          }
           const results = await Promise.allSettled([
             get().fetchIndexStatus(),
             get().fetchAuditEntries(40),
@@ -191,7 +199,9 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
         appInfo: result.data,
         sessions: state.sessions,
       }));
-      if (patch.modelPreferences) await get().refreshModelHealth();
+      if (patch.modelPreferences) {
+        await get().refreshModelHealth();
+      }
     },
   };
 }

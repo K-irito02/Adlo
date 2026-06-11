@@ -22,7 +22,9 @@ export function useKeyboardShortcuts(
       } else if ((event.ctrlKey || event.metaKey) && (event.key === 'o' || event.key === 'O')) {
         event.preventDefault();
         void actions.pickWorkspaceDirectory().then((picked) => {
-          if (picked) void actions.openWorkspace(picked);
+          if (picked) {
+            void actions.openWorkspace(picked);
+          }
         });
       }
     };

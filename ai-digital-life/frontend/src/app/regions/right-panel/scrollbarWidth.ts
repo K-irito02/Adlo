@@ -1,10 +1,14 @@
 let initialized = false;
 
 export function initScrollbarWidth(): void {
-  if (initialized) return;
+  if (initialized) {
+    return;
+  }
   initialized = true;
 
-  if (typeof document === 'undefined') return;
+  if (typeof document === 'undefined') {
+    return;
+  }
 
   const outer = document.createElement('div');
   outer.style.cssText = [

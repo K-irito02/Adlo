@@ -80,11 +80,11 @@ impl Database {
             Ok(result) => {
                 conn.execute_batch("COMMIT").map_err(|e| AppError::Storage(e.to_string()))?;
                 Ok(result)
-            }
+            },
             Err(e) => {
                 let _ = conn.execute_batch("ROLLBACK");
                 Err(e)
-            }
+            },
         }
     }
 }

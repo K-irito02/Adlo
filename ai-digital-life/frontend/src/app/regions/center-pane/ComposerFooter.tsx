@@ -17,7 +17,7 @@ import type {
   WorkspaceGitBranchCreateInput,
 } from '@ai-digital-life/kernel';
 
-export type ComposerFooterProps = {
+export interface ComposerFooterProps {
   t: CopyDict;
   draft: string;
   buttonState: 'send' | 'stop' | 'retry' | 'waiting';
@@ -54,7 +54,7 @@ export type ComposerFooterProps = {
     switchGitBranch: (input: WorkspaceGitBranchSwitchInput) => Promise<void>;
     createGitBranch: (input: WorkspaceGitBranchCreateInput) => Promise<void>;
   };
-};
+}
 
 export function ComposerFooter(props: ComposerFooterProps) {
   const {

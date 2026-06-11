@@ -110,7 +110,9 @@ export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
 
   const emitCollapsedUnchangedRanges = useCallback(
     (view: EditorView) => {
-      if (!onCollapsedUnchangedRangesChange) return;
+      if (!onCollapsedUnchangedRangesChange) {
+        return;
+      }
       if (!collapseUnchanged) {
         onCollapsedUnchangedRangesChange([]);
         return;
@@ -128,7 +130,9 @@ export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
 
   // 只有在语言加载完成后才创建编辑器
   useEffect(() => {
-    if (!editorReady || !containerRef.current) return;
+    if (!editorReady || !containerRef.current) {
+      return;
+    }
 
     if (mergeViewRef.current) {
       mergeViewRef.current.destroy();
@@ -166,7 +170,9 @@ export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
     });
 
     const handleScrollA = () => {
-      if (syncing) return;
+      if (syncing) {
+        return;
+      }
       syncing = true;
       if (mv.b) {
         syncScrollPosition(mv.a.scrollDOM, mv.b.scrollDOM);
@@ -175,7 +181,9 @@ export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
       syncing = false;
     };
     const handleScrollB = () => {
-      if (syncing) return;
+      if (syncing) {
+        return;
+      }
       syncing = true;
       if (mv.a) {
         syncScrollPosition(mv.b.scrollDOM, mv.a.scrollDOM);
@@ -201,7 +209,9 @@ export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
       const MIN_WIDTH = 200;
       const resizerWidth = 6;
       let ratio = parseFloat(localStorage.getItem(SAVED_RATIO_KEY) ?? '0.5');
-      if (Number.isNaN(ratio) || ratio <= 0 || ratio >= 1) ratio = 0.5;
+      if (Number.isNaN(ratio) || ratio <= 0 || ratio >= 1) {
+        ratio = 0.5;
+      }
 
       const applyRatio = (totalWidth: number) => {
         const avail = totalWidth - resizerWidth;
@@ -340,9 +350,13 @@ export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
 
   useEffect(() => {
     const mv = mergeViewRef.current;
-    if (!mv) return;
+    if (!mv) {
+      return;
+    }
     const reconfigure = (view: EditorView | null) => {
-      if (!view) return;
+      if (!view) {
+        return;
+      }
       view.dispatch({
         effects: [
           lineNumbersCompartment.reconfigure(lineNumbersEnabled ? lineNumbers() : []),

@@ -1,7 +1,7 @@
 import React from 'react';
 import { IconChevronDown, IconChevronRight } from '../../icons';
 
-type TreeNodeRowProps = {
+interface TreeNodeRowProps {
   depth: number;
   rowOffset: number;
   hasChildren: boolean;
@@ -34,7 +34,7 @@ type TreeNodeRowProps = {
   children?: React.ReactNode;
   nodePath?: string;
   style?: React.CSSProperties;
-};
+}
 
 export function TreeNodeRow({
   depth,

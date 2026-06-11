@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it } from "vitest";
 import { copy } from "./i18n";
 import { getCachedLruTTL, setCachedLruTTL } from "./stores/shared";
 

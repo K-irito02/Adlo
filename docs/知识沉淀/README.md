@@ -9,7 +9,7 @@
 | [重构](./重构/) | 重构方法论、组件提取、执行报告、阶段性总结 | 16 |
 | [多工作区](./多工作区/) | 多工作区开发中的变更面板、文件树、终端、布局等经验 | 11 |
 | [浏览器](./浏览器/) | 内置浏览器实现、空标签引导页、树形目录交互等经验 | 8 |
-| [代码质量](./代码质量/) | 全量代码质量检测与修复经验 | 9 |
+| [代码质量](./代码质量/) | 全量代码质量检测与修复经验 | 10 |
 | [浏览器自动化](./浏览器自动化/) | 浏览器自动化调试记录与规则经验 | 2 |
 | [交互优化](./交互优化/) | 跨功能面板的交互/UX 问题修复经验 | 6 |
 | [CI 监控](./CI监控/) | GitHub Actions CI 状态监控模块经验（Token 安全、双端一致性、类型系统、树形目录交互） | 3 |
@@ -71,6 +71,7 @@
 |------|------|------|
 | [code-quality-detection-and-fix.md](./代码质量/code-quality-detection-and-fix.md) | 全仓库代码质量检测与修复执行 | 7 条经验（React 19 hooks、React.memo、CodeMirror 重建、Rust clippy 等） |
 | [eslint-prettier-ts-cleanup-2026-06-04.md](./代码质量/eslint-prettier-ts-cleanup-2026-06-04.md) | 四维门禁清零执行 | 6 条经验（`_param` 解构陷阱、`any`→具体类型级联错误、组件拆分、图书馆接等） |
+| [eslint-prettier-clippy-rustfmt-config-and-bugfix-2026-06-11.md](./代码质量/eslint-prettier-clippy-rustfmt-config-and-bugfix-2026-06-11.md) | 2026-06-11 四维门禁全量修复执行 | 6 条经验（CSS 删除前 grep、rustfmt nightly 陷阱、flat config ignores 陷阱、Prettier 合并规则、> 选择器防传播） |
 | [syntax-highlighting-fix-2026-06-05.md](./代码质量/syntax-highlighting-fix-2026-06-05.md) | 2026-06-05 修复执行 | 变更面板语法高亮修复（CodeMirror Facet 多实例、pnpm 传递依赖陷阱、Vite 预构建缓存） |
 | [diff-viewer-theme-fix-2026-06-06.md](./代码质量/diff-viewer-theme-fix-2026-06-06.md) | 2026-06-06 修复执行 | 差异查看器主题修复（CSS 选择器覆盖不足、硬编码值、内容/行号区层级）与无变更行自动折叠启用 |
 | [diff-viewer-gutter-hover-fix-2026-06-08.md](./代码质量/diff-viewer-gutter-hover-fix-2026-06-08.md) | 2026-06-08 修复执行 | 差异查看器并排模式 A 侧行号区悬停颜色修复（`EditorView.editorAttributes` DOM 类归属判断） |

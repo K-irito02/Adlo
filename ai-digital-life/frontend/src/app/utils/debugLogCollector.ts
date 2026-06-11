@@ -45,7 +45,9 @@ const originalDebug = console.debug;
  * 将任意值安全地序列化为字符串
  */
 function safeStringify(value: unknown): string {
-  if (typeof value === 'string') return value;
+  if (typeof value === 'string') {
+    return value;
+  }
   if (
     typeof value === 'number' ||
     typeof value === 'boolean' ||
@@ -93,7 +95,9 @@ function getCSTTimestamp(): string {
  */
 function collectLog(level: LogEntry['level'], ...args: unknown[]) {
   // 防止收集过程中不执行新的日志导致的无限循环
-  if (isWriting) return;
+  if (isWriting) {
+    return;
+  }
 
   debugLogs.push({
     timestamp: getCSTTimestamp(),
@@ -159,7 +163,9 @@ function getDebugLogs(): Array<{ timestamp: string; level: string; message: stri
 async function getAppDirectory(): Promise<string | null> {
   try {
     const response = await fetch('/__adl_preview_api__/workspace/app-directory');
-    if (!response.ok) return null;
+    if (!response.ok) {
+      return null;
+    }
     const result = await response.json();
     return result.data || null;
   } catch {
@@ -175,7 +181,9 @@ async function getAppDirectory(): Promise<string | null> {
  * 写入日志到项目目录
  */
 async function writeLogsToProjectFile() {
-  if (isWriting) return;
+  if (isWriting) {
+    return;
+  }
 
   try {
     isWriting = true;
@@ -200,7 +208,9 @@ async function writeLogsToProjectFile() {
  */
 async function writeLogsToProjectFileBrowser(content: string) {
   const appDirectory = await getAppDirectory();
-  if (!appDirectory) return;
+  if (!appDirectory) {
+    return;
+  }
 
   const response = await fetch('/__adl_preview_api__/workspace/write-debug-logs', {
     method: 'POST',
@@ -275,11 +285,15 @@ function restoreConsole() {
 // ============================================
 
 function createDraggableCopyButton() {
-  if (typeof document === 'undefined') return;
+  if (typeof document === 'undefined') {
+    return;
+  }
 
   // 移除已存在的按钮
   const existing = document.getElementById('__dl-debug-button');
-  if (existing) existing.remove();
+  if (existing) {
+    existing.remove();
+  }
 
   const btn = document.createElement('button');
   btn.id = '__dl-debug-button';
@@ -311,7 +325,9 @@ function createDraggableCopyButton() {
 
   // 点击复制（只有非拖拽时才会触发）
   btn.onclick = async (e) => {
-    if (hasMoved) return;
+    if (hasMoved) {
+      return;
+    }
     e.stopPropagation();
     try {
       const logs = exportLogsAsText();
@@ -358,7 +374,9 @@ function createDraggableCopyButton() {
 
   // 拖拽移动
   const handleMouseMove = (e: MouseEvent) => {
-    if (!isDragging) return;
+    if (!isDragging) {
+      return;
+    }
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
     if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {

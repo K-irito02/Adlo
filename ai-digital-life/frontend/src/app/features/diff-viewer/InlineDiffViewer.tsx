@@ -97,7 +97,9 @@ export const InlineDiffViewer = memo(function InlineDiffViewer({
       ...base,
       ...extraExtensions,
       EditorView.updateListener.of((update) => {
-        if (!onCollapsedUnchangedRangesChange) return;
+        if (!onCollapsedUnchangedRangesChange) {
+          return;
+        }
         const expandedLines = update.transactions
           .flatMap((transaction) => transaction.effects)
           .filter((effect) => effect.is(uncollapseUnchanged))
@@ -143,7 +145,9 @@ export const InlineDiffViewer = memo(function InlineDiffViewer({
 
   // 只有在语言加载完成后才创建编辑器
   useEffect(() => {
-    if (!editorReady || !containerRef.current) return;
+    if (!editorReady || !containerRef.current) {
+      return;
+    }
 
     if (viewRef.current) {
       viewRef.current.destroy();
@@ -202,7 +206,9 @@ export const InlineDiffViewer = memo(function InlineDiffViewer({
 
   useEffect(() => {
     const view = viewRef.current;
-    if (!view) return;
+    if (!view) {
+      return;
+    }
     view.dispatch({
       effects: [
         lineNumbersCompartment.reconfigure(lineNumbersEnabled ? lineNumbers() : []),

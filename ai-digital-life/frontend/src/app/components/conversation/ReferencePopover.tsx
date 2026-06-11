@@ -41,7 +41,9 @@ export function ReferencePopover({ t, open, items, onSelect, onClose }: Referenc
   const inputRef = useRef<HTMLInputElement>(null);
 
   const filtered = useMemo(() => {
-    if (!query.trim()) return items;
+    if (!query.trim()) {
+      return items;
+    }
     const lower = query.toLowerCase();
     return items.filter(
       (item) =>
@@ -60,9 +62,13 @@ export function ReferencePopover({ t, open, items, onSelect, onClose }: Referenc
   }, [open]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      return;
+    }
     const handler = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) onClose();
+      if (!ref.current?.contains(e.target as Node)) {
+        onClose();
+      }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -88,7 +94,9 @@ export function ReferencePopover({ t, open, items, onSelect, onClose }: Referenc
     [activeIndex, filtered, onClose, onSelect]
   );
 
-  if (!open) return null;
+  if (!open) {
+    return null;
+  }
 
   return (
     <div ref={ref} className="adl-reference-popover" role="listbox" onKeyDown={handleKeyDown}>

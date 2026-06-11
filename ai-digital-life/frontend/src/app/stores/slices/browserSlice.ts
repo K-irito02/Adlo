@@ -150,7 +150,9 @@ function hydrateBrowserDefaults(
   get: () => StoreState,
   set: (partial: Partial<StoreState>) => void
 ): void {
-  if (_defaultsHydrated) return;
+  if (_defaultsHydrated) {
+    return;
+  }
   _defaultsHydrated = true;
   const doHydrate = () => {
     const state = get();
@@ -405,7 +407,9 @@ export const createBrowserSlice = (
 
     browserReorderTabs: (newOrder) =>
       set((state) => {
-        if (state.browserTabs === newOrder) return state;
+        if (state.browserTabs === newOrder) {
+          return state;
+        }
 
         const pinnedTabs = newOrder.filter((t) => t.isPinned);
         const unpinnedTabs = newOrder.filter((t) => !t.isPinned);
@@ -828,7 +832,9 @@ export const createBrowserSlice = (
     browserBookmarkTab: (tabId, folderId, newFolderName) => {
       set((state) => {
         const tab = state.browserTabs.find((t) => t.id === tabId);
-        if (!tab) return {};
+        if (!tab) {
+          return {};
+        }
 
         const url = tab.url;
         const title = tab.title;
@@ -930,7 +936,9 @@ export const createBrowserSlice = (
             .map((h) => h.id);
         }
 
-        if (tabIdsToDelete.length === 0) return state;
+        if (tabIdsToDelete.length === 0) {
+          return state;
+        }
 
         if (nodePath.startsWith('history:')) {
           const nextHistory = state.browserHistory.filter((h) => !tabIdsToDelete.includes(h.id));

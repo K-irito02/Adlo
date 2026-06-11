@@ -49,7 +49,9 @@ export function createPtyBridge() {
       if (ptyOutputListeners.size >= MAX_PTY_LISTENERS) {
         console.warn('preview-bridge: PTY listener limit reached, dropping oldest listener');
         const oldest = ptyOutputListeners.values().next().value;
-        if (oldest) ptyOutputListeners.delete(oldest);
+        if (oldest) {
+          ptyOutputListeners.delete(oldest);
+        }
       }
       ptyOutputListeners.add(listener);
       ptyPollingListenersCount += 1;

@@ -5,7 +5,7 @@ import type { PreviewDiffCollapsedRange } from './changePreviewDiffRanges';
 import { SideBySideDiffViewer } from './SideBySideDiffViewer';
 import { InlineDiffViewer } from './InlineDiffViewer';
 
-export type DiffViewerProps = {
+export interface DiffViewerProps {
   original: string;
   modified: string;
   language?: string;
@@ -20,7 +20,7 @@ export type DiffViewerProps = {
   onMount?: (editor: DiffEditorRef | EditorRef) => void;
   extensions?: Extension[];
   onCollapsedUnchangedRangesChange?: (ranges: PreviewDiffCollapsedRange[]) => void;
-};
+}
 
 function areDiffViewerPropsEqual(prev: DiffViewerProps, next: DiffViewerProps) {
   return (

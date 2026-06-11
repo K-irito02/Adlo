@@ -20,9 +20,13 @@ export function createSearchActions(set: StoreApi<StoreState>['setState'], get: 
         return;
       }
       debouncedSearch(query, async () => {
-        if (get().searchQuery !== query) return;
+        if (get().searchQuery !== query) {
+          return;
+        }
         const result = await window.digitalLife.workspace.search(query);
-        if (get().searchQuery !== query) return;
+        if (get().searchQuery !== query) {
+          return;
+        }
         if (!result.ok) {
           set({ error: result.error.message });
           return;

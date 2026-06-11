@@ -4,14 +4,14 @@ import { buildOutlineTree, type OutlineNode, getDefaultExpandedOutlineIds } from
 import { CustomScrollArea } from '../../features/file-tree/CustomScrollArea';
 import { TreeNodeRow } from '../../features/file-tree/TreeNodeRow';
 
-export type OutlineTreeProps = {
+export interface OutlineTreeProps {
   items: FileOutlineItem[];
   onNavigate: (line: number, item: FileOutlineItem) => void;
   expandLabel: string;
   collapseLabel: string;
   expandedIds?: ReadonlySet<string>;
   onExpandedIdsChange?: (expandedIds: Set<string>) => void;
-};
+}
 
 export function OutlineTree({
   items,
@@ -41,7 +41,9 @@ export function OutlineTree({
   }, [controlledExpandedIds, items]);
 
   useEffect(() => {
-    if (!activeId) return;
+    if (!activeId) {
+      return;
+    }
     if (!items.some((item) => item.id === activeId)) {
       setActiveId(null);
     }

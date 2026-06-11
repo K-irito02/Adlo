@@ -144,7 +144,9 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
   const hasActivePatch = !!(filePatch && filePatch.relativePath === selectedFilePath);
 
   const activeFilePatch = useMemo(() => {
-    if (!props.activePatchSet || !props.selectedPatchFilePath) return undefined;
+    if (!props.activePatchSet || !props.selectedPatchFilePath) {
+      return undefined;
+    }
     return props.activePatchSet.filePatches.find(
       (c) => c.relativePath === props.selectedPatchFilePath
     );
@@ -167,7 +169,9 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
   );
 
   const agentHunkDecorations = useMemo<AgentHunkDecoration[]>(() => {
-    if (!activeFilePatch || !selectedFilePath) return [];
+    if (!activeFilePatch || !selectedFilePath) {
+      return [];
+    }
     return activeFilePatch.hunks.map((hunk) => {
       const changeKind = derivePatchHunkChangeKind(hunk);
       const startLine = Math.max(1, hunk.newStart || hunk.oldStart || 1);

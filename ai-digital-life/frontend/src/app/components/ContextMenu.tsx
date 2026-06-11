@@ -63,7 +63,9 @@ export function ContextMenu({ items, position, onClose }: ContextMenuProps) {
             tabIndex={item.disabled ? -1 : 0}
             autoFocus={nonSeparatorItems.indexOf(item) === firstItemIndex}
             onClick={() => {
-              if (item.disabled) return;
+              if (item.disabled) {
+                return;
+              }
               item.action?.();
               onClose();
             }}

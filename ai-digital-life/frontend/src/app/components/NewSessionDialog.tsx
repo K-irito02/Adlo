@@ -43,7 +43,9 @@ export function NewSessionDialog({ open, t, onCreate, onCancel }: NewSessionDial
     [handleOk, loading, onCancel]
   );
 
-  if (!open) return null;
+  if (!open) {
+    return null;
+  }
 
   return (
     <div className="adl-prompt-modal" onKeyDown={handleKeyDown}>

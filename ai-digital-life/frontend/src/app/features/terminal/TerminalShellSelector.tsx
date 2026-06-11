@@ -42,12 +42,16 @@ export const TerminalShellSelector = React.memo(function TerminalShellSelector({
   );
 
   const boundWorkspace = useMemo(() => {
-    if (!terminalWorkspaceId) return null;
+    if (!terminalWorkspaceId) {
+      return null;
+    }
     return recentWorkspaces.find((w) => w.id === terminalWorkspaceId);
   }, [terminalWorkspaceId, recentWorkspaces]);
 
   const boundWorkspaceLabel = useMemo(() => {
-    if (!boundWorkspace) return t.terminalIndependent;
+    if (!boundWorkspace) {
+      return t.terminalIndependent;
+    }
     return boundWorkspace.name;
   }, [boundWorkspace, t.terminalIndependent]);
 

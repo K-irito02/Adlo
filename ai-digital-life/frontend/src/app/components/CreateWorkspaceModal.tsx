@@ -19,19 +19,25 @@ export function CreateWorkspaceModal({
 }: CreateWorkspaceModalProps) {
   const handleBackdrop = useCallback(
     (e: React.MouseEvent) => {
-      if (e.target === e.currentTarget) onClose();
+      if (e.target === e.currentTarget) {
+        onClose();
+      }
     },
     [onClose]
   );
 
-  if (!open) return null;
+  if (!open) {
+    return null;
+  }
 
   return (
     <div
       className="adl-prompt-modal"
       onClick={handleBackdrop}
       onKeyDown={(e) => {
-        if (e.key === 'Escape') onClose();
+        if (e.key === 'Escape') {
+          onClose();
+        }
       }}
     >
       <div

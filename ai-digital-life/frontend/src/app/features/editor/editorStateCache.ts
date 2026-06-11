@@ -22,14 +22,18 @@ function pruneStateCache() {
 }
 
 export function saveEditorState(filePath: string, view: EditorView | null) {
-  if (!view || !filePath) return;
+  if (!view || !filePath) {
+    return;
+  }
   pruneStateCache();
   stateCache.set(filePath, { state: view.state, timestamp: Date.now() });
 }
 
 export function getSavedEditorState(filePath: string): EditorState | null {
   const entry = stateCache.get(filePath);
-  if (!entry) return null;
+  if (!entry) {
+    return null;
+  }
   entry.timestamp = Date.now();
   return entry.state;
 }

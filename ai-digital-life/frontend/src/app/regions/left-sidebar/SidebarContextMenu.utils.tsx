@@ -67,13 +67,13 @@ export async function exportSessionMarkdown(session: ConversationSessionRecord):
   URL.revokeObjectURL(url);
 }
 
-export type SidebarMenuItem = {
+export interface SidebarMenuItem {
   id: string;
   label: string;
   icon: React.ReactNode;
   danger?: boolean;
   action: () => void;
-};
+}
 
 export interface WorkspaceMenuCallbacks {
   onPinWorkspace: (workspaceId: string) => void;

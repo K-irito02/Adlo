@@ -12,7 +12,9 @@ export function createCommandActions(set: StoreApi<StoreState>['setState'], get:
      * @see preview-bridge/index.ts → command.run
      */
     runCommand: async (command: string, argsText: string) => {
-      if (!command.trim()) return;
+      if (!command.trim()) {
+        return;
+      }
       clearError(get);
       const args = argsText
         .split(/\s+/)
