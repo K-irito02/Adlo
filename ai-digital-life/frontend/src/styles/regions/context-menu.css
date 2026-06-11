@@ -1,6 +1,7 @@
 .adl-sidebar-menu {
   position: fixed;
-  min-width: 132px;
+  width: 176px;
+  min-width: 176px;
   padding: 4px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);

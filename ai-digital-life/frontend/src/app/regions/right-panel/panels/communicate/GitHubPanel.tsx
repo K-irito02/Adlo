@@ -21,6 +21,107 @@ import { GitHubTree } from '../../../../features/github-tree/GitHubTree';
 import type { SectionCallbacks } from '../../../../features/github-tree/GitHubCategorySection';
 import { GitHubLogViewer } from './GitHubLogViewer';
 
+// MenuHintItem 组件 - 带提示子卡片的菜单项
+interface MenuHintItemProps {
+  label: string;
+  hint: string;
+  onClick: () => void;
+}
+
+function MenuHintItem({ label, hint, onClick }: MenuHintItemProps) {
+  const hintRef = useRef<HTMLSpanElement>(null);
+
+  return (
+    <button
+      type="button"
+      className="adl-multitree-entry__menu-item"
+      role="menuitem"
+      onClick={onClick}
+    >
+      <span>{label}</span>
+      <span
+        ref={hintRef}
+        className="adl-menu-item__hint"
+        onMouseEnter={(e) => {
+          e.stopPropagation();
+          // 阻止原生 title tooltip
+          const button = (e.target as HTMLElement).closest('button');
+          const originalTitle = button?.getAttribute('title');
+          if (originalTitle) {
+            button?.setAttribute('data-original-title', originalTitle);
+            button?.removeAttribute('title');
+          }
+
+          const buttonEl = (e.target as HTMLElement).closest('button');
+          const buttonRect = buttonEl?.getBoundingClientRect();
+          const menuCard = document.querySelector('[data-menu-id="github-delete-all-menu"]');
+          if (buttonRect && menuCard) {
+            const menuRect = menuCard.getBoundingClientRect();
+            const centerY = buttonRect.top + buttonRect.height / 2;
+
+            // 子卡片：右侧对齐主菜单，垂直居中于 "!" 按钮
+            const card = document.createElement('div');
+            card.className = 'adl-sub-hint-card';
+            card.textContent = hint;
+            card.style.left = `${menuRect.right + 1}px`;
+            card.style.top = `${centerY}px`;
+            card.style.transform = 'translateY(-50%)';
+
+            // 箭头填充：border-right 向左指向，底部对齐卡片左边缘
+            const arrow = document.createElement('div');
+            arrow.className = 'adl-sub-hint-card__arrow';
+            arrow.style.left = `${menuRect.right - 4}px`;
+            arrow.style.top = `${centerY - 4}px`;
+
+            // 箭头边框：向右(外)扩 1px 形成轮廓线
+            const arrowBorder = document.createElement('div');
+            arrowBorder.className = 'adl-sub-hint-card__arrow-border';
+            arrowBorder.style.left = `${menuRect.right - 5}px`;
+            arrowBorder.style.top = `${centerY - 5}px`;
+
+            document.body.appendChild(card);
+            document.body.appendChild(arrow);
+            document.body.appendChild(arrowBorder);
+
+            // 存储引用以便后续移除
+            const ref = hintRef.current as HTMLSpanElement & {
+              _subCard?: HTMLDivElement;
+              _subArrow?: HTMLDivElement;
+              _subArrowBorder?: HTMLDivElement;
+            };
+            ref._subCard = card;
+            ref._subArrow = arrow;
+            ref._subArrowBorder = arrowBorder;
+          }
+        }}
+        onMouseLeave={(e) => {
+          e.stopPropagation();
+          const ref = hintRef.current as HTMLSpanElement & {
+            _subCard?: HTMLDivElement;
+            _subArrow?: HTMLDivElement;
+            _subArrowBorder?: HTMLDivElement;
+          };
+          if (ref._subCard) document.body.removeChild(ref._subCard);
+          if (ref._subArrow) document.body.removeChild(ref._subArrow);
+          if (ref._subArrowBorder) document.body.removeChild(ref._subArrowBorder);
+          delete ref._subCard;
+          delete ref._subArrow;
+          delete ref._subArrowBorder;
+          // 恢复原生 title tooltip
+          const button = (e.target as HTMLElement).closest('button');
+          const originalTitle = button?.getAttribute('data-original-title');
+          if (originalTitle) {
+            button?.setAttribute('title', originalTitle);
+            button?.removeAttribute('data-original-title');
+          }
+        }}
+      >
+        !
+      </span>
+    </button>
+  );
+}
+
 function formatDuration(start?: string | null, end?: string | null): string {
   if (!start) return '—';
   const s = new Date(start).getTime();
@@ -730,6 +831,12 @@ export function GitHubPanel() {
     setSelectedLogJobId,
     gitHubCiFolders,
     gitHubCreateFolder,
+    gitHubSaveFolderConfig,
+    clearCiState,
+    clearAllFolders,
+    clearAllCiConfigs,
+    clearAllCiConfigsAndData,
+    resetAllToOriginal,
   } = useAppStore(
     useShallow((s) => ({
       toggleGitHubTreePath: s.toggleGitHubTreePath,
@@ -742,6 +849,12 @@ export function GitHubPanel() {
       setSelectedLogJobId: s.setSelectedLogJobId,
       gitHubCiFolders: s.gitHubCiFolders,
       gitHubCreateFolder: s.gitHubCreateFolder,
+      gitHubSaveFolderConfig: s.gitHubSaveFolderConfig,
+      clearCiState: s.clearCiState,
+      clearAllFolders: s.clearAllFolders,
+      clearAllCiConfigs: s.clearAllCiConfigs,
+      clearAllCiConfigsAndData: s.clearAllCiConfigsAndData,
+      resetAllToOriginal: s.resetAllToOriginal,
     }))
   );
 
@@ -749,6 +862,33 @@ export function GitHubPanel() {
   const [showHelp, setShowHelp] = useState(false);
   const [gitHubViewMode, setGitHubViewMode] = useState<'tree' | 'list'>('tree');
   const [settingsWorkspaceId, setSettingsWorkspaceId] = useState<string | null>(null);
+  const [settingsFolderId, setSettingsFolderId] = useState<string | null>(null);
+  const [deleteMenuOpen, setDeleteMenuOpen] = useState(false);
+  const deleteButtonRef = useRef<HTMLButtonElement>(null);
+  const [deleteMenuHovering, setDeleteMenuHovering] = useState(false);
+  const deleteMenuTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [deleteTooltipOpen, setDeleteTooltipOpen] = useState(false);
+
+  // 清理定时器
+  const clearDeleteMenuTimer = useCallback(() => {
+    if (deleteMenuTimerRef.current) {
+      clearTimeout(deleteMenuTimerRef.current);
+      deleteMenuTimerRef.current = null;
+    }
+  }, []);
+
+  // 检查鼠标是否在相关元素上
+  const isMouseOverDeleteUI = useCallback(() => {
+    const button = deleteButtonRef.current;
+    const menu = document.querySelector('[data-menu-id="github-delete-all-menu"]');
+    const tooltip = document.querySelector('[data-tooltip-id="github-delete-tooltip"]');
+
+    return (
+      (button && button.matches(':hover')) ||
+      (menu && (menu as HTMLElement).matches(':hover')) ||
+      (tooltip && (tooltip as HTMLElement).matches(':hover'))
+    );
+  }, []);
 
   const handleSelectTreePath = useCallback(
     (path: string | null) => {
@@ -857,10 +997,22 @@ export function GitHubPanel() {
       },
       onOpenSettings: (workspaceId) => {
         setSettingsWorkspaceId(workspaceId);
+        setSettingsFolderId(null);
+      },
+      onOpenFolderSettings: (folderId) => {
+        setSettingsFolderId(folderId);
+        setSettingsWorkspaceId(null);
       },
       onRefreshWorkspace: (workspaceId) => {
         onRefreshWorkspace(workspaceId);
         setActiveCiWorkspaceId(workspaceId);
+      },
+      onDeleteFolderConfig: (folderId) => {
+        // This is handled via the store action at the tree entry level;
+        // we expose it here if needed via callbacks.
+      },
+      onClearCiState: () => {
+        clearCiState();
       },
     }),
     [
@@ -869,26 +1021,49 @@ export function GitHubPanel() {
       setActiveWorkspaceSection,
       onRemoveWorkspaceConfig,
       onRefreshWorkspace,
+      clearCiState,
     ]
   );
 
-  const settingsConfig = settingsWorkspaceId ? gitHubWorkspaceConfigs[settingsWorkspaceId] : null;
+  const settingsConfig = settingsWorkspaceId
+    ? gitHubWorkspaceConfigs[settingsWorkspaceId]
+    : settingsFolderId
+      ? gitHubCiFolders.find((f) => f.id === settingsFolderId)?.ciConfig
+      : null;
   const settingsInitialOwner = settingsConfig?.owner ?? '';
   const settingsInitialRepo = settingsConfig?.repo ?? '';
   const settingsInitialBranch = settingsConfig?.branch ?? 'main';
+  const settingsName = settingsWorkspaceId
+    ? workspaces.find((w) => w.id === settingsWorkspaceId)?.name ?? settingsWorkspaceId
+    : settingsFolderId
+      ? gitHubCiFolders.find((f) => f.id === settingsFolderId)?.name ?? settingsFolderId
+      : '';
 
   const handleSettingsSave = useCallback(
     (owner: string, repo: string, branch: string, token: string) => {
       if (settingsWorkspaceId) {
         onSaveWorkspaceConfig(settingsWorkspaceId, owner, repo, branch, token);
         setSettingsWorkspaceId(null);
+      } else if (settingsFolderId) {
+        gitHubSaveFolderConfig(settingsFolderId, owner, repo, branch, token);
+        setSettingsFolderId(null);
       }
     },
-    [settingsWorkspaceId, onSaveWorkspaceConfig]
+    [settingsWorkspaceId, settingsFolderId, onSaveWorkspaceConfig, gitHubSaveFolderConfig]
   );
 
   const handleSettingsCancel = useCallback(() => {
     setSettingsWorkspaceId(null);
+    setSettingsFolderId(null);
+  }, []);
+
+  // 组件卸载时清理定时器
+  useEffect(() => {
+    return () => {
+      if (deleteMenuTimerRef.current) {
+        clearTimeout(deleteMenuTimerRef.current);
+      }
+    };
   }, []);
 
   const renderPrimary = () => {
@@ -1006,7 +1181,10 @@ export function GitHubPanel() {
                 </button>
               </TooltipSimple>
             </div>
-            <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--utility">
+            <div
+              className="adl-tool-navigator__context-group adl-tool-navigator__context-group--utility"
+              style={{ position: 'relative' }}
+            >
               <TooltipSimple content="新建目录" placement="top">
                 <button
                   type="button"
@@ -1017,16 +1195,117 @@ export function GitHubPanel() {
                   <IconFolderPlus size={14} decorative />
                 </button>
               </TooltipSimple>
-              <TooltipSimple content="删除全部目录CI配置及数据" placement="top">
-                <button
-                  type="button"
-                  className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-                  onClick={handleClearAll}
-                  aria-label="删除全部目录CI配置及数据"
+              <button
+                ref={deleteButtonRef}
+                type="button"
+                className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
+                onClick={(e) => e.preventDefault()}
+                onMouseEnter={() => {
+                  clearDeleteMenuTimer();
+                  setDeleteMenuHovering(true);
+                  setDeleteMenuOpen(true);
+                  setDeleteTooltipOpen(true);
+                }}
+                onMouseLeave={() => {
+                  setDeleteMenuHovering(false);
+                  // 延迟检查，确保鼠标不在菜单上
+                  deleteMenuTimerRef.current = setTimeout(() => {
+                    if (!isMouseOverDeleteUI()) {
+                      setDeleteMenuOpen(false);
+                      setDeleteTooltipOpen(false);
+                    }
+                  }, 100);
+                }}
+                aria-label="删除全部新建目录/CI配置/数据"
+              >
+                <TooltipSimple
+                  content="删除全部新建目录/CI配置/数据"
+                  placement="top"
+                  id="github-delete-tooltip"
+                  open={deleteTooltipOpen}
+                  onOpenChange={(open) => {
+                    clearDeleteMenuTimer();
+                    if (open) {
+                      setDeleteMenuHovering(true);
+                      setDeleteMenuOpen(true);
+                    }
+                  }}
                 >
                   <IconTrash size={14} decorative />
-                </button>
-              </TooltipSimple>
+                </TooltipSimple>
+              </button>
+              {deleteMenuOpen && deleteButtonRef.current
+                ? createPortal(
+                    <div
+                      className="adl-multitree-entry__menu"
+                      role="menu"
+                      data-menu-id="github-delete-all-menu"
+                      onMouseEnter={() => {
+                        clearDeleteMenuTimer();
+                        setDeleteMenuHovering(true);
+                        setDeleteTooltipOpen(true);
+                      }}
+                      onMouseLeave={() => {
+                        setDeleteMenuHovering(false);
+                        // 延迟检查，确保鼠标不在按钮或 tooltip 上
+                        deleteMenuTimerRef.current = setTimeout(() => {
+                          if (!isMouseOverDeleteUI()) {
+                            setDeleteMenuOpen(false);
+                            setDeleteTooltipOpen(false);
+                          }
+                        }, 100);
+                      }}
+                      style={{
+                        position: 'fixed',
+                        top: deleteButtonRef.current.getBoundingClientRect().bottom + 4,
+                        left: deleteButtonRef.current.getBoundingClientRect().left,
+                        zIndex: 99999,
+                      }}
+                    >
+                      <MenuHintItem
+                        label="删除全部新建目录"
+                        hint="删除所有通过'新建目录'创建的目录节点及其CI配置和数据。工作区目录不受影响。"
+                        onClick={() => {
+                          clearAllFolders();
+                          setDeleteMenuOpen(false);
+                        }}
+                      />
+                      <MenuHintItem
+                        label="删除全部CI配置"
+                        hint="清空所有工作区和文件夹绑定的GitHub仓库配置（owner/repo/branch/token）。保留目录结构和CI运行数据。"
+                        onClick={() => {
+                          clearAllCiConfigs();
+                          setDeleteMenuOpen(false);
+                        }}
+                      />
+                      <MenuHintItem
+                        label="删除全部数据"
+                        hint="清空当前面板显示的所有CI运行状态（快照/作业列表/错误信息）。保留配置信息。"
+                        onClick={() => {
+                          clearCiState();
+                          setDeleteMenuOpen(false);
+                        }}
+                      />
+                      <MenuHintItem
+                        label="删除全部CI配置及数据"
+                        hint="同时清空所有工作区和文件夹的GitHub配置以及所有CI运行数据。保留目录结构。"
+                        onClick={() => {
+                          clearAllCiConfigsAndData();
+                          setDeleteMenuOpen(false);
+                        }}
+                      />
+                      <MenuHintItem
+                        label="恢复还原"
+                        hint="清空所有内容——删除所有新建目录、所有CI配置及数据，恢复到仅显示工作区目录顶级目录的初始状态。"
+                        onClick={() => {
+                          resetAllToOriginal();
+                          setDeleteMenuOpen(false);
+                        }}
+                      />
+                    </div>,
+                    document.body
+                  )
+                : null}
               <TooltipSimple content="Help" placement="top">
                 <button
                   type="button"
@@ -1063,12 +1342,10 @@ export function GitHubPanel() {
         </div>
       </div>
 
-      {settingsWorkspaceId && (
+      {(settingsWorkspaceId || settingsFolderId) && (
         <GitHubSettingsDialog
-          open={settingsWorkspaceId !== null}
-          workspaceName={
-            workspaces.find((w) => w.id === settingsWorkspaceId)?.name ?? settingsWorkspaceId
-          }
+          open={settingsWorkspaceId !== null || settingsFolderId !== null}
+          workspaceName={settingsName}
           initialOwner={settingsInitialOwner}
           initialRepo={settingsInitialRepo}
           initialBranch={settingsInitialBranch}

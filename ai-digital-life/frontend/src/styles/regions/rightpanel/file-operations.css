@@ -186,7 +186,8 @@
 .adl-multitree-entry__menu {
   position: fixed;
   z-index: var(--z-dropdown);
-  width: 176px;
+  width: max-content;
+  min-width: 176px;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -201,6 +202,7 @@
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-1-5) var(--space-3);
+  padding-right: var(--space-3);
   font-size: var(--text-xs);
   color: var(--text-primary);
   background: transparent;
@@ -209,9 +211,93 @@
   cursor: pointer;
   text-align: left;
   width: 100%;
+  white-space: nowrap;
+  position: relative;
 }
+
+.adl-multitree-entry__menu-item > span:first-child {
+  overflow: visible;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 .adl-multitree-entry__menu-item:hover {
   background: var(--bg-hover);
+}
+
+.adl-multitree-entry__menu-item.is-danger {
+  color: var(--danger);
+}
+
+.adl-multitree-entry__menu-item.is-danger:hover {
+  background: var(--danger-soft);
+}
+
+/* Hint icon ("!" button) styles - 固定在右侧 */
+.adl-menu-item__hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  position: absolute;
+  right: var(--space-3);
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.adl-menu-item__hint:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* 自定义子卡片 - 独立 position:fixed 内容卡（无左侧边框，由箭头衔接） */
+.adl-sub-hint-card {
+  position: fixed;
+  z-index: 100000;
+  max-width: 240px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border-width: 1px 1px 1px 0;
+  border-style: solid;
+  border-color: var(--border-default);
+  border-radius: 4px;
+  box-shadow: var(--shadow-md);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  pointer-events: none;
+  padding: var(--space-2) var(--space-3);
+}
+
+/* 箭头填充 - border-right 在 0 宽元素上生成指向左侧的三角形 */
+.adl-sub-hint-card__arrow {
+  position: fixed;
+  z-index: 100001;
+  pointer-events: none;
+  width: 0;
+  height: 0;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-right: 5px solid var(--bg-card);
+}
+
+/* 箭头边框轮廓 - 比填充大一圈，外扩 1px 形成边界线 */
+.adl-sub-hint-card__arrow-border {
+  position: fixed;
+  z-index: 100000;
+  pointer-events: none;
+  width: 0;
+  height: 0;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-right: 6px solid var(--border-default);
 }
 
 .adl-multitree-entry__menu-sep {

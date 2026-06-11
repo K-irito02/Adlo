@@ -102,6 +102,24 @@
 | 点击「删除CI配置及数据」 | 删除目录及其关联数据 |
 | 右键菜单 | 删除CI配置及数据（危险项）+ 重命名（启动 RenameDialog） |
 
+### 删除全部菜单
+
+导航器顶部工具栏的垃圾桶按钮（IconTrash）触发 "删除全部新建目录/CI配置/数据" 的弹出菜单。
+
+| 元素 | 选择器 | 说明 |
+|------|--------|------|
+| 垃圾桶按钮 | `.adl-surface-toolbar__btn` 含 `IconTrash` | 顶部工具栏 |
+| 弹出菜单 | `[data-menu-id="github-delete-all-menu"]` | `position: fixed` 下拉菜单 |
+| 菜单项 | `.adl-multitree-entry__menu-item` | 包含标签 + "!" 提示按钮 |
+| 提示按钮 | `.adl-menu-item__hint` | 菜单项最右侧的 "!" 图标 |
+| 子卡片 | `.adl-sub-hint-card` | "!" 悬停时显示的提示子卡片（`position: fixed`） |
+| 子卡片箭头 | `.adl-sub-hint-card__arrow` | 独立的 `position: fixed` 指向左侧箭头 |
+| 子卡片箭头边框 | `.adl-sub-hint-card__arrow-border` | 箭头外轮廓 |
+
+**子卡片定位逻辑：** 三个独立的 `position: fixed` 元素（卡片 + 箭头填充 + 箭头边框），通过 JS 计算菜单右边缘和按钮中心坐标后精确放置。
+
+**箭头方向：** 使用 `border-right` 在 0 宽元素上生成指向左侧的三角形（注意：`border-left` 实际指向右侧，与直觉相反）。
+
 ### 按钮顺序
 
 所有目录的操作按钮顺序固定为：**IconTrash（删除CI配置及数据）→ IconSettings（设置）**

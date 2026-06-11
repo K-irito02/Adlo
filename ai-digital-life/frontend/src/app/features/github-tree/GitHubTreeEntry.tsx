@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { IconTrash, IconSettings, IconFolder, IconFolderOpen } from '../../icons';
+import { IconTrash, IconSettings, IconFolder, IconFolderOpen, IconRefreshCw, IconMoreVertical } from '../../icons';
 import { FileTree } from '../file-tree';
 import { TooltipSimple } from '../../components/Tooltip';
 import { RenameDialog } from '../../components/RenameDialog';
@@ -47,30 +47,59 @@ function getChildNodeMoreMenuItems(
   nodeType: string,
   nodePath: string,
   currentName: string,
-  onRename: (folderId: string, currentName: string) => void
+  categoryType: GitHubCategoryType,
+  onRename: (folderId: string, currentName: string) => void,
+  onRefresh: () => void,
+  onDeleteConfig: () => void,
+  onDeleteData: () => void,
+  onDeleteConfigAndData: () => void,
+  onSettings: () => void
 ): Array<{ id: string; label: string; danger?: boolean; action: () => void }> {
   if (nodeType !== 'folder') return [];
   const folderId = nodePath.startsWith('github-folder:')
     ? nodePath.slice('github-folder:'.length)
     : '';
-  return [
+  const items: Array<{ id: string; label: string; danger?: boolean; action: () => void }> = [
     {
-      id: 'delete',
-      label: '删除CI配置及数据',
-      danger: true as const,
-      action: () => useAppStore.getState().gitHubDeleteFolder(folderId),
+      id: 'refresh',
+      label: '刷新',
+      action: onRefresh,
     },
     {
       id: 'rename',
       label: '重命名',
       action: () => onRename(folderId, currentName),
     },
+    {
+      id: 'settings',
+      label: '设置',
+      action: onSettings,
+    },
+    {
+      id: 'delete-config',
+      label: '删除CI配置',
+      danger: true as const,
+      action: onDeleteConfig,
+    },
+    {
+      id: 'delete-data',
+      label: '删除数据',
+      danger: true as const,
+      action: onDeleteData,
+    },
+    {
+      id: 'delete-config-and-data',
+      label: '删除CI配置及数据',
+      danger: true as const,
+      action: onDeleteConfigAndData,
+    },
   ];
+  return items;
 }
 
 export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
   node,
-  categoryType: _categoryType,
+  categoryType,
   expandedPaths,
   selectedTreePath,
   onSelectTreePath,
@@ -91,10 +120,11 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
   const menuId = `github-entry-menu-${node.path}`;
   const count = node.children.length;
 
-  const { gitHubDeleteFolder, gitHubRenameFolder } = useAppStore(
+  const { gitHubDeleteFolderConfig, gitHubRenameFolder, clearCiState } = useAppStore(
     useShallow((s) => ({
-      gitHubDeleteFolder: s.gitHubDeleteFolder,
+      gitHubDeleteFolderConfig: s.gitHubDeleteFolderConfig,
       gitHubRenameFolder: s.gitHubRenameFolder,
+      clearCiState: s.clearCiState,
     }))
   );
 
@@ -164,21 +194,106 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
     return () => window.removeEventListener('mousedown', handler);
   }, [childMenuState]);
 
-  const menuItems = node.workspaceId
-    ? [
-        {
-          id: 'refresh',
-          label: '刷新 CI 状态',
-          action: () => callbacks.onRefreshWorkspace(node.workspaceId!),
+  const menuItems = (() => {
+    const items: Array<{ id: string; label: string; danger?: boolean; action: () => void }> = [];
+
+    // 刷新 - 所有节点都有
+    if (node.workspaceId) {
+      items.push({
+        id: 'refresh',
+        label: '刷新',
+        action: () => callbacks.onRefreshWorkspace(node.workspaceId!),
+      });
+    } else if (node.nodeType === 'folder') {
+      items.push({
+        id: 'refresh',
+        label: '刷新',
+        action: () => clearCiState(),
+      });
+    }
+
+    // 重命名 - 工作区目录的顶级目录没有重命名
+    if (!(categoryType === 'ci-workspace' && node.nodeType === 'workspace')) {
+      if (node.nodeType === 'folder') {
+        const folderId = node.path.replace('github-folder:', '');
+        items.push({
+          id: 'rename',
+          label: '重命名',
+          action: () => handleStartRename(folderId, node.name),
+        });
+      }
+    }
+
+    // 设置 - 所有节点都有（移到删除操作之前）
+    if (node.workspaceId) {
+      items.push({
+        id: 'settings',
+        label: '设置',
+        action: () => callbacks.onOpenSettings(node.workspaceId!),
+      });
+    } else if (node.nodeType === 'folder') {
+      const folderId = node.path.replace('github-folder:', '');
+      items.push({
+        id: 'settings',
+        label: '设置',
+        action: () => callbacks.onOpenFolderSettings(folderId),
+      });
+    }
+
+    // 删除CI配置 - 所有节点都有
+    if (node.workspaceId) {
+      items.push({
+        id: 'delete-config',
+        label: '删除CI配置',
+        danger: true as const,
+        action: () => callbacks.onDeleteWorkspaceConfig(node.workspaceId!),
+      });
+    } else if (node.nodeType === 'folder') {
+      const folderId = node.path.replace('github-folder:', '');
+      items.push({
+        id: 'delete-config',
+        label: '删除CI配置',
+        danger: true as const,
+        action: () => gitHubDeleteFolderConfig(folderId),
+      });
+    }
+
+    // 删除数据 - 所有节点都有
+    if (node.workspaceId || node.nodeType === 'folder') {
+      items.push({
+        id: 'delete-data',
+        label: '删除数据',
+        danger: true as const,
+        action: () => clearCiState(),
+      });
+    }
+
+    // 删除CI配置及数据 - 所有节点都有
+    if (node.workspaceId) {
+      items.push({
+        id: 'delete-config-and-data',
+        label: '删除CI配置及数据',
+        danger: true as const,
+        action: () => {
+          callbacks.onDeleteWorkspaceConfig(node.workspaceId!);
+          clearCiState();
         },
-        {
-          id: 'delete-config',
-          label: '删除CI配置及数据',
-          danger: true as const,
-          action: () => callbacks.onDeleteWorkspaceConfig(node.workspaceId!),
+      });
+    } else if (node.nodeType === 'folder') {
+      const folderId = node.path.replace('github-folder:', '');
+      items.push({
+        id: 'delete-config-and-data',
+        label: '删除CI配置及数据',
+        danger: true as const,
+        action: () => {
+          gitHubDeleteFolderConfig(folderId);
+          clearCiState();
         },
-      ]
-    : [];
+      });
+    }
+
+    return items;
+  })();
 
   const renderChildCount = useCallback((childNode: GitHubTreeNode) => {
     if (childNode.kind === 'directory') return childNode.children.length;
@@ -205,25 +320,37 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
   const renderChildMeta = useCallback(
     (childNode: GitHubTreeNode) => {
       if (childNode.nodeType !== 'folder') return null;
-      const folderId = childNode.path.startsWith('github-folder:')
+      const childFolderId = childNode.path.startsWith('github-folder:')
         ? childNode.path.slice('github-folder:'.length)
         : '';
       const isUnderWorkspace = !!node.workspaceId;
+
+      const handleOpenChildMenu = useCallback(
+        (e: React.MouseEvent) => {
+          e.stopPropagation();
+          setMenuPosition({ top: e.clientY, left: e.clientX + 4 });
+          setMenuOpen(true);
+        },
+        []
+      );
+
       return (
         <span className="adl-browser-node__actions">
-          <TooltipSimple content="删除CI配置及数据" placement="top">
+          {/* 刷新按钮 */}
+          <TooltipSimple content="刷新" placement="top">
             <button
               type="button"
               className="adl-icon-btn adl-icon-btn--xs"
               onClick={(e) => {
                 e.stopPropagation();
-                gitHubDeleteFolder(folderId);
+                clearCiState();
               }}
-              aria-label="删除CI配置及数据"
+              aria-label="刷新"
             >
-              <IconTrash size={12} decorative />
+              <IconRefreshCw size={12} decorative />
             </button>
           </TooltipSimple>
+          {/* 设置按钮 - 所有目录都有 */}
           <TooltipSimple content="设置" placement="top">
             <button
               type="button"
@@ -233,7 +360,7 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
                 if (isUnderWorkspace && node.workspaceId) {
                   callbacks.onOpenSettings(node.workspaceId);
                 } else {
-                  handleStartRename(folderId, childNode.name);
+                  callbacks.onOpenFolderSettings(childFolderId);
                 }
               }}
               aria-label="设置"
@@ -241,10 +368,29 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
               <IconSettings size={12} decorative />
             </button>
           </TooltipSimple>
+          {/* 更多操作按钮 */}
+          <TooltipSimple content="更多操作" placement="top">
+            <button
+              type="button"
+              className="adl-icon-btn adl-icon-btn--xs"
+              onClick={(e) => {
+                e.stopPropagation();
+                setChildMenuState({
+                  x: e.clientX + 4,
+                  y: e.clientY,
+                  nodePath: childNode.path,
+                  nodeType: childNode.nodeType,
+                });
+              }}
+              aria-label="更多操作"
+            >
+              <IconMoreVertical size={12} decorative />
+            </button>
+          </TooltipSimple>
         </span>
       );
     },
-    [gitHubDeleteFolder, callbacks, node.workspaceId, handleStartRename]
+    [clearCiState, callbacks, node.workspaceId]
   );
 
   const handleChildClick = useCallback(
@@ -269,19 +415,49 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
   );
 
   const handleChildContextMenu = useCallback(
-    (childNode: GitHubTreeNode) =>
-      getChildNodeMoreMenuItems(
+    (childNode: GitHubTreeNode) => {
+      const childFolderId = childNode.path.startsWith('github-folder:')
+        ? childNode.path.slice('github-folder:'.length)
+        : '';
+      return getChildNodeMoreMenuItems(
         childNode.nodeType,
         childNode.path,
         childNode.name,
-        handleStartRename
+        categoryType,
+        handleStartRename,
+        () => clearCiState(),
+        () => {
+          if (node.workspaceId) {
+            callbacks.onDeleteWorkspaceConfig(node.workspaceId);
+          } else {
+            gitHubDeleteFolderConfig(childFolderId);
+          }
+        },
+        () => clearCiState(),
+        () => {
+          if (node.workspaceId) {
+            callbacks.onDeleteWorkspaceConfig(node.workspaceId);
+            clearCiState();
+          } else {
+            gitHubDeleteFolderConfig(childFolderId);
+            clearCiState();
+          }
+        },
+        () => {
+          if (node.workspaceId) {
+            callbacks.onOpenSettings(node.workspaceId);
+          } else {
+            callbacks.onOpenFolderSettings(childFolderId);
+          }
+        }
       ).map((item) => ({
         id: item.id,
         label: item.label,
         danger: item.danger,
         action: () => item.action(),
-      })),
-    [handleStartRename]
+      }));
+    },
+    [categoryType, handleStartRename, clearCiState, callbacks, node.workspaceId, gitHubDeleteFolderConfig]
   );
 
   const handleExpandBtnClick = useCallback(
@@ -318,9 +494,9 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
   const handleDeleteFolderClick = useCallback(
     (e: React.MouseEvent, folderId: string) => {
       e.stopPropagation();
-      gitHubDeleteFolder(folderId);
+      gitHubDeleteFolderConfig(folderId);
     },
-    [gitHubDeleteFolder]
+    [gitHubDeleteFolderConfig]
   );
 
   const handleStartRenameClick = useCallback(
@@ -375,71 +551,76 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
           <div className="adl-browser-entry__trailing">
             <span className="adl-browser-entry__count">{count}</span>
             <div className="adl-browser-entry__actions">
-              {node.workspaceId && (
-                <>
-                  <TooltipSimple content="删除CI配置及数据" placement="top">
-                    <button
-                      type="button"
-                      className="adl-icon-btn adl-icon-btn--xs"
-                      onClick={handleWorkspaceConfigClick}
-                      aria-label="删除CI配置及数据"
-                    >
-                      <IconTrash size={12} decorative />
-                    </button>
-                  </TooltipSimple>
-                  <TooltipSimple content="设置" placement="top">
-                    <button
-                      type="button"
-                      className="adl-icon-btn adl-icon-btn--xs"
-                      onClick={handleOpenSettingsClick}
-                      aria-label="设置"
-                    >
-                      <IconSettings size={12} decorative />
-                    </button>
-                  </TooltipSimple>
-                </>
-              )}
-              {!node.workspaceId &&
-                node.nodeType === 'folder' &&
-                (() => {
-                  const folderId = node.path.replace('github-folder:', '');
-                  return (
-                    <>
-                      <TooltipSimple content="删除CI配置及数据" placement="top">
-                        <button
-                          type="button"
-                          className="adl-icon-btn adl-icon-btn--xs"
-                          onClick={(e) => handleDeleteFolderClick(e, folderId)}
-                          aria-label="删除CI配置及数据"
-                        >
-                          <IconTrash size={12} decorative />
-                        </button>
-                      </TooltipSimple>
-                      <TooltipSimple content="设置" placement="top">
-                        <button
-                          type="button"
-                          className="adl-icon-btn adl-icon-btn--xs"
-                          onClick={(e) => handleStartRenameClick(e, folderId, node.name)}
-                          aria-label="设置"
-                        >
-                          <IconSettings size={12} decorative />
-                        </button>
-                      </TooltipSimple>
-                    </>
-                  );
-                })()}
+              {/* 刷新按钮 - 所有目录都有 */}
+              <TooltipSimple content="刷新" placement="top">
+                <button
+                  type="button"
+                  className="adl-icon-btn adl-icon-btn--xs"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (node.workspaceId) {
+                      callbacks.onRefreshWorkspace(node.workspaceId);
+                    } else {
+                      clearCiState();
+                    }
+                  }}
+                  aria-label="刷新"
+                >
+                  <IconRefreshCw size={12} decorative />
+                </button>
+              </TooltipSimple>
+              {/* 设置按钮 - 所有目录都有 */}
+              <TooltipSimple content="设置" placement="top">
+                <button
+                  type="button"
+                  className="adl-icon-btn adl-icon-btn--xs"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (node.workspaceId) {
+                      callbacks.onOpenSettings(node.workspaceId);
+                    } else if (node.nodeType === 'folder') {
+                      const folderId = node.path.replace('github-folder:', '');
+                      callbacks.onOpenFolderSettings(folderId);
+                    }
+                  }}
+                  aria-label="设置"
+                >
+                  <IconSettings size={12} decorative />
+                </button>
+              </TooltipSimple>
+              {/* 更多操作按钮 - 所有目录都有 */}
+              <TooltipSimple content="更多操作" placement="top">
+                <button
+                  type="button"
+                  className="adl-icon-btn adl-icon-btn--xs"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMenuPosition({ top: e.clientY, left: e.clientX + 4 });
+                    setMenuOpen(true);
+                  }}
+                  aria-label="更多操作"
+                >
+                  <IconMoreVertical size={12} decorative />
+                </button>
+              </TooltipSimple>
             </div>
           </div>
         </div>
       </div>
 
-      {menuOpen && menuPosition && node.workspaceId
+      {menuOpen && menuPosition && menuItems.length > 0
         ? createPortal(
             <div
               className="adl-multitree-entry__menu"
               role="menu"
               data-menu-id={menuId}
-              style={{ top: menuPosition.top, left: menuPosition.left }}
+              style={{ 
+                position: 'fixed',
+                top: menuPosition.top, 
+                left: menuPosition.left,
+                width: '176px',
+                zIndex: 9999,
+              }}
             >
               {menuItems.map((item) => (
                 <button
@@ -487,14 +668,51 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
               className="adl-multitree-entry__menu"
               role="menu"
               data-menu-id="github-child-menu"
-              style={{ top: childMenuState.y, left: childMenuState.x }}
+              style={{ 
+                position: 'fixed',
+                top: childMenuState.y, 
+                left: childMenuState.x,
+                width: '176px',
+                zIndex: 9999,
+              }}
             >
-              {getChildNodeMoreMenuItems(
-                childMenuState.nodeType,
-                childMenuState.nodePath,
-                '',
-                handleStartRename
-              ).map((item) => (
+              {(() => {
+                const childFolderId = childMenuState.nodePath.startsWith('github-folder:')
+                  ? childMenuState.nodePath.slice('github-folder:'.length)
+                  : '';
+                return getChildNodeMoreMenuItems(
+                  childMenuState.nodeType,
+                  childMenuState.nodePath,
+                  '',
+                  categoryType,
+                  handleStartRename,
+                  () => clearCiState(),
+                  () => {
+                    if (node.workspaceId) {
+                      callbacks.onDeleteWorkspaceConfig(node.workspaceId);
+                    } else {
+                      gitHubDeleteFolderConfig(childFolderId);
+                    }
+                  },
+                  () => clearCiState(),
+                  () => {
+                    if (node.workspaceId) {
+                      callbacks.onDeleteWorkspaceConfig(node.workspaceId);
+                      clearCiState();
+                    } else {
+                      gitHubDeleteFolderConfig(childFolderId);
+                      clearCiState();
+                    }
+                  },
+                  () => {
+                    if (node.workspaceId) {
+                      callbacks.onOpenSettings(node.workspaceId);
+                    } else {
+                      callbacks.onOpenFolderSettings(childFolderId);
+                    }
+                  }
+                );
+              })().map((item) => (
                 <button
                   key={item.id}
                   type="button"

@@ -10,7 +10,10 @@ export interface SectionCallbacks {
   ) => void;
   onDeleteWorkspaceConfig: (workspaceId: string) => void;
   onOpenSettings: (workspaceId: string) => void;
+  onOpenFolderSettings: (folderId: string) => void;
   onRefreshWorkspace: (workspaceId: string) => void;
+  onDeleteFolderConfig: (folderId: string) => void;
+  onClearCiState: () => void;
 }
 
 interface GitHubCategorySectionProps {

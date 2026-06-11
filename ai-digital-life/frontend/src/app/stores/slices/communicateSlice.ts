@@ -38,6 +38,8 @@ export interface GitHubCiFolderState {
   createdAt: number;
   parentId?: string;
   parentType?: 'workspace' | 'folder';
+  /** Optional CI configuration for this folder */
+  ciConfig?: GitWorkspaceCiConfig;
 }
 
 /** GitHub tree node types */
@@ -117,6 +119,20 @@ export interface CommunicateSlice {
   gitHubCreateFolder: (parentId?: string, parentType?: 'workspace' | 'folder') => void;
   gitHubDeleteFolder: (folderId: string) => void;
   gitHubRenameFolder: (folderId: string, name: string) => void;
+  gitHubSaveFolderConfig: (
+    folderId: string,
+    owner: string,
+    repo: string,
+    branch: string,
+    accessToken?: string
+  ) => void;
+  gitHubDeleteFolderConfig: (folderId: string) => void;
+  clearAllFolderConfigs: () => void;
+  clearAllFolders: () => void;
+  clearAllCiData: () => void;
+  clearAllCiConfigs: () => void;
+  clearAllCiConfigsAndData: () => void;
+  resetAllToOriginal: () => void;
 }
 
 function getBridge(): DigitalLifeBridge | null {
@@ -570,6 +586,87 @@ export const createCommunicateSlice = (
       set((state) => ({
         gitHubCiFolders: state.gitHubCiFolders.map((f) => (f.id === folderId ? { ...f, name } : f)),
       }));
+    },
+
+    gitHubSaveFolderConfig: (folderId, owner, repo, branch, accessToken) => {
+      set((state) => ({
+        gitHubCiFolders: state.gitHubCiFolders.map((f) =>
+          f.id === folderId
+            ? {
+                ...f,
+                ciConfig: {
+                  owner,
+                  repo,
+                  branch,
+                  workflowId: null,
+                  accessToken: accessToken ?? null,
+                  configured: true,
+                },
+              }
+            : f
+        ),
+      }));
+    },
+
+    gitHubDeleteFolderConfig: (folderId) => {
+      set((state) => ({
+        gitHubCiFolders: state.gitHubCiFolders.map((f) =>
+          f.id === folderId ? { ...f, ciConfig: undefined } : f
+        ),
+      }));
+    },
+
+    clearAllFolderConfigs: () => {
+      set((state) => ({
+        gitHubCiFolders: state.gitHubCiFolders.map((f) => ({ ...f, ciConfig: undefined })),
+      }));
+    },
+
+    clearAllFolders: () => {
+      set({
+        gitHubCiFolders: [],
+        ciSnapshot: null,
+        ciJobs: [],
+        ciError: null,
+      });
+    },
+
+    clearAllCiData: () => {
+      set({
+        ciSnapshot: null,
+        ciJobs: [],
+        ciError: null,
+      });
+    },
+
+    clearAllCiConfigs: () => {
+      set((state) => ({
+        gitHubWorkspaceConfigs: {},
+        gitHubCiFolders: state.gitHubCiFolders.map((f) => ({ ...f, ciConfig: undefined })),
+      }));
+    },
+
+    clearAllCiConfigsAndData: () => {
+      set((state) => ({
+        gitHubWorkspaceConfigs: {},
+        gitHubCiFolders: state.gitHubCiFolders.map((f) => ({ ...f, ciConfig: undefined })),
+        ciSnapshot: null,
+        ciJobs: [],
+        ciError: null,
+      }));
+    },
+
+    resetAllToOriginal: () => {
+      set({
+        gitHubCiFolders: [],
+        gitHubWorkspaceConfigs: {},
+        ciSnapshot: null,
+        ciJobs: [],
+        ciError: null,
+        activeCiWorkspaceId: null,
+        selectedGitHubTreePath: null,
+        gitHubTreeExpanded: {},
+      });
     },
 
     refreshCiStatusForWorkspace: async (workspaceId) => {
