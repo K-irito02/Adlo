@@ -30,6 +30,14 @@ interface MenuHintItemProps {
 
 function MenuHintItem({ label, hint, onClick }: MenuHintItemProps) {
   const hintRef = useRef<HTMLSpanElement>(null);
+  const subCardsRef = useRef<HTMLDivElement[]>([]);
+
+  useEffect(() => {
+    return () => {
+      subCardsRef.current.forEach(el => el.remove());
+      subCardsRef.current = [];
+    };
+  }, []);
 
   return (
     <button
@@ -44,7 +52,6 @@ function MenuHintItem({ label, hint, onClick }: MenuHintItemProps) {
         className="adl-menu-item__hint"
         onMouseEnter={(e) => {
           e.stopPropagation();
-          // 阻止原生 title tooltip
           const button = (e.target as HTMLElement).closest('button');
           const originalTitle = button?.getAttribute('title');
           if (originalTitle) {
@@ -59,7 +66,6 @@ function MenuHintItem({ label, hint, onClick }: MenuHintItemProps) {
             const menuRect = menuCard.getBoundingClientRect();
             const centerY = buttonRect.top + buttonRect.height / 2;
 
-            // 子卡片：右侧对齐主菜单，垂直居中于 "!" 按钮
             const card = document.createElement('div');
             card.className = 'adl-sub-hint-card';
             card.textContent = hint;
@@ -67,13 +73,11 @@ function MenuHintItem({ label, hint, onClick }: MenuHintItemProps) {
             card.style.top = `${centerY}px`;
             card.style.transform = 'translateY(-50%)';
 
-            // 箭头填充：border-right 向左指向，底部对齐卡片左边缘
             const arrow = document.createElement('div');
             arrow.className = 'adl-sub-hint-card__arrow';
             arrow.style.left = `${menuRect.right - 4}px`;
             arrow.style.top = `${centerY - 4}px`;
 
-            // 箭头边框：向右(外)扩 1px 形成轮廓线
             const arrowBorder = document.createElement('div');
             arrowBorder.className = 'adl-sub-hint-card__arrow-border';
             arrowBorder.style.left = `${menuRect.right - 5}px`;
@@ -83,31 +87,13 @@ function MenuHintItem({ label, hint, onClick }: MenuHintItemProps) {
             document.body.appendChild(arrow);
             document.body.appendChild(arrowBorder);
 
-            // 存储引用以便后续移除
-            const ref = hintRef.current as HTMLSpanElement & {
-              _subCard?: HTMLDivElement;
-              _subArrow?: HTMLDivElement;
-              _subArrowBorder?: HTMLDivElement;
-            };
-            ref._subCard = card;
-            ref._subArrow = arrow;
-            ref._subArrowBorder = arrowBorder;
+            subCardsRef.current = [card, arrow, arrowBorder];
           }
         }}
         onMouseLeave={(e) => {
           e.stopPropagation();
-          const ref = hintRef.current as HTMLSpanElement & {
-            _subCard?: HTMLDivElement;
-            _subArrow?: HTMLDivElement;
-            _subArrowBorder?: HTMLDivElement;
-          };
-          if (ref._subCard) document.body.removeChild(ref._subCard);
-          if (ref._subArrow) document.body.removeChild(ref._subArrow);
-          if (ref._subArrowBorder) document.body.removeChild(ref._subArrowBorder);
-          delete ref._subCard;
-          delete ref._subArrow;
-          delete ref._subArrowBorder;
-          // 恢复原生 title tooltip
+          subCardsRef.current.forEach(el => el.remove());
+          subCardsRef.current = [];
           const button = (e.target as HTMLElement).closest('button');
           const originalTitle = button?.getAttribute('data-original-title');
           if (originalTitle) {
