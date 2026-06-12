@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { type IconName } from '../../design-system/icons';
 import { TooltipSimple } from './Tooltip';
 import { Icon } from './Icon';
+import { useTCopy } from '../i18n/useTCopy';
 
 interface ContextBuilderProps {
   onAddContext: (type: string, value?: string) => void;
@@ -15,20 +16,28 @@ interface ContextItem {
   section: 'mode' | 'model' | 'reference';
 }
 
-const CONTEXT_ITEMS: ContextItem[] = [
-  { type: 'plan', label: '规划模式', icon: 'clipboard-list', section: 'mode' },
-  { type: 'debug', label: '调试模式', icon: 'bug', section: 'mode' },
-  { type: 'ask', label: '问答模式', icon: 'message-circle-question', section: 'mode' },
-  { type: 'model', label: '模型选择', icon: 'cpu', section: 'model' },
-  { type: 'skills', label: '技能库', icon: 'sparkles', section: 'model' },
-  { type: 'mcp', label: 'MCP 服务', icon: 'plug', section: 'model' },
-  { type: '@file', label: '引用文件', icon: 'file-text', section: 'reference' },
-  { type: '@doc', label: '引用文档', icon: 'book-open', section: 'reference' },
-  { type: '@url', label: '引用链接', icon: 'link', section: 'reference' },
-  { type: '@codebase', label: '代码库上下文', icon: 'database', section: 'reference' },
-];
-
 export function ContextBuilder({ onAddContext, activeContexts = [] }: ContextBuilderProps) {
+  const { t, formatT } = useTCopy();
+
+  const CONTEXT_ITEMS: ContextItem[] = [
+    { type: 'plan', label: t.contextPlanMode, icon: 'clipboard-list' as const, section: 'mode' },
+    { type: 'debug', label: t.contextDebugMode, icon: 'bug' as const, section: 'mode' },
+    { type: 'ask', label: t.contextQAMode, icon: 'message-circle-question' as const, section: 'mode' },
+    { type: 'model', label: t.contextModelSelect, icon: 'cpu' as const, section: 'model' },
+    { type: 'skills', label: t.contextSkillLibrary, icon: 'sparkles' as const, section: 'model' },
+    { type: 'mcp', label: t.contextMCPService, icon: 'plug' as const, section: 'model' },
+    { type: '@file', label: t.contextReferenceFile, icon: 'file-text' as const, section: 'reference' },
+    { type: '@doc', label: t.contextReferenceDoc, icon: 'book-open' as const, section: 'reference' },
+    { type: '@url', label: t.contextReferenceLink, icon: 'link' as const, section: 'reference' },
+    { type: '@codebase', label: t.contextCodebaseContext, icon: 'database' as const, section: 'reference' },
+  ];
+
+  const SECTION_LABELS: Record<string, string> = {
+    mode: t.contextSectionMode,
+    model: t.contextSectionModel,
+    reference: t.contextSectionReference,
+  };
+
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [focusedIndex, setFocusedIndex] = useState(-1);
@@ -97,12 +106,6 @@ export function ContextBuilder({ onAddContext, activeContexts = [] }: ContextBui
     return groups;
   }, [filteredItems]);
 
-  const SECTION_LABELS: Record<string, string> = {
-    mode: '模式',
-    model: '模型与技能',
-    reference: '上下文引用',
-  };
-
   const handleToggle = useCallback(() => {
     setIsOpen((prev) => !prev);
     if (!isOpen) {
@@ -162,7 +165,7 @@ export function ContextBuilder({ onAddContext, activeContexts = [] }: ContextBui
 
   return (
     <div className="context-builder">
-      <TooltipSimple content="添加上下文" placement="top">
+      <TooltipSimple content={t.contextAddContext} placement="top">
         <button
           ref={buttonRef}
           type="button"
@@ -180,7 +183,7 @@ export function ContextBuilder({ onAddContext, activeContexts = [] }: ContextBui
           ref={menuRef}
           className="context-builder__popover"
           role="listbox"
-          aria-label="添加上下文选项"
+          aria-label={t.contextAddContextAria}
           onKeyDown={handleKeyDown}
         >
           <div className="context-builder__search">
@@ -189,13 +192,13 @@ export function ContextBuilder({ onAddContext, activeContexts = [] }: ContextBui
               ref={searchInputRef}
               type="text"
               className="context-builder__search-input"
-              placeholder="搜索..."
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setFocusedIndex(0);
-              }}
-              aria-label="搜索上下文选项"
+placeholder={t.contextSearchPlaceholder}
+               value={searchQuery}
+               onChange={(e) => {
+                 setSearchQuery(e.target.value);
+                 setFocusedIndex(0);
+               }}
+               aria-label={t.contextSearchAria}
             />
           </div>
 
@@ -230,7 +233,7 @@ export function ContextBuilder({ onAddContext, activeContexts = [] }: ContextBui
             ))}
 
             {filteredItems.length === 0 && (
-              <p className="context-builder__empty">未找到匹配的选项</p>
+              <p className="context-builder__empty">{t.contextNoMatch}</p>
             )}
           </div>
         </div>
@@ -246,7 +249,7 @@ export function ContextBuilder({ onAddContext, activeContexts = [] }: ContextBui
                   type="button"
                   className="context-builder__chip-remove"
                   onClick={() => onAddContext(ctx.type)}
-                  aria-label={`移除 ${ctx.label}`}
+                  aria-label={formatT(t, 'contextRemoveAria', { label: ctx.label })}
                 >
                   <Icon name="close" size="xs" />
                 </button>

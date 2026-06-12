@@ -13,13 +13,12 @@ import type {
   FileOutlineItem,
 } from '@ai-digital-life/kernel';
 import type { ChangeTreeNode, ChangeEntry } from '../changesTree';
-import type { CopyDict } from '../../../i18n';
+import { useTCopy } from '../../../i18n/useTCopy';
 import type { FileTreeContextMenuItem } from '../../../features/file-tree';
 
 type ChangeFileState = 'staged' | 'modified' | 'untracked' | 'conflicted';
 
 interface TreeDataProps {
-  t: CopyDict;
   visibleWorkspaces: RecentWorkspaceEntry[];
   activeWorkspaceId: string | undefined;
   workspaceChangesExpanded: Record<string, boolean>;
@@ -80,8 +79,8 @@ interface NavigatorStateProps {
 export type ChangesTreePanelProps = TreeDataProps & TreeCallbacks & NavigatorStateProps;
 
 export function ChangesTreePanel(props: ChangesTreePanelProps) {
+  const { t } = useTCopy();
   const {
-    t,
     visibleWorkspaces,
     activeWorkspaceId,
     workspaceChangesExpanded,
@@ -143,7 +142,6 @@ export function ChangesTreePanel(props: ChangesTreePanelProps) {
     <aside className="adl-tool-navigator" aria-label={t.toolChanges}>
       <ChangesToolbar
         placement="navigator"
-        t={t}
         allChangesExpanded={allChangesExpanded}
         onExpandAll={onExpandAll}
         onCollapseAll={onCollapseAll}
@@ -210,7 +208,6 @@ export function ChangesTreePanel(props: ChangesTreePanelProps) {
             }
             contextMenuPersistRef={contextMenuPersistRef}
             clearMenuHighlightRef={clearMenuHighlightRef}
-            t={t}
             renderMeta={renderMeta}
             renderCount={renderCount}
           />

@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import type { SettingItem } from '@ai-digital-life/kernel';
-import type { CopyDict } from '../../i18n';
+import { useTCopy } from '../../i18n/useTCopy';
 import { IconSearch, IconSettings } from '../../icons';
 import { useAppStore } from '../../stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -8,12 +8,12 @@ import { SettingsNav } from './SettingsNav';
 import { SettingsControls } from './SettingsControls';
 
 interface SettingsPanelProps {
-  t: CopyDict;
   settings: SettingItem[];
   onChangeSetting: (id: string, value: string | boolean | number) => void;
 }
 
-export function SettingsPanel({ t, settings, onChangeSetting }: SettingsPanelProps) {
+export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps) {
+  const { t } = useTCopy();
   const { activeGroup, setActiveGroup, searchQuery, setSearchQuery } = useAppStore(
     useShallow((s) => ({
       activeGroup: s.activeSettingsGroup,
@@ -54,11 +54,10 @@ export function SettingsPanel({ t, settings, onChangeSetting }: SettingsPanelPro
       </header>
       <div className="adl-settings-panel__body">
         {!searchQuery.trim() && (
-          <SettingsNav t={t} activeGroup={activeGroup} onSelectGroup={setActiveGroup} />
+          <SettingsNav activeGroup={activeGroup} onSelectGroup={setActiveGroup} />
         )}
         <div className="adl-settings-panel__content">
           <SettingsControls
-            t={t}
             items={filtered}
             onChange={onChangeSetting}
             searchQuery={searchQuery}

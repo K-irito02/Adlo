@@ -34,6 +34,7 @@ import { BrowserLandingPage, CreateTabDialog } from './browser-landing';
 import type { BrowserPanelProps } from '../../regions/right-panel/types';
 import { open as shellOpen } from '@tauri-apps/plugin-shell';
 import { useNavigatorResize } from '../../hooks/useNavigatorResize';
+import { useTCopy } from '../../i18n/useTCopy';
 
 function resolveFolderWorkspaceId(
   folderId: string,
@@ -108,7 +109,7 @@ function SearchResultItem({
 }
 
 export function BrowserPanel(props: BrowserPanelProps) {
-  const { t } = props;
+  const { t } = useTCopy();
 
   const isBrowserVisible = props.isVisible ?? false;
 
@@ -275,7 +276,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
     searchResults,
     browserLookupIndex,
   } = useBrowserSearch({
-    t,
     browserBookmarks,
     browserHistory,
     browserTabs,
@@ -306,7 +306,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
     handleOpenInNewTab,
     handleOpenInCurrentTab,
   } = useBrowserMenus({
-    t,
     activeTab,
     handleCloseTab,
     handleDoubleClick,
@@ -409,14 +408,14 @@ export function BrowserPanel(props: BrowserPanelProps) {
   const navigatorTitle = useMemo(() => {
     if (browserShowTabButtons) {
       const modeLabels: Record<string, string> = {
-        tree: '文件树',
-        list: '文件列表',
-        all: '全列表',
+        tree: t.browserViewModeTree,
+        list: t.browserViewModeList,
+        all: t.browserViewModeAll,
       };
-      return modeLabels[browserViewMode] || '已打开标签';
+      return modeLabels[browserViewMode] || t.browserViewModeDefault;
     }
     return rawNavigatorTitle;
-  }, [browserShowTabButtons, browserViewMode, rawNavigatorTitle]);
+  }, [browserShowTabButtons, browserViewMode, rawNavigatorTitle, t]);
 
   const handleToggleTabButtons = useCallback(() => {
     if (browserShowTabButtons) {
@@ -561,12 +560,12 @@ export function BrowserPanel(props: BrowserPanelProps) {
         <aside className="adl-tool-navigator" aria-label={t.toolBrowser}>
           <div className="adl-tool-navigator__context">
             <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--actions">
-              <TooltipSimple content={allTreeExpanded ? '全部折叠' : '全部展开'} placement="top">
+              <TooltipSimple content={allTreeExpanded ? t.collapseAll : t.expandAll} placement="top">
                 <button
                   type="button"
                   className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
                   onClick={allTreeExpanded ? handleCollapseAllTree : handleExpandAllTree}
-                  aria-label={allTreeExpanded ? '全部折叠' : '全部展开'}
+                  aria-label={allTreeExpanded ? t.collapseAll : t.expandAll}
                 >
                   {allTreeExpanded ? (
                     <IconFoldVertical size={14} decorative />
@@ -580,14 +579,14 @@ export function BrowserPanel(props: BrowserPanelProps) {
             <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--utility">
               <span className="adl-tool-navigator__context-count">{openTabCount}</span>
               <TooltipSimple
-                content={browserShowTabButtons ? '后退' : '已打开标签'}
+                content={browserShowTabButtons ? t.back : t.browserViewModeDefault}
                 placement="top"
               >
                 <button
                   type="button"
                   className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${browserShowTabButtons ? ' is-active' : ''}`}
                   onClick={handleToggleTabButtons}
-                  aria-label={browserShowTabButtons ? '后退' : '已打开标签'}
+                  aria-label={browserShowTabButtons ? t.back : t.browserViewModeDefault}
                 >
                   {browserShowTabButtons ? (
                     <IconReturn size={14} decorative />
@@ -601,34 +600,34 @@ export function BrowserPanel(props: BrowserPanelProps) {
           <div className="adl-tool-navigator__context adl-tool-navigator__context--secondary">
             {browserShowTabButtons ? (
               <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--actions">
-                <TooltipSimple content="文件树" placement="top">
+                <TooltipSimple content={t.browserViewModeTree} placement="top">
                   <button
                     type="button"
                     className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${browserViewMode === 'tree' ? ' is-active' : ''}`}
                     onClick={() => handleSetBrowserViewMode('tree')}
-                    aria-label="文件树"
+                    aria-label={t.browserViewModeTree}
                     aria-pressed={browserViewMode === 'tree' ? 'true' : 'false'}
                   >
                     <IconFolder size={14} decorative />
                   </button>
                 </TooltipSimple>
-                <TooltipSimple content="文件列表" placement="top">
+                <TooltipSimple content={t.browserViewModeList} placement="top">
                   <button
                     type="button"
                     className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${browserViewMode === 'list' ? ' is-active' : ''}`}
                     onClick={() => handleSetBrowserViewMode('list')}
-                    aria-label="文件列表"
+                    aria-label={t.browserViewModeList}
                     aria-pressed={browserViewMode === 'list' ? 'true' : 'false'}
                   >
                     <IconList size={14} decorative />
                   </button>
                 </TooltipSimple>
-                <TooltipSimple content="全列表" placement="top">
+                <TooltipSimple content={t.browserViewModeAll} placement="top">
                   <button
                     type="button"
                     className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${browserViewMode === 'all' ? ' is-active' : ''}`}
                     onClick={() => handleSetBrowserViewMode('all')}
-                    aria-label="全列表"
+                    aria-label={t.browserViewModeAll}
                     aria-pressed={browserViewMode === 'all' ? 'true' : 'false'}
                   >
                     <IconLayoutList size={14} decorative />
@@ -637,12 +636,12 @@ export function BrowserPanel(props: BrowserPanelProps) {
               </div>
             ) : (
               <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--actions">
-                <TooltipSimple content="标签目录" placement="top">
+                <TooltipSimple content={t.browserTabDir} placement="top">
                   <button
                     type="button"
                     className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${navigatorMode === 'tabs' ? ' is-active' : ''}`}
                     onClick={() => setNavigatorMode('tabs')}
-                    aria-label="标签目录"
+                    aria-label={t.browserTabDir}
                     aria-pressed={navigatorMode === 'tabs' ? 'true' : 'false'}
                   >
                     <IconFolder size={14} decorative />
@@ -662,14 +661,14 @@ export function BrowserPanel(props: BrowserPanelProps) {
               </div>
             )}
             <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--utility">
-              <TooltipSimple content="新建标签" placement="top">
+              <TooltipSimple content={t.browserNewTab} placement="top">
                 <button
                   type="button"
                   className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
                   onClick={() => {
                     const path = selectedTreePathRef.current;
                     if (!path || (!path.startsWith('folder:') && !path.startsWith('workspace:'))) {
-                      showToast('请先选择一个目录', 'warning');
+                      showToast(t.browserSelectDirFirst, 'warning');
                       return;
                     }
                     let wsId: string | undefined;
@@ -681,13 +680,13 @@ export function BrowserPanel(props: BrowserPanelProps) {
                     }
                     setCreateTabDialog({ open: true, workspaceId: wsId });
                   }}
-                  aria-label="新建标签"
+                  aria-label={t.browserNewTab}
                 >
                   <IconPlus size={14} decorative />
                 </button>
               </TooltipSimple>
               {!browserShowTabButtons && (
-                <TooltipSimple content="新建目录" placement="top">
+                <TooltipSimple content={t.browserCreateDir} placement="top">
                   <button
                     type="button"
                     className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
@@ -707,21 +706,21 @@ export function BrowserPanel(props: BrowserPanelProps) {
                           .browserCreateTabFolder(undefined, undefined, undefined);
                       }
                     }}
-                    aria-label="新建目录"
+                    aria-label={t.browserCreateDir}
                   >
                     <IconFolderPlus size={14} decorative />
                   </button>
                 </TooltipSimple>
               )}
               <TooltipSimple
-                content={browserShowTabButtons ? '清空所有已打开标签' : '删除全部目录标签'}
+                content={browserShowTabButtons ? t.clearAllOpenTabs : t.deleteAllTabDirs}
                 placement="top"
               >
                 <button
                   type="button"
                   className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
                   onClick={() => handleCloseAllTabs()}
-                  aria-label={browserShowTabButtons ? '清空所有已打开标签' : '删除全部目录标签'}
+                  aria-label={browserShowTabButtons ? t.clearAllOpenTabs : t.deleteAllTabDirs}
                 >
                   <IconTrash size={14} decorative />
                 </button>
@@ -763,9 +762,9 @@ export function BrowserPanel(props: BrowserPanelProps) {
                 },
               }}
               labels={{
-                workspaceCategory: '工作区目录',
-                userFolderCategory: '非工作区目录',
-                historyCategory: '历史目录',
+                workspaceCategory: t.browserCategoryWorkspace,
+                userFolderCategory: t.browserCategoryUserFolder,
+                historyCategory: t.browserCategoryHistory,
               }}
             />
           ) : navigatorMode === 'search' ? (
@@ -836,11 +835,11 @@ export function BrowserPanel(props: BrowserPanelProps) {
                   ))
                 ) : navigatorQuery.trim() ? (
                   <div className="adl-multitree__empty">
-                    <p className="adl-empty-hint">没有找到匹配的结果</p>
+                    <p className="adl-empty-hint">{t.searchNoResults}</p>
                   </div>
                 ) : (
                   <div className="adl-multitree__empty">
-                    <p className="adl-empty-hint">输入关键词搜索书签和历史记录</p>
+                    <p className="adl-empty-hint">{t.searchBookmarkHistoryHint}</p>
                   </div>
                 )}
               </CustomScrollArea>
@@ -880,7 +879,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
               {!isTauriShell() && iframeLoadError && (
                 <div className="adl-browser-error-container">
                   <p className="adl-browser-error-text">
-                    该网站无法在嵌入式视图中打开，这通常是由于网站的安全策略导致的。
+                    {t.browserCannotOpenEmbedded}
                   </p>
                 </div>
               )}
@@ -921,7 +920,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
         onOpenInCurrentTab={handleOpenInCurrentTab}
         onEdit={handleRenameFromContextMenu(browserTabs, contextMenu, handleDoubleClick)}
         onCut={() => {}}
-        t={t}
       />
 
       <CreateTabDialog

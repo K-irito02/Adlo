@@ -94,22 +94,39 @@
 - `zh-CN`
 - `en-US`
 
-必须遵守：
+### 架构约束
 
 - 所有用户可见文案必须通过 i18n 资源提供，不允许在组件、store、IPC 返回值中硬编码展示文案
 - 文案 key 必须稳定、语义化，不允许以中文句子本身作为 key
-- 默认语言与回退链必须明确，推荐 `zh-CN` 或用户上次选择，缺失时回退到 `en-US`
+- 默认语言与回退链必须明确，推荐 `zh-CN`，缺失时回退到 `en-US`
 - 语言切换必须为运行时可切换能力，不要求重启应用
 - 数字、日期、时间、相对时间、货币、列表拼接必须走 locale-aware 格式化
-- 错误消息分离为“内部错误码/诊断信息”和“用户可见文案”，避免把内部英文异常直接展示给用户
+- 错误消息分离为"内部错误码/诊断信息"和"用户可见文案"，避免把内部英文异常直接展示给用户
 - 排版必须考虑中英文长度差异，不允许依赖固定宽度文案布局
 - 搜索、命令、设置、菜单等核心入口的本地化策略必须一致，不能部分模块有翻译、部分模块退回源码文案
+- 新增语言时必须保持所有 locale 文件 key 完全对称（`CopyKey` 类型强制检查）
 
-推荐约束：
+### i18n 上下文机制
 
-- 建立默认命名空间，例如 `common`、`settings`、`tasks`、`workspace`、`errors`
-- 翻译资源在 CI 或提交前具备缺失 key 检查
-- 为审批、高风险动作、删除确认等关键文案提供专门校对
+- 所有组件通过 `useTCopy()` hook 获取翻译字典 `t` 和格式化函数 `formatT`
+- 禁止 `t: CopyDict` prop drilling — `App.tsx` 通过 `<TCopyProvider>` 注入全局上下文
+- `formatT(t, key, vars)` 支持模板插值（如 `"共 {count} 个标签"`），缺失 key 时回退显示 key 名称
+- 新组件直接调用 `const { t, formatT } = useTCopy();`
+
+### 菜单与 Tooltip 约束
+
+- 禁止原生 HTML `title` 属性 — 必须使用 `TooltipSimple` 组件包裹
+- 菜单卡片必须使用 `min-width: 176px; width: max-content; max-width: 90vw` 自适应宽度，防止英文长文本溢出
+- 菜单项中提示图标（如 `!`）必须使用 flex 流式布局（`margin-left: auto`），禁用 `position: absolute` 避免文本重叠
+- 菜单项标签必须设置 `flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis` 确保溢出截断
+
+### 翻译质量
+
+- en-US 翻译使用 Sentence case（句首大写），上下文菜单例外
+- 省略号统一使用 Unicode 字符 `…`（U+2026），不使用三个句点 `...`
+- 空状态/提示消息末尾统一不加句点
+- aria-label 翻译应包含冠词（如 `"Toggle the left sidebar"`）
+- 翻译资源在 CI 前通过 `check:i18n` 脚本验证 key 完整性
 
 ## 主题系统规则
 

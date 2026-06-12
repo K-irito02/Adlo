@@ -1,9 +1,9 @@
 import React from 'react';
 import type { SettingsGroupId } from '@ai-digital-life/kernel';
 import type { CopyDict } from '../../i18n';
+import { useTCopy } from '../../i18n/useTCopy';
 
 interface SettingsNavProps {
-  t: CopyDict;
   activeGroup: SettingsGroupId;
   onSelectGroup: (group: SettingsGroupId) => void;
 }
@@ -16,7 +16,8 @@ const GROUPS: Array<{ id: SettingsGroupId; labelKey: keyof CopyDict }> = [
   { id: 'shortcuts', labelKey: 'settingsShortcuts' },
 ];
 
-export function SettingsNav({ t, activeGroup, onSelectGroup }: SettingsNavProps) {
+export function SettingsNav({ activeGroup, onSelectGroup }: SettingsNavProps) {
+  const { t } = useTCopy();
   return (
     <nav className="adl-settings-nav" aria-label="Settings groups">
       <ul>

@@ -2,10 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { IconFolder, IconFolderOpen, IconLightbulb, IconMessageSquare } from '../../icons';
 import { WorkspaceSplitButton } from '../../components/WorkspaceSplitButton';
 import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
-import type { CopyDict } from '../../i18n';
+import { useTCopy } from '../../i18n/useTCopy';
 
 export interface WelcomeStateProps {
-  t: CopyDict;
   hasWorkspace: boolean;
   recentWorkspaces: RecentWorkspaceEntry[];
   onOpenWorkspace: (path: string) => Promise<{ ok: boolean; error?: string }>;
@@ -14,13 +13,13 @@ export interface WelcomeStateProps {
 }
 
 export function WelcomeState({
-  t,
   hasWorkspace,
   recentWorkspaces,
   onOpenWorkspace,
   onPickWorkspaceDirectory,
   onCreateSession,
 }: WelcomeStateProps) {
+  const { t } = useTCopy();
   const [showActionCard, setShowActionCard] = useState(false);
   const actionCardRef = useRef<HTMLDivElement>(null);
 
@@ -39,7 +38,7 @@ export function WelcomeState({
 
   if (!hasWorkspace) {
     return (
-      <div className="adl-welcome adl-welcome--panel" aria-label="欢迎页">
+      <div className="adl-welcome adl-welcome--panel" aria-label={t.welcomeStartChatTitle}>
         <section className="adl-welcome__recent" aria-label={t.welcomeRecentWorkspaces}>
           <header className="adl-welcome__section-header">
             <h3>{t.welcomeRecentWorkspaces}</h3>
@@ -63,7 +62,7 @@ export function WelcomeState({
           )}
         </section>
 
-        <div className="adl-welcome__actionsbar" aria-label="快速操作">
+        <div className="adl-welcome__actionsbar" aria-label={t.welcomeQuickActions}>
           <button type="button" className="adl-btn adl-btn--lg" onClick={onCreateSession}>
             <IconMessageSquare size={16} decorative />
             {t.newConversation}
@@ -82,7 +81,6 @@ export function WelcomeState({
                 <div className="adl-statusbar__menu-section">
                   <strong className="adl-statusbar__menu-subtitle">{t.workspaceOpenTitle}</strong>
                   <WorkspaceSplitButton
-                    t={t}
                     onPickWorkspaceDirectory={onPickWorkspaceDirectory}
                     onOpenWorkspace={onOpenWorkspace}
                     onClose={() => setShowActionCard(false)}

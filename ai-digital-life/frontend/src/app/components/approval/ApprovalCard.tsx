@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import type { ApprovalRequestSummary, RiskLevel } from '@ai-digital-life/kernel';
 import type { CopyDict } from '../../i18n';
+import { useTCopy } from '../../i18n/useTCopy';
 import { IconChevronDown, IconChevronRight, IconShield } from '../../icons';
 
 interface ApprovalCardProps {
-  t: CopyDict;
-  approval: ApprovalRequestSummary;
+  approval: ApprovalRequestSummary; 
   decided?: { decision: 'approved' | 'rejected'; decidedAt: number };
   onDecide: (id: string, decision: 'approved' | 'rejected') => void;
 }
@@ -30,7 +30,8 @@ function riskLabel(t: CopyDict, level: RiskLevel): string {
   return t[map[level]] as string;
 }
 
-export function ApprovalCard({ t, approval, decided, onDecide }: ApprovalCardProps) {
+export function ApprovalCard({ approval, decided, onDecide }: ApprovalCardProps) {
+  const { t } = useTCopy();
   const [detailOpen, setDetailOpen] = useState(false);
   const isDecided = !!decided;
 

@@ -4,7 +4,7 @@ import type {
   FileOutlineItem,
   RecentWorkspaceEntry,
 } from '@ai-digital-life/kernel';
-import type { CopyDict } from '../../i18n';
+import { useTCopy } from '../../i18n/useTCopy';
 import {
   IconClipboardList,
   IconCopy,
@@ -75,10 +75,10 @@ interface FileNavigatorShellProps {
   workspaceTreeExpandedInFileNav: Record<string, boolean>;
   workspaceTreeLoading: Record<string, boolean>;
   workspaceTreeErrors: Record<string, string | undefined>;
-  t: CopyDict;
 }
 
 const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNavigatorShellProps) {
+  const { t, formatT } = useTCopy();
   const {
     selectedFilePath,
     selectedFileWorkspaceId,
@@ -109,7 +109,6 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
     workspaceTreeExpandedInFileNav,
     workspaceTreeLoading,
     workspaceTreeErrors,
-    t,
   } = props;
 
   const {
@@ -192,7 +191,7 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
   const hasExpandedOutlineItems = expandedOutlineIds.size > 0;
 
   const navigatorTitle =
-    navigatorMode === 'tree' ? '文件树' : navigatorMode === 'search' ? t.searchResults : t.outline;
+    navigatorMode === 'tree' ? t.changesFileTree : navigatorMode === 'search' ? t.searchResults : t.outline;
   const workspaceCount = visibleWorkspaces.length;
 
   useEffect(() => {
@@ -439,7 +438,7 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
           {workspaceCount > 0 ? (
             <span className="adl-tool-navigator__context-count">{workspaceCount}</span>
           ) : null}
-          <TooltipSimple content="刷新全部" placement="top">
+          <TooltipSimple content={t.communicateRefreshAll} placement="top">
             <button
               type="button"
               className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
@@ -464,7 +463,7 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
               <IconFiles size={14} decorative />
             </button>
           </TooltipSimple>
-          <TooltipSimple content="文档大纲" placement="top">
+          <TooltipSimple content={t.changesOutline} placement="top">
             <button
               type="button"
               className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${navigatorMode === 'outline' ? ' is-active' : ''}`}
@@ -522,7 +521,6 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
           onPathChange={fileCreation.setCreatePathValue}
           onSubmit={fileCreation.submitCreate}
           onCancel={fileCreation.cancelCreate}
-          t={t}
         />
       ) : null}
 
@@ -567,7 +565,6 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
               getContextMenuItems={getContextMenuItems}
               contextMenuPersistRef={contextMenuPersistRef}
               clearMenuHighlightRef={clearMenuHighlightRef}
-              t={t}
             />
           </CustomScrollArea>
         ) : null
@@ -723,9 +720,9 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
         <RenameDialog
           open={renameDialogOpen}
           initialValue={renamingPath.split('/').pop() || ''}
-          title="重命名"
-          itemInfo={`当前路径: ${renamingPath}`}
-          placeholder="输入新名称"
+          title={t.changesRename}
+          itemInfo={formatT(t, 'changesCurrentPath', { path: renamingPath })}
+          placeholder={t.changesEnterNewName}
           onConfirm={handleRenameConfirm}
           onCancel={handleRenameCancel}
         />

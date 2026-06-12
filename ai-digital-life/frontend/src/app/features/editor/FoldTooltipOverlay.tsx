@@ -2,6 +2,8 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { createPortal } from 'react-dom';
 import type { EditorView } from '@codemirror/view';
 import { foldable, foldedRanges, foldEffect, unfoldEffect } from '@codemirror/language';
+import { copy, type Locale } from '../../i18n/types';
+import { useAppStore } from '../../stores/slicedStore';
 
 interface TooltipState {
   text: string;
@@ -110,7 +112,7 @@ function getGutterRowAtY(
   };
 }
 
-function computeTooltipText(view: EditorView, lineNum: number, isClosed: boolean): string | null {
+function computeTooltipText(view: EditorView, lineNum: number, isClosed: boolean, locale: Locale): string | null {
   const doc = view.state.doc;
   if (lineNum > doc.lines) {
     return null;
@@ -122,7 +124,7 @@ function computeTooltipText(view: EditorView, lineNum: number, isClosed: boolean
       const startLine = doc.lineAt(_from).number;
       const endLine = doc.lineAt(_to).number;
       if (lineNum >= startLine && lineNum <= endLine) {
-        result = `展开至${endLine}行`;
+        result = copy[locale].changesExpandToLine.replace('{line}', String(endLine));
       }
     });
     return result;
@@ -139,14 +141,15 @@ function computeTooltipText(view: EditorView, lineNum: number, isClosed: boolean
     return null;
   }
 
-  return `折叠至${endLine}行`;
+  return copy[locale].changesCollapseToLine.replace('{line}', String(endLine));
 }
 
 /** Compute tooltip for a .cm-foldPlaceholder element in the content area.
  *  The placeholder appears when code is folded, so the tooltip always says "展开至N行". */
 function computeTooltipFromPlaceholder(
   view: EditorView,
-  placeholder: HTMLElement
+  placeholder: HTMLElement,
+  locale: Locale
 ): { text: string; rect: DOMRect } | null {
   const placeholderRect = placeholder.getBoundingClientRect();
   const pos = view.posAtCoords({
@@ -174,7 +177,7 @@ function computeTooltipFromPlaceholder(
     }
   });
 
-  const text = `展开至${endLine}行`;
+  const text = copy[locale].changesExpandToLine.replace('{line}', String(endLine));
   const rect = new DOMRect(
     placeholderRect.left,
     placeholderRect.top,
@@ -281,7 +284,8 @@ function handleGutterFold(view: EditorView, event: MouseEvent): boolean {
  *  Uses DOM .cm-lineNumbers > .cm-gutterElement for pixel-perfect row positioning. */
 function computeTooltipFromEvent(
   view: EditorView,
-  event: MouseEvent
+  event: MouseEvent,
+  locale: Locale
 ): { text: string; rect: DOMRect } | null {
   const target = event.target as HTMLElement;
   if (target.closest('.cm-deletedLineGutter')) {
@@ -313,7 +317,7 @@ function computeTooltipFromEvent(
   }
 
   const isClosed = isLineFolded(view, lineNum);
-  const text = computeTooltipText(view, lineNum, isClosed);
+  const text = computeTooltipText(view, lineNum, isClosed, locale);
   if (!text) {
     return null;
   }
@@ -396,6 +400,10 @@ function updateGutterHoverOverlay(view: EditorView, event: MouseEvent | null): v
 /* ── Component ────────────────────────────────── */
 
 export function FoldTooltipOverlay({ view }: FoldTooltipOverlayProps) {
+  const appInfo = useAppStore((s) => s.appInfo);
+  const localeRef = useRef<Locale>(appInfo?.config?.language === 'en-US' ? 'en-US' : 'zh-CN');
+  localeRef.current = appInfo?.config?.language === 'en-US' ? 'en-US' : 'zh-CN';
+
   const [tooltipState, setTooltipState] = useState<TooltipState | null>(null);
   const [position, setPosition] = useState<PositionState | null>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
@@ -478,7 +486,7 @@ export function FoldTooltipOverlay({ view }: FoldTooltipOverlayProps) {
 
         const placeholder = target.closest('.cm-foldPlaceholder') as HTMLElement | null;
         if (placeholder) {
-          const result = computeTooltipFromPlaceholder(view, placeholder);
+          const result = computeTooltipFromPlaceholder(view, placeholder, localeRef.current);
           if (result) {
             if (hideTimerRef.current !== null) {
               clearTimeout(hideTimerRef.current);
@@ -508,7 +516,7 @@ export function FoldTooltipOverlay({ view }: FoldTooltipOverlayProps) {
         rafId = 0;
       });
 
-      const result = computeTooltipFromEvent(view, e);
+      const result = computeTooltipFromEvent(view, e, localeRef.current);
       if (result) {
         if (hideTimerRef.current !== null) {
           clearTimeout(hideTimerRef.current);

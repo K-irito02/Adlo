@@ -11,7 +11,7 @@ import type {
   WorkspaceGitBranchSwitchInput,
   WorkspaceMeta,
 } from '@ai-digital-life/kernel';
-import type { CopyDict } from '../i18n';
+import { useTCopy } from '../i18n/useTCopy';
 import { MODEL_PROVIDER_IDS } from '../utils/constants';
 import { MODEL_OPTIONS } from '../utils/constants';
 import { IconCheck, IconChevronRight, IconFolderOpen, IconGitBranch, IconPlus } from '../icons';
@@ -33,7 +33,6 @@ type PendingBranchAction =
   | { kind: 'create'; input: WorkspaceGitBranchCreateInput };
 
 interface StatusBarProps {
-  t: CopyDict;
   appInfo?: AppInfo;
   currentWorkspace?: WorkspaceMeta;
   recentWorkspaces: RecentWorkspaceEntry[];
@@ -54,7 +53,6 @@ interface StatusBarProps {
 }
 
 const StatusBar = React.memo(function StatusBar({
-  t,
   appInfo,
   currentWorkspace,
   recentWorkspaces,
@@ -73,6 +71,7 @@ const StatusBar = React.memo(function StatusBar({
   onCreateGitBranch,
   inline = false,
 }: StatusBarProps) {
+  const { t } = useTCopy();
   const [openMenu, setOpenMenu] = useState<OpenMenu>();
   const [branchDraft, setBranchDraft] = useState('');
   const [baseBranchDraft, setBaseBranchDraft] = useState('');
@@ -287,7 +286,6 @@ const StatusBar = React.memo(function StatusBar({
               <strong className="adl-statusbar__menu-subtitle">{t.workspaceOpenTitle}</strong>
 
               <WorkspaceSplitButton
-                t={t}
                 onPickWorkspaceDirectory={onPickWorkspaceDirectory}
                 onOpenWorkspace={onOpenWorkspace}
                 onClose={() => setOpenMenu(undefined)}

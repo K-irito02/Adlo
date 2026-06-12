@@ -19,9 +19,11 @@ import { TerminalShellSelector } from './TerminalShellSelector';
 import { TerminalMenuDropdown } from './TerminalMenuDropdown';
 import { TerminalContextMenu } from './TerminalContextMenu';
 import { MultiWorkspaceTerminal } from '../workspace-terminal';
+import { useTCopy } from '../../i18n/useTCopy';
 
 export function TerminalPanel(props: TerminalPanelProps) {
-  const { t, latestCommandRun } = props;
+  const { t } = useTCopy();
+  const { latestCommandRun } = props;
 
   const {
     setActiveRightTool,
@@ -86,7 +88,7 @@ export function TerminalPanel(props: TerminalPanelProps) {
       : independentExpanded && allWorkspaceExpanded;
   }, [visibleWorkspaces, terminalWorkspaceExpanded]);
 
-  const terminalNavigatorTitle = navigatorMode === 'history' ? '命令历史' : '终端';
+  const terminalNavigatorTitle = navigatorMode === 'history' ? t.terminalHistory : t.terminalLabel;
 
   const handleExpandAllTerminal = useCallback(() => {
     const expanded: Record<string, boolean> = {};
@@ -172,7 +174,6 @@ export function TerminalPanel(props: TerminalPanelProps) {
                 terminalActions.updateProfile(profile);
                 terminalActions.setShellMenuOpen(false);
               }}
-              t={t}
             />
           </div>
         </div>
@@ -183,7 +184,6 @@ export function TerminalPanel(props: TerminalPanelProps) {
             menuItems={terminalMenuItems}
             onToggle={() => terminalActions.setTerminalMenuOpen((value) => !value)}
             onClose={() => terminalActions.setTerminalMenuOpen(false)}
-            t={t}
           />
         </div>
       </div>
@@ -200,7 +200,7 @@ export function TerminalPanel(props: TerminalPanelProps) {
           <div className="adl-tool-navigator__context">
             <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--actions">
               <TooltipSimple
-                content={allTerminalExpanded ? '折叠全部' : '展开全部'}
+                content={allTerminalExpanded ? t.terminalCollapseAll : t.terminalExpandAll}
                 placement="top"
               >
                 <button
@@ -209,7 +209,7 @@ export function TerminalPanel(props: TerminalPanelProps) {
                   onClick={
                     allTerminalExpanded ? handleCollapseAllTerminal : handleExpandAllTerminal
                   }
-                  aria-label={allTerminalExpanded ? '折叠全部' : '展开全部'}
+                  aria-label={allTerminalExpanded ? t.terminalCollapseAll : t.terminalExpandAll}
                 >
                   {allTerminalExpanded ? (
                     <IconFoldVertical size={14} decorative />
@@ -224,12 +224,12 @@ export function TerminalPanel(props: TerminalPanelProps) {
               {visibleWorkspaces.length > 0 ? (
                 <span className="adl-tool-navigator__context-count">{visibleTabCount}</span>
               ) : null}
-              <TooltipSimple content="刷新全部" placement="top">
+              <TooltipSimple content={t.communicateRefreshAll} placement="top">
                 <button
                   type="button"
                   className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
                   onClick={handleRefreshAllTerminal}
-                  aria-label="刷新全部"
+                  aria-label={t.communicateRefreshAll}
                 >
                   <IconRefreshCw size={14} decorative />
                 </button>
@@ -238,23 +238,23 @@ export function TerminalPanel(props: TerminalPanelProps) {
           </div>
           <div className="adl-tool-navigator__context adl-tool-navigator__context--secondary">
             <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--actions">
-              <TooltipSimple content="终端" placement="top">
+              <TooltipSimple content={t.terminalLabel} placement="top">
                 <button
                   type="button"
                   className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${navigatorMode === 'sessions' ? ' is-active' : ''}`}
                   onClick={() => terminalActions.setNavigatorMode('sessions')}
-                  aria-label="终端"
+                  aria-label={t.terminalLabel}
                   aria-pressed={navigatorMode === 'sessions' ? 'true' : 'false'}
                 >
                   <IconFiles size={14} decorative />
                 </button>
               </TooltipSimple>
-              <TooltipSimple content="命令历史" placement="top">
+              <TooltipSimple content={t.terminalCommandHistory} placement="top">
                 <button
                   type="button"
                   className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${navigatorMode === 'history' ? ' is-active' : ''}`}
                   onClick={() => terminalActions.setNavigatorMode('history')}
-                  aria-label="命令历史"
+                  aria-label={t.terminalCommandHistory}
                   aria-pressed={navigatorMode === 'history' ? 'true' : 'false'}
                 >
                   <IconFileCode size={14} decorative />
@@ -262,12 +262,12 @@ export function TerminalPanel(props: TerminalPanelProps) {
               </TooltipSimple>
             </div>
             <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--utility">
-              <TooltipSimple content="删除全部" placement="top">
+              <TooltipSimple content={t.deleteAll} placement="top">
                 <button
                   type="button"
                   className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
                   onClick={terminalActions.handleCloseAllTabs}
-                  aria-label="删除全部"
+                  aria-label={t.deleteAll}
                 >
                   <IconTrash size={14} decorative />
                 </button>
@@ -287,7 +287,6 @@ export function TerminalPanel(props: TerminalPanelProps) {
             onHideFromRightPanels={handleHideTerminalWorkspace}
             onRefreshTree={handleRefreshAllTerminal}
             onCloseAllTabs={terminalActions.handleCloseAllTabs}
-            t={props.t}
           />
           <div
             className="adl-tool-navigator__resize-handle"
@@ -345,7 +344,6 @@ export function TerminalPanel(props: TerminalPanelProps) {
         )}
         onDelete={handleDeleteFromContextMenu(contextMenu, terminalActions.handleCloseTab)}
         onClose={noop}
-        t={t}
       />
     </div>
   );

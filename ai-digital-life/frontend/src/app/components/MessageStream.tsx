@@ -7,15 +7,13 @@ import type {
   ModelTokenUsage,
   DigitalLifeRunActivityEventV1,
 } from '@ai-digital-life/kernel';
-import type { CopyDict } from '../i18n';
 import { IconBrain } from '../icons';
 import { MessageBlocks } from '../features/conversation/MessageBlocks';
 import { RunSummaryBlock } from './conversation/RunSummaryBlock';
-import { copy } from '../i18n';
+import { useTCopy } from '../i18n/useTCopy';
 
 interface MessageStreamProps {
   messages: ConversationMessageRecord[];
-  t?: CopyDict;
   streamingText?: string;
   isStreaming?: boolean;
   activeRun?: AgentRunDetail;
@@ -34,7 +32,6 @@ type StreamItem =
 
 interface RowProps {
   streamItems: StreamItem[];
-  t: CopyDict;
   activeRun?: AgentRunDetail;
   runActivityByRunId: Record<string, DigitalLifeRunActivityEventV1[]>;
   runUsageByRunId: Record<string, ModelTokenUsage | undefined>;
@@ -48,7 +45,6 @@ const RowComponent = React.memo(
     style,
     ariaAttributes: _ariaAttributes,
     streamItems,
-    t,
     activeRun,
     runActivityByRunId,
     runUsageByRunId,
@@ -59,13 +55,13 @@ const RowComponent = React.memo(
     style: React.CSSProperties;
     ariaAttributes: { 'aria-posinset': number; 'aria-setsize': number; role: 'listitem' };
     streamItems: StreamItem[];
-    t: CopyDict;
     activeRun?: AgentRunDetail;
     runActivityByRunId: Record<string, DigitalLifeRunActivityEventV1[]>;
     runUsageByRunId: Record<string, ModelTokenUsage | undefined>;
     locale: string;
     streamingText: string;
   }) => {
+    const { t } = useTCopy();
     const item = streamItems[index];
 
     const padding = useMemo(() => (index === 0 ? 0 : 'var(--space-3) 0 0 0'), [index]);
@@ -167,9 +163,6 @@ const RowComponent = React.memo(
     }
 
     // 检查其他需要变化的属性
-    if (prevProps.t !== nextProps.t) {
-      return false;
-    }
     if (prevProps.activeRun !== nextProps.activeRun) {
       return false;
     }
@@ -191,7 +184,6 @@ RowComponent.displayName = 'RowComponent';
 
 export function MessageStream({
   messages,
-  t,
   streamingText = '',
   isStreaming = false,
   activeRun,
@@ -200,6 +192,7 @@ export function MessageStream({
   runUsageByRunId = {},
   locale = 'en-US',
 }: MessageStreamProps) {
+  const { t } = useTCopy();
   const listRef = useListRef(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerHeight, setContainerHeight] = useState(600);
@@ -239,14 +232,13 @@ export function MessageStream({
   const rowProps = useMemo(
     (): RowProps => ({
       streamItems,
-      t: t || copy[locale],
       activeRun,
       runActivityByRunId,
       runUsageByRunId,
       locale,
       streamingText,
     }),
-    [streamItems, t, activeRun, runActivityByRunId, runUsageByRunId, locale, streamingText]
+    [streamItems, activeRun, runActivityByRunId, runUsageByRunId, locale, streamingText]
   );
 
   useEffect(() => {
@@ -295,7 +287,7 @@ export function MessageStream({
       ref={containerRef}
       className="adl-message-stream"
       role="log"
-      aria-label="对话消息流"
+      aria-label={t.conversationMessageStream}
       aria-live="polite"
       style={{ display: 'block' }}
     >

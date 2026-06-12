@@ -2,6 +2,7 @@ import React, { useCallback } from 'react';
 import { WelcomeState, type WelcomeStateProps } from './WelcomeState';
 import { MessageStream, type MessageStreamProps } from './MessageStream';
 import { Composer, type ComposerProps } from './Composer';
+import { useTCopy } from '../i18n/useTCopy';
 
 interface MainContentProps {
   hasWorkspace: boolean;
@@ -48,6 +49,7 @@ export function MainContent({
   attachments,
   onRemoveAttachment,
 }: MainContentProps) {
+  const { t } = useTCopy();
   const handleSuggestionClick = useCallback(
     (text: string) => {
       onSuggestion?.(text);
@@ -65,7 +67,7 @@ export function MainContent({
 
   if (!hasWorkspace) {
     return (
-      <main className="main-content" role="main" aria-label="主内容区域">
+      <main className="main-content" role="main" aria-label={t.mainContentAria}>
         <WelcomeState
           variant="no-workspace"
           recentWorkspaces={recentWorkspaces}
@@ -78,7 +80,7 @@ export function MainContent({
 
   if (!hasActiveSession) {
     return (
-      <main className="main-content" role="main" aria-label="主内容区域">
+      <main className="main-content" role="main" aria-label={t.mainContentAria}>
         <div className="main-content__body">
           <WelcomeState
             variant="no-session"
@@ -97,7 +99,7 @@ export function MainContent({
           onSend={handleSend}
           onStop={onStop}
           onRetry={onRetry}
-          placeholder="描述你想要完成的任务..."
+          placeholder={t.mainInputPlaceholder}
           activeContexts={activeContexts}
           onAddContext={onAddContext}
           attachments={attachments}
@@ -108,7 +110,7 @@ export function MainContent({
   }
 
   return (
-    <main className="main-content" role="main" aria-label="主内容区域">
+    <main className="main-content" role="main" aria-label={t.mainContentAria}>
       <div className="main-content__body">
         <MessageStream
           messages={messages}
@@ -126,7 +128,7 @@ export function MainContent({
         onSend={handleSend}
         onStop={onStop}
         onRetry={onRetry}
-        placeholder="@文件 或描述你想要完成的任务..."
+        placeholder={t.mainInputPlaceholderWithFile}
         activeContexts={activeContexts}
         onAddContext={onAddContext}
         attachments={attachments}

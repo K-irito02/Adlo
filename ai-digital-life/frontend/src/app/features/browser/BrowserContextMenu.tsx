@@ -9,8 +9,8 @@ import {
   IconCopy,
   IconCut,
 } from '../../icons';
-import type { CopyDict } from '../../i18n';
 import type { ContextMenuState } from './useBrowserContextMenu';
+import { useTCopy } from '../../i18n/useTCopy';
 
 interface BrowserContextMenuProps {
   contextMenu: ContextMenuState;
@@ -22,7 +22,6 @@ interface BrowserContextMenuProps {
   onOpenInCurrentTab: () => void;
   onEdit: () => void;
   onCut: () => void;
-  t: CopyDict;
 }
 
 export const BrowserContextMenu = React.memo(function BrowserContextMenu({
@@ -35,8 +34,9 @@ export const BrowserContextMenu = React.memo(function BrowserContextMenu({
   onOpenInCurrentTab,
   onEdit,
   onCut,
-  t: _t,
 }: BrowserContextMenuProps) {
+  const { t } = useTCopy();
+
   if (!contextMenu.open) {
     return null;
   }
@@ -57,13 +57,13 @@ export const BrowserContextMenu = React.memo(function BrowserContextMenu({
         <span className="adl-sidebar-menu__icon">
           <IconGlobe size={16} decorative />
         </span>
-        <span>在当前标签打开</span>
+        <span>{t.browserContextOpenCurrent}</span>
       </button>
       <button type="button" className="adl-sidebar-menu__item" onClick={onOpenInNewTab}>
         <span className="adl-sidebar-menu__icon">
           <IconGlobe size={16} decorative />
         </span>
-        <span>在新标签打开</span>
+        <span>{t.browserContextOpenNewTab}</span>
       </button>
       <div className="adl-sidebar-menu__sep" role="separator" />
       <button type="button" className="adl-sidebar-menu__item" onClick={onTogglePin}>
@@ -74,38 +74,38 @@ export const BrowserContextMenu = React.memo(function BrowserContextMenu({
             <IconPin size={16} decorative />
           )}
         </span>
-        <span>{contextMenu.isPinned ? '取消置顶' : '置顶标签'}</span>
+        <span>{contextMenu.isPinned ? t.browserContextUnpin : t.browserContextPin}</span>
       </button>
       <button type="button" className="adl-sidebar-menu__item" onClick={onRename}>
         <span className="adl-sidebar-menu__icon">
           <IconEdit size={16} decorative />
         </span>
-        <span>重命名</span>
+        <span>{t.browserContextRename}</span>
       </button>
       <button type="button" className="adl-sidebar-menu__item" onClick={onEdit}>
         <span className="adl-sidebar-menu__icon">
           <IconEdit size={16} decorative />
         </span>
-        <span>编辑</span>
+        <span>{t.browserContextEdit}</span>
       </button>
       <button type="button" className="adl-sidebar-menu__item" onClick={onCut}>
         <span className="adl-sidebar-menu__icon">
           <IconCut size={16} decorative />
         </span>
-        <span>剪切</span>
+        <span>{t.browserContextCut}</span>
       </button>
       <button type="button" className="adl-sidebar-menu__item" onClick={onCopyUrl}>
         <span className="adl-sidebar-menu__icon">
           <IconCopy size={16} decorative />
         </span>
-        <span>复制链接</span>
+        <span>{t.browserContextCopyLink}</span>
       </button>
       <div className="adl-sidebar-menu__sep" role="separator" />
       <button type="button" className="adl-sidebar-menu__item is-danger" onClick={onDelete}>
         <span className="adl-sidebar-menu__icon">
           <IconTrash size={16} decorative />
         </span>
-        <span>删除</span>
+        <span>{t.browserContextDelete}</span>
       </button>
     </div>,
     document.body

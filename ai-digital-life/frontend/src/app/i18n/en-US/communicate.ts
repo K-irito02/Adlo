@@ -8,4 +8,13 @@ export const communicateEn = {
   communicateQQDesc: 'QQ integration coming soon',
   communicateWeChatTitle: 'WeChat',
   communicateWeChatDesc: 'WeChat integration coming soon',
+  communicateWechat: 'WeChat',
+  communicateFeishu: 'Feishu',
+  communicateEmail: 'Email',
+  communicateTabFeishu: 'Feishu',
+  communicateTabWechat: 'WeChat',
+  communicateTabEmail: 'Email',
+  communicateDirList: 'Directory list',
+  communicateRefreshAll: 'Refresh all',
+  communicateNewDir: 'New directory',
 } as const;

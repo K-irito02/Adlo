@@ -1,21 +1,20 @@
 import React, { useState } from 'react';
 import type { ModelGatewayHealthSnapshot } from '@ai-digital-life/kernel';
-import type { CopyDict } from '../../i18n';
+import { useTCopy } from '../../i18n/useTCopy';
 import { IconCheckCircle, IconAlertTriangle, IconRefreshCw } from '../../icons';
 
 interface ModelHealthPanelProps {
-  t: CopyDict;
   modelHealth?: ModelGatewayHealthSnapshot;
   onRefresh: () => void;
   onTestConnection?: (providerId: string) => void;
 }
 
 export function ModelHealthPanel({
-  t,
   modelHealth,
   onRefresh,
   onTestConnection,
 }: ModelHealthPanelProps) {
+  const { t } = useTCopy();
   const [testingId, setTestingId] = useState<string | null>(null);
 
   const providers = modelHealth?.providers ?? [];

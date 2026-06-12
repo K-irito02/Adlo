@@ -1,6 +1,7 @@
 import React from 'react';
 import type { CiStatusSnapshot } from '@ai-digital-life/kernel';
 import { JobRow } from './JobRow';
+import { useTCopy } from '../../../../i18n/useTCopy';
 
 export function JobsView({
   snapshot,
@@ -9,10 +10,11 @@ export function JobsView({
   snapshot: CiStatusSnapshot | null;
   onViewLogs: (jobId: number) => void;
 }) {
+  const { t, formatT } = useTCopy();
   if (!snapshot?.jobs?.length) {
     return (
       <div className="adl-github__empty">
-        <p>暂无 Job 数据</p>
+        <p>{t.ciNoJobData}</p>
       </div>
     );
   }
@@ -20,7 +22,7 @@ export function JobsView({
   return (
     <div className="adl-github__jobs" style={{ padding: '8px 12px 0' }}>
       <h4 className="adl-github__section-title" style={{ marginBottom: 6 }}>
-        {snapshot.jobs.length} 个 Job
+        {formatT(t, 'jobCount', { count: snapshot.jobs.length })}
       </h4>
       <ul className="adl-github__job-list">
         {snapshot.jobs.map((job) => (

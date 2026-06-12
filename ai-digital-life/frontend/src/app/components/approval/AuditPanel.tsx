@@ -1,10 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import type { AuditEntry, RiskLevel } from '@ai-digital-life/kernel';
 import type { CopyDict } from '../../i18n';
+import { useTCopy } from '../../i18n/useTCopy';
 import { IconClock, IconFilter } from '../../icons';
 
 interface AuditPanelProps {
-  t: CopyDict;
   entries: AuditEntry[];
 }
 
@@ -37,7 +37,8 @@ function formatTime(timestamp: number): string {
   });
 }
 
-export function AuditPanel({ t, entries }: AuditPanelProps) {
+export function AuditPanel({ entries }: AuditPanelProps) {
+  const { t } = useTCopy();
   const [filter, setFilter] = useState<AuditFilter>('all');
 
   const filtered = useMemo(() => {

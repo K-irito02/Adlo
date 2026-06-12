@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import type { CopyDict } from '../i18n';
+import { useTCopy } from '../i18n/useTCopy';
 
 interface NewSessionDialogProps {
   open: boolean;
-  t: CopyDict;
   onCreate: (name: string) => void | Promise<void>;
   onCancel: () => void;
 }
 
-export function NewSessionDialog({ open, t, onCreate, onCancel }: NewSessionDialogProps) {
+export function NewSessionDialog({ open, onCreate, onCancel }: NewSessionDialogProps) {
+  const { t } = useTCopy();
   const inputRef = useRef<HTMLInputElement>(null);
   const [value, setValue] = useState('');
   const [loading, setLoading] = useState(false);

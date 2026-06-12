@@ -15,6 +15,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { useCIPanelProps } from '../../hooks/useCIPanelProps';
 import { workspaceSelectors } from '../../../../stores/selectors';
 import { getAppCopy } from '../../../../i18n';
+import { useTCopy } from '../../../../i18n/useTCopy';
 import { GitHubTree } from '../../../../features/github-tree/GitHubTree';
 import type { SectionCallbacks } from '../../../../features/github-tree/GitHubCategorySection';
 import { GitHubLogViewer } from './GitHubLogViewer';
@@ -26,6 +27,7 @@ import { HelpView } from './HelpView';
 import { GitHubSettingsDialog } from './GitHubSettingsDialog';
 
 export function GitHubPanel() {
+  const { t } = useTCopy();
   const {
     gitHubWorkspaceConfigs,
     loading,
@@ -345,7 +347,7 @@ export function GitHubPanel() {
     if (!activeCiWorkspaceId || !activeConfig) {
       return (
         <div className="adl-github__empty">
-          <p>请选择一个工作区查看 CI 状态</p>
+          <p>{t.ciSelectWorkspace}</p>
         </div>
       );
     }
@@ -389,14 +391,14 @@ export function GitHubPanel() {
           <div className="adl-tool-navigator__context">
             <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--actions">
               <TooltipSimple
-                content={gitHubAllTreeExpanded ? '全部折叠' : '全部展开'}
+                content={gitHubAllTreeExpanded ? t.collapseAll : t.expandAll}
                 placement="top"
               >
                 <button
                   type="button"
                   className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
                   onClick={gitHubAllTreeExpanded ? collapseAllGitHubTree : expandAllGitHubTree}
-                  aria-label={gitHubAllTreeExpanded ? '全部折叠' : '全部展开'}
+                  aria-label={gitHubAllTreeExpanded ? t.collapseAll : t.expandAll}
                 >
                   {gitHubAllTreeExpanded ? (
                     <IconFoldVertical size={14} decorative />
@@ -406,17 +408,17 @@ export function GitHubPanel() {
                 </button>
               </TooltipSimple>
               <span className="adl-tool-navigator__context-title">
-                {gitHubViewMode === 'tree' ? '文件树' : '目录列表'}
+                {gitHubViewMode === 'tree' ? t.changesFileTree : t.communicateDirList}
               </span>
             </div>
             <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--utility">
               <span className="adl-tool-navigator__context-count">{visibleWorkspaces.length}</span>
-              <TooltipSimple content="刷新全部" placement="top">
+              <TooltipSimple content={t.communicateRefreshAll} placement="top">
                 <button
                   type="button"
                   className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
                   onClick={handleRefreshAll}
-                  aria-label="刷新全部"
+                  aria-label={t.communicateRefreshAll}
                 >
                   <IconRefreshCw size={14} decorative />
                 </button>
@@ -425,23 +427,23 @@ export function GitHubPanel() {
           </div>
           <div className="adl-tool-navigator__context adl-tool-navigator__context--secondary">
             <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--actions">
-              <TooltipSimple content="文件树" placement="top">
+              <TooltipSimple content={t.changesFileTree} placement="top">
                 <button
                   type="button"
                   className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${gitHubViewMode === 'tree' ? ' is-active' : ''}`}
                   onClick={() => setGitHubViewMode('tree')}
-                  aria-label="文件树"
+                  aria-label={t.changesFileTree}
                   aria-pressed={gitHubViewMode === 'tree'}
                 >
                   <IconFiles size={14} decorative />
                 </button>
               </TooltipSimple>
-              <TooltipSimple content="目录列表" placement="top">
+              <TooltipSimple content={t.communicateDirList} placement="top">
                 <button
                   type="button"
                   className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${gitHubViewMode === 'list' ? ' is-active' : ''}`}
                   onClick={() => setGitHubViewMode('list')}
-                  aria-label="目录列表"
+                  aria-label={t.communicateDirList}
                   aria-pressed={gitHubViewMode === 'list'}
                 >
                   <IconList size={14} decorative />
@@ -452,12 +454,12 @@ export function GitHubPanel() {
               className="adl-tool-navigator__context-group adl-tool-navigator__context-group--utility"
               style={{ position: 'relative' }}
             >
-              <TooltipSimple content="新建目录" placement="top">
+              <TooltipSimple content={t.communicateNewDir} placement="top">
                 <button
                   type="button"
                   className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
                   onClick={handleCreateFolder}
-                  aria-label="新建目录"
+                  aria-label={t.communicateNewDir}
                 >
                   <IconFolderPlus size={14} decorative />
                 </button>
@@ -477,7 +479,7 @@ export function GitHubPanel() {
                     scheduleDeleteMenuClose();
                   }
                 }}
-                aria-label="删除全部新建目录/CI配置/数据"
+                aria-label={t.ciDeleteAllNewDirs}
               >
                 <IconTrash size={14} decorative />
               </button>
@@ -505,40 +507,40 @@ export function GitHubPanel() {
                       }}
                     >
                       <MenuHintItem
-                        label="删除全部新建目录"
-                        hint="删除所有通过'新建目录'创建的目录节点及其CI配置和数据。工作区目录不受影响。"
+                        label={t.ciDeleteAllNewDirs}
+                        hint={t.ciDeleteAllNewDirsHint}
                         onClick={() => {
                           clearAllFolders();
                           setDeleteMenuOpen(false);
                         }}
                       />
                       <MenuHintItem
-                        label="删除全部CI配置"
-                        hint="清空所有工作区和文件夹绑定的GitHub仓库配置（owner/repo/branch/token）。保留目录结构和CI运行数据。"
+                        label={t.ciDeleteAllConfigs}
+                        hint={t.ciDeleteAllConfigsHint}
                         onClick={() => {
                           clearAllCiConfigs();
                           setDeleteMenuOpen(false);
                         }}
                       />
                       <MenuHintItem
-                        label="删除全部数据"
-                        hint="清空当前面板显示的所有CI运行状态（快照/作业列表/错误信息）。保留配置信息。"
+                        label={t.ciDeleteAllData}
+                        hint={t.ciDeleteAllDataHint}
                         onClick={() => {
                           clearCiState();
                           setDeleteMenuOpen(false);
                         }}
                       />
                       <MenuHintItem
-                        label="删除全部CI配置及数据"
-                        hint="同时清空所有工作区和文件夹的GitHub配置以及所有CI运行数据。保留目录结构。"
+                        label={t.ciDeleteAllConfigsAndData}
+                        hint={t.ciDeleteAllConfigsAndDataHint}
                         onClick={() => {
                           clearAllCiConfigsAndData();
                           setDeleteMenuOpen(false);
                         }}
                       />
                       <MenuHintItem
-                        label="恢复还原"
-                        hint="清空所有内容——删除所有新建目录、所有CI配置及数据，恢复到仅显示工作区目录顶级目录的初始状态。"
+                        label={t.ciRestoreAll}
+                        hint={t.ciRestoreAllHint}
                         onClick={() => {
                           resetAllToOriginal();
                           setDeleteMenuOpen(false);

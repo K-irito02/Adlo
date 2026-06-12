@@ -14,7 +14,7 @@ import {
   IconUpload,
 } from '../../../icons';
 import { TooltipSimple } from '../../../components/Tooltip';
-import type { CopyDict } from '../../../i18n';
+import { useTCopy } from '../../../i18n/useTCopy';
 import type { ChangeFileState } from '../changesTree';
 
 interface ChangesMenuItem {
@@ -28,7 +28,6 @@ interface ChangesMenuItem {
 
 interface ChangesToolbarTopProps {
   placement: 'top';
-  t: CopyDict;
   navigatorCollapsed: boolean;
   onToggleNavigator: () => void;
   branchOptions: string[];
@@ -45,7 +44,6 @@ interface ChangesToolbarTopProps {
 
 interface ChangesToolbarNavigatorProps {
   placement: 'navigator';
-  t: CopyDict;
   allChangesExpanded: boolean;
   onExpandAll: () => void;
   onCollapseAll: () => void;
@@ -68,7 +66,6 @@ interface ChangesToolbarNavigatorProps {
 type ChangesToolbarProps = ChangesToolbarTopProps | ChangesToolbarNavigatorProps;
 
 function TopToolbar({
-  t,
   navigatorCollapsed,
   onToggleNavigator,
   branchOptions,
@@ -82,6 +79,7 @@ function TopToolbar({
   onTogglePreview,
   changesMenuItems,
 }: ChangesToolbarTopProps) {
+  const { t } = useTCopy();
   const [branchMenuOpen, setBranchMenuOpen] = useState(false);
   const [changesMenuOpen, setChangesMenuOpen] = useState(false);
   const branchMenuRef = useRef<HTMLDivElement | null>(null);
@@ -254,7 +252,6 @@ function TopToolbar({
 }
 
 function NavigatorContextToolbar({
-  t,
   allChangesExpanded: _allChangesExpanded,
   onExpandAll: _onExpandAll,
   onCollapseAll: _onCollapseAll,
@@ -273,6 +270,7 @@ function NavigatorContextToolbar({
   structureToggleExpanded,
   onToggleStructure,
 }: ChangesToolbarNavigatorProps) {
+  const { t } = useTCopy();
   return (
     <>
       <div className="adl-tool-navigator__context">

@@ -1,7 +1,8 @@
 .adl-sidebar-menu {
   position: fixed;
-  width: 176px;
   min-width: 176px;
+  width: max-content;
+  max-width: 90vw;
   padding: 4px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
@@ -27,6 +28,7 @@
   font-size: var(--text-xs);
   cursor: pointer;
   position: relative;
+  white-space: nowrap;
 }
 
 .adl-sidebar-menu__item:hover {

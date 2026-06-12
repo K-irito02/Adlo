@@ -5,6 +5,8 @@ import { useShallow } from 'zustand/react/shallow';
 import type { CiJobSummary } from '@ai-digital-life/kernel';
 import type { DigitalLifeBridge } from '../../../../../shared/ipc';
 import { AnsiUp } from 'ansi_up';
+import { useTCopy } from '../../../../i18n/useTCopy';
+import { TooltipSimple } from '../../../../components/Tooltip';
 
 const ansiUp = new AnsiUp();
 ansiUp.use_classes = true;
@@ -18,6 +20,7 @@ const ROW_HEIGHT = 20;
 const MAX_BLANK_LINES = 50;
 
 export function GitHubLogViewer({ snapshot, config }: GitHubLogViewerProps) {
+  const { t, formatT } = useTCopy();
   const selectedLogJobId = useAppStore((s) => s.selectedLogJobId);
   const cachedJobLogs = useAppStore(useShallow((s) => s.cachedJobLogs));
   const logLoading = useAppStore((s) => s.logLoading);
@@ -84,7 +87,7 @@ export function GitHubLogViewer({ snapshot, config }: GitHubLogViewerProps) {
           if (result.ok) {
             setCachedJobLogs(result.data);
           } else {
-            setLogError(result.error?.message ?? '获取日志失败');
+            setLogError(result.error?.message ?? t.ciFetchLogFailed);
           }
         }
       } catch (err: unknown) {
@@ -233,7 +236,7 @@ export function GitHubLogViewer({ snapshot, config }: GitHubLogViewerProps) {
           <div style={{ ...style, display: 'flex', alignItems: 'center' }}>
             <span className="adl-logviewer__line-num" style={{ width: 60, flexShrink: 0 }} />
             <span className="adl-logviewer__blank-collapse" onClick={() => setCollapsed(false)}>
-              [{item.blankCount ?? 0} 行空白 — 点击展开]
+              {formatT(t, 'ciBlankLines', { count: item.blankCount ?? 0 })}
             </span>
           </div>
         );
@@ -278,38 +281,40 @@ export function GitHubLogViewer({ snapshot, config }: GitHubLogViewerProps) {
             <input
               className="adl-logviewer__search-input"
               type="text"
-              placeholder="搜索日志…"
+              placeholder={t.ciSearchLog}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
             {searchMatches.length > 0 && (
               <>
-                <button
-                  type="button"
-                  className="adl-btn adl-btn--ghost adl-btn--xs"
-                  onClick={goToPrevMatch}
-                  title="上一个匹配"
-                >
-                  ▲
-                </button>
+                <TooltipSimple content={t.ciPrevMatch}>
+                  <button
+                    type="button"
+                    className="adl-btn adl-btn--ghost adl-btn--xs"
+                    onClick={goToPrevMatch}
+                  >
+                    ▲
+                  </button>
+                </TooltipSimple>
                 <span className="adl-logviewer__match-count">
                   {searchMatchIndex + 1}/{searchMatches.length}
                 </span>
-                <button
-                  type="button"
-                  className="adl-btn adl-btn--ghost adl-btn--xs"
-                  onClick={goToNextMatch}
-                  title="下一个匹配"
-                >
-                  ▼
-                </button>
+                <TooltipSimple content={t.ciNextMatch}>
+                  <button
+                    type="button"
+                    className="adl-btn adl-btn--ghost adl-btn--xs"
+                    onClick={goToNextMatch}
+                  >
+                    ▼
+                  </button>
+                </TooltipSimple>
               </>
             )}
           </div>
 
           <label className="adl-logviewer__toggle-label">
             <input type="checkbox" checked={collapsed} onChange={() => setCollapsed(!collapsed)} />
-            <span>折叠空白</span>
+            <span>{t.ciCollapseBlank}</span>
           </label>
         </div>
 
@@ -321,7 +326,7 @@ export function GitHubLogViewer({ snapshot, config }: GitHubLogViewerProps) {
               target="_blank"
               rel="noopener noreferrer"
             >
-              在 GitHub 查看
+              {t.ciViewOnGitHub}
             </a>
           )}
         </div>
@@ -330,7 +335,7 @@ export function GitHubLogViewer({ snapshot, config }: GitHubLogViewerProps) {
       <div className="adl-logviewer__content">
         {logLoading && (
           <div className="adl-github__empty">
-            <p>加载日志中…</p>
+            <p>{t.ciLoadingLog}</p>
           </div>
         )}
         {logError && !logLoading && (
@@ -340,7 +345,7 @@ export function GitHubLogViewer({ snapshot, config }: GitHubLogViewerProps) {
         )}
         {!logLoading && !logError && processedLines.length === 0 && (
           <div className="adl-github__empty">
-            <p>暂无日志数据</p>
+            <p>{t.ciNoLogData}</p>
             {htmlUrl && (
               <a
                 className="adl-github__link"
@@ -348,7 +353,7 @@ export function GitHubLogViewer({ snapshot, config }: GitHubLogViewerProps) {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                在 GitHub 查看完整日志
+                {t.ciViewFullLogOnGitHub}
               </a>
             )}
           </div>

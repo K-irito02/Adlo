@@ -9,8 +9,8 @@ import {
   IconMoreVertical,
 } from '../../icons';
 import { TooltipSimple } from '../../components/Tooltip';
-import type { CopyDict } from '../../i18n';
 import type { BrowserMenuItem } from './useBrowserMenus';
+import { useTCopy } from '../../i18n/useTCopy';
 
 interface BrowserMenuDropdownProps {
   menuOpen: boolean;
@@ -18,7 +18,6 @@ interface BrowserMenuDropdownProps {
   menuItems: BrowserMenuItem[];
   onToggle: () => void;
   onClose: () => void;
-  t: CopyDict;
 }
 
 const menuItemIcons: Record<string, React.ReactNode> = {
@@ -39,16 +38,16 @@ export const BrowserMenuDropdown = React.memo(function BrowserMenuDropdown({
   menuItems,
   onToggle,
   onClose,
-  t: _t,
 }: BrowserMenuDropdownProps) {
+  const { t } = useTCopy();
   return (
     <div ref={menuRef} className="adl-menu adl-file-context__menu">
-      <TooltipSimple content="更多操作" placement="top">
+      <TooltipSimple content={t.browserContextMore} placement="top">
         <button
           type="button"
           className={`adl-tool-context__iconbtn${menuOpen ? ' is-open' : ''}`}
           onClick={onToggle}
-          aria-label="更多操作"
+          aria-label={t.browserContextMore}
           aria-haspopup="menu"
           aria-expanded={menuOpen}
         >

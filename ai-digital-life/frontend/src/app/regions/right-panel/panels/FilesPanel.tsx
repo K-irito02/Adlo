@@ -12,11 +12,12 @@ import { EditorSurfaceShell } from '../EditorSurfaceShell';
 import { FileContextMenu, type FileMenuItem, type FileMenuDivider } from '../FileContextMenu';
 import { FileHistoryNav } from '../FileHistoryNav';
 import type { FilesPanelProps } from '../types';
+import { useTCopy } from '../../../i18n/useTCopy';
 import { joinPathSegments } from '../../../utils/workspacePaths';
 
 const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
+  const { t } = useTCopy();
   const {
-    t,
     appInfo,
     selectedFilePath,
     selectedFileWorkspaceId,
@@ -281,7 +282,6 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
             canGoForward={fileHistory.canGoForward}
             onBack={fileHistory.navigateBack}
             onForward={fileHistory.navigateForward}
-            t={t}
           />
         </div>
 
@@ -300,7 +300,6 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
           </TooltipSimple>
           <FileContextMenu
             menuItems={fileMenuItems}
-            t={t}
             checkState={{
               lineNumbersEnabled: editorOptions.lineNumbersEnabled,
               wordWrapEnabled: editorOptions.wordWrapEnabled,
@@ -344,7 +343,6 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
           onCreateWorkspaceFolder={onCreateWorkspaceFolder}
           onEditorChange={onEditorChange}
           onNavigateLine={handleNavigateLine}
-          t={t}
         />
 
         <div className="adl-tool-primary">
@@ -372,7 +370,6 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
               onTogglePatchHunkCollapse={onTogglePatchHunkCollapse}
               onSetAllPatchHunksCollapsed={onSetAllPatchHunksCollapsed}
               onOpenFileAtLine={onOpenFileAtLine}
-              t={t}
               resolvedTheme={resolvedTheme}
               resolvedLocale={resolvedLocale}
               diffSideBySide={diffSideBySide}

@@ -4,14 +4,13 @@ import { getChangeKindLabel } from '../../regions/right-panel/ChangesPanel/utils
 import { PatchHunkCard } from './PatchHunkCard';
 import type { PatchFileSummary } from './patchReview';
 import type { PatchHunkDecision } from '@ai-digital-life/kernel';
-import type { CopyDict } from '../../i18n';
+import { useTCopy } from '../../i18n/useTCopy';
 
 export interface PatchFileCardProps {
   summary: PatchFileSummary;
   activeSummary: PatchFileSummary | undefined;
   activeCardRef: React.MutableRefObject<Record<string, HTMLElement | null>>;
   selectedPatchHunkId: string | undefined;
-  t: CopyDict;
   onSelectPatchFile: (
     relativePath: string,
     options?: { activateTool: boolean; line?: number; hunkId?: string }
@@ -31,12 +30,12 @@ export function PatchFileCard({
   activeSummary,
   activeCardRef,
   selectedPatchHunkId,
-  t,
   onSelectPatchFile,
   onTogglePatchHunkCollapse,
   onSelectPatchHunk,
   onSetHunkDecision,
 }: PatchFileCardProps) {
+  const { t } = useTCopy();
   const isActiveFile = summary.relativePath === activeSummary?.relativePath;
   return (
     <article
@@ -84,7 +83,6 @@ export function PatchFileCard({
             summary={hunk}
             relativePath={summary.relativePath}
             selectedPatchHunkId={selectedPatchHunkId}
-            t={t}
             onTogglePatchHunkCollapse={onTogglePatchHunkCollapse}
             onSelectPatchHunk={onSelectPatchHunk}
             onSetHunkDecision={onSetHunkDecision}

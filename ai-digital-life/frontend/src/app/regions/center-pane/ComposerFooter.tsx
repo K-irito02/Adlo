@@ -4,7 +4,7 @@ import { ContextBuilderPopover } from '../../components/conversation/ContextBuil
 import { TooltipSimple } from '../../components/Tooltip';
 import { StatusBar } from '../StatusBar';
 import type { ChatMode, ContextChip } from '../../stores/types';
-import type { CopyDict } from '../../i18n';
+import { useTCopy } from '../../i18n/useTCopy';
 import type {
   AgentRunDetail,
   GitSnapshot,
@@ -18,7 +18,6 @@ import type {
 } from '@ai-digital-life/kernel';
 
 export interface ComposerFooterProps {
-  t: CopyDict;
   draft: string;
   buttonState: 'send' | 'stop' | 'retry' | 'waiting';
   chatMode: ChatMode;
@@ -57,8 +56,8 @@ export interface ComposerFooterProps {
 }
 
 export function ComposerFooter(props: ComposerFooterProps) {
+  const { t } = useTCopy();
   const {
-    t,
     draft,
     buttonState,
     chatMode,
@@ -116,7 +115,6 @@ export function ComposerFooter(props: ComposerFooterProps) {
             </button>
           </TooltipSimple>
           <ContextBuilderPopover
-            t={t}
             open={contextMenuOpen}
             onClose={() => setContextMenuOpen(false)}
             chatMode={chatMode}
@@ -195,7 +193,6 @@ export function ComposerFooter(props: ComposerFooterProps) {
       </div>
       <StatusBar
         inline
-        t={t}
         appInfo={appInfo}
         currentWorkspace={appInfo?.currentWorkspace}
         modelHealth={modelHealth}

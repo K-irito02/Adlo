@@ -37,8 +37,8 @@ import type {
   SettingsPanelProps,
 } from './right-panel/types';
 import type { PatchDirection, PatchReviewFilter } from '../features/patch-review';
-import type { CopyDict } from '../i18n';
 import type { EditorRef, DiffEditorRef } from '../stores/types';
+import { useTCopy } from '../i18n/useTCopy';
 import type { ToolId } from '../stores/types';
 import { useRightPanelLayout } from './right-panel/hooks/useRightPanelLayout';
 import { useRightPanelViewProps } from './right-panel/hooks/useRightPanelViewProps';
@@ -51,7 +51,6 @@ import { useModelPanelProps } from './right-panel/hooks/useModelPanelProps';
 import { useSettingsPanelProps } from './right-panel/hooks/useSettingsPanelProps';
 
 export interface RightPanelProps {
-  t: CopyDict;
   collapsed: boolean;
   standardEditorRef: React.MutableRefObject<EditorRef | null>;
   selectedPatchFilePath?: string;
@@ -153,13 +152,12 @@ const ActiveToolPanel = React.memo(function ActiveToolPanel({
       </div>
       <div hidden={activeTool !== 'audit'} style={{ height: '100%', minHeight: 0 }}>
         <Suspense fallback={<PanelSkeleton />}>
-          <AuditPanel t={auditProps.t} entries={auditProps.auditEntries} />
+          <AuditPanel entries={auditProps.auditEntries} />
         </Suspense>
       </div>
       <div hidden={activeTool !== 'models'} style={{ height: '100%', minHeight: 0 }}>
         <Suspense fallback={<PanelSkeleton />}>
           <ModelHealthPanel
-            t={modelProps.t}
             modelHealth={modelProps.modelHealth}
             onRefresh={modelProps.onRefreshModelHealth}
           />
@@ -168,7 +166,6 @@ const ActiveToolPanel = React.memo(function ActiveToolPanel({
       <div hidden={activeTool !== 'settings'} style={{ height: '100%', minHeight: 0 }}>
         <Suspense fallback={<PanelSkeleton />}>
           <SettingsPanel
-            t={settingsProps.t}
             settings={settingsProps.settings}
             onChangeSetting={settingsProps.onChangeSetting}
           />
@@ -184,7 +181,8 @@ const ActiveToolPanel = React.memo(function ActiveToolPanel({
 }, areActiveToolPanelPropsEqual);
 
 const RightPanel = React.memo(function RightPanel(panelProps: RightPanelProps) {
-  const { t, collapsed } = panelProps;
+  const { t } = useTCopy();
+  const { collapsed } = panelProps;
 
   const { activeRightTool, setActiveRightTool, badges, diffSideBySide, onSetDiffLayout } =
     useRightPanelViewProps();
@@ -252,7 +250,6 @@ const RightPanel = React.memo(function RightPanel(panelProps: RightPanelProps) {
       />
       <div className="adl-rightpanel__content">
         <ToolSwitcher
-          t={t}
           activeTool={activeRightTool}
           badges={badges}
           idBase={panelIdBase}

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import type { AppInfo } from '@ai-digital-life/kernel';
-import type { CopyDict } from '../i18n';
+import { useTCopy } from '../i18n/useTCopy';
 import {
   IconClose,
   IconCopy,
@@ -24,7 +24,6 @@ import { isTauriShell } from '../../tauri-bridge';
 import { TooltipSimple } from '../components/Tooltip';
 
 interface TitleBarProps {
-  t: CopyDict;
   appInfo?: AppInfo;
   onOpenSettings: () => void;
   onTriggerCreateWorkspace: () => void;
@@ -135,7 +134,6 @@ function MenuDropdown({
 }
 
 const TitleBar = React.memo(function TitleBar({
-  t,
   appInfo,
   onOpenSettings,
   onTriggerCreateWorkspace,
@@ -144,6 +142,7 @@ const TitleBar = React.memo(function TitleBar({
   onCycleTheme,
   onSelectLanguage,
 }: TitleBarProps) {
+  const { t } = useTCopy();
   const [isMaximized, setIsMaximized] = useState(false);
   const { leftCollapsed, rightCollapsed, toggleLeft, toggleRight, toggleBoth } = useAppStore(
     useShallow((state) => ({
@@ -385,7 +384,7 @@ const TitleBar = React.memo(function TitleBar({
               type="button"
               className="adl-icon-btn adl-iconstrip__button"
               onClick={() => onSelectLanguage(nextLanguage)}
-              aria-label={`${t.language}: ${nextLanguage === 'zh-CN' ? '中文' : 'EN'}`}
+              aria-label={`${t.language}: ${nextLanguage === 'zh-CN' ? t.languageChinese : t.languageEnglish}`}
             >
               <LanguageIcon language={language} />
             </button>

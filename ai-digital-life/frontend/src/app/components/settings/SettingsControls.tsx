@@ -1,10 +1,9 @@
 import React from 'react';
 import type { SettingItem } from '@ai-digital-life/kernel';
-import type { CopyDict } from '../../i18n';
+import { useTCopy } from '../../i18n/useTCopy';
 import { IconEye, IconEyeOff } from '../../icons';
 
 interface SettingsControlsProps {
-  t: CopyDict;
   items: SettingItem[];
   onChange: (id: string, value: string | boolean | number) => void;
   searchQuery?: string;
@@ -94,7 +93,8 @@ function PasswordControl({ item, onChange }: { item: SettingItem; onChange: (v: 
   );
 }
 
-export function SettingsControls({ t, items, onChange, searchQuery }: SettingsControlsProps) {
+export function SettingsControls({ items, onChange, searchQuery }: SettingsControlsProps) {
+  const { t } = useTCopy();
   if (items.length === 0) {
     return <p className="adl-empty-hint">{t.noResults}</p>;
   }

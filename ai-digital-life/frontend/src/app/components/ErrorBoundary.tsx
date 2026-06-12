@@ -1,10 +1,13 @@
 import React, { Component, type ReactNode } from 'react';
 import { IconAlertTriangle } from '../icons';
+import { copy } from '../i18n';
+import type { Locale } from '../i18n';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
   fallback?: ReactNode;
   onError?: (error: Error, errorInfo: React.ErrorInfo) => void;
+  locale?: Locale;
 }
 
 interface ErrorBoundaryState {
@@ -32,6 +35,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       if (this.props.fallback) {
         return this.props.fallback;
       }
+      const currentLocale = this.props.locale ?? 'zh-CN';
+      const t = copy[currentLocale];
       return (
         <div
           className="adl-error-boundary"
@@ -50,7 +55,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
           }}
         >
           <IconAlertTriangle size={24} decorative className="adl-error-boundary__icon" />
-          <p>该面板遇到意外错误，已降级保护。</p>
+          <p>{t.panelError}</p>
           <button
             onClick={() => this.setState({ hasError: false, error: null })}
             style={{
@@ -63,7 +68,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
               fontSize: '12px',
             }}
           >
-            重试
+            {t.retry}
           </button>
         </div>
       );

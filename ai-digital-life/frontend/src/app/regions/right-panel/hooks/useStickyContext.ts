@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FileOutlineItem } from '@ai-digital-life/kernel';
-import type { CopyDict } from '../../../i18n';
+import { useTCopy } from '../../../i18n/useTCopy';
 import type { EditorRef } from '../../../stores/types';
 import type { PreviewDiffVisualRange } from '../../../features/diff-viewer';
 import {
@@ -20,10 +20,10 @@ interface UseStickyContextInput {
   diffSideBySide: boolean;
   editorSurfaceRef: React.RefObject<HTMLDivElement | null>;
   stickyDiffRanges: PreviewDiffVisualRange[] | undefined;
-  t: CopyDict;
 }
 
 function useStickyContext(input: UseStickyContextInput): StickyContextModel | null {
+  const { t } = useTCopy();
   const [model, setModel] = useState<StickyContextModel | null>(null);
   const contentKeyRef = useRef('');
   const editorRefCache = useRef<(() => EditorRef | null) | null>(null);
@@ -67,7 +67,7 @@ function useStickyContext(input: UseStickyContextInput): StickyContextModel | nu
         modelId: `${contentKey}:${scrollSeqRef.current}`,
         canScrollToTop,
         onNavigateLine: (line) => navigateToLine(input.getStickySourceEditor(), line),
-        topLabel: input.t.stickyContextTop as string,
+        topLabel: t.stickyContextTop as string,
       })
     );
   }, [input]);

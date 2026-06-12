@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Icon } from './Icon';
+import { useTCopy } from '../i18n/useTCopy';
 
 interface PromptInputProps {
   value: string;
@@ -28,11 +29,12 @@ export function PromptInput({
   value,
   onChange,
   onSubmit,
-  placeholder = '向 AI 助手提问...',
+  placeholder,
   disabled = false,
   attachments = [],
   onRemoveAttachment,
 }: PromptInputProps) {
+  const { t, formatT } = useTCopy();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -120,7 +122,7 @@ export function PromptInput({
                   type="button"
                   className="prompt-input__attachment-remove"
                   onClick={() => onRemoveAttachment(index)}
-                  aria-label={`移除 ${attachment.name}`}
+                  aria-label={formatT(t, 'removeAttachment', { name: attachment.name })}
                 >
                   <Icon name="close" size="xs" />
                 </button>
@@ -140,19 +142,19 @@ export function PromptInput({
         disabled={disabled}
         rows={1}
         style={{ minHeight: MIN_HEIGHT, maxHeight: MAX_HEIGHT }}
-        aria-label="消息输入框"
+        aria-label={t.inputAriaLabel}
         data-testid="prompt-input"
       />
 
       {isDragOver && (
         <div className="prompt-input__drop-overlay">
           <Icon name="upload" size="lg" />
-          <span>释放以添加附件</span>
+          <span>{t.releaseToAddAttachment}</span>
         </div>
       )}
 
       {charCount > 0 && (
-        <span className="prompt-input__char-count" aria-label={`${charCount} 个字符`}>
+        <span className="prompt-input__char-count" aria-label={formatT(t, 'charCountAria', { count: charCount })}>
           {charCount}
         </span>
       )}

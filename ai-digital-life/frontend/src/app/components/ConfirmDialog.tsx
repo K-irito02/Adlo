@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { useTCopy } from '../i18n/useTCopy';
 
 interface ConfirmDialogProps {
   title: string;
@@ -14,12 +15,15 @@ interface ConfirmDialogProps {
 export function ConfirmDialog({
   title,
   message,
-  confirmLabel = '确认',
-  cancelLabel = '取消',
+  confirmLabel,
+  cancelLabel,
   danger,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  const { t } = useTCopy();
+  const resolvedConfirm = confirmLabel ?? t.confirm;
+  const resolvedCancel = cancelLabel ?? t.cancel;
   const confirmRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
@@ -50,7 +54,7 @@ export function ConfirmDialog({
         </div>
         <div className="adl-confirm-dialog__footer">
           <button type="button" className="adl-btn adl-btn--secondary" onClick={onCancel}>
-            {cancelLabel}
+            {resolvedCancel}
           </button>
           <button
             ref={confirmRef}
@@ -58,7 +62,7 @@ export function ConfirmDialog({
             className={`adl-btn${danger ? ' adl-btn--danger' : ' adl-btn--primary'}`}
             onClick={onConfirm}
           >
-            {confirmLabel}
+            {resolvedConfirm}
           </button>
         </div>
       </div>

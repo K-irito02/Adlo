@@ -9,6 +9,7 @@ import { useTerminalMenus } from './useTerminalMenus';
 import type { TerminalPanelProps } from '../../regions/right-panel/types';
 import type { TerminalProfile } from '../../stores/types';
 import type { XtermTerminalHandle } from '../../components/terminal/XtermTerminal';
+import { useTCopy } from '../../i18n/useTCopy';
 
 export type TerminalNavigatorMode = 'sessions' | 'history';
 
@@ -107,7 +108,7 @@ export interface UseTerminalPanelReturn {
 }
 
 export function useTerminalPanel(props: TerminalPanelProps): UseTerminalPanelReturn {
-  const { t } = props;
+  const { t } = useTCopy();
   const [navigatorMode, setNavigatorMode] = useState<TerminalNavigatorMode>('sessions');
   const [editingTabId, setEditingTabId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
@@ -198,7 +199,6 @@ export function useTerminalPanel(props: TerminalPanelProps): UseTerminalPanelRet
     handleClear,
     updateProfile,
   } = useTerminalMenus({
-    t,
     xtermRef,
     activeTab,
     handleCloseTab,

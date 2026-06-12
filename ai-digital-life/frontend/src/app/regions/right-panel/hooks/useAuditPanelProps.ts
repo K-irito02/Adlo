@@ -4,14 +4,13 @@ import { useAppStore } from '../../../stores/slicedStore';
 import type { AuditPanelProps } from '../types';
 import type { RightPanelProps } from '../../RightPanel';
 
-export function useAuditPanelProps(panelProps: RightPanelProps): AuditPanelProps {
+export function useAuditPanelProps(_panelProps: RightPanelProps): AuditPanelProps {
   const auditEntries = useAppStore(useShallow((s) => s.auditEntries));
 
   return useMemo(
     () => ({
-      t: panelProps.t,
       auditEntries,
     }),
-    [panelProps.t, auditEntries]
+    [auditEntries]
   );
 }

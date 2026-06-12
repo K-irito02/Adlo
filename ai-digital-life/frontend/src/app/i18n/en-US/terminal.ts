@@ -18,7 +18,7 @@ export const terminalEn = {
   terminalShellLabel: 'Shell',
   terminalNoRecentCommands: 'No recent commands yet.',
   terminalPlaceholderNotice:
-    'Additional terminal tabs and split panes are high-fidelity UI shells in this tranche. Only the primary live tab is currently backed by governed command streaming.',
+    'Additional terminal tabs and split panes are high-fidelity UI shells in this release. Only the primary live tab is currently backed by governed command streaming.',
   terminalMoreActions: 'More terminal actions',
   terminalCopy: 'Copy',
   terminalPaste: 'Paste',
@@ -44,4 +44,13 @@ export const terminalEn = {
   pin: 'Pin',
   rename: 'Rename',
   delete: 'Delete',
+  terminalHistory: 'Terminal history',
+  terminalLabel: 'Terminal',
+  terminalCreate: 'Create terminal',
+  terminalDefaultProfile: 'Default {profile} terminal',
+  terminalRemoveFromView: 'Remove from this view',
+  terminalCopyFullPath: 'Copy full path',
+  terminalCopyRelativePath: 'Copy relative path',
+  terminalCollapseAll: 'Collapse all',
+  terminalCloseAll: 'Close all',
 } as const;

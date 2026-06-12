@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import type { CopyDict } from '../../i18n';
+import { useTCopy } from '../../i18n/useTCopy';
 
 interface FileCreationBarProps {
   createTarget: 'file' | 'folder';
@@ -9,7 +9,6 @@ interface FileCreationBarProps {
   onPathChange: (value: string) => void;
   onSubmit: () => Promise<void>;
   onCancel: () => void;
-  t: CopyDict;
 }
 
 function FileCreationBar({
@@ -20,8 +19,8 @@ function FileCreationBar({
   onPathChange,
   onSubmit,
   onCancel,
-  t,
 }: FileCreationBarProps) {
+  const { t } = useTCopy();
   const prevTargetRef = useRef<'file' | 'folder' | null>(null);
 
   useEffect(() => {

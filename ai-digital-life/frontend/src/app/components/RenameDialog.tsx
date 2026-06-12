@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { useTCopy } from '../i18n/useTCopy';
 
 interface RenameDialogProps {
   open: boolean;
@@ -14,12 +15,15 @@ interface RenameDialogProps {
 export function RenameDialog({
   open,
   initialValue,
-  title = '重命名',
-  placeholder = '输入新名称',
+  title,
+  placeholder,
   itemInfo,
   onConfirm,
   onCancel,
 }: RenameDialogProps) {
+  const { t } = useTCopy();
+  const resolvedTitle = title ?? t.rename;
+  const resolvedPlaceholder = placeholder ?? t.enterNewName;
   const inputRef = useRef<HTMLInputElement>(null);
   const [value, setValue] = useState('');
   const [loading, setLoading] = useState(false);
@@ -77,14 +81,14 @@ export function RenameDialog({
 
   return createPortal(
     <div className="adl-prompt-modal" onKeyDown={handleKeyDown} onClick={handleBackdrop}>
-      <div className="adl-prompt-modal__panel" role="dialog" aria-modal="true" aria-label={title}>
+      <div className="adl-prompt-modal__panel" role="dialog" aria-modal="true" aria-label={resolvedTitle}>
         <div className="adl-prompt-modal__header">
-          {title}
+          {resolvedTitle}
           <button
             type="button"
             className="adl-prompt-modal__header-close"
             onClick={onCancel}
-            aria-label="关闭"
+            aria-label={t.close}
           >
             ✕
           </button>
@@ -95,7 +99,7 @@ export function RenameDialog({
           className="adl-prompt-modal__input"
           type="text"
           value={value}
-          placeholder={placeholder}
+          placeholder={resolvedPlaceholder}
           onChange={(e) => setValue(e.currentTarget.value)}
           disabled={loading}
         />
@@ -106,7 +110,7 @@ export function RenameDialog({
             onClick={onCancel}
             disabled={loading}
           >
-            取消
+            {t.cancel}
           </button>
           <button
             type="button"
@@ -114,7 +118,7 @@ export function RenameDialog({
             onClick={() => void handleOk()}
             disabled={loading}
           >
-            {loading ? '确认中...' : '确认'}
+            {loading ? t.processing : t.confirm}
           </button>
         </div>
       </div>

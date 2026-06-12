@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { type IconName } from '../../design-system/icons';
 import { TooltipSimple } from './Tooltip';
 import { Icon } from './Icon';
+import { useTCopy } from '../i18n/useTCopy';
 
 interface ActionButtonProps {
   state: 'idle' | 'generating' | 'error' | 'waiting';
@@ -19,50 +20,7 @@ interface ButtonAppearance {
   onClick: () => void;
 }
 
-const APPEARANCE_MAP: Record<
-  'idle-empty' | 'idle-ready' | 'generating' | 'error' | 'waiting',
-  (props: ActionButtonProps) => ButtonAppearance
-> = {
-  'idle-empty': () => ({
-    icon: 'arrow-up',
-    label: '发送',
-    className: 'action-btn action-btn--idle action-btn--empty',
-    isDisabled: true,
-    onClick: () => {},
-  }),
-  'idle-ready': ({ onSend }) => ({
-    icon: 'arrow-up',
-    label: '发送消息',
-    className: 'action-btn action-btn--idle action-btn--ready',
-    isDisabled: false,
-    onClick: onSend,
-  }),
-  generating: ({ onStop }) => ({
-    icon: 'stop-circle',
-    label: '停止生成',
-    className: 'action-btn action-btn--generating',
-    isDisabled: false,
-    onClick: onStop,
-  }),
-  error: ({ onRetry }) => ({
-    icon: 'rotate-ccw',
-    label: '重试',
-    className: 'action-btn action-btn--error',
-    isDisabled: false,
-    onClick: onRetry,
-  }),
-  waiting: () => ({
-    icon: 'loader-2',
-    label: '等待中...',
-    className: 'action-btn action-btn--waiting',
-    isDisabled: true,
-    onClick: () => {},
-  }),
-};
-
-type AppearanceKey = keyof typeof APPEARANCE_MAP;
-
-function getAppearanceKey(state: ActionButtonProps['state'], hasContent: boolean): AppearanceKey {
+function getAppearanceKey(state: ActionButtonProps['state'], hasContent: boolean): 'idle-empty' | 'idle-ready' | 'generating' | 'error' | 'waiting' {
   if (state === 'idle') {
     return hasContent ? 'idle-ready' : 'idle-empty';
   }
@@ -76,6 +34,49 @@ function getAppearanceKey(state: ActionButtonProps['state'], hasContent: boolean
 }
 
 export function ActionButton({ state, hasContent, onSend, onStop, onRetry }: ActionButtonProps) {
+  const { t } = useTCopy();
+
+  const APPEARANCE_MAP: Record<
+    'idle-empty' | 'idle-ready' | 'generating' | 'error' | 'waiting',
+    (props: ActionButtonProps) => ButtonAppearance
+  > = useMemo(() => ({
+    'idle-empty': () => ({
+      icon: 'arrow-up',
+      label: t.send,
+      className: 'action-btn action-btn--idle action-btn--empty',
+      isDisabled: true,
+      onClick: () => {},
+    }),
+    'idle-ready': ({ onSend }) => ({
+      icon: 'arrow-up',
+      label: t.sendMessage,
+      className: 'action-btn action-btn--idle action-btn--ready',
+      isDisabled: false,
+      onClick: onSend,
+    }),
+    generating: ({ onStop }) => ({
+      icon: 'stop-circle',
+      label: t.stopGenerating,
+      className: 'action-btn action-btn--generating',
+      isDisabled: false,
+      onClick: onStop,
+    }),
+    error: ({ onRetry }) => ({
+      icon: 'rotate-ccw',
+      label: t.retry,
+      className: 'action-btn action-btn--error',
+      isDisabled: false,
+      onClick: onRetry,
+    }),
+    waiting: () => ({
+      icon: 'loader-2',
+      label: t.waiting,
+      className: 'action-btn action-btn--waiting',
+      isDisabled: true,
+      onClick: () => {},
+    }),
+  }), [t]);
+
   const appearance = useMemo<ButtonAppearance>(
     () =>
       APPEARANCE_MAP[getAppearanceKey(state, hasContent)]({

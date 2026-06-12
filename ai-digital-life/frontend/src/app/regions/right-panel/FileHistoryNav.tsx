@@ -1,17 +1,17 @@
 import React from 'react';
 import { IconArrowLeft, IconArrowRight } from '../../icons';
 import { TooltipSimple } from '../../components/Tooltip';
-import type { CopyDict } from '../../i18n';
+import { useTCopy } from '../../i18n/useTCopy';
 
 interface FileHistoryNavProps {
   canGoBack: boolean;
   canGoForward: boolean;
   onBack: () => void;
   onForward: () => void;
-  t: CopyDict;
 }
 
-function FileHistoryNav({ canGoBack, canGoForward, onBack, onForward, t }: FileHistoryNavProps) {
+function FileHistoryNav({ canGoBack, canGoForward, onBack, onForward }: FileHistoryNavProps) {
+  const { t } = useTCopy();
   return (
     <>
       <TooltipSimple content={t.browserBack as string} placement="top">

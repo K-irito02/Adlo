@@ -25,7 +25,7 @@ frontend/src/
 │   │   ├── types.ts       # 共享类型（ToolId/ChatMode/TerminalProfile 等）
 │   │   ├── slices/        # 12 个独立切片
 │   │   └── actions/       # 8 个跨切片 action 模块
-│   ├── i18n/              # 国际化拆分（25 文件 / 10 领域 / 504 keys）
+│   ├── i18n/              # 国际化拆分（13 领域 / 889 keys，TCopyContext + useTCopy 驱动）
 │   ├── icons/             # SVG 图标拆分（4 文件：core/file/actions/status）
 │   ├── features/          # 功能模块（file-tree/terminal/browser/diff-viewer/...）
 │   └── regions/           # 布局区域（left-sidebar/right-panel/center-pane）

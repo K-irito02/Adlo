@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import type { CiJobSummary } from '@ai-digital-life/kernel';
 import { StatusDot } from './StatusDot';
 import { statusColor, formatDuration } from './githubPanelUtils';
+import { useTCopy } from '../../../../i18n/useTCopy';
+import { TooltipSimple } from '../../../../components/Tooltip';
 
 export function JobRow({
   job,
@@ -11,6 +13,7 @@ export function JobRow({
   onViewLogs: (jobId: number) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const { t } = useTCopy();
 
   return (
     <li className="adl-github__job">
@@ -36,19 +39,20 @@ export function JobRow({
         <span className="adl-github__job-duration adl-text--secondary">
           {formatDuration(job.startedAt, job.completedAt)}
         </span>
-        <button
-          type="button"
-          className="adl-github__log-btn"
-          onClick={(e) => {
-            e.stopPropagation();
-            onViewLogs(job.jobId);
-          }}
-          title="查看日志"
-        >
-          <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
-            <path d="M2 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H2zm1 3h10v1H3V4zm0 3h10v1H3V7zm0 3h7v1H3v-1z" />
-          </svg>
-        </button>
+        <TooltipSimple content={t.ciViewLog}>
+          <button
+            type="button"
+            className="adl-github__log-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              onViewLogs(job.jobId);
+            }}
+          >
+            <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
+              <path d="M2 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H2zm1 3h10v1H3V4zm0 3h10v1H3V7zm0 3h7v1H3v-1z" />
+            </svg>
+          </button>
+        </TooltipSimple>
         <span className="adl-github__job-toggle">{expanded ? '▲' : '▼'}</span>
       </div>
       {expanded && job.stepResults.length > 0 && (

@@ -82,5 +82,5 @@ export const workspaceZh = {
   repoMapSearch: '搜索模块…',
   fileTreeView: '文件树',
   repoMapView: '仓库地图',
-  addToFileTree: '[TODO:zh] Show in file tree',
+  addToFileTree: '在文件树中显示',
 } as const;

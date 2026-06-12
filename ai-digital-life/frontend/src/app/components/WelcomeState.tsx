@@ -1,4 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
+import { useTCopy } from '../i18n/useTCopy';
 import { type IconName } from '../../design-system/icons';
 import { Icon } from './Icon';
 
@@ -10,19 +11,7 @@ interface WelcomeStateProps {
   onSuggestion?: (text: string) => void;
 }
 
-const SUGGESTIONS = [
-  '帮我理解这个项目的架构',
-  '修复登录页面的 bug',
-  '为这个模块添加单元测试',
-  '优化数据库查询性能',
-  '解释这段代码的作用',
-];
 
-const TIPS = [
-  { icon: 'folder-open' as IconName, text: '将文件夹拖入窗口即可打开' },
-  { icon: 'keyboard' as IconName, text: '按 Ctrl+O 快速打开工作空间' },
-  { icon: 'globe' as IconName, text: '支持从 GitHub 克隆远程仓库' },
-];
 
 export function WelcomeState({
   variant,
@@ -31,8 +20,23 @@ export function WelcomeState({
   onSelectRecentWorkspace,
   onSuggestion,
 }: WelcomeStateProps) {
+  const { t } = useTCopy();
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const SUGGESTIONS = [
+    t.welcomeSuggestionArchitecture,
+    t.welcomeSuggestionBug,
+    t.welcomeSuggestionTest,
+    t.welcomeSuggestionPerformance,
+    t.welcomeSuggestionExplain,
+  ];
+
+  const TIPS = [
+    { icon: 'folder-open' as const, text: t.welcomeHintDrag },
+    { icon: 'keyboard' as const, text: t.welcomeHintOpen },
+    { icon: 'globe' as const, text: t.welcomeHintClone },
+  ];
 
   const filteredWorkspaces = searchQuery.trim()
     ? recentWorkspaces.filter(
@@ -64,8 +68,8 @@ export function WelcomeState({
         <div className="welcome-state__icon welcome-state__icon--session">
           <Icon name="message-square" size="2xl" />
         </div>
-        <h2 className="welcome-state__title">开始新对话</h2>
-        <p className="welcome-state__description">向 AI 助手提问或下达任务</p>
+        <h2 className="welcome-state__title">{t.welcomeStartChatTitle}</h2>
+        <p className="welcome-state__description">{t.welcomeStartChatDescription}</p>
         <div className="welcome-state__suggestions">
           {SUGGESTIONS.map((suggestion) => (
             <button
@@ -87,30 +91,30 @@ export function WelcomeState({
       <div className="welcome-state__icon">
         <Icon name="folder-open" size="2xl" />
       </div>
-      <h2 className="welcome-state__title">打开工作空间</h2>
-      <p className="welcome-state__description">选择一个项目目录开始</p>
+      <h2 className="welcome-state__title">{t.welcomeOpenWorkspace}</h2>
+      <p className="welcome-state__description">{t.welcomeOpenWorkspaceDescription}</p>
 
       <button type="button" className="welcome-state__primary-btn" onClick={onOpenWorkspace}>
         <Icon name="folder-open" size="sm" />
-        打开工作空间
+        {t.welcomeOpenWorkspace}
       </button>
 
       {recentWorkspaces.length > 0 && (
         <>
-          <p className="welcome-state__recent-label">最近打开的工作空间</p>
+          <p className="welcome-state__recent-label">{t.welcomeRecentWorkspaces}</p>
           <div className="welcome-state__search" role="search">
             <Icon name="search" size="sm" />
             <input
               ref={searchInputRef}
               type="text"
               className="welcome-state__search-input"
-              placeholder="搜索工作空间..."
+              placeholder={t.welcomeSearchPlaceholder}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              aria-label="搜索最近工作空间"
+              aria-label={t.welcomeSearchAria}
             />
           </div>
-          <ul className="welcome-state__list" role="listbox" aria-label="最近工作空间">
+          <ul className="welcome-state__list" role="listbox" aria-label={t.welcomeRecentAria}>
             {filteredWorkspaces.slice(0, 5).map((workspace) => (
               <li key={workspace.path}>
                 <button
@@ -128,20 +132,20 @@ export function WelcomeState({
               </li>
             ))}
             {filteredWorkspaces.length === 0 && searchQuery.trim() && (
-              <li className="welcome-state__empty">未找到匹配的工作空间</li>
+              <li className="welcome-state__empty">{t.welcomeNoMatch}</li>
             )}
           </ul>
         </>
       )}
 
       <div className="welcome-state__divider">
-        <span>—— 或 ——</span>
+        <span>{t.welcomeOr}</span>
       </div>
 
       <div className="welcome-state__tips">
         <div className="welcome-state__tips-header">
           <Icon name="lightbulb" size="sm" />
-          <span>快速提示</span>
+          <span>{t.welcomeHints}</span>
         </div>
         <ul className="welcome-state__tips-list">
           {TIPS.map((tip) => (

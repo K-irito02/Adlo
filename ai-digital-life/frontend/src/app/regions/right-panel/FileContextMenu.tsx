@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { IconMoreVertical } from '../../icons';
 import { TooltipSimple } from '../../components/Tooltip';
-import type { CopyDict } from '../../i18n';
+import { useTCopy } from '../../i18n/useTCopy';
 
 interface FileMenuItem {
   id: string;
@@ -20,7 +20,6 @@ type FileMenuEntry = FileMenuItem | FileMenuDivider;
 
 interface FileContextMenuProps {
   menuItems: FileMenuEntry[];
-  t: CopyDict;
   checkState: {
     lineNumbersEnabled: boolean;
     wordWrapEnabled: boolean;
@@ -28,7 +27,8 @@ interface FileContextMenuProps {
   };
 }
 
-function FileContextMenu({ menuItems, t, checkState }: FileContextMenuProps) {
+function FileContextMenu({ menuItems, checkState }: FileContextMenuProps) {
+  const { t } = useTCopy();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
 

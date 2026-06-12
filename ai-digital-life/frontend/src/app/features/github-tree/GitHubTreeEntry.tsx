@@ -10,6 +10,8 @@ import {
 import { FileTree } from '../file-tree';
 import { TooltipSimple } from '../../components/Tooltip';
 import { RenameDialog } from '../../components/RenameDialog';
+import { useTCopy } from '../../i18n/useTCopy';
+import type { CopyDict } from '../../i18n';
 import { MenuHintItem } from '../../regions/right-panel/panels/communicate/MenuHintItem';
 import { useAppStore } from '../../stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -80,6 +82,7 @@ function getChildNodeMoreMenuItems(
   isPinned: boolean,
   onDeleteFolder: () => void,
   showDeleteFolder: boolean,
+  t: CopyDict,
   onDeleteConfigRecursive?: () => void,
   onDeleteDataRecursive?: () => void,
   onDeleteConfigAndDataRecursive?: () => void
@@ -93,22 +96,22 @@ function getChildNodeMoreMenuItems(
   const items: Array<ChildMenuItem> = [
     {
       id: 'refresh',
-      label: '刷新',
+      label: t.refresh,
       action: onRefresh,
     },
     {
       id: isPinned ? 'unpin' : 'pin',
-      label: isPinned ? '取消置顶' : '置顶',
+      label: isPinned ? t.unpin : t.pin,
       action: isPinned ? onUnpin : onPin,
     },
     {
       id: 'rename',
-      label: '重命名',
+      label: t.rename,
       action: () => onRename(folderId, currentName),
     },
     {
       id: 'settings',
-      label: '设置',
+      label: t.settings,
       action: onSettings,
     },
     { id: 'sep-danger', separator: true },
@@ -116,29 +119,29 @@ function getChildNodeMoreMenuItems(
   if (showDeleteFolder) {
     items.push({
       id: 'delete-folder',
-      label: '删除目录',
+      label: t.ciDeleteDir,
       danger: true as const,
       hasHint: true,
-      hint: '删除此目录及其所有嵌套子目录，同时删除所有CI配置及数据。',
+      hint: t.ciDeleteDirHint,
       action: onDeleteFolder,
     });
   }
   items.push(
     {
       id: 'delete-config',
-      label: '删除CI配置',
+      label: t.ciDeleteConfig,
       danger: true as const,
       action: onDeleteConfig,
     },
     {
       id: 'delete-data',
-      label: '删除数据',
+      label: t.ciDeleteData,
       danger: true as const,
       action: onDeleteData,
     },
     {
       id: 'delete-config-and-data',
-      label: '删除CI配置及数据',
+      label: t.ciDeleteConfigAndData,
       danger: true as const,
       action: onDeleteConfigAndData,
     }
@@ -152,26 +155,26 @@ function getChildNodeMoreMenuItems(
     items.push({ id: 'sep-recursive', separator: true });
     items.push({
       id: 'delete-config-recursive',
-      label: '删除CI配置[嵌套]',
+      label: t.ciDeleteNestedConfig,
       danger: true as const,
       hasHint: true,
-      hint: '递归删除此目录及其所有嵌套子目录的CI配置。',
+      hint: t.ciDeleteNestedConfigHint,
       action: onDeleteConfigRecursive,
     });
     items.push({
       id: 'delete-data-recursive',
-      label: '删除数据[嵌套]',
+      label: t.ciDeleteNestedData,
       danger: true as const,
       hasHint: true,
-      hint: '删除此目录及其所有嵌套子目录的CI数据。',
+      hint: t.ciDeleteNestedDataHint,
       action: onDeleteDataRecursive,
     });
     items.push({
       id: 'delete-config-and-data-recursive',
-      label: '删除CI配置及数据[嵌套]',
+      label: t.ciDeleteNestedAll,
       danger: true as const,
       hasHint: true,
-      hint: '递归删除此目录及其所有嵌套子目录的CI配置及数据。',
+      hint: t.ciDeleteNestedAllHint,
       action: onDeleteConfigAndDataRecursive,
     });
   }
@@ -188,6 +191,7 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
   callbacks,
 }: GitHubTreeEntryProps) {
   const isSelected = selectedTreePath === node.path;
+  const { t } = useTCopy();
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const [childMenuState, setChildMenuState] = useState<{
@@ -337,34 +341,32 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
       separator?: boolean;
     }> = [];
 
-    // 刷新 - 所有节点都有
     if (node.workspaceId || isWorkspaceRoot) {
       const wsId = node.workspaceId || workspaceId;
       items.push({
         id: 'refresh',
-        label: '刷新',
+        label: t.refresh,
         action: () => (wsId ? callbacks.onRefreshWorkspace(wsId) : clearCiState()),
       });
     } else if (node.nodeType === 'folder') {
       items.push({
         id: 'refresh',
-        label: '刷新',
+        label: t.refresh,
         action: () => clearCiState(),
       });
     }
 
-    // 置顶/取消置顶 - 所有目录支持
     if (node.nodeType === 'folder') {
       if (isPinned) {
         items.push({
           id: 'unpin',
-          label: '取消置顶',
+          label: t.unpin,
           action: () => gitHubUnpinFolder(folderId),
         });
       } else {
         items.push({
           id: 'pin',
-          label: '置顶',
+          label: t.pin,
           action: () => gitHubPinFolder(folderId),
         });
       }
@@ -372,51 +374,48 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
       if (isPinned) {
         items.push({
           id: 'unpin-workspace',
-          label: '取消置顶',
+          label: t.unpin,
           action: () => gitHubUnpinWorkspace(node.workspaceId!),
         });
       } else {
         items.push({
           id: 'pin-workspace',
-          label: '置顶',
+          label: t.pin,
           action: () => gitHubPinWorkspace(node.workspaceId!),
         });
       }
     }
 
-    // 重命名 - 工作区目录的顶级目录没有重命名
     if (!(categoryType === 'ci-workspace' && node.nodeType === 'workspace')) {
       if (node.nodeType === 'folder') {
         items.push({
           id: 'rename',
-          label: '重命名',
+          label: t.rename,
           action: () => handleStartRename(folderId, node.name),
         });
       }
     }
 
-    // 设置 - 所有节点都有（移到删除操作之前）
     if (node.workspaceId) {
       items.push({
         id: 'settings',
-        label: '设置',
+        label: t.settings,
         action: () => callbacks.onOpenSettings(node.workspaceId!),
       });
     } else if (node.nodeType === 'folder') {
       items.push({
         id: 'settings',
-        label: '设置',
+        label: t.settings,
         action: () => callbacks.onOpenFolderSettings(folderId),
       });
     }
 
-    // 从此区域移除不显示 - 工作区目录的顶级目录
     if (node.nodeType === 'workspace') {
       items.push({
         id: 'hide-from-area',
-        label: '从此区域移除不显示',
+        label: t.ciRemoveFromView,
         hasHint: true,
-        hint: '将此工作区从工作区目录分类中移除，嵌套的子目录也将一并移除。不会删除任何数据，可在左侧边栏中恢复显示。',
+        hint: t.ciRemoveFromViewHint,
         action: () => {
           if (workspaceId) {
             hideWorkspaceFromRightPanels(workspaceId);
@@ -425,17 +424,15 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
       });
     }
 
-    // 分割线 - 白色字体功能选项与红色字体功能选项之间
     items.push({ id: 'sep-danger', separator: true });
 
-    // 删除目录 - 工作区目录的嵌套子目录和非工作区目录的所有目录
     if (isNestedFolder || isUserFolderRoot) {
       items.push({
         id: 'delete-folder',
-        label: '删除目录',
+        label: t.ciDeleteDir,
         danger: true as const,
         hasHint: true,
-        hint: '删除此目录及其所有嵌套子目录，同时删除所有CI配置及数据。',
+        hint: t.ciDeleteDirHint,
         action: () => {
           gitHubDeleteFolder(folderId);
           clearCiState();
@@ -443,38 +440,35 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
       });
     }
 
-    // 删除CI配置 - 所有节点都有
     if (node.workspaceId) {
       items.push({
         id: 'delete-config',
-        label: '删除CI配置',
+        label: t.ciDeleteConfig,
         danger: true as const,
         action: () => callbacks.onDeleteWorkspaceConfig(node.workspaceId!),
       });
     } else if (node.nodeType === 'folder') {
       items.push({
         id: 'delete-config',
-        label: '删除CI配置',
+        label: t.ciDeleteConfig,
         danger: true as const,
         action: () => gitHubDeleteFolderConfig(folderId),
       });
     }
 
-    // 删除数据 - 所有节点都有
     if (node.workspaceId || node.nodeType === 'folder') {
       items.push({
         id: 'delete-data',
-        label: '删除数据',
+        label: t.ciDeleteData,
         danger: true as const,
         action: () => clearCiState(),
       });
     }
 
-    // 删除CI配置及数据 - 所有节点都有
     if (node.workspaceId) {
       items.push({
         id: 'delete-config-and-data',
-        label: '删除CI配置及数据',
+        label: t.ciDeleteConfigAndData,
         danger: true as const,
         action: () => {
           callbacks.onDeleteWorkspaceConfig(node.workspaceId!);
@@ -484,7 +478,7 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
     } else if (node.nodeType === 'folder') {
       items.push({
         id: 'delete-config-and-data',
-        label: '删除CI配置及数据',
+        label: t.ciDeleteConfigAndData,
         danger: true as const,
         action: () => {
           gitHubDeleteFolderConfig(folderId);
@@ -493,35 +487,34 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
       });
     }
 
-    // 递归删除 - 工作区目录和非工作区目录的所有目录
     if (isNestedFolder || isUserFolderRoot || node.nodeType === 'workspace') {
       items.push({ id: 'sep-recursive', separator: true });
       items.push({
         id: 'delete-config-recursive',
-        label: '删除CI配置[嵌套]',
+        label: t.ciDeleteNestedConfig,
         danger: true as const,
         hasHint: true,
-        hint: '递归删除此目录及其所有嵌套子目录的CI配置。',
+        hint: t.ciDeleteNestedConfigHint,
         action: () => {
           gitHubDeleteFolderConfigRecursive(folderId);
         },
       });
       items.push({
         id: 'delete-data-recursive',
-        label: '删除数据[嵌套]',
+        label: t.ciDeleteNestedData,
         danger: true as const,
         hasHint: true,
-        hint: '删除此目录及其所有嵌套子目录的CI数据。',
+        hint: t.ciDeleteNestedDataHint,
         action: () => {
           gitHubDeleteFolderDataRecursive(folderId);
         },
       });
       items.push({
         id: 'delete-config-and-data-recursive',
-        label: '删除CI配置及数据[嵌套]',
+        label: t.ciDeleteNestedAll,
         danger: true as const,
         hasHint: true,
-        hint: '递归删除此目录及其所有嵌套子目录的CI配置及数据。',
+        hint: t.ciDeleteNestedAllHint,
         action: () => {
           gitHubDeleteFolderConfigAndDataRecursive(folderId);
         },
@@ -567,8 +560,7 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
 
       return (
         <span className="adl-browser-node__actions">
-          {/* 刷新按钮 */}
-          <TooltipSimple content="刷新" placement="top">
+          <TooltipSimple content={t.refresh} placement="top">
             <button
               type="button"
               className="adl-icon-btn adl-icon-btn--xs"
@@ -576,13 +568,12 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
                 e.stopPropagation();
                 clearCiState();
               }}
-              aria-label="刷新"
+              aria-label={t.refresh}
             >
               <IconRefreshCw size={12} decorative />
             </button>
           </TooltipSimple>
-          {/* 设置按钮 - 所有目录都有 */}
-          <TooltipSimple content="设置" placement="top">
+          <TooltipSimple content={t.settings} placement="top">
             <button
               type="button"
               className="adl-icon-btn adl-icon-btn--xs"
@@ -594,13 +585,12 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
                   callbacks.onOpenFolderSettings(childFolderId);
                 }
               }}
-              aria-label="设置"
+              aria-label={t.settings}
             >
               <IconSettings size={12} decorative />
             </button>
           </TooltipSimple>
-          {/* 更多操作按钮 */}
-          <TooltipSimple content="更多操作" placement="top">
+          <TooltipSimple content={t.moreActions} placement="top">
             <button
               type="button"
               className="adl-icon-btn adl-icon-btn--xs"
@@ -613,7 +603,7 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
                   nodeType: childNode.nodeType,
                 });
               }}
-              aria-label="更多操作"
+              aria-label={t.moreActions}
             >
               <IconMoreVertical size={12} decorative />
             </button>
@@ -621,7 +611,7 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
         </span>
       );
     },
-    [clearCiState, callbacks, node.workspaceId]
+    [clearCiState, callbacks, node.workspaceId, t]
   );
 
   const handleChildClick = useCallback(
@@ -702,6 +692,7 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
           clearCiState();
         },
         showDeleteFolder,
+        t,
         () => gitHubDeleteFolderConfigRecursive(childFolderId),
         () => {
           gitHubDeleteFolderDataRecursive(childFolderId);
@@ -735,6 +726,7 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
       gitHubPinFolder,
       gitHubUnpinFolder,
       gitHubDeleteFolder,
+      t,
     ]
   );
 
@@ -777,7 +769,7 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
             type="button"
             className={`adl-browser-entry__expand-btn${isExpanded ? ' is-expanded' : ''}`}
             onClick={handleExpandBtnClick}
-            aria-label={isExpanded ? '收起' : '展开'}
+            aria-label={isExpanded ? t.collapse : t.expand}
             aria-expanded={isExpanded}
           >
             {isExpanded ? (
@@ -799,8 +791,7 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
           <div className="adl-browser-entry__trailing">
             <span className="adl-browser-entry__count">{count}</span>
             <div className="adl-browser-entry__actions">
-              {/* 刷新按钮 - 所有目录都有 */}
-              <TooltipSimple content="刷新" placement="top">
+              <TooltipSimple content={t.refresh} placement="top">
                 <button
                   type="button"
                   className="adl-icon-btn adl-icon-btn--xs"
@@ -812,13 +803,12 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
                       clearCiState();
                     }
                   }}
-                  aria-label="刷新"
+                  aria-label={t.refresh}
                 >
                   <IconRefreshCw size={12} decorative />
                 </button>
               </TooltipSimple>
-              {/* 设置按钮 - 所有目录都有 */}
-              <TooltipSimple content="设置" placement="top">
+              <TooltipSimple content={t.settings} placement="top">
                 <button
                   type="button"
                   className="adl-icon-btn adl-icon-btn--xs"
@@ -831,13 +821,12 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
                       callbacks.onOpenFolderSettings(folderId);
                     }
                   }}
-                  aria-label="设置"
+                  aria-label={t.settings}
                 >
                   <IconSettings size={12} decorative />
                 </button>
               </TooltipSimple>
-              {/* 更多操作按钮 - 所有目录都有 */}
-              <TooltipSimple content="更多操作" placement="top">
+              <TooltipSimple content={t.moreActions} placement="top">
                 <button
                   type="button"
                   className="adl-icon-btn adl-icon-btn--xs"
@@ -846,7 +835,7 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
                     setMenuPosition({ top: e.clientY, left: e.clientX + 4 });
                     setMenuOpen(true);
                   }}
-                  aria-label="更多操作"
+                  aria-label={t.moreActions}
                 >
                   <IconMoreVertical size={12} decorative />
                 </button>
@@ -866,7 +855,6 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
                 position: 'fixed',
                 top: menuPosition.top,
                 left: menuPosition.left,
-                width: '176px',
                 zIndex: 9999,
               }}
             >
@@ -914,15 +902,15 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
             renderCount={renderChildCount}
             renderIconBefore={renderSubEntryIcon}
             getContextMenuItems={handleChildContextMenu}
-            expandLabel="展开"
-            collapseLabel="收起"
+            expandLabel={t.expand}
+            collapseLabel={t.collapse}
           />
         </div>
       ) : null}
 
       {isExpanded && node.children.length === 0 ? (
         <div className="adl-browser-entry__empty">
-          <span className="adl-empty-hint">暂无内容</span>
+            <span className="adl-empty-hint">{t.noContent}</span>
         </div>
       ) : null}
 
@@ -936,7 +924,6 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
                 position: 'fixed',
                 top: childMenuState.y,
                 left: childMenuState.x,
-                width: '176px',
                 zIndex: 9999,
               }}
             >
@@ -1001,6 +988,7 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
                     clearCiState();
                   },
                   showDeleteFolder,
+                  t,
                   () => gitHubDeleteFolderConfigRecursive(childFolderId),
                   () => {
                     gitHubDeleteFolderDataRecursive(childFolderId);
@@ -1042,7 +1030,7 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
       <RenameDialog
         open={!!renameFolderState}
         initialValue={renameFolderState?.folderName ?? ''}
-        title="重命名目录"
+        title={t.changesRenameDir}
         onConfirm={handleConfirmRename}
         onCancel={handleCancelRename}
       />

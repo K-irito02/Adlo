@@ -1,13 +1,16 @@
+import { useTCopy } from '../../../i18n/useTCopy';
+
 interface ChangesEmptyStateProps {
   hasWorkspaces: boolean;
   message?: string;
 }
 
 export function ChangesEmptyState({ hasWorkspaces, message }: ChangesEmptyStateProps) {
+  const { t } = useTCopy();
   return (
     <div className="adl-changes-empty">
       <p className="adl-changes-empty__text">
-        {message ?? (hasWorkspaces ? '当前没有检测到文件变更' : '打开工作区以查看变更')}
+        {message ?? (hasWorkspaces ? t.changesNoChanges : t.changesOpenWorkspace)}
       </p>
     </div>
   );

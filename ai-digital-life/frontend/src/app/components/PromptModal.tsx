@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { useTCopy } from '../i18n/useTCopy';
 
 interface PromptModalProps {
   open: boolean;
@@ -23,6 +24,7 @@ export function PromptModal({
   const [value, setValue] = useState(initialValue ?? '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const { t } = useTCopy();
 
   useEffect(() => {
     if (open) {
@@ -51,7 +53,7 @@ export function PromptModal({
         setError(errMsg);
       }
     } catch {
-      setError('操作失败，请重试');
+      setError(t.operationFailed);
     } finally {
       setLoading(false);
     }
@@ -103,7 +105,7 @@ export function PromptModal({
             onClick={onCancel}
             disabled={loading}
           >
-            取消
+            {t.cancel}
           </button>
           <button
             type="button"
@@ -111,7 +113,7 @@ export function PromptModal({
             onClick={() => void handleOk()}
             disabled={loading || !value.trim()}
           >
-            {loading ? '处理中...' : okLabel}
+            {loading ? t.processing : okLabel}
           </button>
         </div>
       </div>

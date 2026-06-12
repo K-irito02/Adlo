@@ -1,5 +1,4 @@
 import React, { useEffect, useRef } from 'react';
-import type { CopyDict } from '../../i18n';
 import type { ChatMode, ContextChip } from '../../stores/types';
 import {
   IconBookOpen,
@@ -14,22 +13,22 @@ import {
   IconPlug,
   IconSparkles,
 } from '../../icons';
+import { useTCopy } from '../../i18n/useTCopy';
 
 export function ContextBuilderPopover({
-  t,
   open,
   onClose,
   chatMode,
   onSelectMode,
   onAddChip,
 }: {
-  t: CopyDict;
   open: boolean;
   onClose: () => void;
   chatMode: ChatMode;
   onSelectMode: (mode: ChatMode) => void;
   onAddChip: (chip: ContextChip) => void;
 }) {
+  const { t } = useTCopy();
   const ref = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     if (!open) {

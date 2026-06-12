@@ -4,6 +4,7 @@ import { useAppStore } from '../../../stores/slicedStore';
 import { useAppActions } from '../../../hooks/useAppActions';
 import { findPatchFileByPath } from '../../../features/patch-review';
 import { filterDiagnosticsForPath, detectEditorLanguage } from '../../../utils/workspacePaths';
+import { useTCopy } from '../../../i18n/useTCopy';
 import type { FilesPanelProps } from '../types';
 import type { RightPanelProps } from '../../RightPanel';
 import type { EditorRef } from '../../../stores/types';
@@ -13,8 +14,8 @@ export function useFilesPanelProps(
   diffSideBySide: boolean,
   onSetDiffLayout: (sideBySide: boolean) => void
 ): FilesPanelProps {
+  const { t } = useTCopy();
   const {
-    t,
     standardEditorRef,
     onOpenFileAtLine,
     onDiffMount,
@@ -192,7 +193,6 @@ export function useFilesPanelProps(
 
   const baseProps = useMemo(
     () => ({
-      t,
       appInfo,
       selectedFilePath,
       selectedFileWorkspaceId,
@@ -239,7 +239,6 @@ export function useFilesPanelProps(
       collapsedPatchHunkIds,
     }),
     [
-      t,
       appInfo,
       editorHint,
       selectedFilePath,

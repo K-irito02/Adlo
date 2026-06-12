@@ -1,12 +1,14 @@
 import React from 'react';
 import type { CiStatusSnapshot } from '@ai-digital-life/kernel';
 import { StatusDot } from './StatusDot';
+import { useTCopy } from '../../../../i18n/useTCopy';
 
 export function WorkflowsView({ snapshot }: { snapshot: CiStatusSnapshot | null }) {
+  const { t, formatT } = useTCopy();
   if (!snapshot?.jobs?.length) {
     return (
       <div className="adl-github__empty">
-        <p>暂无 Workflow 数据</p>
+        <p>{t.ciNoWorkflowData}</p>
       </div>
     );
   }
@@ -26,7 +28,7 @@ export function WorkflowsView({ snapshot }: { snapshot: CiStatusSnapshot | null 
               paddingLeft: 14,
             }}
           >
-            {job.stepResults.length} 个 Step
+            {formatT(t, 'ciStepsCount', { count: job.stepResults.length })}
           </div>
         </div>
       ))}

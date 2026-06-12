@@ -153,7 +153,7 @@ export const BrowserToolbar = React.memo(function BrowserToolbar(props: BrowserT
               <IconCopy size={14} decorative />
             </button>
           </TooltipSimple>
-          <TooltipSimple content="新建标签页" placement="top">
+          <TooltipSimple content={t.newTabPage} placement="top">
             <button
               type="button"
               className="adl-tool-search__copy"
@@ -168,11 +168,11 @@ export const BrowserToolbar = React.memo(function BrowserToolbar(props: BrowserT
         </label>
       </div>
       <div className="adl-tool-context__group adl-tool-context__group--files-actions">
-        <TooltipSimple content={isBookmarked ? '取消收藏' : '收藏标签'} placement="top">
+        <TooltipSimple content={isBookmarked ? t.unbookmark : t.bookmark} placement="top">
           <button
             type="button"
             className="adl-tool-context__iconbtn"
-            aria-label={isBookmarked ? '取消收藏' : '收藏标签'}
+            aria-label={isBookmarked ? t.unbookmark : t.bookmark}
             onClick={onToggleBookmark}
           >
             {isBookmarked ? (
@@ -188,7 +188,6 @@ export const BrowserToolbar = React.memo(function BrowserToolbar(props: BrowserT
           menuItems={browserMenuItems}
           onToggle={onToggleBrowserMenu}
           onClose={onCloseBrowserMenu}
-          t={t}
         />
       </div>
     </div>

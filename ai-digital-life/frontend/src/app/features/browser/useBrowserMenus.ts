@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAppStore } from '../../stores/slicedStore';
 import { useBrowserContextMenu } from './useBrowserContextMenu';
-import type { BrowserPanelProps } from '../../regions/right-panel/types';
 import type { BrowserTabState } from '../../stores/slices/browserSlice';
+import { useTCopy } from '../../i18n/useTCopy';
 
 export type BrowserNavigatorMode = 'tabs' | 'bookmarks' | 'history';
 
@@ -34,16 +34,15 @@ export interface UseBrowserMenusReturn {
 }
 
 export function useBrowserMenus({
-  t,
   activeTab: _activeTab,
   handleCloseTab,
   handleDoubleClick,
 }: {
-  t: BrowserPanelProps['t'];
   activeTab?: BrowserTabState;
   handleCloseTab: (tabId: string) => void;
   handleDoubleClick: (tabId: string, title: string) => void;
 }): UseBrowserMenusReturn {
+  const { t } = useTCopy();
   const [browserMenuOpen, setBrowserMenuOpen] = useState(false);
 
   const browserMenuRef = useRef<HTMLDivElement | null>(null);

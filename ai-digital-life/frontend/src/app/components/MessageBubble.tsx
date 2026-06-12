@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { TooltipSimple } from './Tooltip';
 import { Icon } from './Icon';
+import { useTCopy } from '../i18n/useTCopy';
 
 interface MessageBubbleProps {
   id: string;
@@ -12,6 +13,7 @@ interface MessageBubbleProps {
 const EDIT_WINDOW_MS = 120_000;
 
 export function MessageBubble({ id, role, content, timestamp }: MessageBubbleProps) {
+  const { t } = useTCopy();
   const [isHovered, setIsHovered] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -76,7 +78,7 @@ export function MessageBubble({ id, role, content, timestamp }: MessageBubblePro
       <div className="message-bubble__body">
         {!isUser && (
           <header className="message-bubble__header">
-            <span className="message-bubble__role">AI 助手</span>
+            <span className="message-bubble__role">{t.aiAssistant}</span>
           </header>
         )}
 
@@ -91,24 +93,24 @@ export function MessageBubble({ id, role, content, timestamp }: MessageBubblePro
         )}
 
         {isHovered && (
-          <div className="message-bubble__actions" role="toolbar" aria-label="消息操作">
-            <TooltipSimple content={copied ? '已复制' : '复制'} placement="top">
+          <div className="message-bubble__actions" role="toolbar" aria-label={t.messageActions}>
+            <TooltipSimple content={copied ? t.copySuccess : t.copy} placement="top">
               <button
                 type="button"
                 className="message-bubble__action-btn"
                 onClick={handleCopy}
-                aria-label={copied ? '已复制到剪贴板' : '复制消息内容'}
+                aria-label={copied ? t.copySuccessClipboard : t.copyMessageContent}
               >
                 {copied ? <Icon name="check" size="xs" /> : <Icon name="copy" size="xs" />}
               </button>
             </TooltipSimple>
 
             {!isUser && (
-              <TooltipSimple content="重新生成" placement="top">
+              <TooltipSimple content={t.regenerate} placement="top">
                 <button
                   type="button"
                   className="message-bubble__action-btn"
-                  aria-label="重新生成此回复"
+                  aria-label={t.regenerateReply}
                 >
                   <Icon name="refresh" size="xs" />
                 </button>
@@ -116,12 +118,12 @@ export function MessageBubble({ id, role, content, timestamp }: MessageBubblePro
             )}
 
             {isUser && (
-              <TooltipSimple content="编辑消息" placement="top">
+              <TooltipSimple content={t.editMessage} placement="top">
                 <button
                   type="button"
                   className="message-bubble__action-btn"
                   onClick={handleEdit}
-                  aria-label="编辑此消息"
+                  aria-label={t.editThisMessage}
                 >
                   <Icon name="pencil" size="xs" />
                 </button>

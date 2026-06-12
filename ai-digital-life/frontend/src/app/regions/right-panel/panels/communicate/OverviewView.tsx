@@ -3,6 +3,7 @@ import type { CiStatusSnapshot } from '@ai-digital-life/kernel';
 import { StatusDot } from './StatusDot';
 import { statusColor, formatCommit, formatTime } from './githubPanelUtils';
 import { JobRow } from './JobRow';
+import { useTCopy } from '../../../../i18n/useTCopy';
 
 export function OverviewView({
   snapshot,
@@ -17,10 +18,11 @@ export function OverviewView({
   copy: Record<string, string>;
   onViewLogs: (jobId: number) => void;
 }) {
+  const { t } = useTCopy();
   if (loading && !snapshot) {
     return (
       <div className="adl-github__empty">
-        <p>{'加载中…'}</p>
+        <p>{t.ciLoading}</p>
       </div>
     );
   }
@@ -88,7 +90,7 @@ export function OverviewView({
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  {copy.ciViewOnGithub}
+                  {copy.ciViewOnGitHub}
                 </a>
               )}
             </div>

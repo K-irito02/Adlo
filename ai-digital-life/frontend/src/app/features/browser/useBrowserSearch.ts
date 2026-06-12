@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
-import type { BrowserPanelProps } from '../../regions/right-panel/types';
 import type { BrowserTabState } from '../../stores/slices/browserSlice';
+import { useTCopy } from '../../i18n/useTCopy';
 
 export type BrowserSearchScope = 'bookmarks' | 'history' | 'all';
 
@@ -44,14 +44,14 @@ export function findInBrowserLookupIndex(
 }
 
 interface UseBrowserSearchOptions {
-  t: BrowserPanelProps['t'];
   browserBookmarks: Array<{ title: string; url: string }>;
   browserHistory: Array<{ title: string; url: string; visitedAt: number }>;
   browserTabs: BrowserTabState[];
 }
 
 export function useBrowserSearch(options: UseBrowserSearchOptions) {
-  const { t, browserBookmarks, browserHistory, browserTabs } = options;
+  const { t } = useTCopy();
+  const { browserBookmarks, browserHistory, browserTabs } = options;
 
   const [navigatorQuery, setNavigatorQuery] = useState('');
   const [searchScope, setSearchScope] = useState<BrowserSearchScope>('all');

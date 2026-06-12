@@ -4,11 +4,11 @@ import type {
   WorkspaceTreeNode,
   ReorderWorkspacesInput,
 } from '@ai-digital-life/kernel';
-import type { CopyDict } from '../../i18n';
 import type { FileTreeContextMenuItem } from '../../features/file-tree';
 import { MultiWorkspaceContainer } from '../multi-workspace/MultiWorkspaceContainer';
 import { WorkspaceChangesEntry } from './WorkspaceChangesEntry';
 import { moveIdWithinBucket } from '../../utils/dragUtils';
+import { useTCopy } from '../../i18n/useTCopy';
 
 export interface MultiWorkspaceChangesTreeProps {
   workspaces: RecentWorkspaceEntry[];
@@ -34,7 +34,6 @@ export interface MultiWorkspaceChangesTreeProps {
   getContextMenuItems: (node: WorkspaceTreeNode) => FileTreeContextMenuItem<WorkspaceTreeNode>[];
   contextMenuPersistRef: React.MutableRefObject<boolean>;
   clearMenuHighlightRef: React.MutableRefObject<(() => void) | undefined>;
-  t: CopyDict;
   renderMeta?: (node: WorkspaceTreeNode) => React.ReactNode;
   renderCount?: (node: WorkspaceTreeNode) => React.ReactNode;
 }
@@ -63,10 +62,10 @@ export function MultiWorkspaceChangesTree({
   getContextMenuItems,
   contextMenuPersistRef,
   clearMenuHighlightRef,
-  t,
   renderMeta,
   renderCount,
 }: MultiWorkspaceChangesTreeProps) {
+  const { t } = useTCopy();
   const [dragWorkspaceId, setDragWorkspaceId] = useState<string | undefined>(undefined);
 
   const pinnedIds = useMemo(

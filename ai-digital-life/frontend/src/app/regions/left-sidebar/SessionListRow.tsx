@@ -1,10 +1,10 @@
 import React from 'react';
-import type { CopyDict } from '../../i18n';
 import { IconArchive, IconMoreVertical, IconPin, IconPinOff } from '../../icons';
 import { TooltipSimple } from '../../components/Tooltip';
 import type { SidebarSessionItem } from '../../utils/sidebarViewModel';
 import { STATUS_LABEL } from './SidebarContextMenu.utils';
 import { StatusLamp } from './SidebarContextMenu';
+import { useTCopy } from '../../i18n/useTCopy';
 
 interface SessionListRowProps {
   sessionItem: SidebarSessionItem;
@@ -19,7 +19,6 @@ interface SessionListRowProps {
   workspaceId?: string;
   interactive?: boolean;
   locale: string;
-  t: CopyDict;
   onSelectSession: (id: string) => void;
   onPinSession: (sessionId: string) => void;
   onUnpinSession: (sessionId: string) => void;
@@ -45,7 +44,6 @@ const SessionListRow = React.memo(function SessionListRow({
   workspaceId,
   interactive = true,
   locale,
-  t,
   onSelectSession,
   onPinSession,
   onUnpinSession,
@@ -57,6 +55,7 @@ const SessionListRow = React.memo(function SessionListRow({
   setDragSessionId,
   setDragOverSessionTarget,
 }: SessionListRowProps) {
+  const { t } = useTCopy();
   return (
     <li
       key={sessionItem.session.id}

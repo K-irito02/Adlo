@@ -11,11 +11,11 @@ import {
   IconCpu,
 } from '../../icons';
 import { TooltipSimple } from '../../components/Tooltip';
-import type { CopyDict } from '../../i18n';
 import type { ToolId } from '../../stores/types';
+import type { CopyDict } from '../../i18n';
+import { useTCopy } from '../../i18n/useTCopy';
 
 interface ToolSwitcherProps {
-  t: CopyDict;
   activeTool: ToolId;
   badges: Record<ToolId, number>;
   idBase: string;
@@ -92,7 +92,6 @@ const TAB_META: Array<{
 ];
 
 export const ToolSwitcher = React.memo(function ToolSwitcher({
-  t,
   activeTool,
   badges,
   idBase,
@@ -100,6 +99,7 @@ export const ToolSwitcher = React.memo(function ToolSwitcher({
   rightPanelExpanded,
   onToggleRightPanelExpanded,
 }: ToolSwitcherProps) {
+  const { t } = useTCopy();
   const [hoveredTool, setHoveredTool] = React.useState<ToolId | null>(null);
 
   const handleKeyDown = React.useCallback(

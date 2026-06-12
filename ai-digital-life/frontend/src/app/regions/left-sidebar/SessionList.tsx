@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReorderSessionsInput } from '@ai-digital-life/kernel';
 import type { CopyDict, Locale } from '../../i18n';
 import { RenameDialog } from '../../components/RenameDialog';
+import { useTCopy } from '../../i18n/useTCopy';
 import { getVisibleSidebarSessions, type SidebarSessionItem } from '../../utils/sidebarViewModel';
 import SessionListRow from './SessionListRow';
 
@@ -41,7 +42,6 @@ export interface SessionListProps {
   onReorderSessions: (input: ReorderSessionsInput) => void;
   activeSessionId?: string;
   locale: Locale;
-  t: CopyDict;
   onSessionContextMenu?: (sessionId: string, x: number, y: number) => void;
 }
 
@@ -62,9 +62,9 @@ export function SessionList({
   onReorderSessions,
   activeSessionId,
   locale,
-  t,
   onSessionContextMenu,
 }: SessionListProps) {
+  const { t, formatT } = useTCopy();
   const [dragSessionId, setDragSessionId] = useState<string>();
   const [dragOverSessionId, setDragOverSessionId] = useState<string>();
   const [droppedSessionId, setDroppedSessionId] = useState<string>();
@@ -269,7 +269,6 @@ export function SessionList({
             workspaceId={workspaceId}
             interactive={interactive}
             locale={locale}
-            t={t}
             onSelectSession={onSelectSession}
             onPinSession={onPinSession}
             onUnpinSession={onUnpinSession}
@@ -365,9 +364,9 @@ export function SessionList({
         <RenameDialog
           open={renameDialogOpen}
           initialValue={sessionToRename.name}
-          title="重命名会话"
-          itemInfo={`当前名称: ${sessionToRename.name}`}
-          placeholder="输入新会话名称"
+          title={t.changesRenameSession}
+          itemInfo={formatT(t, 'changesCurrentName', { name: sessionToRename.name })}
+          placeholder={t.changesEnterSessionName}
           onConfirm={handleConfirmRename}
           onCancel={handleCancelRename}
         />

@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react';
 import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
-import type { CopyDict } from '../../i18n';
 import type { TerminalTabState } from '../../stores/slices/terminalSlice';
 import { MultiWorkspaceContainer } from '../multi-workspace/MultiWorkspaceContainer';
 import { WorkspaceTerminalEntry } from './WorkspaceTerminalEntry';
+import { useTCopy } from '../../i18n/useTCopy';
 
 export interface MultiWorkspaceTerminalProps {
   workspaces: RecentWorkspaceEntry[];
@@ -18,7 +18,6 @@ export interface MultiWorkspaceTerminalProps {
   onHideFromRightPanels: (workspaceId: string) => void;
   onRefreshTree?: () => void;
   onCloseAllTabs?: (workspaceId: string) => void;
-  t: CopyDict;
 }
 
 const INDEPENDENT_WORKSPACE_ID = '__independent__';
@@ -36,8 +35,8 @@ export function MultiWorkspaceTerminal({
   onHideFromRightPanels,
   onRefreshTree,
   onCloseAllTabs,
-  t,
 }: MultiWorkspaceTerminalProps) {
+  const { t } = useTCopy();
   const tabsByWorkspace = useMemo(() => {
     const map: Record<string, TerminalTabState[]> = {};
     for (const tab of terminalTabs) {

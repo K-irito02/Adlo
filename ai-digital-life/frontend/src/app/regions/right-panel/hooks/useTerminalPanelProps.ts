@@ -4,18 +4,17 @@ import { useAppStore } from '../../../stores/slicedStore';
 import type { TerminalPanelProps } from '../types';
 import type { RightPanelProps } from '../../RightPanel';
 
-export function useTerminalPanelProps(panelProps: RightPanelProps): TerminalPanelProps {
+export function useTerminalPanelProps(_panelProps: RightPanelProps): TerminalPanelProps {
   const latestCommandRun = useAppStore(useShallow((s) => s.latestCommandRun));
   const commandHistory = useAppStore(useShallow((s) => s.commandHistory));
   const appInfo = useAppStore(useShallow((s) => s.appInfo));
 
   return useMemo(
     () => ({
-      t: panelProps.t,
       latestCommandRun,
       commandHistory,
       appInfo,
     }),
-    [panelProps.t, latestCommandRun, commandHistory, appInfo]
+    [latestCommandRun, commandHistory, appInfo]
   );
 }

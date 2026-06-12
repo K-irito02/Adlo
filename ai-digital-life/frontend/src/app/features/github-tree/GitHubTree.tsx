@@ -5,6 +5,7 @@ import { GitHubCategorySection, type SectionCallbacks } from './GitHubCategorySe
 import { CustomScrollArea } from '../file-tree/CustomScrollArea';
 import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
 import type { GitWorkspaceCiConfig, GitHubCiFolderState } from '../../stores/slices/githubSlice';
+import { useTCopy } from '../../i18n/useTCopy';
 
 interface GitHubTreeProps {
   workspaces: RecentWorkspaceEntry[];
@@ -34,6 +35,7 @@ export function GitHubTree({
   labels,
   gitHubViewMode,
 }: GitHubTreeProps) {
+  const { t } = useTCopy();
   const { ciWorkspaceCategory, userFolderCategory } = useGithubTreeData(
     workspaces,
     gitHubWorkspaceConfigs,
@@ -47,7 +49,7 @@ export function GitHubTree({
         className="adl-multitree adl-multitree--github"
         style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
       >
-        <span className="adl-empty-hint">目录列表</span>
+        <span className="adl-empty-hint">{t.communicateDirList}</span>
       </div>
     );
   }

@@ -1,4 +1,5 @@
 import type { RightPanelViewProps } from '../types';
+import type { CopyDict } from '../../../i18n';
 import type { ChangeTreeNode } from '../changesTree';
 import { type EditorView } from '@codemirror/view';
 import { CodeMirrorEditorRef } from '../../../features/editor';
@@ -22,7 +23,7 @@ export function writeSelectedBranch(branch: string) {
 
 export function getChangeKindLabel(
   changeKind: 'added' | 'modified' | 'deleted',
-  t: RightPanelViewProps['t']
+  t: CopyDict
 ) {
   return changeKind === 'added'
     ? t.gitAdded
@@ -33,7 +34,7 @@ export function getChangeKindLabel(
 
 export function getChangeStatusLabel(
   status: NonNullable<RightPanelViewProps['changePreview']>['status'],
-  t: RightPanelViewProps['t']
+  t: CopyDict
 ) {
   if (status === 'staged') {
     return t.changesStaged;

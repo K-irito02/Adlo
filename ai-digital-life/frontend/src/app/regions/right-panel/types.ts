@@ -16,13 +16,11 @@ import type {
   WorkspaceSearchHit,
   WorkspaceTreeNode,
 } from '@ai-digital-life/kernel';
-import type { CopyDict } from '../../i18n';
 import type { EditorTabState } from '../../utils/editorTabs';
 import type { EditorRef, DiffEditorRef } from '../../stores/types';
 import type { PatchDirection, PatchReviewFilter } from '../../features/patch-review';
 
 export interface RightPanelViewProps {
-  t: CopyDict;
   appInfo?: AppInfo;
   collapsed: boolean;
   editorTabs: EditorTabState[];
@@ -126,7 +124,6 @@ export interface RightPanelViewProps {
 
 export type FilesPanelProps = Pick<
   RightPanelViewProps,
-  | 't'
   | 'appInfo'
   | 'selectedFilePath'
   | 'selectedFileWorkspaceId'
@@ -178,7 +175,6 @@ export type FilesPanelProps = Pick<
 
 export type ChangesPanelProps = Pick<
   RightPanelViewProps,
-  | 't'
   | 'appInfo'
   | 'onDiffMount'
   | 'activePatchSet'
@@ -217,21 +213,21 @@ export type ChangesPanelProps = Pick<
   | 'onJumpPatchHunk'
 >;
 
-export type BrowserPanelProps = Pick<RightPanelViewProps, 't'> & { isVisible: boolean };
+export type BrowserPanelProps = { isVisible: boolean };
 
 export type TerminalPanelProps = Pick<
   RightPanelViewProps,
-  't' | 'latestCommandRun' | 'commandHistory' | 'appInfo'
+  'latestCommandRun' | 'commandHistory' | 'appInfo'
 >;
 
-export type AuditPanelProps = Pick<RightPanelViewProps, 't' | 'auditEntries'>;
+export type AuditPanelProps = Pick<RightPanelViewProps, 'auditEntries'>;
 
 export type ModelPanelProps = Pick<
   RightPanelViewProps,
-  't' | 'modelHealth' | 'onRefreshModelHealth'
+  'modelHealth' | 'onRefreshModelHealth'
 >;
 
-export type SettingsPanelProps = Pick<RightPanelViewProps, 't' | 'settings' | 'onChangeSetting'>;
+export type SettingsPanelProps = Pick<RightPanelViewProps, 'settings' | 'onChangeSetting'>;
 
 export interface CIPanelProps {
   config: { owner: string; repo: string; branch: string };

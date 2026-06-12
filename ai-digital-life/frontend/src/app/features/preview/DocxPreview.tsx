@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import mammoth from 'mammoth';
+import { useTCopy } from '../../i18n/useTCopy';
 
 export interface DocxPreviewProps {
   data: ArrayBuffer;
@@ -7,6 +8,7 @@ export interface DocxPreviewProps {
 }
 
 export function DocxPreview({ data, theme = 'dark' }: DocxPreviewProps) {
+  const { t, formatT } = useTCopy();
   const [html, setHtml] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
 
@@ -27,7 +29,7 @@ export function DocxPreview({ data, theme = 'dark' }: DocxPreviewProps) {
   if (error) {
     return (
       <div className={`adl-docx-preview adl-docx-preview--${theme} adl-docx-preview--error`}>
-        <p>DOCX 预览失败: {error}</p>
+        <p>{formatT(t, 'changesPreviewFailedDocx', { error: String(error) })}</p>
       </div>
     );
   }

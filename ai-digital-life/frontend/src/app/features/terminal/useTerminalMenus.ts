@@ -3,7 +3,6 @@ import { useAppStore } from '../../stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { terminalSelectors } from '../../stores/selectors';
 import { useTerminalContextMenu } from './useTerminalContextMenu';
-import type { TerminalPanelProps } from '../../regions/right-panel/types';
 import type { TerminalProfile } from '../../stores/types';
 import type { XtermTerminalHandle } from '../../components/terminal/XtermTerminal';
 import type {
@@ -11,9 +10,9 @@ import type {
   TerminalShellMenuItem,
   WorkspaceMenuItem,
 } from './useTerminalPanel';
+import { useTCopy } from '../../i18n/useTCopy';
 
 interface TerminalMenusParams {
-  t: TerminalPanelProps['t'];
   xtermRef: React.RefObject<XtermTerminalHandle | null>;
   activeTab: { sessionId?: string } | undefined;
   handleCloseTab: (tabId: string) => void;
@@ -22,13 +21,13 @@ interface TerminalMenusParams {
 }
 
 export function useTerminalMenus({
-  t,
   xtermRef,
   activeTab,
   handleCloseTab,
   handleDoubleClick,
   handleKill,
 }: TerminalMenusParams) {
+  const { t } = useTCopy();
   const [terminalMenuOpen, setTerminalMenuOpen] = useState(false);
   const [shellMenuOpen, setShellMenuOpen] = useState(false);
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { IconHash } from '../../icons';
-import type { CopyDict } from '../../i18n';
+import { useTCopy } from '../../i18n/useTCopy';
 
 interface DiffToolbarProps {
   diffSideBySide: boolean;
@@ -15,7 +15,6 @@ interface DiffToolbarProps {
   onToggleAgentAnnotations: () => void;
   onJumpPatchHunk: (direction: 'previous' | 'next') => void;
   onSetAllPatchHunksCollapsed: (collapsed: boolean, relativePath?: string) => void;
-  t: CopyDict;
 }
 
 function DiffToolbar({
@@ -31,8 +30,8 @@ function DiffToolbar({
   onToggleAgentAnnotations,
   onJumpPatchHunk,
   onSetAllPatchHunksCollapsed,
-  t,
 }: DiffToolbarProps) {
+  const { t } = useTCopy();
   return (
     <div className="adl-diff-toolbar" role="group" aria-label={t.diffLayoutLabel as string}>
       <div className="adl-diff-toolbar__group">

@@ -2,10 +2,10 @@ import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { IconChevronDown, IconChevronRight, IconPlus } from '../../icons';
 import { TooltipSimple } from '../../components/Tooltip';
 import type { TerminalProfile } from '../../stores/types';
-import type { CopyDict } from '../../i18n';
 import type { TerminalShellMenuItem, WorkspaceMenuItem } from './useTerminalPanel';
 import { useAppStore } from '../../stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
+import { useTCopy } from '../../i18n/useTCopy';
 
 interface TerminalShellSelectorProps {
   currentProfile: TerminalProfile;
@@ -16,7 +16,6 @@ interface TerminalShellSelectorProps {
   onCreateTab: (profile?: TerminalProfile, workspaceId?: string) => void;
   onToggle: () => void;
   onSelect: (profile: TerminalProfile) => void;
-  t: CopyDict;
 }
 
 export const TerminalShellSelector = React.memo(function TerminalShellSelector({
@@ -28,8 +27,8 @@ export const TerminalShellSelector = React.memo(function TerminalShellSelector({
   onCreateTab,
   onToggle,
   onSelect,
-  t,
 }: TerminalShellSelectorProps) {
+  const { t } = useTCopy();
   const [activeSubMenuId, setActiveSubMenuId] = useState<string | null>(null);
   const subMenuRef = useRef<HTMLDivElement | null>(null);
 

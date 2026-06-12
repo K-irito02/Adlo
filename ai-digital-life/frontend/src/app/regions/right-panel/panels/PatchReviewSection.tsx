@@ -13,10 +13,10 @@ import { DiffToolbar } from '../DiffToolbar';
 import { useEditorOptions } from '../hooks';
 import { detectEditorLanguage } from '../../../utils/workspacePaths';
 import { DiffViewer } from '../../../features/diff-viewer';
+import { useTCopy } from '../../../i18n/useTCopy';
 
 type PatchReviewSectionProps = Pick<
   ChangesPanelProps,
-  | 't'
   | 'activePatchSet'
   | 'selectedPatchFilePath'
   | 'selectedPatchHunkId'
@@ -40,8 +40,8 @@ type PatchReviewSectionProps = Pick<
 >;
 
 const PatchReviewSection = React.memo(function PatchReviewSection(props: PatchReviewSectionProps) {
+  const { t } = useTCopy();
   const {
-    t,
     activePatchSet,
     selectedPatchFilePath,
     selectedPatchHunkId,
@@ -136,7 +136,6 @@ const PatchReviewSection = React.memo(function PatchReviewSection(props: PatchRe
           onSetPatchReviewFilter={onSetPatchReviewFilter}
           onAcceptAllHunks={onAcceptAllHunks}
           onRejectAllHunks={onRejectAllHunks}
-          t={t}
         />
 
         {filteredPatchSummaries.length > 0 ? (
@@ -148,7 +147,6 @@ const PatchReviewSection = React.memo(function PatchReviewSection(props: PatchRe
                 activeSummary={activeSummary}
                 activeCardRef={activeCardRef}
                 selectedPatchHunkId={selectedPatchHunkId}
-                t={t}
                 onSelectPatchFile={onSelectPatchFile}
                 onTogglePatchHunkCollapse={onTogglePatchHunkCollapse}
                 onSelectPatchHunk={onSelectPatchHunk}
@@ -178,7 +176,6 @@ const PatchReviewSection = React.memo(function PatchReviewSection(props: PatchRe
                 }
                 onJumpPatchHunk={onJumpPatchHunk}
                 onSetAllPatchHunksCollapsed={onSetAllPatchHunksCollapsed}
-                t={t}
               />
               <div className="adl-diff-hunk-strip" aria-label={t.patchReview as string}>
                 <div className="adl-diff-hunk-strip__header">

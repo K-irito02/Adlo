@@ -59,4 +59,10 @@ export const fileZh = {
   searchPanelMatchWholeWord: '全字匹配',
   searchPanelUseRegex: '使用正则表达式',
   searchPanelReplaceAction: '替换',
+  fileRemoveFromView: '从此区域移除不显示',
+  fileCopyFullPath: '复制完整路径',
+  fileCollapse: '收起',
+  fileExpand: '展开',
+  filePin: '置顶',
+  fileUnpin: '取消置顶',
 } as const;

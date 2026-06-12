@@ -3,9 +3,11 @@ import { createPortal } from 'react-dom';
 import { IconPlus, IconTrash, IconMoreVertical, IconFolder, IconFolderOpen } from '../../icons';
 import { FileTree } from '../file-tree';
 import { TooltipSimple } from '../../components/Tooltip';
+import type { CopyDict } from '../../i18n';
 import type { BrowserTreeNode, BrowserCategoryType } from './types';
 import { resolveChildCount } from './useBrowserTreeData';
 import type { SectionCallbacks } from './BrowserCategorySection';
+import { useTCopy } from '../../i18n/useTCopy';
 
 interface BrowserTreeEntryProps {
   node: BrowserTreeNode;
@@ -21,15 +23,16 @@ interface BrowserTreeEntryProps {
 
 function getEntryHoverButtons(
   nodeType: string,
-  categoryType: BrowserCategoryType
+  categoryType: BrowserCategoryType,
+  t: CopyDict
 ): Array<{ id: string; label: string; icon: React.ReactNode }> {
   if (categoryType === 'history') {
-    return [{ id: 'more', label: '更多操作', icon: <IconMoreVertical size={12} decorative /> }];
+    return [{ id: 'more', label: t.browserContextMore, icon: <IconMoreVertical size={12} decorative /> }];
   }
   return [
-    { id: 'create-tab', label: '新建标签', icon: <IconPlus size={12} decorative /> },
-    { id: 'delete-all-tabs', label: '删除所有子标签', icon: <IconTrash size={12} decorative /> },
-    { id: 'more', label: '更多操作', icon: <IconMoreVertical size={12} decorative /> },
+    { id: 'create-tab', label: t.browserContextCreateTab, icon: <IconPlus size={12} decorative /> },
+    { id: 'delete-all-tabs', label: t.browserContextDeleteAllTabs, icon: <IconTrash size={12} decorative /> },
+    { id: 'more', label: t.browserContextMore, icon: <IconMoreVertical size={12} decorative /> },
   ];
 }
 
@@ -37,30 +40,31 @@ function getEntryMoreMenuItems(
   nodeType: string,
   categoryType: BrowserCategoryType,
   nodePath: string,
-  callbacks: SectionCallbacks
+  callbacks: SectionCallbacks,
+  t: CopyDict
 ): Array<{ id: string; label: string; danger?: boolean; action: () => void }> {
   if (categoryType === 'history') {
     return [
       {
         id: 'delete-history-label',
-        label: '删除全部历史记录 · 标签',
+        label: t.browserContextDeleteAllHistory,
         action: () => callbacks.onDeleteHistory('label', nodePath),
       },
       {
         id: 'delete-history-year',
-        label: '删除全部历史记录 · 年',
+        label: t.browserDeleteHistoryYearLabel,
         danger: true,
         action: () => callbacks.onDeleteHistory('year', nodePath),
       },
       {
         id: 'delete-history-month',
-        label: '删除全部历史记录 · 月',
+        label: t.browserDeleteHistoryMonthLabel,
         danger: true,
         action: () => callbacks.onDeleteHistory('month', nodePath),
       },
       {
         id: 'delete-history-day',
-        label: '删除全部历史记录 · 日',
+        label: t.browserDeleteHistoryDayLabel,
         danger: true,
         action: () => callbacks.onDeleteHistory('day', nodePath),
       },
@@ -70,7 +74,7 @@ function getEntryMoreMenuItems(
   const items: Array<{ id: string; label: string; danger?: boolean; action: () => void }> = [];
   items.push({
     id: 'open-all-tabs',
-    label: '全部在新标签中打开',
+    label: t.browserContextOpenAllNewTabs,
     action: () => callbacks.onOpenAllInNewTabs(categoryType, nodePath),
   });
 
@@ -78,7 +82,7 @@ function getEntryMoreMenuItems(
     const wsId = nodePath.startsWith('workspace:') ? nodePath.slice('workspace:'.length) : '';
     items.push({
       id: 'remove-from-area',
-      label: '从该区域移除不显示',
+      label: t.browserContextRemoveFromView,
       action: () => callbacks.onRemoveFromArea(wsId),
     });
   }
@@ -87,14 +91,14 @@ function getEntryMoreMenuItems(
     const folderId = nodePath.startsWith('folder:') ? nodePath.slice('folder:'.length) : '';
     items.push({
       id: 'rename',
-      label: '重命名',
+      label: t.browserContextRename,
       action: () => callbacks.onRenameDirectory(folderId),
     });
   }
 
   items.push({
     id: 'delete-all-tabs',
-    label: '删除所有子标签',
+    label: t.browserContextDeleteAllTabs,
     action: () => callbacks.onDeleteAllChildTabs(categoryType, nodePath),
   });
 
@@ -102,7 +106,7 @@ function getEntryMoreMenuItems(
     const folderId = nodePath.startsWith('folder:') ? nodePath.slice('folder:'.length) : '';
     items.push({
       id: 'delete-this-dir',
-      label: '删除此目录',
+      label: t.browserContextDeleteDir,
       danger: true,
       action: () => callbacks.onDeleteDirectory(folderId),
     });
@@ -113,17 +117,18 @@ function getEntryMoreMenuItems(
 
 function getChildNodeHoverButtons(
   nodeType: string,
-  categoryType: BrowserCategoryType
+  categoryType: BrowserCategoryType,
+  t: CopyDict
 ): Array<{ id: string; label: string; icon: React.ReactNode }> {
   if (categoryType === 'history') {
     if (nodeType === 'day') {
       return [
         {
           id: 'delete-all-tabs',
-          label: '删除所有子标签',
+          label: t.browserContextDeleteAllTabs,
           icon: <IconTrash size={12} decorative />,
         },
-        { id: 'more', label: '更多操作', icon: <IconMoreVertical size={12} decorative /> },
+        { id: 'more', label: t.browserContextMore, icon: <IconMoreVertical size={12} decorative /> },
       ];
     }
     return [];
@@ -131,9 +136,9 @@ function getChildNodeHoverButtons(
 
   if (nodeType === 'folder') {
     return [
-      { id: 'create-tab', label: '新建标签', icon: <IconPlus size={12} decorative /> },
-      { id: 'delete-all-tabs', label: '删除所有子标签', icon: <IconTrash size={12} decorative /> },
-      { id: 'more', label: '更多操作', icon: <IconMoreVertical size={12} decorative /> },
+      { id: 'create-tab', label: t.browserContextCreateTab, icon: <IconPlus size={12} decorative /> },
+      { id: 'delete-all-tabs', label: t.browserContextDeleteAllTabs, icon: <IconTrash size={12} decorative /> },
+      { id: 'more', label: t.browserContextMore, icon: <IconMoreVertical size={12} decorative /> },
     ];
   }
 
@@ -144,23 +149,24 @@ function getChildNodeMoreMenuItems(
   nodeType: string,
   categoryType: BrowserCategoryType,
   nodePath: string,
-  callbacks: SectionCallbacks
+  callbacks: SectionCallbacks,
+  t: CopyDict
 ): Array<{ id: string; label: string; danger?: boolean; action: () => void }> {
   if (categoryType === 'history' && nodeType === 'day') {
     return [
       {
         id: 'open-all-tabs',
-        label: '全部在新标签中打开',
+        label: t.browserContextOpenAllNewTabs,
         action: () => callbacks.onOpenAllInNewTabs(categoryType, nodePath),
       },
       {
         id: 'delete-all-tabs',
-        label: '删除所有子标签',
+        label: t.browserContextDeleteAllTabs,
         action: () => callbacks.onDeleteAllChildTabs(categoryType, nodePath),
       },
       {
         id: 'delete-this-dir',
-        label: '删除此目录',
+        label: t.browserContextDeleteDir,
         danger: true,
         action: () => callbacks.onDeleteDirectory(nodePath),
       },
@@ -172,18 +178,18 @@ function getChildNodeMoreMenuItems(
     return [
       {
         id: 'open-all-tabs',
-        label: '全部在新标签中打开',
+        label: t.browserContextOpenAllNewTabs,
         action: () => callbacks.onOpenAllInNewTabs(categoryType, nodePath),
       },
-      { id: 'rename', label: '重命名', action: () => callbacks.onRenameDirectory(folderId) },
+      { id: 'rename', label: t.browserContextRename, action: () => callbacks.onRenameDirectory(folderId) },
       {
         id: 'delete-all-tabs',
-        label: '删除所有子标签',
+        label: t.browserContextDeleteAllTabs,
         action: () => callbacks.onDeleteAllChildTabs(categoryType, nodePath),
       },
       {
         id: 'delete-this-dir',
-        label: '删除此目录',
+        label: t.browserContextDeleteDir,
         danger: true,
         action: () => callbacks.onDeleteDirectory(folderId),
       },
@@ -204,6 +210,7 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
   callbacks,
   counts,
 }: BrowserTreeEntryProps) {
+  const { t } = useTCopy();
   const isSelected = selectedTreePath === node.path;
 
   const handleHeaderClick = useCallback(() => {
@@ -281,8 +288,8 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
 
   const count = counts.get(node.path) ?? 0;
 
-  const entryBtns = getEntryHoverButtons(node.nodeType, categoryType);
-  const entryMenuItems = getEntryMoreMenuItems(node.nodeType, categoryType, node.path, callbacks);
+  const entryBtns = getEntryHoverButtons(node.nodeType, categoryType, t);
+  const entryMenuItems = getEntryMoreMenuItems(node.nodeType, categoryType, node.path, callbacks, t);
 
   const renderChildCount = useCallback(
     (childNode: BrowserTreeNode) => resolveChildCount(counts, childNode),
@@ -312,7 +319,7 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
 
   const renderChildMeta = useCallback(
     (childNode: BrowserTreeNode) => {
-      const btns = getChildNodeHoverButtons(childNode.nodeType, categoryType);
+      const btns = getChildNodeHoverButtons(childNode.nodeType, categoryType, t);
       if (btns.length === 0) {
         return null;
       }
@@ -374,7 +381,8 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
         childNode.nodeType,
         categoryType,
         childNode.path,
-        callbacks
+        callbacks,
+        t
       );
       return items.map((item) => ({
         id: item.id,
@@ -431,7 +439,7 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
             type="button"
             className={`adl-browser-entry__expand-btn${isExpanded ? ' is-expanded' : ''}`}
             onClick={handleExpandBtnClick}
-            aria-label={isExpanded ? '收起' : '展开'}
+            aria-label={isExpanded ? t.collapse : t.expand}
             aria-expanded={isExpanded}
           >
             {isExpanded ? (
@@ -508,15 +516,15 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
             renderMeta={renderChildMeta}
             renderCount={renderChildCount}
             getContextMenuItems={handleChildContextMenu}
-            expandLabel="展开"
-            collapseLabel="收起"
+            expandLabel={t.expand}
+            collapseLabel={t.collapse}
           />
         </div>
       ) : null}
 
       {isExpanded && node.children.length === 0 ? (
         <div className="adl-browser-entry__empty">
-          <span className="adl-empty-hint">暂无内容</span>
+          <span className="adl-empty-hint">{t.noContent}</span>
         </div>
       ) : null}
 
@@ -532,7 +540,8 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
                 childMenuState.nodeType,
                 categoryType,
                 childMenuState.nodePath,
-                callbacks
+                callbacks,
+                t
               ).map((item) => (
                 <button
                   key={item.id}

@@ -21,6 +21,7 @@ import type { UseEditorOptionsResult } from './hooks';
 import type { PreviewDiffVisualRange } from '../../features/diff-viewer';
 import { IconChevronDown, IconChevronRight } from '../../icons';
 import type { RightPanelViewProps } from './types';
+import { useTCopy } from '../../i18n/useTCopy';
 
 const CodeEditor = lazy(() =>
   import('../../features/editor').then((m) => ({ default: m.CodeEditor }))
@@ -51,7 +52,6 @@ interface EditorSurfaceShellProps extends Pick<
   | 'onTogglePatchHunkCollapse'
   | 'onSetAllPatchHunksCollapsed'
   | 'onOpenFileAtLine'
-  | 't'
 > {
   resolvedTheme: 'dark' | 'light';
   resolvedLocale: string;
@@ -112,6 +112,7 @@ function buildStickyDiffRangesFromHunks(
 }
 
 const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorSurfaceShellProps) {
+  const { t } = useTCopy();
   const {
     selectedFilePath,
     fileContent,
@@ -130,7 +131,6 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
     editorOptions,
     onEditorMount,
     onDiffMount,
-    t,
   } = props;
 
   const filePreviewModeByPath = useAppStore(useShallow((s) => s.filePreviewModeByPath));
@@ -211,7 +211,6 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
       diffSideBySide,
       editorSurfaceRef,
       stickyDiffRanges,
-      t,
     }),
     [
       selectedFilePath,
@@ -222,7 +221,6 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
       diffSideBySide,
       editorSurfaceRef,
       stickyDiffRanges,
-      t,
     ]
   );
 
@@ -291,7 +289,6 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
           onToggleAgentAnnotations={() => editorOptions.setAgentAnnotationsEnabled((v) => !v)}
           onJumpPatchHunk={props.onJumpPatchHunk}
           onSetAllPatchHunksCollapsed={props.onSetAllPatchHunksCollapsed}
-          t={t}
         />
         {activeFilePatchSummary ? (
           <div className="adl-diff-hunk-strip" aria-label={t.patchReview as string}>
@@ -369,7 +366,7 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
         ) : null}
         <div ref={editorSurfaceRef} className="adl-tool-editor__surface">
           {stickyContextModel ? (
-            <StickyContext data-testid="files-sticky-context" model={stickyContextModel} t={t} />
+            <StickyContext data-testid="files-sticky-context" model={stickyContextModel} />
           ) : null}
           <Suspense fallback={null}>
             <DiffViewer
@@ -424,8 +421,8 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
             <path d="M14 2v6h6" />
             <path d="M9 15h6" />
           </svg>
-          <span className="adl-unsupported-preview__text">DOCX 文档</span>
-          <span className="adl-unsupported-preview__hint">此文件类型暂不支持预览</span>
+          <span className="adl-unsupported-preview__text">{t.changesPreviewDocx}</span>
+          <span className="adl-unsupported-preview__hint">{t.changesPreviewNotSupported}</span>
         </div>
       </div>
     );
@@ -452,8 +449,8 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
             <path d="M9 13h6" />
             <path d="M9 17h4" />
           </svg>
-          <span className="adl-unsupported-preview__text">PDF 文档</span>
-          <span className="adl-unsupported-preview__hint">此文件类型暂不支持预览</span>
+          <span className="adl-unsupported-preview__text">{t.changesPreviewPdf}</span>
+          <span className="adl-unsupported-preview__hint">{t.changesPreviewNotSupported}</span>
         </div>
       </div>
     );
@@ -480,8 +477,8 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
             <path d="M10 12h.01" />
             <path d="M14 12h4" />
           </svg>
-          <span className="adl-unsupported-preview__text">二进制文件</span>
-          <span className="adl-unsupported-preview__hint">此文件类型暂不支持预览</span>
+          <span className="adl-unsupported-preview__text">{t.changesPreviewBinary}</span>
+          <span className="adl-unsupported-preview__hint">{t.changesPreviewNotSupported}</span>
         </div>
       </div>
     );
@@ -490,7 +487,7 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
   return (
     <div ref={editorSurfaceRef} className="adl-tool-editor__surface">
       {stickyContextModel ? (
-        <StickyContext data-testid="files-sticky-context" model={stickyContextModel} t={t} />
+        <StickyContext data-testid="files-sticky-context" model={stickyContextModel} />
       ) : null}
       <Suspense fallback={null}>
         <CodeEditor

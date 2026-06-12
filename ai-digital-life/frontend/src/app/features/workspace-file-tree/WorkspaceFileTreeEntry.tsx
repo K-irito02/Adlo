@@ -203,12 +203,12 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
     >
       <div className="adl-multitree-entry__header">
         <div className="adl-multitree-entry__expand">
-          <TooltipSimple content={isExpanded ? '收起' : '展开'} placement="top">
+          <TooltipSimple content={isExpanded ? t.fileCollapse : t.fileExpand} placement="top">
             <button
               type="button"
               className={`adl-multitree-entry__expand-btn${isExpanded ? ' is-expanded' : ''}`}
               onClick={onToggleExpand}
-              aria-label={isExpanded ? collapseLabel : expandLabel}
+              aria-label={isExpanded ? t.fileCollapse : t.fileExpand}
               aria-expanded={isExpanded}
               disabled={!workspace.available}
             >
@@ -235,35 +235,35 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
           </span>
 
           <div className="adl-multitree-entry__actions">
-            <TooltipSimple content="刷新" placement="top">
+            <TooltipSimple content={t.fileRefresh} placement="top">
               <button
                 type="button"
                 className="adl-icon-btn adl-icon-btn--xs"
                 onClick={handleRefreshClick}
-                aria-label="刷新"
+                aria-label={t.fileRefresh}
               >
                 <IconRefreshCw size={12} decorative />
               </button>
             </TooltipSimple>
 
-            <TooltipSimple content={isPinned ? '取消置顶' : '置顶'} placement="top">
+            <TooltipSimple content={isPinned ? t.fileUnpin : t.filePin} placement="top">
               <button
                 type="button"
                 className="adl-icon-btn adl-icon-btn--xs"
                 onClick={handlePinClick}
-                aria-label={isPinned ? '取消置顶' : '置顶'}
+                aria-label={isPinned ? t.fileUnpin : t.filePin}
               >
                 {isPinned ? <IconPinOff size={12} decorative /> : <IconPin size={12} decorative />}
               </button>
             </TooltipSimple>
 
-            <TooltipSimple content="更多操作" placement="top">
+            <TooltipSimple content={t.fileMoreActions} placement="top">
               <button
                 type="button"
                 className="adl-icon-btn adl-icon-btn--xs"
                 data-menu-btn-id={menuId}
                 onClick={handleMoreClick}
-                aria-label="更多操作"
+                aria-label={t.fileMoreActions}
               >
                 <IconMoreVertical size={12} decorative />
               </button>
@@ -287,7 +287,7 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
                 onClick={handleHideFromRightPanels}
               >
                 <IconEyeOff size={14} />
-                从此区域移除不显示
+                {t.fileRemoveFromView}
               </button>
               <button
                 type="button"
@@ -306,7 +306,7 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
                 onClick={handleCopyFullPath}
               >
                 <IconCopy size={14} />
-                复制完整路径
+                {t.fileCopyFullPath}
               </button>
               <button
                 type="button"
@@ -315,7 +315,7 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
                 onClick={handleCopyRelativePath}
               >
                 <IconCopy size={14} />
-                复制相对路径
+                {t.fileCopyRelativePath}
               </button>
             </div>,
             document.body

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
+import { useTCopy } from '../../i18n/useTCopy';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.min.mjs',
@@ -12,6 +13,7 @@ export interface PdfPreviewProps {
 }
 
 export function PdfPreview({ data, theme = 'dark' }: PdfPreviewProps) {
+  const { t, formatT } = useTCopy();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [numPages, setNumPages] = useState(0);
@@ -63,7 +65,7 @@ export function PdfPreview({ data, theme = 'dark' }: PdfPreviewProps) {
   if (error) {
     return (
       <div className={`adl-pdf-preview adl-pdf-preview--${theme} adl-pdf-preview--error`}>
-        <p>PDF 预览失败: {error}</p>
+        <p>{formatT(t, 'changesPreviewFailedPdf', { error: String(error) })}</p>
       </div>
     );
   }

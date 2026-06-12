@@ -1,15 +1,15 @@
 import React from 'react';
 import { IconMessageQuestion } from '../../icons';
 import type { ApprovalRequestSummary } from '@ai-digital-life/kernel';
-import type { CopyDict } from '../../i18n';
+import { useTCopy } from '../../i18n/useTCopy';
 
 export interface ApprovalInlineCardProps {
   approval: ApprovalRequestSummary;
-  t: CopyDict;
   onDecide: (id: string, decision: 'approved' | 'rejected') => void;
 }
 
-export function ApprovalInlineCard({ approval, t, onDecide }: ApprovalInlineCardProps) {
+export function ApprovalInlineCard({ approval, onDecide }: ApprovalInlineCardProps) {
+  const { t } = useTCopy();
   return (
     <article className="adl-inline-approval" role="alert">
       <header>

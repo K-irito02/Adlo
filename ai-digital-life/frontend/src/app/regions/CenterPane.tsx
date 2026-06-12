@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import type { ModelProviderId } from '@ai-digital-life/kernel';
-import type { CopyDict, Locale } from '../i18n';
+import type { Locale } from '../i18n';
+import { useTCopy } from '../i18n/useTCopy';
 import { MODEL_PROVIDER_IDS } from '../utils/constants';
 import { ApprovalCard } from '../components/approval/ApprovalCard';
 import { MessageStream } from '../components/MessageStream';
@@ -10,13 +11,10 @@ import { useAppActions } from '../hooks/useAppActions';
 
 import { WelcomeState, ComposerFooter } from './center-pane';
 
-interface CenterPaneProps {
-  t: CopyDict;
-}
-
 type ButtonState = 'send' | 'stop' | 'retry' | 'waiting';
 
-const CenterPane = React.memo(function CenterPane({ t }: CenterPaneProps) {
+const CenterPane = React.memo(function CenterPane() {
+  const { t } = useTCopy();
   const actions = useAppActions();
   const { activeSessionId, streamingAssistantText, streamingActiveRunId, workspaceContextMode } =
     useAppStore(
@@ -247,7 +245,6 @@ const CenterPane = React.memo(function CenterPane({ t }: CenterPaneProps) {
           {taskCenter.pendingApprovals.map((approval) => (
             <ApprovalCard
               key={approval.id}
-              t={t}
               approval={approval}
               onDecide={actions.decideApproval}
             />
@@ -262,7 +259,6 @@ const CenterPane = React.memo(function CenterPane({ t }: CenterPaneProps) {
         {!activeDetail || !hasMessages ? (
           <div className="adl-center__empty">
             <WelcomeState
-              t={t}
               hasWorkspace={hasWorkspace}
               recentWorkspaces={recentWorkspaces}
               onOpenWorkspace={actions.openWorkspace}
@@ -273,7 +269,6 @@ const CenterPane = React.memo(function CenterPane({ t }: CenterPaneProps) {
         ) : (
           <MessageStream
             messages={messages}
-            t={t}
             streamingText={streamingAssistantText}
             isStreaming={!!streamingAssistantText}
             activeRun={activeRun}
@@ -287,7 +282,6 @@ const CenterPane = React.memo(function CenterPane({ t }: CenterPaneProps) {
 
       {/* Region 10-12: Composer */}
       <ComposerFooter
-        t={t}
         draft={draft}
         buttonState={buttonState}
         chatMode={chatMode}

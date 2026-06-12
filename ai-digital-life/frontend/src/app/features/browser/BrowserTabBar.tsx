@@ -127,7 +127,7 @@ export const BrowserTabBar = React.memo(function BrowserTabBar({
                   </div>
                   <span className="adl-tool-list__title">{tab.title}</span>
                 </button>
-                <TooltipSimple content={isBookmarked ? '取消收藏' : '关闭'} placement="top">
+                <TooltipSimple content={isBookmarked ? _t.unbookmark : _t.close} placement="top">
                   <button
                     type="button"
                     className="adl-tool-list__item-close"
@@ -135,7 +135,7 @@ export const BrowserTabBar = React.memo(function BrowserTabBar({
                       e.stopPropagation();
                       onCloseTab(tab.id);
                     }}
-                    aria-label={isBookmarked ? '取消收藏' : '关闭'}
+                    aria-label={isBookmarked ? _t.unbookmark : _t.close}
                   >
                     <IconClose size={12} decorative />
                   </button>

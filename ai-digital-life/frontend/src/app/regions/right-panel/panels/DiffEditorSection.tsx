@@ -11,6 +11,7 @@ import { StickyContext } from '../editor-support/stickyContextView';
 import { useStickyContext } from '../hooks';
 import { buildOutlineFromContent } from '../../../features/outline';
 import { ChangesEmptyState } from './ChangesEmptyState';
+import { useTCopy } from '../../../i18n/useTCopy';
 
 const CodeEditor = lazy(() =>
   import('../../../features/editor').then((m) => ({ default: m.CodeEditor }))
@@ -21,7 +22,6 @@ const DiffViewer = lazy(() =>
 
 interface DiffEditorSectionProps extends Pick<
   ChangesPanelProps,
-  | 't'
   | 'changePreview'
   | 'changePreviewLoading'
   | 'diffSideBySide'
@@ -38,7 +38,6 @@ interface DiffEditorSectionProps extends Pick<
 }
 
 const DiffEditorSection = React.memo(function DiffEditorSection({
-  t,
   changePreview,
   changePreviewLoading,
   diffSideBySide,
@@ -52,6 +51,7 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
   onDiffMount,
   previewContainerRef,
 }: DiffEditorSectionProps) {
+  const { t } = useTCopy();
   const localPreviewShellRef = useRef<HTMLDivElement | null>(null);
   const localEditorRef = useRef<DiffEditorRef | EditorRef | null>(null);
   const setPreviewShellRef = useCallback(
@@ -123,7 +123,6 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
       editorSurfaceRef: localPreviewShellRef,
       stickyDiffRanges: changePreviewDiffRanges,
       getStickySourceEditor,
-      t,
     }),
     [
       changePreview?.path,
@@ -134,7 +133,6 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
       localPreviewShellRef,
       changePreviewDiffRanges,
       getStickySourceEditor,
-      t,
     ]
   );
 
@@ -198,7 +196,6 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
               <StickyContext
                 data-testid="changes-sticky-context"
                 model={stickyContextModel}
-                t={t}
               />
             ) : null}
             <Suspense fallback={null}>

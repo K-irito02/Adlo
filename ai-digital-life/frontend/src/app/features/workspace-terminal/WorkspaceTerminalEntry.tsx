@@ -17,6 +17,7 @@ import {
 } from '../../icons';
 import { TooltipSimple } from '../../components/Tooltip';
 import { TerminalTabBar } from '../terminal/TerminalTabBar';
+import { formatT } from '../../i18n/formatT';
 import { useAppStore } from '../../stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -250,12 +251,12 @@ export const WorkspaceTerminalEntry = React.memo(function WorkspaceTerminalEntry
     >
       <div className="adl-multitree-entry__header" data-menu-zone-id={menuId}>
         <div className="adl-multitree-entry__expand">
-          <TooltipSimple content={isExpanded ? '收起' : '展开'} placement="top">
+          <TooltipSimple content={isExpanded ? t.fileCollapse : t.fileExpand} placement="top">
             <button
               type="button"
               className={`adl-multitree-entry__expand-btn${isExpanded ? ' is-expanded' : ''}`}
               onClick={onToggleExpand}
-              aria-label={isExpanded ? '收起' : '展开'}
+              aria-label={isExpanded ? t.fileCollapse : t.fileExpand}
               aria-expanded={isExpanded}
               disabled={!workspace.available}
             >
@@ -284,44 +285,44 @@ export const WorkspaceTerminalEntry = React.memo(function WorkspaceTerminalEntry
 
           <div className="adl-multitree-entry__actions">
             {!isIndependent && (
-              <TooltipSimple content="刷新" placement="top">
+              <TooltipSimple content={t.fileRefresh} placement="top">
                 <button
                   type="button"
                   className="adl-icon-btn adl-icon-btn--xs"
                   onClick={handleRefreshClick}
-                  aria-label="刷新"
+                  aria-label={t.fileRefresh}
                 >
                   <IconRefreshCw size={12} decorative />
                 </button>
               </TooltipSimple>
             )}
-            <TooltipSimple content="删除全部" placement="top">
+            <TooltipSimple content={t.deleteAll} placement="top">
               <button
                 type="button"
                 className="adl-icon-btn adl-icon-btn--xs"
                 onClick={handleCloseAllTabsClick}
-                aria-label="删除全部"
+                aria-label={t.deleteAll}
               >
                 <IconTrash size={12} decorative />
               </button>
             </TooltipSimple>
-            <TooltipSimple content="创建终端" placement="top">
+            <TooltipSimple content={t.terminalCreate} placement="top">
               <button
                 type="button"
                 className="adl-icon-btn adl-icon-btn--xs"
                 onClick={handleCreateTabClick}
-                aria-label="创建终端"
+                aria-label={t.terminalCreate}
               >
                 <IconPlus size={12} decorative />
               </button>
             </TooltipSimple>
-            <TooltipSimple content="更多操作" placement="top">
+            <TooltipSimple content={t.moreActions} placement="top">
               <button
                 type="button"
                 className="adl-icon-btn adl-icon-btn--xs"
                 data-menu-btn-id={menuId}
                 onClick={handleMoreClick}
-                aria-label="更多操作"
+                aria-label={t.moreActions}
               >
                 <IconMoreVertical size={12} decorative />
               </button>
@@ -346,7 +347,7 @@ export const WorkspaceTerminalEntry = React.memo(function WorkspaceTerminalEntry
                   onClick={handleHideFromRightPanels}
                 >
                   <IconEyeOff size={14} />
-                  从此区域移除不显示
+                  {t.terminalRemoveFromView}
                 </button>
               )}
               {!isIndependent && <div className="adl-multitree-entry__menu-sep" role="separator" />}
@@ -359,7 +360,7 @@ export const WorkspaceTerminalEntry = React.memo(function WorkspaceTerminalEntry
               >
                 <IconTerminal size={14} />
                 <span className="adl-multitree-entry__menu-item-content">
-                  默认为{defaultProfileLabel}终端
+                  {formatT(t, 'terminalDefaultProfile', { profile: defaultProfileLabel })}
                 </span>
                 <span className="adl-multitree-entry__menu-item-arrow">
                   <IconChevronRight size={12} decorative />
@@ -434,7 +435,7 @@ export const WorkspaceTerminalEntry = React.memo(function WorkspaceTerminalEntry
                 onClick={onCreateTab}
               >
                 <IconPlus size={12} decorative />
-                创建终端
+                {t.terminalCreate}
               </button>
             </div>
           )}

@@ -8,6 +8,7 @@ import { useDragDropWorkspace } from './hooks/useDragDropWorkspace';
 import { useAppStartup } from './hooks/useAppStartup';
 import { usePatchReviewWithEditor } from './hooks/usePatchReviewWithEditor';
 import { TitleBar } from './regions/TitleBar';
+import { TCopyProvider } from './i18n';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { LeftSidebar } from './regions/LeftSidebar';
 import { CenterPane } from './regions/CenterPane';
@@ -87,86 +88,83 @@ export function App() {
   }, []);
 
   return (
-    <main className="adl-shell adl-ide">
-      <TitleBar
-        t={t}
-        appInfo={appInfo}
-        onOpenSettings={handleOpenSettings}
-        onTriggerCreateWorkspace={handleTriggerCreateWorkspace}
-        onOpenFolder={handleOpenFolder}
-        onOpenCommandPalette={handleOpenCommandPalette}
-        onCycleTheme={handleCycleTheme}
-        onSelectLanguage={handleSelectLanguage}
-      />
+    <TCopyProvider t={t} locale={locale}>
+      <main className="adl-shell adl-ide">
+        <TitleBar
+          appInfo={appInfo}
+          onOpenSettings={handleOpenSettings}
+          onTriggerCreateWorkspace={handleTriggerCreateWorkspace}
+          onOpenFolder={handleOpenFolder}
+          onOpenCommandPalette={handleOpenCommandPalette}
+          onCycleTheme={handleCycleTheme}
+          onSelectLanguage={handleSelectLanguage}
+        />
 
-      {error ? (
-        <div className="adl-banner adl-banner--error" role="alert">
-          {error}
+        {error ? (
+          <div className="adl-banner adl-banner--error" role="alert">
+            {error}
+          </div>
+        ) : null}
+
+        <div
+          className={`adl-shell__body${leftCollapsed ? ' is-left-collapsed' : ''}${rightCollapsed ? ' is-right-collapsed' : ''}`}
+          style={{ '--rightpanel-width': `${rightPanelWidth}px` } as React.CSSProperties}
+        >
+          <ErrorBoundary>
+            <LeftSidebar
+              collapsed={leftCollapsed}
+              onCreateSession={() => setNewSessionDialogOpen(true)}
+              onTriggerCreateWorkspace={handleTriggerCreateWorkspace}
+            />
+          </ErrorBoundary>
+
+          <ErrorBoundary>
+            <CenterPane />
+          </ErrorBoundary>
+
+          <ErrorBoundary>
+            <RightPanel
+              collapsed={rightCollapsed}
+              standardEditorRef={standardEditorRef}
+              selectedPatchFilePath={selectedPatchFilePath}
+              selectedPatchHunkId={selectedPatchHunkId}
+              collapsedPatchHunkIds={collapsedPatchHunkIds}
+              patchReviewFilter={patchReviewFilter}
+              onOpenFileAtLine={handleOpenFileAtLine}
+              onDiffMount={handleDiffMount}
+              onSendSelection={() => void handleSendSelection()}
+              onSelectPatchFile={handleSelectPatchFile}
+              onSelectPatchHunk={handleSelectPatchHunk}
+              onTogglePatchHunkCollapse={handleTogglePatchHunkCollapse}
+              onSetAllPatchHunksCollapsed={handleSetAllPatchHunksCollapsed}
+              onSetPatchReviewFilter={setPatchReviewFilter}
+              onJumpPatchHunk={handleJumpPatchHunk}
+            />
+          </ErrorBoundary>
         </div>
-      ) : null}
 
-      <div
-        className={`adl-shell__body${leftCollapsed ? ' is-left-collapsed' : ''}${rightCollapsed ? ' is-right-collapsed' : ''}`}
-        style={{ '--rightpanel-width': `${rightPanelWidth}px` } as React.CSSProperties}
-      >
-        <ErrorBoundary>
-          <LeftSidebar
-            t={t}
-            collapsed={leftCollapsed}
-            onCreateSession={() => setNewSessionDialogOpen(true)}
-            onTriggerCreateWorkspace={handleTriggerCreateWorkspace}
-          />
-        </ErrorBoundary>
+        <CreateWorkspaceModal
+          open={createWorkspaceModalOpen}
+          onPickWorkspaceDirectory={actions.pickWorkspaceDirectory}
+          onOpenWorkspace={actions.openWorkspace}
+          onClose={() => setCreateWorkspaceModalOpen(false)}
+        />
 
-        <ErrorBoundary>
-          <CenterPane t={t} />
-        </ErrorBoundary>
-
-        <ErrorBoundary>
-          <RightPanel
-            t={t}
-            collapsed={rightCollapsed}
-            standardEditorRef={standardEditorRef}
-            selectedPatchFilePath={selectedPatchFilePath}
-            selectedPatchHunkId={selectedPatchHunkId}
-            collapsedPatchHunkIds={collapsedPatchHunkIds}
-            patchReviewFilter={patchReviewFilter}
-            onOpenFileAtLine={handleOpenFileAtLine}
-            onDiffMount={handleDiffMount}
-            onSendSelection={() => void handleSendSelection()}
-            onSelectPatchFile={handleSelectPatchFile}
-            onSelectPatchHunk={handleSelectPatchHunk}
-            onTogglePatchHunkCollapse={handleTogglePatchHunkCollapse}
-            onSetAllPatchHunksCollapsed={handleSetAllPatchHunksCollapsed}
-            onSetPatchReviewFilter={setPatchReviewFilter}
-            onJumpPatchHunk={handleJumpPatchHunk}
-          />
-        </ErrorBoundary>
-      </div>
-
-      <CreateWorkspaceModal
-        open={createWorkspaceModalOpen}
-        t={t}
-        onPickWorkspaceDirectory={actions.pickWorkspaceDirectory}
-        onOpenWorkspace={actions.openWorkspace}
-        onClose={() => setCreateWorkspaceModalOpen(false)}
-      />
-
-      <NewSessionDialog
-        open={newSessionDialogOpen}
-        t={t}
-        onCreate={async (name) => {
-          await actions.createSession();
-          if (name) {
-            const currentId = useAppStore.getState().activeSessionId;
-            if (currentId) {
-              await actions.renameSession(currentId, name);
+        <NewSessionDialog
+          open={newSessionDialogOpen}
+          onCreate={async (name) => {
+            await actions.createSession();
+            if (name) {
+              const currentId = useAppStore.getState().activeSessionId;
+              if (currentId) {
+                await actions.renameSession(currentId, name);
+              }
             }
-          }
-          setNewSessionDialogOpen(false);
-        }}
-        onCancel={() => setNewSessionDialogOpen(false)}
-      />
-    </main>
+            setNewSessionDialogOpen(false);
+          }}
+          onCancel={() => setNewSessionDialogOpen(false)}
+        />
+      </main>
+    </TCopyProvider>
   );
 }

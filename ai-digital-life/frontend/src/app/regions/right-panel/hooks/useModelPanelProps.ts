@@ -5,7 +5,7 @@ import { useAppActions } from '../../../hooks/useAppActions';
 import type { ModelPanelProps } from '../types';
 import type { RightPanelProps } from '../../RightPanel';
 
-export function useModelPanelProps(panelProps: RightPanelProps): ModelPanelProps {
+export function useModelPanelProps(_panelProps: RightPanelProps): ModelPanelProps {
   const modelHealth = useAppStore(useShallow((s) => s.modelHealth));
   const actions = useAppActions();
 
@@ -15,10 +15,9 @@ export function useModelPanelProps(panelProps: RightPanelProps): ModelPanelProps
 
   return useMemo(
     () => ({
-      t: panelProps.t,
       modelHealth,
       onRefreshModelHealth: handleRefreshModelHealth,
     }),
-    [panelProps.t, modelHealth, handleRefreshModelHealth]
+    [modelHealth, handleRefreshModelHealth]
   );
 }

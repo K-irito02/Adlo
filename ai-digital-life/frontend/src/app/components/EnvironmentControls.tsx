@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { renderIcon, type IconName } from '../../design-system/icons';
 import { TooltipSimple } from './Tooltip';
+import { useTCopy } from '../i18n/useTCopy';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -19,21 +20,11 @@ export interface EnvironmentControlsProps {
 /*  Constants                                                          */
 /* ------------------------------------------------------------------ */
 
-const LANGUAGE_OPTIONS: readonly { code: string; label: string }[] = [
-  { code: 'zh-CN', label: '中文' },
-  { code: 'en-US', label: 'EN' },
-] as const;
-
 const THEME_OPTIONS: readonly { value: ThemeMode; icon: IconName; label: string }[] = [
   { value: 'light', icon: 'sun', label: 'Light' },
   { value: 'dark', icon: 'moon', label: 'Dark' },
   { value: 'system', icon: 'monitor', label: 'System' },
 ] as const;
-
-/** Resolve the display label for a language code. */
-function resolveLanguageLabel(code: string): string {
-  return LANGUAGE_OPTIONS.find((opt) => opt.code === code)?.label ?? code;
-}
 
 /** Resolve the icon for the current theme mode. */
 function resolveThemeIcon(mode: ThemeMode): IconName {
@@ -132,6 +123,17 @@ export function EnvironmentControls({
   onChangeLanguage,
   onChangeTheme,
 }: EnvironmentControlsProps): React.ReactElement {
+  const { t, formatT } = useTCopy();
+
+  const LANGUAGE_OPTIONS: readonly { code: string; label: string }[] = [
+    { code: 'zh-CN', label: t.languageChinese },
+    { code: 'en-US', label: t.languageEnglish },
+  ] as const;
+
+  function resolveLanguageLabel(code: string): string {
+    return LANGUAGE_OPTIONS.find((opt) => opt.code === code)?.label ?? code;
+  }
+
   const [langDropdownOpen, setLangDropdownOpen] = useState(false);
 
   const handleToggleLang = useCallback(() => {
@@ -193,12 +195,12 @@ export function EnvironmentControls({
 
       {/* ---- Theme toggler ---- */}
       <div className="sidebar-env-controls__item">
-        <TooltipSimple content={`Theme: ${currentTheme} (click to cycle)`} placement="right">
+        <TooltipSimple content={formatT(t, 'themeTooltip', { theme: currentTheme })} placement="right">
           <button
             type="button"
             className="sidebar-env-btn"
             onClick={handleCycleTheme}
-            aria-label={`Current theme: ${currentTheme}. Click to change.`}
+            aria-label={formatT(t, 'themeButtonAria', { theme: currentTheme })}
           >
             <span
               className="sidebar-env-btn__icon"

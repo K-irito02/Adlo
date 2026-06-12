@@ -1,8 +1,8 @@
 import React from 'react';
 import { IconMoreVertical } from '../../icons';
 import { TooltipSimple } from '../../components/Tooltip';
-import type { CopyDict } from '../../i18n';
 import type { TerminalMenuItem } from './useTerminalPanel';
+import { useTCopy } from '../../i18n/useTCopy';
 
 interface TerminalMenuDropdownProps {
   menuOpen: boolean;
@@ -10,7 +10,6 @@ interface TerminalMenuDropdownProps {
   menuItems: TerminalMenuItem[];
   onToggle: () => void;
   onClose: () => void;
-  t: CopyDict;
 }
 
 export const TerminalMenuDropdown = React.memo(function TerminalMenuDropdown({
@@ -19,8 +18,8 @@ export const TerminalMenuDropdown = React.memo(function TerminalMenuDropdown({
   menuItems,
   onToggle,
   onClose,
-  t,
 }: TerminalMenuDropdownProps) {
+  const { t } = useTCopy();
   return (
     <div ref={menuRef} className="adl-menu adl-file-context__menu">
       <TooltipSimple content={t.terminalMoreActions} placement="top">

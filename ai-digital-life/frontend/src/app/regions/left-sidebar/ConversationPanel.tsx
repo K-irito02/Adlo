@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import type { CopyDict } from '../../i18n';
 import { IconCollapseRows, IconExpandRows, IconPlus } from '../../icons';
 import { TooltipSimple } from '../../components/Tooltip';
+import { useTCopy } from '../../i18n/useTCopy';
 import {
   readConversationPanelHeight,
   writeConversationPanelHeight,
@@ -13,7 +13,6 @@ const MIN_CONVERSATION_PANEL_HEIGHT = 120;
 const MAX_CONVERSATION_PANEL_HEIGHT = 9_999;
 
 interface ConversationPanelProps {
-  t: CopyDict;
   onCreateSession: () => void;
   leftbarContentRef: React.RefObject<HTMLDivElement | null>;
   workspaceToolbarRef: React.RefObject<HTMLDivElement | null>;
@@ -21,12 +20,12 @@ interface ConversationPanelProps {
 }
 
 export function ConversationPanel({
-  t,
   onCreateSession,
   leftbarContentRef,
   workspaceToolbarRef,
   children,
 }: ConversationPanelProps) {
+  const { t } = useTCopy();
   const [conversationsCollapsed, setConversationsCollapsed] = useState(false);
   const [conversationPanelHeight, setConversationPanelHeight] = useState<number>(() =>
     readConversationPanelHeight()

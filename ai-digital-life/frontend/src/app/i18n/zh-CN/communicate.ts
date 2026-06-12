@@ -8,4 +8,13 @@ export const communicateZh = {
   communicateQQDesc: 'QQ 消息集成即将推出，敬请期待',
   communicateWeChatTitle: '微信',
   communicateWeChatDesc: '微信消息集成即将推出，敬请期待',
+  communicateWechat: '微信',
+  communicateFeishu: '飞书',
+  communicateEmail: '邮箱',
+  communicateTabFeishu: '飞书',
+  communicateTabWechat: '微信',
+  communicateTabEmail: '邮箱',
+  communicateDirList: '目录列表',
+  communicateRefreshAll: '刷新全部',
+  communicateNewDir: '新建目录',
 } as const;

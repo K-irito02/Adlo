@@ -13,6 +13,7 @@ import { useAppStore } from '../../../stores/slicedStore';
 import { joinPathSegments, normalizeWorkspaceRelativePath } from '../../../utils/workspacePaths';
 import type { ChangesPanelProps } from '../types';
 import type { WorkspaceTreeNode, ReorderWorkspacesInput } from '@ai-digital-life/kernel';
+import { useTCopy } from '../../../i18n/useTCopy';
 import {
   buildChangeEntries,
   buildChangeTree,
@@ -39,8 +40,8 @@ import { useChangesPanelStore } from './useChangesPanelStore';
 const FALLBACK_BRANCHES = ['main', 'develop', 'release/0.1.0', 'feature/right-panel'];
 
 const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) {
+  const { t, formatT } = useTCopy();
   const {
-    t,
     appInfo,
     activePatchSet,
     latestPatchApplication,
@@ -574,7 +575,7 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
       ? t.outline
       : changesNavigatorMode === 'list'
         ? t.changesListView
-        : '文件树';
+        : t.changesFileTree;
 
   const changesTreeData = useMemo(() => {
     const result: Record<string, ChangeTreeNode[]> = {};
@@ -706,7 +707,6 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
     <div className="adl-tool-panel adl-tool-panel--changes">
       <ChangesToolbar
         placement="top"
-        t={t}
         navigatorCollapsed={navigatorCollapsed}
         onToggleNavigator={() => toggleNavigator('changes')}
         branchOptions={branchOptions}
@@ -726,7 +726,6 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
         style={{ '--adl-files-nav-width': `${changesNavigatorWidth}px` } as React.CSSProperties}
       >
         <ChangesTreePanel
-          t={t}
           visibleWorkspaces={visibleWorkspaces}
           activeWorkspaceId={activeWorkspaceId}
           workspaceChangesExpanded={workspaceChangesExpanded}
@@ -781,7 +780,6 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
         <div className={`adl-tool-primary${activePatchSet ? ' adl-tool-primary--scrollable' : ''}`}>
           {activePatchSet ? (
             <PatchReviewSection
-              t={t}
               activePatchSet={activePatchSet}
               selectedPatchFilePath={selectedPatchFilePath}
               selectedPatchHunkId={selectedPatchHunkId}
@@ -805,7 +803,6 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
             />
           ) : (
             <DiffEditorSection
-              t={t}
               changePreview={changePreview}
               changePreviewLoading={changePreviewLoading}
               diffSideBySide={props.diffSideBySide}
@@ -826,15 +823,14 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
         changesDeleteConfirmPath={changesDeleteConfirmPath}
         onDeleteConfirm={handleChangesDeleteConfirm}
         onDeleteCancel={handleChangesDeleteCancel}
-        t={t}
       />
       {changesRenameDialogOpen && changesRenamingPath ? (
         <RenameDialog
           open={changesRenameDialogOpen}
           initialValue={changesRenamingPath.split('/').pop() || ''}
-          title="重命名"
-          itemInfo={`当前路径: ${changesRenamingPath}`}
-          placeholder="输入新名称"
+          title={t.changesRename}
+          itemInfo={formatT(t, 'changesCurrentPath', { path: changesRenamingPath })}
+          placeholder={t.changesEnterNewName}
           onConfirm={handleChangesRenameConfirm}
           onCancel={handleChangesRenameCancel}
         />

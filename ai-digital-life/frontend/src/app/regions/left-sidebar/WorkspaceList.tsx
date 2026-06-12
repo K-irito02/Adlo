@@ -1,6 +1,5 @@
 import React, { useCallback, useState } from 'react';
 import type { ReorderWorkspacesInput } from '@ai-digital-life/kernel';
-import type { CopyDict } from '../../i18n';
 import {
   IconArchive,
   IconCollapseRows,
@@ -14,9 +13,9 @@ import { TooltipSimple } from '../../components/Tooltip';
 import type { SidebarSessionItem, SidebarWorkspaceItem } from '../../utils/sidebarViewModel';
 import { STATUS_LABEL, buildWorkspaceTooltip } from './SidebarContextMenu.utils';
 import { WorkspaceDirectoryIcon, StatusLamp } from './SidebarContextMenu';
+import { useTCopy } from '../../i18n/useTCopy';
 
 export interface WorkspaceListProps {
-  t: CopyDict;
   workspaceItems: SidebarWorkspaceItem[];
   expandedSessionWorkspaces: Record<string, boolean>;
   toggleSessionWorkspace: (workspaceId: string) => void;
@@ -46,7 +45,6 @@ export interface WorkspaceListProps {
 import { moveIdWithinBucket } from '../../utils/dragUtils';
 
 export function WorkspaceList({
-  t,
   workspaceItems,
   expandedSessionWorkspaces,
   toggleSessionWorkspace,
@@ -64,6 +62,7 @@ export function WorkspaceList({
   renderSessionRows,
   workspaceToolbarRef,
 }: WorkspaceListProps) {
+  const { t } = useTCopy();
   const [archiveOpen, setArchiveOpen] = useState(false);
 
   const handleWorkspaceDrop = useCallback(

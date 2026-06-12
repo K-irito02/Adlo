@@ -1,10 +1,9 @@
 import { useCallback } from 'react';
-import type { CopyDict } from '../i18n';
+import { useTCopy } from '../i18n/useTCopy';
 import { WorkspaceSplitButton } from './WorkspaceSplitButton';
 
 interface CreateWorkspaceModalProps {
   open: boolean;
-  t: CopyDict;
   onPickWorkspaceDirectory: () => Promise<string | undefined>;
   onOpenWorkspace: (path: string) => Promise<{ ok: boolean; error?: string }>;
   onClose: () => void;
@@ -12,11 +11,11 @@ interface CreateWorkspaceModalProps {
 
 export function CreateWorkspaceModal({
   open,
-  t,
   onPickWorkspaceDirectory,
   onOpenWorkspace,
   onClose,
 }: CreateWorkspaceModalProps) {
+  const { t } = useTCopy();
   const handleBackdrop = useCallback(
     (e: React.MouseEvent) => {
       if (e.target === e.currentTarget) {
@@ -50,7 +49,6 @@ export function CreateWorkspaceModal({
         <div className="adl-prompt-modal__body">
           <div className="adl-statusbar__menu-section">
             <WorkspaceSplitButton
-              t={t}
               onPickWorkspaceDirectory={onPickWorkspaceDirectory}
               onOpenWorkspace={onOpenWorkspace}
               onClose={onClose}

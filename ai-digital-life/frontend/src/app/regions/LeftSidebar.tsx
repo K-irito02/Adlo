@@ -1,6 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import type { CopyDict, Locale } from '../i18n';
+import type { Locale } from '../i18n';
+import { useTCopy } from '../i18n/useTCopy';
 import { IconArchive, IconPlug, IconSparkles } from '../icons';
 import { buildSidebarViewModel } from '../utils/sidebarViewModel';
 import { useAppStore } from '../stores/slicedStore';
@@ -21,18 +22,17 @@ import { SessionList } from './left-sidebar/SessionList';
 import type { SidebarSessionItem } from '../utils/sidebarViewModel';
 
 interface LeftSidebarProps {
-  t: CopyDict;
   collapsed: boolean;
   onCreateSession: () => void;
   onTriggerCreateWorkspace: () => void;
 }
 
 const LeftSidebar = React.memo(function LeftSidebar({
-  t,
   collapsed,
   onCreateSession,
   onTriggerCreateWorkspace,
 }: LeftSidebarProps) {
+  const { t, formatT } = useTCopy();
   const actions = useAppActions();
   const {
     appInfo,
@@ -111,9 +111,8 @@ const LeftSidebar = React.memo(function LeftSidebar({
       onReorderSessions: actions.reorderSessions,
       activeSessionId,
       locale,
-      t,
     }),
-    [actions, activeSessionId, locale, t]
+    [actions, activeSessionId, locale]
   );
 
   return (
@@ -143,7 +142,6 @@ const LeftSidebar = React.memo(function LeftSidebar({
         </section>
 
         <WorkspaceList
-          t={t}
           workspaceItems={workspaceItems}
           expandedSessionWorkspaces={expandedSessionWorkspaces}
           toggleSessionWorkspace={toggleSessionWorkspace}
@@ -177,7 +175,6 @@ const LeftSidebar = React.memo(function LeftSidebar({
         />
 
         <ConversationPanel
-          t={t}
           onCreateSession={onCreateSession}
           leftbarContentRef={leftbarContentRef}
           workspaceToolbarRef={workspaceToolbarRef}
@@ -281,9 +278,9 @@ const LeftSidebar = React.memo(function LeftSidebar({
         <RenameDialog
           open={renameDialogOpen}
           initialValue={sessionToRename.name}
-          title="重命名会话"
-          itemInfo={`当前名称: ${sessionToRename.name}`}
-          placeholder="输入新会话名称"
+          title={t.changesRenameSession}
+          itemInfo={formatT(t, 'changesCurrentName', { name: sessionToRename.name })}
+          placeholder={t.changesEnterSessionName}
           onConfirm={(newName) => {
             actions.renameSession(sessionToRename.id, newName);
             setRenameDialogOpen(false);

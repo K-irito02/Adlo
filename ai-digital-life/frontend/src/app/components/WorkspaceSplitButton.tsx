@@ -1,12 +1,11 @@
 import React, { useRef, useState } from 'react';
-import type { CopyDict } from '../i18n';
+import { useTCopy } from '../i18n/useTCopy';
 import { IconChevronRight, IconFolder, IconFolderOpen } from '../icons';
 import { TooltipSimple } from './Tooltip';
 
 export type WorkspaceActionMode = 'pick' | 'open' | 'create';
 
 interface WorkspaceSplitButtonProps {
-  t: CopyDict;
   onPickWorkspaceDirectory: () => Promise<string | undefined>;
   onOpenWorkspace: (path: string) => Promise<{ ok: boolean; error?: string }>;
   onClose?: () => void;
@@ -15,13 +14,13 @@ interface WorkspaceSplitButtonProps {
 }
 
 export function WorkspaceSplitButton({
-  t,
   onPickWorkspaceDirectory,
   onOpenWorkspace,
   onClose,
   initialMode,
   persistMode = true,
 }: WorkspaceSplitButtonProps) {
+  const { t } = useTCopy();
   const [actionMode, setActionMode] = useState<WorkspaceActionMode>(() => {
     if (initialMode) {
       return initialMode;
@@ -352,7 +351,7 @@ export function WorkspaceSplitButton({
                     .replace('{name}', 'my-project')
                     .replace(
                       '{path}',
-                      defaultCreateDir ? `${defaultCreateDir}/my-project` : '默认目录/my-project'
+                      defaultCreateDir ? `${defaultCreateDir}/my-project` : t.defaultNewDir
                     )}
                 </p>
                 <p>

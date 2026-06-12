@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 import { writeConversationPanelHeight, clampConversationPanelHeight } from './ResizeHandle.utils';
+import { useTCopy } from '../../i18n/useTCopy';
 
 export function ResizeHandle() {
+  const { t } = useTCopy();
   const draggingRef = useRef(false);
   const rafRef = useRef(0);
   const cleanupDragRef = useRef<(() => void) | null>(null);
@@ -86,7 +88,7 @@ export function ResizeHandle() {
       onMouseDown={handleResizeMouseDown}
       role="separator"
       aria-orientation="vertical"
-      aria-label="调整侧边栏宽度"
+      aria-label={t.resizeSidebar}
     />
   );
 }
@@ -102,6 +104,7 @@ export function ConversationResizeHandle({
   onHeightChange,
   getMaxHeight,
 }: ConversationResizeHandleProps) {
+  const { t } = useTCopy();
   const conversationResizeCleanupRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
@@ -179,7 +182,7 @@ export function ConversationResizeHandle({
       onMouseDown={handleMouseDown}
       role="separator"
       aria-orientation="horizontal"
-      aria-label="调整对话区域高度"
+      aria-label={t.resizeConversation}
     />
   );
 }

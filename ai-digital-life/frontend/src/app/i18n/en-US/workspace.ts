@@ -70,7 +70,7 @@ export const workspaceEn = {
   branchCreateAction: 'Create and switch',
   branchStashConfirmTitle: 'Uncommitted changes detected',
   branchStashConfirmBody:
-    'Continuing will stash local changes first, then switch or create the branch.',
+    'Proceeding will stash local changes first, then switch or create the branch.',
   indexingInProgress: 'Indexing…',
   indexingCompleted: 'Indexed',
   indexingError: 'Index error',

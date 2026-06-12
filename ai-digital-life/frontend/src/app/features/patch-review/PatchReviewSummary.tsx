@@ -1,6 +1,6 @@
 import React from 'react';
 import type { PatchReviewFilter } from './patchReview';
-import type { CopyDict } from '../../i18n';
+import { useTCopy } from '../../i18n/useTCopy';
 
 export interface PatchReviewSummaryProps {
   activePatchSet: { title: string; summary: string };
@@ -9,7 +9,6 @@ export interface PatchReviewSummaryProps {
   onSetPatchReviewFilter: (filter: PatchReviewFilter) => void;
   onAcceptAllHunks: () => void;
   onRejectAllHunks: () => void;
-  t: CopyDict;
 }
 
 export function PatchReviewSummary({
@@ -19,8 +18,8 @@ export function PatchReviewSummary({
   onSetPatchReviewFilter,
   onAcceptAllHunks,
   onRejectAllHunks,
-  t,
 }: PatchReviewSummaryProps) {
+  const { t } = useTCopy();
   return (
     <article className="adl-patch-review-summary">
       <header className="adl-patch-review-summary__header">
