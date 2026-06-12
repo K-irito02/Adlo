@@ -1168,7 +1168,6 @@
   border-radius: var(--radius-sm);
   cursor: pointer;
   text-align: left;
-  width: 100%;
   white-space: nowrap;
 }
 .adl-multitree-entry__menu-item:hover {

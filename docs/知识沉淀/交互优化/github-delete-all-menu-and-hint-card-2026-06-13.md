@@ -154,3 +154,70 @@ const cancelDeleteMenuClose = () => void;      // 取消倒计时
 | 菜单容器缺少 `data-menu-id` | `MenuHintItem` 无法定位父菜单，子卡片不出现 | 所有弹出菜单必须设置唯一 `data-menu-id` |
 | 关闭无延迟或延迟过长 | 无延迟导致根本点不到菜单；过长导致菜单残留 | 150–200ms 为合理区间 |
 | 按钮上重复 tooltip | 与即将展开的菜单视觉冲突 | 去除 tooltip，保留 aria-label |
+
+## "!" 图标悬停背景覆盖与菜单宽度自适应
+
+### 问题
+
+菜单位于通信面板 → GitHub 子面板的"删除全部"菜单中，功能选项右侧的 "!" 图标在以下场景出现问题：
+
+1. **背景穿透**：悬停在菜单选项上但未悬停在 "!" 图标上时，"!" 图标区域显示了与按钮一样的灰色 hover 背景
+2. **文字溢出**：标签文字延伸到 "!" 图标下方，在 "!" 图标 hover（半透明 `bg-hover`）时文字透出
+3. **菜单撑宽**：菜单未自适应到能容纳完整标签文字
+
+### 最终解决方案
+
+保持 DOM 结构不变（"!" 图标仍在 `<button>` 内部），纯 CSS 处理：
+
+```css
+/* "!" 图标：绝对定位浮动在按钮之上，bg-card 遮盖按钮 hover 灰色 */
+.adl-menu-item__hint {
+  position: absolute;
+  right: var(--space-1);
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--bg-card);
+  z-index: 1;
+}
+
+/* 标签 span：预留图标宽度，不参与按钮 hover */
+.adl-multitree-entry__menu-item > span:first-child {
+  overflow: visible;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-right: 16px;          /* 为绝对定位的 "!" 图标预留宽度 */
+}
+
+/* 菜单按钮：取消 width:100%，由父 flex column 的 align-items:stretch 拉伸 */
+.adl-multitree-entry__menu-item {
+  display: flex;
+  align-items: center;
+  /* 无 width: 100% */
+}
+```
+
+### 关键原理
+
+| 层面 | 原理 |
+|------|------|
+| **背景遮盖** | "!" 图标 `position: absolute` + `background: var(--bg-card)` + `z-index: 1` 浮在按钮之上，用不透明菜单背景色盖住按钮的 `var(--bg-hover)` |
+| **宽度预留** | `margin-right: 16px` 在标签 span 右侧留出 16px（"!" 图标宽度），该空间计入 `max-content` 计算，菜单正确撑宽 |
+| **菜单撑宽** | 去掉按钮 `width: 100%`，利用 flex column 的 `align-items: stretch`（默认值）自动拉伸所有按钮到最宽按钮的宽度 |
+| **图标右调** | `right: var(--space-1)`（~4px）替代原 `var(--space-3)`（8px），使图标更靠近菜单右边缘 |
+
+### 陷阱记录：CSS 钻石依赖
+
+`.adl-multitree-entry__menu-item` 在 **两个 CSS 文件** 中均有定义：
+
+```
+files-panel.css → file-operations.css  (.menu-item: 修改版)
+rightpanel.css  → file-tree.css        (.menu-item: 旧版 width:100%)
+```
+
+`file-tree.css` 后加载，其 `width: 100%` 覆盖了 `file-operations.css` 中已移除的同属性。修复时必须同时修改两个文件。
+
+### 调试线索
+
+- 悬停 "!" 图标时文字完整显示 → 说明标签文字未被 `overflow` 截断，而是被图标背景遮盖
+- `bg-hover` 为半透明色时，图标 hover 会透出下方文字
+- 正确间距：`margin-right: 16px` = 图标宽度 16px
