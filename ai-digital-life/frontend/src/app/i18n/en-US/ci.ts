@@ -6,11 +6,18 @@ export const ciEn = {
   ciPanelTitle: 'Quality Gates',
 
   // ========== Config Area ==========
-  ciOwnerPlaceholder: 'Owner (e.g. your-username)',
-  ciRepoPlaceholder: 'Repo (e.g. my-repo)',
-  ciBranchPlaceholder: 'Branch (default: main)',
-  ciTokenPlaceholder: 'GitHub Personal Access Token (optional · higher rate limit / private repos)',
+  ciOwnerPlaceholder: 'e.g. your-username',
+  ciRepoPlaceholder: 'e.g. my-repo',
+  ciBranchPlaceholder: 'default: main',
+  ciTokenPlaceholder: 'optional · higher rate limit / private repos',
   ciQueryButton: 'Query',
+  ciOwnerLabel: 'Owner',
+  ciRepoLabel: 'Repo',
+  ciBranchLabel: 'Branch',
+  ciTokenLabel: 'Token',
+  ciTokenOptional: 'optional',
+  ciShowToken: 'Show',
+  ciHideToken: 'Hide',
 
   // ========== Metadata Labels ==========
   ciTriggeredBy: 'Triggered by',
@@ -150,4 +157,7 @@ export const ciEn = {
   // ========== Common ==========
   ciClose: 'Close',
   ciOpen: 'Open',
+  ciSettingsDialogTitle: 'Configure CI',
+  ciSettingsCancel: 'Cancel',
+  ciSettingsSave: 'Save & Query',
 } as const;

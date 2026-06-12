@@ -930,47 +930,49 @@
   overflow: hidden;
 }
 
-/* Dialog styles */
-.adl-dialog-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+/* ─── GitHub Settings Dialog ─── */
 
-.adl-dialog {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-xl);
-  min-width: 400px;
-  max-width: 500px;
-  max-height: 80vh;
+.adl-github-settings__body {
   display: flex;
   flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-1) 0 var(--space-2);
 }
 
-.adl-dialog__header {
+.adl-github-settings__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.adl-github-settings__label {
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.adl-github-settings__optional {
+  color: var(--text-tertiary);
+  font-weight: 400;
+}
+
+.adl-github-settings__token-input {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--border-subtle);
-  flex-shrink: 0;
 }
 
-.adl-dialog__title {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0;
+.adl-github-settings__token-field {
+  padding-right: 34px;
 }
 
-.adl-dialog__close {
-  display: flex;
+.adl-github-settings__token-toggle {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 24px;
@@ -979,27 +981,24 @@
   border: none;
   background: transparent;
   color: var(--text-secondary);
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  border-radius: 4px;
+  transition:
+    background var(--duration-100),
+    color var(--duration-100);
 }
 
-.adl-dialog__close:hover {
+.adl-github-settings__token-toggle:hover {
   background: var(--surface-hover);
   color: var(--text-primary);
 }
 
-.adl-dialog__body {
-  padding: 16px;
-  overflow-y: auto;
-  flex: 1;
-}
-
-.adl-dialog__footer {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 12px 16px;
-  border-top: 1px solid var(--border-subtle);
-  flex-shrink: 0;
+.adl-github-settings__error {
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-danger);
+  color: var(--danger);
+  font-size: var(--text-xs);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-danger, transparent);
+  line-height: 1.4;
 }

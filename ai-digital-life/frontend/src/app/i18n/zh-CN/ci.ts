@@ -6,11 +6,18 @@ export const ciZh = {
   ciPanelTitle: 'Quality Gates',
 
   // ========== 配置区 ==========
-  ciOwnerPlaceholder: 'Owner (例如: your-username)',
-  ciRepoPlaceholder: 'Repo (例如: my-repo)',
-  ciBranchPlaceholder: 'Branch (默认: main)',
-  ciTokenPlaceholder: 'GitHub Personal Access Token（可选 · 提升限流 / 支持私有仓库）',
+  ciOwnerPlaceholder: '例如：用户名',
+  ciRepoPlaceholder: '例如：仓库名',
+  ciBranchPlaceholder: '默认：main',
+  ciTokenPlaceholder: '可选 · 提升限流 / 支持私有仓库',
   ciQueryButton: '查询',
+  ciOwnerLabel: '仓库所有者',
+  ciRepoLabel: '仓库名',
+  ciBranchLabel: '分支',
+  ciTokenLabel: '访问令牌',
+  ciTokenOptional: '可选',
+  ciShowToken: '显示',
+  ciHideToken: '隐藏',
 
   // ========== 元数据标签 ==========
   ciTriggeredBy: '触发者',
@@ -140,4 +147,7 @@ export const ciZh = {
   // ========== 通用 ==========
   ciClose: '关闭',
   ciOpen: '展开',
+  ciSettingsDialogTitle: '配置仓库信息',
+  ciSettingsCancel: '取消',
+  ciSettingsSave: '保存并查询',
 } as const;

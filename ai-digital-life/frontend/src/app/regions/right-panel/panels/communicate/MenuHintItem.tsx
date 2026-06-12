@@ -76,12 +76,12 @@ export function MenuHintItem({ label, hint, onClick, menuId, danger }: MenuHintI
             document.body.appendChild(arrow);
             document.body.appendChild(arrowBorder);
 
-            subCardsRef.current = [];
-            subCardsRef.current.push(card, arrow, arrowBorder);
+            subCardsRef.current = [card, arrow, arrowBorder];
           }
         }}
         onMouseLeave={(e) => {
           e.stopPropagation();
+          // 子卡片 pointer-events: none，不支持悬停；鼠标离开 ! 时直接移除
           subCardsRef.current.forEach((el) => el.remove());
           subCardsRef.current = [];
           const button = (e.target as HTMLElement).closest('button');

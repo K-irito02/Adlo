@@ -100,29 +100,72 @@ export function GitHubPanel() {
   const [settingsFolderId, setSettingsFolderId] = useState<string | null>(null);
   const [deleteMenuOpen, setDeleteMenuOpen] = useState(false);
   const deleteButtonRef = useRef<HTMLButtonElement>(null);
-  const deleteMenuTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [deleteTooltipOpen, setDeleteTooltipOpen] = useState(false);
+  const deleteMenuRef = useRef<HTMLDivElement>(null);
+  const deleteCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // 清理定时器
-  const clearDeleteMenuTimer = useCallback(() => {
-    if (deleteMenuTimerRef.current) {
-      clearTimeout(deleteMenuTimerRef.current);
-      deleteMenuTimerRef.current = null;
+  // 检查节点是否在按钮或菜单内（用于 relatedTarget 判断）
+  const isInsideDeleteUI = useCallback((node: EventTarget | null): boolean => {
+    if (!node) {
+      return false;
+    }
+    const el = node as HTMLElement;
+    return (
+      (deleteButtonRef.current && deleteButtonRef.current.contains(el)) ||
+      (deleteMenuRef.current && deleteMenuRef.current.contains(el)) ||
+      false
+    );
+  }, []);
+
+  // 启动关闭倒计时（给鼠标移动到菜单留出时间）
+  const scheduleDeleteMenuClose = useCallback(() => {
+    if (deleteCloseTimerRef.current) {
+      clearTimeout(deleteCloseTimerRef.current);
+      deleteCloseTimerRef.current = null;
+    }
+    deleteCloseTimerRef.current = setTimeout(() => {
+      deleteCloseTimerRef.current = null;
+      setDeleteMenuOpen(false);
+    }, 180);
+  }, []);
+
+  // 取消关闭倒计时
+  const cancelDeleteMenuClose = useCallback(() => {
+    if (deleteCloseTimerRef.current) {
+      clearTimeout(deleteCloseTimerRef.current);
+      deleteCloseTimerRef.current = null;
     }
   }, []);
 
-  // 检查鼠标是否在相关元素上
-  const isMouseOverDeleteUI = useCallback(() => {
-    const button = deleteButtonRef.current;
-    const menu = document.querySelector('[data-menu-id="github-delete-all-menu"]');
-    const tooltip = document.querySelector('[data-tooltip-id="github-delete-tooltip"]');
-
-    return (
-      (button && button.matches(':hover')) ||
-      (menu && (menu as HTMLElement).matches(':hover')) ||
-      (tooltip && (tooltip as HTMLElement).matches(':hover'))
-    );
+  // 组件卸载时清理可能残留的关闭定时器（菜单未展开但倒计时进行中）
+  useEffect(() => {
+    return () => {
+      if (deleteCloseTimerRef.current) {
+        clearTimeout(deleteCloseTimerRef.current);
+        deleteCloseTimerRef.current = null;
+      }
+    };
   }, []);
+
+  // 全局点击外部关闭删除菜单
+  useEffect(() => {
+    if (!deleteMenuOpen) {
+      return;
+    }
+    const handleGlobalClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const inButton = deleteButtonRef.current?.contains(target);
+      const inMenu = deleteMenuRef.current?.contains(target);
+      if (!inButton && !inMenu) {
+        cancelDeleteMenuClose();
+        setDeleteMenuOpen(false);
+      }
+    };
+    window.addEventListener('mousedown', handleGlobalClick);
+    return () => {
+      window.removeEventListener('mousedown', handleGlobalClick);
+      cancelDeleteMenuClose();
+    };
+  }, [deleteMenuOpen, cancelDeleteMenuClose]);
 
   const handleSelectTreePath = useCallback(
     (path: string | null) => {
@@ -290,15 +333,6 @@ export function GitHubPanel() {
     setSettingsFolderId(null);
   }, []);
 
-  // 组件卸载时清理定时器
-  useEffect(() => {
-    return () => {
-      if (deleteMenuTimerRef.current) {
-        clearTimeout(deleteMenuTimerRef.current);
-      }
-    };
-  }, []);
-
   const renderPrimary = () => {
     if (showHelp) {
       return <HelpView copy={copy} />;
@@ -434,54 +468,34 @@ export function GitHubPanel() {
                 className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
                 onClick={(e) => e.preventDefault()}
                 onMouseEnter={() => {
-                  clearDeleteMenuTimer();
+                  cancelDeleteMenuClose();
                   setDeleteMenuOpen(true);
-                  setDeleteTooltipOpen(true);
                 }}
-                onMouseLeave={() => {
-                  // 延迟检查，确保鼠标不在菜单上
-                  deleteMenuTimerRef.current = setTimeout(() => {
-                    if (!isMouseOverDeleteUI()) {
-                      setDeleteMenuOpen(false);
-                      setDeleteTooltipOpen(false);
-                    }
-                  }, 100);
+                onMouseLeave={(e) => {
+                  // 仅当鼠标移动到按钮+菜单之外时才启动关闭
+                  if (!isInsideDeleteUI(e.relatedTarget)) {
+                    scheduleDeleteMenuClose();
+                  }
                 }}
                 aria-label="删除全部新建目录/CI配置/数据"
               >
-                <TooltipSimple
-                  content="删除全部新建目录/CI配置/数据"
-                  placement="top"
-                  id="github-delete-tooltip"
-                  open={deleteTooltipOpen}
-                  onOpenChange={(open) => {
-                    clearDeleteMenuTimer();
-                    if (open) {
-                      setDeleteMenuOpen(true);
-                    }
-                  }}
-                >
-                  <IconTrash size={14} decorative />
-                </TooltipSimple>
+                <IconTrash size={14} decorative />
               </button>
               {deleteMenuOpen && deleteButtonRef.current
                 ? createPortal(
                     <div
+                      ref={deleteMenuRef}
+                      data-menu-id="github-delete-all-menu"
                       className="adl-multitree-entry__menu"
                       role="menu"
-                      data-menu-id="github-delete-all-menu"
                       onMouseEnter={() => {
-                        clearDeleteMenuTimer();
-                        setDeleteTooltipOpen(true);
+                        cancelDeleteMenuClose();
                       }}
-                      onMouseLeave={() => {
-                        // 延迟检查，确保鼠标不在按钮或 tooltip 上
-                        deleteMenuTimerRef.current = setTimeout(() => {
-                          if (!isMouseOverDeleteUI()) {
-                            setDeleteMenuOpen(false);
-                            setDeleteTooltipOpen(false);
-                          }
-                        }, 100);
+                      onMouseLeave={(e) => {
+                        // 仅当鼠标移动到按钮+菜单之外时才启动关闭
+                        if (!isInsideDeleteUI(e.relatedTarget)) {
+                          scheduleDeleteMenuClose();
+                        }
                       }}
                       style={{
                         position: 'fixed',
