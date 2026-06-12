@@ -10,6 +10,7 @@ import {
 import { FileTree } from '../file-tree';
 import { TooltipSimple } from '../../components/Tooltip';
 import { RenameDialog } from '../../components/RenameDialog';
+import { MenuHintItem } from '../../regions/right-panel/panels/communicate/MenuHintItem';
 import { useAppStore } from '../../stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import type { GitHubTreeNode, GitHubCategoryType } from './types';
@@ -49,6 +50,20 @@ interface GitHubTreeEntryProps {
   callbacks: SectionCallbacks;
 }
 
+type ChildMenuItem =
+  | {
+      id: string;
+      label: string;
+      danger?: boolean;
+      action: () => void;
+      hasHint?: boolean;
+      hint?: string;
+    }
+  | {
+      id: string;
+      separator: true;
+    };
+
 function getChildNodeMoreMenuItems(
   nodeType: string,
   nodePath: string,
@@ -59,19 +74,32 @@ function getChildNodeMoreMenuItems(
   onDeleteConfig: () => void,
   onDeleteData: () => void,
   onDeleteConfigAndData: () => void,
-  onSettings: () => void
-): Array<{ id: string; label: string; danger?: boolean; action: () => void }> {
+  onSettings: () => void,
+  onPin: () => void,
+  onUnpin: () => void,
+  isPinned: boolean,
+  onDeleteFolder: () => void,
+  showDeleteFolder: boolean,
+  onDeleteConfigRecursive?: () => void,
+  onDeleteDataRecursive?: () => void,
+  onDeleteConfigAndDataRecursive?: () => void
+): Array<ChildMenuItem> {
   if (nodeType !== 'folder') {
     return [];
   }
   const folderId = nodePath.startsWith('github-folder:')
     ? nodePath.slice('github-folder:'.length)
     : '';
-  const items: Array<{ id: string; label: string; danger?: boolean; action: () => void }> = [
+  const items: Array<ChildMenuItem> = [
     {
       id: 'refresh',
       label: '刷新',
       action: onRefresh,
+    },
+    {
+      id: isPinned ? 'unpin' : 'pin',
+      label: isPinned ? '取消置顶' : '置顶',
+      action: isPinned ? onUnpin : onPin,
     },
     {
       id: 'rename',
@@ -83,6 +111,19 @@ function getChildNodeMoreMenuItems(
       label: '设置',
       action: onSettings,
     },
+    { id: 'sep-danger', separator: true },
+  ];
+  if (showDeleteFolder) {
+    items.push({
+      id: 'delete-folder',
+      label: '删除目录',
+      danger: true as const,
+      hasHint: true,
+      hint: '删除此目录及其所有嵌套子目录，同时删除所有CI配置及数据。',
+      action: onDeleteFolder,
+    });
+  }
+  items.push(
     {
       id: 'delete-config',
       label: '删除CI配置',
@@ -100,8 +141,40 @@ function getChildNodeMoreMenuItems(
       label: '删除CI配置及数据',
       danger: true as const,
       action: onDeleteConfigAndData,
-    },
-  ];
+    }
+  );
+  if (
+    showDeleteFolder &&
+    onDeleteConfigRecursive &&
+    onDeleteDataRecursive &&
+    onDeleteConfigAndDataRecursive
+  ) {
+    items.push({ id: 'sep-recursive', separator: true });
+    items.push({
+      id: 'delete-config-recursive',
+      label: '删除CI配置[嵌套]',
+      danger: true as const,
+      hasHint: true,
+      hint: '递归删除此目录及其所有嵌套子目录的CI配置。',
+      action: onDeleteConfigRecursive,
+    });
+    items.push({
+      id: 'delete-data-recursive',
+      label: '删除数据[嵌套]',
+      danger: true as const,
+      hasHint: true,
+      hint: '删除此目录及其所有嵌套子目录的CI数据。',
+      action: onDeleteDataRecursive,
+    });
+    items.push({
+      id: 'delete-config-and-data-recursive',
+      label: '删除CI配置及数据[嵌套]',
+      danger: true as const,
+      hasHint: true,
+      hint: '递归删除此目录及其所有嵌套子目录的CI配置及数据。',
+      action: onDeleteConfigAndDataRecursive,
+    });
+  }
   return items;
 }
 
@@ -128,11 +201,31 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
   const menuId = `github-entry-menu-${node.path}`;
   const count = node.children.length;
 
-  const { gitHubDeleteFolderConfig, gitHubRenameFolder, clearCiState } = useAppStore(
+  const {
+    gitHubDeleteFolderConfig,
+    gitHubDeleteFolderConfigRecursive,
+    gitHubDeleteFolderDataRecursive,
+    gitHubDeleteFolderConfigAndDataRecursive,
+    gitHubRenameFolder,
+    gitHubDeleteFolder,
+    gitHubPinFolder,
+    gitHubUnpinFolder,
+    gitHubCiFolders,
+    clearCiState,
+    hideWorkspaceFromRightPanels,
+  } = useAppStore(
     useShallow((s) => ({
       gitHubDeleteFolderConfig: s.gitHubDeleteFolderConfig,
+      gitHubDeleteFolderConfigRecursive: s.gitHubDeleteFolderConfigRecursive,
+      gitHubDeleteFolderDataRecursive: s.gitHubDeleteFolderDataRecursive,
+      gitHubDeleteFolderConfigAndDataRecursive: s.gitHubDeleteFolderConfigAndDataRecursive,
       gitHubRenameFolder: s.gitHubRenameFolder,
+      gitHubDeleteFolder: s.gitHubDeleteFolder,
+      gitHubPinFolder: s.gitHubPinFolder,
+      gitHubUnpinFolder: s.gitHubUnpinFolder,
+      gitHubCiFolders: s.gitHubCiFolders,
       clearCiState: s.clearCiState,
+      hideWorkspaceFromRightPanels: s.hideWorkspaceFromRightPanels,
     }))
   );
 
@@ -212,15 +305,37 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
     return () => window.removeEventListener('mousedown', handler);
   }, [childMenuState]);
 
+  const folderId = node.path.replace('github-folder:', '');
+  const workspaceId =
+    node.workspaceId ||
+    (node.nodeType === 'workspace' ? node.path.replace('github-workspace:', '') : undefined);
+  const isPinned =
+    node.nodeType === 'folder'
+      ? gitHubCiFolders.find((f) => f.id === folderId)?.pinnedOrder !== undefined
+      : false;
+  const isWorkspaceRoot = categoryType === 'ci-workspace' && node.nodeType === 'workspace';
+  const isUserFolderRoot =
+    categoryType === 'user-folder' && node.nodeType === 'folder' && !node.workspaceId;
+  const isNestedFolder = node.nodeType === 'folder' && node.workspaceId;
+
   const menuItems = (() => {
-    const items: Array<{ id: string; label: string; danger?: boolean; action: () => void }> = [];
+    const items: Array<{
+      id: string;
+      label?: string;
+      danger?: boolean;
+      action?: () => void;
+      hasHint?: boolean;
+      hint?: string;
+      separator?: boolean;
+    }> = [];
 
     // 刷新 - 所有节点都有
-    if (node.workspaceId) {
+    if (node.workspaceId || isWorkspaceRoot) {
+      const wsId = node.workspaceId || workspaceId;
       items.push({
         id: 'refresh',
         label: '刷新',
-        action: () => callbacks.onRefreshWorkspace(node.workspaceId!),
+        action: () => (wsId ? callbacks.onRefreshWorkspace(wsId) : clearCiState()),
       });
     } else if (node.nodeType === 'folder') {
       items.push({
@@ -230,10 +345,34 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
       });
     }
 
+    // 置顶/取消置顶 - 所有目录都有（工作区顶级目录、嵌套子目录、非工作区目录）
+    if (node.nodeType === 'folder' || isWorkspaceRoot) {
+      if (node.nodeType === 'folder') {
+        if (isPinned) {
+          items.push({
+            id: 'unpin',
+            label: '取消置顶',
+            action: () => gitHubUnpinFolder(folderId),
+          });
+        } else {
+          items.push({
+            id: 'pin',
+            label: '置顶',
+            action: () => gitHubPinFolder(folderId),
+          });
+        }
+      } else if (isWorkspaceRoot) {
+        items.push({
+          id: 'pin-workspace',
+          label: '置顶',
+          action: () => {},
+        });
+      }
+    }
+
     // 重命名 - 工作区目录的顶级目录没有重命名
     if (!(categoryType === 'ci-workspace' && node.nodeType === 'workspace')) {
       if (node.nodeType === 'folder') {
-        const folderId = node.path.replace('github-folder:', '');
         items.push({
           id: 'rename',
           label: '重命名',
@@ -250,11 +389,43 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
         action: () => callbacks.onOpenSettings(node.workspaceId!),
       });
     } else if (node.nodeType === 'folder') {
-      const folderId = node.path.replace('github-folder:', '');
       items.push({
         id: 'settings',
         label: '设置',
         action: () => callbacks.onOpenFolderSettings(folderId),
+      });
+    }
+
+    // 从此区域移除不显示 - 工作区目录的顶级目录
+    if (node.nodeType === 'workspace') {
+      items.push({
+        id: 'hide-from-area',
+        label: '从此区域移除不显示',
+        hasHint: true,
+        hint: '将此工作区从工作区目录分类中移除，嵌套的子目录也将一并移除。不会删除任何数据，可在左侧边栏中恢复显示。',
+        action: () => {
+          if (workspaceId) {
+            hideWorkspaceFromRightPanels(workspaceId);
+          }
+        },
+      });
+    }
+
+    // 分割线 - 白色字体功能选项与红色字体功能选项之间
+    items.push({ id: 'sep-danger', separator: true });
+
+    // 删除目录 - 工作区目录的嵌套子目录和非工作区目录的所有目录
+    if (isNestedFolder || isUserFolderRoot) {
+      items.push({
+        id: 'delete-folder',
+        label: '删除目录',
+        danger: true as const,
+        hasHint: true,
+        hint: '删除此目录及其所有嵌套子目录，同时删除所有CI配置及数据。',
+        action: () => {
+          gitHubDeleteFolder(folderId);
+          clearCiState();
+        },
       });
     }
 
@@ -267,7 +438,6 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
         action: () => callbacks.onDeleteWorkspaceConfig(node.workspaceId!),
       });
     } else if (node.nodeType === 'folder') {
-      const folderId = node.path.replace('github-folder:', '');
       items.push({
         id: 'delete-config',
         label: '删除CI配置',
@@ -298,7 +468,6 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
         },
       });
     } else if (node.nodeType === 'folder') {
-      const folderId = node.path.replace('github-folder:', '');
       items.push({
         id: 'delete-config-and-data',
         label: '删除CI配置及数据',
@@ -306,6 +475,41 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
         action: () => {
           gitHubDeleteFolderConfig(folderId);
           clearCiState();
+        },
+      });
+    }
+
+    // 递归删除 - 工作区目录和非工作区目录的所有目录
+    if (isNestedFolder || isUserFolderRoot || node.nodeType === 'workspace') {
+      items.push({ id: 'sep-recursive', separator: true });
+      items.push({
+        id: 'delete-config-recursive',
+        label: '删除CI配置[嵌套]',
+        danger: true as const,
+        hasHint: true,
+        hint: '递归删除此目录及其所有嵌套子目录的CI配置。',
+        action: () => {
+          gitHubDeleteFolderConfigRecursive(folderId);
+        },
+      });
+      items.push({
+        id: 'delete-data-recursive',
+        label: '删除数据[嵌套]',
+        danger: true as const,
+        hasHint: true,
+        hint: '删除此目录及其所有嵌套子目录的CI数据。',
+        action: () => {
+          gitHubDeleteFolderDataRecursive(folderId);
+        },
+      });
+      items.push({
+        id: 'delete-config-and-data-recursive',
+        label: '删除CI配置及数据[嵌套]',
+        danger: true as const,
+        hasHint: true,
+        hint: '递归删除此目录及其所有嵌套子目录的CI配置及数据。',
+        action: () => {
+          gitHubDeleteFolderConfigAndDataRecursive(folderId);
         },
       });
     }
@@ -432,6 +636,19 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
       const childFolderId = childNode.path.startsWith('github-folder:')
         ? childNode.path.slice('github-folder:'.length)
         : '';
+      const childIsPinned =
+        gitHubCiFolders.find((f) => f.id === childFolderId)?.pinnedOrder !== undefined;
+      // 工作区目录的嵌套子目录
+      const isWorkspaceChild = childNode.nodeType === 'folder' && !!node.workspaceId;
+      // 非工作区目录的嵌套子目录（路径中包含 / 表示是嵌套的）
+      const isUserFolderChild =
+        childNode.nodeType === 'folder' && !node.workspaceId && childNode.path.includes('/');
+      // 非工作区目录的顶级目录（路径中没有 /）
+      const isUserFolderRoot =
+        childNode.nodeType === 'folder' && !node.workspaceId && !childNode.path.includes('/');
+      // 显示删除目录：工作区嵌套子目录、非工作区嵌套子目录、非工作区顶级目录
+      const showDeleteFolder: boolean = isWorkspaceChild || isUserFolderChild || isUserFolderRoot;
+
       return getChildNodeMoreMenuItems(
         childNode.nodeType,
         childNode.path,
@@ -462,13 +679,33 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
           } else {
             callbacks.onOpenFolderSettings(childFolderId);
           }
+        },
+        () => gitHubPinFolder(childFolderId),
+        () => gitHubUnpinFolder(childFolderId),
+        childIsPinned,
+        () => {
+          gitHubDeleteFolder(childFolderId);
+          clearCiState();
+        },
+        showDeleteFolder,
+        () => gitHubDeleteFolderConfigRecursive(childFolderId),
+        () => {
+          gitHubDeleteFolderDataRecursive(childFolderId);
+        },
+        () => gitHubDeleteFolderConfigAndDataRecursive(childFolderId)
+      ).map((item: ChildMenuItem) => {
+        if ('separator' in item) {
+          return { id: item.id, separator: true as const };
         }
-      ).map((item) => ({
-        id: item.id,
-        label: item.label,
-        danger: item.danger,
-        action: () => item.action(),
-      }));
+        return {
+          id: item.id,
+          label: item.label,
+          danger: item.danger,
+          action: () => item.action(),
+          hasHint: item.hasHint,
+          hint: item.hint,
+        };
+      });
     },
     [
       categoryType,
@@ -477,6 +714,13 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
       callbacks,
       node.workspaceId,
       gitHubDeleteFolderConfig,
+      gitHubDeleteFolderConfigRecursive,
+      gitHubDeleteFolderDataRecursive,
+      gitHubDeleteFolderConfigAndDataRecursive,
+      gitHubCiFolders,
+      gitHubPinFolder,
+      gitHubUnpinFolder,
+      gitHubDeleteFolder,
     ]
   );
 
@@ -612,17 +856,33 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
                 zIndex: 9999,
               }}
             >
-              {menuItems.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  className={`adl-multitree-entry__menu-item${item.danger ? ' is-danger' : ''}`}
-                  role="menuitem"
-                  onClick={() => handleMenuClick(item.action)}
-                >
-                  {item.label}
-                </button>
-              ))}
+              {menuItems.map((item) => {
+                if (item.separator) {
+                  return (
+                    <div key={item.id} className="adl-multitree-entry__menu-sep" role="separator" />
+                  );
+                }
+                return item.hasHint && item.hint ? (
+                  <MenuHintItem
+                    key={item.id}
+                    label={item.label!}
+                    hint={item.hint}
+                    onClick={() => handleMenuClick(item.action!)}
+                    menuId={menuId}
+                    danger={item.danger}
+                  />
+                ) : (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className={`adl-multitree-entry__menu-item${item.danger ? ' is-danger' : ''}`}
+                    role="menuitem"
+                    onClick={() => handleMenuClick(item.action!)}
+                  >
+                    {item.label!}
+                  </button>
+                );
+              })}
             </div>,
             document.body
           )
@@ -670,6 +930,24 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
                 const childFolderId = childMenuState.nodePath.startsWith('github-folder:')
                   ? childMenuState.nodePath.slice('github-folder:'.length)
                   : '';
+                const childIsPinned =
+                  gitHubCiFolders.find((f) => f.id === childFolderId)?.pinnedOrder !== undefined;
+                // 工作区目录的嵌套子目录
+                const isWorkspaceChild = childMenuState.nodeType === 'folder' && !!node.workspaceId;
+                // 非工作区目录的嵌套子目录（路径中包含 / 表示是嵌套的）
+                const isUserFolderChild =
+                  childMenuState.nodeType === 'folder' &&
+                  !node.workspaceId &&
+                  childMenuState.nodePath.includes('/');
+                // 非工作区目录的顶级目录（路径中没有 /）
+                const isUserFolderRoot =
+                  childMenuState.nodeType === 'folder' &&
+                  !node.workspaceId &&
+                  !childMenuState.nodePath.includes('/');
+                // 显示删除目录：工作区嵌套子目录、非工作区嵌套子目录、非工作区顶级目录
+                const showDeleteFolder: boolean =
+                  isWorkspaceChild || isUserFolderChild || isUserFolderRoot;
+
                 return getChildNodeMoreMenuItems(
                   childMenuState.nodeType,
                   childMenuState.nodePath,
@@ -700,19 +978,48 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
                     } else {
                       callbacks.onOpenFolderSettings(childFolderId);
                     }
-                  }
+                  },
+                  () => gitHubPinFolder(childFolderId),
+                  () => gitHubUnpinFolder(childFolderId),
+                  childIsPinned,
+                  () => {
+                    gitHubDeleteFolder(childFolderId);
+                    clearCiState();
+                  },
+                  showDeleteFolder,
+                  () => gitHubDeleteFolderConfigRecursive(childFolderId),
+                  () => {
+                    gitHubDeleteFolderDataRecursive(childFolderId);
+                  },
+                  () => gitHubDeleteFolderConfigAndDataRecursive(childFolderId)
                 );
-              })().map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  className={`adl-multitree-entry__menu-item${item.danger ? ' is-danger' : ''}`}
-                  role="menuitem"
-                  onClick={() => handleChildMenuClick(item.action)}
-                >
-                  {item.label}
-                </button>
-              ))}
+              })().map((item) => {
+                if ('separator' in item) {
+                  return (
+                    <div key={item.id} className="adl-multitree-entry__menu-sep" role="separator" />
+                  );
+                }
+                return item.hasHint && item.hint ? (
+                  <MenuHintItem
+                    key={item.id}
+                    label={item.label}
+                    hint={item.hint}
+                    onClick={() => handleChildMenuClick(item.action)}
+                    menuId="github-child-menu"
+                    danger={item.danger}
+                  />
+                ) : (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className={`adl-multitree-entry__menu-item${item.danger ? ' is-danger' : ''}`}
+                    role="menuitem"
+                    onClick={() => handleChildMenuClick(item.action)}
+                  >
+                    {item.label}
+                  </button>
+                );
+              })}
             </div>,
             document.body
           )

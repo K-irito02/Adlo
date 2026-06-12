@@ -14,6 +14,8 @@ export type FileTreeContextMenuItem<T extends FileTreeRenderableNode> =
       icon?: React.ReactNode;
       disabled?: boolean;
       danger?: boolean;
+      hasHint?: boolean;
+      hint?: string;
       separator?: true;
       action?: (node: T, multiSelectedNodes: T[]) => void;
     }
@@ -23,6 +25,8 @@ export type FileTreeContextMenuItem<T extends FileTreeRenderableNode> =
       icon?: React.ReactNode;
       disabled?: boolean;
       danger?: boolean;
+      hasHint?: boolean;
+      hint?: string;
       separator?: false;
       action?: (node: T, multiSelectedNodes: T[]) => void;
     };

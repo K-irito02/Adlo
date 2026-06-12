@@ -262,6 +262,16 @@
   color: var(--text-primary);
 }
 
+/* Danger variant for hint icon - red text with separate background */
+.adl-menu-item__hint.is-danger {
+  color: var(--danger);
+}
+
+.adl-menu-item__hint.is-danger:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
 /* 自定义子卡片 - 独立 position:fixed 内容卡（无左侧边框，由箭头衔接） */
 .adl-sub-hint-card {
   position: fixed;

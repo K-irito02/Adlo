@@ -31,6 +31,8 @@ export interface GitHubCiFolderState {
   parentType?: 'workspace' | 'folder';
   /** Optional CI configuration for this folder */
   ciConfig?: GitWorkspaceCiConfig;
+  /** Pin order within siblings (smaller number = higher priority, undefined = not pinned) */
+  pinnedOrder?: number;
 }
 
 /** GitHub tree node types */
@@ -70,6 +72,8 @@ export interface GitHubSlice {
   selectedGitHubTreePath: string | null;
   /** Active CI workspace ID (which workspace's CI is shown) */
   activeCiWorkspaceId: string | null;
+  /** Active CI folder ID (which folder's CI data is currently loaded) */
+  activeCiFolderId: string | null;
   /** Active sub-section within the selected workspace */
   activeWorkspaceSection: 'overview' | 'workflows' | 'jobs' | 'logs' | 'help';
   /** User-created CI folders (non-workspace directories with CI sub-entries) */
@@ -95,6 +99,7 @@ export interface GitHubSlice {
   collapseAllGitHubTree: () => void;
   setSelectedGitHubTreePath: (path: string | null) => void;
   setActiveCiWorkspaceId: (workspaceId: string | null) => void;
+  setActiveCiFolderId: (folderId: string | null) => void;
   setActiveWorkspaceSection: (section: 'overview' | 'workflows' | 'jobs' | 'logs') => void;
   refreshCiStatusForWorkspace: (workspaceId: string) => Promise<void>;
   gitHubCreateFolder: (parentId?: string, parentType?: 'workspace' | 'folder') => void;
@@ -108,12 +113,17 @@ export interface GitHubSlice {
     accessToken?: string
   ) => void;
   gitHubDeleteFolderConfig: (folderId: string) => void;
+  gitHubDeleteFolderConfigRecursive: (folderId: string) => void;
+  gitHubDeleteFolderDataRecursive: (folderId: string) => void;
+  gitHubDeleteFolderConfigAndDataRecursive: (folderId: string) => void;
   clearAllFolderConfigs: () => void;
   clearAllFolders: () => void;
   clearAllCiData: () => void;
   clearAllCiConfigs: () => void;
   clearAllCiConfigsAndData: () => void;
   resetAllToOriginal: () => void;
+  gitHubPinFolder: (folderId: string) => void;
+  gitHubUnpinFolder: (folderId: string) => void;
 }
 
 function getBridge(): DigitalLifeBridge | null {
@@ -231,16 +241,14 @@ export const createGitHubSlice = (
   _get: () => StoreState
 ): GitHubSlice => {
   if (typeof window !== 'undefined') {
-    void hydrateGitHubDefaults().then(
-      ({ config, token, autoRefresh, activeGitHubSection }) => {
-        set({
-          ciConfig: config,
-          ciAccessToken: token,
-          ciAutoRefreshOnPush: autoRefresh,
-          activeGitHubSection,
-        });
-      }
-    );
+    void hydrateGitHubDefaults().then(({ config, token, autoRefresh, activeGitHubSection }) => {
+      set({
+        ciConfig: config,
+        ciAccessToken: token,
+        ciAutoRefreshOnPush: autoRefresh,
+        activeGitHubSection,
+      });
+    });
   }
 
   return {
@@ -263,6 +271,7 @@ export const createGitHubSlice = (
     gitHubAllTreeExpanded: false,
     selectedGitHubTreePath: null,
     activeCiWorkspaceId: null,
+    activeCiFolderId: null,
     activeWorkspaceSection: 'overview',
     gitHubCiFolders: [],
 
@@ -431,7 +440,12 @@ export const createGitHubSlice = (
     },
 
     clearAllGitHubWorkspaceConfigs: () => {
-      set({ gitHubWorkspaceConfigs: {}, activeCiWorkspaceId: null, selectedGitHubTreePath: null });
+      set({
+        gitHubWorkspaceConfigs: {},
+        activeCiWorkspaceId: null,
+        activeCiFolderId: null,
+        selectedGitHubTreePath: null,
+      });
     },
 
     setGitHubTreeExpanded: (expanded) => set({ gitHubTreeExpanded: expanded }),
@@ -463,6 +477,8 @@ export const createGitHubSlice = (
     setSelectedGitHubTreePath: (path) => set({ selectedGitHubTreePath: path }),
 
     setActiveCiWorkspaceId: (workspaceId) => set({ activeCiWorkspaceId: workspaceId }),
+
+    setActiveCiFolderId: (folderId) => set({ activeCiFolderId: folderId }),
 
     setActiveWorkspaceSection: (section) => set({ activeWorkspaceSection: section }),
 
@@ -540,6 +556,137 @@ export const createGitHubSlice = (
       }));
     },
 
+    gitHubDeleteFolderConfigRecursive: (folderId) => {
+      set((state) => {
+        const idsToDelete = new Set<string>([folderId]);
+        const findDescendants = (parentId: string) => {
+          for (const f of state.gitHubCiFolders) {
+            if (f.parentId === parentId && !idsToDelete.has(f.id)) {
+              idsToDelete.add(f.id);
+              findDescendants(f.id);
+            }
+          }
+        };
+        findDescendants(folderId);
+        return {
+          gitHubCiFolders: state.gitHubCiFolders.map((f) =>
+            idsToDelete.has(f.id) ? { ...f, ciConfig: undefined } : f
+          ),
+        };
+      });
+    },
+
+    gitHubDeleteFolderDataRecursive: (folderId) => {
+      set((state) => {
+        const idsToDelete = new Set<string>([folderId]);
+        const findDescendants = (parentId: string) => {
+          for (const f of state.gitHubCiFolders) {
+            if (f.parentId === parentId && !idsToDelete.has(f.id)) {
+              idsToDelete.add(f.id);
+              findDescendants(f.id);
+            }
+          }
+        };
+        findDescendants(folderId);
+        const affectedWorkspaceIds = new Set<string>();
+        for (const id of idsToDelete) {
+          let currentId: string | null = id;
+          while (currentId) {
+            const folder = state.gitHubCiFolders.find((f) => f.id === currentId);
+            if (!folder) {
+              break;
+            }
+            if (folder.parentType === 'workspace') {
+              if (folder.parentId) {
+                affectedWorkspaceIds.add(folder.parentId);
+              }
+              break;
+            }
+            currentId = folder.parentId ?? null;
+          }
+        }
+        const shouldClear =
+          affectedWorkspaceIds.size === 0 ||
+          (state.activeCiWorkspaceId != null &&
+            affectedWorkspaceIds.has(state.activeCiWorkspaceId));
+        if (shouldClear) {
+          return { ciSnapshot: null, ciJobs: [], ciError: null };
+        }
+        return state;
+      });
+    },
+
+    gitHubDeleteFolderConfigAndDataRecursive: (folderId) => {
+      set((state) => {
+        const idsToDelete = new Set<string>([folderId]);
+        const findDescendants = (parentId: string) => {
+          for (const f of state.gitHubCiFolders) {
+            if (f.parentId === parentId && !idsToDelete.has(f.id)) {
+              idsToDelete.add(f.id);
+              findDescendants(f.id);
+            }
+          }
+        };
+        findDescendants(folderId);
+        const affectedWorkspaceIds = new Set<string>();
+        for (const id of idsToDelete) {
+          let currentId: string | null = id;
+          while (currentId) {
+            const folder = state.gitHubCiFolders.find((f) => f.id === currentId);
+            if (!folder) {
+              break;
+            }
+            if (folder.parentType === 'workspace') {
+              if (folder.parentId) {
+                affectedWorkspaceIds.add(folder.parentId);
+              }
+              break;
+            }
+            currentId = folder.parentId ?? null;
+          }
+        }
+        const shouldClear =
+          affectedWorkspaceIds.size === 0 ||
+          (state.activeCiWorkspaceId != null &&
+            affectedWorkspaceIds.has(state.activeCiWorkspaceId));
+        return {
+          gitHubCiFolders: state.gitHubCiFolders.map((f) =>
+            idsToDelete.has(f.id) ? { ...f, ciConfig: undefined } : f
+          ),
+          ...(shouldClear ? { ciSnapshot: null, ciJobs: [], ciError: null } : {}),
+        };
+      });
+    },
+
+    gitHubPinFolder: (folderId) => {
+      set((state) => {
+        const folder = state.gitHubCiFolders.find((f) => f.id === folderId);
+        if (!folder) {
+          return state;
+        }
+        const siblings = state.gitHubCiFolders.filter(
+          (f) => f.parentId === folder.parentId && f.parentType === folder.parentType
+        );
+        const maxPinnedOrder = Math.max(
+          ...siblings.filter((s) => s.pinnedOrder !== undefined).map((s) => s.pinnedOrder!),
+          0
+        );
+        return {
+          gitHubCiFolders: state.gitHubCiFolders.map((f) =>
+            f.id === folderId ? { ...f, pinnedOrder: maxPinnedOrder + 1 } : f
+          ),
+        };
+      });
+    },
+
+    gitHubUnpinFolder: (folderId) => {
+      set((state) => ({
+        gitHubCiFolders: state.gitHubCiFolders.map((f) =>
+          f.id === folderId ? { ...f, pinnedOrder: undefined } : f
+        ),
+      }));
+    },
+
     clearAllFolderConfigs: () => {
       set((state) => ({
         gitHubCiFolders: state.gitHubCiFolders.map((f) => ({ ...f, ciConfig: undefined })),
@@ -588,6 +735,7 @@ export const createGitHubSlice = (
         ciJobs: [],
         ciError: null,
         activeCiWorkspaceId: null,
+        activeCiFolderId: null,
         selectedGitHubTreePath: null,
         gitHubTreeExpanded: {},
       });

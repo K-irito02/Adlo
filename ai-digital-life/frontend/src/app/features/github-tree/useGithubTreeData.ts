@@ -24,12 +24,23 @@ function buildSubEntryNodes(prefix: string, wsId: string | undefined): GitHubTre
   }));
 }
 
+function sortFoldersByPinOrder(folders: GitHubCiFolderState[]): GitHubCiFolderState[] {
+  return [...folders].sort((a, b) => {
+    const aPinned = a.pinnedOrder !== undefined;
+    const bPinned = b.pinnedOrder !== undefined;
+    if (aPinned && !bPinned) return -1;
+    if (!aPinned && bPinned) return 1;
+    if (aPinned && bPinned) return (a.pinnedOrder || 0) - (b.pinnedOrder || 0);
+    return a.createdAt - b.createdAt;
+  });
+}
+
 function buildCiFolderNode(
   folder: GitHubCiFolderState,
   allFolders: GitHubCiFolderState[]
 ): GitHubTreeNode {
-  const childFolders = allFolders.filter(
-    (f) => f.parentId === folder.id && (!f.parentType || f.parentType === 'folder')
+  const childFolders = sortFoldersByPinOrder(
+    allFolders.filter((f) => f.parentId === folder.id && (!f.parentType || f.parentType === 'folder'))
   );
   const folderChildren = childFolders.map((child) => buildCiFolderNode(child, allFolders));
 
@@ -43,7 +54,9 @@ function buildCiFolderNode(
 }
 
 function buildRootUserFolderNodes(folders: GitHubCiFolderState[]): GitHubTreeNode[] {
-  const rootFolders = folders.filter((f) => !f.parentId && f.parentType !== 'workspace');
+  const rootFolders = sortFoldersByPinOrder(
+    folders.filter((f) => !f.parentId && f.parentType !== 'workspace')
+  );
   return rootFolders.map((folder) => buildCiFolderNode(folder, folders));
 }
 
@@ -51,7 +64,9 @@ function buildWorkspaceChildFolders(
   wsId: string,
   allFolders: GitHubCiFolderState[]
 ): GitHubTreeNode[] {
-  const wsFolders = allFolders.filter((f) => f.parentType === 'workspace' && f.parentId === wsId);
+  const wsFolders = sortFoldersByPinOrder(
+    allFolders.filter((f) => f.parentType === 'workspace' && f.parentId === wsId)
+  );
   return wsFolders.map((folder) => buildCiFolderNode(folder, allFolders));
 }
 

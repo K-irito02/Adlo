@@ -26,6 +26,7 @@
   text-align: left;
   font-size: var(--text-xs);
   cursor: pointer;
+  position: relative;
 }
 
 .adl-sidebar-menu__item:hover {

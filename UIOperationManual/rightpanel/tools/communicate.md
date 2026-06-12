@@ -81,12 +81,61 @@
 | 顶级条目 | `.adl-browser-entry__header` | 工作区或用户目录标题行（文档图标 + 名称 + 计数） |
 | 展开按钮 | `.adl-browser-entry__expand-btn` | 点击展开/折叠子条目，IconFolder/IconFolderOpen |
 | 计数 | `.adl-browser-entry__count` | 子条目数量 |
-| 操作按钮 | `.adl-browser-entry__actions` | 顶级目录悬停出现：IconTrash（删除CI配置及数据）+ IconSettings（设置） |
+| 操作按钮 | `.adl-browser-entry__actions` | 顶级目录悬停出现：IconRefresh + IconSettings + IconMoreVertical |
 | 子条目区 | `.adl-browser-entry__tree` | 使用 FileTree 组件渲染 |
 | 子条目行 | `.adl-filetree__row` | 含连接线（CSS 伪元素 `::before`，通过 `--adl-trunk-height` 变量溢出实现动态高度） |
 | 子条目文件图标 | `.adl-github-entry__icon` | Overview/Workflows/Jobs/Logs 的自定义 SVG |
 | 子条目文件夹菜单 | `.adl-browser-node__actions` | 嵌套目录悬停出现，按钮顺序同上 |
-| 子条目右键菜单 | `.adl-multitree-entry__menu` | 右键菜单：删除CI配置及数据 + 重命名 |
+| 更多操作菜单 | `.adl-multitree-entry__menu` | 点击 IconMoreVertical 或右键触发的弹出菜单 |
+
+### 目录分类与菜单可见性
+
+| 目录类型 | 判断条件 | `删除目录` | 递归选项 | `从此区域移除不显示` |
+|----------|----------|-----------|---------|-------------------|
+| 工作区顶级目录 | `nodeType === 'workspace'` | ❌ | ✅ | ✅ |
+| 工作区嵌套子目录 | `isNestedFolder` | ✅ | ✅ | ❌ |
+| 非工作区顶级目录 | `isUserFolderRoot` | ✅ | ✅ | ❌ |
+| 非工作区嵌套子目录 | `isUserFolderChild` | ✅ | ✅ | ❌ |
+
+### 菜单项分组与顺序
+
+所有目录的菜单统一按以下分组排列（不显示的项跳过）：
+
+```
+─── 白色字体功能选项 ───
+刷新
+置顶 / 取消置顶
+重命名
+设置
+从此区域移除不显示     ← 仅工作区顶级目录
+──────────────────    ← 分割线
+─── 红色字体功能选项 ───
+删除目录 (!)          ← 递归删除目录及所有数据
+删除CI配置
+删除数据
+删除CI配置及数据
+──────────────────    ← 分割线
+删除CI配置[嵌套] (!)  ← 递归删除嵌套子目录的CI配置
+删除数据[嵌套] (!)    ← 递归删除嵌套子目录的CI数据
+删除CI配置及数据[嵌套] (!)  ← 递归删除嵌套子目录的CI配置及数据
+```
+
+#### 菜单项说明
+
+| 菜单项 | 危险色 | "!" 提示 | 说明 |
+|--------|--------|---------|------|
+| 刷新 | ❌ | ❌ | 重新加载 CI 状态 |
+| 置顶/取消置顶 | ❌ | ❌ | 在目录列表中置顶显示 |
+| 重命名 | ❌ | ❌ | 启动 RenameDialog 修改目录名 |
+| 设置 | ❌ | ❌ | 打开 CI 配置或目录设置 |
+| 从此区域移除不显示 | ❌ | ✅ | 从工作区目录分类中移除（可左侧边栏恢复） |
+| 删除目录 | ✅ | ✅ | 删除此目录及所有嵌套子目录，同时删除所有CI配置及数据 |
+| 删除CI配置 | ✅ | ❌ | 删除当前目录的CI配置 |
+| 删除数据 | ✅ | ❌ | 清除所有CI数据（快照/任务/错误） |
+| 删除CI配置及数据 | ✅ | ❌ | 删除当前目录CI配置并清除所有CI数据 |
+| 删除CI配置[嵌套] | ✅ | ✅ | 递归删除此目录及所有嵌套子目录的CI配置 |
+| 删除数据[嵌套] | ✅ | ✅ | 删除此目录及所有嵌套子目录的CI数据 |
+| 删除CI配置及数据[嵌套] | ✅ | ✅ | 递归删除此目录及所有嵌套子目录的CI配置及数据 |
 
 ### 交互规则
 
@@ -97,10 +146,9 @@
 | 点击子文件（Overview 等） | 选中 + 右侧内容区切换对应视图 |
 | 悬停顶级目录 | 计数渐隐 → 操作按钮渐显 |
 | 悬停子目录 | 计数渐隐 → 操作按钮在 `.adl-filetree__meta` 中渐显 |
-| 点击顶级目录「设置」 | 打开 CI 配置对话框（Owner/Repo/Branch/Token） |
-| 点击子目录「设置」 | 工作区子目录 → 打开 CI 配置对话框；用户目录子目录 → 打开 RenameDialog |
-| 点击「删除CI配置及数据」 | 删除目录及其关联数据 |
-| 右键菜单 | 删除CI配置及数据（危险项）+ 重命名（启动 RenameDialog） |
+| 点击「更多操作」按钮 | 在按钮位置弹出下拉菜单（`.adl-multitree-entry__menu`） |
+| 右键点击条目 | 在鼠标位置弹出右键菜单（`.adl-sidebar-menu`） |
+| 点击菜单外区域 | 关闭菜单 |
 
 ### 删除全部菜单
 
@@ -111,10 +159,14 @@
 | 垃圾桶按钮 | `.adl-surface-toolbar__btn` 含 `IconTrash` | 顶部工具栏 |
 | 弹出菜单 | `[data-menu-id="github-delete-all-menu"]` | `position: fixed` 下拉菜单 |
 | 菜单项 | `.adl-multitree-entry__menu-item` | 包含标签 + "!" 提示按钮 |
+| 危险菜单项 | `.adl-multitree-entry__menu-item.is-danger` | 红色文字 + 红色悬停背景 |
 | 提示按钮 | `.adl-menu-item__hint` | 菜单项最右侧的 "!" 图标 |
+| 危险提示按钮 | `.adl-menu-item__hint.is-danger` | 红色文字（背景保持独立不融合） |
 | 子卡片 | `.adl-sub-hint-card` | "!" 悬停时显示的提示子卡片（`position: fixed`） |
 | 子卡片箭头 | `.adl-sub-hint-card__arrow` | 独立的 `position: fixed` 指向左侧箭头 |
 | 子卡片箭头边框 | `.adl-sub-hint-card__arrow-border` | 箭头外轮廓 |
+| 分割线 | `.adl-multitree-entry__menu-sep` | 白色选项与危险选项之间的分隔线 |
+| 右键菜单分割线 | `.adl-sidebar-menu__sep` | ContextMenu 组件的分割线 |
 
 **子卡片定位逻辑：** 三个独立的 `position: fixed` 元素（卡片 + 箭头填充 + 箭头边框），通过 JS 计算菜单右边缘和按钮中心坐标后精确放置。
 
@@ -128,10 +180,44 @@
 |----------|----------|------|
 | 菜单文字区 | 仅文字区灰色背景，`!` 区域保持卡片背景色 | `!` 的 `background: var(--bg-card)` 遮住父级 hover |
 | `!` 符号本身 | `!` 区域灰色背景 + 高亮文字 | 直接悬停 `!` 触发子卡片显示 |
+| 危险项 `!` 符号 | 红色文字 + 浅红悬停背景 | 通过 `.adl-menu-item__hint.is-danger` 实现 |
 
-### 按钮顺序
+### 分隔线分组
 
-所有目录的操作按钮顺序固定为：**IconTrash（删除CI配置及数据）→ IconSettings（设置）**
+菜单项分为两组，使用分割线分隔：
+
+| 分组 | 颜色 | 包含 |
+|------|------|------|
+| 白色选项 | 默认文字色 | 刷新 / 置顶 / 重命名 / 设置 / 从此区域移除不显示 |
+| 红色选项 | `var(--danger)` | 删除目录 / 删除CI配置(及数据) / 递归删除项 |
+
+分割线在两个分组之间和递归选项之前：
+- `sep-danger`：白色选项与红色选项之间
+- `sep-recursive`：普通删除项与递归删除项之间
+
+### 组件架构
+
+| 组件 | 文件 | 职责 |
+|------|------|------|
+| `GitHubTreeEntry` | `features/github-tree/GitHubTreeEntry.tsx` | 树条目头部菜单 + 子节点菜单 |
+| `MenuHintItem` | `regions/right-panel/panels/communicate/MenuHintItem.tsx` | "!" 提示按钮组件 |
+| `ContextMenu` | `components/ContextMenu.tsx` | 通用右键菜单（支持 hint 和 danger） |
+| `FileTree` | `features/file-tree/fileTree.tsx` | 子节点树渲染 + 右键菜单触发 |
+| `GitHubTree` | `features/github-tree/GitHubTree.tsx` | 树容器，渲染两个分类区 |
+| `GitHubCategorySection` | `features/github-tree/GitHubCategorySection.tsx` | 分类区包装器 |
+| `GitHubPanel` | `regions/right-panel/panels/communicate/GitHubPanel.tsx` | GitHub 子面板主组件 |
+| `githubSlice` | `stores/slices/githubSlice.ts` | GitHub CI 状态 + 目录管理 |
+
+### Store Actions
+
+| Action | 说明 |
+|--------|------|
+| `gitHubDeleteFolder(id)` | 删除目录及其所有嵌套子目录 |
+| `gitHubDeleteFolderConfig(id)` | 删除单个目录的CI配置 |
+| `gitHubDeleteFolderConfigRecursive(id)` | 递归删除目录及所有嵌套子目录的CI配置 |
+| `gitHubDeleteFolderDataRecursive(id)` | 清除所有CI数据 |
+| `gitHubDeleteFolderConfigAndDataRecursive(id)` | 递归删除CI配置及数据 |
+| `hideWorkspaceFromRightPanels(id)` | 从工作区目录隐藏工作区（可恢复） |
 
 ## 注意事项
 
@@ -141,3 +227,7 @@
 4. **图标规范**：所有图标使用 SVG 格式，禁止 emoji
 5. **重命名规范**：禁止使用 `window.prompt`，必须使用 `RenameDialog` 组件
 6. **FileTree 集成**：子条目必须通过 FileTree 渲染以获取连接线，禁止递归自渲染
+7. **危险项 "!" 提示**：所有 `danger: true` 的菜单项若有 `hasHint`，必须使用 `MenuHintItem`（头部/更多操作菜单）或在 `ContextMenu` 中渲染 hint 图标（右键菜单）
+8. **分割线规范**：白色选项与红色选项之间必须使用 `sep-danger` 分割线；递归选项之前使用 `sep-recursive` 分割线
+9. **双端一致性**："更多操作"按钮菜单与右键菜单的选项必须完全一致（选项内容、顺序、分组、提示）
+10. **递归删除**：`[嵌套]` 后缀的选项会递归操作所有嵌套子目录，通过 `gitHubCiFolders` 的 `parentId` 链遍历后代

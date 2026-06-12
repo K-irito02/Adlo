@@ -11,7 +11,7 @@
 | [浏览器](./浏览器/) | 内置浏览器实现、空标签引导页、树形目录交互等经验 | 8 |
 | [代码质量](./代码质量/) | 全量代码质量检测与修复经验 | 10 |
 | [浏览器自动化](./浏览器自动化/) | 浏览器自动化调试记录与规则经验 | 2 |
-| [交互优化](./交互优化/) | 跨功能面板的交互/UX 问题修复经验 | 6 |
+| [交互优化](./交互优化/) | 跨功能面板的交互/UX 问题修复经验 | 8 |
 | [CI 监控](./CI监控/) | GitHub Actions CI 状态监控模块经验（Token 安全、双端一致性、类型系统、树形目录交互） | 3 |
 
 ## 索引
@@ -95,6 +95,8 @@
 | [hint-card-arrow-positioning-fix-2026-06-11.md](./交互优化/hint-card-arrow-positioning-fix-2026-06-11.md) | 2026-06-11 修复执行 | Hint Card 子卡片箭头定位修复 + 动态 DOM 内存泄漏 + 父级 hover 背景隔离 + "!" 按钮交互优化 |
 | [file-tree-virtualized-connecting-lines-fix-2026-06-11.md](./交互优化/file-tree-virtualized-connecting-lines-fix-2026-06-11.md) | 2026-06-11 修复执行 | 虚拟化文件树垂直连接线与悬停高亮修复（`::before` 溢出、`--adl-tree-indent` 缩进、JS 悬停传播） |
 | [outline-connecting-lines-alignment-fix-2026-06-11.md](./交互优化/outline-connecting-lines-alignment-fix-2026-06-11.md) | 2026-06-11 修复执行 | 大纲树竖线对齐修复（递归树 `::before` 无需 `--adl-tree-indent`、叶子节点隐藏竖线、死代码 `outline-panel.css` 删除） |
+| [github-menu-recursive-delete-and-grouping-2026-06-12.md](./交互优化/github-menu-recursive-delete-and-grouping-2026-06-12.md) | 2026-06-12 菜单重构 | GitHub 面板菜单重构（递归删除、白色/红色分组、分隔线规范、"!" 提示双通道、双菜单一致性） |
+| [github-folder-pin-and-delete-2026-06-12.md](./交互优化/github-folder-pin-and-delete-2026-06-12.md) | 2026-06-12 功能增强 | GitHub 目录置顶/取消置顶功能 + 删除目录功能 + MenuHintItem 动态 menuId 适配 |
 
 ### CI 监控
 

@@ -65,6 +65,7 @@ export function GitHubPanel() {
     collapseAllGitHubTree,
     setSelectedGitHubTreePath,
     setActiveCiWorkspaceId,
+    setActiveCiFolderId,
     setActiveWorkspaceSection,
     setSelectedLogJobId,
     gitHubCiFolders,
@@ -82,6 +83,7 @@ export function GitHubPanel() {
       collapseAllGitHubTree: s.collapseAllGitHubTree,
       setSelectedGitHubTreePath: s.setSelectedGitHubTreePath,
       setActiveCiWorkspaceId: s.setActiveCiWorkspaceId,
+      setActiveCiFolderId: s.setActiveCiFolderId,
       setActiveWorkspaceSection: s.setActiveWorkspaceSection,
       setSelectedLogJobId: s.setSelectedLogJobId,
       gitHubCiFolders: s.gitHubCiFolders,
@@ -136,10 +138,15 @@ export function GitHubPanel() {
         const wsId = parts[1];
         if (wsId) {
           setActiveCiWorkspaceId(wsId);
+          setActiveCiFolderId(null);
         }
+      } else if (path?.startsWith('github-folder:')) {
+        const parts = path.split(':');
+        const folderId = parts[1];
+        setActiveCiFolderId(folderId ?? null);
       }
     },
-    [setSelectedGitHubTreePath, setActiveCiWorkspaceId]
+    [setSelectedGitHubTreePath, setActiveCiWorkspaceId, setActiveCiFolderId]
   );
 
   useEffect(() => {

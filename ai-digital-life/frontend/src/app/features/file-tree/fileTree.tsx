@@ -402,6 +402,7 @@ export function FileTree<T extends FileTreeRenderableNode>({
             disabled: item.disabled,
             danger: item.danger,
             separator: item.separator,
+            hint: item.hint,
             action: item.action
               ? () => {
                   item.action!(contextMenuState.node, contextMenuState.multiSelectedNodes);

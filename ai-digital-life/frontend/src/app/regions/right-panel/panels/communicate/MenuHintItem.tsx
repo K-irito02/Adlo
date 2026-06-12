@@ -4,9 +4,11 @@ interface MenuHintItemProps {
   label: string;
   hint: string;
   onClick: () => void;
+  menuId?: string;
+  danger?: boolean;
 }
 
-export function MenuHintItem({ label, hint, onClick }: MenuHintItemProps) {
+export function MenuHintItem({ label, hint, onClick, menuId, danger }: MenuHintItemProps) {
   const hintRef = useRef<HTMLSpanElement>(null);
   const subCardsRef = useRef<HTMLDivElement[]>([]);
 
@@ -20,14 +22,14 @@ export function MenuHintItem({ label, hint, onClick }: MenuHintItemProps) {
   return (
     <button
       type="button"
-      className="adl-multitree-entry__menu-item"
+      className={`adl-multitree-entry__menu-item${danger ? ' is-danger' : ''}`}
       role="menuitem"
       onClick={onClick}
     >
       <span>{label}</span>
       <span
         ref={hintRef}
-        className="adl-menu-item__hint"
+        className={`adl-menu-item__hint${danger ? ' is-danger' : ''}`}
         onMouseEnter={(e) => {
           e.stopPropagation();
           const button = (e.target as HTMLElement).closest('button');
@@ -39,7 +41,16 @@ export function MenuHintItem({ label, hint, onClick }: MenuHintItemProps) {
 
           const buttonEl = (e.target as HTMLElement).closest('button');
           const buttonRect = buttonEl?.getBoundingClientRect();
-          const menuCard = document.querySelector('[data-menu-id="github-delete-all-menu"]');
+          let menuCard: HTMLElement | null = null;
+          if (menuId) {
+            menuCard = document.querySelector(`[data-menu-id="${menuId}"]`);
+          }
+          if (!menuCard) {
+            menuCard = document.querySelector('[data-menu-id="github-delete-all-menu"]');
+          }
+          if (!menuCard) {
+            menuCard = document.querySelector('[data-menu-id^="github-"]');
+          }
           if (buttonRect && menuCard) {
             const menuRect = menuCard.getBoundingClientRect();
             const centerY = buttonRect.top + buttonRect.height / 2;
