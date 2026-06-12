@@ -215,8 +215,12 @@
 | `gitHubDeleteFolder(id)` | 删除目录及其所有嵌套子目录 |
 | `gitHubDeleteFolderConfig(id)` | 删除单个目录的CI配置 |
 | `gitHubDeleteFolderConfigRecursive(id)` | 递归删除目录及所有嵌套子目录的CI配置 |
-| `gitHubDeleteFolderDataRecursive(id)` | 清除所有CI数据 |
-| `gitHubDeleteFolderConfigAndDataRecursive(id)` | 递归删除CI配置及数据 |
+| `gitHubDeleteFolderDataRecursive(id)` | 先收集所有后代文件夹ID，仅当 active 工作区受影响时清除全局CI数据 |
+| `gitHubDeleteFolderConfigAndDataRecursive(id)` | 递归删除CI配置 + 条件清除全局CI数据 |
+| `gitHubPinFolder(id)` | 将文件夹在同级目录中置顶 |
+| `gitHubUnpinFolder(id)` | 取消文件夹的置顶状态 |
+| `gitHubPinWorkspace(id)` | 将工作区在列表中置顶（操作 `recentWorkspaces`） |
+| `gitHubUnpinWorkspace(id)` | 取消工作区的置顶状态 |
 | `hideWorkspaceFromRightPanels(id)` | 从工作区目录隐藏工作区（可恢复） |
 
 ## 注意事项

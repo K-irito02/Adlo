@@ -1,4 +1,4 @@
-import type { CiJobSummary, CiStatusSnapshot, CiRepoConfig } from '@ai-digital-life/kernel';
+﻿import type { CiJobSummary, CiStatusSnapshot, CiRepoConfig } from '@ai-digital-life/kernel';
 import type { StoreState } from '../StoreState';
 import type { DigitalLifeBridge } from '../../../shared/ipc';
 import { createDebouncedWrite, createUiId } from '../shared';
@@ -124,6 +124,8 @@ export interface GitHubSlice {
   resetAllToOriginal: () => void;
   gitHubPinFolder: (folderId: string) => void;
   gitHubUnpinFolder: (folderId: string) => void;
+  gitHubPinWorkspace: (workspaceId: string) => void;
+  gitHubUnpinWorkspace: (workspaceId: string) => void;
 }
 
 function getBridge(): DigitalLifeBridge | null {
@@ -656,6 +658,26 @@ export const createGitHubSlice = (
           ...(shouldClear ? { ciSnapshot: null, ciJobs: [], ciError: null } : {}),
         };
       });
+    },
+
+    gitHubPinWorkspace: (workspaceId) => {
+      set((state) => {
+        const pinnedWorkspaces = state.recentWorkspaces.filter((w) => w.isPinned);
+        const maxPinnedOrder = Math.max(...pinnedWorkspaces.map((w) => w.pinnedOrder ?? 0), 0);
+        return {
+          recentWorkspaces: state.recentWorkspaces.map((w) =>
+            w.id === workspaceId ? { ...w, isPinned: true, pinnedOrder: maxPinnedOrder + 1 } : w
+          ),
+        };
+      });
+    },
+
+    gitHubUnpinWorkspace: (workspaceId) => {
+      set((state) => ({
+        recentWorkspaces: state.recentWorkspaces.map((w) =>
+          w.id === workspaceId ? { ...w, isPinned: false, pinnedOrder: 0 } : w
+        ),
+      }));
     },
 
     gitHubPinFolder: (folderId) => {

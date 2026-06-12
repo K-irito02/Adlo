@@ -96,7 +96,7 @@
 | [file-tree-virtualized-connecting-lines-fix-2026-06-11.md](./交互优化/file-tree-virtualized-connecting-lines-fix-2026-06-11.md) | 2026-06-11 修复执行 | 虚拟化文件树垂直连接线与悬停高亮修复（`::before` 溢出、`--adl-tree-indent` 缩进、JS 悬停传播） |
 | [outline-connecting-lines-alignment-fix-2026-06-11.md](./交互优化/outline-connecting-lines-alignment-fix-2026-06-11.md) | 2026-06-11 修复执行 | 大纲树竖线对齐修复（递归树 `::before` 无需 `--adl-tree-indent`、叶子节点隐藏竖线、死代码 `outline-panel.css` 删除） |
 | [github-menu-recursive-delete-and-grouping-2026-06-12.md](./交互优化/github-menu-recursive-delete-and-grouping-2026-06-12.md) | 2026-06-12 菜单重构 | GitHub 面板菜单重构（递归删除、白色/红色分组、分隔线规范、"!" 提示双通道、双菜单一致性） |
-| [github-folder-pin-and-delete-2026-06-12.md](./交互优化/github-folder-pin-and-delete-2026-06-12.md) | 2026-06-12 功能增强 | GitHub 目录置顶/取消置顶功能 + 删除目录功能 + MenuHintItem 动态 menuId 适配 |
+| [github-folder-pin-and-delete-2026-06-12.md](./交互优化/github-folder-pin-and-delete-2026-06-12.md) | 2026-06-12 功能增强 | GitHub 目录置顶（文件夹+工作区）、递归数据清除作用域修复、activeCiFolderId 跟踪 |
 
 ### CI 监控
 

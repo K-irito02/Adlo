@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+﻿import React, { useState, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
   IconSettings,
@@ -210,7 +210,10 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
     gitHubDeleteFolder,
     gitHubPinFolder,
     gitHubUnpinFolder,
+    gitHubPinWorkspace,
+    gitHubUnpinWorkspace,
     gitHubCiFolders,
+    recentWorkspaces,
     clearCiState,
     hideWorkspaceFromRightPanels,
   } = useAppStore(
@@ -223,7 +226,10 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
       gitHubDeleteFolder: s.gitHubDeleteFolder,
       gitHubPinFolder: s.gitHubPinFolder,
       gitHubUnpinFolder: s.gitHubUnpinFolder,
+      gitHubPinWorkspace: s.gitHubPinWorkspace,
+      gitHubUnpinWorkspace: s.gitHubUnpinWorkspace,
       gitHubCiFolders: s.gitHubCiFolders,
+      recentWorkspaces: s.recentWorkspaces,
       clearCiState: s.clearCiState,
       hideWorkspaceFromRightPanels: s.hideWorkspaceFromRightPanels,
     }))
@@ -312,7 +318,9 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
   const isPinned =
     node.nodeType === 'folder'
       ? gitHubCiFolders.find((f) => f.id === folderId)?.pinnedOrder !== undefined
-      : false;
+      : node.nodeType === 'workspace'
+        ? (recentWorkspaces.find((w) => w.id === node.workspaceId)?.isPinned ?? false)
+        : false;
   const isWorkspaceRoot = categoryType === 'ci-workspace' && node.nodeType === 'workspace';
   const isUserFolderRoot =
     categoryType === 'user-folder' && node.nodeType === 'folder' && !node.workspaceId;
@@ -345,27 +353,33 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
       });
     }
 
-    // 置顶/取消置顶 - 所有目录都有（工作区顶级目录、嵌套子目录、非工作区目录）
-    if (node.nodeType === 'folder' || isWorkspaceRoot) {
-      if (node.nodeType === 'folder') {
-        if (isPinned) {
-          items.push({
-            id: 'unpin',
-            label: '取消置顶',
-            action: () => gitHubUnpinFolder(folderId),
-          });
-        } else {
-          items.push({
-            id: 'pin',
-            label: '置顶',
-            action: () => gitHubPinFolder(folderId),
-          });
-        }
-      } else if (isWorkspaceRoot) {
+    // 置顶/取消置顶 - 所有目录支持
+    if (node.nodeType === 'folder') {
+      if (isPinned) {
+        items.push({
+          id: 'unpin',
+          label: '取消置顶',
+          action: () => gitHubUnpinFolder(folderId),
+        });
+      } else {
+        items.push({
+          id: 'pin',
+          label: '置顶',
+          action: () => gitHubPinFolder(folderId),
+        });
+      }
+    } else if (node.nodeType === 'workspace') {
+      if (isPinned) {
+        items.push({
+          id: 'unpin-workspace',
+          label: '取消置顶',
+          action: () => gitHubUnpinWorkspace(node.workspaceId!),
+        });
+      } else {
         items.push({
           id: 'pin-workspace',
           label: '置顶',
-          action: () => {},
+          action: () => gitHubPinWorkspace(node.workspaceId!),
         });
       }
     }

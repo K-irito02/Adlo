@@ -1,9 +1,6 @@
-import { useMemo } from 'react';
+﻿import { useMemo } from 'react';
 import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
-import type {
-  GitWorkspaceCiConfig,
-  GitHubCiFolderState,
-} from '../../stores/slices/githubSlice';
+import type { GitWorkspaceCiConfig, GitHubCiFolderState } from '../../stores/slices/githubSlice';
 import type { GitHubCategoryState, GitHubTreeNode } from './types';
 
 const DEFAULT_SUB_ENTRIES = [
@@ -24,13 +21,34 @@ function buildSubEntryNodes(prefix: string, wsId: string | undefined): GitHubTre
   }));
 }
 
+function sortWorkspacesByPinOrder(workspaces: RecentWorkspaceEntry[]): RecentWorkspaceEntry[] {
+  return [...workspaces].sort((a, b) => {
+    if (a.isPinned && !b.isPinned) {
+      return -1;
+    }
+    if (!a.isPinned && b.isPinned) {
+      return 1;
+    }
+    if (a.isPinned && b.isPinned) {
+      return (a.pinnedOrder || 0) - (b.pinnedOrder || 0);
+    }
+    return 0;
+  });
+}
+
 function sortFoldersByPinOrder(folders: GitHubCiFolderState[]): GitHubCiFolderState[] {
   return [...folders].sort((a, b) => {
     const aPinned = a.pinnedOrder !== undefined;
     const bPinned = b.pinnedOrder !== undefined;
-    if (aPinned && !bPinned) return -1;
-    if (!aPinned && bPinned) return 1;
-    if (aPinned && bPinned) return (a.pinnedOrder || 0) - (b.pinnedOrder || 0);
+    if (aPinned && !bPinned) {
+      return -1;
+    }
+    if (!aPinned && bPinned) {
+      return 1;
+    }
+    if (aPinned && bPinned) {
+      return (a.pinnedOrder || 0) - (b.pinnedOrder || 0);
+    }
     return a.createdAt - b.createdAt;
   });
 }
@@ -40,7 +58,9 @@ function buildCiFolderNode(
   allFolders: GitHubCiFolderState[]
 ): GitHubTreeNode {
   const childFolders = sortFoldersByPinOrder(
-    allFolders.filter((f) => f.parentId === folder.id && (!f.parentType || f.parentType === 'folder'))
+    allFolders.filter(
+      (f) => f.parentId === folder.id && (!f.parentType || f.parentType === 'folder')
+    )
   );
   const folderChildren = childFolders.map((child) => buildCiFolderNode(child, allFolders));
 
@@ -86,7 +106,7 @@ export function useGithubTreeData(
 ): UseGithubTreeDataResult {
   const ciWorkspaceNodes = useMemo(
     () =>
-      workspaces.map((ws) => {
+      sortWorkspacesByPinOrder(workspaces).map((ws) => {
         const config = gitHubWorkspaceConfigs[ws.id];
         const folderChildren = buildWorkspaceChildFolders(ws.id, gitHubCiFolders);
         return {
