@@ -282,6 +282,42 @@ body,
   --hscroll-thumb-shadow: 0 0 3px rgba(0, 0, 0, 0.25);
   --hscroll-thumb-hover-shadow: 0 0 5px rgba(0, 0, 0, 0.18);
   --hscroll-thumb-dragging-shadow: 0 0 6px rgba(0, 0, 0, 0.28);
+
+  /* === File Badge Colors === */
+  --adl-file-badge-ink-default: #5f6368;
+  --adl-file-badge-ink-typescript: #2563eb;
+  --adl-file-badge-ink-javascript: #b45309;
+  --adl-file-badge-ink-node: #2f7d32;
+  --adl-file-badge-ink-python: #2f7d32;
+  --adl-file-badge-ink-java: #c2410c;
+  --adl-file-badge-ink-go: #0f766e;
+  --adl-file-badge-ink-rust: #92400e;
+  --adl-file-badge-ink-cfamily: #1d4ed8;
+  --adl-file-badge-ink-csharp: #7c3aed;
+  --adl-file-badge-ink-php: #5b54b6;
+  --adl-file-badge-ink-ruby: #be123c;
+  --adl-file-badge-ink-swift: #ea580c;
+  --adl-file-badge-ink-kotlin: #c026d3;
+  --adl-file-badge-ink-shell: #15803d;
+  --adl-file-badge-ink-powershell: #0369a1;
+  --adl-file-badge-ink-markup: #c2410c;
+  --adl-file-badge-ink-stylesheet: #0369a1;
+  --adl-file-badge-ink-json: #a16207;
+  --adl-file-badge-ink-yaml: #4d7c0f;
+  --adl-file-badge-ink-config: #475569;
+  --adl-file-badge-ink-markdown: #2563eb;
+  --adl-file-badge-ink-doc: #475569;
+  --adl-file-badge-ink-text: #71717a;
+  --adl-file-badge-ink-sheet: #15803d;
+  --adl-file-badge-ink-slide: #d97706;
+  --adl-file-badge-ink-pdf: #dc2626;
+  --adl-file-badge-ink-image: #db2777;
+  --adl-file-badge-ink-vector: #7c3aed;
+  --adl-file-badge-ink-audio: #0f766e;
+  --adl-file-badge-ink-video: #b45309;
+  --adl-file-badge-ink-font: #9333ea;
+  --adl-file-badge-ink-archive: #92400e;
+  --adl-file-badge-ink-database: #0f766e;
 }
 
 /* ===== DARK THEME =====
@@ -482,6 +518,42 @@ body,
   --hscroll-thumb-shadow: 0 0 4px rgba(255, 255, 255, 0.35);
   --hscroll-thumb-hover-shadow: 0 0 6px rgba(255, 255, 255, 0.26);
   --hscroll-thumb-dragging-shadow: 0 0 8px rgba(255, 255, 255, 0.34);
+
+  /* === File Badge Colors === */
+  --adl-file-badge-ink-default: #c4c7cc;
+  --adl-file-badge-ink-typescript: #60a5fa;
+  --adl-file-badge-ink-javascript: #f59e0b;
+  --adl-file-badge-ink-node: #4ade80;
+  --adl-file-badge-ink-python: #4ade80;
+  --adl-file-badge-ink-java: #f97316;
+  --adl-file-badge-ink-go: #2dd4bf;
+  --adl-file-badge-ink-rust: #d97706;
+  --adl-file-badge-ink-cfamily: #60a5fa;
+  --adl-file-badge-ink-csharp: #a78bfa;
+  --adl-file-badge-ink-php: #818cf8;
+  --adl-file-badge-ink-ruby: #fb7185;
+  --adl-file-badge-ink-swift: #f97316;
+  --adl-file-badge-ink-kotlin: #e879f9;
+  --adl-file-badge-ink-shell: #4ade80;
+  --adl-file-badge-ink-powershell: #38bdf8;
+  --adl-file-badge-ink-markup: #f97316;
+  --adl-file-badge-ink-stylesheet: #38bdf8;
+  --adl-file-badge-ink-json: #f59e0b;
+  --adl-file-badge-ink-yaml: #84cc16;
+  --adl-file-badge-ink-config: #94a3b8;
+  --adl-file-badge-ink-markdown: #60a5fa;
+  --adl-file-badge-ink-doc: #94a3b8;
+  --adl-file-badge-ink-text: #a1a1aa;
+  --adl-file-badge-ink-sheet: #4ade80;
+  --adl-file-badge-ink-slide: #fbbf24;
+  --adl-file-badge-ink-pdf: #f87171;
+  --adl-file-badge-ink-image: #f472b6;
+  --adl-file-badge-ink-vector: #a78bfa;
+  --adl-file-badge-ink-audio: #2dd4bf;
+  --adl-file-badge-ink-video: #f59e0b;
+  --adl-file-badge-ink-font: #c084fc;
+  --adl-file-badge-ink-archive: #d97706;
+  --adl-file-badge-ink-database: #2dd4bf;
 }
 
 /* ===== Theme-Independent Tokens ===== */

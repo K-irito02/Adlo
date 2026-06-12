@@ -29,7 +29,7 @@
 - xterm.js 交互式终端（多会话 PTY，支持 CMD / PowerShell / Bash）
 - CodeMirror 编辑器系统 + 文件预览 + 差异查看器（inline/side-by-side）
 - 内置浏览器（Tauri WebView / iframe 双模式 + 新建标签对话框）
-- Zustand 切片模式（18 切片 + 11 action 模块）+ 模块化分层（features/ + regions/）
+- Zustand 切片模式（19 切片 + 11 action 模块）+ 模块化分层（features/ + regions/）
 - CSS 设计 Token 亮暗主题 + 自定义 Tooltip + 自定义滚动条
 - i18n 国际化（13 领域 / 889 keys，TCopyContext + useTCopy 上下文驱动，TypeScript satisfies 类型安全）
 
@@ -74,7 +74,9 @@ app/stores/
 ├── slicedStore.ts               # 切片合并 Store（真源）
 ├── StoreState.ts                # 完整类型接口
 ├── types.ts                     # 共享类型（ToolId/ChatMode/TerminalProfile/ContextChip）
-├── shared.ts                    # 共享工具函数
+├── shared.ts                    # 共享工具 barrel（re-export）
+├── storageHelpers.ts            # localStorage 读写工具
+├── cacheHelpers.ts              # 缓存系统（TTL/LRU）、请求序列
 ├── selectors.ts                 # 性能选择器（useShallow）
 ├── slices/                      # 18 个独立切片（含 5 浏览器子切片 + GitHub 切片）
 │   ├── uiSlice.ts / workspaceSlice.ts / gitSlice.ts
@@ -88,9 +90,10 @@ app/stores/
 │   ├── browserFoldersSlice.ts       # 浏览器标签文件夹
 │   ├── browserLandingSlice.ts       # 浏览器着陆页（快捷站点、端口、背景）
 │   ├── communicateSlice.ts          # 通信面板共享状态
-│   └── githubSlice.ts               # GitHub CI 专有状态
+│   ├── githubCiConfigSlice.ts       # GitHub CI 配置（Token、文件夹 CRUD、Pin/Unpin）
+│   └── githubCiStatusSlice.ts       # GitHub CI 状态（轮询、快照、Section 切换）
 └── actions/                     # 11 个跨切片 action 模块
-    ├── workspaceActions.ts / sessionActions.ts / editorActions.ts
+    ├── workspaceActions.ts（557 行） / sessionActions.ts / editorActions.ts
     ├── patchActions.ts / gitActions.ts / fetchActions.ts
     ├── streamActions.ts / generalActions.ts / searchActions.ts
     ├── taskActions.ts / commandActions.ts

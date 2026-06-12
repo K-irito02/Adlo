@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const changesPanelSource = readFileSync(new URL("../../../../src/app/regions/right-panel/panels/ChangesPanel.tsx", import.meta.url), "utf8");
+const changesPanelStateSource = readFileSync(new URL("../../../../src/app/regions/right-panel/panels/ChangesPanel/useChangesPanelState.tsx", import.meta.url), "utf8");
 const diffEditorSectionSource = readFileSync(new URL("../../../../src/app/regions/right-panel/panels/DiffEditorSection.tsx", import.meta.url), "utf8");
 
 describe("changes preview editor options", () => {
@@ -26,9 +27,9 @@ describe("changes preview editor options", () => {
   });
 
   it("uses EditorRef and DiffEditorRef types from shared types", () => {
-    expect(changesPanelSource).toContain("EditorRef");
-    expect(changesPanelSource).toContain("DiffEditorRef");
-    expect(changesPanelSource).toContain("from '../../../stores/types'");
+    expect(changesPanelStateSource).toContain("EditorRef");
+    expect(changesPanelStateSource).toContain("DiffEditorRef");
+    expect(changesPanelStateSource).toContain("from '../../../../stores/types'");
   });
 
   it("uses sticky context helpers from CodeMirror stickyContext module", () => {
@@ -48,6 +49,6 @@ describe("changes preview editor options", () => {
 
   it("expands unchanged diff sections before outline navigation", () => {
     expect(diffEditorSectionSource).toContain("collapseUnchanged={true}");
-    expect(changesPanelSource).toContain("editor.revealLineInCenter");
+    expect(changesPanelStateSource).toContain("editor.revealLineInCenter");
   });
 });

@@ -1,9 +1,7 @@
-﻿import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
   IconSettings,
-  IconFolder,
-  IconFolderOpen,
   IconRefreshCw,
   IconMoreVertical,
 } from '../../icons';
@@ -17,6 +15,7 @@ import { useAppStore } from '../../stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import type { GitHubTreeNode, GitHubCategoryType } from './types';
 import type { SectionCallbacks } from './GitHubCategorySection';
+import { MultiTreeEntryShell } from '../tree/MultiTreeEntryShell';
 
 const SUB_ENTRY_ICONS: Record<string, React.ReactNode> = {
   overview: (
@@ -757,283 +756,268 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
     setMenuOpen(false);
   }, []);
 
-  return (
-    <div className="adl-browser-entry">
-      <div
-        className={`adl-browser-entry__header${isSelected ? ' is-selected' : ''}`}
-        onClick={handleHeaderClick}
-        onContextMenu={handleHeaderContextMenu}
-      >
-        <div className="adl-browser-entry__expand">
-          <button
-            type="button"
-            className={`adl-browser-entry__expand-btn${isExpanded ? ' is-expanded' : ''}`}
-            onClick={handleExpandBtnClick}
-            aria-label={isExpanded ? t.collapse : t.expand}
-            aria-expanded={isExpanded}
-          >
-            {isExpanded ? (
-              <IconFolderOpen size={14} decorative />
-            ) : (
-              <IconFolder size={14} decorative />
-            )}
-          </button>
-        </div>
-        <div
-          className="adl-browser-entry__namezone"
-          onKeyDown={handleNameKeyDown}
-          role="button"
-          tabIndex={0}
+  const actionButtonsSlot = (
+    <>
+      <TooltipSimple content={t.refresh} placement="top">
+        <button
+          type="button"
+          className="adl-icon-btn adl-icon-btn--xs"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (node.workspaceId) {
+              callbacks.onRefreshWorkspace(node.workspaceId);
+            } else {
+              clearCiState();
+            }
+          }}
+          aria-label={t.refresh}
         >
-          <span className="adl-browser-entry__name" title={node.name}>
-            {node.name}
-          </span>
-          <div className="adl-browser-entry__trailing">
-            <span className="adl-browser-entry__count">{count}</span>
-            <div className="adl-browser-entry__actions">
-              <TooltipSimple content={t.refresh} placement="top">
+          <IconRefreshCw size={12} decorative />
+        </button>
+      </TooltipSimple>
+      <TooltipSimple content={t.settings} placement="top">
+        <button
+          type="button"
+          className="adl-icon-btn adl-icon-btn--xs"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (node.workspaceId) {
+              callbacks.onOpenSettings(node.workspaceId);
+            } else if (node.nodeType === 'folder') {
+              const folderId = node.path.replace('github-folder:', '');
+              callbacks.onOpenFolderSettings(folderId);
+            }
+          }}
+          aria-label={t.settings}
+        >
+          <IconSettings size={12} decorative />
+        </button>
+      </TooltipSimple>
+      <TooltipSimple content={t.moreActions} placement="top">
+        <button
+          type="button"
+          className="adl-icon-btn adl-icon-btn--xs"
+          onClick={(e) => {
+            e.stopPropagation();
+            setMenuPosition({ top: e.clientY, left: e.clientX + 4 });
+            setMenuOpen(true);
+          }}
+          aria-label={t.moreActions}
+        >
+          <IconMoreVertical size={12} decorative />
+        </button>
+      </TooltipSimple>
+    </>
+  );
+
+  const entryMenuSlot =
+    menuOpen && menuPosition && menuItems.length > 0
+      ? createPortal(
+          <div
+            className="adl-multitree-entry__menu"
+            role="menu"
+            data-menu-id={menuId}
+            style={{
+              position: 'fixed',
+              top: menuPosition.top,
+              left: menuPosition.left,
+              zIndex: 9999,
+            }}
+          >
+            {menuItems.map((item) => {
+              if (item.separator) {
+                return (
+                  <div key={item.id} className="adl-multitree-entry__menu-sep" role="separator" />
+                );
+              }
+              return item.hasHint && item.hint ? (
+                <MenuHintItem
+                  key={item.id}
+                  label={item.label!}
+                  hint={item.hint}
+                  onClick={() => handleMenuClick(item.action!)}
+                  menuId={menuId}
+                  danger={item.danger}
+                />
+              ) : (
                 <button
+                  key={item.id}
                   type="button"
-                  className="adl-icon-btn adl-icon-btn--xs"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (node.workspaceId) {
-                      callbacks.onRefreshWorkspace(node.workspaceId);
-                    } else {
-                      clearCiState();
-                    }
-                  }}
-                  aria-label={t.refresh}
+                  className={`adl-multitree-entry__menu-item${item.danger ? ' is-danger' : ''}`}
+                  role="menuitem"
+                  onClick={() => handleMenuClick(item.action!)}
                 >
-                  <IconRefreshCw size={12} decorative />
+                  {item.label!}
                 </button>
-              </TooltipSimple>
-              <TooltipSimple content={t.settings} placement="top">
-                <button
-                  type="button"
-                  className="adl-icon-btn adl-icon-btn--xs"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (node.workspaceId) {
-                      callbacks.onOpenSettings(node.workspaceId);
-                    } else if (node.nodeType === 'folder') {
-                      const folderId = node.path.replace('github-folder:', '');
-                      callbacks.onOpenFolderSettings(folderId);
-                    }
-                  }}
-                  aria-label={t.settings}
-                >
-                  <IconSettings size={12} decorative />
-                </button>
-              </TooltipSimple>
-              <TooltipSimple content={t.moreActions} placement="top">
-                <button
-                  type="button"
-                  className="adl-icon-btn adl-icon-btn--xs"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setMenuPosition({ top: e.clientY, left: e.clientX + 4 });
-                    setMenuOpen(true);
-                  }}
-                  aria-label={t.moreActions}
-                >
-                  <IconMoreVertical size={12} decorative />
-                </button>
-              </TooltipSimple>
-            </div>
-          </div>
-        </div>
+              );
+            })}
+          </div>,
+          document.body
+        )
+      : null;
+
+  const fileTreeChildren =
+    isExpanded && node.children.length > 0 ? (
+      <div className="adl-browser-entry__tree">
+        <FileTree<GitHubTreeNode>
+          nodes={node.children}
+          selectedFilePath={selectedTreePath ?? undefined}
+          expandedPaths={expandedPaths}
+          onToggle={handleChildClick}
+          onOpenFile={handleChildOpenFile}
+          renderMeta={renderChildMeta}
+          renderCount={renderChildCount}
+          renderIconBefore={renderSubEntryIcon}
+          getContextMenuItems={handleChildContextMenu}
+          expandLabel={t.expand}
+          collapseLabel={t.collapse}
+        />
       </div>
+    ) : null;
 
-      {menuOpen && menuPosition && menuItems.length > 0
-        ? createPortal(
-            <div
-              className="adl-multitree-entry__menu"
-              role="menu"
-              data-menu-id={menuId}
-              style={{
-                position: 'fixed',
-                top: menuPosition.top,
-                left: menuPosition.left,
-                zIndex: 9999,
-              }}
-            >
-              {menuItems.map((item) => {
-                if (item.separator) {
-                  return (
-                    <div key={item.id} className="adl-multitree-entry__menu-sep" role="separator" />
-                  );
+  const childMenuSlot = childMenuState
+    ? createPortal(
+        <div
+          className="adl-multitree-entry__menu"
+          role="menu"
+          data-menu-id="github-child-menu"
+          style={{
+            position: 'fixed',
+            top: childMenuState.y,
+            left: childMenuState.x,
+            zIndex: 9999,
+          }}
+        >
+          {(() => {
+            const childFolderId = childMenuState.nodePath.startsWith('github-folder:')
+              ? childMenuState.nodePath.slice('github-folder:'.length)
+              : '';
+            const childIsPinned =
+              gitHubCiFolders.find((f) => f.id === childFolderId)?.pinnedOrder !== undefined;
+            // 工作区目录的嵌套子目录
+            const isWorkspaceChild = childMenuState.nodeType === 'folder' && !!node.workspaceId;
+            // 非工作区目录的嵌套子目录（路径中包含 / 表示是嵌套的）
+            const isUserFolderChild =
+              childMenuState.nodeType === 'folder' &&
+              !node.workspaceId &&
+              childMenuState.nodePath.includes('/');
+            // 非工作区目录的顶级目录（路径中没有 /）
+            const isUserFolderRoot =
+              childMenuState.nodeType === 'folder' &&
+              !node.workspaceId &&
+              !childMenuState.nodePath.includes('/');
+            // 显示删除目录：工作区嵌套子目录、非工作区嵌套子目录、非工作区顶级目录
+            const showDeleteFolder: boolean =
+              isWorkspaceChild || isUserFolderChild || isUserFolderRoot;
+
+            return getChildNodeMoreMenuItems(
+              childMenuState.nodeType,
+              childMenuState.nodePath,
+              '',
+              categoryType,
+              handleStartRename,
+              () => clearCiState(),
+              () => {
+                if (node.workspaceId) {
+                  callbacks.onDeleteWorkspaceConfig(node.workspaceId);
+                } else {
+                  gitHubDeleteFolderConfig(childFolderId);
                 }
-                return item.hasHint && item.hint ? (
-                  <MenuHintItem
-                    key={item.id}
-                    label={item.label!}
-                    hint={item.hint}
-                    onClick={() => handleMenuClick(item.action!)}
-                    menuId={menuId}
-                    danger={item.danger}
-                  />
-                ) : (
-                  <button
-                    key={item.id}
-                    type="button"
-                    className={`adl-multitree-entry__menu-item${item.danger ? ' is-danger' : ''}`}
-                    role="menuitem"
-                    onClick={() => handleMenuClick(item.action!)}
-                  >
-                    {item.label!}
-                  </button>
-                );
-              })}
-            </div>,
-            document.body
-          )
-        : null}
+              },
+              () => clearCiState(),
+              () => {
+                if (node.workspaceId) {
+                  callbacks.onDeleteWorkspaceConfig(node.workspaceId);
+                  clearCiState();
+                } else {
+                  gitHubDeleteFolderConfig(childFolderId);
+                  clearCiState();
+                }
+              },
+              () => {
+                if (node.workspaceId) {
+                  callbacks.onOpenSettings(node.workspaceId);
+                } else {
+                  callbacks.onOpenFolderSettings(childFolderId);
+                }
+              },
+              () => gitHubPinFolder(childFolderId),
+              () => gitHubUnpinFolder(childFolderId),
+              childIsPinned,
+              () => {
+                gitHubDeleteFolder(childFolderId);
+                clearCiState();
+              },
+              showDeleteFolder,
+              t,
+              () => gitHubDeleteFolderConfigRecursive(childFolderId),
+              () => {
+                gitHubDeleteFolderDataRecursive(childFolderId);
+              },
+              () => gitHubDeleteFolderConfigAndDataRecursive(childFolderId)
+            );
+          })().map((item) => {
+            if ('separator' in item) {
+              return (
+                <div key={item.id} className="adl-multitree-entry__menu-sep" role="separator" />
+              );
+            }
+            return item.hasHint && item.hint ? (
+              <MenuHintItem
+                key={item.id}
+                label={item.label}
+                hint={item.hint}
+                onClick={() => handleChildMenuClick(item.action)}
+                menuId="github-child-menu"
+                danger={item.danger}
+              />
+            ) : (
+              <button
+                key={item.id}
+                type="button"
+                className={`adl-multitree-entry__menu-item${item.danger ? ' is-danger' : ''}`}
+                role="menuitem"
+                onClick={() => handleChildMenuClick(item.action)}
+              >
+                {item.label}
+              </button>
+            );
+          })}
+        </div>,
+        document.body
+      )
+    : null;
 
-      {isExpanded && node.children.length > 0 ? (
-        <div className="adl-browser-entry__tree">
-          <FileTree<GitHubTreeNode>
-            nodes={node.children}
-            selectedFilePath={selectedTreePath ?? undefined}
-            expandedPaths={expandedPaths}
-            onToggle={handleChildClick}
-            onOpenFile={handleChildOpenFile}
-            renderMeta={renderChildMeta}
-            renderCount={renderChildCount}
-            renderIconBefore={renderSubEntryIcon}
-            getContextMenuItems={handleChildContextMenu}
-            expandLabel={t.expand}
-            collapseLabel={t.collapse}
+  return (
+    <MultiTreeEntryShell
+      label={node.name}
+      isExpanded={isExpanded}
+      isSelected={isSelected}
+      count={count}
+      onHeaderClick={handleHeaderClick}
+      onHeaderContextMenu={handleHeaderContextMenu}
+      onExpandBtnClick={handleExpandBtnClick}
+      onNameKeyDown={handleNameKeyDown}
+      expandLabel={t.expand}
+      collapseLabel={t.collapse}
+      emptyText={t.noContent}
+      actionButtonsSlot={actionButtonsSlot}
+      entryMenuSlot={entryMenuSlot}
+      hasChildren={node.children.length > 0}
+      extraContent={
+        <>
+          {childMenuSlot}
+          <RenameDialog
+            open={!!renameFolderState}
+            initialValue={renameFolderState?.folderName ?? ''}
+            title={t.changesRenameDir}
+            onConfirm={handleConfirmRename}
+            onCancel={handleCancelRename}
           />
-        </div>
-      ) : null}
-
-      {isExpanded && node.children.length === 0 ? (
-        <div className="adl-browser-entry__empty">
-          <span className="adl-empty-hint">{t.noContent}</span>
-        </div>
-      ) : null}
-
-      {childMenuState
-        ? createPortal(
-            <div
-              className="adl-multitree-entry__menu"
-              role="menu"
-              data-menu-id="github-child-menu"
-              style={{
-                position: 'fixed',
-                top: childMenuState.y,
-                left: childMenuState.x,
-                zIndex: 9999,
-              }}
-            >
-              {(() => {
-                const childFolderId = childMenuState.nodePath.startsWith('github-folder:')
-                  ? childMenuState.nodePath.slice('github-folder:'.length)
-                  : '';
-                const childIsPinned =
-                  gitHubCiFolders.find((f) => f.id === childFolderId)?.pinnedOrder !== undefined;
-                // 工作区目录的嵌套子目录
-                const isWorkspaceChild = childMenuState.nodeType === 'folder' && !!node.workspaceId;
-                // 非工作区目录的嵌套子目录（路径中包含 / 表示是嵌套的）
-                const isUserFolderChild =
-                  childMenuState.nodeType === 'folder' &&
-                  !node.workspaceId &&
-                  childMenuState.nodePath.includes('/');
-                // 非工作区目录的顶级目录（路径中没有 /）
-                const isUserFolderRoot =
-                  childMenuState.nodeType === 'folder' &&
-                  !node.workspaceId &&
-                  !childMenuState.nodePath.includes('/');
-                // 显示删除目录：工作区嵌套子目录、非工作区嵌套子目录、非工作区顶级目录
-                const showDeleteFolder: boolean =
-                  isWorkspaceChild || isUserFolderChild || isUserFolderRoot;
-
-                return getChildNodeMoreMenuItems(
-                  childMenuState.nodeType,
-                  childMenuState.nodePath,
-                  '',
-                  categoryType,
-                  handleStartRename,
-                  () => clearCiState(),
-                  () => {
-                    if (node.workspaceId) {
-                      callbacks.onDeleteWorkspaceConfig(node.workspaceId);
-                    } else {
-                      gitHubDeleteFolderConfig(childFolderId);
-                    }
-                  },
-                  () => clearCiState(),
-                  () => {
-                    if (node.workspaceId) {
-                      callbacks.onDeleteWorkspaceConfig(node.workspaceId);
-                      clearCiState();
-                    } else {
-                      gitHubDeleteFolderConfig(childFolderId);
-                      clearCiState();
-                    }
-                  },
-                  () => {
-                    if (node.workspaceId) {
-                      callbacks.onOpenSettings(node.workspaceId);
-                    } else {
-                      callbacks.onOpenFolderSettings(childFolderId);
-                    }
-                  },
-                  () => gitHubPinFolder(childFolderId),
-                  () => gitHubUnpinFolder(childFolderId),
-                  childIsPinned,
-                  () => {
-                    gitHubDeleteFolder(childFolderId);
-                    clearCiState();
-                  },
-                  showDeleteFolder,
-                  t,
-                  () => gitHubDeleteFolderConfigRecursive(childFolderId),
-                  () => {
-                    gitHubDeleteFolderDataRecursive(childFolderId);
-                  },
-                  () => gitHubDeleteFolderConfigAndDataRecursive(childFolderId)
-                );
-              })().map((item) => {
-                if ('separator' in item) {
-                  return (
-                    <div key={item.id} className="adl-multitree-entry__menu-sep" role="separator" />
-                  );
-                }
-                return item.hasHint && item.hint ? (
-                  <MenuHintItem
-                    key={item.id}
-                    label={item.label}
-                    hint={item.hint}
-                    onClick={() => handleChildMenuClick(item.action)}
-                    menuId="github-child-menu"
-                    danger={item.danger}
-                  />
-                ) : (
-                  <button
-                    key={item.id}
-                    type="button"
-                    className={`adl-multitree-entry__menu-item${item.danger ? ' is-danger' : ''}`}
-                    role="menuitem"
-                    onClick={() => handleChildMenuClick(item.action)}
-                  >
-                    {item.label}
-                  </button>
-                );
-              })}
-            </div>,
-            document.body
-          )
-        : null}
-
-      <RenameDialog
-        open={!!renameFolderState}
-        initialValue={renameFolderState?.folderName ?? ''}
-        title={t.changesRenameDir}
-        onConfirm={handleConfirmRename}
-        onCancel={handleCancelRename}
-      />
-    </div>
+        </>
+      }
+    >
+      {fileTreeChildren}
+    </MultiTreeEntryShell>
   );
 });

@@ -6,7 +6,7 @@
 
 | 目录 | 内容 | 文件数 |
 |------|------|--------|
-| [重构](./重构/) | 重构方法论、组件提取、执行报告、阶段性总结 | 18 |
+| [重构](./重构/) | 重构方法论、组件提取、执行报告、阶段性总结 | 19 |
 | [多工作区](./多工作区/) | 多工作区开发中的变更面板、文件树、终端、布局等经验 | 11 |
 | [浏览器](./浏览器/) | 内置浏览器实现、空标签引导页、树形目录交互等经验 | 8 |
 | [代码质量](./代码质量/) | 全量代码质量检测与修复经验 | 11 |
@@ -36,6 +36,7 @@
 | [residual-architecture-cleanup-2026-06-09.md](./重构/residual-architecture-cleanup-2026-06-09.md) | 2026-06-09 重构洞察执行 | Phase 41-42 残余架构清理 8 领域经验（bridge 下沉、React.memo、Rust 结构体、clone 消除、命令层测试、@types 分类） |
 | [performance-optimization-lessons-2026-06-11.md](./重构/performance-optimization-lessons-2026-06-11.md) | 2026-06-11 重构洞察执行 | 性能优化经验总结（虚拟化、memo、选择器、代码分割、内存泄漏） |
 | [high-risk-refactoring-2026-06-12.md](./重构/high-risk-refactoring-2026-06-12.md) | 2026-06-12 重构洞察高风险执行 | 高风险重构经验总结（组件提取安全、切片拆分策略、Hook 拆散、跨包依赖管理） |
+| [refactoring-insight-execution-2026-06-13.md](./重构/refactoring-insight-execution-2026-06-13.md) | 2026-06-13 重构洞察第8次执行 | CSS 变量主题化、shared.ts 模块拆分、Hook 拆散模式、Slot 骨架模式、Windows 测试兼容 |
 
 ### 多工作区
 

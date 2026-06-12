@@ -7,6 +7,8 @@
 @import './rightpanel/editor-surface.css';
 @import './rightpanel/cm-overrides.css';
 @import './rightpanel/diff-viewer.css';
-@import './rightpanel/browser-panel.css';
+@import './rightpanel/browser-landing.css';
+@import './rightpanel/browser-toolbar.css';
+@import './rightpanel/browser-webview.css';
 @import './rightpanel/terminal-panel.css';
 @import './rightpanel/communication-panel.css';

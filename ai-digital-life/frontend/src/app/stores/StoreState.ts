@@ -57,7 +57,8 @@ import type { BrowserLandingSlice } from './slices/browserLandingSlice';
 import type { BrowserSlice } from './slices/browserSlice';
 import type { CiSlice } from './slices/ciSlice';
 import type { CommunicateSlice } from './slices/communicateSlice';
-import type { GitHubSlice } from './slices/githubSlice';
+import type { GitHubCiConfigSlice } from './slices/githubCiConfigSlice';
+import type { GitHubCiStatusSlice } from './slices/githubCiStatusSlice';
 import type {
   AppPreferencePatch,
   ReorderSessionsInput,
@@ -89,7 +90,8 @@ interface StoreStateBase
     BrowserSlice,
     CiSlice,
     CommunicateSlice,
-    GitHubSlice {
+    GitHubCiConfigSlice,
+    GitHubCiStatusSlice {
   loading: boolean;
   error?: string;
   isFetching: Record<string, boolean>;

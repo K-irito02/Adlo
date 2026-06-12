@@ -1,4 +1,4 @@
-import type { GitWorkspaceCiConfig } from '../../stores/slices/githubSlice';
+import type { GitWorkspaceCiConfig } from '../../stores/slices/githubCiConfigSlice';
 
 export type GitHubCategoryType = 'ci-workspace' | 'user-folder';
 

@@ -98,11 +98,19 @@ export {
   createCommunicateSlice,
 } from './slices/communicateSlice';
 
-// GitHub 切片
+// GitHub CI 配置切片
 export {
-  type GitHubSlice,
-  type GitHubSection,
+  type GitHubCiConfigSlice,
   type GitWorkspaceCiConfig,
   type GitHubCiFolderState,
-  createGitHubSlice,
-} from './slices/githubSlice';
+  createGitHubCiConfigSlice,
+} from './slices/githubCiConfigSlice';
+
+// GitHub CI 状态切片
+export {
+  type GitHubCiStatusSlice,
+  type GitHubSection,
+  type GitHubTreeNodeType,
+  type GitHubTreeNode,
+  createGitHubCiStatusSlice,
+} from './slices/githubCiStatusSlice';

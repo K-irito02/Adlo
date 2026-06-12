@@ -926,143 +926,139 @@
 }
 
 .adl-filetree__file-icon--default {
-  --adl-file-badge-ink: #5f6368;
+  --adl-file-badge-ink: var(--adl-file-badge-ink-default);
 }
 
 .adl-filetree__file-icon--typescript {
-  --adl-file-badge-ink: #2563eb;
+  --adl-file-badge-ink: var(--adl-file-badge-ink-typescript);
 }
 
 .adl-filetree__file-icon--javascript {
-  --adl-file-badge-ink: #b45309;
+  --adl-file-badge-ink: var(--adl-file-badge-ink-javascript);
 }
 
 .adl-filetree__file-icon--node {
-  --adl-file-badge-ink: #2f7d32;
+  --adl-file-badge-ink: var(--adl-file-badge-ink-node);
 }
 
 .adl-filetree__file-icon--python {
-  --adl-file-badge-ink: #2f7d32;
+  --adl-file-badge-ink: var(--adl-file-badge-ink-python);
 }
 
 .adl-filetree__file-icon--java {
-  --adl-file-badge-ink: #c2410c;
+  --adl-file-badge-ink: var(--adl-file-badge-ink-java);
 }
 
 .adl-filetree__file-icon--go {
-  --adl-file-badge-ink: #0f766e;
+  --adl-file-badge-ink: var(--adl-file-badge-ink-go);
 }
 
 .adl-filetree__file-icon--rust {
-  --adl-file-badge-ink: #92400e;
+  --adl-file-badge-ink: var(--adl-file-badge-ink-rust);
 }
 
 .adl-filetree__file-icon--cfamily {
-  --adl-file-badge-ink: #1d4ed8;
+  --adl-file-badge-ink: var(--adl-file-badge-ink-cfamily);
 }
 
 .adl-filetree__file-icon--csharp {
-  --adl-file-badge-ink: #7c3aed;
+  --adl-file-badge-ink: var(--adl-file-badge-ink-csharp);
 }
 
 .adl-filetree__file-icon--php {
-  --adl-file-badge-ink: #5b54b6;
+  --adl-file-badge-ink: var(--adl-file-badge-ink-php);
 }
 
 .adl-filetree__file-icon--ruby {
-  --adl-file-badge-ink: #be123c;
+  --adl-file-badge-ink: var(--adl-file-badge-ink-ruby);
 }
 
 .adl-filetree__file-icon--swift {
-  --adl-file-badge-ink: #ea580c;
+  --adl-file-badge-ink: var(--adl-file-badge-ink-swift);
 }
 
 .adl-filetree__file-icon--kotlin {
-  --adl-file-badge-ink: #c026d3;
+  --adl-file-badge-ink: var(--adl-file-badge-ink-kotlin);
 }
 
 .adl-filetree__file-icon--shell {
-  --adl-file-badge-ink: #15803d;
+  --adl-file-badge-ink: var(--adl-file-badge-ink-shell);
 }
 
 .adl-filetree__file-icon--powershell {
-  --adl-file-badge-ink: #0369a1;
+  --adl-file-badge-ink: var(--adl-file-badge-ink-powershell);
 }
 
 .adl-filetree__file-icon--markup {
-  --adl-file-badge-ink: #c2410c;
+  --adl-file-badge-ink: var(--adl-file-badge-ink-markup);
 }
 
 .adl-filetree__file-icon--stylesheet {
-  --adl-file-badge-ink: #0369a1;
+  --adl-file-badge-ink: var(--adl-file-badge-ink-stylesheet);
 }
 
 .adl-filetree__file-icon--json {
-  --adl-file-badge-ink: #a16207;
+  --adl-file-badge-ink: var(--adl-file-badge-ink-json);
 }
 
 .adl-filetree__file-icon--yaml {
-  --adl-file-badge-ink: #4d7c0f;
+  --adl-file-badge-ink: var(--adl-file-badge-ink-yaml);
 }
 
 .adl-filetree__file-icon--config {
-  --adl-file-badge-ink: #475569;
+  --adl-file-badge-ink: var(--adl-file-badge-ink-config);
 }
 
 .adl-filetree__file-icon--markdown {
-  --adl-file-badge-ink: #2563eb;
+  --adl-file-badge-ink: var(--adl-file-badge-ink-markdown);
 }
 
 .adl-filetree__file-icon--doc {
-  --adl-file-badge-ink: #475569;
+  --adl-file-badge-ink: var(--adl-file-badge-ink-doc);
 }
 
 .adl-filetree__file-icon--text {
-  --adl-file-badge-ink: #71717a;
+  --adl-file-badge-ink: var(--adl-file-badge-ink-text);
 }
 
 .adl-filetree__file-icon--sheet {
-  --adl-file-badge-ink: #15803d;
+  --adl-file-badge-ink: var(--adl-file-badge-ink-sheet);
 }
 
 .adl-filetree__file-icon--slide {
-  --adl-file-badge-ink: #d97706;
+  --adl-file-badge-ink: var(--adl-file-badge-ink-slide);
 }
 
 .adl-filetree__file-icon--pdf {
-  --adl-file-badge-ink: #dc2626;
+  --adl-file-badge-ink: var(--adl-file-badge-ink-pdf);
 }
 
 .adl-filetree__file-icon--image {
-  --adl-file-badge-ink: #db2777;
+  --adl-file-badge-ink: var(--adl-file-badge-ink-image);
 }
 
 .adl-filetree__file-icon--vector {
-  --adl-file-badge-ink: #7c3aed;
+  --adl-file-badge-ink: var(--adl-file-badge-ink-vector);
 }
 
 .adl-filetree__file-icon--audio {
-  --adl-file-badge-ink: #0f766e;
+  --adl-file-badge-ink: var(--adl-file-badge-ink-audio);
 }
 
 .adl-filetree__file-icon--video {
-  --adl-file-badge-ink: #b45309;
+  --adl-file-badge-ink: var(--adl-file-badge-ink-video);
 }
 
 .adl-filetree__file-icon--font {
-  --adl-file-badge-ink: #9333ea;
+  --adl-file-badge-ink: var(--adl-file-badge-ink-font);
 }
 
 .adl-filetree__file-icon--archive {
-  --adl-file-badge-ink: #92400e;
+  --adl-file-badge-ink: var(--adl-file-badge-ink-archive);
 }
 
 .adl-filetree__file-icon--database {
-  --adl-file-badge-ink: #0f766e;
-}
-
-[data-theme='dark'] .adl-filetree__file-icon--default {
-  --adl-file-badge-ink: #c4c7cc;
+  --adl-file-badge-ink: var(--adl-file-badge-ink-database);
 }
 
 .adl-filetree__dirty-dot {

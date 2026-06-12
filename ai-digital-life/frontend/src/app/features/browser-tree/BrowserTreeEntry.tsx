@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { IconPlus, IconTrash, IconMoreVertical, IconFolder, IconFolderOpen } from '../../icons';
+import { IconPlus, IconTrash, IconMoreVertical } from '../../icons';
 import { FileTree } from '../file-tree';
 import { TooltipSimple } from '../../components/Tooltip';
 import type { CopyDict } from '../../i18n';
@@ -8,6 +8,7 @@ import type { BrowserTreeNode, BrowserCategoryType } from './types';
 import { resolveChildCount } from './useBrowserTreeData';
 import type { SectionCallbacks } from './BrowserCategorySection';
 import { useTCopy } from '../../i18n/useTCopy';
+import { MultiTreeEntryShell } from '../tree/MultiTreeEntryShell';
 
 interface BrowserTreeEntryProps {
   node: BrowserTreeNode;
@@ -455,136 +456,118 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
     []
   );
 
-  return (
-    <div className="adl-browser-entry">
-      <div
-        className={`adl-browser-entry__header${isSelected ? ' is-selected' : ''}`}
-        onClick={handleHeaderClick}
-        onContextMenu={handleHeaderContextMenu}
-      >
-        <div className="adl-browser-entry__expand">
+  const actionButtonsSlot = (
+    <>
+      {entryBtns.map((btn) => (
+        <TooltipSimple key={btn.id} content={btn.label} placement="top">
           <button
             type="button"
-            className={`adl-browser-entry__expand-btn${isExpanded ? ' is-expanded' : ''}`}
-            onClick={handleExpandBtnClick}
-            aria-label={isExpanded ? t.collapse : t.expand}
-            aria-expanded={isExpanded}
+            className="adl-icon-btn adl-icon-btn--xs"
+            ref={(el) => {
+              entryBtnRef.current[btn.id] = el;
+            }}
+            onClick={(e) => handleEntryBtnClick(btn.id, e)}
+            aria-label={btn.label}
           >
-            {isExpanded ? (
-              <IconFolderOpen size={14} decorative />
-            ) : (
-              <IconFolder size={14} decorative />
-            )}
+            {btn.icon}
           </button>
-        </div>
-        <div
-          className="adl-browser-entry__namezone"
-          onKeyDown={handleNameKeyDown}
-          role="button"
-          tabIndex={0}
-        >
-          <span className="adl-browser-entry__name" title={node.name}>
-            {node.name}
-          </span>
-          <div className="adl-browser-entry__trailing">
-            <span className="adl-browser-entry__count">{count}</span>
-            <div className="adl-browser-entry__actions">
-              {entryBtns.map((btn) => (
-                <TooltipSimple key={btn.id} content={btn.label} placement="top">
-                  <button
-                    type="button"
-                    className="adl-icon-btn adl-icon-btn--xs"
-                    ref={(el) => {
-                      entryBtnRef.current[btn.id] = el;
-                    }}
-                    onClick={(e) => handleEntryBtnClick(btn.id, e)}
-                    aria-label={btn.label}
-                  >
-                    {btn.icon}
-                  </button>
-                </TooltipSimple>
-              ))}
-            </div>
-          </div>
-        </div>
+        </TooltipSimple>
+      ))}
+    </>
+  );
+
+  const entryMenuSlot =
+    menuOpen && menuPosition
+      ? createPortal(
+          <div
+            className="adl-multitree-entry__menu"
+            role="menu"
+            data-menu-id={menuId}
+            style={{ top: menuPosition.top, left: menuPosition.left }}
+          >
+            {entryMenuItems.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className={`adl-multitree-entry__menu-item${item.danger ? ' is-danger' : ''}`}
+                role="menuitem"
+                onClick={handleMenuItemClick(item.action)}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>,
+          document.body
+        )
+      : null;
+
+  const fileTreeChildren =
+    isExpanded && node.children.length > 0 ? (
+      <div className="adl-browser-entry__tree">
+        <FileTree<BrowserTreeNode>
+          nodes={node.children}
+          selectedFilePath={selectedTreePath ?? undefined}
+          expandedPaths={expandedPaths}
+          onToggle={handleChildClick}
+          onOpenFile={handleChildOpenFile}
+          renderMeta={renderChildMeta}
+          renderCount={renderChildCount}
+          getContextMenuItems={handleChildContextMenu}
+          expandLabel={t.expand}
+          collapseLabel={t.collapse}
+        />
       </div>
+    ) : null;
 
-      {menuOpen && menuPosition
-        ? createPortal(
-            <div
-              className="adl-multitree-entry__menu"
-              role="menu"
-              data-menu-id={menuId}
-              style={{ top: menuPosition.top, left: menuPosition.left }}
+  const childMenuSlot = childMenuState
+    ? createPortal(
+        <div
+          className="adl-multitree-entry__menu"
+          role="menu"
+          data-menu-id="browser-child-menu"
+          style={{ top: childMenuState.y, left: childMenuState.x }}
+        >
+          {getChildNodeMoreMenuItems(
+            childMenuState.nodeType,
+            categoryType,
+            childMenuState.nodePath,
+            callbacks,
+            t
+          ).map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={`adl-multitree-entry__menu-item${item.danger ? ' is-danger' : ''}`}
+              role="menuitem"
+              onClick={handleChildMenuClick(item.action)}
             >
-              {entryMenuItems.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  className={`adl-multitree-entry__menu-item${item.danger ? ' is-danger' : ''}`}
-                  role="menuitem"
-                  onClick={handleMenuItemClick(item.action)}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>,
-            document.body
-          )
-        : null}
+              {item.label}
+            </button>
+          ))}
+        </div>,
+        document.body
+      )
+    : null;
 
-      {isExpanded && node.children.length > 0 ? (
-        <div className="adl-browser-entry__tree">
-          <FileTree<BrowserTreeNode>
-            nodes={node.children}
-            selectedFilePath={selectedTreePath ?? undefined}
-            expandedPaths={expandedPaths}
-            onToggle={handleChildClick}
-            onOpenFile={handleChildOpenFile}
-            renderMeta={renderChildMeta}
-            renderCount={renderChildCount}
-            getContextMenuItems={handleChildContextMenu}
-            expandLabel={t.expand}
-            collapseLabel={t.collapse}
-          />
-        </div>
-      ) : null}
-
-      {isExpanded && node.children.length === 0 ? (
-        <div className="adl-browser-entry__empty">
-          <span className="adl-empty-hint">{t.noContent}</span>
-        </div>
-      ) : null}
-
-      {childMenuState
-        ? createPortal(
-            <div
-              className="adl-multitree-entry__menu"
-              role="menu"
-              data-menu-id="browser-child-menu"
-              style={{ top: childMenuState.y, left: childMenuState.x }}
-            >
-              {getChildNodeMoreMenuItems(
-                childMenuState.nodeType,
-                categoryType,
-                childMenuState.nodePath,
-                callbacks,
-                t
-              ).map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  className={`adl-multitree-entry__menu-item${item.danger ? ' is-danger' : ''}`}
-                  role="menuitem"
-                  onClick={handleChildMenuClick(item.action)}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>,
-            document.body
-          )
-        : null}
-    </div>
+  return (
+    <MultiTreeEntryShell
+      label={node.name}
+      isExpanded={isExpanded}
+      isSelected={isSelected}
+      count={count}
+      onHeaderClick={handleHeaderClick}
+      onHeaderContextMenu={handleHeaderContextMenu}
+      onExpandBtnClick={handleExpandBtnClick}
+      onNameKeyDown={handleNameKeyDown}
+      expandLabel={t.expand}
+      collapseLabel={t.collapse}
+      emptyText={t.noContent}
+      actionButtonsSlot={actionButtonsSlot}
+      entryMenuSlot={entryMenuSlot}
+      hasChildren={node.children.length > 0}
+      extraContent={childMenuSlot}
+    >
+      {fileTreeChildren}
+    </MultiTreeEntryShell>
   );
 });

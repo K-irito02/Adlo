@@ -10,7 +10,6 @@ import {
   IconReturn,
   IconFoldVertical,
   IconUnfoldVertical,
-  IconGlobe,
 } from '../../icons';
 import { TooltipSimple } from '../../components/Tooltip';
 import { RenameDialog } from '../../components/RenameDialog';
@@ -35,78 +34,8 @@ import type { BrowserPanelProps } from '../../regions/right-panel/types';
 import { open as shellOpen } from '@tauri-apps/plugin-shell';
 import { useNavigatorResize } from '../../hooks/useNavigatorResize';
 import { useTCopy } from '../../i18n/useTCopy';
-
-function resolveFolderWorkspaceId(
-  folderId: string,
-  folders: Array<{ id: string; parentId?: string; parentType?: 'workspace' | 'folder' }>
-): string | undefined {
-  const folder = folders.find((f) => f.id === folderId);
-  if (!folder) {
-    return undefined;
-  }
-  if (folder.parentType === 'workspace') {
-    return folder.parentId;
-  }
-  if (folder.parentType === 'folder' && folder.parentId) {
-    return resolveFolderWorkspaceId(folder.parentId, folders);
-  }
-  return undefined;
-}
-
-function handleRenameFromContextMenu(
-  browserTabs: Array<{ id: string; title: string }>,
-  contextMenu: { tabId: string | null },
-  handleDoubleClick: (tabId: string, title: string) => void
-): () => void {
-  return () => {
-    if (contextMenu.tabId) {
-      const tab = browserTabs.find((t) => t.id === contextMenu.tabId);
-      if (tab) {
-        handleDoubleClick(contextMenu.tabId, tab.title);
-      }
-    }
-  };
-}
-
-function handleDeleteFromContextMenu(
-  contextMenu: { tabId: string | null },
-  handleCloseTab: (tabId: string) => void
-): () => void {
-  return () => {
-    if (contextMenu.tabId) {
-      handleCloseTab(contextMenu.tabId);
-    }
-  };
-}
-
-function SearchResultItem({
-  item,
-  onClick,
-}: {
-  item: { title: string; url: string; source?: string };
-  onClick: () => void;
-}) {
-  return (
-    <div
-      className="adl-browser-search-result-item"
-      onClick={onClick}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') {
-          onClick();
-        }
-      }}
-    >
-      <IconGlobe size={14} decorative className="adl-browser-search-result-item__icon" />
-      <div className="adl-browser-search-result-item__content">
-        <div className="adl-browser-search-result-item__title">{item.title}</div>
-        <div className="adl-browser-search-result-item__url">{item.url}</div>
-      </div>
-      {item.source && <div className="adl-browser-search-result-item__source">{item.source}</div>}
-    </div>
-  );
-}
+import { resolveFolderWorkspaceId, handleRenameFromContextMenu, handleDeleteFromContextMenu } from './browserPanelHelpers';
+import { SearchResultItem } from './BrowserSearchOverlay';
 
 export function BrowserPanel(props: BrowserPanelProps) {
   const { t } = useTCopy();

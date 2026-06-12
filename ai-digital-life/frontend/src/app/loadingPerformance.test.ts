@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 const appSource = readFileSync(new URL("./App.tsx", import.meta.url), "utf8");
 const storeSource = readFileSync(new URL("./stores/slicedStore.ts", import.meta.url), "utf8");
-const sharedSource = readFileSync(new URL("./stores/shared.ts", import.meta.url), "utf8");
+const cacheHelpersSource = readFileSync(new URL("./stores/cacheHelpers.ts", import.meta.url), "utf8");
 const rightPanelSource = readFileSync(new URL("./regions/RightPanel.tsx", import.meta.url), "utf8");
 const filesPanelSource = readFileSync(new URL("./regions/right-panel/panels/FilesPanel.tsx", import.meta.url), "utf8");
 const sidebarViewModelSource = readFileSync(new URL("./utils/sidebarViewModel.ts", import.meta.url), "utf8");
@@ -36,13 +36,13 @@ describe("loading and switching performance guards", () => {
   });
 
   it("guards async switch responses and caches editor previews in the renderer", () => {
-    expect(sharedSource).toContain("workspaceRequestSeq");
-    expect(sharedSource).toContain("sessionRequestSeq");
-    expect(sharedSource).toContain("fileRequestSeq");
-    expect(sharedSource).toContain("changePreviewRequestSeq");
-    expect(sharedSource).toContain("CachedFileDocument");
-    expect(sharedSource).toContain("CachedChangePreview");
-    expect(sharedSource).toContain("setCachedLruTTL");
+    expect(cacheHelpersSource).toContain("workspaceRequestSeq");
+    expect(cacheHelpersSource).toContain("sessionRequestSeq");
+    expect(cacheHelpersSource).toContain("fileRequestSeq");
+    expect(cacheHelpersSource).toContain("changePreviewRequestSeq");
+    expect(cacheHelpersSource).toContain("CachedFileDocument");
+    expect(cacheHelpersSource).toContain("CachedChangePreview");
+    expect(cacheHelpersSource).toContain("setCachedLruTTL");
   });
 
   it("keeps hot sidebar and file search paths allocation conscious", () => {
@@ -51,8 +51,8 @@ describe("loading and switching performance guards", () => {
   });
 
   it("keeps cache limits module-scoped and makes file preview defaults explicit", () => {
-    expect(sharedSource).toMatch(/export const FILE_DOCUMENT_CACHE_LIMIT = 32;/);
-    expect(sharedSource).toMatch(/export const CHANGE_PREVIEW_CACHE_LIMIT = 32;/);
+    expect(cacheHelpersSource).toMatch(/export const FILE_DOCUMENT_CACHE_LIMIT = 32;/);
+    expect(cacheHelpersSource).toMatch(/export const CHANGE_PREVIEW_CACHE_LIMIT = 32;/);
     expect(filesPanelSource).toContain('s.filePreviewModeByPath[selectedFilePath] ?? fileCategory === \'markdown\'');
   });
 });
