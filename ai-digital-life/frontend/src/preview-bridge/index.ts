@@ -254,7 +254,7 @@ export function setupPreviewBridge(): void {
         persistRecentWorkspaces(recentWorkspaces);
         return { ok: true, data: recentWorkspaces };
       },
-      restoreToSidebar: async (workspaceId: string) => ({ ok: true, data: recentWorkspaces }),
+      restoreToSidebar: async (_workspaceId: string) => ({ ok: true, data: recentWorkspaces }),
       listTreeForWorkspace: async (workspacePath: string) => {
         const params = new URLSearchParams({ rootPath: workspacePath });
         return requestPreviewApi<WorkspaceTreeNode[]>(`/workspace/tree?${params.toString()}`);
@@ -424,7 +424,7 @@ export function setupPreviewBridge(): void {
         });
       },
       setEditorDirtyPaths: async () => ({ ok: true, data: true }),
-      onFileChanged: (listener: (event: WorkspaceFileChangedEvent) => void) => () => {},
+      onFileChanged: (_listener: (event: WorkspaceFileChangedEvent) => void) => () => {},
       getGitStatus: async () => {
         if (!currentWorkspace) {
           return {
@@ -526,11 +526,11 @@ export function setupPreviewBridge(): void {
     },
 
     browser: {
-      navigate: async (url: string) => {},
+      navigate: async (_url: string) => {},
       goBack: async () => true,
       goForward: async () => true,
       reload: async () => {},
-      onUrlChanged: (listener: (url: string) => void) => () => {},
+      onUrlChanged: (_listener: (url: string) => void) => () => {},
     },
     ci: {
       getStatus: async (config: {

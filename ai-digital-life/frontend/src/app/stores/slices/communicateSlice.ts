@@ -30,13 +30,7 @@ export const createCommunicateSlice = (
     const storedPlatform = (() => {
       try {
         const p = window.localStorage.getItem(ACTIVE_PLATFORM_KEY);
-        if (
-          p === 'github' ||
-          p === 'feishu' ||
-          p === 'qq' ||
-          p === 'wechat' ||
-          p === 'email'
-        ) {
+        if (p === 'github' || p === 'feishu' || p === 'qq' || p === 'wechat' || p === 'email') {
           return p as PlatformId;
         }
       } catch {

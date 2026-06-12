@@ -28,7 +28,9 @@ export function findInBrowserLookupIndex(
     (item) =>
       item.title.toLowerCase() === normalizedInput || item.url.toLowerCase() === normalizedInput
   );
-  if (exactMatch) return exactMatch;
+  if (exactMatch) {
+    return exactMatch;
+  }
 
   const looksLikeUrl = /^(about:|[a-z]+:\/\/)/i.test(input) || /[./:]/.test(input);
   if (!looksLikeUrl) {

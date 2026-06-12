@@ -3,10 +3,7 @@ import { useGithubTreeData } from './useGithubTreeData';
 import { GitHubCategorySection, type SectionCallbacks } from './GitHubCategorySection';
 import { CustomScrollArea } from '../file-tree/CustomScrollArea';
 import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
-import type {
-  GitWorkspaceCiConfig,
-  GitHubCiFolderState,
-} from '../../stores/slices/githubSlice';
+import type { GitWorkspaceCiConfig, GitHubCiFolderState } from '../../stores/slices/githubSlice';
 
 interface GitHubTreeProps {
   workspaces: RecentWorkspaceEntry[];

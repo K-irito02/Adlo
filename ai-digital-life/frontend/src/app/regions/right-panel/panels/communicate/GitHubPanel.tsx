@@ -25,10 +25,6 @@ import { JobsView } from './JobsView';
 import { HelpView } from './HelpView';
 import { GitHubSettingsDialog } from './GitHubSettingsDialog';
 
-
-
-
-
 export function GitHubPanel() {
   const {
     gitHubWorkspaceConfigs,

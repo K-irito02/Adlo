@@ -188,9 +188,9 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
       const result = await mockConversation.sendMessage({ sessionId, content: prompt });
       return result;
     },
-    getRun: async (runId: string) => ({ ok: true, data: activeRun }),
-    retryRun: async (runId: string) => ({ ok: true, data: activeRun }),
-    abortRun: async (runId: string) => ({ ok: true, data: activeRun }),
+    getRun: async (_runId: string) => ({ ok: true, data: activeRun }),
+    retryRun: async (_runId: string) => ({ ok: true, data: activeRun }),
+    abortRun: async (_runId: string) => ({ ok: true, data: activeRun }),
   },
 
   patch: mockPatch,
@@ -228,11 +228,11 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
   },
 
   browser: {
-    navigate: async (url: string) => {},
+    navigate: async (_url: string) => {},
     goBack: async () => true,
     goForward: async () => true,
     reload: async () => {},
-    onUrlChanged: (listener: (url: string) => void) => () => {},
+    onUrlChanged: (_listener: (url: string) => void) => () => {},
   },
 
   ci: {

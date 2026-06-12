@@ -9,25 +9,16 @@ import type { StoreState } from '../StoreState';
 import { clamp, readJson, readNumber, createUiId, createDebouncedWrite } from '../shared';
 import { BROWSER_NAVIGATOR_COLLAPSED_KEY } from '../constants';
 
-import type { BrowserTabState, BrowserTabStateUpdate } from './browserTabsSlice';
+import type { BrowserTabState } from './browserTabsSlice';
 import type { BrowserBookmark } from './browserBookmarkSlice';
 import type { BrowserHistoryState } from './browserHistorySlice';
 import type { TabFolderState } from './browserFoldersSlice';
-import type { ShortcutSite, LocalPort, BackgroundConfig, BackgroundMode, BackgroundFit } from './browserLandingSlice';
+import type { ShortcutSite, LocalPort, BackgroundConfig } from './browserLandingSlice';
 
-export type {
-  BrowserTabState,
-  BrowserTabStateUpdate,
-} from './browserTabsSlice';
-export type {
-  BrowserBookmark,
-} from './browserBookmarkSlice';
-export type {
-  BrowserHistoryState,
-} from './browserHistorySlice';
-export type {
-  TabFolderState,
-} from './browserFoldersSlice';
+export type { BrowserTabState, BrowserTabStateUpdate } from './browserTabsSlice';
+export type { BrowserBookmark } from './browserBookmarkSlice';
+export type { BrowserHistoryState } from './browserHistorySlice';
+export type { TabFolderState } from './browserFoldersSlice';
 export type {
   ShortcutSite,
   LocalPort,
@@ -173,7 +164,6 @@ export const createBrowserSlice = (
 ): BrowserSlice => {
   hydrateBrowserDefaults(get, set);
   return {
-
     browserNavigatorWidth: DEFAULT_BROWSER_NAVIGATOR_WIDTH,
     browserViewMode: 'default',
     browserShowTabButtons: false,

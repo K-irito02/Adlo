@@ -159,9 +159,7 @@ export const createBrowserLandingSlice = (
 
   browserUpdateLocalPort: (id, patch) =>
     set((state) => {
-      const nextPorts = state.browserLocalPorts.map((p) =>
-        p.id === id ? { ...p, ...patch } : p
-      );
+      const nextPorts = state.browserLocalPorts.map((p) => (p.id === id ? { ...p, ...patch } : p));
       scheduleWrite(BROWSER_LOCAL_PORTS_KEY, nextPorts);
       return { browserLocalPorts: nextPorts };
     }),

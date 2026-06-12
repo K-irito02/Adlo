@@ -230,19 +230,19 @@ export function BrowserPanel(props: BrowserPanelProps) {
     hasActiveTab,
     isBookmarked,
     browserTabs,
-    editingTabId,
-    editValue,
-    editInputRef,
+    _editingTabId,
+    _editValue,
+    _editInputRef,
     handleDoubleClick,
-    handleCreateTab,
-    handleSelectTab,
+    _handleCreateTab,
+    _handleSelectTab,
     handleCloseTab,
     handleCloseAllTabs,
-    handleEditSubmit,
-    handleEditKeyDown,
+    _handleEditSubmit,
+    _handleEditKeyDown,
     handleToggleBookmark,
-    setEditValue,
-    setEditingTabId,
+    _setEditValue,
+    _setEditingTabId,
   } = useBrowserTabs();
 
   const {
@@ -253,7 +253,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
     iframeRef,
     primaryRef,
     navigateBrowser,
-    updateWebViewBounds,
+    _updateWebViewBounds,
     handleIframeLoad,
     handleIframeError,
   } = useBrowserWebView({
@@ -285,7 +285,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
     browserTabFolders,
     tabTreeExpanded,
     allTreeExpanded,
-    handleCreateTabInTree,
+    _handleCreateTabInTree,
     handleToggleTreePath,
     handleDeleteAllChildTabs,
     handleOpenAllInNewTabs,
@@ -325,7 +325,11 @@ export function BrowserPanel(props: BrowserPanelProps) {
         action: () => void navigator.clipboard?.writeText(activeTab?.url ?? 'about:blank'),
       },
       { id: 'sep-1', separator: true as const },
-      { id: 'clear-history', label: t.browserClearHistory, action: () => useAppStore.getState().browserClearHistory() },
+      {
+        id: 'clear-history',
+        label: t.browserClearHistory,
+        action: () => useAppStore.getState().browserClearHistory(),
+      },
       { id: 'clear-cookies', label: t.browserClearCookies, disabled: true },
       { id: 'clear-cache', label: t.browserClearCache, disabled: true },
       { id: 'devtools', label: t.browserDeveloperTools, disabled: true },
@@ -491,7 +495,17 @@ export function BrowserPanel(props: BrowserPanelProps) {
     };
     document.addEventListener('mousedown', handlePointerDown);
     return () => document.removeEventListener('mousedown', handlePointerDown);
-  }, [addressExpanded, browserMenuOpen, browserMenuRef, addressSearchRef, navigatorMode, navigatorSearchRef, setBrowserMenuOpen, setAddressExpanded, setNavigatorMode]);
+  }, [
+    addressExpanded,
+    browserMenuOpen,
+    browserMenuRef,
+    addressSearchRef,
+    navigatorMode,
+    navigatorSearchRef,
+    setBrowserMenuOpen,
+    setAddressExpanded,
+    setNavigatorMode,
+  ]);
 
   useEffect(() => {
     if (addressExpanded) {
@@ -551,11 +565,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
                 <button
                   type="button"
                   className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-                  onClick={
-                    allTreeExpanded
-                      ? handleCollapseAllTree
-                      : handleExpandAllTree
-                  }
+                  onClick={allTreeExpanded ? handleCollapseAllTree : handleExpandAllTree}
                   aria-label={allTreeExpanded ? '全部折叠' : '全部展开'}
                 >
                   {allTreeExpanded ? (
@@ -904,20 +914,12 @@ export function BrowserPanel(props: BrowserPanelProps) {
       <BrowserContextMenu
         contextMenu={contextMenu}
         onTogglePin={handleTogglePin}
-        onRename={handleRenameFromContextMenu(
-          browserTabs,
-          contextMenu,
-          handleDoubleClick
-        )}
+        onRename={handleRenameFromContextMenu(browserTabs, contextMenu, handleDoubleClick)}
         onDelete={handleDeleteFromContextMenu(contextMenu, handleCloseTab)}
         onCopyUrl={handleCopyUrlFromMenu}
         onOpenInNewTab={handleOpenInNewTab}
         onOpenInCurrentTab={handleOpenInCurrentTab}
-        onEdit={handleRenameFromContextMenu(
-          browserTabs,
-          contextMenu,
-          handleDoubleClick
-        )}
+        onEdit={handleRenameFromContextMenu(browserTabs, contextMenu, handleDoubleClick)}
         onCut={() => {}}
         t={t}
       />

@@ -86,10 +86,7 @@ export {
 } from './slices/browserLandingSlice';
 
 // 浏览器切片 — 核心层（组合所有子切片）
-export {
-  type BrowserSlice,
-  createBrowserSlice,
-} from './slices/browserSlice';
+export { type BrowserSlice, createBrowserSlice } from './slices/browserSlice';
 
 // CI 切片
 export { type CiSlice, createCiSlice } from './slices/ciSlice';

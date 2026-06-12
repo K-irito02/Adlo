@@ -3,7 +3,13 @@ import type { CiJobSummary } from '@ai-digital-life/kernel';
 import { StatusDot } from './StatusDot';
 import { statusColor, formatDuration } from './githubPanelUtils';
 
-export function JobRow({ job, onViewLogs }: { job: CiJobSummary; onViewLogs: (jobId: number) => void }) {
+export function JobRow({
+  job,
+  onViewLogs,
+}: {
+  job: CiJobSummary;
+  onViewLogs: (jobId: number) => void;
+}) {
   const [expanded, setExpanded] = useState(false);
 
   return (
