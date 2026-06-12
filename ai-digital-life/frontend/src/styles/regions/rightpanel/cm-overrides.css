@@ -173,7 +173,11 @@
 .adl-cm-diff-viewer .cm-line:hover:has(.cm-deletedLine) {
   background-color: var(--editor-diff-remove-hover) !important;
 }
-.adl-cm-diff-viewer .cm-line:hover:has(.cm-changedLine) {
+.adl-cm-diff-viewer .cm-line:hover:has(.cm-changedLine),
+/* .cm-changedLine is a Decoration.line class on .cm-line itself — NOT a child element.
+   :has(.cm-changedLine) only matches child descendants, so it doesn't match the line itself.
+   Add direct .cm-changedLine:hover for lines where :has() can't match (e.g. empty lines). */
+.adl-cm-diff-viewer .cm-changedLine:hover {
   background-color: var(--editor-diff-remove-hover) !important;
 }
 /* Inline mode deleted chunk - the entire chunk is deleted, so all its lines need hover effect */
@@ -188,7 +192,8 @@
 .adl-cm-diff-viewer .cm-line.cm-activeLine:has(.cm-deletedLine) {
   background-color: var(--editor-diff-remove-hover) !important;
 }
-.adl-cm-diff-viewer .cm-line.cm-activeLine:has(.cm-changedLine) {
+.adl-cm-diff-viewer .cm-line.cm-activeLine:has(.cm-changedLine),
+.adl-cm-diff-viewer .cm-changedLine.cm-activeLine {
   background-color: var(--editor-diff-remove-hover) !important;
 }
 /* Inline mode deleted chunk active line */

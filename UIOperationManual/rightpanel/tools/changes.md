@@ -415,7 +415,8 @@ await page.locator('.adl-tool-context__group--files-actions .adl-tool-context__i
 
 1. Diff 的主语义在正文区，gutter 只保留基础行号定位和稍深的变更行标识。
 2. green/red 深浅层级：内容区（18-20%）< 行号区（28-30%）< 悬停态（35%），依次加深形成视觉层次。
-3. 若未来要进一步降噪，优先考虑收弱行内底部高亮线，而不是重新引回 gutter 状态条。
+3. 空变更行（无字符的行）的悬停背景色与非空行一致。由于 `.cm-insertedLine`/`.cm-deletedLine` 是行内 `<ins>`/`<del>` 元素，空行无此元素导致 `:has()` 不匹配，因此额外使用 `.cm-changedLine:hover` 选择器兜底。
+4. 若未来要进一步降噪，优先考虑收弱行内底部高亮线，而不是重新引回 gutter 状态条。
 
 ---
 

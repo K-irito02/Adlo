@@ -29,7 +29,7 @@ export interface ScrollSyncMetrics {
   targetClientHeight: number;
 }
 
-export const COLLAPSE_UNCHANGED_CONFIG = { margin: 3, minSize: 4 } as const;
+export const COLLAPSE_UNCHANGED_CONFIG = { margin: 3, minSize: 8 } as const;
 
 type MergeChunksResult = Exclude<ReturnType<typeof getChunks>, null>;
 export type MergeChunk = MergeChunksResult['chunks'][number];

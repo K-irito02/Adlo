@@ -50,7 +50,17 @@
   .cm-line:hover:has(.cm-changedLine),
 .adl-cm-diff-viewer.adl-cm-diff-viewer--side-by-side
   .cm-merge-a
-  .cm-line.cm-activeLine:has(.cm-changedLine) {
+  .cm-line.cm-activeLine:has(.cm-changedLine),
+/* .cm-changedLine is a Decoration.line class on .cm-line itself — NOT a child.
+   :has(.cm-changedLine) doesn't match the line itself. For empty deleted lines
+   (no characters), there is no <del> child either, so direct .cm-changedLine
+   targeting is needed. */
+.adl-cm-diff-viewer.adl-cm-diff-viewer--side-by-side
+  .cm-merge-a
+  .cm-changedLine:hover,
+.adl-cm-diff-viewer.adl-cm-diff-viewer--side-by-side
+  .cm-merge-a
+  .cm-changedLine.cm-activeLine {
   background-color: var(--editor-diff-remove-hover) !important;
 }
 /* Side-by-side B side (inserted lines) */
@@ -59,12 +69,29 @@
   .cm-line:hover:has(.cm-insertedLine),
 .adl-cm-diff-viewer.adl-cm-diff-viewer--side-by-side
   .cm-merge-b
-  .cm-line.cm-activeLine:has(.cm-insertedLine) {
+  .cm-line.cm-activeLine:has(.cm-insertedLine),
+/* Also target .cm-changedLine directly — .cm-insertedLine is an inline <ins> element
+   that only wraps text content. For empty inserted lines (no characters), there is
+   no <ins> child, so :has(.cm-insertedLine) doesn't match. .cm-changedLine is a
+   Decoration.line class on .cm-line itself, present for ALL changed lines. */
+.adl-cm-diff-viewer.adl-cm-diff-viewer--side-by-side
+  .cm-merge-b
+  .cm-changedLine:hover,
+.adl-cm-diff-viewer.adl-cm-diff-viewer--side-by-side
+  .cm-merge-b
+  .cm-changedLine.cm-activeLine {
   background-color: var(--editor-diff-insert-hover) !important;
 }
 /* Inline mode - inserted lines */
 .adl-cm-diff-viewer.adl-cm-diff-viewer--inline .cm-line:hover:has(.cm-insertedLine),
-.adl-cm-diff-viewer.adl-cm-diff-viewer--inline .cm-line.cm-activeLine:has(.cm-insertedLine) {
+.adl-cm-diff-viewer.adl-cm-diff-viewer--inline .cm-line.cm-activeLine:has(.cm-insertedLine),
+/* .cm-changedLine is a Decoration.line class on .cm-line itself. For empty
+   inserted lines (no characters), there is no <ins> child, so :has(.cm-insertedLine)
+   doesn't match. Target .cm-changedLine directly.
+   Note: This rule is LESS specific than .cm-deletedChunk .cm-line:hover, so
+   deleted lines inside .cm-deletedChunk still correctly show red. */
+.adl-cm-diff-viewer.adl-cm-diff-viewer--inline .cm-changedLine:hover,
+.adl-cm-diff-viewer.adl-cm-diff-viewer--inline .cm-changedLine.cm-activeLine {
   background-color: var(--editor-diff-insert-hover) !important;
 }
 /* Inline mode - deleted lines (including deleted chunks) */

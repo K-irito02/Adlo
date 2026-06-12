@@ -9,7 +9,7 @@
 | [重构](./重构/) | 重构方法论、组件提取、执行报告、阶段性总结 | 18 |
 | [多工作区](./多工作区/) | 多工作区开发中的变更面板、文件树、终端、布局等经验 | 11 |
 | [浏览器](./浏览器/) | 内置浏览器实现、空标签引导页、树形目录交互等经验 | 8 |
-| [代码质量](./代码质量/) | 全量代码质量检测与修复经验 | 10 |
+| [代码质量](./代码质量/) | 全量代码质量检测与修复经验 | 11 |
 | [浏览器自动化](./浏览器自动化/) | 浏览器自动化调试记录与规则经验 | 2 |
 | [交互优化](./交互优化/) | 跨功能面板的交互/UX 问题修复经验 | 9 |
 | [CI 监控](./CI监控/) | GitHub Actions CI 状态监控模块经验（Token 安全、双端一致性、类型系统、树形目录交互） | 3 |
@@ -77,6 +77,7 @@
 | [diff-viewer-theme-fix-2026-06-06.md](./代码质量/diff-viewer-theme-fix-2026-06-06.md) | 2026-06-06 修复执行 | 差异查看器主题修复（CSS 选择器覆盖不足、硬编码值、内容/行号区层级）与无变更行自动折叠启用 |
 | [diff-viewer-gutter-hover-fix-2026-06-08.md](./代码质量/diff-viewer-gutter-hover-fix-2026-06-08.md) | 2026-06-08 修复执行 | 差异查看器并排模式 A 侧行号区悬停颜色修复（`EditorView.editorAttributes` DOM 类归属判断） |
 | [tech-stack-optimization-2026-06-09.md](./代码质量/tech-stack-optimization-2026-06-09.md) | 2026-06-09 技术栈优化 | 9 条经验（ts-rs 类型冲突、tokio 特性精简、密钥降级、highlight.js 按需等） |
+| [diff-viewer-empty-line-hover-scroll-fix-2026-06-13.md](./代码质量/diff-viewer-empty-line-hover-scroll-fix-2026-06-13.md) | 2026-06-13 修复执行 | 变更查看器空行悬停背景色修复 + 快速滚动闪烁修复（CSS :has 陷阱、MergeView compartment、collapseUnchanged minSize） |
 
 ### 浏览器自动化
 

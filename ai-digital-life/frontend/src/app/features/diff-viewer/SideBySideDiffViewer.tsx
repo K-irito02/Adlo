@@ -2,6 +2,7 @@ import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from '
 import type { Extension } from '@codemirror/state';
 import { EditorView, lineNumbers } from '@codemirror/view';
 import { MergeView, uncollapseUnchanged } from '@codemirror/merge';
+import { forceParsing } from '@codemirror/language';
 import { createFoldGutterExtension } from '../editor/cmFoldGutter';
 import { FoldTooltipOverlay } from '../editor/FoldTooltipOverlay';
 import { useFoldMarkerAutoHide } from '../editor/useFoldMarkerAutoHide';
@@ -370,6 +371,32 @@ export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
     mv.a.requestMeasure();
     mv.b.requestMeasure();
   }, [lineNumbersEnabled, wordWrap]);
+
+  // Also force-parse syntax tree and reconfigure fold gutter for the right panel (view B).
+  // (view A is handled by useFoldMarkerAutoHide's internal poll loop.)
+  useEffect(() => {
+    if (!editorViewB) {
+      return;
+    }
+    let cancelled = false;
+    const duration = editorViewB.state.doc.length;
+    Promise.resolve(forceParsing(editorViewB, duration, 2000)).then(() => {
+      if (cancelled) {
+        return;
+      }
+      editorViewB.dispatch({
+        effects: [
+          foldGutterCompartment.reconfigure(
+            lineNumbersEnabled ? createFoldGutterExtension() : []
+          ),
+        ],
+      });
+      editorViewB.requestMeasure();
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [editorViewB, lineNumbersEnabled]);
 
   return (
     <div
