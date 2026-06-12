@@ -11,7 +11,7 @@
 | [浏览器](./浏览器/) | 内置浏览器实现、空标签引导页、树形目录交互等经验 | 8 |
 | [代码质量](./代码质量/) | 全量代码质量检测与修复经验 | 10 |
 | [浏览器自动化](./浏览器自动化/) | 浏览器自动化调试记录与规则经验 | 2 |
-| [交互优化](./交互优化/) | 跨功能面板的交互/UX 问题修复经验 | 8 |
+| [交互优化](./交互优化/) | 跨功能面板的交互/UX 问题修复经验 | 9 |
 | [CI 监控](./CI监控/) | GitHub Actions CI 状态监控模块经验（Token 安全、双端一致性、类型系统、树形目录交互） | 3 |
 
 ## 索引
@@ -97,6 +97,7 @@
 | [outline-connecting-lines-alignment-fix-2026-06-11.md](./交互优化/outline-connecting-lines-alignment-fix-2026-06-11.md) | 2026-06-11 修复执行 | 大纲树竖线对齐修复（递归树 `::before` 无需 `--adl-tree-indent`、叶子节点隐藏竖线、死代码 `outline-panel.css` 删除） |
 | [github-menu-recursive-delete-and-grouping-2026-06-12.md](./交互优化/github-menu-recursive-delete-and-grouping-2026-06-12.md) | 2026-06-12 菜单重构 | GitHub 面板菜单重构（递归删除、白色/红色分组、分隔线规范、"!" 提示双通道、双菜单一致性） |
 | [github-folder-pin-and-delete-2026-06-12.md](./交互优化/github-folder-pin-and-delete-2026-06-12.md) | 2026-06-12 功能增强 | GitHub 目录置顶（文件夹+工作区）、递归数据清除作用域修复、activeCiFolderId 跟踪 |
+| [github-tree-sub-entry-ordering-and-i18n-2026-06-12.md](./交互优化/github-tree-sub-entry-ordering-and-i18n-2026-06-12.md) | 2026-06-12 功能优化 | GitHub 树子条目排序（紧贴父目录）+ 子条目名称国际化 |
 
 ### CI 监控
 

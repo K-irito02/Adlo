@@ -127,6 +127,16 @@ export const ciZh = {
   ciErrorTitle: '错误',
   ciErrorPleaseConfigFirst: '请先配置仓库 owner 和 repo',
 
+  // ========== 目录分类标签 ==========
+  ciWorkspaceCategory: '工作区目录',
+  ciUserFolderCategory: '非工作区目录',
+
+  // ========== 子条目名称 ==========
+  ciOverview: '概览',
+  ciWorkflows: '工作流',
+  ciJobs: '任务',
+  ciLogs: '日志',
+
   // ========== 通用 ==========
   ciClose: '关闭',
   ciOpen: '展开',

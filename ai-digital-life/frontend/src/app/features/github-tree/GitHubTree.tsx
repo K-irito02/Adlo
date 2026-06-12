@@ -1,5 +1,6 @@
 import React from 'react';
 import { useGithubTreeData } from './useGithubTreeData';
+import type { SubEntryLabels } from './useGithubTreeData';
 import { GitHubCategorySection, type SectionCallbacks } from './GitHubCategorySection';
 import { CustomScrollArea } from '../file-tree/CustomScrollArea';
 import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
@@ -17,7 +18,7 @@ interface GitHubTreeProps {
   labels: {
     ciWorkspaceCategory: string;
     userFolderCategory: string;
-  };
+  } & SubEntryLabels;
   gitHubViewMode: 'tree' | 'list';
 }
 

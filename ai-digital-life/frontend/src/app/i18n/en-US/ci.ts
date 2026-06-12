@@ -137,6 +137,16 @@ export const ciEn = {
   ciErrorTitle: 'Error',
   ciErrorPleaseConfigFirst: 'Please configure owner and repo first',
 
+  // ========== Category Labels ==========
+  ciWorkspaceCategory: 'Workspace Directory',
+  ciUserFolderCategory: 'User Folders',
+
+  // ========== Sub-entry Names ==========
+  ciOverview: 'Overview',
+  ciWorkflows: 'Workflows',
+  ciJobs: 'Jobs',
+  ciLogs: 'Logs',
+
   // ========== Common ==========
   ciClose: 'Close',
   ciOpen: 'Open',

@@ -558,8 +558,12 @@ export function GitHubPanel() {
             onTogglePath={handleTogglePath}
             callbacks={sectionCallbacks}
             labels={{
-              ciWorkspaceCategory: '工作区目录',
-              userFolderCategory: '非工作区目录',
+              ciWorkspaceCategory: copy.ciWorkspaceCategory,
+              userFolderCategory: copy.ciUserFolderCategory,
+              ciOverview: copy.ciOverview,
+              ciWorkflows: copy.ciWorkflows,
+              ciJobs: copy.ciJobs,
+              ciLogs: copy.ciLogs,
             }}
             gitHubViewMode={gitHubViewMode}
           />
