@@ -39,61 +39,51 @@ function getAppearanceKey(
 export function ActionButton({ state, hasContent, onSend, onStop, onRetry }: ActionButtonProps) {
   const { t } = useTCopy();
 
-  const APPEARANCE_MAP: Record<
-    'idle-empty' | 'idle-ready' | 'generating' | 'error' | 'waiting',
-    (props: ActionButtonProps) => ButtonAppearance
-  > = useMemo(
-    () => ({
-      'idle-empty': () => ({
-        icon: 'arrow-up',
-        label: t.send,
-        className: 'action-btn action-btn--idle action-btn--empty',
-        isDisabled: true,
-        onClick: () => {},
-      }),
-      'idle-ready': ({ onSend }) => ({
-        icon: 'arrow-up',
-        label: t.sendMessage,
-        className: 'action-btn action-btn--idle action-btn--ready',
-        isDisabled: false,
-        onClick: onSend,
-      }),
-      generating: ({ onStop }) => ({
-        icon: 'stop-circle',
-        label: t.stopGenerating,
-        className: 'action-btn action-btn--generating',
-        isDisabled: false,
-        onClick: onStop,
-      }),
-      error: ({ onRetry }) => ({
-        icon: 'rotate-ccw',
-        label: t.retry,
-        className: 'action-btn action-btn--error',
-        isDisabled: false,
-        onClick: onRetry,
-      }),
-      waiting: () => ({
-        icon: 'loader-2',
-        label: t.waiting,
-        className: 'action-btn action-btn--waiting',
-        isDisabled: true,
-        onClick: () => {},
-      }),
-    }),
-    [t]
-  );
-
-  const appearance = useMemo<ButtonAppearance>(
-    () =>
-      APPEARANCE_MAP[getAppearanceKey(state, hasContent)]({
-        state,
-        hasContent,
-        onSend,
-        onStop,
-        onRetry,
-      }),
-    [state, hasContent, onSend, onStop, onRetry, APPEARANCE_MAP]
-  );
+  const appearance = useMemo<ButtonAppearance>(() => {
+    const key = getAppearanceKey(state, hasContent);
+    switch (key) {
+      case 'idle-empty':
+        return {
+          icon: 'arrow-up' as const,
+          label: t.send,
+          className: 'action-btn action-btn--idle action-btn--empty',
+          isDisabled: true,
+          onClick: () => {},
+        };
+      case 'idle-ready':
+        return {
+          icon: 'arrow-up' as const,
+          label: t.sendMessage,
+          className: 'action-btn action-btn--idle action-btn--ready',
+          isDisabled: false,
+          onClick: onSend,
+        };
+      case 'generating':
+        return {
+          icon: 'stop-circle' as const,
+          label: t.stopGenerating,
+          className: 'action-btn action-btn--generating',
+          isDisabled: false,
+          onClick: onStop,
+        };
+      case 'error':
+        return {
+          icon: 'rotate-ccw' as const,
+          label: t.retry,
+          className: 'action-btn action-btn--error',
+          isDisabled: false,
+          onClick: onRetry,
+        };
+      case 'waiting':
+        return {
+          icon: 'loader-2' as const,
+          label: t.waiting,
+          className: 'action-btn action-btn--waiting',
+          isDisabled: true,
+          onClick: () => {},
+        };
+    }
+  }, [state, hasContent, onSend, onStop, onRetry, t]);
 
   const isSpinning = state === 'error' || state === 'waiting';
 
