@@ -29,7 +29,7 @@ export function PromptInput({
   value,
   onChange,
   onSubmit,
-  placeholder,
+  placeholder = '',
   disabled = false,
   attachments = [],
   onRemoveAttachment,
