@@ -16,7 +16,9 @@ export function MultiWorkspaceBrowser({ browserTabs }: MultiWorkspaceBrowserProp
     <div className="adl-multitree adl-multitree--browser">
       <div className="adl-multitree__empty">
         <p className="adl-empty-hint">
-          {browserTabs.length > 0 ? formatT(t, 'browserTabCount', { count: browserTabs.length }) : t.workspaceEmpty}
+          {browserTabs.length > 0
+            ? formatT(t, 'browserTabCount', { count: browserTabs.length })
+            : t.workspaceEmpty}
         </p>
       </div>
     </div>

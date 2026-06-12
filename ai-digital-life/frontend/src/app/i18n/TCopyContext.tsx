@@ -6,6 +6,7 @@ export interface TCopyContextValue {
   locale: Locale;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const TCopyContext = createContext<TCopyContextValue | null>(null);
 
 export function TCopyProvider({
@@ -13,9 +14,5 @@ export function TCopyProvider({
   locale,
   children,
 }: TCopyContextValue & { children: ReactNode }) {
-  return (
-    <TCopyContext.Provider value={{ t, locale }}>
-      {children}
-    </TCopyContext.Provider>
-  );
+  return <TCopyContext.Provider value={{ t, locale }}>{children}</TCopyContext.Provider>;
 }

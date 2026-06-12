@@ -294,7 +294,6 @@ export function SessionList({
       workspaceId,
       interactive,
       locale,
-      t,
       allowStandaloneReorder,
       onSelectSession,
       onPinSession,

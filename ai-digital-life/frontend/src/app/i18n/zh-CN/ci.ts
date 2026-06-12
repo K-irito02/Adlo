@@ -165,17 +165,22 @@ export const ciZh = {
   ciUnpin: '取消置顶',
   ciPin: '置顶',
   ciRemoveFromView: '从此区域移除不显示',
-  ciRemoveFromViewHint: '将此工作区从工作区目录分类中移除，嵌套的子目录也将一并移除。不会删除任何数据，可在左侧边栏中恢复显示。',
+  ciRemoveFromViewHint:
+    '将此工作区从工作区目录分类中移除，嵌套的子目录也将一并移除。不会删除任何数据，可在左侧边栏中恢复显示。',
   ciDeleteAllNewDirs: '删除全部新建目录',
-  ciDeleteAllNewDirsHint: '删除所有通过"新建目录"创建的目录节点及其CI配置和数据。工作区目录不受影响。',
+  ciDeleteAllNewDirsHint:
+    '删除所有通过"新建目录"创建的目录节点及其CI配置和数据。工作区目录不受影响。',
   ciDeleteAllConfigs: '删除全部CI配置',
-  ciDeleteAllConfigsHint: '清空所有工作区和文件夹绑定的GitHub仓库配置（owner/repo/branch/token）。保留目录结构和CI运行数据。',
+  ciDeleteAllConfigsHint:
+    '清空所有工作区和文件夹绑定的GitHub仓库配置（owner/repo/branch/token）。保留目录结构和CI运行数据。',
   ciDeleteAllData: '删除全部数据',
   ciDeleteAllDataHint: '清空当前面板显示的所有CI运行状态（快照/作业列表/错误信息）。保留配置信息。',
   ciDeleteAllConfigsAndData: '删除全部CI配置及数据',
-  ciDeleteAllConfigsAndDataHint: '同时清空所有工作区和文件夹的GitHub配置以及所有CI运行数据。保留目录结构。',
+  ciDeleteAllConfigsAndDataHint:
+    '同时清空所有工作区和文件夹的GitHub配置以及所有CI运行数据。保留目录结构。',
   ciRestoreAll: '恢复还原',
-  ciRestoreAllHint: '清空所有内容——删除所有新建目录、所有CI配置及数据，恢复到仅显示工作区目录顶级目录的初始状态。',
+  ciRestoreAllHint:
+    '清空所有内容——删除所有新建目录、所有CI配置及数据，恢复到仅显示工作区目录顶级目录的初始状态。',
   ciNoWorkflowData: '暂无 Workflow 数据',
   ciNoJobData: '暂无 Job 数据',
   ciLoading: '加载中...',

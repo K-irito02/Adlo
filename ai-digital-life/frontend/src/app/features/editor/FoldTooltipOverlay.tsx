@@ -112,7 +112,12 @@ function getGutterRowAtY(
   };
 }
 
-function computeTooltipText(view: EditorView, lineNum: number, isClosed: boolean, locale: Locale): string | null {
+function computeTooltipText(
+  view: EditorView,
+  lineNum: number,
+  isClosed: boolean,
+  locale: Locale
+): string | null {
   const doc = view.state.doc;
   if (lineNum > doc.lines) {
     return null;

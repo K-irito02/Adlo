@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { IconArrowUp } from '../../../icons';
 import type { StickyContextModel } from './stickyContext';
-import { useTCopy } from '../../../i18n/useTCopy';
 
 const AUTO_HIDE_MS = 2000;
 
@@ -11,7 +10,6 @@ interface StickyContextProps {
 }
 
 export function StickyContext(props: StickyContextProps) {
-  const { t } = useTCopy();
   const [isVisible, setIsVisible] = useState(true);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isHoveringRef = useRef(false);

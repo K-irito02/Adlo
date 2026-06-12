@@ -57,11 +57,7 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
           <SettingsNav activeGroup={activeGroup} onSelectGroup={setActiveGroup} />
         )}
         <div className="adl-settings-panel__content">
-          <SettingsControls
-            items={filtered}
-            onChange={onChangeSetting}
-            searchQuery={searchQuery}
-          />
+          <SettingsControls items={filtered} onChange={onChangeSetting} searchQuery={searchQuery} />
         </div>
       </div>
     </div>

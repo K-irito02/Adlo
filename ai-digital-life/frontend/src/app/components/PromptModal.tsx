@@ -57,7 +57,7 @@ export function PromptModal({
     } finally {
       setLoading(false);
     }
-  }, [value, onOk]);
+  }, [value, onOk, t]);
 
   const handleValueChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {

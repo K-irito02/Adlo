@@ -193,10 +193,7 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
         ) : (
           <div className="adl-tool-editor__surface">
             {stickyContextModel ? (
-              <StickyContext
-                data-testid="changes-sticky-context"
-                model={stickyContextModel}
-              />
+              <StickyContext data-testid="changes-sticky-context" model={stickyContextModel} />
             ) : null}
             <Suspense fallback={null}>
               <DiffViewer

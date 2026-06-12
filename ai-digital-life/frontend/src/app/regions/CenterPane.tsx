@@ -243,11 +243,7 @@ const CenterPane = React.memo(function CenterPane() {
       {taskCenter?.pendingApprovals?.length ? (
         <div className="adl-center__approvals">
           {taskCenter.pendingApprovals.map((approval) => (
-            <ApprovalCard
-              key={approval.id}
-              approval={approval}
-              onDecide={actions.decideApproval}
-            />
+            <ApprovalCard key={approval.id} approval={approval} onDecide={actions.decideApproval} />
           ))}
         </div>
       ) : null}

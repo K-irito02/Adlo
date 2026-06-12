@@ -154,7 +154,10 @@ export function PromptInput({
       )}
 
       {charCount > 0 && (
-        <span className="prompt-input__char-count" aria-label={formatT(t, 'charCountAria', { count: charCount })}>
+        <span
+          className="prompt-input__char-count"
+          aria-label={formatT(t, 'charCountAria', { count: charCount })}
+        >
           {charCount}
         </span>
       )}

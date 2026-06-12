@@ -168,24 +168,33 @@ export const ciEn = {
   ciDeleteNestedConfig: 'Delete CI config [nested]',
   ciDeleteNestedData: 'Delete data [nested]',
   ciDeleteNestedAll: 'Delete CI config and data [nested]',
-  ciDeleteDirHint: 'Delete this directory and all nested subdirectories, along with all CI config and data.',
-  ciDeleteNestedConfigHint: 'Recursively delete CI config for this directory and all nested subdirectories.',
+  ciDeleteDirHint:
+    'Delete this directory and all nested subdirectories, along with all CI config and data.',
+  ciDeleteNestedConfigHint:
+    'Recursively delete CI config for this directory and all nested subdirectories.',
   ciDeleteNestedDataHint: 'Delete CI data for this directory and all nested subdirectories.',
-  ciDeleteNestedAllHint: 'Recursively delete CI config and data for this directory and all nested subdirectories.',
+  ciDeleteNestedAllHint:
+    'Recursively delete CI config and data for this directory and all nested subdirectories.',
   ciUnpin: 'Unpin',
   ciPin: 'Pin',
   ciRemoveFromView: 'Remove from this view',
-  ciRemoveFromViewHint: 'Remove this workspace from the workspace directory category. Nested subdirectories will also be removed. No data will be deleted, and it can be restored in the left sidebar.',
+  ciRemoveFromViewHint:
+    'Remove this workspace from the workspace directory category. Nested subdirectories will also be removed. No data will be deleted, and it can be restored in the left sidebar.',
   ciDeleteAllNewDirs: 'Delete all new directories',
-  ciDeleteAllNewDirsHint: 'Delete all directory nodes created via "New Directory" and their CI config and data. Workspace directories are not affected.',
+  ciDeleteAllNewDirsHint:
+    'Delete all directory nodes created via "New Directory" and their CI config and data. Workspace directories are not affected.',
   ciDeleteAllConfigs: 'Delete all CI configs',
-  ciDeleteAllConfigsHint: 'Clear all GitHub repository configs (owner/repo/branch/token) bound to workspaces and folders. Directory structure and CI run data are preserved.',
+  ciDeleteAllConfigsHint:
+    'Clear all GitHub repository configs (owner/repo/branch/token) bound to workspaces and folders. Directory structure and CI run data are preserved.',
   ciDeleteAllData: 'Delete all data',
-  ciDeleteAllDataHint: 'Clear all CI run states (snapshots/job lists/errors) displayed in the current panel. Config info is preserved.',
+  ciDeleteAllDataHint:
+    'Clear all CI run states (snapshots/job lists/errors) displayed in the current panel. Config info is preserved.',
   ciDeleteAllConfigsAndData: 'Delete all CI configs and data',
-  ciDeleteAllConfigsAndDataHint: 'Clear all GitHub configs and CI run data simultaneously. Directory structure is preserved.',
+  ciDeleteAllConfigsAndDataHint:
+    'Clear all GitHub configs and CI run data simultaneously. Directory structure is preserved.',
   ciRestoreAll: 'Restore all',
-  ciRestoreAllHint: 'Clear everything — delete all new directories, all CI configs and data. Returns to the initial state showing only workspace top-level directories.',
+  ciRestoreAllHint:
+    'Clear everything — delete all new directories, all CI configs and data. Returns to the initial state showing only workspace top-level directories.',
   ciNoWorkflowData: 'No workflow data',
   ciNoJobData: 'No job data',
   ciLoading: 'Loading…',

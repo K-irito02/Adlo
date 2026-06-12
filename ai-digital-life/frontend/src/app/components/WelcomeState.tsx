@@ -1,6 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { useTCopy } from '../i18n/useTCopy';
-import { type IconName } from '../../design-system/icons';
 import { Icon } from './Icon';
 
 interface WelcomeStateProps {
@@ -10,8 +9,6 @@ interface WelcomeStateProps {
   onSelectRecentWorkspace: (path: string) => void;
   onSuggestion?: (text: string) => void;
 }
-
-
 
 export function WelcomeState({
   variant,

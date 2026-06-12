@@ -38,7 +38,6 @@ import type {
 } from './right-panel/types';
 import type { PatchDirection, PatchReviewFilter } from '../features/patch-review';
 import type { EditorRef, DiffEditorRef } from '../stores/types';
-import { useTCopy } from '../i18n/useTCopy';
 import type { ToolId } from '../stores/types';
 import { useRightPanelLayout } from './right-panel/hooks/useRightPanelLayout';
 import { useRightPanelViewProps } from './right-panel/hooks/useRightPanelViewProps';
@@ -181,7 +180,6 @@ const ActiveToolPanel = React.memo(function ActiveToolPanel({
 }, areActiveToolPanelPropsEqual);
 
 const RightPanel = React.memo(function RightPanel(panelProps: RightPanelProps) {
-  const { t } = useTCopy();
   const { collapsed } = panelProps;
 
   const { activeRightTool, setActiveRightTool, badges, diffSideBySide, onSetDiffLayout } =

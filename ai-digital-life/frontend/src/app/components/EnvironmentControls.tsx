@@ -195,7 +195,10 @@ export function EnvironmentControls({
 
       {/* ---- Theme toggler ---- */}
       <div className="sidebar-env-controls__item">
-        <TooltipSimple content={formatT(t, 'themeTooltip', { theme: currentTheme })} placement="right">
+        <TooltipSimple
+          content={formatT(t, 'themeTooltip', { theme: currentTheme })}
+          placement="right"
+        >
           <button
             type="button"
             className="sidebar-env-btn"

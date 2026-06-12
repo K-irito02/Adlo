@@ -191,7 +191,11 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
   const hasExpandedOutlineItems = expandedOutlineIds.size > 0;
 
   const navigatorTitle =
-    navigatorMode === 'tree' ? t.changesFileTree : navigatorMode === 'search' ? t.searchResults : t.outline;
+    navigatorMode === 'tree'
+      ? t.changesFileTree
+      : navigatorMode === 'search'
+        ? t.searchResults
+        : t.outline;
   const workspaceCount = visibleWorkspaces.length;
 
   useEffect(() => {

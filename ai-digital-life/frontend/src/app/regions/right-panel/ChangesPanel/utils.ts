@@ -21,10 +21,7 @@ export function writeSelectedBranch(branch: string) {
   } catch {}
 }
 
-export function getChangeKindLabel(
-  changeKind: 'added' | 'modified' | 'deleted',
-  t: CopyDict
-) {
+export function getChangeKindLabel(changeKind: 'added' | 'modified' | 'deleted', t: CopyDict) {
   return changeKind === 'added'
     ? t.gitAdded
     : changeKind === 'deleted'

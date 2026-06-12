@@ -213,7 +213,9 @@ export type ChangesPanelProps = Pick<
   | 'onJumpPatchHunk'
 >;
 
-export type BrowserPanelProps = { isVisible: boolean };
+export interface BrowserPanelProps {
+  isVisible: boolean;
+}
 
 export type TerminalPanelProps = Pick<
   RightPanelViewProps,
@@ -222,10 +224,7 @@ export type TerminalPanelProps = Pick<
 
 export type AuditPanelProps = Pick<RightPanelViewProps, 'auditEntries'>;
 
-export type ModelPanelProps = Pick<
-  RightPanelViewProps,
-  'modelHealth' | 'onRefreshModelHealth'
->;
+export type ModelPanelProps = Pick<RightPanelViewProps, 'modelHealth' | 'onRefreshModelHealth'>;
 
 export type SettingsPanelProps = Pick<RightPanelViewProps, 'settings' | 'onChangeSetting'>;
 

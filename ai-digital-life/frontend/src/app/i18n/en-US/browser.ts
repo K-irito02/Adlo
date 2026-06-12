@@ -116,7 +116,8 @@ export const browserEn = {
   browserContextOpenAllNewTabs: 'Open all in new tabs',
   browserContextRemoveFromView: 'Remove from this view',
   browserContextDeleteDir: 'Delete this directory',
-  browserCannotOpenEmbedded: 'This site cannot be opened in the embedded view, usually due to the site\'s security policy.',
+  browserCannotOpenEmbedded:
+    "This site cannot be opened in the embedded view, usually due to the site's security policy.",
   browserSelectDirFirst: 'Please select a directory first',
   browserTabCount: '{count} tabs',
   browserNewTabPage: 'New tab page',

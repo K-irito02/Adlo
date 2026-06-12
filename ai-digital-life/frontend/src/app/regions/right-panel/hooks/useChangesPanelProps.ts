@@ -2,7 +2,6 @@ import { useCallback, useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../../../stores/slicedStore';
 import { useAppActions } from '../../../hooks/useAppActions';
-import { useTCopy } from '../../../i18n/useTCopy';
 import type { ChangesPanelProps } from '../types';
 import type { RightPanelProps } from '../../RightPanel';
 
@@ -11,7 +10,6 @@ export function useChangesPanelProps(
   diffSideBySide: boolean,
   onSetDiffLayout: (sideBySide: boolean) => void
 ): ChangesPanelProps {
-  const { t } = useTCopy();
   const {
     selectedPatchFilePath,
     selectedPatchHunkId,

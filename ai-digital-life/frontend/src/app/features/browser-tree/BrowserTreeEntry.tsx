@@ -27,11 +27,17 @@ function getEntryHoverButtons(
   t: CopyDict
 ): Array<{ id: string; label: string; icon: React.ReactNode }> {
   if (categoryType === 'history') {
-    return [{ id: 'more', label: t.browserContextMore, icon: <IconMoreVertical size={12} decorative /> }];
+    return [
+      { id: 'more', label: t.browserContextMore, icon: <IconMoreVertical size={12} decorative /> },
+    ];
   }
   return [
     { id: 'create-tab', label: t.browserContextCreateTab, icon: <IconPlus size={12} decorative /> },
-    { id: 'delete-all-tabs', label: t.browserContextDeleteAllTabs, icon: <IconTrash size={12} decorative /> },
+    {
+      id: 'delete-all-tabs',
+      label: t.browserContextDeleteAllTabs,
+      icon: <IconTrash size={12} decorative />,
+    },
     { id: 'more', label: t.browserContextMore, icon: <IconMoreVertical size={12} decorative /> },
   ];
 }
@@ -128,7 +134,11 @@ function getChildNodeHoverButtons(
           label: t.browserContextDeleteAllTabs,
           icon: <IconTrash size={12} decorative />,
         },
-        { id: 'more', label: t.browserContextMore, icon: <IconMoreVertical size={12} decorative /> },
+        {
+          id: 'more',
+          label: t.browserContextMore,
+          icon: <IconMoreVertical size={12} decorative />,
+        },
       ];
     }
     return [];
@@ -136,8 +146,16 @@ function getChildNodeHoverButtons(
 
   if (nodeType === 'folder') {
     return [
-      { id: 'create-tab', label: t.browserContextCreateTab, icon: <IconPlus size={12} decorative /> },
-      { id: 'delete-all-tabs', label: t.browserContextDeleteAllTabs, icon: <IconTrash size={12} decorative /> },
+      {
+        id: 'create-tab',
+        label: t.browserContextCreateTab,
+        icon: <IconPlus size={12} decorative />,
+      },
+      {
+        id: 'delete-all-tabs',
+        label: t.browserContextDeleteAllTabs,
+        icon: <IconTrash size={12} decorative />,
+      },
       { id: 'more', label: t.browserContextMore, icon: <IconMoreVertical size={12} decorative /> },
     ];
   }
@@ -181,7 +199,11 @@ function getChildNodeMoreMenuItems(
         label: t.browserContextOpenAllNewTabs,
         action: () => callbacks.onOpenAllInNewTabs(categoryType, nodePath),
       },
-      { id: 'rename', label: t.browserContextRename, action: () => callbacks.onRenameDirectory(folderId) },
+      {
+        id: 'rename',
+        label: t.browserContextRename,
+        action: () => callbacks.onRenameDirectory(folderId),
+      },
       {
         id: 'delete-all-tabs',
         label: t.browserContextDeleteAllTabs,
@@ -289,7 +311,13 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
   const count = counts.get(node.path) ?? 0;
 
   const entryBtns = getEntryHoverButtons(node.nodeType, categoryType, t);
-  const entryMenuItems = getEntryMoreMenuItems(node.nodeType, categoryType, node.path, callbacks, t);
+  const entryMenuItems = getEntryMoreMenuItems(
+    node.nodeType,
+    categoryType,
+    node.path,
+    callbacks,
+    t
+  );
 
   const renderChildCount = useCallback(
     (childNode: BrowserTreeNode) => resolveChildCount(counts, childNode),
@@ -355,7 +383,7 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
         </span>
       );
     },
-    [categoryType, callbacks]
+    [categoryType, callbacks, t]
   );
 
   const handleChildClick = useCallback(
@@ -391,7 +419,7 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
         action: () => item.action(),
       }));
     },
-    [categoryType, callbacks]
+    [categoryType, callbacks, t]
   );
 
   const handleExpandBtnClick = useCallback(

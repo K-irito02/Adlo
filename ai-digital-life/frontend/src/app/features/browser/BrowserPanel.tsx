@@ -560,7 +560,10 @@ export function BrowserPanel(props: BrowserPanelProps) {
         <aside className="adl-tool-navigator" aria-label={t.toolBrowser}>
           <div className="adl-tool-navigator__context">
             <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--actions">
-              <TooltipSimple content={allTreeExpanded ? t.collapseAll : t.expandAll} placement="top">
+              <TooltipSimple
+                content={allTreeExpanded ? t.collapseAll : t.expandAll}
+                placement="top"
+              >
                 <button
                   type="button"
                   className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
@@ -878,9 +881,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
 
               {!isTauriShell() && iframeLoadError && (
                 <div className="adl-browser-error-container">
-                  <p className="adl-browser-error-text">
-                    {t.browserCannotOpenEmbedded}
-                  </p>
+                  <p className="adl-browser-error-text">{t.browserCannotOpenEmbedded}</p>
                 </div>
               )}
 

@@ -19,18 +19,41 @@ interface ContextItem {
 export function ContextBuilder({ onAddContext, activeContexts = [] }: ContextBuilderProps) {
   const { t, formatT } = useTCopy();
 
-  const CONTEXT_ITEMS: ContextItem[] = [
-    { type: 'plan', label: t.contextPlanMode, icon: 'clipboard-list' as const, section: 'mode' },
-    { type: 'debug', label: t.contextDebugMode, icon: 'bug' as const, section: 'mode' },
-    { type: 'ask', label: t.contextQAMode, icon: 'message-circle-question' as const, section: 'mode' },
-    { type: 'model', label: t.contextModelSelect, icon: 'cpu' as const, section: 'model' },
-    { type: 'skills', label: t.contextSkillLibrary, icon: 'sparkles' as const, section: 'model' },
-    { type: 'mcp', label: t.contextMCPService, icon: 'plug' as const, section: 'model' },
-    { type: '@file', label: t.contextReferenceFile, icon: 'file-text' as const, section: 'reference' },
-    { type: '@doc', label: t.contextReferenceDoc, icon: 'book-open' as const, section: 'reference' },
-    { type: '@url', label: t.contextReferenceLink, icon: 'link' as const, section: 'reference' },
-    { type: '@codebase', label: t.contextCodebaseContext, icon: 'database' as const, section: 'reference' },
-  ];
+  const CONTEXT_ITEMS: ContextItem[] = useMemo(
+    () => [
+      { type: 'plan', label: t.contextPlanMode, icon: 'clipboard-list' as const, section: 'mode' },
+      { type: 'debug', label: t.contextDebugMode, icon: 'bug' as const, section: 'mode' },
+      {
+        type: 'ask',
+        label: t.contextQAMode,
+        icon: 'message-circle-question' as const,
+        section: 'mode',
+      },
+      { type: 'model', label: t.contextModelSelect, icon: 'cpu' as const, section: 'model' },
+      { type: 'skills', label: t.contextSkillLibrary, icon: 'sparkles' as const, section: 'model' },
+      { type: 'mcp', label: t.contextMCPService, icon: 'plug' as const, section: 'model' },
+      {
+        type: '@file',
+        label: t.contextReferenceFile,
+        icon: 'file-text' as const,
+        section: 'reference',
+      },
+      {
+        type: '@doc',
+        label: t.contextReferenceDoc,
+        icon: 'book-open' as const,
+        section: 'reference',
+      },
+      { type: '@url', label: t.contextReferenceLink, icon: 'link' as const, section: 'reference' },
+      {
+        type: '@codebase',
+        label: t.contextCodebaseContext,
+        icon: 'database' as const,
+        section: 'reference',
+      },
+    ],
+    [t]
+  );
 
   const SECTION_LABELS: Record<string, string> = {
     mode: t.contextSectionMode,
@@ -93,7 +116,7 @@ export function ContextBuilder({ onAddContext, activeContexts = [] }: ContextBui
     return CONTEXT_ITEMS.filter(
       (item) => item.label.toLowerCase().includes(q) || item.type.toLowerCase().includes(q)
     );
-  }, [searchQuery]);
+  }, [searchQuery, CONTEXT_ITEMS]);
 
   const groupedItems = useMemo(() => {
     const groups: Record<string, ContextItem[]> = {};
@@ -192,13 +215,13 @@ export function ContextBuilder({ onAddContext, activeContexts = [] }: ContextBui
               ref={searchInputRef}
               type="text"
               className="context-builder__search-input"
-placeholder={t.contextSearchPlaceholder}
-               value={searchQuery}
-               onChange={(e) => {
-                 setSearchQuery(e.target.value);
-                 setFocusedIndex(0);
-               }}
-               aria-label={t.contextSearchAria}
+              placeholder={t.contextSearchPlaceholder}
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setFocusedIndex(0);
+              }}
+              aria-label={t.contextSearchAria}
             />
           </div>
 

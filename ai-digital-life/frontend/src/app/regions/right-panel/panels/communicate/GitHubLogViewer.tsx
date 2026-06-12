@@ -116,6 +116,7 @@ export function GitHubLogViewer({ snapshot, config }: GitHubLogViewerProps) {
     setLogError,
     bridge,
     ciAccessToken,
+    t,
   ]);
 
   const currentLogText = selectedLogJobId !== null ? (cachedJobLogs[selectedLogJobId] ?? '') : '';
@@ -256,7 +257,7 @@ export function GitHubLogViewer({ snapshot, config }: GitHubLogViewerProps) {
         </div>
       );
     },
-    [processedLines, searchMatches, searchMatchIndex, searchQuery, renderLine]
+    [processedLines, searchMatches, searchMatchIndex, searchQuery, renderLine, formatT, t]
   );
 
   const htmlUrl = snapshot?.latestRun?.htmlUrl;

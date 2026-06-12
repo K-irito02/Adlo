@@ -5,7 +5,7 @@ import { useTCopy } from '../../i18n/useTCopy';
 import { IconChevronDown, IconChevronRight, IconShield } from '../../icons';
 
 interface ApprovalCardProps {
-  approval: ApprovalRequestSummary; 
+  approval: ApprovalRequestSummary;
   decided?: { decision: 'approved' | 'rejected'; decidedAt: number };
   onDecide: (id: string, decision: 'approved' | 'rejected') => void;
 }

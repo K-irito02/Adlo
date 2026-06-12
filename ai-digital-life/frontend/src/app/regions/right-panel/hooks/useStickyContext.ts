@@ -29,14 +29,25 @@ function useStickyContext(input: UseStickyContextInput): StickyContextModel | nu
   const editorRefCache = useRef<(() => EditorRef | null) | null>(null);
   const scrollSeqRef = useRef(0);
 
+  const {
+    selectedFilePath,
+    content,
+    outline,
+    getStickySourceEditor,
+    wordWrapEnabled,
+    diffSideBySide,
+    editorSurfaceRef,
+    stickyDiffRanges,
+  } = input;
+
   useEffect(() => {
-    editorRefCache.current = input.getStickySourceEditor;
-  }, [input.getStickySourceEditor]);
+    editorRefCache.current = getStickySourceEditor;
+  }, [getStickySourceEditor]);
 
   const refresh = useCallback(() => {
     const getEditor = editorRefCache.current;
     scrollSeqRef.current += 1;
-    if (!input.selectedFilePath) {
+    if (!selectedFilePath) {
       contentKeyRef.current = '';
       setModel(null);
       return;
@@ -49,14 +60,14 @@ function useStickyContext(input: UseStickyContextInput): StickyContextModel | nu
     const canScrollToTop = scrollTop > 0;
 
     const entries = buildStickyContextEntries({
-      content: input.content,
-      outline: input.outline,
+      content,
+      outline,
       visibleStartLine,
       maxContextRows: 3,
-      diffRanges: input.stickyDiffRanges,
+      diffRanges: stickyDiffRanges,
     });
 
-    const contentKey = `${input.selectedFilePath}:${visibleStartLine}:${entries
+    const contentKey = `${selectedFilePath}:${visibleStartLine}:${entries
       .map((e) => `${e.line}:${e.kind}:${e.tone}`)
       .join('|')}:${canScrollToTop}`;
 
@@ -66,17 +77,17 @@ function useStickyContext(input: UseStickyContextInput): StickyContextModel | nu
       createStickyContextModel({
         modelId: `${contentKey}:${scrollSeqRef.current}`,
         canScrollToTop,
-        onNavigateLine: (line) => navigateToLine(input.getStickySourceEditor(), line),
+        onNavigateLine: (line) => navigateToLine(editorRefCache.current?.() ?? null, line),
         topLabel: t.stickyContextTop as string,
       })
     );
-  }, [input]);
+  }, [selectedFilePath, content, outline, stickyDiffRanges, t]);
 
   useEffect(() => {
     const getEditor = () => editorRefCache.current?.() ?? null;
 
     refresh();
-    if (!input.selectedFilePath) {
+    if (!selectedFilePath) {
       return;
     }
     const editor = getEditor();
@@ -90,7 +101,7 @@ function useStickyContext(input: UseStickyContextInput): StickyContextModel | nu
       editor.onDidLayoutChange?.(refresh),
     ].filter(Boolean) as Array<{ dispose(): void }>;
 
-    const shell = input.editorSurfaceRef.current;
+    const shell = editorSurfaceRef.current;
     const observer =
       shell && typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => refresh()) : null;
     if (observer && shell) {
@@ -103,13 +114,7 @@ function useStickyContext(input: UseStickyContextInput): StickyContextModel | nu
       observer?.disconnect();
       window.removeEventListener('resize', refresh);
     };
-  }, [
-    refresh,
-    input.selectedFilePath,
-    input.wordWrapEnabled,
-    input.diffSideBySide,
-    input.editorSurfaceRef,
-  ]);
+  }, [refresh, selectedFilePath, wordWrapEnabled, diffSideBySide, editorSurfaceRef]);
 
   return model;
 }

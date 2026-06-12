@@ -910,7 +910,7 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
 
       {isExpanded && node.children.length === 0 ? (
         <div className="adl-browser-entry__empty">
-            <span className="adl-empty-hint">{t.noContent}</span>
+          <span className="adl-empty-hint">{t.noContent}</span>
         </div>
       ) : null}
 

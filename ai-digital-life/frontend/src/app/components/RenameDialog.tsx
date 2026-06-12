@@ -81,7 +81,12 @@ export function RenameDialog({
 
   return createPortal(
     <div className="adl-prompt-modal" onKeyDown={handleKeyDown} onClick={handleBackdrop}>
-      <div className="adl-prompt-modal__panel" role="dialog" aria-modal="true" aria-label={resolvedTitle}>
+      <div
+        className="adl-prompt-modal__panel"
+        role="dialog"
+        aria-modal="true"
+        aria-label={resolvedTitle}
+      >
         <div className="adl-prompt-modal__header">
           {resolvedTitle}
           <button
