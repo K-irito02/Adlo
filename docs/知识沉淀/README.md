@@ -12,7 +12,7 @@
 | [代码质量](./代码质量/) | 全量代码质量检测与修复经验 | 11 |
 | [浏览器自动化](./浏览器自动化/) | 浏览器自动化调试记录与规则经验 | 2 |
 | [交互优化](./交互优化/) | 跨功能面板的交互/UX 问题修复经验 | 9 |
-| [CI 监控](./CI监控/) | GitHub Actions CI 状态监控模块经验（Token 安全、双端一致性、类型系统、树形目录交互） | 3 |
+| [CI 监控](./CI监控/) | GitHub Actions CI 状态监控模块经验（Token 安全、双端一致性、类型系统、树形目录交互、帮助系统） | 4 |
 
 ## 索引
 
@@ -108,3 +108,4 @@
 | [ci-module-lessons-2026-06-09.md](./CI监控/ci-module-lessons-2026-06-09.md) | 2026-06-09 全量 bug 修复 | 15 条 CI 模块经验（Token 安全存储、GitHub API 安全、useEffect 依赖、内存保护、Rust 编码规范） |
 | [ci-to-communication-refactor-and-log-viewer-2026-06-10.md](./CI监控/ci-to-communication-refactor-and-log-viewer-2026-06-10.md) | 2026-06-10 重构 | CI→通信面板重构 + GitHub CI 日志查看器（架构变更、ZIP 解压、LRU 缓存、虚拟滚动） |
 | [github-ci-tree-interaction-2026-06-10.md](./CI监控/github-ci-tree-interaction-2026-06-10.md) | 2026-06-10 交互重构 | GitHub CI 树形目录交互重构（FileTree 集成、按钮规范、renderIconBefore、RenameDialog 标准化、CSS 定位） |
+| [ci-panel-help-system-2026-06-13.md](./CI监控/ci-panel-help-system-2026-06-13.md) | 2026-06-13 操作手册完善 | CI 面板帮助系统增强（全局点击冲突、帮助按钮 toggle、手册内容扩展、TOC 导航） |

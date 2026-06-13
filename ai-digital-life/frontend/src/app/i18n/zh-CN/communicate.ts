@@ -17,4 +17,5 @@ export const communicateZh = {
   communicateDirList: '目录列表',
   communicateRefreshAll: '刷新全部',
   communicateNewDir: '新建目录',
+  communicateHelp: '帮助',
 } as const;

@@ -13,10 +13,12 @@ import { TooltipSimple } from '../../../../components/Tooltip';
 import { useAppStore } from '../../../../stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useCIPanelProps } from '../../hooks/useCIPanelProps';
+import { useNavigatorResize } from '../../../../hooks/useNavigatorResize';
 import { workspaceSelectors } from '../../../../stores/selectors';
 import { getAppCopy } from '../../../../i18n';
 import { useTCopy } from '../../../../i18n/useTCopy';
 import { GitHubTree } from '../../../../features/github-tree/GitHubTree';
+import { CustomScrollArea } from '../../../../features/file-tree/CustomScrollArea';
 import type { SectionCallbacks } from '../../../../features/github-tree/GitHubCategorySection';
 import { GitHubLogViewer } from './GitHubLogViewer';
 import { MenuHintItem } from './MenuHintItem';
@@ -94,6 +96,15 @@ export function GitHubPanel() {
       resetAllToOriginal: s.resetAllToOriginal,
     }))
   );
+
+  const gitHubNavigatorWidth = useAppStore((state) => state.gitHubNavigatorWidth);
+  const setGitHubNavigatorWidth = useAppStore((state) => state.setGitHubNavigatorWidth);
+
+  const { handlePointerDown: handleNavigatorResizeStart } = useNavigatorResize({
+    onWidthCommit: setGitHubNavigatorWidth,
+    minWidth: 180,
+    maxWidth: 420,
+  });
 
   const selectedTreePathRef = useRef<string | null>(null);
   const [showHelp, setShowHelp] = useState(false);
@@ -173,7 +184,9 @@ export function GitHubPanel() {
     (path: string | null) => {
       selectedTreePathRef.current = path ?? null;
       setSelectedGitHubTreePath(path);
-      setShowHelp(false);
+      if (path) {
+        setShowHelp(false);
+      }
       if (path?.startsWith('github-workspace:')) {
         const parts = path.split(':');
         const wsId = parts[1];
@@ -255,6 +268,13 @@ export function GitHubPanel() {
       }
     }
   }, [gitHubWorkspaceConfigs, onRefreshWorkspace]);
+
+  const handleHelpNav = useCallback((sectionId: string) => {
+    const el = document.getElementById(sectionId);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, []);
 
   const sectionCallbacks: SectionCallbacks = useMemo(
     () => ({
@@ -385,7 +405,7 @@ export function GitHubPanel() {
     <>
       <div
         className={`adl-tool-surface adl-tool-surface--github${communicateNavigatorCollapsed ? ' is-navigator-collapsed' : ''}`}
-        style={{ '--adl-files-nav-width': '200px' } as React.CSSProperties}
+        style={{ '--adl-files-nav-width': `${gitHubNavigatorWidth}px` } as React.CSSProperties}
       >
         <aside className="adl-tool-navigator" aria-label="GitHub CI">
           <div className="adl-tool-navigator__context">
@@ -408,7 +428,11 @@ export function GitHubPanel() {
                 </button>
               </TooltipSimple>
               <span className="adl-tool-navigator__context-title">
-                {gitHubViewMode === 'tree' ? t.changesFileTree : t.communicateDirList}
+                {showHelp
+                  ? t.communicateHelp
+                  : gitHubViewMode === 'tree'
+                    ? t.changesFileTree
+                    : t.communicateDirList}
               </span>
             </div>
             <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--utility">
@@ -550,12 +574,13 @@ export function GitHubPanel() {
                     document.body
                   )
                 : null}
-              <TooltipSimple content="Help" placement="top">
+              <TooltipSimple content={t.communicateHelp} placement="top">
                 <button
                   type="button"
-                  className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-                  onClick={() => setShowHelp(true)}
-                  aria-label="Help"
+                  className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${showHelp ? ' is-active' : ''}`}
+                  onClick={() => setShowHelp((prev) => !prev)}
+                  aria-label={t.communicateHelp}
+                  aria-pressed={showHelp}
                 >
                   <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
                     <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zM7 5.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 0 1h-.5v2h.5a.5.5 0 0 1 0 1H7a.5.5 0 0 1-.5-.5v-2.5a.5.5 0 0 1 .5-.5zm1 5a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1z" />
@@ -564,24 +589,241 @@ export function GitHubPanel() {
               </TooltipSimple>
             </div>
           </div>
-          <GitHubTree
-            workspaces={workspaces}
-            gitHubWorkspaceConfigs={gitHubWorkspaceConfigs}
-            gitHubCiFolders={gitHubCiFolders}
-            gitHubTreeExpanded={gitHubTreeExpanded}
-            selectedTreePath={selectedGitHubTreePath}
-            onSelectTreePath={handleSelectTreePath}
-            onTogglePath={handleTogglePath}
-            callbacks={sectionCallbacks}
-            labels={{
-              ciWorkspaceCategory: copy.ciWorkspaceCategory,
-              userFolderCategory: copy.ciUserFolderCategory,
-              ciOverview: copy.ciOverview,
-              ciWorkflows: copy.ciWorkflows,
-              ciJobs: copy.ciJobs,
-              ciLogs: copy.ciLogs,
-            }}
-            gitHubViewMode={gitHubViewMode}
+          {showHelp ? (
+            <CustomScrollArea
+              shellClassName="adl-multitree adl-multitree--github"
+              scrollClassName="adl-multitree-scroll"
+              scrollbarClassName="adl-multitree-scrollbar"
+              thumbClassName="adl-multitree-scrollbar__thumb"
+            >
+              <div className="adl-github-category">
+                <div
+                  className="adl-github-category__label"
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => handleHelpNav('gh-help-layout')}
+                >
+                  <span className="adl-github-category__label-text">{copy.ciHelpLayoutTitle}</span>
+                </div>
+                <div className="adl-github-category__entries">
+                  <div
+                    className="adl-github-entry__leaf"
+                    onClick={() => handleHelpNav('gh-help-layout-navigator')}
+                  >
+                    {copy.ciHelpLayoutNavigator}
+                  </div>
+                  <div
+                    className="adl-github-entry__leaf"
+                    onClick={() => handleHelpNav('gh-help-layout-primary')}
+                  >
+                    {copy.ciHelpLayoutPrimary}
+                  </div>
+                  <div
+                    className="adl-github-entry__leaf"
+                    onClick={() => handleHelpNav('gh-help-layout-toolbar')}
+                  >
+                    {copy.ciHelpLayoutToolbar}
+                  </div>
+                </div>
+              </div>
+              <div className="adl-github-category">
+                <div
+                  className="adl-github-category__label"
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => handleHelpNav('gh-help-basic')}
+                >
+                  <span className="adl-github-category__label-text">{copy.ciHelpBasicTitle}</span>
+                </div>
+                <div className="adl-github-category__entries">
+                  <div
+                    className="adl-github-entry__leaf"
+                    onClick={() => handleHelpNav('gh-help-how-to-config')}
+                  >
+                    {copy.ciHelpHowToConfig}
+                  </div>
+                  <div
+                    className="adl-github-entry__leaf"
+                    onClick={() => handleHelpNav('gh-help-status-colors')}
+                  >
+                    {copy.ciHelpStatusColors}
+                  </div>
+                  <div
+                    className="adl-github-entry__leaf"
+                    onClick={() => handleHelpNav('gh-help-view-logs')}
+                  >
+                    {copy.ciHelpViewLogs}
+                  </div>
+                  <div
+                    className="adl-github-entry__leaf"
+                    onClick={() => handleHelpNav('gh-help-basic-autorefresh')}
+                  >
+                    {copy.ciHelpBasicAutoRefresh}
+                  </div>
+                  <div
+                    className="adl-github-entry__leaf"
+                    onClick={() => handleHelpNav('gh-help-multi-workspace')}
+                  >
+                    {copy.ciHelpMultiWorkspace}
+                  </div>
+                </div>
+              </div>
+              <div className="adl-github-category">
+                <div
+                  className="adl-github-category__label"
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => handleHelpNav('gh-help-concepts')}
+                >
+                  <span className="adl-github-category__label-text">
+                    {copy.ciHelpConceptsTitle}
+                  </span>
+                </div>
+                <div className="adl-github-category__entries">
+                  <div
+                    className="adl-github-entry__leaf"
+                    onClick={() => handleHelpNav('gh-help-concept-workflow')}
+                  >
+                    {copy.ciHelpConceptWorkflowLabel}
+                  </div>
+                  <div
+                    className="adl-github-entry__leaf"
+                    onClick={() => handleHelpNav('gh-help-concept-job')}
+                  >
+                    {copy.ciHelpConceptJobLabel}
+                  </div>
+                  <div
+                    className="adl-github-entry__leaf"
+                    onClick={() => handleHelpNav('gh-help-concept-step')}
+                  >
+                    {copy.ciHelpConceptStepLabel}
+                  </div>
+                  <div
+                    className="adl-github-entry__leaf"
+                    onClick={() => handleHelpNav('gh-help-concept-run')}
+                  >
+                    {copy.ciHelpConceptRunLabel}
+                  </div>
+                  <div
+                    className="adl-github-entry__leaf"
+                    onClick={() => handleHelpNav('gh-help-concept-conclusion')}
+                  >
+                    {copy.ciHelpConceptConclusion}
+                  </div>
+                  <div
+                    className="adl-github-entry__leaf"
+                    onClick={() => handleHelpNav('gh-help-concept-status')}
+                  >
+                    {copy.ciHelpConceptStatus}
+                  </div>
+                </div>
+              </div>
+              <div className="adl-github-category">
+                <div
+                  className="adl-github-category__label"
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => handleHelpNav('gh-help-troubleshooting')}
+                >
+                  <span className="adl-github-category__label-text">
+                    {copy.ciHelpTroubleshootingTitle}
+                  </span>
+                </div>
+                <div className="adl-github-category__entries">
+                  <div
+                    className="adl-github-entry__leaf"
+                    onClick={() => handleHelpNav('gh-help-trouble-noruns')}
+                  >
+                    {copy.ciHelpTroubleNoRuns}
+                  </div>
+                  <div
+                    className="adl-github-entry__leaf"
+                    onClick={() => handleHelpNav('gh-help-trace-ratelimit')}
+                  >
+                    {copy.ciHelpTroubleRateLimit}
+                  </div>
+                  <div
+                    className="adl-github-entry__leaf"
+                    onClick={() => handleHelpNav('gh-help-trouble-autorefresh')}
+                  >
+                    {copy.ciHelpTroubleNoAutoRefresh}
+                  </div>
+                  <div
+                    className="adl-github-entry__leaf"
+                    onClick={() => handleHelpNav('gh-help-trouble-incomplete')}
+                  >
+                    {copy.ciHelpTroubleIncompleteInfo}
+                  </div>
+                </div>
+              </div>
+              <div className="adl-github-category">
+                <div
+                  className="adl-github-category__label"
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => handleHelpNav('gh-help-token')}
+                >
+                  <span className="adl-github-category__label-text">{copy.ciHelpTokenTitle}</span>
+                </div>
+                <div className="adl-github-category__entries">
+                  <div
+                    className="adl-github-entry__leaf"
+                    onClick={() => handleHelpNav('gh-help-token-why')}
+                  >
+                    {copy.ciHelpTokenWhyNeed}
+                  </div>
+                  <div
+                    className="adl-github-entry__leaf"
+                    onClick={() => handleHelpNav('gh-help-token-scopes')}
+                  >
+                    {copy.ciHelpTokenScopes}
+                  </div>
+                  <div
+                    className="adl-github-entry__leaf"
+                    onClick={() => handleHelpNav('gh-help-token-steps')}
+                  >
+                    {copy.ciHelpTokenSteps}
+                  </div>
+                  <div
+                    className="adl-github-entry__leaf"
+                    onClick={() => handleHelpNav('gh-help-token-old')}
+                  >
+                    {copy.ciHelpTokenOldMethod}
+                  </div>
+                  <div
+                    className="adl-github-entry__leaf"
+                    onClick={() => handleHelpNav('gh-help-token-security')}
+                  >
+                    {copy.ciHelpTokenSecurity}
+                  </div>
+                </div>
+              </div>
+            </CustomScrollArea>
+          ) : (
+            <GitHubTree
+              workspaces={workspaces}
+              gitHubWorkspaceConfigs={gitHubWorkspaceConfigs}
+              gitHubCiFolders={gitHubCiFolders}
+              gitHubTreeExpanded={gitHubTreeExpanded}
+              selectedTreePath={selectedGitHubTreePath}
+              onSelectTreePath={handleSelectTreePath}
+              onTogglePath={handleTogglePath}
+              callbacks={sectionCallbacks}
+              labels={{
+                ciWorkspaceCategory: copy.ciWorkspaceCategory,
+                userFolderCategory: copy.ciUserFolderCategory,
+                ciOverview: copy.ciOverview,
+                ciWorkflows: copy.ciWorkflows,
+                ciJobs: copy.ciJobs,
+                ciLogs: copy.ciLogs,
+              }}
+              gitHubViewMode={gitHubViewMode}
+            />
+          )}
+          <div
+            className="adl-tool-navigator__resize-handle"
+            onPointerDown={handleNavigatorResizeStart}
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize GitHub navigator"
+            aria-valuemin={180}
+            aria-valuemax={420}
+            aria-valuenow={gitHubNavigatorWidth}
           />
         </aside>
 

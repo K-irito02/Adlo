@@ -17,4 +17,5 @@ export const communicateEn = {
   communicateDirList: 'Directory list',
   communicateRefreshAll: 'Refresh all',
   communicateNewDir: 'New directory',
+  communicateHelp: 'Help',
 } as const;

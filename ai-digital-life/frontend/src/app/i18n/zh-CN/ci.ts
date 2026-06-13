@@ -56,9 +56,44 @@ export const ciZh = {
   ciHelpHowToConfig: '如何配置',
   ciHelpHowToConfigContent:
     '输入 Owner（仓库所有者）、Repo（仓库名）、Branch（分支名，默认为 main），点击"查询"按钮获取 CI 状态。',
+  ciHelpBasicAutoRefresh: '自动刷新机制',
+  ciHelpBasicAutoRefreshContent:
+    '面板默认开启自动刷新功能：当在终端中执行 git push 成功后，系统会自动感知并重新拉取 CI 状态。无需手动操作，确保你始终看到最新结果。如未自动刷新，可点击工具栏的刷新按钮手动触发。',
+  ciHelpMultiWorkspace: '多工作区管理',
+  ciHelpMultiWorkspaceContent:
+    '面板支持同时监控多个工作区的 CI 状态。每个工作区可以独立配置 Owner/Repo/Branch/Token，在导航侧边栏中切换查看。你还可以创建自定义分组目录，将相关的工作区归类管理，并通过置顶功能将常用工作区固定在列表顶部。',
   ciHelpStatusColors: '状态颜色',
   ciHelpStatusColorsContent:
     '🟢 绿色 = 通过（success）\n🔴 红色 = 失败（failure）\n🟡 黄色 = 运行中（in_progress）\n⬜ 灰色 = 跳过（skipped）',
+  // ========== 帮助Tab - 配置步骤 ==========
+  ciHelpConfigStepsLabel: '步骤：',
+  ciHelpConfigStep1: '在导航侧边栏中选择一个已配置的工作区，或点击设置按钮配置新的仓库。',
+  ciHelpConfigStep2: '在弹出的对话框填写 Owner（仓库所有者）、Repo（仓库名）、Branch（分支名）。',
+  ciHelpConfigStep3: '可选：填写 GitHub Token 以提升 API 限流额度或访问私有仓库。',
+  ciHelpConfigStep4: '点击"保存并查询"获取 CI 状态。',
+
+  // ========== 帮助Tab - 状态颜色 ==========
+  ciHelpColorGreen: '绿色 — 通过（success）',
+  ciHelpColorRed: '红色 — 失败（failure）',
+  ciHelpColorYellow: '黄色 — 运行中（in_progress / queued）',
+  ciHelpColorGray: '灰色 — 跳过 / 已取消（skipped / cancelled）',
+
+  // ========== 帮助Tab - 日志功能 ==========
+  ciHelpLogFeatureAnsi: '日志查看器支持 ANSI 颜色渲染，直观区分不同日志级别。',
+  ciHelpLogFeatureSearch: '使用搜索框可快速定位关键字，支持上下逐个跳转。',
+  ciHelpLogFeatureCollapse: '"折叠空白"按钮可合并连续的空白行，减少干扰。',
+  ciHelpLogFeatureGithub: '装载完成后仍可点击"在 GitHub 查看"跳转至 GitHub Actions 获取完整日志。',
+
+  // ========== 帮助Tab - 概念标签 ==========
+  ciHelpConceptWorkflowLabel: 'Workflow（工作流程）',
+  ciHelpConceptJobLabel: 'Job（任务）',
+  ciHelpConceptStepLabel: 'Step（步骤）',
+  ciHelpConceptRunLabel: 'Run（运行）',
+
+  // ========== 帮助Tab - 故障排查标签 ==========
+  ciHelpTroubleCauseLabel: '可能原因：',
+  ciHelpTroubleSolutionLabel: '解决方案：',
+
   ciHelpViewLogs: '如何查看日志',
   ciHelpViewLogsContent:
     '点击 Job 左侧的箭头展开 Step 列表，查看每个步骤的详细结果。点击"在 GitHub 查看"可跳转到 GitHub Actions 页面获取完整信息。',
@@ -127,6 +162,20 @@ export const ciZh = {
   ciHelpTokenOldMethod: '经典令牌（兼容模式）',
   ciHelpTokenOldMethodContent:
     '如果需要更广泛的兼容性，可使用经典令牌：\n在 "Select scopes" 中勾选：\n• public_repo（公开仓库）\n• read:user（用户信息）',
+
+  // ========== 帮助Tab - 面板布局 ==========
+  ciHelpLayoutTitle: '面板布局与操作',
+  ciHelpLayoutOverview:
+    'CI 面板分为三大区域：左侧的导航侧边栏、中间的主内容区域、以及顶部的工具栏。以下逐一介绍各区域的用途与操作方法。',
+  ciHelpLayoutNavigator: '导航侧边栏',
+  ciHelpLayoutNavigatorDesc:
+    '显示已配置的工作区与自定义目录树。每项展开后包含四个子页面：概览、工作流、任务、日志。支持新建目录、置顶、重命名、删除等管理操作。侧边栏宽度可通过拖动分隔条调整。',
+  ciHelpLayoutPrimary: '主内容区域',
+  ciHelpLayoutPrimaryDesc:
+    '显示当前选中工作区的详细 CI 信息，包含概览面板（运行摘要、提交信息、状态总览）、工作流列表、任务列表及步骤详情、日志查看器（支持 ANSI 颜色、搜索、空白行折叠）。',
+  ciHelpLayoutToolbar: '工具栏按钮',
+  ciHelpLayoutToolbarDesc:
+    '顶部工具栏提供：展开/折叠全部目录、切换树形/列表视图模式、创建新目录、批量删除菜单（删除目录/配置/数据/全部还原）、以及刷新全部和帮助按钮。',
 
   // ========== 错误 ==========
   ciErrorTitle: '错误',

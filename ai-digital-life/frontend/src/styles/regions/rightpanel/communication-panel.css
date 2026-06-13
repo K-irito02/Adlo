@@ -670,6 +670,13 @@
   flex-direction: row;
   overflow: hidden;
   min-height: 0;
+  position: relative;
+}
+
+.adl-tool-surface--github > .adl-tool-navigator {
+  width: var(--adl-files-nav-width, 200px);
+  flex-shrink: 0;
+  position: relative;
 }
 
 .adl-tool-surface--github.is-navigator-collapsed .adl-tool-navigator {
@@ -707,10 +714,10 @@
 }
 
 .adl-tool-surface--github .adl-tool-navigator__context-count {
-  font-size: var(--text-xxs);
-  color: var(--text-tertiary);
-  min-width: 16px;
-  text-align: right;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  line-height: 1;
 }
 
 .adl-github-category {
@@ -730,7 +737,7 @@
 .adl-github-category__label-text {
   font-size: var(--text-xs);
   font-weight: var(--font-medium);
-  color: var(--text-muted);
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.3px;
   flex: 1;
@@ -876,7 +883,7 @@
   min-height: 26px;
   transition: background-color 0.15s;
   font-size: var(--text-xs);
-  color: var(--text-secondary);
+  color: var(--text-primary);
 }
 
 .adl-github-entry__leaf:hover {

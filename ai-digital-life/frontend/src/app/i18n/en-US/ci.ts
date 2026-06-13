@@ -56,9 +56,50 @@ export const ciEn = {
   ciHelpHowToConfig: 'How to Configure',
   ciHelpHowToConfigContent:
     'Enter Owner (repository owner), Repo (repository name), Branch (branch name, defaults to main), then click the "Query" button to fetch CI status.',
+  ciHelpBasicAutoRefresh: 'Auto-Refresh Mechanism',
+  ciHelpBasicAutoRefreshContent:
+    'The panel enables auto-refresh by default: after a successful git push in the terminal, the system automatically detects the change and re-fetches CI status. No manual action is required, ensuring you always see the latest results. If auto-refresh does not trigger, click the refresh button in the toolbar to manually update.',
+  ciHelpMultiWorkspace: 'Multi-Workspace Management',
+  ciHelpMultiWorkspaceContent:
+    'The panel supports monitoring CI status for multiple workspaces simultaneously. Each workspace can configure its own Owner/Repo/Branch/Token independently, and you can switch between them via the navigator sidebar. You can also create custom grouping folders to organize related workspaces, and pin frequently used workspaces to the top of the list.',
   ciHelpStatusColors: 'Status Colors',
   ciHelpStatusColorsContent:
     '🟢 Green = Passed (success)\n🔴 Red = Failed (failure)\n🟡 Yellow = Running (in_progress)\n⬜ Gray = Skipped (skipped)',
+  // ========== Help Tab - Config Steps ==========
+  ciHelpConfigStepsLabel: 'Steps:',
+  ciHelpConfigStep1:
+    'Select a configured workspace in the navigator sidebar, or click the settings button to configure a new repository.',
+  ciHelpConfigStep2: 'Fill in Owner, Repo, and Branch in the dialog.',
+  ciHelpConfigStep3:
+    'Optional: enter a GitHub Token to increase API rate limits or access private repositories.',
+  ciHelpConfigStep4: 'Click "Save & Query" to fetch CI status.',
+
+  // ========== Help Tab - Status Colors ==========
+  ciHelpColorGreen: 'Green — Passed (success)',
+  ciHelpColorRed: 'Red — Failed (failure)',
+  ciHelpColorYellow: 'Yellow — Running (in_progress / queued)',
+  ciHelpColorGray: 'Gray — Skipped / Cancelled (skipped / cancelled)',
+
+  // ========== Help Tab - Log Features ==========
+  ciHelpLogFeatureAnsi:
+    'The log viewer supports ANSI color rendering for clear log level differentiation.',
+  ciHelpLogFeatureSearch:
+    'Use the search box to quickly locate keywords, with jump-to-next and jump-to-previous navigation.',
+  ciHelpLogFeatureCollapse:
+    'The "Collapse blank lines" button merges consecutive blank lines to reduce visual noise.',
+  ciHelpLogFeatureGithub:
+    'After loading, click "View on GitHub" to see the full log on GitHub Actions.',
+
+  // ========== Help Tab - Concept Labels ==========
+  ciHelpConceptWorkflowLabel: 'Workflow',
+  ciHelpConceptJobLabel: 'Job',
+  ciHelpConceptStepLabel: 'Step',
+  ciHelpConceptRunLabel: 'Run',
+
+  // ========== Help Tab - Troubleshooting Labels ==========
+  ciHelpTroubleCauseLabel: 'Possible cause:',
+  ciHelpTroubleSolutionLabel: 'Solution:',
+
   ciHelpViewLogs: 'How to View Logs',
   ciHelpViewLogsContent:
     'Click the arrow on the left of a Job to expand the Step list and view detailed results for each step. Click "View on GitHub" to jump to the GitHub Actions page for complete information.',
@@ -137,6 +178,20 @@ export const ciEn = {
   ciHelpTokenOldMethod: 'Classic Token (Compatibility)',
   ciHelpTokenOldMethodContent:
     'For broader compatibility, use classic token:\nIn "Select scopes", check:\n• public_repo (public repos)\n• read:user (user profile)',
+
+  // ========== Help Tab - Panel Layout ==========
+  ciHelpLayoutTitle: 'Panel Layout',
+  ciHelpLayoutOverview:
+    "The CI panel is divided into three main areas: the navigator sidebar on the left, the primary content area in the center, and the toolbar at the top. This section introduces each area's purpose and usage.",
+  ciHelpLayoutNavigator: 'Navigator Sidebar',
+  ciHelpLayoutNavigatorDesc:
+    'Displays configured workspaces and custom directory trees. Each item expands to reveal four sub-pages: Overview, Workflows, Jobs, and Logs. Supports creating directories, pinning, renaming, and deleting. The sidebar width can be adjusted by dragging the resize handle.',
+  ciHelpLayoutPrimary: 'Primary Content Area',
+  ciHelpLayoutPrimaryDesc:
+    'Shows detailed CI information for the selected workspace, including the overview panel (run summary, commit info, status overview), workflow list, job list with step details, and a log viewer (supports ANSI colors, search, and blank line collapsing).',
+  ciHelpLayoutToolbar: 'Toolbar Buttons',
+  ciHelpLayoutToolbarDesc:
+    'The toolbar provides: expand/collapse all directories, toggle tree/list view mode, create new directory, batch delete menu (delete directories/configs/data/restore all), refresh all, and help buttons.',
 
   // ========== Error ==========
   ciErrorTitle: 'Error',

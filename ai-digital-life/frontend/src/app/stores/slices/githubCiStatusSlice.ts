@@ -219,14 +219,26 @@ export const createGitHubCiStatusSlice = (
         for (const ws of state.recentWorkspaces) {
           paths[`github-workspace:${ws.id}`] = true;
         }
-        for (const folder of state.gitHubCiFolders) {
-          paths[`github-folder:${folder.id}`] = true;
-        }
-        return { gitHubTreeExpanded: paths };
+        const collectFolderPaths = (
+          parentId: string | undefined,
+          parentType: string | undefined
+        ) => {
+          const children = state.gitHubCiFolders.filter(
+            (f) =>
+              f.parentId === parentId &&
+              (!f.parentType || f.parentType === parentType || parentType === undefined)
+          );
+          for (const child of children) {
+            paths[`github-folder:${child.id}`] = true;
+            collectFolderPaths(child.id, 'folder');
+          }
+        };
+        collectFolderPaths(undefined, undefined);
+        return { gitHubTreeExpanded: paths, gitHubAllTreeExpanded: true };
       });
     },
 
-    collapseAllGitHubTree: () => set({ gitHubTreeExpanded: {} }),
+    collapseAllGitHubTree: () => set({ gitHubTreeExpanded: {}, gitHubAllTreeExpanded: false }),
 
     setSelectedGitHubTreePath: (path) => set({ selectedGitHubTreePath: path }),
 

@@ -30,6 +30,7 @@ export const RIGHT_PANEL_WIDTH_KEY = 'adl-ui:right-panel-width';
 export const FILES_NAVIGATOR_WIDTH_KEY = 'adl-ui:files-navigator-width';
 export const CHANGES_NAVIGATOR_WIDTH_KEY = 'adl-ui:changes-navigator-width';
 export const BROWSER_NAVIGATOR_WIDTH_KEY = 'adl-ui:browser-navigator-width';
+export const GITHUB_NAVIGATOR_WIDTH_KEY = 'adl-ui:github-navigator-width';
 export const FILE_TREE_EXPANDED_KEY = 'adl-ui:file-tree-expanded';
 export const CHANGES_TREE_EXPANDED_KEY = 'adl-ui:changes-tree-expanded';
 export const FILES_NAVIGATOR_MODE_KEY = 'adl-ui:files-navigator-mode';
@@ -52,6 +53,9 @@ export const DEFAULT_CHANGES_NAVIGATOR_WIDTH = 240;
 export const BROWSER_NAVIGATOR_WIDTH_MIN = 180;
 export const BROWSER_NAVIGATOR_WIDTH_MAX = 300;
 export const DEFAULT_BROWSER_NAVIGATOR_WIDTH = 240;
+export const GITHUB_NAVIGATOR_WIDTH_MIN = 180;
+export const GITHUB_NAVIGATOR_WIDTH_MAX = 420;
+export const DEFAULT_GITHUB_NAVIGATOR_WIDTH = 200;
 
 function defaultNavigatorCollapsed(): Record<ToolId, boolean> {
   return {
@@ -239,6 +243,7 @@ export interface UISlice {
   filesNavigatorWidth: number;
   changesNavigatorWidth: number;
   browserNavigatorWidth: number;
+  gitHubNavigatorWidth: number;
   isFetching: Record<string, boolean>;
   expandedFileTreePaths: FileTreeExpansionState;
   expandedChangesTreePaths: TreeExpansionState;
@@ -267,6 +272,7 @@ export interface UISlice {
   setFilesNavigatorWidth: (width: number) => void;
   setChangesNavigatorWidth: (width: number) => void;
   setBrowserNavigatorWidth: (width: number) => void;
+  setGitHubNavigatorWidth: (width: number) => void;
   setIsFetching: (key: string, value: boolean) => void;
   setError: (message?: string) => void;
   setFileTreePathExpanded: (workspaceId: string, path: string, expanded: boolean) => void;
@@ -333,6 +339,12 @@ export const createUISlice = (
       DEFAULT_BROWSER_NAVIGATOR_WIDTH,
       BROWSER_NAVIGATOR_WIDTH_MIN,
       BROWSER_NAVIGATOR_WIDTH_MAX
+    ),
+    gitHubNavigatorWidth: readNumber(
+      GITHUB_NAVIGATOR_WIDTH_KEY,
+      DEFAULT_GITHUB_NAVIGATOR_WIDTH,
+      GITHUB_NAVIGATOR_WIDTH_MIN,
+      GITHUB_NAVIGATOR_WIDTH_MAX
     ),
     isFetching: {},
     expandedFileTreePaths: {},
@@ -402,6 +414,11 @@ export const createUISlice = (
       const next = clamp(width, BROWSER_NAVIGATOR_WIDTH_MIN, BROWSER_NAVIGATOR_WIDTH_MAX);
       writeNumber(BROWSER_NAVIGATOR_WIDTH_KEY, next);
       set({ browserNavigatorWidth: next });
+    },
+    setGitHubNavigatorWidth: (width) => {
+      const next = clamp(width, GITHUB_NAVIGATOR_WIDTH_MIN, GITHUB_NAVIGATOR_WIDTH_MAX);
+      writeNumber(GITHUB_NAVIGATOR_WIDTH_KEY, next);
+      set({ gitHubNavigatorWidth: next });
     },
     setIsFetching: (key, value) => {
       set((state) => ({

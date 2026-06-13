@@ -229,6 +229,48 @@
 | `gitHubUnpinWorkspace(id)` | 取消工作区的置顶状态 |
 | `hideWorkspaceFromRightPanels(id)` | 从工作区目录隐藏工作区（可恢复） |
 
+### 帮助系统（操作手册）
+
+帮助按钮位于导航器次级工具栏最右侧（`?` 图标），点击后触发以下变化：
+
+| 区域 | 变化 |
+|------|------|
+| 上下文标题 | 从"文件树/目录列表"切换为"帮助" |
+| 导航侧边栏 | GitHub 树形目录替换为操作手册目录树（TOC） |
+| 主内容区域 | 显示操作手册完整内容 |
+
+**帮助按钮交互：**
+
+| 行为 | 效果 |
+|------|------|
+| 点击帮助按钮 | 切换帮助模式：显示 TOC + 手册内容 |
+| 再次点击帮助按钮 | 退出帮助模式，恢复树形目录 |
+| 点击 TOC 条目 | `scrollIntoView` 平滑滚动到对应章节锚点 |
+| 点击已配置的工作区（退出帮助后） | 正常显示 CI 状态视图 |
+
+**操作手册章节结构（5 章 22 子节）：**
+
+| 章节 | 子节数 | 子节 |
+|------|--------|------|
+| 面板布局与操作 | 3 | 导航侧边栏 / 主内容区域 / 工具栏按钮 |
+| 基础使用 | 5 | 如何配置 / 状态颜色 / 查看日志 / 自动刷新 / 多工作区管理 |
+| 进阶概念 | 6 | Workflow / Job / Step / Run / Conclusion / Status |
+| 故障排查 | 4 | 无运行记录 / Rate Limit / 未自动刷新 / 信息不完整 |
+| GitHub Token 配置 | 5 | 为什么需要 / 所需权限 / 创建步骤 / 经典令牌 / 安全说明 |
+
+**锚点 ID 命名规范：** `gh-help-{section}`（主章节）、`gh-help-{section}-{subsection}`（子节）、`gh-help-concept-{name}`（概念卡片）、`gh-help-trouble-{name}`（故障卡片）、`gh-help-token-{name}`（Token 卡片）。
+
+**选择器：**
+
+| 元素 | 选择器 | 说明 |
+|------|--------|------|
+| 帮助按钮 | `.adl-tool-context__iconbtn` 含 `?` SVG | 导航器顶部工具栏 |
+| 帮助按钮（激活态） | `.adl-tool-context__iconbtn.is-active` | 帮助模式中高亮 |
+| TOC 容器 | `.adl-multitree.adl-multitree--github` | 替换 `GitHubTree` 的滚动容器 |
+| TOC 分类标签 | `.adl-github-category__label` | 章节标题（"面板布局与操作"等） |
+| TOC 子条目 | `.adl-github-entry__leaf` | 可点击的子节条目 |
+| 操作手册内容 | `#gh-help-*` 锚点 ID | 每个章节/子节均有唯一 ID |
+
 ## 注意事项
 
 1. **Token 安全**：Token 保存在浏览器 localStorage 或 Tauri 系统钥匙串，不发送到第三方服务器
