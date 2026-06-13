@@ -551,7 +551,6 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
       const childFolderId = childNode.path.startsWith('github-folder:')
         ? childNode.path.slice('github-folder:'.length)
         : '';
-      const isUnderWorkspace = !!node.workspaceId;
 
       return (
         <span className="adl-browser-node__actions">
@@ -561,7 +560,7 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
               className="adl-icon-btn adl-icon-btn--xs"
               onClick={(e) => {
                 e.stopPropagation();
-                clearCiState();
+                callbacks.onRefreshWorkspace(childFolderId);
               }}
               aria-label={t.refresh}
             >
@@ -574,11 +573,7 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
               className="adl-icon-btn adl-icon-btn--xs"
               onClick={(e) => {
                 e.stopPropagation();
-                if (isUnderWorkspace && node.workspaceId) {
-                  callbacks.onOpenSettings(node.workspaceId);
-                } else {
-                  callbacks.onOpenFolderSettings(childFolderId);
-                }
+                callbacks.onOpenFolderSettings(childFolderId);
               }}
               aria-label={t.settings}
             >
@@ -606,7 +601,7 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
         </span>
       );
     },
-    [clearCiState, callbacks, node.workspaceId, t]
+    [callbacks, t]
   );
 
   const handleChildClick = useCallback(
@@ -762,6 +757,9 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
             e.stopPropagation();
             if (node.workspaceId) {
               callbacks.onRefreshWorkspace(node.workspaceId);
+            } else if (node.nodeType === 'folder') {
+              const folderId = node.path.replace('github-folder:', '');
+              callbacks.onRefreshWorkspace(folderId);
             } else {
               clearCiState();
             }

@@ -1,8 +1,15 @@
 import type { CiJobSummary, CiStatusSnapshot } from '@ai-digital-life/kernel';
 import type { StoreState } from '../StoreState';
 import type { DigitalLifeBridge } from '../../../shared/ipc';
+import type { GitWorkspaceCiConfig } from './githubCiConfigSlice';
+import { createDebouncedWrite, readJson } from '../shared';
 
 const ACTIVE_GITHUB_SECTION_KEY = 'adl-ui:active-github-section';
+const CI_SNAPSHOTS_KEY = 'adl-ui:ci-snapshots';
+const CI_LOG_CACHES_KEY = 'adl-ui:ci-log-caches';
+
+const { scheduleWrite: scheduleSnapshotsWrite } = createDebouncedWrite(300);
+const { scheduleWrite: scheduleLogCachesWrite } = createDebouncedWrite(300);
 
 export type GitHubSection = 'overview' | 'workflows' | 'jobs' | 'logs' | 'settings' | 'help';
 
@@ -67,10 +74,11 @@ export interface GitHubCiStatusSlice {
   ciError: string | null;
   ciSnapshot: CiStatusSnapshot | null;
   ciJobs: CiJobSummary[];
-  selectedLogJobId: number | null;
-  cachedJobLogs: Record<number, string>;
-  logLoading: boolean;
-  logError: string | null;
+
+  /** CI data cached per workspace/folder ID */
+  ciSnapshots: Record<string, CiStatusSnapshot>;
+  /** Log caches per directory: selected job ID + fetched log texts */
+  ciLogCaches: Record<string, { selectedJobId: number | null; logs: Record<number, string> }>;
 
   /** Tree expansion state for GitHub navigator */
   gitHubTreeExpanded: Record<string, boolean>;
@@ -82,16 +90,35 @@ export interface GitHubCiStatusSlice {
   setActiveGitHubSection: (section: GitHubSection) => void;
   refreshCiStatus: () => Promise<void>;
   notifyGitPushed: () => void;
-  setSelectedLogJobId: (jobId: number | null) => void;
-  setCachedJobLogs: (logs: Record<number, string>) => void;
-  setLogLoading: (loading: boolean) => void;
-  setLogError: (error: string | null) => void;
   setGitHubTreeExpanded: (expanded: Record<string, boolean>) => void;
   toggleGitHubTreePath: (path: string) => void;
   expandAllGitHubTree: () => void;
   collapseAllGitHubTree: () => void;
   setSelectedGitHubTreePath: (path: string | null) => void;
   refreshCiStatusForWorkspace: (workspaceId: string) => Promise<void>;
+  /** Restore CI snapshot from cache for a given ID */
+  restoreCiSnapshot: (id: string) => void;
+  /** Read log cache for a given directory */
+  getCiLogCache: (dirId: string) => { selectedJobId: number | null; logs: Record<number, string> };
+  /** Update log cache for a given directory */
+  updateCiLogCache: (
+    dirId: string,
+    data: Partial<{ selectedJobId: number | null; logs: Record<number, string> }>
+  ) => void;
+}
+
+function hydrateCiSnapshots(): Record<string, CiStatusSnapshot> {
+  return readJson<Record<string, CiStatusSnapshot>>(CI_SNAPSHOTS_KEY, {});
+}
+
+function hydrateCiLogCaches(): Record<
+  string,
+  { selectedJobId: number | null; logs: Record<number, string> }
+> {
+  return readJson<Record<string, { selectedJobId: number | null; logs: Record<number, string> }>>(
+    CI_LOG_CACHES_KEY,
+    {}
+  );
 }
 
 export const createGitHubCiStatusSlice = (
@@ -102,6 +129,18 @@ export const createGitHubCiStatusSlice = (
     void hydrateCiStatusDefaults().then(({ activeGitHubSection }) => {
       set({ activeGitHubSection });
     });
+    Promise.resolve().then(() => {
+      const savedSnapshots = hydrateCiSnapshots();
+      if (Object.keys(savedSnapshots).length > 0) {
+        set({ ciSnapshots: savedSnapshots });
+      }
+    });
+    Promise.resolve().then(() => {
+      const savedLogCaches = hydrateCiLogCaches();
+      if (Object.keys(savedLogCaches).length > 0) {
+        set({ ciLogCaches: savedLogCaches });
+      }
+    });
   }
 
   return {
@@ -111,10 +150,8 @@ export const createGitHubCiStatusSlice = (
     ciError: null,
     ciSnapshot: null,
     ciJobs: [],
-    selectedLogJobId: null,
-    cachedJobLogs: {},
-    logLoading: false,
-    logError: null,
+    ciSnapshots: {},
+    ciLogCaches: {},
 
     gitHubTreeExpanded: {},
     gitHubAllTreeExpanded: false,
@@ -189,18 +226,32 @@ export const createGitHubCiStatusSlice = (
           void state.refreshCiStatusForWorkspace(wsId);
         }
       }
+      for (const folder of state.gitHubCiFolders) {
+        if (folder.ciConfig?.configured) {
+          void state.refreshCiStatusForWorkspace(folder.id);
+        }
+      }
       if (state.ciConfig.owner && state.ciConfig.repo) {
         void state.refreshCiStatus();
       }
     },
 
-    setSelectedLogJobId: (jobId) => set({ selectedLogJobId: jobId }),
+    getCiLogCache: (dirId) => {
+      const state = _get();
+      return state.ciLogCaches[dirId] ?? { selectedJobId: null, logs: {} };
+    },
 
-    setCachedJobLogs: (logs) => set({ cachedJobLogs: logs }),
-
-    setLogLoading: (loading) => set({ logLoading: loading }),
-
-    setLogError: (error) => set({ logError: error }),
+    updateCiLogCache: (dirId, data) => {
+      set((state) => {
+        const existing = state.ciLogCaches[dirId] ?? { selectedJobId: null, logs: {} };
+        const next = {
+          ...state.ciLogCaches,
+          [dirId]: { ...existing, ...data },
+        };
+        scheduleLogCachesWrite(CI_LOG_CACHES_KEY, next);
+        return { ciLogCaches: next };
+      });
+    },
 
     setGitHubTreeExpanded: (expanded) => set({ gitHubTreeExpanded: expanded }),
 
@@ -242,21 +293,39 @@ export const createGitHubCiStatusSlice = (
 
     setSelectedGitHubTreePath: (path) => set({ selectedGitHubTreePath: path }),
 
-    refreshCiStatusForWorkspace: async (workspaceId) => {
+    restoreCiSnapshot: (id) => {
+      set((state) => {
+        const cached = state.ciSnapshots[id];
+        if (cached) {
+          return { ciSnapshot: cached, ciJobs: cached.jobs ?? [] };
+        }
+        return { ciSnapshot: null, ciJobs: [], ciError: null };
+      });
+    },
+
+    refreshCiStatusForWorkspace: async (id) => {
       const state = _get();
-      const config = state.gitHubWorkspaceConfigs[workspaceId];
+      let config = state.gitHubWorkspaceConfigs[id] as GitWorkspaceCiConfig | undefined;
+      if (!config?.configured) {
+        const folder = state.gitHubCiFolders.find((f) => f.id === id);
+        if (folder?.ciConfig?.configured) {
+          config = folder.ciConfig as GitWorkspaceCiConfig;
+        }
+      }
       if (!config || !config.configured) {
-        set({ ciError: '请先配置仓库 owner 和 repo' });
+        const msg = '请先配置仓库 owner 和 repo';
+        set({ ciError: msg });
         return;
       }
       set({ ciLoading: true, ciError: null });
       try {
         const bridge = getBridge();
         if (!bridge || !bridge.github) {
-          set({ ciError: 'bridge not ready', ciLoading: false });
+          const msg = 'bridge not ready';
+          set({ ciError: msg, ciLoading: false });
           return;
         }
-        const token = isTauriMode() ? null : (config.accessToken ?? '');
+        const token = isTauriMode() ? null : (config.accessToken ?? state.ciAccessToken ?? '');
         const result = await bridge.github.getStatus({
           owner: config.owner,
           repo: config.repo,
@@ -265,9 +334,19 @@ export const createGitHubCiStatusSlice = (
           accessToken: token,
         });
         if (result.ok) {
-          set({ ciSnapshot: result.data, ciJobs: result.data.jobs ?? [], ciLoading: false });
+          set((state) => {
+            const nextSnapshots = { ...state.ciSnapshots, [id]: result.data };
+            scheduleSnapshotsWrite(CI_SNAPSHOTS_KEY, nextSnapshots);
+            return {
+              ciSnapshot: result.data,
+              ciJobs: result.data.jobs ?? [],
+              ciLoading: false,
+              ciSnapshots: nextSnapshots,
+            };
+          });
         } else {
-          set({ ciError: result.error?.message ?? '获取 CI 状态失败', ciLoading: false });
+          const msg = result.error?.message ?? '获取 CI 状态失败';
+          set({ ciError: msg, ciLoading: false });
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);

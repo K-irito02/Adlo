@@ -1291,12 +1291,17 @@ export async function handlePreviewWorkspaceApi(
       const owner = requestUrl.searchParams.get('owner') ?? '';
       const repo = requestUrl.searchParams.get('repo') ?? '';
       const branch = requestUrl.searchParams.get('branch') ?? 'main';
-      const token = request.headers.get('X-CI-Access-Token') ?? '';
+      const rawToken = request.headers['x-ci-access-token'];
+      const token = Array.isArray(rawToken) ? rawToken[0] : (rawToken ?? '');
       if (!owner.trim() || !repo.trim()) {
         writeJson(response, fail('owner and repo are required', 'INVALID_INPUT'));
         return true;
       }
       const snapshot = await fetchCiStatus(owner, repo, branch, token);
+      if (snapshot.error) {
+        writeJson(response, fail(snapshot.error, 'GITHUB_API_ERROR'));
+        return true;
+      }
       writeJson(response, ok(snapshot));
       return true;
     }
@@ -1339,7 +1344,7 @@ export async function handlePreviewWorkspaceApi(
           return true;
         }
 
-        const AdmZip = require('adm-zip');
+        const { default: AdmZip } = await import('adm-zip');
         const zip = new AdmZip(zipBuffer);
         const entries = zip.getEntries();
 

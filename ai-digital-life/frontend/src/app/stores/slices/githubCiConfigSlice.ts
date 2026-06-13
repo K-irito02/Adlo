@@ -1,13 +1,17 @@
 import type { CiRepoConfig } from '@ai-digital-life/kernel';
 import type { StoreState } from '../StoreState';
 import type { DigitalLifeBridge } from '../../../shared/ipc';
-import { createDebouncedWrite, createUiId } from '../shared';
+import { createDebouncedWrite, createUiId, readJson } from '../shared';
 
 const CI_CONFIG_KEY = 'adl-ui:ci-config';
 const CI_ACCESS_TOKEN_KEY = 'adl-ui:ci-access-token';
 const CI_AUTO_REFRESH_ON_PUSH_KEY = 'adl-ui:ci-auto-refresh-on-push';
 
+const GH_WORKSPACE_CONFIGS_KEY = 'adl-ui:github-workspace-configs';
+const GH_CI_FOLDERS_KEY = 'adl-ui:github-ci-folders';
+
 const { scheduleWrite } = createDebouncedWrite(50);
+const { scheduleWrite: schedulePersist } = createDebouncedWrite(300);
 
 /** Per-workspace CI configuration */
 export interface GitWorkspaceCiConfig {
@@ -121,7 +125,79 @@ async function hydrateCiConfigDefaults(): Promise<{
     }
   }
 
+  if (!token && typeof window !== 'undefined') {
+    try {
+      const storedToken = window.localStorage.getItem(CI_ACCESS_TOKEN_KEY);
+      if (typeof storedToken === 'string' && storedToken.length > 0) {
+        token = storedToken;
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
   return { config, token, autoRefresh };
+}
+
+/** Strip accessToken for secure localStorage persistence */
+function stripTokenFromConfig(
+  config: GitWorkspaceCiConfig
+): Omit<GitWorkspaceCiConfig, 'accessToken'> & { accessToken: null } {
+  return { ...config, accessToken: null };
+}
+
+function stripTokenFromFolders(folders: GitHubCiFolderState[]): GitHubCiFolderState[] {
+  return folders.map((f) => {
+    if (f.ciConfig?.accessToken) {
+      return { ...f, ciConfig: { ...f.ciConfig, accessToken: null } };
+    }
+    return f;
+  });
+}
+
+function scheduleWorkspaceConfigsWrite(configs: Record<string, GitWorkspaceCiConfig>): void {
+  const stripped: Record<string, ReturnType<typeof stripTokenFromConfig>> = {};
+  for (const [id, cfg] of Object.entries(configs)) {
+    stripped[id] = stripTokenFromConfig(cfg);
+  }
+  schedulePersist(GH_WORKSPACE_CONFIGS_KEY, stripped);
+}
+
+function scheduleFoldersWrite(folders: GitHubCiFolderState[]): void {
+  schedulePersist(GH_CI_FOLDERS_KEY, stripTokenFromFolders(folders));
+}
+
+async function hydrateGitHubConfigs(): Promise<Record<string, GitWorkspaceCiConfig>> {
+  const saved = readJson<
+    Record<string, Omit<GitWorkspaceCiConfig, 'accessToken'> & { accessToken?: string | null }>
+  >(GH_WORKSPACE_CONFIGS_KEY, {});
+  const result: Record<string, GitWorkspaceCiConfig> = {};
+  for (const [id, cfg] of Object.entries(saved)) {
+    if (cfg && typeof cfg === 'object' && cfg.owner) {
+      result[id] = {
+        owner: cfg.owner,
+        repo: cfg.repo,
+        branch: cfg.branch ?? 'main',
+        workflowId: cfg.workflowId ?? null,
+        accessToken: null,
+        configured: cfg.configured ?? true,
+      };
+    }
+  }
+  return result;
+}
+
+async function hydrateGitHubFolders(): Promise<GitHubCiFolderState[]> {
+  const saved = readJson<GitHubCiFolderState[]>(GH_CI_FOLDERS_KEY, []);
+  if (!Array.isArray(saved)) {
+    return [];
+  }
+  return saved.map((f) => {
+    if (f.ciConfig) {
+      return { ...f, ciConfig: { ...f.ciConfig, accessToken: null } };
+    }
+    return f;
+  });
 }
 
 export interface GitHubCiConfigSlice {
@@ -187,6 +263,16 @@ export const createGitHubCiConfigSlice = (
         ciAccessToken: token,
         ciAutoRefreshOnPush: autoRefresh,
       });
+    });
+    void hydrateGitHubConfigs().then((configs) => {
+      if (Object.keys(configs).length > 0) {
+        set({ gitHubWorkspaceConfigs: configs });
+      }
+    });
+    void hydrateGitHubFolders().then((folders) => {
+      if (folders.length > 0) {
+        set({ gitHubCiFolders: folders });
+      }
     });
   }
 
@@ -270,20 +356,30 @@ export const createGitHubCiConfigSlice = (
     },
 
     setGitHubWorkspaceConfig: (workspaceId, config) => {
-      set((state) => ({
-        gitHubWorkspaceConfigs: { ...state.gitHubWorkspaceConfigs, [workspaceId]: config },
-      }));
+      set((state) => {
+        const next = { ...state.gitHubWorkspaceConfigs, [workspaceId]: config };
+        scheduleWorkspaceConfigsWrite(next);
+        return { gitHubWorkspaceConfigs: next };
+      });
     },
 
     removeGitHubWorkspaceConfig: (workspaceId) => {
       set((state) => {
         const next = { ...state.gitHubWorkspaceConfigs };
         delete next[workspaceId];
+        scheduleWorkspaceConfigsWrite(next);
         return { gitHubWorkspaceConfigs: next };
       });
     },
 
     clearAllGitHubWorkspaceConfigs: () => {
+      if (typeof window !== 'undefined') {
+        try {
+          window.localStorage.removeItem(GH_WORKSPACE_CONFIGS_KEY);
+        } catch {
+          /* ignore */
+        }
+      }
       set({
         gitHubWorkspaceConfigs: {},
         activeCiWorkspaceId: null,
@@ -317,6 +413,7 @@ export const createGitHubCiConfigSlice = (
         const nextExpanded = parentPath
           ? { ...state.gitHubTreeExpanded, [parentPath]: true }
           : state.gitHubTreeExpanded;
+        scheduleFoldersWrite(nextFolders);
         return { gitHubCiFolders: nextFolders, gitHubTreeExpanded: nextExpanded };
       });
     },
@@ -334,19 +431,24 @@ export const createGitHubCiConfigSlice = (
         };
         findDescendants(folderId);
         const nextFolders = state.gitHubCiFolders.filter((f) => !idsToDelete.has(f.id));
+        scheduleFoldersWrite(nextFolders);
         return { gitHubCiFolders: nextFolders };
       });
     },
 
     gitHubRenameFolder: (folderId, name) => {
-      set((state) => ({
-        gitHubCiFolders: state.gitHubCiFolders.map((f) => (f.id === folderId ? { ...f, name } : f)),
-      }));
+      set((state) => {
+        const nextFolders = state.gitHubCiFolders.map((f) =>
+          f.id === folderId ? { ...f, name } : f
+        );
+        scheduleFoldersWrite(nextFolders);
+        return { gitHubCiFolders: nextFolders };
+      });
     },
 
     gitHubSaveFolderConfig: (folderId, owner, repo, branch, accessToken) => {
-      set((state) => ({
-        gitHubCiFolders: state.gitHubCiFolders.map((f) =>
+      set((state) => {
+        const nextFolders = state.gitHubCiFolders.map((f) =>
           f.id === folderId
             ? {
                 ...f,
@@ -360,16 +462,20 @@ export const createGitHubCiConfigSlice = (
                 },
               }
             : f
-        ),
-      }));
+        );
+        scheduleFoldersWrite(nextFolders);
+        return { gitHubCiFolders: nextFolders };
+      });
     },
 
     gitHubDeleteFolderConfig: (folderId) => {
-      set((state) => ({
-        gitHubCiFolders: state.gitHubCiFolders.map((f) =>
+      set((state) => {
+        const nextFolders = state.gitHubCiFolders.map((f) =>
           f.id === folderId ? { ...f, ciConfig: undefined } : f
-        ),
-      }));
+        );
+        scheduleFoldersWrite(nextFolders);
+        return { gitHubCiFolders: nextFolders };
+      });
     },
 
     gitHubDeleteFolderConfigRecursive: (folderId) => {
@@ -384,11 +490,11 @@ export const createGitHubCiConfigSlice = (
           }
         };
         findDescendants(folderId);
-        return {
-          gitHubCiFolders: state.gitHubCiFolders.map((f) =>
-            idsToDelete.has(f.id) ? { ...f, ciConfig: undefined } : f
-          ),
-        };
+        const nextFolders = state.gitHubCiFolders.map((f) =>
+          idsToDelete.has(f.id) ? { ...f, ciConfig: undefined } : f
+        );
+        scheduleFoldersWrite(nextFolders);
+        return { gitHubCiFolders: nextFolders };
       });
     },
 
@@ -465,10 +571,12 @@ export const createGitHubCiConfigSlice = (
           affectedWorkspaceIds.size === 0 ||
           (state.activeCiWorkspaceId != null &&
             affectedWorkspaceIds.has(state.activeCiWorkspaceId));
+        const nextFolders = state.gitHubCiFolders.map((f) =>
+          idsToDelete.has(f.id) ? { ...f, ciConfig: undefined } : f
+        );
+        scheduleFoldersWrite(nextFolders);
         return {
-          gitHubCiFolders: state.gitHubCiFolders.map((f) =>
-            idsToDelete.has(f.id) ? { ...f, ciConfig: undefined } : f
-          ),
+          gitHubCiFolders: nextFolders,
           ...(shouldClear ? { ciSnapshot: null, ciJobs: [], ciError: null } : {}),
         };
       });
@@ -507,29 +615,40 @@ export const createGitHubCiConfigSlice = (
           ...siblings.filter((s) => s.pinnedOrder !== undefined).map((s) => s.pinnedOrder!),
           0
         );
-        return {
-          gitHubCiFolders: state.gitHubCiFolders.map((f) =>
-            f.id === folderId ? { ...f, pinnedOrder: maxPinnedOrder + 1 } : f
-          ),
-        };
+        const nextFolders = state.gitHubCiFolders.map((f) =>
+          f.id === folderId ? { ...f, pinnedOrder: maxPinnedOrder + 1 } : f
+        );
+        scheduleFoldersWrite(nextFolders);
+        return { gitHubCiFolders: nextFolders };
       });
     },
 
     gitHubUnpinFolder: (folderId) => {
-      set((state) => ({
-        gitHubCiFolders: state.gitHubCiFolders.map((f) =>
+      set((state) => {
+        const nextFolders = state.gitHubCiFolders.map((f) =>
           f.id === folderId ? { ...f, pinnedOrder: undefined } : f
-        ),
-      }));
+        );
+        scheduleFoldersWrite(nextFolders);
+        return { gitHubCiFolders: nextFolders };
+      });
     },
 
     clearAllFolderConfigs: () => {
-      set((state) => ({
-        gitHubCiFolders: state.gitHubCiFolders.map((f) => ({ ...f, ciConfig: undefined })),
-      }));
+      set((state) => {
+        const nextFolders = state.gitHubCiFolders.map((f) => ({ ...f, ciConfig: undefined }));
+        scheduleFoldersWrite(nextFolders);
+        return { gitHubCiFolders: nextFolders };
+      });
     },
 
     clearAllFolders: () => {
+      if (typeof window !== 'undefined') {
+        try {
+          window.localStorage.removeItem(GH_CI_FOLDERS_KEY);
+        } catch {
+          /* ignore */
+        }
+      }
       set({
         gitHubCiFolders: [],
         ciSnapshot: null,
@@ -547,23 +666,50 @@ export const createGitHubCiConfigSlice = (
     },
 
     clearAllCiConfigs: () => {
-      set((state) => ({
-        gitHubWorkspaceConfigs: {},
-        gitHubCiFolders: state.gitHubCiFolders.map((f) => ({ ...f, ciConfig: undefined })),
-      }));
+      set((state) => {
+        const nextFolders = state.gitHubCiFolders.map((f) => ({ ...f, ciConfig: undefined }));
+        if (typeof window !== 'undefined') {
+          try {
+            window.localStorage.removeItem(GH_WORKSPACE_CONFIGS_KEY);
+          } catch {
+            /* ignore */
+          }
+        }
+        scheduleFoldersWrite(nextFolders);
+        return { gitHubWorkspaceConfigs: {}, gitHubCiFolders: nextFolders };
+      });
     },
 
     clearAllCiConfigsAndData: () => {
-      set((state) => ({
-        gitHubWorkspaceConfigs: {},
-        gitHubCiFolders: state.gitHubCiFolders.map((f) => ({ ...f, ciConfig: undefined })),
-        ciSnapshot: null,
-        ciJobs: [],
-        ciError: null,
-      }));
+      set((state) => {
+        const nextFolders = state.gitHubCiFolders.map((f) => ({ ...f, ciConfig: undefined }));
+        if (typeof window !== 'undefined') {
+          try {
+            window.localStorage.removeItem(GH_WORKSPACE_CONFIGS_KEY);
+          } catch {
+            /* ignore */
+          }
+        }
+        scheduleFoldersWrite(nextFolders);
+        return {
+          gitHubWorkspaceConfigs: {},
+          gitHubCiFolders: nextFolders,
+          ciSnapshot: null,
+          ciJobs: [],
+          ciError: null,
+        };
+      });
     },
 
     resetAllToOriginal: () => {
+      if (typeof window !== 'undefined') {
+        try {
+          window.localStorage.removeItem(GH_WORKSPACE_CONFIGS_KEY);
+          window.localStorage.removeItem(GH_CI_FOLDERS_KEY);
+        } catch {
+          /* ignore */
+        }
+      }
       set({
         gitHubCiFolders: [],
         gitHubWorkspaceConfigs: {},

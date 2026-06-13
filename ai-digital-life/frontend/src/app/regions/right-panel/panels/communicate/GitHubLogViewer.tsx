@@ -1,7 +1,6 @@
 import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { List, useListRef } from 'react-window';
 import { useAppStore } from '../../../../stores/slicedStore';
-import { useShallow } from 'zustand/react/shallow';
 import type { CiJobSummary } from '@ai-digital-life/kernel';
 import type { DigitalLifeBridge } from '../../../../../shared/ipc';
 import { AnsiUp } from 'ansi_up';
@@ -15,27 +14,25 @@ ansiUp.use_classes = true;
 interface GitHubLogViewerProps {
   snapshot: { latestRun?: { htmlUrl?: string } | null; jobs: CiJobSummary[] } | null;
   config: { owner: string; repo: string; branch: string };
+  dirKey: string;
+  initialJobId?: number | null;
 }
 
 const ROW_HEIGHT = 20;
 const MAX_BLANK_LINES = 50;
 
-export function GitHubLogViewer({ snapshot, config }: GitHubLogViewerProps) {
+export function GitHubLogViewer({ snapshot, config, dirKey, initialJobId }: GitHubLogViewerProps) {
   const { t, formatT } = useTCopy();
-  const selectedLogJobId = useAppStore((s) => s.selectedLogJobId);
-  const cachedJobLogs = useAppStore(useShallow((s) => s.cachedJobLogs));
-  const logLoading = useAppStore((s) => s.logLoading);
-  const logError = useAppStore((s) => s.logError);
-  const { setSelectedLogJobId, setCachedJobLogs, setLogLoading, setLogError, ciAccessToken } =
-    useAppStore(
-      useShallow((s) => ({
-        setSelectedLogJobId: s.setSelectedLogJobId,
-        setCachedJobLogs: s.setCachedJobLogs,
-        setLogLoading: s.setLogLoading,
-        setLogError: s.setLogError,
-        ciAccessToken: s.ciAccessToken,
-      }))
-    );
+  const ciAccessToken = useAppStore((s) => s.ciAccessToken);
+  const cachedEntry = useAppStore((s) => s.ciLogCaches[dirKey]);
+  const updateCiLogCache = useAppStore((s) => s.updateCiLogCache);
+
+  const [selectedJobId, setSelectedJobId] = useState<number | null>(
+    initialJobId ?? cachedEntry?.selectedJobId ?? null
+  );
+  const [cachedLogs, setCachedLogs] = useState<Record<number, string>>(cachedEntry?.logs ?? {});
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchMatchIndex, setSearchMatchIndex] = useState(0);
@@ -48,29 +45,29 @@ export function GitHubLogViewer({ snapshot, config }: GitHubLogViewerProps) {
   const jobs = useMemo(() => snapshot?.jobs ?? [], [snapshot?.jobs]);
 
   useEffect(() => {
-    if (selectedLogJobId === null && jobs.length > 0) {
-      setSelectedLogJobId(jobs[0].jobId);
+    if (selectedJobId === null && jobs.length > 0) {
+      setSelectedJobId(jobs[0].jobId);
     }
-  }, [jobs, selectedLogJobId, setSelectedLogJobId]);
+  }, [jobs, selectedJobId]);
 
   const bridge = (window as unknown as { digitalLife: DigitalLifeBridge }).digitalLife;
 
   useEffect(() => {
-    if (selectedLogJobId === null || !config.owner || !config.repo) {
+    if (selectedJobId === null || !config.owner || !config.repo) {
       return;
     }
-    const selectedJob = jobs.find((j) => j.jobId === selectedLogJobId);
+    const selectedJob = jobs.find((j) => j.jobId === selectedJobId);
     const runId = selectedJob?.runId;
     if (!runId) {
       return;
     }
-    if (cachedJobLogs[selectedLogJobId]) {
-      setLogLoading(false);
+    if (cachedLogs[selectedJobId]) {
+      setIsLoading(false);
       return;
     }
     let cancelled = false;
-    setLogLoading(true);
-    setLogError(null);
+    setIsLoading(true);
+    setError(null);
     const fetchLogs = async () => {
       try {
         if (bridge?.github?.getJobLogs) {
@@ -88,18 +85,18 @@ export function GitHubLogViewer({ snapshot, config }: GitHubLogViewerProps) {
             return;
           }
           if (result.ok) {
-            setCachedJobLogs(result.data);
+            setCachedLogs((prev) => ({ ...prev, ...result.data }));
           } else {
-            setLogError(result.error?.message ?? t.ciFetchLogFailed);
+            setError(result.error?.message ?? t.ciFetchLogFailed);
           }
         }
       } catch (err: unknown) {
         if (!cancelled) {
-          setLogError(err instanceof Error ? err.message : String(err));
+          setError(err instanceof Error ? err.message : String(err));
         }
       } finally {
         if (!cancelled) {
-          setLogLoading(false);
+          setIsLoading(false);
         }
       }
     };
@@ -108,21 +105,22 @@ export function GitHubLogViewer({ snapshot, config }: GitHubLogViewerProps) {
       cancelled = true;
     };
   }, [
-    selectedLogJobId,
+    selectedJobId,
     config.owner,
     config.repo,
     config.branch,
     jobs,
-    cachedJobLogs,
-    setCachedJobLogs,
-    setLogLoading,
-    setLogError,
+    cachedLogs,
     bridge,
     ciAccessToken,
     t,
   ]);
 
-  const currentLogText = selectedLogJobId !== null ? (cachedJobLogs[selectedLogJobId] ?? '') : '';
+  useEffect(() => {
+    updateCiLogCache(dirKey, { selectedJobId, logs: cachedLogs });
+  }, [dirKey, selectedJobId, cachedLogs, updateCiLogCache]);
+
+  const currentLogText = selectedJobId !== null ? (cachedLogs[selectedJobId] ?? '') : '';
 
   const lines = useMemo(() => {
     if (!currentLogText) {
@@ -282,8 +280,8 @@ export function GitHubLogViewer({ snapshot, config }: GitHubLogViewerProps) {
           <div className="adl-logviewer__job-select-wrap">
             <select
               className="adl-logviewer__job-select"
-              value={selectedLogJobId ?? ''}
-              onChange={(e) => setSelectedLogJobId(Number(e.target.value))}
+              value={selectedJobId ?? ''}
+              onChange={(e) => setSelectedJobId(Number(e.target.value))}
             >
               {jobs.map((job) => (
                 <option key={job.jobId} value={job.jobId}>
@@ -371,17 +369,17 @@ export function GitHubLogViewer({ snapshot, config }: GitHubLogViewerProps) {
       </div>
 
       <div className="adl-logviewer__content">
-        {logLoading && (
+        {isLoading && (
           <div className="adl-github__empty">
             <p>{t.ciLoadingLog}</p>
           </div>
         )}
-        {logError && !logLoading && (
+        {error && !isLoading && (
           <div className="adl-github__error">
-            <span>{logError}</span>
+            <span>{error}</span>
           </div>
         )}
-        {!logLoading && !logError && processedLines.length === 0 && (
+        {!isLoading && !error && processedLines.length === 0 && (
           <div className="adl-github__empty">
             <p>{t.ciNoLogData}</p>
             {htmlUrl && (
@@ -396,7 +394,7 @@ export function GitHubLogViewer({ snapshot, config }: GitHubLogViewerProps) {
             )}
           </div>
         )}
-        {!logLoading && processedLines.length > 0 && (
+        {!isLoading && processedLines.length > 0 && (
           <List
             listRef={listRef}
             rowComponent={Row}

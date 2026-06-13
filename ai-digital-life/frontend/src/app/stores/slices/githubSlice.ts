@@ -57,11 +57,6 @@ export interface GitHubSlice {
   ciSnapshot: CiStatusSnapshot | null;
   ciJobs: CiJobSummary[];
   ciAutoRefreshOnPush: boolean;
-  selectedLogJobId: number | null;
-  cachedJobLogs: Record<number, string>;
-  logLoading: boolean;
-  logError: string | null;
-
   /** Per-workspace CI configs keyed by workspaceId */
   gitHubWorkspaceConfigs: Record<string, GitWorkspaceCiConfig>;
   /** Tree expansion state for GitHub navigator */
@@ -86,10 +81,6 @@ export interface GitHubSlice {
   setCiAutoRefreshOnPush: (enabled: boolean) => void;
   refreshCiStatus: () => Promise<void>;
   notifyGitPushed: () => void;
-  setSelectedLogJobId: (jobId: number | null) => void;
-  setCachedJobLogs: (logs: Record<number, string>) => void;
-  setLogLoading: (loading: boolean) => void;
-  setLogError: (error: string | null) => void;
   setGitHubWorkspaceConfig: (workspaceId: string, config: GitWorkspaceCiConfig) => void;
   removeGitHubWorkspaceConfig: (workspaceId: string) => void;
   clearAllGitHubWorkspaceConfigs: () => void;
@@ -263,11 +254,6 @@ export const createGitHubSlice = (
     ciSnapshot: null,
     ciJobs: [],
     ciAutoRefreshOnPush: true,
-    selectedLogJobId: null,
-    cachedJobLogs: {},
-    logLoading: false,
-    logError: null,
-
     gitHubWorkspaceConfigs: {},
     gitHubTreeExpanded: {},
     gitHubAllTreeExpanded: false,
@@ -418,14 +404,6 @@ export const createGitHubSlice = (
         void state.refreshCiStatus();
       }
     },
-
-    setSelectedLogJobId: (jobId) => set({ selectedLogJobId: jobId }),
-
-    setCachedJobLogs: (logs) => set({ cachedJobLogs: logs }),
-
-    setLogLoading: (loading) => set({ logLoading: loading }),
-
-    setLogError: (error) => set({ logError: error }),
 
     setGitHubWorkspaceConfig: (workspaceId, config) => {
       set((state) => ({

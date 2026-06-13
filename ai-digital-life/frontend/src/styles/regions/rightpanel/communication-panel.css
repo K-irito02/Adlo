@@ -1227,9 +1227,15 @@
   transition: width 0.3s ease;
 }
 
-.adl-github-progress__fill.is-success { background: var(--success); }
-.adl-github-progress__fill.is-failure { background: var(--danger); }
-.adl-github-progress__fill.is-running { background: var(--warning); }
+.adl-github-progress__fill.is-success {
+  background: var(--success);
+}
+.adl-github-progress__fill.is-failure {
+  background: var(--danger);
+}
+.adl-github-progress__fill.is-running {
+  background: var(--warning);
+}
 
 .adl-github-progress__text {
   white-space: nowrap;
@@ -1249,13 +1255,23 @@
 }
 
 @keyframes adl-pulse {
-  0%, 100% { opacity: 0.6; }
-  50% { opacity: 1; box-shadow: 0 0 4px currentColor; }
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 4px currentColor;
+  }
 }
 
 @keyframes adl-shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }
 
 .adl-github-skeleton {
@@ -1378,8 +1394,12 @@
   transform: translateY(-50%);
 }
 
-.adl-github-timeline__step.is-success::before { background: var(--success); }
-.adl-github-timeline__step.is-failure::before { background: var(--danger); }
+.adl-github-timeline__step.is-success::before {
+  background: var(--success);
+}
+.adl-github-timeline__step.is-failure::before {
+  background: var(--danger);
+}
 .adl-github-timeline__step.is-running::before {
   background: var(--warning);
   animation: adl-pulse 2s ease-in-out infinite;
@@ -1683,7 +1703,7 @@
 /* ─── Path header ─── */
 
 .adl-github-path-header {
-  padding: 6px 24px;
+  padding: 4px 24px 3px;
   text-align: center;
   font-size: var(--text-xs);
   color: var(--text-tertiary);
@@ -1692,4 +1712,3 @@
   border-bottom: 1px solid var(--border-subtle);
   flex-shrink: 0;
 }
-

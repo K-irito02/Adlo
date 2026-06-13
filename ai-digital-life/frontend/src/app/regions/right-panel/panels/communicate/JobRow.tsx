@@ -56,9 +56,17 @@ export function JobRow({
           </button>
         </TooltipSimple>
         {expanded ? (
-          <IconChevronUp width={12} height={12} style={{ flexShrink: 0, color: 'var(--text-tertiary)' }} />
+          <IconChevronUp
+            width={12}
+            height={12}
+            style={{ flexShrink: 0, color: 'var(--text-tertiary)' }}
+          />
         ) : (
-          <IconChevronDown width={12} height={12} style={{ flexShrink: 0, color: 'var(--text-tertiary)' }} />
+          <IconChevronDown
+            width={12}
+            height={12}
+            style={{ flexShrink: 0, color: 'var(--text-tertiary)' }}
+          />
         )}
       </div>
       {expanded && job.stepResults.length > 0 && (

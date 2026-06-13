@@ -39,7 +39,7 @@ describe('GitHubLogViewer', () => {
 
   it('renders toolbar with job selector', () => {
     const html = renderToStaticMarkup(
-      <WithTCopy><GitHubLogViewer snapshot={snapshot} config={{ owner: 'test', repo: 'test', branch: 'main' }} /></WithTCopy>
+      <WithTCopy><GitHubLogViewer snapshot={snapshot} config={{ owner: 'test', repo: 'test', branch: 'main' }} dirKey="test" /></WithTCopy>
     );
     expect(html).toContain('adl-logviewer__toolbar');
     expect(html).toContain('adl-logviewer__job-select-wrap');
@@ -47,7 +47,7 @@ describe('GitHubLogViewer', () => {
 
   it('renders search input with hover-reveal wrap', () => {
     const html = renderToStaticMarkup(
-      <WithTCopy><GitHubLogViewer snapshot={snapshot} config={{ owner: 'test', repo: 'test', branch: 'main' }} /></WithTCopy>
+      <WithTCopy><GitHubLogViewer snapshot={snapshot} config={{ owner: 'test', repo: 'test', branch: 'main' }} dirKey="test" /></WithTCopy>
     );
     expect(html).toContain('adl-logviewer__search-wrap');
     expect(html).toContain('adl-logviewer__search-input');
@@ -56,7 +56,7 @@ describe('GitHubLogViewer', () => {
 
   it('renders collapse blank toggle switch', () => {
     const html = renderToStaticMarkup(
-      <WithTCopy><GitHubLogViewer snapshot={snapshot} config={{ owner: 'test', repo: 'test', branch: 'main' }} /></WithTCopy>
+      <WithTCopy><GitHubLogViewer snapshot={snapshot} config={{ owner: 'test', repo: 'test', branch: 'main' }} dirKey="test" /></WithTCopy>
     );
     expect(html).toContain('adl-logviewer__toggle');
     expect(html).toContain('adl-logviewer__toggle-track');
@@ -74,7 +74,7 @@ describe('GitHubLogViewer', () => {
       },
     };
     const html = renderToStaticMarkup(
-      <WithTCopy><GitHubLogViewer snapshot={snapWithUrl} config={{ owner: 'test', repo: 'test', branch: 'main' }} /></WithTCopy>
+      <WithTCopy><GitHubLogViewer snapshot={snapWithUrl} config={{ owner: 'test', repo: 'test', branch: 'main' }} dirKey="test" /></WithTCopy>
     );
     expect(html).toContain('adl-github__link');
   });

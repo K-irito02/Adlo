@@ -58,7 +58,7 @@
 | 空白折叠 | 连续 50+ 行空白折叠为占位行，点击展开 |
 | Job 选择 | 下拉切换不同 Job 的日志 |
 | GitHub 跳转 | 在 GitHub 查看完整日志的链接 |
-| 日志缓存 | 拉取后内存缓存，Tab 切换不清除，页面刷新重置 |
+| 日志缓存 | 按目录独立持久化到 localStorage（`adl-ui:ci-log-caches`），页面刷新/应用重启/目录切换均恢复 |
 
 ## 状态
 
@@ -212,7 +212,8 @@
 | `GitHubTree` | `features/github-tree/GitHubTree.tsx` | 树容器，渲染两个分类区 |
 | `GitHubCategorySection` | `features/github-tree/GitHubCategorySection.tsx` | 分类区包装器 |
 | `GitHubPanel` | `regions/right-panel/panels/communicate/GitHubPanel.tsx` | GitHub 子面板主组件 |
-| `githubSlice` | `stores/slices/githubSlice.ts` | GitHub CI 状态 + 目录管理 |
+| `githubCiConfigSlice` | `stores/slices/githubCiConfigSlice.ts` | GitHub CI 配置（Token、文件夹 CRUD、Pin/Unpin） |
+| `githubCiStatusSlice` | `stores/slices/githubCiStatusSlice.ts` | GitHub CI 状态（轮询、快照、Section 切换、按目录缓存） |
 
 ### Store Actions
 
@@ -273,13 +274,15 @@
 
 ## 注意事项
 
-1. **Token 安全**：Token 保存在浏览器 localStorage 或 Tauri 系统钥匙串，不发送到第三方服务器
+1. **Token 安全**：Token 保存在浏览器 localStorage 或 Tauri 系统钥匙串，通过 GitHub API 传递（HTTPS）。工具栏设置对话框预填已存 token（密码掩码），无需每次重输。
 2. **日志获取**：GitHub API 返回 ZIP 压缩包，后端解压后按 Job 分组返回
-3. **缓存策略**：后端 LRU 缓存（10 个 Run），前端会话级缓存（页面刷新重置）
-4. **图标规范**：所有图标使用 SVG 格式，禁止 emoji
-5. **重命名规范**：禁止使用 `window.prompt`，必须使用 `RenameDialog` 组件
-6. **FileTree 集成**：子条目必须通过 FileTree 渲染以获取连接线，禁止递归自渲染
-7. **危险项 "!" 提示**：所有 `danger: true` 的菜单项若有 `hasHint`，必须使用 `MenuHintItem`（头部/更多操作菜单）或在 `ContextMenu` 中渲染 hint 图标（右键菜单）
-8. **分割线规范**：白色选项与红色选项之间必须使用 `sep-danger` 分割线；递归选项之前使用 `sep-recursive` 分割线
-9. **双端一致性**："更多操作"按钮菜单与右键菜单的选项必须完全一致（选项内容、顺序、分组、提示）
-10. **递归删除**：`[嵌套]` 后缀的选项会递归操作所有嵌套子目录，通过 `gitHubCiFolders` 的 `parentId` 链遍历后代
+3. **缓存策略**：CI 快照（`ciSnapshots`）和日志缓存（`ciLogCaches`）均按目录独立持久化到 localStorage，页面刷新/应用重启后恢复，无需额外 API 调用。
+4. **切换目录零 API**：工作区/文件夹间切换仅从缓存恢复数据，不触发 GitHub API，仅在配置保存/git push/手动刷新时调用。
+5. **图标规范**：所有图标使用 SVG 格式，禁止 emoji
+6. **重命名规范**：禁止使用 `window.prompt`，必须使用 `RenameDialog` 组件
+7. **FileTree 集成**：子条目必须通过 FileTree 渲染以获取连接线，禁止递归自渲染
+8. **危险项 "!" 提示**：所有 `danger: true` 的菜单项若有 `hasHint`，必须使用 `MenuHintItem`（头部/更多操作菜单）或在 `ContextMenu` 中渲染 hint 图标（右键菜单）
+9. **分割线规范**：白色选项与红色选项之间必须使用 `sep-danger` 分割线；递归选项之前使用 `sep-recursive` 分割线
+10. **双端一致性**："更多操作"按钮菜单与右键菜单的选项必须完全一致（选项内容、顺序、分组、提示）
+11. **递归删除**：`[嵌套]` 后缀的选项会递归操作所有嵌套子目录，通过 `gitHubCiFolders` 的 `parentId` 链遍历后代
+12. **子目录设置按钮**：工作区下的嵌套文件夹的齿轮设置按钮必须打开文件夹本身的配置，而非指向工作区配置（`GitHubTreeEntry.tsx` 的 `renderChildMeta` 中固定使用 `onOpenFolderSettings`）。

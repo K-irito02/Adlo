@@ -15,6 +15,7 @@ interface GitHubSettingsDialogProps {
   initialOwner: string;
   initialRepo: string;
   initialBranch: string;
+  initialToken: string;
   error: string | null;
   copy: Record<string, string>;
   onSave: (owner: string, repo: string, branch: string, token: string) => void;
@@ -27,6 +28,7 @@ export function GitHubSettingsDialog({
   initialOwner,
   initialRepo,
   initialBranch,
+  initialToken,
   error,
   copy,
   onSave,
@@ -35,7 +37,7 @@ export function GitHubSettingsDialog({
   const [owner, setOwner] = useState(initialOwner);
   const [repo, setRepo] = useState(initialRepo);
   const [branch, setBranch] = useState(initialBranch);
-  const [token, setToken] = useState('');
+  const [token, setToken] = useState(initialToken);
   const [tokenVisible, setTokenVisible] = useState(false);
   const ownerInputRef = useRef<HTMLInputElement>(null);
 
@@ -44,13 +46,13 @@ export function GitHubSettingsDialog({
       setOwner(initialOwner);
       setRepo(initialRepo);
       setBranch(initialBranch);
-      setToken('');
+      setToken(initialToken);
       setTokenVisible(false);
       requestAnimationFrame(() => {
         ownerInputRef.current?.focus();
       });
     }
-  }, [open, initialOwner, initialRepo, initialBranch]);
+  }, [open, initialOwner, initialRepo, initialBranch, initialToken]);
 
   const handleConfirm = useCallback(() => {
     if (!owner.trim() || !repo.trim()) {

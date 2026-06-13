@@ -12,7 +12,7 @@
 | [代码质量](./代码质量/) | 全量代码质量检测与修复经验 | 11 |
 | [浏览器自动化](./浏览器自动化/) | 浏览器自动化调试记录与规则经验 | 2 |
 | [交互优化](./交互优化/) | 跨功能面板的交互/UX 问题修复经验 | 9 |
-| [CI 监控](./CI监控/) | GitHub Actions CI 状态监控模块经验（Token 安全、双端一致性、类型系统、树形目录交互、帮助系统） | 4 |
+| [CI 监控](./CI监控/) | GitHub Actions CI 状态监控模块经验（按目录独立绑定、Token 持久化、日志隔离、数据缓存、Rate Limit 保护） | 5 |
 
 ## 索引
 
@@ -109,3 +109,4 @@
 | [ci-to-communication-refactor-and-log-viewer-2026-06-10.md](./CI监控/ci-to-communication-refactor-and-log-viewer-2026-06-10.md) | 2026-06-10 重构 | CI→通信面板重构 + GitHub CI 日志查看器（架构变更、ZIP 解压、LRU 缓存、虚拟滚动） |
 | [github-ci-tree-interaction-2026-06-10.md](./CI监控/github-ci-tree-interaction-2026-06-10.md) | 2026-06-10 交互重构 | GitHub CI 树形目录交互重构（FileTree 集成、按钮规范、renderIconBefore、RenameDialog 标准化、CSS 定位） |
 | [ci-panel-help-system-2026-06-13.md](./CI监控/ci-panel-help-system-2026-06-13.md) | 2026-06-13 操作手册完善 | CI 面板帮助系统增强（全局点击冲突、帮助按钮 toggle、手册内容扩展、TOC 导航） |
+| [github-ci-per-directory-binding-2026-06-14.md](./CI监控/github-ci-per-directory-binding-2026-06-14.md) | 2026-06-14 Bug 修复 | GitHub CI 按目录独立绑定（`renderChildMeta` 设置误开工作区、共享 state 污染、store sync set 覆盖、日志/快照持久化、token 恢复、Rate Limit 保护） |

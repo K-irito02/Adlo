@@ -18,12 +18,16 @@ export function WorkflowsView({ snapshot }: { snapshot: CiStatusSnapshot | null 
   const [filter, setFilter] = useState<FilterKey>('all');
 
   const jobs = useMemo(() => {
-    if (!snapshot?.jobs?.length) return [];
+    if (!snapshot?.jobs?.length) {
+      return [];
+    }
     switch (filter) {
       case 'success':
         return snapshot.jobs.filter((j) => j.conclusion === 'success');
       case 'failure':
-        return snapshot.jobs.filter((j) => j.conclusion === 'failure' || j.conclusion === 'cancelled');
+        return snapshot.jobs.filter(
+          (j) => j.conclusion === 'failure' || j.conclusion === 'cancelled'
+        );
       case 'running':
         return snapshot.jobs.filter((j) => j.status === 'in_progress' || j.status === 'queued');
       default:
@@ -60,7 +64,11 @@ export function WorkflowsView({ snapshot }: { snapshot: CiStatusSnapshot | null 
           const sClass = statusClass(job.conclusion, job.status);
           const pct = total > 0 ? Math.round((successCount / total) * 100) : 0;
           return (
-            <div key={job.jobId} className={`adl-github-card adl-github-card--status ${sClass}`} style={{ marginBottom: 6 }}>
+            <div
+              key={job.jobId}
+              className={`adl-github-card adl-github-card--status ${sClass}`}
+              style={{ marginBottom: 6 }}
+            >
               <div className="adl-github-card__header" style={{ cursor: 'default' }}>
                 <StatusDot conclusion={job.conclusion} status={job.status} animated />
                 <span className="adl-github-card__title">{job.name}</span>
