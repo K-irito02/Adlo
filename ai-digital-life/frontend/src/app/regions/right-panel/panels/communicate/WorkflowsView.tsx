@@ -1,37 +1,101 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import type { CiStatusSnapshot } from '@ai-digital-life/kernel';
 import { StatusDot } from './StatusDot';
+import { statusColor, formatDuration, statusClass } from './githubPanelUtils';
 import { useTCopy } from '../../../../i18n/useTCopy';
 
+type FilterKey = 'all' | 'success' | 'failure' | 'running';
+
+const FILTERS: { key: FilterKey; label: string }[] = [
+  { key: 'all', label: '全部' },
+  { key: 'success', label: '成功' },
+  { key: 'failure', label: '失败' },
+  { key: 'running', label: '运行中' },
+];
+
 export function WorkflowsView({ snapshot }: { snapshot: CiStatusSnapshot | null }) {
-  const { t, formatT } = useTCopy();
+  const { t } = useTCopy();
+  const [filter, setFilter] = useState<FilterKey>('all');
+
+  const jobs = useMemo(() => {
+    if (!snapshot?.jobs?.length) return [];
+    switch (filter) {
+      case 'success':
+        return snapshot.jobs.filter((j) => j.conclusion === 'success');
+      case 'failure':
+        return snapshot.jobs.filter((j) => j.conclusion === 'failure' || j.conclusion === 'cancelled');
+      case 'running':
+        return snapshot.jobs.filter((j) => j.status === 'in_progress' || j.status === 'queued');
+      default:
+        return snapshot.jobs;
+    }
+  }, [snapshot?.jobs, filter]);
+
   if (!snapshot?.jobs?.length) {
     return (
-      <div className="adl-github__empty">
+      <div className="adl-github-empty">
         <p>{t.ciNoWorkflowData}</p>
       </div>
     );
   }
 
   return (
-    <div className="adl-github__jobs" style={{ padding: '8px 12px 0' }}>
-      {snapshot.jobs.map((job) => (
-        <div key={job.jobId} style={{ marginBottom: 8 }}>
-          <h4 className="adl-github__section-title" style={{ marginBottom: 4 }}>
-            <StatusDot conclusion={job.conclusion} status={job.status} />
-            <span style={{ marginLeft: 6 }}>{job.name}</span>
-          </h4>
-          <div
-            style={{
-              fontSize: 'var(--text-xs)',
-              color: 'var(--text-secondary)',
-              paddingLeft: 14,
-            }}
+    <div>
+      <div className="adl-github-filter">
+        {FILTERS.map((f) => (
+          <button
+            key={f.key}
+            type="button"
+            className={`adl-github-filter__btn${filter === f.key ? ' is-active' : ''}`}
+            onClick={() => setFilter(f.key)}
           >
-            {formatT(t, 'ciStepsCount', { count: job.stepResults.length })}
+            {f.label}
+          </button>
+        ))}
+      </div>
+      <div style={{ padding: '6px 12px 0' }}>
+        {jobs.map((job) => {
+          const total = job.stepResults.length;
+          const successCount = job.stepResults.filter((s) => s.conclusion === 'success').length;
+          const sClass = statusClass(job.conclusion, job.status);
+          const pct = total > 0 ? Math.round((successCount / total) * 100) : 0;
+          return (
+            <div key={job.jobId} className={`adl-github-card adl-github-card--status ${sClass}`} style={{ marginBottom: 6 }}>
+              <div className="adl-github-card__header" style={{ cursor: 'default' }}>
+                <StatusDot conclusion={job.conclusion} status={job.status} animated />
+                <span className="adl-github-card__title">{job.name}</span>
+                <span
+                  className="adl-chip adl-chip--xs"
+                  style={{ color: statusColor(job.conclusion, job.status) }}
+                >
+                  {job.conclusion ?? job.status}
+                </span>
+                <span className="adl-github__job-duration adl-text--secondary">
+                  {formatDuration(job.startedAt, job.completedAt)}
+                </span>
+              </div>
+              <div className="adl-github-card__body">
+                <div className="adl-github-progress">
+                  <div className="adl-github-progress__bar">
+                    <div
+                      className={`adl-github-progress__fill ${sClass}`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <span className="adl-github-progress__text">
+                    {successCount}/{total}
+                  </span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+        {jobs.length === 0 && (
+          <div className="adl-github-empty" style={{ padding: '24px 16px' }}>
+            <p>{t.ciNoWorkflowData}</p>
           </div>
-        </div>
-      ))}
+        )}
+      </div>
     </div>
   );
 }

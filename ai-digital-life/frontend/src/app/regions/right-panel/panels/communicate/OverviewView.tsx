@@ -1,9 +1,28 @@
 import React from 'react';
 import type { CiStatusSnapshot } from '@ai-digital-life/kernel';
 import { StatusDot } from './StatusDot';
-import { statusColor, formatCommit, formatTime } from './githubPanelUtils';
+import {
+  statusColor,
+  formatCommit,
+  formatTime,
+  formatRelativeTime,
+} from './githubPanelUtils';
 import { JobRow } from './JobRow';
 import { useTCopy } from '../../../../i18n/useTCopy';
+import { TooltipSimple } from '../../../../components/Tooltip';
+import { IconClock, IconClipboardList } from '../../../../icons';
+
+function LoadingSkeleton() {
+  return (
+    <div style={{ padding: '12px' }}>
+      <div className="adl-github-skeleton adl-github-skeleton--title" />
+      <div className="adl-github-skeleton adl-github-skeleton--line" style={{ width: '80%' }} />
+      <div className="adl-github-skeleton adl-github-skeleton--line" style={{ width: '60%' }} />
+      <div className="adl-github-skeleton adl-github-skeleton--card" />
+      <div className="adl-github-skeleton adl-github-skeleton--card" />
+    </div>
+  );
+}
 
 export function OverviewView({
   snapshot,
@@ -19,29 +38,17 @@ export function OverviewView({
   onViewLogs: (jobId: number) => void;
 }) {
   const { t } = useTCopy();
+
   if (loading && !snapshot) {
-    return (
-      <div className="adl-github__empty">
-        <p>{t.ciLoading}</p>
-      </div>
-    );
+    return <LoadingSkeleton />;
   }
 
   if (!snapshot) {
     return (
-      <div className="adl-github__empty">
-        <svg
-          viewBox="0 0 24 24"
-          width="32"
-          height="32"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-        >
-          <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2" />
-        </svg>
+      <div className="adl-github-empty">
+        <IconClipboardList width={28} height={28} />
         <p>{copy.ciConfigToQuery}</p>
-        <span className="adl-text--tertiary">{copy.ciConfigToQueryHint}</span>
+        <span>{copy.ciConfigToQueryHint}</span>
       </div>
     );
   }
@@ -50,56 +57,65 @@ export function OverviewView({
     <div>
       {snapshot.latestRun ? (
         <>
-          <div className="adl-github__run-summary">
-            <div className="adl-github__run-title">
+          <div className="adl-github-hero">
+            <div className="adl-github-hero__header">
               <StatusDot
                 conclusion={snapshot.latestRun.conclusion}
                 status={snapshot.latestRun.status}
+                animated
               />
-              <span className="adl-github__run-name">{snapshot.latestRun.name}</span>
+              <span className="adl-github-hero__name">{snapshot.latestRun.name}</span>
               <span
                 className="adl-chip adl-chip--xs"
-                style={{
-                  color: statusColor(snapshot.latestRun.conclusion, snapshot.latestRun.status),
-                }}
+                style={{ color: statusColor(snapshot.latestRun.conclusion, snapshot.latestRun.status) }}
               >
                 {snapshot.latestRun.conclusion ?? snapshot.latestRun.status}
               </span>
+              <TooltipSimple content={formatTime(snapshot.latestRun.runStartedAt)}>
+                <span className="adl-github-hero__time">
+                  {formatRelativeTime(snapshot.latestRun.runStartedAt)}
+                </span>
+              </TooltipSimple>
             </div>
-            <div className="adl-github__run-meta">
-              <span>
-                <span className="adl-text--tertiary">{copy.ciTriggeredBy}:</span>{' '}
-                {snapshot.latestRun.actor ?? '—'}
-              </span>
-              <span>
-                <span className="adl-text--tertiary">{copy.ciEvent}:</span>{' '}
-                {snapshot.latestRun.event ?? '—'}
-              </span>
-              <span>
-                <span className="adl-text--tertiary">{copy.ciSha}:</span>
-                <code className="adl-github__sha">{formatCommit(snapshot.latestRun.headSha)}</code>
-              </span>
-              <span>
-                <span className="adl-text--tertiary">{copy.ciStartedAt}:</span>{' '}
-                {formatTime(snapshot.latestRun.runStartedAt)}
-              </span>
+            <div className="adl-github-card">
+              <div className="adl-github-card__meta">
+                <span className="adl-github-card__meta-item">
+                  <span className="adl-github-card__meta-label">{copy.ciTriggeredBy}:</span>
+                  {snapshot.latestRun.actor ?? '—'}
+                </span>
+                <span className="adl-github-card__meta-item">
+                  <span className="adl-github-card__meta-label">{copy.ciEvent}:</span>
+                  {snapshot.latestRun.event ?? '—'}
+                </span>
+                <span className="adl-github-card__meta-item">
+                  <span className="adl-github-card__meta-label">{copy.ciSha}:</span>
+                  <code className="adl-github__sha">{formatCommit(snapshot.latestRun.headSha)}</code>
+                </span>
+                <span className="adl-github-card__meta-item">
+                  <span className="adl-github-card__meta-label">{copy.ciStartedAt}:</span>
+                  {formatTime(snapshot.latestRun.runStartedAt)}
+                </span>
+              </div>
               {snapshot.latestRun.htmlUrl && (
-                <a
-                  className="adl-github__link"
-                  href={snapshot.latestRun.htmlUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {copy.ciViewOnGitHub}
-                </a>
+                <div style={{ padding: '0 10px 8px' }}>
+                  <a
+                    className="adl-github__link"
+                    href={snapshot.latestRun.htmlUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {copy.ciViewOnGitHub}
+                  </a>
+                </div>
               )}
             </div>
           </div>
 
           {snapshot.jobs.length > 0 && (
-            <div className="adl-github__jobs">
-              <h4 className="adl-github__section-title">
-                {copy.ciJobsTitle} ({snapshot.jobs.length})
+            <div className="adl-github-section">
+              <h4 className="adl-github-section__title">
+                {copy.ciJobsTitle}
+                <span className="adl-github-section__count">({snapshot.jobs.length})</span>
               </h4>
               <ul className="adl-github__job-list">
                 {snapshot.jobs.map((job) => (
@@ -110,22 +126,10 @@ export function OverviewView({
           )}
         </>
       ) : (
-        <div className="adl-github__empty">
-          <svg
-            viewBox="0 0 24 24"
-            width="32"
-            height="32"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-          >
-            <circle cx="12" cy="12" r="10" />
-            <path d="M12 6v6l4 2" />
-          </svg>
+        <div className="adl-github-empty">
+          <IconClock width={28} height={28} />
           <p>{copy.ciNoWorkflowRuns}</p>
-          <span className="adl-text--tertiary">
-            {copy.ciNoWorkflowRunsHint.replace('{branch}', branch)}
-          </span>
+          <span>{copy.ciNoWorkflowRunsHint?.replace('{branch}', branch) ?? ''}</span>
         </div>
       )}
     </div>

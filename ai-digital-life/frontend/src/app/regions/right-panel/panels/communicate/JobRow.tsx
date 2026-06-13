@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import type { CiJobSummary } from '@ai-digital-life/kernel';
 import { StatusDot } from './StatusDot';
-import { statusColor, formatDuration } from './githubPanelUtils';
+import { statusColor, formatDuration, statusClass } from './githubPanelUtils';
 import { useTCopy } from '../../../../i18n/useTCopy';
 import { TooltipSimple } from '../../../../components/Tooltip';
+import { IconChevronDown, IconChevronUp } from '../../../../icons';
 
 export function JobRow({
   job,
@@ -14,19 +15,19 @@ export function JobRow({
 }) {
   const [expanded, setExpanded] = useState(false);
   const { t } = useTCopy();
+  const sClass = statusClass(job.conclusion, job.status);
 
   return (
-    <li className="adl-github__job">
+    <li className={`adl-github-card adl-github-card--status ${sClass}`}>
       <div
-        className="adl-github__job-header"
+        className="adl-github-card__header"
         onClick={() => setExpanded((v) => !v)}
-        style={{ cursor: 'pointer' }}
         role="button"
         tabIndex={0}
         onKeyDown={(e) => e.key === 'Enter' && setExpanded((v) => !v)}
       >
-        <StatusDot conclusion={job.conclusion} status={job.status} />
-        <span className="adl-github__job-name">{job.name}</span>
+        <StatusDot conclusion={job.conclusion} status={job.status} animated />
+        <span className="adl-github-card__title">{job.name}</span>
         <span
           className="adl-chip adl-chip--xs"
           style={{
@@ -47,32 +48,36 @@ export function JobRow({
               e.stopPropagation();
               onViewLogs(job.jobId);
             }}
+            aria-label={t.ciViewLog}
           >
             <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
               <path d="M2 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H2zm1 3h10v1H3V4zm0 3h10v1H3V7zm0 3h7v1H3v-1z" />
             </svg>
           </button>
         </TooltipSimple>
-        <span className="adl-github__job-toggle">{expanded ? '▲' : '▼'}</span>
+        {expanded ? (
+          <IconChevronUp width={12} height={12} style={{ flexShrink: 0, color: 'var(--text-tertiary)' }} />
+        ) : (
+          <IconChevronDown width={12} height={12} style={{ flexShrink: 0, color: 'var(--text-tertiary)' }} />
+        )}
       </div>
       {expanded && job.stepResults.length > 0 && (
-        <ul className="adl-github__steps">
-          {job.stepResults.map((step, i) => (
-            <li key={i} className="adl-github__step">
-              <StatusDot conclusion={step.conclusion} status={step.status} />
-              <span>{step.name}</span>
-              <span
-                style={{
-                  color: statusColor(step.conclusion, step.status),
-                  fontSize: 'var(--text-xs)',
-                  marginLeft: 'auto',
-                }}
+        <div className="adl-github-card__body">
+          <ul className="adl-github-timeline">
+            {job.stepResults.map((step, i) => (
+              <li
+                key={i}
+                className={`adl-github-timeline__step ${statusClass(step.conclusion, step.status)}`}
               >
-                {step.conclusion ?? step.status}
-              </span>
-            </li>
-          ))}
-        </ul>
+                <StatusDot conclusion={step.conclusion} status={step.status} animated />
+                <span className="adl-github-timeline__step-name">{step.name}</span>
+                <span className="adl-github-timeline__step-chip">
+                  {step.conclusion ?? step.status}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </li>
   );
