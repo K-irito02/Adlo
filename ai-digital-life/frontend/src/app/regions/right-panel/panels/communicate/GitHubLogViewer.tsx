@@ -7,6 +7,7 @@ import type { DigitalLifeBridge } from '../../../../../shared/ipc';
 import { AnsiUp } from 'ansi_up';
 import { useTCopy } from '../../../../i18n/useTCopy';
 import { TooltipSimple } from '../../../../components/Tooltip';
+import { IconChevronUp, IconChevronDown, IconArrowUp } from '../../../../icons';
 
 const ansiUp = new AnsiUp();
 ansiUp.use_classes = true;
@@ -266,17 +267,22 @@ export function GitHubLogViewer({ snapshot, config }: GitHubLogViewerProps) {
     <div className="adl-logviewer">
       <div className="adl-logviewer__toolbar">
         <div className="adl-logviewer__toolbar-left">
-          <select
-            className="adl-logviewer__job-select"
-            value={selectedLogJobId ?? ''}
-            onChange={(e) => setSelectedLogJobId(Number(e.target.value))}
-          >
-            {jobs.map((job) => (
-              <option key={job.jobId} value={job.jobId}>
-                {job.name}
-              </option>
-            ))}
-          </select>
+          <div className="adl-logviewer__job-select-wrap">
+            <select
+              className="adl-logviewer__job-select"
+              value={selectedLogJobId ?? ''}
+              onChange={(e) => setSelectedLogJobId(Number(e.target.value))}
+            >
+              {jobs.map((job) => (
+                <option key={job.jobId} value={job.jobId}>
+                  {job.name}
+                </option>
+              ))}
+            </select>
+            <span className="adl-logviewer__job-select-icon">
+              <IconChevronDown width={12} height={12} />
+            </span>
+          </div>
 
           <div className="adl-logviewer__search">
             <input
@@ -288,25 +294,25 @@ export function GitHubLogViewer({ snapshot, config }: GitHubLogViewerProps) {
             />
             {searchMatches.length > 0 && (
               <>
-                <TooltipSimple content={t.ciPrevMatch}>
+                <TooltipSimple content={`${t.ciPrevMatch} (Shift+Enter)`}>
                   <button
                     type="button"
-                    className="adl-btn adl-btn--ghost adl-btn--xs"
+                    className="adl-logviewer__toolbar-btn"
                     onClick={goToPrevMatch}
                   >
-                    ▲
+                    <IconChevronUp width={14} height={14} />
                   </button>
                 </TooltipSimple>
                 <span className="adl-logviewer__match-count">
                   {searchMatchIndex + 1}/{searchMatches.length}
                 </span>
-                <TooltipSimple content={t.ciNextMatch}>
+                <TooltipSimple content={`${t.ciNextMatch} (Enter)`}>
                   <button
                     type="button"
-                    className="adl-btn adl-btn--ghost adl-btn--xs"
+                    className="adl-logviewer__toolbar-btn"
                     onClick={goToNextMatch}
                   >
-                    ▼
+                    <IconChevronDown width={14} height={14} />
                   </button>
                 </TooltipSimple>
               </>
@@ -320,6 +326,15 @@ export function GitHubLogViewer({ snapshot, config }: GitHubLogViewerProps) {
         </div>
 
         <div className="adl-logviewer__toolbar-right">
+          <TooltipSimple content={`跳至顶部 (Ctrl+Home)`}>
+            <button
+              type="button"
+              className="adl-logviewer__toolbar-btn"
+              onClick={() => listRef.current?.scrollToRow?.(0)}
+            >
+              <IconArrowUp width={14} height={14} />
+            </button>
+          </TooltipSimple>
           {htmlUrl && (
             <a
               className="adl-github__link"
