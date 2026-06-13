@@ -34,7 +34,11 @@ import type { BrowserPanelProps } from '../../regions/right-panel/types';
 import { open as shellOpen } from '@tauri-apps/plugin-shell';
 import { useNavigatorResize } from '../../hooks/useNavigatorResize';
 import { useTCopy } from '../../i18n/useTCopy';
-import { resolveFolderWorkspaceId, handleRenameFromContextMenu, handleDeleteFromContextMenu } from './browserPanelHelpers';
+import {
+  resolveFolderWorkspaceId,
+  handleRenameFromContextMenu,
+  handleDeleteFromContextMenu,
+} from './browserPanelHelpers';
 import { SearchResultItem } from './BrowserSearchOverlay';
 
 export function BrowserPanel(props: BrowserPanelProps) {
@@ -160,19 +164,10 @@ export function BrowserPanel(props: BrowserPanelProps) {
     hasActiveTab,
     isBookmarked,
     browserTabs,
-    _editingTabId,
-    _editValue,
-    _editInputRef,
     handleDoubleClick,
-    _handleCreateTab,
-    _handleSelectTab,
     handleCloseTab,
     handleCloseAllTabs,
-    _handleEditSubmit,
-    _handleEditKeyDown,
     handleToggleBookmark,
-    _setEditValue,
-    _setEditingTabId,
   } = useBrowserTabs();
 
   const {
@@ -183,7 +178,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
     iframeRef,
     primaryRef,
     navigateBrowser,
-    _updateWebViewBounds,
     handleIframeLoad,
     handleIframeError,
   } = useBrowserWebView({
@@ -214,7 +208,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
     browserTabFolders,
     tabTreeExpanded,
     allTreeExpanded,
-    _handleCreateTabInTree,
     handleToggleTreePath,
     handleDeleteAllChildTabs,
     handleOpenAllInNewTabs,

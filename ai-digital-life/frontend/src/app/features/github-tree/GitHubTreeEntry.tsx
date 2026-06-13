@@ -1,10 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import {
-  IconSettings,
-  IconRefreshCw,
-  IconMoreVertical,
-} from '../../icons';
+import { IconSettings, IconRefreshCw, IconMoreVertical } from '../../icons';
 import { FileTree } from '../file-tree';
 import { TooltipSimple } from '../../components/Tooltip';
 import { RenameDialog } from '../../components/RenameDialog';

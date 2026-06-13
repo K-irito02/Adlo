@@ -13,7 +13,7 @@ const regionsCssSource = [
   "changes-panel.css",
   "editor-surface.css",
   "diff-viewer.css",
-  "browser-panel.css",
+  "browser-webview.css",
   "terminal-panel.css",
 ].map((f) => readFileSync(new URL(`../../../../src/styles/regions/rightpanel/${f}`, import.meta.url), "utf8")).join("\n");
 

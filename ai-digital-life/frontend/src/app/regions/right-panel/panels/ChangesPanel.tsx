@@ -18,7 +18,6 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
     activePatchSet,
     latestPatchApplication,
     selectedPatchFilePath,
-    selectedChangePreviewPath,
     selectedChangePreviewWorkspaceId,
     changePreview,
     changePreviewLoading,

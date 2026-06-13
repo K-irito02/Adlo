@@ -91,7 +91,7 @@ function VirtualNodeComponent<T extends FileTreeRenderableNode>({
   const nodeClassName = getNodeClassName?.(node);
   const isHoveredDescendant = hoveredDescendantPaths?.has(flatNode.node.path) ?? false;
   const itemStyle: React.CSSProperties = trunkHeight
-    ? { ...style, '--adl-trunk-height': `${trunkHeight}px` }
+    ? ({ ...style, '--adl-trunk-height': `${trunkHeight}px` } as React.CSSProperties)
     : style;
 
   return (

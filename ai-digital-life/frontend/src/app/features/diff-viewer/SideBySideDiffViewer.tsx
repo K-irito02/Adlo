@@ -386,9 +386,7 @@ export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
       }
       editorViewB.dispatch({
         effects: [
-          foldGutterCompartment.reconfigure(
-            lineNumbersEnabled ? createFoldGutterExtension() : []
-          ),
+          foldGutterCompartment.reconfigure(lineNumbersEnabled ? createFoldGutterExtension() : []),
         ],
       });
       editorViewB.requestMeasure();

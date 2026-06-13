@@ -58,7 +58,6 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
   dirtyPaths,
   externalChangePath,
   onToggleExpand,
-  _onOpenWorkspace,
   onPinWorkspace,
   onUnpinWorkspace,
   onHideFromRightPanels,

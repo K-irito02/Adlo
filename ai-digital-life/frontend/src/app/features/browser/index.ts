@@ -1,4 +1,4 @@
-export { BrowserPanel } from './browserpanel';
+export { BrowserPanel } from './BrowserPanel';
 export { BrowserTabBar } from './BrowserTabBar';
 export { BrowserContextMenu } from './BrowserContextMenu';
 export { BrowserMenuDropdown } from './BrowserMenuDropdown';

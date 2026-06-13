@@ -1,7 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const changesPanelSource = readFileSync(new URL("../../../../src/app/regions/right-panel/panels/ChangesPanel.tsx", import.meta.url), "utf8");
 const changesPanelStateSource = readFileSync(new URL("../../../../src/app/regions/right-panel/panels/ChangesPanel/useChangesPanelState.tsx", import.meta.url), "utf8");
 const diffEditorSectionSource = readFileSync(new URL("../../../../src/app/regions/right-panel/panels/DiffEditorSection.tsx", import.meta.url), "utf8");
 

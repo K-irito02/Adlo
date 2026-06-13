@@ -4,7 +4,6 @@ import { describe, expect, it } from "vitest";
 describe("outline panel wiring", () => {
   const fileNavigatorShellSource = readFileSync(new URL("./FileNavigatorShell.tsx", import.meta.url), "utf8");
   const editorSurfaceShellSource = readFileSync(new URL("./EditorSurfaceShell.tsx", import.meta.url), "utf8");
-  const changesPanelSource = readFileSync(new URL("./panels/ChangesPanel.tsx", import.meta.url), "utf8");
   const changesPanelStateSource = readFileSync(new URL("./panels/ChangesPanel/useChangesPanelState.tsx", import.meta.url), "utf8");
   const changesTreePanelSource = readFileSync(new URL("./panels/ChangesTreePanel.tsx", import.meta.url), "utf8");
   const previewWorkspaceServiceSource = readFileSync(new URL("../../../../dev/previewWorkspaceService.ts", import.meta.url), "utf8");

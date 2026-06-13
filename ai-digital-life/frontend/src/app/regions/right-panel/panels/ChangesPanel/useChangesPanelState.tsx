@@ -20,9 +20,15 @@ import {
   type ChangeFileState,
   type ChangeTreeNode,
 } from '../../changesTree';
-import { collectDirectoryPaths, type FileTreeContextMenuItem } from '../../../../features/file-tree';
+import {
+  collectDirectoryPaths,
+  type FileTreeContextMenuItem,
+} from '../../../../features/file-tree';
 import type { EditorRef, DiffEditorRef } from '../../../../stores/types';
-import { buildOutlineFromContent, getDefaultExpandedOutlineIds } from '../../../../features/outline';
+import {
+  buildOutlineFromContent,
+  getDefaultExpandedOutlineIds,
+} from '../../../../features/outline';
 import { getPrimaryBadge } from '../../ChangesPanel/utils';
 import { summarizePatchSet } from '../../../../features/patch-review';
 import { categorizeFile } from '../../fileTypeRouter';
