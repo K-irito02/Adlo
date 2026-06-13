@@ -1,14 +1,8 @@
 import React from 'react';
 import type { CiStatusSnapshot } from '@ai-digital-life/kernel';
 import { StatusDot } from './StatusDot';
-import {
-  statusColor,
-  formatCommit,
-  formatTime,
-  formatRelativeTime,
-} from './githubPanelUtils';
+import { statusColor, formatCommit, formatTime, formatRelativeTime } from './githubPanelUtils';
 import { JobRow } from './JobRow';
-import { useTCopy } from '../../../../i18n/useTCopy';
 import { TooltipSimple } from '../../../../components/Tooltip';
 import { IconClock, IconClipboardList } from '../../../../icons';
 
@@ -37,8 +31,6 @@ export function OverviewView({
   copy: Record<string, string>;
   onViewLogs: (jobId: number) => void;
 }) {
-  const { t } = useTCopy();
-
   if (loading && !snapshot) {
     return <LoadingSkeleton />;
   }
@@ -67,7 +59,9 @@ export function OverviewView({
               <span className="adl-github-hero__name">{snapshot.latestRun.name}</span>
               <span
                 className="adl-chip adl-chip--xs"
-                style={{ color: statusColor(snapshot.latestRun.conclusion, snapshot.latestRun.status) }}
+                style={{
+                  color: statusColor(snapshot.latestRun.conclusion, snapshot.latestRun.status),
+                }}
               >
                 {snapshot.latestRun.conclusion ?? snapshot.latestRun.status}
               </span>
@@ -89,7 +83,9 @@ export function OverviewView({
                 </span>
                 <span className="adl-github-card__meta-item">
                   <span className="adl-github-card__meta-label">{copy.ciSha}:</span>
-                  <code className="adl-github__sha">{formatCommit(snapshot.latestRun.headSha)}</code>
+                  <code className="adl-github__sha">
+                    {formatCommit(snapshot.latestRun.headSha)}
+                  </code>
                 </span>
                 <span className="adl-github-card__meta-item">
                   <span className="adl-github-card__meta-label">{copy.ciStartedAt}:</span>

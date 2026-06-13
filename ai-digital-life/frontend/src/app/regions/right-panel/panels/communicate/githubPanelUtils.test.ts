@@ -2,10 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   formatRelativeTime,
   statusClass,
-  formatDuration,
-  formatCommit,
-  formatTime,
-  statusColor,
 } from './githubPanelUtils';
 
 describe('formatRelativeTime', () => {
