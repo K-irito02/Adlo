@@ -1,18 +1,21 @@
 import React from 'react';
 import { statusColor } from './githubPanelUtils';
 
-export function StatusDot({ conclusion, status }: { conclusion: string | null; status: string }) {
+export function StatusDot({
+  conclusion,
+  status,
+  animated,
+}: {
+  conclusion: string | null;
+  status: string;
+  animated?: boolean;
+}) {
   const color = statusColor(conclusion, status);
+  const isRunning = animated && (status === 'in_progress' || status === 'queued');
   return (
     <span
-      style={{
-        display: 'inline-block',
-        width: 8,
-        height: 8,
-        borderRadius: '50%',
-        background: color,
-        flexShrink: 0,
-      }}
+      className={isRunning ? 'adl-status-dot adl-status-dot--animated' : 'adl-status-dot'}
+      style={{ background: color }}
     />
   );
 }
