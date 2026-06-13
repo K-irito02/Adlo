@@ -14,6 +14,7 @@ import {
 import { TooltipSimple } from '../../components/Tooltip';
 import { RenameDialog } from '../../components/RenameDialog';
 import { ToastContainer, type ToastType } from '../../components/Toast';
+import { NavigatorResizeHandle } from '@components/NavigatorResizeHandle';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../../stores/slicedStore';
 import { useBrowserTabs, computeNavigatorCount } from './useBrowserTabs';
@@ -305,15 +306,19 @@ export function BrowserPanel(props: BrowserPanelProps) {
     [recentWorkspaces]
   );
 
-  const navigatorCount = computeNavigatorCount(
-    navigatorMode,
-    navigatorQuery,
-    browserTabs,
-    browserBookmarks,
-    browserHistory,
-    searchResults,
-    [],
-    []
+  const navigatorCount = useMemo(
+    () =>
+      computeNavigatorCount(
+        navigatorMode,
+        navigatorQuery,
+        browserTabs,
+        browserBookmarks,
+        browserHistory,
+        searchResults,
+        [],
+        []
+      ),
+    [navigatorMode, navigatorQuery, browserTabs, browserBookmarks, browserHistory, searchResults]
   );
 
   const openTabCount = navigatorCount;
@@ -770,15 +775,12 @@ export function BrowserPanel(props: BrowserPanelProps) {
               </CustomScrollArea>
             </div>
           ) : null}
-          <div
-            className="adl-tool-navigator__resize-handle"
+          <NavigatorResizeHandle
+            label="Resize browser navigator"
+            minWidth={180}
+            maxWidth={300}
+            currentWidth={browserNavigatorWidth}
             onPointerDown={handleNavigatorResizeStart}
-            role="separator"
-            aria-orientation="vertical"
-            aria-label="Resize browser navigator"
-            aria-valuemin={180}
-            aria-valuemax={300}
-            aria-valuenow={browserNavigatorWidth}
           />
         </aside>
 

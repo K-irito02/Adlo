@@ -64,6 +64,10 @@ export default defineConfig({
   resolve: {
     alias: {
       "@ai-digital-life/kernel": path.resolve(__dirname, "src/kernel/index.ts"),
+      "@app/*": path.resolve(__dirname, "src/app/*"),
+      "@features/*": path.resolve(__dirname, "src/app/features/*"),
+      "@stores/*": path.resolve(__dirname, "src/app/stores/*"),
+      "@components/*": path.resolve(__dirname, "src/app/components/*"),
     },
   },
   server: {

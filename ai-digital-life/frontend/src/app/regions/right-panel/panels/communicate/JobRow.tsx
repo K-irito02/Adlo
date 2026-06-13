@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import type { CiJobSummary } from '@ai-digital-life/kernel';
 import { StatusDot } from './StatusDot';
 import { statusColor, formatDuration, statusClass } from './githubPanelUtils';
-import { useTCopy } from '../../../../i18n/useTCopy';
-import { TooltipSimple } from '../../../../components/Tooltip';
-import { IconChevronDown, IconChevronUp } from '../../../../icons';
+import { useTCopy } from '@app/i18n/useTCopy';
+import { TooltipSimple } from '@components/Tooltip';
+import { IconChevronDown, IconChevronUp } from '@app/icons';
 
 export function JobRow({
   job,

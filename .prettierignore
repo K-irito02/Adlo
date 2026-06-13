@@ -12,3 +12,6 @@ ai-digital-life/**/target
 ai-digital-life/frontend/dist
 ai-digital-life/frontend/node_modules
 ai-digital-life/frontend/coverage
+
+# Auto-generated files
+ai-digital-life/frontend/src/shared/ipc-types.generated.ts

@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { TCopyProvider } from '../../../../i18n/TCopyContext';
+import { TCopyProvider } from '@app/i18n/TCopyContext';
 import { OverviewView } from './OverviewView';
 import type { CiStatusSnapshot } from '@ai-digital-life/kernel';
 
@@ -10,7 +10,11 @@ const mockT = new Proxy({} as Record<string, string>, {
 });
 
 function WithTCopy({ children }: { children: React.ReactNode }) {
-  return <TCopyProvider t={mockT as any} locale="zh-CN">{children}</TCopyProvider>;
+  return (
+    <TCopyProvider t={mockT as any} locale="zh-CN">
+      {children}
+    </TCopyProvider>
+  );
 }
 
 const mockCopy: Record<string, string> = {
@@ -54,7 +58,13 @@ describe('OverviewView', () => {
         completedAt: new Date().toISOString(),
         htmlUrl: null,
         stepResults: [
-          { name: 'Step 1', status: 'completed', conclusion: 'success', startedAt: null, completedAt: null },
+          {
+            name: 'Step 1',
+            status: 'completed',
+            conclusion: 'success',
+            startedAt: null,
+            completedAt: null,
+          },
         ],
       },
     ],
@@ -65,21 +75,33 @@ describe('OverviewView', () => {
 
   it('renders loading state', () => {
     const html = renderToStaticMarkup(
-      <WithTCopy><OverviewView snapshot={null} loading branch="" copy={{}} onViewLogs={() => {}} /></WithTCopy>
+      <WithTCopy>
+        <OverviewView snapshot={null} loading branch="" copy={{}} onViewLogs={() => {}} />
+      </WithTCopy>
     );
     expect(html).toContain('adl-github-skeleton');
   });
 
   it('renders empty state when no snapshot', () => {
     const html = renderToStaticMarkup(
-      <WithTCopy><OverviewView snapshot={null} loading={false} branch="" copy={{}} onViewLogs={() => {}} /></WithTCopy>
+      <WithTCopy>
+        <OverviewView snapshot={null} loading={false} branch="" copy={{}} onViewLogs={() => {}} />
+      </WithTCopy>
     );
     expect(html).toContain('adl-github-empty');
   });
 
   it('renders run card with snapshot data', () => {
     const html = renderToStaticMarkup(
-      <WithTCopy><OverviewView snapshot={snapshot} loading={false} branch="main" copy={mockCopy} onViewLogs={() => {}} /></WithTCopy>
+      <WithTCopy>
+        <OverviewView
+          snapshot={snapshot}
+          loading={false}
+          branch="main"
+          copy={mockCopy}
+          onViewLogs={() => {}}
+        />
+      </WithTCopy>
     );
     expect(html).toContain('adl-github-hero');
     expect(html).toContain('CI Build');
@@ -88,7 +110,15 @@ describe('OverviewView', () => {
 
   it('renders section title with job count', () => {
     const html = renderToStaticMarkup(
-      <WithTCopy><OverviewView snapshot={snapshot} loading={false} branch="main" copy={mockCopy} onViewLogs={() => {}} /></WithTCopy>
+      <WithTCopy>
+        <OverviewView
+          snapshot={snapshot}
+          loading={false}
+          branch="main"
+          copy={mockCopy}
+          onViewLogs={() => {}}
+        />
+      </WithTCopy>
     );
     expect(html).toContain('adl-github-section__title');
     expect(html).toContain('1');
@@ -97,7 +127,15 @@ describe('OverviewView', () => {
   it('renders no-runs empty state when latestRun is null', () => {
     const noRunSnapshot: CiStatusSnapshot = { ...snapshot, latestRun: null };
     const html = renderToStaticMarkup(
-      <WithTCopy><OverviewView snapshot={noRunSnapshot} loading={false} branch="main" copy={mockCopy} onViewLogs={() => {}} /></WithTCopy>
+      <WithTCopy>
+        <OverviewView
+          snapshot={noRunSnapshot}
+          loading={false}
+          branch="main"
+          copy={mockCopy}
+          onViewLogs={() => {}}
+        />
+      </WithTCopy>
     );
     expect(html).toContain('adl-github-empty');
   });

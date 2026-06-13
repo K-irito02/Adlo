@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  formatRelativeTime,
-  statusClass,
-} from './githubPanelUtils';
+import { formatRelativeTime, statusClass } from './githubPanelUtils';
 
 describe('formatRelativeTime', () => {
   it('returns "刚刚" for recent timestamps', () => {

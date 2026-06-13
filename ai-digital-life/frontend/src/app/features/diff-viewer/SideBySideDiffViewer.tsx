@@ -75,6 +75,11 @@ export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
   );
   const [editorReady, setEditorReady] = useState(false);
 
+  const onMountRef = useRef(onMount);
+  onMountRef.current = onMount;
+  const onCollapsedRef = useRef(onCollapsedUnchangedRangesChange);
+  onCollapsedRef.current = onCollapsedUnchangedRangesChange;
+
   // 先加载语言扩展，完成后才允许创建编辑器
   useEffect(() => {
     let cancelled = false;
@@ -306,8 +311,8 @@ export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
     setEditorViewB(mv.b);
     emitCollapsedUnchangedRanges(mv.b);
 
-    if (onMount) {
-      onMount(createDiffEditorRef(mv));
+    if (onMountRef.current) {
+      onMountRef.current(createDiffEditorRef(mv));
     }
 
     return () => {
@@ -334,7 +339,7 @@ export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
       mergeViewBRef.current = null;
       setEditorViewA(null);
       setEditorViewB(null);
-      onCollapsedUnchangedRangesChange?.([]);
+      onCollapsedRef.current?.([]);
     };
   }, [
     editorReady,
@@ -344,9 +349,7 @@ export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
     sharedExts,
     extraExtensions,
     collapseUnchanged,
-    onCollapsedUnchangedRangesChange,
     emitCollapsedUnchangedRanges,
-    onMount,
   ]);
 
   useEffect(() => {

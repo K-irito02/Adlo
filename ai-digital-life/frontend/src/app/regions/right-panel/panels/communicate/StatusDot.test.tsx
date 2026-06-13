@@ -21,12 +21,16 @@ describe('StatusDot', () => {
   });
 
   it('adds animated class when animated prop is true and status is in_progress', () => {
-    const html = renderToStaticMarkup(<StatusDot conclusion={null} status="in_progress" animated />);
+    const html = renderToStaticMarkup(
+      <StatusDot conclusion={null} status="in_progress" animated />
+    );
     expect(html).toContain('adl-status-dot--animated');
   });
 
   it('does not add animated class when status is completed', () => {
-    const html = renderToStaticMarkup(<StatusDot conclusion="success" status="completed" animated />);
+    const html = renderToStaticMarkup(
+      <StatusDot conclusion="success" status="completed" animated />
+    );
     expect(html).not.toContain('adl-status-dot--animated');
   });
 });

@@ -7,7 +7,7 @@ import {
   type MouseEvent,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { IconClose } from '../../../../icons';
+import { IconClose } from '@app/icons';
 
 interface GitHubSettingsDialogProps {
   open: boolean;

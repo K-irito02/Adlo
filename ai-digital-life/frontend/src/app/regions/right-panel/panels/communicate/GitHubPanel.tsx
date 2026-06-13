@@ -8,18 +8,19 @@ import {
   IconFiles,
   IconList,
   IconFolderPlus,
-} from '../../../../icons';
-import { TooltipSimple } from '../../../../components/Tooltip';
-import { useAppStore } from '../../../../stores/slicedStore';
+} from '@app/icons';
+import { TooltipSimple } from '@components/Tooltip';
+import { NavigatorResizeHandle } from '@components/NavigatorResizeHandle';
+import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useCIPanelProps } from '../../hooks/useCIPanelProps';
-import { useNavigatorResize } from '../../../../hooks/useNavigatorResize';
-import { workspaceSelectors } from '../../../../stores/selectors';
-import { getAppCopy } from '../../../../i18n';
-import { useTCopy } from '../../../../i18n/useTCopy';
-import { GitHubTree } from '../../../../features/github-tree/GitHubTree';
-import { CustomScrollArea } from '../../../../features/file-tree/CustomScrollArea';
-import type { SectionCallbacks } from '../../../../features/github-tree/GitHubCategorySection';
+import { useNavigatorResize } from '@app/hooks/useNavigatorResize';
+import { workspaceSelectors } from '@stores/selectors';
+import { getAppCopy } from '@app/i18n';
+import { useTCopy } from '@app/i18n/useTCopy';
+import { GitHubTree } from '@features/github-tree/GitHubTree';
+import { CustomScrollArea } from '@features/file-tree/CustomScrollArea';
+import type { SectionCallbacks } from '@features/github-tree/GitHubCategorySection';
 import { GitHubLogViewer } from './GitHubLogViewer';
 import { MenuHintItem } from './MenuHintItem';
 import { OverviewView } from './OverviewView';
@@ -938,15 +939,12 @@ export function GitHubPanel() {
               gitHubViewMode={gitHubViewMode}
             />
           )}
-          <div
-            className="adl-tool-navigator__resize-handle"
+          <NavigatorResizeHandle
+            label="Resize GitHub navigator"
+            minWidth={180}
+            maxWidth={420}
+            currentWidth={gitHubNavigatorWidth}
             onPointerDown={handleNavigatorResizeStart}
-            role="separator"
-            aria-orientation="vertical"
-            aria-label="Resize GitHub navigator"
-            aria-valuemin={180}
-            aria-valuemax={420}
-            aria-valuenow={gitHubNavigatorWidth}
           />
         </aside>
 

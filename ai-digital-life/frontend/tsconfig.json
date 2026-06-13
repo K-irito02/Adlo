@@ -14,7 +14,11 @@
     "isolatedModules": true,
     "baseUrl": ".",
     "paths": {
-      "@ai-digital-life/kernel": ["./src/kernel/index.ts"]
+      "@ai-digital-life/kernel": ["./src/kernel/index.ts"],
+      "@app/*": ["src/app/*"],
+      "@features/*": ["src/app/features/*"],
+      "@stores/*": ["src/app/stores/*"],
+      "@components/*": ["src/app/components/*"]
     }
   },
   "include": ["src"]

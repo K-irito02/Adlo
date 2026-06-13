@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useRef, useCallback } from 'react';
 import type { CiStatusSnapshot } from '@ai-digital-life/kernel';
 import { JobRow } from './JobRow';
-import { useTCopy } from '../../../../i18n/useTCopy';
-import { IconSearch } from '../../../../icons';
+import { useTCopy } from '@app/i18n/useTCopy';
+import { IconSearch } from '@app/icons';
 
 type FilterKey = 'all' | 'success' | 'failure' | 'running';
 

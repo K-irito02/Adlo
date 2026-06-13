@@ -63,6 +63,11 @@ export const InlineDiffViewer = memo(function InlineDiffViewer({
     editorView
   );
 
+  const onMountRef = useRef(onMount);
+  onMountRef.current = onMount;
+  const onCollapsedRef = useRef(onCollapsedUnchangedRangesChange);
+  onCollapsedRef.current = onCollapsedUnchangedRangesChange;
+
   // 先加载语言扩展，完成后才允许创建编辑器
   useEffect(() => {
     let cancelled = false;
@@ -170,8 +175,8 @@ export const InlineDiffViewer = memo(function InlineDiffViewer({
     viewRef.current = view;
     setEditorView(view);
 
-    if (onCollapsedUnchangedRangesChange) {
-      onCollapsedUnchangedRangesChange(
+    if (onCollapsedRef.current) {
+      onCollapsedRef.current(
         collapseUnchanged
           ? buildCollapsedUnchangedRanges({
               chunks: getMergeChunks(view.state),
@@ -181,8 +186,8 @@ export const InlineDiffViewer = memo(function InlineDiffViewer({
       );
     }
 
-    if (onMount) {
-      onMount(createEditorRef(view));
+    if (onMountRef.current) {
+      onMountRef.current(createEditorRef(view));
     }
 
     return () => {
@@ -191,18 +196,9 @@ export const InlineDiffViewer = memo(function InlineDiffViewer({
         viewRef.current = null;
       }
       setEditorView(null);
-      onCollapsedUnchangedRangesChange?.([]);
+      onCollapsedRef.current?.([]);
     };
-  }, [
-    editorReady,
-    language,
-    original,
-    modified,
-    staticExtensions,
-    collapseUnchanged,
-    onCollapsedUnchangedRangesChange,
-    onMount,
-  ]);
+  }, [editorReady, language, original, modified, staticExtensions, collapseUnchanged]);
 
   useEffect(() => {
     const view = viewRef.current;

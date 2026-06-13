@@ -1,6 +1,6 @@
 import React from 'react';
-import { workspaceSelectors } from '../../../../stores/selectors';
-import { getAppCopy } from '../../../../i18n';
+import { workspaceSelectors } from '@stores/selectors';
+import { getAppCopy } from '@app/i18n';
 
 export function FeishuPanel() {
   const appInfo = workspaceSelectors.useAppInfo();

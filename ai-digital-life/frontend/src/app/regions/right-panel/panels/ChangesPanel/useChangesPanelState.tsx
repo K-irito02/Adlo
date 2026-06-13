@@ -1,18 +1,9 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import {
-  IconClipboardList,
-  IconCopy,
-  IconFiles,
-  IconFolderOpen,
-  IconPencil,
-  IconTrash,
-  IconUpload,
-} from '../../../../icons';
-import { useAppStore } from '../../../../stores/slicedStore';
-import { joinPathSegments, normalizeWorkspaceRelativePath } from '../../../../utils/workspacePaths';
+import { useAppStore } from '@stores/slicedStore';
+import { normalizeWorkspaceRelativePath } from '@app/utils/workspacePaths';
 import type { ChangesPanelProps } from '../../types';
 import type { WorkspaceTreeNode, ReorderWorkspacesInput } from '@ai-digital-life/kernel';
-import { useTCopy } from '../../../../i18n/useTCopy';
+import { useTCopy } from '@app/i18n/useTCopy';
 import {
   buildChangeEntries,
   buildChangeTree,
@@ -20,21 +11,16 @@ import {
   type ChangeFileState,
   type ChangeTreeNode,
 } from '../../changesTree';
-import {
-  collectDirectoryPaths,
-  type FileTreeContextMenuItem,
-} from '../../../../features/file-tree';
-import type { EditorRef, DiffEditorRef } from '../../../../stores/types';
-import {
-  buildOutlineFromContent,
-  getDefaultExpandedOutlineIds,
-} from '../../../../features/outline';
+import { collectDirectoryPaths, type FileTreeRenderableNode } from '@features/file-tree';
+import type { EditorRef, DiffEditorRef } from '@stores/types';
+import { buildOutlineFromContent, getDefaultExpandedOutlineIds } from '@features/outline';
 import { getPrimaryBadge } from '../../ChangesPanel/utils';
-import { summarizePatchSet } from '../../../../features/patch-review';
+import { summarizePatchSet } from '@features/patch-review';
 import { categorizeFile } from '../../fileTypeRouter';
 import { type EditorView } from '@codemirror/view';
 import { getChunks, uncollapseUnchanged } from '@codemirror/merge';
 import { useChangesPanelStore } from '../useChangesPanelStore';
+import { useFileContextMenuItems } from '../../hooks/useFileContextMenuItems';
 
 export function useChangesPanelState(props: ChangesPanelProps) {
   const { t, formatT } = useTCopy();
@@ -361,136 +347,24 @@ export function useChangesPanelState(props: ChangesPanelProps) {
     changesClearMenuHighlightRef.current?.();
   }, []);
 
-  const getContextMenuItems = useCallback(
-    (node: ChangeTreeNode): FileTreeContextMenuItem<ChangeTreeNode>[] => {
-      if (node.kind !== 'file') {
-        return [];
-      }
-      const isDeleted = node.patchSummary?.changeKind === 'deleted';
-      const store = useAppStore.getState();
-      const hasClipboard = store.clipboardOperation !== null;
-      return [
-        {
-          id: 'open-in-files',
-          label: t.fileContextOpenWith as string,
-          icon: <IconFiles size={14} />,
-          disabled: isDeleted,
-          action: (targetNode) => onOpenFile(targetNode.path),
-        },
-        { id: 'sep0', separator: true },
-        {
-          id: 'reveal',
-          label: t.fileContextReveal as string,
-          icon: <IconFolderOpen size={14} />,
-          disabled: isDeleted,
-          action: async (targetNode) => {
-            const store = useAppStore.getState();
-            const appInfo = store.appInfo;
-            const rootPath = appInfo?.currentWorkspace?.rootPath ?? appInfo?.currentWorkspace?.path;
-            if (!rootPath) {
-              return;
-            }
-            const fullPath = joinPathSegments(rootPath, targetNode.path);
-            await window.digitalLife.workspace.revealInFileManager(fullPath);
-          },
-        },
-        { id: 'sep1', separator: true },
-        {
-          id: 'copy-full-path',
-          label: t.fileContextCopyFullPath as string,
-          icon: <IconCopy size={14} />,
-          action: async (targetNode) => {
-            const store = useAppStore.getState();
-            const appInfo = store.appInfo;
-            const rootPath = appInfo?.currentWorkspace?.rootPath ?? appInfo?.currentWorkspace?.path;
-            if (!rootPath) {
-              return;
-            }
-            const fullPath = joinPathSegments(rootPath, targetNode.path);
-            await copyToClipboard(fullPath);
-          },
-        },
-        {
-          id: 'copy-relative-path',
-          label: t.fileContextCopyRelativePath as string,
-          icon: <IconCopy size={14} />,
-          action: async (targetNode) => {
-            await copyToClipboard(targetNode.path);
-          },
-        },
-        { id: 'sep2', separator: true },
-        {
-          id: 'cut',
-          label: t.fileContextCut as string,
-          icon: <IconClipboardList size={14} />,
-          action: (targetNode) => {
-            store.setClipboard('cut', targetNode.path, targetNode.kind);
-          },
-        },
-        {
-          id: 'copy-op',
-          label: t.fileContextCopy as string,
-          icon: <IconCopy size={14} />,
-          action: (targetNode) => {
-            store.setClipboard('copy', targetNode.path, targetNode.kind);
-          },
-        },
-        {
-          id: 'paste',
-          label: t.fileContextPaste as string,
-          icon: <IconUpload size={14} />,
-          disabled: !hasClipboard,
-          action: async (targetNode) => {
-            const sourcePath = store.clipboardSourcePath;
-            const operation = store.clipboardOperation;
-            if (!sourcePath || !operation) {
-              return;
-            }
-            const targetDir =
-              targetNode.kind === 'directory'
-                ? targetNode.path
-                : targetNode.path.substring(0, targetNode.path.lastIndexOf('/') + 1);
-            const sourceName = sourcePath.split('/').pop() || sourcePath;
-            const newPath = targetDir ? `${targetDir}/${sourceName}` : sourceName;
-            if (operation === 'copy') {
-              await store.duplicateWorkspaceFile(sourcePath, newPath);
-            } else if (operation === 'cut') {
-              if (sourcePath === newPath) {
-                store.clearClipboard();
-                return;
-              }
-              await store.moveWorkspaceFile(sourcePath, newPath);
-            }
-            store.clearClipboard();
-          },
-        },
-        { id: 'sep3', separator: true },
-        {
-          id: 'rename',
-          label: t.fileContextRename as string,
-          icon: <IconPencil size={14} />,
-          disabled: isDeleted,
-          action: (targetNode) => {
-            changesContextMenuPersistRef.current = true;
-            setChangesRenamingPath(targetNode.path);
-            setChangesRenameDialogOpen(true);
-          },
-        },
-        {
-          id: 'delete',
-          label: t.fileContextDelete as string,
-          icon: <IconTrash size={14} />,
-          danger: true,
-          disabled: isDeleted,
-          action: (targetNode) => {
-            changesContextMenuPersistRef.current = true;
-            setChangesDeleteConfirmPath(targetNode.path);
-          },
-        },
-      ];
-    },
-    [onOpenFile, t, copyToClipboard]
+  const isNodeDeleted = useCallback(
+    (node: FileTreeRenderableNode) =>
+      (node as ChangeTreeNode).patchSummary?.changeKind === 'deleted',
+    []
   );
+
+  const { getContextMenuItems } = useFileContextMenuItems({
+    t,
+    copyToClipboard,
+    contextMenuPersistRef: changesContextMenuPersistRef,
+    setRenamingPath: setChangesRenamingPath,
+    setRenameDialogOpen: setChangesRenameDialogOpen,
+    setDeleteConfirmPath: setChangesDeleteConfirmPath,
+    includeOpenInFiles: true,
+    onOpenFile,
+    isNodeDeleted,
+    showMenuForDirectories: false,
+  });
 
   const renderNavigatorMeta = useCallback((node: WorkspaceTreeNode) => {
     const changeNode = node as ChangeTreeNode;

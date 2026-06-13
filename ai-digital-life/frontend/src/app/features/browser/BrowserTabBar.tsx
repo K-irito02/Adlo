@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { IconClose, IconGlobe } from '../../icons';
 import { TooltipSimple } from '../../components/Tooltip';
 import type { BrowserTabState } from '../../stores/slices/browserSlice';
@@ -50,6 +50,10 @@ export const BrowserTabBar = React.memo(function BrowserTabBar({
   t: _t,
 }: BrowserTabBarProps) {
   const browserBookmarks = useAppStore((state) => state.browserBookmarks);
+  const bookmarkedUrls = useMemo(
+    () => new Set(browserBookmarks.map((b) => b.url)),
+    [browserBookmarks]
+  );
 
   if (tabs.length === 0) {
     return null;
@@ -58,8 +62,7 @@ export const BrowserTabBar = React.memo(function BrowserTabBar({
   return (
     <ul className="adl-tool-list adl-tool-list--terminal">
       {tabs.map((tab) => {
-        // 检查当前标签是否已收藏
-        const isBookmarked = browserBookmarks.some((bookmark) => bookmark.url === tab.url);
+        const isBookmarked = bookmarkedUrls.has(tab.url);
 
         return (
           <li

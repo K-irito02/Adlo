@@ -1,6 +1,7 @@
 import React from 'react';
 import { IconFileCode, IconTerminal, IconTrash } from '../../icons';
 import { TooltipSimple } from '../../components/Tooltip';
+import { NavigatorResizeHandle } from '@components/NavigatorResizeHandle';
 import type { CopyDict } from '../../i18n';
 import type { TerminalNavigatorMode } from './useTerminalPanel';
 import type { TerminalTabState } from '../../stores/slices/terminalSlice';
@@ -152,15 +153,12 @@ export const TerminalNavigator = React.memo(function TerminalNavigator({
         )
       ) : null}
 
-      <div
-        className="adl-tool-navigator__resize-handle"
+      <NavigatorResizeHandle
+        label="Resize terminal navigator"
+        minWidth={180}
+        maxWidth={300}
+        currentWidth={terminalNavigatorWidth}
         onPointerDown={onResizeStart}
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="Resize terminal navigator"
-        aria-valuemin={180}
-        aria-valuemax={300}
-        aria-valuenow={terminalNavigatorWidth}
       />
     </aside>
   );

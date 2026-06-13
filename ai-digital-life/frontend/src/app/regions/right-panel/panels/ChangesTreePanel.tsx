@@ -4,6 +4,7 @@ import { MultiWorkspaceChangesTree } from '../../../features/workspace-changes-t
 import { CustomScrollArea } from '../../../features/file-tree/CustomScrollArea';
 import { OutlineTree } from '../../../features/outline';
 import { useNavigatorResize } from '../../../hooks/useNavigatorResize';
+import { NavigatorResizeHandle } from '@components/NavigatorResizeHandle';
 import { ChangesToolbar } from './ChangesToolbar';
 import type {
   WorkspaceTreeNode,
@@ -213,15 +214,12 @@ export function ChangesTreePanel(props: ChangesTreePanelProps) {
           />
         </CustomScrollArea>
       )}
-      <div
-        className="adl-tool-navigator__resize-handle"
+      <NavigatorResizeHandle
+        label="Resize changes navigator"
+        minWidth={180}
+        maxWidth={300}
+        currentWidth={changesNavigatorWidth}
         onPointerDown={handleNavigatorResizeStart}
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="Resize changes navigator"
-        aria-valuemin={180}
-        aria-valuemax={300}
-        aria-valuenow={changesNavigatorWidth}
       />
     </aside>
   );

@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, expect, it, vi, beforeAll } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { TCopyProvider } from '../../../../i18n/TCopyContext';
+import { TCopyProvider } from '@app/i18n/TCopyContext';
 import { GitHubLogViewer } from './GitHubLogViewer';
 import type { CiStatusSnapshot } from '@ai-digital-life/kernel';
 
@@ -19,7 +19,11 @@ const mockT = new Proxy({} as Record<string, string>, {
 });
 
 function WithTCopy({ children }: { children: React.ReactNode }) {
-  return <TCopyProvider t={mockT as any} locale="zh-CN">{children}</TCopyProvider>;
+  return (
+    <TCopyProvider t={mockT as any} locale="zh-CN">
+      {children}
+    </TCopyProvider>
+  );
 }
 
 describe('GitHubLogViewer', () => {
@@ -28,9 +32,17 @@ describe('GitHubLogViewer', () => {
     branch: 'main',
     latestRun: null,
     jobs: [
-      { jobId: 1, runId: 1, name: 'Build', status: 'completed', conclusion: 'success',
-        startedAt: null, completedAt: null, htmlUrl: null,
-        stepResults: [] },
+      {
+        jobId: 1,
+        runId: 1,
+        name: 'Build',
+        status: 'completed',
+        conclusion: 'success',
+        startedAt: null,
+        completedAt: null,
+        htmlUrl: null,
+        stepResults: [],
+      },
     ],
     logs: null,
     capturedAtMs: Date.now(),
@@ -39,7 +51,13 @@ describe('GitHubLogViewer', () => {
 
   it('renders toolbar with job selector', () => {
     const html = renderToStaticMarkup(
-      <WithTCopy><GitHubLogViewer snapshot={snapshot} config={{ owner: 'test', repo: 'test', branch: 'main' }} dirKey="test" /></WithTCopy>
+      <WithTCopy>
+        <GitHubLogViewer
+          snapshot={snapshot}
+          config={{ owner: 'test', repo: 'test', branch: 'main' }}
+          dirKey="test"
+        />
+      </WithTCopy>
     );
     expect(html).toContain('adl-logviewer__toolbar');
     expect(html).toContain('adl-logviewer__job-select-wrap');
@@ -47,7 +65,13 @@ describe('GitHubLogViewer', () => {
 
   it('renders search input with hover-reveal wrap', () => {
     const html = renderToStaticMarkup(
-      <WithTCopy><GitHubLogViewer snapshot={snapshot} config={{ owner: 'test', repo: 'test', branch: 'main' }} dirKey="test" /></WithTCopy>
+      <WithTCopy>
+        <GitHubLogViewer
+          snapshot={snapshot}
+          config={{ owner: 'test', repo: 'test', branch: 'main' }}
+          dirKey="test"
+        />
+      </WithTCopy>
     );
     expect(html).toContain('adl-logviewer__search-wrap');
     expect(html).toContain('adl-logviewer__search-input');
@@ -56,7 +80,13 @@ describe('GitHubLogViewer', () => {
 
   it('renders collapse blank toggle switch', () => {
     const html = renderToStaticMarkup(
-      <WithTCopy><GitHubLogViewer snapshot={snapshot} config={{ owner: 'test', repo: 'test', branch: 'main' }} dirKey="test" /></WithTCopy>
+      <WithTCopy>
+        <GitHubLogViewer
+          snapshot={snapshot}
+          config={{ owner: 'test', repo: 'test', branch: 'main' }}
+          dirKey="test"
+        />
+      </WithTCopy>
     );
     expect(html).toContain('adl-logviewer__toggle');
     expect(html).toContain('adl-logviewer__toggle-track');
@@ -67,14 +97,27 @@ describe('GitHubLogViewer', () => {
     const snapWithUrl: CiStatusSnapshot = {
       ...snapshot,
       latestRun: {
-        runId: 1, name: 'CI', status: 'completed', conclusion: 'success',
-        headSha: 'abc', headBranch: 'main',
+        runId: 1,
+        name: 'CI',
+        status: 'completed',
+        conclusion: 'success',
+        headSha: 'abc',
+        headBranch: 'main',
         htmlUrl: 'https://github.com/test/repo/actions/runs/1',
-        runStartedAt: null, updatedAt: null, actor: null, event: null,
+        runStartedAt: null,
+        updatedAt: null,
+        actor: null,
+        event: null,
       },
     };
     const html = renderToStaticMarkup(
-      <WithTCopy><GitHubLogViewer snapshot={snapWithUrl} config={{ owner: 'test', repo: 'test', branch: 'main' }} dirKey="test" /></WithTCopy>
+      <WithTCopy>
+        <GitHubLogViewer
+          snapshot={snapWithUrl}
+          config={{ owner: 'test', repo: 'test', branch: 'main' }}
+          dirKey="test"
+        />
+      </WithTCopy>
     );
     expect(html).toContain('adl-github__link');
   });

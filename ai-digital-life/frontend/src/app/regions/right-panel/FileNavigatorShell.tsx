@@ -6,29 +6,24 @@ import type {
 } from '@ai-digital-life/kernel';
 import { useTCopy } from '../../i18n/useTCopy';
 import {
-  IconClipboardList,
-  IconCopy,
   IconFiles,
   IconFilePlus,
-  IconFolderOpen,
   IconFoldVertical,
   IconFolderPlus,
   IconList,
-  IconPencil,
   IconRefreshCw,
   IconReplace,
-  IconTrash,
   IconUnfoldVertical,
-  IconUpload,
 } from '../../icons';
 import { TooltipSimple } from '../../components/Tooltip';
+import { NavigatorResizeHandle } from '@components/NavigatorResizeHandle';
 import { useNavigatorResize } from '../../hooks/useNavigatorResize';
 import { MultiWorkspaceFileTree } from '../../features/workspace-file-tree';
-import type { FileTreeContextMenuItem } from '../../features/file-tree';
 import { CustomScrollArea } from '../../features/file-tree/CustomScrollArea';
 import { OutlineTree, getDefaultExpandedOutlineIds } from '../../features/outline';
-import { normalizeWorkspaceRelativePath, joinPathSegments } from '../../utils/workspacePaths';
+import { normalizeWorkspaceRelativePath } from '../../utils/workspacePaths';
 import { useFileCreation, useSearchPanel } from './hooks';
+import { useFileContextMenuItems } from './hooks/useFileContextMenuItems';
 import { FileCreationBar } from './FileCreationBar';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { RenameDialog } from '../../components/RenameDialog';
@@ -258,122 +253,15 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
     } catch {}
   }, []);
 
-  const getContextMenuItems = useCallback(
-    (node: WorkspaceTreeNode): FileTreeContextMenuItem<WorkspaceTreeNode>[] => {
-      const isDir = node.kind === 'directory';
-      const store = useAppStore.getState();
-      const hasClipboard = store.clipboardOperation !== null;
-      return [
-        {
-          id: 'reveal',
-          label: isDir ? (t.fileContextRevealDir as string) : (t.fileContextReveal as string),
-          icon: <IconFolderOpen size={14} />,
-          action: async (targetNode) => {
-            const store = useAppStore.getState();
-            const rootPath =
-              store.appInfo?.currentWorkspace?.rootPath ?? store.appInfo?.currentWorkspace?.path;
-            if (!rootPath) {
-              return;
-            }
-            const fullPath = joinPathSegments(rootPath, targetNode.path);
-            await window.digitalLife.workspace.revealInFileManager(fullPath);
-          },
-        },
-        { id: 'sep1', separator: true },
-        {
-          id: 'copy-full-path',
-          label: t.fileContextCopyFullPath as string,
-          icon: <IconCopy size={14} />,
-          action: async (targetNode) => {
-            const store = useAppStore.getState();
-            const rootPath =
-              store.appInfo?.currentWorkspace?.rootPath ?? store.appInfo?.currentWorkspace?.path;
-            if (!rootPath) {
-              return;
-            }
-            const fullPath = joinPathSegments(rootPath, targetNode.path);
-            await copyToClipboard(fullPath);
-          },
-        },
-        {
-          id: 'copy-relative-path',
-          label: t.fileContextCopyRelativePath as string,
-          icon: <IconCopy size={14} />,
-          action: async (targetNode) => {
-            await copyToClipboard(targetNode.path);
-          },
-        },
-        { id: 'sep2', separator: true },
-        {
-          id: 'cut',
-          label: t.fileContextCut as string,
-          icon: <IconClipboardList size={14} />,
-          action: (targetNode) => {
-            store.setClipboard('cut', targetNode.path, targetNode.kind);
-          },
-        },
-        {
-          id: 'copy-op',
-          label: t.fileContextCopy as string,
-          icon: <IconCopy size={14} />,
-          action: (targetNode) => {
-            store.setClipboard('copy', targetNode.path, targetNode.kind);
-          },
-        },
-        {
-          id: 'paste',
-          label: t.fileContextPaste as string,
-          icon: <IconUpload size={14} />,
-          disabled: !hasClipboard,
-          action: async (targetNode) => {
-            const sourcePath = store.clipboardSourcePath;
-            const operation = store.clipboardOperation;
-            if (!sourcePath || !operation) {
-              return;
-            }
-            const targetDir =
-              targetNode.kind === 'directory'
-                ? targetNode.path
-                : targetNode.path.substring(0, targetNode.path.lastIndexOf('/') + 1);
-            const sourceName = sourcePath.split('/').pop() || sourcePath;
-            const newPath = targetDir ? `${targetDir}/${sourceName}` : sourceName;
-            if (operation === 'copy') {
-              await store.duplicateWorkspaceFile(sourcePath, newPath);
-            } else if (operation === 'cut') {
-              if (sourcePath === newPath) {
-                store.clearClipboard();
-                return;
-              }
-              await store.moveWorkspaceFile(sourcePath, newPath);
-            }
-            store.clearClipboard();
-          },
-        },
-        { id: 'sep3', separator: true },
-        {
-          id: 'rename',
-          label: t.fileContextRename as string,
-          icon: <IconPencil size={14} />,
-          action: (targetNode) => {
-            contextMenuPersistRef.current = true;
-            setRenamingPath(targetNode.path);
-            setRenameDialogOpen(true);
-          },
-        },
-        {
-          id: 'delete',
-          label: t.fileContextDelete as string,
-          icon: <IconTrash size={14} />,
-          danger: true,
-          action: (targetNode) => {
-            contextMenuPersistRef.current = true;
-            setDeleteConfirmPath(targetNode.path);
-          },
-        },
-      ];
-    },
-    [t, copyToClipboard]
-  );
+  const { getContextMenuItems } = useFileContextMenuItems({
+    t,
+    copyToClipboard,
+    contextMenuPersistRef,
+    setRenamingPath,
+    setRenameDialogOpen,
+    setDeleteConfirmPath,
+    showMenuForDirectories: true,
+  });
 
   const handleRenameConfirm = useCallback(
     async (newName: string) => {
@@ -699,15 +587,12 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
         )
       ) : null}
 
-      <div
-        className="adl-tool-navigator__resize-handle"
+      <NavigatorResizeHandle
+        label="Resize file navigator"
+        minWidth={180}
+        maxWidth={420}
+        currentWidth={filesNavigatorWidth}
         onPointerDown={handleNavigatorResizeStart}
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="Resize file navigator"
-        aria-valuemin={180}
-        aria-valuemax={420}
-        aria-valuenow={filesNavigatorWidth}
       />
       {deleteConfirmPath ? (
         <ConfirmDialog

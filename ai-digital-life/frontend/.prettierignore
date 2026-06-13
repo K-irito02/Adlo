@@ -1,37 +1,18 @@
-# Build outputs
+# Build output
 dist
-dist-ssr
-target/
-
-# Dependencies
 node_modules
-.pnp
-.pnp.js
-pnpm-lock.yaml
-Cargo.lock
+coverage
 
-# IDE
-.vscode
-.idea
+# Auto-generated
+src/shared/ipc-types.generated.ts
+src/vite-env.d.ts
 
-# Test & Mock
-**/*.test.ts
-**/*.test.tsx
-e2e/**
-src/test-fixtures/**
-src/mock/**
+# Test fixtures & mocks (mirrors ESLint ignores)
+src/test-fixtures/
+src/mock/
+src/types/
 
-# Types
-src/types/**
-*.d.ts
-
-# Dev bridges (ESLint aligned)
-dev/
-
-# Config files
+# Config files (handled separately)
 *.config.ts
 *.config.js
-
-# Misc
-.DS_Store
-*.log
+*.d.ts

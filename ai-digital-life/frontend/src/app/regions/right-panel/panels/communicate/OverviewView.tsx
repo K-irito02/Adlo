@@ -3,8 +3,8 @@ import type { CiStatusSnapshot } from '@ai-digital-life/kernel';
 import { StatusDot } from './StatusDot';
 import { statusColor, formatCommit, formatTime, formatRelativeTime } from './githubPanelUtils';
 import { JobRow } from './JobRow';
-import { TooltipSimple } from '../../../../components/Tooltip';
-import { IconClock, IconClipboardList } from '../../../../icons';
+import { TooltipSimple } from '@components/Tooltip';
+import { IconClock, IconClipboardList } from '@app/icons';
 
 function LoadingSkeleton() {
   return (

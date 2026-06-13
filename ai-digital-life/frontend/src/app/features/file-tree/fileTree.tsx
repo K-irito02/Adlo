@@ -39,8 +39,6 @@ interface VirtualNodeProps<T extends FileTreeRenderableNode> {
   renderIconBefore?: (node: T) => React.ReactNode;
   getNodeClassName?: (node: T) => string | undefined;
   onShowContextMenu?: (event: React.MouseEvent<HTMLDivElement>, node: T) => void;
-  onMouseEnter?: () => void;
-  onMouseLeave?: () => void;
   expandLabel: string;
   collapseLabel: string;
   flat?: boolean;
@@ -65,8 +63,6 @@ function VirtualNodeComponent<T extends FileTreeRenderableNode>({
   renderIconBefore,
   getNodeClassName,
   onShowContextMenu,
-  onMouseEnter,
-  onMouseLeave,
   expandLabel,
   collapseLabel,
   flat,
@@ -149,8 +145,6 @@ function VirtualNodeComponent<T extends FileTreeRenderableNode>({
       }
       metaClassName="adl-filetree__meta adl-tree-node__meta--inline"
       onContextMenu={onShowContextMenu ? (event) => onShowContextMenu(event, node) : undefined}
-      onLabelMouseEnter={onMouseEnter}
-      onLabelMouseLeave={onMouseLeave}
       style={itemStyle}
     />
   );
@@ -353,6 +347,21 @@ export function FileTree<T extends FileTreeRenderableNode>({
                 }
               : undefined
           }
+          onMouseOver={(e) => {
+            const target = (e.target as HTMLElement).closest('[data-path]') as HTMLElement | null;
+            if (target?.dataset.path) {
+              setHoveredPath(target.dataset.path);
+            }
+          }}
+          onMouseOut={(e) => {
+            const target = (e.target as HTMLElement).closest('[data-path]') as HTMLElement | null;
+            const relatedTarget = (e.relatedTarget as HTMLElement)?.closest?.(
+              '[data-path]'
+            ) as HTMLElement | null;
+            if (target?.dataset.path && relatedTarget?.dataset.path !== target.dataset.path) {
+              setHoveredPath(relatedTarget?.dataset.path ?? undefined);
+            }
+          }}
         >
           {visibleNodes.map((flatNode, localIndex) => {
             const absoluteIndex = startIndex + localIndex;
@@ -374,8 +383,6 @@ export function FileTree<T extends FileTreeRenderableNode>({
                 renderIconBefore={renderIconBefore}
                 getNodeClassName={getNodeClassName}
                 onShowContextMenu={getContextMenuItems ? handleShowContextMenu : undefined}
-                onMouseEnter={() => setHoveredPath(flatNode.node.path)}
-                onMouseLeave={() => setHoveredPath(undefined)}
                 expandLabel={expandLabel}
                 collapseLabel={collapseLabel}
                 flat={flat}

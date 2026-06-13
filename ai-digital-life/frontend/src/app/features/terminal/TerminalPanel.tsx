@@ -11,6 +11,7 @@ import {
   IconUnfoldVertical,
 } from '../../icons';
 import { TooltipSimple } from '../../components/Tooltip';
+import { NavigatorResizeHandle } from '@components/NavigatorResizeHandle';
 import { XtermTerminal } from '../../components/terminal/XtermTerminal';
 import type { TerminalPanelProps } from '../../regions/right-panel/types';
 import type { TerminalProfile } from '../../stores/types';
@@ -288,15 +289,12 @@ export function TerminalPanel(props: TerminalPanelProps) {
             onRefreshTree={handleRefreshAllTerminal}
             onCloseAllTabs={terminalActions.handleCloseAllTabs}
           />
-          <div
-            className="adl-tool-navigator__resize-handle"
+          <NavigatorResizeHandle
+            label="Resize terminal navigator"
+            minWidth={180}
+            maxWidth={300}
+            currentWidth={terminalNavigatorWidth}
             onPointerDown={terminalActions.handleNavigatorResizeStart}
-            role="separator"
-            aria-orientation="vertical"
-            aria-label="Resize terminal navigator"
-            aria-valuemin={180}
-            aria-valuemax={300}
-            aria-valuenow={terminalNavigatorWidth}
           />
         </aside>
 

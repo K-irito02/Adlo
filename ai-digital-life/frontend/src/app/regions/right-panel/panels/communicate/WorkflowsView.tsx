@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import type { CiStatusSnapshot } from '@ai-digital-life/kernel';
 import { StatusDot } from './StatusDot';
 import { statusColor, formatDuration, statusClass } from './githubPanelUtils';
-import { useTCopy } from '../../../../i18n/useTCopy';
+import { useTCopy } from '@app/i18n/useTCopy';
 
 type FilterKey = 'all' | 'success' | 'failure' | 'running';
 
