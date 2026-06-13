@@ -74,23 +74,6 @@ export function JobsView({
 
   return (
     <div>
-      <label
-        ref={searchRef}
-        className={`adl-github-search--jobs${searchExpanded ? ' is-expanded' : ''}`}
-        onFocus={handleSearchFocus}
-        onBlur={handleSearchBlur}
-      >
-        <IconSearch size={14} className="adl-github-search__icon" />
-        <span className="adl-github-search__preview">{searchQuery || t.ciSearchLog}</span>
-        <input
-          ref={inputRef}
-          className="adl-github-search__input"
-          type="search"
-          placeholder={t.ciSearchLog}
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-      </label>
       <div className="adl-github-filter">
         {FILTERS.map((f) => (
           <button
@@ -102,10 +85,27 @@ export function JobsView({
             {f.label}
           </button>
         ))}
+        <label
+          ref={searchRef}
+          className={`adl-github-search--jobs${searchExpanded ? ' is-expanded' : ''}`}
+          onFocus={handleSearchFocus}
+          onBlur={handleSearchBlur}
+        >
+          <IconSearch size={14} className="adl-github-search__icon" />
+          <span className="adl-github-search__preview">{searchQuery || t.ciSearchLog}</span>
+          <input
+            ref={inputRef}
+            className="adl-github-search__input"
+            type="search"
+            placeholder={t.ciSearchLog}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </label>
       </div>
       {filteredJobs.length > 0 ? (
         <div className="adl-github-section" style={{ paddingTop: 6 }}>
-          <ul className="adl-github__job-list" style={{ padding: '0 12px' }}>
+          <ul className="adl-github__job-list" style={{ padding: 0 }}>
             {filteredJobs.map((job) => (
               <JobRow key={job.jobId} job={job} onViewLogs={onViewLogs} />
             ))}

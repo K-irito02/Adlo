@@ -1676,3 +1676,20 @@
   box-shadow: none;
 }
 
+.adl-github-search--jobs.adl-github-search--jobs {
+  margin-left: auto;
+}
+
+/* ─── Path header ─── */
+
+.adl-github-path-header {
+  padding: 6px 24px;
+  text-align: center;
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  line-height: 1.5;
+  word-break: break-word;
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+

@@ -44,20 +44,36 @@ export function GitHubPanel() {
     gitHubAllTreeExpanded,
     selectedGitHubTreePath,
     activeCiWorkspaceId,
+    activeCiFolderId,
     activeWorkspaceSection,
     communicateNavigatorCollapsed,
+    gitHubCiFolders,
   } = useAppStore(
     useShallow((s) => ({
       gitHubTreeExpanded: s.gitHubTreeExpanded,
       gitHubAllTreeExpanded: s.gitHubAllTreeExpanded,
       selectedGitHubTreePath: s.selectedGitHubTreePath,
       activeCiWorkspaceId: s.activeCiWorkspaceId,
+      activeCiFolderId: s.activeCiFolderId,
       activeWorkspaceSection: s.activeWorkspaceSection,
       communicateNavigatorCollapsed: s.communicateNavigatorCollapsed,
+      gitHubCiFolders: s.gitHubCiFolders,
     }))
   );
   const workspaces = useAppStore(useShallow((s) => s.recentWorkspaces));
   const ciSnapshot = useAppStore(useShallow((s) => s.ciSnapshot));
+
+  const displayPath = useMemo(() => {
+    if (activeCiWorkspaceId) {
+      const ws = workspaces.find((w) => w.id === activeCiWorkspaceId);
+      return ws ? ws.name || ws.path : '';
+    }
+    if (activeCiFolderId) {
+      const folder = gitHubCiFolders.find((f) => f.id === activeCiFolderId);
+      return folder?.name || '';
+    }
+    return '';
+  }, [activeCiWorkspaceId, activeCiFolderId, workspaces, gitHubCiFolders]);
 
   const {
     toggleGitHubTreePath,
@@ -68,7 +84,6 @@ export function GitHubPanel() {
     setActiveCiFolderId,
     setActiveWorkspaceSection,
     setSelectedLogJobId,
-    gitHubCiFolders,
     gitHubCreateFolder,
     gitHubSaveFolderConfig,
     clearCiState,
@@ -86,7 +101,6 @@ export function GitHubPanel() {
       setActiveCiFolderId: s.setActiveCiFolderId,
       setActiveWorkspaceSection: s.setActiveWorkspaceSection,
       setSelectedLogJobId: s.setSelectedLogJobId,
-      gitHubCiFolders: s.gitHubCiFolders,
       gitHubCreateFolder: s.gitHubCreateFolder,
       gitHubSaveFolderConfig: s.gitHubSaveFolderConfig,
       clearCiState: s.clearCiState,
@@ -193,6 +207,11 @@ export function GitHubPanel() {
         if (wsId) {
           setActiveCiWorkspaceId(wsId);
           setActiveCiFolderId(null);
+          const wsConfig = gitHubWorkspaceConfigs[wsId];
+          if (wsConfig?.configured) {
+            console.log('[GitHub] auto-refresh on tree path select', { workspaceId: wsId });
+            onRefreshWorkspace(wsId);
+          }
         }
       } else if (path?.startsWith('github-folder:')) {
         const parts = path.split(':');
@@ -200,7 +219,13 @@ export function GitHubPanel() {
         setActiveCiFolderId(folderId ?? null);
       }
     },
-    [setSelectedGitHubTreePath, setActiveCiWorkspaceId, setActiveCiFolderId]
+    [
+      setSelectedGitHubTreePath,
+      setActiveCiWorkspaceId,
+      setActiveCiFolderId,
+      gitHubWorkspaceConfigs,
+      onRefreshWorkspace,
+    ]
   );
 
   useEffect(() => {
@@ -283,12 +308,22 @@ export function GitHubPanel() {
         setActiveCiWorkspaceId(workspaceId);
         setActiveWorkspaceSection('overview');
         setShowHelp(false);
+        const wsConfig = gitHubWorkspaceConfigs[workspaceId];
+        if (wsConfig?.configured) {
+          console.log('[GitHub] auto-refresh on workspace select', { workspaceId });
+          onRefreshWorkspace(workspaceId);
+        }
       },
       onSelectSection: (workspaceId, section) => {
         setSelectedGitHubTreePath(`github-workspace:${workspaceId}:${section}`);
         setActiveCiWorkspaceId(workspaceId);
         setActiveWorkspaceSection(section);
         setShowHelp(false);
+        const wsConfig = gitHubWorkspaceConfigs[workspaceId];
+        if (wsConfig?.configured) {
+          console.log('[GitHub] auto-refresh on section select', { workspaceId, section });
+          onRefreshWorkspace(workspaceId);
+        }
       },
       onDeleteWorkspaceConfig: (workspaceId) => {
         onRemoveWorkspaceConfig(workspaceId);
@@ -320,6 +355,7 @@ export function GitHubPanel() {
       onRemoveWorkspaceConfig,
       onRefreshWorkspace,
       clearCiState,
+      gitHubWorkspaceConfigs,
     ]
   );
 
@@ -339,6 +375,14 @@ export function GitHubPanel() {
 
   const handleSettingsSave = useCallback(
     (owner: string, repo: string, branch: string, token: string) => {
+      console.log('[GitHub] handleSettingsSave called', {
+        settingsWorkspaceId,
+        settingsFolderId,
+        owner,
+        repo,
+        branch,
+        hasToken: !!token,
+      });
       if (settingsWorkspaceId) {
         onSaveWorkspaceConfig(settingsWorkspaceId, owner, repo, branch, token);
         setSettingsWorkspaceId(null);
@@ -372,9 +416,45 @@ export function GitHubPanel() {
       );
     }
 
+    if (ciError && !ciSnapshot) {
+      return (
+        <div className="adl-github__empty">
+          <svg
+            viewBox="0 0 24 24"
+            width="32"
+            height="32"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 8v4M12 16h.01" />
+          </svg>
+          <p>{ciError}</p>
+          <button
+            type="button"
+            className="adl-btn adl-btn--ghost adl-btn--square"
+            style={{ marginTop: 8 }}
+            onClick={() => onRefreshWorkspace(activeCiWorkspaceId!)}
+          >
+            {t.communicateRefreshAll}
+          </button>
+        </div>
+      );
+    }
+
+    const sectionLabels: Record<string, string> = {
+      overview: '概览',
+      workflows: '工作流',
+      jobs: '任务',
+      logs: '日志',
+    };
+    const sectionLabel = sectionLabels[activeWorkspaceSection] || '';
+
+    let view: React.ReactNode = null;
     switch (activeWorkspaceSection) {
       case 'overview':
-        return (
+        view = (
           <OverviewView
             snapshot={ciSnapshot}
             loading={loading}
@@ -383,12 +463,15 @@ export function GitHubPanel() {
             onViewLogs={handleViewLogs}
           />
         );
+        break;
       case 'workflows':
-        return <WorkflowsView snapshot={ciSnapshot} />;
+        view = <WorkflowsView snapshot={ciSnapshot} />;
+        break;
       case 'jobs':
-        return <JobsView snapshot={ciSnapshot} onViewLogs={handleViewLogs} />;
+        view = <JobsView snapshot={ciSnapshot} onViewLogs={handleViewLogs} />;
+        break;
       case 'logs':
-        return (
+        view = (
           <GitHubLogViewer
             snapshot={ciSnapshot}
             config={{
@@ -398,7 +481,19 @@ export function GitHubPanel() {
             }}
           />
         );
+        break;
     }
+
+    return (
+      <>
+        {displayPath && (
+          <div className="adl-github-path-header">
+            [{displayPath}] / [{sectionLabel}]
+          </div>
+        )}
+        {view}
+      </>
+    );
   };
 
   return (
