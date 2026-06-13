@@ -52,3 +52,27 @@ export function formatTime(iso?: string | null): string {
     return iso;
   }
 }
+
+export function formatRelativeTime(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  const now = Date.now();
+  const then = new Date(iso).getTime();
+  const diffSec = Math.round((now - then) / 1000);
+  if (diffSec < 0) return '刚刚';
+  if (diffSec < 60) return '刚刚';
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin} 分钟前`;
+  const diffHour = Math.floor(diffMin / 60);
+  if (diffHour < 24) return `${diffHour} 小时前`;
+  const diffDay = Math.floor(diffHour / 24);
+  if (diffDay < 30) return `${diffDay} 天前`;
+  return formatTime(iso);
+}
+
+export function statusClass(conclusion: string | null, status: string): string {
+  if (conclusion === 'success') return 'is-success';
+  if (conclusion === 'failure' || conclusion === 'cancelled') return 'is-failure';
+  if (conclusion === 'skipped') return 'is-skipped';
+  if (status === 'in_progress' || status === 'queued') return 'is-running';
+  return 'is-pending';
+}
