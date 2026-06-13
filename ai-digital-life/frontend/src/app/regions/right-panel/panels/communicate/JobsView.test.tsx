@@ -37,7 +37,8 @@ describe('JobsView', () => {
 
   it('renders search input', () => {
     const html = renderToStaticMarkup(<WithTCopy><JobsView snapshot={snapshot} onViewLogs={() => {}} /></WithTCopy>);
-    expect(html).toContain('adl-github-search');
+    expect(html).toContain('adl-github-search--jobs');
+    expect(html).toContain('adl-github-search__icon');
   });
 
   it('renders filter bar', () => {

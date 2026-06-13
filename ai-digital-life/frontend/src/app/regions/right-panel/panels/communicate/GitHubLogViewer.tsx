@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { List, useListRef } from 'react-window';
 import { useAppStore } from '../../../../stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -7,7 +7,7 @@ import type { DigitalLifeBridge } from '../../../../../shared/ipc';
 import { AnsiUp } from 'ansi_up';
 import { useTCopy } from '../../../../i18n/useTCopy';
 import { TooltipSimple } from '../../../../components/Tooltip';
-import { IconChevronUp, IconChevronDown, IconArrowUp } from '../../../../icons';
+import { IconChevronUp, IconChevronDown, IconArrowUp, IconSearch } from '../../../../icons';
 
 const ansiUp = new AnsiUp();
 ansiUp.use_classes = true;
@@ -41,6 +41,8 @@ export function GitHubLogViewer({ snapshot, config }: GitHubLogViewerProps) {
   const [searchMatchIndex, setSearchMatchIndex] = useState(0);
   const [searchMatches, setSearchMatches] = useState<number[]>([]);
   const [collapsed, setCollapsed] = useState(true);
+  const [searchExpanded, setSearchExpanded] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
   const listRef = useListRef(null);
 
   const jobs = useMemo(() => snapshot?.jobs ?? [], [snapshot?.jobs]);
@@ -205,6 +207,16 @@ export function GitHubLogViewer({ snapshot, config }: GitHubLogViewerProps) {
     }
   }, [searchMatches, searchMatchIndex, listRef]);
 
+  const handleSearchFocus = useCallback(() => {
+    setSearchExpanded(true);
+  }, []);
+
+  const handleSearchBlur = useCallback((e: React.FocusEvent) => {
+    if (!searchRef.current?.contains(e.relatedTarget as Node)) {
+      setSearchExpanded(false);
+    }
+  }, []);
+
   const renderLine = useCallback((text: string) => {
     const html = ansiUp.ansi_to_html(text);
     const hasError = /\berror\b|\bfail(?:ed|ure)?\b|FAILURE/i.test(text);
@@ -285,43 +297,53 @@ export function GitHubLogViewer({ snapshot, config }: GitHubLogViewerProps) {
           </div>
 
           <div className="adl-logviewer__search">
-            <input
-              className="adl-logviewer__search-input"
-              type="text"
-              placeholder={t.ciSearchLog}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            {searchMatches.length > 0 && (
-              <>
-                <TooltipSimple content={`${t.ciPrevMatch} (Shift+Enter)`}>
-                  <button
-                    type="button"
-                    className="adl-logviewer__toolbar-btn"
-                    onClick={goToPrevMatch}
-                  >
-                    <IconChevronUp width={14} height={14} />
-                  </button>
-                </TooltipSimple>
-                <span className="adl-logviewer__match-count">
-                  {searchMatchIndex + 1}/{searchMatches.length}
-                </span>
-                <TooltipSimple content={`${t.ciNextMatch} (Enter)`}>
-                  <button
-                    type="button"
-                    className="adl-logviewer__toolbar-btn"
-                    onClick={goToNextMatch}
-                  >
-                    <IconChevronDown width={14} height={14} />
-                  </button>
-                </TooltipSimple>
-              </>
-            )}
+            <div
+              ref={searchRef}
+              className={`adl-logviewer__search-wrap${searchExpanded ? ' is-expanded' : ''}`}
+              onFocus={handleSearchFocus}
+              onBlur={handleSearchBlur}
+            >
+              <IconSearch size={14} className="adl-logviewer__search-icon" />
+              <span className="adl-logviewer__search-preview">{searchQuery || t.ciSearchLog}</span>
+              <input
+                className="adl-logviewer__search-input"
+                type="search"
+                placeholder={t.ciSearchLog}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchMatches.length > 0 && (
+                <>
+                  <TooltipSimple content={`${t.ciPrevMatch} (Shift+Enter)`}>
+                    <button
+                      type="button"
+                      className="adl-logviewer__toolbar-btn"
+                      onClick={goToPrevMatch}
+                    >
+                      <IconChevronUp width={14} height={14} />
+                    </button>
+                  </TooltipSimple>
+                  <span className="adl-logviewer__match-count">
+                    {searchMatchIndex + 1}/{searchMatches.length}
+                  </span>
+                  <TooltipSimple content={`${t.ciNextMatch} (Enter)`}>
+                    <button
+                      type="button"
+                      className="adl-logviewer__toolbar-btn"
+                      onClick={goToNextMatch}
+                    >
+                      <IconChevronDown width={14} height={14} />
+                    </button>
+                  </TooltipSimple>
+                </>
+              )}
+            </div>
           </div>
 
-          <label className="adl-logviewer__toggle-label">
+          <label className="adl-logviewer__toggle">
             <input type="checkbox" checked={collapsed} onChange={() => setCollapsed(!collapsed)} />
-            <span>{t.ciCollapseBlank}</span>
+            <span className="adl-logviewer__toggle-track" />
+            <span className="adl-logviewer__toggle-label">{t.ciCollapseBlank}</span>
           </label>
         </div>
 
@@ -330,7 +352,7 @@ export function GitHubLogViewer({ snapshot, config }: GitHubLogViewerProps) {
             <button
               type="button"
               className="adl-logviewer__toolbar-btn"
-              onClick={() => listRef.current?.scrollToRow?.(0)}
+              onClick={() => listRef.current?.scrollToRow?.({ index: 0 })}
             >
               <IconArrowUp width={14} height={14} />
             </button>

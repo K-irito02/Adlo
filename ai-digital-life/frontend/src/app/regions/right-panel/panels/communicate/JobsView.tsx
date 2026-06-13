@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useCallback } from 'react';
 import type { CiStatusSnapshot } from '@ai-digital-life/kernel';
 import { JobRow } from './JobRow';
 import { useTCopy } from '../../../../i18n/useTCopy';
+import { IconSearch } from '../../../../icons';
 
 type FilterKey = 'all' | 'success' | 'failure' | 'running';
 
@@ -22,9 +23,24 @@ export function JobsView({
   const { t } = useTCopy();
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState<FilterKey>('all');
+  const [searchExpanded, setSearchExpanded] = useState(false);
+  const searchRef = useRef<HTMLLabelElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleSearchFocus = useCallback(() => {
+    setSearchExpanded(true);
+  }, []);
+
+  const handleSearchBlur = useCallback((e: React.FocusEvent) => {
+    if (!searchRef.current?.contains(e.relatedTarget as Node)) {
+      setSearchExpanded(false);
+    }
+  }, []);
 
   const filteredJobs = useMemo(() => {
-    if (!snapshot?.jobs?.length) return [];
+    if (!snapshot?.jobs?.length) {
+      return [];
+    }
     let result = snapshot.jobs;
     switch (filter) {
       case 'success':
@@ -58,27 +74,23 @@ export function JobsView({
 
   return (
     <div>
-      <div className="adl-github-search">
-        <svg
-          viewBox="0 0 24 24"
-          width="14"
-          height="14"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          style={{ flexShrink: 0, color: 'var(--text-tertiary)' }}
-        >
-          <circle cx="11" cy="11" r="8" />
-          <path d="m21 21-4.35-4.35" />
-        </svg>
+      <label
+        ref={searchRef}
+        className={`adl-github-search--jobs${searchExpanded ? ' is-expanded' : ''}`}
+        onFocus={handleSearchFocus}
+        onBlur={handleSearchBlur}
+      >
+        <IconSearch size={14} className="adl-github-search__icon" />
+        <span className="adl-github-search__preview">{searchQuery || t.ciSearchLog}</span>
         <input
+          ref={inputRef}
           className="adl-github-search__input"
-          type="text"
-          placeholder={t.ciSearchLog ?? '搜索任务...'}
+          type="search"
+          placeholder={t.ciSearchLog}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
-      </div>
+      </label>
       <div className="adl-github-filter">
         {FILTERS.map((f) => (
           <button

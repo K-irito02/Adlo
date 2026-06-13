@@ -125,30 +125,76 @@
   flex-shrink: 0;
 }
 
+.adl-logviewer__job-select-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
 .adl-logviewer__job-select {
   font-size: var(--text-xs);
-  padding: 2px 6px;
+  padding: 3px 20px 3px 8px;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius-md);
   background: var(--surface-primary);
   color: var(--text-primary);
   max-width: 160px;
+  appearance: none;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.adl-logviewer__job-select:hover {
+  border-color: var(--border-strong);
+}
+
+.adl-logviewer__job-select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.adl-logviewer__job-select-icon {
+  position: absolute;
+  right: 6px;
+  pointer-events: none;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
 }
 
 .adl-logviewer__search {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  max-width: 240px;
 }
 
 .adl-logviewer__search-input {
-  font-size: var(--text-xs);
-  padding: 2px 6px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--surface-primary);
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  box-shadow: none;
+  background: transparent;
   color: var(--text-primary);
-  width: 140px;
+  font-size: var(--text-xs);
+  appearance: none;
+}
+
+.adl-logviewer__search-input::-webkit-search-decoration,
+.adl-logviewer__search-input::-webkit-search-cancel-button,
+.adl-logviewer__search-input::-webkit-search-results-button,
+.adl-logviewer__search-input::-webkit-search-results-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.adl-logviewer__search-input:focus,
+.adl-logviewer__search-input:focus-visible {
+  outline: none;
+  box-shadow: none;
 }
 
 .adl-logviewer__match-count {
@@ -157,14 +203,66 @@
   white-space: nowrap;
 }
 
-.adl-logviewer__toggle-label {
-  display: flex;
+/* ─── LogViewer toggle switch ─── */
+.adl-logviewer__toggle {
+  position: relative;
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   font-size: var(--text-xs);
   color: var(--text-secondary);
   cursor: pointer;
   white-space: nowrap;
+  user-select: none;
+}
+
+.adl-logviewer__toggle input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.adl-logviewer__toggle-track {
+  position: relative;
+  width: 28px;
+  height: 16px;
+  background: var(--surface-primary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.adl-logviewer__toggle input:checked + .adl-logviewer__toggle-track {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.adl-logviewer__toggle input:checked + .adl-logviewer__toggle-track::after {
+  transform: translateX(12px);
+}
+
+.adl-logviewer__toggle-track::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  background: var(--text-primary);
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+
+.adl-logviewer__toggle:hover .adl-logviewer__toggle-track {
+  border-color: var(--border-strong);
+}
+
+.adl-logviewer__toggle-label {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  line-height: 1;
 }
 
 .adl-logviewer__content {
@@ -177,15 +275,15 @@
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
-  width: 60px;
-  padding-right: 8px;
+  width: 44px;
+  padding-right: 6px;
   font-size: 10px;
   font-family: monospace;
   color: var(--text-tertiary);
   user-select: none;
   flex-shrink: 0;
   border-right: 1px solid var(--border);
-  margin-right: 8px;
+  margin-right: 6px;
 }
 
 .adl-logviewer__line-content {
@@ -1414,17 +1512,167 @@
   border-color: var(--accent);
 }
 
-.adl-logviewer__job-select-wrap {
+/* ─── Hover-reveal search (matching browser URL bar) ─── */
+
+.adl-logviewer__search-wrap {
   position: relative;
-  display: inline-flex;
+  display: flex;
   align-items: center;
+  gap: 4px;
+  min-width: 28px;
+  height: 24px;
+  padding: 0 4px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  cursor: text;
+  transition:
+    background var(--duration-200) var(--ease-default),
+    border-color var(--duration-200) var(--ease-default),
+    gap var(--duration-200) var(--ease-default),
+    padding var(--duration-200) var(--ease-default);
+  overflow: hidden;
 }
 
-.adl-logviewer__job-select-icon {
-  position: absolute;
-  right: 4px;
-  pointer-events: none;
+.adl-logviewer__search-wrap:hover,
+.adl-logviewer__search-wrap.is-expanded {
+  padding: 0 6px;
+  gap: 6px;
+  background: var(--surface-subtle);
+  border-color: transparent;
+}
+
+.adl-logviewer__search-wrap:focus-within {
+  outline: none;
+  box-shadow: none;
+  border-color: transparent;
+  background: var(--surface-subtle);
+}
+
+.adl-logviewer__search-icon {
+  flex: 0 0 auto;
   color: var(--text-tertiary);
   display: flex;
   align-items: center;
 }
+
+.adl-logviewer__search-preview {
+  display: none;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  text-align: left;
+}
+
+.adl-logviewer__search-wrap:hover .adl-logviewer__search-preview,
+.adl-logviewer__search-wrap.is-expanded .adl-logviewer__search-preview {
+  display: none;
+}
+
+.adl-logviewer__search-wrap .adl-logviewer__search-input {
+  display: none;
+  flex: 1;
+  min-width: 40px;
+}
+
+.adl-logviewer__search-wrap:hover .adl-logviewer__search-input,
+.adl-logviewer__search-wrap.is-expanded .adl-logviewer__search-input {
+  display: block;
+}
+
+/* ─── JobsView hover-reveal search ─── */
+
+.adl-github-search--jobs {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  cursor: text;
+  transition:
+    background var(--duration-200) var(--ease-default),
+    border-color var(--duration-200) var(--ease-default),
+    gap var(--duration-200) var(--ease-default),
+    padding var(--duration-200) var(--ease-default);
+  overflow: hidden;
+}
+
+.adl-github-search--jobs:hover,
+.adl-github-search--jobs.is-expanded {
+  padding: 0 8px;
+  gap: 6px;
+  background: var(--surface-subtle);
+  border-color: transparent;
+}
+
+.adl-github-search--jobs:focus-within {
+  outline: none;
+  box-shadow: none;
+  background: var(--surface-subtle);
+}
+
+.adl-github-search--jobs .adl-github-search__icon {
+  flex: 0 0 auto;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+}
+
+.adl-github-search--jobs .adl-github-search__preview {
+  display: none;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  text-align: left;
+}
+
+.adl-github-search--jobs:hover .adl-github-search__preview,
+.adl-github-search--jobs.is-expanded .adl-github-search__preview {
+  display: none;
+}
+
+.adl-github-search--jobs .adl-github-search__input {
+  display: none;
+  flex: 1;
+  min-width: 60px;
+  border: none;
+  outline: none;
+  box-shadow: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--text-xs);
+  appearance: none;
+}
+
+.adl-github-search--jobs .adl-github-search__input::-webkit-search-decoration,
+.adl-github-search--jobs .adl-github-search__input::-webkit-search-cancel-button,
+.adl-github-search--jobs .adl-github-search__input::-webkit-search-results-button,
+.adl-github-search--jobs .adl-github-search__input::-webkit-search-results-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.adl-github-search--jobs:hover .adl-github-search__input,
+.adl-github-search--jobs.is-expanded .adl-github-search__input {
+  display: block;
+}
+
+.adl-github-search--jobs .adl-github-search__input:focus,
+.adl-github-search--jobs .adl-github-search__input:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+

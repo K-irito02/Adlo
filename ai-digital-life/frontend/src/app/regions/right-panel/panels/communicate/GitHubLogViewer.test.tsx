@@ -45,17 +45,21 @@ describe('GitHubLogViewer', () => {
     expect(html).toContain('adl-logviewer__job-select-wrap');
   });
 
-  it('renders search input', () => {
+  it('renders search input with hover-reveal wrap', () => {
     const html = renderToStaticMarkup(
       <WithTCopy><GitHubLogViewer snapshot={snapshot} config={{ owner: 'test', repo: 'test', branch: 'main' }} /></WithTCopy>
     );
+    expect(html).toContain('adl-logviewer__search-wrap');
     expect(html).toContain('adl-logviewer__search-input');
+    expect(html).toContain('adl-logviewer__search-icon');
   });
 
-  it('renders collapse blank lines toggle', () => {
+  it('renders collapse blank toggle switch', () => {
     const html = renderToStaticMarkup(
       <WithTCopy><GitHubLogViewer snapshot={snapshot} config={{ owner: 'test', repo: 'test', branch: 'main' }} /></WithTCopy>
     );
+    expect(html).toContain('adl-logviewer__toggle');
+    expect(html).toContain('adl-logviewer__toggle-track');
     expect(html).toContain('adl-logviewer__toggle-label');
   });
 
