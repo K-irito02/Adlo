@@ -70,6 +70,7 @@
 | **第六十二轮** | **2026-06-14** | **重构洞察第9次全量执行（7项）：路径别名体系+41条深层导入替换、BrowserTabBar O(1)书签、useMemo包装、NavigatorResizeHandle组件提取、useFileContextMenuItems Hook提取(~250行重复消除)、DiffViewer useRef回调稳定化、fileTree事件委托** | ✅ |
 | **第六十三轮** | **2026-06-14** | **ESLint/Prettier/Clippy/rustfmt四维门禁全量清零：ESLint 208 warnings→0、Prettier 6文件格式化、17项未使用import手动清理** | ✅ |
 | **第六十四轮** | **2026-06-15** | **GitHub 子面板 i18n 全覆盖：清除 6 组件 15 处硬编码字符串（标签/过滤器/aria-label/tooltip/相对时间/日期 locale）；新增 17 个翻译 key；修复语言切换时面包屑标题行消失的预存 Bug** | ✅ |
+| **第六十五轮** | **2026-06-15** | **重构洞察第10次全量执行（16项发现）+ 文件拆分冲刺：cmScrollLeftSync→3文件、FoldTooltipOverlay→2hook+精简组件、GitHubTreeEntry→菜单+子条目、GitHubPanel→4子视图、trunkHeightMap O(n²)→O(n)、CSS变量统一+硬编码样式迁移+TitleBar订阅合并** | ✅ |
 
 ## 说明
 
