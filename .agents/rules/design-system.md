@@ -90,10 +90,10 @@ const shouldShowSeparator =
 | `CodeEditor` | `frontend/src/app/features/editor/CodeEditor.tsx` | CodeMirror 6 编辑器封装，支持语言扩展、主题同步、行号/换行/折叠 |
 | `DiffViewer` | `frontend/src/app/features/diff-viewer/DiffViewer.tsx` | 差异查看器（合并视图/并排视图），支持未改块折叠 |
 | `cmFoldGutter` | `frontend/src/app/features/editor/cmFoldGutter.ts` | 自定义折叠 gutter 扩展（GutterMarker），替代内置 foldGutter() 以移除内建事件处理 |
-| `FoldTooltipOverlay` | `frontend/src/app/features/editor/FoldTooltipOverlay.tsx` | 折叠工具提示 + Gutter 悬停高亮 + 折叠/展开点击处理。使用捕获阶段 `document.addEventListener` 绕过 MergeView 的 `stopPropagation`。同时处理 `.cm-foldPlaceholder` 展开绕过 CM 焦点依赖 |
+| `FoldTooltipOverlay` | `frontend/src/app/features/editor/FoldTooltipOverlay.tsx` | 折叠工具提示 Portal 渲染壳。核心逻辑在 `useFoldTooltipState`（折叠状态管理）+ `useFoldTooltipPosition`（定位计算）。使用捕获阶段 `document.addEventListener` 绕过 MergeView 的 `stopPropagation` |
 | `useFoldMarkerAutoHide` | `frontend/src/app/features/editor/useFoldMarkerAutoHide.ts` | 折叠标记自动隐藏 Hook。三层检测：DOM 检查、MutationObserver、轮询 + Promise.resolve(forceParsing).then(reconfigure) |
 | `cmTheme` | `frontend/src/app/features/editor/cmTheme.ts` | 主题同步：从 CSS 自定义属性读取颜色，支持亮暗主题动态切换 |
-| `cmScrollLeftSync` | `frontend/src/app/features/editor/cmScrollLeftSync.ts` | 自定义水平滚动条，支持边缘滚动、Diff 双编辑器同步 |
+| `cmScrollSync` | `frontend/src/app/features/editor/cmScrollSync.ts` | 左右编辑器滚动同步（ScrollLeftSyncPlugin）。自定义水平滚动条在 `cmHorizontalScroll.ts`，lint 高亮在 `cmLintHighlights.ts` |
 | `gutterHoverSync` | `frontend/src/app/features/editor/gutterHoverSync.ts` | 内容行悬停 → gutter 高亮同步，使用绝对定位 overlay |
 
 ### MergeView 事件约束

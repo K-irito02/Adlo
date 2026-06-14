@@ -287,9 +287,13 @@ JobRow 卡片（概览/任务视图中的单个 Job 卡）的交互规范：
 | `FileTree` | `features/file-tree/fileTree.tsx` | 子节点树渲染 + 右键菜单触发 |
 | `GitHubTree` | `features/github-tree/GitHubTree.tsx` | 树容器，渲染两个分类区 |
 | `GitHubCategorySection` | `features/github-tree/GitHubCategorySection.tsx` | 分类区包装器 |
-| `GitHubPanel` | `regions/right-panel/panels/communicate/GitHubPanel.tsx` | GitHub 子面板主组件 |
+| `GitHubPanel` | `regions/right-panel/panels/communicate/GitHubPanel.tsx` | GitHub 子面板主组件（路由编排，4 子视图：`GitHubCITree`/`GitHubCIOverview`/`GitHubCILogs`/`GitHubCISettings`） |
 | `githubCiConfigSlice` | `stores/slices/githubCiConfigSlice.ts` | GitHub CI 配置（Token、文件夹 CRUD、Pin/Unpin） |
 | `githubCiStatusSlice` | `stores/slices/githubCiStatusSlice.ts` | GitHub CI 状态（轮询、快照、Section 切换、按目录缓存） |
+| `GitHubCITree` | `regions/right-panel/panels/communicate/GitHubCITree.tsx` | CI 左侧导航树（目录浏览+工具栏） |
+| `GitHubCIOverview` | `regions/right-panel/panels/communicate/GitHubCIOverview.tsx` | CI 右侧主内容区（概览/Workflows/Jobs 路由） |
+| `GitHubCILogs` | `regions/right-panel/panels/communicate/GitHubCILogs.tsx` | CI 日志视图（GitHubLogViewer 包装） |
+| `GitHubCISettings` | `regions/right-panel/panels/communicate/GitHubCISettings.tsx` | CI 设置对话框 |
 
 ### Store Actions
 

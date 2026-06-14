@@ -25,7 +25,7 @@ export { getLanguageExtension } from './cmLanguages';
 
 export { createFoldGutterExtension } from './cmFoldGutter';
 
-export { scrollLeftSyncExtension } from './cmScrollLeftSync';
+export { scrollLeftSyncExtension } from './cmScrollSync';
 
 export { useFoldMarkerAutoHide } from './useFoldMarkerAutoHide';
 export type { FoldMarkerState } from './useFoldMarkerAutoHide';

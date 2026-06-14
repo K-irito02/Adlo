@@ -14,7 +14,7 @@ import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
 import { getThemeExtension, getPhrasesExtension } from '../editor/cmTheme';
 import { createFoldGutterExtension } from '../editor/cmFoldGutter';
 import { gutterHoverSync } from '../editor/gutterHoverSync';
-import { scrollLeftSyncExtension } from '../editor/cmScrollLeftSync';
+import { scrollLeftSyncExtension } from '../editor/cmScrollSync';
 import { type getChunks } from '@codemirror/merge';
 
 export const lineNumbersCompartment = new Compartment();

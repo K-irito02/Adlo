@@ -20,7 +20,7 @@ import { getThemeExtension, getPhrasesExtension } from './cmTheme';
 import { getLanguageExtension } from './cmLanguages';
 import { createFoldGutterExtension } from './cmFoldGutter';
 import { FoldTooltipOverlay } from './FoldTooltipOverlay';
-import { scrollLeftSyncExtension } from './cmScrollLeftSync';
+import { scrollLeftSyncExtension } from './cmScrollSync';
 import { useFoldMarkerAutoHide } from './useFoldMarkerAutoHide';
 
 export interface CodeEditorProps {

@@ -26,7 +26,7 @@ const sideBySideSource = readFileSync(
   'utf8'
 );
 const scrollLeftSyncSource = readFileSync(
-  new URL('../../features/editor/cmScrollLeftSync.ts', import.meta.url),
+  new URL('../../features/editor/cmLintHighlights.ts', import.meta.url),
   'utf8'
 );
 const regionsCssSource = [
