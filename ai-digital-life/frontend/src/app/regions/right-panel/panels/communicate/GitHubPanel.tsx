@@ -294,11 +294,22 @@ export function GitHubPanel() {
     const handleGlobalClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
 
-      if (target.closest('.adl-tool-surface--github')) {
+      if (!target.closest('.adl-tool-surface--github')) {
+        handleSelectTreePath(null);
         return;
       }
 
-      handleSelectTreePath(null);
+      if (target.closest('.adl-tool-primary--github')) {
+        return;
+      }
+
+      const treeNode = target.closest<HTMLElement>('[data-path]');
+      if (treeNode) {
+        const nodePath = treeNode.dataset.path;
+        if (nodePath) {
+          handleSelectTreePath(nodePath);
+        }
+      }
     };
     document.addEventListener('click', handleGlobalClick);
     return () => document.removeEventListener('click', handleGlobalClick);
