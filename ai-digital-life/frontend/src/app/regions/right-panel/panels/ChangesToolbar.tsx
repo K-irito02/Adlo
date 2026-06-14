@@ -120,6 +120,10 @@ function TopToolbar({
   }, [branchMenuPos]);
 
   useEffect(() => {
+    if (!changesMenuOpen) {
+      return;
+    }
+
     const handlePointerDown = (event: MouseEvent) => {
       const target = event.target as Node;
       if (!changesMenuRef.current?.contains(target)) {
@@ -128,7 +132,7 @@ function TopToolbar({
     };
     document.addEventListener('mousedown', handlePointerDown);
     return () => document.removeEventListener('mousedown', handlePointerDown);
-  }, []);
+  }, [changesMenuOpen]);
 
   return (
     <div className="adl-tool-context adl-tool-context--files" aria-label={t.toolChanges}>
