@@ -25,7 +25,7 @@ const sideBySideSource = readFileSync(
   new URL('../../features/diff-viewer/SideBySideDiffViewer.tsx', import.meta.url),
   'utf8'
 );
-const scrollLeftSyncSource = readFileSync(
+const chunkButtonSource = readFileSync(
   new URL('../../features/editor/cmLintHighlights.ts', import.meta.url),
   'utf8'
 );
@@ -193,12 +193,12 @@ describe('CodeMirror preview styling', () => {
       '.adl-cm-no-word-wrap .adl-cm-diff-viewer--inline .cm-deletedChunk {\n'
     );
 
-    expect(scrollLeftSyncSource).toContain('positionChunkButtons');
-    expect(scrollLeftSyncSource).toContain('right');
-    expect(scrollLeftSyncSource).toContain('inset-inline-end');
-    expect(scrollLeftSyncSource).toContain('topOffset');
-    expect(scrollLeftSyncSource).toContain('lineHeight');
-    expect(scrollLeftSyncSource).toContain('chunkRect');
+    expect(chunkButtonSource).toContain('positionChunkButtons');
+    expect(chunkButtonSource).toContain('right');
+    expect(chunkButtonSource).toContain('inset-inline-end');
+    expect(chunkButtonSource).toContain('topOffset');
+    expect(chunkButtonSource).toContain('lineHeight');
+    expect(chunkButtonSource).toContain('chunkRect');
     expect(noWrapButtonsBlock).toContain('z-index: 20');
     expect(deletedChunkBlock).toContain('position: relative');
   });
