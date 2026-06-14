@@ -6,16 +6,16 @@ import { useTCopy } from '@app/i18n/useTCopy';
 
 type FilterKey = 'all' | 'success' | 'failure' | 'running';
 
-const FILTERS: { key: FilterKey; label: string }[] = [
-  { key: 'all', label: '全部' },
-  { key: 'success', label: '成功' },
-  { key: 'failure', label: '失败' },
-  { key: 'running', label: '运行中' },
-];
-
 export function WorkflowsView({ snapshot }: { snapshot: CiStatusSnapshot | null }) {
   const { t } = useTCopy();
   const [filter, setFilter] = useState<FilterKey>('all');
+
+  const FILTERS: { key: FilterKey; label: string }[] = [
+    { key: 'all', label: t.ciFilterAll },
+    { key: 'success', label: t.ciFilterSuccess },
+    { key: 'failure', label: t.ciFilterFailure },
+    { key: 'running', label: t.ciFilterRunning },
+  ];
 
   const jobs = useMemo(() => {
     if (!snapshot?.jobs?.length) {

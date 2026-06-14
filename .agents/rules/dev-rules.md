@@ -36,6 +36,15 @@ alwaysApply: true
 
 所有修改不得破坏现有功能以及 UI/UX。
 
+### i18n 全覆盖
+
+所有 UI 展示文本必须使用 i18n key，禁止硬编码中英文：
+- 按钮标签、Tooltip、aria-label、占位符、空状态、加载状态、错误提示
+- 过滤器标签、卡片内容、相对时间、日期格式
+- 条件渲染中的标签映射（如 sectionLabels 对象）
+
+工具函数内包含展示文本的必须支持 locale 感知（接受 locale 参数）。过滤器/列表定义必须在组件函数体内（在 `useTCopy()` 之后）以访问 `t` 对象。语言切换时标题行/路径栏的渲染条件必须使用稳定性 fallback（优先使用 `activeCiWorkspaceId` 等稳定 store ID，而非易变列表）。
+
 ### 影响评估
 
 变更前：

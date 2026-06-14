@@ -23,12 +23,14 @@ export function OverviewView({
   loading,
   branch,
   copy,
+  locale,
   onViewLogs,
 }: {
   snapshot: CiStatusSnapshot | null;
   loading: boolean;
   branch: string;
   copy: Record<string, string>;
+  locale: 'zh-CN' | 'en-US';
   onViewLogs: (jobId: number) => void;
 }) {
   if (loading && !snapshot) {
@@ -65,9 +67,9 @@ export function OverviewView({
               >
                 {snapshot.latestRun.conclusion ?? snapshot.latestRun.status}
               </span>
-              <TooltipSimple content={formatTime(snapshot.latestRun.runStartedAt)}>
+              <TooltipSimple content={formatTime(snapshot.latestRun.runStartedAt, locale)}>
                 <span className="adl-github-hero__time">
-                  {formatRelativeTime(snapshot.latestRun.runStartedAt)}
+                  {formatRelativeTime(snapshot.latestRun.runStartedAt, locale)}
                 </span>
               </TooltipSimple>
             </div>
@@ -89,7 +91,7 @@ export function OverviewView({
                 </span>
                 <span className="adl-github-card__meta-item">
                   <span className="adl-github-card__meta-label">{copy.ciStartedAt}:</span>
-                  {formatTime(snapshot.latestRun.runStartedAt)}
+                  {formatTime(snapshot.latestRun.runStartedAt, locale)}
                 </span>
               </div>
               {snapshot.latestRun.htmlUrl && (

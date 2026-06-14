@@ -66,11 +66,21 @@ features/{domain}/
 - 禁止对非列表项过度包裹（增加比较开销）
 
 ### 子 Hook 拆分示例
+
+#### 渐进式拆分（推荐）
 ```
-useBrowserPanel.ts → useBrowserNavigation.ts + useBrowserUrlState.ts + useBrowserMenus.ts
-              └─→ useBrowserDragDrop.ts + useBrowserContextMenu.ts
+useBrowserPanel.ts (1042 行)
+  → 阶段 1: useBrowserNavigation.ts + useBrowserUrlState.ts （提前拆出独立功能）
+  → 阶段 2: useBrowserTabs.ts + useBrowserWebView.ts + useBrowserSearch.ts + useBrowserTreeActions.ts
+  → 最终: useBrowserPanel.ts 整体删除，browserpanel.tsx 直接 import 各独立 Hook
 ```
-拆分边界：每个 hook 处理一个关注点（导航、URL、菜单、拖拽、上下文菜单）
+
+#### 拆分边界
+每个 hook 处理一个关注点：标签页、WebView、搜索、树操作、导航、URL、菜单、拖拽、上下文菜单
+
+#### 拆散 vs 保留统一入口
+- **拆散**（彻底模式）：删除原超大型 Hook，每个子 Hook 导出独立接口，消费者各自 import。适用于原 Hook 返回对象过大（>30 字段）且消费方只有一个的场景
+- **保留统一入口**（渐进模式）：原 Hook 内部组合各子 Hook，对外暴露统一接口。适用于原 Hook 有多个消费方或不宜一次变更的场景
 
 ## DOM 生命周期管理
 - 手动 `appendChild` 到 `document.body` 的动态 DOM 元素必须绑定到组件生命周期（通过 `useEffect` 清理函数移除），禁止仅依赖事件驱动移除
@@ -82,3 +92,4 @@ useBrowserPanel.ts → useBrowserNavigation.ts + useBrowserUrlState.ts + useBrow
 - 禁止在 `App.tsx` 或根布局组件中内联业务逻辑（必须提取到 hook）
 - 禁止创建仅 re-export 的 barrel 文件
 - 禁止在 hook 中直接操作 DOM（除非该 hook 专门处理 DOM）
+- 禁止模块级辅助函数（模块顶层非组件内联函数）超过 3 个而不提取到独立文件

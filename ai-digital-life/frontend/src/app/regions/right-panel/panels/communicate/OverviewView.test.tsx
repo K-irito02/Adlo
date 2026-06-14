@@ -76,7 +76,14 @@ describe('OverviewView', () => {
   it('renders loading state', () => {
     const html = renderToStaticMarkup(
       <WithTCopy>
-        <OverviewView snapshot={null} loading branch="" copy={{}} onViewLogs={() => {}} />
+        <OverviewView
+          snapshot={null}
+          loading
+          branch=""
+          copy={{}}
+          onViewLogs={() => {}}
+          locale="zh-CN"
+        />
       </WithTCopy>
     );
     expect(html).toContain('adl-github-skeleton');
@@ -85,7 +92,14 @@ describe('OverviewView', () => {
   it('renders empty state when no snapshot', () => {
     const html = renderToStaticMarkup(
       <WithTCopy>
-        <OverviewView snapshot={null} loading={false} branch="" copy={{}} onViewLogs={() => {}} />
+        <OverviewView
+          snapshot={null}
+          loading={false}
+          branch=""
+          copy={{}}
+          onViewLogs={() => {}}
+          locale="zh-CN"
+        />
       </WithTCopy>
     );
     expect(html).toContain('adl-github-empty');
@@ -100,6 +114,7 @@ describe('OverviewView', () => {
           branch="main"
           copy={mockCopy}
           onViewLogs={() => {}}
+          locale="zh-CN"
         />
       </WithTCopy>
     );
@@ -117,6 +132,7 @@ describe('OverviewView', () => {
           branch="main"
           copy={mockCopy}
           onViewLogs={() => {}}
+          locale="zh-CN"
         />
       </WithTCopy>
     );
@@ -134,6 +150,7 @@ describe('OverviewView', () => {
           branch="main"
           copy={mockCopy}
           onViewLogs={() => {}}
+          locale="zh-CN"
         />
       </WithTCopy>
     );

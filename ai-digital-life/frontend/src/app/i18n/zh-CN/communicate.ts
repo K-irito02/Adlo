@@ -1,5 +1,7 @@
 export const communicateZh = {
   toolCommunicate: '通信',
+  communicateTabGitHub: 'GitHub',
+  communicateTabQQ: 'QQ',
   communicateEmailTitle: '邮箱',
   communicateEmailDesc: '邮件集成即将推出，敬请期待',
   communicateFeishuTitle: '飞书',

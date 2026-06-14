@@ -63,7 +63,7 @@ ai-digital-life/
 | `app/hooks/` | 自定义 Hooks（含 useTooltip、useAppActions、useDragDropWorkspace、useEditorReveal、useKeyboardShortcuts、useNavigatorResize、useFileContextMenu、usePatchReview、useTaskCenterPolling、useThemeSync 等 11 个 hook） |
 | `app/utils/` | 纯函数（含 tooltipPosition、clipboard、preferencesMerger） |
 | `app/stores/` | Zustand 状态管理（切片合并模式 + actions/ 领域模块） |
-| `app/features/` | 按功能域分层的模块化组件（含 terminal/ 中 3 个子 hook：useTerminalContextMenu、useTerminalDragDrop、useTerminalMenus） |
+| `app/features/` | 按功能域分层的模块化组件（含 terminal/ 中 3 个子 hook、tree/ 中 MultiTreeEntryShell 共享骨架） |
 | `app/regions/` | 区域布局组件（left-sidebar / right-panel(panels+editor-support+hooks) / center-pane，App.tsx 由 447 行缩减至 203 行，抽出 5 个新 hook；right-panel 7 个 barrel 文件已删除，新增 7 个 per-panel prop hooks 集中到 hooks/ 目录） |
 | `design-system/` | 设计 Token 类型定义（tokens.ts / theme.ts / icons.ts） |
 | `styles/` | CSS 样式文件（themes.css / tokens.css / regions/*.css 等） |
@@ -82,7 +82,7 @@ app/stores/
 ├── conversationUtils.ts         # 会话工具函数
 ├── index.ts                     # 模块索引
 │
-├── slices/                      # 13 个 Zustand 切片
+├── slices/                      # 19 个 Zustand 切片（含 5 浏览器子切片 + 2 GitHub 切片）
 │   ├── uiSlice.ts               # UI 状态（侧边栏、工具栏）
 │   ├── workspaceSlice.ts        # 工作区状态
 │   ├── gitSlice.ts              # Git 状态
@@ -94,8 +94,15 @@ app/stores/
 │   ├── taskSlice.ts             # 任务状态
 │   ├── commandSlice.ts          # 命令状态
 │   ├── clipboardSlice.ts        # 剪贴板状态
-│   ├── browserSlice.ts          # 浏览器标签管理
-│   └── communicateSlice.ts      # 通信面板（GitHub CI / 飞书 / QQ / 微信 / 邮箱）
+│   ├── terminalSlice.ts         # 终端会话管理
+│   ├── browserSlice.ts          # 浏览器核心（导航布局、持久化）
+│   ├── browserTabsSlice.ts      # 浏览器标签页
+│   ├── browserBookmarkSlice.ts  # 浏览器书签
+│   ├── browserHistorySlice.ts   # 浏览器历史记录
+│   ├── browserFoldersSlice.ts   # 浏览器标签文件夹
+│   ├── browserLandingSlice.ts   # 浏览器着陆页（快捷站点、端口、背景）
+│   ├── communicateSlice.ts      # 通信面板共享状态
+│   └── githubSlice.ts           # GitHub CI 专有状态
 │
 ├── actions/                     # 9 个跨切片 action 模块
 │   ├── workspaceActions.ts      # 工作区操作

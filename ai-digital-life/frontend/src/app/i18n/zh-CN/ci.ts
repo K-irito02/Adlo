@@ -246,4 +246,13 @@ export const ciZh = {
   ciBlankLines: '{count} 行空白 — 点击展开',
   ciStepsCount: '{count} 个 Step',
   ciFetchLogFailed: '获取日志失败',
+  // ========== GitHub Navigator ==========
+  ciResizeNavigator: '调整 GitHub 导航栏宽度',
+  ciFilterAll: '全部',
+  ciFilterSuccess: '成功',
+  ciFilterFailure: '失败',
+  ciFilterRunning: '运行中',
+  ciCollapse: '收起',
+  ciExpand: '展开',
+  ciJumpToTop: '跳至顶部 (Ctrl+Home)',
 } as const;

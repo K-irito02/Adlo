@@ -44,6 +44,45 @@ alwaysApply: false
 
 详见 [tokens.md](../../docs/design-system/tokens.md)。
 
+## 工具条/标签栏（IconStrip）
+
+### 按钮样式
+
+| 属性 | 值 |
+|------|-----|
+| 默认文字色 | `var(--text-secondary)` |
+| 默认背景 | `transparent` |
+| 悬停/激活背景 | `var(--bg-hover)` |
+| 悬停/激活文字色 | `var(--text-primary)` |
+| 高度 | `30px` |
+| 圆角 | `0` |
+| 底部边框 | `1px solid var(--border-subtle)` |
+
+### 相邻分割线
+
+当两个相邻按钮同时处于悬停或激活态时，中间显示垂直分割线：
+
+```css
+.adl-communicate__platform-separator::before {
+  top: 7px;
+  bottom: 7px;
+  width: 1px;
+  background: var(--border-strong);
+}
+```
+
+React 中实现：
+```tsx
+const isHighlighted = activeTab === tab.id || hoveredTab === tab.id;
+const nextTab = TABS[index + 1];
+const shouldShowSeparator =
+  !!nextTab &&
+  isHighlighted &&
+  (activeTab === nextTab.id || hoveredTab === nextTab.id);
+```
+
+详见 [tool-switcher.css](../frontend/src/styles/regions/rightpanel/tool-switcher.css) 和 [communication-panel.css](../frontend/src/styles/regions/rightpanel/communication-panel.css)。
+
 ## CodeMirror 编辑器集成
 
 | 组件 | 文件 | 说明 |

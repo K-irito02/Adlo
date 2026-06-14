@@ -1,5 +1,7 @@
 export const communicateEn = {
   toolCommunicate: 'Communication',
+  communicateTabGitHub: 'GitHub',
+  communicateTabQQ: 'QQ',
   communicateEmailTitle: 'Email',
   communicateEmailDesc: 'Email integration coming soon',
   communicateFeishuTitle: 'Feishu',

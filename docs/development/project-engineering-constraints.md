@@ -120,6 +120,14 @@
 - 菜单项中提示图标（如 `!`）必须使用 flex 流式布局（`margin-left: auto`），禁用 `position: absolute` 避免文本重叠
 - 菜单项标签必须设置 `flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis` 确保溢出截断
 
+### 全覆盖要求
+
+- 所有 UI 展示文本必须通过 i18n 资源提供，包括但不限于：按钮标签、Tooltip 提示、卡片内容、aria-label、占位符文本、空状态提示、加载状态、错误提示、过滤器标签、相对时间字符串、日期格式
+- 工具函数（如日期/时间格式化）中的展示文本必须支持 locale 感知，禁止硬编码特定语言的字符串
+- 条件渲染中的展示文本（如标题行/面包屑导航的标签映射）必须使用 i18n key，禁止硬编码任意语言的字符串
+- 新增功能或组件时，所有展示文本必须同步添加中英翻译 key，不得出现仅有中文或仅有英文的展示文本
+- 语言切换时，依赖 `useMemo` 中的 `workspaces` 等易变 store 数据计算的展示条件必须增加稳定性 fallback，防止标题行/路径栏因级联渲染而消失（参见 `GitHubPanel.tsx` 的 `hasActiveItem + (isLeafSelected || activeWorkspaceSection)` 模式）
+
 ### 翻译质量
 
 - en-US 翻译使用 Sentence case（句首大写），上下文菜单例外

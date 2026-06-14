@@ -305,7 +305,9 @@ export function GitHubLogViewer({ snapshot, config, dirKey, initialJobId }: GitH
                 setDropdownOpen((v) => !v);
               }}
             >
-              <span className="adl-logviewer__job-select-text">{selectedJob?.name ?? t.ciSelectJob}</span>
+              <span className="adl-logviewer__job-select-text">
+                {selectedJob?.name ?? t.ciSelectJob}
+              </span>
               <span className="adl-logviewer__job-select-chevron">
                 <IconChevronDown width={12} height={12} />
               </span>
@@ -360,7 +362,7 @@ export function GitHubLogViewer({ snapshot, config, dirKey, initialJobId }: GitH
         </div>
 
         <div className="adl-logviewer__toolbar-right">
-          <TooltipSimple content={`跳至顶部 (Ctrl+Home)`}>
+          <TooltipSimple content={t.ciJumpToTop}>
             <button
               type="button"
               className="adl-logviewer__toolbar-btn"

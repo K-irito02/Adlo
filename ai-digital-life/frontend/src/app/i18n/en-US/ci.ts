@@ -266,4 +266,13 @@ export const ciEn = {
   ciBlankLines: '{count} blank lines — click to expand',
   ciStepsCount: '{count} steps',
   ciFetchLogFailed: 'Failed to fetch log',
+  // ========== GitHub Navigator ==========
+  ciResizeNavigator: 'Resize GitHub navigator',
+  ciFilterAll: 'All',
+  ciFilterSuccess: 'Success',
+  ciFilterFailure: 'Failure',
+  ciFilterRunning: 'Running',
+  ciCollapse: 'Collapse',
+  ciExpand: 'Expand',
+  ciJumpToTop: 'Jump to top (Ctrl+Home)',
 } as const;

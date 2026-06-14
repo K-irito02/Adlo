@@ -169,7 +169,9 @@
   flex-shrink: 0;
   color: var(--text-tertiary);
   border-radius: 0;
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
 
 .adl-logviewer__job-select-chevron:hover {
@@ -305,7 +307,9 @@
   border-radius: 0;
   background: transparent;
   flex-shrink: 0;
-  transition: border-color 0.15s, background 0.15s;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
 }
 
 .adl-logviewer__checkbox input:checked + .adl-logviewer__checkbox-box {

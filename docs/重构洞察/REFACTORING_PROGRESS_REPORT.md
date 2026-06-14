@@ -1,6 +1,6 @@
 # 重构进度报告
 
-> 更新日期: 2026-06-14（第六十三轮）
+> 更新日期: 2026-06-15（第六十四轮）
 
 ## 完成状态
 
@@ -69,6 +69,7 @@
 | **第六十一轮** | **2026-06-13** | **重构洞察第8次全量执行（16项发现）：CSS 徽章色变量主题化、shared.ts 拆分、browserpanel 辅助函数提取、ChangesPanel Hook 提取(840→237行)、githubSlice 拆分为CiConfig+CiStatus、MultiTreeEntryShell 共享骨架提取、browser-panel.css 拆分(1153→3文件)、agent_pipeline 13个单元测试** | ✅ |
 | **第六十二轮** | **2026-06-14** | **重构洞察第9次全量执行（7项）：路径别名体系+41条深层导入替换、BrowserTabBar O(1)书签、useMemo包装、NavigatorResizeHandle组件提取、useFileContextMenuItems Hook提取(~250行重复消除)、DiffViewer useRef回调稳定化、fileTree事件委托** | ✅ |
 | **第六十三轮** | **2026-06-14** | **ESLint/Prettier/Clippy/rustfmt四维门禁全量清零：ESLint 208 warnings→0、Prettier 6文件格式化、17项未使用import手动清理** | ✅ |
+| **第六十四轮** | **2026-06-15** | **GitHub 子面板 i18n 全覆盖：清除 6 组件 15 处硬编码字符串（标签/过滤器/aria-label/tooltip/相对时间/日期 locale）；新增 17 个翻译 key；修复语言切换时面包屑标题行消失的预存 Bug** | ✅ |
 
 ## 说明
 

@@ -60,7 +60,7 @@ export function JobRow({
             e.stopPropagation();
             setExpanded((v) => !v);
           }}
-          aria-label={expanded ? 'Collapse' : 'Expand'}
+          aria-label={expanded ? t.ciCollapse : t.ciExpand}
         >
           {expanded ? (
             <IconChevronUp width={12} height={12} />

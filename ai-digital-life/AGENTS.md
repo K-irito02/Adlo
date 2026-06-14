@@ -31,7 +31,7 @@
 - 内置浏览器（Tauri WebView / iframe 双模式 + 新建标签对话框）
 - Zustand 切片模式（19 切片 + 11 action 模块）+ 模块化分层（features/ + regions/）
 - CSS 设计 Token 亮暗主题 + 自定义 Tooltip + 自定义滚动条
-- i18n 国际化（13 领域 / 889 keys，TCopyContext + useTCopy 上下文驱动，TypeScript satisfies 类型安全）
+- i18n 国际化（13 领域 / 932 keys，TCopyContext + useTCopy 上下文驱动，TypeScript satisfies 类型安全）
 
 ### 重构历史
 

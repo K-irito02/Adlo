@@ -20,7 +20,7 @@ alwaysApply: false
 ## 验证流程
 
 1. 修改 UI 代码
-2. 运行 `npm --prefix frontend run dev` 或 `cargo tauri dev`
+2. 运行 `pnpm --dir frontend run dev` 或 `cargo tauri dev`
 3. 验证视觉效果与交互功能
 4. **双端验证**：在 Tauri 桌面和浏览器模式下分别确认功能一致
 

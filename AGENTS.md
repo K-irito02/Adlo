@@ -23,7 +23,7 @@
 
 ## 重构历史
 
-共完成 **63 轮**迭代重构，完整记录见 [REFACTORING_PROGRESS_REPORT.md](./docs/重构洞察/REFACTORING_PROGRESS_REPORT.md)。
+共完成 **64 轮**迭代重构，完整记录见 [REFACTORING_PROGRESS_REPORT.md](./docs/重构洞察/REFACTORING_PROGRESS_REPORT.md)。
 
 ## 代理开发规则
 
@@ -47,6 +47,8 @@
 - UI/UX 或功能变更后跳过红绿测试
 - 在 capability 文件中使用 `"all"` / `"**"` 通配权限
 - 功能或显示效果仅在 Tauri 或浏览器单一模式下可用（必须双端一致）
+- 任何 UI 展示文本硬编码（包括但不限于按钮/Tooltip/aria-label/占位符/过滤器标签/相对时间/日期格式/面包屑标签映射），必须使用 i18n key
+- 语言切换时依赖 Zustand store 易变数据的渲染条件缺少 fallback 导致标题行/路径栏消失
 
 ## 双端一致性
 

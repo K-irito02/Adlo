@@ -32,7 +32,7 @@ import { HelpView } from './HelpView';
 import { GitHubSettingsDialog } from './GitHubSettingsDialog';
 
 export function GitHubPanel() {
-  const { t } = useTCopy();
+  const { t, locale } = useTCopy();
   const {
     gitHubWorkspaceConfigs,
     loading,
@@ -518,10 +518,10 @@ export function GitHubPanel() {
     }
 
     const sectionLabels: Record<string, string> = {
-      overview: '概览',
-      workflows: '工作流',
-      jobs: '任务',
-      logs: '日志',
+      overview: t.ciOverview,
+      workflows: t.ciWorkflows,
+      jobs: t.ciJobs,
+      logs: t.ciLogs,
     };
     const isLeafSelected = selectedGitHubTreePath?.split(':').length ?? 0 >= 3;
     const treeSection = selectedGitHubTreePath?.split(':').pop();
@@ -537,6 +537,7 @@ export function GitHubPanel() {
             loading={loading}
             branch={activeConfig.branch}
             copy={copy}
+            locale={locale}
             onViewLogs={handleViewLogs}
           />
         );
@@ -571,13 +572,17 @@ export function GitHubPanel() {
           ? copy.ciUserFolderCategory
           : '';
 
+    const hasActiveItem = !!(activeCiWorkspaceId || activeCiFolderId);
+    const showBreadcrumb = hasActiveItem && (isLeafSelected || !!activeWorkspaceSection);
+    const displayFallback = activeCiWorkspaceId ?? activeCiFolderId ?? '';
+
     return (
       <>
-        {displayPath && isLeafSelected && (
+        {showBreadcrumb && (
           <div className="adl-github-path-header">
             <span>{categoryLabel}</span>
             <IconChevronRight width={10} height={10} />
-            <span>{displayPath}</span>
+            <span>{displayPath || displayFallback}</span>
             <IconChevronRight width={10} height={10} />
             <span>{sectionLabel}</span>
           </div>
@@ -1002,7 +1007,7 @@ export function GitHubPanel() {
             />
           )}
           <NavigatorResizeHandle
-            label="Resize GitHub navigator"
+            label={t.ciResizeNavigator}
             minWidth={180}
             maxWidth={420}
             currentWidth={gitHubNavigatorWidth}

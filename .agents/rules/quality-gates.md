@@ -47,7 +47,7 @@ alwaysApply: false
 - [ ] 前端 Lint: `pnpm --dir frontend run lint`
 - [ ] 前端格式: `pnpm --dir frontend run format:check`
 - [ ] 前端类型检查: `pnpm --dir frontend run typecheck`
-- [ ] 前端测试: `pnpm --dir frontend run test`（214 tests 全通过）
+- [ ] 前端测试: `pnpm --dir frontend run test`（212 tests 全通过）
 - [ ] 行为回归: 确认关键用户路径无退化
 
 ## 代码质量四维门禁（clippy + fmt + tsc + eslint）
