@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   IconChevronDown,
   IconEye,
@@ -80,17 +81,47 @@ function TopToolbar({
   changesMenuItems,
 }: ChangesToolbarTopProps) {
   const { t } = useTCopy();
-  const [branchMenuOpen, setBranchMenuOpen] = useState(false);
+  const [branchMenuPos, setBranchMenuPos] = useState<{ top: number; left: number } | null>(null);
   const [changesMenuOpen, setChangesMenuOpen] = useState(false);
-  const branchMenuRef = useRef<HTMLDivElement | null>(null);
+  const branchMenuWrapRef = useRef<HTMLDivElement | null>(null);
   const changesMenuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!branchMenuPos) {
+      return;
+    }
+
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (branchMenuWrapRef.current?.contains(target)) {
+        return;
+      }
+      const portalMenu = document.querySelector('[data-branch-menu="true"]');
+      if (portalMenu?.contains(target)) {
+        return;
+      }
+      setBranchMenuPos(null);
+    };
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setBranchMenuPos(null);
+      }
+    };
+    const handleScroll = () => setBranchMenuPos(null);
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleEscape);
+    window.addEventListener('scroll', handleScroll, true);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleEscape);
+      window.removeEventListener('scroll', handleScroll, true);
+    };
+  }, [branchMenuPos]);
 
   useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {
       const target = event.target as Node;
-      if (!branchMenuRef.current?.contains(target)) {
-        setBranchMenuOpen(false);
-      }
       if (!changesMenuRef.current?.contains(target)) {
         setChangesMenuOpen(false);
       }
@@ -115,41 +146,52 @@ function TopToolbar({
             <IconPanelLeftClose size={14} decorative />
           </button>
         </TooltipSimple>
-        <div ref={branchMenuRef} className="adl-menu adl-file-context__menu">
+        <div ref={branchMenuWrapRef} className="adl-menu adl-file-context__menu">
           <TooltipSimple content={t.changesSummaryBranch} placement="top">
             <button
               type="button"
-              className={`adl-branch-pill adl-branch-pill--button${branchMenuOpen ? ' is-open' : ''}`}
-              onClick={() => setBranchMenuOpen((value) => !value)}
+              className={`adl-branch-pill adl-branch-pill--button${branchMenuPos ? ' is-open' : ''}`}
+              onClick={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                setBranchMenuPos((prev) => (prev ? null : { top: rect.bottom, left: rect.left }));
+              }}
               aria-label={t.changesSummaryBranch}
               aria-haspopup="menu"
-              aria-expanded={branchMenuOpen}
+              aria-expanded={!!branchMenuPos}
             >
               <IconGitBranch size={12} decorative />
               <span>{selectedBranch}</span>
               <IconChevronDown size={12} decorative />
             </button>
           </TooltipSimple>
-          {branchMenuOpen ? (
-            <div className="adl-menu__dropdown adl-file-context__dropdown" role="menu">
-              {branchOptions.map((branch) => (
-                <TooltipSimple key={branch} content={branch} placement="right">
-                  <button
-                    type="button"
-                    role="menuitemradio"
-                    aria-checked={branch === selectedBranch}
-                    className="adl-menu__item"
-                    onClick={() => {
-                      onSelectBranch(branch);
-                      setBranchMenuOpen(false);
-                    }}
-                  >
-                    <span className="adl-menu__label adl-menu__label--branch">{branch}</span>
-                  </button>
-                </TooltipSimple>
-              ))}
-            </div>
-          ) : null}
+          {branchMenuPos
+            ? createPortal(
+                <div
+                  className="adl-branch-menu__dropdown"
+                  data-branch-menu="true"
+                  role="menu"
+                  style={{ top: branchMenuPos.top, left: branchMenuPos.left }}
+                >
+                  {branchOptions.map((branch) => (
+                    <TooltipSimple key={branch} content={branch} placement="right">
+                      <button
+                        type="button"
+                        role="menuitemradio"
+                        aria-checked={branch === selectedBranch}
+                        className="adl-menu__item"
+                        onClick={() => {
+                          onSelectBranch(branch);
+                          setBranchMenuPos(null);
+                        }}
+                      >
+                        <span className="adl-menu__label adl-menu__label--branch">{branch}</span>
+                      </button>
+                    </TooltipSimple>
+                  ))}
+                </div>,
+                document.body
+              )
+            : null}
         </div>
         {!hasActivePatchSet ? (
           <TooltipSimple content={t.diffLayoutLabel} placement="top">
