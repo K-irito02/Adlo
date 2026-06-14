@@ -608,9 +608,9 @@
 }
 
 .adl-outline-tree__row.adl-outline-tree__row {
-  width: calc(100% + var(--adl-outline-row-offset, 4px));
-  margin-inline-start: calc(-1 * var(--adl-outline-row-offset, 4px));
-  padding-left: calc(4px + var(--adl-outline-row-offset, 4px));
+  width: calc(100% + var(--adl-tree-row-offset, 4px));
+  margin-inline-start: calc(-1 * var(--adl-tree-row-offset, 4px));
+  padding-left: calc(4px + var(--adl-tree-row-offset, 4px));
   padding-inline-end: calc(8px + var(--adl-outline-scrollbar-width));
 }
 

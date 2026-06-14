@@ -77,9 +77,7 @@ export function TreeNodeRow({
       data-path={nodePath}
       style={
         {
-          '--adl-filetree-hover-offset': `${Math.max(4, rowOffset)}px`,
           '--adl-tree-row-offset': `${Math.max(4, rowOffset)}px`,
-          '--adl-outline-row-offset': `${Math.max(4, rowOffset)}px`,
           '--adl-tree-indent': `${Math.max(0, (depth - 1) * 14)}px`,
           ...style,
         } as React.CSSProperties

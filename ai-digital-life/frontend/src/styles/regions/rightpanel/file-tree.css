@@ -93,17 +93,17 @@
 }
 
 .adl-filetree__row {
-  width: calc(100% + var(--adl-filetree-hover-offset));
-  margin-inline-start: calc(-1 * var(--adl-filetree-hover-offset));
-  padding-inline-start: calc(8px + var(--adl-filetree-hover-offset) + var(--adl-tree-indent, 0px));
+  width: calc(100% + var(--adl-tree-row-offset));
+  margin-inline-start: calc(-1 * var(--adl-tree-row-offset));
+  padding-inline-start: calc(8px + var(--adl-tree-row-offset) + var(--adl-tree-indent, 0px));
   padding-inline-end: 7px;
   border-radius: 0;
 }
 
 .adl-outline-tree__row {
-  width: calc(100% + var(--adl-outline-row-offset, 4px));
-  margin-inline-start: calc(-1 * var(--adl-outline-row-offset, 4px));
-  padding-inline-start: calc(8px + var(--adl-outline-row-offset, 4px));
+  width: calc(100% + var(--adl-tree-row-offset, 4px));
+  margin-inline-start: calc(-1 * var(--adl-tree-row-offset, 4px));
+  padding-inline-start: calc(8px + var(--adl-tree-row-offset, 4px));
   padding-inline-end: calc(8px + var(--adl-outline-scrollbar-width));
 }
 
@@ -626,6 +626,11 @@
 .adl-tool-surface--browser .adl-tool-navigator__context,
 .adl-tool-panel--terminal .adl-tool-navigator__context {
   padding-inline-end: var(--space-1);
+}
+
+.adl-tool-list__item-editable-input {
+  font-size: var(--font-size-sm, 13px);
+  padding: var(--space-0-5, 2px) var(--space-1-5, 6px);
 }
 
 .adl-tool-list__item-close {

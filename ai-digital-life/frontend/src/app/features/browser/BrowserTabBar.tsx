@@ -89,8 +89,6 @@ export const BrowserTabBar = React.memo(function BrowserTabBar({
                   background: 'var(--surface)',
                   border: '1px solid var(--accent)',
                   color: 'var(--text-primary)',
-                  fontSize: '13px',
-                  padding: '2px 6px',
                   borderRadius: 'var(--radius-sm)',
                   outline: 'none',
                   minWidth: 0,

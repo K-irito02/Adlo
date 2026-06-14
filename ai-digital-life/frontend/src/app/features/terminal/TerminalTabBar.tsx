@@ -78,8 +78,6 @@ export const TerminalTabBar = React.memo(function TerminalTabBar({
                 background: 'var(--surface)',
                 border: '1px solid var(--accent)',
                 color: 'var(--text-primary)',
-                fontSize: '13px',
-                padding: '2px 6px',
                 borderRadius: 'var(--radius-sm)',
                 outline: 'none',
                 minWidth: 0,

@@ -144,16 +144,12 @@ const TitleBar = React.memo(function TitleBar({
 }: TitleBarProps) {
   const { t } = useTCopy();
   const [isMaximized, setIsMaximized] = useState(false);
-  const { leftCollapsed, rightCollapsed, toggleLeft, toggleRight, toggleBoth } = useAppStore(
-    useShallow((state) => ({
-      leftCollapsed: state.leftCollapsed,
-      rightCollapsed: state.rightCollapsed,
-      toggleLeft: state.toggleLeft,
-      toggleRight: state.toggleRight,
-      toggleBoth: state.toggleBoth,
-    }))
-  );
   const {
+    leftCollapsed,
+    rightCollapsed,
+    toggleLeft,
+    toggleRight,
+    toggleBoth,
     fileMenuOpen,
     viewMenuOpen,
     helpMenuOpen,
@@ -164,6 +160,11 @@ const TitleBar = React.memo(function TitleBar({
     setActiveRightTool,
   } = useAppStore(
     useShallow((state) => ({
+      leftCollapsed: state.leftCollapsed,
+      rightCollapsed: state.rightCollapsed,
+      toggleLeft: state.toggleLeft,
+      toggleRight: state.toggleRight,
+      toggleBoth: state.toggleBoth,
       fileMenuOpen: state.fileMenuOpen,
       viewMenuOpen: state.viewMenuOpen,
       helpMenuOpen: state.helpMenuOpen,
