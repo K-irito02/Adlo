@@ -70,6 +70,26 @@
 | 错误 | 显示错误消息（网络异常 / API 错误 / 认证失败） |
 | 正常 | 显示 CI 状态或日志内容 |
 
+### 标题路径提示行
+
+选择树形导航器中的子条目（概览/工作流/任务/日志）后，内容显示区顶部显示标题路径提示行：
+
+| 元素 | 说明 |
+|------|------|
+| 分类标识 | `[工作区目录]` 或 `[非工作区目录]`，根据目录的 `parentType` 链自动判断 |
+| 目录路径 | 工作区名称或文件夹完整路径（嵌套子目录沿 `parentId` 链回溯拼接） |
+| 子条目 | 概览 / 工作流 / 任务 / 日志 |
+
+**样式规范：** 标题行使用 `display: flex; align-items: center; justify-content: center;` + `margin-top: calc(-1 * var(--space-3))` 抵消容器 padding，确保文字在 `min-height: 32px` 区域内垂直居中，底部 1px `border-bottom` 为分割线。`data-path` 属性位于 `<li class="adl-tree-node">` 而非 `<div class="adl-filetree__row">`，获取行路径时应通过 `target.closest('[data-path]')`。
+
+**交互规则：**
+
+| 场景 | 行为 |
+|------|------|
+| 点击树子条目 | 标题行显示对应分类、路径、子条目 |
+| 点击内容显示区 | 标题行保持不变（全局点击处理器过滤 `.adl-tool-primary--github` 内部点击） |
+| 点击面板外部 | 标题行消失（选中状态被清理） |
+
 ### 树形导航器
 
 `.adl-tool-navigator` 内包含 GitHub CI 的树形目录结构。

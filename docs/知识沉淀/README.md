@@ -111,3 +111,4 @@
 | [github-ci-tree-interaction-2026-06-10.md](./CI监控/github-ci-tree-interaction-2026-06-10.md) | 2026-06-10 交互重构 | GitHub CI 树形目录交互重构（FileTree 集成、按钮规范、renderIconBefore、RenameDialog 标准化、CSS 定位） |
 | [ci-panel-help-system-2026-06-13.md](./CI监控/ci-panel-help-system-2026-06-13.md) | 2026-06-13 操作手册完善 | CI 面板帮助系统增强（全局点击冲突、帮助按钮 toggle、手册内容扩展、TOC 导航） |
 | [github-ci-per-directory-binding-2026-06-14.md](./CI监控/github-ci-per-directory-binding-2026-06-14.md) | 2026-06-14 Bug 修复 | GitHub CI 按目录独立绑定（`renderChildMeta` 设置误开工作区、共享 state 污染、store sync set 覆盖、日志/快照持久化、token 恢复、Rate Limit 保护） |
+| [github-title-path-header-fix-2026-06-14.md](./CI监控/github-title-path-header-fix-2026-06-14.md) | 2026-06-14 Bug 修复 | GitHub 标题路径提示行修复（垂直居中、消失、路径不完整、分类标识、全局点击范围守卫、`data-path` 归属） |

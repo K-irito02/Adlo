@@ -21,6 +21,7 @@ import { useTCopy } from '@app/i18n/useTCopy';
 import { GitHubTree } from '@features/github-tree/GitHubTree';
 import { CustomScrollArea } from '@features/file-tree/CustomScrollArea';
 import type { SectionCallbacks } from '@features/github-tree/GitHubCategorySection';
+import type { GitHubCiFolderState } from '@stores/slices/githubCiConfigSlice';
 import { GitHubLogViewer } from './GitHubLogViewer';
 import { MenuHintItem } from './MenuHintItem';
 import { OverviewView } from './OverviewView';
@@ -72,10 +73,58 @@ export function GitHubPanel() {
     }
     if (activeCiFolderId) {
       const folder = gitHubCiFolders.find((f) => f.id === activeCiFolderId);
-      return folder?.name || '';
+      if (!folder) {
+        return '';
+      }
+      const parts: string[] = [folder.name];
+      let current = folder;
+      while (
+        current.parentId &&
+        (current.parentType === 'folder' || current.parentType === 'workspace')
+      ) {
+        if (current.parentType === 'workspace') {
+          const ws = workspaces.find((w) => w.id === current.parentId);
+          if (ws) {
+            parts.unshift(ws.name || ws.path);
+          }
+          break;
+        }
+        const parent = gitHubCiFolders.find((f) => f.id === current.parentId);
+        if (!parent) {
+          break;
+        }
+        parts.unshift(parent.name);
+        current = parent;
+      }
+      return parts.join(' / ');
     }
     return '';
   }, [activeCiWorkspaceId, activeCiFolderId, workspaces, gitHubCiFolders]);
+
+  const folderCategory = useMemo<'workspace' | 'user' | null>(() => {
+    if (activeCiWorkspaceId) {
+      return 'workspace';
+    }
+    if (activeCiFolderId) {
+      const folder = gitHubCiFolders.find((f) => f.id === activeCiFolderId);
+      if (!folder) {
+        return null;
+      }
+      let current: GitHubCiFolderState | undefined = folder;
+      while (current) {
+        if (current.parentType === 'workspace') {
+          return 'workspace';
+        }
+        if (!current.parentId) {
+          return 'user';
+        }
+        const pid: string = current.parentId;
+        current = gitHubCiFolders.find((f) => f.id === pid);
+      }
+      return 'user';
+    }
+    return null;
+  }, [activeCiWorkspaceId, activeCiFolderId, gitHubCiFolders]);
 
   const {
     toggleGitHubTreePath,
@@ -244,18 +293,8 @@ export function GitHubPanel() {
   useEffect(() => {
     const handleGlobalClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      const clickedEntry = target.closest('.adl-browser-entry');
-      const clickedFileTreeRow = target.closest('.adl-filetree__row');
 
-      if (clickedEntry) {
-        if (clickedFileTreeRow) {
-          const row = clickedFileTreeRow as HTMLElement;
-          const nodePath = row.dataset.path;
-          if (nodePath) {
-            handleSelectTreePath(nodePath);
-            return;
-          }
-        }
+      if (target.closest('.adl-tool-surface--github')) {
         return;
       }
 
@@ -513,11 +552,20 @@ export function GitHubPanel() {
         break;
     }
 
+    const categoryLabel =
+      folderCategory === 'workspace'
+        ? copy.ciWorkspaceCategory
+        : folderCategory === 'user'
+          ? copy.ciUserFolderCategory
+          : '';
+
     return (
       <>
         {displayPath && isLeafSelected && (
           <div className="adl-github-path-header">
-            [{displayPath}] / [{sectionLabel}]
+            <span>[{categoryLabel}]</span>
+            <span>[{displayPath}]</span>
+            <span>[{sectionLabel}]</span>
           </div>
         )}
         {view}
