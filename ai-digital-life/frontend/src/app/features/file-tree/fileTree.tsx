@@ -213,22 +213,38 @@ export function FileTree<T extends FileTreeRenderableNode>({
 
   const trunkHeightMap: Record<string, number> = useMemo(() => {
     const map: Record<string, number> = {};
+    const stack: Array<{ path: string; depth: number; count: number }> = [];
+
     for (let i = 0; i < flatNodes.length; i++) {
       const { node, depth } = flatNodes[i];
-      if (node.kind !== 'directory') {
-        continue;
-      }
-      let descendantCount = 0;
-      for (let j = i + 1; j < flatNodes.length; j++) {
-        if (flatNodes[j].depth <= depth) {
-          break;
+
+      while (stack.length > 0 && stack[stack.length - 1].depth >= depth) {
+        const entry = stack.pop()!;
+        if (entry.count > 0) {
+          map[entry.path] = (entry.count + 1) * VIRTUAL_ITEM_HEIGHT;
         }
-        descendantCount++;
+        if (stack.length > 0) {
+          stack[stack.length - 1].count += entry.count + 1;
+        }
       }
-      if (descendantCount > 0) {
-        map[node.path] = (descendantCount + 1) * VIRTUAL_ITEM_HEIGHT;
+
+      if (node.kind === 'directory') {
+        stack.push({ path: node.path, depth, count: 0 });
+      } else if (stack.length > 0) {
+        stack[stack.length - 1].count++;
       }
     }
+
+    while (stack.length > 0) {
+      const entry = stack.pop()!;
+      if (entry.count > 0) {
+        map[entry.path] = (entry.count + 1) * VIRTUAL_ITEM_HEIGHT;
+      }
+      if (stack.length > 0) {
+        stack[stack.length - 1].count += entry.count + 1;
+      }
+    }
+
     return map;
   }, [flatNodes]);
 
