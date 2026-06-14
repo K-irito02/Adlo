@@ -260,6 +260,7 @@ export const ciEn = {
   ciCollapseBlank: 'Collapse blank lines',
   ciViewOnGitHub: 'View on GitHub',
   ciLoadingLog: 'Loading log…',
+  ciSelectJob: 'Select Job',
   ciNoLogData: 'No log data',
   ciViewFullLogOnGitHub: 'View full log on GitHub',
   ciBlankLines: '{count} blank lines — click to expand',

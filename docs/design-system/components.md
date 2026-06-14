@@ -68,6 +68,34 @@ renderCard({
 
 The card semantically renders as a `<section>` (override via `as`). Use `inset` for nested groups inside another card.
 
+### Card-contained row hover (full-width background)
+
+When rows inside a card need a hover background that extends to the card's left/right edges (e.g., timeline steps in a GitHub job card), use the `::after` pseudo-element with a local stacking context:
+
+```css
+.row {
+  position: relative;
+  z-index: 0;
+}
+.row:hover {
+  z-index: 1;
+}
+.row:hover::after {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0;
+  left: calc(-1 * (parent-padding-left + parent-margin-left + ...));
+  right: calc(-1 * parent-padding-right);
+  background: var(--surface-hover);
+  z-index: -1;
+  pointer-events: none;
+}
+```
+
+**Key constraint**: `z-index: 0` on the row creates a local stacking context. Without it, `z-index: -1` on `::after` paints behind the card's background in the root stacking context and becomes invisible.
+
+Reference implementation: `communication-panel.css` → `.adl-github-timeline__step:hover::after`.
+
 ## Banner / Inline alert
 
 ```ts

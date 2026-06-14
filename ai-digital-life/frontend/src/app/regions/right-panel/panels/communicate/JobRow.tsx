@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import type { CiJobSummary } from '@ai-digital-life/kernel';
-import { StatusDot } from './StatusDot';
 import { statusColor, formatDuration, statusClass } from './githubPanelUtils';
 import { useTCopy } from '@app/i18n/useTCopy';
 import { TooltipSimple } from '@components/Tooltip';
@@ -26,7 +25,6 @@ export function JobRow({
         tabIndex={0}
         onKeyDown={(e) => e.key === 'Enter' && setExpanded((v) => !v)}
       >
-        <StatusDot conclusion={job.conclusion} status={job.status} animated />
         <span className="adl-github-card__title">{job.name}</span>
         <span
           className="adl-chip adl-chip--xs"
@@ -55,19 +53,21 @@ export function JobRow({
             </svg>
           </button>
         </TooltipSimple>
-        {expanded ? (
-          <IconChevronUp
-            width={12}
-            height={12}
-            style={{ flexShrink: 0, color: 'var(--text-tertiary)' }}
-          />
-        ) : (
-          <IconChevronDown
-            width={12}
-            height={12}
-            style={{ flexShrink: 0, color: 'var(--text-tertiary)' }}
-          />
-        )}
+        <button
+          type="button"
+          className="adl-github__log-btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            setExpanded((v) => !v);
+          }}
+          aria-label={expanded ? 'Collapse' : 'Expand'}
+        >
+          {expanded ? (
+            <IconChevronUp width={12} height={12} />
+          ) : (
+            <IconChevronDown width={12} height={12} />
+          )}
+        </button>
       </div>
       {expanded && job.stepResults.length > 0 && (
         <div className="adl-github-card__body">
@@ -77,7 +77,6 @@ export function JobRow({
                 key={i}
                 className={`adl-github-timeline__step ${statusClass(step.conclusion, step.status)}`}
               >
-                <StatusDot conclusion={step.conclusion} status={step.status} animated />
                 <span className="adl-github-timeline__step-name">{step.name}</span>
                 <span className="adl-github-timeline__step-chip">
                   {step.conclusion ?? step.status}

@@ -240,6 +240,7 @@ export const ciZh = {
   ciCollapseBlank: '折叠空白',
   ciViewOnGitHub: '在 GitHub 查看',
   ciLoadingLog: '加载日志中…',
+  ciSelectJob: '选择 Job',
   ciNoLogData: '暂无日志数据',
   ciViewFullLogOnGitHub: '在 GitHub 查看完整日志',
   ciBlankLines: '{count} 行空白 — 点击展开',

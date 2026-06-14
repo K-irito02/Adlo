@@ -6,7 +6,7 @@ import type { DigitalLifeBridge } from '../../../../../shared/ipc';
 import { AnsiUp } from 'ansi_up';
 import { useTCopy } from '@app/i18n/useTCopy';
 import { TooltipSimple } from '@components/Tooltip';
-import { IconChevronUp, IconChevronDown, IconArrowUp, IconSearch } from '@app/icons';
+import { IconChevronUp, IconChevronDown, IconArrowUp, IconSearch, IconCheck } from '@app/icons';
 
 const ansiUp = new AnsiUp();
 ansiUp.use_classes = true;
@@ -34,13 +34,17 @@ export function GitHubLogViewer({ snapshot, config, dirKey, initialJobId }: GitH
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [menuLeft, setMenuLeft] = useState(0);
+  const [menuTop, setMenuTop] = useState(0);
+  const [menuWidth, setMenuWidth] = useState(130);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchMatchIndex, setSearchMatchIndex] = useState(0);
   const [searchMatches, setSearchMatches] = useState<number[]>([]);
   const [collapsed, setCollapsed] = useState(true);
-  const [searchExpanded, setSearchExpanded] = useState(false);
-  const searchRef = useRef<HTMLDivElement>(null);
   const listRef = useListRef(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
 
   const jobs = useMemo(() => snapshot?.jobs ?? [], [snapshot?.jobs]);
 
@@ -205,16 +209,6 @@ export function GitHubLogViewer({ snapshot, config, dirKey, initialJobId }: GitH
     }
   }, [searchMatches, searchMatchIndex, listRef]);
 
-  const handleSearchFocus = useCallback(() => {
-    setSearchExpanded(true);
-  }, []);
-
-  const handleSearchBlur = useCallback((e: React.FocusEvent) => {
-    if (!searchRef.current?.contains(e.relatedTarget as Node)) {
-      setSearchExpanded(false);
-    }
-  }, []);
-
   const renderLine = useCallback((text: string) => {
     const html = ansiUp.ansi_to_html(text);
     const hasError = /\berror\b|\bfail(?:ed|ure)?\b|FAILURE/i.test(text);
@@ -271,38 +265,56 @@ export function GitHubLogViewer({ snapshot, config, dirKey, initialJobId }: GitH
     [processedLines, searchMatches, searchMatchIndex, searchQuery, renderLine, formatT, t]
   );
 
+  const selectedJob = selectedJobId !== null ? jobs.find((j) => j.jobId === selectedJobId) : null;
+
+  useEffect(() => {
+    if (!dropdownOpen) {
+      return;
+    }
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      const menuEl = toolbarRef.current?.querySelector('.adl-logviewer__job-select-menu');
+      if (triggerRef.current?.contains(target) || menuEl?.contains(target)) {
+        return;
+      }
+      setDropdownOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [dropdownOpen]);
+
   const htmlUrl = snapshot?.latestRun?.htmlUrl;
 
   return (
     <div className="adl-logviewer">
-      <div className="adl-logviewer__toolbar">
+      <div className="adl-logviewer__toolbar" ref={toolbarRef}>
         <div className="adl-logviewer__toolbar-left">
           <div className="adl-logviewer__job-select-wrap">
-            <select
-              className="adl-logviewer__job-select"
-              value={selectedJobId ?? ''}
-              onChange={(e) => setSelectedJobId(Number(e.target.value))}
+            <button
+              ref={triggerRef}
+              type="button"
+              className="adl-logviewer__job-select-trigger"
+              onClick={() => {
+                if (!dropdownOpen && triggerRef.current && toolbarRef.current) {
+                  const r = triggerRef.current.getBoundingClientRect();
+                  const tr = toolbarRef.current.getBoundingClientRect();
+                  setMenuLeft(r.left - tr.left);
+                  setMenuTop(r.bottom - tr.top);
+                  setMenuWidth(r.width);
+                }
+                setDropdownOpen((v) => !v);
+              }}
             >
-              {jobs.map((job) => (
-                <option key={job.jobId} value={job.jobId}>
-                  {job.name}
-                </option>
-              ))}
-            </select>
-            <span className="adl-logviewer__job-select-icon">
-              <IconChevronDown width={12} height={12} />
-            </span>
+              <span className="adl-logviewer__job-select-text">{selectedJob?.name ?? t.ciSelectJob}</span>
+              <span className="adl-logviewer__job-select-chevron">
+                <IconChevronDown width={12} height={12} />
+              </span>
+            </button>
           </div>
 
           <div className="adl-logviewer__search">
-            <div
-              ref={searchRef}
-              className={`adl-logviewer__search-wrap${searchExpanded ? ' is-expanded' : ''}`}
-              onFocus={handleSearchFocus}
-              onBlur={handleSearchBlur}
-            >
+            <div className="adl-logviewer__search-wrap">
               <IconSearch size={14} className="adl-logviewer__search-icon" />
-              <span className="adl-logviewer__search-preview">{searchQuery || t.ciSearchLog}</span>
               <input
                 className="adl-logviewer__search-input"
                 type="search"
@@ -338,10 +350,12 @@ export function GitHubLogViewer({ snapshot, config, dirKey, initialJobId }: GitH
             </div>
           </div>
 
-          <label className="adl-logviewer__toggle">
+          <label className="adl-logviewer__checkbox">
             <input type="checkbox" checked={collapsed} onChange={() => setCollapsed(!collapsed)} />
-            <span className="adl-logviewer__toggle-track" />
-            <span className="adl-logviewer__toggle-label">{t.ciCollapseBlank}</span>
+            <span className="adl-logviewer__checkbox-box">
+              {collapsed && <IconCheck width={10} height={10} />}
+            </span>
+            <span className="adl-logviewer__checkbox-label">{t.ciCollapseBlank}</span>
           </label>
         </div>
 
@@ -366,6 +380,29 @@ export function GitHubLogViewer({ snapshot, config, dirKey, initialJobId }: GitH
             </a>
           )}
         </div>
+        {dropdownOpen && (
+          <div
+            className="adl-logviewer__job-select-menu"
+            style={{ left: menuLeft, top: menuTop, width: menuWidth }}
+          >
+            {jobs.map((job) => (
+              <div
+                key={job.jobId}
+                className="adl-logviewer__job-select-item"
+                onClick={() => {
+                  setSelectedJobId(job.jobId);
+                  setDropdownOpen(false);
+                }}
+                title={job.name}
+              >
+                <span className="adl-logviewer__job-select-item-name">{job.name}</span>
+                <span className="adl-logviewer__job-select-check">
+                  {selectedJobId === job.jobId && <IconCheck width={12} height={12} />}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="adl-logviewer__content">

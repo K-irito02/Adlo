@@ -11,7 +11,7 @@
 | [浏览器](./浏览器/) | 内置浏览器实现、空标签引导页、树形目录交互等经验 | 8 |
 | [代码质量](./代码质量/) | 全量代码质量检测与修复经验 | 11 |
 | [浏览器自动化](./浏览器自动化/) | 浏览器自动化调试记录与规则经验 | 2 |
-| [交互优化](./交互优化/) | 跨功能面板的交互/UX 问题修复经验 | 9 |
+| [交互优化](./交互优化/) | 跨功能面板的交互/UX 问题修复经验 | 11 |
 | [CI 监控](./CI监控/) | GitHub Actions CI 状态监控模块经验（按目录独立绑定、Token 持久化、日志隔离、数据缓存、Rate Limit 保护） | 5 |
 
 ## 索引
@@ -101,6 +101,8 @@
 | [github-menu-recursive-delete-and-grouping-2026-06-12.md](./交互优化/github-menu-recursive-delete-and-grouping-2026-06-12.md) | 2026-06-12 菜单重构 | GitHub 面板菜单重构（递归删除、白色/红色分组、分隔线规范、"!" 提示双通道、双菜单一致性） |
 | [github-folder-pin-and-delete-2026-06-12.md](./交互优化/github-folder-pin-and-delete-2026-06-12.md) | 2026-06-12 功能增强 | GitHub 目录置顶（文件夹+工作区）、递归数据清除作用域修复、activeCiFolderId 跟踪 |
 | [github-tree-sub-entry-ordering-and-i18n-2026-06-12.md](./交互优化/github-tree-sub-entry-ordering-and-i18n-2026-06-12.md) | 2026-06-12 功能优化 | GitHub 树子条目排序（紧贴父目录）+ 子条目名称国际化 |
+| [github-job-card-hover-and-status-dot-optimization-2026-06-14.md](./交互优化/github-job-card-hover-and-status-dot-optimization-2026-06-14.md) | 2026-06-14 交互优化 | GitHub Job 卡片悬停背景全宽延伸、展开/折叠按钮悬停态统一、移除重复 StatusDot。核心挑战：`z-index: -1` + 局部层叠上下文 |
+| [github-log-viewer-toolbar-optimization-2026-06-14.md](./交互优化/github-log-viewer-toolbar-optimization-2026-06-14.md) | 2026-06-14 交互优化 | GitHub 日志查看器工具栏：自定义下拉菜单、搜索框始终可见、正方形复选框、工具栏裁剪、删除任务视图搜索框。核心挑战：`overflow: hidden` 与下拉菜单定位冲突 |
 
 ### CI 监控
 

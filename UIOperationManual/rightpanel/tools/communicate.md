@@ -52,13 +52,69 @@
 | ANSI 着色 | 使用 `ansi_up` 解析 GitHub Actions 日志的彩色输出 |
 | 虚拟滚动 | 使用 `react-window` FixedSizeList，行高 20px |
 | 行号 | 左侧固定 60px 区域，灰度等宽字体 |
-| 搜索 | 大小写不敏感匹配，上一处/下一处导航，黄色高亮 |
+| 搜索 | 始终可见的输入框，大小写不敏感匹配，上一处/下一处导航，黄色高亮 |
 | 错误高亮 | 匹配 `error`/`fail`/`FAILURE` 关键词，左侧 3px 红色色条 |
 | 警告高亮 | 匹配 `warn`/`warning` 关键词，左侧 3px 黄色色条 |
 | 空白折叠 | 连续 50+ 行空白折叠为占位行，点击展开 |
-| Job 选择 | 下拉切换不同 Job 的日志 |
+| Job 选择 | 自定义下拉菜单（非原生 select），宽度固定 130px |
 | GitHub 跳转 | 在 GitHub 查看完整日志的链接 |
 | 日志缓存 | 按目录独立持久化到 localStorage（`adl-ui:ci-log-caches`），页面刷新/应用重启/目录切换均恢复 |
+
+**工具栏布局规范：**
+
+| 区域 | 元素 | 选择器 | 规范 |
+|------|------|--------|------|
+| 左侧 | Job 下拉菜单 | `.adl-logviewer__job-select-trigger` | 宽度 130px，无边框直角，悬停 `--surface-hover`，内部文字 `overflow: hidden` 无省略号 |
+| 左侧 | 展开图标 | `.adl-logviewer__job-select-chevron` | 独立悬停背景效果 |
+| 左侧 | 搜索框 | `.adl-logviewer__search-wrap` | 始终可见，`flex: 1` 填充剩余空间，最小 140px 最大 280px，直角，`overflow: hidden` |
+| 左侧 | 折叠空白复选框 | `.adl-logviewer__checkbox` | 正方形 14×14px 直角，选中时 `var(--text-primary)` 背景 + `var(--bg)` 勾选图标 |
+| 右侧 | 跳至顶部按钮 | `.adl-logviewer__toolbar-btn` | 固定 24×24px，直角 |
+| 右侧 | GitHub 跳转链接 | `.adl-github__link` | 直角 |
+
+**工具栏裁剪行为：** 面板变窄时，左侧（下拉菜单 + 搜索 + 复选框）和右侧（按钮 + 链接）均被 `overflow: hidden` 裁剪，不会相互重叠。
+
+**Job 选择下拉菜单：**
+
+| 元素 | 选择器 | 规范 |
+|------|--------|------|
+| 菜单卡片 | `.adl-logviewer__job-select-menu` | `position: absolute` 相对 toolbar 定位，宽度与按钮一致，直角，`max-height: 140px`，自定义滚动条 |
+| 内容行 | `.adl-logviewer__job-select-item` | 名称 `overflow: hidden` 无省略号，右侧固定 12×12px 占位区域 |
+| 选中标记 | `.adl-logviewer__job-select-check` | 始终占用固定空间（12×12px），选中时显示 `IconCheck` |
+| 名称 tooltip | `title` 属性 | 系统原生 tooltip，展示完整名称 |
+
+**选择器：**
+
+| 元素 | 选择器 |
+|------|--------|
+| 日志查看器容器 | `.adl-logviewer` |
+| 工具栏 | `.adl-logviewer__toolbar`（`position: relative`） |
+| Job 选择触发按钮 | `.adl-logviewer__job-select-trigger` |
+| Job 选择下拉菜单 | `.adl-logviewer__job-select-menu` |
+| 搜索输入框 | `.adl-logviewer__search-input` |
+| 复选框 | `.adl-logviewer__checkbox-box` |
+| 工具栏按钮 | `.adl-logviewer__toolbar-btn` |
+
+### Job 卡片交互
+
+JobRow 卡片（概览/任务视图中的单个 Job 卡）的交互规范：
+
+| 元素 | 选择器 | 说明 |
+|------|--------|------|
+| 卡片容器 | `.adl-github-card.adl-github-card--status` | 左侧 3px 状态色条（绿/红/黄/灰），无 `StatusDot` |
+| 卡片 header | `.adl-github-card__header` | 可点击展开/折叠，悬停有 `--surface-hover` 背景 |
+| 状态 chip | `.adl-chip.adl-chip--xs` | 文字 + 边框颜色由 `statusColor()` 决定 |
+| 查看日志按钮 | `.adl-github__log-btn` | 悬停变 `--surface-hover` |
+| 展开/折叠按钮 | `.adl-github__log-btn` | 与查看日志按钮复用同一类、同一悬停样式 |
+| 时间线步骤 | `.adl-github-timeline__step` | 悬停时全宽背景延伸至卡片左右边缘（直角），`::before` 圆点保持在竖线上 |
+
+**交互规则：**
+
+| 场景 | 行为 |
+|------|------|
+| 点击卡片 header | 展开/折叠时间线步骤列表 |
+| 点击查看日志按钮 | 切换到日志视图，定位到该 Job 的日志（`e.stopPropagation()` 阻止展） |
+| 点击展开/折叠按钮 | 展开/折叠时间线（与点击 header 同效果），不触发日志切换 |
+| 悬停时间线步骤 | 背景以直角延伸至卡片左右边缘，圆点（`::before`）保持在竖线上方 |
 
 ## 状态
 

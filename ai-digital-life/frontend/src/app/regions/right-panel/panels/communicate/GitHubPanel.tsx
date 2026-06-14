@@ -8,6 +8,7 @@ import {
   IconFiles,
   IconList,
   IconFolderPlus,
+  IconChevronRight,
 } from '@app/icons';
 import { TooltipSimple } from '@components/Tooltip';
 import { NavigatorResizeHandle } from '@components/NavigatorResizeHandle';
@@ -574,9 +575,11 @@ export function GitHubPanel() {
       <>
         {displayPath && isLeafSelected && (
           <div className="adl-github-path-header">
-            <span>[{categoryLabel}]</span>
-            <span>[{displayPath}]</span>
-            <span>[{sectionLabel}]</span>
+            <span>{categoryLabel}</span>
+            <IconChevronRight width={10} height={10} />
+            <span>{displayPath}</span>
+            <IconChevronRight width={10} height={10} />
+            <span>{sectionLabel}</span>
           </div>
         )}
         {view}

@@ -63,7 +63,7 @@ describe('GitHubLogViewer', () => {
     expect(html).toContain('adl-logviewer__job-select-wrap');
   });
 
-  it('renders search input with hover-reveal wrap', () => {
+  it('renders search input', () => {
     const html = renderToStaticMarkup(
       <WithTCopy>
         <GitHubLogViewer
@@ -78,7 +78,7 @@ describe('GitHubLogViewer', () => {
     expect(html).toContain('adl-logviewer__search-icon');
   });
 
-  it('renders collapse blank toggle switch', () => {
+  it('renders collapse blank checkbox', () => {
     const html = renderToStaticMarkup(
       <WithTCopy>
         <GitHubLogViewer
@@ -88,9 +88,9 @@ describe('GitHubLogViewer', () => {
         />
       </WithTCopy>
     );
-    expect(html).toContain('adl-logviewer__toggle');
-    expect(html).toContain('adl-logviewer__toggle-track');
-    expect(html).toContain('adl-logviewer__toggle-label');
+    expect(html).toContain('adl-logviewer__checkbox');
+    expect(html).toContain('adl-logviewer__checkbox-box');
+    expect(html).toContain('adl-logviewer__checkbox-label');
   });
 
   it('renders GitHub link when htmlUrl exists', () => {

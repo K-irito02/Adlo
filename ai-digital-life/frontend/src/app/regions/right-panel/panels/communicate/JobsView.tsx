@@ -1,8 +1,7 @@
-import React, { useState, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import type { CiStatusSnapshot } from '@ai-digital-life/kernel';
 import { JobRow } from './JobRow';
 import { useTCopy } from '@app/i18n/useTCopy';
-import { IconSearch } from '@app/icons';
 
 type FilterKey = 'all' | 'success' | 'failure' | 'running';
 
@@ -21,21 +20,7 @@ export function JobsView({
   onViewLogs: (jobId: number) => void;
 }) {
   const { t } = useTCopy();
-  const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState<FilterKey>('all');
-  const [searchExpanded, setSearchExpanded] = useState(false);
-  const searchRef = useRef<HTMLLabelElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const handleSearchFocus = useCallback(() => {
-    setSearchExpanded(true);
-  }, []);
-
-  const handleSearchBlur = useCallback((e: React.FocusEvent) => {
-    if (!searchRef.current?.contains(e.relatedTarget as Node)) {
-      setSearchExpanded(false);
-    }
-  }, []);
 
   const filteredJobs = useMemo(() => {
     if (!snapshot?.jobs?.length) {
@@ -53,16 +38,8 @@ export function JobsView({
         result = result.filter((j) => j.status === 'in_progress' || j.status === 'queued');
         break;
     }
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(
-        (j) =>
-          j.name.toLowerCase().includes(q) ||
-          j.stepResults.some((s) => s.name.toLowerCase().includes(q))
-      );
-    }
     return result;
-  }, [snapshot?.jobs, filter, searchQuery]);
+  }, [snapshot?.jobs, filter]);
 
   if (!snapshot?.jobs?.length) {
     return (
@@ -85,23 +62,6 @@ export function JobsView({
             {f.label}
           </button>
         ))}
-        <label
-          ref={searchRef}
-          className={`adl-github-search--jobs${searchExpanded ? ' is-expanded' : ''}`}
-          onFocus={handleSearchFocus}
-          onBlur={handleSearchBlur}
-        >
-          <IconSearch size={14} className="adl-github-search__icon" />
-          <span className="adl-github-search__preview">{searchQuery || t.ciSearchLog}</span>
-          <input
-            ref={inputRef}
-            className="adl-github-search__input"
-            type="search"
-            placeholder={t.ciSearchLog}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </label>
       </div>
       {filteredJobs.length > 0 ? (
         <div className="adl-github-section" style={{ paddingTop: 6 }}>
