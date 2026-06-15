@@ -177,6 +177,11 @@ export function BookmarkToFolderDialog({
   }, []);
 
   useEffect(() => {
+    if (!open) {
+      subCardsRef.current.forEach((el) => el.remove());
+      subCardsRef.current = [];
+      return;
+    }
     if (open) {
       const all: string[] = [];
       const collect = (nodes: FileTreeRenderableNode[]) => {
