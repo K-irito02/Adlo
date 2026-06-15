@@ -105,13 +105,30 @@ function buildFolderNode(
 export function buildWorkspaceCategoryTree(
   workspaces: RecentWorkspaceEntry[],
   browserTabs: BrowserTabState[],
-  tabFolders: TabFolderState[]
+  tabFolders: TabFolderState[],
+  workspaceBookmarks: Record<string, string[]> = {}
 ): BrowserTreeNode[] {
   return workspaces.map((ws) => {
     const wsTabs = browserTabs.filter((t) => t.workspaceId === ws.id);
     const tabNodes: BrowserTreeNode[] = wsTabs.map((tab) =>
       buildTabNode(tab, ws.id, `ws-${ws.id}-${tab.id}`)
     );
+
+    // 添加工作区级别的书签标签
+    const bookmarkedTabIds = workspaceBookmarks[ws.id] || [];
+    const bookmarkNodes: BrowserTreeNode[] = bookmarkedTabIds
+      .map((tabId) => {
+        const tab = browserTabs.find((t) => t.id === tabId);
+        if (!tab) {
+          return null;
+        }
+        // 避免重复添加已存在的标签
+        if (wsTabs.some((t) => t.id === tabId)) {
+          return null;
+        }
+        return buildTabNode(tab, ws.id, `ws-bookmark-${ws.id}-${tabId}`);
+      })
+      .filter(Boolean) as BrowserTreeNode[];
 
     const wsRootFolders = tabFolders.filter(
       (f) => f.parentType === 'workspace' && f.parentId === ws.id
@@ -124,7 +141,7 @@ export function buildWorkspaceCategoryTree(
       path: `workspace:${ws.id}`,
       name: ws.name || ws.path,
       kind: 'directory',
-      children: [...tabNodes, ...folderNodes],
+      children: [...tabNodes, ...bookmarkNodes, ...folderNodes],
       nodeType: 'workspace',
       workspaceId: ws.id,
     };
@@ -226,6 +243,7 @@ export function useBrowserTreeData(
   browserTabs: BrowserTabState[],
   browserTabFolders: TabFolderState[],
   browserHistory: BrowserHistoryState[],
+  browserWorkspaceBookmarks: Record<string, string[]>,
   labels: {
     workspaceCategory: string;
     userFolderCategory: string;
@@ -233,8 +251,14 @@ export function useBrowserTreeData(
   }
 ): UseBrowserTreeDataResult {
   const workspaceNodes = useMemo(
-    () => buildWorkspaceCategoryTree(workspaces, browserTabs, browserTabFolders),
-    [workspaces, browserTabs, browserTabFolders]
+    () =>
+      buildWorkspaceCategoryTree(
+        workspaces,
+        browserTabs,
+        browserTabFolders,
+        browserWorkspaceBookmarks
+      ),
+    [workspaces, browserTabs, browserTabFolders, browserWorkspaceBookmarks]
   );
 
   const workspaceCategory: BrowserCategoryState = useMemo(

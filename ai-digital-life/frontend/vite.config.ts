@@ -68,6 +68,7 @@ export default defineConfig({
       "@features": path.resolve(__dirname, "src/app/features"),
       "@stores": path.resolve(__dirname, "src/app/stores"),
       "@components": path.resolve(__dirname, "src/app/components"),
+      "@root": path.resolve(__dirname, "src"),
     },
   },
   server: {

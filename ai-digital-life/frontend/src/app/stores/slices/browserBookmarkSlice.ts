@@ -10,16 +10,24 @@ export interface BrowserBookmark {
 
 const BROWSER_BOOKMARKS_KEY = 'adl-ui:browser-bookmarks';
 const BROWSER_TAB_FOLDERS_KEY = 'adl-ui:browser-tab-folders';
+const BROWSER_WORKSPACE_BOOKMARKS_KEY = 'adl-ui:browser-workspace-bookmarks';
 
 const { scheduleWrite } = createDebouncedWrite(50);
 
 export const BROWSER_BOOKMARKS_STORAGE_KEY = BROWSER_BOOKMARKS_KEY;
+export const BROWSER_WORKSPACE_BOOKMARKS_STORAGE_KEY = BROWSER_WORKSPACE_BOOKMARKS_KEY;
 
 export interface BrowserBookmarkSlice {
   browserBookmarks: BrowserBookmark[];
+  browserWorkspaceBookmarks: Record<string, string[]>;
 
   browserToggleBookmark: (input?: { url?: string; title?: string }) => void;
-  browserBookmarkTab: (tabId: string, folderId?: string, newFolderName?: string) => void;
+  browserBookmarkTab: (
+    tabId: string,
+    folderId?: string,
+    newFolderName?: string,
+    workspaceId?: string
+  ) => void;
 }
 
 export const createBrowserBookmarkSlice = (
@@ -27,6 +35,7 @@ export const createBrowserBookmarkSlice = (
   _get: () => StoreState
 ): BrowserBookmarkSlice => ({
   browserBookmarks: [],
+  browserWorkspaceBookmarks: {},
 
   browserToggleBookmark: (input?: { url?: string; title?: string }) => {
     set((state) => {
@@ -41,7 +50,10 @@ export const createBrowserBookmarkSlice = (
         : [...state.browserBookmarks, { url, title }];
 
       let nextFolders = state.browserTabFolders;
+      let nextWorkspaceBookmarks = state.browserWorkspaceBookmarks;
+
       if (exists && active) {
+        // 从文件夹中移除
         nextFolders = state.browserTabFolders.map((folder) => {
           if (folder.tabs && folder.tabs.includes(active.id)) {
             return {
@@ -52,14 +64,32 @@ export const createBrowserBookmarkSlice = (
           return folder;
         });
         scheduleWrite(BROWSER_TAB_FOLDERS_KEY, nextFolders);
+
+        // 从工作区顶级目录中移除
+        nextWorkspaceBookmarks = { ...state.browserWorkspaceBookmarks };
+        for (const wsId of Object.keys(nextWorkspaceBookmarks)) {
+          if (nextWorkspaceBookmarks[wsId].includes(active.id)) {
+            nextWorkspaceBookmarks[wsId] = nextWorkspaceBookmarks[wsId].filter(
+              (tabId) => tabId !== active.id
+            );
+            if (nextWorkspaceBookmarks[wsId].length === 0) {
+              delete nextWorkspaceBookmarks[wsId];
+            }
+          }
+        }
+        scheduleWrite(BROWSER_WORKSPACE_BOOKMARKS_KEY, nextWorkspaceBookmarks);
       }
 
       scheduleWrite(BROWSER_BOOKMARKS_KEY, nextBookmarks);
-      return { browserBookmarks: nextBookmarks, browserTabFolders: nextFolders };
+      return {
+        browserBookmarks: nextBookmarks,
+        browserTabFolders: nextFolders,
+        browserWorkspaceBookmarks: nextWorkspaceBookmarks,
+      };
     });
   },
 
-  browserBookmarkTab: (tabId, folderId, newFolderName) => {
+  browserBookmarkTab: (tabId, folderId, newFolderName, workspaceId) => {
     set((state) => {
       const tab = state.browserTabs.find((t) => t.id === tabId);
       if (!tab) {
@@ -107,9 +137,26 @@ export const createBrowserBookmarkSlice = (
         });
       }
 
+      // 如果指定了 workspaceId，将标签添加到工作区级别的书签中
+      let nextWorkspaceBookmarks = state.browserWorkspaceBookmarks;
+      if (workspaceId) {
+        const existingWsTabs = state.browserWorkspaceBookmarks[workspaceId] || [];
+        if (!existingWsTabs.includes(tabId)) {
+          nextWorkspaceBookmarks = {
+            ...state.browserWorkspaceBookmarks,
+            [workspaceId]: [...existingWsTabs, tabId],
+          };
+          scheduleWrite(BROWSER_WORKSPACE_BOOKMARKS_KEY, nextWorkspaceBookmarks);
+        }
+      }
+
       scheduleWrite(BROWSER_TAB_FOLDERS_KEY, nextFolders);
       scheduleWrite(BROWSER_BOOKMARKS_KEY, nextBookmarks);
-      return { browserTabFolders: nextFolders, browserBookmarks: nextBookmarks };
+      return {
+        browserTabFolders: nextFolders,
+        browserBookmarks: nextBookmarks,
+        browserWorkspaceBookmarks: nextWorkspaceBookmarks,
+      };
     });
   },
 });

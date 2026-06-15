@@ -98,19 +98,21 @@ export {
   createCommunicateSlice,
 } from './slices/communicateSlice';
 
-// GitHub CI 配置切片
+// GitHub Repo 切片（工作区配置、CI 目录管理、Pin/Unpin）
 export {
-  type GitHubCiConfigSlice,
+  type GitHubRepoSlice,
   type GitWorkspaceCiConfig,
   type GitHubCiFolderState,
-  createGitHubCiConfigSlice,
-} from './slices/githubCiConfigSlice';
+  createGitHubRepoSlice,
+} from './slices/githubRepoSlice';
 
-// GitHub CI 状态切片
+// GitHub Tree 切片（树导航、展开/折叠）
 export {
-  type GitHubCiStatusSlice,
-  type GitHubSection,
+  type GitHubTreeSlice,
   type GitHubTreeNodeType,
   type GitHubTreeNode,
-  createGitHubCiStatusSlice,
-} from './slices/githubCiStatusSlice';
+  createGitHubTreeSlice,
+} from './slices/githubTreeSlice';
+
+// GitHub 切片（CI 配置 + CI 状态、分支/提交/远程操作）
+export { type GitHubSlice, type GitHubSection, createGitHubSlice } from './slices/githubSlice';

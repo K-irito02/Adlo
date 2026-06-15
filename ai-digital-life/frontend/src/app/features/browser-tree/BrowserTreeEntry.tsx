@@ -1,14 +1,13 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { IconPlus, IconTrash, IconMoreVertical } from '../../icons';
-import { FileTree } from '../file-tree';
 import { TooltipSimple } from '../../components/Tooltip';
 import type { CopyDict } from '../../i18n';
 import type { BrowserTreeNode, BrowserCategoryType } from './types';
-import { resolveChildCount } from './useBrowserTreeData';
 import type { SectionCallbacks } from './BrowserCategorySection';
 import { useTCopy } from '../../i18n/useTCopy';
 import { MultiTreeEntryShell } from '../tree/MultiTreeEntryShell';
+import { BrowserEntrySubEntries } from './BrowserEntrySubEntries';
 
 interface BrowserTreeEntryProps {
   node: BrowserTreeNode;
@@ -180,106 +179,6 @@ function getEntryMoreMenuItems(
   return items;
 }
 
-function getChildNodeHoverButtons(
-  nodeType: string,
-  categoryType: BrowserCategoryType,
-  t: CopyDict
-): Array<{ id: string; label: string; icon: React.ReactNode }> {
-  if (categoryType === 'history') {
-    if (nodeType === 'day') {
-      return [
-        {
-          id: 'delete-all-tabs',
-          label: t.browserContextDeleteAllTabs,
-          icon: <IconTrash size={12} decorative />,
-        },
-        {
-          id: 'more',
-          label: t.browserContextMore,
-          icon: <IconMoreVertical size={12} decorative />,
-        },
-      ];
-    }
-    return [];
-  }
-
-  if (nodeType === 'folder') {
-    return [
-      {
-        id: 'create-tab',
-        label: t.browserContextCreateTab,
-        icon: <IconPlus size={12} decorative />,
-      },
-      {
-        id: 'delete-all-tabs',
-        label: t.browserContextDeleteAllTabs,
-        icon: <IconTrash size={12} decorative />,
-      },
-      { id: 'more', label: t.browserContextMore, icon: <IconMoreVertical size={12} decorative /> },
-    ];
-  }
-
-  return [];
-}
-
-function getChildNodeMoreMenuItems(
-  nodeType: string,
-  categoryType: BrowserCategoryType,
-  nodePath: string,
-  callbacks: SectionCallbacks,
-  t: CopyDict
-): Array<{ id: string; label: string; danger?: boolean; action: () => void }> {
-  if (categoryType === 'history' && nodeType === 'day') {
-    return [
-      {
-        id: 'open-all-tabs',
-        label: t.browserContextOpenAllNewTabs,
-        action: () => callbacks.onOpenAllInNewTabs(categoryType, nodePath),
-      },
-      {
-        id: 'delete-all-tabs',
-        label: t.browserContextDeleteAllTabs,
-        action: () => callbacks.onDeleteAllChildTabs(categoryType, nodePath),
-      },
-      {
-        id: 'delete-this-dir',
-        label: t.browserContextDeleteDir,
-        danger: true,
-        action: () => callbacks.onDeleteDirectory(nodePath),
-      },
-    ];
-  }
-
-  if (nodeType === 'folder') {
-    const folderId = nodePath.startsWith('folder:') ? nodePath.slice('folder:'.length) : '';
-    return [
-      {
-        id: 'open-all-tabs',
-        label: t.browserContextOpenAllNewTabs,
-        action: () => callbacks.onOpenAllInNewTabs(categoryType, nodePath),
-      },
-      {
-        id: 'rename',
-        label: t.browserContextRename,
-        action: () => callbacks.onRenameDirectory(folderId),
-      },
-      {
-        id: 'delete-all-tabs',
-        label: t.browserContextDeleteAllTabs,
-        action: () => callbacks.onDeleteAllChildTabs(categoryType, nodePath),
-      },
-      {
-        id: 'delete-this-dir',
-        label: t.browserContextDeleteDir,
-        danger: true,
-        action: () => callbacks.onDeleteDirectory(folderId),
-      },
-    ];
-  }
-
-  return [];
-}
-
 export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
   node,
   categoryType,
@@ -296,18 +195,12 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
   const isSelected = selectedTreePath === node.path;
 
   const handleHeaderClick = useCallback(() => {
-    // 点击顶级目录同时触发展开/折叠
     onTogglePath(node.path);
     onSelectTreePath(node.path);
   }, [node.path, onSelectTreePath, onTogglePath]);
+
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
-  const [childMenuState, setChildMenuState] = useState<{
-    x: number;
-    y: number;
-    nodePath: string;
-    nodeType: string;
-  } | null>(null);
 
   const isExpanded = expandedPaths[node.path] ?? false;
   const isFlatMode = browserViewMode === 'list' || browserViewMode === 'all';
@@ -354,22 +247,6 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
     };
   }, [menuOpen, menuId]);
 
-  useEffect(() => {
-    if (!childMenuState) {
-      return;
-    }
-    const handler = (e: MouseEvent) => {
-      const target = e.target as Node;
-      const menuEl = document.querySelector(`[data-menu-id="browser-child-menu"]`);
-      if (menuEl?.contains(target)) {
-        return;
-      }
-      setChildMenuState(null);
-    };
-    window.addEventListener('mousedown', handler);
-    return () => window.removeEventListener('mousedown', handler);
-  }, [childMenuState]);
-
   const count = counts.get(node.path) ?? 0;
 
   const entryBtns = getEntryHoverButtons(node.nodeType, categoryType, t);
@@ -379,11 +256,6 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
     node.path,
     callbacks,
     t
-  );
-
-  const renderChildCount = useCallback(
-    (childNode: BrowserTreeNode) => resolveChildCount(counts, childNode),
-    [counts]
   );
 
   const handleEntryBtnClick = useCallback(
@@ -405,83 +277,6 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
       }
     },
     [callbacks, categoryType, node]
-  );
-
-  const renderChildMeta = useCallback(
-    (childNode: BrowserTreeNode) => {
-      const btns = getChildNodeHoverButtons(childNode.nodeType, categoryType, t);
-      if (btns.length === 0) {
-        return null;
-      }
-      return (
-        <span className="adl-browser-node__actions">
-          {btns.map((btn) => (
-            <TooltipSimple key={btn.id} content={btn.label} placement="top">
-              <button
-                type="button"
-                className="adl-icon-btn adl-icon-btn--xs"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (btn.id === 'more') {
-                    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                    setChildMenuState({
-                      x: rect.right + 4,
-                      y: rect.top,
-                      nodePath: childNode.path,
-                      nodeType: childNode.nodeType,
-                    });
-                  } else if (btn.id === 'create-tab') {
-                    callbacks.onCreateTab(childNode.workspaceId, childNode.folderId);
-                  } else if (btn.id === 'delete-all-tabs') {
-                    callbacks.onDeleteAllChildTabs(categoryType, childNode.path);
-                  }
-                }}
-                aria-label={btn.label}
-              >
-                {btn.icon}
-              </button>
-            </TooltipSimple>
-          ))}
-        </span>
-      );
-    },
-    [categoryType, callbacks, t]
-  );
-
-  const handleChildClick = useCallback(
-    (path: string) => {
-      // 点击子目录时更新选中状态，并且触发展开/折叠
-      onSelectTreePath(path);
-      onTogglePath(path);
-    },
-    [onSelectTreePath, onTogglePath]
-  );
-
-  const handleChildOpenFile = useCallback(
-    (path: string) => {
-      onSelectTreePath(path);
-      onOpenFile(path);
-    },
-    [onSelectTreePath, onOpenFile]
-  );
-
-  const handleChildContextMenu = useCallback(
-    (childNode: BrowserTreeNode) => {
-      const items = getChildNodeMoreMenuItems(
-        childNode.nodeType,
-        categoryType,
-        childNode.path,
-        callbacks,
-        t
-      );
-      return items.map((item) => ({
-        id: item.id,
-        label: item.label,
-        danger: item.danger,
-        action: () => item.action(),
-      }));
-    },
-    [categoryType, callbacks, t]
   );
 
   const handleExpandBtnClick = useCallback(
@@ -516,6 +311,14 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
       }
     },
     [onSelectTreePath, onOpenFile, onTogglePath]
+  );
+
+  const handleMenuItemClick = useCallback(
+    (action: () => void) => () => {
+      action();
+      setMenuOpen(false);
+    },
+    []
   );
 
   const flatChildren =
@@ -578,22 +381,6 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
       </div>
     ) : null;
 
-  const handleMenuItemClick = useCallback(
-    (action: () => void) => () => {
-      action();
-      setMenuOpen(false);
-    },
-    []
-  );
-
-  const handleChildMenuClick = useCallback(
-    (action: () => void) => () => {
-      action();
-      setChildMenuState(null);
-    },
-    []
-  );
-
   const actionButtonsSlot = (
     <>
       {entryBtns.map((btn) => (
@@ -639,54 +426,6 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
         )
       : null;
 
-  const fileTreeChildren =
-    isExpanded && node.children.length > 0 && !isFlatMode ? (
-      <div className="adl-browser-entry__tree">
-        <FileTree<BrowserTreeNode>
-          nodes={node.children}
-          selectedFilePath={selectedTreePath ?? undefined}
-          expandedPaths={expandedPaths}
-          onToggle={handleChildClick}
-          onOpenFile={handleChildOpenFile}
-          renderMeta={renderChildMeta}
-          renderCount={renderChildCount}
-          getContextMenuItems={handleChildContextMenu}
-          expandLabel={t.expand}
-          collapseLabel={t.collapse}
-        />
-      </div>
-    ) : null;
-
-  const childMenuSlot = childMenuState
-    ? createPortal(
-        <div
-          className="adl-multitree-entry__menu"
-          role="menu"
-          data-menu-id="browser-child-menu"
-          style={{ top: childMenuState.y, left: childMenuState.x }}
-        >
-          {getChildNodeMoreMenuItems(
-            childMenuState.nodeType,
-            categoryType,
-            childMenuState.nodePath,
-            callbacks,
-            t
-          ).map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={`adl-multitree-entry__menu-item${item.danger ? ' is-danger' : ''}`}
-              role="menuitem"
-              onClick={handleChildMenuClick(item.action)}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>,
-        document.body
-      )
-    : null;
-
   return (
     <MultiTreeEntryShell
       label={node.name}
@@ -703,9 +442,22 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
       actionButtonsSlot={actionButtonsSlot}
       entryMenuSlot={entryMenuSlot}
       hasChildren={node.children.length > 0}
-      extraContent={childMenuSlot}
     >
-      {isFlatMode ? flatChildren : fileTreeChildren}
+      {isFlatMode ? (
+        flatChildren
+      ) : (
+        <BrowserEntrySubEntries
+          node={node}
+          categoryType={categoryType}
+          expandedPaths={expandedPaths}
+          selectedTreePath={selectedTreePath}
+          onSelectTreePath={onSelectTreePath}
+          onTogglePath={onTogglePath}
+          onOpenFile={onOpenFile}
+          callbacks={callbacks}
+          counts={counts}
+        />
+      )}
     </MultiTreeEntryShell>
   );
 });

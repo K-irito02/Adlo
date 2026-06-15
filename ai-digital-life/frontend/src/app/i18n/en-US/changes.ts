@@ -12,7 +12,7 @@ export const changesEn = {
   patchReview: 'Patch review',
   patchPreviousChange: 'Previous change',
   patchNextChange: 'Next change',
-  patchJumpToContext: 'Jump to file context',
+  patchJumpToContext: 'Jump to context',
   foldingCollapseToLine: 'Collapse to line {line}',
   foldingExpandToLine: 'Expand to line {line}',
   changesStageAll: 'Stage All',

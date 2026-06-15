@@ -79,6 +79,9 @@ export function BrowserPanel(props: BrowserPanelProps) {
   const recentWorkspaces = useAppStore(useShallow((state) => state.recentWorkspaces));
   const browserBookmarks = useAppStore(useShallow((state) => state.browserBookmarks));
   const browserHistory = useAppStore(useShallow((state) => state.browserHistory));
+  const browserWorkspaceBookmarks = useAppStore(
+    useShallow((state) => state.browserWorkspaceBookmarks)
+  );
 
   const navigatorCollapsed = navigatorCollapsedByTool.browser ?? false;
 
@@ -337,14 +340,22 @@ export function BrowserPanel(props: BrowserPanelProps) {
         showToast(t.browserSelectDirFirst, 'warning');
         return;
       }
-      const folderId = folderPath.startsWith('folder:') ? folderPath.slice('folder:'.length) : null;
-      if (!folderId) {
+
+      if (folderPath.startsWith('folder:')) {
+        // 选择了普通文件夹
+        const folderId = folderPath.slice('folder:'.length);
+        useAppStore.getState().browserBookmarkTab(activeTab.id, folderId);
+        showToast(t.browserBookmarkAddedToast, 'success');
+        setBookmarkDialogOpen(false);
+      } else if (folderPath.startsWith('workspace:')) {
+        // 选择了工作区目录，直接收藏到工作区顶级目录
+        const workspaceId = folderPath.slice('workspace:'.length);
+        useAppStore.getState().browserBookmarkTab(activeTab.id, undefined, undefined, workspaceId);
+        showToast(t.browserBookmarkAddedToast, 'success');
+        setBookmarkDialogOpen(false);
+      } else {
         showToast(t.browserSelectDirFirst, 'warning');
-        return;
       }
-      useAppStore.getState().browserBookmarkTab(activeTab.id, folderId);
-      showToast(t.browserBookmarkAddedToast, 'success');
-      setBookmarkDialogOpen(false);
     },
     [activeTab, showToast, t]
   );
@@ -724,6 +735,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
               browserTabs={browserTabs}
               browserTabFolders={browserTabFolders}
               browserHistory={browserHistory}
+              browserWorkspaceBookmarks={browserWorkspaceBookmarks}
               tabTreeExpanded={tabTreeExpanded}
               selectedTreePath={selectedTreePath}
               onSelectTreePath={handleSelectTreePath}
@@ -853,7 +865,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
             <BrowserLandingPage t={t} />
           ) : (
             <>
-              {!isTauriShell() && activeTab && isBrowserVisible && (
+              {!isTauriShell() && activeTab && (
                 <iframe
                   ref={iframeRef}
                   src={activeTab.url}
@@ -862,6 +874,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
                   onLoad={handleIframeLoad}
                   onError={handleIframeError}
                   sandbox="allow-scripts allow-forms allow-popups allow-modals allow-top-navigation allow-same-origin"
+                  style={{ display: isBrowserVisible ? undefined : 'none' }}
                 />
               )}
 

@@ -1,5 +1,8 @@
 import type { CopyDict } from '../../i18n';
 import type { GitHubCategoryType } from './types';
+import type { ChildMenuItem } from '../tree/treeEntryMenus';
+
+export type { ChildMenuItem } from '../tree/treeEntryMenus';
 
 export const SUB_ENTRY_ICONS: Record<string, React.ReactNode> = {
   overview: (
@@ -24,20 +27,6 @@ export const SUB_ENTRY_ICONS: Record<string, React.ReactNode> = {
     </svg>
   ),
 };
-
-export type ChildMenuItem =
-  | {
-      id: string;
-      label: string;
-      danger?: boolean;
-      action: () => void;
-      hasHint?: boolean;
-      hint?: string;
-    }
-  | {
-      id: string;
-      separator: true;
-    };
 
 export function getChildNodeMoreMenuItems(
   nodeType: string,

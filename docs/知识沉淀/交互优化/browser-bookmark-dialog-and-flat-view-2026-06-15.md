@@ -124,12 +124,61 @@ BrowserPanel (bookmarkDialogOpen 状态)
 
 **问题**：不同 toast 卡片高度不一致（"收藏成功"与其他 toast）。
 
-**根因**：`display: inline-flex` 的高度由内容决定，不同 SVG 渲染方式（warning 用 `class="adl-toast__icon"`，success 用 `class="icon icon--sm"`）可能导致微小的行盒差异。
+**根因**：图标包裹 `<span>` 默认 `display: inline`，其高度由 `line-height` 决定而非内容（SVG）。不同 SVG 图标在 inline 容器中的基线对齐行为不同，造成视觉高度差异。
 
 **修复**：
-- `height: 36px; box-sizing: border-box; overflow: hidden` 强制固定高度
-- `overflow: hidden` 防止任何溢出影响视觉高度
-- 移除 SVG 上无用的 `vertical-align: middle`（flex 容器中无效）
+- 添加 `className="adl-toast__icon"` 让图标包裹 `<span>` 使用专用 CSS 类
+- `.adl-toast__icon`：`display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px` — 固定尺寸的 flex 容器，消除 inline 布局带来的不确定性
+- `.adl-toast__icon svg`：`display: block` — 确保 SVG 是块级元素，不受基线对齐影响
 
-**知识要点**：Toast 使用 `position: fixed; left: 50%; transform: translateX(-50%)` 居中，通过 `TOAST_HEIGHT` 常量（36px）计算 `top` 偏移。`TOAST_HEIGHT` 常量必须与 CSS `height` 保持一致。
+**知识要点**：
+- Toast 使用 `position: fixed; left: 50%; transform: translateX(-50%)` 居中
+- 通过 `TOAST_HEIGHT` 常量（36px）计算 `top` 偏移，必须与 CSS `height` 保持一致
+- flex 容器中的图标包裹元素必须显式设置 `display: inline-flex` + 固定宽高，避免 inline 元素的 `line-height` 干扰
+- `height: 36px; box-sizing: border-box; overflow: hidden` 强制固定高度
+
+---
+
+## 后续修复（2026-06-16）
+
+### 9. 工作区顶级目录直接收藏
+
+**问题**：BookmarkToFolderDialog 中，选择"工作区目录"下的"顶级目录（一级目录）"并点击"加入此目录"时，提示"请选中一个目录"。
+
+**根因**：`handleBookmarkAddToFolder` 只处理 `folder:` 前缀的路径，`workspace:` 前缀被忽略。
+
+**解决方案**：新增独立的数据层 `browserWorkspaceBookmarks: Record<string, string[]>`，让工作区直接持有书签标签 ID 列表。
+
+#### 新增状态
+
+```typescript
+// browserBookmarkSlice
+browserWorkspaceBookmarks: Record<string, string[]>;
+```
+
+以 `workspaceId` 为 key，标签 ID 数组为 value。持久化使用独立的 localStorage key：
+```typescript
+BROWSER_WORKSPACE_BOOKMARKS_STORAGE_KEY = 'adl-ui:browser-workspace-bookmarks'
+```
+
+#### 数据流
+
+```
+BrowserPanel.handleBookmarkAddToFolder(folderPath)
+  ├── folderPath.startsWith('folder:')  → browserBookmarkTab(tabId, folderId)     // 普通目录
+  └── folderPath.startsWith('workspace:') → browserBookmarkTab(tabId, undefined, undefined, workspaceId)  // 工作区顶级目录
+```
+
+#### 核心变更
+
+| 文件 | 变更 |
+|------|------|
+| `browserBookmarkSlice.ts` | 新增 `browserWorkspaceBookmarks` 状态 + `browserBookmarkTab` 新增 `workspaceId` 参数 |
+| `BrowserPanel.tsx` | `handleBookmarkAddToFolder` 识别 `workspace:` 前缀并传递 `workspaceId` |
+| `useBrowserTreeData.ts` | `buildWorkspaceCategoryTree` 接收 `workspaceBookmarks` 参数，在目录下渲染书签标签（避免与已打开标签重复） |
+| `browserSlice.ts` | 持久化加载 `browserWorkspaceBookmarks` |
+
+#### 取消收藏的同步移除
+
+`browserToggleBookmark` 在取消收藏时，同时从 `browserTabFolders` 和 `browserWorkspaceBookmarks` 中移除标签，确保两种收藏方式的行为一致。
 

@@ -57,7 +57,7 @@ export function WorkflowsView({ snapshot }: { snapshot: CiStatusSnapshot | null 
           </button>
         ))}
       </div>
-      <div style={{ padding: '6px 12px 0' }}>
+      <div className="adl-github-jobs__list">
         {jobs.map((job) => {
           const total = job.stepResults.length;
           const successCount = job.stepResults.filter((s) => s.conclusion === 'success').length;
@@ -99,7 +99,7 @@ export function WorkflowsView({ snapshot }: { snapshot: CiStatusSnapshot | null 
           );
         })}
         {jobs.length === 0 && (
-          <div className="adl-github-empty" style={{ padding: '24px 16px' }}>
+          <div className="adl-github-empty adl-github-empty--compact">
             <p>{t.ciNoWorkflowData}</p>
           </div>
         )}

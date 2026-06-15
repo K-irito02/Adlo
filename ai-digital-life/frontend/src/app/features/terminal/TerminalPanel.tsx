@@ -149,15 +149,12 @@ export function TerminalPanel(props: TerminalPanelProps) {
     <div className="adl-tool-panel adl-tool-panel--terminal">
       <div className="adl-tool-context adl-tool-context--files" aria-label={t.toolTerminal}>
         <div className="adl-tool-context__group adl-tool-context__group--grow adl-tool-context__group--files">
-          <TooltipSimple
-            content={navigatorCollapsed ? t.panelToggleRight : t.panelToggleLeft}
-            placement="top"
-          >
+          <TooltipSimple content={t.panelNavigatorToggle} placement="top">
             <button
               type="button"
               className="adl-tool-context__iconbtn adl-tool-context__iconbtn--leading"
               onClick={() => terminalActions.toggleNavigator('terminal')}
-              aria-label={navigatorCollapsed ? t.panelToggleRight : t.panelToggleLeft}
+              aria-label={t.panelNavigatorToggle}
             >
               <IconPanelLeftClose size={14} decorative />
             </button>

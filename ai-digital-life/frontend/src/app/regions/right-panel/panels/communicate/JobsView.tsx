@@ -72,7 +72,7 @@ export function JobsView({
           </ul>
         </div>
       ) : (
-        <div className="adl-github-empty" style={{ padding: '24px 16px' }}>
+        <div className="adl-github-empty adl-github-empty--compact">
           <p>{t.ciNoJobData}</p>
         </div>
       )}

@@ -83,7 +83,7 @@ export function AddManualPortDialog({ open, t, onConfirm, onCancel }: AddManualP
             ✕
           </button>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '0 0 8px' }}>
+        <div className="adl-prompt-modal__body">
           <div>
             <div
               style={{

@@ -32,6 +32,7 @@ interface BrowserTabTreeProps {
   browserTabs: BrowserTabState[];
   browserTabFolders: TabFolderState[];
   browserHistory: BrowserHistoryState[];
+  browserWorkspaceBookmarks: Record<string, string[]>;
   tabTreeExpanded: Record<string, boolean>;
   selectedTreePath: string | null;
   onSelectTreePath: (path: string | null) => void;
@@ -46,6 +47,7 @@ export function BrowserTabTree({
   browserTabs,
   browserTabFolders,
   browserHistory,
+  browserWorkspaceBookmarks,
   tabTreeExpanded,
   selectedTreePath,
   onSelectTreePath,
@@ -59,6 +61,7 @@ export function BrowserTabTree({
     browserTabs,
     browserTabFolders,
     browserHistory,
+    browserWorkspaceBookmarks,
     labels
   );
 

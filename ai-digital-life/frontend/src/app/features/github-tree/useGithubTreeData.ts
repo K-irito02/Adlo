@@ -3,7 +3,7 @@ import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
 import type {
   GitWorkspaceCiConfig,
   GitHubCiFolderState,
-} from '../../stores/slices/githubCiConfigSlice';
+} from '../../stores/slices/githubRepoSlice';
 import type { GitHubCategoryState, GitHubTreeNode } from './types';
 
 const SUB_ENTRY_DEFS = [

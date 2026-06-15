@@ -7,6 +7,7 @@ export const commonZh = {
   panelToggleLeft: '切换左侧边栏',
   panelToggleRight: '切换右侧面板',
   panelToggleBoth: '切换两侧面板',
+  panelNavigatorToggle: '右侧面板-切换左侧边栏',
   rightPanelExpand: '扩大右侧边栏',
   rightPanelRestore: '还原右侧边栏',
   windowMinimize: '最小化',

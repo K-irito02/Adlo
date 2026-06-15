@@ -3,7 +3,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../../../stores/slicedStore';
 import { useGitPushAutoRefresh } from '../../../features/terminal/useGitPushAutoRefresh';
 import type { CiStatusSnapshot } from '@ai-digital-life/kernel';
-import type { GitWorkspaceCiConfig } from '../../../stores/slices/githubCiConfigSlice';
+import type { GitWorkspaceCiConfig } from '../../../stores/slices/githubRepoSlice';
 
 export interface UseCIPanelPropsResult {
   gitHubWorkspaceConfigs: Record<string, GitWorkspaceCiConfig>;

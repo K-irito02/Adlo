@@ -18,7 +18,8 @@
       "@app/*": ["src/app/*"],
       "@features/*": ["src/app/features/*"],
       "@stores/*": ["src/app/stores/*"],
-      "@components/*": ["src/app/components/*"]
+      "@components/*": ["src/app/components/*"],
+      "@root/*": ["src/*"]
     }
   },
   "include": ["src"]

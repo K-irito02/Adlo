@@ -38,11 +38,17 @@
   pointer-events: auto;
 }
 
-.adl-toast svg,
 .adl-toast__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
   width: 16px;
   height: 16px;
+}
+
+.adl-toast__icon svg {
+  display: block;
 }
 
 .adl-toast--success svg,

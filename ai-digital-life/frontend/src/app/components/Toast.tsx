@@ -25,13 +25,9 @@ const TOAST_GAP = 8;
 
 const TOAST_ICONS: Record<ToastType, IconName> = {
   success: 'check-circle',
-  warning: 'check-circle',
+  warning: 'alert-triangle',
   error: 'x-circle',
 };
-
-// 自定义圆形警告图标 SVG（圆形里带感叹号）
-const WARNING_ICON_SVG =
-  '<svg class="adl-toast__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
 
 export function Toast({
   message,
@@ -59,10 +55,7 @@ export function Toast({
     };
   }, [duration, onClose]);
 
-  const iconHtml =
-    type === 'warning'
-      ? WARNING_ICON_SVG
-      : renderIcon(TOAST_ICONS[type], { size: 'sm', decorative: true }).value;
+  const iconHtml = renderIcon(TOAST_ICONS[type], { size: 'sm', decorative: true }).value;
   const top = TOAST_BASE_TOP + position * (TOAST_HEIGHT + TOAST_GAP);
 
   return createPortal(
@@ -72,7 +65,7 @@ export function Toast({
       role="alert"
       aria-live="polite"
     >
-      <span dangerouslySetInnerHTML={{ __html: iconHtml }} />
+      <span className="adl-toast__icon" dangerouslySetInnerHTML={{ __html: iconHtml }} />
       <span className="adl-toast__message">{message}</span>
     </div>,
     document.body

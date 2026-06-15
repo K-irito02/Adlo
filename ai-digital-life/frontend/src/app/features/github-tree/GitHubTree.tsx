@@ -7,7 +7,7 @@ import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
 import type {
   GitWorkspaceCiConfig,
   GitHubCiFolderState,
-} from '../../stores/slices/githubCiConfigSlice';
+} from '../../stores/slices/githubRepoSlice';
 import { useTCopy } from '../../i18n/useTCopy';
 
 interface GitHubTreeProps {

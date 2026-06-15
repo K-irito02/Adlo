@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react'
 import { List, useListRef } from 'react-window';
 import { useAppStore } from '@stores/slicedStore';
 import type { CiJobSummary } from '@ai-digital-life/kernel';
-import type { DigitalLifeBridge } from '../../../../../shared/ipc';
+import type { DigitalLifeBridge } from '@root/shared/ipc';
 import { AnsiUp } from 'ansi_up';
 import { useTCopy } from '@app/i18n/useTCopy';
 import { TooltipSimple } from '@components/Tooltip';

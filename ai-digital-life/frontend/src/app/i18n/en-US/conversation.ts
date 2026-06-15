@@ -44,7 +44,7 @@ export const conversationEn = {
   retry: 'Retry',
   waiting: 'Waiting',
   agentChangeAnnotations: 'Agent annotations',
-  refreshModelHealth: 'Refresh Model Health',
+  refreshModelHealth: 'Refresh health',
   currentTask: 'Current Run',
   commandRunner: 'Command Runner',
   plan: 'Plan',

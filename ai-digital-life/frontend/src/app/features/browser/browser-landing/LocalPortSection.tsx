@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '../../../stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { createUiId } from '../../../stores/shared';
-import { isTauriShell } from '../../../../tauri-bridge';
+import { isTauriShell } from '@root/tauri-bridge';
 import type { LocalPort } from '../../../stores/slices/browserSlice';
 import './LocalPortSection.css';
 

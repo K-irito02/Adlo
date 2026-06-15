@@ -19,11 +19,11 @@ export const terminalEn = {
   terminalNoRecentCommands: 'No recent commands yet.',
   terminalPlaceholderNotice:
     'Additional terminal tabs and split panes are high-fidelity UI shells in this release. Only the primary live tab is currently backed by governed command streaming.',
-  terminalMoreActions: 'More terminal actions',
+  terminalMoreActions: 'More actions',
   terminalCopy: 'Copy',
   terminalPaste: 'Paste',
   terminalClear: 'Clear',
-  terminalKillProcess: 'Kill Process',
+  terminalKillProcess: 'Kill process',
   terminalShellNotFound: 'Shell not found. Check terminal output for recovery instructions.',
   terminalStdout: 'stdout',
   terminalStderr: 'stderr',
@@ -50,7 +50,7 @@ export const terminalEn = {
   terminalDefaultProfile: 'Default {profile} terminal',
   terminalRemoveFromView: 'Remove from this view',
   terminalCopyFullPath: 'Copy full path',
-  terminalCopyRelativePath: 'Copy relative path',
+  terminalCopyRelativePath: 'Copy rel. path',
   terminalCollapseAll: 'Collapse all',
   terminalCloseAll: 'Close all',
 } as const;

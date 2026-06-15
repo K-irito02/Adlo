@@ -7,11 +7,16 @@ import { WeChatPanel } from './communicate/WeChatPanel';
 import { EmailPanel } from './communicate/EmailPanel';
 import type { PlatformId } from '../../../stores/slices/communicateSlice';
 import { useTCopy } from '../../../i18n/useTCopy';
+import { IconPanelLeft } from '../../../icons';
+import { TooltipSimple } from '../../../components/Tooltip';
+import { useAppStore } from '../../../stores/slicedStore';
 
 export function CommunicationPanel() {
   const { t } = useTCopy();
   const { activePlatform, onSetActivePlatform } = useCommunicationPanelProps();
   const [hoveredPlatform, setHoveredPlatform] = useState<PlatformId | null>(null);
+  const communicateNavigatorCollapsed = useAppStore((s) => s.communicateNavigatorCollapsed);
+  const toggleCommunicateNavigator = useAppStore((s) => s.toggleCommunicateNavigator);
 
   const PLATFORM_TABS = useMemo<Array<{ id: PlatformId; label: string; icon: React.ReactNode }>>(
     () => [
@@ -77,39 +82,53 @@ export function CommunicationPanel() {
 
   return (
     <div className="adl-communicate">
-      <div className="adl-communicate__platform-tabs" role="tablist">
-        {PLATFORM_TABS.map((tab, index) => {
-          const isHighlighted = activePlatform === tab.id || hoveredPlatform === tab.id;
-          const nextTab = PLATFORM_TABS[index + 1];
-          const shouldShowSeparator =
-            !!nextTab &&
-            isHighlighted &&
-            (activePlatform === nextTab.id || hoveredPlatform === nextTab.id);
-          return (
-            <React.Fragment key={tab.id}>
-              <button
-                type="button"
-                className={`adl-communicate__platform-tab${activePlatform === tab.id ? ' is-active' : ''}`}
-                onClick={() => onSetActivePlatform(tab.id)}
-                role="tab"
-                aria-selected={activePlatform === tab.id}
-                onMouseEnter={() => setHoveredPlatform(tab.id)}
-                onMouseLeave={() =>
-                  setHoveredPlatform((current) => (current === tab.id ? null : current))
-                }
-              >
-                <span className="adl-communicate__platform-tab-icon">{tab.icon}</span>
-                <span className="adl-communicate__platform-tab-label">{tab.label}</span>
-              </button>
-              {index < PLATFORM_TABS.length - 1 ? (
-                <span
-                  className={`adl-communicate__platform-separator${shouldShowSeparator ? ' is-visible' : ''}`}
-                  aria-hidden="true"
-                />
-              ) : null}
-            </React.Fragment>
-          );
-        })}
+      <div className="adl-communicate__header">
+        <TooltipSimple content={t.panelNavigatorToggle} placement="top">
+          <button
+            type="button"
+            className="adl-tool-context__iconbtn adl-tool-context__iconbtn--leading"
+            aria-label={t.panelNavigatorToggle}
+            aria-pressed={!communicateNavigatorCollapsed}
+            onClick={toggleCommunicateNavigator}
+          >
+            <IconPanelLeft size={14} decorative />
+          </button>
+        </TooltipSimple>
+        <span className="adl-communicate__header-separator" aria-hidden="true" />
+        <div className="adl-communicate__platform-tabs" role="tablist">
+          {PLATFORM_TABS.map((tab, index) => {
+            const isHighlighted = activePlatform === tab.id || hoveredPlatform === tab.id;
+            const nextTab = PLATFORM_TABS[index + 1];
+            const shouldShowSeparator =
+              !!nextTab &&
+              isHighlighted &&
+              (activePlatform === nextTab.id || hoveredPlatform === nextTab.id);
+            return (
+              <React.Fragment key={tab.id}>
+                <button
+                  type="button"
+                  className={`adl-communicate__platform-tab${activePlatform === tab.id ? ' is-active' : ''}`}
+                  onClick={() => onSetActivePlatform(tab.id)}
+                  role="tab"
+                  aria-selected={activePlatform === tab.id}
+                  onMouseEnter={() => setHoveredPlatform(tab.id)}
+                  onMouseLeave={() =>
+                    setHoveredPlatform((current) => (current === tab.id ? null : current))
+                  }
+                >
+                  <span className="adl-communicate__platform-tab-icon">{tab.icon}</span>
+                  <span className="adl-communicate__platform-tab-label">{tab.label}</span>
+                </button>
+                {index < PLATFORM_TABS.length - 1 ? (
+                  <span
+                    className={`adl-communicate__platform-separator${shouldShowSeparator ? ' is-visible' : ''}`}
+                    aria-hidden="true"
+                  />
+                ) : null}
+              </React.Fragment>
+            );
+          })}
+        </div>
       </div>
 
       <div className="adl-communicate__surface">

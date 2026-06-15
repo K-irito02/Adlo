@@ -1,6 +1,6 @@
 # 重构进度报告
 
-> 更新日期: 2026-06-15（第六十四轮）
+> 更新日期: 2026-06-16（第六十七轮）
 
 ## 完成状态
 
@@ -71,6 +71,8 @@
 | **第六十三轮** | **2026-06-14** | **ESLint/Prettier/Clippy/rustfmt四维门禁全量清零：ESLint 208 warnings→0、Prettier 6文件格式化、17项未使用import手动清理** | ✅ |
 | **第六十四轮** | **2026-06-15** | **GitHub 子面板 i18n 全覆盖：清除 6 组件 15 处硬编码字符串（标签/过滤器/aria-label/tooltip/相对时间/日期 locale）；新增 17 个翻译 key；修复语言切换时面包屑标题行消失的预存 Bug** | ✅ |
 | **第六十五轮** | **2026-06-15** | **重构洞察第10次全量执行（16项发现）+ 文件拆分冲刺：cmScrollLeftSync→3文件、FoldTooltipOverlay→2hook+精简组件、GitHubTreeEntry→菜单+子条目、GitHubPanel→4子视图、trunkHeightMap O(n²)→O(n)、CSS变量统一+硬编码样式迁移+TitleBar订阅合并** | ✅ |
+| **第六十六轮** | **2026-06-16** | **重构洞察第11次全量执行（13项发现）：Phase 1 GitHubTreeEntry 去重（~178行冗余删除）+ @root 别名修复深层导入；Phase 2 BrowserTreeEntry 拆分（711→463行）+ FoldTooltipOverlay 进一步拆分（666→209行）；Phase 3 githubSlice 二拆三（githubRepoSlice + githubTreeSlice）+ uiSliceTypes 类型提取；Phase 4 ci-status crate 模块化（453→36行 lib.rs）+ browser crate 模块化（440→5行 lib.rs）；Phase 5 15处内联样式迁移到CSS类** | ✅ |
+| **第六十七轮** | **2026-06-16** | **右侧面板导航按钮统一 + Bug 修复：leftbar CSS min-width 修复（折叠后内容区域不扩展）；审计/模型/设置/通信面板添加"右侧面板-切换左侧边栏"按钮（使用 communicateNavigatorCollapsed 状态同步）；通信面板按钮与平台标签同行布局；浏览器搜索栏英文翻译修正（Bookmarks/History/All）；i18n key 统一为 panelNavigatorToggle** | ✅ |
 
 ## 说明
 

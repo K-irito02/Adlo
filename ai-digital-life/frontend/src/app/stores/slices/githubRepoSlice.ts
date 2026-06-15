@@ -1,16 +1,9 @@
-import type { CiRepoConfig } from '@ai-digital-life/kernel';
 import type { StoreState } from '../StoreState';
-import type { DigitalLifeBridge } from '../../../shared/ipc';
 import { createDebouncedWrite, createUiId, readJson } from '../shared';
-
-const CI_CONFIG_KEY = 'adl-ui:ci-config';
-const CI_ACCESS_TOKEN_KEY = 'adl-ui:ci-access-token';
-const CI_AUTO_REFRESH_ON_PUSH_KEY = 'adl-ui:ci-auto-refresh-on-push';
 
 const GH_WORKSPACE_CONFIGS_KEY = 'adl-ui:github-workspace-configs';
 const GH_CI_FOLDERS_KEY = 'adl-ui:github-ci-folders';
 
-const { scheduleWrite } = createDebouncedWrite(50);
 const { scheduleWrite: schedulePersist } = createDebouncedWrite(300);
 
 /** Per-workspace CI configuration */
@@ -34,109 +27,6 @@ export interface GitHubCiFolderState {
   ciConfig?: GitWorkspaceCiConfig;
   /** Pin order within siblings (smaller number = higher priority, undefined = not pinned) */
   pinnedOrder?: number;
-}
-
-function getBridge(): DigitalLifeBridge | null {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-  return (window as unknown as { digitalLife: DigitalLifeBridge | undefined }).digitalLife ?? null;
-}
-
-function isTauriMode(): boolean {
-  return (
-    typeof window !== 'undefined' &&
-    !!(window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__
-  );
-}
-
-async function hydrateCiConfigDefaults(): Promise<{
-  config: CiRepoConfig;
-  token: string;
-  autoRefresh: boolean;
-}> {
-  const defaultCfg: CiRepoConfig = {
-    owner: '',
-    repo: '',
-    branch: 'main',
-    workflowId: null,
-    accessToken: null,
-  };
-  if (typeof window === 'undefined') {
-    return {
-      config: defaultCfg,
-      token: '',
-      autoRefresh: true,
-    };
-  }
-
-  let config: CiRepoConfig = { ...defaultCfg };
-  let autoRefresh = true;
-
-  try {
-    const rawConfig = window.localStorage.getItem(CI_CONFIG_KEY);
-    if (rawConfig) {
-      const parsed = JSON.parse(rawConfig);
-      if (parsed && typeof parsed === 'object') {
-        config = {
-          owner: typeof parsed.owner === 'string' ? parsed.owner : '',
-          repo: typeof parsed.repo === 'string' ? parsed.repo : '',
-          branch: typeof parsed.branch === 'string' ? parsed.branch : 'main',
-          workflowId: parsed.workflowId ?? null,
-          accessToken: null,
-        };
-      }
-    }
-    const rawFlag = window.localStorage.getItem(CI_AUTO_REFRESH_ON_PUSH_KEY);
-    if (rawFlag === '0') {
-      autoRefresh = false;
-    } else if (rawFlag === '1') {
-      autoRefresh = true;
-    }
-  } catch {
-    /* ignore */
-  }
-
-  let token = '';
-  const bridge = getBridge();
-  if (
-    isTauriMode() &&
-    bridge &&
-    bridge.github &&
-    typeof bridge.github.hasAccessToken === 'function'
-  ) {
-    try {
-      const hasResult = await bridge.github.hasAccessToken();
-      if (hasResult && hasResult.ok && hasResult.data) {
-        token = '::stored::';
-      }
-    } catch {
-      /* ignore */
-    }
-  } else if (bridge && bridge.github && typeof bridge.github.hasAccessToken === 'function') {
-    try {
-      const hasResult = await bridge.github.hasAccessToken();
-      if (hasResult && hasResult.ok && hasResult.data) {
-        const storedToken = window.localStorage.getItem(CI_ACCESS_TOKEN_KEY);
-        token = typeof storedToken === 'string' && storedToken.length > 0 ? storedToken : '';
-      }
-    } catch {
-      /* ignore */
-    }
-  }
-
-  if (!token && typeof window !== 'undefined') {
-    try {
-      const storedToken = window.localStorage.getItem(CI_ACCESS_TOKEN_KEY);
-      if (typeof storedToken === 'string' && storedToken.length > 0) {
-        token = storedToken;
-      }
-    } catch {
-      /* ignore */
-    }
-  }
-
-  return { config, token, autoRefresh };
 }
 
 /** Strip accessToken for secure localStorage persistence */
@@ -200,11 +90,7 @@ async function hydrateGitHubFolders(): Promise<GitHubCiFolderState[]> {
   });
 }
 
-export interface GitHubCiConfigSlice {
-  ciConfig: CiRepoConfig;
-  ciAccessToken: string;
-  ciAutoRefreshOnPush: boolean;
-
+export interface GitHubRepoSlice {
   /** Per-workspace CI configs keyed by workspaceId */
   gitHubWorkspaceConfigs: Record<string, GitWorkspaceCiConfig>;
   /** Active CI workspace ID (which workspace's CI is shown) */
@@ -216,10 +102,6 @@ export interface GitHubCiConfigSlice {
   /** User-created CI folders (non-workspace directories with CI sub-entries) */
   gitHubCiFolders: GitHubCiFolderState[];
 
-  setCiConfig: (config: CiRepoConfig) => void;
-  setCiAccessToken: (token: string) => Promise<void>;
-  clearCiAccessToken: () => Promise<void>;
-  setCiAutoRefreshOnPush: (enabled: boolean) => void;
   setGitHubWorkspaceConfig: (workspaceId: string, config: GitWorkspaceCiConfig) => void;
   removeGitHubWorkspaceConfig: (workspaceId: string) => void;
   clearAllGitHubWorkspaceConfigs: () => void;
@@ -252,18 +134,11 @@ export interface GitHubCiConfigSlice {
   gitHubUnpinWorkspace: (workspaceId: string) => void;
 }
 
-export const createGitHubCiConfigSlice = (
+export const createGitHubRepoSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
   _get: () => StoreState
-): GitHubCiConfigSlice => {
+): GitHubRepoSlice => {
   if (typeof window !== 'undefined') {
-    void hydrateCiConfigDefaults().then(({ config, token, autoRefresh }) => {
-      set({
-        ciConfig: config,
-        ciAccessToken: token,
-        ciAutoRefreshOnPush: autoRefresh,
-      });
-    });
     void hydrateGitHubConfigs().then((configs) => {
       if (Object.keys(configs).length > 0) {
         set({ gitHubWorkspaceConfigs: configs });
@@ -277,83 +152,11 @@ export const createGitHubCiConfigSlice = (
   }
 
   return {
-    ciConfig: { owner: '', repo: '', branch: 'main', workflowId: null, accessToken: null },
-    ciAccessToken: '',
-    ciAutoRefreshOnPush: true,
-
     gitHubWorkspaceConfigs: {},
     activeCiWorkspaceId: null,
     activeCiFolderId: null,
     activeWorkspaceSection: 'overview',
     gitHubCiFolders: [],
-
-    setCiConfig: (config) => {
-      set({ ciConfig: config });
-      scheduleWrite(CI_CONFIG_KEY, {
-        owner: config.owner,
-        repo: config.repo,
-        branch: config.branch,
-        workflowId: config.workflowId ?? null,
-      });
-    },
-
-    setCiAccessToken: async (token) => {
-      const sanitized = typeof token === 'string' ? token : '';
-      const bridge = getBridge();
-
-      if (bridge && bridge.github && typeof bridge.github.setAccessToken === 'function') {
-        try {
-          await bridge.github.setAccessToken(sanitized);
-        } catch {
-          /* ignore */
-        }
-      }
-
-      set({ ciAccessToken: sanitized });
-      if (typeof window !== 'undefined') {
-        try {
-          if (sanitized.length > 0) {
-            window.localStorage.setItem(CI_ACCESS_TOKEN_KEY, sanitized);
-          } else {
-            window.localStorage.removeItem(CI_ACCESS_TOKEN_KEY);
-          }
-        } catch {
-          /* ignore */
-        }
-      }
-    },
-
-    clearCiAccessToken: async () => {
-      const bridge = getBridge();
-
-      if (bridge && bridge.github && typeof bridge.github.clearAccessToken === 'function') {
-        try {
-          await bridge.github.clearAccessToken();
-        } catch {
-          /* ignore */
-        }
-      }
-
-      set({ ciAccessToken: '' });
-      if (typeof window !== 'undefined') {
-        try {
-          window.localStorage.removeItem(CI_ACCESS_TOKEN_KEY);
-        } catch {
-          /* ignore */
-        }
-      }
-    },
-
-    setCiAutoRefreshOnPush: (enabled) => {
-      set({ ciAutoRefreshOnPush: enabled });
-      if (typeof window !== 'undefined') {
-        try {
-          window.localStorage.setItem(CI_AUTO_REFRESH_ON_PUSH_KEY, enabled ? '1' : '0');
-        } catch {
-          /* ignore */
-        }
-      }
-    },
 
     setGitHubWorkspaceConfig: (workspaceId, config) => {
       set((state) => {

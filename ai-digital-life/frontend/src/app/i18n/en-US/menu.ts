@@ -6,7 +6,7 @@ export const menuEn = {
   menuOpenFolder: 'Open Folder',
   menuNewTerminal: 'New Terminal',
   menuNewBrowser: 'New Browser',
-  menuOpenEditorWindow: 'Open Editor Window',
+  menuOpenEditorWindow: 'Open Editor',
   menuExit: 'Exit',
   menuDiffView: 'Diff View',
   menuBrowserView: 'Browser View',
@@ -18,6 +18,6 @@ export const menuEn = {
   menuResetZoom: 'Reset Zoom',
   menuSettings: 'Settings',
   menuCommandPalette: 'Command Palette',
-  menuShortcuts: 'Keyboard Shortcuts',
+  menuShortcuts: 'Shortcuts',
   menuLicense: 'View License',
 } as const;

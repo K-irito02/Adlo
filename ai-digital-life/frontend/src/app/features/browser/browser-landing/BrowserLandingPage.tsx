@@ -294,7 +294,7 @@ export function BrowserLandingPage({ t }: BrowserLandingPageProps) {
                 ✕
               </button>
             </div>
-            <div style={{ padding: '0 0 8px' }}>
+            <div className="adl-prompt-modal__body">
               <input
                 className="adl-prompt-modal__input"
                 type="text"

@@ -103,7 +103,7 @@ export function CreateTabDialog({ open, t, onConfirm, onCancel }: CreateTabDialo
             <IconClose size={14} decorative />
           </button>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 0 8px' }}>
+        <div className="adl-prompt-modal__body adl-prompt-modal__body--compact">
           <div>
             <div
               style={{

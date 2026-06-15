@@ -5,7 +5,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { workspaceSelectors } from '@stores/selectors';
 import { getAppCopy } from '@app/i18n';
 import { useTCopy } from '@app/i18n/useTCopy';
-import type { GitHubCiFolderState } from '@stores/slices/githubCiConfigSlice';
+import type { GitHubCiFolderState } from '@stores/slices/githubRepoSlice';
 import { OverviewView } from './OverviewView';
 import { WorkflowsView } from './WorkflowsView';
 import { JobsView } from './JobsView';

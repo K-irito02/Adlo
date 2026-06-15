@@ -27,8 +27,9 @@ import {
   createBrowserSlice,
   createCiSlice,
   createCommunicateSlice,
-  createGitHubCiConfigSlice,
-  createGitHubCiStatusSlice,
+  createGitHubRepoSlice,
+  createGitHubTreeSlice,
+  createGitHubSlice,
 } from './slices';
 import type { StoreState as FullStoreState } from './StoreState';
 
@@ -81,8 +82,9 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
   ...createBrowserSlice(set, get), // 浏览器核心状态（导航栏、视图模式、持久化）
   ...createCiSlice(set, get), // CI 状态（GitHub Actions）
   ...createCommunicateSlice(set, get), // 通信状态（多平台）
-  ...createGitHubCiConfigSlice(set, get), // GitHub CI 配置（token、folder CRUD、pin）
-  ...createGitHubCiStatusSlice(set, get), // GitHub CI 状态（polling、snapshot、section）
+  ...createGitHubRepoSlice(set, get), // GitHub 仓库 CRUD（工作区配置、CI 目录管理、Pin/Unpin）
+  ...createGitHubTreeSlice(set, get), // GitHub 树导航（展开/折叠、路径选择）
+  ...createGitHubSlice(set, get), // GitHub CI 配置 + 状态（分支/提交/远程操作）
 
   // ════════════════════════════════════════════════════════
   // 根级状态

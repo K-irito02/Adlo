@@ -39,6 +39,7 @@
 }
 
 .adl-leftbar--collapsed .adl-leftbar__content {
+  min-width: 0 !important;
   opacity: 0;
   transform: translateX(calc(var(--panel-content-shift) * -1));
   filter: blur(var(--panel-content-blur));

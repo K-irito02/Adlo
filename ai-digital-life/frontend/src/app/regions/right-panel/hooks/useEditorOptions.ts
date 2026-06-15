@@ -50,16 +50,19 @@ function useEditorOptions(): UseEditorOptionsResult {
     [lineNumbersEnabled, wordWrapEnabled]
   );
 
-  return {
-    wordWrapEnabled,
-    setWordWrapEnabled,
-    lineNumbersEnabled,
-    setLineNumbersEnabled,
-    agentAnnotationsEnabled,
-    setAgentAnnotationsEnabled,
-    standardOptions,
-    diffOptions,
-  };
+  return useMemo(
+    () => ({
+      wordWrapEnabled,
+      setWordWrapEnabled,
+      lineNumbersEnabled,
+      setLineNumbersEnabled,
+      agentAnnotationsEnabled,
+      setAgentAnnotationsEnabled,
+      standardOptions,
+      diffOptions,
+    }),
+    [wordWrapEnabled, lineNumbersEnabled, agentAnnotationsEnabled, standardOptions, diffOptions]
+  );
 }
 
 export type { UseEditorOptionsResult };

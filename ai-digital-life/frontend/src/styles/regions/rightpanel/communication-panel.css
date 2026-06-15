@@ -5,14 +5,31 @@
   overflow: hidden;
 }
 
+.adl-communicate__header {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  height: 30px;
+  padding-left: var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg);
+}
+
+.adl-communicate__header-separator {
+  width: 1px;
+  height: 16px;
+  background: var(--border);
+  flex-shrink: 0;
+  margin: 0 4px;
+}
+
 .adl-communicate__platform-tabs {
   display: flex;
   align-items: center;
   padding: 0;
-  border-bottom: 1px solid var(--border-subtle);
-  flex-shrink: 0;
+  flex: 1;
+  min-width: 0;
   height: 30px;
-  background: var(--bg);
   gap: 0;
 }
 
@@ -1502,6 +1519,40 @@
   color: var(--text-tertiary);
   flex-shrink: 0;
 }
+
+/* ─── Overview skeleton ─── */
+
+.adl-github-overview {
+  padding: 12px;
+}
+
+.adl-github-card__link-wrap {
+  padding: 0 10px 8px;
+}
+
+/* ─── Jobs list in WorkflowsView ─── */
+
+.adl-github-jobs__list {
+  padding: 6px 12px 0;
+}
+
+/* ─── Compact empty state ─── */
+
+.adl-github-empty--compact {
+  padding: 24px 16px;
+}
+
+/* ─── Help view lists ─── */
+
+.adl-github-help__list {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  margin: 4px 0 0;
+  padding-left: 20px;
+  line-height: 1.5;
+}
+
+/* ─── Hero ─── */
 
 .adl-github-hero {
   padding: 8px 12px;

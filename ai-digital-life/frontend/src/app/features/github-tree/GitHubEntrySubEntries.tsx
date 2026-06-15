@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { IconSettings, IconRefreshCw, IconMoreVertical } from '../../icons';
 import { FileTree } from '../file-tree';
@@ -7,6 +7,7 @@ import { MenuHintItem } from '../../regions/right-panel/panels/communicate/MenuH
 import { useAppStore } from '../../stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useTCopy } from '../../i18n/useTCopy';
+import { useMenuCloseOnOutsideClick } from '../tree/treeEntryMenus';
 import type { GitHubTreeNode, GitHubCategoryType } from './types';
 import type { SectionCallbacks } from './GitHubCategorySection';
 import { SUB_ENTRY_ICONS, getChildNodeMoreMenuItems } from './GitHubEntryMenus';
@@ -66,21 +67,7 @@ export const GitHubEntrySubEntries = React.memo(function GitHubEntrySubEntries({
     nodeType: string;
   } | null>(null);
 
-  useEffect(() => {
-    if (!childMenuState) {
-      return;
-    }
-    const handler = (e: MouseEvent) => {
-      const target = e.target as Node;
-      const menuEl = document.querySelector(`[data-menu-id="github-child-menu"]`);
-      if (menuEl?.contains(target)) {
-        return;
-      }
-      setChildMenuState(null);
-    };
-    window.addEventListener('mousedown', handler);
-    return () => window.removeEventListener('mousedown', handler);
-  }, [childMenuState]);
+  useMenuCloseOnOutsideClick(!!childMenuState, 'github-child-menu', () => setChildMenuState(null));
 
   const renderSubEntryIcon = useCallback((childNode: GitHubTreeNode) => {
     if (childNode.nodeType === 'folder') {

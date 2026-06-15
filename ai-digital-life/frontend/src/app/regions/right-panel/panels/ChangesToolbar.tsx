@@ -137,15 +137,13 @@ function TopToolbar({
   return (
     <div className="adl-tool-context adl-tool-context--files" aria-label={t.toolChanges}>
       <div className="adl-tool-context__group adl-tool-context__group--grow adl-tool-context__group--files">
-        <TooltipSimple
-          content={navigatorCollapsed ? t.panelToggleRight : t.panelToggleLeft}
-          placement="top"
-        >
+        <TooltipSimple content={t.panelNavigatorToggle} placement="top">
           <button
             type="button"
             className="adl-tool-context__iconbtn adl-tool-context__iconbtn--leading"
             onClick={onToggleNavigator}
-            aria-label={navigatorCollapsed ? t.panelToggleRight : t.panelToggleLeft}
+            aria-pressed={!navigatorCollapsed}
+            aria-label={t.panelNavigatorToggle}
           >
             <IconPanelLeftClose size={14} decorative />
           </button>

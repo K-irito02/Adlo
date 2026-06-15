@@ -88,7 +88,7 @@ export function HelpView({ copy }: { copy: Record<string, string> }) {
           <div style={{ marginTop: 8, ...body }}>
             <strong>{copy.ciHelpConfigStepsLabel}</strong>
           </div>
-          <ol style={{ ...body, margin: '4px 0 0', paddingLeft: 20 }}>
+          <ol className="adl-github-help__list">
             <li>{copy.ciHelpConfigStep1}</li>
             <li>{copy.ciHelpConfigStep2}</li>
             <li>{copy.ciHelpConfigStep3}</li>
@@ -119,7 +119,7 @@ export function HelpView({ copy }: { copy: Record<string, string> }) {
         <div id="gh-help-view-logs" style={card}>
           <h4 style={cardH4}>{copy.ciHelpViewLogs}</h4>
           <p style={body}>{copy.ciHelpViewLogsContent}</p>
-          <ul style={{ ...body, margin: '4px 0 0', paddingLeft: 20 }}>
+          <ul className="adl-github-help__list">
             <li>{copy.ciHelpLogFeatureAnsi}</li>
             <li>{copy.ciHelpLogFeatureSearch}</li>
             <li>{copy.ciHelpLogFeatureCollapse}</li>

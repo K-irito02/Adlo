@@ -11,6 +11,7 @@ import { BROWSER_NAVIGATOR_COLLAPSED_KEY } from '../constants';
 
 import type { BrowserTabState } from './browserTabsSlice';
 import type { BrowserBookmark } from './browserBookmarkSlice';
+import { BROWSER_WORKSPACE_BOOKMARKS_STORAGE_KEY } from './browserBookmarkSlice';
 import type { BrowserHistoryState } from './browserHistorySlice';
 import type { TabFolderState } from './browserFoldersSlice';
 import type { ShortcutSite, LocalPort, BackgroundConfig } from './browserLandingSlice';
@@ -99,6 +100,11 @@ function hydrateBrowserDefaults(
       ? state.browserBookmarks
       : readJson<BrowserBookmark[]>(BROWSER_BOOKMARKS_KEY, []);
 
+    const workspaceBookmarksModified = Object.keys(state.browserWorkspaceBookmarks).length > 0;
+    const finalWorkspaceBookmarks = workspaceBookmarksModified
+      ? state.browserWorkspaceBookmarks
+      : readJson<Record<string, string[]>>(BROWSER_WORKSPACE_BOOKMARKS_STORAGE_KEY, {});
+
     const viewMode = readJson<'default' | 'tree' | 'list' | 'all'>(
       BROWSER_VIEW_MODE_KEY,
       'default'
@@ -122,6 +128,7 @@ function hydrateBrowserDefaults(
       browserTabFolders: persistedTabFolders,
       browserHistory: finalHistory,
       browserBookmarks: finalBookmarks,
+      browserWorkspaceBookmarks: finalWorkspaceBookmarks,
       browserTabs: finalTabs,
       browserTabsById: buildTabsById(finalTabs),
       browserActiveTabId: finalActiveTabId,

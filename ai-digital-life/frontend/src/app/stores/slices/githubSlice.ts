@@ -1,123 +1,21 @@
-﻿import type { CiJobSummary, CiStatusSnapshot, CiRepoConfig } from '@ai-digital-life/kernel';
+import type { CiJobSummary, CiStatusSnapshot, CiRepoConfig } from '@ai-digital-life/kernel';
 import type { StoreState } from '../StoreState';
 import type { DigitalLifeBridge } from '../../../shared/ipc';
-import { createDebouncedWrite, createUiId } from '../shared';
+import type { GitWorkspaceCiConfig } from './githubRepoSlice';
+import { createDebouncedWrite, readJson } from '../shared';
 
 const CI_CONFIG_KEY = 'adl-ui:ci-config';
 const CI_ACCESS_TOKEN_KEY = 'adl-ui:ci-access-token';
 const CI_AUTO_REFRESH_ON_PUSH_KEY = 'adl-ui:ci-auto-refresh-on-push';
 const ACTIVE_GITHUB_SECTION_KEY = 'adl-ui:active-github-section';
+const CI_SNAPSHOTS_KEY = 'adl-ui:ci-snapshots';
+const CI_LOG_CACHES_KEY = 'adl-ui:ci-log-caches';
 
 const { scheduleWrite } = createDebouncedWrite(50);
+const { scheduleWrite: scheduleSnapshotsWrite } = createDebouncedWrite(300);
+const { scheduleWrite: scheduleLogCachesWrite } = createDebouncedWrite(300);
 
 export type GitHubSection = 'overview' | 'workflows' | 'jobs' | 'logs' | 'settings' | 'help';
-
-/** Per-workspace CI configuration */
-export interface GitWorkspaceCiConfig {
-  owner: string;
-  repo: string;
-  branch: string;
-  workflowId: string | null;
-  accessToken: string | null;
-  /** Whether this workspace has been configured */
-  configured: boolean;
-}
-
-export interface GitHubCiFolderState {
-  id: string;
-  name: string;
-  createdAt: number;
-  parentId?: string;
-  parentType?: 'workspace' | 'folder';
-  /** Optional CI configuration for this folder */
-  ciConfig?: GitWorkspaceCiConfig;
-  /** Pin order within siblings (smaller number = higher priority, undefined = not pinned) */
-  pinnedOrder?: number;
-}
-
-/** GitHub tree node types */
-export type GitHubTreeNodeType = 'workspace' | 'overview' | 'workflows' | 'jobs' | 'logs';
-
-/** GitHub tree node (for displaying in the navigator) */
-export interface GitHubTreeNode {
-  path: string;
-  name: string;
-  kind: 'directory' | 'file';
-  children: GitHubTreeNode[];
-  nodeType: GitHubTreeNodeType;
-  workspaceId?: string;
-}
-
-export interface GitHubSlice {
-  activeGitHubSection: GitHubSection;
-  ciConfig: CiRepoConfig;
-  ciAccessToken: string;
-  ciLoading: boolean;
-  ciError: string | null;
-  ciSnapshot: CiStatusSnapshot | null;
-  ciJobs: CiJobSummary[];
-  ciAutoRefreshOnPush: boolean;
-  /** Per-workspace CI configs keyed by workspaceId */
-  gitHubWorkspaceConfigs: Record<string, GitWorkspaceCiConfig>;
-  /** Tree expansion state for GitHub navigator */
-  gitHubTreeExpanded: Record<string, boolean>;
-  /** Whether the workspace tree is fully expanded */
-  gitHubAllTreeExpanded: boolean;
-  /** Selected tree path in GitHub navigator */
-  selectedGitHubTreePath: string | null;
-  /** Active CI workspace ID (which workspace's CI is shown) */
-  activeCiWorkspaceId: string | null;
-  /** Active CI folder ID (which folder's CI data is currently loaded) */
-  activeCiFolderId: string | null;
-  /** Active sub-section within the selected workspace */
-  activeWorkspaceSection: 'overview' | 'workflows' | 'jobs' | 'logs' | 'help';
-  /** User-created CI folders (non-workspace directories with CI sub-entries) */
-  gitHubCiFolders: GitHubCiFolderState[];
-
-  setActiveGitHubSection: (section: GitHubSection) => void;
-  setCiConfig: (config: CiRepoConfig) => void;
-  setCiAccessToken: (token: string) => Promise<void>;
-  clearCiAccessToken: () => Promise<void>;
-  setCiAutoRefreshOnPush: (enabled: boolean) => void;
-  refreshCiStatus: () => Promise<void>;
-  notifyGitPushed: () => void;
-  setGitHubWorkspaceConfig: (workspaceId: string, config: GitWorkspaceCiConfig) => void;
-  removeGitHubWorkspaceConfig: (workspaceId: string) => void;
-  clearAllGitHubWorkspaceConfigs: () => void;
-  setGitHubTreeExpanded: (expanded: Record<string, boolean>) => void;
-  toggleGitHubTreePath: (path: string) => void;
-  expandAllGitHubTree: () => void;
-  collapseAllGitHubTree: () => void;
-  setSelectedGitHubTreePath: (path: string | null) => void;
-  setActiveCiWorkspaceId: (workspaceId: string | null) => void;
-  setActiveCiFolderId: (folderId: string | null) => void;
-  setActiveWorkspaceSection: (section: 'overview' | 'workflows' | 'jobs' | 'logs') => void;
-  refreshCiStatusForWorkspace: (workspaceId: string) => Promise<void>;
-  gitHubCreateFolder: (parentId?: string, parentType?: 'workspace' | 'folder') => void;
-  gitHubDeleteFolder: (folderId: string) => void;
-  gitHubRenameFolder: (folderId: string, name: string) => void;
-  gitHubSaveFolderConfig: (
-    folderId: string,
-    owner: string,
-    repo: string,
-    branch: string,
-    accessToken?: string
-  ) => void;
-  gitHubDeleteFolderConfig: (folderId: string) => void;
-  gitHubDeleteFolderConfigRecursive: (folderId: string) => void;
-  gitHubDeleteFolderDataRecursive: (folderId: string) => void;
-  gitHubDeleteFolderConfigAndDataRecursive: (folderId: string) => void;
-  clearAllFolderConfigs: () => void;
-  clearAllFolders: () => void;
-  clearAllCiData: () => void;
-  clearAllCiConfigs: () => void;
-  clearAllCiConfigsAndData: () => void;
-  resetAllToOriginal: () => void;
-  gitHubPinFolder: (folderId: string) => void;
-  gitHubUnpinFolder: (folderId: string) => void;
-  gitHubPinWorkspace: (workspaceId: string) => void;
-  gitHubUnpinWorkspace: (workspaceId: string) => void;
-}
 
 function getBridge(): DigitalLifeBridge | null {
   if (typeof window === 'undefined') {
@@ -133,11 +31,10 @@ function isTauriMode(): boolean {
   );
 }
 
-async function hydrateGitHubDefaults(): Promise<{
+async function hydrateCiConfigDefaults(): Promise<{
   config: CiRepoConfig;
   token: string;
   autoRefresh: boolean;
-  activeGitHubSection: GitHubSection;
 }> {
   const defaultCfg: CiRepoConfig = {
     owner: '',
@@ -151,7 +48,6 @@ async function hydrateGitHubDefaults(): Promise<{
       config: defaultCfg,
       token: '',
       autoRefresh: true,
-      activeGitHubSection: 'overview',
     };
   }
 
@@ -210,6 +106,27 @@ async function hydrateGitHubDefaults(): Promise<{
     }
   }
 
+  if (!token && typeof window !== 'undefined') {
+    try {
+      const storedToken = window.localStorage.getItem(CI_ACCESS_TOKEN_KEY);
+      if (typeof storedToken === 'string' && storedToken.length > 0) {
+        token = storedToken;
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  return { config, token, autoRefresh };
+}
+
+async function hydrateCiStatusDefaults(): Promise<{
+  activeGitHubSection: GitHubSection;
+}> {
+  if (typeof window === 'undefined') {
+    return { activeGitHubSection: 'overview' };
+  }
+
   let activeGitHubSection: GitHubSection = 'overview';
   try {
     const storedSection = window.localStorage.getItem(ACTIVE_GITHUB_SECTION_KEY);
@@ -226,7 +143,55 @@ async function hydrateGitHubDefaults(): Promise<{
     /* ignore */
   }
 
-  return { config, token, autoRefresh, activeGitHubSection };
+  return { activeGitHubSection };
+}
+
+function hydrateCiSnapshots(): Record<string, CiStatusSnapshot> {
+  return readJson<Record<string, CiStatusSnapshot>>(CI_SNAPSHOTS_KEY, {});
+}
+
+function hydrateCiLogCaches(): Record<
+  string,
+  { selectedJobId: number | null; logs: Record<number, string> }
+> {
+  return readJson<Record<string, { selectedJobId: number | null; logs: Record<number, string> }>>(
+    CI_LOG_CACHES_KEY,
+    {}
+  );
+}
+
+export interface GitHubSlice {
+  activeGitHubSection: GitHubSection;
+  ciConfig: CiRepoConfig;
+  ciAccessToken: string;
+  ciLoading: boolean;
+  ciError: string | null;
+  ciSnapshot: CiStatusSnapshot | null;
+  ciJobs: CiJobSummary[];
+  ciAutoRefreshOnPush: boolean;
+
+  /** CI data cached per workspace/folder ID */
+  ciSnapshots: Record<string, CiStatusSnapshot>;
+  /** Log caches per directory: selected job ID + fetched log texts */
+  ciLogCaches: Record<string, { selectedJobId: number | null; logs: Record<number, string> }>;
+
+  setActiveGitHubSection: (section: GitHubSection) => void;
+  setCiConfig: (config: CiRepoConfig) => void;
+  setCiAccessToken: (token: string) => Promise<void>;
+  clearCiAccessToken: () => Promise<void>;
+  setCiAutoRefreshOnPush: (enabled: boolean) => void;
+  refreshCiStatus: () => Promise<void>;
+  notifyGitPushed: () => void;
+  refreshCiStatusForWorkspace: (workspaceId: string) => Promise<void>;
+  /** Restore CI snapshot from cache for a given ID */
+  restoreCiSnapshot: (id: string) => void;
+  /** Read log cache for a given directory */
+  getCiLogCache: (dirId: string) => { selectedJobId: number | null; logs: Record<number, string> };
+  /** Update log cache for a given directory */
+  updateCiLogCache: (
+    dirId: string,
+    data: Partial<{ selectedJobId: number | null; logs: Record<number, string> }>
+  ) => void;
 }
 
 export const createGitHubSlice = (
@@ -234,13 +199,27 @@ export const createGitHubSlice = (
   _get: () => StoreState
 ): GitHubSlice => {
   if (typeof window !== 'undefined') {
-    void hydrateGitHubDefaults().then(({ config, token, autoRefresh, activeGitHubSection }) => {
+    void hydrateCiConfigDefaults().then(({ config, token, autoRefresh }) => {
       set({
         ciConfig: config,
         ciAccessToken: token,
         ciAutoRefreshOnPush: autoRefresh,
-        activeGitHubSection,
       });
+    });
+    void hydrateCiStatusDefaults().then(({ activeGitHubSection }) => {
+      set({ activeGitHubSection });
+    });
+    Promise.resolve().then(() => {
+      const savedSnapshots = hydrateCiSnapshots();
+      if (Object.keys(savedSnapshots).length > 0) {
+        set({ ciSnapshots: savedSnapshots });
+      }
+    });
+    Promise.resolve().then(() => {
+      const savedLogCaches = hydrateCiLogCaches();
+      if (Object.keys(savedLogCaches).length > 0) {
+        set({ ciLogCaches: savedLogCaches });
+      }
     });
   }
 
@@ -254,14 +233,8 @@ export const createGitHubSlice = (
     ciSnapshot: null,
     ciJobs: [],
     ciAutoRefreshOnPush: true,
-    gitHubWorkspaceConfigs: {},
-    gitHubTreeExpanded: {},
-    gitHubAllTreeExpanded: false,
-    selectedGitHubTreePath: null,
-    activeCiWorkspaceId: null,
-    activeCiFolderId: null,
-    activeWorkspaceSection: 'overview',
-    gitHubCiFolders: [],
+    ciSnapshots: {},
+    ciLogCaches: {},
 
     setActiveGitHubSection: (section) => {
       set({ activeGitHubSection: section });
@@ -400,362 +373,66 @@ export const createGitHubSlice = (
           void state.refreshCiStatusForWorkspace(wsId);
         }
       }
+      for (const folder of state.gitHubCiFolders) {
+        if (folder.ciConfig?.configured) {
+          void state.refreshCiStatusForWorkspace(folder.id);
+        }
+      }
       if (state.ciConfig.owner && state.ciConfig.repo) {
         void state.refreshCiStatus();
       }
     },
 
-    setGitHubWorkspaceConfig: (workspaceId, config) => {
-      set((state) => ({
-        gitHubWorkspaceConfigs: { ...state.gitHubWorkspaceConfigs, [workspaceId]: config },
-      }));
-    },
-
-    removeGitHubWorkspaceConfig: (workspaceId) => {
-      set((state) => {
-        const next = { ...state.gitHubWorkspaceConfigs };
-        delete next[workspaceId];
-        return { gitHubWorkspaceConfigs: next };
-      });
-    },
-
-    clearAllGitHubWorkspaceConfigs: () => {
-      set({
-        gitHubWorkspaceConfigs: {},
-        activeCiWorkspaceId: null,
-        activeCiFolderId: null,
-        selectedGitHubTreePath: null,
-      });
-    },
-
-    setGitHubTreeExpanded: (expanded) => set({ gitHubTreeExpanded: expanded }),
-
-    toggleGitHubTreePath: (path) => {
-      set((state) => ({
-        gitHubTreeExpanded: {
-          ...state.gitHubTreeExpanded,
-          [path]: !state.gitHubTreeExpanded[path],
-        },
-      }));
-    },
-
-    expandAllGitHubTree: () => {
-      set((state) => {
-        const paths: Record<string, boolean> = {};
-        for (const ws of state.recentWorkspaces) {
-          paths[`github-workspace:${ws.id}`] = true;
-        }
-        for (const folder of state.gitHubCiFolders) {
-          paths[`github-folder:${folder.id}`] = true;
-        }
-        return { gitHubTreeExpanded: paths };
-      });
-    },
-
-    collapseAllGitHubTree: () => set({ gitHubTreeExpanded: {} }),
-
-    setSelectedGitHubTreePath: (path) => set({ selectedGitHubTreePath: path }),
-
-    setActiveCiWorkspaceId: (workspaceId) => set({ activeCiWorkspaceId: workspaceId }),
-
-    setActiveCiFolderId: (folderId) => set({ activeCiFolderId: folderId }),
-
-    setActiveWorkspaceSection: (section) => set({ activeWorkspaceSection: section }),
-
-    gitHubCreateFolder: (parentId, parentType) => {
-      set((state) => {
-        const folderCount = state.gitHubCiFolders.length;
-        const newFolder: GitHubCiFolderState = {
-          id: createUiId('gh-ci-folder'),
-          name: `目录 ${folderCount + 1}`,
-          createdAt: Date.now(),
-          parentId,
-          parentType,
-        };
-        const nextFolders = [...state.gitHubCiFolders, newFolder];
-        const parentPath = parentId
-          ? parentType === 'workspace'
-            ? `github-workspace:${parentId}`
-            : `github-folder:${parentId}`
-          : null;
-        const nextExpanded = parentPath
-          ? { ...state.gitHubTreeExpanded, [parentPath]: true }
-          : state.gitHubTreeExpanded;
-        return { gitHubCiFolders: nextFolders, gitHubTreeExpanded: nextExpanded };
-      });
-    },
-
-    gitHubDeleteFolder: (folderId) => {
-      set((state) => {
-        const idsToDelete = new Set<string>([folderId]);
-        const findDescendants = (parentId: string) => {
-          for (const f of state.gitHubCiFolders) {
-            if (f.parentId === parentId && !idsToDelete.has(f.id)) {
-              idsToDelete.add(f.id);
-              findDescendants(f.id);
-            }
-          }
-        };
-        findDescendants(folderId);
-        const nextFolders = state.gitHubCiFolders.filter((f) => !idsToDelete.has(f.id));
-        return { gitHubCiFolders: nextFolders };
-      });
-    },
-
-    gitHubRenameFolder: (folderId, name) => {
-      set((state) => ({
-        gitHubCiFolders: state.gitHubCiFolders.map((f) => (f.id === folderId ? { ...f, name } : f)),
-      }));
-    },
-
-    gitHubSaveFolderConfig: (folderId, owner, repo, branch, accessToken) => {
-      set((state) => ({
-        gitHubCiFolders: state.gitHubCiFolders.map((f) =>
-          f.id === folderId
-            ? {
-                ...f,
-                ciConfig: {
-                  owner,
-                  repo,
-                  branch,
-                  workflowId: null,
-                  accessToken: accessToken ?? null,
-                  configured: true,
-                },
-              }
-            : f
-        ),
-      }));
-    },
-
-    gitHubDeleteFolderConfig: (folderId) => {
-      set((state) => ({
-        gitHubCiFolders: state.gitHubCiFolders.map((f) =>
-          f.id === folderId ? { ...f, ciConfig: undefined } : f
-        ),
-      }));
-    },
-
-    gitHubDeleteFolderConfigRecursive: (folderId) => {
-      set((state) => {
-        const idsToDelete = new Set<string>([folderId]);
-        const findDescendants = (parentId: string) => {
-          for (const f of state.gitHubCiFolders) {
-            if (f.parentId === parentId && !idsToDelete.has(f.id)) {
-              idsToDelete.add(f.id);
-              findDescendants(f.id);
-            }
-          }
-        };
-        findDescendants(folderId);
-        return {
-          gitHubCiFolders: state.gitHubCiFolders.map((f) =>
-            idsToDelete.has(f.id) ? { ...f, ciConfig: undefined } : f
-          ),
-        };
-      });
-    },
-
-    gitHubDeleteFolderDataRecursive: (folderId) => {
-      set((state) => {
-        const idsToDelete = new Set<string>([folderId]);
-        const findDescendants = (parentId: string) => {
-          for (const f of state.gitHubCiFolders) {
-            if (f.parentId === parentId && !idsToDelete.has(f.id)) {
-              idsToDelete.add(f.id);
-              findDescendants(f.id);
-            }
-          }
-        };
-        findDescendants(folderId);
-        const affectedWorkspaceIds = new Set<string>();
-        for (const id of idsToDelete) {
-          let currentId: string | null = id;
-          while (currentId) {
-            const folder = state.gitHubCiFolders.find((f) => f.id === currentId);
-            if (!folder) {
-              break;
-            }
-            if (folder.parentType === 'workspace') {
-              if (folder.parentId) {
-                affectedWorkspaceIds.add(folder.parentId);
-              }
-              break;
-            }
-            currentId = folder.parentId ?? null;
-          }
-        }
-        const shouldClear =
-          affectedWorkspaceIds.size === 0 ||
-          (state.activeCiWorkspaceId != null &&
-            affectedWorkspaceIds.has(state.activeCiWorkspaceId));
-        if (shouldClear) {
-          return { ciSnapshot: null, ciJobs: [], ciError: null };
-        }
-        return state;
-      });
-    },
-
-    gitHubDeleteFolderConfigAndDataRecursive: (folderId) => {
-      set((state) => {
-        const idsToDelete = new Set<string>([folderId]);
-        const findDescendants = (parentId: string) => {
-          for (const f of state.gitHubCiFolders) {
-            if (f.parentId === parentId && !idsToDelete.has(f.id)) {
-              idsToDelete.add(f.id);
-              findDescendants(f.id);
-            }
-          }
-        };
-        findDescendants(folderId);
-        const affectedWorkspaceIds = new Set<string>();
-        for (const id of idsToDelete) {
-          let currentId: string | null = id;
-          while (currentId) {
-            const folder = state.gitHubCiFolders.find((f) => f.id === currentId);
-            if (!folder) {
-              break;
-            }
-            if (folder.parentType === 'workspace') {
-              if (folder.parentId) {
-                affectedWorkspaceIds.add(folder.parentId);
-              }
-              break;
-            }
-            currentId = folder.parentId ?? null;
-          }
-        }
-        const shouldClear =
-          affectedWorkspaceIds.size === 0 ||
-          (state.activeCiWorkspaceId != null &&
-            affectedWorkspaceIds.has(state.activeCiWorkspaceId));
-        return {
-          gitHubCiFolders: state.gitHubCiFolders.map((f) =>
-            idsToDelete.has(f.id) ? { ...f, ciConfig: undefined } : f
-          ),
-          ...(shouldClear ? { ciSnapshot: null, ciJobs: [], ciError: null } : {}),
-        };
-      });
-    },
-
-    gitHubPinWorkspace: (workspaceId) => {
-      set((state) => {
-        const pinnedWorkspaces = state.recentWorkspaces.filter((w) => w.isPinned);
-        const maxPinnedOrder = Math.max(...pinnedWorkspaces.map((w) => w.pinnedOrder ?? 0), 0);
-        return {
-          recentWorkspaces: state.recentWorkspaces.map((w) =>
-            w.id === workspaceId ? { ...w, isPinned: true, pinnedOrder: maxPinnedOrder + 1 } : w
-          ),
-        };
-      });
-    },
-
-    gitHubUnpinWorkspace: (workspaceId) => {
-      set((state) => ({
-        recentWorkspaces: state.recentWorkspaces.map((w) =>
-          w.id === workspaceId ? { ...w, isPinned: false, pinnedOrder: 0 } : w
-        ),
-      }));
-    },
-
-    gitHubPinFolder: (folderId) => {
-      set((state) => {
-        const folder = state.gitHubCiFolders.find((f) => f.id === folderId);
-        if (!folder) {
-          return state;
-        }
-        const siblings = state.gitHubCiFolders.filter(
-          (f) => f.parentId === folder.parentId && f.parentType === folder.parentType
-        );
-        const maxPinnedOrder = Math.max(
-          ...siblings.filter((s) => s.pinnedOrder !== undefined).map((s) => s.pinnedOrder!),
-          0
-        );
-        return {
-          gitHubCiFolders: state.gitHubCiFolders.map((f) =>
-            f.id === folderId ? { ...f, pinnedOrder: maxPinnedOrder + 1 } : f
-          ),
-        };
-      });
-    },
-
-    gitHubUnpinFolder: (folderId) => {
-      set((state) => ({
-        gitHubCiFolders: state.gitHubCiFolders.map((f) =>
-          f.id === folderId ? { ...f, pinnedOrder: undefined } : f
-        ),
-      }));
-    },
-
-    clearAllFolderConfigs: () => {
-      set((state) => ({
-        gitHubCiFolders: state.gitHubCiFolders.map((f) => ({ ...f, ciConfig: undefined })),
-      }));
-    },
-
-    clearAllFolders: () => {
-      set({
-        gitHubCiFolders: [],
-        ciSnapshot: null,
-        ciJobs: [],
-        ciError: null,
-      });
-    },
-
-    clearAllCiData: () => {
-      set({
-        ciSnapshot: null,
-        ciJobs: [],
-        ciError: null,
-      });
-    },
-
-    clearAllCiConfigs: () => {
-      set((state) => ({
-        gitHubWorkspaceConfigs: {},
-        gitHubCiFolders: state.gitHubCiFolders.map((f) => ({ ...f, ciConfig: undefined })),
-      }));
-    },
-
-    clearAllCiConfigsAndData: () => {
-      set((state) => ({
-        gitHubWorkspaceConfigs: {},
-        gitHubCiFolders: state.gitHubCiFolders.map((f) => ({ ...f, ciConfig: undefined })),
-        ciSnapshot: null,
-        ciJobs: [],
-        ciError: null,
-      }));
-    },
-
-    resetAllToOriginal: () => {
-      set({
-        gitHubCiFolders: [],
-        gitHubWorkspaceConfigs: {},
-        ciSnapshot: null,
-        ciJobs: [],
-        ciError: null,
-        activeCiWorkspaceId: null,
-        activeCiFolderId: null,
-        selectedGitHubTreePath: null,
-        gitHubTreeExpanded: {},
-      });
-    },
-
-    refreshCiStatusForWorkspace: async (workspaceId) => {
+    getCiLogCache: (dirId) => {
       const state = _get();
-      const config = state.gitHubWorkspaceConfigs[workspaceId];
+      return state.ciLogCaches[dirId] ?? { selectedJobId: null, logs: {} };
+    },
+
+    updateCiLogCache: (dirId, data) => {
+      set((state) => {
+        const existing = state.ciLogCaches[dirId] ?? { selectedJobId: null, logs: {} };
+        const next = {
+          ...state.ciLogCaches,
+          [dirId]: { ...existing, ...data },
+        };
+        scheduleLogCachesWrite(CI_LOG_CACHES_KEY, next);
+        return { ciLogCaches: next };
+      });
+    },
+
+    restoreCiSnapshot: (id) => {
+      set((state) => {
+        const cached = state.ciSnapshots[id];
+        if (cached) {
+          return { ciSnapshot: cached, ciJobs: cached.jobs ?? [] };
+        }
+        return { ciSnapshot: null, ciJobs: [], ciError: null };
+      });
+    },
+
+    refreshCiStatusForWorkspace: async (id) => {
+      const state = _get();
+      let config = state.gitHubWorkspaceConfigs[id] as GitWorkspaceCiConfig | undefined;
+      if (!config?.configured) {
+        const folder = state.gitHubCiFolders.find((f) => f.id === id);
+        if (folder?.ciConfig?.configured) {
+          config = folder.ciConfig as GitWorkspaceCiConfig;
+        }
+      }
       if (!config || !config.configured) {
-        set({ ciError: '请先配置仓库 owner 和 repo' });
+        const msg = '请先配置仓库 owner 和 repo';
+        set({ ciError: msg });
         return;
       }
       set({ ciLoading: true, ciError: null });
       try {
         const bridge = getBridge();
         if (!bridge || !bridge.github) {
-          set({ ciError: 'bridge not ready', ciLoading: false });
+          const msg = 'bridge not ready';
+          set({ ciError: msg, ciLoading: false });
           return;
         }
-        const token = isTauriMode() ? null : (config.accessToken ?? '');
+        const token = isTauriMode() ? null : (config.accessToken ?? state.ciAccessToken ?? '');
         const result = await bridge.github.getStatus({
           owner: config.owner,
           repo: config.repo,
@@ -764,9 +441,19 @@ export const createGitHubSlice = (
           accessToken: token,
         });
         if (result.ok) {
-          set({ ciSnapshot: result.data, ciJobs: result.data.jobs ?? [], ciLoading: false });
+          set((state) => {
+            const nextSnapshots = { ...state.ciSnapshots, [id]: result.data };
+            scheduleSnapshotsWrite(CI_SNAPSHOTS_KEY, nextSnapshots);
+            return {
+              ciSnapshot: result.data,
+              ciJobs: result.data.jobs ?? [],
+              ciLoading: false,
+              ciSnapshots: nextSnapshots,
+            };
+          });
         } else {
-          set({ ciError: result.error?.message ?? '获取 CI 状态失败', ciLoading: false });
+          const msg = result.error?.message ?? '获取 CI 状态失败';
+          set({ ciError: msg, ciLoading: false });
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);

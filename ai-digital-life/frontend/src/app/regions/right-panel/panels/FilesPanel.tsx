@@ -245,15 +245,12 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
         aria-label={t.fileExplorerContext as string}
       >
         <div className="adl-tool-context__group adl-tool-context__group--grow adl-tool-context__group--files">
-          <TooltipSimple
-            content={navigatorCollapsed ? t.panelToggleRight : t.panelToggleLeft}
-            placement="top"
-          >
+          <TooltipSimple content={t.panelNavigatorToggle} placement="top">
             <button
               type="button"
               className="adl-tool-context__iconbtn adl-tool-context__iconbtn--leading"
               onClick={() => toggleNavigator('files')}
-              aria-label={(navigatorCollapsed ? t.panelToggleRight : t.panelToggleLeft) as string}
+              aria-label={t.panelNavigatorToggle as string}
             >
               <IconPanelLeftClose size={14} decorative />
             </button>

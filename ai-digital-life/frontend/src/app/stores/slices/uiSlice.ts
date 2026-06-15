@@ -2,14 +2,7 @@
  * UI 切片
  * 管理通用的 UI 状态，保持向后兼容
  */
-import type {
-  ChatMode,
-  ToolId,
-  FilesNavigatorMode,
-  ChangesNavigatorMode,
-  ContextChip,
-} from '../types';
-import type { SettingsGroupId } from '@ai-digital-life/kernel';
+import type { ToolId, FilesNavigatorMode, ChangesNavigatorMode } from '../types';
 import type { StoreState } from '../StoreState';
 import { BROWSER_NAVIGATOR_COLLAPSED_KEY } from '../constants';
 import {
@@ -22,40 +15,84 @@ import {
   clamp,
   createDebouncedWrite,
 } from '../shared';
+import type {
+  TreeExpansionState,
+  FileTreeExpansionState,
+  FilePreviewModeState,
+  UISlice,
+} from './uiSliceTypes';
+import {
+  LEFT_COLLAPSED_KEY,
+  RIGHT_COLLAPSED_KEY,
+  RIGHT_PANEL_WIDTH_KEY,
+  FILES_NAVIGATOR_WIDTH_KEY,
+  CHANGES_NAVIGATOR_WIDTH_KEY,
+  BROWSER_NAVIGATOR_WIDTH_KEY,
+  GITHUB_NAVIGATOR_WIDTH_KEY,
+  FILE_TREE_EXPANDED_KEY,
+  CHANGES_TREE_EXPANDED_KEY,
+  FILES_NAVIGATOR_MODE_KEY,
+  CHANGES_NAVIGATOR_MODE_KEY,
+  FILE_PREVIEW_MODE_KEY,
+  CHANGES_PREVIEW_ENABLED_KEY,
+  SESSION_TABS_EXPANDED_KEY,
+  ACTIVE_RIGHT_TOOL_KEY,
+  RIGHT_PANEL_WIDTH_MIN,
+  RIGHT_PANEL_WIDTH_MAX,
+  DEFAULT_RIGHT_PANEL_WIDTH,
+  FILES_NAVIGATOR_WIDTH_MIN,
+  FILES_NAVIGATOR_WIDTH_MAX,
+  DEFAULT_FILES_NAVIGATOR_WIDTH,
+  CHANGES_NAVIGATOR_WIDTH_MIN,
+  CHANGES_NAVIGATOR_WIDTH_MAX,
+  DEFAULT_CHANGES_NAVIGATOR_WIDTH,
+  BROWSER_NAVIGATOR_WIDTH_MIN,
+  BROWSER_NAVIGATOR_WIDTH_MAX,
+  DEFAULT_BROWSER_NAVIGATOR_WIDTH,
+  GITHUB_NAVIGATOR_WIDTH_MIN,
+  GITHUB_NAVIGATOR_WIDTH_MAX,
+  DEFAULT_GITHUB_NAVIGATOR_WIDTH,
+} from './uiSliceTypes';
 
-// Local storage keys and constants
-export const LEFT_COLLAPSED_KEY = 'adl-ui:left-collapsed';
-export const RIGHT_COLLAPSED_KEY = 'adl-ui:right-collapsed';
-export const RIGHT_PANEL_WIDTH_KEY = 'adl-ui:right-panel-width';
-export const FILES_NAVIGATOR_WIDTH_KEY = 'adl-ui:files-navigator-width';
-export const CHANGES_NAVIGATOR_WIDTH_KEY = 'adl-ui:changes-navigator-width';
-export const BROWSER_NAVIGATOR_WIDTH_KEY = 'adl-ui:browser-navigator-width';
-export const GITHUB_NAVIGATOR_WIDTH_KEY = 'adl-ui:github-navigator-width';
-export const FILE_TREE_EXPANDED_KEY = 'adl-ui:file-tree-expanded';
-export const CHANGES_TREE_EXPANDED_KEY = 'adl-ui:changes-tree-expanded';
-export const FILES_NAVIGATOR_MODE_KEY = 'adl-ui:files-navigator-mode';
-export const CHANGES_NAVIGATOR_MODE_KEY = 'adl-ui:changes-navigator-mode';
-export const FILE_PREVIEW_MODE_KEY = 'adl-ui:file-preview-mode';
-export const CHANGES_PREVIEW_ENABLED_KEY = 'adl-ui:changes-preview-enabled';
-export const SESSION_TABS_EXPANDED_KEY = 'adl-ui:session-tabs-expanded';
-export const ACTIVE_RIGHT_TOOL_KEY = 'adl-ui:active-right-tool';
-
-// Constants
-export const RIGHT_PANEL_WIDTH_MIN = 320;
-export const RIGHT_PANEL_WIDTH_MAX = 4096;
-export const DEFAULT_RIGHT_PANEL_WIDTH = 520;
-export const FILES_NAVIGATOR_WIDTH_MIN = 180;
-export const FILES_NAVIGATOR_WIDTH_MAX = 420;
-export const DEFAULT_FILES_NAVIGATOR_WIDTH = 240;
-export const CHANGES_NAVIGATOR_WIDTH_MIN = 180;
-export const CHANGES_NAVIGATOR_WIDTH_MAX = 300;
-export const DEFAULT_CHANGES_NAVIGATOR_WIDTH = 240;
-export const BROWSER_NAVIGATOR_WIDTH_MIN = 180;
-export const BROWSER_NAVIGATOR_WIDTH_MAX = 300;
-export const DEFAULT_BROWSER_NAVIGATOR_WIDTH = 240;
-export const GITHUB_NAVIGATOR_WIDTH_MIN = 180;
-export const GITHUB_NAVIGATOR_WIDTH_MAX = 420;
-export const DEFAULT_GITHUB_NAVIGATOR_WIDTH = 200;
+// Re-export for backward compatibility
+export type {
+  TreeExpansionState,
+  FileTreeExpansionState,
+  FilePreviewModeState,
+  UISlice,
+} from './uiSliceTypes';
+export {
+  LEFT_COLLAPSED_KEY,
+  RIGHT_COLLAPSED_KEY,
+  RIGHT_PANEL_WIDTH_KEY,
+  FILES_NAVIGATOR_WIDTH_KEY,
+  CHANGES_NAVIGATOR_WIDTH_KEY,
+  BROWSER_NAVIGATOR_WIDTH_KEY,
+  GITHUB_NAVIGATOR_WIDTH_KEY,
+  FILE_TREE_EXPANDED_KEY,
+  CHANGES_TREE_EXPANDED_KEY,
+  FILES_NAVIGATOR_MODE_KEY,
+  CHANGES_NAVIGATOR_MODE_KEY,
+  FILE_PREVIEW_MODE_KEY,
+  CHANGES_PREVIEW_ENABLED_KEY,
+  SESSION_TABS_EXPANDED_KEY,
+  ACTIVE_RIGHT_TOOL_KEY,
+  RIGHT_PANEL_WIDTH_MIN,
+  RIGHT_PANEL_WIDTH_MAX,
+  DEFAULT_RIGHT_PANEL_WIDTH,
+  FILES_NAVIGATOR_WIDTH_MIN,
+  FILES_NAVIGATOR_WIDTH_MAX,
+  DEFAULT_FILES_NAVIGATOR_WIDTH,
+  CHANGES_NAVIGATOR_WIDTH_MIN,
+  CHANGES_NAVIGATOR_WIDTH_MAX,
+  DEFAULT_CHANGES_NAVIGATOR_WIDTH,
+  BROWSER_NAVIGATOR_WIDTH_MIN,
+  BROWSER_NAVIGATOR_WIDTH_MAX,
+  DEFAULT_BROWSER_NAVIGATOR_WIDTH,
+  GITHUB_NAVIGATOR_WIDTH_MIN,
+  GITHUB_NAVIGATOR_WIDTH_MAX,
+  DEFAULT_GITHUB_NAVIGATOR_WIDTH,
+} from './uiSliceTypes';
 
 function defaultNavigatorCollapsed(): Record<ToolId, boolean> {
   return {
@@ -70,10 +107,6 @@ function defaultNavigatorCollapsed(): Record<ToolId, boolean> {
     communicate: false,
   };
 }
-
-type TreeExpansionState = Record<string, boolean>;
-type FileTreeExpansionState = Record<string, TreeExpansionState>;
-type FilePreviewModeState = Record<string, boolean>;
 
 // Batch write scheduler
 const { scheduleWrite } = createDebouncedWrite(50);
@@ -232,74 +265,6 @@ function expandTreePathChainInState(current: TreeExpansionState, path: string): 
     next[currentPath] = true;
   }
   return next;
-}
-
-export interface UISlice {
-  activeRightTool: ToolId;
-  chatMode: ChatMode;
-  leftCollapsed: boolean;
-  rightCollapsed: boolean;
-  rightPanelWidth: number;
-  filesNavigatorWidth: number;
-  changesNavigatorWidth: number;
-  browserNavigatorWidth: number;
-  gitHubNavigatorWidth: number;
-  isFetching: Record<string, boolean>;
-  expandedFileTreePaths: FileTreeExpansionState;
-  expandedChangesTreePaths: TreeExpansionState;
-  filesNavigatorMode: FilesNavigatorMode;
-  changesNavigatorMode: ChangesNavigatorMode;
-  filePreviewModeByPath: FilePreviewModeState;
-  changesPreviewEnabled: boolean;
-  expandedSessionWorkspaces: Record<string, boolean>;
-  contextChips: ContextChip[];
-  contextMenuOpen: boolean;
-  fileMenuOpen: boolean;
-  viewMenuOpen: boolean;
-  helpMenuOpen: boolean;
-  activeSettingsGroup: SettingsGroupId;
-  settingsSearchQuery: string;
-  navigatorCollapsedByTool: Record<ToolId, boolean>;
-
-  setActiveRightTool: (tool: ToolId) => void;
-  setChatMode: (mode: ChatMode) => void;
-  setLeftCollapsed: (collapsed: boolean) => void;
-  setRightCollapsed: (collapsed: boolean) => void;
-  toggleLeft: () => void;
-  toggleRight: () => void;
-  toggleBoth: () => void;
-  setRightPanelWidth: (width: number) => void;
-  setFilesNavigatorWidth: (width: number) => void;
-  setChangesNavigatorWidth: (width: number) => void;
-  setBrowserNavigatorWidth: (width: number) => void;
-  setGitHubNavigatorWidth: (width: number) => void;
-  setIsFetching: (key: string, value: boolean) => void;
-  setError: (message?: string) => void;
-  setFileTreePathExpanded: (workspaceId: string, path: string, expanded: boolean) => void;
-  toggleFileTreePath: (workspaceId: string, path: string) => void;
-  expandFileTreePathChain: (workspaceId: string, path: string) => void;
-  collapseAllFileTreePaths: (workspaceId: string) => void;
-  setFilesNavigatorMode: (mode: FilesNavigatorMode) => void;
-  setFilePreviewModeForPath: (path: string, previewEnabled: boolean) => void;
-  setChangesPreviewEnabled: (previewEnabled: boolean) => void;
-  setChangesNavigatorMode: (mode: ChangesNavigatorMode) => void;
-  setChangesTreePathExpanded: (path: string, expanded: boolean) => void;
-  toggleChangesTreePath: (path: string) => void;
-  expandChangesTreePathChain: (path: string) => void;
-  collapseAllChangesTreePaths: () => void;
-  toggleSessionWorkspace: (workspaceId: string) => void;
-  addContextChip: (chip: ContextChip) => void;
-  removeContextChip: (id: string) => void;
-  clearContextChips: () => void;
-  setContextMenuOpen: (open: boolean) => void;
-  setFileMenuOpen: (open: boolean) => void;
-  setViewMenuOpen: (open: boolean) => void;
-  setHelpMenuOpen: (open: boolean) => void;
-  closeAllMenus: () => void;
-  setActiveSettingsGroup: (group: SettingsGroupId) => void;
-  setSettingsSearchQuery: (query: string) => void;
-  setNavigatorCollapsed: (tool: ToolId, collapsed: boolean) => void;
-  toggleNavigator: (tool: ToolId) => void;
 }
 
 /**

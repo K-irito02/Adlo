@@ -8,7 +8,7 @@ import { IconClock, IconClipboardList } from '@app/icons';
 
 function LoadingSkeleton() {
   return (
-    <div style={{ padding: '12px' }}>
+    <div className="adl-github-overview">
       <div className="adl-github-skeleton adl-github-skeleton--title" />
       <div className="adl-github-skeleton adl-github-skeleton--line" style={{ width: '80%' }} />
       <div className="adl-github-skeleton adl-github-skeleton--line" style={{ width: '60%' }} />
@@ -95,7 +95,7 @@ export function OverviewView({
                 </span>
               </div>
               {snapshot.latestRun.htmlUrl && (
-                <div style={{ padding: '0 10px 8px' }}>
+                <div className="adl-github-card__link-wrap">
                   <a
                     className="adl-github__link"
                     href={snapshot.latestRun.htmlUrl}

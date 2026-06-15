@@ -281,6 +281,11 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+  padding: 0 0 var(--space-2);
+}
+
+.adl-prompt-modal__body--compact {
+  gap: var(--space-2);
 }
 
 .adl-prompt-modal__header {
@@ -458,7 +463,9 @@
   cursor: pointer;
   z-index: 1;
   background: var(--bg-card);
-  transition: background 0.12s, color 0.12s;
+  transition:
+    background 0.12s,
+    color 0.12s;
 }
 
 .adl-bookmark-dir-toolbar__btn-hint.adl-bookmark-dir-toolbar__btn-hint:hover {
