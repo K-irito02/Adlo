@@ -95,7 +95,7 @@ function buildFolderNode(
     path: `folder:${folder.id}`,
     name: folder.name,
     kind: 'directory',
-    children: [...folderChildren, ...tabChildren],
+    children: [...tabChildren, ...folderChildren],
     nodeType: 'folder',
     folderId: folder.id,
     workspaceId: parentWorkspaceId,
@@ -124,7 +124,7 @@ export function buildWorkspaceCategoryTree(
       path: `workspace:${ws.id}`,
       name: ws.name || ws.path,
       kind: 'directory',
-      children: [...folderNodes, ...tabNodes],
+      children: [...tabNodes, ...folderNodes],
       nodeType: 'workspace',
       workspaceId: ws.id,
     };

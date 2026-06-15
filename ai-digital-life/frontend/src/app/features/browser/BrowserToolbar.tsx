@@ -38,7 +38,7 @@ interface BrowserToolbarProps {
   onSearchClick: () => void;
   onCopyUrl: (url: string) => void;
   onNewTab: () => void;
-  onToggleBookmark: () => void;
+  onOpenBookmarkDialog: () => void;
   onToggleBrowserMenu: () => void;
   onCloseBrowserMenu: () => void;
 }
@@ -66,7 +66,7 @@ export const BrowserToolbar = React.memo(function BrowserToolbar(props: BrowserT
     onSearchClick,
     onCopyUrl,
     onNewTab,
-    onToggleBookmark,
+    onOpenBookmarkDialog,
     onToggleBrowserMenu,
     onCloseBrowserMenu,
   } = props;
@@ -173,7 +173,7 @@ export const BrowserToolbar = React.memo(function BrowserToolbar(props: BrowserT
             type="button"
             className="adl-tool-context__iconbtn"
             aria-label={isBookmarked ? t.unbookmark : t.bookmark}
-            onClick={onToggleBookmark}
+            onClick={onOpenBookmarkDialog}
           >
             {isBookmarked ? (
               <IconStarFilled size={14} decorative />

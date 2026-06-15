@@ -23,6 +23,9 @@
   border-radius: 4px;
   box-shadow: var(--shadow-md);
   opacity: 0;
+  box-sizing: border-box;
+  height: 36px;
+  overflow: hidden;
   transition:
     transform var(--duration-300) var(--ease-spring),
     opacity var(--duration-200) var(--ease-enter);
@@ -40,7 +43,6 @@
   flex-shrink: 0;
   width: 16px;
   height: 16px;
-  vertical-align: middle;
 }
 
 .adl-toast--success svg,

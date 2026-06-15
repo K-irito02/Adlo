@@ -41,6 +41,8 @@ export const browserZh = {
   browserCategoryHistory: '历史目录',
   browserOpenTabs: '已打开标签',
   browserCreateDir: '新建目录',
+  browserCreateDirHint:
+    '• 当选中某个目录时，点击此按钮会在该目录下新建子目录。\n• 当未选中任何目录时，会在"非工作区目录"分类下新建顶级目录。',
   browserDeleteAllChildTabs: '删除所有子标签',
   browserOpenAllInNewTabs: '全部在新标签中打开',
   browserRemoveFromArea: '从该区域移除不显示',
@@ -131,4 +133,9 @@ export const browserZh = {
   browserDeleteHistoryDayLabel: '删除全部历史记录 · 日',
   browserCollapse: '收起',
   browserExpand: '展开',
+  browserExpandAll: '全部展开',
+  browserCollapseAll: '全部折叠',
+  browserBookmarkToFolderTitle: '收藏标签',
+  browserAddToFolder: '加入此目录',
+  browserBookmarkAddedToast: '收藏成功',
 } as const;

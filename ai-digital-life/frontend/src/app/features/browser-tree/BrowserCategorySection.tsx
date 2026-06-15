@@ -23,6 +23,7 @@ interface BrowserCategorySectionProps {
   onOpenFile: (path: string) => void;
   callbacks: SectionCallbacks;
   counts: Map<string, number>;
+  browserViewMode?: 'tree' | 'list' | 'all';
 }
 
 export function BrowserCategorySection({
@@ -35,6 +36,7 @@ export function BrowserCategorySection({
   onOpenFile,
   callbacks,
   counts,
+  browserViewMode,
 }: BrowserCategorySectionProps) {
   const handleOpenFile = useCallback((path: string) => onOpenFile(path), [onOpenFile]);
 
@@ -62,6 +64,7 @@ export function BrowserCategorySection({
             onOpenFile={handleOpenFile}
             callbacks={callbacks}
             counts={counts}
+            browserViewMode={browserViewMode}
           />
         ))}
       </div>

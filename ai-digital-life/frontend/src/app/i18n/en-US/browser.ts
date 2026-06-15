@@ -42,6 +42,8 @@ export const browserEn = {
   browserCategoryHistory: 'History Directory',
   browserOpenTabs: 'Open Tabs',
   browserCreateDir: 'New Directory',
+  browserCreateDirHint:
+    '• When a directory is selected, creates a subdirectory under it.\n• When no directory is selected, creates a top-level directory under "Custom Directory".',
   browserDeleteAllChildTabs: 'Delete All Child Tabs',
   browserOpenAllInNewTabs: 'Open All in New Tabs',
   browserRemoveFromArea: 'Remove from this area',
@@ -133,4 +135,9 @@ export const browserEn = {
   browserDeleteHistoryDayLabel: 'Delete all history · Day',
   browserCollapse: 'Collapse',
   browserExpand: 'Expand',
+  browserExpandAll: 'Expand all',
+  browserCollapseAll: 'Collapse all',
+  browserBookmarkToFolderTitle: 'Bookmark Tab',
+  browserAddToFolder: 'Add to this folder',
+  browserBookmarkAddedToast: 'Bookmarked to current folder',
 } as const;

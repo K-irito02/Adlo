@@ -38,6 +38,7 @@ interface BrowserTabTreeProps {
   onTogglePath: (path: string) => void;
   callbacks: BrowserTabTreeCallbacks;
   labels: BrowserCategoryLabels;
+  browserViewMode?: 'tree' | 'list' | 'all';
 }
 
 export function BrowserTabTree({
@@ -51,6 +52,7 @@ export function BrowserTabTree({
   onTogglePath,
   callbacks,
   labels,
+  browserViewMode,
 }: BrowserTabTreeProps) {
   const categories = useBrowserTreeData(
     workspaces,
@@ -99,6 +101,7 @@ export function BrowserTabTree({
         onOpenFile={handleOpenFile}
         callbacks={callbacks}
         counts={categories.counts}
+        browserViewMode={browserViewMode}
       />
       <BrowserCategorySection
         category={categories.userFolderCategory}
@@ -110,6 +113,7 @@ export function BrowserTabTree({
         onOpenFile={handleOpenFile}
         callbacks={callbacks}
         counts={categories.counts}
+        browserViewMode={browserViewMode}
       />
       <BrowserCategorySection
         category={categories.historyCategory}
@@ -121,6 +125,7 @@ export function BrowserTabTree({
         onOpenFile={handleOpenFile}
         callbacks={callbacks}
         counts={categories.counts}
+        browserViewMode={browserViewMode}
       />
     </CustomScrollArea>
   );

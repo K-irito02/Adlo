@@ -1,3 +1,48 @@
+import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
+import type { TabFolderState } from '../../stores/slices/browserSlice';
+import type { FileTreeRenderableNode } from '../file-tree/fileTree.utils';
+
+function buildFolderDirNode(
+  folder: TabFolderState,
+  allFolders: TabFolderState[]
+): FileTreeRenderableNode {
+  const childFolders = allFolders.filter(
+    (f) => f.parentId === folder.id && (!f.parentType || f.parentType === 'folder')
+  );
+  return {
+    path: `folder:${folder.id}`,
+    name: folder.name,
+    kind: 'directory',
+    children: childFolders.map((child) => buildFolderDirNode(child, allFolders)),
+  };
+}
+
+export function buildBookmarkDirectoryTree(
+  workspaces: RecentWorkspaceEntry[],
+  tabFolders: TabFolderState[]
+): {
+  workspaceNodes: FileTreeRenderableNode[];
+  userFolderNodes: FileTreeRenderableNode[];
+} {
+  const workspaceNodes: FileTreeRenderableNode[] = workspaces.map((ws) => {
+    const wsRootFolders = tabFolders.filter(
+      (f) => f.parentType === 'workspace' && f.parentId === ws.id
+    );
+    return {
+      path: `workspace:${ws.id}`,
+      name: ws.name || ws.path,
+      kind: 'directory',
+      children: wsRootFolders.map((folder) => buildFolderDirNode(folder, tabFolders)),
+    };
+  });
+
+  const userFolderNodes: FileTreeRenderableNode[] = tabFolders
+    .filter((f) => !f.parentId)
+    .map((folder) => buildFolderDirNode(folder, tabFolders));
+
+  return { workspaceNodes, userFolderNodes };
+}
+
 export function resolveFolderWorkspaceId(
   folderId: string,
   folders: Array<{ id: string; parentId?: string; parentType?: 'workspace' | 'folder' }>

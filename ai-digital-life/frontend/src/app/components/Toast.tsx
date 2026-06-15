@@ -20,7 +20,7 @@ interface ToastData {
 }
 
 const TOAST_BASE_TOP = 24;
-const TOAST_HEIGHT = 40;
+const TOAST_HEIGHT = 36;
 const TOAST_GAP = 8;
 
 const TOAST_ICONS: Record<ToastType, IconName> = {

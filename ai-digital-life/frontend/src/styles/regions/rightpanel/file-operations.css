@@ -313,6 +313,27 @@
   border-right: 6px solid var(--border-default);
 }
 
+/* 向下箭头填充 */
+.adl-sub-hint-card__arrow--down {
+  border-top: 5px solid var(--bg-card);
+  border-right: 4px solid transparent;
+  border-bottom: 0 solid transparent;
+  border-left: 4px solid transparent;
+}
+
+/* 向下箭头边框轮廓 */
+.adl-sub-hint-card__arrow-border--down {
+  border-top: 6px solid var(--border-default);
+  border-right: 5px solid transparent;
+  border-bottom: 0 solid transparent;
+  border-left: 5px solid transparent;
+}
+
+/* 向下卡片取消左侧无边框的样式 */
+.adl-sub-hint-card--down {
+  border-width: 1px;
+}
+
 .adl-multitree-entry__menu-sep {
   height: 1px;
   margin: var(--space-1) var(--space-1);

@@ -39,7 +39,9 @@ import {
   resolveFolderWorkspaceId,
   handleRenameFromContextMenu,
   handleDeleteFromContextMenu,
+  buildBookmarkDirectoryTree,
 } from './browserPanelHelpers';
+import { BookmarkToFolderDialog } from './BookmarkToFolderDialog';
 import { SearchResultItem } from './BrowserSearchOverlay';
 
 export function BrowserPanel(props: BrowserPanelProps) {
@@ -96,6 +98,11 @@ export function BrowserPanel(props: BrowserPanelProps) {
     currentName: '',
   });
 
+  const [createDirDialog, setCreateDirDialog] = useState<{
+    open: boolean;
+    parentPath: string | null;
+  }>({ open: false, parentPath: null });
+
   const [selectedTreePath, setSelectedTreePath] = useState<string | null>(null);
   const selectedTreePathRef = useRef<string | null>(null);
 
@@ -116,6 +123,8 @@ export function BrowserPanel(props: BrowserPanelProps) {
     open: boolean;
     workspaceId?: string;
   }>({ open: false });
+
+  const [bookmarkDialogOpen, setBookmarkDialogOpen] = useState(false);
 
   const handleCreateTabConfirm = useCallback(
     (name: string, url: string) => {
@@ -168,8 +177,15 @@ export function BrowserPanel(props: BrowserPanelProps) {
     handleDoubleClick,
     handleCloseTab,
     handleCloseAllTabs,
-    handleToggleBookmark,
   } = useBrowserTabs();
+
+  const handleOpenBookmarkDialog = useCallback(() => {
+    if (isBookmarked) {
+      useAppStore.getState().browserToggleBookmark();
+      return;
+    }
+    setBookmarkDialogOpen(true);
+  }, [isBookmarked]);
 
   const {
     iframeLoadError,
@@ -306,6 +322,37 @@ export function BrowserPanel(props: BrowserPanelProps) {
     [recentWorkspaces]
   );
 
+  const bookmarkTreeData = useMemo(
+    () => buildBookmarkDirectoryTree(visibleWorkspaces, browserTabFolders),
+    [visibleWorkspaces, browserTabFolders]
+  );
+
+  const handleBookmarkAddToFolder = useCallback(
+    (folderPath: string | null) => {
+      if (!folderPath) {
+        showToast(t.browserSelectDirFirst, 'warning');
+        return;
+      }
+      if (!activeTab?.id) {
+        showToast(t.browserSelectDirFirst, 'warning');
+        return;
+      }
+      const folderId = folderPath.startsWith('folder:') ? folderPath.slice('folder:'.length) : null;
+      if (!folderId) {
+        showToast(t.browserSelectDirFirst, 'warning');
+        return;
+      }
+      useAppStore.getState().browserBookmarkTab(activeTab.id, folderId);
+      showToast(t.browserBookmarkAddedToast, 'success');
+      setBookmarkDialogOpen(false);
+    },
+    [activeTab, showToast, t]
+  );
+
+  const handleBookmarkCreateDir = useCallback((parentPath: string | null) => {
+    setCreateDirDialog({ open: true, parentPath });
+  }, []);
+
   const navigatorCount = useMemo(
     () =>
       computeNavigatorCount(
@@ -361,6 +408,11 @@ export function BrowserPanel(props: BrowserPanelProps) {
     },
     [setBrowserViewMode, setBrowserShowTabButtons]
   );
+
+  const handleDirectListView = useCallback(() => {
+    setBrowserViewMode('list');
+    setNavigatorMode('tabs');
+  }, [setBrowserViewMode, setNavigatorMode]);
 
   const { handleGoBack, handleGoForward, handleReload } = useBrowserNavigation({
     iframeRef,
@@ -471,7 +523,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
         onSearchClick={urlState.handleSearchClick}
         onCopyUrl={urlState.handleCopyUrl}
         onNewTab={() => browserOpenTab()}
-        onToggleBookmark={handleToggleBookmark}
+        onOpenBookmarkDialog={handleOpenBookmarkDialog}
         onToggleBrowserMenu={() => setBrowserMenuOpen((value) => !value)}
         onCloseBrowserMenu={() => setBrowserMenuOpen(false)}
       />
@@ -569,12 +621,33 @@ export function BrowserPanel(props: BrowserPanelProps) {
                 <TooltipSimple content={t.browserTabDir} placement="top">
                   <button
                     type="button"
-                    className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${navigatorMode === 'tabs' ? ' is-active' : ''}`}
-                    onClick={() => setNavigatorMode('tabs')}
+                    className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${navigatorMode === 'tabs' && (browserViewMode === 'default' || browserShowTabButtons) ? ' is-active' : ''}`}
+                    onClick={() => {
+                      setNavigatorMode('tabs');
+                      setBrowserViewMode('default');
+                    }}
                     aria-label={t.browserTabDir}
-                    aria-pressed={navigatorMode === 'tabs' ? 'true' : 'false'}
+                    aria-pressed={
+                      navigatorMode === 'tabs' &&
+                      (browserViewMode === 'default' || browserShowTabButtons)
+                        ? 'true'
+                        : 'false'
+                    }
                   >
                     <IconFolder size={14} decorative />
+                  </button>
+                </TooltipSimple>
+                <TooltipSimple content={t.browserViewModeList} placement="top">
+                  <button
+                    type="button"
+                    className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${browserViewMode === 'list' && !browserShowTabButtons ? ' is-active' : ''}`}
+                    onClick={handleDirectListView}
+                    aria-label={t.browserViewModeList}
+                    aria-pressed={
+                      browserViewMode === 'list' && !browserShowTabButtons ? 'true' : 'false'
+                    }
+                  >
+                    <IconList size={14} decorative />
                   </button>
                 </TooltipSimple>
                 <TooltipSimple content={t.browserSearchTabs} placement="top">
@@ -622,19 +695,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
                     className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
                     onClick={() => {
                       const path = selectedTreePathRef.current;
-                      if (path && path.startsWith('folder:')) {
-                        const folderId = path.slice('folder:'.length);
-                        useAppStore
-                          .getState()
-                          .browserCreateTabFolder(undefined, folderId, 'folder');
-                      } else if (path && path.startsWith('workspace:')) {
-                        const wsId = path.slice('workspace:'.length);
-                        useAppStore.getState().browserCreateTabFolder(undefined, wsId, 'workspace');
-                      } else {
-                        useAppStore
-                          .getState()
-                          .browserCreateTabFolder(undefined, undefined, undefined);
-                      }
+                      setCreateDirDialog({ open: true, parentPath: path });
                     }}
                     aria-label={t.browserCreateDir}
                   >
@@ -667,6 +728,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
               selectedTreePath={selectedTreePath}
               onSelectTreePath={handleSelectTreePath}
               onTogglePath={handleToggleTreePath}
+              browserViewMode={browserViewMode !== 'default' ? browserViewMode : undefined}
               callbacks={{
                 onCreateTab: (workspaceId?: string, _folderId?: string) => {
                   setCreateTabDialog({ open: true, workspaceId });
@@ -854,6 +916,16 @@ export function BrowserPanel(props: BrowserPanelProps) {
         onCancel={handleCreateTabCancel}
       />
 
+      <BookmarkToFolderDialog
+        open={bookmarkDialogOpen}
+        t={t}
+        workspaceNodes={bookmarkTreeData.workspaceNodes}
+        userFolderNodes={bookmarkTreeData.userFolderNodes}
+        onAddToFolder={handleBookmarkAddToFolder}
+        onCreateDir={handleBookmarkCreateDir}
+        onCancel={() => setBookmarkDialogOpen(false)}
+      />
+
       <RenameDialog
         open={renameFolderState.open}
         initialValue={renameFolderState.currentName}
@@ -864,6 +936,26 @@ export function BrowserPanel(props: BrowserPanelProps) {
           setRenameFolderState((prev) => ({ ...prev, open: false }));
         }}
         onCancel={() => setRenameFolderState((prev) => ({ ...prev, open: false }))}
+      />
+
+      <RenameDialog
+        open={createDirDialog.open}
+        initialValue=""
+        title={t.browserCreateDir as string}
+        onConfirm={(name) => {
+          const parentPath = createDirDialog.parentPath;
+          if (parentPath?.startsWith('folder:')) {
+            const folderId = parentPath.slice('folder:'.length);
+            useAppStore.getState().browserCreateTabFolder(name, folderId, 'folder');
+          } else if (parentPath?.startsWith('workspace:')) {
+            const wsId = parentPath.slice('workspace:'.length);
+            useAppStore.getState().browserCreateTabFolder(name, wsId, 'workspace');
+          } else {
+            useAppStore.getState().browserCreateTabFolder(name, undefined, undefined);
+          }
+          setCreateDirDialog({ open: false, parentPath: null });
+        }}
+        onCancel={() => setCreateDirDialog({ open: false, parentPath: null })}
       />
 
       <ToastContainer toasts={toastMessages} onRemove={removeToast} />

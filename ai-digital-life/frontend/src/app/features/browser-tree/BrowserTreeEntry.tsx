@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { IconPlus, IconTrash, IconMoreVertical } from '../../icons';
 import { FileTree } from '../file-tree';
@@ -20,6 +20,64 @@ interface BrowserTreeEntryProps {
   onOpenFile: (path: string) => void;
   callbacks: SectionCallbacks;
   counts: Map<string, number>;
+  browserViewMode?: 'tree' | 'list' | 'all';
+}
+
+type FlatItem = { type: 'tab'; node: BrowserTreeNode } | { type: 'separator'; label: string };
+
+function buildFlatTabItems(node: BrowserTreeNode, showSeparators: boolean): FlatItem[] {
+  const items: FlatItem[] = [];
+
+  for (const child of node.children) {
+    if (child.kind === 'file') {
+      items.push({ type: 'tab', node: child });
+    }
+  }
+
+  for (const dir of node.children) {
+    if (dir.kind !== 'directory') {
+      continue;
+    }
+    const subItems = collectSubDirItems(dir, dir.name, showSeparators);
+    if (subItems.length > 0) {
+      if (showSeparators) {
+        items.push({ type: 'separator', label: dir.name });
+      }
+      items.push(...subItems);
+    }
+  }
+
+  return items;
+}
+
+function collectSubDirItems(
+  dir: BrowserTreeNode,
+  pathSoFar: string,
+  showSeparators: boolean
+): FlatItem[] {
+  const items: FlatItem[] = [];
+
+  for (const child of dir.children) {
+    if (child.kind === 'file') {
+      items.push({ type: 'tab', node: child });
+    }
+  }
+
+  for (const subDir of dir.children) {
+    if (subDir.kind !== 'directory') {
+      continue;
+    }
+    const childPath = `${pathSoFar}/${subDir.name}`;
+    const deeper = collectSubDirItems(subDir, childPath, showSeparators);
+    if (deeper.length > 0) {
+      if (showSeparators) {
+        items.push({ type: 'separator', label: childPath });
+      }
+      items.push(...deeper);
+    }
+  }
+
+  return items;
 }
 
 function getEntryHoverButtons(
@@ -232,6 +290,7 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
   onOpenFile,
   callbacks,
   counts,
+  browserViewMode,
 }: BrowserTreeEntryProps) {
   const { t } = useTCopy();
   const isSelected = selectedTreePath === node.path;
@@ -251,6 +310,8 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
   } | null>(null);
 
   const isExpanded = expandedPaths[node.path] ?? false;
+  const isFlatMode = browserViewMode === 'list' || browserViewMode === 'all';
+  const showSeparators = browserViewMode === 'list';
   const menuId = `browser-entry-menu-${node.path}`;
   const entryBtnRef = useRef<{ [key: string]: HTMLButtonElement | null }>({});
 
@@ -440,6 +501,83 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
     [onSelectTreePath, node.path]
   );
 
+  const flatItems = useMemo(
+    () => (isFlatMode && isExpanded ? buildFlatTabItems(node, showSeparators) : []),
+    [node, isFlatMode, isExpanded, showSeparators]
+  );
+
+  const handleFlatTabClick = useCallback(
+    (tabNode: BrowserTreeNode) => {
+      onSelectTreePath(tabNode.path);
+      if (tabNode.kind === 'file') {
+        onOpenFile(tabNode.path);
+      } else {
+        onTogglePath(tabNode.path);
+      }
+    },
+    [onSelectTreePath, onOpenFile, onTogglePath]
+  );
+
+  const flatChildren =
+    isFlatMode && isExpanded && flatItems.length > 0 ? (
+      <div className="adl-browser-entry__tree adl-browser-entry__tree--flat">
+        <ul className="adl-filetree" role="tree">
+          {flatItems.map((item) => {
+            if (item.type === 'separator') {
+              return (
+                <li
+                  key={`sep-${item.label}`}
+                  className="adl-browser-entry__flat-separator"
+                  role="separator"
+                >
+                  <span className="adl-browser-entry__flat-sep-line" />
+                  <span className="adl-browser-entry__flat-sep-text">{item.label}</span>
+                  <span className="adl-browser-entry__flat-sep-line" />
+                </li>
+              );
+            }
+            const isTabSelected = selectedTreePath === item.node.path;
+            return (
+              <li
+                key={item.node.path}
+                className={`adl-filetree__item adl-filetree__node--file${isTabSelected ? ' is-selected' : ''}`}
+                data-path={item.node.path}
+                role="treeitem"
+              >
+                <div
+                  className="adl-filetree__row"
+                  onClick={() => handleFlatTabClick(item.node)}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    onSelectTreePath(item.node.path);
+                  }}
+                >
+                  <span
+                    className="adl-filetree__indent adl-filetree__indent--flat"
+                    aria-hidden="true"
+                  />
+                  <span className="adl-filetree__file-icon adl-filetree__file-icon--default">
+                    <span className="adl-filetree__file-badge" aria-hidden="true">
+                      TAB
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    className="adl-filetree__label"
+                    onClick={() => handleFlatTabClick(item.node)}
+                  >
+                    <span className="adl-filetree__label-content">
+                      <span className="adl-filetree__label-text">{item.node.name}</span>
+                    </span>
+                  </button>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    ) : null;
+
   const handleMenuItemClick = useCallback(
     (action: () => void) => () => {
       action();
@@ -502,7 +640,7 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
       : null;
 
   const fileTreeChildren =
-    isExpanded && node.children.length > 0 ? (
+    isExpanded && node.children.length > 0 && !isFlatMode ? (
       <div className="adl-browser-entry__tree">
         <FileTree<BrowserTreeNode>
           nodes={node.children}
@@ -567,7 +705,7 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
       hasChildren={node.children.length > 0}
       extraContent={childMenuSlot}
     >
-      {fileTreeChildren}
+      {isFlatMode ? flatChildren : fileTreeChildren}
     </MultiTreeEntryShell>
   );
 });

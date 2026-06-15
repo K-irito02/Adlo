@@ -11,7 +11,7 @@
 | [浏览器](./浏览器/) | 内置浏览器实现、空标签引导页、树形目录交互等经验 | 8 |
 | [代码质量](./代码质量/) | 全量代码质量检测与修复经验 | 11 |
 | [浏览器自动化](./浏览器自动化/) | 浏览器自动化调试记录与规则经验 | 2 |
-| [交互优化](./交互优化/) | 跨功能面板的交互/UX 问题修复经验 | 12 |
+| [交互优化](./交互优化/) | 跨功能面板的交互/UX 问题修复经验 | 13 |
 | [CI 监控](./CI监控/) | GitHub Actions CI 状态监控模块经验（按目录独立绑定、Token 持久化、日志隔离、数据缓存、Rate Limit 保护） | 6 |
 
 ## 索引
@@ -105,6 +105,7 @@
 | [github-job-card-hover-and-status-dot-optimization-2026-06-14.md](./交互优化/github-job-card-hover-and-status-dot-optimization-2026-06-14.md) | 2026-06-14 交互优化 | GitHub Job 卡片悬停背景全宽延伸、展开/折叠按钮悬停态统一、移除重复 StatusDot。核心挑战：`z-index: -1` + 局部层叠上下文 |
 | [github-log-viewer-toolbar-optimization-2026-06-14.md](./交互优化/github-log-viewer-toolbar-optimization-2026-06-14.md) | 2026-06-14 交互优化 | GitHub 日志查看器工具栏：自定义下拉菜单、搜索框始终可见、正方形复选框、工具栏裁剪、删除任务视图搜索框。核心挑战：`overflow: hidden` 与下拉菜单定位冲突 |
 | [github-panel-i18n-full-coverage-2026-06-15.md](./交互优化/github-panel-i18n-full-coverage-2026-06-15.md) | 2026-06-15 Bug 修复 + i18n | GitHub 子面板 i18n 全覆盖：15 处硬编码清理、17 个翻译 key、工具函数 locale 感知、标题行消失修复 |
+| [browser-bookmark-dialog-and-flat-view-2026-06-15.md](./交互优化/browser-bookmark-dialog-and-flat-view-2026-06-15.md) | 2026-06-15 功能实现 | 浏览器收藏标签对话框 + 展平列表视图：树展平算法、"!" Hint CSS specificity 技巧、按钮常态无背景 |
 
 ### CI 监控
 
