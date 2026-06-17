@@ -317,36 +317,30 @@ export function BrowserPanel(props: BrowserPanelProps) {
         } else {
           validatedUrlsRef.current.add(finalUrl);
         }
-        browserNavigateActiveTab(finalUrl, matchedItem?.title);
-        setAddress(finalUrl);
         if (!cached) {
           navigateBrowser(finalUrl);
         }
-        return;
-      }
-
-      const blocked = await checkEmbed(finalUrl);
-      if (submitVersionRef.current !== version) {
-        return;
-      }
-
-      if (blocked) {
-        setIframeBlockedDetected(true);
-        setIframeLoadError(true);
       } else {
-        validatedUrlsRef.current.add(finalUrl);
-      }
+        const blocked = await checkEmbed(finalUrl);
+        if (submitVersionRef.current !== version) {
+          return;
+        }
 
-      browserNavigateActiveTab(finalUrl, matchedItem?.title);
-      setAddress(finalUrl);
+        if (blocked) {
+          setIframeBlockedDetected(true);
+          setIframeLoadError(true);
+        } else {
+          validatedUrlsRef.current.add(finalUrl);
+        }
 
-      if (!blocked) {
-        navigateBrowser(finalUrl);
+        if (!blocked) {
+          navigateBrowser(finalUrl);
+        }
       }
-    } else {
-      browserNavigateActiveTab(finalUrl, matchedItem?.title);
-      setAddress(finalUrl);
     }
+
+    browserNavigateActiveTab(finalUrl, matchedItem?.title);
+    setAddress(finalUrl);
   }, [
     address,
     browserLookupIndex,
@@ -538,6 +532,9 @@ export function BrowserPanel(props: BrowserPanelProps) {
       if (cached) {
         setIframeBlockedDetected(true);
         setIframeLoadError(true);
+      } else {
+        validatedUrlsRef.current.add(url);
+        forceRender((v) => v + 1);
       }
       return;
     }
