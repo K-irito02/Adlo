@@ -1291,11 +1291,12 @@ export async function handlePreviewWorkspaceApi(
       const owner = requestUrl.searchParams.get('owner') ?? '';
       const repo = requestUrl.searchParams.get('repo') ?? '';
       const branch = requestUrl.searchParams.get('branch') ?? 'main';
-      const rawToken = typeof request.headers.get === 'function'
-        ? request.headers.get('x-ci-access-token') ?? request.headers.get('X-CI-Access-Token')
-        : Array.isArray(request.headers['x-ci-access-token'])
-          ? request.headers['x-ci-access-token'][0]
-          : request.headers['x-ci-access-token'];
+      const rawToken =
+        typeof request.headers.get === 'function'
+          ? (request.headers.get('x-ci-access-token') ?? request.headers.get('X-CI-Access-Token'))
+          : Array.isArray(request.headers['x-ci-access-token'])
+            ? request.headers['x-ci-access-token'][0]
+            : request.headers['x-ci-access-token'];
       const token = rawToken ?? '';
       if (!owner.trim() || !repo.trim()) {
         writeJson(response, fail('owner and repo are required', 'INVALID_INPUT'));

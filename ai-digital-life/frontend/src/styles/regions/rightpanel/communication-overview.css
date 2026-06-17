@@ -1,0 +1,302 @@
+/* ==========================================================================
+   Communication Panel — Overview view styles (CI cards, progress, hero)
+   ========================================================================== */
+
+/* ─── GitHub CI Card System ─── */
+
+.adl-github-card {
+  background: var(--surface-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.adl-github-card + .adl-github-card {
+  margin-top: 6px;
+}
+
+.adl-github-card--status {
+  border-left: 3px solid var(--border);
+}
+
+.adl-github-card--status.is-success {
+  border-left-color: var(--success);
+}
+
+.adl-github-card--status.is-failure {
+  border-left-color: var(--danger);
+}
+
+.adl-github-card--status.is-running {
+  border-left-color: var(--warning);
+}
+
+.adl-github-card--status.is-skipped {
+  border-left-color: var(--text-tertiary);
+}
+
+.adl-github-card--status.is-pending {
+  border-left-color: var(--text-tertiary);
+}
+
+.adl-github-card__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s;
+}
+
+.adl-github-card__header:hover {
+  background: var(--surface-hover);
+}
+
+.adl-github-card__title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.adl-github-card__body {
+  border-top: 1px solid var(--border);
+  padding: 6px 10px 8px;
+}
+
+.adl-github-card__meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px 16px;
+  padding: 6px 10px 8px;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.adl-github-card__meta-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.adl-github-card__meta-label {
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.adl-github-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.adl-github-progress {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+
+.adl-github-progress__bar {
+  flex: 1;
+  height: 4px;
+  background: var(--surface-primary);
+  border-radius: 2px;
+  overflow: hidden;
+  min-width: 60px;
+}
+
+.adl-github-progress__fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.adl-github-progress__fill.is-success {
+  background: var(--success);
+}
+.adl-github-progress__fill.is-failure {
+  background: var(--danger);
+}
+.adl-github-progress__fill.is-running {
+  background: var(--warning);
+}
+
+.adl-github-progress__text {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.adl-status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.adl-status-dot--animated {
+  animation: adl-pulse 2s ease-in-out infinite;
+}
+
+@keyframes adl-pulse {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 4px currentColor;
+  }
+}
+
+@keyframes adl-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.adl-github-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--surface-secondary) 25%,
+    var(--surface-hover) 50%,
+    var(--surface-secondary) 75%
+  );
+  background-size: 200% 100%;
+  animation: adl-shimmer 1.5s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+}
+
+.adl-github-skeleton--line {
+  height: 12px;
+  margin-bottom: 8px;
+}
+
+.adl-github-skeleton--title {
+  height: 16px;
+  width: 60%;
+  margin-bottom: 12px;
+}
+
+.adl-github-skeleton--card {
+  height: 80px;
+  margin-bottom: 8px;
+}
+
+.adl-github-filter {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.adl-github-filter__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.adl-github-filter__btn:hover {
+  color: var(--text-primary);
+  background: var(--surface-hover);
+}
+
+.adl-github-filter__btn.is-active {
+  color: var(--text-primary);
+  background: var(--surface-secondary);
+  border-color: var(--border);
+  font-weight: 500;
+}
+
+/* ─── Overview skeleton ─── */
+
+.adl-github-overview {
+  padding: 12px;
+}
+
+.adl-github-card__link-wrap {
+  padding: 0 10px 8px;
+}
+
+/* ─── Hero ─── */
+
+.adl-github-hero {
+  padding: 8px 12px;
+}
+
+.adl-github-hero__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.adl-github-hero__name {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adl-github-hero__time {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.adl-github-section {
+  padding: 4px 12px 0;
+}
+
+.adl-github-section__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 6px;
+  padding: 8px 0 4px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.adl-github-section__title:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.adl-github-section__count {
+  color: var(--text-tertiary);
+  font-weight: 400;
+  letter-spacing: 0;
+}

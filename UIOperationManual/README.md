@@ -37,7 +37,7 @@
 | 标题栏 | [titlebar/](./titlebar/README.md) | 品牌、菜单、窗口控制 |
 | 左侧边栏 | [leftbar/](./leftbar/README.md) | 快捷操作、工作区、会话 |
 | 中心面板 | [center/](./center/README.md) | 消息流、输入区、状态栏 |
-| 右侧面板 | [rightpanel/](./rightpanel/README.md) | 工具切换、工具面板 |
+| 右侧面板 | [rightpanel/](./rightpanel/README.md) | 工具切换、工具面板、浏览器、通信面板 |
 
 ## 共享定义
 

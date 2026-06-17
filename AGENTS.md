@@ -23,7 +23,7 @@
 
 ## 重构历史
 
-共完成 **64 轮**迭代重构，完整记录见 [REFACTORING_PROGRESS_REPORT.md](./docs/重构洞察/REFACTORING_PROGRESS_REPORT.md)。
+共完成 **71 轮**迭代重构，完整记录见 [REFACTORING_PROGRESS_REPORT.md](./docs/重构洞察/REFACTORING_PROGRESS_REPORT.md)。
 
 ## 代理开发规则
 
@@ -49,6 +49,9 @@
 - 功能或显示效果仅在 Tauri 或浏览器单一模式下可用（必须双端一致）
 - 任何 UI 展示文本硬编码（包括但不限于按钮/Tooltip/aria-label/占位符/过滤器标签/相对时间/日期格式/面包屑标签映射），必须使用 i18n key
 - 语言切换时依赖 Zustand store 易变数据的渲染条件缺少 fallback 导致标题行/路径栏消失
+- 错误提示/状态提示常驻显示（必须仅在活跃错误状态下可见）
+- 调试日志（`console.log`/`[ADL-DEBUG]`）遗留生产代码不清理
+- iframe 嵌入缺少前置检测（必须使用 checkEmbed HEAD 预检 + 同步 ref 门控 + 基于 attachShadow mode:closed 的 SafeIframe 沙箱保护，标准 `<iframe>` JSX 会导致 React DevTools 跨域 SecurityError）
 
 ## 双端一致性
 

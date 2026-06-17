@@ -1,20 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  IconFolderPlus,
-  IconFolder,
-  IconPlus,
-  IconTrash,
-  IconSearch,
-  IconList,
-  IconLayoutList,
-  IconReturn,
-  IconFoldVertical,
-  IconUnfoldVertical,
-} from '../../icons';
-import { TooltipSimple } from '../../components/Tooltip';
+import { SafeIframe } from './SafeIframe';
 import { RenameDialog } from '../../components/RenameDialog';
 import { ToastContainer, type ToastType } from '../../components/Toast';
-import { NavigatorResizeHandle } from '@components/NavigatorResizeHandle';
+import { ErrorBoundary } from '../../components/ErrorBoundary';
+import { IconAlertTriangle, IconGlobe } from '../../icons';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../../stores/slicedStore';
 import { useBrowserTabs, computeNavigatorCount } from './useBrowserTabs';
@@ -27,8 +16,7 @@ import { useBrowserUrlState } from './useBrowserUrlState';
 import { useBrowserMenus } from './useBrowserMenus';
 import { BrowserContextMenu } from './BrowserContextMenu';
 import { BrowserToolbar } from './BrowserToolbar';
-import { BrowserTabTree } from '../browser-tree';
-import { CustomScrollArea } from '../file-tree/CustomScrollArea';
+import { BrowserNavigator } from './BrowserNavigator';
 import { isTauriShell } from '../../../tauri-bridge';
 import { BrowserLandingPage, CreateTabDialog } from './browser-landing';
 import type { BrowserPanelProps } from '../../regions/right-panel/types';
@@ -36,13 +24,12 @@ import { open as shellOpen } from '@tauri-apps/plugin-shell';
 import { useNavigatorResize } from '../../hooks/useNavigatorResize';
 import { useTCopy } from '../../i18n/useTCopy';
 import {
-  resolveFolderWorkspaceId,
   handleRenameFromContextMenu,
   handleDeleteFromContextMenu,
   buildBookmarkDirectoryTree,
 } from './browserPanelHelpers';
 import { BookmarkToFolderDialog } from './BookmarkToFolderDialog';
-import { SearchResultItem } from './BrowserSearchOverlay';
+import { checkEmbed, isEmbedBlocked } from './checkEmbed';
 
 export function BrowserPanel(props: BrowserPanelProps) {
   const { t } = useTCopy();
@@ -61,6 +48,10 @@ export function BrowserPanel(props: BrowserPanelProps) {
     toggleBrowserNavigator,
     browserNavigateActiveTab,
     browserUpdateTab,
+    recentWorkspaces,
+    browserBookmarks,
+    browserHistory,
+    browserWorkspaceBookmarks,
   } = useAppStore(
     useShallow((state) => ({
       browserOpenTab: state.browserOpenTab,
@@ -74,13 +65,11 @@ export function BrowserPanel(props: BrowserPanelProps) {
       toggleBrowserNavigator: state.toggleBrowserNavigator,
       browserNavigateActiveTab: state.browserNavigateActiveTab,
       browserUpdateTab: state.browserUpdateTab,
+      recentWorkspaces: state.recentWorkspaces,
+      browserBookmarks: state.browserBookmarks,
+      browserHistory: state.browserHistory,
+      browserWorkspaceBookmarks: state.browserWorkspaceBookmarks,
     }))
-  );
-  const recentWorkspaces = useAppStore(useShallow((state) => state.recentWorkspaces));
-  const browserBookmarks = useAppStore(useShallow((state) => state.browserBookmarks));
-  const browserHistory = useAppStore(useShallow((state) => state.browserHistory));
-  const browserWorkspaceBookmarks = useAppStore(
-    useShallow((state) => state.browserWorkspaceBookmarks)
   );
 
   const navigatorCollapsed = navigatorCollapsedByTool.browser ?? false;
@@ -128,6 +117,8 @@ export function BrowserPanel(props: BrowserPanelProps) {
   }>({ open: false });
 
   const [bookmarkDialogOpen, setBookmarkDialogOpen] = useState(false);
+  const validatedUrlsRef = useRef(new Set<string>());
+  const [, forceRender] = useState(0);
 
   const handleCreateTabConfirm = useCallback(
     (name: string, url: string) => {
@@ -193,6 +184,8 @@ export function BrowserPanel(props: BrowserPanelProps) {
   const {
     iframeLoadError,
     setIframeLoadError,
+    iframeBlockedDetected,
+    setIframeBlockedDetected,
     iframeHistory,
     setIframeHistory,
     iframeRef,
@@ -297,25 +290,45 @@ export function BrowserPanel(props: BrowserPanelProps) {
     [toggleBrowserNavigator]
   );
 
-  const submitAddress = useCallback(() => {
+  const submitAddressRef = useRef(false);
+
+  const submitAddress = useCallback(async () => {
     const input = address.trim();
-    if (!input) {
+    if (!input || submitAddressRef.current) {
       return;
     }
     const matchedItem = findInBrowserLookupIndex(browserLookupIndex, input);
-    if (matchedItem) {
-      browserNavigateActiveTab(matchedItem.url, matchedItem.title);
-      setAddress(matchedItem.url);
-      navigateBrowser(matchedItem.url);
-      return;
+    const matchedUrl = matchedItem?.url;
+    const finalUrl = matchedUrl
+      ? matchedUrl
+      : /^[a-z]+:\/\/|about:/i.test(input.trim())
+        ? input.trim()
+        : `https://${input.trim()}`;
+    submitAddressRef.current = true;
+    const cached = isEmbedBlocked(finalUrl);
+    const blocked = cached !== undefined ? cached : await checkEmbed(finalUrl);
+    submitAddressRef.current = false;
+    if (blocked) {
+      setIframeBlockedDetected(true);
+      setIframeLoadError(true);
+    } else {
+      validatedUrlsRef.current.add(finalUrl);
     }
-    const normalizedValue = input.trim();
-    const finalUrl = /^[a-z]+:\/\/|about:/i.test(normalizedValue)
-      ? normalizedValue
-      : `https://${normalizedValue}`;
-    browserNavigateActiveTab(finalUrl);
-    navigateBrowser(finalUrl);
-  }, [address, browserLookupIndex, browserNavigateActiveTab, navigateBrowser]);
+
+    browserNavigateActiveTab(finalUrl, matchedItem?.title);
+    setAddress(finalUrl);
+
+    if (!blocked) {
+      navigateBrowser(finalUrl);
+    }
+  }, [
+    address,
+    browserLookupIndex,
+    browserNavigateActiveTab,
+    navigateBrowser,
+    setIframeLoadError,
+    setIframeBlockedDetected,
+  ]);
 
   const visibleWorkspaces = useMemo(
     () =>
@@ -425,6 +438,20 @@ export function BrowserPanel(props: BrowserPanelProps) {
     setNavigatorMode('tabs');
   }, [setBrowserViewMode, setNavigatorMode]);
 
+  const handleOpenTabFromTree = useCallback(
+    (url: string, tabId?: string) => {
+      if (tabId) {
+        const tab = browserTabs.find((t) => t.id === tabId);
+        if (tab) {
+          useAppStore.getState().browserSelectTab(tabId);
+          return;
+        }
+      }
+      browserOpenTab(url, undefined, undefined);
+    },
+    [browserTabs, browserOpenTab]
+  );
+
   const { handleGoBack, handleGoForward, handleReload } = useBrowserNavigation({
     iframeRef,
     iframeHistory,
@@ -446,7 +473,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
     const url = activeTab?.url ?? '';
     requestAnimationFrame(() => {
       setAddress(url);
-      setIframeLoadError(false);
     });
 
     if (!isTauriShell() && url && url !== '') {
@@ -464,7 +490,27 @@ export function BrowserPanel(props: BrowserPanelProps) {
         });
       });
     }
-  }, [activeTab?.url, setAddress, setIframeLoadError, setIframeHistory]);
+  }, [activeTab?.url, setAddress, setIframeHistory]);
+
+  // Guard: validate active tab URL before allowing iframe to render
+  // Handles page reload where persisted URL loads before any embed check
+  useEffect(() => {
+    if (!activeTab?.url || activeTab.url === 'about:blank' || isTauriShell()) {
+      return;
+    }
+    if (validatedUrlsRef.current.has(activeTab.url)) {
+      return;
+    }
+    checkEmbed(activeTab.url).then((blocked) => {
+      if (blocked) {
+        setIframeBlockedDetected(true);
+        setIframeLoadError(true);
+      } else {
+        validatedUrlsRef.current.add(activeTab.url);
+        forceRender((v) => v + 1);
+      }
+    });
+  }, [activeTab?.url, setIframeBlockedDetected, setIframeLoadError, forceRender]);
 
   useEffect(() => {
     if (!browserMenuOpen && !addressExpanded && navigatorMode !== 'search') {
@@ -547,365 +593,136 @@ export function BrowserPanel(props: BrowserPanelProps) {
           } as React.CSSProperties
         }
       >
-        <aside className="adl-tool-navigator" aria-label={t.toolBrowser}>
-          <div className="adl-tool-navigator__context">
-            <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--actions">
-              <TooltipSimple
-                content={allTreeExpanded ? t.collapseAll : t.expandAll}
-                placement="top"
-              >
-                <button
-                  type="button"
-                  className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-                  onClick={allTreeExpanded ? handleCollapseAllTree : handleExpandAllTree}
-                  aria-label={allTreeExpanded ? t.collapseAll : t.expandAll}
-                >
-                  {allTreeExpanded ? (
-                    <IconFoldVertical size={14} decorative />
-                  ) : (
-                    <IconUnfoldVertical size={14} decorative />
-                  )}
-                </button>
-              </TooltipSimple>
-              <span className="adl-tool-navigator__context-title">{navigatorTitle}</span>
-            </div>
-            <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--utility">
-              <span className="adl-tool-navigator__context-count">{openTabCount}</span>
-              <TooltipSimple
-                content={browserShowTabButtons ? t.back : t.browserViewModeDefault}
-                placement="top"
-              >
-                <button
-                  type="button"
-                  className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${browserShowTabButtons ? ' is-active' : ''}`}
-                  onClick={handleToggleTabButtons}
-                  aria-label={browserShowTabButtons ? t.back : t.browserViewModeDefault}
-                >
-                  {browserShowTabButtons ? (
-                    <IconReturn size={14} decorative />
-                  ) : (
-                    <IconList size={14} decorative />
-                  )}
-                </button>
-              </TooltipSimple>
-            </div>
-          </div>
-          <div className="adl-tool-navigator__context adl-tool-navigator__context--secondary">
-            {browserShowTabButtons ? (
-              <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--actions">
-                <TooltipSimple content={t.browserViewModeTree} placement="top">
-                  <button
-                    type="button"
-                    className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${browserViewMode === 'tree' ? ' is-active' : ''}`}
-                    onClick={() => handleSetBrowserViewMode('tree')}
-                    aria-label={t.browserViewModeTree}
-                    aria-pressed={browserViewMode === 'tree' ? 'true' : 'false'}
-                  >
-                    <IconFolder size={14} decorative />
-                  </button>
-                </TooltipSimple>
-                <TooltipSimple content={t.browserViewModeList} placement="top">
-                  <button
-                    type="button"
-                    className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${browserViewMode === 'list' ? ' is-active' : ''}`}
-                    onClick={() => handleSetBrowserViewMode('list')}
-                    aria-label={t.browserViewModeList}
-                    aria-pressed={browserViewMode === 'list' ? 'true' : 'false'}
-                  >
-                    <IconList size={14} decorative />
-                  </button>
-                </TooltipSimple>
-                <TooltipSimple content={t.browserViewModeAll} placement="top">
-                  <button
-                    type="button"
-                    className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${browserViewMode === 'all' ? ' is-active' : ''}`}
-                    onClick={() => handleSetBrowserViewMode('all')}
-                    aria-label={t.browserViewModeAll}
-                    aria-pressed={browserViewMode === 'all' ? 'true' : 'false'}
-                  >
-                    <IconLayoutList size={14} decorative />
-                  </button>
-                </TooltipSimple>
-              </div>
-            ) : (
-              <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--actions">
-                <TooltipSimple content={t.browserTabDir} placement="top">
-                  <button
-                    type="button"
-                    className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${navigatorMode === 'tabs' && (browserViewMode === 'default' || browserShowTabButtons) ? ' is-active' : ''}`}
-                    onClick={() => {
-                      setNavigatorMode('tabs');
-                      setBrowserViewMode('default');
-                    }}
-                    aria-label={t.browserTabDir}
-                    aria-pressed={
-                      navigatorMode === 'tabs' &&
-                      (browserViewMode === 'default' || browserShowTabButtons)
-                        ? 'true'
-                        : 'false'
-                    }
-                  >
-                    <IconFolder size={14} decorative />
-                  </button>
-                </TooltipSimple>
-                <TooltipSimple content={t.browserViewModeList} placement="top">
-                  <button
-                    type="button"
-                    className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${browserViewMode === 'list' && !browserShowTabButtons ? ' is-active' : ''}`}
-                    onClick={handleDirectListView}
-                    aria-label={t.browserViewModeList}
-                    aria-pressed={
-                      browserViewMode === 'list' && !browserShowTabButtons ? 'true' : 'false'
-                    }
-                  >
-                    <IconList size={14} decorative />
-                  </button>
-                </TooltipSimple>
-                <TooltipSimple content={t.browserSearchTabs} placement="top">
-                  <button
-                    type="button"
-                    className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${navigatorMode === 'search' ? ' is-active' : ''}`}
-                    onClick={() => setNavigatorMode('search')}
-                    aria-label={t.browserSearchTabs}
-                    aria-pressed={navigatorMode === 'search' ? 'true' : 'false'}
-                  >
-                    <IconSearch size={14} decorative />
-                  </button>
-                </TooltipSimple>
-              </div>
-            )}
-            <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--utility">
-              <TooltipSimple content={t.browserNewTab} placement="top">
-                <button
-                  type="button"
-                  className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-                  onClick={() => {
-                    const path = selectedTreePathRef.current;
-                    if (!path || (!path.startsWith('folder:') && !path.startsWith('workspace:'))) {
-                      showToast(t.browserSelectDirFirst, 'warning');
-                      return;
-                    }
-                    let wsId: string | undefined;
-                    if (path.startsWith('workspace:')) {
-                      wsId = path.slice('workspace:'.length);
-                    } else if (path.startsWith('folder:')) {
-                      const fid = path.slice('folder:'.length);
-                      wsId = resolveFolderWorkspaceId(fid, browserTabFolders);
-                    }
-                    setCreateTabDialog({ open: true, workspaceId: wsId });
-                  }}
-                  aria-label={t.browserNewTab}
-                >
-                  <IconPlus size={14} decorative />
-                </button>
-              </TooltipSimple>
-              {!browserShowTabButtons && (
-                <TooltipSimple content={t.browserCreateDir} placement="top">
-                  <button
-                    type="button"
-                    className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-                    onClick={() => {
-                      const path = selectedTreePathRef.current;
-                      setCreateDirDialog({ open: true, parentPath: path });
-                    }}
-                    aria-label={t.browserCreateDir}
-                  >
-                    <IconFolderPlus size={14} decorative />
-                  </button>
-                </TooltipSimple>
-              )}
-              <TooltipSimple
-                content={browserShowTabButtons ? t.clearAllOpenTabs : t.deleteAllTabDirs}
-                placement="top"
-              >
-                <button
-                  type="button"
-                  className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-                  onClick={() => handleCloseAllTabs()}
-                  aria-label={browserShowTabButtons ? t.clearAllOpenTabs : t.deleteAllTabDirs}
-                >
-                  <IconTrash size={14} decorative />
-                </button>
-              </TooltipSimple>
-            </div>
-          </div>
-          {navigatorMode === 'tabs' ? (
-            <BrowserTabTree
-              workspaces={visibleWorkspaces}
-              browserTabs={browserTabs}
-              browserTabFolders={browserTabFolders}
-              browserHistory={browserHistory}
-              browserWorkspaceBookmarks={browserWorkspaceBookmarks}
-              tabTreeExpanded={tabTreeExpanded}
-              selectedTreePath={selectedTreePath}
-              onSelectTreePath={handleSelectTreePath}
-              onTogglePath={handleToggleTreePath}
-              browserViewMode={browserViewMode !== 'default' ? browserViewMode : undefined}
-              callbacks={{
-                onCreateTab: (workspaceId?: string, _folderId?: string) => {
-                  setCreateTabDialog({ open: true, workspaceId });
-                },
-                onDeleteAllChildTabs: handleDeleteAllChildTabs,
-                onOpenAllInNewTabs: handleOpenAllInNewTabs,
-                onRemoveFromArea: handleRemoveFromArea,
-                onDeleteDirectory: handleDeleteDirectory,
-                onRenameDirectory: (folderId: string) => {
-                  const folder = browserTabFolders.find((f) => f.id === folderId);
-                  setRenameFolderState({ open: true, folderId, currentName: folder?.name ?? '' });
-                },
-                onDeleteHistory: handleDeleteHistoryLevel,
-                onOpenTab: (url: string, tabId?: string) => {
-                  if (tabId) {
-                    const tab = browserTabs.find((t) => t.id === tabId);
-                    if (tab) {
-                      useAppStore.getState().browserSelectTab(tabId);
-                      return;
-                    }
-                  }
-                  browserOpenTab(url, undefined, undefined);
-                },
-              }}
-              labels={{
-                workspaceCategory: t.browserCategoryWorkspace,
-                userFolderCategory: t.browserCategoryUserFolder,
-                historyCategory: t.browserCategoryHistory,
-              }}
-            />
-          ) : navigatorMode === 'search' ? (
-            <div className="adl-tool-navigator__content">
-              <div className="adl-tool-navigator__context adl-tool-navigator__context--search">
-                <div
-                  className="adl-tool-navigator__summary-stats"
-                  role="tablist"
-                  aria-label={t.browserSearchTabs}
-                >
-                  <button
-                    type="button"
-                    className={`adl-tool-navigator__summary-stat${searchScope === 'bookmarks' ? ' is-active' : ''}`}
-                    onClick={() => setSearchScope('bookmarks')}
-                    aria-pressed={searchScope === 'bookmarks'}
-                    aria-label={t.browserSearchBookmarks}
-                  >
-                    <span className="adl-tool-navigator__summary-label">
-                      {t.browserSearchBookmarks}
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    className={`adl-tool-navigator__summary-stat${searchScope === 'history' ? ' is-active' : ''}`}
-                    onClick={() => setSearchScope('history')}
-                    aria-pressed={searchScope === 'history'}
-                    aria-label={t.browserSearchHistory}
-                  >
-                    <span className="adl-tool-navigator__summary-label">
-                      {t.browserSearchHistory}
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    className={`adl-tool-navigator__summary-stat${searchScope === 'all' ? ' is-active' : ''}`}
-                    onClick={() => setSearchScope('all')}
-                    aria-pressed={searchScope === 'all'}
-                    aria-label={t.browserSearchAll}
-                  >
-                    <span className="adl-tool-navigator__summary-label">{t.browserSearchAll}</span>
-                  </button>
-                </div>
-                <label className="adl-tool-search adl-tool-search--navigator">
-                  <IconSearch size={12} decorative />
-                  <input
-                    ref={navigatorSearchInputRef}
-                    type="search"
-                    value={navigatorQuery}
-                    onChange={(event) => setNavigatorQuery(event.target.value)}
-                    placeholder={t.searchPlaceholder}
-                    aria-label={t.search}
-                  />
-                </label>
-              </div>
-              <CustomScrollArea
-                shellClassName="adl-browser-search-results"
-                scrollClassName="adl-browser-search-results-scroll"
-                scrollbarClassName="adl-browser-search-results-scrollbar"
-                thumbClassName="adl-browser-search-results-scrollbar__thumb"
-              >
-                {searchResults.length > 0 ? (
-                  searchResults.map((item, index) => (
-                    <SearchResultItem
-                      key={`${item.url}-${index}`}
-                      item={item}
-                      onClick={() => browserOpenTab(item.url, item.title)}
-                    />
-                  ))
-                ) : navigatorQuery.trim() ? (
-                  <div className="adl-multitree__empty">
-                    <p className="adl-empty-hint">{t.searchNoResults}</p>
-                  </div>
-                ) : (
-                  <div className="adl-multitree__empty">
-                    <p className="adl-empty-hint">{t.searchBookmarkHistoryHint}</p>
-                  </div>
-                )}
-              </CustomScrollArea>
-            </div>
-          ) : null}
-          <NavigatorResizeHandle
-            label="Resize browser navigator"
-            minWidth={180}
-            maxWidth={300}
-            currentWidth={browserNavigatorWidth}
-            onPointerDown={handleNavigatorResizeStart}
-          />
-        </aside>
+        <BrowserNavigator
+          t={t}
+          navigatorTitle={navigatorTitle}
+          openTabCount={openTabCount}
+          allTreeExpanded={allTreeExpanded}
+          browserShowTabButtons={browserShowTabButtons}
+          browserViewMode={browserViewMode}
+          navigatorMode={navigatorMode}
+          browserNavigatorWidth={browserNavigatorWidth}
+          onToggleTabButtons={handleToggleTabButtons}
+          onSetBrowserViewMode={handleSetBrowserViewMode}
+          onDirectListView={handleDirectListView}
+          onExpandAllTree={handleExpandAllTree}
+          onCollapseAllTree={handleCollapseAllTree}
+          onSetNavigatorMode={setNavigatorMode}
+          onSetBrowserViewModeRaw={setBrowserViewMode}
+          visibleWorkspaces={visibleWorkspaces}
+          browserTabs={browserTabs}
+          browserTabFolders={browserTabFolders}
+          browserHistory={browserHistory}
+          browserWorkspaceBookmarks={browserWorkspaceBookmarks}
+          tabTreeExpanded={tabTreeExpanded}
+          selectedTreePath={selectedTreePath}
+          selectedTreePathRef={selectedTreePathRef}
+          onSelectTreePath={handleSelectTreePath}
+          onToggleTreePath={handleToggleTreePath}
+          onDeleteAllChildTabs={handleDeleteAllChildTabs}
+          onOpenAllInNewTabs={handleOpenAllInNewTabs}
+          onRemoveFromArea={handleRemoveFromArea}
+          onDeleteDirectory={handleDeleteDirectory}
+          onDeleteHistoryLevel={handleDeleteHistoryLevel}
+          onCloseAllTabs={handleCloseAllTabs}
+          onOpenTab={browserOpenTab}
+          onOpenTabFromTree={handleOpenTabFromTree}
+          onCreateTabDialog={setCreateTabDialog}
+          onCreateDirDialog={setCreateDirDialog}
+          onRenameFolder={setRenameFolderState}
+          navigatorQuery={navigatorQuery}
+          searchScope={searchScope}
+          searchResults={searchResults}
+          navigatorSearchRef={navigatorSearchRef}
+          navigatorSearchInputRef={navigatorSearchInputRef}
+          onSetNavigatorQuery={setNavigatorQuery}
+          onSetSearchScope={setSearchScope}
+          onNavigatorResizeStart={handleNavigatorResizeStart}
+          showToast={showToast}
+        />
 
         <div className="adl-tool-primary adl-tool-primary--browser" ref={primaryRef}>
-          <div className="adl-tool-primary__scroll adl-tool-primary__scroll--browser" />
-
           {!hasActiveTab || !activeTab?.url || activeTab?.url === 'about:blank' ? (
-            <BrowserLandingPage t={t} />
+            <div className="adl-tool-primary__scroll adl-tool-primary__scroll--browser">
+              <BrowserLandingPage t={t} />
+            </div>
           ) : (
-            <>
-              {!isTauriShell() && activeTab && (
-                <iframe
-                  ref={iframeRef}
+            <ErrorBoundary
+              fallback={
+                <div className="adl-browser-error-container adl-browser-error-container--active">
+                  <IconAlertTriangle size={28} decorative className="adl-browser-error__icon" />
+                  <p className="adl-browser-error-text">{t.browserCannotOpenEmbedded}</p>
+                  <button
+                    type="button"
+                    className="adl-browser-external-btn adl-browser-external-btn--prominent"
+                    onClick={() => {
+                      const url = activeTab?.url ?? 'about:blank';
+                      if (isTauriShell()) {
+                        shellOpen(url).catch((err) =>
+                          console.error('Failed to open external browser:', err)
+                        );
+                      } else {
+                        const w = window as { trae?: { openExternal: (url: string) => void } };
+                        if (w.trae?.openExternal) {
+                          w.trae.openExternal(url);
+                        } else {
+                          window.open(url, '_blank', 'noopener,noreferrer');
+                        }
+                      }
+                    }}
+                  >
+                    <IconGlobe size={14} />
+                    {t.browserOpenExternal}
+                  </button>
+                </div>
+              }
+            >
+              {!isTauriShell() && activeTab && validatedUrlsRef.current.has(activeTab.url) && (
+                <SafeIframe
+                  iframeRef={iframeRef}
                   src={activeTab.url}
                   className="adl-browser-iframe"
                   title={activeTab.title}
                   onLoad={handleIframeLoad}
                   onError={handleIframeError}
-                  sandbox="allow-scripts allow-forms allow-popups allow-modals allow-top-navigation allow-same-origin"
+                  sandbox="allow-scripts allow-forms allow-popups allow-same-origin"
                   style={{ display: isBrowserVisible ? undefined : 'none' }}
                 />
               )}
 
               {!isTauriShell() && iframeLoadError && (
-                <div className="adl-browser-error-container">
-                  <p className="adl-browser-error-text">{t.browserCannotOpenEmbedded}</p>
+                <div className="adl-browser-error-container adl-browser-error-container--active">
+                  <IconAlertTriangle size={28} decorative className="adl-browser-error__icon" />
+                  <p className="adl-browser-error-text">
+                    {iframeBlockedDetected
+                      ? t.browserCannotOpenEmbedded
+                      : t.browserConnectionFailed}
+                  </p>
+                  <button
+                    type="button"
+                    className="adl-browser-external-btn adl-browser-external-btn--prominent"
+                    onClick={() => {
+                      const url = activeTab?.url ?? 'about:blank';
+                      if (isTauriShell()) {
+                        shellOpen(url).catch((err) =>
+                          console.error('Failed to open external browser:', err)
+                        );
+                      } else {
+                        const w = window as { trae?: { openExternal: (url: string) => void } };
+                        if (w.trae?.openExternal) {
+                          w.trae.openExternal(url);
+                        } else {
+                          window.open(url, '_blank', 'noopener,noreferrer');
+                        }
+                      }
+                    }}
+                  >
+                    <IconGlobe size={14} />
+                    {t.browserOpenExternal}
+                  </button>
                 </div>
               )}
-
-              <button
-                type="button"
-                className={`adl-browser-external-btn ${iframeLoadError ? 'adl-browser-external-btn--prominent' : ''}`}
-                onClick={() => {
-                  const url = activeTab?.url ?? 'about:blank';
-                  if (isTauriShell()) {
-                    shellOpen(url).catch((err) =>
-                      console.error('Failed to open external browser:', err)
-                    );
-                  } else {
-                    const w = window as { trae?: { openExternal: (url: string) => void } };
-                    if (w.trae?.openExternal) {
-                      w.trae.openExternal(url);
-                    } else {
-                      window.open(url, '_blank', 'noopener,noreferrer');
-                    }
-                  }
-                }}
-              >
-                {t.browserOpenExternal}
-              </button>
-            </>
+            </ErrorBoundary>
           )}
         </div>
       </div>

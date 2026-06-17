@@ -1,0 +1,118 @@
+/* ==========================================================================
+   Communication Panel — Settings & Help view styles
+   ========================================================================== */
+
+/* GitHub-specific styles (config form) */
+.adl-github__config {
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.adl-github__config-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.adl-github__config-row .adl-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.adl-github__config-sep {
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+}
+
+.adl-github__token-hint {
+  margin-top: 2px;
+  padding: 0 2px;
+  opacity: 0.8;
+}
+
+/* ─── GitHub Settings Dialog ─── */
+
+.adl-github-settings__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-1) 0 var(--space-2);
+}
+
+.adl-github-settings__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.adl-github-settings__label {
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.adl-github-settings__optional {
+  color: var(--text-tertiary);
+  font-weight: 400;
+}
+
+.adl-github-settings__token-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.adl-github-settings__token-field {
+  padding-right: 34px;
+}
+
+.adl-github-settings__token-toggle {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition:
+    background var(--duration-100),
+    color var(--duration-100);
+}
+
+.adl-github-settings__token-toggle:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.adl-github-settings__error {
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-danger);
+  color: var(--danger);
+  font-size: var(--text-xs);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-danger, transparent);
+  line-height: 1.4;
+}
+
+/* ─── Help view lists ─── */
+
+.adl-github-help__list {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  margin: 4px 0 0;
+  padding-left: 20px;
+  line-height: 1.5;
+}

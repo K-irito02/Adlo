@@ -3,117 +3,24 @@
  *
  * 每个选择器提供纯函数版本（get*）和 React Hook 版本（use*），
  * 对返回对象/数组的 Hook 使用 useShallow 避免不必要的重渲染。
+ *
+ * 此文件为 barrel 文件，重新导出领域特定的 selector 文件。
  */
 
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from './slicedStore';
 import type { StoreState } from './StoreState';
 
-// ============================================
-// 工作区相关的选择器
-// ============================================
-export const workspaceSelectors = {
-  getAppInfo: (state: StoreState) => state.appInfo,
-  useAppInfo: () => useAppStore(useShallow((s) => s.appInfo)),
-
-  getCurrentWorkspace: (state: StoreState) => state.appInfo?.currentWorkspace,
-  useCurrentWorkspace: () => useAppStore(useShallow((s) => s.appInfo?.currentWorkspace)),
-
-  getRecentWorkspaces: (state: StoreState) => state.recentWorkspaces,
-  useRecentWorkspaces: () => useAppStore(useShallow((s) => s.recentWorkspaces)),
-
-  getGitSnapshot: (state: StoreState) => state.gitSnapshot,
-  useGitSnapshot: () => useAppStore(useShallow((s) => s.gitSnapshot)),
-
-  getGitBranches: (state: StoreState) => state.gitBranches,
-  useGitBranches: () => useAppStore(useShallow((s) => s.gitBranches)),
-
-  getWorkspaceContextMode: (state: StoreState) => state.workspaceContextMode,
-  useWorkspaceContextMode: () => useAppStore(useShallow((s) => s.workspaceContextMode)),
-
-  getIndexingStatus: (state: StoreState) => state.indexingStatus,
-  useIndexingStatus: () => useAppStore(useShallow((s) => s.indexingStatus)),
-
-  getRepoMap: (state: StoreState) => state.repoMap,
-  useRepoMap: () => useAppStore(useShallow((s) => s.repoMap)),
-
-  hasCurrentWorkspace: (state: StoreState) => Boolean(state.appInfo?.currentWorkspace),
-  useHasCurrentWorkspace: () => useAppStore((s) => Boolean(s.appInfo?.currentWorkspace)),
-
-  getWorkspaceId: (state: StoreState) => state.appInfo?.currentWorkspace?.id,
-  useWorkspaceId: () => useAppStore((s) => s.appInfo?.currentWorkspace?.id),
-};
-
-// ============================================
-// 会话相关的选择器
-// ============================================
-export const sessionSelectors = {
-  getSessions: (state: StoreState) => state.sessions,
-  useSessions: () => useAppStore(useShallow((s) => s.sessions)),
-
-  getActiveSessionId: (state: StoreState) => state.activeSessionId,
-  useActiveSessionId: () => useAppStore((s) => s.activeSessionId),
-
-  getActiveSession: (state: StoreState) => {
-    const activeId = state.activeSessionId;
-    if (!activeId) {
-      return undefined;
-    }
-    return state.sessionDetails[activeId];
-  },
-  useActiveSession: () =>
-    useAppStore(
-      useShallow((s) => {
-        if (!s.activeSessionId) {
-          return undefined;
-        }
-        return s.sessionDetails[s.activeSessionId];
-      })
-    ),
-
-  getSessionDetails: (state: StoreState) => state.sessionDetails,
-  useSessionDetails: () => useAppStore(useShallow((s) => s.sessionDetails)),
-
-  getSessionCount: (state: StoreState) => state.sessions.length,
-  useSessionCount: () => useAppStore((s) => s.sessions.length),
-
-  hasSessions: (state: StoreState) => state.sessions.length > 0,
-  useHasSessions: () => useAppStore((s) => s.sessions.length > 0),
-};
-
-// ============================================
-// 编辑器相关的选择器
-// ============================================
-export const editorSelectors = {
-  getOpenTabs: (state: StoreState) => state.openTabs,
-  useOpenTabs: () => useAppStore(useShallow((s) => s.openTabs)),
-
-  getSelectedFilePath: (state: StoreState) => state.selectedFilePath,
-  useSelectedFilePath: () => useAppStore((s) => s.selectedFilePath),
-
-  getFileContent: (state: StoreState) => state.fileContent,
-  useFileContent: () => useAppStore((s) => s.fileContent),
-
-  getFileLastModifiedAt: (state: StoreState) => state.fileLastModifiedAt,
-  useFileLastModifiedAt: () => useAppStore((s) => s.fileLastModifiedAt),
-
-  getOutline: (state: StoreState) => state.outline,
-  useOutline: () => useAppStore(useShallow((s) => s.outline)),
-
-  getDirtyEditorPaths: (state: StoreState) => state.dirtyEditorPaths,
-  useDirtyEditorPaths: () => useAppStore(useShallow((s) => s.dirtyEditorPaths)),
-
-  getExternalFileChange: (state: StoreState) => state.externalFileChange,
-  useExternalFileChange: () => useAppStore(useShallow((s) => s.externalFileChange)),
-
-  isFileDirty: (relativePath: string) => (state: StoreState) =>
-    state.dirtyEditorPaths.includes(relativePath),
-  useIsFileDirty: (relativePath: string) =>
-    useAppStore((s) => s.dirtyEditorPaths.includes(relativePath)),
-
-  getOpenTabCount: (state: StoreState) => state.openTabs.length,
-  useOpenTabCount: () => useAppStore((s) => s.openTabs.length),
-};
+// 重新导出领域特定的 selector
+export { workspaceSelectors } from './workspaceSelectors';
+export { sessionSelectors } from './sessionSelectors';
+export { editorSelectors } from './editorSelectors';
+export { terminalSelectors } from './terminalSelectors';
+export { browserSelectors } from './browserSelectors';
+export { communicateSelectors } from './communicateSelectors';
+export { filesSelectors } from './filesSelectors';
+export { changesSelectors } from './changesSelectors';
+export { ciSelectors } from './ciSelectors';
 
 // ============================================
 // 补丁相关的选择器
@@ -215,41 +122,6 @@ export const searchSelectors = {
 
   hasSearchResults: (state: StoreState) => state.searchResults.length > 0,
   useHasSearchResults: () => useAppStore((s) => s.searchResults.length > 0),
-};
-
-// ============================================
-// 终端相关的选择器
-// ============================================
-export const terminalSelectors = {
-  getTerminalTabs: (state: StoreState) => state.terminalTabs,
-  useTerminalTabs: () => useAppStore(useShallow((s) => s.terminalTabs)),
-
-  getTerminalActiveTabId: (state: StoreState) => state.terminalActiveTabId,
-  useTerminalActiveTabId: () => useAppStore((s) => s.terminalActiveTabId),
-
-  getDefaultTerminalProfile: (state: StoreState) => state.defaultTerminalProfile,
-  useDefaultTerminalProfile: () => useAppStore((s) => s.defaultTerminalProfile),
-
-  getWorkspaceDefaultProfiles: (state: StoreState) => state.workspaceDefaultProfiles,
-  useWorkspaceDefaultProfiles: () => useAppStore(useShallow((s) => s.workspaceDefaultProfiles)),
-
-  getTerminalNavigatorWidth: (state: StoreState) => state.terminalNavigatorWidth,
-  useTerminalNavigatorWidth: () => useAppStore((s) => s.terminalNavigatorWidth),
-
-  getNavigatorCollapsedByTool: (state: StoreState) => state.navigatorCollapsedByTool,
-  useNavigatorCollapsedByTool: () => useAppStore(useShallow((s) => s.navigatorCollapsedByTool)),
-
-  getActiveTerminalTab: (state: StoreState) =>
-    state.terminalActiveTabId ? state.terminalTabsById[state.terminalActiveTabId] : undefined,
-  useActiveTerminalTab: () =>
-    useAppStore(
-      useShallow((s) =>
-        s.terminalActiveTabId ? s.terminalTabsById[s.terminalActiveTabId] : undefined
-      )
-    ),
-
-  hasTerminalTabs: (state: StoreState) => state.terminalTabs.length > 0,
-  useHasTerminalTabs: () => useAppStore((s) => s.terminalTabs.length > 0),
 };
 
 // ============================================

@@ -31,6 +31,8 @@ const chunkButtonSource = readFileSync(
 );
 const regionsCssSource = [
   'files-panel.css',
+  'files-navigator.css',
+  'files-editor-tabs.css',
   'changes-panel.css',
   'editor-surface.css',
   'diff-viewer.css',

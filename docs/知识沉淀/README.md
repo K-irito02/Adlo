@@ -8,7 +8,7 @@
 |------|------|--------|
 | [重构](./重构/) | 重构方法论、组件提取、执行报告、阶段性总结 | 21 |
 | [多工作区](./多工作区/) | 多工作区开发中的变更面板、文件树、终端、布局等经验 | 11 |
-| [浏览器](./浏览器/) | 内置浏览器实现、空标签引导页、树形目录交互等经验 | 8 |
+| [浏览器](./浏览器/) | 内置浏览器实现、空标签引导页、树形目录交互、iframe 嵌入检查等经验 | 10 |
 | [代码质量](./代码质量/) | 全量代码质量检测与修复经验 | 11 |
 | [浏览器自动化](./浏览器自动化/) | 浏览器自动化调试记录与规则经验 | 2 |
 | [交互优化](./交互优化/) | 跨功能面板的交互/UX 问题修复经验 | 13 |
@@ -68,6 +68,8 @@
 | [browser-url-sync-fix-2026-06-04.md](./浏览器/browser-url-sync-fix-2026-06-04.md) | 2026-06-04 修复执行 | 浏览器 URL 同步修复经验 |
  | [browser-landing-page-2026-06-08.md](./浏览器/browser-landing-page-2026-06-08.md) | 2026-06-08 新功能 + 后续修复 | 浏览器空标签引导页实现总结（端口扫描、UI 标准、组件架构）+ 虚线占位符边框一致性修复 |
 | [browser-create-tab-dialog-fix-2026-06-09.md](./浏览器/browser-create-tab-dialog-fix-2026-06-09.md) | 2026-06-09 修复执行 | 浏览器新建标签对话框修复（回调拦截、假计数、工具栏目录解析） |
+| [browser-embed-check-fix-2026-06-17.md](./浏览器/browser-embed-check-fix-2026-06-17.md) | 2026-06-17 修复执行 | iframe 嵌入崩溃修复（Vite 中间件 HEAD 检测 + checkEmbed LRU 缓存 + SafeIframe + Guard Effect + 双路径验证 + 同步 ref 门控） |
+| [safe-iframe-shadow-dom-fix-2026-06-17.md](./浏览器/safe-iframe-shadow-dom-fix-2026-06-17.md) | 2026-06-17 修复执行 | Shadow DOM 修复 React DevTools 跨域 iframe SecurityError（6 次迭代经验总结：C++ native getter 不可拦截 + attachShadow mode:closed 终极方案） |
 
 ### 代码质量
 

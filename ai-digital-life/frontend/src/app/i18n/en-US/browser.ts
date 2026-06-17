@@ -36,7 +36,6 @@ export const browserEn = {
   browserSavedLocalShell: 'Saved as a local tab shell until real webview wiring lands.',
   browserOpenExternal: 'Open external',
   browserCopyLink: 'Copy link',
-  browserProxyNote: 'Some sites may not display correctly. Try opening in an external browser.',
   browserCategoryWorkspace: 'Workspace Directory',
   browserCategoryUserFolder: 'Custom Directory',
   browserCategoryHistory: 'History Directory',
@@ -114,7 +113,9 @@ export const browserEn = {
   browserContextRemoveFromView: 'Remove from this view',
   browserContextDeleteDir: 'Delete this directory',
   browserCannotOpenEmbedded:
-    "This site cannot be opened in the embedded view, usually due to the site's security policy.",
+    'This site cannot be displayed in the embedded view. Try opening it in an external browser.',
+  browserConnectionFailed:
+    'Unable to connect to the site. Please check the URL or try opening it in an external browser.',
   browserSelectDirFirst: 'Please select a directory first',
   browserTabCount: '{count} tabs',
   browserNewTabPage: 'New tab page',

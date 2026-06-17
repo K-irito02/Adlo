@@ -124,6 +124,27 @@ export function createTauriBridge(): DigitalLifeBridge {
       close: () => win().close(),
       isMaximized: () => win().isMaximized(),
       setTitle: (title: string) => win().setTitle(title),
+      onResized: (listener: () => void) => {
+        let active = true;
+        let ul: UnlistenFn | undefined;
+        void win()
+          .onResized(() => {
+            if (active) {
+              listener();
+            }
+          })
+          .then((unlisten) => {
+            if (active) {
+              ul = unlisten;
+            } else {
+              void unlisten();
+            }
+          });
+        return () => {
+          active = false;
+          void ul?.();
+        };
+      },
     },
 
     app: {

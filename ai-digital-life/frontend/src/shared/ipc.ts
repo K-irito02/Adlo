@@ -130,6 +130,16 @@ export interface WindowBridge {
    * @see preview-bridge/index.ts → window.setTitle
    */
   setTitle: (title: string) => Promise<void>;
+  /**
+   * 订阅窗口大小变化事件 (包括最大化/还原)
+   * @param listener 窗口大小变化时的回调
+   * @returns 取消订阅的函数
+   * @command 无独立命令 (通过 Tauri window.onResized API)
+   * @see tauri-bridge.ts → window.onResized
+   * @see mock-bridge.ts → window.onResized
+   * @see preview-bridge/index.ts → 继承 mock-bridge
+   */
+  onResized: (listener: () => void) => () => void;
 }
 
 /**

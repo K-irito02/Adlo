@@ -4,32 +4,34 @@
  */
 import type { StoreState } from '../StoreState';
 import type { TerminalProfile, ToolId } from '../types';
+import type { TerminalTabState } from './terminalSliceTypes';
+import {
+  TERMINAL_TABS_KEY,
+  TERMINAL_ACTIVE_TAB_KEY,
+  TERMINAL_DEFAULT_PROFILE_KEY,
+  TERMINAL_WORKSPACE_DEFAULT_PROFILES_KEY,
+  TERMINAL_NAVIGATOR_WIDTH_KEY,
+  TERMINAL_NAVIGATOR_COLLAPSED_KEY,
+  TERMINAL_WORKSPACE_EXPANDED_KEY,
+  TERMINAL_NAVIGATOR_WIDTH_MIN,
+  TERMINAL_NAVIGATOR_WIDTH_MAX,
+  DEFAULT_TERMINAL_NAVIGATOR_WIDTH,
+} from './terminalSliceTypes';
 
-export interface TerminalTabState {
-  id: string;
-  workspaceId: string;
-  title: string;
-  profile: TerminalProfile;
-  sessionId?: string;
-  status: 'idle' | 'running' | 'terminated';
-  isPinned: boolean;
-  pinnedAt?: number;
-  sortOrder: number;
-}
-
-// Local storage keys
-const TERMINAL_TABS_KEY = 'adl-ui:terminal-tabs';
-const TERMINAL_ACTIVE_TAB_KEY = 'adl-ui:terminal-active-tab';
-const TERMINAL_DEFAULT_PROFILE_KEY = 'adl-ui:terminal-default-profile';
-const TERMINAL_WORKSPACE_DEFAULT_PROFILES_KEY = 'adl-ui:terminal-workspace-default-profiles';
-const TERMINAL_NAVIGATOR_WIDTH_KEY = 'adl-ui:terminal-navigator-width';
-const TERMINAL_NAVIGATOR_COLLAPSED_KEY = 'adl-ui:navigator-collapsed';
-const TERMINAL_WORKSPACE_EXPANDED_KEY = 'adl-ui:terminal-workspace-expanded';
-
-// Constants
-const TERMINAL_NAVIGATOR_WIDTH_MIN = 180;
-const TERMINAL_NAVIGATOR_WIDTH_MAX = 300;
-const DEFAULT_TERMINAL_NAVIGATOR_WIDTH = 240;
+// Re-export for backward compatibility
+export type { TerminalTabState };
+export {
+  TERMINAL_TABS_KEY,
+  TERMINAL_ACTIVE_TAB_KEY,
+  TERMINAL_DEFAULT_PROFILE_KEY,
+  TERMINAL_WORKSPACE_DEFAULT_PROFILES_KEY,
+  TERMINAL_NAVIGATOR_WIDTH_KEY,
+  TERMINAL_NAVIGATOR_COLLAPSED_KEY,
+  TERMINAL_WORKSPACE_EXPANDED_KEY,
+  TERMINAL_NAVIGATOR_WIDTH_MIN,
+  TERMINAL_NAVIGATOR_WIDTH_MAX,
+  DEFAULT_TERMINAL_NAVIGATOR_WIDTH,
+};
 
 // Helper functions
 import { clamp, readJson, readNumber, createUiId, createDebouncedWrite } from '../shared';

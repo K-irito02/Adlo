@@ -18,6 +18,65 @@ export default defineConfig({
       name: "adl-preview-workspace-api",
       configureServer(server) {
         server.middlewares.use(async (req, res, next) => {
+          if (req.url?.includes('/__adl_preview_api__/browser/check-embed')) {
+            const searchParams = new URL(req.url, 'http://localhost').searchParams;
+            const targetUrl = searchParams.get('url');
+            if (!targetUrl) {
+              res.setHeader('Content-Type', 'application/json; charset=utf-8');
+              res.statusCode = 400;
+              res.end(JSON.stringify({ ok: false, error: 'missing url parameter' }));
+              return;
+            }
+            try {
+              const controller = new AbortController();
+              const timeout = setTimeout(() => controller.abort(), 3000);
+              const response = await fetch(targetUrl, {
+                method: 'HEAD',
+                signal: controller.signal,
+                redirect: 'follow',
+              });
+              clearTimeout(timeout);
+              const xfo = response.headers.get('x-frame-options');
+              const csp = response.headers.get('content-security-policy');
+              const embedOrigin = searchParams.get('embedOrigin') || '';
+              let blocked = false;
+              if (xfo) {
+                const val = xfo.toLowerCase();
+                if (val === 'deny') {
+                  blocked = true;
+                } else if (val === 'sameorigin') {
+                  try {
+                    blocked = !embedOrigin || new URL(targetUrl).origin !== embedOrigin;
+                  } catch {
+                    blocked = true;
+                  }
+                }
+              }
+              if (!blocked && csp) {
+                const match = csp.match(/frame-ancestors\s+([^;]+)/i);
+                if (match) {
+                  const val = match[1].trim();
+                  if (val === "'none'") {
+                    blocked = true;
+                  } else if (val === "'self'") {
+                    try {
+                      blocked = !embedOrigin || new URL(targetUrl).origin !== embedOrigin;
+                    } catch {
+                      blocked = true;
+                    }
+                  }
+                }
+              }
+              res.setHeader('Content-Type', 'application/json; charset=utf-8');
+              res.statusCode = 200;
+              res.end(JSON.stringify({ ok: true, blocked, url: targetUrl }));
+            } catch {
+              res.setHeader('Content-Type', 'application/json; charset=utf-8');
+              res.statusCode = 200;
+              res.end(JSON.stringify({ ok: true, blocked: true, url: targetUrl, error: 'fetch_failed' }));
+            }
+            return;
+          }
           if (req.url?.includes('/__adl_preview_api__/browser/scan-ports')) {
             res.setHeader('Content-Type', 'application/json; charset=utf-8');
             const COMMON_PORTS = [3000, 5173, 8000, 8080, 9000, 4000, 5000, 4200, 3001, 5174];

@@ -1,6 +1,6 @@
 # 重构进度报告
 
-> 更新日期: 2026-06-16（第六十七轮）
+> 更新日期: 2026-06-17（第七十一轮）
 
 ## 完成状态
 
@@ -73,6 +73,10 @@
 | **第六十五轮** | **2026-06-15** | **重构洞察第10次全量执行（16项发现）+ 文件拆分冲刺：cmScrollLeftSync→3文件、FoldTooltipOverlay→2hook+精简组件、GitHubTreeEntry→菜单+子条目、GitHubPanel→4子视图、trunkHeightMap O(n²)→O(n)、CSS变量统一+硬编码样式迁移+TitleBar订阅合并** | ✅ |
 | **第六十六轮** | **2026-06-16** | **重构洞察第11次全量执行（13项发现）：Phase 1 GitHubTreeEntry 去重（~178行冗余删除）+ @root 别名修复深层导入；Phase 2 BrowserTreeEntry 拆分（711→463行）+ FoldTooltipOverlay 进一步拆分（666→209行）；Phase 3 githubSlice 二拆三（githubRepoSlice + githubTreeSlice）+ uiSliceTypes 类型提取；Phase 4 ci-status crate 模块化（453→36行 lib.rs）+ browser crate 模块化（440→5行 lib.rs）；Phase 5 15处内联样式迁移到CSS类** | ✅ |
 | **第六十七轮** | **2026-06-16** | **右侧面板导航按钮统一 + Bug 修复：leftbar CSS min-width 修复（折叠后内容区域不扩展）；审计/模型/设置/通信面板添加"右侧面板-切换左侧边栏"按钮（使用 communicateNavigatorCollapsed 状态同步）；通信面板按钮与平台标签同行布局；浏览器搜索栏英文翻译修正（Bookmarks/History/All）；i18n key 统一为 panelNavigatorToggle** | ✅ |
+| **第六十八轮** | **2026-06-17** | **浏览器 iframe 嵌入崩溃修复：Vite 中间件 check-embed（HEAD 请求检测 X-Frame-Options/CSP frame-ancestors）+ checkEmbed.ts 客户端 LRU 缓存 + SafeIframe 组件 + Guard Effect（验证持久化 URL 可嵌入性）+ 双重状态（iframeBlockedDetected/iframeLoadError）+ 渲染条件改用 ref（同步无竞态）+ BrowserNavigator 提取（~300 行）** | ✅ |
+| **第六十九轮** | **2026-06-17** | **错误 UI 优化 + 调试清理：移除常驻 proxy note；将错误消息与外部按钮合并为单个容器；重写 browserCannotOpenEmbedded 中英文文案；移除所有 [ADL-DEBUG] console.log（3 个文件）；删除 usePageReloadDetector 钩子 + DBG_KEY；清除未使用的 browserProxyNote i18n key** | ✅ |
+| **第七十轮** | **2026-06-17** | **重构洞察第12次全量执行（9项发现）：Phase 1 BrowserPanel 导航器提取为 BrowserNavigator.tsx（977→~670行）+ TitleBar 菜单项提取到 titleBarMenus.ts（490→~410行）；Phase 2 CSS 架构规范化——3个超1000行CSS文件拆分（communication-panel 1738行→4文件、files-panel 1724行→3文件、file-tree 1234行→2文件）；Phase 3 性能优化——TitleBar setInterval(500ms)轮询替换为Tauri onResized事件监听、BrowserPanel 5个useShallow合并为1个；Phase 4 类型提取——terminalSliceTypes.ts 常量和类型提取、selectors.ts 按域拆分为9个独立文件** | ✅ |
+| **第七十一轮** | **2026-06-17** | **Cross-origin iframe SecurityError 终极修复（Shadow DOM attachShadow closed 方案，6次迭代后成功）+ 四维门禁全量清零（ESLint 21 warnings→0、Prettier 27文件格式化、rustfmt/clippy 通过）+ browserSelectors.ts 空桩→完整24个选择器实现** | ✅ |
 
 ## 说明
 

@@ -437,7 +437,26 @@ await page.click('button:has-text("应用")');
 |--------|------|
 | `.adl-browser-external-btn` | 浏览器预览模式下使用，在新标签页打开当前 URL |
 
+### iframe 错误提示（v2026-06-17 新增）
+
+当 URL 被 `X-Frame-Options` 或 `CSP frame-ancestors` 阻止，或连接失败时，显示统一错误容器：
+
+| 选择器 | 说明 |
+|--------|------|
+| `.adl-browser-error-container--active` | 错误提示容器（仅在加载失败时出现） |
+| `.adl-browser-error__icon` | 警告三角图标（IconAlertTriangle, 28px） |
+| `.adl-browser-error-text` | 错误说明文字 |
+| `.adl-browser-external-btn--prominent` | 错误容器内的"在外部浏览器打开"按钮 |
+
+两个错误类型共享同一容器：
+- **嵌入被阻止**：`browserCannotOpenEmbedded` — "This site cannot be displayed in the embedded view. Try opening it in an external browser."
+- **连接失败**：`browserConnectionFailed` — "Unable to connect to the site. Please check the URL or try opening it in an external browser."
+
+错误容器 **仅在** `iframeLoadError` 为 `true` 时渲染，不会常驻显示。
+
 ---
+
+### 历史记录滚动条
 
 ## 相关元素
 

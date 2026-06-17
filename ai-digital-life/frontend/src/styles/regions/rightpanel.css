@@ -2,7 +2,10 @@
    Right Panel — aggregated import surface
    ========================================================================== */
 @import './rightpanel/files-panel.css';
+@import './rightpanel/files-navigator.css';
+@import './rightpanel/files-editor-tabs.css';
 @import './rightpanel/file-tree.css';
+@import './rightpanel/file-tree-browser.css';
 @import './rightpanel/changes-panel.css';
 @import './rightpanel/editor-surface.css';
 @import './rightpanel/cm-overrides.css';
@@ -12,3 +15,6 @@
 @import './rightpanel/browser-webview.css';
 @import './rightpanel/terminal-panel.css';
 @import './rightpanel/communication-panel.css';
+@import './rightpanel/communication-overview.css';
+@import './rightpanel/communication-workflows.css';
+@import './rightpanel/communication-settings.css';

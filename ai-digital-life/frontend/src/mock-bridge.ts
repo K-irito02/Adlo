@@ -104,6 +104,10 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
         // ignore
       }
     },
+    onResized: (_listener: () => void) => {
+      // browser mode has no window resize events to subscribe to
+      return () => {};
+    },
   },
 
   app: {

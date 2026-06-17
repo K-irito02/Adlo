@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import type { AppInfo } from '@ai-digital-life/kernel';
 import { useTCopy } from '../i18n/useTCopy';
@@ -22,6 +22,8 @@ import logoUrl from '/logo-chatgpt.png?url';
 import { useAppStore } from '../stores/slicedStore';
 import { isTauriShell } from '../../tauri-bridge';
 import { TooltipSimple } from '../components/Tooltip';
+import { useFileMenuItems, useViewMenuItems, useHelpMenuItems } from './titleBarMenus';
+import type { MenuItem } from './titleBarMenus';
 
 interface TitleBarProps {
   appInfo?: AppInfo;
@@ -52,15 +54,6 @@ function LanguageIcon({ language }: { language: AppInfo['config']['language'] | 
     default:
       return <IconLangZh size={16} decorative />;
   }
-}
-
-interface MenuItem {
-  id: string;
-  label: string;
-  shortcut?: string;
-  separator?: boolean;
-  action?: () => void;
-  disabled?: boolean;
 }
 
 function MenuDropdown({
@@ -194,10 +187,10 @@ const TitleBar = React.memo(function TitleBar({
       }
     };
     void syncMaximized();
-    const timer = window.setInterval(syncMaximized, 500);
+    const unsub = window.digitalLife.window.onResized(syncMaximized);
     return () => {
       cancelled = true;
-      window.clearInterval(timer);
+      unsub();
     };
   }, []);
 
@@ -234,82 +227,15 @@ const TitleBar = React.memo(function TitleBar({
     document.documentElement.style.zoom = '1';
   }, []);
 
-  const fileItems: MenuItem[] = useMemo(
-    () => [
-      {
-        id: 'new-ws',
-        label: t.menuNewWorkspace,
-        shortcut: 'Ctrl+N',
-        action: onTriggerCreateWorkspace,
-      },
-      { id: 'open-folder', label: t.menuOpenFolder, shortcut: 'Ctrl+O', action: onOpenFolder },
-      {
-        id: 'new-terminal',
-        label: t.menuNewTerminal,
-        shortcut: 'Ctrl+Shift+`',
-        action: () => setActiveRightTool('terminal'),
-      },
-      {
-        id: 'new-browser',
-        label: t.menuNewBrowser,
-        action: () => setActiveRightTool('browser'),
-      },
-      {
-        id: 'editor-window',
-        label: t.menuOpenEditorWindow,
-        action: () => setActiveRightTool('files'),
-      },
-      { id: 'sep-1', label: '', separator: true },
-      { id: 'exit', label: t.menuExit, shortcut: 'Alt+F4', action: handleClose },
-    ],
-    [t, onTriggerCreateWorkspace, onOpenFolder, handleClose, setActiveRightTool]
+  const fileItems = useFileMenuItems(
+    t,
+    onTriggerCreateWorkspace,
+    onOpenFolder,
+    handleClose,
+    setActiveRightTool
   );
-
-  const viewItems: MenuItem[] = useMemo(
-    () => [
-      {
-        id: 'diff-view',
-        label: t.menuDiffView,
-        action: () => setActiveRightTool('changes'),
-      },
-      {
-        id: 'browser-view',
-        label: t.menuBrowserView,
-        action: () => setActiveRightTool('browser'),
-      },
-      {
-        id: 'file-view',
-        label: t.menuFileView,
-        action: () => setActiveRightTool('files'),
-      },
-      {
-        id: 'terminal-view',
-        label: t.menuTerminalView,
-        action: () => setActiveRightTool('terminal'),
-      },
-      { id: 'sep-1', label: '', separator: true },
-      { id: 'zoom-in', label: t.menuZoomIn, shortcut: 'Ctrl++', action: () => zoomBy(0.1) },
-      { id: 'zoom-out', label: t.menuZoomOut, shortcut: 'Ctrl+-', action: () => zoomBy(-0.1) },
-      { id: 'zoom-reset', label: t.menuResetZoom, shortcut: 'Ctrl+0', action: resetZoom },
-      { id: 'sep-2', label: '', separator: true },
-      { id: 'settings', label: t.menuSettings, shortcut: 'Ctrl+,', action: onOpenSettings },
-    ],
-    [t, zoomBy, resetZoom, onOpenSettings, setActiveRightTool]
-  );
-
-  const helpItems: MenuItem[] = useMemo(
-    () => [
-      {
-        id: 'palette',
-        label: t.menuCommandPalette,
-        shortcut: 'Ctrl+Shift+P',
-        action: onOpenCommandPalette,
-      },
-      { id: 'shortcuts', label: t.menuShortcuts, shortcut: 'Ctrl+K Ctrl+S', action: () => {} },
-      { id: 'license', label: t.menuLicense, action: () => {} },
-    ],
-    [t, onOpenCommandPalette]
-  );
+  const viewItems = useViewMenuItems(t, zoomBy, resetZoom, onOpenSettings, setActiveRightTool);
+  const helpItems = useHelpMenuItems(t, onOpenCommandPalette);
 
   return (
     <header className="adl-titlebar" role="banner">

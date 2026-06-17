@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { isTauriShell } from '../../../tauri-bridge';
+import { isEmbedBlocked } from './checkEmbed';
 import type { BrowserTabState } from '../../stores/slices/browserSlice';
-
-const log = (msg: string) => console.log(`[Browser] ${msg}`);
 
 interface UseBrowserWebViewOptions {
   activeTab?: BrowserTabState;
@@ -25,6 +24,7 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
   } = options;
 
   const [iframeLoadError, setIframeLoadError] = useState(false);
+  const [iframeBlockedDetected, setIframeBlockedDetected] = useState(false);
   const [webViewActive, setWebViewActive] = useState(false);
   const [iframeHistory, setIframeHistory] = useState<{ index: number; entries: string[] }>({
     index: -1,
@@ -46,6 +46,8 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
     if (isTauriShell()) {
       return;
     }
+    setIframeLoadError(true);
+    setIframeBlockedDetected(false);
     if (iframeRef.current) {
       setIframeHistory((prev) => {
         const newEntries = prev.entries.slice(0, prev.index + 1);
@@ -55,7 +57,11 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
         }
         return { index: newEntries.length - 1, entries: newEntries };
       });
-      iframeRef.current.src = url;
+      try {
+        iframeRef.current.src = url;
+      } catch {
+        /* fail silently */
+      }
     }
   }, []);
 
@@ -80,16 +86,23 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
     };
 
     invoke('browser_set_bounds', { bounds }).catch((err) => {
-      log(`set_bounds 失败: ${err}`);
+      console.error(`set_bounds 失败: ${err}`);
     });
   }, []);
 
   const handleIframeLoad = useCallback(() => {
     setIframeLoadError(false);
+    setIframeBlockedDetected(false);
     try {
       const iframeWindow = iframeRef.current?.contentWindow;
       if (iframeWindow) {
-        const href = iframeWindow.location.href;
+        let href: string | undefined;
+        try {
+          href = iframeWindow.location.href;
+        } catch {
+          return;
+        }
+
         if (href && href !== 'about:blank' && activeTab && href !== activeTab.url) {
           setAddress(href);
           browserNavigateActiveTab(href);
@@ -105,28 +118,13 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
         }
       }
     } catch {
-      /* cross-origin navigation, can't read URL */
+      /* unexpected error in iframe load handling */
     }
   }, [activeTab, browserNavigateActiveTab, browserUpdateTab, setAddress]);
 
-  const handleIframeLoadRef = useRef(handleIframeLoad);
-
-  useEffect(() => {
-    handleIframeLoadRef.current = handleIframeLoad;
-  }, [handleIframeLoad]);
-
-  useEffect(() => {
-    const node = iframeRef.current;
-    if (!node) {
-      return;
-    }
-    const handler = () => handleIframeLoadRef.current();
-    node.addEventListener('load', handler);
-    return () => node.removeEventListener('load', handler);
-  }, [activeTab?.url]);
-
   const handleIframeError = useCallback(() => {
     setIframeLoadError(true);
+    setIframeBlockedDetected(true);
   }, []);
 
   const isBrowserVisibleRef = useRef(isVisible);
@@ -186,9 +184,14 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
       return;
     }
 
+    const blocked = isEmbedBlocked(url);
+    if (blocked === true) {
+      return;
+    }
+
     if (webViewActiveRef.current) {
       invoke('browser_navigate', { url }).catch((err) => {
-        log(`navigate 失败: ${err}`);
+        console.error(`navigate 失败: ${err}`);
       });
       return;
     }
@@ -215,7 +218,7 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
       })
       .catch((err) => {
         creatingRef.current = false;
-        log(`browser_create 失败: ${err}`);
+        console.error(`browser_create 失败: ${err}`);
         console.error('Failed to create browser WebView:', err);
       });
   }, [activeTab?.id, activeTab?.url, updateWebViewBounds, webViewDisabled]);
@@ -269,6 +272,8 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
   return {
     iframeLoadError,
     setIframeLoadError,
+    iframeBlockedDetected,
+    setIframeBlockedDetected,
     webViewActive,
     iframeHistory,
     setIframeHistory,
