@@ -1,100 +1,102 @@
-# 浏览器 iframe 嵌入崩溃修复总结 - 2026-06-17
+# 浏览器 iframe 嵌入检查与双模式隔离修复 - 2026-06-17
 
 ## 问题概述
 
-当浏览器面板导航到被 `X-Frame-Options: DENY` 或 `Content-Security-Policy: frame-ancestors 'none'` 阻止的 URL（如 youtube.com、bilibili.com、google.com）时，iframe 加载失败导致 IDE 嵌入式浏览器崩溃，显示"服务已停止或尚未启动"。
-
-## 根因分析
-
-| 层 | 原因 |
-|------|-------|
-| **浏览器机制** | 被阻止的 URL 在 iframe 中发出 console-level 错误，IDE 嵌入式浏览器监控检测到此错误后终止预览进程 |
-| **代码缺失** | 没有任何前置检查来判断 URL 是否可被嵌入；iframe 直接设置 `src` 尝试加载 |
-| **竞态条件** | `iframeBlockedDetected` 通过 Zustand `set()` 设置，但 Zustand 同步触发重渲染，iframe 可能在 blocking state 生效前就开始加载 |
+1. **嵌入崩溃**：被 `X-Frame-Options` 或 `CSP frame-ancestors` 阻止的 URL（如 youtube.com）在 iframe 中加载时，IDE 嵌入式浏览器崩溃。
+2. **双模式干扰**：Tauri 桌面模式（原生 WebView）和 IDE/浏览器模式（iframe）的 embed 检查逻辑互相干扰，导致 Tauri 模式中所有 URL 被错误标记为"被阻止"。
+3. **竞态条件**：连续快速导航时，异步 `checkEmbed` 的结果交叉覆盖，导致 URL 状态错乱。
 
 ## 架构变更
 
 ### 新增文件
-
 | 文件 | 职责 |
 |------|------|
 | `frontend/src/app/features/browser/checkEmbed.ts` | LRU 缓存的嵌入检测（Map<string, boolean>，max 50） |
-| `frontend/src/app/features/browser/SafeIframe.tsx` | iframe 包装组件，sandbox 属性固定 |
-| `frontend/src/app/features/browser/BrowserNavigator.tsx` | 从 BrowserPanel 提取的导航器组件（~447 行） |
+| `frontend/src/app/features/browser/SafeIframe.tsx` | Shadow DOM iframe 包装组件（`attachShadow({ mode: 'closed' })` 阻止 React DevTools 跨域 SecurityError） |
 
 ### 修改文件
-
 | 文件 | 变更 |
 |------|------|
-| `frontend/vite.config.ts` | 新增 `/__adl_preview_api__/browser/check-embed` 中间件（HEAD 请求检测 X-Frame-Options/CSP frame-ancestors） |
-| `frontend/src/app/features/browser/BrowserPanel.tsx` | 集成 checkEmbed（submitAddress 前置检查 + Guard Effect）+ SafeIframe 渲染条件改为 ref 同步判断 |
-| `frontend/src/app/features/browser/useBrowserWebView.ts` | 暴露 `setIframeBlockedDetected`、`setIframeLoadError` 供 BrowserPanel 控制 |
-| `frontend/src/app/i18n/en-US/browser.ts` | 简化 `browserCannotOpenEmbedded` 文案；删除 `browserProxyNote` |
-| `frontend/src/app/i18n/zh-CN/browser.ts` | 同上 |
-
-### 删除
-
-- `BrowserPanel.tsx` 中的 `usePageReloadDetector` 钩子 + `DBG_KEY` 常量（全为调试用途）
-- 所有 `[ADL-DEBUG]` console.log（BrowserPanel.tsx、useBrowserWebView.ts、SafeIframe.tsx）
+| `frontend/vite.config.ts` | 新增 `check-embed` 中间件（HEAD 请求检测 X-Frame-Options/CSP） |
+| `frontend/src/app/features/browser/BrowserPanel.tsx` | 全量重构：submitAddress/c guard effect/rendering |
+| `frontend/src/app/features/browser/useBrowserWebView.ts` | Tauri 模式移除 embed 检查；error state 仅由 `handleIframeError`/`checkEmbed` 控制 |
+| `frontend/src/app/features/browser/SafeIframe.tsx` | Shadow DOM iframe + 预检 HEAD 门控 |
+| `frontend/src/styles/regions/rightpanel/browser-webview.css` | block 页 edge-to-edge 布局，去除边框 |
 
 ## 核心设计
 
-### 双路径验证
-
+### 1. 双路径验证
 | 路径 | 触发时机 | 验证方式 |
 |------|----------|----------|
-| **用户输入**（submitAddress） | 用户在地址栏输入 URL 按回车 | 调用 `checkEmbed(finalUrl)` 后再更新 store |
-| **持久化恢复**（Guard Effect） | 页面刷新 / Zustand hydration | `useEffect` 在 mount/URL 变化时异步验证 |
+| **用户输入**（`submitAddress`） | 地址栏回车 | 先查 LRU 缓存（`isEmbedBlocked`），未命中才 `await checkEmbed` |
+| **持久化恢复**（Guard Effect） | 页面刷新 / 标签切换 / 书签历史点击 | `useEffect` 在 URL 变化时异步验证，LRU 缓存 + `checkEmbed` 双优先级 |
 
-### 同步渲染门控
-
-```tsx
-// Ref 作为渲染条件（同步，无竞态）
-validatedUrlsRef.current.has(activeTab.url)
-
-// State 用于 UI 反馈（异步，渲染触发后更新）
-iframeBlockedDetected / iframeLoadError
+### 2. Tauri 模式独立
+```
+isTauriShell() → 完全跳过 checkEmbed、navigateBrowser、SafeIframe、validatedUrlsRef
+checkEmbed.ts → __TAURI__ 早期返回 false（不被阻止）
+useBrowserWebView.ts → 原生 WebView 创建 effect 无 embed 检查
 ```
 
-**为什么用 ref 而不是 state**：Zustand `set()` 同步触发 React 重渲染。如果用 state 控制 iframe 渲染，state 可能在当前渲染批次中尚未更新；ref 始终同步，确保门控立即可靠。
-
-### 安全默认值
-
+### 3. 版本计数器消除竞态
 ```typescript
-// checkEmbed.ts — 失败时默认 blocked=true（安全失败）
-const blocked = cached.get(url) ?? true;
+const submitVersionRef = useRef(0);
+// 每次 submitAddress 调用时自增
+// 异步结果返回时检查版本号，丢弃过期结果
+if (submitVersionRef.current !== version) return;
 ```
+
+### 4. 渲染门控
+| 机制 | 用途 | 特点 |
+|------|------|------|
+| `validatedUrlsRef`（ref） | 控制 SafeIframe 是否渲染 | 同步，无竞态 |
+| `iframeBlockedDetected`（state） | 控制友好提示页 UI | 异步，渲染触发后更新 |
+| `iframeLoadError`（state） | 控制网络错误提示 | 仅由 `handleIframeError` 设置 |
+
+### 5. 友好提示页 edge-to-edge
+- `width: 100%; max-width: none; border: none; border-radius: 0` → 容器铺满 `adl-tool-primary--browser` 父容器
+- 内容通过 `display: flex; align-items: center; justify-content: center` 居中
+- 无水平 padding，无外边框（"网页显示区域"自身的边缘线已足够）
 
 ## 经验教训
 
-### 1. Zustand 同步重渲染陷阱
+### 1. setInterval 轮询陷阱
+`setInterval` 每 interval 时间无条件发起请求，不等待上一次完成。若 fetch 耗时 > interval：
+- 请求堆积 → 浏览器中止旧请求 → `ERR_ABORTED`
+- 卸载时 in-flight 请求被浏览器中止 → Chrome 打印 `ERR_ABORTED`
 
-`set()` 是同步的，它会立即触发 React 重渲染。如果你在 `set({ iframeBlockedDetected: true })` 之后才调用 `browserNavigateActiveTab(url)`，iframe 可能在 blocking state 被读取之前就已经开始加载 URL。**必须在任意 store 变更之前设置 ref 同步状态**。
+**方案**：递归 `setTimeout` 替代 `setInterval`，下一次轮询在上一次完成之后才调度。卸载时仅取消下一次调度，不中止当前 in-flight 请求。
 
-### 2. 持久化状态的恢复路径
+### 2. 浏览器网络错误日志不可抑制
+`ERR_CONNECTION_REFUSED`、`ERR_ABORTED` 等是 Chrome 浏览器层面的网络诊断日志，即使 JavaScript 的 `try/catch` 捕获了错误，浏览器仍然输出这些消息。
 
-页面刷新时，Zustand 从 localStorage 恢复 `activeTab.url`，但此时没有用户交互（`submitAddress` 不会被调用）。需要一个独立的 Guard Effect 来验证所有恢复/非用户触发的 URL 变更。
+**方案**：不是抑制日志，而是避免发出注定失败的请求：
+- PTY 轮询间隔 100ms → 1000ms，失败时指数退避至多 30s
+- `getAppDirectory` 结果缓存 30s TTL（debugLogCollector）
 
-### 3. Ref 用于渲染门控，State 用于 UI 反馈
+### 3. AbortController 对 ERR_ABORTED 无效
+主动调用 `controller.abort()` 同样触发 `ERR_ABORTED`。AbortController 用于"取消但不关心日志"的场景，不适用于"消除日志"的场景。
 
-- `validatedUrlsRef` — 同步，控制 iframe 渲染与否（安全关键）
-- `iframeBlockedDetected` / `iframeLoadError` — 异步，控制错误提示 UI（体验相关）
+### 4. 两个模式必须完全代码隔离
+Tauri 模式与 iframe 模式的 embed/iframe 逻辑必须完全分离，不能在同一个代码路径中通过条件分支共享状态。Tauri 模式下应完全不执行 embed 检查、不引用 SafeIframe、不操作 validatedUrlsRef。
 
-### 4. 调试日志及时清理
+### 5. 异步结果的版本检查
+连续快速提交 URL 时，每个异步 `checkEmbed` 返回后应检查版本计数器，丢弃过期结果，避免后一个提交的结果被前一个覆盖。
 
-本次修复过程中产生了大量 `[ADL-DEBUG]` 日志。问题解决后应全部删除，避免：
-- 生产环境日志噪音
-- 额外的字符串拼接性能开销
-- 代码可读性降低
+### 6. Ref 与 State 的职责分离
+- Ref：渲染条件门控（同步，安全关键）
+- State：UI 反馈（异步，体验相关）
 
-### 5. 错误信息布局原则
+### 7. 友好提示页布局
+阻止页不应有边框（父容器已有边缘线），应铺满整个 "网页显示区域" 就像正常网页一样。使用 `width: 100%` + `max-width: none` 而非绝对定位。
 
-- 错误提示不应常驻（proxy note 问题）
-- 错误消息和操作按钮应放在同一容器中（视觉关联）
-- 使用图标增强视觉反馈（IconAlertTriangle）
-
-### 6. 空布局 div 不应常驻渲染
-
-页面加载初期，一个空的 `<div className="adl-tool-primary__scroll--browser">`（flex:1, padding:12px）会与绝对定位的 iframe 共存于同一 flex 容器。iframe 加载前空白 div 的 padding 区域可见，造成 ~3px 顶部视觉瑕疵。
-
-**原则**：仅当对应内容展示时才渲染其容器 div。条件渲染的内容不应依赖空的备用 div 占位。SafeIframe 分支中移除了该空 div，消除了布局干扰。
+## 文件清单
+- `frontend/src/app/features/browser/BrowserPanel.tsx`
+- `frontend/src/app/features/browser/useBrowserWebView.ts`
+- `frontend/src/app/features/browser/SafeIframe.tsx`
+- `frontend/src/app/features/browser/checkEmbed.ts`
+- `frontend/src/styles/regions/rightpanel/browser-webview.css`
+- `frontend/vite.config.ts`
+- `frontend/src/preview-bridge/api.ts`
+- `frontend/src/preview-bridge/ptyBridge.ts`
+- `frontend/src/app/utils/debugLogCollector.ts`

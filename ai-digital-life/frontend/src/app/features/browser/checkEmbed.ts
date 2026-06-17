@@ -9,8 +9,11 @@ export async function checkEmbed(url: string): Promise<boolean> {
   if (cached !== undefined) {
     return cached;
   }
+  if (typeof window !== 'undefined' && (window as unknown as Record<string, unknown>).__TAURI__) {
+    return false;
+  }
   try {
-    const embedOrigin = typeof window !== 'undefined' ? window.location.origin : '';
+    const embedOrigin = window.location.origin;
     const res = await fetch(
       `/__adl_preview_api__/browser/check-embed?url=${encodeURIComponent(url)}&embedOrigin=${encodeURIComponent(embedOrigin)}`
     );

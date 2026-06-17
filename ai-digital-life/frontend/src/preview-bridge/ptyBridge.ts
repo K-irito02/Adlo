@@ -3,45 +3,68 @@ import type { PtySessionInfo } from '../shared/ipc';
 import { requestPreviewApi } from './api';
 
 const MAX_PTY_LISTENERS = 32;
+const PTY_POLL_INTERVAL_MS = 1000;
+const MAX_BACKOFF_MS = 30000;
 
 export function createPtyBridge() {
   const ptyOutputListeners = new Set<(event: PtyOutputEvent) => void>();
-  let ptyPollingInterval: number | null = null;
+  let pollTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  let shouldPoll = false;
   let ptyPollingListenersCount = 0;
+  let consecutiveErrors = 0;
   const sessionOutputBuffers = new Map<string, string>();
 
-  function startPolling(): void {
-    if (ptyPollingInterval) {
-      window.clearInterval(ptyPollingInterval);
+  async function pollOnce(): Promise<void> {
+    if (!shouldPoll) {
+      return;
+    }
+    const result = await requestPreviewApi<PtySessionInfo[]>('/pty/list');
+    if (!shouldPoll) {
+      return;
     }
 
-    ptyPollingInterval = window.setInterval(async () => {
-      try {
-        const result = await requestPreviewApi<PtySessionInfo[]>('/pty/list');
-
-        if (result.ok) {
-          const sessions = result.data;
-          for (const session of sessions) {
-            if (session.output) {
-              const lastOutput = sessionOutputBuffers.get(session.sessionId) || '';
-              if (session.output !== lastOutput) {
-                const newOutput = session.output.slice(lastOutput.length);
-                if (newOutput) {
-                  const event: PtyOutputEvent = {
-                    sessionId: session.sessionId,
-                    data: newOutput,
-                  };
-                  ptyOutputListeners.forEach((fn) => fn(event));
-                }
-                sessionOutputBuffers.set(session.sessionId, session.output);
-              }
+    if (result.ok) {
+      consecutiveErrors = 0;
+      const sessions = result.data;
+      for (const session of sessions) {
+        if (session.output) {
+          const lastOutput = sessionOutputBuffers.get(session.sessionId) || '';
+          if (session.output !== lastOutput) {
+            const newOutput = session.output.slice(lastOutput.length);
+            if (newOutput) {
+              const event: PtyOutputEvent = {
+                sessionId: session.sessionId,
+                data: newOutput,
+              };
+              ptyOutputListeners.forEach((fn) => fn(event));
             }
+            sessionOutputBuffers.set(session.sessionId, session.output);
           }
         }
-      } catch (e) {
-        console.warn('PTY polling error', e);
       }
-    }, 100);
+    } else {
+      consecutiveErrors += 1;
+    }
+
+    if (shouldPoll) {
+      const delay = Math.min(PTY_POLL_INTERVAL_MS * Math.pow(2, consecutiveErrors), MAX_BACKOFF_MS);
+      pollTimeoutId = setTimeout(pollOnce, delay);
+    }
+  }
+
+  function startPolling(): void {
+    shouldPoll = true;
+    consecutiveErrors = 0;
+    pollTimeoutId = setTimeout(pollOnce, PTY_POLL_INTERVAL_MS);
+  }
+
+  function stopPolling(): void {
+    shouldPoll = false;
+    if (pollTimeoutId !== null) {
+      clearTimeout(pollTimeoutId);
+      pollTimeoutId = null;
+    }
+    sessionOutputBuffers.clear();
   }
 
   return {
@@ -55,16 +78,14 @@ export function createPtyBridge() {
       }
       ptyOutputListeners.add(listener);
       ptyPollingListenersCount += 1;
-      if (!ptyPollingInterval) {
+      if (!shouldPoll) {
         startPolling();
       }
       return () => {
         ptyOutputListeners.delete(listener);
         ptyPollingListenersCount -= 1;
-        if (ptyPollingListenersCount <= 0 && ptyPollingInterval) {
-          window.clearInterval(ptyPollingInterval);
-          ptyPollingInterval = null;
-          sessionOutputBuffers.clear();
+        if (ptyPollingListenersCount <= 0) {
+          stopPolling();
         }
       };
     },

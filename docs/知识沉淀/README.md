@@ -68,7 +68,7 @@
 | [browser-url-sync-fix-2026-06-04.md](./浏览器/browser-url-sync-fix-2026-06-04.md) | 2026-06-04 修复执行 | 浏览器 URL 同步修复经验 |
  | [browser-landing-page-2026-06-08.md](./浏览器/browser-landing-page-2026-06-08.md) | 2026-06-08 新功能 + 后续修复 | 浏览器空标签引导页实现总结（端口扫描、UI 标准、组件架构）+ 虚线占位符边框一致性修复 |
 | [browser-create-tab-dialog-fix-2026-06-09.md](./浏览器/browser-create-tab-dialog-fix-2026-06-09.md) | 2026-06-09 修复执行 | 浏览器新建标签对话框修复（回调拦截、假计数、工具栏目录解析） |
-| [browser-embed-check-fix-2026-06-17.md](./浏览器/browser-embed-check-fix-2026-06-17.md) | 2026-06-17 修复执行 | iframe 嵌入崩溃修复（Vite 中间件 HEAD 检测 + checkEmbed LRU 缓存 + SafeIframe + Guard Effect + 双路径验证 + 同步 ref 门控） |
+| [browser-embed-check-fix-2026-06-17.md](./浏览器/browser-embed-check-fix-2026-06-17.md) | 2026-06-17 全量修复执行 | iframe 嵌入崩溃 + 双模式隔离 + 路由竞态 + PTY ERR_ABORTED/ERR_CONNECTION_REFUSED + 友好提示页布局（Tauri 模式独立、版本计数器、递归 setTimeout、指数退避、app-directory 缓存、Edge-to-edge CSS） |
 | [safe-iframe-shadow-dom-fix-2026-06-17.md](./浏览器/safe-iframe-shadow-dom-fix-2026-06-17.md) | 2026-06-17 修复执行 | Shadow DOM 修复 React DevTools 跨域 iframe SecurityError（6 次迭代经验总结：C++ native getter 不可拦截 + attachShadow mode:closed 终极方案） |
 
 ### 代码质量

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { isTauriShell } from '../../../tauri-bridge';
-import { isEmbedBlocked } from './checkEmbed';
 import type { BrowserTabState } from '../../stores/slices/browserSlice';
 
 interface UseBrowserWebViewOptions {
@@ -46,8 +45,6 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
     if (isTauriShell()) {
       return;
     }
-    setIframeLoadError(true);
-    setIframeBlockedDetected(false);
     if (iframeRef.current) {
       setIframeHistory((prev) => {
         const newEntries = prev.entries.slice(0, prev.index + 1);
@@ -92,7 +89,6 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
 
   const handleIframeLoad = useCallback(() => {
     setIframeLoadError(false);
-    setIframeBlockedDetected(false);
     try {
       const iframeWindow = iframeRef.current?.contentWindow;
       if (iframeWindow) {
@@ -124,8 +120,7 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
 
   const handleIframeError = useCallback(() => {
     setIframeLoadError(true);
-    setIframeBlockedDetected(true);
-  }, [setIframeLoadError, setIframeBlockedDetected]);
+  }, [setIframeLoadError]);
 
   const isBrowserVisibleRef = useRef(isVisible);
 
@@ -181,11 +176,6 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
 
     const url = activeTab?.url ?? 'about:blank';
     if (url === 'about:blank' || url.trim() === '') {
-      return;
-    }
-
-    const blocked = isEmbedBlocked(url);
-    if (blocked === true) {
       return;
     }
 

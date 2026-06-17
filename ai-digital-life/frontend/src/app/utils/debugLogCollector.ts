@@ -160,15 +160,29 @@ function getDebugLogs(): Array<{ timestamp: string; level: string; message: stri
 /**
  * 获取应用程序目录路径（浏览器模式）
  */
+let cachedAppDirectory: string | null = null;
+let lastAppDirAttempt = 0;
+let appDirCacheReady = false;
+const APP_DIR_CACHE_TTL_MS = 30000;
+
 async function getAppDirectory(): Promise<string | null> {
+  const now = Date.now();
+  if (appDirCacheReady && now - lastAppDirAttempt < APP_DIR_CACHE_TTL_MS) {
+    return cachedAppDirectory;
+  }
+  lastAppDirAttempt = now;
+  appDirCacheReady = true;
   try {
     const response = await fetch('/__adl_preview_api__/workspace/app-directory');
     if (!response.ok) {
+      cachedAppDirectory = null;
       return null;
     }
     const result = await response.json();
-    return result.data || null;
+    cachedAppDirectory = result.data || null;
+    return cachedAppDirectory;
   } catch {
+    cachedAppDirectory = null;
     return null;
   }
 }

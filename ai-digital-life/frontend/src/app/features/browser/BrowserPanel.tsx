@@ -119,6 +119,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
   const [bookmarkDialogOpen, setBookmarkDialogOpen] = useState(false);
   const validatedUrlsRef = useRef(new Set<string>());
   const [, forceRender] = useState(0);
+  const submitVersionRef = useRef(0);
 
   const handleCreateTabConfirm = useCallback(
     (name: string, url: string) => {
@@ -290,36 +291,61 @@ export function BrowserPanel(props: BrowserPanelProps) {
     [toggleBrowserNavigator]
   );
 
-  const submitAddressRef = useRef(false);
-
   const submitAddress = useCallback(async () => {
     const input = address.trim();
-    if (!input || submitAddressRef.current) {
+    if (!input) {
       return;
     }
     const matchedItem = findInBrowserLookupIndex(browserLookupIndex, input);
-    const matchedUrl = matchedItem?.url;
-    const finalUrl = matchedUrl
-      ? matchedUrl
+    const finalUrl = matchedItem?.url
+      ? matchedItem.url
       : /^[a-z]+:\/\/|about:/i.test(input.trim())
         ? input.trim()
         : `https://${input.trim()}`;
-    submitAddressRef.current = true;
-    const cached = isEmbedBlocked(finalUrl);
-    const blocked = cached !== undefined ? cached : await checkEmbed(finalUrl);
-    submitAddressRef.current = false;
-    if (blocked) {
-      setIframeBlockedDetected(true);
-      setIframeLoadError(true);
+
+    const version = ++submitVersionRef.current;
+
+    if (!isTauriShell()) {
+      const cached = isEmbedBlocked(finalUrl);
+      if (cached !== undefined) {
+        if (submitVersionRef.current !== version) {
+          return;
+        }
+        if (cached) {
+          setIframeBlockedDetected(true);
+          setIframeLoadError(true);
+        } else {
+          validatedUrlsRef.current.add(finalUrl);
+        }
+        browserNavigateActiveTab(finalUrl, matchedItem?.title);
+        setAddress(finalUrl);
+        if (!cached) {
+          navigateBrowser(finalUrl);
+        }
+        return;
+      }
+
+      const blocked = await checkEmbed(finalUrl);
+      if (submitVersionRef.current !== version) {
+        return;
+      }
+
+      if (blocked) {
+        setIframeBlockedDetected(true);
+        setIframeLoadError(true);
+      } else {
+        validatedUrlsRef.current.add(finalUrl);
+      }
+
+      browserNavigateActiveTab(finalUrl, matchedItem?.title);
+      setAddress(finalUrl);
+
+      if (!blocked) {
+        navigateBrowser(finalUrl);
+      }
     } else {
-      validatedUrlsRef.current.add(finalUrl);
-    }
-
-    browserNavigateActiveTab(finalUrl, matchedItem?.title);
-    setAddress(finalUrl);
-
-    if (!blocked) {
-      navigateBrowser(finalUrl);
+      browserNavigateActiveTab(finalUrl, matchedItem?.title);
+      setAddress(finalUrl);
     }
   }, [
     address,
@@ -492,21 +518,38 @@ export function BrowserPanel(props: BrowserPanelProps) {
     }
   }, [activeTab?.url, setAddress, setIframeHistory]);
 
-  // Guard: validate active tab URL before allowing iframe to render
-  // Handles page reload where persisted URL loads before any embed check
+  // Validate active tab URL before allowing iframe to render
+  // Handles page reload, bookmark/history clicks, and tab switches
   useEffect(() => {
-    if (!activeTab?.url || activeTab.url === 'about:blank' || isTauriShell()) {
+    const url = activeTab?.url;
+    if (!url || url === 'about:blank' || isTauriShell()) {
       return;
     }
-    if (validatedUrlsRef.current.has(activeTab.url)) {
+
+    setIframeLoadError(false);
+    setIframeBlockedDetected(false);
+
+    if (validatedUrlsRef.current.has(url)) {
       return;
     }
-    checkEmbed(activeTab.url).then((blocked) => {
+
+    const cached = isEmbedBlocked(url);
+    if (cached !== undefined) {
+      if (cached) {
+        setIframeBlockedDetected(true);
+        setIframeLoadError(true);
+      }
+      return;
+    }
+
+    checkEmbed(url).then((blocked) => {
       if (blocked) {
         setIframeBlockedDetected(true);
         setIframeLoadError(true);
       } else {
-        validatedUrlsRef.current.add(activeTab.url);
+        validatedUrlsRef.current.add(url);
+        setIframeLoadError(false);
+        setIframeBlockedDetected(false);
         forceRender((v) => v + 1);
       }
     });
@@ -555,6 +598,14 @@ export function BrowserPanel(props: BrowserPanelProps) {
       navigatorSearchInputRef.current?.select();
     }
   }, [navigatorMode, navigatorSearchInputRef]);
+
+  const isEmbedPending =
+    !isTauriShell() &&
+    !!activeTab?.url &&
+    activeTab?.url !== 'about:blank' &&
+    !validatedUrlsRef.current.has(activeTab.url ?? '') &&
+    !iframeBlockedDetected &&
+    !iframeLoadError;
 
   return (
     <div className="adl-tool-panel adl-tool-panel--browser">
@@ -677,27 +728,26 @@ export function BrowserPanel(props: BrowserPanelProps) {
                 </div>
               }
             >
-              {!isTauriShell() && activeTab && validatedUrlsRef.current.has(activeTab.url) && (
-                <SafeIframe
-                  iframeRef={iframeRef}
-                  src={activeTab.url}
-                  className="adl-browser-iframe"
-                  title={activeTab.title}
-                  onLoad={handleIframeLoad}
-                  onError={handleIframeError}
-                  sandbox="allow-scripts allow-forms allow-popups allow-same-origin"
-                  style={{ display: isBrowserVisible ? undefined : 'none' }}
-                />
-              )}
+              {!isTauriShell() &&
+                activeTab?.url &&
+                activeTab.url !== 'about:blank' &&
+                validatedUrlsRef.current.has(activeTab.url) && (
+                  <SafeIframe
+                    iframeRef={iframeRef}
+                    src={activeTab.url}
+                    className="adl-browser-iframe"
+                    title={activeTab.title}
+                    onLoad={handleIframeLoad}
+                    onError={handleIframeError}
+                    sandbox="allow-scripts allow-forms allow-popups allow-same-origin"
+                    style={{ display: isBrowserVisible ? undefined : 'none' }}
+                  />
+                )}
 
-              {!isTauriShell() && iframeLoadError && (
-                <div className="adl-browser-error-container adl-browser-error-container--active">
+              {!isTauriShell() && iframeBlockedDetected && (
+                <div className="adl-browser-error-container adl-browser-error-container--blocked">
                   <IconAlertTriangle size={28} decorative className="adl-browser-error__icon" />
-                  <p className="adl-browser-error-text">
-                    {iframeBlockedDetected
-                      ? t.browserCannotOpenEmbedded
-                      : t.browserConnectionFailed}
-                  </p>
+                  <p className="adl-browser-error-text">{t.browserCannotOpenEmbedded}</p>
                   <button
                     type="button"
                     className="adl-browser-external-btn adl-browser-external-btn--prominent"
@@ -720,6 +770,41 @@ export function BrowserPanel(props: BrowserPanelProps) {
                     <IconGlobe size={14} />
                     {t.browserOpenExternal}
                   </button>
+                </div>
+              )}
+
+              {!isTauriShell() && iframeLoadError && !iframeBlockedDetected && (
+                <div className="adl-browser-error-container adl-browser-error-container--blocked">
+                  <IconAlertTriangle size={28} decorative className="adl-browser-error__icon" />
+                  <p className="adl-browser-error-text">{t.browserConnectionFailed}</p>
+                  <button
+                    type="button"
+                    className="adl-browser-external-btn adl-browser-external-btn--prominent"
+                    onClick={() => {
+                      const url = activeTab?.url ?? 'about:blank';
+                      if (isTauriShell()) {
+                        shellOpen(url).catch((err) =>
+                          console.error('Failed to open external browser:', err)
+                        );
+                      } else {
+                        const w = window as { trae?: { openExternal: (url: string) => void } };
+                        if (w.trae?.openExternal) {
+                          w.trae.openExternal(url);
+                        } else {
+                          window.open(url, '_blank', 'noopener,noreferrer');
+                        }
+                      }
+                    }}
+                  >
+                    <IconGlobe size={14} />
+                    {t.browserOpenExternal}
+                  </button>
+                </div>
+              )}
+
+              {isEmbedPending && (
+                <div className="adl-browser-loading">
+                  <div className="adl-browser-loading__spinner" />
                 </div>
               )}
             </ErrorBoundary>
