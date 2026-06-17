@@ -55,7 +55,7 @@ export function SafeIframe({
     iframe.style.border = 'none';
     iframe.style.width = '100%';
     iframe.style.height = '100%';
-    iframe.style.display = style?.display === 'none' ? 'none' : 'block';
+    iframe.style.display = style?.display ?? 'block';
 
     if (iframeRef) {
       (iframeRef as React.MutableRefObject<HTMLIFrameElement | null>).current = iframe;
@@ -82,6 +82,8 @@ export function SafeIframe({
         (iframeRef as React.MutableRefObject<HTMLIFrameElement | null>).current = null;
       }
     };
+    // onLoad/onError are intentionally excluded — refs (onLoadRef/onErrorRef)
+    // keep the latest callback values without recreating the iframe.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [src, title, className, sandbox]);
 

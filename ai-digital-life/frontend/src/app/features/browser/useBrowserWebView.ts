@@ -125,7 +125,7 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
   const handleIframeError = useCallback(() => {
     setIframeLoadError(true);
     setIframeBlockedDetected(true);
-  }, []);
+  }, [setIframeLoadError, setIframeBlockedDetected]);
 
   const isBrowserVisibleRef = useRef(isVisible);
 
