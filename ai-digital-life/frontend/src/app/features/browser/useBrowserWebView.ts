@@ -7,6 +7,7 @@ interface UseBrowserWebViewOptions {
   activeTab?: BrowserTabState;
   webViewDisabled?: boolean;
   isVisible: boolean;
+  overlayActive: boolean;
   setAddress: (address: string) => void;
   browserNavigateActiveTab: (url: string, title?: string) => void;
   browserUpdateTab: (id: string, data: Partial<BrowserTabState>) => void;
@@ -17,6 +18,7 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
     activeTab,
     webViewDisabled = false,
     isVisible,
+    overlayActive,
     setAddress,
     browserNavigateActiveTab,
     browserUpdateTab,
@@ -36,6 +38,17 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const primaryRef = useRef<HTMLDivElement | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const domOverlayActiveRef = useRef(false);
+
+  // 通过 ref 同步，让 MutationObserver 回调可读取最新值，无需经过 React 渲染周期
+  const overlayActiveRef = useRef(overlayActive);
+  overlayActiveRef.current = overlayActive;
+
+  const hideWebView = useCallback(() => {
+    invoke('browser_set_bounds', {
+      bounds: { x: -10000, y: -10000, width: 1, height: 1 },
+    }).catch(console.error);
+  }, []);
 
   useEffect(() => {
     webViewVisibleRef.current = !webViewDisabled;
@@ -86,6 +99,62 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
       console.error(`set_bounds 失败: ${err}`);
     });
   }, []);
+
+  // 通过 ref 同步 updateWebViewBounds，让 MutationObserver 回调可直接调用
+  const updateWebViewBoundsRef = useRef(updateWebViewBounds);
+  useEffect(() => {
+    updateWebViewBoundsRef.current = updateWebViewBounds;
+  });
+
+  // 通过 MutationObserver 直接检测全屏范围内浮动菜单的增删，
+  // 绕过 React 状态更新，消除延迟。
+  // subtree: true 确保也能捕获内联渲染的菜单（如 LeftSidebar 的 SidebarContextMenu）
+  useEffect(() => {
+    if (!isTauriShell()) {
+      return;
+    }
+    const OVERLAY_SELECTOR = '.adl-sidebar-menu, .adl-multitree-entry__menu';
+    let rafId: number | null = null;
+
+    const checkDomOverlay = () => {
+      const hasOverlay = document.querySelector(OVERLAY_SELECTOR) !== null;
+      if (hasOverlay === domOverlayActiveRef.current) {
+        return;
+      }
+      domOverlayActiveRef.current = hasOverlay;
+      if (!webViewActiveRef.current) {
+        return;
+      }
+
+      if (hasOverlay) {
+        hideWebView();
+      } else if (!overlayActiveRef.current) {
+        // 仅在 state-based overlay 也未激活时才恢复 WebView
+        updateWebViewBoundsRef.current();
+      }
+    };
+
+    // 用 rAF 批量合并高频 DOM 变更，避免 subtree:true 时回调过多
+    const scheduleCheck = () => {
+      if (rafId !== null) {
+        return;
+      }
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        checkDomOverlay();
+      });
+    };
+
+    const observer = new MutationObserver(scheduleCheck);
+    observer.observe(document.body, { childList: true, subtree: true });
+    checkDomOverlay();
+    return () => {
+      observer.disconnect();
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
+    };
+  }, [hideWebView]);
 
   const handleIframeLoad = useCallback(() => {
     setIframeLoadError(false);
@@ -143,6 +212,19 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
       updateWebViewBounds();
     }
   }, [webViewDisabled, updateWebViewBounds]);
+
+  // 浏览器面板内部浮动元素（对话框/菜单）出现时，隐藏原生 WebView
+  // 与 MutationObserver 协同：恢复时需确认 DOM 层也无浮动菜单
+  useEffect(() => {
+    if (!isTauriShell() || !webViewActiveRef.current) {
+      return;
+    }
+    if (overlayActive || domOverlayActiveRef.current) {
+      hideWebView();
+    } else {
+      updateWebViewBounds();
+    }
+  }, [overlayActive, updateWebViewBounds, hideWebView]);
 
   useEffect(() => {
     if (!isTauriShell()) {

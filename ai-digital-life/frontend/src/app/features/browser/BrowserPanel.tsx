@@ -183,27 +183,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
   }, [isBookmarked]);
 
   const {
-    iframeLoadError,
-    setIframeLoadError,
-    iframeBlockedDetected,
-    setIframeBlockedDetected,
-    iframeHistory,
-    setIframeHistory,
-    iframeRef,
-    primaryRef,
-    navigateBrowser,
-    handleIframeLoad,
-    handleIframeError,
-  } = useBrowserWebView({
-    activeTab,
-    webViewDisabled: false,
-    isVisible: isBrowserVisible,
-    setAddress,
-    browserNavigateActiveTab,
-    browserUpdateTab,
-  });
-
-  const {
     navigatorQuery,
     setNavigatorQuery,
     searchScope,
@@ -245,6 +224,36 @@ export function BrowserPanel(props: BrowserPanelProps) {
     activeTab,
     handleCloseTab,
     handleDoubleClick,
+  });
+
+  const hasOverlayActive =
+    browserMenuOpen ||
+    contextMenu.open ||
+    createTabDialog.open ||
+    bookmarkDialogOpen ||
+    renameFolderState.open ||
+    createDirDialog.open;
+
+  const {
+    iframeLoadError,
+    setIframeLoadError,
+    iframeBlockedDetected,
+    setIframeBlockedDetected,
+    iframeHistory,
+    setIframeHistory,
+    iframeRef,
+    primaryRef,
+    navigateBrowser,
+    handleIframeLoad,
+    handleIframeError,
+  } = useBrowserWebView({
+    activeTab,
+    webViewDisabled: false,
+    isVisible: isBrowserVisible,
+    overlayActive: hasOverlayActive,
+    setAddress,
+    browserNavigateActiveTab,
+    browserUpdateTab,
   });
 
   const browserMenuItems = useMemo(

@@ -155,11 +155,11 @@
 .adl-tool-navigator__resize-handle {
   position: absolute;
   top: 0;
-  right: -3px;
+  right: 0;
   bottom: 0;
-  width: 6px;
+  width: 12px;
   cursor: col-resize;
-  z-index: 2;
+  z-index: 10;
   touch-action: none;
   -webkit-user-select: none;
   user-select: none;
@@ -170,10 +170,9 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  left: 50%;
+  left: auto;
+  right: 0;
   width: 1px;
-  transform: translateX(-50%);
-  border-radius: 999px;
   background: transparent;
   opacity: 0;
   transition:
@@ -186,7 +185,7 @@
 .adl-tool-navigator__resize-handle:active::before {
   width: 3px;
   opacity: 1;
-  background: var(--border-strong);
+  background: var(--text-secondary);
 }
 
 .adl-tool-navigator__header {

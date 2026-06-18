@@ -542,6 +542,7 @@
 
 .adl-tool-surface--github.is-navigator-collapsed .adl-tool-navigator {
   width: 0;
+  flex: 0 0 0;
   opacity: 0;
   border-right: none;
   overflow: hidden;

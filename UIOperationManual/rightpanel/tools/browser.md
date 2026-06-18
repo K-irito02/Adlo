@@ -423,6 +423,8 @@ await page.click('button:has-text("应用")');
 | 切回浏览器面板 | WebView 重新定位到内容区，**页面不刷新，状态保持** | iframe 恢复显示，**页面不刷新** |
 | 收起右侧面板 | WebView 离屏隐藏（同上） | iframe 隐藏（同上） |
 | 展开右侧面板 | WebView 重新定位到内容区 | iframe 恢复显示 |
+| 浮动元素打开（对话框/菜单等） | WebView 被瞬移到离屏位置 `(-10000,-10000)`，**菜单/对话框正常显示**，关闭后恢复 | iframe 不受影响（HTML 层叠上下文） |
+| 鼠标悬停/拖拽右侧面板左边缘 | WebView 保持可见，resize handle 已左扩 8px 进入中心区域躲避 WebView，**拖拽线可正常操作** | 不受影响，CSS z-index 已提升到 `var(--z-tooltip)` (90) |
 
 ### 定位选择器
 

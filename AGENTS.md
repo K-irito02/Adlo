@@ -52,6 +52,7 @@
 - 错误提示/状态提示常驻显示（必须仅在活跃错误状态下可见）
 - 调试日志（`console.log`/`[ADL-DEBUG]`）遗留生产代码不清理
 - iframe 嵌入缺少前置检测（必须使用 checkEmbed HEAD 预检 + 同步 ref 门控 + 基于 attachShadow mode:closed 的 SafeIframe 沙箱保护，标准 `<iframe>` JSX 会导致 React DevTools 跨域 SecurityError）
+- Tauri 桌面模式下依赖 CSS z-index 覆盖浏览器原生 WebView（WebView2 是 OS 级渲染表面。浮动菜单/对话框出现时：必须通过 `browser_set_bounds` 移出画面，使用 State + MutationObserver 双路检测协同。面板 Resize Handle 被覆盖时：采用"区域逃逸"方案——handle 向左扩展 8px 进入中心区域（无 WebView），无需 IPC 干预）
 
 ## 双端一致性
 

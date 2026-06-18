@@ -41,10 +41,10 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  left: 0;
-  width: 6px;
+  left: -8px;
+  width: 14px;
   cursor: col-resize;
-  z-index: 2;
+  z-index: var(--z-tooltip);
 }
 
 .adl-rightpanel__resize-handle::before {
@@ -52,9 +52,8 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  left: 0;
+  left: 8px;
   width: 1px;
-  border-radius: 999px;
   background: transparent;
   opacity: 0;
   transition:
@@ -67,7 +66,7 @@
 .adl-rightpanel__resize-handle:active::before {
   width: 3px;
   opacity: 1;
-  background: var(--border-strong);
+  background: var(--text-secondary);
 }
 
 .adl-is-resizing,

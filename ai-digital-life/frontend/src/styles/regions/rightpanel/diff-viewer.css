@@ -683,7 +683,7 @@
 
 .adl-cm-diff-viewer .adl-cm-diff-resizer {
   flex: none;
-  width: 6px;
+  width: 8px;
   cursor: col-resize;
   position: relative;
   z-index: 10;
@@ -697,10 +697,9 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  left: 2px;
+  left: 3px;
   width: 1px;
   height: 100%;
-  border-radius: 999px;
   background: transparent;
   opacity: 0;
   pointer-events: none;
@@ -714,7 +713,7 @@
 .adl-cm-diff-viewer .adl-cm-diff-resizer.adl-cm-diff-resizer--dragging::before {
   width: 3px;
   opacity: 1;
-  background: var(--border-strong);
+  background: var(--text-secondary);
 }
 
 /* 左侧编辑器右边缘渐变遮罩，产生左低右高的分层感。
