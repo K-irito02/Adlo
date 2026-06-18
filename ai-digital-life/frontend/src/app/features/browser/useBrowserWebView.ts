@@ -104,7 +104,7 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
   const updateWebViewBoundsRef = useRef(updateWebViewBounds);
   useEffect(() => {
     updateWebViewBoundsRef.current = updateWebViewBounds;
-  });
+  }, [updateWebViewBounds]);
 
   // 通过 MutationObserver 直接检测全屏范围内浮动菜单的增删，
   // 绕过 React 状态更新，消除延迟。
