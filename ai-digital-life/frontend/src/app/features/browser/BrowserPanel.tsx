@@ -252,6 +252,18 @@ export function BrowserPanel(props: BrowserPanelProps) {
     [activeTab, browserUpdateTab]
   );
 
+  // 在 Tauri 模式下订阅页面元信息变更事件（注入脚本上报的 title/favicon）
+  useEffect(() => {
+    if (!isTauriShell()) {
+      return;
+    }
+    const bridge = window.digitalLife?.browser;
+    if (!bridge) {
+      return;
+    }
+    return bridge.onMetaChanged(handlePageMeta);
+  }, [handlePageMeta]);
+
   const {
     iframeLoadError,
     setIframeLoadError,

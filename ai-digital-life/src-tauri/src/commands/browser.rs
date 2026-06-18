@@ -4,7 +4,16 @@ use crate::state::AppState;
 use adl_browser::{Bounds, PageMeta};
 use adl_errors::AppError;
 use adl_kernel::IpcResult;
+use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Manager, State};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReportMetaPayload {
+    pub title: String,
+    pub favicon: String,
+    pub url: String,
+}
 
 #[tauri::command]
 pub async fn browser_create(
@@ -108,13 +117,11 @@ pub async fn browser_fetch_page_meta(url: String) -> Result<IpcResult<PageMeta>,
 #[tauri::command]
 pub async fn browser_report_page_meta(
     app: tauri::AppHandle,
-    title: String,
-    favicon: String,
-    url: String,
+    payload: ReportMetaPayload,
 ) -> Result<IpcResult<()>, CommandError> {
     let _ = app.emit(
         "digital-life://browser-meta-changed",
-        serde_json::json!({ "title": title, "favicon": favicon, "url": url }),
+        serde_json::json!({ "title": payload.title, "favicon": payload.favicon, "url": payload.url }),
     );
     Ok(ipc(Ok(())))
 }
