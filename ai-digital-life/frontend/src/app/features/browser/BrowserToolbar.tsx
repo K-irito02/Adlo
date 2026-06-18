@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { CopyIcon } from 'lucide-animated';
+import type { CopyIconHandle } from 'lucide-animated';
 import {
   IconArrowLeft,
   IconArrowRight,
   IconLink,
-  IconCopy,
   IconPlus,
   IconRefreshCw,
   IconStar,
@@ -44,6 +45,18 @@ interface BrowserToolbarProps {
 }
 
 export const BrowserToolbar = React.memo(function BrowserToolbar(props: BrowserToolbarProps) {
+  const [copied, setCopied] = useState(false);
+  const copyIconRef = useRef<CopyIconHandle>(null);
+  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  useEffect(() => {
+    return () => {
+      if (resetTimerRef.current !== undefined) {
+        clearTimeout(resetTimerRef.current);
+      }
+    };
+  }, []);
+
   const {
     t,
     address,
@@ -136,17 +149,29 @@ export const BrowserToolbar = React.memo(function BrowserToolbar(props: BrowserT
             placeholder={t.browserAddress}
             aria-label={t.browserAddress}
           />
-          <TooltipSimple content={t.browserCopyLink} placement="top">
+          <TooltipSimple
+            content={copied ? t.copySuccessClipboard : t.browserCopyLink}
+            placement="top"
+          >
             <button
               type="button"
-              className="adl-tool-search__copy"
+              className={`adl-tool-search__copy${copied ? ' is-copied' : ''}`}
               onClick={(e) => {
                 e.stopPropagation();
                 const url = (activeTab?.url ?? address) || '';
                 onCopyUrl(url);
+                if (resetTimerRef.current !== undefined) {
+                  clearTimeout(resetTimerRef.current);
+                }
+                copyIconRef.current?.startAnimation();
+                setCopied(true);
+                resetTimerRef.current = setTimeout(() => {
+                  copyIconRef.current?.stopAnimation();
+                  setCopied(false);
+                }, 1500);
               }}
             >
-              <IconCopy size={14} decorative />
+              <CopyIcon ref={copyIconRef} size={14} />
             </button>
           </TooltipSimple>
           <TooltipSimple content={t.newTabPage} placement="top">

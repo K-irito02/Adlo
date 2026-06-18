@@ -61,7 +61,7 @@ Strict layering tokens — nothing else may declare arbitrary z-index numbers:
 
 ## Icons
 
-`--icon-xs` (12 px) → `--icon-2xl` (48 px). All icons inherit `currentColor`.
+`--icon-xs` (12 px) → `--icon-2xl` (48 px). All icons inherit `currentColor`. For animated click-feedback icons, `lucide-animated` is the permitted third-party library.
 
 ## Layout
 

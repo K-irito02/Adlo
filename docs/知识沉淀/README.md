@@ -8,7 +8,7 @@
 |------|------|--------|
 | [重构](./重构/) | 重构方法论、组件提取、执行报告、阶段性总结 | 21 |
 | [多工作区](./多工作区/) | 多工作区开发中的变更面板、文件树、终端、布局等经验 | 11 |
-| [浏览器](./浏览器/) | 内置浏览器实现、空标签引导页、树形目录交互、iframe 嵌入检查、Tauri WebView 覆盖、Resize Handle 区域逃逸等经验 | 12 |
+| [浏览器](./浏览器/) | 内置浏览器实现、空标签引导页、树形目录交互、iframe 嵌入检查、Tauri WebView 覆盖、Resize Handle 区域逃逸、复制按钮动画化等经验 | 13 |
 | [代码质量](./代码质量/) | 全量代码质量检测与修复经验 | 11 |
 | [浏览器自动化](./浏览器自动化/) | 浏览器自动化调试记录与规则经验 | 2 |
 | [交互优化](./交互优化/) | 跨功能面板的交互/UX 问题修复经验 | 13 |
@@ -72,6 +72,7 @@
 | [safe-iframe-shadow-dom-fix-2026-06-17.md](./浏览器/safe-iframe-shadow-dom-fix-2026-06-17.md) | 2026-06-17 修复执行 | Shadow DOM 修复 React DevTools 跨域 iframe SecurityError（6 次迭代经验总结：C++ native getter 不可拦截 + attachShadow mode:closed 终极方案） |
 | [tauri-webview-overlay-hide-2026-06-18.md](./浏览器/tauri-webview-overlay-hide-2026-06-18.md) | 2026-06-18 修复执行 | Tauri 原生子 WebView 层级覆盖问题（z-order 不可战胜、MutationObserver 双路检测、ref 替代 state 消除延迟） |
 | [panel-resize-handle-webview-2026-06-18.md](./浏览器/panel-resize-handle-webview-2026-06-18.md) | 2026-06-18 修复执行 | 面板拖拽线被 WebView 覆盖：区域逃逸方案（handle 左扩至中心区），无需隐藏 WebView |
+| [browser-copy-button-animation-2026-06-18.md](./浏览器/browser-copy-button-animation-2026-06-18.md) | 2026-06-18 交互优化 | 浏览器地址栏复制按钮动画化：引入 lucide-animated CopyIcon，点击播放弹簧动画后自动恢复 |
 
 ### 代码质量
 

@@ -88,7 +88,7 @@ document.body.innerHTML = renderHtml(html`
 ## Non-Negotiables
 
 1. Components **MUST** consume CSS custom properties (`var(--…)`); raw colors are a hard error in code review. Exception: third-party embedded surfaces such as Monaco that require programmatic theme objects may mirror documented semantic/background values in code, but those values must stay aligned with [`themes.md`](./themes.md).
-2. Icons **MUST** ship as SVG that inherits `currentColor`. **No emojis** anywhere in the UI.
+2. Icons **MUST** ship as SVG that inherits `currentColor`. **No emojis** anywhere in the UI. Exception: `lucide-animated` (MIT) is a permitted third-party animated icon library for specific click-feedback animation use cases (e.g. copy button). It satisfies the SVG + `currentColor` constraint and uses `motion` (Framer Motion) for its animations.
 3. Every interactive control exposes default / hover / focus-visible / active / disabled / loading states with adequate contrast.
 4. The renderer never mutates persisted theme state directly — it forwards via the IPC bridge (`window.digitalLife.app.updatePreferences`). Color scheme is a renderer-only preference (see [`themes.md`](./themes.md)).
 5. Reduced motion is honored automatically through `@media (prefers-reduced-motion: reduce)`.

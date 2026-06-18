@@ -51,6 +51,23 @@ await page.fill('.adl-tool-search--address input', 'https://example.com');
 await page.keyboard.press('Enter');
 ```
 
+#### 复制链接（地址栏，v2026-06-18 新增动画）
+
+```javascript
+// 展开地址栏（需要先展开才能看到复制按钮）
+await page.click('.adl-tool-search--address');
+
+// 点击复制链接按钮
+await page.click('.adl-tool-search__copy');
+
+// 复制成功后图标播放动画，Tooltip 显示"已复制到剪贴板"
+// 1.5 秒后自动恢复为"复制链接"提示
+```
+
+**选择器**：`.adl-tool-search__copy`（复制按钮，仅在地址栏展开或悬停时显示）
+
+**行为**：点击复制 URL → 图标播放 lucide-animated 弹簧动画（~400ms）→ 500ms 后图标恢复原位 → Tooltip 显示"已复制到剪贴板"（1.5s）
+
 #### 新建标签页
 
 ```javascript
