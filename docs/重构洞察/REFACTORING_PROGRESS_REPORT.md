@@ -1,6 +1,6 @@
 # 重构进度报告
 
-> 更新日期: 2026-06-17（第七十一轮）
+> 更新日期: 2026-06-19（第七十二轮）
 
 ## 完成状态
 
@@ -148,3 +148,53 @@
 | `cargo test --workspace --exclude adl-pty` | ✅ passed |
 
 > `adl-pty` 的 Windows PTY 测试在本地环境超时，属于预存在的环境问题，与本次重构无关。
+
+## Round 68 – 2026-06-19
+
+### Target
+前端 CSS/TSX 大型文件减负 + Rust agent_pipeline 模块化 + 清理生产代码 console.log
+
+### 变更清单
+
+**CSS 架构规范化（5 个文件拆分为 22 个）**
+- components.css (1075行) → 14 个独立组件 CSS + barrel
+- communication-workflows.css (988行) → workflows (526行) + jobs (465行)
+- diff-viewer.css (965行) → diff-viewer (437行) + diff-inline (162行) + diff-side-by-side (367行)
+- leftbar.css (941行) → leftbar (382行) + leftbar-session (226行) + leftbar-workspace (217行)
+- editor-surface.css (918行) → editor-surface (177行) + editor-content (614行)
+
+**前端大型文件减负（7 个 TS/TSX 文件拆分，提取 14 个新文件）**
+- useChangesPanelState.tsx (655行) → 提取 useChangesPanelStateTypes.ts + useChangesPanelStateUtils.ts
+- uiSlice.ts (541行) → 拆分为 uiSliceWidths.ts (182行) + uiSliceExpansion.ts (152行)
+- githubRepoSlice.ts (529行) → 提取 githubRepoSliceTypes.ts + githubRepoSliceHelpers.ts
+- githubSlice.ts (464行) → 提取 githubSliceHelpers.ts (142行)
+- workspaceActions.ts (589行) → 提取 browserCleanupHelpers.ts (50行)
+- StatusBar.tsx (560行) → 拆分为 StatusBarGitInfo.tsx (290行) + StatusBarEditorInfo.tsx (130行)
+- FileNavigatorShell.tsx (624行) → 拆分为 FileNavigatorToolbar.tsx (170行) + FileNavigatorTree.tsx (110行)
+
+**Rust 模块化**
+- agent_pipeline.rs (898行) → 提取 agent_pipeline_stream.rs 子模块（流式事件发射 + 8 个单元测试）
+
+**性能与代码质量**
+- 清理 13 个文件中的 29 处 console.log/warn/error
+- useTaskCenterPolling 评估：Tauri 无暴露事件 API，保留轮询 + 添加注释说明
+
+**红绿测试验证**
+- ESLint: 0 problems (51 auto-fixable warnings resolved)
+- Prettier: All matched files formatted
+- Cargo clippy: 0 warnings
+- Rustfmt: clean
+- Frontend typecheck: passed
+- Frontend tests: 38 files, 250 tests, 0 failed
+- Cargo test: all crates, 0 failed
+- Rust format check: clean
+
+### 本轮的 2 个失败与重试
+- `outlinePanelWiring.test.ts`、`cmPreviewStyling.test.ts` 因 CSS/TSX 文件拆分断言位置和 CSS 名称变更，已追跟随更新
+- useTaskCenterPolling 事件驱动无法实现（Tauri 无暴露事件 API），已记录
+- 重复的 eslint/format lint fix，后续 CI 中要注意前置阶段巡检
+
+### 本轮重构的杠杆点
+- CSS barrel 模式推广：components.css 成为纯 @import barrel，新增组件只需创建一个 CSS 文件并加入 barrel，无需修改 barrel 文件
+- 通用 slice 拆分模式：类型提取 + helpers 提取 + slice 编排的三层架构，可推广到其他 slice
+- StatusBar 组件拆分模式：GitInfo/EditorInfo 可独立测试和复用

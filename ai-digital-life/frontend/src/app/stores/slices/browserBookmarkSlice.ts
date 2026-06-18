@@ -28,6 +28,7 @@ export interface BrowserBookmarkSlice {
     newFolderName?: string,
     workspaceId?: string
   ) => void;
+  browserUpdateBookmarkTitle: (url: string, title: string) => void;
 }
 
 export const createBrowserBookmarkSlice = (
@@ -157,6 +158,20 @@ export const createBrowserBookmarkSlice = (
         browserBookmarks: nextBookmarks,
         browserWorkspaceBookmarks: nextWorkspaceBookmarks,
       };
+    });
+  },
+
+  browserUpdateBookmarkTitle: (url: string, title: string) => {
+    set((state) => {
+      const exists = state.browserBookmarks.some((b) => b.url === url && b.title !== title);
+      if (!exists) {
+        return state;
+      }
+      const nextBookmarks = state.browserBookmarks.map((b) =>
+        b.url === url ? { ...b, title } : b
+      );
+      scheduleWrite(BROWSER_BOOKMARKS_KEY, nextBookmarks);
+      return { browserBookmarks: nextBookmarks };
     });
   },
 });

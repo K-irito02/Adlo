@@ -5,31 +5,21 @@ import type {
   RecentWorkspaceEntry,
 } from '@ai-digital-life/kernel';
 import { useTCopy } from '../../i18n/useTCopy';
-import {
-  IconFiles,
-  IconFilePlus,
-  IconFoldVertical,
-  IconFolderPlus,
-  IconList,
-  IconRefreshCw,
-  IconReplace,
-  IconUnfoldVertical,
-} from '../../icons';
+import { IconReplace } from '../../icons';
 import { TooltipSimple } from '../../components/Tooltip';
 import { NavigatorResizeHandle } from '@components/NavigatorResizeHandle';
 import { useNavigatorResize } from '../../hooks/useNavigatorResize';
-import { MultiWorkspaceFileTree } from '../../features/workspace-file-tree';
-import { CustomScrollArea } from '../../features/file-tree/CustomScrollArea';
 import { OutlineTree, getDefaultExpandedOutlineIds } from '../../features/outline';
 import { normalizeWorkspaceRelativePath } from '../../utils/workspacePaths';
 import { useFileCreation, useSearchPanel } from './hooks';
 import { useFileContextMenuItems } from './hooks/useFileContextMenuItems';
-import { FileCreationBar } from './FileCreationBar';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { RenameDialog } from '../../components/RenameDialog';
 import { useAppStore } from '../../stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import type { SearchHit } from './hooks/useSearchPanel';
+import { FileNavigatorToolbar } from './FileNavigatorToolbar';
+import { FileNavigatorTree } from './FileNavigatorTree';
 
 interface FileNavigatorShellProps {
   selectedFilePath: string | undefined;
@@ -304,162 +294,42 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
 
   return (
     <aside className="adl-tool-navigator" aria-label={navigatorTitle as string}>
-      <div className="adl-tool-navigator__context">
-        <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--actions">
-          <TooltipSimple
-            content={structureToggleExpanded ? t.fileCollapseAll : t.fileExpandAll}
-            placement="top"
-          >
-            <button
-              type="button"
-              className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-              onClick={handleToggleNavigatorStructure}
-              aria-label={(structureToggleExpanded ? t.fileCollapseAll : t.fileExpandAll) as string}
-              disabled={!canToggleNavigatorStructure}
-            >
-              {structureToggleExpanded ? (
-                <IconFoldVertical size={14} decorative />
-              ) : (
-                <IconUnfoldVertical size={14} decorative />
-              )}
-            </button>
-          </TooltipSimple>
-          <span className="adl-tool-navigator__context-title">{navigatorTitle as string}</span>
-        </div>
-        <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--utility">
-          {workspaceCount > 0 ? (
-            <span className="adl-tool-navigator__context-count">{workspaceCount}</span>
-          ) : null}
-          <TooltipSimple content={t.communicateRefreshAll} placement="top">
-            <button
-              type="button"
-              className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-              onClick={onRefreshAll}
-              aria-label={t.fileRefresh as string}
-            >
-              <IconRefreshCw size={14} decorative />
-            </button>
-          </TooltipSimple>
-        </div>
-      </div>
-      <div className="adl-tool-navigator__context adl-tool-navigator__context--secondary">
-        <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--actions">
-          <TooltipSimple content={t.fileTreeView} placement="top">
-            <button
-              type="button"
-              className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${navigatorMode === 'tree' ? ' is-active' : ''}`}
-              onClick={() => setNavigatorMode('tree')}
-              aria-label={t.fileTreeView as string}
-              aria-pressed={navigatorMode === 'tree' ? 'true' : 'false'}
-            >
-              <IconFiles size={14} decorative />
-            </button>
-          </TooltipSimple>
-          <TooltipSimple content={t.changesOutline} placement="top">
-            <button
-              type="button"
-              className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${navigatorMode === 'outline' ? ' is-active' : ''}`}
-              onClick={() => setNavigatorMode('outline')}
-              aria-label={(outline.length > 0 ? t.outline : t.toolFiles) as string}
-              aria-pressed={navigatorMode === 'outline' ? 'true' : 'false'}
-            >
-              <IconList size={14} decorative />
-            </button>
-          </TooltipSimple>
-        </div>
-        <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--utility">
-          <TooltipSimple content={t.fileNewFile} placement="top">
-            <button
-              type="button"
-              className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-              onClick={() => fileCreation.startCreate('file')}
-              aria-label={t.fileNewFile as string}
-            >
-              <IconFilePlus size={14} decorative />
-            </button>
-          </TooltipSimple>
-          <TooltipSimple content={t.fileNewFolder} placement="top">
-            <button
-              type="button"
-              className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-              onClick={() => fileCreation.startCreate('folder')}
-              aria-label={t.fileNewFolder as string}
-            >
-              <IconFolderPlus size={14} decorative />
-            </button>
-          </TooltipSimple>
-        </div>
-      </div>
-
-      {fileCreation.createTarget ? (
-        <FileCreationBar
-          createTarget={fileCreation.createTarget}
-          createPathValue={fileCreation.createPathValue}
-          createInputRef={fileCreation.createInputRef}
-          isValidPath={(value) => {
-            const trimmed = value.trim();
-            if (!trimmed) {
-              return false;
-            }
-            if (
-              /^[A-Za-z]:[\\/]/.test(trimmed) ||
-              trimmed.startsWith('/') ||
-              trimmed.startsWith('\\')
-            ) {
-              return false;
-            }
-            return true;
-          }}
-          onPathChange={fileCreation.setCreatePathValue}
-          onSubmit={fileCreation.submitCreate}
-          onCancel={fileCreation.cancelCreate}
-        />
-      ) : null}
+      <FileNavigatorToolbar
+        navigatorTitle={navigatorTitle as string}
+        workspaceCount={workspaceCount}
+        structureToggleExpanded={structureToggleExpanded}
+        canToggleNavigatorStructure={canToggleNavigatorStructure}
+        navigatorMode={navigatorMode}
+        outline={outline}
+        onToggleNavigatorStructure={handleToggleNavigatorStructure}
+        onRefreshAll={onRefreshAll}
+        onSetNavigatorMode={setNavigatorMode}
+        fileCreation={fileCreation}
+      />
 
       {navigatorMode === 'tree' ? (
-        visibleWorkspaces.length > 0 ? (
-          <CustomScrollArea
-            shellClassName="adl-multitree"
-            scrollClassName="adl-multitree-scroll"
-            scrollbarClassName="adl-multitree-scrollbar"
-            thumbClassName="adl-multitree-scrollbar__thumb"
-          >
-            <MultiWorkspaceFileTree
-              workspaces={visibleWorkspaces}
-              activeWorkspaceId={activeWorkspaceId}
-              treeData={workspaceTrees}
-              loadingStates={workspaceTreeLoading}
-              errorStates={workspaceTreeErrors}
-              expandedStates={workspaceTreeExpandedInFileNav}
-              selectedFilePath={selectedFilePath}
-              selectedFileWorkspaceId={selectedFileWorkspaceId}
-              expandedPaths={expandedPaths}
-              dirtyPaths={dirtyPaths}
-              externalChangePath={externalChangePath}
-              onToggleExpand={onToggleExpandInFileNav}
-              onRefreshOne={onRefreshOneWorkspace}
-              onOpenWorkspace={(path: string) => {
-                useAppStore.getState().openWorkspace(path);
-              }}
-              onPinWorkspace={(workspaceId: string) => {
-                useAppStore.getState().pinWorkspace(workspaceId);
-              }}
-              onUnpinWorkspace={(workspaceId: string) => {
-                useAppStore.getState().unpinWorkspace(workspaceId);
-              }}
-              onHideFromRightPanels={onHideFromRightPanels}
-              onToggleFileTreePath={toggleFileTreePath}
-              onOpenFile={onOpenFile}
-              onOpenFileForWorkspace={onOpenFileForWorkspace}
-              onReorderWorkspaces={(input) => {
-                useAppStore.getState().reorderWorkspaces(input);
-              }}
-              getContextMenuItems={getContextMenuItems}
-              contextMenuPersistRef={contextMenuPersistRef}
-              clearMenuHighlightRef={clearMenuHighlightRef}
-            />
-          </CustomScrollArea>
-        ) : null
+        <FileNavigatorTree
+          visibleWorkspaces={visibleWorkspaces}
+          activeWorkspaceId={activeWorkspaceId}
+          treeData={workspaceTrees}
+          loadingStates={workspaceTreeLoading}
+          errorStates={workspaceTreeErrors}
+          expandedStates={workspaceTreeExpandedInFileNav}
+          selectedFilePath={selectedFilePath}
+          selectedFileWorkspaceId={selectedFileWorkspaceId}
+          expandedPaths={expandedPaths}
+          dirtyPaths={dirtyPaths}
+          externalChangePath={externalChangePath}
+          onToggleExpand={onToggleExpandInFileNav}
+          onRefreshOne={onRefreshOneWorkspace}
+          onHideFromRightPanels={onHideFromRightPanels}
+          onToggleFileTreePath={toggleFileTreePath}
+          onOpenFile={onOpenFile}
+          onOpenFileForWorkspace={onOpenFileForWorkspace}
+          getContextMenuItems={getContextMenuItems}
+          contextMenuPersistRef={contextMenuPersistRef}
+          clearMenuHighlightRef={clearMenuHighlightRef}
+        />
       ) : null}
 
       {navigatorMode === 'search' ? (

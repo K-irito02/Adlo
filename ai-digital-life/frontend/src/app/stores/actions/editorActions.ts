@@ -299,10 +299,7 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
       ) {
         return;
       }
-      console.info('[workspace] external file changed', {
-        path: incoming,
-        lastModifiedAt,
-      });
+      /* external file changed */
       set((state: StoreState) => {
         const nextDirty = [...new Set([...state.dirtyEditorPaths, incoming])];
         void window.digitalLife.workspace.setEditorDirtyPaths(nextDirty);

@@ -105,7 +105,7 @@ export function useTerminalPtyLifecycle({ activeTab, rootPath }: PtyLifecyclePar
             xtermRef.current?.focus();
           }, 50);
         } else {
-          console.error('Failed to create terminal:', result.error);
+          /* terminal creation failed */
           const errorMsg = result.error?.message || 'Unknown error';
           terminalUpdateActiveTab({ status: 'terminated' });
           setTimeout(() => {
@@ -121,7 +121,7 @@ export function useTerminalPtyLifecycle({ activeTab, rootPath }: PtyLifecyclePar
           }, 50);
         }
       } catch (err) {
-        console.error('Error creating terminal:', err);
+        /* terminal creation error */
         terminalUpdateActiveTab({ status: 'terminated' });
         setTimeout(() => {
           xtermRef.current?.write(

@@ -1,0 +1,241 @@
+/* ==========================================================================
+   Composer Extras
+   --------------------------------------------------------------------------
+   - Slash menu, token usage, run summary
+   - Git file status (file tree)
+   - Agent approval hint, composer model row
+   - Terminal structured output
+   ========================================================================== */
+
+/* -------- Slash Menu -------- */
+.adl-slash-menu {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  min-width: 240px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  z-index: var(--z-popover, 100);
+}
+.adl-slash-menu__list {
+  list-style: none;
+  padding: var(--space-1) 0;
+  margin: 0;
+}
+.adl-slash-menu__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+}
+.adl-slash-menu__item.is-active,
+.adl-slash-menu__item:hover {
+  background: var(--bg-hover);
+}
+.adl-slash-menu__label {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  color: var(--accent);
+}
+.adl-slash-menu__desc {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+/* -------- Token Usage -------- */
+.adl-token-usage {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  margin-top: var(--space-1);
+}
+.adl-token-usage__toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+  font-size: var(--font-size-xs);
+}
+.adl-token-usage__toggle:hover {
+  color: var(--text-primary);
+}
+.adl-token-usage__detail {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-1) 0 0 var(--space-4);
+}
+
+/* -------- Run Summary -------- */
+.adl-run-summary {
+  margin: var(--space-2) 0 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  overflow: hidden;
+}
+.adl-run-summary__toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-primary);
+  text-align: left;
+}
+.adl-run-summary__toggle:hover {
+  background: var(--bg-hover);
+}
+.adl-run-summary__title {
+  font-weight: 600;
+}
+.adl-run-summary__meta {
+  margin-left: auto;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+.adl-run-summary__body {
+  border-top: 1px solid var(--border-subtle);
+  padding: var(--space-2) var(--space-3);
+}
+.adl-run-summary__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+.adl-run-summary__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+.adl-run-summary__groups {
+  margin-top: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.adl-run-summary__group-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-primary);
+  font-size: var(--font-size-xs);
+}
+.adl-run-summary__events {
+  list-style: none;
+  padding: 0;
+  margin: var(--space-2) 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.adl-run-summary__event {
+  display: flex;
+  gap: var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  align-items: center;
+}
+.adl-run-summary__event-time {
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  min-width: 86px;
+}
+.adl-run-summary__event-type {
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  min-width: 120px;
+}
+.adl-run-summary__event-detail {
+  flex: 1;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  word-break: break-word;
+}
+.adl-run-summary__event-copy {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: var(--radius-sm);
+}
+.adl-run-summary__event-copy:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+/* -------- Git File Status (File Tree) -------- */
+.adl-filetree__node--modified {
+  color: var(--warning);
+}
+.adl-filetree__node--added {
+  color: var(--success);
+}
+.adl-filetree__node--deleted {
+  color: var(--danger);
+  text-decoration: line-through;
+}
+.adl-filetree__node--untracked {
+  color: var(--text-muted);
+}
+.adl-filetree__node--conflicted {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+/* -------- Agent Approval Hint -------- */
+.adl-center__approval-hint {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  background: color-mix(in srgb, var(--warning) 8%, transparent);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--warning);
+  margin: var(--space-2) 0;
+}
+
+/* -------- Composer Model Row -------- */
+.adl-composer__model-row {
+  display: flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-3) 0;
+}
+
+/* -------- Terminal Structured Output -------- */
+.adl-terminal__stdout {
+  color: var(--text-primary);
+}
+.adl-terminal__stderr {
+  color: var(--danger);
+}
+.adl-terminal__exit-code {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-family: var(--font-mono);
+}
+.adl-terminal__exit-code--success {
+  background: color-mix(in srgb, var(--success) 15%, transparent);
+  color: var(--success);
+}
+.adl-terminal__exit-code--error {
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  color: var(--danger);
+}

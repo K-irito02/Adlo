@@ -267,6 +267,7 @@ dependencies = [
  "adl-task",
  "adl-workspace",
  "anyhow",
+ "reqwest 0.12.28",
  "serde",
  "serde_json",
  "tauri",
@@ -275,6 +276,7 @@ dependencies = [
  "tauri-plugin-shell",
  "tokio",
  "tracing",
+ "url",
  "uuid",
 ]
 

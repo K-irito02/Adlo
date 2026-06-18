@@ -1,0 +1,65 @@
+/* ==========================================================================
+   Modal / Dialog
+   --------------------------------------------------------------------------
+   - Backdrop overlay with blur
+   - Modal surface with enter animations (fade-in + scale-in)
+   ========================================================================== */
+
+/* -------- Modal -------- */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-overlay);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  z-index: var(--z-modal-backdrop);
+  display: grid;
+  place-items: center;
+  padding: var(--space-6);
+  animation: fade-in var(--duration-200) var(--ease-enter);
+}
+
+.modal {
+  background: var(--surface-elevated);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-2xl);
+  padding: var(--space-6);
+  max-width: 520px;
+  width: 100%;
+  display: grid;
+  gap: var(--space-4);
+  z-index: var(--z-modal);
+  animation:
+    fade-in var(--duration-200) var(--ease-enter),
+    scale-in var(--duration-200) var(--ease-enter);
+}
+
+.modal__title {
+  font-size: var(--text-xl);
+  font-weight: var(--font-semibold);
+}
+
+.modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scale-in {
+  from {
+    transform: scale(0.96);
+  }
+  to {
+    transform: scale(1);
+  }
+}

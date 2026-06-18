@@ -531,6 +531,8 @@ export function setupPreviewBridge(): void {
       goForward: async () => true,
       reload: async () => {},
       onUrlChanged: (_listener: (url: string) => void) => () => {},
+      onMetaChanged:
+        (_listener: (meta: { title: string; favicon: string; url: string }) => void) => () => {},
     },
     ci: {
       getStatus: async (config: {

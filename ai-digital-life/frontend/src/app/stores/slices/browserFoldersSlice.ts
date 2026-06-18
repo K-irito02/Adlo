@@ -25,6 +25,7 @@ const BROWSER_WORKSPACE_EXPANDED_KEY = 'adl-ui:browser-workspace-expanded';
 const BROWSER_TABS_KEY = 'adl-ui:browser-tabs';
 const BROWSER_ACTIVE_TAB_KEY = 'adl-ui:browser-active-tab';
 const BROWSER_HISTORY_KEY = 'adl-ui:browser-history';
+const BROWSER_WORKSPACE_BOOKMARKS_KEY = 'adl-ui:browser-workspace-bookmarks';
 
 const { scheduleWrite } = createDebouncedWrite(50);
 
@@ -210,12 +211,32 @@ export const createBrowserFoldersSlice = (
       const nextActive = tabIdsToDelete.includes(state.browserActiveTabId)
         ? (nextTabs[nextTabs.length - 1]?.id ?? state.browserActiveTabId)
         : state.browserActiveTabId;
+
+      let nextWorkspaceBookmarks = state.browserWorkspaceBookmarks;
+      if (nodePath.startsWith('workspace:')) {
+        const wsId = nodePath.slice('workspace:'.length);
+        if (nextWorkspaceBookmarks[wsId]) {
+          nextWorkspaceBookmarks = { ...nextWorkspaceBookmarks };
+          delete nextWorkspaceBookmarks[wsId];
+          scheduleWrite(BROWSER_WORKSPACE_BOOKMARKS_KEY, nextWorkspaceBookmarks);
+        }
+      }
+
+      let nextFolders = state.browserTabFolders;
+      if (nodePath.startsWith('folder:')) {
+        const folderId = nodePath.slice('folder:'.length);
+        nextFolders = nextFolders.map((f) => (f.id === folderId ? { ...f, tabs: [] } : f));
+        scheduleWrite(BROWSER_TAB_FOLDERS_KEY, nextFolders);
+      }
+
       scheduleWrite(BROWSER_TABS_KEY, nextTabs);
       scheduleWrite(BROWSER_ACTIVE_TAB_KEY, nextActive);
       return {
         browserTabs: nextTabs,
         browserTabsById: buildTabsById(nextTabs),
         browserActiveTabId: nextActive,
+        browserWorkspaceBookmarks: nextWorkspaceBookmarks,
+        browserTabFolders: nextFolders,
       };
     }),
 

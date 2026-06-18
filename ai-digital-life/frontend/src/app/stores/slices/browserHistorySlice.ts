@@ -19,6 +19,7 @@ export interface BrowserHistorySlice {
 
   browserAddToHistory: (url: string, title: string) => void;
   browserClearHistory: () => void;
+  browserUpdateHistoryTitle: (url: string, title: string) => void;
   browserDeleteHistoryByLevel: (
     level: 'label' | 'year' | 'month' | 'day',
     nodePath: string
@@ -49,6 +50,18 @@ export const createBrowserHistorySlice = (
   browserClearHistory: () => {
     scheduleWrite(BROWSER_HISTORY_KEY, []);
     set({ browserHistory: [] });
+  },
+
+  browserUpdateHistoryTitle: (url: string, title: string) => {
+    set((state) => {
+      const changed = state.browserHistory.some((h) => h.url === url && h.title !== title);
+      if (!changed) {
+        return state;
+      }
+      const nextHistory = state.browserHistory.map((h) => (h.url === url ? { ...h, title } : h));
+      scheduleWrite(BROWSER_HISTORY_KEY, nextHistory);
+      return { browserHistory: nextHistory };
+    });
   },
 
   browserDeleteHistoryByLevel: (level, nodePath) => {

@@ -13,7 +13,7 @@ export function useBrowserNavigation(options: UseBrowserNavigationOptions) {
 
   const handleGoBack = useCallback(() => {
     if (isTauriShell()) {
-      invoke('browser_go_back').catch((err) => console.error('browser_go_back failed:', err));
+      invoke('browser_go_back').catch(() => {});
     } else if (
       iframeRef.current &&
       iframeHistory.index > 0 &&
@@ -25,7 +25,7 @@ export function useBrowserNavigation(options: UseBrowserNavigationOptions) {
 
   const handleGoForward = useCallback(() => {
     if (isTauriShell()) {
-      invoke('browser_go_forward').catch((err) => console.error('browser_go_forward failed:', err));
+      invoke('browser_go_forward').catch(() => {});
     } else if (
       iframeRef.current &&
       iframeHistory.index < iframeHistory.entries.length - 1 &&
@@ -37,7 +37,7 @@ export function useBrowserNavigation(options: UseBrowserNavigationOptions) {
 
   const handleReload = useCallback(() => {
     if (isTauriShell()) {
-      invoke('browser_reload').catch((err) => console.error('browser_reload failed:', err));
+      invoke('browser_reload').catch(() => {});
     } else if (iframeRef.current?.contentWindow) {
       iframeRef.current.contentWindow.location.reload();
     }

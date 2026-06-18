@@ -107,6 +107,8 @@ fn main() {
             commands::browser::browser_reload,
             commands::browser::browser_set_bounds,
             commands::browser::browser_eval,
+            commands::browser::browser_fetch_page_meta,
+            commands::browser::browser_report_page_meta,
             commands::ci::ci_get_status,
             commands::ci::ci_get_status_without_token,
             commands::ci::ci_set_access_token,

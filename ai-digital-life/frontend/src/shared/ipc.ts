@@ -1060,6 +1060,12 @@ export interface RunActivityBridge {
  * Tauri 命令: browser_navigate / browser_go_back / browser_go_forward / browser_reload
  * 浏览器模式: 前端模拟无实际效果
  */
+export interface PageMeta {
+  title: string;
+  favicon: string;
+  url: string;
+}
+
 export interface BrowserBridge {
   /**
    * 在应用内浏览器中导航到指定 URL
@@ -1106,6 +1112,16 @@ export interface BrowserBridge {
    * @see preview-bridge/index.ts → browser.onUrlChanged
    */
   onUrlChanged: (listener: (url: string) => void) => () => void;
+  /**
+   * 订阅浏览器页面元信息变更事件 (title + favicon)
+   * @param listener 接收 PageMeta 的回调
+   * @returns 取消订阅的函数
+   * @command 通过事件 channel: digital-life://browser-meta-changed
+   * @see tauri-bridge.ts → browser.onMetaChanged
+   * @see mock-bridge.ts → browser.onMetaChanged
+   * @see preview-bridge/index.ts → browser.onMetaChanged
+   */
+  onMetaChanged: (listener: (meta: PageMeta) => void) => () => void;
 }
 
 /**

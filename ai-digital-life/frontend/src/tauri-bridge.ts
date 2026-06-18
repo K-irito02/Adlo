@@ -366,6 +366,30 @@ export function createTauriBridge(): DigitalLifeBridge {
           void ul?.();
         };
       },
+      onMetaChanged: (
+        listener: (meta: { title: string; favicon: string; url: string }) => void
+      ) => {
+        let active = true;
+        let ul: UnlistenFn | undefined;
+        void listen<{ title: string; favicon: string; url: string }>(
+          'digital-life://browser-meta-changed',
+          (event) => {
+            if (active) {
+              listener(event.payload);
+            }
+          }
+        ).then((unlisten) => {
+          if (active) {
+            ul = unlisten;
+          } else {
+            void unlisten();
+          }
+        });
+        return () => {
+          active = false;
+          void ul?.();
+        };
+      },
     },
     ci: {
       getStatus: (config) => invokeIpc<CiStatusSnapshot>('ci_get_status', { config }),

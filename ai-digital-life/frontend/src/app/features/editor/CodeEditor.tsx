@@ -68,8 +68,8 @@ export function CodeEditor({
           setLangExtensions(exts);
         }
       })
-      .catch((err) => {
-        console.error(`[CodeEditor] failed to load language extension for "${language}":`, err);
+      .catch((_err) => {
+        /* language extension load failed */
       });
     return () => {
       cancelled = true;

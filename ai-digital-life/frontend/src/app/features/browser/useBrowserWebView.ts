@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { isTauriShell } from '../../../tauri-bridge';
 import type { BrowserTabState } from '../../stores/slices/browserSlice';
+import type { PageMeta } from '../../../shared/ipc';
+import { fetchPageMeta, setCachedFavicon } from '../../utils/fetchPageMeta';
 
 interface UseBrowserWebViewOptions {
   activeTab?: BrowserTabState;
@@ -11,6 +13,7 @@ interface UseBrowserWebViewOptions {
   setAddress: (address: string) => void;
   browserNavigateActiveTab: (url: string, title?: string) => void;
   browserUpdateTab: (id: string, data: Partial<BrowserTabState>) => void;
+  onPageMeta?: (meta: PageMeta) => void;
 }
 
 export function useBrowserWebView(options: UseBrowserWebViewOptions) {
@@ -22,6 +25,7 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
     setAddress,
     browserNavigateActiveTab,
     browserUpdateTab,
+    onPageMeta,
   } = options;
 
   const [iframeLoadError, setIframeLoadError] = useState(false);
@@ -39,6 +43,8 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
   const primaryRef = useRef<HTMLDivElement | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const domOverlayActiveRef = useRef(false);
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
 
   // 通过 ref 同步，让 MutationObserver 回调可读取最新值，无需经过 React 渲染周期
   const overlayActiveRef = useRef(overlayActive);
@@ -95,9 +101,7 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
       height: Math.round(rect.height),
     };
 
-    invoke('browser_set_bounds', { bounds }).catch((err) => {
-      console.error(`set_bounds 失败: ${err}`);
-    });
+    invoke('browser_set_bounds', { bounds }).catch(() => {});
   }, []);
 
   // 通过 ref 同步 updateWebViewBounds，让 MutationObserver 回调可直接调用
@@ -160,32 +164,71 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
     setIframeLoadError(false);
     try {
       const iframeWindow = iframeRef.current?.contentWindow;
-      if (iframeWindow) {
-        let href: string | undefined;
-        try {
-          href = iframeWindow.location.href;
-        } catch {
-          return;
-        }
+      if (!iframeWindow) {
+        return;
+      }
 
-        if (href && href !== 'about:blank' && activeTab && href !== activeTab.url) {
-          setAddress(href);
-          browserNavigateActiveTab(href);
-        } else if (href && href !== 'about:blank' && activeTab) {
-          try {
-            const iframeTitle = iframeWindow.document?.title;
-            if (iframeTitle && iframeTitle !== activeTab.title) {
-              browserUpdateTab(activeTab.id, { title: iframeTitle });
-            }
-          } catch {
-            /* cross-origin, can't read title */
-          }
+      let href: string | undefined;
+      try {
+        href = iframeWindow.location.href;
+      } catch {
+        return;
+      }
+
+      if (!href || href === 'about:blank' || !activeTab) {
+        return;
+      }
+
+      if (href !== activeTab.url) {
+        setAddress(href);
+        browserNavigateActiveTab(href);
+        return;
+      }
+
+      try {
+        const doc = iframeWindow.document;
+        const iframeTitle = doc?.title;
+        let iframeFavicon = '';
+        if (doc) {
+          const iconLink = doc.querySelector(
+            'link[rel="icon"], link[rel="shortcut icon"], link[rel="apple-touch-icon"]'
+          ) as HTMLLinkElement | null;
+          iframeFavicon = iconLink?.href || '';
         }
+        if (iframeTitle && iframeTitle !== activeTab.title) {
+          browserUpdateTab(activeTab.id, { title: iframeTitle });
+        }
+        if (iframeTitle || iframeFavicon) {
+          onPageMeta?.({
+            title: iframeTitle || activeTab.title,
+            favicon: iframeFavicon,
+            url: href,
+          });
+        }
+      } catch {
+        /* cross-origin: fetch via proxy */
+        fetchPageMeta(href).then((meta) => {
+          if (!meta) {
+            return;
+          }
+          const tab = activeTabRef.current;
+          if (tab) {
+            if (meta.title && meta.title !== tab.title) {
+              browserUpdateTab(tab.id, { title: meta.title });
+            }
+            if (meta.favicon) {
+              setCachedFavicon(href, meta.favicon);
+            }
+          }
+          if (meta.title) {
+            onPageMeta?.({ title: meta.title, favicon: meta.favicon || '', url: href });
+          }
+        });
       }
     } catch {
       /* unexpected error in iframe load handling */
     }
-  }, [activeTab, browserNavigateActiveTab, browserUpdateTab, setAddress]);
+  }, [activeTab, browserNavigateActiveTab, browserUpdateTab, setAddress, onPageMeta]);
 
   const handleIframeError = useCallback(() => {
     setIframeLoadError(true);
@@ -262,9 +305,7 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
     }
 
     if (webViewActiveRef.current) {
-      invoke('browser_navigate', { url }).catch((err) => {
-        console.error(`navigate 失败: ${err}`);
-      });
+      invoke('browser_navigate', { url }).catch(() => {});
       return;
     }
 
@@ -288,10 +329,8 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
           });
         });
       })
-      .catch((err) => {
+      .catch(() => {
         creatingRef.current = false;
-        console.error(`browser_create 失败: ${err}`);
-        console.error('Failed to create browser WebView:', err);
       });
   }, [activeTab?.id, activeTab?.url, updateWebViewBounds, webViewDisabled]);
 
@@ -333,13 +372,25 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
       return;
     }
 
-    const unsubscribe = browser.onUrlChanged((url) => {
+    const unsubUrl = browser.onUrlChanged((url) => {
       setAddress(url);
       browserNavigateActiveTab(url);
+      invoke('browser_fetch_page_meta', { url })
+        .then((result: unknown) => {
+          const r = result as
+            | { ok: boolean; data: { title: string; favicon: string; url: string } }
+            | undefined;
+          if (r?.ok && r.data && (r.data.title || r.data.favicon)) {
+            onPageMeta?.(r.data);
+          }
+        })
+        .catch(console.error);
     });
 
-    return unsubscribe;
-  }, [browserNavigateActiveTab, setAddress]);
+    return () => {
+      unsubUrl();
+    };
+  }, [browserNavigateActiveTab, setAddress, onPageMeta]);
 
   return {
     iframeLoadError,

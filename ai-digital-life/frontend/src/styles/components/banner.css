@@ -1,0 +1,49 @@
+/* ==========================================================================
+   Banner / Inline Alert
+   --------------------------------------------------------------------------
+   - Semantic color variants: neutral, success, warning, error/danger
+   - Empty state variant for spacing placeholders
+   ========================================================================== */
+
+/* -------- Banner / Inline alert -------- */
+.banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-xl);
+  background: var(--bg-muted);
+  border: 1px solid var(--border-subtle);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  min-height: 24px;
+  transition: var(--theme-transition);
+}
+
+.banner--neutral {
+  background: var(--bg-muted);
+}
+
+.banner--success {
+  background: var(--success-soft);
+  color: var(--success);
+  border-color: transparent;
+}
+
+.banner--warning {
+  background: var(--warning-soft);
+  color: var(--warning);
+  border-color: transparent;
+}
+
+.banner--error,
+.banner--danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-color: transparent;
+}
+
+.banner--empty {
+  visibility: hidden;
+  min-height: 24px;
+}

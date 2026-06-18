@@ -35,7 +35,10 @@ const regionsCssSource = [
   'files-editor-tabs.css',
   'changes-panel.css',
   'editor-surface.css',
+  'editor-content.css',
   'diff-viewer.css',
+  'diff-inline.css',
+  'diff-side-by-side.css',
   'browser-webview.css',
   'terminal-panel.css',
 ]
@@ -144,7 +147,7 @@ describe('CodeMirror preview styling', () => {
     );
     expect(resizerBlock).toContain('cursor: col-resize;');
     expect(resizerBlock).toContain('flex: none;');
-    expect(resizerBlock).toContain('width: 6px;');
+    expect(resizerBlock).toContain('width: 8px;');
     expect(regionsCssSource).toContain('.adl-cm-diff-resizer--dragging');
   });
 

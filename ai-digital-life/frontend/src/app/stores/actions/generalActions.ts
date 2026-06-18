@@ -146,7 +146,7 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
             .filter((r) => r.status === 'rejected')
             .map((r) => (r as PromiseRejectedResult).reason);
           if (errors.length > 0) {
-            console.warn('[bootstrap] Low-priority refresh failures:', errors);
+            /* low-priority refresh failures */
           }
         });
         return;

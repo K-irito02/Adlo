@@ -1,5 +1,6 @@
 pub mod agent;
 pub mod agent_pipeline;
+pub(crate) mod agent_pipeline_stream;
 pub mod agent_pipeline_types;
 pub mod app;
 pub mod audit;

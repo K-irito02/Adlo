@@ -189,6 +189,68 @@ pub(crate) const INIT_SCRIPT: &str = r#"
     }
     
     console.log('[ADL Browser] Initialization complete');
+
+    // ---- PAGE META EXTRACTION ----
+    if (window !== window.top) return;
+
+    function absolutizeUrl(href) {
+        if (!href) return '';
+        try {
+            return new URL(href, location.origin).href;
+        } catch {
+            return href.startsWith('//') ? location.protocol + href : href;
+        }
+    }
+
+    function extractFavicon() {
+        var link = document.querySelector('link[rel*="icon"]');
+        if (link) return absolutizeUrl(link.href);
+        return location.origin + '/favicon.ico';
+    }
+
+    function extractTitle() {
+        var t = document.title;
+        if (t && t.trim()) return t.trim();
+        var og = document.querySelector('meta[property="og:title"]');
+        if (og) return og.getAttribute('content') || t;
+        return t;
+    }
+
+    function reportMeta() {
+        var payload = {
+            title: extractTitle(),
+            favicon: extractFavicon(),
+            url: location.href
+        };
+        try {
+            if (window.__TAURI_INTERNALS__) {
+                window.__TAURI_INTERNALS__.invoke('browser_report_page_meta', payload)
+                    .catch(function() {});
+            }
+        } catch(e) {}
+    }
+
+    window.addEventListener('load', reportMeta);
+
+    document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'visible') reportMeta();
+    });
+
+    (function() {
+        var origPush = history.pushState;
+        var origReplace = history.replaceState;
+        history.pushState = function() {
+            origPush.apply(this, arguments);
+            setTimeout(reportMeta, 300);
+        };
+        history.replaceState = function() {
+            origReplace.apply(this, arguments);
+            setTimeout(reportMeta, 100);
+        };
+        window.addEventListener('popstate', function() {
+            setTimeout(reportMeta, 300);
+        });
+    })();
 })();
 "#;
 

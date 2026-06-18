@@ -18,7 +18,7 @@ export function DocxPreview({ data, theme = 'dark' }: DocxPreviewProps) {
       .then((result) => {
         setHtml(result.value);
         if (result.messages.length > 0) {
-          console.warn('DOCX conversion warnings:', result.messages);
+          /* DOCX conversion warnings */
         }
       })
       .catch((err) => {

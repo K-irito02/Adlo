@@ -1,10 +1,11 @@
 import React, { useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { IconPlus, IconTrash, IconMoreVertical } from '../../icons';
+import { IconGlobe, IconPlus, IconTrash, IconMoreVertical } from '../../icons';
 import { FileTree } from '../file-tree';
 import { TooltipSimple } from '../../components/Tooltip';
 import { useTCopy } from '../../i18n/useTCopy';
 import { useMenuCloseOnOutsideClick } from '../tree/treeEntryMenus';
+import { getFaviconUrl } from '../../utils/favicon';
 import type { CopyDict } from '../../i18n';
 import type { BrowserTreeNode, BrowserCategoryType } from './types';
 import { resolveChildCount } from './useBrowserTreeData';
@@ -207,6 +208,52 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
     [onSelectTreePath, onOpenFile]
   );
 
+  const renderBrowserIcon = useCallback((childNode: BrowserTreeNode) => {
+    if (!childNode.url || childNode.kind === 'directory') {
+      return null;
+    }
+    const faviconUrl = getFaviconUrl(childNode.url);
+    return (
+      <span
+        className={`adl-filetree__file-icon ${faviconUrl ? 'adl-filetree__file-icon--favicon' : 'adl-filetree__file-icon--default'}`}
+      >
+        <img
+          src={faviconUrl}
+          alt=""
+          className="adl-browser-tree__favicon"
+          style={faviconUrl ? undefined : { display: 'none' }}
+          onError={(e) => {
+            (e.target as HTMLImageElement).style.display = 'none';
+            const parent = (e.target as HTMLImageElement).parentElement;
+            if (parent) {
+              parent.classList.remove('adl-filetree__file-icon--favicon');
+              parent.classList.add('adl-filetree__file-icon--default');
+              const globe = parent.querySelector('.adl-browser-tree__globe-fallback');
+              if (globe) {
+                (globe as HTMLElement).style.display = 'inline-flex';
+              }
+            }
+          }}
+          onLoad={(e) => {
+            const parent = (e.target as HTMLImageElement).parentElement;
+            if (parent) {
+              const globe = parent.querySelector('.adl-browser-tree__globe-fallback');
+              if (globe) {
+                (globe as HTMLElement).style.display = 'none';
+              }
+            }
+          }}
+        />
+        <IconGlobe
+          size={14}
+          decorative
+          className="adl-browser-tree__globe-fallback"
+          style={faviconUrl ? { display: 'none' } : undefined}
+        />
+      </span>
+    );
+  }, []);
+
   const handleChildContextMenu = useCallback(
     (childNode: BrowserTreeNode) => {
       const items = getChildNodeMoreMenuItems(
@@ -242,6 +289,7 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
           onOpenFile={handleChildOpenFile}
           renderMeta={renderChildMeta}
           renderCount={renderChildCount}
+          renderIconBefore={renderBrowserIcon}
           getContextMenuItems={handleChildContextMenu}
           expandLabel={t.expand}
           collapseLabel={t.collapse}

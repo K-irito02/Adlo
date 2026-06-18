@@ -103,28 +103,23 @@ export const BrowserTabBar = React.memo(function BrowserTabBar({
                   onDoubleClick={() => onDoubleClick(tab.id, tab.title)}
                 >
                   <div className="adl-tool-list__tab-icon">
-                    {getFaviconUrl(tab.url) ? (
-                      <img
-                        src={getFaviconUrl(tab.url)}
-                        alt=""
-                        className="adl-tool-list__favicon"
-                        onError={(e) => {
-                          // 如果favicon加载失败，显示默认图标
-                          (e.target as HTMLImageElement).style.display = 'none';
-                          const parent = (e.target as HTMLElement).parentElement;
-                          if (parent) {
-                            const defaultIcon = document.createElement('span');
-                            defaultIcon.className =
-                              'adl-tool-list__default-icon adl-tool-list__default-icon--globe';
-                            parent.appendChild(defaultIcon);
-                          }
-                        }}
-                      />
-                    ) : (
-                      <span className="adl-tool-list__default-icon adl-tool-list__default-icon--globe">
-                        <IconGlobe size={12} decorative />
-                      </span>
-                    )}
+                    {(() => {
+                      const faviconUrl = getFaviconUrl(tab.url);
+                      return faviconUrl ? (
+                        <img
+                          src={faviconUrl}
+                          alt=""
+                          className="adl-tool-list__favicon"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }}
+                        />
+                      ) : (
+                        <span className="adl-tool-list__default-icon adl-tool-list__default-icon--globe">
+                          <IconGlobe size={12} decorative />
+                        </span>
+                      );
+                    })()}
                   </div>
                   <span className="adl-tool-list__title">{tab.title}</span>
                 </button>

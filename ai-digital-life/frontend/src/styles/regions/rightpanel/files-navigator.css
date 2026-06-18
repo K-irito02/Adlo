@@ -669,6 +669,23 @@
   --adl-file-badge-ink: var(--adl-file-badge-ink-database);
 }
 
+.adl-filetree__file-icon--favicon {
+  overflow: visible;
+}
+
+.adl-browser-tree__favicon {
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
+  object-fit: contain;
+}
+
+.adl-browser-tree__globe-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .adl-filetree__dirty-dot {
   color: var(--accent);
   fill: currentColor;

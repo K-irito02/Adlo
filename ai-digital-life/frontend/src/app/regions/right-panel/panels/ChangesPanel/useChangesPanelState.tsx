@@ -11,16 +11,17 @@ import {
   type ChangeFileState,
   type ChangeTreeNode,
 } from '../../changesTree';
-import { collectDirectoryPaths, type FileTreeRenderableNode } from '@features/file-tree';
+import { collectDirectoryPaths } from '@features/file-tree';
 import type { EditorRef, DiffEditorRef } from '@stores/types';
 import { buildOutlineFromContent, getDefaultExpandedOutlineIds } from '@features/outline';
 import { getPrimaryBadge } from '../../ChangesPanel/utils';
 import { summarizePatchSet } from '@features/patch-review';
 import { categorizeFile } from '../../fileTypeRouter';
 import { type EditorView } from '@codemirror/view';
-import { getChunks, uncollapseUnchanged } from '@codemirror/merge';
+import { uncollapseUnchanged } from '@codemirror/merge';
 import { useChangesPanelStore } from '../useChangesPanelStore';
 import { useFileContextMenuItems } from '../../hooks/useFileContextMenuItems';
+import { findCollapsedSectionStart, isNodeDeleted } from './useChangesPanelStateUtils';
 
 export function useChangesPanelState(props: ChangesPanelProps) {
   const { t, formatT } = useTCopy();
@@ -171,32 +172,6 @@ export function useChangesPanelState(props: ChangesPanelProps) {
     return ref as EditorRef;
   }, []);
 
-  const findCollapsedSectionStart = useCallback(
-    (view: EditorView, targetLine: number): number | null => {
-      const margin = 3;
-      const minSize = 4;
-      const chunks = getChunks(view.state)?.chunks ?? [];
-      let prevLine = 1;
-      for (let i = 0; ; i++) {
-        const chunk = i < chunks.length ? chunks[i] : null;
-        const collapseFrom = i > 0 ? prevLine + margin : 1;
-        const collapseTo = chunk
-          ? Math.max(view.state.doc.lineAt(chunk.fromB).number - 1 - margin, collapseFrom)
-          : view.state.doc.lines;
-        const lineCount = collapseTo - collapseFrom + 1;
-        if (lineCount >= minSize && collapseFrom <= targetLine && targetLine <= collapseTo) {
-          return view.state.doc.line(collapseFrom).from;
-        }
-        if (!chunk) {
-          break;
-        }
-        prevLine = view.state.doc.lineAt(Math.min(view.state.doc.length, chunk.toB)).number;
-      }
-      return null;
-    },
-    []
-  );
-
   const handleRevealOutlineLine = useCallback(
     (line: number) => {
       if (changePreview && categorizeFile(changePreview.path) === 'markdown' && previewEnabled) {
@@ -236,7 +211,7 @@ export function useChangesPanelState(props: ChangesPanelProps) {
         editor.focus?.();
       }
     },
-    [getModifiedEditor, findCollapsedSectionStart, changePreview, previewEnabled]
+    [getModifiedEditor, changePreview, previewEnabled]
   );
 
   const handleToggleAllDirectories = () => {
@@ -346,12 +321,6 @@ export function useChangesPanelState(props: ChangesPanelProps) {
     setChangesDeleteConfirmPath(null);
     changesClearMenuHighlightRef.current?.();
   }, []);
-
-  const isNodeDeleted = useCallback(
-    (node: FileTreeRenderableNode) =>
-      (node as ChangeTreeNode).patchSummary?.changeKind === 'deleted',
-    []
-  );
 
   const { getContextMenuItems } = useFileContextMenuItems({
     t,

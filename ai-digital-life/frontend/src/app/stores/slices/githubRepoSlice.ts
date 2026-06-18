@@ -1,94 +1,18 @@
 import type { StoreState } from '../StoreState';
-import { createDebouncedWrite, createUiId, readJson } from '../shared';
+import { createUiId } from '../shared';
+import type { GitWorkspaceCiConfig, GitHubCiFolderState } from './githubRepoSliceTypes';
+import {
+  scheduleWorkspaceConfigsWrite,
+  scheduleFoldersWrite,
+  hydrateGitHubConfigs,
+  hydrateGitHubFolders,
+} from './githubRepoSliceHelpers';
 
 const GH_WORKSPACE_CONFIGS_KEY = 'adl-ui:github-workspace-configs';
 const GH_CI_FOLDERS_KEY = 'adl-ui:github-ci-folders';
 
-const { scheduleWrite: schedulePersist } = createDebouncedWrite(300);
-
-/** Per-workspace CI configuration */
-export interface GitWorkspaceCiConfig {
-  owner: string;
-  repo: string;
-  branch: string;
-  workflowId: string | null;
-  accessToken: string | null;
-  /** Whether this workspace has been configured */
-  configured: boolean;
-}
-
-export interface GitHubCiFolderState {
-  id: string;
-  name: string;
-  createdAt: number;
-  parentId?: string;
-  parentType?: 'workspace' | 'folder';
-  /** Optional CI configuration for this folder */
-  ciConfig?: GitWorkspaceCiConfig;
-  /** Pin order within siblings (smaller number = higher priority, undefined = not pinned) */
-  pinnedOrder?: number;
-}
-
-/** Strip accessToken for secure localStorage persistence */
-function stripTokenFromConfig(
-  config: GitWorkspaceCiConfig
-): Omit<GitWorkspaceCiConfig, 'accessToken'> & { accessToken: null } {
-  return { ...config, accessToken: null };
-}
-
-function stripTokenFromFolders(folders: GitHubCiFolderState[]): GitHubCiFolderState[] {
-  return folders.map((f) => {
-    if (f.ciConfig?.accessToken) {
-      return { ...f, ciConfig: { ...f.ciConfig, accessToken: null } };
-    }
-    return f;
-  });
-}
-
-function scheduleWorkspaceConfigsWrite(configs: Record<string, GitWorkspaceCiConfig>): void {
-  const stripped: Record<string, ReturnType<typeof stripTokenFromConfig>> = {};
-  for (const [id, cfg] of Object.entries(configs)) {
-    stripped[id] = stripTokenFromConfig(cfg);
-  }
-  schedulePersist(GH_WORKSPACE_CONFIGS_KEY, stripped);
-}
-
-function scheduleFoldersWrite(folders: GitHubCiFolderState[]): void {
-  schedulePersist(GH_CI_FOLDERS_KEY, stripTokenFromFolders(folders));
-}
-
-async function hydrateGitHubConfigs(): Promise<Record<string, GitWorkspaceCiConfig>> {
-  const saved = readJson<
-    Record<string, Omit<GitWorkspaceCiConfig, 'accessToken'> & { accessToken?: string | null }>
-  >(GH_WORKSPACE_CONFIGS_KEY, {});
-  const result: Record<string, GitWorkspaceCiConfig> = {};
-  for (const [id, cfg] of Object.entries(saved)) {
-    if (cfg && typeof cfg === 'object' && cfg.owner) {
-      result[id] = {
-        owner: cfg.owner,
-        repo: cfg.repo,
-        branch: cfg.branch ?? 'main',
-        workflowId: cfg.workflowId ?? null,
-        accessToken: null,
-        configured: cfg.configured ?? true,
-      };
-    }
-  }
-  return result;
-}
-
-async function hydrateGitHubFolders(): Promise<GitHubCiFolderState[]> {
-  const saved = readJson<GitHubCiFolderState[]>(GH_CI_FOLDERS_KEY, []);
-  if (!Array.isArray(saved)) {
-    return [];
-  }
-  return saved.map((f) => {
-    if (f.ciConfig) {
-      return { ...f, ciConfig: { ...f.ciConfig, accessToken: null } };
-    }
-    return f;
-  });
-}
+// Re-export for backward compatibility
+export type { GitWorkspaceCiConfig, GitHubCiFolderState } from './githubRepoSliceTypes';
 
 export interface GitHubRepoSlice {
   /** Per-workspace CI configs keyed by workspaceId */

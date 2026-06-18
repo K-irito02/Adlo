@@ -6,6 +6,14 @@ describe('outline panel wiring', () => {
     new URL('./FileNavigatorShell.tsx', import.meta.url),
     'utf8'
   );
+  const fileNavigatorToolbarSource = readFileSync(
+    new URL('./FileNavigatorToolbar.tsx', import.meta.url),
+    'utf8'
+  );
+  const _fileNavigatorTreeSource = readFileSync(
+    new URL('./FileNavigatorTree.tsx', import.meta.url),
+    'utf8'
+  );
   const editorSurfaceShellSource = readFileSync(
     new URL('./EditorSurfaceShell.tsx', import.meta.url),
     'utf8'
@@ -39,7 +47,7 @@ describe('outline panel wiring', () => {
     expect(fileNavigatorShellSource).toContain('OutlineTree');
     expect(editorSurfaceShellSource).toContain('useStickyContext');
     expect(editorSurfaceShellSource).toContain('StickyContext');
-    expect(fileNavigatorShellSource).toContain("setNavigatorMode('tree')");
+    expect(fileNavigatorToolbarSource).toContain("onSetNavigatorMode('tree')");
     expect(fileNavigatorShellSource).toContain('handleToggleAllOutlineItems');
     expect(fileNavigatorShellSource).toContain('expandedIds={expandedOutlineIds}');
   });

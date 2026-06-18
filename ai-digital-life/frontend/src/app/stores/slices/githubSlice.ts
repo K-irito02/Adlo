@@ -1,8 +1,14 @@
 import type { CiJobSummary, CiStatusSnapshot, CiRepoConfig } from '@ai-digital-life/kernel';
 import type { StoreState } from '../StoreState';
-import type { DigitalLifeBridge } from '../../../shared/ipc';
-import type { GitWorkspaceCiConfig } from './githubRepoSlice';
+import type { GitWorkspaceCiConfig } from './githubRepoSliceTypes';
 import { createDebouncedWrite, readJson } from '../shared';
+import {
+  type GitHubSection,
+  getBridge,
+  isTauriMode,
+  hydrateCiConfigDefaults,
+  hydrateCiStatusDefaults,
+} from './githubSliceHelpers';
 
 const CI_CONFIG_KEY = 'adl-ui:ci-config';
 const CI_ACCESS_TOKEN_KEY = 'adl-ui:ci-access-token';
@@ -15,136 +21,8 @@ const { scheduleWrite } = createDebouncedWrite(50);
 const { scheduleWrite: scheduleSnapshotsWrite } = createDebouncedWrite(300);
 const { scheduleWrite: scheduleLogCachesWrite } = createDebouncedWrite(300);
 
-export type GitHubSection = 'overview' | 'workflows' | 'jobs' | 'logs' | 'settings' | 'help';
-
-function getBridge(): DigitalLifeBridge | null {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-  return (window as unknown as { digitalLife: DigitalLifeBridge | undefined }).digitalLife ?? null;
-}
-
-function isTauriMode(): boolean {
-  return (
-    typeof window !== 'undefined' &&
-    !!(window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__
-  );
-}
-
-async function hydrateCiConfigDefaults(): Promise<{
-  config: CiRepoConfig;
-  token: string;
-  autoRefresh: boolean;
-}> {
-  const defaultCfg: CiRepoConfig = {
-    owner: '',
-    repo: '',
-    branch: 'main',
-    workflowId: null,
-    accessToken: null,
-  };
-  if (typeof window === 'undefined') {
-    return {
-      config: defaultCfg,
-      token: '',
-      autoRefresh: true,
-    };
-  }
-
-  let config: CiRepoConfig = { ...defaultCfg };
-  let autoRefresh = true;
-
-  try {
-    const rawConfig = window.localStorage.getItem(CI_CONFIG_KEY);
-    if (rawConfig) {
-      const parsed = JSON.parse(rawConfig);
-      if (parsed && typeof parsed === 'object') {
-        config = {
-          owner: typeof parsed.owner === 'string' ? parsed.owner : '',
-          repo: typeof parsed.repo === 'string' ? parsed.repo : '',
-          branch: typeof parsed.branch === 'string' ? parsed.branch : 'main',
-          workflowId: parsed.workflowId ?? null,
-          accessToken: null,
-        };
-      }
-    }
-    const rawFlag = window.localStorage.getItem(CI_AUTO_REFRESH_ON_PUSH_KEY);
-    if (rawFlag === '0') {
-      autoRefresh = false;
-    } else if (rawFlag === '1') {
-      autoRefresh = true;
-    }
-  } catch {
-    /* ignore */
-  }
-
-  let token = '';
-  const bridge = getBridge();
-  if (
-    isTauriMode() &&
-    bridge &&
-    bridge.github &&
-    typeof bridge.github.hasAccessToken === 'function'
-  ) {
-    try {
-      const hasResult = await bridge.github.hasAccessToken();
-      if (hasResult && hasResult.ok && hasResult.data) {
-        token = '::stored::';
-      }
-    } catch {
-      /* ignore */
-    }
-  } else if (bridge && bridge.github && typeof bridge.github.hasAccessToken === 'function') {
-    try {
-      const hasResult = await bridge.github.hasAccessToken();
-      if (hasResult && hasResult.ok && hasResult.data) {
-        const storedToken = window.localStorage.getItem(CI_ACCESS_TOKEN_KEY);
-        token = typeof storedToken === 'string' && storedToken.length > 0 ? storedToken : '';
-      }
-    } catch {
-      /* ignore */
-    }
-  }
-
-  if (!token && typeof window !== 'undefined') {
-    try {
-      const storedToken = window.localStorage.getItem(CI_ACCESS_TOKEN_KEY);
-      if (typeof storedToken === 'string' && storedToken.length > 0) {
-        token = storedToken;
-      }
-    } catch {
-      /* ignore */
-    }
-  }
-
-  return { config, token, autoRefresh };
-}
-
-async function hydrateCiStatusDefaults(): Promise<{
-  activeGitHubSection: GitHubSection;
-}> {
-  if (typeof window === 'undefined') {
-    return { activeGitHubSection: 'overview' };
-  }
-
-  let activeGitHubSection: GitHubSection = 'overview';
-  try {
-    const storedSection = window.localStorage.getItem(ACTIVE_GITHUB_SECTION_KEY);
-    if (
-      storedSection === 'overview' ||
-      storedSection === 'workflows' ||
-      storedSection === 'jobs' ||
-      storedSection === 'settings' ||
-      storedSection === 'help'
-    ) {
-      activeGitHubSection = storedSection as GitHubSection;
-    }
-  } catch {
-    /* ignore */
-  }
-
-  return { activeGitHubSection };
-}
+// Re-export for backward compatibility
+export type { GitHubSection } from './githubSliceHelpers';
 
 function hydrateCiSnapshots(): Record<string, CiStatusSnapshot> {
   return readJson<Record<string, CiStatusSnapshot>>(CI_SNAPSHOTS_KEY, {});

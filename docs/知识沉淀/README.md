@@ -6,7 +6,7 @@
 
 | 目录 | 内容 | 文件数 |
 |------|------|--------|
-| [重构](./重构/) | 重构方法论、组件提取、执行报告、阶段性总结 | 21 |
+| [重构](./重构/) | 重构方法论、组件提取、执行报告、阶段性总结 | 22 |
 | [多工作区](./多工作区/) | 多工作区开发中的变更面板、文件树、终端、布局等经验 | 11 |
 | [浏览器](./浏览器/) | 内置浏览器实现、空标签引导页、树形目录交互、iframe 嵌入检查、Tauri WebView 覆盖、Resize Handle 区域逃逸、复制按钮动画化等经验 | 13 |
 | [代码质量](./代码质量/) | 全量代码质量检测与修复经验 | 11 |
@@ -39,6 +39,8 @@
 | [high-risk-refactoring-2026-06-12.md](./重构/high-risk-refactoring-2026-06-12.md) | 2026-06-12 重构洞察高风险执行 | 高风险重构经验总结（组件提取安全、切片拆分策略、Hook 拆散、跨包依赖管理） |
 | [refactoring-insight-execution-2026-06-13.md](./重构/refactoring-insight-execution-2026-06-13.md) | 2026-06-13 重构洞察第8次执行 | CSS 变量主题化、shared.ts 模块拆分、Hook 拆散模式、Slot 骨架模式、Windows 测试兼容 |
 | [refactoring-insight-execution-2026-06-15.md](./重构/refactoring-insight-execution-2026-06-15.md) | 2026-06-15 重构洞察第10次执行 | 超大组件拆分模式、O(n²)→O(n)栈式算法、CSS变量收敛、内联样式迁移、Store订阅合并 |
+| [refactoring-insight-execution-2026-06-16.md](./重构/refactoring-insight-execution-2026-06-16.md) | 2026-06-16 重构洞察第11次执行 | BrowserNavigator 提取、TitleBar 菜单提取、selectors 按域拆分、CSS 文件拆分 |
+| [refactor-round-68-2026-06-19.md](./重构/refactor-round-68-2026-06-19.md) | 2026-06-19 重构洞察执行 | CSS barrel 模式、Store 三层拆分、agent_pipeline 模块化、console.log 清理 |
 
 ### 多工作区
 

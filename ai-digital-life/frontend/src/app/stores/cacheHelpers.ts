@@ -271,7 +271,7 @@ export async function postMutationRefresh(get: () => StoreState): Promise<void> 
       .filter((r) => r.status === 'rejected')
       .map((r) => (r as PromiseRejectedResult).reason);
     if (errors.length > 0) {
-      console.warn('[postMutationRefresh] Some refreshes failed:', errors);
+      /* some refreshes failed */
     }
   });
 }
@@ -300,7 +300,7 @@ export async function batchExpandAll(
       .filter((r) => r.status === 'rejected')
       .map((r) => (r as PromiseRejectedResult).reason);
     if (errors.length > 0) {
-      console.warn('[batchExpandAll] Batch load failures:', errors);
+      /* batch load failures */
     }
   }
 }

@@ -1,10 +1,10 @@
 use crate::commands::ipc;
 use crate::error::CommandError;
 use crate::state::AppState;
-use adl_browser::Bounds;
+use adl_browser::{Bounds, PageMeta};
 use adl_errors::AppError;
 use adl_kernel::IpcResult;
-use tauri::{Manager, State};
+use tauri::{Emitter, Manager, State};
 
 #[tauri::command]
 pub async fn browser_create(
@@ -97,4 +97,172 @@ pub fn browser_eval(
     script: String,
 ) -> Result<IpcResult<()>, CommandError> {
     Ok(ipc(state.browser_manager.eval(&app, &script)))
+}
+
+#[tauri::command]
+pub async fn browser_fetch_page_meta(url: String) -> Result<IpcResult<PageMeta>, CommandError> {
+    let meta = fetch_page_meta_inner(&url).await?;
+    Ok(ipc(Ok(meta)))
+}
+
+#[tauri::command]
+pub async fn browser_report_page_meta(
+    app: tauri::AppHandle,
+    title: String,
+    favicon: String,
+    url: String,
+) -> Result<IpcResult<()>, CommandError> {
+    let _ = app.emit(
+        "digital-life://browser-meta-changed",
+        serde_json::json!({ "title": title, "favicon": favicon, "url": url }),
+    );
+    Ok(ipc(Ok(())))
+}
+
+const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+
+async fn fetch_page_meta_inner(url: &str) -> Result<PageMeta, AppError> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .user_agent(USER_AGENT)
+        .redirect(reqwest::redirect::Policy::limited(10))
+        .build()
+        .map_err(|e| AppError::Internal(format!("failed to build http client: {e}")))?;
+
+    let response = client
+        .get(url)
+        .header("Accept", "text/html,application/xhtml+xml")
+        .header("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
+        .send()
+        .await;
+
+    let body = match response {
+        Ok(resp) => resp.text().await.unwrap_or_default(),
+        Err(_) => {
+            return Ok(PageMeta {
+                title: String::new(),
+                favicon: google_favicon_url(url),
+                url: url.to_string(),
+            });
+        },
+    };
+
+    let body = body.chars().take(65536).collect::<String>();
+    let title = extract_title(&body);
+    let favicon = extract_favicon(&body, url);
+
+    Ok(PageMeta {
+        title: title.unwrap_or_default(),
+        favicon: favicon.unwrap_or_else(|| origin_favicon_fallback(url)),
+        url: url.to_string(),
+    })
+}
+
+fn extract_title(html: &str) -> Option<String> {
+    let lower = html.to_lowercase();
+    let start = lower.find("<title")?;
+    let tag_end = html[start..].find('>')?;
+    let content_start = start + tag_end + 1;
+    let end = lower[content_start..].find("</title>")?;
+    let raw = html[content_start..content_start + end].trim();
+    Some(html_entity_decode(raw))
+}
+
+fn find_link_href(html: &str, rel_value: &str) -> Option<String> {
+    let lower = html.to_lowercase();
+    let mut search_start = 0usize;
+    loop {
+        let link_pos = lower[search_start..].find("<link")?;
+        let abs_link = search_start + link_pos;
+        let tag_end = html[abs_link..].find('>')?;
+        let snippet = &html[abs_link..abs_link + tag_end];
+        let snippet_lower = &lower[abs_link..abs_link + tag_end];
+
+        if snippet_lower.contains(&format!("rel=\"{rel_value}\""))
+            || snippet_lower.contains(&format!("rel='{rel_value}'"))
+            || snippet_lower.contains(&format!("rel={rel_value} "))
+            || snippet_lower.contains(&format!("rel={rel_value}>"))
+        {
+            if let Some(href) = extract_href(snippet, snippet_lower) {
+                return Some(href);
+            }
+        }
+        search_start = abs_link + tag_end;
+    }
+}
+
+fn extract_href(snippet: &str, snippet_lower: &str) -> Option<String> {
+    for marker in [r#"href=""#, "href='"] {
+        if let Some(start) = snippet_lower.find(marker) {
+            let value_start = start + marker.len();
+            let quote = &snippet_lower[value_start - 1..value_start];
+            let end = snippet_lower[value_start..].find(if quote == "\"" { "\"" } else { "'" })?;
+            let raw = snippet[value_start..value_start + end].trim();
+            if !raw.is_empty() && !raw.contains(' ') {
+                return Some(raw.to_string());
+            }
+        }
+    }
+    None
+}
+
+fn resolve_url(href: &str, base_url: &str) -> Option<String> {
+    if href.starts_with("http://") || href.starts_with("https://") {
+        return Some(href.to_string());
+    }
+    if href.starts_with("//") {
+        return Some(format!("https:{}", href));
+    }
+    let base = url::Url::parse(base_url).ok()?;
+    base.join(href).ok().map(|u| u.to_string())
+}
+
+fn extract_favicon(html: &str, base_url: &str) -> Option<String> {
+    let rel_values = ["icon", "shortcut icon", "apple-touch-icon", "apple-touch-icon-precomposed"];
+
+    for rel in &rel_values {
+        if let Some(href) = find_link_href(html, rel) {
+            let resolved = resolve_url(&href, base_url);
+            if resolved.is_some() {
+                return resolved;
+            }
+        }
+    }
+
+    None
+}
+
+fn google_favicon_url(url: &str) -> String {
+    if let Ok(parsed) = url::Url::parse(url) {
+        if let Some(host) = parsed.host_str() {
+            if host == "localhost" || host.starts_with("127.") || host.starts_with("192.168.") {
+                return String::new();
+            }
+            return format!("https://www.google.com/s2/favicons?domain={host}&sz=64");
+        }
+    }
+    String::new()
+}
+
+fn origin_favicon_fallback(url: &str) -> String {
+    let google = google_favicon_url(url);
+    if google.is_empty() {
+        return google;
+    }
+    if let Ok(parsed) = url::Url::parse(url) {
+        let origin = parsed.origin().ascii_serialization();
+        return format!("{origin}/favicon.ico");
+    }
+    google
+}
+
+fn html_entity_decode(s: &str) -> String {
+    s.replace("&amp;", "&")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&#39;", "'")
+        .replace("&#x27;", "'")
+        .replace("&#x2F;", "/")
+        .replace("&nbsp;", " ")
 }

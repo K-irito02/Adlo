@@ -8,8 +8,11 @@
 @import './rightpanel/file-tree-browser.css';
 @import './rightpanel/changes-panel.css';
 @import './rightpanel/editor-surface.css';
+@import './rightpanel/editor-content.css';
 @import './rightpanel/cm-overrides.css';
 @import './rightpanel/diff-viewer.css';
+@import './rightpanel/diff-inline.css';
+@import './rightpanel/diff-side-by-side.css';
 @import './rightpanel/browser-landing.css';
 @import './rightpanel/browser-toolbar.css';
 @import './rightpanel/browser-webview.css';
@@ -17,4 +20,5 @@
 @import './rightpanel/communication-panel.css';
 @import './rightpanel/communication-overview.css';
 @import './rightpanel/communication-workflows.css';
+@import './rightpanel/communication-jobs.css';
 @import './rightpanel/communication-settings.css';

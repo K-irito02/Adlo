@@ -1,0 +1,152 @@
+/* ==========================================================================
+   Button & Segmented Control
+   --------------------------------------------------------------------------
+   - Button variants: default, secondary, ghost, danger, icon, sm, lg, block
+   - Segmented control / toggle group
+   - All interactive states: hover, active, disabled, busy, pressed
+   ========================================================================== */
+
+/* -------- Button -------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-2-5) var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid transparent;
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  line-height: var(--leading-tight);
+  white-space: nowrap;
+  transition: var(--transition-colors), var(--transition-shadow), var(--transition-transform);
+  position: relative;
+  isolation: isolate;
+}
+
+.btn:hover:not([disabled]):not([aria-busy='true']) {
+  background: var(--accent-hover);
+}
+
+.btn:active:not([disabled]) {
+  background: var(--accent-active);
+  transform: translateY(1px);
+}
+
+.btn[disabled],
+.btn[aria-disabled='true'] {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.btn[aria-busy='true'] {
+  cursor: progress;
+  pointer-events: none;
+  color: transparent;
+}
+
+.btn[aria-busy='true']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: var(--radius-full);
+  color: var(--text-on-accent);
+  animation: spin 800ms linear infinite;
+}
+
+.btn--secondary {
+  background: transparent;
+  color: var(--text-primary);
+  border-color: var(--border-default);
+}
+
+.btn--secondary:hover:not([disabled]) {
+  background: var(--bg-muted);
+  border-color: var(--border-strong);
+}
+
+.btn--secondary:active:not([disabled]) {
+  background: var(--bg-muted);
+}
+
+.btn--ghost {
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.btn--ghost:hover:not([disabled]) {
+  background: var(--bg-muted);
+  color: var(--text-primary);
+}
+
+.btn--danger {
+  background: var(--danger);
+  color: var(--text-inverse);
+}
+
+.btn--danger:hover:not([disabled]) {
+  background: var(--danger);
+  filter: brightness(0.92);
+}
+
+.btn--icon {
+  width: var(--space-8);
+  height: var(--space-8);
+  padding: 0;
+  border-radius: var(--radius-md);
+}
+
+.btn--sm {
+  padding: var(--space-1-5) var(--space-3);
+  font-size: var(--text-xs);
+  border-radius: var(--radius-md);
+}
+
+.btn--lg {
+  padding: var(--space-3) var(--space-5);
+  font-size: var(--text-base);
+}
+
+.btn--block {
+  width: 100%;
+}
+
+/* -------- Segmented control / toggle group -------- */
+.segmented {
+  display: inline-grid;
+  grid-auto-flow: column;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border-radius: var(--radius-xl);
+  background: var(--bg-muted);
+  border: 1px solid var(--border-subtle);
+}
+
+.segmented__btn {
+  min-width: 96px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-lg);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  transition: var(--transition-colors);
+}
+
+.segmented__btn:hover:not([disabled]):not([aria-pressed='true']) {
+  color: var(--text-primary);
+  background: var(--bg-strong);
+}
+
+.segmented__btn[aria-pressed='true'] {
+  background: var(--accent);
+  color: var(--text-on-accent);
+}

@@ -1,0 +1,367 @@
+/* Side-by-side: A=deleted side red, B=inserted side green */
+.adl-cm-diff-viewer--side-by-side .cm-merge-a .cm-changedLine {
+  background-color: var(--editor-diff-remove-bg) !important;
+}
+.adl-cm-diff-viewer--side-by-side .cm-merge-b .cm-changedLine {
+  background-color: var(--editor-diff-insert-bg) !important;
+}
+
+/* === Hover state: deepen the diff background instead of gray overlay === */
+/* Side-by-side A side (deleted lines): only apply to changed lines */
+.adl-cm-diff-viewer.adl-cm-diff-viewer--side-by-side
+  .cm-merge-a
+  .cm-line:hover:has(.cm-changedLine),
+.adl-cm-diff-viewer.adl-cm-diff-viewer--side-by-side
+  .cm-merge-a
+  .cm-line.cm-activeLine:has(.cm-changedLine),
+/* .cm-changedLine is a Decoration.line class on .cm-line itself — NOT a child.
+   :has(.cm-changedLine) doesn't match the line itself. For empty deleted lines
+   (no characters), there is no <del> child either, so direct .cm-changedLine
+   targeting is needed. */
+.adl-cm-diff-viewer.adl-cm-diff-viewer--side-by-side
+  .cm-merge-a
+  .cm-changedLine:hover,
+.adl-cm-diff-viewer.adl-cm-diff-viewer--side-by-side
+  .cm-merge-a
+  .cm-changedLine.cm-activeLine {
+  background-color: var(--editor-diff-remove-hover) !important;
+}
+/* Side-by-side B side (inserted lines) */
+.adl-cm-diff-viewer.adl-cm-diff-viewer--side-by-side
+  .cm-merge-b
+  .cm-line:hover:has(.cm-insertedLine),
+.adl-cm-diff-viewer.adl-cm-diff-viewer--side-by-side
+  .cm-merge-b
+  .cm-line.cm-activeLine:has(.cm-insertedLine),
+/* Also target .cm-changedLine directly — .cm-insertedLine is an inline <ins> element
+   that only wraps text content. For empty inserted lines (no characters), there is
+   no <ins> child, so :has(.cm-insertedLine) doesn't match. .cm-changedLine is a
+   Decoration.line class on .cm-line itself, present for ALL changed lines. */
+.adl-cm-diff-viewer.adl-cm-diff-viewer--side-by-side
+  .cm-merge-b
+  .cm-changedLine:hover,
+.adl-cm-diff-viewer.adl-cm-diff-viewer--side-by-side
+  .cm-merge-b
+  .cm-changedLine.cm-activeLine {
+  background-color: var(--editor-diff-insert-hover) !important;
+}
+
+/* Side-by-side A side (deleted) - vertical bar + background */
+/* Dark red vertical bar (60% opacity) */
+/* Base state: gutter-bg CSS variable */
+.adl-cm-diff-viewer--side-by-side .cm-merge-a .cm-changedLineGutter {
+  border-left: 3px solid rgba(239, 68, 68, 0.6) !important;
+  background-color: var(--editor-diff-remove-gutter-bg) !important;
+  margin-left: -3px !important;
+  padding-left: 3px !important;
+}
+
+/* Side-by-side A side (deleted) - active/hover state: 35% opacity (deeper, same as content line) */
+.adl-cm-diff-viewer--side-by-side .cm-merge-a .cm-changedLineGutter.cm-activeLineGutter,
+.adl-cm-diff-viewer--side-by-side .cm-merge-a .cm-deletedLineGutter.cm-activeLineGutter {
+  background-color: var(--editor-diff-remove-hover) !important;
+}
+
+/* Side-by-side A side (deleted) - hover state */
+.adl-cm-diff-viewer--side-by-side .cm-merge-a .cm-changedLineGutter:hover,
+.adl-cm-diff-viewer--side-by-side .cm-merge-a .cm-deletedLineGutter:hover,
+.adl-cm-diff-viewer--side-by-side .cm-merge-a .cm-changedLineGutter.adl-temp-gutter-hover,
+.adl-cm-diff-viewer--side-by-side .cm-merge-a .cm-deletedLineGutter.adl-temp-gutter-hover {
+  background-color: var(--editor-diff-remove-hover) !important;
+  margin-left: -3px !important;
+  padding-left: 3px !important;
+  position: relative;
+  z-index: 15;
+}
+
+/* Side-by-side B side (inserted) - vertical bar + background */
+/* Dark green vertical bar (60% opacity) */
+/* Base state: gutter-bg CSS variable */
+.adl-cm-diff-viewer--side-by-side .cm-merge-b .cm-changedLineGutter {
+  border-left: 3px solid rgba(34, 197, 94, 0.6) !important;
+  background-color: var(--editor-diff-insert-gutter-bg) !important;
+  margin-left: -3px !important;
+  padding-left: 3px !important;
+}
+
+/* Side-by-side B side (inserted) - active/hover state: 35% opacity (deeper, same as content line) */
+.adl-cm-diff-viewer--side-by-side .cm-merge-b .cm-changedLineGutter.cm-activeLineGutter {
+  background-color: var(--editor-diff-insert-hover) !important;
+}
+
+/* Side-by-side B side (inserted) - hover state */
+.adl-cm-diff-viewer--side-by-side .cm-merge-b .cm-changedLineGutter:hover,
+.adl-cm-diff-viewer--side-by-side .cm-merge-b .cm-changedLineGutter.adl-temp-gutter-hover {
+  background-color: var(--editor-diff-insert-hover) !important;
+  margin-left: -3px !important;
+  padding-left: 3px !important;
+  position: relative;
+  z-index: 15;
+}
+
+/* === 字符级别（对角条纹纹理，内容宽度） === */
+/* 使用 repeating-linear-gradient 对角条纹作为 background。
+   条纹是与线级相同色相的纹理图案，形成"有纹理/无纹理"的材质变化，
+   而非"深色/浅色"的颜色差异，避免边界处产生视觉间隙感。 */
+
+/* 并排状态 A 侧（红色条纹） */
+.adl-cm-diff-viewer--side-by-side .cm-merge-a .cm-changedText,
+.adl-cm-diff-viewer--side-by-side .cm-merge-a .cm-changed-text {
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 3px,
+    rgba(239, 68, 68, 0.1) 3px,
+    rgba(239, 68, 68, 0.1) 5px
+  ) !important;
+  text-decoration: none !important;
+}
+/* 并排状态 B 侧（绿色条纹） */
+.adl-cm-diff-viewer--side-by-side .cm-merge-b .cm-changedText,
+.adl-cm-diff-viewer--side-by-side .cm-merge-b .cm-changed-text {
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 3px,
+    rgba(34, 197, 94, 0.1) 3px,
+    rgba(34, 197, 94, 0.1) 5px
+  ) !important;
+  text-decoration: none !important;
+}
+
+/* 暗色主题并排状态 A 侧 */
+[data-theme='dark'] .adl-cm-diff-viewer--side-by-side .cm-merge-a .cm-changedText,
+[data-theme='dark'] .adl-cm-diff-viewer--side-by-side .cm-merge-a .cm-changed-text {
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 3px,
+    rgba(248, 113, 113, 0.1) 3px,
+    rgba(248, 113, 113, 0.1) 5px
+  ) !important;
+}
+/* 暗色主题并排状态 B 侧 */
+[data-theme='dark'] .adl-cm-diff-viewer--side-by-side .cm-merge-b .cm-changedText,
+[data-theme='dark'] .adl-cm-diff-viewer--side-by-side .cm-merge-b .cm-changed-text {
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 3px,
+    rgba(74, 222, 128, 0.1) 3px,
+    rgba(74, 222, 128, 0.1) 5px
+  ) !important;
+}
+
+.adl-cm-diff-viewer .cm-scroller {
+  scrollbar-color: color-mix(in srgb, var(--text-primary) 14%, transparent) transparent;
+}
+
+.adl-cm-diff-viewer .cm-editor .cm-scroller::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--text-primary) 14%, transparent);
+  background-clip: padding-box;
+  border: 2px solid transparent;
+}
+
+.adl-cm-diff-viewer .cm-editor .cm-scroller::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--text-primary) 20%, transparent);
+  background-clip: padding-box;
+  border: 2px solid transparent;
+}
+
+.adl-cm-diff-viewer .cm-mergeViewEditors {
+  height: 100%;
+  gap: 0;
+  min-width: 0;
+}
+
+/* Side-by-side editors container: zero gap so the resizer and both editors
+   sit flush side-by-side. */
+.adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors {
+  height: 100%;
+  min-height: 0;
+  gap: 0;
+}
+
+.adl-cm-diff-viewer--side-by-side .cm-mergeView .cm-editor {
+  height: 100% !important;
+}
+.adl-cm-no-word-wrap .adl-cm-diff-viewer--side-by-side .cm-mergeView .cm-editor {
+  height: calc(100% - 10px) !important;
+}
+
+.adl-cm-diff-viewer--side-by-side .cm-mergeView .cm-scroller {
+  height: 100% !important;
+  overflow: auto !important;
+}
+
+/* Hide native horizontal scrollbar on all editors — custom .adl-cm-hscroll
+   handles horizontal scrolling. */
+.adl-cm-diff-viewer--side-by-side .cm-mergeView .cm-scroller::-webkit-scrollbar:horizontal {
+  height: 0;
+}
+
+/* Left editor: visible vertical scrollbar with theme-aware colours.
+   Synced from the right editor via handleScrollA / handleScrollB.
+   Horizontal native scrollbar hidden — prevents gutter border from being
+   cut off at the scrollbar track. */
+.adl-cm-diff-viewer--side-by-side
+  .cm-mergeViewEditors
+  > .cm-mergeViewEditor:first-child
+  .cm-scroller {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  overflow-x: hidden !important;
+}
+.adl-cm-diff-viewer--side-by-side
+  .cm-mergeViewEditors
+  > .cm-mergeViewEditor:first-child
+  .cm-scroller::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+/* Right editor: visible vertical scrollbar with theme-aware colours.
+   Horizontal native scrollbar hidden — prevents gutter border from being
+   cut off at the scrollbar track. */
+.adl-cm-diff-viewer--side-by-side
+  .cm-mergeViewEditors
+  > .cm-mergeViewEditor:last-child
+  .cm-scroller {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--text-primary) 14%, transparent) transparent;
+  overflow-x: hidden !important;
+}
+.adl-cm-diff-viewer--side-by-side
+  .cm-mergeViewEditors
+  > .cm-mergeViewEditor:last-child
+  .cm-scroller::-webkit-scrollbar {
+  display: block;
+}
+
+.adl-cm-diff-viewer--side-by-side .cm-mergeView .cm-scroller.adl-cm-scroller--no-hscroll {
+  overflow: auto !important;
+}
+
+.adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-mergeViewEditor {
+  min-width: 0;
+  flex: 1 1 0;
+  overflow: hidden;
+}
+
+/* Right editor: no left gap — must sit flush against the resizer.
+   Also remove any border inherited from CodeMirror merge styles.
+   box-shadow creates the "浮在左侧之上" effect. */
+.adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-mergeViewEditor:last-child {
+  margin-left: 0;
+  border-left: none;
+  overflow: visible;
+  box-shadow: var(--shadow-divider);
+}
+
+.adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-mergeViewEditor + .cm-mergeViewEditor {
+  border-left: none;
+}
+
+/* Right editor's .cm-editor must also have no left margin/padding. */
+.adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-mergeViewEditor:last-child .cm-editor {
+  margin-left: 0;
+  padding-left: 0;
+}
+
+/* No left margin/padding on the right editor's scroller */
+.adl-cm-diff-viewer--side-by-side
+  .cm-mergeViewEditors
+  > .cm-mergeViewEditor:last-child
+  .cm-scroller {
+  padding-left: 0;
+}
+
+/* Right editor gutters: match the exact same styling used by all other
+   gutters in the app (see .adl-cm-diff-viewer .cm-gutters above). */
+.adl-cm-diff-viewer--side-by-side
+  .cm-mergeViewEditors
+  > .cm-mergeViewEditor:last-child
+  .cm-gutters {
+  min-width: 54px;
+  gap: 0;
+  flex: none;
+}
+
+.adl-cm-diff-viewer--side-by-side .cm-mergeView {
+  overflow: hidden;
+}
+
+.adl-cm-diff-viewer .adl-cm-diff-resizer {
+  flex: none;
+  width: 8px;
+  cursor: col-resize;
+  position: relative;
+  z-index: 10;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  background: transparent;
+}
+
+.adl-cm-diff-viewer .adl-cm-diff-resizer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 3px;
+  width: 1px;
+  height: 100%;
+  background: transparent;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    width 0.15s,
+    opacity 0.15s,
+    background-color 0.15s;
+}
+
+.adl-cm-diff-viewer .adl-cm-diff-resizer:hover::before,
+.adl-cm-diff-viewer .adl-cm-diff-resizer.adl-cm-diff-resizer--dragging::before {
+  width: 3px;
+  opacity: 1;
+  background: var(--text-secondary);
+}
+
+/* 左侧编辑器右边缘渐变遮罩，产生左低右高的分层感。
+   宽度刚好覆盖拖拽区域，不额外占用空间。不影响拖拽交互。 */
+.adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-mergeViewEditor:first-child {
+  position: relative;
+}
+.adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-mergeViewEditor:first-child::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 0;
+  pointer-events: none;
+  z-index: 5;
+  background: linear-gradient(to right, rgba(0, 0, 0, 0.315), var(--bg));
+}
+
+.adl-cm-no-word-wrap .adl-cm-diff-viewer {
+  overflow: visible;
+}
+
+.adl-cm-diff-viewer--side-by-side {
+  flex-direction: row;
+}
+
+.adl-cm-diff-viewer--side-by-side > .adl-cm-diff-pane {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+}
+
+.adl-cm-diff-viewer--side-by-side > .adl-cm-diff-pane + .adl-cm-diff-pane {
+  border-left: 1px solid var(--border-subtle);
+}
+
+.adl-cm-diff-pane {
+  height: 100%;
+  overflow: hidden;
+}

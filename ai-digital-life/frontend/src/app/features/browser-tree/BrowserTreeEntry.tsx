@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { IconPlus, IconTrash, IconMoreVertical } from '../../icons';
+import { IconGlobe, IconPlus, IconTrash, IconMoreVertical } from '../../icons';
 import { TooltipSimple } from '../../components/Tooltip';
+import { getFaviconUrl } from '../../utils/favicon';
 import type { CopyDict } from '../../i18n';
 import type { BrowserTreeNode, BrowserCategoryType } from './types';
 import type { SectionCallbacks } from './BrowserCategorySection';
@@ -359,11 +360,53 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
                     className="adl-filetree__indent adl-filetree__indent--flat"
                     aria-hidden="true"
                   />
-                  <span className="adl-filetree__file-icon adl-filetree__file-icon--default">
-                    <span className="adl-filetree__file-badge" aria-hidden="true">
-                      TAB
-                    </span>
-                  </span>
+                  {(() => {
+                    const url = item.node.url;
+                    const faviconUrl = url ? getFaviconUrl(url) : '';
+                    return (
+                      <span
+                        className={`adl-filetree__file-icon ${faviconUrl ? 'adl-filetree__file-icon--favicon' : 'adl-filetree__file-icon--default'}`}
+                      >
+                        <img
+                          src={faviconUrl}
+                          alt=""
+                          className="adl-browser-tree__favicon"
+                          style={faviconUrl ? undefined : { display: 'none' }}
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                            const parent = (e.target as HTMLImageElement).parentElement;
+                            if (parent) {
+                              parent.classList.remove('adl-filetree__file-icon--favicon');
+                              parent.classList.add('adl-filetree__file-icon--default');
+                              const globe = parent.querySelector(
+                                '.adl-browser-tree__globe-fallback'
+                              );
+                              if (globe) {
+                                (globe as HTMLElement).style.display = 'inline-flex';
+                              }
+                            }
+                          }}
+                          onLoad={(e) => {
+                            const parent = (e.target as HTMLImageElement).parentElement;
+                            if (parent) {
+                              const globe = parent.querySelector(
+                                '.adl-browser-tree__globe-fallback'
+                              );
+                              if (globe) {
+                                (globe as HTMLElement).style.display = 'none';
+                              }
+                            }
+                          }}
+                        />
+                        <IconGlobe
+                          size={14}
+                          decorative
+                          className="adl-browser-tree__globe-fallback"
+                          style={faviconUrl ? { display: 'none' } : undefined}
+                        />
+                      </span>
+                    );
+                  })()}
                   <button
                     type="button"
                     className="adl-filetree__label"

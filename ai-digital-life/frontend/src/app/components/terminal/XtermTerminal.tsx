@@ -139,8 +139,8 @@ export const XtermTerminal = forwardRef<XtermTerminalHandle, XtermTerminalProps>
           if (dims) {
             onResizeRef.current?.(dims.cols, dims.rows);
           }
-        } catch (e) {
-          console.warn('Initial fit failed', e);
+        } catch {
+          /* initial fit failed */
         }
       };
 
@@ -176,8 +176,8 @@ export const XtermTerminal = forwardRef<XtermTerminalHandle, XtermTerminalProps>
                 onResizeRef.current?.(dims.cols, dims.rows);
               }
             }
-          } catch (e) {
-            console.warn('Resize failed', e);
+          } catch {
+            /* resize failed */
           }
         }, 100);
       };

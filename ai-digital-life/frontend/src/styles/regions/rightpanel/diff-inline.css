@@ -1,0 +1,162 @@
+/* Inline mode: deleted chunk blocks */
+.adl-cm-diff-viewer--inline .cm-deletedChunk {
+  background-color: var(--editor-diff-remove-bg) !important;
+}
+
+/* Inline mode - inserted lines */
+.adl-cm-diff-viewer.adl-cm-diff-viewer--inline .cm-line:hover:has(.cm-insertedLine),
+.adl-cm-diff-viewer.adl-cm-diff-viewer--inline .cm-line.cm-activeLine:has(.cm-insertedLine),
+/* .cm-changedLine is a Decoration.line class on .cm-line itself. For empty
+   inserted lines (no characters), there is no <ins> child, so :has(.cm-insertedLine)
+   doesn't match. Target .cm-changedLine directly.
+   Note: This rule is LESS specific than .cm-deletedChunk .cm-line:hover, so
+   deleted lines inside .cm-deletedChunk still correctly show red. */
+.adl-cm-diff-viewer.adl-cm-diff-viewer--inline .cm-changedLine:hover,
+.adl-cm-diff-viewer.adl-cm-diff-viewer--inline .cm-changedLine.cm-activeLine {
+  background-color: var(--editor-diff-insert-hover) !important;
+}
+/* Inline mode - deleted lines (including deleted chunks) */
+.adl-cm-diff-viewer.adl-cm-diff-viewer--inline .cm-line:hover:has(.cm-deletedLine),
+.adl-cm-diff-viewer.adl-cm-diff-viewer--inline .cm-line.cm-activeLine:has(.cm-deletedLine),
+.adl-cm-diff-viewer.adl-cm-diff-viewer--inline .cm-deletedChunk .cm-line:hover,
+.adl-cm-diff-viewer.adl-cm-diff-viewer--inline .cm-deletedChunk .cm-line.cm-activeLine {
+  background-color: var(--editor-diff-remove-hover) !important;
+}
+
+/* No-wrap inline mode: .cm-deletedChunk must NOT be position:relative (breaks
+   auto-scroll — see note at merge controls section). Only raise chunkButtons z-index.
+   When no-wrap is active, override overflow:visible so absolute-positioned
+   chunk buttons are never clipped by the base .cm-deletedChunk overflow:hidden. */
+.adl-cm-no-word-wrap .adl-cm-diff-viewer--inline .cm-deletedChunk {
+  position: relative;
+  overflow: visible;
+}
+
+.adl-cm-no-word-wrap .adl-cm-diff-viewer--inline .cm-deletedChunk .cm-chunkButtons {
+  z-index: 20;
+  float: none;
+  position: absolute !important;
+  inset-inline-end: 5px;
+  top: 0;
+}
+
+/* Inline mode: deleted lines */
+/* Base state: gutter-bg CSS variable */
+.adl-cm-diff-viewer--inline .cm-deletedLineGutter {
+  border-left: 3px solid rgba(239, 68, 68, 0.6) !important;
+  background-color: var(--editor-diff-remove-gutter-bg) !important;
+  margin-left: -3px !important;
+  padding-left: 3px !important;
+}
+
+/* Inline mode: deleted lines - active state: 35% opacity (deeper, same as content line) */
+.adl-cm-diff-viewer--inline .cm-deletedLineGutter.cm-activeLineGutter {
+  background-color: var(--editor-diff-remove-hover) !important;
+}
+
+/* Inline mode: deleted lines - hover state */
+.adl-cm-diff-viewer--inline .cm-deletedLineGutter:hover,
+.adl-cm-diff-viewer--inline .cm-deletedLineGutter.adl-temp-gutter-hover {
+  background-color: var(--editor-diff-remove-hover) !important;
+  margin-left: -3px !important;
+  padding-left: 3px !important;
+  position: relative;
+  z-index: 15;
+}
+
+/* Inline mode: inserted lines */
+/* Base state: gutter-bg CSS variable */
+.adl-cm-diff-viewer--inline .cm-changedLineGutter {
+  border-left: 3px solid rgba(34, 197, 94, 0.6) !important;
+  background-color: var(--editor-diff-insert-gutter-bg) !important;
+  margin-left: -3px !important;
+  padding-left: 3px !important;
+}
+
+/* Inline mode: inserted lines - active state: 35% opacity (deeper, same as content line) */
+.adl-cm-diff-viewer--inline .cm-changedLineGutter.cm-activeLineGutter {
+  background-color: var(--editor-diff-insert-hover) !important;
+}
+
+/* Inline mode: inserted lines - hover state */
+.adl-cm-diff-viewer--inline .cm-changedLineGutter:hover,
+.adl-cm-diff-viewer--inline .cm-changedLineGutter.adl-temp-gutter-hover {
+  background-color: var(--editor-diff-insert-hover) !important;
+  margin-left: -3px !important;
+  padding-left: 3px !important;
+  position: relative;
+  z-index: 15;
+}
+
+/* 内联状态：按父元素类型使用对应颜色条纹 */
+.adl-cm-diff-viewer--inline .cm-insertedLine .cm-changedText,
+.adl-cm-diff-viewer--inline .cm-insertedLine .cm-changed-text {
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 3px,
+    rgba(34, 197, 94, 0.1) 3px,
+    rgba(34, 197, 94, 0.1) 5px
+  ) !important;
+  text-decoration: none !important;
+}
+.adl-cm-diff-viewer--inline .cm-deletedLine .cm-changedText,
+.adl-cm-diff-viewer--inline .cm-deletedLine .cm-changed-text {
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 3px,
+    rgba(239, 68, 68, 0.1) 3px,
+    rgba(239, 68, 68, 0.1) 5px
+  ) !important;
+  text-decoration: none !important;
+}
+
+/* Merge controls (Accept/Reject buttons) in inline unified merge view */
+/* .cm-deletedChunk must NOT be position:relative — that creates a positioning
+   context that breaks CodeMirror's auto-scroll detection during text selection drags.
+   Instead, chunkButtons use float:right for positioning.
+
+   CRITICAL: CodeMirror's merge base theme sets .cm-chunkButtons { position: absolute }
+   we must explicitly set position:static on the buttons to make float:right work.
+   Each chunk then independently positions its buttons at its own top-right corner. */
+.adl-cm-diff-viewer--inline .cm-deletedChunk {
+  overflow: hidden;
+}
+
+.adl-cm-diff-viewer--inline .cm-deletedChunk .cm-chunkButtons {
+  z-index: 2;
+  float: right;
+  position: static !important;
+  margin-inline-end: 5px;
+}
+
+.adl-cm-diff-viewer--inline .cm-deletedChunk .cm-chunkButtons button[name='accept'] {
+  background: var(--diff-accept-bg) !important;
+  border: none !important;
+  color: var(--diff-btn-text) !important;
+  cursor: pointer !important;
+  margin: 0 2px !important;
+  border-radius: 3px !important;
+  padding: 2px 6px !important;
+  font-size: 11px !important;
+  line-height: 1.4 !important;
+  opacity: 0.85 !important;
+}
+
+.adl-cm-diff-viewer--inline .cm-deletedChunk .cm-chunkButtons button[name='reject'] {
+  background: var(--diff-reject-bg) !important;
+  border: none !important;
+  color: var(--diff-btn-text) !important;
+  cursor: pointer !important;
+  margin: 0 2px !important;
+  border-radius: 3px !important;
+  padding: 2px 6px !important;
+  font-size: 11px !important;
+  line-height: 1.4 !important;
+  opacity: 0.85 !important;
+}
+
+.adl-cm-diff-viewer--inline .cm-deletedChunk .cm-chunkButtons button:hover {
+  opacity: 1 !important;
+}

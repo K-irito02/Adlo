@@ -19,9 +19,9 @@ export function writeJson(key: string, value: unknown): void {
     window.localStorage.setItem(key, JSON.stringify(value));
   } catch (err) {
     if (err instanceof DOMException && err.name === 'QuotaExceededError') {
-      console.warn(`[localStorage] Quota exceeded for key "${key}"`);
+      /* quota exceeded */
     } else {
-      console.warn(`[localStorage] Failed to write key "${key}":`, err);
+      /* write failed */
     }
   }
 }
@@ -43,9 +43,9 @@ export function writeNumber(key: string, value: number): void {
     window.localStorage.setItem(key, String(value));
   } catch (err) {
     if (err instanceof DOMException && err.name === 'QuotaExceededError') {
-      console.warn(`[localStorage] Quota exceeded for key "${key}"`);
+      /* quota exceeded */
     } else {
-      console.warn(`[localStorage] Failed to write number key "${key}":`, err);
+      /* write failed */
     }
   }
 }
@@ -69,9 +69,9 @@ export function writeFlag(key: string, value: boolean): void {
     window.localStorage.setItem(key, value ? '1' : '0');
   } catch (err) {
     if (err instanceof DOMException && err.name === 'QuotaExceededError') {
-      console.warn(`[localStorage] Quota exceeded for key "${key}"`);
+      /* quota exceeded */
     } else {
-      console.warn(`[localStorage] Failed to write flag key "${key}":`, err);
+      /* write failed */
     }
   }
 }

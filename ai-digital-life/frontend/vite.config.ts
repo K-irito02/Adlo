@@ -77,6 +77,69 @@ export default defineConfig({
             }
             return;
           }
+          if (req.url?.includes('/__adl_preview_api__/browser/page-meta')) {
+            const searchParams = new URL(req.url, 'http://localhost').searchParams;
+            const targetUrl = searchParams.get('url');
+            if (!targetUrl) {
+              res.setHeader('Content-Type', 'application/json; charset=utf-8');
+              res.statusCode = 400;
+              res.end(JSON.stringify({ ok: false, error: 'missing url parameter' }));
+              return;
+            }
+            try {
+              const controller = new AbortController();
+              const timeout = setTimeout(() => controller.abort(), 5000);
+              const response = await fetch(targetUrl, {
+                signal: controller.signal,
+                redirect: 'follow',
+                headers: {
+                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                  'Accept': 'text/html,application/xhtml+xml',
+                },
+              });
+              clearTimeout(timeout);
+
+              const html = await response.text().then((t: string) => t.slice(0, 65536));
+              const origin = new URL(targetUrl).origin;
+
+              const titleMatch = html.match(/<title[^>]*>([^<]*)<\/title>/i);
+              let title = titleMatch?.[1]?.trim() || '';
+              if (!title) {
+                const ogTitle = html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i);
+                title = ogTitle?.[1]?.trim() || targetUrl;
+              }
+              title = title.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#x27;/g, "'");
+
+              const iconPatterns = [
+                /<link[^>]*rel=["']icon["'][^>]*sizes=["']any["'][^>]*href=["']([^"']+)["']/i,
+                /<link[^>]*rel=["']icon["'][^>]*type=["']image\/svg\+xml["'][^>]*href=["']([^"']+)["']/i,
+                /<link[^>]*rel=["']icon["'][^>]*href=["']([^"']+)["']/i,
+                /<link[^>]*rel=["']shortcut icon["'][^>]*href=["']([^"']+)["']/i,
+                /<link[^>]*rel=["']apple-touch-icon["'][^>]*href=["']([^"']+)["']/i,
+              ];
+              let favicon = '';
+              for (const pattern of iconPatterns) {
+                const m = html.match(pattern);
+                if (m) { favicon = m[1]; break; }
+              }
+              if (favicon) {
+                favicon = favicon.startsWith('//') ? `https:${favicon}` :
+                  favicon.startsWith('http') ? favicon :
+                  `${origin}${favicon.startsWith('/') ? '' : '/'}${favicon}`;
+              } else {
+                favicon = `${origin}/favicon.ico`;
+              }
+
+              res.setHeader('Content-Type', 'application/json; charset=utf-8');
+              res.statusCode = 200;
+              res.end(JSON.stringify({ title, favicon, url: targetUrl }));
+            } catch {
+              res.setHeader('Content-Type', 'application/json; charset=utf-8');
+              res.statusCode = 200;
+              res.end(JSON.stringify({ title: targetUrl, favicon: '', url: targetUrl }));
+            }
+            return;
+          }
           if (req.url?.includes('/__adl_preview_api__/browser/scan-ports')) {
             res.setHeader('Content-Type', 'application/json; charset=utf-8');
             const COMMON_PORTS = [3000, 5173, 8000, 8080, 9000, 4000, 5000, 4200, 3001, 5174];

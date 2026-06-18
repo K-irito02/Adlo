@@ -30,6 +30,7 @@ import {
 } from './browserPanelHelpers';
 import { BookmarkToFolderDialog } from './BookmarkToFolderDialog';
 import { checkEmbed, isEmbedBlocked } from './checkEmbed';
+import { setCachedFavicon } from '../../utils/fetchPageMeta';
 
 export function BrowserPanel(props: BrowserPanelProps) {
   const { t } = useTCopy();
@@ -234,6 +235,23 @@ export function BrowserPanel(props: BrowserPanelProps) {
     renameFolderState.open ||
     createDirDialog.open;
 
+  const handlePageMeta = useCallback(
+    (meta: { title: string; favicon: string; url: string }) => {
+      if (meta.favicon) {
+        setCachedFavicon(meta.url, meta.favicon);
+      }
+      if (meta.title && meta.title !== activeTab?.title) {
+        if (activeTab?.id) {
+          browserUpdateTab(activeTab.id, { title: meta.title });
+        }
+        const store = useAppStore.getState();
+        store.browserUpdateBookmarkTitle(meta.url, meta.title);
+        store.browserUpdateHistoryTitle(meta.url, meta.title);
+      }
+    },
+    [activeTab, browserUpdateTab]
+  );
+
   const {
     iframeLoadError,
     setIframeLoadError,
@@ -254,6 +272,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
     setAddress,
     browserNavigateActiveTab,
     browserUpdateTab,
+    onPageMeta: handlePageMeta,
   });
 
   const browserMenuItems = useMemo(
@@ -350,6 +369,27 @@ export function BrowserPanel(props: BrowserPanelProps) {
 
     browserNavigateActiveTab(finalUrl, matchedItem?.title);
     setAddress(finalUrl);
+
+    if (!isTauriShell() && finalUrl) {
+      import('../../utils/fetchPageMeta').then((mod) => {
+        mod.fetchPageMeta(finalUrl).then((meta) => {
+          if (!meta) {
+            return;
+          }
+          const tab = useAppStore
+            .getState()
+            .browserTabs.find(
+              (t) => t.url === finalUrl && t.id === useAppStore.getState().browserActiveTabId
+            );
+          if (tab && meta.title && meta.title !== tab.title) {
+            useAppStore.getState().browserUpdateTab(tab.id, { title: meta.title });
+          }
+          if (meta.favicon) {
+            mod.setCachedFavicon(finalUrl, meta.favicon);
+          }
+        });
+      });
+    }
   }, [
     address,
     browserLookupIndex,
@@ -715,9 +755,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
                     onClick={() => {
                       const url = activeTab?.url ?? 'about:blank';
                       if (isTauriShell()) {
-                        shellOpen(url).catch((err) =>
-                          console.error('Failed to open external browser:', err)
-                        );
+                        shellOpen(url).catch(() => {});
                       } else {
                         const w = window as { trae?: { openExternal: (url: string) => void } };
                         if (w.trae?.openExternal) {
@@ -760,9 +798,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
                     onClick={() => {
                       const url = activeTab?.url ?? 'about:blank';
                       if (isTauriShell()) {
-                        shellOpen(url).catch((err) =>
-                          console.error('Failed to open external browser:', err)
-                        );
+                        shellOpen(url).catch(() => {});
                       } else {
                         const w = window as { trae?: { openExternal: (url: string) => void } };
                         if (w.trae?.openExternal) {
@@ -789,9 +825,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
                     onClick={() => {
                       const url = activeTab?.url ?? 'about:blank';
                       if (isTauriShell()) {
-                        shellOpen(url).catch((err) =>
-                          console.error('Failed to open external browser:', err)
-                        );
+                        shellOpen(url).catch(() => {});
                       } else {
                         const w = window as { trae?: { openExternal: (url: string) => void } };
                         if (w.trae?.openExternal) {

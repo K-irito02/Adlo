@@ -78,8 +78,8 @@ export const InlineDiffViewer = memo(function InlineDiffViewer({
           setEditorReady(true);
         }
       })
-      .catch((err) => {
-        console.error(`[DiffViewer] failed to load language "${language}":`, err);
+      .catch((_err) => {
+        /* language load failed */
         setEditorReady(true);
       });
     return () => {
