@@ -4,16 +4,7 @@ use crate::state::AppState;
 use adl_browser::{Bounds, PageMeta};
 use adl_errors::AppError;
 use adl_kernel::IpcResult;
-use serde::{Deserialize, Serialize};
-use tauri::{Emitter, Manager, State};
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ReportMetaPayload {
-    pub title: String,
-    pub favicon: String,
-    pub url: String,
-}
+use tauri::{Manager, State};
 
 #[tauri::command]
 pub async fn browser_create(
@@ -114,21 +105,11 @@ pub async fn browser_fetch_page_meta(url: String) -> Result<IpcResult<PageMeta>,
     Ok(ipc(Ok(meta)))
 }
 
-#[tauri::command]
-pub async fn browser_report_page_meta(
-    app: tauri::AppHandle,
-    payload: ReportMetaPayload,
-) -> Result<IpcResult<()>, CommandError> {
-    let _ = app.emit(
-        "digital-life://browser-meta-changed",
-        serde_json::json!({ "title": payload.title, "favicon": payload.favicon, "url": payload.url }),
-    );
-    Ok(ipc(Ok(())))
-}
-
 const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 async fn fetch_page_meta_inner(url: &str) -> Result<PageMeta, AppError> {
+    tracing::info!(url = %url, "fetch_page_meta_inner: start");
+
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(10))
         .user_agent(USER_AGENT)
@@ -144,8 +125,13 @@ async fn fetch_page_meta_inner(url: &str) -> Result<PageMeta, AppError> {
         .await;
 
     let body = match response {
-        Ok(resp) => resp.text().await.unwrap_or_default(),
-        Err(_) => {
+        Ok(resp) => {
+            let body = resp.text().await.unwrap_or_default();
+            tracing::info!(url = %url, body_len = body.len(), "fetch_page_meta_inner: HTTP success");
+            body
+        },
+        Err(e) => {
+            tracing::warn!(url = %url, err = %e, "fetch_page_meta_inner: HTTP failed, returning empty title");
             return Ok(PageMeta {
                 title: String::new(),
                 favicon: google_favicon_url(url),
@@ -158,11 +144,15 @@ async fn fetch_page_meta_inner(url: &str) -> Result<PageMeta, AppError> {
     let title = extract_title(&body);
     let favicon = extract_favicon(&body, url);
 
-    Ok(PageMeta {
-        title: title.unwrap_or_default(),
-        favicon: favicon.unwrap_or_else(|| origin_favicon_fallback(url)),
-        url: url.to_string(),
-    })
+    let final_title = title.unwrap_or_else(|| {
+        tracing::warn!(url = %url, "fetch_page_meta_inner: <title> not found, returning empty title");
+        String::new()
+    });
+
+    let final_favicon = favicon.unwrap_or_else(|| origin_favicon_fallback(url));
+
+    tracing::info!(url = %url, title = %final_title, favicon_len = final_favicon.len(), "fetch_page_meta_inner: result");
+    Ok(PageMeta { title: final_title, favicon: final_favicon, url: url.to_string() })
 }
 
 fn extract_title(html: &str) -> Option<String> {

@@ -1,3 +1,5 @@
+@import './editor-content.css';
+
 .adl-tool-surface--files > .adl-tool-primary {
   flex: 1;
   min-width: 0;
@@ -127,9 +129,6 @@
   width: 100%;
   min-width: 0;
 }
-
-@import './editor-content.css';
-
 .adl-tool-main__scroll--terminal {
   padding: 0;
 }

@@ -1,6 +1,8 @@
 /* ---------------- LeftSidebar ---------------- */
 
 @import './context-menu.css';
+@import './leftbar-workspace.css';
+@import './leftbar-session.css';
 
 .adl-leftbar {
   display: flex;
@@ -219,9 +221,6 @@
 .adl-workspace-toolbar--conversation {
   padding-top: var(--space-2);
 }
-
-@import './leftbar-workspace.css';
-
 .adl-workspace-row__indicator,
 .adl-session-item__indicator {
   cursor: pointer;
@@ -230,9 +229,6 @@
     background-color var(--duration-150) var(--ease-default),
     color var(--duration-150) var(--ease-default);
 }
-
-@import './leftbar-session.css';
-
 .adl-filetree-shell,
 .adl-outline-tree-shell {
   position: relative;

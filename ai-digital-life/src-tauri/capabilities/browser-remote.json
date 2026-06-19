@@ -1,0 +1,13 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "browser-remote",
+  "description": "Minimal IPC access for the browser webview when navigating to remote URLs",
+  "webviews": ["adl-browser-view"],
+  "remote": {
+    "urls": ["https://*"]
+  },
+  "permissions": [
+    "core:default",
+    "digital-life-commands"
+  ]
+}

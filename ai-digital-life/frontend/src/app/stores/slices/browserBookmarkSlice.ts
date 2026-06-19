@@ -45,6 +45,12 @@ export const createBrowserBookmarkSlice = (
         state.browserTabs[0];
       const url = input?.url?.trim() || active?.url || 'about:blank';
       const title = input?.title?.trim() || active?.title || url;
+      console.log('[browser-bookmark] toggle:', {
+        url,
+        title,
+        exists: state.browserBookmarks.some((b) => b.url === url),
+        titleSource: input?.title ? 'input' : active?.title ? 'active-tab' : 'url-fallback',
+      });
       const exists = state.browserBookmarks.some((bookmark) => bookmark.url === url);
       const nextBookmarks = exists
         ? state.browserBookmarks.filter((bookmark) => bookmark.url !== url)
@@ -99,6 +105,7 @@ export const createBrowserBookmarkSlice = (
 
       const url = tab.url;
       const title = tab.title;
+      console.log('[browser-bookmark] bookmarkTab:', { tabId, url, title, folderId });
       const existsInBookmarks = state.browserBookmarks.some((b) => b.url === url);
       let nextBookmarks = state.browserBookmarks;
 
@@ -170,6 +177,7 @@ export const createBrowserBookmarkSlice = (
       const nextBookmarks = state.browserBookmarks.map((b) =>
         b.url === url ? { ...b, title } : b
       );
+      console.log('[browser-bookmark] updateBookmarkTitle:', { url, title });
       scheduleWrite(BROWSER_BOOKMARKS_KEY, nextBookmarks);
       return { browserBookmarks: nextBookmarks };
     });

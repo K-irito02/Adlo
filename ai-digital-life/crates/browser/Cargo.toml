@@ -10,3 +10,4 @@ serde_json.workspace = true
 tracing.workspace = true
 tauri = { workspace = true, features = ["unstable"] }
 url.workspace = true
+urlencoding = "2.1"

@@ -31,6 +31,7 @@ import {
 import { BookmarkToFolderDialog } from './BookmarkToFolderDialog';
 import { checkEmbed, isEmbedBlocked } from './checkEmbed';
 import { setCachedFavicon } from '../../utils/fetchPageMeta';
+import { getGoogleFaviconUrl } from '../../utils/favicon';
 
 export function BrowserPanel(props: BrowserPanelProps) {
   const { t } = useTCopy();
@@ -121,6 +122,18 @@ export function BrowserPanel(props: BrowserPanelProps) {
   const validatedUrlsRef = useRef(new Set<string>());
   const [, forceRender] = useState(0);
   const submitVersionRef = useRef(0);
+  const pendingNavigationsRef = useRef<Set<string>>(new Set());
+
+  const handleNavigationStart = useCallback((url: string) => {
+    // Track pending navigation so handlePageMeta creates tab only when real title arrives
+    pendingNavigationsRef.current.add(url);
+    // Preload Google S2 favicon so image is already loading when tab renders
+    const faviconUrl = getGoogleFaviconUrl(url);
+    if (faviconUrl) {
+      setCachedFavicon(url, faviconUrl);
+      new Image().src = faviconUrl;
+    }
+  }, []);
 
   const handleCreateTabConfirm = useCallback(
     (name: string, url: string) => {
@@ -235,21 +248,85 @@ export function BrowserPanel(props: BrowserPanelProps) {
     renameFolderState.open ||
     createDirDialog.open;
 
+  function hostnameFromUrl(url: string): string {
+    try {
+      return new URL(url).hostname;
+    } catch {
+      return '';
+    }
+  }
+
   const handlePageMeta = useCallback(
     (meta: { title: string; favicon: string; url: string }) => {
-      if (meta.favicon) {
-        setCachedFavicon(meta.url, meta.favicon);
+      // Cache favicon alongside title for sync; use Google S2 fallback when empty
+      const faviconToCache = meta.favicon || (meta.url ? getGoogleFaviconUrl(meta.url) : '');
+      if (faviconToCache) {
+        setCachedFavicon(meta.url, faviconToCache);
+        // Warm browser cache so favicon renders immediately with title
+        new Image().src = faviconToCache;
       }
-      if (meta.title && meta.title !== activeTab?.title) {
-        if (activeTab?.id) {
-          browserUpdateTab(activeTab.id, { title: meta.title });
+
+      if (!meta.title) {
+        console.log('[browser-handlePageMeta] meta.title empty, skipping update');
+        return;
+      }
+
+      // Clear pending navigation marker
+      pendingNavigationsRef.current.delete(meta.url);
+
+      const urlHostname = hostnameFromUrl(meta.url);
+      if (meta.title === urlHostname) {
+        console.log(
+          '[browser-handlePageMeta] meta.title equals hostname, skipping update (display layer handles it):',
+          {
+            url: meta.url,
+            title: meta.title,
+          }
+        );
+        return;
+      }
+
+      const pageTitle = meta.title;
+      console.log('[browser-handlePageMeta] received meta.title:', {
+        url: meta.url,
+        title: meta.title,
+      });
+
+      if (pageTitle) {
+        const state = useAppStore.getState();
+        const tabExists = state.browserTabs.some((t) => t.url === meta.url);
+        if (!tabExists) {
+          // Create tab with real title and record in history
+          console.log('[browser-handlePageMeta] creating tab with title:', pageTitle);
+          state.browserOpenTab(meta.url, pageTitle);
+          state.browserAddToHistory(meta.url, pageTitle);
+          return;
         }
-        const store = useAppStore.getState();
-        store.browserUpdateBookmarkTitle(meta.url, meta.title);
-        store.browserUpdateHistoryTitle(meta.url, meta.title);
+        let tabUpdateCount = 0;
+        for (const tab of state.browserTabs) {
+          if (tab.url === meta.url && tab.title !== pageTitle) {
+            tabUpdateCount++;
+            browserUpdateTab(tab.id, { title: pageTitle });
+          }
+        }
+        console.log('[browser-handlePageMeta] updating store:', {
+          url: meta.url,
+          pageTitle,
+          tabsUpdated: tabUpdateCount,
+          totalTabs: state.browserTabs.length,
+          bookmarkCount: state.browserBookmarks.length,
+          historyCount: state.browserHistory.length,
+        });
+        state.browserUpdateBookmarkTitle(meta.url, pageTitle);
+        state.browserUpdateHistoryTitle(meta.url, pageTitle);
+      } else {
+        console.log(
+          '[browser-handlePageMeta] skipped - no title and no hostname fallback for url:',
+          meta.url
+        );
       }
     },
-    [activeTab, browserUpdateTab]
+    [browserUpdateTab]
   );
 
   // 在 Tauri 模式下订阅页面元信息变更事件（注入脚本上报的 title/favicon）
@@ -259,9 +336,16 @@ export function BrowserPanel(props: BrowserPanelProps) {
     }
     const bridge = window.digitalLife?.browser;
     if (!bridge) {
+      console.log('[browser-onMetaChanged] window.digitalLife.browser not available');
       return;
     }
-    return bridge.onMetaChanged(handlePageMeta);
+    console.log('[browser-onMetaChanged] subscribing to onMetaChanged');
+    const unsub = bridge.onMetaChanged(handlePageMeta);
+    console.log('[browser-onMetaChanged] subscribed');
+    return () => {
+      console.log('[browser-onMetaChanged] unsubscribing');
+      unsub();
+    };
   }, [handlePageMeta]);
 
   const {
@@ -274,6 +358,8 @@ export function BrowserPanel(props: BrowserPanelProps) {
     iframeRef,
     primaryRef,
     navigateBrowser,
+    navigateTauriUrl,
+    forceReloadTauri,
     handleIframeLoad,
     handleIframeError,
   } = useBrowserWebView({
@@ -285,6 +371,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
     browserNavigateActiveTab,
     browserUpdateTab,
     onPageMeta: handlePageMeta,
+    onNavigationStart: handleNavigationStart,
   });
 
   const browserMenuItems = useMemo(
@@ -292,7 +379,17 @@ export function BrowserPanel(props: BrowserPanelProps) {
       {
         id: 'hard-reload',
         label: t.browserHardReload,
-        action: () => browserNavigateActiveTab(activeTab?.url ?? 'about:blank', activeTab?.title),
+        action: () => {
+          if (isTauriShell() && activeTab?.url) {
+            forceReloadTauri(activeTab.url);
+          } else {
+            const tabTitle =
+              activeTab?.title && !/^https?:\/\//i.test(activeTab.title)
+                ? activeTab.title
+                : undefined;
+            browserNavigateActiveTab(activeTab?.url ?? 'about:blank', tabTitle);
+          }
+        },
       },
       {
         id: 'copy-url',
@@ -313,7 +410,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
       { id: 'zoom-out', label: t.menuZoomOut, disabled: true },
       { id: 'zoom-reset', label: t.menuZoomReset, disabled: true },
     ],
-    [activeTab, browserNavigateActiveTab, t]
+    [activeTab, browserNavigateActiveTab, forceReloadTauri, t]
   );
 
   const { handlePointerDown: handleNavigatorResizeStart } = useNavigatorResize({
@@ -379,8 +476,12 @@ export function BrowserPanel(props: BrowserPanelProps) {
       }
     }
 
-    browserNavigateActiveTab(finalUrl, matchedItem?.title);
+    // Always defer tab creation until real title arrives via handlePageMeta
+    handleNavigationStart(finalUrl);
     setAddress(finalUrl);
+    if (isTauriShell()) {
+      navigateTauriUrl(finalUrl);
+    }
 
     if (!isTauriShell() && finalUrl) {
       import('../../utils/fetchPageMeta').then((mod) => {
@@ -405,8 +506,9 @@ export function BrowserPanel(props: BrowserPanelProps) {
   }, [
     address,
     browserLookupIndex,
-    browserNavigateActiveTab,
+    handleNavigationStart,
     navigateBrowser,
+    navigateTauriUrl,
     setIframeLoadError,
     setIframeBlockedDetected,
   ]);

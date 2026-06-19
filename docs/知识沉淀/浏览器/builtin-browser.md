@@ -23,6 +23,51 @@
 **解决方案**：始终创建在屏幕外 `(-10000,-10000)`，然后通过异步 `browser_set_bounds` 移动到正确位置。创建与定位分离避免竞态。
 **关键文件**：`crates/browser/src/lib.rs`、`BrowserPanel.tsx`
 
+### 5. Child WebView IPC 完全不可用
+**问题**：Tauri 2.x 通过 `window.add_child()` 创建的子 WebView 不注入 `__TAURI_INTERNALS__` 对象，所有 IPC 路径（`invoke`、`emit`、`postMessage`、`chrome.webview`）均静默失败。
+**解决方案**：使用 `tauri::Builder::on_page_load` 全局钩子 + `std::thread::spawn`（WebView2 回调上下文无 Tokio）+ `webview.eval()` 从 Rust 侧执行 JS。用 `window.location.hash` 和 `window.open('adl-title:...')` 两种通道将数据传回主进程：
+- `hash` → `on_navigation` 拦截（返回 `false` 阻止导航）
+- `window.open` → `on_new_window` 拦截（返回 `Deny`）
+**关键文件**：`src-tauri/src/main.rs`、`crates/browser/src/browser_events.rs`
+**测试结果**：YouTube ✅、Bilibili ✅、ChatGPT ✅（经多轮轮询可捕获 SPA 动态标题）
+
+### 6. SPA 页面标题轮询策略
+**问题**：ChatGPT 等 SPA 在 `PageLoadEvent::Finished` 时 `document.title` 可能尚未设置，单次 eval 无法捕获标题。
+**解决方案**：eval 脚本内部用 `setTimeout` 自轮询：首次尝试在 500ms 后（+500ms 初始延迟=1s），之后每 1.5s 重试，最多 10 次。每次尝试同时尝试 `window.open` 和 `location.hash` 两个通道。
+**关键文件**：`src-tauri/src/main.rs`（eval 脚本）
+
+### 7. `window.open` 通道需携带页面 URL
+**问题**：`window.open('adl-title:Title')` 触发的 `new_window_handler` 无法获取页面 URL，emit 时 `url: ""` 导致前端 `tabsUpdated: 0`。
+**解决方案**：eval 脚本将 `location.href` 编码为 query 参数 `?url=...`，Rust 端用 `url.query_pairs()` 提取。
+**格式**：`adl-title:<encoded_title>?url=<encoded_page_url>`
+**关键文件**：`src-tauri/src/main.rs`、`crates/browser/src/browser_events.rs`
+
+### 8. INIT_SCRIPT 注入所有框架导致 iframe 标题污染
+**问题**：`initialization_script` 通过 `WebviewBuilder::initialization_script` 注入到子 WebView 的每一帧（主页面和所有 iframe）。带有 iframe 的页面（如 bilibili）的每个 iframe 都调用 `window.open('adl-title:...')` 上报标题，导致标签栏展示 iframe 标题（如 "Leader Iframe"、"Cross Origin Local Storage"），并引发后续导航循环。
+**解决方案**：在 INIT_SCRIPT 的快速标题上报 IIFE 入口加 `if (window.top !== window.self) return;` 守卫，仅顶层框架上报标题。`webview.eval()`（eval 脚本）本身只在顶层上下文执行，无需守卫。
+**关键文件**：`crates/browser/src/browser_navigation.rs`
+
+### 9. 延迟创建标签导致的导航循环
+**问题**：`submitAddress` 推迟标签创建至标题到达。`navigateTauriUrl` 在无 tab 时直接导航 WebView，随后 `handlePageMeta` 收到标题后创建 tab → 触发 `useEffect`(activeTab 变更) → 再次调用 `browser_navigate` → WebView 重载 → `onUrlChanged` → 再入 `handlePageMeta` → 循环。带 iframe 的页面因多个 URL 快速到达而加剧，单值引用的跳过检查被反复覆盖失效。
+**解决方案**（三层机制，各司其职）：
+- **Map 防抖**：`recentNavigatedUrlsRef: Map<string, number>` 替代单值引用，记录最近 1 秒内所有到达的 URL。`navigateTauriUrl` 检查 URL 是否在窗口内，在则跳过导航。1 秒后过期自动清理，支持正常标签切换。
+- **预期 URL 过滤器**：`expectedNavigationUrlRef` 追踪用户导航目标。`navigation_handler` 仍会为子框架导航发出 `browser-url-changed` 事件，触发 HTTP 抓取路径。过滤器仅处理预期目标 URL 或同站重定向（`isProbablySameSite`），阻止 iframe meta 污染标签。
+- **统一导航入口**：移除 `useEffect` 内嵌的创建/导航逻辑，委托给 `navigateTauriUrl`，该函数统一处理 WebView 创建、导航、跳过判断。
+**关键文件**：`useBrowserWebView.ts`
+
+### 10. HTTP 抓取路径也会处理子框架 URL
+**问题**：即使 INIT_SCRIPT 守卫阻止了 `window.open` 通道，`navigation_handler`（Rust `on_navigation` 回调）仍会为所有导航（包括子框架）发出 `browser-url-changed`。前端 `onUrlChanged` 收到子框架 URL 后调用 `browser_fetch_page_meta`（HTTP 抓取），响应进入 `handlePageMeta` → 改写标签标题和 URL。
+**解决方案**：在 `onUrlChanged` 前端处理器中增加同站过滤：只有当 `actualUrl` 等于 `expectedNavigationUrlRef` 的预期 URL，或与预期 URL 同根域名（`isProbablySameSite`，处理 youtube.com → www.youtube.com 重定向）时才处理。3 秒超时后 `expectedNavigationUrlRef` 自动清除，后续页面内正常导航恢复处理。
+**关键文件**：`useBrowserWebView.ts`
+
+### 11. Favicon 预加载与标题同步
+**问题**：标签页创建时 favicon 图标（`<img>`）需异步从网络加载，比文本标题延迟显示 50-200ms，用户感知同步性差。
+**解决方案**：两级预加载——
+- `handleNavigationStart`：导航开始时立即 `new Image().src = googleFaviconUrl` 预加载 Google S2 favicon，给予 300ms 提前量
+- `handlePageMeta`：收到页面 meta 后对实际 favicon URL 同样 `new Image().src` 预加载，若仍是 Google S2 URL 则直接命中已加载的缓存
+浏览器共享 `new Image()` 与 `<img>` 的图片缓存，确保标签渲染时 favicon 已加载完成或即将完成。
+**关键文件**：`BrowserPanel.tsx`、`useBrowserWebView.ts`
+
 ## WebView 生命周期
 
 ### 5. Tauri WebView auto_resize 的陷阱

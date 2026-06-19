@@ -4,7 +4,7 @@ import { TooltipSimple } from '../../components/Tooltip';
 import type { BrowserTabState } from '../../stores/slices/browserSlice';
 import type { CopyDict } from '../../i18n';
 import { useAppStore } from '../../stores/slicedStore';
-import { getFaviconUrl } from '../../utils/favicon';
+import { getFaviconUrl, getGoogleFaviconUrl } from '../../utils/favicon';
 
 interface BrowserTabBarProps {
   tabs: BrowserTabState[];
@@ -111,7 +111,16 @@ export const BrowserTabBar = React.memo(function BrowserTabBar({
                           alt=""
                           className="adl-tool-list__favicon"
                           onError={(e) => {
-                            (e.target as HTMLImageElement).style.display = 'none';
+                            const img = e.target as HTMLImageElement;
+                            const src = img.src;
+                            if (!src.includes('google.com/s2/favicons')) {
+                              const fallback = getGoogleFaviconUrl(tab.url);
+                              if (fallback) {
+                                img.src = fallback;
+                                return;
+                              }
+                            }
+                            img.style.display = 'none';
                           }}
                         />
                       ) : (

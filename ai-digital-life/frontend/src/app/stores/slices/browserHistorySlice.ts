@@ -59,6 +59,7 @@ export const createBrowserHistorySlice = (
         return state;
       }
       const nextHistory = state.browserHistory.map((h) => (h.url === url ? { ...h, title } : h));
+      console.log('[browser-history] updateHistoryTitle:', { url, title });
       scheduleWrite(BROWSER_HISTORY_KEY, nextHistory);
       return { browserHistory: nextHistory };
     });

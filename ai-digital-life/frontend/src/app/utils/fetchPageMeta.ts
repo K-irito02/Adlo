@@ -58,7 +58,3 @@ export async function fetchPageMeta(
     return null;
   }
 }
-
-export function clearPageMetaCache(): void {
-  metaCache.clear();
-}

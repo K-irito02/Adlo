@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { createPortal } from 'react-dom';
 import { IconGlobe, IconPlus, IconTrash, IconMoreVertical } from '../../icons';
 import { TooltipSimple } from '../../components/Tooltip';
-import { getFaviconUrl } from '../../utils/favicon';
+import { getFaviconUrl, getGoogleFaviconUrl } from '../../utils/favicon';
 import type { CopyDict } from '../../i18n';
 import type { BrowserTreeNode, BrowserCategoryType } from './types';
 import type { SectionCallbacks } from './BrowserCategorySection';
@@ -373,8 +373,16 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
                           className="adl-browser-tree__favicon"
                           style={faviconUrl ? undefined : { display: 'none' }}
                           onError={(e) => {
-                            (e.target as HTMLImageElement).style.display = 'none';
-                            const parent = (e.target as HTMLImageElement).parentElement;
+                            const img = e.target as HTMLImageElement;
+                            if (!img.src.includes('google.com/s2/favicons')) {
+                              const fallback = getGoogleFaviconUrl(item.node.url);
+                              if (fallback) {
+                                img.src = fallback;
+                                return;
+                              }
+                            }
+                            img.style.display = 'none';
+                            const parent = img.parentElement;
                             if (parent) {
                               parent.classList.remove('adl-filetree__file-icon--favicon');
                               parent.classList.add('adl-filetree__file-icon--default');

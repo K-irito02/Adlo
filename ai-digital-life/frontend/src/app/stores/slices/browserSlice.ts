@@ -186,20 +186,44 @@ export const createBrowserSlice = (
         if (!activeTab || nextTabs.length === 0) {
           const maxSortOrder =
             nextTabs.length > 0 ? Math.max(...nextTabs.map((t) => t.sortOrder)) : 0;
+          const tabTitle =
+            title?.trim() ||
+            (() => {
+              try {
+                return new URL(url).hostname;
+              } catch {
+                return url;
+              }
+            })();
           const newTab: BrowserTabState = {
             id: createUiId('browser'),
             workspaceId: '',
-            title: title?.trim() || url,
+            title: tabTitle,
             url,
             isPinned: false,
             sortOrder: maxSortOrder + 1,
           };
+          console.log('[browser-navigate] new tab created:', {
+            url,
+            tabTitle,
+            source: title ? 'provided' : 'url-fallback',
+          });
           nextTabs = [...nextTabs, newTab];
           nextActiveTabId = newTab.id;
           activeTab = newTab;
           scheduleWrite(BROWSER_TABS_KEY, nextTabs);
           scheduleWrite(BROWSER_ACTIVE_TAB_KEY, nextActiveTabId);
         } else {
+          const existingTitle = state.browserTabs.find(
+            (t) => t.id === state.browserActiveTabId
+          )?.title;
+          const newTitle = title || existingTitle;
+          console.log('[browser-navigate] existing tab updated:', {
+            url,
+            existingTitle,
+            newTitle,
+            titleParam: title,
+          });
           nextTabs = nextTabs.map((tab) => {
             if (tab.id === state.browserActiveTabId) {
               return {
@@ -213,12 +237,27 @@ export const createBrowserSlice = (
           scheduleWrite(BROWSER_TABS_KEY, nextTabs);
         }
 
+        const historyTitle =
+          title ||
+          (() => {
+            try {
+              return new URL(url).hostname;
+            } catch {
+              return url;
+            }
+          })();
         const newHistoryItem: BrowserHistoryState = {
           id: createUiId('history'),
           url,
-          title: title || url,
+          title: historyTitle,
           visitedAt: Date.now(),
         };
+
+        console.log('[browser-navigate] history entry:', {
+          url,
+          historyTitle,
+          source: title ? 'provided' : 'url-fallback',
+        });
 
         const filteredHistory = state.browserHistory.filter((item) => item.url !== url);
         const nextHistory = [newHistoryItem, ...filteredHistory].slice(0, 100);

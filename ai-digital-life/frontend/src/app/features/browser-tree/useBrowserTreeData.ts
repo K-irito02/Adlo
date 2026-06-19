@@ -7,6 +7,35 @@ import type {
 } from '../../stores/slices/browserSlice';
 import type { BrowserCategoryState, BrowserCategoryType, BrowserTreeNode } from './types';
 
+function hostnameFromUrl(url: string): string {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return '';
+  }
+}
+
+function titleOrHostname(title: string | undefined, url: string): string {
+  if (title && !/^https?:\/\//.test(title)) {
+    const urlHostname = hostnameFromUrl(url);
+    if (title === urlHostname) {
+      return title.replace(/^www\./, '');
+    }
+    return title;
+  }
+  const hostname = hostnameFromUrl(url);
+  const result = hostname || title || url;
+  if (title && /^https?:\/\//.test(title)) {
+    console.log('[browser-tree-titleOrHostname] title is raw URL, using hostname:', {
+      originalTitle: title,
+      url,
+      hostname,
+      result,
+    });
+  }
+  return result;
+}
+
 export function countDirectFileChildren(node: BrowserTreeNode): number {
   let n = 0;
   for (const child of node.children) {
@@ -44,7 +73,7 @@ function buildTabNode(
 ): BrowserTreeNode {
   return {
     path: `tab:${workspaceId}:${tab.id}`,
-    name: tab.title || '无标题',
+    name: titleOrHostname(tab.title, tab.url) || '无标题',
     kind: 'file',
     children: [],
     nodeType: 'tab',
@@ -57,7 +86,7 @@ function buildTabNode(
 function buildHistoryLeafNode(entry: BrowserHistoryState, _uniqueKey: string): BrowserTreeNode {
   return {
     path: `history-entry:${entry.id}`,
-    name: entry.title || entry.url,
+    name: titleOrHostname(entry.title, entry.url) || entry.url,
     kind: 'file',
     children: [],
     nodeType: 'history',

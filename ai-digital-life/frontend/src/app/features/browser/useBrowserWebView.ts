@@ -14,6 +14,7 @@ interface UseBrowserWebViewOptions {
   browserNavigateActiveTab: (url: string, title?: string) => void;
   browserUpdateTab: (id: string, data: Partial<BrowserTabState>) => void;
   onPageMeta?: (meta: PageMeta) => void;
+  onNavigationStart?: (url: string) => void;
 }
 
 export function useBrowserWebView(options: UseBrowserWebViewOptions) {
@@ -26,6 +27,7 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
     browserNavigateActiveTab,
     browserUpdateTab,
     onPageMeta,
+    onNavigationStart,
   } = options;
 
   const [iframeLoadError, setIframeLoadError] = useState(false);
@@ -38,6 +40,9 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
 
   const webViewActiveRef = useRef(false);
   const creatingRef = useRef(false);
+  const recentNavigatedUrlsRef = useRef<Map<string, number>>(new Map());
+  const expectedNavigationUrlRef = useRef<string | null>(null);
+  const expectedNavigationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const webViewVisibleRef = useRef(true);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const primaryRef = useRef<HTMLDivElement | null>(null);
@@ -59,6 +64,110 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
   useEffect(() => {
     webViewVisibleRef.current = !webViewDisabled;
   }, [webViewDisabled]);
+
+  const markUrlSeen = useCallback((url: string) => {
+    recentNavigatedUrlsRef.current.set(url, Date.now());
+  }, []);
+
+  const isUrlRecentlySeen = useCallback((url: string): boolean => {
+    const ts = recentNavigatedUrlsRef.current.get(url);
+    if (ts === undefined) {
+      return false;
+    }
+    // Allow re-navigation after 1000ms stale window
+    if (Date.now() - ts > 1000) {
+      recentNavigatedUrlsRef.current.delete(url);
+      return false;
+    }
+    return true;
+  }, []);
+
+  const isProbablySameSite = useCallback((expected: string, actual: string): boolean => {
+    try {
+      const expectedHost = new URL(expected).hostname;
+      const actualHost = new URL(actual).hostname;
+      if (expectedHost === actualHost) {
+        return true;
+      }
+      const expectedParts = expectedHost.split('.');
+      const actualParts = actualHost.split('.');
+      if (expectedParts.length >= 2 && actualParts.length >= 2) {
+        const expectedRoot = expectedParts.slice(-2).join('.');
+        const actualRoot = actualParts.slice(-2).join('.');
+        if (expectedRoot === actualRoot) {
+          return true;
+        }
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const setExpectedUrl = useCallback((url: string) => {
+    expectedNavigationUrlRef.current = url;
+    if (expectedNavigationTimerRef.current) {
+      clearTimeout(expectedNavigationTimerRef.current);
+    }
+    expectedNavigationTimerRef.current = setTimeout(() => {
+      if (expectedNavigationUrlRef.current === url) {
+        expectedNavigationUrlRef.current = null;
+      }
+    }, 3000);
+  }, []);
+
+  const navigateTauriUrl = useCallback(
+    (url: string) => {
+      if (!isTauriShell()) {
+        return;
+      }
+      if (url === 'about:blank' || url.trim() === '') {
+        return;
+      }
+      if (webViewActiveRef.current && isUrlRecentlySeen(url)) {
+        return;
+      }
+      setExpectedUrl(url);
+      if (webViewActiveRef.current) {
+        invoke('browser_navigate', { url }).catch(() => {});
+      } else {
+        if (creatingRef.current) {
+          return;
+        }
+        creatingRef.current = true;
+        const timeout = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('browser_create 超时(10s)')), 10000)
+        );
+        Promise.race([invoke('browser_create', { url }), timeout])
+          .then(() => {
+            webViewActiveRef.current = true;
+            creatingRef.current = false;
+            setWebViewActive(true);
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => {
+                updateWebViewBoundsRef.current();
+              });
+            });
+          })
+          .catch(() => {
+            creatingRef.current = false;
+          });
+      }
+    },
+    [isUrlRecentlySeen, setExpectedUrl]
+  );
+
+  const forceReloadTauri = useCallback((url: string) => {
+    if (!isTauriShell()) {
+      return;
+    }
+    if (url === 'about:blank' || url.trim() === '') {
+      return;
+    }
+    if (webViewActiveRef.current) {
+      invoke('browser_navigate', { url }).catch(() => {});
+    }
+  }, []);
 
   const navigateBrowser = useCallback((url: string) => {
     if (isTauriShell()) {
@@ -291,48 +400,15 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
   }, [isVisible, updateWebViewBounds, webViewActive]);
 
   useEffect(() => {
-    if (!isTauriShell()) {
+    if (!isTauriShell() || webViewDisabled) {
       return;
     }
-
-    if (webViewDisabled) {
+    const url = activeTab?.url;
+    if (!url || url === 'about:blank' || url.trim() === '') {
       return;
     }
-
-    const url = activeTab?.url ?? 'about:blank';
-    if (url === 'about:blank' || url.trim() === '') {
-      return;
-    }
-
-    if (webViewActiveRef.current) {
-      invoke('browser_navigate', { url }).catch(() => {});
-      return;
-    }
-
-    if (creatingRef.current) {
-      return;
-    }
-    creatingRef.current = true;
-
-    const timeout = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('browser_create 超时(10s)')), 10000)
-    );
-
-    Promise.race([invoke('browser_create', { url }), timeout])
-      .then(() => {
-        webViewActiveRef.current = true;
-        creatingRef.current = false;
-        setWebViewActive(true);
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            updateWebViewBounds();
-          });
-        });
-      })
-      .catch(() => {
-        creatingRef.current = false;
-      });
-  }, [activeTab?.id, activeTab?.url, updateWebViewBounds, webViewDisabled]);
+    navigateTauriUrl(url);
+  }, [activeTab?.id, activeTab?.url, webViewDisabled, navigateTauriUrl]);
 
   useEffect(() => {
     return () => {
@@ -373,24 +449,53 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
     }
 
     const unsubUrl = browser.onUrlChanged((url) => {
+      markUrlSeen(url);
+
+      // Filter out iframe/subframe navigations: only process when
+      // no expected URL is set, or the URL matches/shares same site with expected
+      const expected = expectedNavigationUrlRef.current;
+      if (expected && expected !== url) {
+        if (isProbablySameSite(expected, url)) {
+          // Same-site redirect — update expected and continue processing
+          expectedNavigationUrlRef.current = url;
+        } else {
+          // Different site (iframe/internal) — skip processing
+          return;
+        }
+      }
+
       setAddress(url);
-      browserNavigateActiveTab(url);
+      onNavigationStart?.(url);
+      console.log('[browser] onUrlChanged:', url);
       invoke('browser_fetch_page_meta', { url })
         .then((result: unknown) => {
           const r = result as
             | { ok: boolean; data: { title: string; favicon: string; url: string } }
             | undefined;
+          console.log('[browser] browser_fetch_page_meta response:', JSON.stringify(r));
           if (r?.ok && r.data && (r.data.title || r.data.favicon)) {
+            console.log('[browser] calling onPageMeta with:', JSON.stringify(r.data));
             onPageMeta?.(r.data);
+          } else {
+            console.log('[browser] onPageMeta skipped - no title or favicon in response');
           }
         })
-        .catch(console.error);
+        .catch((err) => {
+          console.error('[browser] browser_fetch_page_meta invoke failed:', err);
+        });
     });
 
     return () => {
       unsubUrl();
     };
-  }, [browserNavigateActiveTab, setAddress, onPageMeta]);
+  }, [
+    browserNavigateActiveTab,
+    isProbablySameSite,
+    markUrlSeen,
+    setAddress,
+    onPageMeta,
+    onNavigationStart,
+  ]);
 
   return {
     iframeLoadError,
@@ -405,6 +510,8 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
     webViewActiveRef,
     creatingRef,
     resizeObserverRef,
+    navigateTauriUrl,
+    forceReloadTauri,
     navigateBrowser,
     updateWebViewBounds,
     handleIframeLoad,

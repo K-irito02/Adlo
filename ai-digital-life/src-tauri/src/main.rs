@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use tauri::webview::PageLoadEvent;
 use tauri::Manager;
 
 mod commands;
@@ -18,6 +19,46 @@ fn main() {
             let app_state = setup::init_app_state(data_dir)?;
             app.manage(app_state);
             Ok(())
+        })
+        .on_page_load(|webview, payload| {
+            if webview.label() != "adl-browser-view" {
+                return;
+            }
+            if !matches!(payload.event(), PageLoadEvent::Finished) {
+                return;
+            }
+            // Ignore hash-only navigations (set by our eval'd script)
+            if payload.url().fragment().is_some_and(|f| f.starts_with("adl-title=")) {
+                return;
+            }
+            tracing::info!(url = %payload.url(), "browser page finished loading");
+            let app = webview.app_handle().clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_millis(200));
+                if let Some(wv) = app.get_webview("adl-browser-view") {
+                    tracing::info!("browser on_page_load: calling eval");
+                    match wv.eval(
+                        r#"(function(){
+                            var attempts = 0;
+                            function tryReport() {
+                                var t = document.title;
+                                if (t && t.trim()) {
+                                    try { window.open('adl-title:' + encodeURIComponent(t.trim()) + '?url=' + encodeURIComponent(location.href), '_blank'); } catch(e) {}
+                                    return;
+                                }
+                                attempts++;
+                                if (attempts < 10) { setTimeout(tryReport, 1000); }
+                            }
+                            setTimeout(tryReport, 200);
+                        })()"#
+                    ) {
+                        Ok(()) => tracing::info!("browser on_page_load: eval ok"),
+                        Err(e) => tracing::error!("browser on_page_load: eval failed: {e}"),
+                    }
+                } else {
+                    tracing::warn!("browser on_page_load: webview not found");
+                }
+            });
         })
         .invoke_handler(tauri::generate_handler![
             commands::app::app_get_info,
@@ -108,7 +149,6 @@ fn main() {
             commands::browser::browser_set_bounds,
             commands::browser::browser_eval,
             commands::browser::browser_fetch_page_meta,
-            commands::browser::browser_report_page_meta,
             commands::ci::ci_get_status,
             commands::ci::ci_get_status_without_token,
             commands::ci::ci_set_access_token,

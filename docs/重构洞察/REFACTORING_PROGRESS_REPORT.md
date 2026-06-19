@@ -1,6 +1,6 @@
 # 重构进度报告
 
-> 更新日期: 2026-06-19（第七十二轮）
+> 更新日期: 2026-06-20（第七十三轮）
 
 ## 完成状态
 
@@ -198,3 +198,37 @@
 - CSS barrel 模式推广：components.css 成为纯 @import barrel，新增组件只需创建一个 CSS 文件并加入 barrel，无需修改 barrel 文件
 - 通用 slice 拆分模式：类型提取 + helpers 提取 + slice 编排的三层架构，可推广到其他 slice
 - StatusBar 组件拆分模式：GitInfo/EditorInfo 可独立测试和复用
+
+## Round 73 – 2026-06-20
+
+### Target
+浏览器标题/图标同步 + 导航循环根治 + iframe 标题污染清零
+
+### 变更清单
+
+**Rust INIT_SCRIPT 守卫（根因修复）**
+- `crates/browser/src/browser_navigation.rs`：快速标题上报 IIFE 加 `window.top !== window.self` 守卫，仅顶层框架上报标题，iframe 跳过
+
+**前端导航循环三层防护**
+- `useBrowserWebView.ts`：
+  - 单值 `currentWebViewUrlRef` → `recentNavigatedUrlsRef: Map<string, number>`（1s 窗口），防并发 iframe URL 覆盖导致跳过检查失效
+  - 新增 `expectedNavigationUrlRef` + `isProbablySameSite` 同站过滤器，防 HTTP 抓取路径的 iframe meta 污染
+  - 新增 `setExpectedUrl`（3s 超时自动清除），统一导航预期目标跟踪
+  - 移除 `useEffect` 内嵌创建/导航逻辑，统一委托给 `navigateTauriUrl`
+  - 新增 `forceReloadTauri` 绕过防抖直接导航（硬刷新）
+
+**Favicon 预加载同步**
+- `BrowserPanel.tsx`：`handleNavigationStart` 预加载 Google S2 favicon（300ms 提前量）；`handlePageMeta` 预加载实际 favicon
+
+**死代码清理**
+- `browser.rs`：删除 `browser_report_page_meta` 命令 + `ReportMetaPayload` 结构体 + 未使用的 imports
+- `fetchPageMeta.ts`：删除 `clearPageMetaCache()`（零调用者）
+- `main.rs` eval 脚本：移除 `location.hash` 通道
+- `capabilities/digital-life.toml`：移除 `browser_report_page_meta` 权限
+
+**红绿测试验证**
+- ESLint: 0 problems
+- Prettier: All matched files use Prettier code style
+- Cargo clippy: 0 warnings
+- Rustfmt: clean
+
