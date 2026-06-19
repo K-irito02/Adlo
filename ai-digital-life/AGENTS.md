@@ -13,10 +13,10 @@
 | 包管理 | pnpm（前端）/ Cargo（Rust） |
 | Rust 质量 | `cargo clippy` + `cargo fmt` + `rustfmt.toml` + `clippy.toml` |
 | 前端质量 | ESLint v9（flat config）+ Prettier + TypeScript-ESLint + React Hooks plugin |
-| Rust Lint 执行命令 | `cargo clippy --workspace --all-targets` | |
-| 前端全量检查执行命令 | `cd frontend && npx eslint . && npx tsc --noEmit` | |
-| CI/CD | GitHub Actions | `.github/workflows/quality-gates.yml` |
-| 凭据存储 | `crates/credential/`（keyring + 加密文件降级） | `ai-digital-life/Cargo.toml` |
+| Rust Lint | `cargo clippy --workspace --all-targets` |
+| 前端 Lint | `cd frontend && npx eslint . && npx tsc --noEmit` |
+| CI/CD | GitHub Actions（`.github/workflows/quality-gates.yml`） |
+| 凭据存储 | `crates/credential/`（keyring + 加密文件降级） |
 
 ## 当前阶段
 
@@ -29,7 +29,7 @@
 - xterm.js 交互式终端（多会话 PTY，支持 CMD / PowerShell / Bash）
 - CodeMirror 编辑器系统 + 文件预览 + 差异查看器（inline/side-by-side）
 - 内置浏览器（Tauri WebView / iframe 双模式 + 新建标签对话框 + 收藏标签目录选择对话框 + 工作区顶级目录书签 + 树/列表/全列表三视图模式 + SafeIframe 嵌入检查 + checkEmbed LRU 缓存 + Guard Effect 双路径验证）
-- Zustand 切片模式（19 切片 + 11 action 模块）+ 模块化分层（features/ + regions/）
+- Zustand 切片模式（23 切片 + 11 action 模块）+ 模块化分层（features/ + regions/）
 - CSS 设计 Token 亮暗主题 + 自定义 Tooltip + 自定义滚动条
 - i18n 国际化（13 领域 / 932 keys，TCopyContext + useTCopy 上下文驱动，TypeScript satisfies 类型安全）
 
@@ -78,20 +78,22 @@ app/stores/
 ├── storageHelpers.ts            # localStorage 读写工具
 ├── cacheHelpers.ts              # 缓存系统（TTL/LRU）、请求序列
 ├── selectors.ts                 # 性能选择器（useShallow）
-├── slices/                      # 18 个独立切片（含 5 浏览器子切片 + GitHub 切片）
+├── slices/                      # 23 个独立切片（含 5 浏览器 + 3 GitHub 子切片）
 │   ├── uiSlice.ts / workspaceSlice.ts / gitSlice.ts
 │   ├── sessionSlice.ts / editorSlice.ts / patchSlice.ts
 │   ├── searchSlice.ts / diagnosticSlice.ts / taskSlice.ts
 │   ├── commandSlice.ts / clipboardSlice.ts / terminalSlice.ts
+│   ├── ciSlice.ts                   # CI 状态（轮询、快照、Section 切换）
+│   ├── communicateSlice.ts          # 通信面板共享状态
+│   ├── githubSlice.ts               # GitHub 面板核心
+│   ├── githubRepoSlice.ts           # GitHub 仓库配置（Token、CRUD、Pin/Unpin）
+│   ├── githubTreeSlice.ts           # GitHub 树形目录
 │   ├── browserSlice.ts              # 浏览器核心（导航布局、持久化、跨领域）
 │   ├── browserTabsSlice.ts          # 浏览器标签页
 │   ├── browserBookmarkSlice.ts      # 浏览器书签
 │   ├── browserHistorySlice.ts       # 浏览器历史记录
 │   ├── browserFoldersSlice.ts       # 浏览器标签文件夹
-│   ├── browserLandingSlice.ts       # 浏览器着陆页（快捷站点、端口、背景）
-│   ├── communicateSlice.ts          # 通信面板共享状态
-│   ├── githubCiConfigSlice.ts       # GitHub CI 配置（Token、文件夹 CRUD、Pin/Unpin）
-│   └── githubCiStatusSlice.ts       # GitHub CI 状态（轮询、快照、Section 切换）
+│   └── browserLandingSlice.ts       # 浏览器着陆页（快捷站点、端口、背景）
 └── actions/                     # 11 个跨切片 action 模块
     ├── workspaceActions.ts（557 行） / sessionActions.ts / editorActions.ts
     ├── patchActions.ts / gitActions.ts / fetchActions.ts

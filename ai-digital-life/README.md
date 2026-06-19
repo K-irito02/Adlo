@@ -34,8 +34,8 @@ ai-digital-life/
 | [AGENTS.md](./AGENTS.md) | 实现工作区治理：技术栈、功能清单、Store 架构、安全边界 |
 | [CONTRIBUTING.md](./CONTRIBUTING.md) | 提交规范、双端一致性要求、Tauri Command 新增清单 |
 | [仓库根 AGENTS.md](../AGENTS.md) | 项目治理规则、双根结构、禁止项、真源定位 |
-| [docs/architecture/](./docs/architecture/) | 系统架构、技术栈对齐、国际化、主题 |
-| [docs/design-system/](./docs/design-system/) | 设计 Token、主题、组件、可访问性 |
+| [docs/architecture/](../docs/architecture/) | 系统架构、技术栈对齐、国际化、主题 |
+| [docs/design-system/](../docs/design-system/) | 设计 Token、主题、组件、可访问性 |
 
 ## 浏览器测试
 
