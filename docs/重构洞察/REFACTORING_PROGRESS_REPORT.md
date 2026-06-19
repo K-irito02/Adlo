@@ -77,6 +77,8 @@
 | **第六十九轮** | **2026-06-17** | **错误 UI 优化 + 调试清理：移除常驻 proxy note；将错误消息与外部按钮合并为单个容器；重写 browserCannotOpenEmbedded 中英文文案；移除所有 [ADL-DEBUG] console.log（3 个文件）；删除 usePageReloadDetector 钩子 + DBG_KEY；清除未使用的 browserProxyNote i18n key** | ✅ |
 | **第七十轮** | **2026-06-17** | **重构洞察第12次全量执行（9项发现）：Phase 1 BrowserPanel 导航器提取为 BrowserNavigator.tsx（977→~670行）+ TitleBar 菜单项提取到 titleBarMenus.ts（490→~410行）；Phase 2 CSS 架构规范化——3个超1000行CSS文件拆分（communication-panel 1738行→4文件、files-panel 1724行→3文件、file-tree 1234行→2文件）；Phase 3 性能优化——TitleBar setInterval(500ms)轮询替换为Tauri onResized事件监听、BrowserPanel 5个useShallow合并为1个；Phase 4 类型提取——terminalSliceTypes.ts 常量和类型提取、selectors.ts 按域拆分为9个独立文件** | ✅ |
 | **第七十一轮** | **2026-06-17** | **Cross-origin iframe SecurityError 终极修复（Shadow DOM attachShadow closed 方案，6次迭代后成功）+ 四维门禁全量清零（ESLint 21 warnings→0、Prettier 27文件格式化、rustfmt/clippy 通过）+ browserSelectors.ts 空桩→完整24个选择器实现** | ✅ |
+| **第七十二轮** | **2026-06-19** | **重构洞察第13次执行（13项发现）：Gutter hover overlay 提取为 FoldTooltipOverlay.tsx（~230 行）+ 8 个大型 CSS 文件拆分（全量 1000 行以下）+ 剩余空状态提取为独立组件（3 个）+ useFoldTooltipState 提取 checkEmbed.ts（~80 行）** | ✅ |
+| **第七十三轮** | **2026-06-20** | **重构洞察第14次执行（9项发现）：7 个大型文件拆分——browserpanel.tsx 提取 useBrowserPageMeta + useBrowserMetaSubscription（1033→939行）、GitHubTreeEntry.tsx 提取菜单函数（828→322行）、useChangesPanelState.tsx 提取 21 个纯函数（624→295行）、useFoldTooltipState.ts 提取 useFoldTooltipPosition（584→286行）、workspaceActions.ts 提取 browserCleanupActions（547→448行）、useBrowserWebView.ts 提取 useBrowserUrlChange（471→356行）；代码质量清理——浏览器模块 24 处 console.log 全量清理、3 处 window as any 消除** | ✅ |
 
 ## 说明
 

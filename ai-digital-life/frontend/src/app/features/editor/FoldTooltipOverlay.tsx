@@ -5,76 +5,18 @@ import { useTCopy } from '@app/i18n/useTCopy';
 import { formatT } from '@app/i18n/formatT';
 import type { ContextMenuItem } from '@components/ContextMenu';
 import { useFoldTooltipState } from './useFoldTooltipState';
-import { useFoldTooltipPosition } from './useFoldTooltipPosition';
+import {
+  useFoldTooltipPosition,
+  getLineNumberFromEvent,
+  isLineFolded,
+  isLineFoldable,
+  getFoldStartRange,
+} from './useFoldTooltipPosition';
 import { FoldTooltipContent } from './FoldTooltipContent';
 import { FoldContextMenu } from './FoldContextMenu';
 
 interface FoldTooltipOverlayProps {
   view: EditorView | null;
-}
-
-/* ── Helpers ──────────────────────────────────── */
-
-function getLineNumberFromEvent(view: EditorView, event: MouseEvent): number | null {
-  const target = event.target as HTMLElement;
-  const gutterEl = target.closest('.cm-gutterElement') as HTMLElement | null;
-  if (gutterEl) {
-    const rect = gutterEl.getBoundingClientRect();
-    const pos = view.posAtCoords({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
-    if (pos !== null) {
-      return view.state.doc.lineAt(pos).number;
-    }
-  }
-  const guttersEl = target.closest('.cm-gutters') as HTMLElement | null;
-  if (guttersEl) {
-    const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
-    if (pos !== null) {
-      return view.state.doc.lineAt(pos).number;
-    }
-  }
-  return null;
-}
-
-function isLineFolded(view: EditorView, lineNum: number): boolean {
-  let result = false;
-  foldedRanges(view.state).between(0, view.state.doc.length, (_from, _to) => {
-    const startLine = view.state.doc.lineAt(_from).number;
-    const endLine = view.state.doc.lineAt(_to).number;
-    if (lineNum >= startLine && lineNum <= endLine) {
-      result = true;
-    }
-  });
-  return result;
-}
-
-function isLineFoldable(view: EditorView, lineNum: number): boolean {
-  const doc = view.state.doc;
-  if (lineNum > doc.lines) {
-    return false;
-  }
-  const line = doc.line(lineNum);
-  if (foldable(view.state, line.from, line.to)) {
-    return true;
-  }
-  let found = false;
-  foldedRanges(view.state).between(0, doc.length, (_from, _to) => {
-    const startLine = doc.lineAt(_from).number;
-    if (lineNum === startLine) {
-      found = true;
-    }
-  });
-  return found;
-}
-
-function getFoldStartRange(view: EditorView, lineNum: number): { from: number; to: number } | null {
-  let result: { from: number; to: number } | null = null;
-  foldedRanges(view.state).between(0, view.state.doc.length, (_from, _to) => {
-    const startLine = view.state.doc.lineAt(_from).number;
-    if (lineNum === startLine) {
-      result = { from: _from, to: _to };
-    }
-  });
-  return result;
 }
 
 /* ── Component ────────────────────────────────── */

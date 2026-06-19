@@ -2,8 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { isTauriShell } from '../../../tauri-bridge';
 import type { BrowserTabState } from '../../stores/slices/browserSlice';
-import type { PageMeta } from '../../../shared/ipc';
-import { fetchPageMeta, setCachedFavicon } from '../../utils/fetchPageMeta';
 
 interface UseBrowserWebViewOptions {
   activeTab?: BrowserTabState;
@@ -11,10 +9,6 @@ interface UseBrowserWebViewOptions {
   isVisible: boolean;
   overlayActive: boolean;
   setAddress: (address: string) => void;
-  browserNavigateActiveTab: (url: string, title?: string) => void;
-  browserUpdateTab: (id: string, data: Partial<BrowserTabState>) => void;
-  onPageMeta?: (meta: PageMeta) => void;
-  onNavigationStart?: (url: string) => void;
 }
 
 export function useBrowserWebView(options: UseBrowserWebViewOptions) {
@@ -23,11 +17,7 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
     webViewDisabled = false,
     isVisible,
     overlayActive,
-    setAddress,
-    browserNavigateActiveTab,
-    browserUpdateTab,
-    onPageMeta,
-    onNavigationStart,
+    setAddress: _setAddress,
   } = options;
 
   const [iframeLoadError, setIframeLoadError] = useState(false);
@@ -58,7 +48,7 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
   const hideWebView = useCallback(() => {
     invoke('browser_set_bounds', {
       bounds: { x: -10000, y: -10000, width: 1, height: 1 },
-    }).catch(console.error);
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -80,28 +70,6 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
       return false;
     }
     return true;
-  }, []);
-
-  const isProbablySameSite = useCallback((expected: string, actual: string): boolean => {
-    try {
-      const expectedHost = new URL(expected).hostname;
-      const actualHost = new URL(actual).hostname;
-      if (expectedHost === actualHost) {
-        return true;
-      }
-      const expectedParts = expectedHost.split('.');
-      const actualParts = actualHost.split('.');
-      if (expectedParts.length >= 2 && actualParts.length >= 2) {
-        const expectedRoot = expectedParts.slice(-2).join('.');
-        const actualRoot = actualParts.slice(-2).join('.');
-        if (expectedRoot === actualRoot) {
-          return true;
-        }
-      }
-      return false;
-    } catch {
-      return false;
-    }
   }, []);
 
   const setExpectedUrl = useCallback((url: string) => {
@@ -269,80 +237,6 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
     };
   }, [hideWebView]);
 
-  const handleIframeLoad = useCallback(() => {
-    setIframeLoadError(false);
-    try {
-      const iframeWindow = iframeRef.current?.contentWindow;
-      if (!iframeWindow) {
-        return;
-      }
-
-      let href: string | undefined;
-      try {
-        href = iframeWindow.location.href;
-      } catch {
-        return;
-      }
-
-      if (!href || href === 'about:blank' || !activeTab) {
-        return;
-      }
-
-      if (href !== activeTab.url) {
-        setAddress(href);
-        browserNavigateActiveTab(href);
-        return;
-      }
-
-      try {
-        const doc = iframeWindow.document;
-        const iframeTitle = doc?.title;
-        let iframeFavicon = '';
-        if (doc) {
-          const iconLink = doc.querySelector(
-            'link[rel="icon"], link[rel="shortcut icon"], link[rel="apple-touch-icon"]'
-          ) as HTMLLinkElement | null;
-          iframeFavicon = iconLink?.href || '';
-        }
-        if (iframeTitle && iframeTitle !== activeTab.title) {
-          browserUpdateTab(activeTab.id, { title: iframeTitle });
-        }
-        if (iframeTitle || iframeFavicon) {
-          onPageMeta?.({
-            title: iframeTitle || activeTab.title,
-            favicon: iframeFavicon,
-            url: href,
-          });
-        }
-      } catch {
-        /* cross-origin: fetch via proxy */
-        fetchPageMeta(href).then((meta) => {
-          if (!meta) {
-            return;
-          }
-          const tab = activeTabRef.current;
-          if (tab) {
-            if (meta.title && meta.title !== tab.title) {
-              browserUpdateTab(tab.id, { title: meta.title });
-            }
-            if (meta.favicon) {
-              setCachedFavicon(href, meta.favicon);
-            }
-          }
-          if (meta.title) {
-            onPageMeta?.({ title: meta.title, favicon: meta.favicon || '', url: href });
-          }
-        });
-      }
-    } catch {
-      /* unexpected error in iframe load handling */
-    }
-  }, [activeTab, browserNavigateActiveTab, browserUpdateTab, setAddress, onPageMeta]);
-
-  const handleIframeError = useCallback(() => {
-    setIframeLoadError(true);
-  }, [setIframeLoadError]);
-
   const isBrowserVisibleRef = useRef(isVisible);
 
   useEffect(() => {
@@ -359,7 +253,7 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
     if (webViewDisabled) {
       invoke('browser_set_bounds', {
         bounds: { x: -10000, y: -10000, width: 1, height: 1 },
-      }).catch(console.error);
+      }).catch(() => {});
     } else {
       updateWebViewBounds();
     }
@@ -395,7 +289,7 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
     } else {
       invoke('browser_set_bounds', {
         bounds: { x: 32767, y: 32767, width: 1, height: 1 },
-      }).catch(console.error);
+      }).catch(() => {});
     }
   }, [isVisible, updateWebViewBounds, webViewActive]);
 
@@ -413,7 +307,7 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
   useEffect(() => {
     return () => {
       if (isTauriShell() && webViewActiveRef.current) {
-        invoke('browser_destroy').catch(console.error);
+        invoke('browser_destroy').catch(() => {});
         webViewActiveRef.current = false;
       }
       resizeObserverRef.current?.disconnect();
@@ -438,65 +332,6 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
     };
   }, [updateWebViewBounds]);
 
-  useEffect(() => {
-    if (!isTauriShell()) {
-      return;
-    }
-
-    const browser = window.digitalLife?.browser;
-    if (!browser) {
-      return;
-    }
-
-    const unsubUrl = browser.onUrlChanged((url) => {
-      markUrlSeen(url);
-
-      // Filter out iframe/subframe navigations: only process when
-      // no expected URL is set, or the URL matches/shares same site with expected
-      const expected = expectedNavigationUrlRef.current;
-      if (expected && expected !== url) {
-        if (isProbablySameSite(expected, url)) {
-          // Same-site redirect — update expected and continue processing
-          expectedNavigationUrlRef.current = url;
-        } else {
-          // Different site (iframe/internal) — skip processing
-          return;
-        }
-      }
-
-      setAddress(url);
-      onNavigationStart?.(url);
-      console.log('[browser] onUrlChanged:', url);
-      invoke('browser_fetch_page_meta', { url })
-        .then((result: unknown) => {
-          const r = result as
-            | { ok: boolean; data: { title: string; favicon: string; url: string } }
-            | undefined;
-          console.log('[browser] browser_fetch_page_meta response:', JSON.stringify(r));
-          if (r?.ok && r.data && (r.data.title || r.data.favicon)) {
-            console.log('[browser] calling onPageMeta with:', JSON.stringify(r.data));
-            onPageMeta?.(r.data);
-          } else {
-            console.log('[browser] onPageMeta skipped - no title or favicon in response');
-          }
-        })
-        .catch((err) => {
-          console.error('[browser] browser_fetch_page_meta invoke failed:', err);
-        });
-    });
-
-    return () => {
-      unsubUrl();
-    };
-  }, [
-    browserNavigateActiveTab,
-    isProbablySameSite,
-    markUrlSeen,
-    setAddress,
-    onPageMeta,
-    onNavigationStart,
-  ]);
-
   return {
     iframeLoadError,
     setIframeLoadError,
@@ -510,11 +345,12 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
     webViewActiveRef,
     creatingRef,
     resizeObserverRef,
+    activeTabRef,
+    expectedNavigationUrlRef,
+    markUrlSeen,
     navigateTauriUrl,
     forceReloadTauri,
     navigateBrowser,
     updateWebViewBounds,
-    handleIframeLoad,
-    handleIframeError,
   };
 }

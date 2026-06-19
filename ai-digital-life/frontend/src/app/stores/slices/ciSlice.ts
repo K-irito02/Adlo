@@ -26,15 +26,14 @@ function getBridge(): DigitalLifeBridge | null {
   if (typeof window === 'undefined') {
     return null;
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const w = window as any;
-  return (w.digitalLife as DigitalLifeBridge | undefined) ?? null;
+  return window.digitalLife ?? null;
 }
 
 function isTauriMode(): boolean {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const w = window as any;
-  return typeof w !== 'undefined' && !!w.__TAURI_INTERNALS__;
+  return (
+    typeof window !== 'undefined' &&
+    !!(window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__
+  );
 }
 
 let _defaultsHydrated = false;

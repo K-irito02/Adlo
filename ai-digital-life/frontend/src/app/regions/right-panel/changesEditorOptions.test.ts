@@ -63,6 +63,13 @@ describe('changes preview editor options', () => {
 
   it('expands unchanged diff sections before outline navigation', () => {
     expect(diffEditorSectionSource).toContain('collapseUnchanged={true}');
-    expect(changesPanelStateSource).toContain('editor.revealLineInCenter');
+    const changesPanelStateUtilsSource = readFileSync(
+      new URL(
+        '../../../../src/app/regions/right-panel/panels/ChangesPanel/useChangesPanelStateUtils.ts',
+        import.meta.url
+      ),
+      'utf8'
+    );
+    expect(changesPanelStateUtilsSource).toContain('editor.revealLineInCenter');
   });
 });

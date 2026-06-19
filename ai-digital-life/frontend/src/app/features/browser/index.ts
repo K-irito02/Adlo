@@ -7,6 +7,7 @@ export { useBrowserContextMenu } from './useBrowserContextMenu';
 export { useBrowserDragDrop } from './useBrowserDragDrop';
 export { useBrowserTabs, computeNavigatorCount } from './useBrowserTabs';
 export { useBrowserWebView } from './useBrowserWebView';
+export { useBrowserUrlChange } from './useBrowserUrlChange';
 export { useBrowserSearch } from './useBrowserSearch';
 export { useBrowserTreeActions } from './useBrowserTreeActions';
 export { BrowserLandingPage } from './browser-landing';

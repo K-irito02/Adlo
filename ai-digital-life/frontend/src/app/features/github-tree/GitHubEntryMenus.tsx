@@ -1,8 +1,18 @@
 import type { CopyDict } from '../../i18n';
-import type { GitHubCategoryType } from './types';
+import type { GitHubCategoryType, GitHubTreeNode } from './types';
 import type { ChildMenuItem } from '../tree/treeEntryMenus';
 
 export type { ChildMenuItem } from '../tree/treeEntryMenus';
+
+export interface MainMenuItem {
+  id: string;
+  label?: string;
+  danger?: boolean;
+  action?: () => void;
+  hasHint?: boolean;
+  hint?: string;
+  separator?: boolean;
+}
 
 export const SUB_ENTRY_ICONS: Record<string, React.ReactNode> = {
   overview: (
@@ -140,5 +150,245 @@ export function getChildNodeMoreMenuItems(
       action: onDeleteConfigAndDataRecursive,
     });
   }
+  return items;
+}
+
+export function getMainEntryMenuItems(params: {
+  node: GitHubTreeNode;
+  categoryType: GitHubCategoryType;
+  isPinned: boolean;
+  isWorkspaceRoot: boolean;
+  isUserFolderRoot: boolean;
+  isNestedFolder: boolean;
+  folderId: string;
+  workspaceId: string | undefined;
+  t: CopyDict;
+  onRefreshWorkspace: (wsId: string) => void;
+  onOpenSettings: (wsId: string) => void;
+  onOpenFolderSettings: (folderId: string) => void;
+  onDeleteWorkspaceConfig: (wsId: string) => void;
+  handleStartRename: (folderId: string, folderName: string) => void;
+  clearCiState: () => void;
+  gitHubUnpinFolder: (folderId: string) => void;
+  gitHubPinFolder: (folderId: string) => void;
+  gitHubUnpinWorkspace: (workspaceId: string) => void;
+  gitHubPinWorkspace: (workspaceId: string) => void;
+  gitHubDeleteFolder: (folderId: string) => void;
+  gitHubDeleteFolderConfig: (folderId: string) => void;
+  gitHubDeleteFolderConfigRecursive: (folderId: string) => void;
+  gitHubDeleteFolderDataRecursive: (folderId: string) => void;
+  gitHubDeleteFolderConfigAndDataRecursive: (folderId: string) => void;
+  hideWorkspaceFromRightPanels: (workspaceId: string) => void;
+}): Array<MainMenuItem> {
+  const {
+    node,
+    categoryType,
+    isPinned,
+    isWorkspaceRoot,
+    isUserFolderRoot,
+    isNestedFolder,
+    folderId,
+    workspaceId,
+    t,
+    onRefreshWorkspace,
+    onOpenSettings,
+    onOpenFolderSettings,
+    onDeleteWorkspaceConfig,
+    handleStartRename,
+    clearCiState,
+    gitHubUnpinFolder,
+    gitHubPinFolder,
+    gitHubUnpinWorkspace,
+    gitHubPinWorkspace,
+    gitHubDeleteFolder,
+    gitHubDeleteFolderConfig,
+    gitHubDeleteFolderConfigRecursive,
+    gitHubDeleteFolderDataRecursive,
+    gitHubDeleteFolderConfigAndDataRecursive,
+    hideWorkspaceFromRightPanels,
+  } = params;
+
+  const items: Array<MainMenuItem> = [];
+
+  if (node.workspaceId || isWorkspaceRoot) {
+    const wsId = node.workspaceId || workspaceId;
+    items.push({
+      id: 'refresh',
+      label: t.refresh,
+      action: () => (wsId ? onRefreshWorkspace(wsId) : clearCiState()),
+    });
+  } else if (node.nodeType === 'folder') {
+    items.push({
+      id: 'refresh',
+      label: t.refresh,
+      action: () => clearCiState(),
+    });
+  }
+
+  if (node.nodeType === 'folder') {
+    if (isPinned) {
+      items.push({
+        id: 'unpin',
+        label: t.unpin,
+        action: () => gitHubUnpinFolder(folderId),
+      });
+    } else {
+      items.push({
+        id: 'pin',
+        label: t.pin,
+        action: () => gitHubPinFolder(folderId),
+      });
+    }
+  } else if (node.nodeType === 'workspace') {
+    if (isPinned) {
+      items.push({
+        id: 'unpin-workspace',
+        label: t.unpin,
+        action: () => gitHubUnpinWorkspace(node.workspaceId!),
+      });
+    } else {
+      items.push({
+        id: 'pin-workspace',
+        label: t.pin,
+        action: () => gitHubPinWorkspace(node.workspaceId!),
+      });
+    }
+  }
+
+  if (!(categoryType === 'ci-workspace' && node.nodeType === 'workspace')) {
+    if (node.nodeType === 'folder') {
+      items.push({
+        id: 'rename',
+        label: t.rename,
+        action: () => handleStartRename(folderId, node.name),
+      });
+    }
+  }
+
+  if (node.workspaceId) {
+    items.push({
+      id: 'settings',
+      label: t.settings,
+      action: () => onOpenSettings(node.workspaceId!),
+    });
+  } else if (node.nodeType === 'folder') {
+    items.push({
+      id: 'settings',
+      label: t.settings,
+      action: () => onOpenFolderSettings(folderId),
+    });
+  }
+
+  if (node.nodeType === 'workspace') {
+    items.push({
+      id: 'hide-from-area',
+      label: t.ciRemoveFromView,
+      hasHint: true,
+      hint: t.ciRemoveFromViewHint,
+      action: () => {
+        if (workspaceId) {
+          hideWorkspaceFromRightPanels(workspaceId);
+        }
+      },
+    });
+  }
+
+  items.push({ id: 'sep-danger', separator: true });
+
+  if (isNestedFolder || isUserFolderRoot) {
+    items.push({
+      id: 'delete-folder',
+      label: t.ciDeleteDir,
+      danger: true as const,
+      hasHint: true,
+      hint: t.ciDeleteDirHint,
+      action: () => {
+        gitHubDeleteFolder(folderId);
+        clearCiState();
+      },
+    });
+  }
+
+  if (node.workspaceId) {
+    items.push({
+      id: 'delete-config',
+      label: t.ciDeleteConfig,
+      danger: true as const,
+      action: () => onDeleteWorkspaceConfig(node.workspaceId!),
+    });
+  } else if (node.nodeType === 'folder') {
+    items.push({
+      id: 'delete-config',
+      label: t.ciDeleteConfig,
+      danger: true as const,
+      action: () => gitHubDeleteFolderConfig(folderId),
+    });
+  }
+
+  if (node.workspaceId || node.nodeType === 'folder') {
+    items.push({
+      id: 'delete-data',
+      label: t.ciDeleteData,
+      danger: true as const,
+      action: () => clearCiState(),
+    });
+  }
+
+  if (node.workspaceId) {
+    items.push({
+      id: 'delete-config-and-data',
+      label: t.ciDeleteConfigAndData,
+      danger: true as const,
+      action: () => {
+        onDeleteWorkspaceConfig(node.workspaceId!);
+        clearCiState();
+      },
+    });
+  } else if (node.nodeType === 'folder') {
+    items.push({
+      id: 'delete-config-and-data',
+      label: t.ciDeleteConfigAndData,
+      danger: true as const,
+      action: () => {
+        gitHubDeleteFolderConfig(folderId);
+        clearCiState();
+      },
+    });
+  }
+
+  if (isNestedFolder || isUserFolderRoot || node.nodeType === 'workspace') {
+    items.push({ id: 'sep-recursive', separator: true });
+    items.push({
+      id: 'delete-config-recursive',
+      label: t.ciDeleteNestedConfig,
+      danger: true as const,
+      hasHint: true,
+      hint: t.ciDeleteNestedConfigHint,
+      action: () => {
+        gitHubDeleteFolderConfigRecursive(folderId);
+      },
+    });
+    items.push({
+      id: 'delete-data-recursive',
+      label: t.ciDeleteNestedData,
+      danger: true as const,
+      hasHint: true,
+      hint: t.ciDeleteNestedDataHint,
+      action: () => {
+        gitHubDeleteFolderDataRecursive(folderId);
+      },
+    });
+    items.push({
+      id: 'delete-config-and-data-recursive',
+      label: t.ciDeleteNestedAll,
+      danger: true as const,
+      hasHint: true,
+      hint: t.ciDeleteNestedAllHint,
+      action: () => {
+        gitHubDeleteFolderConfigAndDataRecursive(folderId);
+      },
+    });
+  }
+
   return items;
 }

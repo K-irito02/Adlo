@@ -29,7 +29,7 @@
 - xterm.js 交互式终端（多会话 PTY，支持 CMD / PowerShell / Bash）
 - CodeMirror 编辑器系统 + 文件预览 + 差异查看器（inline/side-by-side）
 - 内置浏览器（Tauri WebView / iframe 双模式 + 新建标签对话框 + 收藏标签目录选择对话框 + 工作区顶级目录书签 + 树/列表/全列表三视图模式 + SafeIframe 嵌入检查 + checkEmbed LRU 缓存 + Guard Effect 双路径验证）
-- Zustand 切片模式（23 切片 + 11 action 模块）+ 模块化分层（features/ + regions/）
+- Zustand 切片模式（23 切片 + 12 action 模块）+ 模块化分层（features/ + regions/）
 - CSS 设计 Token 亮暗主题 + 自定义 Tooltip + 自定义滚动条
 - i18n 国际化（13 领域 / 932 keys，TCopyContext + useTCopy 上下文驱动，TypeScript satisfies 类型安全）
 
@@ -94,11 +94,11 @@ app/stores/
 │   ├── browserHistorySlice.ts       # 浏览器历史记录
 │   ├── browserFoldersSlice.ts       # 浏览器标签文件夹
 │   └── browserLandingSlice.ts       # 浏览器着陆页（快捷站点、端口、背景）
-└── actions/                     # 11 个跨切片 action 模块
-    ├── workspaceActions.ts（557 行） / sessionActions.ts / editorActions.ts
+└── actions/                     # 12 个跨切片 action 模块
+    ├── workspaceActions.ts（448 行） / sessionActions.ts / editorActions.ts
     ├── patchActions.ts / gitActions.ts / fetchActions.ts
     ├── streamActions.ts / generalActions.ts / searchActions.ts
-    ├── taskActions.ts / commandActions.ts
+    ├── taskActions.ts / commandActions.ts / browserCleanupActions.ts（112 行）
 ```
 
 ### 关键文件

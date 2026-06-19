@@ -9,10 +9,13 @@ import { useAppStore } from '../../stores/slicedStore';
 import { useBrowserTabs, computeNavigatorCount } from './useBrowserTabs';
 import type { BrowserNavigatorMode } from './useBrowserTabs';
 import { useBrowserWebView } from './useBrowserWebView';
+import { useBrowserUrlChange } from './useBrowserUrlChange';
 import { useBrowserSearch, findInBrowserLookupIndex } from './useBrowserSearch';
 import { useBrowserTreeActions } from './useBrowserTreeActions';
 import { useBrowserNavigation } from './useBrowserNavigation';
 import { useBrowserUrlState } from './useBrowserUrlState';
+import { useBrowserPageMeta } from './useBrowserPageMeta';
+import { useBrowserMetaSubscription } from './useBrowserMetaSubscription';
 import { useBrowserMenus } from './useBrowserMenus';
 import { BrowserContextMenu } from './BrowserContextMenu';
 import { BrowserToolbar } from './BrowserToolbar';
@@ -248,105 +251,9 @@ export function BrowserPanel(props: BrowserPanelProps) {
     renameFolderState.open ||
     createDirDialog.open;
 
-  function hostnameFromUrl(url: string): string {
-    try {
-      return new URL(url).hostname;
-    } catch {
-      return '';
-    }
-  }
+  const { handlePageMeta } = useBrowserPageMeta(pendingNavigationsRef, setToastMessages, showToast);
 
-  const handlePageMeta = useCallback(
-    (meta: { title: string; favicon: string; url: string }) => {
-      // Cache favicon alongside title for sync; use Google S2 fallback when empty
-      const faviconToCache = meta.favicon || (meta.url ? getGoogleFaviconUrl(meta.url) : '');
-      if (faviconToCache) {
-        setCachedFavicon(meta.url, faviconToCache);
-        // Warm browser cache so favicon renders immediately with title
-        new Image().src = faviconToCache;
-      }
-
-      if (!meta.title) {
-        console.log('[browser-handlePageMeta] meta.title empty, skipping update');
-        return;
-      }
-
-      // Clear pending navigation marker
-      pendingNavigationsRef.current.delete(meta.url);
-
-      const urlHostname = hostnameFromUrl(meta.url);
-      if (meta.title === urlHostname) {
-        console.log(
-          '[browser-handlePageMeta] meta.title equals hostname, skipping update (display layer handles it):',
-          {
-            url: meta.url,
-            title: meta.title,
-          }
-        );
-        return;
-      }
-
-      const pageTitle = meta.title;
-      console.log('[browser-handlePageMeta] received meta.title:', {
-        url: meta.url,
-        title: meta.title,
-      });
-
-      if (pageTitle) {
-        const state = useAppStore.getState();
-        const tabExists = state.browserTabs.some((t) => t.url === meta.url);
-        if (!tabExists) {
-          // Create tab with real title and record in history
-          console.log('[browser-handlePageMeta] creating tab with title:', pageTitle);
-          state.browserOpenTab(meta.url, pageTitle);
-          state.browserAddToHistory(meta.url, pageTitle);
-          return;
-        }
-        let tabUpdateCount = 0;
-        for (const tab of state.browserTabs) {
-          if (tab.url === meta.url && tab.title !== pageTitle) {
-            tabUpdateCount++;
-            browserUpdateTab(tab.id, { title: pageTitle });
-          }
-        }
-        console.log('[browser-handlePageMeta] updating store:', {
-          url: meta.url,
-          pageTitle,
-          tabsUpdated: tabUpdateCount,
-          totalTabs: state.browserTabs.length,
-          bookmarkCount: state.browserBookmarks.length,
-          historyCount: state.browserHistory.length,
-        });
-        state.browserUpdateBookmarkTitle(meta.url, pageTitle);
-        state.browserUpdateHistoryTitle(meta.url, pageTitle);
-      } else {
-        console.log(
-          '[browser-handlePageMeta] skipped - no title and no hostname fallback for url:',
-          meta.url
-        );
-      }
-    },
-    [browserUpdateTab]
-  );
-
-  // 在 Tauri 模式下订阅页面元信息变更事件（注入脚本上报的 title/favicon）
-  useEffect(() => {
-    if (!isTauriShell()) {
-      return;
-    }
-    const bridge = window.digitalLife?.browser;
-    if (!bridge) {
-      console.log('[browser-onMetaChanged] window.digitalLife.browser not available');
-      return;
-    }
-    console.log('[browser-onMetaChanged] subscribing to onMetaChanged');
-    const unsub = bridge.onMetaChanged(handlePageMeta);
-    console.log('[browser-onMetaChanged] subscribed');
-    return () => {
-      console.log('[browser-onMetaChanged] unsubscribing');
-      unsub();
-    };
-  }, [handlePageMeta]);
+  useBrowserMetaSubscription(handlePageMeta);
 
   const {
     iframeLoadError,
@@ -357,21 +264,32 @@ export function BrowserPanel(props: BrowserPanelProps) {
     setIframeHistory,
     iframeRef,
     primaryRef,
+    activeTabRef,
+    expectedNavigationUrlRef,
+    markUrlSeen,
     navigateBrowser,
     navigateTauriUrl,
     forceReloadTauri,
-    handleIframeLoad,
-    handleIframeError,
   } = useBrowserWebView({
     activeTab,
     webViewDisabled: false,
     isVisible: isBrowserVisible,
     overlayActive: hasOverlayActive,
     setAddress,
+  });
+
+  const { handleIframeLoad, handleIframeError } = useBrowserUrlChange({
+    activeTab,
+    activeTabRef,
+    iframeRef,
+    expectedNavigationUrlRef,
+    setAddress,
     browserNavigateActiveTab,
     browserUpdateTab,
     onPageMeta: handlePageMeta,
     onNavigationStart: handleNavigationStart,
+    markUrlSeen,
+    setIframeLoadError,
   });
 
   const browserMenuItems = useMemo(

@@ -4,6 +4,7 @@
  */
 import { useEffect } from 'react';
 import { useAppStore } from '../../stores/slicedStore';
+import type { PtyOutputEvent } from '../../../shared/ipc';
 
 /** Git push 成功的多种输出模式 */
 const PUSH_SUCCESS_PATTERNS = [
@@ -25,37 +26,33 @@ export function useGitPushAutoRefresh() {
   const notifyGitPushed = useAppStore((s) => s.notifyGitPushed);
 
   useEffect(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const win = window as any;
-    if (!win.digitalLife?.subscribePtyOutput) {
+    if (!window.digitalLife?.subscribePtyOutput) {
       return;
     }
 
     // Buffer to accumulate output and detect command completion
     let buffer = '';
 
-    const unsubscribe = win.digitalLife.subscribePtyOutput(
-      (event: { sessionId: string; data: string }) => {
-        buffer += event.data;
+    const unsubscribe = window.digitalLife.subscribePtyOutput((event: PtyOutputEvent) => {
+      buffer += event.data;
 
-        // 限制 buffer 大小——在匹配模式之前先检查和截断，避免单次事件导致 buffer 过大
-        if (buffer.length > MAX_BUFFER_SIZE) {
-          buffer = buffer.slice(-TRUNCATE_SIZE);
-        }
-
-        // Detect git push command execution
-        // Look for git push being typed and then success output appearing
-        const hasGitPush = /\bgit\s+push\b/i.test(buffer);
-        const hasSuccess = PUSH_SUCCESS_PATTERNS.some((pattern) => pattern.test(buffer));
-
-        if (hasGitPush && hasSuccess) {
-          // Reset buffer after detection
-          buffer = '';
-          // Trigger CI refresh
-          notifyGitPushed();
-        }
+      // 限制 buffer 大小——在匹配模式之前先检查和截断，避免单次事件导致 buffer 过大
+      if (buffer.length > MAX_BUFFER_SIZE) {
+        buffer = buffer.slice(-TRUNCATE_SIZE);
       }
-    );
+
+      // Detect git push command execution
+      // Look for git push being typed and then success output appearing
+      const hasGitPush = /\bgit\s+push\b/i.test(buffer);
+      const hasSuccess = PUSH_SUCCESS_PATTERNS.some((pattern) => pattern.test(buffer));
+
+      if (hasGitPush && hasSuccess) {
+        // Reset buffer after detection
+        buffer = '';
+        // Trigger CI refresh
+        notifyGitPushed();
+      }
+    });
 
     return () => {
       unsubscribe();

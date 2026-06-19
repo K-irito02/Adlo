@@ -25,14 +25,6 @@ function titleOrHostname(title: string | undefined, url: string): string {
   }
   const hostname = hostnameFromUrl(url);
   const result = hostname || title || url;
-  if (title && /^https?:\/\//.test(title)) {
-    console.log('[browser-tree-titleOrHostname] title is raw URL, using hostname:', {
-      originalTitle: title,
-      url,
-      hostname,
-      result,
-    });
-  }
   return result;
 }
 
