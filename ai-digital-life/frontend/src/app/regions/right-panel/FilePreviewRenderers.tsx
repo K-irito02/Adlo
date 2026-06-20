@@ -137,7 +137,28 @@ const FilePreviewRenderers = React.memo(function FilePreviewRenderers({
     );
   }
 
-  return null;
+  // 'code' and 'text' are handled by the editor surface, not the preview
+  // renderer.  The caller (EditorSurfaceShell) already filters them out,
+  // so returning null here is safe.
+  if (fileCategory === 'code' || fileCategory === 'text') {
+    return null;
+  }
+
+  // TypeScript exhaustiveness check: if a new FileCategory is added to
+  // the union and the caller forgets to filter it, this will be a
+  // compile-time error.  The fallback below provides a visible UI rather
+  // than a blank area.
+  const _exhaustive: never = fileCategory;
+  void _exhaustive;
+
+  return (
+    <UnsupportedPreview
+      editorSurfaceRef={editorSurfaceRef}
+      icon={svgBinary}
+      text={t.changesPreviewUnknown as string}
+      hint={t.changesPreviewNotSupported as string}
+    />
+  );
 });
 
 export { FilePreviewRenderers };

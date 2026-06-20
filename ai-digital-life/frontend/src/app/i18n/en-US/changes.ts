@@ -75,6 +75,7 @@ export const changesEn = {
   changesPreviewDocx: 'DOCX document',
   changesPreviewPdf: 'PDF document',
   changesPreviewBinary: 'Binary file',
+  changesPreviewUnknown: 'Unknown file type',
   changesCollapseAll: 'Collapse all',
   changesExpandAll: 'Expand all',
   changesSearchBookmarks: 'Search bookmarks and history',

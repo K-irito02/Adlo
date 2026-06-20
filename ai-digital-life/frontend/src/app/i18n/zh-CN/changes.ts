@@ -75,6 +75,7 @@ export const changesZh = {
   changesPreviewDocx: 'DOCX 文档',
   changesPreviewPdf: 'PDF 文档',
   changesPreviewBinary: '二进制文件',
+  changesPreviewUnknown: '未知文件类型',
   changesCollapseAll: '全部折叠',
   changesExpandAll: '全部展开',
   changesSearchBookmarks: '搜索书签和历史记录',
