@@ -43,7 +43,7 @@ export function BrowserNavModeSwitch({
         onTapStart={() => setIsTapped(true)}
         onTapCancel={() => setIsTapped(false)}
         onTap={() => setIsTapped(false)}
-        aria-label={checked ? leftLabel : rightLabel}
+        aria-label={checked ? rightLabel : leftLabel}
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
         onFocus={onFocus}

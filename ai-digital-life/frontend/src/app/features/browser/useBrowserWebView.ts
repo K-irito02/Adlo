@@ -32,6 +32,7 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
   const creatingRef = useRef(false);
   const recentNavigatedUrlsRef = useRef<Map<string, number>>(new Map());
   const URL_SEEN_TTL = 3000; // ms — extended to cover slow page loads + meta fetch
+  const PATH_MATCH_TTL = 2000; // ms — layer 3 hostname+pathname matching only matches entries within this window; prevents false-positive when query params genuinely differ (e.g. ?page=1 vs ?page=2)
   const expectedNavigationUrlRef = useRef<string | null>(null);
   const expectedNavigationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const webViewVisibleRef = useRef(true);
@@ -69,8 +70,10 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
       }
       return true;
     }
-    // Fallback: check by normalized hostname + pathname (ignoring query params/hash)
-    // Handles SPA pushState removing tracking params (e.g. YouTube's &pp=oAcB)
+    // Layer 3: check by normalized hostname + pathname (ignoring query params/hash)
+    // Handles SPA pushState removing tracking params (e.g. YouTube's &pp=oAcB).
+    // Only matches entries within PATH_MATCH_TTL window to prevent false-positives
+    // when query params genuinely differ (e.g. ?page=1 vs ?page=2).
     try {
       const newUrl = new URL(url);
       const newPath = (
@@ -81,6 +84,10 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
       for (const [seenUrl, seenTs] of recentNavigatedUrlsRef.current.entries()) {
         if (now - seenTs > URL_SEEN_TTL) {
           recentNavigatedUrlsRef.current.delete(seenUrl);
+          continue;
+        }
+        // Only match by hostname+pathname if the entry is recent enough
+        if (now - seenTs > PATH_MATCH_TTL) {
           continue;
         }
         try {

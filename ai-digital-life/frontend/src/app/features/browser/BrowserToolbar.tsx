@@ -138,8 +138,8 @@ export const BrowserToolbar = React.memo(function BrowserToolbar(props: BrowserT
           <BrowserNavModeSwitch
             checked={browserNavigateInPlace}
             onCheckedChange={onToggleNavigateMode}
-            leftLabel={t.browserNavigateInPlace}
-            rightLabel={t.browserNavigateNewTab}
+            leftLabel={t.browserNavigateNewTab}
+            rightLabel={t.browserNavigateInPlace}
           />
         </TooltipSimple>
         <label
