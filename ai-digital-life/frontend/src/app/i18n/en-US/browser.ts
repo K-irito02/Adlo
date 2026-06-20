@@ -133,4 +133,6 @@ export const browserEn = {
   browserBookmarkToFolderTitle: 'Bookmark Tab',
   browserAddToFolder: 'Add to this folder',
   browserBookmarkAddedToast: 'Bookmarked to current folder',
+  browserNavigateInPlace: 'Navigate in-place: links open in current tab',
+  browserNavigateNewTab: 'New tab: links open in new tabs',
 } as const;

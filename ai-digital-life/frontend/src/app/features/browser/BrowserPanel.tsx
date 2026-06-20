@@ -52,6 +52,8 @@ export function BrowserPanel(props: BrowserPanelProps) {
     setBrowserNavigatorWidth,
     toggleBrowserNavigator,
     browserNavigateActiveTab,
+    browserNavigateInPlace,
+    setBrowserNavigateInPlace,
     browserUpdateTab,
     recentWorkspaces,
     browserBookmarks,
@@ -69,6 +71,8 @@ export function BrowserPanel(props: BrowserPanelProps) {
       setBrowserNavigatorWidth: state.setBrowserNavigatorWidth,
       toggleBrowserNavigator: state.toggleBrowserNavigator,
       browserNavigateActiveTab: state.browserNavigateActiveTab,
+      browserNavigateInPlace: state.browserNavigateInPlace,
+      setBrowserNavigateInPlace: state.setBrowserNavigateInPlace,
       browserUpdateTab: state.browserUpdateTab,
       recentWorkspaces: state.recentWorkspaces,
       browserBookmarks: state.browserBookmarks,
@@ -126,6 +130,13 @@ export function BrowserPanel(props: BrowserPanelProps) {
   const [, forceRender] = useState(0);
   const submitVersionRef = useRef(0);
   const pendingNavigationsRef = useRef<Set<string>>(new Set());
+
+  const handleToggleNavigateMode = useCallback(
+    (checked: boolean) => {
+      setBrowserNavigateInPlace(checked);
+    },
+    [setBrowserNavigateInPlace]
+  );
 
   const handleNavigationStart = useCallback((url: string) => {
     // Track pending navigation so handlePageMeta creates tab only when real title arrives
@@ -251,10 +262,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
     renameFolderState.open ||
     createDirDialog.open;
 
-  const { handlePageMeta } = useBrowserPageMeta(pendingNavigationsRef, setToastMessages, showToast);
-
-  useBrowserMetaSubscription(handlePageMeta);
-
   const {
     iframeLoadError,
     setIframeLoadError,
@@ -278,6 +285,15 @@ export function BrowserPanel(props: BrowserPanelProps) {
     setAddress,
   });
 
+  const { handlePageMeta: _handlePageMeta } = useBrowserPageMeta(
+    pendingNavigationsRef,
+    setToastMessages,
+    showToast,
+    markUrlSeen
+  );
+
+  useBrowserMetaSubscription(_handlePageMeta);
+
   const { handleIframeLoad, handleIframeError } = useBrowserUrlChange({
     activeTab,
     activeTabRef,
@@ -286,7 +302,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
     setAddress,
     browserNavigateActiveTab,
     browserUpdateTab,
-    onPageMeta: handlePageMeta,
+    onPageMeta: _handlePageMeta,
     onNavigationStart: handleNavigationStart,
     markUrlSeen,
     setIframeLoadError,
@@ -703,6 +719,8 @@ export function BrowserPanel(props: BrowserPanelProps) {
         onGoBack={handleGoBack}
         onGoForward={handleGoForward}
         onReload={handleReload}
+        browserNavigateInPlace={browserNavigateInPlace}
+        onToggleNavigateMode={handleToggleNavigateMode}
         onAddressChange={urlState.handleAddressChange}
         onAddressKeyDown={urlState.handleAddressKeyDown}
         onAddressBlur={urlState.handleAddressBlur}

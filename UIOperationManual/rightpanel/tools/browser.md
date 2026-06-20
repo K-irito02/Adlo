@@ -38,6 +38,29 @@ await page.click('button[aria-label="前进"]');
 await page.click('button[aria-label="刷新"]');
 ```
 
+#### 导航模式切换（v2026-06-20 新增）
+
+> 切换"新建标签"和"就地导航"模式。使用 `@radix-ui/react-switch` + `motion` 实现动效。
+
+**选择器：** `.adl-browser-nav-mode-switch`
+
+**状态检测：**
+- OFF（滑块在左）：`aria-label` 匹配 `browserNavigateNewTab` i18n key → 新建标签模式
+- ON（滑块在右）：`aria-label` 匹配 `browserNavigateInPlace` i18n key → 就地导航模式
+
+**操作：**
+
+```javascript
+// 点击切换
+await page.click('.adl-browser-nav-mode-switch');
+
+// 验证当前状态（以中文为例）
+const label = await page.getAttribute('.adl-browser-nav-mode-switch', 'aria-label');
+expect(label).toBe('就地导航：新链接在当前标签打开');  // ON 状态
+// 或
+expect(label).toBe('新建标签：新链接在新标签打开');    // OFF 状态
+```
+
 #### 地址栏
 
 ```javascript

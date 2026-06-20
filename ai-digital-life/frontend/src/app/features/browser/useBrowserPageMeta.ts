@@ -12,20 +12,41 @@ export function hostnameFromUrl(url: string): string {
   }
 }
 
+function normalizeUrlForDedup(url: string): string {
+  try {
+    const u = new URL(url);
+    const path = u.pathname.length > 1 ? u.pathname.replace(/\/+$/, '') : u.pathname;
+    return `${u.protocol}//${u.hostname.toLowerCase()}${path}${u.search}${u.hash}`;
+  } catch {
+    return url;
+  }
+}
+
+function hostnamePathKey(url: string): string {
+  try {
+    const u = new URL(url);
+    const path = (
+      u.pathname.length > 1 ? u.pathname.replace(/\/+$/, '') : u.pathname
+    ).toLowerCase();
+    return `${u.hostname.toLowerCase()}${path}`;
+  } catch {
+    return '';
+  }
+}
+
 export function useBrowserPageMeta(
   pendingNavigationsRef: React.MutableRefObject<Set<string>>,
   _setToastMessage?: React.Dispatch<
     React.SetStateAction<Array<{ id: string; message: string; type?: ToastType; source?: string }>>
   >,
-  _showToast?: (message: string, type?: ToastType, source?: string) => void
+  _showToast?: (message: string, type?: ToastType, source?: string) => void,
+  markUrlSeen?: (url: string) => void
 ) {
   const handlePageMeta = useCallback(
     (meta: { title: string; favicon: string; url: string }) => {
-      // Cache favicon alongside title for sync; use Google S2 fallback when empty
       const faviconToCache = meta.favicon || (meta.url ? getGoogleFaviconUrl(meta.url) : '');
       if (faviconToCache) {
         setCachedFavicon(meta.url, faviconToCache);
-        // Warm browser cache so favicon renders immediately with title
         new Image().src = faviconToCache;
       }
 
@@ -33,7 +54,6 @@ export function useBrowserPageMeta(
         return;
       }
 
-      // Clear pending navigation marker
       pendingNavigationsRef.current.delete(meta.url);
 
       const urlHostname = hostnameFromUrl(meta.url);
@@ -42,28 +62,52 @@ export function useBrowserPageMeta(
       }
 
       const pageTitle = meta.title;
+      if (!pageTitle) {
+        return;
+      }
 
-      if (pageTitle) {
-        const state = useAppStore.getState();
-        const tabExists = state.browserTabs.some((t) => t.url === meta.url);
-        if (!tabExists) {
-          // Create tab with real title and record in history
-          state.browserOpenTab(meta.url, pageTitle);
-          state.browserAddToHistory(meta.url, pageTitle);
-          return;
-        }
-        let _tabUpdateCount = 0;
-        for (const tab of state.browserTabs) {
-          if (tab.url === meta.url && tab.title !== pageTitle) {
-            _tabUpdateCount++;
-            state.browserUpdateTab(tab.id, { title: pageTitle });
-          }
+      const state = useAppStore.getState();
+      const normalizedMetaUrl = normalizeUrlForDedup(meta.url);
+
+      // 1. Exact normalized match
+      const exactMatch = state.browserTabs.find(
+        (t) => normalizeUrlForDedup(t.url) === normalizedMetaUrl
+      );
+      if (exactMatch) {
+        if (exactMatch.title !== pageTitle) {
+          state.browserUpdateTab(exactMatch.id, { title: pageTitle });
         }
         state.browserUpdateBookmarkTitle(meta.url, pageTitle);
         state.browserUpdateHistoryTitle(meta.url, pageTitle);
+        return;
+      }
+
+      // 2. In in-place mode: check if active tab matches by hostname+pathname (ignore query params)
+      // Handles SPA pushState URL changes (e.g. YouTube removing &pp=oAcB)
+      if (state.browserNavigateInPlace) {
+        const metaKey = hostnamePathKey(meta.url);
+        const activeTab = state.browserTabs.find((t) => t.id === state.browserActiveTabId);
+        if (activeTab && hostnamePathKey(activeTab.url) === metaKey && metaKey !== '') {
+          if (markUrlSeen) {
+            markUrlSeen(meta.url);
+          }
+          state.browserUpdateTab(activeTab.id, { url: meta.url, title: pageTitle });
+          state.browserAddToHistory(meta.url, pageTitle);
+          state.browserUpdateBookmarkTitle(meta.url, pageTitle);
+          state.browserUpdateHistoryTitle(meta.url, pageTitle);
+          return;
+        }
+      }
+
+      // 3. No match: create new tab or update active tab
+      if (state.browserNavigateInPlace) {
+        state.browserNavigateActiveTab(meta.url, pageTitle);
+        state.browserAddToHistory(meta.url, pageTitle);
+      } else {
+        state.browserOpenTab(meta.url, pageTitle);
+        state.browserAddToHistory(meta.url, pageTitle);
       }
     },
-    // pendingNavigationsRef is a stable ref, no need to include in deps
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );

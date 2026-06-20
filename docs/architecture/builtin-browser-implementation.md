@@ -168,3 +168,55 @@
 | `frontend/src/app/features/browser/useBrowserPanel.ts` | 修改 | 添加 URL 变化事件监听，同步更新地址栏和标签页 |
 
 > 详细经验教训已记录在 [知识沉淀/浏览器/browser-url-sync-fix-2026-06-04.md](../知识沉淀/浏览器/browser-url-sync-fix-2026-06-04.md)
+
+## 浏览器导航模式切换 + 自动刷新修复（2026-06-20）
+
+### 新功能
+
+在工具栏"刷新"按钮右侧添加导航模式切换 Switch（`@radix-ui/react-switch` + `motion`）：
+
+| 模式 | 滑块位置 | 行为 |
+|------|----------|------|
+| 新建标签（默认） | 左 | URL 变更 → `browserOpenTab` → 创建新标签 |
+| 就地导航 | 右 | URL 变更 → `browserNavigateActiveTab` → 更新当前标签 |
+
+状态持久化到 localStorage（key: `adl-ui:browser-navigate-in-place`）。
+
+### 修复问题清单
+
+| 问题 | 根因 | 修复方案 | 文件 |
+|------|------|----------|------|
+| 链接点击后新页面自动刷新 2~3 次 | Tauri 模式 `handlePageMeta` 调用 `browserOpenTab` 创建新标签（非更新当前标签）；新标签触发 `navigateTauriUrl` → `invoke('browser_navigate')` → 冗余刷新 | 引入 `browserNavigateInPlace` 模式切换；`handlePageMeta` 根据模式选择 `browserOpenTab` 或 `browserNavigateActiveTab` | `useBrowserPageMeta.ts`, `browserSlice.ts` |
+| SPA 链接跳转后页面刷新 | SPA 通过 `pushState` 移除 tracking query param（如 YouTube 的 `&pp=oAcB`），`meta-changed` 事件携带 URL 与 `url-changed` 不同；`normalizeUrlForDedup` 只处理尾随斜杠不处理 query param → 重复标签创建 + 去重失效 | `isUrlRecentlySeen` 增加 hostname+pathname 级回退匹配；`handlePageMeta` 增加 hostname+pathname 级标签匹配 + 预调用 `markUrlSeen` 阻断后续导航 | `useBrowserWebView.ts`, `useBrowserPageMeta.ts` |
+| `isUrlRecentlySeen` 去重窗口太短 | TTL 仅 1000ms，HTTP 元数据抓取慢时去重失效 | TTL 从 1000ms 延长到 3000ms | `useBrowserWebView.ts` |
+| `stopImmediatePropagation` 过于激进 | 阻止页面自身的其他 capture 监听器 | 移除 `stopImmediatePropagation`，仅保留 `preventDefault` + `stopPropagation` | `browser_navigation.rs` |
+| Switch 组件无 Tooltip | `BrowserNavModeSwitch` 不转发事件处理器 | 组件接口声明 `onMouseEnter`/`onMouseLeave`/`onFocus`/`onBlur`/`onClick` 并转发到 `motion.button` | `BrowserNavModeSwitch.tsx` |
+
+### 双模式架构更新
+
+| 功能 | **Tauri 桌面模式** | **浏览器预览模式** |
+|------|--------------------|--------------------|
+| 导航模式 | `handlePageMeta` + mode 感知 → `browserNavigateActiveTab`/`browserOpenTab` | `handleIframeLoad` → `browserNavigateActiveTab`（始终 in-place）+ mode 感知 |
+
+### 状态管理更新
+
+| 状态 | 类型 | localStorage key |
+|------|------|------------------|
+| `browserNavigateInPlace` | `boolean` | `adl-ui:browser-navigate-in-place` |
+
+### 修改文件清单
+
+| 文件 | 变更类型 | 说明 |
+|------|----------|------|
+| `frontend/src/app/stores/slices/browserslice.ts` | 修改 | 新增 `browserNavigateInPlace` 字段 + `setBrowserNavigateInPlace` 动作 + 持久化 |
+| `frontend/src/app/features/browser/BrowserNavModeSwitch.tsx` | 新建 | Radix + Motion Switch 组件 |
+| `frontend/src/app/features/browser/BrowserToolbar.tsx` | 修改 | 刷新按钮后添加 Switch + 事件转发 |
+| `frontend/src/app/features/browser/browserpanel.tsx` | 修改 | 连线 Store + Switch + `markUrlSeen` 注入 |
+| `frontend/src/app/features/browser/useBrowserPageMeta.ts` | 修改 | URL 归一化 + hostname+pathname 匹配 + mode 感知 + `markUrlSeen` 预调用 |
+| `frontend/src/app/features/browser/useBrowserWebView.ts` | 修改 | `isUrlRecentlySeen` 三层递进去重（精确→归一化→hostname+pathname）；TTL 3000ms |
+| `frontend/src/styles/regions/rightpanel/browser-toolbar.css` | 修改 | 新增 Switch 样式 |
+| `frontend/src/app/i18n/zh-CN/browser.ts` | 修改 | 新增 `browserNavigateInPlace`, `browserNavigateNewTab` |
+| `frontend/src/app/i18n/en-US/browser.ts` | 修改 | 新增 `browserNavigateInPlace`, `browserNavigateNewTab` |
+| `frontend/crates/browser/src/browser_navigation.rs` | 修改 | 移除 `stopImmediatePropagation` |
+
+> 详细经验教训已记录在 [知识沉淀/浏览器/browser-navigation-mode-toggle-2026-06-20.md](../知识沉淀/浏览器/browser-navigation-mode-toggle-2026-06-20.md)

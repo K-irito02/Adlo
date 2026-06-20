@@ -130,4 +130,6 @@ export const browserZh = {
   browserBookmarkToFolderTitle: '收藏标签',
   browserAddToFolder: '加入此目录',
   browserBookmarkAddedToast: '收藏成功',
+  browserNavigateInPlace: '就地导航：新链接在当前标签打开',
+  browserNavigateNewTab: '新建标签：新链接在新标签打开',
 } as const;

@@ -8,10 +8,10 @@ pub(crate) const INIT_SCRIPT: &str = r#"
     console.log('[ADL Browser] Initialization script loaded');
     
     // 安全地阻止默认行为和冒泡
+    // 注意：不调用 stopImmediatePropagation，以便页面上的其他 capture 监听器（如分析、SPA 路由）仍可观察到点击事件
     function stopAll(event) {
         event.preventDefault();
         event.stopPropagation();
-        event.stopImmediatePropagation();
     }
     
     // 检查是否是有效的网页 URL

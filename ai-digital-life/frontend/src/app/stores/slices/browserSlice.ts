@@ -41,6 +41,7 @@ const BROWSER_SHORTCUTS_KEY = 'adl-ui:browser-shortcuts';
 const BROWSER_LOCAL_PORTS_KEY = 'adl-ui:browser-local-ports';
 const BROWSER_BG_CONFIG_KEY = 'adl-ui:browser-bg-config';
 const BROWSER_TREE_EXPANDED_KEY = 'adl-ui:browser-tab-tree-expanded';
+const BROWSER_NAVIGATE_IN_PLACE_KEY = 'adl-ui:browser-navigate-in-place';
 
 const BROWSER_NAVIGATOR_WIDTH_MIN = 180;
 const BROWSER_NAVIGATOR_WIDTH_MAX = 300;
@@ -114,6 +115,7 @@ function hydrateBrowserDefaults(
       BROWSER_TREE_EXPANDED_KEY,
       {}
     );
+    const navigateInPlace = readJson<boolean>(BROWSER_NAVIGATE_IN_PLACE_KEY, false);
 
     const shortcuts = readJson<ShortcutSite[]>(BROWSER_SHORTCUTS_KEY, []);
     const localPorts = readJson<LocalPort[]>(BROWSER_LOCAL_PORTS_KEY, []);
@@ -134,6 +136,7 @@ function hydrateBrowserDefaults(
       browserActiveTabId: finalActiveTabId,
       browserViewMode: viewMode,
       browserShowTabButtons: showTabButtons,
+      browserNavigateInPlace: navigateInPlace,
       browserTabTreeExpanded: persistedTabTreeExpanded,
       browserShortcuts: shortcuts,
       browserLocalPorts: localPorts,
@@ -155,7 +158,9 @@ export interface BrowserSlice {
   browserPersisted: boolean;
   browserWorkspaceId: string;
 
+  browserNavigateInPlace: boolean;
   browserNavigateActiveTab: (url: string, title?: string) => void;
+  setBrowserNavigateInPlace: (value: boolean) => void;
   setBrowserNavigatorWidth: (width: number) => void;
   toggleBrowserNavigator: () => void;
   setBrowserNavigatorCollapsed: (collapsed: boolean) => void;
@@ -176,6 +181,7 @@ export const createBrowserSlice = (
     browserShowTabButtons: false,
     browserPersisted: false,
     browserWorkspaceId: '',
+    browserNavigateInPlace: false,
 
     browserNavigateActiveTab: (url: string, title?: string) => {
       set((state) => {
@@ -256,6 +262,11 @@ export const createBrowserSlice = (
       const next = clamp(width, BROWSER_NAVIGATOR_WIDTH_MIN, BROWSER_NAVIGATOR_WIDTH_MAX);
       scheduleNumberWrite(BROWSER_NAVIGATOR_WIDTH_KEY, next);
       set({ browserNavigatorWidth: next });
+    },
+
+    setBrowserNavigateInPlace: (value: boolean) => {
+      scheduleWrite(BROWSER_NAVIGATE_IN_PLACE_KEY, value);
+      set({ browserNavigateInPlace: value });
     },
 
     toggleBrowserNavigator: () =>

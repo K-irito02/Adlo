@@ -12,6 +12,7 @@ import {
   IconPanelLeftClose,
 } from '../../icons';
 import { TooltipSimple } from '../../components/Tooltip';
+import { BrowserNavModeSwitch } from './BrowserNavModeSwitch';
 import type { CopyDict } from '../../i18n';
 import type { BrowserTabState } from '../../stores/slices/browserSlice';
 import type { BrowserMenuItem } from './useBrowserMenus';
@@ -38,8 +39,10 @@ interface BrowserToolbarProps {
   onAddressBlur: () => void;
   onSearchClick: () => void;
   onCopyUrl: (url: string) => void;
+  browserNavigateInPlace: boolean;
   onNewTab: () => void;
   onOpenBookmarkDialog: () => void;
+  onToggleNavigateMode: (checked: boolean) => void;
   onToggleBrowserMenu: () => void;
   onCloseBrowserMenu: () => void;
 }
@@ -72,6 +75,8 @@ export const BrowserToolbar = React.memo(function BrowserToolbar(props: BrowserT
     onGoBack,
     onGoForward,
     onReload,
+    browserNavigateInPlace,
+    onToggleNavigateMode,
     onAddressChange,
     onAddressKeyDown,
     onAddressBlur,
@@ -125,6 +130,17 @@ export const BrowserToolbar = React.memo(function BrowserToolbar(props: BrowserT
           >
             <IconRefreshCw size={14} decorative />
           </button>
+        </TooltipSimple>
+        <TooltipSimple
+          content={browserNavigateInPlace ? t.browserNavigateInPlace : t.browserNavigateNewTab}
+          placement="top"
+        >
+          <BrowserNavModeSwitch
+            checked={browserNavigateInPlace}
+            onCheckedChange={onToggleNavigateMode}
+            leftLabel={t.browserNavigateInPlace}
+            rightLabel={t.browserNavigateNewTab}
+          />
         </TooltipSimple>
         <label
           ref={addressSearchRef}

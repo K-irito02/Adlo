@@ -1,0 +1,13 @@
+# Cargo 工作区配置
+#
+# 重要：target/debug/incremental/ 目录会无限增长（每次编译创建新会话，Cargo 不自动清理）。
+# 运行以下命令清理旧增量缓存（保留 7 天内会话用于快速增量编译）：
+#
+#   powershell -File .cargo/clean-incremental.ps1
+#
+# 或完全重建：
+#   cargo clean && cargo build
+
+[alias]
+# 清理所有构建产物（释放 ~40 GB），然后完整重建
+rebuild = "clean && build"

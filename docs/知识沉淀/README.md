@@ -76,6 +76,7 @@
 | [tauri-webview-overlay-hide-2026-06-18.md](./浏览器/tauri-webview-overlay-hide-2026-06-18.md) | 2026-06-18 修复执行 | Tauri 原生子 WebView 层级覆盖问题（z-order 不可战胜、MutationObserver 双路检测、ref 替代 state 消除延迟） |
 | [panel-resize-handle-webview-2026-06-18.md](./浏览器/panel-resize-handle-webview-2026-06-18.md) | 2026-06-18 修复执行 | 面板拖拽线被 WebView 覆盖：区域逃逸方案（handle 左扩至中心区），无需隐藏 WebView |
 | [browser-copy-button-animation-2026-06-18.md](./浏览器/browser-copy-button-animation-2026-06-18.md) | 2026-06-18 交互优化 | 浏览器地址栏复制按钮动画化：引入 lucide-animated CopyIcon，点击播放弹簧动画后自动恢复 |
+| [browser-navigation-mode-toggle-2026-06-20.md](./浏览器/browser-navigation-mode-toggle-2026-06-20.md) | 2026-06-20 新功能 + 修复执行 | 浏览器导航模式切换（in-place/new-tab）+ 链接点击后自动刷新修复（SPA pushState URL 差异、两路去重失效、hostname+pathname 归一化） |
 
 ### 代码质量
 

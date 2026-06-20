@@ -28,7 +28,7 @@
 - 命令治理与终端流式输出
 - xterm.js 交互式终端（多会话 PTY，支持 CMD / PowerShell / Bash）
 - CodeMirror 编辑器系统 + 文件预览 + 差异查看器（inline/side-by-side）
-- 内置浏览器（Tauri WebView / iframe 双模式 + 新建标签对话框 + 收藏标签目录选择对话框 + 工作区顶级目录书签 + 树/列表/全列表三视图模式 + SafeIframe 嵌入检查 + checkEmbed LRU 缓存 + Guard Effect 双路径验证）
+- 内置浏览器（Tauri WebView / iframe 双模式 + 新建标签对话框 + 收藏标签目录选择对话框 + 工作区顶级目录书签 + 树/列表/全列表三视图模式 + SafeIframe 嵌入检查 + checkEmbed LRU 缓存 + Guard Effect 双路径验证 + 导航模式切换：就地导航/新建标签 + @radix-ui/react-switch + motion 动效）
 - Zustand 切片模式（23 切片 + 12 action 模块）+ 模块化分层（features/ + regions/）
 - CSS 设计 Token 亮暗主题 + 自定义 Tooltip + 自定义滚动条
 - i18n 国际化（13 领域 / 932 keys，TCopyContext + useTCopy 上下文驱动，TypeScript satisfies 类型安全）
@@ -133,3 +133,21 @@ app/stores/
 
 - [仓库根 AGENTS.md](../AGENTS.md) — 项目治理规则
 - [FUTURE-ROADMAP.md](../FUTURE-ROADMAP.md) — 远期规划
+
+## 磁盘空间管理
+
+### target/debug 无限增长
+
+Rust 增量编译会在 `target/debug/incremental/` 为每次编译创建新会话且**永不自动清理**。经过数百次开发编译后可达 20~40 GB。
+
+**预防措施：** 在 `ai-digital-life/` 下运行：
+
+```powershell
+# 保留 7 天内增量会话，删除更早的（安全，不触发重新编译）
+.cargo\clean-incremental.ps1
+
+# 或完全清除所有构建产物（下次编译需要完整重建）
+cargo clean
+```
+
+相关文件：`.cargo/config.toml`（Cargo 别名 `cargo rebuild` = `cargo clean && cargo build`）

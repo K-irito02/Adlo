@@ -210,3 +210,51 @@
   background: var(--border-subtle);
   margin: var(--space-1) 0;
 }
+
+/* ─── Browser Navigation Mode Switch ─── */
+.adl-browser-nav-mode-switch {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 1px;
+  width: 32px;
+  height: 18px;
+  flex-shrink: 0;
+  cursor: pointer;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-subtle);
+  transition:
+    background-color var(--duration-150) var(--ease-default),
+    border-color var(--duration-150) var(--ease-default);
+}
+
+.adl-browser-nav-mode-switch[data-state='checked'] {
+  background: var(--bg-muted);
+  border-color: var(--border);
+}
+
+.adl-browser-nav-mode-switch:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--surface),
+    0 0 0 4px var(--accent);
+}
+
+.adl-browser-nav-mode-switch:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.adl-browser-nav-mode-switch__thumb {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 14px;
+  width: 14px;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+}

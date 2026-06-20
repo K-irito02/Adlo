@@ -31,6 +31,7 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
   const webViewActiveRef = useRef(false);
   const creatingRef = useRef(false);
   const recentNavigatedUrlsRef = useRef<Map<string, number>>(new Map());
+  const URL_SEEN_TTL = 3000; // ms — extended to cover slow page loads + meta fetch
   const expectedNavigationUrlRef = useRef<string | null>(null);
   const expectedNavigationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const webViewVisibleRef = useRef(true);
@@ -61,15 +62,46 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
 
   const isUrlRecentlySeen = useCallback((url: string): boolean => {
     const ts = recentNavigatedUrlsRef.current.get(url);
-    if (ts === undefined) {
-      return false;
+    if (ts !== undefined) {
+      if (Date.now() - ts > URL_SEEN_TTL) {
+        recentNavigatedUrlsRef.current.delete(url);
+        return false;
+      }
+      return true;
     }
-    // Allow re-navigation after 1000ms stale window
-    if (Date.now() - ts > 1000) {
-      recentNavigatedUrlsRef.current.delete(url);
-      return false;
+    // Fallback: check by normalized hostname + pathname (ignoring query params/hash)
+    // Handles SPA pushState removing tracking params (e.g. YouTube's &pp=oAcB)
+    try {
+      const newUrl = new URL(url);
+      const newPath = (
+        newUrl.pathname.length > 1 ? newUrl.pathname.replace(/\/+$/, '') : newUrl.pathname
+      ).toLowerCase();
+      const newKey = `${newUrl.hostname.toLowerCase()}${newPath}`;
+      const now = Date.now();
+      for (const [seenUrl, seenTs] of recentNavigatedUrlsRef.current.entries()) {
+        if (now - seenTs > URL_SEEN_TTL) {
+          recentNavigatedUrlsRef.current.delete(seenUrl);
+          continue;
+        }
+        try {
+          const seenParsed = new URL(seenUrl);
+          const seenPath = (
+            seenParsed.pathname.length > 1
+              ? seenParsed.pathname.replace(/\/+$/, '')
+              : seenParsed.pathname
+          ).toLowerCase();
+          const seenKey = `${seenParsed.hostname.toLowerCase()}${seenPath}`;
+          if (seenKey === newKey) {
+            return true;
+          }
+        } catch {
+          /* skip unparseable seen URL */
+        }
+      }
+    } catch {
+      /* skip unparseable input URL */
     }
-    return true;
+    return false;
   }, []);
 
   const setExpectedUrl = useCallback((url: string) => {
