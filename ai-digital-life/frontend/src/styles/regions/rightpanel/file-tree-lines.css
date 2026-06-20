@@ -1,0 +1,153 @@
+/* ========================================================
+   Tree connection lines & indent positioning
+   --------------------------------------------------------
+   - ::before pseudo-elements for trunk lines
+   - Trunk height calculations (--adl-tree-indent, --adl-trunk-height)
+   - Row indent offset positioning (--adl-tree-row-offset)
+   - Toggle, indent spacer, and icon-before elements
+   - Toggle hover/active states
+   ======================================================== */
+
+/* ---------- Connection lines (trunk) ---------- */
+
+.adl-tree-node::before {
+  content: '';
+  position: absolute;
+  left: calc(13px + var(--adl-tree-indent, 0px));
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: color-mix(in srgb, var(--border) 78%, transparent);
+}
+
+.adl-filetree__item::before {
+  left: calc(18px + var(--adl-tree-indent, 0px));
+  height: var(--adl-trunk-height, 28px);
+  bottom: auto;
+}
+
+.adl-outline-tree__item::before {
+  left: 16px;
+  top: 13px;
+}
+
+.adl-outline-tree__item:not([aria-expanded])::before {
+  display: none;
+}
+
+.adl-filetree__node--file::before {
+  display: none;
+}
+
+.adl-filetree__node--file > .adl-tree-node__row > .adl-tree-node__icon-before {
+  width: 16px !important;
+  height: 16px;
+  margin-left: 6px;
+  margin-right: 2px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ---------- Row indent / offset positioning ---------- */
+
+.adl-filetree__row {
+  width: calc(100% + var(--adl-tree-row-offset));
+  margin-inline-start: calc(-1 * var(--adl-tree-row-offset));
+  padding-inline-start: calc(8px + var(--adl-tree-row-offset) + var(--adl-tree-indent, 0px));
+  padding-inline-end: 7px;
+  border-radius: 0;
+}
+
+.adl-outline-tree__row {
+  width: calc(100% + var(--adl-tree-row-offset, 4px));
+  margin-inline-start: calc(-1 * var(--adl-tree-row-offset, 4px));
+  padding-inline-start: calc(8px + var(--adl-tree-row-offset, 4px));
+  padding-inline-end: calc(8px + var(--adl-outline-scrollbar-width));
+}
+
+/* ---------- Toggle / indent / icon-before elements ---------- */
+
+.adl-tree-node__toggle,
+.adl-filetree__toggle,
+.adl-outline-tree__toggle,
+.adl-tree-node__indent,
+.adl-filetree__indent,
+.adl-outline-tree__indent {
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.adl-tree-node__icon-before {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.adl-tree-node__icon-before {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.adl-filetree__indent--flat {
+  width: 0;
+  margin: 0;
+}
+
+.adl-tree-node__toggle,
+.adl-filetree__toggle,
+.adl-outline-tree__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: var(--adl-tree-toggle-rest-bg);
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 3px;
+  transition:
+    background 0.12s,
+    color 0.12s;
+}
+
+.adl-tree-node__toggle:hover,
+.adl-filetree__toggle:hover {
+  background: var(--adl-tree-toggle-hover-bg);
+  color: var(--text-primary);
+}
+
+.adl-outline-tree__toggle:hover {
+  background: color-mix(in srgb, var(--bg-hover) 88%, transparent);
+  color: var(--text-primary);
+}
+
+.adl-tree-node__toggle svg,
+.adl-filetree__toggle svg,
+.adl-outline-tree__toggle svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+/* ---------- Toggle active / hover states ---------- */
+
+.adl-tree-node.is-active > .adl-tree-node__row .adl-tree-node__toggle,
+.adl-filetree__item.is-active > .adl-filetree__row .adl-filetree__toggle,
+.adl-outline-tree__item.is-active > .adl-outline-tree__row .adl-outline-tree__toggle {
+  background: var(--adl-tree-toggle-active-bg);
+  color: var(--text-primary);
+}
+
+.adl-tree-node.is-active > .adl-tree-node__row .adl-tree-node__toggle:hover,
+.adl-filetree__item.is-active > .adl-filetree__row .adl-filetree__toggle:hover,
+.adl-outline-tree__item.is-active > .adl-outline-tree__row .adl-outline-tree__toggle:hover {
+  background: color-mix(in srgb, var(--bg-hover) 78%, var(--border) 22%);
+}

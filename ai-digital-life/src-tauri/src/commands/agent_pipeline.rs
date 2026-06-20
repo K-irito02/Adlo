@@ -59,7 +59,43 @@ pub(crate) fn collect_context(
       "tokenEstimate": ws_ctx.token_estimate
     }));
     let mut context = vec![ws_ctx];
+
+    let file_context = collect_file_context(
+        workspace,
+        input,
+        detail,
+        workspace_scope_id,
+        session_id,
+        &emit_activity,
+        audit_batch,
+    );
+    context.extend(file_context);
+
+    let symbol_context = collect_symbol_context(
+        workspace,
+        input,
+        detail,
+        workspace_scope_id,
+        session_id,
+        &emit_activity,
+        audit_batch,
+    );
+    context.extend(symbol_context);
+
+    Ok(adl_context::sort_context(context))
+}
+
+fn collect_file_context<F: Fn(serde_json::Value)>(
+    workspace: &adl_kernel::WorkspaceMeta,
+    input: &StartRunInput,
+    detail: &AgentRunDetail,
+    workspace_scope_id: &str,
+    session_id: &str,
+    emit_activity: &F,
+    audit_batch: &mut Vec<AuditBatchEntry>,
+) -> Vec<adl_kernel::ContextEntry> {
     const FILE_CONTEXT_MAX_TOKENS: usize = 6_000;
+    let mut context = Vec::new();
     if !workspace.root_path.is_empty() {
         if let Some(rel) = adl_agent_runtime::target_file_from_prompt(&input.prompt) {
             if let Ok(doc) =
@@ -110,6 +146,19 @@ pub(crate) fn collect_context(
             }
         }
     }
+    context
+}
+
+fn collect_symbol_context<F: Fn(serde_json::Value)>(
+    workspace: &adl_kernel::WorkspaceMeta,
+    input: &StartRunInput,
+    detail: &AgentRunDetail,
+    workspace_scope_id: &str,
+    session_id: &str,
+    emit_activity: &F,
+    audit_batch: &mut Vec<AuditBatchEntry>,
+) -> Vec<adl_kernel::ContextEntry> {
+    let mut context = Vec::new();
     if let Some(sym) = adl_agent_runtime::target_symbol_from_prompt(&input.prompt) {
         context.push(adl_context::symbol_context(&sym));
         emit_activity(serde_json::json!({
@@ -140,7 +189,7 @@ pub(crate) fn collect_context(
             }
         }
     }
-    Ok(adl_context::sort_context(context))
+    context
 }
 
 pub(crate) async fn call_model<F: Fn(serde_json::Value)>(
@@ -279,28 +328,41 @@ pub(crate) fn generate_patches(
     Ok(patch_set)
 }
 
+fn decide_audit_operation(
+    workspace_id: &str,
+    session_id: &str,
+    patch_set: Option<&adl_kernel::PatchSet>,
+    run_id: &str,
+    summary: &str,
+) -> AuditBatchEntry {
+    AuditBatchEntry {
+        workspace_id: workspace_id.to_string(),
+        session_id: Some(session_id.to_string()),
+        operation_type: if patch_set.is_some() { "patch-apply".into() } else { "approval".into() },
+        risk_level: if patch_set.is_some() {
+            adl_kernel::RiskLevel::Medium
+        } else {
+            adl_kernel::RiskLevel::Low
+        },
+        summary: summary.to_string(),
+        decision: Some("auto".into()),
+        detail: Some(format!("runId={run_id}")),
+    }
+}
+
 pub(crate) fn finalize_run<F: Fn(serde_json::Value)>(
     ctx: FinalizeRunContext<'_, F>,
 ) -> Result<ConversationSendResult, AppError> {
     let detail = adl_agent_runtime::complete_plan(ctx.detail, ctx.patch_set, ctx.scenario);
     crate::commands::agent::save_run_detail(ctx.state, &detail)?;
-    ctx.audit_batch.push(AuditBatchEntry {
-        workspace_id: ctx.workspace.id.clone(),
-        session_id: Some(ctx.session.id.clone()),
-        operation_type: if ctx.patch_set.is_some() {
-            "patch-apply".into()
-        } else {
-            "approval".into()
-        },
-        risk_level: if ctx.patch_set.is_some() {
-            adl_kernel::RiskLevel::Medium
-        } else {
-            adl_kernel::RiskLevel::Low
-        },
-        summary: detail.run.summary.clone().unwrap_or_else(|| "Agent run updated.".into()),
-        decision: Some("auto".into()),
-        detail: Some(format!("runId={}", detail.run.id)),
-    });
+    let summary = detail.run.summary.clone().unwrap_or_else(|| "Agent run updated.".into());
+    ctx.audit_batch.push(decide_audit_operation(
+        &ctx.workspace.id,
+        &ctx.session.id,
+        ctx.patch_set,
+        &detail.run.id,
+        &summary,
+    ));
 
     let blocks = adl_agent_runtime::assistant_blocks(&detail, ctx.patch_set, ctx.scenario);
     let assistant_message = adl_conversation::create_message(

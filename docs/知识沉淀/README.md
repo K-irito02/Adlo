@@ -8,7 +8,7 @@
 |------|------|--------|
 | [重构](./重构/) | 重构方法论、组件提取、执行报告、阶段性总结 | 23 |
 | [多工作区](./多工作区/) | 多工作区开发中的变更面板、文件树、终端、布局等经验 | 11 |
-| [浏览器](./浏览器/) | 内置浏览器实现、空标签引导页、树形目录交互、iframe 嵌入检查、Tauri WebView 覆盖、Resize Handle 区域逃逸、复制按钮动画化、Child WebView IPC 限制、SPA 标题轮询等经验 | 13 |
+| [浏览器](./浏览器/) | 内置浏览器实现、空标签引导页、树形目录交互、iframe 嵌入检查、Tauri WebView 覆盖、Resize Handle 区域逃逸、复制按钮动画化、Child WebView IPC 限制、SPA 标题轮询、导航模式切换、并发回调去重等经验 | 15 |
 | [代码质量](./代码质量/) | 全量代码质量检测与修复经验 | 11 |
 | [浏览器自动化](./浏览器自动化/) | 浏览器自动化调试记录与规则经验 | 2 |
 | [交互优化](./交互优化/) | 跨功能面板的交互/UX 问题修复经验 | 13 |
@@ -77,6 +77,7 @@
 | [panel-resize-handle-webview-2026-06-18.md](./浏览器/panel-resize-handle-webview-2026-06-18.md) | 2026-06-18 修复执行 | 面板拖拽线被 WebView 覆盖：区域逃逸方案（handle 左扩至中心区），无需隐藏 WebView |
 | [browser-copy-button-animation-2026-06-18.md](./浏览器/browser-copy-button-animation-2026-06-18.md) | 2026-06-18 交互优化 | 浏览器地址栏复制按钮动画化：引入 lucide-animated CopyIcon，点击播放弹簧动画后自动恢复 |
 | [browser-navigation-mode-toggle-2026-06-20.md](./浏览器/browser-navigation-mode-toggle-2026-06-20.md) | 2026-06-20 新功能 + 修复执行 | 浏览器导航模式切换（in-place/new-tab）+ 链接点击后自动刷新修复（SPA pushState URL 差异、两路去重失效、hostname+pathname 归一化） |
+| [browser-handlePageMeta-concurrent-dedup-2026-06-21.md](./浏览器/browser-handlePageMeta-concurrent-dedup-2026-06-21.md) | 2026-06-21 修复执行 | handlePageMeta 并发回调去重：两个路径（onUrlChanged + meta-changed）竞态导致重复标签/历史 + 页面刷新循环，修复 markUrlSeen 调用时机 + processedMetaRef 去重机制 |
 
 ### 代码质量
 

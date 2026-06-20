@@ -1,0 +1,497 @@
+/* ---------------- Right panel ---------------- */
+
+.adl-rightpanel {
+  position: relative;
+  display: block;
+  min-height: 0;
+  min-width: 0;
+  background: var(--bg);
+  border-left: 1px solid var(--border-subtle);
+  overflow: visible;
+  transition:
+    border-color var(--duration-200) var(--ease-default),
+    background-color var(--duration-200) var(--ease-default),
+    color var(--duration-200) var(--ease-default);
+}
+
+.adl-rightpanel--overlay-active,
+.adl-rightpanel--overlay-expanded {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(var(--rightpanel-width), calc(100% - var(--leftbar-width)));
+  z-index: 4;
+}
+
+.adl-shell__body.is-left-collapsed .adl-rightpanel--overlay-active,
+.adl-shell__body.is-left-collapsed .adl-rightpanel--overlay-expanded {
+  width: min(var(--rightpanel-width), 100%);
+}
+
+.adl-rightpanel--overlay-expanded {
+  box-shadow: var(--shadow-panel);
+}
+
+.adl-rightpanel__resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -8px;
+  width: 14px;
+  cursor: col-resize;
+  z-index: var(--z-tooltip);
+}
+
+.adl-rightpanel__resize-handle::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 8px;
+  width: 1px;
+  background: transparent;
+  opacity: 0;
+  transition:
+    width var(--duration-150) var(--ease-default),
+    opacity var(--duration-150) var(--ease-default),
+    background-color var(--duration-150) var(--ease-default);
+}
+
+.adl-rightpanel__resize-handle:hover::before,
+.adl-rightpanel__resize-handle:active::before {
+  width: 3px;
+  opacity: 1;
+  background: var(--text-secondary);
+}
+
+.adl-is-resizing,
+.adl-is-resizing * {
+  cursor: col-resize !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+}
+
+.adl-is-resizing .adl-tool-primary,
+.adl-is-resizing .adl-tool-editor,
+.adl-is-resizing .adl-tool-primary__scroll {
+  pointer-events: none;
+}
+
+.adl-rightpanel--collapsed {
+  border-left-color: transparent;
+  overflow: hidden;
+}
+
+.adl-rightpanel__content {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  opacity: 1;
+  transform: translateX(0);
+  filter: blur(0);
+  transition:
+    opacity var(--panel-content-duration) var(--ease-default) var(--panel-content-delay),
+    transform var(--panel-shell-duration) var(--ease-default) var(--panel-content-delay),
+    filter var(--panel-shell-duration) var(--ease-default) var(--panel-content-delay);
+  will-change: opacity, transform, filter;
+  background: var(--bg);
+}
+
+.adl-rightpanel--collapsed .adl-rightpanel__content {
+  opacity: 0;
+  transform: translateX(var(--panel-content-shift));
+  filter: blur(var(--panel-content-blur));
+  pointer-events: none;
+  transition-delay: 0ms;
+}
+
+.adl-rightpanel__tool {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+[hidden] {
+  display: none;
+}
+
+/* ---------------- Tool bodies ---------------- */
+
+.adl-tool-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.adl-tool-context {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg);
+}
+
+.adl-tool-context--files {
+  min-height: 40px;
+  padding: var(--space-1-5) var(--space-2);
+}
+
+.adl-tool-context__group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.adl-tool-context__group--files {
+  gap: var(--space-1-5);
+}
+
+.adl-tool-context__group--files-actions {
+  gap: var(--space-1);
+}
+
+.adl-tool-context__divider {
+  width: 1px;
+  height: 18px;
+  background: var(--border-subtle);
+  margin: 0 var(--space-1);
+  align-self: center;
+}
+
+.adl-tool-context__group--grow {
+  flex: 1;
+}
+
+.adl-tool-context__diff-view {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  min-width: 0;
+  padding: 1px;
+  border-radius: var(--radius-full);
+  background: var(--surface-subtle);
+}
+
+.adl-tool-context__toggle-btn {
+  min-height: 28px;
+  padding: 0 var(--space-2);
+  border: none;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+  transition: var(--transition-colors);
+}
+
+.adl-tool-context__toggle-btn:hover:not(:disabled),
+.adl-tool-context__toggle-btn:focus-visible {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.adl-tool-context__toggle-btn.is-active {
+  background: var(--bg-muted);
+  color: var(--text-primary);
+}
+
+.adl-tool-context__toggle-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.adl-tool-context__summary {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.adl-tool-context__iconbtn {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  transition: var(--transition-colors);
+}
+
+.adl-tool-context__iconbtn:hover:not(:disabled),
+.adl-tool-context__iconbtn:focus-visible,
+.adl-tool-context__iconbtn.is-active,
+.adl-tool-context__iconbtn.is-open {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.adl-tool-surface {
+  display: grid;
+  grid-template-columns: 56px 220px minmax(0, 1fr);
+  min-height: 0;
+  height: 100%;
+}
+
+.adl-tool-surface.is-navigator-collapsed {
+  grid-template-columns: 56px 0 minmax(0, 1fr);
+}
+
+.adl-tool-surface--files {
+  display: flex;
+}
+
+.adl-tool-surface--files > .adl-tool-navigator {
+  width: var(--adl-files-nav-width, 240px);
+  flex-shrink: 0;
+}
+
+.adl-tool-surface--files.is-navigator-collapsed > .adl-tool-navigator .adl-tool-navigator__context {
+  visibility: hidden;
+}
+
+.adl-tool-surface--files {
+  position: relative;
+}
+
+.adl-tool-surface--files .adl-tool-navigator__context {
+  padding-inline-end: var(--space-1);
+}
+
+.adl-tool-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) 0;
+  border-right: 1px solid var(--border-subtle);
+  background: var(--surface-subtle);
+}
+
+.adl-tool-rail--horizontal {
+  --adl-file-rail-height: 30px;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 0;
+  min-height: var(--adl-file-rail-height);
+  height: var(--adl-file-rail-height);
+  padding: 0;
+  border-right: none;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.adl-tool-rail--horizontal::-webkit-scrollbar {
+  display: none;
+}
+
+[data-theme='dark'] .adl-tool-rail--horizontal {
+  background: var(--bg);
+}
+
+.adl-tool-rail--horizontal .tooltip-trigger {
+  display: flex !important;
+  align-self: stretch;
+  height: 100%;
+  position: relative;
+  align-items: stretch;
+  justify-content: center;
+}
+
+.adl-tool-rail--horizontal
+  .tooltip-trigger:has(
+    > .adl-tool-rail__btn:is(:hover, .is-open, .is-active, [aria-pressed='true'], :focus-visible)
+  )
+  + .tooltip-trigger:has(
+    > .adl-tool-rail__btn:is(:hover, .is-open, .is-active, [aria-pressed='true'], :focus-visible)
+  )::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 1px;
+  background: color-mix(in srgb, var(--text-primary) 18%, transparent);
+  transform: translateX(-0.5px);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.adl-tool-rail__btn {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
+  background: transparent;
+  color: var(--text-secondary);
+  transition: var(--transition-colors);
+}
+
+.adl-tool-rail--horizontal .adl-tool-rail__btn {
+  min-width: 40px;
+  width: 40px;
+  height: 100%;
+  min-height: 100%;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: color-mix(in srgb, var(--text-primary) 72%, transparent);
+  box-shadow: none;
+}
+
+.adl-tool-rail--horizontal .adl-tool-rail__btn:hover,
+.adl-tool-rail--horizontal .adl-tool-rail__btn:focus-visible {
+  background: color-mix(in srgb, var(--text-primary) 6%, transparent);
+  color: color-mix(in srgb, var(--text-primary) 96%, transparent);
+}
+
+.adl-tool-rail--horizontal .adl-tool-rail__btn.is-active {
+  background: color-mix(in srgb, var(--text-primary) 8%, transparent);
+  color: var(--text-primary);
+}
+
+.adl-tool-rail__btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.adl-tool-rail__btn.is-active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--accent-subtle);
+}
+
+/* ---------------- Tool panels ---------------- */
+
+.adl-tool-primary {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--bg);
+}
+
+.adl-tool-primary--scrollable {
+  overflow: hidden;
+}
+
+.adl-tool-sidebar__actions {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.adl-tool-sidebar__actions--stack {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.adl-tool-sidebar__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.adl-tool-sidebar__list button {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  width: 100%;
+  padding: var(--space-1) var(--space-2);
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  text-align: left;
+}
+
+.adl-tool-sidebar__list button:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.adl-tool-sidebar__list button.is-active {
+  background: var(--bg-active, var(--bg-hover));
+  color: var(--text-primary);
+}
+
+.adl-tool-sidebar__list button span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adl-tool-sidebar__list small {
+  color: var(--text-muted);
+  font-size: 10px;
+  margin-left: var(--space-4);
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+}
+
+.adl-tool-main {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  background: var(--bg);
+}
+
+.adl-tool-main__title {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+}
+
+.adl-tool-main__scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 0;
+  background: var(--bg);
+}
+
+.adl-tool-main__scroll--centered {
+  align-items: center;
+  justify-content: center;
+}
+
+.adl-tool-panel--files {
+  position: relative;
+  overflow: visible;
+}

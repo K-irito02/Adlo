@@ -28,11 +28,7 @@ export function BrowserNavModeSwitch({
   const [isTapped, setIsTapped] = useState(false);
 
   return (
-    <SwitchPrimitives.Root
-      checked={checked}
-      onCheckedChange={onCheckedChange}
-      asChild
-    >
+    <SwitchPrimitives.Root checked={checked} onCheckedChange={onCheckedChange} asChild>
       <motion.button
         className="adl-browser-nav-mode-switch"
         style={{

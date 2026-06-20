@@ -3,7 +3,7 @@ import { SafeIframe } from './SafeIframe';
 import { RenameDialog } from '../../components/RenameDialog';
 import { ToastContainer, type ToastType } from '../../components/Toast';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
-import { IconAlertTriangle, IconGlobe } from '../../icons';
+import { ExternalLinkError } from './ExternalLinkError';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../../stores/slicedStore';
 import { useBrowserTabs, computeNavigatorCount } from './useBrowserTabs';
@@ -23,7 +23,6 @@ import { BrowserNavigator } from './BrowserNavigator';
 import { isTauriShell } from '../../../tauri-bridge';
 import { BrowserLandingPage, CreateTabDialog } from './browser-landing';
 import type { BrowserPanelProps } from '../../regions/right-panel/types';
-import { open as shellOpen } from '@tauri-apps/plugin-shell';
 import { useNavigatorResize } from '../../hooks/useNavigatorResize';
 import { useTCopy } from '../../i18n/useTCopy';
 import {
@@ -796,30 +795,12 @@ export function BrowserPanel(props: BrowserPanelProps) {
           ) : (
             <ErrorBoundary
               fallback={
-                <div className="adl-browser-error-container adl-browser-error-container--active">
-                  <IconAlertTriangle size={28} decorative className="adl-browser-error__icon" />
-                  <p className="adl-browser-error-text">{t.browserCannotOpenEmbedded}</p>
-                  <button
-                    type="button"
-                    className="adl-browser-external-btn adl-browser-external-btn--prominent"
-                    onClick={() => {
-                      const url = activeTab?.url ?? 'about:blank';
-                      if (isTauriShell()) {
-                        shellOpen(url).catch(() => {});
-                      } else {
-                        const w = window as { trae?: { openExternal: (url: string) => void } };
-                        if (w.trae?.openExternal) {
-                          w.trae.openExternal(url);
-                        } else {
-                          window.open(url, '_blank', 'noopener,noreferrer');
-                        }
-                      }
-                    }}
-                  >
-                    <IconGlobe size={14} />
-                    {t.browserOpenExternal}
-                  </button>
-                </div>
+                <ExternalLinkError
+                  errorKey="browserCannotOpenEmbedded"
+                  activeTabUrl={activeTab?.url}
+                  t={t}
+                  variant="active"
+                />
               }
             >
               {!isTauriShell() &&
@@ -839,57 +820,21 @@ export function BrowserPanel(props: BrowserPanelProps) {
                 )}
 
               {!isTauriShell() && iframeBlockedDetected && (
-                <div className="adl-browser-error-container adl-browser-error-container--blocked">
-                  <IconAlertTriangle size={28} decorative className="adl-browser-error__icon" />
-                  <p className="adl-browser-error-text">{t.browserCannotOpenEmbedded}</p>
-                  <button
-                    type="button"
-                    className="adl-browser-external-btn adl-browser-external-btn--prominent"
-                    onClick={() => {
-                      const url = activeTab?.url ?? 'about:blank';
-                      if (isTauriShell()) {
-                        shellOpen(url).catch(() => {});
-                      } else {
-                        const w = window as { trae?: { openExternal: (url: string) => void } };
-                        if (w.trae?.openExternal) {
-                          w.trae.openExternal(url);
-                        } else {
-                          window.open(url, '_blank', 'noopener,noreferrer');
-                        }
-                      }
-                    }}
-                  >
-                    <IconGlobe size={14} />
-                    {t.browserOpenExternal}
-                  </button>
-                </div>
+                <ExternalLinkError
+                  errorKey="browserCannotOpenEmbedded"
+                  activeTabUrl={activeTab?.url}
+                  t={t}
+                  variant="blocked"
+                />
               )}
 
               {!isTauriShell() && iframeLoadError && !iframeBlockedDetected && (
-                <div className="adl-browser-error-container adl-browser-error-container--blocked">
-                  <IconAlertTriangle size={28} decorative className="adl-browser-error__icon" />
-                  <p className="adl-browser-error-text">{t.browserConnectionFailed}</p>
-                  <button
-                    type="button"
-                    className="adl-browser-external-btn adl-browser-external-btn--prominent"
-                    onClick={() => {
-                      const url = activeTab?.url ?? 'about:blank';
-                      if (isTauriShell()) {
-                        shellOpen(url).catch(() => {});
-                      } else {
-                        const w = window as { trae?: { openExternal: (url: string) => void } };
-                        if (w.trae?.openExternal) {
-                          w.trae.openExternal(url);
-                        } else {
-                          window.open(url, '_blank', 'noopener,noreferrer');
-                        }
-                      }
-                    }}
-                  >
-                    <IconGlobe size={14} />
-                    {t.browserOpenExternal}
-                  </button>
-                </div>
+                <ExternalLinkError
+                  errorKey="browserConnectionFailed"
+                  activeTabUrl={activeTab?.url}
+                  t={t}
+                  variant="blocked"
+                />
               )}
 
               {isEmbedPending && (

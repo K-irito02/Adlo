@@ -30,6 +30,8 @@ const chunkButtonSource = readFileSync(
   'utf8'
 );
 const regionsCssSource = [
+  'files-panel-core.css',
+  'files-panel-list.css',
   'files-panel.css',
   'files-navigator.css',
   'files-editor-tabs.css',

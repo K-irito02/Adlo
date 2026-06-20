@@ -1,6 +1,6 @@
 # 重构进度报告
 
-> 更新日期: 2026-06-20（第七十三轮）
+> 更新日期: 2026-06-21（第七十五轮）
 
 ## 完成状态
 
@@ -79,6 +79,8 @@
 | **第七十一轮** | **2026-06-17** | **Cross-origin iframe SecurityError 终极修复（Shadow DOM attachShadow closed 方案，6次迭代后成功）+ 四维门禁全量清零（ESLint 21 warnings→0、Prettier 27文件格式化、rustfmt/clippy 通过）+ browserSelectors.ts 空桩→完整24个选择器实现** | ✅ |
 | **第七十二轮** | **2026-06-19** | **重构洞察第13次执行（13项发现）：Gutter hover overlay 提取为 FoldTooltipOverlay.tsx（~230 行）+ 8 个大型 CSS 文件拆分（全量 1000 行以下）+ 剩余空状态提取为独立组件（3 个）+ useFoldTooltipState 提取 checkEmbed.ts（~80 行）** | ✅ |
 | **第七十三轮** | **2026-06-20** | **重构洞察第14次执行（9项发现）：7 个大型文件拆分——browserpanel.tsx 提取 useBrowserPageMeta + useBrowserMetaSubscription（1033→939行）、GitHubTreeEntry.tsx 提取菜单函数（828→322行）、useChangesPanelState.tsx 提取 21 个纯函数（624→295行）、useFoldTooltipState.ts 提取 useFoldTooltipPosition（584→286行）、workspaceActions.ts 提取 browserCleanupActions（547→448行）、useBrowserWebView.ts 提取 useBrowserUrlChange（471→356行）；代码质量清理——浏览器模块 24 处 console.log 全量清理、3 处 window as any 消除** | ✅ |
+| **第七十四轮** | **2026-06-21** | **重构洞察第15次执行（11项发现）：前端 JSX 去重——browserpanel.tsx 提取 ExternalLinkError 组件消除 3 处重复；组件提取——EditorSurfaceShell 提取 FilePreviewRenderers（512→434行）、ChangesToolbar 拆分为 ChangesTopToolbar+ChangesNavigatorToolbar（451→18行）；CSS 拆分——file-tree.css（767行→2文件）、files-panel.css（724行→2文件）、composer.css（710行→3文件）；Rust 拆分——agent_pipeline.rs 提取 collect_file_context+collect_symbol_context+decide_audit_operation、model-gateway chat 提取 select_provider；CSS 硬编码清理——files-panel-core.css 8 处自定义属性替换为语义化变量** | ✅ |
+| **第七十五轮** | **2026-06-21** | **浏览器导航去重修复：handlePageMeta 并发回调去重——新增 processedMetaRef 去重机制防止两个回调路径（onUrlChanged + meta-changed）创建重复标签/历史记录；修复 markUrlSeen 在新建标签模式中缺失的调用导致页面刷新循环** | ✅ |
 
 ## 说明
 

@@ -1,0 +1,269 @@
+/* ---------------- Composer Input ---------------- */
+
+.adl-composer__input {
+  width: 100%;
+  min-width: 0;
+  height: 26px;
+  min-height: 26px;
+  max-height: 26px;
+  display: block;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: clamp(14px, 1.5vw, 17px);
+  line-height: 1.55;
+  padding: 0;
+  align-self: center;
+  caret-color: transparent;
+  white-space: nowrap;
+  word-break: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.adl-composer__caret {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  width: 1px;
+  border-radius: var(--radius-full);
+  background: currentColor;
+  color: var(--text-primary);
+  pointer-events: none;
+  animation: adl-composer-caret-blink 1s steps(1, end) infinite;
+}
+
+.adl-composer__input[data-placeholder]:empty::before {
+  display: flex;
+  align-items: center;
+  content: attr(data-placeholder);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  height: 100%;
+}
+
+.adl-composer__input:focus {
+  outline: none;
+}
+
+@keyframes adl-composer-caret-blink {
+  0%,
+  45% {
+    opacity: 1;
+  }
+
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.adl-composer__input:focus-visible,
+.adl-composer__inner:focus-visible,
+.adl-composer__left > button:focus-visible,
+.adl-composer__right > button:focus-visible {
+  box-shadow: none;
+  outline: none;
+}
+
+/* ---------------- Split Button ---------------- */
+
+.adl-split-btn {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: visible;
+  position: relative;
+}
+
+.adl-split-btn__main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+.adl-split-btn__main:hover {
+  background: var(--bg-hover);
+}
+
+.adl-split-btn__main:disabled {
+  opacity: 0.5;
+  cursor: default;
+  background: transparent;
+}
+
+.adl-split-btn__drop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 28px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-left: 1px solid var(--border);
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 10px;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+.adl-split-btn__drop:hover {
+  background: var(--bg-hover);
+}
+
+.adl-split-btn__menu {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 12px);
+  width: max-content;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  z-index: var(--z-popover);
+}
+
+.adl-split-btn__option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+.adl-split-btn__option:hover {
+  background: var(--bg-hover);
+}
+
+.adl-split-btn__input-area {
+  margin-top: 8px;
+  width: 100%;
+}
+
+.adl-split-btn__input-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.adl-split-btn__input {
+  flex: 1;
+  height: 28px;
+  padding: 0 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.adl-split-btn__input:hover {
+  background: var(--bg-hover);
+}
+
+.adl-split-btn__input--error {
+  border-color: var(--danger, #ef4444);
+}
+
+.adl-split-btn__error {
+  margin: 4px 0 0;
+  font-size: var(--text-xs, 11px);
+  color: var(--danger, #ef4444);
+  line-height: 1.4;
+}
+
+.adl-split-btn__dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  font-family: inherit;
+  transition: background 0.15s;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.adl-split-btn__dots:hover {
+  background: var(--bg-hover);
+}
+
+.adl-split-btn__settings {
+  position: absolute;
+  z-index: var(--z-popover);
+  bottom: 0;
+  left: calc(100% + 12px);
+  width: 260px;
+  margin-top: 0;
+  padding: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+}
+
+.adl-split-btn__settings-title {
+  display: block;
+  font-size: 12px;
+  color: var(--text-bright);
+  margin-bottom: 6px;
+}
+
+.adl-split-btn__settings-desc {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--text-dim);
+  text-align: left;
+}
+
+.adl-split-btn__settings-desc strong {
+  color: var(--text);
+  display: block;
+  margin-top: 4px;
+}
+
+.adl-split-btn__settings-desc strong:first-child {
+  margin-top: 0;
+}

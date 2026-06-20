@@ -5,7 +5,7 @@ import {
   type AgentHunkDecoration,
 } from './editor-support/agentDecorations';
 import { categorizeFile } from './fileTypeRouter';
-import { LazyMarkdownPreviewWrapper } from '../../features/preview';
+import { FilePreviewRenderers } from './FilePreviewRenderers';
 import type { EditorRef, DiffEditorRef } from '../../stores/types';
 import { useAppStore } from '../../stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -390,97 +390,19 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
     );
   }
 
-  if (fileCategory === 'markdown' && previewEnabled) {
+  if (
+    (fileCategory === 'markdown' && previewEnabled) ||
+    fileCategory === 'docx' ||
+    fileCategory === 'pdf' ||
+    fileCategory === 'binary'
+  ) {
     return (
-      <div
-        ref={editorSurfaceRef}
-        className="adl-tool-editor__surface adl-tool-editor__surface--preview"
-      >
-        <LazyMarkdownPreviewWrapper content={fileContent ?? ''} theme={resolvedTheme} />
-      </div>
-    );
-  }
-
-  if (fileCategory === 'docx') {
-    return (
-      <div
-        ref={editorSurfaceRef}
-        className="adl-tool-editor__surface adl-tool-editor__surface--preview"
-      >
-        <div className="adl-unsupported-preview">
-          <svg
-            className="adl-unsupported-preview__icon"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
-            <path d="M14 2v6h6" />
-            <path d="M9 15h6" />
-          </svg>
-          <span className="adl-unsupported-preview__text">{t.changesPreviewDocx}</span>
-          <span className="adl-unsupported-preview__hint">{t.changesPreviewNotSupported}</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (fileCategory === 'pdf') {
-    return (
-      <div
-        ref={editorSurfaceRef}
-        className="adl-tool-editor__surface adl-tool-editor__surface--preview"
-      >
-        <div className="adl-unsupported-preview">
-          <svg
-            className="adl-unsupported-preview__icon"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
-            <path d="M14 2v6h6" />
-            <path d="M9 13h6" />
-            <path d="M9 17h4" />
-          </svg>
-          <span className="adl-unsupported-preview__text">{t.changesPreviewPdf}</span>
-          <span className="adl-unsupported-preview__hint">{t.changesPreviewNotSupported}</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (fileCategory === 'binary') {
-    return (
-      <div
-        ref={editorSurfaceRef}
-        className="adl-tool-editor__surface adl-tool-editor__surface--preview"
-      >
-        <div className="adl-unsupported-preview">
-          <svg
-            className="adl-unsupported-preview__icon"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <rect x="2" y="6" width="20" height="12" rx="2" />
-            <path d="M6 12h.01" />
-            <path d="M10 12h.01" />
-            <path d="M14 12h4" />
-          </svg>
-          <span className="adl-unsupported-preview__text">{t.changesPreviewBinary}</span>
-          <span className="adl-unsupported-preview__hint">{t.changesPreviewNotSupported}</span>
-        </div>
-      </div>
+      <FilePreviewRenderers
+        editorSurfaceRef={editorSurfaceRef}
+        fileCategory={fileCategory}
+        fileContent={fileContent ?? null}
+        theme={resolvedTheme}
+      />
     );
   }
 

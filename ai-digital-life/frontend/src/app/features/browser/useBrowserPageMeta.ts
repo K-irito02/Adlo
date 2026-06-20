@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { useAppStore } from '../../stores/slicedStore';
 import { getGoogleFaviconUrl } from '../../utils/favicon';
 import { setCachedFavicon } from '../../utils/fetchPageMeta';
@@ -34,6 +34,14 @@ function hostnamePathKey(url: string): string {
   }
 }
 
+/**
+ * TTL for deduplicating concurrent handlePageMeta calls from the two
+ * callback paths (onUrlChanged → browser_fetch_page_meta AND
+ * meta-changed from INIT_SCRIPT).  Must be long enough to cover the
+ * async HTTP meta fetch on slow connections.
+ */
+const META_DEDUP_TTL = 5000; // ms
+
 export function useBrowserPageMeta(
   pendingNavigationsRef: React.MutableRefObject<Set<string>>,
   _setToastMessage?: React.Dispatch<
@@ -42,6 +50,40 @@ export function useBrowserPageMeta(
   _showToast?: (message: string, type?: ToastType, source?: string) => void,
   markUrlSeen?: (url: string) => void
 ) {
+  /**
+   * Tracks URLs that have been recently processed by handlePageMeta.
+   * Prevents the two concurrent callback paths (onUrlChanged + meta-changed)
+   * from creating duplicate tabs / history entries for the same navigation.
+   */
+  const processedMetaRef = useRef<Map<string, number>>(new Map());
+
+  const isMetaRecentlyProcessed = useCallback((url: string): boolean => {
+    const now = Date.now();
+    const ts = processedMetaRef.current.get(url);
+    if (ts !== undefined) {
+      if (now - ts > META_DEDUP_TTL) {
+        processedMetaRef.current.delete(url);
+        return false;
+      }
+      return true;
+    }
+    // Also check by hostname+pathname to catch SPA pushState URL variants
+    const metaKey = hostnamePathKey(url);
+    if (!metaKey) {
+      return false;
+    }
+    for (const [seenUrl, seenTs] of processedMetaRef.current.entries()) {
+      if (now - seenTs > META_DEDUP_TTL) {
+        processedMetaRef.current.delete(seenUrl);
+        continue;
+      }
+      if (hostnamePathKey(seenUrl) === metaKey) {
+        return true;
+      }
+    }
+    return false;
+  }, []);
+
   const handlePageMeta = useCallback(
     (meta: { title: string; favicon: string; url: string }) => {
       const faviconToCache = meta.favicon || (meta.url ? getGoogleFaviconUrl(meta.url) : '');
@@ -63,6 +105,15 @@ export function useBrowserPageMeta(
 
       const pageTitle = meta.title;
       if (!pageTitle) {
+        return;
+      }
+
+      // Deduplicate concurrent calls from the two callback paths
+      // (onUrlChanged → browser_fetch_page_meta and meta-changed from INIT_SCRIPT).
+      // If another handlePageMeta call already processed this URL (or a
+      // hostname+pathname equivalent) within META_DEDUP_TTL, we skip
+      // tab creation to avoid duplicate tabs / history entries.
+      if (isMetaRecentlyProcessed(meta.url)) {
         return;
       }
 
@@ -100,6 +151,17 @@ export function useBrowserPageMeta(
       }
 
       // 3. No match: create new tab or update active tab
+      // Mark URL as seen BEFORE creating tab to prevent the subsequent
+      // useEffect → navigateTauriUrl → browser_navigate → page refresh loop.
+      // This is critical when meta-changed fires from the INIT_SCRIPT
+      // (via useBrowserMetaSubscription) because that path does NOT go through
+      // onUrlChanged where markUrlSeen is normally called.
+      if (markUrlSeen) {
+        markUrlSeen(meta.url);
+      }
+      // Mark as processed BEFORE creating tab so the second callback path
+      // (meta-changed from INIT_SCRIPT) sees it and skips.
+      processedMetaRef.current.set(meta.url, Date.now());
       if (state.browserNavigateInPlace) {
         state.browserNavigateActiveTab(meta.url, pageTitle);
         state.browserAddToHistory(meta.url, pageTitle);

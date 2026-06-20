@@ -49,86 +49,105 @@ impl ModelGateway {
             synthetic: None,
         };
 
-        let mut last_error = None;
-        for provider in route {
-            let model_id = self
-                .preferences
-                .providers
-                .get(&provider)
-                .map(|pref| pref.model_id.clone())
-                .unwrap_or_else(|| default_model(provider).to_string());
-            match self.call_provider(provider, &model_id, &messages).await {
-                Ok(ModelResponse {
+        match self.select_provider(&route, &messages).await {
+            Ok((
+                _provider_id,
+                model_id,
+                ModelResponse {
                     usage,
                     model_id: resp_model_id,
                     provider_id: resp_provider_id,
                     content,
                     synthetic,
                     request_id,
-                    route,
-                }) => {
-                    let audit = audit_record(AuditInput {
-                        workspace_id,
-                        session_id,
-                        run_id,
-                        provider_id: resp_provider_id,
-                        model_id,
-                        scenario,
-                        route_meta,
-                        started,
-                        usage: usage.clone(),
-                        error: None,
-                    });
-                    return (
-                        ModelResponse {
-                            provider_id: resp_provider_id,
-                            model_id: resp_model_id,
-                            content,
-                            synthetic,
-                            request_id,
-                            usage,
-                            route,
-                        },
-                        audit,
-                    );
+                    route: resp_route,
                 },
+            )) => {
+                let audit = audit_record(AuditInput {
+                    workspace_id,
+                    session_id,
+                    run_id,
+                    provider_id: resp_provider_id,
+                    model_id,
+                    scenario,
+                    route_meta,
+                    started,
+                    usage: usage.clone(),
+                    error: None,
+                });
+                (
+                    ModelResponse {
+                        provider_id: resp_provider_id,
+                        model_id: resp_model_id,
+                        content,
+                        synthetic,
+                        request_id,
+                        usage,
+                        route: resp_route,
+                    },
+                    audit,
+                )
+            },
+            Err(last_error) => {
+                let provider = ModelProviderId::Deepseek;
+                let model_id = "synthetic-local".to_string();
+                let content = deterministic_fallback(&messages, last_error.as_deref());
+                let usage = Some(estimate_usage(&messages));
+                let route = ModelRouteDecision {
+                    reason: "all configured providers failed or are missing secrets; used local deterministic fallback".into(),
+                    chain: vec!["synthetic-local".into()],
+                    synthetic: Some(true),
+                };
+                let response = ModelResponse {
+                    provider_id: provider,
+                    model_id: model_id.clone(),
+                    content,
+                    synthetic: true,
+                    request_id: Some(create_id("modelreq")),
+                    usage: usage.clone(),
+                    route: Some(route.clone()),
+                };
+                let audit = audit_record(AuditInput {
+                    workspace_id,
+                    session_id,
+                    run_id: None,
+                    provider_id: provider,
+                    model_id,
+                    scenario,
+                    route_meta: route,
+                    started,
+                    usage,
+                    error: last_error,
+                });
+                (response, audit)
+            },
+        }
+    }
+
+    /// Tries each provider in the route chain in priority order.
+    /// Returns the first successful response with its provider info,
+    /// or the last error encountered (None if no providers were configured).
+    async fn select_provider(
+        &self,
+        route: &[ModelProviderId],
+        messages: &[ModelChatMessage],
+    ) -> Result<(ModelProviderId, String, ModelResponse), Option<String>> {
+        let mut last_error = None;
+        for &provider in route {
+            let model_id = self
+                .preferences
+                .providers
+                .get(&provider)
+                .map(|pref| pref.model_id.clone())
+                .unwrap_or_else(|| default_model(provider).to_string());
+            match self.call_provider(provider, &model_id, messages).await {
+                Ok(response) => return Ok((provider, model_id, response)),
                 Err(error) => {
                     last_error = Some(error.to_string());
                 },
             }
         }
-
-        let provider = ModelProviderId::Deepseek;
-        let model_id = "synthetic-local".to_string();
-        let content = deterministic_fallback(&messages, last_error.as_deref());
-        let usage = Some(estimate_usage(&messages));
-        let route = ModelRouteDecision {
-            reason: "all configured providers failed or are missing secrets; used local deterministic fallback".into(),
-            chain: vec!["synthetic-local".into()],
-            synthetic: Some(true),
-        };
-        let response = ModelResponse {
-            provider_id: provider,
-            model_id: model_id.clone(),
-            content,
-            synthetic: true,
-            request_id: Some(create_id("modelreq")),
-            usage: usage.clone(),
-            route: Some(route.clone()),
-        };
-        let audit = audit_record(AuditInput {
-            workspace_id,
-            session_id,
-            run_id: None,
-            provider_id: provider,
-            model_id,
-            scenario,
-            route_meta: route,
-            started,
-            usage,
-            error: last_error,
-        });
-        (response, audit)
+        Err(last_error)
     }
 
     pub fn health(&self) -> ModelGatewayHealthSnapshot {
