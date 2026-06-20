@@ -185,6 +185,7 @@ xterm.js 主题色从 CSS 自定义属性读取，非硬编码：
 
 ## 相关文件
 
+- [ui-patterns.md](./ui-patterns.md) — UI 模式速查（对话框、菜单、悬停、点击、颜色、Hint Card、按钮、文件树等 20 类模式的一站式入口）
 - [docs/design-system/README.md](../../docs/design-system/README.md)
 - [design-system/tokens.ts](../../ai-digital-life/frontend/src/design-system/tokens.ts)
 - [styles/themes.css](../../ai-digital-life/frontend/src/styles/themes.css)

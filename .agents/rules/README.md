@@ -25,6 +25,7 @@ alwaysApply: true
 | `desktop-ui-verification.md` | 桌面端 UI 验证流程、双端验证清单 | 修改 UI |
 | `dev-rules.md` | 代理交互与执行规则（询问卡片、终端命令、代码修改原则） | 始终应用 |
 | `mandatory-testing.md` | 强制红绿测试规则、TDD 要求、测试范围 | 始终应用 |
+| `ui-patterns.md` | UI 模式速查：对话框、菜单、悬停、点击、颜色、Hint Card、按钮、文件树、Tooltip、Toast 等 20 类模式 | 始终应用（UI/UX 开发） |
 
 ## 新增规则
 
@@ -40,6 +41,7 @@ alwaysApply: true
 | Tauri Command 变更 | `tauri-shell.md` |
 | 测试命令变更 | `quality-gates.md`、`commands.md` |
 | 设计系统变更 | `design-system.md` |
+| UI 模式变更 | `ui-patterns.md` |
 | Phase 范围变更 | `phase-boundary.md` |
 | 双端一致性变更 | `tauri-shell.md`、`project-overview.md`、`desktop-ui-verification.md` |
 | 浏览器自动化工具/脚本变更 | `browser-automation.md`、`browser-automation` 技能 |
@@ -71,7 +73,7 @@ alwaysApply: true
 | 语言/Framework | 特定技术栈 | `rust-patterns.md`, `zustand-patterns.md`, `component-architecture.md`, `css-architecture.md` |
 | 质量保障 | 测试/门禁 | `quality-gates.md`, `mandatory-testing.md`, `error-handling.md` |
 | 操作指南 | 命令/工具 | `commands.md`, `browser-automation.md`, `desktop-ui-verification.md` |
-| 专项领域 | 安全/设计 | `tauri-shell.md`, `design-system.md` |
+| 专项领域 | 安全/设计 | `tauri-shell.md`, `design-system.md`, `ui-patterns.md` |
 
 ## 相关文件
 

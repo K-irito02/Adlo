@@ -71,6 +71,7 @@
 | 实现侧治理 | `ai-digital-life/AGENTS.md` |
 | 架构文档 | `docs/architecture/` |
 | 设计系统 | `docs/design-system/` |
+| UI 模式速查 | `.trae/rules/ui-patterns.md` |
 | 开发约束 | `docs/development/` |
 | IPC 契约 | `ai-digital-life/frontend/src/shared/ipc.ts` |
 | UI 测试 | `UIOperationManual/` |

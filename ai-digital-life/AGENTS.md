@@ -65,7 +65,7 @@
 | Tooltip | 禁止原生 `title`，必须使用 `TooltipSimple` |
 | 窗口 | 最小宽度 640px |
 
-详见 [docs/design-system/](../docs/design-system/)
+详见 [docs/design-system/](../docs/design-system/) 和 [UI 模式速查](../.trae/rules/ui-patterns.md)
 
 ## Stores 架构（Zustand 切片合并模式）
 
