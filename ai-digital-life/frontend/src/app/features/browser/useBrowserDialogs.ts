@@ -93,7 +93,7 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
         lockTabTitle(tabId);
       }
     },
-    [browserOpenTab, createTabDialog, setIsCreatingTab]
+    [browserOpenTab, createTabDialog]
   );
 
   const handleCreateTabCancel = useCallback(() => {
@@ -124,7 +124,7 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
       }
       setEditTabDialog({ open: false, tabId: '', name: '', url: '' });
     },
-    [editTabDialog, browserUpdateTab, setEditTabDialog]
+    [editTabDialog, browserUpdateTab]
   );
 
   const handleEditTabCancel = useCallback(() => {
