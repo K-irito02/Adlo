@@ -263,18 +263,18 @@
 
 /* 历史记录子项滚动样式 */
 .adl-history-children-scroll {
-  position: relative !important;
-  min-height: 0 !important;
-  height: auto !important;
-  max-height: 300px !important;
+  position: relative;
+  min-height: 0;
+  height: auto;
+  max-height: 300px;
   overflow: visible !important;
 }
 
 .adl-history-children-scrollarea {
   overflow-y: auto !important;
   overflow-x: hidden !important;
-  height: 100% !important;
-  max-height: 300px !important;
+  height: 100%;
+  max-height: 300px;
   scrollbar-width: none !important;
   -ms-overflow-style: none !important;
 }
@@ -286,12 +286,12 @@
 }
 
 .adl-history-children-scrollbar {
-  position: absolute !important;
-  top: 0 !important;
-  left: 6px !important;
-  bottom: 0 !important;
-  z-index: 3 !important;
-  width: var(--adl-filetree-scrollbar-width) !important;
+  position: absolute;
+  top: 0;
+  left: 6px;
+  bottom: 0;
+  z-index: 3;
+  width: var(--adl-filetree-scrollbar-width);
   opacity: 0 !important;
   pointer-events: none !important;
   transition: opacity var(--duration-150) var(--ease-default) !important;
@@ -303,12 +303,12 @@
 }
 
 .adl-history-children-scrollbar__thumb {
-  position: absolute !important;
-  top: 0 !important;
-  left: 1px !important;
-  width: 3px !important;
-  min-height: 24px !important;
-  border-radius: 999px !important;
+  position: absolute;
+  top: 0;
+  left: 1px;
+  width: 3px;
+  min-height: 24px;
+  border-radius: 999px;
   background: color-mix(in srgb, var(--text-muted) 34%, transparent) !important;
 }
 

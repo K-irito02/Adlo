@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SafeIframe } from './SafeIframe';
 import { RenameDialog } from '../../components/RenameDialog';
-import { ToastContainer, type ToastType } from '../../components/Toast';
+import { ToastContainer } from '../../components/Toast';
+import { useBrowserToast } from './useBrowserToast';
+import { useBrowserDialogs } from './useBrowserDialogs';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { ExternalLinkError } from './ExternalLinkError';
 import { useShallow } from 'zustand/react/shallow';
@@ -32,14 +34,8 @@ import {
 } from './browserPanelHelpers';
 import { BookmarkToFolderDialog } from './BookmarkToFolderDialog';
 import { checkEmbed, isEmbedBlocked } from './checkEmbed';
-import {
-  getCachedFavicon,
-  setCachedFavicon,
-  prefetchPageMeta,
-  lockTabTitle,
-} from '../../utils/fetchPageMeta';
+import { setCachedFavicon } from '../../utils/fetchPageMeta';
 import { getGoogleFaviconUrl } from '../../utils/favicon';
-import { hostnameFromUrl } from '../../utils/browserDisplayUtils';
 
 export function BrowserPanel(props: BrowserPanelProps) {
   const { t } = useTCopy();
@@ -94,76 +90,11 @@ export function BrowserPanel(props: BrowserPanelProps) {
   const addressSearchRef = useRef<HTMLLabelElement | null>(null);
   const addressInputRef = useRef<HTMLInputElement | null>(null);
 
-  const [renameFolderState, setRenameFolderState] = useState<{
-    open: boolean;
-    folderId: string;
-    currentName: string;
-  }>({
-    open: false,
-    folderId: '',
-    currentName: '',
-  });
-
-  const [createDirDialog, setCreateDirDialog] = useState<{
-    open: boolean;
-    parentPath: string | null;
-  }>({ open: false, parentPath: null });
-
   const [selectedTreePath, setSelectedTreePath] = useState<string | null>(null);
   const selectedTreePathRef = useRef<string | null>(null);
 
-  const [toastMessages, setToastMessages] = useState<
-    Array<{ id: string; message: string; type?: ToastType; source?: string }>
-  >([]);
+  const { toastMessages, showToast, removeToast } = useBrowserToast();
 
-  const showToast = useCallback((message: string, type?: ToastType, source?: string) => {
-    const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-    setToastMessages((prev) => [...prev, { id, message, type, source }]);
-  }, []);
-
-  const removeToast = useCallback((id: string) => {
-    setToastMessages((prev) => prev.filter((t) => t.id !== id));
-  }, []);
-
-  const [createTabDialog, setCreateTabDialog] = useState<{
-    open: boolean;
-    workspaceId?: string;
-    folderId?: string;
-  }>({ open: false });
-  const pendingFolderIdRef = useRef<string>('');
-
-  const [editTabDialog, setEditTabDialog] = useState<{
-    open: boolean;
-    tabId: string;
-    name: string;
-    url: string;
-  }>({ open: false, tabId: '', name: '', url: '' });
-
-  const [isCreatingTab, setIsCreatingTab] = useState(false);
-
-  const handleEditTab = useCallback((tabId: string, name: string, url: string) => {
-    setEditTabDialog({ open: true, tabId, name, url });
-  }, []);
-
-  const handleEditTabConfirm = useCallback(
-    (name: string, url: string) => {
-      const { tabId } = editTabDialog;
-      if (tabId) {
-        browserUpdateTab(tabId, { title: name.trim() || undefined, url: url.trim() || undefined });
-        if (name.trim()) {
-          lockTabTitle(tabId);
-        }
-      }
-      setEditTabDialog({ open: false, tabId: '', name: '', url: '' });
-    },
-    [editTabDialog, browserUpdateTab]
-  );
-
-  const handleEditTabCancel = useCallback(() => {
-    setEditTabDialog({ open: false, tabId: '', name: '', url: '' });
-  }, []);
-
-  const [bookmarkDialogOpen, setBookmarkDialogOpen] = useState(false);
   const validatedUrlsRef = useRef(new Set<string>());
   const [, forceRender] = useState(0);
   const submitVersionRef = useRef(0);
@@ -186,78 +117,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
       new Image().src = faviconUrl;
     }
   }, []);
-
-  const handleCreateTabConfirm = useCallback(
-    async (name: string, url: string) => {
-      const { workspaceId } = createTabDialog;
-      const folderId = pendingFolderIdRef.current;
-      pendingFolderIdRef.current = '';
-      // 用户显式提供了名称 → 立即创建标签
-      if (name.trim()) {
-        setCreateTabDialog({ open: false });
-        browserOpenTab(url, name, folderId ? undefined : workspaceId, folderId || undefined);
-        return;
-      }
-      // 未提供名称 → 预取页面元数据后再创建
-      setIsCreatingTab(true);
-      let title = '';
-      try {
-        const meta = await prefetchPageMeta(url);
-        if (meta?.title?.trim()) {
-          title = meta.title.trim();
-          if (meta.favicon) {
-            setCachedFavicon(url, meta.favicon, true);
-          }
-        }
-      } catch {
-        // fallback: use hostname
-      }
-      if (!title) {
-        title = hostnameFromUrl(url) || url;
-      }
-      if (!getCachedFavicon(url)) {
-        const googleFavicon = getGoogleFaviconUrl(url);
-        if (googleFavicon) {
-          setCachedFavicon(url, googleFavicon, true);
-        }
-      }
-      setIsCreatingTab(false);
-      setCreateTabDialog({ open: false });
-      browserOpenTab(url, title, folderId ? undefined : workspaceId, folderId || undefined);
-      const tabId = useAppStore.getState().browserActiveTabId;
-      if (tabId) {
-        lockTabTitle(tabId);
-      }
-    },
-    [browserOpenTab, createTabDialog]
-  );
-
-  const handleCreateTabCancel = useCallback(() => {
-    setCreateTabDialog({ open: false });
-    pendingFolderIdRef.current = '';
-  }, []);
-
-  const handleSetCreateTabDialog = useCallback(
-    (
-      value: React.SetStateAction<{
-        open: boolean;
-        workspaceId?: string;
-        folderId?: string;
-      }>
-    ) => {
-      if (typeof value === 'function') {
-        setCreateTabDialog((prev) => {
-          const resolved = value(prev);
-          pendingFolderIdRef.current = resolved.folderId ?? '';
-          return resolved;
-        });
-      } else {
-        pendingFolderIdRef.current = value.folderId ?? '';
-        setCreateTabDialog(value);
-      }
-    },
-    []
-  );
 
   const handleSelectTreePath = useCallback((path: string | null) => {
     selectedTreePathRef.current = path;
@@ -298,13 +157,33 @@ export function BrowserPanel(props: BrowserPanelProps) {
     handleCloseAllTabs,
   } = useBrowserTabs();
 
-  const handleOpenBookmarkDialog = useCallback(() => {
-    if (isBookmarked) {
-      useAppStore.getState().browserToggleBookmark();
-      return;
-    }
-    setBookmarkDialogOpen(true);
-  }, [isBookmarked]);
+  const {
+    createTabDialog,
+    handleSetCreateTabDialog,
+    handleCreateTabConfirm,
+    handleCreateTabCancel,
+    isCreatingTab,
+    editTabDialog,
+    handleEditTab,
+    handleEditTabConfirm,
+    handleEditTabCancel,
+    renameFolderState,
+    setRenameFolderState,
+    createDirDialog,
+    setCreateDirDialog,
+    bookmarkDialogOpen,
+    setBookmarkDialogOpen,
+    handleOpenBookmarkDialog,
+    handleBookmarkAddToFolder,
+    handleBookmarkCreateDir,
+  } = useBrowserDialogs({
+    browserOpenTab,
+    browserUpdateTab,
+    activeTab,
+    isBookmarked,
+    showToast,
+    t,
+  });
 
   const {
     navigatorQuery,
@@ -389,7 +268,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
 
   const { handlePageMeta: _handlePageMeta } = useBrowserPageMeta(
     pendingNavigationsRef,
-    setToastMessages,
+    undefined,
     showToast,
     markUrlSeen
   );
@@ -567,40 +446,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
     () => buildBookmarkDirectoryTree(visibleWorkspaces, browserTabFolders),
     [visibleWorkspaces, browserTabFolders]
   );
-
-  const handleBookmarkAddToFolder = useCallback(
-    (folderPath: string | null) => {
-      if (!folderPath) {
-        showToast(t.browserSelectDirFirst, 'warning');
-        return;
-      }
-      if (!activeTab?.id) {
-        showToast(t.browserSelectDirFirst, 'warning');
-        return;
-      }
-
-      if (folderPath.startsWith('folder:')) {
-        // 选择了普通文件夹
-        const folderId = folderPath.slice('folder:'.length);
-        useAppStore.getState().browserBookmarkTab(activeTab.id, folderId);
-        showToast(t.browserBookmarkAddedToast, 'success');
-        setBookmarkDialogOpen(false);
-      } else if (folderPath.startsWith('workspace:')) {
-        // 选择了工作区目录，直接收藏到工作区顶级目录
-        const workspaceId = folderPath.slice('workspace:'.length);
-        useAppStore.getState().browserBookmarkTab(activeTab.id, undefined, undefined, workspaceId);
-        showToast(t.browserBookmarkAddedToast, 'success');
-        setBookmarkDialogOpen(false);
-      } else {
-        showToast(t.browserSelectDirFirst, 'warning');
-      }
-    },
-    [activeTab, showToast, t]
-  );
-
-  const handleBookmarkCreateDir = useCallback((parentPath: string | null) => {
-    setCreateDirDialog({ open: true, parentPath });
-  }, []);
 
   const navigatorCount = useMemo(
     () =>
@@ -975,21 +820,13 @@ export function BrowserPanel(props: BrowserPanelProps) {
       />
 
       <CreateTabDialog
-        open={createTabDialog.open}
-        loading={isCreatingTab}
+        open={createTabDialog.open || editTabDialog.open}
+        loading={createTabDialog.open ? isCreatingTab : false}
         t={t}
-        onConfirm={handleCreateTabConfirm}
-        onCancel={handleCreateTabCancel}
-      />
-
-      <CreateTabDialog
-        open={editTabDialog.open}
-        loading={false}
-        t={t}
-        initialName={editTabDialog.name}
-        initialUrl={editTabDialog.url}
-        onConfirm={handleEditTabConfirm}
-        onCancel={handleEditTabCancel}
+        initialName={editTabDialog.open ? editTabDialog.name : undefined}
+        initialUrl={editTabDialog.open ? editTabDialog.url : undefined}
+        onConfirm={createTabDialog.open ? handleCreateTabConfirm : handleEditTabConfirm}
+        onCancel={createTabDialog.open ? handleCreateTabCancel : handleEditTabCancel}
       />
 
       <BookmarkToFolderDialog

@@ -365,21 +365,21 @@
 }
 
 .adl-multitree--terminal .adl-tool-list--terminal {
-  padding: 0 !important;
-  gap: 1px !important;
+  padding: 0;
+  gap: 1px;
 }
 
 .adl-multitree--terminal .adl-tool-list__item--terminal-tab {
   position: relative;
-  display: flex !important;
-  flex-direction: row !important;
-  align-items: center !important;
-  width: 100% !important;
-  margin: 0 !important;
-  padding: 0 8px 0 14px !important;
-  box-sizing: border-box !important;
-  min-height: 28px !important;
-  border-radius: 0 !important;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  width: 100%;
+  margin: 0;
+  padding: 0 8px 0 14px;
+  box-sizing: border-box;
+  min-height: 28px;
+  border-radius: 0;
 }
 
 .adl-multitree--terminal .adl-tool-list__item--terminal-tab:hover {
@@ -391,12 +391,12 @@
 }
 
 .adl-multitree--terminal .adl-tool-list__item--terminal-tab .adl-tool-list__item-btn {
-  display: flex !important;
-  flex-direction: row !important;
-  align-items: center !important;
-  justify-content: flex-start !important;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
   gap: var(--space-1-5);
-  padding: 2px 4px !important;
+  padding: 2px 4px;
 }
 
 .adl-multitree--terminal .adl-tool-list__title {
@@ -408,16 +408,16 @@
 }
 
 .adl-multitree--terminal .adl-multitree-entry__empty-btn {
-  display: flex !important;
-  flex-direction: row !important;
-  align-items: center !important;
-  justify-content: flex-start !important;
-  width: 100% !important;
-  margin: 0 !important;
-  padding: 2px 4px 2px 14px !important;
-  box-sizing: border-box !important;
-  min-height: 28px !important;
-  border-radius: 0 !important;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  margin: 0;
+  padding: 2px 4px 2px 14px;
+  box-sizing: border-box;
+  min-height: 28px;
+  border-radius: 0;
   border: 0 !important;
   background: transparent !important;
   cursor: pointer !important;

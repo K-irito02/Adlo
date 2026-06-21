@@ -94,10 +94,13 @@ pub fn agent_abort_run(
 fn make_activity_emitter<'a>(
     app: &'a tauri::AppHandle,
     state: &'a AppState,
-    workspace_scope_id: String,
-    session_id: String,
-    run_id: String,
+    workspace_scope_id: &str,
+    session_id: &str,
+    run_id: &str,
 ) -> impl Fn(serde_json::Value) + 'a {
+    let workspace_scope_id = workspace_scope_id.to_string();
+    let session_id = session_id.to_string();
+    let run_id = run_id.to_string();
     move |event: serde_json::Value| {
         let ts = now_ms();
         let seq = crate::run_activity_seq::next_run_activity_seq(ts);
@@ -150,13 +153,8 @@ async fn start_run_inner(
     let mut detail =
         adl_agent_runtime::create_run(&workspace_scope_id, &session.id, &input.prompt, scenario);
 
-    let emit_activity = make_activity_emitter(
-        app,
-        state,
-        workspace_scope_id.clone(),
-        session_id.clone(),
-        detail.run.id.clone(),
-    );
+    let emit_activity =
+        make_activity_emitter(app, state, &workspace_scope_id, &session_id, &detail.run.id);
     let mut audit_batch: Vec<AuditBatchEntry> = Vec::with_capacity(5);
     let user_message = agent_pipeline::prepare_run(
         state,

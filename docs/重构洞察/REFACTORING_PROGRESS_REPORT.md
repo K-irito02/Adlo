@@ -81,6 +81,7 @@
 | **第七十三轮** | **2026-06-20** | **重构洞察第14次执行（9项发现）：7 个大型文件拆分——browserpanel.tsx 提取 useBrowserPageMeta + useBrowserMetaSubscription（1033→939行）、GitHubTreeEntry.tsx 提取菜单函数（828→322行）、useChangesPanelState.tsx 提取 21 个纯函数（624→295行）、useFoldTooltipState.ts 提取 useFoldTooltipPosition（584→286行）、workspaceActions.ts 提取 browserCleanupActions（547→448行）、useBrowserWebView.ts 提取 useBrowserUrlChange（471→356行）；代码质量清理——浏览器模块 24 处 console.log 全量清理、3 处 window as any 消除** | ✅ |
 | **第七十四轮** | **2026-06-21** | **重构洞察第15次执行（11项发现）：前端 JSX 去重——browserpanel.tsx 提取 ExternalLinkError 组件消除 3 处重复；组件提取——EditorSurfaceShell 提取 FilePreviewRenderers（512→434行）、ChangesToolbar 拆分为 ChangesTopToolbar+ChangesNavigatorToolbar（451→18行）；CSS 拆分——file-tree.css（767行→2文件）、files-panel.css（724行→2文件）、composer.css（710行→3文件）；Rust 拆分——agent_pipeline.rs 提取 collect_file_context+collect_symbol_context+decide_audit_operation、model-gateway chat 提取 select_provider；CSS 硬编码清理——files-panel-core.css 8 处自定义属性替换为语义化变量** | ✅ |
 | **第七十五轮** | **2026-06-21** | **浏览器导航去重修复：handlePageMeta 并发回调去重——新增 processedMetaRef 去重机制防止两个回调路径（onUrlChanged + meta-changed）创建重复标签/历史记录；修复 markUrlSeen 在新建标签模式中缺失的调用导致页面刷新循环** | ✅ |
+| **第七十六轮** | **2026-06-22** | **重构洞察第16次执行（8项发现）：BrowserPanel Hook 提取（useBrowserToast + useBrowserDialogs，1040→877行，-163行）+ 合并两个 CreateTabDialog 渲染；Rust clone 消除——agent.rs make_activity_emitter 参数 &str 化（3 次 clone 消除）；CSS !important 清理——file-tree-core.css（26 处移除）+ files-panel-list.css（18 处移除）** | ✅ |
 
 ## 说明
 

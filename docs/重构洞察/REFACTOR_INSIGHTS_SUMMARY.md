@@ -33,6 +33,9 @@
 | 2026-06-16 | 12 | 📋 待处理 | 拆分不彻底（子模块已创建但主文件未清理）、深层相对导入 |
 | 2026-06-17 | 9 | 🔄 部分解决 | BrowserPanel 977 行、CSS 3 文件超 1000 行、TitleBar 轮询优化 |
 | 2026-06-19 | 16 | 📋 待处理 | useChangesPanelState 655 行、components.css 1075 行、agent_pipeline 898 行、29 处 console.log |
+| 2026-06-20 | 9 | ✅ 已解决 | 浏览器 iframe 稳定性修复、大型文件拆分、console.log 清理 |
+| 2026-06-21 | 11 | ✅ 已解决 | JSX 去重、CSS 拆分、Rust 函数拆分、CSS 硬编码清理 |
+| 2026-06-22 | 8 | ✅ 已解决 | BrowserPanel Hook 提取、Rust clone 消除、CSS !important 清理 |
 
 ## 各日洞察摘要
 
@@ -201,10 +204,16 @@
 - 全局 29 处 `console.log/warn/error` 残留生产代码中
 - 前端 10+ 个 CSS 文件、10+ 个 TS/TSX 文件超过 800 行阈值
 
+### 2026-06-22
+- BrowserPanel 1040 行：提取 `useBrowserToast` + `useBrowserDialogs` 两个 Hook，-163 行
+- 合并两个 CreateTabDialog 渲染为单次渲染
+- Rust agent.rs `make_activity_emitter` 参数 `&str` 化，消除 3 次 clone
+- CSS `!important` 清理：file-tree-core.css（26 处）+ files-panel-list.css（18 处）
+
 ## 统计
 
-- **总发现项**: ~500+（跨 25 个报告日）
-- **已完全解决**: 3 天（05-21、05-28、06-07）
+- **总发现项**: ~500+（跨 28 个报告日）
+- **已完全解决**: 6 天（05-21、05-28、06-07、06-20、06-21、06-22）
 - **部分解决**: 10 天
 - **待处理**: 12 天
 - **涉及领域**: 架构设计、性能优化、CSS 架构、Rust 后端、React 组件、状态管理、测试覆盖、双端一致性、桥接层
