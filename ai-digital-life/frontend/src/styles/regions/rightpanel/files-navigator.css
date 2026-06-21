@@ -680,7 +680,7 @@
   object-fit: contain;
 }
 
-.adl-browser-tree__globe-fallback {
+.adl-browser-tree__link-fallback {
   display: inline-flex;
   align-items: center;
   justify-content: center;

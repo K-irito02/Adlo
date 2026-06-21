@@ -1,16 +1,9 @@
 import { useCallback, useRef } from 'react';
 import { useAppStore } from '../../stores/slicedStore';
 import { getGoogleFaviconUrl } from '../../utils/favicon';
-import { setCachedFavicon } from '../../utils/fetchPageMeta';
+import { setCachedFavicon, isTabTitleLocked } from '../../utils/fetchPageMeta';
+import { hostnameFromUrl } from '../../utils/browserDisplayUtils';
 import type { ToastType } from '../../components/Toast';
-
-export function hostnameFromUrl(url: string): string {
-  try {
-    return new URL(url).hostname;
-  } catch {
-    return '';
-  }
-}
 
 function normalizeUrlForDedup(url: string): string {
   try {
@@ -125,7 +118,7 @@ export function useBrowserPageMeta(
         (t) => normalizeUrlForDedup(t.url) === normalizedMetaUrl
       );
       if (exactMatch) {
-        if (exactMatch.title !== pageTitle) {
+        if (!isTabTitleLocked(exactMatch.id) && exactMatch.title !== pageTitle) {
           state.browserUpdateTab(exactMatch.id, { title: pageTitle });
         }
         state.browserUpdateBookmarkTitle(meta.url, pageTitle);

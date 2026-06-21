@@ -106,7 +106,7 @@ export default defineConfig({
               let title = titleMatch?.[1]?.trim() || '';
               if (!title) {
                 const ogTitle = html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i);
-                title = ogTitle?.[1]?.trim() || targetUrl;
+                title = ogTitle?.[1]?.trim() || '';
               }
               title = title.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#x27;/g, "'");
 
@@ -136,7 +136,7 @@ export default defineConfig({
             } catch {
               res.setHeader('Content-Type', 'application/json; charset=utf-8');
               res.statusCode = 200;
-              res.end(JSON.stringify({ title: targetUrl, favicon: '', url: targetUrl }));
+              res.end(JSON.stringify({ title: '', favicon: '', url: targetUrl }));
             }
             return;
           }

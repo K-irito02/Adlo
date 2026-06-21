@@ -1,5 +1,6 @@
 import type { StoreState } from '../StoreState';
 import { createUiId, createDebouncedWrite } from '../shared';
+import { hostnameFromUrl } from '../../utils/browserDisplayUtils';
 
 export interface BrowserHistoryState {
   id: string;
@@ -38,7 +39,7 @@ export const createBrowserHistorySlice = (
       const newHistoryItem: BrowserHistoryState = {
         id: createUiId('history'),
         url,
-        title: title || url,
+        title: title || hostnameFromUrl(url) || url,
         visitedAt: Date.now(),
       };
       const nextHistory = [newHistoryItem, ...filteredHistory].slice(0, 100);

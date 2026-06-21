@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { IconClose, IconGlobe } from '../../icons';
+import { IconClose, IconLink } from '../../icons';
 import { TooltipSimple } from '../../components/Tooltip';
 import type { BrowserTabState } from '../../stores/slices/browserSlice';
 import type { CopyDict } from '../../i18n';
@@ -124,8 +124,8 @@ export const BrowserTabBar = React.memo(function BrowserTabBar({
                           }}
                         />
                       ) : (
-                        <span className="adl-tool-list__default-icon adl-tool-list__default-icon--globe">
-                          <IconGlobe size={12} decorative />
+                        <span className="adl-tool-list__default-icon adl-tool-list__default-icon--link">
+                          <IconLink size={12} decorative />
                         </span>
                       );
                     })()}

@@ -6,27 +6,7 @@ import type {
   BrowserHistoryState,
 } from '../../stores/slices/browserSlice';
 import type { BrowserCategoryState, BrowserCategoryType, BrowserTreeNode } from './types';
-
-function hostnameFromUrl(url: string): string {
-  try {
-    return new URL(url).hostname;
-  } catch {
-    return '';
-  }
-}
-
-function titleOrHostname(title: string | undefined, url: string): string {
-  if (title && !/^https?:\/\//.test(title)) {
-    const urlHostname = hostnameFromUrl(url);
-    if (title === urlHostname) {
-      return title.replace(/^www\./, '');
-    }
-    return title;
-  }
-  const hostname = hostnameFromUrl(url);
-  const result = hostname || title || url;
-  return result;
-}
+import { normalizeTabTitle } from '../../utils/browserDisplayUtils';
 
 export function countDirectFileChildren(node: BrowserTreeNode): number {
   let n = 0;
@@ -65,7 +45,7 @@ function buildTabNode(
 ): BrowserTreeNode {
   return {
     path: `tab:${workspaceId}:${tab.id}`,
-    name: titleOrHostname(tab.title, tab.url) || '无标题',
+    name: normalizeTabTitle(tab.title, tab.url),
     kind: 'file',
     children: [],
     nodeType: 'tab',
@@ -78,7 +58,7 @@ function buildTabNode(
 function buildHistoryLeafNode(entry: BrowserHistoryState, _uniqueKey: string): BrowserTreeNode {
   return {
     path: `history-entry:${entry.id}`,
-    name: titleOrHostname(entry.title, entry.url) || entry.url,
+    name: normalizeTabTitle(entry.title, entry.url) || entry.url,
     kind: 'file',
     children: [],
     nodeType: 'history',

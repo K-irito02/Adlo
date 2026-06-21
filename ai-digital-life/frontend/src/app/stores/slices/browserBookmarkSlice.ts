@@ -2,6 +2,7 @@ import type { StoreState } from '../StoreState';
 import { createUiId, createDebouncedWrite } from '../shared';
 import { formatNewFolderNameByLocale } from '../../i18n';
 import type { TabFolderState } from './browserFoldersSlice';
+import { hostnameFromUrl } from '../../utils/browserDisplayUtils';
 
 export interface BrowserBookmark {
   url: string;
@@ -44,7 +45,8 @@ export const createBrowserBookmarkSlice = (
         state.browserTabs.find((tab) => tab.id === state.browserActiveTabId) ??
         state.browserTabs[0];
       const url = input?.url?.trim() ?? active?.url ?? 'about:blank';
-      const title = input?.title?.trim() || active?.title || url;
+      const rawTitle = input?.title?.trim() || active?.title || url;
+      const title = rawTitle || hostnameFromUrl(url) || url;
       const exists = state.browserBookmarks.some((bookmark) => bookmark.url === url);
       const nextBookmarks = exists
         ? state.browserBookmarks.filter((bookmark) => bookmark.url !== url)
@@ -98,7 +100,8 @@ export const createBrowserBookmarkSlice = (
       }
 
       const url = tab.url;
-      const title = tab.title;
+      const rawTitle = tab.title;
+      const title = rawTitle || hostnameFromUrl(url) || url;
       const existsInBookmarks = state.browserBookmarks.some((b) => b.url === url);
       let nextBookmarks = state.browserBookmarks;
 

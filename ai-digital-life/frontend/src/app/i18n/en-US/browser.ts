@@ -135,4 +135,6 @@ export const browserEn = {
   browserBookmarkAddedToast: 'Bookmarked to current folder',
   browserNavigateInPlace: 'Navigate in-place: links open in current tab',
   browserNavigateNewTab: 'New tab: links open in new tabs',
+  browserFetchingPageMeta: 'Fetching page info...',
+  browserCreating: 'Creating...',
 } as const;

@@ -132,4 +132,6 @@ export const browserZh = {
   browserBookmarkAddedToast: '收藏成功',
   browserNavigateInPlace: '就地导航：新链接在当前标签打开',
   browserNavigateNewTab: '新建标签：新链接在新标签打开',
+  browserFetchingPageMeta: '正在获取页面信息...',
+  browserCreating: '创建中...',
 } as const;

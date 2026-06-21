@@ -32,8 +32,14 @@ import {
 } from './browserPanelHelpers';
 import { BookmarkToFolderDialog } from './BookmarkToFolderDialog';
 import { checkEmbed, isEmbedBlocked } from './checkEmbed';
-import { setCachedFavicon } from '../../utils/fetchPageMeta';
+import {
+  getCachedFavicon,
+  setCachedFavicon,
+  prefetchPageMeta,
+  lockTabTitle,
+} from '../../utils/fetchPageMeta';
 import { getGoogleFaviconUrl } from '../../utils/favicon';
+import { hostnameFromUrl } from '../../utils/browserDisplayUtils';
 
 export function BrowserPanel(props: BrowserPanelProps) {
   const { t } = useTCopy();
@@ -122,7 +128,11 @@ export function BrowserPanel(props: BrowserPanelProps) {
   const [createTabDialog, setCreateTabDialog] = useState<{
     open: boolean;
     workspaceId?: string;
+    folderId?: string;
   }>({ open: false });
+  const pendingFolderIdRef = useRef<string>('');
+
+  const [isCreatingTab, setIsCreatingTab] = useState(false);
 
   const [bookmarkDialogOpen, setBookmarkDialogOpen] = useState(false);
   const validatedUrlsRef = useRef(new Set<string>());
@@ -149,18 +159,75 @@ export function BrowserPanel(props: BrowserPanelProps) {
   }, []);
 
   const handleCreateTabConfirm = useCallback(
-    (name: string, url: string) => {
-      setCreateTabDialog((prev) => {
-        browserOpenTab(url, name, prev.workspaceId);
-        return { open: false };
-      });
+    async (name: string, url: string) => {
+      const { workspaceId } = createTabDialog;
+      const folderId = pendingFolderIdRef.current;
+      pendingFolderIdRef.current = '';
+      // 用户显式提供了名称 → 立即创建标签
+      if (name.trim()) {
+        setCreateTabDialog({ open: false });
+        browserOpenTab(url, name, folderId ? undefined : workspaceId, folderId || undefined);
+        return;
+      }
+      // 未提供名称 → 预取页面元数据后再创建
+      setIsCreatingTab(true);
+      let title = '';
+      try {
+        const meta = await prefetchPageMeta(url);
+        if (meta?.title?.trim()) {
+          title = meta.title.trim();
+          if (meta.favicon) {
+            setCachedFavicon(url, meta.favicon, true);
+          }
+        }
+      } catch {
+        // fallback: use hostname
+      }
+      if (!title) {
+        title = hostnameFromUrl(url) || url;
+      }
+      if (!getCachedFavicon(url)) {
+        const googleFavicon = getGoogleFaviconUrl(url);
+        if (googleFavicon) {
+          setCachedFavicon(url, googleFavicon, true);
+        }
+      }
+      setIsCreatingTab(false);
+      setCreateTabDialog({ open: false });
+      browserOpenTab(url, title, folderId ? undefined : workspaceId, folderId || undefined);
+      const tabId = useAppStore.getState().browserActiveTabId;
+      if (tabId) {
+        lockTabTitle(tabId);
+      }
     },
-    [browserOpenTab]
+    [browserOpenTab, createTabDialog]
   );
 
   const handleCreateTabCancel = useCallback(() => {
     setCreateTabDialog({ open: false });
   }, []);
+
+  const handleSetCreateTabDialog = useCallback(
+    (
+      value: React.SetStateAction<{
+        open: boolean;
+        workspaceId?: string;
+        folderId?: string;
+      }>
+    ) => {
+      if (typeof value === 'function') {
+        setCreateTabDialog((prev) => {
+          const resolved = value(prev);
+          pendingFolderIdRef.current = resolved.folderId ?? '';
+          return resolved;
+        });
+      } else {
+        pendingFolderIdRef.current = value.folderId ?? '';
+        setCreateTabDialog(value);
+      }
+    },
+    []
+  );
 
   const handleSelectTreePath = useCallback((path: string | null) => {
     selectedTreePathRef.current = path;
@@ -779,7 +846,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
           onCloseAllTabs={handleCloseAllTabs}
           onOpenTab={browserOpenTab}
           onOpenTabFromTree={handleOpenTabFromTree}
-          onCreateTabDialog={setCreateTabDialog}
+          onCreateTabDialog={handleSetCreateTabDialog}
           onCreateDirDialog={setCreateDirDialog}
           onRenameFolder={setRenameFolderState}
           navigatorQuery={navigatorQuery}
@@ -867,6 +934,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
 
       <CreateTabDialog
         open={createTabDialog.open}
+        loading={isCreatingTab}
         t={t}
         onConfirm={handleCreateTabConfirm}
         onCancel={handleCreateTabCancel}

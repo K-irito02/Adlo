@@ -75,7 +75,9 @@ export interface BrowserNavigatorProps {
   onOpenTabFromTree: (url: string, tabId?: string) => void;
 
   // Dialogs
-  onCreateTabDialog: React.Dispatch<React.SetStateAction<{ open: boolean; workspaceId?: string }>>;
+  onCreateTabDialog: React.Dispatch<
+    React.SetStateAction<{ open: boolean; workspaceId?: string; folderId?: string }>
+  >;
   onCreateDirDialog: React.Dispatch<
     React.SetStateAction<{ open: boolean; parentPath: string | null }>
   >;
@@ -283,13 +285,14 @@ export function BrowserNavigator({
                   return;
                 }
                 let wsId: string | undefined;
+                let fId: string | undefined;
                 if (path.startsWith('workspace:')) {
                   wsId = path.slice('workspace:'.length);
                 } else if (path.startsWith('folder:')) {
-                  const fid = path.slice('folder:'.length);
-                  wsId = resolveFolderWorkspaceId(fid, browserTabFolders);
+                  fId = path.slice('folder:'.length);
+                  wsId = resolveFolderWorkspaceId(fId, browserTabFolders);
                 }
-                setCreateTabDialog({ open: true, workspaceId: wsId });
+                setCreateTabDialog({ open: true, workspaceId: wsId, folderId: fId });
               }}
               aria-label={t.browserNewTab}
             >
@@ -339,8 +342,8 @@ export function BrowserNavigator({
           onTogglePath={handleToggleTreePath}
           browserViewMode={browserViewMode !== 'default' ? browserViewMode : undefined}
           callbacks={{
-            onCreateTab: (workspaceId?: string, _folderId?: string) => {
-              setCreateTabDialog({ open: true, workspaceId });
+            onCreateTab: (workspaceId?: string, folderId?: string) => {
+              setCreateTabDialog({ open: true, workspaceId, folderId });
             },
             onDeleteAllChildTabs: handleDeleteAllChildTabs,
             onOpenAllInNewTabs: handleOpenAllInNewTabs,

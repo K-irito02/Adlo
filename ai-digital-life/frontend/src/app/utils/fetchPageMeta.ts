@@ -1,3 +1,6 @@
+import { isTauriShell } from '../../tauri-bridge';
+import { invoke } from '@tauri-apps/api/core';
+
 const PAGE_META_TTL = 5 * 60 * 1000;
 
 interface CacheEntry {
@@ -9,19 +12,36 @@ interface CacheEntry {
 
 const metaCache = new Map<string, CacheEntry>();
 const faviconUrlCache = new Map<string, string>();
+const faviconPinned = new Set<string>();
+const titleLockedTabs = new Set<string>();
+
+export function lockTabTitle(tabId: string): void {
+  titleLockedTabs.add(tabId);
+}
+
+export function isTabTitleLocked(tabId: string): boolean {
+  return titleLockedTabs.has(tabId);
+}
 
 export function getCachedFavicon(url: string): string | undefined {
   return faviconUrlCache.get(url);
 }
 
-export function setCachedFavicon(url: string, favicon: string): void {
+export function setCachedFavicon(url: string, favicon: string, pin?: boolean): void {
+  if (faviconPinned.has(url)) {
+    return;
+  }
   if (faviconUrlCache.size > 200) {
     const firstKey = faviconUrlCache.keys().next().value;
     if (firstKey) {
       faviconUrlCache.delete(firstKey);
+      faviconPinned.delete(firstKey);
     }
   }
   faviconUrlCache.set(url, favicon);
+  if (pin) {
+    faviconPinned.add(url);
+  }
 }
 
 export async function fetchPageMeta(
@@ -54,6 +74,42 @@ export async function fetchPageMeta(
     }
 
     return { title: data.title, favicon: data.favicon };
+  } catch {
+    return null;
+  }
+}
+
+export async function prefetchPageMeta(
+  url: string
+): Promise<{ title: string; favicon: string } | null> {
+  const PREFETCH_TIMEOUT = 5000;
+
+  if (isTauriShell()) {
+    try {
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('timeout')), PREFETCH_TIMEOUT)
+      );
+      const result = (await Promise.race([
+        invoke('browser_fetch_page_meta', { url }),
+        timeoutPromise,
+      ])) as { ok: boolean; data: { title: string; favicon: string; url: string } };
+      if (result?.ok && result.data) {
+        return { title: result.data.title, favicon: result.data.favicon };
+      }
+    } catch {
+      return null;
+    }
+    return null;
+  }
+
+  try {
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('timeout')), PREFETCH_TIMEOUT)
+    );
+    const meta = (await Promise.race([fetchPageMeta(url), timeoutPromise])) as Awaited<
+      ReturnType<typeof fetchPageMeta>
+    >;
+    return meta;
   } catch {
     return null;
   }

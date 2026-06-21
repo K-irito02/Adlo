@@ -1,6 +1,6 @@
 import type { StoreState } from '../StoreState';
 import { createUiId, createDebouncedWrite } from '../shared';
-import { getAppCopy } from '../../i18n';
+import { hostnameFromUrl } from '../../utils/browserDisplayUtils';
 
 export interface BrowserTabState {
   id: string;
@@ -23,6 +23,7 @@ export interface BrowserTabStateUpdate {
 
 const BROWSER_TABS_KEY = 'adl-ui:browser-tabs';
 const BROWSER_ACTIVE_TAB_KEY = 'adl-ui:browser-active-tab';
+const BROWSER_TAB_FOLDERS_KEY = 'adl-ui:browser-tab-folders';
 
 const { scheduleWrite } = createDebouncedWrite(50);
 
@@ -51,7 +52,7 @@ export interface BrowserTabsSlice {
   browserTabsById: Record<string, BrowserTabState>;
   browserActiveTabId: string;
 
-  browserOpenTab: (url?: string, title?: string, workspaceId?: string) => void;
+  browserOpenTab: (url?: string, title?: string, workspaceId?: string, folderId?: string) => void;
   browserSelectTab: (tabId: string) => void;
   browserCloseTab: (tabId: string) => void;
   browserUpdateTab: (tabId: string, patch: Partial<BrowserTabStateUpdate>) => void;
@@ -68,25 +69,39 @@ export const createBrowserTabsSlice = (
   browserTabsById: {},
   browserActiveTabId: '',
 
-  browserOpenTab: (url?: string, title?: string, workspaceId: string = '') =>
+  browserOpenTab: (url?: string, title?: string, workspaceId?: string, folderId?: string) =>
     set((state) => {
       const maxSortOrder =
         state.browserTabs.length > 0 ? Math.max(...state.browserTabs.map((t) => t.sortOrder)) : 0;
       const tab: BrowserTabState = {
         id: createUiId('browser'),
-        workspaceId,
-        title: title?.trim() || getAppCopy(state.appInfo).browserDefaultTabTitle,
+        workspaceId: workspaceId ?? '',
+        title: title?.trim() || (url ? hostnameFromUrl(url) : ''),
         url: url?.trim() || '',
         isPinned: false,
         sortOrder: maxSortOrder + 1,
       };
       const nextTabs = sortTabs([...state.browserTabs, tab]);
+      let nextFolders = state.browserTabFolders;
+      if (folderId) {
+        nextFolders = nextFolders.map((f) => {
+          if (f.id === folderId) {
+            const existingTabs = f.tabs || [];
+            if (!existingTabs.includes(tab.id)) {
+              return { ...f, tabs: [...existingTabs, tab.id] };
+            }
+          }
+          return f;
+        });
+        scheduleWrite(BROWSER_TAB_FOLDERS_KEY, nextFolders);
+      }
       scheduleWrite(BROWSER_TABS_KEY, nextTabs);
       scheduleWrite(BROWSER_ACTIVE_TAB_KEY, tab.id);
       return {
         browserTabs: nextTabs,
         browserTabsById: buildTabsById(nextTabs),
         browserActiveTabId: tab.id,
+        browserTabFolders: nextFolders,
       };
     }),
 

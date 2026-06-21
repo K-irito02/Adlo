@@ -13,6 +13,7 @@ import type { BrowserTabState } from './browserTabsSlice';
 import type { BrowserBookmark } from './browserBookmarkSlice';
 import { BROWSER_WORKSPACE_BOOKMARKS_STORAGE_KEY } from './browserBookmarkSlice';
 import type { BrowserHistoryState } from './browserHistorySlice';
+import { hostnameFromUrl } from '../../utils/browserDisplayUtils';
 import type { TabFolderState } from './browserFoldersSlice';
 import type { ShortcutSite, LocalPort, BackgroundConfig } from './browserLandingSlice';
 
@@ -192,15 +193,7 @@ export const createBrowserSlice = (
         if (!activeTab || nextTabs.length === 0) {
           const maxSortOrder =
             nextTabs.length > 0 ? Math.max(...nextTabs.map((t) => t.sortOrder)) : 0;
-          const tabTitle =
-            title?.trim() ||
-            (() => {
-              try {
-                return new URL(url).hostname;
-              } catch {
-                return url;
-              }
-            })();
+          const tabTitle = title?.trim() || hostnameFromUrl(url) || url;
           const newTab: BrowserTabState = {
             id: createUiId('browser'),
             workspaceId: '',
@@ -228,15 +221,7 @@ export const createBrowserSlice = (
           scheduleWrite(BROWSER_TABS_KEY, nextTabs);
         }
 
-        const historyTitle =
-          title ||
-          (() => {
-            try {
-              return new URL(url).hostname;
-            } catch {
-              return url;
-            }
-          })();
+        const historyTitle = title || hostnameFromUrl(url) || url;
         const newHistoryItem: BrowserHistoryState = {
           id: createUiId('history'),
           url,

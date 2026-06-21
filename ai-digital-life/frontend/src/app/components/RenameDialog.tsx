@@ -43,7 +43,7 @@ export function RenameDialog({
 
   const handleOk = useCallback(async () => {
     const trimmed = value.trim();
-    if (!trimmed || trimmed === initialValue) {
+    if (initialValue && (!trimmed || trimmed === initialValue)) {
       onCancel();
       return;
     }

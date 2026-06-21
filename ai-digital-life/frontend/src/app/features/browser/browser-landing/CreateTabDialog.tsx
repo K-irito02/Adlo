@@ -4,6 +4,7 @@ import { IconClose } from '../../../icons';
 
 interface CreateTabDialogProps {
   open: boolean;
+  loading?: boolean;
   t: Record<string, string>;
   onConfirm: (name: string, url: string) => void;
   onCancel: () => void;
@@ -23,7 +24,7 @@ function isValidBrowserUrl(input: string): boolean {
   }
 }
 
-export function CreateTabDialog({ open, t, onConfirm, onCancel }: CreateTabDialogProps) {
+export function CreateTabDialog({ open, loading, t, onConfirm, onCancel }: CreateTabDialogProps) {
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
   const [urlError, setUrlError] = useState('');
@@ -39,8 +40,7 @@ export function CreateTabDialog({ open, t, onConfirm, onCancel }: CreateTabDialo
   }, [open]);
 
   const handleConfirm = useCallback(() => {
-    const trimmedName = name.trim();
-    if (!trimmedName) {
+    if (loading) {
       return;
     }
     const trimmedUrl = url.trim();
@@ -52,8 +52,8 @@ export function CreateTabDialog({ open, t, onConfirm, onCancel }: CreateTabDialo
       return;
     }
     const finalUrl = /^https?:\/\//i.test(trimmedUrl) ? trimmedUrl : `https://${trimmedUrl}`;
-    onConfirm(trimmedName, finalUrl);
-  }, [name, url, onConfirm, t.browserAddPortInvalid]);
+    onConfirm(name.trim(), finalUrl);
+  }, [name, url, loading, onConfirm, t.browserAddPortInvalid]);
 
   const handleUrlChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setUrl(e.currentTarget.value);
@@ -99,6 +99,7 @@ export function CreateTabDialog({ open, t, onConfirm, onCancel }: CreateTabDialo
             className="adl-prompt-modal__header-close"
             onClick={onCancel}
             aria-label={t.browserClose}
+            disabled={loading}
           >
             <IconClose size={14} decorative />
           </button>
@@ -122,6 +123,7 @@ export function CreateTabDialog({ open, t, onConfirm, onCancel }: CreateTabDialo
               value={name}
               onChange={(e) => setName(e.currentTarget.value)}
               placeholder={t.browserTabName}
+              disabled={loading}
             />
           </div>
           <div>
@@ -141,15 +143,28 @@ export function CreateTabDialog({ open, t, onConfirm, onCancel }: CreateTabDialo
               value={url}
               onChange={handleUrlChange}
               placeholder={t.browserTabUrl}
+              disabled={loading}
             />
             {urlError && <p className="adl-prompt-modal__error">{urlError}</p>}
           </div>
+          {loading && (
+            <div
+              style={{
+                fontSize: 11,
+                color: 'var(--text-secondary)',
+                marginTop: 4,
+              }}
+            >
+              {t.browserFetchingPageMeta}
+            </div>
+          )}
         </div>
         <div className="adl-prompt-modal__actions adl-prompt-modal__actions--fill">
           <button
             type="button"
             className="adl-btn adl-btn--ghost adl-btn--square"
             onClick={onCancel}
+            disabled={loading}
           >
             {t.browserCancel}
           </button>
@@ -157,9 +172,9 @@ export function CreateTabDialog({ open, t, onConfirm, onCancel }: CreateTabDialo
             type="button"
             className="adl-btn adl-btn--primary adl-btn--square"
             onClick={handleConfirm}
-            disabled={!name.trim() || !url.trim()}
+            disabled={!url.trim() || loading}
           >
-            {t.browserNewTab}
+            {loading ? t.browserCreating : t.browserNewTab}
           </button>
         </div>
       </div>

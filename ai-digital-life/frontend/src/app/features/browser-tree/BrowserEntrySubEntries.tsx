@@ -1,11 +1,11 @@
 import React, { useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { IconGlobe, IconPlus, IconTrash, IconMoreVertical } from '../../icons';
+import { IconPlus, IconTrash, IconMoreVertical } from '../../icons';
 import { FileTree } from '../file-tree';
 import { TooltipSimple } from '../../components/Tooltip';
 import { useTCopy } from '../../i18n/useTCopy';
 import { useMenuCloseOnOutsideClick } from '../tree/treeEntryMenus';
-import { getFaviconUrl, getGoogleFaviconUrl } from '../../utils/favicon';
+import { BrowserFavicon } from '../../components/BrowserFavicon';
 import type { CopyDict } from '../../i18n';
 import type { BrowserTreeNode, BrowserCategoryType } from './types';
 import { resolveChildCount } from './useBrowserTreeData';
@@ -212,54 +212,7 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
     if (!childNode.url || childNode.kind === 'directory') {
       return null;
     }
-    const faviconUrl = getFaviconUrl(childNode.url);
-    return (
-      <span
-        className={`adl-filetree__file-icon ${faviconUrl ? 'adl-filetree__file-icon--favicon' : 'adl-filetree__file-icon--default'}`}
-      >
-        <img
-          src={faviconUrl}
-          alt=""
-          className="adl-browser-tree__favicon"
-          style={faviconUrl ? undefined : { display: 'none' }}
-          onError={(e) => {
-            const img = e.target as HTMLImageElement;
-            if (!img.src.includes('google.com/s2/favicons')) {
-              const fallback = getGoogleFaviconUrl(childNode.url);
-              if (fallback) {
-                img.src = fallback;
-                return;
-              }
-            }
-            img.style.display = 'none';
-            const parent = img.parentElement;
-            if (parent) {
-              parent.classList.remove('adl-filetree__file-icon--favicon');
-              parent.classList.add('adl-filetree__file-icon--default');
-              const globe = parent.querySelector('.adl-browser-tree__globe-fallback');
-              if (globe) {
-                (globe as HTMLElement).style.display = 'inline-flex';
-              }
-            }
-          }}
-          onLoad={(e) => {
-            const parent = (e.target as HTMLImageElement).parentElement;
-            if (parent) {
-              const globe = parent.querySelector('.adl-browser-tree__globe-fallback');
-              if (globe) {
-                (globe as HTMLElement).style.display = 'none';
-              }
-            }
-          }}
-        />
-        <IconGlobe
-          size={14}
-          decorative
-          className="adl-browser-tree__globe-fallback"
-          style={faviconUrl ? { display: 'none' } : undefined}
-        />
-      </span>
-    );
+    return <BrowserFavicon url={childNode.url} />;
   }, []);
 
   const handleChildContextMenu = useCallback(
