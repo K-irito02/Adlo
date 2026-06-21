@@ -132,7 +132,36 @@ export function BrowserPanel(props: BrowserPanelProps) {
   }>({ open: false });
   const pendingFolderIdRef = useRef<string>('');
 
+  const [editTabDialog, setEditTabDialog] = useState<{
+    open: boolean;
+    tabId: string;
+    name: string;
+    url: string;
+  }>({ open: false, tabId: '', name: '', url: '' });
+
   const [isCreatingTab, setIsCreatingTab] = useState(false);
+
+  const handleEditTab = useCallback((tabId: string, name: string, url: string) => {
+    setEditTabDialog({ open: true, tabId, name, url });
+  }, []);
+
+  const handleEditTabConfirm = useCallback(
+    (name: string, url: string) => {
+      const { tabId } = editTabDialog;
+      if (tabId) {
+        browserUpdateTab(tabId, { title: name.trim() || undefined, url: url.trim() || undefined });
+        if (name.trim()) {
+          lockTabTitle(tabId);
+        }
+      }
+      setEditTabDialog({ open: false, tabId: '', name: '', url: '' });
+    },
+    [editTabDialog, browserUpdateTab]
+  );
+
+  const handleEditTabCancel = useCallback(() => {
+    setEditTabDialog({ open: false, tabId: '', name: '', url: '' });
+  }, []);
 
   const [bookmarkDialogOpen, setBookmarkDialogOpen] = useState(false);
   const validatedUrlsRef = useRef(new Set<string>());
@@ -304,6 +333,11 @@ export function BrowserPanel(props: BrowserPanelProps) {
     handleDeleteHistoryLevel,
     handleExpandAllTree,
     handleCollapseAllTree,
+    handleRefreshTab,
+    handleDeleteTab,
+    handleCopyTabLink,
+    handleOpenTabInNewTab,
+    handleOpenTabInCurrentTab,
   } = useBrowserTreeActions();
 
   const {
@@ -325,6 +359,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
     browserMenuOpen ||
     contextMenu.open ||
     createTabDialog.open ||
+    editTabDialog.open ||
     bookmarkDialogOpen ||
     renameFolderState.open ||
     createDirDialog.open;
@@ -847,6 +882,12 @@ export function BrowserPanel(props: BrowserPanelProps) {
           onCloseAllTabs={handleCloseAllTabs}
           onOpenTab={browserOpenTab}
           onOpenTabFromTree={handleOpenTabFromTree}
+          onRefreshTab={handleRefreshTab}
+          onEditTab={handleEditTab}
+          onDeleteTab={handleDeleteTab}
+          onCopyTabLink={handleCopyTabLink}
+          onOpenTabInNewTab={handleOpenTabInNewTab}
+          onOpenTabInCurrentTab={handleOpenTabInCurrentTab}
           onCreateTabDialog={handleSetCreateTabDialog}
           onCreateDirDialog={setCreateDirDialog}
           onRenameFolder={setRenameFolderState}
@@ -939,6 +980,16 @@ export function BrowserPanel(props: BrowserPanelProps) {
         t={t}
         onConfirm={handleCreateTabConfirm}
         onCancel={handleCreateTabCancel}
+      />
+
+      <CreateTabDialog
+        open={editTabDialog.open}
+        loading={false}
+        t={t}
+        initialName={editTabDialog.name}
+        initialUrl={editTabDialog.url}
+        onConfirm={handleEditTabConfirm}
+        onCancel={handleEditTabCancel}
       />
 
       <BookmarkToFolderDialog

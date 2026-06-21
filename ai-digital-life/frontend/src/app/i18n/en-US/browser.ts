@@ -6,6 +6,7 @@ export const browserEn = {
   browserRefresh: 'Refresh',
   browserHome: 'Home',
   browserNewTab: 'New tab',
+  browserEditTab: 'Edit tab',
   browserBookmarks: 'Bookmarks',
   browserHistory: 'History',
   browserSavedTabs: 'Saved tabs',

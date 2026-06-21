@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { IconPlus, IconTrash, IconMoreVertical } from '../../icons';
+import { IconPlus, IconTrash, IconMoreVertical, IconRefreshCw } from '../../icons';
 import { FileTree } from '../file-tree';
 import { TooltipSimple } from '../../components/Tooltip';
 import { useTCopy } from '../../i18n/useTCopy';
@@ -123,6 +123,87 @@ function getChildNodeMoreMenuItems(
   return [];
 }
 
+function getTabContextMenuItems(
+  node: BrowserTreeNode,
+  callbacks: SectionCallbacks,
+  t: CopyDict
+): Array<{ id: string; label: string; danger?: boolean; action: () => void }> {
+  return [
+    {
+      id: 'open-current',
+      label: t.browserContextOpenCurrent,
+      action: () => {
+        if (node.tabId) {
+          callbacks.onOpenTabInCurrentTab(node.tabId);
+        }
+      },
+    },
+    {
+      id: 'open-new',
+      label: t.browserContextOpenNewTab,
+      action: () => {
+        if (node.url) {
+          callbacks.onOpenTabInNewTab(node.url, node.name);
+        }
+      },
+    },
+    {
+      id: 'refresh',
+      label: t.browserRefresh,
+      action: () => {
+        if (node.tabId && node.url) {
+          callbacks.onRefreshTab(node.tabId, node.url);
+        }
+      },
+    },
+    {
+      id: 'edit',
+      label: t.browserContextEdit,
+      action: () => {
+        if (node.tabId && node.url) {
+          callbacks.onEditTab(node.tabId, node.name, node.url);
+        }
+      },
+    },
+    {
+      id: 'copy-link',
+      label: t.browserContextCopyLink,
+      action: () => {
+        if (node.url) {
+          callbacks.onCopyTabLink(node.url);
+        }
+      },
+    },
+    {
+      id: 'delete',
+      label: t.browserContextDelete,
+      danger: true,
+      action: () => {
+        if (node.tabId && node.url) {
+          callbacks.onDeleteTab(node.tabId, node.url);
+        }
+      },
+    },
+  ];
+}
+
+function getTabHoverButtons(
+  t: CopyDict
+): Array<{ id: string; label: string; icon: React.ReactNode }> {
+  return [
+    {
+      id: 'refresh',
+      label: t.browserRefresh,
+      icon: <IconRefreshCw size={12} decorative />,
+    },
+    {
+      id: 'more',
+      label: t.browserContextMore,
+      icon: <IconMoreVertical size={12} decorative />,
+    },
+  ];
+}
+
 export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries({
   node,
   categoryType,
@@ -142,6 +223,7 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
     y: number;
     nodePath: string;
     nodeType: string;
+    node?: BrowserTreeNode;
   } | null>(null);
 
   useMenuCloseOnOutsideClick(!!childMenuState, 'browser-child-menu', () => setChildMenuState(null));
@@ -153,6 +235,47 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
 
   const renderChildMeta = useCallback(
     (childNode: BrowserTreeNode) => {
+      // Handle tab leaf nodes
+      if (
+        childNode.kind === 'file' &&
+        (childNode.nodeType === 'tab' || childNode.nodeType === 'history')
+      ) {
+        const btns = getTabHoverButtons(t);
+        return (
+          <span className="adl-browser-node__actions">
+            {btns.map((btn) => (
+              <TooltipSimple key={btn.id} content={btn.label} placement="top">
+                <button
+                  type="button"
+                  className="adl-icon-btn adl-icon-btn--xs"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (btn.id === 'more') {
+                      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                      setChildMenuState({
+                        x: rect.right + 4,
+                        y: rect.top,
+                        nodePath: childNode.path,
+                        nodeType: childNode.nodeType,
+                        node: childNode,
+                      });
+                    } else if (btn.id === 'refresh') {
+                      if (childNode.tabId && childNode.url) {
+                        callbacks.onRefreshTab(childNode.tabId, childNode.url);
+                      }
+                    }
+                  }}
+                  aria-label={btn.label}
+                >
+                  {btn.icon}
+                </button>
+              </TooltipSimple>
+            ))}
+          </span>
+        );
+      }
+
+      // Handle directory nodes
       const btns = getChildNodeHoverButtons(childNode.nodeType, categoryType, t);
       if (btns.length === 0) {
         return null;
@@ -173,6 +296,7 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
                       y: rect.top,
                       nodePath: childNode.path,
                       nodeType: childNode.nodeType,
+                      node: childNode,
                     });
                   } else if (btn.id === 'create-tab') {
                     callbacks.onCreateTab(childNode.workspaceId, childNode.folderId);
@@ -217,6 +341,13 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
 
   const handleChildContextMenu = useCallback(
     (childNode: BrowserTreeNode) => {
+      // Handle tab leaf nodes
+      if (
+        childNode.kind === 'file' &&
+        (childNode.nodeType === 'tab' || childNode.nodeType === 'history')
+      ) {
+        return getTabContextMenuItems(childNode, callbacks, t);
+      }
       const items = getChildNodeMoreMenuItems(
         childNode.nodeType,
         categoryType,
@@ -266,12 +397,16 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
           data-menu-id="browser-child-menu"
           style={{ top: childMenuState.y, left: childMenuState.x }}
         >
-          {getChildNodeMoreMenuItems(
-            childMenuState.nodeType,
-            categoryType,
-            childMenuState.nodePath,
-            callbacks,
-            t
+          {(childMenuState.node &&
+          (childMenuState.nodeType === 'tab' || childMenuState.nodeType === 'history')
+            ? getTabContextMenuItems(childMenuState.node, callbacks, t)
+            : getChildNodeMoreMenuItems(
+                childMenuState.nodeType,
+                categoryType,
+                childMenuState.nodePath,
+                callbacks,
+                t
+              )
           ).map((item) => (
             <button
               key={item.id}

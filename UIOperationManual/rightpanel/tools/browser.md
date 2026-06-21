@@ -371,6 +371,50 @@ await page.click('.adl-multitree-entry__expand-btn:first-child');
 
 ### 目录选中与交互
 
+#### 标签右键菜单（v2026-06-22 新增）
+
+导航器树中标签（工作区目录/非工作区目录）支持右键菜单，共 6 项操作：
+
+| 菜单项 | 说明 |
+|--------|------|
+| 在当前标签打开 | 在当前标签中导航到该 URL |
+| 在新标签打开 | 创建新标签并导航到该 URL |
+| 刷新 | 重新获取标签 Logo 图标和标题（保留用户自定义名称） |
+| 编辑 | 弹出编辑对话框（与新建标签对话框相同，预填当前值） |
+| 复制链接 | 复制 URL 到剪贴板 |
+| 删除 | 彻底删除标签及所有关联状态（书签、工作区书签、文件夹、缓存） |
+
+**触发方式**：右键点击标签行
+
+**选择器**：`.adl-multitree-entry__menu-item`（右键菜单项）
+
+#### 标签悬停按钮（v2026-06-22 新增）
+
+鼠标悬停标签行时，右侧浮现两个操作按钮：
+
+| 按钮 | 图标 | 说明 |
+|------|------|------|
+| 刷新 | `IconRefreshCw` | 与右键菜单"刷新"功能一致 |
+| 更多操作 | `IconMoreVertical` | 点击弹出右键菜单 |
+
+**选择器**：`.adl-browser-node__actions` + `.adl-icon-btn--xs`
+
+#### 标签编辑对话框（v2026-06-22 新增）
+
+从右键菜单"编辑"触发，与新建标签对话框 UI 一致。标题为"编辑标签"，确认按钮为"保存"。
+
+```javascript
+// 右键点击标签行
+await page.locator('.adl-filetree__item').first().click({ button: 'right' });
+
+// 点击右键菜单项
+await page.click('.adl-multitree-entry__menu-item:has-text("编辑")');
+
+// 修改后保存
+await page.fill('.adl-prompt-modal__input:first-of-type', '新名称');
+await page.click('button:has-text("保存")');
+```
+
 #### 选中状态：
 - 点击顶级目录或子目录时会显示灰色背景（`--surface-active`）
 - 只有最后被点击的项会显示选中状态

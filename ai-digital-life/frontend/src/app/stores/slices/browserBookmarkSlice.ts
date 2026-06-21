@@ -30,6 +30,7 @@ export interface BrowserBookmarkSlice {
     workspaceId?: string
   ) => void;
   browserUpdateBookmarkTitle: (url: string, title: string) => void;
+  browserRemoveTabBookmarks: (tabId: string, url: string) => void;
 }
 
 export const createBrowserBookmarkSlice = (
@@ -175,6 +176,50 @@ export const createBrowserBookmarkSlice = (
       );
       scheduleWrite(BROWSER_BOOKMARKS_KEY, nextBookmarks);
       return { browserBookmarks: nextBookmarks };
+    });
+  },
+
+  browserRemoveTabBookmarks: (tabId: string, url: string) => {
+    set((state) => {
+      // Remove from bookmarks by URL
+      const nextBookmarks = state.browserBookmarks.filter((b) => b.url !== url);
+      scheduleWrite(BROWSER_BOOKMARKS_KEY, nextBookmarks);
+
+      // Remove from workspace bookmarks
+      const nextWorkspaceBookmarks = { ...state.browserWorkspaceBookmarks };
+      let wsChanged = false;
+      for (const wsId of Object.keys(nextWorkspaceBookmarks)) {
+        if (nextWorkspaceBookmarks[wsId].includes(tabId)) {
+          nextWorkspaceBookmarks[wsId] = nextWorkspaceBookmarks[wsId].filter((id) => id !== tabId);
+          if (nextWorkspaceBookmarks[wsId].length === 0) {
+            delete nextWorkspaceBookmarks[wsId];
+          }
+          wsChanged = true;
+        }
+      }
+      if (wsChanged) {
+        scheduleWrite(BROWSER_WORKSPACE_BOOKMARKS_KEY, nextWorkspaceBookmarks);
+      }
+
+      // Remove from folders
+      const nextFolders = state.browserTabFolders.map((folder) => {
+        if (folder.tabs && folder.tabs.includes(tabId)) {
+          return {
+            ...folder,
+            tabs: folder.tabs.filter((id) => id !== tabId),
+          };
+        }
+        return folder;
+      });
+      if (nextFolders !== state.browserTabFolders) {
+        scheduleWrite(BROWSER_TAB_FOLDERS_KEY, nextFolders);
+      }
+
+      return {
+        browserBookmarks: nextBookmarks,
+        browserWorkspaceBookmarks: nextWorkspaceBookmarks,
+        browserTabFolders: nextFolders,
+      };
     });
   },
 });

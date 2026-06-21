@@ -6,6 +6,8 @@ interface CreateTabDialogProps {
   open: boolean;
   loading?: boolean;
   t: Record<string, string>;
+  initialName?: string;
+  initialUrl?: string;
   onConfirm: (name: string, url: string) => void;
   onCancel: () => void;
 }
@@ -24,7 +26,15 @@ function isValidBrowserUrl(input: string): boolean {
   }
 }
 
-export function CreateTabDialog({ open, loading, t, onConfirm, onCancel }: CreateTabDialogProps) {
+export function CreateTabDialog({
+  open,
+  loading,
+  t,
+  initialName,
+  initialUrl,
+  onConfirm,
+  onCancel,
+}: CreateTabDialogProps) {
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
   const [urlError, setUrlError] = useState('');
@@ -32,12 +42,12 @@ export function CreateTabDialog({ open, loading, t, onConfirm, onCancel }: Creat
 
   useEffect(() => {
     if (open) {
-      setName('');
-      setUrl('');
+      setName(initialName ?? '');
+      setUrl(initialUrl ?? '');
       setUrlError('');
       requestAnimationFrame(() => nameRef.current?.focus());
     }
-  }, [open]);
+  }, [open, initialName, initialUrl]);
 
   const handleConfirm = useCallback(() => {
     if (loading) {
@@ -80,6 +90,9 @@ export function CreateTabDialog({ open, loading, t, onConfirm, onCancel }: Creat
     [onCancel]
   );
 
+  const isEditMode = !!initialName || !!initialUrl;
+  const dialogTitle = isEditMode ? t.browserEditTab : t.browserNewTab;
+
   if (!open) {
     return null;
   }
@@ -90,10 +103,10 @@ export function CreateTabDialog({ open, loading, t, onConfirm, onCancel }: Creat
         className="adl-prompt-modal__panel"
         role="dialog"
         aria-modal="true"
-        aria-label={t.browserNewTab}
+        aria-label={dialogTitle}
       >
         <div className="adl-prompt-modal__header">
-          {t.browserNewTab}
+          {dialogTitle}
           <button
             type="button"
             className="adl-prompt-modal__header-close"
@@ -174,7 +187,7 @@ export function CreateTabDialog({ open, loading, t, onConfirm, onCancel }: Creat
             onClick={handleConfirm}
             disabled={!url.trim() || loading}
           >
-            {loading ? t.browserCreating : t.browserNewTab}
+            {loading ? t.browserCreating : isEditMode ? t.browserSave : t.browserNewTab}
           </button>
         </div>
       </div>

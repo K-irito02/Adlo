@@ -6,6 +6,7 @@ export const browserZh = {
   browserRefresh: '刷新',
   browserHome: '主页',
   browserNewTab: '新建标签',
+  browserEditTab: '编辑标签',
   browserBookmarks: '书签',
   browserHistory: '历史记录',
   browserSavedTabs: '收藏标签',

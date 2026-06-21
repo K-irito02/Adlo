@@ -44,6 +44,19 @@ export function setCachedFavicon(url: string, favicon: string, pin?: boolean): v
   }
 }
 
+export function clearFaviconCacheForUrl(url: string): void {
+  faviconUrlCache.delete(url);
+  faviconPinned.delete(url);
+}
+
+export function clearPageMetaCacheForUrl(url: string): void {
+  metaCache.delete(url);
+}
+
+export function unlockTabTitle(tabId: string): void {
+  titleLockedTabs.delete(tabId);
+}
+
 export async function fetchPageMeta(
   url: string
 ): Promise<{ title: string; favicon: string } | null> {

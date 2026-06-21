@@ -74,6 +74,14 @@ export interface BrowserNavigatorProps {
   onOpenTab: (url?: string, title?: string, workspaceId?: string) => void;
   onOpenTabFromTree: (url: string, tabId?: string) => void;
 
+  // Tab-level operations
+  onRefreshTab: (tabId: string, url: string) => void;
+  onEditTab: (tabId: string, name: string, url: string) => void;
+  onDeleteTab: (tabId: string, url: string) => void;
+  onCopyTabLink: (url: string) => void;
+  onOpenTabInNewTab: (url: string, title: string) => void;
+  onOpenTabInCurrentTab: (tabId: string) => void;
+
   // Dialogs
   onCreateTabDialog: React.Dispatch<
     React.SetStateAction<{ open: boolean; workspaceId?: string; folderId?: string }>
@@ -135,6 +143,12 @@ export function BrowserNavigator({
   onCloseAllTabs: handleCloseAllTabs,
   onOpenTab: browserOpenTab,
   onOpenTabFromTree: handleOpenTabFromTree,
+  onRefreshTab: handleRefreshTab,
+  onEditTab: handleEditTab,
+  onDeleteTab: handleDeleteTab,
+  onCopyTabLink: handleCopyTabLink,
+  onOpenTabInNewTab: handleOpenTabInNewTab,
+  onOpenTabInCurrentTab: handleOpenTabInCurrentTab,
   onCreateTabDialog: setCreateTabDialog,
   onCreateDirDialog: setCreateDirDialog,
   onRenameFolder: setRenameFolderState,
@@ -355,6 +369,12 @@ export function BrowserNavigator({
             },
             onDeleteHistory: handleDeleteHistoryLevel,
             onOpenTab: handleOpenTabFromTree,
+            onRefreshTab: handleRefreshTab,
+            onEditTab: handleEditTab,
+            onDeleteTab: handleDeleteTab,
+            onCopyTabLink: handleCopyTabLink,
+            onOpenTabInNewTab: handleOpenTabInNewTab,
+            onOpenTabInCurrentTab: handleOpenTabInCurrentTab,
           }}
           labels={{
             workspaceCategory: t.browserCategoryWorkspace,

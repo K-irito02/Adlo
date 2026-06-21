@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { IconPlus, IconTrash, IconMoreVertical } from '../../icons';
+import { IconPlus, IconTrash, IconMoreVertical, IconRefreshCw } from '../../icons';
 import { TooltipSimple } from '../../components/Tooltip';
 import { BrowserFavicon } from '../../components/BrowserFavicon';
 import type { CopyDict } from '../../i18n';
@@ -202,6 +202,11 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
+  const [contextMenuForTab, setContextMenuForTab] = useState<{
+    x: number;
+    y: number;
+    node: BrowserTreeNode;
+  } | null>(null);
 
   const isExpanded = expandedPaths[node.path] ?? false;
   const isFlatMode = browserViewMode === 'list' || browserViewMode === 'all';
@@ -213,10 +218,19 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
     (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      setMenuPosition({ top: e.clientY, left: e.clientX + 4 });
-      setMenuOpen(true);
+      if (node.nodeType === 'tab' || node.nodeType === 'history') {
+        onSelectTreePath(node.path);
+        setContextMenuForTab({
+          x: e.clientX,
+          y: e.clientY,
+          node: node,
+        });
+      } else {
+        setMenuPosition({ top: e.clientY, left: e.clientX + 4 });
+        setMenuOpen(true);
+      }
     },
-    [setMenuPosition, setMenuOpen]
+    [node, onSelectTreePath, setMenuPosition, setMenuOpen, setContextMenuForTab]
   );
 
   useEffect(() => {
@@ -247,6 +261,31 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
       window.removeEventListener('keydown', escHandler);
     };
   }, [menuOpen, menuId]);
+
+  useEffect(() => {
+    if (!contextMenuForTab) {
+      return;
+    }
+    const handler = (e: MouseEvent) => {
+      const target = e.target as Node | null;
+      const menuEl = document.querySelector('[data-menu-id="browser-tab-context-menu"]');
+      if (menuEl?.contains(target)) {
+        return;
+      }
+      setContextMenuForTab(null);
+    };
+    const escHandler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setContextMenuForTab(null);
+      }
+    };
+    window.addEventListener('mousedown', handler);
+    window.addEventListener('keydown', escHandler);
+    return () => {
+      window.removeEventListener('mousedown', handler);
+      window.removeEventListener('keydown', escHandler);
+    };
+  }, [contextMenuForTab]);
 
   const count = counts.get(node.path) ?? 0;
 
@@ -341,6 +380,18 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
               );
             }
             const isTabSelected = selectedTreePath === item.node.path;
+            const tabBtns = [
+              {
+                id: 'refresh',
+                label: t.browserRefresh,
+                icon: <IconRefreshCw size={12} decorative />,
+              },
+              {
+                id: 'more',
+                label: t.browserContextMore,
+                icon: <IconMoreVertical size={12} decorative />,
+              },
+            ];
             return (
               <li
                 key={item.node.path}
@@ -353,7 +404,13 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
                   onClick={() => handleFlatTabClick(item.node)}
                   onContextMenu={(e) => {
                     e.preventDefault();
+                    e.stopPropagation();
                     onSelectTreePath(item.node.path);
+                    setContextMenuForTab({
+                      x: e.clientX,
+                      y: e.clientY,
+                      node: item.node,
+                    });
                   }}
                 >
                   <span
@@ -370,6 +427,38 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
                       <span className="adl-filetree__label-text">{item.node.name}</span>
                     </span>
                   </button>
+                  <span className="adl-filetree__meta adl-tree-node__meta--inline">
+                    <span className="adl-browser-node__actions">
+                      {tabBtns.map((btn) => (
+                        <TooltipSimple key={btn.id} content={btn.label} placement="top">
+                          <button
+                            type="button"
+                            className="adl-icon-btn adl-icon-btn--xs"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (btn.id === 'more') {
+                                const rect = (
+                                  e.currentTarget as HTMLElement
+                                ).getBoundingClientRect();
+                                setContextMenuForTab({
+                                  x: rect.right + 4,
+                                  y: rect.top,
+                                  node: item.node,
+                                });
+                              } else if (btn.id === 'refresh') {
+                                if (item.node.tabId && item.node.url) {
+                                  callbacks.onRefreshTab(item.node.tabId, item.node.url);
+                                }
+                              }
+                            }}
+                            aria-label={btn.label}
+                          >
+                            {btn.icon}
+                          </button>
+                        </TooltipSimple>
+                      ))}
+                    </span>
+                  </span>
                 </div>
               </li>
             );
@@ -423,6 +512,99 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
         )
       : null;
 
+  const tabContextMenuSlot = contextMenuForTab
+    ? createPortal(
+        <div
+          className="adl-multitree-entry__menu"
+          role="menu"
+          data-menu-id="browser-tab-context-menu"
+          style={{ top: contextMenuForTab.y, left: contextMenuForTab.x }}
+        >
+          {[
+            {
+              id: 'open-current',
+              label: t.browserContextOpenCurrent,
+              action: () => {
+                if (contextMenuForTab.node.tabId) {
+                  callbacks.onOpenTabInCurrentTab(contextMenuForTab.node.tabId);
+                }
+                setContextMenuForTab(null);
+              },
+            },
+            {
+              id: 'open-new',
+              label: t.browserContextOpenNewTab,
+              action: () => {
+                if (contextMenuForTab.node.url) {
+                  callbacks.onOpenTabInNewTab(
+                    contextMenuForTab.node.url,
+                    contextMenuForTab.node.name
+                  );
+                }
+                setContextMenuForTab(null);
+              },
+            },
+            {
+              id: 'refresh',
+              label: t.browserRefresh,
+              action: () => {
+                if (contextMenuForTab.node.tabId && contextMenuForTab.node.url) {
+                  callbacks.onRefreshTab(contextMenuForTab.node.tabId, contextMenuForTab.node.url);
+                }
+                setContextMenuForTab(null);
+              },
+            },
+            {
+              id: 'edit',
+              label: t.browserContextEdit,
+              action: () => {
+                if (contextMenuForTab.node.tabId && contextMenuForTab.node.url) {
+                  callbacks.onEditTab(
+                    contextMenuForTab.node.tabId,
+                    contextMenuForTab.node.name,
+                    contextMenuForTab.node.url
+                  );
+                }
+                setContextMenuForTab(null);
+              },
+            },
+            {
+              id: 'copy-link',
+              label: t.browserContextCopyLink,
+              action: () => {
+                if (contextMenuForTab.node.url) {
+                  callbacks.onCopyTabLink(contextMenuForTab.node.url);
+                }
+                setContextMenuForTab(null);
+              },
+            },
+            {
+              id: 'delete',
+              label: t.browserContextDelete,
+              danger: true,
+              action: () => {
+                if (contextMenuForTab.node.tabId && contextMenuForTab.node.url) {
+                  callbacks.onDeleteTab(contextMenuForTab.node.tabId, contextMenuForTab.node.url);
+                }
+                setContextMenuForTab(null);
+              },
+            },
+          ].map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={`adl-multitree-entry__menu-item${item.danger ? ' is-danger' : ''}`}
+              role="menuitem"
+              onClick={item.action}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>,
+        document.body
+      )
+    : null;
+
   return (
     <MultiTreeEntryShell
       label={node.name}
@@ -441,7 +623,10 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
       hasChildren={node.children.length > 0}
     >
       {isFlatMode ? (
-        flatChildren
+        <>
+          {flatChildren}
+          {tabContextMenuSlot}
+        </>
       ) : (
         <BrowserEntrySubEntries
           node={node}

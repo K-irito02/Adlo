@@ -1,6 +1,14 @@
 import { useCallback, useMemo } from 'react';
 import { useAppStore } from '../../stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
+import {
+  prefetchPageMeta,
+  clearFaviconCacheForUrl,
+  clearPageMetaCacheForUrl,
+  unlockTabTitle,
+  isTabTitleLocked,
+  setCachedFavicon,
+} from '../../utils/fetchPageMeta';
 
 function findFolderByIdLocal(
   folders: Array<{ id: string; children?: unknown[] }>,
@@ -36,6 +44,9 @@ export function useBrowserTreeActions() {
     browserDeleteTabFolder,
     browserDeleteHistoryByLevel,
     browserOpenTab,
+    browserCloseTab,
+    browserUpdateTab,
+    browserRemoveTabBookmarks,
   } = useAppStore(
     useShallow((state) => ({
       recentWorkspaces: state.recentWorkspaces,
@@ -49,6 +60,9 @@ export function useBrowserTreeActions() {
       browserDeleteTabFolder: state.browserDeleteTabFolder,
       browserDeleteHistoryByLevel: state.browserDeleteHistoryByLevel,
       browserOpenTab: state.browserOpenTab,
+      browserCloseTab: state.browserCloseTab,
+      browserUpdateTab: state.browserUpdateTab,
+      browserRemoveTabBookmarks: state.browserRemoveTabBookmarks,
     }))
   );
 
@@ -173,6 +187,89 @@ export function useBrowserTreeActions() {
     browserCollapseAllTreePaths();
   }, [browserCollapseAllTreePaths]);
 
+  const handleRefreshTab = useCallback(
+    async (tabId: string, url: string) => {
+      if (!url) {
+        return;
+      }
+      // Clear existing caches for this URL to force a fresh fetch
+      clearFaviconCacheForUrl(url);
+      clearPageMetaCacheForUrl(url);
+      // Re-fetch page meta
+      const meta = await prefetchPageMeta(url);
+      if (meta) {
+        const state = useAppStore.getState();
+        const tab = state.browserTabs.find((t) => t.id === tabId);
+        if (tab) {
+          // Only update the title if it's not locked (user-customized)
+          if (!isTabTitleLocked(tabId) && meta.title) {
+            browserUpdateTab(tabId, { title: meta.title });
+          }
+          // Update favicon cache
+          if (meta.favicon) {
+            setCachedFavicon(url, meta.favicon, true);
+          }
+        }
+      }
+    },
+    [browserUpdateTab]
+  );
+
+  const handleDeleteTab = useCallback(
+    (tabId: string, url: string) => {
+      // Remove all bookmark state (bookmarks, workspace bookmarks, folder memberships)
+      browserRemoveTabBookmarks(tabId, url);
+
+      // Clear caches
+      if (url) {
+        clearFaviconCacheForUrl(url);
+        clearPageMetaCacheForUrl(url);
+      }
+
+      // Unlock title if locked
+      unlockTabTitle(tabId);
+
+      // Close the tab
+      browserCloseTab(tabId);
+    },
+    [browserCloseTab, browserRemoveTabBookmarks]
+  );
+
+  const handleCopyTabLink = useCallback(async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      // Fallback for older browsers
+      const textarea = document.createElement('textarea');
+      textarea.value = url;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+    }
+  }, []);
+
+  const handleOpenTabInNewTab = useCallback(
+    (url: string, title: string) => {
+      browserOpenTab(url, title);
+    },
+    [browserOpenTab]
+  );
+
+  const handleOpenTabInCurrentTab = useCallback(
+    (tabId: string) => {
+      const state = useAppStore.getState();
+      const tab = state.browserTabs.find((t) => t.id === tabId);
+      const activeTabId = state.browserActiveTabId;
+      if (tab && activeTabId) {
+        browserUpdateTab(activeTabId, { url: tab.url, title: tab.title });
+      }
+    },
+    [browserUpdateTab]
+  );
+
   return {
     browserTabFolders,
     tabTreeExpanded: browserTabTreeExpanded,
@@ -186,5 +283,10 @@ export function useBrowserTreeActions() {
     handleDeleteHistoryLevel,
     handleExpandAllTree,
     handleCollapseAllTree,
+    handleRefreshTab,
+    handleDeleteTab,
+    handleCopyTabLink,
+    handleOpenTabInNewTab,
+    handleOpenTabInCurrentTab,
   };
 }

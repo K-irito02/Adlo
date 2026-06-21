@@ -8,7 +8,7 @@
 |------|------|--------|
 | [重构](./重构/) | 重构方法论、组件提取、执行报告、阶段性总结 | 23 |
 | [多工作区](./多工作区/) | 多工作区开发中的变更面板、文件树、终端、布局等经验 | 11 |
-| [浏览器](./浏览器/) | 内置浏览器实现、空标签引导页、树形目录交互、iframe 嵌入检查、Tauri WebView 覆盖、Resize Handle 区域逃逸、复制按钮动画化、Child WebView IPC 限制、SPA 标题轮询、导航模式切换、并发回调去重、标题锁定与 Favicon Pin 等经验 | 18 |
+| [浏览器](./浏览器/) | 内置浏览器实现、空标签引导页、树形目录交互、iframe 嵌入检查、Tauri WebView 覆盖、Resize Handle 区域逃逸、复制按钮动画化、Child WebView IPC 限制、SPA 标题轮询、导航模式切换、并发回调去重、标题锁定与 Favicon Pin、标签右键菜单与悬停按钮等经验 | 19 |
 | [代码质量](./代码质量/) | 全量代码质量检测与修复经验 | 11 |
 | [浏览器自动化](./浏览器自动化/) | 浏览器自动化调试记录与规则经验 | 2 |
 | [交互优化](./交互优化/) | 跨功能面板的交互/UX 问题修复经验 | 13 |
@@ -81,6 +81,7 @@
 | [browser-url-input-landing-page-bookmark-fixes-2026-06-21.md](./浏览器/browser-url-input-landing-page-bookmark-fixes-2026-06-21.md) | 2026-06-21 修复执行 | 地址栏失焦/ESC 恢复原始 URL、空 URL 着陆页显示、Tauri 空 URL 空白 WebView、着陆页书签星号点亮、Tauri URL 不加载修复 |
 | [browser-bookmark-tab-naming-folder-tab-fixes-2026-06-21.md](./浏览器/browser-bookmark-tab-naming-folder-tab-fixes-2026-06-21.md) | 2026-06-21 修复执行 | 书签默认值 hostname 降级、标签命名修复、文件夹标签原子插入（browserOpenTab 第4参数）、IconGlobe→IconLink、HMR store 更新须知 |
 | [browser-prefetch-title-lock-favicon-pin-2026-06-21.md](./浏览器/browser-prefetch-title-lock-favicon-pin-2026-06-21.md) | 2026-06-21 重构 + 修复执行 | 浏览器预取 + 标题锁定 + Favicon Pin 重构：共享工具提取（browserDisplayUtils.ts + BrowserFavicon.tsx）、6处 hostnameFromUrl 去重、2处 favicon 内联→组件、启发式→显式 pin 机制 |
+| [browser-tab-context-menu-hover-actions-2026-06-22.md](./浏览器/browser-tab-context-menu-hover-actions-2026-06-22.md) | 2026-06-22 新功能 | 标签右键菜单（6项）+ 悬停按钮（刷新/更多操作）+ 编辑对话框 + 缓存清理工具 + 统一删除 Store Action |
 
 ### 代码质量
 
