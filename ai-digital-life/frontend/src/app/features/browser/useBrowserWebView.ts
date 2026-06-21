@@ -31,6 +31,7 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
   const webViewActiveRef = useRef(false);
   const creatingRef = useRef(false);
   const recentNavigatedUrlsRef = useRef<Map<string, number>>(new Map());
+  const webViewHiddenByEmptyUrlRef = useRef(false);
   const URL_SEEN_TTL = 3000; // ms — extended to cover slow page loads + meta fetch
   const PATH_MATCH_TTL = 2000; // ms — layer 3 hostname+pathname matching only matches entries within this window; prevents false-positive when query params genuinely differ (e.g. ?page=1 vs ?page=2)
   const expectedNavigationUrlRef = useRef<string | null>(null);
@@ -134,9 +135,15 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
       if (webViewActiveRef.current && isUrlRecentlySeen(url)) {
         return;
       }
+      webViewHiddenByEmptyUrlRef.current = false;
       setExpectedUrl(url);
       if (webViewActiveRef.current) {
         invoke('browser_navigate', { url }).catch(() => {});
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            updateWebViewBoundsRef.current();
+          });
+        });
       } else {
         if (creatingRef.current) {
           return;
@@ -201,7 +208,7 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
     if (!primaryRef.current || !webViewActiveRef.current || !isTauriShell()) {
       return;
     }
-    if (!webViewVisibleRef.current) {
+    if (!webViewVisibleRef.current || webViewHiddenByEmptyUrlRef.current) {
       return;
     }
 
@@ -338,10 +345,16 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
     }
     const url = activeTab?.url;
     if (!url || url === 'about:blank' || url.trim() === '') {
+      if (webViewActiveRef.current) {
+        webViewHiddenByEmptyUrlRef.current = true;
+        recentNavigatedUrlsRef.current.clear();
+        hideWebView();
+      }
       return;
     }
+    webViewHiddenByEmptyUrlRef.current = false;
     navigateTauriUrl(url);
-  }, [activeTab?.id, activeTab?.url, webViewDisabled, navigateTauriUrl]);
+  }, [activeTab?.id, activeTab?.url, webViewDisabled, navigateTauriUrl, hideWebView]);
 
   useEffect(() => {
     return () => {

@@ -20,6 +20,7 @@ export function useBrowserUrlState(options: UseBrowserUrlStateOptions) {
     setAddress,
     setAddressExpanded,
     submitAddress,
+    activeTabUrl,
   } = options;
 
   const handleAddressChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -29,11 +30,20 @@ export function useBrowserUrlState(options: UseBrowserUrlStateOptions) {
   const handleAddressKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Enter') {
       submitAddress();
+    } else if (event.key === 'Escape') {
+      if (activeTabUrl !== undefined) {
+        setAddress(activeTabUrl);
+      }
+      setAddressExpanded(false);
+      addressInputRef.current?.blur();
     }
   };
 
   const handleAddressBlur = () => {
     setAddressExpanded(false);
+    if (activeTabUrl !== undefined) {
+      setAddress(activeTabUrl);
+    }
   };
 
   const handleSearchClick = () => {

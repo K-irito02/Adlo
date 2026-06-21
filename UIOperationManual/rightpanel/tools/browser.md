@@ -74,6 +74,29 @@ await page.fill('.adl-tool-search--address input', 'https://example.com');
 await page.keyboard.press('Enter');
 ```
 
+**地址栏聚焦/失焦行为**（v2026-06-21）：
+- 点击地址栏展开 → 自动聚焦并全选文本
+- 按 Enter → 提交导航
+- 按 Escape → 恢复原始 URL，折叠地址栏（不导航）
+- 点击页面其他地方（blur）→ 恢复原始 URL，折叠地址栏（不导航）
+
+```javascript
+// 验证 blur 恢复（删除 URL 后点击空白区域，应恢复为原始 URL）
+await page.fill('.adl-tool-search--address input', '');
+await page.click('.adl-browser-content'); // 点击内容区域触发 blur
+// 地址栏折叠；重新展开后应看到原始 URL
+await page.click('.adl-tool-search--address');
+```
+
+**空 URL + Enter → 着陆页**（v2026-06-21）：
+```javascript
+// 清空地址栏并按 Enter，应显示着陆页
+await page.fill('.adl-tool-search--address input', '');
+await page.keyboard.press('Enter');
+// 内容区应显示 Landing Page（.adl-browser-landing），内容区非空白
+await expect(page.locator('.adl-browser-landing')).toBeVisible();
+```
+
 #### 复制链接（地址栏，v2026-06-18 新增动画）
 
 ```javascript
@@ -308,6 +331,21 @@ const isFile = await page.locator('.adl-filetree__item--file').count() > 0;
 await page.click('button[aria-label="收藏标签"]');
 await page.click('.adl-bookmark-dir-row'); // 选择一个目录
 await page.click('button:has-text("加入此目录")');
+```
+
+**书签星号在空标签上的行为**（v2026-06-21）：
+- 着陆页（空标签，URL 为空）→ 书签星号始终为空心（未收藏状态）
+- 点击星号 → 弹出收藏对话框（等同于非书签页面的行为）
+- 空标签不会被收藏到书签列表
+
+```javascript
+// 验证空标签上的书签状态
+// 确保当前在 Landing Page
+await expect(page.locator('.adl-browser-landing')).toBeVisible();
+// 书签星号应为空心（未收藏）
+const starBtn = page.locator('button[aria-label="收藏标签"]');
+const isBookmarked = await starBtn.getAttribute('data-bookmarked');
+expect(isBookmarked).toBe('false'); // 或 aria-pressed="false"
 ```
 
 ### 子目录管理

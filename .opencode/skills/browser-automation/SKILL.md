@@ -7,7 +7,7 @@ description: Browser automation for AI Digital Life. Primary tool: agent-browser
 
 浏览器自动化技能，采用渐进式披露设计。
 
-> **⚠️ 前置提示**：调试日志收起器是最高优先级的调试手段。遇到 UI/交互问题时，**先通过调试日志定位问题**（页面"复制调试日志"按钮 / 项目根目录 `debug-logs.txt`），再根据结果决定是否需要进行浏览器自动化。详见 [AGENTS.md](../../../AGENTS.md#调试工具) 和 [dev-rules.md](../../../.trae/rules/dev-rules.md#调试工具使用)。
+> **⚠️ 前置提示**：调试日志收起器是最高优先级的调试手段。遇到 UI/交互问题时，**先通过调试日志定位问题**（页面"复制调试日志"按钮 / 项目根目录 `debug-logs.txt`），再根据结果决定是否需要进行浏览器自动化。详见 [AGENTS.md](../../../AGENTS.md#调试工具) 和 [dev-rules.md](../../../.trae/rules/dev-rules.md#问题排查规范)。
 
 ---
 

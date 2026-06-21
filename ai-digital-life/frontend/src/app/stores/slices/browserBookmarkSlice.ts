@@ -43,7 +43,7 @@ export const createBrowserBookmarkSlice = (
       const active =
         state.browserTabs.find((tab) => tab.id === state.browserActiveTabId) ??
         state.browserTabs[0];
-      const url = input?.url?.trim() || active?.url || 'about:blank';
+      const url = input?.url?.trim() ?? active?.url ?? 'about:blank';
       const title = input?.title?.trim() || active?.title || url;
       const exists = state.browserBookmarks.some((bookmark) => bookmark.url === url);
       const nextBookmarks = exists
@@ -93,7 +93,7 @@ export const createBrowserBookmarkSlice = (
   browserBookmarkTab: (tabId, folderId, newFolderName, workspaceId) => {
     set((state) => {
       const tab = state.browserTabs.find((t) => t.id === tabId);
-      if (!tab) {
+      if (!tab || !tab.url) {
         return {};
       }
 

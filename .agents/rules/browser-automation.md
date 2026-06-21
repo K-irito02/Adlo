@@ -11,7 +11,7 @@ alwaysApply: true
 
 - 页面右上角"复制调试日志"按钮
 - 项目根目录 `debug-logs.txt`
-- 详见 [AGENTS.md](../../AGENTS.md#调试工具) 和 [dev-rules.md](./dev-rules.md#调试工具使用)
+- 详见 [AGENTS.md](../../AGENTS.md#调试工具) 和 [dev-rules.md](./dev-rules.md#问题排查规范)
 
 ## 工具选择导航
 
@@ -138,4 +138,4 @@ agent-browser --session test screenshot "e:\Programs\Obsidian\notes\test-artifac
 - [browser-automation 技能](../../.opencode/skills/browser-automation/SKILL.md) — 完整用法与步骤清单模板
 - [desktop-ui-verification.md](./desktop-ui-verification.md) — 桌面端 UI 验证
 - [commands.md](./commands.md) — 常用命令
-- [dev-rules.md](./dev-rules.md) — 代理开发规则（含调试工具使用）
+- [dev-rules.md](./dev-rules.md) — 代理开发规则（含问题排查规范）

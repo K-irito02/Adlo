@@ -364,6 +364,10 @@ export function BrowserPanel(props: BrowserPanelProps) {
   const submitAddress = useCallback(async () => {
     const input = address.trim();
     if (!input) {
+      if (activeTab?.id && activeTab?.url) {
+        browserUpdateTab(activeTab.id, { url: '' });
+      }
+      setAddress('');
       return;
     }
     const matchedItem = findInBrowserLookupIndex(browserLookupIndex, input);
@@ -438,7 +442,9 @@ export function BrowserPanel(props: BrowserPanelProps) {
     }
   }, [
     address,
+    activeTab,
     browserLookupIndex,
+    browserUpdateTab,
     handleNavigationStart,
     navigateBrowser,
     navigateTauriUrl,

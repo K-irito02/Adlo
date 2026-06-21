@@ -29,10 +29,14 @@
 
 规则文件位于 `.trae/rules/`（自动从 `.agents/rules/` 同步），全部规则索引见 [README.md](./.trae/rules/README.md)。必须遵守的规则：
 
-- [dev-rules.md](.trae/rules/dev-rules.md) — 交互与执行规则（询问卡片、终端命令、代码修改）
+- [dev-rules.md](.trae/rules/dev-rules.md) — 交互与执行规则（询问卡片、终端命令、代码修改、问题排查）
 - [mandatory-testing.md](.trae/rules/mandatory-testing.md) — 强制红绿测试
 - [quality-gates.md](.trae/rules/quality-gates.md) — 质量门禁
 - [error-handling.md](.trae/rules/error-handling.md) — 错误处理规范
+
+## 问题排查规范
+
+排查问题时**先定位根本原因**，不要急于添加预防措施/防御性代码/解决方案。无法定位根因时，使用调试日志收起器（最高优先级）、复制调试日志按钮等调试手段，**禁止凭空猜测**。详见 [dev-rules.md](.trae/rules/dev-rules.md#问题排查规范)。
 
 ## 磁盘空间：Rust 增量编译缓存
 
