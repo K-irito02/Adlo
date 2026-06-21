@@ -205,6 +205,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
 
   const handleCreateTabCancel = useCallback(() => {
     setCreateTabDialog({ open: false });
+    pendingFolderIdRef.current = '';
   }, []);
 
   const handleSetCreateTabDialog = useCallback(
