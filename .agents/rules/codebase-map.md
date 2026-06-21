@@ -52,8 +52,8 @@ ai-digital-life/
 | `agent-runtime` | 单 Agent 顺序规划 |
 | `model-gateway` | DeepSeek / MiniMax 路由 + 流式 |
 | `change-engine` | patch 预览、应用、回滚、checkpoint |
-| `terminal` | 命令执行 + 流式输出 |
 | `browser` | Tauri child WebView 生命周期管理（create/destroy/navigate/goBack/goForward/reload/setBounds/eval） |
+| `ci-status` | GitHub Actions CI 状态轮询、缓存、解析 |
 
 ## 前端关键目录
 
@@ -82,7 +82,7 @@ app/stores/
 ├── conversationUtils.ts         # 会话工具函数
 ├── index.ts                     # 模块索引
 │
-├── slices/                      # 19 个 Zustand 切片（含 5 浏览器子切片 + 2 GitHub 切片）
+├── slices/                      # 23 个 Zustand 切片（含 5 浏览器子切片 + 3 GitHub 子切片）
 │   ├── uiSlice.ts               # UI 状态（侧边栏、工具栏）
 │   ├── workspaceSlice.ts        # 工作区状态
 │   ├── gitSlice.ts              # Git 状态
@@ -95,16 +95,19 @@ app/stores/
 │   ├── commandSlice.ts          # 命令状态
 │   ├── clipboardSlice.ts        # 剪贴板状态
 │   ├── terminalSlice.ts         # 终端会话管理
+│   ├── ciSlice.ts               # CI 状态（轮询、快照、Section 切换）
+│   ├── communicateSlice.ts      # 通信面板共享状态
+│   ├── githubSlice.ts           # GitHub 面板核心
+│   ├── githubRepoSlice.ts       # GitHub 仓库配置（Token、CRUD、Pin/Unpin）
+│   ├── githubTreeSlice.ts       # GitHub 树形目录
 │   ├── browserSlice.ts          # 浏览器核心（导航布局、持久化）
 │   ├── browserTabsSlice.ts      # 浏览器标签页
 │   ├── browserBookmarkSlice.ts  # 浏览器书签
 │   ├── browserHistorySlice.ts   # 浏览器历史记录
 │   ├── browserFoldersSlice.ts   # 浏览器标签文件夹
-│   ├── browserLandingSlice.ts   # 浏览器着陆页（快捷站点、端口、背景）
-│   ├── communicateSlice.ts      # 通信面板共享状态
-│   └── githubSlice.ts           # GitHub CI 专有状态
+│   └── browserLandingSlice.ts   # 浏览器着陆页（快捷站点、端口、背景）
 │
-├── actions/                     # 9 个跨切片 action 模块
+├── actions/                     # 12 个跨切片 action 模块
 │   ├── workspaceActions.ts      # 工作区操作
 │   ├── sessionActions.ts        # 会话操作
 │   ├── editorActions.ts         # 编辑器操作
@@ -113,8 +116,10 @@ app/stores/
 │   ├── searchActions.ts         # 文件搜索操作
 │   ├── fetchActions.ts          # 数据拉取操作
 │   ├── streamActions.ts         # 流式消息操作
+│   ├── generalActions.ts        # 通用操作
 │   ├── taskActions.ts           # 任务审批/恢复操作
-│   └── commandActions.ts        # 命令执行操作
+│   ├── commandActions.ts        # 命令执行操作
+│   └── browserCleanupActions.ts # 浏览器清理操作
 │
 └── (已删除)                     # 4 个遗留独立 Store
     ├── useWorkspaceStore.ts      # ❌ 已删除

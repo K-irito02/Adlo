@@ -57,13 +57,9 @@ alwaysApply: true
 
 ### integrated_browser
 
-- **路径**: `c:\Users\31432\.trae-cn\mcps\s_notes-df2a1686\solo_agent_lite\integrated_browser\`
-- **服务器名称**: `integrated_browser`
-- **工具数量**: 18 个浏览器自动化工具
-- **用途**: 操控 Trae IDE 内置浏览器
-- **文档**: [integrated-browser.md](../skills/browser-automation/references/integrated-browser.md)
+Trae IDE 内置浏览器自动化工具（18 个 MCP 工具），支持导航、点击、输入、截图等全功能。
 
-详细说明见 [browser-automation.md](./browser-automation.md)
+详细说明见 [browser-automation.md](./browser-automation.md) 和 [browser-automation 技能](../../.opencode/skills/browser-automation/SKILL.md)
 
 ## 规则层级
 

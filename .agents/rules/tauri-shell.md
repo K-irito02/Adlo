@@ -32,6 +32,7 @@ alwaysApply: false
 | `frontend/dev/previewWorkspaceService.ts` | 浏览器开发态服务端 API（镜像 Tauri Command 能力） |
 | `frontend/dev/previewTerminalService.ts` | 浏览器开发态终端服务（镜像 Tauri PTY Command，使用 Node.js `child_process.spawn`） |
 | `src-tauri/src/commands/pty_commands.rs` | PTY 终端 `#[tauri::command]`（pty_create / pty_input / pty_resize / pty_kill / pty_list） |
+| `crates/pty/` | PTY 进程管理（伪终端生命周期、Shell 解析、会话管理） |
 
 ## 事件通道
 

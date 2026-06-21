@@ -34,18 +34,15 @@
 - [quality-gates.md](.trae/rules/quality-gates.md) — 质量门禁
 - [error-handling.md](.trae/rules/error-handling.md) — 错误处理规范
 
-## 问题排查规范
+## 问题排查与调试
 
-排查问题时**先定位根本原因**，不要急于添加预防措施/防御性代码/解决方案。无法定位根因时，使用调试日志收起器（最高优先级）、复制调试日志按钮等调试手段，**禁止凭空猜测**。详见 [dev-rules.md](.trae/rules/dev-rules.md#问题排查规范)。
+排查问题时**先定位根本原因**，不要急于添加预防措施/防御性代码/解决方案。无法定位根因时，使用调试日志收起器（最高优先级）、复制调试日志按钮等调试手段，**禁止凭空猜测**。
 
-## 磁盘空间：Rust 增量编译缓存
+调试工具详情（日志收起器、复制按钮、自动写入等）见 [ai-digital-life/AGENTS.md#调试工具](./ai-digital-life/AGENTS.md#调试工具)，排查规范见 [dev-rules.md](.trae/rules/dev-rules.md#问题排查规范)。
 
-`target/debug/incremental/` 每次编译创建新会话，**永不自动清理**。经数百次开发编译后可达 20~40 GB。
-运行 `ai-digital-life/.cargo\clean-incremental.ps1` 保留 7 天内会话，安全删除更早的。
+## 磁盘空间
 
-## 调试工具
-
-**调试日志收起器是最高优先级的调试手段**，遇到 UI/交互问题时优先使用。详见 [AGENTS.md#调试工具](./ai-digital-life/AGENTS.md#调试工具)（实现在 `frontend/src/app/utils/debugLogCollector.ts`）。
+Rust 增量编译缓存 `target/debug/incremental/` 每次编译创建新会话，**永不自动清理**，可达 20~40 GB。运行 `ai-digital-life/.cargo\clean-incremental.ps1` 保留 7 天内会话。详见 [ai-digital-life/AGENTS.md#磁盘空间管理](./ai-digital-life/AGENTS.md#磁盘空间管理)。
 
 ## 禁止项
 

@@ -8,7 +8,7 @@ AI 数字生命桌面应用的规划与治理仓库。
 |------|------|
 | [ai-digital-life/](./ai-digital-life/) | 实现工作区：Rust + Tauri 2.x 桌面应用 |
 | [docs/](./docs/) | 架构设计、开发约束、知识沉淀 |
-| [.agents/rules/](./.agents/rules/) | AI 代理规则（自动同步到 `.trae/rules/`） |
+| [.trae/rules/](./.trae/rules/) | AI 代理规则（IDE 加载，由 `.agents/rules/` 同步） |
 | [UIOperationManual/](./UIOperationManual/) | UI 元素定位手册（浏览器自动化测试用） |
 | [.opencode/skills/](./.opencode/skills/) | AI 代理技能包 |
 
