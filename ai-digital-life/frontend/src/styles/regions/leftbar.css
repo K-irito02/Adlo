@@ -75,8 +75,8 @@
     background-color var(--duration-150) var(--ease-default);
 }
 
-.adl-leftbar__resize-handle::before:hover,
-.adl-leftbar__resize-handle::before:active {
+.adl-leftbar__resize-handle:hover::before,
+.adl-leftbar__resize-handle:active::before {
   opacity: 1;
   background: var(--text-secondary);
 }

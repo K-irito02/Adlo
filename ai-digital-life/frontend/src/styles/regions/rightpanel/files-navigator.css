@@ -182,8 +182,8 @@
     background-color var(--duration-150) var(--ease-default);
 }
 
-.adl-tool-navigator__resize-handle::before:hover,
-.adl-tool-navigator__resize-handle::before:active {
+.adl-tool-navigator__resize-handle:hover::before,
+.adl-tool-navigator__resize-handle:active::before {
   opacity: 1;
   background: var(--text-secondary);
 }

@@ -32,12 +32,20 @@ Resize Handle 设置 `pointer-events: none`，通过 `::before` 伪元素提供 
   pointer-events: auto; /* 伪元素独立接收事件 */
   cursor: col-resize;
 }
+/* hover/active 必须用 :hover::before，不可用 ::before:hover */
+.adl-xxx__resize-handle:hover::before,
+.adl-xxx__resize-handle:active::before {
+  opacity: 1;
+  background: var(--text-secondary);
+}
 ```
 
 ## 关键约束
 
-1. **选择器变化**：hover/active 样式必须从 `.handle:hover::before` 改为
-   `.handle::before:hover`，因为父元素 `pointer-events: none` 后父级 `:hover` 不再触发。
+1. **选择器顺序**：必须用 `.handle:hover::before`（伪类在前、伪元素在后）。 `::before:hover`
+   语法虽在 Selectors Level 4 有定义但浏览器实现不一致。 `pointer-events: none` 的父元素通过
+   `::before` 的命中测试仍然匹配 `:hover`——`::before` 是元素盒子树的一部分，浏览器会将 `:hover`
+   应用于父元素。
 2. **::before 宽度**：3px 是可用性和精度的平衡点（原始视觉 edge line 1px 太小）。
 3. **动画范围**：hover 态仅 transition `opacity` 和 `background-color`，禁止 transition `width`
    避免布局抖动。
