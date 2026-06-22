@@ -26,28 +26,28 @@
 
 ## 元素索引
 
-| 编号 | 名称 | 文档 | 说明 |
-|------|------|------|------|
-| [10] | Quick Actions | [quick-actions.md](./quick-actions.md) | 快捷操作按钮（技能、MCP） |
-| [11] | Workspaces & Sessions | [workspaces.md](./workspaces.md) | 工作区列表与会话列表 |
-| [12] | Conversations | [conversations.md](./conversations.md) | 独立对话列表 |
-| [13] | Resize Handle | - | 宽度调整手柄 |
+| 编号 | 名称                  | 文档                                   | 说明                      |
+| ---- | --------------------- | -------------------------------------- | ------------------------- |
+| [10] | Quick Actions         | [quick-actions.md](./quick-actions.md) | 快捷操作按钮（技能、MCP） |
+| [11] | Workspaces & Sessions | [workspaces.md](./workspaces.md)       | 工作区列表与会话列表      |
+| [12] | Conversations         | [conversations.md](./conversations.md) | 独立对话列表              |
+| [13] | Resize Handle         | -                                      | 宽度调整手柄              |
 
 ## 容器选择器
 
-| 选择器 | 说明 |
-|--------|------|
-| `.adl-leftbar` | 左侧边栏容器 |
-| `.adl-leftbar__content` | 内容区域（可滚动） |
-| `.adl-leftbar--collapsed` | 折叠状态 |
+| 选择器                    | 说明               |
+| ------------------------- | ------------------ |
+| `.adl-leftbar`            | 左侧边栏容器       |
+| `.adl-leftbar__content`   | 内容区域（可滚动） |
+| `.adl-leftbar--collapsed` | 折叠状态           |
 
 ## 子区域选择器
 
-| 选择器 | 说明 |
-|--------|------|
-| `.adl-leftbar__quick` | 快捷操作区 |
-| `.adl-leftbar__nav` | 导航区（工作区/对话） |
-| `.adl-leftbar__conversation-resize` | 对话区域高度调整手柄 |
+| 选择器                              | 说明                  |
+| ----------------------------------- | --------------------- |
+| `.adl-leftbar__quick`               | 快捷操作区            |
+| `.adl-leftbar__nav`                 | 导航区（工作区/对话） |
+| `.adl-leftbar__conversation-resize` | 对话区域高度调整手柄  |
 
 ## 快速操作
 
@@ -69,7 +69,9 @@ if (isCollapsed) {
 
 ```javascript
 // 找到当前工作区旁的新建按钮
-const newSessionBtn = await page.waitForSelector('.adl-workspace-item.is-current .adl-icon-btn[aria-label="新建会话"]');
+const newSessionBtn = await page.waitForSelector(
+  '.adl-workspace-item.is-current .adl-icon-btn[aria-label="新建会话"]'
+);
 await newSessionBtn.click();
 ```
 
@@ -84,13 +86,19 @@ await page.waitForSelector('.adl-session-item.is-active');
 
 ### 调整侧边栏宽度
 
+> ⚠️ **有效拖拽区域**：仅手柄元素最右侧 3px 范围可拖拽。中间区域
+> `pointer-events: none`，点击会穿透到下方的自定义滚动条。
+
 ```javascript
-// 拖拽调整手柄
+// 拖拽调整手柄（必须点击最右侧 3px 区域）
 const handle = await page.waitForSelector('.adl-leftbar__resize-handle');
 const box = await handle.boundingBox();
-await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+// 点击最右侧 3px（右边缘 - 1.5px）
+const grabX = box.x + box.width - 1.5;
+const centerY = box.y + box.height / 2;
+await page.mouse.move(grabX, centerY);
 await page.mouse.down();
-await page.mouse.move(box.x + 100, box.y + box.height / 2); // 向右移动 100px
+await page.mouse.move(box.x + 100, centerY); // 向右移动 100px
 await page.mouse.up();
 ```
 
@@ -98,18 +106,18 @@ await page.mouse.up();
 
 ### 折叠状态
 
-| 状态 | CSS 类名 | aria 属性 | 说明 |
-|------|----------|-----------|------|
-| 展开 | - | `aria-hidden="false"` | 默认状态 |
-| 折叠 | `.adl-leftbar--collapsed` | `aria-hidden="true"` | 隐藏内容 |
+| 状态 | CSS 类名                  | aria 属性             | 说明     |
+| ---- | ------------------------- | --------------------- | -------- |
+| 展开 | -                         | `aria-hidden="false"` | 默认状态 |
+| 折叠 | `.adl-leftbar--collapsed` | `aria-hidden="true"`  | 隐藏内容 |
 
 ### 宽度限制
 
-| 属性 | CSS 变量 | 默认值 |
-|------|----------|--------|
-| 最小宽度 | `--leftbar-width-min` | 180px |
-| 默认宽度 | `--leftbar-width` | 180px |
-| 最大宽度 | `--leftbar-width-max` | 360px |
+| 属性     | CSS 变量              | 默认值 |
+| -------- | --------------------- | ------ |
+| 最小宽度 | `--leftbar-width-min` | 180px  |
+| 默认宽度 | `--leftbar-width`     | 180px  |
+| 最大宽度 | `--leftbar-width-max` | 360px  |
 
 ## 注意事项
 

@@ -158,11 +158,11 @@
   right: 0;
   bottom: 0;
   width: 12px;
-  cursor: col-resize;
   z-index: 10;
   touch-action: none;
   -webkit-user-select: none;
   user-select: none;
+  pointer-events: none;
 }
 
 .adl-tool-navigator__resize-handle::before {
@@ -172,18 +172,18 @@
   bottom: 0;
   left: auto;
   right: 0;
-  width: 1px;
+  width: 3px;
   background: transparent;
   opacity: 0;
+  pointer-events: auto;
+  cursor: col-resize;
   transition:
-    width var(--duration-150) var(--ease-default),
     opacity var(--duration-150) var(--ease-default),
     background-color var(--duration-150) var(--ease-default);
 }
 
-.adl-tool-navigator__resize-handle:hover::before,
-.adl-tool-navigator__resize-handle:active::before {
-  width: 3px;
+.adl-tool-navigator__resize-handle::before:hover,
+.adl-tool-navigator__resize-handle::before:active {
   opacity: 1;
   background: var(--text-secondary);
 }

@@ -4,131 +4,132 @@
 
 ## 目录结构
 
-| 目录 | 内容 | 文件数 |
-|------|------|--------|
-| [重构](./重构/) | 重构方法论、组件提取、执行报告、阶段性总结 | 23 |
-| [多工作区](./多工作区/) | 多工作区开发中的变更面板、文件树、终端、布局等经验 | 11 |
-| [浏览器](./浏览器/) | 内置浏览器实现、空标签引导页、树形目录交互、iframe 嵌入检查、Tauri WebView 覆盖、Resize Handle 区域逃逸、复制按钮动画化、Child WebView IPC 限制、SPA 标题轮询、导航模式切换、并发回调去重、标题锁定与 Favicon Pin、标签右键菜单与悬停按钮、WebView2 `text-overflow` 剪辑特性等经验 | 20 |
-| [代码质量](./代码质量/) | 全量代码质量检测与修复经验 | 11 |
-| [浏览器自动化](./浏览器自动化/) | 浏览器自动化调试记录与规则经验 | 2 |
-| [交互优化](./交互优化/) | 跨功能面板的交互/UX 问题修复经验 | 13 |
-| [CI 监控](./CI监控/) | GitHub Actions CI 状态监控模块经验（按目录独立绑定、Token 持久化、日志隔离、数据缓存、Rate Limit 保护） | 6 |
+| 目录                            | 内容                                                                                                                                                                                                                                                                               | 文件数 |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| [重构](./重构/)                 | 重构方法论、组件提取、执行报告、阶段性总结                                                                                                                                                                                                                                         | 23     |
+| [多工作区](./多工作区/)         | 多工作区开发中的变更面板、文件树、终端、布局等经验                                                                                                                                                                                                                                 | 11     |
+| [浏览器](./浏览器/)             | 内置浏览器实现、空标签引导页、树形目录交互、iframe 嵌入检查、Tauri WebView 覆盖、Resize Handle 区域逃逸、复制按钮动画化、Child WebView IPC 限制、SPA 标题轮询、导航模式切换、并发回调去重、标题锁定与 Favicon Pin、标签右键菜单与悬停按钮、WebView2 `text-overflow` 剪辑特性等经验 | 20     |
+| [代码质量](./代码质量/)         | 全量代码质量检测与修复经验                                                                                                                                                                                                                                                         | 11     |
+| [浏览器自动化](./浏览器自动化/) | 浏览器自动化调试记录与规则经验                                                                                                                                                                                                                                                     | 2      |
+| [交互优化](./交互优化/)         | 跨功能面板的交互/UX 问题修复经验                                                                                                                                                                                                                                                   | 13     |
+| [CI 监控](./CI监控/)            | GitHub Actions CI 状态监控模块经验（按目录独立绑定、Token 持久化、日志隔离、数据缓存、Rate Limit 保护）                                                                                                                                                                            | 6      |
 
 ## 索引
 
 ### 重构
 
-| 文件 | 来源 | 说明 |
-|------|------|------|
-| [component-extraction.md](./重构/component-extraction.md) | 重构洞察 | 组件安全提取方法论（类型导入、Vite 缓存、export type 等） |
-| [ui-restoration.md](./重构/ui-restoration.md) | 重构洞察 | UI 恢复经验（CSS 层叠、动画恢复、结构分层） |
-| [execution-lessons.md](./重构/execution-lessons.md) | 重构洞察 | 第 10 轮重构执行经验（CSS 截断、类型收窄、OnceLock 等） |
-| [refactoring-process-lessons.md](./重构/refactoring-process-lessons.md) | REFACTORING_PROGRESS_REPORT | 跨 4 轮重构的 16 条经验（CSS、React、Rust 等） |
-| [refactoring-summary-2026-06-01.md](./重构/refactoring-summary-2026-06-01.md) | 重构洞察 | 第 1-30 轮重构任务汇总与经验 |
-| [refactoring-lessons-2026-06-04.md](./重构/refactoring-lessons-2026-06-04.md) | 重构洞察 2026-06-03 执行 | React 19 iframe 事件系统陷阱、Rust 依赖删除、TS 大小写、CSS transition:all |
-| [progress-summary.md](./重构/progress-summary.md) | 重构洞察 | 第 1-17 轮重构进展汇总 |
-| [refactoring-insight-execution-2026-06-14.md](./重构/refactoring-insight-execution-2026-06-14.md) | 2026-06-14 重构洞察第9次执行 | 路径别名、事件委托修复memo、useRef回调稳定化、孤儿import陷阱 |
-| [summary-2026-05-31.md](./重构/summary-2026-05-31.md) | 重构洞察 | 2026-05-31 重构总结 |
-| [summary-2026-05-30.md](./重构/summary-2026-05-30.md) | 重构洞察 | 2026-05-30 重构总结 |
-| [terminal-fix-2026-05-22.md](./重构/terminal-fix-2026-05-22.md) | 重构洞察 | 终端功能修复总结 |
-| [styling-restoration-2026-05-27.md](./重构/styling-restoration-2026-05-27.md) | 重构洞察 | 文件树大纲样式恢复经验 |
-| [ui-store-migration-2026-06-07.md](./重构/ui-store-migration-2026-06-07.md) | 2026-06-07 重构 | UI Store 迁移与代码重构经验（状态迁移、组件更新、性能优化） |
-| [uiSliceNavigatorRefactor-2026-06-08.md](./重构/uiSliceNavigatorRefactor-2026-06-08.md) | 2026-06-08 重构 | Navigator 方法移动到 uiSlice 经验（单一职责原则、向后兼容、警告清理） |
-| [residual-architecture-cleanup-2026-06-09.md](./重构/residual-architecture-cleanup-2026-06-09.md) | 2026-06-09 重构洞察执行 | Phase 41-42 残余架构清理 8 领域经验（bridge 下沉、React.memo、Rust 结构体、clone 消除、命令层测试、@types 分类） |
-| [performance-optimization-lessons-2026-06-11.md](./重构/performance-optimization-lessons-2026-06-11.md) | 2026-06-11 重构洞察执行 | 性能优化经验总结（虚拟化、memo、选择器、代码分割、内存泄漏） |
-| [high-risk-refactoring-2026-06-12.md](./重构/high-risk-refactoring-2026-06-12.md) | 2026-06-12 重构洞察高风险执行 | 高风险重构经验总结（组件提取安全、切片拆分策略、Hook 拆散、跨包依赖管理） |
-| [refactoring-insight-execution-2026-06-13.md](./重构/refactoring-insight-execution-2026-06-13.md) | 2026-06-13 重构洞察第8次执行 | CSS 变量主题化、shared.ts 模块拆分、Hook 拆散模式、Slot 骨架模式、Windows 测试兼容 |
-| [refactoring-insight-execution-2026-06-15.md](./重构/refactoring-insight-execution-2026-06-15.md) | 2026-06-15 重构洞察第10次执行 | 超大组件拆分模式、O(n²)→O(n)栈式算法、CSS变量收敛、内联样式迁移、Store订阅合并 |
-| [refactoring-insight-execution-2026-06-16.md](./重构/refactoring-insight-execution-2026-06-16.md) | 2026-06-16 重构洞察第11次执行 | BrowserNavigator 提取、TitleBar 菜单提取、selectors 按域拆分、CSS 文件拆分 |
-| [refactor-round-68-2026-06-19.md](./重构/refactor-round-68-2026-06-19.md) | 2026-06-19 重构洞察执行 | CSS barrel 模式、Store 三层拆分、agent_pipeline 模块化、console.log 清理 |
-| [terminal-pty-evaluation.md](./重构/terminal-pty-evaluation.md) | 重构洞察 | Terminal 与 PTY crate 职责边界评估报告 |
+| 文件                                                                                                    | 来源                          | 说明                                                                                                             |
+| ------------------------------------------------------------------------------------------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| [component-extraction.md](./重构/component-extraction.md)                                               | 重构洞察                      | 组件安全提取方法论（类型导入、Vite 缓存、export type 等）                                                        |
+| [ui-restoration.md](./重构/ui-restoration.md)                                                           | 重构洞察                      | UI 恢复经验（CSS 层叠、动画恢复、结构分层）                                                                      |
+| [execution-lessons.md](./重构/execution-lessons.md)                                                     | 重构洞察                      | 第 10 轮重构执行经验（CSS 截断、类型收窄、OnceLock 等）                                                          |
+| [refactoring-process-lessons.md](./重构/refactoring-process-lessons.md)                                 | REFACTORING_PROGRESS_REPORT   | 跨 4 轮重构的 16 条经验（CSS、React、Rust 等）                                                                   |
+| [refactoring-summary-2026-06-01.md](./重构/refactoring-summary-2026-06-01.md)                           | 重构洞察                      | 第 1-30 轮重构任务汇总与经验                                                                                     |
+| [refactoring-lessons-2026-06-04.md](./重构/refactoring-lessons-2026-06-04.md)                           | 重构洞察 2026-06-03 执行      | React 19 iframe 事件系统陷阱、Rust 依赖删除、TS 大小写、CSS transition:all                                       |
+| [progress-summary.md](./重构/progress-summary.md)                                                       | 重构洞察                      | 第 1-17 轮重构进展汇总                                                                                           |
+| [refactoring-insight-execution-2026-06-14.md](./重构/refactoring-insight-execution-2026-06-14.md)       | 2026-06-14 重构洞察第9次执行  | 路径别名、事件委托修复memo、useRef回调稳定化、孤儿import陷阱                                                     |
+| [summary-2026-05-31.md](./重构/summary-2026-05-31.md)                                                   | 重构洞察                      | 2026-05-31 重构总结                                                                                              |
+| [summary-2026-05-30.md](./重构/summary-2026-05-30.md)                                                   | 重构洞察                      | 2026-05-30 重构总结                                                                                              |
+| [terminal-fix-2026-05-22.md](./重构/terminal-fix-2026-05-22.md)                                         | 重构洞察                      | 终端功能修复总结                                                                                                 |
+| [styling-restoration-2026-05-27.md](./重构/styling-restoration-2026-05-27.md)                           | 重构洞察                      | 文件树大纲样式恢复经验                                                                                           |
+| [ui-store-migration-2026-06-07.md](./重构/ui-store-migration-2026-06-07.md)                             | 2026-06-07 重构               | UI Store 迁移与代码重构经验（状态迁移、组件更新、性能优化）                                                      |
+| [uiSliceNavigatorRefactor-2026-06-08.md](./重构/uiSliceNavigatorRefactor-2026-06-08.md)                 | 2026-06-08 重构               | Navigator 方法移动到 uiSlice 经验（单一职责原则、向后兼容、警告清理）                                            |
+| [residual-architecture-cleanup-2026-06-09.md](./重构/residual-architecture-cleanup-2026-06-09.md)       | 2026-06-09 重构洞察执行       | Phase 41-42 残余架构清理 8 领域经验（bridge 下沉、React.memo、Rust 结构体、clone 消除、命令层测试、@types 分类） |
+| [performance-optimization-lessons-2026-06-11.md](./重构/performance-optimization-lessons-2026-06-11.md) | 2026-06-11 重构洞察执行       | 性能优化经验总结（虚拟化、memo、选择器、代码分割、内存泄漏）                                                     |
+| [high-risk-refactoring-2026-06-12.md](./重构/high-risk-refactoring-2026-06-12.md)                       | 2026-06-12 重构洞察高风险执行 | 高风险重构经验总结（组件提取安全、切片拆分策略、Hook 拆散、跨包依赖管理）                                        |
+| [refactoring-insight-execution-2026-06-13.md](./重构/refactoring-insight-execution-2026-06-13.md)       | 2026-06-13 重构洞察第8次执行  | CSS 变量主题化、shared.ts 模块拆分、Hook 拆散模式、Slot 骨架模式、Windows 测试兼容                               |
+| [refactoring-insight-execution-2026-06-15.md](./重构/refactoring-insight-execution-2026-06-15.md)       | 2026-06-15 重构洞察第10次执行 | 超大组件拆分模式、O(n²)→O(n)栈式算法、CSS变量收敛、内联样式迁移、Store订阅合并                                   |
+| [refactoring-insight-execution-2026-06-16.md](./重构/refactoring-insight-execution-2026-06-16.md)       | 2026-06-16 重构洞察第11次执行 | BrowserNavigator 提取、TitleBar 菜单提取、selectors 按域拆分、CSS 文件拆分                                       |
+| [refactor-round-68-2026-06-19.md](./重构/refactor-round-68-2026-06-19.md)                               | 2026-06-19 重构洞察执行       | CSS barrel 模式、Store 三层拆分、agent_pipeline 模块化、console.log 清理                                         |
+| [terminal-pty-evaluation.md](./重构/terminal-pty-evaluation.md)                                         | 重构洞察                      | Terminal 与 PTY crate 职责边界评估报告                                                                           |
 
 ### 多工作区
 
-| 文件 | 来源 | 说明 |
-|------|------|------|
-| [changes-terminal-panel.md](./多工作区/changes-terminal-panel.md) | Superpowers Specs | 变更面板与终端面板重构（10 条经验：useMemo 对齐、ResizeObserver、hover 缓冲等） |
-| [file-tree.md](./多工作区/file-tree.md) | Superpowers Specs | 多工作区文件树（11 条经验：Tooltip 覆盖、数据流、CSS 选择器、状态同步等） |
-| [component-split.md](./多工作区/component-split.md) | Superpowers Specs | Phase 3 组件拆分（Rust 异步模式、组件拆分策略） |
-| [terminal-profile.md](./多工作区/terminal-profile.md) | Superpowers Specs | 终端默认配置修复（PTY 通信、SSE 同步、配置持久化） |
-| [stats-fix.md](./多工作区/stats-fix.md) | Superpowers Specs | 多工作区统计修复经验 |
-| [tree-layout-alignment.md](./多工作区/tree-layout-alignment.md) | Superpowers Specs | 文件树布局对齐经验 |
-| [file-selection-fix.md](./多工作区/file-selection-fix.md) | Superpowers Specs | 文件选择修复经验 |
-| [terminal-binding.md](./多工作区/terminal-binding.md) | Superpowers Specs | 终端工作区绑定改进经验 |
-| [interactive-terminal.md](./多工作区/interactive-terminal.md) | Superpowers Specs | 交互式终端讨论总结 |
-| [changes-panel-alignment-fix.md](./多工作区/changes-panel-alignment-fix.md) | 2026-06-07 UI 优化 | 变更面板文件行对齐优化（组件拆分、CSS 间距调整） |
-| [changes-panel-stats-button-alignment-fix-2026-06-07.md](./多工作区/changes-panel-stats-button-alignment-fix-2026-06-07.md) | 2026-06-07 UI 优化 | 变更面板统计按钮居中对齐 + TypeScript 导入大小写修复 |
+| 文件                                                                                                                        | 来源               | 说明                                                                            |
+| --------------------------------------------------------------------------------------------------------------------------- | ------------------ | ------------------------------------------------------------------------------- |
+| [changes-terminal-panel.md](./多工作区/changes-terminal-panel.md)                                                           | Superpowers Specs  | 变更面板与终端面板重构（10 条经验：useMemo 对齐、ResizeObserver、hover 缓冲等） |
+| [file-tree.md](./多工作区/file-tree.md)                                                                                     | Superpowers Specs  | 多工作区文件树（11 条经验：Tooltip 覆盖、数据流、CSS 选择器、状态同步等）       |
+| [component-split.md](./多工作区/component-split.md)                                                                         | Superpowers Specs  | Phase 3 组件拆分（Rust 异步模式、组件拆分策略）                                 |
+| [terminal-profile.md](./多工作区/terminal-profile.md)                                                                       | Superpowers Specs  | 终端默认配置修复（PTY 通信、SSE 同步、配置持久化）                              |
+| [stats-fix.md](./多工作区/stats-fix.md)                                                                                     | Superpowers Specs  | 多工作区统计修复经验                                                            |
+| [tree-layout-alignment.md](./多工作区/tree-layout-alignment.md)                                                             | Superpowers Specs  | 文件树布局对齐经验                                                              |
+| [file-selection-fix.md](./多工作区/file-selection-fix.md)                                                                   | Superpowers Specs  | 文件选择修复经验                                                                |
+| [terminal-binding.md](./多工作区/terminal-binding.md)                                                                       | Superpowers Specs  | 终端工作区绑定改进经验                                                          |
+| [interactive-terminal.md](./多工作区/interactive-terminal.md)                                                               | Superpowers Specs  | 交互式终端讨论总结                                                              |
+| [changes-panel-alignment-fix.md](./多工作区/changes-panel-alignment-fix.md)                                                 | 2026-06-07 UI 优化 | 变更面板文件行对齐优化（组件拆分、CSS 间距调整）                                |
+| [changes-panel-stats-button-alignment-fix-2026-06-07.md](./多工作区/changes-panel-stats-button-alignment-fix-2026-06-07.md) | 2026-06-07 UI 优化 | 变更面板统计按钮居中对齐 + TypeScript 导入大小写修复                            |
 
 ### 浏览器
 
-| 文件 | 来源 | 说明 |
-|------|------|------|
-| [builtin-browser.md](./浏览器/builtin-browser.md) | architecture/builtin-browser-implementation | 内置浏览器实现 16 条经验（Tauri 差异、WebView 生命周期、布局等） |
-| [browser-link-interception.md](./浏览器/browser-link-interception.md) | 浏览器实现 | 浏览器链接拦截处理经验 |
-| [browser-tree-fix.md](./浏览器/browser-tree-fix.md) | development/browser-tree-fix | 树形目录选择与交互修复（4 条经验） |
-| [browser-subdirectory-fix.md](./浏览器/browser-subdirectory-fix.md) | development/browser-subdirectory-fix | 子目录导航修复（4 条经验） |
-| [browser-navigate-fix-2026-06-04.md](./浏览器/browser-navigate-fix-2026-06-04.md) | 2026-06-04 修复执行 | 浏览器模式下 URL 无法加载修复（无活动标签页创建逻辑、调试经验与调试手段） |
-| [browser-url-sync-fix-2026-06-04.md](./浏览器/browser-url-sync-fix-2026-06-04.md) | 2026-06-04 修复执行 | 浏览器 URL 同步修复经验 |
- | [browser-landing-page-2026-06-08.md](./浏览器/browser-landing-page-2026-06-08.md) | 2026-06-08 新功能 + 后续修复 | 浏览器空标签引导页实现总结（端口扫描、UI 标准、组件架构）+ 虚线占位符边框一致性修复 |
-| [browser-create-tab-dialog-fix-2026-06-09.md](./浏览器/browser-create-tab-dialog-fix-2026-06-09.md) | 2026-06-09 修复执行 | 浏览器新建标签对话框修复（回调拦截、假计数、工具栏目录解析） |
-| [browser-embed-check-fix-2026-06-17.md](./浏览器/browser-embed-check-fix-2026-06-17.md) | 2026-06-17 全量修复执行 | iframe 嵌入崩溃 + 双模式隔离 + 路由竞态 + PTY ERR_ABORTED/ERR_CONNECTION_REFUSED + 友好提示页布局（Tauri 模式独立、版本计数器、递归 setTimeout、指数退避、app-directory 缓存、Edge-to-edge CSS） |
-| [safe-iframe-shadow-dom-fix-2026-06-17.md](./浏览器/safe-iframe-shadow-dom-fix-2026-06-17.md) | 2026-06-17 修复执行 | Shadow DOM 修复 React DevTools 跨域 iframe SecurityError（6 次迭代经验总结：C++ native getter 不可拦截 + attachShadow mode:closed 终极方案） |
-| [tauri-webview-overlay-hide-2026-06-18.md](./浏览器/tauri-webview-overlay-hide-2026-06-18.md) | 2026-06-18 修复执行 | Tauri 原生子 WebView 层级覆盖问题（z-order 不可战胜、MutationObserver 双路检测、ref 替代 state 消除延迟） |
-| [panel-resize-handle-webview-2026-06-18.md](./浏览器/panel-resize-handle-webview-2026-06-18.md) | 2026-06-18 修复执行 | 面板拖拽线被 WebView 覆盖：区域逃逸方案（handle 左扩至中心区），无需隐藏 WebView |
-| [browser-copy-button-animation-2026-06-18.md](./浏览器/browser-copy-button-animation-2026-06-18.md) | 2026-06-18 交互优化 | 浏览器地址栏复制按钮动画化：引入 lucide-animated CopyIcon，点击播放弹簧动画后自动恢复 |
-| [browser-navigation-mode-toggle-2026-06-20.md](./浏览器/browser-navigation-mode-toggle-2026-06-20.md) | 2026-06-20 新功能 + 修复执行 | 浏览器导航模式切换（in-place/new-tab）+ 链接点击后自动刷新修复（SPA pushState URL 差异、两路去重失效、hostname+pathname 归一化） |
-| [browser-handlePageMeta-concurrent-dedup-2026-06-21.md](./浏览器/browser-handlePageMeta-concurrent-dedup-2026-06-21.md) | 2026-06-21 修复执行 | handlePageMeta 并发回调去重：两个路径（onUrlChanged + meta-changed）竞态导致重复标签/历史 + 页面刷新循环，修复 markUrlSeen 调用时机 + processedMetaRef 去重机制 |
-| [browser-url-input-landing-page-bookmark-fixes-2026-06-21.md](./浏览器/browser-url-input-landing-page-bookmark-fixes-2026-06-21.md) | 2026-06-21 修复执行 | 地址栏失焦/ESC 恢复原始 URL、空 URL 着陆页显示、Tauri 空 URL 空白 WebView、着陆页书签星号点亮、Tauri URL 不加载修复 |
-| [browser-bookmark-tab-naming-folder-tab-fixes-2026-06-21.md](./浏览器/browser-bookmark-tab-naming-folder-tab-fixes-2026-06-21.md) | 2026-06-21 修复执行 | 书签默认值 hostname 降级、标签命名修复、文件夹标签原子插入（browserOpenTab 第4参数）、IconGlobe→IconLink、HMR store 更新须知 |
-| [browser-prefetch-title-lock-favicon-pin-2026-06-21.md](./浏览器/browser-prefetch-title-lock-favicon-pin-2026-06-21.md) | 2026-06-21 重构 + 修复执行 | 浏览器预取 + 标题锁定 + Favicon Pin 重构：共享工具提取（browserDisplayUtils.ts + BrowserFavicon.tsx）、6处 hostnameFromUrl 去重、2处 favicon 内联→组件、启发式→显式 pin 机制 |
-| [browser-tab-context-menu-hover-actions-2026-06-22.md](./浏览器/browser-tab-context-menu-hover-actions-2026-06-22.md) | 2026-06-22 新功能 | 标签右键菜单（6项）+ 悬停按钮（刷新/更多操作）+ 编辑对话框 + 缓存清理工具 + 统一删除 Store Action |
-| [browser-text-overflow-webview2-clip-2026-06-22.md](./浏览器/browser-text-overflow-webview2-clip-2026-06-22.md) | 2026-06-22 Bug 修复 | 快捷卡片文字省略号 WebView2 点击闪烁修复：Chromium 2026 clip-on-interaction 特性导致，`-webkit-line-clamp: 1` 替代 `text-overflow: ellipsis` |
+| 文件                                                                                                                                | 来源                                        | 说明                                                                                                                                                                                             |
+| ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [builtin-browser.md](./浏览器/builtin-browser.md)                                                                                   | architecture/builtin-browser-implementation | 内置浏览器实现 16 条经验（Tauri 差异、WebView 生命周期、布局等）                                                                                                                                 |
+| [browser-link-interception.md](./浏览器/browser-link-interception.md)                                                               | 浏览器实现                                  | 浏览器链接拦截处理经验                                                                                                                                                                           |
+| [browser-tree-fix.md](./浏览器/browser-tree-fix.md)                                                                                 | development/browser-tree-fix                | 树形目录选择与交互修复（4 条经验）                                                                                                                                                               |
+| [browser-subdirectory-fix.md](./浏览器/browser-subdirectory-fix.md)                                                                 | development/browser-subdirectory-fix        | 子目录导航修复（4 条经验）                                                                                                                                                                       |
+| [browser-navigate-fix-2026-06-04.md](./浏览器/browser-navigate-fix-2026-06-04.md)                                                   | 2026-06-04 修复执行                         | 浏览器模式下 URL 无法加载修复（无活动标签页创建逻辑、调试经验与调试手段）                                                                                                                        |
+| [browser-url-sync-fix-2026-06-04.md](./浏览器/browser-url-sync-fix-2026-06-04.md)                                                   | 2026-06-04 修复执行                         | 浏览器 URL 同步修复经验                                                                                                                                                                          |
+| [browser-landing-page-2026-06-08.md](./浏览器/browser-landing-page-2026-06-08.md)                                                   | 2026-06-08 新功能 + 后续修复                | 浏览器空标签引导页实现总结（端口扫描、UI 标准、组件架构）+ 虚线占位符边框一致性修复                                                                                                              |
+| [browser-create-tab-dialog-fix-2026-06-09.md](./浏览器/browser-create-tab-dialog-fix-2026-06-09.md)                                 | 2026-06-09 修复执行                         | 浏览器新建标签对话框修复（回调拦截、假计数、工具栏目录解析）                                                                                                                                     |
+| [browser-embed-check-fix-2026-06-17.md](./浏览器/browser-embed-check-fix-2026-06-17.md)                                             | 2026-06-17 全量修复执行                     | iframe 嵌入崩溃 + 双模式隔离 + 路由竞态 + PTY ERR_ABORTED/ERR_CONNECTION_REFUSED + 友好提示页布局（Tauri 模式独立、版本计数器、递归 setTimeout、指数退避、app-directory 缓存、Edge-to-edge CSS） |
+| [safe-iframe-shadow-dom-fix-2026-06-17.md](./浏览器/safe-iframe-shadow-dom-fix-2026-06-17.md)                                       | 2026-06-17 修复执行                         | Shadow DOM 修复 React DevTools 跨域 iframe SecurityError（6 次迭代经验总结：C++ native getter 不可拦截 + attachShadow mode:closed 终极方案）                                                     |
+| [tauri-webview-overlay-hide-2026-06-18.md](./浏览器/tauri-webview-overlay-hide-2026-06-18.md)                                       | 2026-06-18 修复执行                         | Tauri 原生子 WebView 层级覆盖问题（z-order 不可战胜、MutationObserver 双路检测、ref 替代 state 消除延迟）                                                                                        |
+| [panel-resize-handle-webview-2026-06-18.md](./浏览器/panel-resize-handle-webview-2026-06-18.md)                                     | 2026-06-18 修复执行                         | 面板拖拽线被 WebView 覆盖：区域逃逸方案（handle 左扩至中心区），无需隐藏 WebView                                                                                                                 |
+| [browser-copy-button-animation-2026-06-18.md](./浏览器/browser-copy-button-animation-2026-06-18.md)                                 | 2026-06-18 交互优化                         | 浏览器地址栏复制按钮动画化：引入 lucide-animated CopyIcon，点击播放弹簧动画后自动恢复                                                                                                            |
+| [browser-navigation-mode-toggle-2026-06-20.md](./浏览器/browser-navigation-mode-toggle-2026-06-20.md)                               | 2026-06-20 新功能 + 修复执行                | 浏览器导航模式切换（in-place/new-tab）+ 链接点击后自动刷新修复（SPA pushState URL 差异、两路去重失效、hostname+pathname 归一化）                                                                 |
+| [browser-handlePageMeta-concurrent-dedup-2026-06-21.md](./浏览器/browser-handlePageMeta-concurrent-dedup-2026-06-21.md)             | 2026-06-21 修复执行                         | handlePageMeta 并发回调去重：两个路径（onUrlChanged + meta-changed）竞态导致重复标签/历史 + 页面刷新循环，修复 markUrlSeen 调用时机 + processedMetaRef 去重机制                                  |
+| [browser-url-input-landing-page-bookmark-fixes-2026-06-21.md](./浏览器/browser-url-input-landing-page-bookmark-fixes-2026-06-21.md) | 2026-06-21 修复执行                         | 地址栏失焦/ESC 恢复原始 URL、空 URL 着陆页显示、Tauri 空 URL 空白 WebView、着陆页书签星号点亮、Tauri URL 不加载修复                                                                              |
+| [browser-bookmark-tab-naming-folder-tab-fixes-2026-06-21.md](./浏览器/browser-bookmark-tab-naming-folder-tab-fixes-2026-06-21.md)   | 2026-06-21 修复执行                         | 书签默认值 hostname 降级、标签命名修复、文件夹标签原子插入（browserOpenTab 第4参数）、IconGlobe→IconLink、HMR store 更新须知                                                                     |
+| [browser-prefetch-title-lock-favicon-pin-2026-06-21.md](./浏览器/browser-prefetch-title-lock-favicon-pin-2026-06-21.md)             | 2026-06-21 重构 + 修复执行                  | 浏览器预取 + 标题锁定 + Favicon Pin 重构：共享工具提取（browserDisplayUtils.ts + BrowserFavicon.tsx）、6处 hostnameFromUrl 去重、2处 favicon 内联→组件、启发式→显式 pin 机制                     |
+| [browser-tab-context-menu-hover-actions-2026-06-22.md](./浏览器/browser-tab-context-menu-hover-actions-2026-06-22.md)               | 2026-06-22 新功能                           | 标签右键菜单（6项）+ 悬停按钮（刷新/更多操作）+ 编辑对话框 + 缓存清理工具 + 统一删除 Store Action                                                                                                |
+| [browser-text-overflow-webview2-clip-2026-06-22.md](./浏览器/browser-text-overflow-webview2-clip-2026-06-22.md)                     | 2026-06-22 Bug 修复                         | 快捷卡片文字省略号 WebView2 点击闪烁修复：Chromium 2026 clip-on-interaction 特性导致，`-webkit-line-clamp: 1` 替代 `text-overflow: ellipsis`                                                     |
 
 ### 代码质量
 
-| 文件 | 来源 | 说明 |
-|------|------|------|
-| [code-quality-detection-and-fix.md](./代码质量/code-quality-detection-and-fix.md) | 全仓库代码质量检测与修复执行 | 7 条经验（React 19 hooks、React.memo、CodeMirror 重建、Rust clippy 等） |
-| [eslint-prettier-ts-cleanup-2026-06-04.md](./代码质量/eslint-prettier-ts-cleanup-2026-06-04.md) | 四维门禁清零执行 | 6 条经验（`_param` 解构陷阱、`any`→具体类型级联错误、组件拆分、图书馆接等） |
-| [eslint-prettier-clippy-rustfmt-config-and-bugfix-2026-06-11.md](./代码质量/eslint-prettier-clippy-rustfmt-config-and-bugfix-2026-06-11.md) | 2026-06-11 四维门禁全量修复执行 | 6 条经验（CSS 删除前 grep、rustfmt nightly 陷阱、flat config ignores 陷阱、Prettier 合并规则、> 选择器防传播） |
-| [syntax-highlighting-fix-2026-06-05.md](./代码质量/syntax-highlighting-fix-2026-06-05.md) | 2026-06-05 修复执行 | 变更面板语法高亮修复（CodeMirror Facet 多实例、pnpm 传递依赖陷阱、Vite 预构建缓存） |
-| [diff-viewer-theme-fix-2026-06-06.md](./代码质量/diff-viewer-theme-fix-2026-06-06.md) | 2026-06-06 修复执行 | 差异查看器主题修复（CSS 选择器覆盖不足、硬编码值、内容/行号区层级）与无变更行自动折叠启用 |
-| [diff-viewer-gutter-hover-fix-2026-06-08.md](./代码质量/diff-viewer-gutter-hover-fix-2026-06-08.md) | 2026-06-08 修复执行 | 差异查看器并排模式 A 侧行号区悬停颜色修复（`EditorView.editorAttributes` DOM 类归属判断） |
-| [tech-stack-optimization-2026-06-09.md](./代码质量/tech-stack-optimization-2026-06-09.md) | 2026-06-09 技术栈优化 | 9 条经验（ts-rs 类型冲突、tokio 特性精简、密钥降级、highlight.js 按需等） |
-| [diff-viewer-empty-line-hover-scroll-fix-2026-06-13.md](./代码质量/diff-viewer-empty-line-hover-scroll-fix-2026-06-13.md) | 2026-06-13 修复执行 | 变更查看器空行悬停背景色修复 + 快速滚动闪烁修复（CSS :has 陷阱、MergeView compartment、collapseUnchanged minSize） |
+| 文件                                                                                                                                        | 来源                            | 说明                                                                                                               |
+| ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| [code-quality-detection-and-fix.md](./代码质量/code-quality-detection-and-fix.md)                                                           | 全仓库代码质量检测与修复执行    | 7 条经验（React 19 hooks、React.memo、CodeMirror 重建、Rust clippy 等）                                            |
+| [eslint-prettier-ts-cleanup-2026-06-04.md](./代码质量/eslint-prettier-ts-cleanup-2026-06-04.md)                                             | 四维门禁清零执行                | 6 条经验（`_param` 解构陷阱、`any`→具体类型级联错误、组件拆分、图书馆接等）                                        |
+| [eslint-prettier-clippy-rustfmt-config-and-bugfix-2026-06-11.md](./代码质量/eslint-prettier-clippy-rustfmt-config-and-bugfix-2026-06-11.md) | 2026-06-11 四维门禁全量修复执行 | 6 条经验（CSS 删除前 grep、rustfmt nightly 陷阱、flat config ignores 陷阱、Prettier 合并规则、> 选择器防传播）     |
+| [syntax-highlighting-fix-2026-06-05.md](./代码质量/syntax-highlighting-fix-2026-06-05.md)                                                   | 2026-06-05 修复执行             | 变更面板语法高亮修复（CodeMirror Facet 多实例、pnpm 传递依赖陷阱、Vite 预构建缓存）                                |
+| [diff-viewer-theme-fix-2026-06-06.md](./代码质量/diff-viewer-theme-fix-2026-06-06.md)                                                       | 2026-06-06 修复执行             | 差异查看器主题修复（CSS 选择器覆盖不足、硬编码值、内容/行号区层级）与无变更行自动折叠启用                          |
+| [diff-viewer-gutter-hover-fix-2026-06-08.md](./代码质量/diff-viewer-gutter-hover-fix-2026-06-08.md)                                         | 2026-06-08 修复执行             | 差异查看器并排模式 A 侧行号区悬停颜色修复（`EditorView.editorAttributes` DOM 类归属判断）                          |
+| [tech-stack-optimization-2026-06-09.md](./代码质量/tech-stack-optimization-2026-06-09.md)                                                   | 2026-06-09 技术栈优化           | 9 条经验（ts-rs 类型冲突、tokio 特性精简、密钥降级、highlight.js 按需等）                                          |
+| [diff-viewer-empty-line-hover-scroll-fix-2026-06-13.md](./代码质量/diff-viewer-empty-line-hover-scroll-fix-2026-06-13.md)                   | 2026-06-13 修复执行             | 变更查看器空行悬停背景色修复 + 快速滚动闪烁修复（CSS :has 陷阱、MergeView compartment、collapseUnchanged minSize） |
 
 ### 浏览器自动化
 
-| 文件 | 来源 | 说明 |
-|------|------|------|
-| [lessons.md](./浏览器自动化/lessons.md) | .opencode/skills/... | 21 条浏览器自动化调试记录（跨平台路径、Rust 工具链、CSS 优先级等） |
-| [rules-lessons.md](./浏览器自动化/rules-lessons.md) | .agents/rules/browser-automation | 浏览器自动化规则 10 条经验 |
+| 文件                                                | 来源                             | 说明                                                               |
+| --------------------------------------------------- | -------------------------------- | ------------------------------------------------------------------ |
+| [lessons.md](./浏览器自动化/lessons.md)             | .opencode/skills/...             | 21 条浏览器自动化调试记录（跨平台路径、Rust 工具链、CSS 优先级等） |
+| [rules-lessons.md](./浏览器自动化/rules-lessons.md) | .agents/rules/browser-automation | 浏览器自动化规则 10 条经验                                         |
 
 ### 交互优化
 
-| 文件 | 来源 | 说明 |
-|------|------|------|
-| [right-click-menu-positioning.md](./交互优化/right-click-menu-positioning.md) | 2026-06-08 修复执行 | 右键菜单跟随鼠标位置修复（4 条经验：定位方式选择、FileTree 机制复用、条件守卫遗漏） |
-| [rename-dialog-standardization-2026-06-08.md](./交互优化/rename-dialog-standardization-2026-06-08.md) | 2026-06-08 UI 优化 | 重命名弹窗交互标准化（直角按钮、✕ 关闭按钮、i18n 标题简洁化） |
-| [outline-navigation-and-refresh-fix-2026-06-09.md](./交互优化/outline-navigation-and-refresh-fix-2026-06-09.md) | 2026-06-09 修复执行 | 大纲导航折叠展开修复（`uncollapseUnchanged` 传参陷阱）+ 刷新按钮绕过懒加载守卫 |
-| [hint-card-arrow-positioning-fix-2026-06-11.md](./交互优化/hint-card-arrow-positioning-fix-2026-06-11.md) | 2026-06-11 修复执行 | Hint Card 子卡片箭头定位修复 + 动态 DOM 内存泄漏 + 父级 hover 背景隔离 + "!" 按钮交互优化 |
-| [file-tree-virtualized-connecting-lines-fix-2026-06-11.md](./交互优化/file-tree-virtualized-connecting-lines-fix-2026-06-11.md) | 2026-06-11 修复执行 | 虚拟化文件树垂直连接线与悬停高亮修复（`::before` 溢出、`--adl-tree-indent` 缩进、JS 悬停传播） |
-| [outline-connecting-lines-alignment-fix-2026-06-11.md](./交互优化/outline-connecting-lines-alignment-fix-2026-06-11.md) | 2026-06-11 修复执行 | 大纲树竖线对齐修复（递归树 `::before` 无需 `--adl-tree-indent`、叶子节点隐藏竖线、死代码 `outline-panel.css` 删除） |
-| [github-menu-recursive-delete-and-grouping-2026-06-12.md](./交互优化/github-menu-recursive-delete-and-grouping-2026-06-12.md) | 2026-06-12 菜单重构 | GitHub 面板菜单重构（递归删除、白色/红色分组、分隔线规范、"!" 提示双通道、双菜单一致性） |
-| [github-folder-pin-and-delete-2026-06-12.md](./交互优化/github-folder-pin-and-delete-2026-06-12.md) | 2026-06-12 功能增强 | GitHub 目录置顶（文件夹+工作区）、递归数据清除作用域修复、activeCiFolderId 跟踪 |
-| [github-tree-sub-entry-ordering-and-i18n-2026-06-12.md](./交互优化/github-tree-sub-entry-ordering-and-i18n-2026-06-12.md) | 2026-06-12 功能优化 | GitHub 树子条目排序（紧贴父目录）+ 子条目名称国际化 |
-| [github-job-card-hover-and-status-dot-optimization-2026-06-14.md](./交互优化/github-job-card-hover-and-status-dot-optimization-2026-06-14.md) | 2026-06-14 交互优化 | GitHub Job 卡片悬停背景全宽延伸、展开/折叠按钮悬停态统一、移除重复 StatusDot。核心挑战：`z-index: -1` + 局部层叠上下文 |
-| [github-log-viewer-toolbar-optimization-2026-06-14.md](./交互优化/github-log-viewer-toolbar-optimization-2026-06-14.md) | 2026-06-14 交互优化 | GitHub 日志查看器工具栏：自定义下拉菜单、搜索框始终可见、正方形复选框、工具栏裁剪、删除任务视图搜索框。核心挑战：`overflow: hidden` 与下拉菜单定位冲突 |
-| [github-panel-i18n-full-coverage-2026-06-15.md](./交互优化/github-panel-i18n-full-coverage-2026-06-15.md) | 2026-06-15 Bug 修复 + i18n | GitHub 子面板 i18n 全覆盖：15 处硬编码清理、17 个翻译 key、工具函数 locale 感知、标题行消失修复 |
-| [browser-bookmark-dialog-and-flat-view-2026-06-15.md](./交互优化/browser-bookmark-dialog-and-flat-view-2026-06-15.md) | 2026-06-15 功能实现 | 浏览器收藏标签对话框 + 展平列表视图：树展平算法、"!" Hint CSS specificity 技巧、按钮常态无背景 |
+| 文件                                                                                                                                          | 来源                       | 说明                                                                                                                                                   |
+| --------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [right-click-menu-positioning.md](./交互优化/right-click-menu-positioning.md)                                                                 | 2026-06-08 修复执行        | 右键菜单跟随鼠标位置修复（4 条经验：定位方式选择、FileTree 机制复用、条件守卫遗漏）                                                                    |
+| [rename-dialog-standardization-2026-06-08.md](./交互优化/rename-dialog-standardization-2026-06-08.md)                                         | 2026-06-08 UI 优化         | 重命名弹窗交互标准化（直角按钮、✕ 关闭按钮、i18n 标题简洁化）                                                                                          |
+| [outline-navigation-and-refresh-fix-2026-06-09.md](./交互优化/outline-navigation-and-refresh-fix-2026-06-09.md)                               | 2026-06-09 修复执行        | 大纲导航折叠展开修复（`uncollapseUnchanged` 传参陷阱）+ 刷新按钮绕过懒加载守卫                                                                         |
+| [hint-card-arrow-positioning-fix-2026-06-11.md](./交互优化/hint-card-arrow-positioning-fix-2026-06-11.md)                                     | 2026-06-11 修复执行        | Hint Card 子卡片箭头定位修复 + 动态 DOM 内存泄漏 + 父级 hover 背景隔离 + "!" 按钮交互优化                                                              |
+| [file-tree-virtualized-connecting-lines-fix-2026-06-11.md](./交互优化/file-tree-virtualized-connecting-lines-fix-2026-06-11.md)               | 2026-06-11 修复执行        | 虚拟化文件树垂直连接线与悬停高亮修复（`::before` 溢出、`--adl-tree-indent` 缩进、JS 悬停传播）                                                         |
+| [outline-connecting-lines-alignment-fix-2026-06-11.md](./交互优化/outline-connecting-lines-alignment-fix-2026-06-11.md)                       | 2026-06-11 修复执行        | 大纲树竖线对齐修复（递归树 `::before` 无需 `--adl-tree-indent`、叶子节点隐藏竖线、死代码 `outline-panel.css` 删除）                                    |
+| [github-menu-recursive-delete-and-grouping-2026-06-12.md](./交互优化/github-menu-recursive-delete-and-grouping-2026-06-12.md)                 | 2026-06-12 菜单重构        | GitHub 面板菜单重构（递归删除、白色/红色分组、分隔线规范、"!" 提示双通道、双菜单一致性）                                                               |
+| [github-folder-pin-and-delete-2026-06-12.md](./交互优化/github-folder-pin-and-delete-2026-06-12.md)                                           | 2026-06-12 功能增强        | GitHub 目录置顶（文件夹+工作区）、递归数据清除作用域修复、activeCiFolderId 跟踪                                                                        |
+| [github-tree-sub-entry-ordering-and-i18n-2026-06-12.md](./交互优化/github-tree-sub-entry-ordering-and-i18n-2026-06-12.md)                     | 2026-06-12 功能优化        | GitHub 树子条目排序（紧贴父目录）+ 子条目名称国际化                                                                                                    |
+| [github-job-card-hover-and-status-dot-optimization-2026-06-14.md](./交互优化/github-job-card-hover-and-status-dot-optimization-2026-06-14.md) | 2026-06-14 交互优化        | GitHub Job 卡片悬停背景全宽延伸、展开/折叠按钮悬停态统一、移除重复 StatusDot。核心挑战：`z-index: -1` + 局部层叠上下文                                 |
+| [github-log-viewer-toolbar-optimization-2026-06-14.md](./交互优化/github-log-viewer-toolbar-optimization-2026-06-14.md)                       | 2026-06-14 交互优化        | GitHub 日志查看器工具栏：自定义下拉菜单、搜索框始终可见、正方形复选框、工具栏裁剪、删除任务视图搜索框。核心挑战：`overflow: hidden` 与下拉菜单定位冲突 |
+| [github-panel-i18n-full-coverage-2026-06-15.md](./交互优化/github-panel-i18n-full-coverage-2026-06-15.md)                                     | 2026-06-15 Bug 修复 + i18n | GitHub 子面板 i18n 全覆盖：15 处硬编码清理、17 个翻译 key、工具函数 locale 感知、标题行消失修复                                                        |
+| [browser-bookmark-dialog-and-flat-view-2026-06-15.md](./交互优化/browser-bookmark-dialog-and-flat-view-2026-06-15.md)                         | 2026-06-15 功能实现        | 浏览器收藏标签对话框 + 展平列表视图：树展平算法、"!" Hint CSS specificity 技巧、按钮常态无背景                                                         |
+| [resize-handle-pointer-events-diversion-2026-06-23.md](./交互优化/resize-handle-pointer-events-diversion-2026-06-23.md)                       | 2026-06-23 交互修复        | Resize Handle 与 Scrollbar 重叠：pointer-events 分流方案，`::before` 伪元素提供 3px 可拖拽边缘，零布局影响                                             |
 
 ### CI 监控
 
-| 文件 | 来源 | 说明 |
-|------|------|------|
-| [ci-module-lessons-2026-06-09.md](./CI监控/ci-module-lessons-2026-06-09.md) | 2026-06-09 全量 bug 修复 | 15 条 CI 模块经验（Token 安全存储、GitHub API 安全、useEffect 依赖、内存保护、Rust 编码规范） |
-| [ci-to-communication-refactor-and-log-viewer-2026-06-10.md](./CI监控/ci-to-communication-refactor-and-log-viewer-2026-06-10.md) | 2026-06-10 重构 | CI→通信面板重构 + GitHub CI 日志查看器（架构变更、ZIP 解压、LRU 缓存、虚拟滚动） |
-| [github-ci-tree-interaction-2026-06-10.md](./CI监控/github-ci-tree-interaction-2026-06-10.md) | 2026-06-10 交互重构 | GitHub CI 树形目录交互重构（FileTree 集成、按钮规范、renderIconBefore、RenameDialog 标准化、CSS 定位） |
-| [ci-panel-help-system-2026-06-13.md](./CI监控/ci-panel-help-system-2026-06-13.md) | 2026-06-13 操作手册完善 | CI 面板帮助系统增强（全局点击冲突、帮助按钮 toggle、手册内容扩展、TOC 导航） |
-| [github-ci-per-directory-binding-2026-06-14.md](./CI监控/github-ci-per-directory-binding-2026-06-14.md) | 2026-06-14 Bug 修复 | GitHub CI 按目录独立绑定（`renderChildMeta` 设置误开工作区、共享 state 污染、store sync set 覆盖、日志/快照持久化、token 恢复、Rate Limit 保护） |
-| [github-title-path-header-fix-2026-06-14.md](./CI监控/github-title-path-header-fix-2026-06-14.md) | 2026-06-14 Bug 修复 | GitHub 标题路径提示行修复（垂直居中、消失、路径不完整、分类标识、全局点击范围守卫、`data-path` 归属） |
+| 文件                                                                                                                            | 来源                     | 说明                                                                                                                                             |
+| ------------------------------------------------------------------------------------------------------------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [ci-module-lessons-2026-06-09.md](./CI监控/ci-module-lessons-2026-06-09.md)                                                     | 2026-06-09 全量 bug 修复 | 15 条 CI 模块经验（Token 安全存储、GitHub API 安全、useEffect 依赖、内存保护、Rust 编码规范）                                                    |
+| [ci-to-communication-refactor-and-log-viewer-2026-06-10.md](./CI监控/ci-to-communication-refactor-and-log-viewer-2026-06-10.md) | 2026-06-10 重构          | CI→通信面板重构 + GitHub CI 日志查看器（架构变更、ZIP 解压、LRU 缓存、虚拟滚动）                                                                 |
+| [github-ci-tree-interaction-2026-06-10.md](./CI监控/github-ci-tree-interaction-2026-06-10.md)                                   | 2026-06-10 交互重构      | GitHub CI 树形目录交互重构（FileTree 集成、按钮规范、renderIconBefore、RenameDialog 标准化、CSS 定位）                                           |
+| [ci-panel-help-system-2026-06-13.md](./CI监控/ci-panel-help-system-2026-06-13.md)                                               | 2026-06-13 操作手册完善  | CI 面板帮助系统增强（全局点击冲突、帮助按钮 toggle、手册内容扩展、TOC 导航）                                                                     |
+| [github-ci-per-directory-binding-2026-06-14.md](./CI监控/github-ci-per-directory-binding-2026-06-14.md)                         | 2026-06-14 Bug 修复      | GitHub CI 按目录独立绑定（`renderChildMeta` 设置误开工作区、共享 state 污染、store sync set 覆盖、日志/快照持久化、token 恢复、Rate Limit 保护） |
+| [github-title-path-header-fix-2026-06-14.md](./CI监控/github-title-path-header-fix-2026-06-14.md)                               | 2026-06-14 Bug 修复      | GitHub 标题路径提示行修复（垂直居中、消失、路径不完整、分类标识、全局点击范围守卫、`data-path` 归属）                                            |
