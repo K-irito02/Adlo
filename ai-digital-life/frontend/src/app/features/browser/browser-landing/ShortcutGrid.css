@@ -24,9 +24,14 @@
 .adl-shortcut-card-wrap {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   gap: 4px;
   width: 56px;
+}
+
+.adl-shortcut-card-wrap > .adl-shortcut-card,
+.adl-shortcut-card-wrap > .adl-shortcut-card__add-placeholder {
+  align-self: center;
 }
 
 .adl-shortcut-card {
@@ -81,12 +86,13 @@
 }
 
 .adl-shortcut-card__name {
+  width: 100%;
   font-size: 10px;
   color: var(--text-secondary);
-  max-width: 56px;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
   text-align: center;
   line-height: 1.3;
 }

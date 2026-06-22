@@ -86,7 +86,7 @@
 | 尺寸 | 48×48 px 正方形 |
 | 间距 | `gap: 12px`，`flex-wrap` 多行自动换行 |
 | 图标 | 32×32 px 圆形，首字母占位 |
-| 名称 | 卡片下方 10px 字号，`text-overflow: ellipsis` |
+| 名称 | 卡片下方 10px 字号，`-webkit-line-clamp: 1`（避免 WebView2 text-overflow 剪辑特性） |
 | 悬停提示 | `title` 属性原生提示，显示完整名称 |
 | 添加占位 | 48×48 1px 虚线框 + 下方"添加"文字 |
 

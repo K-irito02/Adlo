@@ -184,7 +184,7 @@ export const BrowserToolbar = React.memo(function BrowserToolbar(props: BrowserT
                 resetTimerRef.current = setTimeout(() => {
                   copyIconRef.current?.stopAnimation();
                   setCopied(false);
-                }, 1500);
+                }, 600);
               }}
             >
               <CopyIcon ref={copyIconRef} size={14} />

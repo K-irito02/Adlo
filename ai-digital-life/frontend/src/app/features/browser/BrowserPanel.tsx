@@ -126,6 +126,10 @@ export function BrowserPanel(props: BrowserPanelProps) {
   useEffect(() => {
     const handleGlobalClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
+      // 着陆页点击不应触发树路径选择/取消选择
+      if (target.closest('.adl-browser-landing')) {
+        return;
+      }
       const clickedEntry = target.closest('.adl-browser-entry');
       const clickedFileTreeRow = target.closest('.adl-filetree__row');
 

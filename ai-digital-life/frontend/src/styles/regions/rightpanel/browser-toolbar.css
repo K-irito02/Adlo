@@ -97,9 +97,7 @@
   display: flex;
 }
 
-.adl-tool-search__copy.is-copied {
-  color: var(--color-success) !important;
-}
+
 
 .adl-tool-search--compact {
   min-width: 180px;
