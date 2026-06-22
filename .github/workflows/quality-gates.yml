@@ -40,7 +40,7 @@ jobs:
         run: cargo test --workspace
 
   frontend:
-    name: Frontend (lint + typecheck + test)
+    name: Frontend (lint + format + typecheck + test)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -73,6 +73,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Prettier format check
+        run: pnpm format:check
 
       - name: ESLint
         run: npx eslint .

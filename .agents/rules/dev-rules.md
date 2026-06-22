@@ -9,6 +9,18 @@ alwaysApply: true
 
 在修改代码前，先评估任务是否合理可行。若存在不合理、无法实现或基于错误理解的情况，先指出并说明，而非直接执行。
 
+## 结束验收流程
+
+代码变更完成后，**必须自动触发结束验收流程**。完整的验收流程定义见 [mandatory-testing.md](./mandatory-testing.md)，包括：
+
+- 变更层级评估与测试范围确定
+- 测试材料检查与自动生成
+- ESLint/Prettier/Clippy/rustfmt 检测修复
+- 类型检查与测试执行
+- 结果处理与失败升级机制
+
+Agent 在完成任何代码修改、Bug 修复、新功能实现或重构后，必须自动执行该流程，**不得跳过**。
+
 ## 询问卡片机制
 
 遇到以下情况时，主动弹出询问卡片：
@@ -19,6 +31,7 @@ alwaysApply: true
 | 多方案并存 | 合并方式：squash / rebase / merge |
 | 潜在风险 | 修改共享模块影响多个功能 |
 | 理解不确定 | 需求中的术语所指不明确 |
+| 测试材料不足 | 无法从现有类型定义推断出合理测试数据 |
 
 询问需列出选项与利弊，明确需要用户决策或补充的信息。
 
@@ -80,6 +93,6 @@ alwaysApply: true
 
 ## 相关文件
 
-- [mandatory-testing.md](./mandatory-testing.md) — 测试要求
+- [mandatory-testing.md](./mandatory-testing.md) — 测试要求 / 结束验收流程
 - [quality-gates.md](./quality-gates.md) — 质量门禁
 - [error-handling.md](./error-handling.md) — 错误处理
