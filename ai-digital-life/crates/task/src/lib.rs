@@ -56,9 +56,11 @@ pub fn make_approval(task: &TaskRecord, title: impl Into<String>) -> ApprovalRec
             RiskLevel::High => 2,
         })
         .unwrap_or(RiskLevel::Low);
+    let approval_id = create_id("approval");
+    let task_id = task.id.clone();
     let request = ApprovalRequestSummary {
-        id: create_id("approval"),
-        task_id: task.id.clone(),
+        id: approval_id,
+        task_id,
         title: title.into(),
         description: task.description.clone(),
         risk_level: risk,
@@ -69,7 +71,7 @@ pub fn make_approval(task: &TaskRecord, title: impl Into<String>) -> ApprovalRec
     };
     ApprovalRecord {
         id: request.id.clone(),
-        task_id: task.id.clone(),
+        task_id: request.task_id.clone(),
         workspace_id: task.workspace_id.clone(),
         run_id: None,
         risk_level: risk,

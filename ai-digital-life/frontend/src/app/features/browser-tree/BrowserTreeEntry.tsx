@@ -1,14 +1,17 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { IconPlus, IconMoreVertical, IconRefreshCw } from '../../icons';
 import { TooltipSimple } from '../../components/Tooltip';
-import { BrowserFavicon } from '../../components/BrowserFavicon';
-import type { CopyDict } from '../../i18n';
 import type { BrowserTreeNode, BrowserCategoryType } from './types';
 import type { SectionCallbacks } from './BrowserCategorySection';
 import { useTCopy } from '../../i18n/useTCopy';
 import { MultiTreeEntryShell } from '../tree/MultiTreeEntryShell';
 import { BrowserEntrySubEntries } from './BrowserEntrySubEntries';
+import {
+  buildFlatTabItems,
+  getEntryHoverButtons,
+  getEntryMoreMenuItems,
+} from './browserTreeEntryUtils';
+import { BrowserTreeEntryFlatList } from './BrowserTreeEntryFlatList';
 
 interface BrowserTreeEntryProps {
   node: BrowserTreeNode;
@@ -21,180 +24,6 @@ interface BrowserTreeEntryProps {
   callbacks: SectionCallbacks;
   counts: Map<string, number>;
   browserViewMode?: 'tree' | 'list' | 'all';
-}
-
-type FlatItem = { type: 'tab'; node: BrowserTreeNode } | { type: 'separator'; label: string };
-
-function buildFlatTabItems(node: BrowserTreeNode, showSeparators: boolean): FlatItem[] {
-  const items: FlatItem[] = [];
-
-  for (const child of node.children) {
-    if (child.kind === 'file') {
-      items.push({ type: 'tab', node: child });
-    }
-  }
-
-  for (const dir of node.children) {
-    if (dir.kind !== 'directory') {
-      continue;
-    }
-    const subItems = collectSubDirItems(dir, dir.name, showSeparators);
-    if (subItems.length > 0) {
-      if (showSeparators) {
-        items.push({ type: 'separator', label: dir.name });
-      }
-      items.push(...subItems);
-    }
-  }
-
-  return items;
-}
-
-function collectSubDirItems(
-  dir: BrowserTreeNode,
-  pathSoFar: string,
-  showSeparators: boolean
-): FlatItem[] {
-  const items: FlatItem[] = [];
-
-  for (const child of dir.children) {
-    if (child.kind === 'file') {
-      items.push({ type: 'tab', node: child });
-    }
-  }
-
-  for (const subDir of dir.children) {
-    if (subDir.kind !== 'directory') {
-      continue;
-    }
-    const childPath = `${pathSoFar}/${subDir.name}`;
-    const deeper = collectSubDirItems(subDir, childPath, showSeparators);
-    if (deeper.length > 0) {
-      if (showSeparators) {
-        items.push({ type: 'separator', label: childPath });
-      }
-      items.push(...deeper);
-    }
-  }
-
-  return items;
-}
-
-function getEntryHoverButtons(
-  nodeType: string,
-  categoryType: BrowserCategoryType,
-  t: CopyDict
-): Array<{ id: string; label: string; icon: React.ReactNode }> {
-  if (categoryType === 'history') {
-    return [
-      { id: 'more', label: t.browserContextMore, icon: <IconMoreVertical size={12} decorative /> },
-    ];
-  }
-  return [
-    { id: 'create-tab', label: t.browserContextCreateTab, icon: <IconPlus size={12} decorative /> },
-    { id: 'more', label: t.browserContextMore, icon: <IconMoreVertical size={12} decorative /> },
-  ];
-}
-
-function getEntryMoreMenuItems(
-  nodeType: string,
-  categoryType: BrowserCategoryType,
-  nodePath: string,
-  callbacks: SectionCallbacks,
-  t: CopyDict
-): Array<{ id: string; label: string; danger?: boolean; hint?: string; action: () => void }> {
-  if (categoryType === 'history') {
-    return [
-      {
-        id: 'delete-history-label',
-        label: t.browserContextDeleteAllHistory,
-        danger: true,
-        hint: t.browserDeleteHistoryLabelHint,
-        action: () => callbacks.onDeleteHistory('label', nodePath),
-      },
-      {
-        id: 'delete-history-year',
-        label: t.browserDeleteHistoryYearLabel,
-        danger: true,
-        hint: t.browserDeleteHistoryYearHint,
-        action: () => callbacks.onDeleteHistory('year', nodePath),
-      },
-      {
-        id: 'delete-history-month',
-        label: t.browserDeleteHistoryMonthLabel,
-        danger: true,
-        hint: t.browserDeleteHistoryMonthHint,
-        action: () => callbacks.onDeleteHistory('month', nodePath),
-      },
-      {
-        id: 'delete-history-day',
-        label: t.browserDeleteHistoryDayLabel,
-        danger: true,
-        hint: t.browserDeleteHistoryDayHint,
-        action: () => callbacks.onDeleteHistory('day', nodePath),
-      },
-    ];
-  }
-
-  const items: Array<{
-    id: string;
-    label: string;
-    danger?: boolean;
-    hint?: string;
-    action: () => void;
-  }> = [];
-  items.push({
-    id: 'open-all-tabs',
-    label: t.browserContextOpenAllNewTabs,
-    action: () => callbacks.onOpenAllInNewTabs(categoryType, nodePath),
-  });
-
-  if (nodeType === 'workspace') {
-    const wsId = nodePath.startsWith('workspace:') ? nodePath.slice('workspace:'.length) : '';
-    items.push({
-      id: 'remove-from-area',
-      label: t.browserContextRemoveFromView,
-      action: () => callbacks.onRemoveFromArea(wsId),
-    });
-  }
-
-  if (nodeType === 'folder' && categoryType === 'userFolder') {
-    const folderId = nodePath.startsWith('folder:') ? nodePath.slice('folder:'.length) : '';
-    items.push({
-      id: 'rename',
-      label: t.browserContextRename,
-      action: () => callbacks.onRenameDirectory(folderId),
-    });
-  }
-
-  items.push({
-    id: 'delete-all-tabs',
-    label: t.browserContextDeleteAllTabs,
-    danger: true,
-    hint: t.browserDeleteAllTabsHint,
-    action: () => callbacks.onDeleteAllChildTabs(categoryType, nodePath),
-  });
-
-  items.push({
-    id: 'delete-self-tabs',
-    label: t.browserContextDeleteSelfTabs,
-    danger: true,
-    hint: t.browserDeleteSelfTabsHint,
-    action: () => callbacks.onDeleteOwnChildTabs(categoryType, nodePath),
-  });
-
-  if (nodeType === 'folder' && categoryType === 'userFolder') {
-    const folderId = nodePath.startsWith('folder:') ? nodePath.slice('folder:'.length) : '';
-    items.push({
-      id: 'delete-this-dir',
-      label: t.browserContextDeleteDir,
-      danger: true,
-      hint: t.browserDeleteDirHint,
-      action: () => callbacks.onDeleteDirectory(folderId),
-    });
-  }
-
-  return items;
 }
 
 export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
@@ -462,108 +291,16 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
 
   const flatChildren =
     isFlatMode && isExpanded && flatItems.length > 0 ? (
-      <div className="adl-browser-entry__tree adl-browser-entry__tree--flat">
-        <ul className="adl-filetree" role="tree">
-          {flatItems.map((item) => {
-            if (item.type === 'separator') {
-              return (
-                <li
-                  key={`sep-${item.label}`}
-                  className="adl-browser-entry__flat-separator"
-                  role="separator"
-                >
-                  <span className="adl-browser-entry__flat-sep-line" />
-                  <span className="adl-browser-entry__flat-sep-text">{item.label}</span>
-                  <span className="adl-browser-entry__flat-sep-line" />
-                </li>
-              );
-            }
-            const isTabSelected = selectedTreePath === item.node.path;
-            const tabBtns = [
-              {
-                id: 'refresh',
-                label: t.browserRefreshMeta,
-                icon: <IconRefreshCw size={12} decorative />,
-              },
-              {
-                id: 'more',
-                label: t.browserContextMore,
-                icon: <IconMoreVertical size={12} decorative />,
-              },
-            ];
-            return (
-              <li
-                key={item.node.path}
-                className={`adl-filetree__item adl-filetree__node--file${isTabSelected ? ' is-selected' : ''}`}
-                data-path={item.node.path}
-                role="treeitem"
-              >
-                <div
-                  className="adl-filetree__row"
-                  onClick={() => handleFlatTabClick(item.node)}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onSelectTreePath(item.node.path);
-                    setContextMenuForTab({
-                      x: e.clientX,
-                      y: e.clientY,
-                      node: item.node,
-                    });
-                  }}
-                >
-                  <span
-                    className="adl-filetree__indent adl-filetree__indent--flat"
-                    aria-hidden="true"
-                  />
-                  <BrowserFavicon url={item.node.url ?? ''} />
-                  <button
-                    type="button"
-                    className="adl-filetree__label"
-                    onClick={() => handleFlatTabClick(item.node)}
-                  >
-                    <span className="adl-filetree__label-content">
-                      <span className="adl-filetree__label-text">{item.node.name}</span>
-                    </span>
-                  </button>
-                  <span className="adl-filetree__meta adl-tree-node__meta--inline">
-                    <span className="adl-browser-node__actions">
-                      {tabBtns.map((btn) => (
-                        <TooltipSimple key={btn.id} content={btn.label} placement="top">
-                          <button
-                            type="button"
-                            className="adl-icon-btn adl-icon-btn--xs"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (btn.id === 'more') {
-                                const rect = (
-                                  e.currentTarget as HTMLElement
-                                ).getBoundingClientRect();
-                                setContextMenuForTab({
-                                  x: rect.right + 4,
-                                  y: rect.top,
-                                  node: item.node,
-                                });
-                              } else if (btn.id === 'refresh') {
-                                if (item.node.tabId && item.node.url) {
-                                  callbacks.onRefreshTab(item.node.tabId, item.node.url);
-                                }
-                              }
-                            }}
-                            aria-label={btn.label}
-                          >
-                            {btn.icon}
-                          </button>
-                        </TooltipSimple>
-                      ))}
-                    </span>
-                  </span>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
+      <BrowserTreeEntryFlatList
+        flatItems={flatItems}
+        selectedTreePath={selectedTreePath}
+        onFlatTabClick={handleFlatTabClick}
+        onTabContextMenu={(x, y, tabNode) => {
+          onSelectTreePath(tabNode.path);
+          setContextMenuForTab({ x, y, node: tabNode });
+        }}
+        onRefreshTab={callbacks.onRefreshTab}
+      />
     ) : null;
 
   const actionButtonsSlot = (

@@ -34,7 +34,7 @@ pub fn create_message(
     role: ConversationRole,
     content: impl Into<String>,
     blocks: Vec<ConversationBlock>,
-    run_id: Option<String>,
+    run_id: Option<&str>,
 ) -> ConversationMessageRecord {
     ConversationMessageRecord {
         id: create_id("message"),
@@ -42,7 +42,7 @@ pub fn create_message(
         role,
         content: content.into(),
         blocks,
-        run_id,
+        run_id: run_id.map(|s| s.to_string()),
         created_at: now_ms(),
     }
 }
@@ -114,7 +114,7 @@ mod tests {
             ConversationRole::Assistant,
             "Hi there!",
             blocks,
-            Some("run-123".into()),
+            Some("run-123"),
         );
         assert_eq!(msg.role, ConversationRole::Assistant);
         assert!(msg.run_id.is_some());

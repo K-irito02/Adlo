@@ -1,6 +1,6 @@
 # 重构进度报告
 
-> 更新日期: 2026-06-23（第七十八轮）
+> 更新日期: 2026-06-23（第七十九轮）
 
 ## 完成状态
 
@@ -84,6 +84,7 @@
 | **第七十六轮** | **2026-06-22** | **重构洞察第16次执行（8项发现）：BrowserPanel Hook 提取（useBrowserToast + useBrowserDialogs，1040→877行，-163行）+ 合并两个 CreateTabDialog 渲染；Rust clone 消除——agent.rs make_activity_emitter 参数 &str 化（3 次 clone 消除）；CSS !important 清理——file-tree-core.css（26 处移除）+ files-panel-list.css（18 处移除）** | ✅ |
 | **第七十七轮** | **2026-06-23** | **浏览器目录菜单交互优化：重命名"删除所有子标签"→"删除所有标签[嵌套]"，新增"删除自身目录标签"菜单项（"!"图标 + hint 提示卡），新增 store 函数 browserDeleteOwnTabsInNode，新增 action handleDeleteOwnChildTabs，工具栏"全部关闭"增加 favicon/meta/bookmark/title cache 清理，更新 SectionCallbacks 接口 + 3 处菜单组件（BrowserTreeEntry/BrowserEntrySubEntries/BrowserTabTree）+ BrowserNavigator/BrowserPanel 透传** | ✅ |
 | **第七十八轮** | **2026-06-23** | **浏览器标签刷新语义优化：悬停按钮 tooltip 改为"刷新Logo/标题"，上下文菜单中"刷新"项改为"刷新Logo/标题"+ 新增"!"图标 + hint 提示卡，新增 i18n key browserRefreshMeta/browserRefreshMetaHint，BrowserTreeEntry 新增 showTabHint 回调 + 标签菜单新增"!"图标渲染** | ✅ |
+| **第七十九轮** | **2026-06-23** | **重构洞察第17次执行（11项发现）：前端组件拆分——BrowserPanel（814→616行）、BrowserTreeEntry（721→476行）、GitHubCITree（715→273行）、preview-bridge/index.ts（622→75行，13子模块）、mock/shared.ts（519→57行，4子模块）；Rust clone 消除——agent_pipeline.rs（16→8）、task.rs（13→10）、workspace_sidebar.rs（11→7）、task/lib.rs 结构优化；CSS transition:all 修复（2处）；console.log 清理（3处）** | ✅ |
 
 ## 说明
 

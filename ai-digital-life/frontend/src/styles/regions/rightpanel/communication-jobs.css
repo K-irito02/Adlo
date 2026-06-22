@@ -403,7 +403,10 @@
   background: transparent;
   color: var(--text-tertiary);
   cursor: pointer;
-  transition: all 0.15s;
+  transition:
+    color 0.15s var(--ease-default),
+    background 0.15s var(--ease-default),
+    border-color 0.15s var(--ease-default);
 }
 
 .adl-logviewer__toolbar-btn:hover {

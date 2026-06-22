@@ -172,8 +172,8 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
             onPageMeta?.(r.data);
           }
         })
-        .catch((err) => {
-          console.error('[browser] browser_fetch_page_meta invoke failed:', err);
+        .catch(() => {
+          // silently ignore fetch failures
         });
     });
 

@@ -1,14 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { SafeIframe } from './SafeIframe';
 import { RenameDialog } from '../../components/RenameDialog';
 import { ToastContainer } from '../../components/Toast';
 import { useBrowserToast } from './useBrowserToast';
 import { useBrowserDialogs } from './useBrowserDialogs';
-import { ErrorBoundary } from '../../components/ErrorBoundary';
-import { ExternalLinkError } from './ExternalLinkError';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../../stores/slicedStore';
-import { useBrowserTabs, computeNavigatorCount } from './useBrowserTabs';
+import { useBrowserTabs } from './useBrowserTabs';
 import type { BrowserNavigatorMode } from './useBrowserTabs';
 import { useBrowserWebView } from './useBrowserWebView';
 import { useBrowserUrlChange } from './useBrowserUrlChange';
@@ -20,12 +17,10 @@ import { useBrowserPageMeta } from './useBrowserPageMeta';
 import { useBrowserMetaSubscription } from './useBrowserMetaSubscription';
 import { useBrowserMenus } from './useBrowserMenus';
 import { BrowserContextMenu } from './BrowserContextMenu';
-import { BrowserToolbar } from './BrowserToolbar';
-import { BrowserNavigator } from './BrowserNavigator';
+import { BrowserPanelContent } from './BrowserPanelContent';
 import { isTauriShell } from '../../../tauri-bridge';
-import { BrowserLandingPage, CreateTabDialog } from './browser-landing';
+import { CreateTabDialog } from './browser-landing';
 import type { BrowserPanelProps } from '../../regions/right-panel/types';
-import { useNavigatorResize } from '../../hooks/useNavigatorResize';
 import { useTCopy } from '../../i18n/useTCopy';
 import {
   handleRenameFromContextMenu,
@@ -44,45 +39,21 @@ export function BrowserPanel(props: BrowserPanelProps) {
 
   const {
     browserOpenTab,
-    browserViewMode,
-    browserShowTabButtons,
-    setBrowserViewMode,
-    setBrowserShowTabButtons,
-    browserNavigatorWidth,
-    navigatorCollapsedByTool,
-    setBrowserNavigatorWidth,
-    toggleBrowserNavigator,
     browserNavigateActiveTab,
-    browserNavigateInPlace,
-    setBrowserNavigateInPlace,
     browserUpdateTab,
     recentWorkspaces,
     browserBookmarks,
     browserHistory,
-    browserWorkspaceBookmarks,
   } = useAppStore(
     useShallow((state) => ({
       browserOpenTab: state.browserOpenTab,
-      browserViewMode: state.browserViewMode,
-      browserShowTabButtons: state.browserShowTabButtons,
-      setBrowserViewMode: state.setBrowserViewMode,
-      setBrowserShowTabButtons: state.setBrowserShowTabButtons,
-      browserNavigatorWidth: state.browserNavigatorWidth,
-      navigatorCollapsedByTool: state.navigatorCollapsedByTool,
-      setBrowserNavigatorWidth: state.setBrowserNavigatorWidth,
-      toggleBrowserNavigator: state.toggleBrowserNavigator,
       browserNavigateActiveTab: state.browserNavigateActiveTab,
-      browserNavigateInPlace: state.browserNavigateInPlace,
-      setBrowserNavigateInPlace: state.setBrowserNavigateInPlace,
       browserUpdateTab: state.browserUpdateTab,
       recentWorkspaces: state.recentWorkspaces,
       browserBookmarks: state.browserBookmarks,
       browserHistory: state.browserHistory,
-      browserWorkspaceBookmarks: state.browserWorkspaceBookmarks,
     }))
   );
-
-  const navigatorCollapsed = navigatorCollapsedByTool.browser ?? false;
 
   const [navigatorMode, setNavigatorMode] = useState<BrowserNavigatorMode>('tabs');
   const [address, setAddress] = useState('');
@@ -99,13 +70,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
   const [, forceRender] = useState(0);
   const submitVersionRef = useRef(0);
   const pendingNavigationsRef = useRef<Set<string>>(new Set());
-
-  const handleToggleNavigateMode = useCallback(
-    (checked: boolean) => {
-      setBrowserNavigateInPlace(checked);
-    },
-    [setBrowserNavigateInPlace]
-  );
 
   const handleNavigationStart = useCallback((url: string) => {
     // Track pending navigation so handlePageMeta creates tab only when real title arrives
@@ -333,21 +297,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
     [activeTab, browserNavigateActiveTab, forceReloadTauri, t]
   );
 
-  const { handlePointerDown: handleNavigatorResizeStart } = useNavigatorResize({
-    onWidthCommit: setBrowserNavigatorWidth,
-    minWidth: 180,
-    maxWidth: 300,
-  });
-
-  const toggleNavigator = useCallback(
-    (tool: string) => {
-      if (tool === 'browser') {
-        toggleBrowserNavigator();
-      }
-    },
-    [toggleBrowserNavigator]
-  );
-
   const submitAddress = useCallback(async () => {
     const input = address.trim();
     if (!input) {
@@ -450,81 +399,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
   const bookmarkTreeData = useMemo(
     () => buildBookmarkDirectoryTree(visibleWorkspaces, browserTabFolders),
     [visibleWorkspaces, browserTabFolders]
-  );
-
-  const navigatorCount = useMemo(
-    () =>
-      computeNavigatorCount(
-        navigatorMode,
-        navigatorQuery,
-        browserTabs,
-        browserBookmarks,
-        browserHistory,
-        searchResults,
-        [],
-        []
-      ),
-    [navigatorMode, navigatorQuery, browserTabs, browserBookmarks, browserHistory, searchResults]
-  );
-
-  const openTabCount = navigatorCount;
-
-  const rawNavigatorTitle =
-    navigatorMode === 'tabs'
-      ? t.browserOpenTabs
-      : navigatorMode === 'bookmarks'
-        ? t.browserSavedTabs
-        : navigatorMode === 'history'
-          ? t.browserHistoryTabs
-          : t.browserSearchTabs;
-
-  const navigatorTitle = useMemo(() => {
-    if (browserShowTabButtons) {
-      const modeLabels: Record<string, string> = {
-        tree: t.browserViewModeTree,
-        list: t.browserViewModeList,
-        all: t.browserViewModeAll,
-      };
-      return modeLabels[browserViewMode] || t.browserViewModeDefault;
-    }
-    return rawNavigatorTitle;
-  }, [browserShowTabButtons, browserViewMode, rawNavigatorTitle, t]);
-
-  const handleToggleTabButtons = useCallback(() => {
-    if (browserShowTabButtons) {
-      setBrowserShowTabButtons(false);
-      setBrowserViewMode('default');
-    } else {
-      setBrowserShowTabButtons(true);
-      setBrowserViewMode('tree');
-    }
-  }, [browserShowTabButtons, setBrowserShowTabButtons, setBrowserViewMode]);
-
-  const handleSetBrowserViewMode = useCallback(
-    (mode: 'tree' | 'list' | 'all') => {
-      setBrowserViewMode(mode);
-      setBrowserShowTabButtons(true);
-    },
-    [setBrowserViewMode, setBrowserShowTabButtons]
-  );
-
-  const handleDirectListView = useCallback(() => {
-    setBrowserViewMode('list');
-    setNavigatorMode('tabs');
-  }, [setBrowserViewMode, setNavigatorMode]);
-
-  const handleOpenTabFromTree = useCallback(
-    (url: string, tabId?: string) => {
-      if (tabId) {
-        const tab = browserTabs.find((t) => t.id === tabId);
-        if (tab) {
-          useAppStore.getState().browserSelectTab(tabId);
-          return;
-        }
-      }
-      browserOpenTab(url, undefined, undefined);
-    },
-    [browserTabs, browserOpenTab]
   );
 
   const { handleGoBack, handleGoForward, handleReload } = useBrowserNavigation({
@@ -661,157 +535,68 @@ export function BrowserPanel(props: BrowserPanelProps) {
 
   return (
     <div className="adl-tool-panel adl-tool-panel--browser">
-      <BrowserToolbar
+      <BrowserPanelContent
         t={t}
-        navigatorCollapsed={navigatorCollapsed}
-        address={urlState.address}
-        addressExpanded={urlState.addressExpanded}
-        addressSearchRef={urlState.addressSearchRef}
-        addressInputRef={urlState.addressInputRef}
+        isBrowserVisible={isBrowserVisible}
         activeTab={activeTab}
+        hasActiveTab={hasActiveTab}
         isBookmarked={isBookmarked}
+        browserTabs={browserTabs}
+        handleCloseTab={handleCloseTab}
+        handleCloseAllTabs={handleCloseAllTabs}
+        handleDoubleClick={handleDoubleClick}
+        handleOpenBookmarkDialog={handleOpenBookmarkDialog}
+        handleEditTab={handleEditTab}
+        handleSetCreateTabDialog={handleSetCreateTabDialog}
+        setCreateDirDialog={setCreateDirDialog}
+        setRenameFolderState={setRenameFolderState}
+        navigatorQuery={navigatorQuery}
+        searchScope={searchScope}
+        searchResults={searchResults}
+        navigatorSearchRef={navigatorSearchRef}
+        navigatorSearchInputRef={navigatorSearchInputRef}
+        setNavigatorQuery={setNavigatorQuery}
+        setSearchScope={setSearchScope}
+        browserTabFolders={browserTabFolders}
+        tabTreeExpanded={tabTreeExpanded}
+        allTreeExpanded={allTreeExpanded}
+        handleToggleTreePath={handleToggleTreePath}
+        handleDeleteAllChildTabs={handleDeleteAllChildTabs}
+        handleDeleteOwnChildTabs={handleDeleteOwnChildTabs}
+        handleOpenAllInNewTabs={handleOpenAllInNewTabs}
+        handleRemoveFromArea={handleRemoveFromArea}
+        handleDeleteDirectory={handleDeleteDirectory}
+        handleDeleteHistoryLevel={handleDeleteHistoryLevel}
+        handleExpandAllTree={handleExpandAllTree}
+        handleCollapseAllTree={handleCollapseAllTree}
+        handleRefreshTab={handleRefreshTab}
+        handleDeleteTab={handleDeleteTab}
+        handleCopyTabLink={handleCopyTabLink}
+        handleOpenTabInNewTab={handleOpenTabInNewTab}
+        handleOpenTabInCurrentTab={handleOpenTabInCurrentTab}
         browserMenuOpen={browserMenuOpen}
         browserMenuRef={browserMenuRef}
         browserMenuItems={browserMenuItems}
-        onToggleNavigator={() => toggleNavigator('browser')}
-        onGoBack={handleGoBack}
-        onGoForward={handleGoForward}
-        onReload={handleReload}
-        browserNavigateInPlace={browserNavigateInPlace}
-        onToggleNavigateMode={handleToggleNavigateMode}
-        onAddressChange={urlState.handleAddressChange}
-        onAddressKeyDown={urlState.handleAddressKeyDown}
-        onAddressBlur={urlState.handleAddressBlur}
-        onSearchClick={urlState.handleSearchClick}
-        onCopyUrl={urlState.handleCopyUrl}
-        onNewTab={() => browserOpenTab()}
-        onOpenBookmarkDialog={handleOpenBookmarkDialog}
-        onToggleBrowserMenu={() => setBrowserMenuOpen((value) => !value)}
-        onCloseBrowserMenu={() => setBrowserMenuOpen(false)}
+        setBrowserMenuOpen={setBrowserMenuOpen}
+        iframeRef={iframeRef}
+        primaryRef={primaryRef}
+        handleIframeLoad={handleIframeLoad}
+        handleIframeError={handleIframeError}
+        iframeBlockedDetected={iframeBlockedDetected}
+        iframeLoadError={iframeLoadError}
+        isEmbedPending={isEmbedPending}
+        validatedUrlsRef={validatedUrlsRef}
+        handleGoBack={handleGoBack}
+        handleGoForward={handleGoForward}
+        handleReload={handleReload}
+        urlState={urlState}
+        navigatorMode={navigatorMode}
+        setNavigatorMode={setNavigatorMode}
+        selectedTreePath={selectedTreePath}
+        selectedTreePathRef={selectedTreePathRef}
+        handleSelectTreePath={handleSelectTreePath}
+        showToast={showToast}
       />
-
-      <div
-        className={`adl-tool-surface adl-tool-surface--files${navigatorCollapsed ? ' is-navigator-collapsed' : ''}`}
-        style={
-          {
-            '--adl-files-nav-width': `${browserNavigatorWidth}px`,
-          } as React.CSSProperties
-        }
-      >
-        <BrowserNavigator
-          t={t}
-          navigatorTitle={navigatorTitle}
-          openTabCount={openTabCount}
-          allTreeExpanded={allTreeExpanded}
-          browserShowTabButtons={browserShowTabButtons}
-          browserViewMode={browserViewMode}
-          navigatorMode={navigatorMode}
-          browserNavigatorWidth={browserNavigatorWidth}
-          onToggleTabButtons={handleToggleTabButtons}
-          onSetBrowserViewMode={handleSetBrowserViewMode}
-          onDirectListView={handleDirectListView}
-          onExpandAllTree={handleExpandAllTree}
-          onCollapseAllTree={handleCollapseAllTree}
-          onSetNavigatorMode={setNavigatorMode}
-          onSetBrowserViewModeRaw={setBrowserViewMode}
-          visibleWorkspaces={visibleWorkspaces}
-          browserTabs={browserTabs}
-          browserTabFolders={browserTabFolders}
-          browserHistory={browserHistory}
-          browserWorkspaceBookmarks={browserWorkspaceBookmarks}
-          tabTreeExpanded={tabTreeExpanded}
-          selectedTreePath={selectedTreePath}
-          selectedTreePathRef={selectedTreePathRef}
-          onSelectTreePath={handleSelectTreePath}
-          onToggleTreePath={handleToggleTreePath}
-          onDeleteAllChildTabs={handleDeleteAllChildTabs}
-          onDeleteOwnChildTabs={handleDeleteOwnChildTabs}
-          onOpenAllInNewTabs={handleOpenAllInNewTabs}
-          onRemoveFromArea={handleRemoveFromArea}
-          onDeleteDirectory={handleDeleteDirectory}
-          onDeleteHistoryLevel={handleDeleteHistoryLevel}
-          onCloseAllTabs={handleCloseAllTabs}
-          onOpenTab={browserOpenTab}
-          onOpenTabFromTree={handleOpenTabFromTree}
-          onRefreshTab={handleRefreshTab}
-          onEditTab={handleEditTab}
-          onDeleteTab={handleDeleteTab}
-          onCopyTabLink={handleCopyTabLink}
-          onOpenTabInNewTab={handleOpenTabInNewTab}
-          onOpenTabInCurrentTab={handleOpenTabInCurrentTab}
-          onCreateTabDialog={handleSetCreateTabDialog}
-          onCreateDirDialog={setCreateDirDialog}
-          onRenameFolder={setRenameFolderState}
-          navigatorQuery={navigatorQuery}
-          searchScope={searchScope}
-          searchResults={searchResults}
-          navigatorSearchRef={navigatorSearchRef}
-          navigatorSearchInputRef={navigatorSearchInputRef}
-          onSetNavigatorQuery={setNavigatorQuery}
-          onSetSearchScope={setSearchScope}
-          onNavigatorResizeStart={handleNavigatorResizeStart}
-          showToast={showToast}
-        />
-
-        <div className="adl-tool-primary adl-tool-primary--browser" ref={primaryRef}>
-          {!hasActiveTab || !activeTab?.url || activeTab?.url === 'about:blank' ? (
-            <div className="adl-tool-primary__scroll adl-tool-primary__scroll--browser">
-              <BrowserLandingPage t={t} />
-            </div>
-          ) : (
-            <ErrorBoundary
-              fallback={
-                <ExternalLinkError
-                  errorKey="browserCannotOpenEmbedded"
-                  activeTabUrl={activeTab?.url}
-                  t={t}
-                  variant="active"
-                />
-              }
-            >
-              {!isTauriShell() &&
-                activeTab?.url &&
-                activeTab.url !== 'about:blank' &&
-                validatedUrlsRef.current.has(activeTab.url) && (
-                  <SafeIframe
-                    iframeRef={iframeRef}
-                    src={activeTab.url}
-                    className="adl-browser-iframe"
-                    title={activeTab.title}
-                    onLoad={handleIframeLoad}
-                    onError={handleIframeError}
-                    sandbox="allow-scripts allow-forms allow-popups allow-same-origin"
-                    style={{ display: isBrowserVisible ? undefined : 'none' }}
-                  />
-                )}
-
-              {!isTauriShell() && iframeBlockedDetected && (
-                <ExternalLinkError
-                  errorKey="browserCannotOpenEmbedded"
-                  activeTabUrl={activeTab?.url}
-                  t={t}
-                  variant="blocked"
-                />
-              )}
-
-              {!isTauriShell() && iframeLoadError && !iframeBlockedDetected && (
-                <ExternalLinkError
-                  errorKey="browserConnectionFailed"
-                  activeTabUrl={activeTab?.url}
-                  t={t}
-                  variant="blocked"
-                />
-              )}
-
-              {isEmbedPending && (
-                <div className="adl-browser-loading">
-                  <div className="adl-browser-loading__spinner" />
-                </div>
-              )}
-            </ErrorBoundary>
-          )}
-        </div>
-      </div>
 
       <BrowserContextMenu
         contextMenu={contextMenu}

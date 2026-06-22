@@ -21,7 +21,7 @@ pub fn save_audit_entry(
     risk_level: RiskLevel,
     summary: impl Into<String>,
     decision: Option<&str>,
-    detail: Option<String>,
+    detail: Option<&str>,
 ) -> Result<AuditEntry, AppError> {
     let entry = AuditEntry {
         id: create_id("audit"),
@@ -30,7 +30,7 @@ pub fn save_audit_entry(
         summary: summary.into(),
         risk_level,
         decision: decision.map(str::to_string),
-        detail,
+        detail: detail.map(str::to_string),
     };
     state.db.save_entity(
         EntityTable::AuditRecords,

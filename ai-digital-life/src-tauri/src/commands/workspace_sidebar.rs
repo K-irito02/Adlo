@@ -7,12 +7,12 @@ use std::collections::HashMap;
 
 const RECENT_SIDEBAR_KEY: &str = "recent_workspaces_sidebar_v1";
 
-fn entry_from_workspace(meta: &WorkspaceMeta, max_order: i32) -> RecentWorkspaceEntry {
+fn entry_from_workspace(meta: WorkspaceMeta, max_order: i32) -> RecentWorkspaceEntry {
     RecentWorkspaceEntry {
-        id: meta.id.clone(),
-        path: meta.path.clone(),
-        root_path: meta.root_path.clone(),
-        name: meta.name.clone(),
+        id: meta.id,
+        path: meta.path,
+        root_path: meta.root_path,
+        name: meta.name,
         last_opened_at: meta.last_opened_at,
         is_pinned: false,
         pinned_order: 0,
@@ -54,7 +54,7 @@ fn unpinned_max(entries: &[RecentWorkspaceEntry]) -> i32 {
 fn seed_sidebar_from_db(state: &AppState) -> Result<Vec<RecentWorkspaceEntry>, AppError> {
     let workspaces: Vec<WorkspaceMeta> = state.db.list_entities(EntityTable::Workspaces)?;
     let mut entries = Vec::with_capacity(workspaces.len());
-    for (index, workspace) in workspaces.iter().enumerate() {
+    for (index, workspace) in workspaces.into_iter().enumerate() {
         let mut entry = entry_from_workspace(workspace, index as i32 - 1);
         entry.unpinned_order = index as i32;
         entries.push(entry);
@@ -69,10 +69,10 @@ fn merge_workspace_meta_into_sidebar(
     all: &mut [RecentWorkspaceEntry],
     workspaces: &[WorkspaceMeta],
 ) {
-    let by_id: HashMap<String, &WorkspaceMeta> =
-        workspaces.iter().map(|w| (w.id.clone(), w)).collect();
+    let by_id: HashMap<&str, &WorkspaceMeta> =
+        workspaces.iter().map(|w| (w.id.as_str(), w)).collect();
     for entry in all.iter_mut() {
-        if let Some(w) = by_id.get(&entry.id) {
+        if let Some(w) = by_id.get(entry.id.as_str()) {
             entry.path = w.path.clone();
             entry.root_path = w.root_path.clone();
             entry.name = w.name.clone();
@@ -96,7 +96,7 @@ pub(super) fn upsert_sidebar_after_open(
         all[i].available = true;
     } else {
         let max = unpinned_max(&all);
-        all.push(entry_from_workspace(meta, max));
+        all.push(entry_from_workspace(meta.clone(), max));
     }
     save_sidebar_entries(state, &all)?;
     Ok(())
@@ -108,7 +108,7 @@ fn load_sidebar_with_meta(state: &AppState) -> Result<Vec<RecentWorkspaceEntry>,
     merge_workspace_meta_into_sidebar(&mut all, &workspaces);
 
     let mut changed = false;
-    for w in &workspaces {
+    for w in workspaces {
         if !all.iter().any(|e| e.id == w.id) {
             let max = unpinned_max(&all);
             all.push(entry_from_workspace(w, max));
@@ -272,7 +272,7 @@ pub fn workspace_restore_to_sidebar(
                 .load_entity::<WorkspaceMeta>(EntityTable::Workspaces, &workspace_id)?
                 .ok_or_else(|| AppError::NotFound(format!("workspace {workspace_id}")))?;
             let max = unpinned_max(&all);
-            all.push(entry_from_workspace(&meta, max));
+            all.push(entry_from_workspace(meta, max));
         }
         save_sidebar_entries(&state, &all)?;
         presentable_recent_list(&state)

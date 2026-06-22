@@ -37,7 +37,7 @@ impl ModelGateway {
         &self,
         workspace_id: &str,
         session_id: &str,
-        run_id: Option<String>,
+        run_id: Option<&str>,
         scenario: ConversationScenario,
         messages: Vec<ModelChatMessage>,
     ) -> (ModelResponse, ModelCallAuditRecord) {
@@ -301,7 +301,7 @@ fn estimate_usage(messages: &[ModelChatMessage]) -> ModelTokenUsage {
 struct AuditInput<'a> {
     workspace_id: &'a str,
     session_id: &'a str,
-    run_id: Option<String>,
+    run_id: Option<&'a str>,
     provider_id: ModelProviderId,
     model_id: String,
     scenario: ConversationScenario,
@@ -317,7 +317,7 @@ fn audit_record(input: AuditInput<'_>) -> ModelCallAuditRecord {
         request_id: create_id("modelreq"),
         workspace_id: input.workspace_id.to_string(),
         session_id: input.session_id.to_string(),
-        run_id: input.run_id,
+        run_id: input.run_id.map(|s| s.to_string()),
         provider_id: input.provider_id,
         model_id: input.model_id,
         scenario: input.scenario,

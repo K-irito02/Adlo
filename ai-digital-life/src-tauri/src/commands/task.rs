@@ -106,11 +106,11 @@ async fn decide_approval_inner(
             ApprovalDecision::Rejected => "rejected",
             ApprovalDecision::Timeout => "rejected",
         }),
-        approval.reason.clone(),
+        approval.reason.as_deref(),
     );
 
-    if let Some(run_id) = approval.run_id.clone() {
-        emit_approval_decided_event(app, state, &approval, &run_id, input.decision)?;
+    if let Some(run_id) = approval.run_id.as_deref() {
+        emit_approval_decided_event(app, state, &approval, run_id, input.decision)?;
     }
     snapshot(state)
 }
@@ -224,7 +224,7 @@ pub fn task_restore_checkpoint(
                 adl_kernel::RiskLevel::Medium,
                 format!("Restored checkpoint {}.", checkpoint.id),
                 Some("approved"),
-                Some(checkpoint.description),
+                Some(&checkpoint.description),
             );
         }
         snapshot(&state)
@@ -412,7 +412,7 @@ fn save_command_result(
         request.risk_level,
         result.summary.clone(),
         Some("approved"),
-        Some(format!("command={} {}", request.command, request.args.join(" "))),
+        Some(&format!("command={} {}", request.command, request.args.join(" "))),
     );
     Ok(())
 }
@@ -438,17 +438,17 @@ fn snapshot(state: &AppState) -> Result<TaskCenterSnapshot, AppError> {
             .filter(|session| session.status != "archived")
             .max_by_key(|session| session.updated_at)
             .map(|session| {
-                let session_id = session.id.clone();
+                let current_task_id = tasks
+                    .iter()
+                    .filter(|task| task.session_id == session.id)
+                    .max_by_key(|task| task.updated_at)
+                    .map(|task| task.id.clone());
                 adl_kernel::SessionMeta {
                     id: session.id,
                     workspace_id: session.workspace_id,
                     status: adl_kernel::SessionStatus::Active,
                     approval_mode: "manual".into(),
-                    current_task_id: tasks
-                        .iter()
-                        .filter(|task| task.session_id == session_id)
-                        .max_by_key(|task| task.updated_at)
-                        .map(|task| task.id.clone()),
+                    current_task_id,
                     summary: adl_kernel::SessionSummary::default(),
                     created_at: session.created_at,
                     updated_at: session.updated_at,

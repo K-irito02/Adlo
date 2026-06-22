@@ -38,8 +38,8 @@ function loadPersistedState(): void {
         setMockCurrentWorkspace(state.currentWorkspaceMeta);
       }
     }
-  } catch (e) {
-    console.warn('Failed to load persisted mock bridge state', e);
+  } catch {
+    // silently ignore failed persisted state load
   }
 }
 

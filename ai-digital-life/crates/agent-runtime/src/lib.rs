@@ -185,7 +185,7 @@ pub fn target_symbol_from_prompt(prompt: &str) -> Option<String> {
 pub fn create_patch_from_document(
     workspace_id: &str,
     session_id: &str,
-    run_id: Option<String>,
+    run_id: Option<&str>,
     prompt: &str,
     document: &WorkspaceFileDocument,
 ) -> PatchSet {
@@ -198,7 +198,7 @@ pub fn create_patch_from_document(
     adl_change_engine::create_single_file_patch_set(adl_change_engine::PatchProposal {
         workspace_id,
         session_id,
-        run_id,
+        run_id: run_id.map(|s| s.to_string()),
         relative_path: &document.path,
         before_content: &document.content,
         after_content: &after,

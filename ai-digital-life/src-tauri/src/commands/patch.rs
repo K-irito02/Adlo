@@ -162,7 +162,7 @@ async fn apply_patch_set_inner(
         adl_kernel::RiskLevel::Medium,
         format!("Applied accepted hunks for {}.", patch_set.title),
         Some("auto"),
-        Some(format!("checkpointId={}", checkpoint.id)),
+        Some(&format!("checkpointId={}", checkpoint.id)),
     );
 
     save_and_verify_patch(state, app, &workspace, patch_set, root).await
@@ -276,7 +276,7 @@ async fn save_and_verify_patch(
         adl_kernel::RiskLevel::Low,
         validation.summary.clone(),
         Some("auto"),
-        Some(format!("validationStatus={}", validation.status)),
+        Some(&format!("validationStatus={}", validation.status)),
     );
 
     let mut rolled_back = false;
@@ -291,7 +291,7 @@ async fn save_and_verify_patch(
             adl_kernel::RiskLevel::Medium,
             format!("Rolled back {} after failed validation.", patch_set.title),
             Some("auto"),
-            Some(validation.summary.clone()),
+            Some(&validation.summary),
         );
     } else {
         patch_set.status = PatchSetStatus::Applied;

@@ -36,6 +36,7 @@
 | 2026-06-20 | 9 | ✅ 已解决 | 浏览器 iframe 稳定性修复、大型文件拆分、console.log 清理 |
 | 2026-06-21 | 11 | ✅ 已解决 | JSX 去重、CSS 拆分、Rust 函数拆分、CSS 硬编码清理 |
 | 2026-06-22 | 8 | ✅ 已解决 | BrowserPanel Hook 提取、Rust clone 消除、CSS !important 清理 |
+| 2026-06-23 | 11 | ✅ 已解决 | 5 组件拆分（-1789 行）、Rust 4 文件 clone 消除（-37%）、preview-bridge 13 子模块、mock shared 4 子模块 |
 
 ## 各日洞察摘要
 
@@ -210,10 +211,16 @@
 - Rust agent.rs `make_activity_emitter` 参数 `&str` 化，消除 3 次 clone
 - CSS `!important` 清理：file-tree-core.css（26 处）+ files-panel-list.css（18 处）
 
+### 2026-06-23
+- 5 前端组件/Hook 拆分：BrowserPanel（814→616行）、BrowserTreeEntry（721→476行）、GitHubCITree（715→273行）、preview-bridge/index.ts（622→75行，拆为13子模块）、mock/shared.ts（519→57行，拆为4子模块）
+- Rust clone 消除：agent_pipeline.rs（16→8，-50%）、task.rs（13→10，-23%）、workspace_sidebar.rs（11→7，-36%）、task/lib.rs 结构优化
+- CSS transition:all 修复 2 处；console.log 清理 3 处
+- 所有质量门禁通过：ESLint 0、Prettier clean、TS 0 错误、250 前端测试 + 232 Rust 测试全通过
+
 ## 统计
 
-- **总发现项**: ~500+（跨 28 个报告日）
-- **已完全解决**: 6 天（05-21、05-28、06-07、06-20、06-21、06-22）
+- **总发现项**: ~510+（跨 29 个报告日）
+- **已完全解决**: 7 天（05-21、05-28、06-07、06-20、06-21、06-22、06-23）
 - **部分解决**: 10 天
 - **待处理**: 12 天
 - **涉及领域**: 架构设计、性能优化、CSS 架构、Rust 后端、React 组件、状态管理、测试覆盖、双端一致性、桥接层

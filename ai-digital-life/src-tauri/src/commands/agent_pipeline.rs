@@ -25,9 +25,9 @@ pub(crate) fn prepare_run(
     let user_message = adl_conversation::create_message(
         &session.id,
         adl_kernel::ConversationRole::User,
-        input.prompt.clone(),
+        input.prompt.as_str(),
         vec![],
-        Some(detail.run.id.clone()),
+        Some(detail.run.id.as_str()),
     );
     conversation::save_message(state, &session.workspace_id, &user_message)?;
     audit_batch.push(AuditBatchEntry {
@@ -213,7 +213,7 @@ pub(crate) async fn call_model<F: Fn(serde_json::Value)>(
         .chat(
             &ctx.workspace.id,
             &ctx.session.id,
-            Some(ctx.detail.run.id.clone()),
+            Some(ctx.detail.run.id.as_str()),
             ctx.scenario,
             messages,
         )
@@ -233,7 +233,7 @@ pub(crate) async fn call_model<F: Fn(serde_json::Value)>(
       "providerId": model_response.provider_id,
       "modelId": model_response.model_id,
       "usage": model_response.usage,
-      "reason": model_response.route.as_ref().map(|r| r.reason.clone()).unwrap_or_else(|| "primary route".into())
+      "reason": model_response.route.as_ref().map(|r| r.reason.as_str()).unwrap_or("primary route")
     }));
     ctx.audit_batch.push(AuditBatchEntry {
         workspace_id: ctx.workspace.id.clone(),
@@ -270,7 +270,7 @@ pub(crate) fn generate_patches(
                     Some(adl_agent_runtime::create_patch_from_document(
                         &workspace.id,
                         &session.id,
-                        Some(detail.run.id.clone()),
+                        Some(detail.run.id.as_str()),
                         &input.prompt,
                         &document,
                     ))
@@ -355,22 +355,22 @@ pub(crate) fn finalize_run<F: Fn(serde_json::Value)>(
 ) -> Result<ConversationSendResult, AppError> {
     let detail = adl_agent_runtime::complete_plan(ctx.detail, ctx.patch_set, ctx.scenario);
     crate::commands::agent::save_run_detail(ctx.state, &detail)?;
-    let summary = detail.run.summary.clone().unwrap_or_else(|| "Agent run updated.".into());
+    let summary = detail.run.summary.as_deref().unwrap_or("Agent run updated.");
     ctx.audit_batch.push(decide_audit_operation(
         &ctx.workspace.id,
         &ctx.session.id,
         ctx.patch_set,
         &detail.run.id,
-        &summary,
+        summary,
     ));
 
     let blocks = adl_agent_runtime::assistant_blocks(&detail, ctx.patch_set, ctx.scenario);
     let assistant_message = adl_conversation::create_message(
         &ctx.session.id,
         adl_kernel::ConversationRole::Assistant,
-        ctx.model_response.content.clone(),
+        ctx.model_response.content.as_str(),
         blocks,
-        Some(detail.run.id.clone()),
+        Some(detail.run.id.as_str()),
     );
     conversation::save_message(ctx.state, &ctx.workspace.id, &assistant_message)?;
     adl_conversation::touch_session(ctx.session, assistant_message.created_at);

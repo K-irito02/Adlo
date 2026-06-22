@@ -63,7 +63,7 @@ async fn command_run_inner(
             request.risk_level,
             format!("Command requires approval: {} {}", request.command, request.args.join(" ")),
             None,
-            Some(format!("taskId={}", task.id)),
+            Some(&format!("taskId={}", task.id)),
         );
         return Ok(CommandRunResult {
             status: "waiting-approval".into(),
@@ -91,7 +91,7 @@ async fn command_run_inner(
         request.risk_level,
         result.summary.clone(),
         Some("auto"),
-        Some(format!("command={} {}", request.command, request.args.join(" "))),
+        Some(&format!("command={} {}", request.command, request.args.join(" "))),
     );
     Ok(CommandRunResult {
         status: "completed".into(),
