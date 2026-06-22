@@ -11,7 +11,7 @@ import {
 } from '../../utils/fetchPageMeta';
 
 function findFolderByIdLocal(
-  folders: Array<{ id: string; children?: unknown[] }>,
+  folders: Array<{ id: string; tabs?: string[]; children?: unknown[] }>,
   folderId: string
 ): { id: string; tabs?: string[] } | null {
   for (const folder of folders) {
@@ -31,6 +31,21 @@ function findFolderByIdLocal(
   return null;
 }
 
+function collectAllDescendantTabIdsLocal(
+  folders: Array<{ id: string; tabs?: string[]; children?: unknown[] }>,
+  parentId: string
+): string[] {
+  const result: string[] = [];
+  const directChildren = folders.filter((f) => (f as { parentId?: string }).parentId === parentId);
+  for (const child of directChildren) {
+    if (child.tabs) {
+      result.push(...child.tabs);
+    }
+    result.push(...collectAllDescendantTabIdsLocal(folders, child.id));
+  }
+  return result;
+}
+
 export function useBrowserTreeActions() {
   const {
     recentWorkspaces,
@@ -41,6 +56,7 @@ export function useBrowserTreeActions() {
     browserExpandAllTreePaths,
     browserCollapseAllTreePaths,
     browserDeleteAllTabsInNode,
+    browserDeleteOwnTabsInNode,
     browserDeleteTabFolder,
     browserDeleteHistoryByLevel,
     browserOpenTab,
@@ -57,6 +73,7 @@ export function useBrowserTreeActions() {
       browserExpandAllTreePaths: state.browserExpandAllTreePaths,
       browserCollapseAllTreePaths: state.browserCollapseAllTreePaths,
       browserDeleteAllTabsInNode: state.browserDeleteAllTabsInNode,
+      browserDeleteOwnTabsInNode: state.browserDeleteOwnTabsInNode,
       browserDeleteTabFolder: state.browserDeleteTabFolder,
       browserDeleteHistoryByLevel: state.browserDeleteHistoryByLevel,
       browserOpenTab: state.browserOpenTab,
@@ -98,9 +115,133 @@ export function useBrowserTreeActions() {
 
   const handleDeleteAllChildTabs = useCallback(
     (_categoryType: string, nodePath: string) => {
+      const state = useAppStore.getState();
+      let tabIds: string[] = [];
+      let urls: string[] = [];
+
+      if (nodePath.startsWith('workspace:')) {
+        const wsId = nodePath.slice('workspace:'.length);
+        const tabs = state.browserTabs.filter((t) => t.workspaceId === wsId);
+        tabIds = tabs.map((t) => t.id);
+        urls = tabs.map((t) => t.url).filter((u): u is string => !!u);
+      } else if (nodePath.startsWith('folder:')) {
+        const folderId = nodePath.slice('folder:'.length);
+        const folder = findFolderByIdLocal(
+          state.browserTabFolders as Array<{ id: string; tabs?: string[]; children?: unknown[] }>,
+          folderId
+        );
+        if (folder) {
+          tabIds = [...(folder.tabs ?? [])];
+          const childTabs = collectAllDescendantTabIdsLocal(
+            state.browserTabFolders as Array<{ id: string; tabs?: string[]; children?: unknown[] }>,
+            folderId
+          );
+          tabIds.push(...childTabs);
+          const allTabIds = [...tabIds];
+          urls = state.browserTabs
+            .filter((t) => allTabIds.includes(t.id))
+            .map((t) => t.url)
+            .filter((u): u is string => !!u);
+          tabIds = allTabIds;
+        }
+      } else if (nodePath.startsWith('history:day:')) {
+        const dayDate = nodePath.slice('history:day:'.length);
+        const entries = state.browserHistory.filter((h) => {
+          const d = new Date(h.visitedAt);
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, '0');
+          const dy = String(d.getDate()).padStart(2, '0');
+          return `${y}-${m}-${dy}` === dayDate;
+        });
+        tabIds = entries.map((h) => h.id);
+        urls = entries.map((h) => h.url).filter((u): u is string => !!u);
+      }
+
+      for (const url of urls) {
+        clearFaviconCacheForUrl(url);
+        clearPageMetaCacheForUrl(url);
+      }
+      for (const tabId of tabIds) {
+        browserRemoveTabBookmarks(tabId, '');
+        unlockTabTitle(tabId);
+      }
+
       browserDeleteAllTabsInNode(nodePath);
     },
-    [browserDeleteAllTabsInNode]
+    [browserDeleteAllTabsInNode, browserRemoveTabBookmarks]
+  );
+
+  const handleDeleteOwnChildTabs = useCallback(
+    (_categoryType: string, nodePath: string) => {
+      const state = useAppStore.getState();
+      let tabIds: string[] = [];
+      let urls: string[] = [];
+
+      if (nodePath.startsWith('workspace:')) {
+        const wsId = nodePath.slice('workspace:'.length);
+        const allTabs = state.browserTabs.filter((t) => t.workspaceId === wsId);
+        const folderTabIds: string[] = [];
+        const rootFolderIds = state.browserTabFolders
+          .filter(
+            (f) =>
+              (f as { parentType?: string }).parentType === 'workspace' &&
+              (f as { parentId?: string }).parentId === wsId
+          )
+          .map((f) => f.id);
+        for (const folderId of rootFolderIds) {
+          const folder = findFolderByIdLocal(
+            state.browserTabFolders as Array<{
+              id: string;
+              tabs?: string[];
+              children?: unknown[];
+            }>,
+            folderId
+          );
+          if (folder?.tabs) {
+            folderTabIds.push(...folder.tabs);
+          }
+          const descendantTabs = collectAllDescendantTabIdsLocal(
+            state.browserTabFolders as Array<{
+              id: string;
+              tabs?: string[];
+              children?: unknown[];
+            }>,
+            folderId
+          );
+          folderTabIds.push(...descendantTabs);
+        }
+        tabIds = allTabs.filter((t) => !folderTabIds.includes(t.id)).map((t) => t.id);
+        urls = allTabs
+          .filter((t) => !folderTabIds.includes(t.id))
+          .map((t) => t.url)
+          .filter((u): u is string => !!u);
+      } else if (nodePath.startsWith('folder:')) {
+        const folderId = nodePath.slice('folder:'.length);
+        const folder = findFolderByIdLocal(
+          state.browserTabFolders as Array<{ id: string; tabs?: string[]; children?: unknown[] }>,
+          folderId
+        );
+        if (folder) {
+          tabIds = [...(folder.tabs ?? [])];
+          urls = state.browserTabs
+            .filter((t) => tabIds.includes(t.id))
+            .map((t) => t.url)
+            .filter((u): u is string => !!u);
+        }
+      }
+
+      for (const url of urls) {
+        clearFaviconCacheForUrl(url);
+        clearPageMetaCacheForUrl(url);
+      }
+      for (const tabId of tabIds) {
+        browserRemoveTabBookmarks(tabId, '');
+        unlockTabTitle(tabId);
+      }
+
+      browserDeleteOwnTabsInNode(nodePath);
+    },
+    [browserDeleteOwnTabsInNode, browserRemoveTabBookmarks]
   );
 
   const handleOpenAllInNewTabs = useCallback(
@@ -147,19 +288,90 @@ export function useBrowserTreeActions() {
   const handleDeleteDirectory = useCallback(
     (folderId: string) => {
       if (folderId.startsWith('history:')) {
+        const state = useAppStore.getState();
+        const dayDate = folderId.slice('history:day:'.length);
+        const entries = state.browserHistory.filter((h) => {
+          const d = new Date(h.visitedAt);
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, '0');
+          const dy = String(d.getDate()).padStart(2, '0');
+          return `${y}-${m}-${dy}` === dayDate;
+        });
+        for (const entry of entries) {
+          if (entry.url) {
+            clearFaviconCacheForUrl(entry.url);
+            clearPageMetaCacheForUrl(entry.url);
+          }
+        }
         browserDeleteAllTabsInNode(folderId);
       } else {
         const actualId = folderId.startsWith('folder:')
           ? folderId.slice('folder:'.length)
           : folderId;
+        const state = useAppStore.getState();
+        const folder = findFolderByIdLocal(
+          state.browserTabFolders as Array<{ id: string; tabs?: string[]; children?: unknown[] }>,
+          actualId
+        );
+        if (folder) {
+          const allTabIds = [
+            ...(folder.tabs ?? []),
+            ...collectAllDescendantTabIdsLocal(
+              state.browserTabFolders as Array<{
+                id: string;
+                tabs?: string[];
+                children?: unknown[];
+              }>,
+              actualId
+            ),
+          ];
+          const urls = state.browserTabs
+            .filter((t) => allTabIds.includes(t.id))
+            .map((t) => t.url)
+            .filter((u): u is string => !!u);
+          for (const url of urls) {
+            clearFaviconCacheForUrl(url);
+            clearPageMetaCacheForUrl(url);
+          }
+          for (const tabId of allTabIds) {
+            browserRemoveTabBookmarks(tabId, '');
+            unlockTabTitle(tabId);
+          }
+        }
         browserDeleteTabFolder(actualId);
       }
     },
-    [browserDeleteTabFolder, browserDeleteAllTabsInNode]
+    [browserDeleteTabFolder, browserDeleteAllTabsInNode, browserRemoveTabBookmarks]
   );
 
   const handleDeleteHistoryLevel = useCallback(
     (level: 'label' | 'year' | 'month' | 'day', nodePath: string) => {
+      const state = useAppStore.getState();
+      const deletedEntries = state.browserHistory.filter((h) => {
+        if (level === 'label') {
+          return true;
+        }
+        const d = new Date(h.visitedAt);
+        const y = String(d.getFullYear());
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const dy = String(d.getDate()).padStart(2, '0');
+        if (level === 'year') {
+          const year = nodePath.replace('history:year:', '');
+          return String(d.getFullYear()) === year;
+        }
+        if (level === 'month') {
+          const monthKey = nodePath.replace('history:month:', '');
+          return `${y}-${m}` === monthKey;
+        }
+        const dayKey = nodePath.replace('history:day:', '');
+        return `${y}-${m}-${dy}` === dayKey;
+      });
+      deletedEntries.forEach((entry) => {
+        if (entry.url) {
+          clearFaviconCacheForUrl(entry.url);
+          clearPageMetaCacheForUrl(entry.url);
+        }
+      });
       browserDeleteHistoryByLevel(level, nodePath);
     },
     [browserDeleteHistoryByLevel]
@@ -277,6 +489,7 @@ export function useBrowserTreeActions() {
     handleCreateTabInTree,
     handleToggleTreePath,
     handleDeleteAllChildTabs,
+    handleDeleteOwnChildTabs,
     handleOpenAllInNewTabs,
     handleRemoveFromArea,
     handleDeleteDirectory,

@@ -210,6 +210,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
     allTreeExpanded,
     handleToggleTreePath,
     handleDeleteAllChildTabs,
+    handleDeleteOwnChildTabs,
     handleOpenAllInNewTabs,
     handleRemoveFromArea,
     handleDeleteDirectory,
@@ -724,6 +725,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
           onSelectTreePath={handleSelectTreePath}
           onToggleTreePath={handleToggleTreePath}
           onDeleteAllChildTabs={handleDeleteAllChildTabs}
+          onDeleteOwnChildTabs={handleDeleteOwnChildTabs}
           onOpenAllInNewTabs={handleOpenAllInNewTabs}
           onRemoveFromArea={handleRemoveFromArea}
           onDeleteDirectory={handleDeleteDirectory}

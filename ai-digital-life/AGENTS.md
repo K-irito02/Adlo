@@ -31,11 +31,11 @@
 - 内置浏览器（Tauri WebView / iframe 双模式 + 新建标签对话框 + 收藏标签目录选择对话框 + 工作区顶级目录书签 + 树/列表/全列表三视图模式 + SafeIframe 嵌入检查 + checkEmbed LRU 缓存 + Guard Effect 双路径验证 + 导航模式切换：就地导航/新建标签 + @radix-ui/react-switch + motion 动效）
 - Zustand 切片模式（23 切片 + 12 action 模块）+ 模块化分层（features/ + regions/）
 - CSS 设计 Token 亮暗主题 + 自定义 Tooltip + 自定义滚动条
-- i18n 国际化（13 领域 / 932 keys，TCopyContext + useTCopy 上下文驱动，TypeScript satisfies 类型安全）
+- i18n 国际化（13 领域 / 936 keys，TCopyContext + useTCopy 上下文驱动，TypeScript satisfies 类型安全）
 
 ### 重构历史
 
-共完成 **73 轮**迭代重构，完整记录见 [根目录 AGENTS.md](../AGENTS.md#重构历史)。
+共完成 **78 轮**迭代重构，完整记录见 [根目录 AGENTS.md](../AGENTS.md#重构历史)。
 
 ## 安全边界
 

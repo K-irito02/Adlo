@@ -4,6 +4,9 @@ export const browserZh = {
   browserBack: '后退',
   browserForward: '前进',
   browserRefresh: '刷新',
+  browserRefreshMeta: '刷新Logo/标题',
+  browserRefreshMetaHint:
+    '重新获取Logo图标与标题，并清除旧缓存。若标签名称已自定义则保留自定义名称。',
   browserHome: '主页',
   browserNewTab: '新建标签',
   browserEditTab: '编辑标签',
@@ -104,8 +107,20 @@ export const browserZh = {
   browserContextDelete: '删除',
   browserContextMore: '更多操作',
   browserContextCreateTab: '新建标签',
-  browserContextDeleteAllTabs: '删除所有子标签',
-  browserContextDeleteAllHistory: '删除全部历史记录 + 标签',
+  browserContextDeleteAllTabs: '删除所有标签[嵌套]',
+  browserDeleteAllTabsHint:
+    '删除自身目录下的子标签，并且包括嵌套目录下的子标签，但保留所有目录结构。',
+  browserContextDeleteSelfTabs: '删除自身目录标签',
+  browserDeleteSelfTabsHint:
+    '仅删除自身目录下的子标签，不包括嵌套目录及嵌套目录下的子标签，但保留所有目录结构。',
+  browserDeleteDirHint: '删除此目录，并包括此目录下的所有目录结构及所有子标签。',
+  browserContextDeleteAllHistory: '删除全部历史记录标签',
+  browserDeleteHistoryLabelHint: '仅删除所有"日"目录下的子标签，不删除"年、月、日"目录。',
+  browserDeleteHistoryYearHint:
+    '仅删除所有"年"目录，但包括"年"目录下的嵌套子目录（月、日），以及包括"日"目录下的子标签。',
+  browserDeleteHistoryMonthHint:
+    '仅删除所有"月"目录，但包括"月"目录下的嵌套子目录（日），以及包括"日"目录下的子标签。',
+  browserDeleteHistoryDayHint: '仅删除所有"日"目录，但包括"日"目录下的子标签。',
   browserContextOpenAllNewTabs: '全部在新标签打开',
   browserContextRemoveFromView: '从此区域移除不显示',
   browserContextDeleteDir: '删除此目录',
@@ -116,7 +131,7 @@ export const browserZh = {
   browserNewTabPage: '新建标签页',
   browserSearchBookmarkHistory: '输入关键词搜索书签和历史记录',
   browserClearAllOpenTabs: '清空所有已打开标签',
-  browserDeleteAllTabDirs: '删除全部目录标签',
+  browserDeleteAllTabDirs: '删除工作区与非工作区全部标签 （保留目录结构）',
   browserNoSearchResults: '没有找到匹配的结果',
   browserBookmark: '收藏标签',
   browserUnbookmark: '取消收藏',

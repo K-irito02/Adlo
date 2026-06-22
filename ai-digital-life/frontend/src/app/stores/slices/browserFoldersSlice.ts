@@ -43,6 +43,30 @@ function collectAllDescendantFolderIds(folders: TabFolderState[], parentId: stri
   return result;
 }
 
+function collectAllDescendantTabIds(folders: TabFolderState[], parentId: string): string[] {
+  const result: string[] = [];
+  const directChildren = folders.filter((f) => f.parentId === parentId);
+  for (const child of directChildren) {
+    if (child.tabs) {
+      result.push(...child.tabs);
+    }
+    result.push(...collectAllDescendantTabIds(folders, child.id));
+  }
+  return result;
+}
+
+function collectAllFolderTabIds(folders: TabFolderState[], wsId: string): string[] {
+  const rootFolders = folders.filter((f) => f.parentType === 'workspace' && f.parentId === wsId);
+  const result: string[] = [];
+  for (const rootFolder of rootFolders) {
+    if (rootFolder.tabs) {
+      result.push(...rootFolder.tabs);
+    }
+    result.push(...collectAllDescendantTabIds(folders, rootFolder.id));
+  }
+  return result;
+}
+
 function buildTabsById(tabs: BrowserTabState[]): Record<string, BrowserTabState> {
   const result: Record<string, BrowserTabState> = {};
   for (const tab of tabs) {
@@ -72,6 +96,7 @@ export interface BrowserFoldersSlice {
   browserCollapseAllTreePaths: () => void;
   browserExpandAllTreePaths: (paths: string[]) => void;
   browserDeleteAllTabsInNode: (nodePath: string) => void;
+  browserDeleteOwnTabsInNode: (nodePath: string) => void;
   setBrowserWorkspaceExpanded: (expanded: Record<string, boolean>) => void;
 }
 
@@ -119,11 +144,29 @@ export const createBrowserFoldersSlice = (
         folderId,
         ...collectAllDescendantFolderIds(state.browserTabFolders, folderId),
       ];
+      const tabIdsToDelete: string[] = [];
+      for (const id of idsToDelete) {
+        const folder = findFolderById(state.browserTabFolders, id);
+        if (folder?.tabs) {
+          tabIdsToDelete.push(...folder.tabs);
+        }
+      }
       const nextFolders = state.browserTabFolders.filter(
         (folder) => !idsToDelete.includes(folder.id)
       );
+      const nextTabs = state.browserTabs.filter((t) => !tabIdsToDelete.includes(t.id));
+      const nextActive = tabIdsToDelete.includes(state.browserActiveTabId)
+        ? (nextTabs[nextTabs.length - 1]?.id ?? state.browserActiveTabId)
+        : state.browserActiveTabId;
       scheduleWrite(BROWSER_TAB_FOLDERS_KEY, nextFolders);
-      return { browserTabFolders: nextFolders };
+      scheduleWrite(BROWSER_TABS_KEY, nextTabs);
+      scheduleWrite(BROWSER_ACTIVE_TAB_KEY, nextActive);
+      return {
+        browserTabFolders: nextFolders,
+        browserTabs: nextTabs,
+        browserTabsById: buildTabsById(nextTabs),
+        browserActiveTabId: nextActive,
+      };
     }),
 
   browserAddToFolder: (tabId, folderId) => {
@@ -182,7 +225,8 @@ export const createBrowserFoldersSlice = (
         const folderId = nodePath.slice('folder:'.length);
         const folder = findFolderById(state.browserTabFolders, folderId);
         if (folder) {
-          tabIdsToDelete = folder.tabs ?? [];
+          const descendantTabIds = collectAllDescendantTabIds(state.browserTabFolders, folderId);
+          tabIdsToDelete = [...(folder.tabs ?? []), ...descendantTabIds];
         }
       } else if (nodePath.startsWith('history:day:')) {
         const dayDate = nodePath.slice('history:day:'.length);
@@ -226,6 +270,73 @@ export const createBrowserFoldersSlice = (
       if (nodePath.startsWith('folder:')) {
         const folderId = nodePath.slice('folder:'.length);
         nextFolders = nextFolders.map((f) => (f.id === folderId ? { ...f, tabs: [] } : f));
+        scheduleWrite(BROWSER_TAB_FOLDERS_KEY, nextFolders);
+      }
+
+      scheduleWrite(BROWSER_TABS_KEY, nextTabs);
+      scheduleWrite(BROWSER_ACTIVE_TAB_KEY, nextActive);
+      return {
+        browserTabs: nextTabs,
+        browserTabsById: buildTabsById(nextTabs),
+        browserActiveTabId: nextActive,
+        browserWorkspaceBookmarks: nextWorkspaceBookmarks,
+        browserTabFolders: nextFolders,
+      };
+    }),
+
+  browserDeleteOwnTabsInNode: (nodePath) =>
+    set((state) => {
+      let tabIdsToDelete: string[] = [];
+
+      if (nodePath.startsWith('workspace:')) {
+        const wsId = nodePath.slice('workspace:'.length);
+        const allWsTabIds = state.browserTabs
+          .filter((t) => t.workspaceId === wsId)
+          .map((t) => t.id);
+        const folderTabIds = collectAllFolderTabIds(state.browserTabFolders, wsId);
+        tabIdsToDelete = allWsTabIds.filter((id) => !folderTabIds.includes(id));
+      } else if (nodePath.startsWith('folder:')) {
+        const folderId = nodePath.slice('folder:'.length);
+        const folder = findFolderById(state.browserTabFolders, folderId);
+        if (folder) {
+          tabIdsToDelete = [...(folder.tabs ?? [])];
+        }
+      }
+
+      if (tabIdsToDelete.length === 0) {
+        return state;
+      }
+
+      const nextTabs = state.browserTabs.filter((t) => !tabIdsToDelete.includes(t.id));
+      const nextActive = tabIdsToDelete.includes(state.browserActiveTabId)
+        ? (nextTabs[nextTabs.length - 1]?.id ?? state.browserActiveTabId)
+        : state.browserActiveTabId;
+
+      let nextWorkspaceBookmarks = state.browserWorkspaceBookmarks;
+      if (nodePath.startsWith('workspace:')) {
+        const wsId = nodePath.slice('workspace:'.length);
+        const bookmarkedIds = nextWorkspaceBookmarks[wsId];
+        if (bookmarkedIds) {
+          const remaining = bookmarkedIds.filter((id) => !tabIdsToDelete.includes(id));
+          nextWorkspaceBookmarks = { ...nextWorkspaceBookmarks };
+          if (remaining.length === 0) {
+            delete nextWorkspaceBookmarks[wsId];
+          } else {
+            nextWorkspaceBookmarks[wsId] = remaining;
+          }
+          scheduleWrite(BROWSER_WORKSPACE_BOOKMARKS_KEY, nextWorkspaceBookmarks);
+        }
+      }
+
+      let nextFolders = state.browserTabFolders;
+      if (nodePath.startsWith('folder:')) {
+        const folderId = nodePath.slice('folder:'.length);
+        nextFolders = nextFolders.map((f) => {
+          if (f.id === folderId && f.tabs) {
+            return { ...f, tabs: [] };
+          }
+          return f;
+        });
         scheduleWrite(BROWSER_TAB_FOLDERS_KEY, nextFolders);
       }
 

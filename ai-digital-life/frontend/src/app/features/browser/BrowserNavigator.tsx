@@ -66,6 +66,7 @@ export interface BrowserNavigatorProps {
   onSelectTreePath: (path: string | null) => void;
   onToggleTreePath: (path: string) => void;
   onDeleteAllChildTabs: (categoryType: string, nodePath: string) => void;
+  onDeleteOwnChildTabs: (categoryType: string, nodePath: string) => void;
   onOpenAllInNewTabs: (categoryType: string, nodePath: string) => void;
   onRemoveFromArea: (workspaceId: string) => void;
   onDeleteDirectory: (folderId: string) => void;
@@ -136,6 +137,7 @@ export function BrowserNavigator({
   onSelectTreePath: handleSelectTreePath,
   onToggleTreePath: handleToggleTreePath,
   onDeleteAllChildTabs: handleDeleteAllChildTabs,
+  onDeleteOwnChildTabs: handleDeleteOwnChildTabs,
   onOpenAllInNewTabs: handleOpenAllInNewTabs,
   onRemoveFromArea: handleRemoveFromArea,
   onDeleteDirectory: handleDeleteDirectory,
@@ -360,6 +362,7 @@ export function BrowserNavigator({
               setCreateTabDialog({ open: true, workspaceId, folderId });
             },
             onDeleteAllChildTabs: handleDeleteAllChildTabs,
+            onDeleteOwnChildTabs: handleDeleteOwnChildTabs,
             onOpenAllInNewTabs: handleOpenAllInNewTabs,
             onRemoveFromArea: handleRemoveFromArea,
             onDeleteDirectory: handleDeleteDirectory,

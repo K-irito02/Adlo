@@ -131,7 +131,7 @@ export const commonZh = {
   searchNoResults: '没有找到匹配的结果',
   searchBookmarkHistoryHint: '输入关键词搜索书签和历史记录',
   clearAllOpenTabs: '清空所有已打开标签',
-  deleteAllTabDirs: '删除全部目录标签',
+  deleteAllTabDirs: '删除工作区与非工作区全部标签 （保留目录结构）',
   newTabPage: '新建标签页',
   conversationMessageStream: '对话消息流',
   jobCount: '{count} 个 Job',

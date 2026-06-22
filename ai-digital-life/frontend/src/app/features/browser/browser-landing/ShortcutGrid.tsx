@@ -104,7 +104,9 @@ export function ShortcutGrid({ t, onOpenUrl, onAddClick, onContextMenu }: Shortc
           >
             <span className="adl-shortcut-card__add-icon">+</span>
           </div>
-          <span className="adl-shortcut-card__name" title={t.browserAddShortcut}>{t.browserAddShortcut}</span>
+          <span className="adl-shortcut-card__name" title={t.browserAddShortcut}>
+            {t.browserAddShortcut}
+          </span>
         </div>
       </div>
     </div>

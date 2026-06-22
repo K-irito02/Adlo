@@ -1,6 +1,6 @@
 # 重构进度报告
 
-> 更新日期: 2026-06-21（第七十五轮）
+> 更新日期: 2026-06-23（第七十八轮）
 
 ## 完成状态
 
@@ -82,6 +82,8 @@
 | **第七十四轮** | **2026-06-21** | **重构洞察第15次执行（11项发现）：前端 JSX 去重——browserpanel.tsx 提取 ExternalLinkError 组件消除 3 处重复；组件提取——EditorSurfaceShell 提取 FilePreviewRenderers（512→434行）、ChangesToolbar 拆分为 ChangesTopToolbar+ChangesNavigatorToolbar（451→18行）；CSS 拆分——file-tree.css（767行→2文件）、files-panel.css（724行→2文件）、composer.css（710行→3文件）；Rust 拆分——agent_pipeline.rs 提取 collect_file_context+collect_symbol_context+decide_audit_operation、model-gateway chat 提取 select_provider；CSS 硬编码清理——files-panel-core.css 8 处自定义属性替换为语义化变量** | ✅ |
 | **第七十五轮** | **2026-06-21** | **浏览器导航去重修复：handlePageMeta 并发回调去重——新增 processedMetaRef 去重机制防止两个回调路径（onUrlChanged + meta-changed）创建重复标签/历史记录；修复 markUrlSeen 在新建标签模式中缺失的调用导致页面刷新循环** | ✅ |
 | **第七十六轮** | **2026-06-22** | **重构洞察第16次执行（8项发现）：BrowserPanel Hook 提取（useBrowserToast + useBrowserDialogs，1040→877行，-163行）+ 合并两个 CreateTabDialog 渲染；Rust clone 消除——agent.rs make_activity_emitter 参数 &str 化（3 次 clone 消除）；CSS !important 清理——file-tree-core.css（26 处移除）+ files-panel-list.css（18 处移除）** | ✅ |
+| **第七十七轮** | **2026-06-23** | **浏览器目录菜单交互优化：重命名"删除所有子标签"→"删除所有标签[嵌套]"，新增"删除自身目录标签"菜单项（"!"图标 + hint 提示卡），新增 store 函数 browserDeleteOwnTabsInNode，新增 action handleDeleteOwnChildTabs，工具栏"全部关闭"增加 favicon/meta/bookmark/title cache 清理，更新 SectionCallbacks 接口 + 3 处菜单组件（BrowserTreeEntry/BrowserEntrySubEntries/BrowserTabTree）+ BrowserNavigator/BrowserPanel 透传** | ✅ |
+| **第七十八轮** | **2026-06-23** | **浏览器标签刷新语义优化：悬停按钮 tooltip 改为"刷新Logo/标题"，上下文菜单中"刷新"项改为"刷新Logo/标题"+ 新增"!"图标 + hint 提示卡，新增 i18n key browserRefreshMeta/browserRefreshMetaHint，BrowserTreeEntry 新增 showTabHint 回调 + 标签菜单新增"!"图标渲染** | ✅ |
 
 ## 说明
 

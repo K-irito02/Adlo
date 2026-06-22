@@ -4,6 +4,9 @@ export const browserEn = {
   browserBack: 'Back',
   browserForward: 'Forward',
   browserRefresh: 'Refresh',
+  browserRefreshMeta: 'Refresh Logo/Title',
+  browserRefreshMetaHint:
+    'Re-fetch logo icon and title, clearing old cache. If the tab name has been customized, the custom name is preserved.',
   browserHome: 'Home',
   browserNewTab: 'New tab',
   browserEditTab: 'Edit tab',
@@ -108,8 +111,22 @@ export const browserEn = {
   browserContextDelete: 'Delete',
   browserContextMore: 'More actions',
   browserContextCreateTab: 'New tab',
-  browserContextDeleteAllTabs: 'Delete all child tabs',
-  browserContextDeleteAllHistory: 'Delete all history + tabs',
+  browserContextDeleteAllTabs: 'Delete all tabs [nested]',
+  browserDeleteAllTabsHint:
+    'Delete child tabs under this directory, including nested directories, but keep the directory structure.',
+  browserContextDeleteSelfTabs: 'Delete own child tabs',
+  browserDeleteSelfTabsHint:
+    'Only delete child tabs directly under this directory, excluding nested directories and their child tabs, but keep the directory structure.',
+  browserDeleteDirHint:
+    'Delete this directory and all directory structures and child tabs under it.',
+  browserContextDeleteAllHistory: 'Delete all history labels',
+  browserDeleteHistoryLabelHint:
+    'Only delete child tags under "day" directories, keep "year/month/day" directory structure.',
+  browserDeleteHistoryYearHint:
+    'Only delete "year" directories, including nested sub-directories (month, day) and tags under "day" directories.',
+  browserDeleteHistoryMonthHint:
+    'Only delete "month" directories, including nested sub-directories (day) and tags under "day" directories.',
+  browserDeleteHistoryDayHint: 'Only delete "day" directories, including tags under them.',
   browserContextOpenAllNewTabs: 'Open all in new tabs',
   browserContextRemoveFromView: 'Remove from this view',
   browserContextDeleteDir: 'Delete this directory',
@@ -122,7 +139,8 @@ export const browserEn = {
   browserNewTabPage: 'New tab page',
   browserSearchBookmarkHistory: 'Search bookmarks and history by keyword',
   browserClearAllOpenTabs: 'Clear all open tabs',
-  browserDeleteAllTabDirs: 'Delete all tab directories',
+  browserDeleteAllTabDirs:
+    'Delete all workspace and custom directory tabs (keep directory structure)',
   browserNoSearchResults: 'No matching results',
   browserBookmark: 'Bookmark tab',
   browserUnbookmark: 'Unbookmark',

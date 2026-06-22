@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { IconPlus, IconTrash, IconMoreVertical, IconRefreshCw } from '../../icons';
+import { IconPlus, IconMoreVertical, IconRefreshCw } from '../../icons';
 import { TooltipSimple } from '../../components/Tooltip';
 import { BrowserFavicon } from '../../components/BrowserFavicon';
 import type { CopyDict } from '../../i18n';
@@ -92,11 +92,6 @@ function getEntryHoverButtons(
   }
   return [
     { id: 'create-tab', label: t.browserContextCreateTab, icon: <IconPlus size={12} decorative /> },
-    {
-      id: 'delete-all-tabs',
-      label: t.browserContextDeleteAllTabs,
-      icon: <IconTrash size={12} decorative />,
-    },
     { id: 'more', label: t.browserContextMore, icon: <IconMoreVertical size={12} decorative /> },
   ];
 }
@@ -107,36 +102,47 @@ function getEntryMoreMenuItems(
   nodePath: string,
   callbacks: SectionCallbacks,
   t: CopyDict
-): Array<{ id: string; label: string; danger?: boolean; action: () => void }> {
+): Array<{ id: string; label: string; danger?: boolean; hint?: string; action: () => void }> {
   if (categoryType === 'history') {
     return [
       {
         id: 'delete-history-label',
         label: t.browserContextDeleteAllHistory,
+        danger: true,
+        hint: t.browserDeleteHistoryLabelHint,
         action: () => callbacks.onDeleteHistory('label', nodePath),
       },
       {
         id: 'delete-history-year',
         label: t.browserDeleteHistoryYearLabel,
         danger: true,
+        hint: t.browserDeleteHistoryYearHint,
         action: () => callbacks.onDeleteHistory('year', nodePath),
       },
       {
         id: 'delete-history-month',
         label: t.browserDeleteHistoryMonthLabel,
         danger: true,
+        hint: t.browserDeleteHistoryMonthHint,
         action: () => callbacks.onDeleteHistory('month', nodePath),
       },
       {
         id: 'delete-history-day',
         label: t.browserDeleteHistoryDayLabel,
         danger: true,
+        hint: t.browserDeleteHistoryDayHint,
         action: () => callbacks.onDeleteHistory('day', nodePath),
       },
     ];
   }
 
-  const items: Array<{ id: string; label: string; danger?: boolean; action: () => void }> = [];
+  const items: Array<{
+    id: string;
+    label: string;
+    danger?: boolean;
+    hint?: string;
+    action: () => void;
+  }> = [];
   items.push({
     id: 'open-all-tabs',
     label: t.browserContextOpenAllNewTabs,
@@ -164,7 +170,17 @@ function getEntryMoreMenuItems(
   items.push({
     id: 'delete-all-tabs',
     label: t.browserContextDeleteAllTabs,
+    danger: true,
+    hint: t.browserDeleteAllTabsHint,
     action: () => callbacks.onDeleteAllChildTabs(categoryType, nodePath),
+  });
+
+  items.push({
+    id: 'delete-self-tabs',
+    label: t.browserContextDeleteSelfTabs,
+    danger: true,
+    hint: t.browserDeleteSelfTabsHint,
+    action: () => callbacks.onDeleteOwnChildTabs(categoryType, nodePath),
   });
 
   if (nodeType === 'folder' && categoryType === 'userFolder') {
@@ -173,6 +189,7 @@ function getEntryMoreMenuItems(
       id: 'delete-this-dir',
       label: t.browserContextDeleteDir,
       danger: true,
+      hint: t.browserDeleteDirHint,
       action: () => callbacks.onDeleteDirectory(folderId),
     });
   }
@@ -213,12 +230,13 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
   const showSeparators = browserViewMode === 'list';
   const menuId = `browser-entry-menu-${node.path}`;
   const entryBtnRef = useRef<{ [key: string]: HTMLButtonElement | null }>({});
+  const hintElementsRef = useRef<HTMLElement[]>([]);
 
   const handleHeaderContextMenu = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      if (node.nodeType === 'tab' || node.nodeType === 'history') {
+      if (node.nodeType === 'tab') {
         onSelectTreePath(node.path);
         setContextMenuForTab({
           x: e.clientX,
@@ -232,6 +250,82 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
     },
     [node, onSelectTreePath, setMenuPosition, setMenuOpen, setContextMenuForTab]
   );
+
+  const hideHint = useCallback(() => {
+    hintElementsRef.current.forEach((el) => el.remove());
+    hintElementsRef.current = [];
+  }, []);
+
+  const showHint = useCallback(
+    (e: React.MouseEvent, hintText: string) => {
+      const buttonEl = (e.target as HTMLElement).closest('button');
+      const menuEl = document.querySelector(`[data-menu-id="${menuId}"]`);
+      const originalTitle = buttonEl?.getAttribute('title');
+      if (originalTitle) {
+        buttonEl?.setAttribute('data-original-title', originalTitle);
+        buttonEl?.removeAttribute('title');
+      }
+      const btnRect = buttonEl?.getBoundingClientRect();
+      const menuRect = menuEl?.getBoundingClientRect();
+      if (btnRect && menuRect) {
+        const centerY = btnRect.top + btnRect.height / 2;
+        const card = document.createElement('div');
+        card.className = 'adl-sub-hint-card';
+        card.textContent = hintText;
+        card.style.left = `${menuRect.right + 1}px`;
+        card.style.top = `${centerY}px`;
+        card.style.transform = 'translateY(-50%)';
+        const arrow = document.createElement('div');
+        arrow.className = 'adl-sub-hint-card__arrow';
+        arrow.style.left = `${menuRect.right - 4}px`;
+        arrow.style.top = `${centerY - 4}px`;
+        const arrowBorder = document.createElement('div');
+        arrowBorder.className = 'adl-sub-hint-card__arrow-border';
+        arrowBorder.style.left = `${menuRect.right - 5}px`;
+        arrowBorder.style.top = `${centerY - 5}px`;
+        document.body.appendChild(card);
+        document.body.appendChild(arrow);
+        document.body.appendChild(arrowBorder);
+        hintElementsRef.current.forEach((el) => el.remove());
+        hintElementsRef.current = [card, arrow, arrowBorder];
+      }
+    },
+    [menuId]
+  );
+
+  const showTabHint = useCallback((e: React.MouseEvent, hintText: string) => {
+    const buttonEl = (e.target as HTMLElement).closest('button');
+    const menuEl = document.querySelector('[data-menu-id="browser-tab-context-menu"]');
+    const originalTitle = buttonEl?.getAttribute('title');
+    if (originalTitle) {
+      buttonEl?.setAttribute('data-original-title', originalTitle);
+      buttonEl?.removeAttribute('title');
+    }
+    const btnRect = buttonEl?.getBoundingClientRect();
+    const menuRect = menuEl?.getBoundingClientRect();
+    if (btnRect && menuRect) {
+      const centerY = btnRect.top + btnRect.height / 2;
+      const card = document.createElement('div');
+      card.className = 'adl-sub-hint-card';
+      card.textContent = hintText;
+      card.style.left = `${menuRect.right + 1}px`;
+      card.style.top = `${centerY}px`;
+      card.style.transform = 'translateY(-50%)';
+      const arrow = document.createElement('div');
+      arrow.className = 'adl-sub-hint-card__arrow';
+      arrow.style.left = `${menuRect.right - 4}px`;
+      arrow.style.top = `${centerY - 4}px`;
+      const arrowBorder = document.createElement('div');
+      arrowBorder.className = 'adl-sub-hint-card__arrow-border';
+      arrowBorder.style.left = `${menuRect.right - 5}px`;
+      arrowBorder.style.top = `${centerY - 5}px`;
+      document.body.appendChild(card);
+      document.body.appendChild(arrow);
+      document.body.appendChild(arrowBorder);
+      hintElementsRef.current.forEach((el) => el.remove());
+      hintElementsRef.current = [card, arrow, arrowBorder];
+    }
+  }, []);
 
   useEffect(() => {
     if (!menuOpen) {
@@ -248,10 +342,12 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
         return;
       }
       setMenuOpen(false);
+      hideHint();
     };
     const escHandler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setMenuOpen(false);
+        hideHint();
       }
     };
     window.addEventListener('mousedown', handler);
@@ -259,8 +355,10 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
     return () => {
       window.removeEventListener('mousedown', handler);
       window.removeEventListener('keydown', escHandler);
+      hintElementsRef.current.forEach((el) => el.remove());
+      hintElementsRef.current = [];
     };
-  }, [menuOpen, menuId]);
+  }, [menuOpen, menuId, hideHint]);
 
   useEffect(() => {
     if (!contextMenuForTab) {
@@ -357,8 +455,9 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
     (action: () => void) => () => {
       action();
       setMenuOpen(false);
+      hideHint();
     },
-    []
+    [hideHint]
   );
 
   const flatChildren =
@@ -383,7 +482,7 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
             const tabBtns = [
               {
                 id: 'refresh',
-                label: t.browserRefresh,
+                label: t.browserRefreshMeta,
                 icon: <IconRefreshCw size={12} decorative />,
               },
               {
@@ -504,7 +603,16 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
                 role="menuitem"
                 onClick={handleMenuItemClick(item.action)}
               >
-                {item.label}
+                <span>{item.label}</span>
+                {item.hint ? (
+                  <span
+                    className={`adl-menu-item__hint${item.danger ? ' is-danger' : ''}`}
+                    onMouseEnter={(e) => showHint(e, item.hint!)}
+                    onMouseLeave={hideHint}
+                  >
+                    !
+                  </span>
+                ) : null}
               </button>
             ))}
           </div>,
@@ -546,7 +654,8 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
             },
             {
               id: 'refresh',
-              label: t.browserRefresh,
+              label: t.browserRefreshMeta,
+              hint: t.browserRefreshMetaHint,
               action: () => {
                 if (contextMenuForTab.node.tabId && contextMenuForTab.node.url) {
                   callbacks.onRefreshTab(contextMenuForTab.node.tabId, contextMenuForTab.node.url);
@@ -597,7 +706,16 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
               role="menuitem"
               onClick={item.action}
             >
-              {item.label}
+              <span>{item.label}</span>
+              {item.hint ? (
+                <span
+                  className={`adl-menu-item__hint${item.danger ? ' is-danger' : ''}`}
+                  onMouseEnter={(e) => showTabHint(e, item.hint!)}
+                  onMouseLeave={hideHint}
+                >
+                  !
+                </span>
+              ) : null}
             </button>
           ))}
         </div>,

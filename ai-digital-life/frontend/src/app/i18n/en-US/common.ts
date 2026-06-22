@@ -121,7 +121,7 @@ export const commonEn = {
   searchNoResults: 'No matching results found',
   searchBookmarkHistoryHint: 'Search bookmarks and history by keyword',
   clearAllOpenTabs: 'Clear all open tabs',
-  deleteAllTabDirs: 'Delete all tab directories',
+  deleteAllTabDirs: 'Delete all workspace and custom directory tabs (keep directory structure)',
   newTabPage: 'New tab page',
   conversationMessageStream: 'Conversation message stream',
   jobCount: '{count} jobs',

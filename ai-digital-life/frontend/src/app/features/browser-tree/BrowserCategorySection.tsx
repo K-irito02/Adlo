@@ -5,6 +5,7 @@ import type { BrowserCategoryState, BrowserCategoryType } from './types';
 export interface SectionCallbacks {
   onCreateTab: (workspaceId?: string, folderId?: string) => void;
   onDeleteAllChildTabs: (categoryType: BrowserCategoryType, nodePath: string) => void;
+  onDeleteOwnChildTabs: (categoryType: BrowserCategoryType, nodePath: string) => void;
   onOpenAllInNewTabs: (categoryType: BrowserCategoryType, nodePath: string) => void;
   onRemoveFromArea: (workspaceId: string) => void;
   onDeleteDirectory: (folderId: string) => void;

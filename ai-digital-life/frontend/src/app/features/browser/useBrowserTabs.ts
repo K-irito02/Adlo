@@ -3,6 +3,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '../../stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import type { BrowserTabState } from '../../stores/slices/browserSlice';
+import {
+  clearFaviconCacheForUrl,
+  clearPageMetaCacheForUrl,
+  unlockTabTitle,
+} from '../../utils/fetchPageMeta';
 
 export type BrowserNavigatorMode = 'tabs' | 'bookmarks' | 'history' | 'search';
 
@@ -51,6 +56,7 @@ export function useBrowserTabs() {
     browserCloseAllTabs,
     browserToggleBookmark,
     browserClearHistory,
+    browserRemoveTabBookmarks,
   } = useAppStore(
     useShallow((state) => ({
       browserTabs: state.browserTabs,
@@ -63,6 +69,7 @@ export function useBrowserTabs() {
       browserCloseAllTabs: state.browserCloseAllTabs,
       browserToggleBookmark: state.browserToggleBookmark,
       browserClearHistory: state.browserClearHistory,
+      browserRemoveTabBookmarks: state.browserRemoveTabBookmarks,
     }))
   );
 
@@ -104,9 +111,22 @@ export function useBrowserTabs() {
 
   const handleCloseAllTabs = useCallback(
     (workspaceId?: string) => {
+      if (!workspaceId) {
+        const state = useAppStore.getState();
+        const allTabIds = state.browserTabs.map((t) => t.id);
+        const allUrls = state.browserTabs.map((t) => t.url).filter((u): u is string => !!u);
+        for (const url of allUrls) {
+          clearFaviconCacheForUrl(url);
+          clearPageMetaCacheForUrl(url);
+        }
+        for (const tabId of allTabIds) {
+          browserRemoveTabBookmarks(tabId, '');
+          unlockTabTitle(tabId);
+        }
+      }
       browserCloseAllTabs(workspaceId);
     },
-    [browserCloseAllTabs]
+    [browserCloseAllTabs, browserRemoveTabBookmarks]
   );
 
   const handleEditSubmit = useCallback(() => {
