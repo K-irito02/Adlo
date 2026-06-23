@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { SafeIframe } from './SafeIframe';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { ExternalLinkError } from './ExternalLinkError';
@@ -106,6 +106,7 @@ interface BrowserPanelContentProps {
   selectedTreePath: string | null;
   selectedTreePathRef: React.MutableRefObject<string | null>;
   handleSelectTreePath: (path: string | null) => void;
+  activatedTabIdsRef: React.MutableRefObject<Set<string>>;
   // --- toast ---
   showToast: (message: string, type?: 'success' | 'warning' | 'error') => void;
 }
@@ -171,10 +172,12 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
     selectedTreePath,
     selectedTreePathRef,
     handleSelectTreePath,
+    activatedTabIdsRef,
+    // --- toast ---
     showToast,
   } = props;
 
-  // --- Store selectors for content rendering ---
+  // --- store selectors for content rendering (passed from BrowserPanel) ---
   const {
     browserViewMode,
     browserShowTabButtons,
@@ -212,6 +215,8 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
   );
 
   const navigatorCollapsed = navigatorCollapsedByTool.browser ?? false;
+
+  const inactiveIframeRef = useRef<HTMLIFrameElement | null>(null);
 
   // --- Memos and callbacks for content rendering ---
   const handleToggleNavigateMode = useCallback(
@@ -321,6 +326,15 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
     [toggleBrowserNavigator]
   );
 
+  useEffect(() => {
+    const currentTabIds = new Set(browserTabs.map((t) => t.id));
+    for (const tabId of activatedTabIdsRef.current) {
+      if (!currentTabIds.has(tabId)) {
+        activatedTabIdsRef.current.delete(tabId);
+      }
+    }
+  }, [browserTabs, activatedTabIdsRef]);
+
   return (
     <>
       <BrowserToolbar
@@ -425,56 +439,88 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
               <BrowserLandingPage t={t} />
             </div>
           ) : (
-            <ErrorBoundary
-              fallback={
-                <ExternalLinkError
-                  errorKey="browserCannotOpenEmbedded"
-                  activeTabUrl={activeTab?.url}
-                  t={t}
-                  variant="active"
-                />
-              }
-            >
+            <div className="adl-browser-iframe-stack">
               {!isTauriShell() &&
-                activeTab?.url &&
-                activeTab.url !== 'about:blank' &&
-                validatedUrlsRef.current.has(activeTab.url) && (
-                  <SafeIframe
-                    iframeRef={iframeRef}
-                    src={activeTab.url}
-                    className="adl-browser-iframe"
-                    title={activeTab.title}
-                    onLoad={handleIframeLoad}
-                    onError={handleIframeError}
-                    sandbox="allow-scripts allow-forms allow-popups allow-same-origin"
-                    style={{ display: isBrowserVisible ? undefined : 'none' }}
-                  />
-                )}
+                browserTabs.map((tab) => {
+                  const isActive = tab.id === activeTab?.id;
+                  const wasActivated = isActive || activatedTabIdsRef.current.has(tab.id);
+                  const shouldRender =
+                    wasActivated &&
+                    !!tab.url &&
+                    tab.url !== 'about:blank' &&
+                    validatedUrlsRef.current.has(tab.url);
 
-              {!isTauriShell() && iframeBlockedDetected && (
-                <ExternalLinkError
-                  errorKey="browserCannotOpenEmbedded"
-                  activeTabUrl={activeTab?.url}
-                  t={t}
-                  variant="blocked"
-                />
-              )}
+                  if (!wasActivated && isActive) {
+                    activatedTabIdsRef.current.add(tab.id);
+                  }
 
-              {!isTauriShell() && iframeLoadError && !iframeBlockedDetected && (
-                <ExternalLinkError
-                  errorKey="browserConnectionFailed"
-                  activeTabUrl={activeTab?.url}
-                  t={t}
-                  variant="blocked"
-                />
-              )}
+                  if (!shouldRender) {
+                    return null;
+                  }
 
-              {isEmbedPending && (
-                <div className="adl-browser-loading">
-                  <div className="adl-browser-loading__spinner" />
-                </div>
-              )}
-            </ErrorBoundary>
+                  return (
+                    <div
+                      key={tab.id}
+                      className="adl-browser-iframe-layer"
+                      style={{ display: isActive ? 'block' : 'none' }}
+                    >
+                      <ErrorBoundary
+                        fallback={
+                          <ExternalLinkError
+                            errorKey="browserCannotOpenEmbedded"
+                            activeTabUrl={tab.url!}
+                            t={t}
+                            variant="active"
+                          />
+                        }
+                      >
+                        <SafeIframe
+                          iframeRef={isActive ? iframeRef : inactiveIframeRef}
+                          src={tab.url!}
+                          className="adl-browser-iframe"
+                          title={tab.title}
+                          onLoad={isActive ? handleIframeLoad : () => {}}
+                          onError={isActive ? handleIframeError : () => {}}
+                          sandbox="allow-scripts allow-forms allow-popups allow-same-origin"
+                          style={{ display: isBrowserVisible ? undefined : 'none' }}
+                        />
+                      </ErrorBoundary>
+                    </div>
+                  );
+                })}
+
+              {isTauriShell() &&
+                (() => {
+                  if (!activeTab?.url) {
+                    return null;
+                  }
+                  return (
+                    <>
+                      {iframeBlockedDetected && (
+                        <ExternalLinkError
+                          errorKey="browserCannotOpenEmbedded"
+                          activeTabUrl={activeTab?.url}
+                          t={t}
+                          variant="blocked"
+                        />
+                      )}
+                      {iframeLoadError && !iframeBlockedDetected && (
+                        <ExternalLinkError
+                          errorKey="browserConnectionFailed"
+                          activeTabUrl={activeTab?.url}
+                          t={t}
+                          variant="blocked"
+                        />
+                      )}
+                      {isEmbedPending && (
+                        <div className="adl-browser-loading">
+                          <div className="adl-browser-loading__spinner" />
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+            </div>
           )}
         </div>
       </div>

@@ -67,6 +67,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
   const { toastMessages, showToast, removeToast } = useBrowserToast();
 
   const validatedUrlsRef = useRef(new Set<string>());
+  const activatedTabIdsRef = useRef(new Set<string>());
   const [, forceRender] = useState(0);
   const submitVersionRef = useRef(0);
   const pendingNavigationsRef = useRef<Set<string>>(new Set());
@@ -91,10 +92,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
   useEffect(() => {
     const handleGlobalClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      // 着陆页点击不应触发树路径选择/取消选择
-      if (target.closest('.adl-browser-landing')) {
-        return;
-      }
       const clickedEntry = target.closest('.adl-browser-entry');
       const clickedFileTreeRow = target.closest('.adl-filetree__row');
 
@@ -114,6 +111,16 @@ export function BrowserPanel(props: BrowserPanelProps) {
     };
     document.addEventListener('click', handleGlobalClick);
     return () => document.removeEventListener('click', handleGlobalClick);
+  }, [handleSelectTreePath]);
+
+  useEffect(() => {
+    const handleWindowBlur = () => {
+      if (selectedTreePathRef.current !== null) {
+        handleSelectTreePath(null);
+      }
+    };
+    window.addEventListener('blur', handleWindowBlur);
+    return () => window.removeEventListener('blur', handleWindowBlur);
   }, [handleSelectTreePath]);
 
   const {
@@ -589,6 +596,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
         browserMenuRef={browserMenuRef}
         browserMenuItems={browserMenuItems}
         setBrowserMenuOpen={setBrowserMenuOpen}
+        activatedTabIdsRef={activatedTabIdsRef}
         iframeRef={iframeRef}
         primaryRef={primaryRef}
         handleIframeLoad={handleIframeLoad}
