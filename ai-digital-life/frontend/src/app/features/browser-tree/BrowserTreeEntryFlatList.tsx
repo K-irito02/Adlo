@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { IconMoreVertical, IconRefreshCw } from '../../icons';
+import { IconClose, IconMoreVertical, IconRefreshCw } from '../../icons';
 import { TooltipSimple } from '../../components/Tooltip';
 import { BrowserFavicon } from '../../components/BrowserFavicon';
 import { useTCopy } from '../../i18n/useTCopy';
@@ -12,6 +12,7 @@ interface BrowserTreeEntryFlatListProps {
   onFlatTabClick: (node: BrowserTreeNode) => void;
   onTabContextMenu: (x: number, y: number, node: BrowserTreeNode) => void;
   onRefreshTab: (tabId: string, url: string) => void;
+  onCloseTab: (tabId: string) => void;
 }
 
 export const BrowserTreeEntryFlatList = React.memo(function BrowserTreeEntryFlatList({
@@ -20,6 +21,7 @@ export const BrowserTreeEntryFlatList = React.memo(function BrowserTreeEntryFlat
   onFlatTabClick,
   onTabContextMenu,
   onRefreshTab,
+  onCloseTab,
 }: BrowserTreeEntryFlatListProps) {
   const { t } = useTCopy();
 
@@ -56,6 +58,16 @@ export const BrowserTreeEntryFlatList = React.memo(function BrowserTreeEntryFlat
     [onRefreshTab]
   );
 
+  const handleCloseClick = useCallback(
+    (node: BrowserTreeNode) => (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (node.tabId) {
+        onCloseTab(node.tabId);
+      }
+    },
+    [onCloseTab]
+  );
+
   return (
     <div className="adl-browser-entry__tree adl-browser-entry__tree--flat">
       <ul className="adl-filetree" role="tree">
@@ -67,14 +79,20 @@ export const BrowserTreeEntryFlatList = React.memo(function BrowserTreeEntryFlat
                 className="adl-browser-entry__flat-separator"
                 role="separator"
               >
-                <span className="adl-browser-entry__flat-sep-line" />
+                <span className="adl-browser-entry__flat-sep-line adl-browser-entry__flat-sep-line--left" />
                 <span className="adl-browser-entry__flat-sep-text">{item.label}</span>
-                <span className="adl-browser-entry__flat-sep-line" />
+                <span className="adl-browser-entry__flat-sep-line adl-browser-entry__flat-sep-line--right" />
               </li>
             );
           }
           const isTabSelected = selectedTreePath === item.node.path;
           const tabBtns = [
+            {
+              id: 'close',
+              label: t.browserClose,
+              icon: <IconClose size={12} decorative />,
+              isClose: true,
+            },
             {
               id: 'refresh',
               label: t.browserRefreshMeta,
@@ -118,11 +136,13 @@ export const BrowserTreeEntryFlatList = React.memo(function BrowserTreeEntryFlat
                       <TooltipSimple key={btn.id} content={btn.label} placement="top">
                         <button
                           type="button"
-                          className="adl-icon-btn adl-icon-btn--xs"
+                          className={`adl-icon-btn adl-icon-btn--xs${btn.isClose ? ' adl-icon-btn--danger-hover' : ''}`}
                           onClick={
-                            btn.id === 'more'
-                              ? handleMoreClick(item.node)
-                              : handleRefreshClick(item.node)
+                            btn.id === 'close'
+                              ? handleCloseClick(item.node)
+                              : btn.id === 'more'
+                                ? handleMoreClick(item.node)
+                                : handleRefreshClick(item.node)
                           }
                           aria-label={btn.label}
                         >

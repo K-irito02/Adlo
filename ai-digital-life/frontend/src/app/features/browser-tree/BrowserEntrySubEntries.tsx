@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { IconPlus, IconTrash, IconMoreVertical, IconRefreshCw } from '../../icons';
+import { IconClose, IconPlus, IconTrash, IconMoreVertical, IconRefreshCw } from '../../icons';
 import { FileTree } from '../file-tree';
 import { TooltipSimple } from '../../components/Tooltip';
 import { useTCopy } from '../../i18n/useTCopy';
@@ -211,8 +211,14 @@ function getTabContextMenuItems(
 
 function getTabHoverButtons(
   t: CopyDict
-): Array<{ id: string; label: string; icon: React.ReactNode }> {
+): Array<{ id: string; label: string; icon: React.ReactNode; isClose?: boolean }> {
   return [
+    {
+      id: 'close',
+      label: t.browserClose,
+      icon: <IconClose size={12} decorative />,
+      isClose: true,
+    },
     {
       id: 'refresh',
       label: t.browserRefreshMeta,
@@ -324,10 +330,14 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
               <TooltipSimple key={btn.id} content={btn.label} placement="top">
                 <button
                   type="button"
-                  className="adl-icon-btn adl-icon-btn--xs"
+                  className={`adl-icon-btn adl-icon-btn--xs${btn.isClose ? ' adl-icon-btn--danger-hover' : ''}`}
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (btn.id === 'more') {
+                    if (btn.id === 'close') {
+                      if (childNode.tabId) {
+                        callbacks.onCloseTab(childNode.tabId);
+                      }
+                    } else if (btn.id === 'more') {
                       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
                       setChildMenuState({
                         x: rect.right + 4,
@@ -456,8 +466,7 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
     () =>
       filterTabIds
         ? node.children.filter(
-            (child) =>
-              child.kind === 'directory' || (child.tabId && filterTabIds.has(child.tabId))
+            (child) => child.kind === 'directory' || (child.tabId && filterTabIds.has(child.tabId))
           )
         : node.children,
     [node.children, filterTabIds]

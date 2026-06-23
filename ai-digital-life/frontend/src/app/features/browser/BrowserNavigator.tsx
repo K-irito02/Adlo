@@ -381,6 +381,7 @@ export function BrowserNavigator({
             onCopyTabLink: handleCopyTabLink,
             onOpenTabInNewTab: handleOpenTabInNewTab,
             onOpenTabInCurrentTab: handleOpenTabInCurrentTab,
+            onCloseTab: (tabId) => handleDeleteTab(tabId, ''),
           }}
           labels={{
             workspaceCategory: t.browserCategoryWorkspace,

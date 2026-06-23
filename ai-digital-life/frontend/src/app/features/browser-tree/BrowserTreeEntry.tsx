@@ -302,6 +302,7 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
           setContextMenuForTab({ x, y, node: tabNode });
         }}
         onRefreshTab={callbacks.onRefreshTab}
+        onCloseTab={callbacks.onCloseTab}
       />
     ) : null;
 
