@@ -8,12 +8,18 @@ export type FlatItem =
   | { type: 'tab'; node: BrowserTreeNode }
   | { type: 'separator'; label: string };
 
-export function buildFlatTabItems(node: BrowserTreeNode, showSeparators: boolean): FlatItem[] {
+export function buildFlatTabItems(
+  node: BrowserTreeNode,
+  showSeparators: boolean,
+  filterTabIds?: Set<string>
+): FlatItem[] {
   const items: FlatItem[] = [];
 
   for (const child of node.children) {
     if (child.kind === 'file') {
-      items.push({ type: 'tab', node: child });
+      if (!filterTabIds || (child.tabId && filterTabIds.has(child.tabId))) {
+        items.push({ type: 'tab', node: child });
+      }
     }
   }
 
@@ -21,9 +27,12 @@ export function buildFlatTabItems(node: BrowserTreeNode, showSeparators: boolean
     if (dir.kind !== 'directory') {
       continue;
     }
-    const subItems = collectSubDirItems(dir, dir.name, showSeparators);
+    const subItems = collectSubDirItems(dir, dir.name, showSeparators, filterTabIds);
     if (subItems.length > 0) {
-      if (showSeparators) {
+      const hasDirectTabs = dir.children.some(
+        (c) => c.kind === 'file' && (!filterTabIds || (c.tabId && filterTabIds.has(c.tabId)))
+      );
+      if (showSeparators && hasDirectTabs) {
         items.push({ type: 'separator', label: dir.name });
       }
       items.push(...subItems);
@@ -36,13 +45,16 @@ export function buildFlatTabItems(node: BrowserTreeNode, showSeparators: boolean
 export function collectSubDirItems(
   dir: BrowserTreeNode,
   pathSoFar: string,
-  showSeparators: boolean
+  showSeparators: boolean,
+  filterTabIds?: Set<string>
 ): FlatItem[] {
   const items: FlatItem[] = [];
 
   for (const child of dir.children) {
     if (child.kind === 'file') {
-      items.push({ type: 'tab', node: child });
+      if (!filterTabIds || (child.tabId && filterTabIds.has(child.tabId))) {
+        items.push({ type: 'tab', node: child });
+      }
     }
   }
 
@@ -51,9 +63,12 @@ export function collectSubDirItems(
       continue;
     }
     const childPath = `${pathSoFar}/${subDir.name}`;
-    const deeper = collectSubDirItems(subDir, childPath, showSeparators);
+    const deeper = collectSubDirItems(subDir, childPath, showSeparators, filterTabIds);
     if (deeper.length > 0) {
-      if (showSeparators) {
+      const hasDirectTabs = subDir.children.some(
+        (c) => c.kind === 'file' && (!filterTabIds || (c.tabId && filterTabIds.has(c.tabId)))
+      );
+      if (showSeparators && hasDirectTabs) {
         items.push({ type: 'separator', label: childPath });
       }
       items.push(...deeper);
