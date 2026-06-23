@@ -163,6 +163,13 @@ export const IconImagePlus = make(
   </>
 );
 
+export const IconFileBadge = make(
+  <>
+    <path d="M3 3a2 2 0 0 1 2-2h9.982a2 2 0 0 1 1.414.586l4.018 4.018A2 2 0 0 1 21 7.018V21a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3Z" />
+    <path d="M8 12h8" />
+  </>
+);
+
 export const IconFileTree = make(
   <>
     <path d="M3 3h6v4H3zM3 10h6v4H3zM3 17h6v4H3z" />

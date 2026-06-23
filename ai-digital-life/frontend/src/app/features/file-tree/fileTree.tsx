@@ -7,7 +7,7 @@ import React, {
   useMemo,
   type RefObject,
 } from 'react';
-import { IconAlertTriangle, IconCircle } from '../../icons';
+import { IconAlertTriangle, IconCircle, FileBadgeIcon } from '../../icons';
 import { getFileTreeVisualSpec } from './fileTreeVisuals';
 import { CustomScrollArea } from './CustomScrollArea';
 import { TreeNodeRow } from './TreeNodeRow';
@@ -123,10 +123,9 @@ function VirtualNodeComponent<T extends FileTreeRenderableNode>({
         ) : (
           <span
             className={`adl-filetree__file-icon adl-filetree__file-icon--${fileVisual?.tone ?? 'default'}`}
+            aria-hidden="true"
           >
-            <span className="adl-filetree__file-badge" aria-hidden="true">
-              {fileVisual?.label ?? 'FILE'}
-            </span>
+            <FileBadgeIcon variant={fileVisual?.icon ?? 'badge'} size={14} decorative />
           </span>
         )
       }

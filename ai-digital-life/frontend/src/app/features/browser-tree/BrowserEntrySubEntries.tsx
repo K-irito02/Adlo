@@ -408,10 +408,10 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
   );
 
   const renderBrowserIcon = useCallback((childNode: BrowserTreeNode) => {
-    if (!childNode.url || childNode.kind === 'directory') {
+    if (childNode.kind === 'directory') {
       return null;
     }
-    return <BrowserFavicon url={childNode.url} />;
+    return <BrowserFavicon url={childNode.url || ''} />;
   }, []);
 
   const handleChildContextMenu = useCallback(

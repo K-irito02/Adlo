@@ -160,8 +160,10 @@ export interface BrowserSlice {
   browserWorkspaceId: string;
 
   browserNavigateInPlace: boolean;
+  showLandingPage: boolean;
   browserNavigateActiveTab: (url: string, title?: string) => void;
   setBrowserNavigateInPlace: (value: boolean) => void;
+  setShowLandingPage: (value: boolean) => void;
   setBrowserNavigatorWidth: (width: number) => void;
   toggleBrowserNavigator: () => void;
   setBrowserNavigatorCollapsed: (collapsed: boolean) => void;
@@ -183,6 +185,7 @@ export const createBrowserSlice = (
     browserPersisted: false,
     browserWorkspaceId: '',
     browserNavigateInPlace: false,
+    showLandingPage: false,
 
     browserNavigateActiveTab: (url: string, title?: string) => {
       set((state) => {
@@ -252,6 +255,10 @@ export const createBrowserSlice = (
     setBrowserNavigateInPlace: (value: boolean) => {
       scheduleWrite(BROWSER_NAVIGATE_IN_PLACE_KEY, value);
       set({ browserNavigateInPlace: value });
+    },
+
+    setShowLandingPage: (value: boolean) => {
+      set({ showLandingPage: value });
     },
 
     toggleBrowserNavigator: () =>

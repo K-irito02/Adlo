@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { IconSettings, IconRefreshCw, IconMoreVertical } from '../../icons';
+import { IconSettings, IconRefreshCw, IconMoreVertical, IconFolder } from '../../icons';
 import { FileTree } from '../file-tree';
 import { TooltipSimple } from '../../components/Tooltip';
 import { MenuHintItem } from '../../regions/right-panel/panels/communicate/MenuHintItem';
@@ -72,8 +72,11 @@ export const GitHubEntrySubEntries = React.memo(function GitHubEntrySubEntries({
   const renderSubEntryIcon = useCallback((childNode: GitHubTreeNode) => {
     if (childNode.nodeType === 'folder') {
       return (
-        <span className="adl-filetree__file-icon adl-filetree__file-icon--default">
-          <span className="adl-filetree__file-badge">DIR</span>
+        <span
+          className="adl-filetree__file-icon adl-filetree__file-icon--default"
+          aria-hidden="true"
+        >
+          <IconFolder size={14} decorative />
         </span>
       );
     }

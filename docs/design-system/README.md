@@ -26,7 +26,8 @@ frontend/src/
 │   │   ├── slices/        # 12 个独立切片
 │   │   └── actions/       # 8 个跨切片 action 模块
 │   ├── i18n/              # 国际化拆分（13 领域 / 889 keys，TCopyContext + useTCopy 驱动）
-│   ├── icons/             # SVG 图标拆分（4 文件：core/file/actions/status）
+│   ├── icons/             # SVG 图标拆分（5 文件：core/file/badges/actions/status）
+│   │   │                   # - badges/  文件类型徽章图标（20 语义化图标，见 components.md）
 │   ├── features/          # 功能模块（file-tree/terminal/browser/diff-viewer/...）
 │   └── regions/           # 布局区域（left-sidebar/right-panel/center-pane）
 ├── styles/

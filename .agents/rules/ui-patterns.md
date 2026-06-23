@@ -489,6 +489,7 @@ renderEmptyState({ icon, title, description, action })
 | 我要做按钮 | [§6 按钮](#6-按钮button) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md) |
 | 我要做 "!" 提示 | [§7 Hint Card](#7--解释子卡片hint-card) → [ContextMenu.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/components/ContextMenu.tsx) |
 | 我要做文件树 | [§8 文件树](#8-文件树file-tree) → [css-architecture.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/.agents/rules/css-architecture.md) |
+| 我要做文件类型徽章图标 | [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md#file-type-badge-icons) |
 | 我要做 Tooltip | [§9 Tooltip](#9-tooltip) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md) |
 | 我要做 Toast | [§10 Toast](#10-toast-通知) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md) |
 | 我要做输入框 | [§11 输入框](#11-输入框input) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md) |

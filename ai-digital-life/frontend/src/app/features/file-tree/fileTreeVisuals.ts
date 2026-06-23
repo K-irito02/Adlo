@@ -1,4 +1,5 @@
 import type { WorkspaceTreeNode } from '@ai-digital-life/kernel';
+import type { FileBadgeVariant } from '../../icons';
 
 export type FileTreeVisualTone =
   | 'default'
@@ -46,13 +47,52 @@ export interface FileTreeVisualSpec {
   kind: 'badge';
   label: string;
   tone: FileTreeVisualTone;
+  icon: FileBadgeVariant;
 }
+
+const TONE_TO_ICON: Record<FileTreeVisualTone, FileBadgeVariant> = {
+  default: 'badge',
+  typescript: 'typescript',
+  javascript: 'javascript',
+  node: 'config',
+  python: 'python',
+  java: 'systems',
+  go: 'systems',
+  rust: 'systems',
+  cfamily: 'systems',
+  csharp: 'systems',
+  php: 'systems',
+  ruby: 'systems',
+  swift: 'systems',
+  kotlin: 'systems',
+  shell: 'script',
+  powershell: 'script',
+  markup: 'markup',
+  stylesheet: 'style',
+  json: 'data',
+  yaml: 'config',
+  config: 'config',
+  markdown: 'doc',
+  doc: 'doc',
+  text: 'doc',
+  sheet: 'sheet',
+  slide: 'slide',
+  pdf: 'doc',
+  image: 'image',
+  vector: 'image',
+  audio: 'audio',
+  video: 'video',
+  font: 'font',
+  archive: 'archive',
+  database: 'database',
+};
 
 function makeBadgeSpec(label: string, tone: FileTreeVisualTone): FileTreeVisualSpec {
   return {
     kind: 'badge',
     label: compactBadgeLabel(label),
     tone,
+    icon: TONE_TO_ICON[tone],
   };
 }
 

@@ -509,30 +509,6 @@
   overflow: hidden;
 }
 
-.adl-filetree__file-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2ch;
-  min-width: 2ch;
-  max-width: 2ch;
-  height: 18px;
-  padding: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  color: var(--adl-file-badge-ink);
-  font-size: 10px;
-  font-weight: var(--font-bold);
-  font-family: ui-monospace, 'SFMono-Regular', 'Cascadia Mono', 'Fira Code', Consolas, monospace;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-  letter-spacing: 0;
-  text-transform: uppercase;
-  white-space: nowrap;
-  text-align: center;
-}
-
 .adl-filetree__file-icon--default {
   --adl-file-badge-ink: var(--adl-file-badge-ink-default);
 }

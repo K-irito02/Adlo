@@ -70,6 +70,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
   const [, forceRender] = useState(0);
   const submitVersionRef = useRef(0);
   const pendingNavigationsRef = useRef<Set<string>>(new Set());
+  const addressSubmittedForTabRef = useRef('');
 
   const handleNavigationStart = useCallback((url: string) => {
     // Track pending navigation so handlePageMeta creates tab only when real title arrives
@@ -300,12 +301,14 @@ export function BrowserPanel(props: BrowserPanelProps) {
   const submitAddress = useCallback(async () => {
     const input = address.trim();
     if (!input) {
-      if (activeTab?.id && activeTab?.url) {
-        browserUpdateTab(activeTab.id, { url: '' });
-      }
+      addressSubmittedForTabRef.current = 'about:blank';
       setAddress('');
+      useAppStore.getState().setShowLandingPage(true);
       return;
     }
+
+    addressSubmittedForTabRef.current = '';
+    useAppStore.getState().setShowLandingPage(false);
     const matchedItem = findInBrowserLookupIndex(browserLookupIndex, input);
     const finalUrl = matchedItem?.url
       ? matchedItem.url
@@ -378,9 +381,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
     }
   }, [
     address,
-    activeTab,
     browserLookupIndex,
-    browserUpdateTab,
     handleNavigationStart,
     navigateBrowser,
     navigateTauriUrl,
@@ -407,6 +408,13 @@ export function BrowserPanel(props: BrowserPanelProps) {
     navigateBrowser,
   });
 
+  const activeTabUrl =
+    addressSubmittedForTabRef.current === (activeTab?.url || 'about:blank')
+      ? activeTab?.url === 'about:blank'
+        ? ''
+        : (activeTab?.url ?? '')
+      : '';
+
   const urlState = useBrowserUrlState({
     address,
     addressExpanded,
@@ -415,16 +423,19 @@ export function BrowserPanel(props: BrowserPanelProps) {
     setAddress,
     setAddressExpanded,
     submitAddress,
-    activeTabUrl: activeTab?.url,
+    activeTabUrl,
   });
 
   useEffect(() => {
     const url = activeTab?.url ?? '';
-    requestAnimationFrame(() => {
-      setAddress(url);
-    });
+    addressSubmittedForTabRef.current = url || 'about:blank';
+    setAddress(url === 'about:blank' ? '' : url);
 
-    if (!isTauriShell() && url && url !== '') {
+    if (url && url !== '' && url !== 'about:blank') {
+      useAppStore.getState().setShowLandingPage(false);
+    }
+
+    if (!isTauriShell() && url && url !== '' && url !== 'about:blank') {
       requestAnimationFrame(() => {
         setIframeHistory((prev) => {
           if (prev.entries[prev.index] === url) {
@@ -439,7 +450,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
         });
       });
     }
-  }, [activeTab?.url, setAddress, setIframeHistory]);
+  }, [activeTab?.id, activeTab?.url, setAddress, setIframeHistory]);
 
   // Validate active tab URL before allowing iframe to render
   // Handles page reload, bookmark/history clicks, and tab switches

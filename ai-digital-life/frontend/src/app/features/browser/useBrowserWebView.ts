@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { isTauriShell } from '../../../tauri-bridge';
+import { useAppStore } from '../../stores/slicedStore';
 import type { BrowserTabState } from '../../stores/slices/browserSlice';
 
 interface UseBrowserWebViewOptions {
@@ -43,6 +44,8 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
   const domOverlayActiveRef = useRef(false);
   const activeTabRef = useRef(activeTab);
   activeTabRef.current = activeTab;
+
+  const showLandingPage = useAppStore((state) => state.showLandingPage);
 
   // 通过 ref 同步，让 MutationObserver 回调可读取最新值，无需经过 React 渲染周期
   const overlayActiveRef = useRef(overlayActive);
@@ -344,7 +347,7 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
       return;
     }
     const url = activeTab?.url;
-    if (!url || url === 'about:blank' || url.trim() === '') {
+    if (showLandingPage || !url || url === 'about:blank' || url.trim() === '') {
       if (webViewActiveRef.current) {
         webViewHiddenByEmptyUrlRef.current = true;
         recentNavigatedUrlsRef.current.clear();
@@ -354,7 +357,14 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
     }
     webViewHiddenByEmptyUrlRef.current = false;
     navigateTauriUrl(url);
-  }, [activeTab?.id, activeTab?.url, webViewDisabled, navigateTauriUrl, hideWebView]);
+  }, [
+    activeTab?.id,
+    activeTab?.url,
+    showLandingPage,
+    webViewDisabled,
+    navigateTauriUrl,
+    hideWebView,
+  ]);
 
   useEffect(() => {
     return () => {

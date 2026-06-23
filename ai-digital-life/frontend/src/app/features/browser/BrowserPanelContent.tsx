@@ -329,7 +329,7 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
         addressSearchRef={urlState.addressSearchRef}
         addressInputRef={urlState.addressInputRef}
         activeTab={activeTab}
-        isBookmarked={isBookmarked}
+        isBookmarked={urlState.address ? isBookmarked : false}
         browserMenuOpen={browserMenuOpen}
         browserMenuRef={browserMenuRef}
         browserMenuItems={browserMenuItems}
@@ -345,7 +345,7 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
         onSearchClick={urlState.handleSearchClick}
         onCopyUrl={urlState.handleCopyUrl}
         onNewTab={() => browserOpenTab()}
-        onOpenBookmarkDialog={handleOpenBookmarkDialog}
+        onOpenBookmarkDialog={urlState.address ? handleOpenBookmarkDialog : () => {}}
         onToggleBrowserMenu={() => setBrowserMenuOpen((value) => !value)}
         onCloseBrowserMenu={() => setBrowserMenuOpen(false)}
       />
@@ -414,7 +414,10 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
         />
 
         <div className="adl-tool-primary adl-tool-primary--browser" ref={primaryRef}>
-          {!hasActiveTab || !activeTab?.url || activeTab?.url === 'about:blank' ? (
+          {!urlState.address ||
+          !hasActiveTab ||
+          !activeTab?.url ||
+          activeTab?.url === 'about:blank' ? (
             <div className="adl-tool-primary__scroll adl-tool-primary__scroll--browser">
               <BrowserLandingPage t={t} />
             </div>

@@ -262,6 +262,54 @@ renderIcon("alert-triangle", { size: "lg", title: "Warning" });
 
 To register a new icon, append a path string to `ICON_PATHS` in `icons.ts` and extend the `IconName` union — TypeScript will warn on every invalid usage.
 
+## File-type badge icons
+
+Source of truth: `[frontend/src/app/icons/badges.tsx](../../frontend/src/app/icons/badges.tsx)` (icon components), `[frontend/src/app/features/file-tree/fileTreeVisuals.ts](../../frontend/src/app/features/file-tree/fileTreeVisuals.ts)` (tone→icon mapping).
+
+File-type badge icons render inside the file tree's `adl-filetree__file-icon` slot (20×18 px area). Unlike the generic icon system, badge icons are **semantic**: each file type or language gets a distinct shape paired with its tone color.
+
+### Icon catalogue
+
+| Variant | Shape | Semantic | Example tones | Used by |
+|---------|-------|----------|---------------|---------|
+| `typescript` | Shield | Type safety | `typescript` (blue) | `.ts`, `.tsx`, `.mts`, `.cts` |
+| `javascript` | Diamond | Dynamic / versatile | `javascript` (amber) | `.js`, `.jsx`, `.mjs`, `.cjs` |
+| `python` | Double wave | Python's snake | `python` (green) | `.py`, `.ipynb` |
+| `systems` | Concentric circles | Core / fundamental | `rust`, `go`, `java`, `cfamily`, … | Compiled / JVM / systems languages |
+| `markup` | Angle brackets `<>` | HTML tags | `markup` (orange) | `.html`, `.xml`, `.vue`, `.svelte` |
+| `style` | Hash `#` | CSS selector | `stylesheet` (blue) | `.css`, `.scss`, `.less` |
+| `data` | Curly braces `{}` | JSON / serialization | `json` (amber) | `.json`, `.jsonc` |
+| `script` | Prompt `>` | Terminal | `shell` (green), `powershell` (blue) | `.sh`, `.ps1`, `.bat` |
+| `config` | Slider control | Settings | `config`, `node`, `yaml` | `.toml`, `.ini`, `package.json`, … |
+| `doc` | Page with fold | Document | `doc` (gray), `pdf` (red), `markdown` (blue) | `.pdf`, `.docx`, `.md`, … |
+| `text` | Page with lines | Plain text | `text` (gray) | `.txt`, `.log` |
+| `sheet` | Grid | Spreadsheet | `sheet` (green) | `.csv`, `.xlsx`, `.ods` |
+| `slide` | Screen + stand | Presentation | `slide` (amber) | `.ppt`, `.odp` |
+| `image` | Mountain + sun | Visual media | `image` (pink), `vector` (purple) | `.png`, `.jpg`, `.svg` |
+| `audio` | Eighth note | Audio | `audio` (teal) | `.mp3`, `.wav`, `.flac` |
+| `video` | Play triangle | Video | `video` (amber) | `.mp4`, `.mov` |
+| `archive` | Box + dividers | Compressed | `archive` (amber) | `.zip`, `.rar`, `.7z` |
+| `database` | Cylinder | Database | `database` (teal) | `.sql`, `.db`, `.sqlite` |
+| `font` | Letter A | Font | `font` (purple) | `.ttf`, `.otf`, `.woff` |
+| `badge` | Document + line | Fallback | `default` (gray) | Unknown / uncategorised |
+
+### Tone → icon mapping
+
+Defined in `TONE_TO_ICON` (`fileTreeVisuals.ts:53`). Each `FileTreeVisualTone` maps to a `FileBadgeVariant`. The tone also determines the CSS colour via `--adl-file-badge-ink-*` tokens in `themes.css`.
+
+### Adding a new badge variant
+
+1. Add a new icon component via `make()` in `badges.tsx`.
+2. Append the variant string to the `FileBadgeVariant` type union.
+3. Register it in the `ICON_MAP` constant.
+4. Add the tone→icon mapping in `TONE_TO_ICON` (`fileTreeVisuals.ts`).
+
+Visual design rules:
+- All badge icons use `viewBox="0 0 24 24"`, `fill="none"`, `stroke="currentColor"`, `strokeWidth=2`, round caps/joins.
+- Shapes must be recognisable at 14 px rendering (the standard badge size).
+- Each variant should have a visually distinct silhouette from other variants.
+- The `badge` variant (document + line) serves as the universal fallback.
+
 ## Component catalogue (CSS only)
 
 The stylesheet also ships ready-to-use classes that helpers don't expose yet but consumers can render directly:
