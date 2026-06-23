@@ -36,6 +36,7 @@ export interface BrowserNavigatorProps {
   allTreeExpanded: boolean;
   browserShowTabButtons: boolean;
   browserViewMode: 'default' | 'tree' | 'list' | 'all';
+  onlyOpenTabs: boolean;
 
   // Navigator mode
   navigatorMode: BrowserNavigatorMode;
@@ -117,6 +118,7 @@ export function BrowserNavigator({
   allTreeExpanded,
   browserShowTabButtons,
   browserViewMode,
+  onlyOpenTabs,
   navigatorMode,
   browserNavigatorWidth,
   onToggleTabButtons,
@@ -357,6 +359,7 @@ export function BrowserNavigator({
           onSelectTreePath={handleSelectTreePath}
           onTogglePath={handleToggleTreePath}
           browserViewMode={browserViewMode !== 'default' ? browserViewMode : undefined}
+          onlyOpenTabs={onlyOpenTabs}
           callbacks={{
             onCreateTab: (workspaceId?: string, folderId?: string) => {
               setCreateTabDialog({ open: true, workspaceId, folderId });

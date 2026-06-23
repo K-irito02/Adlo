@@ -304,6 +304,8 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
     return rawNavigatorTitle;
   }, [browserShowTabButtons, browserViewMode, rawNavigatorTitle, t]);
 
+  const onlyOpenTabs = navigatorMode === 'tabs' && browserShowTabButtons;
+
   const { handlePointerDown: handleNavigatorResizeStart } = useNavigatorResize({
     onWidthCommit: setBrowserNavigatorWidth,
     minWidth: 180,
@@ -365,6 +367,7 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
           allTreeExpanded={allTreeExpanded}
           browserShowTabButtons={browserShowTabButtons}
           browserViewMode={browserViewMode}
+          onlyOpenTabs={onlyOpenTabs}
           navigatorMode={navigatorMode}
           browserNavigatorWidth={browserNavigatorWidth}
           onToggleTabButtons={handleToggleTabButtons}
