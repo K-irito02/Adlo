@@ -392,14 +392,43 @@ await page.click('.adl-multitree-entry__expand-btn:first-child');
 
 #### 标签悬停按钮（v2026-06-22 新增，v2026-06-23 更新）
 
-鼠标悬停标签行时，右侧浮现两个操作按钮：
+鼠标悬停标签行时，右侧浮现三个操作按钮：
 
 | 按钮 | 图标 | 说明 |
 |------|------|------|
+| 关闭 | `IconClose` | 关闭标签（保留书签），悬停变红 |
 | 刷新Logo/标题 | `IconRefreshCw` | 与右键菜单"刷新Logo/标题"功能一致 |
 | 更多操作 | `IconMoreVertical` | 点击弹出右键菜单 |
 
-**选择器**：`.adl-browser-node__actions` + `.adl-icon-btn--xs`
+**选择器**：`.adl-browser-node__actions` + `.adl-icon-btn--xs`、`.adl-icon-btn--danger-hover`（关闭按钮悬停变红）
+
+#### 已打开标签模式（v2026-06-23 新增）
+
+点击工具栏"已打开标签"按钮后，出现的三视图模式（文件树/文件列表/全列表）**仅显示已打开的标签**：
+
+| 特性 | 说明 |
+|------|------|
+| 空目录过滤 | 没有已打开标签的目录不显示 |
+| 分隔行过滤 | 目录没有已打开标签时不显示对应分隔行 |
+| 历史分类隐藏 | 已打开标签模式下，历史分类被隐藏 |
+| 切换标签不刷新 | 使用多 iframe 堆叠方案，每个标签的 iframe 保持挂载，切换时仅切换可见性 |
+
+**自动化测试：**
+```javascript
+// 验证已打开标签模式过滤（中文环境）
+// 1. 确保有标签在不同目录中打开
+// 2. 点击"已打开标签"按钮
+// 3. 验证历史分类不存在
+await expect(page.locator('.adl-multitree-category__row:has-text("历史")')).not.toBeVisible();
+
+// 4. 验证只显示有标签的目录
+const entries = await page.locator('.adl-browser-entry__header').all();
+for (const entry of entries) {
+  // 每个显示的目录行下至少应有一个标签
+  const children = await entry.locator('..').locator('.adl-browser-entry__tree .adl-filetree__item').all();
+  expect(children.length).toBeGreaterThan(0);
+}
+```
 
 #### 目录右键菜单（v2026-06-23 新增）
 
@@ -566,6 +595,7 @@ await page.click('button:has-text("应用")');
 | 切回浏览器面板 | WebView 重新定位到内容区，**页面不刷新，状态保持** | iframe 恢复显示，**页面不刷新** |
 | 收起右侧面板 | WebView 离屏隐藏（同上） | iframe 隐藏（同上） |
 | 展开右侧面板 | WebView 重新定位到内容区 | iframe 恢复显示 |
+| 切换标签页（v2026-06-23 新增） | 单 WebView 导航到新 URL（页面重新加载） | 多 iframe 堆叠：每个已查看标签的 iframe 保持挂载（隐藏状态），仅切换可见性；**页面不刷新，状态保持** |
 | 浮动元素打开（对话框/菜单等） | WebView 被瞬移到离屏位置 `(-10000,-10000)`，**菜单/对话框正常显示**，关闭后恢复 | iframe 不受影响（HTML 层叠上下文） |
 | 鼠标悬停/拖拽右侧面板左边缘 | WebView 保持可见，resize handle 已左扩 8px 进入中心区域躲避 WebView，**拖拽线可正常操作** | 不受影响，CSS z-index 已提升到 `var(--z-tooltip)` (90) |
 
