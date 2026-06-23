@@ -24,6 +24,7 @@ interface BrowserTreeEntryProps {
   callbacks: SectionCallbacks;
   counts: Map<string, number>;
   browserViewMode?: 'tree' | 'list' | 'all';
+  filterTabIds?: Set<string>;
 }
 
 export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
@@ -37,6 +38,7 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
   callbacks,
   counts,
   browserViewMode,
+  filterTabIds,
 }: BrowserTreeEntryProps) {
   const { t } = useTCopy();
   const isSelected = selectedTreePath === node.path;
@@ -264,8 +266,8 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
   );
 
   const flatItems = useMemo(
-    () => (isFlatMode && isExpanded ? buildFlatTabItems(node, showSeparators) : []),
-    [node, isFlatMode, isExpanded, showSeparators]
+    () => (isFlatMode && isExpanded ? buildFlatTabItems(node, showSeparators, filterTabIds) : []),
+    [node, isFlatMode, isExpanded, showSeparators, filterTabIds]
   );
 
   const handleFlatTabClick = useCallback(
@@ -493,6 +495,7 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
           onOpenFile={onOpenFile}
           callbacks={callbacks}
           counts={counts}
+          filterTabIds={filterTabIds}
         />
       )}
     </MultiTreeEntryShell>

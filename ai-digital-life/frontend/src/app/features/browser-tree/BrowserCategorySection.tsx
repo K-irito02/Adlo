@@ -32,6 +32,7 @@ interface BrowserCategorySectionProps {
   callbacks: SectionCallbacks;
   counts: Map<string, number>;
   browserViewMode?: 'tree' | 'list' | 'all';
+  filterTabIds?: Set<string>;
 }
 
 export function BrowserCategorySection({
@@ -45,6 +46,7 @@ export function BrowserCategorySection({
   callbacks,
   counts,
   browserViewMode,
+  filterTabIds,
 }: BrowserCategorySectionProps) {
   const handleOpenFile = useCallback((path: string) => onOpenFile(path), [onOpenFile]);
 
@@ -73,6 +75,7 @@ export function BrowserCategorySection({
             callbacks={callbacks}
             counts={counts}
             browserViewMode={browserViewMode}
+            filterTabIds={filterTabIds}
           />
         ))}
       </div>

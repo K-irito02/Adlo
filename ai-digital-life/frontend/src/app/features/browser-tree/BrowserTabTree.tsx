@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { useBrowserTreeData } from './useBrowserTreeData';
 import { BrowserCategorySection } from './BrowserCategorySection';
 import { CustomScrollArea } from '../file-tree/CustomScrollArea';
@@ -48,6 +48,7 @@ interface BrowserTabTreeProps {
   callbacks: BrowserTabTreeCallbacks;
   labels: BrowserCategoryLabels;
   browserViewMode?: 'tree' | 'list' | 'all';
+  onlyOpenTabs?: boolean;
 }
 
 export function BrowserTabTree({
@@ -63,6 +64,7 @@ export function BrowserTabTree({
   callbacks,
   labels,
   browserViewMode,
+  onlyOpenTabs = false,
 }: BrowserTabTreeProps) {
   const categories = useBrowserTreeData(
     workspaces,
@@ -71,6 +73,11 @@ export function BrowserTabTree({
     browserHistory,
     browserWorkspaceBookmarks,
     labels
+  );
+
+  const openTabIds = useMemo(
+    () => (onlyOpenTabs ? new Set(browserTabs.map((t) => t.id)) : undefined),
+    [onlyOpenTabs, browserTabs]
   );
 
   const handleOpenFile = useCallback(
@@ -113,6 +120,7 @@ export function BrowserTabTree({
         callbacks={callbacks}
         counts={categories.counts}
         browserViewMode={browserViewMode}
+        filterTabIds={openTabIds}
       />
       <BrowserCategorySection
         category={categories.userFolderCategory}
@@ -125,19 +133,22 @@ export function BrowserTabTree({
         callbacks={callbacks}
         counts={categories.counts}
         browserViewMode={browserViewMode}
+        filterTabIds={openTabIds}
       />
-      <BrowserCategorySection
-        category={categories.historyCategory}
-        categoryType="history"
-        expandedPaths={tabTreeExpanded}
-        selectedTreePath={selectedTreePath}
-        onSelectTreePath={onSelectTreePath}
-        onTogglePath={onTogglePath}
-        onOpenFile={handleOpenFile}
-        callbacks={callbacks}
-        counts={categories.counts}
-        browserViewMode={browserViewMode}
-      />
+      {!onlyOpenTabs && (
+        <BrowserCategorySection
+          category={categories.historyCategory}
+          categoryType="history"
+          expandedPaths={tabTreeExpanded}
+          selectedTreePath={selectedTreePath}
+          onSelectTreePath={onSelectTreePath}
+          onTogglePath={onTogglePath}
+          onOpenFile={handleOpenFile}
+          callbacks={callbacks}
+          counts={categories.counts}
+          browserViewMode={browserViewMode}
+        />
+      )}
     </CustomScrollArea>
   );
 }

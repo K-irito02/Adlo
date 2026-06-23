@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { IconPlus, IconTrash, IconMoreVertical, IconRefreshCw } from '../../icons';
 import { FileTree } from '../file-tree';
@@ -21,6 +21,7 @@ interface BrowserEntrySubEntriesProps {
   onOpenFile: (path: string) => void;
   callbacks: SectionCallbacks;
   counts: Map<string, number>;
+  filterTabIds?: Set<string>;
 }
 
 function getChildNodeHoverButtons(
@@ -235,6 +236,7 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
   onOpenFile,
   callbacks,
   counts,
+  filterTabIds,
 }: BrowserEntrySubEntriesProps) {
   const { t } = useTCopy();
   const isExpanded = expandedPaths[node.path] ?? false;
@@ -450,11 +452,22 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
     [hideChildHint]
   );
 
+  const filteredNodes = useMemo(
+    () =>
+      filterTabIds
+        ? node.children.filter(
+            (child) =>
+              child.kind === 'directory' || (child.tabId && filterTabIds.has(child.tabId))
+          )
+        : node.children,
+    [node.children, filterTabIds]
+  );
+
   const fileTreeChildren =
-    isExpanded && node.children.length > 0 ? (
+    isExpanded && filteredNodes.length > 0 ? (
       <div className="adl-browser-entry__tree">
         <FileTree<BrowserTreeNode>
-          nodes={node.children}
+          nodes={filteredNodes}
           selectedFilePath={selectedTreePath ?? undefined}
           expandedPaths={expandedPaths}
           onToggle={handleChildClick}
