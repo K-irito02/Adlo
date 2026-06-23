@@ -104,9 +104,19 @@ export function useBrowserTabs() {
 
   const handleCloseTab = useCallback(
     (tabId: string) => {
+      const state = useAppStore.getState();
+      const tab = state.browserTabs.find((t) => t.id === tabId);
+      if (tab) {
+        browserRemoveTabBookmarks(tabId, tab.url || '');
+        if (tab.url) {
+          clearFaviconCacheForUrl(tab.url);
+          clearPageMetaCacheForUrl(tab.url);
+        }
+        unlockTabTitle(tabId);
+      }
       browserCloseTab(tabId);
     },
-    [browserCloseTab]
+    [browserCloseTab, browserRemoveTabBookmarks]
   );
 
   const handleCloseAllTabs = useCallback(
@@ -120,7 +130,8 @@ export function useBrowserTabs() {
           clearPageMetaCacheForUrl(url);
         }
         for (const tabId of allTabIds) {
-          browserRemoveTabBookmarks(tabId, '');
+          const tab = state.browserTabs.find((t) => t.id === tabId);
+          browserRemoveTabBookmarks(tabId, tab?.url || '');
           unlockTabTitle(tabId);
         }
       }

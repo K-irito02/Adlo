@@ -1,6 +1,7 @@
 import type { StoreApi } from 'zustand';
 import type { StoreState } from '../StoreState';
 import { clearError, captureError } from '../shared';
+import { scheduleCrossSliceWrite } from '../storageHelpers';
 import { stripWorkspaceFromBrowserState } from './browserCleanupHelpers';
 
 export function createBrowserCleanupActions(
@@ -10,8 +11,8 @@ export function createBrowserCleanupActions(
   return {
     /**
      * [cleanupRemovedWorkspaceTree - 清理已移除工作区的状态缓存]
-     * @reads workspaceSlice.workspaceTrees, workspaceSlice.workspaceTreeLoading, workspaceSlice.workspaceTreeErrors, workspaceSlice.workspaceTreeExpandedInFileNav, browserSlice.browserTabs, browserSlice.browserTabFolders, browserSlice.browserWorkspaceExpanded, browserSlice.browserActiveTabId
-     * @writes workspaceSlice.workspaceTrees, workspaceSlice.workspaceTreeLoading, workspaceSlice.workspaceTreeErrors, workspaceSlice.workspaceTreeExpandedInFileNav, browserSlice.browserTabs, browserSlice.browserTabsById, browserSlice.browserTabFolders, browserSlice.browserWorkspaceExpanded, browserSlice.browserActiveTabId
+     * @reads workspaceSlice.workspaceTrees, workspaceSlice.workspaceTreeLoading, workspaceSlice.workspaceTreeErrors, workspaceSlice.workspaceTreeExpandedInFileNav, browserSlice.browserTabs, browserSlice.browserTabFolders, browserSlice.browserWorkspaceExpanded, browserSlice.browserActiveTabId, browserSlice.browserWorkspaceBookmarks
+     * @writes workspaceSlice.workspaceTrees, workspaceSlice.workspaceTreeLoading, workspaceSlice.workspaceTreeErrors, workspaceSlice.workspaceTreeExpandedInFileNav, browserSlice.browserTabs, browserSlice.browserTabsById, browserSlice.browserTabFolders, browserSlice.browserWorkspaceExpanded, browserSlice.browserActiveTabId, browserSlice.browserWorkspaceBookmarks
      * @see — 无桥接调用 (本地内存清理)
      */
     cleanupRemovedWorkspaceTree: (workspaceId: string) => {
@@ -22,38 +23,26 @@ export function createBrowserCleanupActions(
       const { [workspaceId]: _omitExpanded, ...restExpanded } =
         state.workspaceTreeExpandedInFileNav;
 
-      // Strip this workspace's data from the in-memory browser state so the
-      // navigator (workspace tree) and per-workspace expansion map do not
-      // retain references to a deleted workspace.
       const cleaned = stripWorkspaceFromBrowserState(
         workspaceId,
         state.browserTabs,
         state.browserTabFolders,
         state.browserWorkspaceExpanded,
+        state.browserWorkspaceBookmarks,
         state.browserActiveTabId
       );
 
-      // Persist the filtered slices back to localStorage so the cleanup
-      // survives page reload.
-      if (typeof localStorage !== 'undefined') {
-        try {
-          localStorage.setItem('adl-ui:browser-tabs', JSON.stringify(cleaned.browserTabs));
-          localStorage.setItem(
-            'adl-ui:browser-tab-folders',
-            JSON.stringify(cleaned.browserTabFolders)
-          );
-          localStorage.setItem(
-            'adl-ui:browser-workspace-expanded',
-            JSON.stringify(cleaned.browserWorkspaceExpanded)
-          );
-          localStorage.setItem(
-            'adl-ui:browser-active-tab',
-            JSON.stringify(cleaned.browserActiveTabId)
-          );
-        } catch {
-          /* localStorage unavailable (private mode) — in-memory state still updated */
-        }
-      }
+      scheduleCrossSliceWrite('adl-ui:browser-tabs', cleaned.browserTabs);
+      scheduleCrossSliceWrite('adl-ui:browser-tab-folders', cleaned.browserTabFolders);
+      scheduleCrossSliceWrite(
+        'adl-ui:browser-workspace-expanded',
+        cleaned.browserWorkspaceExpanded
+      );
+      scheduleCrossSliceWrite('adl-ui:browser-active-tab', cleaned.browserActiveTabId);
+      scheduleCrossSliceWrite(
+        'adl-ui:browser-workspace-bookmarks',
+        cleaned.browserWorkspaceBookmarks
+      );
 
       set({
         workspaceTrees: restTrees,
@@ -64,6 +53,7 @@ export function createBrowserCleanupActions(
         browserTabsById: cleaned.browserTabsById,
         browserTabFolders: cleaned.browserTabFolders,
         browserWorkspaceExpanded: cleaned.browserWorkspaceExpanded,
+        browserWorkspaceBookmarks: cleaned.browserWorkspaceBookmarks,
         browserActiveTabId: cleaned.browserActiveTabId,
       });
     },

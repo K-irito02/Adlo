@@ -9,6 +9,7 @@ export interface BrowserCleanupResult {
   browserTabsById: Record<string, BrowserTabState>;
   browserTabFolders: TabFolderState[];
   browserWorkspaceExpanded: Record<string, boolean>;
+  browserWorkspaceBookmarks: Record<string, string[]>;
   browserActiveTabId: string;
 }
 
@@ -22,6 +23,7 @@ export function stripWorkspaceFromBrowserState(
   currentTabs: BrowserTabState[],
   currentFolders: TabFolderState[],
   currentExpanded: Record<string, boolean>,
+  currentWorkspaceBookmarks: Record<string, string[]>,
   currentActiveTabId: string
 ): BrowserCleanupResult {
   const browserTabs = currentTabs.filter((t) => t.workspaceId !== workspaceId);
@@ -30,6 +32,8 @@ export function stripWorkspaceFromBrowserState(
   );
   const browserWorkspaceExpanded: Record<string, boolean> = { ...currentExpanded };
   delete browserWorkspaceExpanded[workspaceId];
+
+  const { [workspaceId]: _omit, ...browserWorkspaceBookmarks } = currentWorkspaceBookmarks;
 
   const browserTabsById: Record<string, BrowserTabState> = {};
   for (const t of browserTabs) {
@@ -45,6 +49,7 @@ export function stripWorkspaceFromBrowserState(
     browserTabsById,
     browserTabFolders,
     browserWorkspaceExpanded,
+    browserWorkspaceBookmarks,
     browserActiveTabId,
   };
 }

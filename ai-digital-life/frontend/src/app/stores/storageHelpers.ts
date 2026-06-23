@@ -121,3 +121,5 @@ export function createDebouncedWrite(waitMs: number) {
 
   return { scheduleWrite, scheduleNumberWrite };
 }
+
+export const { scheduleWrite: scheduleCrossSliceWrite } = createDebouncedWrite(50);

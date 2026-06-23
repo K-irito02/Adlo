@@ -49,9 +49,7 @@ describe('buildFlatTabItems with filterTabIds', () => {
   });
 
   it('skips empty directories when filtering', () => {
-    const dir = makeDirNode('EmptyDir', 'dir', [
-      makeTabNode('t1', 'Tab1'),
-    ]);
+    const dir = makeDirNode('EmptyDir', 'dir', [makeTabNode('t1', 'Tab1')]);
     const root = makeDirNode('root', 'root', [dir]);
     const filterTabIds = new Set(['t2']);
     const result = buildFlatTabItems(root, true, filterTabIds);
@@ -82,9 +80,7 @@ describe('buildFlatTabItems with filterTabIds', () => {
   });
 
   it('recursively filters nested directories', () => {
-    const nested = makeDirNode('Inner', 'outer/inner', [
-      makeTabNode('t1', 'Tab1'),
-    ]);
+    const nested = makeDirNode('Inner', 'outer/inner', [makeTabNode('t1', 'Tab1')]);
     const outer = makeDirNode('Outer', 'outer', [nested]);
     const root = makeDirNode('root', 'root', [outer]);
     const filterTabIds = new Set(['t1']);

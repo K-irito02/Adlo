@@ -162,7 +162,8 @@ export function useBrowserTreeActions() {
         clearPageMetaCacheForUrl(url);
       }
       for (const tabId of tabIds) {
-        browserRemoveTabBookmarks(tabId, '');
+        const tab = state.browserTabs.find((t) => t.id === tabId);
+        browserRemoveTabBookmarks(tabId, tab?.url || '');
         unlockTabTitle(tabId);
       }
 
@@ -235,7 +236,8 @@ export function useBrowserTreeActions() {
         clearPageMetaCacheForUrl(url);
       }
       for (const tabId of tabIds) {
-        browserRemoveTabBookmarks(tabId, '');
+        const tab = state.browserTabs.find((t) => t.id === tabId);
+        browserRemoveTabBookmarks(tabId, tab?.url || '');
         unlockTabTitle(tabId);
       }
 
@@ -334,7 +336,8 @@ export function useBrowserTreeActions() {
             clearPageMetaCacheForUrl(url);
           }
           for (const tabId of allTabIds) {
-            browserRemoveTabBookmarks(tabId, '');
+            const tab = state.browserTabs.find((t) => t.id === tabId);
+            browserRemoveTabBookmarks(tabId, tab?.url || '');
             unlockTabTitle(tabId);
           }
         }

@@ -56,32 +56,36 @@ export const createBrowserBookmarkSlice = (
       let nextFolders = state.browserTabFolders;
       let nextWorkspaceBookmarks = state.browserWorkspaceBookmarks;
 
-      if (exists && active) {
-        // 从文件夹中移除
-        nextFolders = state.browserTabFolders.map((folder) => {
-          if (folder.tabs && folder.tabs.includes(active.id)) {
-            return {
-              ...folder,
-              tabs: folder.tabs.filter((tabId) => tabId !== active.id),
-            };
-          }
-          return folder;
-        });
-        scheduleWrite(BROWSER_TAB_FOLDERS_KEY, nextFolders);
+      if (exists) {
+        const tabIdsForUrl = new Set(
+          state.browserTabs.filter((tab) => tab.url === url).map((tab) => tab.id)
+        );
 
-        // 从工作区顶级目录中移除
-        nextWorkspaceBookmarks = { ...state.browserWorkspaceBookmarks };
-        for (const wsId of Object.keys(nextWorkspaceBookmarks)) {
-          if (nextWorkspaceBookmarks[wsId].includes(active.id)) {
-            nextWorkspaceBookmarks[wsId] = nextWorkspaceBookmarks[wsId].filter(
-              (tabId) => tabId !== active.id
-            );
-            if (nextWorkspaceBookmarks[wsId].length === 0) {
-              delete nextWorkspaceBookmarks[wsId];
+        if (tabIdsForUrl.size > 0) {
+          nextFolders = state.browserTabFolders.map((folder) => {
+            if (folder.tabs && folder.tabs.some((tid) => tabIdsForUrl.has(tid))) {
+              return {
+                ...folder,
+                tabs: folder.tabs.filter((tid) => !tabIdsForUrl.has(tid)),
+              };
+            }
+            return folder;
+          });
+          scheduleWrite(BROWSER_TAB_FOLDERS_KEY, nextFolders);
+
+          nextWorkspaceBookmarks = { ...state.browserWorkspaceBookmarks };
+          for (const wsId of Object.keys(nextWorkspaceBookmarks)) {
+            if (nextWorkspaceBookmarks[wsId].some((tid) => tabIdsForUrl.has(tid))) {
+              nextWorkspaceBookmarks[wsId] = nextWorkspaceBookmarks[wsId].filter(
+                (tid) => !tabIdsForUrl.has(tid)
+              );
+              if (nextWorkspaceBookmarks[wsId].length === 0) {
+                delete nextWorkspaceBookmarks[wsId];
+              }
             }
           }
+          scheduleWrite(BROWSER_WORKSPACE_BOOKMARKS_KEY, nextWorkspaceBookmarks);
         }
-        scheduleWrite(BROWSER_WORKSPACE_BOOKMARKS_KEY, nextWorkspaceBookmarks);
       }
 
       scheduleWrite(BROWSER_BOOKMARKS_KEY, nextBookmarks);

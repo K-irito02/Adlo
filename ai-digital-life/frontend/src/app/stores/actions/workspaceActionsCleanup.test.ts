@@ -24,7 +24,7 @@ function makeFolder(
 describe('stripWorkspaceFromBrowserState (cleanup on workspace delete)', () => {
   it('removes all tabs of the target workspace, keeps others', () => {
     const tabs = [makeTab('t1', 'ws-a'), makeTab('t2', 'ws-b'), makeTab('t3', 'ws-a')];
-    const result = stripWorkspaceFromBrowserState('ws-a', tabs, [], {}, 't1');
+    const result = stripWorkspaceFromBrowserState('ws-a', tabs, [], {}, {}, 't1');
     expect(result.browserTabs.map((t) => t.id)).toEqual(['t2']);
     expect(result.browserTabsById['t2']).toBeDefined();
     expect(result.browserTabsById['t1']).toBeUndefined();
@@ -37,7 +37,7 @@ describe('stripWorkspaceFromBrowserState (cleanup on workspace delete)', () => {
       makeFolder('f3', 'f1', 'folder'),
       makeFolder('f4', undefined, undefined),
     ];
-    const result = stripWorkspaceFromBrowserState('ws-a', [], folders, {}, '');
+    const result = stripWorkspaceFromBrowserState('ws-a', [], folders, {}, {}, '');
     expect(result.browserTabFolders.map((f) => f.id)).toEqual(['f2', 'f3', 'f4']);
   });
 
@@ -46,33 +46,33 @@ describe('stripWorkspaceFromBrowserState (cleanup on workspace delete)', () => {
       makeFolder('f-root', 'ws-a', 'workspace'),
       makeFolder('f-child', 'f-root', 'folder'),
     ];
-    const result = stripWorkspaceFromBrowserState('ws-a', [], folders, {}, '');
+    const result = stripWorkspaceFromBrowserState('ws-a', [], folders, {}, {}, '');
     // f-root is removed; f-child is kept (its parentType is folder, not workspace)
     expect(result.browserTabFolders.map((f) => f.id)).toEqual(['f-child']);
   });
 
   it("removes the target workspace's key from browserWorkspaceExpanded", () => {
     const expanded = { 'ws-a': true, 'ws-b': false, 'ws-c': true };
-    const result = stripWorkspaceFromBrowserState('ws-a', [], [], expanded, '');
+    const result = stripWorkspaceFromBrowserState('ws-a', [], [], expanded, {}, '');
     expect(result.browserWorkspaceExpanded).toEqual({ 'ws-b': false, 'ws-c': true });
   });
 
   it('preserves browserActiveTabId when the active tab survives the filter', () => {
     const tabs = [makeTab('t1', 'ws-a'), makeTab('t2', 'ws-b')];
-    const result = stripWorkspaceFromBrowserState('ws-a', tabs, [], {}, 't2');
+    const result = stripWorkspaceFromBrowserState('ws-a', tabs, [], {}, {}, 't2');
     expect(result.browserActiveTabId).toBe('t2');
   });
 
   it('falls back to last surviving tab when active tab is removed', () => {
     const tabs = [makeTab('t1', 'ws-a'), makeTab('t2', 'ws-a'), makeTab('t3', 'ws-b')];
-    const result = stripWorkspaceFromBrowserState('ws-a', tabs, [], {}, 't1');
+    const result = stripWorkspaceFromBrowserState('ws-a', tabs, [], {}, {}, 't1');
     // t1 is gone; last surviving tab is t3
     expect(result.browserActiveTabId).toBe('t3');
   });
 
   it('returns empty activeTabId when all tabs are removed', () => {
     const tabs = [makeTab('t1', 'ws-a')];
-    const result = stripWorkspaceFromBrowserState('ws-a', tabs, [], {}, 't1');
+    const result = stripWorkspaceFromBrowserState('ws-a', tabs, [], {}, {}, 't1');
     expect(result.browserTabs).toEqual([]);
     expect(result.browserActiveTabId).toBe('');
     expect(result.browserTabsById).toEqual({});
@@ -82,10 +82,25 @@ describe('stripWorkspaceFromBrowserState (cleanup on workspace delete)', () => {
     const tabs = [makeTab('t1', 'ws-a')];
     const folders = [makeFolder('f1', 'ws-b', 'workspace')];
     const expanded = { 'ws-b': true };
-    const result = stripWorkspaceFromBrowserState('ws-nonexistent', tabs, folders, expanded, 't1');
+    const wsBookmarks = { 'ws-a': ['t1'], 'ws-b': ['t2'] };
+    const result = stripWorkspaceFromBrowserState(
+      'ws-nonexistent',
+      tabs,
+      folders,
+      expanded,
+      wsBookmarks,
+      't1'
+    );
     expect(result.browserTabs).toEqual(tabs);
     expect(result.browserTabFolders).toEqual(folders);
     expect(result.browserWorkspaceExpanded).toEqual(expanded);
+    expect(result.browserWorkspaceBookmarks).toEqual(wsBookmarks);
     expect(result.browserActiveTabId).toBe('t1');
+  });
+
+  it('removes the target workspace key from browserWorkspaceBookmarks', () => {
+    const wsBookmarks = { 'ws-a': ['t1', 't2'], 'ws-b': ['t3'] };
+    const result = stripWorkspaceFromBrowserState('ws-a', [], [], {}, wsBookmarks, '');
+    expect(result.browserWorkspaceBookmarks).toEqual({ 'ws-b': ['t3'] });
   });
 });
