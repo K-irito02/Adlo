@@ -121,7 +121,6 @@ export function useBrowserPageMeta(
         if (!isTabTitleLocked(exactMatch.id) && exactMatch.title !== pageTitle) {
           state.browserUpdateTab(exactMatch.id, { title: pageTitle });
         }
-        state.browserUpdateBookmarkTitle(meta.url, pageTitle);
         state.browserUpdateHistoryTitle(meta.url, pageTitle);
         return;
       }
@@ -137,7 +136,6 @@ export function useBrowserPageMeta(
           }
           state.browserUpdateTab(activeTab.id, { url: meta.url, title: pageTitle });
           state.browserAddToHistory(meta.url, pageTitle);
-          state.browserUpdateBookmarkTitle(meta.url, pageTitle);
           state.browserUpdateHistoryTitle(meta.url, pageTitle);
           return;
         }

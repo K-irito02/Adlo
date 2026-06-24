@@ -210,15 +210,19 @@ function getTabContextMenuItems(
 }
 
 function getTabHoverButtons(
-  t: CopyDict
+  t: CopyDict,
+  showClose: boolean
 ): Array<{ id: string; label: string; icon: React.ReactNode; isClose?: boolean }> {
-  return [
-    {
+  const btns: Array<{ id: string; label: string; icon: React.ReactNode; isClose?: boolean }> = [];
+  if (showClose) {
+    btns.push({
       id: 'close',
       label: t.browserClose,
       icon: <IconClose size={12} decorative />,
       isClose: true,
-    },
+    });
+  }
+  btns.push(
     {
       id: 'refresh',
       label: t.browserRefreshMeta,
@@ -228,8 +232,9 @@ function getTabHoverButtons(
       id: 'more',
       label: t.browserContextMore,
       icon: <IconMoreVertical size={12} decorative />,
-    },
-  ];
+    }
+  );
+  return btns;
 }
 
 export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries({
@@ -323,7 +328,7 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
         childNode.kind === 'file' &&
         (childNode.nodeType === 'tab' || childNode.nodeType === 'history')
       ) {
-        const btns = getTabHoverButtons(t);
+        const btns = getTabHoverButtons(t, !!callbacks.onCloseTab);
         return (
           <span className="adl-browser-node__actions">
             {btns.map((btn) => (
@@ -335,7 +340,7 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
                     e.stopPropagation();
                     if (btn.id === 'close') {
                       if (childNode.tabId) {
-                        callbacks.onCloseTab(childNode.tabId);
+                        callbacks.onCloseTab?.(childNode.tabId);
                       }
                     } else if (btn.id === 'more') {
                       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();

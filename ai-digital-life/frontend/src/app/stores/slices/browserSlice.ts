@@ -34,8 +34,6 @@ const BROWSER_ACTIVE_TAB_KEY = 'adl-ui:browser-active-tab';
 const BROWSER_NAVIGATOR_WIDTH_KEY = 'adl-ui:browser-navigator-width';
 const BROWSER_WORKSPACE_EXPANDED_KEY = 'adl-ui:browser-workspace-expanded';
 const BROWSER_TAB_FOLDERS_KEY = 'adl-ui:browser-tab-folders';
-const BROWSER_VIEW_MODE_KEY = 'adl-ui:browser-view-mode';
-const BROWSER_SHOW_TAB_BUTTONS_KEY = 'adl-ui:browser-show-tab-buttons';
 const BROWSER_HISTORY_KEY = 'adl-ui:browser-history';
 const BROWSER_BOOKMARKS_KEY = 'adl-ui:browser-bookmarks';
 const BROWSER_SHORTCUTS_KEY = 'adl-ui:browser-shortcuts';
@@ -107,11 +105,6 @@ function hydrateBrowserDefaults(
       ? state.browserWorkspaceBookmarks
       : readJson<Record<string, string[]>>(BROWSER_WORKSPACE_BOOKMARKS_STORAGE_KEY, {});
 
-    const viewMode = readJson<'default' | 'tree' | 'list' | 'all'>(
-      BROWSER_VIEW_MODE_KEY,
-      'default'
-    );
-    const showTabButtons = readJson<boolean>(BROWSER_SHOW_TAB_BUTTONS_KEY, false);
     const persistedTabTreeExpanded = readJson<Record<string, boolean>>(
       BROWSER_TREE_EXPANDED_KEY,
       {}
@@ -135,8 +128,6 @@ function hydrateBrowserDefaults(
       browserTabs: finalTabs,
       browserTabsById: buildTabsById(finalTabs),
       browserActiveTabId: finalActiveTabId,
-      browserViewMode: viewMode,
-      browserShowTabButtons: showTabButtons,
       browserNavigateInPlace: navigateInPlace,
       browserTabTreeExpanded: persistedTabTreeExpanded,
       browserShortcuts: shortcuts,
@@ -154,8 +145,6 @@ function hydrateBrowserDefaults(
 
 export interface BrowserSlice {
   browserNavigatorWidth: number;
-  browserViewMode: 'default' | 'tree' | 'list' | 'all';
-  browserShowTabButtons: boolean;
   browserPersisted: boolean;
   browserWorkspaceId: string;
 
@@ -167,8 +156,6 @@ export interface BrowserSlice {
   setBrowserNavigatorWidth: (width: number) => void;
   toggleBrowserNavigator: () => void;
   setBrowserNavigatorCollapsed: (collapsed: boolean) => void;
-  setBrowserViewMode: (mode: 'default' | 'tree' | 'list' | 'all') => void;
-  setBrowserShowTabButtons: (show: boolean) => void;
   setBrowserPersisted: (persisted: boolean) => void;
   setBrowserWorkspaceId: (workspaceId: string) => void;
 }
@@ -180,8 +167,6 @@ export const createBrowserSlice = (
   hydrateBrowserDefaults(get, set);
   return {
     browserNavigatorWidth: DEFAULT_BROWSER_NAVIGATOR_WIDTH,
-    browserViewMode: 'default',
-    browserShowTabButtons: false,
     browserPersisted: false,
     browserWorkspaceId: '',
     browserNavigateInPlace: false,
@@ -211,6 +196,8 @@ export const createBrowserSlice = (
           scheduleWrite(BROWSER_TABS_KEY, nextTabs);
           scheduleWrite(BROWSER_ACTIVE_TAB_KEY, nextActiveTabId);
         } else {
+          const oldUrl = activeTab.url;
+          const oldTitle = activeTab.title;
           nextTabs = nextTabs.map((tab) => {
             if (tab.id === state.browserActiveTabId) {
               return {
@@ -221,6 +208,17 @@ export const createBrowserSlice = (
             }
             return tab;
           });
+          if (oldUrl !== url || (title && title !== oldTitle)) {
+            const isBookmarked = state.browserBookmarks.some((b) => b.url === oldUrl);
+            console.log('[ADL-DEBUG] browserNavigateActiveTab: tab updated', {
+              tabId: activeTab.id,
+              oldUrl,
+              newUrl: url,
+              oldTitle,
+              newTitle: title || oldTitle,
+              isBookmarked,
+            });
+          }
           scheduleWrite(BROWSER_TABS_KEY, nextTabs);
         }
 
@@ -277,16 +275,6 @@ export const createBrowserSlice = (
         scheduleWrite(BROWSER_NAVIGATOR_COLLAPSED_KEY, next);
         return { navigatorCollapsedByTool: next };
       }),
-
-    setBrowserViewMode: (mode) => {
-      scheduleWrite(BROWSER_VIEW_MODE_KEY, mode);
-      set({ browserViewMode: mode });
-    },
-
-    setBrowserShowTabButtons: (show) => {
-      scheduleWrite(BROWSER_SHOW_TAB_BUTTONS_KEY, show);
-      set({ browserShowTabButtons: show });
-    },
 
     setBrowserPersisted: (persisted) => set({ browserPersisted: persisted }),
 

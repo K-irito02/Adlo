@@ -173,16 +173,10 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
     selectedTreePathRef,
     handleSelectTreePath,
     activatedTabIdsRef,
-    // --- toast ---
     showToast,
   } = props;
 
-  // --- store selectors for content rendering (passed from BrowserPanel) ---
   const {
-    browserViewMode,
-    browserShowTabButtons,
-    setBrowserViewMode,
-    setBrowserShowTabButtons,
     browserNavigatorWidth,
     navigatorCollapsedByTool,
     setBrowserNavigatorWidth,
@@ -196,10 +190,6 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
     browserOpenTab,
   } = useAppStore(
     useShallow((state) => ({
-      browserViewMode: state.browserViewMode,
-      browserShowTabButtons: state.browserShowTabButtons,
-      setBrowserViewMode: state.setBrowserViewMode,
-      setBrowserShowTabButtons: state.setBrowserShowTabButtons,
       browserNavigatorWidth: state.browserNavigatorWidth,
       navigatorCollapsedByTool: state.navigatorCollapsedByTool,
       setBrowserNavigatorWidth: state.setBrowserNavigatorWidth,
@@ -218,36 +208,12 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
 
   const inactiveIframeRef = useRef<HTMLIFrameElement | null>(null);
 
-  // --- Memos and callbacks for content rendering ---
   const handleToggleNavigateMode = useCallback(
     (checked: boolean) => {
       setBrowserNavigateInPlace(checked);
     },
     [setBrowserNavigateInPlace]
   );
-
-  const handleToggleTabButtons = useCallback(() => {
-    if (browserShowTabButtons) {
-      setBrowserShowTabButtons(false);
-      setBrowserViewMode('default');
-    } else {
-      setBrowserShowTabButtons(true);
-      setBrowserViewMode('tree');
-    }
-  }, [browserShowTabButtons, setBrowserShowTabButtons, setBrowserViewMode]);
-
-  const handleSetBrowserViewMode = useCallback(
-    (mode: 'tree' | 'list' | 'all') => {
-      setBrowserViewMode(mode);
-      setBrowserShowTabButtons(true);
-    },
-    [setBrowserViewMode, setBrowserShowTabButtons]
-  );
-
-  const handleDirectListView = useCallback(() => {
-    setBrowserViewMode('list');
-    setNavigatorMode('tabs');
-  }, [setBrowserViewMode, setNavigatorMode]);
 
   const handleOpenTabFromTree = useCallback(
     (url: string, tabId?: string) => {
@@ -289,27 +255,15 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
   const openTabCount = navigatorCount;
 
   const rawNavigatorTitle =
-    navigatorMode === 'tabs'
+    navigatorMode === 'open'
       ? t.browserOpenTabs
-      : navigatorMode === 'bookmarks'
-        ? t.browserSavedTabs
-        : navigatorMode === 'history'
-          ? t.browserHistoryTabs
+      : navigatorMode === 'tabs'
+        ? t.browserTabDir
+        : navigatorMode === 'list'
+          ? t.browserViewModeList
           : t.browserSearchTabs;
 
-  const navigatorTitle = useMemo(() => {
-    if (browserShowTabButtons) {
-      const modeLabels: Record<string, string> = {
-        tree: t.browserViewModeTree,
-        list: t.browserViewModeList,
-        all: t.browserViewModeAll,
-      };
-      return modeLabels[browserViewMode] || t.browserViewModeDefault;
-    }
-    return rawNavigatorTitle;
-  }, [browserShowTabButtons, browserViewMode, rawNavigatorTitle, t]);
-
-  const onlyOpenTabs = navigatorMode === 'tabs' && browserShowTabButtons;
+  const navigatorTitle = rawNavigatorTitle;
 
   const { handlePointerDown: handleNavigatorResizeStart } = useNavigatorResize({
     onWidthCommit: setBrowserNavigatorWidth,
@@ -379,18 +333,11 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
           navigatorTitle={navigatorTitle}
           openTabCount={openTabCount}
           allTreeExpanded={allTreeExpanded}
-          browserShowTabButtons={browserShowTabButtons}
-          browserViewMode={browserViewMode}
-          onlyOpenTabs={onlyOpenTabs}
           navigatorMode={navigatorMode}
           browserNavigatorWidth={browserNavigatorWidth}
-          onToggleTabButtons={handleToggleTabButtons}
-          onSetBrowserViewMode={handleSetBrowserViewMode}
-          onDirectListView={handleDirectListView}
           onExpandAllTree={handleExpandAllTree}
           onCollapseAllTree={handleCollapseAllTree}
           onSetNavigatorMode={setNavigatorMode}
-          onSetBrowserViewModeRaw={setBrowserViewMode}
           visibleWorkspaces={visibleWorkspaces}
           browserTabs={browserTabs}
           browserTabFolders={browserTabFolders}

@@ -19,7 +19,7 @@ export interface SectionCallbacks {
   onCopyTabLink: (url: string) => void;
   onOpenTabInNewTab: (url: string, title: string) => void;
   onOpenTabInCurrentTab: (tabId: string) => void;
-  onCloseTab: (tabId: string) => void;
+  onCloseTab?: (tabId: string) => void;
 }
 
 interface BrowserCategorySectionProps {

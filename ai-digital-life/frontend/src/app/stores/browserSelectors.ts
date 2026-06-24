@@ -11,12 +11,6 @@ export const browserSelectors = {
   getBrowserNavigatorWidth: (state: StoreState) => state.browserNavigatorWidth,
   useBrowserNavigatorWidth: () => useAppStore((s) => s.browserNavigatorWidth),
 
-  getBrowserViewMode: (state: StoreState) => state.browserViewMode,
-  useBrowserViewMode: () => useAppStore((s) => s.browserViewMode),
-
-  getBrowserShowTabButtons: (state: StoreState) => state.browserShowTabButtons,
-  useBrowserShowTabButtons: () => useAppStore((s) => s.browserShowTabButtons),
-
   getBrowserPersisted: (state: StoreState) => state.browserPersisted,
   useBrowserPersisted: () => useAppStore((s) => s.browserPersisted),
 

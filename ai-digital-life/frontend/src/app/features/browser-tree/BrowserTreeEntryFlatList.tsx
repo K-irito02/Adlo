@@ -12,7 +12,7 @@ interface BrowserTreeEntryFlatListProps {
   onFlatTabClick: (node: BrowserTreeNode) => void;
   onTabContextMenu: (x: number, y: number, node: BrowserTreeNode) => void;
   onRefreshTab: (tabId: string, url: string) => void;
-  onCloseTab: (tabId: string) => void;
+  onCloseTab?: (tabId: string) => void;
 }
 
 export const BrowserTreeEntryFlatList = React.memo(function BrowserTreeEntryFlatList({
@@ -61,7 +61,7 @@ export const BrowserTreeEntryFlatList = React.memo(function BrowserTreeEntryFlat
   const handleCloseClick = useCallback(
     (node: BrowserTreeNode) => (e: React.MouseEvent) => {
       e.stopPropagation();
-      if (node.tabId) {
+      if (node.tabId && onCloseTab) {
         onCloseTab(node.tabId);
       }
     },
@@ -87,19 +87,23 @@ export const BrowserTreeEntryFlatList = React.memo(function BrowserTreeEntryFlat
           }
           const isTabSelected = selectedTreePath === item.node.path;
           const tabBtns = [
+            ...(onCloseTab
+              ? [
+                  {
+                    id: 'close' as const,
+                    label: t.browserClose,
+                    icon: <IconClose size={12} decorative />,
+                    isClose: true,
+                  },
+                ]
+              : []),
             {
-              id: 'close',
-              label: t.browserClose,
-              icon: <IconClose size={12} decorative />,
-              isClose: true,
-            },
-            {
-              id: 'refresh',
+              id: 'refresh' as const,
               label: t.browserRefreshMeta,
               icon: <IconRefreshCw size={12} decorative />,
             },
             {
-              id: 'more',
+              id: 'more' as const,
               label: t.browserContextMore,
               icon: <IconMoreVertical size={12} decorative />,
             },

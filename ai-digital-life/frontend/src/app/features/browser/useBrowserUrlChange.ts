@@ -68,19 +68,83 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
       try {
         href = iframeWindow.location.href;
       } catch {
+        console.log('[ADL-DEBUG] handleIframeLoad: cross-origin, cannot read location');
         return;
       }
 
       if (!href || href === 'about:blank' || !activeTab) {
+        console.log('[ADL-DEBUG] handleIframeLoad: early return', {
+          href,
+          hasActiveTab: !!activeTab,
+        });
         return;
       }
+
+      console.log('[ADL-DEBUG] handleIframeLoad fired', {
+        href,
+        activeTabUrl: activeTab.url,
+        activeTabTitle: activeTab.title,
+        urlChanged: href !== activeTab.url,
+      });
 
       if (href !== activeTab.url) {
         setAddress(href);
-        browserNavigateActiveTab(href);
+        try {
+          const doc = iframeWindow.document;
+          const iframeTitle = doc?.title || '';
+          let iframeFavicon = '';
+          if (doc) {
+            const iconLink = doc.querySelector(
+              'link[rel="icon"], link[rel="shortcut icon"], link[rel="apple-touch-icon"]'
+            ) as HTMLLinkElement | null;
+            iframeFavicon = iconLink?.href || '';
+          }
+          console.log('[ADL-DEBUG] handleIframeLoad: same-origin navigate', {
+            href,
+            docTitle: iframeTitle,
+            docFavicon: iframeFavicon,
+            hasActiveTab: !!activeTab,
+          });
+          browserNavigateActiveTab(href, iframeTitle || undefined);
+          if (iframeTitle || iframeFavicon) {
+            onPageMeta?.({
+              title: iframeTitle || activeTab.title,
+              favicon: iframeFavicon,
+              url: href,
+            });
+          }
+        } catch {
+          /* cross-origin: navigate without title, fetch via proxy */
+          console.log('[ADL-DEBUG] handleIframeLoad: cross-origin navigate, will fetchPageMeta', {
+            href,
+          });
+          browserNavigateActiveTab(href);
+          fetchPageMeta(href).then((meta) => {
+            console.log('[ADL-DEBUG] fetchPageMeta result', { href, meta });
+            if (!meta) {
+              return;
+            }
+            const tab = activeTabRef.current;
+            if (tab) {
+              if (meta.title && meta.title !== tab.title) {
+                browserUpdateTab(tab.id, { title: meta.title });
+              }
+              if (meta.favicon) {
+                setCachedFavicon(href, meta.favicon);
+              }
+            }
+            if (meta.title) {
+              onPageMeta?.({ title: meta.title, favicon: meta.favicon || '', url: href });
+            }
+          });
+        }
         return;
       }
 
+      console.log('[ADL-DEBUG] handleIframeLoad: URL unchanged, refreshing meta', {
+        href,
+        activeTabTitle: activeTab.title,
+      });
       try {
         const doc = iframeWindow.document;
         const iframeTitle = doc?.title;
@@ -91,6 +155,11 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
           ) as HTMLLinkElement | null;
           iframeFavicon = iconLink?.href || '';
         }
+        console.log('[ADL-DEBUG] handleIframeLoad: same-origin meta refresh', {
+          iframeTitle,
+          iframeFavicon,
+          titleChanged: iframeTitle && iframeTitle !== activeTab.title,
+        });
         if (iframeTitle && iframeTitle !== activeTab.title) {
           browserUpdateTab(activeTab.id, { title: iframeTitle });
         }
@@ -103,7 +172,11 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
         }
       } catch {
         /* cross-origin: fetch via proxy */
+        console.log('[ADL-DEBUG] handleIframeLoad: cross-origin meta refresh, fetching...', {
+          href,
+        });
         fetchPageMeta(href).then((meta) => {
+          console.log('[ADL-DEBUG] fetchPageMeta result (meta refresh)', { href, meta });
           if (!meta) {
             return;
           }

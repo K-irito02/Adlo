@@ -37,6 +37,7 @@
 | 2026-06-21 | 11 | ✅ 已解决 | JSX 去重、CSS 拆分、Rust 函数拆分、CSS 硬编码清理 |
 | 2026-06-22 | 8 | ✅ 已解决 | BrowserPanel Hook 提取、Rust clone 消除、CSS !important 清理 |
 | 2026-06-23 | 11 | ✅ 已解决 | 5 组件拆分（-1789 行）、Rust 4 文件 clone 消除（-37%）、preview-bridge 13 子模块、mock shared 4 子模块 |
+| 2026-06-24 | — | ✅ 已解决 | 浏览器导航栏4模式重构、Store 简化、Flash 消除、Flat 标签溢出 ::after 蒙版修复 |
 
 ## 各日洞察摘要
 

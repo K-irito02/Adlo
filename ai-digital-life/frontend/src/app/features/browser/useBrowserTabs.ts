@@ -9,32 +9,23 @@ import {
   unlockTabTitle,
 } from '../../utils/fetchPageMeta';
 
-export type BrowserNavigatorMode = 'tabs' | 'bookmarks' | 'history' | 'search';
+export type BrowserNavigatorMode = 'open' | 'tabs' | 'list' | 'search';
 
 export function computeNavigatorCount(
   navigatorMode: BrowserNavigatorMode,
-  query: string,
+  _query: string,
   browserTabs: BrowserTabState[],
-  browserBookmarks: Array<{ title: string; url: string }>,
-  browserHistory: Array<{ title: string; url: string; visitedAt: number }>,
+  _browserBookmarks: Array<{ title: string; url: string }>,
+  _browserHistory: Array<{ title: string; url: string; visitedAt: number }>,
   searchResults: Array<{ title: string; url: string; source: string }>,
-  filteredBookmarks: Array<{ title: string; url: string }>,
-  filteredHistory: Array<{ title: string; url: string }>
+  _filteredBookmarks: Array<{ title: string; url: string }>,
+  _filteredHistory: Array<{ title: string; url: string }>
 ): number {
-  if (navigatorMode === 'tabs') {
+  if (navigatorMode === 'tabs' || navigatorMode === 'open' || navigatorMode === 'list') {
     return browserTabs.length;
   }
   if (navigatorMode === 'search') {
     return searchResults.length;
-  }
-  if (query.trim()) {
-    return navigatorMode === 'bookmarks' ? filteredBookmarks.length : filteredHistory.length;
-  }
-  if (navigatorMode === 'bookmarks') {
-    return browserBookmarks.length;
-  }
-  if (navigatorMode === 'history') {
-    return browserHistory.length;
   }
   return 0;
 }

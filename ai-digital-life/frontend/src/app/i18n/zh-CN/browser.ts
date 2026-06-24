@@ -42,7 +42,7 @@ export const browserZh = {
   browserCategoryWorkspace: '工作区目录',
   browserCategoryUserFolder: '非工作区目录',
   browserCategoryHistory: '历史目录',
-  browserOpenTabs: '已打开标签',
+  browserOpenTabs: '已打开的标签',
   browserCreateDir: '新建目录',
   browserCreateDirHint:
     '• 当选中某个目录时，点击此按钮会在该目录下新建子目录。\n• 当未选中任何目录时，会在"非工作区目录"分类下新建顶级目录。',
