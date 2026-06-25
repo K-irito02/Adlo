@@ -85,6 +85,8 @@
 | [browser-text-overflow-webview2-clip-2026-06-22.md](./浏览器/browser-text-overflow-webview2-clip-2026-06-22.md)                     | 2026-06-22 Bug 修复                         | 快捷卡片文字省略号 WebView2 点击闪烁修复：Chromium 2026 clip-on-interaction 特性导致，`-webkit-line-clamp: 1` 替代 `text-overflow: ellipsis`                                                     |
 | [browser-opened-tabs-enhancement-2026-06-23.md](./浏览器/browser-opened-tabs-enhancement-2026-06-23.md)                             | 2026-06-23 多标签页优化                     | 已打开标签模式过滤（filterTabIds）、多 iframe 状态保持（activatedTabIdsRef）、悬停关闭按钮（danger-hover）                    |
 | [browser-navigator-4-mode-2026-06-24.md](./浏览器/browser-navigator-4-mode-2026-06-24.md)                                           | 2026-06-24 导航栏重构                     | 4模式扁平按钮设计（open/tabs/list/search）、Store 简化（删除 viewMode/showTabButtons）、Flash 消除（display:none 包装）、搜索外部点击修复、Flat 模式标签溢出修复（::after 渐变蒙版）            |
+| [browser-meta-sync-mechanism-2026-06-25.md](./浏览器/browser-meta-sync-mechanism-2026-06-25.md)                                       | 2026-06-25 架构文档更新                   | 浏览器标题/favicon 双层同步机制：WebView2 postMessage + Rust 轮询、前端延迟创建策略、favicon 缓存管理、去重机制、URL 归一化规则、favicon 质量评分系统、调试日志标签体系                                   |
+| [browser-tab-meta-deferred-creation-2026-06-25.md](./浏览器/browser-tab-meta-deferred-creation-2026-06-25.md)                         | 2026-06-25 重构执行                       | 标签元数据延迟创建与同步更新：无占位符标题、path 历史去重（historyDedupKey）、后退保留真实标题、favicon 仅与标题同时缓存、树视图过滤空名称条目                                                             |
 
 ### 代码质量
 

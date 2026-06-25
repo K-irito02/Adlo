@@ -60,7 +60,21 @@
 **解决方案**：在 `onUrlChanged` 前端处理器中增加同站过滤：只有当 `actualUrl` 等于 `expectedNavigationUrlRef` 的预期 URL，或与预期 URL 同根域名（`isProbablySameSite`，处理 youtube.com → www.youtube.com 重定向）时才处理。3 秒超时后 `expectedNavigationUrlRef` 自动清除，后续页面内正常导航恢复处理。
 **关键文件**：`useBrowserWebView.ts`
 
-### 11. Favicon 预加载与标题同步
+### 11. 标签元数据延迟创建与同步更新
+
+**问题**：导航后立即创建标签并用 hostname 作为占位标题，后续 meta 上报后更新为真实标题，产生主机名→标题的可见过渡。Favicon 与标题不同步（favicon 先于标题出现）。历史记录中同一页面因 URL 变体（`?vd_source=`）产生多个条目，一个永久显示主机名。
+
+**解决方案**：
+- **延迟创建**：无活动标签时等待 `prefetchPageMeta` HTTP 预取或超时后再创建标签。有活动标签时更新 URL 但不设置占位标题。
+- **同步渲染**：仅在获得真实标题时才缓存 favicon 并更新标签，两者在同一次 Zustand 渲染中同时出现。
+- **历史 path 去重**：引入 `historyDedupKey(url)` 按 hostname+pathname 去重（忽略 query params/hash/trailing slash）。
+- **保留真实标题**：后退导航时检查历史条目是否已有真实标题，若有则保留不覆盖。
+- **树视图过滤**：历史树中过滤掉名称仍为空的条目（仅有 URL 占位标题的不可见）。
+
+**关键文件**：`useBrowserUrlChange.ts`, `useBrowserPageMeta.ts`, `browserDisplayUtils.ts`（`historyDedupKey`）, `browserSlice.ts`, `browserHistorySlice.ts`, `useBrowserTreeData.ts`
+**详细文档**：[browser-tab-meta-deferred-creation-2026-06-25.md](./browser-tab-meta-deferred-creation-2026-06-25.md)
+
+### 12. Favicon 预加载与标题同步
 **问题**：标签页创建时 favicon 图标（`<img>`）需异步从网络加载，比文本标题延迟显示 50-200ms，用户感知同步性差。
 **解决方案**：两级预加载——
 - `handleNavigationStart`：导航开始时立即 `new Image().src = googleFaviconUrl` 预加载 Google S2 favicon，给予 300ms 提前量

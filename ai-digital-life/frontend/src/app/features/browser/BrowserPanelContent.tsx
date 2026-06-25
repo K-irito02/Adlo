@@ -27,6 +27,7 @@ interface BrowserPanelContentProps {
   browserTabs: BrowserTabState[];
   handleCloseTab: (tabId: string) => void;
   handleCloseAllTabs: (workspaceId?: string) => void;
+  handleClearTabDirectories: () => void;
   handleDoubleClick: (tabId: string, title: string) => void;
   // --- useBrowserDialogs ---
   handleOpenBookmarkDialog: () => void;
@@ -121,6 +122,7 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
     browserTabs,
     handleCloseTab: _handleCloseTab,
     handleCloseAllTabs,
+    handleClearTabDirectories,
     handleDoubleClick: _handleDoubleClick,
     handleOpenBookmarkDialog,
     handleEditTab,
@@ -355,6 +357,7 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
           onDeleteDirectory={handleDeleteDirectory}
           onDeleteHistoryLevel={handleDeleteHistoryLevel}
           onCloseAllTabs={handleCloseAllTabs}
+          onClearTabDirectories={handleClearTabDirectories}
           onOpenTab={browserOpenTab}
           onOpenTabFromTree={handleOpenTabFromTree}
           onRefreshTab={handleRefreshTab}

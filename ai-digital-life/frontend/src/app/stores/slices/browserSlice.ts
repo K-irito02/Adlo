@@ -13,7 +13,7 @@ import type { BrowserTabState } from './browserTabsSlice';
 import type { BrowserBookmark } from './browserBookmarkSlice';
 import { BROWSER_WORKSPACE_BOOKMARKS_STORAGE_KEY } from './browserBookmarkSlice';
 import type { BrowserHistoryState } from './browserHistorySlice';
-import { hostnameFromUrl } from '../../utils/browserDisplayUtils';
+import { historyDedupKey } from '../../utils/browserDisplayUtils';
 import type { TabFolderState } from './browserFoldersSlice';
 import type { ShortcutSite, LocalPort, BackgroundConfig } from './browserLandingSlice';
 
@@ -181,7 +181,7 @@ export const createBrowserSlice = (
         if (!activeTab || nextTabs.length === 0) {
           const maxSortOrder =
             nextTabs.length > 0 ? Math.max(...nextTabs.map((t) => t.sortOrder)) : 0;
-          const tabTitle = title?.trim() || hostnameFromUrl(url) || url;
+          const tabTitle = title?.trim() || '';
           const newTab: BrowserTabState = {
             id: createUiId('browser'),
             workspaceId: '',
@@ -222,16 +222,33 @@ export const createBrowserSlice = (
           scheduleWrite(BROWSER_TABS_KEY, nextTabs);
         }
 
-        const historyTitle = title || hostnameFromUrl(url) || url;
-        const newHistoryItem: BrowserHistoryState = {
-          id: createUiId('history'),
-          url,
-          title: historyTitle,
-          visitedAt: Date.now(),
-        };
-
-        const filteredHistory = state.browserHistory.filter((item) => item.url !== url);
-        const nextHistory = [newHistoryItem, ...filteredHistory].slice(0, 100);
+        const dedupKey = historyDedupKey(url);
+        const existingReal = state.browserHistory.find(
+          (item) =>
+            historyDedupKey(item.url) === dedupKey && item.title && !/^https?:\/\//.test(item.title)
+        );
+        let nextHistory: BrowserHistoryState[];
+        if (existingReal) {
+          // Already have a real title — just refresh visitedAt, don't replace with URL placeholder
+          const updated = { ...existingReal, visitedAt: Date.now() };
+          const filtered = state.browserHistory.filter(
+            (item) => historyDedupKey(item.url) !== dedupKey
+          );
+          nextHistory = [updated, ...filtered].slice(0, 100);
+        } else {
+          // No real title yet — create entry (will be replaced when real title arrives)
+          const historyTitle = title || url;
+          const newItem: BrowserHistoryState = {
+            id: createUiId('history'),
+            url,
+            title: historyTitle,
+            visitedAt: Date.now(),
+          };
+          const filtered = state.browserHistory.filter(
+            (item) => historyDedupKey(item.url) !== dedupKey
+          );
+          nextHistory = [newItem, ...filtered].slice(0, 100);
+        }
 
         scheduleWrite(BROWSER_HISTORY_KEY, nextHistory);
 

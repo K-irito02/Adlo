@@ -58,7 +58,7 @@ function buildTabNode(
 function buildHistoryLeafNode(entry: BrowserHistoryState, _uniqueKey: string): BrowserTreeNode {
   return {
     path: `history-entry:${entry.id}`,
-    name: normalizeTabTitle(entry.title, entry.url) || entry.url,
+    name: normalizeTabTitle(entry.title, entry.url),
     kind: 'file',
     children: [],
     nodeType: 'history',
@@ -211,7 +211,9 @@ export function buildHistoryCategoryTree(history: BrowserHistoryState[]): Browse
           path: `history:day:${year}-${month}-${day}`,
           name: `${Number(day)}日`,
           kind: 'directory',
-          children: entries.map((entry) => buildHistoryLeafNode(entry, entry.id)),
+          children: entries
+            .map((entry) => buildHistoryLeafNode(entry, entry.id))
+            .filter((n) => n.name),
           nodeType: 'day',
         };
         monthNode.children.push(dayNode);

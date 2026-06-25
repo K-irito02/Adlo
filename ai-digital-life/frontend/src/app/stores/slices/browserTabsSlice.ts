@@ -1,6 +1,5 @@
 import type { StoreState } from '../StoreState';
 import { createUiId, createDebouncedWrite } from '../shared';
-import { hostnameFromUrl } from '../../utils/browserDisplayUtils';
 
 export interface BrowserTabState {
   id: string;
@@ -76,7 +75,7 @@ export const createBrowserTabsSlice = (
       const tab: BrowserTabState = {
         id: createUiId('browser'),
         workspaceId: workspaceId ?? '',
-        title: title?.trim() || (url ? hostnameFromUrl(url) : ''),
+        title: title?.trim() || '',
         url: url?.trim() || '',
         isPinned: false,
         sortOrder: maxSortOrder + 1,

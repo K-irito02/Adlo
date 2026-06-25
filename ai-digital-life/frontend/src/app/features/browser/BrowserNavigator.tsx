@@ -58,6 +58,7 @@ export interface BrowserNavigatorProps {
   onDeleteDirectory: (folderId: string) => void;
   onDeleteHistoryLevel: (level: 'label' | 'year' | 'month' | 'day', nodePath: string) => void;
   onCloseAllTabs: () => void;
+  onClearTabDirectories: () => void;
   onOpenTab: (url?: string, title?: string, workspaceId?: string) => void;
   onOpenTabFromTree: (url: string, tabId?: string) => void;
 
@@ -194,6 +195,7 @@ export function BrowserNavigator({
   onDeleteDirectory: handleDeleteDirectory,
   onDeleteHistoryLevel: handleDeleteHistoryLevel,
   onCloseAllTabs: handleCloseAllTabs,
+  onClearTabDirectories: handleClearTabDirectories,
   onOpenTab: browserOpenTab,
   onOpenTabFromTree: handleOpenTabFromTree,
   onRefreshTab: handleRefreshTab,
@@ -362,7 +364,7 @@ export function BrowserNavigator({
               <button
                 type="button"
                 className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-                onClick={() => handleCloseAllTabs()}
+                onClick={() => handleClearTabDirectories()}
                 aria-label={t.browserDeleteAllTabDirs}
               >
                 <IconTrash size={14} decorative />

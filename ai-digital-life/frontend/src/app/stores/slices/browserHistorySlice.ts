@@ -1,6 +1,6 @@
 import type { StoreState } from '../StoreState';
 import { createUiId, createDebouncedWrite } from '../shared';
-import { hostnameFromUrl } from '../../utils/browserDisplayUtils';
+import { historyDedupKey } from '../../utils/browserDisplayUtils';
 
 export interface BrowserHistoryState {
   id: string;
@@ -35,11 +35,14 @@ export const createBrowserHistorySlice = (
 
   browserAddToHistory: (url: string, title: string) => {
     set((state) => {
-      const filteredHistory = state.browserHistory.filter((item) => item.url !== url);
+      const dedupKey = historyDedupKey(url);
+      const filteredHistory = state.browserHistory.filter(
+        (item) => historyDedupKey(item.url) !== dedupKey
+      );
       const newHistoryItem: BrowserHistoryState = {
         id: createUiId('history'),
         url,
-        title: title || hostnameFromUrl(url) || url,
+        title: title || url,
         visitedAt: Date.now(),
       };
       const nextHistory = [newHistoryItem, ...filteredHistory].slice(0, 100);
@@ -55,11 +58,16 @@ export const createBrowserHistorySlice = (
 
   browserUpdateHistoryTitle: (url: string, title: string) => {
     set((state) => {
-      const changed = state.browserHistory.some((h) => h.url === url && h.title !== title);
+      const dedupKey = historyDedupKey(url);
+      const changed = state.browserHistory.some(
+        (h) => historyDedupKey(h.url) === dedupKey && h.title !== title
+      );
       if (!changed) {
         return state;
       }
-      const nextHistory = state.browserHistory.map((h) => (h.url === url ? { ...h, title } : h));
+      const nextHistory = state.browserHistory.map((h) =>
+        historyDedupKey(h.url) === dedupKey ? { ...h, title } : h
+      );
       scheduleWrite(BROWSER_HISTORY_KEY, nextHistory);
       return { browserHistory: nextHistory };
     });

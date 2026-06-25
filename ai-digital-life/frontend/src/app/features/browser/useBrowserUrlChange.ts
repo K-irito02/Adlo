@@ -1,8 +1,8 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { isTauriShell } from '../../../tauri-bridge';
 import type { BrowserTabState } from '../../stores/slices/browserSlice';
 import type { PageMeta } from '../../../shared/ipc';
-import { fetchPageMeta, setCachedFavicon } from '../../utils/fetchPageMeta';
+import { fetchPageMeta, prefetchPageMeta, setCachedFavicon } from '../../utils/fetchPageMeta';
 import { useAppStore } from '../../stores';
 
 interface UseBrowserUrlChangeOptions {
@@ -50,6 +50,8 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
     markUrlSeen,
     setIframeLoadError,
   } = options;
+
+  const fallbackTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   const isProbablySameSite = useCallback((expected: string, actual: string): boolean => {
     try {
@@ -251,16 +253,88 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
       markUrlSeen(normalizedUrl);
 
       const state = useAppStore.getState();
+
       const activeTabId = state.browserActiveTabId;
+      const activeTab = activeTabId
+        ? state.browserTabs.find((t: BrowserTabState) => t.id === activeTabId)
+        : undefined;
 
-      const existingTab = state.browserTabs.find(
-        (t: BrowserTabState) => normalizeUrlForCompare(t.url) === normalizedUrl
-      );
+      const urlChanged = activeTab && normalizeUrlForCompare(activeTab.url) !== normalizedUrl;
+      const noTabExists = !activeTab && !activeTabId;
 
-      if (!existingTab && !activeTabId) {
-        console.info('[browser-debug] onUrlChanged: no existing tab, creating new tab');
-        const hostname = new URL(url).hostname;
-        state.browserOpenTab(normalizedUrl, hostname);
+      if (noTabExists || urlChanged) {
+        if (noTabExists) {
+          // No active tab — defer creation until meta or fallback timeout
+          console.info('[browser-debug] onUrlChanged: no active tab, deferring creation');
+        } else {
+          // Existing tab — update URL immediately, keep old title/favicon until meta arrives
+          console.info('[browser-debug] onUrlChanged: navigating active tab');
+          state.browserNavigateActiveTab(normalizedUrl);
+        }
+
+        // Fetch real page title and favicon together via HTTP
+        prefetchPageMeta(normalizedUrl).then((meta) => {
+          const existingTimer = fallbackTimeoutsRef.current.get(normalizedUrl);
+          if (existingTimer) {
+            clearTimeout(existingTimer);
+            fallbackTimeoutsRef.current.delete(normalizedUrl);
+          }
+          if (!meta?.title) {
+            console.info('[browser-debug] prefetchPageMeta: no title in result');
+            return;
+          }
+          console.info('[browser-debug] prefetchPageMeta: title received:', meta.title);
+          const s = useAppStore.getState();
+          const activeTabId = s.browserActiveTabId;
+          const tab = activeTabId
+            ? s.browserTabs.find((t: BrowserTabState) => t.id === activeTabId)
+            : undefined;
+
+          if (tab && normalizeUrlForCompare(tab.url) === normalizedUrl) {
+            // Existing tab — cache favicon unconditionally (may differ even with same title)
+            // then update title if changed; the history update below triggers a render.
+            console.info(
+              '[browser-debug] prefetchPageMeta: tab.title:',
+              tab.title,
+              'meta.title:',
+              meta.title,
+              'same:',
+              tab.title === meta.title
+            );
+            if (meta.favicon) {
+              setCachedFavicon(normalizedUrl, meta.favicon);
+            }
+            if (tab.title !== meta.title) {
+              s.browserUpdateTab(tab.id, { title: meta.title });
+            }
+            s.browserAddToHistory(normalizedUrl, meta.title);
+            s.browserUpdateHistoryTitle(normalizedUrl, meta.title);
+          } else if (!tab) {
+            // No active tab — create one with URL and real title
+            if (meta.favicon) {
+              setCachedFavicon(normalizedUrl, meta.favicon);
+            }
+            s.browserNavigateActiveTab(normalizedUrl, meta.title);
+          }
+        });
+
+        // Fallback: only create/update tab after confirming no real title will arrive
+        const fallbackDelay = noTabExists ? 8000 : 15000;
+        const timerId = setTimeout(() => {
+          const s = useAppStore.getState();
+          const existingTab = s.browserTabs.find(
+            (t: BrowserTabState) => normalizeUrlForCompare(t.url) === normalizedUrl
+          );
+          if (existingTab) {
+            if (!existingTab.title) {
+              s.browserUpdateTab(existingTab.id, { title: normalizedUrl });
+            }
+          } else {
+            s.browserNavigateActiveTab(normalizedUrl);
+          }
+          fallbackTimeoutsRef.current.delete(normalizedUrl);
+        }, fallbackDelay);
+        fallbackTimeoutsRef.current.set(normalizedUrl, timerId);
       }
 
       const expected = expectedNavigationUrlRef.current;
@@ -281,6 +355,10 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
 
     return () => {
       unsubUrl();
+      for (const timer of fallbackTimeoutsRef.current.values()) {
+        clearTimeout(timer);
+      }
+      fallbackTimeoutsRef.current.clear();
     };
   }, [isProbablySameSite, markUrlSeen, setAddress, onNavigationStart, expectedNavigationUrlRef]);
 

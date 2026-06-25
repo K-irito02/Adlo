@@ -171,7 +171,10 @@ export async function prefetchPageMeta(
     return null;
   }
 
+  console.info('[browser-debug] prefetchPageMeta: starting for', url);
+
   if (isTauriShell()) {
+    const start = Date.now();
     try {
       const timeoutPromise = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('timeout')), PREFETCH_TIMEOUT)
@@ -180,15 +183,25 @@ export async function prefetchPageMeta(
         invoke('browser_fetch_page_meta', { url }),
         timeoutPromise,
       ])) as { ok: boolean; data: { title: string; favicon: string; url: string } };
+      const elapsed = Date.now() - start;
       if (result?.ok && result.data) {
+        console.info(
+          '[browser-debug] prefetchPageMeta: success in',
+          elapsed,
+          'ms, title:',
+          result.data.title
+        );
         return { title: result.data.title, favicon: result.data.favicon };
       }
-    } catch {
+      console.info('[browser-debug] prefetchPageMeta: result not ok in', elapsed, 'ms');
+    } catch (e) {
+      console.info('[browser-debug] prefetchPageMeta: failed after', Date.now() - start, 'ms', e);
       return null;
     }
     return null;
   }
 
+  console.info('[browser-debug] prefetchPageMeta: browser mode');
   try {
     const timeoutPromise = new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error('timeout')), PREFETCH_TIMEOUT)
@@ -196,6 +209,7 @@ export async function prefetchPageMeta(
     const meta = (await Promise.race([fetchPageMeta(url), timeoutPromise])) as Awaited<
       ReturnType<typeof fetchPageMeta>
     >;
+    console.info('[browser-debug] prefetchPageMeta: browser mode result:', meta);
     return meta;
   } catch {
     return null;

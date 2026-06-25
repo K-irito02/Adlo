@@ -48,17 +48,21 @@
 
 ### 事件订阅
 
-**位置**：`frontend/src/app/features/browser/useBrowserPageMeta.ts`
+**位置**：`frontend/src/app/features/browser/useBrowserMetaSubscription.ts`
+**位置**：`frontend/src/app/features/browser/useBrowserUrlChange.ts`
 
 - 订阅 `digital-life://browser-meta-changed` 事件（title + favicon）
 - 订阅 `digital-life://browser-url-changed` 事件（URL 变化）
 
-### URL 变化处理
+### URL 变化处理 — 延迟创建策略
 
 **位置**：`frontend/src/app/features/browser/useBrowserUrlChange.ts`
 
-- URL 变化时立即创建标签页（使用 hostname 作为临时标题）
-- 后续 meta 上报后自动更新标题和 favicon
+**核心原则**：不创建/更新带占位符标题的标签，等待真实标题和 favicon 都可用后一次性创建。
+
+- **无活动标签（noTabExists）**：延迟标签创建。启动 `prefetchPageMeta`（HTTP 预取）+ 8s 兜底定时器。预取成功时传入真实标题创建标签；超时时用 URL 作标题创建（兜底）。
+- **已有标签导航（urlChanged）**：立即更新 URL 以追踪 WebView，保持旧标题/favicon 不变。启动 `prefetchPageMeta` + 15s 兜底定时器。预取成功时同时缓存 favicon 并更新标题。
+- **always**: 当预取返回真实标题时，`setCachedFavicon` + `browserUpdateTab(title)` 在同一回调中执行 → 同一次渲染中同时出现。
 
 ### Favicon 缓存管理
 
@@ -68,13 +72,14 @@
 - 归一化规则：去除 hash、去除尾部斜杠
 - 质量评分系统：根据文件类型、尺寸、命名特征评分
 - 仅当新 favicon 评分高于现有缓存时才更新
-- 订阅机制：`BrowserFavicon` 组件订阅 favicon 变化，缓存更新后自动刷新
+- **同步规则**：`handlePageMeta` 仅在 `meta.title` 非空时才缓存 favicon。`prefetchPageMeta` 的回调中则始终缓存 favicon（即使标题与旧标题相同，触发历史更新渲染）。
 
 ### Title 处理逻辑
 
-- URL 变化时：用 hostname 作为临时标题
-- Meta 上报时：有意义的 title 才接受（非空、不等于 hostname）
-- 收藏的标签标题不受页面跳转影响（title lock 机制）
+- URL 变化时：**不设置任何占位符标题**。标签标题保持为空（新标签）或保留旧标题（已有标签导航）。
+- Meta 上报时：有意义的 title 才接受（非空、不等于 hostname），且 favicon 与 title 同时更新。
+- 收藏的标签标题不受页面跳转影响（title lock 机制）。
+- **一致性原则**：所有视图（标签栏、导航树、历史树）统一——标题为空时不显示文字，仅出现真实标题。
 
 ## 关键问题与解决方案
 
@@ -97,13 +102,18 @@
 - 双层机制：postMessage + Rust 端轮询
 - URL 变化时进入快速轮询模式，确保即使 postMessage 失败也能通过轮询获取
 
-### 问题 3：空 title 时 favicon 也不更新
+### 问题 3：空 title 时 favicon 也不更新 → ［已重构］
 
 **现象**：页面加载初期 title 为空，但 favicon 已经可用，此时 handlePageMeta 直接 return，导致 favicon 不更新。
 
-**解决方案**：
-- 空 title 时仍然缓存 favicon
-- Favicon 通过独立的缓存 + 订阅机制更新，不依赖 title
+**旧解决方案（已废弃）**：
+- ~~空 title 时仍然缓存 favicon~~
+- ~~Favicon 通过独立的缓存 + 订阅机制更新，不依赖 title~~
+
+**当前方案**（2026-06-25 重构）：
+- **不再**在空 title 时缓存 favicon——否则 favicon 会先于标题出现，破坏同步性
+- 仅在 `meta.title` 非空时才缓存 favicon，与标题更新在同一次渲染中完成
+- HTTP 预取路径（`useBrowserUrlChange.ts`）中则始终缓存 favicon（由历史条目更新触发渲染）
 
 ### 问题 4：低质量 favicon 覆盖高质量版本
 
@@ -133,14 +143,19 @@
 - 如果 `__adlGetMeta` 返回空，直接读取 `document.title` 作为备用
 - 有效性检查：确保 title 不是空的，也不是纯 hostname
 
-### 问题 7：网址输入框回车后不创建标签页
+### 问题 7：网址输入框回车后不创建标签页 → ［已重构］
 
 **现象**：用户在地址栏输入网址回车后，"已打开的标签"下没有显示标签，必须等页面 JS 上报 title 后才显示。
 
-**解决方案**：
-- 在 `onUrlChanged` 回调中立即创建标签页
-- 使用 hostname 作为临时标题
-- 后续 meta 上报后自动更新标题
+**旧解决方案（已废弃）**：
+- ~~在 `onUrlChanged` 回调中立即创建标签页~~
+- ~~使用 hostname 作为临时标题~~
+- ~~后续 meta 上报后自动更新标题~~
+
+**当前方案**（2026-06-25 重构）：
+- 有活动标签时：立即更新标签 URL，保持旧标题/favicon，不设占位符
+- 无活动标签时：延迟创建，等预取或超时后创建
+- 标签标题初始为空，不在标签栏显示文字（仅显示 favicon）
 
 ## URL 归一化规则
 
@@ -187,6 +202,20 @@ https://www.bilibili.com/video/BV123/?t=10#t=5
    - Tauri 模式：`debug-logs.txt`
    - 浏览器模式：`debug-logs-browser.txt`
 
+## 版本记录
+
+| 日期 | 变更 | 详细文档 |
+|------|------|---------|
+| 2026-06-25 | 重构：延迟创建 + 同步渲染 + 历史 path 去重 + 保留真实标题 | [browser-tab-meta-deferred-creation-2026-06-25.md](./browser-tab-meta-deferred-creation-2026-06-25.md) |
+| 2026-06-23 | 标志刷新元数据优化、已打开标签过滤增强 | 对应知识文档 |
+| 2026-06-21 | 并发去重、标题锁、favicon 质量评分 | 对应知识文档 |
+| 2026-06-20 | 导航模式切换（就地/新标签） | 对应知识文档 |
+| 2026-06-17 | Safe iframe + 嵌入检查 | 对应知识文档 |
+| 2026-06-15 | 标签目录对话框 + 扁平视图 | 对应知识文档 |
+| 2026-06-09 | 创建标签对话框修复 | 对应知识文档 |
+| 2026-06-08 | 着陆页实现 | 对应知识文档 |
+| 2026-06-04 | URL 同步修复 | 对应知识文档 |
+
 ## 相关文件
 
 ### Rust 端
@@ -199,6 +228,10 @@ https://www.bilibili.com/video/BV123/?t=10#t=5
 ### 前端
 - `frontend/src/app/features/browser/useBrowserPageMeta.ts` - 元数据处理
 - `frontend/src/app/features/browser/useBrowserUrlChange.ts` - URL 变化处理
-- `frontend/src/app/utils/fetchPageMeta.ts` - favicon 缓存管理
+- `frontend/src/app/utils/fetchPageMeta.ts` - favicon 缓存管理 + HTTP 预取
+- `frontend/src/app/utils/browserDisplayUtils.ts` - URL 标准化工具
+- `frontend/src/app/stores/slices/browserSlice.ts` - 核心浏览器切片
+- `frontend/src/app/stores/slices/browserHistorySlice.ts` - 历史条目切片
+- `frontend/src/app/stores/slices/browserTabsSlice.ts` - 标签页切片
+- `frontend/src/app/features/browser-tree/useBrowserTreeData.ts` - 树状导航数据构建
 - `frontend/src/app/components/BrowserFavicon.tsx` - favicon 组件
-- `frontend/src/app/stores/slices/browserTabsSlice.ts` - 标签页状态管理

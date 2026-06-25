@@ -193,6 +193,14 @@ export function useBrowserPageMeta(
         (t: BrowserTabState) => t.id === state.browserActiveTabId
       );
 
+      if (!meta.title) {
+        if (meta.favicon && exactMatch) {
+          console.info('[browser-debug] handlePageMeta: title empty, deferring favicon cache');
+        }
+        return;
+      }
+
+      // Cache favicon only when we have a real title — both appear in the same render
       if (meta.favicon) {
         const existingFavicon = getCachedFavicon(cleanUrl);
         if (shouldReplaceFavicon(existingFavicon, meta.favicon)) {
@@ -208,13 +216,6 @@ export function useBrowserPageMeta(
             ')'
           );
         }
-      }
-
-      if (!meta.title) {
-        if (meta.favicon && exactMatch) {
-          console.info('[browser-debug] handlePageMeta: favicon cached for existing tab');
-        }
-        return;
       }
 
       const urlHostname = hostnameFromUrl(cleanUrl);
@@ -236,6 +237,7 @@ export function useBrowserPageMeta(
         if (!isTabTitleLocked(exactMatch.id) && exactMatch.title !== pageTitle) {
           state.browserUpdateTab(exactMatch.id, { title: pageTitle });
         }
+        state.browserAddToHistory(cleanUrl, pageTitle);
         state.browserUpdateHistoryTitle(cleanUrl, pageTitle);
         return;
       }

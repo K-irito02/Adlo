@@ -97,6 +97,7 @@ export interface BrowserFoldersSlice {
   browserExpandAllTreePaths: (paths: string[]) => void;
   browserDeleteAllTabsInNode: (nodePath: string) => void;
   browserDeleteOwnTabsInNode: (nodePath: string) => void;
+  browserClearAllFolderTabs: () => void;
   setBrowserWorkspaceExpanded: (expanded: Record<string, boolean>) => void;
 }
 
@@ -350,6 +351,19 @@ export const createBrowserFoldersSlice = (
         browserTabFolders: nextFolders,
       };
     }),
+
+  browserClearAllFolderTabs: () => {
+    set((state) => {
+      const nextFolders = state.browserTabFolders.map((f) => {
+        if (f.tabs && f.tabs.length > 0) {
+          return { ...f, tabs: [] };
+        }
+        return f;
+      });
+      scheduleWrite(BROWSER_TAB_FOLDERS_KEY, nextFolders);
+      return { browserTabFolders: nextFolders };
+    });
+  },
 
   setBrowserWorkspaceExpanded: (expanded) => {
     scheduleWrite(BROWSER_WORKSPACE_EXPANDED_KEY, expanded);

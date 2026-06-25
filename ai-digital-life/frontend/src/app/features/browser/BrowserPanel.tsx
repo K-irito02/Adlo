@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { RenameDialog } from '../../components/RenameDialog';
 import { ToastContainer } from '../../components/Toast';
 import { useBrowserToast } from './useBrowserToast';
@@ -130,8 +131,49 @@ export function BrowserPanel(props: BrowserPanelProps) {
     browserTabs,
     handleDoubleClick,
     handleCloseTab,
-    handleCloseAllTabs,
+    handleCloseAllTabs: _handleCloseAllTabs,
+    handleClearTabDirectories: _handleClearTabDirectories,
   } = useBrowserTabs();
+
+  const stopWebViewAudio = useCallback(() => {
+    if (isTauriShell()) {
+      invoke('browser_navigate', { url: 'about:blank' }).catch(() => {});
+    } else {
+      document.querySelectorAll<HTMLIFrameElement>('.adl-browser-iframe').forEach((el) => {
+        try {
+          el.src = 'about:blank';
+        } catch {
+          /* ignore */
+        }
+      });
+    }
+  }, []);
+
+  const handleCloseAllTabs = useCallback(
+    (workspaceId?: string) => {
+      _handleCloseAllTabs(workspaceId);
+      if (!workspaceId) {
+        stopWebViewAudio();
+      }
+    },
+    [_handleCloseAllTabs, stopWebViewAudio]
+  );
+
+  const wrappedHandleCloseTab = useCallback(
+    (tabId: string) => {
+      const state = useAppStore.getState();
+      const remaining = state.browserTabs.length;
+      handleCloseTab(tabId);
+      if (remaining <= 1) {
+        stopWebViewAudio();
+      }
+    },
+    [handleCloseTab, stopWebViewAudio]
+  );
+
+  const handleClearTabDirectories = useCallback(() => {
+    _handleClearTabDirectories();
+  }, [_handleClearTabDirectories]);
 
   const {
     createTabDialog,
@@ -565,8 +607,9 @@ export function BrowserPanel(props: BrowserPanelProps) {
         hasActiveTab={hasActiveTab}
         isBookmarked={isBookmarked}
         browserTabs={browserTabs}
-        handleCloseTab={handleCloseTab}
+        handleCloseTab={wrappedHandleCloseTab}
         handleCloseAllTabs={handleCloseAllTabs}
+        handleClearTabDirectories={handleClearTabDirectories}
         handleDoubleClick={handleDoubleClick}
         handleOpenBookmarkDialog={handleOpenBookmarkDialog}
         handleEditTab={handleEditTab}
@@ -626,7 +669,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
         contextMenu={contextMenu}
         onTogglePin={handleTogglePin}
         onRename={handleRenameFromContextMenu(browserTabs, contextMenu, handleDoubleClick)}
-        onDelete={handleDeleteFromContextMenu(contextMenu, handleCloseTab)}
+        onDelete={handleDeleteFromContextMenu(contextMenu, wrappedHandleCloseTab)}
         onCopyUrl={handleCopyUrlFromMenu}
         onOpenInNewTab={handleOpenInNewTab}
         onOpenInCurrentTab={handleOpenInCurrentTab}
