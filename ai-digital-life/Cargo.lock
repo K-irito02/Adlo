@@ -30,6 +30,9 @@ dependencies = [
  "tracing",
  "url",
  "urlencoding",
+ "webview2-com",
+ "windows 0.61.3",
+ "windows-core 0.61.2",
 ]
 
 [[package]]

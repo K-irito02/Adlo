@@ -1,9 +1,9 @@
 import { useCallback, useEffect } from 'react';
-import { invoke } from '@tauri-apps/api/core';
 import { isTauriShell } from '../../../tauri-bridge';
 import type { BrowserTabState } from '../../stores/slices/browserSlice';
 import type { PageMeta } from '../../../shared/ipc';
 import { fetchPageMeta, setCachedFavicon } from '../../utils/fetchPageMeta';
+import { useAppStore } from '../../stores';
 
 interface UseBrowserUrlChangeOptions {
   activeTab?: BrowserTabState;
@@ -17,6 +17,23 @@ interface UseBrowserUrlChangeOptions {
   onNavigationStart?: (url: string) => void;
   markUrlSeen: (url: string) => void;
   setIframeLoadError: React.Dispatch<React.SetStateAction<boolean>>;
+}
+
+function normalizeUrlForCompare(url: string): string {
+  try {
+    const u = new URL(url);
+    u.hash = '';
+    if (u.pathname.length > 1 && u.pathname.endsWith('/')) {
+      u.pathname = u.pathname.replace(/\/+$/, '');
+    }
+    return u.toString();
+  } catch {
+    const noHash = url.split('#')[0] || url;
+    if (noHash.length > 8 && noHash.endsWith('/')) {
+      return noHash.replace(/\/+$/, '');
+    }
+    return noHash;
+  }
 }
 
 export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
@@ -223,44 +240,49 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
     }
 
     const unsubUrl = browser.onUrlChanged((url) => {
-      markUrlSeen(url);
+      console.info('[browser-debug] onUrlChanged fired:', url);
+
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        console.info('[browser-debug] onUrlChanged: non-http URL, ignoring');
+        return;
+      }
+
+      const normalizedUrl = normalizeUrlForCompare(url);
+      markUrlSeen(normalizedUrl);
+
+      const state = useAppStore.getState();
+      const activeTabId = state.browserActiveTabId;
+
+      const existingTab = state.browserTabs.find(
+        (t: BrowserTabState) => normalizeUrlForCompare(t.url) === normalizedUrl
+      );
+
+      if (!existingTab && !activeTabId) {
+        console.info('[browser-debug] onUrlChanged: no existing tab, creating new tab');
+        const hostname = new URL(url).hostname;
+        state.browserOpenTab(normalizedUrl, hostname);
+      }
 
       const expected = expectedNavigationUrlRef.current;
-      if (expected && expected !== url) {
+      if (expected && normalizeUrlForCompare(expected) !== normalizedUrl) {
         if (isProbablySameSite(expected, url)) {
+          console.info('[browser-debug] same-site redirect, updating expected url');
           expectedNavigationUrlRef.current = url;
         } else {
-          return;
+          console.info(
+            '[browser-debug] cross-site redirect, NOT blocking (allowing auto-redirect)'
+          );
         }
       }
 
       setAddress(url);
       onNavigationStart?.(url);
-      invoke('browser_fetch_page_meta', { url })
-        .then((result: unknown) => {
-          const r = result as
-            | { ok: boolean; data: { title: string; favicon: string; url: string } }
-            | undefined;
-          if (r?.ok && r.data && (r.data.title || r.data.favicon)) {
-            onPageMeta?.(r.data);
-          }
-        })
-        .catch(() => {
-          // silently ignore fetch failures
-        });
     });
 
     return () => {
       unsubUrl();
     };
-  }, [
-    isProbablySameSite,
-    markUrlSeen,
-    setAddress,
-    onPageMeta,
-    onNavigationStart,
-    expectedNavigationUrlRef,
-  ]);
+  }, [isProbablySameSite, markUrlSeen, setAddress, onNavigationStart, expectedNavigationUrlRef]);
 
   return {
     handleIframeLoad,

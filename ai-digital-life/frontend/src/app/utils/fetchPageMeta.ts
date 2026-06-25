@@ -14,6 +14,8 @@ const metaCache = new Map<string, CacheEntry>();
 const faviconUrlCache = new Map<string, string>();
 const faviconPinned = new Set<string>();
 const titleLockedTabs = new Set<string>();
+const faviconListeners = new Map<string, Set<() => void>>();
+const globalFaviconListeners = new Set<(url: string) => void>();
 
 export function lockTabTitle(tabId: string): void {
   titleLockedTabs.add(tabId);
@@ -23,12 +25,30 @@ export function isTabTitleLocked(tabId: string): boolean {
   return titleLockedTabs.has(tabId);
 }
 
+function normalizeUrlForCache(url: string): string {
+  try {
+    const u = new URL(url);
+    u.hash = '';
+    if (u.pathname.length > 1 && u.pathname.endsWith('/')) {
+      u.pathname = u.pathname.replace(/\/+$/, '');
+    }
+    return u.toString();
+  } catch {
+    const noHash = url.split('#')[0] || url;
+    if (noHash.length > 8 && noHash.endsWith('/')) {
+      return noHash.replace(/\/+$/, '');
+    }
+    return noHash;
+  }
+}
+
 export function getCachedFavicon(url: string): string | undefined {
-  return faviconUrlCache.get(url);
+  return faviconUrlCache.get(normalizeUrlForCache(url));
 }
 
 export function setCachedFavicon(url: string, favicon: string, pin?: boolean): void {
-  if (faviconPinned.has(url)) {
+  const cacheKey = normalizeUrlForCache(url);
+  if (faviconPinned.has(cacheKey)) {
     return;
   }
   if (faviconUrlCache.size > 200) {
@@ -38,15 +58,61 @@ export function setCachedFavicon(url: string, favicon: string, pin?: boolean): v
       faviconPinned.delete(firstKey);
     }
   }
-  faviconUrlCache.set(url, favicon);
-  if (pin) {
-    faviconPinned.add(url);
+  const oldFavicon = faviconUrlCache.get(cacheKey);
+  if (oldFavicon === favicon) {
+    return;
   }
+  faviconUrlCache.set(cacheKey, favicon);
+  if (pin) {
+    faviconPinned.add(cacheKey);
+  }
+  // Notify listeners for this URL
+  const listeners = faviconListeners.get(cacheKey);
+  if (listeners) {
+    listeners.forEach((fn) => {
+      try {
+        fn();
+      } catch {
+        /* ignore listener errors */
+      }
+    });
+  }
+  // Notify global listeners
+  globalFaviconListeners.forEach((fn) => {
+    try {
+      fn(cacheKey);
+    } catch {
+      /* ignore listener errors */
+    }
+  });
+}
+
+export function subscribeFavicon(url: string, callback: () => void): () => void {
+  const cacheKey = normalizeUrlForCache(url);
+  if (!faviconListeners.has(cacheKey)) {
+    faviconListeners.set(cacheKey, new Set());
+  }
+  const set = faviconListeners.get(cacheKey)!;
+  set.add(callback);
+  return () => {
+    set.delete(callback);
+    if (set.size === 0) {
+      faviconListeners.delete(cacheKey);
+    }
+  };
+}
+
+export function subscribeFaviconGlobal(callback: (url: string) => void): () => void {
+  globalFaviconListeners.add(callback);
+  return () => {
+    globalFaviconListeners.delete(callback);
+  };
 }
 
 export function clearFaviconCacheForUrl(url: string): void {
-  faviconUrlCache.delete(url);
-  faviconPinned.delete(url);
+  const cacheKey = normalizeUrlForCache(url);
+  faviconUrlCache.delete(cacheKey);
+  faviconPinned.delete(cacheKey);
 }
 
 export function clearPageMetaCacheForUrl(url: string): void {
@@ -60,6 +126,10 @@ export function unlockTabTitle(tabId: string): void {
 export async function fetchPageMeta(
   url: string
 ): Promise<{ title: string; favicon: string } | null> {
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    return null;
+  }
+
   const cached = metaCache.get(url);
   if (cached && Date.now() - cached.fetchedAt < PAGE_META_TTL) {
     return { title: cached.title, favicon: cached.favicon };
@@ -96,6 +166,10 @@ export async function prefetchPageMeta(
   url: string
 ): Promise<{ title: string; favicon: string } | null> {
   const PREFETCH_TIMEOUT = 5000;
+
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    return null;
+  }
 
   if (isTauriShell()) {
     try {

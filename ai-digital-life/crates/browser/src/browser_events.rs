@@ -1,31 +1,51 @@
-use tauri::Emitter;
-use tauri::Manager;
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
+use tauri::{Emitter, Manager};
 
 use crate::browser_navigation::resolve_url;
 use crate::browser_webview::BROWSER_WEBVIEW_LABEL;
 
-pub(crate) fn navigation_handler(app: &tauri::AppHandle, url: &url::Url) -> bool {
-    // Detect hash-based title reporting from eval'd scripts
-    let hash = url.fragment().unwrap_or("");
-    if let Some(title) = hash.strip_prefix("adl-title=") {
-        let decoded = urlencoding::decode(title).unwrap_or_default().into_owned();
-        if !decoded.is_empty() {
-            tracing::info!(title = %decoded, url = %url, "navigation_handler: title from hash");
-            let mut clean_url = url.clone();
-            clean_url.set_fragment(None);
-            let _ = app.emit(
-                "digital-life://browser-meta-changed",
-                serde_json::json!({
-                    "title": decoded,
-                    "favicon": "",
-                    "url": clean_url.to_string()
-                }),
-            );
+fn normalize_url(raw: &str) -> String {
+    let mut s = raw.split('#').next().unwrap_or(raw).to_string();
+    if s.len() > 8 && s.ends_with('/') {
+        let trimmed = s.trim_end_matches('/');
+        if !trimmed.is_empty() {
+            s = trimmed.to_string();
         }
+    }
+    s
+}
+
+pub(crate) struct LastEmit {
+    pub(crate) url: String,
+    pub(crate) time: Instant,
+}
+
+pub(crate) static LAST_EMIT: Mutex<Option<LastEmit>> = Mutex::new(None);
+pub(crate) const EMIT_DEDUP_WINDOW: Duration = Duration::from_secs(4);
+
+pub(crate) fn navigation_handler(app: &tauri::AppHandle, url: &url::Url) -> bool {
+    if url.scheme() != "http" && url.scheme() != "https" {
         return false;
     }
-    let _ = app
-        .emit("digital-life://browser-url-changed", serde_json::json!({ "url": url.to_string() }));
+    let normalized = normalize_url(url.as_str());
+
+    // Deduplicate: skip if same URL emitted within dedup window
+    let should_emit = {
+        if let Ok(guard) = LAST_EMIT.lock() {
+            !matches!(guard.as_ref(), Some(last) if last.url == normalized && last.time.elapsed() < EMIT_DEDUP_WINDOW)
+        } else {
+            true
+        }
+    };
+
+    if should_emit {
+        if let Ok(mut guard) = LAST_EMIT.lock() {
+            *guard = Some(LastEmit { url: normalized.clone(), time: Instant::now() });
+        }
+        let _ = app
+            .emit("digital-life://browser-url-changed", serde_json::json!({ "url": normalized }));
+    }
     true
 }
 
@@ -33,32 +53,12 @@ pub(crate) fn new_window_handler(
     app: &tauri::AppHandle,
     url: &url::Url,
 ) -> tauri::webview::NewWindowResponse<tauri::Wry> {
-    // Detect window.open-based title reporting from eval'd scripts
-    // Format: adl-title:<encoded_title>?url=<encoded_page_url>
-    if url.scheme() == "adl-title" {
-        let title = urlencoding::decode(url.path()).unwrap_or_default().into_owned();
-        let actual_url = url
-            .query_pairs()
-            .find(|(k, _)| k == "url")
-            .map(|(_, v)| v.to_string())
-            .unwrap_or_default();
-        if !title.is_empty() {
-            tracing::info!(title = %title, url = %actual_url, "new_window_handler: title from window.open");
-            let _ = app.emit(
-                "digital-life://browser-meta-changed",
-                serde_json::json!({
-                    "title": title,
-                    "favicon": "",
-                    "url": actual_url
-                }),
-            );
-        }
-        return tauri::webview::NewWindowResponse::Deny;
-    }
-    if let Some(window) = app.get_window("main") {
-        if let Some(webview) = window.get_webview(BROWSER_WEBVIEW_LABEL) {
-            if let Ok(parsed_url) = resolve_url(url.as_str()) {
-                let _ = webview.navigate(parsed_url);
+    if url.scheme() == "http" || url.scheme() == "https" {
+        if let Some(window) = app.get_window("main") {
+            if let Some(webview) = window.get_webview(BROWSER_WEBVIEW_LABEL) {
+                if let Ok(parsed_url) = resolve_url(url.as_str()) {
+                    let _ = webview.navigate(parsed_url);
+                }
             }
         }
     }

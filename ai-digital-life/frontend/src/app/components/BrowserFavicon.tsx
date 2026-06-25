@@ -1,4 +1,6 @@
+import { useState, useEffect } from 'react';
 import { getFaviconUrl, getGoogleFaviconUrl } from '../utils/favicon';
+import { subscribeFavicon } from '../utils/fetchPageMeta';
 import { IconLink, type IconSize } from '../icons';
 
 interface BrowserFaviconProps {
@@ -7,7 +9,18 @@ interface BrowserFaviconProps {
 }
 
 export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
-  const faviconUrl = url ? getFaviconUrl(url) : '';
+  const [faviconUrl, setFaviconUrl] = useState<string>(() => (url ? getFaviconUrl(url) : ''));
+
+  useEffect(() => {
+    setFaviconUrl(url ? getFaviconUrl(url) : '');
+    if (!url) {
+      return;
+    }
+    const unsubscribe = subscribeFavicon(url, () => {
+      setFaviconUrl(getFaviconUrl(url));
+    });
+    return unsubscribe;
+  }, [url]);
 
   return (
     <span

@@ -11,3 +11,8 @@ tracing.workspace = true
 tauri = { workspace = true, features = ["unstable"] }
 url.workspace = true
 urlencoding = "2.1"
+
+[target.'cfg(windows)'.dependencies]
+webview2-com = "0.38"
+windows = "0.61"
+windows-core = "0.61"

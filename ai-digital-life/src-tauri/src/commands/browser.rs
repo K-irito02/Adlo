@@ -110,6 +110,11 @@ const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/
 async fn fetch_page_meta_inner(url: &str) -> Result<PageMeta, AppError> {
     tracing::info!(url = %url, "fetch_page_meta_inner: start");
 
+    if !url.starts_with("http://") && !url.starts_with("https://") {
+        tracing::warn!(url = %url, "fetch_page_meta_inner: non-http URL, returning empty");
+        return Ok(PageMeta { title: String::new(), favicon: String::new(), url: url.to_string() });
+    }
+
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(10))
         .user_agent(USER_AGENT)
@@ -165,29 +170,6 @@ fn extract_title(html: &str) -> Option<String> {
     Some(html_entity_decode(raw))
 }
 
-fn find_link_href(html: &str, rel_value: &str) -> Option<String> {
-    let lower = html.to_lowercase();
-    let mut search_start = 0usize;
-    loop {
-        let link_pos = lower[search_start..].find("<link")?;
-        let abs_link = search_start + link_pos;
-        let tag_end = html[abs_link..].find('>')?;
-        let snippet = &html[abs_link..abs_link + tag_end];
-        let snippet_lower = &lower[abs_link..abs_link + tag_end];
-
-        if snippet_lower.contains(&format!("rel=\"{rel_value}\""))
-            || snippet_lower.contains(&format!("rel='{rel_value}'"))
-            || snippet_lower.contains(&format!("rel={rel_value} "))
-            || snippet_lower.contains(&format!("rel={rel_value}>"))
-        {
-            if let Some(href) = extract_href(snippet, snippet_lower) {
-                return Some(href);
-            }
-        }
-        search_start = abs_link + tag_end;
-    }
-}
-
 fn extract_href(snippet: &str, snippet_lower: &str) -> Option<String> {
     for marker in [r#"href=""#, "href='"] {
         if let Some(start) = snippet_lower.find(marker) {
@@ -215,18 +197,93 @@ fn resolve_url(href: &str, base_url: &str) -> Option<String> {
 }
 
 fn extract_favicon(html: &str, base_url: &str) -> Option<String> {
-    let rel_values = ["icon", "shortcut icon", "apple-touch-icon", "apple-touch-icon-precomposed"];
+    let lower = html.to_lowercase();
+    let mut best_href = String::new();
+    let mut best_score = 0i32;
+    let mut search_start = 0usize;
 
-    for rel in &rel_values {
-        if let Some(href) = find_link_href(html, rel) {
-            let resolved = resolve_url(&href, base_url);
-            if resolved.is_some() {
-                return resolved;
+    while let Some(link_pos) = lower[search_start..].find("<link") {
+        let abs_link = search_start + link_pos;
+        let tag_end = match html[abs_link..].find('>') {
+            Some(e) => e,
+            None => break,
+        };
+        let snippet = &html[abs_link..abs_link + tag_end];
+        let snippet_lower = &lower[abs_link..abs_link + tag_end];
+
+        let rel = extract_attr(snippet_lower, "rel").unwrap_or_default();
+        let rel_lower = rel.to_lowercase();
+        if rel_lower.contains("icon") {
+            if let Some(href) = extract_href(snippet, snippet_lower) {
+                if let Some(resolved) = resolve_url(&href, base_url) {
+                    let sizes = extract_attr(snippet_lower, "sizes").unwrap_or_default();
+                    let score = favicon_score(&resolved, &rel_lower, &sizes);
+                    if score > best_score {
+                        best_score = score;
+                        best_href = resolved;
+                    }
+                }
+            }
+        }
+        search_start = abs_link + tag_end;
+    }
+
+    if best_href.is_empty() {
+        None
+    } else {
+        Some(best_href)
+    }
+}
+
+fn extract_attr(snippet_lower: &str, attr: &str) -> Option<String> {
+    for marker in [format!("{}=\"", attr), format!("{}='", attr)] {
+        if let Some(start) = snippet_lower.find(&marker) {
+            let value_start = start + marker.len();
+            let quote = &snippet_lower[value_start - 1..value_start];
+            if let Some(end) =
+                snippet_lower[value_start..].find(if quote == "\"" { "\"" } else { "'" })
+            {
+                return Some(snippet_lower[value_start..value_start + end].to_string());
             }
         }
     }
-
     None
+}
+
+fn favicon_score(href: &str, rel: &str, sizes: &str) -> i32 {
+    let href_lower = href.to_lowercase();
+    let mut score = 0i32;
+
+    if rel.contains("apple-touch-icon") {
+        score += 50;
+    }
+
+    if let Some(size_match) = sizes.split('x').next() {
+        if let Ok(size) = size_match.trim().parse::<i32>() {
+            score += size;
+        }
+    }
+
+    if href_lower.ends_with(".svg") {
+        score += 200;
+    } else if href_lower.ends_with(".png") {
+        score += 30;
+        if href_lower.contains("512")
+            || href_lower.contains("256")
+            || href_lower.contains("192")
+            || href_lower.contains("180")
+        {
+            score += 100;
+        }
+    } else if href_lower.ends_with("favicon.ico") {
+        score += 1;
+    } else if href_lower.ends_with(".ico") {
+        score += 5;
+    } else {
+        score += 10;
+    }
+
+    score
 }
 
 fn google_favicon_url(url: &str) -> String {
@@ -242,15 +299,12 @@ fn google_favicon_url(url: &str) -> String {
 }
 
 fn origin_favicon_fallback(url: &str) -> String {
-    let google = google_favicon_url(url);
-    if google.is_empty() {
-        return google;
-    }
     if let Ok(parsed) = url::Url::parse(url) {
         let origin = parsed.origin().ascii_serialization();
-        return format!("{origin}/favicon.ico");
+        let ico_url = format!("{origin}/favicon.ico");
+        return ico_url;
     }
-    google
+    google_favicon_url(url)
 }
 
 fn html_entity_decode(s: &str) -> String {

@@ -1,9 +1,9 @@
 import { useCallback, useRef } from 'react';
 import { useAppStore } from '../../stores/slicedStore';
-import { getGoogleFaviconUrl } from '../../utils/favicon';
-import { setCachedFavicon, isTabTitleLocked } from '../../utils/fetchPageMeta';
+import { setCachedFavicon, isTabTitleLocked, getCachedFavicon } from '../../utils/fetchPageMeta';
 import { hostnameFromUrl } from '../../utils/browserDisplayUtils';
 import type { ToastType } from '../../components/Toast';
+import type { BrowserTabState } from '../../stores/slices/browserSlice';
 
 function normalizeUrlForDedup(url: string): string {
   try {
@@ -28,12 +28,107 @@ function hostnamePathKey(url: string): string {
 }
 
 /**
- * TTL for deduplicating concurrent handlePageMeta calls from the two
- * callback paths (onUrlChanged → browser_fetch_page_meta AND
- * meta-changed from INIT_SCRIPT).  Must be long enough to cover the
- * async HTTP meta fetch on slow connections.
+ * TTL for deduplicating rapid handlePageMeta calls from
+ * meta-changed events (WebView2 postMessage + Rust active fetch).
+ * Must be long enough to cover the fast poll interval overlap.
  */
-const META_DEDUP_TTL = 5000; // ms
+const META_DEDUP_TTL = 2000; // ms
+
+function getFaviconQualityScore(favicon: string): number {
+  if (!favicon) {
+    return 0;
+  }
+  const lower = favicon.toLowerCase();
+
+  if (
+    lower.includes('google.com/s2/favicons') ||
+    lower.includes('favicon.cc') ||
+    lower.includes('faviconkit') ||
+    lower.includes('besticon') ||
+    lower.includes('favicon-generator')
+  ) {
+    return 1;
+  }
+
+  if (lower.endsWith('/favicon.ico')) {
+    return 2;
+  }
+  if (lower.endsWith('favicon.ico')) {
+    return 3;
+  }
+  if (lower.endsWith('.ico')) {
+    return 4;
+  }
+  if (lower.endsWith('.svg')) {
+    return 10;
+  }
+  if (
+    lower.endsWith('.png') ||
+    lower.endsWith('.jpg') ||
+    lower.endsWith('.webp') ||
+    lower.endsWith('.gif')
+  ) {
+    const sizeMatch = lower.match(/(\d+)(?:x\d+)?\.(?:png|jpg|webp|gif)$/);
+    if (sizeMatch) {
+      const size = parseInt(sizeMatch[1], 10);
+      if (size >= 256) {
+        return 15;
+      }
+      if (size >= 128) {
+        return 14;
+      }
+      if (size >= 64) {
+        return 13;
+      }
+      if (size >= 32) {
+        return 12;
+      }
+      return 11;
+    }
+    if (lower.includes('apple-touch-icon')) {
+      return 13;
+    }
+    if (
+      lower.includes('512') ||
+      lower.includes('256') ||
+      lower.includes('192') ||
+      lower.includes('180')
+    ) {
+      return 14;
+    }
+    return 11;
+  }
+  return 3;
+}
+
+function shouldReplaceFavicon(existing: string | undefined, incoming: string): boolean {
+  if (!incoming) {
+    return false;
+  }
+  if (!existing) {
+    return true;
+  }
+  const existingScore = getFaviconQualityScore(existing);
+  const incomingScore = getFaviconQualityScore(incoming);
+  return incomingScore >= existingScore;
+}
+
+function normalizeMetaUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    u.hash = '';
+    if (u.pathname.length > 1 && u.pathname.endsWith('/')) {
+      u.pathname = u.pathname.replace(/\/+$/, '');
+    }
+    return u.toString();
+  } catch {
+    const noHash = url.split('#')[0] || url;
+    if (noHash.length > 8 && noHash.endsWith('/')) {
+      return noHash.replace(/\/+$/, '');
+    }
+    return noHash;
+  }
+}
 
 export function useBrowserPageMeta(
   pendingNavigationsRef: React.MutableRefObject<Set<string>>,
@@ -79,87 +174,105 @@ export function useBrowserPageMeta(
 
   const handlePageMeta = useCallback(
     (meta: { title: string; favicon: string; url: string }) => {
-      const faviconToCache = meta.favicon || (meta.url ? getGoogleFaviconUrl(meta.url) : '');
-      if (faviconToCache) {
-        setCachedFavicon(meta.url, faviconToCache);
-        new Image().src = faviconToCache;
-      }
+      console.info('[browser-debug] handlePageMeta called:', JSON.stringify(meta));
 
-      if (!meta.title) {
-        return;
-      }
-
-      pendingNavigationsRef.current.delete(meta.url);
-
-      const urlHostname = hostnameFromUrl(meta.url);
-      if (meta.title === urlHostname) {
-        return;
-      }
-
-      const pageTitle = meta.title;
-      if (!pageTitle) {
-        return;
-      }
-
-      // Deduplicate concurrent calls from the two callback paths
-      // (onUrlChanged → browser_fetch_page_meta and meta-changed from INIT_SCRIPT).
-      // If another handlePageMeta call already processed this URL (or a
-      // hostname+pathname equivalent) within META_DEDUP_TTL, we skip
-      // tab creation to avoid duplicate tabs / history entries.
-      if (isMetaRecentlyProcessed(meta.url)) {
+      const cleanUrl = normalizeMetaUrl(meta.url);
+      if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
+        console.info('[browser-debug] handlePageMeta: non-http URL, ignoring');
         return;
       }
 
       const state = useAppStore.getState();
-      const normalizedMetaUrl = normalizeUrlForDedup(meta.url);
+      pendingNavigationsRef.current.delete(cleanUrl);
 
-      // 1. Exact normalized match
+      const normalizedMetaUrl = normalizeUrlForDedup(cleanUrl);
       const exactMatch = state.browserTabs.find(
-        (t) => normalizeUrlForDedup(t.url) === normalizedMetaUrl
+        (t: BrowserTabState) => normalizeUrlForDedup(normalizeMetaUrl(t.url)) === normalizedMetaUrl
       );
-      if (exactMatch) {
-        if (!isTabTitleLocked(exactMatch.id) && exactMatch.title !== pageTitle) {
-          state.browserUpdateTab(exactMatch.id, { title: pageTitle });
+      const activeTab = state.browserTabs.find(
+        (t: BrowserTabState) => t.id === state.browserActiveTabId
+      );
+
+      if (meta.favicon) {
+        const existingFavicon = getCachedFavicon(cleanUrl);
+        if (shouldReplaceFavicon(existingFavicon, meta.favicon)) {
+          console.info('[browser-debug] caching favicon for', cleanUrl, ':', meta.favicon);
+          setCachedFavicon(cleanUrl, meta.favicon);
+          new Image().src = meta.favicon;
+        } else if (existingFavicon) {
+          console.info(
+            '[browser-debug] skipping lower-quality favicon:',
+            meta.favicon,
+            '(existing:',
+            existingFavicon,
+            ')'
+          );
         }
-        state.browserUpdateHistoryTitle(meta.url, pageTitle);
+      }
+
+      if (!meta.title) {
+        if (meta.favicon && exactMatch) {
+          console.info('[browser-debug] handlePageMeta: favicon cached for existing tab');
+        }
         return;
       }
 
-      // 2. In in-place mode: check if active tab matches by hostname+pathname (ignore query params)
-      // Handles SPA pushState URL changes (e.g. YouTube removing &pp=oAcB)
-      if (state.browserNavigateInPlace) {
-        const metaKey = hostnamePathKey(meta.url);
-        const activeTab = state.browserTabs.find((t) => t.id === state.browserActiveTabId);
-        if (activeTab && hostnamePathKey(activeTab.url) === metaKey && metaKey !== '') {
-          if (markUrlSeen) {
-            markUrlSeen(meta.url);
-          }
-          state.browserUpdateTab(activeTab.id, { url: meta.url, title: pageTitle });
-          state.browserAddToHistory(meta.url, pageTitle);
-          state.browserUpdateHistoryTitle(meta.url, pageTitle);
-          return;
-        }
+      const urlHostname = hostnameFromUrl(cleanUrl);
+      if (meta.title === urlHostname) {
+        console.info('[browser-debug] handlePageMeta: title equals hostname, skip');
+        return;
       }
 
-      // 3. No match: create new tab or update active tab
-      // Mark URL as seen BEFORE creating tab to prevent the subsequent
-      // useEffect → navigateTauriUrl → browser_navigate → page refresh loop.
-      // This is critical when meta-changed fires from the INIT_SCRIPT
-      // (via useBrowserMetaSubscription) because that path does NOT go through
-      // onUrlChanged where markUrlSeen is normally called.
+      const pageTitle = meta.title;
+
+      console.info('[browser-debug] activeTabId:', state.browserActiveTabId);
+      console.info('[browser-debug] total tabs:', state.browserTabs.length);
+      state.browserTabs.forEach((t: BrowserTabState, i: number) => {
+        console.info(`[browser-debug] tab[${i}]: id=${t.id} | url=${t.url} | title=${t.title}`);
+      });
+
+      if (exactMatch) {
+        console.info('[browser-debug] handlePageMeta: exact match found, updating title');
+        if (!isTabTitleLocked(exactMatch.id) && exactMatch.title !== pageTitle) {
+          state.browserUpdateTab(exactMatch.id, { title: pageTitle });
+        }
+        state.browserUpdateHistoryTitle(cleanUrl, pageTitle);
+        return;
+      }
+
+      if (activeTab) {
+        console.info('[browser-debug] handlePageMeta: active tab found, checking dedup');
+        if (isMetaRecentlyProcessed(cleanUrl)) {
+          console.info('[browser-debug] handlePageMeta: URL already recently processed, skip');
+          return;
+        }
+        if (markUrlSeen) {
+          markUrlSeen(cleanUrl);
+        }
+        processedMetaRef.current.set(cleanUrl, Date.now());
+
+        console.info('[browser-debug] handlePageMeta: updating active tab with new url and title');
+        if (!isTabTitleLocked(activeTab.id)) {
+          state.browserUpdateTab(activeTab.id, {
+            url: cleanUrl,
+            title: pageTitle,
+          });
+        }
+        state.browserAddToHistory(cleanUrl, pageTitle);
+        state.browserUpdateHistoryTitle(cleanUrl, pageTitle);
+        return;
+      }
+
+      console.info('[browser-debug] handlePageMeta: no active tab, creating new tab');
+      if (isMetaRecentlyProcessed(cleanUrl)) {
+        return;
+      }
       if (markUrlSeen) {
-        markUrlSeen(meta.url);
+        markUrlSeen(cleanUrl);
       }
-      // Mark as processed BEFORE creating tab so the second callback path
-      // (meta-changed from INIT_SCRIPT) sees it and skips.
-      processedMetaRef.current.set(meta.url, Date.now());
-      if (state.browserNavigateInPlace) {
-        state.browserNavigateActiveTab(meta.url, pageTitle);
-        state.browserAddToHistory(meta.url, pageTitle);
-      } else {
-        state.browserOpenTab(meta.url, pageTitle);
-        state.browserAddToHistory(meta.url, pageTitle);
-      }
+      processedMetaRef.current.set(cleanUrl, Date.now());
+      state.browserOpenTab(cleanUrl, pageTitle);
+      state.browserAddToHistory(cleanUrl, pageTitle);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []

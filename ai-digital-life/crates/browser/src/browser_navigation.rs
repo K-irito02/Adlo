@@ -103,15 +103,13 @@ pub(crate) const INIT_SCRIPT: &str = r#"
         }
     }, true);
     
-    // 4. 重写 window.open（最全面的拦截）
-    const originalOpen = window.open;
+    // 4. 重写 window.open（阻止所有弹窗，外部HTTP链接在当前WebView导航）
     window.open = function(url, name, features) {
-        console.log('[ADL Browser] window.open intercepted:', url);
         if (url && isValidWebUrl(url)) {
+            console.log('[ADL Browser] window.open intercepted, navigating in-place:', url);
             navigateToUrl(url);
-            return null;
         }
-        return originalOpen.apply(this, arguments);
+        return null;
     };
     
     // 5. 重写 location.assign 和 location.replace
@@ -155,27 +153,7 @@ pub(crate) const INIT_SCRIPT: &str = r#"
         }
     }, true);
     
-    // 9. 监听 DOM 变化（用于未来扩展，当前链接拦截依赖 document 级事件监听已足够）
-    try {
-        const observer = new MutationObserver(function(mutations) {
-            // 动态添加的链接会被 document 级别的 click 事件监听器自动覆盖
-            // 此处仅记录日志用于调试
-            mutations.forEach(function(mutation) {
-                if (mutation.addedNodes && mutation.addedNodes.length > 0) {
-                    console.log('[ADL Browser] DOM changed: added nodes');
-                }
-            });
-        });
-        
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true
-        });
-    } catch (e) {
-        console.warn('[ADL Browser] MutationObserver not available:', e);
-    }
-    
-    // 10. 为所有现有链接添加调试信息
+    // 9. 为所有现有链接添加调试信息
     try {
         const allLinks = document.querySelectorAll('a, area');
         allLinks.forEach(function(link, index) {
@@ -190,46 +168,340 @@ pub(crate) const INIT_SCRIPT: &str = r#"
     
     console.log('[ADL Browser] Initialization complete');
 
-    // ---- FAST TITLE REPORTING (via window.open channel) ----
-    // Only report from top-level frame to avoid iframe title pollution
+    // ---- REAL-TIME META REPORTING (title + favicon) ----
+    // Method 1: WebView2 postMessage (real-time, initiated by page JS)
+    // Method 2: Rust-side active fetch via __adlGetMeta (polling-based, reliable fallback)
     (function() {
         if (window.top !== window.self) return;
+        var LOG_PREFIX = '[ADL-META]';
         var lastTitle = '';
-        function reportTitle() {
-            var t = document.title;
-            if (t && t.trim() && t !== lastTitle) {
-                lastTitle = t.trim();
-                try {
-                    window.open('adl-title:' + encodeURIComponent(t.trim()) + '?url=' + encodeURIComponent(location.href), '_blank');
-                } catch(e) { /* fail silently */ }
+        var lastFavicon = '';
+        var lastUrl = '';
+        var preNavTitle = '';
+        var isReporting = false;
+        var hasTitle = false;
+        var hasFavicon = false;
+        var hasPostMessage = !!(typeof chrome !== 'undefined' && chrome.webview);
+        var postMessageWorks = hasPostMessage;
+        var navPollTimer = null;
+        var navPollCount = 0;
+        var NAV_POLL_MAX = 30;
+        var NAV_POLL_INTERVAL = 100;
+
+        console.log(LOG_PREFIX, '=== Meta reporting initialized ===');
+        console.log(LOG_PREFIX, 'Method 1 (postMessage):', hasPostMessage ? 'AVAILABLE' : 'NOT AVAILABLE');
+        console.log(LOG_PREFIX, 'Method 2 (Rust active fetch via __adlGetMeta): available');
+
+        function getFavicon() {
+            var best = '';
+            var bestSize = 0;
+            var links = document.querySelectorAll('link[rel*="icon"]');
+            for (var i = 0; i < links.length; i++) {
+                var link = links[i];
+                if (!link.href) continue;
+                var rel = (link.getAttribute('rel') || '').toLowerCase();
+                if (rel.indexOf('icon') === -1) continue;
+                var sizes = link.getAttribute('sizes');
+                var size = 0;
+                if (sizes) {
+                    var match = sizes.match(/(\d+)x\d+/i);
+                    if (match) size = parseInt(match[1], 10) || 0;
+                }
+                if (!best || size > bestSize) {
+                    best = link.href;
+                    bestSize = size;
+                }
+            }
+            if (!best) {
+                var shortcut = document.querySelector('link[rel="shortcut icon"]');
+                if (shortcut && shortcut.href) best = shortcut.href;
+            }
+            return best;
+        }
+
+        function getHostname() {
+            try {
+                return location.hostname;
+            } catch(e) {
+                return '';
             }
         }
-        // Report on DOMContentLoaded (faster than window.onload)
-        document.addEventListener('DOMContentLoaded', function() { setTimeout(reportTitle, 100); });
-        // Report on load (backup)
-        window.addEventListener('load', function() { setTimeout(reportTitle, 50); });
-        // Watch for <title> changes (SPA dynamic titles)
-        var titleEl = document.querySelector('title');
-        if (titleEl) {
-            var obs = new MutationObserver(function() { reportTitle(); });
-            obs.observe(titleEl, { childList: true, characterData: true, subtree: true });
+
+        function isTitleMeaningful(t) {
+            if (!t) return false;
+            var hostname = getHostname();
+            if (hostname && t === hostname) return false;
+            if (hostname && t === 'www.' + hostname) return false;
+            if (t === location.href) return false;
+            return true;
         }
-        // Watch for <title> being added dynamically
+
+        function isNewTitleForPage(t) {
+            if (!t || !isTitleMeaningful(t)) return false;
+            if (hasTitle) return t !== lastTitle;
+            return t !== preNavTitle;
+        }
+
+        function isNewFaviconForPage(f) {
+            if (!f) return false;
+            if (hasFavicon) return f !== lastFavicon;
+            return true;
+        }
+
+        function sendViaPostMessage(t, f, u) {
+            if (!hasPostMessage) return false;
+            try {
+                chrome.webview.postMessage(JSON.stringify({
+                    type: 'meta',
+                    title: t,
+                    favicon: f,
+                    url: u
+                }));
+                postMessageWorks = true;
+                return true;
+            } catch(e) {
+                postMessageWorks = false;
+                console.warn(LOG_PREFIX, 'Method 1 (postMessage): FAILED |', e.message);
+                return false;
+            }
+        }
+
+        function handleUrlChanged(u) {
+            preNavTitle = document.title ? document.title.trim() : '';
+            lastUrl = u;
+            lastTitle = '';
+            lastFavicon = '';
+            hasTitle = false;
+            hasFavicon = false;
+            var fNow = getFavicon();
+            if (fNow) {
+                lastFavicon = fNow;
+                hasFavicon = true;
+            }
+            console.log(LOG_PREFIX, '► URL changed → ' + u.substring(0, 80) +
+                ' | favicon:' + (fNow ? '✓(immediate)' : '(waiting)') +
+                ' | preNavTitle:' + (preNavTitle ? preNavTitle.substring(0, 40) : '(empty)'));
+            startNavPolling();
+        }
+
+        function reportMeta(reason) {
+            if (isReporting) return;
+            var t = document.title ? document.title.trim() : '';
+            var f = getFavicon();
+            var u = location.href.split('#')[0];
+
+            var urlChanged = u !== lastUrl;
+            if (urlChanged) {
+                handleUrlChanged(u);
+            }
+
+            var titleAccepted = false;
+            var faviconAccepted = false;
+
+            if (isNewTitleForPage(t)) {
+                lastTitle = t;
+                hasTitle = true;
+                titleAccepted = true;
+            }
+            if (isNewFaviconForPage(f)) {
+                lastFavicon = f;
+                hasFavicon = true;
+                faviconAccepted = true;
+            }
+
+            if (!titleAccepted && !faviconAccepted) {
+                return;
+            }
+
+            console.log(LOG_PREFIX, '► reportMeta [' + reason + '] title:' +
+                (titleAccepted ? t.substring(0, 50) : '(waiting)') +
+                ' | favicon:' + (faviconAccepted ? '✓' : (hasFavicon ? '=' : '(waiting)')));
+
+            isReporting = true;
+            var sendTitle = hasTitle ? lastTitle : '';
+            var sendFavicon = hasFavicon ? lastFavicon : '';
+
+            if (postMessageWorks && (sendTitle || sendFavicon)) {
+                sendViaPostMessage(sendTitle, sendFavicon, u);
+            }
+
+            setTimeout(function() { isReporting = false; }, 30);
+
+            if (hasTitle && hasFavicon && navPollTimer) {
+                stopNavPolling();
+            }
+        }
+
+        function startNavPolling() {
+            stopNavPolling();
+            navPollCount = 0;
+            function tick() {
+                navPollCount++;
+                var t = document.title ? document.title.trim() : '';
+                var f = getFavicon();
+                var u = location.href.split('#')[0];
+
+                if (u !== lastUrl) {
+                    handleUrlChanged(u);
+                }
+
+                var titleGood = isNewTitleForPage(t);
+                var faviconGood = isNewFaviconForPage(f);
+
+                if (titleGood || faviconGood) {
+                    reportMeta('nav-poll-' + navPollCount);
+                }
+
+                if (hasTitle && hasFavicon) {
+                    stopNavPolling();
+                    return;
+                }
+
+                if (navPollCount < NAV_POLL_MAX) {
+                    navPollTimer = setTimeout(tick, NAV_POLL_INTERVAL);
+                } else {
+                    navPollTimer = null;
+                    if (!hasTitle) hasTitle = true;
+                    if (!hasFavicon) hasFavicon = true;
+                }
+            }
+            navPollTimer = setTimeout(tick, NAV_POLL_INTERVAL);
+        }
+
+        function stopNavPolling() {
+            if (navPollTimer) {
+                clearTimeout(navPollTimer);
+                navPollTimer = null;
+            }
+        }
+
+        setTimeout(function() { reportMeta('init'); }, 0);
+
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(function() { reportMeta('DOMContentLoaded'); }, 10);
+        });
+        window.addEventListener('load', function() {
+            setTimeout(function() { reportMeta('load'); }, 10);
+        });
+
+        function observeTitle(el) {
+            if (!el) return;
+            try {
+                var obs = new MutationObserver(function() { reportMeta('title-mutation'); });
+                obs.observe(el, { childList: true, characterData: true, subtree: true });
+            } catch(e) {}
+        }
+        observeTitle(document.querySelector('title'));
+
+        var origTitleDesc = Object.getOwnPropertyDescriptor(Document.prototype, 'title') ||
+                            Object.getOwnPropertyDescriptor(HTMLDocument.prototype, 'title');
+        if (origTitleDesc && origTitleDesc.configurable) {
+            var titleEl2 = document.querySelector('title');
+            Object.defineProperty(document, 'title', {
+                get: function() {
+                    return titleEl2 ? titleEl2.textContent : '';
+                },
+                set: function(v) {
+                    if (titleEl2) {
+                        titleEl2.textContent = v;
+                    } else {
+                        var t = document.createElement('title');
+                        t.textContent = v;
+                        document.head.appendChild(t);
+                        titleEl2 = t;
+                        observeTitle(t);
+                    }
+                    setTimeout(function() { reportMeta('title-setter'); }, 0);
+                },
+                configurable: true
+            });
+        }
+
+        function observeFaviconLink(linkEl) {
+            try {
+                var favObs = new MutationObserver(function() { reportMeta('favicon-attr'); });
+                favObs.observe(linkEl, { attributes: true, attributeFilter: ['href', 'rel', 'sizes'] });
+            } catch(e) {}
+        }
+        var faviconLinks = document.querySelectorAll('link[rel*="icon"]');
+        for (var i = 0; i < faviconLinks.length; i++) {
+            observeFaviconLink(faviconLinks[i]);
+        }
+
         var head = document.head || document.documentElement;
         var headObs = new MutationObserver(function(mutations) {
+            var shouldReport = false;
             for (var i = 0; i < mutations.length; i++) {
                 for (var j = 0; j < mutations[i].addedNodes.length; j++) {
-                    if (mutations[i].addedNodes[j].nodeName === 'TITLE') {
-                        titleEl = mutations[i].addedNodes[j];
-                        var obs = new MutationObserver(function() { reportTitle(); });
-                        obs.observe(titleEl, { childList: true, characterData: true, subtree: true });
-                        reportTitle();
-                        return;
+                    var node = mutations[i].addedNodes[j];
+                    if (node.nodeName === 'TITLE') {
+                        observeTitle(node);
+                        shouldReport = true;
+                    }
+                    if (node.nodeName === 'LINK') {
+                        var rel = (node.getAttribute('rel') || '').toLowerCase();
+                        if (rel.indexOf('icon') !== -1) {
+                            observeFaviconLink(node);
+                            shouldReport = true;
+                        }
                     }
                 }
             }
+            if (shouldReport) setTimeout(function() { reportMeta('head-change'); }, 10);
         });
-        headObs.observe(head, { childList: true, subtree: true });
+        headObs.observe(head, { childList: true, subtree: true, attributes: false });
+
+        var origPushState = history.pushState;
+        var origReplaceState = history.replaceState;
+        history.pushState = function() {
+            var result = origPushState.apply(this, arguments);
+            setTimeout(function() { reportMeta('pushState'); }, 0);
+            return result;
+        };
+        history.replaceState = function() {
+            var result = origReplaceState.apply(this, arguments);
+            setTimeout(function() { reportMeta('replaceState'); }, 0);
+            return result;
+        };
+        window.addEventListener('popstate', function() {
+            setTimeout(function() { reportMeta('popstate'); }, 0);
+        });
+
+        window.__adlGetMeta = function() {
+            var t = document.title ? document.title.trim() : '';
+            var f = getFavicon();
+            var u = location.href.split('#')[0];
+
+            if (u !== lastUrl) {
+                return JSON.stringify({ title: '', favicon: f || '', url: u, pending: true });
+            }
+
+            var outTitle = '';
+            var outFavicon = '';
+
+            if (hasTitle && isTitleMeaningful(t) && t === lastTitle) {
+                outTitle = t;
+            } else if (!hasTitle && isTitleMeaningful(t) && t !== preNavTitle) {
+                outTitle = t;
+                lastTitle = t;
+                hasTitle = true;
+            }
+
+            if (hasFavicon && f) {
+                outFavicon = f;
+                if (f !== lastFavicon) lastFavicon = f;
+            } else if (!hasFavicon && f) {
+                outFavicon = f;
+                lastFavicon = f;
+                hasFavicon = true;
+            }
+
+            return JSON.stringify({
+                title: outTitle,
+                favicon: outFavicon,
+                url: u
+            });
+        };
     })();
 })();
 "#;
