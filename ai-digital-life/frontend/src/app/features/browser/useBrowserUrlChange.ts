@@ -355,6 +355,7 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
 
     return () => {
       unsubUrl();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       for (const timer of fallbackTimeoutsRef.current.values()) {
         clearTimeout(timer);
       }
