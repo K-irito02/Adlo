@@ -35,7 +35,8 @@ thiserror = "2"
 anyhow = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "sync", "time"] }
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json", "registry"] }
+tracing-appender = "0.2"
 rusqlite = { version = "0.39", features = ["bundled"] }
 notify = "7"
 reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }

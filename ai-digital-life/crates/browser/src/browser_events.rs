@@ -1,3 +1,4 @@
+use std::sync::atomic::AtomicBool;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 use tauri::{Emitter, Manager};
@@ -23,6 +24,10 @@ pub(crate) struct LastEmit {
 
 pub(crate) static LAST_EMIT: Mutex<Option<LastEmit>> = Mutex::new(None);
 pub(crate) const EMIT_DEDUP_WINDOW: Duration = Duration::from_secs(4);
+
+/// Signal: tell poll thread to enter fast-poll mode immediately.
+/// Set by the HistoryChanged COM handler (Method 5) when SPA pushState is detected.
+pub(crate) static POLL_FAST_NOW: AtomicBool = AtomicBool::new(false);
 
 pub(crate) fn navigation_handler(app: &tauri::AppHandle, url: &url::Url) -> bool {
     if url.scheme() != "http" && url.scheme() != "https" {

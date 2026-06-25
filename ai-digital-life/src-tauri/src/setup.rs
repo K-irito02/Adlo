@@ -4,10 +4,30 @@ use adl_kernel::{config as adl_config, events::EventBus, logger as adl_logger, n
 use adl_pty::SessionManager;
 use adl_storage::Database;
 use anyhow::Context;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::RwLock;
 use tauri::Manager;
 use tracing::info;
+
+fn resolve_project_root() -> PathBuf {
+    // The true project root has .git (unlike ai-digital-life/ which also has AGENTS.md).
+    if let Ok(cwd) = std::env::current_dir() {
+        if cwd.join(".git").exists() {
+            return cwd;
+        }
+        if let Some(parent) = cwd.parent() {
+            if parent.join(".git").exists() {
+                return parent.to_path_buf();
+            }
+        }
+    }
+    // Fall back: CARGO_MANIFEST_DIR → src-tauri → ai-digital-life → project root
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(Path::parent)
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| PathBuf::from("."))
+}
 
 pub fn resolve_data_dir(app: &tauri::App) -> anyhow::Result<PathBuf> {
     let dir = app.path().app_data_dir().context("failed to resolve app data dir")?;
@@ -19,7 +39,9 @@ pub fn resolve_data_dir(app: &tauri::App) -> anyhow::Result<PathBuf> {
 pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
     let config = adl_config::load(&data_dir).unwrap_or_default();
 
-    adl_logger::init(&config.log_level);
+    // Write terminal logs alongside debug-logs.txt in the project root
+    let project_root = resolve_project_root();
+    adl_logger::init_with_log_dir(&config.log_level, Some(&project_root));
     info!("logger initialized");
 
     let db_path = data_dir.join("state").join("app-state.db");

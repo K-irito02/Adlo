@@ -469,6 +469,15 @@ pub(crate) const INIT_SCRIPT: &str = r#"
 
         window.__adlGetMeta = function() {
             var t = document.title ? document.title.trim() : '';
+
+            // Fallback to og:title if document.title is empty or just hostname
+            if (!isTitleMeaningful(t)) {
+                var ogMeta = document.querySelector('meta[property="og:title"]');
+                if (ogMeta && ogMeta.content) {
+                    t = ogMeta.content.trim();
+                }
+            }
+
             var f = getFavicon();
             var u = location.href.split('#')[0];
 
@@ -479,12 +488,21 @@ pub(crate) const INIT_SCRIPT: &str = r#"
             var outTitle = '';
             var outFavicon = '';
 
-            if (hasTitle && isTitleMeaningful(t) && t === lastTitle) {
+            // Branch 1: already have a real title, confirm it matches
+            if (hasTitle && lastTitle && isTitleMeaningful(t) && t === lastTitle) {
                 outTitle = t;
-            } else if (!hasTitle && isTitleMeaningful(t) && t !== preNavTitle) {
+            }
+            // Branch 2: don't have a real title yet, and a meaningful one just appeared
+            else if (!hasTitle && isTitleMeaningful(t) && t !== preNavTitle) {
                 outTitle = t;
                 lastTitle = t;
                 hasTitle = true;
+            }
+            // Branch 3: hasTitle was forced true by nav polling timeout but lastTitle is empty,
+            // and a meaningful title just appeared — accept it
+            else if (hasTitle && !lastTitle && isTitleMeaningful(t) && t !== preNavTitle) {
+                outTitle = t;
+                lastTitle = t;
             }
 
             if (hasFavicon && f) {

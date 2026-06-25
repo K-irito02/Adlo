@@ -110,6 +110,7 @@ export const BrowserTabBar = React.memo(function BrowserTabBar({
                           src={faviconUrl}
                           alt=""
                           className="adl-tool-list__favicon"
+                          style={{ transition: 'opacity 0.15s ease-in-out' }}
                           onError={(e) => {
                             const img = e.target as HTMLImageElement;
                             const src = img.src;

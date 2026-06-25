@@ -217,6 +217,8 @@
 | `frontend/src/app/features/browser/useBrowserPageMeta.ts` | 修改 | URL 归一化 + hostname+pathname 匹配 + mode 感知 + `markUrlSeen` 预调用 |
 | `frontend/src/app/features/browser/useBrowserWebView.ts` | 修改 | `isUrlRecentlySeen` 三层递进去重（精确→归一化→hostname+pathname）；TTL 3000ms |
 | `frontend/src/styles/regions/rightpanel/browser-toolbar.css` | 修改 | 新增 Switch 样式 |
+
+> **2026-06-25 补充**：后续新增了 WebView2 原生 DocumentTitleChanged/FaviconChanged COM 事件处理（`crates/browser/src/webview2_message.rs`），以及 Rust 侧多源去重（`should_emit_and_update`）。详细信息见 [browser-meta-sync-mechanism-2026-06-25.md](../知识沉淀/浏览器/browser-meta-sync-mechanism-2026-06-25.md)。
 | `frontend/src/app/i18n/zh-CN/browser.ts` | 修改 | 新增 `browserNavigateInPlace`, `browserNavigateNewTab` |
 | `frontend/src/app/i18n/en-US/browser.ts` | 修改 | 新增 `browserNavigateInPlace`, `browserNavigateNewTab` |
 | `frontend/crates/browser/src/browser_navigation.rs` | 修改 | 移除 `stopImmediatePropagation` |

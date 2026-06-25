@@ -136,7 +136,7 @@ async fn fetch_page_meta_inner(url: &str) -> Result<PageMeta, AppError> {
             body
         },
         Err(e) => {
-            tracing::warn!(url = %url, err = %e, "fetch_page_meta_inner: HTTP failed, returning empty title");
+            tracing::info!(url = %url, err = %e, "fetch_page_meta_inner: HTTP failed, returning empty title");
             return Ok(PageMeta {
                 title: String::new(),
                 favicon: google_favicon_url(url),

@@ -6,7 +6,7 @@ use std::sync::{
 use std::time::Instant;
 use tauri::{Emitter, Manager};
 
-use crate::browser_events::{EMIT_DEDUP_WINDOW, LAST_EMIT};
+use crate::browser_events::{EMIT_DEDUP_WINDOW, LAST_EMIT, POLL_FAST_NOW};
 
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct Bounds {
@@ -20,7 +20,9 @@ pub(crate) const BROWSER_WEBVIEW_LABEL: &str = "adl-browser-view";
 
 const POLL_INTERVAL_MS: u64 = 5000;
 const FAST_POLL_INTERVAL_MS: u64 = 100;
-const FAST_POLL_DURATION_MS: u64 = 3000;
+const FAST_POLL_DURATION_MS: u64 = 10000;
+const MEDIUM_POLL_INTERVAL_MS: u64 = 1000;
+const MEDIUM_POLL_DURATION_MS: u64 = 20000;
 
 static ACTIVE_FETCH_RECEIVED_COUNT: AtomicU64 = AtomicU64::new(0);
 
@@ -106,6 +108,16 @@ impl BrowserManager {
             if let Err(e) = crate::webview2_message::setup_webview2_messaging(webview.clone()) {
                 tracing::warn!(error = %e, "webview2 messaging setup failed, using fallback");
             }
+            if let Err(e) = crate::webview2_message::setup_document_title_handler(webview.clone()) {
+                tracing::warn!(error = %e, "document title handler setup failed, using fallback");
+            }
+            if let Err(e) = crate::webview2_message::setup_favicon_changed_handler(webview.clone())
+            {
+                tracing::warn!(error = %e, "favicon changed handler setup failed, using fallback");
+            }
+            if let Err(e) = crate::webview2_message::setup_history_changed_handler(webview) {
+                tracing::warn!(error = %e, "history changed handler setup failed, using fallback");
+            }
         }
 
         self.active.store(true, Ordering::Release);
@@ -126,9 +138,11 @@ impl BrowserManager {
         let last_state = self.last_state.clone();
 
         std::thread::spawn(move || {
-            tracing::info!("[ADL-META-RECV] Method 2 (active fetch): poll thread started (normal:{}ms, fast:{}ms for {}ms)",
-                POLL_INTERVAL_MS, FAST_POLL_INTERVAL_MS, FAST_POLL_DURATION_MS);
+            tracing::info!("[ADL-META-RECV] Method 2 (active fetch): poll thread started (normal:{}ms, fast:{}ms×{}ms, medium:{}ms×{}ms)",
+                    POLL_INTERVAL_MS, FAST_POLL_INTERVAL_MS, FAST_POLL_DURATION_MS,
+                    MEDIUM_POLL_INTERVAL_MS, MEDIUM_POLL_DURATION_MS);
             let mut fast_poll_deadline: Option<std::time::Instant> = None;
+            let mut medium_poll_deadline: Option<std::time::Instant> = None;
 
             loop {
                 if stop_flag.load(Ordering::Acquire) {
@@ -136,11 +150,40 @@ impl BrowserManager {
                     break;
                 }
 
+                // Check for external fast-poll signal from HistoryChanged handler (Method 5)
+                if POLL_FAST_NOW.swap(false, Ordering::AcqRel) {
+                    let now = std::time::Instant::now();
+                    fast_poll_deadline =
+                        Some(now + std::time::Duration::from_millis(FAST_POLL_DURATION_MS));
+                    medium_poll_deadline = None;
+                    tracing::info!(
+                        "[ADL-META-RECV] POLL_FAST_NOW: fast poll triggered by HistoryChanged"
+                    );
+                }
+
+                let now = std::time::Instant::now();
                 let sleep_ms = if let Some(deadline) = fast_poll_deadline {
-                    if std::time::Instant::now() < deadline {
+                    if now < deadline {
                         FAST_POLL_INTERVAL_MS
                     } else {
+                        tracing::info!(
+                                "[ADL-META-RECV] fast poll expired after {}ms, switching to medium poll ({}ms interval for {}ms)",
+                                FAST_POLL_DURATION_MS, MEDIUM_POLL_INTERVAL_MS, MEDIUM_POLL_DURATION_MS
+                            );
+                        medium_poll_deadline =
+                            Some(now + std::time::Duration::from_millis(MEDIUM_POLL_DURATION_MS));
                         fast_poll_deadline = None;
+                        MEDIUM_POLL_INTERVAL_MS
+                    }
+                } else if let Some(deadline) = medium_poll_deadline {
+                    if now < deadline {
+                        MEDIUM_POLL_INTERVAL_MS
+                    } else {
+                        tracing::info!(
+                                "[ADL-META-RECV] medium poll expired after {}ms, switching to normal poll ({}ms)",
+                                MEDIUM_POLL_DURATION_MS, POLL_INTERVAL_MS
+                            );
+                        medium_poll_deadline = None;
                         POLL_INTERVAL_MS
                     }
                 } else {
@@ -197,7 +240,6 @@ impl BrowserManager {
 
                     if !title.is_empty() || !favicon.is_empty() {
                         let mut should_emit = false;
-                        let mut should_exit_fast = false;
 
                         if let Ok(mut state) = last_state.lock() {
                             let title_changed = !title.is_empty() && title != state.title;
@@ -214,9 +256,6 @@ impl BrowserManager {
                             }
                             if url_changed {
                                 state.url = actual_url.clone();
-                            }
-                            if !title.is_empty() && fast_poll_deadline.is_some() {
-                                should_exit_fast = true;
                             }
                         }
 
@@ -239,11 +278,6 @@ impl BrowserManager {
                                     "url": actual_url
                                 }),
                             );
-                        }
-
-                        if should_exit_fast {
-                            tracing::info!("[ADL-META-RECV] Method 2 (active fetch): got valid title, exiting fast poll early");
-                            fast_poll_deadline = None;
                         }
                     }
 
@@ -284,7 +318,10 @@ impl BrowserManager {
                     let should_emit_url = {
                         if let Ok(guard) = LAST_EMIT.lock() {
                             match guard.as_ref() {
-                                Some(last) if last.url == current_url_normalized && last.time.elapsed() < EMIT_DEDUP_WINDOW => {
+                                Some(last)
+                                    if last.url == current_url_normalized
+                                        && last.time.elapsed() < EMIT_DEDUP_WINDOW =>
+                                {
                                     tracing::info!(
                                         "[ADL-META-RECV] URL emit dedup: skipping duplicate within {}ms",
                                         EMIT_DEDUP_WINDOW.as_millis()
@@ -317,72 +354,42 @@ impl BrowserManager {
                     );
                 }
 
-                if fast_poll_deadline.is_some() {
-                    // Fast polling mode: actively fetch title/favicon as fallback
-                    // This runs when URL has changed and we need to quickly get the meta data
-                    let fetch_script = r#"
-                    (function() {
-                        try {
-                            // Skip if already processing adl-meta hash
-                            if (location.hash.indexOf('#adl-meta=') === 0) return;
-                            if (typeof window.__adlGetMeta !== 'function') return;
-
-                            var meta;
-                            try {
-                                meta = JSON.parse(window.__adlGetMeta());
-                            } catch(e) { return; }
-
-                            // If __adlGetMeta has valid data, use it
-                            if (meta && (meta.title || meta.favicon)) {
-                                var t = meta.title || '';
-                                var f = meta.favicon || '';
-                                var u = meta.url || location.href.split('#')[0];
-
-                                if (t || f) {
-                                    var payload = 'title=' + encodeURIComponent(t) +
-                                                  '&favicon=' + encodeURIComponent(f) +
-                                                  '&url=' + encodeURIComponent(u);
-                                    var newHash = '#adl-meta=' + encodeURIComponent(payload);
-                                    history.replaceState(null, '', newHash);
-                                    return;
-                                }
+                // Always actively fetch title/favicon on every poll cycle to catch delayed SPA title changes.
+                // This runs in fast, medium, and normal poll modes alike.
+                // The Rust-side dedup (#adl-meta= hash processing) prevents unnecessary re-emissions.
+                let fetch_script = r#"
+                (function() {
+                    try {
+                        if (location.hash.indexOf('#adl-meta=') === 0) return;
+                        var t = document.title ? document.title.trim() : '';
+                        if (!t || t === location.hostname || t === 'www.' + location.hostname) {
+                            var ogMeta = document.querySelector('meta[property="og:title"]');
+                            if (ogMeta && ogMeta.content) {
+                                t = ogMeta.content.trim();
                             }
-
-                            // Fallback: directly get document.title if __adlGetMeta returned empty
-                            // This handles cases where the page JS sets title after our init script ran
-                            var directTitle = document.title ? document.title.trim() : '';
-                            var hostname = location.hostname;
-
-                            // Only use if title is meaningful (not empty, not just hostname)
-                            if (directTitle && directTitle !== hostname && directTitle !== 'www.' + hostname) {
-                                var directFavicon = '';
-                                var links = document.querySelectorAll('link[rel*="icon"]');
-                                for (var i = 0; i < links.length; i++) {
-                                    var link = links[i];
-                                    if (!link.href) continue;
-                                    var rel = (link.getAttribute('rel') || '').toLowerCase();
-                                    if (rel.indexOf('icon') === -1) continue;
-                                    directFavicon = link.href;
-                                    break;
-                                }
-                                if (!directFavicon) {
-                                    var shortcut = document.querySelector('link[rel="shortcut icon"]');
-                                    if (shortcut && shortcut.href) directFavicon = shortcut.href;
-                                }
-
-                                var payload = 'title=' + encodeURIComponent(directTitle) +
-                                              '&favicon=' + encodeURIComponent(directFavicon) +
-                                              '&url=' + encodeURIComponent(location.href.split('#')[0]);
-                                var newHash = '#adl-meta=' + encodeURIComponent(payload);
-                                history.replaceState(null, '', newHash);
-                            }
-                        } catch(e) {
-                            console.error('[ADL-POLL-FETCH] error:', e);
                         }
-                    })();
-                    "#;
-                    let _ = webview.eval(fetch_script);
-                }
+                        if (!t) return;
+                        var f = '';
+                        var links = document.querySelectorAll('link[rel*="icon"]');
+                        for (var i = 0; i < links.length; i++) {
+                            if (!links[i].href) continue;
+                            var rel = (links[i].getAttribute('rel') || '').toLowerCase();
+                            if (rel.indexOf('icon') === -1) continue;
+                            f = links[i].href;
+                            break;
+                        }
+                        if (!f) {
+                            var shortcut = document.querySelector('link[rel="shortcut icon"]');
+                            if (shortcut && shortcut.href) f = shortcut.href;
+                        }
+                        var payload = 'title=' + encodeURIComponent(t) +
+                                      '&favicon=' + encodeURIComponent(f) +
+                                      '&url=' + encodeURIComponent(location.href.split('#')[0]);
+                        history.replaceState(null, '', '#adl-meta=' + encodeURIComponent(payload));
+                    } catch(e) {}
+                })();
+                "#;
+                let _ = webview.eval(fetch_script);
 
                 if let Ok(mut state) = last_state.lock() {
                     state.url = last.url;

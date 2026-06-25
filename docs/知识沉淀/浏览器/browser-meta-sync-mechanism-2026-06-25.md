@@ -35,6 +35,58 @@
 - **通信方式**：通过 `history.replaceState` 设置 `#adl-meta=...` hash，Rust 端检测到 hash 后解析数据
 - **优点**：可靠性高，不依赖页面事件触发时机
 - **缺点**：有轻微延迟（取决于轮询间隔）
+- **关键修复**（2026-06-25）：
+  - 移除 `should_exit_fast` 早退逻辑：原代码在首次获取到任意非空标题后立即退出快速轮询，导致 SPA 页面后续真实标题无法被检测。修复后快速轮询跑满 3 秒完整窗口。
+  - 修正 `fetch_script` 条件 `meta && (meta.title || meta.favicon)` → `meta && meta.title`：避免在 `__adlGetMeta` 返回空标题 + 非空 favicon + `pending:true` 时直接使用空标题跳过 `directTitle` 回退路径。
+
+### Method 3：WebView2 DocumentTitleChanged 原生事件（零延迟通道）
+
+**位置**：`crates/browser/src/webview2_message.rs` 中的 `setup_document_title_handler`
+
+- **原理**：利用 WebView2 的 `ICoreWebView2` 原生 COM 接口订阅 `DocumentTitleChanged` 事件。当 `document.title` 变化时，WebView2 直接回调 Rust，延迟 < 1ms。
+- **优势**：不需要任何 JS 注入或消息队列，标题变化时的响应速度是零延迟的。
+- **favicon 联动**：与 Method 4（FaviconChanged）共享一个线程安全的 `FAVICON_CACHE`。回调时先查缓存，如果有缓存的 favicon URL，一起发射到前端。
+- **兼容性**：`DocumentTitleChanged` 在 `ICoreWebView2` 基础接口上，所有 WebView2 版本都支持。
+- **关键实现**：
+  - 使用 `sender.DocumentTitle(&mut pwstr)` 获取标题
+  - 使用 `sender.Source(&mut pwstr)` 获取当前 URL
+  - 从 `FAVICON_CACHE` 查询缓存的 favicon URL
+  - 发射 `digital-life://browser-meta-changed` 事件
+
+### Method 4：WebView2 FaviconChanged 原生事件（favicon 缓存通道）
+
+**位置**：`crates/browser/src/webview2_message.rs` 中的 `setup_favicon_changed_handler`
+
+- **原理**：利用 WebView2 的 `ICoreWebView2_15` 接口（需要 SDK 1.0.2950+）订阅 `FaviconChanged` 事件。
+- **行为**：回调中仅缓存 favicon 到 `FAVICON_CACHE`，不发射事件。标题由 Method 3 从缓存读取后统一发射。
+- **为什么仅缓存**：`FaviconChanged` 回调中 `sender.DocumentTitle()` 经常返回空字符串（WebView2 COM 行为），无法发射完整的事件。简化为"只缓存，供 Method 3 读取"。
+- **兼容性**：`ICoreWebView2_15` cast 失败时静默降级（日志警告），回退到 Method 1/2。
+
+### 三路优先级
+
+| 优先级 | 方法 | 延迟 | 跨平台 | 说明 |
+|--------|------|------|--------|------|
+| 1（最快） | Method 3 DocumentTitleChanged | <1ms | Windows only | 标题默认路径 |
+| 2 | Method 4 FaviconChanged | <1ms（缓存） | Windows only（≥SDK 1.0.2950） | 仅缓存 favicon，不发射 |
+| 3（备份） | Method 1 postMessage | ~10ms | Windows only | 备用：标题+favicon |
+| 4（兜底） | Method 2 Rust 轮询 | 100ms~5s | 全平台 | 最终兜底 |
+
+### Rust 侧去重 + 旧标题检测
+
+**位置**：`crates/browser/src/webview2_message.rs`
+
+**背景**：三个独立源（Method 1/3/4）可能对相同 `(url, title, favicon)` 并发发射，导致前端重复处理。同时，自动连播（pushState）场景中，`document.title` 尚未更新时，Rust 端收到旧标题+新URL → 产生旧标题闪现。
+
+**解决方案**：`should_emit_and_update(url, title, favicon)` 去重函数：
+
+| 条件 | 结果 |
+|------|------|
+| 同 `(url, title, favicon)` + 1s 内 | 重复 → 跳过 |
+| `url` 不同 + 同 `(title, favicon)` | 旧标题 → 跳过 |
+| `url` 相同 + favicon 不同 | 允许（favicon 迟到补发） |
+| 空标题 | 跳过 |
+
+三个 handler（DocumentTitleChanged、postMessage、FaviconChanged）都使用该函数检查后再发射。
 
 ### 数据去重机制
 
@@ -207,6 +259,7 @@ https://www.bilibili.com/video/BV123/?t=10#t=5
 | 日期 | 变更 | 详细文档 |
 |------|------|---------|
 | 2026-06-25 | 重构：延迟创建 + 同步渲染 + 历史 path 去重 + 保留真实标题 | [browser-tab-meta-deferred-creation-2026-06-25.md](./browser-tab-meta-deferred-creation-2026-06-25.md) |
+| 2026-06-25 | 新增 Method 3（DocumentTitleChanged）+ Method 4（FaviconChanged）+ Rust 侧去重 + 修复 `should_exit_fast` + `fetch_script` 条件 | [browser-meta-sync-mechanism-2026-06-25.md](./browser-meta-sync-mechanism-2026-06-25.md) |
 | 2026-06-23 | 标志刷新元数据优化、已打开标签过滤增强 | 对应知识文档 |
 | 2026-06-21 | 并发去重、标题锁、favicon 质量评分 | 对应知识文档 |
 | 2026-06-20 | 导航模式切换（就地/新标签） | 对应知识文档 |

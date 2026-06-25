@@ -106,6 +106,54 @@ onUrlChanged 触发
 
 **位置**：`browserSlice.ts`、`useBrowserTreeData.ts`
 
+### 6. 重复 `onUrlChanged` 的 prefetch 去重
+
+**问题**：`onUrlChanged` 在初次导航时触发两次（`www.youtube.com` 不带斜杠 vs 带斜杠），两次都进入 `noTabExists` 逻辑并各自发起 HTTP prefetch，浪费 10s。
+
+**解决**：引入 `pendingPrefetchRef`（`Set<string>`），在 `noTabExists` 模式下若同一 URL 已有 prefetch 待处理则直接跳过该次 `onUrlChanged`。
+
+**位置**：`useBrowserUrlChange.ts`（`pendingPrefetchRef.current.has(normalizedUrl)`）
+
+### 7. 同站 SPA 导航跳过 HTTP prefetch
+
+**问题**：YouTube 等 SPA 网站的自动连播靠 COM/poll（Method 3/2）即可在 2s 内捕获标题。HTTP prefetch 对同站导航是冗余的，且 YouTube 阻截 HTTP，每次浪费 5s。
+
+**解决**：`onUrlChanged` 时判断新 URL 是否与当前标签同站（hostname 相同）。若是，跳过 HTTP prefetch 整个代码块。URL emit dedup（4000ms 窗口）确保 HistoryChanged 高频回调不触发重复逻辑。
+
+**位置**：`useBrowserUrlChange.ts`（`isSameSite` 检查）
+
+### 8. Stale meta 不污染历史目录
+
+**问题**：SPA 自动连播时，URL 先更新但 `document.title` 滞后。Method 2/3 在首次轮询时捕获旧标题+新URL，`handlePageMeta` 无条件调用 `browserAddToHistory`，导致历史目录闪现旧视频标题。
+
+**解决**：`handlePageMeta` exactMatch 分支将 `browserAddToHistory` / `browserUpdateHistoryTitle` 移至 `exactMatch.title !== pageTitle` 条件内。若标题未变（stale meta），跳过历史插入。正确标题到达时创建/更新。
+
+**位置**：`useBrowserPageMeta.ts`
+
+### 9. `browserNavigateActiveTab` 不再创建历史条目
+
+**问题**：`browserNavigateActiveTab` 在无 title 参数时用 `title || url` 作为历史条目标题，导致历史面板闪现完整 URL 约 2s。
+
+**解决**：移除 `browserNavigateActiveTab` 中所有历史条目创建逻辑。历史条目的创建和更新统一由 `handlePageMeta`（`browserAddToHistory` / `browserUpdateHistoryTitle`）管理。
+
+**位置**：`browserSlice.ts`
+
+### 10. HTTP prefetch MAX_RETRIES 设为 1
+
+**问题**：`MAX_RETRIES = 3` 对于始终阻截 HTTP 的网站（如 YouTube），每次浪费 15s。
+
+**解决**：设为 1。第一次尝试失败后不再重试。对于跨站导航，COM/poll 和 fallback timeout（8s/15s）提供兜底。
+
+**位置**：`useBrowserUrlChange.ts`
+
+### 11. `fetch_page_meta_inner HTTP failed` 降级为 INFO
+
+**问题**：YouTube 阻截 HTTP 是预期行为，`tracing::warn!` 产生不必要的人为告警噪声。
+
+**解决**：改为 `tracing::info!`。
+
+**位置**：`src-tauri/src/commands/browser.rs`
+
 ## 调试日志
 
 ### 新增日志

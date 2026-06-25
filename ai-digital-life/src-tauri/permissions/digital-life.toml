@@ -88,6 +88,7 @@ commands.allow = [
   "browser_hide",
   "browser_show",
   "browser_fetch_page_meta",
+  "write_debug_logs_to_project",
   "ci_get_status",
   "ci_get_status_without_token",
   "ci_set_access_token",

@@ -174,7 +174,10 @@ export function useBrowserPageMeta(
 
   const handlePageMeta = useCallback(
     (meta: { title: string; favicon: string; url: string }) => {
-      console.info('[browser-debug] handlePageMeta called:', JSON.stringify(meta));
+      console.info(
+        '[browser-debug] handlePageMeta called (ts=' + performance.now().toFixed(0) + '):',
+        JSON.stringify(meta)
+      );
 
       const cleanUrl = normalizeMetaUrl(meta.url);
       if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
@@ -204,9 +207,17 @@ export function useBrowserPageMeta(
       if (meta.favicon) {
         const existingFavicon = getCachedFavicon(cleanUrl);
         if (shouldReplaceFavicon(existingFavicon, meta.favicon)) {
-          console.info('[browser-debug] caching favicon for', cleanUrl, ':', meta.favicon);
-          setCachedFavicon(cleanUrl, meta.favicon);
-          new Image().src = meta.favicon;
+          console.info('[browser-debug] preloading favicon for', cleanUrl, ':', meta.favicon);
+          // Preload the image first, then update cache on load/error.
+          // This prevents a flicker caused by the <img> src changing to an uncached URL.
+          const img = new Image();
+          img.onload = () => {
+            setCachedFavicon(cleanUrl, meta.favicon);
+          };
+          img.onerror = () => {
+            setCachedFavicon(cleanUrl, meta.favicon);
+          };
+          img.src = meta.favicon;
         } else if (existingFavicon) {
           console.info(
             '[browser-debug] skipping lower-quality favicon:',
@@ -233,12 +244,14 @@ export function useBrowserPageMeta(
       });
 
       if (exactMatch) {
-        console.info('[browser-debug] handlePageMeta: exact match found, updating title');
-        if (!isTabTitleLocked(exactMatch.id) && exactMatch.title !== pageTitle) {
-          state.browserUpdateTab(exactMatch.id, { title: pageTitle });
+        if (exactMatch.title !== pageTitle) {
+          console.info('[browser-debug] handlePageMeta: exact match found, updating title');
+          if (!isTabTitleLocked(exactMatch.id)) {
+            state.browserUpdateTab(exactMatch.id, { title: pageTitle });
+          }
+          state.browserAddToHistory(cleanUrl, pageTitle);
+          state.browserUpdateHistoryTitle(cleanUrl, pageTitle);
         }
-        state.browserAddToHistory(cleanUrl, pageTitle);
-        state.browserUpdateHistoryTitle(cleanUrl, pageTitle);
         return;
       }
 

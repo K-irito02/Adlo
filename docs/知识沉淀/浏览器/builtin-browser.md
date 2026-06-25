@@ -185,3 +185,29 @@
 ### 测试验证
 - 在修复过程中应逐步验证每个环节
 - 使用类型检查工具提前发现类型不匹配问题
+
+## 标题/Favicon 检测
+
+### 17. WebView2 原生 COM 事件（最优路径）
+**问题**：postMessage（JS → Rust）和 Rust 轮询（eval JS）检测页面标题/favicon 都有不可忽视的延迟（postMessage ~10ms，轮询 100ms~5s），且 postMessage 在非 Windows 平台不可用。
+**解决方案**：使用 WebView2 原生 COM 事件，在 Rust 侧直接订阅 `DocumentTitleChanged`（`ICoreWebView2` 基础接口）和 `FaviconChanged`（`ICoreWebView2_15` 需要 SDK 1.0.2950+）：标题变化时亚毫秒级回调 Rust，无需经过 JS 消息队列。
+- `DocumentTitleChanged`：注册在 `ICoreWebView2`（基础接口），所有 Windows 系统可用。回调中通过 `sender.DocumentTitle()` 获取标题，`sender.Source()` 获取 URL。
+- `FaviconChanged`：注册在 `ICoreWebView2_15`（较高版本要求）。回调中通过 `sender.FaviconUri()` 获取 favicon URL，写入共享 `FAVICON_CACHE`，供 `DocumentTitleChanged` 回调读取发射。
+- 版本不兼容时静默降级：cast 失败 → 日志警告 → 回退到 postMessage/轮询。
+- **经验**：`FaviconChanged` 回调中 `DocumentTitle()` 经常返回空（WebView2 行为），因此 handler 只缓存不发射——标题由 `DocumentTitleChanged` handler 从共享缓存读取 favicon 后统一发射。
+**关键文件**：`crates/browser/src/webview2_message.rs`（`setup_document_title_handler`、`setup_favicon_changed_handler`）、`crates/browser/src/browser_webview.rs`
+
+### 18. Favicon 闪烁预防
+**问题**：favicon URL 变更时 `<img>` 的 `src` 直接更新为新 URL，但新图片尚未加载，产生短暂空白/闪烁。
+**解决方案**：
+- **预加载策略**：`handlePageMeta` 中收到新 favicon URL 时，先 `new Image()` 预加载，`onload` 回调中再更新 `setCachedFavicon`。这样 `<img>` src 变更时图片已在浏览器缓存中。
+- **CSS 过渡**：`<img>` 上添加 `transition: opacity 0.15s ease-in-out`，即使有极短延迟也平滑过渡。
+**关键文件**：`frontend/src/app/features/browser/useBrowserPageMeta.ts`、`frontend/src/app/components/BrowserFavicon.tsx`、`frontend/src/app/features/browser/BrowserTabBar.tsx`
+
+### 19. Rust 侧多源去重 + 旧标题检测
+**问题**：三个独立的 `onMetaChanged` 源（postMessage、DocumentTitleChanged、FaviconChanged）对相同 `(url, title, favicon)` 组合并发发射，导致重复事件和自动连播时的旧标题闪现。
+**解决方案**：在 Rust 侧添加 `should_emit_and_update(url, title, favicon)` 去重函数：
+- 同 `(url, title, favicon)` 在 1s 内 → 重复 → 跳过
+- `url` 不同但 `(title, favicon)` 相同 → 旧标题（pushState 残留） → 跳过
+- `url` 相同但 favicon 不同 → 放行（允许 favicon 迟到时补发）
+**关键文件**：`crates/browser/src/webview2_message.rs`

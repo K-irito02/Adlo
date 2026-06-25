@@ -31,7 +31,7 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
           src={faviconUrl}
           alt=""
           className="adl-browser-tree__favicon"
-          style={{ width: size, height: size }}
+          style={{ width: size, height: size, transition: 'opacity 0.15s ease-in-out' }}
           onError={(e) => {
             const img = e.target as HTMLImageElement;
             if (!img.src.includes('google.com/s2/favicons')) {
