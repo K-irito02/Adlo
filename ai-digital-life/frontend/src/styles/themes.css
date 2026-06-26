@@ -318,6 +318,8 @@ body,
   --adl-file-badge-ink-font: #9333ea;
   --adl-file-badge-ink-archive: #92400e;
   --adl-file-badge-ink-database: #0f766e;
+  --adl-loader-bg: #ffffff;
+  --adl-loader-line: #000000;
 }
 
 /* ===== DARK THEME =====
@@ -554,6 +556,8 @@ body,
   --adl-file-badge-ink-font: #c084fc;
   --adl-file-badge-ink-archive: #d97706;
   --adl-file-badge-ink-database: #2dd4bf;
+  --adl-loader-bg: #000000;
+  --adl-loader-line: #ffffff;
 }
 
 /* ===== Theme-Independent Tokens ===== */

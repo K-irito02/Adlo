@@ -35,6 +35,8 @@ export interface BrowserNavigatorProps {
   allTreeExpanded: boolean;
   navigatorMode: BrowserNavigatorMode;
   browserNavigatorWidth: number;
+  activeTabId: string;
+  evictedTabIds?: ReadonlySet<string>;
 
   onExpandAllTree: () => void;
   onCollapseAllTree: () => void;
@@ -94,12 +96,16 @@ export interface BrowserNavigatorProps {
 
 function OpenTabFlatList({
   browserTabs,
+  activeTabId,
   onSelectTab,
   onCloseTab,
+  evictedTabIds,
 }: {
   browserTabs: BrowserTabState[];
+  activeTabId: string;
   onSelectTab: (tabId: string) => void;
   onCloseTab: (tabId: string) => void;
+  evictedTabIds?: ReadonlySet<string>;
 }) {
   const { t } = useTCopy();
 
@@ -123,7 +129,7 @@ function OpenTabFlatList({
           {browserTabs.map((tab) => (
             <li
               key={tab.id}
-              className="adl-filetree__item adl-filetree__node--file"
+              className={`adl-filetree__item adl-filetree__node--file${tab.id === activeTabId ? ' is-active' : ''}${evictedTabIds?.has(tab.id) ? ' adl-filetree__item--evicted' : ''}`}
               data-path={`tab:${tab.id}`}
               role="treeitem"
             >
@@ -175,6 +181,8 @@ export function BrowserNavigator({
   allTreeExpanded,
   navigatorMode,
   browserNavigatorWidth,
+  evictedTabIds,
+  activeTabId,
   onExpandAllTree: handleExpandAllTree,
   onCollapseAllTree: handleCollapseAllTree,
   onSetNavigatorMode: setNavigatorMode,
@@ -378,6 +386,7 @@ export function BrowserNavigator({
       {navigatorMode === 'open' ? (
         <OpenTabFlatList
           browserTabs={browserTabs}
+          activeTabId={activeTabId}
           onSelectTab={(tabId) => {
             const tab = browserTabs.find((t) => t.id === tabId);
             if (tab) {
@@ -385,6 +394,7 @@ export function BrowserNavigator({
             }
           }}
           onCloseTab={(tabId) => handleDeleteTab(tabId, '')}
+          evictedTabIds={evictedTabIds}
         />
       ) : navigatorMode === 'tabs' ? (
         <BrowserTabTree

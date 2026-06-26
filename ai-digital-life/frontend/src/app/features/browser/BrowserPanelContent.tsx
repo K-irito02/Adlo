@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SafeIframe } from './SafeIframe';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { ExternalLinkError } from './ExternalLinkError';
@@ -7,15 +7,18 @@ import { useAppStore } from '../../stores/slicedStore';
 import { BrowserToolbar } from './BrowserToolbar';
 import { BrowserNavigator } from './BrowserNavigator';
 import { isTauriShell } from '../../../tauri-bridge';
+import { OrbitalLoader } from '../../components/OrbitalLoader';
 import { BrowserLandingPage } from './browser-landing';
 import { useNavigatorResize } from '../../hooks/useNavigatorResize';
-import { computeNavigatorCount } from './useBrowserTabs';
+import { computeNavigatorCount, findTabByUrl } from './useBrowserTabs';
 import type { BrowserNavigatorMode } from './useBrowserTabs';
 import type { BrowserSearchScope } from './useBrowserSearch';
 import type { BrowserMenuItem } from './useBrowserMenus';
 import type { BrowserTabState } from '../../stores/slices/browserSlice';
 import type { TabFolderState } from '../../stores/slices/browserFoldersSlice';
 import type { CopyDict } from '../../i18n/types';
+
+const IFRAME_POOL_SIZE = 5;
 
 interface BrowserPanelContentProps {
   t: CopyDict;
@@ -77,6 +80,8 @@ interface BrowserPanelContentProps {
   browserMenuItems: BrowserMenuItem[];
   setBrowserMenuOpen: React.Dispatch<React.SetStateAction<boolean>>;
   // --- useBrowserWebView ---
+  loadingTabId: string | null;
+  evictedTabIds: ReadonlySet<string>;
   iframeRef: React.RefObject<HTMLIFrameElement | null>;
   primaryRef: React.RefObject<HTMLDivElement | null>;
   handleIframeLoad: () => void;
@@ -85,6 +90,11 @@ interface BrowserPanelContentProps {
   iframeLoadError: boolean;
   isEmbedPending: boolean;
   validatedUrlsRef: React.MutableRefObject<Set<string>>;
+  removeFromPool: (tabId: string) => void;
+  isTabInPool: (tabId: string) => boolean;
+  createWebViewForTab: (tabId: string, url: string) => Promise<string | null>;
+  activateTabInPool: (tabId: string) => Promise<void>;
+  updateWebViewBounds: () => void;
   // --- useBrowserNavigation ---
   handleGoBack: () => void;
   handleGoForward: () => void;
@@ -157,6 +167,8 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
     browserMenuRef,
     browserMenuItems,
     setBrowserMenuOpen,
+    loadingTabId,
+    evictedTabIds,
     iframeRef,
     primaryRef,
     handleIframeLoad,
@@ -165,6 +177,11 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
     iframeLoadError,
     isEmbedPending,
     validatedUrlsRef,
+    removeFromPool,
+    isTabInPool,
+    createWebViewForTab,
+    activateTabInPool,
+    updateWebViewBounds,
     handleGoBack,
     handleGoForward,
     handleReload,
@@ -210,6 +227,11 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
 
   const inactiveIframeRef = useRef<HTMLIFrameElement | null>(null);
 
+  // LRU eviction for browser mode iframes
+  const iframeLruOrderRef = useRef<string[]>([]);
+  const evictedIframeTabsRef = useRef<Set<string>>(new Set());
+  const [iframeEvictionVersion, setIframeEvictionVersion] = useState(0);
+
   const handleToggleNavigateMode = useCallback(
     (checked: boolean) => {
       setBrowserNavigateInPlace(checked);
@@ -225,6 +247,11 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
           useAppStore.getState().browserSelectTab(tabId);
           return;
         }
+      }
+      const existingTabId = findTabByUrl(browserTabs, url);
+      if (existingTabId) {
+        useAppStore.getState().browserSelectTab(existingTabId);
+        return;
       }
       browserOpenTab(url, undefined, undefined);
     },
@@ -291,6 +318,38 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
     }
   }, [browserTabs, activatedTabIdsRef]);
 
+  // Track LRU order when active tab changes (browser mode only)
+  useEffect(() => {
+    if (isTauriShell() || !activeTab) {
+      return;
+    }
+    const tabId = activeTab.id;
+
+    let changed = evictedIframeTabsRef.current.delete(tabId);
+    iframeLruOrderRef.current = iframeLruOrderRef.current.filter((id) => id !== tabId);
+    iframeLruOrderRef.current.push(tabId);
+
+    while (iframeLruOrderRef.current.length > IFRAME_POOL_SIZE) {
+      const evictId = iframeLruOrderRef.current.shift();
+      if (evictId) {
+        evictedIframeTabsRef.current.add(evictId);
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      setIframeEvictionVersion((n) => n + 1);
+    }
+  }, [activeTab, isTauriShell, setIframeEvictionVersion]);
+
+  const mergedEvictedTabIds = useMemo(() => {
+    const merged = new Set(evictedTabIds);
+    for (const id of evictedIframeTabsRef.current) {
+      merged.add(id);
+    }
+    return merged;
+  }, [evictedTabIds, iframeEvictionVersion]);
+
   return (
     <>
       <BrowserToolbar
@@ -337,6 +396,8 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
           allTreeExpanded={allTreeExpanded}
           navigatorMode={navigatorMode}
           browserNavigatorWidth={browserNavigatorWidth}
+          activeTabId={activeTab?.id ?? ''}
+          evictedTabIds={mergedEvictedTabIds}
           onExpandAllTree={handleExpandAllTree}
           onCollapseAllTree={handleCollapseAllTree}
           onSetNavigatorMode={setNavigatorMode}
@@ -400,6 +461,14 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
                     tab.url !== 'about:blank' &&
                     validatedUrlsRef.current.has(tab.url);
 
+                  if (!isActive && evictedIframeTabsRef.current.has(tab.id)) {
+                    return null;
+                  }
+                  if (isActive && evictedIframeTabsRef.current.has(tab.id)) {
+                    evictedIframeTabsRef.current.delete(tab.id);
+                    setIframeEvictionVersion((n) => n + 1);
+                  }
+
                   if (!wasActivated && isActive) {
                     activatedTabIdsRef.current.add(tab.id);
                   }
@@ -444,6 +513,11 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
                   if (!activeTab?.url) {
                     return null;
                   }
+
+                  if (loadingTabId === activeTab.id) {
+                    return <OrbitalLoader />;
+                  }
+
                   return (
                     <>
                       {iframeBlockedDetected && (

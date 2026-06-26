@@ -21,7 +21,7 @@ fn main() {
             Ok(())
         })
         .on_page_load(|webview, payload| {
-            if webview.label() != "adl-browser-view" {
+            if !webview.label().starts_with("adl-browser-view") {
                 return;
             }
             if !matches!(payload.event(), PageLoadEvent::Finished) {
@@ -138,16 +138,14 @@ fn main() {
             commands::run_activity::run_activity_list_by_run_id,
             commands::model::model_set_provider_secret,
             commands::model::model_clear_provider_secret,
-            commands::browser::browser_create,
-            commands::browser::browser_destroy,
-            commands::browser::browser_hide,
-            commands::browser::browser_show,
-            commands::browser::browser_navigate,
-            commands::browser::browser_go_back,
-            commands::browser::browser_go_forward,
-            commands::browser::browser_reload,
-            commands::browser::browser_set_bounds,
-            commands::browser::browser_eval,
+            commands::browser::browser_create_for_tab,
+            commands::browser::browser_activate_tab,
+            commands::browser::browser_destroy_tab,
+            commands::browser::browser_navigate_tab,
+            commands::browser::browser_set_tab_bounds,
+            commands::browser::browser_go_back_tab,
+            commands::browser::browser_go_forward_tab,
+            commands::browser::browser_reload_tab,
             commands::browser::browser_fetch_page_meta,
             commands::ci::ci_get_status,
             commands::ci::ci_get_status_without_token,

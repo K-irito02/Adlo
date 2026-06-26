@@ -7,16 +7,17 @@ use adl_kernel::IpcResult;
 use tauri::{Manager, State};
 
 #[tauri::command]
-pub async fn browser_create(
+pub async fn browser_create_for_tab(
     app: tauri::AppHandle,
+    tab_id: String,
     url: String,
-) -> Result<IpcResult<()>, CommandError> {
+) -> Result<IpcResult<Option<String>>, CommandError> {
     let (tx, rx) = tokio::sync::oneshot::channel();
     let app_inner = app.clone();
 
     app.run_on_main_thread(move || {
         let state = app_inner.state::<AppState>();
-        let result = state.browser_manager.create(&app_inner, &url);
+        let result = state.browser_manager.create_for_tab(&app_inner, &tab_id, &url);
         let _ = tx.send(result);
     })
     .map_err(|e| AppError::Internal(format!("main thread dispatch failed: {e}")))?;
@@ -25,78 +26,68 @@ pub async fn browser_create(
 }
 
 #[tauri::command]
-pub fn browser_destroy(
+pub fn browser_activate_tab(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    tab_id: String,
 ) -> Result<IpcResult<()>, CommandError> {
-    Ok(ipc(state.browser_manager.destroy(&app)))
+    Ok(ipc(state.browser_manager.activate_tab(&app, &tab_id)))
 }
 
 #[tauri::command]
-pub fn browser_hide(
+pub fn browser_destroy_tab(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    tab_id: String,
 ) -> Result<IpcResult<()>, CommandError> {
-    Ok(ipc(state.browser_manager.hide(&app)))
+    Ok(ipc(state.browser_manager.destroy_tab(&app, &tab_id)))
 }
 
 #[tauri::command]
-pub fn browser_show(
+pub fn browser_navigate_tab(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
-) -> Result<IpcResult<()>, CommandError> {
-    Ok(ipc(state.browser_manager.show(&app)))
-}
-
-#[tauri::command]
-pub fn browser_navigate(
-    app: tauri::AppHandle,
-    state: State<'_, AppState>,
+    tab_id: String,
     url: String,
 ) -> Result<IpcResult<()>, CommandError> {
-    Ok(ipc(state.browser_manager.navigate(&app, &url)))
+    Ok(ipc(state.browser_manager.navigate_tab(&app, &tab_id, &url)))
 }
 
 #[tauri::command]
-pub fn browser_go_back(
+pub fn browser_set_tab_bounds(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
-) -> Result<IpcResult<bool>, CommandError> {
-    Ok(ipc(state.browser_manager.go_back(&app)))
-}
-
-#[tauri::command]
-pub fn browser_go_forward(
-    app: tauri::AppHandle,
-    state: State<'_, AppState>,
-) -> Result<IpcResult<bool>, CommandError> {
-    Ok(ipc(state.browser_manager.go_forward(&app)))
-}
-
-#[tauri::command]
-pub fn browser_reload(
-    app: tauri::AppHandle,
-    state: State<'_, AppState>,
-) -> Result<IpcResult<()>, CommandError> {
-    Ok(ipc(state.browser_manager.reload(&app)))
-}
-
-#[tauri::command]
-pub fn browser_set_bounds(
-    app: tauri::AppHandle,
-    state: State<'_, AppState>,
+    tab_id: String,
     bounds: Bounds,
 ) -> Result<IpcResult<()>, CommandError> {
-    Ok(ipc(state.browser_manager.set_bounds(&app, bounds)))
+    Ok(ipc(state.browser_manager.set_tab_bounds(&app, &tab_id, bounds)))
 }
 
 #[tauri::command]
-pub fn browser_eval(
+pub fn browser_go_back_tab(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
-    script: String,
+    tab_id: String,
+) -> Result<IpcResult<bool>, CommandError> {
+    Ok(ipc(state.browser_manager.go_back_tab(&app, &tab_id)))
+}
+
+#[tauri::command]
+pub fn browser_go_forward_tab(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    tab_id: String,
+) -> Result<IpcResult<bool>, CommandError> {
+    Ok(ipc(state.browser_manager.go_forward_tab(&app, &tab_id)))
+}
+
+#[tauri::command]
+pub fn browser_reload_tab(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    tab_id: String,
 ) -> Result<IpcResult<()>, CommandError> {
-    Ok(ipc(state.browser_manager.eval(&app, &script)))
+    Ok(ipc(state.browser_manager.reload_tab(&app, &tab_id)))
 }
 
 #[tauri::command]
@@ -107,7 +98,49 @@ pub async fn browser_fetch_page_meta(url: String) -> Result<IpcResult<PageMeta>,
 
 const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
+use std::collections::HashMap;
+use std::sync::Mutex;
+use std::time::Instant;
+
+fn with_fetch_cache<F, R>(f: F) -> R
+where
+    F: FnOnce(&mut HashMap<String, Instant>) -> R,
+{
+    static CACHE: std::sync::OnceLock<Mutex<HashMap<String, Instant>>> = std::sync::OnceLock::new();
+    let mutex = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+    let mut guard = mutex.lock().unwrap();
+    f(&mut guard)
+}
+
+const FETCH_DEDUP_WINDOW_MS: u64 = 3000;
+
 async fn fetch_page_meta_inner(url: &str) -> Result<PageMeta, AppError> {
+    {
+        let is_dupe = with_fetch_cache(|cache| {
+            let now = Instant::now();
+            match cache.get(url) {
+                Some(last)
+                    if now.duration_since(*last)
+                        < std::time::Duration::from_millis(FETCH_DEDUP_WINDOW_MS) =>
+                {
+                    true
+                },
+                _ => {
+                    cache.insert(url.to_string(), now);
+                    false
+                },
+            }
+        });
+        if is_dupe {
+            tracing::info!(url = %url, "fetch_page_meta_inner: skipped (dedup within {}ms)", FETCH_DEDUP_WINDOW_MS);
+            return Ok(PageMeta {
+                title: String::new(),
+                favicon: String::new(),
+                url: url.to_string(),
+            });
+        }
+    }
+
     tracing::info!(url = %url, "fetch_page_meta_inner: start");
 
     if !url.starts_with("http://") && !url.starts_with("https://") {

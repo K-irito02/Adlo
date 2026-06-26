@@ -1,5 +1,4 @@
 use adl_errors::AppError;
-use tauri::Manager;
 use url::Url;
 
 /// 初始化脚本：确保所有链接点击都在当前 WebView 中打开
@@ -537,73 +536,4 @@ pub(crate) fn resolve_url(raw: &str) -> Result<Url, AppError> {
         }
     }
     Err(AppError::InvalidInput(format!("Cannot parse URL: {}", trimmed)))
-}
-
-impl crate::browser_webview::BrowserManager {
-    pub fn navigate(&self, app: &tauri::AppHandle, url: &str) -> Result<(), AppError> {
-        let window = app
-            .get_window("main")
-            .ok_or_else(|| AppError::Internal("main window not found".into()))?;
-
-        let webview = window
-            .get_webview(crate::browser_webview::BROWSER_WEBVIEW_LABEL)
-            .ok_or_else(|| AppError::Internal("browser webview not found".into()))?;
-
-        let target = resolve_url(url)?;
-
-        webview
-            .navigate(target)
-            .map_err(|e| AppError::Internal(format!("navigate failed: {e}")))?;
-
-        tracing::info!(url = url, "browser navigate");
-        Ok(())
-    }
-
-    pub fn go_back(&self, app: &tauri::AppHandle) -> Result<bool, AppError> {
-        let window = app
-            .get_window("main")
-            .ok_or_else(|| AppError::Internal("main window not found".into()))?;
-
-        let webview = window
-            .get_webview(crate::browser_webview::BROWSER_WEBVIEW_LABEL)
-            .ok_or_else(|| AppError::Internal("browser webview not found".into()))?;
-
-        webview
-            .eval("history.back()")
-            .map_err(|e| AppError::Internal(format!("go_back eval failed: {e}")))?;
-
-        Ok(true)
-    }
-
-    pub fn go_forward(&self, app: &tauri::AppHandle) -> Result<bool, AppError> {
-        let window = app
-            .get_window("main")
-            .ok_or_else(|| AppError::Internal("main window not found".into()))?;
-
-        let webview = window
-            .get_webview(crate::browser_webview::BROWSER_WEBVIEW_LABEL)
-            .ok_or_else(|| AppError::Internal("browser webview not found".into()))?;
-
-        webview
-            .eval("history.forward()")
-            .map_err(|e| AppError::Internal(format!("go_forward eval failed: {e}")))?;
-
-        Ok(true)
-    }
-
-    pub fn reload(&self, app: &tauri::AppHandle) -> Result<(), AppError> {
-        let window = app
-            .get_window("main")
-            .ok_or_else(|| AppError::Internal("main window not found".into()))?;
-
-        let webview = window
-            .get_webview(crate::browser_webview::BROWSER_WEBVIEW_LABEL)
-            .ok_or_else(|| AppError::Internal("browser webview not found".into()))?;
-
-        webview
-            .eval("location.reload()")
-            .map_err(|e| AppError::Internal(format!("reload eval failed: {e}")))?;
-
-        Ok(())
-    }
 }

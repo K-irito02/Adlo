@@ -30,6 +30,20 @@ export function computeNavigatorCount(
   return 0;
 }
 
+export function findTabByUrl(tabs: BrowserTabState[], url: string): string | undefined {
+  if (!url) {
+    return undefined;
+  }
+  const normalizedUrl = url.endsWith('/') && url.length > 8 ? url.slice(0, -1) : url;
+  for (const tab of tabs) {
+    const tabUrl = tab.url.endsWith('/') && tab.url.length > 8 ? tab.url.slice(0, -1) : tab.url;
+    if (tabUrl === normalizedUrl || tab.url === url) {
+      return tab.id;
+    }
+  }
+  return undefined;
+}
+
 export function useBrowserTabs() {
   const [editingTabId, setEditingTabId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');

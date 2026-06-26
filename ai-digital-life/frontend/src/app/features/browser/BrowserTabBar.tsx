@@ -14,6 +14,7 @@ interface BrowserTabBarProps {
   editInputRef: React.RefObject<HTMLInputElement | null>;
   isDragging: boolean;
   dragOverTabId: string | null;
+  evictedTabIds: ReadonlySet<string>;
   onSelectTab: (tabId: string) => void;
   onCloseTab: (tabId: string) => void;
   onDragStart: (e: React.DragEvent, tabId: string, isPinned: boolean) => void;
@@ -47,6 +48,7 @@ export const BrowserTabBar = React.memo(function BrowserTabBar({
   onEditChange,
   onEditSubmit,
   onEditKeyDown,
+  evictedTabIds,
   t: _t,
 }: BrowserTabBarProps) {
   const browserBookmarks = useAppStore((state) => state.browserBookmarks);
@@ -63,11 +65,21 @@ export const BrowserTabBar = React.memo(function BrowserTabBar({
     <ul className="adl-tool-list adl-tool-list--terminal">
       {tabs.map((tab) => {
         const isBookmarked = bookmarkedUrls.has(tab.url);
+        console.log(
+          '[ADL-DEBUG] [BrowserTabBar] tab',
+          tab.id,
+          'isEvicted:',
+          evictedTabIds.has(tab.id),
+          'title:',
+          tab.title,
+          'url:',
+          tab.url
+        );
 
         return (
           <li
             key={tab.id}
-            className={`adl-tool-list__item adl-tool-list__item--terminal-tab${isDragging && dragOverTabId === tab.id ? ' is-drag-over' : ''}${tab.isPinned ? ' is-pinned' : ''}`}
+            className={`adl-tool-list__item adl-tool-list__item--terminal-tab${isDragging && dragOverTabId === tab.id ? ' is-drag-over' : ''}${tab.isPinned ? ' is-pinned' : ''}${evictedTabIds.has(tab.id) ? ' adl-tool-list__item--evicted' : ''}`}
             draggable
             onDragStart={(e) => onDragStart(e, tab.id, tab.isPinned)}
             onDragEnd={onDragEnd}

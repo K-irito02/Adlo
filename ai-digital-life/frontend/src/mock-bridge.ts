@@ -232,13 +232,16 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
   },
 
   browser: {
-    navigate: async (_url: string) => {},
-    goBack: async () => true,
-    goForward: async () => true,
-    reload: async () => {},
-    onUrlChanged: (_listener: (url: string) => void) => () => {},
-    onMetaChanged:
-      (_listener: (meta: { title: string; favicon: string; url: string }) => void) => () => {},
+    createForTab: (_tabId: string, _url: string) => Promise.resolve(null),
+    activateTab: (_tabId: string) => Promise.resolve(),
+    destroyTab: (_tabId: string) => Promise.resolve(),
+    navigateTab: (_tabId: string, _url: string) => Promise.resolve(),
+    setTabBounds: (_tabId: string, _bounds: any) => Promise.resolve(),
+    goBackTab: (_tabId: string) => Promise.resolve(false),
+    goForwardTab: (_tabId: string) => Promise.resolve(false),
+    reloadTab: (_tabId: string) => Promise.resolve(),
+    onUrlChanged: (_listener: any) => () => {},
+    onMetaChanged: (_listener: any) => () => {},
   },
 
   ci: {

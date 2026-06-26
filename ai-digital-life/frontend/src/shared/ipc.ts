@@ -1067,60 +1067,28 @@ export interface PageMeta {
 }
 
 export interface BrowserBridge {
-  /**
-   * 在应用内浏览器中导航到指定 URL
-   * @param url 目标 URL
-   * @command browser_navigate
-   * @see tauri-bridge.ts → browser.navigate
-   * @see mock-bridge.ts → browser.navigate
-   * @see preview-bridge/index.ts → browser.navigate
-   */
-  navigate: (url: string) => Promise<void>;
-  /**
-   * 浏览器后退
-   * @returns 是否成功后退 (有历史记录时为 true)
-   * @command browser_go_back
-   * @see tauri-bridge.ts → browser.goBack
-   * @see mock-bridge.ts → browser.goBack
-   * @see preview-bridge/index.ts → browser.goBack
-   */
-  goBack: () => Promise<boolean>;
-  /**
-   * 浏览器前进
-   * @returns 是否成功前进 (有历史记录时为 true)
-   * @command browser_go_forward
-   * @see tauri-bridge.ts → browser.goForward
-   * @see mock-bridge.ts → browser.goForward
-   * @see preview-bridge/index.ts → browser.goForward
-   */
-  goForward: () => Promise<boolean>;
-  /**
-   * 刷新当前页面
-   * @command browser_reload
-   * @see tauri-bridge.ts → browser.reload
-   * @see mock-bridge.ts → browser.reload
-   * @see preview-bridge/index.ts → browser.reload
-   */
-  reload: () => Promise<void>;
-  /**
-   * 订阅浏览器 URL 变更事件
-   * @param listener 接收新 URL 的回调
-   * @returns 取消订阅的函数
-   * @command 无独立命令 (通过事件 channel: digital-life://browser-url-changed)
-   * @see tauri-bridge.ts → browser.onUrlChanged
-   * @see mock-bridge.ts → browser.onUrlChanged
-   * @see preview-bridge/index.ts → browser.onUrlChanged
-   */
+  /** Create a WebView for a specific tab. Returns evicted tab_id if pool was full. */
+  createForTab: (tabId: string, url: string) => Promise<string | null>;
+  /** Activate tab: show its WebView, hide others, update LRU. */
+  activateTab: (tabId: string) => Promise<void>;
+  /** Destroy a tab's WebView (on tab close). */
+  destroyTab: (tabId: string) => Promise<void>;
+  /** Navigate a specific tab's WebView. */
+  navigateTab: (tabId: string, url: string) => Promise<void>;
+  /** Set bounds for a specific tab's WebView. */
+  setTabBounds: (
+    tabId: string,
+    bounds: { x: number; y: number; width: number; height: number }
+  ) => Promise<void>;
+  /** Go back in a specific tab */
+  goBackTab: (tabId: string) => Promise<boolean>;
+  /** Go forward in a specific tab */
+  goForwardTab: (tabId: string) => Promise<boolean>;
+  /** Reload a specific tab */
+  reloadTab: (tabId: string) => Promise<void>;
+  /** Subscribe to URL changes (global event) */
   onUrlChanged: (listener: (url: string) => void) => () => void;
-  /**
-   * 订阅浏览器页面元信息变更事件 (title + favicon)
-   * @param listener 接收 PageMeta 的回调
-   * @returns 取消订阅的函数
-   * @command 通过事件 channel: digital-life://browser-meta-changed
-   * @see tauri-bridge.ts → browser.onMetaChanged
-   * @see mock-bridge.ts → browser.onMetaChanged
-   * @see preview-bridge/index.ts → browser.onMetaChanged
-   */
+  /** Subscribe to page meta changes */
   onMetaChanged: (listener: (meta: PageMeta) => void) => () => void;
 }
 

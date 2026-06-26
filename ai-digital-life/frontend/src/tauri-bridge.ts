@@ -343,10 +343,26 @@ export function createTauriBridge(): DigitalLifeBridge {
         invokeIpc<DigitalLifeRunActivityEventV1[]>('run_activity_list_by_run_id', { runId, limit }),
     },
     browser: {
-      navigate: (url: string) => invokeIpc<void>('browser_navigate', { url }).then(() => undefined),
-      goBack: () => invokeIpc<boolean>('browser_go_back').then((r) => r.ok && !!r.data),
-      goForward: () => invokeIpc<boolean>('browser_go_forward').then((r) => r.ok && !!r.data),
-      reload: () => invokeIpc<void>('browser_reload').then(() => undefined),
+      createForTab: (tabId: string, url: string) =>
+        invokeIpc<string | null>('browser_create_for_tab', { tabId, url }).then((r) =>
+          r.ok ? r.data : null
+        ),
+      activateTab: (tabId: string) =>
+        invokeIpc<void>('browser_activate_tab', { tabId }).then(() => undefined),
+      destroyTab: (tabId: string) =>
+        invokeIpc<void>('browser_destroy_tab', { tabId }).then(() => undefined),
+      navigateTab: (tabId: string, url: string) =>
+        invokeIpc<void>('browser_navigate_tab', { tabId, url }).then(() => undefined),
+      setTabBounds: (
+        tabId: string,
+        bounds: { x: number; y: number; width: number; height: number }
+      ) => invokeIpc<void>('browser_set_tab_bounds', { tabId, bounds }).then(() => undefined),
+      goBackTab: (tabId: string) =>
+        invokeIpc<boolean>('browser_go_back_tab', { tabId }).then((r) => r.ok && !!r.data),
+      goForwardTab: (tabId: string) =>
+        invokeIpc<boolean>('browser_go_forward_tab', { tabId }).then((r) => r.ok && !!r.data),
+      reloadTab: (tabId: string) =>
+        invokeIpc<void>('browser_reload_tab', { tabId }).then(() => undefined),
       onUrlChanged: (listener: (url: string) => void) => {
         let active = true;
         let ul: UnlistenFn | undefined;
