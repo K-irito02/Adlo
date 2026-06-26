@@ -1,16 +1,15 @@
 import { useCallback, useRef, useState } from 'react';
 import { isTauriShell } from '../../../tauri-bridge';
 
-export function useBrowserPool(maxPoolSize: number = 6) {
-  const lruOrderRef = useRef<string[]>([]);
-  const poolRef = useRef<Map<string, { tabId: string }>>(new Map());
+export function useBrowserPool(_maxPoolSize?: number) {
+  const poolSetRef = useRef<Set<string>>(new Set());
   const [, forceUpdate] = useState(0);
   const [poolVersion, setPoolVersion] = useState(0);
   const rerender = useCallback(() => forceUpdate((n) => n + 1), []);
   const bumpPoolVersion = useCallback(() => setPoolVersion((v) => v + 1), []);
 
   const isTabInPool = useCallback((tabId: string): boolean => {
-    return poolRef.current.has(tabId);
+    return poolSetRef.current.has(tabId);
   }, []);
 
   const createWebViewForTab = useCallback(
@@ -24,35 +23,11 @@ export function useBrowserPool(maxPoolSize: number = 6) {
         }
       }
 
-      console.log(
-        '[ADL-DEBUG] [BrowserPool] createWebViewForTab',
-        'tabId:',
-        tabId,
-        'url:',
-        url,
-        'rustEvicted:',
-        rustEvicted,
-        'poolSize before:',
-        poolRef.current.size
-      );
-
       if (rustEvicted) {
-        poolRef.current.delete(rustEvicted);
-        lruOrderRef.current = lruOrderRef.current.filter((id) => id !== rustEvicted);
+        poolSetRef.current.delete(rustEvicted);
       }
 
-      poolRef.current.set(tabId, { tabId });
-      lruOrderRef.current = lruOrderRef.current.filter((id) => id !== tabId);
-      lruOrderRef.current.push(tabId);
-
-      console.log(
-        '[ADL-DEBUG] [BrowserPool] pool after create',
-        'poolKeys:',
-        Array.from(poolRef.current.keys()),
-        'lruOrder:',
-        lruOrderRef.current
-      );
-
+      poolSetRef.current.add(tabId);
       rerender();
       bumpPoolVersion();
 
@@ -62,9 +37,6 @@ export function useBrowserPool(maxPoolSize: number = 6) {
   );
 
   const activateTabInPool = useCallback(async (tabId: string) => {
-    lruOrderRef.current = lruOrderRef.current.filter((id) => id !== tabId);
-    lruOrderRef.current.push(tabId);
-
     if (isTauriShell()) {
       const bridge = window.digitalLife?.browser;
       if (bridge) {
@@ -75,16 +47,7 @@ export function useBrowserPool(maxPoolSize: number = 6) {
 
   const removeFromPool = useCallback(
     (tabId: string) => {
-      const wasInPool = poolRef.current.has(tabId);
-      poolRef.current.delete(tabId);
-      console.log(
-        '[ADL-DEBUG] [BrowserPool] removeFromPool',
-        'tabId:',
-        tabId,
-        'had it:',
-        wasInPool
-      );
-      lruOrderRef.current = lruOrderRef.current.filter((id) => id !== tabId);
+      poolSetRef.current.delete(tabId);
       rerender();
       bumpPoolVersion();
     },
@@ -105,7 +68,7 @@ export function useBrowserPool(maxPoolSize: number = 6) {
   );
 
   return {
-    poolSize: poolRef.current.size,
+    poolSize: poolSetRef.current.size,
     isTabInPool,
     createWebViewForTab,
     activateTabInPool,
