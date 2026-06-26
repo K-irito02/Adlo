@@ -1,7 +1,6 @@
 import { useCallback, useRef } from 'react';
 import { useAppStore } from '../../stores/slicedStore';
 import { setCachedFavicon, isTabTitleLocked, getCachedFavicon } from '../../utils/fetchPageMeta';
-import { hostnameFromUrl } from '../../utils/browserDisplayUtils';
 import type { ToastType } from '../../components/Toast';
 import type { BrowserTabState } from '../../stores/slices/browserSlice';
 
@@ -227,12 +226,6 @@ export function useBrowserPageMeta(
             ')'
           );
         }
-      }
-
-      const urlHostname = hostnameFromUrl(cleanUrl);
-      if (meta.title === urlHostname) {
-        console.info('[browser-debug] handlePageMeta: title equals hostname, skip');
-        return;
       }
 
       const pageTitle = meta.title;

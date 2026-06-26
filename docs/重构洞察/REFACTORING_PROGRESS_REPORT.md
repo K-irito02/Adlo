@@ -1,6 +1,6 @@
 # 重构进度报告
 
-> 更新日期: 2026-06-24（第八十轮）
+> 更新日期: 2026-06-26（第八十二轮）
 
 ## 完成状态
 
@@ -86,6 +86,7 @@
 | **第七十八轮** | **2026-06-23** | **浏览器标签刷新语义优化：悬停按钮 tooltip 改为"刷新Logo/标题"，上下文菜单中"刷新"项改为"刷新Logo/标题"+ 新增"!"图标 + hint 提示卡，新增 i18n key browserRefreshMeta/browserRefreshMetaHint，BrowserTreeEntry 新增 showTabHint 回调 + 标签菜单新增"!"图标渲染** | ✅ |
 | **第七十九轮** | **2026-06-23** | **重构洞察第17次执行（11项发现）：前端组件拆分——BrowserPanel（814→616行）、BrowserTreeEntry（721→476行）、GitHubCITree（715→273行）、preview-bridge/index.ts（622→75行，13子模块）、mock/shared.ts（519→57行，4子模块）；Rust clone 消除——agent_pipeline.rs（16→8）、task.rs（13→10）、workspace_sidebar.rs（11→7）、task/lib.rs 结构优化；CSS transition:all 修复（2处）；console.log 清理（3处）** | ✅ |
 | **第八十轮** | **2026-06-24** | **浏览器导航栏4模式重构：Store 简化（删除 viewMode/showTabButtons）、BrowserNavigator 重写为4模式扁平按钮（open/tabs/list/search）、Flash 消除（display:none 包装）、搜索外部点击修复、Close 按钮仅 open 模式显示、Flat 模式标签溢出修复（::after 渐变蒙版 + position:relative + text-overflow:clip）、auto-sync 修复与调试日志清理** | ✅ |
+| **第八十一轮** | **2026-06-25~26** | **浏览器历史记录修复（6 Bug）：INIT_SCRIPT/轮询脚本/handlePageMeta 三处 title===hostname 误跳过修复、同站 SPA 导航历史写入、跨域/同域 iframe 加载历史降级写入、首次导航 prefetch 成功时无历史写入的 Race Condition 修复** | ✅ |
 
 ## 说明
 
@@ -240,4 +241,73 @@
 - Prettier: All matched files use Prettier code style
 - Cargo clippy: 0 warnings
 - Rustfmt: clean
+
+## 第八十一轮：浏览器历史记录修复（2026-06-25~26）
+
+### 背景
+
+导航器"历史记录"目录中部分页面访问未被记录，且不同网站表现不一致（B 站首页首次导航不记录，YouTube 首页正常）。
+
+### 修复的 6 个 Bug
+
+| # | Bug | 涉及文件 | 类型 |
+|---|-----|----------|------|
+| 1 | `isTitleMeaningful` 在 title===hostname 时误跳过，阻塞 INIT_SCRIPT postMessage 上报 | `browser_navigation.rs` | Rust |
+| 2 | 轮询 `fetch_script` 同样 title===hostname 检查 | `browser_webview.rs` | Rust |
+| 3 | `handlePageMeta` 额外 `title===urlHostname` 检查直接 `return` | `useBrowserPageMeta.ts` | 前端 |
+| 4 | 同站 SPA 导航（Tauri 模式）无历史写入 | `useBrowserUrlChange.ts` | 前端 |
+| 5 | iframe 跨域/同域加载（浏览器模式）丢失历史 | `useBrowserUrlChange.ts`, `BrowserPanel.tsx` | 前端 |
+| 6 | 首次导航（noTabExists）prefetch 成功时创建标签但不写历史，meta-changed 到达时标题匹配又跳过 | `useBrowserUrlChange.ts` | 前端 |
+
+### 核心发现
+
+Bug 6 是最难排查的 Race Condition：
+
+```
+首次导航 → noTabExists → prefetch 成功(真实标题)
+  ├─ 创建标签(标题=pageTitle) ← 但没写历史
+  └─ meta-changed 到达:
+       └─ exactMatch.title === pageTitle → false → ❌ 跳过
+```
+
+不同网站表现不一致的原因：B 站的 HTTP prefetch 能返回真实标题，YouTube 的 prefetch 返回空标题。前者走 prefetch 成功路径丢失历史，后者走 fallback 路径由 meta-changed 成功写入。
+
+### 关键经验
+
+详见 `docs/知识沉淀/浏览器/browser-history-recording-fix-2026-06-26.md`
+
+## 第八十二轮：FLIP 动画重构 + 浏览器标签标题修复（2026-06-26）
+
+### 背景
+
+两个独立的 Bug：
+
+1. **文件树 FLIP 动画双重播放**：CSS `@keyframes adl-entry-slide-in` 与手动 RAF FLIP 同时作用，新条目触发两次动画。同时 FLIP 的 `el.style.transition` 覆盖了 CSS `transition: opacity`，导致悬停透明度过渡失效。
+
+2. **浏览器标签标题闪烁/错误**：导航时旧标题短暂显示后才更新为正确标题（Issue 1）；同站 SPA 回退导航后标题永久停留在旧值（Issue 2）。
+
+### 修改的文件
+
+#### FLIP 动画
+| 文件 | 变更 |
+|------|------|
+| `fileTree.tsx` | 移除 `isNewEntry` ref/state/effect/prop；FLIP 改用 `el.animate()` 替代 RAF+inline styles；移除 `flipCleanupTimersRef` |
+| `TreeNodeRow.tsx` | 移除 `isNewEntry` prop、CSS class、`data-is-new-entry` attribute |
+| `file-tree-core.css` | 移除 `@keyframes adl-entry-slide-in`、`.adl-filetree__item--new-entry` |
+
+#### 浏览器标签标题
+| 文件 | 变更 |
+|------|------|
+| `browserSlice.ts` | `browserNavigateActiveTab` 不再保留旧标题（`title: title \|\| tab.title` → `title: title \|\| ''`） |
+| `useBrowserUrlChange.ts` | 延迟标签 URL 更新直到真实标题到达；移除 `isSameSite` 门控，HTTP prefetch 始终进行；prefetch 回调原子更新 URL+title；移除未使用的 `hostnameFromUrl` 导入 |
+
+### 核心改动
+
+1. **FLIP → Web Animation API**：`el.animate()` 替代 `requestAnimationFrame` + `el.style.transition/transform`，消除 CSS 过渡覆盖，自动清理动画副作用。
+2. **延迟标签创建**：`onUrlChanged` 不再立即调用 `browserNavigateActiveTab(url)`，而是等待 prefetch 或 `handlePageMeta`（COM 事件）提供真实标题后才原子更新 URL+title。
+3. **通用 prefetch**：同站 SPA 导航也执行 HTTP prefetch，弥补 COM 事件在 SPA pushState 下不可靠的问题。
+
+### 关键经验
+
+详见 `docs/知识沉淀/浏览器/browser-tab-title-deferred-update-2026-06-26.md`
 

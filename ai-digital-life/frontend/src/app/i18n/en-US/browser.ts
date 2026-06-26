@@ -121,7 +121,7 @@ export const browserEn = {
     'Delete this directory and all directory structures and child tabs under it.',
   browserContextDeleteAllHistory: 'Delete all history labels',
   browserDeleteHistoryLabelHint:
-    'Only delete child tags under "day" directories, keep "year/month/day" directory structure.',
+    'Delete all history entries, clearing all year/month/day directory structures and their tags.',
   browserDeleteHistoryYearHint:
     'Only delete "year" directories, including nested sub-directories (month, day) and tags under "day" directories.',
   browserDeleteHistoryMonthHint:

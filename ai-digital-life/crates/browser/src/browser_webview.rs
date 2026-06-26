@@ -362,7 +362,7 @@ impl BrowserManager {
                     try {
                         if (location.hash.indexOf('#adl-meta=') === 0) return;
                         var t = document.title ? document.title.trim() : '';
-                        if (!t || t === location.hostname || t === 'www.' + location.hostname) {
+                        if (!t) {
                             var ogMeta = document.querySelector('meta[property="og:title"]');
                             if (ogMeta && ogMeta.content) {
                                 t = ogMeta.content.trim();

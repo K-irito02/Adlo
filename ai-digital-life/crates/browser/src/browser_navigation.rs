@@ -229,9 +229,6 @@ pub(crate) const INIT_SCRIPT: &str = r#"
 
         function isTitleMeaningful(t) {
             if (!t) return false;
-            var hostname = getHostname();
-            if (hostname && t === hostname) return false;
-            if (hostname && t === 'www.' + hostname) return false;
             if (t === location.href) return false;
             return true;
         }

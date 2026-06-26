@@ -33,8 +33,8 @@ function getChildNodeHoverButtons(
     if (nodeType === 'day') {
       return [
         {
-          id: 'delete-all-tabs',
-          label: t.browserContextDeleteAllTabs,
+          id: 'delete-self-tabs',
+          label: t.browserContextDeleteSelfTabs,
           icon: <IconTrash size={12} decorative />,
         },
         {
@@ -82,11 +82,11 @@ function getChildNodeMoreMenuItems(
         action: () => callbacks.onOpenAllInNewTabs(categoryType, nodePath),
       },
       {
-        id: 'delete-all-tabs',
-        label: t.browserContextDeleteAllTabs,
+        id: 'delete-self-tabs',
+        label: t.browserContextDeleteSelfTabs,
         danger: true,
-        hint: t.browserDeleteAllTabsHint,
-        action: () => callbacks.onDeleteAllChildTabs(categoryType, nodePath),
+        hint: t.browserDeleteSelfTabsHint,
+        action: () => callbacks.onDeleteOwnChildTabs(categoryType, nodePath),
       },
       {
         id: 'delete-this-dir',
@@ -392,8 +392,8 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
                     });
                   } else if (btn.id === 'create-tab') {
                     callbacks.onCreateTab(childNode.workspaceId, childNode.folderId);
-                  } else if (btn.id === 'delete-all-tabs') {
-                    callbacks.onDeleteAllChildTabs(categoryType, childNode.path);
+                  } else if (btn.id === 'delete-self-tabs') {
+                    callbacks.onDeleteOwnChildTabs(categoryType, childNode.path);
                   }
                 }}
                 aria-label={btn.label}
@@ -492,6 +492,7 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
           getContextMenuItems={handleChildContextMenu}
           expandLabel={t.expand}
           collapseLabel={t.collapse}
+          flipAnimation={categoryType === 'history'}
         />
       </div>
     ) : null;

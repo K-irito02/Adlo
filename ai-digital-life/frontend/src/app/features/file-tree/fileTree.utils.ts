@@ -50,6 +50,7 @@ export interface FileTreeProps<T extends FileTreeRenderableNode> {
   expandLabel?: string;
   collapseLabel?: string;
   flat?: boolean;
+  flipAnimation?: boolean;
 }
 
 export function collectDirectoryPaths<T extends FileTreeRenderableNode>(nodes: T[]): string[] {

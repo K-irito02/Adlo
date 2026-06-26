@@ -302,10 +302,27 @@ export const createBrowserFoldersSlice = (
         if (folder) {
           tabIdsToDelete = [...(folder.tabs ?? [])];
         }
+      } else if (nodePath.startsWith('history:day:')) {
+        const dayDate = nodePath.slice('history:day:'.length);
+        tabIdsToDelete = state.browserHistory
+          .filter((h) => {
+            const d = new Date(h.visitedAt);
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const dy = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${dy}` === dayDate;
+          })
+          .map((h) => h.id);
       }
 
       if (tabIdsToDelete.length === 0) {
         return state;
+      }
+
+      if (nodePath.startsWith('history:')) {
+        const nextHistory = state.browserHistory.filter((h) => !tabIdsToDelete.includes(h.id));
+        scheduleWrite(BROWSER_HISTORY_KEY, nextHistory);
+        return { browserHistory: nextHistory };
       }
 
       const nextTabs = state.browserTabs.filter((t) => !tabIdsToDelete.includes(t.id));

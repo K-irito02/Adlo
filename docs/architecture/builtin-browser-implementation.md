@@ -1,5 +1,6 @@
 # 内置浏览器实现总结
 
+> **2026-06-26 更新**：修复历史记录不记录的 6 个 Bug。详见 [browser-history-recording-fix-2026-06-26.md](../知识沉淀/浏览器/browser-history-recording-fix-2026-06-26.md)。  
 > **2026-06-25 更新**：标签创建策略从"立即创建+hostname 占位"重构为"延迟创建+同步渲染"。详见 [browser-tab-meta-deferred-creation-2026-06-25.md](../知识沉淀/浏览器/browser-tab-meta-deferred-creation-2026-06-25.md)。
 
 ## 摘要

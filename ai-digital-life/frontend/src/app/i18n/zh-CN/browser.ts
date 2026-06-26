@@ -115,7 +115,7 @@ export const browserZh = {
     '仅删除自身目录下的子标签，不包括嵌套目录及嵌套目录下的子标签，但保留所有目录结构。',
   browserDeleteDirHint: '删除此目录，并包括此目录下的所有目录结构及所有子标签。',
   browserContextDeleteAllHistory: '删除全部历史记录标签',
-  browserDeleteHistoryLabelHint: '仅删除所有"日"目录下的子标签，不删除"年、月、日"目录。',
+  browserDeleteHistoryLabelHint: '删除全部历史记录标签，所有年/月/日目录结构及子标签一并清除。',
   browserDeleteHistoryYearHint:
     '仅删除所有"年"目录，但包括"年"目录下的嵌套子目录（月、日），以及包括"日"目录下的子标签。',
   browserDeleteHistoryMonthHint:

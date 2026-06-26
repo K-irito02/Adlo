@@ -2,6 +2,7 @@ import React, {
   memo,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   useMemo,
@@ -169,6 +170,7 @@ export function FileTree<T extends FileTreeRenderableNode>({
   expandLabel = 'Expand',
   collapseLabel = 'Collapse',
   flat,
+  flipAnimation = false,
 }: FileTreeProps<T>) {
   const [contextMenuState, setContextMenuState] = useState<{
     x: number;
@@ -278,6 +280,71 @@ export function FileTree<T extends FileTreeRenderableNode>({
     () => flatNodes.slice(startIndex, endIndex),
     [flatNodes, startIndex, endIndex]
   );
+
+  // FLIP animation: smooth position transitions via Web Animation API
+  const prevPositionsRef = useRef<Map<string, number>>(new Map());
+  const flipAnimationsRef = useRef<Map<string, Animation>>(new Map());
+
+  useLayoutEffect(() => {
+    if (!flipAnimation) {
+      prevPositionsRef.current = new Map();
+      return;
+    }
+
+    const container = scrollAreaRef.current;
+    if (!container) {
+      return;
+    }
+
+    // Cancel any in-progress FLIP animations
+    flipAnimationsRef.current.forEach((anim) => anim.cancel());
+    flipAnimationsRef.current = new Map();
+
+    // Measure new positions of all rendered items
+    const newPositions = new Map<string, number>();
+    const items = container.querySelectorAll<HTMLElement>('[data-path]');
+    items.forEach((el) => {
+      const path = el.getAttribute('data-path');
+      if (path) {
+        newPositions.set(path, el.getBoundingClientRect().top);
+      }
+    });
+
+    // Compute deltas for items that existed in the previous render
+    let hasDelta = false;
+    const deltas = new Map<string, number>();
+    prevPositionsRef.current.forEach((oldTop, path) => {
+      const newTop = newPositions.get(path);
+      if (newTop !== undefined && Math.abs(oldTop - newTop) > 0.5) {
+        deltas.set(path, oldTop - newTop);
+        hasDelta = true;
+      }
+    });
+
+    if (!hasDelta) {
+      prevPositionsRef.current = newPositions;
+      return;
+    }
+
+    // Animate via Web Animation API — no inline styles, no cleanup timer
+    deltas.forEach((deltaY, path) => {
+      const el = container.querySelector<HTMLElement>(`[data-path="${CSS.escape(path)}"]`);
+      if (el) {
+        const anim = el.animate(
+          [{ transform: `translateY(${deltaY}px)` }, { transform: 'translateY(0)' }],
+          { duration: 300, easing: 'ease' }
+        );
+        flipAnimationsRef.current.set(path, anim);
+        anim.finished
+          .then(() => flipAnimationsRef.current.delete(path))
+          .catch(() => {
+            /* cancelled, ignore */
+          });
+      }
+    });
+
+    prevPositionsRef.current = newPositions;
+  }, [flatNodes, flipAnimation]);
 
   const handleToggleDirectory = useCallback(
     (path: string) => {

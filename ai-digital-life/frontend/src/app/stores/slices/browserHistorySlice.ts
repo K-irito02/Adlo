@@ -25,6 +25,15 @@ export interface BrowserHistorySlice {
     level: 'label' | 'year' | 'month' | 'day',
     nodePath: string
   ) => void;
+  browserDeleteHistoryEntry: (entryId: string) => void;
+}
+
+function getDateKey(ts: number): string {
+  const d = new Date(ts);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dy = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dy}`;
 }
 
 export const createBrowserHistorySlice = (
@@ -35,15 +44,18 @@ export const createBrowserHistorySlice = (
 
   browserAddToHistory: (url: string, title: string) => {
     set((state) => {
+      const now = Date.now();
+      const today = getDateKey(now);
       const dedupKey = historyDedupKey(url);
+      // Only remove matching entries from today — keep history from other days
       const filteredHistory = state.browserHistory.filter(
-        (item) => historyDedupKey(item.url) !== dedupKey
+        (item) => !(historyDedupKey(item.url) === dedupKey && getDateKey(item.visitedAt) === today)
       );
       const newHistoryItem: BrowserHistoryState = {
         id: createUiId('history'),
         url,
         title: title || url,
-        visitedAt: Date.now(),
+        visitedAt: now,
       };
       const nextHistory = [newHistoryItem, ...filteredHistory].slice(0, 100);
       scheduleWrite(BROWSER_HISTORY_KEY, nextHistory);
@@ -104,6 +116,17 @@ export const createBrowserHistorySlice = (
       }
       scheduleWrite(BROWSER_HISTORY_KEY, filtered);
       return { browserHistory: filtered };
+    });
+  },
+
+  browserDeleteHistoryEntry: (entryId: string) => {
+    set((state) => {
+      const nextHistory = state.browserHistory.filter((h) => h.id !== entryId);
+      if (nextHistory.length === state.browserHistory.length) {
+        return state;
+      }
+      scheduleWrite(BROWSER_HISTORY_KEY, nextHistory);
+      return { browserHistory: nextHistory };
     });
   },
 });

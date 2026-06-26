@@ -62,6 +62,8 @@ export function useBrowserTreeActions() {
     browserOpenTab,
     browserCloseTab,
     browserUpdateTab,
+    browserUpdateHistoryTitle,
+    browserDeleteHistoryEntry,
     browserRemoveTabBookmarks,
   } = useAppStore(
     useShallow((state) => ({
@@ -79,6 +81,8 @@ export function useBrowserTreeActions() {
       browserOpenTab: state.browserOpenTab,
       browserCloseTab: state.browserCloseTab,
       browserUpdateTab: state.browserUpdateTab,
+      browserUpdateHistoryTitle: state.browserUpdateHistoryTitle,
+      browserDeleteHistoryEntry: state.browserDeleteHistoryEntry,
       browserRemoveTabBookmarks: state.browserRemoveTabBookmarks,
     }))
   );
@@ -229,6 +233,17 @@ export function useBrowserTreeActions() {
             .map((t) => t.url)
             .filter((u): u is string => !!u);
         }
+      } else if (nodePath.startsWith('history:day:')) {
+        const dayDate = nodePath.slice('history:day:'.length);
+        const entries = state.browserHistory.filter((h) => {
+          const d = new Date(h.visitedAt);
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, '0');
+          const dy = String(d.getDate()).padStart(2, '0');
+          return `${y}-${m}-${dy}` === dayDate;
+        });
+        tabIds = entries.map((h) => h.id);
+        urls = entries.map((h) => h.url).filter((u): u is string => !!u);
       }
 
       for (const url of urls) {
@@ -414,40 +429,56 @@ export function useBrowserTreeActions() {
       const meta = await prefetchPageMeta(url);
       if (meta) {
         const state = useAppStore.getState();
+        // Check if this is a browser tab
         const tab = state.browserTabs.find((t) => t.id === tabId);
         if (tab) {
-          // Only update the title if it's not locked (user-customized)
           if (!isTabTitleLocked(tabId) && meta.title) {
             browserUpdateTab(tabId, { title: meta.title });
           }
-          // Update favicon cache
-          if (meta.favicon) {
-            setCachedFavicon(url, meta.favicon, true);
+        } else {
+          // Check if this is a history entry
+          const isHistoryEntry = state.browserHistory.some((h) => h.id === tabId);
+          if (isHistoryEntry && meta.title) {
+            browserUpdateHistoryTitle(url, meta.title);
           }
+        }
+        // Always update favicon cache regardless of tab or history
+        if (meta.favicon) {
+          setCachedFavicon(url, meta.favicon, true);
         }
       }
     },
-    [browserUpdateTab]
+    [browserUpdateTab, browserUpdateHistoryTitle]
   );
 
   const handleDeleteTab = useCallback(
     (tabId: string, url: string) => {
-      // Remove all bookmark state (bookmarks, workspace bookmarks, folder memberships)
-      browserRemoveTabBookmarks(tabId, url);
+      const state = useAppStore.getState();
+      const isHistoryEntry = state.browserHistory.some((h) => h.id === tabId);
 
-      // Clear caches
-      if (url) {
-        clearFaviconCacheForUrl(url);
-        clearPageMetaCacheForUrl(url);
+      if (isHistoryEntry) {
+        // Clear caches
+        if (url) {
+          clearFaviconCacheForUrl(url);
+          clearPageMetaCacheForUrl(url);
+        }
+        // Delete history entry
+        browserDeleteHistoryEntry(tabId);
+      } else {
+        // Remove all bookmark state (bookmarks, workspace bookmarks, folder memberships)
+        browserRemoveTabBookmarks(tabId, url);
+        // Clear caches
+        if (url) {
+          clearFaviconCacheForUrl(url);
+          clearPageMetaCacheForUrl(url);
+        }
+        // Unlock title if locked
+        unlockTabTitle(tabId);
+        // Close the tab
+        browserCloseTab(tabId);
       }
-
-      // Unlock title if locked
-      unlockTabTitle(tabId);
-
-      // Close the tab
-      browserCloseTab(tabId);
     },
-    [browserCloseTab, browserRemoveTabBookmarks]
+    [browserCloseTab, browserRemoveTabBookmarks, browserDeleteHistoryEntry]
   );
 
   const handleCopyTabLink = useCallback(async (url: string) => {

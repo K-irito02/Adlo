@@ -412,6 +412,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
       import('../../utils/fetchPageMeta').then((mod) => {
         mod.fetchPageMeta(finalUrl).then((meta) => {
           if (!meta) {
+            useAppStore.getState().browserAddToHistory(finalUrl, finalUrl);
             return;
           }
           const tab = useAppStore
@@ -424,6 +425,11 @@ export function BrowserPanel(props: BrowserPanelProps) {
           }
           if (meta.favicon) {
             mod.setCachedFavicon(finalUrl, meta.favicon);
+          }
+          if (meta.title) {
+            useAppStore.getState().browserAddToHistory(finalUrl, meta.title);
+          } else {
+            useAppStore.getState().browserAddToHistory(finalUrl, finalUrl);
           }
         });
       });

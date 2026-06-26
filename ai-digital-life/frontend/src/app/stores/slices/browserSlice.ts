@@ -202,7 +202,7 @@ export const createBrowserSlice = (
               return {
                 ...tab,
                 url,
-                title: title || tab.title,
+                title: title || '',
               };
             }
             return tab;
