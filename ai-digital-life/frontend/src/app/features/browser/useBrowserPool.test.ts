@@ -26,7 +26,7 @@ describe('useBrowserPool', () => {
 
   it('starts with empty pool', () => {
     setMockBrowser();
-    const { result } = renderHook(() => useBrowserPool(3));
+    const { result } = renderHook(() => useBrowserPool());
     expect(result.current.poolSize).toBe(0);
     expect(result.current.isTabInPool('tab-1')).toBe(false);
   });
@@ -34,7 +34,7 @@ describe('useBrowserPool', () => {
   it('registers tab in pool via createWebViewForTab', async () => {
     setMockBrowser();
 
-    const { result } = renderHook(() => useBrowserPool(3));
+    const { result } = renderHook(() => useBrowserPool());
     await act(async () => {
       await result.current.createWebViewForTab('tab-1', 'https://example.com');
     });
@@ -50,7 +50,7 @@ describe('useBrowserPool', () => {
       .mockResolvedValueOnce('a');
     setMockBrowser({ createForTab });
 
-    const { result } = renderHook(() => useBrowserPool(2));
+    const { result } = renderHook(() => useBrowserPool());
     await act(async () => {
       await result.current.createWebViewForTab('a', 'https://a.com');
     });
@@ -69,7 +69,7 @@ describe('useBrowserPool', () => {
   it('removeFromPool frees a slot', async () => {
     setMockBrowser();
 
-    const { result } = renderHook(() => useBrowserPool(2));
+    const { result } = renderHook(() => useBrowserPool());
     await act(async () => {
       await result.current.createWebViewForTab('a', 'https://a.com');
     });

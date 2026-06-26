@@ -3,8 +3,6 @@ import { isTauriShell } from '../../../tauri-bridge';
 import { useBrowserPool } from './useBrowserPool';
 import type { BrowserTabState } from '../../stores/slices/browserSlice';
 
-const POOL_SIZE = 6;
-
 interface UseBrowserWebViewOptions {
   activeTab?: BrowserTabState;
   webViewDisabled?: boolean;
@@ -22,7 +20,7 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
     activateTabInPool,
     removeFromPool,
     poolVersion,
-  } = useBrowserPool(POOL_SIZE);
+  } = useBrowserPool();
 
   const primaryRef = useRef<HTMLDivElement | null>(null);
   const webViewActiveRef = useRef(false);
