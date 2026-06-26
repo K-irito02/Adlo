@@ -316,7 +316,7 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
         onAddressBlur={urlState.handleAddressBlur}
         onSearchClick={urlState.handleSearchClick}
         onCopyUrl={urlState.handleCopyUrl}
-        onNewTab={() => browserOpenTab()}
+        onNewTab={() => browserOpenTab(undefined, t.browserNewTabPage)}
         onOpenBookmarkDialog={urlState.address ? handleOpenBookmarkDialog : () => {}}
         onToggleBrowserMenu={() => setBrowserMenuOpen((value) => !value)}
         onCloseBrowserMenu={() => setBrowserMenuOpen(false)}

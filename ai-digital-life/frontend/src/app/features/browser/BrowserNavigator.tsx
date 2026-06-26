@@ -297,7 +297,7 @@ export function BrowserNavigator({
           <span
             style={{ display: navigatorMode === 'open' || navigatorMode === 'tabs' ? '' : 'none' }}
           >
-            <TooltipSimple content={t.browserNewTab} placement="top">
+            <TooltipSimple content={t.browserNewTabBtn} placement="top">
               <button
                 type="button"
                 className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
@@ -318,10 +318,10 @@ export function BrowserNavigator({
                     }
                     setCreateTabDialog({ open: true, workspaceId: wsId, folderId: fId });
                   } else {
-                    browserOpenTab();
+                    browserOpenTab(undefined, t.browserNewTabPage);
                   }
                 }}
-                aria-label={t.browserNewTab}
+                aria-label={t.browserNewTabBtn}
               >
                 <IconPlus size={14} decorative />
               </button>

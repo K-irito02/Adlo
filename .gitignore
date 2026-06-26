@@ -25,6 +25,7 @@ coverage/
 npm-debug.log*
 debug-logs.txt
 debug-logs-browser.txt
+terminal-logs.txt
 
 # Environment
 .env
