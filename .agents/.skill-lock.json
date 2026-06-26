@@ -1,0 +1,406 @@
+{
+  "version": 3,
+  "skills": {
+    "ui-ux-pro-max": {
+      "source": "nextlevelbuilder/ui-ux-pro-max-skill",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/nextlevelbuilder/ui-ux-pro-max-skill.git",
+      "skillPath": ".claude/skills/ui-ux-pro-max/SKILL.md",
+      "skillFolderHash": "75e1acaafe8b08e59d4b86fc253ac7873aff6bba",
+      "pluginName": "ui-ux-pro-max",
+      "installedAt": "2026-02-16T05:42:25.228Z",
+      "updatedAt": "2026-04-16T21:01:32.888Z"
+    },
+    "qt-architecture": {
+      "source": "l3digital-net/claude-code-plugins",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/l3digital-net/claude-code-plugins.git",
+      "skillPath": "plugins/qt-suite/skills/qt-architecture/SKILL.md",
+      "skillFolderHash": "4b50a51fb051ea5a194b6166e5933e3e27a60961",
+      "installedAt": "2026-03-10T12:52:46.914Z",
+      "updatedAt": "2026-03-10T12:52:46.914Z"
+    },
+    "qt-layouts": {
+      "source": "l3digital-net/claude-code-plugins",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/l3digital-net/claude-code-plugins.git",
+      "skillPath": "plugins/qt-suite/skills/qt-layouts/SKILL.md",
+      "skillFolderHash": "ebce5086fe2310c2080060d48b785874223e9216",
+      "installedAt": "2026-03-10T12:54:01.032Z",
+      "updatedAt": "2026-03-10T12:54:01.032Z"
+    },
+    "qt-qml": {
+      "source": "l3digital-net/claude-code-plugins",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/l3digital-net/claude-code-plugins.git",
+      "skillPath": "plugins/qt-suite/skills/qt-qml/SKILL.md",
+      "skillFolderHash": "0e5dc27115fd909af760053190e21cef0eb0d906",
+      "installedAt": "2026-03-10T12:54:21.645Z",
+      "updatedAt": "2026-03-10T12:54:21.645Z"
+    },
+    "design": {
+      "source": "johnlindquist/claude",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/johnlindquist/claude.git",
+      "skillPath": "skills/design/SKILL.md",
+      "skillFolderHash": "fea51b7cd0c744d7c38ec1028d2078112cade2a0",
+      "installedAt": "2026-03-10T12:54:58.107Z",
+      "updatedAt": "2026-03-10T12:54:58.107Z"
+    },
+    "skill-creator": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/anthropics/skills.git",
+      "skillPath": "skills/skill-creator/SKILL.md",
+      "skillFolderHash": "98a510d1cfef9f82c3b1eec200229ca68725e613",
+      "pluginName": "example-skills",
+      "installedAt": "2026-03-21T16:12:37.588Z",
+      "updatedAt": "2026-03-21T16:12:37.588Z"
+    },
+    "using-superpowers": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/obra/superpowers.git",
+      "skillPath": "skills/using-superpowers/SKILL.md",
+      "skillFolderHash": "64c70a2b656d440ddb50818c2477e028facbc468",
+      "installedAt": "2026-03-26T14:23:00.279Z",
+      "updatedAt": "2026-04-16T21:07:32.736Z"
+    },
+    "brainstorming": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/obra/superpowers.git",
+      "skillPath": "skills/brainstorming/SKILL.md",
+      "skillFolderHash": "f260c775073816860fef8a37c032ac77e2ff5821",
+      "installedAt": "2026-04-16T21:01:31.270Z",
+      "updatedAt": "2026-04-16T21:01:31.270Z"
+    },
+    "frontend-design": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/anthropics/skills.git",
+      "skillPath": "skills/frontend-design/SKILL.md",
+      "skillFolderHash": "928950704df8a8b885c03de5da626331e6f29cf8",
+      "pluginName": "example-skills",
+      "installedAt": "2026-04-16T21:01:32.430Z",
+      "updatedAt": "2026-04-16T21:01:32.430Z"
+    },
+    "find-skills": {
+      "source": "vercel-labs/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/vercel-labs/skills.git",
+      "skillPath": "skills/find-skills/SKILL.md",
+      "skillFolderHash": "3013fdeb8a11b10b1eb795ec3ae8bfca38f7c26d",
+      "installedAt": "2026-04-16T21:05:31.322Z",
+      "updatedAt": "2026-04-16T21:05:31.322Z"
+    },
+    "requesting-code-review": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/obra/superpowers.git",
+      "skillPath": "skills/requesting-code-review/SKILL.md",
+      "skillFolderHash": "ed265b1a03114cc400d5524afc5c961a4aa9ea8b",
+      "installedAt": "2026-04-17T20:04:02.957Z",
+      "updatedAt": "2026-04-17T20:04:02.957Z"
+    },
+    "typescript-advanced-types": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/wshobson/agents.git",
+      "skillPath": "plugins/javascript-typescript/skills/typescript-advanced-types/SKILL.md",
+      "skillFolderHash": "a2fe3beb2f08b66b467981df7e09a2ccc5c9c7d2",
+      "installedAt": "2026-04-17T20:04:04.679Z",
+      "updatedAt": "2026-04-17T20:04:04.679Z"
+    },
+    "vitest-testing": {
+      "source": "existential-birds/beagle",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/existential-birds/beagle.git",
+      "skillPath": "plugins/beagle-react/skills/vitest-testing/SKILL.md",
+      "skillFolderHash": "a5d8dd72bdde88c2c9adaa0a0e3f8f818561e983",
+      "installedAt": "2026-04-17T20:04:04.779Z",
+      "updatedAt": "2026-04-17T20:04:04.779Z"
+    },
+    "agent-browser": {
+      "source": "vercel-labs/agent-browser",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/vercel-labs/agent-browser.git",
+      "skillPath": "skills/agent-browser/SKILL.md",
+      "skillFolderHash": "121eecacd86c0aab06aef5cd4663e80c5397cd41",
+      "installedAt": "2026-04-17T20:04:19.539Z",
+      "updatedAt": "2026-04-17T20:04:19.539Z"
+    },
+    "api-design-principles": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/wshobson/agents.git",
+      "skillPath": "plugins/backend-development/skills/api-design-principles/SKILL.md",
+      "skillFolderHash": "4a9f363dc7a13301fe5c6aaa2d4f185a8e230113",
+      "installedAt": "2026-04-17T20:04:25.002Z",
+      "updatedAt": "2026-04-17T20:04:25.002Z"
+    },
+    "SQLite Database Expert": {
+      "source": "martinholovsky/claude-skills-generator",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/martinholovsky/claude-skills-generator.git",
+      "skillPath": "skills/sqlite/SKILL.md",
+      "skillFolderHash": "bc32689e807a56c6d24ce341bbf29b18350db35e",
+      "installedAt": "2026-04-17T20:04:45.085Z",
+      "updatedAt": "2026-04-17T20:04:45.085Z"
+    },
+    "monorepo-management": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/wshobson/agents.git",
+      "skillPath": "plugins/developer-essentials/skills/monorepo-management/SKILL.md",
+      "skillFolderHash": "59e65cd8c7620a230fb7f1d31ad3ca828d7e8878",
+      "installedAt": "2026-04-17T20:04:46.500Z",
+      "updatedAt": "2026-04-17T20:04:46.500Z"
+    },
+    "documentation-writer": {
+      "source": "github/awesome-copilot",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/github/awesome-copilot.git",
+      "skillPath": "skills/documentation-writer/SKILL.md",
+      "skillFolderHash": "016d8040a3f91c8360b1003e74fbf29f34c283f5",
+      "installedAt": "2026-04-17T20:05:00.452Z",
+      "updatedAt": "2026-04-17T20:05:00.452Z"
+    },
+    "git-advanced-workflows": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/wshobson/agents.git",
+      "skillPath": "plugins/developer-essentials/skills/git-advanced-workflows/SKILL.md",
+      "skillFolderHash": "1c8f6587821f811d33397596db1f3d22ae4d8b88",
+      "installedAt": "2026-04-17T20:05:41.005Z",
+      "updatedAt": "2026-04-17T20:05:41.005Z"
+    },
+    "zustand": {
+      "source": "lobehub/lobehub",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/lobehub/lobehub.git",
+      "skillPath": ".agents/skills/zustand/SKILL.md",
+      "skillFolderHash": "87dbd757adc94eba8f01c900890ded0bd66bcd8c",
+      "installedAt": "2026-04-17T20:05:59.659Z",
+      "updatedAt": "2026-04-17T20:05:59.659Z"
+    },
+    "code-refactoring-refactor-clean": {
+      "source": "sickn33/antigravity-awesome-skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/sickn33/antigravity-awesome-skills.git",
+      "skillPath": "skills/code-refactoring-refactor-clean/SKILL.md",
+      "skillFolderHash": "629d03691b76941e0cecf3fb8b5b54556817ab8c",
+      "installedAt": "2026-04-17T20:06:10.329Z",
+      "updatedAt": "2026-04-17T20:06:10.329Z"
+    },
+    "architecture-patterns": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/wshobson/agents.git",
+      "skillPath": "plugins/backend-development/skills/architecture-patterns/SKILL.md",
+      "skillFolderHash": "5e328d2f03db1fc22e5662188c8afc41cf41b7ae",
+      "installedAt": "2026-04-17T20:10:21.636Z",
+      "updatedAt": "2026-04-17T20:10:21.636Z"
+    },
+    "error-handling-patterns": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/wshobson/agents.git",
+      "skillPath": "plugins/developer-essentials/skills/error-handling-patterns/SKILL.md",
+      "skillFolderHash": "7ed87a0a30eb4799e30efe33fc221e4ed78686c4",
+      "installedAt": "2026-04-17T20:10:23.200Z",
+      "updatedAt": "2026-04-17T20:10:23.200Z"
+    },
+    "owasp-security": {
+      "source": "hoodini/ai-agents-skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/hoodini/ai-agents-skills.git",
+      "skillPath": "skills/owasp-security/SKILL.md",
+      "skillFolderHash": "f11087a4777f9cfe290c4429e536b36f04e1e9df",
+      "installedAt": "2026-04-17T20:10:26.094Z",
+      "updatedAt": "2026-04-17T20:10:26.094Z"
+    },
+    "software-architecture": {
+      "source": "sickn33/antigravity-awesome-skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/sickn33/antigravity-awesome-skills.git",
+      "skillPath": "skills/software-architecture/SKILL.md",
+      "skillFolderHash": "327e1d67564abbcaa6b38ca4a429866f02cf4648",
+      "installedAt": "2026-04-17T20:10:51.408Z",
+      "updatedAt": "2026-04-17T20:10:51.408Z"
+    },
+    "api-security-best-practices": {
+      "source": "sickn33/antigravity-awesome-skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/sickn33/antigravity-awesome-skills.git",
+      "skillPath": "skills/api-security-best-practices/SKILL.md",
+      "skillFolderHash": "c31fde9c191176614c6f7fe5571d24a25e7fa15d",
+      "installedAt": "2026-04-17T20:10:52.291Z",
+      "updatedAt": "2026-04-17T20:10:52.291Z"
+    },
+    "memory-management": {
+      "source": "anthropics/knowledge-work-plugins",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/anthropics/knowledge-work-plugins.git",
+      "skillPath": "productivity/skills/memory-management/SKILL.md",
+      "skillFolderHash": "9272207d07020b38b62f636f6016e5185c4da01b",
+      "installedAt": "2026-04-17T20:11:22.702Z",
+      "updatedAt": "2026-04-17T20:11:22.702Z"
+    },
+    "design-system-patterns": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/wshobson/agents.git",
+      "skillPath": "plugins/ui-design/skills/design-system-patterns/SKILL.md",
+      "skillFolderHash": "4c36a089521f2621d189ad56f98afe77bfe5f0b0",
+      "installedAt": "2026-04-17T20:11:23.010Z",
+      "updatedAt": "2026-04-17T20:11:23.010Z"
+    },
+    "accelint-ts-performance": {
+      "source": "gohypergiant/agent-skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/gohypergiant/agent-skills.git",
+      "skillPath": "skills/accelint-ts-performance/SKILL.md",
+      "skillFolderHash": "e52b4f8e073cc69e57aa31d6974804a2e819e7f2",
+      "installedAt": "2026-04-17T20:11:23.354Z",
+      "updatedAt": "2026-04-17T20:11:23.354Z"
+    },
+    "typescript-security-review": {
+      "source": "giuseppe-trisciuoglio/developer-kit",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/giuseppe-trisciuoglio/developer-kit.git",
+      "skillPath": "plugins/developer-kit-typescript/skills/typescript-security-review/SKILL.md",
+      "skillFolderHash": "f13072ab0b95e7566f64098a5f77cb10499295ec",
+      "installedAt": "2026-04-17T20:11:28.016Z",
+      "updatedAt": "2026-04-17T20:11:28.016Z"
+    },
+    "clean-architecture": {
+      "source": "pproenca/dot-skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/pproenca/dot-skills.git",
+      "skillPath": "skills/.experimental/clean-architecture/SKILL.md",
+      "skillFolderHash": "741686aa947e87187bbe5704e88f39d34af9cedf",
+      "installedAt": "2026-04-17T20:11:34.327Z",
+      "updatedAt": "2026-04-17T20:11:34.327Z"
+    },
+    "rust": {
+      "source": "mindrally/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/mindrally/skills.git",
+      "skillPath": "rust/SKILL.md",
+      "skillFolderHash": "eafd3aea9e53703cadfc403034185bbebd215d07",
+      "installedAt": "2026-04-25T06:15:16.885Z",
+      "updatedAt": "2026-04-25T06:15:16.885Z"
+    },
+    "tauri-v2": {
+      "source": "nodnarbnitram/claude-code-extensions",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/nodnarbnitram/claude-code-extensions.git",
+      "skillPath": ".claude/skills/tauri-v2/SKILL.md",
+      "skillFolderHash": "7f6388d5df4b3bae4037b153ba64868fd05b0c48",
+      "installedAt": "2026-04-25T06:15:18.933Z",
+      "updatedAt": "2026-04-25T06:15:18.933Z"
+    },
+    "rust-security": {
+      "source": "mohitmishra786/low-level-dev-skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/mohitmishra786/low-level-dev-skills.git",
+      "skillPath": "skills/rust/rust-security/SKILL.md",
+      "skillFolderHash": "3c96c15dfb17f34488f92f65fbedee55e91c7546",
+      "installedAt": "2026-04-25T06:15:32.978Z",
+      "updatedAt": "2026-04-25T06:15:32.978Z"
+    },
+    "rust-testing": {
+      "source": "affaan-m/everything-claude-code",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/affaan-m/everything-claude-code.git",
+      "skillPath": "skills/rust-testing/SKILL.md",
+      "skillFolderHash": "d1a20de880fd1146afd6f895c26e3a2fee9b445e",
+      "installedAt": "2026-04-25T06:15:49.462Z",
+      "updatedAt": "2026-04-25T06:15:49.462Z"
+    },
+    "tokio-patterns": {
+      "source": "geoffjay/claude-plugins",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/geoffjay/claude-plugins.git",
+      "skillPath": "plugins/rust-tokio-expert/skills/tokio-patterns/SKILL.md",
+      "skillFolderHash": "51588200e6157bdd4ae5b61946dcb1c2910228b3",
+      "pluginName": "rust-tokio-expert",
+      "installedAt": "2026-04-25T06:16:08.891Z",
+      "updatedAt": "2026-04-25T06:16:08.891Z"
+    },
+    "rusqlite-guide": {
+      "source": "daiki48/dotfiles",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/daiki48/dotfiles.git",
+      "skillPath": ".claude/skills/rusqlite-guide/SKILL.md",
+      "skillFolderHash": "8a1b5c76feada062b44951213c8e84b3353c3ac8",
+      "installedAt": "2026-04-25T06:16:09.156Z",
+      "updatedAt": "2026-04-25T06:16:09.156Z"
+    },
+    "m06-error-handling": {
+      "source": "zhanghandong/rust-skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/zhanghandong/rust-skills.git",
+      "skillPath": "skills/m06-error-handling/SKILL.md",
+      "skillFolderHash": "47c04e309319fd97d6cef4f50778d4e497fff57d",
+      "installedAt": "2026-04-25T06:16:09.276Z",
+      "updatedAt": "2026-04-25T06:16:09.276Z"
+    },
+    "m10-performance": {
+      "source": "zhanghandong/rust-skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/zhanghandong/rust-skills.git",
+      "skillPath": "skills/m10-performance/SKILL.md",
+      "skillFolderHash": "d6f7981c8c2bdb66a2542d65327547b680e27cf0",
+      "installedAt": "2026-04-25T06:16:09.374Z",
+      "updatedAt": "2026-04-25T06:16:09.374Z"
+    },
+    "browser-testing-with-devtools": {
+      "source": "addyosmani/agent-skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/addyosmani/agent-skills.git",
+      "skillPath": "skills/browser-testing-with-devtools/SKILL.md",
+      "skillFolderHash": "cc384fa24e1cb8e9adddb9d7491164415d156a32",
+      "installedAt": "2026-05-01T08:03:17.035Z",
+      "updatedAt": "2026-05-01T08:03:17.035Z"
+    },
+    "Browser Automation": {
+      "source": "claude-office-skills/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/claude-office-skills/skills.git",
+      "skillPath": "browser-automation/SKILL.md",
+      "skillFolderHash": "093efef521d89ec9720038361e6e5429c85748bb",
+      "installedAt": "2026-05-02T09:44:49.397Z",
+      "updatedAt": "2026-05-02T09:44:49.397Z"
+    },
+    "vitest-testing-patterns": {
+      "source": "erichowens/some_claude_skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/erichowens/some_claude_skills.git",
+      "skillPath": ".claude/skills/vitest-testing-patterns/SKILL.md",
+      "skillFolderHash": "7b240af5003e54ec916bc26cadaaca25aeb8ef56",
+      "installedAt": "2026-05-02T09:45:44.627Z",
+      "updatedAt": "2026-05-02T09:45:44.627Z"
+    },
+    "playwright-cli": {
+      "source": "microsoft/playwright-cli",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/microsoft/playwright-cli.git",
+      "skillPath": "skills/playwright-cli/SKILL.md",
+      "skillFolderHash": "ff92cdde57ecce01607406a4667dc0f2772dfac1",
+      "installedAt": "2026-05-02T09:54:31.402Z",
+      "updatedAt": "2026-05-02T09:54:31.402Z"
+    },
+    "playwright-best-practices": {
+      "source": "currents-dev/playwright-best-practices-skill",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/currents-dev/playwright-best-practices-skill.git",
+      "skillPath": "SKILL.md",
+      "skillFolderHash": "ef329e7e65149918e1ff0eed2cf7d2e6e6f9eb5b",
+      "installedAt": "2026-05-02T09:54:38.544Z",
+      "updatedAt": "2026-05-02T09:54:38.544Z"
+    }
+  },
+  "dismissed": {}
+}
