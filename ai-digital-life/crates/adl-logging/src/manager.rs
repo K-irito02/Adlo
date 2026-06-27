@@ -35,10 +35,8 @@ impl LogManager {
         fs::create_dir_all(log_dir)?;
 
         let config = Arc::new(RwLock::new(config.clone()));
-        let terminal_sessions =
-            Arc::new(Mutex::new(SessionTracker::new(log_dir, "terminal-logs")));
-        let debug_sessions =
-            Arc::new(Mutex::new(SessionTracker::new(log_dir, "debug-logs")));
+        let terminal_sessions = Arc::new(Mutex::new(SessionTracker::new(log_dir, "terminal-logs")));
+        let debug_sessions = Arc::new(Mutex::new(SessionTracker::new(log_dir, "debug-logs")));
         let terminal_file: Arc<Mutex<Option<TerminalFileState>>> = Arc::new(Mutex::new(None));
 
         let make_writer = TerminalMakeWriter {
@@ -48,14 +46,11 @@ impl LogManager {
             inner: terminal_file.clone(),
         };
 
-        let filter = || {
-            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"))
-        };
+        let filter =
+            || EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
 
-        let stdout_layer = fmt::layer()
-            .with_target(true)
-            .with_thread_ids(true)
-            .with_filter(filter());
+        let stdout_layer =
+            fmt::layer().with_target(true).with_thread_ids(true).with_filter(filter());
 
         let file_layer = fmt::layer()
             .with_target(true)
@@ -63,10 +58,7 @@ impl LogManager {
             .with_writer(make_writer)
             .with_filter(filter());
 
-        Registry::default()
-            .with(stdout_layer)
-            .with(file_layer)
-            .init();
+        Registry::default().with(stdout_layer).with(file_layer).init();
 
         if let Err(e) = terminal_sessions.lock().unwrap().prune_old_sessions() {
             tracing::warn!("Initial terminal session prune failed: {e}");
@@ -96,14 +88,11 @@ impl LogManager {
         match mode {
             LogMode::Overwrite => {
                 fs::write(&fixed_path, content)?;
-            }
+            },
             LogMode::Append => {
-                let mut file = OpenOptions::new()
-                    .append(true)
-                    .create(true)
-                    .open(&fixed_path)?;
+                let mut file = OpenOptions::new().append(true).create(true).open(&fixed_path)?;
                 file.write_all(content.as_bytes())?;
-            }
+            },
             LogMode::Multi => {
                 let ts = self
                     .debug_sessions
@@ -114,26 +103,24 @@ impl LogManager {
                 let session_path = session_log_path(&self.log_dir, "debug-logs", &ts);
                 fs::write(&fixed_path, content)?;
                 fs::write(&session_path, content)?;
-            }
+            },
         }
 
         Ok(())
     }
 
     pub fn set_mode(&self, target: LogTarget, mode: LogMode) -> LogResult<()> {
-        let mut config = self
-            .config
-            .write()
-            .map_err(|_| LogError::Config("config lock poisoned".into()))?;
+        let mut config =
+            self.config.write().map_err(|_| LogError::Config("config lock poisoned".into()))?;
 
         match target {
             LogTarget::Terminal => {
                 config.terminal_log_mode = mode;
                 tracing::info!(%mode, "[ADL-LOG] terminal log mode changed");
-            }
+            },
             LogTarget::Debug => {
                 config.debug_log_mode = mode;
-            }
+            },
         }
 
         if mode == LogMode::Multi {
@@ -144,14 +131,14 @@ impl LogManager {
                         .lock()
                         .map_err(|_| LogError::ModeSwitch("session lock".into()))?
                         .prune_old_sessions();
-                }
+                },
                 LogTarget::Debug => {
                     let _ = self
                         .debug_sessions
                         .lock()
                         .map_err(|_| LogError::ModeSwitch("session lock".into()))?
                         .prune_old_sessions();
-                }
+                },
             }
         }
 
@@ -225,39 +212,33 @@ impl Write for TerminalWriter {
         let mode = self
             .config
             .read()
-            .map_err(|_| {
-                std::io::Error::other("config lock poisoned")
-            })?
+            .map_err(|_| std::io::Error::other("config lock poisoned"))?
             .terminal_log_mode;
 
         let session_ts = self
             .sessions
             .lock()
-            .map_err(|_| {
-                std::io::Error::other("session lock poisoned")
-            })?
+            .map_err(|_| std::io::Error::other("session lock poisoned"))?
             .current_timestamp()
             .to_string();
 
         let needs_reopen = {
-            let guard = self.inner.lock().map_err(|_| {
-                std::io::Error::other("file lock poisoned")
-            })?;
+            let guard =
+                self.inner.lock().map_err(|_| std::io::Error::other("file lock poisoned"))?;
             match &*guard {
                 None => true,
                 Some(state) => {
                     state.mode != mode
                         || (mode == LogMode::Multi
                             && state.session_ts.as_deref() != Some(&session_ts))
-                }
+                },
             }
         };
 
         if needs_reopen {
             let file = open_terminal_file(&self.log_dir, mode, &session_ts)?;
-            let mut guard = self.inner.lock().map_err(|_| {
-                std::io::Error::other("file lock poisoned")
-            })?;
+            let mut guard =
+                self.inner.lock().map_err(|_| std::io::Error::other("file lock poisoned"))?;
             *guard = Some(TerminalFileState {
                 writer: BufWriter::with_capacity(8192, file),
                 mode,
@@ -265,9 +246,8 @@ impl Write for TerminalWriter {
             });
         }
 
-        let mut guard = self.inner.lock().map_err(|_| {
-            std::io::Error::other("file lock poisoned")
-        })?;
+        let mut guard =
+            self.inner.lock().map_err(|_| std::io::Error::other("file lock poisoned"))?;
         guard.as_mut().unwrap().writer.write(buf)
     }
 
@@ -290,11 +270,11 @@ fn open_terminal_file(log_dir: &Path, mode: LogMode, session_ts: &str) -> std::i
                 .create(true)
                 .truncate(mode == LogMode::Overwrite)
                 .open(&path)
-        }
+        },
         LogMode::Multi => {
             let path = session_log_path(log_dir, "terminal-logs", session_ts);
             File::create(&path)
-        }
+        },
     }
 }
 
@@ -403,9 +383,7 @@ mod tests {
             terminal_file: Arc::new(Mutex::new(None)),
         };
 
-        manager
-            .set_mode(LogTarget::Debug, LogMode::Append)
-            .unwrap();
+        manager.set_mode(LogTarget::Debug, LogMode::Append).unwrap();
         let cfg = config.read().unwrap();
         assert_eq!(cfg.debug_log_mode, LogMode::Append);
     }

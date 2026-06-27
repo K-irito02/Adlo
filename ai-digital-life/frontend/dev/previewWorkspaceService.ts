@@ -804,9 +804,32 @@ async function openWorkspace(workspacePath: string): Promise<PreviewWorkspacePay
   return { meta, recent, retrieval };
 }
 
-async function writeDebugLogs(rootPath: string, content: string): Promise<boolean> {
-  const logFile = path.resolve(rootPath, 'debug-logs-browser.txt');
-  await fs.writeFile(logFile, content, 'utf8');
+async function writeDebugLogs(
+  rootPath: string,
+  content: string,
+  mode: 'overwrite' | 'append' | 'multi' = 'overwrite'
+): Promise<boolean> {
+  const logDir = path.resolve(rootPath, '.adl-logs');
+  await fs.mkdir(logDir, { recursive: true });
+
+  const fixedFile = path.join(logDir, 'debug-logs.txt');
+
+  switch (mode) {
+    case 'overwrite':
+      await fs.writeFile(fixedFile, content, 'utf8');
+      break;
+    case 'append':
+      await fs.appendFile(fixedFile, content, 'utf8');
+      break;
+    case 'multi': {
+      const ts = new Date();
+      const stamp = `${ts.getFullYear()}-${String(ts.getMonth() + 1).padStart(2, '0')}-${String(ts.getDate()).padStart(2, '0')}_${String(ts.getHours()).padStart(2, '0')}${String(ts.getMinutes()).padStart(2, '0')}${String(ts.getSeconds()).padStart(2, '0')}`;
+      const sessionFile = path.join(logDir, `debug-logs-${stamp}.txt`);
+      await fs.writeFile(fixedFile, content, 'utf8');
+      await fs.writeFile(sessionFile, content, 'utf8');
+      break;
+    }
+  }
   return true;
 }
 
@@ -1148,12 +1171,19 @@ export async function handlePreviewWorkspaceApi(
       request.method === 'POST' &&
       requestUrl.pathname === `${API_PREFIX}/workspace/write-debug-logs`
     ) {
-      const body = (await readBody(request)) as { rootPath?: string; content?: string } | undefined;
+      const body = (await readBody(request)) as {
+        rootPath?: string;
+        content?: string;
+        mode?: 'overwrite' | 'append' | 'multi';
+      } | undefined;
       if (!body?.rootPath?.trim()) {
         writeJson(response, fail('rootPath is required', 'INVALID_INPUT'));
         return true;
       }
-      writeJson(response, ok(await writeDebugLogs(body.rootPath.trim(), body.content ?? '')));
+      writeJson(
+        response,
+        ok(await writeDebugLogs(body.rootPath.trim(), body.content ?? '', body.mode ?? 'overwrite'))
+      );
       return true;
     }
 

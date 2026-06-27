@@ -98,15 +98,11 @@ pub fn app_update_preferences(
             }
             if let Some(mode) = patch.terminal_log_mode {
                 config.terminal_log_mode = mode;
-                let _ = state
-                    .log_manager
-                    .set_mode(adl_logging::LogTarget::Terminal, mode);
+                let _ = state.log_manager.set_mode(adl_logging::LogTarget::Terminal, mode);
             }
             if let Some(mode) = patch.debug_log_mode {
                 config.debug_log_mode = mode;
-                let _ = state
-                    .log_manager
-                    .set_mode(adl_logging::LogTarget::Debug, mode);
+                let _ = state.log_manager.set_mode(adl_logging::LogTarget::Debug, mode);
             }
             if let Some(model_preferences) = patch.model_preferences {
                 for (provider, patch) in model_preferences {
@@ -179,10 +175,7 @@ pub fn write_debug_logs_to_project(
     state: tauri::State<AppState>,
     content: String,
 ) -> Result<(), String> {
-    state
-        .log_manager
-        .write_debug_logs(&content)
-        .map_err(|e| e.to_string())
+    state.log_manager.write_debug_logs(&content).map_err(|e| e.to_string())
 }
 
 /// 写入调试日志到文件（委托 LogManager）
@@ -192,10 +185,7 @@ pub fn write_debug_logs(
     state: tauri::State<AppState>,
     content: String,
 ) -> Result<(), String> {
-    state
-        .log_manager
-        .write_debug_logs(&content)
-        .map_err(|e| e.to_string())
+    state.log_manager.write_debug_logs(&content).map_err(|e| e.to_string())
 }
 
 /// 运行时切换日志模式
@@ -210,20 +200,13 @@ pub fn app_set_log_mode(
         "debug" => adl_logging::LogTarget::Debug,
         other => return Err(format!("Invalid log target: {other}")),
     };
-    let log_mode: adl_kernel::types::config::LogMode = mode
-        .parse()
-        .map_err(|e: String| format!("Invalid log mode: {e}"))?;
+    let log_mode: adl_kernel::types::config::LogMode =
+        mode.parse().map_err(|e: String| format!("Invalid log mode: {e}"))?;
 
-    state
-        .log_manager
-        .set_mode(log_target, log_mode)
-        .map_err(|e| e.to_string())?;
+    state.log_manager.set_mode(log_target, log_mode).map_err(|e| e.to_string())?;
 
     {
-        let mut config = state
-            .config
-            .write()
-            .map_err(|_| "config lock poisoned".to_string())?;
+        let mut config = state.config.write().map_err(|_| "config lock poisoned".to_string())?;
         match log_target {
             adl_logging::LogTarget::Terminal => config.terminal_log_mode = log_mode,
             adl_logging::LogTarget::Debug => config.debug_log_mode = log_mode,

@@ -25,8 +25,7 @@ impl SessionTracker {
     }
 
     pub fn session_file_path(&self) -> PathBuf {
-        self.log_dir
-            .join(format!("{}-{}.txt", self.prefix, self.current_ts))
+        self.log_dir.join(format!("{}-{}.txt", self.prefix, self.current_ts))
     }
 
     pub fn prune_old_sessions(&self) -> LogResult<usize> {
@@ -38,8 +37,7 @@ impl SessionTracker {
                     p.file_name()
                         .and_then(|n| n.to_str())
                         .map(|name| {
-                            name.starts_with(&format!("{}-", self.prefix))
-                                && name.ends_with(".txt")
+                            name.starts_with(&format!("{}-", self.prefix)) && name.ends_with(".txt")
                         })
                         .unwrap_or(false)
                 })
@@ -68,9 +66,7 @@ impl SessionTracker {
 }
 
 fn session_timestamp() -> String {
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default();
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
     let secs = now.as_secs();
     let time_of_day = secs % 86400;
     let hours = time_of_day / 3600;
@@ -79,10 +75,7 @@ fn session_timestamp() -> String {
 
     let total_days = (secs / 86400) as i64;
     let (y, m, d) = days_since_epoch_to_date(total_days);
-    format!(
-        "{:04}-{:02}-{:02}_{:02}{:02}{:02}",
-        y, m, d, hours, minutes, seconds
-    )
+    format!("{:04}-{:02}-{:02}_{:02}{:02}{:02}", y, m, d, hours, minutes, seconds)
 }
 
 fn days_since_epoch_to_date(days: i64) -> (i64, u32, u32) {
@@ -145,10 +138,7 @@ mod tests {
         let removed = tracker.prune_old_sessions().unwrap();
         assert!(removed >= 5, "removed {removed}, expected >=5");
 
-        let remaining: Vec<_> = std::fs::read_dir(&dir)
-            .unwrap()
-            .filter_map(|e| e.ok())
-            .collect();
+        let remaining: Vec<_> = std::fs::read_dir(&dir).unwrap().filter_map(|e| e.ok()).collect();
         assert!(remaining.len() <= MAX_SESSIONS);
 
         let _ = std::fs::remove_dir_all(&dir);

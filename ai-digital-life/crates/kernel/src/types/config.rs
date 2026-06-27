@@ -66,9 +66,7 @@ impl std::str::FromStr for LogMode {
             "overwrite" => Ok(Self::Overwrite),
             "append" => Ok(Self::Append),
             "multi" => Ok(Self::Multi),
-            other => Err(format!(
-                "Invalid LogMode: {other}. Expected overwrite|append|multi"
-            )),
+            other => Err(format!("Invalid LogMode: {other}. Expected overwrite|append|multi")),
         }
     }
 }
