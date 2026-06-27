@@ -68,6 +68,7 @@ impl LogManager {
             .with_filter(filter());
 
         let file_layer = fmt::layer()
+            .with_ansi(false)
             .with_timer(CstTime)
             .with_target(true)
             .with_thread_ids(true)
