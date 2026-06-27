@@ -1,6 +1,6 @@
 # 重构进度报告
 
-> 更新日期: 2026-06-27（第八十三轮）
+> 更新日期: 2026-06-27（第八十四轮）
 
 ## 完成状态
 
@@ -89,6 +89,7 @@
 | **第八十一轮** | **2026-06-25~26** | **浏览器历史记录修复（6 Bug）：INIT_SCRIPT/轮询脚本/handlePageMeta 三处 title===hostname 误跳过修复、同站 SPA 导航历史写入、跨域/同域 iframe 加载历史降级写入、首次导航 prefetch 成功时无历史写入的 Race Condition 修复** | ✅ |
 | **第八十二轮** | **2026-06-26** | **FLIP 动画重构 + 浏览器标签标题修复：文件树 FLIP→Web Animation API 替代、延迟标签 URL 更新直到真实标题到达、通用 HTTP prefetch** | ✅ |
 | **第八十三轮** | **2026-06-27** | **重构洞察第18次执行（15项发现，7项已落地）：BrowserNavigator OpenTabFlatList 提取（578→484行，-94行）；BrowserPanelContent BrowserIframeStack 提取（574→461行，-113行）；useChangesPanelState 对话框回调提取→useChangesPanelDialogs（548→515行，-33行）；useBrowserTreeActions 工具函数提取→browserTreeUtils（539→503行，-36行）；ESLint poolVersion 修复（22→20 warnings）** | ✅ |
+| **第八十四轮** | **2026-06-27** | **SDD 子代理驱动重构（5 子代理 + 5 审查循环）：browser.rs Mutex unwrap→expect；model-gateway 模块化（382→163行 lib.rs + 6子模块）；BrowserEntrySubEntries 工具函数提取→browserEntrySubEntriesUtils（-238行）；useBrowserUrlChange 工具函数提取→browserUrlUtils（-38行）** | ✅ |
 
 ## 说明
 

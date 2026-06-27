@@ -1,3 +1,9 @@
+//! Provider API call — builds and sends chat completion requests to
+//! external model APIs (DeepSeek, MiniMax).
+//!
+//! [`call_provider`] handles the full request lifecycle: credential retrieval,
+//! URL construction, HTTP request, deserialization, and response mapping.
+
 use adl_errors::AppError;
 use adl_kernel::{ModelChatMessage, ModelProviderId, ModelResponse, ModelTokenUsage};
 

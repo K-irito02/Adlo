@@ -6,7 +6,7 @@
 
 | 目录                            | 内容                                                                                                                                                                                                                                                                               | 文件数 |
 | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| [重构](./重构/)                 | 重构方法论、组件提取、执行报告、阶段性总结                                                                                                                                                                                                                                         | 23     |
+| [重构](./重构/)                 | 重构方法论、组件提取、执行报告、阶段性总结                                                                                                                                                                                                                                         | 24     |
 | [多工作区](./多工作区/)         | 多工作区开发中的变更面板、文件树、终端、布局等经验                                                                                                                                                                                                                                 | 11     |
 | [浏览器](./浏览器/)             | 内置浏览器实现、空标签引导页、树形目录交互、iframe 嵌入检查、Tauri WebView 覆盖、Resize Handle 区域逃逸、复制按钮动画化、Child WebView IPC 限制、SPA 标题轮询、导航模式切换、并发回调去重、标题锁定与 Favicon Pin、标签右键菜单与悬停按钮、WebView2 `text-overflow` 剪辑特性、已打开标签模式过滤与多 iframe 状态保持、4模式导航栏重构、双层同步机制、延迟创建、WebView2 原生 COM 事件、历史记录修复、历史标签删除修复等经验 | 28     |
 | [代码质量](./代码质量/)         | 全量代码质量检测与修复经验                                                                                                                                                                                                                                                         | 11     |
@@ -42,6 +42,7 @@
 | [refactoring-insight-execution-2026-06-15.md](./重构/refactoring-insight-execution-2026-06-15.md)       | 2026-06-15 重构洞察第10次执行 | 超大组件拆分模式、O(n²)→O(n)栈式算法、CSS变量收敛、内联样式迁移、Store订阅合并                                   |
 | [refactoring-insight-execution-2026-06-16.md](./重构/refactoring-insight-execution-2026-06-16.md)       | 2026-06-16 重构洞察第11次执行 | BrowserNavigator 提取、TitleBar 菜单提取、selectors 按域拆分、CSS 文件拆分                                       |
 | [refactor-round-68-2026-06-19.md](./重构/refactor-round-68-2026-06-19.md)                               | 2026-06-19 重构洞察执行       | CSS barrel 模式、Store 三层拆分、agent_pipeline 模块化、console.log 清理                                         |
+| [refactoring-execution-2026-06-27.md](./重构/refactoring-execution-2026-06-27.md)                       | 2026-06-27 重构洞察执行       | SDD 子代理驱动重构、model-gateway 模块化、BrowserEntrySubEntries 工具提取、browserUrlUtils 提取、[browser-debug] 清理 |
 | [terminal-pty-evaluation.md](./重构/terminal-pty-evaluation.md)                                         | 重构洞察                      | Terminal 与 PTY crate 职责边界评估报告                                                                           |
 
 ### 多工作区

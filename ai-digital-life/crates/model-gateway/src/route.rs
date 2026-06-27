@@ -1,3 +1,9 @@
+//! Provider routing — priority-ordered provider chain and provider selection.
+//!
+//! [`route_chain`] builds a sorted list of enabled providers by priority.
+//! [`select_provider`] tries each provider in route order and returns the
+//! first successful response or the last error.
+
 use adl_kernel::{ModelChatMessage, ModelPreferences, ModelProviderId, ModelResponse};
 
 use crate::fallback::default_model;
@@ -31,7 +37,7 @@ pub(crate) async fn select_provider(
             Ok(response) => return Ok((provider, model_id, response)),
             Err(error) => {
                 last_error = Some(error.to_string());
-            }
+            },
         }
     }
     Err(last_error)

@@ -1,3 +1,5 @@
+//! Fallback response generation when all providers fail.
+
 use adl_kernel::{
     estimate_tokens, ConversationRole, ModelChatMessage, ModelProviderId, ModelTokenUsage,
 };

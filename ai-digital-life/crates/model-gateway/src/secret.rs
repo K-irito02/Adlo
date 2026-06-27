@@ -1,3 +1,7 @@
+//! Credential management — store, retrieve, and clear API keys for
+//! model providers via the credential crate (keyring + encrypted file
+//! fallback).
+
 use adl_errors::AppError;
 use adl_kernel::ModelProviderId;
 

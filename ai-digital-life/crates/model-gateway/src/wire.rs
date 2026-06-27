@@ -1,3 +1,5 @@
+//! Wire types for the chat completion API request/response format.
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize)]

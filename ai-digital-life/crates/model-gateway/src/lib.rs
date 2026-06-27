@@ -1,3 +1,7 @@
+//! Model provider routing (DeepSeek / MiniMax) with controlled fallback.
+//! Routes requests through a priority-ordered provider chain and falls
+//! back to a local synthetic response when all providers fail.
+
 mod audit;
 mod fallback;
 mod provider;
@@ -13,7 +17,7 @@ use adl_kernel::{
     ModelGatewayHealthSnapshot, ModelPreferences, ModelProviderId, ModelResponse,
     ModelRouteDecision, ProviderHealthStatus,
 };
-use audit::{AuditInput, audit_record};
+use audit::{audit_record, AuditInput};
 use fallback::{deterministic_fallback, estimate_usage};
 use reqwest::Client;
 use std::time::{Duration, Instant};

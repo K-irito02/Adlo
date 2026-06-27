@@ -114,9 +114,7 @@ export function BrowserIframeStack({
 
   return (
     <>
-      {!activeTab?.url ||
-      !hasActiveTab ||
-      activeTab?.url === 'about:blank' ? (
+      {!activeTab?.url || !hasActiveTab || activeTab?.url === 'about:blank' ? (
         <div className="adl-tool-primary__scroll adl-tool-primary__scroll--browser">
           <BrowserLandingPage t={t} />
         </div>
@@ -127,7 +125,10 @@ export function BrowserIframeStack({
               const isActive = tab.id === activeTab?.id;
               const wasActivated = isActive || activatedTabIdsRef.current.has(tab.id);
               const shouldRender =
-                wasActivated && !!tab.url && tab.url !== 'about:blank' && validatedUrlsRef.current.has(tab.url);
+                wasActivated &&
+                !!tab.url &&
+                tab.url !== 'about:blank' &&
+                validatedUrlsRef.current.has(tab.url);
               if (!isActive && mergedEvictedTabIds.has(tab.id)) {
                 return null;
               }
@@ -142,10 +143,19 @@ export function BrowserIframeStack({
                 return null;
               }
               return (
-                <div key={tab.id} className="adl-browser-iframe-layer" style={{ display: isActive ? 'block' : 'none' }}>
+                <div
+                  key={tab.id}
+                  className="adl-browser-iframe-layer"
+                  style={{ display: isActive ? 'block' : 'none' }}
+                >
                   <ErrorBoundary
                     fallback={
-                      <ExternalLinkError errorKey="browserCannotOpenEmbedded" activeTabUrl={tab.url!} t={t} variant="active" />
+                      <ExternalLinkError
+                        errorKey="browserCannotOpenEmbedded"
+                        activeTabUrl={tab.url!}
+                        t={t}
+                        variant="active"
+                      />
                     }
                   >
                     <SafeIframe
