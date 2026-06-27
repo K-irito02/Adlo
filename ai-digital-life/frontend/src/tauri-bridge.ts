@@ -118,6 +118,10 @@ export function createTauriBridge(): DigitalLifeBridge {
     subscribePtyOutput: (listener: (event: PtyOutputEvent) => void) =>
       subscribeChannel<PtyOutputEvent>('digital-life://pty-output', listener),
 
+    setLogMode: async (target: 'terminal' | 'debug', mode: 'overwrite' | 'append' | 'multi') => {
+      await invoke('app_set_log_mode', { target, mode });
+    },
+
     window: {
       minimize: () => win().minimize(),
       maximize: () => win().toggleMaximize(),

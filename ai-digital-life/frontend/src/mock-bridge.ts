@@ -92,6 +92,10 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
   subscribeTerminalStream: () => () => undefined,
   subscribePtyOutput,
 
+  setLogMode: async (target: 'terminal' | 'debug', mode: 'overwrite' | 'append' | 'multi') => {
+    localStorage.setItem(`adl_log_mode_${target}`, mode);
+  },
+
   window: {
     minimize: async () => {},
     maximize: async () => {},
