@@ -30,9 +30,9 @@ mod imp {
         Lazy::new(|| Mutex::new(HashMap::new()));
 
     pub fn cleanup_audio_handler(tab_id: &str) {
-        if let Ok(mut store) = HANDLER_STORE.lock() {
-            store.remove(tab_id);
-        }
+        // Recover from poisoned lock — clearing stale data is safe
+        let mut store = HANDLER_STORE.lock().unwrap_or_else(|e| e.into_inner());
+        store.remove(tab_id);
     }
 
     pub fn setup_audio_changed_handler(webview: Webview, tab_id: &str) -> Result<(), String> {
@@ -145,12 +145,11 @@ mod imp {
                 return;
             }
 
-            // Store handlers to keep them alive — defense against COM interop edge cases
-            if let Ok(mut store) = HANDLER_STORE.lock() {
-                let entry = store.entry(tid.clone()).or_default();
-                entry.push(HandlerBox(Box::new(audio_handler)));
-                entry.push(HandlerBox(Box::new(mute_handler)));
-            }
+            // Store handlers to keep them alive — recovers from poisoned lock
+            let mut store = HANDLER_STORE.lock().unwrap_or_else(|e| e.into_inner());
+            let entry = store.entry(tid.clone()).or_default();
+            entry.push(HandlerBox(Box::new(audio_handler)));
+            entry.push(HandlerBox(Box::new(mute_handler)));
 
             tracing::info!(tab_id = %tid, "audio handlers registered (ICoreWebView2_17 + _18)");
         });
