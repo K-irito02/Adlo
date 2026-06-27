@@ -1,16 +1,22 @@
-//! Model provider routing (DeepSeek / MiniMax) with controlled fallback.
+mod audit;
+mod fallback;
+mod secret;
+mod wire;
+
+pub use secret::{clear_provider_secret, get_provider_secret, set_provider_secret};
 
 use adl_errors::AppError;
 use adl_kernel::{
-    create_id, estimate_tokens, now_ms, ConversationScenario, ModelCallAuditRecord,
-    ModelChatMessage, ModelGatewayHealthSnapshot, ModelPreferences, ModelProviderId, ModelResponse,
+    create_id, now_ms, ConversationScenario, ModelCallAuditRecord, ModelChatMessage,
+    ModelGatewayHealthSnapshot, ModelPreferences, ModelProviderId, ModelResponse,
     ModelRouteDecision, ModelTokenUsage, ProviderHealthStatus,
 };
+use audit::{AuditInput, audit_record};
+use fallback::{default_model, deterministic_fallback, estimate_usage};
 use reqwest::Client;
-use serde::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
+use wire::{ChatCompletionRequest, ChatCompletionResponse, WireMessage};
 
-const KEYRING_SERVICE: &str = "ai-digital-life";
 const DEEPSEEK_BASE_URL: &str = "https://api.deepseek.com";
 const MINIMAX_BASE_URL: &str = "https://api.minimax.io";
 
@@ -124,9 +130,6 @@ impl ModelGateway {
         }
     }
 
-    /// Tries each provider in the route chain in priority order.
-    /// Returns the first successful response with its provider info,
-    /// or the last error encountered (None if no providers were configured).
     async fn select_provider(
         &self,
         route: &[ModelProviderId],
@@ -248,125 +251,6 @@ impl ModelGateway {
             route: None,
         })
     }
-}
-
-pub fn set_provider_secret(provider: ModelProviderId, secret: &str) -> Result<(), AppError> {
-    let store = adl_credential::CredentialStore::new(KEYRING_SERVICE, provider.as_str());
-    store.set_password(secret)
-}
-
-pub fn clear_provider_secret(provider: ModelProviderId) -> Result<(), AppError> {
-    let store = adl_credential::CredentialStore::new(KEYRING_SERVICE, provider.as_str());
-    store.delete_password()
-}
-
-pub fn get_provider_secret(provider: ModelProviderId) -> Result<String, AppError> {
-    let store = adl_credential::CredentialStore::new(KEYRING_SERVICE, provider.as_str());
-    store.get_password()
-}
-
-fn default_model(provider: ModelProviderId) -> &'static str {
-    match provider {
-        ModelProviderId::Deepseek => "deepseek-v4-pro",
-        ModelProviderId::Minimax => "MiniMax-M2.7",
-    }
-}
-
-fn deterministic_fallback(messages: &[ModelChatMessage], error: Option<&str>) -> String {
-    let user = messages
-        .iter()
-        .rev()
-        .find(|message| message.role == adl_kernel::ConversationRole::User)
-        .map(|message| message.content.as_str())
-        .unwrap_or("");
-    format!(
-        "Provider route unavailable. Generated a local thin-slice response for: {user}\n{}",
-        error
-            .map(|value| format!("Last provider error: {value}"))
-            .unwrap_or_else(|| "No provider error was available.".into())
-    )
-}
-
-fn estimate_usage(messages: &[ModelChatMessage]) -> ModelTokenUsage {
-    let prompt_tokens =
-        messages.iter().map(|message| estimate_tokens(&message.content)).sum::<usize>() as u32;
-    ModelTokenUsage {
-        prompt_tokens: Some(prompt_tokens),
-        completion_tokens: Some(64),
-        total_tokens: Some(prompt_tokens + 64),
-        estimated: Some(true),
-    }
-}
-
-struct AuditInput<'a> {
-    workspace_id: &'a str,
-    session_id: &'a str,
-    run_id: Option<&'a str>,
-    provider_id: ModelProviderId,
-    model_id: String,
-    scenario: ConversationScenario,
-    route_meta: ModelRouteDecision,
-    started: Instant,
-    usage: Option<ModelTokenUsage>,
-    error: Option<String>,
-}
-
-fn audit_record(input: AuditInput<'_>) -> ModelCallAuditRecord {
-    ModelCallAuditRecord {
-        id: create_id("modelaudit"),
-        request_id: create_id("modelreq"),
-        workspace_id: input.workspace_id.to_string(),
-        session_id: input.session_id.to_string(),
-        run_id: input.run_id.map(|s| s.to_string()),
-        provider_id: input.provider_id,
-        model_id: input.model_id,
-        scenario: input.scenario,
-        route_meta: input.route_meta,
-        prompt_tokens: input.usage.as_ref().and_then(|usage| usage.prompt_tokens),
-        completion_tokens: input.usage.as_ref().and_then(|usage| usage.completion_tokens),
-        latency_ms: input.started.elapsed().as_millis() as i64,
-        error: input.error,
-        streamed: false,
-        created_at: now_ms(),
-    }
-}
-
-#[derive(Debug, Serialize)]
-struct ChatCompletionRequest {
-    model: String,
-    messages: Vec<WireMessage>,
-    stream: bool,
-}
-
-#[derive(Debug, Serialize)]
-struct WireMessage {
-    role: String,
-    content: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct ChatCompletionResponse {
-    id: Option<String>,
-    model: Option<String>,
-    choices: Vec<WireChoice>,
-    usage: Option<WireUsage>,
-}
-
-#[derive(Debug, Deserialize)]
-struct WireChoice {
-    message: WireAssistantMessage,
-}
-
-#[derive(Debug, Deserialize)]
-struct WireAssistantMessage {
-    content: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct WireUsage {
-    prompt_tokens: Option<u32>,
-    completion_tokens: Option<u32>,
-    total_tokens: Option<u32>,
 }
 
 #[cfg(test)]
