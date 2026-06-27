@@ -38,6 +38,7 @@
 | 2026-06-22 | 8 | ✅ 已解决 | BrowserPanel Hook 提取、Rust clone 消除、CSS !important 清理 |
 | 2026-06-23 | 11 | ✅ 已解决 | 5 组件拆分（-1789 行）、Rust 4 文件 clone 消除（-37%）、preview-bridge 13 子模块、mock shared 4 子模块 |
 | 2026-06-24 | — | ✅ 已解决 | 浏览器导航栏4模式重构、Store 简化、Flash 消除、Flat 标签溢出 ::after 蒙版修复 |
+| 2026-06-27 | 15 | 🔄 部分解决 | BrowserNavigator OpenTabFlatList 提取（-94行）、ESLint 警告清理（22→16）、React.memo/lazy 现状确认 |
 
 ## 各日洞察摘要
 
@@ -252,3 +253,13 @@
 - ✅ `communicateSlice` 从 712 行降至 93 行（-87%）
 - ✅ 前端 `as any` 从 13 处减至 0 处
 - ✅ CodeMirror 语言包全量加载 → 按需动态加载
+
+### 2026-06-27
+- 15 项发现，7 项落地
+- **组件提取**：BrowserNavigator OpenTabFlatList → BrowserOpenTabFlatList.tsx（578→484行，-94行）
+- **组件提取**：BrowserPanelContent BrowserIframeStack → BrowserIframeStack.tsx（574→461行，-113行，含音频监控/LRU 驱逐/ifarme 渲染）
+- **Hook 提取**：useChangesPanelState 对话框回调 → useChangesPanelDialogs（548→515行，-33行）
+- **工具函数提取**：useBrowserTreeActions findFolderByIdLocal/collectAllDescendantTabIdsLocal → browserTreeUtils.ts（539→503行，-36行）
+- **ESLint 修复**：BrowserPanel poolVersion 未使用+多余dep修复（22→20 warnings）
+- **总减少行数**：-276 行（5 个新文件，4 个缩减文件）
+- **质量门禁**：TypeScript 0 errors / 268 tests 0 failed / ESLint 20w 0 errors（全部预存）/ Clippy 0 warnings / rustfmt 0 issues

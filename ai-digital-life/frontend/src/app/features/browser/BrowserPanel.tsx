@@ -281,15 +281,11 @@ export function BrowserPanel(props: BrowserPanelProps) {
   }, []);
 
   const {
-    webViewActiveRef,
     primaryRef,
     removeFromPool,
     isTabInPool,
-    updateWebViewBounds,
-    createWebViewForTab,
-    activateTabInPool,
     loadingTabId,
-    poolVersion,
+    poolVersion: _poolVersion,
   } = useBrowserWebView({
     activeTab,
     webViewDisabled: false,
@@ -627,7 +623,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
       result.delete(activeTab.id);
     }
     return result;
-  }, [browserTabs, poolVersion, activeTab?.id]);
+  }, [browserTabs, activeTab?.id, isTabInPool]);
 
   const isEmbedPending =
     !isTauriShell() &&
@@ -688,11 +684,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
         evictedTabIds={evictedTabIds}
         iframeRef={iframeRef}
         primaryRef={primaryRef}
-        removeFromPool={removeFromPool}
-        isTabInPool={isTabInPool}
-        createWebViewForTab={createWebViewForTab}
-        activateTabInPool={activateTabInPool}
-        updateWebViewBounds={updateWebViewBounds}
         handleIframeLoad={handleIframeLoad}
         handleIframeError={handleIframeError}
         iframeBlockedDetected={iframeBlockedDetected}

@@ -1,6 +1,6 @@
 # 重构进度报告
 
-> 更新日期: 2026-06-26（第八十二轮）
+> 更新日期: 2026-06-27（第八十三轮）
 
 ## 完成状态
 
@@ -87,6 +87,8 @@
 | **第七十九轮** | **2026-06-23** | **重构洞察第17次执行（11项发现）：前端组件拆分——BrowserPanel（814→616行）、BrowserTreeEntry（721→476行）、GitHubCITree（715→273行）、preview-bridge/index.ts（622→75行，13子模块）、mock/shared.ts（519→57行，4子模块）；Rust clone 消除——agent_pipeline.rs（16→8）、task.rs（13→10）、workspace_sidebar.rs（11→7）、task/lib.rs 结构优化；CSS transition:all 修复（2处）；console.log 清理（3处）** | ✅ |
 | **第八十轮** | **2026-06-24** | **浏览器导航栏4模式重构：Store 简化（删除 viewMode/showTabButtons）、BrowserNavigator 重写为4模式扁平按钮（open/tabs/list/search）、Flash 消除（display:none 包装）、搜索外部点击修复、Close 按钮仅 open 模式显示、Flat 模式标签溢出修复（::after 渐变蒙版 + position:relative + text-overflow:clip）、auto-sync 修复与调试日志清理** | ✅ |
 | **第八十一轮** | **2026-06-25~26** | **浏览器历史记录修复（6 Bug）：INIT_SCRIPT/轮询脚本/handlePageMeta 三处 title===hostname 误跳过修复、同站 SPA 导航历史写入、跨域/同域 iframe 加载历史降级写入、首次导航 prefetch 成功时无历史写入的 Race Condition 修复** | ✅ |
+| **第八十二轮** | **2026-06-26** | **FLIP 动画重构 + 浏览器标签标题修复：文件树 FLIP→Web Animation API 替代、延迟标签 URL 更新直到真实标题到达、通用 HTTP prefetch** | ✅ |
+| **第八十三轮** | **2026-06-27** | **重构洞察第18次执行（15项发现，7项已落地）：BrowserNavigator OpenTabFlatList 提取（578→484行，-94行）；BrowserPanelContent BrowserIframeStack 提取（574→461行，-113行）；useChangesPanelState 对话框回调提取→useChangesPanelDialogs（548→515行，-33行）；useBrowserTreeActions 工具函数提取→browserTreeUtils（539→503行，-36行）；ESLint poolVersion 修复（22→20 warnings）** | ✅ |
 
 ## 说明
 

@@ -1,16 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { SafeIframe } from './SafeIframe';
-import { ErrorBoundary } from '../../components/ErrorBoundary';
-import { ExternalLinkError } from './ExternalLinkError';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../../stores/slicedStore';
 import { BrowserToolbar } from './BrowserToolbar';
 import { BrowserNavigator } from './BrowserNavigator';
-import { isTauriShell } from '../../../tauri-bridge';
-import { OrbitalLoader } from '../../components/OrbitalLoader';
-import { BrowserLandingPage } from './browser-landing';
 import { useNavigatorResize } from '../../hooks/useNavigatorResize';
 import { computeNavigatorCount, findTabByUrl } from './useBrowserTabs';
+import { BrowserIframeStack } from './BrowserIframeStack';
 import type { BrowserNavigatorMode } from './useBrowserTabs';
 import type { BrowserSearchScope } from './useBrowserSearch';
 import type { BrowserMenuItem } from './useBrowserMenus';
@@ -18,12 +13,9 @@ import type { BrowserTabState } from '../../stores/slices/browserSlice';
 import type { TabFolderState } from '../../stores/slices/browserFoldersSlice';
 import type { CopyDict } from '../../i18n/types';
 
-const IFRAME_POOL_SIZE = 5;
-
 interface BrowserPanelContentProps {
   t: CopyDict;
   isBrowserVisible: boolean;
-  // --- useBrowserTabs ---
   activeTab: BrowserTabState | undefined;
   hasActiveTab: boolean;
   isBookmarked: boolean;
@@ -32,7 +24,6 @@ interface BrowserPanelContentProps {
   handleCloseAllTabs: (workspaceId?: string) => void;
   handleClearTabDirectories: () => void;
   handleDoubleClick: (tabId: string, title: string) => void;
-  // --- useBrowserDialogs ---
   handleOpenBookmarkDialog: () => void;
   handleEditTab: (tabId: string, name: string, url: string) => void;
   handleSetCreateTabDialog: React.Dispatch<
@@ -48,7 +39,6 @@ interface BrowserPanelContentProps {
       currentName: string;
     }>
   >;
-  // --- useBrowserSearch ---
   navigatorQuery: string;
   searchScope: BrowserSearchScope;
   searchResults: { title: string; url: string; source: string }[];
@@ -56,7 +46,6 @@ interface BrowserPanelContentProps {
   navigatorSearchInputRef: React.RefObject<HTMLInputElement | null>;
   setNavigatorQuery: React.Dispatch<React.SetStateAction<string>>;
   setSearchScope: React.Dispatch<React.SetStateAction<BrowserSearchScope>>;
-  // --- useBrowserTreeActions ---
   browserTabFolders: TabFolderState[];
   tabTreeExpanded: Record<string, boolean>;
   allTreeExpanded: boolean;
@@ -74,12 +63,10 @@ interface BrowserPanelContentProps {
   handleCopyTabLink: (url: string) => Promise<void>;
   handleOpenTabInNewTab: (url: string, title: string) => void;
   handleOpenTabInCurrentTab: (tabId: string) => void;
-  // --- useBrowserMenus ---
   browserMenuOpen: boolean;
   browserMenuRef: React.RefObject<HTMLDivElement | null>;
   browserMenuItems: BrowserMenuItem[];
   setBrowserMenuOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  // --- useBrowserWebView ---
   loadingTabId: string | null;
   evictedTabIds: ReadonlySet<string>;
   iframeRef: React.RefObject<HTMLIFrameElement | null>;
@@ -90,16 +77,9 @@ interface BrowserPanelContentProps {
   iframeLoadError: boolean;
   isEmbedPending: boolean;
   validatedUrlsRef: React.MutableRefObject<Set<string>>;
-  removeFromPool: (tabId: string) => void;
-  isTabInPool: (tabId: string) => boolean;
-  createWebViewForTab: (tabId: string, url: string) => Promise<string | null>;
-  activateTabInPool: (tabId: string) => Promise<void>;
-  updateWebViewBounds: () => void;
-  // --- useBrowserNavigation ---
   handleGoBack: () => void;
   handleGoForward: () => void;
   handleReload: () => void;
-  // --- useBrowserUrlState ---
   urlState: {
     address: string;
     addressExpanded: boolean;
@@ -111,14 +91,12 @@ interface BrowserPanelContentProps {
     handleSearchClick: () => void;
     handleCopyUrl: (url: string) => void;
   };
-  // --- local state ---
   navigatorMode: BrowserNavigatorMode;
   setNavigatorMode: React.Dispatch<React.SetStateAction<BrowserNavigatorMode>>;
   selectedTreePath: string | null;
   selectedTreePathRef: React.MutableRefObject<string | null>;
   handleSelectTreePath: (path: string | null) => void;
   activatedTabIdsRef: React.MutableRefObject<Set<string>>;
-  // --- toast ---
   showToast: (message: string, type?: 'success' | 'warning' | 'error') => void;
 }
 
@@ -177,11 +155,6 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
     iframeLoadError,
     isEmbedPending,
     validatedUrlsRef,
-    removeFromPool,
-    isTabInPool,
-    createWebViewForTab,
-    activateTabInPool,
-    updateWebViewBounds,
     handleGoBack,
     handleGoForward,
     handleReload,
@@ -194,32 +167,6 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
     activatedTabIdsRef,
     showToast,
   } = props;
-
-  useEffect(() => {
-    if (!window.digitalLife?.browser?.onAudioStateChanged) {
-      return;
-    }
-    const unsub = window.digitalLife.browser.onAudioStateChanged((payload) => {
-      useAppStore
-        .getState()
-        .browserUpdateTabAudioState(payload.tabId, payload.isPlaying, payload.isMuted);
-    });
-    return () => {
-      unsub();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (isTauriShell() || !activeTab) {
-      return;
-    }
-    const audioMonitor = (window as unknown as Record<string, unknown>)['__adlAudioMonitor'] as
-      | { startMonitoring: (tabId: string, iframe: HTMLIFrameElement | null) => void }
-      | undefined;
-    if (audioMonitor) {
-      audioMonitor.startMonitoring(activeTab.id, iframeRef.current);
-    }
-  }, [activeTab?.id]);
 
   const {
     browserNavigatorWidth,
@@ -250,13 +197,6 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
   );
 
   const navigatorCollapsed = navigatorCollapsedByTool.browser ?? false;
-
-  const inactiveIframeRef = useRef<HTMLIFrameElement | null>(null);
-
-  // LRU eviction for browser mode iframes
-  const iframeLruOrderRef = useRef<string[]>([]);
-  const evictedIframeTabsRef = useRef<Set<string>>(new Set());
-  const [iframeEvictionVersion, setIframeEvictionVersion] = useState(0);
 
   const handleToggleNavigateMode = useCallback(
     (checked: boolean) => {
@@ -335,47 +275,6 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
     [toggleBrowserNavigator]
   );
 
-  useEffect(() => {
-    const currentTabIds = new Set(browserTabs.map((t) => t.id));
-    for (const tabId of activatedTabIdsRef.current) {
-      if (!currentTabIds.has(tabId)) {
-        activatedTabIdsRef.current.delete(tabId);
-      }
-    }
-  }, [browserTabs, activatedTabIdsRef]);
-
-  // Track LRU order when active tab changes (browser mode only)
-  useEffect(() => {
-    if (isTauriShell() || !activeTab) {
-      return;
-    }
-    const tabId = activeTab.id;
-
-    let changed = evictedIframeTabsRef.current.delete(tabId);
-    iframeLruOrderRef.current = iframeLruOrderRef.current.filter((id) => id !== tabId);
-    iframeLruOrderRef.current.push(tabId);
-
-    while (iframeLruOrderRef.current.length > IFRAME_POOL_SIZE) {
-      const evictId = iframeLruOrderRef.current.shift();
-      if (evictId) {
-        evictedIframeTabsRef.current.add(evictId);
-        changed = true;
-      }
-    }
-
-    if (changed) {
-      setIframeEvictionVersion((n) => n + 1);
-    }
-  }, [activeTab, isTauriShell, setIframeEvictionVersion]);
-
-  const mergedEvictedTabIds = useMemo(() => {
-    const merged = new Set(evictedTabIds);
-    for (const id of evictedIframeTabsRef.current) {
-      merged.add(id);
-    }
-    return merged;
-  }, [evictedTabIds, iframeEvictionVersion]);
-
   return (
     <>
       <BrowserToolbar
@@ -423,7 +322,7 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
           navigatorMode={navigatorMode}
           browserNavigatorWidth={browserNavigatorWidth}
           activeTabId={activeTab?.id ?? ''}
-          evictedTabIds={mergedEvictedTabIds}
+          evictedTabIds={evictedTabIds}
           onExpandAllTree={handleExpandAllTree}
           onCollapseAllTree={handleCollapseAllTree}
           onSetNavigatorMode={setNavigatorMode}
@@ -468,110 +367,22 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
         />
 
         <div className="adl-tool-primary adl-tool-primary--browser" ref={primaryRef}>
-          {!urlState.address ||
-          !hasActiveTab ||
-          !activeTab?.url ||
-          activeTab?.url === 'about:blank' ? (
-            <div className="adl-tool-primary__scroll adl-tool-primary__scroll--browser">
-              <BrowserLandingPage t={t} />
-            </div>
-          ) : (
-            <div className="adl-browser-iframe-stack">
-              {!isTauriShell() &&
-                browserTabs.map((tab) => {
-                  const isActive = tab.id === activeTab?.id;
-                  const wasActivated = isActive || activatedTabIdsRef.current.has(tab.id);
-                  const shouldRender =
-                    wasActivated &&
-                    !!tab.url &&
-                    tab.url !== 'about:blank' &&
-                    validatedUrlsRef.current.has(tab.url);
-
-                  if (!isActive && evictedIframeTabsRef.current.has(tab.id)) {
-                    return null;
-                  }
-                  if (isActive && evictedIframeTabsRef.current.has(tab.id)) {
-                    evictedIframeTabsRef.current.delete(tab.id);
-                    setIframeEvictionVersion((n) => n + 1);
-                  }
-
-                  if (!wasActivated && isActive) {
-                    activatedTabIdsRef.current.add(tab.id);
-                  }
-
-                  if (!shouldRender) {
-                    return null;
-                  }
-
-                  return (
-                    <div
-                      key={tab.id}
-                      className="adl-browser-iframe-layer"
-                      style={{ display: isActive ? 'block' : 'none' }}
-                    >
-                      <ErrorBoundary
-                        fallback={
-                          <ExternalLinkError
-                            errorKey="browserCannotOpenEmbedded"
-                            activeTabUrl={tab.url!}
-                            t={t}
-                            variant="active"
-                          />
-                        }
-                      >
-                        <SafeIframe
-                          iframeRef={isActive ? iframeRef : inactiveIframeRef}
-                          src={tab.url!}
-                          className="adl-browser-iframe"
-                          title={tab.title}
-                          onLoad={isActive ? handleIframeLoad : () => {}}
-                          onError={isActive ? handleIframeError : () => {}}
-                          sandbox="allow-scripts allow-forms allow-popups allow-same-origin"
-                          style={{ display: isBrowserVisible ? undefined : 'none' }}
-                        />
-                      </ErrorBoundary>
-                    </div>
-                  );
-                })}
-
-              {isTauriShell() &&
-                (() => {
-                  if (!activeTab?.url) {
-                    return null;
-                  }
-
-                  if (loadingTabId === activeTab.id) {
-                    return <OrbitalLoader />;
-                  }
-
-                  return (
-                    <>
-                      {iframeBlockedDetected && (
-                        <ExternalLinkError
-                          errorKey="browserCannotOpenEmbedded"
-                          activeTabUrl={activeTab?.url}
-                          t={t}
-                          variant="blocked"
-                        />
-                      )}
-                      {iframeLoadError && !iframeBlockedDetected && (
-                        <ExternalLinkError
-                          errorKey="browserConnectionFailed"
-                          activeTabUrl={activeTab?.url}
-                          t={t}
-                          variant="blocked"
-                        />
-                      )}
-                      {isEmbedPending && (
-                        <div className="adl-browser-loading">
-                          <div className="adl-browser-loading__spinner" />
-                        </div>
-                      )}
-                    </>
-                  );
-                })()}
-            </div>
-          )}
+          <BrowserIframeStack
+            t={t}
+            activeTab={activeTab}
+            hasActiveTab={hasActiveTab}
+            browserTabs={browserTabs}
+            isBrowserVisible={isBrowserVisible}
+            loadingTabId={loadingTabId}
+            iframeRef={iframeRef}
+            handleIframeLoad={handleIframeLoad}
+            handleIframeError={handleIframeError}
+            iframeBlockedDetected={iframeBlockedDetected}
+            iframeLoadError={iframeLoadError}
+            isEmbedPending={isEmbedPending}
+            validatedUrlsRef={validatedUrlsRef}
+            activatedTabIdsRef={activatedTabIdsRef}
+          />
         </div>
       </div>
     </>
