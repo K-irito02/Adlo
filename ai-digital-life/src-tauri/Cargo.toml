@@ -24,6 +24,7 @@ adl-command = { path = "../crates/command" }
 adl-browser = { path = "../crates/browser" }
 adl-ci-status = { path = "../crates/ci-status" }
 adl-credential = { path = "../crates/credential" }
+adl-logging = { path = "../crates/adl-logging" }
 
 tauri = { workspace = true, features = ["unstable"] }
 tauri-plugin-dialog.workspace = true

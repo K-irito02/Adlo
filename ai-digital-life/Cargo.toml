@@ -19,6 +19,7 @@ members = [
     "crates/browser",
     "crates/ci-status",
     "crates/credential",
+    "crates/adl-logging",
     "src-tauri",
 ]
 
