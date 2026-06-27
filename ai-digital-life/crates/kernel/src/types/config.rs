@@ -46,22 +46,17 @@ pub enum LogLevel {
 }
 
 /// 日志文件写入模式
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS, Default)]
 #[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
 #[serde(rename_all = "snake_case")]
 pub enum LogMode {
     /// 每次启动覆盖文件
+    #[default]
     Overwrite,
     /// 每次启动追加到文件
     Append,
     /// 每次启动创建独立会话文件
     Multi,
-}
-
-impl Default for LogMode {
-    fn default() -> Self {
-        Self::Overwrite
-    }
 }
 
 impl std::str::FromStr for LogMode {

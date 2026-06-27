@@ -9,11 +9,11 @@ export type AgentRunRecord = { id: string, workspaceId: string, sessionId: strin
 
 export type AgentRunStatus = "draft" | "planning" | "ready" | "executing" | "waiting-approval" | "applying" | "verifying" | "succeeded" | "failed" | "rolled-back" | "aborted";
 
-export type AppConfig = { language: string, theme_mode: ThemeMode, log_level: string, max_recent_workspaces: number, model_preferences: ModelPreferences, };
+export type AppConfig = { language: string, theme_mode: ThemeMode, log_level: string, terminal_log_mode: LogMode, debug_log_mode: LogMode, max_recent_workspaces: number, model_preferences: ModelPreferences, };
 
 export type AppInfo = { appName: string, version: string, config: ConfigSnapshot, currentWorkspace: WorkspaceMeta | null, recentLogs: Array<LogEntrySummary>, };
 
-export type AppPreferencePatch = { language: string | null, themeMode: ThemeMode | null, logLevel: string | null, modelPreferences: { [key in ModelProviderId]?: ModelProviderPreferencePatch } | null, };
+export type AppPreferencePatch = { language: string | null, themeMode: ThemeMode | null, logLevel: string | null, terminalLogMode: LogMode | null, debugLogMode: LogMode | null, modelPreferences: { [key in ModelProviderId]?: ModelProviderPreferencePatch } | null, };
 
 export type ApprovalDecision = "approved" | "rejected" | "timeout";
 
@@ -55,7 +55,7 @@ export type CommandRunResult = { status: string, taskId: string, request: Comman
 
 export type CommandRunStreamStart = { "mode": "started", executionId: string, taskId: string, request: CommandRequest, } | { "mode": "waitingApproval", taskId: string, request: CommandRequest, approvalRequest: ApprovalRequestSummary, };
 
-export type ConfigSnapshot = { language: string, themeMode: ThemeMode, resolvedTheme: Theme, logLevel: string, maxRecentWorkspaces: number, modelPreferences: ModelPreferences, };
+export type ConfigSnapshot = { language: string, themeMode: ThemeMode, resolvedTheme: Theme, logLevel: string, terminalLogMode: LogMode, debugLogMode: LogMode, maxRecentWorkspaces: number, modelPreferences: ModelPreferences, };
 
 export type ContextEntry = { id: string, type: string, label: string, content: string, tokenEstimate: number, path: string | null, };
 
@@ -102,6 +102,11 @@ export type LanguageCode = "zh-cn" | "en-us";
 export type LogEntrySummary = { timestamp: bigint, level: string, scope: string, message: string, };
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
+
+/**
+ * 日志文件写入模式
+ */
+export type LogMode = "overwrite" | "append" | "multi";
 
 export type MigrationDiagnostics = { change: string, fromVersion: string | null, toVersion: string, backupPath: string | null, executedScripts: Array<MigrationScriptStatus>, };
 

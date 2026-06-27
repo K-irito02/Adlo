@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use adl_kernel::types::config::LogMode;
 use tauri::webview::PageLoadEvent;
 use tauri::Manager;
 
@@ -10,7 +11,23 @@ mod setup;
 mod state;
 mod terminal;
 
+fn parse_cli_log_mode() -> Option<LogMode> {
+    let args: Vec<String> = std::env::args().collect();
+    let mut i = 0;
+    while i < args.len() {
+        if args[i] == "--log-mode" && i + 1 < args.len() {
+            return args[i + 1].parse().ok();
+        }
+        i += 1;
+    }
+    None
+}
+
 fn main() {
+    if let Some(mode) = parse_cli_log_mode() {
+        std::env::set_var("ADL_CLI_LOG_MODE", mode.to_string());
+    }
+
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
@@ -81,6 +98,7 @@ fn main() {
             commands::app::app_update_preferences,
             commands::app::write_debug_logs,
             commands::app::write_debug_logs_to_project,
+            commands::app::app_set_log_mode,
             commands::workspace::workspace_open,
             commands::workspace::workspace_clear_current,
             commands::workspace::workspace_pick_directory,

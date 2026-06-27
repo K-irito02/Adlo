@@ -226,7 +226,7 @@ impl Write for TerminalWriter {
             .config
             .read()
             .map_err(|_| {
-                std::io::Error::new(std::io::ErrorKind::Other, "config lock poisoned")
+                std::io::Error::other("config lock poisoned")
             })?
             .terminal_log_mode;
 
@@ -234,14 +234,14 @@ impl Write for TerminalWriter {
             .sessions
             .lock()
             .map_err(|_| {
-                std::io::Error::new(std::io::ErrorKind::Other, "session lock poisoned")
+                std::io::Error::other("session lock poisoned")
             })?
             .current_timestamp()
             .to_string();
 
         let needs_reopen = {
             let guard = self.inner.lock().map_err(|_| {
-                std::io::Error::new(std::io::ErrorKind::Other, "file lock poisoned")
+                std::io::Error::other("file lock poisoned")
             })?;
             match &*guard {
                 None => true,
@@ -256,7 +256,7 @@ impl Write for TerminalWriter {
         if needs_reopen {
             let file = open_terminal_file(&self.log_dir, mode, &session_ts)?;
             let mut guard = self.inner.lock().map_err(|_| {
-                std::io::Error::new(std::io::ErrorKind::Other, "file lock poisoned")
+                std::io::Error::other("file lock poisoned")
             })?;
             *guard = Some(TerminalFileState {
                 writer: BufWriter::with_capacity(8192, file),
@@ -266,7 +266,7 @@ impl Write for TerminalWriter {
         }
 
         let mut guard = self.inner.lock().map_err(|_| {
-            std::io::Error::new(std::io::ErrorKind::Other, "file lock poisoned")
+            std::io::Error::other("file lock poisoned")
         })?;
         guard.as_mut().unwrap().writer.write(buf)
     }

@@ -1,5 +1,6 @@
 use adl_browser::BrowserManager;
 use adl_kernel::{config::AppConfig, events::EventBus, WorkspaceMeta};
+use adl_logging::LogManager;
 use adl_pty::SessionManager;
 use adl_storage::Database;
 use std::collections::HashSet;
@@ -15,5 +16,6 @@ pub struct AppState {
     pub editor_dirty_paths: Mutex<HashSet<String>>,
     pub pty_sessions: Arc<Mutex<SessionManager>>,
     pub browser_manager: BrowserManager,
+    pub log_manager: LogManager,
     pub started_at: i64,
 }

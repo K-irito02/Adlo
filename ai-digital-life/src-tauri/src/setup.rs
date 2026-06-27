@@ -1,6 +1,6 @@
 use crate::state::AppState;
 use adl_browser::BrowserManager;
-use adl_kernel::{config as adl_config, events::EventBus, logger as adl_logger, now_ms};
+use adl_kernel::{config as adl_config, events::EventBus, now_ms};
 use adl_pty::SessionManager;
 use adl_storage::Database;
 use anyhow::Context;
@@ -37,12 +37,27 @@ pub fn resolve_data_dir(app: &tauri::App) -> anyhow::Result<PathBuf> {
 }
 
 pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
-    let config = adl_config::load(&data_dir).unwrap_or_default();
+    let mut config = adl_config::load(&data_dir).unwrap_or_default();
 
-    // Write terminal logs alongside debug-logs.txt in the project root
+    // CLI log mode override
+    if let Ok(cli_mode) = std::env::var("ADL_CLI_LOG_MODE") {
+        if let Ok(mode) = cli_mode.parse() {
+            config.terminal_log_mode = mode;
+            config.debug_log_mode = mode;
+        }
+    }
+
     let project_root = resolve_project_root();
-    adl_logger::init_with_log_dir(&config.log_level, Some(&project_root));
-    info!("logger initialized");
+    let log_dir = project_root.join(".adl-logs");
+    std::fs::create_dir_all(&log_dir)?;
+
+    let log_manager = adl_logging::LogManager::init(
+        &adl_logging::LogConfig::from_app_config(&config),
+        &log_dir,
+    )
+    .context("failed to init log manager")?;
+
+    info!(?log_dir, "log manager initialized");
 
     let db_path = data_dir.join("state").join("app-state.db");
     let db = Database::open(&db_path).context("failed to open database")?;
@@ -52,10 +67,6 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
     info!("migrations complete");
 
     // Run-activity housekeeping (best-effort).
-    //
-    // Defaults (can be elevated to config later):
-    // - retain ~30 days by insertion time
-    // - cap total rows to avoid unbounded growth in long-running dev sessions
     crate::run_activity_seq::init_run_activity_seq_seed();
     let _ = db.prune_run_activity_events(Some(30_i64 * 24 * 60 * 60 * 1_000), Some(200_000));
 
@@ -75,6 +86,7 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
         editor_dirty_paths: std::sync::Mutex::new(std::collections::HashSet::new()),
         pty_sessions: std::sync::Arc::new(std::sync::Mutex::new(SessionManager::new())),
         browser_manager: BrowserManager::new(),
+        log_manager,
         started_at: now_ms(),
     })
 }

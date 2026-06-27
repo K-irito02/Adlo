@@ -141,6 +141,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "adl-logging"
+version = "0.1.0"
+dependencies = [
+ "adl-kernel",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "adl-migration"
 version = "0.1.0"
 dependencies = [
@@ -266,6 +278,7 @@ dependencies = [
  "adl-errors",
  "adl-fs-ops",
  "adl-kernel",
+ "adl-logging",
  "adl-migration",
  "adl-model-gateway",
  "adl-pty",
