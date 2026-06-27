@@ -122,10 +122,9 @@
 
 ---
 
-## 📁 相关文档
+## 相关文档
 
-- [重构洞察报告](./refactor-insight-2026-06-01.md)
-- [实施计划](./refactor-implementation-plan-2026-06-01.md)
+- [重构进度报告](../../重构洞察/REFACTORING_PROGRESS_REPORT.md)
 
 ---
 

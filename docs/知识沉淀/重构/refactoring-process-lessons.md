@@ -1,6 +1,6 @@
 # 重构过程经验教训汇总
 
-> 从 [REFACTORING_PROGRESS_REPORT.md](../重构洞察/REFACTORING_PROGRESS_REPORT.md) 中提取的经验教训，按重构轮次组织。
+> 从 [REFACTORING_PROGRESS_REPORT.md](../../重构洞察/REFACTORING_PROGRESS_REPORT.md) 中提取的经验教训，按重构轮次组织。
 
 ---
 
@@ -50,4 +50,4 @@
 
 5. **前端文件迁移风险**：`ui-store.ts`（12 consumers）和 `types.ts`（16 consumers）的迁移需逐文件验证 `tsc --noEmit`。批量移动文件的策略是：移动 → `tsc` 获取错误列表 → 逐文件修复。
 
-> 完整重构进度见 [REFACTORING_PROGRESS_REPORT.md](../重构洞察/REFACTORING_PROGRESS_REPORT.md)
+> 完整重构进度见 [REFACTORING_PROGRESS_REPORT.md](../../重构洞察/REFACTORING_PROGRESS_REPORT.md)

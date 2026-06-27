@@ -264,10 +264,7 @@ agent-browser 通过 CDP 启动自己的 Chromium 进程，与 Trae IDE 的内�
 
 ## 相关文件
 
-- [变更面板测试步骤清单](./changes-panel-test-checklist.md)
-- [browser-automation 规则](../../rules/browser-automation.md)
-- [agent-browser 参考文档](../references/agent-browser.md)
-- [浏览器子目录测试步骤清单](./browser-subfolder-test-checklist.md)
+- [browser-automation 规则](../../../.agents/rules/browser-automation.md)
 
 ---
 

@@ -189,5 +189,4 @@ if let Some(workflow_id) = &config.workflow_id {
 
 ## 7. 相关文档
 
-- [变更摘要：新增完整的 CI 状态监控功能模块](../变更摘要/新增完整的CI状态监控功能模块.md)
-- [docs/superpowers/specs/2026-06-09-ci-panel-help-design.md](../superpowers/specs/2026-06-09-ci-panel-help-design.md)
+- [docs/superpowers/specs/2026-06-09-ci-panel-help-design.md](../../superpowers/specs/2026-06-09-ci-panel-help-design.md)

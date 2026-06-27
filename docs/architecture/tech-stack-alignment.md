@@ -124,4 +124,4 @@
 
 ## Migration Notes
 
-详见 [rust-migration-plan.md](./rust-migration-plan.md)：分阶段实施路线、Cargo workspace 目标结构、Electron -> Tauri 安全模型映射、关键技术决策表。
+相关迁移信息见 [system-overview.md](./system-overview.md)。

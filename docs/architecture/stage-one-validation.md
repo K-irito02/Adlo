@@ -1,6 +1,6 @@
 # StageOne Validation
 
-> **历史归档（Electron 时代）**：本文件记录 Electron 实现的 stageOne 验收状态。项目已迁移到 Rust + Tauri，验收门禁请以 [tech-stack-alignment.md](./tech-stack-alignment.md)、[CONTRIBUTING.md](../../CONTRIBUTING.md) 与 [rust-migration-plan.md](./rust-migration-plan.md) 为准；下文中的「desktop shell」「preload / IPC」「Electron 烟测」等概念在新栈中由 Tauri Command + `tauri-driver` 替代。
+> **历史归档（Electron 时代）**：本文件记录 Electron 实现的 stageOne 验收状态。项目已迁移到 Rust + Tauri，验收门禁请以 [tech-stack-alignment.md](./tech-stack-alignment.md) 为准；下文中的「desktop shell」「preload / IPC」「Electron 烟测」等概念在新栈中由 Tauri Command + `tauri-driver` 替代。
 
 ## Current Result
 

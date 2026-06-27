@@ -18,3 +18,4 @@
 - 工程约束 → [development/project-engineering-constraints.md](./development/project-engineering-constraints.md)
 - 重构进度 → [重构洞察/REFACTORING_PROGRESS_REPORT.md](./重构洞察/REFACTORING_PROGRESS_REPORT.md)
 - 经验教训索引 → [知识沉淀/README.md](./知识沉淀/README.md)
+- UI 操作手册 → [UIOperationManual/](../UIOperationManual/README.md) — 浏览器自动化测试元素定位

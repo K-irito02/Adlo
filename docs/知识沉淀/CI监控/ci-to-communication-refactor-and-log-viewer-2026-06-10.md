@@ -167,6 +167,4 @@ if !content.starts_with(b"PK\x03\x04") {
 
 ## 6. 相关文档
 
-- [变更计划：CI 重构为通信面板](../../../.trae/documents/refactor-ci-to-communication.md)
-- [GitHub CI 日志查看器计划](../../../.trae/documents/github-ci-log-viewer-plan.md)
 - [UIOperationManual 通信面板](../../../UIOperationManual/rightpanel/tools/communicate.md)
