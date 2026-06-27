@@ -118,7 +118,7 @@ where
 {
     static CACHE: std::sync::OnceLock<Mutex<HashMap<String, Instant>>> = std::sync::OnceLock::new();
     let mutex = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
-    let mut guard = mutex.lock().unwrap();
+    let mut guard = mutex.lock().expect("fetch cache mutex lock failed");
     f(&mut guard)
 }
 
