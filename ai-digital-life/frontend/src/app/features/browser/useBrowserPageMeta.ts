@@ -173,14 +173,8 @@ export function useBrowserPageMeta(
 
   const handlePageMeta = useCallback(
     (meta: { title: string; favicon: string; url: string }) => {
-      console.info(
-        '[browser-debug] handlePageMeta called (ts=' + performance.now().toFixed(0) + '):',
-        JSON.stringify(meta)
-      );
-
       const cleanUrl = normalizeMetaUrl(meta.url);
       if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
-        console.info('[browser-debug] handlePageMeta: non-http URL, ignoring');
         return;
       }
 
@@ -197,7 +191,6 @@ export function useBrowserPageMeta(
 
       if (!meta.title) {
         if (meta.favicon && exactMatch) {
-          console.info('[browser-debug] handlePageMeta: title empty, deferring favicon cache');
         }
         return;
       }
@@ -206,7 +199,6 @@ export function useBrowserPageMeta(
       if (meta.favicon) {
         const existingFavicon = getCachedFavicon(cleanUrl);
         if (shouldReplaceFavicon(existingFavicon, meta.favicon)) {
-          console.info('[browser-debug] preloading favicon for', cleanUrl, ':', meta.favicon);
           // Preload the image first, then update cache on load/error.
           // This prevents a flicker caused by the <img> src changing to an uncached URL.
           const img = new Image();
@@ -218,27 +210,13 @@ export function useBrowserPageMeta(
           };
           img.src = meta.favicon;
         } else if (existingFavicon) {
-          console.info(
-            '[browser-debug] skipping lower-quality favicon:',
-            meta.favicon,
-            '(existing:',
-            existingFavicon,
-            ')'
-          );
         }
       }
 
       const pageTitle = meta.title;
 
-      console.info('[browser-debug] activeTabId:', state.browserActiveTabId);
-      console.info('[browser-debug] total tabs:', state.browserTabs.length);
-      state.browserTabs.forEach((t: BrowserTabState, i: number) => {
-        console.info(`[browser-debug] tab[${i}]: id=${t.id} | url=${t.url} | title=${t.title}`);
-      });
-
       if (exactMatch) {
         if (exactMatch.title !== pageTitle) {
-          console.info('[browser-debug] handlePageMeta: exact match found, updating title');
           if (!isTabTitleLocked(exactMatch.id)) {
             state.browserUpdateTab(exactMatch.id, { title: pageTitle });
           }
@@ -249,9 +227,7 @@ export function useBrowserPageMeta(
       }
 
       if (activeTab) {
-        console.info('[browser-debug] handlePageMeta: active tab found, checking dedup');
         if (isMetaRecentlyProcessed(cleanUrl)) {
-          console.info('[browser-debug] handlePageMeta: URL already recently processed, skip');
           return;
         }
         if (markUrlSeen) {
@@ -259,7 +235,6 @@ export function useBrowserPageMeta(
         }
         processedMetaRef.current.set(cleanUrl, Date.now());
 
-        console.info('[browser-debug] handlePageMeta: updating active tab with new url and title');
         if (!isTabTitleLocked(activeTab.id)) {
           state.browserUpdateTab(activeTab.id, {
             url: cleanUrl,
@@ -271,7 +246,6 @@ export function useBrowserPageMeta(
         return;
       }
 
-      console.info('[browser-debug] handlePageMeta: no active tab, creating new tab');
       if (isMetaRecentlyProcessed(cleanUrl)) {
         return;
       }

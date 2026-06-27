@@ -179,16 +179,12 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
     }
 
     const unsubUrl = browser.onUrlChanged((url) => {
-      console.info('[browser-debug] onUrlChanged fired:', url);
-
       if (!url.startsWith('http://') && !url.startsWith('https://')) {
-        console.info('[browser-debug] onUrlChanged: non-http URL, ignoring');
         return;
       }
 
       const normalizedUrl = normalizeUrlForCompare(url);
       const _urlChangeTs = performance.now();
-      console.info(`[browser-debug] onUrlChanged timing: url=${normalizedUrl} ts=${_urlChangeTs}`);
       markUrlSeen(normalizedUrl);
 
       const state = useAppStore.getState();
@@ -204,7 +200,6 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
       if (noTabExists || urlChanged) {
         // Dedup: if noTabExists and prefetch already pending for this URL, skip
         if (noTabExists && pendingPrefetchRef.current.has(normalizedUrl)) {
-          console.info('[browser-debug] onUrlChanged: prefetch already pending for this URL');
           setAddress(normalizedUrl);
           return;
         }
@@ -249,29 +244,13 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
               fallbackTimeoutsRef.current.delete(normalizedUrl);
             }
             if (!meta?.title) {
-              console.info(
-                '[browser-debug] prefetchPageMeta: no title in result (attempt ' +
-                  (retryCount + 1) +
-                  '/' +
-                  MAX_RETRIES +
-                  ')'
-              );
               retryCount++;
               if (retryCount < MAX_RETRIES) {
-                console.info(
-                  '[browser-debug] prefetchPageMeta: retrying in ' + RETRY_INTERVAL + 'ms'
-                );
                 const retryTimerId = setTimeout(tryPrefetch, RETRY_INTERVAL);
                 fallbackTimeoutsRef.current.set(PREFETCH_KEY, retryTimerId);
               }
               return;
             }
-            console.info(
-              '[browser-debug] prefetchPageMeta: title received (elapsed=' +
-                Math.round(performance.now() - _urlChangeTs) +
-                'ms):',
-              meta.title
-            );
             const s = useAppStore.getState();
             const activeTabId = s.browserActiveTabId;
             const tab = activeTabId
@@ -283,13 +262,6 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
               const needsUrlUpdate = normalizeUrlForCompare(tab.url) !== normalizedUrl;
               const needsTitleUpdate = tab.title !== meta.title;
               if (needsUrlUpdate || needsTitleUpdate) {
-                console.info(
-                  '[browser-debug] prefetchPageMeta: updating tab (urlChanged=' +
-                    needsUrlUpdate +
-                    ', titleChanged=' +
-                    needsTitleUpdate +
-                    ')'
-                );
                 s.browserUpdateTab(tab.id, {
                   ...(needsUrlUpdate ? { url: normalizedUrl } : {}),
                   ...(needsTitleUpdate ? { title: meta.title } : {}),
@@ -342,12 +314,7 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
       const expected = expectedNavigationUrlRef.current;
       if (expected && normalizeUrlForCompare(expected) !== normalizedUrl) {
         if (isProbablySameSite(expected, url)) {
-          console.info('[browser-debug] same-site redirect, updating expected url');
           expectedNavigationUrlRef.current = url;
-        } else {
-          console.info(
-            '[browser-debug] cross-site redirect, NOT blocking (allowing auto-redirect)'
-          );
         }
       }
 
