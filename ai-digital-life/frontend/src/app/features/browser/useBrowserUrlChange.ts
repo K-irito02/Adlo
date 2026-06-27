@@ -4,6 +4,7 @@ import type { BrowserTabState } from '../../stores/slices/browserSlice';
 import type { PageMeta } from '../../../shared/ipc';
 import { fetchPageMeta, prefetchPageMeta, setCachedFavicon } from '../../utils/fetchPageMeta';
 import { useAppStore } from '../../stores';
+import { normalizeUrlForCompare, isProbablySameSite } from './browserUrlUtils';
 
 interface UseBrowserUrlChangeOptions {
   activeTab?: BrowserTabState;
@@ -17,23 +18,6 @@ interface UseBrowserUrlChangeOptions {
   onNavigationStart?: (url: string) => void;
   markUrlSeen: (url: string) => void;
   setIframeLoadError: React.Dispatch<React.SetStateAction<boolean>>;
-}
-
-function normalizeUrlForCompare(url: string): string {
-  try {
-    const u = new URL(url);
-    u.hash = '';
-    if (u.pathname.length > 1 && u.pathname.endsWith('/')) {
-      u.pathname = u.pathname.replace(/\/+$/, '');
-    }
-    return u.toString();
-  } catch {
-    const noHash = url.split('#')[0] || url;
-    if (noHash.length > 8 && noHash.endsWith('/')) {
-      return noHash.replace(/\/+$/, '');
-    }
-    return noHash;
-  }
 }
 
 export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
@@ -54,28 +38,6 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
   const fallbackTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const navigationGenerationRef = useRef(0);
   const pendingPrefetchRef = useRef<Set<string>>(new Set());
-
-  const isProbablySameSite = useCallback((expected: string, actual: string): boolean => {
-    try {
-      const expectedHost = new URL(expected).hostname;
-      const actualHost = new URL(actual).hostname;
-      if (expectedHost === actualHost) {
-        return true;
-      }
-      const expectedParts = expectedHost.split('.');
-      const actualParts = actualHost.split('.');
-      if (expectedParts.length >= 2 && actualParts.length >= 2) {
-        const expectedRoot = expectedParts.slice(-2).join('.');
-        const actualRoot = actualParts.slice(-2).join('.');
-        if (expectedRoot === actualRoot) {
-          return true;
-        }
-      }
-      return false;
-    } catch {
-      return false;
-    }
-  }, []);
 
   const handleIframeLoad = useCallback(() => {
     setIframeLoadError(false);
@@ -401,7 +363,7 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
       }
       fallbackTimeoutsRef.current.clear();
     };
-  }, [isProbablySameSite, markUrlSeen, setAddress, onNavigationStart, expectedNavigationUrlRef]);
+  }, [markUrlSeen, setAddress, onNavigationStart, expectedNavigationUrlRef]);
 
   return {
     handleIframeLoad,
