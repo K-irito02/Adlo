@@ -64,22 +64,25 @@ Rust 增量编译缓存 `target/debug/incremental/` 每次编译创建新会话�
 
 所有功能必须在 **Tauri 桌面应用** 和 **浏览器模式** 中保持一致。新增 IPC 方法必须同步实现 `tauri-bridge.ts` / `preview-bridge/` / `mock-bridge.ts`。
 
-## 真源定位
+## Superpowers 插件
 
-| 内容 | 真源位置 |
-|------|----------|
-| 项目治理规则 | `AGENTS.md`（本项目）、`.agents/rules/` |
-| 实现侧治理 | `ai-digital-life/AGENTS.md` |
-| 架构文档 | `docs/architecture/` |
-| 设计系统 | `docs/design-system/` |
-| UI 模式速查 | `.trae/rules/ui-patterns.md` |
-| 开发约束 | `docs/development/` |
-| IPC 契约 | `ai-digital-life/frontend/src/shared/ipc.ts` |
-| UI 测试 | `UIOperationManual/` |
-| 重构进度 | `docs/重构洞察/REFACTORING_PROGRESS_REPORT.md` |
-| 知识沉淀 | `docs/知识沉淀/` |
-| CI/CD | `.github/workflows/` |
-| 凭据存储 | `ai-digital-life/crates/credential/` |
+Superpowers v6.0.3 已通过全局 opencode.json 安装为插件：
+```json
+"plugin": ["~/.config/opencode/node_modules/superpowers"]
+```
+插件提供 14 个核心技能（自动注入 bootstrap）和工具映射适配。更新：`npm install superpowers@git+https://github.com/obra/superpowers.git --prefix "$HOME\.config\opencode"`
+
+## 技能系统
+
+| 目录 | 职责 | 技能数量 |
+|------|------|----------|
+| `.opencode/skills/` | 源目录 | 22 |
+| `.agents/skills/` | 同步（备份） | 22 |
+| `.trae/skills/` | IDE 加载 | 22 |
+
+**Superpowers 核心**（14 个，插件提供，本地副本为跨 IDE 兼容）：brainstorming、dispatching-parallel-agents、executing-plans、finishing-a-development-branch、receiving-code-review、requesting-code-review、subagent-driven-development、systematic-debugging、test-driven-development、using-git-worktrees、using-superpowers、verification-before-completion、writing-plans、writing-skills
+
+**项目定制**（8 个）：browser-automation、dogfood、find-skills、frontend-design、refactoring-insight、run-project-surfaces、skill-creator、ui-ux-pro-max
 
 ## 相关文档
 

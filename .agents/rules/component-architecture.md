@@ -93,3 +93,16 @@ useBrowserPanel.ts (1042 行)
 - 禁止创建仅 re-export 的 barrel 文件
 - 禁止在 hook 中直接操作 DOM（除非该 hook 专门处理 DOM）
 - 禁止模块级辅助函数（模块顶层非组件内联函数）超过 3 个而不提取到独立文件
+- 禁止同一组件多次渲染同一对话框组件用于不同模式（如新建/编辑），应通过状态区分合并为单次渲染
+
+## 对话框状态管理模式
+- 当组件包含 5+ 组独立对话框状态时，应提取到 `use{Component}Dialogs` Hook 中
+- Toast 消息管理独立提取为 `use{Component}Toast` Hook
+- 同一对话框的创建/编辑模式应合并为单次渲染，通过不同 state 的 open 状态区分：
+  ```tsx
+  <SomeDialog
+    open={createState.open || editState.open}
+    initialValue={editState.open ? editState.value : undefined}
+    onConfirm={createState.open ? handleCreate : handleEdit}
+  />
+  ```

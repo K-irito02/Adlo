@@ -135,19 +135,36 @@ frontend/src/
 ├── shared/ipc.ts           # DigitalLifeBridge + 13 个子接口
 ├── tauri-bridge.ts         # Tauri 模式桥接
 ├── mock-bridge.ts          # 纯内存回退入口（委托到 mock/ 子模块）
-├── mock/                   # mock 桥接子模块（7 个子文件）
-│   ├── shared.ts           # 共享可变状态
+├── mock/                   # mock 桥接子模块（11 个子文件）
+│   ├── shared.ts           # 共享可变状态 re-export（仅 57 行）
+│   ├── mock-shared-pty.ts  # PTY 终端共享状态
+│   ├── mock-shared-workspace.ts# 工作区/文档/Git/App/模型共享状态
+│   ├── mock-shared-conversation.ts# 会话共享状态
+│   ├── mock-shared-patch.ts# 补丁/Agent Run 共享状态
 │   ├── mock-workspace.ts   # 工作区操作模拟
 │   ├── mock-conversation.ts# 会话管理模拟
 │   ├── mock-patch.ts       # 补丁操作模拟
 │   ├── mock-terminal.ts    # 终端操作模拟
 │   ├── mock-task.ts        # 任务/审批模拟
 │   └── mock-retrieval.ts   # 检索模拟
-├── preview-bridge/         # 浏览器模式桥接模块
-│   ├── index.ts            # 组合入口（setupPreviewBridge）
+├── preview-bridge/         # 浏览器模式桥接模块（13 个子模块）
+│   ├── index.ts            # 组合入口（setupPreviewBridge，仅 75 行组合导出）
 │   ├── api.ts              # 请求封装（requestPreviewApi）
 │   ├── storage.ts          # localStorage 持久化工具
-│   └── ptyBridge.ts        # PTY 连接管理（SSE、listeners）
+│   ├── ptyBridge.ts        # PTY 连接管理（轮询、listeners）
+│   ├── preview-context.ts  # 共享类型（PreviewContext）
+│   ├── preview-workspace.ts# 工作区核心 + 文件 CRUD + 检索
+│   ├── preview-git.ts      # Git 操作
+│   ├── preview-search.ts   # 搜索 + 大纲
+│   ├── preview-events.ts   # 事件订阅
+│   ├── preview-model.ts    # 模型流 + App 信息
+│   ├── preview-window.ts   # 窗口控制 + 浏览器导航
+│   ├── preview-diagnostic.ts# 健康检查/诊断
+│   ├── preview-task.ts     # CI/GitHub 集成
+│   ├── preview-conversation.ts# 会话（mock 代理）
+│   ├── preview-patch.ts    # 补丁（mock 代理）
+│   ├── preview-command.ts  # 命令（mock 代理）
+│   └── preview-storage.ts  # 存储层 re-export
 ```
 
 ### 切片职责说明

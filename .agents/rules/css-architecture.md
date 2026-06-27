@@ -135,7 +135,12 @@ CSS 兄弟选择器 `~` 无法跨越扁平列表的兄弟节点。目录悬停�
 - 参考实现：`communication-panel.css` 中 `.adl-github-timeline__step:hover::after`
 
 ## 禁止项
-- 禁止使用 `!important`（除非覆盖第三方库样式）
+- 禁止使用 `!important`（除非覆盖第三方库样式或浏览器伪元素如 `::-webkit-scrollbar`）
 - 禁止硬编码颜色值（hex、rgb、hsl 等）
 - 禁止在 CSS 中使用 `transition: all`
 - 禁止超过 3 层的选择器嵌套
+
+## `!important` 使用规范
+- **可移除场景**：布局属性（`display`、`flex-direction`、`align-items`、`width`、`height`、`margin`、`padding`、`position` 等）的 `!important` 通常可通过提高选择器特异性替代
+- **必须保留场景**：visibility 控制（`opacity` + `pointer-events` + `transition`）、浏览器特定属性（`scrollbar-width`、`-ms-overflow-style`）、伪元素覆盖（`::-webkit-scrollbar`）、视觉状态覆盖（hover/active 背景色、选中行颜色）
+- 新增 `!important` 前应评估：能否通过父级选择器提高特异性？如 `.adl-panel .adl-row` 替代 `.adl-row`
