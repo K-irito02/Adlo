@@ -108,6 +108,8 @@ mod tests {
                 theme_mode: ThemeMode::System,
                 resolved_theme: Theme::Dark,
                 log_level: "info".into(),
+                terminal_log_mode: LogMode::default(),
+                debug_log_mode: LogMode::default(),
                 max_recent_workspaces: 10,
                 model_preferences: ModelPreferences::default(),
             },

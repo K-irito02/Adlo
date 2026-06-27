@@ -147,6 +147,8 @@ pub fn build_app_info(state: &AppState) -> Result<AppInfo, AppError> {
             theme_mode: config.theme_mode,
             resolved_theme: resolved,
             log_level: config.log_level.clone(),
+            terminal_log_mode: config.terminal_log_mode,
+            debug_log_mode: config.debug_log_mode,
             max_recent_workspaces: config.max_recent_workspaces,
             model_preferences: config.model_preferences.clone(),
         },

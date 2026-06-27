@@ -1,4 +1,4 @@
-use crate::types::{ModelPreferences, ThemeMode};
+use crate::types::{LogMode, ModelPreferences, ThemeMode};
 use adl_errors::AppError;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -10,6 +10,10 @@ pub struct AppConfig {
     pub language: String,
     pub theme_mode: ThemeMode,
     pub log_level: String,
+    #[serde(default)]
+    pub terminal_log_mode: LogMode,
+    #[serde(default)]
+    pub debug_log_mode: LogMode,
     pub max_recent_workspaces: usize,
     #[serde(default)]
     pub model_preferences: ModelPreferences,
@@ -21,6 +25,8 @@ impl Default for AppConfig {
             language: "zh-CN".into(),
             theme_mode: ThemeMode::System,
             log_level: "info".into(),
+            terminal_log_mode: LogMode::default(),
+            debug_log_mode: LogMode::default(),
             max_recent_workspaces: 10,
             model_preferences: ModelPreferences::default(),
         }

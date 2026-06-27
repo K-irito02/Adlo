@@ -45,6 +45,49 @@ pub enum LogLevel {
     Error,
 }
 
+/// 日志文件写入模式
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
+#[serde(rename_all = "snake_case")]
+pub enum LogMode {
+    /// 每次启动覆盖文件
+    Overwrite,
+    /// 每次启动追加到文件
+    Append,
+    /// 每次启动创建独立会话文件
+    Multi,
+}
+
+impl Default for LogMode {
+    fn default() -> Self {
+        Self::Overwrite
+    }
+}
+
+impl std::str::FromStr for LogMode {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "overwrite" => Ok(Self::Overwrite),
+            "append" => Ok(Self::Append),
+            "multi" => Ok(Self::Multi),
+            other => Err(format!(
+                "Invalid LogMode: {other}. Expected overwrite|append|multi"
+            )),
+        }
+    }
+}
+
+impl std::fmt::Display for LogMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Overwrite => write!(f, "overwrite"),
+            Self::Append => write!(f, "append"),
+            Self::Multi => write!(f, "multi"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Hash, TS)]
 #[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
 #[serde(rename_all = "lowercase")]
@@ -108,6 +151,8 @@ pub struct AppPreferencePatch {
     pub language: Option<String>,
     pub theme_mode: Option<ThemeMode>,
     pub log_level: Option<String>,
+    pub terminal_log_mode: Option<LogMode>,
+    pub debug_log_mode: Option<LogMode>,
     pub model_preferences:
         Option<std::collections::BTreeMap<ModelProviderId, ModelProviderPreferencePatch>>,
 }
@@ -129,6 +174,8 @@ pub struct ConfigSnapshot {
     pub theme_mode: ThemeMode,
     pub resolved_theme: Theme,
     pub log_level: String,
+    pub terminal_log_mode: LogMode,
+    pub debug_log_mode: LogMode,
     pub max_recent_workspaces: usize,
     pub model_preferences: ModelPreferences,
 }
