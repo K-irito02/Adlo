@@ -226,9 +226,9 @@ async function writeLogsToProjectFileBrowser(content: string) {
     return;
   }
 
-  const mode = (typeof localStorage !== 'undefined'
-    ? localStorage.getItem('adl_log_mode_debug')
-    : null) ?? 'overwrite';
+  const mode =
+    (typeof localStorage !== 'undefined' ? localStorage.getItem('adl_log_mode_debug') : null) ??
+    'overwrite';
 
   const response = await fetch('/__adl_preview_api__/workspace/write-debug-logs', {
     method: 'POST',

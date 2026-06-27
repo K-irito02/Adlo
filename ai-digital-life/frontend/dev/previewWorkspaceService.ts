@@ -1171,11 +1171,13 @@ export async function handlePreviewWorkspaceApi(
       request.method === 'POST' &&
       requestUrl.pathname === `${API_PREFIX}/workspace/write-debug-logs`
     ) {
-      const body = (await readBody(request)) as {
-        rootPath?: string;
-        content?: string;
-        mode?: 'overwrite' | 'append' | 'multi';
-      } | undefined;
+      const body = (await readBody(request)) as
+        | {
+            rootPath?: string;
+            content?: string;
+            mode?: 'overwrite' | 'append' | 'multi';
+          }
+        | undefined;
       if (!body?.rootPath?.trim()) {
         writeJson(response, fail('rootPath is required', 'INVALID_INPUT'));
         return true;
