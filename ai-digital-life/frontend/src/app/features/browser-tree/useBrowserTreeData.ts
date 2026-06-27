@@ -52,10 +52,34 @@ function buildTabNode(
     tabId: tab.id,
     url: tab.url,
     workspaceId,
+    isPlayingAudio: tab.isPlayingAudio,
+    isAudioMuted: tab.isAudioMuted,
   };
 }
 
-function buildHistoryLeafNode(entry: BrowserHistoryState, _uniqueKey: string): BrowserTreeNode {
+function buildHistoryLeafNode(
+  entry: BrowserHistoryState,
+  _uniqueKey: string,
+  browserTabs: BrowserTabState[]
+): BrowserTreeNode {
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const entryDate = new Date(entry.visitedAt);
+  const entryDateStr = `${entryDate.getFullYear()}-${String(entryDate.getMonth() + 1).padStart(2, '0')}-${String(entryDate.getDate()).padStart(2, '0')}`;
+
+  let isPlayingAudio = false;
+  let isAudioMuted = false;
+  let associatedTabId: string | undefined;
+
+  if (entryDateStr === todayStr) {
+    const matchedTab = browserTabs.find((t) => t.url === entry.url);
+    if (matchedTab) {
+      isPlayingAudio = matchedTab.isPlayingAudio;
+      isAudioMuted = matchedTab.isAudioMuted;
+      associatedTabId = matchedTab.id;
+    }
+  }
+
   return {
     path: `history-entry:${entry.id}`,
     name: normalizeTabTitle(entry.title, entry.url),
@@ -65,6 +89,9 @@ function buildHistoryLeafNode(entry: BrowserHistoryState, _uniqueKey: string): B
     tabId: entry.id,
     url: entry.url,
     visitedAt: entry.visitedAt,
+    isPlayingAudio,
+    isAudioMuted,
+    associatedTabId,
   };
 }
 
@@ -157,7 +184,10 @@ export function buildUserFolderCategoryTree(
   return rootFolders.map((folder) => buildFolderNode(folder, tabFolders, browserTabs));
 }
 
-export function buildHistoryCategoryTree(history: BrowserHistoryState[]): BrowserTreeNode[] {
+export function buildHistoryCategoryTree(
+  history: BrowserHistoryState[],
+  browserTabs: BrowserTabState[]
+): BrowserTreeNode[] {
   const groupMap = new Map<string, Map<string, Map<string, BrowserHistoryState[]>>>();
 
   for (const entry of history) {
@@ -212,7 +242,7 @@ export function buildHistoryCategoryTree(history: BrowserHistoryState[]): Browse
           name: `${Number(day)}日`,
           kind: 'directory',
           children: entries
-            .map((entry) => buildHistoryLeafNode(entry, entry.id))
+            .map((entry) => buildHistoryLeafNode(entry, entry.id, browserTabs))
             .filter((n) => n.name),
           nodeType: 'day',
         };
@@ -291,7 +321,10 @@ export function useBrowserTreeData(
     [userFolderNodes, labels.userFolderCategory]
   );
 
-  const historyNodes = useMemo(() => buildHistoryCategoryTree(browserHistory), [browserHistory]);
+  const historyNodes = useMemo(
+    () => buildHistoryCategoryTree(browserHistory, browserTabs),
+    [browserHistory, browserTabs]
+  );
 
   const historyCategory: BrowserCategoryState = useMemo(
     () => ({

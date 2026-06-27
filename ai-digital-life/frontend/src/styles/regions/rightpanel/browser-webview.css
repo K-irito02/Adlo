@@ -697,6 +697,26 @@
   opacity: 0;
 }
 
+.adl-browser-entry__tree .adl-browser-tree__icon-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.adl-browser-entry__tree
+  .adl-filetree__node--file
+  > .adl-tree-node__row
+  > .adl-tree-node__icon-before {
+  width: auto !important;
+  height: auto !important;
+  justify-content: flex-start !important;
+  min-width: 16px;
+}
+
+.adl-browser-entry__tree .adl-browser-audio-indicator {
+  margin: 0;
+}
+
 .adl-browser-entry__expand-btn {
   width: 22px;
   height: 22px;

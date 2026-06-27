@@ -242,6 +242,8 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
     reloadTab: (_tabId: string) => Promise.resolve(),
     onUrlChanged: (_listener: any) => () => {},
     onMetaChanged: (_listener: any) => () => {},
+    muteTab: (_tabId: string, _muted: boolean) => Promise.resolve(),
+    onAudioStateChanged: (_listener: any) => () => {},
   },
 
   ci: {

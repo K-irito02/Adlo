@@ -9,6 +9,8 @@ function makeTab(id: string, workspaceId: string): BrowserTabState {
     url: `https://${id}.example`,
     workspaceId,
     isPinned: false,
+    isPlayingAudio: false,
+    isAudioMuted: false,
     sortOrder: 0,
   };
 }

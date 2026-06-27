@@ -144,4 +144,6 @@ export {
   IconDatabase,
   IconBookOpen,
   IconBrain,
+  IconVolume2,
+  IconVolumeX,
 } from './status';

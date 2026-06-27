@@ -6,6 +6,8 @@ import { TooltipSimple } from '../../components/Tooltip';
 import { useTCopy } from '../../i18n/useTCopy';
 import { useMenuCloseOnOutsideClick } from '../tree/treeEntryMenus';
 import { BrowserFavicon } from '../../components/BrowserFavicon';
+import { BrowserAudioIndicator } from '../../components/BrowserAudioIndicator';
+import { useAppStore } from '../../stores/slicedStore';
 import type { CopyDict } from '../../i18n';
 import type { BrowserTreeNode, BrowserCategoryType } from './types';
 import { resolveChildCount } from './useBrowserTreeData';
@@ -428,7 +430,27 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
     if (childNode.kind === 'directory') {
       return null;
     }
-    return <BrowserFavicon url={childNode.url || ''} />;
+    const hasAudio = childNode.isPlayingAudio || childNode.isAudioMuted;
+    return (
+      <span className="adl-browser-tree__icon-wrapper">
+        <BrowserFavicon url={childNode.url || ''} />
+        {hasAudio && (
+          <BrowserAudioIndicator
+            isPlaying={childNode.isPlayingAudio ?? false}
+            isMuted={childNode.isAudioMuted ?? false}
+            onToggleMute={() => {
+              const tabId = childNode.associatedTabId ?? childNode.tabId;
+              if (tabId) {
+                const store = useAppStore.getState();
+                const nextMuted = !store.browserTabsById[tabId]?.isAudioMuted;
+                store.browserToggleTabMute(tabId);
+                window.digitalLife?.browser?.muteTab?.(tabId, nextMuted);
+              }
+            }}
+          />
+        )}
+      </span>
+    );
   }, []);
 
   const handleChildContextMenu = useCallback(

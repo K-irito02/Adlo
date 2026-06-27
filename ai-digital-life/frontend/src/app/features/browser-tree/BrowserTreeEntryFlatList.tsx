@@ -2,6 +2,8 @@ import React, { useCallback } from 'react';
 import { IconClose, IconMoreVertical, IconRefreshCw } from '../../icons';
 import { TooltipSimple } from '../../components/Tooltip';
 import { BrowserFavicon } from '../../components/BrowserFavicon';
+import { BrowserAudioIndicator } from '../../components/BrowserAudioIndicator';
+import { useAppStore } from '../../stores/slicedStore';
 import { useTCopy } from '../../i18n/useTCopy';
 import type { BrowserTreeNode } from './types';
 import type { FlatItem } from './browserTreeEntryUtils';
@@ -125,6 +127,21 @@ export const BrowserTreeEntryFlatList = React.memo(function BrowserTreeEntryFlat
                   aria-hidden="true"
                 />
                 <BrowserFavicon url={item.node.url ?? ''} />
+                {(item.node.isPlayingAudio || item.node.isAudioMuted) && (
+                  <BrowserAudioIndicator
+                    isPlaying={item.node.isPlayingAudio ?? false}
+                    isMuted={item.node.isAudioMuted ?? false}
+                    onToggleMute={() => {
+                      const tabId = item.node.associatedTabId ?? item.node.tabId;
+                      if (tabId) {
+                        const store = useAppStore.getState();
+                        const nextMuted = !store.browserTabsById[tabId]?.isAudioMuted;
+                        store.browserToggleTabMute(tabId);
+                        window.digitalLife?.browser?.muteTab?.(tabId, nextMuted);
+                      }
+                    }}
+                  />
+                )}
                 <button
                   type="button"
                   className="adl-filetree__label"

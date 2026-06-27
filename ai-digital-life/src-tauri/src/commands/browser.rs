@@ -96,6 +96,16 @@ pub async fn browser_fetch_page_meta(url: String) -> Result<IpcResult<PageMeta>,
     Ok(ipc(Ok(meta)))
 }
 
+#[tauri::command]
+pub fn browser_mute_tab(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    tab_id: String,
+    muted: bool,
+) -> Result<IpcResult<()>, CommandError> {
+    Ok(ipc(state.browser_manager.mute_tab(&app, &tab_id, muted)))
+}
+
 const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 use std::collections::HashMap;

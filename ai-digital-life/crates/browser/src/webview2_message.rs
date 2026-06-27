@@ -43,13 +43,11 @@ mod imp {
     static LAST_EMIT_TIME: Lazy<Mutex<Instant>> = Lazy::new(|| Mutex::new(Instant::now()));
 
     /// 去重窗口：相同 (url, title, favicon) 在 N 毫秒内不重复发射
-    const EMIT_DEDUP_MS: u64 = 1000;
+    const EMIT_DEDUP_MS: u64 = 2000;
 
-    /// 检查是否应该发射。三种情况跳过：
+    /// 检查是否应该发射。跳过情况：
     /// 1. 重复发射：同 url+title+favicon 在 EMIT_DEDUP_MS 内
-    /// 2. 旧标题：URL 变了但 title 与上次相同（pushState 旧标题残留）
-    ///    仅当 favicon 也未变时才跳过（避免拦截 favicon 迟到的事件）
-    /// 3. 空标题
+    /// 2. 空标题
     fn should_emit_and_update(url: &str, title: &str, favicon: &str) -> bool {
         if title.is_empty() {
             return false;
@@ -61,16 +59,12 @@ mod imp {
             if let Ok(last_title) = LAST_EMIT_TITLE.lock() {
                 if let Ok(last_favicon) = LAST_EMIT_FAVICON.lock() {
                     if let Ok(last_time) = LAST_EMIT_TIME.lock() {
-                        // Case 1: 重复发射抑制（同 url + title + favicon）
+                        // 重复发射抑制（同 url + title + favicon）
                         if *last_url == url
                             && *last_title == title
                             && *last_favicon == favicon
                             && (now.duration_since(*last_time).as_millis() as u64) < EMIT_DEDUP_MS
                         {
-                            return false;
-                        }
-                        // Case 2: 旧标题检测（URL 变了但 title 没变 且 favicon 也没变）
-                        if *last_url != url && *last_title == title && *last_favicon == favicon {
                             return false;
                         }
                     }
@@ -463,7 +457,7 @@ mod imp {
         }
     }
 
-    pub fn setup_history_changed_handler(webview: Webview) -> Result<(), String> {
+    pub fn setup_history_changed_handler(webview: Webview, label: String) -> Result<(), String> {
         let app = webview.app_handle().clone();
         info!("[ADL-META-RECV] Method 5 (HistoryChanged): setting up handler");
 
@@ -482,75 +476,115 @@ mod imp {
                     }
                 };
 
-                let app_for_handler = app.clone();
-                let handler = HistoryChangedEventHandler::create(Box::new(
-                    move |sender: Option<ICoreWebView2>,
-                          _args: Option<IUnknown>| {
-                        let Some(sender) = sender else {
-                            return Ok(());
-                        };
+                        let app_for_handler = app.clone();
+                        let label_for_handler = label.clone();
+                        let handler = HistoryChangedEventHandler::create(Box::new(
+                            move |sender: Option<ICoreWebView2>,
+                                  _args: Option<IUnknown>| {
+                                let Some(sender) = sender else {
+                                    return Ok(());
+                                };
 
-                        let mut url_pwstr = windows::core::PWSTR::null();
-                        if let Err(_e) = sender.Source(&mut url_pwstr) {
-                            return Ok(());
-                        }
-                        let url = if url_pwstr.is_null() {
-                            String::new()
-                        } else {
-                            take_pwstr(url_pwstr)
-                        };
-
-                        if url.is_empty()
-                            || !(url.starts_with("http://") || url.starts_with("https://"))
-                        {
-                            return Ok(());
-                        }
-
-                        // Strip #adl-meta=... hash (set by fetch_script) before emitting,
-                        // otherwise the URL oscillates between clean and hash forms on every
-                        // fast-poll cycle, flooding the frontend with onUrlChanged events.
-                        let clean_url = url.split("#adl-meta").next().unwrap_or(&url).to_string();
-
-                        // Deduplicate: only emit if the clean URL actually changed.
-                        // Both fetch_script (#adl-meta=...) and clear_script (clean) use
-                        // history.replaceState, which triggers HistoryChanged ~100ms apart
-                        // during fast poll. Without dedup, the frontend receives ~20
-                        // events/second for the same URL.
-                        let is_new_url = {
-                            if let Ok(mut last) = LAST_HISTORY_URL.lock() {
-                                if *last == clean_url {
-                                    false
-                                } else {
-                                    *last = clean_url.clone();
-                                    true
+                                let mut url_pwstr = windows::core::PWSTR::null();
+                                if let Err(_e) = sender.Source(&mut url_pwstr) {
+                                    return Ok(());
                                 }
-                            } else {
-                                true
-                            }
-                        };
+                                let url = if url_pwstr.is_null() {
+                                    String::new()
+                                } else {
+                                    take_pwstr(url_pwstr)
+                                };
 
-                        if !is_new_url {
-                            return Ok(());
-                        }
+                                if url.is_empty()
+                                    || !(url.starts_with("http://") || url.starts_with("https://"))
+                                {
+                                    return Ok(());
+                                }
 
-                        crate::browser_events::POLL_FAST_NOW.store(true, Ordering::Release);
+                                // Strip #adl-meta=... hash (set by fetch_script) before emitting,
+                                // otherwise the URL oscillates between clean and hash forms on every
+                                // fast-poll cycle, flooding the frontend with onUrlChanged events.
+                                let clean_url = url.split("#adl-meta").next().unwrap_or(&url).to_string();
 
-                        let _ = app_for_handler.emit(
-                            "digital-life://browser-url-changed",
-                            serde_json::json!({ "url": clean_url }),
-                        );
+                                // Deduplicate: only emit if the clean URL actually changed.
+                                // Both fetch_script (#adl-meta=...) and clear_script (clean) use
+                                // history.replaceState, which triggers HistoryChanged ~100ms apart
+                                // during fast poll. Without dedup, the frontend receives ~20
+                                // events/second for the same URL.
+                                let is_new_url = {
+                                    if let Ok(mut last) = LAST_HISTORY_URL.lock() {
+                                        if *last == clean_url {
+                                            false
+                                        } else {
+                                            *last = clean_url.clone();
+                                            true
+                                        }
+                                    } else {
+                                        true
+                                    }
+                                };
 
-                        let count =
-                            HISTORY_CHANGED_COUNT.fetch_add(1, Ordering::Relaxed) + 1;
-                        info!(
-                            "[ADL-META-RECV] ◄ Method 5 (HistoryChanged): RECEIVED ✓ (#{}) | url: {}",
-                            count,
-                            clean_url.chars().take(80).collect::<String>()
-                        );
+                                if !is_new_url {
+                                    return Ok(());
+                                }
 
-                        Ok(())
-                    },
-                ));
+                                crate::browser_events::POLL_FAST_NOW.store(true, Ordering::Release);
+
+                                let _ = app_for_handler.emit(
+                                    "digital-life://browser-url-changed",
+                                    serde_json::json!({ "url": clean_url }),
+                                );
+
+                                let count =
+                                    HISTORY_CHANGED_COUNT.fetch_add(1, Ordering::Relaxed) + 1;
+                                info!(
+                                    "[ADL-META-RECV] ◄ Method 5 (HistoryChanged): RECEIVED ✓ (#{}) | url: {}",
+                                    count,
+                                    clean_url.chars().take(80).collect::<String>()
+                                );
+
+                                // Fallback: after 2s, if no DocumentTitleChanged/postMessage arrived
+                                // for this URL, eval JS to extract title and emit meta event.
+                                // This handles SPA navigations (e.g. YouTube auto-play) where
+                                // document.title is not updated by the page.
+                                let app_fb = app_for_handler.clone();
+                                let label_fb = label_for_handler.clone();
+                                let url_fb = clean_url.clone();
+                                std::thread::spawn(move || {
+                                    std::thread::sleep(std::time::Duration::from_millis(2000));
+                                    // Check if meta was already emitted for this URL
+                                    let already_emitted = {
+                                        if let Ok(last_url) = LAST_EMIT_URL.lock() {
+                                            *last_url == url_fb
+                                        } else {
+                                            false
+                                        }
+                                    };
+                                    if already_emitted {
+                                        return;
+                                    }
+                                    if let Some(wv) = app_fb.get_webview(&label_fb) {
+                                        let _ = wv.eval(
+                                            r#"(function(){
+                                                var t = document.title;
+                                                if (t && t.trim()) {
+                                                    try {
+                                                        chrome.webview.postMessage(JSON.stringify({
+                                                            type: 'meta',
+                                                            title: t,
+                                                            favicon: '',
+                                                            url: location.href
+                                                        }));
+                                                    } catch(e) {}
+                                                }
+                                            })()"#
+                                        );
+                                    }
+                                });
+
+                                Ok(())
+                            },
+                        ));
 
                 let mut token: EventRegistrationToken = 0;
                 match core.add_HistoryChanged(&handler, &mut token as *mut _ as *mut _) {
@@ -607,7 +641,7 @@ mod imp {
         Ok(())
     }
 
-    pub fn setup_history_changed_handler(_webview: Webview) -> Result<(), String> {
+    pub fn setup_history_changed_handler(_webview: Webview, _label: String) -> Result<(), String> {
         debug!(
             "history changed handler not available on this platform (non-Windows), using fallback"
         );

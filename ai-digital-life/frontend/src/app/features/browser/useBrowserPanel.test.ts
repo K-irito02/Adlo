@@ -8,6 +8,8 @@ function makeTab(id: string) {
     url: `https://${id}.example`,
     workspaceId: 'ws-1',
     isPinned: false,
+    isPlayingAudio: false,
+    isAudioMuted: false,
     sortOrder: 0,
   };
 }

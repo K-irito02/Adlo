@@ -195,6 +195,32 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
     showToast,
   } = props;
 
+  useEffect(() => {
+    if (!window.digitalLife?.browser?.onAudioStateChanged) {
+      return;
+    }
+    const unsub = window.digitalLife.browser.onAudioStateChanged((payload) => {
+      useAppStore
+        .getState()
+        .browserUpdateTabAudioState(payload.tabId, payload.isPlaying, payload.isMuted);
+    });
+    return () => {
+      unsub();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isTauriShell() || !activeTab) {
+      return;
+    }
+    const audioMonitor = (window as unknown as Record<string, unknown>)['__adlAudioMonitor'] as
+      | { startMonitoring: (tabId: string, iframe: HTMLIFrameElement | null) => void }
+      | undefined;
+    if (audioMonitor) {
+      audioMonitor.startMonitoring(activeTab.id, iframeRef.current);
+    }
+  }, [activeTab?.id]);
+
   const {
     browserNavigatorWidth,
     navigatorCollapsedByTool,

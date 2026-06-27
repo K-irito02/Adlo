@@ -27,6 +27,8 @@ import type { BrowserHistoryState } from '../../stores/slices/browserHistorySlic
 import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
 import type { ToastType } from '../../components/Toast';
 import type { CopyDict } from '../../i18n/types';
+import { BrowserAudioIndicator } from '../../components/BrowserAudioIndicator';
+import { useAppStore } from '../../stores/slicedStore';
 
 export interface BrowserNavigatorProps {
   t: CopyDict;
@@ -139,6 +141,16 @@ function OpenTabFlatList({
                   aria-hidden="true"
                 />
                 <BrowserFavicon url={tab.url} />
+                <BrowserAudioIndicator
+                  isPlaying={tab.isPlayingAudio}
+                  isMuted={tab.isAudioMuted}
+                  onToggleMute={() => {
+                    const store = useAppStore.getState();
+                    const nextMuted = !store.browserTabsById[tab.id]?.isAudioMuted;
+                    store.browserToggleTabMute(tab.id);
+                    window.digitalLife?.browser?.muteTab?.(tab.id, nextMuted);
+                  }}
+                />
                 <button
                   type="button"
                   className="adl-filetree__label"
@@ -305,7 +317,10 @@ export function BrowserNavigator({
           <span
             style={{ display: navigatorMode === 'open' || navigatorMode === 'tabs' ? '' : 'none' }}
           >
-            <TooltipSimple content={t.browserNewTabBtn} placement="top">
+            <TooltipSimple
+              content={navigatorMode === 'tabs' ? t.browserNewTab : t.browserNewTabBtn}
+              placement="top"
+            >
               <button
                 type="button"
                 className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
@@ -329,7 +344,7 @@ export function BrowserNavigator({
                     browserOpenTab(undefined, t.browserNewTabPage);
                   }
                 }}
-                aria-label={t.browserNewTabBtn}
+                aria-label={navigatorMode === 'tabs' ? t.browserNewTab : t.browserNewTabBtn}
               >
                 <IconPlus size={14} decorative />
               </button>

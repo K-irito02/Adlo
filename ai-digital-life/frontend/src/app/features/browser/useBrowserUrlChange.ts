@@ -89,24 +89,12 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
       try {
         href = iframeWindow.location.href;
       } catch {
-        console.log('[ADL-DEBUG] handleIframeLoad: cross-origin, cannot read location');
         return;
       }
 
       if (!href || href === 'about:blank' || !activeTab) {
-        console.log('[ADL-DEBUG] handleIframeLoad: early return', {
-          href,
-          hasActiveTab: !!activeTab,
-        });
         return;
       }
-
-      console.log('[ADL-DEBUG] handleIframeLoad fired', {
-        href,
-        activeTabUrl: activeTab.url,
-        activeTabTitle: activeTab.title,
-        urlChanged: href !== activeTab.url,
-      });
 
       if (href !== activeTab.url) {
         setAddress(href);
@@ -120,12 +108,6 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
             ) as HTMLLinkElement | null;
             iframeFavicon = iconLink?.href || '';
           }
-          console.log('[ADL-DEBUG] handleIframeLoad: same-origin navigate', {
-            href,
-            docTitle: iframeTitle,
-            docFavicon: iframeFavicon,
-            hasActiveTab: !!activeTab,
-          });
           browserNavigateActiveTab(href, iframeTitle || undefined);
           if (iframeTitle || iframeFavicon) {
             onPageMeta?.({
@@ -139,12 +121,8 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
           }
         } catch {
           /* cross-origin: navigate without title, fetch via proxy */
-          console.log('[ADL-DEBUG] handleIframeLoad: cross-origin navigate, will fetchPageMeta', {
-            href,
-          });
           browserNavigateActiveTab(href);
           fetchPageMeta(href).then((meta) => {
-            console.log('[ADL-DEBUG] fetchPageMeta result', { href, meta });
             if (!meta) {
               const s = useAppStore.getState();
               s.browserAddToHistory(href, href);
@@ -170,10 +148,6 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
         return;
       }
 
-      console.log('[ADL-DEBUG] handleIframeLoad: URL unchanged, refreshing meta', {
-        href,
-        activeTabTitle: activeTab.title,
-      });
       try {
         const doc = iframeWindow.document;
         const iframeTitle = doc?.title;
@@ -184,11 +158,6 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
           ) as HTMLLinkElement | null;
           iframeFavicon = iconLink?.href || '';
         }
-        console.log('[ADL-DEBUG] handleIframeLoad: same-origin meta refresh', {
-          iframeTitle,
-          iframeFavicon,
-          titleChanged: iframeTitle && iframeTitle !== activeTab.title,
-        });
         if (iframeTitle && iframeTitle !== activeTab.title) {
           browserUpdateTab(activeTab.id, { title: iframeTitle });
         }
@@ -201,11 +170,7 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
         }
       } catch {
         /* cross-origin: fetch via proxy */
-        console.log('[ADL-DEBUG] handleIframeLoad: cross-origin meta refresh, fetching...', {
-          href,
-        });
         fetchPageMeta(href).then((meta) => {
-          console.log('[ADL-DEBUG] fetchPageMeta result (meta refresh)', { href, meta });
           if (!meta) {
             return;
           }
@@ -261,11 +226,7 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
 
       const normalizedUrl = normalizeUrlForCompare(url);
       const _urlChangeTs = performance.now();
-      console.info(
-        '[browser-debug] onUrlChanged timing: url=%s ts=%d',
-        normalizedUrl,
-        _urlChangeTs
-      );
+      console.info(`[browser-debug] onUrlChanged timing: url=${normalizedUrl} ts=${_urlChangeTs}`);
       markUrlSeen(normalizedUrl);
 
       const state = useAppStore.getState();

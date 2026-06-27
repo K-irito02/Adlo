@@ -406,6 +406,32 @@ export function createTauriBridge(): DigitalLifeBridge {
           void ul?.();
         };
       },
+      muteTab: (tabId: string, muted: boolean) =>
+        invoke('browser_mute_tab', { tabId, muted }).then(() => undefined),
+      onAudioStateChanged: (
+        listener: (payload: { tabId: string; isPlaying: boolean; isMuted: boolean }) => void
+      ) => {
+        let active = true;
+        let ul: UnlistenFn | undefined;
+        void listen<{ tabId: string; isPlaying: boolean; isMuted: boolean }>(
+          'digital-life://browser-audio-changed',
+          (event) => {
+            if (active) {
+              listener(event.payload);
+            }
+          }
+        ).then((unlisten) => {
+          if (active) {
+            ul = unlisten;
+          } else {
+            void unlisten();
+          }
+        });
+        return () => {
+          active = false;
+          void ul?.();
+        };
+      },
     },
     ci: {
       getStatus: (config) => invokeIpc<CiStatusSnapshot>('ci_get_status', { config }),

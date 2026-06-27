@@ -606,3 +606,30 @@ body,
     --focus-ring-width: 4px;
   }
 }
+
+/* -------- Browser audio indicator -------- */
+.adl-browser-audio-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 1px 0 -3px;
+}
+
+.adl-icon-btn.adl-browser-audio-indicator {
+  color: var(--text-primary);
+}
+.adl-browser-audio-indicator.is-animating .audio-wave {
+  animation: audio-wave-radiate 1.2s ease-in-out infinite;
+}
+.adl-browser-audio-indicator.is-animating .audio-wave:last-child {
+  animation-delay: 0.3s;
+}
+@keyframes audio-wave-radiate {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}

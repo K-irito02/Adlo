@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { IconClose, IconLink } from '../../icons';
 import { TooltipSimple } from '../../components/Tooltip';
+import { BrowserAudioIndicator } from '../../components/BrowserAudioIndicator';
 import type { BrowserTabState } from '../../stores/slices/browserSlice';
 import type { CopyDict } from '../../i18n';
 import { useAppStore } from '../../stores/slicedStore';
@@ -65,16 +66,6 @@ export const BrowserTabBar = React.memo(function BrowserTabBar({
     <ul className="adl-tool-list adl-tool-list--terminal">
       {tabs.map((tab) => {
         const isBookmarked = bookmarkedUrls.has(tab.url);
-        console.log(
-          '[ADL-DEBUG] [BrowserTabBar] tab',
-          tab.id,
-          'isEvicted:',
-          evictedTabIds.has(tab.id),
-          'title:',
-          tab.title,
-          'url:',
-          tab.url
-        );
 
         return (
           <li
@@ -143,6 +134,16 @@ export const BrowserTabBar = React.memo(function BrowserTabBar({
                       );
                     })()}
                   </div>
+                  <BrowserAudioIndicator
+                    isPlaying={tab.isPlayingAudio}
+                    isMuted={tab.isAudioMuted}
+                    onToggleMute={() => {
+                      const store = useAppStore.getState();
+                      const nextMuted = !store.browserTabsById[tab.id]?.isAudioMuted;
+                      store.browserToggleTabMute(tab.id);
+                      window.digitalLife?.browser?.muteTab?.(tab.id, nextMuted);
+                    }}
+                  />
                   <span className="adl-tool-list__title">{tab.title}</span>
                 </button>
                 <TooltipSimple content={isBookmarked ? _t.unbookmark : _t.close} placement="top">

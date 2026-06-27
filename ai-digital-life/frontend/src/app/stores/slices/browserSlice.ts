@@ -187,6 +187,8 @@ export const createBrowserSlice = (
             title: tabTitle,
             url,
             isPinned: false,
+            isPlayingAudio: false,
+            isAudioMuted: false,
             sortOrder: maxSortOrder + 1,
           };
           nextTabs = [...nextTabs, newTab];
@@ -195,8 +197,6 @@ export const createBrowserSlice = (
           scheduleWrite(BROWSER_TABS_KEY, nextTabs);
           scheduleWrite(BROWSER_ACTIVE_TAB_KEY, nextActiveTabId);
         } else {
-          const oldUrl = activeTab.url;
-          const oldTitle = activeTab.title;
           nextTabs = nextTabs.map((tab) => {
             if (tab.id === state.browserActiveTabId) {
               return {
@@ -207,17 +207,6 @@ export const createBrowserSlice = (
             }
             return tab;
           });
-          if (oldUrl !== url || (title && title !== oldTitle)) {
-            const isBookmarked = state.browserBookmarks.some((b) => b.url === oldUrl);
-            console.log('[ADL-DEBUG] browserNavigateActiveTab: tab updated', {
-              tabId: activeTab.id,
-              oldUrl,
-              newUrl: url,
-              oldTitle,
-              newTitle: title || oldTitle,
-              isBookmarked,
-            });
-          }
           scheduleWrite(BROWSER_TABS_KEY, nextTabs);
         }
 

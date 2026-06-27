@@ -47,6 +47,7 @@ impl BrowserManager {
         let evicted = self.pool.register(tab_id.to_string());
 
         if let Some(ref evict_id) = evicted {
+            crate::webview2_audio::cleanup_audio_handler(evict_id);
             let label = webview_label(evict_id);
             if let Some(wv) = window.get_webview(&label) {
                 let _ = wv.close();
@@ -90,8 +91,16 @@ impl BrowserManager {
             {
                 tracing::warn!(tab_id = tab_id, error = %e, "favicon changed handler setup failed");
             }
-            if let Err(e) = crate::webview2_message::setup_history_changed_handler(webview) {
+            if let Err(e) = crate::webview2_message::setup_history_changed_handler(
+                webview.clone(),
+                label.clone(),
+            ) {
                 tracing::warn!(tab_id = tab_id, error = %e, "history changed handler setup failed");
+            }
+            if let Err(e) =
+                crate::webview2_audio::setup_audio_changed_handler(webview.clone(), tab_id)
+            {
+                tracing::warn!(tab_id = tab_id, error = %e, "audio handler setup failed");
             }
         }
 
@@ -130,6 +139,8 @@ impl BrowserManager {
 
     pub fn destroy_tab(&self, app: &tauri::AppHandle, tab_id: &str) -> Result<(), AppError> {
         self.pool.remove(tab_id);
+
+        crate::webview2_audio::cleanup_audio_handler(tab_id);
 
         let window = app
             .get_window("main")
@@ -267,5 +278,22 @@ impl BrowserManager {
 
     pub fn has_tab_webview(&self, tab_id: &str) -> bool {
         self.pool.contains(tab_id)
+    }
+
+    pub fn mute_tab(
+        &self,
+        app: &tauri::AppHandle,
+        tab_id: &str,
+        muted: bool,
+    ) -> Result<(), AppError> {
+        let window = app
+            .get_window("main")
+            .ok_or_else(|| AppError::Internal("main window not found".into()))?;
+        let label = webview_label(tab_id);
+        let webview = window
+            .get_webview(&label)
+            .ok_or_else(|| AppError::Internal(format!("webview for tab {tab_id} not found")))?;
+        crate::webview2_audio::mute_tab(&webview, muted).map_err(AppError::Internal)?;
+        Ok(())
     }
 }

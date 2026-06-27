@@ -1066,6 +1066,12 @@ export interface PageMeta {
   url: string;
 }
 
+export interface AudioStatePayload {
+  tabId: string;
+  isPlaying?: boolean;
+  isMuted: boolean;
+}
+
 export interface BrowserBridge {
   /** Create a WebView for a specific tab. Returns evicted tab_id if pool was full. */
   createForTab: (tabId: string, url: string) => Promise<string | null>;
@@ -1090,6 +1096,10 @@ export interface BrowserBridge {
   onUrlChanged: (listener: (url: string) => void) => () => void;
   /** Subscribe to page meta changes */
   onMetaChanged: (listener: (meta: PageMeta) => void) => () => void;
+  /** Mute or unmute a tab */
+  muteTab: (tabId: string, muted: boolean) => Promise<void>;
+  /** Subscribe to audio state changes */
+  onAudioStateChanged: (listener: (payload: AudioStatePayload) => void) => () => void;
 }
 
 /**

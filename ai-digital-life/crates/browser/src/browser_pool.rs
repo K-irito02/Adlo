@@ -12,10 +12,7 @@ pub struct BrowserPool {
 
 impl BrowserPool {
     pub fn new(capacity: usize) -> Self {
-        Self {
-            inner: Arc::new(Mutex::new(Vec::new())),
-            capacity,
-        }
+        Self { inner: Arc::new(Mutex::new(Vec::new())), capacity }
     }
 
     /// Register a tab. If pool is full, returns the LRU tab_id to evict.
@@ -23,11 +20,7 @@ impl BrowserPool {
         let mut order = lock_pool(&self.inner);
         order.retain(|id| id != &tab_id);
 
-        let evicted = if order.len() >= self.capacity {
-            Some(order.remove(0))
-        } else {
-            None
-        };
+        let evicted = if order.len() >= self.capacity { Some(order.remove(0)) } else { None };
 
         order.push(tab_id);
         evicted

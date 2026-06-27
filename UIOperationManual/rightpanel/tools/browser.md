@@ -143,11 +143,50 @@ await page.fill('.adl-prompt-modal__input:nth-of-type(2)', 'github.com');
 await page.click('button:has-text("新建标签")');
 ```
 
-**触发入口**（两处一致，均弹出同一对话框）：
+### 音频指示器与静音控制（v2026-06-27 新增）
+
+> 浏览器面板为正在播放音频的标签提供音频状态指示器与静音切换功能。
+
+**选择器**：`.adl-browser-audio-indicator`
+
+**状态检测**：
+- `.is-animating`（动画中）：标签正在播放音频
+- `.is-muted`（静音图标）：标签已被静音
+
+**操作：**
+
+```javascript
+// 点击音频指示器切换静音状态
+await page.click('.adl-browser-audio-indicator');
+```
+
+**位置**：favicon 右侧，标签名称左侧
+
+**行为差异**：
+
+| 模式 | 音频检测 | 静音控制 |
+|------|----------|----------|
+| Tauri 桌面 | WebView2 原生 COM 事件 `IsDocumentPlayingAudioChanged` | WebView2 `SetIsMuted()` 真实静音 |
+| 浏览器 iframe（同域） | iframe `audioprocess` / `play` / `pause` 事件检测 | 前端状态记录，不实际影响音频 |
+
+**注意**：
+- 跨域 iframe 无法自动检测音频播放，仅支持手动静音/取消静音
+- 静音状态在标签切换后保持（对应 WebView2 的 `IsMuted` 标记持久化）
+- 页面播放/暂停不会覆盖用户设置的静音状态（`webview2_audio.rs` 中通过 `ICoreWebView2_18.IsMuted()` 读取实际状态）
+
+**功能差异**（v2026-06-27 修订）：
+
+| 导航器模式 | aria-label | 点击行为 |
+|-----------|------------|----------|
+| 已打开的标签（open） | `新建标签页` | 直接打开一个空白新标签 |
+| 标签目录（tabs） | `新建标签` | 弹出 `CreateTabDialog`（需先选中目录，否则 toast 提示） |
+
+**触发入口**：
 
 | 触发位置 | 选择器 | 说明 |
 |----------|--------|------|
-| 导航器工具栏 | `button[aria-label="新建标签"]` | 需先选中一个目录，否则 toast 提示 |
+| 导航器工具栏（open 模式） | `button[aria-label="新建标签页"]` | 直接打开空白新标签 |
+| 导航器工具栏（tabs 模式） | `button[aria-label="新建标签"]` | 需先选中一个目录，否则 toast 提示 |
 | 树目录悬停按钮 | `.adl-browser-entry .adl-icon-btn[aria-label="新建标签"]` | 目录头部行 hover 时出现的"+"按钮 |
 
 **取消操作**：点击"取消"按钮、按 Esc 键、或点击遮罩层，均关闭对话框且不创建标签。

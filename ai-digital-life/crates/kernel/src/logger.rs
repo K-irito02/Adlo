@@ -15,8 +15,9 @@ pub fn init_with_log_dir(level: &str, log_dir: Option<&std::path::Path>) {
         fmt::layer().with_target(true).with_thread_ids(true).with_filter(make_filter());
 
     if let Some(dir) = log_dir {
-        let file_appender = tracing_appender::rolling::never(dir, "terminal-logs.txt");
-        let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
+        let log_path = dir.join("terminal-logs.txt");
+        let file = std::fs::File::create(&log_path).expect("failed to create terminal-logs.txt");
+        let (non_blocking, guard) = tracing_appender::non_blocking(file);
         // Leak the flush guard — it lives for the program's full lifetime,
         // ensuring the last log lines are flushed on shutdown.
         std::mem::forget(guard);

@@ -626,15 +626,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
     if (activeTab?.id) {
       result.delete(activeTab.id);
     }
-    console.log(
-      '[ADL-DEBUG] [BrowserPanel] evictedTabIds recomputed',
-      'poolVersion:',
-      poolVersion,
-      'size:',
-      result.size,
-      'ids:',
-      Array.from(result)
-    );
     return result;
   }, [browserTabs, poolVersion, activeTab?.id]);
 

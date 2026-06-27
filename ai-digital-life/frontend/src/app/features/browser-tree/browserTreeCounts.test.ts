@@ -34,7 +34,16 @@ function makeWorkspace(id: string, name: string, path: string): RecentWorkspaceE
 }
 
 function makeTab(id: string, title: string, url: string, workspaceId: string): BrowserTabState {
-  return { id, title, url, workspaceId, isPinned: false, sortOrder: 0 };
+  return {
+    id,
+    title,
+    url,
+    workspaceId,
+    isPinned: false,
+    sortOrder: 0,
+    isPlayingAudio: false,
+    isAudioMuted: false,
+  };
 }
 
 function makeFolder(
@@ -258,7 +267,7 @@ describe('count rules per category type', () => {
       new Date(2025, 11, 25, 9).getTime()
     );
 
-    const tree = buildHistoryCategoryTree([e1, e2, e3, e4]);
+    const tree = buildHistoryCategoryTree([e1, e2, e3, e4], []);
     expect(tree).toHaveLength(1);
     const root = tree[0];
 
@@ -299,7 +308,7 @@ describe('count rules per category type', () => {
 
   it('category top-level count equals nodes.length (history is always 1: history:root)', () => {
     const e1 = makeHistoryEntry('e1', 'E1', 'https://a.example', new Date(2026, 5, 2).getTime());
-    const tree = buildHistoryCategoryTree([e1]);
+    const tree = buildHistoryCategoryTree([e1], []);
     expect(tree).toHaveLength(1);
   });
 });

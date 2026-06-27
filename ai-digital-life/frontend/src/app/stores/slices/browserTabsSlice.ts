@@ -9,6 +9,8 @@ export interface BrowserTabState {
   isPinned: boolean;
   pinnedAt?: number;
   sortOrder: number;
+  isPlayingAudio: boolean;
+  isAudioMuted: boolean;
 }
 
 export interface BrowserTabStateUpdate {
@@ -18,6 +20,8 @@ export interface BrowserTabStateUpdate {
   isPinned?: boolean;
   pinnedAt?: number;
   sortOrder?: number;
+  isPlayingAudio?: boolean;
+  isAudioMuted?: boolean;
 }
 
 const BROWSER_TABS_KEY = 'adl-ui:browser-tabs';
@@ -58,6 +62,8 @@ export interface BrowserTabsSlice {
   browserTogglePin: (tabId: string) => void;
   browserReorderTabs: (newOrder: BrowserTabState[]) => void;
   browserCloseAllTabs: (workspaceId?: string) => void;
+  browserUpdateTabAudioState: (tabId: string, isPlaying?: boolean, isMuted?: boolean) => void;
+  browserToggleTabMute: (tabId: string) => void;
 }
 
 export const createBrowserTabsSlice = (
@@ -79,6 +85,8 @@ export const createBrowserTabsSlice = (
         url: url?.trim() || '',
         isPinned: false,
         sortOrder: maxSortOrder + 1,
+        isPlayingAudio: false,
+        isAudioMuted: false,
       };
       const nextTabs = sortTabs([...state.browserTabs, tab]);
       let nextFolders = state.browserTabFolders;
@@ -136,6 +144,37 @@ export const createBrowserTabsSlice = (
     set((state) => {
       const nextTabs = sortTabs(
         state.browserTabs.map((tab) => (tab.id === tabId ? { ...tab, ...patch } : tab))
+      );
+      scheduleWrite(BROWSER_TABS_KEY, nextTabs);
+      return { browserTabs: nextTabs, browserTabsById: buildTabsById(nextTabs) };
+    }),
+
+  browserUpdateTabAudioState: (tabId, isPlaying, isMuted) =>
+    set((state) => {
+      const nextTabs = state.browserTabs.map((tab) => {
+        if (tab.id !== tabId) {
+          return tab;
+        }
+        const next = { ...tab };
+        if (isPlaying !== undefined) {
+          next.isPlayingAudio = isPlaying;
+        }
+        if (isMuted !== undefined) {
+          next.isAudioMuted = isMuted;
+        }
+        return next;
+      });
+      const hasMuteChange = isMuted !== undefined;
+      if (hasMuteChange) {
+        scheduleWrite(BROWSER_TABS_KEY, nextTabs);
+      }
+      return { browserTabs: nextTabs, browserTabsById: buildTabsById(nextTabs) };
+    }),
+
+  browserToggleTabMute: (tabId) =>
+    set((state) => {
+      const nextTabs = state.browserTabs.map((tab) =>
+        tab.id === tabId ? { ...tab, isAudioMuted: !tab.isAudioMuted } : tab
       );
       scheduleWrite(BROWSER_TABS_KEY, nextTabs);
       return { browserTabs: nextTabs, browserTabsById: buildTabsById(nextTabs) };

@@ -12,6 +12,9 @@ export interface BrowserTreeNode extends FileTreeRenderableNode {
   workspaceId?: string;
   folderId?: string;
   visitedAt?: number;
+  isPlayingAudio?: boolean;
+  isAudioMuted?: boolean;
+  associatedTabId?: string;
 }
 
 export interface BrowserCategoryState {

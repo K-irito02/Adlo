@@ -20,7 +20,7 @@ interface LogEntry {
 // ============================================
 
 const MAX_LOGS = 1000;
-const LOG_WRITE_DEBOUNCE_MS = 500; // 防抖延迟 500ms
+const LOG_WRITE_DEBOUNCE_MS = 3000; // 防抖延迟 3s
 
 // ============================================
 // 全局状态

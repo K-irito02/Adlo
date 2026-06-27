@@ -86,6 +86,7 @@ commands.allow = [
   "browser_go_forward_tab",
   "browser_reload_tab",
   "browser_fetch_page_meta",
+  "browser_mute_tab",
   "write_debug_logs_to_project",
   "ci_get_status",
   "ci_get_status_without_token",

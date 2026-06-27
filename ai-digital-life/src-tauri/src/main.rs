@@ -33,30 +33,43 @@ fn main() {
             }
             tracing::info!(url = %payload.url(), "browser page finished loading");
             let app = webview.app_handle().clone();
+            let wv_label = webview.label().to_string();
             std::thread::spawn(move || {
-                std::thread::sleep(std::time::Duration::from_millis(200));
-                if let Some(wv) = app.get_webview("adl-browser-view") {
-                    tracing::info!("browser on_page_load: calling eval");
-                    match wv.eval(
-                        r#"(function(){
-                            var attempts = 0;
-                            function tryReport() {
-                                var t = document.title;
-                                if (t && t.trim()) {
-                                    try { window.open('adl-title:' + encodeURIComponent(t.trim()) + '?url=' + encodeURIComponent(location.href), '_blank'); } catch(e) {}
-                                    return;
+                for attempt in 1..=3 {
+                    std::thread::sleep(std::time::Duration::from_millis(200));
+                    if let Some(wv) = app.get_webview(&wv_label) {
+                        tracing::info!("browser on_page_load: calling eval");
+                        match wv.eval(
+                            r#"(function(){
+                                var attempts = 0;
+                                function tryReport() {
+                                    var t = document.title;
+                                    if (t && t.trim()) {
+                                        try {
+                                            chrome.webview.postMessage(JSON.stringify({
+                                                type: 'meta',
+                                                title: t,
+                                                favicon: '',
+                                                url: location.href
+                                            }));
+                                        } catch(e) {
+                                            try { window.open('adl-title:' + encodeURIComponent(t.trim()) + '?url=' + encodeURIComponent(location.href), '_blank'); } catch(e2) {}
+                                        }
+                                        return;
+                                    }
+                                    attempts++;
+                                    if (attempts < 10) { setTimeout(tryReport, 1000); }
                                 }
-                                attempts++;
-                                if (attempts < 10) { setTimeout(tryReport, 1000); }
-                            }
-                            setTimeout(tryReport, 200);
-                        })()"#
-                    ) {
-                        Ok(()) => tracing::info!("browser on_page_load: eval ok"),
-                        Err(e) => tracing::error!("browser on_page_load: eval failed: {e}"),
+                                setTimeout(tryReport, 200);
+                            })()"#
+                        ) {
+                            Ok(()) => tracing::info!("browser on_page_load: eval ok"),
+                            Err(e) => tracing::error!("browser on_page_load: eval failed: {e}"),
+                        }
+                        return;
+                    } else {
+                        tracing::warn!("browser on_page_load: webview not found (attempt {}/3)", attempt);
                     }
-                } else {
-                    tracing::warn!("browser on_page_load: webview not found");
                 }
             });
         })
@@ -147,6 +160,7 @@ fn main() {
             commands::browser::browser_go_forward_tab,
             commands::browser::browser_reload_tab,
             commands::browser::browser_fetch_page_meta,
+            commands::browser::browser_mute_tab,
             commands::ci::ci_get_status,
             commands::ci::ci_get_status_without_token,
             commands::ci::ci_set_access_token,

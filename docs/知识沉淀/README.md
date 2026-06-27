@@ -90,6 +90,7 @@
 | [browser-history-recording-fix-2026-06-26.md](./浏览器/browser-history-recording-fix-2026-06-26.md)                                     | 2026-06-25~26 Bug 修复                     | 浏览器历史记录修复（6 Bug）：三处 title===hostname 误跳过、同站 SPA 无历史、iframe 加载丢失历史、首次导航 prefetch 成功时无历史写入的 Race Condition、时序依赖分析经验                                         |
 | [browser-history-tag-delete-fix-2026-06-26.md](./浏览器/browser-history-tag-delete-fix-2026-06-26.md)                                   | 2026-06-26 Bug 修复                        | 历史记录标签删除修复（4 问题）：右键删除无效、刷新Logo/标题无效、日目录菜单文案/行为修正、删除架构差异（动态树 vs 持久化树）、三种删除路径覆盖检查 |
 | [browser-tab-title-deferred-update-2026-06-26.md](./浏览器/browser-tab-title-deferred-update-2026-06-26.md)                             | 2026-06-26 Bug 修复                        | 标签标题延迟更新与通用 prefetch：标题闪烁/SPA 回退标题不更新的根因分析与修复方案 |
+| [browser-audio-indicator-favicon-stability-2026-06-27.md](./浏览器/browser-audio-indicator-favicon-stability-2026-06-27.md)           | 2026-06-27 音频指示器实现                  | 音频指示器 Favicon 位置稳定性（条件性 DOM 结构问题）+ Rust 端静音状态覆盖修复 |
 
 ### 代码质量
 

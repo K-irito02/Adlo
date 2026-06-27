@@ -14,6 +14,7 @@ import { createPreviewTaskBridge } from './preview-task';
 import { createPreviewConversationBridge } from './preview-conversation';
 import { createPreviewPatchBridge } from './preview-patch';
 import { createPreviewCommandBridge } from './preview-command';
+import { BrowserAudioMonitor } from './preview-browser-audio';
 
 export function setupPreviewBridge(): void {
   if (typeof window === 'undefined' || (window as { digitalLife?: unknown }).digitalLife) {
@@ -30,6 +31,8 @@ export function setupPreviewBridge(): void {
   setMockActiveWorkspace(undefined);
 
   const ptyBridge = createPtyBridge();
+  const audioMonitor = new BrowserAudioMonitor();
+  (window as unknown as Record<string, unknown>)['__adlAudioMonitor'] = audioMonitor;
   const { workspace, retrieval, ensureCurrentWorkspaceRestored } = createPreviewWorkspaceBridge(
     ctx,
     setMockActiveWorkspace
@@ -68,7 +71,10 @@ export function setupPreviewBridge(): void {
     browser: {
       createForTab: (_tabId: string, _url: string) => Promise.resolve(null),
       activateTab: (_tabId: string) => Promise.resolve(),
-      destroyTab: (_tabId: string) => Promise.resolve(),
+      destroyTab: (_tabId: string) => {
+        audioMonitor.stopMonitoring(_tabId);
+        return Promise.resolve();
+      },
       navigateTab: (_tabId: string, _url: string) => Promise.resolve(),
       setTabBounds: (_tabId: string, _bounds: any) => Promise.resolve(),
       goBackTab: (_tabId: string) => Promise.resolve(false),
@@ -76,6 +82,11 @@ export function setupPreviewBridge(): void {
       reloadTab: (_tabId: string) => Promise.resolve(),
       onUrlChanged: (_listener: any) => () => {},
       onMetaChanged: (_listener: any) => () => {},
+      muteTab: (tabId: string, muted: boolean) => {
+        audioMonitor.setMuted(tabId, muted);
+        return Promise.resolve();
+      },
+      onAudioStateChanged: (listener: any) => audioMonitor.onStateChange(listener),
     },
     ci: taskBridge.ci,
     github: taskBridge.github,
