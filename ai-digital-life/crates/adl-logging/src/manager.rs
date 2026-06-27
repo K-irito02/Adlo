@@ -12,6 +12,17 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{fmt, EnvFilter, Layer, Registry};
 
+// ── CST (UTC+8) time formatter ──
+
+struct CstTime;
+
+impl tracing_subscriber::fmt::time::FormatTime for CstTime {
+    fn format_time(&self, w: &mut tracing_subscriber::fmt::format::Writer<'_>) -> std::fmt::Result {
+        let now = chrono::Local::now();
+        write!(w, "{}", now.format("%Y-%m-%dT%H:%M:%S%.3f"))
+    }
+}
+
 // ── Shared file state ──
 
 struct TerminalFileState {
@@ -27,6 +38,7 @@ pub struct LogManager {
     log_dir: PathBuf,
     terminal_sessions: Arc<Mutex<SessionTracker>>,
     debug_sessions: Arc<Mutex<SessionTracker>>,
+    #[allow(dead_code)]
     terminal_file: Arc<Mutex<Option<TerminalFileState>>>,
 }
 
@@ -49,10 +61,14 @@ impl LogManager {
         let filter =
             || EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
 
-        let stdout_layer =
-            fmt::layer().with_target(true).with_thread_ids(true).with_filter(filter());
+        let stdout_layer = fmt::layer()
+            .with_timer(CstTime)
+            .with_target(true)
+            .with_thread_ids(true)
+            .with_filter(filter());
 
         let file_layer = fmt::layer()
+            .with_timer(CstTime)
             .with_target(true)
             .with_thread_ids(true)
             .with_writer(make_writer)
@@ -263,13 +279,13 @@ impl Write for TerminalWriter {
 
 fn open_terminal_file(log_dir: &Path, mode: LogMode, session_ts: &str) -> std::io::Result<File> {
     match mode {
-        LogMode::Overwrite | LogMode::Append => {
+        LogMode::Overwrite => {
             let path = log_file_path(log_dir, "terminal-logs");
-            OpenOptions::new()
-                .append(mode == LogMode::Append)
-                .create(true)
-                .truncate(mode == LogMode::Overwrite)
-                .open(&path)
+            OpenOptions::new().write(true).create(true).truncate(true).open(&path)
+        },
+        LogMode::Append => {
+            let path = log_file_path(log_dir, "terminal-logs");
+            OpenOptions::new().append(true).create(true).open(&path)
         },
         LogMode::Multi => {
             let path = session_log_path(log_dir, "terminal-logs", session_ts);

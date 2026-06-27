@@ -11,4 +11,5 @@ serde_json.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter", "registry"] }
+chrono.workspace = true
 adl-kernel = { path = "../kernel" }
