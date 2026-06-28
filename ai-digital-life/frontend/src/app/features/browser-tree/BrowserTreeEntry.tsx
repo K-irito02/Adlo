@@ -431,10 +431,13 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
             },
             {
               id: 'bookmark-toggle',
-              label: contextMenuForTab.node.url &&
-                useAppStore.getState().browserBookmarks.some((b) => b.url === contextMenuForTab.node.url)
-                ? t.browserUnbookmark
-                : t.browserBookmark,
+              label:
+                contextMenuForTab.node.url &&
+                useAppStore
+                  .getState()
+                  .browserBookmarks.some((b) => b.url === contextMenuForTab.node.url)
+                  ? t.browserUnbookmark
+                  : t.browserBookmark,
               action: () => {
                 handleBookmarkToggle(
                   contextMenuForTab.node.url ?? '',

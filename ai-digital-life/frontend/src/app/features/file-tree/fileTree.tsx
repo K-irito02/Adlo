@@ -303,7 +303,9 @@ export function FileTree<T extends FileTreeRenderableNode>({
     // Measure relative positions within the parent <ul> so that entire-container
     // movement (e.g. other categories expanding) does not trigger per-tag FLIP.
     const ulEl = container.querySelector('.adl-filetree');
-    if (!ulEl) return;
+    if (!ulEl) {
+      return;
+    }
     const ulRect = ulEl.getBoundingClientRect();
     const newPositions = new Map<string, number>();
     const items = container.querySelectorAll<HTMLElement>('[data-path].adl-filetree__node--file');

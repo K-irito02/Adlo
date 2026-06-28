@@ -133,7 +133,9 @@ export function getChildNodeMoreMenuItems(
 }
 
 export function handleBookmarkToggle(url: string, title: string, tabId?: string): void {
-  if (!url) return;
+  if (!url) {
+    return;
+  }
   const stillBookmarked = useAppStore.getState().browserBookmarks.some((b) => b.url === url);
   if (stillBookmarked) {
     useAppStore.getState().browserToggleBookmark({ url, title });

@@ -185,7 +185,7 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
       }
     });
     return unsub;
-  }, [useAppStore, setPendingBookmark, setBookmarkName, setBookmarkDialogOpen]);
+  }, [setPendingBookmark, setBookmarkName, setBookmarkDialogOpen]);
 
   const handleOpenBookmarkDialog = useCallback(() => {
     if (isBookmarked) {

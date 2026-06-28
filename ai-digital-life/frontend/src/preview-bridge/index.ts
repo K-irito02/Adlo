@@ -1,4 +1,4 @@
-import type { DigitalLifeBridge } from '../shared/ipc';
+import type { AudioStatePayload, DigitalLifeBridge, PageMeta } from '../shared/ipc';
 import { mockDigitalLifeBridge, setMockActiveWorkspace } from '../mock-bridge';
 import { createPtyBridge } from './ptyBridge';
 import { loadRecentWorkspaces } from './storage';
@@ -76,17 +76,21 @@ export function setupPreviewBridge(): void {
         return Promise.resolve();
       },
       navigateTab: (_tabId: string, _url: string) => Promise.resolve(),
-      setTabBounds: (_tabId: string, _bounds: any) => Promise.resolve(),
+      setTabBounds: (
+        _tabId: string,
+        _bounds: { x: number; y: number; width: number; height: number }
+      ) => Promise.resolve(),
       goBackTab: (_tabId: string) => Promise.resolve(false),
       goForwardTab: (_tabId: string) => Promise.resolve(false),
       reloadTab: (_tabId: string) => Promise.resolve(),
-      onUrlChanged: (_listener: any) => () => {},
-      onMetaChanged: (_listener: any) => () => {},
+      onUrlChanged: (_listener: (url: string) => void) => () => {},
+      onMetaChanged: (_listener: (meta: PageMeta) => void) => () => {},
       muteTab: (tabId: string, muted: boolean) => {
         audioMonitor.setMuted(tabId, muted);
         return Promise.resolve();
       },
-      onAudioStateChanged: (listener: any) => audioMonitor.onStateChange(listener),
+      onAudioStateChanged: (listener: (payload: AudioStatePayload) => void) =>
+        audioMonitor.onStateChange(listener),
     },
     ci: taskBridge.ci,
     github: taskBridge.github,

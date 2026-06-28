@@ -138,7 +138,9 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
     updateWebViewBounds,
   ]);
 
-  // MutationObserver for overlay detection
+  // DOM overlay detection with overlap check — only hide webview when menu
+  // elements (context menus, tree dropdowns portaled to body) actually
+  // intersect the webview area
   useEffect(() => {
     if (!isTauriShell()) {
       return;
@@ -148,17 +150,40 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
     let rafId: number | null = null;
 
     const checkDomOverlay = () => {
-      const hasOverlay = document.querySelector(OVERLAY_SELECTOR) !== null;
-      if (hasOverlay === hideWebViewRequestedRef.current) {
+      const overlays = document.querySelectorAll(OVERLAY_SELECTOR);
+      const primaryEl = primaryRef.current;
+
+      let hasOverlap = false;
+      if (primaryEl && overlays.length > 0) {
+        const webviewRect = primaryEl.getBoundingClientRect();
+
+        for (const el of overlays) {
+          const menuRect = el.getBoundingClientRect();
+          const overlaps =
+            menuRect.left < webviewRect.right &&
+            menuRect.right > webviewRect.left &&
+            menuRect.top < webviewRect.bottom &&
+            menuRect.bottom > webviewRect.top;
+
+          if (overlaps) {
+            hasOverlap = true;
+            break;
+          }
+        }
+      } else if (overlays.length > 0) {
+        hasOverlap = true;
+      }
+
+      if (hasOverlap === hideWebViewRequestedRef.current) {
         return;
       }
 
-      hideWebViewRequestedRef.current = hasOverlay;
+      hideWebViewRequestedRef.current = hasOverlap;
       if (!webViewActiveRef.current) {
         return;
       }
 
-      if (hasOverlay) {
+      if (hasOverlap) {
         hideAllWebViews();
       } else if (!overlayActiveRef.current) {
         updateWebViewBoundsRef.current();

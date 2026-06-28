@@ -238,8 +238,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
   });
 
   const hasOverlayActive =
-    browserMenuOpen ||
-    contextMenu.open ||
     createTabDialog.open ||
     editTabDialog.open ||
     bookmarkDialogOpen ||
