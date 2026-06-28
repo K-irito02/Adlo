@@ -300,13 +300,18 @@ export function FileTree<T extends FileTreeRenderableNode>({
     flipAnimationsRef.current.forEach((anim) => anim.cancel());
     flipAnimationsRef.current = new Map();
 
-    // Measure new positions of rendered file (tag) items only
+    // Measure relative positions within the parent <ul> so that entire-container
+    // movement (e.g. other categories expanding) does not trigger per-tag FLIP.
+    const ulEl = container.querySelector('.adl-filetree');
+    if (!ulEl) return;
+    const ulRect = ulEl.getBoundingClientRect();
     const newPositions = new Map<string, number>();
     const items = container.querySelectorAll<HTMLElement>('[data-path].adl-filetree__node--file');
     items.forEach((el) => {
       const path = el.getAttribute('data-path');
       if (path) {
-        newPositions.set(path, el.getBoundingClientRect().top);
+        const rect = el.getBoundingClientRect();
+        newPositions.set(path, rect.top - ulRect.top);
       }
     });
 
