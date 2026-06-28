@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { SafeIframe } from './SafeIframe';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { ExternalLinkError } from './ExternalLinkError';
@@ -46,8 +46,7 @@ export function BrowserIframeStack({
 }: BrowserIframeStackProps) {
   const inactiveIframeRef = useRef<HTMLIFrameElement | null>(null);
   const iframeLruOrderRef = useRef<string[]>([]);
-  const evictedIframeTabsRef = useRef<Set<string>>(new Set());
-  const [iframeEvictionVersion, setIframeEvictionVersion] = useState(0);
+  const [evictedTabIds, setEvictedTabIds] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
     if (!window.digitalLife?.browser?.onAudioStateChanged) {
@@ -73,7 +72,7 @@ export function BrowserIframeStack({
     if (audioMonitor) {
       audioMonitor.startMonitoring(activeTab.id, iframeRef.current);
     }
-  }, [activeTab?.id]);
+  }, [activeTab, iframeRef]);
 
   useEffect(() => {
     const currentTabIds = new Set(browserTabs.map((t) => t.id));
@@ -89,28 +88,19 @@ export function BrowserIframeStack({
       return;
     }
     const tabId = activeTab.id;
-    let changed = evictedIframeTabsRef.current.delete(tabId);
     iframeLruOrderRef.current = iframeLruOrderRef.current.filter((id) => id !== tabId);
     iframeLruOrderRef.current.push(tabId);
     while (iframeLruOrderRef.current.length > IFRAME_POOL_SIZE) {
       const evictId = iframeLruOrderRef.current.shift();
       if (evictId) {
-        evictedIframeTabsRef.current.add(evictId);
-        changed = true;
+        setEvictedTabIds((prev) => {
+          const next = new Set(prev);
+          next.add(evictId);
+          return next;
+        });
       }
     }
-    if (changed) {
-      setIframeEvictionVersion((n) => n + 1);
-    }
-  }, [activeTab, setIframeEvictionVersion]);
-
-  const mergedEvictedTabIds = useMemo(() => {
-    const merged = new Set<string>();
-    for (const id of evictedIframeTabsRef.current) {
-      merged.add(id);
-    }
-    return merged;
-  }, [iframeEvictionVersion]);
+  }, [activeTab]);
 
   return (
     <>
@@ -129,12 +119,15 @@ export function BrowserIframeStack({
                 !!tab.url &&
                 tab.url !== 'about:blank' &&
                 validatedUrlsRef.current.has(tab.url);
-              if (!isActive && mergedEvictedTabIds.has(tab.id)) {
+              if (!isActive && evictedTabIds.has(tab.id)) {
                 return null;
               }
-              if (isActive && evictedIframeTabsRef.current.has(tab.id)) {
-                evictedIframeTabsRef.current.delete(tab.id);
-                setIframeEvictionVersion((n) => n + 1);
+              if (isActive && evictedTabIds.has(tab.id)) {
+                setEvictedTabIds((prev) => {
+                  const next = new Set(prev);
+                  next.delete(tab.id);
+                  return next;
+                });
               }
               if (!wasActivated && isActive) {
                 activatedTabIdsRef.current.add(tab.id);

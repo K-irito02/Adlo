@@ -94,13 +94,16 @@
   color: var(--text-primary);
 }
 
-.adl-iconstrip__button--paneltoggle:hover:not(:disabled),
-.adl-iconstrip__button--paneltoggle.is-open,
+/* Panel toggle — only suppress activated/pressed highlight, keep hover/active/focus */
 .adl-iconstrip__button--paneltoggle.is-active,
-.adl-iconstrip__button--paneltoggle[aria-pressed='true'],
-.adl-iconstrip__button--paneltoggle:focus-visible {
+.adl-iconstrip__button--paneltoggle[aria-pressed='true'] {
   background: transparent;
-  color: inherit;
+  color: var(--text-secondary);
+}
+.adl-iconstrip__button--paneltoggle[aria-pressed='true']:hover:not(:disabled),
+.adl-iconstrip__button--paneltoggle.is-active:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 .adl-iconstrip__button--label {

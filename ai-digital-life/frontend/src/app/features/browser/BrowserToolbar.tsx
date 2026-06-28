@@ -9,6 +9,7 @@ import {
   IconRefreshCw,
   IconStar,
   IconStarFilled,
+  IconPanelLeft,
   IconPanelLeftClose,
 } from '../../icons';
 import { TooltipSimple } from '../../components/Tooltip';
@@ -71,6 +72,7 @@ export const BrowserToolbar = React.memo(function BrowserToolbar(props: BrowserT
     browserMenuOpen,
     browserMenuRef,
     browserMenuItems,
+    navigatorCollapsed,
     onToggleNavigator,
     onGoBack,
     onGoForward,
@@ -98,7 +100,11 @@ export const BrowserToolbar = React.memo(function BrowserToolbar(props: BrowserT
             onClick={onToggleNavigator}
             aria-label={t.panelNavigatorToggle}
           >
-            <IconPanelLeftClose size={14} decorative />
+            {navigatorCollapsed ? (
+              <IconPanelLeftClose size={14} decorative />
+            ) : (
+              <IconPanelLeft size={14} decorative />
+            )}
           </button>
         </TooltipSimple>
         <TooltipSimple content={t.browserBack} placement="top">

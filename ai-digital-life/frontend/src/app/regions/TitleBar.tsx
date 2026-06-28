@@ -12,7 +12,9 @@ import {
   IconMinus,
   IconMoon,
   IconPanelLeft,
+  IconPanelLeftClose,
   IconPanelRight,
+  IconPanelRightClose,
   IconSearch,
   IconSettings,
   IconSun,
@@ -350,7 +352,11 @@ const TitleBar = React.memo(function TitleBar({
               aria-label={t.panelToggleLeft}
               aria-pressed={leftCollapsed}
             >
-              <IconPanelLeft size={16} decorative />
+              {leftCollapsed ? (
+                <IconPanelLeftClose size={16} decorative />
+              ) : (
+                <IconPanelLeft size={16} decorative />
+              )}
             </button>
           </TooltipSimple>
           <TooltipSimple content={t.panelToggleRight} placement="bottom">
@@ -361,7 +367,11 @@ const TitleBar = React.memo(function TitleBar({
               aria-label={t.panelToggleRight}
               aria-pressed={rightCollapsed}
             >
-              <IconPanelRight size={16} decorative />
+              {rightCollapsed ? (
+                <IconPanelRightClose size={16} decorative />
+              ) : (
+                <IconPanelRight size={16} decorative />
+              )}
             </button>
           </TooltipSimple>
         </div>

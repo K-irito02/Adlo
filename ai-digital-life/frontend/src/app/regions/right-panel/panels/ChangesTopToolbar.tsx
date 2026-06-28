@@ -5,6 +5,7 @@ import {
   IconEye,
   IconGitBranch,
   IconMoreVertical,
+  IconPanelLeft,
   IconPanelLeftClose,
   IconUpload,
 } from '../../../icons';
@@ -114,7 +115,11 @@ export function ChangesTopToolbar({
             aria-pressed={!navigatorCollapsed}
             aria-label={t.panelNavigatorToggle}
           >
-            <IconPanelLeftClose size={14} decorative />
+            {navigatorCollapsed ? (
+              <IconPanelLeftClose size={14} decorative />
+            ) : (
+              <IconPanelLeft size={14} decorative />
+            )}
           </button>
         </TooltipSimple>
         <div ref={branchMenuWrapRef} className="adl-menu adl-file-context__menu">

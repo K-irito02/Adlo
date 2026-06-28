@@ -2,7 +2,7 @@ import React, { useCallback, useMemo, useRef } from 'react';
 import { type EditorView } from '@codemirror/view';
 import type { EditorRef, DiffEditorRef } from '../../../stores/types';
 import { categorizeFile } from '../fileTypeRouter';
-import { IconEye, IconPanelLeftClose, IconReturn, IconSearch } from '../../../icons';
+import { IconEye, IconPanelLeft, IconPanelLeftClose, IconReturn, IconSearch } from '../../../icons';
 import { TooltipSimple } from '../../../components/Tooltip';
 import { useAppStore } from '../../../stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -252,7 +252,11 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
               onClick={() => toggleNavigator('files')}
               aria-label={t.panelNavigatorToggle as string}
             >
-              <IconPanelLeftClose size={14} decorative />
+              {navigatorCollapsed ? (
+                <IconPanelLeftClose size={14} decorative />
+              ) : (
+                <IconPanelLeft size={14} decorative />
+              )}
             </button>
           </TooltipSimple>
 

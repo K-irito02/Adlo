@@ -259,7 +259,7 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
         action: () => item.action(),
       }));
     },
-    [categoryType, callbacks, t]
+    [categoryType, callbacks, bookmarkedUrls, t]
   );
 
   const handleChildMenuClick = useCallback(

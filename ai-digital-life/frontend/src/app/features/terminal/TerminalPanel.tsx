@@ -5,6 +5,7 @@ import {
   IconFiles,
   IconFileCode,
   IconFoldVertical,
+  IconPanelLeft,
   IconPanelLeftClose,
   IconRefreshCw,
   IconTrash,
@@ -156,7 +157,11 @@ export function TerminalPanel(props: TerminalPanelProps) {
               onClick={() => terminalActions.toggleNavigator('terminal')}
               aria-label={t.panelNavigatorToggle}
             >
-              <IconPanelLeftClose size={14} decorative />
+              {navigatorCollapsed ? (
+                <IconPanelLeftClose size={14} decorative />
+              ) : (
+                <IconPanelLeft size={14} decorative />
+              )}
             </button>
           </TooltipSimple>
           <div className="adl-tool-context__group--terminal-actions">

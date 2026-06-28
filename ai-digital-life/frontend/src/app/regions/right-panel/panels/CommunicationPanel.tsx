@@ -7,7 +7,7 @@ import { WeChatPanel } from './communicate/WeChatPanel';
 import { EmailPanel } from './communicate/EmailPanel';
 import type { PlatformId } from '../../../stores/slices/communicateSlice';
 import { useTCopy } from '../../../i18n/useTCopy';
-import { IconPanelLeft } from '../../../icons';
+import { IconPanelLeft, IconPanelLeftClose } from '../../../icons';
 import { TooltipSimple } from '../../../components/Tooltip';
 import { useAppStore } from '../../../stores/slicedStore';
 
@@ -91,7 +91,11 @@ export function CommunicationPanel() {
             aria-pressed={!communicateNavigatorCollapsed}
             onClick={toggleCommunicateNavigator}
           >
-            <IconPanelLeft size={14} decorative />
+            {communicateNavigatorCollapsed ? (
+              <IconPanelLeftClose size={14} decorative />
+            ) : (
+              <IconPanelLeft size={14} decorative />
+            )}
           </button>
         </TooltipSimple>
         <span className="adl-communicate__header-separator" aria-hidden="true" />

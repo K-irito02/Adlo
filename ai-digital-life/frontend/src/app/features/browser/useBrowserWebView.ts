@@ -129,8 +129,7 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
 
     activateOrCreate().catch(() => {});
   }, [
-    activeTab?.id,
-    activeTab?.url,
+    activeTab,
     webViewDisabled,
     isTabInPool,
     createWebViewForTab,

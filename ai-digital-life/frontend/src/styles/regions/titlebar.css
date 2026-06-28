@@ -268,7 +268,7 @@
   border-radius: 0;
 }
 
-.adl-window-btn--close:hover {
+.adl-window-btn--close:hover:not(:disabled) {
   background: var(--danger);
   color: var(--text-inverse);
 }
@@ -375,6 +375,18 @@
   align-items: center;
   justify-content: center;
   border-radius: 0;
+}
+
+/* Panel toggle buttons in titlebar — only suppress activated/pressed highlight, keep hover/active/focus */
+.adl-titlebar .adl-iconstrip__button--paneltoggle.is-active,
+.adl-titlebar .adl-iconstrip__button--paneltoggle[aria-pressed='true'] {
+  background: transparent;
+  color: var(--text-secondary);
+}
+.adl-titlebar .adl-iconstrip__button--paneltoggle[aria-pressed='true']:hover:not(:disabled),
+.adl-titlebar .adl-iconstrip__button--paneltoggle.is-active:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 .adl-titlebar .tooltip-trigger {
