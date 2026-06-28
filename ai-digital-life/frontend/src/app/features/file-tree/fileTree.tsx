@@ -300,9 +300,9 @@ export function FileTree<T extends FileTreeRenderableNode>({
     flipAnimationsRef.current.forEach((anim) => anim.cancel());
     flipAnimationsRef.current = new Map();
 
-    // Measure new positions of all rendered items
+    // Measure new positions of rendered file (tag) items only
     const newPositions = new Map<string, number>();
-    const items = container.querySelectorAll<HTMLElement>('[data-path]');
+    const items = container.querySelectorAll<HTMLElement>('[data-path].adl-filetree__node--file');
     items.forEach((el) => {
       const path = el.getAttribute('data-path');
       if (path) {
