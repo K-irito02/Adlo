@@ -3,6 +3,7 @@ import { IconClose, IconPlus, IconTrash, IconMoreVertical, IconRefreshCw } from 
 import type { BrowserTreeNode, BrowserCategoryType } from './types';
 import type { SectionCallbacks } from './BrowserCategorySection';
 import type { CopyDict } from '../../i18n';
+import { useAppStore } from '../../stores/slicedStore';
 
 export interface BrowserEntrySubEntriesProps {
   node: BrowserTreeNode;
@@ -134,7 +135,8 @@ export function getChildNodeMoreMenuItems(
 export function getTabContextMenuItems(
   node: BrowserTreeNode,
   callbacks: SectionCallbacks,
-  t: CopyDict
+  t: CopyDict,
+  isBookmarked: boolean
 ): Array<{
   id: string;
   label: string;
@@ -186,6 +188,25 @@ export function getTabContextMenuItems(
       action: () => {
         if (node.url) {
           callbacks.onCopyTabLink(node.url);
+        }
+      },
+    },
+    {
+      id: 'bookmark-toggle',
+      label: isBookmarked ? t.browserUnbookmark : t.browserBookmark,
+      action: () => {
+        if (!node.url) {
+          return;
+        }
+        const stillBookmarked = useAppStore.getState().browserBookmarks.some((b) => b.url === node.url);
+        if (stillBookmarked) {
+          useAppStore.getState().browserToggleBookmark({ url: node.url, title: node.name });
+        } else {
+          useAppStore.getState().browserSetPendingBookmark({
+            url: node.url,
+            title: node.name,
+            tabId: node.tabId || undefined,
+          });
         }
       },
     },

@@ -4,6 +4,7 @@ import { TooltipSimple } from '../../components/Tooltip';
 import type { BrowserTreeNode, BrowserCategoryType } from './types';
 import type { SectionCallbacks } from './BrowserCategorySection';
 import { useTCopy } from '../../i18n/useTCopy';
+import { useAppStore } from '../../stores/slicedStore';
 import { MultiTreeEntryShell } from '../tree/MultiTreeEntryShell';
 import { BrowserEntrySubEntries } from './BrowserEntrySubEntries';
 import {
@@ -423,6 +424,33 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
               action: () => {
                 if (contextMenuForTab.node.url) {
                   callbacks.onCopyTabLink(contextMenuForTab.node.url);
+                }
+                setContextMenuForTab(null);
+              },
+            },
+            {
+              id: 'bookmark-toggle',
+              label: contextMenuForTab.node.url &&
+                useAppStore.getState().browserBookmarks.some((b) => b.url === contextMenuForTab.node.url)
+                ? t.browserUnbookmark
+                : t.browserBookmark,
+              action: () => {
+                const url = contextMenuForTab.node.url;
+                const isBookmarked = url
+                  ? useAppStore.getState().browserBookmarks.some((b) => b.url === url)
+                  : false;
+                if (url) {
+                  if (isBookmarked) {
+                    useAppStore
+                      .getState()
+                      .browserToggleBookmark({ url, title: contextMenuForTab.node.name });
+                  } else {
+                    useAppStore.getState().browserSetPendingBookmark({
+                      url,
+                      title: contextMenuForTab.node.name,
+                      tabId: contextMenuForTab.node.tabId || undefined,
+                    });
+                  }
                 }
                 setContextMenuForTab(null);
               },

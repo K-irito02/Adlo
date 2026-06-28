@@ -20,6 +20,8 @@ interface BookmarkToFolderDialogProps {
   onAddToFolder: (path: string | null) => void;
   onCreateDir: (parentPath: string | null) => void;
   onCancel: () => void;
+  bookmarkName?: string;
+  onBookmarkNameChange?: (name: string) => void;
 }
 
 function DirTreeEntry({
@@ -146,6 +148,8 @@ export function BookmarkToFolderDialog({
   onAddToFolder,
   onCreateDir,
   onCancel,
+  bookmarkName,
+  onBookmarkNameChange,
 }: BookmarkToFolderDialogProps) {
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [expandedSet, setExpandedSet] = useState<Set<string>>(() => {
@@ -259,6 +263,13 @@ export function BookmarkToFolderDialog({
       }
     },
     [onCancel]
+  );
+
+  const handleNameChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      onBookmarkNameChange?.(e.currentTarget.value);
+    },
+    [onBookmarkNameChange]
   );
 
   const handleHintEnter = useCallback(
@@ -394,6 +405,28 @@ export function BookmarkToFolderDialog({
           </div>
         ) : (
           <div className="adl-bookmark-dir-empty">{t.browserNoContent as string}</div>
+        )}
+
+        {onBookmarkNameChange && (
+          <div style={{ padding: '8px 12px 0' }}>
+            <div
+              style={{
+                fontSize: 12,
+                fontWeight: 500,
+                color: 'var(--text-secondary)',
+                marginBottom: 4,
+              }}
+            >
+              {t.browserTabName}
+            </div>
+            <input
+              className="adl-prompt-modal__input"
+              type="text"
+              value={bookmarkName ?? ''}
+              onChange={handleNameChange}
+              placeholder={t.browserTabName}
+            />
+          </div>
         )}
 
         <div className="adl-prompt-modal__actions adl-prompt-modal__actions--fill">

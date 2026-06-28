@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useAppStore } from '../../stores/slicedStore';
 import { hostnameFromUrl } from '../../utils/browserDisplayUtils';
 import {
@@ -53,6 +53,20 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
     []
   );
 
+  const bookmarkNewTab = useCallback((workspaceId?: string, folderId?: string) => {
+    const tabId = useAppStore.getState().browserActiveTabId;
+    if (tabId && (workspaceId || folderId)) {
+      useAppStore
+        .getState()
+        .browserBookmarkTab(
+          tabId,
+          folderId || undefined,
+          undefined,
+          folderId ? undefined : workspaceId
+        );
+    }
+  }, []);
+
   const handleCreateTabConfirm = useCallback(
     async (name: string, url: string) => {
       const { workspaceId } = createTabDialog;
@@ -61,6 +75,7 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
       if (name.trim()) {
         setCreateTabDialog({ open: false });
         browserOpenTab(url, name, folderId ? undefined : workspaceId, folderId || undefined);
+        bookmarkNewTab(workspaceId, folderId);
         return;
       }
       setIsCreatingTab(true);
@@ -92,8 +107,9 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
       if (tabId) {
         lockTabTitle(tabId);
       }
+      bookmarkNewTab(workspaceId, folderId);
     },
-    [browserOpenTab, createTabDialog]
+    [browserOpenTab, createTabDialog, bookmarkNewTab]
   );
 
   const handleCreateTabCancel = useCallback(() => {
@@ -150,17 +166,80 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
 
   // ── bookmark dialog ──
   const [bookmarkDialogOpen, setBookmarkDialogOpen] = useState(false);
+  const [bookmarkName, setBookmarkName] = useState('');
+  const [pendingBookmark, setPendingBookmark] = useState<{
+    url: string;
+    title: string;
+    tabId?: string;
+  } | null>(null);
+
+  // Watch store for pending bookmark set by context menu actions
+  useEffect(() => {
+    const unsub = useAppStore.subscribe((state) => {
+      const pending = state.browserPendingBookmark;
+      if (pending) {
+        setPendingBookmark(pending);
+        setBookmarkName(pending.title || pending.url);
+        setBookmarkDialogOpen(true);
+        useAppStore.getState().browserSetPendingBookmark(null);
+      }
+    });
+    return unsub;
+  }, [useAppStore, setPendingBookmark, setBookmarkName, setBookmarkDialogOpen]);
 
   const handleOpenBookmarkDialog = useCallback(() => {
     if (isBookmarked) {
       useAppStore.getState().browserToggleBookmark();
       return;
     }
+    setBookmarkName(activeTab?.title || '');
+    setPendingBookmark(null);
     setBookmarkDialogOpen(true);
-  }, [isBookmarked]);
+  }, [isBookmarked, activeTab?.title]);
+
+  const handleBookmarkFromUrl = useCallback((url: string, title: string) => {
+    setPendingBookmark({ url, title });
+    setBookmarkName(title || url);
+    setBookmarkDialogOpen(true);
+  }, []);
 
   const handleBookmarkAddToFolder = useCallback(
     (folderPath: string | null) => {
+      if (pendingBookmark) {
+        const trimmedName = bookmarkName.trim();
+        const title = trimmedName || pendingBookmark.title;
+
+        useAppStore.getState().browserToggleBookmark({
+          url: pendingBookmark.url,
+          title,
+        });
+
+        // Then try to associate with a folder if one was selected
+        if (folderPath) {
+          const tabId =
+            useAppStore.getState().browserTabs.find((tab) => tab.url === pendingBookmark.url)?.id ||
+            pendingBookmark.tabId;
+
+          if (tabId) {
+            if (folderPath.startsWith('folder:')) {
+              const folderId = folderPath.slice('folder:'.length);
+              useAppStore.getState().browserBookmarkTab(tabId, folderId);
+            } else if (folderPath.startsWith('workspace:')) {
+              const workspaceId = folderPath.slice('workspace:'.length);
+              useAppStore.getState().browserBookmarkTab(tabId, undefined, undefined, workspaceId);
+            }
+            if (trimmedName && pendingBookmark.url) {
+              useAppStore.getState().browserUpdateBookmarkTitle(pendingBookmark.url, trimmedName);
+            }
+          }
+        }
+
+        showToast(t.browserBookmarkAddedToast, 'success');
+        setBookmarkDialogOpen(false);
+        setPendingBookmark(null);
+        return;
+      }
+
       if (!folderPath) {
         showToast(t.browserSelectDirFirst, 'warning');
         return;
@@ -170,21 +249,29 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
         return;
       }
 
+      let url = '';
       if (folderPath.startsWith('folder:')) {
         const folderId = folderPath.slice('folder:'.length);
         useAppStore.getState().browserBookmarkTab(activeTab.id, folderId);
+        url = activeTab.url ?? '';
         showToast(t.browserBookmarkAddedToast, 'success');
         setBookmarkDialogOpen(false);
       } else if (folderPath.startsWith('workspace:')) {
         const workspaceId = folderPath.slice('workspace:'.length);
         useAppStore.getState().browserBookmarkTab(activeTab.id, undefined, undefined, workspaceId);
+        url = activeTab.url ?? '';
         showToast(t.browserBookmarkAddedToast, 'success');
         setBookmarkDialogOpen(false);
       } else {
         showToast(t.browserSelectDirFirst, 'warning');
+        return;
+      }
+      const trimmedName = bookmarkName.trim();
+      if (trimmedName && url) {
+        useAppStore.getState().browserUpdateBookmarkTitle(url, trimmedName);
       }
     },
-    [activeTab, showToast, t]
+    [activeTab, showToast, t, bookmarkName, pendingBookmark]
   );
 
   const handleBookmarkCreateDir = useCallback((parentPath: string | null) => {
@@ -207,7 +294,10 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
     setCreateDirDialog,
     bookmarkDialogOpen,
     setBookmarkDialogOpen,
+    bookmarkName,
+    setBookmarkName,
     handleOpenBookmarkDialog,
+    handleBookmarkFromUrl,
     handleBookmarkAddToFolder,
     handleBookmarkCreateDir,
   };

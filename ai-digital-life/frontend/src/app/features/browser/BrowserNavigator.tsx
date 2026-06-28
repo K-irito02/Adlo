@@ -68,6 +68,7 @@ export interface BrowserNavigatorProps {
   onCopyTabLink: (url: string) => void;
   onOpenTabInNewTab: (url: string, title: string) => void;
   onOpenTabInCurrentTab: (tabId: string) => void;
+  onBookmarkTab?: (url: string, title: string) => void;
 
   onCreateTabDialog: React.Dispatch<
     React.SetStateAction<{ open: boolean; workspaceId?: string; folderId?: string }>
@@ -130,6 +131,7 @@ export function BrowserNavigator({
   onCopyTabLink: handleCopyTabLink,
   onOpenTabInNewTab: handleOpenTabInNewTab,
   onOpenTabInCurrentTab: handleOpenTabInCurrentTab,
+  onBookmarkTab: handleBookmarkTab,
   onCreateTabDialog: setCreateTabDialog,
   onCreateDirDialog: setCreateDirDialog,
   onRenameFolder: setRenameFolderState,
@@ -349,6 +351,7 @@ export function BrowserNavigator({
             onCopyTabLink: handleCopyTabLink,
             onOpenTabInNewTab: handleOpenTabInNewTab,
             onOpenTabInCurrentTab: handleOpenTabInCurrentTab,
+            onBookmarkTab: handleBookmarkTab,
           }}
           labels={{
             workspaceCategory: t.browserCategoryWorkspace,
@@ -389,6 +392,7 @@ export function BrowserNavigator({
             onCopyTabLink: handleCopyTabLink,
             onOpenTabInNewTab: handleOpenTabInNewTab,
             onOpenTabInCurrentTab: handleOpenTabInCurrentTab,
+            onBookmarkTab: handleBookmarkTab,
           }}
           labels={{
             workspaceCategory: t.browserCategoryWorkspace,

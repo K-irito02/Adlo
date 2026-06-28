@@ -22,6 +22,9 @@ export interface BrowserBookmarkSlice {
   browserBookmarks: BrowserBookmark[];
   browserWorkspaceBookmarks: Record<string, string[]>;
 
+  /** Pending bookmark to be confirmed via dialog (set by context menu) */
+  browserPendingBookmark: { url: string; title: string; tabId?: string } | null;
+
   browserToggleBookmark: (input?: { url?: string; title?: string }) => void;
   browserBookmarkTab: (
     tabId: string,
@@ -31,6 +34,7 @@ export interface BrowserBookmarkSlice {
   ) => void;
   browserUpdateBookmarkTitle: (url: string, title: string) => void;
   browserRemoveTabBookmarks: (tabId: string, url: string) => void;
+  browserSetPendingBookmark: (data: { url: string; title: string; tabId?: string } | null) => void;
 }
 
 export const createBrowserBookmarkSlice = (
@@ -39,6 +43,7 @@ export const createBrowserBookmarkSlice = (
 ): BrowserBookmarkSlice => ({
   browserBookmarks: [],
   browserWorkspaceBookmarks: {},
+  browserPendingBookmark: null,
 
   browserToggleBookmark: (input?: { url?: string; title?: string }) => {
     set((state) => {
@@ -225,5 +230,9 @@ export const createBrowserBookmarkSlice = (
         browserTabFolders: nextFolders,
       };
     });
+  },
+
+  browserSetPendingBookmark: (data) => {
+    set({ browserPendingBookmark: data });
   },
 });

@@ -34,6 +34,7 @@ interface BrowserTabTreeCallbacks {
   onOpenTabInNewTab: (url: string, title: string) => void;
   onOpenTabInCurrentTab: (tabId: string) => void;
   onCloseTab?: (tabId: string) => void;
+  onBookmarkTab?: (url: string, title: string) => void;
 }
 
 interface BrowserTabTreeProps {

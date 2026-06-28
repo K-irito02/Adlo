@@ -172,7 +172,10 @@ export function BrowserPanel(props: BrowserPanelProps) {
     setCreateDirDialog,
     bookmarkDialogOpen,
     setBookmarkDialogOpen,
+    bookmarkName,
+    setBookmarkName,
     handleOpenBookmarkDialog,
+    handleBookmarkFromUrl,
     handleBookmarkAddToFolder,
     handleBookmarkCreateDir,
   } = useBrowserDialogs({
@@ -675,6 +678,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
         handleCopyTabLink={handleCopyTabLink}
         handleOpenTabInNewTab={handleOpenTabInNewTab}
         handleOpenTabInCurrentTab={handleOpenTabInCurrentTab}
+        onBookmarkTab={handleBookmarkFromUrl}
         browserMenuOpen={browserMenuOpen}
         browserMenuRef={browserMenuRef}
         browserMenuItems={browserMenuItems}
@@ -731,7 +735,13 @@ export function BrowserPanel(props: BrowserPanelProps) {
         userFolderNodes={bookmarkTreeData.userFolderNodes}
         onAddToFolder={handleBookmarkAddToFolder}
         onCreateDir={handleBookmarkCreateDir}
-        onCancel={() => setBookmarkDialogOpen(false)}
+        onCancel={() => {
+          setBookmarkDialogOpen(false);
+          setBookmarkName('');
+          useAppStore.getState().browserSetPendingBookmark(null);
+        }}
+        bookmarkName={bookmarkName}
+        onBookmarkNameChange={setBookmarkName}
       />
 
       <RenameDialog

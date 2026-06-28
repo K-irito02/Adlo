@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../../stores/slicedStore';
 import { BrowserToolbar } from './BrowserToolbar';
@@ -63,6 +63,7 @@ interface BrowserPanelContentProps {
   handleCopyTabLink: (url: string) => Promise<void>;
   handleOpenTabInNewTab: (url: string, title: string) => void;
   handleOpenTabInCurrentTab: (tabId: string) => void;
+  onBookmarkTab?: (url: string, title: string) => void;
   browserMenuOpen: boolean;
   browserMenuRef: React.RefObject<HTMLDivElement | null>;
   browserMenuItems: BrowserMenuItem[];
@@ -141,6 +142,7 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
     handleCopyTabLink,
     handleOpenTabInNewTab,
     handleOpenTabInCurrentTab,
+    onBookmarkTab,
     browserMenuOpen,
     browserMenuRef,
     browserMenuItems,
@@ -352,6 +354,7 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
           onCopyTabLink={handleCopyTabLink}
           onOpenTabInNewTab={handleOpenTabInNewTab}
           onOpenTabInCurrentTab={handleOpenTabInCurrentTab}
+          onBookmarkTab={onBookmarkTab}
           onCreateTabDialog={handleSetCreateTabDialog}
           onCreateDirDialog={setCreateDirDialog}
           onRenameFolder={setRenameFolderState}
