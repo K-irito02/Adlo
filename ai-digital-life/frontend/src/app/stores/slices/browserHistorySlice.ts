@@ -47,6 +47,15 @@ export const createBrowserHistorySlice = (
       const now = Date.now();
       const today = getDateKey(now);
       const dedupKey = historyDedupKey(url);
+      const removedCount = state.browserHistory.filter(
+        (item) => historyDedupKey(item.url) === dedupKey && getDateKey(item.visitedAt) === today
+      ).length;
+      if (removedCount > 0) {
+        console.log(
+          '[ADL-DEBUG]',
+          `browserAddToHistory: replaced ${removedCount} old entries for url=${url.substring(0, 60)} title="${(title || url).substring(0, 40)}"`
+        );
+      }
       // Only remove matching entries from today — keep history from other days
       const filteredHistory = state.browserHistory.filter(
         (item) => !(historyDedupKey(item.url) === dedupKey && getDateKey(item.visitedAt) === today)
@@ -58,6 +67,12 @@ export const createBrowserHistorySlice = (
         visitedAt: now,
       };
       const nextHistory = [newHistoryItem, ...filteredHistory].slice(0, 100);
+      if (!removedCount) {
+        console.log(
+          '[ADL-DEBUG]',
+          `browserAddToHistory: new entry url=${url.substring(0, 60)} title="${(title || url).substring(0, 40)}"`
+        );
+      }
       scheduleWrite(BROWSER_HISTORY_KEY, nextHistory);
       return { browserHistory: nextHistory };
     });

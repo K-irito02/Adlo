@@ -64,6 +64,7 @@ interface BrowserPanelContentProps {
   handleOpenTabInNewTab: (url: string, title: string) => void;
   handleOpenTabInCurrentTab: (tabId: string) => void;
   onBookmarkTab?: (url: string, title: string) => void;
+  onRemoveBookmarkTab?: (tabId: string, url: string) => void;
   browserMenuOpen: boolean;
   browserMenuRef: React.RefObject<HTMLDivElement | null>;
   browserMenuItems: BrowserMenuItem[];
@@ -143,6 +144,7 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
     handleOpenTabInNewTab,
     handleOpenTabInCurrentTab,
     onBookmarkTab,
+    onRemoveBookmarkTab,
     browserMenuOpen,
     browserMenuRef,
     browserMenuItems,
@@ -179,6 +181,7 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
     setBrowserNavigateInPlace,
     recentWorkspaces,
     browserBookmarks,
+    browserBookmarkTabIdUrlMap,
     browserHistory,
     browserWorkspaceBookmarks,
     browserOpenTab,
@@ -192,6 +195,7 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
       setBrowserNavigateInPlace: state.setBrowserNavigateInPlace,
       recentWorkspaces: state.recentWorkspaces,
       browserBookmarks: state.browserBookmarks,
+      browserBookmarkTabIdUrlMap: state.browserBookmarkTabIdUrlMap,
       browserHistory: state.browserHistory,
       browserWorkspaceBookmarks: state.browserWorkspaceBookmarks,
       browserOpenTab: state.browserOpenTab,
@@ -333,6 +337,8 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
           browserTabFolders={browserTabFolders}
           browserHistory={browserHistory}
           browserWorkspaceBookmarks={browserWorkspaceBookmarks}
+          browserBookmarks={browserBookmarks}
+          browserBookmarkTabIdUrlMap={browserBookmarkTabIdUrlMap}
           tabTreeExpanded={tabTreeExpanded}
           selectedTreePath={selectedTreePath}
           selectedTreePathRef={selectedTreePathRef}
@@ -355,6 +361,8 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
           onOpenTabInNewTab={handleOpenTabInNewTab}
           onOpenTabInCurrentTab={handleOpenTabInCurrentTab}
           onBookmarkTab={onBookmarkTab}
+          onRemoveBookmarkTab={onRemoveBookmarkTab}
+          onCloseTabHandler={_handleCloseTab}
           onCreateTabDialog={handleSetCreateTabDialog}
           onCreateDirDialog={setCreateDirDialog}
           onRenameFolder={setRenameFolderState}

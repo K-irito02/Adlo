@@ -9,6 +9,13 @@ export interface BrowserBookmark {
   title: string;
 }
 
+/** Workspace bookmark entry — stores tabId + snapshot of URL/title at bookmark time. */
+export interface WorkspaceBookmarkEntry {
+  tabId: string;
+  url: string;
+  title: string;
+}
+
 const BROWSER_BOOKMARKS_KEY = 'adl-ui:browser-bookmarks';
 const BROWSER_TAB_FOLDERS_KEY = 'adl-ui:browser-tab-folders';
 const BROWSER_WORKSPACE_BOOKMARKS_KEY = 'adl-ui:browser-workspace-bookmarks';
@@ -17,10 +24,15 @@ const { scheduleWrite } = createDebouncedWrite(50);
 
 export const BROWSER_BOOKMARKS_STORAGE_KEY = BROWSER_BOOKMARKS_KEY;
 export const BROWSER_WORKSPACE_BOOKMARKS_STORAGE_KEY = BROWSER_WORKSPACE_BOOKMARKS_KEY;
+export const BROWSER_BOOKMARK_TABID_URL_MAP_KEY = 'adl-ui:browser-bookmark-tabid-url-map';
 
 export interface BrowserBookmarkSlice {
   browserBookmarks: BrowserBookmark[];
-  browserWorkspaceBookmarks: Record<string, string[]>;
+  /** Workspace ID → list of bookmark entries (each stores tabId + URL/title snapshot). */
+  browserWorkspaceBookmarks: Record<string, WorkspaceBookmarkEntry[]>;
+
+  /** tabId → original bookmarked URL — enables snapshot lookup after tab navigation */
+  browserBookmarkTabIdUrlMap: Record<string, string>;
 
   /** Pending bookmark to be confirmed via dialog (set by context menu) */
   browserPendingBookmark: { url: string; title: string; tabId?: string } | null;
@@ -34,6 +46,7 @@ export interface BrowserBookmarkSlice {
   ) => void;
   browserUpdateBookmarkTitle: (url: string, title: string) => void;
   browserRemoveTabBookmarks: (tabId: string, url: string) => void;
+  browserClearAllWorkspaceBookmarks: () => void;
   browserSetPendingBookmark: (data: { url: string; title: string; tabId?: string } | null) => void;
 }
 
@@ -43,6 +56,7 @@ export const createBrowserBookmarkSlice = (
 ): BrowserBookmarkSlice => ({
   browserBookmarks: [],
   browserWorkspaceBookmarks: {},
+  browserBookmarkTabIdUrlMap: {},
   browserPendingBookmark: null,
 
   browserToggleBookmark: (input?: { url?: string; title?: string }) => {
@@ -60,6 +74,26 @@ export const createBrowserBookmarkSlice = (
 
       let nextFolders = state.browserTabFolders;
       let nextWorkspaceBookmarks = state.browserWorkspaceBookmarks;
+
+      // 维护 tabId→URL 映射
+      let nextTabIdUrlMap = state.browserBookmarkTabIdUrlMap;
+      if (exists) {
+        // 取消收藏 — 移除对应 tabId 的映射
+        const tabIdsForUrl = new Set(
+          state.browserTabs.filter((tab) => tab.url === url).map((tab) => tab.id)
+        );
+        if (tabIdsForUrl.size > 0) {
+          nextTabIdUrlMap = { ...nextTabIdUrlMap };
+          for (const tid of tabIdsForUrl) {
+            delete nextTabIdUrlMap[tid];
+          }
+        }
+      } else if (active?.id) {
+        nextTabIdUrlMap = {
+          ...(nextTabIdUrlMap !== undefined ? nextTabIdUrlMap : {}),
+          [active.id]: url,
+        };
+      }
 
       if (exists) {
         const tabIdsForUrl = new Set(
@@ -80,9 +114,9 @@ export const createBrowserBookmarkSlice = (
 
           nextWorkspaceBookmarks = { ...state.browserWorkspaceBookmarks };
           for (const wsId of Object.keys(nextWorkspaceBookmarks)) {
-            if (nextWorkspaceBookmarks[wsId].some((tid) => tabIdsForUrl.has(tid))) {
+            if (nextWorkspaceBookmarks[wsId].some((entry) => tabIdsForUrl.has(entry.tabId))) {
               nextWorkspaceBookmarks[wsId] = nextWorkspaceBookmarks[wsId].filter(
-                (tid) => !tabIdsForUrl.has(tid)
+                (entry) => !tabIdsForUrl.has(entry.tabId)
               );
               if (nextWorkspaceBookmarks[wsId].length === 0) {
                 delete nextWorkspaceBookmarks[wsId];
@@ -94,10 +128,12 @@ export const createBrowserBookmarkSlice = (
       }
 
       scheduleWrite(BROWSER_BOOKMARKS_KEY, nextBookmarks);
+      scheduleWrite(BROWSER_BOOKMARK_TABID_URL_MAP_KEY, nextTabIdUrlMap);
       return {
         browserBookmarks: nextBookmarks,
         browserTabFolders: nextFolders,
         browserWorkspaceBookmarks: nextWorkspaceBookmarks,
+        browserBookmarkTabIdUrlMap: nextTabIdUrlMap,
       };
     });
   },
@@ -151,14 +187,21 @@ export const createBrowserBookmarkSlice = (
         });
       }
 
-      // 如果指定了 workspaceId，将标签添加到工作区级别的书签中
+      // 维护 tabId→URL 映射
+      let nextTabIdUrlMap = state.browserBookmarkTabIdUrlMap;
+      if (!nextTabIdUrlMap[tabId]) {
+        nextTabIdUrlMap = { ...nextTabIdUrlMap, [tabId]: url };
+      }
+
+      // 如果指定了 workspaceId，将标签添加到工作区级别的书签中（含 URL/title 快照）
       let nextWorkspaceBookmarks = state.browserWorkspaceBookmarks;
       if (workspaceId) {
         const existingWsTabs = state.browserWorkspaceBookmarks[workspaceId] || [];
-        if (!existingWsTabs.includes(tabId)) {
+        if (!existingWsTabs.some((entry) => entry.tabId === tabId)) {
+          const newEntry = { tabId, url, title };
           nextWorkspaceBookmarks = {
             ...state.browserWorkspaceBookmarks,
-            [workspaceId]: [...existingWsTabs, tabId],
+            [workspaceId]: [...existingWsTabs, newEntry],
           };
           scheduleWrite(BROWSER_WORKSPACE_BOOKMARKS_KEY, nextWorkspaceBookmarks);
         }
@@ -166,10 +209,12 @@ export const createBrowserBookmarkSlice = (
 
       scheduleWrite(BROWSER_TAB_FOLDERS_KEY, nextFolders);
       scheduleWrite(BROWSER_BOOKMARKS_KEY, nextBookmarks);
+      scheduleWrite(BROWSER_BOOKMARK_TABID_URL_MAP_KEY, nextTabIdUrlMap);
       return {
         browserTabFolders: nextFolders,
         browserBookmarks: nextBookmarks,
         browserWorkspaceBookmarks: nextWorkspaceBookmarks,
+        browserBookmarkTabIdUrlMap: nextTabIdUrlMap,
       };
     });
   },
@@ -194,12 +239,18 @@ export const createBrowserBookmarkSlice = (
       const nextBookmarks = state.browserBookmarks.filter((b) => b.url !== url);
       scheduleWrite(BROWSER_BOOKMARKS_KEY, nextBookmarks);
 
+      // 清除 tabId→URL 映射
+      const nextTabIdUrlMap = { ...state.browserBookmarkTabIdUrlMap };
+      delete nextTabIdUrlMap[tabId];
+
       // Remove from workspace bookmarks
       const nextWorkspaceBookmarks = { ...state.browserWorkspaceBookmarks };
       let wsChanged = false;
       for (const wsId of Object.keys(nextWorkspaceBookmarks)) {
-        if (nextWorkspaceBookmarks[wsId].includes(tabId)) {
-          nextWorkspaceBookmarks[wsId] = nextWorkspaceBookmarks[wsId].filter((id) => id !== tabId);
+        if (nextWorkspaceBookmarks[wsId].some((entry) => entry.tabId === tabId)) {
+          nextWorkspaceBookmarks[wsId] = nextWorkspaceBookmarks[wsId].filter(
+            (entry) => entry.tabId !== tabId
+          );
           if (nextWorkspaceBookmarks[wsId].length === 0) {
             delete nextWorkspaceBookmarks[wsId];
           }
@@ -224,11 +275,22 @@ export const createBrowserBookmarkSlice = (
         scheduleWrite(BROWSER_TAB_FOLDERS_KEY, nextFolders);
       }
 
+      scheduleWrite(BROWSER_BOOKMARK_TABID_URL_MAP_KEY, nextTabIdUrlMap);
       return {
         browserBookmarks: nextBookmarks,
         browserWorkspaceBookmarks: nextWorkspaceBookmarks,
         browserTabFolders: nextFolders,
+        browserBookmarkTabIdUrlMap: nextTabIdUrlMap,
       };
+    });
+  },
+
+  browserClearAllWorkspaceBookmarks: () => {
+    scheduleWrite(BROWSER_WORKSPACE_BOOKMARKS_KEY, {});
+    scheduleWrite(BROWSER_BOOKMARK_TABID_URL_MAP_KEY, {});
+    set({
+      browserWorkspaceBookmarks: {},
+      browserBookmarkTabIdUrlMap: {},
     });
   },
 

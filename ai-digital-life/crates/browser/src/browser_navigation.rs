@@ -6,13 +6,6 @@ pub(crate) const INIT_SCRIPT: &str = r#"
 (function() {
     console.log('[ADL Browser] Initialization script loaded');
     
-    // 安全地阻止默认行为和冒泡
-    // 注意：不调用 stopImmediatePropagation，以便页面上的其他 capture 监听器（如分析、SPA 路由）仍可观察到点击事件
-    function stopAll(event) {
-        event.preventDefault();
-        event.stopPropagation();
-    }
-    
     // 检查是否是有效的网页 URL
     function isValidWebUrl(href) {
         if (!href || typeof href !== 'string') return false;
@@ -29,80 +22,59 @@ pub(crate) const INIT_SCRIPT: &str = r#"
         }
     }
     
-    // 1. 拦截点击事件（捕获阶段，最高优先级）
+    // Compare only origin+pathname (ignore query params & hash) to detect SPA pushState
+    function isSamePage(url1, url2) {
+        try {
+            var u1 = new URL(url1);
+            var u2 = new URL(url2);
+            return u1.origin + u1.pathname.replace(/\/$/, '') === u2.origin + u2.pathname.replace(/\/$/, '');
+        } catch(e) {
+            return url1 === url2;
+        }
+    }
+    
+    // Click interception: prevent default <a> navigation, then let SPA handlers
+    // observe the event (no stopPropagation). Use microtask fallback: if SPA did
+    // NOT call pushState, navigate via window.location.href as before.
     document.addEventListener('click', function(event) {
-        let target = event.target;
+        var target = event.target;
         
-        // 向上遍历查找链接
         while (target) {
-            // 检查 a 标签
             if (target.tagName === 'A' && target.href) {
-                const href = target.href;
+                var href = target.href;
                 if (isValidWebUrl(href)) {
                     console.log('[ADL Browser] Link intercepted (click <a>):', href);
-                    stopAll(event);
-                    navigateToUrl(href);
+                    event.preventDefault();
+                    // Don't stopPropagation — SPA handlers (Vue/React) need the event
+                    // Microtask: if SPA didn't pushState, fall back to full navigation
+                    Promise.resolve().then(function() {
+                        if (!isSamePage(location.href, href)) {
+                            navigateToUrl(href);
+                        }
+                    });
                     return;
                 }
             }
             
-            // 检查 area 标签（图片映射）
             if (target.tagName === 'AREA' && target.href) {
-                const href = target.href;
+                var href = target.href;
                 if (isValidWebUrl(href)) {
                     console.log('[ADL Browser] Link intercepted (click <area>):', href);
-                    stopAll(event);
-                    navigateToUrl(href);
+                    event.preventDefault();
+                    Promise.resolve().then(function() {
+                        if (!isSamePage(location.href, href)) {
+                            navigateToUrl(href);
+                        }
+                    });
                     return;
                 }
             }
             
-            // 检查 onclick 属性中是否有跳转代码
-            if (target.onclick || (typeof target.getAttribute === 'function' && target.getAttribute('onclick'))) {
-                const onclickAttr = target.getAttribute('onclick');
-                if (onclickAttr && (onclickAttr.includes('location.href') || onclickAttr.includes('window.open'))) {
-                    console.log('[ADL Browser] Potential navigation via onclick detected');
-                    // 这里不直接阻止，让 window.open/location.href 的拦截器处理
-                }
-            }
-            
             target = target.parentElement;
         }
     }, true);
     
-    // 2. 拦截鼠标按下事件（在点击前拦截）
-    document.addEventListener('mousedown', function(event) {
-        let target = event.target;
-        while (target) {
-            if (target.tagName === 'A' && target.href) {
-                if (isValidWebUrl(target.href)) {
-                    console.log('[ADL Browser] Link detected (mousedown):', target.href);
-                }
-            }
-            target = target.parentElement;
-        }
-    }, true);
-    
-    // 3. 拦截键盘事件（Enter/Space 激活链接）
-    document.addEventListener('keydown', function(event) {
-        if (event.key === 'Enter' || event.key === ' ') {
-            let target = event.target;
-            while (target) {
-                if (target.tagName === 'A' && target.href) {
-                    const href = target.href;
-                    if (isValidWebUrl(href)) {
-                        console.log('[ADL Browser] Link intercepted (keyboard):', href);
-                        stopAll(event);
-                        navigateToUrl(href);
-                        return;
-                    }
-                }
-                target = target.parentElement;
-            }
-        }
-    }, true);
-    
-    // 4. 重写 window.open（阻止所有弹窗，外部HTTP链接在当前WebView导航）
+    // 1. 重写 window.open（阻止所有弹窗，外部HTTP链接在当前WebView导航）
     window.open = function(url, name, features) {
         if (url && isValidWebUrl(url)) {
             console.log('[ADL Browser] window.open intercepted, navigating in-place:', url);
@@ -111,9 +83,9 @@ pub(crate) const INIT_SCRIPT: &str = r#"
         return null;
     };
     
-    // 5. 重写 location.assign 和 location.replace
-    // 注意：window.location 是只读属性，无法通过 Proxy 拦截 href 赋值
-    // 因此主要依赖 click 事件拦截和 window.open 拦截来处理链接导航
+    // 2. 重写 location.assign 和 location.replace
+    // Note: window.location.href assignments by page JS are NOT intercepted here;
+    // they trigger the native navigation_handler which catches all navigations
     const originalAssign = Location.prototype.assign;
     const originalReplace = Location.prototype.replace;
     
@@ -135,13 +107,13 @@ pub(crate) const INIT_SCRIPT: &str = r#"
         return originalReplace.apply(this, arguments);
     };
     
-    // 7. 拦截表单提交
+    // 3. 拦截表单提交
     document.addEventListener('submit', function(event) {
         console.log('[ADL Browser] Form submit event observed');
         // 表单正常提交通常我们希望保留行为
     }, true);
     
-    // 8. 拦截 contextmenu 事件，用于调试
+    // 4. 拦截 contextmenu 事件，用于调试
     document.addEventListener('contextmenu', function(event) {
         let target = event.target;
         while (target) {
@@ -152,7 +124,7 @@ pub(crate) const INIT_SCRIPT: &str = r#"
         }
     }, true);
     
-    // 9. 为所有现有链接添加调试信息
+    // 5. 为所有现有链接添加调试信息
     try {
         const allLinks = document.querySelectorAll('a, area');
         allLinks.forEach(function(link, index) {

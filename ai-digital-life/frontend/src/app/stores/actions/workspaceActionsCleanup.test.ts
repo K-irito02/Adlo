@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { stripWorkspaceFromBrowserState } from './workspaceActions';
-import type { BrowserTabState, TabFolderState } from '../slices/browserSlice';
+import type {
+  BrowserTabState,
+  TabFolderState,
+  WorkspaceBookmarkEntry,
+} from '../slices/browserSlice';
 
 function makeTab(id: string, workspaceId: string): BrowserTabState {
   return {
@@ -84,7 +88,10 @@ describe('stripWorkspaceFromBrowserState (cleanup on workspace delete)', () => {
     const tabs = [makeTab('t1', 'ws-a')];
     const folders = [makeFolder('f1', 'ws-b', 'workspace')];
     const expanded = { 'ws-b': true };
-    const wsBookmarks = { 'ws-a': ['t1'], 'ws-b': ['t2'] };
+    const wsBookmarks: Record<string, WorkspaceBookmarkEntry[]> = {
+      'ws-a': [{ tabId: 't1', url: '', title: '' }],
+      'ws-b': [{ tabId: 't2', url: '', title: '' }],
+    };
     const result = stripWorkspaceFromBrowserState(
       'ws-nonexistent',
       tabs,
@@ -101,8 +108,16 @@ describe('stripWorkspaceFromBrowserState (cleanup on workspace delete)', () => {
   });
 
   it('removes the target workspace key from browserWorkspaceBookmarks', () => {
-    const wsBookmarks = { 'ws-a': ['t1', 't2'], 'ws-b': ['t3'] };
+    const wsBookmarks: Record<string, WorkspaceBookmarkEntry[]> = {
+      'ws-a': [
+        { tabId: 't1', url: '', title: '' },
+        { tabId: 't2', url: '', title: '' },
+      ],
+      'ws-b': [{ tabId: 't3', url: '', title: '' }],
+    };
     const result = stripWorkspaceFromBrowserState('ws-a', [], [], {}, wsBookmarks, '');
-    expect(result.browserWorkspaceBookmarks).toEqual({ 'ws-b': ['t3'] });
+    expect(result.browserWorkspaceBookmarks).toEqual({
+      'ws-b': [{ tabId: 't3', url: '', title: '' }],
+    });
   });
 });

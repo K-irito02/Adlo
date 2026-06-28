@@ -216,7 +216,11 @@ export function getTabContextMenuItems(
       danger: true,
       action: () => {
         if (node.tabId && node.url) {
-          callbacks.onDeleteTab(node.tabId, node.url);
+          if (node.isSavedBookmark) {
+            callbacks.onRemoveBookmarkTab?.(node.tabId, node.url);
+          } else {
+            callbacks.onDeleteTab(node.tabId, node.url);
+          }
         }
       },
     },

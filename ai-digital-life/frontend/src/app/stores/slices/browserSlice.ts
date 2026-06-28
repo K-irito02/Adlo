@@ -10,14 +10,17 @@ import { clamp, readJson, readNumber, createUiId, createDebouncedWrite } from '.
 import { BROWSER_NAVIGATOR_COLLAPSED_KEY } from '../constants';
 
 import type { BrowserTabState } from './browserTabsSlice';
-import type { BrowserBookmark } from './browserBookmarkSlice';
-import { BROWSER_WORKSPACE_BOOKMARKS_STORAGE_KEY } from './browserBookmarkSlice';
+import type { BrowserBookmark, WorkspaceBookmarkEntry } from './browserBookmarkSlice';
+import {
+  BROWSER_WORKSPACE_BOOKMARKS_STORAGE_KEY,
+  BROWSER_BOOKMARK_TABID_URL_MAP_KEY,
+} from './browserBookmarkSlice';
 import type { BrowserHistoryState } from './browserHistorySlice';
 import type { TabFolderState } from './browserFoldersSlice';
 import type { ShortcutSite, LocalPort, BackgroundConfig } from './browserLandingSlice';
 
 export type { BrowserTabState, BrowserTabStateUpdate } from './browserTabsSlice';
-export type { BrowserBookmark } from './browserBookmarkSlice';
+export type { BrowserBookmark, WorkspaceBookmarkEntry } from './browserBookmarkSlice';
 export type { BrowserHistoryState } from './browserHistorySlice';
 export type { TabFolderState } from './browserFoldersSlice';
 export type {
@@ -100,9 +103,76 @@ function hydrateBrowserDefaults(
       : readJson<BrowserBookmark[]>(BROWSER_BOOKMARKS_KEY, []);
 
     const workspaceBookmarksModified = Object.keys(state.browserWorkspaceBookmarks).length > 0;
-    const finalWorkspaceBookmarks = workspaceBookmarksModified
+    const rawWorkspaceBookmarks = workspaceBookmarksModified
       ? state.browserWorkspaceBookmarks
-      : readJson<Record<string, string[]>>(BROWSER_WORKSPACE_BOOKMARKS_STORAGE_KEY, {});
+      : readJson<Record<string, unknown>>(BROWSER_WORKSPACE_BOOKMARKS_STORAGE_KEY, {});
+    // 迁移：旧格式存储为 string[]，新格式存储为 WorkspaceBookmarkEntry[]
+    const finalWorkspaceBookmarks: Record<string, WorkspaceBookmarkEntry[]> = {};
+    for (const [wsId, entries] of Object.entries(rawWorkspaceBookmarks)) {
+      if (Array.isArray(entries)) {
+        const migrated = entries.map((e: unknown) =>
+          typeof e === 'string' ? { tabId: e, url: '', title: '' } : (e as WorkspaceBookmarkEntry)
+        );
+        const oldCount = entries.filter((e: unknown) => typeof e === 'string').length;
+        if (oldCount > 0) {
+          console.log(
+            '[ADL-DEBUG]',
+            `Migrated ${oldCount} old workspace bookmark entries for workspace ${wsId}`
+          );
+        }
+        finalWorkspaceBookmarks[wsId] = migrated;
+      } else {
+        finalWorkspaceBookmarks[wsId] = [];
+      }
+    }
+
+    // 从已有的工作区书签和文件夹条目构建 tabId→URL 映射
+    const migratedTabIdUrlMap: Record<string, string> = {};
+    const tabsById = new Map(finalTabs.map((t) => [t.id, t]));
+    let wsEntriesWithUrl = 0;
+    let wsEntriesTotal = 0;
+    let foldersWithTabs = 0;
+    let folderEntries = 0;
+    let folderMatched = 0;
+    let persistedEntries = 0;
+    for (const entries of Object.values(finalWorkspaceBookmarks)) {
+      for (const entry of entries) {
+        wsEntriesTotal++;
+        if (entry.url && !migratedTabIdUrlMap[entry.tabId]) {
+          migratedTabIdUrlMap[entry.tabId] = entry.url;
+          wsEntriesWithUrl++;
+        }
+      }
+    }
+    for (const folder of persistedTabFolders) {
+      if (folder.tabs) {
+        foldersWithTabs++;
+        for (const tid of folder.tabs) {
+          folderEntries++;
+          if (!migratedTabIdUrlMap[tid]) {
+            const tab = tabsById.get(tid);
+            if (tab?.url) {
+              migratedTabIdUrlMap[tid] = tab.url;
+              folderMatched++;
+            }
+          }
+        }
+      }
+    }
+    const persistedTabIdUrlMap = readJson<Record<string, string>>(
+      BROWSER_BOOKMARK_TABID_URL_MAP_KEY,
+      {}
+    );
+    for (const [tabId, url] of Object.entries(persistedTabIdUrlMap)) {
+      if (!migratedTabIdUrlMap[tabId]) {
+        migratedTabIdUrlMap[tabId] = url;
+        persistedEntries++;
+      }
+    }
+    console.log(
+      '[ADL-DEBUG]',
+      `hydrate map: ws=${wsEntriesTotal}(withUrl=${wsEntriesWithUrl}) folders=${foldersWithTabs}(entries=${folderEntries},matched=${folderMatched}) finalTabs=${finalTabs.length} persisted=${persistedEntries} result=${Object.keys(migratedTabIdUrlMap).length}`
+    );
 
     const persistedTabTreeExpanded = readJson<Record<string, boolean>>(
       BROWSER_TREE_EXPANDED_KEY,
@@ -124,6 +194,7 @@ function hydrateBrowserDefaults(
       browserHistory: finalHistory,
       browserBookmarks: finalBookmarks,
       browserWorkspaceBookmarks: finalWorkspaceBookmarks,
+      browserBookmarkTabIdUrlMap: migratedTabIdUrlMap,
       browserTabs: finalTabs,
       browserTabsById: buildTabsById(finalTabs),
       browserActiveTabId: finalActiveTabId,

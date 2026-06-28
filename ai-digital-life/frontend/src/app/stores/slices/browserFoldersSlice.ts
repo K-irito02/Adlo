@@ -333,9 +333,11 @@ export const createBrowserFoldersSlice = (
       let nextWorkspaceBookmarks = state.browserWorkspaceBookmarks;
       if (nodePath.startsWith('workspace:')) {
         const wsId = nodePath.slice('workspace:'.length);
-        const bookmarkedIds = nextWorkspaceBookmarks[wsId];
-        if (bookmarkedIds) {
-          const remaining = bookmarkedIds.filter((id) => !tabIdsToDelete.includes(id));
+        const bookmarkedEntries = nextWorkspaceBookmarks[wsId];
+        if (bookmarkedEntries) {
+          const remaining = bookmarkedEntries.filter(
+            (entry) => !tabIdsToDelete.includes(entry.tabId)
+          );
           nextWorkspaceBookmarks = { ...nextWorkspaceBookmarks };
           if (remaining.length === 0) {
             delete nextWorkspaceBookmarks[wsId];

@@ -90,6 +90,8 @@ export const createBrowserTabsSlice = (
       };
       const nextTabs = sortTabs([...state.browserTabs, tab]);
       let nextFolders = state.browserTabFolders;
+      let nextTabIdUrlMap = state.browserBookmarkTabIdUrlMap;
+      let nextBookmarks = state.browserBookmarks;
       if (folderId) {
         nextFolders = nextFolders.map((f) => {
           if (f.id === folderId) {
@@ -101,6 +103,13 @@ export const createBrowserTabsSlice = (
           return f;
         });
         scheduleWrite(BROWSER_TAB_FOLDERS_KEY, nextFolders);
+        // 记录 tabId→URL 映射，确保文件夹标签在 browserTabs 被清空后仍能通过书签回退渲染
+        if (tab.url && !nextTabIdUrlMap[tab.id]) {
+          nextTabIdUrlMap = { ...nextTabIdUrlMap, [tab.id]: tab.url };
+          if (!nextBookmarks.some((b) => b.url === tab.url)) {
+            nextBookmarks = [...nextBookmarks, { url: tab.url, title: tab.title || tab.url }];
+          }
+        }
       }
       scheduleWrite(BROWSER_TABS_KEY, nextTabs);
       scheduleWrite(BROWSER_ACTIVE_TAB_KEY, tab.id);
@@ -109,6 +118,8 @@ export const createBrowserTabsSlice = (
         browserTabsById: buildTabsById(nextTabs),
         browserActiveTabId: tab.id,
         browserTabFolders: nextFolders,
+        browserBookmarkTabIdUrlMap: nextTabIdUrlMap,
+        browserBookmarks: nextBookmarks,
       };
     }),
 

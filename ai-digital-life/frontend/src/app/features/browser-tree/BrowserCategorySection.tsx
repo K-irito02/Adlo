@@ -21,6 +21,8 @@ export interface SectionCallbacks {
   onOpenTabInCurrentTab: (tabId: string) => void;
   onCloseTab?: (tabId: string) => void;
   onBookmarkTab?: (url: string, title: string) => void;
+  /** Remove bookmark state without closing the tab. Used for saved-bookmark entries. */
+  onRemoveBookmarkTab?: (tabId: string, url: string) => void;
 }
 
 interface BrowserCategorySectionProps {

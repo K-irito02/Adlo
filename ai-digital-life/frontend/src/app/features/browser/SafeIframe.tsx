@@ -75,6 +75,13 @@ export function SafeIframe({
     return () => {
       iframe.removeEventListener('load', handleLoad);
       iframe.removeEventListener('error', handleError);
+      // 先设为 about:blank 强制卸载页面（停止音频/视频/定时器）
+      try {
+        iframe.src = 'about:blank';
+      } catch {
+        /* ignore cross-origin errors */
+      }
+      console.log('[ADL-DEBUG]', 'SafeIframe cleanup for tab:', src);
       if (shadow!.contains(iframe)) {
         shadow!.removeChild(iframe);
       }

@@ -134,28 +134,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
     handleClearTabDirectories: _handleClearTabDirectories,
   } = useBrowserTabs();
 
-  const stopWebViewAudio = useCallback(() => {
-    if (!isTauriShell()) {
-      document.querySelectorAll<HTMLIFrameElement>('.adl-browser-iframe').forEach((el) => {
-        try {
-          el.src = 'about:blank';
-        } catch {
-          /* ignore */
-        }
-      });
-    }
-  }, []);
-
-  const handleCloseAllTabs = useCallback(
-    (workspaceId?: string) => {
-      _handleCloseAllTabs(workspaceId);
-      if (!workspaceId) {
-        stopWebViewAudio();
-      }
-    },
-    [_handleCloseAllTabs, stopWebViewAudio]
-  );
-
   const {
     createTabDialog,
     handleSetCreateTabDialog,
@@ -220,6 +198,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
     handleCopyTabLink,
     handleOpenTabInNewTab,
     handleOpenTabInCurrentTab,
+    handleRemoveBookmarkTab,
   } = useBrowserTreeActions();
 
   const {
@@ -296,19 +275,85 @@ export function BrowserPanel(props: BrowserPanelProps) {
 
   const wrappedHandleCloseTab = useCallback(
     (tabId: string) => {
-      const state = useAppStore.getState();
-      const remaining = state.browserTabs.length;
       handleCloseTab(tabId);
+      // removeFromPool = destroyTabWebView, 在 Tauri 模式下销毁 WebView 并停止音频
       removeFromPool(tabId);
-      if (remaining <= 1) {
-        stopWebViewAudio();
-      }
     },
-    [handleCloseTab, stopWebViewAudio, removeFromPool]
+    [handleCloseTab, removeFromPool]
+  );
+
+  const handleCloseAllTabs = useCallback(
+    (workspaceId?: string) => {
+      const beforeState = useAppStore.getState();
+      const tabIdsToDestroy = beforeState.browserTabs.map((t) => t.id);
+      const folderTabsBefore = beforeState.browserTabFolders.map((f) => ({
+        name: f.name,
+        tabCount: f.tabs?.length || 0,
+      }));
+      const bookmarkKeysBefore = Object.keys(beforeState.browserWorkspaceBookmarks || {});
+      console.log(
+        '[ADL-DEBUG]',
+        `handleCloseAllTabs: workspaceId=${workspaceId || '(all)'} | openTabs=${tabIdsToDestroy.length} | folders=${folderTabsBefore.length} | bookmarkedWorkspaces=${bookmarkKeysBefore.length}`
+      );
+      _handleCloseAllTabs(workspaceId);
+      if (!workspaceId) {
+        if (isTauriShell()) {
+          console.log(
+            '[ADL-DEBUG]',
+            'handleCloseAllTabs destroying',
+            tabIdsToDestroy.length,
+            'WebViews'
+          );
+          for (const tid of tabIdsToDestroy) {
+            removeFromPool(tid);
+          }
+        } else {
+          document.querySelectorAll<HTMLIFrameElement>('.adl-browser-iframe').forEach((el) => {
+            try {
+              el.src = 'about:blank';
+            } catch {
+              /* ignore */
+            }
+          });
+        }
+      }
+      // 验证关闭后状态
+      const afterState = useAppStore.getState();
+      const folderTabsAfter = afterState.browserTabFolders.map((f) => ({
+        name: f.name,
+        tabCount: f.tabs?.length || 0,
+      }));
+      console.log(
+        '[ADL-DEBUG]',
+        `handleCloseAllTabs DONE: remainingTabs=${afterState.browserTabs.length} | folderTabsAfter=${JSON.stringify(folderTabsAfter)} | bookmarkedWorkspaces=${Object.keys(afterState.browserWorkspaceBookmarks || {}).length}`
+      );
+    },
+    [_handleCloseAllTabs, removeFromPool]
   );
 
   const handleClearTabDirectories = useCallback(() => {
+    const s0 = useAppStore.getState();
+    const folderCountsBefore = s0.browserTabFolders.map((f) => ({
+      name: f.name,
+      tabCount: f.tabs?.length || 0,
+    }));
+    console.log(
+      '[ADL-DEBUG]',
+      `handleClearTabDirectories: clearing folders=${JSON.stringify(folderCountsBefore)}`
+    );
+    // 清空文件夹内的标签
     _handleClearTabDirectories();
+    // 同时清空工作区书签和 tabId→URL 映射
+    const s = useAppStore.getState();
+    s.browserClearAllWorkspaceBookmarks?.();
+    const afterCounts = s.browserTabFolders.map((f) => ({
+      name: f.name,
+      tabCount: f.tabs?.length || 0,
+    }));
+    console.log(
+      '[ADL-DEBUG]',
+      `handleClearTabDirectories DONE: folders=${JSON.stringify(afterCounts)}`
+    );
   }, [_handleClearTabDirectories]);
 
   const { handlePageMeta: _handlePageMeta } = useBrowserPageMeta(
@@ -677,6 +722,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
         handleOpenTabInNewTab={handleOpenTabInNewTab}
         handleOpenTabInCurrentTab={handleOpenTabInCurrentTab}
         onBookmarkTab={handleBookmarkFromUrl}
+        onRemoveBookmarkTab={handleRemoveBookmarkTab}
         browserMenuOpen={browserMenuOpen}
         browserMenuRef={browserMenuRef}
         browserMenuItems={browserMenuItems}

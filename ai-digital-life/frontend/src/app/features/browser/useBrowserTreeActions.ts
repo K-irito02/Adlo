@@ -446,6 +446,19 @@ export function useBrowserTreeActions() {
     [browserCloseTab, browserRemoveTabBookmarks, browserDeleteHistoryEntry]
   );
 
+  const handleRemoveBookmarkTab = useCallback(
+    (tabId: string, url: string) => {
+      // Only remove bookmark state, don't close the tab or affect history
+      browserRemoveTabBookmarks(tabId, url);
+      if (url) {
+        clearFaviconCacheForUrl(url);
+        clearPageMetaCacheForUrl(url);
+      }
+      unlockTabTitle(tabId);
+    },
+    [browserRemoveTabBookmarks]
+  );
+
   const handleCopyTabLink = useCallback(async (url: string) => {
     try {
       await navigator.clipboard.writeText(url);
@@ -500,5 +513,6 @@ export function useBrowserTreeActions() {
     handleCopyTabLink,
     handleOpenTabInNewTab,
     handleOpenTabInCurrentTab,
+    handleRemoveBookmarkTab,
   };
 }

@@ -61,7 +61,6 @@ export function useBrowserTabs() {
     browserCloseAllTabs,
     browserToggleBookmark,
     browserClearHistory,
-    browserRemoveTabBookmarks,
     browserClearAllFolderTabs,
   } = useAppStore(
     useShallow((state) => ({
@@ -75,7 +74,6 @@ export function useBrowserTabs() {
       browserCloseAllTabs: state.browserCloseAllTabs,
       browserToggleBookmark: state.browserToggleBookmark,
       browserClearHistory: state.browserClearHistory,
-      browserRemoveTabBookmarks: state.browserRemoveTabBookmarks,
       browserClearAllFolderTabs: state.browserClearAllFolderTabs,
     }))
   );
@@ -111,10 +109,10 @@ export function useBrowserTabs() {
 
   const handleCloseTab = useCallback(
     (tabId: string) => {
+      console.log('[ADL-DEBUG]', `handleCloseTab tabId=${tabId}`);
       const state = useAppStore.getState();
       const tab = state.browserTabs.find((t) => t.id === tabId);
       if (tab) {
-        browserRemoveTabBookmarks(tabId, tab.url || '');
         if (tab.url) {
           clearFaviconCacheForUrl(tab.url);
           clearPageMetaCacheForUrl(tab.url);
@@ -123,7 +121,7 @@ export function useBrowserTabs() {
       }
       browserCloseTab(tabId);
     },
-    [browserCloseTab, browserRemoveTabBookmarks]
+    [browserCloseTab]
   );
 
   const handleCloseAllTabs = useCallback(
@@ -137,14 +135,12 @@ export function useBrowserTabs() {
           clearPageMetaCacheForUrl(url);
         }
         for (const tabId of allTabIds) {
-          const tab = state.browserTabs.find((t) => t.id === tabId);
-          browserRemoveTabBookmarks(tabId, tab?.url || '');
           unlockTabTitle(tabId);
         }
       }
       browserCloseAllTabs(workspaceId);
     },
-    [browserCloseAllTabs, browserRemoveTabBookmarks]
+    [browserCloseAllTabs]
   );
 
   const handleClearTabDirectories = useCallback(() => {

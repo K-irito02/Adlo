@@ -19,7 +19,11 @@ import { resolveFolderWorkspaceId } from './browserPanelHelpers';
 import { BrowserOpenTabFlatList } from './BrowserOpenTabFlatList';
 import type { BrowserNavigatorMode } from './useBrowserTabs';
 import type { BrowserSearchScope } from './useBrowserSearch';
-import type { BrowserTabState } from '../../stores/slices/browserSlice';
+import type {
+  BrowserTabState,
+  BrowserBookmark,
+  WorkspaceBookmarkEntry,
+} from '../../stores/slices/browserSlice';
 import type { TabFolderState } from '../../stores/slices/browserFoldersSlice';
 import type { BrowserHistoryState } from '../../stores/slices/browserHistorySlice';
 import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
@@ -44,7 +48,9 @@ export interface BrowserNavigatorProps {
   browserTabs: BrowserTabState[];
   browserTabFolders: TabFolderState[];
   browserHistory: BrowserHistoryState[];
-  browserWorkspaceBookmarks: Record<string, string[]>;
+  browserWorkspaceBookmarks: Record<string, WorkspaceBookmarkEntry[]>;
+  browserBookmarks?: BrowserBookmark[];
+  browserBookmarkTabIdUrlMap?: Record<string, string>;
   tabTreeExpanded: Record<string, boolean>;
   selectedTreePath: string | null;
   selectedTreePathRef: React.MutableRefObject<string | null>;
@@ -69,6 +75,8 @@ export interface BrowserNavigatorProps {
   onOpenTabInNewTab: (url: string, title: string) => void;
   onOpenTabInCurrentTab: (tabId: string) => void;
   onBookmarkTab?: (url: string, title: string) => void;
+  onCloseTabHandler?: (tabId: string) => void;
+  onRemoveBookmarkTab?: (tabId: string, url: string) => void;
 
   onCreateTabDialog: React.Dispatch<
     React.SetStateAction<{ open: boolean; workspaceId?: string; folderId?: string }>
@@ -110,6 +118,8 @@ export function BrowserNavigator({
   browserTabFolders,
   browserHistory,
   browserWorkspaceBookmarks,
+  browserBookmarks,
+  browserBookmarkTabIdUrlMap,
   tabTreeExpanded,
   selectedTreePath,
   selectedTreePathRef,
@@ -132,6 +142,8 @@ export function BrowserNavigator({
   onOpenTabInNewTab: handleOpenTabInNewTab,
   onOpenTabInCurrentTab: handleOpenTabInCurrentTab,
   onBookmarkTab: handleBookmarkTab,
+  onRemoveBookmarkTab: handleRemoveBookmarkTab,
+  onCloseTabHandler: handleCloseTabHandler,
   onCreateTabDialog: setCreateTabDialog,
   onCreateDirDialog: setCreateDirDialog,
   onRenameFolder: setRenameFolderState,
@@ -316,7 +328,7 @@ export function BrowserNavigator({
               handleOpenTabFromTree(tab.url, tab.id);
             }
           }}
-          onCloseTab={(tabId) => handleDeleteTab(tabId, '')}
+          onCloseTab={(tabId) => handleCloseTabHandler?.(tabId)}
           evictedTabIds={evictedTabIds}
         />
       ) : navigatorMode === 'tabs' ? (
@@ -326,6 +338,8 @@ export function BrowserNavigator({
           browserTabFolders={browserTabFolders}
           browserHistory={browserHistory}
           browserWorkspaceBookmarks={browserWorkspaceBookmarks}
+          browserBookmarks={browserBookmarks}
+          browserBookmarkTabIdUrlMap={browserBookmarkTabIdUrlMap}
           tabTreeExpanded={tabTreeExpanded}
           selectedTreePath={selectedTreePath}
           onSelectTreePath={handleSelectTreePath}
@@ -352,6 +366,7 @@ export function BrowserNavigator({
             onOpenTabInNewTab: handleOpenTabInNewTab,
             onOpenTabInCurrentTab: handleOpenTabInCurrentTab,
             onBookmarkTab: handleBookmarkTab,
+            onRemoveBookmarkTab: handleRemoveBookmarkTab,
           }}
           labels={{
             workspaceCategory: t.browserCategoryWorkspace,
@@ -366,6 +381,8 @@ export function BrowserNavigator({
           browserTabFolders={browserTabFolders}
           browserHistory={browserHistory}
           browserWorkspaceBookmarks={browserWorkspaceBookmarks}
+          browserBookmarks={browserBookmarks}
+          browserBookmarkTabIdUrlMap={browserBookmarkTabIdUrlMap}
           tabTreeExpanded={tabTreeExpanded}
           selectedTreePath={selectedTreePath}
           onSelectTreePath={handleSelectTreePath}
@@ -393,6 +410,7 @@ export function BrowserNavigator({
             onOpenTabInNewTab: handleOpenTabInNewTab,
             onOpenTabInCurrentTab: handleOpenTabInCurrentTab,
             onBookmarkTab: handleBookmarkTab,
+            onRemoveBookmarkTab: handleRemoveBookmarkTab,
           }}
           labels={{
             workspaceCategory: t.browserCategoryWorkspace,

@@ -94,6 +94,7 @@
 | [browser-tab-title-deferred-update-2026-06-26.md](./浏览器/browser-tab-title-deferred-update-2026-06-26.md)                             | 2026-06-26 Bug 修复                        | 标签标题延迟更新与通用 prefetch：标题闪烁/SPA 回退标题不更新的根因分析与修复方案 |
 | [browser-audio-indicator-favicon-stability-2026-06-27.md](./浏览器/browser-audio-indicator-favicon-stability-2026-06-27.md)           | 2026-06-27 音频指示器实现                  | 音频指示器 Favicon 位置稳定性（条件性 DOM 结构问题）+ Rust 端静音状态覆盖修复 |
 | [browser-bookmark-dialog-store-pattern-audio-fix-2026-06-28.md](./浏览器/browser-bookmark-dialog-store-pattern-audio-fix-2026-06-28.md) | 2026-06-28 书签对话框 + 音频调试   | 书签对话框 store-based 模式替代 callback chain、音频调试端到端追踪经验 |
+| [browser-spa-navigation-title-sync-fix-2026-06-28.md](./浏览器/browser-spa-navigation-title-sync-fix-2026-06-28.md)               | 2026-06-28 Bug 修复                | SPA 导航标题同步修复：双重 Bug（SPA URL 归一化覆盖真实标题 + INIT_SCRIPT 强制整页导航阻断 SPA 标题），microtask 回退策略 |
 
 ### 代码质量
 

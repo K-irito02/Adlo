@@ -8,6 +8,8 @@ import type {
   BrowserTabState,
   TabFolderState,
   BrowserHistoryState,
+  BrowserBookmark,
+  WorkspaceBookmarkEntry,
 } from '../../stores/slices/browserSlice';
 
 interface BrowserCategoryLabels {
@@ -35,6 +37,7 @@ interface BrowserTabTreeCallbacks {
   onOpenTabInCurrentTab: (tabId: string) => void;
   onCloseTab?: (tabId: string) => void;
   onBookmarkTab?: (url: string, title: string) => void;
+  onRemoveBookmarkTab?: (tabId: string, url: string) => void;
 }
 
 interface BrowserTabTreeProps {
@@ -42,7 +45,9 @@ interface BrowserTabTreeProps {
   browserTabs: BrowserTabState[];
   browserTabFolders: TabFolderState[];
   browserHistory: BrowserHistoryState[];
-  browserWorkspaceBookmarks: Record<string, string[]>;
+  browserWorkspaceBookmarks: Record<string, WorkspaceBookmarkEntry[]>;
+  browserBookmarks?: BrowserBookmark[];
+  browserBookmarkTabIdUrlMap?: Record<string, string>;
   tabTreeExpanded: Record<string, boolean>;
   selectedTreePath: string | null;
   onSelectTreePath: (path: string | null) => void;
@@ -59,6 +64,8 @@ export function BrowserTabTree({
   browserTabFolders,
   browserHistory,
   browserWorkspaceBookmarks,
+  browserBookmarks,
+  browserBookmarkTabIdUrlMap,
   tabTreeExpanded,
   selectedTreePath,
   onSelectTreePath,
@@ -74,6 +81,8 @@ export function BrowserTabTree({
     browserTabFolders,
     browserHistory,
     browserWorkspaceBookmarks,
+    browserBookmarks ?? [],
+    browserBookmarkTabIdUrlMap ?? {},
     labels
   );
 
@@ -93,6 +102,20 @@ export function BrowserTabTree({
           return;
         }
       }
+      if (nodePath.startsWith('bookmark:')) {
+        const rest = nodePath.slice('bookmark:'.length);
+        const firstColon = rest.indexOf(':');
+        const wsId = firstColon >= 0 ? rest.slice(0, firstColon) : '';
+        const tabId = firstColon >= 0 ? rest.slice(firstColon + 1) : rest;
+        const entries = browserWorkspaceBookmarks[wsId];
+        if (entries) {
+          const entry = entries.find((e) => e.tabId === tabId);
+          if (entry?.url) {
+            callbacks.onOpenTab(entry.url);
+            return;
+          }
+        }
+      }
       if (nodePath.startsWith('history-entry:')) {
         const entryId = nodePath.slice('history-entry:'.length);
         const histEntry = browserHistory.find((h) => h.id === entryId);
@@ -101,7 +124,7 @@ export function BrowserTabTree({
         }
       }
     },
-    [browserTabs, browserHistory, callbacks]
+    [browserTabs, browserHistory, browserWorkspaceBookmarks, callbacks]
   );
 
   return (

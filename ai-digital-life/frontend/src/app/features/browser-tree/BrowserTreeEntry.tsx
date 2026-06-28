@@ -453,7 +453,14 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
               danger: true,
               action: () => {
                 if (contextMenuForTab.node.tabId && contextMenuForTab.node.url) {
-                  callbacks.onDeleteTab(contextMenuForTab.node.tabId, contextMenuForTab.node.url);
+                  if (contextMenuForTab.node.isSavedBookmark) {
+                    callbacks.onRemoveBookmarkTab?.(
+                      contextMenuForTab.node.tabId,
+                      contextMenuForTab.node.url
+                    );
+                  } else {
+                    callbacks.onDeleteTab(contextMenuForTab.node.tabId, contextMenuForTab.node.url);
+                  }
                 }
                 setContextMenuForTab(null);
               },

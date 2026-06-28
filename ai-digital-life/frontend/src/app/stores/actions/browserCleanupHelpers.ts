@@ -2,14 +2,18 @@
  * 浏览器清理辅助函数
  * 从 workspaceActions.ts 提取的纯函数和类型
  */
-import type { BrowserTabState, TabFolderState } from '../slices/browserSlice';
+import type {
+  BrowserTabState,
+  TabFolderState,
+  WorkspaceBookmarkEntry,
+} from '../slices/browserSlice';
 
 export interface BrowserCleanupResult {
   browserTabs: BrowserTabState[];
   browserTabsById: Record<string, BrowserTabState>;
   browserTabFolders: TabFolderState[];
   browserWorkspaceExpanded: Record<string, boolean>;
-  browserWorkspaceBookmarks: Record<string, string[]>;
+  browserWorkspaceBookmarks: Record<string, WorkspaceBookmarkEntry[]>;
   browserActiveTabId: string;
 }
 
@@ -23,7 +27,7 @@ export function stripWorkspaceFromBrowserState(
   currentTabs: BrowserTabState[],
   currentFolders: TabFolderState[],
   currentExpanded: Record<string, boolean>,
-  currentWorkspaceBookmarks: Record<string, string[]>,
+  currentWorkspaceBookmarks: Record<string, WorkspaceBookmarkEntry[]>,
   currentActiveTabId: string
 ): BrowserCleanupResult {
   const browserTabs = currentTabs.filter((t) => t.workspaceId !== workspaceId);

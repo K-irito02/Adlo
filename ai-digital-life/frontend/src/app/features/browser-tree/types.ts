@@ -15,6 +15,9 @@ export interface BrowserTreeNode extends FileTreeRenderableNode {
   isPlayingAudio?: boolean;
   isAudioMuted?: boolean;
   associatedTabId?: string;
+  /** True if this node represents a saved bookmark (workspace bookmark or user folder entry).
+   *  Its delete action should only remove bookmark state, not close the underlying tab. */
+  isSavedBookmark?: boolean;
 }
 
 export interface BrowserCategoryState {
