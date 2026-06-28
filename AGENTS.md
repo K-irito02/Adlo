@@ -64,25 +64,70 @@ Rust 增量编译缓存 `target/debug/incremental/` 每次编译创建新会话�
 
 所有功能必须在 **Tauri 桌面应用** 和 **浏览器模式** 中保持一致。新增 IPC 方法必须同步实现 `tauri-bridge.ts` / `preview-bridge/` / `mock-bridge.ts`。
 
-## Superpowers 插件
+## Superpowers 技能系统
 
-Superpowers v6.0.3 已通过全局 opencode.json 安装为插件：
+### 插件安装
+
+Superpowers v6.0.3 通过全局 opencode.json 安装为插件：
 ```json
 "plugin": ["~/.config/opencode/node_modules/superpowers"]
 ```
-插件提供 14 个核心技能（自动注入 bootstrap）和工具映射适配。更新：`npm install superpowers@git+https://github.com/obra/superpowers.git --prefix "$HOME\.config\opencode"`
+插件提供 14 个核心技能（自动注入 bootstrap）和工具映射适配。
 
-## 技能系统
+更新命令：
+```powershell
+npm install superpowers@git+https://github.com/obra/superpowers.git --prefix "$HOME\.config\opencode"
+```
+
+### 技能目录结构
 
 | 目录 | 职责 | 技能数量 |
 |------|------|----------|
-| `.opencode/skills/` | 源目录 | 22 |
-| `.agents/skills/` | 同步（备份） | 22 |
-| `.trae/skills/` | IDE 加载 | 22 |
+| `.opencode/skills/` | 源目录（真源） | 22 |
+| `.agents/skills/` | 同步备份 | 22 |
 
-**Superpowers 核心**（14 个，插件提供，本地副本为跨 IDE 兼容）：brainstorming、dispatching-parallel-agents、executing-plans、finishing-a-development-branch、receiving-code-review、requesting-code-review、subagent-driven-development、systematic-debugging、test-driven-development、using-git-worktrees、using-superpowers、verification-before-completion、writing-plans、writing-skills
+**同步规则**：`.opencode/skills/` 是真源，修改后需同步到 `.agents/skills/`。
 
-**项目定制**（8 个）：browser-automation、dogfood、find-skills、frontend-design、refactoring-insight、run-project-surfaces、skill-creator、ui-ux-pro-max
+### 技能分类
+
+**Superpowers 核心技能**（14 个，插件提供，本地副本用于跨 IDE 兼容）：
+
+| 技能 | 用途 | 触发场景 |
+|------|------|----------|
+| `using-superpowers` | 技能系统入口，规定技能调用规范 | 对话开始时自动触发 |
+| `brainstorming` | 头脑风暴与需求发散 | 新功能规划、创意任务 |
+| `writing-plans` | 计划撰写与评审 | 多步骤任务实施前 |
+| `executing-plans` | 计划执行与检查点 | 按计划分步实施 |
+| `test-driven-development` | 测试驱动开发 | 新功能开发、Bug 修复 |
+| `systematic-debugging` | 系统化调试 | Bug 排查与根因分析 |
+| `subagent-driven-development` | 子代理驱动开发 | 大型任务拆解与并行 |
+| `dispatching-parallel-agents` | 并行代理调度 | 独立任务并行执行 |
+| `requesting-code-review` | 请求代码审查 | 功能完成后、合并前 |
+| `receiving-code-review` | 接收代码审查反馈 | 收到审查意见后 |
+| `verification-before-completion` | 完成前验证 | 任务收尾、验收前 |
+| `finishing-a-development-branch` | 开发分支收尾 | 分支合并前 |
+| `using-git-worktrees` | Git 工作树使用 | 并行开发、隔离工作区 |
+| `writing-skills` | 技能创作 | 新增/修改技能 |
+
+**项目定制技能**（8 个）：
+
+| 技能 | 用途 |
+|------|------|
+| `browser-automation` | 浏览器自动化测试 |
+| `dogfood` | 内部试用与问题发现 |
+| `find-skills` | 技能发现与安装 |
+| `frontend-design` | 前端界面设计 |
+| `refactoring-insight` | 重构洞察 |
+| `run-project-surfaces` | 启动项目预览 |
+| `skill-creator` | 技能创建工具 |
+| `ui-ux-pro-max` | UI/UX 设计专家 |
+
+### 使用规范
+
+1. **技能优先**：收到用户请求后，先判断是否有相关技能可用，有则先调用技能再行动
+2. **入口技能**：`using-superpowers` 是技能系统入口，对话开始时优先触发
+3. **流程顺序**：过程类技能（brainstorming、systematic-debugging 等）先于实现类技能调用
+4. **用户指令优先**：用户明确指示不使用某技能时，以用户指令为准
 
 ## 相关文档
 

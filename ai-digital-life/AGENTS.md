@@ -135,7 +135,8 @@ app/stores/
 
 ## 相关文件
 
-- [仓库根 AGENTS.md](../AGENTS.md) — 项目治理规则
+- [仓库根 AGENTS.md](../AGENTS.md) — 项目治理规则（含 Superpowers 技能系统）
+- [技能系统入口](../.opencode/skills/using-superpowers/SKILL.md) — using-superpowers 入口技能
 - [FUTURE-ROADMAP.md](../FUTURE-ROADMAP.md) — 远期规划
 
 ## 磁盘空间管理

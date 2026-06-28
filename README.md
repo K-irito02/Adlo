@@ -10,15 +10,16 @@ AI 数字生命桌面应用的规划与治理仓库。
 | [docs/](./docs/) | 架构设计、开发约束、知识沉淀 |
 | [.trae/rules/](./.trae/rules/) | AI 代理规则（IDE 加载，由 `.agents/rules/` 同步） |
 | [UIOperationManual/](./UIOperationManual/) | UI 元素定位手册（浏览器自动化测试用） |
-| [.opencode/skills/](./.opencode/skills/) | AI 代理技能包 |
+| [.opencode/skills/](./.opencode/skills/) | AI 代理技能包（22 个，含 Superpowers 核心） |
 
 ## 快速入口
 
-- [AGENTS.md](./AGENTS.md) — 项目治理规则、Phase 划分、禁止项、真源定位
+- [AGENTS.md](./AGENTS.md) — 项目治理规则、Phase 划分、禁止项、Superpowers 技能系统
 - [ai-digital-life/README.md](./ai-digital-life/README.md) — 实现工作区快速开始
 - [ai-digital-life/AGENTS.md](./ai-digital-life/AGENTS.md) — 技术栈、功能清单、Store 架构
 - [FUTURE-ROADMAP.md](./FUTURE-ROADMAP.md) — 远期规划
 - [docs/知识沉淀/README.md](./docs/知识沉淀/README.md) — 经验教训索引
+- [.opencode/skills/using-superpowers/SKILL.md](./.opencode/skills/using-superpowers/SKILL.md) — 技能系统入口
 
 ## 技术栈摘要
 

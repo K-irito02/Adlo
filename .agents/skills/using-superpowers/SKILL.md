@@ -29,6 +29,8 @@ If CLAUDE.md, GEMINI.md, or AGENTS.md says "don't use TDD" and a skill says "alw
 
 **Never read skill files manually with file tools** — always use your platform's skill-loading mechanism so the skill is properly activated.
 
+**In Trae IDE:** Use the `Skill` tool. The skill system auto-discovers skills from `.opencode/skills/` and `.agents/skills/` directories. Invoke a skill by its name when its description matches the task.
+
 **In Claude Code:** Use the `Skill` tool. When you invoke a skill, its content is loaded and presented to you — follow it directly.
 
 **In Codex:** Skills load natively. Follow the instructions presented when a skill activates.
@@ -41,7 +43,19 @@ If CLAUDE.md, GEMINI.md, or AGENTS.md says "don't use TDD" and a skill says "alw
 
 ## Platform Adaptation
 
-Skills speak in actions ("dispatch a subagent", "create a todo", "read a file") rather than naming any one runtime's tools. For per-platform tool equivalents and instructions-file conventions, see [claude-code-tools.md](references/claude-code-tools.md), [codex-tools.md](references/codex-tools.md), [copilot-tools.md](references/copilot-tools.md), [gemini-tools.md](references/gemini-tools.md), [pi-tools.md](references/pi-tools.md), and [antigravity-tools.md](references/antigravity-tools.md). Gemini CLI users get the tool mapping loaded automatically via GEMINI.md.
+Skills speak in actions ("dispatch a subagent", "create a todo", "read a file") rather than naming any one runtime's tools. For per-platform tool equivalents and instructions-file conventions, see the reference files below:
+
+| Platform | Reference File |
+|----------|---------------|
+| Trae IDE | [trae-tools.md](references/trae-tools.md) |
+| Claude Code | [claude-code-tools.md](references/claude-code-tools.md) |
+| Codex | [codex-tools.md](references/codex-tools.md) |
+| Copilot CLI | [copilot-tools.md](references/copilot-tools.md) |
+| Gemini CLI | [gemini-tools.md](references/gemini-tools.md) |
+| Pi | [pi-tools.md](references/pi-tools.md) |
+| Antigravity | [antigravity-tools.md](references/antigravity-tools.md) |
+
+**Trae IDE 环境说明：** 技能通过 `Skill` 工具调用，子代理通过 `general_purpose_task` / `search` 等 `subagent_type` 调度。任务跟踪使用 `TodoWrite`，命令执行使用 `RunCommand`。
 
 # Using Skills
 
