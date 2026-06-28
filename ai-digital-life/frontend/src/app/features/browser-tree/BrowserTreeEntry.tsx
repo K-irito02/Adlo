@@ -13,6 +13,7 @@ import {
   getEntryMoreMenuItems,
 } from './browserTreeEntryUtils';
 import { BrowserTreeEntryFlatList } from './BrowserTreeEntryFlatList';
+import { handleBookmarkToggle } from './browserEntrySubEntriesUtils';
 
 interface BrowserTreeEntryProps {
   node: BrowserTreeNode;
@@ -435,23 +436,11 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
                 ? t.browserUnbookmark
                 : t.browserBookmark,
               action: () => {
-                const url = contextMenuForTab.node.url;
-                const isBookmarked = url
-                  ? useAppStore.getState().browserBookmarks.some((b) => b.url === url)
-                  : false;
-                if (url) {
-                  if (isBookmarked) {
-                    useAppStore
-                      .getState()
-                      .browserToggleBookmark({ url, title: contextMenuForTab.node.name });
-                  } else {
-                    useAppStore.getState().browserSetPendingBookmark({
-                      url,
-                      title: contextMenuForTab.node.name,
-                      tabId: contextMenuForTab.node.tabId || undefined,
-                    });
-                  }
-                }
+                handleBookmarkToggle(
+                  contextMenuForTab.node.url ?? '',
+                  contextMenuForTab.node.name,
+                  contextMenuForTab.node.tabId
+                );
                 setContextMenuForTab(null);
               },
             },

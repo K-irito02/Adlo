@@ -132,6 +132,16 @@ export function getChildNodeMoreMenuItems(
   return [];
 }
 
+export function handleBookmarkToggle(url: string, title: string, tabId?: string): void {
+  if (!url) return;
+  const stillBookmarked = useAppStore.getState().browserBookmarks.some((b) => b.url === url);
+  if (stillBookmarked) {
+    useAppStore.getState().browserToggleBookmark({ url, title });
+  } else {
+    useAppStore.getState().browserSetPendingBookmark({ url, title, tabId: tabId || undefined });
+  }
+}
+
 export function getTabContextMenuItems(
   node: BrowserTreeNode,
   callbacks: SectionCallbacks,
@@ -195,19 +205,7 @@ export function getTabContextMenuItems(
       id: 'bookmark-toggle',
       label: isBookmarked ? t.browserUnbookmark : t.browserBookmark,
       action: () => {
-        if (!node.url) {
-          return;
-        }
-        const stillBookmarked = useAppStore.getState().browserBookmarks.some((b) => b.url === node.url);
-        if (stillBookmarked) {
-          useAppStore.getState().browserToggleBookmark({ url: node.url, title: node.name });
-        } else {
-          useAppStore.getState().browserSetPendingBookmark({
-            url: node.url,
-            title: node.name,
-            tabId: node.tabId || undefined,
-          });
-        }
+        handleBookmarkToggle(node.url || '', node.name, node.tabId);
       },
     },
     {
