@@ -156,6 +156,6 @@ export const browserEn = {
   browserNavigateNewTab: 'New tab: links open in new tabs',
   browserFetchingPageMeta: 'Fetching page info...',
   browserCreating: 'Creating...',
-  browserMute: 'Mute tab',
-  browserUnmute: 'Unmute tab',
+  browserMute: 'Mute',
+  browserUnmute: 'Unmute',
 } as const;
