@@ -18,4 +18,4 @@ export type {
   BackgroundConfig,
   BackgroundMode,
   BackgroundFit,
-} from '../../stores/slices/browserSlice';
+} from '@stores/slices/browserSlice';

@@ -8,9 +8,9 @@ import {
   IconFolderOpen,
   IconClose,
   IconUnfoldVertical,
-} from '../../icons';
-import { CustomScrollArea } from '../file-tree/CustomScrollArea';
-import type { FileTreeRenderableNode } from '../file-tree/fileTree.utils';
+} from '@icons';
+import { CustomScrollArea } from '@features/file-tree/CustomScrollArea';
+import type { FileTreeRenderableNode } from '@features/file-tree/fileTree.utils';
 
 interface BookmarkToFolderDialogProps {
   open: boolean;

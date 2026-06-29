@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserTabTree } from '../browser-tree';
+import { BrowserTabTree } from '@features/browser-tree';
 import type { BrowserNavTabsModeProps } from './BrowserNavTabsMode';
 
 export type BrowserNavListModeProps = Omit<BrowserNavTabsModeProps, 'onBookmarkTab' | 'onRemoveBookmarkTab'>;

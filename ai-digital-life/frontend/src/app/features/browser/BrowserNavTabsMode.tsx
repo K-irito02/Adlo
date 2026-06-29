@@ -1,11 +1,11 @@
 import React from 'react';
-import { BrowserTabTree } from '../browser-tree';
-import type { BrowserTabState } from '../../stores/slices/browserSlice';
-import type { BrowserBookmark } from '../../stores/slices/browserSlice';
-import type { TabFolderState } from '../../stores/slices/browserFoldersSlice';
-import type { BrowserHistoryState } from '../../stores/slices/browserHistorySlice';
+import { BrowserTabTree } from '@features/browser-tree';
+import type { BrowserTabState } from '@stores/slices/browserSlice';
+import type { BrowserBookmark } from '@stores/slices/browserSlice';
+import type { TabFolderState } from '@stores/slices/browserFoldersSlice';
+import type { BrowserHistoryState } from '@stores/slices/browserHistorySlice';
 import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
-import type { WorkspaceBookmarkEntry } from '../../stores/slices/browserSlice';
+import type { WorkspaceBookmarkEntry } from '@stores/slices/browserSlice';
 
 export interface BrowserNavTabsModeProps {
   visibleWorkspaces: RecentWorkspaceEntry[];

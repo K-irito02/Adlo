@@ -1,11 +1,11 @@
 import React, { useMemo } from 'react';
-import { IconClose, IconLink } from '../../icons';
-import { TooltipSimple } from '../../components/Tooltip';
-import { BrowserAudioIndicator } from '../../components/BrowserAudioIndicator';
-import type { BrowserTabState } from '../../stores/slices/browserSlice';
-import type { CopyDict } from '../../i18n';
-import { useAppStore } from '../../stores/slicedStore';
-import { getFaviconUrl, getGoogleFaviconUrl } from '../../utils/favicon';
+import { IconClose, IconLink } from '@icons';
+import { TooltipSimple } from '@components/Tooltip';
+import { BrowserAudioIndicator } from '@components/BrowserAudioIndicator';
+import type { BrowserTabState } from '@stores/slices/browserSlice';
+import type { CopyDict } from '@i18n';
+import { useAppStore } from '@stores/slicedStore';
+import { getFaviconUrl, getGoogleFaviconUrl } from '@utils/favicon';
 
 interface BrowserTabBarProps {
   tabs: BrowserTabState[];

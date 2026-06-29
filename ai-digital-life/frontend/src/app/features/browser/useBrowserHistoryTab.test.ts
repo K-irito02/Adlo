@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { findTabByUrl } from './useBrowserTabs';
-import type { BrowserTabState } from '../../stores/slices/browserSlice';
+import type { BrowserTabState } from '@stores/slices/browserSlice';
 
 function makeTab(id: string, url: string): BrowserTabState {
   return {

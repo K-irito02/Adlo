@@ -1,13 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { SafeIframe } from './SafeIframe';
-import { ErrorBoundary } from '../../components/ErrorBoundary';
+import { ErrorBoundary } from '@components/ErrorBoundary';
 import { ExternalLinkError } from './ExternalLinkError';
-import { useAppStore } from '../../stores/slicedStore';
-import { isTauriShell } from '../../../tauri-bridge';
-import { OrbitalLoader } from '../../components/OrbitalLoader';
+import { useAppStore } from '@stores/slicedStore';
+import { isTauriShell } from '@tauri-bridge';
+import { OrbitalLoader } from '@components/OrbitalLoader';
 import { BrowserLandingPage } from './browser-landing';
-import type { BrowserTabState } from '../../stores/slices/browserSlice';
-import type { CopyDict } from '../../i18n/types';
+import type { BrowserTabState } from '@stores/slices/browserSlice';
+import type { CopyDict } from '@i18n/types';
 
 const IFRAME_POOL_SIZE = 5;
 

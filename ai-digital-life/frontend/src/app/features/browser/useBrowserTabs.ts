@@ -1,13 +1,13 @@
 import type React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useAppStore } from '../../stores/slicedStore';
+import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
-import type { BrowserTabState } from '../../stores/slices/browserSlice';
+import type { BrowserTabState } from '@stores/slices/browserSlice';
 import {
   clearFaviconCacheForUrl,
   clearPageMetaCacheForUrl,
   unlockTabTitle,
-} from '../../utils/fetchPageMeta';
+} from '@utils/fetchPageMeta';
 
 export type BrowserNavigatorMode = 'open' | 'tabs' | 'list' | 'search';
 

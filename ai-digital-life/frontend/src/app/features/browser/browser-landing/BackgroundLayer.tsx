@@ -1,4 +1,4 @@
-import type { BackgroundConfig } from '../../../stores/slices/browserSlice';
+import type { BackgroundConfig } from '@stores/slices/browserSlice';
 import './BackgroundLayer.css';
 
 interface BackgroundLayerProps {

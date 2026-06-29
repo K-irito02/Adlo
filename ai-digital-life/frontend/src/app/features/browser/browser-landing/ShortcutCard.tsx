@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import type { ShortcutSite } from '../../../stores/slices/browserSlice';
+import type { ShortcutSite } from '@stores/slices/browserSlice';
 
 interface ShortcutCardProps {
   site: ShortcutSite;

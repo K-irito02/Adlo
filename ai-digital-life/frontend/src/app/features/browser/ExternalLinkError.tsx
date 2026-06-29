@@ -1,8 +1,8 @@
 import React, { useCallback } from 'react';
-import { IconAlertTriangle, IconGlobe } from '../../icons';
-import { isTauriShell } from '../../../tauri-bridge';
+import { IconAlertTriangle, IconGlobe } from '@icons';
+import { isTauriShell } from '@tauri-bridge';
 import { open as shellOpen } from '@tauri-apps/plugin-shell';
-import type { CopyDict, CopyKey } from '../../i18n/types';
+import type { CopyDict, CopyKey } from '@i18n/types';
 
 export interface ExternalLinkErrorProps {
   errorKey: CopyKey;

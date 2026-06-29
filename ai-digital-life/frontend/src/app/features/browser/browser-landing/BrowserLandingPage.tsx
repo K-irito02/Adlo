@@ -1,5 +1,5 @@
 import { useCallback, useState, useMemo } from 'react';
-import { useAppStore } from '../../../stores/slicedStore';
+import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { BackgroundLayer } from './BackgroundLayer';
 import { ShortcutGrid } from './ShortcutGrid';
@@ -7,8 +7,8 @@ import { LocalPortSection } from './LocalPortSection';
 import { AddShortcutDialog } from './AddShortcutDialog';
 import { AddManualPortDialog } from './AddManualPortDialog';
 import { BackgroundSettingsDialog } from './BackgroundSettingsDialog';
-import type { ShortcutSite, LocalPort } from '../../../stores/slices/browserSlice';
-import { ContextMenu } from '../../../components/ContextMenu';
+import type { ShortcutSite, LocalPort } from '@stores/slices/browserSlice';
+import { ContextMenu } from '@components/ContextMenu';
 import './BrowserLandingPage.css';
 
 interface BrowserLandingPageProps {

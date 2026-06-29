@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { useAppStore } from '../../stores/slicedStore';
+import { useAppStore } from '@stores/slicedStore';
 import { useBrowserContextMenu } from './useBrowserContextMenu';
-import type { BrowserTabState } from '../../stores/slices/browserSlice';
-import { useTCopy } from '../../i18n/useTCopy';
+import type { BrowserTabState } from '@stores/slices/browserSlice';
+import { useTCopy } from '@i18n/useTCopy';
 
 export type BrowserNavigatorMode = 'tabs' | 'bookmarks' | 'history';
 

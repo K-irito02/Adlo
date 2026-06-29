@@ -9,8 +9,8 @@ import {
   IconLayoutList,
   IconFoldVertical,
   IconUnfoldVertical,
-} from '../../icons';
-import { TooltipSimple } from '../../components/Tooltip';
+} from '@icons';
+import { TooltipSimple } from '@components/Tooltip';
 import { NavigatorResizeHandle } from '@components/NavigatorResizeHandle';
 import { resolveFolderWorkspaceId } from './browserPanelHelpers';
 import { BrowserNavOpenMode } from './BrowserNavOpenMode';
@@ -23,12 +23,12 @@ import type {
   BrowserTabState,
   BrowserBookmark,
   WorkspaceBookmarkEntry,
-} from '../../stores/slices/browserSlice';
-import type { TabFolderState } from '../../stores/slices/browserFoldersSlice';
-import type { BrowserHistoryState } from '../../stores/slices/browserHistorySlice';
+} from '@stores/slices/browserSlice';
+import type { TabFolderState } from '@stores/slices/browserFoldersSlice';
+import type { BrowserHistoryState } from '@stores/slices/browserHistorySlice';
 import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
-import type { ToastType } from '../../components/Toast';
-import type { CopyDict } from '../../i18n/types';
+import type { ToastType } from '@components/Toast';
+import type { CopyDict } from '@i18n/types';
 
 export interface BrowserNavigatorProps {
   t: CopyDict;

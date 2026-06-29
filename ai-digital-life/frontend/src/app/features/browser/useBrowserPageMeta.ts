@@ -1,8 +1,8 @@
 import { useCallback, useRef } from 'react';
-import { useAppStore } from '../../stores/slicedStore';
-import { setCachedFavicon, isTabTitleLocked, getCachedFavicon } from '../../utils/fetchPageMeta';
-import type { ToastType } from '../../components/Toast';
-import type { BrowserTabState } from '../../stores/slices/browserSlice';
+import { useAppStore } from '@stores/slicedStore';
+import { setCachedFavicon, isTabTitleLocked, getCachedFavicon } from '@utils/fetchPageMeta';
+import type { ToastType } from '@components/Toast';
+import type { BrowserTabState } from '@stores/slices/browserSlice';
 
 function normalizeUrlForDedup(url: string): string {
   try {

@@ -1,18 +1,18 @@
 import React, { useCallback, useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { useAppStore } from '../../stores/slicedStore';
+import { useAppStore } from '@stores/slicedStore';
 import { BrowserToolbar } from './BrowserToolbar';
 import { BrowserNavigator } from './BrowserNavigator';
-import { useNavigatorResize } from '../../hooks/useNavigatorResize';
+import { useNavigatorResize } from '@hooks/useNavigatorResize';
 import { computeNavigatorCount, findTabByUrl } from './useBrowserTabs';
 import { BrowserIframeStack } from './BrowserIframeStack';
-import { isTauriShell } from '../../../tauri-bridge';
+import { isTauriShell } from '@tauri-bridge';
 import type { BrowserNavigatorMode } from './useBrowserTabs';
 import type { BrowserSearchScope } from './useBrowserSearch';
 import type { BrowserMenuItem } from './useBrowserMenus';
-import type { BrowserTabState } from '../../stores/slices/browserSlice';
-import type { TabFolderState } from '../../stores/slices/browserFoldersSlice';
-import type { CopyDict } from '../../i18n/types';
+import type { BrowserTabState } from '@stores/slices/browserSlice';
+import type { TabFolderState } from '@stores/slices/browserFoldersSlice';
+import type { CopyDict } from '@i18n/types';
 
 interface BrowserPanelContentProps {
   t: CopyDict;

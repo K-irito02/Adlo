@@ -1,4 +1,4 @@
-import type { FileTreeRenderableNode } from '../file-tree';
+import type { FileTreeRenderableNode } from '@features/file-tree';
 
 export type BrowserCategoryType = 'workspace' | 'userFolder' | 'history';
 

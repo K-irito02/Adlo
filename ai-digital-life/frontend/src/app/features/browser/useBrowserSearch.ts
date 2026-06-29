@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
-import type { BrowserTabState } from '../../stores/slices/browserSlice';
-import { useTCopy } from '../../i18n/useTCopy';
+import type { BrowserTabState } from '@stores/slices/browserSlice';
+import { useTCopy } from '@i18n/useTCopy';
 
 export type BrowserSearchScope = 'bookmarks' | 'history' | 'all';
 

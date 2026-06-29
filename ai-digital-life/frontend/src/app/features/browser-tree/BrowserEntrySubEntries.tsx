@@ -1,12 +1,12 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { FileTree } from '../file-tree';
-import { TooltipSimple } from '../../components/Tooltip';
-import { useTCopy } from '../../i18n/useTCopy';
-import { useMenuCloseOnOutsideClick } from '../tree/treeEntryMenus';
-import { BrowserFavicon } from '../../components/BrowserFavicon';
-import { BrowserAudioIndicator } from '../../components/BrowserAudioIndicator';
-import { useAppStore } from '../../stores/slicedStore';
+import { FileTree } from '@features/file-tree';
+import { TooltipSimple } from '@components/Tooltip';
+import { useTCopy } from '@i18n/useTCopy';
+import { useMenuCloseOnOutsideClick } from '@features/tree/treeEntryMenus';
+import { BrowserFavicon } from '@components/BrowserFavicon';
+import { BrowserAudioIndicator } from '@components/BrowserAudioIndicator';
+import { useAppStore } from '@stores/slicedStore';
 import type { BrowserTreeNode } from './types';
 import { resolveChildCount } from './useBrowserTreeData';
 import {

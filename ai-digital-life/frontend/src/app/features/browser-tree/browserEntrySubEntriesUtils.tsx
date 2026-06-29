@@ -1,9 +1,9 @@
 import React from 'react';
-import { IconClose, IconPlus, IconTrash, IconMoreVertical, IconRefreshCw } from '../../icons';
+import { IconClose, IconPlus, IconTrash, IconMoreVertical, IconRefreshCw } from '@icons';
 import type { BrowserTreeNode, BrowserCategoryType } from './types';
 import type { SectionCallbacks } from './BrowserCategorySection';
-import type { CopyDict } from '../../i18n';
-import { useAppStore } from '../../stores/slicedStore';
+import type { CopyDict } from '@i18n';
+import { useAppStore } from '@stores/slicedStore';
 
 export interface BrowserEntrySubEntriesProps {
   node: BrowserTreeNode;

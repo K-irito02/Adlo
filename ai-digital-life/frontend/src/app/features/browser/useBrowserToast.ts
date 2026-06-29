@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import type { ToastType } from '../../components/Toast';
+import type { ToastType } from '@components/Toast';
 
 export function useBrowserToast() {
   const [toastMessages, setToastMessages] = useState<

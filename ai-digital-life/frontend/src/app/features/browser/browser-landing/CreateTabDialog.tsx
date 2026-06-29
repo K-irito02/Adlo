@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { IconClose } from '../../../icons';
+import { IconClose } from '@icons';
 
 interface CreateTabDialogProps {
   open: boolean;

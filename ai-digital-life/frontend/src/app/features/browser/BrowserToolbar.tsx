@@ -11,11 +11,11 @@ import {
   IconStarFilled,
   IconPanelLeft,
   IconPanelLeftClose,
-} from '../../icons';
-import { TooltipSimple } from '../../components/Tooltip';
+} from '@icons';
+import { TooltipSimple } from '@components/Tooltip';
 import { BrowserNavModeSwitch } from './BrowserNavModeSwitch';
-import type { CopyDict } from '../../i18n';
-import type { BrowserTabState } from '../../stores/slices/browserSlice';
+import type { CopyDict } from '@i18n';
+import type { BrowserTabState } from '@stores/slices/browserSlice';
 import type { BrowserMenuItem } from './useBrowserMenus';
 import { BrowserMenuDropdown } from './BrowserMenuDropdown';
 

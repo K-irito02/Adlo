@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { isTauriShell } from '../../../tauri-bridge';
+import { isTauriShell } from '@tauri-bridge';
 import { useBrowserPool } from './useBrowserPool';
-import type { BrowserTabState } from '../../stores/slices/browserSlice';
+import type { BrowserTabState } from '@stores/slices/browserSlice';
 
 interface UseBrowserWebViewOptions {
   activeTab?: BrowserTabState;

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useBrowserToast } from './useBrowserToast';
 import { useBrowserDialogs } from './useBrowserDialogs';
 import { useShallow } from 'zustand/react/shallow';
-import { useAppStore } from '../../stores/slicedStore';
+import { useAppStore } from '@stores/slicedStore';
 import { useBrowserTabs } from './useBrowserTabs';
 import type { BrowserNavigatorMode } from './useBrowserTabs';
 import { useBrowserWebView } from './useBrowserWebView';
@@ -17,9 +17,9 @@ import { useBrowserMenus } from './useBrowserMenus';
 import { BrowserContextMenu } from './BrowserContextMenu';
 import { BrowserPanelContent } from './BrowserPanelContent';
 import { useBrowserThemeSync } from './useBrowserThemeSync';
-import { isTauriShell } from '../../../tauri-bridge';
-import type { BrowserPanelProps } from '../../regions/right-panel/types';
-import { useTCopy } from '../../i18n/useTCopy';
+import { isTauriShell } from '@tauri-bridge';
+import type { BrowserPanelProps } from '@regions/right-panel/types';
+import { useTCopy } from '@i18n/useTCopy';
 import {
   handleRenameFromContextMenu,
   handleDeleteFromContextMenu,
@@ -27,8 +27,8 @@ import {
 } from './browserPanelHelpers';
 import { BrowserPanelDialogs } from './BrowserPanelDialogs';
 import { checkEmbed, isEmbedBlocked } from './checkEmbed';
-import { setCachedFavicon } from '../../utils/fetchPageMeta';
-import { getGoogleFaviconUrl } from '../../utils/favicon';
+import { setCachedFavicon } from '@utils/fetchPageMeta';
+import { getGoogleFaviconUrl } from '@utils/favicon';
 
 export function BrowserPanel(props: BrowserPanelProps) {
   const { t } = useTCopy();
@@ -431,7 +431,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
     }
 
     if (!isTauriShell() && finalUrl) {
-      import('../../utils/fetchPageMeta').then((mod) => {
+      import('@utils/fetchPageMeta').then((mod) => {
         mod.fetchPageMeta(finalUrl).then((meta) => {
           if (!meta) {
             useAppStore.getState().browserAddToHistory(finalUrl, finalUrl);

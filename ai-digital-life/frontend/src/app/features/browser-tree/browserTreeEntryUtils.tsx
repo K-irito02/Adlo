@@ -1,8 +1,8 @@
 import React from 'react';
-import { IconPlus, IconMoreVertical } from '../../icons';
+import { IconPlus, IconMoreVertical } from '@icons';
 import type { BrowserTreeNode, BrowserCategoryType } from './types';
 import type { SectionCallbacks } from './BrowserCategorySection';
-import type { CopyDict } from '../../i18n';
+import type { CopyDict } from '@i18n';
 
 export type FlatItem =
   | { type: 'tab'; node: BrowserTreeNode }

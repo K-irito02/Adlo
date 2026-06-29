@@ -1,10 +1,10 @@
 import React, { useCallback } from 'react';
-import { IconClose, IconMoreVertical, IconRefreshCw } from '../../icons';
-import { TooltipSimple } from '../../components/Tooltip';
-import { BrowserFavicon } from '../../components/BrowserFavicon';
-import { BrowserAudioIndicator } from '../../components/BrowserAudioIndicator';
-import { useAppStore } from '../../stores/slicedStore';
-import { useTCopy } from '../../i18n/useTCopy';
+import { IconClose, IconMoreVertical, IconRefreshCw } from '@icons';
+import { TooltipSimple } from '@components/Tooltip';
+import { BrowserFavicon } from '@components/BrowserFavicon';
+import { BrowserAudioIndicator } from '@components/BrowserAudioIndicator';
+import { useAppStore } from '@stores/slicedStore';
+import { useTCopy } from '@i18n/useTCopy';
 import type { BrowserTreeNode } from './types';
 import type { FlatItem } from './browserTreeEntryUtils';
 

@@ -1,14 +1,14 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { useAppStore } from '../../stores/slicedStore';
-import { hostnameFromUrl } from '../../utils/browserDisplayUtils';
+import { useAppStore } from '@stores/slicedStore';
+import { hostnameFromUrl } from '@utils/browserDisplayUtils';
 import {
   getCachedFavicon,
   setCachedFavicon,
   prefetchPageMeta,
   lockTabTitle,
-} from '../../utils/fetchPageMeta';
-import { getGoogleFaviconUrl } from '../../utils/favicon';
-import type { ToastType } from '../../components/Toast';
+} from '@utils/fetchPageMeta';
+import { getGoogleFaviconUrl } from '@utils/favicon';
+import type { ToastType } from '@components/Toast';
 
 interface UseBrowserDialogsDeps {
   browserOpenTab: (url: string, title?: string, workspaceId?: string, folderId?: string) => void;

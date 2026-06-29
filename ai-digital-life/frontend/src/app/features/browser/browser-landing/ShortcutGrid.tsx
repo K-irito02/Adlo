@@ -1,7 +1,7 @@
 import { useCallback, useState, useMemo } from 'react';
-import { useAppStore } from '../../../stores/slicedStore';
+import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
-import type { ShortcutSite } from '../../../stores/slices/browserSlice';
+import type { ShortcutSite } from '@stores/slices/browserSlice';
 import { ShortcutCard } from './ShortcutCard';
 import './ShortcutGrid.css';
 

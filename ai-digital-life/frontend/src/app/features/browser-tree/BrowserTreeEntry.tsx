@@ -1,11 +1,11 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { TooltipSimple } from '../../components/Tooltip';
+import { TooltipSimple } from '@components/Tooltip';
 import type { BrowserTreeNode, BrowserCategoryType } from './types';
 import type { SectionCallbacks } from './BrowserCategorySection';
-import { useTCopy } from '../../i18n/useTCopy';
-import { useAppStore } from '../../stores/slicedStore';
-import { MultiTreeEntryShell } from '../tree/MultiTreeEntryShell';
+import { useTCopy } from '@i18n/useTCopy';
+import { useAppStore } from '@stores/slicedStore';
+import { MultiTreeEntryShell } from '@features/tree/MultiTreeEntryShell';
 import { BrowserEntrySubEntries } from './BrowserEntrySubEntries';
 import {
   buildFlatTabItems,

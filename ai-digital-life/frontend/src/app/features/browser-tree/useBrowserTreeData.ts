@@ -6,9 +6,9 @@ import type {
   BrowserHistoryState,
   BrowserBookmark,
   WorkspaceBookmarkEntry,
-} from '../../stores/slices/browserSlice';
+} from '@stores/slices/browserSlice';
 import type { BrowserCategoryState, BrowserCategoryType, BrowserTreeNode } from './types';
-import { normalizeTabTitle } from '../../utils/browserDisplayUtils';
+import { normalizeTabTitle } from '@utils/browserDisplayUtils';
 
 export function countDirectFileChildren(node: BrowserTreeNode): number {
   let n = 0;

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { isTauriShell } from '../../../tauri-bridge';
+import { isTauriShell } from '@tauri-bridge';
 
 export function useBrowserMetaSubscription(
   handlePageMeta: (meta: { title: string; favicon: string; url: string }) => void

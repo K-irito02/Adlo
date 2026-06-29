@@ -1,12 +1,12 @@
 import React from 'react';
-import { TooltipSimple } from '../../components/Tooltip';
-import { useTCopy } from '../../i18n/useTCopy';
-import { CustomScrollArea } from '../file-tree/CustomScrollArea';
-import { BrowserFavicon } from '../../components/BrowserFavicon';
-import { BrowserAudioIndicator } from '../../components/BrowserAudioIndicator';
-import { useAppStore } from '../../stores/slicedStore';
-import { IconClose } from '../../icons';
-import type { BrowserTabState } from '../../stores/slices/browserSlice';
+import { TooltipSimple } from '@components/Tooltip';
+import { useTCopy } from '@i18n/useTCopy';
+import { CustomScrollArea } from '@features/file-tree/CustomScrollArea';
+import { BrowserFavicon } from '@components/BrowserFavicon';
+import { BrowserAudioIndicator } from '@components/BrowserAudioIndicator';
+import { useAppStore } from '@stores/slicedStore';
+import { IconClose } from '@icons';
+import type { BrowserTabState } from '@stores/slices/browserSlice';
 
 interface BrowserOpenTabFlatListProps {
   browserTabs: BrowserTabState[];

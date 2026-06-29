@@ -8,9 +8,9 @@ import {
   IconGlobe,
   IconCopy,
   IconCut,
-} from '../../icons';
+} from '@icons';
 import type { ContextMenuState } from './useBrowserContextMenu';
-import { useTCopy } from '../../i18n/useTCopy';
+import { useTCopy } from '@i18n/useTCopy';
 
 interface BrowserContextMenuProps {
   contextMenu: ContextMenuState;

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { themeController } from '../../utils/theme';
+import { themeController } from '@utils/theme';
 
 export function useBrowserThemeSync(): void {
   useEffect(() => {

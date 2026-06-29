@@ -1,6 +1,6 @@
 import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
-import type { TabFolderState } from '../../stores/slices/browserSlice';
-import type { FileTreeRenderableNode } from '../file-tree/fileTree.utils';
+import type { TabFolderState } from '@stores/slices/browserSlice';
+import type { FileTreeRenderableNode } from '@features/file-tree/fileTree.utils';
 
 function buildFolderDirNode(
   folder: TabFolderState,

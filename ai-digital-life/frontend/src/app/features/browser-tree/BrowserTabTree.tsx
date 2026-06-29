@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo } from 'react';
 import { useBrowserTreeData } from './useBrowserTreeData';
 import { BrowserCategorySection } from './BrowserCategorySection';
-import { CustomScrollArea } from '../file-tree/CustomScrollArea';
+import { CustomScrollArea } from '@features/file-tree/CustomScrollArea';
 import type { BrowserCategoryType } from './types';
 import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
 import type {
@@ -10,7 +10,7 @@ import type {
   BrowserHistoryState,
   BrowserBookmark,
   WorkspaceBookmarkEntry,
-} from '../../stores/slices/browserSlice';
+} from '@stores/slices/browserSlice';
 
 interface BrowserCategoryLabels {
   workspaceCategory: string;

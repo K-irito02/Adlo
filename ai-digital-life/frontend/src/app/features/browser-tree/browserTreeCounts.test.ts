@@ -4,7 +4,7 @@ import type {
   BrowserTabState,
   TabFolderState,
   BrowserHistoryState,
-} from '../../stores/slices/browserSlice';
+} from '@stores/slices/browserSlice';
 import type { BrowserCategoryType, BrowserTreeNode } from './types';
 import {
   buildHistoryCategoryTree,

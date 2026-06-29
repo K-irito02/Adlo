@@ -7,10 +7,10 @@ import {
   IconCpu,
   IconSearch,
   IconMoreVertical,
-} from '../../icons';
-import { TooltipSimple } from '../../components/Tooltip';
+} from '@icons';
+import { TooltipSimple } from '@components/Tooltip';
 import type { BrowserMenuItem } from './useBrowserMenus';
-import { useTCopy } from '../../i18n/useTCopy';
+import { useTCopy } from '@i18n/useTCopy';
 
 interface BrowserMenuDropdownProps {
   menuOpen: boolean;

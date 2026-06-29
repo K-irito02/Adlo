@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import type { BackgroundMode, BackgroundFit } from '../../../stores/slices/browserSlice';
-import { useAppStore } from '../../../stores/slicedStore';
+import type { BackgroundMode, BackgroundFit } from '@stores/slices/browserSlice';
+import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import './BackgroundSettingsDialog.css';
 

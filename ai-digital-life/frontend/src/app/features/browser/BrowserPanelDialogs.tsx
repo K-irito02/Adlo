@@ -1,12 +1,12 @@
 import React from 'react';
-import { RenameDialog } from '../../components/RenameDialog';
-import { ToastContainer } from '../../components/Toast';
+import { RenameDialog } from '@components/RenameDialog';
+import { ToastContainer } from '@components/Toast';
 import { CreateTabDialog } from './browser-landing';
 import { BookmarkToFolderDialog } from './BookmarkToFolderDialog';
-import { useAppStore } from '../../stores/slicedStore';
-import type { CopyDict } from '../../i18n/types';
-import type { ToastData } from '../../components/Toast';
-import type { FileTreeRenderableNode } from '../file-tree/fileTree.utils';
+import { useAppStore } from '@stores/slicedStore';
+import type { CopyDict } from '@i18n/types';
+import type { ToastData } from '@components/Toast';
+import type { FileTreeRenderableNode } from '@features/file-tree/fileTree.utils';
 
 export interface BrowserPanelDialogsProps {
   t: CopyDict;

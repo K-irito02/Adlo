@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { useAppStore } from '../../stores/slicedStore';
+import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import {
   prefetchPageMeta,
@@ -8,7 +8,7 @@ import {
   unlockTabTitle,
   isTabTitleLocked,
   setCachedFavicon,
-} from '../../utils/fetchPageMeta';
+} from '@utils/fetchPageMeta';
 import { findFolderByIdLocal, collectAllDescendantTabIdsLocal } from './browserTreeUtils';
 
 export function useBrowserTreeActions() {

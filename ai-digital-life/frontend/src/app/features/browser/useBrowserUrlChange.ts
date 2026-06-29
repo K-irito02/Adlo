@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { isTauriShell } from '../../../tauri-bridge';
-import type { BrowserTabState } from '../../stores/slices/browserSlice';
-import type { PageMeta } from '../../../shared/ipc';
-import { fetchPageMeta, prefetchPageMeta, setCachedFavicon } from '../../utils/fetchPageMeta';
-import { useAppStore } from '../../stores';
+import { isTauriShell } from '@tauri-bridge';
+import type { BrowserTabState } from '@stores/slices/browserSlice';
+import type { PageMeta } from '@shared/ipc';
+import { fetchPageMeta, prefetchPageMeta, setCachedFavicon } from '@utils/fetchPageMeta';
+import { useAppStore } from '@stores';
 import { normalizeUrlForCompare, isProbablySameSite } from './browserUrlUtils';
-import { historyDedupKey } from '../../utils/browserDisplayUtils';
+import { historyDedupKey } from '@utils/browserDisplayUtils';
 
 interface UseBrowserUrlChangeOptions {
   activeTab?: BrowserTabState;
