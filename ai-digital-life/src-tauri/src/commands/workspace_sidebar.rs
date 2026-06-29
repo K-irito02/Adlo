@@ -3,6 +3,7 @@ use crate::state::AppState;
 use adl_errors::AppError;
 use adl_kernel::{IpcResult, RecentWorkspaceEntry, WorkspaceMeta};
 use adl_storage::EntityTable;
+use adl_workspace::strip_verbatim_prefix;
 use std::collections::HashMap;
 
 const RECENT_SIDEBAR_KEY: &str = "recent_workspaces_sidebar_v1";
@@ -10,8 +11,8 @@ const RECENT_SIDEBAR_KEY: &str = "recent_workspaces_sidebar_v1";
 fn entry_from_workspace(meta: WorkspaceMeta, max_order: i32) -> RecentWorkspaceEntry {
     RecentWorkspaceEntry {
         id: meta.id,
-        path: meta.path,
-        root_path: meta.root_path,
+        path: strip_verbatim_prefix(&meta.path),
+        root_path: strip_verbatim_prefix(&meta.root_path),
         name: meta.name,
         last_opened_at: meta.last_opened_at,
         is_pinned: false,
@@ -73,8 +74,8 @@ fn merge_workspace_meta_into_sidebar(
         workspaces.iter().map(|w| (w.id.as_str(), w)).collect();
     for entry in all.iter_mut() {
         if let Some(w) = by_id.get(entry.id.as_str()) {
-            entry.path = w.path.clone();
-            entry.root_path = w.root_path.clone();
+            entry.path = strip_verbatim_prefix(&w.path);
+            entry.root_path = strip_verbatim_prefix(&w.root_path);
             entry.name = w.name.clone();
             entry.last_opened_at = w.last_opened_at;
             entry.available = true;

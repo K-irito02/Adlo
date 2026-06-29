@@ -7,7 +7,7 @@ pub(crate) mod preview;
 mod search;
 mod tree;
 
-pub use detect::{detect_root, open_workspace, stable_workspace_id, workspace_type};
+pub use detect::{detect_root, open_workspace, stable_workspace_id, strip_verbatim_prefix, workspace_type};
 pub use fs::{create_file, create_folder, delete_entry, duplicate_entry, move_entry, rename_entry};
 pub use git::{
     capture_git_snapshot, capture_git_snapshot_async, create_git_branch, git_has_local_changes,
@@ -47,7 +47,13 @@ pub fn get_absolute_path(root: &Path, relative_path: &str) -> Result<String, App
     let absolute = path
         .canonicalize()
         .map_err(|e| AppError::Workspace(format!("failed to resolve path: {e}")))?;
-    Ok(absolute.to_string_lossy().replace('\\', "/"))
+    let s = absolute.to_string_lossy().replace('\\', "/");
+    let s = if cfg!(windows) {
+        s.strip_prefix("//?/").unwrap_or(&s).to_string()
+    } else {
+        s
+    };
+    Ok(s)
 }
 
 #[cfg(test)]

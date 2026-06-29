@@ -6,6 +6,7 @@ use adl_kernel::{
     HealthSnapshot, HealthStatus, IpcResult, LogEntrySummary, MigrationDiagnostics,
     ModelGatewayHealthSnapshot, RuntimeDiagnosticsSnapshot, RuntimeLifecycleSnapshot, APP_NAME,
 };
+use adl_workspace::strip_verbatim_prefix;
 
 #[tauri::command]
 pub fn app_get_info(state: tauri::State<'_, AppState>) -> IpcResult<AppInfo> {
@@ -145,7 +146,12 @@ pub fn build_app_info(state: &AppState) -> Result<AppInfo, AppError> {
         .current_workspace
         .read()
         .map_err(|_| AppError::Internal("workspace lock poisoned".into()))?
-        .clone();
+        .clone()
+        .map(|mut w: adl_kernel::WorkspaceMeta| {
+            w.path = strip_verbatim_prefix(&w.path);
+            w.root_path = strip_verbatim_prefix(&w.root_path);
+            w
+        });
     Ok(AppInfo {
         app_name: APP_NAME.into(),
         version: env!("CARGO_PKG_VERSION").to_string(),

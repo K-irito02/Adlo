@@ -5,6 +5,7 @@ use adl_pty::SessionManager;
 use adl_storage::Database;
 use anyhow::Context;
 use std::path::{Path, PathBuf};
+use adl_workspace::strip_verbatim_prefix;
 use std::sync::RwLock;
 use tauri::Manager;
 use tracing::info;
@@ -69,11 +70,16 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
     let _ = db.prune_run_activity_events(Some(30_i64 * 24 * 60 * 60 * 1_000), Some(200_000));
 
     let event_bus = EventBus::default();
-    let current_workspace = db
+    let current_workspace: Option<adl_kernel::WorkspaceMeta> = db
         .get_state("current_workspace")
         .ok()
         .flatten()
-        .and_then(|value| serde_json::from_str(&value).ok());
+        .and_then(|value| serde_json::from_str(&value).ok())
+        .map(|mut w: adl_kernel::WorkspaceMeta| {
+            w.path = strip_verbatim_prefix(&w.path);
+            w.root_path = strip_verbatim_prefix(&w.root_path);
+            w
+        });
 
     Ok(AppState {
         data_dir,

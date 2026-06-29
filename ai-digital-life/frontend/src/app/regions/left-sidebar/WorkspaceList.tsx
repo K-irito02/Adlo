@@ -207,22 +207,21 @@ export function WorkspaceList({
                   )}
                 </span>
 
-                <TooltipSimple content={item.workspace.path} placement="right">
-                  <button
-                    type="button"
-                    className="adl-workspace-row__label"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      if (!item.isCurrent) {
-                        onSwitchToWorkspace(item.workspace.id, item.workspace.path);
-                      } else {
-                        toggleSessionWorkspace(item.workspace.path);
-                      }
-                    }}
-                  >
-                    <span>{item.workspace.name}</span>
-                  </button>
-                </TooltipSimple>
+                <button
+                  type="button"
+                  className="adl-workspace-row__label"
+                  title={item.workspace.path}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    if (!item.isCurrent) {
+                      onSwitchToWorkspace(item.workspace.id, item.workspace.path);
+                    } else {
+                      toggleSessionWorkspace(item.workspace.path);
+                    }
+                  }}
+                >
+                  <span>{item.workspace.name}</span>
+                </button>
 
                 <div className="adl-workspace-row__tail">
                   <span className="adl-workspace-row__secondary">
