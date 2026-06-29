@@ -128,6 +128,7 @@ export class ThemeController {
       return;
     }
     this.root.dataset.theme = this.currentResolvedTheme;
+    this.root.style.colorScheme = this.currentResolvedTheme;
   }
 
   private emit(): void {
