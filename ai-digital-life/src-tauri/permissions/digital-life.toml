@@ -87,6 +87,7 @@ commands.allow = [
   "browser_reload_tab",
   "browser_fetch_page_meta",
   "browser_mute_tab",
+  "browser_set_color_scheme",
   "write_debug_logs",
   "write_debug_logs_to_project",
   "app_set_log_mode",
