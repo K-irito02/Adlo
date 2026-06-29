@@ -17,6 +17,7 @@ import { CustomScrollArea } from '../file-tree/CustomScrollArea';
 import { SearchResultItem } from './BrowserSearchOverlay';
 import { resolveFolderWorkspaceId } from './browserPanelHelpers';
 import { BrowserNavOpenMode } from './BrowserNavOpenMode';
+import { BrowserNavTabsMode } from './BrowserNavTabsMode';
 import type { BrowserNavigatorMode } from './useBrowserTabs';
 import type { BrowserSearchScope } from './useBrowserSearch';
 import type {
@@ -332,8 +333,8 @@ export function BrowserNavigator({
           onCloseTab={(tabId) => handleCloseTabHandler?.(tabId)}
         />
       ) : navigatorMode === 'tabs' ? (
-        <BrowserTabTree
-          workspaces={visibleWorkspaces}
+        <BrowserNavTabsMode
+          visibleWorkspaces={visibleWorkspaces}
           browserTabs={browserTabs}
           browserTabFolders={browserTabFolders}
           browserHistory={browserHistory}
@@ -344,30 +345,28 @@ export function BrowserNavigator({
           selectedTreePath={selectedTreePath}
           onSelectTreePath={handleSelectTreePath}
           onTogglePath={handleToggleTreePath}
-          callbacks={{
-            onCreateTab: (workspaceId?: string, folderId?: string) => {
-              setCreateTabDialog({ open: true, workspaceId, folderId });
-            },
-            onDeleteAllChildTabs: handleDeleteAllChildTabs,
-            onDeleteOwnChildTabs: handleDeleteOwnChildTabs,
-            onOpenAllInNewTabs: handleOpenAllInNewTabs,
-            onRemoveFromArea: handleRemoveFromArea,
-            onDeleteDirectory: handleDeleteDirectory,
-            onRenameDirectory: (folderId: string) => {
-              const folder = browserTabFolders.find((f) => f.id === folderId);
-              setRenameFolderState({ open: true, folderId, currentName: folder?.name ?? '' });
-            },
-            onDeleteHistory: handleDeleteHistoryLevel,
-            onOpenTab: handleOpenTabFromTree,
-            onRefreshTab: handleRefreshTab,
-            onEditTab: handleEditTab,
-            onDeleteTab: handleDeleteTab,
-            onCopyTabLink: handleCopyTabLink,
-            onOpenTabInNewTab: handleOpenTabInNewTab,
-            onOpenTabInCurrentTab: handleOpenTabInCurrentTab,
-            onBookmarkTab: handleBookmarkTab,
-            onRemoveBookmarkTab: handleRemoveBookmarkTab,
+          onCreateTab={(workspaceId?: string, folderId?: string) => {
+            setCreateTabDialog({ open: true, workspaceId, folderId });
           }}
+          onDeleteAllChildTabs={handleDeleteAllChildTabs}
+          onDeleteOwnChildTabs={handleDeleteOwnChildTabs}
+          onOpenAllInNewTabs={handleOpenAllInNewTabs}
+          onRemoveFromArea={handleRemoveFromArea}
+          onDeleteDirectory={handleDeleteDirectory}
+          onRenameDirectory={(folderId: string) => {
+            const folder = browserTabFolders.find((f) => f.id === folderId);
+            setRenameFolderState({ open: true, folderId, currentName: folder?.name ?? '' });
+          }}
+          onDeleteHistory={handleDeleteHistoryLevel}
+          onOpenTab={handleOpenTabFromTree}
+          onRefreshTab={handleRefreshTab}
+          onEditTab={handleEditTab}
+          onDeleteTab={handleDeleteTab}
+          onCopyTabLink={handleCopyTabLink}
+          onOpenTabInNewTab={handleOpenTabInNewTab}
+          onOpenTabInCurrentTab={handleOpenTabInCurrentTab}
+          onBookmarkTab={handleBookmarkTab}
+          onRemoveBookmarkTab={handleRemoveBookmarkTab}
           labels={{
             workspaceCategory: t.browserCategoryWorkspace,
             userFolderCategory: t.browserCategoryUserFolder,
