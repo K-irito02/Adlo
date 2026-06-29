@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { lazy, Suspense, useCallback, useState } from 'react';
 import type { AppInfo } from '@ai-digital-life/kernel';
 import { useAppStore } from './stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -12,7 +12,9 @@ import { TCopyProvider } from './i18n';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { LeftSidebar } from './regions/LeftSidebar';
 import { CenterPane } from './regions/CenterPane';
-import { RightPanel } from './regions/RightPanel';
+const RightPanel = lazy(() =>
+  import('./regions/RightPanel').then((m) => ({ default: m.RightPanel }))
+);
 import { NewSessionDialog } from './components/NewSessionDialog';
 import { CreateWorkspaceModal } from './components/CreateWorkspaceModal';
 
@@ -87,6 +89,8 @@ export function App() {
     useAppStore.getState().setActiveRightTool('files');
   }, []);
 
+  const activeSessionId = useAppStore((s) => s.activeSessionId);
+
   return (
     <TCopyProvider t={t} locale={locale}>
       <main className="adl-shell adl-ide">
@@ -123,23 +127,25 @@ export function App() {
           </ErrorBoundary>
 
           <ErrorBoundary>
-            <RightPanel
-              collapsed={rightCollapsed}
-              standardEditorRef={standardEditorRef}
-              selectedPatchFilePath={selectedPatchFilePath}
-              selectedPatchHunkId={selectedPatchHunkId}
-              collapsedPatchHunkIds={collapsedPatchHunkIds}
-              patchReviewFilter={patchReviewFilter}
-              onOpenFileAtLine={handleOpenFileAtLine}
-              onDiffMount={handleDiffMount}
-              onSendSelection={() => void handleSendSelection()}
-              onSelectPatchFile={handleSelectPatchFile}
-              onSelectPatchHunk={handleSelectPatchHunk}
-              onTogglePatchHunkCollapse={handleTogglePatchHunkCollapse}
-              onSetAllPatchHunksCollapsed={handleSetAllPatchHunksCollapsed}
-              onSetPatchReviewFilter={setPatchReviewFilter}
-              onJumpPatchHunk={handleJumpPatchHunk}
-            />
+            <Suspense fallback={<div className="skeleton" style={{ flex: 1 }} />}>
+              <RightPanel
+                collapsed={rightCollapsed}
+                standardEditorRef={standardEditorRef}
+                selectedPatchFilePath={selectedPatchFilePath}
+                selectedPatchHunkId={selectedPatchHunkId}
+                collapsedPatchHunkIds={collapsedPatchHunkIds}
+                patchReviewFilter={patchReviewFilter}
+                onOpenFileAtLine={handleOpenFileAtLine}
+                onDiffMount={handleDiffMount}
+                onSendSelection={() => void handleSendSelection()}
+                onSelectPatchFile={handleSelectPatchFile}
+                onSelectPatchHunk={handleSelectPatchHunk}
+                onTogglePatchHunkCollapse={handleTogglePatchHunkCollapse}
+                onSetAllPatchHunksCollapsed={handleSetAllPatchHunksCollapsed}
+                onSetPatchReviewFilter={setPatchReviewFilter}
+                onJumpPatchHunk={handleJumpPatchHunk}
+              />
+            </Suspense>
           </ErrorBoundary>
         </div>
 
@@ -155,7 +161,7 @@ export function App() {
           onCreate={async (name) => {
             await actions.createSession();
             if (name) {
-              const currentId = useAppStore.getState().activeSessionId;
+              const currentId = activeSessionId;
               if (currentId) {
                 await actions.renameSession(currentId, name);
               }
