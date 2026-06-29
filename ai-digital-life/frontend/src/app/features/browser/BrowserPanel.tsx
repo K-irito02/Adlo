@@ -18,6 +18,7 @@ import { useBrowserMetaSubscription } from './useBrowserMetaSubscription';
 import { useBrowserMenus } from './useBrowserMenus';
 import { BrowserContextMenu } from './BrowserContextMenu';
 import { BrowserPanelContent } from './BrowserPanelContent';
+import { useBrowserThemeSync } from './useBrowserThemeSync';
 import { isTauriShell } from '../../../tauri-bridge';
 import { CreateTabDialog } from './browser-landing';
 import type { BrowserPanelProps } from '../../regions/right-panel/types';
@@ -34,6 +35,7 @@ import { getGoogleFaviconUrl } from '../../utils/favicon';
 
 export function BrowserPanel(props: BrowserPanelProps) {
   const { t } = useTCopy();
+  useBrowserThemeSync();
 
   const isBrowserVisible = props.isVisible ?? false;
 
