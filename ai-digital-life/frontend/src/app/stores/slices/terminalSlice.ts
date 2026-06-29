@@ -18,7 +18,6 @@ import {
   DEFAULT_TERMINAL_NAVIGATOR_WIDTH,
 } from './terminalSliceTypes';
 
-// Re-export for backward compatibility
 export type { TerminalTabState };
 export {
   TERMINAL_TABS_KEY,

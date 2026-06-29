@@ -11,7 +11,6 @@ import {
 const GH_WORKSPACE_CONFIGS_KEY = 'adl-ui:github-workspace-configs';
 const GH_CI_FOLDERS_KEY = 'adl-ui:github-ci-folders';
 
-// Re-export for backward compatibility
 export type { GitWorkspaceCiConfig, GitHubCiFolderState } from './githubRepoSliceTypes';
 
 export interface GitHubRepoSlice {

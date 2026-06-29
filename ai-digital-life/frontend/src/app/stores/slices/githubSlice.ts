@@ -21,7 +21,6 @@ const { scheduleWrite } = createDebouncedWrite(50);
 const { scheduleWrite: scheduleSnapshotsWrite } = createDebouncedWrite(300);
 const { scheduleWrite: scheduleLogCachesWrite } = createDebouncedWrite(300);
 
-// Re-export for backward compatibility
 export type { GitHubSection } from './githubSliceHelpers';
 
 function hydrateCiSnapshots(): Record<string, CiStatusSnapshot> {

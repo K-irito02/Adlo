@@ -4,7 +4,7 @@ pub mod events;
 pub mod logger;
 pub mod types;
 
-pub use types::*; // 保留向后兼容的 flat re-export
+pub use types::*;
 
 // 按 domain 分组 re-export，提高类型可发现性
 pub mod domain {

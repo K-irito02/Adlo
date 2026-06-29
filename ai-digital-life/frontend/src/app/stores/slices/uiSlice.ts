@@ -1,6 +1,6 @@
 /**
  * UI 切片
- * 管理通用的 UI 状态，保持向后兼容
+ * 管理通用的 UI 状态
  */
 import type { ToolId, FilesNavigatorMode, ChangesNavigatorMode } from '../types';
 import type { StoreState } from '../StoreState';
@@ -25,7 +25,6 @@ import { readRightTool } from './uiSliceWidths';
 import { createUIWidthSlice } from './uiSliceWidths';
 import { createUIExpansionSlice } from './uiSliceExpansion';
 
-// Re-export for backward compatibility
 export type {
   TreeExpansionState,
   FileTreeExpansionState,

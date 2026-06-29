@@ -39,4 +39,4 @@ store.ts (主 Store)
 1. **切片是数据**：切面只定义状态和 setter，不含业务逻辑
 2. **Actions 是逻辑**：跨切片操作在 actions/ 中实现
 3. **选择器优化**：Record/Object 类型用 `useShallow` 包裹
-4. **向后兼容**：`ui-store.ts` 的字段标记 `@deprecated`，逐步迁移到 `useAppStore`
+4. **渐进迁移**：旧 store 字段标记 `@deprecated`，逐步迁移到新切片

@@ -239,7 +239,7 @@ export function buildWorkspaceCategoryTree(
           }
         }
 
-        // 跳过无有效 URL 的旧格式条目（迁移产生的空数据）
+        // 跳过无有效 URL 的条目
         if (!snapshotUrl) {
           return null;
         }

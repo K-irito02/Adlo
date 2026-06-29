@@ -78,29 +78,7 @@ function hydrateBrowserDefaults(
       BROWSER_NAVIGATOR_WIDTH_MAX
     );
     const workspaceExpanded = readJson<Record<string, boolean>>(BROWSER_WORKSPACE_EXPANDED_KEY, {});
-    let persistedTabFolders = readJson<TabFolderState[]>(BROWSER_TAB_FOLDERS_KEY, []);
-    // 迁移：旧格式 tabs: string[] → 新格式 BookmarkTabItem[]
-    const needsMigration = persistedTabFolders.some(
-      (f) => f.tabs && f.tabs.length > 0 && typeof f.tabs[0] === 'string'
-    );
-    if (needsMigration) {
-      persistedTabFolders = persistedTabFolders.map((f) => {
-        if (!f.tabs || f.tabs.length === 0) {
-          return f;
-        }
-        if (typeof f.tabs[0] === 'string') {
-          return {
-            ...f,
-            tabs: (f.tabs as unknown as string[]).map((tabId) => ({
-              tabId,
-              url: '',
-              title: '',
-            })),
-          };
-        }
-        return f;
-      });
-    }
+    const persistedTabFolders = readJson<TabFolderState[]>(BROWSER_TAB_FOLDERS_KEY, []);
 
     let finalTabs = state.browserTabs;
     let finalActiveTabId = state.browserActiveTabId;
@@ -125,39 +103,30 @@ function hydrateBrowserDefaults(
       : readJson<BrowserBookmark[]>(BROWSER_BOOKMARKS_KEY, []);
 
     const workspaceBookmarksModified = Object.keys(state.browserWorkspaceBookmarks).length > 0;
-    const rawWorkspaceBookmarks = workspaceBookmarksModified
+    const finalWorkspaceBookmarks = workspaceBookmarksModified
       ? state.browserWorkspaceBookmarks
-      : readJson<Record<string, unknown>>(BROWSER_WORKSPACE_BOOKMARKS_STORAGE_KEY, {});
-    // 迁移：旧格式存储为 string[]，新格式存储为 WorkspaceBookmarkEntry[]
-    const finalWorkspaceBookmarks: Record<string, WorkspaceBookmarkEntry[]> = {};
-    for (const [wsId, entries] of Object.entries(rawWorkspaceBookmarks)) {
-      if (Array.isArray(entries)) {
-        const migrated = entries.map((e: unknown) =>
-          typeof e === 'string' ? { tabId: e, url: '', title: '' } : (e as WorkspaceBookmarkEntry)
+      : readJson<Record<string, WorkspaceBookmarkEntry[]>>(
+          BROWSER_WORKSPACE_BOOKMARKS_STORAGE_KEY,
+          {}
         );
-        finalWorkspaceBookmarks[wsId] = migrated;
-      } else {
-        finalWorkspaceBookmarks[wsId] = [];
-      }
-    }
 
     // 从已有的工作区书签和文件夹条目构建 tabId→URL 映射
-    const migratedTabIdUrlMap: Record<string, string> = {};
+    const tabIdUrlMap: Record<string, string> = {};
     const tabsById = new Map(finalTabs.map((t) => [t.id, t]));
     for (const entries of Object.values(finalWorkspaceBookmarks)) {
       for (const entry of entries) {
-        if (entry.url && !migratedTabIdUrlMap[entry.tabId]) {
-          migratedTabIdUrlMap[entry.tabId] = entry.url;
+        if (entry.url && !tabIdUrlMap[entry.tabId]) {
+          tabIdUrlMap[entry.tabId] = entry.url;
         }
       }
     }
     for (const folder of persistedTabFolders) {
       if (folder.tabs) {
         for (const item of folder.tabs) {
-          if (!migratedTabIdUrlMap[item.tabId]) {
+          if (!tabIdUrlMap[item.tabId]) {
             const tab = tabsById.get(item.tabId);
             if (tab?.url) {
-              migratedTabIdUrlMap[item.tabId] = tab.url;
+              tabIdUrlMap[item.tabId] = tab.url;
             }
           }
         }
@@ -168,8 +137,8 @@ function hydrateBrowserDefaults(
       {}
     );
     for (const [tabId, url] of Object.entries(persistedTabIdUrlMap)) {
-      if (!migratedTabIdUrlMap[tabId]) {
-        migratedTabIdUrlMap[tabId] = url;
+      if (!tabIdUrlMap[tabId]) {
+        tabIdUrlMap[tabId] = url;
       }
     }
     const persistedTabTreeExpanded = readJson<Record<string, boolean>>(
@@ -192,7 +161,7 @@ function hydrateBrowserDefaults(
       browserHistory: finalHistory,
       browserBookmarks: finalBookmarks,
       browserWorkspaceBookmarks: finalWorkspaceBookmarks,
-      browserBookmarkTabIdUrlMap: migratedTabIdUrlMap,
+      browserBookmarkTabIdUrlMap: tabIdUrlMap,
       browserTabs: finalTabs,
       browserTabsById: buildTabsById(finalTabs),
       browserActiveTabId: finalActiveTabId,

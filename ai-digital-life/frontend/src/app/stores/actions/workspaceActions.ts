@@ -17,7 +17,7 @@ import {
 import type { StoreApi } from 'zustand';
 import { createBrowserCleanupActions } from './browserCleanupActions';
 
-// Re-export for backward compatibility (tests import from workspaceActions)
+// Re-export for test convenience (tests import from workspaceActions)
 export { type BrowserCleanupResult, stripWorkspaceFromBrowserState } from './browserCleanupHelpers';
 
 export function createWorkspaceActions(
