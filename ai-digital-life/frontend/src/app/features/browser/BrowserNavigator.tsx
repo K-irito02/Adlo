@@ -479,7 +479,7 @@ export function BrowserNavigator({
                 <SearchResultItem
                   key={`${item.url}-${index}`}
                   item={item}
-                  onClick={() => browserOpenTab(item.url, item.title)}
+                  onClick={() => handleOpenTabFromTree(item.url)}
                 />
               ))
             ) : navigatorQuery.trim() ? (
