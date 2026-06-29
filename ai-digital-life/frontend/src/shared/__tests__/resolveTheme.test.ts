@@ -1,8 +1,8 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { describe, expect, it, vi, type MockInstance, beforeEach, afterEach } from 'vitest';
 import { resolveCurrentTheme } from '../resolveTheme';
 
 describe('resolveCurrentTheme', () => {
-  let matchMediaSpy: ReturnType<typeof vi.spyOn>;
+  let matchMediaSpy: MockInstance<(query: string) => MediaQueryList>;
 
   beforeEach(() => {
     matchMediaSpy = vi.spyOn(window, 'matchMedia');
@@ -15,7 +15,6 @@ describe('resolveCurrentTheme', () => {
   it('returns "dark" when themeMode is "dark" regardless of system preference', () => {
     matchMediaSpy.mockReturnValue({ matches: false } as MediaQueryList);
     expect(resolveCurrentTheme('dark')).toBe('dark');
-
     matchMediaSpy.mockReturnValue({ matches: true } as MediaQueryList);
     expect(resolveCurrentTheme('dark')).toBe('dark');
   });
@@ -23,7 +22,6 @@ describe('resolveCurrentTheme', () => {
   it('returns "light" when themeMode is "light" regardless of system preference', () => {
     matchMediaSpy.mockReturnValue({ matches: true } as MediaQueryList);
     expect(resolveCurrentTheme('light')).toBe('light');
-
     matchMediaSpy.mockReturnValue({ matches: false } as MediaQueryList);
     expect(resolveCurrentTheme('light')).toBe('light');
   });
