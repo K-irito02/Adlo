@@ -16,7 +16,7 @@ import { BrowserTabTree } from '../browser-tree';
 import { CustomScrollArea } from '../file-tree/CustomScrollArea';
 import { SearchResultItem } from './BrowserSearchOverlay';
 import { resolveFolderWorkspaceId } from './browserPanelHelpers';
-import { BrowserOpenTabFlatList } from './BrowserOpenTabFlatList';
+import { BrowserNavOpenMode } from './BrowserNavOpenMode';
 import type { BrowserNavigatorMode } from './useBrowserTabs';
 import type { BrowserSearchScope } from './useBrowserSearch';
 import type {
@@ -319,9 +319,10 @@ export function BrowserNavigator({
 
       {/* Body */}
       {navigatorMode === 'open' ? (
-        <BrowserOpenTabFlatList
+        <BrowserNavOpenMode
           browserTabs={browserTabs}
           activeTabId={activeTabId}
+          evictedTabIds={evictedTabIds}
           onSelectTab={(tabId) => {
             const tab = browserTabs.find((t) => t.id === tabId);
             if (tab) {
@@ -329,7 +330,6 @@ export function BrowserNavigator({
             }
           }}
           onCloseTab={(tabId) => handleCloseTabHandler?.(tabId)}
-          evictedTabIds={evictedTabIds}
         />
       ) : navigatorMode === 'tabs' ? (
         <BrowserTabTree
