@@ -276,6 +276,44 @@ impl BrowserManager {
         Ok(())
     }
 
+    pub fn set_color_scheme_for_all(
+        &self,
+        app: &tauri::AppHandle,
+        color_scheme: &str,
+    ) -> Result<(), AppError> {
+        let escaped = color_scheme
+            .replace('\\', "\\\\")
+            .replace('\'', "\\'");
+        let script = format!(
+            "try{{document.documentElement.style.colorScheme='{escaped}'}}catch(e){{console.warn('[ADL-DEBUG]','set_color_scheme failed:',e)}}"
+        );
+
+        let window = app
+            .get_window("main")
+            .ok_or_else(|| AppError::Internal("main window not found".into()))?;
+
+        for tab_id in self.pool.tab_ids() {
+            let label = webview_label(&tab_id);
+            if let Some(webview) = window.get_webview(&label) {
+                if let Err(e) = webview.eval(&script) {
+                    tracing::warn!(
+                        tab_id = &tab_id,
+                        error = %e,
+                        "failed to set color scheme on browser webview"
+                    );
+                } else {
+                    tracing::info!(
+                        tab_id = &tab_id,
+                        color_scheme = color_scheme,
+                        "set color scheme on browser webview"
+                    );
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn has_tab_webview(&self, tab_id: &str) -> bool {
         self.pool.contains(tab_id)
     }
@@ -295,5 +333,16 @@ impl BrowserManager {
             .ok_or_else(|| AppError::Internal(format!("webview for tab {tab_id} not found")))?;
         crate::webview2_audio::mute_tab(&webview, muted).map_err(AppError::Internal)?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_webview_label_format() {
+        let label = webview_label("test-tab-123");
+        assert_eq!(label, "adl-browser-view-test-tab-123");
     }
 }
