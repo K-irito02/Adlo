@@ -308,6 +308,11 @@ impl BrowserManager {
                         "set color scheme on browser webview"
                     );
                 }
+            } else {
+                tracing::warn!(
+                    tab_id = &tab_id,
+                    "browser webview not found for set_color_scheme"
+                );
             }
         }
 
