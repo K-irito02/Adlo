@@ -281,17 +281,24 @@ impl BrowserManager {
         app: &tauri::AppHandle,
         color_scheme: &str,
     ) -> Result<(), AppError> {
+        let tab_ids = self.pool.tab_ids();
+        tracing::info!(
+            tab_count = tab_ids.len(),
+            color_scheme,
+            "set_color_scheme_for_all starting"
+        );
+
         let window = app
             .get_window("main")
             .ok_or_else(|| AppError::Internal("main window not found".into()))?;
 
-        for tab_id in self.pool.tab_ids() {
+        for tab_id in tab_ids {
             let label = webview_label(&tab_id);
             if let Some(webview) = window.get_webview(&label) {
                 tracing::info!(
                     tab_id = &tab_id,
-                    color_scheme = color_scheme,
-                    "setting color scheme on browser webview via Profile"
+                    color_scheme,
+                    "calling webview2_set_color_scheme for tab"
                 );
                 crate::webview2_set_color_scheme(&webview, color_scheme);
             } else {

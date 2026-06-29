@@ -112,6 +112,7 @@ pub fn browser_set_color_scheme(
     state: State<'_, AppState>,
     color_scheme: String,
 ) -> Result<IpcResult<()>, CommandError> {
+    tracing::info!(color_scheme, "browser_set_color_scheme command invoked");
     Ok(ipc(
         state
             .browser_manager
