@@ -14,6 +14,7 @@ import { useEditorOptions } from '../hooks';
 import { detectEditorLanguage } from '../../../utils/workspacePaths';
 import { DiffViewer } from '../../../features/diff-viewer';
 import { useTCopy } from '../../../i18n/useTCopy';
+import { useResolvedTheme } from '../../../hooks/useResolvedTheme';
 
 type PatchReviewSectionProps = Pick<
   ChangesPanelProps,
@@ -101,8 +102,7 @@ const PatchReviewSection = React.memo(function PatchReviewSection(props: PatchRe
     return detectEditorLanguage(filePath, fallbackLang);
   }, [activeFilePatchFromSet]);
 
-  const changePreviewTheme =
-    appInfo?.config.resolvedTheme === 'dark' ? ('dark' as const) : ('light' as const);
+  const changePreviewTheme = useResolvedTheme();
   const changePreviewLocale = appInfo?.config.language ?? 'zh-CN';
 
   const changesEditorOptions = useEditorOptions();

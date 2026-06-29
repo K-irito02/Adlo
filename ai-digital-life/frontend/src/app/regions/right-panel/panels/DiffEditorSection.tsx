@@ -12,6 +12,7 @@ import { useStickyContext } from '../hooks';
 import { buildOutlineFromContent } from '../../../features/outline';
 import { ChangesEmptyState } from './ChangesEmptyState';
 import { useTCopy } from '../../../i18n/useTCopy';
+import { useResolvedTheme } from '../../../hooks/useResolvedTheme';
 
 const CodeEditor = lazy(() =>
   import('../../../features/editor').then((m) => ({ default: m.CodeEditor }))
@@ -74,8 +75,7 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
     return detectEditorLanguage(changePreview?.path);
   }, [changePreview?.path]);
 
-  const changePreviewTheme =
-    appInfo?.config.resolvedTheme === 'dark' ? ('dark' as const) : ('light' as const);
+  const changePreviewTheme = useResolvedTheme();
   const changePreviewLocale = appInfo?.config.language ?? 'zh-CN';
 
   const changePreviewDiffRanges = useMemo(

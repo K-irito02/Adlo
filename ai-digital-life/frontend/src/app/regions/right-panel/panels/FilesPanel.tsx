@@ -14,6 +14,7 @@ import { FileHistoryNav } from '../FileHistoryNav';
 import type { FilesPanelProps } from '../types';
 import { useTCopy } from '../../../i18n/useTCopy';
 import { joinPathSegments } from '../../../utils/workspacePaths';
+import { useResolvedTheme } from '../../../hooks/useResolvedTheme';
 
 const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
   const { t } = useTCopy();
@@ -235,7 +236,7 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
     ]
   );
 
-  const resolvedTheme = appInfo?.config?.resolvedTheme === 'dark' ? 'dark' : 'light';
+  const resolvedTheme = useResolvedTheme();
   const resolvedLocale = appInfo?.config?.language ?? 'zh-CN';
 
   return (
