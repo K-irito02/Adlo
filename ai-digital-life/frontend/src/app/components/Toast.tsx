@@ -12,7 +12,7 @@ interface ToastProps {
   onClose: () => void;
 }
 
-interface ToastData {
+export interface ToastData {
   id: string;
   message: string;
   type?: ToastType;

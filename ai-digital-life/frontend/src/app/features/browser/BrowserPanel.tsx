@@ -1,6 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { RenameDialog } from '../../components/RenameDialog';
-import { ToastContainer } from '../../components/Toast';
 import { useBrowserToast } from './useBrowserToast';
 import { useBrowserDialogs } from './useBrowserDialogs';
 import { useShallow } from 'zustand/react/shallow';
@@ -20,7 +18,6 @@ import { BrowserContextMenu } from './BrowserContextMenu';
 import { BrowserPanelContent } from './BrowserPanelContent';
 import { useBrowserThemeSync } from './useBrowserThemeSync';
 import { isTauriShell } from '../../../tauri-bridge';
-import { CreateTabDialog } from './browser-landing';
 import type { BrowserPanelProps } from '../../regions/right-panel/types';
 import { useTCopy } from '../../i18n/useTCopy';
 import {
@@ -28,7 +25,7 @@ import {
   handleDeleteFromContextMenu,
   buildBookmarkDirectoryTree,
 } from './browserPanelHelpers';
-import { BookmarkToFolderDialog } from './BookmarkToFolderDialog';
+import { BrowserPanelDialogs } from './BrowserPanelDialogs';
 import { checkEmbed, isEmbedBlocked } from './checkEmbed';
 import { setCachedFavicon } from '../../utils/fetchPageMeta';
 import { getGoogleFaviconUrl } from '../../utils/favicon';
@@ -721,65 +718,29 @@ export function BrowserPanel(props: BrowserPanelProps) {
         onCut={() => {}}
       />
 
-      <CreateTabDialog
-        open={createTabDialog.open || editTabDialog.open}
-        loading={createTabDialog.open ? isCreatingTab : false}
+      <BrowserPanelDialogs
         t={t}
-        initialName={editTabDialog.open ? editTabDialog.name : undefined}
-        initialUrl={editTabDialog.open ? editTabDialog.url : undefined}
-        onConfirm={createTabDialog.open ? handleCreateTabConfirm : handleEditTabConfirm}
-        onCancel={createTabDialog.open ? handleCreateTabCancel : handleEditTabCancel}
-      />
-
-      <BookmarkToFolderDialog
-        open={bookmarkDialogOpen}
-        t={t}
-        workspaceNodes={bookmarkTreeData.workspaceNodes}
-        userFolderNodes={bookmarkTreeData.userFolderNodes}
-        onAddToFolder={handleBookmarkAddToFolder}
-        onCreateDir={handleBookmarkCreateDir}
-        onCancel={() => {
-          setBookmarkDialogOpen(false);
-          setBookmarkName('');
-          useAppStore.getState().browserSetPendingBookmark(null);
-        }}
+        createTabDialog={createTabDialog}
+        editTabDialog={editTabDialog}
+        isCreatingTab={isCreatingTab}
+        handleCreateTabConfirm={handleCreateTabConfirm}
+        handleCreateTabCancel={handleCreateTabCancel}
+        handleEditTabConfirm={handleEditTabConfirm}
+        handleEditTabCancel={handleEditTabCancel}
+        bookmarkDialogOpen={bookmarkDialogOpen}
+        bookmarkTreeData={bookmarkTreeData}
+        handleBookmarkAddToFolder={handleBookmarkAddToFolder}
+        handleBookmarkCreateDir={handleBookmarkCreateDir}
+        setBookmarkDialogOpen={setBookmarkDialogOpen}
+        setBookmarkName={setBookmarkName}
         bookmarkName={bookmarkName}
-        onBookmarkNameChange={setBookmarkName}
+        renameFolderState={renameFolderState}
+        setRenameFolderState={setRenameFolderState}
+        createDirDialog={createDirDialog}
+        setCreateDirDialog={setCreateDirDialog}
+        toastMessages={toastMessages}
+        removeToast={removeToast}
       />
-
-      <RenameDialog
-        open={renameFolderState.open}
-        initialValue={renameFolderState.currentName}
-        title={t.browserRenamePrompt as string}
-        placeholder={t.browserRenamePrompt as string}
-        onConfirm={(name) => {
-          useAppStore.getState().browserUpdateTabFolder(renameFolderState.folderId, { name });
-          setRenameFolderState((prev) => ({ ...prev, open: false }));
-        }}
-        onCancel={() => setRenameFolderState((prev) => ({ ...prev, open: false }))}
-      />
-
-      <RenameDialog
-        open={createDirDialog.open}
-        initialValue=""
-        title={t.browserCreateDir as string}
-        onConfirm={(name) => {
-          const parentPath = createDirDialog.parentPath;
-          if (parentPath?.startsWith('folder:')) {
-            const folderId = parentPath.slice('folder:'.length);
-            useAppStore.getState().browserCreateTabFolder(name, folderId, 'folder');
-          } else if (parentPath?.startsWith('workspace:')) {
-            const wsId = parentPath.slice('workspace:'.length);
-            useAppStore.getState().browserCreateTabFolder(name, wsId, 'workspace');
-          } else {
-            useAppStore.getState().browserCreateTabFolder(name, undefined, undefined);
-          }
-          setCreateDirDialog({ open: false, parentPath: null });
-        }}
-        onCancel={() => setCreateDirDialog({ open: false, parentPath: null })}
-      />
-
-      <ToastContainer toasts={toastMessages} onRemove={removeToast} />
     </div>
   );
 }
