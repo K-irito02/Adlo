@@ -10,6 +10,7 @@ import { createEditorTab } from '../../utils/editorTabs';
 import { loadConversationState, loadTaskCenterState } from '../loaders';
 import { workspaceContextModeFromInfo } from '../conversationUtils';
 import { workspaceRequestSeq, queueLowPriorityRefresh } from '../shared';
+import { resolveCurrentTheme } from '../../../shared/resolveTheme';
 import type { StoreApi } from 'zustand';
 
 export function createGeneralActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
@@ -40,10 +41,9 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
       }
 
       // Fix stale resolvedTheme from Rust backend (hardcodes Theme::Light for system mode)
-      if (appInfoResult.data.config.themeMode === 'system') {
-        appInfoResult.data.config.resolvedTheme =
-          (window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false) ? 'dark' : 'light';
-      }
+      appInfoResult.data.config.resolvedTheme = resolveCurrentTheme(
+        appInfoResult.data.config.themeMode
+      );
 
       const [conversationState, taskCenter] = await Promise.all([
         loadConversationState(),
@@ -197,21 +197,12 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
         return;
       }
       const responseMode = result.data.config.themeMode;
-      const responseResolved =
-        responseMode === 'system'
-          ? (window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false)
-            ? 'dark'
-            : 'light'
-          : result.data.config.resolvedTheme;
-      themeController.setTheme({
-        mode: responseMode,
-        resolvedTheme: responseResolved,
-      });
+      themeController.setTheme({ mode: responseMode });
       themeController.hydrate();
       // result.data from Rust backend has stale resolvedTheme for system mode
       // (build_app_info hardcodes Theme::Light for ThemeMode::System).
-      // Fix it here so panels reading appInfo.config.resolvedTheme get the correct value.
-      result.data.config.resolvedTheme = responseResolved;
+      // Fix it here for store consistency.
+      result.data.config.resolvedTheme = resolveCurrentTheme(responseMode);
       set((state: StoreState) => ({
         appInfo: result.data,
         sessions: state.sessions,
