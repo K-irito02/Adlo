@@ -1100,6 +1100,8 @@ export interface BrowserBridge {
   muteTab: (tabId: string, muted: boolean) => Promise<void>;
   /** Subscribe to audio state changes */
   onAudioStateChanged: (listener: (payload: AudioStatePayload) => void) => () => void;
+  /** Set the preferred color scheme on all browser WebViews (Tauri mode) */
+  setBrowserColorScheme: (resolvedTheme: 'light' | 'dark') => Promise<void>;
 }
 
 /**
