@@ -39,6 +39,12 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
         return;
       }
 
+      // Fix stale resolvedTheme from Rust backend (hardcodes Theme::Light for system mode)
+      if (appInfoResult.data.config.themeMode === 'system') {
+        appInfoResult.data.config.resolvedTheme =
+          (window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false) ? 'dark' : 'light';
+      }
+
       const [conversationState, taskCenter] = await Promise.all([
         loadConversationState(),
         loadTaskCenterState(),
@@ -202,6 +208,10 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
         resolvedTheme: responseResolved,
       });
       themeController.hydrate();
+      // result.data from Rust backend has stale resolvedTheme for system mode
+      // (build_app_info hardcodes Theme::Light for ThemeMode::System).
+      // Fix it here so panels reading appInfo.config.resolvedTheme get the correct value.
+      result.data.config.resolvedTheme = responseResolved;
       set((state: StoreState) => ({
         appInfo: result.data,
         sessions: state.sessions,
