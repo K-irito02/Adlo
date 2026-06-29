@@ -12,12 +12,11 @@ import {
 } from '../../icons';
 import { TooltipSimple } from '../../components/Tooltip';
 import { NavigatorResizeHandle } from '@components/NavigatorResizeHandle';
-import { BrowserTabTree } from '../browser-tree';
-import { CustomScrollArea } from '../file-tree/CustomScrollArea';
-import { SearchResultItem } from './BrowserSearchOverlay';
 import { resolveFolderWorkspaceId } from './browserPanelHelpers';
 import { BrowserNavOpenMode } from './BrowserNavOpenMode';
 import { BrowserNavTabsMode } from './BrowserNavTabsMode';
+import { BrowserNavListMode } from './BrowserNavListMode';
+import { BrowserNavSearchMode } from './BrowserNavSearchMode';
 import type { BrowserNavigatorMode } from './useBrowserTabs';
 import type { BrowserSearchScope } from './useBrowserSearch';
 import type {
@@ -374,8 +373,8 @@ export function BrowserNavigator({
           }}
         />
       ) : navigatorMode === 'list' ? (
-        <BrowserTabTree
-          workspaces={visibleWorkspaces}
+        <BrowserNavListMode
+          visibleWorkspaces={visibleWorkspaces}
           browserTabs={browserTabs}
           browserTabFolders={browserTabFolders}
           browserHistory={browserHistory}
@@ -386,31 +385,26 @@ export function BrowserNavigator({
           selectedTreePath={selectedTreePath}
           onSelectTreePath={handleSelectTreePath}
           onTogglePath={handleToggleTreePath}
-          browserViewMode="list"
-          callbacks={{
-            onCreateTab: (workspaceId?: string, folderId?: string) => {
-              setCreateTabDialog({ open: true, workspaceId, folderId });
-            },
-            onDeleteAllChildTabs: handleDeleteAllChildTabs,
-            onDeleteOwnChildTabs: handleDeleteOwnChildTabs,
-            onOpenAllInNewTabs: handleOpenAllInNewTabs,
-            onRemoveFromArea: handleRemoveFromArea,
-            onDeleteDirectory: handleDeleteDirectory,
-            onRenameDirectory: (folderId: string) => {
-              const folder = browserTabFolders.find((f) => f.id === folderId);
-              setRenameFolderState({ open: true, folderId, currentName: folder?.name ?? '' });
-            },
-            onDeleteHistory: handleDeleteHistoryLevel,
-            onOpenTab: handleOpenTabFromTree,
-            onRefreshTab: handleRefreshTab,
-            onEditTab: handleEditTab,
-            onDeleteTab: handleDeleteTab,
-            onCopyTabLink: handleCopyTabLink,
-            onOpenTabInNewTab: handleOpenTabInNewTab,
-            onOpenTabInCurrentTab: handleOpenTabInCurrentTab,
-            onBookmarkTab: handleBookmarkTab,
-            onRemoveBookmarkTab: handleRemoveBookmarkTab,
+          onCreateTab={(workspaceId?: string, folderId?: string) => {
+            setCreateTabDialog({ open: true, workspaceId, folderId });
           }}
+          onDeleteAllChildTabs={handleDeleteAllChildTabs}
+          onDeleteOwnChildTabs={handleDeleteOwnChildTabs}
+          onOpenAllInNewTabs={handleOpenAllInNewTabs}
+          onRemoveFromArea={handleRemoveFromArea}
+          onDeleteDirectory={handleDeleteDirectory}
+          onRenameDirectory={(folderId: string) => {
+            const folder = browserTabFolders.find((f) => f.id === folderId);
+            setRenameFolderState({ open: true, folderId, currentName: folder?.name ?? '' });
+          }}
+          onDeleteHistory={handleDeleteHistoryLevel}
+          onOpenTab={handleOpenTabFromTree}
+          onRefreshTab={handleRefreshTab}
+          onEditTab={handleEditTab}
+          onDeleteTab={handleDeleteTab}
+          onCopyTabLink={handleCopyTabLink}
+          onOpenTabInNewTab={handleOpenTabInNewTab}
+          onOpenTabInCurrentTab={handleOpenTabInCurrentTab}
           labels={{
             workspaceCategory: t.browserCategoryWorkspace,
             userFolderCategory: t.browserCategoryUserFolder,
@@ -467,30 +461,20 @@ export function BrowserNavigator({
               />
             </label>
           </div>
-          <CustomScrollArea
-            shellClassName="adl-browser-search-results"
-            scrollClassName="adl-browser-search-results-scroll"
-            scrollbarClassName="adl-browser-search-results-scrollbar"
-            thumbClassName="adl-browser-search-results-scrollbar__thumb"
-          >
-            {searchResults.length > 0 ? (
-              searchResults.map((item, index) => (
-                <SearchResultItem
-                  key={`${item.url}-${index}`}
-                  item={item}
-                  onClick={() => handleOpenTabFromTree(item.url)}
-                />
-              ))
-            ) : navigatorQuery.trim() ? (
-              <div className="adl-multitree__empty">
-                <p className="adl-empty-hint">{t.searchNoResults}</p>
-              </div>
-            ) : (
-              <div className="adl-multitree__empty">
-                <p className="adl-empty-hint">{t.searchBookmarkHistoryHint}</p>
-              </div>
-            )}
-          </CustomScrollArea>
+          {searchResults.length > 0 ? (
+            <BrowserNavSearchMode
+              searchResults={searchResults}
+              onSelectResult={(url) => handleOpenTabFromTree(url)}
+            />
+          ) : navigatorQuery.trim() ? (
+            <div className="adl-multitree__empty">
+              <p className="adl-empty-hint">{t.searchNoResults}</p>
+            </div>
+          ) : (
+            <div className="adl-multitree__empty">
+              <p className="adl-empty-hint">{t.searchBookmarkHistoryHint}</p>
+            </div>
+          )}
         </div>
       ) : null}
       <NavigatorResizeHandle
