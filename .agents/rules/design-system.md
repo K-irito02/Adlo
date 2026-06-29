@@ -153,12 +153,36 @@ xterm.js 主题色从 CSS 自定义属性读取，非硬编码：
 
 ## 主题系统
 
-| 层级 | 存储位置 |
-|------|----------|
-| Theme（持久化） | Tauri backend |
-| Color Scheme（偏好） | `localStorage` |
+### 架构概览
 
-**重要**：WebView 不得直接修改持久化主题，必须通过桥接命令。
+`ThemeController`（`design-system/theme.ts`）是唯一真实来源。所有消费者通过 `useResolvedTheme()` hook 或 MutationObserver 读取当前主题，禁止直接读取 `appInfo.config.resolvedTheme`。
+
+```
+ThemeController (singleton, matchMedia 解析)
+  ├─ useResolvedTheme() hook     → React 组件 (FilesPanel, DiffViewer, CodeEditor)
+  ├─ MutationObserver            → xterm.js 终端
+  ├─ useBrowserThemeSync         → Tauri WebView 颜色方案
+  └─ DOM data-theme / color-scheme → CSS 变量
+```
+
+### 核心文件
+
+| 文件 | 职责 |
+|------|------|
+| `design-system/theme.ts` | `ThemeController` 类 + `resolveThemeMode()` 纯函数 |
+| `app/utils/theme.ts` | `ThemeController` 单例 |
+| `app/hooks/useResolvedTheme.ts` | React hook 订阅 ThemeController |
+| `shared/resolveTheme.ts` | `resolveCurrentTheme()` matchMedia 包装函数 |
+| `styles/themes.css` | `[data-theme]` CSS 变量 |
+
+### 规则
+
+- `ThemeMode`（`'light' | 'dark' | 'system'`）由 Rust 后端持久化，通过 `app.updatePreferences` 修改
+- `ResolvedTheme`（`'light' | 'dark'`）必须在前端通过 `window.matchMedia` 解析，禁止在后端解析 `System` 模式
+- React 组件必须使用 `useResolvedTheme()` 获取当前主题，禁止读取 `appInfo.config.resolvedTheme`
+- 非 React 上下文（xterm.js）通过 MutationObserver 监听 `<html data-theme>` 属性变化
+- `themeController.setTheme()` 只需传 `mode`，不需要传 `resolvedTheme`（Controller 自行解析）
+- 修改偏好时调用 `actions.updatePreferences({ themeMode })`，不要直接修改 store
 
 ## Design Token 类型定义
 

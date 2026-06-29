@@ -44,6 +44,7 @@
 | [refactor-round-68-2026-06-19.md](./重构/refactor-round-68-2026-06-19.md)                               | 2026-06-19 重构洞察执行       | CSS barrel 模式、Store 三层拆分、agent_pipeline 模块化、console.log 清理                                         |
 | [refactoring-execution-2026-06-27.md](./重构/refactoring-execution-2026-06-27.md)                       | 2026-06-27 重构洞察执行       | SDD 子代理驱动重构、model-gateway 模块化、BrowserEntrySubEntries 工具提取、browserUrlUtils 提取、[browser-debug] 清理 |
 | [terminal-pty-evaluation.md](./重构/terminal-pty-evaluation.md)                                         | 重构洞察                      | Terminal 与 PTY crate 职责边界评估报告                                                                           |
+| [theme-unified-management-2026-06-30.md](./重构/theme-unified-management-2026-06-30.md)                 | 2026-06-30 方案 C 重构执行    | Theme 统一管理：ThemeController 为唯一真实来源、useResolvedTheme hook、resolveCurrentTheme 共享函数、消除 4 处内联 matchMedia |
 
 ### 多工作区
 
