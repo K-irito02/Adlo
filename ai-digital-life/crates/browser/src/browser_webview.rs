@@ -245,8 +245,8 @@ impl BrowserManager {
                 Ok(true)
             },
             Err(e) => {
-                tracing::warn!(tab_id = &tid, "go_back_tab: eval failed: {e}");
-                Ok(false)
+                tracing::error!(tab_id = &tid, "go_back_tab: eval failed: {e}");
+                Err(AppError::Internal(format!("go_back_tab eval failed: {e}")))
             },
         }
     }
@@ -268,8 +268,8 @@ impl BrowserManager {
                 Ok(true)
             },
             Err(e) => {
-                tracing::warn!(tab_id = &tid, "go_forward_tab: eval failed: {e}");
-                Ok(false)
+                tracing::error!(tab_id = &tid, "go_forward_tab: eval failed: {e}");
+                Err(AppError::Internal(format!("go_forward_tab eval failed: {e}")))
             },
         }
     }
