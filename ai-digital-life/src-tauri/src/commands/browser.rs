@@ -113,11 +113,7 @@ pub fn browser_set_color_scheme(
     color_scheme: String,
 ) -> Result<IpcResult<()>, CommandError> {
     tracing::info!(color_scheme, "browser_set_color_scheme command invoked");
-    Ok(ipc(
-        state
-            .browser_manager
-            .set_color_scheme_for_all(&app, &color_scheme),
-    ))
+    Ok(ipc(state.browser_manager.set_color_scheme_for_all(&app, &color_scheme)))
 }
 
 const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";

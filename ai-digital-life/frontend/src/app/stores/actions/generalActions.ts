@@ -190,9 +190,16 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
         set({ error: result.error.message });
         return;
       }
+      const responseMode = result.data.config.themeMode;
+      const responseResolved =
+        responseMode === 'system'
+          ? (window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false)
+            ? 'dark'
+            : 'light'
+          : result.data.config.resolvedTheme;
       themeController.setTheme({
-        mode: result.data.config.themeMode,
-        resolvedTheme: result.data.config.resolvedTheme,
+        mode: responseMode,
+        resolvedTheme: responseResolved,
       });
       themeController.hydrate();
       set((state: StoreState) => ({

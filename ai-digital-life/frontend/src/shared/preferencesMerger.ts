@@ -15,7 +15,19 @@ export function applyPreferencePatch(
   }
   if (patch.themeMode) {
     nextConfig.themeMode = patch.themeMode;
-    nextConfig.resolvedTheme = patch.themeMode === 'dark' ? 'dark' : 'light';
+    nextConfig.resolvedTheme =
+      patch.themeMode === 'system'
+        ? typeof window !== 'undefined' &&
+          (window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false)
+          ? 'dark'
+          : 'light'
+        : patch.themeMode;
+  } else if (nextConfig.themeMode === 'system') {
+    nextConfig.resolvedTheme =
+      typeof window !== 'undefined' &&
+      (window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false)
+        ? 'dark'
+        : 'light';
   }
   if (patch.modelPreferences) {
     const nextProviders = { ...nextConfig.modelPreferences.providers };

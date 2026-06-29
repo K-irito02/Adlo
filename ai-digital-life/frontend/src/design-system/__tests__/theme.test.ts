@@ -7,7 +7,11 @@ describe('ThemeController color-scheme', () => {
 
   beforeEach(() => {
     root = document.createElement('html');
-    const mq = { matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() } as unknown as MediaQueryList;
+    const mq = {
+      matches: false,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    } as unknown as MediaQueryList;
     controller = new ThemeController({ root, systemDarkQuery: mq });
   });
 

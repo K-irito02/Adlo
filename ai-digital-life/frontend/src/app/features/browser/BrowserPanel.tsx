@@ -288,24 +288,9 @@ export function BrowserPanel(props: BrowserPanelProps) {
     (workspaceId?: string) => {
       const beforeState = useAppStore.getState();
       const tabIdsToDestroy = beforeState.browserTabs.map((t) => t.id);
-      const folderTabsBefore = beforeState.browserTabFolders.map((f) => ({
-        name: f.name,
-        tabCount: f.tabs?.length || 0,
-      }));
-      const bookmarkKeysBefore = Object.keys(beforeState.browserWorkspaceBookmarks || {});
-      console.log(
-        '[ADL-DEBUG]',
-        `handleCloseAllTabs: workspaceId=${workspaceId || '(all)'} | openTabs=${tabIdsToDestroy.length} | folders=${folderTabsBefore.length} | bookmarkedWorkspaces=${bookmarkKeysBefore.length}`
-      );
       _handleCloseAllTabs(workspaceId);
       if (!workspaceId) {
         if (isTauriShell()) {
-          console.log(
-            '[ADL-DEBUG]',
-            'handleCloseAllTabs destroying',
-            tabIdsToDestroy.length,
-            'WebViews'
-          );
           for (const tid of tabIdsToDestroy) {
             removeFromPool(tid);
           }
@@ -319,43 +304,14 @@ export function BrowserPanel(props: BrowserPanelProps) {
           });
         }
       }
-      // 验证关闭后状态
-      const afterState = useAppStore.getState();
-      const folderTabsAfter = afterState.browserTabFolders.map((f) => ({
-        name: f.name,
-        tabCount: f.tabs?.length || 0,
-      }));
-      console.log(
-        '[ADL-DEBUG]',
-        `handleCloseAllTabs DONE: remainingTabs=${afterState.browserTabs.length} | folderTabsAfter=${JSON.stringify(folderTabsAfter)} | bookmarkedWorkspaces=${Object.keys(afterState.browserWorkspaceBookmarks || {}).length}`
-      );
     },
     [_handleCloseAllTabs, removeFromPool]
   );
 
   const handleClearTabDirectories = useCallback(() => {
-    const s0 = useAppStore.getState();
-    const folderCountsBefore = s0.browserTabFolders.map((f) => ({
-      name: f.name,
-      tabCount: f.tabs?.length || 0,
-    }));
-    console.log(
-      '[ADL-DEBUG]',
-      `handleClearTabDirectories: clearing folders=${JSON.stringify(folderCountsBefore)}`
-    );
-    // 清空文件夹内的标签
     _handleClearTabDirectories();
-    // 同时清空工作区书签和 tabId→URL 映射
     const s = useAppStore.getState();
     s.browserClearAllWorkspaceBookmarks?.();
-    const afterCounts = s.browserTabFolders.map((f) => ({
-      name: f.name,
-      tabCount: f.tabs?.length || 0,
-    }));
-    console.log(
-      '[ADL-DEBUG]',
-      `handleClearTabDirectories DONE: folders=${JSON.stringify(afterCounts)}`
-    );
   }, [_handleClearTabDirectories]);
 
   const { handlePageMeta: _handlePageMeta } = useBrowserPageMeta(
@@ -530,6 +486,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
     iframeRef,
     iframeHistory,
     navigateBrowser,
+    activeTabId: activeTab?.id,
   });
 
   const activeTabUrl =

@@ -437,7 +437,9 @@ export function createTauriBridge(): DigitalLifeBridge {
         };
       },
       setBrowserColorScheme: (resolvedTheme: 'light' | 'dark') =>
-        invokeIpc<void>('browser_set_color_scheme', { colorScheme: resolvedTheme }).then(() => undefined),
+        invokeIpc<void>('browser_set_color_scheme', { colorScheme: resolvedTheme }).then(
+          () => undefined
+        ),
     },
     ci: {
       getStatus: (config) => invokeIpc<CiStatusSnapshot>('ci_get_status', { config }),

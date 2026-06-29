@@ -109,7 +109,6 @@ export function useBrowserTabs() {
 
   const handleCloseTab = useCallback(
     (tabId: string) => {
-      console.log('[ADL-DEBUG]', `handleCloseTab tabId=${tabId}`);
       const state = useAppStore.getState();
       const tab = state.browserTabs.find((t) => t.id === tabId);
       if (tab) {

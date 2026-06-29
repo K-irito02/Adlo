@@ -1,4 +1,5 @@
 use adl_errors::AppError;
+use std::sync::Mutex;
 use tauri::Manager;
 
 use crate::browser_pool::BrowserPool;
@@ -21,6 +22,7 @@ fn webview_label(tab_id: &str) -> String {
 
 pub struct BrowserManager {
     pool: BrowserPool,
+    current_color_scheme: Mutex<String>,
 }
 
 impl Default for BrowserManager {
@@ -31,7 +33,10 @@ impl Default for BrowserManager {
 
 impl BrowserManager {
     pub fn new() -> Self {
-        Self { pool: BrowserPool::new(DEFAULT_POOL_SIZE) }
+        Self {
+            pool: BrowserPool::new(DEFAULT_POOL_SIZE),
+            current_color_scheme: Mutex::new("dark".to_string()),
+        }
     }
 
     pub fn create_for_tab(
@@ -102,6 +107,22 @@ impl BrowserManager {
             {
                 tracing::warn!(tab_id = tab_id, error = %e, "audio handler setup failed");
             }
+
+            // Apply current PreferredColorScheme to the new WebView
+            let cs = self
+                .current_color_scheme
+                .lock()
+                .unwrap_or_else(|e| {
+                    tracing::warn!("current_color_scheme mutex was poisoned, recovering");
+                    e.into_inner()
+                })
+                .clone();
+            tracing::info!(
+                tab_id = tab_id,
+                color_scheme = &cs,
+                "applying current color scheme to new WebView"
+            );
+            crate::webview2_set_color_scheme(&webview, &cs);
         }
 
         Ok(evicted)
@@ -206,40 +227,55 @@ impl BrowserManager {
     }
 
     pub fn go_back_tab(&self, app: &tauri::AppHandle, tab_id: &str) -> Result<bool, AppError> {
+        let tid = tab_id.to_string();
+        tracing::info!(tab_id = &tid, "go_back_tab");
         let window = app
             .get_window("main")
             .ok_or_else(|| AppError::Internal("main window not found".into()))?;
-
-        let label = webview_label(tab_id);
+        let label = webview_label(&tid);
         let webview = window
             .get_webview(&label)
-            .ok_or_else(|| AppError::Internal(format!("webview for tab {tab_id} not found")))?;
+            .ok_or_else(|| AppError::Internal(format!("webview for tab {tid} not found")))?;
 
-        webview
-            .eval("history.back()")
-            .map_err(|e| AppError::Internal(format!("go_back eval failed: {e}")))?;
-
-        Ok(true)
+        // Use eval("history.back()") for SPA-compatible back navigation.
+        // Native GoBack() triggers full page reloads which disrupt SPA sites like YouTube.
+        match webview.eval("history.back()") {
+            Ok(_) => {
+                tracing::info!(tab_id = &tid, "go_back_tab: eval history.back() ok");
+                Ok(true)
+            },
+            Err(e) => {
+                tracing::warn!(tab_id = &tid, "go_back_tab: eval failed: {e}");
+                Ok(false)
+            },
+        }
     }
 
     pub fn go_forward_tab(&self, app: &tauri::AppHandle, tab_id: &str) -> Result<bool, AppError> {
+        let tid = tab_id.to_string();
+        tracing::info!(tab_id = &tid, "go_forward_tab");
         let window = app
             .get_window("main")
             .ok_or_else(|| AppError::Internal("main window not found".into()))?;
-
-        let label = webview_label(tab_id);
+        let label = webview_label(&tid);
         let webview = window
             .get_webview(&label)
-            .ok_or_else(|| AppError::Internal(format!("webview for tab {tab_id} not found")))?;
+            .ok_or_else(|| AppError::Internal(format!("webview for tab {tid} not found")))?;
 
-        webview
-            .eval("history.forward()")
-            .map_err(|e| AppError::Internal(format!("go_forward eval failed: {e}")))?;
-
-        Ok(true)
+        match webview.eval("history.forward()") {
+            Ok(_) => {
+                tracing::info!(tab_id = &tid, "go_forward_tab: eval history.forward() ok");
+                Ok(true)
+            },
+            Err(e) => {
+                tracing::warn!(tab_id = &tid, "go_forward_tab: eval failed: {e}");
+                Ok(false)
+            },
+        }
     }
 
     pub fn reload_tab(&self, app: &tauri::AppHandle, tab_id: &str) -> Result<(), AppError> {
+        tracing::info!(tab_id, "reload_tab");
         let window = app
             .get_window("main")
             .ok_or_else(|| AppError::Internal("main window not found".into()))?;
@@ -253,6 +289,7 @@ impl BrowserManager {
             .eval("location.reload()")
             .map_err(|e| AppError::Internal(format!("reload eval failed: {e}")))?;
 
+        tracing::info!(tab_id, "reload_tab ok");
         Ok(())
     }
 
@@ -281,6 +318,14 @@ impl BrowserManager {
         app: &tauri::AppHandle,
         color_scheme: &str,
     ) -> Result<(), AppError> {
+        {
+            let mut cs = self.current_color_scheme.lock().unwrap_or_else(|e| {
+                tracing::warn!("current_color_scheme mutex was poisoned, recovering");
+                e.into_inner()
+            });
+            *cs = color_scheme.to_string();
+        }
+
         let tab_ids = self.pool.tab_ids();
         tracing::info!(
             tab_count = tab_ids.len(),
@@ -302,10 +347,7 @@ impl BrowserManager {
                 );
                 crate::webview2_set_color_scheme(&webview, color_scheme);
             } else {
-                tracing::warn!(
-                    tab_id = &tab_id,
-                    "browser webview not found for set_color_scheme"
-                );
+                tracing::warn!(tab_id = &tab_id, "browser webview not found for set_color_scheme");
             }
         }
 

@@ -207,10 +207,6 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
 
   const handleToggleNavigateMode = useCallback(
     (checked: boolean) => {
-      console.log(
-        '[ADL-DEBUG]',
-        `handleToggleNavigateMode: switched to ${checked ? 'in-place' : 'new-tab'} mode`
-      );
       setBrowserNavigateInPlace(checked);
     },
     [setBrowserNavigateInPlace]
@@ -231,10 +227,6 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
         return;
       }
       if (browserNavigateInPlace) {
-        console.log(
-          '[ADL-DEBUG]',
-          `handleOpenTabFromTree: navigateInPlace mode, navigating active tab to ${url.substring(0, 80)}`
-        );
         const state = useAppStore.getState();
         const activeTabId = state.browserActiveTabId;
         if (activeTabId && state.browserTabs.find((t) => t.id === activeTabId)) {
@@ -245,10 +237,6 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
           return;
         }
       }
-      console.log(
-        '[ADL-DEBUG]',
-        `handleOpenTabFromTree: newTab mode, opening tab for ${url.substring(0, 80)}`
-      );
       browserOpenTab(url, undefined, undefined);
     },
     [browserTabs, browserOpenTab, browserNavigateInPlace]

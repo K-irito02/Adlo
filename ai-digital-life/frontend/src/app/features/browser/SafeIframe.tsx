@@ -81,7 +81,6 @@ export function SafeIframe({
       } catch {
         /* ignore cross-origin errors */
       }
-      console.log('[ADL-DEBUG]', 'SafeIframe cleanup for tab:', src);
       if (shadow!.contains(iframe)) {
         shadow!.removeChild(iframe);
       }

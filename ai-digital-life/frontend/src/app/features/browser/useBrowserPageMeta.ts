@@ -180,10 +180,6 @@ export function useBrowserPageMeta(
 
       const state = useAppStore.getState();
       pendingNavigationsRef.current.delete(cleanUrl);
-      console.log(
-        '[ADL-DEBUG]',
-        `handlePageMeta: title="${(meta.title || '').substring(0, 50)}" favicon=${meta.favicon ? '✓' : '✗'} url=${cleanUrl.substring(0, 80)}`
-      );
 
       const normalizedMetaUrl = normalizeUrlForDedup(cleanUrl);
       const exactMatch = state.browserTabs.find(
@@ -221,37 +217,23 @@ export function useBrowserPageMeta(
 
       if (exactMatch) {
         if (exactMatch.title !== pageTitle) {
-          console.log(
-            '[ADL-DEBUG]',
-            `handlePageMeta exactMatch: updating tab title "${(pageTitle || '').substring(0, 50)}"`
-          );
           if (!isTabTitleLocked(exactMatch.id)) {
             state.browserUpdateTab(exactMatch.id, { title: pageTitle });
           }
           state.browserAddToHistory(cleanUrl, pageTitle);
           state.browserUpdateHistoryTitle(cleanUrl, pageTitle);
-        } else {
-          console.log('[ADL-DEBUG]', `handlePageMeta exactMatch: title unchanged, skip`);
         }
         return;
       }
 
       if (activeTab) {
         if (isMetaRecentlyProcessed(cleanUrl)) {
-          console.log(
-            '[ADL-DEBUG]',
-            `handlePageMeta activeTab: META DEDUP SKIP for ${cleanUrl.substring(0, 60)}`
-          );
           return;
         }
         if (markUrlSeen) {
           markUrlSeen(cleanUrl);
         }
         processedMetaRef.current.set(cleanUrl, Date.now());
-        console.log(
-          '[ADL-DEBUG]',
-          `handlePageMeta activeTab: adding history + updating tab title="${(pageTitle || '').substring(0, 50)}"`
-        );
 
         if (!isTabTitleLocked(activeTab.id)) {
           state.browserUpdateTab(activeTab.id, {
@@ -265,20 +247,12 @@ export function useBrowserPageMeta(
       }
 
       if (isMetaRecentlyProcessed(cleanUrl)) {
-        console.log(
-          '[ADL-DEBUG]',
-          `handlePageMeta noTab: META DEDUP SKIP for ${cleanUrl.substring(0, 60)}`
-        );
         return;
       }
       if (markUrlSeen) {
         markUrlSeen(cleanUrl);
       }
       processedMetaRef.current.set(cleanUrl, Date.now());
-      console.log(
-        '[ADL-DEBUG]',
-        `handlePageMeta noTab: opening tab + adding history title="${(pageTitle || '').substring(0, 50)}"`
-      );
       state.browserOpenTab(cleanUrl, pageTitle);
       state.browserAddToHistory(cleanUrl, pageTitle);
     },

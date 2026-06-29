@@ -198,18 +198,8 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
       const urlChanged = activeTab && normalizeUrlForCompare(activeTab.url) !== normalizedUrl;
       const noTabExists = !activeTab && !activeTabId;
 
-      console.log(
-        '[ADL-DEBUG]',
-        `urlChanged event: url=${url.substring(0, 80)} | urlChanged=${urlChanged} | noTabExists=${noTabExists} | activeTab?.url=${(activeTab?.url || '(none)').substring(0, 60)} | ts=${_urlChangeTs.toFixed(0)}`
-      );
-
       if (noTabExists || urlChanged) {
-        // Dedup: if noTabExists and prefetch already pending for this URL, skip
         if (noTabExists && pendingPrefetchRef.current.has(normalizedUrl)) {
-          console.log(
-            '[ADL-DEBUG]',
-            `urlChanged SKIP: noTabExists + pending prefetch already exists for ${normalizedUrl.substring(0, 60)}`
-          );
           setAddress(normalizedUrl);
           return;
         }
@@ -226,16 +216,8 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
         );
 
         if (existingReal) {
-          console.log(
-            '[ADL-DEBUG]',
-            `urlChanged PROCESSING: SPA URL normalization (existing real title="${(existingReal.title || '').substring(0, 50)}"), updating tab only for ${normalizedUrl.substring(0, 60)}`
-          );
           s.browserNavigateActiveTab(normalizedUrl);
         } else {
-          console.log(
-            '[ADL-DEBUG]',
-            `urlChanged PROCESSING: adding placeholder history + navigateActiveTab for ${normalizedUrl.substring(0, 60)}`
-          );
           s.browserAddToHistory(normalizedUrl, normalizedUrl);
           s.browserNavigateActiveTab(normalizedUrl);
         }
@@ -263,12 +245,7 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
 
         const tryPrefetch = (): void => {
           prefetchPageMeta(normalizedUrl).then((meta) => {
-            // Discard if a newer navigation superseded this generation
             if (captureGeneration !== navigationGenerationRef.current) {
-              console.log(
-                '[ADL-DEBUG]',
-                `prefetch DISCARDED (generation changed): gen=${captureGeneration} current=${navigationGenerationRef.current} url=${normalizedUrl.substring(0, 60)}`
-              );
               return;
             }
 
@@ -285,19 +262,11 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
             if (!meta?.title) {
               retryCount++;
               if (retryCount < MAX_RETRIES) {
-                console.log(
-                  '[ADL-DEBUG]',
-                  `prefetch retry #${retryCount}: url=${normalizedUrl.substring(0, 60)}`
-                );
                 const retryTimerId = setTimeout(tryPrefetch, RETRY_INTERVAL);
                 fallbackTimeoutsRef.current.set(PREFETCH_KEY, retryTimerId);
               }
               return;
             }
-            console.log(
-              '[ADL-DEBUG]',
-              `prefetch SUCCESS: title="${(meta.title || '').substring(0, 50)}" url=${normalizedUrl.substring(0, 60)}`
-            );
             const s = useAppStore.getState();
             const activeTabId = s.browserActiveTabId;
             const tab = activeTabId
@@ -333,48 +302,26 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
 
         tryPrefetch();
 
-        // Fallback: navigate tab with URL as title if no real title arrives
         const fallbackDelay = noTabExists ? 8000 : 15000;
-        console.log(
-          '[ADL-DEBUG]',
-          `fallback timer SET: delay=${fallbackDelay}ms url=${normalizedUrl.substring(0, 60)}`
-        );
         const timerId = setTimeout(() => {
           const s = useAppStore.getState();
           const activeTabId = s.browserActiveTabId;
           const curTab = activeTabId
             ? s.browserTabs.find((t: BrowserTabState) => t.id === activeTabId)
             : undefined;
-          console.log(
-            '[ADL-DEBUG]',
-            `fallback FIRED: url=${normalizedUrl.substring(0, 60)} curTab?.url=${(curTab?.url || '(none)').substring(0, 60)} curTab?.title="${(curTab?.title || '').substring(0, 50)}"`
-          );
           if (curTab) {
             const tabUrlMatches = normalizeUrlForCompare(curTab.url) === normalizedUrl;
             if (!tabUrlMatches) {
-              console.log(
-                '[ADL-DEBUG]',
-                `fallback: URL not applied, navigating with fallback title`
-              );
               s.browserNavigateActiveTab(normalizedUrl, normalizedUrl);
             } else if (!curTab.title) {
-              console.log('[ADL-DEBUG]', `fallback: title empty, setting to URL`);
               s.browserUpdateTab(curTab.id, { title: normalizedUrl });
             }
           } else {
-            console.log('[ADL-DEBUG]', `fallback: no active tab, navigating`);
             s.browserNavigateActiveTab(normalizedUrl);
           }
           fallbackTimeoutsRef.current.delete(normalizedUrl);
         }, fallbackDelay);
         fallbackTimeoutsRef.current.set(normalizedUrl, timerId);
-      }
-
-      if (!noTabExists && !urlChanged) {
-        console.log(
-          '[ADL-DEBUG]',
-          `urlChanged SKIP (url unchanged): url=${normalizedUrl.substring(0, 60)} activeTab.url=${(activeTab?.url || '(none)').substring(0, 60)}`
-        );
       }
 
       const expected = expectedNavigationUrlRef.current;

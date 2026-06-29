@@ -7,10 +7,16 @@ export function useThemeSync(appInfo: AppInfo | undefined) {
     if (!appInfo) {
       return;
     }
-    themeController.setTheme({
-      mode: appInfo.config.themeMode,
-      resolvedTheme: appInfo.config.resolvedTheme,
-    });
+
+    const { themeMode } = appInfo.config;
+    const resolvedTheme =
+      themeMode === 'system'
+        ? (window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false)
+          ? 'dark'
+          : 'light'
+        : appInfo.config.resolvedTheme;
+
+    themeController.setTheme({ mode: themeMode, resolvedTheme });
     themeController.hydrate();
   }, [appInfo, appInfo?.config.themeMode, appInfo?.config.resolvedTheme]);
 }

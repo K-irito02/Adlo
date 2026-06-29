@@ -1,9 +1,3 @@
-# Obsidian
-.obsidian/
-workspace.json
-plugins/
-themes/
-
 # OS files
 .DS_Store
 Thumbs.db
@@ -32,10 +26,6 @@ terminal-logs.txt
 .env.local
 .env.*.local
 
-# Cursor IDE runtime cache
-.cursor/hooks/electron-profile/
-.cursor/hooks/.restart-desktop-dev.state.json*
-
 # Test artifacts
 dogfood-output/
 
@@ -54,3 +44,6 @@ digitalLife/
 .trae/commands/
 .trae/documents/
 .trae/specs/
+
+# Superpower IDE runtime cache
+.superpowers/

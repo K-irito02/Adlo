@@ -60,8 +60,9 @@ export class ThemeController {
     this.currentResolvedTheme = this.systemDarkQuery?.matches ? 'dark' : 'light';
 
     this.handleSystemChange = () => {
+      const matches = this.systemDarkQuery?.matches ?? false;
       if (this.currentThemeMode === 'system') {
-        this.applyResolvedTheme(this.systemDarkQuery?.matches ? 'dark' : 'light');
+        this.applyResolvedTheme(matches ? 'dark' : 'light');
       }
     };
 
