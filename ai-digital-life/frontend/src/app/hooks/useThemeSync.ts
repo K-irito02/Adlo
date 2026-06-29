@@ -8,15 +8,7 @@ export function useThemeSync(appInfo: AppInfo | undefined) {
       return;
     }
 
-    const { themeMode } = appInfo.config;
-    const resolvedTheme =
-      themeMode === 'system'
-        ? (window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false)
-          ? 'dark'
-          : 'light'
-        : appInfo.config.resolvedTheme;
-
-    themeController.setTheme({ mode: themeMode, resolvedTheme });
+    themeController.setTheme({ mode: appInfo.config.themeMode });
     themeController.hydrate();
-  }, [appInfo, appInfo?.config.themeMode, appInfo?.config.resolvedTheme]);
+  }, [appInfo, appInfo?.config.themeMode]);
 }
