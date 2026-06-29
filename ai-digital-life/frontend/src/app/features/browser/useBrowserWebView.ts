@@ -145,7 +145,7 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
       return;
     }
 
-    const OVERLAY_SELECTOR = '.adl-sidebar-menu, .adl-multitree-entry__menu';
+    const OVERLAY_SELECTOR = '.adl-sidebar-menu, .adl-multitree-entry__menu, .adl-menu__dropdown';
     let rafId: number | null = null;
 
     const checkDomOverlay = () => {
