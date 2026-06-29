@@ -113,8 +113,6 @@ export class ThemeController {
 
   private applyResolvedTheme(resolved: ResolvedTheme): void {
     if (resolved === this.currentResolvedTheme) {
-      this.applyToRoot();
-      this.emit();
       return;
     }
 

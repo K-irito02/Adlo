@@ -281,13 +281,6 @@ impl BrowserManager {
         app: &tauri::AppHandle,
         color_scheme: &str,
     ) -> Result<(), AppError> {
-        let escaped = color_scheme
-            .replace('\\', "\\\\")
-            .replace('\'', "\\'");
-        let script = format!(
-            "try{{document.documentElement.style.colorScheme='{escaped}'}}catch(e){{console.warn('[ADL-DEBUG]','set_color_scheme failed:',e)}}"
-        );
-
         let window = app
             .get_window("main")
             .ok_or_else(|| AppError::Internal("main window not found".into()))?;
@@ -295,19 +288,12 @@ impl BrowserManager {
         for tab_id in self.pool.tab_ids() {
             let label = webview_label(&tab_id);
             if let Some(webview) = window.get_webview(&label) {
-                if let Err(e) = webview.eval(&script) {
-                    tracing::warn!(
-                        tab_id = &tab_id,
-                        error = %e,
-                        "failed to set color scheme on browser webview"
-                    );
-                } else {
-                    tracing::info!(
-                        tab_id = &tab_id,
-                        color_scheme = color_scheme,
-                        "set color scheme on browser webview"
-                    );
-                }
+                tracing::info!(
+                    tab_id = &tab_id,
+                    color_scheme = color_scheme,
+                    "setting color scheme on browser webview via Profile"
+                );
+                crate::webview2_set_color_scheme(&webview, color_scheme);
             } else {
                 tracing::warn!(
                     tab_id = &tab_id,
