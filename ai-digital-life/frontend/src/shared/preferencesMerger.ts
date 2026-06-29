@@ -3,6 +3,7 @@ import type {
   ConfigSnapshot,
   ModelProviderPreference,
 } from '@ai-digital-life/kernel';
+import { resolveCurrentTheme } from './resolveTheme';
 
 export function applyPreferencePatch(
   config: ConfigSnapshot,
@@ -15,19 +16,9 @@ export function applyPreferencePatch(
   }
   if (patch.themeMode) {
     nextConfig.themeMode = patch.themeMode;
-    nextConfig.resolvedTheme =
-      patch.themeMode === 'system'
-        ? typeof window !== 'undefined' &&
-          (window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false)
-          ? 'dark'
-          : 'light'
-        : patch.themeMode;
+    nextConfig.resolvedTheme = resolveCurrentTheme(patch.themeMode);
   } else if (nextConfig.themeMode === 'system') {
-    nextConfig.resolvedTheme =
-      typeof window !== 'undefined' &&
-      (window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false)
-        ? 'dark'
-        : 'light';
+    nextConfig.resolvedTheme = resolveCurrentTheme('system');
   }
   if (patch.modelPreferences) {
     const nextProviders = { ...nextConfig.modelPreferences.providers };
