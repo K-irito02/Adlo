@@ -251,6 +251,7 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
     onMetaChanged: (_listener: (meta: PageMeta) => void) => () => {},
     muteTab: (_tabId: string, _muted: boolean) => Promise.resolve(),
     onAudioStateChanged: (_listener: (payload: AudioStatePayload) => void) => () => {},
+    setBrowserColorScheme: (_resolvedTheme: 'light' | 'dark') => Promise.resolve(),
   },
 
   ci: {
