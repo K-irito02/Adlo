@@ -1,6 +1,6 @@
 # 重构进度报告
 
-> 更新日期: 2026-06-28（第八十五轮）
+> 更新日期: 2026-06-29（第八十六轮）
 
 ## 完成状态
 
@@ -91,6 +91,7 @@
 | **第八十三轮** | **2026-06-27** | **重构洞察第18次执行（15项发现，7项已落地）：BrowserNavigator OpenTabFlatList 提取（578→484行，-94行）；BrowserPanelContent BrowserIframeStack 提取（574→461行，-113行）；useChangesPanelState 对话框回调提取→useChangesPanelDialogs（548→515行，-33行）；useBrowserTreeActions 工具函数提取→browserTreeUtils（539→503行，-36行）；ESLint poolVersion 修复（22→20 warnings）** | ✅ |
 | **第八十四轮** | **2026-06-27** | **SDD 子代理驱动重构（5 子代理 + 5 审查循环）：browser.rs Mutex unwrap→expect；model-gateway 模块化（382→163行 lib.rs + 6子模块）；BrowserEntrySubEntries 工具函数提取→browserEntrySubEntriesUtils（-238行）；useBrowserUrlChange 工具函数提取→browserUrlUtils（-38行）** | ✅ |
 | **第八十五轮** | **2026-06-28** | **浏览器 WebView 覆盖检测修复：重叠感知 MutationObserver（bounding rect 相交判定替代粗粒度 DOM 检测），移除 browserMenuOpen/contextMenu.open 误触隐藏；Tauri permission 修复（core:window:allow-start-dragging）；代码质量治理——ESLint 18 warnings→4（any→proper type 11处、curly 2处、prettier 4处、useAppStore dep），Prettier 全量格式化，rustfmt + Clippy 全 clean；清理 stale 调试日志；知识笔记更新为三路协同架构** | ✅ |
+| **第八十六轮** | **2026-06-29** | **重构洞察第19次执行：宏观扫描发现 4 处回归（!important 23→311、console.log 0→25、React.lazy 丢失、BrowserNavigator 膨胀至 495 行）；console.log 清理（fetchPageMeta 6 处）；App.tsx getState()→选择器订阅 activeSessionId；Rust unwrap 确认为测试代码；Rust clone 均属惯用模式；生成洞察报告（24 项发现）和实施计划（24 项任务）** | ✅ |
 
 ## 说明
 

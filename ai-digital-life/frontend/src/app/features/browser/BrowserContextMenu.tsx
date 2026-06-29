@@ -1,14 +1,6 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import {
-  IconPin,
-  IconPinOff,
-  IconEdit,
-  IconTrash,
-  IconGlobe,
-  IconCopy,
-  IconCut,
-} from '@icons';
+import { IconPin, IconPinOff, IconEdit, IconTrash, IconGlobe, IconCopy, IconCut } from '@icons';
 import type { ContextMenuState } from './useBrowserContextMenu';
 import { useTCopy } from '@i18n/useTCopy';
 

@@ -7,10 +7,7 @@ export interface BrowserNavSearchModeProps {
   onSelectResult: (url: string) => void;
 }
 
-export function BrowserNavSearchMode({
-  searchResults,
-  onSelectResult,
-}: BrowserNavSearchModeProps) {
+export function BrowserNavSearchMode({ searchResults, onSelectResult }: BrowserNavSearchModeProps) {
   return (
     <CustomScrollArea
       shellClassName="adl-browser-search-results"

@@ -39,6 +39,7 @@
 | 2026-06-23 | 11 | ✅ 已解决 | 5 组件拆分（-1789 行）、Rust 4 文件 clone 消除（-37%）、preview-bridge 13 子模块、mock shared 4 子模块 |
 | 2026-06-24 | — | ✅ 已解决 | 浏览器导航栏4模式重构、Store 简化、Flash 消除、Flat 标签溢出 ::after 蒙版修复 |
 | 2026-06-27 | 15 | 🔄 部分解决 | BrowserNavigator OpenTabFlatList 提取（-94行）、ESLint 警告清理（22→16）、React.memo/lazy 现状确认 |
+| 2026-06-29 | 24 | 🔄 部分解决 | 宏观扫描回归（!important 23→311、console.log 0→25）；console.log 清理（fetchPageMeta 6处）；App.tsx getState()→选择器；5 Hook 超 300 行；BrowserPanel(716行)/BrowserNavigator(495行)过大；kernel/index.ts(1158行)和 shared/ipc.ts(1296行)膨胀；React.lazy 几乎完全丢失 |
 
 ## 各日洞察摘要
 
@@ -263,3 +264,12 @@
 - **ESLint 修复**：BrowserPanel poolVersion 未使用+多余dep修复（22→20 warnings）
 - **总减少行数**：-276 行（5 个新文件，4 个缩减文件）
 - **质量门禁**：TypeScript 0 errors / 268 tests 0 failed / ESLint 20w 0 errors（全部预存）/ Clippy 0 warnings / rustfmt 0 issues
+
+### 2026-06-29
+- 24 项发现，2 项落地
+- **回归发现**：!important 23→311（+288）、console.log 0→25（+25）、React.lazy 几乎完全丢失（仅 LazyPreviews.tsx 3处）
+- **清理**：fetchPageMeta.ts 6 处 console.info 清理
+- **选择器修复**：App.tsx activeSessionId getState() → 选择器订阅
+- **Rust 分析**：task.rs L486 unwrap 确认为测试代码；agent_pipeline/patch/workspace_sidebar 的 clone 均属惯用模式
+- **待处理**：5 Hook >300 行、BrowserPanel 716行、BrowserNavigator 495行、kernel/index.ts 1158行、shared/ipc.ts 1296行、React.lazy 恢复、深层导入 287 处
+- **质量门禁**：TypeScript 0 errors / 273 tests 0 failed / ESLint 0 errors 0 warnings / Prettier 全 clean / rustfmt 0 issues
