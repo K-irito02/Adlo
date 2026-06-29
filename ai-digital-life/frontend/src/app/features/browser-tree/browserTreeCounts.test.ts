@@ -58,7 +58,7 @@ function makeFolder(
     name,
     parentId,
     parentType,
-    tabs: tabIds,
+    tabs: tabIds.map((tabId) => ({ tabId, url: '', title: '' })),
     createdAt: 0,
     isUserCreated: parentType === 'folder' && parentId === undefined,
   };

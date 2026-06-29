@@ -102,9 +102,9 @@ app/stores/
 │   ├── githubTreeSlice.ts       # GitHub 树形目录
 │   ├── browserSlice.ts          # 浏览器核心（导航布局、持久化）
 │   ├── browserTabsSlice.ts      # 浏览器标签页
-│   ├── browserBookmarkSlice.ts  # 浏览器书签
+│   ├── browserBookmarkSlice.ts  # 浏览器书签（含 browserWorkspaceBookmarks 工作区书签）
 │   ├── browserHistorySlice.ts   # 浏览器历史记录
-│   ├── browserFoldersSlice.ts   # 浏览器标签文件夹
+│   ├── browserFoldersSlice.ts   # 浏览器标签文件夹（TabFolderState.tabs: BookmarkTabItem[] = { tabId, url, title }）
 │   └── browserLandingSlice.ts   # 浏览器着陆页（快捷站点、端口、背景）
 │
 ├── actions/                     # 12 个跨切片 action 模块

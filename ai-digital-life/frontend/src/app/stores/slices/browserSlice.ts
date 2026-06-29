@@ -22,7 +22,7 @@ import type { ShortcutSite, LocalPort, BackgroundConfig } from './browserLanding
 export type { BrowserTabState, BrowserTabStateUpdate } from './browserTabsSlice';
 export type { BrowserBookmark, WorkspaceBookmarkEntry } from './browserBookmarkSlice';
 export type { BrowserHistoryState } from './browserHistorySlice';
-export type { TabFolderState } from './browserFoldersSlice';
+export type { TabFolderState, BookmarkTabItem } from './browserFoldersSlice';
 export type {
   ShortcutSite,
   LocalPort,
@@ -78,7 +78,29 @@ function hydrateBrowserDefaults(
       BROWSER_NAVIGATOR_WIDTH_MAX
     );
     const workspaceExpanded = readJson<Record<string, boolean>>(BROWSER_WORKSPACE_EXPANDED_KEY, {});
-    const persistedTabFolders = readJson<TabFolderState[]>(BROWSER_TAB_FOLDERS_KEY, []);
+    let persistedTabFolders = readJson<TabFolderState[]>(BROWSER_TAB_FOLDERS_KEY, []);
+    // 迁移：旧格式 tabs: string[] → 新格式 BookmarkTabItem[]
+    const needsMigration = persistedTabFolders.some(
+      (f) => f.tabs && f.tabs.length > 0 && typeof f.tabs[0] === 'string'
+    );
+    if (needsMigration) {
+      persistedTabFolders = persistedTabFolders.map((f) => {
+        if (!f.tabs || f.tabs.length === 0) {
+          return f;
+        }
+        if (typeof f.tabs[0] === 'string') {
+          return {
+            ...f,
+            tabs: (f.tabs as unknown as string[]).map((tabId) => ({
+              tabId,
+              url: '',
+              title: '',
+            })),
+          };
+        }
+        return f;
+      });
+    }
 
     let finalTabs = state.browserTabs;
     let finalActiveTabId = state.browserActiveTabId;
@@ -113,13 +135,6 @@ function hydrateBrowserDefaults(
         const migrated = entries.map((e: unknown) =>
           typeof e === 'string' ? { tabId: e, url: '', title: '' } : (e as WorkspaceBookmarkEntry)
         );
-        const oldCount = entries.filter((e: unknown) => typeof e === 'string').length;
-        if (oldCount > 0) {
-          console.log(
-            '[ADL-DEBUG]',
-            `Migrated ${oldCount} old workspace bookmark entries for workspace ${wsId}`
-          );
-        }
         finalWorkspaceBookmarks[wsId] = migrated;
       } else {
         finalWorkspaceBookmarks[wsId] = [];
@@ -129,31 +144,20 @@ function hydrateBrowserDefaults(
     // 从已有的工作区书签和文件夹条目构建 tabId→URL 映射
     const migratedTabIdUrlMap: Record<string, string> = {};
     const tabsById = new Map(finalTabs.map((t) => [t.id, t]));
-    let wsEntriesWithUrl = 0;
-    let wsEntriesTotal = 0;
-    let foldersWithTabs = 0;
-    let folderEntries = 0;
-    let folderMatched = 0;
-    let persistedEntries = 0;
     for (const entries of Object.values(finalWorkspaceBookmarks)) {
       for (const entry of entries) {
-        wsEntriesTotal++;
         if (entry.url && !migratedTabIdUrlMap[entry.tabId]) {
           migratedTabIdUrlMap[entry.tabId] = entry.url;
-          wsEntriesWithUrl++;
         }
       }
     }
     for (const folder of persistedTabFolders) {
       if (folder.tabs) {
-        foldersWithTabs++;
-        for (const tid of folder.tabs) {
-          folderEntries++;
-          if (!migratedTabIdUrlMap[tid]) {
-            const tab = tabsById.get(tid);
+        for (const item of folder.tabs) {
+          if (!migratedTabIdUrlMap[item.tabId]) {
+            const tab = tabsById.get(item.tabId);
             if (tab?.url) {
-              migratedTabIdUrlMap[tid] = tab.url;
-              folderMatched++;
+              migratedTabIdUrlMap[item.tabId] = tab.url;
             }
           }
         }
@@ -166,14 +170,8 @@ function hydrateBrowserDefaults(
     for (const [tabId, url] of Object.entries(persistedTabIdUrlMap)) {
       if (!migratedTabIdUrlMap[tabId]) {
         migratedTabIdUrlMap[tabId] = url;
-        persistedEntries++;
       }
     }
-    console.log(
-      '[ADL-DEBUG]',
-      `hydrate map: ws=${wsEntriesTotal}(withUrl=${wsEntriesWithUrl}) folders=${foldersWithTabs}(entries=${folderEntries},matched=${folderMatched}) finalTabs=${finalTabs.length} persisted=${persistedEntries} result=${Object.keys(migratedTabIdUrlMap).length}`
-    );
-
     const persistedTabTreeExpanded = readJson<Record<string, boolean>>(
       BROWSER_TREE_EXPANDED_KEY,
       {}

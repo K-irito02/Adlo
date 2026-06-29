@@ -107,6 +107,7 @@ app/stores/
 |------|------|
 | `frontend/src/app/stores/slicedStore.ts` | 切片合并 Store（真源） |
 | `frontend/src/app/stores/StoreState.ts` | 完整类型接口 |
+| `frontend/src/app/stores/slices/browserFoldersSlice.ts` | `BookmarkTabItem`（`TabFolderState.tabs` 元素类型：`{ tabId, url, title }`） |
 | `frontend/src/app/stores/selectors.ts` | 性能选择器（useShallow） |
 | `frontend/src/shared/preferencesMerger.ts` | 模型配置合并共享函数（桥接层使用） |
 

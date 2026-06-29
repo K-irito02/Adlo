@@ -96,13 +96,21 @@ export function useBrowserTreeActions() {
       } else if (nodePath.startsWith('folder:')) {
         const folderId = nodePath.slice('folder:'.length);
         const folder = findFolderByIdLocal(
-          state.browserTabFolders as Array<{ id: string; tabs?: string[]; children?: unknown[] }>,
+          state.browserTabFolders as Array<{
+            id: string;
+            tabs?: Array<{ tabId: string }>;
+            children?: unknown[];
+          }>,
           folderId
         );
         if (folder) {
-          tabIds = [...(folder.tabs ?? [])];
+          tabIds = [...(folder.tabs ?? []).map((item) => item.tabId)];
           const childTabs = collectAllDescendantTabIdsLocal(
-            state.browserTabFolders as Array<{ id: string; tabs?: string[]; children?: unknown[] }>,
+            state.browserTabFolders as Array<{
+              id: string;
+              tabs?: Array<{ tabId: string }>;
+              children?: unknown[];
+            }>,
             folderId
           );
           tabIds.push(...childTabs);
@@ -162,18 +170,18 @@ export function useBrowserTreeActions() {
           const folder = findFolderByIdLocal(
             state.browserTabFolders as Array<{
               id: string;
-              tabs?: string[];
+              tabs?: Array<{ tabId: string }>;
               children?: unknown[];
             }>,
             folderId
           );
           if (folder?.tabs) {
-            folderTabIds.push(...folder.tabs);
+            folderTabIds.push(...folder.tabs.map((item) => item.tabId));
           }
           const descendantTabs = collectAllDescendantTabIdsLocal(
             state.browserTabFolders as Array<{
               id: string;
-              tabs?: string[];
+              tabs?: Array<{ tabId: string }>;
               children?: unknown[];
             }>,
             folderId
@@ -188,11 +196,15 @@ export function useBrowserTreeActions() {
       } else if (nodePath.startsWith('folder:')) {
         const folderId = nodePath.slice('folder:'.length);
         const folder = findFolderByIdLocal(
-          state.browserTabFolders as Array<{ id: string; tabs?: string[]; children?: unknown[] }>,
+          state.browserTabFolders as Array<{
+            id: string;
+            tabs?: Array<{ tabId: string }>;
+            children?: unknown[];
+          }>,
           folderId
         );
         if (folder) {
-          tabIds = [...(folder.tabs ?? [])];
+          tabIds = [...(folder.tabs ?? []).map((item) => item.tabId)];
           urls = state.browserTabs
             .filter((t) => tabIds.includes(t.id))
             .map((t) => t.url)
@@ -236,12 +248,16 @@ export function useBrowserTreeActions() {
       } else if (nodePath.startsWith('folder:')) {
         const folderId = nodePath.slice('folder:'.length);
         const folder = findFolderByIdLocal(
-          state.browserTabFolders as Array<{ id: string; tabs?: string[]; children?: unknown[] }>,
+          state.browserTabFolders as Array<{
+            id: string;
+            tabs?: Array<{ tabId: string }>;
+            children?: unknown[];
+          }>,
           folderId
         );
         if (folder?.tabs) {
-          folder.tabs.forEach((tabId) => {
-            const tab = state.browserTabs.find((t) => t.id === tabId);
+          folder.tabs.forEach((item) => {
+            const tab = state.browserTabs.find((t) => t.id === item.tabId);
             if (tab) {
               browserOpenTab(tab.url, tab.title, tab.workspaceId);
             }
@@ -292,16 +308,20 @@ export function useBrowserTreeActions() {
           : folderId;
         const state = useAppStore.getState();
         const folder = findFolderByIdLocal(
-          state.browserTabFolders as Array<{ id: string; tabs?: string[]; children?: unknown[] }>,
+          state.browserTabFolders as Array<{
+            id: string;
+            tabs?: Array<{ tabId: string }>;
+            children?: unknown[];
+          }>,
           actualId
         );
         if (folder) {
           const allTabIds = [
-            ...(folder.tabs ?? []),
+            ...(folder.tabs ?? []).map((item) => item.tabId),
             ...collectAllDescendantTabIdsLocal(
               state.browserTabFolders as Array<{
                 id: string;
-                tabs?: string[];
+                tabs?: Array<{ tabId: string }>;
                 children?: unknown[];
               }>,
               actualId

@@ -109,15 +109,6 @@ function getBookmarkForTabOverride(
     if (bm) {
       return bm;
     }
-    console.log(
-      '[ADL-DEBUG]',
-      `tabIdUrlMap has ${tabId}→${originalUrl} but not found in browserBookmarks`
-    );
-  } else {
-    console.log(
-      '[ADL-DEBUG]',
-      `tabIdUrlMap MISS tabId=${tabId} (keyCount=${Object.keys(tabIdToUrlMap).length})`
-    );
   }
   if (tabUrl) {
     const bm = browserBookmarks.find((b) => b.url === tabUrl);
@@ -141,19 +132,19 @@ function buildFolderNode(
     (f) => f.parentId === folder.id && (!f.parentType || f.parentType === 'folder')
   );
   const tabChildren: BrowserTreeNode[] = (folder.tabs ?? [])
-    .map((tabId) => {
+    .map((item) => {
+      const { tabId, url: snapshotUrl, title: snapshotTitle } = item;
       const tab = browserTabs.find((t) => t.id === tabId);
       if (!tab) {
-        const snap = getBookmarkForTabOverride(tabId, undefined, browserBookmarks, tabIdToUrlMap);
-        if (snap) {
+        if (snapshotUrl) {
           return {
             path: `bookmark:${tabId}`,
-            name: normalizeTabTitle(snap.title, snap.url),
+            name: normalizeTabTitle(snapshotTitle, snapshotUrl),
             kind: 'file' as const,
             children: [],
             nodeType: 'tab' as const,
             tabId,
-            url: snap.url,
+            url: snapshotUrl,
             workspaceId: parentWorkspaceId || '',
             isPlayingAudio: false,
             isAudioMuted: false,
@@ -164,18 +155,13 @@ function buildFolderNode(
       }
       const node = buildTabNode(tab, tab.workspaceId, `folder-${folder.id}-${tabId}`);
       node.isSavedBookmark = true;
-      // 使用 tabId→URL 映射查找收藏快照，避免导航后同步更新
-      const snap = getBookmarkForTabOverride(tabId, tab.url, browserBookmarks, tabIdToUrlMap);
-      if (snap) {
-        node.name = normalizeTabTitle(snap.title, snap.url);
-        node.url = snap.url;
-        // 收藏条目：仅在标签仍在收藏的 URL 上时才保留音频状态
-        if (tab.url !== snap.url) {
-          node.isPlayingAudio = false;
-          node.isAudioMuted = false;
-        }
-      } else {
-        // 无快照时清除音频
+      // 使用文件夹级快照，保留收藏时的原始 URL/标题
+      const displayUrl = snapshotUrl || tab.url || '';
+      const displayTitle = snapshotTitle || tab.title || '';
+      node.name = normalizeTabTitle(displayTitle, displayUrl);
+      node.url = displayUrl;
+      // 收藏条目：仅在标签仍在收藏的 URL 上时才保留音频状态
+      if (tab.url !== (snapshotUrl || tab.url)) {
         node.isPlayingAudio = false;
         node.isAudioMuted = false;
       }
@@ -225,11 +211,9 @@ export function buildWorkspaceCategoryTree(
     const bookmarkNodes: BrowserTreeNode[] = bookmarkedEntries
       .map((entry) => {
         if (!entry || typeof entry !== 'object') {
-          console.log('[ADL-DEBUG]', `wsBookmark entry not object for ws=${ws.id}:`, entry);
           return null;
         }
         if (!entry.tabId) {
-          console.log('[ADL-DEBUG]', `wsBookmark entry missing tabId for ws=${ws.id}:`, entry);
           return null;
         }
         // 避免重复添加已存在的标签

@@ -3,12 +3,18 @@ import { createUiId, createDebouncedWrite } from '../shared';
 import { formatNewFolderNameByLocale } from '../../i18n';
 import type { BrowserTabState } from './browserTabsSlice';
 
+export interface BookmarkTabItem {
+  tabId: string;
+  url: string;
+  title: string;
+}
+
 export interface TabFolderState {
   id: string;
   name: string;
   createdAt: number;
   isUserCreated?: boolean;
-  tabs?: string[];
+  tabs?: BookmarkTabItem[];
   children?: TabFolderState[];
   parentId?: string;
   parentType?: 'workspace' | 'folder';
@@ -16,7 +22,7 @@ export interface TabFolderState {
 
 export interface TabFolderStateUpdate {
   name?: string;
-  tabs?: string[];
+  tabs?: BookmarkTabItem[];
 }
 
 const BROWSER_TAB_FOLDERS_KEY = 'adl-ui:browser-tab-folders';
@@ -48,7 +54,7 @@ function collectAllDescendantTabIds(folders: TabFolderState[], parentId: string)
   const directChildren = folders.filter((f) => f.parentId === parentId);
   for (const child of directChildren) {
     if (child.tabs) {
-      result.push(...child.tabs);
+      result.push(...child.tabs.map((item) => item.tabId));
     }
     result.push(...collectAllDescendantTabIds(folders, child.id));
   }
@@ -60,7 +66,7 @@ function collectAllFolderTabIds(folders: TabFolderState[], wsId: string): string
   const result: string[] = [];
   for (const rootFolder of rootFolders) {
     if (rootFolder.tabs) {
-      result.push(...rootFolder.tabs);
+      result.push(...rootFolder.tabs.map((item) => item.tabId));
     }
     result.push(...collectAllDescendantTabIds(folders, rootFolder.id));
   }
@@ -149,7 +155,7 @@ export const createBrowserFoldersSlice = (
       for (const id of idsToDelete) {
         const folder = findFolderById(state.browserTabFolders, id);
         if (folder?.tabs) {
-          tabIdsToDelete.push(...folder.tabs);
+          tabIdsToDelete.push(...folder.tabs.map((item) => item.tabId));
         }
       }
       const nextFolders = state.browserTabFolders.filter(
@@ -172,13 +178,16 @@ export const createBrowserFoldersSlice = (
 
   browserAddToFolder: (tabId, folderId) => {
     set((state) => {
+      const tab = state.browserTabs.find((t) => t.id === tabId);
+      const url = tab?.url || '';
+      const title = tab?.title || url;
       const nextFolders = state.browserTabFolders.map((folder) => {
         if (folder.id === folderId) {
           const existingTabs = folder.tabs || [];
-          if (!existingTabs.includes(tabId)) {
+          if (!existingTabs.some((item) => item.tabId === tabId)) {
             return {
               ...folder,
-              tabs: [...existingTabs, tabId],
+              tabs: [...existingTabs, { tabId, url, title }],
             };
           }
         }
@@ -227,7 +236,7 @@ export const createBrowserFoldersSlice = (
         const folder = findFolderById(state.browserTabFolders, folderId);
         if (folder) {
           const descendantTabIds = collectAllDescendantTabIds(state.browserTabFolders, folderId);
-          tabIdsToDelete = [...(folder.tabs ?? []), ...descendantTabIds];
+          tabIdsToDelete = [...(folder.tabs ?? []).map((item) => item.tabId), ...descendantTabIds];
         }
       } else if (nodePath.startsWith('history:day:')) {
         const dayDate = nodePath.slice('history:day:'.length);
@@ -300,7 +309,7 @@ export const createBrowserFoldersSlice = (
         const folderId = nodePath.slice('folder:'.length);
         const folder = findFolderById(state.browserTabFolders, folderId);
         if (folder) {
-          tabIdsToDelete = [...(folder.tabs ?? [])];
+          tabIdsToDelete = [...(folder.tabs ?? []).map((item) => item.tabId)];
         }
       } else if (nodePath.startsWith('history:day:')) {
         const dayDate = nodePath.slice('history:day:'.length);

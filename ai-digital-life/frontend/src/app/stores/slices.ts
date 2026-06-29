@@ -71,6 +71,7 @@ export {
 } from './slices/browserHistorySlice';
 export {
   type BrowserFoldersSlice,
+  type BookmarkTabItem,
   type TabFolderState,
   type TabFolderStateUpdate,
   createBrowserFoldersSlice,

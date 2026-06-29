@@ -156,6 +156,8 @@ BrowserPanel (bookmarkDialogOpen 状态)
 browserWorkspaceBookmarks: Record<string, string[]>;
 ```
 
+> **后续变更（2026-06-29）**：`TabFolderState.tabs` 从 `string[]` 改为 `BookmarkTabItem[]`（`{ tabId: string; url: string; title: string }`），实现「按文件夹存储快照」。同一标签页导航到不同 URL 后再次收藏时，各文件夹独立保存收藏时的 URL/标题，互不干扰。旧格式在 hydration 阶段自动迁移。
+
 以 `workspaceId` 为 key，标签 ID 数组为 value。持久化使用独立的 localStorage key：
 ```typescript
 BROWSER_WORKSPACE_BOOKMARKS_STORAGE_KEY = 'adl-ui:browser-workspace-bookmarks'

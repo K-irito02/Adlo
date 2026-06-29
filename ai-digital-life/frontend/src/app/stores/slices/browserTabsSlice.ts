@@ -96,8 +96,14 @@ export const createBrowserTabsSlice = (
         nextFolders = nextFolders.map((f) => {
           if (f.id === folderId) {
             const existingTabs = f.tabs || [];
-            if (!existingTabs.includes(tab.id)) {
-              return { ...f, tabs: [...existingTabs, tab.id] };
+            if (!existingTabs.some((item) => item.tabId === tab.id)) {
+              return {
+                ...f,
+                tabs: [
+                  ...existingTabs,
+                  { tabId: tab.id, url: tab.url || '', title: tab.title || tab.url || '' },
+                ],
+              };
             }
           }
           return f;
