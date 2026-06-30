@@ -45,5 +45,8 @@ digitalLife/
 .trae/documents/
 .trae/specs/
 
+# Git worktrees (isolated workspaces)
+.worktrees/
+
 # Superpower IDE runtime cache
 .superpowers/
