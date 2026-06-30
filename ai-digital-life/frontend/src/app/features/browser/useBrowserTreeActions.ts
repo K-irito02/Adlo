@@ -135,13 +135,6 @@ export function useBrowserTreeActions() {
           )
           .map((f) => f.id);
         for (const folderId of rootFolderIds) {
-          // Own tabs from this root folder (collectAllDescendantTabIdsLocal only gets children's tabs)
-          const folderObj = state.browserTabFolders.find((f) => f.id === folderId);
-          const folderTabs = (folderObj as { tabs?: Array<{ tabId: string }> } | undefined)?.tabs;
-          if (folderTabs) {
-            tabIds.push(...folderTabs.map((item) => item.tabId));
-          }
-          // Descendant tabs from child folders
           const descendantTabIds = collectAllDescendantTabIdsLocal(
               state.browserTabFolders as Array<{
                 id: string;
@@ -202,8 +195,7 @@ export function useBrowserTreeActions() {
           folderId
         );
         if (folder) {
-          tabIds = [...(folder.tabs ?? []).map((item) => item.tabId)];
-          const childTabs = collectAllDescendantTabIdsLocal(
+          tabIds = collectAllDescendantTabIdsLocal(
             state.browserTabFolders as Array<{
               id: string;
               parentId?: string;
@@ -211,13 +203,10 @@ export function useBrowserTreeActions() {
             }>,
             folderId
           );
-          tabIds.push(...childTabs);
-          const allTabIds = [...tabIds];
           urls = state.browserTabs
-            .filter((t) => allTabIds.includes(t.id))
+            .filter((t) => tabIds.includes(t.id))
             .map((t) => t.url)
             .filter((u): u is string => !!u);
-          tabIds = allTabIds;
           // Also collect snapshot URLs from folder tree for bookmark cleanup
           const folderSnapshotUrls = collectFolderTabSnapshotUrls(
             state.browserTabFolders as Array<{
@@ -311,9 +300,6 @@ export function useBrowserTreeActions() {
             }>,
             folderId
           );
-          if (folder?.tabs) {
-            folderTabIds.push(...folder.tabs.map((item) => item.tabId));
-          }
           const descendantTabs = collectAllDescendantTabIdsLocal(
               state.browserTabFolders as Array<{
                 id: string;
@@ -467,7 +453,6 @@ export function useBrowserTreeActions() {
         );
         if (folder) {
           const allTabIds = [
-            ...(folder.tabs ?? []).map((item) => item.tabId),
             ...collectAllDescendantTabIdsLocal(
               state.browserTabFolders as Array<{
                 id: string;

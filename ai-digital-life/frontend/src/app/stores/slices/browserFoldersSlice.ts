@@ -441,6 +441,7 @@ export const createBrowserFoldersSlice = (
       scheduleWrite(BROWSER_TAB_FOLDERS_KEY, nextFolders);
       scheduleWrite(BROWSER_BOOKMARKS_STORAGE_KEY, nextBookmarks);
       scheduleWrite(BROWSER_BOOKMARK_TABID_URL_MAP_KEY, nextTabIdUrlMap);
+      scheduleWrite(BROWSER_WORKSPACE_BOOKMARKS_KEY, nextWorkspaceBookmarks);
       return {
         browserTabFolders: nextFolders,
         browserBookmarks: nextBookmarks,

@@ -32,12 +32,13 @@ export function collectAllDescendantTabIdsLocal(
   }
   const result: string[] = [];
   const collect = (pid: string) => {
+    const folder = folders.find((f) => f.id === pid);
+    if (folder?.tabs) {
+      result.push(...folder.tabs.map((item) => item.tabId));
+    }
     const children = childrenMap.get(pid);
     if (!children) return;
     for (const child of children) {
-      if (child.tabs) {
-        result.push(...child.tabs.map((item) => item.tabId));
-      }
       collect(child.id);
     }
   };
