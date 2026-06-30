@@ -28,6 +28,21 @@
 | 8 | 书签清除遗漏（文件夹独有条目） | 文件夹书签不含 `workspaceId` | workspace 分支未直接收集 `folder.tabs` 的 URL |
 | 9 | `browserBookmarkTab` 重复 | 同一标签在不同 URL 时收藏 | 去重键只用 `tabId`，导致替换而非追加 |
 
+### Phase 3（2026-06-30 第二轮）修复
+
+| # | 问题 | 场景 | 根因 |
+|---|------|------|------|
+| 10 | 删除单条收藏标签导致工作区书签被连带清除 | 在"非工作区目录"文件夹中右键删除收藏标签 | `browserRemoveTabBookmarks` 对 `browserWorkspaceBookmarks` 仅用 `tabId` 过滤，未配对 `url`，导致同名 tabId 但不同 URL 的工作区书签被误删 |
+| 11 | 删除单条收藏标签导致其他文件夹同名条目被连带清除 | 多个文件夹收藏了同一 `(tabId, url)` 对 | `browserRemoveTabBookmarks` 对 `browserTabFolders` 扫描 ALL 文件夹，未限制到目标文件夹 |
+| 12 | 删除单条收藏标签误删全局书签条目 | 同一 URL 被多个文件夹收藏，删除其中一个 | `browserRemoveTabBookmarks` 第 266 行无条件过滤 `browserBookmarks`，未检查该 URL 是否仍存在于其他文件夹或工作区中 |
+
+## Phase 3 涉及文件
+
+| 文件 | 修改 |
+|------|------|
+| `browserBookmarkSlice.ts` | `browserRemoveTabBookmarks` 工作区过滤从 `tabId`-only 改为 `(tabId, url)` 对；新增可选 `scopeFolderId` 参数，指定时只删除目标文件夹条目；`browserBookmarks` 过滤移至文件夹/工作区过滤之后，仅当 URL 不再存在于任何文件夹或工作区时执行 |
+| `useBrowserTreeActions.ts` | `handleRemoveBookmarkTab` 从 store 中查找唯一持有该 `(tabId, url)` 的文件夹，将 `folderId` 传给 `browserRemoveTabBookmarks` 以限定范围 |
+
 ## 架构洞察
 
 ### 1. `collectAllDescendantTabIdsLocal` 只返回子文件夹标签
@@ -135,3 +150,46 @@ for (const url of urls) {
 ### 8. 书签去重必须包含 URL
 
 `browserBookmarkTab` 的去重检查从 `entry.tabId === tabId` 改为 `entry.tabId === tabId && entry.url === url`，确保同一标签在不同 URL 时可以被独立收藏到同一目录，不会相互替换。
+
+---
+
+## Phase 3 架构洞察
+
+### 9. `browserRemoveTabBookmarks` 跨域污染
+
+`browserRemoveTabBookmarks` 是统一的清除函数，被 7 个调用方共享（`handleDeleteTab`、`handleRemoveBookmarkTab`、`handleDeleteAllChildTabs`、`handleDeleteOwnChildTabs`、`handleDeleteDirectory` 等）。它原本对所有 `browserWorkspaceBookmarks`（按 `tabId`）和所有 `browserTabFolders`（按 `(tabId, url)`）进行扫描式清理，导致删除一条收藏标签时，其他工作区/文件夹的同名标签被连带清除。
+
+**修复模式**：工作区过滤改为 `(tabId, url)` 对，与文件夹过滤对齐；文件夹过滤新增 `scopeFolderId` 参数，由调用方提供上下文：
+
+```typescript
+// 调用方（handleRemoveBookmarkTab）从 store 中推算出目标文件夹
+const owningFolderId = state.browserTabFolders
+  .filter((f) => f.tabs?.some((t) => t.tabId === tabId && t.url === url))
+  .map((f) => f.id);
+const scopeFolderId = owningFolderId.length === 1 ? owningFolderId[0] : undefined;
+browserRemoveTabBookmarks(tabId, url, scopeFolderId);
+```
+
+### 10. 过滤粒度选择
+
+| 存储区 | Phase 2 过滤方式 | Phase 3 过滤方式 | 说明 |
+|--------|----------------|----------------|------|
+| `browserBookmarks`（全局 URL 集） | `url` | `url` | 按 URL 去重，每个 URL 最多一条，无需 scope |
+| `browserBookmarkTabIdUrlMap` | `tabId` | `tabId` | tabId→URL 一对一映射，无需 scope |
+| `browserWorkspaceBookmarks` | `tabId` ❌ | `(tabId, url)` ✅ | 同一 tabId 可能记录不同 URL 的快照，tabId-only 会误删 |
+| `browserTabFolders` | `(tabId, url)` 扫描 ALL | `(tabId, url)` + `scopeFolderId` ✅ | 同一对 `(tabId, url)` 可能出现在多个文件夹，需限制范围 |
+
+### 11. 全局书签列表的条件移除
+
+`browserBookmarks` 是一个按 URL 去重的全局列表，记录哪些 URL 已被收藏。原本在每次删除时都无条件过滤该 URL。当同一 URL 被多个文件夹收藏时，删除其中一个会误使其他文件夹条目的星号标记消失。
+
+**修复模式**：将 `browserBookmarks` 过滤推迟到文件夹与工作区过滤之后，仅当 URL 不再出现在任何剩余条目中时才移除：
+
+```typescript
+const urlStillExists =
+  Object.values(nextWorkspaceBookmarks).some((entries) => entries.some((e) => e.url === url)) ||
+  nextFolders.some((f) => f.tabs?.some((t) => t.url === url));
+const nextBookmarks = urlStillExists
+  ? state.browserBookmarks  // 保持原样
+  : state.browserBookmarks.filter((b) => b.url !== url);
+```

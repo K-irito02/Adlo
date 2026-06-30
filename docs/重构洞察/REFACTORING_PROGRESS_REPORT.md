@@ -1,6 +1,6 @@
 # 重构进度报告
 
-> 更新日期: 2026-06-29（第八十六轮）
+> 更新日期: 2026-06-30（第八十七轮）
 
 ## 完成状态
 
@@ -92,6 +92,7 @@
 | **第八十四轮** | **2026-06-27** | **SDD 子代理驱动重构（5 子代理 + 5 审查循环）：browser.rs Mutex unwrap→expect；model-gateway 模块化（382→163行 lib.rs + 6子模块）；BrowserEntrySubEntries 工具函数提取→browserEntrySubEntriesUtils（-238行）；useBrowserUrlChange 工具函数提取→browserUrlUtils（-38行）** | ✅ |
 | **第八十五轮** | **2026-06-28** | **浏览器 WebView 覆盖检测修复：重叠感知 MutationObserver（bounding rect 相交判定替代粗粒度 DOM 检测），移除 browserMenuOpen/contextMenu.open 误触隐藏；Tauri permission 修复（core:window:allow-start-dragging）；代码质量治理——ESLint 18 warnings→4（any→proper type 11处、curly 2处、prettier 4处、useAppStore dep），Prettier 全量格式化，rustfmt + Clippy 全 clean；清理 stale 调试日志；知识笔记更新为三路协同架构** | ✅ |
 | **第八十六轮** | **2026-06-29** | **重构洞察第19次执行：宏观扫描发现 4 处回归（!important 23→311、console.log 0→25、React.lazy 丢失、BrowserNavigator 膨胀至 495 行）；console.log 清理（fetchPageMeta 6 处）；App.tsx getState()→选择器订阅 activeSessionId；Rust unwrap 确认为测试代码；Rust clone 均属惯用模式；生成洞察报告（24 项发现）和实施计划（24 项任务）** | ✅ |
+| **第八十七轮** | **2026-06-30** | **浏览器书签删除跨域污染修复：`browserRemoveTabBookmarks` 工作区过滤从 `tabId`-only 改为 `(tabId, url)` 对；新增可选 `scopeFolderId` 参数限定文件夹范围；`handleRemoveBookmarkTab` 从 store 推算目标文件夹并传入 scope；知识沉淀更新** | ✅ |
 
 ## 说明
 

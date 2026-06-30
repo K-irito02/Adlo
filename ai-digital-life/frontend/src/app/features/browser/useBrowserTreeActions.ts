@@ -634,8 +634,13 @@ export function useBrowserTreeActions() {
 
   const handleRemoveBookmarkTab = useCallback(
     (tabId: string, url: string) => {
-      // Only remove bookmark state, don't close the tab or affect history
-      browserRemoveTabBookmarks(tabId, url);
+      // Look up the owning folder from store state so we can scope deletion to that folder only
+      const state = useAppStore.getState();
+      const owningFolderId = state.browserTabFolders
+        .filter((f) => f.tabs?.some((t) => t.tabId === tabId && t.url === url))
+        .map((f) => f.id);
+      const scopeFolderId = owningFolderId.length === 1 ? owningFolderId[0] : undefined;
+      browserRemoveTabBookmarks(tabId, url, scopeFolderId);
       if (url) {
         clearFaviconCacheForUrl(url);
         clearPageMetaCacheForUrl(url);

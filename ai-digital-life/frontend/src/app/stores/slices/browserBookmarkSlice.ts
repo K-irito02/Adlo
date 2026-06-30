@@ -45,7 +45,7 @@ export interface BrowserBookmarkSlice {
     workspaceId?: string
   ) => void;
   browserUpdateBookmarkTitle: (url: string, title: string) => void;
-  browserRemoveTabBookmarks: (tabId: string, url: string) => void;
+  browserRemoveTabBookmarks: (tabId: string, url: string, scopeFolderId?: string) => void;
   browserClearAllWorkspaceBookmarks: () => void;
   browserSetPendingBookmark: (data: { url: string; title: string; tabId?: string } | null) => void;
 }
@@ -261,22 +261,19 @@ export const createBrowserBookmarkSlice = (
     });
   },
 
-  browserRemoveTabBookmarks: (tabId: string, url: string) => {
+  browserRemoveTabBookmarks: (tabId: string, url: string, scopeFolderId?: string) => {
     set((state) => {
-      const nextBookmarks = state.browserBookmarks.filter((b) => b.url !== url);
-      scheduleWrite(BROWSER_BOOKMARKS_KEY, nextBookmarks);
-
       // 清除 tabId→URL 映射
       const nextTabIdUrlMap = { ...state.browserBookmarkTabIdUrlMap };
       delete nextTabIdUrlMap[tabId];
 
-      // Remove from workspace bookmarks
+      // Remove from workspace bookmarks (match by both tabId and url to avoid removing other URLs' entries)
       const nextWorkspaceBookmarks = { ...state.browserWorkspaceBookmarks };
       let wsChanged = false;
       for (const wsId of Object.keys(nextWorkspaceBookmarks)) {
-        if (nextWorkspaceBookmarks[wsId].some((entry) => entry.tabId === tabId)) {
+        if (nextWorkspaceBookmarks[wsId].some((entry) => entry.tabId === tabId && entry.url === url)) {
           nextWorkspaceBookmarks[wsId] = nextWorkspaceBookmarks[wsId].filter(
-            (entry) => entry.tabId !== tabId
+            (entry) => !(entry.tabId === tabId && entry.url === url)
           );
           if (nextWorkspaceBookmarks[wsId].length === 0) {
             delete nextWorkspaceBookmarks[wsId];
@@ -288,18 +285,36 @@ export const createBrowserBookmarkSlice = (
         scheduleWrite(BROWSER_WORKSPACE_BOOKMARKS_KEY, nextWorkspaceBookmarks);
       }
 
-      // Remove from folders (match by both tabId and url to avoid removing other folders' entries)
-      const nextFolders = state.browserTabFolders.map((folder) => {
-        if (folder.tabs && folder.tabs.some((item) => item.tabId === tabId && item.url === url)) {
-          return {
-            ...folder,
-            tabs: folder.tabs.filter((item) => !(item.tabId === tabId && item.url === url)),
-          };
-        }
-        return folder;
-      });
+      // Remove from folders — when scopeFolderId is provided, only remove from that specific folder
+      const nextFolders = scopeFolderId
+        ? state.browserTabFolders.map((folder) => {
+            if (folder.id === scopeFolderId && folder.tabs?.some((item) => item.tabId === tabId && item.url === url)) {
+              return { ...folder, tabs: folder.tabs.filter((item) => !(item.tabId === tabId && item.url === url)) };
+            }
+            return folder;
+          })
+        : state.browserTabFolders.map((folder) => {
+            if (folder.tabs && folder.tabs.some((item) => item.tabId === tabId && item.url === url)) {
+              return {
+                ...folder,
+                tabs: folder.tabs.filter((item) => !(item.tabId === tabId && item.url === url)),
+              };
+            }
+            return folder;
+          });
       if (nextFolders !== state.browserTabFolders) {
         scheduleWrite(BROWSER_TAB_FOLDERS_KEY, nextFolders);
+      }
+
+      // Only remove from global bookmarks if this URL no longer exists in any folder or workspace
+      const urlStillExists =
+        Object.values(nextWorkspaceBookmarks).some((entries) => entries.some((e) => e.url === url)) ||
+        nextFolders.some((f) => f.tabs?.some((t) => t.url === url));
+      const nextBookmarks = urlStillExists
+        ? state.browserBookmarks
+        : state.browserBookmarks.filter((b) => b.url !== url);
+      if (!urlStillExists) {
+        scheduleWrite(BROWSER_BOOKMARKS_KEY, nextBookmarks);
       }
 
       scheduleWrite(BROWSER_BOOKMARK_TABID_URL_MAP_KEY, nextTabIdUrlMap);

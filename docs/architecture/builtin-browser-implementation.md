@@ -1,5 +1,6 @@
 # 内置浏览器实现总结
 
+> **2026-06-30 更新**：修复书签删除跨域污染——`browserRemoveTabBookmarks` 工作区过滤从 `tabId`-only 改为 `(tabId, url)` 对，新增 `scopeFolderId` 参数限定文件夹范围。详见 [browser-folder-delete-bookmark-cleanup-2026-06-30.md#phase-3-架构洞察](../知识沉淀/浏览器/browser-folder-delete-bookmark-cleanup-2026-06-30.md#phase-3-架构洞察)。  
 > **2026-06-28 更新**：修复 SPA 导航标题同步（Bilibili/YouTube 手动点击无响应/标题延迟 + 清空标签删除收藏目录标签）。详见 [browser-spa-navigation-title-sync-fix-2026-06-28.md](../知识沉淀/浏览器/browser-spa-navigation-title-sync-fix-2026-06-28.md)。  
 > **2026-06-26 更新**：修复历史记录不记录的 6 个 Bug。详见 [browser-history-recording-fix-2026-06-26.md](../知识沉淀/浏览器/browser-history-recording-fix-2026-06-26.md)。  
 > **2026-06-25 更新**：标签创建策略从"立即创建+hostname 占位"重构为"延迟创建+同步渲染"。详见 [browser-tab-meta-deferred-creation-2026-06-25.md](../知识沉淀/浏览器/browser-tab-meta-deferred-creation-2026-06-25.md)。
