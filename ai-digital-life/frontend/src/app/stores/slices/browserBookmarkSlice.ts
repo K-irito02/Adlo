@@ -272,7 +272,9 @@ export const createBrowserBookmarkSlice = (
       const nextWorkspaceBookmarks = { ...state.browserWorkspaceBookmarks };
       let wsChanged = false;
       for (const wsId of Object.keys(nextWorkspaceBookmarks)) {
-        if (nextWorkspaceBookmarks[wsId].some((entry) => entry.tabId === tabId && entry.url === url)) {
+        if (
+          nextWorkspaceBookmarks[wsId].some((entry) => entry.tabId === tabId && entry.url === url)
+        ) {
           nextWorkspaceBookmarks[wsId] = nextWorkspaceBookmarks[wsId].filter(
             (entry) => !(entry.tabId === tabId && entry.url === url)
           );
@@ -289,13 +291,22 @@ export const createBrowserBookmarkSlice = (
       // Remove from folders — when scopeFolderId is provided, only remove from that specific folder
       const nextFolders = scopeFolderId
         ? state.browserTabFolders.map((folder) => {
-            if (folder.id === scopeFolderId && folder.tabs?.some((item) => item.tabId === tabId && item.url === url)) {
-              return { ...folder, tabs: folder.tabs.filter((item) => !(item.tabId === tabId && item.url === url)) };
+            if (
+              folder.id === scopeFolderId &&
+              folder.tabs?.some((item) => item.tabId === tabId && item.url === url)
+            ) {
+              return {
+                ...folder,
+                tabs: folder.tabs.filter((item) => !(item.tabId === tabId && item.url === url)),
+              };
             }
             return folder;
           })
         : state.browserTabFolders.map((folder) => {
-            if (folder.tabs && folder.tabs.some((item) => item.tabId === tabId && item.url === url)) {
+            if (
+              folder.tabs &&
+              folder.tabs.some((item) => item.tabId === tabId && item.url === url)
+            ) {
               return {
                 ...folder,
                 tabs: folder.tabs.filter((item) => !(item.tabId === tabId && item.url === url)),
@@ -309,8 +320,9 @@ export const createBrowserBookmarkSlice = (
 
       // Only remove from global bookmarks if this URL no longer exists in any folder or workspace
       const urlStillExists =
-        Object.values(nextWorkspaceBookmarks).some((entries) => entries.some((e) => e.url === url)) ||
-        nextFolders.some((f) => f.tabs?.some((t) => t.url === url));
+        Object.values(nextWorkspaceBookmarks).some((entries) =>
+          entries.some((e) => e.url === url)
+        ) || nextFolders.some((f) => f.tabs?.some((t) => t.url === url));
       const nextBookmarks = urlStillExists
         ? state.browserBookmarks
         : state.browserBookmarks.filter((b) => b.url !== url);
@@ -345,9 +357,7 @@ export const createBrowserBookmarkSlice = (
           }
         }
       }
-      const nextBookmarks = state.browserBookmarks.filter(
-        (b) => !b.url || referenced.has(b.url)
-      );
+      const nextBookmarks = state.browserBookmarks.filter((b) => !b.url || referenced.has(b.url));
       if (nextBookmarks.length === state.browserBookmarks.length) return state;
       scheduleWrite(BROWSER_BOOKMARKS_KEY, nextBookmarks);
       return { browserBookmarks: nextBookmarks };

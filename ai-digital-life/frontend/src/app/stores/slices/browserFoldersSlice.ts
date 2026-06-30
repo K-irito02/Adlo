@@ -252,7 +252,24 @@ export const createBrowserFoldersSlice = (
           .map((h) => h.id);
       }
 
+      // Handle workspace bookmark deletion before early return — even when there are
+      // no open tabs or folder structures, workspace-level bookmarks must be removed.
+      let nextWorkspaceBookmarks = state.browserWorkspaceBookmarks;
+      let wsChanged = false;
+      if (nodePath.startsWith('workspace:')) {
+        const wsId = nodePath.slice('workspace:'.length);
+        if (nextWorkspaceBookmarks[wsId]) {
+          nextWorkspaceBookmarks = { ...nextWorkspaceBookmarks };
+          delete nextWorkspaceBookmarks[wsId];
+          wsChanged = true;
+        }
+      }
+
       if (tabIdsToDelete.length === 0 && folderIdsToClear.length === 0) {
+        if (wsChanged) {
+          scheduleWrite(BROWSER_WORKSPACE_BOOKMARKS_KEY, nextWorkspaceBookmarks);
+          return { browserWorkspaceBookmarks: nextWorkspaceBookmarks };
+        }
         return state;
       }
 
@@ -272,16 +289,6 @@ export const createBrowserFoldersSlice = (
           ? (nextTabs[nextTabs.length - 1]?.id ?? state.browserActiveTabId)
           : state.browserActiveTabId;
 
-      let nextWorkspaceBookmarks = state.browserWorkspaceBookmarks;
-      if (nodePath.startsWith('workspace:')) {
-        const wsId = nodePath.slice('workspace:'.length);
-        if (nextWorkspaceBookmarks[wsId]) {
-          nextWorkspaceBookmarks = { ...nextWorkspaceBookmarks };
-          delete nextWorkspaceBookmarks[wsId];
-          scheduleWrite(BROWSER_WORKSPACE_BOOKMARKS_KEY, nextWorkspaceBookmarks);
-        }
-      }
-
       let nextFolders = state.browserTabFolders;
       if (folderIdsToClear.length > 0) {
         nextFolders = nextFolders.map((f) =>
@@ -290,6 +297,9 @@ export const createBrowserFoldersSlice = (
         scheduleWrite(BROWSER_TAB_FOLDERS_KEY, nextFolders);
       }
 
+      if (wsChanged) {
+        scheduleWrite(BROWSER_WORKSPACE_BOOKMARKS_KEY, nextWorkspaceBookmarks);
+      }
       scheduleWrite(BROWSER_TABS_KEY, nextTabs);
       scheduleWrite(BROWSER_ACTIVE_TAB_KEY, nextActive);
       return {
@@ -373,9 +383,7 @@ export const createBrowserFoldersSlice = (
           const allTabIds = wsBookmarkTabIds
             ? [...tabIdsToDelete, ...wsBookmarkTabIds]
             : tabIdsToDelete;
-          const remaining = bookmarkedEntries.filter(
-            (entry) => !allTabIds.includes(entry.tabId)
-          );
+          const remaining = bookmarkedEntries.filter((entry) => !allTabIds.includes(entry.tabId));
           nextWorkspaceBookmarks = { ...nextWorkspaceBookmarks };
           if (remaining.length === 0) {
             delete nextWorkspaceBookmarks[wsId];

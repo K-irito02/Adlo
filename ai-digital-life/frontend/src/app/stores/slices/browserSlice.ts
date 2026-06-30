@@ -102,7 +102,6 @@ function hydrateBrowserDefaults(
       ? state.browserBookmarks
       : readJson<BrowserBookmark[]>(BROWSER_BOOKMARKS_KEY, []);
 
-
     const workspaceBookmarksModified = Object.keys(state.browserWorkspaceBookmarks).length > 0;
     const finalWorkspaceBookmarks = workspaceBookmarksModified
       ? state.browserWorkspaceBookmarks

@@ -244,3 +244,140 @@ for (const bookmark of finalState.browserBookmarks) {
 ```
 
 全量扫描性能影响可忽略（`browserBookmarks` 通常数十至数百条，`urlStillExists` 为 O(n) 对小数组），但彻底消除遗漏。`browserRemoveTabBookmarks('', url)` 中的 `urlStillExists` 确保仅有真正孤立的 URL 被移除，不会跨越工作区误删。
+
+---
+
+## Phase 4（2026-06-30 第三轮）修复
+
+### 问题清单
+
+| # | 问题 | 场景 | 根因 |
+|---|------|------|------|
+| 18 | 工作区"删除所有标签[嵌套]"无反应 | 工作区无 open tabs 且无 root folders，但有 workspace bookmarks | `browserDeleteAllTabsInNode` 的 workspace 路径中 `tabIdsToDelete` 和 `folderIdsToClear` 均为空 → 提前返回 state，`workspaceBookmarks[wsId]` 删除代码在 return 之后 |
+| 19 | "删除所有标签[嵌套]"后收藏状态残留 | 文件夹/工作区目录上执行"删除所有标签[嵌套]" | `handleDeleteAllChildTabs` 与修复前的 `handleDeleteDirectory` 同一模式：`collectFolderTabSnapshotUrls` Map 去重 + 空 tabId Pass 2 + **缺失** `browserRemoveOrphanedBookmarks()` 安全兜底 |
+| 20 | "删除自身目录标签"的文件夹路径用 `collectFolderTabSnapshotUrls` 递归收集 | 文件夹"删除自身目录标签" | `browserDeleteOwnTabsInNode` 只清直属 folder 的 tabs，但 handler 用 `collectFolderTabSnapshotUrls` 递归收集了所有后代的 URL → 不匹配；且 Map 去重问题同样存在 |
+
+### Phase 4 涉及文件
+
+| 文件 | 修改 |
+|------|------|
+| `browserTreeUtils.ts` | 新增 `collectAllDescendantTabUrlsLocal` — 递归收集文件夹树中所有 `(tabId, url)` 对，**不 Map 去重** |
+| `browserFoldersSlice.ts` | `browserDeleteAllTabsInNode`：workspace bookmark 删除移至 early return 之前；主路径补回 `scheduleWrite` |
+| `useBrowserTreeActions.ts` | `handleDeleteDirectory`、`handleDeleteAllChildTabs`、`handleDeleteOwnChildTabs` 三处均用 `collectAllDescendantTabUrlsLocal` / 直属 tabs 替换 `collectFolderTabSnapshotUrls`；去除空 tabId 的 Pass 2；末尾统一加 `browserRemoveOrphanedBookmarks()`；更新依赖数组 |
+
+### 16. `collectFolderTabSnapshotUrls` Map 去重是一个反复出现的根因模式
+
+该函数散布在 3 个 handler 中，每次调用都会因为 Map 去重丢失 URL：
+
+- `handleDeleteDirectory`（第 496 行）
+- `handleDeleteAllChildTabs`（第 149、248 行）
+- `handleDeleteOwnChildTabs`（第 371 行）
+
+此前 Phase 2&3 的修复方案是在外层额外扫描 root folder 的 `tabs` 数组补充丢失的 URL，但：
+- 只补了 root folder，未补嵌套子目录的丢失 URL
+- Pass 2 的 `browserRemoveTabBookmarks('', url)` 空 tabId 无法匹配任何实体条目 → 绕不开 `urlStillExists`
+- 不同 handler 间的重复代码增加了维护成本
+
+**Phase 4 修复模式**：不再使用 Map，改用数组收集所有 `(tabId, url)` 对：
+
+```typescript
+// 新增 helper（browserTreeUtils.ts）
+function collectAllDescendantTabUrlsLocal(folders, parentId): Array<{tabId, url}> {
+  // 递归遍历文件夹树，每遇到一个 tab 条目就推入数组
+  result.push({ tabId: item.tabId, url: item.url });
+  return result;
+}
+
+// 调用方
+const allTabUrls = collectAllDescendantTabUrlsLocal(folders, folderId);
+for (const { tabId, url } of allTabUrls) {
+  browserRemoveTabBookmarks(tabId, url);  // ✅ 每个 (tabId, url) 都被处理
+}
+```
+
+### 17. `browserRemoveOrphanedBookmarks` 是推荐的统一安全兜底
+
+`handleDeleteOwnChildTabs` 和 `handleDeleteDirectory` 已在 Phase 2/3 中加入了 `browserRemoveOrphanedBookmarks()`。Phase 4 将其同步到 `handleDeleteAllChildTabs`。
+
+`browserRemoveOrphanedBookmarks` 在 store action 执行后调用，此时目标文件夹/工作区数据已被删除，它遍历当前 `browserTabFolders` 和 `browserWorkspaceBookmarks` 构建 `referenced` 集合，仅移除不再被引用的 `browserBookmarks` 条目。
+
+```typescript
+// 通用模式
+preCleanupByTabId(allTabUrls);    // 逐对清理 tabId→URL 相关存储
+storeAction(path);                 // 删除数据层
+browserRemoveOrphanedBookmarks(); // 安全兜底：清理漏网之鱼
+```
+
+### 18. `browserDeleteAllTabsInNode` 的 early return 隐藏了 workspace bookmark 删除
+
+```typescript
+// 第 268 行（修复前）
+if (tabIdsToDelete.length === 0 && folderIdsToClear.length === 0) {
+  return state;  // ← workspaceBookmarks[wsId] 删除在第 276 行，够不着
+}
+```
+
+当 workspace 无 open tabs 且无 root folders 时，即使有 workspace bookmarks，`tabIdsToDelete` 和 `folderIdsToClear` 均为空 → 提前返回，workspace bookmark 删除代码被跳过。
+
+**修复模式**：将 workspace bookmark 删除移到 early return 之前：
+
+```typescript
+// 先处理 workspace bookmarks
+let nextWorkspaceBookmarks = state.browserWorkspaceBookmarks;
+if (nodePath.startsWith('workspace:')) {
+  const wsId = nodePath.slice('workspace:'.length);
+  if (nextWorkspaceBookmarks[wsId]) {
+    nextWorkspaceBookmarks = { ...nextWorkspaceBookmarks };
+    delete nextWorkspaceBookmarks[wsId];
+    wsChanged = true;
+  }
+}
+// 再检查是否要提前返回
+if (tabIdsToDelete.length === 0 && folderIdsToClear.length === 0) {
+  if (wsChanged) return { browserWorkspaceBookmarks: nextWorkspaceBookmarks };
+  return state;
+}
+```
+
+### 19. `handleDeleteOwnChildTabs` 文件夹路径不得递归收集
+
+`browserDeleteOwnTabsInNode` 对 folder 路径只清直属 folder 的 `tabs`（不递归子目录）。但原 handler 用 `collectFolderTabSnapshotUrls` 递归收集所有后代的 URL，两者粒度不一致。
+
+Phase 4 修复：改为直接读 `state.browserTabFolders.find(f => f.id === folderId).tabs`，只处理直属标签：
+
+```typescript
+if (nodePath.startsWith('folder:')) {
+  const folder = state.browserTabFolders.find((f) => f.id === folderId);
+  for (const item of folder.tabs) {
+    browserRemoveTabBookmarks(item.tabId, item.url);
+  }
+}
+```
+
+### 20. `browserDeleteAllTabsInNode` 主路径缺少 `scheduleWrite`（适用于 workspaceBookmarks）
+
+Phase 3 将 workspace bookmark 删除逻辑移到 early return 前时，删除了原位的 `scheduleWrite(BROWSER_WORKSPACE_BOOKMARKS_KEY, ...)` 调用。主返回路径（有 tabs/folders 要清理）中 workspace bookmark 的变更没有被持久化。
+
+Phase 4 在主返回路径中补回：
+
+```typescript
+if (wsChanged) {
+  scheduleWrite(BROWSER_WORKSPACE_BOOKMARKS_KEY, nextWorkspaceBookmarks);
+}
+```
+
+### 21. 三种删除路径的当前清理策略（Phase 4 最终版）
+
+| 删除操作 | 清理策略 | 安全兜底 |
+|---------|---------|---------|
+| 标签右键"删除" | `browserRemoveTabBookmarks(tabId, url, scopeFolderId)` | 无（单条目，精确） |
+| 目录级"删除自身目录标签" | 直属 folder tabs 的 `(tabId, url)` 对逐个清理 | `browserRemoveOrphanedBookmarks()` |
+| 目录级"删除所有标签[嵌套]" | 子树所有 `(tabId, url)` 对逐个清理 | `browserRemoveOrphanedBookmarks()` |
+| 目录级"删除此目录" | 子树所有 `(tabId, url)` 对逐个清理 | `browserRemoveOrphanedBookmarks()` |
+| 工作区级"删除自身/所有标签" | 同目录级 + workspace bookmark 删除 | `browserRemoveOrphanedBookmarks()` |
+
+所有非单个标签的删除路径统一为：
+1. 全量收集 `(tabId, url)` 对（无去重）
+2. 逐对调用 `browserRemoveTabBookmarks(tabId, url)`
+3. 执行 store action 删除数据层
+4. `browserRemoveOrphanedBookmarks()` 安全兜底
