@@ -381,3 +381,64 @@ if (wsChanged) {
 2. 逐对调用 `browserRemoveTabBookmarks(tabId, url)`
 3. 执行 store action 删除数据层
 4. `browserRemoveOrphanedBookmarks()` 安全兜底
+
+---
+
+## Phase 5（2026-06-30 第四轮）修复
+
+### 问题清单
+
+| # | 问题 | 场景 | 根因 |
+|---|------|------|------|
+| 21 | `handleDeleteAllChildTabs` 文件夹路径向 `allTabUrls` 重复添加 tabId | 文件夹上下文点击"删除所有标签[嵌套]" | `collectAllDescendantTabUrlsLocal` 已填满 `allTabUrls`，后续 `tabIds` 循环无条件再次 push 同一批 tabId |
+| 22 | 工具栏"删除工作区与非工作区全部标签"后工作区级书签星标残留 | 点击工具栏垃圾桶图标按钮 | `browserClearAllFolderTabs` 只移除文件夹 tabs 中的 URL；`browserClearAllWorkspaceBookmarks` 清空 `browserWorkspaceBookmarks`；但 `browserBookmarks` 仍有工作区独享书签→星标仍实心 |
+
+### Phase 5 涉及文件
+
+| 文件 | 修改 |
+|------|------|
+| `useBrowserTreeActions.ts` | `handleDeleteAllChildTabs`：`tabIds` 循环加 `!nodePath.startsWith('folder:')` 守卫，避免重复 |
+| `BrowserPanel.tsx` | `handleClearTabDirectories`：末尾加 `browserRemoveOrphanedBookmarks()` 安全兜底 |
+
+### 22. `handleDeleteAllChildTabs` 文件夹路径的 tabId 重复追加
+
+`collectAllDescendantTabUrlsLocal`（递归，收集文件夹树中所有 `(tabId, url)` 对）已将 `allTabUrls` 填满。随后 `tabIds` 循环（收集自 `collectAllDescendantTabIdsLocal`）会无条件将相同的一批 tabId 再次推入 `allTabUrls`，导致 `browserRemoveTabBookmarks` 被重复调用。
+
+修复：
+
+```typescript
+if (!nodePath.startsWith('folder:')) {
+  for (const tabId of tabIds) { ... allTabUrls.push({ tabId, url }); }
+}
+```
+
+### 23. 工具栏"删除全部标签"按钮的安全兜底
+
+`handleClearTabDirectories` 调用链：
+1. `browserClearAllFolderTabs()` → 清空所有文件夹 tabs，按 URL 集过滤 `browserBookmarks`，按 tabId 过滤 `browserWorkspaceBookmarks`，按 tabId 清理 `browserBookmarkTabIdUrlMap`
+2. `browserClearAllWorkspaceBookmarks()` → 核弹级清空 `browserWorkspaceBookmarks` 和 `browserBookmarkTabIdUrlMap`
+
+但步骤 1 的 URL 集只包含**文件夹 tabs 中的 URL**。工作区级书签（星标收藏到工作区但未放入文件夹）的 URL 不在该集合中，不会被从 `browserBookmarks` 移除。步骤 2 虽然清空了 `browserWorkspaceBookmarks`（树中不再显示），但 `browserBookmarks` 残留导致星标仍实心。
+
+修复：在末尾加 `browserRemoveOrphanedBookmarks()`：
+
+```typescript
+const handleClearTabDirectories = useCallback(() => {
+  _handleClearTabDirectories();
+  const s = useAppStore.getState();
+  s.browserClearAllWorkspaceBookmarks?.();
+  s.browserRemoveOrphanedBookmarks?.(); // ← 清除漏网之鱼
+}, [_handleClearTabDirectories]);
+```
+
+### 24. 最终清理策略总表
+
+| 删除操作 | 入口 | 清理策略 | 安全兜底 |
+|---------|------|---------|---------|
+| 标签右键"删除" | `handleDeleteTab` | `browserRemoveTabBookmarks(tabId, url, scopeFolderId)` | 无（单条目精确） |
+| 收藏右键"删除此收藏" | `handleRemoveBookmarkTab` | `browserRemoveTabBookmarks(tabId, url, scopeFolderId)` | 无（单条目精确） |
+| 目录"删除自身目录标签" | `handleDeleteOwnChildTabs` | 直属 folder tabs 的 `(tabId, url)` 对逐个清理 | `browserRemoveOrphanedBookmarks()` |
+| 目录"删除所有标签[嵌套]" | `handleDeleteAllChildTabs` | 子树所有 `(tabId, url)` 对逐个清理 | `browserRemoveOrphanedBookmarks()` |
+| 目录"删除此目录" | `handleDeleteDirectory` | 子树所有 `(tabId, url)` 对逐个清理 | `browserRemoveOrphanedBookmarks()` |
+| 工作区级删除自身/所有标签 | 同上（上下文菜单） | 同目录级 + workspace bookmark 删除 | `browserRemoveOrphanedBookmarks()` |
+| 工具栏"删除全部标签" | `handleClearTabDirectories` | `browserClearAllFolderTabs` + `browserClearAllWorkspaceBookmarks` | `browserRemoveOrphanedBookmarks()` |

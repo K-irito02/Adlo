@@ -309,6 +309,9 @@ export function BrowserPanel(props: BrowserPanelProps) {
     _handleClearTabDirectories();
     const s = useAppStore.getState();
     s.browserClearAllWorkspaceBookmarks?.();
+    // Safety sweep: remove any bookmark URLs that remained orphaned after
+    // the workspace bookmark nuke (e.g. star-button bookmarks not in folders).
+    s.browserRemoveOrphanedBookmarks?.();
   }, [_handleClearTabDirectories]);
 
   const { handlePageMeta: _handlePageMeta } = useBrowserPageMeta(
