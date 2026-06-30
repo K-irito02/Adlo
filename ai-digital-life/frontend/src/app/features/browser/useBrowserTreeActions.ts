@@ -62,6 +62,7 @@ export function useBrowserTreeActions() {
     browserUpdateHistoryTitle,
     browserDeleteHistoryEntry,
     browserRemoveTabBookmarks,
+    browserRemoveOrphanedBookmarks,
   } = useAppStore(
     useShallow((state) => ({
       recentWorkspaces: state.recentWorkspaces,
@@ -81,6 +82,7 @@ export function useBrowserTreeActions() {
       browserUpdateHistoryTitle: state.browserUpdateHistoryTitle,
       browserDeleteHistoryEntry: state.browserDeleteHistoryEntry,
       browserRemoveTabBookmarks: state.browserRemoveTabBookmarks,
+      browserRemoveOrphanedBookmarks: state.browserRemoveOrphanedBookmarks,
     }))
   );
 
@@ -384,32 +386,15 @@ export function useBrowserTreeActions() {
 
       browserDeleteOwnTabsInNode(nodePath);
 
-      // Safety sweep: remove orphaned URLs from browserBookmarks.
-      //
+      // Remove orphaned URLs from browserBookmarks in a single pass.
       // Runs AFTER browserDeleteOwnTabsInNode so workspace/folder data is already
-      // updated — the sweep only removes URLs that no longer exist in ANY workspace
-      // bookmark or folder entry across all workspaces.
-      //
-      // browserRemoveTabBookmarks('', url) with empty tabId:
-      // 1. tabId='' → workspace/folder filtering is a no-op (no entry has
-      //    tabId=''), so nextWorkspaceBookmarks / nextFolders reflect the
-      //    post-deletion state (already cleaned up by browserDeleteOwnTabsInNode).
-      // 2. urlStillExists checks ALL workspaces' bookmark arrays + ALL folders’
-      //    tab arrays by URL only (no tabId involvement) → URLs still referenced
-      //    in any other workspace or folder are correctly preserved.
-      // 3. Only truly orphaned URLs (gone from all workspaces AND all folders)
-      //    are removed from browserBookmarks.
-      // 4. Cross-workspace safety: a URL that exists in workspace B is untouched
-      //    by browserDeleteOwnTabsInNode for workspace A → urlStillExists finds it
-      //    in workspace B → preserved.
-      const finalState = useAppStore.getState();
-      for (const bookmark of finalState.browserBookmarks) {
-        if (bookmark.url) {
-          browserRemoveTabBookmarks('', bookmark.url);
-        }
-      }
+      // updated. browserRemoveOrphanedBookmarks atomically checks every remaining
+      // bookmark URL against ALL workspaces and ALL folders, keeping only those
+      // that are still referenced somewhere. This avoids N×set() calls that the
+      // iterative per-URL approach would incur.
+      browserRemoveOrphanedBookmarks();
     },
-    [browserDeleteOwnTabsInNode, browserRemoveTabBookmarks]
+    [browserDeleteOwnTabsInNode, browserRemoveTabBookmarks, browserRemoveOrphanedBookmarks]
   );
 
   const handleOpenAllInNewTabs = useCallback(

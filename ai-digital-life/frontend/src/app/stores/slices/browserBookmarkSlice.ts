@@ -46,6 +46,7 @@ export interface BrowserBookmarkSlice {
   ) => void;
   browserUpdateBookmarkTitle: (url: string, title: string) => void;
   browserRemoveTabBookmarks: (tabId: string, url: string, scopeFolderId?: string) => void;
+  browserRemoveOrphanedBookmarks: () => void;
   browserClearAllWorkspaceBookmarks: () => void;
   browserSetPendingBookmark: (data: { url: string; title: string; tabId?: string } | null) => void;
 }
@@ -326,6 +327,31 @@ export const createBrowserBookmarkSlice = (
       };
     });
   },
+
+  /** Remove browserBookmarks entries whose URL no longer exists in any workspace bookmark or folder. */
+  browserRemoveOrphanedBookmarks: () =>
+    set((state) => {
+      // Build the set of URLs still referenced across ALL workspaces and folders
+      const referenced = new Set<string>();
+      for (const entries of Object.values(state.browserWorkspaceBookmarks)) {
+        for (const entry of entries) {
+          if (entry.url) referenced.add(entry.url);
+        }
+      }
+      for (const folder of state.browserTabFolders) {
+        if (folder.tabs) {
+          for (const tab of folder.tabs) {
+            if (tab.url) referenced.add(tab.url);
+          }
+        }
+      }
+      const nextBookmarks = state.browserBookmarks.filter(
+        (b) => !b.url || referenced.has(b.url)
+      );
+      if (nextBookmarks.length === state.browserBookmarks.length) return state;
+      scheduleWrite(BROWSER_BOOKMARKS_KEY, nextBookmarks);
+      return { browserBookmarks: nextBookmarks };
+    }),
 
   browserClearAllWorkspaceBookmarks: () => {
     scheduleWrite(BROWSER_WORKSPACE_BOOKMARKS_KEY, {});
