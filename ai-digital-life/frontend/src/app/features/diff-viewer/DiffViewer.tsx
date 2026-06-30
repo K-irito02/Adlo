@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import type { Extension } from '@codemirror/state';
-import type { DiffEditorRef, EditorRef } from '../../stores/types';
+import type { DiffEditorRef, EditorRef } from '@stores/types';
 import type { PreviewDiffCollapsedRange } from './changePreviewDiffRanges';
 import { SideBySideDiffViewer } from './SideBySideDiffViewer';
 import { InlineDiffViewer } from './InlineDiffViewer';

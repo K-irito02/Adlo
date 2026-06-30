@@ -16,9 +16,9 @@ import type {
   WorkspaceSearchHit,
   WorkspaceTreeNode,
 } from '@ai-digital-life/kernel';
-import type { EditorTabState } from '../../utils/editorTabs';
-import type { EditorRef, DiffEditorRef } from '../../stores/types';
-import type { PatchDirection, PatchReviewFilter } from '../../features/patch-review';
+import type { EditorTabState } from '@utils/editorTabs';
+import type { EditorRef, DiffEditorRef } from '@stores/types';
+import type { PatchDirection, PatchReviewFilter } from '@features/patch-review';
 
 export interface RightPanelViewProps {
   appInfo?: AppInfo;

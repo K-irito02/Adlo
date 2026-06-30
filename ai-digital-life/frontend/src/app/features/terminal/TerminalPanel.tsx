@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo } from 'react';
-import { useAppStore } from '../../stores/slicedStore';
+import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import {
   IconFiles,
@@ -10,18 +10,18 @@ import {
   IconRefreshCw,
   IconTrash,
   IconUnfoldVertical,
-} from '../../icons';
-import { TooltipSimple } from '../../components/Tooltip';
+} from '@icons';
+import { TooltipSimple } from '@components/Tooltip';
 import { NavigatorResizeHandle } from '@components/NavigatorResizeHandle';
-import { XtermTerminal } from '../../components/terminal/XtermTerminal';
-import type { TerminalPanelProps } from '../../regions/right-panel/types';
-import type { TerminalProfile } from '../../stores/types';
+import { XtermTerminal } from '@components/terminal/XtermTerminal';
+import type { TerminalPanelProps } from '@regions/right-panel/types';
+import type { TerminalProfile } from '@stores/types';
 import { useTerminalPanel } from './useTerminalPanel';
 import { TerminalShellSelector } from './TerminalShellSelector';
 import { TerminalMenuDropdown } from './TerminalMenuDropdown';
 import { TerminalContextMenu } from './TerminalContextMenu';
 import { MultiWorkspaceTerminal } from '../workspace-terminal';
-import { useTCopy } from '../../i18n/useTCopy';
+import { useTCopy } from '@i18n/useTCopy';
 
 export function TerminalPanel(props: TerminalPanelProps) {
   const { t } = useTCopy();

@@ -8,9 +8,9 @@ import {
   IconPanelLeft,
   IconPanelLeftClose,
   IconUpload,
-} from '../../../icons';
-import { TooltipSimple } from '../../../components/Tooltip';
-import { useTCopy } from '../../../i18n/useTCopy';
+} from '@icons';
+import { TooltipSimple } from '@components/Tooltip';
+import { useTCopy } from '@i18n/useTCopy';
 
 export interface ChangesMenuItem {
   id: string;

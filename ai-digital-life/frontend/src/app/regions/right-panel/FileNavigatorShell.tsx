@@ -4,18 +4,18 @@ import type {
   FileOutlineItem,
   RecentWorkspaceEntry,
 } from '@ai-digital-life/kernel';
-import { useTCopy } from '../../i18n/useTCopy';
-import { IconReplace } from '../../icons';
-import { TooltipSimple } from '../../components/Tooltip';
+import { useTCopy } from '@i18n/useTCopy';
+import { IconReplace } from '@icons';
+import { TooltipSimple } from '@components/Tooltip';
 import { NavigatorResizeHandle } from '@components/NavigatorResizeHandle';
-import { useNavigatorResize } from '../../hooks/useNavigatorResize';
-import { OutlineTree, getDefaultExpandedOutlineIds } from '../../features/outline';
-import { normalizeWorkspaceRelativePath } from '../../utils/workspacePaths';
+import { useNavigatorResize } from '@hooks/useNavigatorResize';
+import { OutlineTree, getDefaultExpandedOutlineIds } from '@features/outline';
+import { normalizeWorkspaceRelativePath } from '@utils/workspacePaths';
 import { useFileCreation, useSearchPanel } from './hooks';
 import { useFileContextMenuItems } from './hooks/useFileContextMenuItems';
-import { ConfirmDialog } from '../../components/ConfirmDialog';
-import { RenameDialog } from '../../components/RenameDialog';
-import { useAppStore } from '../../stores/slicedStore';
+import { ConfirmDialog } from '@components/ConfirmDialog';
+import { RenameDialog } from '@components/RenameDialog';
+import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import type { SearchHit } from './hooks/useSearchPanel';
 import { FileNavigatorToolbar } from './FileNavigatorToolbar';

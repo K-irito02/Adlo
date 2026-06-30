@@ -12,11 +12,11 @@ import type {
   ExecutionSummaryConversationBlock,
   CommandOutputConversationBlock,
 } from '@ai-digital-life/kernel';
-import type { CopyDict } from '../../i18n';
-import { PlanCard, type PlanStep } from '../../components/agent/PlanCard';
-import { StepBlock } from '../../components/agent/StepBlock';
-import { ExecutionSummaryCard } from '../../components/agent/ExecutionSummary';
-import { CommandOutputBlock } from '../../components/terminal/CommandOutputBlock';
+import type { CopyDict } from '@i18n';
+import { PlanCard, type PlanStep } from '@components/agent/PlanCard';
+import { StepBlock } from '@components/agent/StepBlock';
+import { ExecutionSummaryCard } from '@components/agent/ExecutionSummary';
+import { CommandOutputBlock } from '@components/terminal/CommandOutputBlock';
 
 function renderPlanBlock(block: PlanConversationBlock, t: CopyDict): React.ReactElement {
   const steps: PlanStep[] = block.items.map((item) => ({

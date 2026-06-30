@@ -1,15 +1,15 @@
 import React, { useState, useMemo } from 'react';
 import { useCommunicationPanelProps } from '../hooks/useCommunicationPanelProps';
-import { GitHubPanel } from './communicate/GitHubPanel';
+import { LazyGitHubPanel, SuspenseWrapper } from '@components/LazyComponents';
 import { FeishuPanel } from './communicate/FeishuPanel';
 import { QQPanel } from './communicate/QQPanel';
 import { WeChatPanel } from './communicate/WeChatPanel';
 import { EmailPanel } from './communicate/EmailPanel';
-import type { PlatformId } from '../../../stores/slices/communicateSlice';
-import { useTCopy } from '../../../i18n/useTCopy';
-import { IconPanelLeft, IconPanelLeftClose } from '../../../icons';
-import { TooltipSimple } from '../../../components/Tooltip';
-import { useAppStore } from '../../../stores/slicedStore';
+import type { PlatformId } from '@stores/slices/communicateSlice';
+import { useTCopy } from '@i18n/useTCopy';
+import { IconPanelLeft, IconPanelLeftClose } from '@icons';
+import { TooltipSimple } from '@components/Tooltip';
+import { useAppStore } from '@stores/slicedStore';
 
 export function CommunicationPanel() {
   const { t } = useTCopy();
@@ -72,13 +72,13 @@ export function CommunicationPanel() {
   );
 
   const PANEL_COMPONENTS: Record<PlatformId, React.ComponentType> = {
-    github: GitHubPanel,
+    github: LazyGitHubPanel,
     feishu: FeishuPanel,
     qq: QQPanel,
     wechat: WeChatPanel,
     email: EmailPanel,
   };
-  const Panel = PANEL_COMPONENTS[activePlatform] ?? GitHubPanel;
+  const Panel = PANEL_COMPONENTS[activePlatform] ?? LazyGitHubPanel;
 
   return (
     <div className="adl-communicate">
@@ -136,7 +136,9 @@ export function CommunicationPanel() {
       </div>
 
       <div className="adl-communicate__surface">
-        <Panel />
+        <SuspenseWrapper>
+          <Panel />
+        </SuspenseWrapper>
       </div>
     </div>
   );

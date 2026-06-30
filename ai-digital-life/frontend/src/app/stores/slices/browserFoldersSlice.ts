@@ -1,11 +1,10 @@
 import type { StoreState } from '../StoreState';
 import { createUiId, createDebouncedWrite } from '../shared';
-import { formatNewFolderNameByLocale } from '../../i18n';
+import { formatNewFolderNameByLocale } from '@i18n';
 import type { BrowserTabState } from './browserTabsSlice';
 import {
   BROWSER_BOOKMARKS_STORAGE_KEY,
   BROWSER_BOOKMARK_TABID_URL_MAP_KEY,
-  BROWSER_WORKSPACE_BOOKMARKS_STORAGE_KEY,
 } from './browserBookmarkSlice';
 
 export interface BookmarkTabItem {

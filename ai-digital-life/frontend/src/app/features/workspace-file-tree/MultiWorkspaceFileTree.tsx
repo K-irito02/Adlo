@@ -4,11 +4,11 @@ import type {
   WorkspaceTreeNode,
   ReorderWorkspacesInput,
 } from '@ai-digital-life/kernel';
-import type { FileTreeContextMenuItem } from '../../features/file-tree';
+import type { FileTreeContextMenuItem } from '@features/file-tree';
 import { MultiWorkspaceContainer } from '../multi-workspace/MultiWorkspaceContainer';
 import { WorkspaceFileTreeEntry } from './WorkspaceFileTreeEntry';
-import { moveIdWithinBucket } from '../../utils/dragUtils';
-import { useTCopy } from '../../i18n/useTCopy';
+import { moveIdWithinBucket } from '@utils/dragUtils';
+import { useTCopy } from '@i18n/useTCopy';
 
 export interface MultiWorkspaceFileTreeProps {
   workspaces: RecentWorkspaceEntry[];

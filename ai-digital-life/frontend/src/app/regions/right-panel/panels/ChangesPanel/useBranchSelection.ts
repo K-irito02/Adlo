@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import type { ChangesPanelProps } from '../../types';
-import { readSelectedBranch, writeSelectedBranch } from '../../ChangesPanel/utils';
+import type { ChangesPanelProps } from '@regions/right-panel/types';
+import { readSelectedBranch, writeSelectedBranch } from '@regions/right-panel/ChangesPanel/utils';
 
 const FALLBACK_BRANCHES = ['main', 'develop', 'release/0.1.0', 'feature/right-panel'];
 

@@ -1,9 +1,9 @@
 import React from 'react';
 import type { WorkspaceTreeNode, RecentWorkspaceEntry } from '@ai-digital-life/kernel';
-import { MultiWorkspaceFileTree } from '../../features/workspace-file-tree';
-import { CustomScrollArea } from '../../features/file-tree/CustomScrollArea';
-import { useAppStore } from '../../stores/slicedStore';
-import type { FileTreeContextMenuItem } from '../../features/file-tree';
+import { MultiWorkspaceFileTree } from '@features/workspace-file-tree';
+import { CustomScrollArea } from '@features/file-tree/CustomScrollArea';
+import { useAppStore } from '@stores/slicedStore';
+import type { FileTreeContextMenuItem } from '@features/file-tree';
 
 interface FileNavigatorTreeProps {
   visibleWorkspaces: RecentWorkspaceEntry[];

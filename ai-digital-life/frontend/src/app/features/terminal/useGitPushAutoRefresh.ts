@@ -3,8 +3,8 @@
  * 监听终端输出，检测 git push 完成并自动刷新 CI 状态
  */
 import { useEffect } from 'react';
-import { useAppStore } from '../../stores/slicedStore';
-import type { PtyOutputEvent } from '../../../shared/ipc';
+import { useAppStore } from '@stores/slicedStore';
+import type { PtyOutputEvent } from '@shared/ipc';
 
 /** Git push 成功的多种输出模式 */
 const PUSH_SUCCESS_PATTERNS = [

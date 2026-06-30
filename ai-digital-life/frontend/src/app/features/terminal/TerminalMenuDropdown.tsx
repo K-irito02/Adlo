@@ -1,8 +1,8 @@
 import React from 'react';
-import { IconMoreVertical } from '../../icons';
-import { TooltipSimple } from '../../components/Tooltip';
+import { IconMoreVertical } from '@icons';
+import { TooltipSimple } from '@components/Tooltip';
 import type { TerminalMenuItem } from './useTerminalPanel';
-import { useTCopy } from '../../i18n/useTCopy';
+import { useTCopy } from '@i18n/useTCopy';
 
 interface TerminalMenuDropdownProps {
   menuOpen: boolean;

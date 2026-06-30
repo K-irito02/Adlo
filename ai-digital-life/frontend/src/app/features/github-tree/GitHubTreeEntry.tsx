@@ -1,12 +1,12 @@
 import React, { useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { IconSettings, IconRefreshCw, IconMoreVertical } from '../../icons';
+import { IconSettings, IconRefreshCw, IconMoreVertical } from '@icons';
 import { GitHubEntrySubEntries } from './GitHubEntrySubEntries';
-import { TooltipSimple } from '../../components/Tooltip';
-import { RenameDialog } from '../../components/RenameDialog';
-import { useTCopy } from '../../i18n/useTCopy';
-import { MenuHintItem } from '../../regions/right-panel/panels/communicate/MenuHintItem';
-import { useAppStore } from '../../stores/slicedStore';
+import { TooltipSimple } from '@components/Tooltip';
+import { RenameDialog } from '@components/RenameDialog';
+import { useTCopy } from '@i18n/useTCopy';
+import { MenuHintItem } from '@regions/right-panel/panels/communicate/MenuHintItem';
+import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import type { GitHubTreeNode, GitHubCategoryType } from './types';
 import type { SectionCallbacks } from './GitHubCategorySection';

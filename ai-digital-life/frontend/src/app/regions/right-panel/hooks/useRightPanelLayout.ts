@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { RIGHT_PANEL_WIDTH_MIN, RIGHT_PANEL_WIDTH_MAX } from '../../../stores/slices/uiSlice';
-import { useAppStore } from '../../../stores/slicedStore';
+import { RIGHT_PANEL_WIDTH_MIN, RIGHT_PANEL_WIDTH_MAX } from '@stores/slices/uiSlice';
+import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { deriveRightPanelOverlayState, type RightPanelMode } from '../rightPanelLayout';
 

@@ -1,7 +1,7 @@
 import React from 'react';
-import { LazyMarkdownPreviewWrapper } from '../../features/preview';
+import { LazyMarkdownPreviewWrapper } from '@features/preview';
 import type { FileCategory } from './fileTypeRouter';
-import { useTCopy } from '../../i18n/useTCopy';
+import { useTCopy } from '@i18n/useTCopy';
 
 interface FilePreviewRenderersProps {
   editorSurfaceRef: React.RefObject<HTMLDivElement | null>;

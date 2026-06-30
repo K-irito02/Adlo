@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { useTCopy } from '../../i18n/useTCopy';
+import { useTCopy } from '@i18n/useTCopy';
 
 interface FileCreationBarProps {
   createTarget: 'file' | 'folder';

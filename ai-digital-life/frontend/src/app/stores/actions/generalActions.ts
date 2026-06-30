@@ -5,12 +5,12 @@ import type {
   ConversationBlock,
   GitSnapshot,
 } from '@ai-digital-life/kernel';
-import { themeController } from '../../utils/theme';
-import { createEditorTab } from '../../utils/editorTabs';
+import { themeController } from '@utils/theme';
+import { createEditorTab } from '@utils/editorTabs';
 import { loadConversationState, loadTaskCenterState } from '../loaders';
 import { workspaceContextModeFromInfo } from '../conversationUtils';
 import { workspaceRequestSeq, queueLowPriorityRefresh } from '../shared';
-import { resolveCurrentTheme } from '../../../shared/resolveTheme';
+import { resolveCurrentTheme } from '@shared/resolveTheme';
 import type { StoreApi } from 'zustand';
 
 export function createGeneralActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {

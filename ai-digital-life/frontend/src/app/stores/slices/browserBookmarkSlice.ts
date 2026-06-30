@@ -1,8 +1,8 @@
 import type { StoreState } from '../StoreState';
 import { createUiId, createDebouncedWrite } from '../shared';
-import { formatNewFolderNameByLocale } from '../../i18n';
+import { formatNewFolderNameByLocale } from '@i18n';
 import type { TabFolderState } from './browserFoldersSlice';
-import { hostnameFromUrl } from '../../utils/browserDisplayUtils';
+import { hostnameFromUrl } from '@utils/browserDisplayUtils';
 
 export interface BrowserBookmark {
   url: string;
@@ -347,18 +347,24 @@ export const createBrowserBookmarkSlice = (
       const referenced = new Set<string>();
       for (const entries of Object.values(state.browserWorkspaceBookmarks)) {
         for (const entry of entries) {
-          if (entry.url) referenced.add(entry.url);
+          if (entry.url) {
+            referenced.add(entry.url);
+          }
         }
       }
       for (const folder of state.browserTabFolders) {
         if (folder.tabs) {
           for (const tab of folder.tabs) {
-            if (tab.url) referenced.add(tab.url);
+            if (tab.url) {
+              referenced.add(tab.url);
+            }
           }
         }
       }
       const nextBookmarks = state.browserBookmarks.filter((b) => !b.url || referenced.has(b.url));
-      if (nextBookmarks.length === state.browserBookmarks.length) return state;
+      if (nextBookmarks.length === state.browserBookmarks.length) {
+        return state;
+      }
       scheduleWrite(BROWSER_BOOKMARKS_KEY, nextBookmarks);
       return { browserBookmarks: nextBookmarks };
     }),

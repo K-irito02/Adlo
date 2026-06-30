@@ -1,46 +1,40 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useAppStore } from '@stores/slicedStore';
-import type { ChangesPanelProps } from '../../types';
+import type { ChangesPanelProps } from '@regions/right-panel/types';
 import type { ReorderWorkspacesInput } from '@ai-digital-life/kernel';
 import { useTCopy } from '@app/i18n/useTCopy';
 import {
   buildChangeEntries,
   buildChangeTree,
-  type ChangeFileState,
   type ChangeTreeNode,
-} from '../../changesTree';
+} from '@regions/right-panel/changesTree';
 import { collectDirectoryPaths } from '@features/file-tree';
 import type { EditorRef, DiffEditorRef } from '@stores/types';
 import { buildOutlineFromContent, getDefaultExpandedOutlineIds } from '@features/outline';
-import { getPrimaryBadge } from '../../ChangesPanel/utils';
+import { getPrimaryBadge } from '@regions/right-panel/ChangesPanel/utils';
 import { summarizePatchSet } from '@features/patch-review';
 import { useChangesPanelStore } from '../useChangesPanelStore';
-import { useFileContextMenuItems } from '../../hooks/useFileContextMenuItems';
+import { useFileContextMenuItems } from '@regions/right-panel/hooks/useFileContextMenuItems';
 import {
   isNodeDeleted,
   computeChangesMenuItems,
   computeVisibleWorkspaces,
-  computeAllChangesExpanded,
-  computeCanToggleNavigatorStructure,
-  computeStructureToggleExpanded,
-  computeChangesNavigatorTitle,
   computeChangesTreeData,
   computeChangeCounts,
   computeTotalChangesStats,
   computeExpandedPathsByWs,
   computeDirtyPathsSet,
-  computeFilteredChangeEntries,
   computeHasExpandedDirectories,
   revealOutlineLine,
   selectNavigatorNode,
   toggleAllDirectories,
   toggleAllOutlineItems,
-  toggleNavigatorStructure,
-  handleStatusFilterClick,
   toggleWorkspaceExpand,
   refreshOneWorkspace,
   refreshAllChanges,
 } from './useChangesPanelStateUtils';
+import { useChangesPanelFilters } from './useChangesPanelFilters';
+import { useChangesPanelSort } from './useChangesPanelSort';
 import type { WorkspaceTreeNode } from '@ai-digital-life/kernel';
 import { useChangesPanelDialogs } from './useChangesPanelDialogs';
 
@@ -77,12 +71,10 @@ export function useChangesPanelState(props: ChangesPanelProps) {
   } = props;
   const {
     navigatorCollapsed,
-    changesNavigatorMode,
     previewEnabled,
     expandedPaths,
     toggleNavigator,
     changesNavigatorWidth,
-    setChangesNavigatorMode,
     setPreviewEnabled,
     toggleChangesTreePath,
     setChangesTreePathExpanded,
@@ -98,9 +90,6 @@ export function useChangesPanelState(props: ChangesPanelProps) {
   const [wordWrapEnabled, setWordWrapEnabled] = useState(true);
   const editorRef = useRef<DiffEditorRef | EditorRef | null>(null);
   const changesPreviewContainerRef = useRef<HTMLDivElement | null>(null);
-  const [changesStatusFilter, setChangesStatusFilter] = useState<Set<ChangeFileState>>(
-    () => new Set()
-  );
   const patchSummaries = useMemo(
     () => summarizePatchSet(activePatchSet, collapsedPatchHunkIds),
     [activePatchSet, collapsedPatchHunkIds]
@@ -109,10 +98,8 @@ export function useChangesPanelState(props: ChangesPanelProps) {
     () => buildChangeEntries(snapshot, patchSummaries),
     [patchSummaries, snapshot]
   );
-  const filteredChangeEntries = useMemo(
-    () => computeFilteredChangeEntries(changeEntries, changesStatusFilter),
-    [changeEntries, changesStatusFilter]
-  );
+  const { changesStatusFilter, filteredChangeEntries, onStatusFilterClick } =
+    useChangesPanelFilters(changeEntries);
   const treeNodes = useMemo(() => buildChangeTree(filteredChangeEntries), [filteredChangeEntries]);
   const directoryPaths = useMemo(() => collectDirectoryPaths(treeNodes), [treeNodes]);
   const hasExpandedDirectories = useMemo(
@@ -211,20 +198,6 @@ export function useChangesPanelState(props: ChangesPanelProps) {
     );
   }, [hasExpandableOutlineItems, hasExpandedOutlineItems, defaultExpandedOutlineIds]);
 
-  const handleToggleNavigatorStructure = () => {
-    toggleNavigatorStructure(
-      changesNavigatorMode,
-      allChangesExpanded,
-      handleCollapseAll,
-      handleExpandAll,
-      handleToggleAllOutlineItems
-    );
-  };
-
-  const onStatusFilterClick = useCallback((filter: ChangeFileState) => {
-    handleStatusFilterClick(filter, setChangesStatusFilter);
-  }, []);
-
   const onSelectNavigatorNode = useCallback(
     (workspacePath: string, relativePath: string) => {
       const s = useAppStore.getState();
@@ -306,31 +279,23 @@ export function useChangesPanelState(props: ChangesPanelProps) {
     () => computeVisibleWorkspaces(recentWorkspaces),
     [recentWorkspaces]
   );
-  const allChangesExpanded = useMemo(
-    () => computeAllChangesExpanded(visibleWorkspaces, workspaceChangesExpanded),
-    [visibleWorkspaces, workspaceChangesExpanded]
-  );
-  const canToggleNavigatorStructure = useMemo(
-    () =>
-      computeCanToggleNavigatorStructure(
-        changesNavigatorMode,
-        visibleWorkspaces,
-        hasExpandableOutlineItems
-      ),
-    [changesNavigatorMode, visibleWorkspaces, hasExpandableOutlineItems]
-  );
-  const structureToggleExpanded = useMemo(
-    () =>
-      computeStructureToggleExpanded(
-        changesNavigatorMode,
-        allChangesExpanded,
-        hasExpandedOutlineItems
-      ),
-    [changesNavigatorMode, allChangesExpanded, hasExpandedOutlineItems]
-  );
-  const changesNavigatorTitle = useMemo(
-    () => computeChangesNavigatorTitle(changesNavigatorMode, t),
-    [changesNavigatorMode, t]
+  const {
+    changesNavigatorMode,
+    setChangesNavigatorMode,
+    allChangesExpanded,
+    canToggleNavigatorStructure,
+    structureToggleExpanded,
+    changesNavigatorTitle,
+    handleToggleNavigatorStructure,
+    handleExpandAll,
+    handleCollapseAll,
+  } = useChangesPanelSort(
+    visibleWorkspaces,
+    workspaceChangesExpanded,
+    hasExpandableOutlineItems,
+    hasExpandedOutlineItems,
+    t,
+    handleToggleAllOutlineItems
   );
   const changesTreeData = useMemo(
     () =>
@@ -380,13 +345,6 @@ export function useChangesPanelState(props: ChangesPanelProps) {
     },
     [recentWorkspaces]
   );
-
-  const handleExpandAll = useCallback(() => {
-    useAppStore.getState().expandAllWorkspaceChanges();
-  }, []);
-  const handleCollapseAll = useCallback(() => {
-    useAppStore.getState().collapseAllWorkspaceChanges();
-  }, []);
 
   const onRefreshOne = useCallback(
     (workspaceId: string) => {

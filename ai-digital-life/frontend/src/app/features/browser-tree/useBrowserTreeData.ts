@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
 import type {
   BrowserTabState,
@@ -9,6 +8,8 @@ import type {
 } from '@stores/slices/browserSlice';
 import type { BrowserCategoryState, BrowserCategoryType, BrowserTreeNode } from './types';
 import { normalizeTabTitle } from '@utils/browserDisplayUtils';
+import { useBrowserTreeCache } from './useBrowserTreeCache';
+import { useBrowserTreeVirtualization } from './useBrowserTreeVirtualization';
 
 export function countDirectFileChildren(node: BrowserTreeNode): number {
   let n = 0;
@@ -410,95 +411,29 @@ export function useBrowserTreeData(
     historyCategory: string;
   }
 ): UseBrowserTreeDataResult {
-  const tabIdToUrl = browserBookmarkTabIdUrlMap;
+  const {
+    workspaceCategory,
+    userFolderCategory,
+    historyCategory,
+    workspaceNodes,
+    userFolderNodes,
+    historyNodes,
+  } = useBrowserTreeCache({
+    workspaces,
+    browserTabs,
+    browserTabFolders,
+    browserHistory,
+    browserWorkspaceBookmarks,
+    browserBookmarks,
+    browserBookmarkTabIdUrlMap,
+    labels,
+  });
 
-  const workspaceNodes = useMemo(
-    () =>
-      buildWorkspaceCategoryTree(
-        workspaces,
-        browserTabs,
-        browserTabFolders,
-        browserWorkspaceBookmarks,
-        browserBookmarks,
-        tabIdToUrl
-      ),
-    [
-      workspaces,
-      browserTabs,
-      browserTabFolders,
-      browserWorkspaceBookmarks,
-      browserBookmarks,
-      tabIdToUrl,
-    ]
-  );
-
-  const workspaceCategory: BrowserCategoryState = useMemo(
-    () => ({
-      id: 'workspace',
-      label: labels.workspaceCategory,
-      isExpanded: true,
-      isPermanent: false,
-      nodes: workspaceNodes,
-    }),
-    [workspaceNodes, labels.workspaceCategory]
-  );
-
-  const userFolderNodes = useMemo(
-    () => buildUserFolderCategoryTree(browserTabFolders, browserTabs, browserBookmarks, tabIdToUrl),
-    [browserTabFolders, browserTabs, browserBookmarks, tabIdToUrl]
-  );
-
-  const userFolderCategory: BrowserCategoryState = useMemo(
-    () => ({
-      id: 'userFolder',
-      label: labels.userFolderCategory,
-      isExpanded: true,
-      isPermanent: false,
-      nodes: userFolderNodes,
-    }),
-    [userFolderNodes, labels.userFolderCategory]
-  );
-
-  const historyNodes = useMemo(
-    () => buildHistoryCategoryTree(browserHistory, browserTabs),
-    [browserHistory, browserTabs]
-  );
-
-  const historyCategory: BrowserCategoryState = useMemo(
-    () => ({
-      id: 'history',
-      label: labels.historyCategory,
-      isExpanded: true,
-      isPermanent: true,
-      nodes: historyNodes,
-    }),
-    [historyNodes, labels.historyCategory]
-  );
-
-  const counts = useMemo(() => {
-    const map = new Map<string, number>();
-    const visit = (categoryType: BrowserCategoryType, nodes: BrowserTreeNode[]) => {
-      const stack: { type: BrowserCategoryType; nodes: BrowserTreeNode[] }[] = [
-        { type: categoryType, nodes },
-      ];
-      while (stack.length > 0) {
-        const { type, nodes: items } = stack.pop()!;
-        const strategyFn = getCountStrategy(type);
-        for (const item of items) {
-          if (item.kind === 'directory') {
-            map.set(item.path, strategyFn(item));
-            if (item.children.length > 0) {
-              stack.push({ type, nodes: item.children });
-            }
-          }
-        }
-      }
-    };
-    visit('workspace', workspaceNodes);
-    visit('userFolder', userFolderNodes);
-    visit('history', historyNodes);
-    return map;
-  }, [workspaceNodes, userFolderNodes, historyNodes]);
+  const { counts } = useBrowserTreeVirtualization({
+    workspaceNodes,
+    userFolderNodes,
+    historyNodes,
+  });
 
   return { workspaceCategory, userFolderCategory, historyCategory, counts };
 }

@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useAppStore } from '@stores/slicedStore';
-import { useCIPanelProps } from '../../hooks/useCIPanelProps';
+import { useCIPanelProps } from '@regions/right-panel/hooks/useCIPanelProps';
 import { GitHubCITree } from './GitHubCITree';
 import { GitHubCIOverview } from './GitHubCIOverview';
 import { GitHubCILogs } from './GitHubCILogs';

@@ -1,10 +1,10 @@
 import React from 'react';
-import { IconFileText } from '../../icons';
-import { getChangeKindLabel } from '../../regions/right-panel/ChangesPanel/utils';
+import { IconFileText } from '@icons';
+import { getChangeKindLabel } from '@regions/right-panel/ChangesPanel/utils';
 import { PatchHunkCard } from './PatchHunkCard';
 import type { PatchFileSummary } from './patchReview';
 import type { PatchHunkDecision } from '@ai-digital-life/kernel';
-import { useTCopy } from '../../i18n/useTCopy';
+import { useTCopy } from '@i18n/useTCopy';
 
 export interface PatchFileCardProps {
   summary: PatchFileSummary;

@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import type { TerminalTabState } from '../../stores/slices/terminalSlice';
+import type { TerminalTabState } from '@stores/slices/terminalSlice';
 
 export function useTerminalDragDrop(
   terminalTabs: TerminalTabState[],

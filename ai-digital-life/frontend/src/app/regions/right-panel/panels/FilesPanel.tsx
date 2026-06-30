@@ -1,20 +1,20 @@
 import React, { useCallback, useMemo, useRef } from 'react';
 import { type EditorView } from '@codemirror/view';
-import type { EditorRef, DiffEditorRef } from '../../../stores/types';
+import type { EditorRef, DiffEditorRef } from '@stores/types';
 import { categorizeFile } from '../fileTypeRouter';
-import { IconEye, IconPanelLeft, IconPanelLeftClose, IconReturn, IconSearch } from '../../../icons';
-import { TooltipSimple } from '../../../components/Tooltip';
-import { useAppStore } from '../../../stores/slicedStore';
+import { IconEye, IconPanelLeft, IconPanelLeftClose, IconReturn, IconSearch } from '@icons';
+import { TooltipSimple } from '@components/Tooltip';
+import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useEditorOptions, useFileHistory } from '../hooks';
 import { FileNavigatorShell } from '../FileNavigatorShell';
-import { EditorSurfaceShell } from '../EditorSurfaceShell';
+import { LazyEditorSurface, SuspenseWrapper } from '@components/LazyComponents';
 import { FileContextMenu, type FileMenuItem, type FileMenuDivider } from '../FileContextMenu';
 import { FileHistoryNav } from '../FileHistoryNav';
 import type { FilesPanelProps } from '../types';
-import { useTCopy } from '../../../i18n/useTCopy';
-import { joinPathSegments } from '../../../utils/workspacePaths';
-import { useResolvedTheme } from '../../../hooks/useResolvedTheme';
+import { useTCopy } from '@i18n/useTCopy';
+import { joinPathSegments } from '@utils/workspacePaths';
+import { useResolvedTheme } from '@hooks/useResolvedTheme';
 
 const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
   const { t } = useTCopy();
@@ -351,37 +351,39 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
           {editorHint ? <p className="adl-tool-hint">{editorHint}</p> : null}
 
           <div ref={editorShellRef} className="adl-tool-editor" data-testid="editor-shell">
-            <EditorSurfaceShell
-              selectedFilePath={selectedFilePath}
-              fileContent={fileContent}
-              filePatch={filePatch}
-              editorLanguage={editorLanguage}
-              diagnostics={diagnostics}
-              editorHint={editorHint}
-              outline={outline}
-              activePatchSet={activePatchSet}
-              selectedPatchFilePath={selectedPatchFilePath}
-              selectedPatchHunkId={selectedPatchHunkId}
-              collapsedPatchHunkIds={collapsedPatchHunkIds}
-              onEditorChange={onEditorChange}
-              onEditorMount={onEditorMount}
-              onDiffMount={onDiffMount}
-              onSetDiffLayout={onSetDiffLayout}
-              onJumpPatchHunk={onJumpPatchHunk}
-              onSelectPatchHunk={onSelectPatchHunk}
-              onTogglePatchHunkCollapse={onTogglePatchHunkCollapse}
-              onSetAllPatchHunksCollapsed={onSetAllPatchHunksCollapsed}
-              onOpenFileAtLine={onOpenFileAtLine}
-              resolvedTheme={resolvedTheme}
-              resolvedLocale={resolvedLocale}
-              diffSideBySide={diffSideBySide}
-              getStickySourceEditor={getStickySourceEditor}
-              cmViewRef={cmViewRef}
-              localDiffEditorRef={localDiffEditorRef}
-              editorSurfaceRef={editorSurfaceRef}
-              standardEditorRef={props.standardEditorRef}
-              editorOptions={editorOptions}
-            />
+            <SuspenseWrapper>
+              <LazyEditorSurface
+                selectedFilePath={selectedFilePath}
+                fileContent={fileContent}
+                filePatch={filePatch}
+                editorLanguage={editorLanguage}
+                diagnostics={diagnostics}
+                editorHint={editorHint}
+                outline={outline}
+                activePatchSet={activePatchSet}
+                selectedPatchFilePath={selectedPatchFilePath}
+                selectedPatchHunkId={selectedPatchHunkId}
+                collapsedPatchHunkIds={collapsedPatchHunkIds}
+                onEditorChange={onEditorChange}
+                onEditorMount={onEditorMount}
+                onDiffMount={onDiffMount}
+                onSetDiffLayout={onSetDiffLayout}
+                onJumpPatchHunk={onJumpPatchHunk}
+                onSelectPatchHunk={onSelectPatchHunk}
+                onTogglePatchHunkCollapse={onTogglePatchHunkCollapse}
+                onSetAllPatchHunksCollapsed={onSetAllPatchHunksCollapsed}
+                onOpenFileAtLine={onOpenFileAtLine}
+                resolvedTheme={resolvedTheme}
+                resolvedLocale={resolvedLocale}
+                diffSideBySide={diffSideBySide}
+                getStickySourceEditor={getStickySourceEditor}
+                cmViewRef={cmViewRef}
+                localDiffEditorRef={localDiffEditorRef}
+                editorSurfaceRef={editorSurfaceRef}
+                standardEditorRef={props.standardEditorRef}
+                editorOptions={editorOptions}
+              />
+            </SuspenseWrapper>
           </div>
 
           {diagnostics.length > 0 ? (

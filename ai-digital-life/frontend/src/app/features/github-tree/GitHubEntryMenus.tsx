@@ -1,4 +1,4 @@
-import type { CopyDict } from '../../i18n';
+import type { CopyDict } from '@i18n';
 import type { GitHubCategoryType, GitHubTreeNode } from './types';
 import type { ChildMenuItem } from '../tree/treeEntryMenus';
 

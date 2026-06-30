@@ -184,6 +184,11 @@ export default defineConfig({
     }
   ].filter(Boolean),
   resolve: {
+    dedupe: [
+      "@codemirror/state",
+      "@codemirror/view",
+      "@codemirror/language",
+    ],
     alias: {
       "@ai-digital-life/kernel": path.resolve(__dirname, "src/kernel/index.ts"),
       "@app": path.resolve(__dirname, "src/app"),

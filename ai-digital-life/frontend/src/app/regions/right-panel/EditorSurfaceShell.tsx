@@ -6,8 +6,8 @@ import {
 } from './editor-support/agentDecorations';
 import { categorizeFile } from './fileTypeRouter';
 import { FilePreviewRenderers } from './FilePreviewRenderers';
-import type { EditorRef, DiffEditorRef } from '../../stores/types';
-import { useAppStore } from '../../stores/slicedStore';
+import type { EditorRef, DiffEditorRef } from '@stores/types';
+import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { StickyContext } from './editor-support/stickyContextView';
 import { DiffToolbar } from './DiffToolbar';
@@ -15,13 +15,13 @@ import {
   derivePatchHunkChangeKind,
   summarizePatchFile,
   type PatchHunkSummary,
-} from '../../features/patch-review';
+} from '@features/patch-review';
 import { useStickyContext, useWrapColumn, useAgentDecorations, useEditorStateCache } from './hooks';
 import type { UseEditorOptionsResult } from './hooks';
-import type { PreviewDiffVisualRange } from '../../features/diff-viewer';
-import { IconChevronDown, IconChevronRight } from '../../icons';
+import type { PreviewDiffVisualRange } from '@features/diff-viewer';
+import { IconChevronDown, IconChevronRight } from '@icons';
 import type { RightPanelViewProps } from './types';
-import { useTCopy } from '../../i18n/useTCopy';
+import { useTCopy } from '@i18n/useTCopy';
 
 const CodeEditor = lazy(() =>
   import('../../features/editor').then((m) => ({ default: m.CodeEditor }))

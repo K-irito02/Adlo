@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { FileOutlineItem } from '@ai-digital-life/kernel';
-import { useTCopy } from '../../../i18n/useTCopy';
-import type { EditorRef } from '../../../stores/types';
-import type { PreviewDiffVisualRange } from '../../../features/diff-viewer';
+import { useTCopy } from '@i18n/useTCopy';
+import type { EditorRef } from '@stores/types';
+import type { PreviewDiffVisualRange } from '@features/diff-viewer';
 import {
   buildStickyContextEntries,
   createStickyContextModel,

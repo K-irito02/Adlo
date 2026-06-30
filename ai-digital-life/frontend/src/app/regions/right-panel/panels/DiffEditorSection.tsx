@@ -1,18 +1,18 @@
 import React, { lazy, Suspense, useCallback, useMemo, useRef, useState } from 'react';
 import type { ChangesPanelProps } from '../types';
-import type { DiffEditorRef, EditorRef } from '../../../stores/types';
+import type { DiffEditorRef, EditorRef } from '@stores/types';
 
-import { detectEditorLanguage } from '../../../utils/workspacePaths';
+import { detectEditorLanguage } from '@utils/workspacePaths';
 import { categorizeFile } from '../fileTypeRouter';
-import { computePreviewDiffVisualRanges } from '../../../features/diff-viewer';
-import type { PreviewDiffCollapsedRange } from '../../../features/diff-viewer';
-import { LazyMarkdownPreviewWrapper } from '../../../features/preview';
+import { computePreviewDiffVisualRanges } from '@features/diff-viewer';
+import type { PreviewDiffCollapsedRange } from '@features/diff-viewer';
+import { LazyMarkdownPreviewWrapper } from '@features/preview';
 import { StickyContext } from '../editor-support/stickyContextView';
 import { useStickyContext } from '../hooks';
-import { buildOutlineFromContent } from '../../../features/outline';
+import { buildOutlineFromContent } from '@features/outline';
 import { ChangesEmptyState } from './ChangesEmptyState';
-import { useTCopy } from '../../../i18n/useTCopy';
-import { useResolvedTheme } from '../../../hooks/useResolvedTheme';
+import { useTCopy } from '@i18n/useTCopy';
+import { useResolvedTheme } from '@hooks/useResolvedTheme';
 
 const CodeEditor = lazy(() =>
   import('../../../features/editor').then((m) => ({ default: m.CodeEditor }))

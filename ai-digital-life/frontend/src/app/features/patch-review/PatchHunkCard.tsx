@@ -1,9 +1,9 @@
 import React from 'react';
-import { IconChevronDown, IconChevronRight, IconTarget } from '../../icons';
-import { TooltipSimple } from '../../components/Tooltip';
+import { IconChevronDown, IconChevronRight, IconTarget } from '@icons';
+import { TooltipSimple } from '@components/Tooltip';
 import type { PatchHunkSummary } from './patchReview';
 import type { PatchHunkDecision } from '@ai-digital-life/kernel';
-import { useTCopy } from '../../i18n/useTCopy';
+import { useTCopy } from '@i18n/useTCopy';
 
 export interface PatchHunkCardProps {
   summary: PatchHunkSummary;

@@ -5,7 +5,7 @@ import type {
   DigitalLifeRunActivityEventV1,
   AppInfo,
 } from '@ai-digital-life/kernel';
-import { mapPatchToEditorTab } from '../../utils/editorTabs';
+import { mapPatchToEditorTab } from '@utils/editorTabs';
 import {
   sessionFallbackTitle,
   refreshConversationSlice,
@@ -17,7 +17,7 @@ import {
   augmentPromptWithChips,
   chatModeToScenario,
   type MessageSendOptions,
-} from '../../utils/composerSend';
+} from '@utils/composerSend';
 import type { StoreApi } from 'zustand';
 import { postMutationRefresh, captureError } from '../shared';
 

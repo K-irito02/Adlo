@@ -6,9 +6,9 @@ import {
   IconList,
   IconRefreshCw,
   IconUnfoldVertical,
-} from '../../../icons';
-import { TooltipSimple } from '../../../components/Tooltip';
-import { useTCopy } from '../../../i18n/useTCopy';
+} from '@icons';
+import { TooltipSimple } from '@components/Tooltip';
+import { useTCopy } from '@i18n/useTCopy';
 import type { ChangeFileState } from '../changesTree';
 
 export interface ChangesNavigatorToolbarProps {

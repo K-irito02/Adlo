@@ -1,9 +1,9 @@
 import { useCallback } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { useAppStore } from '../../../stores/slicedStore';
-import { useGitPushAutoRefresh } from '../../../features/terminal/useGitPushAutoRefresh';
+import { useAppStore } from '@stores/slicedStore';
+import { useGitPushAutoRefresh } from '@features/terminal/useGitPushAutoRefresh';
 import type { CiStatusSnapshot } from '@ai-digital-life/kernel';
-import type { GitWorkspaceCiConfig } from '../../../stores/slices/githubRepoSlice';
+import type { GitWorkspaceCiConfig } from '@stores/slices/githubRepoSlice';
 
 export interface UseCIPanelPropsResult {
   gitHubWorkspaceConfigs: Record<string, GitWorkspaceCiConfig>;

@@ -1,8 +1,8 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { IconPin, IconPinOff, IconEdit, IconTrash } from '../../icons';
+import { IconPin, IconPinOff, IconEdit, IconTrash } from '@icons';
 import type { ContextMenuState } from './useTerminalPanel';
-import { useTCopy } from '../../i18n/useTCopy';
+import { useTCopy } from '@i18n/useTCopy';
 
 interface TerminalContextMenuProps {
   contextMenu: ContextMenuState;

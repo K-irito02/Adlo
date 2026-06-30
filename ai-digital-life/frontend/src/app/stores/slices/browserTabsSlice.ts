@@ -1,10 +1,6 @@
 import type { StoreState } from '../StoreState';
 import { createUiId, createDebouncedWrite } from '../shared';
-import {
-  BROWSER_BOOKMARK_TABID_URL_MAP_KEY,
-  BROWSER_BOOKMARKS_STORAGE_KEY,
-  BROWSER_WORKSPACE_BOOKMARKS_STORAGE_KEY,
-} from './browserBookmarkSlice';
+import { BROWSER_BOOKMARK_TABID_URL_MAP_KEY } from './browserBookmarkSlice';
 
 export interface BrowserTabState {
   id: string;

@@ -1,6 +1,6 @@
 import React from 'react';
-import { IconHash } from '../../icons';
-import { useTCopy } from '../../i18n/useTCopy';
+import { IconHash } from '@icons';
+import { useTCopy } from '@i18n/useTCopy';
 
 interface DiffToolbarProps {
   diffSideBySide: boolean;

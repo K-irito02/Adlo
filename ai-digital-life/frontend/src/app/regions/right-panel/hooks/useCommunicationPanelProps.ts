@@ -1,8 +1,8 @@
 import { useCallback } from 'react';
-import { useAppStore } from '../../../stores/slicedStore';
-import { useGitPushAutoRefresh } from '../../../features/terminal/useGitPushAutoRefresh';
-import type { PlatformId } from '../../../stores/slices/communicateSlice';
-import type { GitHubSection } from '../../../stores/slices/githubSlice';
+import { useAppStore } from '@stores/slicedStore';
+import { useGitPushAutoRefresh } from '@features/terminal/useGitPushAutoRefresh';
+import type { PlatformId } from '@stores/slices/communicateSlice';
+import type { GitHubSection } from '@stores/slices/githubSlice';
 
 export interface CommunicationPanelProps {
   activePlatform: PlatformId;

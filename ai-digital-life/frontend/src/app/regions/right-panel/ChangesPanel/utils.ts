@@ -1,9 +1,9 @@
 import type { RightPanelViewProps } from '../types';
-import type { CopyDict } from '../../../i18n';
+import type { CopyDict } from '@i18n';
 import type { ChangeTreeNode } from '../changesTree';
 import { type EditorView } from '@codemirror/view';
-import { CodeMirrorEditorRef } from '../../../features/editor';
-import type { EditorRef } from '../../../stores/types';
+import { CodeMirrorEditorRef } from '@features/editor';
+import type { EditorRef } from '@stores/types';
 
 const CHANGES_BRANCH_STORAGE_KEY = 'adl-ui:changes-branch';
 

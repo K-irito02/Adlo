@@ -1,5 +1,5 @@
 import React from 'react';
-import { IconChevronDown, IconChevronRight } from '../../icons';
+import { IconChevronDown, IconChevronRight } from '@icons';
 
 interface TreeNodeRowProps {
   depth: number;

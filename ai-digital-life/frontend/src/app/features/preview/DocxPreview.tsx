@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import mammoth from 'mammoth';
-import { useTCopy } from '../../i18n/useTCopy';
+import { useTCopy } from '@i18n/useTCopy';
 
 export interface DocxPreviewProps {
   data: ArrayBuffer;

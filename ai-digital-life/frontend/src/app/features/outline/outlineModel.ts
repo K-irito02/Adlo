@@ -1,5 +1,5 @@
 import type { FileOutlineItem } from '@ai-digital-life/kernel';
-import { buildOutlineFromContent } from '../../../shared/outline';
+import { buildOutlineFromContent } from '@shared/outline';
 
 export type OutlineNode = FileOutlineItem & {
   children: OutlineNode[];

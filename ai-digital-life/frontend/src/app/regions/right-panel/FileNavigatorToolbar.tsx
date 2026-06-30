@@ -1,6 +1,6 @@
 import React from 'react';
 import type { FileOutlineItem } from '@ai-digital-life/kernel';
-import { useTCopy } from '../../i18n/useTCopy';
+import { useTCopy } from '@i18n/useTCopy';
 import {
   IconFilePlus,
   IconFiles,
@@ -9,8 +9,8 @@ import {
   IconList,
   IconRefreshCw,
   IconUnfoldVertical,
-} from '../../icons';
-import { TooltipSimple } from '../../components/Tooltip';
+} from '@icons';
+import { TooltipSimple } from '@components/Tooltip';
 import { FileCreationBar } from './FileCreationBar';
 import type { UseFileCreationResult } from './hooks';
 

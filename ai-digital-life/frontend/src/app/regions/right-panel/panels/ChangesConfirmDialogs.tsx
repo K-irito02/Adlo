@@ -1,6 +1,6 @@
 import React from 'react';
-import { ConfirmDialog } from '../../../components/ConfirmDialog';
-import { useTCopy } from '../../../i18n/useTCopy';
+import { ConfirmDialog } from '@components/ConfirmDialog';
+import { useTCopy } from '@i18n/useTCopy';
 
 export interface ChangesConfirmDialogsProps {
   changesDeleteConfirmPath: string | null;

@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { useAppStore } from '../../../stores/slicedStore';
-import { useAppActions } from '../../../hooks/useAppActions';
-import { findPatchFileByPath } from '../../../features/patch-review';
-import { filterDiagnosticsForPath, detectEditorLanguage } from '../../../utils/workspacePaths';
+import { useAppStore } from '@stores/slicedStore';
+import { useAppActions } from '@hooks/useAppActions';
+import { findPatchFileByPath } from '@features/patch-review';
+import { filterDiagnosticsForPath, detectEditorLanguage } from '@utils/workspacePaths';
 import type { FilesPanelProps } from '../types';
-import type { RightPanelProps } from '../../RightPanel';
-import type { EditorRef } from '../../../stores/types';
+import type { RightPanelProps } from '@regions/RightPanel';
+import type { EditorRef } from '@stores/types';
 
 export function useFilesPanelProps(
   panelProps: RightPanelProps,

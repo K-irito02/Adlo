@@ -1,28 +1,17 @@
-import React, {
-  memo,
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  useMemo,
-  type RefObject,
-} from 'react';
-import { IconAlertTriangle, IconCircle, FileBadgeIcon } from '../../icons';
+import React, { memo, useCallback, useEffect, useRef, useState, useMemo } from 'react';
+import { IconAlertTriangle, IconCircle, FileBadgeIcon } from '@icons';
 import { getFileTreeVisualSpec } from './fileTreeVisuals';
 import { CustomScrollArea } from './CustomScrollArea';
 import { TreeNodeRow } from './TreeNodeRow';
-import { ContextMenu } from '../../components/ContextMenu';
+import { ContextMenu } from '@components/ContextMenu';
 import {
-  flattenVisibleNodes,
   type FileTreeRenderableNode,
   type FileTreeProps,
   type FileTreeContextMenuItem,
   type FlattenedTreeNode,
 } from './fileTree.utils';
-import { useVirtualList } from './hooks/useVirtualList';
-
-const VIRTUAL_ITEM_HEIGHT = 28;
+import { useFileTreeVirtualization, VIRTUAL_ITEM_HEIGHT } from './useFileTreeVirtualization';
+import { useFileTreeHover } from './useFileTreeHover';
 
 interface VirtualNodeProps<T extends FileTreeRenderableNode> {
   flatNode: FlattenedTreeNode<T>;
@@ -187,7 +176,6 @@ export function FileTree<T extends FileTreeRenderableNode>({
     (): Set<string> => (activePath ? new Set([activePath]) : new Set()),
     [activePath]
   );
-  const [hoveredPath, setHoveredPath] = useState<string | undefined>(undefined);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   const clearContextMenu = useCallback(() => setContextMenuTargetPath(undefined), []);
@@ -205,153 +193,11 @@ export function FileTree<T extends FileTreeRenderableNode>({
     };
   }, [clearContextMenu, clearMenuHighlightRef]);
 
-  const flatNodes = useMemo(
-    () => flattenVisibleNodes(nodes, expandedPaths),
-    [nodes, expandedPaths]
-  );
+  const { flatNodes, totalHeight, trunkHeightMap, startIndex, visibleNodes } =
+    useFileTreeVirtualization<T>(nodes, expandedPaths, scrollAreaRef, flipAnimation);
 
-  const totalHeight = flatNodes.length * VIRTUAL_ITEM_HEIGHT;
-
-  const trunkHeightMap: Record<string, number> = useMemo(() => {
-    const map: Record<string, number> = {};
-    const stack: Array<{ path: string; depth: number; count: number }> = [];
-
-    for (let i = 0; i < flatNodes.length; i++) {
-      const { node, depth } = flatNodes[i];
-
-      while (stack.length > 0 && stack[stack.length - 1].depth >= depth) {
-        const entry = stack.pop()!;
-        if (entry.count > 0) {
-          map[entry.path] = (entry.count + 1) * VIRTUAL_ITEM_HEIGHT;
-        }
-        if (stack.length > 0) {
-          stack[stack.length - 1].count += entry.count + 1;
-        }
-      }
-
-      if (node.kind === 'directory') {
-        stack.push({ path: node.path, depth, count: 0 });
-      } else if (stack.length > 0) {
-        stack[stack.length - 1].count++;
-      }
-    }
-
-    while (stack.length > 0) {
-      const entry = stack.pop()!;
-      if (entry.count > 0) {
-        map[entry.path] = (entry.count + 1) * VIRTUAL_ITEM_HEIGHT;
-      }
-      if (stack.length > 0) {
-        stack[stack.length - 1].count += entry.count + 1;
-      }
-    }
-
-    return map;
-  }, [flatNodes]);
-
-  const hoveredDescendantPaths: Set<string> | undefined = useMemo(() => {
-    if (!hoveredPath) {
-      return undefined;
-    }
-    const set = new Set<string>();
-    const hoveredIndex = flatNodes.findIndex((fn) => fn.node.path === hoveredPath);
-    if (hoveredIndex === -1) {
-      return undefined;
-    }
-    const hoveredDepth = flatNodes[hoveredIndex].depth;
-    for (let i = hoveredIndex + 1; i < flatNodes.length; i++) {
-      const fn = flatNodes[i];
-      if (fn.depth <= hoveredDepth) {
-        break;
-      }
-      set.add(fn.node.path);
-    }
-    return set;
-  }, [flatNodes, hoveredPath]);
-
-  const { startIndex, endIndex } = useVirtualList(
-    scrollAreaRef as RefObject<HTMLElement>,
-    flatNodes,
-    VIRTUAL_ITEM_HEIGHT,
-    5
-  );
-
-  const visibleNodes = useMemo(
-    () => flatNodes.slice(startIndex, endIndex),
-    [flatNodes, startIndex, endIndex]
-  );
-
-  // FLIP animation: smooth position transitions via Web Animation API
-  const prevPositionsRef = useRef<Map<string, number>>(new Map());
-  const flipAnimationsRef = useRef<Map<string, Animation>>(new Map());
-
-  useLayoutEffect(() => {
-    if (!flipAnimation) {
-      prevPositionsRef.current = new Map();
-      return;
-    }
-
-    const container = scrollAreaRef.current;
-    if (!container) {
-      return;
-    }
-
-    // Cancel any in-progress FLIP animations
-    flipAnimationsRef.current.forEach((anim) => anim.cancel());
-    flipAnimationsRef.current = new Map();
-
-    // Measure relative positions within the parent <ul> so that entire-container
-    // movement (e.g. other categories expanding) does not trigger per-tag FLIP.
-    const ulEl = container.querySelector('.adl-filetree');
-    if (!ulEl) {
-      return;
-    }
-    const ulRect = ulEl.getBoundingClientRect();
-    const newPositions = new Map<string, number>();
-    const items = container.querySelectorAll<HTMLElement>('[data-path].adl-filetree__node--file');
-    items.forEach((el) => {
-      const path = el.getAttribute('data-path');
-      if (path) {
-        const rect = el.getBoundingClientRect();
-        newPositions.set(path, rect.top - ulRect.top);
-      }
-    });
-
-    // Compute deltas for items that existed in the previous render
-    let hasDelta = false;
-    const deltas = new Map<string, number>();
-    prevPositionsRef.current.forEach((oldTop, path) => {
-      const newTop = newPositions.get(path);
-      if (newTop !== undefined && Math.abs(oldTop - newTop) > 0.5) {
-        deltas.set(path, oldTop - newTop);
-        hasDelta = true;
-      }
-    });
-
-    if (!hasDelta) {
-      prevPositionsRef.current = newPositions;
-      return;
-    }
-
-    // Animate via Web Animation API — no inline styles, no cleanup timer
-    deltas.forEach((deltaY, path) => {
-      const el = container.querySelector<HTMLElement>(`[data-path="${CSS.escape(path)}"]`);
-      if (el) {
-        const anim = el.animate(
-          [{ transform: `translateY(${deltaY}px)` }, { transform: 'translateY(0)' }],
-          { duration: 300, easing: 'ease' }
-        );
-        flipAnimationsRef.current.set(path, anim);
-        anim.finished
-          .then(() => flipAnimationsRef.current.delete(path))
-          .catch(() => {
-            /* cancelled, ignore */
-          });
-      }
-    });
-
-    prevPositionsRef.current = newPositions;
-  }, [flatNodes, flipAnimation]);
+  const { hoveredPath, hoveredDescendantPaths, onMouseOver, onMouseOut } =
+    useFileTreeHover<T>(flatNodes);
 
   const handleToggleDirectory = useCallback(
     (path: string) => {
@@ -436,21 +282,8 @@ export function FileTree<T extends FileTreeRenderableNode>({
                 }
               : undefined
           }
-          onMouseOver={(e) => {
-            const target = (e.target as HTMLElement).closest('[data-path]') as HTMLElement | null;
-            if (target?.dataset.path) {
-              setHoveredPath(target.dataset.path);
-            }
-          }}
-          onMouseOut={(e) => {
-            const target = (e.target as HTMLElement).closest('[data-path]') as HTMLElement | null;
-            const relatedTarget = (e.relatedTarget as HTMLElement)?.closest?.(
-              '[data-path]'
-            ) as HTMLElement | null;
-            if (target?.dataset.path && relatedTarget?.dataset.path !== target.dataset.path) {
-              setHoveredPath(relatedTarget?.dataset.path ?? undefined);
-            }
-          }}
+          onMouseOver={onMouseOver}
+          onMouseOut={onMouseOut}
         >
           {visibleNodes.map((flatNode, localIndex) => {
             const absoluteIndex = startIndex + localIndex;

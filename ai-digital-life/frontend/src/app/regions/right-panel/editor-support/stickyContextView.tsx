@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { IconArrowUp } from '../../../icons';
+import { IconArrowUp } from '@icons';
 import type { StickyContextModel } from './stickyContext';
 
 const AUTO_HIDE_MS = 2000;

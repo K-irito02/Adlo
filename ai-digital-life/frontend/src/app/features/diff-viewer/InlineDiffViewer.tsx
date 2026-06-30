@@ -7,7 +7,7 @@ import { createFoldGutterExtension } from '../editor/cmFoldGutter';
 import { FoldTooltipOverlay } from '../editor/FoldTooltipOverlay';
 import { useFoldMarkerAutoHide } from '../editor/useFoldMarkerAutoHide';
 import { createEditorRef } from '../editor/editorAdapters';
-import type { DiffEditorRef, EditorRef } from '../../stores/types';
+import type { DiffEditorRef, EditorRef } from '@stores/types';
 import type { PreviewDiffCollapsedRange } from './changePreviewDiffRanges';
 import { getLanguageExtension, getLanguageExtensionSync } from '../editor/cmLanguages';
 import {

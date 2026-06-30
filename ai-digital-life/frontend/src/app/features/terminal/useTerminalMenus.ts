@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useAppStore } from '../../stores/slicedStore';
+import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
-import { terminalSelectors } from '../../stores/selectors';
+import { terminalSelectors } from '@stores/selectors';
 import { useTerminalContextMenu } from './useTerminalContextMenu';
-import type { TerminalProfile } from '../../stores/types';
-import type { XtermTerminalHandle } from '../../components/terminal/XtermTerminal';
+import type { TerminalProfile } from '@stores/types';
+import type { XtermTerminalHandle } from '@components/terminal/XtermTerminal';
 import type {
   TerminalMenuItem,
   TerminalShellMenuItem,
   WorkspaceMenuItem,
 } from './useTerminalPanel';
-import { useTCopy } from '../../i18n/useTCopy';
+import { useTCopy } from '@i18n/useTCopy';
 
 interface TerminalMenusParams {
   xtermRef: React.RefObject<XtermTerminalHandle | null>;

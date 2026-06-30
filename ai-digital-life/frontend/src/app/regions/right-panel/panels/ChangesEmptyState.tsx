@@ -1,4 +1,4 @@
-import { useTCopy } from '../../../i18n/useTCopy';
+import { useTCopy } from '@i18n/useTCopy';
 
 interface ChangesEmptyStateProps {
   hasWorkspaces: boolean;

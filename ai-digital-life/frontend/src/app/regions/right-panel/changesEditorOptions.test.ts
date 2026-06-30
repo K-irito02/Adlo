@@ -17,7 +17,7 @@ const diffEditorSectionSource = readFileSync(
 describe('changes preview editor options', () => {
   it('uses DiffViewer component instead of Monaco DiffEditor', () => {
     expect(diffEditorSectionSource).toContain('DiffViewer');
-    expect(diffEditorSectionSource).toContain("from '../../../features/diff-viewer'");
+    expect(diffEditorSectionSource).toContain("from '@features/diff-viewer'");
     expect(diffEditorSectionSource).not.toContain('@monaco-editor/react');
   });
 

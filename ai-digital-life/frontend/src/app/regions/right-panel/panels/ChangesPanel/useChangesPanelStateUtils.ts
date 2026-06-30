@@ -1,8 +1,12 @@
 import type React from 'react';
 import type { EditorView } from '@codemirror/view';
 import { getChunks, uncollapseUnchanged } from '@codemirror/merge';
-import type { ChangeTreeNode, ChangeFileState } from '../../changesTree';
-import { buildChangeEntries, buildChangeTree, buildFlatChangeNodes } from '../../changesTree';
+import type { ChangeTreeNode, ChangeFileState } from '@regions/right-panel/changesTree';
+import {
+  buildChangeEntries,
+  buildChangeTree,
+  buildFlatChangeNodes,
+} from '@regions/right-panel/changesTree';
 import type { FileTreeRenderableNode } from '@features/file-tree';
 import type {
   WorkspaceChangePreview,
@@ -13,7 +17,7 @@ import type {
 import { summarizePatchSet } from '@features/patch-review';
 import type { CopyDict } from '@app/i18n';
 import type { EditorRef, DiffEditorRef } from '@stores/types';
-import { categorizeFile } from '../../fileTypeRouter';
+import { categorizeFile } from '@regions/right-panel/fileTypeRouter';
 import { normalizeWorkspaceRelativePath } from '@app/utils/workspacePaths';
 
 export function findCollapsedSectionStart(view: EditorView, targetLine: number): number | null {

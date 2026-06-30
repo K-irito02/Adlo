@@ -4,11 +4,8 @@ import type { SubEntryLabels } from './useGithubTreeData';
 import { GitHubCategorySection, type SectionCallbacks } from './GitHubCategorySection';
 import { CustomScrollArea } from '../file-tree/CustomScrollArea';
 import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
-import type {
-  GitWorkspaceCiConfig,
-  GitHubCiFolderState,
-} from '../../stores/slices/githubRepoSlice';
-import { useTCopy } from '../../i18n/useTCopy';
+import type { GitWorkspaceCiConfig, GitHubCiFolderState } from '@stores/slices/githubRepoSlice';
+import { useTCopy } from '@i18n/useTCopy';
 
 interface GitHubTreeProps {
   workspaces: RecentWorkspaceEntry[];

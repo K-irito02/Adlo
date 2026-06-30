@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
-import { useAppStore } from '../../../stores/slicedStore';
+import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
-import type { StoreState } from '../../../stores/StoreState';
+import type { StoreState } from '@stores/StoreState';
 
 export function useChangesPanelStore() {
   const {

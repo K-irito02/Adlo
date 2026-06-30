@@ -1,9 +1,9 @@
 import React from 'react';
-import { useAppStore } from '../../../stores/slicedStore';
-import { MultiWorkspaceChangesTree } from '../../../features/workspace-changes-tree';
-import { CustomScrollArea } from '../../../features/file-tree/CustomScrollArea';
-import { OutlineTree } from '../../../features/outline';
-import { useNavigatorResize } from '../../../hooks/useNavigatorResize';
+import { useAppStore } from '@stores/slicedStore';
+import { MultiWorkspaceChangesTree } from '@features/workspace-changes-tree';
+import { CustomScrollArea } from '@features/file-tree/CustomScrollArea';
+import { OutlineTree } from '@features/outline';
+import { useNavigatorResize } from '@hooks/useNavigatorResize';
 import { NavigatorResizeHandle } from '@components/NavigatorResizeHandle';
 import { ChangesToolbar } from './ChangesToolbar';
 import type {
@@ -14,8 +14,8 @@ import type {
   FileOutlineItem,
 } from '@ai-digital-life/kernel';
 import type { ChangeTreeNode, ChangeEntry } from '../changesTree';
-import { useTCopy } from '../../../i18n/useTCopy';
-import type { FileTreeContextMenuItem } from '../../../features/file-tree';
+import { useTCopy } from '@i18n/useTCopy';
+import type { FileTreeContextMenuItem } from '@features/file-tree';
 
 type ChangeFileState = 'staged' | 'modified' | 'untracked' | 'conflicted';
 

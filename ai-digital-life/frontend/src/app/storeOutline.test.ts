@@ -9,7 +9,7 @@ describe('store outline wiring', () => {
   );
 
   it('builds file outlines from loaded content through the shared parser', () => {
-    expect(editorSource).toContain("from '../../../shared/outline'");
+    expect(editorSource).toContain("from '@shared/outline'");
     const outlineOccurrences = (editorSource.match(/buildOutlineFromContent/g) ?? []).length;
     expect(outlineOccurrences).toBeGreaterThanOrEqual(3);
   });

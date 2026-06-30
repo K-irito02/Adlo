@@ -26,7 +26,9 @@ export function collectAllDescendantTabIdsLocal(
   const childrenMap = new Map<string, typeof folders>();
   for (const f of folders) {
     if (f.parentId) {
-      if (!childrenMap.has(f.parentId)) childrenMap.set(f.parentId, []);
+      if (!childrenMap.has(f.parentId)) {
+        childrenMap.set(f.parentId, []);
+      }
       childrenMap.get(f.parentId)!.push(f);
     }
   }
@@ -37,7 +39,9 @@ export function collectAllDescendantTabIdsLocal(
       result.push(...folder.tabs.map((item) => item.tabId));
     }
     const children = childrenMap.get(pid);
-    if (!children) return;
+    if (!children) {
+      return;
+    }
     for (const child of children) {
       collect(child.id);
     }
@@ -54,7 +58,9 @@ export function collectAllDescendantTabUrlsLocal(
   const childrenMap = new Map<string, typeof folders>();
   for (const f of folders) {
     if (f.parentId) {
-      if (!childrenMap.has(f.parentId)) childrenMap.set(f.parentId, []);
+      if (!childrenMap.has(f.parentId)) {
+        childrenMap.set(f.parentId, []);
+      }
       childrenMap.get(f.parentId)!.push(f);
     }
   }
@@ -69,7 +75,9 @@ export function collectAllDescendantTabUrlsLocal(
       }
     }
     const children = childrenMap.get(pid);
-    if (!children) return;
+    if (!children) {
+      return;
+    }
     for (const child of children) {
       collect(child.id);
     }

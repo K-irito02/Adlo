@@ -9,11 +9,11 @@ import {
   IconShield,
   IconSettings,
   IconCpu,
-} from '../../icons';
-import { TooltipSimple } from '../../components/Tooltip';
-import type { ToolId } from '../../stores/types';
-import type { CopyDict } from '../../i18n';
-import { useTCopy } from '../../i18n/useTCopy';
+} from '@icons';
+import { TooltipSimple } from '@components/Tooltip';
+import type { ToolId } from '@stores/types';
+import type { CopyDict } from '@i18n';
+import { useTCopy } from '@i18n/useTCopy';
 
 interface ToolSwitcherProps {
   activeTool: ToolId;

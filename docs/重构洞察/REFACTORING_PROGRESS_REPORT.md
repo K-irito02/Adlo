@@ -1,6 +1,6 @@
 # 重构进度报告
 
-> 更新日期: 2026-06-30（第八十七轮）
+> 更新日期: 2026-07-01（第八十九轮）
 
 ## 完成状态
 
@@ -93,6 +93,8 @@
 | **第八十五轮** | **2026-06-28** | **浏览器 WebView 覆盖检测修复：重叠感知 MutationObserver（bounding rect 相交判定替代粗粒度 DOM 检测），移除 browserMenuOpen/contextMenu.open 误触隐藏；Tauri permission 修复（core:window:allow-start-dragging）；代码质量治理——ESLint 18 warnings→4（any→proper type 11处、curly 2处、prettier 4处、useAppStore dep），Prettier 全量格式化，rustfmt + Clippy 全 clean；清理 stale 调试日志；知识笔记更新为三路协同架构** | ✅ |
 | **第八十六轮** | **2026-06-29** | **重构洞察第19次执行：宏观扫描发现 4 处回归（!important 23→311、console.log 0→25、React.lazy 丢失、BrowserNavigator 膨胀至 495 行）；console.log 清理（fetchPageMeta 6 处）；App.tsx getState()→选择器订阅 activeSessionId；Rust unwrap 确认为测试代码；Rust clone 均属惯用模式；生成洞察报告（24 项发现）和实施计划（24 项任务）** | ✅ |
 | **第八十七轮** | **2026-06-30** | **浏览器书签删除跨域污染修复：`browserRemoveTabBookmarks` 工作区过滤从 `tabId`-only 改为 `(tabId, url)` 对；新增可选 `scopeFolderId` 参数限定文件夹范围；`handleRemoveBookmarkTab` 从 store 推算目标文件夹并传入 scope；知识沉淀更新** | ✅ |
+| **第八十八轮** | **2026-06-30** | **重构洞察第20次执行（Phase 1 全部7项 + Phase 2 关键5项完成）：useBrowserTreeActions 718→18行（-700行）；ipc.ts 1322→953行；kernel/index.ts 1312→13行；useBrowserTreeActions 4子Hook；React.lazy恢复3组件；深层导入281处→@别名；BrowserTreeEntry 531→199(-332)；fileTree 482→360(-122)；useBrowserTreeData 504→433(-71)；App.tsx getState()→选择器；28+新文件创建；278测试通过** | ✅ |
+| **第八十九轮** | **2026-07-01** | **终验与合并：CodeMirror 多实例冲突修复（pnpm.overrides + resolve.dedupe + 5 direct deps）；ESLint 12→0 warnings（清理未使用导入/泛型/import type()→顶层导入）；TypeScript 预存错误修复（casing/JsonValue）；Clippy + cargo check + 类型检查 + 282 测试全通过；知识沉淀 WORKTREE-RERUN-ISSUES.md；文档更新；日志清理** | ✅ |
 
 ## 说明
 

@@ -4,7 +4,7 @@
  */
 import type { FileOutlineItem, WorkspaceChangePreview } from '@ai-digital-life/kernel';
 import type { StoreState } from '../StoreState';
-import { type EditorTabState } from '../../utils/editorTabs';
+import { type EditorTabState } from '@utils/editorTabs';
 
 export interface EditorSlice {
   openTabs: EditorTabState[];

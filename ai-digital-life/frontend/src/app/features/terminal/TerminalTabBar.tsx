@@ -1,8 +1,8 @@
 import React from 'react';
-import { IconClose } from '../../icons';
-import { TooltipSimple } from '../../components/Tooltip';
-import type { TerminalTabState } from '../../stores/slices/terminalSlice';
-import type { CopyDict } from '../../i18n';
+import { IconClose } from '@icons';
+import { TooltipSimple } from '@components/Tooltip';
+import type { TerminalTabState } from '@stores/slices/terminalSlice';
+import type { CopyDict } from '@i18n';
 
 interface TerminalTabBarProps {
   tabs: TerminalTabState[];

@@ -1,9 +1,9 @@
 import { useCallback, useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { useAppStore } from '../../../stores/slicedStore';
-import { useAppActions } from '../../../hooks/useAppActions';
+import { useAppStore } from '@stores/slicedStore';
+import { useAppActions } from '@hooks/useAppActions';
 import type { ChangesPanelProps } from '../types';
-import type { RightPanelProps } from '../../RightPanel';
+import type { RightPanelProps } from '@regions/RightPanel';
 
 export function useChangesPanelProps(
   panelProps: RightPanelProps,

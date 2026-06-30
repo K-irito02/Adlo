@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { type EditorView } from '@codemirror/view';
-import { saveEditorState } from '../../../features/editor';
+import { saveEditorState } from '@features/editor';
 
 function useEditorStateCache(
   cmViewRef: React.MutableRefObject<EditorView | null>,

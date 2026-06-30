@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useAppStore } from '../../stores/slicedStore';
+import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
-import { terminalSelectors } from '../../stores/selectors';
-import { useNavigatorResize } from '../../hooks/useNavigatorResize';
+import { terminalSelectors } from '@stores/selectors';
+import { useNavigatorResize } from '@hooks/useNavigatorResize';
 import { useTerminalPtyLifecycle } from './useTerminalPtyLifecycle';
 import { useTerminalDragDrop } from './useTerminalDragDrop';
 import { useTerminalMenus } from './useTerminalMenus';
-import type { TerminalPanelProps } from '../../regions/right-panel/types';
-import type { TerminalProfile } from '../../stores/types';
-import type { XtermTerminalHandle } from '../../components/terminal/XtermTerminal';
-import { useTCopy } from '../../i18n/useTCopy';
+import type { TerminalPanelProps } from '@regions/right-panel/types';
+import type { TerminalProfile } from '@stores/types';
+import type { XtermTerminalHandle } from '@components/terminal/XtermTerminal';
+import { useTCopy } from '@i18n/useTCopy';
 
 export type TerminalNavigatorMode = 'sessions' | 'history';
 

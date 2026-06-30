@@ -1,7 +1,7 @@
 import type { StoreState } from '../StoreState';
-import { createEditorTab } from '../../utils/editorTabs';
-import { buildOutlineFromContent } from '../../../shared/outline';
-import { normalizeWorkspaceRelativePath, mergeDirtyEditorPaths } from '../../utils/workspacePaths';
+import { createEditorTab } from '@utils/editorTabs';
+import { buildOutlineFromContent } from '@shared/outline';
+import { normalizeWorkspaceRelativePath, mergeDirtyEditorPaths } from '@utils/workspacePaths';
 import {
   getWorkspaceScopedCacheKey,
   getNextFileRequestSeq,

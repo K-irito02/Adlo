@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { EditorView } from '@codemirror/view';
 import { estimateWrapColumn } from '../editor-support/cmWrapColumn';
-import type { EditorRef } from '../../../stores/types';
+import type { EditorRef } from '@stores/types';
 
 interface UseWrapColumnInput {
   getStickySourceEditor: () => EditorRef | null;

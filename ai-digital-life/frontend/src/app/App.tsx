@@ -29,6 +29,7 @@ export function App() {
     }))
   );
   const actions = useAppActions();
+  const setActiveRightTool = useAppStore((s) => s.setActiveRightTool);
 
   useDragDropWorkspace(actions);
 
@@ -82,12 +83,12 @@ export function App() {
   }, [actions]);
 
   const handleOpenSettings = useCallback(() => {
-    useAppStore.getState().setActiveRightTool('settings');
-  }, []);
+    setActiveRightTool('settings');
+  }, [setActiveRightTool]);
 
   const handleOpenCommandPalette = useCallback(() => {
-    useAppStore.getState().setActiveRightTool('files');
-  }, []);
+    setActiveRightTool('files');
+  }, [setActiveRightTool]);
 
   const activeSessionId = useAppStore((s) => s.activeSessionId);
 

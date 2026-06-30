@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { useAppStore } from '../../stores/slicedStore';
+import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
-import type { TerminalProfile } from '../../stores/types';
-import type { XtermTerminalHandle } from '../../components/terminal/XtermTerminal';
+import type { TerminalProfile } from '@stores/types';
+import type { XtermTerminalHandle } from '@components/terminal/XtermTerminal';
 
 const MAX_SESSION_OUTPUT_BYTES = 100 * 1024;
 

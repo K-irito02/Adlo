@@ -1,10 +1,10 @@
 import React from 'react';
-import { IconFileCode, IconTerminal, IconTrash } from '../../icons';
-import { TooltipSimple } from '../../components/Tooltip';
+import { IconFileCode, IconTerminal, IconTrash } from '@icons';
+import { TooltipSimple } from '@components/Tooltip';
 import { NavigatorResizeHandle } from '@components/NavigatorResizeHandle';
-import type { CopyDict } from '../../i18n';
+import type { CopyDict } from '@i18n';
 import type { TerminalNavigatorMode } from './useTerminalPanel';
-import type { TerminalTabState } from '../../stores/slices/terminalSlice';
+import type { TerminalTabState } from '@stores/slices/terminalSlice';
 import { TerminalTabBar } from './TerminalTabBar';
 
 interface TerminalNavigatorProps {

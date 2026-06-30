@@ -1,11 +1,11 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { IconChevronDown, IconChevronRight, IconPlus } from '../../icons';
-import { TooltipSimple } from '../../components/Tooltip';
-import type { TerminalProfile } from '../../stores/types';
+import { IconChevronDown, IconChevronRight, IconPlus } from '@icons';
+import { TooltipSimple } from '@components/Tooltip';
+import type { TerminalProfile } from '@stores/types';
 import type { TerminalShellMenuItem, WorkspaceMenuItem } from './useTerminalPanel';
-import { useAppStore } from '../../stores/slicedStore';
+import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
-import { useTCopy } from '../../i18n/useTCopy';
+import { useTCopy } from '@i18n/useTCopy';
 
 interface TerminalShellSelectorProps {
   currentProfile: TerminalProfile;

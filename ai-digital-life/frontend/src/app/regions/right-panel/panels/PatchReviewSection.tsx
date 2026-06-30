@@ -1,5 +1,5 @@
 import React, { useMemo, useRef } from 'react';
-import { IconChevronDown, IconChevronRight } from '../../../icons';
+import { IconChevronDown, IconChevronRight } from '@icons';
 import type { ChangesPanelProps } from '../types';
 
 import {
@@ -7,14 +7,14 @@ import {
   filterPatchFileSummaries,
   summarizePatchFile,
   summarizePatchSet,
-} from '../../../features/patch-review';
-import { PatchReviewSummary, PatchFileCard } from '../../../features/patch-review';
+} from '@features/patch-review';
+import { PatchReviewSummary, PatchFileCard } from '@features/patch-review';
 import { DiffToolbar } from '../DiffToolbar';
 import { useEditorOptions } from '../hooks';
-import { detectEditorLanguage } from '../../../utils/workspacePaths';
-import { DiffViewer } from '../../../features/diff-viewer';
-import { useTCopy } from '../../../i18n/useTCopy';
-import { useResolvedTheme } from '../../../hooks/useResolvedTheme';
+import { detectEditorLanguage } from '@utils/workspacePaths';
+import { DiffViewer } from '@features/diff-viewer';
+import { useTCopy } from '@i18n/useTCopy';
+import { useResolvedTheme } from '@hooks/useResolvedTheme';
 
 type PatchReviewSectionProps = Pick<
   ChangesPanelProps,

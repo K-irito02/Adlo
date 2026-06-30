@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { IconTerminal } from '../../icons';
-import type { TerminalProfile } from '../../stores/types';
-import type { CopyDict } from '../../i18n';
+import { IconTerminal } from '@icons';
+import type { TerminalProfile } from '@stores/types';
+import type { CopyDict } from '@i18n';
 import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
 
 function ShellPrefix({ profile }: { profile?: TerminalProfile }) {

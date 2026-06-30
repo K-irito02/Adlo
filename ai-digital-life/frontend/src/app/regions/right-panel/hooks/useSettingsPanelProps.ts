@@ -1,14 +1,11 @@
 import { useCallback, useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { useAppStore } from '../../../stores/slicedStore';
-import { useAppActions } from '../../../hooks/useAppActions';
-import { useTCopy } from '../../../i18n/useTCopy';
-import {
-  buildSettingsItems,
-  preferencePatchFromSettingChange,
-} from '../../../utils/settingsViewModel';
+import { useAppStore } from '@stores/slicedStore';
+import { useAppActions } from '@hooks/useAppActions';
+import { useTCopy } from '@i18n/useTCopy';
+import { buildSettingsItems, preferencePatchFromSettingChange } from '@utils/settingsViewModel';
 import type { SettingsPanelProps } from '../types';
-import type { RightPanelProps } from '../../RightPanel';
+import type { RightPanelProps } from '@regions/RightPanel';
 
 export function useSettingsPanelProps(_panelProps: RightPanelProps): SettingsPanelProps {
   const { t } = useTCopy();

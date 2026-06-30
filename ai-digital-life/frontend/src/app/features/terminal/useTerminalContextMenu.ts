@@ -1,5 +1,5 @@
 import { useCallback, useState, type SetStateAction, type Dispatch } from 'react';
-import type { TerminalTabState } from '../../stores/slices/terminalSlice';
+import type { TerminalTabState } from '@stores/slices/terminalSlice';
 
 export interface ContextMenuState {
   open: boolean;

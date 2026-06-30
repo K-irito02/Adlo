@@ -1,5 +1,5 @@
 import React from 'react';
-import { IconFolder, IconFolderOpen } from '../../icons';
+import { IconFolder, IconFolderOpen } from '@icons';
 
 export interface MultiTreeEntryShellProps {
   /** The display label for the entry (node name) */

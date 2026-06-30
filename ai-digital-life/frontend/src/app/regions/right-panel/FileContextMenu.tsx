@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { IconMoreVertical } from '../../icons';
-import { TooltipSimple } from '../../components/Tooltip';
-import { useTCopy } from '../../i18n/useTCopy';
+import { IconMoreVertical } from '@icons';
+import { TooltipSimple } from '@components/Tooltip';
+import { useTCopy } from '@i18n/useTCopy';
 
 interface FileMenuItem {
   id: string;

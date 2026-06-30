@@ -8,7 +8,7 @@ import type {
   EditorRange,
   EditorModel,
   Disposable,
-} from '../../stores/types';
+} from '@stores/types';
 
 function posToOffset(
   doc: { line(n: number): { from: number } },

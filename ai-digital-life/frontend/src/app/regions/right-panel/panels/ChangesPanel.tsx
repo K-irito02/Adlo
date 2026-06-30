@@ -2,10 +2,10 @@ import React from 'react';
 import type { ChangesPanelProps } from '../types';
 import { ChangesToolbar } from './ChangesToolbar';
 import { ChangesConfirmDialogs } from './ChangesConfirmDialogs';
-import { RenameDialog } from '../../../components/RenameDialog';
+import { RenameDialog } from '@components/RenameDialog';
 import { ChangesTreePanel } from './ChangesTreePanel';
 import { PatchReviewSection } from './PatchReviewSection';
-import { DiffEditorSection } from './DiffEditorSection';
+import { LazyDiffEditor, SuspenseWrapper } from '@components/LazyComponents';
 import { useChangesPanelState } from './ChangesPanel/useChangesPanelState';
 import { useBranchSelection } from './ChangesPanel/useBranchSelection';
 
@@ -196,20 +196,22 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
               onDiffMount={handleDiffMount}
             />
           ) : (
-            <DiffEditorSection
-              changePreview={changePreview}
-              changePreviewLoading={changePreviewLoading}
-              diffSideBySide={props.diffSideBySide}
-              latestPatchApplication={latestPatchApplication}
-              appInfo={appInfo}
-              totalChangeCount={totalChangeCount}
-              visibleWorkspacesLength={visibleWorkspaces.length}
-              previewEnabled={previewEnabled}
-              lineNumbersEnabled={lineNumbersEnabled}
-              wordWrapEnabled={wordWrapEnabled}
-              onDiffMount={handleDiffMount}
-              previewContainerRef={changesPreviewContainerRef}
-            />
+            <SuspenseWrapper>
+              <LazyDiffEditor
+                changePreview={changePreview}
+                changePreviewLoading={changePreviewLoading}
+                diffSideBySide={props.diffSideBySide}
+                latestPatchApplication={latestPatchApplication}
+                appInfo={appInfo}
+                totalChangeCount={totalChangeCount}
+                visibleWorkspacesLength={visibleWorkspaces.length}
+                previewEnabled={previewEnabled}
+                lineNumbersEnabled={lineNumbersEnabled}
+                wordWrapEnabled={wordWrapEnabled}
+                onDiffMount={handleDiffMount}
+                previewContainerRef={changesPreviewContainerRef}
+              />
+            </SuspenseWrapper>
           )}
         </div>
       </div>

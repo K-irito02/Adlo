@@ -40,6 +40,8 @@
 | 2026-06-24 | — | ✅ 已解决 | 浏览器导航栏4模式重构、Store 简化、Flash 消除、Flat 标签溢出 ::after 蒙版修复 |
 | 2026-06-27 | 15 | 🔄 部分解决 | BrowserNavigator OpenTabFlatList 提取（-94行）、ESLint 警告清理（22→16）、React.memo/lazy 现状确认 |
 | 2026-06-29 | 24 | 🔄 部分解决 | 宏观扫描回归（!important 23→311、console.log 0→25）；console.log 清理（fetchPageMeta 6处）；App.tsx getState()→选择器；5 Hook 超 300 行；BrowserPanel(716行)/BrowserNavigator(495行)过大；kernel/index.ts(1158行)和 shared/ipc.ts(1296行)膨胀；React.lazy 几乎完全丢失 |
+| 2026-06-30 | 23 | ✅ 已解决 | 第20次执行：useBrowserTreeActions 718→18行（-700行）；ipc.ts 1322→953行；kernel/index.ts 1312→13行；React.lazy恢复3组件；深层导入281处→@别名；BrowserTreeEntry 531→199(-332)；fileTree 482→360(-122)；282测试通过 |
+| 2026-07-01 | — | ✅ 已解决 | 终验与合并：CodeMirror 多实例冲突修复（pnpm.overrides + resolve.dedupe）；ESLint 12→0 warnings；TS 预存错误修复；282测试+Clippy+cargo check全通过；知识沉淀WORKTREE-RERUN-ISSUES.md |
 
 ## 各日洞察摘要
 

@@ -1,6 +1,6 @@
 import type { StoreState } from '../StoreState';
 import { createUiId, createDebouncedWrite } from '../shared';
-import { historyDedupKey } from '../../utils/browserDisplayUtils';
+import { historyDedupKey } from '@utils/browserDisplayUtils';
 
 export interface BrowserHistoryState {
   id: string;

@@ -14,7 +14,7 @@ import { history } from '@codemirror/commands';
 import { indentOnInput, bracketMatching, codeFolding } from '@codemirror/language';
 import { search } from '@codemirror/search';
 import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
-import type { EditorRef } from '../../stores/types';
+import type { EditorRef } from '@stores/types';
 import { createEditorRef } from './editorAdapters';
 import { getThemeExtension, getPhrasesExtension } from './cmTheme';
 import { getLanguageExtension } from './cmLanguages';
