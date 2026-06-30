@@ -97,6 +97,8 @@
 | [browser-bookmark-dialog-store-pattern-audio-fix-2026-06-28.md](./浏览器/browser-bookmark-dialog-store-pattern-audio-fix-2026-06-28.md) | 2026-06-28 书签对话框 + 音频调试   | 书签对话框 store-based 模式替代 callback chain、音频调试端到端追踪经验 |
 | [browser-spa-navigation-title-sync-fix-2026-06-28.md](./浏览器/browser-spa-navigation-title-sync-fix-2026-06-28.md)               | 2026-06-28 Bug 修复                | SPA 导航标题同步修复：双重 Bug（SPA URL 归一化覆盖真实标题 + INIT_SCRIPT 强制整页导航阻断 SPA 标题），microtask 回退策略 |
 | [browser-navigate-tab-explicit-2026-06-29.md](./浏览器/browser-navigate-tab-explicit-2026-06-29.md)                               | 2026-06-29 navigateTab 显式调用重构 | navigateTab 反馈循环修复：useBrowserWebView 被动触发→前端显式调用，不同来源的导航分离原则 |
+| [browser-folder-delete-bookmark-cleanup-2026-06-30.md](./浏览器/browser-folder-delete-bookmark-cleanup-2026-06-30.md)             | 2026-06-30 Phase 3 多轮修复         | 浏览器文件夹删除书签清理修复（17 问题）：工作区书签过滤、scopeFolderId、tabId 分离、第二遍时序、全量扫描等 |
+| [spa-history-back-double-click-2026-06-30.md](./浏览器/spa-history-back-double-click-2026-06-30.md)                               | 2026-06-30 知识沉淀                  | SPA 后退需双击问题：eval("history.back()") 与 SPA pushState 多层历史栈，非应用 bug |
 
 ### 代码质量
 

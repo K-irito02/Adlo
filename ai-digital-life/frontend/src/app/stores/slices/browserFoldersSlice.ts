@@ -304,6 +304,7 @@ export const createBrowserFoldersSlice = (
   browserDeleteOwnTabsInNode: (nodePath) =>
     set((state) => {
       let tabIdsToDelete: string[] = [];
+      let wsBookmarkTabIds: string[] | null = null;
 
       if (nodePath.startsWith('workspace:')) {
         const wsId = nodePath.slice('workspace:'.length);
@@ -312,6 +313,18 @@ export const createBrowserFoldersSlice = (
           .map((t) => t.id);
         const folderTabIds = collectAllFolderTabIds(state.browserTabFolders, wsId);
         tabIdsToDelete = allWsTabIds.filter((id) => !folderTabIds.includes(id));
+        // Collect workspace bookmark tabIds separately — they must NOT be in tabIdsToDelete
+        // (which is used to filter browserTabs), because a bookmark entry may share the
+        // same tabId as an open tab that is still active.
+        const wsBookmarks = state.browserWorkspaceBookmarks[wsId];
+        if (wsBookmarks) {
+          wsBookmarkTabIds = [];
+          for (const entry of wsBookmarks) {
+            if (!tabIdsToDelete.includes(entry.tabId)) {
+              wsBookmarkTabIds.push(entry.tabId);
+            }
+          }
+        }
       } else if (nodePath.startsWith('folder:')) {
         const folderId = nodePath.slice('folder:'.length);
         const folder = findFolderById(state.browserTabFolders, folderId);
@@ -331,7 +344,7 @@ export const createBrowserFoldersSlice = (
           .map((h) => h.id);
       }
 
-      if (tabIdsToDelete.length === 0) {
+      if (tabIdsToDelete.length === 0 && (!wsBookmarkTabIds || wsBookmarkTabIds.length === 0)) {
         return state;
       }
 
@@ -356,8 +369,12 @@ export const createBrowserFoldersSlice = (
         const wsId = nodePath.slice('workspace:'.length);
         const bookmarkedEntries = nextWorkspaceBookmarks[wsId];
         if (bookmarkedEntries) {
+          // Filter using BOTH browser tab tabIds and workspace bookmark tabIds
+          const allTabIds = wsBookmarkTabIds
+            ? [...tabIdsToDelete, ...wsBookmarkTabIds]
+            : tabIdsToDelete;
           const remaining = bookmarkedEntries.filter(
-            (entry) => !tabIdsToDelete.includes(entry.tabId)
+            (entry) => !allTabIds.includes(entry.tabId)
           );
           nextWorkspaceBookmarks = { ...nextWorkspaceBookmarks };
           if (remaining.length === 0) {

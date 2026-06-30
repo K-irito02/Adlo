@@ -35,13 +35,19 @@
 | 10 | 删除单条收藏标签导致工作区书签被连带清除 | 在"非工作区目录"文件夹中右键删除收藏标签 | `browserRemoveTabBookmarks` 对 `browserWorkspaceBookmarks` 仅用 `tabId` 过滤，未配对 `url`，导致同名 tabId 但不同 URL 的工作区书签被误删 |
 | 11 | 删除单条收藏标签导致其他文件夹同名条目被连带清除 | 多个文件夹收藏了同一 `(tabId, url)` 对 | `browserRemoveTabBookmarks` 对 `browserTabFolders` 扫描 ALL 文件夹，未限制到目标文件夹 |
 | 12 | 删除单条收藏标签误删全局书签条目 | 同一 URL 被多个文件夹收藏，删除其中一个 | `browserRemoveTabBookmarks` 第 266 行无条件过滤 `browserBookmarks`，未检查该 URL 是否仍存在于其他文件夹或工作区中 |
+| 13 | 工作区根目录"删除自身目录标签"无反应 | 存在嵌套子目录时 | `browserDeleteOwnTabsInNode` 用 `folderTabIds.includes(entry.tabId)` 过滤工作区书签条目，但书签条目的 tabId 可能与子目录标签 tabId 相同，导致被错误排除 |
+| 14 | 工作区"删除自身目录标签"关闭已打开标签 | 打开标签与工作区书签条目有相同 tabId | 书签 tabId 被加入 `tabIdsToDelete`，该数组用于过滤 `browserTabs`，导致对应标签被关闭 |
+| 15 | 删除后收藏星标不消失 | 逐步从顶层删除至底层 | 第二遍 URL 清理在 `browserDeleteOwnTabsInNode` 之前执行，此时书签条目尚在状态中，`urlStillExists` 返回 true → URL 残留在 `browserBookmarks` |
+| 16 | 文件夹"删除自身目录标签"后收藏状态残留 | 文件夹中的标签来自已关闭标签（不在 `browserTabs`） | 文件夹路径的 `urls` 仅从 `browserTabs` 收集，若标签已关闭则 `urls` 为空 → 第二遍清理无操作 |
+| 17 | 查找拥有文件夹可用 `find` 优化 | `handleRemoveBookmarkTab` 中查找持有 `(tabId, url)` 的文件夹 | `filter + map + length === 1` 始终 O(n)，`find` 在第一个匹配项停止 |
 
 ## Phase 3 涉及文件
 
 | 文件 | 修改 |
 |------|------|
 | `browserBookmarkSlice.ts` | `browserRemoveTabBookmarks` 工作区过滤从 `tabId`-only 改为 `(tabId, url)` 对；新增可选 `scopeFolderId` 参数，指定时只删除目标文件夹条目；`browserBookmarks` 过滤移至文件夹/工作区过滤之后，仅当 URL 不再存在于任何文件夹或工作区时执行 |
-| `useBrowserTreeActions.ts` | `handleRemoveBookmarkTab` 从 store 中查找唯一持有该 `(tabId, url)` 的文件夹，将 `folderId` 传给 `browserRemoveTabBookmarks` 以限定范围 |
+| `useBrowserTreeActions.ts` | `handleRemoveBookmarkTab` 改用 `find` 查找持有文件夹；`handleDeleteOwnChildTabs` 工作区书签 URL 收集移除 `folderTabIds.includes` 过滤；第二遍清理改为全量扫描 `browserBookmarks` 并移至 `browserDeleteOwnTabsInNode` 之后 |
+| `browserFoldersSlice.ts` | `browserDeleteOwnTabsInNode` 工作区书签 tabId 分离到 `wsBookmarkTabIds` 独立数组，不影响 `browserTabs` 过滤 |
 
 ## 架构洞察
 
@@ -193,3 +199,48 @@ const nextBookmarks = urlStillExists
   ? state.browserBookmarks  // 保持原样
   : state.browserBookmarks.filter((b) => b.url !== url);
 ```
+
+### 12. `folderTabIds` 只应过滤 `browserTabs`，不应影响书签条目
+
+工作区书签条目（`browserWorkspaceBookmarks[wsId]`）始终是 workspace 根节点的**直属子级**。即使某个书签条目的 `tabId` 与子文件夹中标签的 `tabId` 相同，它们在数据上也是独立的条目。不应通过 `folderTabIds.includes(entry.tabId)` 来排除书签条目。
+
+**修复模式**：书签条目全部加入待删集合，不受子文件夹 tabId 影响。
+
+### 13. 书签 tabId 必须与 `browserTabs` tabId 分离
+
+`browserDeleteOwnTabsInNode` 使用 `tabIdsToDelete` 过滤 `browserTabs`。若将工作区书签条目的 tabId 加入同一数组，可能误删已打开的标签（书签 tabId 与打开标签 tabId 相同时）。
+
+**修复模式**：使用独立数组 `wsBookmarkTabIds` 跟踪书签 tabId，仅用于 `browserWorkspaceBookmarks` 清理：
+
+```typescript
+let tabIdsToDelete: string[] = [];     // 仅 browserTabs tabId
+let wsBookmarkTabIds: string[] | null = null; // 仅书签条目 tabId
+```
+
+### 14. 第二遍 URL 清理必须在数据删除之后
+
+`browserRemoveTabBookmarks('', url)` 检查 `urlStillExists` 时，查找当前状态中的 `browserWorkspaceBookmarks` 和 `browserTabFolders`。若数据层尚未删除（`browserDeleteOwnTabsInNode` 未执行），URL 仍被视为"存在"，不会从 `browserBookmarks` 移除。
+
+**修复模式**：第二遍清理移至 `browserDeleteOwnTabsInNode` 之后。
+
+```
+之前: main loop → second pass → browserDeleteOwnTabsInNode  ← 🐛 urlStillExists=true
+之后: main loop → browserDeleteOwnTabsInNode → second pass  ← ✅ urlStillExists=false
+```
+
+### 15. 全量扫描 vs 定向清理
+
+`urls` 数组无法覆盖所有可能受影响的 URL（跨目录共享、文件夹中已关闭标签等）。定向收集（`for (const url of urls)`）总有遗漏路径。
+
+**修复模式**：第二遍改为全量扫描当前 `browserBookmarks`，逐个检查 `urlStillExists`：
+
+```typescript
+const finalState = useAppStore.getState();
+for (const bookmark of finalState.browserBookmarks) {
+  if (bookmark.url) {
+    browserRemoveTabBookmarks('', bookmark.url);
+  }
+}
+```
+
+全量扫描性能影响可忽略（`browserBookmarks` 通常数十至数百条，`urlStillExists` 为 O(n) 对小数组），但彻底消除遗漏。`browserRemoveTabBookmarks('', url)` 中的 `urlStillExists` 确保仅有真正孤立的 URL 被移除，不会跨越工作区误删。
