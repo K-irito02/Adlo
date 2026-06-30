@@ -259,14 +259,16 @@ export function useBrowserTreeActions() {
         );
         allTabUrls.push(...folderEntries);
       }
-      // For workspace paths, tabIds may include folder-less workspace tabs;
-      // for folder paths, the collection above covers all descendants.
+      // For workspace/history paths, tabIds may include folder-less workspace tabs;
+      // for folder paths, allTabUrls is already fully populated by collectAllDescendantTabUrlsLocal.
       const unlocked = new Set<string>();
-      for (const tabId of tabIds) {
-        const url =
-          wsSnapshotUrls?.get(tabId) || state.browserTabs.find((t) => t.id === tabId)?.url || '';
-        if (tabId && url) {
-          allTabUrls.push({ tabId, url });
+      if (!nodePath.startsWith('folder:')) {
+        for (const tabId of tabIds) {
+          const url =
+            wsSnapshotUrls?.get(tabId) || state.browserTabs.find((t) => t.id === tabId)?.url || '';
+          if (tabId && url) {
+            allTabUrls.push({ tabId, url });
+          }
         }
       }
       // Remove every (tabId, url) entry — all bookmark stores are cleaned per-pair
