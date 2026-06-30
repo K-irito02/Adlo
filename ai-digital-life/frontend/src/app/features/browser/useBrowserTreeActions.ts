@@ -636,10 +636,9 @@ export function useBrowserTreeActions() {
     (tabId: string, url: string) => {
       // Look up the owning folder from store state so we can scope deletion to that folder only
       const state = useAppStore.getState();
-      const owningFolderId = state.browserTabFolders
-        .filter((f) => f.tabs?.some((t) => t.tabId === tabId && t.url === url))
-        .map((f) => f.id);
-      const scopeFolderId = owningFolderId.length === 1 ? owningFolderId[0] : undefined;
+      const owningFolder = state.browserTabFolders
+        .find((f) => f.tabs?.some((t) => t.tabId === tabId && t.url === url));
+      const scopeFolderId = owningFolder?.id;
       browserRemoveTabBookmarks(tabId, url, scopeFolderId);
       if (url) {
         clearFaviconCacheForUrl(url);
