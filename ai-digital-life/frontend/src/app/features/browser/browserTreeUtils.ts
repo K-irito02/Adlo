@@ -20,16 +20,27 @@ export function findFolderByIdLocal(
 }
 
 export function collectAllDescendantTabIdsLocal(
-  folders: Array<{ id: string; tabs?: Array<{ tabId: string }>; children?: unknown[] }>,
+  folders: Array<{ id: string; parentId?: string; tabs?: Array<{ tabId: string }> }>,
   parentId: string
 ): string[] {
-  const result: string[] = [];
-  const directChildren = folders.filter((f) => (f as { parentId?: string }).parentId === parentId);
-  for (const child of directChildren) {
-    if (child.tabs) {
-      result.push(...child.tabs.map((item) => item.tabId));
+  const childrenMap = new Map<string, typeof folders>();
+  for (const f of folders) {
+    if (f.parentId) {
+      if (!childrenMap.has(f.parentId)) childrenMap.set(f.parentId, []);
+      childrenMap.get(f.parentId)!.push(f);
     }
-    result.push(...collectAllDescendantTabIdsLocal(folders, child.id));
   }
+  const result: string[] = [];
+  const collect = (pid: string) => {
+    const children = childrenMap.get(pid);
+    if (!children) return;
+    for (const child of children) {
+      if (child.tabs) {
+        result.push(...child.tabs.map((item) => item.tabId));
+      }
+      collect(child.id);
+    }
+  };
+  collect(parentId);
   return result;
 }

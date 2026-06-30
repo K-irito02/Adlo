@@ -1,5 +1,10 @@
 import type { StoreState } from '../StoreState';
 import { createUiId, createDebouncedWrite } from '../shared';
+import {
+  BROWSER_BOOKMARK_TABID_URL_MAP_KEY,
+  BROWSER_BOOKMARKS_STORAGE_KEY,
+  BROWSER_WORKSPACE_BOOKMARKS_STORAGE_KEY,
+} from './browserBookmarkSlice';
 
 export interface BrowserTabState {
   id: string;
@@ -91,7 +96,6 @@ export const createBrowserTabsSlice = (
       const nextTabs = sortTabs([...state.browserTabs, tab]);
       let nextFolders = state.browserTabFolders;
       let nextTabIdUrlMap = state.browserBookmarkTabIdUrlMap;
-      let nextBookmarks = state.browserBookmarks;
       if (folderId) {
         nextFolders = nextFolders.map((f) => {
           if (f.id === folderId) {
@@ -109,12 +113,9 @@ export const createBrowserTabsSlice = (
           return f;
         });
         scheduleWrite(BROWSER_TAB_FOLDERS_KEY, nextFolders);
-        // 记录 tabId→URL 映射，确保文件夹标签在 browserTabs 被清空后仍能通过书签回退渲染
         if (tab.url && !nextTabIdUrlMap[tab.id]) {
           nextTabIdUrlMap = { ...nextTabIdUrlMap, [tab.id]: tab.url };
-          if (!nextBookmarks.some((b) => b.url === tab.url)) {
-            nextBookmarks = [...nextBookmarks, { url: tab.url, title: tab.title || tab.url }];
-          }
+          scheduleWrite(BROWSER_BOOKMARK_TABID_URL_MAP_KEY, nextTabIdUrlMap);
         }
       }
       scheduleWrite(BROWSER_TABS_KEY, nextTabs);
@@ -125,7 +126,7 @@ export const createBrowserTabsSlice = (
         browserActiveTabId: tab.id,
         browserTabFolders: nextFolders,
         browserBookmarkTabIdUrlMap: nextTabIdUrlMap,
-        browserBookmarks: nextBookmarks,
+        browserBookmarks: state.browserBookmarks,
       };
     }),
 

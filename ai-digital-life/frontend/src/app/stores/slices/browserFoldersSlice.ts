@@ -2,6 +2,11 @@ import type { StoreState } from '../StoreState';
 import { createUiId, createDebouncedWrite } from '../shared';
 import { formatNewFolderNameByLocale } from '../../i18n';
 import type { BrowserTabState } from './browserTabsSlice';
+import {
+  BROWSER_BOOKMARKS_STORAGE_KEY,
+  BROWSER_BOOKMARK_TABID_URL_MAP_KEY,
+  BROWSER_WORKSPACE_BOOKMARKS_STORAGE_KEY,
+} from './browserBookmarkSlice';
 
 export interface BookmarkTabItem {
   tabId: string;
@@ -151,29 +156,11 @@ export const createBrowserFoldersSlice = (
         folderId,
         ...collectAllDescendantFolderIds(state.browserTabFolders, folderId),
       ];
-      const tabIdsToDelete: string[] = [];
-      for (const id of idsToDelete) {
-        const folder = findFolderById(state.browserTabFolders, id);
-        if (folder?.tabs) {
-          tabIdsToDelete.push(...folder.tabs.map((item) => item.tabId));
-        }
-      }
       const nextFolders = state.browserTabFolders.filter(
         (folder) => !idsToDelete.includes(folder.id)
       );
-      const nextTabs = state.browserTabs.filter((t) => !tabIdsToDelete.includes(t.id));
-      const nextActive = tabIdsToDelete.includes(state.browserActiveTabId)
-        ? (nextTabs[nextTabs.length - 1]?.id ?? state.browserActiveTabId)
-        : state.browserActiveTabId;
       scheduleWrite(BROWSER_TAB_FOLDERS_KEY, nextFolders);
-      scheduleWrite(BROWSER_TABS_KEY, nextTabs);
-      scheduleWrite(BROWSER_ACTIVE_TAB_KEY, nextActive);
-      return {
-        browserTabFolders: nextFolders,
-        browserTabs: nextTabs,
-        browserTabsById: buildTabsById(nextTabs),
-        browserActiveTabId: nextActive,
-      };
+      return { browserTabFolders: nextFolders };
     }),
 
   browserAddToFolder: (tabId, folderId) => {
@@ -227,16 +214,30 @@ export const createBrowserFoldersSlice = (
   browserDeleteAllTabsInNode: (nodePath) =>
     set((state) => {
       let tabIdsToDelete: string[] = [];
+      const folderIdsToClear: string[] = [];
 
       if (nodePath.startsWith('workspace:')) {
         const wsId = nodePath.slice('workspace:'.length);
         tabIdsToDelete = state.browserTabs.filter((t) => t.workspaceId === wsId).map((t) => t.id);
+        const wsRootFolders = state.browserTabFolders.filter(
+          (f) => f.parentType === 'workspace' && f.parentId === wsId
+        );
+        for (const rootFolder of wsRootFolders) {
+          folderIdsToClear.push(
+            rootFolder.id,
+            ...collectAllDescendantFolderIds(state.browserTabFolders, rootFolder.id)
+          );
+        }
       } else if (nodePath.startsWith('folder:')) {
         const folderId = nodePath.slice('folder:'.length);
         const folder = findFolderById(state.browserTabFolders, folderId);
         if (folder) {
           const descendantTabIds = collectAllDescendantTabIds(state.browserTabFolders, folderId);
           tabIdsToDelete = [...(folder.tabs ?? []).map((item) => item.tabId), ...descendantTabIds];
+          folderIdsToClear.push(
+            folderId,
+            ...collectAllDescendantFolderIds(state.browserTabFolders, folderId)
+          );
         }
       } else if (nodePath.startsWith('history:day:')) {
         const dayDate = nodePath.slice('history:day:'.length);
@@ -251,7 +252,7 @@ export const createBrowserFoldersSlice = (
           .map((h) => h.id);
       }
 
-      if (tabIdsToDelete.length === 0) {
+      if (tabIdsToDelete.length === 0 && folderIdsToClear.length === 0) {
         return state;
       }
 
@@ -261,10 +262,15 @@ export const createBrowserFoldersSlice = (
         return { browserHistory: nextHistory };
       }
 
-      const nextTabs = state.browserTabs.filter((t) => !tabIdsToDelete.includes(t.id));
-      const nextActive = tabIdsToDelete.includes(state.browserActiveTabId)
-        ? (nextTabs[nextTabs.length - 1]?.id ?? state.browserActiveTabId)
-        : state.browserActiveTabId;
+      const isFolderPath = nodePath.startsWith('folder:');
+      const nextTabs = isFolderPath
+        ? state.browserTabs
+        : state.browserTabs.filter((t) => !tabIdsToDelete.includes(t.id));
+      const nextActive = isFolderPath
+        ? state.browserActiveTabId
+        : tabIdsToDelete.includes(state.browserActiveTabId)
+          ? (nextTabs[nextTabs.length - 1]?.id ?? state.browserActiveTabId)
+          : state.browserActiveTabId;
 
       let nextWorkspaceBookmarks = state.browserWorkspaceBookmarks;
       if (nodePath.startsWith('workspace:')) {
@@ -277,9 +283,10 @@ export const createBrowserFoldersSlice = (
       }
 
       let nextFolders = state.browserTabFolders;
-      if (nodePath.startsWith('folder:')) {
-        const folderId = nodePath.slice('folder:'.length);
-        nextFolders = nextFolders.map((f) => (f.id === folderId ? { ...f, tabs: [] } : f));
+      if (folderIdsToClear.length > 0) {
+        nextFolders = nextFolders.map((f) =>
+          folderIdsToClear.includes(f.id) && f.tabs ? { ...f, tabs: [] } : f
+        );
         scheduleWrite(BROWSER_TAB_FOLDERS_KEY, nextFolders);
       }
 
@@ -334,10 +341,15 @@ export const createBrowserFoldersSlice = (
         return { browserHistory: nextHistory };
       }
 
-      const nextTabs = state.browserTabs.filter((t) => !tabIdsToDelete.includes(t.id));
-      const nextActive = tabIdsToDelete.includes(state.browserActiveTabId)
-        ? (nextTabs[nextTabs.length - 1]?.id ?? state.browserActiveTabId)
-        : state.browserActiveTabId;
+      const isFolderPath = nodePath.startsWith('folder:');
+      const nextTabs = isFolderPath
+        ? state.browserTabs
+        : state.browserTabs.filter((t) => !tabIdsToDelete.includes(t.id));
+      const nextActive = isFolderPath
+        ? state.browserActiveTabId
+        : tabIdsToDelete.includes(state.browserActiveTabId)
+          ? (nextTabs[nextTabs.length - 1]?.id ?? state.browserActiveTabId)
+          : state.browserActiveTabId;
 
       let nextWorkspaceBookmarks = state.browserWorkspaceBookmarks;
       if (nodePath.startsWith('workspace:')) {
@@ -358,7 +370,7 @@ export const createBrowserFoldersSlice = (
       }
 
       let nextFolders = state.browserTabFolders;
-      if (nodePath.startsWith('folder:')) {
+      if (isFolderPath) {
         const folderId = nodePath.slice('folder:'.length);
         nextFolders = nextFolders.map((f) => {
           if (f.id === folderId && f.tabs) {
@@ -382,14 +394,59 @@ export const createBrowserFoldersSlice = (
 
   browserClearAllFolderTabs: () => {
     set((state) => {
+      const allTabIds: string[] = [];
+      const allUrls: string[] = [];
+      for (const folder of state.browserTabFolders) {
+        if (folder.tabs) {
+          for (const item of folder.tabs) {
+            allTabIds.push(item.tabId);
+            if (item.url && !allUrls.includes(item.url)) {
+              allUrls.push(item.url);
+            }
+          }
+        }
+      }
+
+      let nextBookmarks = state.browserBookmarks;
+      let nextWorkspaceBookmarks = state.browserWorkspaceBookmarks;
+      let nextTabIdUrlMap = state.browserBookmarkTabIdUrlMap;
+
+      const urlSet = new Set(allUrls);
+      nextBookmarks = nextBookmarks.filter((b) => !urlSet.has(b.url));
+
+      const tabIdSet = new Set(allTabIds);
+      nextTabIdUrlMap = { ...nextTabIdUrlMap };
+      for (const tid of allTabIds) {
+        delete nextTabIdUrlMap[tid];
+      }
+
+      nextWorkspaceBookmarks = { ...nextWorkspaceBookmarks };
+      for (const wsId of Object.keys(nextWorkspaceBookmarks)) {
+        const entries = nextWorkspaceBookmarks[wsId];
+        const remaining = entries.filter((entry) => !tabIdSet.has(entry.tabId));
+        if (remaining.length === 0) {
+          delete nextWorkspaceBookmarks[wsId];
+        } else {
+          nextWorkspaceBookmarks[wsId] = remaining;
+        }
+      }
+
       const nextFolders = state.browserTabFolders.map((f) => {
         if (f.tabs && f.tabs.length > 0) {
           return { ...f, tabs: [] };
         }
         return f;
       });
+
       scheduleWrite(BROWSER_TAB_FOLDERS_KEY, nextFolders);
-      return { browserTabFolders: nextFolders };
+      scheduleWrite(BROWSER_BOOKMARKS_STORAGE_KEY, nextBookmarks);
+      scheduleWrite(BROWSER_BOOKMARK_TABID_URL_MAP_KEY, nextTabIdUrlMap);
+      return {
+        browserTabFolders: nextFolders,
+        browserBookmarks: nextBookmarks,
+        browserBookmarkTabIdUrlMap: nextTabIdUrlMap,
+        browserWorkspaceBookmarks: nextWorkspaceBookmarks,
+      };
     });
   },
 

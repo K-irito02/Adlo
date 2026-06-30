@@ -43,10 +43,10 @@ export function resolveChildCount(
 function buildTabNode(
   tab: BrowserTabState,
   workspaceId: string,
-  _uniqueKey: string
+  uniqueKey: string
 ): BrowserTreeNode {
   return {
-    path: `tab:${workspaceId}:${tab.id}`,
+    path: `tab:${uniqueKey}:${tab.id}`,
     name: normalizeTabTitle(tab.title, tab.url),
     kind: 'file',
     children: [],
@@ -138,7 +138,7 @@ function buildFolderNode(
       if (!tab) {
         if (snapshotUrl) {
           return {
-            path: `bookmark:${tabId}`,
+            path: `bookmark:${tabId}::${encodeURIComponent(snapshotUrl)}`,
             name: normalizeTabTitle(snapshotTitle, snapshotUrl),
             kind: 'file' as const,
             children: [],
@@ -153,10 +153,14 @@ function buildFolderNode(
         }
         return null;
       }
-      const node = buildTabNode(tab, tab.workspaceId, `folder-${folder.id}-${tabId}`);
+      const displayUrl = snapshotUrl || tab.url || '';
+      const node = buildTabNode(
+        tab,
+        tab.workspaceId,
+        `folder-${folder.id}-${tabId}-${encodeURIComponent(displayUrl)}`
+      );
       node.isSavedBookmark = true;
       // 使用文件夹级快照，保留收藏时的原始 URL/标题
-      const displayUrl = snapshotUrl || tab.url || '';
       const displayTitle = snapshotTitle || tab.title || '';
       node.name = normalizeTabTitle(displayTitle, displayUrl);
       node.url = displayUrl;
@@ -246,12 +250,16 @@ export function buildWorkspaceCategoryTree(
 
         let node: BrowserTreeNode;
         if (tab) {
-          node = buildTabNode(tab, ws.id, `ws-bookmark-${ws.id}-${entry.tabId}`);
+          node = buildTabNode(
+            tab,
+            ws.id,
+            `ws-bookmark-${ws.id}-${entry.tabId}-${encodeURIComponent(snapshotUrl)}`
+          );
           node.name = normalizeTabTitle(snapshotTitle, snapshotUrl);
           node.url = snapshotUrl;
         } else {
           node = {
-            path: `bookmark:${ws.id}:${entry.tabId}`,
+            path: `bookmark:${ws.id}:${entry.tabId}:${encodeURIComponent(snapshotUrl)}`,
             name: normalizeTabTitle(snapshotTitle, snapshotUrl),
             kind: 'file' as const,
             children: [],

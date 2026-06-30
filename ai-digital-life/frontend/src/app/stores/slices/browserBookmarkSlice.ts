@@ -102,10 +102,15 @@ export const createBrowserBookmarkSlice = (
 
         if (tabIdsForUrl.size > 0) {
           nextFolders = state.browserTabFolders.map((folder) => {
-            if (folder.tabs && folder.tabs.some((item) => tabIdsForUrl.has(item.tabId))) {
+            if (
+              folder.tabs &&
+              folder.tabs.some((item) => tabIdsForUrl.has(item.tabId) && item.url === url)
+            ) {
               return {
                 ...folder,
-                tabs: folder.tabs.filter((item) => !tabIdsForUrl.has(item.tabId)),
+                tabs: folder.tabs.filter(
+                  (item) => !(tabIdsForUrl.has(item.tabId) && item.url === url)
+                ),
               };
             }
             return folder;
@@ -114,9 +119,13 @@ export const createBrowserBookmarkSlice = (
 
           nextWorkspaceBookmarks = { ...state.browserWorkspaceBookmarks };
           for (const wsId of Object.keys(nextWorkspaceBookmarks)) {
-            if (nextWorkspaceBookmarks[wsId].some((entry) => tabIdsForUrl.has(entry.tabId))) {
+            if (
+              nextWorkspaceBookmarks[wsId].some(
+                (entry) => tabIdsForUrl.has(entry.tabId) && entry.url === url
+              )
+            ) {
               nextWorkspaceBookmarks[wsId] = nextWorkspaceBookmarks[wsId].filter(
-                (entry) => !tabIdsForUrl.has(entry.tabId)
+                (entry) => !(tabIdsForUrl.has(entry.tabId) && entry.url === url)
               );
               if (nextWorkspaceBookmarks[wsId].length === 0) {
                 delete nextWorkspaceBookmarks[wsId];
@@ -177,13 +186,14 @@ export const createBrowserBookmarkSlice = (
         nextFolders = nextFolders.map((folder) => {
           if (folder.id === targetFolderId) {
             const existingTabs = folder.tabs || [];
-            const existing = existingTabs.find((item) => item.tabId === tabId);
+            // Dedup by (tabId + url) — same tab with different URL appends, same URL updates title
+            const existing = existingTabs.find((item) => item.tabId === tabId && item.url === url);
             if (existing) {
-              if (existing.url !== url || existing.title !== title) {
+              if (existing.title !== title) {
                 return {
                   ...folder,
                   tabs: existingTabs.map((item) =>
-                    item.tabId === tabId ? { tabId, url, title } : item
+                    item.tabId === tabId && item.url === url ? { tabId, url, title } : item
                   ),
                 };
               }
@@ -206,7 +216,9 @@ export const createBrowserBookmarkSlice = (
       let nextWorkspaceBookmarks = state.browserWorkspaceBookmarks;
       if (workspaceId) {
         const existingWsTabs = state.browserWorkspaceBookmarks[workspaceId] || [];
-        const existingIdx = existingWsTabs.findIndex((entry) => entry.tabId === tabId);
+        const existingIdx = existingWsTabs.findIndex(
+          (entry) => entry.tabId === tabId && entry.url === url
+        );
         if (existingIdx >= 0) {
           const updated = [...existingWsTabs];
           updated[existingIdx] = { tabId, url, title };
@@ -251,7 +263,6 @@ export const createBrowserBookmarkSlice = (
 
   browserRemoveTabBookmarks: (tabId: string, url: string) => {
     set((state) => {
-      // Remove from bookmarks by URL
       const nextBookmarks = state.browserBookmarks.filter((b) => b.url !== url);
       scheduleWrite(BROWSER_BOOKMARKS_KEY, nextBookmarks);
 
@@ -277,12 +288,12 @@ export const createBrowserBookmarkSlice = (
         scheduleWrite(BROWSER_WORKSPACE_BOOKMARKS_KEY, nextWorkspaceBookmarks);
       }
 
-      // Remove from folders
+      // Remove from folders (match by both tabId and url to avoid removing other folders' entries)
       const nextFolders = state.browserTabFolders.map((folder) => {
-        if (folder.tabs && folder.tabs.some((item) => item.tabId === tabId)) {
+        if (folder.tabs && folder.tabs.some((item) => item.tabId === tabId && item.url === url)) {
           return {
             ...folder,
-            tabs: folder.tabs.filter((item) => item.tabId !== tabId),
+            tabs: folder.tabs.filter((item) => !(item.tabId === tabId && item.url === url)),
           };
         }
         return folder;
