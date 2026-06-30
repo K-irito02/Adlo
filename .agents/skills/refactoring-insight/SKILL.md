@@ -58,6 +58,68 @@ description: Use when scanning a project for refactoring opportunities, code qua
 
 > 若已在隔离工作区中，跳过创建步骤，直接进入阶段 1。
 
+### Worktree 命名与复用约定
+
+| 场景 | 工作区路径 | 分支名 | 说明 |
+|------|-----------|--------|------|
+| 首次创建 | `.worktrees/refactor-insight-YYYY-MM-DD` | `refactor-insight-YYYY-MM-DD` | 按创建日期命名 |
+| 合并后重命名（长期复用） | `.worktrees/refactor-insight-main` | `refactor-insight-main` | 合并到 main 后保留 worktree，**不清理**，转为固定名称用于后续复用 |
+
+**原则：** 首次按日期命名避免冲突；合并到 main 后改为固定名称 `-main`，表示这是一个长期复用的 worktree。
+
+#### 首次创建新 Worktree
+
+```powershell
+cd <repo-root>/ai-digital-life
+git checkout main
+git pull
+$date = Get-Date -Format 'yyyy-MM-dd'
+git branch "refactor-insight-$date"
+git worktree add ".worktrees/refactor-insight-$date" "refactor-insight-$date"
+```
+
+#### 合并后重命名为固定名称（仅执行一次）
+
+首次洞察完成并合并到 main 后，将 worktree 重命名为固定名称以便长期复用：
+
+```powershell
+cd <repo-root>
+git worktree remove .worktrees/refactor-insight-YYYY-MM-DD
+git branch -m refactor-insight-YYYY-MM-DD refactor-insight-main
+git worktree add .worktrees/refactor-insight-main refactor-insight-main
+```
+
+> 如果 `git worktree remove` 因权限问题无法删除目录，可手动删除 `.git/worktrees/refactor-insight-YYYY-MM-DD` 目录。
+
+#### 重用已有 Worktree（`refactor-insight-main`）
+
+```powershell
+# 切换到主仓库的 main 分支并拉取最新
+cd <repo-root>/ai-digital-life
+git checkout main
+git pull
+
+# 切换到 worktree，从最新 main 创建新分支
+cd .worktrees/refactor-insight-main/ai-digital-life
+git fetch origin
+git checkout -b refactor-insight-YYYY-MM-DD origin/main
+```
+
+如果 worktree 中的 `ai-digital-life` 子目录不存在（被清理），可在主仓库中重新创建：
+
+```powershell
+cd <repo-root>/ai-digital-life
+git worktree remove .worktrees/refactor-insight-main 2>$null
+Remove-Item -Recurse -Force .worktrees/refactor-insight-main -ErrorAction SilentlyContinue
+$date = Get-Date -Format 'yyyy-MM-dd'
+git branch "refactor-insight-$date" origin/main
+git worktree add ".worktrees/refactor-insight-main" "refactor-insight-$date"
+```
+
+### Worktree 重运行常见问题
+
+详见 [WORKTREE-RERUN-ISSUES.md](./WORKTREE-RERUN-ISSUES.md)，记录了 CodeMirror 多实例冲突、pnpm frozen lockfile、Vite 依赖解析失败、TypeScript 大小写问题、JsonValue 类型缺失等已知问题及修复方案。
+
 ---
 
 ## 1️⃣ 宏观审视
