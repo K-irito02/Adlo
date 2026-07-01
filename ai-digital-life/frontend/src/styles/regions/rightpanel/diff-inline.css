@@ -40,14 +40,9 @@
   top: 0;
 }
 
-/* Inline mode: deleted lines */
-/* Base state: gutter-bg CSS variable */
-.adl-cm-diff-viewer--inline .cm-deletedLineGutter {
-  border-left: 3px solid rgba(239, 68, 68, 0.6) !important;
-  background-color: var(--editor-diff-remove-gutter-bg) !important;
-  margin-left: -3px !important;
-  padding-left: 3px !important;
-}
+/* Inline mode: deleted/inserted gutter base state (border + background), the
+   character-level stripe patterns, and the chunk button visual styles
+   (accept/reject) are shared with side-by-side mode — see diff-shared.css. */
 
 /* Inline mode: deleted lines - active state: 35% opacity (deeper, same as content line) */
 .adl-cm-diff-viewer--inline .cm-deletedLineGutter.cm-activeLineGutter {
@@ -64,15 +59,6 @@
   z-index: 15;
 }
 
-/* Inline mode: inserted lines */
-/* Base state: gutter-bg CSS variable */
-.adl-cm-diff-viewer--inline .cm-changedLineGutter {
-  border-left: 3px solid rgba(34, 197, 94, 0.6) !important;
-  background-color: var(--editor-diff-insert-gutter-bg) !important;
-  margin-left: -3px !important;
-  padding-left: 3px !important;
-}
-
 /* Inline mode: inserted lines - active state: 35% opacity (deeper, same as content line) */
 .adl-cm-diff-viewer--inline .cm-changedLineGutter.cm-activeLineGutter {
   background-color: var(--editor-diff-insert-hover) !important;
@@ -86,30 +72,6 @@
   padding-left: 3px !important;
   position: relative;
   z-index: 15;
-}
-
-/* 内联状态：按父元素类型使用对应颜色条纹 */
-.adl-cm-diff-viewer--inline .cm-insertedLine .cm-changedText,
-.adl-cm-diff-viewer--inline .cm-insertedLine .cm-changed-text {
-  background: repeating-linear-gradient(
-    -45deg,
-    transparent,
-    transparent 3px,
-    rgba(34, 197, 94, 0.1) 3px,
-    rgba(34, 197, 94, 0.1) 5px
-  ) !important;
-  text-decoration: none !important;
-}
-.adl-cm-diff-viewer--inline .cm-deletedLine .cm-changedText,
-.adl-cm-diff-viewer--inline .cm-deletedLine .cm-changed-text {
-  background: repeating-linear-gradient(
-    -45deg,
-    transparent,
-    transparent 3px,
-    rgba(239, 68, 68, 0.1) 3px,
-    rgba(239, 68, 68, 0.1) 5px
-  ) !important;
-  text-decoration: none !important;
 }
 
 /* Merge controls (Accept/Reject buttons) in inline unified merge view */
@@ -131,32 +93,5 @@
   margin-inline-end: 5px;
 }
 
-.adl-cm-diff-viewer--inline .cm-deletedChunk .cm-chunkButtons button[name='accept'] {
-  background: var(--diff-accept-bg) !important;
-  border: none !important;
-  color: var(--diff-btn-text) !important;
-  cursor: pointer !important;
-  margin: 0 2px !important;
-  border-radius: 3px !important;
-  padding: 2px 6px !important;
-  font-size: 11px !important;
-  line-height: 1.4 !important;
-  opacity: 0.85 !important;
-}
-
-.adl-cm-diff-viewer--inline .cm-deletedChunk .cm-chunkButtons button[name='reject'] {
-  background: var(--diff-reject-bg) !important;
-  border: none !important;
-  color: var(--diff-btn-text) !important;
-  cursor: pointer !important;
-  margin: 0 2px !important;
-  border-radius: 3px !important;
-  padding: 2px 6px !important;
-  font-size: 11px !important;
-  line-height: 1.4 !important;
-  opacity: 0.85 !important;
-}
-
-.adl-cm-diff-viewer--inline .cm-deletedChunk .cm-chunkButtons button:hover {
-  opacity: 1 !important;
-}
+/* Inline mode: chunk button visual styles (accept/reject background + shared
+   button chrome + hover) live in diff-shared.css. */

@@ -11,6 +11,7 @@
 @import './rightpanel/editor-content.css';
 @import './rightpanel/cm-overrides.css';
 @import './rightpanel/diff-viewer.css';
+@import './rightpanel/diff-shared.css';
 @import './rightpanel/diff-inline.css';
 @import './rightpanel/diff-side-by-side.css';
 @import './rightpanel/browser-landing.css';

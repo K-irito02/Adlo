@@ -1,0 +1,97 @@
+/* ==========================================================================
+   Diff Shared — common rules for inline + side-by-side diff modes
+   --------------------------------------------------------------------------
+   Extracted from diff-inline.css and diff-side-by-side.css to eliminate
+   duplicated rule bodies. Selectors use the `.adl-cm-diff-viewer` prefix
+   (e.g. `.adl-cm-diff-viewer.adl-cm-diff-viewer--inline`) for higher
+   specificity, which lets us drop `!important` on properties that only
+   needed to beat CodeMirror's default (0,2,0) class selectors.
+
+   Rules that genuinely need `!important` to override CodeMirror inline styles
+   or gutter background defaults keep the flag — the goal is reduction, not
+   elimination.
+   ========================================================================== */
+
+/* === Shared gutter base state: deleted (inline + side-by-side A side) === */
+/* The `border-left` is our custom accent — higher specificity beats
+   CodeMirror's gutter border without `!important`. The background-color,
+   margin-left and padding-left still need `!important` to override CM's
+   gutter element defaults. */
+.adl-cm-diff-viewer.adl-cm-diff-viewer--inline .cm-deletedLineGutter,
+.adl-cm-diff-viewer.adl-cm-diff-viewer--side-by-side .cm-merge-a .cm-changedLineGutter {
+  border-left: 3px solid var(--diff-danger-border);
+  background-color: var(--editor-diff-remove-gutter-bg) !important;
+  margin-left: -3px !important;
+  padding-left: 3px !important;
+}
+
+/* === Shared gutter base state: inserted (inline + side-by-side B side) === */
+.adl-cm-diff-viewer.adl-cm-diff-viewer--inline .cm-changedLineGutter,
+.adl-cm-diff-viewer.adl-cm-diff-viewer--side-by-side .cm-merge-b .cm-changedLineGutter {
+  border-left: 3px solid var(--diff-success-border);
+  background-color: var(--editor-diff-insert-gutter-bg) !important;
+  margin-left: -3px !important;
+  padding-left: 3px !important;
+}
+
+/* === Shared character-level stripe patterns (diagonal texture) === */
+/* The stripe color is theme-aware via the `--diff-*-stripe` tokens, so the
+   `[data-theme='dark']` overrides that previously lived in
+   diff-side-by-side.css are no longer needed. */
+.adl-cm-diff-viewer.adl-cm-diff-viewer--inline .cm-insertedLine .cm-changedText,
+.adl-cm-diff-viewer.adl-cm-diff-viewer--inline .cm-insertedLine .cm-changed-text,
+.adl-cm-diff-viewer.adl-cm-diff-viewer--side-by-side .cm-merge-b .cm-changedText,
+.adl-cm-diff-viewer.adl-cm-diff-viewer--side-by-side .cm-merge-b .cm-changed-text {
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 3px,
+    var(--diff-success-stripe) 3px,
+    var(--diff-success-stripe) 5px
+  ) !important;
+  text-decoration: none !important;
+}
+
+.adl-cm-diff-viewer.adl-cm-diff-viewer--inline .cm-deletedLine .cm-changedText,
+.adl-cm-diff-viewer.adl-cm-diff-viewer--inline .cm-deletedLine .cm-changed-text,
+.adl-cm-diff-viewer.adl-cm-diff-viewer--side-by-side .cm-merge-a .cm-changedText,
+.adl-cm-diff-viewer.adl-cm-diff-viewer--side-by-side .cm-merge-a .cm-changed-text {
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 3px,
+    var(--diff-danger-stripe) 3px,
+    var(--diff-danger-stripe) 5px
+  ) !important;
+  text-decoration: none !important;
+}
+
+/* === Shared chunk button styles (Accept/Reject in inline merge view) === */
+/* Higher specificity (.adl-cm-diff-viewer prefix → (0,5,1)) beats CodeMirror's
+   `.cm-chunkButtons button` (0,1,1) without `!important`. The accept/reject
+   buttons share every property except `background`, which is declared in
+   separate rules below so the shared block stays DRY. */
+.adl-cm-diff-viewer.adl-cm-diff-viewer--inline .cm-deletedChunk .cm-chunkButtons button[name='accept'],
+.adl-cm-diff-viewer.adl-cm-diff-viewer--inline .cm-deletedChunk .cm-chunkButtons button[name='reject'] {
+  border: none;
+  color: var(--diff-btn-text);
+  cursor: pointer;
+  margin: 0 2px;
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-size: 11px;
+  line-height: 1.4;
+  opacity: 0.85;
+}
+
+.adl-cm-diff-viewer.adl-cm-diff-viewer--inline .cm-deletedChunk .cm-chunkButtons button[name='accept'] {
+  background: var(--diff-accept-bg);
+}
+
+.adl-cm-diff-viewer.adl-cm-diff-viewer--inline .cm-deletedChunk .cm-chunkButtons button[name='reject'] {
+  background: var(--diff-reject-bg);
+}
+
+.adl-cm-diff-viewer.adl-cm-diff-viewer--inline .cm-deletedChunk .cm-chunkButtons button:hover {
+  opacity: 1;
+}
