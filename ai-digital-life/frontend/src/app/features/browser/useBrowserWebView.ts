@@ -92,6 +92,18 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
     }
     const tab = activeTab;
 
+    // When the effect re-fires due to an activeTab object reference change
+    // while the tab ID hasn't changed and an overlay is active, skip entirely.
+    // Otherwise activateTabInPool would call webview.show() in Rust, undoing
+    // the overlay-hide mechanism (setTabBounds off-screen).
+    if (
+      tab?.id != null &&
+      tab.id === prevActiveTabIdRef.current &&
+      (hideWebViewRequestedRef.current || overlayActiveRef.current)
+    ) {
+      return;
+    }
+
     // Hide previous tab's WebView when switching away (including to an empty new tab)
     if (prevActiveTabIdRef.current && prevActiveTabIdRef.current !== tab?.id) {
       const prevId = prevActiveTabIdRef.current;
@@ -122,12 +134,18 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
         }
         await activateTabInPool(currentTabId);
         webViewActiveRef.current = true;
-        hideWebViewRequestedRef.current = false;
-        requestAnimationFrame(() => {
+        // Don't reset hide guard or reposition WebView if an overlay is
+        // currently active — doing so would undo the overlay-detection
+        // mechanism and cause a hide↔show ping-pong cycle (observed as
+        // flickering when the tab change effect re-fires due to a store
+        // update while a menu/dialog is open).
+        if (!hideWebViewRequestedRef.current && !overlayActiveRef.current) {
           requestAnimationFrame(() => {
-            updateWebViewBounds();
+            requestAnimationFrame(() => {
+              updateWebViewBounds();
+            });
           });
-        });
+        }
       } finally {
         setLoadingTabId(null);
       }
