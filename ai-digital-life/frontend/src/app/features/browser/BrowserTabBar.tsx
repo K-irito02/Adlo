@@ -1,11 +1,11 @@
 import React, { useMemo } from 'react';
-import { IconClose, IconLink } from '@icons';
+import { IconClose } from '@icons';
 import { TooltipSimple } from '@components/Tooltip';
 import { BrowserAudioIndicator } from '@components/BrowserAudioIndicator';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 import type { CopyDict } from '@i18n';
 import { useAppStore } from '@stores/slicedStore';
-import { getFaviconUrl, getGoogleFaviconUrl } from '@utils/favicon';
+import { BrowserFavicon } from '@components/BrowserFavicon';
 
 interface BrowserTabBarProps {
   tabs: BrowserTabState[];
@@ -106,33 +106,7 @@ export const BrowserTabBar = React.memo(function BrowserTabBar({
                   onDoubleClick={() => onDoubleClick(tab.id, tab.title)}
                 >
                   <div className="adl-tool-list__tab-icon">
-                    {(() => {
-                      const faviconUrl = getFaviconUrl(tab.url);
-                      return faviconUrl ? (
-                        <img
-                          src={faviconUrl}
-                          alt=""
-                          className="adl-tool-list__favicon"
-                          style={{ transition: 'opacity 0.15s ease-in-out' }}
-                          onError={(e) => {
-                            const img = e.target as HTMLImageElement;
-                            const src = img.src;
-                            if (!src.includes('google.com/s2/favicons')) {
-                              const fallback = getGoogleFaviconUrl(tab.url);
-                              if (fallback) {
-                                img.src = fallback;
-                                return;
-                              }
-                            }
-                            img.style.display = 'none';
-                          }}
-                        />
-                      ) : (
-                        <span className="adl-tool-list__default-icon adl-tool-list__default-icon--link">
-                          <IconLink size={12} decorative />
-                        </span>
-                      );
-                    })()}
+                    <BrowserFavicon url={tab.url} />
                   </div>
                   <BrowserAudioIndicator
                     isPlaying={tab.isPlayingAudio}
