@@ -169,6 +169,7 @@
 }
 
 .adl-tool-panel--browser .adl-menu__item {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -199,6 +200,21 @@
   justify-content: center;
   flex-shrink: 0;
   color: var(--text-secondary);
+}
+
+/* Left-positioned hint card (extends to left of menu container) */
+.adl-sub-hint-card--left {
+  border-width: 1px 0 1px 1px;
+}
+
+.adl-sub-hint-card__arrow--left {
+  border-right: 0 solid transparent;
+  border-left: 5px solid var(--bg-card);
+}
+
+.adl-sub-hint-card__arrow-border--left {
+  border-right: 0 solid transparent;
+  border-left: 6px solid var(--border-default);
 }
 
 .adl-tool-panel--browser .adl-menu__sep {
