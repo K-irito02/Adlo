@@ -191,10 +191,6 @@ export async function fetchPageMeta(
     }
     metaCache.set(url, { ...data, fetchedAt: Date.now() });
 
-    if (data.favicon) {
-      setCachedFavicon(url, data.favicon);
-    }
-
     return { title: data.title, favicon: data.favicon };
   } catch {
     return null;
