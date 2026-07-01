@@ -22,11 +22,7 @@ import {
 } from './browserSliceShared';
 
 // Re-export types and public storage keys to preserve the public API
-export type {
-  BookmarkTabItem,
-  TabFolderState,
-  TabFolderStateUpdate,
-} from './browserFoldersTypes';
+export type { BookmarkTabItem, TabFolderState, TabFolderStateUpdate } from './browserFoldersTypes';
 export {
   BROWSER_TAB_FOLDERS_STORAGE_KEY,
   BROWSER_TREE_EXPANDED_STORAGE_KEY,

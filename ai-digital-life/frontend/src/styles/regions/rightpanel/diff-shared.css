@@ -71,8 +71,14 @@
    `.cm-chunkButtons button` (0,1,1) without `!important`. The accept/reject
    buttons share every property except `background`, which is declared in
    separate rules below so the shared block stays DRY. */
-.adl-cm-diff-viewer.adl-cm-diff-viewer--inline .cm-deletedChunk .cm-chunkButtons button[name='accept'],
-.adl-cm-diff-viewer.adl-cm-diff-viewer--inline .cm-deletedChunk .cm-chunkButtons button[name='reject'] {
+.adl-cm-diff-viewer.adl-cm-diff-viewer--inline
+  .cm-deletedChunk
+  .cm-chunkButtons
+  button[name='accept'],
+.adl-cm-diff-viewer.adl-cm-diff-viewer--inline
+  .cm-deletedChunk
+  .cm-chunkButtons
+  button[name='reject'] {
   border: none;
   color: var(--diff-btn-text);
   cursor: pointer;
@@ -84,11 +90,17 @@
   opacity: 0.85;
 }
 
-.adl-cm-diff-viewer.adl-cm-diff-viewer--inline .cm-deletedChunk .cm-chunkButtons button[name='accept'] {
+.adl-cm-diff-viewer.adl-cm-diff-viewer--inline
+  .cm-deletedChunk
+  .cm-chunkButtons
+  button[name='accept'] {
   background: var(--diff-accept-bg);
 }
 
-.adl-cm-diff-viewer.adl-cm-diff-viewer--inline .cm-deletedChunk .cm-chunkButtons button[name='reject'] {
+.adl-cm-diff-viewer.adl-cm-diff-viewer--inline
+  .cm-deletedChunk
+  .cm-chunkButtons
+  button[name='reject'] {
   background: var(--diff-reject-bg);
 }
 

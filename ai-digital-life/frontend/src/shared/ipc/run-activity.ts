@@ -1,7 +1,4 @@
-import type {
-  DigitalLifeRunActivityEventV1,
-  IpcResult,
-} from '@ai-digital-life/kernel';
+import type { DigitalLifeRunActivityEventV1, IpcResult } from '@ai-digital-life/kernel';
 
 /**
  * Agent 运行活动日志桥接能力

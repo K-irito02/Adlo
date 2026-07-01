@@ -28,10 +28,7 @@ export const BROWSER_TAB_FOLDERS_STORAGE_KEY = BROWSER_TAB_FOLDERS_KEY;
 export const BROWSER_TREE_EXPANDED_STORAGE_KEY = BROWSER_TREE_EXPANDED_KEY;
 export const BROWSER_WORKSPACE_EXPANDED_STORAGE_KEY = BROWSER_WORKSPACE_EXPANDED_KEY;
 
-export function findFolderById(
-  folders: TabFolderState[],
-  folderId: string
-): TabFolderState | null {
+export function findFolderById(folders: TabFolderState[], folderId: string): TabFolderState | null {
   return folders.find((folder) => folder.id === folderId) || null;
 }
 
@@ -48,10 +45,7 @@ export function collectAllDescendantFolderIds(
   return result;
 }
 
-export function collectAllDescendantTabIds(
-  folders: TabFolderState[],
-  parentId: string
-): string[] {
+export function collectAllDescendantTabIds(folders: TabFolderState[], parentId: string): string[] {
   const result: string[] = [];
   const directChildren = folders.filter((f) => f.parentId === parentId);
   for (const child of directChildren) {
@@ -75,9 +69,7 @@ export function collectAllFolderTabIds(folders: TabFolderState[], wsId: string):
   return result;
 }
 
-export function buildTabsById(
-  tabs: BrowserTabState[]
-): Record<string, BrowserTabState> {
+export function buildTabsById(tabs: BrowserTabState[]): Record<string, BrowserTabState> {
   const result: Record<string, BrowserTabState> = {};
   for (const tab of tabs) {
     result[tab.id] = tab;
