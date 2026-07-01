@@ -30,29 +30,29 @@
 - [ ] **在 zh-CN/browser.ts 末尾 as const 前添加以下 keys：**
 
 ```typescript
-  browserHardReloadHint: '重新加载当前页面，忽略缓存',
-  browserCopyCurrentUrlHint: '将当前页面URL复制到剪贴板',
-  browserClearHistoryHint: '清除当前标签的浏览历史记录',
-  browserClearCookiesHint: '清除当前网站的Cookie数据（仅Tauri模式支持）',
-  browserClearCacheHint: '清除当前网站的缓存数据（需WebView底层API接入）',
-  browserDeveloperToolsHint: '打开WebView开发者工具（仅Tauri桌面模式）',
-  menuZoomInHint: '放大页面显示比例',
-  menuZoomOutHint: '缩小页面显示比例',
-  menuResetZoomHint: '重置页面显示比例为100%',
+  browserHardReloadHint: '· 不使用已保存的临时文件\n· 重新从服务器获取当前页面的最新内容',
+  browserCopyCurrentUrlHint: '· 将当前页面网址复制到剪贴板',
+  browserClearHistoryHint: '· 删除所有浏览历史记录\n· 此操作不可撤销',
+  browserClearCookiesHint: '· 清除所有 Cookie 数据\n· 网站可能需要重新登录',
+  browserClearCacheHint: '· 清除已保存的临时文件\n· 下次打开页面时重新下载图片和样式',
+  browserDeveloperToolsHint: '· 打开开发者工具面板\n· 用于检查和调试当前页面的运行情况',
+  menuZoomInHint: '· 放大页面内容\n· 每次点击增加 10%',
+  menuZoomOutHint: '· 缩小页面内容\n· 每次点击减少 10%',
+  menuResetZoomHint: '· 将页面缩放比例重置为 100%',
 ```
 
 - [ ] **在 en-US/browser.ts 末尾 as const 前添加以下 keys：**
 
 ```typescript
-  browserHardReloadHint: 'Reload the current page, ignoring cache',
-  browserCopyCurrentUrlHint: 'Copy the current page URL to clipboard',
-  browserClearHistoryHint: 'Clear browsing history of the current tab',
-  browserClearCookiesHint: 'Clear cookie data for the current site (Tauri mode only)',
-  browserClearCacheHint: 'Clear cache data for the current site (requires WebView API)',
-  browserDeveloperToolsHint: 'Open WebView DevTools (Tauri desktop mode only)',
-  menuZoomInHint: 'Zoom in the page',
-  menuZoomOutHint: 'Zoom out the page',
-  menuResetZoomHint: 'Reset zoom to 100%',
+  browserHardReloadHint: '· Discard saved temporary files\n· Fetch the latest content from the server',
+  browserCopyCurrentUrlHint: '· Copy the current page URL to clipboard',
+  browserClearHistoryHint: '· Delete all browsing history\n· This action cannot be undone',
+  browserClearCookiesHint: '· Clear all cookie data\n· Websites may require you to sign in again',
+  browserClearCacheHint: '· Clear all cached resources\n· Pages will load fresh content on next visit',
+  browserDeveloperToolsHint: '· Open the developer tools panel\n· For inspecting and troubleshooting the current page',
+  menuZoomInHint: '· Enlarge page content\n· 10% increase per click',
+  menuZoomOutHint: '· Reduce page content\n· 10% decrease per click',
+  menuResetZoomHint: '· Reset page zoom to 100%',
 ```
 
 ---

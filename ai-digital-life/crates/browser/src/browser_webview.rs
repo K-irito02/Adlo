@@ -374,6 +374,62 @@ impl BrowserManager {
         crate::webview2_audio::mute_tab(&webview, muted).map_err(AppError::Internal)?;
         Ok(())
     }
+
+    pub fn clear_cookies_for_tab(
+        &self,
+        app: &tauri::AppHandle,
+        tab_id: &str,
+    ) -> Result<(), AppError> {
+        let window = app
+            .get_window("main")
+            .ok_or_else(|| AppError::Internal("main window not found".into()))?;
+        let label = webview_label(tab_id);
+        let webview = window
+            .get_webview(&label)
+            .ok_or_else(|| AppError::Internal(format!("webview for tab {tab_id} not found")))?;
+        crate::webview2_cleanup::clear_cookies(&webview);
+        tracing::info!(tab_id = tab_id, "cookies cleared for tab");
+        Ok(())
+    }
+
+    pub fn clear_cache_for_tab(
+        &self,
+        app: &tauri::AppHandle,
+        tab_id: &str,
+    ) -> Result<(), AppError> {
+        let window = app
+            .get_window("main")
+            .ok_or_else(|| AppError::Internal("main window not found".into()))?;
+        let label = webview_label(tab_id);
+        let webview = window
+            .get_webview(&label)
+            .ok_or_else(|| AppError::Internal(format!("webview for tab {tab_id} not found")))?;
+        crate::webview2_cleanup::clear_cache(&webview);
+        tracing::info!(tab_id = tab_id, "cache cleared for tab");
+        Ok(())
+    }
+
+    pub fn set_zoom(
+        &self,
+        app: &tauri::AppHandle,
+        tab_id: &str,
+        zoom_factor: f64,
+    ) -> Result<(), AppError> {
+        let window = app
+            .get_window("main")
+            .ok_or_else(|| AppError::Internal("main window not found".into()))?;
+        let label = webview_label(tab_id);
+        let webview = window
+            .get_webview(&label)
+            .ok_or_else(|| AppError::Internal(format!("webview for tab {tab_id} not found")))?;
+
+        webview
+            .set_zoom(zoom_factor)
+            .map_err(|e| AppError::Internal(format!("set_zoom failed: {e}")))?;
+
+        tracing::info!(tab_id = tab_id, zoom_factor = zoom_factor, "webview zoom set");
+        Ok(())
+    }
 }
 
 #[cfg(test)]

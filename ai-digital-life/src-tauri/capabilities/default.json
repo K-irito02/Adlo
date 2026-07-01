@@ -7,6 +7,7 @@
     "core:default",
     "core:window:default",
     "core:webview:allow-internal-toggle-devtools",
+    "core:webview:allow-set-webview-zoom",
     "core:window:allow-close",
     "core:window:allow-maximize",
     "core:window:allow-minimize",

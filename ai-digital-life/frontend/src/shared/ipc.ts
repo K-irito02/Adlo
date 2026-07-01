@@ -733,6 +733,12 @@ export interface BrowserBridge {
   onAudioStateChanged: (listener: (payload: AudioStatePayload) => void) => () => void;
   /** Set the preferred color scheme on all browser WebViews (Tauri mode) */
   setBrowserColorScheme: (resolvedTheme: 'light' | 'dark') => Promise<void>;
+  /** Set zoom level for a specific tab's WebView */
+  setZoom: (tabId: string, zoomFactor: number) => Promise<void>;
+  /** Clear all cookies for a specific tab's WebView */
+  clearCookies: (tabId: string) => Promise<void>;
+  /** Clear all cache for a specific tab's WebView */
+  clearCache: (tabId: string) => Promise<void>;
 }
 
 /**

@@ -26,7 +26,7 @@ Browser 模式 (iframe):
 ### Rust 端
 - `BrowserPool` (`crates/browser/src/browser_pool.rs`): 纯 LRU 追踪，线程安全（Mutex）。方法：`register`、`touch`、`remove`、`get_lru`、`is_full`、`size`
 - `BrowserManager` (`crates/browser/src/browser_webview.rs`): 使用 `BrowserPool`，每标签独立 WebView（label: `adl-browser-view-{tabId}`）
-- 8 个 per-tab 命令：`browser_create_for_tab`、`browser_activate_tab`、`browser_destroy_tab`、`browser_navigate_tab`、`browser_set_tab_bounds`、`browser_go_back_tab`、`browser_go_forward_tab`、`browser_reload_tab`
+- 12 个 per-tab 命令：`browser_create_for_tab`、`browser_activate_tab`、`browser_destroy_tab`、`browser_navigate_tab`、`browser_set_tab_bounds`、`browser_go_back_tab`、`browser_go_forward_tab`、`browser_reload_tab`、`browser_mute_tab`、`browser_set_color_scheme`、`browser_set_zoom`、`browser_fetch_page_meta`
 
 ### TypeScript 前端
 - `useBrowserPool` (`frontend/src/app/features/browser/useBrowserPool.ts`): 前端 LRU 追踪 + IPC 桥接，返回 `poolVersion` 驱动 `evictedTabIds` 重算

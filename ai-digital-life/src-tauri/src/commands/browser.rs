@@ -116,6 +116,37 @@ pub fn browser_set_color_scheme(
     Ok(ipc(state.browser_manager.set_color_scheme_for_all(&app, &color_scheme)))
 }
 
+#[tauri::command]
+pub fn browser_set_zoom(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    tab_id: String,
+    zoom_factor: f64,
+) -> Result<IpcResult<()>, CommandError> {
+    tracing::info!(tab_id = %tab_id, zoom_factor = zoom_factor, "browser_set_zoom command invoked");
+    Ok(ipc(state.browser_manager.set_zoom(&app, &tab_id, zoom_factor)))
+}
+
+#[tauri::command]
+pub fn browser_clear_cookies(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    tab_id: String,
+) -> Result<IpcResult<()>, CommandError> {
+    tracing::info!(tab_id = %tab_id, "browser_clear_cookies command invoked");
+    Ok(ipc(state.browser_manager.clear_cookies_for_tab(&app, &tab_id)))
+}
+
+#[tauri::command]
+pub fn browser_clear_cache(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    tab_id: String,
+) -> Result<IpcResult<()>, CommandError> {
+    tracing::info!(tab_id = %tab_id, "browser_clear_cache command invoked");
+    Ok(ipc(state.browser_manager.clear_cache_for_tab(&app, &tab_id)))
+}
+
 const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 use std::collections::HashMap;

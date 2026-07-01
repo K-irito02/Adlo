@@ -460,6 +460,12 @@ export function createTauriBridge(): DigitalLifeBridge {
         invokeIpc<void>('browser_set_color_scheme', { colorScheme: resolvedTheme }).then(
           () => undefined
         ),
+      setZoom: (tabId: string, zoomFactor: number) =>
+        invokeIpc<void>('browser_set_zoom', { tabId, zoomFactor }).then(() => undefined),
+      clearCookies: (tabId: string) =>
+        invokeIpc<void>('browser_clear_cookies', { tabId }).then(() => undefined),
+      clearCache: (tabId: string) =>
+        invokeIpc<void>('browser_clear_cache', { tabId }).then(() => undefined),
     },
     ci: {
       getStatus: (config) => invokeIpc<CiStatusSnapshot>('ci_get_status', { config }),

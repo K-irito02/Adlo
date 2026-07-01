@@ -291,6 +291,7 @@
   word-break: break-word;
   overflow-wrap: break-word;
   line-break: loose;
+  white-space: pre-line;
 }
 
 /* 箭头填充 - border-right 在 0 宽元素上生成指向左侧的三角形 */

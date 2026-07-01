@@ -106,15 +106,15 @@ export type BrowserMenuItem =
 
 | Key | 值 | 对应菜单项 |
 |-----|-----|-----------|
-| `browserHardReloadHint` | 重新加载当前页面，忽略缓存 | hard-reload |
-| `browserCopyCurrentUrlHint` | 将当前页面URL复制到剪贴板 | copy-url |
-| `browserClearHistoryHint` | 清除当前标签的浏览历史记录 | clear-history |
-| `browserClearCookiesHint` | 清除当前网站的Cookie数据（仅Tauri模式支持） | clear-cookies |
-| `browserClearCacheHint` | 清除当前网站的缓存数据（需WebView底层API接入） | clear-cache |
-| `browserDeveloperToolsHint` | 打开WebView开发者工具（仅Tauri桌面模式） | devtools |
-| `menuZoomInHint` | 放大页面显示比例 | zoom-in |
-| `menuZoomOutHint` | 缩小页面显示比例 | zoom-out |
-| `menuResetZoomHint` | 重置页面显示比例为100% | zoom-reset |
+| `browserHardReloadHint` | · 不使用已保存的临时文件\n· 重新从服务器获取当前页面的最新内容 | hard-reload |
+| `browserCopyCurrentUrlHint` | · 将当前页面网址复制到剪贴板 | copy-url |
+| `browserClearHistoryHint` | · 删除所有浏览历史记录\n· 此操作不可撤销 | clear-history |
+| `browserClearCookiesHint` | · 清除所有 Cookie 数据\n· 网站可能需要重新登录 | clear-cookies |
+| `browserClearCacheHint` | · 清除已保存的临时文件\n· 下次打开页面时重新下载图片和样式 | clear-cache |
+| `browserDeveloperToolsHint` | · 打开开发者工具面板\n· 用于检查和调试当前页面的运行情况 | devtools |
+| `menuZoomInHint` | · 放大页面内容\n· 每次点击增加 10% | zoom-in |
+| `menuZoomOutHint` | · 缩小页面内容\n· 每次点击减少 10% | zoom-out |
+| `menuResetZoomHint` | · 将页面缩放比例重置为 100% | zoom-reset |
 
 ## 实现计划
 

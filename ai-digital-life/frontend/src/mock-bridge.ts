@@ -252,6 +252,9 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
     muteTab: (_tabId: string, _muted: boolean) => Promise.resolve(),
     onAudioStateChanged: (_listener: (payload: AudioStatePayload) => void) => () => {},
     setBrowserColorScheme: (_resolvedTheme: 'light' | 'dark') => Promise.resolve(),
+    setZoom: (_tabId: string, _zoomFactor: number) => Promise.resolve(),
+    clearCookies: (_tabId: string) => Promise.resolve(),
+    clearCache: (_tabId: string) => Promise.resolve(),
   },
 
   ci: {

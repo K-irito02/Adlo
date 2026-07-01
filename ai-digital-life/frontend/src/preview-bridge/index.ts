@@ -92,6 +92,9 @@ export function setupPreviewBridge(): void {
       onAudioStateChanged: (listener: (payload: AudioStatePayload) => void) =>
         audioMonitor.onStateChange(listener),
       setBrowserColorScheme: (_resolvedTheme: 'light' | 'dark') => Promise.resolve(),
+      setZoom: (_tabId: string, _zoomFactor: number) => Promise.resolve(),
+      clearCookies: (_tabId: string) => Promise.resolve(),
+      clearCache: (_tabId: string) => Promise.resolve(),
     },
     ci: taskBridge.ci,
     github: taskBridge.github,

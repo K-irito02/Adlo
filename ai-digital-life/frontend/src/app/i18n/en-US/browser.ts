@@ -158,13 +158,16 @@ export const browserEn = {
   browserCreating: 'Creating...',
   browserMute: 'Mute',
   browserUnmute: 'Unmute',
-  browserHardReloadHint: 'Reload the current page, ignoring cache',
-  browserCopyCurrentUrlHint: 'Copy the current page URL to clipboard',
-  browserClearHistoryHint: 'Clear browsing history of the current tab',
-  browserClearCookiesHint: 'Clear cookie data for the current site (Tauri mode only)',
-  browserClearCacheHint: 'Clear cache data for the current site (requires WebView API)',
-  browserDeveloperToolsHint: 'Open WebView DevTools (Tauri desktop mode only)',
-  menuZoomInHint: 'Zoom in the page',
-  menuZoomOutHint: 'Zoom out the page',
-  menuResetZoomHint: 'Reset zoom to 100%',
+  browserHardReloadHint:
+    '· Discard saved temporary files\n· Fetch the latest content from the server',
+  browserCopyCurrentUrlHint: '· Copy the current page URL to clipboard',
+  browserClearHistoryHint: '· Delete all browsing history\n· This action cannot be undone',
+  browserClearCookiesHint: '· Clear all cookie data\n· Websites may require you to sign in again',
+  browserClearCacheHint:
+    '· Clear all cached resources\n· Pages will load fresh content on next visit',
+  browserDeveloperToolsHint:
+    '· Open the developer tools panel\n· For inspecting and troubleshooting the current page',
+  menuZoomInHint: '· Enlarge page content\n· 10% increase per click',
+  menuZoomOutHint: '· Reduce page content\n· 10% decrease per click',
+  menuResetZoomHint: '· Reset page zoom to 100%',
 } as const;

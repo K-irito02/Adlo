@@ -133,6 +133,12 @@ export function BrowserPanel(props: BrowserPanelProps) {
     handleClearTabDirectories: _handleClearTabDirectories,
   } = useBrowserTabs();
 
+  const [zoomLevel, setZoomLevel] = useState(1.0);
+
+  useEffect(() => {
+    setZoomLevel(1.0);
+  }, [activeTab?.id]);
+
   const {
     createTabDialog,
     handleSetCreateTabDialog,
@@ -372,13 +378,29 @@ export function BrowserPanel(props: BrowserPanelProps) {
         id: 'clear-cookies',
         label: t.browserClearCookies,
         hint: t.browserClearCookiesHint,
-        disabled: true,
+        disabled: !isTauri,
+        action: () => {
+          if (!activeTab?.id) {
+            return;
+          }
+          if (isTauri) {
+            window.digitalLife?.browser?.clearCookies?.(activeTab.id);
+          }
+        },
       },
       {
         id: 'clear-cache',
         label: t.browserClearCache,
         hint: t.browserClearCacheHint,
-        disabled: true,
+        disabled: !isTauri,
+        action: () => {
+          if (!activeTab?.id) {
+            return;
+          }
+          if (isTauri) {
+            window.digitalLife?.browser?.clearCache?.(activeTab.id);
+          }
+        },
       },
       {
         id: 'devtools',
@@ -400,9 +422,16 @@ export function BrowserPanel(props: BrowserPanelProps) {
         label: t.menuZoomIn,
         hint: t.menuZoomInHint,
         action: () => {
-          const current = parseFloat(getComputedStyle(document.documentElement).zoom || '1');
-          const next = Math.max(0.5, Math.min(2, (Number.isFinite(current) ? current : 1) + 0.1));
-          document.documentElement.style.zoom = String(next);
+          if (!activeTab?.id) {
+            return;
+          }
+          const next = Math.min(2, Math.round((zoomLevel + 0.1) * 10) / 10);
+          if (isTauri) {
+            window.digitalLife?.browser?.setZoom?.(activeTab.id, next);
+          } else {
+            document.documentElement.style.zoom = String(next);
+          }
+          setZoomLevel(next);
         },
       },
       {
@@ -410,9 +439,16 @@ export function BrowserPanel(props: BrowserPanelProps) {
         label: t.menuZoomOut,
         hint: t.menuZoomOutHint,
         action: () => {
-          const current = parseFloat(getComputedStyle(document.documentElement).zoom || '1');
-          const next = Math.max(0.5, Math.min(2, (Number.isFinite(current) ? current : 1) - 0.1));
-          document.documentElement.style.zoom = String(next);
+          if (!activeTab?.id) {
+            return;
+          }
+          const next = Math.max(0.5, Math.round((zoomLevel - 0.1) * 10) / 10);
+          if (isTauri) {
+            window.digitalLife?.browser?.setZoom?.(activeTab.id, next);
+          } else {
+            document.documentElement.style.zoom = String(next);
+          }
+          setZoomLevel(next);
         },
       },
       {
@@ -420,11 +456,19 @@ export function BrowserPanel(props: BrowserPanelProps) {
         label: t.menuZoomReset,
         hint: t.menuResetZoomHint,
         action: () => {
-          document.documentElement.style.zoom = '1';
+          if (!activeTab?.id) {
+            return;
+          }
+          if (isTauri) {
+            window.digitalLife?.browser?.setZoom?.(activeTab.id, 1.0);
+          } else {
+            document.documentElement.style.zoom = '1';
+          }
+          setZoomLevel(1.0);
         },
       },
     ],
-    [activeTab, browserNavigateActiveTab, t, isTauri]
+    [activeTab, browserNavigateActiveTab, t, isTauri, zoomLevel]
   );
 
   const submitAddress = useCallback(async () => {
