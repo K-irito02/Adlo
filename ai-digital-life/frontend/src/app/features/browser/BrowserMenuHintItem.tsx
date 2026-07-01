@@ -60,18 +60,18 @@ export function BrowserMenuHintItem({
     const card = document.createElement('div');
     card.className = 'adl-sub-hint-card adl-sub-hint-card--left';
     card.textContent = hint ?? '';
-    card.style.right = `${window.innerWidth - menuRect.left + 8}px`;
+    card.style.right = `${window.innerWidth - menuRect.left + 1}px`;
     card.style.top = `${centerY}px`;
     card.style.transform = 'translateY(-50%)';
 
     const arrow = document.createElement('div');
     arrow.className = 'adl-sub-hint-card__arrow adl-sub-hint-card__arrow--left';
-    arrow.style.left = `${menuRect.left - 4}px`;
+    arrow.style.left = `${menuRect.left - 5}px`;
     arrow.style.top = `${centerY - 4}px`;
 
     const arrowBorder = document.createElement('div');
     arrowBorder.className = 'adl-sub-hint-card__arrow-border adl-sub-hint-card__arrow-border--left';
-    arrowBorder.style.left = `${menuRect.left - 5}px`;
+    arrowBorder.style.left = `${menuRect.left - 6}px`;
     arrowBorder.style.top = `${centerY - 5}px`;
 
     document.body.appendChild(card);

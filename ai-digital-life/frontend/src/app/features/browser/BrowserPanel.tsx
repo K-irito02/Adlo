@@ -339,6 +339,8 @@ export function BrowserPanel(props: BrowserPanelProps) {
     setIframeLoadError,
   });
 
+  const isTauri = isTauriShell();
+
   const browserMenuItems = useMemo(
     () => [
       {
@@ -382,14 +384,49 @@ export function BrowserPanel(props: BrowserPanelProps) {
         id: 'devtools',
         label: t.browserDeveloperTools,
         hint: t.browserDeveloperToolsHint,
-        disabled: true,
+        disabled: !isTauri,
+        action: async () => {
+          try {
+            const { invoke } = await import('@tauri-apps/api/core');
+            await invoke('plugin:webview|internal_toggle_devtools');
+          } catch {
+            // devtools toggle only available in Tauri
+          }
+        },
       },
       { id: 'sep-2', separator: true as const },
-      { id: 'zoom-in', label: t.menuZoomIn, hint: t.menuZoomInHint, disabled: true },
-      { id: 'zoom-out', label: t.menuZoomOut, hint: t.menuZoomOutHint, disabled: true },
-      { id: 'zoom-reset', label: t.menuZoomReset, hint: t.menuResetZoomHint, disabled: true },
+      {
+        id: 'zoom-in',
+        label: t.menuZoomIn,
+        hint: t.menuZoomInHint,
+        action: () => {
+          const current = parseFloat(getComputedStyle(document.documentElement).zoom || '1');
+          document.documentElement.style.zoom = String(
+            Math.max(0.5, Math.min(2, (Number.isFinite(current) ? current : 1) + 0.1))
+          );
+        },
+      },
+      {
+        id: 'zoom-out',
+        label: t.menuZoomOut,
+        hint: t.menuZoomOutHint,
+        action: () => {
+          const current = parseFloat(getComputedStyle(document.documentElement).zoom || '1');
+          document.documentElement.style.zoom = String(
+            Math.max(0.5, Math.min(2, (Number.isFinite(current) ? current : 1) - 0.1))
+          );
+        },
+      },
+      {
+        id: 'zoom-reset',
+        label: t.menuZoomReset,
+        hint: t.menuResetZoomHint,
+        action: () => {
+          document.documentElement.style.zoom = '1';
+        },
+      },
     ],
-    [activeTab, browserNavigateActiveTab, t]
+    [activeTab, browserNavigateActiveTab, t, isTauri]
   );
 
   const submitAddress = useCallback(async () => {
