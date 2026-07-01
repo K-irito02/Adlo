@@ -1,6 +1,7 @@
 import React from 'react';
 import { renderIcon, type IconName } from '../../design-system/icons';
 import { TooltipSimple } from './Tooltip';
+import { useTCopy } from '../i18n/useTCopy';
 
 export interface QuickActionsProps {
   /** Identifier of the currently active action (for visual highlight). */
@@ -76,19 +77,20 @@ export function QuickActions({
   onMcpClick,
   onNewWorkspace,
 }: QuickActionsProps): React.ReactElement {
+  const { t } = useTCopy();
   return (
-    <div className="sidebar-quick-actions" role="toolbar" aria-label="Quick actions">
+    <div className="sidebar-quick-actions" role="toolbar" aria-label={t.quickSkills}>
       <ActionButton
         icon="sparkles"
         label="skills"
-        tooltip="Skills"
+        tooltip={t.quickSkills}
         isActive={activeAction === 'skills'}
         onClick={onSkillsClick}
       />
       <ActionButton
         icon="plug"
         label="mcp"
-        tooltip="MCP Servers"
+        tooltip={t.quickMcp}
         isActive={activeAction === 'mcp'}
         onClick={onMcpClick}
         statusDot={MCP_STATUS_COLOR[mcpStatus]}
@@ -96,7 +98,7 @@ export function QuickActions({
       <ActionButton
         icon="folder-plus"
         label="new-workspace"
-        tooltip="New Workspace (Ctrl+N)"
+        tooltip={t.quickNewWorkspace}
         isActive={false}
         onClick={onNewWorkspace}
       />
