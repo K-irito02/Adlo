@@ -27,7 +27,8 @@ ai-digital-life/
 |------|------|
 | `src-tauri/` | 窗口、Rust 启动、invoke 处理、capabilities |
 | `frontend/src/` | React UI、Zustand、桥接 |
-| `frontend/src/shared/ipc.ts` | `DigitalLifeBridge` 类型契约（含文件操作：rename/delete/duplicate/getAbsolutePath） |
+| `frontend/src/shared/ipc/` | `DigitalLifeBridge` 类型契约域拆分（16 个域文件 + index.ts barrel，含文件操作：rename/delete/duplicate/getAbsolutePath） |
+| `frontend/src/shared/outline/` | 大纲解析模块化（14 个语言模块 + types.ts + utils.ts + index.ts barrel） |
 | `frontend/dev/previewWorkspaceService.ts` | 浏览器开发态服务端 API（含文件操作、Git、工作区管理等） |
 | `frontend/dev/previewTerminalService.ts` | 浏览器开发态终端服务（Node.js `child_process.spawn` + SSE PTY 输出） |
 

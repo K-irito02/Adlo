@@ -34,3 +34,13 @@ alwaysApply: false
 - 新增 `pub type` 或 `pub fn` 无文档说明其所属领域和消费方
 - 在函数签名中接受 `String` 参数，但内部仅用于格式化/拼接而不需要所有权——应使用 `&str`
 - 在函数调用点对已拥有的变量进行 `.clone()` 传递，而接收方仅需引用——应修改被调用方签名为引用
+
+## Mutex 与错误处理
+- **禁止 `Mutex::lock().unwrap()` 在生产代码中**：会因 poisoned mutex panic 整个进程
+  - 优先使用 `if let Ok(mut guard) = mutex.lock() { ... } else { tracing::warn!("..."); }` 优雅恢复
+  - 恢复 poisoned mutex：`mutex.lock().unwrap_or_else(|e| e.into_inner())`（取出内部数据继续操作）
+- **禁止 `Result::unwrap_or_default()` 静默吞错误**：错误不可见，难以排查
+  - 改为 `match` + `tracing::warn!` 记录错误后再返回默认值
+- **`expect()` 仅用于"不变量"断言**：仅当逻辑保证 `Option/Result` 必然为 `Some/Ok` 时使用，且必须包含上下文消息
+  - 例：`guard.as_mut().expect("file state must be Some after needs_reopen check")`
+  - 错误用法：`expect("lock failed")` — 应改用 poisoned mutex 恢复

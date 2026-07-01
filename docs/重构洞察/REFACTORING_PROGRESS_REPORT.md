@@ -320,3 +320,86 @@ Bug 6 是最难排查的 Race Condition：
 
 详见 `docs/知识沉淀/浏览器/browser-tab-title-deferred-update-2026-06-26.md`
 
+## 第九十一轮：refactoring-insight 全流程执行（2026-07-01~02）
+
+### 背景
+
+通过 `refactoring-insight` 技能系统性执行重构洞察工作流：6 阶段、18 任务，使用子代理驱动开发（SDD）模式在隔离 worktree 中完成，最终合并到 main 分支。
+
+### 修改的文件
+
+#### Phase 1：死代码 + IPC 契约修复
+| 文件 | 变更 |
+|------|------|
+| `frontend/src/styles.css` | 删除孤立 shim |
+| `frontend/src/shared/ipc.ts:616` | `listPendingApprovals?` → `listPendingApprovals`（必需，非可选） |
+| `frontend/src/app/stores/cacheHelpers.ts` | 删除 4 个已弃用函数 |
+| `frontend/src/app/stores/slices/workspaceSlice.ts` | 删除 workspaceTree 字段 + setter |
+| `frontend/src/preview-bridge/preview-events.ts` | 删除 onUrlChanged/onMetaChanged |
+
+#### Phase 2：CSS diff 合并 + 颜色 token 化
+| 文件 | 变更 |
+|------|------|
+| `frontend/src/styles/regions/rightpanel/diff-shared.css` | 新建，共享 diff 规则 |
+| `frontend/src/styles/themes.css` | 添加 5 个 diff 颜色 token |
+
+**`!important` 从 147 减少至 115**
+
+#### Phase 3：大文件域拆分
+| 文件 | 变更 |
+|------|------|
+| `frontend/src/shared/outline.ts` | 862 行 → 14 个模块 + index.ts (157 行) |
+| `frontend/src/shared/ipc.ts` | 932 行 → 16 个域文件 + index.ts (15 行) |
+
+#### Phase 4：Store 切片提取
+| 文件 | 变更 |
+|------|------|
+| `browserFoldersSlice.ts` | 437 → 392 行（提取 `browserFoldersTypes.ts` + `browserFoldersUtils.ts`） |
+| `workspaceActions.ts` | 425 → 287 行（提取 `workspaceTreeActions.ts`） |
+| `githubRepoSlice.ts` | 422 → 362 行（提取 `githubRepoSliceHelpers.ts`） |
+
+#### Phase 5：Hook/组件分解
+| 文件 | 变更 |
+|------|------|
+| `useBrowserFolderActions.ts` | 521 → 10 行（orchestrator）+ `useBrowserFolderCrud.ts` (460) + `useBrowserFolderReorder.ts` (73) |
+| `GitHubLogViewer.tsx` | 419 → 313 行（提取 `useFloatingMenu.ts` 41 行 + `useLogViewerJobs.ts` 122 行 + `useLogSearch.ts` 85 行） |
+
+#### Phase 6：Rust + i18n + 类型循环
+| 文件 | 变更 |
+|------|------|
+| `crates/adl-logging/src/manager.rs:80,83,268` | `unwrap()` → poisoned mutex 优雅恢复 |
+| `src-tauri/src/commands/browser.rs:162` | `expect()` → `unwrap_or_else(into_inner)` |
+| `crates/ci-status/src/ci_client.rs:131` | `unwrap_or_default()` → match + tracing::warn |
+| `crates/workspace/src/search.rs:62` | `unwrap_or_default()` → match + tracing::warn |
+| `src-tauri/src/commands/workspace_git.rs:41,140` | 消除 `WorkspaceMeta` clone（级联签名调整） |
+| `frontend/src/app/components/QuickActions.tsx` | 3 个硬编码 tooltip → i18n（复用现有 quickSkills/quickMcp/quickNewWorkspace 键） |
+| `frontend/src/app/stores/slices/browserSliceShared.ts` | 新建，打破 browser 三切片类型循环 |
+| 5 个 browser slice 文件 | 更新 imports 指向 shared leaf module |
+
+### 核心改动
+
+1. **SDD 工作流**：隔离 worktree + 子代理驱动（每任务一个新子代理），完成后 fast-forward 合并到 main
+2. **leaf module 模式**：`browserSliceShared.ts` 作为 leaf module 打破循环依赖
+3. **域拆分模式**：`outline.ts` 和 `ipc.ts` 按功能域拆分为多文件 + barrel `index.ts`
+4. **CSS 共享提取**：`diff-shared.css` 统一 diff 规则，`themes.css` 添加颜色 token
+
+### 红绿测试验证
+
+- ESLint: 0 errors（6202 个预存 CRLF 警告，已记录为已知项）
+- TypeScript: 0 errors
+- 前端测试: 287/287 passed
+- Cargo check: clean
+- Cargo clippy: 0 warnings
+- Rust 测试: exit 0
+
+### 关键经验
+
+详见 `docs/知识沉淀/重构/refactoring-insight-execution-2026-07-01.md`
+
+### 待后续治理项
+
+- `useBrowserFolderCrud.ts` (460 行) 仍是拆分候选
+- `GitHubLogViewer.tsx` (313 行) 未达 <250 目标（JSX 必须保持不变）
+- QuickActions 丢失 "Ctrl+N" 提示（UX 微小回退）
+- CRLF 警告 6202 个（仓库级治理决策，待用户确认）
+

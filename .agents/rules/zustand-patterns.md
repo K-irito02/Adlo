@@ -30,6 +30,12 @@ alwaysApply: false
 - slice 文件命名：`{domain}Slice.ts`
 - slice 接口和创建函数分别导出：`export interface XxxSlice { ... }` + `export function createXxxSlice(...)`
 - 新增 slice 必须在 `StoreState.ts` 中注册
+- **slice 文件阈值 400 行**：超出时按以下优先级提取辅助文件
+  - 类型提取：`{domain}Types.ts`（接口、类型别名）
+  - 纯函数辅助：`{domain}Utils.ts` 或 `{domain}SliceHelpers.ts`（无副作用的计算函数、递归遍历等）
+  - 子 action 提取：`{domain}TreeActions.ts` 等（按操作子域命名，使用 `create{Domain}SubActions(set, get)` 模式）
+  - 跨切片共享：`{domain}SliceShared.ts` 作为 leaf module（不导入任何切片），承载跨切片类型/常量，打破循环依赖
+- **跨切片循环依赖打破**：当 slice A ↔ slice B 互相导入类型/常量时，创建 `{domain}SliceShared.ts` leaf module 作为单一来源，所有切片导入 shared，shared 不导入任何切片
 
 ## 选择器反模式检查表
 
