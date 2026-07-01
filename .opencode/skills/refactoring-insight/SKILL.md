@@ -38,7 +38,7 @@ description: Use when scanning a project for refactoring opportunities, code qua
 | 阶段 5B | `executing-plans` | 本会话批量执行 + 检查点回顾 | ✅ 模式B |
 | 阶段 5 | `systematic-debugging` | 验证失败时系统化定位根因 | ⚡ 条件触发 |
 | 阶段 6 | `verification-before-completion` | 最终验收 | ✅ 必需 |
-| 阶段 6 | `finishing-a-development-branch` | 决策合并/PR/清理 | ✅ 必需 |
+
 
 ---
 
@@ -58,51 +58,52 @@ description: Use when scanning a project for refactoring opportunities, code qua
 
 > 若已在隔离工作区中，跳过创建步骤，直接进入阶段 1。
 
-### Worktree 命名与复用约定
+### Worktree 约定
 
-| 场景 | 工作区路径 | 分支名 | 说明 |
-|------|-----------|--------|------|
-| 首次创建 | `.worktrees/refactor-insight-YYYY-MM-DD` | `refactor-insight-YYYY-MM-DD` | 按创建日期命名 |
-| 合并后重命名（长期复用） | `.worktrees/refactor-insight-main` | `refactor-insight-main` | 合并到 main 后保留 worktree，**不清理**，转为固定名称用于后续复用 |
+使用固定分支和工作区路径，确保每次重构都在同一个隔离环境中执行，并在远程仓库同步保留该分支。
 
-**原则：** 首次按日期命名避免冲突；合并到 main 后改为固定名称 `-main`，表示这是一个长期复用的 worktree。
+| 项目 | 值 |
+|------|-----|
+| 分支名 | `refactor-insight-main` |
+| 工作区路径 | `.worktrees/refactor-insight-main` |
 
-#### 首次创建新 Worktree
+**原则：** 固定名称，长期复用。每次执行时从 `origin/main` 重建分支，完成后推送到远程。
+
+#### 首次创建 Worktree
 
 ```powershell
 cd <repo-root>/ai-digital-life
 git checkout main
 git pull
-$date = Get-Date -Format 'yyyy-MM-dd'
-git branch "refactor-insight-$date"
-git worktree add ".worktrees/refactor-insight-$date" "refactor-insight-$date"
-```
-
-#### 合并后重命名为固定名称（仅执行一次）
-
-首次洞察完成并合并到 main 后，将 worktree 重命名为固定名称以便长期复用：
-
-```powershell
-cd <repo-root>
-git worktree remove .worktrees/refactor-insight-YYYY-MM-DD
-git branch -m refactor-insight-YYYY-MM-DD refactor-insight-main
+# 如果本地已有旧分支则删除重建
+git branch -D refactor-insight-main 2>$null
+git push origin --delete refactor-insight-main 2>$null
+# 从 origin/main 创建新分支
+git branch refactor-insight-main origin/main
 git worktree add .worktrees/refactor-insight-main refactor-insight-main
+# 推送到远程仓库
+git switch refactor-insight-main
+git push -u origin refactor-insight-main
+git switch main
 ```
 
-> 如果 `git worktree remove` 因权限问题无法删除目录，可手动删除 `.git/worktrees/refactor-insight-YYYY-MM-DD` 目录。
-
-#### 重用已有 Worktree（`refactor-insight-main`）
+#### 复用已有 Worktree（后续轮次）
 
 ```powershell
-# 切换到主仓库的 main 分支并拉取最新
+# 在主仓库中重置分支
 cd <repo-root>/ai-digital-life
 git checkout main
 git pull
+git branch -D refactor-insight-main 2>$null
+git push origin --delete refactor-insight-main 2>$null
+git branch refactor-insight-main origin/main
+git push -u origin refactor-insight-main
 
-# 切换到 worktree，从最新 main 创建新分支
+# 在 worktree 中重置
 cd .worktrees/refactor-insight-main/ai-digital-life
 git fetch origin
-git checkout -b refactor-insight-YYYY-MM-DD origin/main
+git checkout refactor-insight-main
+git reset --hard origin/refactor-insight-main
 ```
 
 如果 worktree 中的 `ai-digital-life` 子目录不存在（被清理），可在主仓库中重新创建：
@@ -111,9 +112,9 @@ git checkout -b refactor-insight-YYYY-MM-DD origin/main
 cd <repo-root>/ai-digital-life
 git worktree remove .worktrees/refactor-insight-main 2>$null
 Remove-Item -Recurse -Force .worktrees/refactor-insight-main -ErrorAction SilentlyContinue
-$date = Get-Date -Format 'yyyy-MM-dd'
-git branch "refactor-insight-$date" origin/main
-git worktree add ".worktrees/refactor-insight-main" "refactor-insight-$date"
+git branch refactor-insight-main origin/main
+git push -u origin refactor-insight-main
+git worktree add .worktrees/refactor-insight-main refactor-insight-main
 ```
 
 ### Worktree 重运行常见问题
@@ -314,14 +315,41 @@ test-driven-development → 执行变更 → 验证 → requesting-code-review �
 - 无残留调试日志
 - ESLint / Prettier / Clippy / rustfmt 四维门禁通过
 
-### 6.2 收尾决策
+### 6.2 合并到本地 main（不推送远程）
 
-**固定技能：`finishing-a-development-branch`**
+将所有重构任务的**最终代码状态**作为一次变更合并到本地 `main` 分支，**不推送到远程**，留给用户亲手测试。
 
-调用 `finishing-a-development-branch` 技能决策：
-- 合并到主分支
-- 创建 PR
-- 或清理工作区
+```powershell
+# 1. 收集重构分支的所有提交信息（用于编写 commit message）
+cd <repo-root>/ai-digital-life
+git log main..refactor-insight-main --oneline --no-decorate
+
+# 2. 切换到主仓库的 main 分支
+cd <repo-root>/ai-digital-life
+git checkout main
+
+# 3. Squash 合并：将重构分支的最终代码状态作为一次变更暂存
+git merge --squash refactor-insight-main
+
+# 4. 提交合并，commit message 需包含本次所有重构工作的概要信息
+#    格式示例：
+#    refactor: 第 N 轮重构 — [核心改动摘要]
+#
+#    ## 重构提交清单
+#    - <commit-hash1> <commit-subject1>
+#    - <commit-hash2> <commit-subject2>
+#    - ...
+#
+#    ## 核心改动
+#    - (列出主要变更点)
+git commit
+```
+
+**注意：**
+- **不要执行 `git push`** — 本地 main 分支的合并结果留给用户亲手测试
+- 用户测试通过后，由用户自行决定是否推送
+- `git merge --squash` 不会保留重构分支的每个 commit 历史，main 上只产生一个 commit
+- commit message 需结构化：首行为重构轮次与核心摘要，正文分段列出所有提交记录和核心改动说明
 
 ---
 
