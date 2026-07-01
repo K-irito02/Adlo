@@ -321,7 +321,9 @@ export function BrowserPanel(props: BrowserPanelProps) {
     markUrlSeen
   );
 
-  useBrowserMetaSubscription(_handlePageMeta);
+  useBrowserMetaSubscription((meta) => {
+    _handlePageMeta(meta, 'com');
+  });
 
   const { handleIframeLoad, handleIframeError } = useBrowserUrlChange({
     activeTab,

@@ -26,6 +26,20 @@ function hostnamePathKey(url: string): string {
   }
 }
 
+export type MetaSource = 'com' | 'http' | 'iframe' | 'google';
+
+const SOURCE_PRIORITY: Record<MetaSource, number> = {
+  com: 4,
+  iframe: 3,
+  http: 2,
+  google: 1,
+};
+
+interface MetaProcessedEntry {
+  timestamp: number;
+  source: MetaSource;
+}
+
 /**
  * TTL for deduplicating rapid handlePageMeta calls from
  * meta-changed events (WebView2 postMessage + Rust active fetch).
@@ -142,37 +156,34 @@ export function useBrowserPageMeta(
    * Prevents the two concurrent callback paths (onUrlChanged + meta-changed)
    * from creating duplicate tabs / history entries for the same navigation.
    */
-  const processedMetaRef = useRef<Map<string, number>>(new Map());
+  const processedMetaRef = useRef<Map<string, MetaProcessedEntry>>(new Map());
 
-  const isMetaRecentlyProcessed = useCallback((url: string): boolean => {
+  const shouldProcessMeta = useCallback((url: string, source: MetaSource): boolean => {
     const now = Date.now();
-    const ts = processedMetaRef.current.get(url);
-    if (ts !== undefined) {
-      if (now - ts > META_DEDUP_TTL) {
-        processedMetaRef.current.delete(url);
-        return false;
-      }
+    const entry = processedMetaRef.current.get(url);
+    if (!entry) return true;
+    if (now - entry.timestamp > META_DEDUP_TTL) {
+      processedMetaRef.current.delete(url);
       return true;
     }
     // Also check by hostname+pathname to catch SPA pushState URL variants
     const metaKey = hostnamePathKey(url);
-    if (!metaKey) {
-      return false;
-    }
-    for (const [seenUrl, seenTs] of processedMetaRef.current.entries()) {
-      if (now - seenTs > META_DEDUP_TTL) {
+    if (!metaKey) return false;
+    for (const [seenUrl, seenEntry] of processedMetaRef.current.entries()) {
+      if (now - seenEntry.timestamp > META_DEDUP_TTL) {
         processedMetaRef.current.delete(seenUrl);
         continue;
       }
       if (hostnamePathKey(seenUrl) === metaKey) {
-        return true;
+        // Allow overwrite only if incoming has strictly higher priority
+        return SOURCE_PRIORITY[source] > SOURCE_PRIORITY[seenEntry.source];
       }
     }
-    return false;
+    return true;
   }, []);
 
   const handlePageMeta = useCallback(
-    (meta: { title: string; favicon: string; url: string }) => {
+    (meta: { title: string; favicon: string; url: string }, source: MetaSource = 'http') => {
       const cleanUrl = normalizeMetaUrl(meta.url);
       if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
         return;
@@ -189,27 +200,23 @@ export function useBrowserPageMeta(
         (t: BrowserTabState) => t.id === state.browserActiveTabId
       );
 
-      if (!meta.title) {
-        if (meta.favicon && exactMatch) {
-        }
+      if (!meta.title && !meta.favicon) {
         return;
       }
 
-      // Cache favicon only when we have a real title — both appear in the same render
       if (meta.favicon) {
         const existingFavicon = getCachedFavicon(cleanUrl);
         if (shouldReplaceFavicon(existingFavicon, meta.favicon)) {
-          // Preload the image first, then update cache on load/error.
-          // This prevents a flicker caused by the <img> src changing to an uncached URL.
-          const img = new Image();
-          img.onload = () => {
+          if (source === 'com') {
+            // COM-sourced favicons need preload to prevent flicker
+            const img = new Image();
+            img.onload = () => { setCachedFavicon(cleanUrl, meta.favicon); };
+            img.onerror = () => { setCachedFavicon(cleanUrl, meta.favicon); };
+            img.src = meta.favicon;
+          } else {
+            // HTTP/iframe/google sources: image was already loaded or will be loaded naturally
             setCachedFavicon(cleanUrl, meta.favicon);
-          };
-          img.onerror = () => {
-            setCachedFavicon(cleanUrl, meta.favicon);
-          };
-          img.src = meta.favicon;
-        } else if (existingFavicon) {
+          }
         }
       }
 
@@ -227,13 +234,13 @@ export function useBrowserPageMeta(
       }
 
       if (activeTab) {
-        if (isMetaRecentlyProcessed(cleanUrl)) {
+        if (!shouldProcessMeta(cleanUrl, source)) {
           return;
         }
         if (markUrlSeen) {
           markUrlSeen(cleanUrl);
         }
-        processedMetaRef.current.set(cleanUrl, Date.now());
+        processedMetaRef.current.set(cleanUrl, { timestamp: Date.now(), source });
 
         if (!isTabTitleLocked(activeTab.id)) {
           state.browserUpdateTab(activeTab.id, {
@@ -246,13 +253,13 @@ export function useBrowserPageMeta(
         return;
       }
 
-      if (isMetaRecentlyProcessed(cleanUrl)) {
+      if (!shouldProcessMeta(cleanUrl, source)) {
         return;
       }
       if (markUrlSeen) {
         markUrlSeen(cleanUrl);
       }
-      processedMetaRef.current.set(cleanUrl, Date.now());
+      processedMetaRef.current.set(cleanUrl, { timestamp: Date.now(), source });
       state.browserOpenTab(cleanUrl, pageTitle);
       state.browserAddToHistory(cleanUrl, pageTitle);
     },
