@@ -14,6 +14,44 @@ const metaCache = new Map<string, CacheEntry>();
 const faviconUrlCache = new Map<string, string>();
 const faviconPinned = new Set<string>();
 const titleLockedTabs = new Set<string>();
+
+const FAVICON_CACHE_KEY = 'adl-ui:browser-favicon-cache';
+const PERSIST_DEBOUNCE_MS = 500;
+let persistTimer: ReturnType<typeof setTimeout> | null = null;
+
+function schedulePersistFaviconCache(): void {
+  if (persistTimer) clearTimeout(persistTimer);
+  persistTimer = setTimeout(() => {
+    persistTimer = null;
+    try {
+      const obj: Record<string, string> = {};
+      for (const [key, value] of faviconUrlCache.entries()) {
+        obj[key] = value;
+      }
+      localStorage.setItem(FAVICON_CACHE_KEY, JSON.stringify(obj));
+    } catch {
+      // localStorage quota exceeded or unavailable — silently skip
+    }
+  }, PERSIST_DEBOUNCE_MS);
+}
+
+function loadPersistedFaviconCache(): void {
+  try {
+    const raw = localStorage.getItem(FAVICON_CACHE_KEY);
+    if (!raw) return;
+    const obj = JSON.parse(raw) as Record<string, string>;
+    for (const [key, value] of Object.entries(obj)) {
+      if (!faviconUrlCache.has(key)) {
+        faviconUrlCache.set(key, value);
+      }
+    }
+  } catch {
+    // Corrupted data or unavailable — start fresh
+  }
+}
+
+// Call on module load
+loadPersistedFaviconCache();
 const faviconListeners = new Map<string, Set<() => void>>();
 const globalFaviconListeners = new Set<(url: string) => void>();
 
@@ -51,7 +89,7 @@ export function setCachedFavicon(url: string, favicon: string, pin?: boolean): v
   if (faviconPinned.has(cacheKey)) {
     return;
   }
-  if (faviconUrlCache.size > 200) {
+  if (faviconUrlCache.size >= 200) {
     const firstKey = faviconUrlCache.keys().next().value;
     if (firstKey) {
       faviconUrlCache.delete(firstKey);
@@ -63,6 +101,7 @@ export function setCachedFavicon(url: string, favicon: string, pin?: boolean): v
     return;
   }
   faviconUrlCache.set(cacheKey, favicon);
+  schedulePersistFaviconCache();
   if (pin) {
     faviconPinned.add(cacheKey);
   }
