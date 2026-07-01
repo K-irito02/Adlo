@@ -1,0 +1,60 @@
+/**
+ * 窗口控制相关桥接能力
+ * 用于: 控制应用窗口最小化/最大化/关闭/标题更新
+ * Tauri 命令: 直接使用 window API
+ * 浏览器模式: 无操作 UI 模拟
+ */
+export interface WindowBridge {
+  /**
+   * 最小化窗口
+   * @command 无独立命令 (通过 Tauri window API 直接调用)
+   * @see tauri-bridge.ts → window.minimize
+   * @see mock-bridge.ts → window.minimize
+   * @see preview-bridge/index.ts → window.minimize
+   */
+  minimize: () => Promise<void>;
+  /**
+   * 切换最大化状态
+   * @command 无独立命令 (通过 Tauri window API 直接调用)
+   * @see tauri-bridge.ts → window.maximize
+   * @see mock-bridge.ts → window.maximize
+   * @see preview-bridge/index.ts → window.maximize
+   */
+  maximize: () => Promise<void>;
+  /**
+   * 关闭窗口
+   * @command 无独立命令 (通过 Tauri window API 直接调用)
+   * @see tauri-bridge.ts → window.close
+   * @see mock-bridge.ts → window.close
+   * @see preview-bridge/index.ts → window.close
+   */
+  close: () => Promise<void>;
+  /**
+   * 查询当前窗口是否处于最大化状态
+   * @returns 窗口是否最大化
+   * @command 无独立命令 (通过 Tauri window API 直接调用)
+   * @see tauri-bridge.ts → window.isMaximized
+   * @see mock-bridge.ts → window.isMaximized
+   * @see preview-bridge/index.ts → window.isMaximized
+   */
+  isMaximized: () => Promise<boolean>;
+  /**
+   * 更新窗口标题
+   * @param title 新的窗口标题
+   * @command 无独立命令 (通过 Tauri window API 直接调用)
+   * @see tauri-bridge.ts → window.setTitle
+   * @see mock-bridge.ts → window.setTitle
+   * @see preview-bridge/index.ts → window.setTitle
+   */
+  setTitle: (title: string) => Promise<void>;
+  /**
+   * 订阅窗口大小变化事件 (包括最大化/还原)
+   * @param listener 窗口大小变化时的回调
+   * @returns 取消订阅的函数
+   * @command 无独立命令 (通过 Tauri window.onResized API)
+   * @see tauri-bridge.ts → window.onResized
+   * @see mock-bridge.ts → window.onResized
+   * @see preview-bridge/index.ts → 继承 mock-bridge
+   */
+  onResized: (listener: () => void) => () => void;
+}
