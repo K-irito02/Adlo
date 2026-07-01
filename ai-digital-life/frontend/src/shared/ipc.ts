@@ -613,7 +613,7 @@ export interface TaskBridge {
    * @see mock-bridge.ts → task.listPendingApprovals
    * @see preview-bridge/index.ts → task.listPendingApprovals
    */
-  listPendingApprovals?: () => Promise<IpcResult<ApprovalRequestSummary[]>>;
+  listPendingApprovals: () => Promise<IpcResult<ApprovalRequestSummary[]>>;
   /**
    * 获取检查点 payload 的预览内容
    * @param checkpointId 检查点 ID

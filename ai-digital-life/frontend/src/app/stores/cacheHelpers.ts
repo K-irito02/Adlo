@@ -36,54 +36,9 @@ const changePreviewCache = new Map<string, TTLCacheEntry<CachedChangePreview>>()
 export const FILE_DOCUMENT_TTL = 5 * 60 * 1000; // 5 分钟
 export const CHANGE_PREVIEW_TTL = 1 * 60 * 1000; // 1 分钟
 
-/** 获取缓存访问器
- * @deprecated 使用 getCachedFileDocument / setCachedFileDocument 代替，它们支持 TTL
- */
-export function getFileDocumentCache(): Map<string, TTLCacheEntry<CachedFileDocument>> {
-  return fileDocumentCache;
-}
-
-/**
- * @deprecated 使用 getCachedChangePreview / setCachedChangePreview 代替，它们支持 TTL
- */
-export function getChangePreviewCache(): Map<string, TTLCacheEntry<CachedChangePreview>> {
-  return changePreviewCache;
-}
-
 /** 常量定义 */
 export const FILE_DOCUMENT_CACHE_LIMIT = 32;
 export const CHANGE_PREVIEW_CACHE_LIMIT = 32;
-
-/** LRU 缓存操作 — 每次 get 时将条目移到 Map 末尾，确保最近访问的在末尾 */
-/**
- * @deprecated 使用 getCachedFileDocument / getCachedChangePreview 代替，它们支持 TTL
- */
-export function getCachedLru<T>(cache: Map<string, T>, key: string): T | undefined {
-  const cached = cache.get(key);
-  if (cached === undefined) {
-    return undefined;
-  }
-  cache.delete(key);
-  cache.set(key, cached);
-  return cached;
-}
-
-/**
- * @deprecated 使用 setCachedFileDocument / setCachedChangePreview 代替，它们支持 TTL
- */
-export function setCachedLru<T>(cache: Map<string, T>, key: string, value: T, limit: number): void {
-  if (cache.has(key)) {
-    cache.delete(key);
-  }
-  cache.set(key, value);
-  while (cache.size > limit) {
-    const oldest = cache.keys().next().value;
-    if (oldest === undefined) {
-      return;
-    }
-    cache.delete(oldest);
-  }
-}
 
 /** LRU + TTL 缓存操作 — 每次 get 时将条目移到 Map 末尾，并检查过期 */
 export function getCachedLruTTL<V>(

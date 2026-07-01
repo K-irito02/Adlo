@@ -92,7 +92,6 @@ function hydrateWorkspaceDefaults(
 export interface WorkspaceSlice {
   appInfo?: AppInfo;
   recentWorkspaces: RecentWorkspaceEntry[];
-  workspaceTree: WorkspaceTreeNode[]; // @deprecated 使用 workspaceTrees
   workspaceTrees: Record<string, WorkspaceTreeNode[]>;
   workspaceTreeLoading: Record<string, boolean>;
   workspaceTreeErrors: Record<string, string | undefined>;
@@ -106,7 +105,6 @@ export interface WorkspaceSlice {
 
   setAppInfo: (appInfo: AppInfo | undefined) => void;
   setRecentWorkspaces: (workspaces: RecentWorkspaceEntry[]) => void;
-  setWorkspaceTree: (tree: WorkspaceTreeNode[]) => void;
   setWorkspaceTrees: (trees: Record<string, WorkspaceTreeNode[]>) => void;
   setWorkspaceTreeLoading: (loading: Record<string, boolean>) => void;
   setWorkspaceTreeErrors: (errors: Record<string, string | undefined>) => void;
@@ -129,7 +127,6 @@ export const createWorkspaceSlice = (
   hydrateWorkspaceDefaults(get, set);
   return {
     recentWorkspaces: [],
-    workspaceTree: [],
     workspaceTrees: {},
     workspaceTreeLoading: {},
     workspaceTreeErrors: {},
@@ -143,7 +140,6 @@ export const createWorkspaceSlice = (
 
     setAppInfo: (appInfo) => set({ appInfo }),
     setRecentWorkspaces: (workspaces) => set({ recentWorkspaces: workspaces }),
-    setWorkspaceTree: (tree) => set({ workspaceTree: tree }),
     setWorkspaceTrees: (trees) => set({ workspaceTrees: trees }),
     setWorkspaceTreeLoading: (loading) => set({ workspaceTreeLoading: loading }),
     setWorkspaceTreeErrors: (errors) => set({ workspaceTreeErrors: errors }),
