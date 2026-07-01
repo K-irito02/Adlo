@@ -15,7 +15,7 @@ interface UseBrowserUrlChangeOptions {
   setAddress: (address: string) => void;
   browserNavigateActiveTab: (url: string, title?: string) => void;
   browserUpdateTab: (id: string, data: Partial<BrowserTabState>) => void;
-  onPageMeta?: (meta: PageMeta) => void;
+  onPageMeta?: (meta: PageMeta, source?: string) => void;
   onNavigationStart?: (url: string) => void;
   markUrlSeen: (url: string) => void;
   setIframeLoadError: React.Dispatch<React.SetStateAction<boolean>>;
@@ -92,20 +92,12 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
               return;
             }
             const tab = activeTabRef.current;
-            if (tab) {
-              if (meta.title && meta.title !== tab.title) {
-                browserUpdateTab(tab.id, { title: meta.title });
-              }
-              if (meta.favicon) {
-                setCachedFavicon(href, meta.favicon);
-              }
-            }
-            if (meta.title) {
-              onPageMeta?.({ title: meta.title, favicon: meta.favicon || '', url: href });
-            } else {
-              const s = useAppStore.getState();
-              s.browserAddToHistory(href, href);
-            }
+            if (!tab) return;
+            onPageMeta?.({
+              title: meta.title || tab.title,
+              favicon: meta.favicon || '',
+              url: href,
+            }, 'http');
           });
         }
         return;
@@ -134,21 +126,14 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
       } catch {
         /* cross-origin: fetch via proxy */
         fetchPageMeta(href).then((meta) => {
-          if (!meta) {
-            return;
-          }
+          if (!meta) return;
           const tab = activeTabRef.current;
-          if (tab) {
-            if (meta.title && meta.title !== tab.title) {
-              browserUpdateTab(tab.id, { title: meta.title });
-            }
-            if (meta.favicon) {
-              setCachedFavicon(href, meta.favicon);
-            }
-          }
-          if (meta.title) {
-            onPageMeta?.({ title: meta.title, favicon: meta.favicon || '', url: href });
-          }
+          if (!tab) return;
+          onPageMeta?.({
+            title: meta.title || tab.title,
+            favicon: meta.favicon || '',
+            url: href,
+          }, 'http');
         });
       }
     } catch {
@@ -267,36 +252,7 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
               }
               return;
             }
-            const s = useAppStore.getState();
-            const activeTabId = s.browserActiveTabId;
-            const tab = activeTabId
-              ? s.browserTabs.find((t: BrowserTabState) => t.id === activeTabId)
-              : undefined;
-
-            if (tab) {
-              // Atomically update URL + title — handles deferred URL case
-              const needsUrlUpdate = normalizeUrlForCompare(tab.url) !== normalizedUrl;
-              const needsTitleUpdate = tab.title !== meta.title;
-              if (needsUrlUpdate || needsTitleUpdate) {
-                s.browserUpdateTab(tab.id, {
-                  ...(needsUrlUpdate ? { url: normalizedUrl } : {}),
-                  ...(needsTitleUpdate ? { title: meta.title } : {}),
-                });
-              }
-              if (meta.favicon) {
-                setCachedFavicon(normalizedUrl, meta.favicon);
-              }
-              s.browserAddToHistory(normalizedUrl, meta.title);
-              s.browserUpdateHistoryTitle(normalizedUrl, meta.title);
-            } else {
-              // No active tab — create one with URL + title
-              if (meta.favicon) {
-                setCachedFavicon(normalizedUrl, meta.favicon);
-              }
-              s.browserNavigateActiveTab(normalizedUrl, meta.title);
-              s.browserAddToHistory(normalizedUrl, meta.title);
-              s.browserUpdateHistoryTitle(normalizedUrl, meta.title);
-            }
+            onPageMeta?.({ title: meta.title, favicon: meta.favicon || '', url: normalizedUrl }, 'http');
           });
         };
 
