@@ -75,7 +75,11 @@ function subscribeChannel<T>(eventName: string, listener: (payload: T) => void):
     if (active) {
       ul = unlisten;
     } else {
-      void unlisten();
+      try {
+        unlisten();
+      } catch {
+        /* ignore */
+      }
     }
   });
   return () => {
@@ -141,7 +145,11 @@ export function createTauriBridge(): DigitalLifeBridge {
             if (active) {
               ul = unlisten;
             } else {
-              void unlisten();
+              try {
+                unlisten();
+              } catch {
+                /* ignore */
+              }
             }
           });
         return () => {
@@ -378,7 +386,11 @@ export function createTauriBridge(): DigitalLifeBridge {
           if (active) {
             ul = unlisten;
           } else {
-            void unlisten();
+            try {
+              unlisten();
+            } catch {
+              /* ignore */
+            }
           }
         });
         return () => {
@@ -402,7 +414,11 @@ export function createTauriBridge(): DigitalLifeBridge {
           if (active) {
             ul = unlisten;
           } else {
-            void unlisten();
+            try {
+              unlisten();
+            } catch {
+              /* ignore */
+            }
           }
         });
         return () => {
@@ -428,7 +444,11 @@ export function createTauriBridge(): DigitalLifeBridge {
           if (active) {
             ul = unlisten;
           } else {
-            void unlisten();
+            try {
+              unlisten();
+            } catch {
+              /* ignore */
+            }
           }
         });
         return () => {

@@ -24,12 +24,6 @@ export function BrowserMenuHintItem({
   const hintElementsRef = useRef<HTMLElement[]>([]);
 
   const hideHint = () => {
-    if (hintElementsRef.current.length > 0) {
-      console.log('[ADL-DEBUG] BrowserMenuHintItem hideHint:', {
-        id,
-        elementsRemoved: hintElementsRef.current.length,
-      });
-    }
     hintElementsRef.current.forEach((el) => el.remove());
     hintElementsRef.current = [];
   };
@@ -64,23 +58,6 @@ export function BrowserMenuHintItem({
     const anchorRect = dropdownEl?.getBoundingClientRect() ?? menuEl.getBoundingClientRect();
     const centerY = btnRect.top + btnRect.height / 2;
 
-    console.log('[ADL-DEBUG] BrowserMenuHintItem showHint:', {
-      id,
-      anchorRect: {
-        left: anchorRect.left,
-        right: anchorRect.right,
-        width: anchorRect.width,
-      },
-      btnRect: { top: btnRect.top, height: btnRect.height },
-      centerY,
-      cardRight: window.innerWidth - anchorRect.left + 1,
-      cardRightFromLeft: anchorRect.left - 1,
-      arrowLeft: anchorRect.left - 5,
-      arrowTipAt: anchorRect.left - 5 + 5,
-      usedDropdown: !!dropdownEl,
-      viewportWidth: window.innerWidth,
-    });
-
     const card = document.createElement('div');
     card.className = 'adl-sub-hint-card adl-sub-hint-card--left';
     card.textContent = hint ?? '';
@@ -90,20 +67,20 @@ export function BrowserMenuHintItem({
 
     const arrow = document.createElement('div');
     arrow.className = 'adl-sub-hint-card__arrow adl-sub-hint-card__arrow--left';
-    arrow.style.left = `${anchorRect.left - 5}px`;
+    arrow.style.left = `${anchorRect.left}px`;
     arrow.style.top = `${centerY - 4}px`;
 
     const arrowBorder = document.createElement('div');
     arrowBorder.className = 'adl-sub-hint-card__arrow-border adl-sub-hint-card__arrow-border--left';
-    arrowBorder.style.left = `${anchorRect.left - 6}px`;
+    arrowBorder.style.left = `${anchorRect.left}px`;
     arrowBorder.style.top = `${centerY - 5}px`;
 
     document.body.appendChild(card);
-    document.body.appendChild(arrow);
     document.body.appendChild(arrowBorder);
+    document.body.appendChild(arrow);
 
     hideHint();
-    hintElementsRef.current = [card, arrow, arrowBorder];
+    hintElementsRef.current = [card, arrowBorder, arrow];
   };
 
   return (
@@ -114,12 +91,6 @@ export function BrowserMenuHintItem({
       className="adl-menu__item"
       disabled={disabled}
       onClick={() => {
-        console.log('[ADL-DEBUG] BrowserMenuHintItem onClick:', {
-          id,
-          label,
-          disabled,
-          hasHint: !!hint,
-        });
         action?.();
         onClose();
       }}

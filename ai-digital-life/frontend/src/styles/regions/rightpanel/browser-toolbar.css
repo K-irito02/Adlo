@@ -202,17 +202,34 @@
   color: var(--text-secondary);
 }
 
-/* Left-positioned hint card (extends to left of menu container) */
+/* Left-positioned hint card - no right border (arrow is on the right) */
 .adl-sub-hint-card--left {
   border-width: 1px 0 1px 1px;
+  border-radius: 4px;
 }
 
+/* Arrow fill - right-pointing triangle (override border-right from base) */
 .adl-sub-hint-card__arrow--left {
+  position: fixed;
+  z-index: 100001;
+  pointer-events: none;
+  width: 0;
+  height: 0;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
   border-right: 0 solid transparent;
   border-left: 5px solid var(--bg-card);
 }
 
+/* Arrow border outline - 1px larger, behind fill (override border-right from base) */
 .adl-sub-hint-card__arrow-border--left {
+  position: fixed;
+  z-index: 100000;
+  pointer-events: none;
+  width: 0;
+  height: 0;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
   border-right: 0 solid transparent;
   border-left: 6px solid var(--border-default);
 }

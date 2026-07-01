@@ -55,7 +55,7 @@ describe('favicon cache persistence', () => {
 
 describe('prefetchPageMeta purity', () => {
   it('should not have side effects on favicon cache', async () => {
-    const before = localStorage.getItem('adl-ui:browser-favicon-cache');
+    const _before = localStorage.getItem('adl-ui:browser-favicon-cache');
     const mod = await import('../fetchPageMeta');
     localStorage.clear();
     expect(typeof mod.prefetchPageMeta).toBe('function');

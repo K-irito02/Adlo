@@ -11,7 +11,7 @@
 | [浏览器](./浏览器/)             | 内置浏览器实现、空标签引导页、树形目录交互、iframe 嵌入检查、Tauri WebView 覆盖、Resize Handle 区域逃逸、复制按钮动画化、Child WebView IPC 限制、SPA 标题轮询、导航模式切换、并发回调去重、标题锁定与 Favicon Pin、标签右键菜单与悬停按钮、WebView2 `text-overflow` 剪辑特性、已打开标签模式过滤与多 iframe 状态保持、4模式导航栏重构、双层同步机制、延迟创建、WebView2 原生 COM 事件、历史记录修复、历史标签删除修复、音频指示器、书签对话框 Store 模式、navigateTab 显式调用重构等经验 | 30     |
 | [代码质量](./代码质量/)         | 全量代码质量检测与修复经验                                                                                                                                                                                                                                                         | 11     |
 | [浏览器自动化](./浏览器自动化/) | 浏览器自动化调试记录与规则经验                                                                                                                                                                                                                                                     | 2      |
-| [交互优化](./交互优化/)         | 跨功能面板的交互/UX 问题修复经验                                                                                                                                                                                                                                                   | 13     |
+| [交互优化](./交互优化/)         | 跨功能面板的交互/UX 问题修复经验                                                                                                                                                                                                                                                   | 14     |
 | [CI 监控](./CI监控/)            | GitHub Actions CI 状态监控模块经验（按目录独立绑定、Token 持久化、日志隔离、数据缓存、Rate Limit 保护）                                                                                                                                                                            | 6      |
 | [日志系统](./日志系统/)         | 日志系统统一改造经验（OpenOptions 权限、ANSI 控制、FormatTime、MakeWriter 兼容、双端一致性）                                                                                                                                                                                       | 1      |
 
@@ -139,6 +139,7 @@
 | [github-panel-i18n-full-coverage-2026-06-15.md](./交互优化/github-panel-i18n-full-coverage-2026-06-15.md)                                     | 2026-06-15 Bug 修复 + i18n | GitHub 子面板 i18n 全覆盖：15 处硬编码清理、17 个翻译 key、工具函数 locale 感知、标题行消失修复                                                        |
 | [browser-bookmark-dialog-and-flat-view-2026-06-15.md](./交互优化/browser-bookmark-dialog-and-flat-view-2026-06-15.md)                         | 2026-06-15 功能实现        | 浏览器收藏标签对话框 + 展平列表视图：树展平算法、"!" Hint CSS specificity 技巧、按钮常态无背景                                                         |
 | [resize-handle-pointer-events-diversion-2026-06-23.md](./交互优化/resize-handle-pointer-events-diversion-2026-06-23.md)                       | 2026-06-23 交互修复        | Resize Handle 与 Scrollbar 重叠：pointer-events 分流方案，`::before` 伪元素提供 3px 可拖拽边缘，零布局影响                                             |
+| [sub-card-border-subpixel-fix-2026-07-01.md](./交互优化/sub-card-border-subpixel-fix-2026-07-01.md)                                       | 2026-07-01 Bug 修复        | Sub-Card 边框子像素渲染修复：`line-height: 1.625` 导致 `19.5px` 内容高度 → `37.5px` 半像素卡高 → `translateY(-50%)` 产生不对称抗锯齿                |
 
 ### CI 监控
 

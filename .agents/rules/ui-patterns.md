@@ -218,21 +218,34 @@ alwaysApply: true
 
 - 类名：`.adl-sub-hint-card`
 - 直接 append 到 `document.body`（动态 DOM）
-- 定位：紧贴菜单右侧，垂直居中于触发按钮
-- 箭头：`.adl-sub-hint-card__arrow` + `.adl-sub-hint-card__arrow-border`（CSS clip-path 三角）
-- 阴影：`var(--shadow-lg)`，圆角：`var(--radius-md)`
+- 三个独立 `position: fixed` 元素：卡片 + 箭头填充 + 箭头边框
+- 箭头使用 CSS 边框三角形（非 clip-path）
+  - 默认（右侧卡片）：`border-right: 5px` → 指向左侧（←）
+  - 左侧卡片（`--left` 变体）：`border-left: 5px` → 指向右侧（→），需显式 `border-right: 0` 覆盖基础类
+  - 向下卡片（`--down` 变体）：`border-top: 5px` → 指向上方（↑）
+- 阴影：`var(--shadow-md)`，圆角：`var(--radius-md)`
+- `line-height: 1.5` 避免奇偶高度导致子像素边框渲染不对称
+
+### 定位
+
+- **右侧卡片（默认）**：`left: menuRight ± offset`，箭头尖端对齐卡片左缘
+- **左侧卡片（`--left`）**：`left: anchorRect.left`，箭头尖端对齐菜单左边缘（`anchorRect.left`）
+- 垂直居中：`top: centerY; transform: translateY(-50%)`
 
 ### 关键约束
 
 - 动态 DOM 必须绑定到组件生命周期（useEffect cleanup 移除）
 - 使用 `useRef<HTMLElement[]>` 存储引用，避免内存泄漏
 - 父级 hover 背景隔离：子卡片需显式背景 + z-index
+- `line-height` 必须为整数因子（如 `1.5`），避免 `line-height * font-size` 产生半像素值，否则 `translateY(-50%)` 导致子像素定位，1px 边框抗锯齿不对称
 
 ### 文档
 
-- 实现：[ContextMenu.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/components/ContextMenu.tsx)
+- 实现（右侧）：[ContextMenu.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/components/ContextMenu.tsx)
   → `showHint()`
+- 实现（左侧）：[BrowserMenuHintItem.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/features/browser/BrowserMenuHintItem.tsx)
 - 经验：[hint-card-arrow-positioning-fix-2026-06-11.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/知识沉淀/交互优化/hint-card-arrow-positioning-fix-2026-06-11.md)
+- 子像素边框：[sub-card-border-subpixel-fix-2026-07-01.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/知识沉淀/交互优化/sub-card-border-subpixel-fix-2026-07-01.md)
 - DOM 生命周期：[component-architecture.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/.trae/rules/component-architecture.md)
   → DOM 生命周期管理
 

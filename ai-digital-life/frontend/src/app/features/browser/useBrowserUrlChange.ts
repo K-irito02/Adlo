@@ -315,7 +315,7 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
       }
       fallbackTimeoutsRef.current.clear();
     };
-  }, [markUrlSeen, setAddress, onNavigationStart, expectedNavigationUrlRef]);
+  }, [markUrlSeen, setAddress, onNavigationStart, onPageMeta, expectedNavigationUrlRef]);
 
   return {
     handleIframeLoad,
