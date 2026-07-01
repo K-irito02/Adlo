@@ -1,4 +1,4 @@
-# Tauri 原生子 WebView 层级覆盖问题 —— 2026-06-18（2026-06-28 修订）
+# Tauri 原生子 WebView 层级覆盖问题 —— 2026-06-18（2026-07-01 修订）
 
 ## 问题概述
 
@@ -130,3 +130,62 @@ MutationObserver 初次实现使用 `setState` → `useEffect` 链路，每次 D
 
 ### 8. off-screen 策略一致性
 隐藏 WebView 使用 `(-10000,-10000,1,1)` 而非 `browser_hide`/`browser_show`，与项目中 WebView 禁用/面板切换的 off-screen 逻辑保持一致。创建时也使用此值避免初始闪露。
+
+## 2026-07-01 补充修复：updateWebViewBounds 缺失覆盖层守卫
+
+### 问题复现
+
+Tauri 桌面模式，浏览器面板页面跳转后快速点击收藏标签按钮，收藏标签对话框被 WebView 覆盖。
+
+### 根因
+
+`updateWebViewBounds()` 函数在执行 WebView 位置恢复时**不检查当前是否有覆盖层活跃**。这导致以下竞态条件：
+
+1. 页面导航 → `activeTab` 引用变化 → `useEffect([activeTab])` 触发 → 异步排队双 rAF 调用 `updateWebViewBounds()`
+2. 用户快速点击收藏星号 → `bookmarkDialogOpen = true` → `overlayActive = true`
+3. `useEffect([overlayActive])` 触发 → `hideAllWebViews()` → WebView 移出屏幕 ✓
+4. 步骤 1 排队的双 rAF 回调触发 → `updateWebViewBounds()` **无任何覆盖层检查** → 将 WebView 恢复至原位 → **覆盖对话框** ✗
+
+日志证据（浏览器 B 站页面测试）：
+```
+13:18:18.471  overlayActive=true → hideAllWebViews → WebView 移出屏幕 ✓
+13:18:18.657  双 rAF 第 2 帧 → updateWebViewBounds overlayActive=true → WebView 恢复原位 ✗
+```
+
+### 受影响的调用路径
+
+| 路径 | 调用 updateWebViewBounds 的方式 | 风险 |
+|------|-------------------------------|------|
+| `useEffect([activeTab])` | 双 rAF（布局稳定后） | 高 — 页面跳转时触发，与用户交互窗口重叠 |
+| `ResizeObserver` | 面板尺寸变化时直接调用 | 中 — 面板非频繁变化，但无守卫 |
+| `MutationObserver` 恢复 | 菜单消失后通过 ref 调用 | 低 — 已检查 `!overlayActiveRef.current` |
+| `useEffect([overlayActive])` 关闭 | 覆盖层关闭后调用 | 无 — 此时 `overlayActiveRef.current = false` |
+
+### 修复
+
+在 `updateWebViewBounds()` 函数体增加覆盖层守卫（`useBrowserWebView.ts:63-66`）：
+
+```typescript
+// Don't restore webview position while an overlay (dialog/menu) is active
+if (overlayActiveRef.current) {
+  return;
+}
+```
+
+### 原理
+
+`overlayActiveRef` 在 React render 阶段同步更新（非 effect），因此：
+- 覆盖层打开时 → render 阶段 `overlayActiveRef.current = true` → 任何后续 `updateWebViewBounds()` 调用提前返回
+- 覆盖层关闭时 → render 阶段 `overlayActiveRef.current = false` → `useEffect([overlayActive])` 调用 `updateWebViewBounds()` 正常执行
+
+这保护了所有异步路径（双 rAF、ResizeObserver），无需在每个调用点单独加入检查。
+
+### 经验教训
+
+1. **所有主动恢复 WebView 位置的路径都必须检查覆盖层状态** — `updateWebViewBounds()` 作为一个"设置 WebView 到正确位置"的函数，天然应检查当前是否应处于隐藏状态，而不是依赖调用方保证。
+
+2. **异步回调（rAF、ResizeObserver）可能跨越 React 状态变化的时间窗口** — 双 rAF 在页面导航时排队，但执行可能跨越用户打开对话框的时间点。必须用 ref 守卫拦截过期的调用。
+
+3. **React state path 与 DOM-based path 的守卫隔离** — State-based 路径通过 `overlayActiveRef` 防护的重叠菜单恢复逻辑通过 `hideWebViewRequestedRef` 防护，两者独立但互补。修复前 State-based 路径的 `hideAllWebViews()` 未设置 `hideWebViewRequestedRef`，但此次问题并非由该 gap 导致。保持一致性的选择留待后续评估。
+
+4. **MutationObserver 选择器未覆盖所有 Portal 对话框** — `OVERLAY_SELECTOR` 只包含 `.adl-sidebar-menu, .adl-multitree-entry__menu, .adl-menu__dropdown`，未包含 `.adl-prompt-modal`（书签对话框的 portal 容器类）。虽然本次问题的根因是 rAF 竞态而非选择器缺失，但未来添加新对话框 Portal 时需同步更新选择器列表。

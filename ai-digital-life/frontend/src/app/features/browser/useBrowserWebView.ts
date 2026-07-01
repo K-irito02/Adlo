@@ -60,6 +60,10 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
     if (webViewDisabled) {
       return;
     }
+    // Don't restore webview position while an overlay (dialog/menu) is active
+    if (overlayActiveRef.current) {
+      return;
+    }
 
     const rect = primaryRef.current.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) {
@@ -120,7 +124,9 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
         webViewActiveRef.current = true;
         hideWebViewRequestedRef.current = false;
         requestAnimationFrame(() => {
-          requestAnimationFrame(() => updateWebViewBounds());
+          requestAnimationFrame(() => {
+            updateWebViewBounds();
+          });
         });
       } finally {
         setLoadingTabId(null);
