@@ -29,16 +29,16 @@ pub(crate) fn persist_workspace_meta(
 
 fn update_workspace_after_git_change(
     state: &AppState,
-    workspace: &WorkspaceMeta,
-    git_snapshot: GitSnapshot,
+    workspace: WorkspaceMeta,
+    git_snapshot: &GitSnapshot,
 ) -> Result<WorkspaceMeta, AppError> {
     let now = now_ms();
     let updated_workspace = WorkspaceMeta {
-        git_snapshot: Some(git_snapshot),
+        git_snapshot: Some(git_snapshot.clone()),
         status: WorkspaceStatus::Ready,
         updated_at: now,
         last_opened_at: now,
-        ..workspace.clone()
+        ..workspace
     };
     persist_workspace_meta(state, &updated_workspace)?;
     Ok(updated_workspace)
@@ -90,7 +90,7 @@ pub fn workspace_switch_git_branch(
         )?;
         build_branch_change_result(
             &state,
-            &workspace,
+            workspace,
             git_snapshot,
             previous_branch,
             stashed_changes,
@@ -118,7 +118,7 @@ pub fn workspace_create_git_branch(
         )?;
         build_branch_change_result(
             &state,
-            &workspace,
+            workspace,
             git_snapshot,
             previous_branch,
             stashed_changes,
@@ -129,15 +129,14 @@ pub fn workspace_create_git_branch(
 
 fn build_branch_change_result(
     state: &AppState,
-    workspace: &WorkspaceMeta,
+    workspace: WorkspaceMeta,
     git_snapshot: GitSnapshot,
     previous_branch: Option<String>,
     stashed_changes: bool,
     branch_name: &str,
 ) -> Result<WorkspaceGitBranchChangeResult, AppError> {
     let current_branch = git_snapshot.branch.clone().unwrap_or_else(|| branch_name.to_string());
-    let updated_workspace =
-        update_workspace_after_git_change(state, workspace, git_snapshot.clone())?;
+    let updated_workspace = update_workspace_after_git_change(state, workspace, &git_snapshot)?;
     Ok(WorkspaceGitBranchChangeResult {
         workspace: updated_workspace,
         git_snapshot,

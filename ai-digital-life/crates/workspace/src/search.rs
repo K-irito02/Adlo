@@ -59,7 +59,13 @@ fn search_text_in_files(
         }
 
         let relative = crate::tree::relative_path(root, file);
-        let content = fs::read_to_string(file).unwrap_or_default();
+        let content = match fs::read_to_string(file) {
+            Ok(c) => c,
+            Err(e) => {
+                tracing::warn!(path = %file.display(), error = %e, "failed to read file during search");
+                String::new()
+            },
+        };
 
         for (index, line) in content.lines().enumerate() {
             if line.to_lowercase().contains(&query_lower) {

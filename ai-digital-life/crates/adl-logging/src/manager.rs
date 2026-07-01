@@ -77,11 +77,19 @@ impl LogManager {
 
         Registry::default().with(stdout_layer).with(file_layer).init();
 
-        if let Err(e) = terminal_sessions.lock().unwrap().prune_old_sessions() {
-            tracing::warn!("Initial terminal session prune failed: {e}");
+        if let Ok(sessions) = terminal_sessions.lock() {
+            if let Err(e) = sessions.prune_old_sessions() {
+                tracing::warn!("Initial terminal session prune failed: {e}");
+            }
+        } else {
+            tracing::warn!("terminal_sessions lock poisoned, skipping initial prune");
         }
-        if let Err(e) = debug_sessions.lock().unwrap().prune_old_sessions() {
-            tracing::warn!("Initial debug session prune failed: {e}");
+        if let Ok(sessions) = debug_sessions.lock() {
+            if let Err(e) = sessions.prune_old_sessions() {
+                tracing::warn!("Initial debug session prune failed: {e}");
+            }
+        } else {
+            tracing::warn!("debug_sessions lock poisoned, skipping initial prune");
         }
 
         Ok(Self {
@@ -265,7 +273,7 @@ impl Write for TerminalWriter {
 
         let mut guard =
             self.inner.lock().map_err(|_| std::io::Error::other("file lock poisoned"))?;
-        guard.as_mut().unwrap().writer.write(buf)
+        guard.as_mut().expect("file state must be Some after needs_reopen check").writer.write(buf)
     }
 
     fn flush(&mut self) -> std::io::Result<()> {

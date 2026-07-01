@@ -128,7 +128,13 @@ impl CiStatusClient {
             .map_err(|e| AppError::Network(format!("read log body failed: {e}")))?;
 
         // Fetch jobs to map job_name → job_id
-        let jobs: Vec<CiJobSummary> = self.fetch_jobs(config, run_id).await.unwrap_or_default();
+        let jobs: Vec<CiJobSummary> = match self.fetch_jobs(config, run_id).await {
+            Ok(j) => j,
+            Err(e) => {
+                tracing::warn!(run_id = %run_id, error = %e, "fetch_jobs failed, returning empty list");
+                Vec::new()
+            },
+        };
 
         ci_parser::extract_logs_from_zip(&content, run_id, &jobs)
     }
