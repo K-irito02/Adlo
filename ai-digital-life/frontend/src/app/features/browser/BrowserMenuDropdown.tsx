@@ -9,6 +9,7 @@ import {
   IconMoreVertical,
 } from '@icons';
 import { TooltipSimple } from '@components/Tooltip';
+import { BrowserMenuHintItem } from './BrowserMenuHintItem';
 import type { BrowserMenuItem } from './useBrowserMenus';
 import { useTCopy } from '@i18n/useTCopy';
 
@@ -60,22 +61,17 @@ export const BrowserMenuDropdown = React.memo(function BrowserMenuDropdown({
             'separator' in item ? (
               <div key={item.id} className="adl-menu__sep" role="separator" />
             ) : (
-              <button
+              <BrowserMenuHintItem
                 key={item.id}
-                type="button"
-                role="menuitem"
-                className="adl-menu__item"
+                id={item.id}
+                label={item.label}
+                icon={menuItemIcons[item.id]}
                 disabled={item.disabled}
-                onClick={() => {
-                  item.action?.();
-                  onClose();
-                }}
-              >
-                {menuItemIcons[item.id] && (
-                  <span className="adl-menu__item-icon">{menuItemIcons[item.id]}</span>
-                )}
-                <span>{item.label}</span>
-              </button>
+                hint={item.hint}
+                action={item.action}
+                onClose={onClose}
+                menuRef={menuRef}
+              />
             )
           )}
         </div>

@@ -8,7 +8,7 @@ export type BrowserNavigatorMode = 'tabs' | 'bookmarks' | 'history';
 
 export type BrowserMenuItem =
   | { id: string; separator: true }
-  | { id: string; label: string; disabled?: boolean; action?: () => void };
+  | { id: string; label: string; disabled?: boolean; hint?: string; action?: () => void };
 
 export interface ContextMenuState {
   open: boolean;
