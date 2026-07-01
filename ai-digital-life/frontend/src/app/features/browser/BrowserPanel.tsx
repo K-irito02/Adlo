@@ -386,11 +386,13 @@ export function BrowserPanel(props: BrowserPanelProps) {
         hint: t.browserDeveloperToolsHint,
         disabled: !isTauri,
         action: async () => {
+          console.log('[ADL-DEBUG] DevTools: triggered', { isTauri });
           try {
             const { invoke } = await import('@tauri-apps/api/core');
             await invoke('plugin:webview|internal_toggle_devtools');
-          } catch {
-            // devtools toggle only available in Tauri
+            console.log('[ADL-DEBUG] DevTools: invoke succeeded');
+          } catch (err) {
+            console.log('[ADL-DEBUG] DevTools: invoke failed', err);
           }
         },
       },
@@ -401,9 +403,9 @@ export function BrowserPanel(props: BrowserPanelProps) {
         hint: t.menuZoomInHint,
         action: () => {
           const current = parseFloat(getComputedStyle(document.documentElement).zoom || '1');
-          document.documentElement.style.zoom = String(
-            Math.max(0.5, Math.min(2, (Number.isFinite(current) ? current : 1) + 0.1))
-          );
+          const next = Math.max(0.5, Math.min(2, (Number.isFinite(current) ? current : 1) + 0.1));
+          console.log('[ADL-DEBUG] Zoom in:', { from: current, to: next });
+          document.documentElement.style.zoom = String(next);
         },
       },
       {
@@ -412,9 +414,9 @@ export function BrowserPanel(props: BrowserPanelProps) {
         hint: t.menuZoomOutHint,
         action: () => {
           const current = parseFloat(getComputedStyle(document.documentElement).zoom || '1');
-          document.documentElement.style.zoom = String(
-            Math.max(0.5, Math.min(2, (Number.isFinite(current) ? current : 1) - 0.1))
-          );
+          const next = Math.max(0.5, Math.min(2, (Number.isFinite(current) ? current : 1) - 0.1));
+          console.log('[ADL-DEBUG] Zoom out:', { from: current, to: next });
+          document.documentElement.style.zoom = String(next);
         },
       },
       {
@@ -422,6 +424,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
         label: t.menuZoomReset,
         hint: t.menuResetZoomHint,
         action: () => {
+          console.log('[ADL-DEBUG] Zoom reset: resetting to 1');
           document.documentElement.style.zoom = '1';
         },
       },

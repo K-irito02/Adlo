@@ -24,6 +24,12 @@ export function BrowserMenuHintItem({
   const hintElementsRef = useRef<HTMLElement[]>([]);
 
   const hideHint = () => {
+    if (hintElementsRef.current.length > 0) {
+      console.log('[ADL-DEBUG] BrowserMenuHintItem hideHint:', {
+        id,
+        elementsRemoved: hintElementsRef.current.length,
+      });
+    }
     hintElementsRef.current.forEach((el) => el.remove());
     hintElementsRef.current = [];
   };
@@ -56,6 +62,24 @@ export function BrowserMenuHintItem({
     }
 
     const centerY = btnRect.top + btnRect.height / 2;
+
+    console.log('[ADL-DEBUG] BrowserMenuHintItem showHint:', {
+      id,
+      menuRect: {
+        left: menuRect.left,
+        right: menuRect.right,
+        width: menuRect.width,
+        top: menuRect.top,
+        height: menuRect.height,
+      },
+      btnRect: { top: btnRect.top, height: btnRect.height },
+      centerY,
+      cardRight: window.innerWidth - menuRect.left + 1,
+      cardRightFromLeft: menuRect.left - 1,
+      arrowLeft: menuRect.left - 5,
+      arrowTipAt: menuRect.left - 5 + 5,
+      viewportWidth: window.innerWidth,
+    });
 
     const card = document.createElement('div');
     card.className = 'adl-sub-hint-card adl-sub-hint-card--left';
@@ -90,6 +114,12 @@ export function BrowserMenuHintItem({
       className="adl-menu__item"
       disabled={disabled}
       onClick={() => {
+        console.log('[ADL-DEBUG] BrowserMenuHintItem onClick:', {
+          id,
+          label,
+          disabled,
+          hasHint: !!hint,
+        });
         action?.();
         onClose();
       }}
