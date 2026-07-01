@@ -307,6 +307,9 @@ function createDraggableCopyButton() {
     return;
   }
 
+  // 缓存运行模式（窗口生命周期内不变）
+  const isTauri = isTauriShell();
+
   // 移除已存在的按钮
   const existing = document.getElementById('__dl-debug-button');
   if (existing) {
@@ -316,9 +319,10 @@ function createDraggableCopyButton() {
   const btn = document.createElement('button');
   btn.id = '__dl-debug-button';
   btn.textContent = '复制调试日志';
+  const initialTop = isTauri ? '36px' : '10px';
   btn.style.cssText = `
     position: fixed;
-    top: 10px;
+    top: ${initialTop};
     right: 10px;
     z-index: 99999;
     padding: 8px 16px;
@@ -384,8 +388,9 @@ function createDraggableCopyButton() {
     hasMoved = false;
     startX = e.clientX;
     startY = e.clientY;
-    startLeft = btn.offsetLeft;
-    startTop = btn.offsetTop;
+    const rect = btn.getBoundingClientRect();
+    startLeft = rect.left;
+    startTop = rect.top;
     btn.style.cursor = 'grabbing';
     btn.style.opacity = '0.8';
   };
@@ -400,8 +405,13 @@ function createDraggableCopyButton() {
     if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
       hasMoved = true;
     }
-    btn.style.left = startLeft + dx + 'px';
-    btn.style.top = startTop + dy + 'px';
+    const newLeft = Math.max(0, Math.min(startLeft + dx, window.innerWidth - btn.offsetWidth));
+    // Tauri 模式：top 最小 36px（标题栏高度）以避免与 data-tauri-drag-region 重叠
+    // Tauri 使用 elementsFromPoint API 穿透 z-index 检测后台拖拽区
+    const topMin = isTauri ? 36 : 0;
+    const newTop = Math.max(topMin, Math.min(startTop + dy, window.innerHeight - btn.offsetHeight));
+    btn.style.left = newLeft + 'px';
+    btn.style.top = newTop + 'px';
     btn.style.right = 'auto';
   };
 
