@@ -56,46 +56,46 @@ export function BrowserMenuHintItem({
     }
 
     const btnRect = button?.getBoundingClientRect();
-    const menuRect = menuEl.getBoundingClientRect();
     if (!btnRect) {
       return;
     }
 
+    const dropdownEl = menuEl.querySelector('.adl-menu__dropdown') as HTMLElement | null;
+    const anchorRect = dropdownEl?.getBoundingClientRect() ?? menuEl.getBoundingClientRect();
     const centerY = btnRect.top + btnRect.height / 2;
 
     console.log('[ADL-DEBUG] BrowserMenuHintItem showHint:', {
       id,
-      menuRect: {
-        left: menuRect.left,
-        right: menuRect.right,
-        width: menuRect.width,
-        top: menuRect.top,
-        height: menuRect.height,
+      anchorRect: {
+        left: anchorRect.left,
+        right: anchorRect.right,
+        width: anchorRect.width,
       },
       btnRect: { top: btnRect.top, height: btnRect.height },
       centerY,
-      cardRight: window.innerWidth - menuRect.left + 1,
-      cardRightFromLeft: menuRect.left - 1,
-      arrowLeft: menuRect.left - 5,
-      arrowTipAt: menuRect.left - 5 + 5,
+      cardRight: window.innerWidth - anchorRect.left + 1,
+      cardRightFromLeft: anchorRect.left - 1,
+      arrowLeft: anchorRect.left - 5,
+      arrowTipAt: anchorRect.left - 5 + 5,
+      usedDropdown: !!dropdownEl,
       viewportWidth: window.innerWidth,
     });
 
     const card = document.createElement('div');
     card.className = 'adl-sub-hint-card adl-sub-hint-card--left';
     card.textContent = hint ?? '';
-    card.style.right = `${window.innerWidth - menuRect.left + 1}px`;
+    card.style.right = `${window.innerWidth - anchorRect.left + 1}px`;
     card.style.top = `${centerY}px`;
     card.style.transform = 'translateY(-50%)';
 
     const arrow = document.createElement('div');
     arrow.className = 'adl-sub-hint-card__arrow adl-sub-hint-card__arrow--left';
-    arrow.style.left = `${menuRect.left - 5}px`;
+    arrow.style.left = `${anchorRect.left - 5}px`;
     arrow.style.top = `${centerY - 4}px`;
 
     const arrowBorder = document.createElement('div');
     arrowBorder.className = 'adl-sub-hint-card__arrow-border adl-sub-hint-card__arrow-border--left';
-    arrowBorder.style.left = `${menuRect.left - 6}px`;
+    arrowBorder.style.left = `${anchorRect.left - 6}px`;
     arrowBorder.style.top = `${centerY - 5}px`;
 
     document.body.appendChild(card);
