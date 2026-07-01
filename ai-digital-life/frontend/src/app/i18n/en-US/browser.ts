@@ -158,4 +158,13 @@ export const browserEn = {
   browserCreating: 'Creating...',
   browserMute: 'Mute',
   browserUnmute: 'Unmute',
+  browserHardReloadHint: 'Reload the current page, ignoring cache',
+  browserCopyCurrentUrlHint: 'Copy the current page URL to clipboard',
+  browserClearHistoryHint: 'Clear browsing history of the current tab',
+  browserClearCookiesHint: 'Clear cookie data for the current site (Tauri mode only)',
+  browserClearCacheHint: 'Clear cache data for the current site (requires WebView API)',
+  browserDeveloperToolsHint: 'Open WebView DevTools (Tauri desktop mode only)',
+  menuZoomInHint: 'Zoom in the page',
+  menuZoomOutHint: 'Zoom out the page',
+  menuResetZoomHint: 'Reset zoom to 100%',
 } as const;

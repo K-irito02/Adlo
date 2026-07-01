@@ -152,4 +152,13 @@ export const browserZh = {
   browserCreating: '创建中...',
   browserMute: '静音',
   browserUnmute: '取消静音',
+  browserHardReloadHint: '重新加载当前页面，忽略缓存',
+  browserCopyCurrentUrlHint: '将当前页面URL复制到剪贴板',
+  browserClearHistoryHint: '清除当前标签的浏览历史记录',
+  browserClearCookiesHint: '清除当前网站的Cookie数据（仅Tauri模式支持）',
+  browserClearCacheHint: '清除当前网站的缓存数据（需WebView底层API接入）',
+  browserDeveloperToolsHint: '打开WebView开发者工具（仅Tauri桌面模式）',
+  menuZoomInHint: '放大页面显示比例',
+  menuZoomOutHint: '缩小页面显示比例',
+  menuResetZoomHint: '重置页面显示比例为100%',
 } as const;
