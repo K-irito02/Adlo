@@ -344,6 +344,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
       {
         id: 'hard-reload',
         label: t.browserHardReload,
+        hint: t.browserHardReloadHint,
         action: () => {
           const tabTitle =
             activeTab?.title && !/^https?:\/\//i.test(activeTab.title)
@@ -355,21 +356,23 @@ export function BrowserPanel(props: BrowserPanelProps) {
       {
         id: 'copy-url',
         label: t.browserCopyCurrentUrl,
+        hint: t.browserCopyCurrentUrlHint,
         action: () => void navigator.clipboard?.writeText(activeTab?.url ?? 'about:blank'),
       },
       { id: 'sep-1', separator: true as const },
       {
         id: 'clear-history',
         label: t.browserClearHistory,
+        hint: t.browserClearHistoryHint,
         action: () => useAppStore.getState().browserClearHistory(),
       },
-      { id: 'clear-cookies', label: t.browserClearCookies, disabled: true },
-      { id: 'clear-cache', label: t.browserClearCache, disabled: true },
-      { id: 'devtools', label: t.browserDeveloperTools, disabled: true },
+      { id: 'clear-cookies', label: t.browserClearCookies, hint: t.browserClearCookiesHint, disabled: true },
+      { id: 'clear-cache', label: t.browserClearCache, hint: t.browserClearCacheHint, disabled: true },
+      { id: 'devtools', label: t.browserDeveloperTools, hint: t.browserDeveloperToolsHint, disabled: true },
       { id: 'sep-2', separator: true as const },
-      { id: 'zoom-in', label: t.menuZoomIn, disabled: true },
-      { id: 'zoom-out', label: t.menuZoomOut, disabled: true },
-      { id: 'zoom-reset', label: t.menuZoomReset, disabled: true },
+      { id: 'zoom-in', label: t.menuZoomIn, hint: t.menuZoomInHint, disabled: true },
+      { id: 'zoom-out', label: t.menuZoomOut, hint: t.menuZoomOutHint, disabled: true },
+      { id: 'zoom-reset', label: t.menuZoomReset, hint: t.menuResetZoomHint, disabled: true },
     ],
     [activeTab, browserNavigateActiveTab, t]
   );
