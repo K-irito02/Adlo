@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getFaviconUrl, getGoogleFaviconUrl } from '../utils/favicon';
-import { subscribeFavicon } from '../utils/fetchPageMeta';
+import { subscribeFavicon, clearFaviconCacheForUrl } from '../utils/fetchPageMeta';
 import { IconLink, type IconSize } from '../icons';
 
 interface BrowserFaviconProps {
@@ -35,6 +35,7 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
           onError={(e) => {
             const img = e.target as HTMLImageElement;
             if (!img.src.includes('google.com/s2/favicons')) {
+              clearFaviconCacheForUrl(url);
               const fallback = getGoogleFaviconUrl(url);
               if (fallback) {
                 img.src = fallback;
