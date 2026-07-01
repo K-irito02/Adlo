@@ -19,7 +19,7 @@ import {
 import {
   BROWSER_BOOKMARKS_STORAGE_KEY,
   BROWSER_BOOKMARK_TABID_URL_MAP_KEY,
-} from './browserBookmarkSlice';
+} from './browserSliceShared';
 
 // Re-export types and public storage keys to preserve the public API
 export type {

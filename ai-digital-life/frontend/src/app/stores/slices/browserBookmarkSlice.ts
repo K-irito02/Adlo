@@ -1,8 +1,12 @@
 import type { StoreState } from '../StoreState';
 import { createUiId, createDebouncedWrite } from '../shared';
 import { formatNewFolderNameByLocale } from '@i18n';
-import type { TabFolderState } from './browserFoldersSlice';
+import type { TabFolderState } from './browserFoldersTypes';
 import { hostnameFromUrl } from '@utils/browserDisplayUtils';
+// Cross-slice constant moved to the shared leaf module to break the
+// foldersSlice <-> bookmarkSlice import cycle. Re-imported here because this
+// slice writes to it internally (see scheduleWrite calls below).
+import { BROWSER_BOOKMARK_TABID_URL_MAP_KEY } from './browserSliceShared';
 
 export interface BrowserBookmark {
   url: string;
@@ -22,9 +26,10 @@ const BROWSER_WORKSPACE_BOOKMARKS_KEY = 'adl-ui:browser-workspace-bookmarks';
 
 const { scheduleWrite } = createDebouncedWrite(50);
 
-export const BROWSER_BOOKMARKS_STORAGE_KEY = BROWSER_BOOKMARKS_KEY;
 export const BROWSER_WORKSPACE_BOOKMARKS_STORAGE_KEY = BROWSER_WORKSPACE_BOOKMARKS_KEY;
-export const BROWSER_BOOKMARK_TABID_URL_MAP_KEY = 'adl-ui:browser-bookmark-tabid-url-map';
+// `BROWSER_BOOKMARKS_STORAGE_KEY` and `BROWSER_BOOKMARK_TABID_URL_MAP_KEY` now
+// live in `./browserSliceShared` to break the cross-slice import cycle.
+// `BROWSER_BOOKMARK_TABID_URL_MAP_KEY` is re-imported above for internal use.
 
 export interface BrowserBookmarkSlice {
   browserBookmarks: BrowserBookmark[];

@@ -1,29 +1,13 @@
 import type { StoreState } from '../StoreState';
 import { createUiId, createDebouncedWrite } from '../shared';
-import { BROWSER_BOOKMARK_TABID_URL_MAP_KEY } from './browserBookmarkSlice';
+import { BROWSER_BOOKMARK_TABID_URL_MAP_KEY } from './browserSliceShared';
+import type { BrowserTabState, BrowserTabStateUpdate } from './browserSliceShared';
 
-export interface BrowserTabState {
-  id: string;
-  workspaceId: string;
-  title: string;
-  url: string;
-  isPinned: boolean;
-  pinnedAt?: number;
-  sortOrder: number;
-  isPlayingAudio: boolean;
-  isAudioMuted: boolean;
-}
-
-export interface BrowserTabStateUpdate {
-  workspaceId?: string;
-  title?: string;
-  url?: string;
-  isPinned?: boolean;
-  pinnedAt?: number;
-  sortOrder?: number;
-  isPlayingAudio?: boolean;
-  isAudioMuted?: boolean;
-}
+// Re-export the tab state types from the shared leaf module so existing
+// consumers (e.g. tests, browserSlice, browserFoldersUtils) keep working
+// without import-source churn. The canonical definitions live in
+// `./browserSliceShared` to break the cross-slice type import cycle.
+export type { BrowserTabState, BrowserTabStateUpdate } from './browserSliceShared';
 
 const BROWSER_TABS_KEY = 'adl-ui:browser-tabs';
 const BROWSER_ACTIVE_TAB_KEY = 'adl-ui:browser-active-tab';

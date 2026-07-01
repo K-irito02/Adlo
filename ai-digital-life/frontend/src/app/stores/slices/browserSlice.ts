@@ -9,17 +9,15 @@ import type { StoreState } from '../StoreState';
 import { clamp, readJson, readNumber, createUiId, createDebouncedWrite } from '../shared';
 import { BROWSER_NAVIGATOR_COLLAPSED_KEY } from '../constants';
 
-import type { BrowserTabState } from './browserTabsSlice';
+import type { BrowserTabState } from './browserSliceShared';
 import type { BrowserBookmark, WorkspaceBookmarkEntry } from './browserBookmarkSlice';
-import {
-  BROWSER_WORKSPACE_BOOKMARKS_STORAGE_KEY,
-  BROWSER_BOOKMARK_TABID_URL_MAP_KEY,
-} from './browserBookmarkSlice';
+import { BROWSER_WORKSPACE_BOOKMARKS_STORAGE_KEY } from './browserBookmarkSlice';
+import { BROWSER_BOOKMARK_TABID_URL_MAP_KEY } from './browserSliceShared';
 import type { BrowserHistoryState } from './browserHistorySlice';
 import type { TabFolderState } from './browserFoldersSlice';
 import type { ShortcutSite, LocalPort, BackgroundConfig } from './browserLandingSlice';
 
-export type { BrowserTabState, BrowserTabStateUpdate } from './browserTabsSlice';
+export type { BrowserTabState, BrowserTabStateUpdate } from './browserSliceShared';
 export type { BrowserBookmark, WorkspaceBookmarkEntry } from './browserBookmarkSlice';
 export type { BrowserHistoryState } from './browserHistorySlice';
 export type { TabFolderState, BookmarkTabItem } from './browserFoldersSlice';

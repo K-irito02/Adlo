@@ -2,7 +2,7 @@
  * Browser Folders 切片辅助函数与常量
  * 从 browserFoldersSlice.ts 提取的纯函数（无 store 访问）与 storage key 常量
  */
-import type { BrowserTabState } from './browserTabsSlice';
+import type { BrowserTabState } from './browserSliceShared';
 import type { TabFolderState } from './browserFoldersTypes';
 
 const BROWSER_TAB_FOLDERS_KEY = 'adl-ui:browser-tab-folders';
