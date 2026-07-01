@@ -6,6 +6,8 @@ import {
   scheduleFoldersWrite,
   hydrateGitHubConfigs,
   hydrateGitHubFolders,
+  collectDescendantFolderIds,
+  collectAffectedWorkspaceIds,
 } from './githubRepoSliceHelpers';
 
 const GH_WORKSPACE_CONFIGS_KEY = 'adl-ui:github-workspace-configs';
@@ -146,16 +148,7 @@ export const createGitHubRepoSlice = (
 
     gitHubDeleteFolder: (folderId) => {
       set((state) => {
-        const idsToDelete = new Set<string>([folderId]);
-        const findDescendants = (parentId: string) => {
-          for (const f of state.gitHubCiFolders) {
-            if (f.parentId === parentId && !idsToDelete.has(f.id)) {
-              idsToDelete.add(f.id);
-              findDescendants(f.id);
-            }
-          }
-        };
-        findDescendants(folderId);
+        const idsToDelete = collectDescendantFolderIds(state.gitHubCiFolders, folderId);
         const nextFolders = state.gitHubCiFolders.filter((f) => !idsToDelete.has(f.id));
         scheduleFoldersWrite(nextFolders);
         return { gitHubCiFolders: nextFolders };
@@ -206,16 +199,7 @@ export const createGitHubRepoSlice = (
 
     gitHubDeleteFolderConfigRecursive: (folderId) => {
       set((state) => {
-        const idsToDelete = new Set<string>([folderId]);
-        const findDescendants = (parentId: string) => {
-          for (const f of state.gitHubCiFolders) {
-            if (f.parentId === parentId && !idsToDelete.has(f.id)) {
-              idsToDelete.add(f.id);
-              findDescendants(f.id);
-            }
-          }
-        };
-        findDescendants(folderId);
+        const idsToDelete = collectDescendantFolderIds(state.gitHubCiFolders, folderId);
         const nextFolders = state.gitHubCiFolders.map((f) =>
           idsToDelete.has(f.id) ? { ...f, ciConfig: undefined } : f
         );
@@ -226,33 +210,11 @@ export const createGitHubRepoSlice = (
 
     gitHubDeleteFolderDataRecursive: (folderId) => {
       set((state) => {
-        const idsToDelete = new Set<string>([folderId]);
-        const findDescendants = (parentId: string) => {
-          for (const f of state.gitHubCiFolders) {
-            if (f.parentId === parentId && !idsToDelete.has(f.id)) {
-              idsToDelete.add(f.id);
-              findDescendants(f.id);
-            }
-          }
-        };
-        findDescendants(folderId);
-        const affectedWorkspaceIds = new Set<string>();
-        for (const id of idsToDelete) {
-          let currentId: string | null = id;
-          while (currentId) {
-            const folder = state.gitHubCiFolders.find((f) => f.id === currentId);
-            if (!folder) {
-              break;
-            }
-            if (folder.parentType === 'workspace') {
-              if (folder.parentId) {
-                affectedWorkspaceIds.add(folder.parentId);
-              }
-              break;
-            }
-            currentId = folder.parentId ?? null;
-          }
-        }
+        const idsToDelete = collectDescendantFolderIds(state.gitHubCiFolders, folderId);
+        const affectedWorkspaceIds = collectAffectedWorkspaceIds(
+          state.gitHubCiFolders,
+          idsToDelete
+        );
         const shouldClear =
           affectedWorkspaceIds.size === 0 ||
           (state.activeCiWorkspaceId != null &&
@@ -266,33 +228,11 @@ export const createGitHubRepoSlice = (
 
     gitHubDeleteFolderConfigAndDataRecursive: (folderId) => {
       set((state) => {
-        const idsToDelete = new Set<string>([folderId]);
-        const findDescendants = (parentId: string) => {
-          for (const f of state.gitHubCiFolders) {
-            if (f.parentId === parentId && !idsToDelete.has(f.id)) {
-              idsToDelete.add(f.id);
-              findDescendants(f.id);
-            }
-          }
-        };
-        findDescendants(folderId);
-        const affectedWorkspaceIds = new Set<string>();
-        for (const id of idsToDelete) {
-          let currentId: string | null = id;
-          while (currentId) {
-            const folder = state.gitHubCiFolders.find((f) => f.id === currentId);
-            if (!folder) {
-              break;
-            }
-            if (folder.parentType === 'workspace') {
-              if (folder.parentId) {
-                affectedWorkspaceIds.add(folder.parentId);
-              }
-              break;
-            }
-            currentId = folder.parentId ?? null;
-          }
-        }
+        const idsToDelete = collectDescendantFolderIds(state.gitHubCiFolders, folderId);
+        const affectedWorkspaceIds = collectAffectedWorkspaceIds(
+          state.gitHubCiFolders,
+          idsToDelete
+        );
         const shouldClear =
           affectedWorkspaceIds.size === 0 ||
           (state.activeCiWorkspaceId != null &&
