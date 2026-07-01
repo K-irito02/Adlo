@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef } from 'react';
 import { isTauriShell } from '@tauri-bridge';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 import type { PageMeta } from '@shared/ipc';
-import { fetchPageMeta, prefetchPageMeta, setCachedFavicon } from '@utils/fetchPageMeta';
+import { fetchPageMeta, prefetchPageMeta } from '@utils/fetchPageMeta';
+import type { MetaSource } from './useBrowserPageMeta';
 import { useAppStore } from '@stores';
 import { normalizeUrlForCompare, isProbablySameSite } from './browserUrlUtils';
 import { historyDedupKey } from '@utils/browserDisplayUtils';
@@ -15,7 +16,7 @@ interface UseBrowserUrlChangeOptions {
   setAddress: (address: string) => void;
   browserNavigateActiveTab: (url: string, title?: string) => void;
   browserUpdateTab: (id: string, data: Partial<BrowserTabState>) => void;
-  onPageMeta?: (meta: PageMeta, source?: string) => void;
+  onPageMeta?: (meta: PageMeta, source?: MetaSource) => void;
   onNavigationStart?: (url: string) => void;
   markUrlSeen: (url: string) => void;
   setIframeLoadError: React.Dispatch<React.SetStateAction<boolean>>;

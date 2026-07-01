@@ -442,22 +442,11 @@ export function BrowserPanel(props: BrowserPanelProps) {
             useAppStore.getState().browserAddToHistory(finalUrl, finalUrl);
             return;
           }
-          const tab = useAppStore
-            .getState()
-            .browserTabs.find(
-              (t) => t.url === finalUrl && t.id === useAppStore.getState().browserActiveTabId
-            );
-          if (tab && meta.title && meta.title !== tab.title) {
-            useAppStore.getState().browserUpdateTab(tab.id, { title: meta.title });
-          }
-          if (meta.favicon) {
-            mod.setCachedFavicon(finalUrl, meta.favicon);
-          }
-          if (meta.title) {
-            useAppStore.getState().browserAddToHistory(finalUrl, meta.title);
-          } else {
-            useAppStore.getState().browserAddToHistory(finalUrl, finalUrl);
-          }
+          _handlePageMeta({
+            title: meta.title || finalUrl,
+            favicon: meta.favicon || '',
+            url: finalUrl,
+          }, 'http');
         });
       });
     }
