@@ -2,13 +2,21 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 const localStorageStore: Record<string, string> = {};
 beforeEach(() => {
-  Object.keys(localStorageStore).forEach(k => delete localStorageStore[k]);
+  Object.keys(localStorageStore).forEach((k) => delete localStorageStore[k]);
   vi.stubGlobal('localStorage', {
     getItem: (key: string) => localStorageStore[key] ?? null,
-    setItem: (key: string, value: string) => { localStorageStore[key] = value; },
-    removeItem: (key: string) => { delete localStorageStore[key]; },
-    clear: () => { Object.keys(localStorageStore).forEach(k => delete localStorageStore[k]); },
-    get length() { return Object.keys(localStorageStore).length; },
+    setItem: (key: string, value: string) => {
+      localStorageStore[key] = value;
+    },
+    removeItem: (key: string) => {
+      delete localStorageStore[key];
+    },
+    clear: () => {
+      Object.keys(localStorageStore).forEach((k) => delete localStorageStore[k]);
+    },
+    get length() {
+      return Object.keys(localStorageStore).length;
+    },
     key: (i: number) => Object.keys(localStorageStore)[i] ?? null,
   });
   vi.useFakeTimers();

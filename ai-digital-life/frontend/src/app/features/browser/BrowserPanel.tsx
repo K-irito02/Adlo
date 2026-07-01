@@ -442,11 +442,14 @@ export function BrowserPanel(props: BrowserPanelProps) {
             useAppStore.getState().browserAddToHistory(finalUrl, finalUrl);
             return;
           }
-          _handlePageMeta({
-            title: meta.title || finalUrl,
-            favicon: meta.favicon || '',
-            url: finalUrl,
-          }, 'http');
+          _handlePageMeta(
+            {
+              title: meta.title || finalUrl,
+              favicon: meta.favicon || '',
+              url: finalUrl,
+            },
+            'http'
+          );
         });
       });
     }

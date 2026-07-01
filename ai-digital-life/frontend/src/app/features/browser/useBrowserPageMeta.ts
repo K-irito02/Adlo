@@ -161,14 +161,18 @@ export function useBrowserPageMeta(
   const shouldProcessMeta = useCallback((url: string, source: MetaSource): boolean => {
     const now = Date.now();
     const entry = processedMetaRef.current.get(url);
-    if (!entry) return true;
+    if (!entry) {
+      return true;
+    }
     if (now - entry.timestamp > META_DEDUP_TTL) {
       processedMetaRef.current.delete(url);
       return true;
     }
     // Also check by hostname+pathname to catch SPA pushState URL variants
     const metaKey = hostnamePathKey(url);
-    if (!metaKey) return false;
+    if (!metaKey) {
+      return false;
+    }
     for (const [seenUrl, seenEntry] of processedMetaRef.current.entries()) {
       if (now - seenEntry.timestamp > META_DEDUP_TTL) {
         processedMetaRef.current.delete(seenUrl);
@@ -210,8 +214,12 @@ export function useBrowserPageMeta(
           if (source === 'com') {
             // COM-sourced favicons need preload to prevent flicker
             const img = new Image();
-            img.onload = () => { setCachedFavicon(cleanUrl, meta.favicon); };
-            img.onerror = () => { setCachedFavicon(cleanUrl, meta.favicon); };
+            img.onload = () => {
+              setCachedFavicon(cleanUrl, meta.favicon);
+            };
+            img.onerror = () => {
+              setCachedFavicon(cleanUrl, meta.favicon);
+            };
             img.src = meta.favicon;
           } else {
             // HTTP/iframe/google sources: image was already loaded or will be loaded naturally

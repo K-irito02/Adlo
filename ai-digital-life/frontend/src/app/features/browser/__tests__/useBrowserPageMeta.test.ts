@@ -8,12 +8,16 @@ describe('meta source priority', () => {
 
     function shouldProcess(url: string, source: string): boolean {
       const entry = processed.get(url);
-      if (!entry) return true;
+      if (!entry) {
+        return true;
+      }
       if (Date.now() - entry.timestamp > TTL) {
         processed.delete(url);
         return true;
       }
-      return PRIORITY[source as keyof typeof PRIORITY] > PRIORITY[entry.source as keyof typeof PRIORITY];
+      return (
+        PRIORITY[source as keyof typeof PRIORITY] > PRIORITY[entry.source as keyof typeof PRIORITY]
+      );
     }
 
     expect(shouldProcess('https://example.com', 'http')).toBe(true);
@@ -34,16 +38,20 @@ describe('meta source priority', () => {
 
     function shouldProcess(url: string, source: string): boolean {
       const entry = processed.get(url);
-      if (!entry) return true;
+      if (!entry) {
+        return true;
+      }
       if (Date.now() - entry.timestamp > TTL) {
         processed.delete(url);
         return true;
       }
-      return PRIORITY[source as keyof typeof PRIORITY] > PRIORITY[entry.source as keyof typeof PRIORITY];
+      return (
+        PRIORITY[source as keyof typeof PRIORITY] > PRIORITY[entry.source as keyof typeof PRIORITY]
+      );
     }
 
     processed.set('https://example.com', { timestamp: Date.now() - 100, source: 'com' });
-    await new Promise(r => setTimeout(r, 10));
+    await new Promise((r) => setTimeout(r, 10));
     expect(shouldProcess('https://example.com', 'google')).toBe(true);
   });
 });

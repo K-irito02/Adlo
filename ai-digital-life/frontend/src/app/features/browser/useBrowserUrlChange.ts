@@ -93,12 +93,17 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
               return;
             }
             const tab = activeTabRef.current;
-            if (!tab) return;
-            onPageMeta?.({
-              title: meta.title || tab.title,
-              favicon: meta.favicon || '',
-              url: href,
-            }, 'http');
+            if (!tab) {
+              return;
+            }
+            onPageMeta?.(
+              {
+                title: meta.title || tab.title,
+                favicon: meta.favicon || '',
+                url: href,
+              },
+              'http'
+            );
           });
         }
         return;
@@ -127,14 +132,21 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
       } catch {
         /* cross-origin: fetch via proxy */
         fetchPageMeta(href).then((meta) => {
-          if (!meta) return;
+          if (!meta) {
+            return;
+          }
           const tab = activeTabRef.current;
-          if (!tab) return;
-          onPageMeta?.({
-            title: meta.title || tab.title,
-            favicon: meta.favicon || '',
-            url: href,
-          }, 'http');
+          if (!tab) {
+            return;
+          }
+          onPageMeta?.(
+            {
+              title: meta.title || tab.title,
+              favicon: meta.favicon || '',
+              url: href,
+            },
+            'http'
+          );
         });
       }
     } catch {
@@ -253,7 +265,10 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
               }
               return;
             }
-            onPageMeta?.({ title: meta.title, favicon: meta.favicon || '', url: normalizedUrl }, 'http');
+            onPageMeta?.(
+              { title: meta.title, favicon: meta.favicon || '', url: normalizedUrl },
+              'http'
+            );
           });
         };
 

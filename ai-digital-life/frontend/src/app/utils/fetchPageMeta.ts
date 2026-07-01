@@ -20,7 +20,9 @@ const PERSIST_DEBOUNCE_MS = 500;
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
 
 function schedulePersistFaviconCache(): void {
-  if (persistTimer) clearTimeout(persistTimer);
+  if (persistTimer) {
+    clearTimeout(persistTimer);
+  }
   persistTimer = setTimeout(() => {
     persistTimer = null;
     try {
@@ -38,7 +40,9 @@ function schedulePersistFaviconCache(): void {
 function loadPersistedFaviconCache(): void {
   try {
     const raw = localStorage.getItem(FAVICON_CACHE_KEY);
-    if (!raw) return;
+    if (!raw) {
+      return;
+    }
     const obj = JSON.parse(raw) as Record<string, string>;
     for (const [key, value] of Object.entries(obj)) {
       if (!faviconUrlCache.has(key)) {

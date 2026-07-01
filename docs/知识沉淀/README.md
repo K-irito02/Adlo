@@ -99,6 +99,7 @@
 | [browser-navigate-tab-explicit-2026-06-29.md](./浏览器/browser-navigate-tab-explicit-2026-06-29.md)                               | 2026-06-29 navigateTab 显式调用重构 | navigateTab 反馈循环修复：useBrowserWebView 被动触发→前端显式调用，不同来源的导航分离原则 |
 | [browser-folder-delete-bookmark-cleanup-2026-06-30.md](./浏览器/browser-folder-delete-bookmark-cleanup-2026-06-30.md)             | 2026-06-30 Phase 3 多轮修复         | 浏览器文件夹删除书签清理修复（17 问题）：工作区书签过滤、scopeFolderId、tabId 分离、第二遍时序、全量扫描等 |
 | [spa-history-back-double-click-2026-06-30.md](./浏览器/spa-history-back-double-click-2026-06-30.md)                               | 2026-06-30 知识沉淀                  | SPA 后退需双击问题：eval("history.back()") 与 SPA pushState 多层历史栈，非应用 bug |
+| [browser-favicon-title-sync-2026-07-01.md](./浏览器/browser-favicon-title-sync-2026-07-01.md)                               | 2026-07-01 修复执行                  | 浏览器 Favicon/Title 同步修复：5 个根因（缓存未持久化、多源争用、HTTP 路径绕过质量检查、TabBar 未订阅 favicon、过期缓存无驱逐）、统一 handlePageMeta 入口 + 源优先级 + localStorage 持久化 + subscribeFavicon 订阅 + onError 驱逐 |
 
 ### 代码质量
 
