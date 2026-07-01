@@ -288,7 +288,7 @@
   line-height: var(--leading-relaxed);
   pointer-events: none;
   padding: var(--space-2) var(--space-3);
-  word-break: normal;
+  word-break: break-word;
   overflow-wrap: break-word;
   line-break: loose;
 }
