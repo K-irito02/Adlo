@@ -45,11 +45,15 @@ export function BrowserMenuHintItem({
     }
 
     const menuEl = menuRef.current;
-    if (!menuEl) return;
+    if (!menuEl) {
+      return;
+    }
 
     const btnRect = button?.getBoundingClientRect();
     const menuRect = menuEl.getBoundingClientRect();
-    if (!btnRect) return;
+    if (!btnRect) {
+      return;
+    }
 
     const centerY = btnRect.top + btnRect.height / 2;
 
@@ -93,11 +97,7 @@ export function BrowserMenuHintItem({
       {icon ? <span className="adl-menu__item-icon">{icon}</span> : null}
       <span>{label}</span>
       {hint ? (
-        <span
-          className="adl-menu-item__hint"
-          onMouseEnter={showHint}
-          onMouseLeave={hideHint}
-        >
+        <span className="adl-menu-item__hint" onMouseEnter={showHint} onMouseLeave={hideHint}>
           !
         </span>
       ) : null}
