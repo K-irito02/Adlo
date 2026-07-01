@@ -86,10 +86,11 @@ npm install superpowers@git+https://github.com/obra/superpowers.git --prefix "$H
 
 | 目录 | 职责 | 技能数量 |
 |------|------|----------|
-| `.opencode/skills/` | 源目录（真源） | 22 |
-| `.agents/skills/` | 同步备份 | 22 |
+| `.opencode/skills/` | 源目录（真源） | 23 |
+| `.agents/skills/` | 同步备份 | 23 |
+| `.trae/skills/` | 同步备份 | 23 |
 
-**同步规则**：`.opencode/skills/` 是真源，修改后需同步到 `.agents/skills/`。
+**同步规则**：`.opencode/skills/` 是真源，修改后需同步到 `.agents/skills/` 和 `.trae/skills/`。
 
 ### 技能分类
 
@@ -112,7 +113,7 @@ npm install superpowers@git+https://github.com/obra/superpowers.git --prefix "$H
 | `using-git-worktrees` | Git 工作树使用 | 并行开发、隔离工作区 |
 | `writing-skills` | 技能创作 | 新增/修改技能 |
 
-**项目定制技能**（8 个）：
+**项目定制技能**（9 个）：
 
 | 技能 | 用途 |
 |------|------|
@@ -124,6 +125,7 @@ npm install superpowers@git+https://github.com/obra/superpowers.git --prefix "$H
 | `run-project-surfaces` | 启动项目预览 |
 | `skill-creator` | 技能创建工具 |
 | `ui-ux-pro-max` | UI/UX 设计专家 |
+| `closing-workflow` | 工作结束后收尾流程（日志审查、代码审查循环、质量检测、文档同步、项目清理） |
 
 ### 使用规范
 

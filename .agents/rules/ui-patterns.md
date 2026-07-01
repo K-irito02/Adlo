@@ -276,8 +276,11 @@ alwaysApply: true
 
 - **推荐**：`TooltipSimple`（便捷组件）
 - **复杂场景**：`Tooltip` + `TooltipTrigger` + `TooltipContent`（组合模式）
+- **文件系统路径展示**：可使用原生 `title` 属性（如 `WorkspaceList.tsx` 中的工作区路径）
+  - 理由：路径內容为纯文本，原生 tooltip 无定位闪烁问题
+  - 适用场景：工作区路径、文件路径等纯文本路径展示
 - 文件：[Tooltip.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/components/Tooltip.tsx)
-- **禁止**原生 `title` 属性
+- 非路径场景**禁止**原生 `title` 属性
 
 ### 视觉规范
 

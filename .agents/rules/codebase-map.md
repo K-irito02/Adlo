@@ -182,6 +182,56 @@ frontend/src/
 | `taskSlice` | taskCenter | set*, clear* |
 | `commandSlice` | latestCommandRun, commandHistory | set*, append*, clear* |
 
+## 路径别名（Vite/TypeScript）
+
+前端项目配置了 `@` 路径别名，映射关系如下：
+
+| 别名 | 映射路径 | 用途 |
+|------|----------|------|
+| `@app` | `src/app` | 应用主入口 |
+| `@features` | `src/app/features` | 功能域模块 |
+| `@stores` | `src/app/stores` | Zustand 状态管理 |
+| `@components` | `src/app/components` | 通用组件（Dialog、Tooltip、Toast 等） |
+| `@icons` | `src/app/icons` | 图标模块 |
+| `@i18n` | `src/app/i18n` | 国际化 |
+| `@utils` | `src/app/utils` | 纯函数工具 |
+| `@hooks` | `src/app/hooks` | 自定义 Hooks |
+| `@regions` | `src/app/regions` | 区域布局组件 |
+| `@tauri-bridge` | `src/tauri-bridge` | Tauri 桥接层 |
+| `@shared` | `src/shared` | 共享类型/IPC 契约 |
+| `@root` | `src` | 前端源码根 |
+
+> 新增别名必须同步更新 `vite.config.ts` 和 `tsconfig.json` 两处配置。
+
+## 浏览器模块结构（browser/）
+
+浏览器面板是最大的前端功能域，组件分解如下：
+
+```
+features/browser/
+├── BrowserPanel.tsx          # 浏览器面板主壳（~650行）
+├── BrowserPanelDialogs.tsx   # 对话框提取（CreateTab/Bookmark/Rename/Toast）
+├── BrowserPanelContent.tsx   # 内容区域（WebView/iframe + 着陆页 + WebView 错误）
+├── BrowserNavigator.tsx      # 导航器壳（工具栏 + 模式切换，~120行）
+├── BrowserNavOpenMode.tsx    # 已打开标签模式（封装 BrowserOpenTabFlatList）
+├── BrowserNavTabsMode.tsx    # 标签目录树模式（封装 BrowserTabTree）
+├── BrowserNavListMode.tsx    # 列表视图模式（BrowserTabTree viewMode="list"）
+├── BrowserNavSearchMode.tsx  # 搜索模式（搜索结果列表）
+├── BrowserOpenTabFlatList.tsx# 已打开标签扁平列表（可拖拽）
+├── BrowserContextMenu.tsx    # 浏览器右键菜单组件
+├── BrowserSearchOverlay.tsx  # 搜索覆盖层
+├── BrowserToolbar.tsx        # 浏览器工具栏组件
+├── BrowserTabBar.tsx         # 标签页栏
+├── BrowserMenuDropdown.tsx   # 菜单下拉
+├── BrowserIframeStack.tsx    # 多 iframe 堆叠管理器
+├── BookmarkToFolderDialog.tsx# 收藏到目录对话框
+├── browser-landing/          # 着陆页（快捷键网格、端口、自定义背景）
+├── * (useBrowser*.ts)        # 15 个浏览器 Hook（按功能域拆分）
+└── browserPanelHelpers.ts    # 工具函数（重命名/删除/目录树构建）
+```
+
+> 2026-06-29 重构：BrowserNavigator 495→~120 行、BrowserPanel 716→~650 行。提取 4 个导航模式子组件（OpenMode/TabsMode/ListMode/SearchMode）和 1 个对话框组件（BrowserPanelDialogs）。
+
 ## 索引策略
 
 1. 业务逻辑 → `crates/*`

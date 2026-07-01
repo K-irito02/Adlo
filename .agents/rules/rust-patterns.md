@@ -21,7 +21,7 @@ alwaysApply: false
 - 单一 crate 超过 3 个独立关注点时，评估拆分（参考 workspace crate 拆出 outline）
 - 两个 crate 均 <200 行且仅被同一消费者引用时，评估合并（参考 context-engine + prompt-engine → adl-context）
 - Rust 源文件超过 ~500 行时评估按领域拆分
-- kernel 类型导出保留 `pub use types::*` 向后兼容，同时提供 `pub mod domain { ... }` 分组路径
+- kernel 类型保留 `pub use types::*` 向后兼容，同时提供 `pub mod domain { ... }` 分组路径
 
 ## 编译与类型安全
 - `cargo check --workspace` 和 `cargo test --workspace` 必须在任何 crate 结构变更后执行

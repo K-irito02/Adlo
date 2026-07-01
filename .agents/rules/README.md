@@ -71,6 +71,20 @@ Trae IDE 内置浏览器自动化工具（18 个 MCP 工具），支持导航、
 | 操作指南 | 命令/工具 | `commands.md`, `browser-automation.md`, `desktop-ui-verification.md` |
 | 专项领域 | 安全/设计 | `tauri-shell.md`, `design-system.md`, `ui-patterns.md` |
 
+## 技能系统
+
+本项目使用 **Superpowers 技能系统** 增强 AI 代理能力，共 23 个技能（含新增 closing-workflow）。
+
+| 项目 | 说明 |
+|------|------|
+| 入口技能 | `using-superpowers` — 对话开始时自动触发，建立技能使用规范 |
+| 技能目录 | `.opencode/skills/`（真源）、`.agents/skills/`（同步备份）、`.trae/skills/`（同步备份） |
+| 同步规则 | 三个目录必须保持一致，每次更新/修改/创建技能时需同步到其他两个目录 |
+| 调用方式 | `Skill` 工具，按技能名称调用 |
+| 详细文档 | 见根目录 [AGENTS.md](../../AGENTS.md#superpowers-技能系统) |
+
+**核心原则**：收到用户请求后，先判断是否有相关技能可用，有则优先调用技能再行动。
+
 ## 相关文件
 
 - [AGENTS.md](../../AGENTS.md)
