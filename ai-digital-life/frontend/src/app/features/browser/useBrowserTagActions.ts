@@ -9,6 +9,7 @@ import {
   isTabTitleLocked,
   setCachedFavicon,
 } from '@utils/fetchPageMeta';
+import { hostnameFromUrl } from '@utils/browserDisplayUtils';
 
 export function useBrowserTagActions() {
   const {
@@ -43,23 +44,25 @@ export function useBrowserTagActions() {
       }
       clearFaviconCacheForUrl(url);
       clearPageMetaCacheForUrl(url);
-      const meta = await prefetchPageMeta(url);
-      if (meta) {
-        const state = useAppStore.getState();
-        const tab = state.browserTabs.find((t) => t.id === tabId);
-        if (tab) {
-          if (!isTabTitleLocked(tabId) && meta.title) {
-            browserUpdateTab(tabId, { title: meta.title });
-          }
-        } else {
-          const isHistoryEntry = state.browserHistory.some((h) => h.id === tabId);
-          if (isHistoryEntry && meta.title) {
-            browserUpdateHistoryTitle(url, meta.title);
-          }
+      const meta = await prefetchPageMeta(url, { force: true });
+
+      const state = useAppStore.getState();
+      const tab = state.browserTabs.find((t) => t.id === tabId);
+
+      const title = meta?.title || hostnameFromUrl(url);
+      if (tab) {
+        if (!isTabTitleLocked(tabId)) {
+          browserUpdateTab(tabId, { title });
         }
-        if (meta.favicon) {
-          setCachedFavicon(url, meta.favicon, true);
+      } else {
+        const isHistoryEntry = state.browserHistory.some((h) => h.id === tabId);
+        if (isHistoryEntry) {
+          browserUpdateHistoryTitle(url, title);
         }
+      }
+
+      if (meta?.favicon) {
+        setCachedFavicon(url, meta.favicon, true);
       }
     },
     [browserUpdateTab, browserUpdateHistoryTitle]

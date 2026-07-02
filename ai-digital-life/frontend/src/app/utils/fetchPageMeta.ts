@@ -202,7 +202,8 @@ export async function fetchPageMeta(
 }
 
 export async function prefetchPageMeta(
-  url: string
+  url: string,
+  options?: { force?: boolean }
 ): Promise<{ title: string; favicon: string } | null> {
   const PREFETCH_TIMEOUT = 5000;
 
@@ -216,7 +217,7 @@ export async function prefetchPageMeta(
         setTimeout(() => reject(new Error('timeout')), PREFETCH_TIMEOUT)
       );
       const result = (await Promise.race([
-        invoke('browser_fetch_page_meta', { url }),
+        invoke('browser_fetch_page_meta', { url, force: options?.force ?? false }),
         timeoutPromise,
       ])) as { ok: boolean; data: { title: string; favicon: string; url: string } };
       if (result?.ok && result.data) {
@@ -226,6 +227,10 @@ export async function prefetchPageMeta(
       return null;
     }
     return null;
+  }
+
+  if (options?.force) {
+    clearPageMetaCacheForUrl(url);
   }
 
   try {

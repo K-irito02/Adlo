@@ -75,16 +75,13 @@ function subscribeChannel<T>(eventName: string, listener: (payload: T) => void):
     if (active) {
       ul = unlisten;
     } else {
-      try {
-        unlisten();
-      } catch {
-        /* ignore */
-      }
+      /* unlisten() is typed () => void but actually async; catch rejection via wrapper */
+      void Promise.resolve(unlisten()).catch(() => {});
     }
   });
   return () => {
     active = false;
-    void ul?.();
+    void Promise.resolve(ul?.()).catch(() => {});
   };
 }
 
@@ -145,16 +142,13 @@ export function createTauriBridge(): DigitalLifeBridge {
             if (active) {
               ul = unlisten;
             } else {
-              try {
-                unlisten();
-              } catch {
-                /* ignore */
-              }
+              /* unlisten() is typed () => void but actually async; catch rejection via wrapper */
+              void Promise.resolve(unlisten()).catch(() => {});
             }
           });
         return () => {
           active = false;
-          void ul?.();
+          void Promise.resolve(ul?.()).catch(() => {});
         };
       },
     },
@@ -386,16 +380,13 @@ export function createTauriBridge(): DigitalLifeBridge {
           if (active) {
             ul = unlisten;
           } else {
-            try {
-              unlisten();
-            } catch {
-              /* ignore */
-            }
+            /* unlisten() is typed () => void but actually async; catch rejection via wrapper */
+            void Promise.resolve(unlisten()).catch(() => {});
           }
         });
         return () => {
           active = false;
-          void ul?.();
+          void Promise.resolve(ul?.()).catch(() => {});
         };
       },
       onMetaChanged: (
@@ -414,16 +405,13 @@ export function createTauriBridge(): DigitalLifeBridge {
           if (active) {
             ul = unlisten;
           } else {
-            try {
-              unlisten();
-            } catch {
-              /* ignore */
-            }
+            /* unlisten() is typed as () => void but actually async; catch rejection via wrapper */
+            void Promise.resolve(unlisten()).catch(() => {});
           }
         });
         return () => {
           active = false;
-          void ul?.();
+          void Promise.resolve(ul?.()).catch(() => {});
         };
       },
       muteTab: (tabId: string, muted: boolean) =>
@@ -444,16 +432,13 @@ export function createTauriBridge(): DigitalLifeBridge {
           if (active) {
             ul = unlisten;
           } else {
-            try {
-              unlisten();
-            } catch {
-              /* ignore */
-            }
+            /* unlisten() is typed as () => void but actually async; catch rejection via wrapper */
+            void Promise.resolve(unlisten()).catch(() => {});
           }
         });
         return () => {
           active = false;
-          void ul?.();
+          void Promise.resolve(ul?.()).catch(() => {});
         };
       },
       setBrowserColorScheme: (resolvedTheme: 'light' | 'dark') =>

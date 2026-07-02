@@ -91,8 +91,12 @@ pub fn browser_reload_tab(
 }
 
 #[tauri::command]
-pub async fn browser_fetch_page_meta(url: String) -> Result<IpcResult<PageMeta>, CommandError> {
-    let meta = fetch_page_meta_inner(&url).await?;
+pub async fn browser_fetch_page_meta(
+    url: String,
+    force: Option<bool>,
+) -> Result<IpcResult<PageMeta>, CommandError> {
+    let skip_dedup = force.unwrap_or(false);
+    let meta = fetch_page_meta_inner(&url, skip_dedup).await?;
     Ok(ipc(Ok(meta)))
 }
 
@@ -165,8 +169,8 @@ where
 
 const FETCH_DEDUP_WINDOW_MS: u64 = 3000;
 
-async fn fetch_page_meta_inner(url: &str) -> Result<PageMeta, AppError> {
-    {
+async fn fetch_page_meta_inner(url: &str, skip_dedup: bool) -> Result<PageMeta, AppError> {
+    if !skip_dedup {
         let is_dupe = with_fetch_cache(|cache| {
             let now = Instant::now();
             match cache.get(url) {
@@ -244,14 +248,69 @@ async fn fetch_page_meta_inner(url: &str) -> Result<PageMeta, AppError> {
     Ok(PageMeta { title: final_title, favicon: final_favicon, url: url.to_string() })
 }
 
+fn extract_meta_content<'a>(lower: &'a str, html: &'a str, property: &str) -> Option<String> {
+    let prop_lower = property.to_lowercase();
+    let markers = [
+        format!("property=\"{}\"", &prop_lower),
+        format!("property='{}'", &prop_lower),
+        format!("property = \"{}\"", &prop_lower),
+        format!("property = '{}'", &prop_lower),
+    ];
+    for marker in &markers {
+        if let Some(start) = lower.find(marker) {
+            let snippet = &lower[..start];
+            let tag_start = snippet.rfind("<meta")?;
+            let tag_end = lower[tag_start..].find('>')?;
+            let tag = &html[tag_start..tag_start + tag_end];
+            if let Some(content) = extract_attr_value(tag, "content") {
+                return Some(content);
+            }
+        }
+    }
+    None
+}
+
+fn extract_attr_value(html: &str, attr: &str) -> Option<String> {
+    for marker in &[format!("{}=\"", attr), format!("{}='", attr)] {
+        if let Some(start) = html.to_lowercase().find(marker) {
+            let value_start = start + marker.len();
+            let quote = &html.to_lowercase()[value_start - 1..value_start];
+            let end =
+                html.to_lowercase()[value_start..].find(if quote == "\"" { "\"" } else { "'" })?;
+            let raw = &html[value_start..value_start + end];
+            if !raw.is_empty() {
+                return Some(raw.to_string());
+            }
+        }
+    }
+    None
+}
+
 fn extract_title(html: &str) -> Option<String> {
     let lower = html.to_lowercase();
-    let start = lower.find("<title")?;
-    let tag_end = html[start..].find('>')?;
-    let content_start = start + tag_end + 1;
-    let end = lower[content_start..].find("</title>")?;
-    let raw = html[content_start..content_start + end].trim();
-    Some(html_entity_decode(raw))
+
+    // Try <title> first
+    if let Some(t_start) = lower.find("<title") {
+        if let Some(t_tag_end) = html[t_start..].find('>') {
+            let content_start = t_start + t_tag_end + 1;
+            if let Some(t_end) = lower[content_start..].find("</title>") {
+                let raw = html[content_start..content_start + t_end].trim();
+                if !raw.is_empty() {
+                    return Some(html_entity_decode(raw));
+                }
+            }
+        }
+    }
+
+    // Fall back to og:title
+    if let Some(content) = extract_meta_content(&lower, html, "og:title") {
+        let trimmed = content.trim();
+        if !trimmed.is_empty() {
+            return Some(html_entity_decode(trimmed));
+        }
+    }
+
+    None
 }
 
 fn extract_href(snippet: &str, snippet_lower: &str) -> Option<String> {
