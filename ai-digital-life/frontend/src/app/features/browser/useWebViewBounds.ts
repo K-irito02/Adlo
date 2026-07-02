@@ -63,7 +63,7 @@ export function useWebViewBounds(options: UseWebViewBoundsOptions) {
     };
 
     window.digitalLife?.browser?.setTabBounds(tab.id, bounds).catch(() => {});
-  }, [isTabInPool, webViewDisabled]);
+  }, [isTabInPool, webViewDisabled, activeTabRef, overlayActiveRef]);
 
   const updateWebViewBoundsRef = useRef(updateWebViewBounds);
   useEffect(() => {
@@ -84,7 +84,7 @@ export function useWebViewBounds(options: UseWebViewBoundsOptions) {
     observer.observe(primaryRef.current);
 
     return () => observer.disconnect();
-  }, [updateWebViewBounds, isVisible]);
+  }, [updateWebViewBounds, isVisible, webViewActiveRef, hideWebViewRequestedRef]);
 
   return {
     primaryRef,

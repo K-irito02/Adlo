@@ -408,7 +408,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
         },
       },
     ],
-    [activeTab, browserNavigateActiveTab, t, isTauri, zoomLevel]
+    [activeTab, browserNavigateActiveTab, t, isTauri, zoomLevel, setZoomLevel]
   );
 
   const submitAddress = useCallback(async () => {
@@ -499,6 +499,10 @@ export function BrowserPanel(props: BrowserPanelProps) {
     setIframeLoadError,
     setIframeBlockedDetected,
     _handlePageMeta,
+    setAddress,
+    addressSubmittedForTabRef,
+    submitVersionRef,
+    validatedUrlsRef,
   ]);
 
   const visibleWorkspaces = useMemo(
@@ -563,7 +567,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
         });
       });
     }
-  }, [activeTab?.id, activeTab?.url, setAddress, setIframeHistory]);
+  }, [activeTab?.id, activeTab?.url, setAddress, setIframeHistory, addressSubmittedForTabRef]);
 
   useEffect(() => {
     if (!browserMenuOpen && !addressExpanded && navigatorMode !== 'search') {

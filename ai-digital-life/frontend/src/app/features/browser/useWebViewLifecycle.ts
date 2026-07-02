@@ -114,6 +114,9 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
     createWebViewForTab,
     activateTabInPool,
     updateWebViewBounds,
+    hideWebViewRequestedRef,
+    overlayActiveRef,
+    webViewActiveRef,
   ]);
 
   // Cleanup on unmount
@@ -121,7 +124,7 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
     return () => {
       webViewActiveRef.current = false;
     };
-  }, []);
+  }, [webViewActiveRef]);
 
   return { loadingTabId };
 }

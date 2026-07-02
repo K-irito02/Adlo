@@ -53,7 +53,7 @@ export function useWebViewVisibility(options: UseWebViewVisibilityOptions) {
         })
         .catch(() => {});
     }
-  }, [isTabInPool]);
+  }, [isTabInPool, activeTabRef]);
 
   // DOM overlay detection with overlap check — only hide webview when menu
   // elements (context menus, tree dropdowns portaled to body) actually
@@ -127,7 +127,14 @@ export function useWebViewVisibility(options: UseWebViewVisibilityOptions) {
         cancelAnimationFrame(rafId);
       }
     };
-  }, [hideAllWebViews]);
+  }, [
+    hideAllWebViews,
+    hideWebViewRequestedRef,
+    overlayActiveRef,
+    primaryRef,
+    updateWebViewBoundsRef,
+    webViewActiveRef,
+  ]);
 
   // Overlay state-driven hide
   useEffect(() => {
@@ -139,7 +146,7 @@ export function useWebViewVisibility(options: UseWebViewVisibilityOptions) {
     } else {
       updateWebViewBounds();
     }
-  }, [overlayActive, hideAllWebViews, updateWebViewBounds]);
+  }, [overlayActive, hideAllWebViews, updateWebViewBounds, webViewActiveRef]);
 
   // Visibility change
   useEffect(() => {
@@ -163,5 +170,12 @@ export function useWebViewVisibility(options: UseWebViewVisibilityOptions) {
           .catch(() => {});
       }
     }
-  }, [isVisible, updateWebViewBounds, isTabInPool]);
+  }, [
+    isVisible,
+    updateWebViewBounds,
+    isTabInPool,
+    activeTabRef,
+    hideWebViewRequestedRef,
+    webViewActiveRef,
+  ]);
 }
