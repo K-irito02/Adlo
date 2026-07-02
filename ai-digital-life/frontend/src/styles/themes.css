@@ -604,6 +604,12 @@ body,
   --diff-reject-bg: #d43;
   --diff-revert-bg: #49d;
   --diff-btn-text: #fff;
+
+  /* === Overlay Backgrounds (white tint, theme-independent) ===
+     Used for hover/active states on colored or accent-tinted surfaces
+     where a white overlay is intentional in both light and dark themes. */
+  --overlay-bg-1: rgba(255, 255, 255, 0.12);
+  --overlay-bg-2: rgba(255, 255, 255, 0.18);
 }
 
 /* -------- High-contrast preference --------

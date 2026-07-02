@@ -1,6 +1,11 @@
 import type { StoreState } from '../StoreState';
 import { createUiId, createDebouncedWrite } from '../shared';
-import { BROWSER_BOOKMARK_TABID_URL_MAP_KEY } from './browserSliceShared';
+import {
+  BROWSER_TABS_KEY,
+  BROWSER_ACTIVE_TAB_KEY,
+  BROWSER_TAB_FOLDERS_KEY,
+  BROWSER_BOOKMARK_TABID_URL_MAP_KEY,
+} from './browserSliceShared';
 import type { BrowserTabState, BrowserTabStateUpdate } from './browserSliceShared';
 
 // Re-export the tab state types from the shared leaf module so existing
@@ -8,10 +13,6 @@ import type { BrowserTabState, BrowserTabStateUpdate } from './browserSliceShare
 // without import-source churn. The canonical definitions live in
 // `./browserSliceShared` to break the cross-slice type import cycle.
 export type { BrowserTabState, BrowserTabStateUpdate } from './browserSliceShared';
-
-const BROWSER_TABS_KEY = 'adl-ui:browser-tabs';
-const BROWSER_ACTIVE_TAB_KEY = 'adl-ui:browser-active-tab';
-const BROWSER_TAB_FOLDERS_KEY = 'adl-ui:browser-tab-folders';
 
 const { scheduleWrite } = createDebouncedWrite(50);
 

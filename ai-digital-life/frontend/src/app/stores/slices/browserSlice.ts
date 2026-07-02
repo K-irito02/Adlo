@@ -12,7 +12,16 @@ import { BROWSER_NAVIGATOR_COLLAPSED_KEY } from '../constants';
 import type { BrowserTabState } from './browserSliceShared';
 import type { BrowserBookmark, WorkspaceBookmarkEntry } from './browserBookmarkSlice';
 import { BROWSER_WORKSPACE_BOOKMARKS_STORAGE_KEY } from './browserBookmarkSlice';
-import { BROWSER_BOOKMARK_TABID_URL_MAP_KEY } from './browserSliceShared';
+import {
+  BROWSER_TABS_KEY,
+  BROWSER_ACTIVE_TAB_KEY,
+  BROWSER_WORKSPACE_EXPANDED_KEY,
+  BROWSER_TAB_FOLDERS_KEY,
+  BROWSER_HISTORY_KEY,
+  BROWSER_BOOKMARKS_KEY,
+  BROWSER_TREE_EXPANDED_KEY,
+  BROWSER_BOOKMARK_TABID_URL_MAP_KEY,
+} from './browserSliceShared';
 import type { BrowserHistoryState } from './browserHistorySlice';
 import type { TabFolderState } from './browserFoldersSlice';
 import type { ShortcutSite, LocalPort, BackgroundConfig } from './browserLandingSlice';
@@ -29,17 +38,10 @@ export type {
   BackgroundFit,
 } from './browserLandingSlice';
 
-const BROWSER_TABS_KEY = 'adl-ui:browser-tabs';
-const BROWSER_ACTIVE_TAB_KEY = 'adl-ui:browser-active-tab';
 const BROWSER_NAVIGATOR_WIDTH_KEY = 'adl-ui:browser-navigator-width';
-const BROWSER_WORKSPACE_EXPANDED_KEY = 'adl-ui:browser-workspace-expanded';
-const BROWSER_TAB_FOLDERS_KEY = 'adl-ui:browser-tab-folders';
-const BROWSER_HISTORY_KEY = 'adl-ui:browser-history';
-const BROWSER_BOOKMARKS_KEY = 'adl-ui:browser-bookmarks';
 const BROWSER_SHORTCUTS_KEY = 'adl-ui:browser-shortcuts';
 const BROWSER_LOCAL_PORTS_KEY = 'adl-ui:browser-local-ports';
 const BROWSER_BG_CONFIG_KEY = 'adl-ui:browser-bg-config';
-const BROWSER_TREE_EXPANDED_KEY = 'adl-ui:browser-tab-tree-expanded';
 const BROWSER_NAVIGATE_IN_PLACE_KEY = 'adl-ui:browser-navigate-in-place';
 
 const BROWSER_NAVIGATOR_WIDTH_MIN = 180;

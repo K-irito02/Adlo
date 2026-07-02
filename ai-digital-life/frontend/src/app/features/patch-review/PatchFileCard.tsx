@@ -25,7 +25,7 @@ export interface PatchFileCardProps {
   onSetHunkDecision: (hunkId: string, decision: PatchHunkDecision) => void;
 }
 
-export function PatchFileCard({
+export const PatchFileCard = React.memo(function PatchFileCard({
   summary,
   activeSummary,
   activeCardRef,
@@ -91,4 +91,4 @@ export function PatchFileCard({
       </div>
     </article>
   );
-}
+});

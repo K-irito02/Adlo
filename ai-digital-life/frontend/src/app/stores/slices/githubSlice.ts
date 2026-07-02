@@ -1,6 +1,7 @@
 import type { CiJobSummary, CiStatusSnapshot, CiRepoConfig } from '@ai-digital-life/kernel';
 import type { StoreState } from '../StoreState';
 import type { GitWorkspaceCiConfig } from './githubRepoSliceTypes';
+import { CI_ERROR_CODES } from '@shared/ciErrors';
 import { createDebouncedWrite, readJson } from '../shared';
 import {
   type GitHubSection,
@@ -198,7 +199,7 @@ export const createGitHubSlice = (
       const token = state.ciAccessToken;
       if (!config.owner || !config.repo) {
         set({
-          ciError: '请先配置仓库 owner 和 repo',
+          ciError: CI_ERROR_CODES.CONFIG_MISSING_REPO,
           ciSnapshot: null,
           ciJobs: [],
         });
@@ -230,7 +231,7 @@ export const createGitHubSlice = (
           });
         } else {
           set({
-            ciError: result.error?.message ?? '获取 CI 状态失败',
+            ciError: result.error?.message ?? CI_ERROR_CODES.FETCH_STATUS_FAILED,
             ciLoading: false,
           });
         }
@@ -297,7 +298,7 @@ export const createGitHubSlice = (
         }
       }
       if (!config || !config.configured) {
-        const msg = '请先配置仓库 owner 和 repo';
+        const msg = CI_ERROR_CODES.CONFIG_MISSING_REPO;
         set({ ciError: msg });
         return;
       }
@@ -329,7 +330,7 @@ export const createGitHubSlice = (
             };
           });
         } else {
-          const msg = result.error?.message ?? '获取 CI 状态失败';
+          const msg = result.error?.message ?? CI_ERROR_CODES.FETCH_STATUS_FAILED;
           set({ ciError: msg, ciLoading: false });
         }
       } catch (error) {

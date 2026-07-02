@@ -1,0 +1,252 @@
+/* Browser Tree Entry (Header row) Styles - extracted from browser-webview.css */
+
+/* ===== Browser Tree Entry (Header row) ===== */
+
+.adl-browser-entry {
+  position: relative;
+}
+
+.adl-browser-entry__header {
+  display: flex;
+  align-items: stretch;
+  min-height: 34px;
+  cursor: default;
+  user-select: none;
+  position: relative;
+  width: calc(100% + 4px);
+  margin-inline-start: -4px;
+  padding-inline-start: calc(4px);
+  border-radius: 0;
+  box-sizing: border-box;
+}
+
+.adl-browser-entry__header:hover {
+  background: var(--bg-hover);
+}
+
+.adl-browser-entry__header.is-selected {
+  background: var(--bg-active) !important;
+  color: var(--text-primary) !important;
+}
+
+.adl-browser-entry__header.is-selected:hover {
+  background: var(--bg-active) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Expand wrapper — matches Files feature's 28px wide hit area */
+.adl-browser-entry__expand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  flex-shrink: 0;
+}
+
+/* Gradient mask on header — matches full header height and right edge.
+   Only visible when namezone (not the expand button) is hovered. */
+.adl-browser-entry__header::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 180px;
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    var(--gradient-mask) 60%,
+    var(--gradient-mask) 100%
+  );
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-150) var(--ease-default);
+  z-index: 1;
+}
+
+.adl-browser-entry__header:has(.adl-browser-entry__namezone:hover)::after {
+  opacity: 1;
+}
+
+.adl-browser-entry__namezone {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  cursor: pointer;
+  position: relative;
+}
+
+.adl-browser-entry__trailing {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  position: relative;
+  margin-left: auto;
+  padding-right: var(--space-3);
+}
+
+.adl-browser-entry__count {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  flex-shrink: 0;
+  min-width: 18px;
+  text-align: right;
+  transition: opacity var(--duration-150) var(--ease-default);
+}
+
+.adl-browser-entry__namezone:hover .adl-browser-entry__count {
+  opacity: 0;
+}
+
+/* Child directory count — inline in row flow so it takes natural width.
+   Set row padding-inline-end to var(--space-3) (12px) so the in-flow count's
+   right edge lands at the same X as the top-level count's right edge
+   (which sits inside trailing with padding-right: var(--space-3)). */
+.adl-browser-entry__tree .adl-filetree__row {
+  padding-inline-end: var(--space-3);
+}
+
+.adl-browser-entry__tree .adl-filetree__count {
+  padding-right: 0;
+}
+
+.adl-browser-entry__tree .adl-filetree__row:hover .adl-filetree__count {
+  opacity: 0;
+}
+
+.adl-browser-entry__tree .adl-browser-tree__icon-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.adl-browser-entry__tree
+  .adl-filetree__node--file
+  > .adl-tree-node__row
+  > .adl-tree-node__icon-before {
+  width: auto !important;
+  height: auto !important;
+  justify-content: flex-start !important;
+  min-width: 16px;
+}
+
+.adl-browser-entry__tree .adl-browser-audio-indicator {
+  margin: 0;
+}
+
+.adl-browser-entry__expand-btn {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color var(--duration-150) var(--ease-default);
+}
+
+.adl-browser-entry__expand-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.adl-browser-entry__expand-btn.is-expanded {
+  color: var(--text-primary);
+}
+
+.adl-browser-entry__name {
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--text-primary);
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: clip;
+}
+
+.adl-browser-entry__actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  position: absolute;
+  right: var(--space-2);
+  top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-150) var(--ease-default);
+  z-index: 2;
+}
+
+.adl-browser-entry__namezone:hover .adl-browser-entry__actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.adl-browser-entry__tree {
+  padding-left: 0;
+}
+
+.adl-browser-entry__empty {
+  padding: 8px 8px 8px 28px;
+}
+
+.adl-github-entry__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+/* ===== Tree Node Hover Actions ===== */
+
+.adl-browser-node__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.adl-tree-node__row:hover .adl-browser-node__actions,
+.adl-filetree__row:hover .adl-browser-node__actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.adl-browser-entry__tree .adl-filetree__meta.adl-tree-node__meta--inline {
+  position: absolute;
+  right: var(--space-2);
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--bg-occlusion);
+  z-index: 2;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.adl-browser-entry__tree
+  .adl-filetree__item.is-selected
+  > .adl-filetree__row:hover
+  .adl-filetree__meta.adl-tree-node__meta--inline {
+  background: var(--bg-occlusion-active);
+}
+
+.adl-browser-entry__tree .adl-filetree__row:hover .adl-filetree__meta.adl-tree-node__meta--inline {
+  opacity: 1;
+  pointer-events: auto;
+}

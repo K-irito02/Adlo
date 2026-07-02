@@ -46,10 +46,27 @@ export interface BrowserTabStateUpdate {
 }
 
 /**
- * Storage key for the global browser bookmarks list.
- * Inlined value (was previously aliased from `BROWSER_BOOKMARKS_KEY`).
+ * Browser storage key constants — single source of truth.
+ *
+ * Centralized here (the shared leaf module) to eliminate duplication across
+ * browserSlice / browserTabsSlice / browserHistorySlice / browserBookmarkSlice
+ * / browserFoldersUtils. All values must remain identical to the originals;
+ * only their definition location changes.
  */
-export const BROWSER_BOOKMARKS_STORAGE_KEY = 'adl-ui:browser-bookmarks';
+export const BROWSER_TABS_KEY = 'adl-ui:browser-tabs';
+export const BROWSER_HISTORY_KEY = 'adl-ui:browser-history';
+export const BROWSER_BOOKMARKS_KEY = 'adl-ui:browser-bookmarks';
+export const BROWSER_TAB_FOLDERS_KEY = 'adl-ui:browser-tab-folders';
+export const BROWSER_ACTIVE_TAB_KEY = 'adl-ui:browser-active-tab';
+export const BROWSER_TREE_EXPANDED_KEY = 'adl-ui:browser-tab-tree-expanded';
+export const BROWSER_WORKSPACE_EXPANDED_KEY = 'adl-ui:browser-workspace-expanded';
+export const BROWSER_WORKSPACE_BOOKMARKS_KEY = 'adl-ui:browser-workspace-bookmarks';
+
+/**
+ * Storage key for the global browser bookmarks list.
+ * Backwards-compatible alias for `BROWSER_BOOKMARKS_KEY`.
+ */
+export const BROWSER_BOOKMARKS_STORAGE_KEY = BROWSER_BOOKMARKS_KEY;
 
 /**
  * Storage key for the tabId → bookmarked URL map.

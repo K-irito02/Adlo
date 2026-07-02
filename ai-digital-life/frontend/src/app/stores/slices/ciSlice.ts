@@ -12,6 +12,7 @@
 import type { CiJobSummary, CiStatusSnapshot, CiRepoConfig } from '@ai-digital-life/kernel';
 import type { StoreState } from '../StoreState';
 import type { DigitalLifeBridge } from '@shared/ipc';
+import { CI_ERROR_CODES } from '@shared/ciErrors';
 import { createDebouncedWrite } from '../shared';
 
 // Local storage keys
@@ -229,7 +230,7 @@ export const createCiSlice = (
       const token = state.ciAccessToken;
       if (!config.owner || !config.repo) {
         set({
-          ciError: '请先配置仓库 owner 和 repo',
+          ciError: CI_ERROR_CODES.CONFIG_MISSING_REPO,
           ciSnapshot: null,
           ciJobs: [],
         });
@@ -262,7 +263,7 @@ export const createCiSlice = (
           });
         } else {
           set({
-            ciError: result.error?.message ?? '获取 CI 状态失败',
+            ciError: result.error?.message ?? CI_ERROR_CODES.FETCH_STATUS_FAILED,
             ciLoading: false,
           });
         }

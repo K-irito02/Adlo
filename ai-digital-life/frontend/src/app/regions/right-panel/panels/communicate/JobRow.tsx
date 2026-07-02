@@ -5,7 +5,7 @@ import { useTCopy } from '@app/i18n/useTCopy';
 import { TooltipSimple } from '@components/Tooltip';
 import { IconChevronDown, IconChevronUp } from '@app/icons';
 
-export function JobRow({
+export const JobRow = React.memo(function JobRow({
   job,
   onViewLogs,
 }: {
@@ -88,4 +88,4 @@ export function JobRow({
       )}
     </li>
   );
-}
+});

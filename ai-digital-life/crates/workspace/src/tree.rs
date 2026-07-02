@@ -43,6 +43,73 @@ pub fn list_tree(root: &Path) -> Result<Vec<WorkspaceTreeNode>, AppError> {
     list_tree_inner(root, root, 0, &mut remaining)
 }
 
+/// Outcome of processing a single directory entry in the workspace tree.
+enum TreeEntryOutcome {
+    /// Entry should be skipped (ignored dir, symlink, or neither file nor dir).
+    Skip,
+    /// Tree node budget exhausted; caller should stop iterating.
+    Stop,
+    /// A node to push onto the result vector.
+    Push(WorkspaceTreeNode),
+}
+
+/// Processes a single directory entry into a `WorkspaceTreeNode` (or signals skip/stop).
+fn process_tree_entry(
+    root: &Path,
+    entry: &fs::DirEntry,
+    depth: usize,
+    remaining: &mut usize,
+) -> TreeEntryOutcome {
+    let path = entry.path();
+    let name = entry.file_name().to_string_lossy().into_owned();
+    if should_ignore(&name) {
+        return TreeEntryOutcome::Skip;
+    }
+    if let Ok(file_type) = entry.file_type() {
+        if file_type.is_symlink() {
+            debug!(
+                path = %path.to_string_lossy(),
+                "skipping symlink in workspace tree"
+            );
+            return TreeEntryOutcome::Skip;
+        }
+    }
+    let relative = relative_path(root, &path);
+    if path.is_dir() {
+        if *remaining == 0 {
+            return TreeEntryOutcome::Stop;
+        }
+        *remaining = remaining.saturating_sub(1);
+        let children = list_tree_inner(root, &path, depth + 1, remaining).unwrap_or_else(|err| {
+            debug!(
+                dir = %path.to_string_lossy(),
+                error = %err,
+                "failed to read child directory for workspace tree"
+            );
+            vec![]
+        });
+        TreeEntryOutcome::Push(WorkspaceTreeNode {
+            path: relative,
+            name,
+            kind: "directory".into(),
+            children,
+        })
+    } else if path.is_file() {
+        if *remaining == 0 {
+            return TreeEntryOutcome::Stop;
+        }
+        *remaining = remaining.saturating_sub(1);
+        TreeEntryOutcome::Push(WorkspaceTreeNode {
+            path: relative,
+            name,
+            kind: "file".into(),
+            children: vec![],
+        })
+    } else {
+        TreeEntryOutcome::Skip
+    }
+}
+
 fn list_tree_inner(
     root: &Path,
     dir: &Path,
@@ -79,52 +146,10 @@ fn list_tree_inner(
                 continue;
             },
         };
-        let path = entry.path();
-        let name = entry.file_name().to_string_lossy().into_owned();
-        if should_ignore(&name) {
-            continue;
-        }
-        if let Ok(file_type) = entry.file_type() {
-            if file_type.is_symlink() {
-                debug!(
-                    path = %path.to_string_lossy(),
-                    "skipping symlink in workspace tree"
-                );
-                continue;
-            }
-        }
-        let relative = relative_path(root, &path);
-        if path.is_dir() {
-            if *remaining == 0 {
-                break;
-            }
-            *remaining = remaining.saturating_sub(1);
-            nodes.push(WorkspaceTreeNode {
-                path: relative,
-                name,
-                kind: "directory".into(),
-                children: list_tree_inner(root, &path, depth + 1, remaining).unwrap_or_else(
-                    |err| {
-                        debug!(
-                            dir = %path.to_string_lossy(),
-                            error = %err,
-                            "failed to read child directory for workspace tree"
-                        );
-                        vec![]
-                    },
-                ),
-            });
-        } else if path.is_file() {
-            if *remaining == 0 {
-                break;
-            }
-            *remaining = remaining.saturating_sub(1);
-            nodes.push(WorkspaceTreeNode {
-                path: relative,
-                name,
-                kind: "file".into(),
-                children: vec![],
-            });
+        match process_tree_entry(root, &entry, depth, remaining) {
+            TreeEntryOutcome::Skip => continue,
+            TreeEntryOutcome::Stop => break,
+            TreeEntryOutcome::Push(node) => nodes.push(node),
         }
     }
     nodes.sort_by(|a, b| a.kind.cmp(&b.kind).then_with(|| a.name.cmp(&b.name)));

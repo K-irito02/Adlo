@@ -107,7 +107,7 @@
 .adl-split-pill__toggle.is-open,
 .adl-split-pill__main:focus-visible,
 .adl-split-pill__toggle:focus-visible {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--overlay-bg-1);
   color: var(--text-primary);
 }
 
@@ -122,7 +122,7 @@
 
 .adl-split-pill__main:active,
 .adl-split-pill__toggle:active {
-  background: rgba(255, 255, 255, 0.18);
+  background: var(--overlay-bg-2);
 }
 
 .adl-menu__label--branch {

@@ -1,6 +1,7 @@
 import type { StoreState } from '../StoreState';
 import { createUiId, createDebouncedWrite } from '../shared';
 import { historyDedupKey } from '@utils/browserDisplayUtils';
+import { BROWSER_HISTORY_KEY } from './browserSliceShared';
 
 export interface BrowserHistoryState {
   id: string;
@@ -8,8 +9,6 @@ export interface BrowserHistoryState {
   url: string;
   visitedAt: number;
 }
-
-const BROWSER_HISTORY_KEY = 'adl-ui:browser-history';
 
 const { scheduleWrite } = createDebouncedWrite(50);
 

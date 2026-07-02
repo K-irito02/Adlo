@@ -73,28 +73,30 @@
   padding-right: 24px;
 }
 
-/* Merge gutter shows +/- indicators for changed lines */
-.adl-cm-diff-viewer .cm-merge-gutter {
+/* Merge gutter shows +/- indicators for changed lines.
+   Doubled class (.cm-merge-gutter.cm-merge-gutter) raises specificity to
+   0,3,0 to supersede any baseTheme stylesheet rules without !important. */
+.adl-cm-diff-viewer .cm-merge-gutter.cm-merge-gutter {
   min-width: 0;
   width: 22px;
-  border: none !important;
-  border-left: none !important;
-  border-right: none !important;
-  border-top: none !important;
-  border-bottom: none !important;
-  background: transparent !important;
+  border: none;
+  border-left: none;
+  border-right: none;
+  border-top: none;
+  border-bottom: none;
+  background: transparent;
 }
 
-.adl-cm-diff-viewer .cm-merge-gutter .cm-gutterElement {
+.adl-cm-diff-viewer .cm-merge-gutter .cm-gutterElement.cm-gutterElement {
   padding: 0;
   justify-content: center;
   font-weight: 700;
-  border: none !important;
-  border-left: none !important;
-  border-right: none !important;
-  border-top: none !important;
-  border-bottom: none !important;
-  background: transparent !important;
+  border: none;
+  border-left: none;
+  border-right: none;
+  border-top: none;
+  border-bottom: none;
+  background: transparent;
 }
 
 /* ====================================================
@@ -204,22 +206,26 @@
   background: transparent !important;
 }
 
-/* Side-by-side merge controls */
-.adl-cm-diff-viewer--side-by-side .cm-merge-revert button {
-  background: var(--diff-revert-bg) !important;
-  border: none !important;
-  color: var(--diff-btn-text) !important;
-  cursor: pointer !important;
-  border-radius: 3px !important;
-  padding: 2px 8px !important;
-  font-size: 11px !important;
-  line-height: 1.4 !important;
-  opacity: 0.85 !important;
-  z-index: 2 !important;
+/* Side-by-side merge controls.
+   Doubled .cm-merge-revert class raises specificity to 0,4,1 to supersede
+   @codemirror/merge's baseTheme (.cm-merge-revert button = 0,1,1) without
+   !important. The revert button's only inline style is `top` (set in
+   updateRevertButtons), which we don't override here. */
+.adl-cm-diff-viewer--side-by-side .cm-merge-revert.cm-merge-revert button {
+  background: var(--diff-revert-bg);
+  border: none;
+  color: var(--diff-btn-text);
+  cursor: pointer;
+  border-radius: 3px;
+  padding: 2px 8px;
+  font-size: 11px;
+  line-height: 1.4;
+  opacity: 0.85;
+  z-index: 2;
 }
 
-.adl-cm-diff-viewer--side-by-side .cm-merge-revert button:hover {
-  opacity: 1 !important;
+.adl-cm-diff-viewer--side-by-side .cm-merge-revert.cm-merge-revert button:hover {
+  opacity: 1;
 }
 
 .adl-cm-diff-viewer .cm-mergeView {

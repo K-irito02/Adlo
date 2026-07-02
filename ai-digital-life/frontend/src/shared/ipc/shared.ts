@@ -16,7 +16,3 @@ export enum IpcErrorCode {
   INVOKE_ERROR = 'INVOKE_ERROR',
   PREVIEW_API_ERROR = 'PREVIEW_API_ERROR',
 }
-
-export function createIpcError(code: IpcErrorCode, message: string) {
-  return { code, message };
-}

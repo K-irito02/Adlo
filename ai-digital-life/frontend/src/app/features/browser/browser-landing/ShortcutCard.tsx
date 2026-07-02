@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, memo } from 'react';
 import type { ShortcutSite } from '@stores/slices/browserSlice';
 
 interface ShortcutCardProps {
@@ -13,7 +13,7 @@ interface ShortcutCardProps {
   onClick: (site: ShortcutSite) => void;
 }
 
-export function ShortcutCard({
+export const ShortcutCard = memo(function ShortcutCard({
   site,
   _index,
   isDragOver,
@@ -94,4 +94,4 @@ export function ShortcutCard({
       </span>
     </div>
   );
-}
+});

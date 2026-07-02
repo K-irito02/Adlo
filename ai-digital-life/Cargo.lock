@@ -44,6 +44,7 @@ dependencies = [
  "adl-fs-ops",
  "adl-kernel",
  "serde_json",
+ "tracing",
 ]
 
 [[package]]

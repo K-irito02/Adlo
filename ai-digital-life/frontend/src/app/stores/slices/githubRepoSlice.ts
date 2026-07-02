@@ -1,5 +1,6 @@
 import type { StoreState } from '../StoreState';
 import { createUiId } from '../shared';
+import { CI_ERROR_CODES } from '@shared/ciErrors';
 import type { GitWorkspaceCiConfig, GitHubCiFolderState } from './githubRepoSliceTypes';
 import {
   scheduleWorkspaceConfigsWrite,
@@ -7,8 +8,8 @@ import {
   hydrateGitHubConfigs,
   hydrateGitHubFolders,
   collectDescendantFolderIds,
-  collectAffectedWorkspaceIds,
 } from './githubRepoSliceHelpers';
+import { computeFolderDeleteOutcome } from './githubRepoDeleteHelpers';
 
 const GH_WORKSPACE_CONFIGS_KEY = 'adl-ui:github-workspace-configs';
 const GH_CI_FOLDERS_KEY = 'adl-ui:github-ci-folders';
@@ -127,7 +128,7 @@ export const createGitHubRepoSlice = (
         const folderCount = state.gitHubCiFolders.length;
         const newFolder: GitHubCiFolderState = {
           id: createUiId('gh-ci-folder'),
-          name: `目录 ${folderCount + 1}`,
+          name: `${CI_ERROR_CODES.DEFAULT_FOLDER_NAME}:${folderCount + 1}`,
           createdAt: Date.now(),
           parentId,
           parentType,
@@ -199,7 +200,11 @@ export const createGitHubRepoSlice = (
 
     gitHubDeleteFolderConfigRecursive: (folderId) => {
       set((state) => {
-        const idsToDelete = collectDescendantFolderIds(state.gitHubCiFolders, folderId);
+        const { idsToDelete } = computeFolderDeleteOutcome(
+          state.gitHubCiFolders,
+          folderId,
+          state.activeCiWorkspaceId
+        );
         const nextFolders = state.gitHubCiFolders.map((f) =>
           idsToDelete.has(f.id) ? { ...f, ciConfig: undefined } : f
         );
@@ -210,16 +215,12 @@ export const createGitHubRepoSlice = (
 
     gitHubDeleteFolderDataRecursive: (folderId) => {
       set((state) => {
-        const idsToDelete = collectDescendantFolderIds(state.gitHubCiFolders, folderId);
-        const affectedWorkspaceIds = collectAffectedWorkspaceIds(
+        const { shouldClearCiData } = computeFolderDeleteOutcome(
           state.gitHubCiFolders,
-          idsToDelete
+          folderId,
+          state.activeCiWorkspaceId
         );
-        const shouldClear =
-          affectedWorkspaceIds.size === 0 ||
-          (state.activeCiWorkspaceId != null &&
-            affectedWorkspaceIds.has(state.activeCiWorkspaceId));
-        if (shouldClear) {
+        if (shouldClearCiData) {
           return { ciSnapshot: null, ciJobs: [], ciError: null };
         }
         return state;
@@ -228,22 +229,18 @@ export const createGitHubRepoSlice = (
 
     gitHubDeleteFolderConfigAndDataRecursive: (folderId) => {
       set((state) => {
-        const idsToDelete = collectDescendantFolderIds(state.gitHubCiFolders, folderId);
-        const affectedWorkspaceIds = collectAffectedWorkspaceIds(
+        const { idsToDelete, shouldClearCiData } = computeFolderDeleteOutcome(
           state.gitHubCiFolders,
-          idsToDelete
+          folderId,
+          state.activeCiWorkspaceId
         );
-        const shouldClear =
-          affectedWorkspaceIds.size === 0 ||
-          (state.activeCiWorkspaceId != null &&
-            affectedWorkspaceIds.has(state.activeCiWorkspaceId));
         const nextFolders = state.gitHubCiFolders.map((f) =>
           idsToDelete.has(f.id) ? { ...f, ciConfig: undefined } : f
         );
         scheduleFoldersWrite(nextFolders);
         return {
           gitHubCiFolders: nextFolders,
-          ...(shouldClear ? { ciSnapshot: null, ciJobs: [], ciError: null } : {}),
+          ...(shouldClearCiData ? { ciSnapshot: null, ciJobs: [], ciError: null } : {}),
         };
       });
     },

@@ -13,7 +13,7 @@ export interface AudioStatePayload {
 /**
  * 浏览器/预览面板桥接能力
  * 用于: 导航到 URL、前进/后退/刷新、订阅 URL 变更事件
- * Tauri 命令: browser_navigate / browser_go_back / browser_go_forward / browser_reload
+ * Tauri 命令: browser_navigate / browser_go_back / browser_go_forward / browser_reload / browser_fetch_page_meta
  * 浏览器模式: 前端模拟无实际效果
  */
 export interface BrowserBridge {

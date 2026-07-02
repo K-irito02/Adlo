@@ -2,9 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { SafeIframe } from './SafeIframe';
 import { ErrorBoundary } from '@components/ErrorBoundary';
 import { ExternalLinkError } from './ExternalLinkError';
+import { BrowserIframeErrorOverlay } from './BrowserIframeErrorOverlay';
 import { useAppStore } from '@stores/slicedStore';
 import { isTauriShell } from '@tauri-bridge';
-import { OrbitalLoader } from '@components/OrbitalLoader';
 import { BrowserLandingPage } from './browser-landing';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 import type { CopyDict } from '@i18n/types';
@@ -166,40 +166,16 @@ export function BrowserIframeStack({
               );
             })}
 
-          {isTauriShell() &&
-            (() => {
-              if (!activeTab?.url) {
-                return null;
-              }
-              if (loadingTabId === activeTab.id) {
-                return <OrbitalLoader />;
-              }
-              return (
-                <>
-                  {iframeBlockedDetected && (
-                    <ExternalLinkError
-                      errorKey="browserCannotOpenEmbedded"
-                      activeTabUrl={activeTab?.url}
-                      t={t}
-                      variant="blocked"
-                    />
-                  )}
-                  {iframeLoadError && !iframeBlockedDetected && (
-                    <ExternalLinkError
-                      errorKey="browserConnectionFailed"
-                      activeTabUrl={activeTab?.url}
-                      t={t}
-                      variant="blocked"
-                    />
-                  )}
-                  {isEmbedPending && (
-                    <div className="adl-browser-loading">
-                      <div className="adl-browser-loading__spinner" />
-                    </div>
-                  )}
-                </>
-              );
-            })()}
+          {isTauriShell() && (
+            <BrowserIframeErrorOverlay
+              t={t}
+              activeTab={activeTab}
+              loadingTabId={loadingTabId}
+              iframeBlockedDetected={iframeBlockedDetected}
+              iframeLoadError={iframeLoadError}
+              isEmbedPending={isEmbedPending}
+            />
+          )}
         </div>
       )}
     </>

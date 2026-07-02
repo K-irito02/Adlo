@@ -3,32 +3,77 @@ use tauri::Emitter;
 
 const MODEL_STREAM_CHARS: usize = 120;
 
+/// Splits `content` into chunks of at most `chunk_size` Unicode scalar values.
+/// Returns an empty vector when `content` is empty.
+fn chunk_model_content(content: &str, chunk_size: usize) -> Vec<String> {
+    if content.is_empty() {
+        return vec![];
+    }
+    let mut chunks = Vec::new();
+    let mut buf = String::new();
+    let mut char_count = 0usize;
+    for ch in content.chars() {
+        buf.push(ch);
+        char_count += 1;
+        if char_count >= chunk_size {
+            chunks.push(buf.clone());
+            buf.clear();
+            char_count = 0;
+        }
+    }
+    if !buf.is_empty() {
+        chunks.push(buf);
+    }
+    chunks
+}
+
+/// Emits a single `digital-life://model-stream` event with the common envelope
+/// fields (`v`, `runId`, `seq`, `type`) merged with the provided `payload`.
+fn emit_stream_event(
+    app: &tauri::AppHandle,
+    run_id: &str,
+    seq: usize,
+    event_type: &str,
+    payload: serde_json::Value,
+) {
+    let mut event = serde_json::json!({
+        "v": 1,
+        "runId": run_id,
+        "seq": seq,
+        "type": event_type,
+    });
+    if let (serde_json::Value::Object(event_map), serde_json::Value::Object(payload_map)) =
+        (&mut event, payload)
+    {
+        event_map.extend(payload_map);
+    }
+    let _ = app.emit("digital-life://model-stream", event);
+}
+
 pub(crate) fn emit_model_stream_events(
     app: &tauri::AppHandle,
     run_id: &str,
     response: &ModelResponse,
 ) {
     let reason = response.route.as_ref().map(|r| r.reason.as_str()).unwrap_or("primary route");
-    let _ = app.emit(
-        "digital-life://model-stream",
+    emit_stream_event(
+        app,
+        run_id,
+        0,
+        "route",
         serde_json::json!({
-            "v": 1,
-            "runId": run_id,
-            "seq": 0,
-            "type": "route",
             "providerId": response.provider_id,
             "modelId": response.model_id,
             "reason": reason,
         }),
     );
     if let Some(usage) = &response.usage {
-        let _ = app.emit(
-            "digital-life://model-stream",
+        emit_stream_event(
+            app,
+            run_id,
+            1,
+            "usage",
             serde_json::json!({
-                "v": 1,
-                "runId": run_id,
-                "seq": 1,
-                "type": "usage",
                 "usage": usage,
             }),
         );
@@ -36,88 +81,27 @@ pub(crate) fn emit_model_stream_events(
     let mut seq = 2usize;
     let content = &response.content;
     if content.is_empty() {
-        let _ = app.emit(
-            "digital-life://model-stream",
-            serde_json::json!({
-                "v": 1,
-                "runId": run_id,
-                "seq": seq,
-                "type": "done"
-            }),
-        );
+        emit_stream_event(app, run_id, seq, "done", serde_json::json!({}));
         return;
     }
-    let mut buf = String::new();
-    let mut char_count = 0usize;
-    for ch in content.chars() {
-        buf.push(ch);
-        char_count += 1;
-        if char_count >= MODEL_STREAM_CHARS {
-            let _ = app.emit(
-                "digital-life://model-stream",
-                serde_json::json!({
-                    "v": 1,
-                    "runId": run_id,
-                    "seq": seq,
-                    "type": "delta",
-                    "text": &buf,
-                }),
-            );
-            seq += 1;
-            buf.clear();
-            char_count = 0;
-        }
-    }
-    if !buf.is_empty() {
-        let _ = app.emit(
-            "digital-life://model-stream",
+    for chunk in chunk_model_content(content, MODEL_STREAM_CHARS) {
+        emit_stream_event(
+            app,
+            run_id,
+            seq,
+            "delta",
             serde_json::json!({
-                "v": 1,
-                "runId": run_id,
-                "seq": seq,
-                "type": "delta",
-                "text": &buf,
+                "text": chunk,
             }),
         );
         seq += 1;
     }
-    let _ = app.emit(
-        "digital-life://model-stream",
-        serde_json::json!({
-            "v": 1,
-            "runId": run_id,
-            "seq": seq,
-            "type": "done"
-        }),
-    );
+    emit_stream_event(app, run_id, seq, "done", serde_json::json!({}));
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    /// 复制 emit_model_stream_events 中的内容分块逻辑（纯函数）
-    fn chunk_model_content(content: &str, chunk_size: usize) -> Vec<String> {
-        if content.is_empty() {
-            return vec![];
-        }
-        let mut chunks = Vec::new();
-        let mut buf = String::new();
-        let mut char_count = 0usize;
-        for ch in content.chars() {
-            buf.push(ch);
-            char_count += 1;
-            if char_count >= chunk_size {
-                chunks.push(buf.clone());
-                buf.clear();
-                char_count = 0;
-            }
-        }
-        if !buf.is_empty() {
-            chunks.push(buf);
-        }
-        chunks
-    }
 
     /// 计算 emit_model_stream_events 的 seq 号序列
     fn compute_seq_numbers(has_usage: bool, delta_count: usize) -> Vec<(usize, &'static str)> {

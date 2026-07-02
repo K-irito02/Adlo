@@ -8,7 +8,7 @@ use anyhow::Context;
 use std::path::{Path, PathBuf};
 use std::sync::RwLock;
 use tauri::Manager;
-use tracing::info;
+use tracing::{info, warn};
 
 fn resolve_project_root() -> PathBuf {
     // The true project root has .git (unlike ai-digital-life/ which also has AGENTS.md).
@@ -38,7 +38,13 @@ pub fn resolve_data_dir(app: &tauri::App) -> anyhow::Result<PathBuf> {
 }
 
 pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
-    let mut config = adl_config::load(&data_dir).unwrap_or_default();
+    let mut config = match adl_config::load(&data_dir) {
+        Ok(c) => c,
+        Err(e) => {
+            warn!(error = %e, "config load failed, using default");
+            adl_config::AppConfig::default()
+        },
+    };
 
     // CLI log mode override
     if let Ok(cli_mode) = std::env::var("ADL_CLI_LOG_MODE") {

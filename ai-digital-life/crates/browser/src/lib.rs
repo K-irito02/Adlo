@@ -5,8 +5,12 @@ mod browser_pool;
 mod browser_webview;
 mod webview2_audio;
 mod webview2_cleanup;
+mod webview2_favicon;
+mod webview2_history;
 mod webview2_message;
+mod webview2_postmessage;
 mod webview2_profile;
+mod webview2_title;
 
 pub use browser_meta::PageMeta;
 pub use browser_pool::BrowserPool;

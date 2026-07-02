@@ -4,7 +4,7 @@ use std::path::Path;
 use std::process::Command;
 use std::time::Duration;
 use tokio::time::timeout as tokio_timeout;
-use tracing::debug;
+use tracing::{debug, warn};
 
 const GIT_TIMEOUT_SECS: u64 = 30;
 
@@ -273,8 +273,8 @@ async fn capture_git_paths_with_fallback_async(root: &Path, args: &[&str]) -> Ve
     let root_owned = root.to_path_buf();
     let args_owned: Vec<String> = args.iter().map(|s| s.to_string()).collect();
     let command_name = args_owned.join(" ");
-    tokio_timeout(Duration::from_secs(GIT_TIMEOUT_SECS), async move {
-        tokio::task::spawn_blocking(move || {
+    match tokio_timeout(Duration::from_secs(GIT_TIMEOUT_SECS), async move {
+        match tokio::task::spawn_blocking(move || {
             capture_git_paths_with_fallback(
                 &root_owned,
                 &args_owned.iter().map(String::as_str).collect::<Vec<&str>>(),
@@ -282,8 +282,20 @@ async fn capture_git_paths_with_fallback_async(root: &Path, args: &[&str]) -> Ve
             )
         })
         .await
-        .unwrap_or_default()
+        {
+            Ok(paths) => paths,
+            Err(e) => {
+                warn!(error = %e, "git spawn_blocking join failed, returning empty list");
+                Vec::new()
+            },
+        }
     })
     .await
-    .unwrap_or_default()
+    {
+        Ok(paths) => paths,
+        Err(e) => {
+            warn!(error = %e, "git command timed out, returning empty list");
+            Vec::new()
+        },
+    }
 }

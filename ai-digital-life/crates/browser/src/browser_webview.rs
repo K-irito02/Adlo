@@ -20,6 +20,28 @@ fn webview_label(tab_id: &str) -> String {
     format!("adl-browser-view-{tab_id}")
 }
 
+/// Sets up all WebView2 message handlers (messaging, title, favicon, history, audio)
+/// for a newly created tab webview. Each handler logs a warning on failure.
+fn setup_webview2_handlers(webview: &tauri::Webview, tab_id: &str, label: &str) {
+    if let Err(e) = crate::webview2_message::setup_webview2_messaging(webview.clone()) {
+        tracing::warn!(tab_id = tab_id, error = %e, "webview2 messaging setup failed");
+    }
+    if let Err(e) = crate::webview2_message::setup_document_title_handler(webview.clone()) {
+        tracing::warn!(tab_id = tab_id, error = %e, "document title handler setup failed");
+    }
+    if let Err(e) = crate::webview2_message::setup_favicon_changed_handler(webview.clone()) {
+        tracing::warn!(tab_id = tab_id, error = %e, "favicon changed handler setup failed");
+    }
+    if let Err(e) =
+        crate::webview2_message::setup_history_changed_handler(webview.clone(), label.to_string())
+    {
+        tracing::warn!(tab_id = tab_id, error = %e, "history changed handler setup failed");
+    }
+    if let Err(e) = crate::webview2_audio::setup_audio_changed_handler(webview.clone(), tab_id) {
+        tracing::warn!(tab_id = tab_id, error = %e, "audio handler setup failed");
+    }
+}
+
 pub struct BrowserManager {
     pool: BrowserPool,
     current_color_scheme: Mutex<String>,
@@ -86,46 +108,29 @@ impl BrowserManager {
         tracing::info!(tab_id = tab_id, url = url, "browser webview created for tab");
 
         if let Some(webview) = window.get_webview(&label) {
-            if let Err(e) = crate::webview2_message::setup_webview2_messaging(webview.clone()) {
-                tracing::warn!(tab_id = tab_id, error = %e, "webview2 messaging setup failed");
-            }
-            if let Err(e) = crate::webview2_message::setup_document_title_handler(webview.clone()) {
-                tracing::warn!(tab_id = tab_id, error = %e, "document title handler setup failed");
-            }
-            if let Err(e) = crate::webview2_message::setup_favicon_changed_handler(webview.clone())
-            {
-                tracing::warn!(tab_id = tab_id, error = %e, "favicon changed handler setup failed");
-            }
-            if let Err(e) = crate::webview2_message::setup_history_changed_handler(
-                webview.clone(),
-                label.clone(),
-            ) {
-                tracing::warn!(tab_id = tab_id, error = %e, "history changed handler setup failed");
-            }
-            if let Err(e) =
-                crate::webview2_audio::setup_audio_changed_handler(webview.clone(), tab_id)
-            {
-                tracing::warn!(tab_id = tab_id, error = %e, "audio handler setup failed");
-            }
-
-            // Apply current PreferredColorScheme to the new WebView
-            let cs = self
-                .current_color_scheme
-                .lock()
-                .unwrap_or_else(|e| {
-                    tracing::warn!("current_color_scheme mutex was poisoned, recovering");
-                    e.into_inner()
-                })
-                .clone();
-            tracing::info!(
-                tab_id = tab_id,
-                color_scheme = &cs,
-                "applying current color scheme to new WebView"
-            );
-            crate::webview2_set_color_scheme(&webview, &cs);
+            setup_webview2_handlers(&webview, tab_id, &label);
+            self.apply_color_scheme_to_webview(&webview, tab_id);
         }
 
         Ok(evicted)
+    }
+
+    /// Reads the current preferred color scheme and applies it to the given WebView.
+    fn apply_color_scheme_to_webview(&self, webview: &tauri::Webview, tab_id: &str) {
+        let cs = self
+            .current_color_scheme
+            .lock()
+            .unwrap_or_else(|e| {
+                tracing::warn!("current_color_scheme mutex was poisoned, recovering");
+                e.into_inner()
+            })
+            .clone();
+        tracing::info!(
+            tab_id = tab_id,
+            color_scheme = &cs,
+            "applying current color scheme to new WebView"
+        );
+        crate::webview2_set_color_scheme(webview, &cs);
     }
 
     pub fn activate_tab(&self, app: &tauri::AppHandle, tab_id: &str) -> Result<(), AppError> {

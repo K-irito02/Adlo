@@ -36,7 +36,7 @@ interface TreeNodeRowProps {
   style?: React.CSSProperties;
 }
 
-export function TreeNodeRow({
+export const TreeNodeRow = React.memo(function TreeNodeRow({
   depth,
   rowOffset,
   hasChildren,
@@ -141,4 +141,4 @@ export function TreeNodeRow({
       {children}
     </li>
   );
-}
+});

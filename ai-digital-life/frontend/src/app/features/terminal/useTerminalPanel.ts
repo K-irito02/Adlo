@@ -1,15 +1,14 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { terminalSelectors } from '@stores/selectors';
-import { useNavigatorResize } from '@hooks/useNavigatorResize';
-import { useTerminalPtyLifecycle } from './useTerminalPtyLifecycle';
 import { useTerminalDragDrop } from './useTerminalDragDrop';
-import { useTerminalMenus } from './useTerminalMenus';
+import { useTerminalTabActions } from './useTerminalTabActions';
+import { useTerminalShellManagement } from './useTerminalShellManagement';
+import { useTerminalViewport } from './useTerminalViewport';
 import type { TerminalPanelProps } from '@regions/right-panel/types';
 import type { TerminalProfile } from '@stores/types';
 import type { XtermTerminalHandle } from '@components/terminal/XtermTerminal';
-import { useTCopy } from '@i18n/useTCopy';
 
 export type TerminalNavigatorMode = 'sessions' | 'history';
 
@@ -108,32 +107,14 @@ export interface UseTerminalPanelReturn {
 }
 
 export function useTerminalPanel(props: TerminalPanelProps): UseTerminalPanelReturn {
-  const { t } = useTCopy();
-  const [navigatorMode, setNavigatorMode] = useState<TerminalNavigatorMode>('sessions');
-  const [editingTabId, setEditingTabId] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState('');
-
-  const navigatorCollapsed = terminalSelectors.useNavigatorCollapsedByTool().terminal;
   const terminalTabs = terminalSelectors.useTerminalTabs();
   const terminalActiveTabId = terminalSelectors.useTerminalActiveTabId();
-  const defaultTerminalProfile = terminalSelectors.useDefaultTerminalProfile();
-  const terminalNavigatorWidth = terminalSelectors.useTerminalNavigatorWidth();
 
-  const {
-    terminalUpdateTab,
-    terminalReorderTabs,
-    setTerminalNavigatorWidth,
-    toggleTerminalNavigator,
-  } = useAppStore(
+  const { terminalReorderTabs } = useAppStore(
     useShallow((state) => ({
-      terminalUpdateTab: state.terminalUpdateTab,
       terminalReorderTabs: state.terminalReorderTabs,
-      setTerminalNavigatorWidth: state.setTerminalNavigatorWidth,
-      toggleTerminalNavigator: state.toggleTerminalNavigator,
     }))
   );
-
-  const editInputRef = useRef<HTMLInputElement | null>(null);
 
   const activeTab = useMemo(
     () => terminalTabs.find((tab) => tab.id === terminalActiveTabId) ?? terminalTabs[0],
@@ -142,29 +123,10 @@ export function useTerminalPanel(props: TerminalPanelProps): UseTerminalPanelRet
 
   const hasActiveTab = activeTab !== null;
 
-  const recentCommands = useMemo(() => {
-    if (props.commandHistory.length > 0) {
-      return props.commandHistory.map((entry, index) => ({
-        id: `history-${index}`,
-        label: entry,
-        title: entry.split(' ')[0] || t.terminalCommandHistory,
-      }));
-    }
-    return terminalTabs
-      .map((tab) => ({
-        id: tab.id,
-        label: tab.title,
-        title: tab.title,
-      }))
-      .filter((entry) => entry.label);
-  }, [props.commandHistory, t.terminalCommandHistory, terminalTabs]);
-
   const rootPath = props.appInfo?.currentWorkspace?.rootPath;
 
-  const handleDoubleClick = useCallback((tabId: string, title: string) => {
-    setEditValue(title);
-    setEditingTabId(tabId);
-  }, []);
+  const { isDragging, dragOverTabId, handleDragStart, handleDragEnd, handleDragOver, handleDrop } =
+    useTerminalDragDrop(terminalTabs, terminalReorderTabs);
 
   const {
     xtermRef,
@@ -176,12 +138,19 @@ export function useTerminalPanel(props: TerminalPanelProps): UseTerminalPanelRet
     handleCloseTab,
     handleCloseAllTabs,
     handleKill,
-  } = useTerminalPtyLifecycle({ activeTab, rootPath });
-
-  const { isDragging, dragOverTabId, handleDragStart, handleDragEnd, handleDragOver, handleDrop } =
-    useTerminalDragDrop(terminalTabs, terminalReorderTabs);
+    editingTabId,
+    editValue,
+    editInputRef,
+    setEditValue,
+    handleDoubleClick,
+    handleEditSubmit,
+    handleEditKeyDown,
+  } = useTerminalTabActions({ activeTab, rootPath });
 
   const {
+    defaultTerminalProfile,
+    currentProfile,
+    currentProfileLabel,
     terminalMenuOpen,
     setTerminalMenuOpen,
     shellMenuOpen,
@@ -198,7 +167,7 @@ export function useTerminalPanel(props: TerminalPanelProps): UseTerminalPanelRet
     handlePaste,
     handleClear,
     updateProfile,
-  } = useTerminalMenus({
+  } = useTerminalShellManagement({
     xtermRef,
     activeTab,
     handleCloseTab,
@@ -206,55 +175,20 @@ export function useTerminalPanel(props: TerminalPanelProps): UseTerminalPanelRet
     handleKill,
   });
 
-  const toggleNavigator = useCallback(
-    (tool: string) => {
-      if (tool === 'terminal') {
-        toggleTerminalNavigator();
-      }
-    },
-    [toggleTerminalNavigator]
-  );
-
-  const { handlePointerDown: handleNavigatorResizeStart } = useNavigatorResize({
-    onWidthCommit: setTerminalNavigatorWidth,
-    minWidth: 180,
-    maxWidth: 300,
+  const {
+    navigatorMode,
+    setNavigatorMode,
+    navigatorCollapsed,
+    terminalNavigatorWidth,
+    navigatorTitle,
+    navigatorCount,
+    recentCommands,
+    toggleNavigator,
+    handleNavigatorResizeStart,
+  } = useTerminalViewport({
+    terminalTabs,
+    commandHistory: props.commandHistory,
   });
-
-  const navigatorTitle =
-    navigatorMode === 'sessions' ? t.terminalSessions : t.terminalRecentCommands;
-  const navigatorCount = navigatorMode === 'sessions' ? terminalTabs.length : recentCommands.length;
-
-  const currentProfile = defaultTerminalProfile;
-  const currentProfileLabel =
-    currentProfile === 'powershell' ? 'PowerShell' : currentProfile === 'bash' ? 'Bash' : 'CMD';
-
-  const handleEditSubmit = useCallback(() => {
-    if (editingTabId && editValue.trim()) {
-      terminalUpdateTab(editingTabId, { title: editValue.trim() });
-    }
-    setEditingTabId(null);
-    setEditValue('');
-  }, [editingTabId, editValue, terminalUpdateTab]);
-
-  const handleEditKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter') {
-        handleEditSubmit();
-      } else if (e.key === 'Escape') {
-        setEditingTabId(null);
-        setEditValue('');
-      }
-    },
-    [handleEditSubmit]
-  );
-
-  useEffect(() => {
-    if (editingTabId && editInputRef.current) {
-      editInputRef.current.focus();
-      editInputRef.current.select();
-    }
-  }, [editingTabId]);
 
   return {
     terminalState: {

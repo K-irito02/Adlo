@@ -273,7 +273,10 @@ impl Write for TerminalWriter {
 
         let mut guard =
             self.inner.lock().map_err(|_| std::io::Error::other("file lock poisoned"))?;
-        guard.as_mut().expect("file state must be Some after needs_reopen check").writer.write(buf)
+        match guard.as_mut() {
+            Some(state) => state.writer.write(buf),
+            None => Err(std::io::Error::other("file state must be Some after needs_reopen check")),
+        }
     }
 
     fn flush(&mut self) -> std::io::Result<()> {

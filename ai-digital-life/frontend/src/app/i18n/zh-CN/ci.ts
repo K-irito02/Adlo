@@ -180,6 +180,9 @@ export const ciZh = {
   // ========== 错误 ==========
   ciErrorTitle: '错误',
   ciErrorPleaseConfigFirst: '请先配置仓库 owner 和 repo',
+  ciConfigMissingRepo: '请先配置仓库 owner 和 repo',
+  ciFetchStatusFailed: '获取 CI 状态失败',
+  ciDefaultFolderName: '目录 {index}',
 
   // ========== 目录分类标签 ==========
   ciWorkspaceCategory: '工作区目录',

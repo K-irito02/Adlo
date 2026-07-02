@@ -8,3 +8,4 @@ adl-kernel = { path = "../kernel" }
 adl-errors = { path = "../errors" }
 adl-fs-ops = { path = "../fs-ops" }
 serde_json.workspace = true
+tracing.workspace = true

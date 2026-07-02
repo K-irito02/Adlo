@@ -3,15 +3,16 @@
  * 从 browserFoldersSlice.ts 提取的纯函数（无 store 访问）与 storage key 常量
  */
 import type { BrowserTabState } from './browserSliceShared';
+import {
+  BROWSER_TAB_FOLDERS_KEY,
+  BROWSER_TREE_EXPANDED_KEY,
+  BROWSER_WORKSPACE_EXPANDED_KEY,
+  BROWSER_TABS_KEY,
+  BROWSER_ACTIVE_TAB_KEY,
+  BROWSER_HISTORY_KEY,
+  BROWSER_WORKSPACE_BOOKMARKS_KEY,
+} from './browserSliceShared';
 import type { TabFolderState } from './browserFoldersTypes';
-
-const BROWSER_TAB_FOLDERS_KEY = 'adl-ui:browser-tab-folders';
-const BROWSER_TREE_EXPANDED_KEY = 'adl-ui:browser-tab-tree-expanded';
-const BROWSER_WORKSPACE_EXPANDED_KEY = 'adl-ui:browser-workspace-expanded';
-const BROWSER_TABS_KEY = 'adl-ui:browser-tabs';
-const BROWSER_ACTIVE_TAB_KEY = 'adl-ui:browser-active-tab';
-const BROWSER_HISTORY_KEY = 'adl-ui:browser-history';
-const BROWSER_WORKSPACE_BOOKMARKS_KEY = 'adl-ui:browser-workspace-bookmarks';
 
 export {
   BROWSER_TAB_FOLDERS_KEY,

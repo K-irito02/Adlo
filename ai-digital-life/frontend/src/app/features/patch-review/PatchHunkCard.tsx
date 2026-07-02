@@ -19,7 +19,7 @@ export interface PatchHunkCardProps {
   onSetHunkDecision: (hunkId: string, decision: PatchHunkDecision) => void;
 }
 
-export function PatchHunkCard({
+export const PatchHunkCard = React.memo(function PatchHunkCard({
   summary,
   relativePath,
   selectedPatchHunkId,
@@ -120,4 +120,4 @@ export function PatchHunkCard({
       ) : null}
     </section>
   );
-}
+});

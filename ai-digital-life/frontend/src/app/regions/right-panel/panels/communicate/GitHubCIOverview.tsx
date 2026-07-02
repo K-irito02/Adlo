@@ -5,6 +5,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { workspaceSelectors } from '@stores/selectors';
 import { getAppCopy } from '@app/i18n';
 import { useTCopy } from '@app/i18n/useTCopy';
+import { resolveCiErrorMessage, resolveCiFolderName } from '@shared/ciErrors';
 import type { GitHubCiFolderState } from '@stores/slices/githubRepoSlice';
 import { OverviewView } from './OverviewView';
 import { WorkflowsView } from './WorkflowsView';
@@ -54,7 +55,7 @@ export function GitHubCIOverview({ showHelp, onViewLogs }: GitHubCIOverviewProps
       if (!folder) {
         return '';
       }
-      const parts: string[] = [folder.name];
+      const parts: string[] = [resolveCiFolderName(folder.name, t)];
       let current = folder;
       while (
         current.parentId &&
@@ -71,13 +72,13 @@ export function GitHubCIOverview({ showHelp, onViewLogs }: GitHubCIOverviewProps
         if (!parent) {
           break;
         }
-        parts.unshift(parent.name);
+        parts.unshift(resolveCiFolderName(parent.name, t));
         current = parent;
       }
       return parts.join(' / ');
     }
     return '';
-  }, [activeCiWorkspaceId, activeCiFolderId, workspaces, gitHubCiFolders]);
+  }, [activeCiWorkspaceId, activeCiFolderId, workspaces, gitHubCiFolders, t]);
 
   const folderCategory = useMemo<'workspace' | 'user' | null>(() => {
     if (activeCiWorkspaceId) {
@@ -148,7 +149,7 @@ export function GitHubCIOverview({ showHelp, onViewLogs }: GitHubCIOverviewProps
           <circle cx="12" cy="12" r="10" />
           <path d="M12 8v4M12 16h.01" />
         </svg>
-        <p>{ciError}</p>
+        <p>{resolveCiErrorMessage(ciError, t)}</p>
         <button
           type="button"
           className="adl-btn adl-btn--ghost adl-btn--square"

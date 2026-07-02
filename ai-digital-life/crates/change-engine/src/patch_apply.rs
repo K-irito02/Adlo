@@ -3,6 +3,7 @@ use adl_kernel::{
     create_id, now_ms, CheckpointRecord, PatchHunkDecision, PatchSet, PatchSetStatus,
 };
 use std::path::Path;
+use tracing::warn;
 
 pub fn set_hunk_decision(
     mut patch_set: PatchSet,
@@ -57,8 +58,17 @@ pub fn apply_patch_set(
         .map(|file_patch| file_patch.relative_path.clone())
         .collect::<Vec<_>>();
     for file_patch in &patch_set.file_patches {
-        let current = adl_fs_ops::read_text_file(root, &file_patch.relative_path, u64::MAX)
-            .unwrap_or_default();
+        let current = match adl_fs_ops::read_text_file(root, &file_patch.relative_path, u64::MAX) {
+            Ok(content) => content,
+            Err(e) => {
+                warn!(
+                    error = %e,
+                    path = %file_patch.relative_path,
+                    "failed to read file for patch hash check, using empty content"
+                );
+                String::new()
+            },
+        };
         let current_hash = adl_fs_ops::content_hash(&current);
         if current_hash != file_patch.before_hash {
             return Err(AppError::Patch(format!(

@@ -196,6 +196,9 @@ export const ciEn = {
   // ========== Error ==========
   ciErrorTitle: 'Error',
   ciErrorPleaseConfigFirst: 'Please configure owner and repo first',
+  ciConfigMissingRepo: 'Please configure repository owner and repo first',
+  ciFetchStatusFailed: 'Failed to fetch CI status',
+  ciDefaultFolderName: 'Folder {index}',
 
   // ========== Category Labels ==========
   ciWorkspaceCategory: 'Workspace Directory',

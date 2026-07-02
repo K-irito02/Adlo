@@ -1,10 +1,9 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useBrowserToast } from './useBrowserToast';
 import { useBrowserDialogs } from './useBrowserDialogs';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '@stores/slicedStore';
 import { useBrowserTabs } from './useBrowserTabs';
-import type { BrowserNavigatorMode } from './useBrowserTabs';
 import { useBrowserWebView } from './useBrowserWebView';
 import { useBrowserUrlChange } from './useBrowserUrlChange';
 import { useBrowserSearch, findInBrowserLookupIndex } from './useBrowserSearch';
@@ -29,6 +28,9 @@ import { BrowserPanelDialogs } from './BrowserPanelDialogs';
 import { checkEmbed, isEmbedBlocked } from './checkEmbed';
 import { setCachedFavicon } from '@utils/fetchPageMeta';
 import { getGoogleFaviconUrl } from '@utils/favicon';
+import { useBrowserIframeState } from './useBrowserIframeState';
+import { useBrowserNavigatorState } from './useBrowserNavigatorState';
+import { useBrowserZoomState } from './useBrowserZoomState';
 
 export function BrowserPanel(props: BrowserPanelProps) {
   const { t } = useTCopy();
@@ -54,23 +56,10 @@ export function BrowserPanel(props: BrowserPanelProps) {
     }))
   );
 
-  const [navigatorMode, setNavigatorMode] = useState<BrowserNavigatorMode>('tabs');
-  const [address, setAddress] = useState('');
-  const [addressExpanded, setAddressExpanded] = useState(false);
-  const addressSearchRef = useRef<HTMLLabelElement | null>(null);
-  const addressInputRef = useRef<HTMLInputElement | null>(null);
-
-  const [selectedTreePath, setSelectedTreePath] = useState<string | null>(null);
-  const selectedTreePathRef = useRef<string | null>(null);
-
   const { toastMessages, showToast, removeToast } = useBrowserToast();
 
-  const validatedUrlsRef = useRef(new Set<string>());
   const activatedTabIdsRef = useRef(new Set<string>());
-  const [, forceRender] = useState(0);
-  const submitVersionRef = useRef(0);
   const pendingNavigationsRef = useRef<Set<string>>(new Set());
-  const addressSubmittedForTabRef = useRef('');
 
   const handleNavigationStart = useCallback((url: string) => {
     // Track pending navigation so handlePageMeta creates tab only when real title arrives
@@ -83,45 +72,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
     }
   }, []);
 
-  const handleSelectTreePath = useCallback((path: string | null) => {
-    selectedTreePathRef.current = path;
-    setSelectedTreePath(path);
-  }, []);
-
-  useEffect(() => {
-    const handleGlobalClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      const clickedEntry = target.closest('.adl-browser-entry');
-      const clickedFileTreeRow = target.closest('.adl-filetree__row');
-
-      if (clickedEntry) {
-        if (clickedFileTreeRow) {
-          const row = clickedFileTreeRow as HTMLElement;
-          const nodePath = row.dataset.path;
-          if (nodePath) {
-            handleSelectTreePath(nodePath);
-            return;
-          }
-        }
-        return;
-      }
-
-      handleSelectTreePath(null);
-    };
-    document.addEventListener('click', handleGlobalClick);
-    return () => document.removeEventListener('click', handleGlobalClick);
-  }, [handleSelectTreePath]);
-
-  useEffect(() => {
-    const handleWindowBlur = () => {
-      if (selectedTreePathRef.current !== null) {
-        handleSelectTreePath(null);
-      }
-    };
-    window.addEventListener('blur', handleWindowBlur);
-    return () => window.removeEventListener('blur', handleWindowBlur);
-  }, [handleSelectTreePath]);
-
   const {
     activeTab,
     hasActiveTab,
@@ -133,11 +83,22 @@ export function BrowserPanel(props: BrowserPanelProps) {
     handleClearTabDirectories: _handleClearTabDirectories,
   } = useBrowserTabs();
 
-  const [zoomLevel, setZoomLevel] = useState(1.0);
+  const {
+    iframeRef,
+    activeTabRef,
+    expectedNavigationUrlRef,
+    validatedUrlsRef,
+    iframeLoadError,
+    setIframeLoadError,
+    iframeBlockedDetected,
+    setIframeBlockedDetected,
+    iframeHistory,
+    setIframeHistory,
+    markUrlSeen,
+    navigateBrowser,
+  } = useBrowserIframeState({ activeTab });
 
-  useEffect(() => {
-    setZoomLevel(1.0);
-  }, [activeTab?.id]);
+  const { zoomLevel, setZoomLevel } = useBrowserZoomState({ activeTabId: activeTab?.id });
 
   const {
     createTabDialog,
@@ -186,6 +147,22 @@ export function BrowserPanel(props: BrowserPanelProps) {
   });
 
   const {
+    navigatorMode,
+    setNavigatorMode,
+    address,
+    setAddress,
+    addressExpanded,
+    setAddressExpanded,
+    addressSearchRef,
+    addressInputRef,
+    selectedTreePath,
+    selectedTreePathRef,
+    handleSelectTreePath,
+    submitVersionRef,
+    addressSubmittedForTabRef,
+  } = useBrowserNavigatorState({ navigatorSearchInputRef });
+
+  const {
     browserTabFolders,
     tabTreeExpanded,
     allTreeExpanded,
@@ -227,43 +204,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
     bookmarkDialogOpen ||
     renameFolderState.open ||
     createDirDialog.open;
-
-  const iframeRef = useRef<HTMLIFrameElement | null>(null);
-  const activeTabRef = useRef(activeTab);
-  useEffect(() => {
-    activeTabRef.current = activeTab;
-  }, [activeTab]);
-  const expectedNavigationUrlRef = useRef<string | null>(null);
-
-  const [iframeLoadError, setIframeLoadError] = useState(false);
-  const [iframeBlockedDetected, setIframeBlockedDetected] = useState(false);
-  const [iframeHistory, setIframeHistory] = useState<{ index: number; entries: string[] }>({
-    index: -1,
-    entries: [],
-  });
-
-  const recentNavigatedUrlsRef = useRef<Map<string, number>>(new Map());
-  const markUrlSeen = useCallback((url: string) => {
-    recentNavigatedUrlsRef.current.set(url, Date.now());
-  }, []);
-
-  const navigateBrowser = useCallback((url: string) => {
-    if (iframeRef.current) {
-      setIframeHistory((prev) => {
-        const newEntries = prev.entries.slice(0, prev.index + 1);
-        newEntries.push(url);
-        if (newEntries.length > 50) {
-          newEntries.shift();
-        }
-        return { index: newEntries.length - 1, entries: newEntries };
-      });
-      try {
-        iframeRef.current.src = url;
-      } catch {
-        /* fail silently */
-      }
-    }
-  }, []);
 
   const {
     primaryRef,
@@ -625,46 +565,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
     }
   }, [activeTab?.id, activeTab?.url, setAddress, setIframeHistory]);
 
-  // Validate active tab URL before allowing iframe to render
-  // Handles page reload, bookmark/history clicks, and tab switches
-  useEffect(() => {
-    const url = activeTab?.url;
-    if (!url || url === 'about:blank' || isTauriShell()) {
-      return;
-    }
-
-    setIframeLoadError(false);
-    setIframeBlockedDetected(false);
-
-    if (validatedUrlsRef.current.has(url)) {
-      return;
-    }
-
-    const cached = isEmbedBlocked(url);
-    if (cached !== undefined) {
-      if (cached) {
-        setIframeBlockedDetected(true);
-        setIframeLoadError(true);
-      } else {
-        validatedUrlsRef.current.add(url);
-        forceRender((v) => v + 1);
-      }
-      return;
-    }
-
-    checkEmbed(url).then((blocked) => {
-      if (blocked) {
-        setIframeBlockedDetected(true);
-        setIframeLoadError(true);
-      } else {
-        validatedUrlsRef.current.add(url);
-        setIframeLoadError(false);
-        setIframeBlockedDetected(false);
-        forceRender((v) => v + 1);
-      }
-    });
-  }, [activeTab?.url, setIframeBlockedDetected, setIframeLoadError, forceRender]);
-
   useEffect(() => {
     if (!browserMenuOpen && !addressExpanded && navigatorMode !== 'search') {
       return;
@@ -699,20 +599,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
     setAddressExpanded,
     setNavigatorMode,
   ]);
-
-  useEffect(() => {
-    if (addressExpanded) {
-      addressInputRef.current?.focus();
-      addressInputRef.current?.select();
-    }
-  }, [addressExpanded, addressInputRef]);
-
-  useEffect(() => {
-    if (navigatorMode === 'search') {
-      navigatorSearchInputRef.current?.focus();
-      navigatorSearchInputRef.current?.select();
-    }
-  }, [navigatorMode, navigatorSearchInputRef]);
 
   const evictedTabIds = useMemo(() => {
     const result = new Set(browserTabs.filter((t) => !isTabInPool(t.id)).map((t) => t.id));
